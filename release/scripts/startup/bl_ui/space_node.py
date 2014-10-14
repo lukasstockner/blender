@@ -36,11 +36,7 @@ class NODE_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("NODE_MT_view")
-            row.menu("NODE_MT_select")
-            row.menu("NODE_MT_add")
-            row.menu("NODE_MT_node")
+        NODE_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.prop(snode, "tree_type", text="", expand=True)
 
@@ -70,6 +66,16 @@ class NODE_HT_header(Header):
                 row.template_ID(scene, "world", new="world.new")
                 if snode_id:
                     row.prop(snode_id, "use_nodes")
+
+            if scene.render.use_shading_nodes and snode.shader_type == 'LINESTYLE':
+                rl = context.scene.render.layers.active
+                lineset = rl.freestyle_settings.linesets.active
+                if lineset is not None:
+                    row = layout.row()
+                    row.enabled = not snode.pin
+                    row.template_ID(lineset, "linestyle", new="scene.freestyle_linestyle_new")
+                    if snode_id:
+                        row.prop(snode_id, "use_nodes")
 
         elif snode.tree_type == 'TextureNodeTree':
             layout.prop(snode, "texture_type", text="", expand=True)
@@ -104,7 +110,7 @@ class NODE_HT_header(Header):
         # Snap
         row = layout.row(align=True)
         row.prop(toolsettings, "use_snap", text="")
-        row.prop(toolsettings, "snap_node_element", text="", icon_only=True)
+        row.prop(toolsettings, "snap_node_element", icon_only=True)
         if toolsettings.snap_node_element != 'GRID':
             row.prop(toolsettings, "snap_target", text="")
 
@@ -113,6 +119,21 @@ class NODE_HT_header(Header):
         row.operator("node.clipboard_paste", text="", icon='PASTEDOWN')
 
         layout.template_running_jobs()
+
+
+class NODE_MT_editor_menus(Menu):
+    bl_idname = "NODE_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        layout.menu("NODE_MT_view")
+        layout.menu("NODE_MT_select")
+        layout.menu("NODE_MT_add")
+        layout.menu("NODE_MT_node")
 
 
 class NODE_MT_add(bpy.types.Menu):
@@ -153,7 +174,7 @@ class NODE_MT_view(Menu):
 
             layout.operator("node.backimage_move", text="Backdrop move")
             layout.operator("node.backimage_zoom", text="Backdrop zoom in").factor = 1.2
-            layout.operator("node.backimage_zoom", text="Backdrop zoom out").factor = 0.833
+            layout.operator("node.backimage_zoom", text="Backdrop zoom out").factor = 0.83333
             layout.operator("node.backimage_fit", text="Fit backdrop to available space")
 
         layout.separator()
@@ -179,7 +200,7 @@ class NODE_MT_select(Menu):
 
         layout.separator()
 
-        layout.operator("node.select_same_type")
+        layout.operator("node.select_grouped")
         layout.operator("node.select_same_type_step").prev = True
         layout.operator("node.select_same_type_step").prev = False
 
@@ -263,7 +284,6 @@ class NODE_PT_active_node_generic(Panel):
 
     @classmethod
     def poll(cls, context):
-        space = context.space_data
         return context.active_node is not None
 
     def draw(self, context):
@@ -282,7 +302,6 @@ class NODE_PT_active_node_color(Panel):
 
     @classmethod
     def poll(cls, context):
-        space = context.space_data
         return context.active_node is not None
 
     def draw_header(self, context):
@@ -312,7 +331,6 @@ class NODE_PT_active_node_properties(Panel):
 
     @classmethod
     def poll(cls, context):
-        space = context.space_data
         return context.active_node is not None
 
     def draw(self, context):
@@ -395,7 +413,6 @@ class NODE_PT_quality(bpy.types.Panel):
         col.prop(tree, "use_two_pass")
         col.prop(tree, "use_viewer_border")
         col.prop(snode, "show_highlight")
-        col.prop(snode, "use_hidden_preview")
 
 
 class NODE_UL_interface_sockets(bpy.types.UIList):

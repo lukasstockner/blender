@@ -189,7 +189,7 @@ static void vs_add(BLI_mempool *vs_pool, ListBase *lb,
 	struct VertStep *vs_new = BLI_mempool_alloc(vs_pool);
 	vs_new->v = v;
 
-	BM_elem_index_set(v, iter_tot);
+	BM_elem_index_set(v, iter_tot);  /* set_dirty */
 
 	/* This edge stores a direct path back to the original vertex so we can
 	 * backtrack without having to store an array of previous verts. */
@@ -248,11 +248,12 @@ static bool bm_loop_path_build_step(BLI_mempool *vs_pool, ListBase *lb, const in
 
 		BLI_mempool_free(vs_pool, vs);
 	}
+	/* bm->elem_index_dirty |= BM_VERT; */  /* Commented because used in a loop, and this flag has already been set. */
 
 	/* lb is now full of free'd items, overwrite */
 	*lb = lb_tmp;
 
-	return (lb->first != NULL);
+	return (BLI_listbase_is_empty(lb) == false);
 }
 
 bool BM_mesh_edgeloops_find_path(BMesh *bm, ListBase *r_eloops,
@@ -298,11 +299,12 @@ bool BM_mesh_edgeloops_find_path(BMesh *bm, ListBase *r_eloops,
 		BMVert *v_match[2] = {NULL, NULL};
 		ListBase lb_src = {NULL, NULL};
 		ListBase lb_dst = {NULL, NULL};
-		BLI_mempool *vs_pool = BLI_mempool_create(sizeof(struct VertStep), 1, 512, 0);
+		BLI_mempool *vs_pool = BLI_mempool_create(sizeof(struct VertStep), 0, 512, BLI_MEMPOOL_NOP);
 
 		/* edge args are dummy */
 		vs_add(vs_pool, &lb_src, v_src, v_src->e,  1);
 		vs_add(vs_pool, &lb_dst, v_dst, v_dst->e, -1);
+		bm->elem_index_dirty |= BM_VERT;
 
 		do {
 			if ((bm_loop_path_build_step(vs_pool, &lb_src, 1, v_match) == false) || v_match[0]) {
@@ -406,11 +408,11 @@ void BM_mesh_edgeloops_calc_order(BMesh *UNUSED(bm), ListBase *eloops, const boo
 	/* find far outest loop */
 	{
 		BMEdgeLoopStore *el_store_best = NULL;
-		float len_best = -1.0f;
+		float len_best_sq = -1.0f;
 		for (el_store = eloops->first; el_store; el_store = el_store->next) {
-			const float len = len_squared_v3v3(cent, el_store->co);
-			if (len > len_best) {
-				len_best = len;
+			const float len_sq = len_squared_v3v3(cent, el_store->co);
+			if (len_sq > len_best_sq) {
+				len_best_sq = len_sq;
 				el_store_best = el_store;
 			}
 		}
@@ -424,27 +426,27 @@ void BM_mesh_edgeloops_calc_order(BMesh *UNUSED(bm), ListBase *eloops, const boo
 		BMEdgeLoopStore *el_store_best = NULL;
 		const float *co = ((BMEdgeLoopStore *)eloops_ordered.last)->co;
 		const float *no = ((BMEdgeLoopStore *)eloops_ordered.last)->no;
-		float len_best = FLT_MAX;
+		float len_best_sq = FLT_MAX;
 
 		if (use_normals)
 			BLI_ASSERT_UNIT_V3(no);
 
 		for (el_store = eloops->first; el_store; el_store = el_store->next) {
-			float len;
+			float len_sq;
 			if (use_normals) {
 				/* scale the length by how close the loops are to pointing at eachother */
 				float dir[3];
 				sub_v3_v3v3(dir, co, el_store->co);
-				len = normalize_v3(dir);
-				len = len * ((1.0f - fabsf(dot_v3v3(dir, no))) +
-				             (1.0f - fabsf(dot_v3v3(dir, el_store->no))));
+				len_sq = normalize_v3(dir);
+				len_sq = len_sq * ((1.0f - fabsf(dot_v3v3(dir, no))) +
+				                   (1.0f - fabsf(dot_v3v3(dir, el_store->no))));
 			}
 			else {
-				len = len_squared_v3v3(co, el_store->co);
+				len_sq = len_squared_v3v3(co, el_store->co);
 			}
 
-			if (len < len_best) {
-				len_best = len;
+			if (len_sq < len_best_sq) {
+				len_best_sq = len_sq;
 				el_store_best = el_store;
 			}
 		}
@@ -544,9 +546,9 @@ void BM_edgeloop_calc_center(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 	LinkData *node_first = el_store->verts.first;
 	LinkData *node_next = node_first;
 
-	float const *v_prev = NODE_AS_CO(node_prev);
-	float const *v_curr = NODE_AS_CO(node_curr);
-	float const *v_next = NODE_AS_CO(node_next);
+	const float *v_prev = NODE_AS_CO(node_prev);
+	const float *v_curr = NODE_AS_CO(node_curr);
+	const float *v_next = NODE_AS_CO(node_next);
 
 	float totw = 0.0f;
 	float w_prev;
@@ -582,8 +584,8 @@ void BM_edgeloop_calc_center(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 bool BM_edgeloop_calc_normal(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 {
 	LinkData *node_curr = el_store->verts.first;
-	float const *v_prev = NODE_AS_CO(el_store->verts.last);
-	float const *v_curr = NODE_AS_CO(node_curr);
+	const float *v_prev = NODE_AS_CO(el_store->verts.last);
+	const float *v_curr = NODE_AS_CO(node_curr);
 
 	zero_v3(el_store->no);
 
@@ -619,8 +621,8 @@ bool BM_edgeloop_calc_normal(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 bool BM_edgeloop_calc_normal_aligned(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store, const float no_align[3])
 {
 	LinkData *node_curr = el_store->verts.first;
-	float const *v_prev = NODE_AS_CO(el_store->verts.last);
-	float const *v_curr = NODE_AS_CO(node_curr);
+	const float *v_prev = NODE_AS_CO(el_store->verts.last);
+	const float *v_curr = NODE_AS_CO(node_curr);
 
 	zero_v3(el_store->no);
 
@@ -655,7 +657,7 @@ bool BM_edgeloop_calc_normal_aligned(BMesh *UNUSED(bm), BMEdgeLoopStore *el_stor
 void BM_edgeloop_flip(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store)
 {
 	negate_v3(el_store->no);
-	BLI_reverselist(&el_store->verts);
+	BLI_listbase_reverse(&el_store->verts);
 }
 
 void BM_edgeloop_expand(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store, int el_store_len)
@@ -680,12 +682,12 @@ void BM_edgeloop_expand(BMesh *UNUSED(bm), BMEdgeLoopStore *el_store, int el_sto
 			LinkData *node_curr_init = node_curr;
 			LinkData *node_curr_copy;
 			int i = 0;
-			LISTBASE_CIRCULAR_FORWARD_BEGIN (&el_store->verts, node_curr, node_curr_init) {
+			BLI_LISTBASE_CIRCULAR_FORWARD_BEGIN (&el_store->verts, node_curr, node_curr_init) {
 				if (i++ < step) {
 					break;
 				}
 			}
-			LISTBASE_CIRCULAR_FORWARD_END (&el_store->verts, node_curr, node_curr_init);
+			BLI_LISTBASE_CIRCULAR_FORWARD_END (&el_store->verts, node_curr, node_curr_init);
 
 			node_curr_copy = MEM_dupallocN(node_curr);
 			BLI_insertlinkafter(&el_store->verts, node_curr, node_curr_copy);

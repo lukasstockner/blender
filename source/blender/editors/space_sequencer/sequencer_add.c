@@ -27,17 +27,9 @@
  *  \ingroup spseq
  */
 
-
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
-
-#ifndef WIN32
-#include <unistd.h>
-#else
-#include <io.h>
-#endif
-#include <sys/types.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -47,17 +39,14 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_mask_types.h"
-#include "DNA_userdef_types.h"
 
 #include "BLF_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_sequencer.h"
 #include "BKE_movieclip.h"
-#include "BKE_sequencer.h"
 #include "BKE_mask.h"
 #include "BKE_report.h"
 
@@ -131,7 +120,7 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
 	Sequence *tgt = NULL;
 	Sequence *seq;
 	Scene *scene = CTX_data_scene(C);
-	Editing *ed = BKE_sequencer_editing_get(scene, TRUE);
+	Editing *ed = BKE_sequencer_editing_get(scene, true);
 	int cfra = (int) CFRA;
 	int proximity = INT_MAX;
 
@@ -179,7 +168,8 @@ static void sequencer_generic_invoke_xy__internal(bContext *C, wmOperator *op, i
 
 static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 {
-	int relative = RNA_struct_find_property(op->ptr, "relative_path") && RNA_boolean_get(op->ptr, "relative_path");
+	PropertyRNA *prop;
+	const bool relative = (prop = RNA_struct_find_property(op->ptr, "relative_path")) && RNA_property_boolean_get(op->ptr, prop);
 	int is_file = -1;
 	memset(seq_load, 0, sizeof(SeqLoadInfo));
 
@@ -189,12 +179,12 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 	seq_load->channel =      RNA_int_get(op->ptr, "channel");
 	seq_load->len =          1; // images only, if endframe isn't set!
 
-	if (RNA_struct_find_property(op->ptr, "filepath")) {
-		RNA_string_get(op->ptr, "filepath", seq_load->path); /* full path, file is set by the caller */
+	if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
+		RNA_property_string_get(op->ptr, prop, seq_load->path); /* full path, file is set by the caller */
 		is_file = 1;
 	}
-	else if (RNA_struct_find_property(op->ptr, "directory")) {
-		RNA_string_get(op->ptr, "directory", seq_load->path); /* full path, file is set by the caller */
+	else if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
+		RNA_property_string_get(op->ptr, prop, seq_load->path); /* full path, file is set by the caller */
 		is_file = 0;
 	}
 
@@ -202,17 +192,17 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 		BLI_path_rel(seq_load->path, G.main->name);
 
 	
-	if (RNA_struct_find_property(op->ptr, "frame_end")) {
-		seq_load->end_frame = RNA_int_get(op->ptr, "frame_end");
+	if ((prop = RNA_struct_find_property(op->ptr, "frame_end"))) {
+		seq_load->end_frame = RNA_property_int_get(op->ptr, prop);
 	}
 
-	if (RNA_struct_find_property(op->ptr, "replace_sel") && RNA_boolean_get(op->ptr, "replace_sel"))
+	if ((prop = RNA_struct_find_property(op->ptr, "replace_sel")) && RNA_property_boolean_get(op->ptr, prop))
 		seq_load->flag |= SEQ_LOAD_REPLACE_SEL;
 
-	if (RNA_struct_find_property(op->ptr, "cache") && RNA_boolean_get(op->ptr, "cache"))
+	if ((prop = RNA_struct_find_property(op->ptr, "cache")) && RNA_property_boolean_get(op->ptr, prop))
 		seq_load->flag |= SEQ_LOAD_SOUND_CACHE;
 
-	if (RNA_struct_find_property(op->ptr, "sound") && RNA_boolean_get(op->ptr, "sound"))
+	if ((prop = RNA_struct_find_property(op->ptr, "sound")) && RNA_property_boolean_get(op->ptr, prop))
 		seq_load->flag |= SEQ_LOAD_MOVIE_SOUND;
 
 	/* always use this for ops */
@@ -222,17 +212,43 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 	if (is_file == 1) {
 		BLI_strncpy(seq_load->name, BLI_path_basename(seq_load->path), sizeof(seq_load->name));
 	}
-	else if (RNA_struct_find_property(op->ptr, "files")) {
+	else if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
 		/* used for image strip */
 		/* best guess, first images name */
-		RNA_BEGIN (op->ptr, itemptr, "files")
+		RNA_PROP_BEGIN (op->ptr, itemptr, prop)
 		{
 			char *name = RNA_string_get_alloc(&itemptr, "name", NULL, 0);
 			BLI_strncpy(seq_load->name, name, sizeof(seq_load->name));
 			MEM_freeN(name);
 			break;
 		}
-		RNA_END;
+		RNA_PROP_END;
+	}
+}
+
+/**
+ * Apply generic operator options.
+ */
+static void sequencer_add_apply_overlap(bContext *C, wmOperator *op, Sequence *seq)
+{
+	Scene *scene = CTX_data_scene(C);
+	Editing *ed = BKE_sequencer_editing_get(scene, false);
+
+	if (RNA_boolean_get(op->ptr, "overlap") == false) {
+		if (BKE_sequence_test_overlap(ed->seqbasep, seq)) {
+			BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
+		}
+	}
+}
+
+static void sequencer_add_apply_replace_sel(bContext *C, wmOperator *op, Sequence *seq)
+{
+	Scene *scene = CTX_data_scene(C);
+
+	if (RNA_boolean_get(op->ptr, "replace_sel")) {
+		ED_sequencer_deselect_all(scene);
+		BKE_sequencer_active_set(scene, seq);
+		seq->flag |= SELECT;
 	}
 }
 
@@ -240,7 +256,7 @@ static void seq_load_operator_info(SeqLoadInfo *seq_load, wmOperator *op)
 static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Editing *ed = BKE_sequencer_editing_get(scene, TRUE);
+	Editing *ed = BKE_sequencer_editing_get(scene, true);
 	
 	Scene *sce_seq;
 
@@ -278,15 +294,8 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 	BKE_sequence_calc_disp(scene, seq);
 	BKE_sequencer_sort(scene);
 	
-	if (RNA_boolean_get(op->ptr, "replace_sel")) {
-		ED_sequencer_deselect_all(scene);
-		BKE_sequencer_active_set(scene, seq);
-		seq->flag |= SELECT;
-	}
-
-	if (RNA_boolean_get(op->ptr, "overlap") == FALSE) {
-		if (BKE_sequence_test_overlap(ed->seqbasep, seq)) BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
-	}
+	sequencer_add_apply_replace_sel(C, op, seq);
+	sequencer_add_apply_overlap(C, op, seq);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 	
@@ -296,11 +305,6 @@ static int sequencer_add_scene_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_scene_strip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	if (!ED_operator_sequencer_active(C)) {
-		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
-		return OPERATOR_CANCELLED;
-	}
-
 	if (!RNA_struct_property_is_set(op->ptr, "scene"))
 		return WM_enum_search_invoke(C, op, event);
 
@@ -324,7 +328,7 @@ void SEQUENCER_OT_scene_strip_add(struct wmOperatorType *ot)
 	ot->invoke = sequencer_add_scene_strip_invoke;
 	ot->exec = sequencer_add_scene_strip_exec;
 
-	ot->poll = ED_operator_scene_editable;
+	ot->poll = ED_operator_sequencer_active_editable;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -332,6 +336,7 @@ void SEQUENCER_OT_scene_strip_add(struct wmOperatorType *ot)
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
 	prop = RNA_def_enum(ot->srna, "scene", DummyRNA_NULL_items, 0, "Scene", "");
 	RNA_def_enum_funcs(prop, RNA_scene_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -339,7 +344,7 @@ void SEQUENCER_OT_scene_strip_add(struct wmOperatorType *ot)
 static int sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Editing *ed = BKE_sequencer_editing_get(scene, TRUE);
+	Editing *ed = BKE_sequencer_editing_get(scene, true);
 	
 	MovieClip *clip;
 
@@ -377,15 +382,8 @@ static int sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
 	BKE_sequence_calc_disp(scene, seq);
 	BKE_sequencer_sort(scene);
 	
-	if (RNA_boolean_get(op->ptr, "replace_sel")) {
-		ED_sequencer_deselect_all(scene);
-		BKE_sequencer_active_set(scene, seq);
-		seq->flag |= SELECT;
-	}
-
-	if (RNA_boolean_get(op->ptr, "overlap") == FALSE) {
-		if (BKE_sequence_test_overlap(ed->seqbasep, seq)) BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
-	}
+	sequencer_add_apply_replace_sel(C, op, seq);
+	sequencer_add_apply_overlap(C, op, seq);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 	
@@ -394,11 +392,6 @@ static int sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_movieclip_strip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	if (!ED_operator_sequencer_active(C)) {
-		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
-		return OPERATOR_CANCELLED;
-	}
-
 	if (!RNA_struct_property_is_set(op->ptr, "clip"))
 		return WM_enum_search_invoke(C, op, event);
 
@@ -421,7 +414,7 @@ void SEQUENCER_OT_movieclip_strip_add(struct wmOperatorType *ot)
 	ot->invoke = sequencer_add_movieclip_strip_invoke;
 	ot->exec = sequencer_add_movieclip_strip_exec;
 
-	ot->poll = ED_operator_scene_editable;
+	ot->poll = ED_operator_sequencer_active_editable;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -429,14 +422,14 @@ void SEQUENCER_OT_movieclip_strip_add(struct wmOperatorType *ot)
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
 	prop = RNA_def_enum(ot->srna, "clip", DummyRNA_NULL_items, 0, "Clip", "");
 	RNA_def_enum_funcs(prop, RNA_movieclip_itemf);
-	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_MOVIECLIP);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
 static int sequencer_add_mask_strip_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Editing *ed = BKE_sequencer_editing_get(scene, TRUE);
+	Editing *ed = BKE_sequencer_editing_get(scene, true);
 
 	Mask *mask;
 
@@ -474,15 +467,8 @@ static int sequencer_add_mask_strip_exec(bContext *C, wmOperator *op)
 	BKE_sequence_calc_disp(scene, seq);
 	BKE_sequencer_sort(scene);
 
-	if (RNA_boolean_get(op->ptr, "replace_sel")) {
-		ED_sequencer_deselect_all(scene);
-		BKE_sequencer_active_set(scene, seq);
-		seq->flag |= SELECT;
-	}
-
-	if (RNA_boolean_get(op->ptr, "overlap") == FALSE) {
-		if (BKE_sequence_test_overlap(ed->seqbasep, seq)) BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
-	}
+	sequencer_add_apply_replace_sel(C, op, seq);
+	sequencer_add_apply_overlap(C, op, seq);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -491,11 +477,6 @@ static int sequencer_add_mask_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_mask_strip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	if (!ED_operator_sequencer_active(C)) {
-		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
-		return OPERATOR_CANCELLED;
-	}
-
 	if (!RNA_struct_property_is_set(op->ptr, "mask"))
 		return WM_enum_search_invoke(C, op, event);
 
@@ -519,7 +500,7 @@ void SEQUENCER_OT_mask_strip_add(struct wmOperatorType *ot)
 	ot->invoke = sequencer_add_mask_strip_invoke;
 	ot->exec = sequencer_add_mask_strip_exec;
 
-	ot->poll = ED_operator_scene_editable;
+	ot->poll = ED_operator_sequencer_active_editable;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -527,6 +508,7 @@ void SEQUENCER_OT_mask_strip_add(struct wmOperatorType *ot)
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
 	prop = RNA_def_enum(ot->srna, "mask", DummyRNA_NULL_items, 0, "Mask", "");
 	RNA_def_enum_funcs(prop, RNA_mask_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -534,11 +516,9 @@ void SEQUENCER_OT_mask_strip_add(struct wmOperatorType *ot)
 static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoadFunc seq_load_func)
 {
 	Scene *scene = CTX_data_scene(C); /* only for sound */
-	Editing *ed = BKE_sequencer_editing_get(scene, TRUE);
+	Editing *ed = BKE_sequencer_editing_get(scene, true);
 	SeqLoadInfo seq_load;
-	Sequence *seq;
 	int tot_files;
-	const short overlap = RNA_boolean_get(op->ptr, "overlap");
 
 	seq_load_operator_info(&seq_load, op);
 
@@ -559,6 +539,8 @@ static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoad
 
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
+			Sequence *seq;
+
 			RNA_string_get(&itemptr, "name", file_only);
 			BLI_join_dirfile(seq_load.path, sizeof(seq_load.path), dir_only, file_only);
 
@@ -567,21 +549,23 @@ static int sequencer_add_generic_strip_exec(bContext *C, wmOperator *op, SeqLoad
 
 			seq = seq_load_func(C, ed->seqbasep, &seq_load);
 			if (seq) {
-				if (overlap == FALSE) {
-					if (BKE_sequence_test_overlap(ed->seqbasep, seq))
-						BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
+				sequencer_add_apply_overlap(C, op, seq);
+				if (seq_load.seq_sound) {
+					sequencer_add_apply_overlap(C, op, seq_load.seq_sound);
 				}
 			}
 		}
 		RNA_END;
 	}
 	else {
+		Sequence *seq;
+
 		/* single file */
 		seq = seq_load_func(C, ed->seqbasep, &seq_load);
 		if (seq) {
-			if (overlap == FALSE) {
-				if (BKE_sequence_test_overlap(ed->seqbasep, seq))
-					BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
+			sequencer_add_apply_overlap(C, op, seq);
+			if (seq_load.seq_sound) {
+				sequencer_add_apply_overlap(C, op, seq_load.seq_sound);
 			}
 		}
 	}
@@ -608,12 +592,6 @@ static int sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_movie_strip_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-
-	if (!ED_operator_sequencer_active(C)) {
-		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
-		return OPERATOR_CANCELLED;
-	}
-
 	/* This is for drag and drop */
 	if ((RNA_struct_property_is_set(op->ptr, "files") && RNA_collection_length(op->ptr, "files")) ||
 	    RNA_struct_property_is_set(op->ptr, "filepath"))
@@ -643,7 +621,7 @@ void SEQUENCER_OT_movie_strip_add(struct wmOperatorType *ot)
 	ot->invoke = sequencer_add_movie_strip_invoke;
 	ot->exec = sequencer_add_movie_strip_exec;
 
-	ot->poll = ED_operator_scene_editable;
+	ot->poll = ED_operator_sequencer_active_editable;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -651,7 +629,7 @@ void SEQUENCER_OT_movie_strip_add(struct wmOperatorType *ot)
 	WM_operator_properties_filesel(ot, FOLDERFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_FILES, FILE_DEFAULTDISPLAY);
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
-	RNA_def_boolean(ot->srna, "sound", TRUE, "Sound", "Load sound with the movie");
+	RNA_def_boolean(ot->srna, "sound", true, "Sound", "Load sound with the movie");
 }
 
 /* add sound operator */
@@ -663,12 +641,6 @@ static int sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_sound_strip_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-
-	if (!ED_operator_sequencer_active(C)) {
-		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
-		return OPERATOR_CANCELLED;
-	}
-	
 	/* This is for drag and drop */
 	if ((RNA_struct_property_is_set(op->ptr, "files") && RNA_collection_length(op->ptr, "files")) ||
 	    RNA_struct_property_is_set(op->ptr, "filepath"))
@@ -698,7 +670,7 @@ void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot)
 	ot->invoke = sequencer_add_sound_strip_invoke;
 	ot->exec = sequencer_add_sound_strip_exec;
 
-	ot->poll = ED_operator_scene_editable;
+	ot->poll = ED_operator_sequencer_active_editable;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -706,7 +678,7 @@ void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot)
 	WM_operator_properties_filesel(ot, FOLDERFILE | SOUNDFILE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_FILES, FILE_DEFAULTDISPLAY);
 	sequencer_generic_props__internal(ot, SEQPROP_STARTFRAME);
-	RNA_def_boolean(ot->srna, "cache", FALSE, "Cache", "Cache the sound in memory");
+	RNA_def_boolean(ot->srna, "cache", false, "Cache", "Cache the sound in memory");
 }
 
 /* add image operator */
@@ -715,7 +687,7 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
 	/* cant use the generic function for this */
 
 	Scene *scene = CTX_data_scene(C); /* only for sound */
-	Editing *ed = BKE_sequencer_editing_get(scene, TRUE);
+	Editing *ed = BKE_sequencer_editing_get(scene, true);
 	SeqLoadInfo seq_load;
 	Sequence *seq;
 
@@ -763,10 +735,7 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
 	/* last active name */
 	BLI_strncpy(ed->act_imagedir, strip->dir, sizeof(ed->act_imagedir));
 
-	if (RNA_boolean_get(op->ptr, "overlap") == FALSE) {
-		if (BKE_sequence_test_overlap(ed->seqbasep, seq))
-			BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
-	}
+	sequencer_add_apply_overlap(C, op, seq);
 
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -775,13 +744,6 @@ static int sequencer_add_image_strip_exec(bContext *C, wmOperator *op)
 
 static int sequencer_add_image_strip_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-
-	if (!ED_operator_sequencer_active(C)) {
-		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
-		return OPERATOR_CANCELLED;
-	}
-
-
 	/* drag drop has set the names */
 	if (RNA_struct_property_is_set(op->ptr, "files") && RNA_collection_length(op->ptr, "files")) {
 		sequencer_generic_invoke_xy__internal(C, op, SEQPROP_ENDFRAME | SEQPROP_NOPATHS, SEQ_TYPE_IMAGE);
@@ -807,7 +769,7 @@ void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot)
 	ot->invoke = sequencer_add_image_strip_invoke;
 	ot->exec = sequencer_add_image_strip_exec;
 
-	ot->poll = ED_operator_scene_editable;
+	ot->poll = ED_operator_sequencer_active_editable;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -822,7 +784,7 @@ void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot)
 static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Editing *ed = BKE_sequencer_editing_get(scene, TRUE);
+	Editing *ed = BKE_sequencer_editing_get(scene, true);
 
 	Sequence *seq;  /* generic strip vars */
 	Strip *strip;
@@ -901,9 +863,8 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	if (RNA_boolean_get(op->ptr, "overlap") == FALSE) {
-		if (BKE_sequence_test_overlap(ed->seqbasep, seq)) BKE_sequence_base_shuffle(ed->seqbasep, seq, scene);
-	}
+	sequencer_add_apply_replace_sel(C, op, seq);
+	sequencer_add_apply_overlap(C, op, seq);
 
 	BKE_sequencer_update_changed_seq_and_deps(scene, seq, 1, 1); /* runs BKE_sequence_calc */
 
@@ -911,12 +872,6 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 	/* not sure if this is needed with update_changed_seq_and_deps.
 	 * it was NOT called in blender 2.4x, but wont hurt */
 	BKE_sequencer_sort(scene); 
-
-	if (RNA_boolean_get(op->ptr, "replace_sel")) {
-		ED_sequencer_deselect_all(scene);
-		BKE_sequencer_active_set(scene, seq);
-		seq->flag |= SELECT;
-	}
 
 	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
@@ -927,14 +882,9 @@ static int sequencer_add_effect_strip_exec(bContext *C, wmOperator *op)
 /* add color */
 static int sequencer_add_effect_strip_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	short is_type_set = RNA_struct_property_is_set(op->ptr, "type");
+	bool is_type_set = RNA_struct_property_is_set(op->ptr, "type");
 	int type = -1;
 	int prop_flag = SEQPROP_ENDFRAME;
-
-	if (!ED_operator_sequencer_active(C)) {
-		BKE_report(op->reports, RPT_ERROR, "Sequencer area not active");
-		return OPERATOR_CANCELLED;
-	}
 
 	if (is_type_set) {
 		type = RNA_enum_get(op->ptr, "type");
@@ -964,7 +914,7 @@ void SEQUENCER_OT_effect_strip_add(struct wmOperatorType *ot)
 	ot->invoke = sequencer_add_effect_strip_invoke;
 	ot->exec = sequencer_add_effect_strip_exec;
 
-	ot->poll = ED_operator_scene_editable;
+	ot->poll = ED_operator_sequencer_active_editable;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

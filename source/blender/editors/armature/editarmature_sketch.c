@@ -53,6 +53,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "GPU_select.h"
+
 typedef int (*GestureDetectFct)(bContext *, SK_Gesture *, SK_Sketch *);
 typedef void (*GestureApplyFct)(bContext *, SK_Gesture *, SK_Sketch *);
 
@@ -165,6 +167,7 @@ void BIF_makeListTemplates(const bContext *C)
 	}
 }
 
+#if 0  /* UNUSED */
 const char *BIF_listTemplates(const bContext *UNUSED(C))
 {
 	GHashIterator ghi;
@@ -194,6 +197,7 @@ const char *BIF_listTemplates(const bContext *UNUSED(C))
 
 	return TEMPLATES_MENU;
 }
+#endif
 
 int   BIF_currentTemplate(const bContext *C)
 {
@@ -491,7 +495,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 	gluQuadricNormals(quad, GLU_SMOOTH);
 
 	if (id != -1) {
-		glLoadName(id);
+		GPU_select_load_id(id);
 
 		for (i = 0; i < stk->nb_points; i++) {
 			glPushMatrix();
@@ -930,7 +934,6 @@ static void sk_projectDrawPoint(bContext *C, float vec[3], SK_Stroke *stk, SK_Dr
 
 	zfac = ED_view3d_calc_zfac(ar->regiondata, fp, NULL);
 
-	/* method taken from editview.c - mouse_cursor() */
 	if (ED_view3d_project_short_global(ar, fp, cval, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) {
 		VECSUB2D(mval_f, cval, dd->mval);
 		ED_view3d_win_to_delta(ar, mval_f, dvec, zfac);
@@ -979,7 +982,7 @@ static int sk_getStrokeSnapPoint(bContext *C, SK_Point *pt, SK_Sketch *sketch, S
 		float mvalf[2];
 
 		BLI_freelistN(&sketch->depth_peels);
-		sketch->depth_peels.first = sketch->depth_peels.last = NULL;
+		BLI_listbase_clear(&sketch->depth_peels);
 
 		mvalf[0] = dd->mval[0];
 		mvalf[1] = dd->mval[1];
@@ -1147,7 +1150,7 @@ static int sk_addStrokeSnapPoint(bContext *C, SK_Sketch *sketch, SK_Stroke *stk,
 	return point_added;
 }
 
-static void sk_addStrokePoint(bContext *C, SK_Sketch *sketch, SK_Stroke *stk, SK_DrawData *dd, short snap)
+static void sk_addStrokePoint(bContext *C, SK_Sketch *sketch, SK_Stroke *stk, SK_DrawData *dd, const bool snap)
 {
 	ToolSettings *ts = CTX_data_tool_settings(C);
 	int point_added = 0;
@@ -1165,7 +1168,7 @@ static void sk_addStrokePoint(bContext *C, SK_Sketch *sketch, SK_Stroke *stk, SK
 	}
 }
 
-static void sk_getStrokePoint(bContext *C, SK_Point *pt, SK_Sketch *sketch, SK_Stroke *stk, SK_DrawData *dd, short snap)
+static void sk_getStrokePoint(bContext *C, SK_Point *pt, SK_Sketch *sketch, SK_Stroke *stk, SK_DrawData *dd, const bool snap)
 {
 	int point_added = 0;
 
@@ -1489,9 +1492,9 @@ static int sk_getSelfIntersections(bContext *C, ListBase *list, SK_Stroke *gestu
 	return added;
 }
 
-static int cmpIntersections(void *i1, void *i2)
+static int cmpIntersections(const void *i1, const void *i2)
 {
-	SK_Intersection *isect1 = i1, *isect2 = i2;
+	const SK_Intersection *isect1 = i1, *isect2 = i2;
 
 	if (isect1->stroke == isect2->stroke) {
 		if (isect1->before < isect2->before) {
@@ -1915,8 +1918,8 @@ void sk_applyConvertGesture(bContext *C, SK_Gesture *UNUSED(gest), SK_Sketch *sk
 
 static void sk_initGesture(bContext *C, SK_Gesture *gest, SK_Sketch *sketch)
 {
-	gest->intersections.first = gest->intersections.last = NULL;
-	gest->self_intersections.first = gest->self_intersections.last = NULL;
+	BLI_listbase_clear(&gest->intersections);
+	BLI_listbase_clear(&gest->self_intersections);
 
 	gest->segments = sk_createStroke();
 	gest->stk = sketch->gesture;
@@ -1968,7 +1971,7 @@ static int sk_selectStroke(bContext *C, SK_Sketch *sketch, const int mval[2], in
 	rect.ymin = mval[1] - 5;
 	rect.ymax = mval[1] + 5;
 
-	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect);
+	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect, true);
 
 	if (hits > 0) {
 		int besthitresult = -1;
@@ -2031,7 +2034,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			sk_drawStroke(stk, id, NULL, -1, -1);
 		}
 
-		glLoadName(-1);
+		GPU_select_load_id(-1);
 	}
 	else {
 		float selected_rgb[3] = {1, 0, 0};
@@ -2093,8 +2096,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 	}
 
 #if 0
-	if (sketch->depth_peels.first != NULL)
-	{
+	if (BLI_listbase_is_empty(&sketch->depth_peels) == false) {
 		float colors[8][3] = {
 			{1, 0, 0},
 			{0, 1, 0},
@@ -2180,7 +2182,7 @@ static void sk_start_draw_gesture(SK_Sketch *sketch)
 	sketch->gesture = sk_createStroke();
 }
 
-static int sk_draw_stroke(bContext *C, SK_Sketch *sketch, SK_Stroke *stk, SK_DrawData *dd, short snap)
+static int sk_draw_stroke(bContext *C, SK_Sketch *sketch, SK_Stroke *stk, SK_DrawData *dd, bool snap)
 {
 	if (sk_stroke_filtermval(dd)) {
 		sk_addStrokePoint(C, sketch, stk, dd, snap);
@@ -2383,11 +2385,11 @@ static void sketch_draw_stroke_cancel(bContext *C, wmOperator *op)
 
 static int sketch_draw_stroke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	short snap = RNA_boolean_get(op->ptr, "snap");
+	const bool snap = RNA_boolean_get(op->ptr, "snap");
 	SK_DrawData *dd;
 	SK_Sketch *sketch = contextSketch(C, 1);
 
-	op->customdata = dd = MEM_callocN(sizeof("SK_DrawData"), "SketchDrawData");
+	op->customdata = dd = MEM_callocN(sizeof(SK_DrawData), "SketchDrawData");
 	sk_initDrawData(dd, event->mval);
 
 	sk_start_draw_stroke(sketch);
@@ -2408,12 +2410,12 @@ static void sketch_draw_gesture_cancel(bContext *C, wmOperator *op)
 
 static int sketch_draw_gesture(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	short snap = RNA_boolean_get(op->ptr, "snap");
+	const bool snap = RNA_boolean_get(op->ptr, "snap");
 	SK_DrawData *dd;
 	SK_Sketch *sketch = contextSketch(C, 1); /* create just to be sure */
 	sk_cancelStroke(sketch);
 
-	op->customdata = dd = MEM_callocN(sizeof("SK_DrawData"), "SketchDrawData");
+	op->customdata = dd = MEM_callocN(sizeof(SK_DrawData), "SketchDrawData");
 	sk_initDrawData(dd, event->mval);
 
 	sk_start_draw_gesture(sketch);
@@ -2426,7 +2428,7 @@ static int sketch_draw_gesture(bContext *C, wmOperator *op, const wmEvent *event
 
 static int sketch_draw_modal(bContext *C, wmOperator *op, const wmEvent *event, short gesture, SK_Stroke *stk)
 {
-	short snap = RNA_boolean_get(op->ptr, "snap");
+	bool snap = RNA_boolean_get(op->ptr, "snap");
 	SK_DrawData *dd = op->customdata;
 	SK_Sketch *sketch = contextSketch(C, 1); /* create just to be sure */
 	int retval = OPERATOR_RUNNING_MODAL;
@@ -2434,7 +2436,7 @@ static int sketch_draw_modal(bContext *C, wmOperator *op, const wmEvent *event, 
 	switch (event->type) {
 		case LEFTCTRLKEY:
 		case RIGHTCTRLKEY:
-			snap = event->ctrl;
+			snap = event->ctrl != 0;
 			RNA_boolean_set(op->ptr, "snap", snap);
 			break;
 		case MOUSEMOVE:
@@ -2496,7 +2498,7 @@ static int sketch_draw_gesture_modal(bContext *C, wmOperator *op, const wmEvent 
 
 static int sketch_draw_preview(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	short snap = RNA_boolean_get(op->ptr, "snap");
+	const bool snap = RNA_boolean_get(op->ptr, "snap");
 	SK_Sketch *sketch = contextSketch(C, 0);
 
 	if (sketch) {

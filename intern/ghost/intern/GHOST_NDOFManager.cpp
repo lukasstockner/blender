@@ -189,18 +189,18 @@ static const NDOF_ButtonT Generic_HID_map[] = {
 
 static const int genericButtonCount = sizeof(Generic_HID_map) / sizeof(NDOF_ButtonT);
 
-GHOST_NDOFManager::GHOST_NDOFManager(GHOST_System& sys)
-	: m_system(sys)
-	, m_deviceType(NDOF_UnknownDevice) // each platform has its own device detection code
-	, m_buttonCount(genericButtonCount)
-	, m_buttonMask(0)
-	, m_hidMap(Generic_HID_map)
-	, m_buttons(0)
-	, m_motionTime(0)
-	, m_prevMotionTime(0)
-	, m_motionState(GHOST_kNotStarted)
-	, m_motionEventPending(false)
-	, m_deadZone(0.f)
+GHOST_NDOFManager::GHOST_NDOFManager(GHOST_System &sys)
+    : m_system(sys),
+      m_deviceType(NDOF_UnknownDevice),  /* each platform has its own device detection code */
+      m_buttonCount(genericButtonCount),
+      m_buttonMask(0),
+      m_hidMap(Generic_HID_map),
+      m_buttons(0),
+      m_motionTime(0),
+      m_prevMotionTime(0),
+      m_motionState(GHOST_kNotStarted),
+      m_motionEventPending(false),
+      m_deadZone(0.0f)
 {
 	// to avoid the rare situation where one triple is updated and
 	// the other is not, initialize them both here:
@@ -295,14 +295,14 @@ bool GHOST_NDOFManager::setDevice(unsigned short vendor_id, unsigned short produ
 	return m_deviceType != NDOF_UnknownDevice;
 }
 
-void GHOST_NDOFManager::updateTranslation(short t[3], GHOST_TUns64 time)
+void GHOST_NDOFManager::updateTranslation(const short t[3], GHOST_TUns64 time)
 {
 	memcpy(m_translation, t, sizeof(m_translation));
 	m_motionTime = time;
 	m_motionEventPending = true;
 }
 
-void GHOST_NDOFManager::updateRotation(short r[3], GHOST_TUns64 time)
+void GHOST_NDOFManager::updateRotation(const short r[3], GHOST_TUns64 time)
 {
 	memcpy(m_rotation, r, sizeof(m_rotation));
 	m_motionTime = time;
@@ -432,6 +432,7 @@ bool GHOST_NDOFManager::sendMotionEvent()
 	GHOST_IWindow *window = m_system.getWindowManager()->getActiveWindow();
 
 	if (window == NULL) {
+		m_motionState = GHOST_kNotStarted; // avoid large 'dt' times when changing windows
 		return false; // delivery will fail, so don't bother sending
 	}
 
@@ -452,6 +453,7 @@ bool GHOST_NDOFManager::sendMotionEvent()
 	data->rz = scale * m_rotation[2];
 
 	data->dt = 0.001f * (m_motionTime - m_prevMotionTime); // in seconds
+	m_prevMotionTime = m_motionTime;
 
 	bool weHaveMotion = !nearHomePosition(data, m_deadZone);
 
@@ -468,6 +470,9 @@ bool GHOST_NDOFManager::sendMotionEvent()
 			}
 			else {
 				// send no event and keep current state
+#ifdef DEBUG_NDOF_MOTION
+				printf("ndof motion ignored -- %s\n", progress_string[data->progress]);
+#endif
 				delete event;
 				return false;
 			}
@@ -500,8 +505,6 @@ bool GHOST_NDOFManager::sendMotionEvent()
 #endif
 
 	m_system.pushEvent(event);
-
-	m_prevMotionTime = m_motionTime;
 
 	return true;
 }

@@ -29,15 +29,11 @@
  *  \ingroup render
  */
 
-
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
 #include "BLI_voxel.h"
@@ -50,12 +46,12 @@
 #include "DNA_lamp_types.h"
 #include "DNA_meta_types.h"
 
-#include "BKE_global.h"
 
 #include "render_types.h"
 #include "pixelshading.h"
 #include "rayintersection.h"
 #include "rayobject.h"
+#include "renderdatabase.h"
 #include "shading.h"
 #include "shadbuf.h"
 #include "texture.h"
@@ -107,7 +103,11 @@ static float vol_get_shadow(ShadeInput *shi, LampRen *lar, const float co[3])
 		is.orig.face = NULL;
 		is.last_hit = lar->last_hit[shi->thread];
 		
+		RE_instance_rotate_ray(shi->obi, &is);
+
 		if (RE_rayobject_raycast(R.raytree, &is)) {
+			RE_instance_rotate_ray_restore(shi->obi, &is);
+
 			visibility = 0.f;
 		}
 		
@@ -137,8 +137,12 @@ static int vol_get_bounds(ShadeInput *shi, const float co[3], const float vec[3]
 		isect->orig.face = NULL;
 		isect->orig.ob = NULL;
 	}
+
+	RE_instance_rotate_ray(shi->obi, isect);
 	
 	if (RE_rayobject_raycast(R.raytree, isect)) {
+		RE_instance_rotate_ray_restore(shi->obi, isect);
+
 		hitco[0] = isect->start[0] + isect->dist * isect->dir[0];
 		hitco[1] = isect->start[1] + isect->dist * isect->dir[1];
 		hitco[2] = isect->start[2] + isect->dist * isect->dir[2];
@@ -199,7 +203,11 @@ static void vol_trace_behind(ShadeInput *shi, VlakRen *vlr, const float co[3], f
 	isect.lay = -1;
 	
 	/* check to see if there's anything behind the volume, otherwise shade the sky */
+	RE_instance_rotate_ray(shi->obi, &isect);
+
 	if (RE_rayobject_raycast(R.raytree, &isect)) {
+		RE_instance_rotate_ray_restore(shi->obi, &isect);
+
 		shade_intersection(shi, col_r, &isect);
 	}
 	else {
@@ -491,7 +499,7 @@ static void vol_shade_one_lamp(struct ShadeInput *shi, const float co[3], const 
 	if (shi->mat->vol.shade_type == MA_VOL_SHADE_SHADOWED) {
 		mul_v3_fl(lacol, vol_get_shadow(shi, lar, co));
 	}
-	else if (ELEM3(shi->mat->vol.shade_type, MA_VOL_SHADE_SHADED, MA_VOL_SHADE_MULTIPLE, MA_VOL_SHADE_SHADEDPLUSMULTIPLE)) {
+	else if (ELEM(shi->mat->vol.shade_type, MA_VOL_SHADE_SHADED, MA_VOL_SHADE_MULTIPLE, MA_VOL_SHADE_SHADEDPLUSMULTIPLE)) {
 		Isect is;
 		
 		if (shi->mat->vol.shadeflag & MA_VOL_RECV_EXT_SHADOW) {
@@ -648,7 +656,7 @@ static void volumeintegrate(struct ShadeInput *shi, float col[4], const float co
 static void volume_trace(struct ShadeInput *shi, struct ShadeResult *shr, int inside_volume)
 {
 	float hitco[3], col[4] = {0.f, 0.f, 0.f, 0.f};
-	float *startco, *endco;
+	const float *startco, *endco;
 	int trace_behind = 1;
 	const int ztransp = ((shi->depth == 0) && (shi->mat->mode & MA_TRANSP) && (shi->mat->mode & MA_ZTRANSP));
 	Isect is;
@@ -735,6 +743,7 @@ static void volume_trace(struct ShadeInput *shi, struct ShadeResult *shr, int in
 	shr->alpha = col[3];
 	
 	copy_v3_v3(shr->diff, shr->combined);
+	copy_v3_v3(shr->diffshad, shr->diff);
 }
 
 /* Traces a shadow through the object, 
@@ -744,7 +753,7 @@ void shade_volume_shadow(struct ShadeInput *shi, struct ShadeResult *shr, struct
 	float hitco[3];
 	float tr[3] = {1.0, 1.0, 1.0};
 	Isect is = {{0}};
-	float *startco, *endco;
+	const float *startco, *endco;
 
 	memset(shr, 0, sizeof(ShadeResult));
 	
@@ -775,7 +784,7 @@ void shade_volume_shadow(struct ShadeInput *shi, struct ShadeResult *shr, struct
 	/* due to idiosyncracy in ray_trace_shadow_tra() */
 	if (is.hit.ob == shi->obi) {
 		copy_v3_v3(shi->co, hitco);
-		last_is->dist -= is.dist;
+		last_is->dist += is.dist;
 		shi->vlr = (VlakRen *)is.hit.face;
 	}
 

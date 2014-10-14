@@ -69,9 +69,12 @@ class RENDER_PT_render(RenderButtonsPanel, Panel):
         row.operator("render.render", text="Animation", icon='RENDER_ANIMATION').animation = True
         row.operator("sound.mixdown", text="Audio", icon='PLAY_AUDIO')
 
-        split = layout.split(1 / 3)
-        split.operator("render.play_rendered_anim", text="Play", icon='PLAY')
-        split.prop(rd, "display_mode", text="Display")
+        split = layout.split(percentage=0.33)
+
+        split.label(text="Display:")
+        row = split.row(align=True)
+        row.prop(rd, "display_mode", text="")
+        row.prop(rd, "use_lock_interface", icon_only=True)
 
 
 class RENDER_PT_dimensions(RenderButtonsPanel, Panel):
@@ -270,6 +273,9 @@ class RENDER_PT_performance(RenderButtonsPanel, Panel):
         col.prop(rd, "tile_x", text="X")
         col.prop(rd, "tile_y", text="Y")
 
+        col.separator()
+        col.prop(rd, 'preview_start_resolution')
+
         col = split.column()
         col.label(text="Memory:")
         sub = col.column()
@@ -318,6 +324,13 @@ class RENDER_PT_post_processing(RenderButtonsPanel, Panel):
         sub.active = rd.use_fields
         sub.row().prop(rd, "field_order", expand=True)
         sub.prop(rd, "use_fields_still", text="Still")
+
+        col = split.column()
+        col.prop(rd, "use_edge_enhance")
+        sub = col.column()
+        sub.active = rd.use_edge_enhance
+        sub.prop(rd, "edge_threshold", text="Threshold", slider=True)
+        sub.prop(rd, "edge_color", text="")
 
 
 class RENDER_PT_stamp(RenderButtonsPanel, Panel):
@@ -386,7 +399,9 @@ class RENDER_PT_output(RenderButtonsPanel, Panel):
         col.prop(rd, "use_overwrite")
         col.prop(rd, "use_placeholder")
 
-        split.prop(rd, "use_file_extension")
+        col = split.column()
+        col.prop(rd, "use_file_extension")
+        col.prop(rd, "use_render_cache")
 
         layout.template_image_settings(image_settings, color_management=False)
 

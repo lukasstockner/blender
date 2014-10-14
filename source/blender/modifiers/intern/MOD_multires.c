@@ -61,15 +61,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	MultiresModifierData *mmd = (MultiresModifierData *) md;
 	MultiresModifierData *tmmd = (MultiresModifierData *) target;
-
-	tmmd->lvl = mmd->lvl;
-	tmmd->sculptlvl = mmd->sculptlvl;
-	tmmd->renderlvl = mmd->renderlvl;
-	tmmd->totlvl = mmd->totlvl;
-	tmmd->simple = mmd->simple;
-	tmmd->flags = mmd->flags;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
@@ -78,9 +74,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 	MultiresModifierData *mmd = (MultiresModifierData *)md;
 	DerivedMesh *result;
 	Mesh *me = (Mesh *)ob->data;
-	const int useRenderParams = flag & MOD_APPLY_RENDER;
+	const bool useRenderParams = (flag & MOD_APPLY_RENDER) != 0;
+	const bool ignore_simplify = (flag & MOD_APPLY_IGNORE_SIMPLIFY) != 0;
 	MultiresFlags flags = 0;
-	int has_mask = CustomData_has_layer(&me->ldata, CD_GRID_PAINT_MASK);
+	const bool has_mask = CustomData_has_layer(&me->ldata, CD_GRID_PAINT_MASK);
 
 	if (mmd->totlvl) {
 		if (!CustomData_get_layer(&me->ldata, CD_MDISPS)) {
@@ -94,6 +91,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm,
 
 	if (useRenderParams)
 		flags |= MULTIRES_USE_RENDER_PARAMS;
+
+	if (ignore_simplify)
+		flags |= MULTIRES_IGNORE_SIMPLIFY;
 
 	result = multires_make_derived_from_derived(dm, mmd, ob, flags);
 

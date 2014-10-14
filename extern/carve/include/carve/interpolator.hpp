@@ -1,13 +1,13 @@
 // Begin License:
-// Copyright (C) 2006-2011 Tobias Sargeant (tobias.sargeant@gmail.com).
+// Copyright (C) 2006-2014 Tobias Sargeant (tobias.sargeant@gmail.com).
 // All rights reserved.
 //
 // This file is part of the Carve CSG Library (http://carve-csg.com/)
 //
-// This file may be used under the terms of the GNU General Public
-// License version 2.0 as published by the Free Software Foundation
-// and appearing in the file LICENSE.GPL2 included in the packaging of
-// this file.
+// This file may be used under the terms of either the GNU General
+// Public License version 2 or 3 (at your option) as published by the
+// Free Software Foundation and appearing in the files LICENSE.GPL2
+// and LICENSE.GPL3 included in the packaging of this file.
 //
 // This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
 // INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
@@ -219,7 +219,7 @@ namespace carve {
           interpolator->edgeDivision(csg, orig_edge, orig_edge_idx, v1, v2);
         }
 
-        Hook(Interpolator *_interpolator, const carve::csg::CSG &_csg) : interpolator(_interpolator), csg(_csg) {
+        Hook(Interpolator *_interpolator, const carve::csg::CSG &_csg) : csg(_csg), interpolator(_interpolator) {
         }
 
         virtual ~Hook() {

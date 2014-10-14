@@ -21,18 +21,19 @@ set(LIBRARIES
 	cycles_util
 	${BOOST_LIBRARIES}
 	${OPENEXR_LIBRARIES}
-	${OPENGL_LIBRARIES}
-	${CYCLES_GLEW_LIBRARY}
+	${BLENDER_GL_LIBRARIES}
+	bf_intern_glew_mx
+	${CYCLES_APP_GLEW_LIBRARY}
 	${OPENIMAGEIO_LIBRARIES}
 	${PNG_LIBRARIES}
 	${JPEG_LIBRARIES}
 	${ZLIB_LIBRARIES}
 	${TIFF_LIBRARY}
+	extern_clew
+	extern_cuew
 )
 
-if(UNIX)
-       list(APPEND LIBRARIES dl)
-endif()
+add_definitions(${GL_DEFINITIONS})
 
 if(WIN32)
 	list(APPEND LIBRARIES ${PTHREADS_LIBRARIES})
@@ -58,6 +59,7 @@ if(WITH_CYCLES_STANDALONE)
 		cycles_xml.h
 	)
 	add_executable(cycles ${SRC})
+	list(APPEND LIBRARIES ${PLATFORM_LINKLIBS})
 	target_link_libraries(cycles ${LIBRARIES} ${CMAKE_DL_LIBS})
 
 	if(UNIX AND NOT APPLE)
@@ -71,7 +73,7 @@ if(WITH_CYCLES_NETWORK)
 		cycles_server.cpp
 	)
 	add_executable(cycles_server ${SRC})
-	target_link_libraries(cycles_server ${LIBRARIES})
+	target_link_libraries(cycles_server ${LIBRARIES} ${CMAKE_DL_LIBS})
 
 	if(UNIX AND NOT APPLE)
 		set_target_properties(cycles_server PROPERTIES INSTALL_RPATH $ORIGIN/lib)

@@ -56,7 +56,6 @@
 #include "ED_mball.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
-#include "ED_transform.h"
 #include "ED_util.h"
 
 #include "WM_api.h"
@@ -91,7 +90,7 @@ void make_editMball(Object *obedit)
 }
 
 /* This function is called, when MetaBall Object switched from
- * edit mode to object mode. List od MetaElements is copied
+ * edit mode to object mode. List of MetaElements is copied
  * from object->data->edit_elems to object->data->elems. */
 void load_editMball(Object *UNUSED(obedit))
 {
@@ -131,7 +130,7 @@ static int mball_select_all_exec(bContext *C, wmOperator *op)
 	MetaElem *ml;
 	int action = RNA_enum_get(op->ptr, "action");
 
-	if (mb->editelems->first == NULL)
+	if (BLI_listbase_is_empty(mb->editelems))
 		return OPERATOR_CANCELLED;
 
 	if (action == SEL_TOGGLE) {
@@ -192,7 +191,7 @@ enum {
 static EnumPropertyItem prop_similar_types[] = {
 	{SIMMBALL_TYPE, "TYPE", 0, "Type", ""},
 	{SIMMBALL_RADIUS, "RADIUS", 0, "Radius", ""},
-    {SIMMBALL_STIFFNESS, "STIFFNESS", 0, "Stiffness", ""},
+	{SIMMBALL_STIFFNESS, "STIFFNESS", 0, "Stiffness", ""},
 	{SIMMBALL_ROTATION, "ROTATION", 0, "Rotation", ""},
 	{0, NULL, 0, NULL, NULL}
 };
@@ -373,20 +372,16 @@ static int select_random_metaelems_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	MetaBall *mb = (MetaBall *)obedit->data;
 	MetaElem *ml;
-	float percent = RNA_float_get(op->ptr, "percent");
+	const bool select = (RNA_enum_get(op->ptr, "action") == SEL_SELECT);
+	float percent = RNA_float_get(op->ptr, "percent") / 100.0f;
 	
-	if (percent == 0.0f)
-		return OPERATOR_CANCELLED;
-	
-	ml = mb->editelems->first;
-	
-	/* Stupid version of random selection. Should be improved. */
-	while (ml) {
-		if (BLI_frand() < percent)
-			ml->flag |= SELECT;
-		else
-			ml->flag &= ~SELECT;
-		ml = ml->next;
+	for (ml = mb->editelems->first; ml; ml = ml->next) {
+		if (BLI_frand() < percent) {
+			if (select)
+				ml->flag |= SELECT;
+			else
+				ml->flag &= ~SELECT;
+		}
 	}
 	
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, mb);
@@ -398,21 +393,20 @@ static int select_random_metaelems_exec(bContext *C, wmOperator *op)
 void MBALL_OT_select_random_metaelems(struct wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Random...";
+	ot->name = "Select Random";
 	ot->description = "Randomly select metaelements";
 	ot->idname = "MBALL_OT_select_random_metaelems";
 	
 	/* callback functions */
 	ot->exec = select_random_metaelems_exec;
-	ot->invoke = WM_operator_props_popup;
 	ot->poll = ED_operator_editmball;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_float_percentage(ot->srna, "percent", 0.5f, 0.0f, 1.0f, "Percent",
-	                         "Percentage of metaelements to select randomly", 0.0001f, 1.0f);
+	RNA_def_float_percentage(ot->srna, "percent", 50.f, 0.0f, 100.0f, "Percent", "Percentage of elements to select randomly", 0.f, 100.0f);
+	WM_operator_properties_select_action_simple(ot, SEL_SELECT);
 }
 
 /***************************** Duplicate operator *****************************/
@@ -507,7 +501,7 @@ static int hide_metaelems_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	MetaBall *mb = (MetaBall *)obedit->data;
 	MetaElem *ml;
-	const int invert = RNA_boolean_get(op->ptr, "unselected") ? SELECT : 0;
+	const bool invert = RNA_boolean_get(op->ptr, "unselected") ? SELECT : 0;
 
 	ml = mb->editelems->first;
 
@@ -600,7 +594,7 @@ bool mouse_mball(bContext *C, const int mval[2], bool extend, bool deselect, boo
 	rect.ymin = mval[1] - 12;
 	rect.ymax = mval[1] + 12;
 
-	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect);
+	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect, true);
 
 	/* does startelem exist? */
 	ml = mb->editelems->first;
@@ -707,7 +701,6 @@ static void *editMball_to_undoMball(void *lbe, void *UNUSED(obe))
 
 	/* allocate memory for undo ListBase */
 	lb = MEM_callocN(sizeof(ListBase), "listbase undo");
-	lb->first = lb->last = NULL;
 	
 	/* copy contents of current ListBase to the undo ListBase */
 	ml = editelems->first;
@@ -749,29 +742,4 @@ static void *get_data(bContext *C)
 void undo_push_mball(bContext *C, const char *name)
 {
 	undo_editmode_push(C, name, get_data, free_undoMball, undoMball_to_editMball, editMball_to_undoMball, NULL);
-}
-
-/* matrix is 4x4 */
-void ED_mball_transform(MetaBall *mb, float *mat)
-{
-	MetaElem *me;
-	float quat[4];
-	const float scale = mat4_to_scale((float (*)[4])mat);
-	const float scale_sqrt = sqrtf(scale);
-
-	mat4_to_quat(quat, (float (*)[4])mat);
-
-	for (me = mb->elems.first; me; me = me->next) {
-		mul_m4_v3((float (*)[4])mat, &me->x);
-		mul_qt_qtqt(me->quat, quat, me->quat);
-		me->rad *= scale;
-		/* hrmf, probably elems shouldn't be
-		 * treating scale differently - campbell */
-		if (!MB_TYPE_SIZE_SQUARED(me->type)) {
-			mul_v3_fl(&me->expx, scale);
-		}
-		else {
-			mul_v3_fl(&me->expx, scale_sqrt);
-		}
-	}
 }

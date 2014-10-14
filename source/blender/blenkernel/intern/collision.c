@@ -34,7 +34,6 @@
 
 #include "DNA_cloth_types.h"
 #include "DNA_group_types.h"
-#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_scene_types.h"
@@ -44,20 +43,11 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
-#include "BLI_utildefines.h"
-#include "BLI_ghash.h"
-#include "BLI_memarena.h"
-#include "BLI_rand.h"
 
-#include "BKE_DerivedMesh.h"
 #include "BKE_cloth.h"
-#include "BKE_global.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
 #include "BKE_scene.h"
 
-#include "BKE_DerivedMesh.h"
 #ifdef WITH_BULLET
 #include "Bullet-C-Api.h"
 #endif
@@ -120,7 +110,7 @@ void bvhtree_update_from_mvert(BVHTree *bvhtree, MFace *faces, int numfaces, MVe
 	int i;
 	MFace *mfaces = faces;
 	float co[12], co_moving[12];
-	int ret = 0;
+	bool ret = false;
 
 	if ( !bvhtree )
 		return;
@@ -865,7 +855,7 @@ int cloth_bvh_objcollision(Object *ob, ClothModifierData *clmd, float step, floa
 	
 						if ( ( ABS ( temp[0] ) > mindistance ) || ( ABS ( temp[1] ) > mindistance ) || ( ABS ( temp[2] ) > mindistance ) ) continue;
 	
-						if (BLI_edgehash_haskey(cloth->edgehash, i, j)) {
+						if (BLI_edgeset_haskey(cloth->edgeset, i, j)) {
 							continue;
 						}
 	

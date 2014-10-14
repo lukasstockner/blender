@@ -31,7 +31,6 @@
 #include <string.h>
 
 /* external modules: */
-#include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -50,13 +49,9 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_image.h"   /* BKE_imbuf_write */
 #include "BKE_texture.h"
-
-
-
 
 /* this module */
 #include "render_types.h"
@@ -149,7 +144,7 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	/* set up renderdata */
 	envre->r = re->r;
 	envre->r.mode &= ~(R_BORDER | R_PANORAMA | R_ORTHO | R_MBLUR);
-	envre->r.layers.first = envre->r.layers.last = NULL;
+	BLI_listbase_clear(&envre->r.layers);
 	envre->r.filtertype = 0;
 	envre->r.tilex = envre->r.xsch / 2;
 	envre->r.tiley = envre->r.ysch / 2;
@@ -168,10 +163,12 @@ static Render *envmap_render_copy(Render *re, EnvMap *env)
 	copy_m4_m4(envre->viewmat_orig, re->viewmat_orig);
 	
 	/* callbacks */
-	envre->display_draw = re->display_draw;
-	envre->ddh = re->ddh;
+	envre->display_update = re->display_update;
+	envre->duh = re->duh;
 	envre->test_break = re->test_break;
 	envre->tbh = re->tbh;
+	envre->current_scene_update = re->current_scene_update;
+	envre->suh = re->suh;
 	
 	/* and for the evil stuff; copy the database... */
 	envre->totvlak = re->totvlak;
@@ -202,11 +199,11 @@ static void envmap_free_render_copy(Render *envre)
 	envre->totlamp = 0;
 	envre->totinstance = 0;
 	envre->sortedhalos = NULL;
-	envre->lights.first = envre->lights.last = NULL;
-	envre->objecttable.first = envre->objecttable.last = NULL;
-	envre->customdata_names.first = envre->customdata_names.last = NULL;
+	BLI_listbase_clear(&envre->lights);
+	BLI_listbase_clear(&envre->objecttable);
+	BLI_listbase_clear(&envre->customdata_names);
 	envre->raytree = NULL;
-	envre->instancetable.first = envre->instancetable.last = NULL;
+	BLI_listbase_clear(&envre->instancetable);
 	envre->objectinstance = NULL;
 	envre->qmcsamplers = NULL;
 	
@@ -321,6 +318,10 @@ void env_rotate_scene(Render *re, float mat[4][4], int do_rotate)
 		
 			mul_m4_v3(tmat, har->co);
 		}
+
+		/* imat_ren is needed for correct texture coordinates */
+		mul_m4_m4m4(obr->ob->imat_ren, re->viewmat, obr->ob->obmat);
+		invert_m4(obr->ob->imat_ren);
 	}
 	
 	for (go = re->lights.first; go; go = go->next) {
@@ -328,9 +329,9 @@ void env_rotate_scene(Render *re, float mat[4][4], int do_rotate)
 		
 		/* copy from add_render_lamp */
 		if (do_rotate == 1)
-			mul_m4_m4m4(tmpmat, re->viewmat, go->ob->obmat);
+			mul_m4_m4m4(tmpmat, re->viewmat, lar->lampmat);
 		else
-			mul_m4_m4m4(tmpmat, re->viewmat_orig, go->ob->obmat);
+			mul_m4_m4m4(tmpmat, re->viewmat_orig, lar->lampmat);
 		invert_m4_m4(go->ob->imat, tmpmat);
 		
 		copy_m3_m4(lar->mat, tmpmat);
@@ -532,7 +533,8 @@ static void render_envmap(Render *re, EnvMap *env)
 void make_envmaps(Render *re)
 {
 	Tex *tex;
-	int do_init = FALSE, depth = 0, trace;
+	bool do_init = false;
+	int depth = 0, trace;
 	
 	if (!(re->r.mode & R_ENVMAP)) return;
 	
@@ -586,7 +588,7 @@ void make_envmaps(Render *re)
 								if (env->ok == 0 && depth == 0) env->recalc = 1;
 								
 								if (env->ok == 0) {
-									do_init = TRUE;
+									do_init = true;
 									render_envmap(re, env);
 									
 									if (depth == env->depth) env->recalc = 0;

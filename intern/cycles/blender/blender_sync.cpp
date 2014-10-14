@@ -135,15 +135,20 @@ bool BlenderSync::sync_recalc()
 	return recalc;
 }
 
-void BlenderSync::sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, const char *layer)
+void BlenderSync::sync_data(BL::SpaceView3D b_v3d, BL::Object b_override, void **python_thread_state, const char *layer)
 {
 	sync_render_layers(b_v3d, layer);
 	sync_integrator();
 	sync_film();
 	sync_shaders();
 	sync_curve_settings();
+
+	mesh_synced.clear(); /* use for objects and motion sync */
+
 	sync_objects(b_v3d);
-	sync_motion(b_v3d, b_override);
+	sync_motion(b_v3d, b_override, python_thread_state);
+
+	mesh_synced.clear();
 }
 
 /* Integrator */
@@ -166,19 +171,26 @@ void BlenderSync::sync_integrator()
 	integrator->max_diffuse_bounce = get_int(cscene, "diffuse_bounces");
 	integrator->max_glossy_bounce = get_int(cscene, "glossy_bounces");
 	integrator->max_transmission_bounce = get_int(cscene, "transmission_bounces");
+	integrator->max_volume_bounce = get_int(cscene, "volume_bounces");
 
 	integrator->transparent_max_bounce = get_int(cscene, "transparent_max_bounces");
 	integrator->transparent_min_bounce = get_int(cscene, "transparent_min_bounces");
 	integrator->transparent_shadows = get_boolean(cscene, "use_transparent_shadows");
 
-	integrator->no_caustics = get_boolean(cscene, "no_caustics");
+	integrator->volume_max_steps = get_int(cscene, "volume_max_steps");
+	integrator->volume_step_size = get_float(cscene, "volume_step_size");
+
+	integrator->caustics_reflective = get_boolean(cscene, "caustics_reflective");
+	integrator->caustics_refractive = get_boolean(cscene, "caustics_refractive");
 	integrator->filter_glossy = get_float(cscene, "blur_glossy");
 
 	integrator->seed = get_int(cscene, "seed");
+	integrator->sampling_pattern = (SamplingPattern)RNA_enum_get(&cscene, "sampling_pattern");
 
 	integrator->layer_flag = render_layer.layer;
 
-	integrator->sample_clamp = get_float(cscene, "sample_clamp");
+	integrator->sample_clamp_direct = get_float(cscene, "sample_clamp_direct");
+	integrator->sample_clamp_indirect = get_float(cscene, "sample_clamp_indirect");
 #ifdef __CAMERA_MOTION__
 	if(!preview) {
 		if(integrator->motion_blur != r.use_motion_blur()) {
@@ -192,12 +204,16 @@ void BlenderSync::sync_integrator()
 
 	integrator->method = (Integrator::Method)get_enum(cscene, "progressive");
 
+	integrator->sample_all_lights_direct = get_boolean(cscene, "sample_all_lights_direct");
+	integrator->sample_all_lights_indirect = get_boolean(cscene, "sample_all_lights_indirect");
+
 	int diffuse_samples = get_int(cscene, "diffuse_samples");
 	int glossy_samples = get_int(cscene, "glossy_samples");
 	int transmission_samples = get_int(cscene, "transmission_samples");
 	int ao_samples = get_int(cscene, "ao_samples");
 	int mesh_light_samples = get_int(cscene, "mesh_light_samples");
 	int subsurface_samples = get_int(cscene, "subsurface_samples");
+	int volume_samples = get_int(cscene, "volume_samples");
 
 	if(get_boolean(cscene, "use_square_samples")) {
 		integrator->diffuse_samples = diffuse_samples * diffuse_samples;
@@ -206,6 +222,7 @@ void BlenderSync::sync_integrator()
 		integrator->ao_samples = ao_samples * ao_samples;
 		integrator->mesh_light_samples = mesh_light_samples * mesh_light_samples;
 		integrator->subsurface_samples = subsurface_samples * subsurface_samples;
+		integrator->volume_samples = volume_samples * volume_samples;
 	} 
 	else {
 		integrator->diffuse_samples = diffuse_samples;
@@ -214,11 +231,8 @@ void BlenderSync::sync_integrator()
 		integrator->ao_samples = ao_samples;
 		integrator->mesh_light_samples = mesh_light_samples;
 		integrator->subsurface_samples = subsurface_samples;
+		integrator->volume_samples = volume_samples;
 	}
-	
-
-	if(experimental)
-		integrator->sampling_pattern = (SamplingPattern)RNA_enum_get(&cscene, "sampling_pattern");
 
 	if(integrator->modified(previntegrator))
 		integrator->tag_update(scene);
@@ -232,6 +246,10 @@ void BlenderSync::sync_film()
 
 	Film *film = scene->film;
 	Film prevfilm = *film;
+	
+	/* Clamping */
+	Integrator *integrator = scene->integrator;
+	film->use_sample_clamp = (integrator->sample_clamp_direct != 0.0f || integrator->sample_clamp_indirect != 0.0f);
 
 	film->exposure = get_float(cscene, "film_exposure");
 	film->filter_type = (FilterType)RNA_enum_get(&cscene, "filter_type");
@@ -296,6 +314,8 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D b_v3d, const char *layer)
 	BL::RenderSettings::layers_iterator b_rlay;
 	int use_layer_samples = RNA_enum_get(&cscene, "use_layer_samples");
 	bool first_layer = true;
+	uint layer_override = get_layer(b_engine.layer_override());
+	uint scene_layers = layer_override ? layer_override : get_layer(b_scene.layers());
 
 	for(r.layers.begin(b_rlay); b_rlay != r.layers.end(); ++b_rlay) {
 		if((!layer && first_layer) || (layer && b_rlay->name() == layer)) {
@@ -304,7 +324,7 @@ void BlenderSync::sync_render_layers(BL::SpaceView3D b_v3d, const char *layer)
 			render_layer.holdout_layer = get_layer(b_rlay->layers_zmask());
 			render_layer.exclude_layer = get_layer(b_rlay->layers_exclude());
 
-			render_layer.scene_layer = get_layer(b_scene.layers()) & ~render_layer.exclude_layer;
+			render_layer.scene_layer = scene_layers & ~render_layer.exclude_layer;
 			render_layer.scene_layer |= render_layer.exclude_layer & render_layer.holdout_layer;
 
 			render_layer.layer = get_layer(b_rlay->layers());
@@ -338,12 +358,12 @@ SceneParams BlenderSync::get_scene_params(BL::Scene b_scene, bool background)
 	BL::RenderSettings r = b_scene.render();
 	SceneParams params;
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
-	int shadingsystem = RNA_boolean_get(&cscene, "shading_system");
+	const bool shadingsystem = RNA_boolean_get(&cscene, "shading_system");
 
 	if(shadingsystem == 0)
-		params.shadingsystem = SceneParams::SVM;
+		params.shadingsystem = SHADINGSYSTEM_SVM;
 	else if(shadingsystem == 1)
-		params.shadingsystem = SceneParams::OSL;
+		params.shadingsystem = SHADINGSYSTEM_OSL;
 	
 	if(background)
 		params.bvh_type = SceneParams::BVH_STATIC;
@@ -353,7 +373,7 @@ SceneParams BlenderSync::get_scene_params(BL::Scene b_scene, bool background)
 	params.use_bvh_spatial_split = RNA_boolean_get(&cscene, "debug_use_spatial_splits");
 	params.use_bvh_cache = (background)? RNA_boolean_get(&cscene, "use_cache"): false;
 
-	if(background && params.shadingsystem != SceneParams::OSL)
+	if(background && params.shadingsystem != SHADINGSYSTEM_OSL)
 		params.persistent_data = r.use_persistent_data();
 	else
 		params.persistent_data = false;
@@ -487,12 +507,12 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		params.progressive = true;
 
 	/* shading system - scene level needs full refresh */
-	int shadingsystem = RNA_boolean_get(&cscene, "shading_system");
+	const bool shadingsystem = RNA_boolean_get(&cscene, "shading_system");
 
 	if(shadingsystem == 0)
-		params.shadingsystem = SessionParams::SVM;
+		params.shadingsystem = SHADINGSYSTEM_SVM;
 	else if(shadingsystem == 1)
-		params.shadingsystem = SessionParams::OSL;
+		params.shadingsystem = SHADINGSYSTEM_OSL;
 	
 	/* color managagement */
 	params.display_buffer_linear = GLEW_ARB_half_float_pixel && b_engine.support_display_space_shader(b_scene);

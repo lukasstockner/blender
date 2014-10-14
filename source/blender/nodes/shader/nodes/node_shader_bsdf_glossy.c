@@ -31,7 +31,7 @@
 
 static bNodeSocketTemplate sh_node_bsdf_glossy_in[] = {
 	{	SOCK_RGBA,  1, N_("Color"),		0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
-	{	SOCK_FLOAT, 1, N_("Roughness"),	0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+	{	SOCK_FLOAT, 1, N_("Roughness"),	0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
 	{	SOCK_VECTOR, 1, N_("Normal"),	0.0f, 0.0f, 0.0f, 1.0f, -1.0f, 1.0f, PROP_NONE, SOCK_HIDE_VALUE},
 	{	-1, 0, ""	}
 };
@@ -40,6 +40,11 @@ static bNodeSocketTemplate sh_node_bsdf_glossy_out[] = {
 	{	SOCK_SHADER, 0, N_("BSDF")},
 	{	-1, 0, ""	}
 };
+
+static void node_shader_init_glossy(bNodeTree *UNUSED(ntree), bNode *node)
+{
+	node->custom1 = SHD_GLOSSY_GGX;
+}
 
 static int node_shader_gpu_bsdf_glossy(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
@@ -58,7 +63,7 @@ void register_node_type_sh_bsdf_glossy(void)
 	node_type_compatibility(&ntype, NODE_NEW_SHADING);
 	node_type_socket_templates(&ntype, sh_node_bsdf_glossy_in, sh_node_bsdf_glossy_out);
 	node_type_size_preset(&ntype, NODE_SIZE_MIDDLE);
-	node_type_init(&ntype, NULL);
+	node_type_init(&ntype, node_shader_init_glossy);
 	node_type_storage(&ntype, "", NULL, NULL);
 	node_type_gpu(&ntype, node_shader_gpu_bsdf_glossy);
 

@@ -388,13 +388,13 @@ BMFace *BM_face_create_ngon_vcloud(BMesh *bm, BMVert **vert_arr, int len,
 
 	float cent[3], nor[3];
 
-	float *far = NULL, *far_cross = NULL;
+	const float *far = NULL, *far_cross = NULL;
 
 	float far_vec[3];
 	float far_cross_vec[3];
 	float sign_vec[3]; /* work out if we are pos/neg angle */
 
-	float far_dist, far_best;
+	float far_dist_sq, far_dist_max_sq;
 	float far_cross_dist, far_cross_best = 0.0f;
 
 	/* get the center point and collect vector array since we loop over these a lot */
@@ -405,12 +405,12 @@ BMFace *BM_face_create_ngon_vcloud(BMesh *bm, BMVert **vert_arr, int len,
 
 
 	/* find the far point from cent */
-	far_best = 0.0f;
+	far_dist_max_sq = 0.0f;
 	for (i = 0; i < len; i++) {
-		far_dist = len_squared_v3v3(vert_arr[i]->co, cent);
-		if (far_dist > far_best || far == NULL) {
+		far_dist_sq = len_squared_v3v3(vert_arr[i]->co, cent);
+		if (far_dist_sq > far_dist_max_sq || far == NULL) {
 			far = vert_arr[i]->co;
-			far_best = far_dist;
+			far_dist_max_sq = far_dist_sq;
 		}
 	}
 
@@ -494,225 +494,6 @@ BMFace *BM_face_create_ngon_vcloud(BMesh *bm, BMVert **vert_arr, int len,
 	return f;
 }
 
-/**
- * Called by operators to remove elements that they have marked for
- * removal.
- */
-void BMO_remove_tagged_faces(BMesh *bm, const short oflag)
-{
-	BMFace *f, *f_next;
-	BMIter iter;
-
-	BM_ITER_MESH_MUTABLE (f, f_next, &iter, bm, BM_FACES_OF_MESH) {
-		if (BMO_elem_flag_test(bm, f, oflag)) {
-			BM_face_kill(bm, f);
-		}
-	}
-}
-
-void BMO_remove_tagged_edges(BMesh *bm, const short oflag)
-{
-	BMEdge *e, *e_next;
-	BMIter iter;
-
-	BM_ITER_MESH_MUTABLE (e, e_next, &iter, bm, BM_EDGES_OF_MESH) {
-		if (BMO_elem_flag_test(bm, e, oflag)) {
-			BM_edge_kill(bm, e);
-		}
-	}
-}
-
-void BMO_remove_tagged_verts(BMesh *bm, const short oflag)
-{
-	BMVert *v, *v_next;
-	BMIter iter;
-
-	BM_ITER_MESH_MUTABLE (v, v_next, &iter, bm, BM_VERTS_OF_MESH) {
-		if (BMO_elem_flag_test(bm, v, oflag)) {
-			BM_vert_kill(bm, v);
-		}
-	}
-}
-
-/**
- * you need to make remove tagged verts/edges/faces
- * api functions that take a filter callback.....
- * and this new filter type will be for opstack flags.
- * This is because the BM_remove_taggedXXX functions bypass iterator API.
- *  - Ops don't care about 'UI' considerations like selection state, hide state, etc.
- *    If you want to work on unhidden selections for instance,
- *    copy output from a 'select context' operator to another operator....
- */
-
-static void bmo_remove_tagged_context_verts(BMesh *bm, const short oflag)
-{
-	BMVert *v;
-	BMEdge *e;
-	BMFace *f;
-
-	BMIter iter;
-	BMIter itersub;
-
-	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-		if (BMO_elem_flag_test(bm, v, oflag)) {
-			/* Visit edge */
-			BM_ITER_ELEM (e, &itersub, v, BM_EDGES_OF_VERT) {
-				BMO_elem_flag_enable(bm, e, oflag);
-			}
-			/* Visit face */
-			BM_ITER_ELEM (f, &itersub, v, BM_FACES_OF_VERT) {
-				BMO_elem_flag_enable(bm, f, oflag);
-			}
-		}
-	}
-
-	BMO_remove_tagged_faces(bm, oflag);
-	BMO_remove_tagged_edges(bm, oflag);
-	BMO_remove_tagged_verts(bm, oflag);
-}
-
-static void bmo_remove_tagged_context_edges(BMesh *bm, const short oflag)
-{
-	BMEdge *e;
-	BMFace *f;
-
-	BMIter iter;
-	BMIter itersub;
-
-	BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-		if (BMO_elem_flag_test(bm, e, oflag)) {
-			BM_ITER_ELEM (f, &itersub, e, BM_FACES_OF_EDGE) {
-				BMO_elem_flag_enable(bm, f, oflag);
-			}
-		}
-	}
-	BMO_remove_tagged_faces(bm, oflag);
-	BMO_remove_tagged_edges(bm, oflag);
-}
-
-#define DEL_WIREVERT	(1 << 10)
-
-/**
- * \warning oflag applies to different types in some contexts,
- * not just the type being removed.
- *
- * \warning take care, uses operator flag DEL_WIREVERT
- */
-void BMO_remove_tagged_context(BMesh *bm, const short oflag, const int type)
-{
-	BMVert *v;
-	BMEdge *e;
-	BMFace *f;
-
-	BMIter viter;
-	BMIter eiter;
-	BMIter fiter;
-
-	switch (type) {
-		case DEL_VERTS:
-		{
-			bmo_remove_tagged_context_verts(bm, oflag);
-
-			break;
-		}
-		case DEL_EDGES:
-		{
-			/* flush down to vert */
-			BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
-				if (BMO_elem_flag_test(bm, e, oflag)) {
-					BMO_elem_flag_enable(bm, e->v1, oflag);
-					BMO_elem_flag_enable(bm, e->v2, oflag);
-				}
-			}
-			bmo_remove_tagged_context_edges(bm, oflag);
-			/* remove loose vertice */
-			BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-				if (BMO_elem_flag_test(bm, v, oflag) && (!(v->e)))
-					BMO_elem_flag_enable(bm, v, DEL_WIREVERT);
-			}
-			BMO_remove_tagged_verts(bm, DEL_WIREVERT);
-
-			break;
-		}
-		case DEL_EDGESFACES:
-		{
-			bmo_remove_tagged_context_edges(bm, oflag);
-
-			break;
-		}
-		case DEL_ONLYFACES:
-		{
-			BMO_remove_tagged_faces(bm, oflag);
-
-			break;
-		}
-		case DEL_ONLYTAGGED:
-		{
-			BMO_remove_tagged_faces(bm, oflag);
-			BMO_remove_tagged_edges(bm, oflag);
-			BMO_remove_tagged_verts(bm, oflag);
-
-			break;
-		}
-		case DEL_FACES:
-		{
-			/* go through and mark all edges and all verts of all faces for delete */
-			BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-				if (BMO_elem_flag_test(bm, f, oflag)) {
-					for (e = BM_iter_new(&eiter, bm, BM_EDGES_OF_FACE, f); e; e = BM_iter_step(&eiter))
-						BMO_elem_flag_enable(bm, e, oflag);
-					for (v = BM_iter_new(&viter, bm, BM_VERTS_OF_FACE, f); v; v = BM_iter_step(&viter))
-						BMO_elem_flag_enable(bm, v, oflag);
-				}
-			}
-			/* now go through and mark all remaining faces all edges for keeping */
-			BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-				if (!BMO_elem_flag_test(bm, f, oflag)) {
-					for (e = BM_iter_new(&eiter, bm, BM_EDGES_OF_FACE, f); e; e = BM_iter_step(&eiter)) {
-						BMO_elem_flag_disable(bm, e, oflag);
-					}
-					for (v = BM_iter_new(&viter, bm, BM_VERTS_OF_FACE, f); v; v = BM_iter_step(&viter)) {
-						BMO_elem_flag_disable(bm, v, oflag);
-					}
-				}
-			}
-			/* also mark all the vertices of remaining edges for keeping */
-			BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
-				if (!BMO_elem_flag_test(bm, e, oflag)) {
-					BMO_elem_flag_disable(bm, e->v1, oflag);
-					BMO_elem_flag_disable(bm, e->v2, oflag);
-				}
-			}
-			/* now delete marked face */
-			BMO_remove_tagged_faces(bm, oflag);
-			/* delete marked edge */
-			BMO_remove_tagged_edges(bm, oflag);
-			/* remove loose vertice */
-			BMO_remove_tagged_verts(bm, oflag);
-
-			break;
-		}
-		case DEL_ALL:
-		{
-			/* does this option even belong in here? */
-			BM_ITER_MESH (f, &fiter, bm, BM_FACES_OF_MESH) {
-				BMO_elem_flag_enable(bm, f, oflag);
-			}
-			BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
-				BMO_elem_flag_enable(bm, e, oflag);
-			}
-			BM_ITER_MESH (v, &viter, bm, BM_VERTS_OF_MESH) {
-				BMO_elem_flag_enable(bm, v, oflag);
-			}
-
-			BMO_remove_tagged_faces(bm, oflag);
-			BMO_remove_tagged_edges(bm, oflag);
-			BMO_remove_tagged_verts(bm, oflag);
-
-			break;
-		}
-	}
-}
 /*************************************************************/
 
 
@@ -724,7 +505,7 @@ static void bm_vert_attrs_copy(BMesh *source_mesh, BMesh *target_mesh,
 		return;
 	}
 	copy_v3_v3(target_vertex->no, source_vertex->no);
-	CustomData_bmesh_free_block_data(&target_mesh->vdata, &target_vertex->head.data);
+	CustomData_bmesh_free_block_data(&target_mesh->vdata, target_vertex->head.data);
 	CustomData_bmesh_copy_data(&source_mesh->vdata, &target_mesh->vdata,
 	                           source_vertex->head.data, &target_vertex->head.data);
 }
@@ -736,7 +517,7 @@ static void bm_edge_attrs_copy(BMesh *source_mesh, BMesh *target_mesh,
 		BLI_assert(!"BMEdge: source and targer match");
 		return;
 	}
-	CustomData_bmesh_free_block_data(&target_mesh->edata, &target_edge->head.data);
+	CustomData_bmesh_free_block_data(&target_mesh->edata, target_edge->head.data);
 	CustomData_bmesh_copy_data(&source_mesh->edata, &target_mesh->edata,
 	                           source_edge->head.data, &target_edge->head.data);
 }
@@ -748,7 +529,7 @@ static void bm_loop_attrs_copy(BMesh *source_mesh, BMesh *target_mesh,
 		BLI_assert(!"BMLoop: source and targer match");
 		return;
 	}
-	CustomData_bmesh_free_block_data(&target_mesh->ldata, &target_loop->head.data);
+	CustomData_bmesh_free_block_data(&target_mesh->ldata, target_loop->head.data);
 	CustomData_bmesh_copy_data(&source_mesh->ldata, &target_mesh->ldata,
 	                           source_loop->head.data, &target_loop->head.data);
 }
@@ -761,7 +542,7 @@ static void bm_face_attrs_copy(BMesh *source_mesh, BMesh *target_mesh,
 		return;
 	}
 	copy_v3_v3(target_face->no, source_face->no);
-	CustomData_bmesh_free_block_data(&target_mesh->pdata, &target_face->head.data);
+	CustomData_bmesh_free_block_data(&target_mesh->pdata, target_face->head.data);
 	CustomData_bmesh_copy_data(&source_mesh->pdata, &target_mesh->pdata,
 	                           source_face->head.data, &target_face->head.data);
 	target_face->mat_nr = source_face->mat_nr;

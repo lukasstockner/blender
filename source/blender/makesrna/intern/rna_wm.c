@@ -81,6 +81,8 @@ static EnumPropertyItem event_mouse_type_items[] = {
 	{RIGHTMOUSE, "RIGHTMOUSE", 0, "Right", ""},
 	{BUTTON4MOUSE, "BUTTON4MOUSE", 0, "Button4", ""},
 	{BUTTON5MOUSE, "BUTTON5MOUSE", 0, "Button5", ""},
+	{BUTTON6MOUSE, "BUTTON6MOUSE", 0, "Button6", ""},
+	{BUTTON7MOUSE, "BUTTON7MOUSE", 0, "Button7", ""},
 	{ACTIONMOUSE, "ACTIONMOUSE", 0, "Action", ""},
 	{SELECTMOUSE, "SELECTMOUSE", 0, "Select", ""},
 	{0, "", 0, NULL, NULL},
@@ -173,6 +175,8 @@ EnumPropertyItem event_type_items[] = {
 	{RIGHTMOUSE, "RIGHTMOUSE", 0, "Right Mouse", ""},
 	{BUTTON4MOUSE, "BUTTON4MOUSE", 0, "Button4 Mouse", ""},
 	{BUTTON5MOUSE, "BUTTON5MOUSE", 0, "Button5 Mouse", ""},
+	{BUTTON6MOUSE, "BUTTON6MOUSE", 0, "Button6 Mouse", ""},
+	{BUTTON7MOUSE, "BUTTON7MOUSE", 0, "Button7 Mouse", ""},
 	{ACTIONMOUSE, "ACTIONMOUSE", 0, "Action Mouse", ""},
 	{SELECTMOUSE, "SELECTMOUSE", 0, "Select Mouse", ""},
 	{0, "", 0, NULL, NULL},
@@ -319,7 +323,7 @@ EnumPropertyItem event_type_items[] = {
 	{TIMERJOBS, "TIMER_JOBS", 0, "Timer Jobs", ""},
 	{TIMERAUTOSAVE, "TIMER_AUTOSAVE", 0, "Timer Autosave", ""},
 	{TIMERREPORT, "TIMER_REPORT", 0, "Timer Report", ""},
-	{TIMERREGION, "TIMER_REGION", 0, "Timer Region", ""},
+	{TIMERREGION, "TIMERREGION", 0, "Timer Region", ""},
 	{0, "", 0, NULL, NULL},
 	{NDOF_MOTION, "NDOF_MOTION", 0, "NDOF Motion", ""},
 	/* buttons on all 3dconnexion devices */
@@ -515,7 +519,7 @@ static PointerRNA rna_Operator_properties_get(PointerRNA *ptr)
 static PointerRNA rna_OperatorMacro_properties_get(PointerRNA *ptr)
 {
 	wmOperatorTypeMacro *otmacro = (wmOperatorTypeMacro *)ptr->data;
-	wmOperatorType *ot = WM_operatortype_find(otmacro->idname, TRUE);
+	wmOperatorType *ot = WM_operatortype_find(otmacro->idname, true);
 	return rna_pointer_inherit_refine(ptr, ot->srna, otmacro->properties);
 }
 
@@ -561,10 +565,39 @@ static int rna_Event_unicode_length(PointerRNA *ptr)
 	}
 }
 
+static float rna_Event_pressure_get(PointerRNA *ptr)
+{
+	wmEvent *event = ptr->data;
+	return WM_event_tablet_data(event, NULL, NULL);
+}
+
+static int rna_Event_is_tablet_get(PointerRNA *ptr)
+{
+	wmEvent *event = ptr->data;
+	return WM_event_is_tablet(event);
+}
+
+static void rna_Event_tilt_get(PointerRNA *ptr, float *values)
+{
+	wmEvent *event = ptr->data;
+	WM_event_tablet_data(event, NULL, values);
+}
+
 static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 {
 	struct uiPopupMenu *pup = ptr->data;
 	uiLayout *layout = uiPupMenuLayout(pup);
+
+	PointerRNA rptr;
+	RNA_pointer_create(ptr->id.data, &RNA_UILayout, layout, &rptr);
+
+	return rptr;
+}
+
+static PointerRNA rna_PieMenu_layout_get(PointerRNA *ptr)
+{
+	struct uiPieMenu *pie = ptr->data;
+	uiLayout *layout = uiPieMenuLayout(pie);
 
 	PointerRNA rptr;
 	RNA_pointer_create(ptr->id.data, &RNA_UILayout, layout, &rptr);
@@ -583,7 +616,7 @@ static void rna_Window_screen_set(PointerRNA *ptr, PointerRNA value)
 	win->newscreen = value.data;
 }
 
-int rna_Window_screen_assign_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
+static int rna_Window_screen_assign_poll(PointerRNA *UNUSED(ptr), PointerRNA value)
 {
 	bScreen *screen = (bScreen *)value.id.data;
 
@@ -678,7 +711,7 @@ static void rna_wmKeyMapItem_keymodifier_set(PointerRNA *ptr, int value)
 
 
 static EnumPropertyItem *rna_KeyMapItem_type_itemf(bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop),
-                                                   int *UNUSED(free))
+                                                   bool *UNUSED(r_free))
 {
 	int map_type = rna_wmKeyMapItem_map_type_get(ptr);
 
@@ -691,7 +724,7 @@ static EnumPropertyItem *rna_KeyMapItem_type_itemf(bContext *UNUSED(C), PointerR
 }
 
 static EnumPropertyItem *rna_KeyMapItem_value_itemf(bContext *UNUSED(C), PointerRNA *ptr, PropertyRNA *UNUSED(prop),
-                                                    int *UNUSED(free))
+                                                    bool *UNUSED(r_free))
 {
 	int map_type = rna_wmKeyMapItem_map_type_get(ptr);
 
@@ -704,7 +737,7 @@ static EnumPropertyItem *rna_KeyMapItem_value_itemf(bContext *UNUSED(C), Pointer
 }
 
 static EnumPropertyItem *rna_KeyMapItem_propvalue_itemf(bContext *C, PointerRNA *ptr, PropertyRNA *UNUSED(prop),
-                                                        int *UNUSED(free))
+                                                        bool *UNUSED(r_free))
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmKeyConfig *kc;
@@ -831,10 +864,11 @@ static int rna_KeyMapItem_userdefined_get(PointerRNA *ptr)
 static void rna_wmClipboard_get(PointerRNA *UNUSED(ptr), char *value)
 {
 	char *pbuf;
+	int pbuf_len;
 
-	pbuf = WM_clipboard_text_get(FALSE);
+	pbuf = WM_clipboard_text_get(false, &pbuf_len);
 	if (pbuf) {
-		strcpy(value, pbuf);
+		memcpy(value, pbuf, pbuf_len + 1);
 		MEM_freeN(pbuf);
 	}
 	else {
@@ -845,24 +879,19 @@ static void rna_wmClipboard_get(PointerRNA *UNUSED(ptr), char *value)
 static int rna_wmClipboard_length(PointerRNA *UNUSED(ptr))
 {
 	char *pbuf;
-	int length;
+	int pbuf_len;
 
-	pbuf = WM_clipboard_text_get(FALSE);
+	pbuf = WM_clipboard_text_get(false, &pbuf_len);
 	if (pbuf) {
-		length = strlen(pbuf);
 		MEM_freeN(pbuf);
 	}
-	else {
-		length = 0;
-	}
-	
 
-	return length;
+	return pbuf_len;
 }
 
 static void rna_wmClipboard_set(PointerRNA *UNUSED(ptr), const char *value)
 {
-	WM_clipboard_text_set((void *) value, FALSE);
+	WM_clipboard_text_set((void *) value, false);
 }
 
 #ifdef WITH_PYTHON
@@ -887,7 +916,7 @@ static void rna_Operator_unregister(struct Main *bmain, StructRNA *type)
 	RNA_struct_free_extension(type, &ot->ext);
 
 	idname = ot->idname;
-	WM_operatortype_remove(ot->idname);
+	WM_operatortype_remove_ptr(ot);
 	MEM_freeN((void *)idname);
 
 	/* not to be confused with the RNA_struct_free that WM_operatortype_remove calls, they are 2 different srna's */
@@ -1157,7 +1186,7 @@ static StructRNA *rna_Operator_register(Main *bmain, ReportList *reports, void *
 
 	/* check if we have registered this operator type before, and remove it */
 	{
-		wmOperatorType *ot = WM_operatortype_find(dummyot.idname, TRUE);
+		wmOperatorType *ot = WM_operatortype_find(dummyot.idname, true);
 		if (ot && ot->ext.srna)
 			rna_Operator_unregister(bmain, ot->ext.srna);
 	}
@@ -1249,7 +1278,7 @@ static StructRNA *rna_MacroOperator_register(Main *bmain, ReportList *reports, v
 
 	/* check if we have registered this operator type before, and remove it */
 	{
-		wmOperatorType *ot = WM_operatortype_find(dummyot.idname, TRUE);
+		wmOperatorType *ot = WM_operatortype_find(dummyot.idname, true);
 		if (ot && ot->ext.srna)
 			rna_Operator_unregister(bmain, ot->ext.srna);
 	}
@@ -1378,7 +1407,7 @@ static void rna_def_operator(BlenderRNA *brna)
 	RNA_def_property_string_maxlength(prop, OP_MAX_TYPENAME - 3);
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_idname_set");
 	/* RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_struct_name_property(srna, prop);
 
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
@@ -1451,7 +1480,7 @@ static void rna_def_macro_operator(BlenderRNA *brna)
 	RNA_def_property_string_maxlength(prop, OP_MAX_TYPENAME); /* else it uses the pointer size! */
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Operator_bl_idname_set");
 	/* RNA_def_property_clear_flag(prop, PROP_EDITABLE); */
-	RNA_def_property_flag(prop, PROP_REGISTER | PROP_NEVER_CLAMP);
+	RNA_def_property_flag(prop, PROP_REGISTER);
 	RNA_def_struct_name_property(srna, prop);
 
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
@@ -1608,6 +1637,21 @@ static void rna_def_event(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Mouse Previous Y Position", "The window relative vertical location of the mouse");
 
+	prop = RNA_def_property(srna, "pressure", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_Event_pressure_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Tablet Pressure", "The pressure of the tablet or 1.0 if no tablet present");
+
+	prop = RNA_def_property(srna, "tilt", PROP_FLOAT, PROP_XYZ_LENGTH);
+	RNA_def_property_array(prop, 2);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_float_funcs(prop, "rna_Event_tilt_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Tablet Tilt", "The pressure of the tablet or zeroes if no tablet present");
+
+	prop = RNA_def_property(srna, "is_tablet", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Event_is_tablet_get", NULL);
+	RNA_def_property_ui_text(prop, "Tablet Pressure", "The pressure of the tablet or 1.0 if no tablet present");
 
 	/* modifiers */
 	prop = RNA_def_property(srna, "shift", PROP_BOOLEAN, PROP_NONE);
@@ -1678,6 +1722,26 @@ static void rna_def_popupmenu(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "UILayout");
 	RNA_def_property_pointer_funcs(prop, "rna_PopupMenu_layout_get",
+	                               NULL, NULL, NULL);
+
+	RNA_define_verify_sdna(1); /* not in sdna */
+}
+
+static void rna_def_piemenu(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "UIPieMenu", NULL);
+	RNA_def_struct_ui_text(srna, "PieMenu", "");
+	RNA_def_struct_sdna(srna, "uiPieMenu");
+
+	RNA_define_verify_sdna(0); /* not in sdna */
+
+	/* could wrap more, for now this is enough */
+	prop = RNA_def_property(srna, "layout", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "UILayout");
+	RNA_def_property_pointer_funcs(prop, "rna_PieMenu_layout_get",
 	                               NULL, NULL, NULL);
 
 	RNA_define_verify_sdna(1); /* not in sdna */
@@ -2045,6 +2109,7 @@ void RNA_def_wm(BlenderRNA *brna)
 	rna_def_event(brna);
 	rna_def_timer(brna);
 	rna_def_popupmenu(brna);
+	rna_def_piemenu(brna);
 	rna_def_window(brna);
 	rna_def_windowmanager(brna);
 	rna_def_keyconfig(brna);

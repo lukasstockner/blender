@@ -33,7 +33,6 @@
  */
 
 
-#include "DNA_scene_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_pointcache_types.h"
@@ -49,7 +48,6 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_global.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
 
@@ -118,7 +116,7 @@ static void deformVerts(ModifierData *md, Object *ob,
 	
 	/* if possible use/create DerivedMesh */
 	if (derivedData) dm = CDDM_copy(derivedData);
-	else if (ob->type == OB_MESH) dm = CDDM_from_mesh(ob->data, ob);
+	else if (ob->type == OB_MESH) dm = CDDM_from_mesh(ob->data);
 	
 	if (!ob->pd) {
 		printf("CollisionModifier deformVerts: Should not happen!\n");

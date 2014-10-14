@@ -262,7 +262,8 @@ static void View(GHOST_IWindow *window, bool stereo, int eye = 0)
 	window->activateDrawingContext();
 	GHOST_Rect bnds;
 	int noOfScanlines = 0, lowerScanline = 0;
-	int verticalBlankingInterval = 32;  // hard coded for testing purposes, display device dependant
+	/* hard coded for testing purposes, display device dependent */
+	int verticalBlankingInterval = 32;
 	float left, right, bottom, top;
 	float nearplane, farplane, zeroPlane, distance;
 	float eyeSeparation = 0.62f;
@@ -468,7 +469,7 @@ bool Application::processEvent(GHOST_IEvent *event)
 		std::cout << "GHOST_kEventCursorButton"; break;
 	case GHOST_kEventCursorMove:
 		std::cout << "GHOST_kEventCursorMove"; break;
- #endif
+#endif
 		case GHOST_kEventWheel:
 		{
 			GHOST_TEventWheelData *wheelData = (GHOST_TEventWheelData *) event->getData();

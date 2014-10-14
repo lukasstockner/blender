@@ -19,7 +19,6 @@
 # <pep8-80 compliant>
 
 import bpy
-import mathutils
 from bpy.types import Operator
 from bpy.props import BoolProperty
 
@@ -32,7 +31,7 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return obj.mode == 'EDIT'
+        return (obj is not None and obj.mode == 'EDIT')
 
     def execute(self, context):
         mesh = context.object.data
@@ -70,7 +69,7 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return obj.mode == 'EDIT'
+        return (obj is not None and obj.mode == 'EDIT')
 
     @staticmethod
     def extrude_region(context, use_vert_normals):
@@ -119,7 +118,7 @@ class VIEW3D_OT_edit_mesh_extrude_shrink_fatten(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return obj.mode == 'EDIT'
+        return (obj is not None and obj.mode == 'EDIT')
 
     def execute(self, context):
         return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(context, True)
@@ -169,6 +168,13 @@ class VIEW3D_OT_select_or_deselect_all(Operator):
             description="Use object selection (editmode only)",
             default=False,
             )
+
+    @classmethod
+    def poll(cls, context):
+        active_object = context.active_object
+        if active_object:
+            return active_object.mode in {'EDIT', 'OBJECT', 'POSE'}
+        return True
 
     def invoke(self, context, event):
         x = event.mouse_region_x

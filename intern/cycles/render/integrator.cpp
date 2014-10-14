@@ -33,18 +33,23 @@ Integrator::Integrator()
 	max_diffuse_bounce = max_bounce;
 	max_glossy_bounce = max_bounce;
 	max_transmission_bounce = max_bounce;
-	probalistic_termination = true;
+	max_volume_bounce = max_bounce;
 
 	transparent_min_bounce = min_bounce;
 	transparent_max_bounce = max_bounce;
-	transparent_probalistic = true;
 	transparent_shadows = false;
 
-	no_caustics = false;
+	volume_homogeneous_sampling = 0;
+	volume_max_steps = 1024;
+	volume_step_size = 0.1f;
+
+	caustics_reflective = true;
+	caustics_refractive = true;
 	filter_glossy = 0.0f;
 	seed = 0;
 	layer_flag = ~0;
-	sample_clamp = 0.0f;
+	sample_clamp_direct = 0.0f;
+	sample_clamp_indirect = 0.0f;
 	motion_blur = false;
 
 	aa_samples = 0;
@@ -54,6 +59,7 @@ Integrator::Integrator()
 	ao_samples = 1;
 	mesh_light_samples = 1;
 	subsurface_samples = 1;
+	volume_samples = 1;
 	method = PATH;
 
 	sampling_pattern = SAMPLING_PATTERN_SOBOL;
@@ -76,24 +82,38 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
 	/* integrator parameters */
 	kintegrator->max_bounce = max_bounce + 1;
-	if(probalistic_termination)
-		kintegrator->min_bounce = min_bounce + 1;
-	else
-		kintegrator->min_bounce = kintegrator->max_bounce;
+	kintegrator->min_bounce = min_bounce + 1;
 
 	kintegrator->max_diffuse_bounce = max_diffuse_bounce + 1;
 	kintegrator->max_glossy_bounce = max_glossy_bounce + 1;
 	kintegrator->max_transmission_bounce = max_transmission_bounce + 1;
+	kintegrator->max_volume_bounce = max_volume_bounce + 1;
 
 	kintegrator->transparent_max_bounce = transparent_max_bounce + 1;
-	if(transparent_probalistic)
-		kintegrator->transparent_min_bounce = transparent_min_bounce + 1;
-	else
-		kintegrator->transparent_min_bounce = kintegrator->transparent_max_bounce;
+	kintegrator->transparent_min_bounce = transparent_min_bounce + 1;
 
-	kintegrator->transparent_shadows = transparent_shadows;
+	/* Transparent Shadows
+	 * We only need to enable transparent shadows, if we actually have 
+	 * transparent shaders in the scene. Otherwise we can disable it
+	 * to improve performance a bit. */
+	if(transparent_shadows) {
+		foreach(Shader *shader, scene->shaders) {
+			/* keep this in sync with SD_HAS_TRANSPARENT_SHADOW in shader.cpp */
+			if((shader->has_surface_transparent && shader->use_transparent_shadow) || shader->has_volume) {
+				kintegrator->transparent_shadows = true;
+				break;
+			}
+		}
+	}
+	else {
+		kintegrator->transparent_shadows = false;
+	}
 
-	kintegrator->no_caustics = no_caustics;
+	kintegrator->volume_max_steps = volume_max_steps;
+	kintegrator->volume_step_size = volume_step_size;
+
+	kintegrator->caustics_reflective = caustics_reflective;
+	kintegrator->caustics_refractive = caustics_refractive;
 	kintegrator->filter_glossy = (filter_glossy == 0.0f)? FLT_MAX: 1.0f/filter_glossy;
 
 	kintegrator->seed = hash_int(seed);
@@ -102,18 +122,29 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 	kintegrator->use_ambient_occlusion =
 		((dscene->data.film.pass_flag & PASS_AO) || dscene->data.background.ao_factor != 0.0f);
 	
-	kintegrator->sample_clamp = (sample_clamp == 0.0f)? FLT_MAX: sample_clamp*3.0f;
+	kintegrator->sample_clamp_direct = (sample_clamp_direct == 0.0f)? FLT_MAX: sample_clamp_direct*3.0f;
+	kintegrator->sample_clamp_indirect = (sample_clamp_indirect == 0.0f)? FLT_MAX: sample_clamp_indirect*3.0f;
 
 	kintegrator->branched = (method == BRANCHED_PATH);
-	kintegrator->aa_samples = aa_samples;
 	kintegrator->diffuse_samples = diffuse_samples;
 	kintegrator->glossy_samples = glossy_samples;
 	kintegrator->transmission_samples = transmission_samples;
 	kintegrator->ao_samples = ao_samples;
 	kintegrator->mesh_light_samples = mesh_light_samples;
 	kintegrator->subsurface_samples = subsurface_samples;
+	kintegrator->volume_samples = volume_samples;
+
+	if(method == BRANCHED_PATH) {
+		kintegrator->sample_all_lights_direct = sample_all_lights_direct;
+		kintegrator->sample_all_lights_indirect = sample_all_lights_indirect;
+	}
+	else {
+		kintegrator->sample_all_lights_direct = false;
+		kintegrator->sample_all_lights_indirect = false;
+	}
 
 	kintegrator->sampling_pattern = sampling_pattern;
+	kintegrator->aa_samples = aa_samples;
 
 	/* sobol directions table */
 	int max_samples = 1;
@@ -124,6 +155,7 @@ void Integrator::device_update(Device *device, DeviceScene *dscene, Scene *scene
 
 		max_samples = max(max_samples, max(diffuse_samples, max(glossy_samples, transmission_samples)));
 		max_samples = max(max_samples, max(ao_samples, max(mesh_light_samples, subsurface_samples)));
+		max_samples = max(max_samples, volume_samples);
 	}
 
 	max_samples *= (max_bounce + transparent_max_bounce + 3);
@@ -153,16 +185,20 @@ bool Integrator::modified(const Integrator& integrator)
 		max_diffuse_bounce == integrator.max_diffuse_bounce &&
 		max_glossy_bounce == integrator.max_glossy_bounce &&
 		max_transmission_bounce == integrator.max_transmission_bounce &&
-		probalistic_termination == integrator.probalistic_termination &&
+		max_volume_bounce == integrator.max_volume_bounce &&
 		transparent_min_bounce == integrator.transparent_min_bounce &&
 		transparent_max_bounce == integrator.transparent_max_bounce &&
-		transparent_probalistic == integrator.transparent_probalistic &&
 		transparent_shadows == integrator.transparent_shadows &&
-		no_caustics == integrator.no_caustics &&
+		volume_homogeneous_sampling == integrator.volume_homogeneous_sampling &&
+		volume_max_steps == integrator.volume_max_steps &&
+		volume_step_size == integrator.volume_step_size &&
+		caustics_reflective == integrator.caustics_reflective &&
+		caustics_refractive == integrator.caustics_refractive &&
 		filter_glossy == integrator.filter_glossy &&
 		layer_flag == integrator.layer_flag &&
 		seed == integrator.seed &&
-		sample_clamp == integrator.sample_clamp &&
+		sample_clamp_direct == integrator.sample_clamp_direct &&
+		sample_clamp_indirect == integrator.sample_clamp_indirect &&
 		method == integrator.method &&
 		aa_samples == integrator.aa_samples &&
 		diffuse_samples == integrator.diffuse_samples &&
@@ -171,8 +207,11 @@ bool Integrator::modified(const Integrator& integrator)
 		ao_samples == integrator.ao_samples &&
 		mesh_light_samples == integrator.mesh_light_samples &&
 		subsurface_samples == integrator.subsurface_samples &&
+		volume_samples == integrator.volume_samples &&
 		motion_blur == integrator.motion_blur &&
-		sampling_pattern == integrator.sampling_pattern);
+		sampling_pattern == integrator.sampling_pattern &&
+		sample_all_lights_direct == integrator.sample_all_lights_direct &&
+		sample_all_lights_indirect == integrator.sample_all_lights_indirect);
 }
 
 void Integrator::tag_update(Scene *scene)

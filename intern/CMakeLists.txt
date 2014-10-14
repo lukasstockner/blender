@@ -31,6 +31,7 @@ add_subdirectory(memutil)
 add_subdirectory(opencolorio)
 add_subdirectory(mikktspace)
 add_subdirectory(raskter)
+add_subdirectory(glew-mx)
 
 if(WITH_AUDASPACE)
 	add_subdirectory(audaspace)
@@ -46,10 +47,6 @@ endif()
 
 if(WITH_MOD_SMOKE)
 	add_subdirectory(smoke)
-endif()
-
-if(WITH_MOD_BOOLEAN)
-	add_subdirectory(bsp)
 endif()
 
 if(WITH_IK_SOLVER)
@@ -74,10 +71,6 @@ endif()
 
 if(WITH_BULLET)
 	add_subdirectory(rigidbody)
-endif()
-
-if(WITH_COMPOSITOR)
-	add_subdirectory(opencl)
 endif()
 
 if(WITH_OPENNL)

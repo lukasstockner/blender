@@ -39,7 +39,6 @@
 #include "BLI_math.h"
 
 #include "BKE_cdderivedmesh.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_deform.h"
 
@@ -59,12 +58,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	MirrorModifierData *mmd = (MirrorModifierData *) md;
 	MirrorModifierData *tmmd = (MirrorModifierData *) target;
-
-	tmmd->flag = mmd->flag;
-	tmmd->tolerance = mmd->tolerance;
-	tmmd->mirror_ob = mmd->mirror_ob;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static void foreachObjectLink(ModifierData *md, Object *ob,
@@ -187,6 +185,10 @@ static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,
 			if (UNLIKELY(len_squared_v3v3(mv_prev->co, mv->co) < tolerance_sq)) {
 				*vtmap_a = maxVerts + i;
 				tot_vtargetmap++;
+
+				/* average location */
+				mid_v3_v3v3(mv->co, mv_prev->co, mv->co);
+				copy_v3_v3(mv_prev->co, mv->co);
 			}
 			else {
 				*vtmap_a = -1;
@@ -269,7 +271,7 @@ static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,
 		MDeformVert *dvert = (MDeformVert *) CustomData_get_layer(&result->vertData, CD_MDEFORMVERT) + maxVerts;
 		int *flip_map = NULL, flip_map_len = 0;
 
-		flip_map = defgroup_flip_map(ob, &flip_map_len, FALSE);
+		flip_map = defgroup_flip_map(ob, &flip_map_len, false);
 		
 		if (flip_map) {
 			for (i = 0; i < maxVerts; dvert++, i++) {
@@ -288,7 +290,7 @@ static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,
 		/* slow - so only call if one or more merge verts are found,
 		 * users may leave this on and not realize there is nothing to merge - campbell */
 		if (tot_vtargetmap) {
-			result = CDDM_merge_verts(result, vtargetmap, tot_vtargetmap);
+			result = CDDM_merge_verts(result, vtargetmap, tot_vtargetmap, CDDM_MERGE_VERTS_DUMP_IF_MAPPED);
 		}
 		MEM_freeN(vtargetmap);
 	}

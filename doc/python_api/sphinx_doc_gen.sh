@@ -26,13 +26,13 @@ SSH_UPLOAD="/data/www/vhosts/www.blender.org/documentation" # blender_python_api
 # 'Blender 2.53 (sub 1) Build' --> '2_53_1' as a shell script.
 # "_".join(str(v) for v in bpy.app.version)
 # custom blender vars
-blender_srcdir=$(dirname $0)/../../
-blender_version=$(grep "BLENDER_VERSION\s" $blender_srcdir/source/blender/blenkernel/BKE_blender.h | awk '{print $3}')
-blender_version_char=$(grep BLENDER_VERSION_CHAR $blender_srcdir/source/blender/blenkernel/BKE_blender.h | awk '{print $3}')
-blender_version_cycle=$(grep BLENDER_VERSION_CYCLE $blender_srcdir/source/blender/blenkernel/BKE_blender.h | awk '{print $3}')
-blender_subversion=$(grep BLENDER_SUBVERSION $blender_srcdir/source/blender/blenkernel/BKE_blender.h | awk '{print $3}')
+blender_srcdir=$(dirname -- $0)/../..
+blender_version=$(grep "BLENDER_VERSION\s" "$blender_srcdir/source/blender/blenkernel/BKE_blender.h" | awk '{print $3}')
+blender_version_char=$(grep "BLENDER_VERSION_CHAR\s" "$blender_srcdir/source/blender/blenkernel/BKE_blender.h" | awk '{print $3}')
+blender_version_cycle=$(grep "BLENDER_VERSION_CYCLE\s" "$blender_srcdir/source/blender/blenkernel/BKE_blender.h" | awk '{print $3}')
+blender_subversion=$(grep "BLENDER_SUBVERSION\s" "$blender_srcdir/source/blender/blenkernel/BKE_blender.h" | awk '{print $3}')
 
-if [ "$blender_version_cycle" == "release" ] ; then
+if [ "$blender_version_cycle" = "release" ] ; then
 	BLENDER_VERSION=$(expr $blender_version / 100)_$(expr $blender_version % 100)$blender_version_char"_release"
 else
 	BLENDER_VERSION=$(expr $blender_version / 100)_$(expr $blender_version % 100)_$blender_subversion
@@ -100,7 +100,7 @@ if $DO_UPLOAD ; then
 
 	cp $SPHINXBASE/sphinx-out/contents.html $SPHINXBASE/sphinx-out/index.html
 	ssh $SSH_USER@blender.org 'rm -rf '$SSH_UPLOAD_FULL'/*'
-	rsync --progress -avze "ssh -p 22" $SPHINXBASE/sphinx-out/* $SSH_HOST:$SSH_UPLOAD_FULL/
+	rsync --progress -ave "ssh -p 22" $SPHINXBASE/sphinx-out/* $SSH_HOST:$SSH_UPLOAD_FULL/
 
 	## symlink the dir to a static URL
 	#ssh $SSH_USER@blender.org 'rm '$SSH_UPLOAD'/250PythonDoc && ln -s '$SSH_UPLOAD_FULL' '$SSH_UPLOAD'/250PythonDoc'
@@ -109,17 +109,17 @@ if $DO_UPLOAD ; then
 	ssh $SSH_USER@blender.org 'echo "<html><head><title>Redirecting...</title><meta http-equiv=\"REFRESH\" content=\"0;url=../blender_python_api_'$BLENDER_VERSION'/\"></head><body>Redirecting...</body></html>" > '$SSH_UPLOAD'/250PythonDoc/index.html'
 
 	# redirect for release only so wiki can point here
-	if [ "$blender_version_cycle" == "release" ] ; then
+	if [ "$blender_version_cycle" = "release" ] ; then
 		ssh $SSH_USER@blender.org 'echo "<html><head><title>Redirecting...</title><meta http-equiv=\"REFRESH\" content=\"0;url=../blender_python_api_'$BLENDER_VERSION'/\"></head><body>Redirecting...</body></html>" > '$SSH_UPLOAD'/blender_python_api/index.html'
 	fi
 
 	if $DO_OUT_PDF ; then
 		# rename so local PDF has matching name.
-		rsync --progress -avze "ssh -p 22" $SPHINXBASE/sphinx-out/blender_python_reference_$BLENDER_VERSION.pdf $SSH_HOST:$SSH_UPLOAD_FULL/blender_python_reference_$BLENDER_VERSION.pdf
+		rsync --progress -ave "ssh -p 22" $SPHINXBASE/sphinx-out/blender_python_reference_$BLENDER_VERSION.pdf $SSH_HOST:$SSH_UPLOAD_FULL/blender_python_reference_$BLENDER_VERSION.pdf
 	fi
 
 	if $DO_OUT_HTML_ZIP ; then
-		rsync --progress -avze "ssh -p 22" $SPHINXBASE/blender_python_reference_$BLENDER_VERSION.zip $SSH_HOST:$SSH_UPLOAD_FULL/blender_python_reference_$BLENDER_VERSION.zip
+		rsync --progress -ave "ssh -p 22" $SPHINXBASE/blender_python_reference_$BLENDER_VERSION.zip $SSH_HOST:$SSH_UPLOAD_FULL/blender_python_reference_$BLENDER_VERSION.zip
 	fi
 
 fi

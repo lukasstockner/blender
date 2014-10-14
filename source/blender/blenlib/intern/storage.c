@@ -42,27 +42,25 @@
 #include <time.h>
 #include <sys/stat.h>
 
-#if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
-#  include <sys/statvfs.h> /* Other modern unix os's should probably use this also */
-#elif !defined(__FreeBSD__) && !defined(__linux__) && (defined(__sparc) || defined(__sparc__))
+#if defined(__NetBSD__) || defined(__DragonFly__) || defined(__sun__) || defined(__sun)
+   /* Other modern unix os's should probably use this also */
+#  include <sys/statvfs.h>
+#  define USE_STATFS_STATVFS
+#elif (defined(__sparc) || defined(__sparc__)) && !defined(__FreeBSD__) && !defined(__linux__)
 #  include <sys/statfs.h>
+   /* 4 argument version (not common) */
+#  define USE_STATFS_4ARGS
 #endif
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-#  include <sys/param.h>
-#  include <sys/mount.h>
-#endif
-
-#if defined(__linux__) || defined(__CYGWIN32__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
-#include <sys/vfs.h>
-#endif
-
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__DragonFly__)
    /* For statfs */
 #  include <sys/param.h>
 #  include <sys/mount.h>
-#endif /* __APPLE__ */
+#endif
 
+#if defined(__linux__) || defined(__hpux) || defined(__GNU__) || defined(__GLIBC__)
+#  include <sys/vfs.h>
+#endif
 
 #include <fcntl.h>
 #include <string.h>  /* strcpy etc.. */
@@ -172,11 +170,12 @@ double BLI_dir_free_space(const char *dir)
 	return (double) (freec * bytesps * sectorspc);
 #else
 
-#if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
+#ifdef USE_STATFS_STATVFS
 	struct statvfs disk;
 #else
 	struct statfs disk;
 #endif
+
 	char name[FILE_MAXDIR], *slash;
 	int len = strlen(dir);
 	
@@ -193,15 +192,12 @@ double BLI_dir_free_space(const char *dir)
 		strcpy(name, "/");
 	}
 
-#if defined(__FreeBSD__) || defined(__linux__) || defined(__OpenBSD__) || defined(__APPLE__) || defined(__GNU__) || defined(__GLIBC__)
-	if (statfs(name, &disk)) return(-1);
-#endif
-
-#if defined(__sun__) || defined(__sun) || defined(__NetBSD__)
-	if (statvfs(name, &disk)) return(-1);
-#elif !defined(__FreeBSD__) && !defined(__linux__) && (defined(__sparc) || defined(__sparc__))
-	/* WARNING - This may not be supported by geeneric unix os's - Campbell */
-	if (statfs(name, &disk, sizeof(struct statfs), 0)) return(-1);
+#if  defined(USE_STATFS_STATVFS)
+	if (statvfs(name, &disk)) return -1;
+#elif defined(USE_STATFS_4ARGS)
+	if (statfs(name, &disk, sizeof(struct statfs), 0)) return -1;
+#else
+	if (statfs(name, &disk)) return -1;
 #endif
 
 	return ( ((double) disk.f_bsize) * ((double) disk.f_bfree));
@@ -259,22 +255,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 					file->relname = dlink->name;
 					file->path = BLI_strdupcat(dirname, dlink->name);
 					BLI_join_dirfile(fullname, sizeof(fullname), dirname, dlink->name);
-// use 64 bit file size, only needed for WIN32 and WIN64. 
-// Excluding other than current MSVC compiler until able to test
-#ifdef WIN32
-					{
-						wchar_t *name_16 = alloc_utf16_from_8(fullname, 0);
-#if defined(_MSC_VER) && (_MSC_VER >= 1500)
-						_wstat64(name_16, &file->s);
-#elif defined(__MINGW32__)
-						_stati64(fullname, &file->s);
-#endif
-						free(name_16);
-					}
-
-#else
-					stat(fullname, &file->s);
-#endif
+					BLI_stat(fullname, &file->s);
 					file->type = file->s.st_mode;
 					file->flags = 0;
 					dir_ctx->nrfiles++;
@@ -365,7 +346,7 @@ static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
 				BLI_strncpy(file->owner, pwuser->pw_name, sizeof(file->owner));
 			}
 			else {
-				BLI_snprintf(file->owner, sizeof(file->owner), "%d", file->s.st_uid);
+				BLI_snprintf(file->owner, sizeof(file->owner), "%u", file->s.st_uid);
 			}
 		}
 #endif
@@ -464,7 +445,7 @@ size_t BLI_file_descriptor_size(int file)
  */
 size_t BLI_file_size(const char *path)
 {
-	struct stat stats;
+	BLI_stat_t stats;
 	if (BLI_stat(path, &stats) == -1)
 		return -1;
 	return stats.st_size;
@@ -477,31 +458,36 @@ size_t BLI_file_size(const char *path)
 int BLI_exists(const char *name)
 {
 #if defined(WIN32) 
-#ifndef __MINGW32__
-	struct _stat64i32 st;
-#else
-	struct _stati64 st;
-#endif
-	/* in Windows stat doesn't recognize dir ending on a slash
-	 * To not break code where the ending slash is expected we
-	 * don't mess with the argument name directly here - elubie */
-	wchar_t *tmp_16 = alloc_utf16_from_8(name, 0);
+	BLI_stat_t st;
+	wchar_t *tmp_16 = alloc_utf16_from_8(name, 1);
 	int len, res;
 	unsigned int old_error_mode;
 
 	len = wcslen(tmp_16);
-	if (len > 3 && (tmp_16[len - 1] == L'\\' || tmp_16[len - 1] == L'/') )
+	/* in Windows #stat doesn't recognize dir ending on a slash
+	 * so we remove it here */
+	if (len > 3 && (tmp_16[len - 1] == L'\\' || tmp_16[len - 1] == L'/')) {
 		tmp_16[len - 1] = '\0';
+	}
+	/* two special cases where the trailing slash is needed:
+	 * 1. after the share part of a UNC path
+	 * 2. after the C:\ when the path is the volume only
+	 */
+	if ((len >= 3) && (tmp_16[0] ==  L'\\') && (tmp_16[1] ==  L'\\')) {
+		BLI_cleanup_unc_16(tmp_16);
+	}
+
+	if ((tmp_16[1] ==  L':') && (tmp_16[2] ==  L'\0')) {
+		tmp_16[2] = L'\\';
+		tmp_16[3] = L'\0';
+	}
+
 
 	/* change error mode so user does not get a "no disk in drive" popup
 	 * when looking for a file on an empty CD/DVD drive */
 	old_error_mode = SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOOPENFILEERRORBOX);
 
-#ifndef __MINGW32__
-	res = _wstat(tmp_16, &st);
-#else
-	res = _wstati64(tmp_16, &st);
-#endif
+	res = BLI_wstat(tmp_16, &st);
 
 	SetErrorMode(old_error_mode);
 
@@ -516,20 +502,26 @@ int BLI_exists(const char *name)
 
 
 #ifdef WIN32
-int BLI_stat(const char *path, struct stat *buffer)
+int BLI_stat(const char *path, BLI_stat_t *buffer)
 {
 	int r;
 	UTF16_ENCODE(path);
 
-	/* workaround error in MinGW64 headers, normally, a wstat should work */
-	#ifndef __MINGW64__
-	r = _wstat(path_16, buffer);
-	#else
-	r = _wstati64(path_16, buffer);
-	#endif
+	r = BLI_wstat(path_16, buffer);
 
 	UTF16_UN_ENCODE(path);
 	return r;
+}
+
+int BLI_wstat(const wchar_t *path, BLI_stat_t *buffer)
+{
+#if defined(_MSC_VER) || defined(__MINGW64__)
+	return _wstat64(path, buffer);
+#elif defined(__MINGW32__)
+	return _wstati64(path, buffer);
+#else
+	return _wstat(path, buffer);
+#endif
 }
 #else
 int BLI_stat(const char *path, struct stat *buffer)

@@ -91,24 +91,24 @@ void ED_node_link_insert(struct ScrArea *sa);
 
 /* node_edit.c */
 void ED_node_set_tree_type(struct SpaceNode *snode, struct bNodeTreeType *typeinfo);
-int ED_node_is_compositor(struct SpaceNode *snode);
-int ED_node_is_shader(struct SpaceNode *snode);
-int ED_node_is_texture(struct SpaceNode *snode);
+bool ED_node_is_compositor(struct SpaceNode *snode);
+bool ED_node_is_shader(struct SpaceNode *snode);
+bool ED_node_is_texture(struct SpaceNode *snode);
 
 void ED_node_shader_default(const struct bContext *C, struct ID *id);
 void ED_node_composit_default(const struct bContext *C, struct Scene *scene);
 void ED_node_texture_default(const struct bContext *C, struct Tex *tex);
-int  ED_node_select_check(ListBase *lb);
+bool ED_node_select_check(ListBase *lb);
 void ED_node_post_apply_transform(struct bContext *C, struct bNodeTree *ntree);
 void ED_node_set_active(struct Main *bmain, struct bNodeTree *ntree, struct bNode *node);
 
-void ED_node_composite_job(const bContext *C, struct bNodeTree *nodetree, struct Scene *scene_owner);
+void ED_node_composite_job(const struct bContext *C, struct bNodeTree *nodetree, struct Scene *scene_owner);
 
 /* node_ops.c */
 void ED_operatormacros_node(void);
 
 /* node_view.c */
-int ED_space_node_color_sample(struct SpaceNode *snode, struct ARegion *ar, int mval[2], float r_col[3]);
+bool ED_space_node_color_sample(struct Scene *scene, struct SpaceNode *snode, struct ARegion *ar, int mval[2], float r_col[3]);
 
 #endif /* __ED_NODE_H__ */
 

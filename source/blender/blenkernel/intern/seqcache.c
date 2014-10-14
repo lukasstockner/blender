@@ -69,58 +69,15 @@ static struct SeqPreprocessCache *preprocess_cache = NULL;
 
 static void preprocessed_cache_destruct(void);
 
-static int seq_cmp_render_data(const SeqRenderData *a, const SeqRenderData *b)
+static bool seq_cmp_render_data(const SeqRenderData *a, const SeqRenderData *b)
 {
-	if (a->preview_render_size < b->preview_render_size) {
-		return -1;
-	}
-	if (a->preview_render_size > b->preview_render_size) {
-		return 1;
-	}
-
-	if (a->rectx < b->rectx) {
-		return -1;
-	}
-	if (a->rectx > b->rectx) {
-		return 1;
-	}
-
-	if (a->recty < b->recty) {
-		return -1;
-	}
-	if (a->recty > b->recty) {
-		return 1;
-	}
-
-	if (a->bmain < b->bmain) {
-		return -1;
-	}
-	if (a->bmain > b->bmain) {
-		return 1;
-	}
-
-	if (a->scene < b->scene) {
-		return -1;
-	}
-	if (a->scene > b->scene) {
-		return 1;
-	}
-
-	if (a->motion_blur_shutter < b->motion_blur_shutter) {
-		return -1;
-	}
-	if (a->motion_blur_shutter > b->motion_blur_shutter) {
-		return 1;
-	}
-
-	if (a->motion_blur_samples < b->motion_blur_samples) {
-		return -1;
-	}
-	if (a->motion_blur_samples > b->motion_blur_samples) {
-		return 1;
-	}
-
-	return 0;
+	return ((a->preview_render_size != b->preview_render_size) ||
+	        (a->rectx != b->rectx) ||
+	        (a->recty != b->recty) ||
+	        (a->bmain != b->bmain) ||
+	        (a->scene != b->scene) ||
+	        (a->motion_blur_shutter != b->motion_blur_shutter) ||
+	        (a->motion_blur_samples != b->motion_blur_samples));
 }
 
 static unsigned int seq_hash_render_data(const SeqRenderData *a)
@@ -148,33 +105,15 @@ static unsigned int seqcache_hashhash(const void *key_)
 	return rval;
 }
 
-static int seqcache_hashcmp(const void *a_, const void *b_)
+static bool seqcache_hashcmp(const void *a_, const void *b_)
 {
 	const SeqCacheKey *a = (SeqCacheKey *) a_;
 	const SeqCacheKey *b = (SeqCacheKey *) b_;
 
-	if (a->seq < b->seq) {
-		return -1;
-	}
-	if (a->seq > b->seq) {
-		return 1;
-	}
-
-	if (a->cfra < b->cfra) {
-		return -1;
-	}
-	if (a->cfra > b->cfra) {
-		return 1;
-	}
-
-	if (a->type < b->type) {
-		return -1;
-	}
-	if (a->type > b->type) {
-		return 1;
-	}
-
-	return seq_cmp_render_data(&a->context, &b->context);
+	return ((a->seq != b->seq) ||
+	        (a->cfra != b->cfra) ||
+	        (a->type != b->type) ||
+	        seq_cmp_render_data(&a->context, &b->context));
 }
 
 void BKE_sequencer_cache_destruct(void)
@@ -195,7 +134,7 @@ void BKE_sequencer_cache_cleanup(void)
 	BKE_sequencer_preprocessed_cache_cleanup();
 }
 
-static int seqcache_key_check_seq(void *userkey, void *userdata)
+static bool seqcache_key_check_seq(ImBuf *UNUSED(ibuf), void *userkey, void *userdata)
 {
 	SeqCacheKey *key = (SeqCacheKey *) userkey;
 	Sequence *seq = (Sequence *) userdata;
@@ -209,13 +148,13 @@ void BKE_sequencer_cache_cleanup_sequence(Sequence *seq)
 		IMB_moviecache_cleanup(moviecache, seqcache_key_check_seq, seq);
 }
 
-struct ImBuf *BKE_sequencer_cache_get(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
+struct ImBuf *BKE_sequencer_cache_get(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
 {
 	if (moviecache && seq) {
 		SeqCacheKey key;
 
 		key.seq = seq;
-		key.context = context;
+		key.context = *context;
 		key.cfra = cfra - seq->start;
 		key.type = type;
 
@@ -225,11 +164,11 @@ struct ImBuf *BKE_sequencer_cache_get(SeqRenderData context, Sequence *seq, floa
 	return NULL;
 }
 
-void BKE_sequencer_cache_put(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *i)
+void BKE_sequencer_cache_put(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *i)
 {
 	SeqCacheKey key;
 
-	if (!i) {
+	if (i == NULL || context->skip_cache) {
 		return;
 	}
 
@@ -238,7 +177,7 @@ void BKE_sequencer_cache_put(SeqRenderData context, Sequence *seq, float cfra, s
 	}
 
 	key.seq = seq;
-	key.context = context;
+	key.context = *context;
 	key.cfra = cfra - seq->start;
 	key.type = type;
 
@@ -257,7 +196,7 @@ void BKE_sequencer_preprocessed_cache_cleanup(void)
 	}
 	BLI_freelistN(&preprocess_cache->elems);
 
-	preprocess_cache->elems.first = preprocess_cache->elems.last = NULL;
+	BLI_listbase_clear(&preprocess_cache->elems);
 }
 
 static void preprocessed_cache_destruct(void)
@@ -271,7 +210,7 @@ static void preprocessed_cache_destruct(void)
 	preprocess_cache = NULL;
 }
 
-ImBuf *BKE_sequencer_preprocessed_cache_get(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
+ImBuf *BKE_sequencer_preprocessed_cache_get(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type)
 {
 	SeqPreprocessCacheElem *elem;
 
@@ -288,7 +227,7 @@ ImBuf *BKE_sequencer_preprocessed_cache_get(SeqRenderData context, Sequence *seq
 		if (elem->type != type)
 			continue;
 
-		if (seq_cmp_render_data(&elem->context, &context) != 0)
+		if (seq_cmp_render_data(&elem->context, context) != 0)
 			continue;
 
 		IMB_refImBuf(elem->ibuf);
@@ -298,7 +237,7 @@ ImBuf *BKE_sequencer_preprocessed_cache_get(SeqRenderData context, Sequence *seq
 	return NULL;
 }
 
-void BKE_sequencer_preprocessed_cache_put(SeqRenderData context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *ibuf)
+void BKE_sequencer_preprocessed_cache_put(const SeqRenderData *context, Sequence *seq, float cfra, seq_stripelem_ibuf_t type, ImBuf *ibuf)
 {
 	SeqPreprocessCacheElem *elem;
 
@@ -314,7 +253,7 @@ void BKE_sequencer_preprocessed_cache_put(SeqRenderData context, Sequence *seq, 
 
 	elem->seq = seq;
 	elem->type = type;
-	elem->context = context;
+	elem->context = *context;
 	elem->ibuf = ibuf;
 
 	preprocess_cache->cfra = cfra;

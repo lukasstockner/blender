@@ -37,8 +37,10 @@ struct Main;
 struct AnimData;
 struct KeyingSet;
 struct KS_Path;
+struct bContext;
 
 struct PointerRNA;
+struct PropertyRNA;
 struct ReportList;
 struct bAction;
 struct bActionGroup;
@@ -48,7 +50,7 @@ struct AnimMapper;
 /* AnimData API */
 
 /* Check if the given ID-block can have AnimData */
-short id_type_can_have_animdata(struct ID *id);
+bool id_type_can_have_animdata(struct ID *id);
 
 /* Get AnimData from the given ID-block */
 struct AnimData *BKE_animdata_from_id(struct ID *id);
@@ -57,7 +59,7 @@ struct AnimData *BKE_animdata_from_id(struct ID *id);
 struct AnimData *BKE_id_add_animdata(struct ID *id);
 
 /* Set active action used by AnimData from the given ID-block */
-short BKE_animdata_set_action(struct ReportList *reports, struct ID *id, struct bAction *act);
+bool BKE_animdata_set_action(struct ReportList *reports, struct ID *id, struct bAction *act);
 
 /* Free AnimData */
 void BKE_free_animdata(struct ID *id);
@@ -66,7 +68,7 @@ void BKE_free_animdata(struct ID *id);
 struct AnimData *BKE_copy_animdata(struct AnimData *adt, const bool do_action);
 
 /* Copy AnimData */
-int BKE_copy_animdata_id(struct ID *id_to, struct ID *id_from, const bool do_action);
+bool BKE_copy_animdata_id(struct ID *id_to, struct ID *id_from, const bool do_action);
 
 /* Copy AnimData Actions */
 void BKE_copy_animdata_id_action(struct ID *id);
@@ -106,12 +108,12 @@ void BKE_keyingsets_free(struct ListBase *list);
 
 /* Fix all the paths for the the given ID + Action */
 void BKE_action_fix_paths_rename(struct ID *owner_id, struct bAction *act, const char *prefix, const char *oldName,
-                                 const char *newName, int oldSubscript, int newSubscript, int verify_paths);
+                                 const char *newName, int oldSubscript, int newSubscript, bool verify_paths);
 
 /* Fix all the paths for the given ID+AnimData */
 void BKE_animdata_fix_paths_rename(struct ID *owner_id, struct AnimData *adt, struct ID *ref_id, const char *prefix,
                                    const char *oldName, const char *newName, int oldSubscript, int newSubscript,
-                                   int verify_paths);
+                                   bool verify_paths);
 
 /* Fix all the paths for the entire database... */
 void BKE_all_animdata_fix_paths_rename(ID *ref_id, const char *prefix, const char *oldName, const char *newName);
@@ -126,6 +128,9 @@ void BKE_animdata_separate_by_basepath(struct ID *srcID, struct ID *dstID, struc
 
 /* Move F-Curves from src to destination if it's path is based on basepath */
 void action_move_fcurves_by_basepath(struct bAction *srcAct, struct bAction *dstAct, const char basepath[]);
+
+char *BKE_animdata_driver_path_hack(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop,
+                                    char *base_path);
 
 /* ************************************* */
 /* Batch AnimData API */

@@ -37,6 +37,7 @@
 
 #include "DNA_object_types.h"
 
+#include "BLI_math.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -64,19 +65,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	ShrinkwrapModifierData *smd  = (ShrinkwrapModifierData *)md;
 	ShrinkwrapModifierData *tsmd = (ShrinkwrapModifierData *)target;
-
-	tsmd->target    = smd->target;
-	tsmd->auxTarget = smd->auxTarget;
-
-	BLI_strncpy(tsmd->vgroup_name, smd->vgroup_name, sizeof(tsmd->vgroup_name));
-
-	tsmd->keepDist  = smd->keepDist;
-	tsmd->shrinkType = smd->shrinkType;
-	tsmd->shrinkOpts = smd->shrinkOpts;
-	tsmd->projAxis = smd->projAxis;
-	tsmd->subsurfLevels = smd->subsurfLevels;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -116,17 +109,18 @@ static void deformVerts(ModifierData *md, Object *ob,
                         DerivedMesh *derivedData,
                         float (*vertexCos)[3],
                         int numVerts,
-                        ModifierApplyFlag UNUSED(flag))
+                        ModifierApplyFlag flag)
 {
 	DerivedMesh *dm = derivedData;
 	CustomDataMask dataMask = requiredDataMask(ob, md);
+	bool forRender = (flag & MOD_APPLY_RENDER) != 0;
 
 	/* ensure we get a CDDM with applied vertex coords */
 	if (dataMask) {
 		dm = get_cddm(ob, NULL, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts);
+	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, forRender);
 
 	if (dm != derivedData)
 		dm->release(dm);
@@ -143,7 +137,7 @@ static void deformVertsEM(ModifierData *md, Object *ob, struct BMEditMesh *editD
 		dm = get_cddm(ob, editData, dm, vertexCos, dependsOnNormals(md));
 	}
 
-	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts);
+	shrinkwrapModifier_deform((ShrinkwrapModifierData *)md, ob, dm, vertexCos, numVerts, false);
 
 	if (dm != derivedData)
 		dm->release(dm);

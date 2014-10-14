@@ -58,7 +58,7 @@ Lamp *BKE_lamp_add(Main *bmain, const char *name)
 {
 	Lamp *la;
 	
-	la =  BKE_libblock_alloc(&bmain->lamp, ID_LA, name);
+	la =  BKE_libblock_alloc(bmain, ID_LA, name);
 	
 	la->r = la->g = la->b = la->k = 1.0f;
 	la->haint = la->energy = 1.0f;
@@ -135,8 +135,7 @@ Lamp *localize_lamp(Lamp *la)
 	Lamp *lan;
 	int a;
 	
-	lan = BKE_libblock_copy(&la->id);
-	BLI_remlink(&G.main->lamp, lan);
+	lan = BKE_libblock_copy_nolib(&la->id, false);
 
 	for (a = 0; a < MAX_MTEX; a++) {
 		if (lan->mtex[a]) {
@@ -161,7 +160,7 @@ void BKE_lamp_make_local(Lamp *la)
 {
 	Main *bmain = G.main;
 	Object *ob;
-	int is_local = FALSE, is_lib = FALSE;
+	bool is_local = false, is_lib = false;
 
 	/* - only lib users: do nothing
 	 * - only local users: set flag
@@ -177,13 +176,13 @@ void BKE_lamp_make_local(Lamp *la)
 	ob = bmain->object.first;
 	while (ob) {
 		if (ob->data == la) {
-			if (ob->id.lib) is_lib = TRUE;
-			else is_local = TRUE;
+			if (ob->id.lib) is_lib = true;
+			else is_local = true;
 		}
 		ob = ob->id.next;
 	}
 	
-	if (is_local && is_lib == FALSE) {
+	if (is_local && is_lib == false) {
 		id_clear_lib_data(bmain, &la->id);
 	}
 	else if (is_local && is_lib) {

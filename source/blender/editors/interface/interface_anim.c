@@ -61,7 +61,7 @@ static FCurve *ui_but_get_fcurve(uiBut *but, bAction **action, bool *r_driven)
 	 * but works well enough in typical cases */
 	int rnaindex = (but->rnaindex == -1) ? 0 : but->rnaindex;
 
-	return rna_get_fcurve(&but->rnapoin, but->rnaprop, rnaindex, action, r_driven);
+	return rna_get_fcurve_context_ui(but->block->evil_C, &but->rnapoin, but->rnaprop, rnaindex, action, r_driven);
 }
 
 void ui_but_anim_flag(uiBut *but, float cfra)
@@ -86,7 +86,7 @@ void ui_but_anim_flag(uiBut *but, float cfra)
 	}
 }
 
-int ui_but_anim_expression_get(uiBut *but, char *str, size_t maxlen)
+bool ui_but_anim_expression_get(uiBut *but, char *str, size_t maxlen)
 {
 	FCurve *fcu;
 	ChannelDriver *driver;
@@ -99,14 +99,14 @@ int ui_but_anim_expression_get(uiBut *but, char *str, size_t maxlen)
 
 		if (driver && driver->type == DRIVER_TYPE_PYTHON) {
 			BLI_strncpy(str, driver->expression, maxlen);
-			return 1;
+			return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
-int ui_but_anim_expression_set(uiBut *but, const char *str)
+bool ui_but_anim_expression_set(uiBut *but, const char *str)
 {
 	FCurve *fcu;
 	ChannelDriver *driver;
@@ -117,19 +117,28 @@ int ui_but_anim_expression_set(uiBut *but, const char *str)
 	if (fcu && driven) {
 		driver = fcu->driver;
 		
-		if (driver && driver->type == DRIVER_TYPE_PYTHON) {
+		if (driver && (driver->type == DRIVER_TYPE_PYTHON)) {
 			BLI_strncpy_utf8(driver->expression, str, sizeof(driver->expression));
+			
+			/* tag driver as needing to be recompiled */
 			driver->flag |= DRIVER_FLAG_RECOMPILE;
+			
+			/* clear invalid flags which may prevent this from working */
+			driver->flag &= ~DRIVER_FLAG_INVALID;
+			fcu->flag &= ~FCURVE_DISABLED;
+			
+			/* this notifier should update the Graph Editor and trigger depsgraph refresh? */
 			WM_event_add_notifier(but->block->evil_C, NC_ANIMATION | ND_KEYFRAME, NULL);
-			return 1;
+			
+			return true;
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 /* create new expression for button (i.e. a "scripted driver"), if it can be created... */
-int ui_but_anim_expression_create(uiBut *but, const char *str)
+bool ui_but_anim_expression_create(uiBut *but, const char *str)
 {
 	bContext *C = but->block->evil_C;
 	ID *id;
@@ -141,14 +150,14 @@ int ui_but_anim_expression_create(uiBut *but, const char *str)
 	if (ELEM(NULL, but->rnapoin.data, but->rnaprop)) {
 		if (G.debug & G_DEBUG)
 			printf("ERROR: create expression failed - button has no RNA info attached\n");
-		return 0;
+		return false;
 	}
 	
 	if (RNA_property_array_check(but->rnaprop) != 0) {
 		if (but->rnaindex == -1) {
 			if (G.debug & G_DEBUG)
 				printf("ERROR: create expression failed - can't create expression for entire array\n");
-			return 0;
+			return false;
 		}
 	}
 	
@@ -158,11 +167,14 @@ int ui_but_anim_expression_create(uiBut *but, const char *str)
 	if ((id == NULL) || (GS(id->name) == ID_MA) || (GS(id->name) == ID_TE)) {
 		if (G.debug & G_DEBUG)
 			printf("ERROR: create expression failed - invalid id-datablock for adding drivers (%p)\n", id);
-		return 0;
+		return false;
 	}
 	
 	/* get path */
 	path = RNA_path_from_ID_to_property(&but->rnapoin, but->rnaprop);
+	if (path == NULL) {
+		return false;
+	}
 	
 	/* create driver */
 	fcu = verify_driver_fcurve(id, path, but->rnaindex, 1);

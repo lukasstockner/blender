@@ -37,16 +37,14 @@
 #error WIN32 only!
 #endif // WIN32
 
+#ifndef __MINGW64__
 #define _WIN32_WINNT 0x501 // require Windows XP or newer
+#endif
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <ole2.h> // for drag-n-drop
 
 #include "GHOST_System.h"
-
-#if defined(__CYGWIN32__)
-#   define __int64 long long
-#endif
 
 class GHOST_EventButton;
 class GHOST_EventCursor;
@@ -217,7 +215,7 @@ public:
 protected:
 	/**
 	 * Initializes the system.
-	 * For now, it justs registers the window class (WNDCLASS).
+	 * For now, it just registers the window class (WNDCLASS).
 	 * \return A success value.
 	 */
 	virtual GHOST_TSuccess init();
@@ -233,7 +231,7 @@ protected:
 	 * \param window->	The window for this handling
 	 * \param vKey		The virtual key from hardKey
 	 * \param ScanCode	The ScanCode of pressed key (simular to PS/2 Set 1)
-	 * \param extend	Flag if key is not primerly (left or right)
+	 * \param extend	Flag if key is not primly (left or right)
 	 * \return The GHOST key (GHOST_kKeyUnknown if no match).
 	 */
 	virtual GHOST_TKey convertKey(GHOST_IWindow *window, short vKey, short ScanCode, short extend) const;

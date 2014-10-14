@@ -32,11 +32,11 @@
 #include "DNA_lamp_types.h"
 #include "DNA_node_types.h"
 #include "DNA_material_types.h"
-#include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
@@ -58,7 +58,6 @@
 
 #include "ED_node.h"
 #include "ED_gpencil.h"
-#include "ED_screen.h"
 #include "ED_space_api.h"
 
 #include "UI_resources.h"
@@ -108,6 +107,8 @@ static bNodeTree *node_tree_from_ID(ID *id)
 				return ((Scene *)id)->nodetree;
 			case ID_TE:
 				return ((Tex *)id)->nodetree;
+			case ID_LS:
+				return ((FreestyleLineStyle *)id)->nodetree;
 		}
 	}
 	
@@ -137,21 +138,10 @@ void ED_node_tag_update_id(ID *id)
 		DAG_id_tag_update(id, 0);
 		WM_main_add_notifier(NC_TEXTURE | ND_NODES, id);
 	}
-}
-
-static int has_nodetree(bNodeTree *ntree, bNodeTree *lookup)
-{
-	bNode *node;
-	
-	if (ntree == lookup)
-		return 1;
-	
-	for (node = ntree->nodes.first; node; node = node->next)
-		if (node->type == NODE_GROUP && node->id)
-			if (has_nodetree((bNodeTree *)node->id, lookup))
-				return 1;
-	
-	return 0;
+	else if (id == &ntree->id) {
+		/* node groups */
+		DAG_id_tag_update(id, 0);
+	}
 }
 
 void ED_node_tag_update_nodetree(Main *bmain, bNodeTree *ntree)
@@ -162,7 +152,7 @@ void ED_node_tag_update_nodetree(Main *bmain, bNodeTree *ntree)
 	/* look through all datablocks, to support groups */
 	FOREACH_NODETREE(bmain, tntree, id) {
 		/* check if nodetree uses the group */
-		if (has_nodetree(tntree, ntree))
+		if (ntreeHasTree(tntree, ntree))
 			ED_node_tag_update_id(id);
 	} FOREACH_NODETREE_END
 	
@@ -347,7 +337,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 		RNA_pointer_create(&ntree->id, &RNA_NodeSocket, nsock, &sockptr);
 		
 		layout = uiBlockLayout(node->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, UI_GetStyle());
+		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, 0, UI_GetStyle());
 		/* context pointers for current node and socket */
 		uiLayoutSetContextPointer(layout, "node", &nodeptr);
 		uiLayoutSetContextPointer(layout, "socket", &sockptr);
@@ -418,7 +408,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 		
 			
 		layout = uiBlockLayout(node->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                       locx + NODE_DYS, dy, node->butr.xmax, 0, UI_GetStyle());
+		                       locx + NODE_DYS, dy, node->butr.xmax, 0, 0, UI_GetStyle());
 		uiLayoutSetContextPointer(layout, "node", &nodeptr);
 		
 		node->typeinfo->draw_buttons(layout, (bContext *)C, &nodeptr);
@@ -437,7 +427,7 @@ static void node_update_basis(const bContext *C, bNodeTree *ntree, bNode *node)
 		RNA_pointer_create(&ntree->id, &RNA_NodeSocket, nsock, &sockptr);
 		
 		layout = uiBlockLayout(node->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, UI_GetStyle());
+		                       locx + NODE_DYS, dy, NODE_WIDTH(node) - NODE_DY, NODE_DY, 0, UI_GetStyle());
 		/* context pointers for current node and socket */
 		uiLayoutSetContextPointer(layout, "node", &nodeptr);
 		uiLayoutSetContextPointer(layout, "socket", &sockptr);
@@ -562,16 +552,21 @@ int node_tweak_area_default(bNode *node, int x, int y)
 int node_get_colorid(bNode *node)
 {
 	switch (node->typeinfo->nclass) {
-		case NODE_CLASS_INPUT:      return TH_NODE_IN_OUT;
-		case NODE_CLASS_OUTPUT:     return (node->flag & NODE_DO_OUTPUT) ? TH_NODE_IN_OUT : TH_NODE;
+		case NODE_CLASS_INPUT:      return TH_NODE_INPUT;
+		case NODE_CLASS_OUTPUT:     return (node->flag & NODE_DO_OUTPUT) ? TH_NODE_OUTPUT : TH_NODE;
 		case NODE_CLASS_CONVERTOR:  return TH_NODE_CONVERTOR;
-		case NODE_CLASS_OP_COLOR:
-		case NODE_CLASS_OP_VECTOR:
-		case NODE_CLASS_OP_FILTER:  return TH_NODE_OPERATOR;
+		case NODE_CLASS_OP_COLOR:   return TH_NODE_COLOR;
+		case NODE_CLASS_OP_VECTOR:  return TH_NODE_VECTOR;
+		case NODE_CLASS_OP_FILTER:  return TH_NODE_FILTER;
 		case NODE_CLASS_GROUP:      return TH_NODE_GROUP;
 		case NODE_CLASS_INTERFACE:  return TH_NODE_INTERFACE;
 		case NODE_CLASS_MATTE:      return TH_NODE_MATTE;
 		case NODE_CLASS_DISTORT:    return TH_NODE_DISTORT;
+		case NODE_CLASS_TEXTURE:    return TH_NODE_TEXTURE;
+		case NODE_CLASS_SHADER:     return TH_NODE_SHADER;
+		case NODE_CLASS_SCRIPT:     return TH_NODE_SCRIPT;
+		case NODE_CLASS_PATTERN:    return TH_NODE_PATTERN;
+		case NODE_CLASS_LAYOUT:     return TH_NODE_LAYOUT;
 		default:                    return TH_NODE;
 	}
 }
@@ -594,17 +589,17 @@ static void node_draw_mute_line(View2D *v2d, SpaceNode *snode, bNode *node)
 }
 
 /* this might have some more generic use */
-static void node_circle_draw(float x, float y, float size, float *col, int highlight)
+static void node_circle_draw(float x, float y, float size, const float col[4], int highlight)
 {
 	/* 16 values of sin function */
-	static float si[16] = {
+	static const float si[16] = {
 		0.00000000f, 0.39435585f, 0.72479278f, 0.93775213f,
 		0.99871650f, 0.89780453f, 0.65137248f, 0.29936312f,
 		-0.10116832f, -0.48530196f, -0.79077573f, -0.96807711f,
 		-0.98846832f, -0.84864425f, -0.57126821f, -0.20129852f
 	};
 	/* 16 values of cos function */
-	static float co[16] = {
+	static const float co[16] = {
 		1.00000000f, 0.91895781f, 0.68896691f, 0.34730525f,
 		-0.05064916f, -0.44039415f, -0.75875812f, -0.95413925f,
 		-0.99486932f, -0.87434661f, -0.61210598f, -0.25065253f,
@@ -775,7 +770,7 @@ static void node_draw_basis(const bContext *C, ARegion *ar, SpaceNode *snode, bN
 		nodeSynchronizeID(node, false);
 	
 	/* skip if out of view */
-	if (BLI_rctf_isect(&node->totr, &ar->v2d.cur, NULL) == FALSE) {
+	if (BLI_rctf_isect(&node->totr, &ar->v2d.cur, NULL) == false) {
 		uiEndBlock(C, node->block);
 		node->block = NULL;
 		return;
@@ -1214,7 +1209,7 @@ static void snode_setup_v2d(SpaceNode *snode, ARegion *ar, const float center[2]
 	View2D *v2d = &ar->v2d;
 	
 	/* shift view to node tree center */
-	UI_view2d_setcenter(v2d, center[0], center[1]);
+	UI_view2d_center_set(v2d, center[0], center[1]);
 	UI_view2d_view_ortho(v2d);
 	
 	/* aspect+font, set each time */
@@ -1299,7 +1294,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
 		path = snode->treepath.last;
 		
 		/* current View2D center, will be set temporarily for parent node trees */
-		UI_view2d_getcenter(v2d, &center[0], &center[1]);
+		UI_view2d_center_get(v2d, &center[0], &center[1]);
 		
 		/* store new view center in path and current edittree */
 		copy_v2_v2(path->view_center, center);
@@ -1350,7 +1345,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
 		
 		if (snode->flag & SNODE_SHOW_GPENCIL) {
 			/* draw grease-pencil ('canvas' strokes) */
-			draw_gpencil_view2d(C, TRUE);
+			ED_gpencil_draw_view2d(C, true);
 		}
 	}
 	else {
@@ -1369,7 +1364,7 @@ void drawnodespace(const bContext *C, ARegion *ar)
 	if (snode->treepath.last) {
 		if (snode->flag & SNODE_SHOW_GPENCIL) {
 			/* draw grease-pencil (screen strokes, and also paintbuffer) */
-			draw_gpencil_view2d(C, FALSE);
+			ED_gpencil_draw_view2d(C, false);
 		}
 	}
 

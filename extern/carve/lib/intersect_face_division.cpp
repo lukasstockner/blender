@@ -1,13 +1,13 @@
 // Begin License:
-// Copyright (C) 2006-2011 Tobias Sargeant (tobias.sargeant@gmail.com).
+// Copyright (C) 2006-2014 Tobias Sargeant (tobias.sargeant@gmail.com).
 // All rights reserved.
 //
 // This file is part of the Carve CSG Library (http://carve-csg.com/)
 //
-// This file may be used under the terms of the GNU General Public
-// License version 2.0 as published by the Free Software Foundation
-// and appearing in the file LICENSE.GPL2 included in the packaging of
-// this file.
+// This file may be used under the terms of either the GNU General
+// Public License version 2 or 3 (at your option) as published by the
+// Free Software Foundation and appearing in the files LICENSE.GPL2
+// and LICENSE.GPL3 included in the packaging of this file.
 //
 // This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
 // INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
@@ -719,6 +719,10 @@ namespace {
           unassigned--;
         }
       }
+
+      if (!removed.size())
+        throw carve::exception("Failed to merge holes");
+
       for (std::set<int>::iterator f = removed.begin(); f != removed.end(); ++f) {
         for (unsigned i = 0; i < containing_faces.size(); ++i) {
           containing_faces[i].erase(std::remove(containing_faces[i].begin(),
@@ -1121,7 +1125,9 @@ namespace {
         }
 
         // copy up to the end of the path.
-        std::copy(base_loop.begin() + pos, base_loop.begin() + e1_1, std::back_inserter(out));
+        if (pos < e1_1) {
+            std::copy(base_loop.begin() + pos, base_loop.begin() + e1_1, std::back_inserter(out));
+        }
 
         CARVE_ASSERT(base_loop[e1_1] == p1.back());
         std::copy(p1.rbegin(), p1.rend() - 1, std::back_inserter(out));
@@ -1455,7 +1461,7 @@ namespace {
     std::vector<carve::mesh::MeshSet<3>::vertex_t *> base_loop;
     std::list<std::vector<carve::mesh::MeshSet<3>::vertex_t *> > hole_loops;
 
-    bool face_edge_intersected = assembleBaseLoop(face, data, base_loop, hooks);
+    /*bool face_edge_intersected = */assembleBaseLoop(face, data, base_loop, hooks);
 
     detail::FV2SMap::const_iterator fse_iter = data.face_split_edges.find(face);
 

@@ -53,6 +53,8 @@ struct wmNotifier;
 struct wmWindow;
 struct wmWindowManager;
 
+#include "BLI_compiler_attrs.h"
+
 #include "RNA_types.h"
 
 /* spacetype has everything stored to get an editor working, it gets initialized via 
@@ -171,6 +173,7 @@ typedef struct PanelType {
 	char label[BKE_ST_MAXNAME];               /* for panel header */
 	char translation_context[BKE_ST_MAXNAME];
 	char context[BKE_ST_MAXNAME];             /* for buttons window */
+	char category[BKE_ST_MAXNAME];            /* for category tabs */
 	int space_type;
 	int region_type;
 
@@ -241,7 +244,7 @@ typedef struct MenuType {
 	char idname[BKE_ST_MAXNAME];        /* unique name */
 	char label[BKE_ST_MAXNAME];         /* for button text */
 	char translation_context[BKE_ST_MAXNAME];
-	char *description;
+	const char *description;
 
 	/* verify if the menu should draw or not */
 	int (*poll)(const struct bContext *, struct MenuType *);
@@ -278,6 +281,11 @@ void            BKE_screen_area_free(struct ScrArea *sa);
 struct ARegion *BKE_area_find_region_type(struct ScrArea *sa, int type);
 struct ARegion *BKE_area_find_region_active_win(struct ScrArea *sa);
 struct ScrArea *BKE_screen_find_big_area(struct bScreen *sc, const int spacetype, const short min);
+
+unsigned int BKE_screen_view3d_layer_active_ex(
+        const struct View3D *v3d, const struct Scene *scene, bool use_localvd) ATTR_NONNULL(2);
+unsigned int BKE_screen_view3d_layer_active(
+        const struct View3D *v3d, const struct Scene *scene) ATTR_NONNULL(2);
 
 void BKE_screen_view3d_sync(struct View3D *v3d, struct Scene *scene);
 void BKE_screen_view3d_scene_sync(struct bScreen *sc);

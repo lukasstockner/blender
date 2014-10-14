@@ -53,7 +53,6 @@ typedef struct FModifier {
 	struct FModifier *next, *prev;
 	
 	void *data;			/* pointer to modifier data */
-	void *edata;		/* pointer to temporary data used during evaluation */
 	
 	char name[64];		/* user-defined description for the modifier */
 	short type;			/* type of f-curve modifier */
@@ -229,7 +228,7 @@ typedef struct FMod_Noise {
 	float size;
 	float strength;
 	float phase;
-	float pad;
+	float offset;
 	
 	short depth;
 	short modification;
@@ -792,7 +791,11 @@ typedef enum eInsertKeyFlags {
 	INSERTKEY_FAST 		= (1<<2),	/* don't recalculate handles,etc. after adding key */
 	INSERTKEY_FASTR		= (1<<3),	/* don't realloc mem (or increase count, as array has already been set out) */
 	INSERTKEY_REPLACE 	= (1<<4),	/* only replace an existing keyframe (this overrides INSERTKEY_NEEDED) */
-	INSERTKEY_XYZ2RGB	= (1<<5)	/* transform F-Curves should have XYZ->RGB color mode */
+	INSERTKEY_XYZ2RGB	= (1<<5),	/* transform F-Curves should have XYZ->RGB color mode */
+	INSERTKEY_NO_USERPREF	= (1 << 6),	/* ignore user-prefs (needed for predictable API use) */
+	/* Allow to make a full copy of new key into existing one, if any, instead of 'reusing' existing handles.
+	 * Used by copy/paste code. */
+	INSERTKEY_OVERWRITE_FULL = (1<<7),
 } eInsertKeyFlags;
 
 /* ************************************************ */

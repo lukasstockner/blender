@@ -28,7 +28,7 @@
 #include "COM_CPUDevice.h"
 #include "COM_OpenCLDevice.h"
 #include "COM_OpenCLKernels.cl.h"
-#include "OCL_opencl.h"
+#include "clew.h"
 #include "COM_WriteBufferOperation.h"
 
 #include "MEM_guardedalloc.h"
@@ -81,12 +81,17 @@ static int g_highlightIndex;
 static void **g_highlightedNodes;
 static void **g_highlightedNodesRead;
 
+/* XXX highlighting disabled for now
+ * This requires pointers back to DNA data (bNodeTree/bNode) in operations, which is bad!
+ * Instead IF we want to keep this feature it should use a weak reference such as bNodeInstanceKey
+ */
+#if 0
 #if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
 #define HIGHLIGHT(wp) \
 { \
 	ExecutionGroup *group = wp->getExecutionGroup(); \
 	if (group->isComplex()) { \
-		NodeOperation *operation = group->getOutputNodeOperation(); \
+		NodeOperation *operation = group->getOutputOperation(); \
 		if (operation->isWriteBufferOperation()) { \
 			WriteBufferOperation *writeOperation = (WriteBufferOperation *)operation; \
 			NodeOperation *complexOperation = writeOperation->getInput(); \
@@ -105,6 +110,9 @@ static void **g_highlightedNodesRead;
 	} \
 }
 #endif  /* COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE */
+#else
+#define HIGHLIGHT(wp) {}
+#endif
 
 void COM_startReadHighlights()
 {
@@ -266,12 +274,12 @@ bool WorkScheduler::hasGPUDevices()
 #endif
 }
 
-static void clContextError(const char *errinfo, const void *private_info, size_t cb, void *user_data)
+static void CL_CALLBACK clContextError(const char *errinfo, const void *private_info, size_t cb, void *user_data)
 {
 	printf("OPENCL error: %s\n", errinfo);
 }
 
-void WorkScheduler::initialize(bool use_opencl)
+void WorkScheduler::initialize(bool use_opencl, int num_cpu_threads)
 {
 	/* initialize highlighting */
 	if (!g_highlightInitialized) {
@@ -287,11 +295,23 @@ void WorkScheduler::initialize(bool use_opencl)
 	}
 
 #if COM_CURRENT_THREADING_MODEL == COM_TM_QUEUE
+	/* deinitialize if number of threads doesn't match */
+	if (g_cpudevices.size() != num_cpu_threads) {
+		Device *device;
+
+		while (g_cpudevices.size() > 0) {
+			device = g_cpudevices.back();
+			g_cpudevices.pop_back();
+			device->deinitialize();
+			delete device;
+		}
+
+		g_cpuInitialized = false;
+	}
+
 	/* initialize CPU threads */
 	if (!g_cpuInitialized) {
-		int numberOfCPUThreads = BLI_system_thread_count();
-
-		for (int index = 0; index < numberOfCPUThreads; index++) {
+		for (int index = 0; index < num_cpu_threads; index++) {
 			CPUDevice *device = new CPUDevice();
 			device->initialize();
 			g_cpudevices.push_back(device);
@@ -306,7 +326,7 @@ void WorkScheduler::initialize(bool use_opencl)
 		g_context = NULL;
 		g_program = NULL;
 
-		if (!OCL_init()) /* this will check for errors and skip if already initialized */
+		if (clewInit() != CLEW_SUCCESS) /* this will check for errors and skip if already initialized */
 			return;
 
 		if (clCreateContextFromType) {
@@ -315,7 +335,7 @@ void WorkScheduler::initialize(bool use_opencl)
 			error = clGetPlatformIDs(0, 0, &numberOfPlatforms);
 			if (error == -1001) { }   /* GPU not supported */
 			else if (error != CL_SUCCESS) { printf("CLERROR[%d]: %s\n", error, clewErrorString(error));  }
-			if (G.f & G_DEBUG) printf("%d number of platforms\n", numberOfPlatforms);
+			if (G.f & G_DEBUG) printf("%u number of platforms\n", numberOfPlatforms);
 			cl_platform_id *platforms = (cl_platform_id *)MEM_mallocN(sizeof(cl_platform_id) * numberOfPlatforms, __func__);
 			error = clGetPlatformIDs(numberOfPlatforms, platforms, 0);
 			unsigned int indexPlatform;

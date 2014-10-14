@@ -58,7 +58,7 @@ static int pyrna_struct_anim_args_parse(
         PointerRNA *ptr, const char *error_prefix, const char *path,
         const char **path_full, int *index)
 {
-	const int is_idbase = RNA_struct_is_ID(ptr->type);
+	const bool is_idbase = RNA_struct_is_ID(ptr->type);
 	PropertyRNA *prop;
 	PointerRNA r_ptr;
 
@@ -168,8 +168,13 @@ static int pyrna_struct_keyframe_parse(
 		*cfra = CTX_data_scene(BPy_GetContext())->r.cfra;
 
 	/* flag may be null (no option currently for remove keyframes e.g.). */
-	if (pyoptions && options && (pyrna_set_to_enum_bitfield(keying_flag_items, pyoptions, options, error_prefix) == -1))
-		return -1;
+	if (options) {
+		if (pyoptions && (pyrna_set_to_enum_bitfield(keying_flag_items, pyoptions, options, error_prefix) == -1)) {
+			return -1;
+		}
+
+		*options |= INSERTKEY_NO_USERPREF;
+	}
 
 	return 0; /* success */
 }

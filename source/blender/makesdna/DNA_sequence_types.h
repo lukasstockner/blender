@@ -249,6 +249,11 @@ typedef struct SpeedControlVars {
 	int lastValidFrame;
 } SpeedControlVars;
 
+typedef struct GaussianBlurVars {
+	float size_x;
+	float size_y;
+} GaussianBlurVars;
+
 /* ***************** Sequence modifiers ****************** */
 
 typedef struct SequenceModifierData {
@@ -325,37 +330,43 @@ typedef struct SequencerScopes {
 #define SEQ_NAME_MAXSTR         64
 
 /* seq->flag */
-#define SEQ_LEFTSEL                 (1 << 1)
-#define SEQ_RIGHTSEL                (1 << 2)
-#define SEQ_OVERLAP                 (1 << 3)
-#define SEQ_FILTERY                 (1 << 4)
-#define SEQ_MUTE                    (1 << 5)
-#define SEQ_MAKE_PREMUL             (1 << 6) /* deprecated, used for compatibility code only */
-#define SEQ_REVERSE_FRAMES          (1 << 7)
-#define SEQ_IPO_FRAME_LOCKED        (1 << 8)
-#define SEQ_EFFECT_NOT_LOADED       (1 << 9)
-#define SEQ_FLAG_DELETE             (1 << 10)
-#define SEQ_FLIPX                   (1 << 11)
-#define SEQ_FLIPY                   (1 << 12)
-#define SEQ_MAKE_FLOAT              (1 << 13)
-#define SEQ_LOCK                    (1 << 14)
-#define SEQ_USE_PROXY               (1 << 15)
-#define SEQ_USE_TRANSFORM           (1 << 16)
-#define SEQ_USE_CROP                (1 << 17)
-/* #define SEQ_USE_COLOR_BALANCE       (1 << 18) */ /* DEPRECATED */
-#define SEQ_USE_PROXY_CUSTOM_DIR    (1 << 19)
+enum {
+	SEQ_LEFTSEL                 = (1 << 1),
+	SEQ_RIGHTSEL                = (1 << 2),
+	SEQ_OVERLAP                 = (1 << 3),
+	SEQ_FILTERY                 = (1 << 4),
+	SEQ_MUTE                    = (1 << 5),
+	SEQ_MAKE_PREMUL             = (1 << 6), /* deprecated, used for compatibility code only */
+	SEQ_REVERSE_FRAMES          = (1 << 7),
+	SEQ_IPO_FRAME_LOCKED        = (1 << 8),
+	SEQ_EFFECT_NOT_LOADED       = (1 << 9),
+	SEQ_FLAG_DELETE             = (1 << 10),
+	SEQ_FLIPX                   = (1 << 11),
+	SEQ_FLIPY                   = (1 << 12),
+	SEQ_MAKE_FLOAT              = (1 << 13),
+	SEQ_LOCK                    = (1 << 14),
+	SEQ_USE_PROXY               = (1 << 15),
+	SEQ_USE_TRANSFORM           = (1 << 16),
+	SEQ_USE_CROP                = (1 << 17),
+	/* SEQ_USE_COLOR_BALANCE       = (1 << 18), */ /* DEPRECATED */
+	SEQ_USE_PROXY_CUSTOM_DIR    = (1 << 19),
 
-#define SEQ_USE_PROXY_CUSTOM_FILE   (1 << 21)
-#define SEQ_USE_EFFECT_DEFAULT_FADE (1 << 22)
-#define SEQ_USE_LINEAR_MODIFIERS    (1 << 23)
+	SEQ_USE_PROXY_CUSTOM_FILE   = (1 << 21),
+	SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
+	SEQ_USE_LINEAR_MODIFIERS    = (1 << 23),
 
-// flags for whether those properties are animated or not
-#define SEQ_AUDIO_VOLUME_ANIMATED   (1 << 24)
-#define SEQ_AUDIO_PITCH_ANIMATED    (1 << 25)
-#define SEQ_AUDIO_PAN_ANIMATED      (1 << 26)
-#define SEQ_AUDIO_DRAW_WAVEFORM     (1 << 27)
+	/* flags for whether those properties are animated or not */
+	SEQ_AUDIO_VOLUME_ANIMATED   = (1 << 24),
+	SEQ_AUDIO_PITCH_ANIMATED    = (1 << 25),
+	SEQ_AUDIO_PAN_ANIMATED      = (1 << 26),
+	SEQ_AUDIO_DRAW_WAVEFORM     = (1 << 27),
 
-#define SEQ_INVALID_EFFECT          (1 << 31)
+	SEQ_INVALID_EFFECT          = (1 << 31),
+};
+
+#if (DNA_DEPRECATED_GCC_POISON == 1)
+#pragma GCC poison SEQ_MAKE_PREMUL
+#endif
 
 /* convenience define for all selection flags */
 #define SEQ_ALLSEL  (SELECT + SEQ_LEFTSEL + SEQ_RIGHTSEL)
@@ -415,7 +426,8 @@ enum {
 	SEQ_TYPE_SPEED       = 29,
 	SEQ_TYPE_MULTICAM    = 30,
 	SEQ_TYPE_ADJUSTMENT  = 31,
-	SEQ_TYPE_EFFECT_MAX  = 31
+	SEQ_TYPE_GAUSSIAN_BLUR = 40,
+	SEQ_TYPE_EFFECT_MAX  = 40
 };
 
 #define SEQ_MOVIECLIP_RENDER_UNDISTORTED (1 << 0)
@@ -428,7 +440,7 @@ enum {
  */
 
 
-#define SEQ_HAS_PATH(_seq) (ELEM4((_seq)->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD))
+#define SEQ_HAS_PATH(_seq) (ELEM((_seq)->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SOUND_HD))
 
 /* modifiers */
 

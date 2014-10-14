@@ -38,7 +38,6 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
 
 
 #include "BKE_deform.h"
@@ -66,16 +65,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	CastModifierData *cmd = (CastModifierData *) md;
 	CastModifierData *tcmd = (CastModifierData *) target;
-
-	tcmd->fac = cmd->fac;
-	tcmd->radius = cmd->radius;
-	tcmd->size = cmd->size;
-	tcmd->flag = cmd->flag;
-	tcmd->type = cmd->type;
-	tcmd->object = cmd->object;
-	BLI_strncpy(tcmd->defgrp_name, cmd->defgrp_name, sizeof(tcmd->defgrp_name));
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
@@ -135,7 +129,7 @@ static void sphere_do(
 	Object *ctrl_ob = NULL;
 
 	int i, defgrp_index;
-	int has_radius = 0;
+	bool has_radius = false;
 	short flag, type;
 	float len = 0.0f;
 	float fac = cmd->fac;
@@ -157,8 +151,8 @@ static void sphere_do(
 	 * we use its location, transformed to ob's local space */
 	if (ctrl_ob) {
 		if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-			invert_m4_m4(ctrl_ob->imat, ctrl_ob->obmat);
-			mul_m4_m4m4(mat, ctrl_ob->imat, ob->obmat);
+			invert_m4_m4(imat, ctrl_ob->obmat);
+			mul_m4_m4m4(mat, imat, ob->obmat);
 			invert_m4_m4(imat, mat);
 		}
 
@@ -255,7 +249,7 @@ static void cuboid_do(
 	Object *ctrl_ob = NULL;
 
 	int i, defgrp_index;
-	int has_radius = 0;
+	bool has_radius = false;
 	short flag;
 	float fac = cmd->fac;
 	float facm = 1.0f - fac;
@@ -281,8 +275,8 @@ static void cuboid_do(
 
 	if (ctrl_ob) {
 		if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-			invert_m4_m4(ctrl_ob->imat, ctrl_ob->obmat);
-			mul_m4_m4m4(mat, ctrl_ob->imat, ob->obmat);
+			invert_m4_m4(imat, ctrl_ob->obmat);
+			mul_m4_m4m4(mat, imat, ob->obmat);
 			invert_m4_m4(imat, mat);
 		}
 

@@ -36,6 +36,7 @@
 #include "KX_GameObject.h"
 #include "KX_Light.h"
 #include "RAS_MeshObject.h"
+#include "RAS_ILightObject.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_image_types.h"
@@ -53,7 +54,7 @@
 #include "Exception.h"
 
 #include <memory.h>
-#include "GL/glew.h"
+#include "glew-mx.h"
 
 
 // macro for exception handling and logging
@@ -237,7 +238,7 @@ static int Texture_init(Texture *self, PyObject *args, PyObject *kwds)
 			}
 			else if (lamp != NULL)
 			{
-				self->m_imgTexture = lamp->GetTextureImage(texID);
+				self->m_imgTexture = lamp->GetLightData()->GetTextureImage(texID);
 				self->m_useMatTexture = false;
 			}
 

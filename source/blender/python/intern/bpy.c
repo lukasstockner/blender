@@ -49,12 +49,16 @@
 #include "bpy_props.h"
 #include "bpy_library.h"
 #include "bpy_operator.h"
+#include "bpy_utils_units.h"
+
+#include "../generic/py_capi_utils.h"
 
 #include "MEM_guardedalloc.h"
 
 /* external util modules */
 #include "../generic/idprop_py_api.h"
 #include "../generic/bgl.h"
+#include "../generic/blf_py_api.h"
 #include "../generic/blf_py_api.h"
 #include "../mathutils/mathutils.h"
 
@@ -79,11 +83,11 @@ static PyObject *bpy_script_paths(PyObject *UNUSED(self))
 	const char *path;
 
 	path = BLI_get_folder(BLENDER_SYSTEM_SCRIPTS, NULL);
-	item = PyUnicode_DecodeFSDefault(path ? path : "");
+	item = PyC_UnicodeFromByte(path ? path : "");
 	BLI_assert(item != NULL);
 	PyTuple_SET_ITEM(ret, 0, item);
 	path = BLI_get_folder(BLENDER_USER_SCRIPTS, NULL);
-	item = PyUnicode_DecodeFSDefault(path ? path : "");
+	item = PyC_UnicodeFromByte(path ? path : "");
 	BLI_assert(item != NULL);
 	PyTuple_SET_ITEM(ret, 1, item);
 
@@ -93,7 +97,7 @@ static PyObject *bpy_script_paths(PyObject *UNUSED(self))
 static bool bpy_blend_paths_visit_cb(void *userdata, char *UNUSED(path_dst), const char *path_src)
 {
 	PyObject *list = (PyObject *)userdata;
-	PyObject *item = PyUnicode_DecodeFSDefault(path_src);
+	PyObject *item = PyC_UnicodeFromByte(path_src);
 	PyList_Append(list, item);
 	Py_DECREF(item);
 	return false; /* never edits the path */
@@ -144,8 +148,8 @@ static PyObject *bpy_blend_paths(PyObject *UNUSED(self), PyObject *args, PyObjec
 // PyDoc_STRVAR(bpy_user_resource_doc[] = // now in bpy/utils.py
 static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-	char *type;
-	char *subdir = NULL;
+	const char *type;
+	const char *subdir = NULL;
 	int folder_id;
 	static const char *kwlist[] = {"type", "subdir", NULL};
 
@@ -170,7 +174,7 @@ static PyObject *bpy_user_resource(PyObject *UNUSED(self), PyObject *args, PyObj
 	if (!path)
 		path = BLI_get_user_folder_notest(folder_id, subdir);
 
-	return PyUnicode_DecodeFSDefault(path ? path : "");
+	return PyC_UnicodeFromByte(path ? path : "");
 }
 
 PyDoc_STRVAR(bpy_resource_path_doc,
@@ -189,7 +193,7 @@ PyDoc_STRVAR(bpy_resource_path_doc,
 );
 static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObject *kw)
 {
-	char *type;
+	const char *type;
 	int major = BLENDER_VERSION / 100, minor = BLENDER_VERSION % 100;
 	static const char *kwlist[] = {"type", "major", "minor", NULL};
 	int folder_id;
@@ -209,7 +213,51 @@ static PyObject *bpy_resource_path(PyObject *UNUSED(self), PyObject *args, PyObj
 
 	path = BLI_get_folder_version(folder_id, (major * 100) + minor, false);
 
-	return PyUnicode_DecodeFSDefault(path ? path : "");
+	return PyC_UnicodeFromByte(path ? path : "");
+}
+
+PyDoc_STRVAR(bpy_escape_identifier_doc,
+".. function:: escape_identifier(string)\n"
+"\n"
+"   Simple string escaping function used for animation paths.\n"
+"\n"
+"   :arg string: text\n"
+"   :type string: string\n"
+"   :return: The escaped string.\n"
+"   :rtype: string\n"
+);
+static PyObject *bpy_escape_identifier(PyObject *UNUSED(self), PyObject *value)
+{
+	const char *value_str;
+	Py_ssize_t  value_str_len;
+
+	char       *value_escape_str;
+	Py_ssize_t  value_escape_str_len;
+	PyObject   *value_escape;
+	size_t size;
+
+	value_str = _PyUnicode_AsStringAndSize(value, &value_str_len);
+
+	if (value_str == NULL) {
+		PyErr_SetString(PyExc_TypeError, "expected a string");
+		return NULL;
+	}
+
+	size = (value_str_len * 2) + 1;
+	value_escape_str = PyMem_MALLOC(size);
+	value_escape_str_len = BLI_strescape(value_escape_str, value_str, size);
+
+	if (value_escape_str_len == value_str_len) {
+		Py_INCREF(value);
+		value_escape = value;
+	}
+	else {
+		value_escape = PyUnicode_FromStringAndSize(value_escape_str, value_escape_str_len);
+	}
+
+	PyMem_FREE(value_escape_str);
+
+	return value_escape;
 }
 
 static PyMethodDef meth_bpy_script_paths =
@@ -220,7 +268,8 @@ static PyMethodDef meth_bpy_user_resource =
 	{"user_resource", (PyCFunction)bpy_user_resource, METH_VARARGS | METH_KEYWORDS, NULL};
 static PyMethodDef meth_bpy_resource_path =
 	{"resource_path", (PyCFunction)bpy_resource_path, METH_VARARGS | METH_KEYWORDS, bpy_resource_path_doc};
-
+static PyMethodDef meth_bpy_escape_identifier =
+	{"escape_identifier", (PyCFunction)bpy_escape_identifier, METH_O, bpy_escape_identifier_doc};
 
 static PyObject *bpy_import_test(const char *modname)
 {
@@ -289,6 +338,7 @@ void BPy_init_modules(void)
 	/* ops is now a python module that does the conversion from SOME_OT_foo -> some.foo */
 	PyModule_AddObject(mod, "ops", BPY_operator_module());
 	PyModule_AddObject(mod, "app", BPY_app_struct());
+	PyModule_AddObject(mod, "_utils_units", BPY_utils_units());
 
 	/* bpy context */
 	RNA_pointer_create(NULL, &RNA_Context, (void *)BPy_GetContext(), &ctx_ptr);
@@ -307,6 +357,7 @@ void BPy_init_modules(void)
 	PyModule_AddObject(mod, meth_bpy_blend_paths.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_blend_paths, NULL));
 	PyModule_AddObject(mod, meth_bpy_user_resource.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_user_resource, NULL));
 	PyModule_AddObject(mod, meth_bpy_resource_path.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_resource_path, NULL));
+	PyModule_AddObject(mod, meth_bpy_escape_identifier.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_escape_identifier, NULL));
 
 	/* register funcs (bpy_rna.c) */
 	PyModule_AddObject(mod, meth_bpy_register_class.ml_name, (PyObject *)PyCFunction_New(&meth_bpy_register_class, NULL));

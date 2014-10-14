@@ -37,7 +37,6 @@
 #include <string.h>
 
 #include "BLI_fileops.h"
-#include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
 #include "MEM_guardedalloc.h"
@@ -256,8 +255,8 @@ LogImageFile *dpxOpen(const unsigned char *byteStuff, int fromMemory, size_t buf
 
 		dpx->element[i].bitsPerSample = header.imageHeader.element[i].bits_per_sample;
 		if (dpx->element[i].bitsPerSample != 1 && dpx->element[i].bitsPerSample != 8 &&
-			dpx->element[i].bitsPerSample != 10 && dpx->element[i].bitsPerSample != 12 &&
-			dpx->element[i].bitsPerSample != 16)
+		    dpx->element[i].bitsPerSample != 10 && dpx->element[i].bitsPerSample != 12 &&
+		    dpx->element[i].bitsPerSample != 16)
 		{
 			if (verbose) printf("DPX: Unsupported bitsPerSample for elements %d: %d\n", i, dpx->element[i].bitsPerSample);
 			logImageClose(dpx);

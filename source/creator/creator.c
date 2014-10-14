@@ -40,14 +40,10 @@
 #  include <xmmintrin.h>
 #endif
 
-/* crash handler */
 #ifdef WIN32
-#  include <process.h> /* getpid */
-#else
-#  include <unistd.h> /* getpid */
-#endif
-
-#ifdef WIN32
+#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+#    include <math.h> /* needed for _set_FMA3_enable */
+#  endif
 #  include <windows.h>
 #  include "utfconv.h"
 #endif
@@ -79,6 +75,8 @@
 #include "BLI_callbacks.h"
 #include "BLI_blenlib.h"
 #include "BLI_mempool.h"
+#include "BLI_system.h"
+#include BLI_SYSTEM_PID_H
 
 #include "DNA_ID.h"
 #include "DNA_scene_types.h"
@@ -94,12 +92,12 @@
 #include "BKE_main.h"
 #include "BKE_material.h"
 #include "BKE_modifier.h"
-#include "BKE_packedFile.h"
 #include "BKE_scene.h"
 #include "BKE_node.h"
 #include "BKE_report.h"
 #include "BKE_sound.h"
 #include "BKE_image.h"
+#include "BKE_particle.h"
 
 #include "IMB_imbuf.h"  /* for IMB_init */
 
@@ -109,8 +107,10 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+#include "RE_render_ext.h"
 
 #include "ED_datafiles.h"
+#include "ED_util.h"
 
 #include "WM_api.h"
 
@@ -148,6 +148,10 @@
 
 #ifdef WITH_LIBMV
 #  include "libmv-capi.h"
+#endif
+
+#ifdef WITH_CYCLES_LOGGING
+#  include "CCL_api.h"
 #endif
 
 /* from buildinfo.c */
@@ -208,7 +212,7 @@ static void blender_esc(int sig)
 {
 	static int count = 0;
 	
-	G.is_break = TRUE;  /* forces render loop to read queue, not sure if its needed */
+	G.is_break = true;  /* forces render loop to read queue, not sure if its needed */
 	
 	if (sig == 2) {
 		if (count) {
@@ -310,9 +314,13 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 #ifdef WITH_LIBMV
 	BLI_argsPrintArgDoc(ba, "--debug-libmv");
 #endif
+#ifdef WITH_CYCLES_LOGGING
+	BLI_argsPrintArgDoc(ba, "--debug-cycles");
+#endif
 	BLI_argsPrintArgDoc(ba, "--debug-memory");
 	BLI_argsPrintArgDoc(ba, "--debug-jobs");
 	BLI_argsPrintArgDoc(ba, "--debug-python");
+	BLI_argsPrintArgDoc(ba, "--debug-depsgraph");
 
 	BLI_argsPrintArgDoc(ba, "--debug-wm");
 	BLI_argsPrintArgDoc(ba, "--debug-all");
@@ -369,7 +377,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	printf("  $BLENDER_USER_CONFIG      Directory for user configuration files.\n");
 	printf("  $BLENDER_USER_SCRIPTS     Directory for user scripts.\n");
 	printf("  $BLENDER_SYSTEM_SCRIPTS   Directory for system wide scripts.\n");
-	printf("  Directory for user data files (icons, translations, ..).\n");
+	printf("  $BLENDER_USER_DATAFILES   Directory for user data files (icons, translations, ..).\n");
 	printf("  $BLENDER_SYSTEM_DATAFILES Directory for system wide data files.\n");
 	printf("  $BLENDER_SYSTEM_PYTHON    Directory for system python libraries.\n");
 #ifdef WIN32
@@ -446,6 +454,15 @@ static int debug_mode_libmv(int UNUSED(argc), const char **UNUSED(argv), void *U
 {
 	libmv_startDebugLogging();
 
+	return 0;
+}
+#endif
+
+#ifdef WITH_CYCLES_LOGGING
+static int debug_mode_cycles(int UNUSED(argc), const char **UNUSED(argv),
+                             void *UNUSED(data))
+{
+	CCL_start_debug_logging();
 	return 0;
 }
 #endif
@@ -535,10 +552,10 @@ static void blender_crash_handler_backtrace(FILE *fp)
 
 	process = GetCurrentProcess();
 
-	SymInitialize(process, NULL, TRUE);
+	SymInitialize(process, NULL, true);
 
 	nframes = CaptureStackBackTrace(0, SIZE, stack, NULL);
-	symbolinfo = MEM_callocN(sizeof(SYMBOL_INFO) + MAXSYMBOL * sizeof( char ), "crash Symbol table");
+	symbolinfo = MEM_callocN(sizeof(SYMBOL_INFO) + MAXSYMBOL * sizeof(char), "crash Symbol table");
 	symbolinfo->MaxNameLen = MAXSYMBOL - 1;
 	symbolinfo->SizeOfStruct = sizeof(SYMBOL_INFO);
 
@@ -569,7 +586,7 @@ static void blender_crash_handler(int signum)
 		char fname[FILE_MAX];
 
 		if (!G.main->name[0]) {
-			BLI_make_file_string("/", fname, BLI_temporary_dir(), "crash.blend");
+			BLI_make_file_string("/", fname, BLI_temp_dir_base(), "crash.blend");
 		}
 		else {
 			BLI_strncpy(fname, G.main->name, sizeof(fname));
@@ -590,10 +607,10 @@ static void blender_crash_handler(int signum)
 	char fname[FILE_MAX];
 
 	if (!G.main->name[0]) {
-		BLI_join_dirfile(fname, sizeof(fname), BLI_temporary_dir(), "blender.crash.txt");
+		BLI_join_dirfile(fname, sizeof(fname), BLI_temp_dir_base(), "blender.crash.txt");
 	}
 	else {
-		BLI_join_dirfile(fname, sizeof(fname), BLI_temporary_dir(), BLI_path_basename(G.main->name));
+		BLI_join_dirfile(fname, sizeof(fname), BLI_temp_dir_base(), BLI_path_basename(G.main->name));
 		BLI_replace_extension(fname, sizeof(fname), ".crash.txt");
 	}
 
@@ -624,6 +641,8 @@ static void blender_crash_handler(int signum)
 		fclose(fp);
 	}
 
+	/* Delete content of temp dir! */
+	BLI_temp_dir_session_purge();
 
 	/* really crash */
 	signal(signum, SIG_DFL);
@@ -779,7 +798,7 @@ static int set_audio(int argc, const char **argv, void *UNUSED(data))
 static int set_output(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
-	if (argc >= 1) {
+	if (argc > 1) {
 		Scene *scene = CTX_data_scene(C);
 		if (scene) {
 			BLI_strncpy(scene->r.pic, argv[1], sizeof(scene->r.pic));
@@ -814,6 +833,9 @@ static int set_engine(int argc, const char **argv, void *data)
 
 				if (BLI_findstring(&R_engines, argv[1], offsetof(RenderEngineType, idname))) {
 					BLI_strncpy_utf8(rd->engine, argv[1], sizeof(rd->engine));
+				}
+				else {
+					printf("\nError: engine not found '%s'\n", argv[1]);
 				}
 			}
 			else {
@@ -870,7 +892,7 @@ static int set_threads(int argc, const char **argv, void *UNUSED(data))
 		return 1;
 	}
 	else {
-		printf("\nError: you must specify a number of threads between 0 and 8 '-t  / --threads'.\n");
+		printf("\nError: you must specify a number of threads between 0 and %d '-t / --threads'.\n", BLENDER_MAX_THREADS);
 		return 0;
 	}
 }
@@ -882,6 +904,8 @@ static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
 
 #ifdef WITH_LIBMV
 		libmv_setLoggingVerbosity(level);
+#elif defined(WITH_CYCLES_LOGGING)
+		CCL_logging_verbosity_set(level);
 #else
 		(void)level;
 #endif
@@ -897,7 +921,7 @@ static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
 static int set_extension(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
-	if (argc >= 1) {
+	if (argc > 1) {
 		Scene *scene = CTX_data_scene(C);
 		if (scene) {
 			if (argv[1][0] == '0') {
@@ -1002,6 +1026,7 @@ static int render_frame(int argc, const char **argv, void *data)
 					break;
 			}
 
+			BLI_begin_threaded_malloc();
 			BKE_reports_init(&reports, RPT_PRINT);
 
 			frame = CLAMPIS(frame, MINAFRAME, MAXFRAME);
@@ -1009,6 +1034,7 @@ static int render_frame(int argc, const char **argv, void *data)
 			RE_SetReports(re, &reports);
 			RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, frame, frame, scene->r.frame_step);
 			RE_SetReports(re, NULL);
+			BLI_end_threaded_malloc();
 			return 1;
 		}
 		else {
@@ -1030,10 +1056,12 @@ static int render_animation(int UNUSED(argc), const char **UNUSED(argv), void *d
 		Main *bmain = CTX_data_main(C);
 		Render *re = RE_NewRender(scene->id.name);
 		ReportList reports;
+		BLI_begin_threaded_malloc();
 		BKE_reports_init(&reports, RPT_PRINT);
 		RE_SetReports(re, &reports);
 		RE_BlenderAnim(re, bmain, scene, NULL, scene->lay, scene->r.sfra, scene->r.efra, scene->r.frame_step);
 		RE_SetReports(re, NULL);
+		BLI_end_threaded_malloc();
 	}
 	else {
 		printf("\nError: no blend loaded. cannot use '-a'.\n");
@@ -1252,19 +1280,24 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 	BLI_path_cwd(filename);
 
 	if (G.background) {
-		int retval = BKE_read_file(C, filename, NULL);
+		int retval;
+
+		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_PRE);
+
+		retval = BKE_read_file(C, filename, NULL);
 
 		/* we successfully loaded a blend file, get sure that
 		 * pointcache works */
 		if (retval != BKE_READ_FILE_FAIL) {
 			wmWindowManager *wm = CTX_wm_manager(C);
+			Main *bmain = CTX_data_main(C);
 
 			/* special case, 2.4x files */
-			if (wm == NULL && CTX_data_main(C)->wm.first == NULL) {
+			if (wm == NULL && BLI_listbase_is_empty(&bmain->wm)) {
 				extern void wm_add_default(bContext *C);
 
 				/* wm_add_default() needs the screen to be set. */
-				CTX_wm_screen_set(C, CTX_data_main(C)->screen.first);
+				CTX_wm_screen_set(C, bmain->screen.first);
 				wm_add_default(C);
 			}
 
@@ -1273,7 +1306,10 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 			G.relbase_valid = 1;
 			if (CTX_wm_manager(C) == NULL) CTX_wm_manager_set(C, wm);  /* reset wm */
 
-			DAG_on_visible_update(CTX_data_main(C), TRUE);
+			/* WM_file_read would call normally */
+			ED_editors_init(C);
+			DAG_on_visible_update(bmain, true);
+			BKE_scene_update_tagged(bmain->eval_ctx, bmain, CTX_data_scene(C));
 		}
 		else {
 			/* failed to load file, stop processing arguments */
@@ -1285,6 +1321,8 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 		/* run any texts that were loaded in and flagged as modules */
 		BPY_python_reset(C);
 #endif
+
+		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
 		/* happens for the UI on file reading too (huh? (ton))*/
 		// XXX		BKE_reset_undo();
@@ -1375,7 +1413,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #undef PY_ENABLE_AUTO
 #undef PY_DISABLE_AUTO
 	
-	BLI_argsAdd(ba, 1, "-b", "--background", "<file>\n\tLoad <file> in background (often used for UI-less rendering)", background_mode, NULL);
+	BLI_argsAdd(ba, 1, "-b", "--background", "\n\tRun in background (often used for UI-less rendering)", background_mode, NULL);
 
 	BLI_argsAdd(ba, 1, "-a", NULL, playback_doc, playback_mode, NULL);
 
@@ -1400,10 +1438,14 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 #ifdef WITH_LIBMV
 	BLI_argsAdd(ba, 1, NULL, "--debug-libmv", "\n\tEnable debug messages from libmv library", debug_mode_libmv, NULL);
 #endif
+#ifdef WITH_CYCLES_LOGGING
+	BLI_argsAdd(ba, 1, NULL, "--debug-cycles", "\n\tEnable debug messages from Cycles", debug_mode_cycles, NULL);
+#endif
 	BLI_argsAdd(ba, 1, NULL, "--debug-memory", "\n\tEnable fully guarded memory allocation and debugging", debug_mode_memory, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 	BLI_argsAdd(ba, 1, NULL, "--debug-jobs",  "\n\tEnable time profiling for background jobs.", debug_mode_generic, (void *)G_DEBUG_JOBS);
+	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph", "\n\tEnable debug messages from dependency graph", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", "<verbose>\n\tSet logging verbosity level.", set_verbosity, NULL);
 
@@ -1464,12 +1506,21 @@ char **environ = NULL;
 #  endif
 #endif
 
-
+/**
+ * Blender's main function responsabilities are:
+ * - setup subsystems.
+ * - handle arguments.
+ * - run WM_main() event loop,
+ *   or exit when running in background mode.
+ */
+int main(
+       int argc,
 #ifdef WIN32
-int main(int argc, const char **UNUSED(argv_c)) /* Do not mess with const */
+        const char **UNUSED(argv_c)
 #else
-int main(int argc, const char **argv)
+        const char **argv
 #endif
+         )
 {
 	bContext *C;
 	SYS_SystemHandle syshandle;
@@ -1478,7 +1529,13 @@ int main(int argc, const char **argv)
 	bArgs *ba;
 #endif
 
-#ifdef WIN32 /* Win32 Unicode Args */
+#ifdef WIN32
+	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
+#  if defined(_MSC_VER) && _MSC_VER >= 1800 && defined(_M_X64)
+	_set_FMA3_enable(0);
+#  endif
+
+	/* Win32 Unicode Args */
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
 	 *       (it depends on the args passed in, which is what we're getting here!)
 	 */
@@ -1548,24 +1605,11 @@ int main(int argc, const char **argv)
 
 #ifdef WITH_LIBMV
 	libmv_initLogging(argv[0]);
+#elif defined(WITH_CYCLES_LOGGING)
+	CCL_init_logging(argv[0]);
 #endif
 
 	setCallbacks();
-#if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE)
-	/* patch to ignore argument finder gives us (pid?) */
-	if (argc == 2 && strncmp(argv[1], "-psn_", 5) == 0) {
-		extern int GHOST_HACK_getFirstFile(char buf[]);
-		static char firstfilebuf[512];
-
-		argc = 1;
-
-		if (GHOST_HACK_getFirstFile(firstfilebuf)) {
-			argc = 2;
-			argv[1] = firstfilebuf;
-		}
-	}
-
-#endif
 
 #ifdef __FreeBSD__
 	fpsetmask(0);
@@ -1581,8 +1625,11 @@ int main(int argc, const char **argv)
 	IMB_init();
 	BKE_images_init();
 	BKE_modifier_init();
+	DAG_init();
 
 	BKE_brush_system_init();
+	RE_init_texture_rng();
+	
 
 	BLI_callback_global_init();
 
@@ -1617,6 +1664,7 @@ int main(int argc, const char **argv)
 
 	RE_engines_init();
 	init_nodesystem();
+	psys_init_rng();
 	/* end second init */
 
 
@@ -1647,7 +1695,7 @@ int main(int argc, const char **argv)
 
 		/* this is properly initialized with user defs, but this is default */
 		/* call after loading the startup.blend so we can read U.tempdir */
-		BLI_init_temporary_dir(U.tempdir);
+		BLI_temp_dir_init(U.tempdir);
 	}
 	else {
 #ifndef WITH_PYTHON_MODULE
@@ -1657,7 +1705,7 @@ int main(int argc, const char **argv)
 		WM_init(C, argc, (const char **)argv);
 
 		/* don't use user preferences temp dir */
-		BLI_init_temporary_dir(NULL);
+		BLI_temp_dir_init(NULL);
 	}
 #ifdef WITH_PYTHON
 	/**
@@ -1741,7 +1789,7 @@ int main(int argc, const char **argv)
 #ifdef WITH_PYTHON_MODULE
 void main_python_exit(void)
 {
-	WM_exit((bContext *)evil_C);
+	WM_exit_ext((bContext *)evil_C, true);
 	evil_C = NULL;
 }
 #endif

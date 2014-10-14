@@ -583,7 +583,7 @@ static int Quaternion_ass_item(QuaternionObject *self, int i, PyObject *ob)
 	if (scalar == -1.0f && PyErr_Occurred()) { /* parsed item not a number */
 		PyErr_SetString(PyExc_TypeError,
 		                "quaternion[index] = x: "
-		                "index argument not a number");
+		                "assigned value not a number");
 		return -1;
 	}
 
@@ -947,7 +947,7 @@ static PyObject *Quaternion_magnitude_get(QuaternionObject *self, void *UNUSED(c
 	if (BaseMath_ReadCallback(self) == -1)
 		return NULL;
 
-	return PyFloat_FromDouble(sqrt(dot_qtqt(self->quat, self->quat)));
+	return PyFloat_FromDouble(sqrtf(dot_qtqt(self->quat, self->quat)));
 }
 
 PyDoc_STRVAR(Quaternion_angle_doc,

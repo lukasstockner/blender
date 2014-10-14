@@ -34,18 +34,12 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_deform.h"
-#include "BKE_displist.h"
-#include "BKE_mesh.h"
 #include "BKE_modifier.h"
-#include "BKE_object.h"
-#include "BKE_particle.h"
-#include "BKE_editmesh.h"
 
 #include "MOD_modifiertypes.h"
 #include "MOD_util.h"
@@ -88,7 +82,6 @@ static CustomDataMask required_data_mask(Object *ob, ModifierData *md);
 static bool is_disabled(ModifierData *md, int useRenderParams);
 static float average_area_quad_v3(float *v1, float *v2, float *v3, float *v4);
 static float compute_volume(float (*vertexCos)[3], MFace *mfaces, int numFaces);
-static float cotan_weight(float *v1, float *v2, float *v3);
 static LaplacianSystem *init_laplacian_system(int a_numEdges, int a_numFaces, int a_numVerts);
 static void copy_data(ModifierData *md, ModifierData *target);
 static void delete_laplacian_system(LaplacianSystem *sys);
@@ -204,22 +197,6 @@ static float average_area_quad_v3(float *v1, float *v2, float *v3, float *v4)
 	return areaq / 2.0f;
 }
 
-static float cotan_weight(float *v1, float *v2, float *v3)
-{
-	float a[3], b[3], c[3], clen;
-
-	sub_v3_v3v3(a, v2, v1);
-	sub_v3_v3v3(b, v3, v1);
-	cross_v3_v3v3(c, a, b);
-
-	clen = len_v3(c);
-
-	if (clen == 0.0f)
-		return 0.0f;
-
-	return dot_v3v3(a, b) / clen;
-}
-
 static float compute_volume(float (*vertexCos)[3], MFace *mfaces, int numFaces)
 {
 	float vol = 0.0f;
@@ -285,7 +262,7 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
 	float areaf;
 	int i, j;
 	unsigned int idv1, idv2, idv3, idv4, idv[4];
-	int has_4_vert;
+	bool has_4_vert;
 	for (i = 0; i < sys->numEdges; i++) {
 		idv1 = sys->medges[i].v1;
 		idv2 = sys->medges[i].v2;
@@ -367,17 +344,17 @@ static void init_laplacian_matrix(LaplacianSystem *sys)
 				v3 = sys->vertexCos[idv3];
 				v4 = sys->vertexCos[idv4];
 
-				w2 = cotan_weight(v4, v1, v2) + cotan_weight(v3, v1, v2);
-				w3 = cotan_weight(v2, v3, v1) + cotan_weight(v4, v1, v3);
-				w4 = cotan_weight(v2, v4, v1) + cotan_weight(v3, v4, v1);
+				w2 = cotangent_tri_weight_v3(v4, v1, v2) + cotangent_tri_weight_v3(v3, v1, v2);
+				w3 = cotangent_tri_weight_v3(v2, v3, v1) + cotangent_tri_weight_v3(v4, v1, v3);
+				w4 = cotangent_tri_weight_v3(v2, v4, v1) + cotangent_tri_weight_v3(v3, v4, v1);
 
 				sys->vweights[idv1] += (w2 + w3 + w4) / 4.0f;
 			}
 		}
 		else {
-			w1 = cotan_weight(v1, v2, v3) / 2.0f;
-			w2 = cotan_weight(v2, v3, v1) / 2.0f;
-			w3 = cotan_weight(v3, v1, v2) / 2.0f;
+			w1 = cotangent_tri_weight_v3(v1, v2, v3) / 2.0f;
+			w2 = cotangent_tri_weight_v3(v2, v3, v1) / 2.0f;
+			w3 = cotangent_tri_weight_v3(v3, v1, v2) / 2.0f;
 
 			sys->fweights[i][0] = sys->fweights[i][0] + w1;
 			sys->fweights[i][1] = sys->fweights[i][1] + w2;
@@ -405,7 +382,7 @@ static void fill_laplacian_matrix(LaplacianSystem *sys)
 	float *v1, *v2, *v3, *v4;
 	float w2, w3, w4;
 	int i, j;
-	int has_4_vert;
+	bool has_4_vert;
 	unsigned int idv1, idv2, idv3, idv4, idv[4];
 
 	for (i = 0; i < sys->numFaces; i++) {
@@ -430,9 +407,9 @@ static void fill_laplacian_matrix(LaplacianSystem *sys)
 				v3 = sys->vertexCos[idv3];
 				v4 = sys->vertexCos[idv4];
 
-				w2 = cotan_weight(v4, v1, v2) + cotan_weight(v3, v1, v2);
-				w3 = cotan_weight(v2, v3, v1) + cotan_weight(v4, v1, v3);
-				w4 = cotan_weight(v2, v4, v1) + cotan_weight(v3, v4, v1);
+				w2 = cotangent_tri_weight_v3(v4, v1, v2) + cotangent_tri_weight_v3(v3, v1, v2);
+				w3 = cotangent_tri_weight_v3(v2, v3, v1) + cotangent_tri_weight_v3(v4, v1, v3);
+				w4 = cotangent_tri_weight_v3(v2, v4, v1) + cotangent_tri_weight_v3(v3, v4, v1);
 
 				w2 = w2 / 4.0f;
 				w3 = w3 / 4.0f;
@@ -534,6 +511,11 @@ static void laplaciansmoothModifier_do(
 	sys->vert_centroid[1] = 0.0f;
 	sys->vert_centroid[2] = 0.0f;
 	memset_laplacian_system(sys, 0);
+
+#ifdef OPENNL_THREADING_HACK
+	modifier_opennl_lock();
+#endif
+
 	nlNewContext();
 	sys->context = nlGetCurrent();
 	nlSolverParameteri(NL_NB_VARIABLES, numVerts);
@@ -618,6 +600,11 @@ static void laplaciansmoothModifier_do(
 	}
 	nlDeleteContext(sys->context);
 	sys->context = NULL;
+
+#ifdef OPENNL_THREADING_HACK
+	modifier_opennl_unlock();
+#endif
+
 	delete_laplacian_system(sys);
 }
 
@@ -642,14 +629,12 @@ static void init_data(ModifierData *md)
 
 static void copy_data(ModifierData *md, ModifierData *target)
 {
+#if 0
 	LaplacianSmoothModifierData *smd = (LaplacianSmoothModifierData *) md;
 	LaplacianSmoothModifierData *tsmd = (LaplacianSmoothModifierData *) target;
+#endif
 
-	tsmd->lambda = smd->lambda;
-	tsmd->lambda_border = smd->lambda_border;
-	tsmd->repeat = smd->repeat;
-	tsmd->flag = smd->flag;
-	BLI_strncpy(tsmd->defgrp_name, smd->defgrp_name, sizeof(tsmd->defgrp_name));
+	modifier_copyData_generic(md, target);
 }
 
 static bool is_disabled(ModifierData *md, int UNUSED(useRenderParams))
@@ -679,7 +664,12 @@ static CustomDataMask required_data_mask(Object *UNUSED(ob), ModifierData *md)
 static void deformVerts(ModifierData *md, Object *ob, DerivedMesh *derivedData,
                         float (*vertexCos)[3], int numVerts, ModifierApplyFlag UNUSED(flag))
 {
-	DerivedMesh *dm = get_dm(ob, NULL, derivedData, NULL, false, false);
+	DerivedMesh *dm;
+
+	if (numVerts == 0)
+		return;
+
+	dm = get_dm(ob, NULL, derivedData, NULL, false, false);
 
 	laplaciansmoothModifier_do((LaplacianSmoothModifierData *)md, ob, dm,
 	                           vertexCos, numVerts);
@@ -692,7 +682,12 @@ static void deformVertsEM(
         ModifierData *md, Object *ob, struct BMEditMesh *editData,
         DerivedMesh *derivedData, float (*vertexCos)[3], int numVerts)
 {
-	DerivedMesh *dm = get_dm(ob, editData, derivedData, NULL, false, false);
+	DerivedMesh *dm;
+
+	if (numVerts == 0)
+		return;
+
+	dm = get_dm(ob, editData, derivedData, NULL, false, false);
 
 	laplaciansmoothModifier_do((LaplacianSmoothModifierData *)md, ob, dm,
 	                           vertexCos, numVerts);

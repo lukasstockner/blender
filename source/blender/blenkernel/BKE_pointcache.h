@@ -286,7 +286,7 @@ int     BKE_ptcache_write(PTCacheID *pid, unsigned int cfra);
 struct PointCache *BKE_ptcache_new(void);
 void BKE_ptcache_free_mem(struct ListBase *mem_cache);
 void BKE_ptcache_free(struct PointCache *cache);
-struct PointCache *BKE_ptcache_copy(struct PointCache *cache, int copy_data);
+struct PointCache *BKE_ptcache_copy(struct PointCache *cache, bool copy_data);
 
 /********************** Baking *********************/
 

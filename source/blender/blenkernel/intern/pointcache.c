@@ -37,7 +37,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h"
-#include "DNA_cloth_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -51,6 +50,7 @@
 #include "BLI_threads.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_system.h"
 
 #include "BLF_translation.h"
 
@@ -61,10 +61,8 @@
 #include "BKE_anim.h"
 #include "BKE_blender.h"
 #include "BKE_cloth.h"
-#include "BKE_depsgraph.h"
 #include "BKE_dynamicpaint.h"
 #include "BKE_global.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -89,22 +87,20 @@
 
 #ifdef WITH_LZO
 #include "minilzo.h"
-#else
-/* used for non-lzo cases */
-#define LZO_OUT_LEN(size)     ((size) + (size) / 16 + 64 + 3)
+#define LZO_HEAP_ALLOC(var,size) \
+	lzo_align_t __LZO_MMODEL var [ ((size) + (sizeof(lzo_align_t) - 1)) / sizeof(lzo_align_t) ]
 #endif
+
+#define LZO_OUT_LEN(size)     ((size) + (size) / 16 + 64 + 3)
 
 #ifdef WITH_LZMA
 #include "LzmaLib.h"
 #endif
 
 /* needed for directory lookup */
-/* untitled blend's need getpid for a unique name */
 #ifndef WIN32
 #  include <dirent.h>
-#  include <unistd.h>
 #else
-#  include <process.h>
 #  include "BLI_winstuff.h"
 #endif
 
@@ -1061,7 +1057,7 @@ static void ptcache_rigidbody_interpolate(int index, void *rb_v, void **data, fl
 		if (rbo->type == RBO_TYPE_ACTIVE) {
 			
 			copy_v3_v3(keys[1].co, rbo->pos);
-			copy_v3_v3(keys[1].rot, rbo->orn);
+			copy_qt_qt(keys[1].rot, rbo->orn);
 			
 			if (old_data) {
 				memcpy(keys[2].co, data, 3 * sizeof(float));
@@ -1077,7 +1073,7 @@ static void ptcache_rigidbody_interpolate(int index, void *rb_v, void **data, fl
 			interp_qt_qtqt(keys->rot, keys[1].rot, keys[2].rot, (cfra - cfra1) / dfra);
 			
 			copy_v3_v3(rbo->pos, keys->co);
-			copy_v3_v3(rbo->orn, keys->rot);
+			copy_qt_qt(rbo->orn, keys->rot);
 		}
 	}
 }
@@ -1398,9 +1394,8 @@ void BKE_ptcache_ids_from_object(ListBase *lb, Object *ob, Scene *scene, int dup
 
 	if (scene && (duplis-- > 0) && (ob->transflag & OB_DUPLI)) {
 		ListBase *lb_dupli_ob;
-
 		/* don't update the dupli groups, we only want their pid's */
-		if ((lb_dupli_ob = object_duplilist_ex(scene, ob, FALSE, FALSE))) {
+		if ((lb_dupli_ob = object_duplilist_ex(G.main->eval_ctx, scene, ob, false))) {
 			DupliObject *dob;
 			for (dob= lb_dupli_ob->first; dob; dob= dob->next) {
 				if (dob->ob != ob) { /* avoids recursive loops with dupliframes: bug 22988 */
@@ -1462,7 +1457,7 @@ static int ptcache_path(PointCache *cache, Object *ob, char *filename)
 	
 	/* use the temp path. this is weak but better then not using point cache at all */
 	/* temporary directory is assumed to exist and ALWAYS has a trailing slash */
-	BLI_snprintf(filename, MAX_PTCACHE_PATH, "%s"PTCACHE_PATH"%d", BLI_temporary_dir(), abs(getpid()));
+	BLI_snprintf(filename, MAX_PTCACHE_PATH, "%s"PTCACHE_PATH, BLI_temp_dir_session());
 	
 	return BLI_add_slash(filename); /* new strlen() */
 }
@@ -1488,7 +1483,7 @@ static int ptcache_filename(PTCacheID *pid, char *filename, int cfra, short do_p
 		idname = (pid->ob->id.name + 2);
 		/* convert chars to hex so they are always a valid filename */
 		while ('\0' != *idname) {
-			BLI_snprintf(newname, MAX_PTCACHE_FILE, "%02X", (char)(*idname++));
+			BLI_snprintf(newname, MAX_PTCACHE_FILE, "%02X", (unsigned int)(*idname++));
 			newname+=2;
 			len += 2;
 		}
@@ -1763,7 +1758,7 @@ static void ptcache_file_pointers_init(PTCacheFile *pf)
 /* Check to see if point number "index" is in pm, uses binary search for index data. */
 int BKE_ptcache_mem_index_find(PTCacheMem *pm, unsigned int index)
 {
-	if (pm->data[BPHYS_DATA_INDEX]) {
+	if (pm->totpoint > 0 && pm->data[BPHYS_DATA_INDEX]) {
 		unsigned int *data = pm->data[BPHYS_DATA_INDEX];
 		unsigned int mid, low = 0, high = pm->totpoint - 1;
 
@@ -2555,16 +2550,16 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 }
 int  BKE_ptcache_id_exist(PTCacheID *pid, int cfra)
 {
+	char filename[MAX_PTCACHE_FILE];
+	
 	if (!pid->cache)
 		return 0;
-
+	
 	if (cfra<pid->cache->startframe || cfra > pid->cache->endframe)
 		return 0;
-
+	
 	if (pid->cache->state.cached_frames &&	pid->cache->state.cached_frames[cfra-pid->cache->startframe]==0)
 		return 0;
-	
-	char filename[MAX_PTCACHE_FILE];
 	
 	ptcache_filename(pid, filename, cfra, 1, 1);
 	
@@ -2628,9 +2623,6 @@ void BKE_ptcache_id_time(PTCacheID *pid, Scene *scene, float cfra, int *startfra
 	if (cache->state.cached_frames==NULL && cache->endframe > cache->startframe) {
 		unsigned int sta=cache->startframe;
 		unsigned int end=cache->endframe;
-
-		cache->state.cached_frames = MEM_callocN(sizeof(char) * (cache->endframe-cache->startframe+1), "cached frames array");
-
 		/* mode is same as fopen's modes */
 		DIR *dir; 
 		struct dirent *de;
@@ -2638,6 +2630,8 @@ void BKE_ptcache_id_time(PTCacheID *pid, Scene *scene, float cfra, int *startfra
 		char filename[MAX_PTCACHE_FILE];
 		char ext[MAX_PTCACHE_PATH];
 		unsigned int len; /* store the length of the string */
+		
+		cache->state.cached_frames = MEM_callocN(sizeof(char) * (cache->endframe-cache->startframe+1), "cached frames array");
 		
 		ptcache_path(pid->cache, pid->ob, path);
 		
@@ -2854,7 +2848,7 @@ PointCache *BKE_ptcache_new(void)
 	cache= MEM_callocN(sizeof(PointCache), "PointCache");
 	cache->startframe= 1;
 	cache->endframe= 250;
-	cache->step= 10;
+	cache->step = 1;
 	cache->index = -1;
 
 	return cache;
@@ -2883,13 +2877,13 @@ void BKE_ptcache_free(PointCache *cache)
 	MEM_freeN(cache);
 }
 
-PointCache *BKE_ptcache_copy(PointCache *cache, int copy_data)
+PointCache *BKE_ptcache_copy(PointCache *cache, bool copy_data)
 {
 	PointCache *ncache;
 
 	ncache= MEM_dupallocN(cache);
 
-	if (copy_data == FALSE) {
+	if (copy_data == false) {
 		ncache->state.cached_frames = NULL;
 
 		ncache->flag= ncache->flag & (PTC_EXTERNAL|PTC_IGNORE_LIBPATH);

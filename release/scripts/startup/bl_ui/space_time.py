@@ -34,11 +34,7 @@ class TIME_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("TIME_MT_view")
-            row.menu("TIME_MT_marker")
-            row.menu("TIME_MT_frame")
-            row.menu("TIME_MT_playback")
+        TIME_MT_editor_menus.draw_collapsible(context, layout)
 
         row = layout.row(align=True)
         row.prop(scene, "use_preview_range", text="", toggle=True)
@@ -96,6 +92,21 @@ class TIME_HT_header(Header):
         row.operator("anim.keyframe_delete", text="", icon='KEY_DEHLT')
 
 
+class TIME_MT_editor_menus(Menu):
+    bl_idname = "TIME_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        layout.menu("TIME_MT_view")
+        layout.menu("TIME_MT_marker")
+        layout.menu("TIME_MT_frame")
+        layout.menu("TIME_MT_playback")
+
+
 class TIME_MT_marker(Menu):
     bl_label = "Marker"
 
@@ -111,15 +122,17 @@ class TIME_MT_view(Menu):
     def draw(self, context):
         layout = self.layout
 
+        scene = context.scene
         st = context.space_data
 
         layout.prop(st, "show_seconds")
+        layout.prop(st, "show_locked_time")
         layout.operator("time.view_all")
 
         layout.separator()
 
         layout.prop(st, "show_frame_indicator")
-        layout.prop(st, "show_only_selected")
+        layout.prop(scene, "show_keys_from_selected_only")
 
         layout.separator()
 
@@ -163,8 +176,11 @@ class TIME_MT_frame(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("time.start_frame_set")
+        layout.operator("anim.previewrange_clear")
+        layout.operator("anim.previewrange_set")
+        layout.separator()
         layout.operator("time.end_frame_set")
+        layout.operator("time.start_frame_set")
 
         layout.separator()
 

@@ -73,6 +73,8 @@ static IDType idtypes[] = {
 	{ ID_NT,     "NodeTree",         "node_groups",     IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_OB,     "Object",           "objects",         IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_PA,     "ParticleSettings", "particles",       0                       },
+	{ ID_PAL,    "Palettes",         "palettes",        IDTYPE_FLAGS_ISLINKABLE },
+	{ ID_PC,     "PaintCurve",       "paint_curves",    IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_SCE,    "Scene",            "scenes",          IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_SCR,    "Screen",           "screens",         0                       },
 	{ ID_SEQ,    "Sequence",         "sequences",       0                       }, /* not actually ID data */
@@ -84,12 +86,11 @@ static IDType idtypes[] = {
 	{ ID_WO,     "World",            "worlds",          IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_WM,     "WindowManager",    "window_managers", 0                       },
 };
-static int nidtypes = sizeof(idtypes) / sizeof(idtypes[0]);
 
 static IDType *idtype_from_name(const char *str) 
 {
-	int i = nidtypes;
-	
+	int i = ARRAY_SIZE(idtypes);
+
 	while (i--) {
 		if (STREQ(str, idtypes[i].name)) {
 			return &idtypes[i];
@@ -100,8 +101,8 @@ static IDType *idtype_from_name(const char *str)
 }
 static IDType *idtype_from_code(int code) 
 {
-	int i = nidtypes;
-	
+	int i = ARRAY_SIZE(idtypes);
+
 	while (i--)
 		if (code == idtypes[i].code)
 			return &idtypes[i];
@@ -129,6 +130,7 @@ bool BKE_idcode_is_valid(int code)
 bool BKE_idcode_is_linkable(int code)
 {
 	IDType *idt = idtype_from_code(code);
+	BLI_assert(idt);
 	return idt ? ((idt->flags & IDTYPE_FLAGS_ISLINKABLE) != 0) : false;
 }
 
@@ -142,7 +144,7 @@ bool BKE_idcode_is_linkable(int code)
 const char *BKE_idcode_to_name(int code) 
 {
 	IDType *idt = idtype_from_code(code);
-	
+	BLI_assert(idt);
 	return idt ? idt->name : NULL;
 }
 
@@ -155,7 +157,7 @@ const char *BKE_idcode_to_name(int code)
 int BKE_idcode_from_name(const char *name) 
 {
 	IDType *idt = idtype_from_name(name);
-	
+	BLI_assert(idt);
 	return idt ? idt->code : 0;
 }
 
@@ -169,7 +171,7 @@ int BKE_idcode_from_name(const char *name)
 const char *BKE_idcode_to_name_plural(int code) 
 {
 	IDType *idt = idtype_from_code(code);
-	
+	BLI_assert(idt);
 	return idt ? idt->plural : NULL;
 }
 
@@ -181,5 +183,5 @@ const char *BKE_idcode_to_name_plural(int code)
  */
 int BKE_idcode_iter_step(int *index)
 {
-	return (*index < nidtypes) ? idtypes[(*index)++].code : 0;
+	return (*index < ARRAY_SIZE(idtypes)) ? idtypes[(*index)++].code : 0;
 }

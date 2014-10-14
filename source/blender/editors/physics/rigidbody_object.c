@@ -80,6 +80,16 @@ static int ED_operator_rigidbody_active_poll(bContext *C)
 		return 0;
 }
 
+static int ED_operator_rigidbody_add_poll(bContext *C)
+{
+	if (ED_operator_object_active_editable(C)) {
+		Object *ob = ED_object_active_context(C);
+		return (ob && ob->type == OB_MESH);
+	}
+	else
+		return 0;
+}
+
 /* ----------------- */
 
 bool ED_rigidbody_object_add(Scene *scene, Object *ob, int type, ReportList *reports)
@@ -88,10 +98,6 @@ bool ED_rigidbody_object_add(Scene *scene, Object *ob, int type, ReportList *rep
 
 	if (ob->type != OB_MESH) {
 		BKE_report(reports, RPT_ERROR, "Can't add Rigid Body to non mesh object");
-		return false;
-	}
-	if (((Mesh *)ob->data)->totpoly == 0) {
-		BKE_report(reports, RPT_ERROR, "Can't create Rigid Body from mesh with no polygons");
 		return false;
 	}
 
@@ -172,7 +178,7 @@ void RIGIDBODY_OT_object_add(wmOperatorType *ot)
 
 	/* callbacks */
 	ot->exec = rigidbody_object_add_exec;
-	ot->poll = ED_operator_object_active_editable_mesh;
+	ot->poll = ED_operator_rigidbody_add_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -263,7 +269,7 @@ void RIGIDBODY_OT_objects_add(wmOperatorType *ot)
 
 	/* callbacks */
 	ot->exec = rigidbody_objects_add_exec;
-	ot->poll = ED_operator_object_active_editable_mesh;
+	ot->poll = ED_operator_rigidbody_add_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -446,7 +452,7 @@ static const int NUM_RB_MATERIAL_PRESETS = sizeof(RB_MATERIAL_DENSITY_TABLE) / s
  * - Although there is a runtime cost, this has a lower maintenance cost
  *   in the long run than other two-list solutions...
  */
-static EnumPropertyItem *rigidbody_materials_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *rigidbody_materials_itemf(bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem item_tmp = {0};
 	EnumPropertyItem *item = NULL;
@@ -472,81 +478,9 @@ static EnumPropertyItem *rigidbody_materials_itemf(bContext *UNUSED(C), PointerR
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
-}
-
-/* ------------------------------------------ */
-
-/* helper function to calculate volume of rigidbody object */
-// TODO: allow a parameter to specify method used to calculate this?
-static float rigidbody_object_calc_volume(Object *ob)
-{
-	RigidBodyOb *rbo = ob->rigidbody_object;
-
-	float size[3]  = {1.0f, 1.0f, 1.0f};
-	float radius = 1.0f;
-	float height = 1.0f;
-
-	float volume = 0.0f;
-
-	/* if automatically determining dimensions, use the Object's boundbox
-	 *	- assume that all quadrics are standing upright on local z-axis
-	 *	- assume even distribution of mass around the Object's pivot
-	 *	  (i.e. Object pivot is centralised in boundbox)
-	 *	- boundbox gives full width
-	 */
-	// XXX: all dimensions are auto-determined now... later can add stored settings for this
-	BKE_object_dimensions_get(ob, size);
-
-	if (ELEM3(rbo->shape, RB_SHAPE_CAPSULE, RB_SHAPE_CYLINDER, RB_SHAPE_CONE)) {
-		/* take radius as largest x/y dimension, and height as z-dimension */
-		radius = MAX2(size[0], size[1]) * 0.5f;
-		height = size[2];
-	}
-	else if (rbo->shape == RB_SHAPE_SPHERE) {
-		/* take radius to the the largest dimension to try and encompass everything */
-		radius = max_fff(size[0], size[1], size[2]) * 0.5f;
-	}
-
-	/* calculate volume as appropriate  */
-	switch (rbo->shape) {
-		case RB_SHAPE_BOX:
-			volume = size[0] * size[1] * size[2];
-			break;
-
-		case RB_SHAPE_SPHERE:
-			volume = 4.0f / 3.0f * (float)M_PI * radius * radius * radius;
-			break;
-
-		/* for now, assume that capsule is close enough to a cylinder... */
-		case RB_SHAPE_CAPSULE:
-		case RB_SHAPE_CYLINDER:
-			volume = (float)M_PI * radius * radius * height;
-			break;
-
-		case RB_SHAPE_CONE:
-			volume = (float)M_PI / 3.0f * radius * radius * height;
-			break;
-
-		/* for now, all mesh shapes are just treated as boxes...
-		 * NOTE: this may overestimate the volume, but other methods are overkill
-		 */
-		case RB_SHAPE_CONVEXH:
-		case RB_SHAPE_TRIMESH:
-			volume = size[0] * size[1] * size[2];
-			break;
-
-#if 0 // XXX: not defined yet
-		case RB_SHAPE_COMPOUND:
-			volume = 0.0f;
-			break;
-#endif
-	}
-
-	/* return the volume calculated */
-	return volume;
 }
 
 /* ------------------------------------------ */
@@ -583,7 +517,7 @@ static int rigidbody_objects_calc_mass_exec(bContext *C, wmOperator *op)
 			/* mass is calculated from the approximate volume of the object,
 			 * and the density of the material we're simulating
 			 */
-			volume = rigidbody_object_calc_volume(ob);
+			BKE_rigidbody_calc_volume(ob, &volume);
 			mass = volume * density;
 
 			/* use RNA-system to change the property and perform all necessary changes */
@@ -632,6 +566,7 @@ void RIGIDBODY_OT_mass_calculate(wmOperatorType *ot)
 	                               "Material Preset",
 	                               "Type of material that objects are made of (determines material density)");
 	RNA_def_enum_funcs(prop, rigidbody_materials_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 
 	RNA_def_float(ot->srna, "density", 1.0, FLT_MIN, FLT_MAX,
 	              "Density",

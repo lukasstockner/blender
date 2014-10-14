@@ -75,11 +75,6 @@
 #define M_LN10          2.30258509299404568402
 #endif
 
-/* non-standard defines, used in some places */
-#ifndef MAXFLOAT
-#define MAXFLOAT  ((float)3.40282347e+38)
-#endif
-
 #if defined(__GNUC__)
 #  define NAN_FLT __builtin_nanf("")
 #else
@@ -88,8 +83,8 @@ static const int NAN_INT = 0x7FC00000;
 #  define NAN_FLT  (*((float *)(&NAN_INT)))
 #endif
 
-/* do not redefine functions from C99 or POSIX.1-2001 */
-#if !(defined(_ISOC99_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L))
+/* do not redefine functions from C99, POSIX.1-2001 or MSVC12 (partial C99) */
+#if !(defined(_ISOC99_SOURCE) || (defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L) || (defined(_MSC_VER) && _MSC_VER >= 1800))
 
 #ifndef sqrtf
 #define sqrtf(a) ((float)sqrt(a))
@@ -143,44 +138,12 @@ static const int NAN_INT = 0x7FC00000;
 #define copysignf(a, b) ((float)copysign(a, b))
 #endif
 
-#endif  /* C99 or POSIX.1-2001 */
+#endif  /* C99, POSIX.1-2001 or MSVC12 (partial C99) */
 
 #ifdef WIN32
-#  ifndef FREE_WINDOWS
-#    ifndef isnan
-#		define isnan(n) _isnan(n)
-#	 endif
-#    define finite _finite
-#    ifndef hypot
-#		define hypot(a, b) _hypot(a, b)
-#	endif
+#  if defined(_MSC_VER)
+#    define finite(n) _finite(n)
 #  endif
-#endif
-
-/* Causes warning:
- * incompatible types when assigning to type 'Foo' from type 'Bar'
- * ... the compiler optimizes away the temp var */
-#ifndef CHECK_TYPE
-#ifdef __GNUC__
-#define CHECK_TYPE(var, type)  {  \
-	__typeof(var) *__tmp;         \
-	__tmp = (type *)NULL;         \
-	(void)__tmp;                  \
-} (void)0
-#else
-#define CHECK_TYPE(var, type)
-#endif
-#endif
-
-#ifndef SWAP
-#  define SWAP(type, a, b)  {  \
-	type sw_ap;                \
-	CHECK_TYPE(a, type);       \
-	CHECK_TYPE(b, type);       \
-	sw_ap = (a);               \
-	(a) = (b);                 \
-	(b) = sw_ap;               \
-} (void)0
 #endif
 
 #if BLI_MATH_DO_INLINE
@@ -231,18 +194,15 @@ MINLINE int is_power_of_2_i(int n);
 MINLINE int power_of_2_max_i(int n);
 MINLINE int power_of_2_min_i(int n);
 
+MINLINE unsigned int power_of_2_max_u(unsigned int x);
+MINLINE unsigned int power_of_2_min_u(unsigned int x);
+
+MINLINE int iroundf(float a);
 MINLINE int divide_round_i(int a, int b);
 MINLINE int mod_i(int i, int n);
 
 MINLINE unsigned int highest_order_bit_i(unsigned int n);
 MINLINE unsigned short highest_order_bit_s(unsigned short n);
-
-MINLINE float shell_angle_to_dist(const float angle);
-
-#if (defined(WIN32) || defined(WIN64)) && !defined(FREE_WINDOWS)
-extern double copysign(double x, double y);
-extern double round(double x);
-#endif
 
 double double_round(double x, int ndigits);
 
@@ -253,7 +213,7 @@ double double_round(double x, int ndigits);
 /* asserts, some math functions expect normalized inputs
  * check the vector is unit length, or zero length (which can't be helped in some cases).
  */
-#ifdef DEBUG
+#ifndef NDEBUG
 /* note: 0.0001 is too small becaues normals may be converted from short's: see [#34322] */
 #  define BLI_ASSERT_UNIT_EPSILON 0.0002f
 #  define BLI_ASSERT_UNIT_V3(v)  {                                            \
@@ -268,18 +228,31 @@ double double_round(double x, int ndigits);
 	           (fabsf(_test_unit)        < BLI_ASSERT_UNIT_EPSILON));         \
 } (void)0
 
+#  define BLI_ASSERT_UNIT_QUAT(q)  {                                          \
+	const float _test_unit = dot_qtqt(q, q);                                  \
+	BLI_assert((fabsf(_test_unit - 1.0f) < BLI_ASSERT_UNIT_EPSILON * 10) ||   \
+	           (fabsf(_test_unit)        < BLI_ASSERT_UNIT_EPSILON * 10));    \
+} (void)0
+
 #  define BLI_ASSERT_ZERO_M3(m)  {                                            \
-	BLI_assert(dot_vn_vn((const float *)m, (const float *)m, 9) != 0.0);     \
+	BLI_assert(dot_vn_vn((const float *)m, (const float *)m, 9) != 0.0);      \
 } (void)0
 
 #  define BLI_ASSERT_ZERO_M4(m)  {                                            \
 	BLI_assert(dot_vn_vn((const float *)m, (const float *)m, 16) != 0.0);     \
 } (void)0
+#  define BLI_ASSERT_UNIT_M3(m)  {                                            \
+	BLI_ASSERT_UNIT_V3((m)[0]);                                               \
+	BLI_ASSERT_UNIT_V3((m)[1]);                                               \
+	BLI_ASSERT_UNIT_V3((m)[2]);                                               \
+} (void)0
 #else
 #  define BLI_ASSERT_UNIT_V2(v) (void)(v)
 #  define BLI_ASSERT_UNIT_V3(v) (void)(v)
+#  define BLI_ASSERT_UNIT_QUAT(v) (void)(v)
 #  define BLI_ASSERT_ZERO_M3(m) (void)(m)
 #  define BLI_ASSERT_ZERO_M4(m) (void)(m)
+#  define BLI_ASSERT_UNIT_M3(m) (void)(m)
 #endif
 
 #endif /* __BLI_MATH_BASE_H__ */

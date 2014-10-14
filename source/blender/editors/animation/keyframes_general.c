@@ -36,7 +36,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -73,7 +72,7 @@
  * Not recommended to be used many times successively. For that
  * there is delete_fcurve_keys(). 
  */
-void delete_fcurve_key(FCurve *fcu, int index, short do_recalc)
+void delete_fcurve_key(FCurve *fcu, int index, bool do_recalc)
 {
 	/* sanity check */
 	if (fcu == NULL) 
@@ -359,7 +358,7 @@ void smooth_fcurve(FCurve *fcu)
 		/* round 2: apply new values */
 		tsb = tarray;
 		for (i = 0; i < totSel; i++, tsb++) {
-			/* don't touch end points, as their values were't touched above */
+			/* don't touch end points, as their values weren't touched above */
 			if (ELEM(i, 0, (totSel - 1)) == 0) {
 				/* y2 takes the average of the 2 points */
 				*tsb->h2 = tsb->y2;
@@ -409,8 +408,8 @@ void sample_fcurve(FCurve *fcu)
 				 * keyframes while sampling will affect the outcome...
 				 *	- only start sampling+adding from index=1, so that we don't overwrite original keyframe
 				 */
-				range = (int)(ceil(end->vec[1][0] - start->vec[1][0]) );
-				sfra = (int)(floor(start->vec[1][0]) );
+				range = (int)(ceil(end->vec[1][0] - start->vec[1][0]));
+				sfra = (int)(floor(start->vec[1][0]));
 				
 				if (range) {
 					value_cache = MEM_callocN(sizeof(TempFrameValCache) * range, "IcuFrameValCache");
@@ -505,7 +504,7 @@ void free_anim_copybuf(void)
 	}
 	
 	/* restore initial state */
-	animcopybuf.first = animcopybuf.last = NULL;
+	BLI_listbase_clear(&animcopybuf);
 	animcopy_firstframe = 999999999.0f;
 	animcopy_lastframe = -999999999.0f;
 }
@@ -733,9 +732,9 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 		bezt->vec[2][0] += offset;
 		
 		/* insert the keyframe
-		 * NOTE: no special flags here for now
+		 * NOTE: we do not want to inherit handles from existing keyframes in this case!
 		 */
-		insert_bezt_fcurve(fcu, bezt, 0); 
+		insert_bezt_fcurve(fcu, bezt, INSERTKEY_OVERWRITE_FULL);
 		
 		/* un-apply offset from src beztriple after copying */
 		bezt->vec[0][0] -= offset;
@@ -764,8 +763,10 @@ EnumPropertyItem keyframe_paste_merge_items[] = {
 	{0, NULL, 0, NULL, NULL}};
 
 
-/* This function pastes data from the keyframes copy/paste buffer 
- * > return status code is whether the method FAILED to do anything
+/**
+ * This function pastes data from the keyframes copy/paste buffer
+ *
+ * \return Status code is whether the method FAILED to do anything
  */
 short paste_animedit_keys(bAnimContext *ac, ListBase *anim_data,
                           const eKeyPasteOffset offset_mode, const eKeyMergeMode merge_mode)
@@ -774,19 +775,19 @@ short paste_animedit_keys(bAnimContext *ac, ListBase *anim_data,
 	
 	const Scene *scene = (ac->scene);
 	
-	const short from_single = (animcopybuf.first == animcopybuf.last);
-	const short to_simple = (anim_data->first == anim_data->last);
+	const bool from_single = BLI_listbase_is_single(&animcopybuf);
+	const bool to_simple = BLI_listbase_is_single(anim_data);
 	
 	float offset = 0.0f;
 	int pass;
 
 	/* check if buffer is empty */
-	if (animcopybuf.first == NULL) {
+	if (BLI_listbase_is_empty(&animcopybuf)) {
 		BKE_report(ac->reports, RPT_ERROR, "No animation data in buffer to paste");
 		return -1;
 	}
 
-	if (anim_data->first == NULL) {
+	if (BLI_listbase_is_empty(anim_data)) {
 		BKE_report(ac->reports, RPT_ERROR, "No selected F-Curves to paste into");
 		return -1;
 	}
@@ -858,6 +859,8 @@ short paste_animedit_keys(bAnimContext *ac, ListBase *anim_data,
 					totmatch++;
 					paste_animedit_keys_fcurve(fcu, aci, offset, merge_mode);
 				}
+
+				ale->update |= ANIM_UPDATE_DEFAULT;
 			}
 			
 			/* don't continue if some fcurves were pasted */
@@ -866,6 +869,8 @@ short paste_animedit_keys(bAnimContext *ac, ListBase *anim_data,
 		}
 	}
 	
+	ANIM_animdata_update(ac, anim_data);
+
 	return 0;
 }
 

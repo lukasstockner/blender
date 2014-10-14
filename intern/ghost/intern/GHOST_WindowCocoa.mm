@@ -20,29 +20,34 @@
  *
  * The Original Code is: all of this file.
  *
- * Contributor(s):	Maarten Gribnau 05/2001
-					Damien Plisson 10/2009
+ * Contributor(s): Maarten Gribnau 05/2001
+ *                 Damien Plisson  10/2009
+ *                 Jason Wilkins   02/2014
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "GHOST_WindowCocoa.h"
+#include "GHOST_SystemCocoa.h"
+#include "GHOST_ContextNone.h"
+#include "GHOST_Debug.h"
+
+#if defined(WITH_GL_EGL)
+#  include "GHOST_ContextEGL.h"
+#else
+#  include "GHOST_ContextCGL.h"
+#endif
+
 #include <Cocoa/Cocoa.h>
 
 #if MAC_OS_X_VERSION_MIN_REQUIRED <= 1050
-//Use of the SetSystemUIMode function (64bit compatible)
-#include <Carbon/Carbon.h>
+   //Use of the SetSystemUIMode function (64bit compatible)
+#  include <Carbon/Carbon.h>
 #endif
 
-#include <OpenGL/gl.h>
-#include <OpenGL/CGLRenderers.h>
-/***** Multithreaded opengl code : uncomment for enabling
-#include <OpenGL/OpenGL.h>
-*/
 
  
-#include "GHOST_WindowCocoa.h"
-#include "GHOST_SystemCocoa.h"
-#include "GHOST_Debug.h"
+#include <sys/sysctl.h>
 
 #if MAC_OS_X_VERSION_MAX_ALLOWED < 1070
 /* Lion style fullscreen support when building with the 10.6 SDK */
@@ -103,6 +108,26 @@ enum {
 - (void)windowWillMove:(NSNotification *)notification
 {
 	systemCocoa->handleWindowEvent(GHOST_kEventWindowMove, associatedWindow);
+}
+
+- (void)windowWillEnterFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(true);
+}
+
+- (void)windowDidEnterFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(false);
+}
+
+- (void)windowWillExitFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(true);
+}
+
+- (void)windowDidExitFullScreen:(NSNotification *)notification
+{
+	associatedWindow->setImmediateDraw(false);
 }
 
 - (void)windowDidResize:(NSNotification *)notification
@@ -247,6 +272,8 @@ enum {
 
 	bool composing;
 	NSString *composing_text;
+
+	bool immediate_draw;
 }
 - (void)setSystemAndWindowCocoa:(GHOST_SystemCocoa *)sysCocoa windowCocoa:(GHOST_WindowCocoa *)winCocoa;
 @end
@@ -259,6 +286,8 @@ enum {
 
 	composing = false;
 	composing_text = nil;
+
+	immediate_draw = false;
 }
 
 - (BOOL)acceptsFirstResponder
@@ -397,6 +426,11 @@ enum {
 	else {
 		[super drawRect:rect];
 		systemCocoa->handleWindowEvent(GHOST_kEventWindowUpdate, associatedWindow);
+
+		/* For some cases like entering fullscreen we need to redraw immediately
+		 * so our window does not show blank during the animation */
+		if (associatedWindow->getImmediateDraw())
+			systemCocoa->dispatchEvents();
 	}
 }
 
@@ -504,8 +538,6 @@ enum {
 @end
 #endif
 
-NSOpenGLContext* GHOST_WindowCocoa::s_firstOpenGLcontext = nil;
-
 GHOST_WindowCocoa::GHOST_WindowCocoa(
 	GHOST_SystemCocoa *systemCocoa,
 	const STR_String& title,
@@ -517,16 +549,14 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	GHOST_TDrawingContextType type,
 	const bool stereoVisual, const GHOST_TUns16 numOfAASamples
 ) :
-	GHOST_Window(width, height, state, GHOST_kDrawingContextTypeNone, stereoVisual, false, numOfAASamples),
+	GHOST_Window(width, height, state, stereoVisual, false, numOfAASamples),
 	m_customCursor(0)
 {
-	NSOpenGLPixelFormatAttribute pixelFormatAttrsWindow[40];
-	NSOpenGLPixelFormat *pixelFormat = nil;
-	int i;
-		
 	m_systemCocoa = systemCocoa;
 	m_fullScreen = false;
-	
+	m_immediateDraw = false;
+	m_lionStyleFullScreen = false;
+
 	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 	
 	//Creates the window
@@ -553,104 +583,10 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	minSize.height = 240;
 	[m_window setContentMinSize:minSize];
 	
-	setTitle(title);
-	
-	
-	// Pixel Format Attributes for the windowed NSOpenGLContext
-	i=0;
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFADoubleBuffer;
-	
-	// Guarantees the back buffer contents to be valid after a call to NSOpenGLContext object's flushBuffer
-	// needed for 'Draw Overlap' drawing method
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore; 
-	
-	// Force software OpenGL, for debugging
-	if (getenv("BLENDER_SOFTWAREGL")) {
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
-		pixelFormatAttrsWindow[i++] = kCGLRendererGenericID;
-	}
-	else
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
-
-	//pixelFormatAttrsWindow[i++] = NSOpenGLPFAAllowOfflineRenderers,;   // Removed to allow 10.4 builds, and 2 GPUs rendering is not used anyway
-
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFADepthSize;
-	pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-	
-	pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccumSize;
-	pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-	
-	if (stereoVisual) pixelFormatAttrsWindow[i++] = NSOpenGLPFAStereo;
-	
-	if (numOfAASamples > 0) {
-		// Multisample anti-aliasing
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFAMultisample;
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFASampleBuffers;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 1;
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFASamples;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) numOfAASamples;
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFANoRecovery;
-	}
-	
-	pixelFormatAttrsWindow[i] = (NSOpenGLPixelFormatAttribute) 0;
-	
-	pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:pixelFormatAttrsWindow];
-	
-	
-	//Fall back to no multisampling if Antialiasing init failed
-	if (pixelFormat == nil) {
-		i=0;
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFADoubleBuffer;
-		
-		// Guarantees the back buffer contents to be valid after a call to NSOpenGLContext object's flushBuffer
-		// needed for 'Draw Overlap' drawing method
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFABackingStore;
-		
-		// Force software OpenGL, for debugging
-		if (getenv("BLENDER_SOFTWAREGL")) {
-			pixelFormatAttrsWindow[i++] = NSOpenGLPFARendererID;
-			pixelFormatAttrsWindow[i++] = kCGLRendererGenericID;
-		}
-		else
-			pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccelerated;
-
-		//pixelFormatAttrsWindow[i++] = NSOpenGLPFAAllowOfflineRenderers,;   // Removed to allow 10.4 builds, and 2 GPUs rendering is not used anyway
-		
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFADepthSize;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-
-		pixelFormatAttrsWindow[i++] = NSOpenGLPFAAccumSize;
-		pixelFormatAttrsWindow[i++] = (NSOpenGLPixelFormatAttribute) 32;
-		
-		if (stereoVisual) pixelFormatAttrsWindow[i++] = NSOpenGLPFAStereo;
-		
-		pixelFormatAttrsWindow[i] = (NSOpenGLPixelFormatAttribute) 0;
-		
-		pixelFormat = [[NSOpenGLPixelFormat alloc] initWithAttributes:pixelFormatAttrsWindow];
-		
-	}
-	
-	if (numOfAASamples > 0) { //Set m_numOfAASamples to the actual value
-		GLint gli;
-		[pixelFormat getValues:&gli forAttribute:NSOpenGLPFASamples forVirtualScreen:0];
-		if (m_numOfAASamples != (GHOST_TUns16)gli) {
-			m_numOfAASamples = (GHOST_TUns16)gli;
-			printf("GHOST_Window could be created with anti-aliasing of only %i samples\n",m_numOfAASamples);
-		}
-	}
-		
 	//Creates the OpenGL View inside the window
-	m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect
-												 pixelFormat:pixelFormat];
-
+	m_openGLView = [[CocoaOpenGLView alloc] initWithFrame:rect];
+	
 	[m_openGLView setSystemAndWindowCocoa:systemCocoa windowCocoa:this];
-	
-	[pixelFormat release];
-	
-	m_openGLContext = [m_openGLView openGLContext]; //This context will be replaced by the proper one just after
 	
 	[m_window setContentView:m_openGLView];
 	[m_window setInitialFirstResponder:m_openGLView];
@@ -661,6 +597,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	updateDrawingContext();
 	activateDrawingContext();
 
+	// XXX jwilkins: This seems like it belongs in GHOST_ContextCGL, but probably not GHOST_ContextEGL
 	if (m_systemCocoa->m_nativePixel) {
 		if ([m_openGLView respondsToSelector:@selector(setWantsBestResolutionOpenGLSurface:)]) {
 			[m_openGLView setWantsBestResolutionOpenGLSurface:YES];
@@ -669,6 +606,8 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 			m_nativePixelSize = (float)backingBounds.size.width / (float)rect.size.width;
 		}
 	}
+	
+	setTitle(title);
 	
 	m_tablet.Active = GHOST_kTabletModeNone;
 	
@@ -694,7 +633,17 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(
 	
 	if (state == GHOST_kWindowStateFullScreen)
 		setState(GHOST_kWindowStateFullScreen);
-		
+
+	// Starting with 10.9 (darwin 13.x.x), we can use Lion fullscreen,
+	// since it now has better multi-monitor support
+    // if the screens are spawned, additional screens get useless,
+    // so we only use lionStyleFullScreen when screens have separate spaces
+    
+    if ([NSScreen respondsToSelector:@selector(screensHaveSeparateSpaces)] && [NSScreen screensHaveSeparateSpaces]) {
+        // implies we are on >= OSX 10.9
+        m_lionStyleFullScreen = true;
+    }
+	
 	[pool drain];
 }
 
@@ -707,6 +656,8 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
 		[m_customCursor release];
 		m_customCursor = nil;
 	}
+
+	releaseNativeHandles();
 
 	[m_openGLView release];
 	
@@ -732,7 +683,7 @@ GHOST_WindowCocoa::~GHOST_WindowCocoa()
 
 bool GHOST_WindowCocoa::getValid() const
 {
-	return (m_window != 0);
+	return GHOST_Window::getValid() && m_window != 0 && m_openGLView != 0;
 }
 
 void* GHOST_WindowCocoa::getOSWindow() const
@@ -920,7 +871,12 @@ GHOST_TWindowState GHOST_WindowCocoa::getState() const
 
 	if (masks & NSFullScreenWindowMask) {
 		// Lion style fullscreen
-		state = GHOST_kWindowStateFullScreen;
+        if (!m_immediateDraw) {
+            state = GHOST_kWindowStateFullScreen;
+        }
+        else {
+            state = GHOST_kWindowStateNormal;
+        }
 	}
 	else
 #endif
@@ -934,7 +890,12 @@ GHOST_TWindowState GHOST_WindowCocoa::getState() const
 		state = GHOST_kWindowStateMaximized;
 	}
 	else {
+        if (m_immediateDraw) {
+            state = GHOST_kWindowStateFullScreen;
+        }
+        else {
 		state = GHOST_kWindowStateNormal;
+        }
 	}
 	[pool drain];
 	return state;
@@ -1038,6 +999,10 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 			NSUInteger masks = [m_window styleMask];
 
 			if (!m_fullScreen && !(masks & NSFullScreenWindowMask)) {
+				if (m_lionStyleFullScreen) {
+					[m_window toggleFullScreen:nil];
+					break;
+				}
 #else
 			if (!m_fullScreen) {
 #endif
@@ -1100,7 +1065,7 @@ GHOST_TSuccess GHOST_WindowCocoa::setState(GHOST_TWindowState state)
 				m_systemCocoa->handleWindowEvent(GHOST_kEventWindowSize, this);
 				
 				[pool drain];
-				}
+			}
 			break;
 		}
 		case GHOST_kWindowStateNormal:
@@ -1220,131 +1185,95 @@ GHOST_TSuccess GHOST_WindowCocoa::setOrder(GHOST_TWindowOrder order)
 
 #pragma mark Drawing context
 
-/*#define  WAIT_FOR_VSYNC 1*/
-
-GHOST_TSuccess GHOST_WindowCocoa::swapBuffers()
+GHOST_Context *GHOST_WindowCocoa::newDrawingContext(GHOST_TDrawingContextType type)
 {
-	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
-		if (m_openGLContext != nil) {
-			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-			[m_openGLContext flushBuffer];
-			[pool drain];
-			return GHOST_kSuccess;
-		}
-	}
-	return GHOST_kFailure;
-}
+	if (type == GHOST_kDrawingContextTypeOpenGL) {
+#if !defined(WITH_GL_EGL)
 
-GHOST_TSuccess GHOST_WindowCocoa::updateDrawingContext()
-{
-	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
-		if (m_openGLContext != nil) {
-			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-			[m_openGLContext update];
-			[pool drain];
-			return GHOST_kSuccess;
-		}
-	}
-	return GHOST_kFailure;
-}
-
-GHOST_TSuccess GHOST_WindowCocoa::activateDrawingContext()
-{
-	if (m_drawingContextType == GHOST_kDrawingContextTypeOpenGL) {
-		if (m_openGLContext != nil) {
-			NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-			[m_openGLContext makeCurrentContext];
-			
-			// Disable AA by default
-			if (m_numOfAASamples > 0) glDisable(GL_MULTISAMPLE_ARB);
-			[pool drain];
-			return GHOST_kSuccess;
-		}
-	}
-	return GHOST_kFailure;
-}
-
-
-GHOST_TSuccess GHOST_WindowCocoa::installDrawingContext(GHOST_TDrawingContextType type)
-{
-	GHOST_TSuccess success = GHOST_kFailure;
-	
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	
-	NSOpenGLPixelFormat *pixelFormat;
-	NSOpenGLContext *tmpOpenGLContext;
-	
-	/***** Multithreaded opengl code : uncomment for enabling
-	CGLContextObj cglCtx;
-	*/
-	 
-	switch (type) {
-		case GHOST_kDrawingContextTypeOpenGL:
-			if (!getValid()) break;
-
-			pixelFormat = [m_openGLView pixelFormat];
-			tmpOpenGLContext = [[NSOpenGLContext alloc] initWithFormat:pixelFormat
-															  shareContext:s_firstOpenGLcontext];
-			if (tmpOpenGLContext == nil) {
-				success = GHOST_kFailure;
-				break;
-			}
-			
-			//Switch openGL to multhreaded mode
-			/******* Multithreaded opengl code : uncomment for enabling
-			cglCtx = (CGLContextObj)[tmpOpenGLContext CGLContextObj];
-			if (CGLEnable(cglCtx, kCGLCEMPEngine) == kCGLNoError)
-				printf("\nSwitched openGL to multithreaded mode\n");
-			 */
-			
-			if (!s_firstOpenGLcontext) s_firstOpenGLcontext = tmpOpenGLContext;
-#ifdef WAIT_FOR_VSYNC
-			{
-				GLint swapInt = 1;
-				/* wait for vsync, to avoid tearing artifacts */
-				[tmpOpenGLContext setValues:&swapInt forParameter:NSOpenGLCPSwapInterval];
-			}
+#if defined(WITH_GL_PROFILE_CORE)
+		GHOST_Context *context = new GHOST_ContextCGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			CGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+			3, 2,
+			GHOST_OPENGL_CGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
+#elif defined(WITH_GL_PROFILE_ES20)
+		GHOST_Context *context = new GHOST_ContextCGL(
+			m_initStereoVisual,
+			m_initNumOfAASamples,
+			m_window,
+			m_openGLView,
+			CGL_CONTEXT_ES2_PROFILE_BIT_EXT,
+			2, 0,
+			GHOST_OPENGL_CGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
+#elif defined(WITH_GL_PROFILE_COMPAT)
+		GHOST_Context *context = new GHOST_ContextCGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
+			m_window,
+			m_openGLView,
+			0, // profile bit
+			0, 0,
+			GHOST_OPENGL_CGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_CGL_RESET_NOTIFICATION_STRATEGY);
+#else
+#  error
 #endif
-			[m_openGLView setOpenGLContext:tmpOpenGLContext];
-			[tmpOpenGLContext setView:m_openGLView];
-			
-			m_openGLContext = tmpOpenGLContext;
-			break;
-	
-		case GHOST_kDrawingContextTypeNone:
-			success = GHOST_kSuccess;
-			break;
-		
-		default:
-			break;
+
+#else
+
+#if defined(WITH_GL_PROFILE_CORE)
+		GHOST_Context *context = new GHOST_ContextEGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
+			m_window,
+			m_openGLView,
+			EGL_CONTEXT_OPENGL_CORE_PROFILE_BIT,
+			3, 2,
+			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+			EGL_OPENGL_API);
+#elif defined(WITH_GL_PROFILE_ES20)
+		GHOST_Context *context = new GHOST_ContextEGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
+			m_window,
+			m_openGLView,
+			0, // profile bit
+			2, 0,
+			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+			EGL_OPENGL_ES_API);
+#elif defined(WITH_GL_PROFILE_COMPAT)
+		GHOST_Context *context = new GHOST_ContextEGL(
+			m_wantStereoVisual,
+			m_wantNumOfAASamples,
+			m_window,
+			m_openGLView,
+			0, // profile bit
+			0, 0,
+			GHOST_OPENGL_EGL_CONTEXT_FLAGS,
+			GHOST_OPENGL_EGL_RESET_NOTIFICATION_STRATEGY,
+			EGL_OPENGL_API);
+#else
+#  error
+#endif
+
+#endif
+		if (context->initializeDrawingContext())
+			return context;
+		else
+			delete context;
 	}
-	[pool drain];
-	return success;
+
+	return NULL;
 }
 
-
-GHOST_TSuccess GHOST_WindowCocoa::removeDrawingContext()
-{
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	switch (m_drawingContextType) {
-		case GHOST_kDrawingContextTypeOpenGL:
-			if (m_openGLContext) {
-				[m_openGLView clearGLContext];
-				if (s_firstOpenGLcontext == m_openGLContext) s_firstOpenGLcontext = nil;
-				m_openGLContext = nil;
-			}
-			[pool drain];
-			return GHOST_kSuccess;
-		case GHOST_kDrawingContextTypeNone:
-			[pool drain];
-			return GHOST_kSuccess;
-			break;
-		default:
-			[pool drain];
-			return GHOST_kFailure;
-	}
-}
-
+#pragma mark invalidate
 
 GHOST_TSuccess GHOST_WindowCocoa::invalidate()
 {

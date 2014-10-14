@@ -104,7 +104,7 @@ static void constraint_bone_name_fix(Object *ob, ListBase *conlist, const char *
 	bConstraintTarget *ct;
 	
 	for (curcon = conlist->first; curcon; curcon = curcon->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(curcon);
+		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(curcon);
 		ListBase targets = {NULL, NULL};
 		
 		/* constraint targets */
@@ -113,8 +113,9 @@ static void constraint_bone_name_fix(Object *ob, ListBase *conlist, const char *
 			
 			for (ct = targets.first; ct; ct = ct->next) {
 				if (ct->tar == ob) {
-					if (!strcmp(ct->subtarget, oldname) )
+					if (STREQ(ct->subtarget, oldname)) {
 						BLI_strncpy(ct->subtarget, newname, MAXBONENAME);
+					}
 				}
 			}
 			

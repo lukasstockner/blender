@@ -180,7 +180,10 @@ static int text_new_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	else if (st) {
 		st->text = text;
+		st->left = 0;
 		st->top = 0;
+		st->scroll_accum[0] = 0.0f;
+		st->scroll_accum[1] = 0.0f;
 		text_drawcache_tag_update(st, 1);
 	}
 
@@ -227,7 +230,7 @@ static int text_open_exec(bContext *C, wmOperator *op)
 	PropertyPointerRNA *pprop;
 	PointerRNA idptr;
 	char str[FILE_MAX];
-	short internal = RNA_boolean_get(op->ptr, "internal");
+	const bool internal = RNA_boolean_get(op->ptr, "internal");
 
 	RNA_string_get(op->ptr, "filepath", str);
 
@@ -251,7 +254,10 @@ static int text_open_exec(bContext *C, wmOperator *op)
 	}
 	else if (st) {
 		st->text = text;
+		st->left = 0;
 		st->top = 0;
+		st->scroll_accum[0] = 0.0f;
+		st->scroll_accum[1] = 0.0f;
 	}
 
 	text_drawcache_tag_update(st, 1);
@@ -265,7 +271,7 @@ static int text_open_exec(bContext *C, wmOperator *op)
 static int text_open_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	Text *text = CTX_data_edit_text(C);
-	char *path = (text && text->name) ? text->name : G.main->name;
+	const char *path = (text && text->name) ? text->name : G.main->name;
 
 	if (RNA_struct_property_is_set(op->ptr, "filepath"))
 		return text_open_exec(C, op);
@@ -378,7 +384,7 @@ static int text_unlink_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 
 	BKE_text_unlink(bmain, text);
-	BKE_libblock_free(&bmain->text, text);
+	BKE_libblock_free(bmain, text);
 
 	text_drawcache_tag_update(st, 1);
 	WM_event_add_notifier(C, NC_TEXT | NA_REMOVED, NULL);
@@ -452,7 +458,7 @@ static void txt_write_file(Text *text, ReportList *reports)
 {
 	FILE *fp;
 	TextLine *tmp;
-	struct stat st;
+	BLI_stat_t st;
 	char filepath[FILE_MAX];
 	
 	BLI_strncpy(filepath, text->name, FILE_MAX);
@@ -465,18 +471,20 @@ static void txt_write_file(Text *text, ReportList *reports)
 		return;
 	}
 
-	tmp = text->lines.first;
-	while (tmp) {
-		if (tmp->next) fprintf(fp, "%s\n", tmp->line);
-		else fprintf(fp, "%s", tmp->line);
-		
-		tmp = tmp->next;
+	for (tmp = text->lines.first; tmp; tmp = tmp->next) {
+		fputs(tmp->line, fp);
+		if (tmp->next) {
+			fputc('\n', fp);
+		}
 	}
 	
 	fclose(fp);
 
 	if (BLI_stat(filepath, &st) == 0) {
 		text->mtime = st.st_mtime;
+
+		/* report since this can be called from key-shortcuts */
+		BKE_reportf(reports, RPT_INFO, "Saved Text '%s'", filepath);
 	}
 	else {
 		text->mtime = 0;
@@ -538,7 +546,7 @@ static int text_save_as_exec(bContext *C, wmOperator *op)
 static int text_save_as_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	Text *text = CTX_data_edit_text(C);
-	char *str;
+	const char *str;
 
 	if (RNA_struct_property_is_set(op->ptr, "filepath"))
 		return text_save_as_exec(C, op);
@@ -584,7 +592,7 @@ static int text_run_script(bContext *C, ReportList *reports)
 {
 #ifdef WITH_PYTHON
 	Text *text = CTX_data_edit_text(C);
-	const short is_live = (reports == NULL);
+	const bool is_live = (reports == NULL);
 
 	/* only for comparison */
 	void *curl_prev = text->curl;
@@ -790,11 +798,12 @@ static char *txt_copy_selected(Text *text)
 
 static int text_paste_exec(bContext *C, wmOperator *op)
 {
+	const bool selection = RNA_boolean_get(op->ptr, "selection");
 	Text *text = CTX_data_edit_text(C);
 	char *buf;
-	int selection = RNA_boolean_get(op->ptr, "selection");
+	int buf_len;
 
-	buf = WM_clipboard_text_get(selection);
+	buf = WM_clipboard_text_get(selection, &buf_len);
 
 	if (!buf)
 		return OPERATOR_CANCELLED;
@@ -1563,7 +1572,7 @@ static int cursor_skip_find_line(SpaceText *st, ARegion *ar,
 	return 1;
 }
 
-static void txt_wrap_move_bol(SpaceText *st, ARegion *ar, short sel)
+static void txt_wrap_move_bol(SpaceText *st, ARegion *ar, const bool sel)
 {
 	Text *text = st->text;
 	TextLine **linep;
@@ -1635,7 +1644,7 @@ static void txt_wrap_move_bol(SpaceText *st, ARegion *ar, short sel)
 	if (!sel) txt_pop_sel(text);
 }
 
-static void txt_wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
+static void txt_wrap_move_eol(SpaceText *st, ARegion *ar, const bool sel)
 {
 	Text *text = st->text;
 	TextLine **linep;
@@ -1705,7 +1714,7 @@ static void txt_wrap_move_eol(SpaceText *st, ARegion *ar, short sel)
 	if (!sel) txt_pop_sel(text);
 }
 
-static void txt_wrap_move_up(SpaceText *st, ARegion *ar, short sel)
+static void txt_wrap_move_up(SpaceText *st, ARegion *ar, const bool sel)
 {
 	Text *text = st->text;
 	TextLine **linep;
@@ -1738,7 +1747,7 @@ static void txt_wrap_move_up(SpaceText *st, ARegion *ar, short sel)
 	if (!sel) txt_pop_sel(text);
 }
 
-static void txt_wrap_move_down(SpaceText *st, ARegion *ar, short sel)
+static void txt_wrap_move_down(SpaceText *st, ARegion *ar, const bool sel)
 {
 	Text *text = st->text;
 	TextLine **linep;
@@ -1775,7 +1784,7 @@ static void txt_wrap_move_down(SpaceText *st, ARegion *ar, short sel)
  *
  * This is to replace screen_skip for PageUp/Down operations.
  */
-static void cursor_skip(SpaceText *st, ARegion *ar, Text *text, int lines, int sel)
+static void cursor_skip(SpaceText *st, ARegion *ar, Text *text, int lines, const bool sel)
 {
 	TextLine **linep;
 	int *charp;
@@ -1806,7 +1815,7 @@ static void cursor_skip(SpaceText *st, ARegion *ar, Text *text, int lines, int s
 	if (!sel) txt_pop_sel(text);
 }
 
-static int text_move_cursor(bContext *C, int type, int select)
+static int text_move_cursor(bContext *C, int type, bool select)
 {
 	SpaceText *st = CTX_wm_space_text(C);
 	Text *text = CTX_data_edit_text(C);
@@ -1818,11 +1827,17 @@ static int text_move_cursor(bContext *C, int type, int select)
 
 	switch (type) {
 		case LINE_BEGIN:
+			if (!select) {
+				txt_sel_clear(text);
+			}
 			if (st && st->wordwrap && ar) txt_wrap_move_bol(st, ar, select);
 			else txt_move_bol(text, select);
 			break;
 			
 		case LINE_END:
+			if (!select) {
+				txt_sel_clear(text);
+			}
 			if (st && st->wordwrap && ar) txt_wrap_move_eol(st, ar, select);
 			else txt_move_eol(text, select);
 			break;
@@ -2115,8 +2130,8 @@ enum {
 };
 
 typedef struct TextScroll {
-	short old[2];
-	short delta[2];
+	int old[2];
+	int delta[2];
 
 	int first;
 	int scrollbar;
@@ -2153,39 +2168,48 @@ static void text_scroll_apply(bContext *C, wmOperator *op, const wmEvent *event)
 	ARegion *ar = CTX_wm_region(C);
 	TextScroll *tsc = op->customdata;
 	int mval[2] = {event->x, event->y};
-	short txtdelta[2] = {0, 0};
+	int scroll_steps[2] = {0, 0};
 
 	text_update_character_width(st);
 
+	/* compute mouse move distance */
 	if (tsc->first) {
 		tsc->old[0] = mval[0];
 		tsc->old[1] = mval[1];
 		tsc->first = 0;
 	}
 
-	tsc->delta[0] += mval[0] - tsc->old[0];
-	tsc->delta[1] += mval[1] - tsc->old[1];
+	if (event->type != MOUSEPAN) {
+		tsc->delta[0] = mval[0] - tsc->old[0];
+		tsc->delta[1] = mval[1] - tsc->old[1];
+	}
 
+	/* accumulate scroll, in float values for events that give less than one
+	 * line offset but taken together should still scroll */
 	if (!tsc->scrollbar) {
-		txtdelta[0] = -tsc->delta[0] / st->cwidth;
-		txtdelta[1] = tsc->delta[1] / (st->lheight_dpi + TXT_LINE_SPACING);
-
-		tsc->delta[0] %= st->cwidth;
-		tsc->delta[1] %= (st->lheight_dpi + TXT_LINE_SPACING);
+		st->scroll_accum[0] += -tsc->delta[0] / (float)st->cwidth;
+		st->scroll_accum[1] += tsc->delta[1] / (float)(st->lheight_dpi + TXT_LINE_SPACING);
 	}
 	else {
-		txtdelta[1] = -tsc->delta[1] * st->pix_per_line;
-		tsc->delta[1] += txtdelta[1] / st->pix_per_line;
+		st->scroll_accum[1] += -tsc->delta[1] * st->pix_per_line;
 	}
 
-	if (txtdelta[0] || txtdelta[1]) {
-		txt_screen_skip(st, ar, txtdelta[1]);
+	/* round to number of lines to scroll */
+	scroll_steps[0] = (int)st->scroll_accum[0];
+	scroll_steps[1] = (int)st->scroll_accum[1];
+
+	st->scroll_accum[0] -= scroll_steps[0];
+	st->scroll_accum[1] -= scroll_steps[1];
+
+	/* perform vertical and/or horizontal scroll */
+	if (scroll_steps[0] || scroll_steps[1]) {
+		txt_screen_skip(st, ar, scroll_steps[1]);
 
 		if (st->wordwrap) {
 			st->left = 0;
 		}
 		else {
-			st->left += txtdelta[0];
+			st->left += scroll_steps[0];
 			if (st->left < 0) st->left = 0;
 		}
 
@@ -2352,8 +2376,6 @@ static int text_scroll_bar_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 		tsc->old[0] = ar->winrct.xmin + BLI_rcti_cent_x(&st->txtbar);
 		tsc->old[1] = ar->winrct.ymin + BLI_rcti_cent_y(&st->txtbar);
 
-		tsc->delta[0] = 0;
-		tsc->delta[1] = 0;
 		tsc->first = 0;
 		tsc->zone = SCROLLHANDLE_BAR;
 		text_scroll_apply(C, op, event);
@@ -2450,7 +2472,7 @@ static TextLine *get_first_visible_line(SpaceText *st, ARegion *ar, int *y)
 	return linep;
 }
 
-static void text_cursor_set_to_pos_wrapped(SpaceText *st, ARegion *ar, int x, int y, int sel)
+static void text_cursor_set_to_pos_wrapped(SpaceText *st, ARegion *ar, int x, int y, const bool sel)
 {
 	Text *text = st->text;
 	int max = wrap_width(st, ar); /* column */
@@ -2567,7 +2589,7 @@ static void text_cursor_set_to_pos_wrapped(SpaceText *st, ARegion *ar, int x, in
 	}
 }
 
-static void text_cursor_set_to_pos(SpaceText *st, ARegion *ar, int x, int y, int sel)
+static void text_cursor_set_to_pos(SpaceText *st, ARegion *ar, int x, int y, const bool sel)
 {
 	Text *text = st->text;
 	text_update_character_width(st);
@@ -2830,7 +2852,7 @@ static int text_insert_exec(bContext *C, wmOperator *op)
 	SpaceText *st = CTX_wm_space_text(C);
 	Text *text = CTX_data_edit_text(C);
 	char *str;
-	int done = FALSE;
+	bool done = false;
 	size_t i = 0;
 	unsigned int code;
 
@@ -2918,7 +2940,7 @@ void TEXT_OT_insert(wmOperatorType *ot)
 	ot->poll = text_edit_poll;
 
 	/* properties */
-	prop = RNA_def_string(ot->srna, "text", "", 0, "Text", "Text to insert at the cursor position");
+	prop = RNA_def_string(ot->srna, "text", NULL, 0, "Text", "Text to insert at the cursor position");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
@@ -3092,61 +3114,6 @@ static EnumPropertyItem resolution_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
-/* returns 0 if file on disk is the same or Text is in memory only
- * returns 1 if file has been modified on disk since last local edit
- * returns 2 if file on disk has been deleted
- * -1 is returned if an error occurs */
-
-int text_file_modified(Text *text)
-{
-	struct stat st;
-	int result;
-	char file[FILE_MAX];
-
-	if (!text || !text->name)
-		return 0;
-
-	BLI_strncpy(file, text->name, FILE_MAX);
-	BLI_path_abs(file, G.main->name);
-
-	if (!BLI_exists(file))
-		return 2;
-
-	result = BLI_stat(file, &st);
-	
-	if (result == -1)
-		return -1;
-
-	if ((st.st_mode & S_IFMT) != S_IFREG)
-		return -1;
-
-	if (st.st_mtime > text->mtime)
-		return 1;
-
-	return 0;
-}
-
-static void text_ignore_modified(Text *text)
-{
-	struct stat st;
-	int result;
-	char file[FILE_MAX];
-
-	if (!text || !text->name) return;
-
-	BLI_strncpy(file, text->name, FILE_MAX);
-	BLI_path_abs(file, G.main->name);
-
-	if (!BLI_exists(file)) return;
-
-	result = BLI_stat(file, &st);
-	
-	if (result == -1 || (st.st_mode & S_IFMT) != S_IFREG)
-		return;
-
-	text->mtime = st.st_mtime;
-}
-
 static int text_resolve_conflict_exec(bContext *C, wmOperator *op)
 {
 	Text *text = CTX_data_edit_text(C);
@@ -3160,7 +3127,7 @@ static int text_resolve_conflict_exec(bContext *C, wmOperator *op)
 		case RESOLVE_MAKE_INTERNAL:
 			return text_make_internal_exec(C, op);
 		case RESOLVE_IGNORE:
-			text_ignore_modified(text);
+			BKE_text_file_modified_ignore(text);
 			return OPERATOR_FINISHED;
 	}
 
@@ -3173,7 +3140,7 @@ static int text_resolve_conflict_invoke(bContext *C, wmOperator *op, const wmEve
 	uiPopupMenu *pup;
 	uiLayout *layout;
 
-	switch (text_file_modified(text)) {
+	switch (BKE_text_file_modified_check(text)) {
 		case 1:
 			if (text->flags & TXT_ISDIRTY) {
 				/* modified locally and externally, ahhh. offer more possibilites. */
@@ -3230,7 +3197,7 @@ void TEXT_OT_resolve_conflict(wmOperatorType *ot)
 static int text_to_3d_object_exec(bContext *C, wmOperator *op)
 {
 	Text *text = CTX_data_edit_text(C);
-	int split_lines = RNA_boolean_get(op->ptr, "split_lines");
+	const bool split_lines = RNA_boolean_get(op->ptr, "split_lines");
 
 	ED_text_to_object(C, text, split_lines);
 

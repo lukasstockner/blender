@@ -42,7 +42,6 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
-#include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
@@ -53,9 +52,8 @@
 
 
 #include "BKE_main.h"
-#include "BKE_library.h" // for free_main
+#include "BKE_library.h" // for BKE_main_free
 #include "BKE_idcode.h"
-#include "BKE_report.h"
 
 #include "BLO_readfile.h"
 #include "BLO_undofile.h"
@@ -102,8 +100,8 @@ void BLO_blendhandle_print_sizes(BlendHandle *bh, void *fp)
 		if (bhead->code == ENDB)
 			break;
 		else {
-			short *sp = fd->filesdna->structs[bhead->SDNAnr];
-			char *name = fd->filesdna->types[sp[0]];
+			const short *sp = fd->filesdna->structs[bhead->SDNAnr];
+			const char *name = fd->filesdna->types[sp[0]];
 			char buf[4];
 			
 			buf[0] = (bhead->code >> 24) & 0xFF;
@@ -131,7 +129,7 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh, int ofblocktype, 
 
 	for (bhead = blo_firstbhead(fd); bhead; bhead = blo_nextbhead(fd, bhead)) {
 		if (bhead->code == ofblocktype) {
-			char *idname = bhead_id_name(fd, bhead);
+			const char *idname = bhead_id_name(fd, bhead);
 
 			BLI_linklist_prepend(&names, strdup(idname + 2));
 			tot++;
@@ -156,7 +154,7 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *to
 
 	for (bhead = blo_firstbhead(fd); bhead; bhead = blo_nextbhead(fd, bhead)) {
 		if (bhead->code == ofblocktype) {
-			char *idname = bhead_id_name(fd, bhead);
+			const char *idname = bhead_id_name(fd, bhead);
 			switch (GS(idname)) {
 				case ID_MA: /* fall through */
 				case ID_TE: /* fall through */
@@ -326,7 +324,7 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain, const char *filename, MemFil
 			
 			/* Library structs themselves */
 			bfd->main->library = oldmain->library;
-			oldmain->library.first = oldmain->library.last = NULL;
+			BLI_listbase_clear(&oldmain->library);
 			
 			/* add the Library mainlist to the new main */
 			BLI_remlink(&mainlist, oldmain);
@@ -343,7 +341,7 @@ BlendFileData *BLO_read_from_memfile(Main *oldmain, const char *filename, MemFil
 void BLO_blendfiledata_free(BlendFileData *bfd)
 {
 	if (bfd->main) {
-		free_main(bfd->main);
+		BKE_main_free(bfd->main);
 	}
 	
 	if (bfd->user) {

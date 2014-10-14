@@ -50,7 +50,7 @@ typedef struct wmEventHandler {
 
 	/* keymap handler */
 	wmKeyMap *keymap;                   /* pointer to builtin/custom keymaps */
-	rcti *bblocal, *bbwin;              /* optional local and windowspace bb */
+	const rcti *bblocal, *bbwin;              /* optional local and windowspace bb */
 
 	/* modal operator handler */
 	wmOperator *op;                     /* for derived/modal handlers */
@@ -81,8 +81,9 @@ enum {
 
 /* handler flag */
 enum {
-	WM_HANDLER_BLOCKING    = 1,  /* after this handler all others are ignored */
-	WM_HANDLER_DO_FREE     = 2   /* handler tagged to be freed in wm_handlers_do() */
+	WM_HANDLER_BLOCKING             = (1 << 0),  /* after this handler all others are ignored */
+	WM_HANDLER_DO_FREE              = (1 << 1),  /* handler tagged to be freed in wm_handlers_do() */
+	WM_HANDLER_ACCEPT_DBL_CLICK     = (1 << 2),  /* handler accepts double key press events */
 };
 
 /* wm_event_system.c */

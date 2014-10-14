@@ -62,7 +62,10 @@ enum LinearSolverTerminationType {
   // the linear system being poorly conditioned.
   LINEAR_SOLVER_FAILURE,
 
-  // Solver failed with a fatal error that cannot be recovered from.
+  // Solver failed with a fatal error that cannot be recovered from,
+  // e.g. CHOLMOD ran out of memory when computing the symbolic or
+  // numeric factorization or an underlying library was called with
+  // the wrong arguments.
   LINEAR_SOLVER_FATAL_ERROR
 };
 
@@ -95,6 +98,8 @@ class LinearSolver {
           dense_linear_algebra_library_type(EIGEN),
           sparse_linear_algebra_library_type(SUITE_SPARSE),
           use_postordering(false),
+          dynamic_sparsity(false),
+          use_explicit_schur_complement(false),
           min_num_iterations(1),
           max_num_iterations(1),
           num_threads(1),
@@ -110,8 +115,10 @@ class LinearSolver {
     DenseLinearAlgebraLibraryType dense_linear_algebra_library_type;
     SparseLinearAlgebraLibraryType sparse_linear_algebra_library_type;
 
-    // See solver.h for information about this flag.
+    // See solver.h for information about these flags.
     bool use_postordering;
+    bool dynamic_sparsity;
+    bool use_explicit_schur_complement;
 
     // Number of internal iterations that the solver uses. This
     // parameter only makes sense for iterative solvers like CG.
@@ -268,6 +275,14 @@ class LinearSolver {
     LinearSolverTerminationType termination_type;
     string message;
   };
+
+  // If the optimization problem is such that there are no remaining
+  // e-blocks, a Schur type linear solver cannot be used. If the
+  // linear solver is of Schur type, this function implements a policy
+  // to select an alternate nearest linear solver to the one selected
+  // by the user. The input linear_solver_type is returned otherwise.
+  static LinearSolverType LinearSolverForZeroEBlocks(
+      LinearSolverType linear_solver_type);
 
   virtual ~LinearSolver();
 

@@ -73,20 +73,23 @@ Bone *get_indexed_bone(Object *ob, int index)
 
 /* See if there are any selected bones in this buffer */
 /* only bones from base are checked on */
-void *get_bone_from_selectbuffer(Scene *scene, Base *base, unsigned int *buffer, short hits, short findunsel)
+void *get_bone_from_selectbuffer(Scene *scene, Base *base, unsigned int *buffer, short hits, short findunsel, bool do_nearest)
 {
 	Object *obedit = scene->obedit; // XXX get from context
 	Bone *bone;
 	EditBone *ebone;
 	void *firstunSel = NULL, *firstSel = NULL, *data;
 	unsigned int hitresult;
-	short i, takeNext = 0, sel;
+	short i;
+	bool takeNext = false;
+	int minsel = 0xffffffff, minunsel = 0xffffffff;
 	
 	for (i = 0; i < hits; i++) {
 		hitresult = buffer[3 + (i * 4)];
 		
-		if (!(hitresult & BONESEL_NOSEL)) { // -1
-			if (hitresult & BONESEL_ANY) {  // to avoid including objects in selection
+		if (!(hitresult & BONESEL_NOSEL)) {
+			if (hitresult & BONESEL_ANY) {  /* to avoid including objects in selection */
+				bool sel;
 				
 				hitresult &= ~(BONESEL_ANY);
 				/* Determine what the current bone is */
@@ -100,7 +103,7 @@ void *get_bone_from_selectbuffer(Scene *scene, Base *base, unsigned int *buffer,
 						else
 							sel = !(bone->flag & BONE_SELECTED);
 						
-						data = bone;
+						data = bone;						
 					}
 					else {
 						data = NULL;
@@ -121,14 +124,28 @@ void *get_bone_from_selectbuffer(Scene *scene, Base *base, unsigned int *buffer,
 				
 				if (data) {
 					if (sel) {
-						if (!firstSel) firstSel = data;
-						takeNext = 1;
+						if (do_nearest) {
+							if (minsel > buffer[4 * i + 1]) {
+								firstSel = data;
+								minsel = buffer[4 * i + 1];
+							}
+						}
+						else {
+							if (!firstSel) firstSel = data;
+							takeNext = 1;
+						}
 					}
 					else {
-						if (!firstunSel)
-							firstunSel = data;
-						if (takeNext)
-							return data;
+						if (do_nearest) {
+							if (minunsel > buffer[4 * i + 1]) {
+								firstunSel = data;
+								minunsel = buffer[4 * i + 1];
+							}
+						}
+						else {
+							if (!firstunSel) firstunSel = data;
+							if (takeNext) return data;
+						}
 					}
 				}
 			}
@@ -158,10 +175,10 @@ void *get_nearest_bone(bContext *C, short findunsel, int x, int y)
 	rect.ymin = rect.ymax = y;
 	
 	glInitNames();
-	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect);
+	hits = view3d_opengl_select(&vc, buffer, MAXPICKBUF, &rect, true);
 
 	if (hits > 0)
-		return get_bone_from_selectbuffer(vc.scene, vc.scene->basact, buffer, hits, findunsel);
+		return get_bone_from_selectbuffer(vc.scene, vc.scene->basact, buffer, hits, findunsel, true);
 	
 	return NULL;
 }
@@ -256,7 +273,7 @@ void ARMATURE_OT_select_linked(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* properties */
-	RNA_def_boolean(ot->srna, "extend", FALSE, "Extend", "Extend selection instead of deselecting everything first");
+	RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend selection instead of deselecting everything first");
 }
 
 /* does bones and points */
@@ -293,19 +310,19 @@ static EditBone *get_nearest_editbonepoint(ViewContext *vc, const int mval[2],
 	rect.ymin = mval[1] - 5;
 	rect.ymax = mval[1] + 5;
 
-	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect);
+	hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect, true);
 	if (hits == 0) {
 		rect.xmin = mval[0] - 12;
 		rect.xmax = mval[0] + 12;
 		rect.ymin = mval[1] - 12;
 		rect.ymax = mval[1] + 12;
-		hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect);
+		hits = view3d_opengl_select(vc, buffer, MAXPICKBUF, &rect, true);
 	}
 	/* See if there are any selected bones in this group */
 	if (hits > 0) {
 		
 		if (hits == 1) {
-			if (!(buffer[3] & BONESEL_NOSEL)) 
+			if (!(buffer[3] & BONESEL_NOSEL))
 				besthitresult = buffer[3];
 		}
 		else {
@@ -973,7 +990,7 @@ static int armature_select_hierarchy_exec(bContext *C, wmOperator *op)
 	bArmature *arm;
 	EditBone *curbone, *pabone, *chbone;
 	int direction = RNA_enum_get(op->ptr, "direction");
-	int add_to_sel = RNA_boolean_get(op->ptr, "extend");
+	const bool add_to_sel = RNA_boolean_get(op->ptr, "extend");
 	
 	ob = obedit;
 	arm = (bArmature *)ob->data;

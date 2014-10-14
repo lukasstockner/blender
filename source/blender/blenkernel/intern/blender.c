@@ -29,15 +29,15 @@
  *  \ingroup bke
  */
 
+#ifndef _GNU_SOURCE
+/* Needed for O_NOFOLLOW on some platforms. */
+#  define _GNU_SOURCE 1
+#endif
 
 #ifndef _WIN32 
 #  include <unistd.h> // for read close
 #else
 #  include <io.h> // for open close read
-#  define open _open
-#  define read _read
-#  define close _close
-#  define write _write
 #endif
 
 #include <stdlib.h>
@@ -52,12 +52,9 @@
 #include "DNA_userdef_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_sequence_types.h"
-#include "DNA_sound_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
 #include "BLI_callbacks.h"
 
@@ -69,7 +66,6 @@
 #include "BKE_brush.h"
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_displist.h"
 #include "BKE_global.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
@@ -84,6 +80,7 @@
 #include "BKE_sound.h"
 
 #include "RE_pipeline.h"
+#include "RE_render_ext.h"
 
 #include "BLF_api.h"
 
@@ -113,15 +110,17 @@ char versionstr[48] = "";
 void free_blender(void)
 {
 	/* samples are in a global list..., also sets G.main->sound->sample NULL */
-	free_main(G.main);
+	BKE_main_free(G.main);
 	G.main = NULL;
 
 	BKE_spacetypes_free();      /* after free main, it uses space callbacks */
 	
 	IMB_exit();
 	BKE_images_exit();
+	DAG_exit();
 
 	BKE_brush_system_exit();
+	RE_exit_texture_rng();	
 
 	BLI_callback_global_finalize();
 
@@ -137,7 +136,7 @@ void initglobals(void)
 	
 	U.savetime = 1;
 
-	G.main = MEM_callocN(sizeof(Main), "initglobals");
+	G.main = BKE_main_new();
 
 	strcpy(G.ima, "//");
 
@@ -163,7 +162,7 @@ static void clear_global(void)
 {
 //	extern short winqueue_break;	/* screen.c */
 
-	free_main(G.main);          /* free all lib data */
+	BKE_main_free(G.main);          /* free all lib data */
 	
 //	free_vertexpaint();
 
@@ -173,7 +172,7 @@ static void clear_global(void)
 static bool clean_paths_visit_cb(void *UNUSED(userdata), char *path_dst, const char *path_src)
 {
 	strcpy(path_dst, path_src);
-	BLI_clean(path_dst);
+	BLI_path_native_slash(path_dst);
 	return !STREQ(path_dst, path_src);
 }
 
@@ -185,7 +184,7 @@ static void clean_paths(Main *main)
 	BKE_bpath_traverse_main(main, clean_paths_visit_cb, BKE_BPATH_TRAVERSE_SKIP_MULTIFILE, NULL);
 
 	for (scene = main->scene.first; scene; scene = scene->id.next) {
-		BLI_clean(scene->r.pic);
+		BLI_path_native_slash(scene->r.pic);
 	}
 }
 
@@ -200,29 +199,38 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	bScreen *curscreen = NULL;
 	Scene *curscene = NULL;
 	int recover;
-	char mode;
+	enum {
+		LOAD_UI = 1,
+		LOAD_UI_OFF,
+		LOAD_UNDO,
+	} mode;
 
-	/* 'u' = undo save, 'n' = no UI load */
-	if (bfd->main->screen.first == NULL) mode = 'u';
-	else if (G.fileflags & G_FILE_NO_UI) mode = 'n';
-	else mode = 0;
+	if (BLI_listbase_is_empty(&bfd->main->screen)) {
+		mode = LOAD_UNDO;
+	}
+	else if (G.fileflags & G_FILE_NO_UI) {
+		mode = LOAD_UI_OFF;
+	}
+	else {
+		mode = LOAD_UI;
+	}
 
 	recover = (G.fileflags & G_FILE_RECOVER);
 
 	/* Free all render results, without this stale data gets displayed after loading files */
-	if (mode != 'u') {
+	if (mode != LOAD_UNDO) {
 		RE_FreeAllRenderResults();
 	}
 
 	/* Only make filepaths compatible when loading for real (not undo) */
-	if (mode != 'u') {
+	if (mode != LOAD_UNDO) {
 		clean_paths(bfd->main);
 	}
 
 	/* XXX here the complex windowmanager matching */
 	
 	/* no load screens? */
-	if (mode) {
+	if (mode != LOAD_UI) {
 		/* comes from readfile.c */
 		SWAP(ListBase, G.main->wm, bfd->main->wm);
 		SWAP(ListBase, G.main->screen, bfd->main->screen);
@@ -266,7 +274,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	}
 	
 	/* case G_FILE_NO_UI or no screens in file */
-	if (mode) {
+	if (mode != LOAD_UI) {
 		/* leave entire context further unaltered? */
 		CTX_data_scene_set(C, curscene);
 	}
@@ -280,6 +288,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		CTX_wm_area_set(C, NULL);
 		CTX_wm_region_set(C, NULL);
 		CTX_wm_menu_set(C, NULL);
+		curscene = bfd->curscene;
 	}
 	
 	/* this can happen when active scene was lib-linked, and doesn't exist anymore */
@@ -292,6 +301,9 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		CTX_wm_screen(C)->scene = CTX_data_scene(C);
 		curscene = CTX_data_scene(C);
 	}
+
+	BLI_assert(curscene == CTX_data_scene(C));
+
 
 	/* special cases, override loaded flags: */
 	if (G.f != bfd->globalf) {
@@ -335,7 +347,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	
 	/* baseflags, groups, make depsgraph, etc */
 	/* first handle case if other windows have different scenes visible */
-	if (mode == 0) {
+	if (mode == LOAD_UI) {
 		wmWindowManager *wm = G.main->wm.first;
 		
 		if (wm) {
@@ -343,14 +355,14 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 			
 			for (win = wm->windows.first; win; win = win->next) {
 				if (win->screen && win->screen->scene) /* zealous check... */
-					if (win->screen->scene != CTX_data_scene(C))
+					if (win->screen->scene != curscene)
 						BKE_scene_set_background(G.main, win->screen->scene);
 			}
 		}
 	}
-	BKE_scene_set_background(G.main, CTX_data_scene(C));
+	BKE_scene_set_background(G.main, curscene);
 
-	if (mode != 'u') {
+	if (mode != LOAD_UNDO) {
 		IMB_colormanagement_check_file_config(G.main);
 	}
 
@@ -387,6 +399,7 @@ void BKE_userdef_free(void)
 	wmKeyMapItem *kmi;
 	wmKeyMapDiffItem *kmdi;
 	bAddon *addon, *addon_next;
+	uiFont *font;
 
 	for (km = U.user_keymaps.first; km; km = km->next) {
 		for (kmdi = km->diff_items.first; kmdi; kmdi = kmdi->next) {
@@ -415,6 +428,12 @@ void BKE_userdef_free(void)
 		}
 		MEM_freeN(addon);
 	}
+
+	for (font = U.uifonts.first; font; font = font->next) {
+		BLF_unload_id(font->blf_id);
+	}
+
+	BLF_default_set(-1);
 
 	BLI_freelistN(&U.autoexec_paths);
 
@@ -448,7 +467,7 @@ int BKE_read_file(bContext *C, const char *filepath, ReportList *reports)
 		if (bfd->user) retval = BKE_READ_FILE_OK_USERPREFS;
 		
 		if (0 == handle_subversion_warning(bfd->main, reports)) {
-			free_main(bfd->main);
+			BKE_main_free(bfd->main);
 			MEM_freeN(bfd);
 			bfd = NULL;
 			retval = BKE_READ_FILE_FAIL;
@@ -462,7 +481,9 @@ int BKE_read_file(bContext *C, const char *filepath, ReportList *reports)
 	return (bfd ? retval : BKE_READ_FILE_FAIL);
 }
 
-int BKE_read_file_from_memory(bContext *C, const void *filebuf, int filelength, ReportList *reports, int update_defaults)
+bool BKE_read_file_from_memory(
+        bContext *C, const void *filebuf, int filelength,
+        ReportList *reports, bool update_defaults)
 {
 	BlendFileData *bfd;
 
@@ -479,7 +500,9 @@ int BKE_read_file_from_memory(bContext *C, const void *filebuf, int filelength, 
 }
 
 /* memfile is the undo buffer */
-int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *reports)
+bool BKE_read_file_from_memfile(
+        bContext *C, MemFile *memfile,
+        ReportList *reports)
 {
 	BlendFileData *bfd;
 
@@ -487,9 +510,9 @@ int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *report
 	if (bfd) {
 		/* remove the unused screens and wm */
 		while (bfd->main->wm.first)
-			BKE_libblock_free(&bfd->main->wm, bfd->main->wm.first);
+			BKE_libblock_free_ex(bfd->main, bfd->main->wm.first, true);
 		while (bfd->main->screen.first)
-			BKE_libblock_free(&bfd->main->screen, bfd->main->screen.first);
+			BKE_libblock_free_ex(bfd->main, bfd->main->screen.first, true);
 		
 		setup_app_data(C, bfd, "<memory1>");
 	}
@@ -503,20 +526,22 @@ int BKE_read_file_from_memfile(bContext *C, MemFile *memfile, ReportList *report
 int BKE_read_file_userdef(const char *filepath, ReportList *reports)
 {
 	BlendFileData *bfd;
-	int retval = 0;
-	
+	int retval = BKE_READ_FILE_FAIL;
+
 	bfd = BLO_read_from_file(filepath, reports);
-	if (bfd->user) {
-		retval = BKE_READ_FILE_OK_USERPREFS;
-		
-		/* only here free userdef themes... */
-		BKE_userdef_free();
-		
-		U = *bfd->user;
-		MEM_freeN(bfd->user);
+	if (bfd) {
+		if (bfd->user) {
+			retval = BKE_READ_FILE_OK_USERPREFS;
+
+			/* only here free userdef themes... */
+			BKE_userdef_free();
+
+			U = *bfd->user;
+			MEM_freeN(bfd->user);
+		}
+		BKE_main_free(bfd->main);
+		MEM_freeN(bfd);
 	}
-	free_main(bfd->main);
-	MEM_freeN(bfd);
 	
 	return retval;
 }
@@ -553,7 +578,7 @@ int blender_test_break(void)
 			blender_test_break_cb();
 	}
 	
-	return (G.is_break == TRUE);
+	return (G.is_break == true);
 }
 
 
@@ -597,7 +622,7 @@ static int read_undosave(bContext *C, UndoElem *uel)
 
 	if (success) {
 		/* important not to update time here, else non keyed tranforms are lost */
-		DAG_on_visible_update(G.main, FALSE);
+		DAG_on_visible_update(G.main, false);
 	}
 
 	return success;
@@ -662,7 +687,7 @@ void BKE_write_undo(bContext *C, const char *name)
 		counter = counter % U.undosteps;
 	
 		BLI_snprintf(numstr, sizeof(numstr), "%d.blend", counter);
-		BLI_make_file_string("/", filepath, BLI_temporary_dir(), numstr);
+		BLI_make_file_string("/", filepath, BLI_temp_dir_session(), numstr);
 	
 		/* success = */ /* UNUSED */ BLO_write_file(CTX_data_main(C), filepath, fileflags, NULL, NULL);
 		
@@ -797,13 +822,16 @@ const char *BKE_undo_get_name(int nr, int *active)
 	return NULL;
 }
 
-/* saves .blend using undo buffer, returns 1 == success */
-int BKE_undo_save_file(const char *filename)
+/**
+ * Saves .blend using undo buffer.
+ *
+ * \return success.
+ */
+bool BKE_undo_save_file(const char *filename)
 {
 	UndoElem *uel;
 	MemFileChunk *chunk;
-	const int flag = O_BINARY + O_WRONLY + O_CREAT + O_TRUNC + O_EXCL;
-	int file;
+	int file, oflags;
 
 	if ((U.uiflag & USER_GLOBALUNDO) == 0) {
 		return 0;
@@ -815,16 +843,21 @@ int BKE_undo_save_file(const char *filename)
 		return 0;
 	}
 
-	/* first try create the file, if it exists call without 'O_CREAT',
-	 * to avoid writing to a symlink - use 'O_EXCL' (CVE-2008-1103) */
-	errno = 0;
-	file = BLI_open(filename, flag, 0666);
-	if (file < 0) {
-		if (errno == EEXIST) {
-			errno = 0;
-			file = BLI_open(filename, flag & ~O_CREAT, 0666);
-		}
-	}
+	/* note: This is currently used for autosave and 'quit.blend', where _not_ following symlinks is OK,
+	 * however if this is ever executed explicitly by the user, we may want to allow writing to symlinks.
+	 */
+
+	oflags = O_BINARY | O_WRONLY | O_CREAT | O_TRUNC;
+#ifdef O_NOFOLLOW
+	/* use O_NOFOLLOW to avoid writing to a symlink - use 'O_EXCL' (CVE-2008-1103) */
+	oflags |= O_NOFOLLOW;
+#else
+	/* TODO(sergey): How to deal with symlinks on windows? */
+#  ifndef _MSC_VER
+#    warning "Symbolic links will be followed on undo save, possibly causing CVE-2008-1103"
+#  endif
+#endif
+	file = BLI_open(filename,  oflags, 0666);
 
 	if (file == -1) {
 		fprintf(stderr, "Unable to save '%s': %s\n",
@@ -869,10 +902,10 @@ Main *BKE_undo_get_main(Scene **scene)
 
 /* assumes data is in G.main */
 
-void BKE_copybuffer_begin(void)
+void BKE_copybuffer_begin(Main *bmain)
 {
 	/* set all id flags to zero; */
-	flag_all_listbases_ids(LIB_NEED_EXPAND | LIB_DOIT, 0);
+	BKE_main_id_flag_all(bmain, LIB_NEED_EXPAND | LIB_DOIT, false);
 }
 
 void BKE_copybuffer_tag_ID(ID *id)
@@ -897,6 +930,12 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 	ListBase *lbarray[MAX_LIBARRAY], *fromarray[MAX_LIBARRAY];
 	int a, retval;
 	
+	/* path backup/restore */
+	void     *path_list_backup;
+	const int path_list_flag = (BKE_BPATH_TRAVERSE_SKIP_LIBRARY | BKE_BPATH_TRAVERSE_SKIP_MULTIFILE);
+
+	path_list_backup = BKE_bpath_list_backup(G.main, path_list_flag);
+
 	BLO_main_expander(copybuffer_doit);
 	BLO_expand_main(NULL, G.main);
 	
@@ -936,8 +975,13 @@ int BKE_copybuffer_save(const char *filename, ReportList *reports)
 	MEM_freeN(mainb);
 	
 	/* set id flag to zero; */
-	flag_all_listbases_ids(LIB_NEED_EXPAND | LIB_DOIT, 0);
+	BKE_main_id_flag_all(G.main, LIB_NEED_EXPAND | LIB_DOIT, false);
 	
+	if (path_list_backup) {
+		BKE_bpath_list_restore(G.main, path_list_flag, path_list_backup);
+		BKE_bpath_list_free(path_list_backup);
+	}
+
 	return retval;
 }
 
@@ -962,8 +1006,8 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	/* tag everything, all untagged data can be made local
 	 * its also generally useful to know what is new
 	 *
-	 * take extra care flag_all_listbases_ids(LIB_LINK_TAG, 0) is called after! */
-	flag_all_listbases_ids(LIB_PRE_EXISTING, 1);
+	 * take extra care BKE_main_id_flag_all(bmain, LIB_LINK_TAG, false) is called after! */
+	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, true);
 	
 	/* here appending/linking starts */
 	mainl = BLO_library_append_begin(bmain, &bh, libname);
@@ -973,7 +1017,7 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	BLO_library_append_end(C, mainl, &bh, 0, 0);
 	
 	/* mark all library linked objects to be updated */
-	recalc_all_library_objects(bmain);
+	BKE_main_lib_objects_recalc_all(bmain);
 	IMB_colormanagement_check_file_config(bmain);
 	
 	/* append, rather than linking */
@@ -982,7 +1026,7 @@ int BKE_copybuffer_paste(bContext *C, const char *libname, ReportList *reports)
 	
 	/* important we unset, otherwise these object wont
 	 * link into other scenes from this blend file */
-	flag_all_listbases_ids(LIB_PRE_EXISTING, 0);
+	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, false);
 	
 	/* recreate dependency graph to include new objects */
 	DAG_relations_tag_update(bmain);

@@ -39,6 +39,7 @@ set(INC
 	../pointcache
 	../render/extern/include
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 	../../../intern/iksolver/extern
 	../../../intern/memutil
 	../../../intern/mikktspace
@@ -79,6 +80,7 @@ set(SRC
 	intern/colortools.c
 	intern/constraint.c
 	intern/context.c
+	intern/crazyspace.c
 	intern/curve.c
 	intern/customdata.c
 	intern/customdata_file.c
@@ -108,6 +110,7 @@ set(SRC
 	intern/lamp.c
 	intern/lattice.c
 	intern/library.c
+	intern/library_query.c
 	intern/linestyle.c
 	intern/mask.c
 	intern/mask_evaluate.c
@@ -116,6 +119,7 @@ set(SRC
 	intern/mball.c
 	intern/mesh.c
 	intern/mesh_evaluate.c
+	intern/mesh_mapping.c
 	intern/mesh_validate.c
 	intern/modifier.c
 	intern/modifiers_bmesh.c
@@ -125,6 +129,7 @@ set(SRC
 	intern/node.c
 	intern/object.c
 	intern/object_deform.c
+	intern/object_dupli.c
 	intern/ocean.c
 	intern/packedFile.c
 	intern/paint.c
@@ -154,6 +159,12 @@ set(SRC
 	intern/text.c
 	intern/texture.c
 	intern/tracking.c
+	intern/tracking_detect.c
+	intern/tracking_plane_tracker.c
+	intern/tracking_region_tracker.c
+	intern/tracking_solver.c
+	intern/tracking_stabilize.c
+	intern/tracking_util.c
 	intern/treehash.c
 	intern/unit.c
 	intern/world.c
@@ -183,6 +194,7 @@ set(SRC
 	BKE_colortools.h
 	BKE_constraint.h
 	BKE_context.h
+	BKE_crazyspace.h
 	BKE_curve.h
 	BKE_customdata.h
 	BKE_customdata_file.h
@@ -207,12 +219,14 @@ set(SRC
 	BKE_lamp.h
 	BKE_lattice.h
 	BKE_library.h
+	BKE_library_query.h
 	BKE_linestyle.h
 	BKE_main.h
 	BKE_mask.h
 	BKE_material.h
 	BKE_mball.h
 	BKE_mesh.h
+	BKE_mesh_mapping.h
 	BKE_modifier.h
 	BKE_movieclip.h
 	BKE_multires.h
@@ -255,11 +269,12 @@ set(SRC
 
 	depsgraph_private.h
 	nla_private.h
+	tracking_private.h
 	intern/CCGSubSurf.h
 	intern/pbvh_intern.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_AUDASPACE)
 	list(APPEND INC
@@ -292,6 +307,10 @@ endif()
 
 if(WITH_IMAGE_TIFF)
 	add_definitions(-DWITH_TIFF)
+endif()
+
+if(WITH_OPENIMAGEIO)
+	add_definitions(-DWITH_OPENIMAGEIO)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
@@ -373,12 +392,6 @@ endif()
 
 if(WITH_MOD_OCEANSIM)
 	add_definitions(-DWITH_OCEANSIM)
-endif()
-
-if(WITH_MOD_BOOLEAN)
-	list(APPEND INC
-		../../../intern/bsp/extern
-	)
 endif()
 
 if(WITH_JACK)

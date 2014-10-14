@@ -63,14 +63,14 @@ static bGPundonode *cur_node = NULL;
 
 int ED_gpencil_session_active(void)
 {
-	return undo_nodes.first != NULL;
+	return (BLI_listbase_is_empty(&undo_nodes) == false);
 }
 
 int ED_undo_gpencil_step(bContext *C, int step, const char *name)
 {
 	bGPdata **gpd_ptr = NULL, *new_gpd = NULL;
 
-	gpd_ptr = gpencil_data_get_pointers(C, NULL);
+	gpd_ptr = ED_gpencil_data_get_pointers(C, NULL);
 
 	if (step == 1) {  /* undo */
 		//printf("\t\tGP - undo step\n");
@@ -100,7 +100,7 @@ int ED_undo_gpencil_step(bContext *C, int step, const char *name)
 				free_gpencil_layers(&gpd->layers);
 
 				/* copy layers */
-				gpd->layers.first = gpd->layers.last = NULL;
+				BLI_listbase_clear(&gpd->layers);
 
 				for (gpl = new_gpd->layers.first; gpl; gpl = gpl->next) {
 					/* make a copy of source layer and its data */

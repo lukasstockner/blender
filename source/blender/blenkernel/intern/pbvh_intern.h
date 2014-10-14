@@ -39,7 +39,7 @@ typedef struct {
  * union'd structs */
 struct PBVHNode {
 	/* Opaque handle for drawing code */
-	struct GPU_Buffers *draw_buffers;
+	struct GPU_PBVH_Buffers *draw_buffers;
 
 	/* Voxel bounds */
 	BB vb;
@@ -104,7 +104,7 @@ struct PBVHNode {
 	PBVHProxyNode *proxies;
 
 	/* Dyntopo */
-	GHash *bm_faces;
+	GSet *bm_faces;
 	GSet *bm_unique_verts;
 	GSet *bm_other_verts;
 	float (*bm_orco)[3];
@@ -154,16 +154,16 @@ struct PBVH {
 #endif
 
 	/* flag are verts/faces deformed */
-	int deformed;
+	bool deformed;
 
-	int show_diffuse_color;
+	bool show_diffuse_color;
 
 	/* Dynamic topology */
 	BMesh *bm;
-	GHash *bm_face_to_node;
-	GHash *bm_vert_to_node;
 	float bm_max_edge_len;
 	float bm_min_edge_len;
+	int cd_vert_node_offset;
+	int cd_face_node_offset;
 
 	struct BMLog *bm_log;
 };
@@ -175,15 +175,16 @@ void BB_expand_with_bb(BB *bb, BB *bb2);
 void BBC_update_centroid(BBC *bbc);
 int BB_widest_axis(const BB *bb);
 void pbvh_grow_nodes(PBVH *bvh, int totnode);
-int ray_face_intersection(const float ray_start[3], const float ray_normal[3],
-						  const float *t0, const float *t1, const float *t2,
-						  const float *t3, float *fdist);
+bool ray_face_intersection(const float ray_start[3], const float ray_normal[3],
+                           const float *t0, const float *t1, const float *t2,
+                           const float *t3, float *fdist);
 void pbvh_update_BB_redraw(PBVH *bvh, PBVHNode **nodes, int totnode, int flag);
 
 /* pbvh_bmesh.c */
-int pbvh_bmesh_node_raycast(PBVHNode *node, const float ray_start[3],
-							const float ray_normal[3], float *dist,
-							int use_original);
+bool pbvh_bmesh_node_raycast(
+        PBVHNode *node, const float ray_start[3],
+        const float ray_normal[3], float *dist,
+        bool use_original);
 
 void pbvh_bmesh_normals_update(PBVHNode **nodes, int totnode);
 

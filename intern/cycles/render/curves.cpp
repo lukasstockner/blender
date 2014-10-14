@@ -46,8 +46,9 @@ void curvebounds(float *lower, float *upper, float3 *p, int dim)
 	float discroot = curve_coef[2] * curve_coef[2] - 3 * curve_coef[3] * curve_coef[1];
 	float ta = -1.0f;
 	float tb = -1.0f;
+
 	if(discroot >= 0) {
-		discroot = sqrt(discroot);
+		discroot = sqrtf(discroot);
 		ta = (-curve_coef[2] - discroot) / (3 * curve_coef[3]);
 		tb = (-curve_coef[2] + discroot) / (3 * curve_coef[3]);
 		ta = (ta > 1.0f || ta < 0.0f) ? -1.0f : ta;
@@ -56,20 +57,21 @@ void curvebounds(float *lower, float *upper, float3 *p, int dim)
 
 	*upper = max(p1[dim],p2[dim]);
 	*lower = min(p1[dim],p2[dim]);
+
 	float exa = p1[dim];
 	float exb = p2[dim];
-	float t2;
-	float t3;
+
 	if(ta >= 0.0f) {
-		t2 = ta * ta;
-		t3 = t2 * ta;
+		float t2 = ta * ta;
+		float t3 = t2 * ta;
 		exa = curve_coef[3] * t3 + curve_coef[2] * t2 + curve_coef[1] * ta + curve_coef[0];
 	}
 	if(tb >= 0.0f) {
-		t2 = tb * tb;
-		t3 = t2 * tb;
+		float t2 = tb * tb;
+		float t3 = t2 * tb;
 		exb = curve_coef[3] * t3 + curve_coef[2] * t2 + curve_coef[1] * tb + curve_coef[0];
 	}
+
 	*upper = max(*upper, max(exa,exb));
 	*lower = min(*lower, min(exa,exb));
 }
@@ -85,14 +87,12 @@ CurveSystemManager::CurveSystemManager()
 	resolution = 3;
 	subdivisions = 3;
 
-	encasing_ratio = 1.01f;
 	minimum_width = 0.0f;
 	maximum_width = 0.0f;
 
 	use_curves = true;
 	use_encasing = true;
 	use_backfacing = false;
-	use_tangent_normal = false;
 	use_tangent_normal_geometry = false;
 
 	need_update = true;
@@ -112,7 +112,7 @@ void CurveSystemManager::device_update(Device *device, DeviceScene *dscene, Scen
 
 	progress.set_status("Updating Hair settings", "Copying Hair settings to device");
 
-	KernelCurves *kcurve= &dscene->data.curve;
+	KernelCurves *kcurve = &dscene->data.curve;
 
 	kcurve->curveflags = 0;
 
@@ -124,13 +124,9 @@ void CurveSystemManager::device_update(Device *device, DeviceScene *dscene, Scen
 
 		if(line_method == CURVE_ACCURATE)
 			kcurve->curveflags |= CURVE_KN_ACCURATE;
-		if(line_method == CURVE_CORRECTED)
+		else if(line_method == CURVE_CORRECTED)
 			kcurve->curveflags |= CURVE_KN_INTERSECTCORRECTION;
-		if(line_method == CURVE_POSTCORRECTED)
-			kcurve->curveflags |= CURVE_KN_POSTINTERSECTCORRECTION;
 
-		if(use_tangent_normal)
-			kcurve->curveflags |= CURVE_KN_TANGENTGNORMAL;
 		if(use_tangent_normal_geometry)
 			kcurve->curveflags |= CURVE_KN_TRUETANGENTGNORMAL;
 		if(use_backfacing)
@@ -138,7 +134,6 @@ void CurveSystemManager::device_update(Device *device, DeviceScene *dscene, Scen
 		if(use_encasing)
 			kcurve->curveflags |= CURVE_KN_ENCLOSEFILTER;
 
-		kcurve->encasing_ratio = encasing_ratio;
 		kcurve->minimum_width = minimum_width;
 		kcurve->maximum_width = maximum_width;
 		kcurve->subdivisions = subdivisions;
@@ -160,9 +155,7 @@ bool CurveSystemManager::modified(const CurveSystemManager& CurveSystemManager)
 		line_method == CurveSystemManager.line_method &&
 		primitive == CurveSystemManager.primitive &&
 		use_encasing == CurveSystemManager.use_encasing &&
-		use_tangent_normal == CurveSystemManager.use_tangent_normal &&
 		use_tangent_normal_geometry == CurveSystemManager.use_tangent_normal_geometry &&
-		encasing_ratio == CurveSystemManager.encasing_ratio &&
 		minimum_width == CurveSystemManager.minimum_width &&
 		maximum_width == CurveSystemManager.maximum_width &&
 		use_backfacing == CurveSystemManager.use_backfacing &&

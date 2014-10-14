@@ -405,7 +405,7 @@ void bmo_create_icosphere_exec(BMesh *bm, BMOperator *op)
 		v2 = eva[icoface[a][1]];
 		v3 = eva[icoface[a][2]];
 
-		eftemp = BM_face_create_quad_tri(bm, v1, v2, v3, NULL, NULL, false);
+		eftemp = BM_face_create_quad_tri(bm, v1, v2, v3, NULL, NULL, BM_CREATE_NOP);
 		
 		BM_ITER_ELEM (l, &liter, eftemp, BM_LOOPS_OF_FACE) {
 			BMO_elem_flag_enable(bm, l->e, EDGE_MARK);
@@ -453,7 +453,10 @@ void bmo_create_monkey_exec(BMesh *bm, BMOperator *op)
 	for (i = 0; i < monkeynv; i++) {
 		float v[3];
 
-		v[0] = (monkeyv[i][0] + 127) / 128.0, v[1] = monkeyv[i][1] / 128.0, v[2] = monkeyv[i][2] / 128.0;
+		/* rotate to face in the -Y axis */
+		v[0] = (monkeyv[i][0] + 127) / 128.0;
+		v[2] = monkeyv[i][1] / 128.0;
+		v[1] = monkeyv[i][2] / -128.0;
 
 		tv[i] = BM_vert_create(bm, v, NULL, BM_CREATE_NOP);
 		BMO_elem_flag_enable(bm, tv[i], VERT_MARK);
@@ -473,14 +476,14 @@ void bmo_create_monkey_exec(BMesh *bm, BMOperator *op)
 		                        tv[monkeyf[i][1] + i - monkeyo],
 		                        tv[monkeyf[i][2] + i - monkeyo],
 		                        (monkeyf[i][3] != monkeyf[i][2]) ? tv[monkeyf[i][3] + i - monkeyo] : NULL,
-		                        NULL, false);
+		                        NULL, BM_CREATE_NOP);
 
 		BM_face_create_quad_tri(bm,
 		                        tv[monkeynv + monkeyf[i][2] + i - monkeyo],
 		                        tv[monkeynv + monkeyf[i][1] + i - monkeyo],
 		                        tv[monkeynv + monkeyf[i][0] + i - monkeyo],
 		                        (monkeyf[i][3] != monkeyf[i][2]) ? tv[monkeynv + monkeyf[i][3] + i - monkeyo] : NULL,
-		                        NULL, false);
+		                        NULL, BM_CREATE_NOP);
 	}
 
 	MEM_freeN(tv);
@@ -532,7 +535,7 @@ void bmo_create_circle_exec(BMesh *bm, BMOperator *op)
 		if (a && cap_ends) {
 			BMFace *f;
 			
-			f = BM_face_create_quad_tri(bm, cent1, lastv1, v1, NULL, NULL, false);
+			f = BM_face_create_quad_tri(bm, cent1, lastv1, v1, NULL, NULL, BM_CREATE_NOP);
 			BMO_elem_flag_enable(bm, f, FACE_NEW);
 		}
 		
@@ -550,7 +553,7 @@ void bmo_create_circle_exec(BMesh *bm, BMOperator *op)
 	if (cap_ends) {
 		BMFace *f;
 		
-		f = BM_face_create_quad_tri(bm, cent1, v1, firstv1, NULL, NULL, false);
+		f = BM_face_create_quad_tri(bm, cent1, v1, firstv1, NULL, NULL, BM_CREATE_NOP);
 		BMO_elem_flag_enable(bm, f, FACE_NEW);
 	}
 	
@@ -619,12 +622,12 @@ void bmo_create_cone_exec(BMesh *bm, BMOperator *op)
 			if (cap_ends) {
 				BMFace *f;
 				
-				f = BM_face_create_quad_tri(bm, cent1, lastv1, v1, NULL, NULL, false);
+				f = BM_face_create_quad_tri(bm, cent1, lastv1, v1, NULL, NULL, BM_CREATE_NOP);
 				BMO_elem_flag_enable(bm, f, FACE_NEW);
-				f = BM_face_create_quad_tri(bm, cent2, v2, lastv2, NULL, NULL, false);
+				f = BM_face_create_quad_tri(bm, cent2, v2, lastv2, NULL, NULL, BM_CREATE_NOP);
 				BMO_elem_flag_enable(bm, f, FACE_NEW);
 			}
-			BM_face_create_quad_tri(bm, lastv1, lastv2, v2, v1, NULL, false);
+			BM_face_create_quad_tri(bm, lastv1, lastv2, v2, v1, NULL, BM_CREATE_NOP);
 		}
 		else {
 			firstv1 = v1;
@@ -641,9 +644,9 @@ void bmo_create_cone_exec(BMesh *bm, BMOperator *op)
 	if (cap_ends) {
 		BMFace *f;
 		
-		f = BM_face_create_quad_tri(bm, cent1, v1, firstv1, NULL, NULL, false);
+		f = BM_face_create_quad_tri(bm, cent1, v1, firstv1, NULL, NULL, BM_CREATE_NOP);
 		BMO_elem_flag_enable(bm, f, FACE_NEW);
-		f = BM_face_create_quad_tri(bm, cent2, firstv2, v2, NULL, NULL, false);
+		f = BM_face_create_quad_tri(bm, cent2, firstv2, v2, NULL, NULL, BM_CREATE_NOP);
 		BMO_elem_flag_enable(bm, f, FACE_NEW);
 	}
 	
@@ -651,7 +654,7 @@ void bmo_create_cone_exec(BMesh *bm, BMOperator *op)
 		BMO_op_callf(bm, op->flag, "dissolve_faces faces=%ff", FACE_NEW);
 	}
 	
-	BM_face_create_quad_tri(bm, v1, v2, firstv2, firstv1, NULL, false);
+	BM_face_create_quad_tri(bm, v1, v2, firstv2, firstv1, NULL, BM_CREATE_NOP);
 
 	BMO_op_callf(bm, op->flag, "remove_doubles verts=%fv dist=%f", VERT_MARK, 0.000001);
 	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "verts.out", BM_VERT, VERT_MARK);
@@ -723,14 +726,14 @@ void bmo_create_cube_exec(BMesh *bm, BMOperator *op)
 	BMO_elem_flag_enable(bm, v8, VERT_MARK);
 
 	/* the four sides */
-	BM_face_create_quad_tri(bm, v5, v6, v2, v1, NULL, false);
-	BM_face_create_quad_tri(bm, v6, v7, v3, v2, NULL, false);
-	BM_face_create_quad_tri(bm, v7, v8, v4, v3, NULL, false);
-	BM_face_create_quad_tri(bm, v8, v5, v1, v4, NULL, false);
+	BM_face_create_quad_tri(bm, v5, v6, v2, v1, NULL, BM_CREATE_NOP);
+	BM_face_create_quad_tri(bm, v6, v7, v3, v2, NULL, BM_CREATE_NOP);
+	BM_face_create_quad_tri(bm, v7, v8, v4, v3, NULL, BM_CREATE_NOP);
+	BM_face_create_quad_tri(bm, v8, v5, v1, v4, NULL, BM_CREATE_NOP);
 	
 	/* top/bottom */
-	BM_face_create_quad_tri(bm, v1, v2, v3, v4, NULL, false);
-	BM_face_create_quad_tri(bm, v8, v7, v6, v5, NULL, false);
+	BM_face_create_quad_tri(bm, v1, v2, v3, v4, NULL, BM_CREATE_NOP);
+	BM_face_create_quad_tri(bm, v8, v7, v6, v5, NULL, BM_CREATE_NOP);
 
 	BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "verts.out", BM_VERT, VERT_MARK);
 }

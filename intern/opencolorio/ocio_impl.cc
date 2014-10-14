@@ -29,13 +29,6 @@
 #include <sstream>
 #include <string.h>
 
-#ifdef __APPLE__
-#include <OpenGL/gl.h>
-#include <OpenGL/glu.h>
-#else
-#include <GL/glew.h>
-#endif
-
 #include <OpenColorIO/OpenColorIO.h>
 
 using namespace OCIO_NAMESPACE;
@@ -608,4 +601,14 @@ void OCIOImpl::matrixTransformRelease(OCIO_MatrixTransformRcPtr *mt)
 void OCIOImpl::matrixTransformScale(float *m44, float *offset4, const float *scale4f)
 {
 	MatrixTransform::Scale(m44, offset4, scale4f);
+}
+
+const char *OCIOImpl::getVersionString(void)
+{
+	return GetVersion();
+}
+
+int OCIOImpl::getVersionHex(void)
+{
+	return GetVersionHex();
 }

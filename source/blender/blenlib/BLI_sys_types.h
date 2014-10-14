@@ -47,42 +47,7 @@
 extern "C" {
 #endif
 
-/* MSVC 2010 and 2012 (>=1600) have stdint.h so we should use this for consistency */
-#if defined(_WIN32) && defined(_MSC_VER) && _MSC_VER <= 1500
-
-/* The __intXX are built-in types of the visual compiler! So we don't
- * need to include anything else here. */
-
-
-typedef signed __int8 int8_t;
-typedef signed __int16 int16_t;
-typedef signed __int32 int32_t;
-typedef signed __int64 int64_t;
-
-typedef unsigned __int8 uint8_t;
-typedef unsigned __int16 uint16_t;
-typedef unsigned __int32 uint32_t;
-typedef unsigned __int64 uint64_t;
-
-#ifndef _INTPTR_T_DEFINED
-#ifdef _WIN64
-typedef __int64 intptr_t;
-#else
-typedef long intptr_t;
-#endif
-#define _INTPTR_T_DEFINED
-#endif
-
-#ifndef _UINTPTR_T_DEFINED
-#ifdef _WIN64
-typedef unsigned __int64 uintptr_t;
-#else
-typedef unsigned long uintptr_t;
-#endif
-#define _UINTPTR_T_DEFINED
-#endif
-
-#elif defined(__linux__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#if defined(__linux__) || defined(__NetBSD__) || defined(__OpenBSD__) || defined(__FreeBSD_kernel__) || defined(__GNU__)
 
 /* Linux-i386, Linux-Alpha, Linux-ppc */
 #include <stdint.h>
@@ -101,19 +66,19 @@ typedef uint64_t u_int64_t;
 #include <inttypes.h>
 
 /* MinGW and MSVC >= 2010 */
-#elif defined(FREE_WINDOWS) || (defined(_MSC_VER) && _MSC_VER >= 1600)
+#elif defined(FREE_WINDOWS) || defined(_MSC_VER)
 #include <stdint.h>
 
 #else
 
 /* FreeBSD, Solaris */
 #include <sys/types.h>
+#include <stdint.h>
 
 #endif /* ifdef platform for types */
 
+#include <stddef.h>  /* size_t define */
 
-/* note: use of (int, TRUE / FALSE) is deprecated,
- * use (bool, true / false) instead */
 #ifdef HAVE_STDBOOL_H
 # include <stdbool.h>
 #elif !defined(__bool_true_false_are_defined) && !defined(__BOOL_DEFINED)
@@ -132,21 +97,6 @@ typedef bool _BLI_Bool;
 # define true 1
 # define __bool_true_false_are_defined 1
 #endif
-
-/* remove this when we're ready to remove TRUE/FALSE completely */
-#ifdef WITH_BOOL_COMPAT
-/* interim until all occurrences of these can be updated to stdbool */
-/* XXX Why not use the true/false velues here? */
-# ifndef FALSE
-#   define FALSE 0
-# endif
-
-# ifndef TRUE
-#   define TRUE 1
-# endif
-#endif
-
-
 
 #ifdef __cplusplus 
 }

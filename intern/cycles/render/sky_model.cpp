@@ -132,20 +132,20 @@ CCL_NAMESPACE_BEGIN
 
 // internal definitions
 
-typedef double *ArHosekSkyModel_Dataset;
-typedef double *ArHosekSkyModel_Radiance_Dataset;
+typedef const double *ArHosekSkyModel_Dataset;
+typedef const double *ArHosekSkyModel_Radiance_Dataset;
 
 // internal functions
 
 static void ArHosekSkyModel_CookConfiguration(
-        ArHosekSkyModel_Dataset       dataset, 
+        ArHosekSkyModel_Dataset       dataset,
         ArHosekSkyModelConfiguration  config, 
         double                        turbidity, 
         double                        albedo, 
         double                        solar_elevation
         )
 {
-    double  * elev_matrix;
+    const double  * elev_matrix;
 
     int     int_turbidity = (int)turbidity;
     double  turbidity_rem = turbidity - (double)int_turbidity;
@@ -226,7 +226,7 @@ static double ArHosekSkyModel_CookRadianceConfiguration(
         double                            solar_elevation
         )
 {
-    double* elev_matrix;
+    const double* elev_matrix;
 
     int int_turbidity = (int)turbidity;
     double turbidity_rem = turbidity - (double)int_turbidity;
@@ -310,7 +310,7 @@ double arhosekskymodel_radiance(
         double                  wavelength
         )
 {
-    int low_wl = (wavelength - 320.0 ) / 40.0;
+    int low_wl = (int)((wavelength - 320.0) / 40.0);
 
     if ( low_wl < 0 || low_wl >= 11 )
         return 0.0f;

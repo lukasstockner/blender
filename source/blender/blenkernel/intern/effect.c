@@ -37,15 +37,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
-#include "DNA_effect_types.h"
 #include "DNA_group_types.h"
-#include "DNA_ipo_types.h"
-#include "DNA_key_types.h"
-#include "DNA_lattice_types.h"
 #include "DNA_listBase.h"
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_material_types.h"
 #include "DNA_object_types.h"
 #include "DNA_object_force.h"
 #include "DNA_particle_types.h"
@@ -55,33 +49,18 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_noise.h"
-#include "BLI_jitter.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
 
 #include "PIL_time.h"
 
-#include "BKE_action.h"
 #include "BKE_anim.h"		/* needed for where_on_path */
-#include "BKE_armature.h"
-#include "BKE_blender.h"
 #include "BKE_collision.h"
-#include "BKE_constraint.h"
 #include "BKE_curve.h"
-#include "BKE_deform.h"
-#include "BKE_depsgraph.h"
 #include "BKE_displist.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_effect.h"
-#include "BKE_global.h"
-#include "BKE_group.h"
-#include "BKE_ipo.h"
-#include "BKE_key.h"
-#include "BKE_lattice.h"
-#include "BKE_mesh.h"
-#include "BKE_material.h"
-#include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
@@ -94,7 +73,6 @@
 
 /* fluid sim particle import */
 #ifdef WITH_MOD_FLUID
-#include "DNA_object_fluidsim.h"
 #include "LBM_fluidsim.h"
 #include <zlib.h>
 #include <string.h>
@@ -166,45 +144,6 @@ void free_partdeflect(PartDeflect *pd)
 	MEM_freeN(pd);
 }
 
-static void precalculate_effector(EffectorCache *eff)
-{
-	unsigned int cfra = (unsigned int)(eff->scene->r.cfra >= 0 ? eff->scene->r.cfra : -eff->scene->r.cfra);
-	if (!eff->pd->rng)
-		eff->pd->rng = BLI_rng_new(eff->pd->seed + cfra);
-	else
-		BLI_rng_srandom(eff->pd->rng, eff->pd->seed + cfra);
-
-	if (eff->pd->forcefield == PFIELD_GUIDE && eff->ob->type==OB_CURVE) {
-		Curve *cu= eff->ob->data;
-		if (cu->flag & CU_PATH) {
-			if (eff->ob->curve_cache == NULL || eff->ob->curve_cache->path==NULL || eff->ob->curve_cache->path->data==NULL)
-				BKE_displist_make_curveTypes(eff->scene, eff->ob, 0);
-
-			if (eff->ob->curve_cache->path && eff->ob->curve_cache->path->data) {
-				where_on_path(eff->ob, 0.0, eff->guide_loc, eff->guide_dir, NULL, &eff->guide_radius, NULL);
-				mul_m4_v3(eff->ob->obmat, eff->guide_loc);
-				mul_mat3_m4_v3(eff->ob->obmat, eff->guide_dir);
-			}
-		}
-	}
-	else if (eff->pd->shape == PFIELD_SHAPE_SURFACE) {
-		eff->surmd = (SurfaceModifierData *)modifiers_findByType( eff->ob, eModifierType_Surface );
-		if (eff->ob->type == OB_CURVE)
-			eff->flag |= PE_USE_NORMAL_DATA;
-	}
-	else if (eff->psys)
-		psys_update_particle_tree(eff->psys, eff->scene->r.cfra);
-
-	/* Store object velocity */
-	if (eff->ob) {
-		float old_vel[3];
-
-		BKE_object_where_is_calc_time(eff->scene, eff->ob, cfra - 1.0f);
-		copy_v3_v3(old_vel, eff->ob->obmat[3]);
-		BKE_object_where_is_calc_time(eff->scene, eff->ob, cfra);
-		sub_v3_v3v3(eff->velocity, eff->ob->obmat[3], old_vel);
-	}
-}
 static EffectorCache *new_effector_cache(Scene *scene, Object *ob, ParticleSystem *psys, PartDeflect *pd)
 {
 	EffectorCache *eff = MEM_callocN(sizeof(EffectorCache), "EffectorCache");
@@ -213,9 +152,6 @@ static EffectorCache *new_effector_cache(Scene *scene, Object *ob, ParticleSyste
 	eff->psys = psys;
 	eff->pd = pd;
 	eff->frame = -1;
-
-	precalculate_effector(eff);
-
 	return eff;
 }
 static void add_object_to_effectors(ListBase **effectors, Scene *scene, EffectorWeights *weights, Object *ob, Object *ob_src)
@@ -264,7 +200,8 @@ static void add_particles_to_effectors(ListBase **effectors, Scene *scene, Effec
 }
 
 /* returns ListBase handle with objects taking part in the effecting */
-ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src, EffectorWeights *weights)
+ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
+                          EffectorWeights *weights, bool precalc)
 {
 	Base *base;
 	unsigned int layer= ob_src->lay;
@@ -302,6 +239,10 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 			}
 		}
 	}
+	
+	if (precalc)
+		pdPrecalculateEffectors(effectors);
+	
 	return effectors;
 }
 
@@ -318,6 +259,55 @@ void pdEndEffectors(ListBase **effectors)
 		BLI_freelistN(*effectors);
 		MEM_freeN(*effectors);
 		*effectors = NULL;
+	}
+}
+
+static void precalculate_effector(EffectorCache *eff)
+{
+	unsigned int cfra = (unsigned int)(eff->scene->r.cfra >= 0 ? eff->scene->r.cfra : -eff->scene->r.cfra);
+	if (!eff->pd->rng)
+		eff->pd->rng = BLI_rng_new(eff->pd->seed + cfra);
+	else
+		BLI_rng_srandom(eff->pd->rng, eff->pd->seed + cfra);
+
+	if (eff->pd->forcefield == PFIELD_GUIDE && eff->ob->type==OB_CURVE) {
+		Curve *cu= eff->ob->data;
+		if (cu->flag & CU_PATH) {
+			if (eff->ob->curve_cache == NULL || eff->ob->curve_cache->path==NULL || eff->ob->curve_cache->path->data==NULL)
+				BKE_displist_make_curveTypes(eff->scene, eff->ob, 0);
+
+			if (eff->ob->curve_cache->path && eff->ob->curve_cache->path->data) {
+				where_on_path(eff->ob, 0.0, eff->guide_loc, eff->guide_dir, NULL, &eff->guide_radius, NULL);
+				mul_m4_v3(eff->ob->obmat, eff->guide_loc);
+				mul_mat3_m4_v3(eff->ob->obmat, eff->guide_dir);
+			}
+		}
+	}
+	else if (eff->pd->shape == PFIELD_SHAPE_SURFACE) {
+		eff->surmd = (SurfaceModifierData *)modifiers_findByType( eff->ob, eModifierType_Surface );
+		if (eff->ob->type == OB_CURVE)
+			eff->flag |= PE_USE_NORMAL_DATA;
+	}
+	else if (eff->psys)
+		psys_update_particle_tree(eff->psys, eff->scene->r.cfra);
+
+	/* Store object velocity */
+	if (eff->ob) {
+		float old_vel[3];
+
+		BKE_object_where_is_calc_time(eff->scene, eff->ob, cfra - 1.0f);
+		copy_v3_v3(old_vel, eff->ob->obmat[3]);
+		BKE_object_where_is_calc_time(eff->scene, eff->ob, cfra);
+		sub_v3_v3v3(eff->velocity, eff->ob->obmat[3], old_vel);
+	}
+}
+
+void pdPrecalculateEffectors(ListBase *effectors)
+{
+	if (effectors) {
+		EffectorCache *eff = effectors->first;
+		for (; eff; eff=eff->next)
+			precalculate_effector(eff);
 	}
 }
 
@@ -537,7 +527,7 @@ int closest_point_on_surface(SurfaceModifierData *surmd, const float co[3], floa
 	BVHTreeNearest nearest;
 
 	nearest.index = -1;
-	nearest.dist = FLT_MAX;
+	nearest.dist_sq = FLT_MAX;
 
 	BLI_bvhtree_find_nearest(surmd->bvhtree->tree, co, &nearest, surmd->bvhtree->nearest_callback, surmd->bvhtree);
 
@@ -640,8 +630,7 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 	}
 	else {
 		/* use center of object for distance calculus */
-		Object *ob = eff->ob;
-		Object obcopy = *ob;
+		const Object *ob = eff->ob;
 
 		/* use z-axis as normal*/
 		normalize_v3_v3(efd->nor, ob->obmat[2]);
@@ -663,8 +652,6 @@ int get_effector_data(EffectorCache *eff, EffectorData *efd, EffectedPoint *poin
 
 		if (real_velocity)
 			copy_v3_v3(efd->vel, eff->velocity);
-
-		*eff->ob = obcopy;
 
 		efd->size = 0.0f;
 
@@ -885,7 +872,7 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 		case PFIELD_HARMONIC:
 			mul_v3_fl(force, -strength * efd->falloff);
 			copy_v3_v3(temp, point->vel);
-			mul_v3_fl(temp, -damp * 2.0f * (float)sqrt(fabs(strength)) * point->vel_to_sec);
+			mul_v3_fl(temp, -damp * 2.0f * sqrtf(fabsf(strength)) * point->vel_to_sec);
 			add_v3_v3(force, temp);
 			break;
 		case PFIELD_CHARGE:
@@ -945,7 +932,7 @@ static void do_physical_effector(EffectorCache *eff, EffectorData *efd, Effected
 	if (pd->flag & PFIELD_DO_LOCATION) {
 		madd_v3_v3fl(total_force, force, 1.0f/point->vel_to_sec);
 
-		if (ELEM3(pd->forcefield, PFIELD_HARMONIC, PFIELD_DRAG, PFIELD_SMOKEFLOW)==0 && pd->f_flow != 0.0f) {
+		if (ELEM(pd->forcefield, PFIELD_HARMONIC, PFIELD_DRAG, PFIELD_SMOKEFLOW)==0 && pd->f_flow != 0.0f) {
 			madd_v3_v3fl(total_force, point->vel, -pd->f_flow * efd->falloff);
 		}
 	}

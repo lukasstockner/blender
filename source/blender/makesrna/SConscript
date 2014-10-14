@@ -38,7 +38,8 @@ incs = [
     '#/intern/guardedalloc',
     '#/intern/atomic',
     '#/intern/memutil',
-    '#/extern/glew/include',
+    env['BF_GLEW_INC'],
+    '#/intern/glew-mx',
     '#/intern/audaspace/intern',
     '#/intern/cycles/blender',
     '#/intern/smoke/extern',
@@ -57,7 +58,7 @@ incs = [
     ]
 incs = ' '.join(incs)
 
-defs = []
+defs = env['BF_GL_DEFINITIONS']
 
 if env['WITH_BF_SMOKE']:
     defs.append('WITH_SMOKE')
@@ -92,7 +93,7 @@ if env['WITH_BF_FRAMESERVER']:
 
 if env['WITH_BF_FFMPEG']:
     defs.append('WITH_FFMPEG')
-    incs += ' ' + env['BF_FFMPEG_INC']
+    incs += ' ' + env['BF_FFMPEG_INC'] + ' #/intern/ffmpeg'
 
 if env['WITH_BF_QUICKTIME']:
     defs.append('WITH_QUICKTIME')
@@ -106,6 +107,7 @@ if env['BF_UNIT_TEST']:
 
 if env['WITH_BF_PYTHON']:
     defs.append('WITH_PYTHON')
+    incs += ' ../python'
 
 if env['WITH_BF_COLLADA']:
     defs.append('WITH_COLLADA')
@@ -116,6 +118,9 @@ if env['WITH_BF_OCEANSIM']:
 if env['WITH_BF_CYCLES']:
     defs.append('WITH_CYCLES')
 
+    if env['WITH_BF_CYCLES_DEBUG']:
+        defs.append('WITH_CYCLES_DEBUG')
+
 if env['WITH_BF_SDL']:
     defs.append('WITH_SDL')
 
@@ -124,6 +129,10 @@ if env['WITH_BF_OPENAL']:
 
 if env['WITH_BF_JACK']:
     defs.append('WITH_JACK')
+
+if env['WITH_BF_FREESTYLE']:
+    defs.append('WITH_FREESTYLE')
+    incs += ' ../freestyle'
 
 if env['OURPLATFORM'] == 'linux':
     cflags='-pthread'

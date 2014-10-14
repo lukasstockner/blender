@@ -99,7 +99,7 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
 
     active_col_layer = None
 
-    if len(me.vertex_colors):
+    if me.vertex_colors:
         for lay in me.vertex_colors:
             if lay.active:
                 active_col_layer = lay.data
@@ -109,7 +109,7 @@ def applyVertexDirt(me, blur_iterations, blur_strength, clamp_dirt, clamp_clean,
         active_col_layer = me.vertex_colors[0].data
 
     if not active_col_layer:
-        return
+        return {'CANCELLED'}
 
     use_paint_mask = me.use_paint_mask
 
@@ -183,7 +183,6 @@ class VertexPaintDirt(Operator):
 
     def execute(self, context):
         import time
-        from math import radians
 
         obj = context.object
         mesh = obj.data

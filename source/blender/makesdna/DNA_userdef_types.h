@@ -162,7 +162,7 @@ typedef struct ThemeUI {
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
 	uiWidgetColors wcol_num, wcol_numslider;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
-	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item;
+	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item, wcol_pie_menu;
 	
 	uiWidgetStateColors wcol_state;
 
@@ -197,6 +197,12 @@ typedef struct ThemeSpace {
 	char header_text[4];
 	char header_text_hi[4];
 
+	/* region tabs */
+	char tab_active[4];
+	char tab_inactive[4];
+	char tab_back[4];
+	char tab_outline[4];
+
 	/* button/tool regions */
 	char button[4];			/* region background */
 	char button_title[4];	/* panel title */
@@ -226,8 +232,10 @@ typedef struct ThemeSpace {
 	char hilite[4];
 	char grid[4]; 
 	
+	char view_overlay[4];
+
 	char wire[4], wire_edit[4], select[4];
-	char lamp[4], speaker[4], empty[4], camera[4], pad[4];
+	char lamp[4], speaker[4], empty[4], camera[4];
 	char active[4], group[4], group_active[4], transform[4];
 	char vertex[4], vertex_select[4], vertex_unreferenced[4];
 	char edge[4], edge_select[4];
@@ -237,6 +245,7 @@ typedef struct ThemeSpace {
 	char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];
 	char normal[4];
 	char vertex_normal[4];
+	char loop_normal[4];
 	char bone_solid[4], bone_pose[4], bone_pose_active[4];
 	char strip[4], strip_select[4];
 	char cframe[4];
@@ -249,18 +258,26 @@ typedef struct ThemeSpace {
 	char handle_sel_free[4], handle_sel_auto[4], handle_sel_vect[4], handle_sel_align[4], handle_sel_auto_clamped[4];
 	
 	char ds_channel[4], ds_subchannel[4]; /* dopesheet */
+	char keytype_keyframe[4], keytype_extreme[4], keytype_breakdown[4], keytype_jitter[4]; /* keytypes */
+	char keytype_keyframe_select[4], keytype_extreme_select[4], keytype_breakdown_select[4], keytype_jitter_select[4]; /* keytypes */
+	char keyborder[4], keyborder_select[4];
 	
 	char console_output[4], console_input[4], console_info[4], console_error[4];
-	char console_cursor[4], console_select[4], pad1[4];
+	char console_cursor[4], console_select[4];
 	
 	char vertex_size, outline_width, facedot_size;
 	char noodle_curving;
 
 	/* syntax for textwindow and nodes */
-	char syntaxl[4], syntaxs[4];
-	char syntaxb[4], syntaxn[4];
-	char syntaxv[4], syntaxc[4];
-	char syntaxd[4], syntaxr[4];
+	char syntaxl[4], syntaxs[4]; // in nodespace used for backdrop matte 
+	char syntaxb[4], syntaxn[4]; // in nodespace used for color input
+	char syntaxv[4], syntaxc[4]; // in nodespace used for converter group
+	char syntaxd[4], syntaxr[4]; // in nodespace used for distort 
+
+	char nodeclass_output[4], nodeclass_filter[4];
+	char nodeclass_vector[4], nodeclass_texture[4];
+	char nodeclass_shader[4], nodeclass_script[4];
+	char nodeclass_pattern[4], nodeclass_layout[4];
 	
 	char movie[4], movieclip[4], mask[4], image[4], scene[4], audio[4];		/* for sequence editor */
 	char effect[4], transition[4], meta[4];
@@ -304,6 +321,16 @@ typedef struct ThemeSpace {
 	char nla_transition[4], nla_transition_sel[4]; /* NLA "Transition" strips */
 	char nla_meta[4], nla_meta_sel[4];             /* NLA "Meta" strips */
 	char nla_sound[4], nla_sound_sel[4];           /* NLA "Sound" strips */
+
+	/* info */
+	char info_selected[4], info_selected_text[4];
+	char info_error[4], info_error_text[4];
+	char info_warning[4], info_warning_text[4];
+	char info_info[4], info_info_text[4];
+	char info_debug[4], info_debug_text[4];
+
+	char paint_curve_pivot[4];
+	char paint_curve_handle[4];
 } ThemeSpace;
 
 
@@ -331,6 +358,7 @@ typedef struct bTheme {
 	ThemeUI tui;
 	
 	/* Individual Spacetypes */
+	/* note: ensure UI_THEMESPACE_END is updated when adding */
 	ThemeSpace tbuts;
 	ThemeSpace tv3d;
 	ThemeSpace tfile;
@@ -355,6 +383,9 @@ typedef struct bTheme {
 	
 	int active_theme_area, pad;
 } bTheme;
+
+#define UI_THEMESPACE_START(btheme)  (CHECK_TYPE_INLINE(btheme, bTheme *),  &((btheme)->tbuts))
+#define UI_THEMESPACE_END(btheme)    (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->tclip) + 1))
 
 /* for the moment only the name. may want to store options with this later */
 typedef struct bAddon {
@@ -394,6 +425,8 @@ typedef struct UserDef {
 	char tempdir[768];	/* FILE_MAXDIR length */
 	char fontdir[768];
 	char renderdir[1024]; /* FILE_MAX length */
+	/* EXR cache path */
+	char render_cachedir[768];  /* 768 = FILE_MAXDIR */
 	char textudir[768];
 	char pythondir[768];
 	char sounddir[768];
@@ -457,8 +490,10 @@ typedef struct UserDef {
 	short glreslimit;
 	short curssize;
 	short color_picker_type;
-	short ipo_new;			/* interpolation mode for newly added F-Curves */
-	short keyhandles_new;	/* handle types for newly added keyframes */
+	char  ipo_new;			/* interpolation mode for newly added F-Curves */
+	char  keyhandles_new;	/* handle types for newly added keyframes */
+	char  gpu_select_method;
+	char  pad1;
 
 	short scrcastfps;		/* frame rate for screencast to be played back */
 	short scrcastwait;		/* milliseconds between screencast snapshots */
@@ -492,11 +527,23 @@ typedef struct UserDef {
 
 	char author[80];	/* author name for file formats supporting it */
 
+	char font_path_ui[1024];
+
 	int compute_device_type;
 	int compute_device_id;
 	
 	float fcu_inactive_alpha;	/* opacity of inactive F-Curves in F-Curve Editor */
 	float pixelsize;			/* private, set by GHOST, to multiply DPI with */
+	int virtual_pixel;			/* virtual pixelsize mode */
+
+	short pie_interaction_type;     /* if keeping a pie menu spawn button pressed after this time, it turns into
+	                             * a drag/release pie menu */
+	short pie_initial_timeout;  /* direction in the pie menu will always be calculated from the initial position
+	                             * within this time limit */
+	short pie_animation_timeout;
+	short pie_menu_confirm;
+	short pie_menu_radius;        /* pie menu radius */
+	short pie_menu_threshold;     /* pie menu distance from center before a direction is set */
 
 	struct WalkNavigation walk_navigation;
 } UserDef;
@@ -683,6 +730,13 @@ typedef enum eOpenGL_RenderingOptions {
 	/* USER_DISABLE_AA			= (1 << 4), */ /* DEPRECATED */
 } eOpenGL_RenderingOptions;
 
+/* selection method for opengl gpu_select_method */
+typedef enum eOpenGL_SelectOptions {
+	USER_SELECT_AUTO = 0,
+	USER_SELECT_USE_OCCLUSION_QUERY = 1,
+	USER_SELECT_USE_SELECT_RENDERMODE = 2
+} eOpenGL_SelectOptions;
+
 /* wm draw method */
 typedef enum eWM_DrawMethod {
 	USER_DRAW_TRIPLE		= 0,
@@ -707,10 +761,11 @@ typedef enum eGP_UserdefSettings {
 
 /* color picker types */
 typedef enum eColorPicker_Types {
-	USER_CP_CIRCLE		= 0,
+	USER_CP_CIRCLE_HSV	= 0,
 	USER_CP_SQUARE_SV	= 1,
 	USER_CP_SQUARE_HS	= 2,
 	USER_CP_SQUARE_HV	= 3,
+	USER_CP_CIRCLE_HSL	= 4,
 } eColorPicker_Types;
 
 /* timecode display styles */
@@ -756,27 +811,26 @@ typedef enum eNdof_Flag {
 	NDOF_SHOULD_ZOOM    = (1 << 4),
 	NDOF_SHOULD_ROTATE  = (1 << 5),
 
-	/* orbit navigation modes
-	 * only two options, so it's sort of a hybrid bool/enum
-	 * if ((U.ndof_flag & NDOF_ORBIT_MODE) == NDOF_OM_OBJECT)... */
+	/* orbit navigation modes */
 
-	// NDOF_ORBIT_MODE     = (1 << 6),
-	// #define NDOF_OM_TARGETCAMERA 0
-	// #define NDOF_OM_OBJECT      NDOF_ORBIT_MODE
+	/* exposed as Orbit|Explore in the UI */
+	NDOF_MODE_ORBIT      = (1 << 6),
 
 	/* actually... users probably don't care about what the mode
 	 * is called, just that it feels right */
 	/* zoom is up/down if this flag is set (otherwise forward/backward) */
-	NDOF_ZOOM_UPDOWN        = (1 << 7),
+	NDOF_PAN_YZ_SWAP_AXIS   = (1 << 7),
 	NDOF_ZOOM_INVERT        = (1 << 8),
-	NDOF_ROTATE_INVERT_AXIS = (1 << 9),
-	NDOF_TILT_INVERT_AXIS   = (1 << 10),
-	NDOF_ROLL_INVERT_AXIS   = (1 << 11),
+	NDOF_ROTX_INVERT_AXIS   = (1 << 9),
+	NDOF_ROTY_INVERT_AXIS   = (1 << 10),
+	NDOF_ROTZ_INVERT_AXIS   = (1 << 11),
 	NDOF_PANX_INVERT_AXIS   = (1 << 12),
 	NDOF_PANY_INVERT_AXIS   = (1 << 13),
 	NDOF_PANZ_INVERT_AXIS   = (1 << 14),
 	NDOF_TURNTABLE          = (1 << 15),
 } eNdof_Flag;
+
+#define NDOF_PIXELS_PER_SECOND 600.0f
 
 /* compute_device_type */
 typedef enum eCompute_Device_Type {
@@ -800,6 +854,11 @@ typedef enum eImageDrawMethod {
 	IMAGE_DRAW_METHOD_2DTEXTURE = 2,
 	IMAGE_DRAW_METHOD_DRAWPIXELS = 3,
 } eImageDrawMethod;
+
+typedef enum eUserpref_VirtualPixel {
+	VIRTUAL_PIXEL_NATIVE = 0,
+	VIRTUAL_PIXEL_DOUBLE = 1,
+} eUserpref_VirtualPixel;
 
 #ifdef __cplusplus
 }

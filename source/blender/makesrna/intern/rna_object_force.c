@@ -310,13 +310,19 @@ static void rna_FieldSettings_shape_update(Main *bmain, Scene *scene, PointerRNA
 
 static void rna_FieldSettings_type_set(PointerRNA *ptr, int value)
 {
-	Object *ob = (Object *)ptr->id.data;
-	ob->pd->forcefield = value;
-	if (ELEM(value, PFIELD_WIND, PFIELD_VORTEX)) {
-		ob->empty_drawtype = OB_SINGLE_ARROW;
-	}
-	else {
-		ob->empty_drawtype = OB_PLAINAXES;
+	PartDeflect *part_deflect = (PartDeflect *) ptr->data;
+
+	part_deflect->forcefield = value;
+
+	if (!particle_id_check(ptr)) {
+		Object *ob = (Object *)ptr->id.data;
+		ob->pd->forcefield = value;
+		if (ELEM(value, PFIELD_WIND, PFIELD_VORTEX)) {
+			ob->empty_drawtype = OB_SINGLE_ARROW;
+		}
+		else {
+			ob->empty_drawtype = OB_PLAINAXES;
+		}
 	}
 }
 
@@ -377,9 +383,20 @@ static char *rna_FieldSettings_path(PointerRNA *ptr)
 
 static void rna_EffectorWeight_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
-	DAG_id_tag_update((ID *)ptr->id.data, OB_RECALC_DATA | PSYS_RECALC_RESET);
+	ID *id = ptr->id.data;
 
-	WM_main_add_notifier(NC_OBJECT | ND_DRAW, NULL);
+	if (id && GS(id->name) == ID_SCE) {
+		Scene *scene = (Scene *)id;
+		Base *base;
+
+		for (base = scene->base.first; base; base = base->next) {
+			BKE_ptcache_object_reset(scene, base->object, PTCACHE_RESET_DEPSGRAPH);
+		}
+	}
+	else {
+		DAG_id_tag_update(id, OB_RECALC_DATA | PSYS_RECALC_RESET);
+		WM_main_add_notifier(NC_OBJECT | ND_DRAW, NULL);
+	}
 }
 
 static void rna_EffectorWeight_dependency_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -497,7 +514,7 @@ static void rna_softbody_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Point
 
 
 static EnumPropertyItem *rna_Effector_shape_itemf(bContext *UNUSED(C), PointerRNA *ptr,
-                                                  PropertyRNA *UNUSED(prop), int *UNUSED(free))
+                                                  PropertyRNA *UNUSED(prop), bool *UNUSED(r_free))
 {
 	Object *ob = NULL;
 
@@ -512,7 +529,7 @@ static EnumPropertyItem *rna_Effector_shape_itemf(bContext *UNUSED(C), PointerRN
 
 		return curve_shape_items;
 	}
-	else if (ELEM3(ob->type, OB_MESH, OB_SURF, OB_FONT)) {
+	else if (ELEM(ob->type, OB_MESH, OB_SURF, OB_FONT)) {
 		if (ob->pd->forcefield == PFIELD_VORTEX)
 			return vortex_shape_items;
 
@@ -591,7 +608,7 @@ static void rna_def_collision(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "thickness_inner", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "pdef_sbift");
 	RNA_def_property_range(prop, 0.001f, 1.0f);
-	RNA_def_property_ui_text(prop, "Inner Thickness", "Inner face thickness");
+	RNA_def_property_ui_text(prop, "Inner Thickness", "Inner face thickness (only used by softbodies)");
 	RNA_def_property_update(prop, 0, "rna_CollisionSettings_update");
 	
 	prop = RNA_def_property(srna, "thickness_outer", PROP_FLOAT, PROP_NONE);

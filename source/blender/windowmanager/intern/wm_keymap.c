@@ -26,8 +26,9 @@
 
 /** \file blender/windowmanager/intern/wm_keymap.c
  *  \ingroup wm
+ *
+ * Configurable key-maps - add/remove/find/compare/patch...
  */
-
 
 #include <string.h>
 
@@ -42,11 +43,9 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_idprop.h"
 #include "BKE_global.h"
-#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_screen.h"
 
@@ -95,6 +94,56 @@ static void wm_keymap_item_properties_set(wmKeyMapItem *kmi)
 {
 	WM_operator_properties_alloc(&(kmi->ptr), &(kmi->properties), kmi->idname);
 	WM_operator_properties_sanitize(kmi->ptr, 1);
+}
+
+/**
+ * Similar to #wm_keymap_item_properties_set but checks for the wmOperatorType having changed, see [#38042]
+ */
+static void wm_keymap_item_properties_update_ot(wmKeyMapItem *kmi)
+{
+	if (kmi->idname[0] == 0) {
+		BLI_assert(kmi->ptr == NULL);
+		return;
+	}
+
+	if (kmi->ptr == NULL) {
+		wm_keymap_item_properties_set(kmi);
+	}
+	else {
+		wmOperatorType *ot = WM_operatortype_find(kmi->idname, 0);
+		if (ot) {
+			if (ot->srna != kmi->ptr->type) {
+				/* matches wm_keymap_item_properties_set but doesnt alloc new ptr */
+				WM_operator_properties_create_ptr(kmi->ptr, ot);
+				WM_operator_properties_sanitize(kmi->ptr, 1);
+			}
+		}
+		else {
+			/* zombie keymap item */
+			MEM_SAFE_FREE(kmi->ptr);
+		}
+	}
+}
+
+static void wm_keyconfig_properties_update_ot(ListBase *km_lb)
+{
+	wmKeyMap *km;
+	wmKeyMapItem *kmi;
+
+	for (km = km_lb->first; km; km = km->next) {
+		wmKeyMapDiffItem *kmdi;
+
+		for (kmi = km->items.first; kmi; kmi = kmi->next) {
+			wm_keymap_item_properties_update_ot(kmi);
+		}
+
+		for (kmdi = km->diff_items.first; kmdi; kmdi = kmdi->next) {
+			if (kmdi->add_item)
+				wm_keymap_item_properties_update_ot(kmdi->add_item);
+			if (kmdi->remove_item)
+				wm_keymap_item_properties_update_ot(kmdi->remove_item);
+		}
+	}
 }
 
 static int wm_keymap_item_equals_result(wmKeyMapItem *a, wmKeyMapItem *b)
@@ -293,7 +342,7 @@ static wmKeyMap *wm_keymap_copy(wmKeyMap *keymap)
 
 	keymapn->modal_items = keymap->modal_items;
 	keymapn->poll = keymap->poll;
-	keymapn->items.first = keymapn->items.last = NULL;
+	BLI_listbase_clear(&keymapn->items);
 	keymapn->flag &= ~(KEYMAP_UPDATE | KEYMAP_EXPANDED);
 
 	for (kmdi = keymap->diff_items.first; kmdi; kmdi = kmdi->next) {
@@ -349,10 +398,10 @@ static void keymap_event_set(wmKeyMapItem *kmi, short type, short val, int modif
 		kmi->shift = kmi->ctrl = kmi->alt = kmi->oskey = KM_ANY;
 	}
 	else {
-		kmi->shift = (modifier & KM_SHIFT) ? KM_MOD_FIRST : ((modifier & KM_SHIFT2) ? KM_MOD_SECOND : FALSE);
-		kmi->ctrl =  (modifier & KM_CTRL)  ? KM_MOD_FIRST : ((modifier & KM_CTRL2)  ? KM_MOD_SECOND : FALSE);
-		kmi->alt =   (modifier & KM_ALT)   ? KM_MOD_FIRST : ((modifier & KM_ALT2)   ? KM_MOD_SECOND : FALSE);
-		kmi->oskey = (modifier & KM_OSKEY) ? KM_MOD_FIRST : ((modifier & KM_OSKEY2) ? KM_MOD_SECOND : FALSE);
+		kmi->shift = (modifier & KM_SHIFT) ? KM_MOD_FIRST : ((modifier & KM_SHIFT2) ? KM_MOD_SECOND : false);
+		kmi->ctrl =  (modifier & KM_CTRL)  ? KM_MOD_FIRST : ((modifier & KM_CTRL2)  ? KM_MOD_SECOND : false);
+		kmi->alt =   (modifier & KM_ALT)   ? KM_MOD_FIRST : ((modifier & KM_ALT2)   ? KM_MOD_SECOND : false);
+		kmi->oskey = (modifier & KM_OSKEY) ? KM_MOD_FIRST : ((modifier & KM_OSKEY2) ? KM_MOD_SECOND : false);
 	}
 }
 
@@ -411,6 +460,13 @@ wmKeyMapItem *WM_keymap_add_item(wmKeyMap *keymap, const char *idname, int type,
 wmKeyMapItem *WM_keymap_add_menu(wmKeyMap *keymap, const char *idname, int type, int val, int modifier, int keymodifier)
 {
 	wmKeyMapItem *kmi = WM_keymap_add_item(keymap, "WM_OT_call_menu", type, val, modifier, keymodifier);
+	RNA_string_set(kmi->ptr, "name", idname);
+	return kmi;
+}
+
+wmKeyMapItem *WM_keymap_add_menu_pie(wmKeyMap *keymap, const char *idname, int type, int val, int modifier, int keymodifier)
+{
+	wmKeyMapItem *kmi = WM_keymap_add_item(keymap, "WM_OT_call_menu_pie", type, val, modifier, keymodifier);
 	RNA_string_set(kmi->ptr, "name", idname);
 	return kmi;
 }
@@ -533,8 +589,11 @@ static void wm_keymap_patch(wmKeyMap *km, wmKeyMap *diff_km)
 
 		/* add item */
 		if (kmdi->add_item) {
+			/* Do not re-add an already existing keymap item! See T42088. */
+			/* We seek only for exact copy here! See T42137. */
+			kmi_add = wm_keymap_find_item_equals(km, kmdi->add_item);
 			/* only if nothing to remove or item to remove found */
-			if (!kmdi->remove_item || kmi_remove) {
+			if (!kmi_add && (!kmdi->remove_item || kmi_remove)) {
 				kmi_add = wm_keymap_item_copy(kmdi->add_item);
 				kmi_add->flag |= KMI_USER_MODIFIED;
 
@@ -877,7 +936,7 @@ int WM_keymap_item_to_string(wmKeyMapItem *kmi, char *str, const int len)
 
 static wmKeyMapItem *wm_keymap_item_find_handlers(
         const bContext *C, ListBase *handlers, const char *opname, int UNUSED(opcontext),
-        IDProperty *properties, int is_strict, int hotkey, wmKeyMap **keymap_r)
+        IDProperty *properties, const bool is_strict, const bool is_hotkey, wmKeyMap **keymap_r)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmEventHandler *handler;
@@ -890,11 +949,15 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(
 
 		if (keymap && (!keymap->poll || keymap->poll((bContext *)C))) {
 			for (kmi = keymap->items.first; kmi; kmi = kmi->next) {
+				/* skip disabled keymap items [T38447] */
+				if (kmi->flag & KMI_INACTIVE)
+					continue;
 				
 				if (strcmp(kmi->idname, opname) == 0 && WM_key_event_string(kmi->type)[0]) {
-					if (hotkey)
+					if (is_hotkey) {
 						if (!ISHOTKEY(kmi->type))
 							continue;
+					}
 
 					if (properties) {
 
@@ -931,7 +994,7 @@ static wmKeyMapItem *wm_keymap_item_find_handlers(
 
 static wmKeyMapItem *wm_keymap_item_find_props(
         const bContext *C, const char *opname, int opcontext,
-        IDProperty *properties, int is_strict, int hotkey, wmKeyMap **keymap_r)
+        IDProperty *properties, const bool is_strict, const bool is_hotkey, wmKeyMap **keymap_r)
 {
 	wmWindow *win = CTX_wm_window(C);
 	ScrArea *sa = CTX_wm_area(C);
@@ -940,10 +1003,10 @@ static wmKeyMapItem *wm_keymap_item_find_props(
 
 	/* look into multiple handler lists to find the item */
 	if (win)
-		found = wm_keymap_item_find_handlers(C, &win->handlers, opname, opcontext, properties, is_strict, hotkey, keymap_r);
+		found = wm_keymap_item_find_handlers(C, &win->handlers, opname, opcontext, properties, is_strict, is_hotkey, keymap_r);
 
 	if (sa && found == NULL)
-		found = wm_keymap_item_find_handlers(C, &sa->handlers, opname, opcontext, properties, is_strict, hotkey, keymap_r);
+		found = wm_keymap_item_find_handlers(C, &sa->handlers, opname, opcontext, properties, is_strict, is_hotkey, keymap_r);
 
 	if (found == NULL) {
 		if (ELEM(opcontext, WM_OP_EXEC_REGION_WIN, WM_OP_INVOKE_REGION_WIN)) {
@@ -952,7 +1015,7 @@ static wmKeyMapItem *wm_keymap_item_find_props(
 					ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 				
 				if (ar)
-					found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, hotkey, keymap_r);
+					found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, is_hotkey, keymap_r);
 			}
 		}
 		else if (ELEM(opcontext, WM_OP_EXEC_REGION_CHANNELS, WM_OP_INVOKE_REGION_CHANNELS)) {
@@ -960,18 +1023,18 @@ static wmKeyMapItem *wm_keymap_item_find_props(
 				ar = BKE_area_find_region_type(sa, RGN_TYPE_CHANNELS);
 
 			if (ar)
-				found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, hotkey, keymap_r);
+				found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, is_hotkey, keymap_r);
 		}
 		else if (ELEM(opcontext, WM_OP_EXEC_REGION_PREVIEW, WM_OP_INVOKE_REGION_PREVIEW)) {
 			if (!(ar && ar->regiontype == RGN_TYPE_PREVIEW))
 				ar = BKE_area_find_region_type(sa, RGN_TYPE_PREVIEW);
 
 			if (ar)
-				found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, hotkey, keymap_r);
+				found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, is_hotkey, keymap_r);
 		}
 		else {
 			if (ar)
-				found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, hotkey, keymap_r);
+				found = wm_keymap_item_find_handlers(C, &ar->handlers, opname, opcontext, properties, is_strict, is_hotkey, keymap_r);
 		}
 	}
 
@@ -980,12 +1043,12 @@ static wmKeyMapItem *wm_keymap_item_find_props(
 
 static wmKeyMapItem *wm_keymap_item_find(
         const bContext *C, const char *opname, int opcontext,
-        IDProperty *properties, const short hotkey, const bool strict, wmKeyMap **keymap_r)
+        IDProperty *properties, const bool is_hotkey, const bool is_strict, wmKeyMap **keymap_r)
 {
-	wmKeyMapItem *found = wm_keymap_item_find_props(C, opname, opcontext, properties, strict, hotkey, keymap_r);
+	wmKeyMapItem *found = wm_keymap_item_find_props(C, opname, opcontext, properties, is_strict, is_hotkey, keymap_r);
 
 	if (!found && properties) {
-		wmOperatorType *ot = WM_operatortype_find(opname, TRUE);
+		wmOperatorType *ot = WM_operatortype_find(opname, true);
 		if (ot) {
 			/* make a copy of the properties and set any unset props
 			 * to their default values, so the ID property compare function succeeds */
@@ -995,14 +1058,14 @@ static wmKeyMapItem *wm_keymap_item_find(
 			RNA_pointer_create(NULL, ot->srna, properties_default, &opptr);
 
 			if (WM_operator_properties_default(&opptr, true) ||
-			    (!strict && ot->prop && RNA_property_is_set(&opptr, ot->prop)))
+			    (!is_strict && ot->prop && RNA_property_is_set(&opptr, ot->prop)))
 			{
 				/* for operator that has enum menu, unset it so it always matches */
-				if (!strict && ot->prop) {
+				if (!is_strict && ot->prop) {
 					RNA_property_unset(&opptr, ot->prop);
 				}
 
-				found = wm_keymap_item_find_props(C, opname, opcontext, properties_default, false, hotkey, keymap_r);
+				found = wm_keymap_item_find_props(C, opname, opcontext, properties_default, false, is_hotkey, keymap_r);
 			}
 
 			IDP_FreeProperty(properties_default);
@@ -1015,9 +1078,9 @@ static wmKeyMapItem *wm_keymap_item_find(
 
 char *WM_key_event_operator_string(
         const bContext *C, const char *opname, int opcontext,
-        IDProperty *properties, const bool strict, char *str, int len)
+        IDProperty *properties, const bool is_strict, char *str, int len)
 {
-	wmKeyMapItem *kmi = wm_keymap_item_find(C, opname, opcontext, properties, 0, strict, NULL);
+	wmKeyMapItem *kmi = wm_keymap_item_find(C, opname, opcontext, properties, false, is_strict, NULL);
 	
 	if (kmi) {
 		WM_keymap_item_to_string(kmi, str, len);
@@ -1029,9 +1092,9 @@ char *WM_key_event_operator_string(
 
 int WM_key_event_operator_id(
         const bContext *C, const char *opname, int opcontext,
-        IDProperty *properties, int hotkey, wmKeyMap **keymap_r)
+        IDProperty *properties, const bool is_hotkey, wmKeyMap **keymap_r)
 {
-	wmKeyMapItem *kmi = wm_keymap_item_find(C, opname, opcontext, properties, hotkey, true, keymap_r);
+	wmKeyMapItem *kmi = wm_keymap_item_find(C, opname, opcontext, properties, is_hotkey, true, keymap_r);
 	
 	if (kmi)
 		return kmi->id;
@@ -1055,9 +1118,9 @@ int WM_keymap_item_compare(wmKeyMapItem *k1, wmKeyMapItem *k2)
 
 	if (k1->val != KM_ANY && k2->val != KM_ANY) {
 		/* take click, press, release conflict into account */
-		if (k1->val == KM_CLICK && ELEM3(k2->val, KM_PRESS, KM_RELEASE, KM_CLICK) == 0)
+		if (k1->val == KM_CLICK && ELEM(k2->val, KM_PRESS, KM_RELEASE, KM_CLICK) == 0)
 			return 0;
-		if (k2->val == KM_CLICK && ELEM3(k1->val, KM_PRESS, KM_RELEASE, KM_CLICK) == 0)
+		if (k2->val == KM_CLICK && ELEM(k1->val, KM_PRESS, KM_RELEASE, KM_CLICK) == 0)
 			return 0;
 		if (k1->val != k2->val)
 			return 0;
@@ -1086,12 +1149,20 @@ int WM_keymap_item_compare(wmKeyMapItem *k1, wmKeyMapItem *k2)
  * the preset, addon and user preferences keymaps. We also test if the final
  * configuration changed and write the changes to the user preferences. */
 
-static int WM_KEYMAP_UPDATE = 0;
+/* so operator removal can trigger update */
+enum {
+	WM_KEYMAP_UPDATE_RECONFIGURE    = (1 << 0),
+
+	/* ensure all wmKeyMap have their operator types validated after removing an operator */
+	WM_KEYMAP_UPDATE_OPERATORTYPE   = (1 << 1),
+};
+
+static char wm_keymap_update_flag = 0;
 
 void WM_keyconfig_update_tag(wmKeyMap *km, wmKeyMapItem *kmi)
 {
 	/* quick tag to do delayed keymap updates */
-	WM_KEYMAP_UPDATE = 1;
+	wm_keymap_update_flag |= WM_KEYMAP_UPDATE_RECONFIGURE;
 
 	if (km)
 		km->flag |= KEYMAP_UPDATE;
@@ -1099,7 +1170,12 @@ void WM_keyconfig_update_tag(wmKeyMap *km, wmKeyMapItem *kmi)
 		kmi->flag |= KMI_UPDATE;
 }
 
-static int wm_keymap_test_and_clear_update(wmKeyMap *km)
+void WM_keyconfig_update_operatortype(void)
+{
+	wm_keymap_update_flag |= WM_KEYMAP_UPDATE_OPERATORTYPE;
+}
+
+static bool wm_keymap_test_and_clear_update(wmKeyMap *km)
 {
 	wmKeyMapItem *kmi;
 	int update;
@@ -1112,7 +1188,7 @@ static int wm_keymap_test_and_clear_update(wmKeyMap *km)
 		kmi->flag &= ~KMI_UPDATE;
 	}
 	
-	return update;
+	return (update != 0);
 }
 
 static wmKeyMap *wm_keymap_preset(wmWindowManager *wm, wmKeyMap *km)
@@ -1132,12 +1208,43 @@ void WM_keyconfig_update(wmWindowManager *wm)
 	wmKeyMap *km, *defaultmap, *addonmap, *usermap, *kmn;
 	wmKeyMapItem *kmi;
 	wmKeyMapDiffItem *kmdi;
-	int compat_update = 0;
+	bool compat_update = false;
 
 	if (G.background)
 		return;
-	if (!WM_KEYMAP_UPDATE)
+
+	if (wm_keymap_update_flag == 0)
 		return;
+
+	if (wm_keymap_update_flag & WM_KEYMAP_UPDATE_OPERATORTYPE) {
+		/* an operatortype has been removed, this wont happen often
+		 * but when it does we have to check _every_ keymap item */
+		wmKeyConfig *kc;
+
+		ListBase *keymaps_lb[] = {
+		    &U.user_keymaps,
+		    &wm->userconf->keymaps,
+		    &wm->defaultconf->keymaps,
+		    &wm->addonconf->keymaps,
+		    NULL};
+
+		int i;
+
+		for (i = 0; keymaps_lb[i]; i++) {
+			wm_keyconfig_properties_update_ot(keymaps_lb[i]);
+		}
+
+		for (kc = wm->keyconfigs.first; kc; kc = kc->next) {
+			wm_keyconfig_properties_update_ot(&kc->keymaps);
+		}
+
+		wm_keymap_update_flag &= ~WM_KEYMAP_UPDATE_OPERATORTYPE;
+	}
+
+
+	if (wm_keymap_update_flag == 0)
+		return;
+
 	
 	/* update operator properties for non-modal user keymaps */
 	for (km = U.user_keymaps.first; km; km = km->next) {
@@ -1187,9 +1294,12 @@ void WM_keyconfig_update(wmWindowManager *wm)
 
 		/* in case of old non-diff keymaps, force extra update to create diffs */
 		compat_update = compat_update || (usermap && !(usermap->flag & KEYMAP_DIFF));
+
 	}
 
-	WM_KEYMAP_UPDATE = 0;
+	wm_keymap_update_flag &= ~WM_KEYMAP_UPDATE_RECONFIGURE;
+
+	BLI_assert(wm_keymap_update_flag == 0);
 
 	if (compat_update) {
 		WM_keyconfig_update_tag(NULL, NULL);
@@ -1314,46 +1424,73 @@ wmKeyMapItem *WM_keymap_item_find_id(wmKeyMap *keymap, int id)
 /* Needs to be kept up to date with Keymap and Operator naming */
 wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 {
+	/* Op types purposely skipped  for now:
+	 *     BRUSH_OT
+	 *     BOID_OT
+	 *     BUTTONS_OT
+	 *     CONSTRAINT_OT
+	 *     PAINT_OT
+	 *     ED_OT
+	 *     FLUID_OT
+	 *     TEXTURE_OT
+	 *     UI_OT
+	 *     VIEW2D_OT
+	 *     WORLD_OT
+	 */
+
 	wmKeyMap *km = NULL;
 	SpaceLink *sl = CTX_wm_space_data(C);
 	
 	/* Window */
-	if (strstr(opname, "WM_OT")) {
+	if (STRPREFIX(opname, "WM_OT")) {
 		km = WM_keymap_find_all(C, "Window", 0, 0);
 	}
-	/* Screen */
-	else if (strstr(opname, "SCREEN_OT")) {
+	/* Screen & Render */
+	else if (STRPREFIX(opname, "SCREEN_OT") ||
+	         STRPREFIX(opname, "RENDER_OT") ||
+	         STRPREFIX(opname, "SOUND_OT") ||
+	         STRPREFIX(opname, "SCENE_OT"))
+	{
 		km = WM_keymap_find_all(C, "Screen", 0, 0);
 	}
 	/* Grease Pencil */
-	else if (strstr(opname, "GPENCIL_OT")) {
+	else if (STRPREFIX(opname, "GPENCIL_OT")) {
 		km = WM_keymap_find_all(C, "Grease Pencil", 0, 0);
 	}
 	/* Markers */
-	else if (strstr(opname, "MARKER_OT")) {
+	else if (STRPREFIX(opname, "MARKER_OT")) {
 		km = WM_keymap_find_all(C, "Markers", 0, 0);
 	}
 	/* Import/Export*/
-	else if (strstr(opname, "IMPORT_") || strstr(opname, "EXPORT_")) {
+	else if (STRPREFIX(opname, "IMPORT_") ||
+	         STRPREFIX(opname, "EXPORT_"))
+	{
 		km = WM_keymap_find_all(C, "Window", 0, 0);
 	}
 	
 	
 	/* 3D View */
-	else if (strstr(opname, "VIEW3D_OT")) {
+	else if (STRPREFIX(opname, "VIEW3D_OT")) {
 		km = WM_keymap_find_all(C, "3D View", sl->spacetype, 0);
 	}
-	else if (strstr(opname, "OBJECT_OT")) {
+	else if (STRPREFIX(opname, "OBJECT_OT")) {
 		/* exception, this needs to work outside object mode too */
-		if (strstr(opname, "OBJECT_OT_mode_set"))
+		if (STRPREFIX(opname, "OBJECT_OT_mode_set"))
 			km = WM_keymap_find_all(C, "Object Non-modal", 0, 0);
 		else
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
 	}
-
+	/* Object mode related */
+	else if (STRPREFIX(opname, "GROUP_OT") ||
+	         STRPREFIX(opname, "MATERIAL_OT") ||
+	         STRPREFIX(opname, "PTCACHE_OT") ||
+	         STRPREFIX(opname, "RIGIDBODY_OT"))
+	{
+		km = WM_keymap_find_all(C, "Object Mode", 0, 0);
+	}
 	
 	/* Editing Modes */
-	else if (strstr(opname, "MESH_OT")) {
+	else if (STRPREFIX(opname, "MESH_OT")) {
 		km = WM_keymap_find_all(C, "Mesh", 0, 0);
 		
 		/* some mesh operators are active in object mode too, like add-prim */
@@ -1361,7 +1498,9 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
 		}
 	}
-	else if (strstr(opname, "CURVE_OT")) {
+	else if (STRPREFIX(opname, "CURVE_OT") ||
+	         STRPREFIX(opname, "SURFACE_OT"))
+	{
 		km = WM_keymap_find_all(C, "Curve", 0, 0);
 		
 		/* some curve operators are active in object mode too, like add-prim */
@@ -1369,13 +1508,17 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
 		}
 	}
-	else if (strstr(opname, "ARMATURE_OT")) {
+	else if (STRPREFIX(opname, "ARMATURE_OT") ||
+	         STRPREFIX(opname, "SKETCH_OT"))
+	{
 		km = WM_keymap_find_all(C, "Armature", 0, 0);
 	}
-	else if (strstr(opname, "POSE_OT")) {
+	else if (STRPREFIX(opname, "POSE_OT") ||
+	         STRPREFIX(opname, "POSELIB_OT"))
+	{
 		km = WM_keymap_find_all(C, "Pose", 0, 0);
 	}
-	else if (strstr(opname, "SCULPT_OT")) {
+	else if (STRPREFIX(opname, "SCULPT_OT")) {
 		switch (CTX_data_mode_enum(C)) {
 			case OB_MODE_SCULPT:
 				km = WM_keymap_find_all(C, "Sculpt", 0, 0);
@@ -1385,7 +1528,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 				break;
 		}
 	}
-	else if (strstr(opname, "MBALL_OT")) {
+	else if (STRPREFIX(opname, "MBALL_OT")) {
 		km = WM_keymap_find_all(C, "Metaball", 0, 0);
 		
 		/* some mball operators are active in object mode too, like add-prim */
@@ -1393,17 +1536,20 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 			km = WM_keymap_find_all(C, "Object Mode", 0, 0);
 		}
 	}
-	else if (strstr(opname, "LATTICE_OT")) {
+	else if (STRPREFIX(opname, "LATTICE_OT")) {
 		km = WM_keymap_find_all(C, "Lattice", 0, 0);
 	}
-	else if (strstr(opname, "PARTICLE_OT")) {
+	else if (STRPREFIX(opname, "PARTICLE_OT")) {
 		km = WM_keymap_find_all(C, "Particle", 0, 0);
 	}
-	else if (strstr(opname, "FONT_OT")) {
+	else if (STRPREFIX(opname, "FONT_OT")) {
 		km = WM_keymap_find_all(C, "Font", 0, 0);
 	}
-	else if (strstr(opname, "PAINT_OT")) {
-		
+	/* Paint Face Mask */
+	else if (STRPREFIX(opname, "PAINT_OT_face_select")) {
+		km = WM_keymap_find_all(C, "Face Mask", 0, 0);
+	}
+	else if (STRPREFIX(opname, "PAINT_OT")) {
 		/* check for relevant mode */
 		switch (CTX_data_mode_enum(C)) {
 			case OB_MODE_WEIGHT_PAINT:
@@ -1417,70 +1563,83 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 				break;
 		}
 	}
-	/* Paint Face Mask */
-	else if (strstr(opname, "PAINT_OT_face_select")) {
-		km = WM_keymap_find_all(C, "Face Mask", sl->spacetype, 0);
-	}
 	/* Timeline */
-	else if (strstr(opname, "TIME_OT")) {
+	else if (STRPREFIX(opname, "TIME_OT")) {
 		km = WM_keymap_find_all(C, "Timeline", sl->spacetype, 0);
 	}
 	/* Image Editor */
-	else if (strstr(opname, "IMAGE_OT")) {
+	else if (STRPREFIX(opname, "IMAGE_OT")) {
 		km = WM_keymap_find_all(C, "Image", sl->spacetype, 0);
 	}
+	/* Clip Editor */
+	else if (STRPREFIX(opname, "CLIP_OT")) {
+		km = WM_keymap_find_all(C, "Clip", sl->spacetype, 0);
+	}
+	else if (STRPREFIX(opname, "MASK_OT")) {
+		km = WM_keymap_find_all(C, "Mask Editing", 0, 0);
+	}
 	/* UV Editor */
-	else if (strstr(opname, "UV_OT")) {
+	else if (STRPREFIX(opname, "UV_OT")) {
 		km = WM_keymap_find_all(C, "UV Editor", sl->spacetype, 0);
 	}
 	/* Node Editor */
-	else if (strstr(opname, "NODE_OT")) {
+	else if (STRPREFIX(opname, "NODE_OT")) {
 		km = WM_keymap_find_all(C, "Node Editor", sl->spacetype, 0);
 	}
 	/* Animation Editor Channels */
-	else if (strstr(opname, "ANIM_OT_channels")) {
+	else if (STRPREFIX(opname, "ANIM_OT_channels")) {
 		km = WM_keymap_find_all(C, "Animation Channels", sl->spacetype, 0);
 	}
 	/* Animation Generic - after channels */
-	else if (strstr(opname, "ANIM_OT")) {
+	else if (STRPREFIX(opname, "ANIM_OT")) {
 		km = WM_keymap_find_all(C, "Animation", 0, 0);
 	}
 	/* Graph Editor */
-	else if (strstr(opname, "GRAPH_OT")) {
+	else if (STRPREFIX(opname, "GRAPH_OT")) {
 		km = WM_keymap_find_all(C, "Graph Editor", sl->spacetype, 0);
 	}
 	/* Dopesheet Editor */
-	else if (strstr(opname, "ACTION_OT")) {
+	else if (STRPREFIX(opname, "ACTION_OT")) {
 		km = WM_keymap_find_all(C, "Dopesheet", sl->spacetype, 0);
 	}
 	/* NLA Editor */
-	else if (strstr(opname, "NLA_OT")) {
+	else if (STRPREFIX(opname, "NLA_OT")) {
 		km = WM_keymap_find_all(C, "NLA Editor", sl->spacetype, 0);
 	}
 	/* Script */
-	else if (strstr(opname, "SCRIPT_OT")) {
+	else if (STRPREFIX(opname, "SCRIPT_OT")) {
 		km = WM_keymap_find_all(C, "Script", sl->spacetype, 0);
 	}
 	/* Text */
-	else if (strstr(opname, "TEXT_OT")) {
+	else if (STRPREFIX(opname, "TEXT_OT")) {
 		km = WM_keymap_find_all(C, "Text", sl->spacetype, 0);
 	}
 	/* Sequencer */
-	else if (strstr(opname, "SEQUENCER_OT")) {
+	else if (STRPREFIX(opname, "SEQUENCER_OT")) {
 		km = WM_keymap_find_all(C, "Sequencer", sl->spacetype, 0);
 	}
 	/* Console */
-	else if (strstr(opname, "CONSOLE_OT")) {
+	else if (STRPREFIX(opname, "CONSOLE_OT")) {
 		km = WM_keymap_find_all(C, "Console", sl->spacetype, 0);
 	}
 	/* Console */
-	else if (strstr(opname, "INFO_OT")) {
+	else if (STRPREFIX(opname, "INFO_OT")) {
 		km = WM_keymap_find_all(C, "Info", sl->spacetype, 0);
 	}
-	
+	/* File browser */
+	else if (STRPREFIX(opname, "FILE_OT")) {
+		km = WM_keymap_find_all(C, "File Browser", sl->spacetype, 0);
+	}
+	/* Logic Editor */
+	else if (STRPREFIX(opname, "LOGIC_OT")) {
+		km = WM_keymap_find_all(C, "Logic Editor", sl->spacetype, 0);
+	}
+	/* Outliner */
+	else if (STRPREFIX(opname, "OUTLINER_OT")) {
+		km = WM_keymap_find_all(C, "Outliner", sl->spacetype, 0);
+	}
 	/* Transform */
-	else if (strstr(opname, "TRANSFORM_OT")) {
-		
+	else if (STRPREFIX(opname, "TRANSFORM_OT")) {
 		/* check for relevant editor */
 		switch (sl->spacetype) {
 			case SPACE_VIEW3D:

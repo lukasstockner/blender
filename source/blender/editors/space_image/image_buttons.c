@@ -30,24 +30,18 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
-#include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_customdata.h"
 #include "BKE_image.h"
-#include "BKE_mesh.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
 
@@ -57,7 +51,6 @@
 #include "IMB_imbuf_types.h"
 
 #include "ED_gpencil.h"
-#include "ED_image.h"
 #include "ED_screen.h"
 
 #include "RNA_access.h"
@@ -69,6 +62,8 @@
 #include "UI_resources.h"
 
 #include "image_intern.h"
+
+#define B_NOP -1
 
 /* proto */
 
@@ -177,7 +172,7 @@ void image_preview_event(int event)
 		
 		ntreeCompositTagGenerators(G.scene->nodetree);
 
-		G.is_break = FALSE;
+		G.is_break = false;
 		G.scene->nodetree->timecursor = set_timecursor;
 		G.scene->nodetree->test_break = blender_test_break;
 		
@@ -241,7 +236,7 @@ static void preview_cb(ScrArea *sa, struct uiBlock *block)
 
 }
 
-static int is_preview_allowed(ScrArea *cur)
+static bool is_preview_allowed(ScrArea *cur)
 {
 	SpaceImage *sima = cur->spacedata.first;
 	ScrArea *sa;
@@ -289,76 +284,160 @@ static void image_panel_preview(ScrArea *sa, short cntrl)   // IMAGE_HANDLER_PRE
 
 /* ********************* callbacks for standard image buttons *************** */
 
-static char *slot_menu(void)
+static void ui_imageuser_slot_menu(bContext *UNUSED(C), uiLayout *layout, void *image_p)
 {
-	char *str;
-	int a, slot;
-	
-	str = MEM_callocN(IMA_MAX_RENDER_SLOT * 32, "menu slots");
-	
-	strcpy(str, IFACE_("Slot %t"));
-	a = strlen(str);
+	uiBlock *block = uiLayoutGetBlock(layout);
+	Image *image = image_p;
+	int slot;
 
-	for (slot = 0; slot < IMA_MAX_RENDER_SLOT; slot++)
-		a += sprintf(str + a, IFACE_("|Slot %d %%x%d"), slot + 1, slot);
-	
-	return str;
+	uiDefBut(block, LABEL, 0, IFACE_("Slot"),
+	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+	uiItemS(layout);
+
+	slot = IMA_MAX_RENDER_SLOT;
+	while (slot--) {
+		char str[64];
+		if (image->render_slots[slot].name[0] != '\0') {
+			BLI_strncpy(str, image->render_slots[slot].name, sizeof(str));
+		}
+		else {
+			BLI_snprintf(str, sizeof(str), IFACE_("Slot %d"), slot + 1);
+		}
+		uiDefButS(block, BUTM, B_NOP, str, 0, 0,
+		          UI_UNIT_X * 5, UI_UNIT_X, &image->render_slot, (float) slot, 0.0, 0, -1, "");
+	}
 }
 
-/* TODO, curlay should be removed? */
-static char *layer_menu(RenderResult *rr, short *UNUSED(curlay))
+static const char *ui_imageuser_layer_fake_name(RenderResult *rr)
 {
-	RenderLayer *rl;
-	int len = 64 + RE_MAXNAME * BLI_countlist(&rr->layers);
-	short a, nr = 0;
-	char *str = MEM_callocN(len, "menu layers");
-	
-	strcpy(str, IFACE_("Layer %t"));
-	a = strlen(str);
-	
-	/* compo result */
 	if (rr->rectf) {
-		a += sprintf(str + a, "|%s %%x0", IFACE_("Composite"));
-		nr = 1;
+		return IFACE_("Composite");
 	}
 	else if (rr->rect32) {
-		a += sprintf(str + a, "|%s %%x0", IFACE_("Sequence"));
-		nr = 1;
+		return IFACE_("Sequence");
 	}
-	for (rl = rr->layers.first; rl; rl = rl->next, nr++) {
-		a += sprintf(str + a, "|%s %%x%d", rl->name, nr);
+	else {
+		return NULL;
 	}
-	
-	/* no curlay clip here, on render (redraws) the amount of layers can be 1 fir single-layer render */
-	
-	return str;
 }
 
-/* rl==NULL means composite result */
-static char *pass_menu(RenderLayer *rl, short *curpass)
+static void ui_imageuser_layer_menu(bContext *UNUSED(C), uiLayout *layout, void *rnd_pt)
 {
-	RenderPass *rpass;
-	int len = 64 + 32 * (rl ? BLI_countlist(&rl->passes) : 1);
-	short a, nr = 0;
-	char *str = MEM_callocN(len, "menu layers");
-	
-	strcpy(str, IFACE_("Pass %t"));
-	a = strlen(str);
-	
-	/* rendered results don't have a Combined pass */
-	if (rl == NULL || rl->rectf) {
-		a += sprintf(str + a, "|%s %%x0", IFACE_("Combined"));
-		nr = 1;
+	void **rnd_data = rnd_pt;
+	uiBlock *block = uiLayoutGetBlock(layout);
+	Image *image = rnd_data[0];
+	ImageUser *iuser = rnd_data[1];
+	Scene *scene = iuser->scene;
+	RenderResult *rr;
+	RenderLayer *rl;
+	RenderLayer rl_fake = {NULL};
+	const char *fake_name;
+	int nr;
+
+	/* may have been freed since drawing */
+	rr = BKE_image_acquire_renderresult(scene, image);
+	if (UNLIKELY(rr == NULL)) {
+		return;
 	}
-	
-	if (rl)
-		for (rpass = rl->passes.first; rpass; rpass = rpass->next, nr++)
-			a += sprintf(str + a, "|%s %%x%d", IFACE_(rpass->name), nr);
-	
-	if (*curpass >= nr)
-		*curpass = 0;
-	
-	return str;
+
+	uiBlockSetCurLayout(block, layout);
+	uiLayoutColumn(layout, false);
+
+	uiDefBut(block, LABEL, 0, IFACE_("Layer"),
+	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+	uiItemS(layout);
+
+	nr = BLI_countlist(&rr->layers) - 1;
+	fake_name = ui_imageuser_layer_fake_name(rr);
+
+	if (fake_name) {
+		BLI_strncpy(rl_fake.name, fake_name, sizeof(rl_fake.name));
+		nr += 1;
+	}
+
+	for (rl = rr->layers.last; rl; rl = rl->prev, nr--) {
+final:
+		uiDefButS(block, BUTM, B_NOP, IFACE_(rl->name), 0, 0,
+		          UI_UNIT_X * 5, UI_UNIT_X, &iuser->layer, (float) nr, 0.0, 0, -1, "");
+	}
+
+	if (fake_name) {
+		fake_name = NULL;
+		rl = &rl_fake;
+		goto final;
+	}
+
+	BLI_assert(nr == -1);
+
+	BKE_image_release_renderresult(scene, image);
+}
+
+static const char *ui_imageuser_pass_fake_name(RenderLayer *rl)
+{
+	if (rl == NULL || rl->rectf) {
+		return IFACE_("Combined");
+	}
+	else {
+		return NULL;
+	}
+}
+
+static void ui_imageuser_pass_menu(bContext *UNUSED(C), uiLayout *layout, void *ptrpair_p)
+{
+	void **rnd_data = ptrpair_p;
+	uiBlock *block = uiLayoutGetBlock(layout);
+	Image *image = rnd_data[0];
+	ImageUser *iuser = rnd_data[1];
+	/* (rpass_index == -1) means composite result */
+	const int rpass_index = GET_INT_FROM_POINTER(rnd_data[2]);
+	Scene *scene = iuser->scene;
+	RenderResult *rr;
+	RenderLayer *rl;
+	RenderPass rpass_fake = {NULL};
+	RenderPass *rpass;
+	const char *fake_name;
+	int nr;
+
+	/* may have been freed since drawing */
+	rr = BKE_image_acquire_renderresult(scene, image);
+	if (UNLIKELY(rr == NULL)) {
+		return;
+	}
+
+	rl = BLI_findlink(&rr->layers, rpass_index);
+
+	uiBlockSetCurLayout(block, layout);
+	uiLayoutColumn(layout, false);
+
+	uiDefBut(block, LABEL, 0, IFACE_("Pass"),
+	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+
+	uiItemS(layout);
+
+	nr = (rl ? BLI_countlist(&rl->passes) : 0) - 1;
+	fake_name = ui_imageuser_pass_fake_name(rl);
+
+	if (fake_name) {
+		BLI_strncpy(rpass_fake.name, fake_name, sizeof(rpass_fake.name));
+		nr += 1;
+	}
+
+	/* rendered results don't have a Combined pass */
+	for (rpass = rl ? rl->passes.last : NULL; rpass; rpass = rpass->prev, nr--) {
+final:
+		uiDefButS(block, BUTM, B_NOP, IFACE_(rpass->name), 0, 0,
+		          UI_UNIT_X * 5, UI_UNIT_X, &iuser->pass, (float) nr, 0.0, 0, -1, "");
+	}
+
+	if (fake_name) {
+		fake_name = NULL;
+		rpass = &rpass_fake;
+		goto final;
+	}
+
+	BLI_assert(nr == -1);
+
+	BKE_image_release_renderresult(scene, image);
 }
 
 /* 5 layer button callbacks... */
@@ -441,59 +520,80 @@ static void image_user_change(bContext *C, void *iuser_v, void *unused)
 }
 #endif
 
-static void uiblock_layer_pass_buttons(uiLayout *layout, RenderResult *rr, ImageUser *iuser, int w, short *render_slot)
+static void uiblock_layer_pass_buttons(uiLayout *layout, Image *image, RenderResult *rr, ImageUser *iuser, int w, short *render_slot)
 {
+	static void *rnd_pt[3];  /* XXX, workaround */
 	uiBlock *block = uiLayoutGetBlock(layout);
 	uiBut *but;
 	RenderLayer *rl = NULL;
-	int wmenu1, wmenu2, wmenu3, layer;
-	char *strp;
+	int wmenu1, wmenu2, wmenu3;
+	const char *fake_name;
+	const char *display_name;
 
-	uiLayoutRow(layout, TRUE);
+	uiLayoutRow(layout, true);
 
 	/* layer menu is 1/3 larger than pass */
 	wmenu1 = (2 * w) / 5;
 	wmenu2 = (3 * w) / 5;
 	wmenu3 = (3 * w) / 6;
 	
+	rnd_pt[0] = image;
+	rnd_pt[1] = iuser;
+	rnd_pt[2] = NULL;
+
 	/* menu buts */
 	if (render_slot) {
-		strp = slot_menu();
-		but = uiDefButS(block, MENU, 0, strp, 0, 0, wmenu1, UI_UNIT_Y, render_slot, 0, 0, 0, 0, TIP_("Select Slot"));
+		char str[64];
+		if (image->render_slots[*render_slot].name[0] != '\0') {
+			BLI_strncpy(str, image->render_slots[*render_slot].name, sizeof(str));
+		}
+		else {
+			BLI_snprintf(str, sizeof(str), IFACE_("Slot %d"), *render_slot + 1);
+		}
+		but = uiDefMenuBut(block, ui_imageuser_slot_menu, image, str, 0, 0, wmenu1, UI_UNIT_Y, TIP_("Select Slot"));
 		uiButSetFunc(but, image_multi_cb, rr, iuser);
-		MEM_freeN(strp);
+		uiButSetMenuFromPulldown(but);
 	}
 
 	if (rr) {
-		strp = layer_menu(rr, &iuser->layer);
-		but = uiDefButS(block, MENU, 0, strp, 0, 0, wmenu2, UI_UNIT_Y, &iuser->layer, 0, 0, 0, 0, TIP_("Select Layer"));
-		uiButSetFunc(but, image_multi_cb, rr, iuser);
-		MEM_freeN(strp);
+		RenderPass *rpass;
+		int rpass_index;
 
-		layer = iuser->layer;
-		if (rr->rectf || rr->rect32)
-			layer--;  /* fake compo/sequencer layer */
-		
-		rl = BLI_findlink(&rr->layers, layer); /* return NULL is meant to be */
-		strp = pass_menu(rl, &iuser->pass);
-		but = uiDefButS(block, MENU, 0, strp, 0, 0, wmenu3, UI_UNIT_Y, &iuser->pass, 0, 0, 0, 0, TIP_("Select Pass"));
+		/* layer */
+		fake_name = ui_imageuser_layer_fake_name(rr);
+		rpass_index = iuser->layer  - (fake_name ? 1 : 0);
+		rl = BLI_findlink(&rr->layers, rpass_index);
+		rnd_pt[2] = SET_INT_IN_POINTER(rpass_index);
+
+		display_name = rl ? rl->name : (fake_name ? fake_name : "");
+		but = uiDefMenuBut(block, ui_imageuser_layer_menu, rnd_pt, display_name, 0, 0, wmenu2, UI_UNIT_Y, TIP_("Select Layer"));
 		uiButSetFunc(but, image_multi_cb, rr, iuser);
-		MEM_freeN(strp);
+		uiButSetMenuFromPulldown(but);
+
+
+		/* pass */
+		fake_name = ui_imageuser_pass_fake_name(rl);
+		rpass = (rl ? BLI_findlink(&rl->passes, iuser->pass  - (fake_name ? 1 : 0)) : NULL);
+
+		display_name = rpass ? rpass->name : (fake_name ? fake_name : "");
+		but = uiDefMenuBut(block, ui_imageuser_pass_menu, rnd_pt, display_name, 0, 0, wmenu3, UI_UNIT_Y, TIP_("Select Pass"));
+		uiButSetFunc(but, image_multi_cb, rr, iuser);
+		uiButSetMenuFromPulldown(but);
 	}
 }
 
-static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, RenderResult *rr, ImageUser *iuser, short *render_slot)
+static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, Image *image, RenderResult *rr, ImageUser *iuser, short *render_slot)
 {
 	uiBlock *block = uiLayoutGetBlock(layout);
 	uiLayout *row;
 	uiBut *but;
 	const float dpi_fac = UI_DPI_FAC;
 	
-	row = uiLayoutRow(layout, TRUE);
+	row = uiLayoutRow(layout, true);
 
 	if (rr == NULL || iuser == NULL)
 		return;
-	if (rr->layers.first == NULL) {
+	if (BLI_listbase_is_empty(&rr->layers)) {
 		uiItemL(row, IFACE_("No Layers in Render Result"), ICON_NONE);
 		return;
 	}
@@ -504,7 +604,7 @@ static void uiblock_layer_pass_arrow_buttons(uiLayout *layout, RenderResult *rr,
 	but = uiDefIconBut(block, BUT, 0, ICON_TRIA_RIGHT,  0, 0, 0.90f * UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, TIP_("Next Layer"));
 	uiButSetFunc(but, image_multi_inclay_cb, rr, iuser);
 
-	uiblock_layer_pass_buttons(row, rr, iuser, 230 * dpi_fac, render_slot);
+	uiblock_layer_pass_buttons(row, image, rr, iuser, 230 * dpi_fac, render_slot);
 
 	/* decrease, increase arrows */
 	but = uiDefIconBut(block, BUT, 0, ICON_TRIA_LEFT,   0, 0, 0.85f * UI_UNIT_X, UI_UNIT_Y, NULL, 0, 0, 0, 0, TIP_("Previous Pass"));
@@ -626,7 +726,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 
 				/* use BKE_image_acquire_renderresult  so we get the correct slot in the menu */
 				rr = BKE_image_acquire_renderresult(scene, ima);
-				uiblock_layer_pass_arrow_buttons(layout, rr, iuser, &ima->render_slot);
+				uiblock_layer_pass_arrow_buttons(layout, ima, rr, iuser, &ima->render_slot);
 				BKE_image_release_renderresult(scene, ima);
 			}
 		}
@@ -634,13 +734,13 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 			uiItemR(layout, &imaptr, "source", 0, NULL, ICON_NONE);
 
 			if (ima->source != IMA_SRC_GENERATED) {
-				row = uiLayoutRow(layout, TRUE);
+				row = uiLayoutRow(layout, true);
 				if (ima->packedfile)
 					uiItemO(row, "", ICON_PACKAGE, "image.unpack");
 				else
 					uiItemO(row, "", ICON_UGLYPACKAGE, "image.pack");
 				
-				row = uiLayoutRow(row, TRUE);
+				row = uiLayoutRow(row, true);
 				uiLayoutSetEnabled(row, ima->packedfile == NULL);
 				uiItemR(row, &imaptr, "filepath", 0, "", ICON_NONE);
 				uiItemO(row, "", ICON_FILE_REFRESH, "image.reload");
@@ -659,7 +759,7 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 
 			/* multilayer? */
 			if (ima->type == IMA_TYPE_MULTILAYER && ima->rr) {
-				uiblock_layer_pass_arrow_buttons(layout, ima->rr, iuser, NULL);
+				uiblock_layer_pass_arrow_buttons(layout, ima, ima->rr, iuser, NULL);
 			}
 			else if (ima->source != IMA_SRC_GENERATED) {
 				if (compact == 0) {
@@ -670,80 +770,84 @@ void uiTemplateImage(uiLayout *layout, bContext *C, PointerRNA *ptr, const char 
 				}
 			}
 
-			col = uiLayoutColumn(layout, FALSE);
+			col = uiLayoutColumn(layout, false);
 			uiTemplateColorspaceSettings(col, &imaptr, "colorspace_settings");
 			uiItemR(col, &imaptr, "use_view_as_render", 0, NULL, ICON_NONE);
 
 			if (ima->source != IMA_SRC_GENERATED) {
 				if (compact == 0) { /* background image view doesnt need these */
 					ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
-					int has_alpha = TRUE;
+					bool has_alpha = true;
 
 					if (ibuf) {
 						int imtype = BKE_ftype_to_imtype(ibuf->ftype);
-						char valid_channels = BKE_imtype_valid_channels(imtype);
+						char valid_channels = BKE_imtype_valid_channels(imtype, false);
 
-						has_alpha = valid_channels & IMA_CHAN_FLAG_ALPHA;
+						has_alpha = (valid_channels & IMA_CHAN_FLAG_ALPHA) != 0;
 
 						BKE_image_release_ibuf(ima, ibuf, NULL);
 					}
 
 					if (has_alpha) {
-						col = uiLayoutColumn(layout, FALSE);
+						col = uiLayoutColumn(layout, false);
 						uiItemR(col, &imaptr, "use_alpha", 0, NULL, ICON_NONE);
-						uiItemR(col, &imaptr, "alpha_mode", 0, "Alpha", ICON_NONE);
+						uiItemR(col, &imaptr, "alpha_mode", 0, IFACE_("Alpha"), ICON_NONE);
 					}
 
 					uiItemS(layout);
 
-					split = uiLayoutSplit(layout, 0.0f, FALSE);
+					split = uiLayoutSplit(layout, 0.0f, false);
 
-					col = uiLayoutColumn(split, FALSE);
+					col = uiLayoutColumn(split, false);
 					/* XXX Why only display fields_per_frame only for video image types?
 					 *     And why allow fields for non-video image types at all??? */
-					if (ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
-						uiLayout *subsplit = uiLayoutSplit(col, 0.0f, FALSE);
-						uiLayout *subcol = uiLayoutColumn(subsplit, FALSE);
+					if (BKE_image_is_animated(ima)) {
+						uiLayout *subsplit = uiLayoutSplit(col, 0.0f, false);
+						uiLayout *subcol = uiLayoutColumn(subsplit, false);
 						uiItemR(subcol, &imaptr, "use_fields", 0, NULL, ICON_NONE);
-						subcol = uiLayoutColumn(subsplit, FALSE);
+						subcol = uiLayoutColumn(subsplit, false);
 						uiLayoutSetActive(subcol, RNA_boolean_get(&imaptr, "use_fields"));
 						uiItemR(subcol, userptr, "fields_per_frame", 0, IFACE_("Fields"), ICON_NONE);
 					}
 					else
 						uiItemR(col, &imaptr, "use_fields", 0, NULL, ICON_NONE);
-					row = uiLayoutRow(col, FALSE);
+					row = uiLayoutRow(col, false);
 					uiLayoutSetActive(row, RNA_boolean_get(&imaptr, "use_fields"));
 					uiItemR(row, &imaptr, "field_order", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
 				}
 			}
 
-			if (ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+			if (BKE_image_is_animated(ima)) {
 				uiItemS(layout);
 
-				split = uiLayoutSplit(layout, 0.0f, FALSE);
+				split = uiLayoutSplit(layout, 0.0f, false);
 
-				col = uiLayoutColumn(split, FALSE);
+				col = uiLayoutColumn(split, false);
 
 				BLI_snprintf(str, sizeof(str), IFACE_("(%d) Frames"), iuser->framenr);
 				uiItemR(col, userptr, "frame_duration", 0, str, ICON_NONE);
 				uiItemR(col, userptr, "frame_start", 0, IFACE_("Start"), ICON_NONE);
 				uiItemR(col, userptr, "frame_offset", 0, NULL, ICON_NONE);
 
-				col = uiLayoutColumn(split, FALSE);
+				col = uiLayoutColumn(split, false);
 				uiItemO(col, NULL, ICON_NONE, "IMAGE_OT_match_movie_length");
 				uiItemR(col, userptr, "use_auto_refresh", 0, NULL, ICON_NONE);
 				uiItemR(col, userptr, "use_cyclic", 0, NULL, ICON_NONE);
 			}
 			else if (ima->source == IMA_SRC_GENERATED) {
-				split = uiLayoutSplit(layout, 0.0f, FALSE);
+				split = uiLayoutSplit(layout, 0.0f, false);
 
-				col = uiLayoutColumn(split, TRUE);
+				col = uiLayoutColumn(split, true);
 				uiItemR(col, &imaptr, "generated_width", 0, "X", ICON_NONE);
 				uiItemR(col, &imaptr, "generated_height", 0, "Y", ICON_NONE);
 				
 				uiItemR(col, &imaptr, "use_generated_float", 0, NULL, ICON_NONE);
 
 				uiItemR(split, &imaptr, "generated_type", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
+
+				if (ima->gen_type == IMA_GENTYPE_BLANK) {
+					uiItemR(layout, &imaptr, "generated_color", 0, NULL, ICON_NONE);
+				}
 			}
 
 		}
@@ -764,30 +868,30 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 	PropertyRNA *prop;
 	const int depth_ok = BKE_imtype_valid_depths(imf->imtype);
 	/* some settings depend on this being a scene thats rendered */
-	const short is_render_out = (id && GS(id->name) == ID_SCE);
+	const bool is_render_out = (id && GS(id->name) == ID_SCE);
 
 	uiLayout *col, *row, *split, *sub;
-	int show_preview = FALSE;
+	bool show_preview = false;
 
-	col = uiLayoutColumn(layout, FALSE);
+	col = uiLayoutColumn(layout, false);
 
-	split = uiLayoutSplit(col, 0.5f, FALSE);
+	split = uiLayoutSplit(col, 0.5f, false);
 	
 	uiItemR(split, imfptr, "file_format", 0, "", ICON_NONE);
-	sub = uiLayoutRow(split, FALSE);
+	sub = uiLayoutRow(split, false);
 	uiItemR(sub, imfptr, "color_mode", UI_ITEM_R_EXPAND, IFACE_("Color"), ICON_NONE);
 
 	/* only display depth setting if multiple depths can be used */
-	if ((ELEM7(depth_ok,
-	           R_IMF_CHAN_DEPTH_1,
-	           R_IMF_CHAN_DEPTH_8,
-	           R_IMF_CHAN_DEPTH_10,
-	           R_IMF_CHAN_DEPTH_12,
-	           R_IMF_CHAN_DEPTH_16,
-	           R_IMF_CHAN_DEPTH_24,
-	           R_IMF_CHAN_DEPTH_32)) == 0)
+	if ((ELEM(depth_ok,
+	          R_IMF_CHAN_DEPTH_1,
+	          R_IMF_CHAN_DEPTH_8,
+	          R_IMF_CHAN_DEPTH_10,
+	          R_IMF_CHAN_DEPTH_12,
+	          R_IMF_CHAN_DEPTH_16,
+	          R_IMF_CHAN_DEPTH_24,
+	          R_IMF_CHAN_DEPTH_32)) == 0)
 	{
-		row = uiLayoutRow(col, FALSE);
+		row = uiLayoutRow(col, false);
 
 		uiItemL(row, IFACE_("Color Depth:"), ICON_NONE);
 		uiItemR(row, imfptr, "color_depth", UI_ITEM_R_EXPAND, NULL, ICON_NONE);
@@ -805,20 +909,20 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 		uiItemR(col, imfptr, "exr_codec", 0, NULL, ICON_NONE);
 	}
 	
-	row = uiLayoutRow(col, FALSE);
+	row = uiLayoutRow(col, false);
 	if (BKE_imtype_supports_zbuf(imf->imtype)) {
 		uiItemR(row, imfptr, "use_zbuffer", 0, NULL, ICON_NONE);
 	}
 
 	if (is_render_out && (imf->imtype == R_IMF_IMTYPE_OPENEXR)) {
-		show_preview = TRUE;
+		show_preview = true;
 		uiItemR(row, imfptr, "use_preview", 0, NULL, ICON_NONE);
 	}
 
 	if (imf->imtype == R_IMF_IMTYPE_JP2) {
 		uiItemR(col, imfptr, "jpeg2k_codec", 0, NULL, ICON_NONE);
 
-		row = uiLayoutRow(col, FALSE);
+		row = uiLayoutRow(col, false);
 		uiItemR(row, imfptr, "use_jpeg2k_cinema_preset", 0, NULL, ICON_NONE);
 		uiItemR(row, imfptr, "use_jpeg2k_cinema_48", 0, NULL, ICON_NONE);
 		
@@ -848,7 +952,7 @@ void uiTemplateImageSettings(uiLayout *layout, PointerRNA *imfptr, int color_man
 		prop = RNA_struct_find_property(imfptr, "display_settings");
 		display_settings_ptr = RNA_property_pointer_get(imfptr, prop);
 
-		col = uiLayoutColumn(layout, FALSE);
+		col = uiLayoutColumn(layout, false);
 		uiItemL(col, IFACE_("Color Management"), ICON_NONE);
 
 		uiItemR(col, &display_settings_ptr, "display_device", 0, NULL, ICON_NONE);
@@ -868,7 +972,7 @@ void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser 
 
 		/* use BKE_image_acquire_renderresult  so we get the correct slot in the menu */
 		rr = BKE_image_acquire_renderresult(scene, ima);
-		uiblock_layer_pass_buttons(layout, rr, iuser, 160 * dpi_fac, (ima->type == IMA_TYPE_R_RESULT) ? &ima->render_slot : NULL);
+		uiblock_layer_pass_buttons(layout, ima, rr, iuser, 160 * dpi_fac, (ima->type == IMA_TYPE_R_RESULT) ? &ima->render_slot : NULL);
 		BKE_image_release_renderresult(scene, ima);
 	}
 }
@@ -876,13 +980,15 @@ void uiTemplateImageLayers(uiLayout *layout, bContext *C, Image *ima, ImageUser 
 void image_buttons_register(ARegionType *art)
 {
 	PanelType *pt;
+	const char *category = "Grease Pencil";
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype image panel gpencil");
 	strcpy(pt->idname, "IMAGE_PT_gpencil");
 	strcpy(pt->label, N_("Grease Pencil"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-	pt->draw_header = gpencil_panel_standard_header;
-	pt->draw = gpencil_panel_standard;
+	pt->draw_header = ED_gpencil_panel_standard_header;
+	pt->draw = ED_gpencil_panel_standard;
+	BLI_strncpy(pt->category, category, BLI_strlen_utf8(category));
 	BLI_addtail(&art->paneltypes, pt);
 }
 
@@ -913,7 +1019,7 @@ void IMAGE_OT_properties(wmOperatorType *ot)
 static int image_scopes_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = image_has_scope_region(sa);
+	ARegion *ar = image_has_tools_region(sa);
 	
 	if (ar)
 		ED_region_toggle_hidden(C, ar);
@@ -921,12 +1027,12 @@ static int image_scopes_toggle_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-void IMAGE_OT_scopes(wmOperatorType *ot)
+void IMAGE_OT_toolshelf(wmOperatorType *ot)
 {
-	ot->name = "Scopes";
-	ot->idname = "IMAGE_OT_scopes";
-	ot->description = "Toggle display scopes panel";
-	
+	ot->name = "Tool Shelf";
+	ot->idname = "IMAGE_OT_toolshelf";
+	ot->description = "Toggles tool shelf display";
+
 	ot->exec = image_scopes_toggle_exec;
 	ot->poll = ED_operator_image_active;
 	

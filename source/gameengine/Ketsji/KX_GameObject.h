@@ -87,6 +87,7 @@ protected:
 	STR_String							m_text;
 	int									m_layer;
 	std::vector<RAS_MeshObject*>		m_meshes;
+	std::vector<RAS_MeshObject*>		m_lodmeshes;
 	SG_QList							m_meshSlots;	// head of mesh slots of this 
 	struct Object*						m_pBlenderObject;
 	struct Object*						m_pBlenderGroupObject;
@@ -126,6 +127,7 @@ protected:
 
 	BL_ActionManager* GetActionManager();
 	
+	bool								m_bRecordAnimation;
 public:
 	bool								m_isDeformable;
 
@@ -297,6 +299,12 @@ public:
 	 * Kick the object's action manager
 	 */
 	void UpdateActionManager(float curtime);
+
+	/**
+	 * Have the action manager update IPOs
+	 * note: not thread-safe!
+	 */
+	void UpdateActionIPOs();
 
 	/*********************************
 	 * End Animation API
@@ -600,6 +608,20 @@ public:
 	}
 
 	/**
+	 * Should we record animation for this object?
+	 */
+
+	void SetRecordAnimation(bool recordAnimation)
+	{
+		m_bRecordAnimation = recordAnimation;
+	}
+
+	bool IsRecordAnimation() const
+	{
+		return m_bRecordAnimation;
+	}
+
+	/**
 	 * Check if this object has a vertex parent relationship
 	 */
 	bool IsVertexParent( )
@@ -757,6 +779,23 @@ public:
 	}
 
 	/**
+	 * Add a level of detail mesh to the object. These should
+	 * be added in order.
+	 */
+		void
+	AddLodMesh(
+		RAS_MeshObject* mesh
+	);
+
+	/**
+	 * Updates the current lod level based on distance from camera.
+	 */
+		void
+	UpdateLod(
+		MT_Vector3 &cam_pos
+	);
+
+	/**
 	 * Pick out a mesh associated with the integer 'num'.
 	 */
 		RAS_MeshObject*
@@ -813,10 +852,10 @@ public:
 	/**
 	 * Was this object culled?
 	 */
-	inline bool
+	bool
 	GetCulled(
 		void
-	) { return m_bCulled; }
+	);
 
 	/**
 	 * Set culled flag of this object
@@ -895,6 +934,11 @@ public:
 		m_pObstacleSimulation = NULL;
 	}
 	
+	/**
+	 * add debug object to the debuglist.
+	 */
+	void SetUseDebugProperties(bool debug, bool recursive);
+
 	KX_ClientObjectInfo* getClientInfo() { return m_pClient_info; }
 	
 	CListValue* GetChildren();
@@ -954,6 +998,7 @@ public:
 	KX_PYMETHOD_DOC_O(KX_GameObject,getVectTo);
 	KX_PYMETHOD_DOC_VARARGS(KX_GameObject, sendMessage);
 	KX_PYMETHOD_VARARGS(KX_GameObject, ReinstancePhysicsMesh);
+	KX_PYMETHOD_DOC(KX_GameObject, addDebugProperty);
 
 	KX_PYMETHOD_DOC(KX_GameObject, playAction);
 	KX_PYMETHOD_DOC(KX_GameObject, stopAction);
@@ -981,6 +1026,8 @@ public:
 	static int			pyattr_set_lin_vel_max(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_visible(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_record_animation(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_worldPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_worldPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_localPosition(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
@@ -1019,7 +1066,11 @@ public:
 	static int			pyattr_set_obcolor(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject*	pyattr_get_collisionCallbacks(void *selv_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static int			pyattr_set_collisionCallbacks(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
-	
+	static PyObject*	pyattr_get_debug(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_debug(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject*	pyattr_get_debugRecursive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int			pyattr_set_debugRecursive(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+
 	/* Experimental! */
 	static PyObject*	pyattr_get_sensors(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject*	pyattr_get_controllers(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);

@@ -41,7 +41,8 @@ class SCENE_OT_freestyle_fill_range_by_selection(bpy.types.Operator):
         return rl and rl.freestyle_settings.linesets.active
 
     def execute(self, context):
-        rl = context.scene.render.layers.active
+        scene = context.scene
+        rl = scene.render.layers.active
         lineset = rl.freestyle_settings.linesets.active
         linestyle = lineset.linestyle
         # Find the modifier to work on
@@ -53,7 +54,7 @@ class SCENE_OT_freestyle_fill_range_by_selection(bpy.types.Operator):
             m = linestyle.thickness_modifiers[self.name]
         # Find the source object
         if m.type == 'DISTANCE_FROM_CAMERA':
-            source = context.scene.camera
+            source = scene.camera
         elif m.type == 'DISTANCE_FROM_OBJECT':
             if m.target is None:
                 self.report({'ERROR'}, "Target object not specified")
@@ -63,8 +64,8 @@ class SCENE_OT_freestyle_fill_range_by_selection(bpy.types.Operator):
             self.report({'ERROR'}, "Unexpected modifier type: " + m.type)
             return {'CANCELLED'}
         # Find selected mesh objects
-        selection = [ob for ob in context.scene.objects if ob.select and ob.type == 'MESH' and ob.name != source.name]
-        if len(selection) > 0:
+        selection = [ob for ob in scene.objects if ob.select and ob.type == 'MESH' and ob.name != source.name]
+        if selection:
             # Compute the min/max distance between selected mesh objects and the source
             min_dist = sys.float_info.max
             max_dist = -min_dist
@@ -104,7 +105,7 @@ class SCENE_OT_freestyle_add_edge_marks_to_keying_set(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         for i, edge in enumerate(mesh.edges):
             if not edge.hide and edge.select:
-                path = 'edges[%d].use_freestyle_edge_mark' % i
+                path = 'edges[%d].use_freestyle_mark' % i
                 ks.paths.add(mesh, path, index=0)
         bpy.ops.object.mode_set(mode=ob_mode, toggle=False)
         return {'FINISHED'}
@@ -135,7 +136,7 @@ class SCENE_OT_freestyle_add_face_marks_to_keying_set(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
         for i, polygon in enumerate(mesh.polygons):
             if not polygon.hide and polygon.select:
-                path = 'polygons[%d].use_freestyle_face_mark' % i
+                path = 'polygons[%d].use_freestyle_mark' % i
                 ks.paths.add(mesh, path, index=0)
         bpy.ops.object.mode_set(mode=ob_mode, toggle=False)
         return {'FINISHED'}

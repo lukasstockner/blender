@@ -124,17 +124,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	ScrewModifierData *sltmd = (ScrewModifierData *) md;
 	ScrewModifierData *tltmd = (ScrewModifierData *) target;
-	
-	tltmd->ob_axis = sltmd->ob_axis;
-	tltmd->angle = sltmd->angle;
-	tltmd->axis = sltmd->axis;
-	tltmd->flag = sltmd->flag;
-	tltmd->steps = sltmd->steps;
-	tltmd->render_steps = sltmd->render_steps;
-	tltmd->screw_ofs = sltmd->screw_ofs;
-	tltmd->iter = sltmd->iter;
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
@@ -196,7 +190,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	
 	unsigned int vc_tot_linked = 0;
 	short other_axis_1, other_axis_2;
-	float *tmpf1, *tmpf2;
+	const float *tmpf1, *tmpf2;
 
 	unsigned int edge_offset;
 	
@@ -368,7 +362,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 		if (ltmd->flag & MOD_SCREW_UV_STRETCH_V) {
 			for (i = 0, mv_orig = mvert_orig; i < totvert; i++, mv_orig++) {
-				const float v = dist_squared_to_plane_v3(mv_orig->co, uv_axis_plane);
+				const float v = dist_signed_squared_to_plane_v3(mv_orig->co, uv_axis_plane);
 				uv_v_minmax[0] = min_ff(v, uv_v_minmax[0]);
 				uv_v_minmax[1] = max_ff(v, uv_v_minmax[1]);
 			}
@@ -746,12 +740,23 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 						}
 					}
 
-					/* vc_no_tmp2 - is a line 90d from the pivot to the vec
+					/* tmp_vec2 - is a line 90d from the pivot to the vec
 					 * This is used so the resulting normal points directly away from the middle */
 					cross_v3_v3v3(tmp_vec2, axis_vec, vc->co);
 
-					/* edge average vector and right angle to the pivot make the normal */
-					cross_v3_v3v3(vc->no, tmp_vec1, tmp_vec2);
+					if (UNLIKELY(is_zero_v3(tmp_vec2))) {
+						/* we're _on_ the axis, so copy it based on our winding */
+						if (vc->e[0]->v2 == i) {
+							negate_v3_v3(vc->no, axis_vec);
+						}
+						else {
+							copy_v3_v3(vc->no, axis_vec);
+						}
+					}
+					else {
+						/* edge average vector and right angle to the pivot make the normal */
+						cross_v3_v3v3(vc->no, tmp_vec1, tmp_vec2);
+					}
 
 				}
 				else {
@@ -892,8 +897,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		}
 
 		if (has_mloop_orig == false && mloopuv_layers_tot) {
-			uv_v_offset_a = dist_to_plane_v3(mvert_new[medge_new[i].v1].co, uv_axis_plane);
-			uv_v_offset_b = dist_to_plane_v3(mvert_new[medge_new[i].v2].co, uv_axis_plane);
+			uv_v_offset_a = dist_signed_to_plane_v3(mvert_new[medge_new[i].v1].co, uv_axis_plane);
+			uv_v_offset_b = dist_signed_to_plane_v3(mvert_new[medge_new[i].v2].co, uv_axis_plane);
 
 			if (ltmd->flag & MOD_SCREW_UV_STRETCH_V) {
 				uv_v_offset_a = (uv_v_offset_a - uv_v_minmax[0]) * uv_v_range_inv;

@@ -60,9 +60,9 @@
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
 #include "BKE_depsgraph.h"
-#include "BKE_global.h"
-#include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_editmesh.h"
+#include "BKE_modifier.h"
 #include "BKE_report.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_object_deform.h"
@@ -327,6 +327,31 @@ bool ED_vgroup_parray_alloc(ID *id, MDeformVert ***dvert_arr, int *dvert_tot, co
 	return false;
 }
 
+static bool ed_vgroup_dm_parray_alloc(DerivedMesh *dm, MDeformVert ***dvert_arr, int *dvert_tot)
+{
+	*dvert_tot = 0;
+	*dvert_arr = NULL;
+
+	if (dm) {
+		MDeformVert *dvert = dm->getVertDataArray(dm, CD_MDEFORMVERT);
+
+		if (dvert) {
+			int i, totvert = dm->getNumVerts(dm);
+
+			*dvert_tot = totvert;
+			*dvert_arr = MEM_mallocN(sizeof(void *) * totvert, "vgroup parray from me");
+
+			for (i = 0; i < totvert; i++) {
+				(*dvert_arr)[i] = dvert + i;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /**
  * For use with tools that use ED_vgroup_parray_alloc with \a use_vert_sel == true.
  * This finds the unselected mirror deform verts and copys the weights to them from the selected.
@@ -480,6 +505,9 @@ bool ED_vgroup_array_copy(Object *ob, Object *ob_from)
 	int defbase_tot = BLI_countlist(&ob->defbase);
 	bool new_vgroup = false;
 
+	if (ob == ob_from)
+		return true;
+
 	ED_vgroup_parray_alloc(ob_from->data, &dvert_array_from, &dvert_tot_from, false);
 	ED_vgroup_parray_alloc(ob->data, &dvert_array, &dvert_tot, false);
 
@@ -488,7 +516,8 @@ bool ED_vgroup_array_copy(Object *ob, Object *ob_from)
 		new_vgroup = true;
 	}
 
-	if (ob == ob_from || dvert_tot == 0 || (dvert_tot != dvert_tot_from) || dvert_array_from == NULL || dvert_array == NULL) {
+	if (dvert_tot == 0 || (dvert_tot != dvert_tot_from) || dvert_array_from == NULL || dvert_array == NULL) {
+
 		if (dvert_array) MEM_freeN(dvert_array);
 		if (dvert_array_from) MEM_freeN(dvert_array_from);
 
@@ -496,7 +525,9 @@ bool ED_vgroup_array_copy(Object *ob, Object *ob_from)
 			/* free the newly added vgroup since it wasn't compatible */
 			vgroup_delete_all(ob);
 		}
-		return false;
+
+		/* if true: both are 0 and nothing needs changing, consider this a success */
+		return (dvert_tot == dvert_tot_from);
 	}
 
 	/* do the copy */
@@ -775,7 +806,7 @@ static EnumPropertyItem WT_vertex_group_select_item[] = {
 
 EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
         const bContext *C, PointerRNA *UNUSED(ptr),
-        PropertyRNA *UNUSED(prop), int *free, const unsigned int selection_mask)
+        PropertyRNA *UNUSED(prop), bool *r_free, const unsigned int selection_mask)
 {
 	Object *ob;
 	EnumPropertyItem *item = NULL;
@@ -800,21 +831,21 @@ EnumPropertyItem *ED_object_vgroup_selection_itemf_helper(
 		RNA_enum_items_add_value(&item, &totitem, WT_vertex_group_select_item, WT_VGROUP_ALL);
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = true;
+	*r_free = true;
 
 	return item;
 }
 
 static EnumPropertyItem *rna_vertex_group_with_single_itemf(bContext *C, PointerRNA *ptr,
-                                                            PropertyRNA *prop, int *free)
+                                                            PropertyRNA *prop, bool *r_free)
 {
-	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, free, WT_VGROUP_MASK_ALL);
+	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, r_free, WT_VGROUP_MASK_ALL);
 }
 
 static EnumPropertyItem *rna_vertex_group_select_itemf(bContext *C, PointerRNA *ptr,
-                                                       PropertyRNA *prop, int *free)
+                                                       PropertyRNA *prop, bool *r_free)
 {
-	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, free, WT_VGROUP_MASK_ALL & ~(1 << WT_VGROUP_ACTIVE));
+	return ED_object_vgroup_selection_itemf_helper(C, ptr, prop, r_free, WT_VGROUP_MASK_ALL & ~(1 << WT_VGROUP_ACTIVE));
 }
 
 static void vgroup_operator_subset_select_props(wmOperatorType *ot, bool use_active)
@@ -832,6 +863,7 @@ static void vgroup_operator_subset_select_props(wmOperatorType *ot, bool use_act
 	else {
 		RNA_def_enum_funcs(prop, rna_vertex_group_select_itemf);
 	}
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -862,7 +894,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
                                       WT_Method method, WT_ReplaceMode replace_mode, wmOperator *op)
 {
 	bDeformGroup *dg_dst;
-	Mesh *me_dst, *me_src;
+	Mesh *me_dst;
 	DerivedMesh *dmesh_src;
 	BVHTreeFromMesh tree_mesh_vertices_src, tree_mesh_faces_src = {NULL};
 	MDeformVert **dv_array_src, **dv_array_dst, **dv_src, **dv_dst;
@@ -883,22 +915,20 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 	}
 
 	/* Get meshes.*/
-	dmesh_src = mesh_get_derived_deform(scene, ob_src, CD_MASK_BAREMESH);
+	dmesh_src = mesh_get_derived_final(scene, ob_src, CD_MASK_BAREMESH | CD_MASK_MDEFORMVERT);
 	me_dst = ob_dst->data;
-	me_src = ob_src->data;
 
-	/* Sanity check.*/
-	if (!me_src->dvert) {
+	/* Get vertex group array from source mesh */
+	if (!ed_vgroup_dm_parray_alloc(dmesh_src, &dv_array_src, &dv_tot_src)) {
 		BKE_report(op->reports, RPT_ERROR, "Transfer failed (source mesh does not have any vertex groups)");
 		return false;
 	}
 
 	/* Create data in memory when nothing there.*/
-	if (!me_dst->dvert) ED_vgroup_data_create(ob_dst->data);
+	if (!me_dst->dvert) ED_vgroup_data_create(&me_dst->id);
 
-	/* Get vertex group arrays.*/
-	ED_vgroup_parray_alloc(ob_src->data, &dv_array_src, &dv_tot_src, false);
-	ED_vgroup_parray_alloc(ob_dst->data, &dv_array_dst, &dv_tot_dst, use_vert_sel);
+	/* Get vertex group for destination mesh */
+	ED_vgroup_parray_alloc(&me_dst->id, &dv_array_dst, &dv_tot_dst, use_vert_sel);
 
 	/* Get indexes of vertex groups.*/
 	index_src = BLI_findindex(&ob_src->defbase, dg_src);
@@ -973,7 +1003,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1013,7 +1043,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1074,7 +1104,7 @@ static bool ed_vgroup_transfer_weight(Object *ob_dst, Object *ob_src, bDeformGro
 				}
 
 				/* Reset nearest.*/
-				nearest.dist = FLT_MAX;
+				nearest.dist_sq = FLT_MAX;
 				/* It is faster to start searching at the top of the tree instead of previous search result.*/
 				nearest.index = -1;
 
@@ -1227,16 +1257,17 @@ void ED_vgroup_vert_add(Object *ob, bDeformGroup *dg, int vertnum, float weight,
 	/* get the deform group number, exit if
 	 * it can't be found
 	 */
-	if (def_nr < 0) return;
+	if (def_nr != -1) {
 
-	/* if there's no deform verts then create some,
-	 */
-	if (ED_vgroup_array_get(ob->data, &dv, &tot) && dv == NULL)
-		ED_vgroup_data_create(ob->data);
+		/* if there's no deform verts then create some,
+		 */
+		if (ED_vgroup_array_get(ob->data, &dv, &tot) && dv == NULL)
+			ED_vgroup_data_create(ob->data);
 
-	/* call another function to do the work
-	 */
-	ED_vgroup_nr_vert_add(ob, def_nr, vertnum, weight, assignmode);
+		/* call another function to do the work
+		 */
+		ED_vgroup_nr_vert_add(ob, def_nr, vertnum, weight, assignmode);
+	}
 }
 
 /* mesh object mode, lattice can be in editmode */
@@ -2142,12 +2173,12 @@ static void vgroup_invert_subset(Object *ob,
 		if (use_mirror && use_vert_sel) {
 			ED_vgroup_parray_mirror_sync(ob, dvert_array, dvert_tot,
 			                             vgroup_validmap, vgroup_tot);
+		}
 
-			if (auto_remove) {
-				ED_vgroup_parray_remove_zero(dvert_array, dvert_tot,
-				                             vgroup_validmap, vgroup_tot,
-				                             0.0f, false);
-			}
+		if (auto_remove) {
+			ED_vgroup_parray_remove_zero(dvert_array, dvert_tot,
+			                             vgroup_validmap, vgroup_tot,
+			                             0.0f, false);
 		}
 
 		MEM_freeN(dvert_array);
@@ -2271,7 +2302,6 @@ static void vgroup_blend_subset(Object *ob, const bool *vgroup_validmap, const i
 
 	if (dvert_array)
 		MEM_freeN(dvert_array);
-	BLI_SMALLSTACK_FREE(dv_stack);
 
 	/* not so efficient to get 'dvert_array' again just so unselected verts are NULL'd */
 	if (use_mirror) {
@@ -2754,7 +2784,7 @@ static void vgroup_delete_object_mode(Object *ob, bDeformGroup *dg)
 	int dvert_tot = 0;
 	const int def_nr = BLI_findindex(&ob->defbase, dg);
 
-	assert(def_nr > -1);
+	BLI_assert(def_nr != -1);
 
 	ED_vgroup_array_get(ob->data, &dvert_array, &dvert_tot);
 
@@ -2789,7 +2819,7 @@ static void vgroup_delete_object_mode(Object *ob, bDeformGroup *dg)
 		ob->actdef = 1;
 
 	/* remove all dverts */
-	if (ob->defbase.first == NULL) {
+	if (BLI_listbase_is_empty(&ob->defbase)) {
 		if (ob->type == OB_MESH) {
 			Mesh *me = ob->data;
 			CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
@@ -2884,7 +2914,7 @@ static void vgroup_delete_edit_mode(Object *ob, bDeformGroup *dg)
 	int i;
 	const int dg_index = BLI_findindex(&ob->defbase, dg);
 
-	assert(dg_index > -1);
+	BLI_assert(dg_index != -1);
 
 	/* Make sure that no verts are using this group */
 	if (vgroup_active_remove_verts(ob, true, dg) == false) {
@@ -2938,7 +2968,7 @@ static void vgroup_delete_edit_mode(Object *ob, bDeformGroup *dg)
 		ob->actdef = 1;
 
 	/* remove all dverts */
-	if (ob->defbase.first == NULL) {
+	if (BLI_listbase_is_empty(&ob->defbase)) {
 		if (ob->type == OB_MESH) {
 			Mesh *me = ob->data;
 			CustomData_free_layer_active(&me->vdata, CD_MDEFORMVERT, me->totvert);
@@ -3787,7 +3817,8 @@ void OBJECT_OT_vertex_group_clean(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	vgroup_operator_subset_select_props(ot, true);
-	RNA_def_float(ot->srna, "limit", 0.0f, 0.0f, 1.0, "Limit", "Remove weights under this limit", 0.0f, 0.99f);
+	RNA_def_float(ot->srna, "limit", 0.0f, 0.0f, 1.0, "Limit",
+	              "Remove vertices which weight is below or equal to this limit", 0.0f, 0.99f);
 	RNA_def_boolean(ot->srna, "keep_single", false, "Keep Single",
 	                "Keep verts assigned to at least one group when cleaning");
 }
@@ -4032,7 +4063,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 	{
 		if (ob_act != ob_src) {
 
-			if (ob_src->defbase.first == NULL) {
+			if (BLI_listbase_is_empty(&ob_src->defbase)) {
 				BKE_reportf(op->reports, RPT_WARNING,
 				            "Skipping object '%s' it has no vertex groups", ob_src->id.name + 2);
 				continue;
@@ -4108,7 +4139,7 @@ static int vertex_group_transfer_weight_exec(bContext *C, wmOperator *op)
 		return OPERATOR_FINISHED;
 	}
 	else {
-		if (op->reports->list.first == NULL) {
+		if (BLI_listbase_is_empty(&op->reports->list)) {
 			BKE_report(op->reports, RPT_WARNING, "Failed, no other selected objects with vertex groups found");
 		}
 
@@ -4152,7 +4183,7 @@ static int set_active_group_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {	
 	Object *ob = ED_object_context(C);
 	EnumPropertyItem tmp = {0, "", 0, "", ""};
@@ -4172,7 +4203,7 @@ static EnumPropertyItem *vgroup_itemf(bContext *C, PointerRNA *UNUSED(ptr), Prop
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -4197,6 +4228,7 @@ void OBJECT_OT_vertex_group_set_active(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "group", DummyRNA_NULL_items, 0, "Group", "Vertex group to set as active");
 	RNA_def_enum_funcs(prop, vgroup_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -4292,26 +4324,67 @@ static int vgroup_do_remap(Object *ob, const char *name_array, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-static int vgroup_sort(void *def_a_ptr, void *def_b_ptr)
+static int vgroup_sort_name(const void *def_a_ptr, const void *def_b_ptr)
 {
-	bDeformGroup *def_a = (bDeformGroup *)def_a_ptr;
-	bDeformGroup *def_b = (bDeformGroup *)def_b_ptr;
+	const bDeformGroup *def_a = def_a_ptr;
+	const bDeformGroup *def_b = def_b_ptr;
 
 	return BLI_natstrcmp(def_a->name, def_b->name);
 }
+
+/* Sorts the weight groups according to the bone hierarchy of the
+   associated armature (similar to how bones are ordered in the Outliner) */
+static void vgroup_sort_bone_hierarchy(Object *ob, ListBase *bonebase)
+{
+	if (bonebase == NULL) {
+		Object *armobj = modifiers_isDeformedByArmature(ob);
+		if (armobj != NULL) {
+			bArmature *armature = armobj->data;
+			bonebase = &armature->bonebase;
+		}
+	}
+
+	if (bonebase != NULL) {
+		Bone *bone;
+		for (bone = bonebase->last; bone; bone = bone->prev) {
+			bDeformGroup *dg = defgroup_find_name(ob, bone->name);
+			vgroup_sort_bone_hierarchy(ob, &bone->childbase);
+
+			if (dg != NULL) {
+				BLI_remlink(&ob->defbase, dg);
+				BLI_addhead(&ob->defbase, dg);
+			}
+		}
+	}
+
+	return;
+}
+
+enum {
+	SORT_TYPE_NAME          = 0,
+	SORT_TYPE_BONEHIERARCHY = 1
+};
 
 static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	char *name_array;
 	int ret;
+	int sort_type = RNA_enum_get(op->ptr, "sort_type");
 
 	/*init remapping*/
 	name_array = vgroup_init_remap(ob);
 
 	/*sort vgroup names*/
-	BLI_sortlist(&ob->defbase, vgroup_sort);
-
+	switch (sort_type) {
+		case SORT_TYPE_NAME:
+			BLI_sortlist(&ob->defbase, vgroup_sort_name);
+			break;
+		case SORT_TYPE_BONEHIERARCHY:
+			vgroup_sort_bone_hierarchy(ob, NULL);
+			break;
+	}
+	
 	/*remap vgroup data to map to correct names*/
 	ret = vgroup_do_remap(ob, name_array, op);
 
@@ -4327,9 +4400,15 @@ static int vertex_group_sort_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 {
+	static EnumPropertyItem vgroup_sort_type[] = {
+		{SORT_TYPE_NAME, "NAME", 0, "Name", ""},
+		{SORT_TYPE_BONEHIERARCHY, "BONE_HIERARCHY", 0, "Bone Hierarchy", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	ot->name = "Sort Vertex Groups";
 	ot->idname = "OBJECT_OT_vertex_group_sort";
-	ot->description = "Sort vertex groups alphabetically";
+	ot->description = "Sort vertex groups";
 
 	/* api callbacks */
 	ot->poll = vertex_group_poll;
@@ -4337,6 +4416,8 @@ void OBJECT_OT_vertex_group_sort(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "sort_type", vgroup_sort_type, SORT_TYPE_NAME, "Sort type", "Sort type");
 }
 
 static int vgroup_move_exec(bContext *C, wmOperator *op)

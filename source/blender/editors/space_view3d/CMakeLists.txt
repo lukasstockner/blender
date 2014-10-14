@@ -31,6 +31,7 @@ set(INC
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 	../../../../intern/smoke/extern
 )
 
@@ -64,6 +65,11 @@ set(SRC
 	view3d_intern.h
 )
 
+if(WITH_PYTHON)
+	blender_include_dirs(../../python)
+	add_definitions(-DWITH_PYTHON)
+endif()
+
 if(WITH_GAMEENGINE)
 	list(APPEND INC
 		../../../gameengine/BlenderRoutines
@@ -71,7 +77,7 @@ if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
 endif()
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)

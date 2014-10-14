@@ -127,9 +127,12 @@ struct CPUCapabilities {
 	bool sse42;
 	bool sse4a;
 	bool avx;
+	bool avx2;
 	bool xop;
 	bool fma3;
 	bool fma4;
+	bool bmi1;
+	bool bmi2;
 };
 
 static CPUCapabilities& system_cpu_capabilities()
@@ -161,8 +164,30 @@ static CPUCapabilities& system_cpu_capabilities()
 			caps.sse41 = (result[2] & ((int)1 << 19)) != 0;
 			caps.sse42 = (result[2] & ((int)1 << 20)) != 0;
 
-			caps.avx = (result[2] & ((int)1 << 28)) != 0;
 			caps.fma3 = (result[2] & ((int)1 << 12)) != 0;
+			caps.avx = false;
+			bool os_uses_xsave_xrestore = (result[2] & ((int)1 << 27)) != 0;
+			bool cpu_avx_support = (result[2] & ((int)1 << 28)) != 0;
+
+			if( os_uses_xsave_xrestore && cpu_avx_support) {
+				// Check if the OS will save the YMM registers
+				uint32_t xcr_feature_mask;
+#if defined(__GNUC__)
+				int edx; /* not used */
+				/* actual opcode for xgetbv */
+				__asm__ (".byte 0x0f, 0x01, 0xd0" : "=a" (xcr_feature_mask) , "=d" (edx) : "c" (0) );
+#elif defined(_MSC_VER) && defined(_XCR_XFEATURE_ENABLED_MASK)
+				xcr_feature_mask = (uint32_t)_xgetbv(_XCR_XFEATURE_ENABLED_MASK);  /* min VS2010 SP1 compiler is required */
+#else
+				xcr_feature_mask = 0;
+#endif
+				caps.avx = (xcr_feature_mask & 0x6) == 0x6;
+			}
+
+			__cpuid(result, 0x00000007);
+			caps.bmi1 = (result[1] & ((int)1 << 3)) != 0;
+			caps.bmi2 = (result[1] & ((int)1 << 8)) != 0;
+			caps.avx2 = (result[1] & ((int)1 << 5)) != 0;
 		}
 
 #if 0
@@ -198,6 +223,17 @@ bool system_cpu_support_sse41()
 	CPUCapabilities& caps = system_cpu_capabilities();
 	return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41;
 }
+
+bool system_cpu_support_avx()
+{
+	CPUCapabilities& caps = system_cpu_capabilities();
+	return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41 && caps.avx;
+}
+bool system_cpu_support_avx2()
+{
+	CPUCapabilities& caps = system_cpu_capabilities();
+	return caps.sse && caps.sse2 && caps.sse3 && caps.ssse3 && caps.sse41 && caps.avx && caps.avx2 && caps.fma3 && caps.bmi1 && caps.bmi2;
+}
 #else
 
 bool system_cpu_support_sse2()
@@ -206,6 +242,20 @@ bool system_cpu_support_sse2()
 }
 
 bool system_cpu_support_sse3()
+{
+	return false;
+}
+
+bool system_cpu_support_sse41()
+{
+	return false;
+}
+
+bool system_cpu_support_avx()
+{
+	return false;
+}
+bool system_cpu_support_avx2()
 {
 	return false;
 }

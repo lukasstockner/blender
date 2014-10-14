@@ -32,12 +32,13 @@
 
 
 #ifdef WIN32
-	#pragma warning (disable:4786) // suppress stl-MSVC debug info warning
-	#include <windows.h>
+#  pragma warning (disable:4786) // suppress stl-MSVC debug info warning
+#  include <windows.h>
 #endif
 
-#include "GL/glew.h"
+#include "glew-mx.h"
 #include "GPU_extensions.h"
+#include "GPU_init_exit.h"
 
 #include "GPG_Application.h"
 #include "BL_BlenderDataConversion.h"
@@ -187,7 +188,7 @@ static POINT scr_save_mouse_pos;
 
 static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	BOOL close = FALSE;
+	BOOL close = false;
 	switch (uMsg)
 	{
 		case WM_MOUSEMOVE:
@@ -199,7 +200,7 @@ static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wPara
 			if (abs(dx) > SCR_SAVE_MOUSE_MOVE_THRESHOLD
 			        || abs(dy) > SCR_SAVE_MOUSE_MOVE_THRESHOLD)
 			{
-				close = TRUE;
+				close = true;
 			}
 			scr_save_mouse_pos = pt;
 			break;
@@ -208,7 +209,7 @@ static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wPara
 		case WM_MBUTTONDOWN: 
 		case WM_RBUTTONDOWN: 
 		case WM_KEYDOWN:
-			close = TRUE;
+			close = true;
 	}
 	if (close)
 		PostMessage(hwnd,WM_CLOSE,0,0);
@@ -218,11 +219,11 @@ static LRESULT CALLBACK screenSaverWindowProc(HWND hwnd, UINT uMsg, WPARAM wPara
 BOOL CALLBACK findGhostWindowHWNDProc(HWND hwnd, LPARAM lParam)
 {
 	GHOST_IWindow *p = (GHOST_IWindow*) GetWindowLongPtr(hwnd, GWLP_USERDATA);
-	BOOL ret = TRUE;
+	BOOL ret = true;
 	if (p == ghost_window_to_find)
 	{
 		found_ghost_window_hwnd = hwnd;
-		ret = FALSE;
+		ret = false;
 	}
 	return ret;
 }
@@ -268,7 +269,7 @@ bool GPG_Application::startScreenSaverPreview(
 		LONG_PTR exstyle = GetWindowLongPtr(ghost_hwnd, GWL_EXSTYLE);
 
 		RECT adjrc = { 0, 0, windowWidth, windowHeight };
-		AdjustWindowRectEx(&adjrc, style, FALSE, exstyle);
+		AdjustWindowRectEx(&adjrc, style, false, exstyle);
 
 		style = (style & (~(WS_POPUP|WS_OVERLAPPEDWINDOW|WS_OVERLAPPED|WS_CAPTION|WS_SYSMENU|WS_THICKFRAME|WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_TILEDWINDOW ))) | WS_CHILD;
 		SetWindowLongPtr(ghost_hwnd, GWL_STYLE, style);
@@ -545,7 +546,7 @@ bool GPG_Application::initEngine(GHOST_IWindow* window, const int stereoMode)
 {
 	if (!m_engineInitialized)
 	{
-		GPU_extensions_init();
+		GPU_init();
 		bgl::InitExtensions(true);
 
 		// get and set the preferences
@@ -867,7 +868,7 @@ void GPG_Application::exitEngine()
 		m_canvas = 0;
 	}
 
-	GPU_extensions_exit();
+	GPU_exit();
 
 #ifdef WITH_PYTHON
 	// Call this after we're sure nothing needs Python anymore (e.g., destructors)
@@ -951,11 +952,12 @@ bool GPG_Application::handleKey(GHOST_IEvent* event, bool isDown)
 	{
 		GHOST_TEventDataPtr eventData = ((GHOST_IEvent*)event)->getData();
 		GHOST_TEventKeyData* keyData = static_cast<GHOST_TEventKeyData*>(eventData);
+		unsigned int unicode = keyData->utf8_buf[0] ? BLI_str_utf8_as_unicode(keyData->utf8_buf) : keyData->ascii;
 
 		if (m_keyboard->ToNative(keyData->key) == KX_KetsjiEngine::GetExitKey() && !m_keyboard->m_hookesc && !m_isEmbedded) {
 			m_exitRequested = KX_EXIT_REQUEST_OUTSIDE;
 		}
-		m_keyboard->ConvertEvent(keyData->key, isDown);
+		m_keyboard->ConvertEvent(keyData->key, isDown, unicode);
 		handled = true;
 	}
 	return handled;

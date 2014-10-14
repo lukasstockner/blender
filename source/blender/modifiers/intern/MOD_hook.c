@@ -33,13 +33,11 @@
  */
 
 
-#include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
 
 #include "BKE_action.h"
 #include "BKE_cdderivedmesh.h"
@@ -64,15 +62,9 @@ static void copyData(ModifierData *md, ModifierData *target)
 	HookModifierData *hmd = (HookModifierData *) md;
 	HookModifierData *thmd = (HookModifierData *) target;
 
-	copy_v3_v3(thmd->cent, hmd->cent);
-	thmd->falloff = hmd->falloff;
-	thmd->force = hmd->force;
-	thmd->object = hmd->object;
-	thmd->totindex = hmd->totindex;
+	modifier_copyData_generic(md, target);
+
 	thmd->indexar = MEM_dupallocN(hmd->indexar);
-	memcpy(thmd->parentinv, hmd->parentinv, sizeof(hmd->parentinv));
-	BLI_strncpy(thmd->name, hmd->name, sizeof(thmd->name));
-	BLI_strncpy(thmd->subtarget, hmd->subtarget, sizeof(thmd->subtarget));
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -164,8 +156,7 @@ static void deformVerts_do(HookModifierData *hmd, Object *ob, DerivedMesh *dm,
 		copy_m4_m4(dmat, hmd->object->obmat);
 	}
 	invert_m4_m4(ob->imat, ob->obmat);
-	mul_serie_m4(mat, ob->imat, dmat, hmd->parentinv,
-	             NULL, NULL, NULL, NULL, NULL);
+	mul_m4_series(mat, ob->imat, dmat, hmd->parentinv);
 
 	modifier_get_vgroup(ob, dm, hmd->name, &dvert, &defgrp_index);
 	max_dvert = (dvert) ? numVerts : 0;

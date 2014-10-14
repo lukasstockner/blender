@@ -42,6 +42,7 @@ set(INC_SYS
 set(SRC
 	intern/BLI_args.c
 	intern/BLI_array.c
+	intern/BLI_dial.c
 	intern/BLI_dynstr.c
 	intern/BLI_ghash.c
 	intern/BLI_heap.c
@@ -55,8 +56,8 @@ set(SRC
 	intern/buffer.c
 	intern/callbacks.c
 	intern/convexhull2d.c
-	intern/cpu.c
 	intern/dynlib.c
+	intern/easing.c
 	intern/edgehash.c
 	intern/endian_switch.c
 	intern/fileops.c
@@ -87,6 +88,7 @@ set(SRC
 	intern/rand.c
 	intern/rct.c
 	intern/scanfill.c
+	intern/scanfill_utils.c
 	intern/smallhash.c
 	intern/sort.c
 	intern/sort_utils.c
@@ -95,13 +97,16 @@ set(SRC
 	intern/string.c
 	intern/string_cursor_utf8.c
 	intern/string_utf8.c
+	intern/system.c
 	intern/task.c
 	intern/threads.c
 	intern/time.c
+	intern/timecode.c
 	intern/uvproject.c
 	intern/voronoi.c
 	intern/voxel.c
 	intern/winstuff.c
+	intern/winstuff_dir.c
 
 	BLI_alloca.h
 	BLI_args.h
@@ -112,11 +117,14 @@ set(SRC
 	BLI_buffer.h
 	BLI_callbacks.h
 	BLI_compiler_attrs.h
+	BLI_compiler_compat.h
+	BLI_compiler_typecheck.h
 	BLI_convexhull2d.h
-	BLI_cpu.h
+	BLI_dial.h
 	BLI_dlrbTree.h
 	BLI_dynlib.h
 	BLI_dynstr.h
+	BLI_easing.h
 	BLI_edgehash.h
 	BLI_endian_switch.h
 	BLI_endian_switch_inline.h
@@ -131,6 +139,7 @@ set(SRC
 	BLI_kdopbvh.h
 	BLI_kdtree.h
 	BLI_lasso.h
+	BLI_link_utils.h
 	BLI_linklist.h
 	BLI_linklist_stack.h
 	BLI_listbase.h
@@ -158,13 +167,16 @@ set(SRC
 	BLI_sort.h
 	BLI_sort_utils.h
 	BLI_stack.h
+	BLI_stackdefines.h
 	BLI_strict_flags.h
 	BLI_string.h
 	BLI_string_cursor_utf8.h
 	BLI_string_utf8.h
 	BLI_sys_types.h
+	BLI_system.h
 	BLI_task.h
 	BLI_threads.h
+	BLI_timecode.h
 	BLI_utildefines.h
 	BLI_uvproject.h
 	BLI_vfontdata.h

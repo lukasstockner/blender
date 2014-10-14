@@ -31,7 +31,6 @@
 #include "DNA_object_types.h"
 
 #include "BLI_math.h"
-#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_action.h"  /* BKE_pose_channel_find_name */
@@ -68,18 +67,11 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	UVWarpModifierData *umd  = (UVWarpModifierData *)md;
 	UVWarpModifierData *tumd = (UVWarpModifierData *)target;
-
-	tumd->axis_u = umd->axis_u;
-	tumd->axis_v = umd->axis_v;
-	copy_v2_v2(tumd->center, umd->center);
-	tumd->object_src = umd->object_src;
-	BLI_strncpy(tumd->bone_src, umd->bone_src, sizeof(tumd->bone_src));
-	tumd->object_dst = umd->object_dst;
-	BLI_strncpy(tumd->bone_dst, umd->bone_dst, sizeof(tumd->bone_dst));
-	BLI_strncpy(tumd->vgroup_name, umd->vgroup_name, sizeof(tumd->vgroup_name));
-	BLI_strncpy(tumd->uvlayer_name, umd->uvlayer_name, sizeof(umd->uvlayer_name));
+#endif
+	modifier_copyData_generic(md, target);
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)

@@ -35,14 +35,54 @@
 
 CCL_NAMESPACE_BEGIN
 
+static void *pylong_as_voidptr_typesafe(PyObject *object)
+{
+	if(object == Py_None)
+		return NULL;
+	return PyLong_AsVoidPtr(object);
+}
+
+void python_thread_state_save(void **python_thread_state)
+{
+	*python_thread_state = (void*)PyEval_SaveThread();
+}
+
+void python_thread_state_restore(void **python_thread_state)
+{
+	PyEval_RestoreThread((PyThreadState*)*python_thread_state);
+	*python_thread_state = NULL;
+}
+
+static const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
+{
+#ifdef WIN32
+	/* bug [#31856] oddly enough, Python3.2 --> 3.3 on Windows will throw an
+	 * exception here this needs to be fixed in python:
+	 * see: bugs.python.org/issue15859 */
+	if(!PyUnicode_Check(py_str)) {
+		PyErr_BadArgument();
+		return "";
+	}
+#endif
+	if((*coerce = PyUnicode_EncodeFSDefault(py_str))) {
+		return PyBytes_AS_STRING(*coerce);
+	}
+	return "";
+}
+
 static PyObject *init_func(PyObject *self, PyObject *args)
 {
-	const char *path, *user_path;
+	PyObject *path, *user_path;
 
-	if(!PyArg_ParseTuple(args, "ss", &path, &user_path))
+	if(!PyArg_ParseTuple(args, "OO", &path, &user_path)) {
 		return NULL;
-	
-	path_init(path, user_path);
+	}
+
+	PyObject *path_coerce = NULL, *user_path_coerce = NULL;
+	path_init(PyC_UnicodeAsByte(path, &path_coerce),
+	          PyC_UnicodeAsByte(user_path, &user_path_coerce));
+	Py_XDECREF(path_coerce);
+	Py_XDECREF(user_path_coerce);
 
 	Py_RETURN_NONE;
 }
@@ -73,21 +113,19 @@ static PyObject *create_func(PyObject *self, PyObject *args)
 	BL::Scene scene(sceneptr);
 
 	PointerRNA regionptr;
-	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyregion), &regionptr);
+	RNA_id_pointer_create((ID*)pylong_as_voidptr_typesafe(pyregion), &regionptr);
 	BL::Region region(regionptr);
 
 	PointerRNA v3dptr;
-	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyv3d), &v3dptr);
+	RNA_id_pointer_create((ID*)pylong_as_voidptr_typesafe(pyv3d), &v3dptr);
 	BL::SpaceView3D v3d(v3dptr);
 
 	PointerRNA rv3dptr;
-	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyrv3d), &rv3dptr);
+	RNA_id_pointer_create((ID*)pylong_as_voidptr_typesafe(pyrv3d), &rv3dptr);
 	BL::RegionView3D rv3d(rv3dptr);
 
 	/* create session */
 	BlenderSession *session;
-
-	Py_BEGIN_ALLOW_THREADS
 
 	if(rv3d) {
 		/* interactive viewport session */
@@ -109,7 +147,11 @@ static PyObject *create_func(PyObject *self, PyObject *args)
 		session = new BlenderSession(engine, userpref, data, scene);
 	}
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_save(&session->python_thread_state);
+
+	session->create();
+
+	python_thread_state_restore(&session->python_thread_state);
 
 	return PyLong_FromVoidPtr(session);
 }
@@ -123,12 +165,45 @@ static PyObject *free_func(PyObject *self, PyObject *value)
 
 static PyObject *render_func(PyObject *self, PyObject *value)
 {
-	Py_BEGIN_ALLOW_THREADS
-
 	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+
+	python_thread_state_save(&session->python_thread_state);
+
 	session->render();
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_restore(&session->python_thread_state);
+
+	Py_RETURN_NONE;
+}
+
+/* pixel_array and result passed as pointers */
+static PyObject *bake_func(PyObject *self, PyObject *args)
+{
+	PyObject *pysession, *pyobject;
+	PyObject *pypixel_array, *pyresult;
+	const char *pass_type;
+	int num_pixels, depth;
+
+	if(!PyArg_ParseTuple(args, "OOsOiiO", &pysession, &pyobject, &pass_type, &pypixel_array,  &num_pixels, &depth, &pyresult))
+		return NULL;
+
+	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(pysession);
+
+	PointerRNA objectptr;
+	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyobject), &objectptr);
+	BL::Object b_object(objectptr);
+
+	void *b_result = PyLong_AsVoidPtr(pyresult);
+
+	PointerRNA bakepixelptr;
+	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pypixel_array), &bakepixelptr);
+	BL::BakePixel b_bake_pixel(bakepixelptr);
+
+	python_thread_state_save(&session->python_thread_state);
+
+	session->bake(b_object, pass_type, b_bake_pixel, (size_t)num_pixels, depth, (float *)b_result);
+
+	python_thread_state_restore(&session->python_thread_state);
 
 	Py_RETURN_NONE;
 }
@@ -170,23 +245,24 @@ static PyObject *reset_func(PyObject *self, PyObject *args)
 	RNA_id_pointer_create((ID*)PyLong_AsVoidPtr(pyscene), &sceneptr);
 	BL::Scene b_scene(sceneptr);
 
-	Py_BEGIN_ALLOW_THREADS
+	python_thread_state_save(&session->python_thread_state);
 
 	session->reset_session(b_data, b_scene);
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_restore(&session->python_thread_state);
 
 	Py_RETURN_NONE;
 }
 
 static PyObject *sync_func(PyObject *self, PyObject *value)
 {
-	Py_BEGIN_ALLOW_THREADS
-
 	BlenderSession *session = (BlenderSession*)PyLong_AsVoidPtr(value);
+
+	python_thread_state_save(&session->python_thread_state);
+
 	session->synchronize();
 
-	Py_END_ALLOW_THREADS
+	python_thread_state_restore(&session->python_thread_state);
 
 	Py_RETURN_NONE;
 }
@@ -270,7 +346,8 @@ static PyObject *osl_update_node_func(PyObject *self, PyObject *args)
 		}
 		else if(param->type.vecsemantics == TypeDesc::POINT ||
 		        param->type.vecsemantics == TypeDesc::VECTOR ||
-		        param->type.vecsemantics == TypeDesc::NORMAL) {
+		        param->type.vecsemantics == TypeDesc::NORMAL)
+		{
 			socket_type = "NodeSocketVector";
 			data_type = BL::NodeSocket::type_VECTOR;
 
@@ -308,7 +385,12 @@ static PyObject *osl_update_node_func(PyObject *self, PyObject *args)
 		/* find socket socket */
 		BL::NodeSocket b_sock(PointerRNA_NULL);
 		if (param->isoutput) {
+#if OSL_LIBRARY_VERSION_CODE < 10500
 			b_sock = b_node.outputs[param->name];
+#else
+			b_sock = b_node.outputs[param->name.string()];
+#endif
+
 			
 			/* remove if type no longer matches */
 			if(b_sock && b_sock.bl_idname() != socket_type) {
@@ -317,7 +399,11 @@ static PyObject *osl_update_node_func(PyObject *self, PyObject *args)
 			}
 		}
 		else {
+#if OSL_LIBRARY_VERSION_CODE < 10500
 			b_sock = b_node.inputs[param->name];
+#else
+			b_sock = b_node.inputs[param->name.string()];
+#endif
 			
 			/* remove if type no longer matches */
 			if(b_sock && b_sock.bl_idname() != socket_type) {
@@ -403,6 +489,7 @@ static PyMethodDef methods[] = {
 	{"create", create_func, METH_VARARGS, ""},
 	{"free", free_func, METH_O, ""},
 	{"render", render_func, METH_O, ""},
+	{"bake", bake_func, METH_VARARGS, ""},
 	{"draw", draw_func, METH_VARARGS, ""},
 	{"sync", sync_func, METH_O, ""},
 	{"reset", reset_func, METH_VARARGS, ""},
@@ -475,11 +562,25 @@ void *CCL_python_module_init()
 	PyObject *mod = PyModule_Create(&ccl::module);
 
 #ifdef WITH_OSL
+	/* TODO(sergey): This gives us library we've been linking against.
+	 *               In theory with dynamic OSL library it might not be
+	 *               accurate, but there's nothing in OSL API which we
+	 *               might use to get version in runtime.
+	 */
+	int curversion = OSL_LIBRARY_VERSION_CODE;
 	PyModule_AddObject(mod, "with_osl", Py_True);
 	Py_INCREF(Py_True);
+	PyModule_AddObject(mod, "osl_version",
+	                   Py_BuildValue("(iii)",
+	                                  curversion / 10000, (curversion / 100) % 100, curversion % 100));
+	PyModule_AddObject(mod, "osl_version_string",
+	                   PyUnicode_FromFormat("%2d, %2d, %2d",
+	                                        curversion / 10000, (curversion / 100) % 100, curversion % 100));
 #else
 	PyModule_AddObject(mod, "with_osl", Py_False);
 	Py_INCREF(Py_False);
+	PyModule_AddStringConstant(mod, "osl_version", "unknown");
+	PyModule_AddStringConstant(mod, "osl_version_string", "unknown");
 #endif
 
 #ifdef WITH_NETWORK

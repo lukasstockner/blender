@@ -25,6 +25,7 @@ not associated with blenders internal data.
 
 __all__ = (
     "blend_paths",
+    "escape_identifier",
     "keyconfig_set",
     "load_scripts",
     "modules_from_path",
@@ -43,14 +44,22 @@ __all__ = (
     "script_paths",
     "smpte_from_frame",
     "smpte_from_seconds",
+    "units",
     "unregister_class",
     "unregister_module",
     "user_resource",
     )
 
-from _bpy import register_class, unregister_class, blend_paths, resource_path
+from _bpy import (
+    escape_identifier,
+    register_class,
+    unregister_class,
+    blend_paths,
+    resource_path,
+    )
 from _bpy import script_paths as _bpy_script_paths
 from _bpy import user_resource as _user_resource
+from _bpy import _utils_units as units
 
 import bpy as _bpy
 import os as _os
@@ -420,7 +429,7 @@ def time_from_frame(frame, fps=None, fps_base=None):
     :arg frame: number.
     :type frame: the frame number
     :return: the time in seconds.
-    :rtype: timedate.timedelta
+    :rtype: datetime.timedelta
     """
 
     if fps is None:
@@ -431,18 +440,18 @@ def time_from_frame(frame, fps=None, fps_base=None):
 
     from datetime import timedelta
 
-    return timedelta((frame * fps_base) / fps)
+    return timedelta(0, (frame * fps_base) / fps)
 
 
 def time_to_frame(time, fps=None, fps_base=None):
     """
     Returns a float frame number from a time given in seconds or
-    as a timedate.timedelta object.
+    as a datetime.timedelta object.
 
     If *fps* and *fps_base* are not given the current scene is used.
 
     :arg time: time in seconds.
-    :type time: number or a timedate.timedelta object
+    :type time: number or a datetime.timedelta object
     :return: the frame.
     :rtype: float
     """
@@ -494,10 +503,10 @@ def keyconfig_set(filepath, report=None):
     keyconfigs_old = keyconfigs[:]
 
     try:
-        keyfile = open(filepath)
-        exec(compile(keyfile.read(), filepath, "exec"), {"__file__": filepath})
-        keyfile.close()
         error_msg = ""
+        with open(filepath, 'r', encoding='utf-8') as keyfile:
+            exec(compile(keyfile.read(), filepath, "exec"),
+                 {"__file__": filepath})
     except:
         import traceback
         error_msg = traceback.format_exc()

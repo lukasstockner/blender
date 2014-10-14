@@ -112,6 +112,10 @@ void MESH_OT_screw(struct wmOperatorType *ot);
 /* *** editmesh_inset.c *** */
 void MESH_OT_inset(struct wmOperatorType *ot);
 
+/* *** editmesh_intersect.c *** */
+void MESH_OT_intersect(struct wmOperatorType *ot);
+void MESH_OT_face_split_by_edges(struct wmOperatorType *ot);
+
 
 /* *** editmesh_knife.c *** */
 void MESH_OT_knife_tool(struct wmOperatorType *ot);
@@ -128,10 +132,12 @@ void MESH_OT_loopcut(struct wmOperatorType *ot);
 
 /* *** editmesh_rip.c *** */
 void MESH_OT_rip(struct wmOperatorType *ot);
+void MESH_OT_rip_edge(struct wmOperatorType *ot);
 
 
 /* *** editmesh_select.c *** */
 void MESH_OT_select_similar(struct wmOperatorType *ot);
+void MESH_OT_select_similar_region(struct wmOperatorType *ot);
 void MESH_OT_select_mode(struct wmOperatorType *ot);
 void MESH_OT_loop_multi_select(struct wmOperatorType *ot);
 void MESH_OT_loop_select(struct wmOperatorType *ot);
@@ -184,6 +190,7 @@ void MESH_OT_uvs_reverse(struct wmOperatorType *ot);
 void MESH_OT_colors_rotate(struct wmOperatorType *ot);
 void MESH_OT_colors_reverse(struct wmOperatorType *ot);
 void MESH_OT_delete(struct wmOperatorType *ot);
+void MESH_OT_delete_loose(struct wmOperatorType *ot);
 void MESH_OT_edge_collapse(struct wmOperatorType *ot);
 void MESH_OT_faces_shade_smooth(struct wmOperatorType *ot);
 void MESH_OT_faces_shade_flat(struct wmOperatorType *ot);
@@ -209,6 +216,7 @@ void MESH_OT_dissolve_edges(struct wmOperatorType *ot);
 void MESH_OT_dissolve_faces(struct wmOperatorType *ot);
 void MESH_OT_dissolve_mode(struct wmOperatorType *ot);
 void MESH_OT_dissolve_limited(struct wmOperatorType *ot);
+void MESH_OT_dissolve_degenerate(struct wmOperatorType *ot);
 void MESH_OT_delete_edgeloop(struct wmOperatorType *ot);
 void MESH_OT_edge_face_add(struct wmOperatorType *ot);
 void MESH_OT_duplicate(struct wmOperatorType *ot);

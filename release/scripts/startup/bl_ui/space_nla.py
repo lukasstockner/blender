@@ -35,16 +35,27 @@ class NLA_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("NLA_MT_view")
-            row.menu("NLA_MT_select")
-            row.menu("NLA_MT_marker")
-            row.menu("NLA_MT_edit")
-            row.menu("NLA_MT_add")
+        NLA_MT_editor_menus.draw_collapsible(context, layout)
 
         dopesheet_filter(layout, context)
 
         layout.prop(st, "auto_snap", text="")
+
+
+class NLA_MT_editor_menus(Menu):
+    bl_idname = "NLA_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        layout.menu("NLA_MT_view")
+        layout.menu("NLA_MT_select")
+        layout.menu("NLA_MT_marker")
+        layout.menu("NLA_MT_edit")
+        layout.menu("NLA_MT_add")
 
 
 class NLA_MT_view(Menu):
@@ -63,12 +74,14 @@ class NLA_MT_view(Menu):
         layout.prop(st, "show_frame_indicator")
 
         layout.prop(st, "show_seconds")
+        layout.prop(st, "show_locked_time")
 
         layout.prop(st, "show_strip_curves")
 
         layout.separator()
         layout.operator("anim.previewrange_set")
         layout.operator("anim.previewrange_clear")
+        layout.operator("nla.previewrange_set")
 
         layout.separator()
         layout.operator("nla.view_all")
@@ -121,7 +134,8 @@ class NLA_MT_edit(Menu):
         layout.operator_menu_enum("nla.snap", "type", text="Snap")
 
         layout.separator()
-        layout.operator("nla.duplicate")
+        layout.operator("nla.duplicate", text="Duplicate")
+        layout.operator("nla.duplicate", text="Linked Duplicate").linked = True
         layout.operator("nla.split")
         layout.operator("nla.delete")
 
@@ -134,6 +148,9 @@ class NLA_MT_edit(Menu):
         layout.operator("nla.action_sync_length").active = False
 
         layout.separator()
+        layout.operator("nla.make_single_user")
+
+        layout.separator()
         layout.operator("nla.swap")
         layout.operator("nla.move_up")
         layout.operator("nla.move_down")
@@ -141,6 +158,7 @@ class NLA_MT_edit(Menu):
         # TODO: this really belongs more in a "channel" (or better, "track") menu
         layout.separator()
         layout.operator_menu_enum("anim.channels_move", "direction", text="Track Ordering...")
+        layout.operator("anim.channels_clean_empty")
 
         layout.separator()
         # TODO: names of these tools for 'tweak-mode' need changing?

@@ -88,7 +88,7 @@ public:
 
 	void createVertexColorSource(std::string geom_id, Mesh *me);
 
-	std::string makeTexcoordSourceId(std::string& geom_id, int layer_index);
+	std::string makeTexcoordSourceId(std::string& geom_id, int layer_index, bool is_single_layer);
 
 	//creates <source> for texcoords
 	void createTexcoordsSource(std::string geom_id, Mesh *me);
@@ -100,7 +100,8 @@ public:
 	void create_normals(std::vector<Normal> &nor, std::vector<BCPolygonNormalsIndices> &ind, Mesh *me);
 	
 	std::string getIdBySemantics(std::string geom_id, COLLADASW::InputSemantic::Semantics type, std::string other_suffix = "");
-	
+	std::string makeVertexColorSourceId(std::string& geom_id, char *layer_name);
+
 	COLLADASW::URI getUrlBySemantics(std::string geom_id, COLLADASW::InputSemantic::Semantics type, std::string other_suffix = "");
 
 	COLLADASW::URI makeUrl(std::string id);

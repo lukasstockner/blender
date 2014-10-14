@@ -79,12 +79,12 @@ typedef struct Eyedropper {
 	PropertyRNA *prop;
 	int index;
 
-	int   accum_start; /* has mouse been presed */
+	bool  accum_start; /* has mouse been presed */
 	float accum_col[3];
 	int   accum_tot;
 } Eyedropper;
 
-static int eyedropper_init(bContext *C, wmOperator *op)
+static bool eyedropper_init(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	Eyedropper *eye;
@@ -95,11 +95,11 @@ static int eyedropper_init(bContext *C, wmOperator *op)
 
 	if ((eye->ptr.data == NULL) ||
 	    (eye->prop == NULL) ||
-	    (RNA_property_editable(&eye->ptr, eye->prop) == FALSE) ||
+	    (RNA_property_editable(&eye->ptr, eye->prop) == false) ||
 	    (RNA_property_array_length(&eye->ptr, eye->prop) < 3) ||
 	    (RNA_property_type(eye->prop) != PROP_FLOAT))
 	{
-		return FALSE;
+		return false;
 	}
 
 	if (RNA_property_subtype(eye->prop) == PROP_COLOR) {
@@ -109,7 +109,7 @@ static int eyedropper_init(bContext *C, wmOperator *op)
 		eye->display = IMB_colormanagement_display_get_named(display_device);
 	}
 
-	return TRUE;
+	return true;
 }
 
 static void eyedropper_exit(bContext *C, wmOperator *op)
@@ -149,7 +149,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
 
-					if (ED_space_image_color_sample(sima, ar, mval, r_col)) {
+					if (ED_space_image_color_sample(CTX_data_scene(C), sima, ar, mval, r_col)) {
 						return;
 					}
 				}
@@ -161,7 +161,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
 
-					if (ED_space_node_color_sample(snode, ar, mval, r_col)) {
+					if (ED_space_node_color_sample(CTX_data_scene(C), snode, ar, mval, r_col)) {
 						return;
 					}
 				}
@@ -173,7 +173,7 @@ static void eyedropper_color_sample_fl(bContext *C, Eyedropper *UNUSED(eye), int
 					int mval[2] = {mx - ar->winrct.xmin,
 					               my - ar->winrct.ymin};
 
-					if (ED_space_clip_color_sample(sc, ar, mval, r_col)) {
+					if (ED_space_clip_color_sample(CTX_data_scene(C), sc, ar, mval, r_col)) {
 						return;
 					}
 				}
@@ -257,7 +257,7 @@ static int eyedropper_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			}
 			else if (event->val == KM_PRESS) {
 				/* enable accum and make first sample */
-				eye->accum_start = TRUE;
+				eye->accum_start = true;
 				eyedropper_color_sample_accum(C, eye, event->x, event->y);
 			}
 			break;
@@ -476,8 +476,9 @@ static void datadropper_id_sample_pt(bContext *C, DataDropper *ddr, int mx, int 
 			if (sa->spacetype == SPACE_VIEW3D) {
 				ARegion *ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
 				if (ar && BLI_rcti_isect_pt(&ar->winrct, mx, my)) {
-					int mval[2] = {mx - ar->winrct.xmin,
-					               my - ar->winrct.ymin};
+					const int mval[2] = {
+					    mx - ar->winrct.xmin,
+					    my - ar->winrct.ymin};
 					Base *base;
 
 					CTX_wm_area_set(C, sa);

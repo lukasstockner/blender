@@ -41,10 +41,8 @@
 
 
 #include "BKE_cdderivedmesh.h"
-#include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_particle.h"
-#include "BKE_scene.h"
 
 #include "MOD_util.h"
 
@@ -73,15 +71,15 @@ static void freeData(ModifierData *md)
 }
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	ParticleSystemModifierData *psmd = (ParticleSystemModifierData *) md;
+#endif
 	ParticleSystemModifierData *tpsmd = (ParticleSystemModifierData *) target;
+
+	modifier_copyData_generic(md, target);
 
 	tpsmd->dm = NULL;
 	tpsmd->totdmvert = tpsmd->totdmedge = tpsmd->totdmface = 0;
-	//tpsmd->facepa = 0;
-	tpsmd->flag = psmd->flag;
-	/* need to keep this to recognise a bit later in BKE_object_copy */
-	tpsmd->psys = psmd->psys;
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)

@@ -26,6 +26,8 @@
 
 /** \file blender/windowmanager/intern/wm_init_exit.c
  *  \ingroup wm
+ *
+ * Manage initializing resources and correctly shutting down.
  */
 
 #include <stdlib.h>
@@ -37,12 +39,10 @@
 #endif
 
 #include "MEM_guardedalloc.h"
-#include "MEM_CacheLimiterC-Api.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
@@ -54,13 +54,12 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
+#include "BLO_writefile.h"
+
 #include "BKE_blender.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
-#include "BKE_curve.h"
-#include "BKE_displist.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_font.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -69,10 +68,10 @@
 #include "BKE_report.h"
 
 #include "BKE_addon.h"
-#include "BKE_packedFile.h"
 #include "BKE_sequencer.h" /* free seq clipboard */
 #include "BKE_material.h" /* clear_matcopybuf */
 #include "BKE_tracking.h" /* free tracking clipboard */
+#include "BKE_mask.h" /* free mask clipboard */
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"        /* RE_ free stuff */
@@ -113,6 +112,7 @@
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_draw.h"
+#include "GPU_init_exit.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_sound.h"
@@ -120,11 +120,17 @@
 
 static void wm_init_reports(bContext *C)
 {
-	BKE_reports_init(CTX_wm_reports(C), RPT_STORE);
+	ReportList *reports = CTX_wm_reports(C);
+
+	BLI_assert(!reports || BLI_listbase_is_empty(&reports->list));
+
+	BKE_reports_init(reports, RPT_STORE);
 }
 static void wm_free_reports(bContext *C)
 {
-	BKE_reports_clear(CTX_wm_reports(C));
+	ReportList *reports = CTX_wm_reports(C);
+
+	BKE_reports_clear(reports);
 }
 
 bool wm_start_with_console = false; /* used in creator.c */
@@ -158,6 +164,9 @@ void WM_init(bContext *C, int argc, const char **argv)
 	BLF_init(11, U.dpi); /* Please update source/gamengine/GamePlayer/GPG_ghost.cpp if you change this */
 	BLF_lang_init();
 
+	/* Enforce loading the UI for the initial homefile */
+	G.fileflags &= ~G_FILE_NO_UI;
+
 	/* get the default database, plus a wm */
 	wm_homefile_read(C, NULL, G.factory_startup, NULL);
 	
@@ -181,13 +190,16 @@ void WM_init(bContext *C, int argc, const char **argv)
 	(void)argv; /* unused */
 #endif
 
+	ED_spacemacros_init();
+
 	if (!G.background && !wm_start_with_console)
 		GHOST_toggleConsole(3);
 
 	wm_init_reports(C); /* reports cant be initialized before the wm */
 
 	if (!G.background) {
-		GPU_extensions_init();
+		GPU_init();
+
 		GPU_set_mipmap(!(U.gameflags & USER_DISABLE_MIPMAP));
 		GPU_set_anisotropic(U.anisotropic_filter);
 		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
@@ -230,6 +242,7 @@ void WM_init(bContext *C, int argc, const char **argv)
 		 *
 		 * unlikely any handlers are set but its possible,
 		 * note that recovering the last session does its own callbacks. */
+		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_VERSION_UPDATE);
 		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 	}
 }
@@ -398,11 +411,18 @@ void WM_exit_ext(bContext *C, const bool do_python)
 			if ((U.uiflag2 & USER_KEEP_SESSION) || BKE_undo_valid(NULL)) {
 				/* save the undo state as quit.blend */
 				char filename[FILE_MAX];
-				
-				BLI_make_file_string("/", filename, BLI_temporary_dir(), BLENDER_QUIT_FILE);
+				bool has_edited;
+				int fileflags = G.fileflags & ~(G_FILE_COMPRESS | G_FILE_AUTOPLAY | G_FILE_LOCK | G_FILE_SIGN | G_FILE_HISTORY);
 
-				if (BKE_undo_save_file(filename))
+				BLI_make_file_string("/", filename, BLI_temp_dir_base(), BLENDER_QUIT_FILE);
+
+				has_edited = ED_editors_flush_edits(C, false);
+
+				if ((has_edited && BLO_write_file(CTX_data_main(C), filename, fileflags, NULL, NULL)) ||
+				    BKE_undo_save_file(filename))
+				{
 					printf("Saved session recovery to '%s'\n", filename);
+				}
 			}
 		}
 		
@@ -447,6 +467,7 @@ void WM_exit_ext(bContext *C, const bool do_python)
 
 	BKE_sequencer_free_clipboard(); /* sequencer.c */
 	BKE_tracking_clipboard_free();
+	BKE_mask_clipboard_free();
 		
 #ifdef WITH_COMPOSITOR
 	COM_deinitialize();
@@ -489,9 +510,12 @@ void WM_exit_ext(bContext *C, const bool do_python)
 	(void)do_python;
 #endif
 
-	GPU_global_buffer_pool_free();
-	GPU_free_unused_buffers();
-	GPU_extensions_exit();
+	if (!G.background) {
+		GPU_global_buffer_pool_free();
+		GPU_free_unused_buffers();
+
+		GPU_exit();
+	}
 
 	BKE_reset_undo(); 
 	
@@ -518,20 +542,23 @@ void WM_exit_ext(bContext *C, const bool do_python)
 		MEM_printmemlist();
 	}
 	wm_autosave_delete();
-	
-	printf("\nBlender quit\n");
-	
-#ifdef WIN32   
-	/* ask user to press a key when in debug mode */
-	if (G.debug & G_DEBUG) {
-		printf("Press any key to exit . . .\n\n");
-		wait_for_console_key();
-	}
-#endif 
+
+	BLI_temp_dir_session_purge();
 }
 
 void WM_exit(bContext *C)
 {
 	WM_exit_ext(C, 1);
-	exit(G.is_break == TRUE);
+
+	printf("\nBlender quit\n");
+
+#ifdef WIN32
+	/* ask user to press a key when in debug mode */
+	if (G.debug & G_DEBUG) {
+		printf("Press any key to exit . . .\n\n");
+		wait_for_console_key();
+	}
+#endif
+
+	exit(G.is_break == true);
 }

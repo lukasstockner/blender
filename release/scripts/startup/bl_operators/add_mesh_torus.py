@@ -22,7 +22,6 @@ from bpy.types import Operator
 
 from bpy.props import (FloatProperty,
                        IntProperty,
-                       BoolProperty,
                        )
 from bpy.app.translations import pgettext_data as data_
 
@@ -168,7 +167,7 @@ class AddTorus(Operator, object_utils.AddObjectHelper):
         col.prop(self, 'minor_segments', text="")
 
         col = layout.column(align=True)
-        col.label(text="Torus Dimentions")
+        col.label(text="Torus Dimensions")
         col.row().prop(self, 'mode', expand=True)
 
         if self.mode == 'MAJOR_MINOR':

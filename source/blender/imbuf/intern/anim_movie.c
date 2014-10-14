@@ -67,14 +67,12 @@
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 #include "BLI_path_util.h"
-#include "BLI_math_base.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "DNA_userdef_types.h"
 
 #include "BKE_global.h"
-#include "BKE_depsgraph.h"
 
 #include "imbuf.h"
 
@@ -147,7 +145,8 @@ static void free_anim_movie(struct anim *UNUSED(anim))
 static int an_stringdec(const char *string, char *head, char *tail, unsigned short *numlen)
 {
 	unsigned short len, nume, nums = 0;
-	short i, found = FALSE;
+	short i;
+	bool found = false;
 
 	len = strlen(string);
 	nume = len;
@@ -161,7 +160,7 @@ static int an_stringdec(const char *string, char *head, char *tail, unsigned sho
 			else {
 				nume = i;
 				nums = i;
-				found = TRUE;
+				found = true;
 			}
 		}
 		else {
@@ -178,7 +177,7 @@ static int an_stringdec(const char *string, char *head, char *tail, unsigned sho
 	tail[0] = '\0';
 	strcpy(head, string);
 	*numlen = 0;
-	return TRUE;
+	return true;
 }
 
 
@@ -466,6 +465,7 @@ static int startffmpeg(struct anim *anim)
 	AVCodec *pCodec;
 	AVFormatContext *pFormatCtx = NULL;
 	AVCodecContext *pCodecCtx;
+	AVRational frame_rate;
 	int frs_num;
 	double frs_den;
 	int streamcount;
@@ -486,7 +486,7 @@ static int startffmpeg(struct anim *anim)
 	}
 
 	if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return -1;
 	}
 
@@ -507,7 +507,7 @@ static int startffmpeg(struct anim *anim)
 		}
 
 	if (videoStream == -1) {
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return -1;
 	}
 
@@ -516,23 +516,24 @@ static int startffmpeg(struct anim *anim)
 	/* Find the decoder for the video stream */
 	pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
 	if (pCodec == NULL) {
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return -1;
 	}
 
 	pCodecCtx->workaround_bugs = 1;
 
 	if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return -1;
 	}
 
+	frame_rate = av_get_r_frame_rate_compat(pFormatCtx->streams[videoStream]);
 	anim->duration = ceil(pFormatCtx->duration *
-	                      av_q2d(pFormatCtx->streams[videoStream]->r_frame_rate) /
+	                      av_q2d(frame_rate) /
 	                      AV_TIME_BASE);
 
-	frs_num = pFormatCtx->streams[videoStream]->r_frame_rate.num;
-	frs_den = pFormatCtx->streams[videoStream]->r_frame_rate.den;
+	frs_num = frame_rate.num;
+	frs_den = frame_rate.den;
 
 	frs_den *= AV_TIME_BASE;
 
@@ -565,7 +566,7 @@ static int startffmpeg(struct anim *anim)
 	anim->next_packet.stream_index = -1;
 
 	anim->pFrame = avcodec_alloc_frame();
-	anim->pFrameComplete = FALSE;
+	anim->pFrameComplete = false;
 	anim->pFrameDeinterlaced = avcodec_alloc_frame();
 	anim->pFrameRGB = avcodec_alloc_frame();
 
@@ -575,7 +576,7 @@ static int startffmpeg(struct anim *anim)
 		fprintf(stderr,
 		        "ffmpeg has changed alloc scheme ... ARGHHH!\n");
 		avcodec_close(anim->pCodecCtx);
-		av_close_input_file(anim->pFormatCtx);
+		avformat_close_input(&anim->pFormatCtx);
 		av_free(anim->pFrameRGB);
 		av_free(anim->pFrameDeinterlaced);
 		av_free(anim->pFrame);
@@ -616,7 +617,7 @@ static int startffmpeg(struct anim *anim)
 		fprintf(stderr,
 		        "Can't transform color space??? Bailing out...\n");
 		avcodec_close(anim->pCodecCtx);
-		av_close_input_file(anim->pFormatCtx);
+		avformat_close_input(&anim->pFormatCtx);
 		av_free(anim->pFrameRGB);
 		av_free(anim->pFrameDeinterlaced);
 		av_free(anim->pFrame);
@@ -688,7 +689,7 @@ static void ffmpeg_postprocess(struct anim *anim)
 		        anim->pCodecCtx->width,
 		        anim->pCodecCtx->height) < 0)
 		{
-			filter_y = TRUE;
+			filter_y = true;
 		}
 		else {
 			input = anim->pFrameDeinterlaced;
@@ -934,18 +935,18 @@ static int ffmpeg_seek_by_byte(AVFormatContext *pFormatCtx)
 	const char **p;
 
 	if (pFormatCtx->iformat->flags & AVFMT_TS_DISCONT) {
-		return TRUE;
+		return true;
 	}
 
 	p = byte_seek_list;
 
 	while (*p) {
 		if (match_format(*p++, pFormatCtx)) {
-			return TRUE;
+			return true;
 		}
 	}
 
-	return FALSE;
+	return false;
 }
 
 static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position,
@@ -970,7 +971,7 @@ static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position,
 
 	v_st = anim->pFormatCtx->streams[anim->videoStream];
 
-	frame_rate = av_q2d(v_st->r_frame_rate);
+	frame_rate = av_q2d(av_get_r_frame_rate_compat(v_st));
 
 	st_time = anim->pFormatCtx->start_time;
 	pts_time_base = av_q2d(v_st->time_base);
@@ -1045,7 +1046,7 @@ static ImBuf *ffmpeg_fetchibuf(struct anim *anim, int position,
 			av_log(anim->pFormatCtx, AV_LOG_DEBUG, 
 			       "TC INDEX seek pos = %lld\n", pos);
 			av_log(anim->pFormatCtx, AV_LOG_DEBUG, 
-			       "TC INDEX seek dts = %lld\n", dts);
+			       "TC INDEX seek dts = %llu\n", dts);
 
 			if (ffmpeg_seek_by_byte(anim->pFormatCtx)) {
 				av_log(anim->pFormatCtx, AV_LOG_DEBUG, 
@@ -1142,7 +1143,7 @@ static void free_anim_ffmpeg(struct anim *anim)
 
 	if (anim->pCodecCtx) {
 		avcodec_close(anim->pCodecCtx);
-		av_close_input_file(anim->pFormatCtx);
+		avformat_close_input(&anim->pFormatCtx);
 		av_free(anim->pFrameRGB);
 		av_free(anim->pFrame);
 
@@ -1423,15 +1424,15 @@ int IMB_anim_get_duration(struct anim *anim, IMB_Timecode_Type tc)
 	return IMB_indexer_get_duration(idx);
 }
 
-int IMB_anim_get_fps(struct anim *anim,
+bool IMB_anim_get_fps(struct anim *anim,
                      short *frs_sec, float *frs_sec_base)
 {
 	if (anim->frs_sec) {
 		*frs_sec = anim->frs_sec;
 		*frs_sec_base = anim->frs_sec_base;
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 void IMB_anim_set_preseek(struct anim *anim, int preseek)

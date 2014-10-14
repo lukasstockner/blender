@@ -33,88 +33,61 @@
 
 #ifndef __KERNEL_GPU__
 
-#define ccl_device static inline
+#  ifdef NDEBUG
+#    define ccl_device static inline
+#  else
+#    define ccl_device static
+#  endif
 #define ccl_device_noinline static
 #define ccl_global
 #define ccl_constant
+#define __KERNEL_WITH_SSE_ALIGN__
 
 #if defined(_WIN32) && !defined(FREE_WINDOWS)
 #define ccl_device_inline static __forceinline
-#ifdef __KERNEL_64_BIT__
 #define ccl_align(...) __declspec(align(__VA_ARGS__))
+#ifdef __KERNEL_64_BIT__
+#define ccl_try_align(...) __declspec(align(__VA_ARGS__))
 #else
-#define ccl_align(...) /* not support for function arguments (error C2719) */
+#undef __KERNEL_WITH_SSE_ALIGN__
+#define ccl_try_align(...) /* not support for function arguments (error C2719) */
 #endif
 #define ccl_may_alias
+#  ifdef NDEBUG
+#    define ccl_always_inline __forceinline
+#  else
+#    define ccl_always_inline
+#  endif
+#define ccl_maybe_unused
+
 #else
+
 #define ccl_device_inline static inline __attribute__((always_inline))
+#define ccl_align(...) __attribute__((aligned(__VA_ARGS__)))
 #ifndef FREE_WINDOWS64
 #define __forceinline inline __attribute__((always_inline))
 #endif
-#define ccl_align(...) __attribute__((aligned(__VA_ARGS__)))
+#define ccl_try_align(...) __attribute__((aligned(__VA_ARGS__)))
 #define ccl_may_alias __attribute__((__may_alias__))
-#endif
+#define ccl_always_inline __attribute__((always_inline))
+#define ccl_maybe_unused __attribute__((used))
 
 #endif
 
-/* SIMD Types */
+#endif
+
+/* Standard Integer Types */
 
 #ifndef __KERNEL_GPU__
-
-/* not enabled, globally applying it gives slowdown, only for testing. */
-#if 0
-#define __KERNEL_SSE__
-#ifndef __KERNEL_SSE2__
-#define __KERNEL_SSE2__
-#endif
-#ifndef __KERNEL_SSE3__
-#define __KERNEL_SSE3__
-#endif
-#ifndef __KERNEL_SSSE3__
-#define __KERNEL_SSSE3__
-#endif
-#ifndef __KERNEL_SSE4__
-#define __KERNEL_SSE4__
-#endif
-#endif
-
-/* SSE2 is always available on x86_64 CPUs, so auto enable */
-#if defined(__x86_64__) && !defined(__KERNEL_SSE2__)
-#define __KERNEL_SSE2__
-#endif
-
-/* SSE intrinsics headers */
-#ifndef FREE_WINDOWS64
-
-#ifdef __KERNEL_SSE2__
-#include <xmmintrin.h> /* SSE 1 */
-#include <emmintrin.h> /* SSE 2 */
-#endif
-
-#ifdef __KERNEL_SSE3__
-#include <pmmintrin.h> /* SSE 3 */
-#endif
-
-#ifdef __KERNEL_SSSE3__
-#include <tmmintrin.h> /* SSSE 3 */
-#endif
-
-#ifdef __KERNEL_SSE41__
-#include <smmintrin.h> /* SSE 4.1 */
-#endif
-
-#else
-
-/* MinGW64 has conflicting declarations for these SSE headers in <windows.h>.
- * Since we can't avoid including <windows.h>, better only include that */
-#include <windows.h>
-
-#endif
 
 /* int8_t, uint16_t, and friends */
 #ifndef _WIN32
 #include <stdint.h>
 #endif
+
+/* SIMD Types */
+
+#include "util_optimization.h"
 
 #endif
 
@@ -195,8 +168,8 @@ struct int2 {
 	__forceinline int& operator[](int i) { return *(&x + i); }
 };
 
+struct ccl_try_align(16) int3 {
 #ifdef __KERNEL_SSE__
-struct ccl_align(16) int3 {
 	union {
 		__m128i m128;
 		struct { int x, y, z, w; };
@@ -207,7 +180,6 @@ struct ccl_align(16) int3 {
 	__forceinline operator const __m128i&(void) const { return m128; }
 	__forceinline operator __m128i&(void) { return m128; }
 #else
-struct ccl_align(16) int3 {
 	int x, y, z, w;
 #endif
 
@@ -215,8 +187,8 @@ struct ccl_align(16) int3 {
 	__forceinline int& operator[](int i) { return *(&x + i); }
 };
 
+struct ccl_try_align(16) int4 {
 #ifdef __KERNEL_SSE__
-struct ccl_align(16) int4 {
 	union {
 		__m128i m128;
 		struct { int x, y, z, w; };
@@ -227,7 +199,6 @@ struct ccl_align(16) int4 {
 	__forceinline operator const __m128i&(void) const { return m128; }
 	__forceinline operator __m128i&(void) { return m128; }
 #else
-struct ccl_align(16) int4 {
 	int x, y, z, w;
 #endif
 
@@ -263,8 +234,8 @@ struct float2 {
 	__forceinline float& operator[](int i) { return *(&x + i); }
 };
 
+struct ccl_try_align(16) float3 {
 #ifdef __KERNEL_SSE__
-struct ccl_align(16) float3 {
 	union {
 		__m128 m128;
 		struct { float x, y, z, w; };
@@ -275,7 +246,6 @@ struct ccl_align(16) float3 {
 	__forceinline operator const __m128&(void) const { return m128; }
 	__forceinline operator __m128&(void) { return m128; }
 #else
-struct ccl_align(16) float3 {
 	float x, y, z, w;
 #endif
 
@@ -283,8 +253,8 @@ struct ccl_align(16) float3 {
 	__forceinline float& operator[](int i) { return *(&x + i); }
 };
 
+struct ccl_try_align(16) float4 {
 #ifdef __KERNEL_SSE__
-struct ccl_align(16) float4 {
 	union {
 		__m128 m128;
 		struct { float x, y, z, w; };
@@ -295,7 +265,6 @@ struct ccl_align(16) float4 {
 	__forceinline operator const __m128&(void) const { return m128; }
 	__forceinline operator __m128&(void) { return m128; }
 #else
-struct ccl_align(16) float4 {
 	float x, y, z, w;
 #endif
 
@@ -486,127 +455,51 @@ ccl_device_inline int4 make_int4(const float3& f)
 
 #endif
 
-#ifdef __KERNEL_SSE2__
+/* Interpolation types for textures
+ * cuda also use texture space to store other objects */
+enum InterpolationType {
+	INTERPOLATION_NONE = -1,
+	INTERPOLATION_LINEAR = 0,
+	INTERPOLATION_CLOSEST = 1,
+	INTERPOLATION_CUBIC = 2,
+	INTERPOLATION_SMART = 3,
+};
 
-/* SSE shuffle utility functions */
+/* macros */
 
-#ifdef __KERNEL_SSSE3__
-
-/* faster version for SSSE3 */
-typedef __m128i shuffle_swap_t;
-
-ccl_device_inline const shuffle_swap_t shuffle_swap_identity(void)
-{
-	return _mm_set_epi8(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-}
-
-ccl_device_inline const shuffle_swap_t shuffle_swap_swap(void)
-{
-	return _mm_set_epi8(7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8);
-}
-
-ccl_device_inline const __m128 shuffle_swap(const __m128& a, const shuffle_swap_t& shuf)
-{
-	return _mm_castsi128_ps(_mm_shuffle_epi8(_mm_castps_si128(a), shuf));
-}
-
+/* hints for branch prediction, only use in code that runs a _lot_ */
+#if defined(__GNUC__) && defined(__KERNEL_CPU__)
+#  define LIKELY(x)       __builtin_expect(!!(x), 1)
+#  define UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #else
-
-/* somewhat slower version for SSE2 */
-typedef int shuffle_swap_t;
-
-ccl_device_inline const shuffle_swap_t shuffle_swap_identity(void)
-{
-	return 0;
-}
-
-ccl_device_inline const shuffle_swap_t shuffle_swap_swap(void)
-{
-	return 1;
-}
-
-ccl_device_inline const __m128 shuffle_swap(const __m128& a, shuffle_swap_t shuf)
-{
-	/* shuffle value must be a constant, so we need to branch */
-	if(shuf)
-		return _mm_shuffle_ps(a, a, _MM_SHUFFLE(1, 0, 3, 2));
-	else
-		return _mm_shuffle_ps(a, a, _MM_SHUFFLE(3, 2, 1, 0));
-}
-
+#  define LIKELY(x)       (x)
+#  define UNLIKELY(x)     (x)
 #endif
 
-template<size_t i0, size_t i1, size_t i2, size_t i3> ccl_device_inline const __m128 shuffle(const __m128& a, const __m128& b)
-{
-	return _mm_shuffle_ps(a, b, _MM_SHUFFLE(i3, i2, i1, i0));
-}
+/* Causes warning:
+ * incompatible types when assigning to type 'Foo' from type 'Bar'
+ * ... the compiler optimizes away the temp var */
+#ifdef __GNUC__
+#define CHECK_TYPE(var, type)  {  \
+	typeof(var) *__tmp;         \
+	__tmp = (type *)NULL;         \
+	(void)__tmp;                  \
+} (void)0
 
-template<size_t i0, size_t i1, size_t i2, size_t i3> ccl_device_inline const __m128 shuffle(const __m128& b)
-{
-	return _mm_castsi128_ps(_mm_shuffle_epi32(_mm_castps_si128(b), _MM_SHUFFLE(i3, i2, i1, i0)));
-}
-#endif
-
-/* Half Floats */
-
-#ifdef __KERNEL_OPENCL__
-
-#define float4_store_half(h, f, scale) vstore_half4(*(f) * (scale), 0, h);
-
+#define CHECK_TYPE_PAIR(var_a, var_b)  {  \
+	typeof(var_a) *__tmp;                 \
+	__tmp = (typeof(var_b) *)NULL;        \
+	(void)__tmp;                          \
+} (void)0
 #else
-
-typedef unsigned short half;
-struct half4 { half x, y, z, w; };
-
-#ifdef __KERNEL_CUDA__
-
-ccl_device_inline void float4_store_half(half *h, const float4 *f, float scale)
-{
-	h[0] = __float2half_rn(f->x * scale);
-	h[1] = __float2half_rn(f->y * scale);
-	h[2] = __float2half_rn(f->z * scale);
-	h[3] = __float2half_rn(f->w * scale);
-}
-
-#else
-
-ccl_device_inline void float4_store_half(half *h, const float4 *f, float scale)
-{
-#ifndef __KERNEL_SSE2__
-	for(int i = 0; i < 4; i++) {
-		/* optimized float to half for pixels:
-		 * assumes no negative, no nan, no inf, and sets denormal to 0 */
-		union { uint i; float f; } in;
-		in.f = ((*f)[i] > 0.0f)? (*f)[i] * scale: 0.0f;
-		int x = in.i;
-
-		int absolute = x & 0x7FFFFFFF;
-		int Z = absolute + 0xC8000000;
-		int result = (absolute < 0x38800000)? 0: Z;
-
-		h[i] = ((result >> 13) & 0x7FFF);
-	}
-#else
-	/* same as above with SSE */
-	const __m128 mm_scale = _mm_set_ps1(scale);
-	const __m128i mm_38800000 = _mm_set1_epi32(0x38800000);
-	const __m128i mm_7FFF = _mm_set1_epi32(0x7FFF);
-	const __m128i mm_7FFFFFFF = _mm_set1_epi32(0x7FFFFFFF);
-	const __m128i mm_C8000000 = _mm_set1_epi32(0xC8000000);
-
-	__m128i x = _mm_castps_si128(_mm_max_ps(_mm_mul_ps(*(__m128*)f, mm_scale), _mm_set_ps1(0.0f)));
-	__m128i absolute = _mm_and_si128(x, mm_7FFFFFFF);
-	__m128i Z = _mm_add_epi32(absolute, mm_C8000000);
-	__m128i result = _mm_andnot_si128(_mm_cmplt_epi32(absolute, mm_38800000), Z); 
-	__m128i rh = _mm_and_si128(_mm_srai_epi32(result, 13), mm_7FFF);
-
-	_mm_storel_pi((__m64*)h, _mm_castsi128_ps(_mm_packs_epi32(rh, rh)));
-#endif
-}
-
+#  define CHECK_TYPE(var, type)
+#  define CHECK_TYPE_PAIR(var_a, var_b)
 #endif
 
-#endif
+/* can be used in simple macros */
+#define CHECK_TYPE_INLINE(val, type) \
+	((void)(((type)0) != (val)))
+
 
 CCL_NAMESPACE_END
 

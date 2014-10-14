@@ -25,6 +25,7 @@
 #include "AppConfig.h"
 #include <iostream>
 
+#include "../system/FreestyleConfig.h"
 #include "../system/StringUtils.h"
 
 using namespace std;
@@ -55,7 +56,7 @@ void Path::setRootDir(const string& iRootDir)
 	                string(DIR_SEP.c_str()) + "variation_patterns" + string(DIR_SEP.c_str());
 	_BrushesPath = _ProjectDir + string(DIR_SEP.c_str()) + "data" + string(DIR_SEP.c_str()) + "textures" +
 	               string(DIR_SEP.c_str()) + "brushes" + string(DIR_SEP.c_str());
-	_PythonPath = _ProjectDir + string(DIR_SEP.c_str()) + "style_modules" + string(DIR_SEP.c_str());
+	_PythonPath = _ProjectDir + string(DIR_SEP.c_str()) + "modules" + string(DIR_SEP.c_str());
 	if (getenv("PYTHONPATH")) {
 		_PythonPath += string(PATH_SEP.c_str()) + string(getenv("PYTHONPATH"));
 	}

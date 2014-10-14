@@ -52,24 +52,24 @@
 /* Utils */
 
 #if 0
-	#define param_assert(condition)
-	#define param_warning(message)
-	#define param_test_equals_ptr(condition)
-	#define param_test_equals_int(condition)
+#  define param_assert(condition)
+#  define param_warning(message)
+#  define param_test_equals_ptr(condition)
+#  define param_test_equals_int(condition)
 #else
-	#define param_assert(condition) \
+#  define param_assert(condition) \
 		if (!(condition)) \
 			{ /*printf("Assertion %s:%d\n", __FILE__, __LINE__); abort();*/ } (void)0
-	#define param_warning(message) \
+#  define param_warning(message) \
 		{ /*printf("Warning %s:%d: %s\n", __FILE__, __LINE__, message);*/ } (void)0
-#if 0
-	#define param_test_equals_ptr(str, a, b) \
+#  if 0
+#    define param_test_equals_ptr(str, a, b) \
 		if (a != b) \
 			{ /*printf("Equals %s => %p != %p\n", str, a, b);*/ } (void)0
-	#define param_test_equals_int(str, a, b) \
+#    define param_test_equals_int(str, a, b) \
 		if (a != b) \
 			{ /*printf("Equals %s => %d != %d\n", str, a, b);*/ } (void)0
-#endif
+#  endif
 #endif
 typedef enum PBool {
 	P_TRUE = 1,
@@ -200,7 +200,7 @@ typedef struct PChart {
 		} lscm;
 		struct PChartPack {
 			float rescale, area;
-			float size[2], trans[2];
+			float size[2] /* , trans[2] */;
 		} pack;
 	} u;
 
@@ -372,7 +372,7 @@ static float p_vec_angle(float *v1, float *v2, float *v3)
 	else if (dot >= 1.0f)
 		return 0.0f;
 	else
-		return (float)acos(dot);
+		return acosf(dot);
 }
 
 static float p_vec2_angle(float *v1, float *v2, float *v3)
@@ -433,7 +433,7 @@ static float p_edge_length(PEdge *e)
 	d[1] = v2->co[1] - v1->co[1];
 	d[2] = v2->co[2] - v1->co[2];
 
-	return sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+	return sqrtf(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
 }
 
 static float p_edge_uv_length(PEdge *e)
@@ -444,7 +444,7 @@ static float p_edge_uv_length(PEdge *e)
 	d[0] = v2->uv[0] - v1->uv[0];
 	d[1] = v2->uv[1] - v1->uv[1];
 
-	return sqrt(d[0] * d[0] + d[1] * d[1]);
+	return sqrtf(d[0] * d[0] + d[1] * d[1]);
 }
 
 static void p_chart_uv_bbox(PChart *chart, float minv[2], float maxv[2])
@@ -493,7 +493,7 @@ static void p_chart_uv_transform(PChart *chart, float mat[2][2])
 	PVert *v;
 
 	for (v = chart->verts; v; v = v->nextlink) {
-		mul_v2_m2v2(v->uv, mat, v->uv);
+		mul_m2v2(mat, v->uv);
 	}
 }
 
@@ -1100,7 +1100,7 @@ static PFace *p_face_add(PHandle *handle)
 }
 
 static PFace *p_face_add_construct(PHandle *handle, ParamKey key, ParamKey *vkeys,
-                                   float *co[3], float *uv[3], int i1, int i2, int i3,
+                                   float *co[4], float *uv[4], int i1, int i2, int i3,
                                    ParamBool *pin, ParamBool *select)
 {
 	PFace *f = p_face_add(handle);
@@ -1886,7 +1886,7 @@ static PBool p_collapse_allowed_geometric(PEdge *edge, PEdge *pair)
 
 	if (p_vert_interior(oldv)) {
 		/* hlscm criterion: angular defect smaller than threshold */
-		if (fabs(angulardefect) > (M_PI * 30.0 / 180.0))
+		if (fabsf(angulardefect) > (float)(M_PI * 30.0 / 180.0))
 			return P_FALSE;
 	}
 	else {
@@ -1952,7 +1952,7 @@ static float p_collapse_cost(PEdge *edge, PEdge *pair)
 			sub_v3_v3v3(tetrav3, co2, oldv->co);
 			cross_v3_v3v3(c, tetrav2, tetrav3);
 
-			volumecost += fabs(dot_v3v3(edgevec, c) / 6.0f);
+			volumecost += fabsf(dot_v3v3(edgevec, c) / 6.0f);
 #if 0
 			shapecost += dot_v3v3(co1, keepv->co);
 
@@ -2353,8 +2353,8 @@ static void p_abf_compute_sines(PAbfSystem *sys)
 	float *sine = sys->sine, *cosine = sys->cosine, *alpha = sys->alpha;
 
 	for (i = 0; i < sys->nangles; i++, sine++, cosine++, alpha++) {
-		*sine = sin(*alpha);
-		*cosine = cos(*alpha);
+		*sine = sinf(*alpha);
+		*cosine = cosf(*alpha);
 	}
 }
 
@@ -2821,9 +2821,9 @@ static void p_chart_pin_positions(PChart *chart, PVert **pin1, PVert **pin2)
 		float sub[3];
 
 		sub_v3_v3v3(sub, (*pin1)->co, (*pin2)->co);
-		sub[0] = fabs(sub[0]);
-		sub[1] = fabs(sub[1]);
-		sub[2] = fabs(sub[2]);
+		sub[0] = fabsf(sub[0]);
+		sub[1] = fabsf(sub[1]);
+		sub[2] = fabsf(sub[2]);
 
 		if ((sub[0] > sub[1]) && (sub[0] > sub[2])) {
 			dirx = 0;
@@ -2956,7 +2956,7 @@ static PBool p_chart_symmetry_pins(PChart *chart, PEdge *outer, PVert **pin1, PV
 
 	p_chart_pin_positions(chart, pin1, pin2);
 
-	return P_TRUE;
+	return !equals_v3v3((*pin1)->co, (*pin2)->co);
 }
 
 static void p_chart_extrema_verts(PChart *chart, PVert **pin1, PVert **pin2)
@@ -3163,9 +3163,9 @@ static PBool p_chart_lscm_solve(PHandle *handle, PChart *chart)
 			SWAP(PVert *, v2, v3);
 		}
 
-		sina1 = sin(a1);
-		sina2 = sin(a2);
-		sina3 = sin(a3);
+		sina1 = sinf(a1);
+		sina2 = sinf(a2);
+		sina3 = sinf(a3);
 
 		sinmax = max_fff(sina1, sina2, sina3);
 
@@ -3314,7 +3314,7 @@ static float p_face_stretch(PFace *f)
 	a = dot_v3v3(Ps, Ps);
 	c = dot_v3v3(Pt, Pt);
 
-	T =  sqrt(0.5f * (a + c));
+	T =  sqrtf(0.5f * (a + c));
 	if (f->flag & PFACE_FILLED)
 		T *= 0.2f;
 
@@ -3630,8 +3630,8 @@ static float p_chart_minimum_area_angle(PChart *chart)
 static void p_chart_rotate_minimum_area(PChart *chart)
 {
 	float angle = p_chart_minimum_area_angle(chart);
-	float sine = sin(angle);
-	float cosine = cos(angle);
+	float sine = sinf(angle);
+	float cosine = cosf(angle);
 	PVert *v;
 
 	for (v = chart->verts; v; v = v->nextlink) {
@@ -4045,7 +4045,7 @@ static void p_smooth(PChart *chart)
 					diff[0] = p[0] - oldp[0];
 					diff[1] = p[1] - oldp[1];
 
-					length = sqrt(diff[0] * diff[0] + diff[1] * diff[1]);
+					length = len_v2(diff);
 					d = max_ff(d, length);
 					moved += length;
 				}
@@ -4148,7 +4148,7 @@ ParamHandle *param_construct_begin(void)
 	handle->arena = BLI_memarena_new(MEM_SIZE_OPTIMAL(1 << 16), "param construct arena");
 	handle->aspx = 1.0f;
 	handle->aspy = 1.0f;
-	handle->do_aspect = FALSE;
+	handle->do_aspect = false;
 
 	handle->hash_verts = phash_new((PHashLink **)&handle->construction_chart->verts, 1);
 	handle->hash_edges = phash_new((PHashLink **)&handle->construction_chart->edges, 1);
@@ -4163,7 +4163,7 @@ void param_aspect_ratio(ParamHandle *handle, float aspx, float aspy)
 
 	phandle->aspx = aspx;
 	phandle->aspy = aspy;
-	phandle->do_aspect = TRUE;
+	phandle->do_aspect = true;
 }
 
 void param_delete(ParamHandle *handle)
@@ -4250,7 +4250,7 @@ static void p_add_ngon(ParamHandle *handle, ParamKey key, int nverts,
 }
 
 void param_face_add(ParamHandle *handle, ParamKey key, int nverts,
-                    ParamKey *vkeys, float **co, float **uv,
+                    ParamKey *vkeys, float *co[4], float *uv[4],
                     ParamBool *pin, ParamBool *select, float normal[3])
 {
 	PHandle *phandle = (PHandle *)handle;
@@ -4559,7 +4559,7 @@ void param_pack(ParamHandle *handle, float margin, bool do_rotate)
 		box->index = i; /* warning this index skips PCHART_NOPACK boxes */
 		
 		if (margin > 0.0f)
-			area += sqrt(box->w * box->h);
+			area += sqrtf(box->w * box->h);
 	}
 	
 	if (margin > 0.0f) {
@@ -4661,7 +4661,7 @@ void param_average(ParamHandle *handle)
 			
 			/* Move center to 0,0 */
 			p_chart_uv_translate(chart, trans);
-			p_chart_uv_scale(chart, sqrt(fac / tot_fac));
+			p_chart_uv_scale(chart, sqrtf(fac / tot_fac));
 			
 			/* Move to original center */
 			trans[0] = -trans[0];

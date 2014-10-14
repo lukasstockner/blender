@@ -84,7 +84,7 @@ EditBone *ED_armature_edit_bone_add(bArmature *arm, const char *name)
 	return bone;
 }
 
-void add_primitive_bone(Object *obedit_arm, bool view_aligned)
+EditBone *ED_armature_edit_bone_add_primitive(Object *obedit_arm, float length, bool view_aligned)
 {
 	bArmature *arm = obedit_arm->data;
 	EditBone *bone;
@@ -99,10 +99,9 @@ void add_primitive_bone(Object *obedit_arm, bool view_aligned)
 	zero_v3(bone->head);
 	zero_v3(bone->tail);
 
-	if (view_aligned)
-		bone->tail[1] = 1.0f;
-	else
-		bone->tail[2] = 1.0f;
+	bone->tail[view_aligned ? 1 : 2] = length;
+
+	return bone;
 }
 
 
@@ -312,7 +311,7 @@ void updateDuplicateSubtargetObjects(EditBone *dupBone, ListBase *editbones, Obj
 				/* does this constraint have a subtarget in
 				 * this armature?
 				 */
-				bConstraintTypeInfo *cti = BKE_constraint_get_typeinfo(curcon);
+				bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(curcon);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				
@@ -527,7 +526,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 	bArmature *arm;
 	EditBone *newbone, *ebone, *flipbone, *first = NULL;
 	int a, totbone = 0, do_extrude;
-	int forked = RNA_boolean_get(op->ptr, "forked");
+	bool forked = RNA_boolean_get(op->ptr, "forked");
 
 	obedit = CTX_data_edit_object(C);
 	arm = obedit->data;
@@ -548,9 +547,9 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 	for (ebone = arm->edbo->first; ((ebone) && (ebone != first)); ebone = ebone->next) {
 		if (EBONE_VISIBLE(arm, ebone)) {
 			/* we extrude per definition the tip */
-			do_extrude = FALSE;
+			do_extrude = false;
 			if (ebone->flag & (BONE_TIPSEL | BONE_SELECTED)) {
-				do_extrude = TRUE;
+				do_extrude = true;
 			}
 			else if (ebone->flag & BONE_ROOTSEL) {
 				/* but, a bone with parent deselected we do the root... */
@@ -589,7 +588,7 @@ static int armature_extrude_exec(bContext *C, wmOperator *op)
 					totbone++;
 					newbone = MEM_callocN(sizeof(EditBone), "extrudebone");
 					
-					if (do_extrude == TRUE) {
+					if (do_extrude == true) {
 						copy_v3_v3(newbone->head, ebone->tail);
 						copy_v3_v3(newbone->tail, newbone->head);
 						newbone->parent = ebone;
@@ -789,11 +788,13 @@ static int armature_subdivide_exec(bContext *C, wmOperator *op)
 			copy_v3_v3(newbone->tail, ebone->tail);
 			copy_v3_v3(ebone->tail, newbone->head);
 			
-			newbone->rad_head = 0.5f * (ebone->rad_head + ebone->rad_tail);
+			newbone->rad_head = ((ebone->rad_head * cutratio) + (ebone->rad_tail * cutratioI));
 			ebone->rad_tail = newbone->rad_head;
 			
 			newbone->flag |= BONE_CONNECTED;
-			
+
+			newbone->prop = NULL;
+
 			unique_editbone_name(arm->edbo, newbone->name, NULL);
 			
 			/* correct parent bones */

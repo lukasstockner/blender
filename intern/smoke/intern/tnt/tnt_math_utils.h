@@ -7,10 +7,6 @@
 /* needed for fabs, sqrt() below */
 #include <cmath>
 
-#ifdef _WIN32
-#define hypot _hypot
-#endif
-
 namespace TNT
 {
 /**

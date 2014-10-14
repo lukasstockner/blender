@@ -60,13 +60,15 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	SubsurfModifierData *smd = (SubsurfModifierData *) md;
+#endif
 	SubsurfModifierData *tsmd = (SubsurfModifierData *) target;
 
-	tsmd->flags = smd->flags;
-	tsmd->levels = smd->levels;
-	tsmd->renderLevels = smd->renderLevels;
-	tsmd->subdivType = smd->subdivType;
+	modifier_copyData_generic(md, target);
+
+	tsmd->emCache = tsmd->mCache = NULL;
+
 }
 
 static void freeData(ModifierData *md)
@@ -96,8 +98,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	SubsurfModifierData *smd = (SubsurfModifierData *) md;
 	SubsurfFlags subsurf_flags = 0;
 	DerivedMesh *result;
-	const int useRenderParams = flag & MOD_APPLY_RENDER;
-	const int isFinalCalc = flag & MOD_APPLY_USECACHE;
+	const bool useRenderParams = (flag & MOD_APPLY_RENDER) != 0;
+	const bool isFinalCalc = (flag & MOD_APPLY_USECACHE) != 0;
 
 	if (useRenderParams)
 		subsurf_flags |= SUBSURF_USE_RENDER_PARAMS;

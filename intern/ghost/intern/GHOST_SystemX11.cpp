@@ -55,6 +55,7 @@
 #include <X11/Xatom.h>
 #include <X11/keysym.h>
 #include <X11/XKBlib.h> /* allow detectable autorepeate */
+#include <X11/Xutil.h>
 
 #ifdef WITH_XF86KEYSYM
 #include <X11/XF86keysym.h>
@@ -85,9 +86,9 @@ using namespace std;
 
 GHOST_SystemX11::
 GHOST_SystemX11(
-    ) :
-	GHOST_System(),
-	m_start_time(0)
+        )
+    : GHOST_System(),
+      m_start_time(0)
 {
 	m_display = XOpenDisplay(NULL);
 	
@@ -140,6 +141,8 @@ GHOST_SystemX11(
 #undef GHOST_INTERN_ATOM
 
 	m_last_warp = 0;
+	m_last_release_keycode = 0;
+	m_last_release_time = 0;
 
 	/* compute the initial time */
 	timeval tv;
@@ -243,7 +246,7 @@ getMainDisplayDimensions(
 {
 	if (m_display) {
 		/* note, for this to work as documented,
-		 * we would need to use Xinerama check r54370 for code that did thia,
+		 * we would need to use Xinerama check r54370 for code that did this,
 		 * we've since removed since its not worth the extra dep - campbell */
 		getAllDisplayDimensions(width, height);
 	}
@@ -525,6 +528,16 @@ processEvents(
 				continue;
 			}
 #endif
+			/* when using autorepeat, some keypress events can actually come *after* the
+			 * last keyrelease. The next code takes care of that */
+			if (xevent.type == KeyRelease) {
+				m_last_release_keycode = xevent.xkey.keycode;
+				m_last_release_time = xevent.xkey.time;
+			}
+			else if (xevent.type == KeyPress) {
+				if ((xevent.xkey.keycode == m_last_release_keycode) && ((xevent.xkey.time <= m_last_release_time)))
+					continue;
+			}
 
 			processEvent(&xevent);
 			anyProcessed = true;
@@ -583,7 +596,7 @@ processEvents(
 		}
 
 #ifdef WITH_INPUT_NDOF
-		if (dynamic_cast<GHOST_NDOFManagerX11 *>(m_ndofManager)->processEvents()) {
+		if (static_cast<GHOST_NDOFManagerX11 *>(m_ndofManager)->processEvents()) {
 			anyProcessed = true;
 		}
 #endif
@@ -658,7 +671,7 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 #ifdef WITH_X11_XINPUT
 	/* Proximity-Out Events are not reliable, if the tablet is active - check on each event
 	 * this adds a little overhead but only while the tablet is in use.
-	 * in the futire we could have a ghost call window->CheckTabletProximity()
+	 * in the future we could have a ghost call window->CheckTabletProximity()
 	 * but for now enough parts of the code are checking 'Active'
 	 * - campbell */
 	if (window->GetTabletData()->Active != GHOST_kTabletModeNone) {
@@ -755,7 +768,7 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 		case KeyRelease:
 		{
 			XKeyEvent *xke = &(xe->xkey);
-			KeySym key_sym = XLookupKeysym(xke, 0);
+			KeySym key_sym;
 			char ascii;
 #if defined(WITH_X11_XINPUT) && defined(X_HAVE_UTF8_STRING)
 			/* utf8_array[] is initial buffer used for Xutf8LookupString().
@@ -771,7 +784,29 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 			char *utf8_buf = NULL;
 #endif
 			
-			GHOST_TKey gkey = convertXKey(key_sym);
+			GHOST_TKey gkey;
+
+			/* In keyboards like latin ones,
+			 * numbers needs a 'Shift' to be accessed but key_sym
+			 * is unmodified (or anyone swapping the keys with xmodmap).
+			 *
+			 * Here we look at the 'Shifted' version of the key.
+			 * If it is a number, then we take it instead of the normal key.
+			 *
+			 * The modified key is sent in the 'ascii's variable anyway.
+			 */
+			if ((xke->keycode >= 10 && xke->keycode < 20) &&
+			    ((key_sym = XLookupKeysym(xke, ShiftMask)) >= XK_0) && (key_sym <= XK_9))
+			{
+				/* pass (keep shift'ed key_sym) */
+			}
+			else {
+				/* regular case */
+				key_sym = XLookupKeysym(xke, 0);
+			}
+
+			gkey = convertXKey(key_sym);
+
 			GHOST_TEventType type = (xke->type == KeyPress) ? 
 			                        GHOST_kEventKeyDown : GHOST_kEventKeyUp;
 			
@@ -902,6 +937,10 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 			 * you can re-order button mapping like this... (swaps 6,7 with 8,9)
 			 *   xmodmap -e "pointer = 1 2 3 4 5 8 9 6 7"
 			 */
+			else if (xbe.button == 6)
+				gbmask = GHOST_kButtonMaskButton6;
+			else if (xbe.button == 7)
+				gbmask = GHOST_kButtonMaskButton7;
 			else if (xbe.button == 8)
 				gbmask = GHOST_kButtonMaskButton4;
 			else if (xbe.button == 9)
@@ -1144,21 +1183,44 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 #ifdef WITH_X11_XINPUT
 			if (xe->type == m_xtablet.MotionEvent) {
 				XDeviceMotionEvent *data = (XDeviceMotionEvent *)xe;
+				const unsigned char axis_first = data->first_axis;
+				const unsigned char axes_end = axis_first + data->axes_count;  /* after the last */
+				int axis_value;
 
 				/* stroke might begin without leading ProxyIn event,
 				 * this happens when window is opened when stylus is already hovering
 				 * around tablet surface */
 				setTabletMode(this, window, data->deviceid);
 
-				window->GetTabletData()->Pressure =
-				        data->axis_data[2] / ((float)m_xtablet.PressureLevels);
+				/* Note: This event might be generated with incomplete dataset (don't exactly know why, looks like in
+				 *       some cases, if the value does not change, it is not included in subsequent XDeviceMotionEvent
+				 *       events). So we have to check which values this event actually contains!
+				 */
 
-				/* the (short) cast and the &0xffff is bizarre and unexplained anywhere,
-				 * but I got garbage data without it. Found it in the xidump.c source --matt */
-				window->GetTabletData()->Xtilt =
-				        (short)(data->axis_data[3] & 0xffff) / ((float)m_xtablet.XtiltLevels);
-				window->GetTabletData()->Ytilt =
-				        (short)(data->axis_data[4] & 0xffff) / ((float)m_xtablet.YtiltLevels);
+#define AXIS_VALUE_GET(axis, val)  ((axis_first <= axis && axes_end > axis) && ((void)(val = data->axis_data[axis]), true))
+
+				if (AXIS_VALUE_GET(2, axis_value)) {
+					window->GetTabletData()->Pressure = axis_value / ((float)m_xtablet.PressureLevels);
+				}
+
+				/* the (short) cast and the & 0xffff is bizarre and unexplained anywhere,
+				 * but I got garbage data without it. Found it in the xidump.c source --matt
+				 *
+				 * The '& 0xffff' just truncates the value to its two lowest bytes, this probably means
+				 * some drivers do not properly set the whole int value? Since we convert to float afterward,
+				 * I don't think we need to cast to short here, but do not have a device to check this. --mont29
+				 */
+				if (AXIS_VALUE_GET(3, axis_value)) {
+					window->GetTabletData()->Xtilt = (short)(axis_value & 0xffff) /
+					                                 ((float)m_xtablet.XtiltLevels);
+				}
+				if (AXIS_VALUE_GET(4, axis_value)) {
+					window->GetTabletData()->Ytilt = (short)(axis_value & 0xffff) /
+					                                 ((float)m_xtablet.YtiltLevels);
+				}
+
+#undef AXIS_VALUE_GET
+
 			}
 			else if (xe->type == m_xtablet.ProxInEvent) {
 				XProximityNotifyEvent *data = (XProximityNotifyEvent *)xe;
@@ -1190,7 +1252,7 @@ getModifierKeys(
 
 	XQueryKeymap(m_display, (char *)m_keyboard_vector);
 
-	/* now translate key symobols into keycodes and
+	/* now translate key symbols into keycodes and
 	 * test with vector. */
 
 	const static KeyCode shift_l = XKeysymToKeycode(m_display, XK_Shift_L);

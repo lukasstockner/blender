@@ -23,8 +23,8 @@
 #include "DNA_node_types.h"
 
 extern "C" {
-	#include "DNA_movieclip_types.h"
-	#include "DNA_node_types.h"
+#  include "DNA_movieclip_types.h"
+#  include "DNA_node_types.h"
 }
 
 /**
@@ -34,5 +34,5 @@ extern "C" {
 class PlaneTrackDeformNode : public Node {
 public:
 	PlaneTrackDeformNode(bNode *editorNode);
-	void convertToOperations(ExecutionSystem *graph, CompositorContext *context);
+	void convertToOperations(NodeConverter &converter, const CompositorContext &context) const;
 };

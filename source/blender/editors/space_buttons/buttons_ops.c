@@ -113,7 +113,7 @@ static int file_browse_exec(bContext *C, wmOperator *op)
 
 	/* add slash for directories, important for some properties */
 	if (RNA_property_subtype(fbo->prop) == PROP_DIRPATH) {
-		int is_relative = RNA_boolean_get(op->ptr, "relative_path");
+		const bool is_relative = RNA_boolean_get(op->ptr, "relative_path");
 		id = fbo->ptr.id.data;
 
 		BLI_strncpy(path, str, FILE_MAX);
@@ -239,6 +239,8 @@ void BUTTONS_OT_file_browse(wmOperatorType *ot)
 	ot->exec = file_browse_exec;
 	ot->cancel = file_browse_cancel;
 
+	ot->flag |= OPTYPE_UNDO;
+
 	/* properties */
 	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
@@ -256,6 +258,8 @@ void BUTTONS_OT_directory_browse(wmOperatorType *ot)
 	ot->invoke = file_browse_invoke;
 	ot->exec = file_browse_exec;
 	ot->cancel = file_browse_cancel;
+
+	ot->flag |= OPTYPE_UNDO;
 
 	/* properties */
 	WM_operator_properties_filesel(ot, 0, FILE_SPECIAL, FILE_OPENFILE,

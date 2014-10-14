@@ -78,7 +78,7 @@ static void applyarmature_fix_boneparents(Scene *scene, Object *armob)
 			/* apply current transform from parent (not yet destroyed), 
 			 * then calculate new parent inverse matrix
 			 */
-			BKE_object_apply_mat4(ob, ob->obmat, FALSE, FALSE);
+			BKE_object_apply_mat4(ob, ob->obmat, false, false);
 			
 			BKE_object_workob_calc_parent(scene, ob, &workob);
 			invert_m4_m4(ob->parentinv, workob.obmat);
@@ -112,7 +112,7 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 		           "transforms stored are relative to the old rest pose");
 
 	/* Get editbones of active armature to alter */
-	ED_armature_to_edit(ob);
+	ED_armature_to_edit(arm);
 	
 	/* get pose of active object and move it out of posemode */
 	pose = ob->pose;
@@ -160,8 +160,8 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 	}
 	
 	/* convert editbones back to bones, and then free the edit-data */
-	ED_armature_from_edit(ob);
-	ED_armature_edit_free(ob);
+	ED_armature_from_edit(arm);
+	ED_armature_edit_free(arm);
 	
 	/* flush positions of posebones */
 	BKE_pose_where_is(scene, ob);
@@ -213,8 +213,12 @@ static int pose_visual_transform_apply_exec(bContext *C, wmOperator *UNUSED(op))
 		 * new raw-transform components, don't recalc the poses yet, otherwise IK result will 
 		 * change, thus changing the result we may be trying to record.
 		 */
-		copy_m4_m4(delta_mat, pchan->chan_mat);
-		BKE_pchan_apply_mat4(pchan, delta_mat, TRUE);
+		/* XXX For some reason, we can't use pchan->chan_mat here, gives odd rotation/offset (see T38251).
+		 *     Using pchan->pose_mat and bringing it back in bone space seems to work as expected!
+		 */
+		BKE_armature_mat_pose_to_bone(pchan, pchan->pose_mat, delta_mat);
+		
+		BKE_pchan_apply_mat4(pchan, delta_mat, true);
 	}
 	CTX_DATA_END;
 	
@@ -286,15 +290,16 @@ static void set_pose_keys(Object *ob)
 	}
 }
 
-/* perform paste pose, for a single bone 
- * < ob: object where bone to paste to lives
- * < chan: bone that pose to paste comes from
- * < selOnly: only paste on selected bones
- * < flip: flip on x-axis
+/**
+ * Perform paste pose, for a single bone.
  *
- * > returns: whether the bone that we pasted to if we succeeded
+ * \param ob Object where bone to paste to lives
+ * \param chan Bone that pose to paste comes from
+ * \param selOnly Only paste on selected bones
+ * \param flip Flip on x-axis
+ * \return Whether the bone that we pasted to if we succeeded
  */
-static bPoseChannel *pose_bone_do_paste(Object *ob, bPoseChannel *chan, short selOnly, short flip)
+static bPoseChannel *pose_bone_do_paste(Object *ob, bPoseChannel *chan, const bool selOnly, const bool flip)
 {
 	bPoseChannel *pchan;
 	char name[MAXBONENAME];
@@ -455,8 +460,8 @@ static int pose_paste_exec(bContext *C, wmOperator *op)
 	Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
 	Scene *scene = CTX_data_scene(C);
 	bPoseChannel *chan;
-	int flip = RNA_boolean_get(op->ptr, "flipped");
-	int selOnly = RNA_boolean_get(op->ptr, "selected_mask");
+	const bool flip = RNA_boolean_get(op->ptr, "flipped");
+	bool selOnly = RNA_boolean_get(op->ptr, "selected_mask");
 
 	/* get KeyingSet to use */
 	KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
@@ -517,10 +522,10 @@ void POSE_OT_paste(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
 	/* properties */
-	prop = RNA_def_boolean(ot->srna, "flipped", FALSE, "Flipped on X-Axis", "Paste the stored pose flipped on to current pose");
+	prop = RNA_def_boolean(ot->srna, "flipped", false, "Flipped on X-Axis", "Paste the stored pose flipped on to current pose");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
-	RNA_def_boolean(ot->srna, "selected_mask", FALSE, "On Selected Only", "Only paste the stored pose on to selected bones in the current pose");
+	RNA_def_boolean(ot->srna, "selected_mask", false, "On Selected Only", "Only paste the stored pose on to selected bones in the current pose");
 }
 
 /* ********************************************** */
@@ -808,7 +813,7 @@ static int pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = CTX_data_active_object(C);
 	float cframe = (float)CFRA;
-	const short only_select = RNA_boolean_get(op->ptr, "only_selected");
+	const bool only_select = RNA_boolean_get(op->ptr, "only_selected");
 	
 	if ((ob->adt) && (ob->adt->action)) {
 		/* XXX: this is just like this to avoid contaminating anything else; 
@@ -875,5 +880,5 @@ void POSE_OT_user_transforms_clear(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	RNA_def_boolean(ot->srna, "only_selected", TRUE, "Only Selected", "Only visible/selected bones");
+	RNA_def_boolean(ot->srna, "only_selected", true, "Only Selected", "Only visible/selected bones");
 }

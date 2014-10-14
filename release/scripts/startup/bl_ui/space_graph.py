@@ -35,12 +35,7 @@ class GRAPH_HT_header(Header):
         row = layout.row(align=True)
         row.template_header()
 
-        if context.area.show_menus:
-            row.menu("GRAPH_MT_view")
-            row.menu("GRAPH_MT_select")
-            row.menu("GRAPH_MT_marker")
-            row.menu("GRAPH_MT_channel")
-            row.menu("GRAPH_MT_key")
+        GRAPH_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.prop(st, "mode", text="")
 
@@ -52,7 +47,7 @@ class GRAPH_HT_header(Header):
         row.prop(st, "use_auto_normalization", text="Auto")
 
         layout.prop(st, "auto_snap", text="")
-        layout.prop(st, "pivot_point", text="", icon_only=True)
+        layout.prop(st, "pivot_point", icon_only=True)
 
         row = layout.row(align=True)
         row.operator("graph.copy", text="", icon='COPYDOWN')
@@ -63,6 +58,22 @@ class GRAPH_HT_header(Header):
             row.operator("graph.ghost_curves_clear", text="", icon='GHOST_DISABLED')
         else:
             row.operator("graph.ghost_curves_create", text="", icon='GHOST_ENABLED')
+
+
+class GRAPH_MT_editor_menus(Menu):
+    bl_idname = "GRAPH_MT_editor_menus"
+    bl_label = ""
+
+    def draw(self, context):
+        self.draw_menus(self.layout, context)
+
+    @staticmethod
+    def draw_menus(layout, context):
+        layout.menu("GRAPH_MT_view")
+        layout.menu("GRAPH_MT_select")
+        layout.menu("GRAPH_MT_marker")
+        layout.menu("GRAPH_MT_channel")
+        layout.menu("GRAPH_MT_key")
 
 
 class GRAPH_MT_view(Menu):
@@ -94,6 +105,7 @@ class GRAPH_MT_view(Menu):
         layout.prop(st, "use_only_selected_keyframe_handles")
 
         layout.prop(st, "show_seconds")
+        layout.prop(st, "show_locked_time")
 
         layout.separator()
         layout.operator("anim.previewrange_set")
@@ -202,8 +214,8 @@ class GRAPH_MT_key(Menu):
         layout.operator_menu_enum("graph.mirror", "type", text="Mirror")
 
         layout.separator()
-        layout.operator("graph.keyframe_insert")
-        layout.operator("graph.fmodifier_add")
+        layout.operator_menu_enum("graph.keyframe_insert", "type")
+        layout.operator_menu_enum("graph.fmodifier_add", "type")
         layout.operator("graph.sound_bake")
 
         layout.separator()
@@ -216,6 +228,7 @@ class GRAPH_MT_key(Menu):
         layout.separator()
         layout.operator_menu_enum("graph.handle_type", "type", text="Handle Type")
         layout.operator_menu_enum("graph.interpolation_type", "type", text="Interpolation Mode")
+        layout.operator_menu_enum("graph.easing_type", "type", text="Easing Type")
 
         layout.separator()
         layout.operator("graph.clean")

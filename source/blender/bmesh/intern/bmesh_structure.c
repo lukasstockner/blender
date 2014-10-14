@@ -40,29 +40,6 @@
  *	MISC utility functions.
  */
 
-bool bmesh_vert_in_edge(const BMEdge *e, const BMVert *v)
-{
-	if (e->v1 == v || e->v2 == v) return true;
-	return false;
-}
-bool bmesh_verts_in_edge(const BMVert *v1, const BMVert *v2, const BMEdge *e)
-{
-	if (e->v1 == v1 && e->v2 == v2) return true;
-	else if (e->v1 == v2 && e->v2 == v1) return true;
-	return false;
-}
-
-BMVert *bmesh_edge_other_vert_get(BMEdge *e, BMVert *v)
-{
-	if (e->v1 == v) {
-		return e->v2;
-	}
-	else if (e->v2 == v) {
-		return e->v1;
-	}
-	return NULL;
-}
-
 bool bmesh_edge_swapverts(BMEdge *e, BMVert *v_orig, BMVert *v_new)
 {
 	if (e->v1 == v_orig) {
@@ -131,6 +108,7 @@ bool bmesh_edge_swapverts(BMEdge *e, BMVert *v_orig, BMVert *v_new)
  * - #bmesh_radial_append
  * - #bmesh_radial_loop_remove
  * - #bmesh_radial_facevert_count
+ * - #bmesh_radial_facevert_check
  * - #bmesh_radial_faceloop_find_first
  * - #bmesh_radial_faceloop_find_next
  * - #bmesh_radial_validate
@@ -152,17 +130,6 @@ bool bmesh_edge_swapverts(BMEdge *e, BMVert *v_orig, BMVert *v_new)
  * advantage is that no intrinsic properties of the data structures are dependent upon the
  * cycle order and all non-manifold conditions are represented trivially.
  */
-
-BLI_INLINE BMDiskLink *bmesh_disk_edge_link_from_vert(BMEdge *e, BMVert *v)
-{
-	if (v == e->v1) {
-		return &e->v1_disk_link;
-	}
-	else {
-		BLI_assert(v == e->v2);
-		return &e->v2_disk_link;
-	}
-}
 
 void bmesh_disk_edge_append(BMEdge *e, BMVert *v)
 {
@@ -209,31 +176,6 @@ void bmesh_disk_edge_remove(BMEdge *e, BMVert *v)
 	dl1->next = dl1->prev = NULL;
 }
 
-/**
- * \brief Next Disk Edge
- *
- * Find the next edge in a disk cycle
- *
- * \return Pointer to the next edge in the disk cycle for the vertex v.
- */
-BMEdge *bmesh_disk_edge_next(const BMEdge *e, const BMVert *v)
-{
-	if (v == e->v1)
-		return e->v1_disk_link.next;
-	if (v == e->v2)
-		return e->v2_disk_link.next;
-	return NULL;
-}
-
-BMEdge *bmesh_disk_edge_prev(const BMEdge *e, const BMVert *v)
-{
-	if (v == e->v1)
-		return e->v1_disk_link.prev;
-	if (v == e->v2)
-		return e->v2_disk_link.prev;
-	return NULL;
-}
-
 BMEdge *bmesh_disk_edge_exists(const BMVert *v1, const BMVert *v2)
 {
 	BMEdge *e_iter, *e_first;
@@ -242,7 +184,7 @@ BMEdge *bmesh_disk_edge_exists(const BMVert *v1, const BMVert *v2)
 		e_first = e_iter = v1->e;
 
 		do {
-			if (bmesh_verts_in_edge(v1, v2, e_iter)) {
+			if (BM_verts_in_edge(v1, v2, e_iter)) {
 				return e_iter;
 			}
 		} while ((e_iter = bmesh_disk_edge_next(e_iter, v1)) != e_first);
@@ -253,28 +195,15 @@ BMEdge *bmesh_disk_edge_exists(const BMVert *v1, const BMVert *v2)
 
 int bmesh_disk_count(const BMVert *v)
 {
+	int count = 0;
 	if (v->e) {
 		BMEdge *e_first, *e_iter;
-		int count = 0;
-
 		e_iter = e_first = v->e;
-
 		do {
-			if (!e_iter) {
-				return 0;
-			}
-
-			if (count >= (1 << 20)) {
-				printf("bmesh error: infinite loop in disk cycle!\n");
-				return 0;
-			}
 			count++;
 		} while ((e_iter = bmesh_disk_edge_next(e_iter, v)) != e_first);
-		return count;
 	}
-	else {
-		return 0;
-	}
+	return count;
 }
 
 bool bmesh_disk_validate(int len, BMEdge *e, BMVert *v)
@@ -337,7 +266,7 @@ BMEdge *bmesh_disk_faceedge_find_first(const BMEdge *e, const BMVert *v)
 {
 	const BMEdge *e_find = e;
 	do {
-		if (e_find->l && bmesh_radial_facevert_count(e_find->l, v)) {
+		if (e_find->l && bmesh_radial_facevert_check(e_find->l, v)) {
 			return (BMEdge *)e_find;
 		}
 	} while ((e_find = bmesh_disk_edge_next(e_find, v)) != e);
@@ -347,10 +276,10 @@ BMEdge *bmesh_disk_faceedge_find_first(const BMEdge *e, const BMVert *v)
 
 BMEdge *bmesh_disk_faceedge_find_next(const BMEdge *e, const BMVert *v)
 {
-	BMEdge *e_find = NULL;
+	BMEdge *e_find;
 	e_find = bmesh_disk_edge_next(e, v);
 	do {
-		if (e_find->l && bmesh_radial_facevert_count(e_find->l, v)) {
+		if (e_find->l && bmesh_radial_facevert_check(e_find->l, v)) {
 			return e_find;
 		}
 	} while ((e_find = bmesh_disk_edge_next(e_find, v)) != e);
@@ -525,6 +454,24 @@ int bmesh_radial_facevert_count(const BMLoop *l, const BMVert *v)
 	} while ((l_iter = l_iter->radial_next) != l);
 
 	return count;
+}
+
+/**
+ * \brief RADIAL CHECK FACE VERT
+ *
+ * Quicker check for ``bmesh_radial_facevert_count(...) != 0``
+ */
+bool bmesh_radial_facevert_check(const BMLoop *l, const BMVert *v)
+{
+	const BMLoop *l_iter;
+	l_iter = l;
+	do {
+		if (l_iter->v == v) {
+			return true;
+		}
+	} while ((l_iter = l_iter->radial_next) != l);
+
+	return false;
 }
 
 /*****loop cycle functions, e.g. loops surrounding a face**** */

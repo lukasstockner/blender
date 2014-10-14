@@ -57,7 +57,6 @@
 
 #include "BLF_translation.h"
 
-#include "BKE_cloth.h"
 #include "BKE_key.h"
 #include "BKE_multires.h"
 #include "BKE_DerivedMesh.h"
@@ -172,13 +171,16 @@ bool modifier_isPreview(ModifierData *md)
 {
 	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
-	if (!(mti->flags & eModifierTypeFlag_UsesPreview))
-		return FALSE;
+	/* Constructive modifiers are highly likely to also modify data like vgroups or vcol! */
+	if (!((mti->flags & eModifierTypeFlag_UsesPreview) || (mti->type == eModifierTypeType_Constructive))) {
+		return false;
+	}
 
-	if (md->mode & eModifierMode_Realtime)
-		return TRUE;
+	if (md->mode & eModifierMode_Realtime) {
+		return true;
+	}
 
-	return FALSE;
+	return false;
 }
 
 ModifierData *modifiers_findByType(Object *ob, ModifierType type)
@@ -253,6 +255,19 @@ void modifiers_foreachTexLink(Object *ob, TexWalkFunc walk, void *userData)
 	}
 }
 
+/* callback's can use this
+ * to avoid copying every member.
+ */
+void modifier_copyData_generic(const ModifierData *md_src, ModifierData *md_dst)
+{
+	ModifierTypeInfo *mti = modifierType_getInfo(md_src->type);
+	const size_t data_size = sizeof(ModifierData);
+	const char *md_src_data = ((char *)md_src) + data_size;
+	char       *md_dst_data = ((char *)md_dst) + data_size;
+	BLI_assert(data_size <= (size_t)mti->structSize);
+	memcpy(md_dst_data, md_src_data, (size_t)mti->structSize - data_size);
+}
+
 void modifier_copyData(ModifierData *md, ModifierData *target)
 {
 	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
@@ -261,6 +276,18 @@ void modifier_copyData(ModifierData *md, ModifierData *target)
 
 	if (mti->copyData)
 		mti->copyData(md, target);
+}
+
+
+bool modifier_supportsCage(struct Scene *scene, ModifierData *md)
+{
+	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+
+	md->scene = scene;
+
+	return ((!mti->isDisabled || !mti->isDisabled(md, 0)) &&
+	        (mti->flags & eModifierTypeFlag_SupportsEditmode) &&
+	        modifier_supportsMapping(md));
 }
 
 bool modifier_couldBeCage(struct Scene *scene, ModifierData *md)
@@ -312,33 +339,39 @@ void modifier_setError(ModifierData *md, const char *_format, ...)
  * then is NULL) 
  * also used for some mesh tools to give warnings
  */
-int modifiers_getCageIndex(struct Scene *scene, Object *ob, int *lastPossibleCageIndex_r, int virtual_)
+int modifiers_getCageIndex(struct Scene *scene, Object *ob, int *r_lastPossibleCageIndex, bool is_virtual)
 {
 	VirtualModifierData virtualModifierData;
-	ModifierData *md = (virtual_) ? modifiers_getVirtualModifierList(ob, &virtualModifierData) : ob->modifiers.first;
+	ModifierData *md = (is_virtual) ? modifiers_getVirtualModifierList(ob, &virtualModifierData) : ob->modifiers.first;
 	int i, cageIndex = -1;
 
-	if (lastPossibleCageIndex_r) {
+	if (r_lastPossibleCageIndex) {
 		/* ensure the value is initialized */
-		*lastPossibleCageIndex_r = -1;
+		*r_lastPossibleCageIndex = -1;
 	}
 
 	/* Find the last modifier acting on the cage. */
 	for (i = 0; md; i++, md = md->next) {
 		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		bool supports_mapping;
 
 		md->scene = scene;
 
-		if (!(md->mode & eModifierMode_Realtime)) continue;
-		if (!(md->mode & eModifierMode_Editmode)) continue;
 		if (mti->isDisabled && mti->isDisabled(md, 0)) continue;
 		if (!(mti->flags & eModifierTypeFlag_SupportsEditmode)) continue;
 		if (md->mode & eModifierMode_DisableTemporary) continue;
 
-		if (!modifier_supportsMapping(md))
+		supports_mapping = modifier_supportsMapping(md);
+		if (r_lastPossibleCageIndex && supports_mapping) {
+			*r_lastPossibleCageIndex = i;
+		}
+
+		if (!(md->mode & eModifierMode_Realtime)) continue;
+		if (!(md->mode & eModifierMode_Editmode)) continue;
+
+		if (!supports_mapping)
 			break;
 
-		if (lastPossibleCageIndex_r) *lastPossibleCageIndex_r = i;
 		if (md->mode & eModifierMode_OnCage)
 			cageIndex = i;
 	}
@@ -381,13 +414,12 @@ bool modifier_isEnabled(struct Scene *scene, ModifierData *md, int required_mode
 
 	md->scene = scene;
 
-	if ((md->mode & required_mode) != required_mode) return 0;
-	if (mti->isDisabled && mti->isDisabled(md, required_mode == eModifierMode_Render)) return 0;
-	if (md->mode & eModifierMode_DisableTemporary) return 0;
-	if (required_mode & eModifierMode_Editmode)
-		if (!(mti->flags & eModifierTypeFlag_SupportsEditmode)) return 0;
+	if ((md->mode & required_mode) != required_mode) return false;
+	if (mti->isDisabled && mti->isDisabled(md, required_mode == eModifierMode_Render)) return false;
+	if (md->mode & eModifierMode_DisableTemporary) return false;
+	if ((required_mode & eModifierMode_Editmode) && !(mti->flags & eModifierTypeFlag_SupportsEditmode)) return false;
 	
-	return 1;
+	return true;
 }
 
 CDMaskLink *modifiers_calcDataMasks(struct Scene *scene, Object *ob, ModifierData *md,
@@ -681,7 +713,7 @@ const char *modifier_path_relbase(Object *ob)
 	else {
 		/* last resort, better then using "" which resolves to the current
 		 * working directory */
-		return BLI_temporary_dir();
+		return BLI_temp_dir_session();
 	}
 }
 
@@ -691,7 +723,7 @@ void modifier_path_init(char *path, int path_maxlen, const char *name)
 	/* elubie: changed this to default to the same dir as the render output
 	 * to prevent saving to C:\ on Windows */
 	BLI_join_dirfile(path, path_maxlen,
-	                 G.relbase_valid ? "//" : BLI_temporary_dir(),
+	                 G.relbase_valid ? "//" : BLI_temp_dir_session(),
 	                 name);
 }
 

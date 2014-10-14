@@ -73,8 +73,6 @@
 #include "BKE_report.h"
 #include "BKE_idprop.h"
 
-#include "BKE_animsys.h"
-#include "BKE_fcurve.h"
 
 #include "../generic/idprop_py_api.h" /* for IDprop lookups */
 #include "../generic/py_capi_utils.h"
@@ -606,18 +604,34 @@ PyObject *pyrna_math_object_from_array(PointerRNA *ptr, PropertyRNA *prop)
 #ifdef USE_MATHUTILS
 	int subtype, totdim;
 	int len;
-	int is_thick;
 	const int flag = RNA_property_flag(prop);
+	const int type = RNA_property_type(prop);
+	const bool is_thick = (flag & PROP_THICK_WRAP) != 0;
 
 	/* disallow dynamic sized arrays to be wrapped since the size could change
 	 * to a size mathutils does not support */
-	if ((RNA_property_type(prop) != PROP_FLOAT) || (flag & PROP_DYNAMIC))
+	if (flag & PROP_DYNAMIC) {
 		return NULL;
+	}
 
 	len = RNA_property_array_length(ptr, prop);
+	if (type == PROP_FLOAT) {
+		/* pass */
+	}
+	else if (type == PROP_INT) {
+		if (is_thick) {
+			goto thick_wrap_slice;
+		}
+		else {
+			return NULL;
+		}
+	}
+	else {
+		return NULL;
+	}
+
 	subtype = RNA_property_subtype(prop);
 	totdim = RNA_property_array_dimension(ptr, prop, NULL);
-	is_thick = (flag & PROP_THICK_WRAP);
 
 	if (totdim == 1 || (totdim == 2 && subtype == PROP_MATRIX)) {
 		if (!is_thick)
@@ -714,6 +728,7 @@ PyObject *pyrna_math_object_from_array(PointerRNA *ptr, PropertyRNA *prop)
 		if (is_thick) {
 			/* this is an array we cant reference (since its not thin wrappable)
 			 * and cannot be coerced into a mathutils type, so return as a list */
+thick_wrap_slice:
 			ret = pyrna_prop_array_subscript_slice(NULL, ptr, prop, 0, len, len);
 		}
 		else {
@@ -1126,7 +1141,7 @@ static const char *pyrna_enum_as_string(PointerRNA *ptr, PropertyRNA *prop)
 {
 	EnumPropertyItem *item;
 	const char *result;
-	int free = false;
+	bool free = false;
 
 	RNA_property_enum_items(BPy_GetContext(), ptr, prop, &item, NULL, &free);
 	if (item) {
@@ -1205,7 +1220,7 @@ static int pyrna_prop_to_enum_bitfield(PointerRNA *ptr, PropertyRNA *prop, PyObj
 {
 	EnumPropertyItem *item;
 	int ret;
-	int free = false;
+	bool free = false;
 
 	*r_value = 0;
 
@@ -1285,7 +1300,7 @@ static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 		}
 		else {
 			EnumPropertyItem *enum_item;
-			int free = false;
+			bool free = false;
 
 			/* don't throw error here, can't trust blender 100% to give the
 			 * right values, python code should not generate error for that */
@@ -1365,7 +1380,7 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 			if (subtype == PROP_BYTESTRING) {
 				ret = PyBytes_FromStringAndSize(buf, buf_len);
 			}
-			else if (ELEM3(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
+			else if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
 				ret = PyC_UnicodeFromByteAndSize(buf, buf_len);
 			}
 			else {
@@ -1631,7 +1646,7 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 					/* Unicode String */
 #ifdef USE_STRING_COERCE
 					PyObject *value_coerce = NULL;
-					if (ELEM3(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
+					if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
 						/* TODO, get size */
 						param = PyC_UnicodeAsByte(value, &value_coerce);
 					}
@@ -1920,7 +1935,6 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 				             error_prefix, RNA_struct_identifier(ptr->type),
 				             RNA_property_identifier(prop));
 				return -1;
-				break;
 		}
 	}
 
@@ -2172,7 +2186,7 @@ static int pyrna_prop_collection_subscript_str_lib_pair_ptr(BPy_PropertyRNA *sel
                                                             PointerRNA *r_ptr
                                                             )
 {
-	char *keyname;
+	const char *keyname;
 
 	/* first validate the args, all we know is that they are a tuple */
 	if (PyTuple_GET_SIZE(key) != 2) {
@@ -2315,11 +2329,10 @@ static PyObject *pyrna_prop_array_subscript_slice(BPy_PropertyArrayRNA *self, Po
 	int count, totdim;
 	PyObject *tuple;
 
-	PYRNA_PROP_CHECK_OBJ((BPy_PropertyRNA *)self);
+	/* isn't needed, internal use only */
+	// PYRNA_PROP_CHECK_OBJ((BPy_PropertyRNA *)self);
 
 	tuple = PyTuple_New(stop - start);
-
-	/* PYRNA_PROP_CHECK_OBJ(self); isn't needed, internal use only */
 
 	totdim = RNA_property_array_dimension(ptr, prop, NULL);
 
@@ -2906,7 +2919,7 @@ static int pyrna_struct_contains(BPy_StructRNA *self, PyObject *value)
 }
 
 static PySequenceMethods pyrna_prop_array_as_sequence = {
-	(lenfunc)pyrna_prop_array_length,       /* Cant set the len otherwise it can evaluate as false */
+	(lenfunc)pyrna_prop_array_length,
 	NULL,       /* sq_concat */
 	NULL,       /* sq_repeat */
 	(ssizeargfunc)pyrna_prop_array_subscript_int, /* sq_item */ /* Only set this so PySequence_Check() returns True */
@@ -2919,7 +2932,7 @@ static PySequenceMethods pyrna_prop_array_as_sequence = {
 };
 
 static PySequenceMethods pyrna_prop_collection_as_sequence = {
-	(lenfunc)pyrna_prop_collection_length,      /* Cant set the len otherwise it can evaluate as false */
+	(lenfunc)pyrna_prop_collection_length,
 	NULL,       /* sq_concat */
 	NULL,       /* sq_repeat */
 	(ssizeargfunc)pyrna_prop_collection_subscript_int, /* sq_item */ /* Only set this so PySequence_Check() returns True */
@@ -3640,7 +3653,7 @@ static int pyrna_struct_pydict_contains(PyObject *self, PyObject *pyname)
 #endif
 
 /* --------------- setattr------------------------------------------- */
-static int pyrna_is_deferred_prop(const PyObject *value)
+static bool pyrna_is_deferred_prop(const PyObject *value)
 {
 	return PyTuple_CheckExact(value) &&
 	       PyTuple_GET_SIZE(value) == 2 &&
@@ -3682,7 +3695,7 @@ static PyObject *pyrna_struct_meta_idprop_getattro(PyObject *cls, PyObject *attr
 static int pyrna_struct_meta_idprop_setattro(PyObject *cls, PyObject *attr, PyObject *value)
 {
 	StructRNA *srna = srna_from_self(cls, "StructRNA.__setattr__");
-	const int is_deferred_prop = (value && pyrna_is_deferred_prop(value));
+	const bool is_deferred_prop = (value && pyrna_is_deferred_prop(value));
 	const char *attr_str = _PyUnicode_AsString(attr);
 
 	if (srna && !pyrna_write_check() && (is_deferred_prop || RNA_struct_type_find_property(srna, attr_str))) {
@@ -4884,7 +4897,7 @@ static PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *dat
 				break;
 			case PROP_STRING:
 			{
-				char *data_ch;
+				const char *data_ch;
 				PyObject *value_coerce = NULL;
 				const int subtype = RNA_property_subtype(prop);
 
@@ -4897,7 +4910,7 @@ static PyObject *pyrna_param_to_py(PointerRNA *ptr, PropertyRNA *prop, void *dat
 				if (subtype == PROP_BYTESTRING) {
 					ret = PyBytes_FromString(data_ch);
 				}
-				else if (ELEM3(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
+				else if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME)) {
 					ret = PyC_UnicodeFromByte(data_ch);
 				}
 				else {
@@ -6234,7 +6247,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
 		/* subclass equivalents
 		 * - class myClass(myBase):
 		 *     some = 'value' # or ...
-		 * - myClass = type(name='myClass', bases=(myBase,), dict={'__module__':'bpy.types'})
+		 * - myClass = type(name='myClass', bases=(myBase,), dict={'__module__': 'bpy.types', '__slots__': ()})
 		 */
 
 		/* Assume RNA_struct_py_type_get(srna) was already checked */
@@ -6257,8 +6270,39 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
 		}
 
 		/* always use O not N when calling, N causes refcount errors */
-		newclass = PyObject_CallFunction(metaclass, (char *)"s(O) {sss()}",
+#if 0
+		newclass = PyObject_CallFunction(metaclass, "s(O) {sss()}",
 		                                 idname, py_base, "__module__", "bpy.types", "__slots__");
+#else
+		{
+			/* longhand of the call above */
+			PyObject *args, *item, *value;
+			int ok;
+
+			args = PyTuple_New(3);
+
+			/* arg[0] (name=...) */
+			PyTuple_SET_ITEM(args, 0, PyUnicode_FromString(idname));
+
+
+			/* arg[1] (bases=...) */
+			PyTuple_SET_ITEM(args, 1, item = PyTuple_New(1));
+			PyTuple_SET_ITEM(item, 0, py_base); Py_INCREF(py_base);
+
+
+			/* arg[2] (dict=...) */
+			PyTuple_SET_ITEM(args, 2, item = PyDict_New());
+			ok = PyDict_SetItem(item, bpy_intern_str___module__, bpy_intern_str_bpy_types);
+			BLI_assert(ok != -1);
+			ok = PyDict_SetItem(item, bpy_intern_str___slots__, value = PyTuple_New(0)); Py_DECREF(value);
+			BLI_assert(ok != -1);
+
+			newclass = PyObject_CallObject(metaclass, args);
+			Py_DECREF(args);
+
+			(void)ok;
+		}
+#endif
 
 		/* newclass will now have 2 ref's, ???, probably 1 is internal since decrefing here segfaults */
 
@@ -6622,6 +6666,11 @@ PyObject *BPY_rna_types(void)
 			return NULL;
 	}
 
+	/* static members for the base class */
+	/* add __name__ since help() expects its */
+	PyDict_SetItem(pyrna_basetype_Type.tp_dict, bpy_intern_str___name__, bpy_intern_str_bpy_types);
+
+
 	self = (BPy_BaseTypeRNA *)PyObject_NEW(BPy_BaseTypeRNA, &pyrna_basetype_Type);
 
 	/* avoid doing this lookup for every getattr */
@@ -6865,7 +6914,7 @@ static int rna_function_arg_count(FunctionRNA *func, int *min_count)
 	PropertyRNA *parm;
 	Link *link;
 	int flag = RNA_function_flag(func);
-	int is_staticmethod = (flag & FUNC_NO_SELF) && !(flag & FUNC_USE_SELF_TYPE);
+	const bool is_staticmethod = (flag & FUNC_NO_SELF) && !(flag & FUNC_USE_SELF_TYPE);
 	int count = is_staticmethod ? 0 : 1;
 	bool done_min_count = false;
 
@@ -6898,7 +6947,8 @@ static int bpy_class_validate_recursive(PointerRNA *dummyptr, StructRNA *srna, v
 	PyObject *py_class = (PyObject *)py_data;
 	PyObject *base_class = RNA_struct_py_type_get(srna);
 	PyObject *item;
-	int i, flag, is_staticmethod, arg_count, func_arg_count, func_arg_min_count = 0;
+	int i, flag, arg_count, func_arg_count, func_arg_min_count = 0;
+	bool is_staticmethod;
 	const char *py_class_name = ((PyTypeObject *)py_class)->tp_name;  /* __name__ */
 
 	if (srna_base) {
@@ -7083,10 +7133,10 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 	PyGILState_STATE gilstate;
 
 #ifdef USE_PEDANTIC_WRITE
-	const int is_operator = RNA_struct_is_a(ptr->type, &RNA_Operator);
+	const bool is_operator = RNA_struct_is_a(ptr->type, &RNA_Operator);
 	// const char *func_id = RNA_function_identifier(func);  /* UNUSED */
 	/* testing, for correctness, not operator and not draw function */
-	const short is_readonly = !(RNA_function_flag(func) & FUNC_ALLOW_WRITE);
+	const bool is_readonly = !(RNA_function_flag(func) & FUNC_ALLOW_WRITE);
 #endif
 
 	py_class = RNA_struct_py_type_get(ptr->type);

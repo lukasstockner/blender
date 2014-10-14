@@ -21,7 +21,6 @@
  */
 
 #include "COM_SplitOperation.h"
-#include "COM_SocketConnection.h"
 #include "BLI_listbase.h"
 #include "BKE_image.h"
 #include "BLI_utildefines.h"
@@ -29,9 +28,9 @@
 #include "BLI_math_vector.h"
 
 extern "C" {
-	#include "MEM_guardedalloc.h"
-	#include "IMB_imbuf.h"
-	#include "IMB_imbuf_types.h"
+#  include "MEM_guardedalloc.h"
+#  include "IMB_imbuf.h"
+#  include "IMB_imbuf_types.h"
 }
 
 

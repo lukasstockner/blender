@@ -39,14 +39,13 @@
 #include "DNA_material_types.h"
 
 #include "BLI_math.h"
-#include "BLI_blenlib.h"
 #include "BLI_memarena.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
-#include "BKE_global.h"
+#include "BKE_node.h"
 #include "BKE_scene.h"
 
 
@@ -196,14 +195,19 @@ static void occ_shade(ShadeSample *ssamp, ObjectInstanceRen *obi, VlakRen *vlr, 
 	}
 
 	/* init material vars */
-	/* note, keep this synced with render_types.h */
-	memcpy(&shi->r, &shi->mat->r, 23 * sizeof(float));
-	shi->har = shi->mat->har;
-	
+	shade_input_init_material(shi);
+
 	/* render */
 	shade_input_set_shade_texco(shi);
-	shade_material_loop(shi, shr); /* todo: nodes */
-	
+
+	if (shi->mat->nodetree && shi->mat->use_nodes) {
+		ntreeShaderExecTree(shi->mat->nodetree, shi, shr);
+		shi->mat = vlr->mat;  /* shi->mat is being set in nodetree */
+	}
+	else {
+		shade_material_loop(shi, shr);
+	}
+
 	copy_v3_v3(rad, shr->combined);
 }
 
@@ -228,6 +232,9 @@ static void occ_build_shade(Render *re, OcclusionTree *tree)
 		vlr = RE_findOrAddVlak(obi->obr, tree->face[a].facenr);
 
 		occ_shade(&ssamp, obi, vlr, tree->rad[a]);
+
+		if (re->test_break(re->tbh))
+			break;
 	}
 }
 
@@ -620,7 +627,7 @@ static void occ_build_recursive(OcclusionTree *tree, OccNode *node, int begin, i
 static void occ_build_sh_normalize(OccNode *node)
 {
 	/* normalize spherical harmonics to not include area, so
-	 * we can clamp the dot product and then mutliply by area */
+	 * we can clamp the dot product and then multiply by area */
 	int b;
 
 	if (node->area != 0.0f)
@@ -714,14 +721,18 @@ static OcclusionTree *occ_tree_build(Render *re)
 	occ_build_recursive(tree, tree->root, 0, totface, 1);
 
 	if (tree->doindirect) {
-		occ_build_shade(re, tree);
-		occ_sum_occlusion(tree, tree->root);
+		if (!(re->test_break(re->tbh)))
+			occ_build_shade(re, tree);
+
+		if (!(re->test_break(re->tbh)))
+			occ_sum_occlusion(tree, tree->root);
 	}
 	
 	MEM_freeN(tree->co);
 	tree->co = NULL;
 
-	occ_build_sh_normalize(tree->root);
+	if (!(re->test_break(re->tbh)))
+		occ_build_sh_normalize(tree->root);
 
 	for (a = 0; a < BLENDER_MAX_THREADS; a++)
 		tree->stack[a] = MEM_callocN(sizeof(OccNode) * TOTCHILD * (tree->maxdepth + 1), "OccStack");
@@ -1169,7 +1180,7 @@ static void sample_occ_surface(ShadeInput *shi)
 {
 	StrandRen *strand = shi->strand;
 	StrandSurface *mesh = strand->buffer->surface;
-	int *face, *index = RE_strandren_get_face(shi->obr, strand, 0);
+	const int *face, *index = RE_strandren_get_face(shi->obr, strand, 0);
 	float w[4], *co1, *co2, *co3, *co4;
 
 	if (mesh && mesh->face && mesh->co && mesh->ao && index) {
@@ -1264,7 +1275,7 @@ void make_occ_tree(Render *re)
 	
 	re->occlusiontree = tree = occ_tree_build(re);
 	
-	if (tree) {
+	if (tree && !re->test_break(re->tbh)) {
 		if (re->wrld.ao_approx_passes > 0)
 			occ_compute_passes(re, tree, re->wrld.ao_approx_passes);
 		if (tree->doindirect && (re->wrld.mode & WO_INDIRECT_LIGHT))

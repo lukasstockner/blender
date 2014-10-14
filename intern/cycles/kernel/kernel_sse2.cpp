@@ -18,12 +18,14 @@
  * optimization flags and nearly all functions inlined, while kernel.cpp
  * is compiled without for other CPU's. */
 
-#ifdef WITH_OPTIMIZED_KERNEL
-
 /* SSE optimization disabled for now on 32 bit, see bug #36316 */
 #if !(defined(__GNUC__) && (defined(i386) || defined(_M_IX86)))
 #define __KERNEL_SSE2__
 #endif
+
+#include "util_optimization.h"
+
+#ifdef WITH_CYCLES_OPTIMIZED_KERNEL_SSE2
 
 #include "kernel.h"
 #include "kernel_compat_cpu.h"
@@ -32,7 +34,7 @@
 #include "kernel_globals.h"
 #include "kernel_film.h"
 #include "kernel_path.h"
-#include "kernel_displace.h"
+#include "kernel_bake.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -62,12 +64,20 @@ void kernel_cpu_sse2_convert_to_half_float(KernelGlobals *kg, uchar4 *rgba, floa
 
 /* Shader Evaluate */
 
-void kernel_cpu_sse2_shader(KernelGlobals *kg, uint4 *input, float4 *output, int type, int i)
+void kernel_cpu_sse2_shader(KernelGlobals *kg, uint4 *input, float4 *output, int type, int i, int offset, int sample)
 {
-	kernel_shader_evaluate(kg, input, output, (ShaderEvalType)type, i);
+	if(type >= SHADER_EVAL_BAKE)
+		kernel_bake_evaluate(kg, input, output, (ShaderEvalType)type, i, offset, sample);
+	else
+		kernel_shader_evaluate(kg, input, output, (ShaderEvalType)type, i, sample);
 }
 
 CCL_NAMESPACE_END
 
-#endif
+#else
 
+/* needed for some linkers in combination with scons making empty compilation unit in a library */
+void __dummy_function_cycles_sse2(void);
+void __dummy_function_cycles_sse2(void) {}
+
+#endif

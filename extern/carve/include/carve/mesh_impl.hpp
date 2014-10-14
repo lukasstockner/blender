@@ -1,13 +1,13 @@
 // Begin License:
-// Copyright (C) 2006-2011 Tobias Sargeant (tobias.sargeant@gmail.com).
+// Copyright (C) 2006-2014 Tobias Sargeant (tobias.sargeant@gmail.com).
 // All rights reserved.
 //
 // This file is part of the Carve CSG Library (http://carve-csg.com/)
 //
-// This file may be used under the terms of the GNU General Public
-// License version 2.0 as published by the Free Software Foundation
-// and appearing in the file LICENSE.GPL2 included in the packaging of
-// this file.
+// This file may be used under the terms of either the GNU General
+// Public License version 2 or 3 (at your option) as published by the
+// Free Software Foundation and appearing in the files LICENSE.GPL2
+// and LICENSE.GPL3 included in the packaging of this file.
 //
 // This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
 // INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
@@ -1045,12 +1045,12 @@ namespace carve {
 
       for (size_t i = 0; i != N; ++i) {
         vout.push_back(*vptr[i]);
-        vmap[vptr[i] - &vertex_storage[0]] = &vout[i];
+        vmap[(size_t)(vptr[i] - &vertex_storage[0])] = &vout[i];
       }
 
       for (face_iter i = faceBegin(); i != faceEnd(); ++i) {
         for (typename face_t::edge_iter_t j = (*i)->begin(); j != (*i)->end(); ++j) {
-          (*j).vert = vmap[(*j).vert - &vertex_storage[0]];
+          (*j).vert = vmap[(size_t)((*j).vert - &vertex_storage[0])];
         }
         (*i)->canonicalize();
       }

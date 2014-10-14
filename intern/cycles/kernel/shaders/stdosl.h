@@ -412,12 +412,26 @@ matrix transpose (matrix m) BUILTIN;
 
 // Pattern generation
 
-float step (float edge, float x) BUILTIN;
 color step (color edge, color x) BUILTIN;
 point step (point edge, point x) BUILTIN;
 vector step (vector edge, vector x) BUILTIN;
 normal step (normal edge, normal x) BUILTIN;
+float step (float edge, float x) BUILTIN;
 float smoothstep (float edge0, float edge1, float x) BUILTIN;
+
+float aastep (float edge, float s, float dedge, float ds) {
+    // Box filtered AA step
+    float width = fabs(dedge) + fabs(ds);
+    float halfwidth = 0.5*width;
+    float e1 = edge-halfwidth;
+    return (s <= e1) ? 0.0 : ((s >= (edge+halfwidth)) ? 1.0 : (s-e1)/width);
+}
+float aastep (float edge, float s, float ds) {
+    return aastep (edge, s, filterwidth(edge), ds);
+}
+float aastep (float edge, float s) {
+    return aastep (edge, s, filterwidth(edge), filterwidth(s));
+}
 
 
 // Derivatives and area operators
@@ -462,17 +476,17 @@ closure color diffuse_ramp(normal N, color colors[8]) BUILTIN;
 closure color phong_ramp(normal N, float exponent, color colors[8]) BUILTIN;
 closure color diffuse_toon(normal N, float size, float smooth) BUILTIN;
 closure color glossy_toon(normal N, float size, float smooth) BUILTIN;
-closure color westin_backscatter(normal N, float roughness) BUILTIN;
-closure color westin_sheen(normal N, float edginess) BUILTIN;
 closure color translucent(normal N) BUILTIN;
 closure color reflection(normal N) BUILTIN;
 closure color refraction(normal N, float eta) BUILTIN;
 closure color transparent() BUILTIN;
 closure color microfacet_ggx(normal N, float ag) BUILTIN;
+closure color microfacet_ggx_aniso(normal N, vector T, float ax, float ay) BUILTIN;
 closure color microfacet_ggx_refraction(normal N, float ag, float eta) BUILTIN;
 closure color microfacet_beckmann(normal N, float ab) BUILTIN;
+closure color microfacet_beckmann_aniso(normal N, vector T, float ax, float ay) BUILTIN;
 closure color microfacet_beckmann_refraction(normal N, float ab, float eta) BUILTIN;
-closure color ward(normal N, vector T,float ax, float ay) BUILTIN;
+closure color ashikhmin_shirley(normal N, vector T,float ax, float ay) BUILTIN;
 closure color ashikhmin_velvet(normal N, float sigma) BUILTIN;
 closure color emission() BUILTIN;
 closure color background() BUILTIN;
@@ -483,15 +497,16 @@ closure color ambient_occlusion() BUILTIN;
 closure color bssrdf_cubic(normal N, vector radius, float texture_blur, float sharpness) BUILTIN;
 closure color bssrdf_gaussian(normal N, vector radius, float texture_blur) BUILTIN;
 
+// Hair
 closure color hair_reflection(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
 closure color hair_transmission(normal N, float roughnessu, float roughnessv, vector T, float offset) BUILTIN;
 
-// Backwards compatibility
-closure color bssrdf_cubic(normal N, vector radius) BUILTIN;
-closure color bssrdf_gaussian(normal N, vector radius) BUILTIN;
-closure color specular_toon(normal N, float size, float smooth) BUILTIN;
+// Volume
+closure color henyey_greenstein(float g) BUILTIN;
+closure color absorption() BUILTIN;
 
 // Renderer state
+int backfacing () BUILTIN;
 int raytype (string typename) BUILTIN;
 // the individual 'isFOOray' functions are deprecated
 int iscameraray () { return raytype("camera"); }

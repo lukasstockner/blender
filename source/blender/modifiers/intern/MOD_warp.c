@@ -34,7 +34,6 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_modifier.h"
@@ -66,20 +65,9 @@ static void copyData(ModifierData *md, ModifierData *target)
 	WarpModifierData *wmd = (WarpModifierData *) md;
 	WarpModifierData *twmd = (WarpModifierData *) target;
 
-	twmd->object_from = wmd->object_from;
-	twmd->object_to = wmd->object_to;
+	modifier_copyData_generic(md, target);
 
-	twmd->strength = wmd->strength;
-	twmd->falloff_radius = wmd->falloff_radius;
-	twmd->falloff_type = wmd->falloff_type;
-	BLI_strncpy(twmd->defgrp_name, wmd->defgrp_name, sizeof(twmd->defgrp_name));
 	twmd->curfalloff = curvemapping_copy(wmd->curfalloff);
-
-	/* map info */
-	twmd->texture = wmd->texture;
-	twmd->map_object = wmd->map_object;
-	BLI_strncpy(twmd->uvlayer_name, wmd->uvlayer_name, sizeof(twmd->uvlayer_name));
-	twmd->texmapping = wmd->texmapping;
 }
 
 static CustomDataMask requiredDataMask(Object *UNUSED(ob), ModifierData *md)
@@ -264,7 +252,7 @@ static void warpModifier_do(WarpModifierData *wmd, Object *ob,
 					fac = 3.0f * fac * fac - 2.0f * fac * fac * fac;
 					break;
 				case eWarp_Falloff_Root:
-					fac = (float)sqrt(fac);
+					fac = sqrtf(fac);
 					break;
 				case eWarp_Falloff_Linear:
 					/* pass */
@@ -273,7 +261,7 @@ static void warpModifier_do(WarpModifierData *wmd, Object *ob,
 					fac = 1.0f;
 					break;
 				case eWarp_Falloff_Sphere:
-					fac = (float)sqrt(2 * fac - fac * fac);
+					fac = sqrtf(2 * fac - fac * fac);
 					break;
 			}
 
@@ -345,7 +333,7 @@ static void deformVertsEM(ModifierData *md, Object *ob, struct BMEditMesh *em,
 
 	if (use_dm) {
 		if (!derivedData)
-			dm = CDDM_from_editbmesh(em, FALSE, FALSE);
+			dm = CDDM_from_editbmesh(em, false, false);
 	}
 
 	deformVerts(md, ob, dm, vertexCos, numVerts, 0);

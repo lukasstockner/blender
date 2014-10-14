@@ -11,6 +11,9 @@ __pycache__/
 *.swo
 *#
 
+# QtCreator
+CMakeLists.txt.user
+
 # ms-windows
 Thumbs.db
 ehthumbs.db
@@ -23,3 +26,9 @@ Desktop.ini
 # local patches
 /*.patch
 /*.diff
+
+# in-source doc-gen
+/doc/doxygen/html/
+/doc/python_api/sphinx-in-tmp/
+/doc/python_api/sphinx-in/
+/doc/python_api/sphinx-out/

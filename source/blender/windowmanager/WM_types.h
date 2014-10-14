@@ -128,12 +128,13 @@ struct ImBuf;
 #define OPTYPE_UNDO			2	/* do undo push after after */
 #define OPTYPE_BLOCKING		4	/* let blender grab all input from the WM (X11) */
 #define OPTYPE_MACRO		8
-#define OPTYPE_GRAB_POINTER	16	/* */
+#define OPTYPE_GRAB_POINTER	16	/* grabs the cursor and optionally enables continuous cursor wrapping */
 #define OPTYPE_PRESET		32	/* show preset menu */
 #define OPTYPE_INTERNAL		64	/* some operators are mainly for internal use
 								 * and don't make sense to be accessed from the
-								 * search menu, even if poll() returns TRUE.
+								 * search menu, even if poll() returns true.
 								 * currently only used for the search toolbox */
+#define OPTYPE_LOCK_BYPASS		128	/* Allow operator to run when interface is locked */
 
 /* context to call operator in for WM_operator_name_call */
 /* rna_ui.c contains EnumPropertyItem's of these, keep in sync */
@@ -168,7 +169,7 @@ enum {
 #define KM_OSKEY2	128
 
 /* KM_MOD_ flags for wmKeyMapItem and wmEvent.alt/shift/oskey/ctrl  */
-/* note that KM_ANY and FALSE are used with these defines too */
+/* note that KM_ANY and false are used with these defines too */
 #define KM_MOD_FIRST  1
 #define KM_MOD_SECOND 2
 
@@ -188,9 +189,6 @@ enum {
 
 #define WM_UI_HANDLER_CONTINUE	0
 #define WM_UI_HANDLER_BREAK		1
-
-typedef int (*wmUIHandlerFunc)(struct bContext *C, const struct wmEvent *event, void *userdata);
-typedef void (*wmUIHandlerRemoveFunc)(struct bContext *C, void *userdata);
 
 /* ************** Notifiers ****************** */
 
@@ -251,6 +249,7 @@ typedef struct wmNotifier {
 #define ND_DATACHANGED		(3<<16)
 #define ND_HISTORY			(4<<16)
 #define ND_JOB				(5<<16)
+#define ND_UNDO				(6<<16)
 
 	/* NC_SCREEN screen */
 #define ND_SCREENBROWSE		(1<<16)
@@ -297,6 +296,7 @@ typedef struct wmNotifier {
 #define ND_PARTICLE			(27<<16)
 #define ND_POINTCACHE		(28<<16)
 #define ND_PARENT			(29<<16)
+#define ND_LOD				(30<<16)
 
 	/* NC_MATERIAL Material */
 #define	ND_SHADING			(30<<16)
@@ -479,14 +479,8 @@ typedef struct wmNDOFMotionData {
 	/* awfully similar to GHOST_TEventNDOFMotionData... */
 	/* Each component normally ranges from -1 to +1, but can exceed that.
 	 * These use blender standard view coordinates, with positive rotations being CCW about the axis. */
-	union {
-		float tvec[3]; /* translation */
-		struct { float tx, ty, tz; };
-	};
-	union {
-		float rvec[3]; /* rotation: */
-		struct { float rx, ry, rz; };
-	};
+	float tvec[3]; /* translation */
+	float rvec[3]; /* rotation: */
 	/* axis = (rx,ry,rz).normalized */
 	/* amount = (rx,ry,rz).magnitude [in revolutions, 1.0 = 360 deg] */
 	float dt; /* time since previous NDOF Motion event */
@@ -604,6 +598,12 @@ typedef struct wmReport {
 #define WM_DRAG_PATH	2
 #define WM_DRAG_NAME	3
 #define WM_DRAG_VALUE	4
+#define WM_DRAG_COLOR	5
+
+typedef enum wmDragFlags {
+	WM_DRAG_NOP         = 0,
+	WM_DRAG_FREE_DATA   = 1,
+} wmDragFlags;
 
 /* note: structs need not exported? */
 
@@ -620,6 +620,7 @@ typedef struct wmDrag {
 	int sx, sy;
 	
 	char opname[200]; /* if set, draws operator name*/
+	unsigned int flags;
 } wmDrag;
 
 /* dropboxes are like keymaps, part of the screen/area/region definition */

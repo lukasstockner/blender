@@ -51,6 +51,7 @@ static void operatortypes_particle(void)
 	WM_operatortype_append(PARTICLE_OT_select_all);
 	WM_operatortype_append(PARTICLE_OT_select_roots);
 	WM_operatortype_append(PARTICLE_OT_select_tips);
+	WM_operatortype_append(PARTICLE_OT_select_random);
 	WM_operatortype_append(PARTICLE_OT_select_linked);
 	WM_operatortype_append(PARTICLE_OT_select_less);
 	WM_operatortype_append(PARTICLE_OT_select_more);
@@ -121,21 +122,21 @@ static void keymap_particle(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "PARTICLE_OT_select_less", PADMINUS, KM_PRESS, KM_CTRL, 0);
 
 	kmi = WM_keymap_add_item(keymap, "PARTICLE_OT_select_linked", LKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "deselect", FALSE);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
 	kmi = WM_keymap_add_item(keymap, "PARTICLE_OT_select_linked", LKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "deselect", TRUE);
+	RNA_boolean_set(kmi->ptr, "deselect", true);
 
 	WM_keymap_add_item(keymap, "PARTICLE_OT_delete", XKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PARTICLE_OT_delete", DELKEY, KM_PRESS, 0, 0);
 
 	WM_keymap_add_item(keymap, "PARTICLE_OT_reveal", HKEY, KM_PRESS, KM_ALT, 0);
 	kmi = WM_keymap_add_item(keymap, "PARTICLE_OT_hide", HKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", FALSE);
+	RNA_boolean_set(kmi->ptr, "unselected", false);
 	kmi = WM_keymap_add_item(keymap, "PARTICLE_OT_hide", HKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", TRUE);
+	RNA_boolean_set(kmi->ptr, "unselected", true);
 
 	kmi = WM_keymap_verify_item(keymap, "VIEW3D_OT_manipulator", LEFTMOUSE, KM_PRESS, KM_ANY, 0);
-	RNA_boolean_set(kmi->ptr, "release_confirm", TRUE);
+	RNA_boolean_set(kmi->ptr, "release_confirm", true);
 
 	WM_keymap_add_item(keymap, "PARTICLE_OT_brush_edit", LEFTMOUSE, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "PARTICLE_OT_brush_edit", LEFTMOUSE, KM_PRESS, KM_SHIFT, 0);
@@ -153,7 +154,7 @@ static void keymap_particle(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "PARTICLE_OT_weight_set", KKEY, KM_PRESS, KM_SHIFT, 0);
 
 	ED_keymap_proportional_cycle(keyconf, keymap);
-	ED_keymap_proportional_editmode(keyconf, keymap, FALSE);
+	ED_keymap_proportional_editmode(keyconf, keymap, false);
 }
 
 /******************************* boids *************************************/

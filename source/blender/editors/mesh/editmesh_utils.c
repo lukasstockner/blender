@@ -39,9 +39,12 @@
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_context.h"
+#include "BKE_global.h"
 #include "BKE_depsgraph.h"
 #include "BKE_key.h"
+#include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_mapping.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 #include "BKE_editmesh_bvh.h"
@@ -109,8 +112,11 @@ void EDBM_mesh_ensure_valid_dm_hack(Scene *scene, BMEditMesh *em)
 	if ((((ID *)em->ob->data)->flag & LIB_ID_RECALC) ||
 	    (em->ob->recalc & OB_RECALC_DATA))
 	{
-		em->ob->recalc |= OB_RECALC_DATA;  /* since we may not have done selection flushing */
-		BKE_object_handle_update(scene, em->ob);
+		/* since we may not have done selection flushing */
+		if ((em->ob->recalc & OB_RECALC_DATA) == 0) {
+			DAG_id_tag_update(&em->ob->id, OB_RECALC_DATA);
+		}
+		BKE_object_handle_update(G.main->eval_ctx, scene, em->ob);
 	}
 }
 
@@ -125,16 +131,7 @@ void EDBM_mesh_clear(BMEditMesh *em)
 	BM_mesh_clear(em->bm);
 	
 	/* free derived meshes */
-	if (em->derivedCage) {
-		em->derivedCage->needsFree = 1;
-		em->derivedCage->release(em->derivedCage);
-	}
-	if (em->derivedFinal && em->derivedFinal != em->derivedCage) {
-		em->derivedFinal->needsFree = 1;
-		em->derivedFinal->release(em->derivedFinal);
-	}
-	
-	em->derivedCage = em->derivedFinal = NULL;
+	BKE_editmesh_free_derivedmesh(em);
 	
 	/* free tessellation data */
 	em->tottri = 0;
@@ -404,8 +401,8 @@ void EDBM_mesh_free(BMEditMesh *em)
 	/* These tables aren't used yet, so it's not strictly necessary
 	 * to 'end' them (with 'e' param) but if someone tries to start
 	 * using them, having these in place will save a lot of pain */
-	mesh_octree_table(NULL, NULL, NULL, 'e');
-	mesh_mirrtopo_table(NULL, 'e');
+	ED_mesh_mirror_spatial_table(NULL, NULL, NULL, 'e');
+	ED_mesh_mirror_topo_table(NULL, 'e');
 
 	BKE_editmesh_free(em);
 }
@@ -1137,7 +1134,7 @@ void EDBM_verts_mirror_cache_begin(BMEditMesh *em, const int axis,
 
 BMVert *EDBM_verts_mirror_get(BMEditMesh *em, BMVert *v)
 {
-	int *mirr = CustomData_bmesh_get_layer_n(&em->bm->vdata, v->head.data, em->mirror_cdlayer);
+	const int *mirr = CustomData_bmesh_get_layer_n(&em->bm->vdata, v->head.data, em->mirror_cdlayer);
 
 	BLI_assert(em->mirror_cdlayer != -1); /* invalid use */
 
@@ -1263,14 +1260,16 @@ void EDBM_mesh_reveal(BMEditMesh *em)
 	                            BM_EDGES_OF_MESH,
 	                            BM_FACES_OF_MESH};
 
-	int sels[3] = {(em->selectmode & SCE_SELECT_VERTEX),
-	               (em->selectmode & SCE_SELECT_EDGE),
-	               (em->selectmode & SCE_SELECT_FACE), };
+	const bool sels[3] = {
+	    (em->selectmode & SCE_SELECT_VERTEX) != 0,
+	    (em->selectmode & SCE_SELECT_EDGE) != 0,
+	    (em->selectmode & SCE_SELECT_FACE) != 0,
+	};
 	int i;
 
 	/* Use tag flag to remember what was hidden before all is revealed.
 	 * BM_ELEM_HIDDEN --> BM_ELEM_TAG */
-#pragma omp parallel for schedule(dynamic) if (em->bm->totvert + em->bm->totedge + em->bm->totface >= BM_OMP_LIMIT)
+#pragma omp parallel for schedule(static) if (em->bm->totvert + em->bm->totedge + em->bm->totface >= BM_OMP_LIMIT)
 	for (i = 0; i < 3; i++) {
 		BMIter iter;
 		BMElem *ele;
@@ -1326,6 +1325,18 @@ void EDBM_update_generic(BMEditMesh *em, const bool do_tessface, const bool is_d
 		/* in debug mode double check we didn't need to recalculate */
 		BLI_assert(BM_mesh_elem_table_check(em->bm) == true);
 	}
+
+	/* don't keep stale derivedMesh data around, see: [#38872] */
+	BKE_editmesh_free_derivedmesh(em);
+
+#ifdef DEBUG
+	{
+		BMEditSelection *ese;
+		for (ese = em->bm->selected.first; ese; ese = ese->next) {
+			BLI_assert(BM_elem_flag_test(ese->ele, BM_ELEM_SELECT));
+		}
+	}
+#endif
 }
 
 /* poll call for mesh operators requiring a view3d context */

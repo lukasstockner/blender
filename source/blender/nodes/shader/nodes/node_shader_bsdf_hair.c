@@ -32,8 +32,8 @@
 static bNodeSocketTemplate sh_node_bsdf_hair_in[] = {
 	{	SOCK_RGBA,  1, N_("Color"),			0.8f, 0.8f, 0.8f, 1.0f, 0.0f, 1.0f},
 	{	SOCK_FLOAT, 1, N_("Offset"),		0.0f, 0.0f, 0.0f, 0.0f, -M_PI_2, M_PI_2, PROP_ANGLE},
-	{	SOCK_FLOAT, 1, N_("RoughnessU"),	0.1f, 0.1f, 0.1f, 0.0f, 0.0f, 1.0f},
-	{	SOCK_FLOAT, 1, N_("RoughnessV"),	1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f},	{	-1, 0, ""	}
+	{	SOCK_FLOAT, 1, N_("RoughnessU"),	0.1f, 0.1f, 0.1f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},
+	{	SOCK_FLOAT, 1, N_("RoughnessV"),	1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, PROP_FACTOR},	{	-1, 0, ""	}
 };
 
 static bNodeSocketTemplate sh_node_bsdf_hair_out[] = {
@@ -43,9 +43,6 @@ static bNodeSocketTemplate sh_node_bsdf_hair_out[] = {
 
 static int node_shader_gpu_bsdf_hair(GPUMaterial *mat, bNode *UNUSED(node), bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
-	if (!in[2].link)
-		in[2].link = GPU_builtin(GPU_VIEW_NORMAL);
-
 	return GPU_stack_link(mat, "node_bsdf_hair", in, out);
 }
 

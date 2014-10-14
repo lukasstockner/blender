@@ -35,15 +35,17 @@
  
 #include "RAS_OpenGLRasterizer.h"
 
-#include "GL/glew.h"
+#include "glew-mx.h"
 
 #include "RAS_ICanvas.h"
 #include "RAS_Rect.h"
 #include "RAS_TexVert.h"
 #include "RAS_MeshObject.h"
 #include "RAS_Polygon.h"
-#include "RAS_LightObject.h"
+#include "RAS_ILightObject.h"
 #include "MT_CmMatrix4x4.h"
+
+#include "RAS_OpenGLLight.h"
 
 #include "RAS_StorageIM.h"
 #include "RAS_StorageVA.h"
@@ -59,7 +61,6 @@ extern "C"{
 
 // XXX Clean these up <<<
 #include "Value.h"
-#include "KX_Light.h"
 #include "KX_Scene.h"
 #include "KX_RayCast.h"
 #include "KX_GameObject.h"
@@ -100,6 +101,7 @@ RAS_OpenGLRasterizer::RAS_OpenGLRasterizer(RAS_ICanvas* canvas, int storage)
 	m_usingoverrideshader(false),
     m_clientobject(NULL),
     m_auxilaryClientInfo(NULL),
+    m_drawingmode(KX_TEXTURED),
 	m_texco_num(0),
 	m_attrib_num(0),
 	//m_last_alphablend(GPU_BLEND_SOLID),
@@ -330,10 +332,9 @@ void RAS_OpenGLRasterizer::Exit()
 	EndFrame();
 }
 
-bool RAS_OpenGLRasterizer::BeginFrame(int drawingmode, double time)
+bool RAS_OpenGLRasterizer::BeginFrame(double time)
 {
 	m_time = time;
-	SetDrawingMode(drawingmode);
 
 	// Blender camera routine destroys the settings
 	if (m_drawingmode < KX_SOLID)
@@ -523,6 +524,28 @@ void RAS_OpenGLRasterizer::SetRenderArea()
 					area.SetBottom(0);
 					area.SetRight(int(m_2DCanvas->GetWidth()));
 					area.SetTop(int(m_2DCanvas->GetHeight() - m_noOfScanlines) / 2);
+					m_2DCanvas->SetDisplayArea(&area);
+					break;
+			}
+			break;
+		case RAS_STEREO_3DTVTOPBOTTOM:
+			switch (m_curreye) {
+				case RAS_STEREO_LEFTEYE:
+					// upper half of window
+					area.SetLeft(0);
+					area.SetBottom(m_2DCanvas->GetHeight() -
+						m_2DCanvas->GetHeight() / 2);
+	
+					area.SetRight(m_2DCanvas->GetWidth());
+					area.SetTop(m_2DCanvas->GetHeight());
+					m_2DCanvas->SetDisplayArea(&area);
+					break;
+				case RAS_STEREO_RIGHTEYE:
+					// lower half of window
+					area.SetLeft(0);
+					area.SetBottom(0);
+					area.SetRight(m_2DCanvas->GetWidth());
+					area.SetTop(m_2DCanvas->GetHeight() / 2);
 					m_2DCanvas->SetDisplayArea(&area);
 					break;
 			}
@@ -841,6 +864,12 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 						break;
 			}
 			// leave bottom and top untouched
+			if (m_stereomode == RAS_STEREO_3DTVTOPBOTTOM) {
+				// restore the vertical frustrum because the 3DTV will 
+				// expande the top and bottom part to the full size of the screen
+				bottom *= 2.0f;
+				top *= 2.0f;
+			}
 	}
 	
 	glMatrixMode(GL_PROJECTION);
@@ -1159,7 +1188,7 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 		KX_Scene* kxscene = (KX_Scene*)m_auxilaryClientInfo;
 		float glviewmat[16];
 		unsigned int count;
-		std::vector<struct	RAS_LightObject*>::iterator lit = m_lights.begin();
+		std::vector<RAS_OpenGLLight*>::iterator lit = m_lights.begin();
 
 		for (count=0; count<m_numgllights; count++)
 			glDisable((GLenum)(GL_LIGHT0+count));
@@ -1170,10 +1199,9 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 		glLoadMatrixf(glviewmat);
 		for (lit = m_lights.begin(), count = 0; !(lit==m_lights.end()) && count < m_numgllights; ++lit)
 		{
-			RAS_LightObject* lightdata = (*lit);
-			KX_LightObject *kxlight = (KX_LightObject*)lightdata->m_light;
+			RAS_OpenGLLight* light = (*lit);
 
-			if (kxlight->ApplyLight(kxscene, layer, count))
+			if (light->ApplyFixedFunctionLighting(kxscene, layer, count))
 				count++;
 		}
 		glPopMatrix();
@@ -1215,15 +1243,25 @@ void RAS_OpenGLRasterizer::DisableOpenGLLights()
 	m_lastlighting = false;
 }
 
-void RAS_OpenGLRasterizer::AddLight(struct RAS_LightObject* lightobject)
+RAS_ILightObject *RAS_OpenGLRasterizer::CreateLight()
 {
-	m_lights.push_back(lightobject);
+	return new RAS_OpenGLLight(this);
 }
 
-void RAS_OpenGLRasterizer::RemoveLight(struct RAS_LightObject* lightobject)
+void RAS_OpenGLRasterizer::AddLight(RAS_ILightObject* lightobject)
 {
-	std::vector<struct	RAS_LightObject*>::iterator lit =
-		std::find(m_lights.begin(),m_lights.end(),lightobject);
+	RAS_OpenGLLight* gllight = dynamic_cast<RAS_OpenGLLight*>(lightobject);
+	assert(gllight);
+	m_lights.push_back(gllight);
+}
+
+void RAS_OpenGLRasterizer::RemoveLight(RAS_ILightObject* lightobject)
+{
+	RAS_OpenGLLight* gllight = dynamic_cast<RAS_OpenGLLight*>(lightobject);
+	assert(gllight);
+
+	std::vector<RAS_OpenGLLight*>::iterator lit =
+		std::find(m_lights.begin(),m_lights.end(),gllight);
 
 	if (!(lit==m_lights.end()))
 		m_lights.erase(lit);
@@ -1337,8 +1375,6 @@ void RAS_OpenGLRasterizer::applyTransform(double* oglmatrix,int objectdrawmode )
 			KX_GameObject *parent = gameobj->GetParent();
 			if (!physics_controller && parent)
 				physics_controller = parent->GetPhysicsController();
-			if (parent)
-				parent->Release();
 
 			KX_RayCast::Callback<RAS_OpenGLRasterizer> callback(this, physics_controller, oglmatrix);
 			if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback))
@@ -1439,13 +1475,9 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	glEnable(GL_DEPTH_TEST);
 }
 
-void RAS_OpenGLRasterizer::RenderText3D(int fontid,
-										 const char* text,
-										 int size,
-										 int dpi,
-										 float* color,
-										 double* mat,
-										 float aspect)
+void RAS_OpenGLRasterizer::RenderText3D(
+        int fontid, const char *text, int size, int dpi,
+        const float color[4], const double mat[16], float aspect)
 {
 	/* gl prepping */
 	DisableForText();
@@ -1464,17 +1496,16 @@ void RAS_OpenGLRasterizer::RenderText3D(int fontid,
 
 	BLF_size(fontid, size, dpi);
 	BLF_position(fontid, 0, 0, 0);
-	BLF_draw(fontid, (char *)text, 65535);
+	BLF_draw(fontid, text, 65535);
 
 	BLF_disable(fontid, BLF_MATRIX|BLF_ASPECT);
 }
 
-void RAS_OpenGLRasterizer::RenderText2D(RAS_TEXT_RENDER_MODE mode,
-										 const char* text,
-										 int xco,
-										 int yco,
-										 int width,
-										 int height)
+void RAS_OpenGLRasterizer::RenderText2D(
+        RAS_TEXT_RENDER_MODE mode,
+        const char* text,
+        int xco, int yco,
+        int width, int height)
 {
 	/* This is a rather important line :( The gl-mode hasn't been left
 	 * behind quite as neatly as we'd have wanted to. I don't know
@@ -1497,14 +1528,14 @@ void RAS_OpenGLRasterizer::RenderText2D(RAS_TEXT_RENDER_MODE mode,
 		glColor3ub(0, 0, 0);
 		BLF_size(blf_mono_font, 11, 72);
 		BLF_position(blf_mono_font, (float)xco+1, (float)(height-yco-1), 0.0f);
-		BLF_draw(blf_mono_font, (char *)text, 65535);/* XXX, use real len */
+		BLF_draw(blf_mono_font, text, 65535); /* XXX, use real len */
 	}
 
 	/* the actual drawing */
 	glColor3ub(255, 255, 255);
 	BLF_size(blf_mono_font, 11, 72);
 	BLF_position(blf_mono_font, (float)xco, (float)(height-yco), 0.0f);
-	BLF_draw(blf_mono_font, (char *)text, 65535); /* XXX, use real len */
+	BLF_draw(blf_mono_font, text, 65535); /* XXX, use real len */
 
 	glMatrixMode(GL_PROJECTION);
 	glPopMatrix();

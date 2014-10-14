@@ -48,8 +48,10 @@ set(INC
 	../../../blender/makesrna
 	../../../../intern/container
 	../../../../intern/ghost
+	../../../../intern/glew-mx
 	../../../../intern/guardedalloc
 	../../../../intern/string
+	../../../../intern/memutil
 )
 
 set(INC_SYS
@@ -72,7 +74,7 @@ set(SRC
 	GPG_System.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_CODEC_FFMPEG)
 	add_definitions(-DWITH_FFMPEG)

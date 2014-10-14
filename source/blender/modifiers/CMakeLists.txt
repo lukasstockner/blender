@@ -40,7 +40,6 @@ set(INC
 
 set(INC_SYS
 	${ZLIB_INCLUDE_DIRS}
-	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
@@ -98,6 +97,7 @@ set(SRC
 	intern/MOD_weightvgedit.c
 	intern/MOD_weightvgmix.c
 	intern/MOD_weightvgproximity.c
+	intern/MOD_wireframe.c
 
 	MOD_modifiertypes.h
 	intern/MOD_boolean_util.h
@@ -113,7 +113,7 @@ if(WITH_MOD_BOOLEAN)
 		intern/MOD_boolean_util.c
 	)
 	list(APPEND INC
-		../../../intern/bsp/extern
+		../../../extern/carve
 	)
 endif()
 
@@ -132,13 +132,8 @@ if(WITH_MOD_OCEANSIM)
 	add_definitions(-DWITH_OCEANSIM)
 endif()
 
-if(WITH_GAMEENGINE)
-	# for MOD_navmesh.c
-	add_definitions(-DWITH_GAMEENGINE)
-	list(APPEND INC
-		../gpu
-		../../../extern/recastnavigation
-	)
+if(WITH_BULLET)
+	add_definitions(-DWITH_BULLET)
 endif()
 
 if(WITH_INTERNATIONAL)

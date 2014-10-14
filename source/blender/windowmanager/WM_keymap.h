@@ -51,6 +51,7 @@ void		WM_keyconfig_set_active(struct wmWindowManager *wm, const char *idname);
 
 void		WM_keyconfig_update(struct wmWindowManager *wm);
 void		WM_keyconfig_update_tag(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi);
+void        WM_keyconfig_update_operatortype(void);
 
 /* Keymap */
 
@@ -63,6 +64,8 @@ wmKeyMapItem *WM_keymap_add_item(struct wmKeyMap *keymap, const char *idname, in
                                  int val, int modifier, int keymodifier);
 wmKeyMapItem *WM_keymap_add_menu(struct wmKeyMap *keymap, const char *idname, int type,
                                  int val, int modifier, int keymodifier);
+wmKeyMapItem *WM_keymap_add_menu_pie(struct wmKeyMap *keymap, const char *idname, int type,
+                                     int val, int modifier, int keymodifier);
 
 bool        WM_keymap_remove_item(struct wmKeyMap *keymap, struct wmKeyMapItem *kmi);
 int         WM_keymap_item_to_string(wmKeyMapItem *kmi, char *str, const int len);
@@ -95,9 +98,13 @@ int			WM_keymap_map_type_get(struct wmKeyMapItem *kmi);
 
 /* Key Event */
 
-const char	*WM_key_event_string(short type);
-int			WM_key_event_operator_id(const struct bContext *C, const char *opname, int opcontext, struct IDProperty *properties, int hotkey, struct wmKeyMap **keymap_r);
-char		*WM_key_event_operator_string(const struct bContext *C, const char *opname, int opcontext, struct IDProperty *properties, const bool strict, char *str, int len);
+const char *WM_key_event_string(short type);
+int         WM_key_event_operator_id(
+        const struct bContext *C, const char *opname, int opcontext,
+        struct IDProperty *properties, const bool is_hotkey, struct wmKeyMap **keymap_r);
+char       *WM_key_event_operator_string(
+        const struct bContext *C, const char *opname, int opcontext,
+        struct IDProperty *properties, const bool is_strict, char *str, int len);
 
 const char *WM_bool_as_string(bool test);
 

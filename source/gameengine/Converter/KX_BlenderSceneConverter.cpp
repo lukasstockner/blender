@@ -35,7 +35,6 @@
 
 #include "KX_Scene.h"
 #include "KX_GameObject.h"
-#include "KX_BlenderSceneConverter.h"
 #include "KX_IpoConvert.h"
 #include "RAS_MeshObject.h"
 #include "KX_PhysicsEngineEnums.h"
@@ -51,18 +50,15 @@
 
 #include "DummyPhysicsEnvironment.h"
 
-#include "KX_ConvertPhysicsObject.h"
 
 #ifdef WITH_BULLET
 #include "CcdPhysicsEnvironment.h"
 #endif
 
-#include "KX_BlenderSceneConverter.h"
 #include "KX_LibLoadStatus.h"
 #include "KX_BlenderScalarInterpolator.h"
 #include "BL_BlenderDataConversion.h"
 #include "BlenderWorldInfo.h"
-#include "KX_Scene.h"
 
 /* This little block needed for linking to Blender... */
 #ifdef WIN32
@@ -98,9 +94,7 @@ extern "C"
 /* Only for dynamic loading and merging */
 #include "RAS_BucketManager.h" // XXX cant stay
 #include "KX_BlenderSceneConverter.h"
-#include "BL_BlenderDataConversion.h"
 #include "KX_MeshProxy.h"
-#include "RAS_MeshObject.h"
 extern "C" {
 	#include "PIL_time.h"
 	#include "BKE_context.h"
@@ -132,7 +126,7 @@ KX_BlenderSceneConverter::KX_BlenderSceneConverter(
 							m_useglslmat(false),
 							m_use_mat_cache(true)
 {
-	tag_main(maggie, 0); /* avoid re-tagging later on */
+	BKE_main_id_tag_all(maggie, false);  /* avoid re-tagging later on */
 	m_newfilename = "";
 	m_threadinfo = new ThreadInfo();
 	pthread_mutex_init(&m_threadinfo->merge_lock, NULL);
@@ -195,9 +189,6 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 	}
 	m_meshobjects.clear();
 
-#ifdef WITH_BULLET
-	KX_ClearBulletSharedShapes();
-#endif
 
 	/* free any data that was dynamically loaded */
 	while (m_DynamicMaggie.size() != 0)
@@ -238,8 +229,7 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String& name)
 	Scene *sce;
 
 	/**
-	 * Find the specified scene by name, or the first
-	 * scene if nothing matches (shouldn't happen).
+	 * Find the specified scene by name, or NULL if nothing matches.
 	 */
 	if ((sce= (Scene *)BLI_findstring(&m_maggie->scene, name.ReadPtr(), offsetof(ID, name) + 2)))
 		return sce;
@@ -251,64 +241,9 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String& name)
 			return sce;
 	}
 
-	return (Scene*)m_maggie->scene.first;
+	return NULL;
 
 }
-#include "KX_PythonInit.h"
-
-#ifdef WITH_BULLET
-
-#include "LinearMath/btIDebugDraw.h"
-
-
-struct	BlenderDebugDraw : public btIDebugDraw
-{
-	BlenderDebugDraw () :
-		m_debugMode(0) 
-	{
-	}
-	
-	int m_debugMode;
-
-	virtual void	drawLine(const btVector3& from,const btVector3& to,const btVector3& color)
-	{
-		if (m_debugMode >0)
-		{
-			MT_Vector3 kxfrom(from[0],from[1],from[2]);
-			MT_Vector3 kxto(to[0],to[1],to[2]);
-			MT_Vector3 kxcolor(color[0],color[1],color[2]);
-
-			KX_RasterizerDrawDebugLine(kxfrom,kxto,kxcolor);
-		}
-	}
-	
-	virtual void	reportErrorWarning(const char* warningString)
-	{
-
-	}
-
-	virtual void	drawContactPoint(const btVector3& PointOnB,const btVector3& normalOnB,float distance,int lifeTime,const btVector3& color)
-	{
-		//not yet
-	}
-
-	virtual void	setDebugMode(int debugMode)
-	{
-		m_debugMode = debugMode;
-	}
-	virtual int		getDebugMode() const
-	{
-		return m_debugMode;
-	}
-	///todo: find out if Blender can do this
-	virtual void	draw3dText(const btVector3& location,const char* textString)
-	{
-
-	}
-		
-};
-
-#endif
 
 void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 											class RAS_IRasterizer* rendertools,
@@ -318,8 +253,9 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 	//find out which physics engine
 	Scene *blenderscene = destinationscene->GetBlenderScene();
 
+	PHY_IPhysicsEnvironment *phy_env = NULL;
+
 	e_PhysicsEngine physics_engine = UseBullet;
-	bool useDbvtCulling = false;
 	// hook for registration function during conversion.
 	m_currentScene = destinationscene;
 	destinationscene->SetSceneConverter(this);
@@ -328,55 +264,30 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 	// when doing threaded conversion, so it's disabled for now.
 	// SG_SetActiveStage(SG_STAGE_CONVERTER);
 
-	if (blenderscene)
+	switch (blenderscene->gm.physicsEngine)
 	{
-	
-		switch (blenderscene->gm.physicsEngine)
+#ifdef WITH_BULLET
+	case WOPHY_BULLET:
 		{
-		case WOPHY_BULLET:
-			{
-				physics_engine = UseBullet;
-				useDbvtCulling = (blenderscene->gm.mode & WO_DBVT_CULLING) != 0;
-				break;
-			}
-			default:
-			case WOPHY_NONE:
-			{
-				physics_engine = UseNone;
-				break;
-			}
+			SYS_SystemHandle syshandle = SYS_GetSystem(); /*unused*/
+			int visualizePhysics = SYS_GetCommandLineInt(syshandle,"show_physics",0);
+
+			phy_env = CcdPhysicsEnvironment::Create(blenderscene, visualizePhysics);
+			physics_engine = UseBullet;
+			break;
+		}
+#endif
+	default:
+	case WOPHY_NONE:
+		{
+			// We should probably use some sort of factory here
+			phy_env = new DummyPhysicsEnvironment();
+			physics_engine = UseNone;
+			break;
 		}
 	}
 
-	switch (physics_engine)
-	{
-#ifdef WITH_BULLET
-		case UseBullet:
-			{
-				CcdPhysicsEnvironment* ccdPhysEnv = new CcdPhysicsEnvironment(useDbvtCulling);
-				ccdPhysEnv->SetDebugDrawer(new BlenderDebugDraw());
-				ccdPhysEnv->SetDeactivationLinearTreshold(blenderscene->gm.lineardeactthreshold);
-				ccdPhysEnv->SetDeactivationAngularTreshold(blenderscene->gm.angulardeactthreshold);
-				ccdPhysEnv->SetDeactivationTime(blenderscene->gm.deactivationtime);
-
-				SYS_SystemHandle syshandle = SYS_GetSystem(); /*unused*/
-				int visualizePhysics = SYS_GetCommandLineInt(syshandle,"show_physics",0);
-				if (visualizePhysics)
-					ccdPhysEnv->SetDebugMode(btIDebugDraw::DBG_DrawWireframe|btIDebugDraw::DBG_DrawAabb|btIDebugDraw::DBG_DrawContactPoints|btIDebugDraw::DBG_DrawText|btIDebugDraw::DBG_DrawConstraintLimits|btIDebugDraw::DBG_DrawConstraints);
-		
-				//todo: get a button in blender ?
-				//disable / enable debug drawing (contact points, aabb's etc)
-				//ccdPhysEnv->setDebugMode(1);
-				destinationscene->SetPhysicsEnvironment(ccdPhysEnv);
-				break;
-			}
-#endif
-		default:
-		case UseNone:
-			physics_engine = UseNone;
-			destinationscene ->SetPhysicsEnvironment(new DummyPhysicsEnvironment());
-			break;
-	}
+	destinationscene->SetPhysicsEnvironment(phy_env);
 
 	BL_ConvertBlenderObjects(m_maggie,
 		destinationscene,
@@ -399,12 +310,6 @@ void KX_BlenderSceneConverter::ConvertScene(class KX_Scene* destinationscene,
 	//This cache mecanism is buggy so I leave it disable and the memory leak
 	//that would result from this is fixed in RemoveScene()
 	m_map_mesh_to_gamemesh.clear();
-
-#ifndef WITH_BULLET
-	/* quiet compiler warning */
-	(void)useDbvtCulling;
-#endif
-
 }
 
 // This function removes all entities stored in the converter for that scene
@@ -706,8 +611,7 @@ void	KX_BlenderSceneConverter::ResetPhysicsObjectsAnimationIpo(bool clearIpo)
 		for (g=0;g<numObjects;g++)
 		{
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
-			if (gameObj->IsDynamic())
-			{
+			if (gameObj->IsRecordAnimation()) {
 				
 				Object* blenderObject = gameObj->GetBlenderObject();
 				if (blenderObject)
@@ -769,7 +673,7 @@ void	KX_BlenderSceneConverter::resetNoneDynamicObjectToIpo()
 			CListValue* parentList = scene->GetRootParentList();
 			for (int ix=0;ix<parentList->GetCount();ix++) {
 				KX_GameObject* gameobj = (KX_GameObject*)parentList->GetValue(ix);
-				if (!gameobj->IsDynamic()) {
+				if (!gameobj->IsRecordAnimation()) {
 					Object* blenderobject = gameobj->GetBlenderObject();
 					if (!blenderobject)
 						continue;
@@ -821,8 +725,7 @@ void	KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 		{
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
 			Object* blenderObject = gameObj->GetBlenderObject();
-			if (blenderObject && blenderObject->parent==NULL && gameObj->IsDynamic())
-			{
+			if (blenderObject && blenderObject->parent==NULL && gameObj->IsRecordAnimation()) {
 
 				if (blenderObject->adt==NULL)
 					BKE_id_add_animdata(&blenderObject->id);
@@ -939,9 +842,7 @@ void	KX_BlenderSceneConverter::TestHandlesPhysicsObjectToAnimationIpo()
 		for (g=0;g<numObjects;g++)
 		{
 			KX_GameObject* gameObj = (KX_GameObject*)parentList->GetValue(g);
-			if (gameObj->IsDynamic())
-			{
-				
+			if (gameObj->IsRecordAnimation()) {
 #if 0
 				Object* blenderObject = gameObj->GetBlenderObject();
 				if (blenderObject && blenderObject->ipo)
@@ -1117,7 +1018,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		return NULL;
 	}
 	
-	main_newlib= (Main *)MEM_callocN( sizeof(Main), "BgeMain");
+	main_newlib = BKE_main_new();
 	BKE_reports_init(&reports, RPT_STORE);
 
 	load_datablocks(main_newlib, bpy_openlib, path, idcode);
@@ -1235,7 +1136,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 	for (vector<Main*>::iterator it=m_DynamicMaggie.begin(); !(it==m_DynamicMaggie.end()); it++) {
 		Main *main= *it;
 		if (main != maggie) {
-			tag_main(main, 0);
+			BKE_main_id_tag_all(main, false);
 		}
 		else {
 			maggie_index= i;
@@ -1248,7 +1149,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 		return false;
 
 	m_DynamicMaggie.erase(m_DynamicMaggie.begin() + maggie_index);
-	tag_main(maggie, 1);
+	BKE_main_id_tag_all(maggie, true);
 
 
 	/* free all tagged objects */
@@ -1335,6 +1236,16 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 							if (IS_TAGGED(mesh->GetMesh())) {
 								gameobj->RemoveMeshes(); /* XXX - slack, should only remove meshes that are library items but mostly objects only have 1 mesh */
 								break;
+							}
+							else {
+								/* also free the mesh if it's using a tagged material */
+								int mat_index = mesh->NumMaterials();
+								while (mat_index--) {
+									if (IS_TAGGED(mesh->GetMeshMaterial(mat_index)->m_bucket->GetPolyMaterial()->GetBlenderMaterial())) {
+										gameobj->RemoveMeshes(); /* XXX - slack, same as above */
+										break;
+									}
+								}
 							}
 						}
 
@@ -1471,10 +1382,42 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 	}
 
 	vector<pair<KX_Scene*,RAS_MeshObject*> >::iterator meshit;
+	RAS_BucketManager::BucketList::iterator bit;
+	list<RAS_MeshSlot>::iterator msit;
+	RAS_BucketManager::BucketList buckets;
+
 	size = m_meshobjects.size();
 	for (i=0, meshit=m_meshobjects.begin(); i<size; ) {
 		RAS_MeshObject *me= (*meshit).second;
 		if (IS_TAGGED(me->GetMesh())) {
+			// Before deleting the mesh object, make sure the rasterizer is
+			// no longer referencing it.
+			buckets = meshit->first->GetBucketManager()->GetSolidBuckets();
+			for (bit=buckets.begin(); bit!=buckets.end(); bit++) {
+				msit = (*bit)->msBegin();
+
+				while (msit != (*bit)->msEnd()) {
+					if (msit->m_mesh == meshit->second)
+						(*bit)->RemoveMesh(&(*msit++));
+					else
+						msit++;
+				}
+			}
+
+			// And now the alpha buckets
+			buckets = meshit->first->GetBucketManager()->GetAlphaBuckets();
+			for (bit=buckets.begin(); bit!=buckets.end(); bit++) {
+				msit = (*bit)->msBegin();
+
+				while (msit != (*bit)->msEnd()) {
+					if (msit->m_mesh == meshit->second)
+						(*bit)->RemoveMesh(&(*msit++));
+					else
+						msit++;
+				}
+			}
+
+			// Now it should be safe to delete
 			delete (*meshit).second;
 			*meshit = m_meshobjects.back();
 			m_meshobjects.pop_back();
@@ -1494,7 +1437,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(struct Main *maggie)
 	delete m_status_map[maggie->name];
 	m_status_map.erase(maggie->name);
 
-	free_main(maggie);
+	BKE_main_free(maggie);
 
 	return true;
 }
@@ -1557,6 +1500,20 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene* kx_scene,
 {
 	/* Find a mesh in the current main */
 	ID *me= static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name, offsetof(ID, name) + 2));
+	Main *from_maggie = m_maggie;
+
+	if (me == NULL) {
+		// The mesh wasn't in the current main, try any dynamic (i.e., LibLoaded) ones
+		vector<Main*>::iterator it;
+
+		for (it = GetMainDynamic().begin(); it != GetMainDynamic().end(); it++) {
+			me = static_cast<ID *>(BLI_findstring(&(*it)->mesh, name, offsetof(ID, name) + 2));
+			from_maggie = *it;
+
+			if (me)
+				break;
+		}
+	}
 	
 	if (me==NULL) {
 		printf("Could not be found \"%s\"\n", name);
@@ -1565,11 +1522,13 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene* kx_scene,
 	
 	/* Watch this!, if its used in the original scene can cause big troubles */
 	if (me->us > 0) {
+#ifdef DEBUG
 		printf("Mesh has a user \"%s\"\n", name);
-		me = (ID*)BKE_mesh_copy((Mesh*)me);
+#endif
+		me = (ID*)BKE_mesh_copy_ex(from_maggie, (Mesh*)me);
 		me->us--;
 	}
-	BLI_remlink(&m_maggie->mesh, me); /* even if we made the copy it needs to be removed */
+	BLI_remlink(&from_maggie->mesh, me); /* even if we made the copy it needs to be removed */
 	BLI_addtail(&maggie->mesh, me);
 
 	
@@ -1595,7 +1554,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene* kx_scene,
 				mat_new->id.flag |= LIB_DOIT;
 				mat_old->id.us--;
 				
-				BLI_remlink(&m_maggie->mat, mat_new);
+				BLI_remlink(&G.main->mat, mat_new); // BKE_material_copy uses G.main, and there is no BKE_material_copy_ex
 				BLI_addtail(&maggie->mat, mat_new);
 				
 				mesh->mat[i] = mat_new;
@@ -1611,7 +1570,8 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene* kx_scene,
 			}
 		}
 	}
-	
+
+	m_currentScene = kx_scene; // This needs to be set in case we LibLoaded earlier
 	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, NULL, kx_scene, this, false);
 	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
 	m_map_mesh_to_gamemesh.clear(); /* This is at runtime so no need to keep this, BL_ConvertMesh adds */

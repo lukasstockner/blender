@@ -27,8 +27,9 @@
 
 /** \file blender/windowmanager/intern/wm_cursors.c
  *  \ingroup wm
+ *
+ * Cursor pixmap and cursor utility functions to change the cursor.
  */
-
 
 #include <stdio.h>
 #include <string.h>
@@ -122,6 +123,11 @@ void WM_cursor_set(wmWindow *win, int curs)
 	 * only 1 pixel thick, use another one instead */
 	if (curs == CURSOR_EDIT)
 		curs = BC_CROSSCURSOR;
+#else
+	/* in case of large cursor, also use custom cursor because
+	 * large cursors don't work for system cursors */
+	if (U.curssize && curs == CURSOR_EDIT)
+		curs = BC_CROSSCURSOR;
 #endif
 
 	GHOST_SetCursorVisibility(win->ghostwin, 1);
@@ -141,7 +147,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 		if (curs == SYSCURSOR) {  /* System default Cursor */
 			GHOST_SetCursorShape(win->ghostwin, convert_cursor(CURSOR_STD));
 		}
-		else if ( (U.curssize == 0) || (BlenderCursor[curs]->big_bm == NULL) ) {
+		else if ((U.curssize == 0) || (BlenderCursor[curs]->big_bm == NULL)) {
 			window_set_custom_cursor_ex(win, BlenderCursor[curs], 0);
 		}
 		else {
@@ -224,7 +230,7 @@ void WM_cursor_grab_enable(wmWindow *win, bool wrap, bool hide, int bounds[4])
 	}
 }
 
-void WM_cursor_grab_disable(wmWindow *win, int mouse_ungrab_xy[2])
+void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2])
 {
 	if ((G.debug & G_DEBUG) == 0) {
 		if (win && win->ghostwin) {
@@ -271,7 +277,7 @@ int wm_cursor_arrow_move(wmWindow *win, wmEvent *event)
 void WM_cursor_time(wmWindow *win, int nr)
 {
 	/* 10 8x8 digits */
-	static char number_bitmaps[10][8] = {
+	const char number_bitmaps[10][8] = {
 		{0,  56,  68,  68,  68,  68,  68,  56},
 		{0,  24,  16,  16,  16,  16,  16,  56},
 		{0,  60,  66,  32,  16,   8,   4, 126},
@@ -294,7 +300,7 @@ void WM_cursor_time(wmWindow *win, int nr)
 	
 	/* print number bottom right justified */
 	for (idx = 3; nr && idx >= 0; idx--) {
-		char *digit = number_bitmaps[nr % 10];
+		const char *digit = number_bitmaps[nr % 10];
 		int x = idx % 2;
 		int y = idx / 2;
 

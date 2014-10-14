@@ -65,10 +65,13 @@ void ED_operatortypes_curve(void)
 	WM_operatortype_append(FONT_OT_style_toggle);
 	WM_operatortype_append(FONT_OT_style_set);
 
+	WM_operatortype_append(FONT_OT_select_all);
+
 	WM_operatortype_append(FONT_OT_text_copy);
 	WM_operatortype_append(FONT_OT_text_cut);
 	WM_operatortype_append(FONT_OT_text_paste);
-	WM_operatortype_append(FONT_OT_file_paste);
+	WM_operatortype_append(FONT_OT_text_paste_from_file);
+	WM_operatortype_append(FONT_OT_text_paste_from_clipboard);
 
 	WM_operatortype_append(FONT_OT_move);
 	WM_operatortype_append(FONT_OT_move_select);
@@ -95,6 +98,7 @@ void ED_operatortypes_curve(void)
 	WM_operatortype_append(CURVE_OT_radius_set);
 	WM_operatortype_append(CURVE_OT_spline_weight_set);
 	WM_operatortype_append(CURVE_OT_handle_type_set);
+	WM_operatortype_append(CURVE_OT_normals_make_consistent);
 	WM_operatortype_append(CURVE_OT_shade_smooth);
 	WM_operatortype_append(CURVE_OT_shade_flat);
 	WM_operatortype_append(CURVE_OT_tilt_clear);
@@ -137,6 +141,8 @@ void ED_operatortypes_curve(void)
 	WM_operatortype_append(CURVE_OT_vertex_add);
 	WM_operatortype_append(CURVE_OT_extrude);
 	WM_operatortype_append(CURVE_OT_cyclic_toggle);
+
+	WM_operatortype_append(CURVE_OT_match_texture_space);
 }
 
 void ED_operatormacros_curve(void)
@@ -149,14 +155,14 @@ void ED_operatormacros_curve(void)
 	WM_operatortype_macro_define(ot, "CURVE_OT_duplicate");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_enum_set(otmacro->ptr, "proportional", 0);
-	RNA_boolean_set(otmacro->ptr, "mirror", FALSE);
+	RNA_boolean_set(otmacro->ptr, "mirror", false);
 
 	ot = WM_operatortype_append_macro("CURVE_OT_extrude_move", "Extrude Curve and Move",
 	                                  "Extrude curve and move result", OPTYPE_UNDO | OPTYPE_REGISTER);
 	WM_operatortype_macro_define(ot, "CURVE_OT_extrude");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_enum_set(otmacro->ptr, "proportional", 0);
-	RNA_boolean_set(otmacro->ptr, "mirror", FALSE);
+	RNA_boolean_set(otmacro->ptr, "mirror", false);
 }
 
 void ED_keymap_curve(wmKeyConfig *keyconf)
@@ -205,6 +211,8 @@ void ED_keymap_curve(wmKeyConfig *keyconf)
 	RNA_int_set(WM_keymap_add_item(keymap, "FONT_OT_change_character", UPARROWKEY, KM_PRESS, KM_ALT, 0)->ptr, "delta", 1);
 	RNA_int_set(WM_keymap_add_item(keymap, "FONT_OT_change_character", DOWNARROWKEY, KM_PRESS, KM_ALT, 0)->ptr, "delta", -1);
 
+	WM_keymap_add_item(keymap, "FONT_OT_select_all", AKEY, KM_PRESS, KM_CTRL, 0);
+
 	WM_keymap_add_item(keymap, "FONT_OT_text_copy", CKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "FONT_OT_text_cut", XKEY, KM_PRESS, KM_CTRL, 0);
 	WM_keymap_add_item(keymap, "FONT_OT_text_paste", VKEY, KM_PRESS, KM_CTRL, 0);
@@ -217,7 +225,7 @@ void ED_keymap_curve(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "FONT_OT_line_break", RETKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "FONT_OT_text_insert", KM_TEXTINPUT, KM_ANY, KM_ANY, 0); // last!
 	kmi = WM_keymap_add_item(keymap, "FONT_OT_text_insert", BACKSPACEKEY, KM_PRESS, KM_ALT, 0);
-	RNA_boolean_set(kmi->ptr, "accent", TRUE); /* accented characters */
+	RNA_boolean_set(kmi->ptr, "accent", true); /* accented characters */
 
 	/* only set in editmode curve, by space_view3d listener */
 	keymap = WM_keymap_find(keyconf, "Curve", 0, 0);
@@ -240,9 +248,9 @@ void ED_keymap_curve(wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "CURVE_OT_select_linked", LKEY, KM_PRESS, KM_CTRL, 0);
 
 	kmi = WM_keymap_add_item(keymap, "CURVE_OT_select_linked_pick", LKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "deselect", FALSE);
+	RNA_boolean_set(kmi->ptr, "deselect", false);
 	kmi = WM_keymap_add_item(keymap, "CURVE_OT_select_linked_pick", LKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "deselect", TRUE);
+	RNA_boolean_set(kmi->ptr, "deselect", true);
 
 	WM_keymap_add_item(keymap, "CURVE_OT_separate", PKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CURVE_OT_split", YKEY, KM_PRESS, 0, 0);
@@ -260,9 +268,11 @@ void ED_keymap_curve(wmKeyConfig *keyconf)
 
 	WM_keymap_add_item(keymap, "CURVE_OT_reveal", HKEY, KM_PRESS, KM_ALT, 0);
 	kmi = WM_keymap_add_item(keymap, "CURVE_OT_hide", HKEY, KM_PRESS, 0, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", FALSE);
+	RNA_boolean_set(kmi->ptr, "unselected", false);
 	kmi = WM_keymap_add_item(keymap, "CURVE_OT_hide", HKEY, KM_PRESS, KM_SHIFT, 0);
-	RNA_boolean_set(kmi->ptr, "unselected", TRUE);
+	RNA_boolean_set(kmi->ptr, "unselected", true);
+
+	WM_keymap_add_item(keymap, "CURVE_OT_normals_make_consistent", NKEY, KM_PRESS, KM_CTRL, 0);
 
 	WM_keymap_add_item(keymap, "OBJECT_OT_vertex_parent_set", PKEY, KM_PRESS, KM_CTRL, 0);
 	
@@ -272,5 +282,5 @@ void ED_keymap_curve(wmKeyConfig *keyconf)
 	WM_keymap_add_menu(keymap, "VIEW3D_MT_hook", HKEY, KM_PRESS, KM_CTRL, 0);
 
 	ED_keymap_proportional_cycle(keyconf, keymap);
-	ED_keymap_proportional_editmode(keyconf, keymap, TRUE);
+	ED_keymap_proportional_editmode(keyconf, keymap, true);
 }

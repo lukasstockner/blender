@@ -40,13 +40,11 @@
 #include "DNA_object_types.h"
 
 #include "BLI_utildefines.h"
-#include "BLI_string.h"
 
 
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
-#include "BKE_object.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
 
@@ -89,25 +87,12 @@ static void freeData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
+#if 0
 	WaveModifierData *wmd = (WaveModifierData *) md;
+#endif
 	WaveModifierData *twmd = (WaveModifierData *) target;
 
-	twmd->damp = wmd->damp;
-	twmd->flag = wmd->flag;
-	twmd->height = wmd->height;
-	twmd->lifetime = wmd->lifetime;
-	twmd->narrow = wmd->narrow;
-	twmd->speed = wmd->speed;
-	twmd->startx = wmd->startx;
-	twmd->starty = wmd->starty;
-	twmd->timeoffs = wmd->timeoffs;
-	twmd->width = wmd->width;
-	twmd->falloff = wmd->falloff;
-	twmd->objectcenter = wmd->objectcenter;
-	twmd->texture = wmd->texture;
-	twmd->map_object = wmd->map_object;
-	twmd->texmapping = wmd->texmapping;
-	BLI_strncpy(twmd->defgrp_name, wmd->defgrp_name, sizeof(twmd->defgrp_name));
+	modifier_copyData_generic(md, target);
 
 	if (twmd->texture) {
 		id_us_plus(&twmd->texture->id);

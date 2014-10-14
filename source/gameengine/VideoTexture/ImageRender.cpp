@@ -36,7 +36,7 @@
 #include <math.h>
 
 
-#include "GL/glew.h"
+#include "glew-mx.h"
 
 #include "KX_PythonInit.h"
 #include "DNA_scene_types.h"
@@ -199,7 +199,7 @@ void ImageRender::Render()
 	m_canvas->SetViewPort(m_position[0], m_position[1], m_position[0]+m_capSize[0]-1, m_position[1]+m_capSize[1]-1);
 	m_canvas->ClearColor(m_background[0], m_background[1], m_background[2], m_background[3]);
 	m_canvas->ClearBuffer(RAS_ICanvas::COLOR_BUFFER|RAS_ICanvas::DEPTH_BUFFER);
-	m_rasterizer->BeginFrame(RAS_IRasterizer::KX_TEXTURED,m_engine->GetClockTime());
+	m_rasterizer->BeginFrame(m_engine->GetClockTime());
 	m_engine->SetWorldSettings(m_scene->GetWorldInfo());
 	m_rasterizer->SetAuxilaryClientInfo(m_scene);
 	m_rasterizer->DisplayFog();
@@ -273,6 +273,8 @@ void ImageRender::Render()
 	m_rasterizer->SetStereoMode(stereomode);
 
 	m_scene->CalculateVisibleMeshes(m_rasterizer,m_camera);
+
+	m_scene->UpdateAnimations(m_engine->GetFrameTime());
 
 	m_scene->RenderBuckets(camtrans, m_rasterizer);
 

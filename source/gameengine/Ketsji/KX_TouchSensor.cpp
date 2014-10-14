@@ -102,7 +102,8 @@ KX_TouchSensor::KX_TouchSensor(SCA_EventManager* eventmgr,KX_GameObject* gameobj
 :SCA_ISensor(gameobj,eventmgr),
 m_touchedpropname(touchedpropname),
 m_bFindMaterial(bFindMaterial),
-m_bTouchPulse(bTouchPulse)
+m_bTouchPulse(bTouchPulse),
+m_hitMaterial("")
 /*m_sumoObj(sumoObj),*/
 {
 //	KX_TouchEventManager* touchmgr = (KX_TouchEventManager*) eventmgr;
@@ -207,10 +208,6 @@ bool	KX_TouchSensor::BroadPhaseSensorFilterCollision(void*obj1,void*obj2)
 	KX_ClientObjectInfo *my_client_info = static_cast<KX_ClientObjectInfo*>(m_physCtrl->GetNewClientInfo());
 	KX_GameObject* otherobj = ( client_info ? client_info->m_gameobject : NULL);
 
-	// first, decrement refcount as GetParent() increases it
-	if (myparent)
-		myparent->Release();
-
 	// we can only check on persistent characteristic: m_link and m_suspended are not
 	// good candidate because they are transient. That must be handled at another level
 	if (!otherobj ||
@@ -281,6 +278,7 @@ bool	KX_TouchSensor::NewHandleCollision(void*object1,void*object2,const PHY_Coll
 			}
 			m_bTriggered = true;
 			m_hitObject = gameobj;
+			m_hitMaterial = (client_info->m_auxilary_info ? (char*)client_info->m_auxilary_info : "");
 			//printf("KX_TouchSensor::HandleCollision\n");
 		}
 		
@@ -324,6 +322,7 @@ PyAttributeDef KX_TouchSensor::Attributes[] = {
 	KX_PYATTRIBUTE_STRING_RW("propName",0,MAX_PROP_NAME,false,KX_TouchSensor,m_touchedpropname),
 	KX_PYATTRIBUTE_BOOL_RW("useMaterial",KX_TouchSensor,m_bFindMaterial),
 	KX_PYATTRIBUTE_BOOL_RW("usePulseCollision",KX_TouchSensor,m_bTouchPulse),
+	KX_PYATTRIBUTE_STRING_RO("hitMaterial", KX_TouchSensor, m_hitMaterial),
 	KX_PYATTRIBUTE_RO_FUNCTION("hitObject", KX_TouchSensor, pyattr_get_object_hit),
 	KX_PYATTRIBUTE_RO_FUNCTION("hitObjectList", KX_TouchSensor, pyattr_get_object_hit_list),
 	{ NULL }	//Sentinel

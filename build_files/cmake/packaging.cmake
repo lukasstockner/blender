@@ -24,7 +24,7 @@ set(MY_WC_HASH "unknown")
 if(EXISTS ${CMAKE_SOURCE_DIR}/.git/)
 	include(FindGit)
 	if(GIT_FOUND)
-		message("-- Found Git: ${GIT_EXECUTABLE}")
+		message(STATUS "-- Found Git: ${GIT_EXECUTABLE}")
 		execute_process(COMMAND git rev-parse --short @{u}
 		                WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 		                OUTPUT_VARIABLE MY_WC_HASH
@@ -35,18 +35,19 @@ set(BUILD_REV ${MY_WC_HASH})
 
 
 # Force Package Name
-set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME}-${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}-1.${BUILD_REV}-${CMAKE_SYSTEM_PROCESSOR})
+execute_process(COMMAND date "+%Y%m%d" OUTPUT_VARIABLE CPACK_DATE OUTPUT_STRIP_TRAILING_WHITESPACE)
+set(CPACK_PACKAGE_FILE_NAME ${PROJECT_NAME}-${MAJOR_VERSION}.${MINOR_VERSION}.${PATCH_VERSION}-git${CPACK_DATE}.${BUILD_REV}-${CMAKE_SYSTEM_PROCESSOR})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 	# RPM packages
 	include(build_files/cmake/RpmBuild.cmake)
 	if(RPMBUILD_FOUND AND NOT WIN32)
 		set(CPACK_GENERATOR "RPM")
-		set(CPACK_RPM_PACKAGE_RELEASE "1.${BUILD_REV}")
+		set(CPACK_RPM_PACKAGE_RELEASE "git${CPACK_DATE}.${BUILD_REV}")
 		set(CPACK_SET_DESTDIR "true")
 		set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PROJECT_DESCRIPTION}")
 		set(CPACK_PACKAGE_RELOCATABLE "false")
-		set(CPACK_RPM_PACKAGE_LICENSE "GPLv2")
+		set(CPACK_RPM_PACKAGE_LICENSE "GPLv2+ and Apache 2.0")
 		set(CPACK_RPM_PACKAGE_GROUP "Amusements/Multimedia")
 		set(CPACK_RPM_USER_BINARY_SPECFILE "${CMAKE_SOURCE_DIR}/build_files/package_spec/rpm/blender.spec.in")
 	endif()

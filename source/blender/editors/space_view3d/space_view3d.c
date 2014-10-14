@@ -43,16 +43,16 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_context.h"
+#include "BKE_depsgraph.h"
 #include "BKE_icons.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_scene.h"
 #include "BKE_screen.h"
 
-#include "ED_render.h"
 #include "ED_space_api.h"
 #include "ED_screen.h"
-#include "ED_object.h"
 
 #include "GPU_extensions.h"
 #include "GPU_material.h"
@@ -68,6 +68,10 @@
 #include "RNA_access.h"
 
 #include "UI_resources.h"
+
+#ifdef WITH_PYTHON
+#  include "BPY_extern.h"
+#endif
 
 #include "view3d_intern.h"  /* own include */
 
@@ -174,7 +178,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_ar)
 
 		if (ar) {
 			RegionView3D *rv3d = ar->regiondata;
-			if (rv3d && rv3d->viewlock == 0) {
+			if (rv3d && (rv3d->viewlock & RV3D_LOCKED) == 0) {
 				*r_v3d = v3d;
 				*r_ar = ar;
 				return true;
@@ -186,7 +190,7 @@ bool ED_view3d_context_user_region(bContext *C, View3D **r_v3d, ARegion **r_ar)
 					/* find the first unlocked rv3d */
 					if (ar->regiondata && ar->regiontype == RGN_TYPE_WINDOW) {
 						rv3d = ar->regiondata;
-						if (rv3d->viewlock == 0) {
+						if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
 							ar_unlock = ar;
 							if (rv3d->persp == RV3D_PERSP || rv3d->persp == RV3D_CAMOB) {
 								ar_unlock_user = ar;
@@ -266,7 +270,16 @@ static void view3d_stop_render_preview(wmWindowManager *wm, ARegion *ar)
 	RegionView3D *rv3d = ar->regiondata;
 
 	if (rv3d->render_engine) {
+#ifdef WITH_PYTHON
+		BPy_BEGIN_ALLOW_THREADS;
+#endif
+
 		WM_jobs_kill_type(wm, ar, WM_JOB_TYPE_RENDER_PREVIEW);
+
+#ifdef WITH_PYTHON
+		BPy_END_ALLOW_THREADS;
+#endif
+
 		if (rv3d->render_engine->re)
 			RE_Database_Free(rv3d->render_engine->re);
 		RE_engine_free(rv3d->render_engine);
@@ -274,7 +287,7 @@ static void view3d_stop_render_preview(wmWindowManager *wm, ARegion *ar)
 	}
 }
 
-void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *sa)
+void ED_view3d_shade_update(Main *bmain, Scene *scene, View3D *v3d, ScrArea *sa)
 {
 	wmWindowManager *wm = bmain->wm.first;
 
@@ -285,6 +298,10 @@ void ED_view3d_shade_update(Main *bmain, View3D *v3d, ScrArea *sa)
 			if (ar->regiondata)
 				view3d_stop_render_preview(wm, ar);
 		}
+	}
+	else if (scene->obedit != NULL && scene->obedit->type == OB_MESH) {
+		/* Tag mesh to load edit data. */
+		DAG_id_tag_update(scene->obedit->data, 0);
 	}
 }
 
@@ -305,7 +322,7 @@ static SpaceLink *view3d_new(const bContext *C)
 		v3d->lay = v3d->layact = scene->lay;
 		v3d->camera = scene->camera;
 	}
-	v3d->scenelock = TRUE;
+	v3d->scenelock = true;
 	v3d->grid = 1.0f;
 	v3d->gridlines = 16;
 	v3d->gridsubdiv = 10;
@@ -378,7 +395,16 @@ static SpaceLink *view3d_new(const bContext *C)
 static void view3d_free(SpaceLink *sl)
 {
 	View3D *vd = (View3D *) sl;
+	BGpic *bgpic;
 
+	for (bgpic = vd->bgpicbase.first; bgpic; bgpic = bgpic->next) {
+		if (bgpic->source == V3D_BGPIC_IMAGE) {
+			id_us_min((ID *)bgpic->ima);
+		}
+		else if (bgpic->source == V3D_BGPIC_MOVIE) {
+			id_us_min((ID *)bgpic->clip);
+		}
+	}
 	BLI_freelistN(&vd->bgpicbase);
 
 	if (vd->localvd) MEM_freeN(vd->localvd);
@@ -405,11 +431,10 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 {
 	View3D *v3do = (View3D *)sl;
 	View3D *v3dn = MEM_dupallocN(sl);
+	BGpic *bgpic;
 	
 	/* clear or remove stuff from old */
-	
-// XXX	BIF_view3d_previewrender_free(v3do);
-	
+
 	if (v3dn->localvd) {
 		v3dn->localvd = NULL;
 		v3dn->properties_storage = NULL;
@@ -422,8 +447,16 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	/* copy or clear inside new stuff */
 
 	v3dn->defmaterial = NULL;
-	
+
 	BLI_duplicatelist(&v3dn->bgpicbase, &v3do->bgpicbase);
+	for (bgpic = v3dn->bgpicbase.first; bgpic; bgpic = bgpic->next) {
+		if (bgpic->source == V3D_BGPIC_IMAGE) {
+			id_us_plus((ID *)bgpic->ima);
+		}
+		else if (bgpic->source == V3D_BGPIC_MOVIE) {
+			id_us_plus((ID *)bgpic->clip);
+		}
+	}
 
 	v3dn->properties_storage = NULL;
 	
@@ -451,6 +484,12 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 	
 	keymap = WM_keymap_find(wm->defaultconf, "Object Mode", 0, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+
+	keymap = WM_keymap_find(wm->defaultconf, "Paint Curve", 0, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+
+	keymap = WM_keymap_find(wm->defaultconf, "Curve", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 	keymap = WM_keymap_find(wm->defaultconf, "Image Paint", 0, 0);
@@ -481,10 +520,6 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 	
 	keymap = WM_keymap_find(wm->defaultconf, "Lattice", 0, 0);
-	WM_event_add_keymap_handler(&ar->handlers, keymap);
-
-	/* armature sketching needs to take over mouse */
-	keymap = WM_keymap_find(wm->defaultconf, "Armature Sketch", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
 	keymap = WM_keymap_find(wm->defaultconf, "Particle", 0, 0);
@@ -586,8 +621,11 @@ static int view3d_ima_empty_drop_poll(bContext *C, wmDrag *drag, const wmEvent *
 	Base *base = ED_view3d_give_base_under_cursor(C, event->mval);
 
 	/* either holding and ctrl and no object, or dropping to empty */
-	if ((event->ctrl && !base) || (base && base->object->type == OB_EMPTY))
+	if (((base == NULL) && event->ctrl) ||
+	    ((base != NULL) && base->object->type == OB_EMPTY))
+	{
 		return view3d_ima_drop_poll(C, drag, event);
+	}
 
 	return 0;
 }
@@ -644,7 +682,7 @@ static void view3d_dropboxes(void)
 	WM_dropbox_add(lb, "MESH_OT_drop_named_image", view3d_ima_mesh_drop_poll, view3d_id_path_drop_copy);
 	WM_dropbox_add(lb, "OBJECT_OT_drop_named_image", view3d_ima_empty_drop_poll, view3d_id_path_drop_copy);
 	WM_dropbox_add(lb, "VIEW3D_OT_background_image_add", view3d_ima_bg_drop_poll, view3d_id_path_drop_copy);
-	WM_dropbox_add(lb, "OBJECT_OT_group_instance_add", view3d_group_drop_poll, view3d_group_drop_copy);
+	WM_dropbox_add(lb, "OBJECT_OT_group_instance_add", view3d_group_drop_poll, view3d_group_drop_copy);	
 }
 
 
@@ -657,10 +695,6 @@ static void view3d_main_area_free(ARegion *ar)
 	if (rv3d) {
 		if (rv3d->localvd) MEM_freeN(rv3d->localvd);
 		if (rv3d->clipbb) MEM_freeN(rv3d->clipbb);
-
-		if (rv3d->ri) {
-			// XXX		BIF_view3d_previewrender_free(rv3d);
-		}
 
 		if (rv3d->render_engine)
 			RE_engine_free(rv3d->render_engine);
@@ -695,9 +729,7 @@ static void *view3d_main_area_duplicate(void *poin)
 		
 		new->depths = NULL;
 		new->gpuoffscreen = NULL;
-		new->ri = NULL;
 		new->render_engine = NULL;
-		new->gpd = NULL;
 		new->sms = NULL;
 		new->smooth_timer = NULL;
 		
@@ -751,7 +783,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 					break;
 				case ND_NLA:
 				case ND_KEYFRAME:
-					if (wmn->action == NA_EDITED)
+					if (ELEM(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED))
 						ED_region_tag_redraw(ar);
 					break;
 				case ND_ANIMCHAN:
@@ -796,6 +828,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 				case ND_CONSTRAINT:
 				case ND_KEYS:
 				case ND_PARTICLE:
+				case ND_LOD:
 					ED_region_tag_redraw(ar);
 					break;
 			}
@@ -831,14 +864,18 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 			switch (wmn->data) {
 				case ND_SHADING:
 				case ND_NODES:
+				{
+					Object *ob = OBACT;
 					if ((v3d->drawtype == OB_MATERIAL) ||
+					    (ob && (ob->mode == OB_MODE_TEXTURE_PAINT)) ||
 					    (v3d->drawtype == OB_TEXTURE &&
-					         (scene->gm.matmode == GAME_MAT_GLSL ||
-					          BKE_scene_use_new_shading_nodes(scene))))
+					     (scene->gm.matmode == GAME_MAT_GLSL ||
+					      BKE_scene_use_new_shading_nodes(scene))))
 					{
 						ED_region_tag_redraw(ar);
 					}
 					break;
+				}
 				case ND_SHADING_DRAW:
 				case ND_SHADING_LINKS:
 					ED_region_tag_redraw(ar);
@@ -876,7 +913,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 			ED_region_tag_redraw(ar);
 			break;
 		case NC_MOVIECLIP:
-			if (wmn->data == ND_DISPLAY)
+			if (wmn->data == ND_DISPLAY || wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
 			break;
 		case NC_SPACE:
@@ -961,6 +998,7 @@ static void view3d_header_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa)
 				case ND_LAYER:
 				case ND_TOOLSETTINGS:
 				case ND_LAYER_CONTENT:
+				case ND_RENDER_OPTIONS:
 					ED_region_tag_redraw(ar);
 					break;
 			}
@@ -1000,7 +1038,7 @@ static void view3d_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 					break;
 				case ND_NLA:
 				case ND_KEYFRAME:
-					if (wmn->action == NA_EDITED)
+					if (ELEM(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED))
 						ED_region_tag_redraw(ar);
 					break;
 			}
@@ -1067,6 +1105,11 @@ static void view3d_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 			break;
 		case NC_GPENCIL:
 			if (wmn->data == ND_DATA || wmn->action == NA_EDITED)
+				ED_region_tag_redraw(ar);
+			break;
+		case NC_IMAGE:
+			/* Update for the image layers in texture paint. */
+			if (wmn->action == NA_EDITED)
 				ED_region_tag_redraw(ar);
 			break;
 	}

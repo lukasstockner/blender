@@ -38,6 +38,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
@@ -48,6 +49,7 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_linestyle.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 #include "BKE_scene.h"
@@ -79,7 +81,9 @@ static void shader_get_from_context(const bContext *C, bNodeTreeType *UNUSED(tre
 	Scene *scene = CTX_data_scene(C);
 	Object *ob = OBACT;
 	
-	if (snode->shaderfrom == SNODE_SHADER_OBJECT) {
+	if ((snode->shaderfrom == SNODE_SHADER_OBJECT) ||
+	    (BKE_scene_use_new_shading_nodes(scene) == false))
+	{
 		if (ob) {
 			*r_from = &ob->id;
 			if (ob->type == OB_LAMP) {
@@ -95,6 +99,16 @@ static void shader_get_from_context(const bContext *C, bNodeTreeType *UNUSED(tre
 			}
 		}
 	}
+#ifdef WITH_FREESTYLE
+	else if (snode->shaderfrom == SNODE_SHADER_LINESTYLE) {
+		FreestyleLineStyle *linestyle = BKE_linestyle_active_from_scene(scene);
+		if (linestyle) {
+			*r_from = NULL;
+			*r_id = &linestyle->id;
+			*r_ntree = linestyle->nodetree;
+		}
+	}
+#endif
 	else { /* SNODE_SHADER_WORLD */
 		if (scene->world) {
 			*r_from = NULL;
@@ -187,14 +201,14 @@ void register_node_tree_type_sh(void)
 
 /* GPU material from shader nodes */
 
-void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat)
+void ntreeGPUMaterialNodes(bNodeTree *ntree, GPUMaterial *mat, short compatibility)
 {
 	/* localize tree to create links for reroute and mute */
 	bNodeTree *localtree = ntreeLocalize(ntree);
 	bNodeTreeExec *exec;
 
 	exec = ntreeShaderBeginExecTree(localtree);
-	ntreeExecGPUNodes(exec, mat, 1);
+	ntreeExecGPUNodes(exec, mat, 1, compatibility);
 	ntreeShaderEndExecTree(exec);
 
 	ntreeFreeTree_ex(localtree, false);

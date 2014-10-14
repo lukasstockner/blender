@@ -39,8 +39,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_math.h"
-#include "BLI_dynstr.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -296,7 +294,7 @@ static int add_keyingset_button_exec(bContext *C, wmOperator *op)
 	char *path = NULL;
 	short success = 0;
 	int index = 0, pflag = 0;
-	int all = RNA_boolean_get(op->ptr, "all");
+	const bool all = RNA_boolean_get(op->ptr, "all");
 	
 	/* verify the Keying Set to use:
 	 *	- use the active one for now (more control over this can be added later)
@@ -641,6 +639,16 @@ void ANIM_keyingset_infos_exit(void)
 	BKE_keyingsets_free(&builtin_keyingsets);
 }
 
+/* Check if the ID appears in the paths specified by the KeyingSet */
+bool ANIM_keyingset_find_id(KeyingSet *ks, ID *id)
+{
+	/* sanity checks */
+	if (ELEM(NULL, ks, id))
+		return false;
+
+	return BLI_findptr(&ks->paths, id, offsetof(KS_Path, id)) != NULL;
+}
+
 /* ******************************************* */
 /* KEYING SETS API (for UI) */
 
@@ -712,7 +720,7 @@ KeyingSet *ANIM_get_keyingset_for_autokeying(Scene *scene, const char *tranformK
 /* Menu of All Keying Sets ----------------------------- */
 
 /* Dynamically populate an enum of Keying Sets */
-EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Scene *scene = CTX_data_scene(C);
 	KeyingSet *ks;
@@ -772,7 +780,7 @@ EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C, PointerRNA *UNUSED(pt
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -783,7 +791,7 @@ EnumPropertyItem *ANIM_keying_sets_enum_itemf(bContext *C, PointerRNA *UNUSED(pt
 /* Polling API ----------------------------------------------- */
 
 /* Check if KeyingSet can be used in the current context */
-short ANIM_keyingset_context_ok_poll(bContext *C, KeyingSet *ks)
+bool ANIM_keyingset_context_ok_poll(bContext *C, KeyingSet *ks)
 {
 	if ((ks->flag & KEYINGSET_ABSOLUTE) == 0) {
 		KeyingSetInfo *ksi = ANIM_keyingset_info_find_name(ks->typeinfo);
@@ -797,7 +805,7 @@ short ANIM_keyingset_context_ok_poll(bContext *C, KeyingSet *ks)
 		return (ksi->poll(ksi, C));
 	}
 	
-	return 1;
+	return true;
 }
 
 /* Special 'Overrides' Iterator for Relative KeyingSets ------ */
@@ -892,7 +900,7 @@ short ANIM_validate_keyingset(bContext *C, ListBase *dsources, KeyingSet *ks)
 				
 			/* if we don't have any paths now, then this still qualifies as invalid context */
 			// FIXME: we need some error conditions (to be retrieved from the iterator why this failed!)
-			if (ks->paths.first == NULL)
+			if (BLI_listbase_is_empty(&ks->paths))
 				return MODIFYKEY_INVALID_CONTEXT;
 		}
 		else {
@@ -916,7 +924,7 @@ int ANIM_apply_keyingset(bContext *C, ListBase *dsources, bAction *act, KeyingSe
 	ReportList *reports = CTX_wm_reports(C);
 	KS_Path *ksp;
 	int kflag = 0, success = 0;
-	char *groupname = NULL;
+	const char *groupname = NULL;
 	
 	/* sanity checks */
 	if (ks == NULL)
@@ -927,7 +935,7 @@ int ANIM_apply_keyingset(bContext *C, ListBase *dsources, bAction *act, KeyingSe
 		/* use KeyingSet's flags as base */
 		kflag = ks->keyingflag;
 		
-		/* suppliment with info from the context */
+		/* supplement with info from the context */
 		kflag |= ANIM_get_keyframing_flags(scene, 1);
 	}
 	else if (mode == MODIFYKEY_MODE_DELETE)
@@ -1009,7 +1017,7 @@ int ANIM_apply_keyingset(bContext *C, ListBase *dsources, bAction *act, KeyingSe
 		}
 		
 		/* send notifiers for updates (this doesn't require context to work!) */
-		WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
+		WM_main_add_notifier(NC_ANIMATION | ND_KEYFRAME | NA_ADDED, NULL);
 	}
 	
 	/* return the number of channels successfully affected */

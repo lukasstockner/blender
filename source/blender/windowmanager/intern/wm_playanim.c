@@ -53,14 +53,12 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_util.h"
-#include "BLI_rect.h"
 #include "BLI_string.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "BKE_blender.h"
-#include "BKE_global.h"
+#include "BKE_depsgraph.h"
 #include "BKE_image.h"
 
 #include "BIF_gl.h"
@@ -89,14 +87,19 @@ typedef struct PlayState {
 	/* playback state */
 	short direction;
 	short next_frame;
-	short once;
-	short turbo;
-	short pingpong;
-	short noskip;
-	short sstep;
-	short wait2;
-	short stopped;
-	short go;
+
+	bool  once;
+	bool  turbo;
+	bool  pingpong;
+	bool  noskip;
+	bool  sstep;
+	bool  wait2;
+	bool  stopped;
+	bool  go;
+	/* waiting for images to load */
+	bool  loading;
+	/* x/y image flip */
+	bool draw_flip[2];
 	
 	int fstep;
 
@@ -167,6 +170,15 @@ static void playanim_window_get_size(int *width_r, int *height_r)
 	GHOST_DisposeRectangle(bounds);
 }
 
+static void playanim_gl_matrix(void)
+{
+	/* unified matrix, note it affects offset for drawing */
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
+	glMatrixMode(GL_MODELVIEW);
+}
+
 /* implementation */
 static void playanim_event_qual_update(void)
 {
@@ -204,7 +216,7 @@ typedef struct PlayAnimPict {
 	struct PlayAnimPict *next, *prev;
 	char *mem;
 	int size;
-	char *name;
+	const char *name;
 	struct ImBuf *ibuf;
 	struct anim *anim;
 	int frame;
@@ -212,7 +224,7 @@ typedef struct PlayAnimPict {
 } PlayAnimPict;
 
 static struct ListBase picsbase = {NULL, NULL};
-static int fromdisk = FALSE;
+static bool fromdisk = false;
 static double ptottime = 0.0, swaptime = 0.04;
 
 static PlayAnimPict *playanim_step(PlayAnimPict *playanim, int step)
@@ -244,7 +256,8 @@ static int pupdate_time(void)
 
 static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf *ibuf, int fontid, int fstep)
 {
-	float offsx, offsy;
+	float offs_x, offs_y;
+	float span_x, span_y;
 
 	if (ibuf == NULL) {
 		printf("%s: no ibuf for picture '%s'\n", __func__, picture ? picture->name : "<NIL>");
@@ -259,13 +272,17 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 
 	GHOST_ActivateWindowDrawingContext(g_WS.ghost_window);
 
-	/* offset within window */
-	offsx = 0.5f * (((float)ps->win_x - ps->zoom * ibuf->x) / (float)ps->win_x);
-	offsy = 0.5f * (((float)ps->win_y - ps->zoom * ibuf->y) / (float)ps->win_y);
+	/* size within window */
+	span_x = (ps->zoom * ibuf->x) / (float)ps->win_x;
+	span_y = (ps->zoom * ibuf->y) / (float)ps->win_y;
 
-	CLAMP(offsx, 0.0f, 1.0f);
-	CLAMP(offsy, 0.0f, 1.0f);
-	glRasterPos2f(offsx, offsy);
+	/* offset within window */
+	offs_x = 0.5f * (1.0f - span_x);
+	offs_y = 0.5f * (1.0f - span_y);
+
+	CLAMP(offs_x, 0.0f, 1.0f);
+	CLAMP(offs_y, 0.0f, 1.0f);
+	glRasterPos2f(offs_x, offs_y);
 
 	glClearColor(0.1, 0.1, 0.1, 0.0);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -275,9 +292,15 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-		fdrawcheckerboard(offsx, offsy, offsx + (ps->zoom * ibuf->x) / (float)ps->win_x, offsy + (ps->zoom * ibuf->y) / (float)ps->win_y);
+		fdrawcheckerboard(offs_x, offs_y, offs_x + span_x, offs_y + span_y);
 	}
-	
+
+	glRasterPos2f(offs_x + (ps->draw_flip[0] ? span_x : 0.0f),
+	              offs_y + (ps->draw_flip[1] ? span_y : 0.0f));
+
+	glPixelZoom(ps->zoom * ps->draw_flip[0] ? -1.0f : 1.0f,
+	            ps->zoom * ps->draw_flip[1] ? -1.0f : 1.0f);
+
 	glDrawPixels(ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, ibuf->rect);
 
 	glDisable(GL_BLEND);
@@ -304,7 +327,7 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 	GHOST_SwapWindowBuffers(g_WS.ghost_window);
 }
 
-static void build_pict_list(PlayState *ps, char *first, int totframes, int fstep, int fontid)
+static void build_pict_list_ex(PlayState *ps, const char *first, int totframes, int fstep, int fontid)
 {
 	char *mem, filepath[FILE_MAX];
 //	short val;
@@ -358,10 +381,11 @@ static void build_pict_list(PlayState *ps, char *first, int totframes, int fstep
 		 */
 
 		while (IMB_ispic(filepath) && totframes) {
+			bool hasevent;
 			size_t size;
 			int file;
 
-			file = open(filepath, O_BINARY | O_RDONLY, 0);
+			file = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
 			if (file < 0) {
 				/* print errno? */
 				return;
@@ -384,7 +408,7 @@ static void build_pict_list(PlayState *ps, char *first, int totframes, int fstep
 			picture->size = size;
 			picture->IB_flags = IB_rect;
 
-			if (fromdisk == FALSE) {
+			if (fromdisk == false) {
 				mem = (char *)MEM_mallocN(size, "build pic list");
 				if (mem == NULL) {
 					printf("Couldn't get memory\n");
@@ -432,19 +456,26 @@ static void build_pict_list(PlayState *ps, char *first, int totframes, int fstep
 
 			BLI_newname(filepath, +fstep);
 
-#if 0 // XXX25
-			while (qtest()) {
-				switch (qreadN(&val)) {
-					case ESCKEY:
-						if (val) return;
-						break;
+			while ((hasevent = GHOST_ProcessEvents(g_WS.ghost_system, 0))) {
+				if (hasevent) {
+					GHOST_DispatchEvents(g_WS.ghost_system);
+				}
+				if (ps->loading == false) {
+					return;
 				}
 			}
-#endif
+
 			totframes--;
 		}
 	}
 	return;
+}
+
+static void build_pict_list(PlayState *ps, const char *first, int totframes, int fstep, int fontid)
+{
+	ps->loading = true;
+	build_pict_list_ex(ps, first, totframes, fstep, fontid);
+	ps->loading = false;
 }
 
 static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
@@ -460,8 +491,34 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 	/* convert ghost event into value keyboard or mouse */
 	val = ELEM(type, GHOST_kEventKeyDown, GHOST_kEventButtonDown);
 
+
+	/* first check if we're busy loading files */
+	if (ps->loading) {
+		switch (type) {
+			case GHOST_kEventKeyDown:
+			case GHOST_kEventKeyUp:
+			{
+				GHOST_TEventKeyData *key_data;
+
+				key_data = (GHOST_TEventKeyData *)GHOST_GetEventData(evt);
+				switch (key_data->key) {
+					case GHOST_kKeyEsc:
+						ps->loading = false;
+						break;
+					default:
+						break;
+				}
+				break;
+			}
+			default:
+				break;
+		}
+		return 1;
+	}
+
+
 	if (ps->wait2 && ps->stopped) {
-		ps->stopped = FALSE;
+		ps->stopped = false;
 	}
 
 	if (ps->wait2) {
@@ -483,6 +540,14 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 				case GHOST_kKeyP:
 					if (val) ps->pingpong = !ps->pingpong;
 					break;
+				case GHOST_kKeyF:
+				{
+					if (val) {
+						int axis = (g_WS.qual & WS_QUAL_SHIFT) ? 1 : 0;
+						ps->draw_flip[axis] = !ps->draw_flip[axis];
+					}
+					break;
+				}
 				case GHOST_kKey1:
 				case GHOST_kKeyNumpad1:
 					if (val) swaptime = ps->fstep / 60.0;
@@ -524,8 +589,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					break;
 				case GHOST_kKeyLeftArrow:
 					if (val) {
-						ps->sstep = TRUE;
-						ps->wait2 = FALSE;
+						ps->sstep = true;
+						ps->wait2 = false;
 						if (g_WS.qual & WS_QUAL_SHIFT) {
 							ps->picture = picsbase.first;
 							ps->next_frame = 0;
@@ -537,20 +602,20 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					break;
 				case GHOST_kKeyDownArrow:
 					if (val) {
-						ps->wait2 = FALSE;
+						ps->wait2 = false;
 						if (g_WS.qual & WS_QUAL_SHIFT) {
 							ps->next_frame = ps->direction = -1;
 						}
 						else {
 							ps->next_frame = -10;
-							ps->sstep = TRUE;
+							ps->sstep = true;
 						}
 					}
 					break;
 				case GHOST_kKeyRightArrow:
 					if (val) {
-						ps->sstep = TRUE;
-						ps->wait2 = FALSE;
+						ps->sstep = true;
+						ps->wait2 = false;
 						if (g_WS.qual & WS_QUAL_SHIFT) {
 							ps->picture = picsbase.last;
 							ps->next_frame = 0;
@@ -562,13 +627,13 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					break;
 				case GHOST_kKeyUpArrow:
 					if (val) {
-						ps->wait2 = FALSE;
+						ps->wait2 = false;
 						if (g_WS.qual & WS_QUAL_SHIFT) {
 							ps->next_frame = ps->direction = 1;
 						}
 						else {
 							ps->next_frame = 10;
-							ps->sstep = TRUE;
+							ps->sstep = true;
 						}
 					}
 					break;
@@ -590,29 +655,29 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 				case GHOST_kKeyNumpad0:
 					if (val) {
 						if (ps->once) {
-							ps->once = ps->wait2 = FALSE;
+							ps->once = ps->wait2 = false;
 						}
 						else {
 							ps->picture = NULL;
-							ps->once = TRUE;
-							ps->wait2 = FALSE;
+							ps->once = true;
+							ps->wait2 = false;
 						}
 					}
 					break;
 				case GHOST_kKeyEnter:
 				case GHOST_kKeyNumpadEnter:
 					if (val) {
-						ps->wait2 = ps->sstep = FALSE;
+						ps->wait2 = ps->sstep = false;
 					}
 					break;
 				case GHOST_kKeyPeriod:
 				case GHOST_kKeyNumpadPeriod:
 					if (val) {
 						if (ps->sstep) {
-							ps->wait2 = FALSE;
+							ps->wait2 = false;
 						}
 						else {
-							ps->sstep = TRUE;
+							ps->sstep = true;
 							ps->wait2 = !ps->wait2;
 						}
 					}
@@ -642,7 +707,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					break;
 				}
 				case GHOST_kKeyEsc:
-					ps->go = FALSE;
+					ps->go = false;
 					break;
 				default:
 					break;
@@ -712,8 +777,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					if (ps->picture->next == NULL) break;
 					ps->picture = ps->picture->next;
 				}
-				ps->sstep = TRUE;
-				ps->wait2 = FALSE;
+				ps->sstep = true;
+				ps->wait2 = false;
 				ps->next_frame = 0;
 			}
 			break;
@@ -745,13 +810,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			glViewport(0, 0, ps->win_x, ps->win_y);
 			glScissor(0, 0, ps->win_x, ps->win_y);
 			
-			/* unified matrix, note it affects offset for drawing */
-			glMatrixMode(GL_PROJECTION);
-			glLoadIdentity();
-			glOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-			glMatrixMode(GL_MODELVIEW);
+			playanim_gl_matrix();
 
-			glPixelZoom(ps->zoom, ps->zoom);
 			ptottime = 0.0;
 			playanim_toscreen(ps, ps->picture, ps->curframe_ibuf, ps->fontid, ps->fstep);
 
@@ -760,7 +820,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 		case GHOST_kEventQuit:
 		case GHOST_kEventWindowClose:
 		{
-			ps->go = FALSE;
+			ps->go = false;
 			break;
 		}
 		case GHOST_kEventDraggingDropDone:
@@ -773,7 +833,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 				
 				for (a = 0; a < stra->count; a++) {
 					BLI_strncpy(ps->dropped_file, (char *)stra->strings[a], sizeof(ps->dropped_file));
-					ps->go = FALSE;
+					ps->go = false;
 					printf("drop file %s\n", stra->strings[a]);
 					break; /* only one drop element supported now */
 				}
@@ -802,7 +862,7 @@ static void playanim_window_open(const char *title, int posx, int posy, int size
 	                                       /* could optionally start fullscreen */
 	                                       GHOST_kWindowStateNormal,
 	                                       GHOST_kDrawingContextTypeOpenGL,
-	                                       FALSE /* no stereo */, FALSE);
+	                                       false /* no stereo */, false);
 }
 
 static void playanim_window_zoom(PlayState *ps, const float zoom_offset)
@@ -840,21 +900,24 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	
 	PlayState ps = {0};
 
-	/* ps.doubleb   = TRUE;*/ /* UNUSED */
-	ps.go        = TRUE;
-	ps.direction = TRUE;
+	/* ps.doubleb   = true;*/ /* UNUSED */
+	ps.go        = true;
+	ps.direction = true;
 	ps.next_frame = 1;
-	ps.once      = FALSE;
-	ps.turbo     = FALSE;
-	ps.pingpong  = FALSE;
-	ps.noskip    = FALSE;
-	ps.sstep     = FALSE;
-	ps.wait2     = FALSE;
-	ps.stopped   = FALSE;
+	ps.once      = false;
+	ps.turbo     = false;
+	ps.pingpong  = false;
+	ps.noskip    = false;
+	ps.sstep     = false;
+	ps.wait2     = false;
+	ps.stopped   = false;
+	ps.loading   = false;
 	ps.picture   = NULL;
 	ps.dropped_file[0] = 0;
 	ps.zoom      = 1.0f;
-	/* resetmap = FALSE */
+	/* resetmap = false */
+	ps.draw_flip[0] = false;
+	ps.draw_flip[1] = false;
 
 	ps.fstep     = 1;
 
@@ -864,7 +927,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 		if (argv[1][0] == '-') {
 			switch (argv[1][1]) {
 				case 'm':
-					fromdisk = TRUE;
+					fromdisk = true;
 					break;
 				case 'p':
 					if (argc > 3) {
@@ -958,9 +1021,9 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	}
 
 #if 0 //XXX25
-	#if !defined(WIN32) && !defined(__APPLE__)
+#if !defined(WIN32) && !defined(__APPLE__)
 	if (fork()) exit(0);
-	#endif
+#endif
 #endif //XXX25
 
 	{
@@ -972,11 +1035,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 
 		playanim_window_open("Blender:Anim", start_x, start_y, ibuf->x, ibuf->y);
 
-		/* unified matrix, note it affects offset for drawing */
-		glMatrixMode(GL_PROJECTION);
-		glLoadIdentity();
-		glOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-		glMatrixMode(GL_MODELVIEW);
+		playanim_gl_matrix();
 	}
 
 	GHOST_GetMainDisplayDimensions(g_WS.ghost_system, &maxwinx, &maxwiny);
@@ -1038,7 +1097,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 
 		if (ps.picture == NULL) {
 			printf("couldn't find pictures\n");
-			ps.go = FALSE;
+			ps.go = false;
 		}
 		if (ps.pingpong) {
 			if (ps.direction == 1) {
@@ -1095,17 +1154,17 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 
 			if (ps.once) {
 				if (ps.picture->next == NULL) {
-					ps.wait2 = TRUE;
+					ps.wait2 = true;
 				}
 				else if (ps.picture->prev == NULL) {
-					ps.wait2 = TRUE;
+					ps.wait2 = true;
 				}
 			}
 
 			ps.next_frame = ps.direction;
 
 
-			while ( (hasevent = GHOST_ProcessEvents(g_WS.ghost_system, 0)) || ps.wait2 != 0) {
+			while ((hasevent = GHOST_ProcessEvents(g_WS.ghost_system, 0)) || ps.wait2) {
 				if (hasevent) {
 					GHOST_DispatchEvents(g_WS.ghost_system);
 				}
@@ -1119,15 +1178,15 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 						}
 					}
 				}
-				if (!ps.go) {
+				if (ps.go == false) {
 					break;
 				}
 			}
 
 			ps.wait2 = ps.sstep;
 
-			if (ps.wait2 == 0 && ps.stopped == 0) {
-				ps.stopped = TRUE;
+			if (ps.wait2 == false && ps.stopped == false) {
+				ps.stopped = true;
 			}
 
 			pupdate_time();
@@ -1139,10 +1198,10 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 
 					if (ps.once && ps.picture != NULL) {
 						if (ps.picture->next == NULL) {
-							ps.wait2 = TRUE;
+							ps.wait2 = true;
 						}
 						else if (ps.picture->prev == NULL) {
-							ps.wait2 = TRUE;
+							ps.wait2 = true;
 						}
 					}
 
@@ -1153,7 +1212,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 					ps.picture = playanim_step(ps.picture, ps.next_frame);
 				}
 			}
-			if (ps.go == FALSE) {
+			if (ps.go == false) {
 				break;
 			}
 		}
@@ -1201,6 +1260,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	
 	IMB_exit();
 	BKE_images_exit();
+	DAG_exit();
 
 	totblock = MEM_get_memory_blocks_in_use();
 	if (totblock != 0) {
@@ -1220,7 +1280,7 @@ void WM_main_playanim(int argc, const char **argv)
 	bool looping = true;
 
 	while (looping) {
-		char *filepath = wm_main_playanim_intern(argc, argv);
+		const char *filepath = wm_main_playanim_intern(argc, argv);
 
 		if (filepath) {	/* use simple args */
 			argv[1] = "-a";

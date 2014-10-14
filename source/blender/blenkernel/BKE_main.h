@@ -46,7 +46,9 @@
 extern "C" {
 #endif
 
+struct EvaluationContext;
 struct Library;
+struct MainLock;
 
 typedef struct Main {
 	struct Main *next, *prev;
@@ -85,6 +87,8 @@ typedef struct Main {
 	ListBase nodetree;
 	ListBase brush;
 	ListBase particle;
+	ListBase palettes;
+	ListBase paintcurves;
 	ListBase wm;
 	ListBase gpencil;
 	ListBase movieclip;
@@ -92,6 +96,11 @@ typedef struct Main {
 	ListBase linestyle;
 
 	char id_tag_update[256];
+
+	/* Evaluation context used by viewport */
+	struct EvaluationContext *eval_ctx;
+
+	struct MainLock *lock;
 } Main;
 
 #define MAIN_VERSION_ATLEAST(main, ver, subver) \

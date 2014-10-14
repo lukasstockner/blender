@@ -92,6 +92,12 @@ static void rna_ShapeKey_name_set(PointerRNA *ptr, const char *value)
 	BKE_all_animdata_fix_paths_rename(NULL, "key_blocks", oldname, kb->name);
 }
 
+static float rna_ShapeKey_frame_get(PointerRNA *ptr)
+{
+	KeyBlock *kb = (KeyBlock *)ptr->data;
+	return kb->pos * 100.0f;  /* Because pos is ctime/100... */
+}
+
 static void rna_ShapeKey_value_set(PointerRNA *ptr, float value)
 {
 	KeyBlock *data = (KeyBlock *)ptr->data;
@@ -171,7 +177,7 @@ int rna_object_shapekey_index_set(ID *id, PointerRNA value, int current)
 
 	if (key) {
 		int a = BLI_findindex(&key->block, value.data);
-		if (a >= 0) return a;
+		if (a != -1) return a;
 	}
 	
 	return current;
@@ -432,6 +438,19 @@ static int rna_ShapeKeyPoint_get_index(Key *key, KeyBlock *kb, float *point)
 	return (int)(pt - start) / key->elemsize;
 }
 
+static int rna_ShapeKeyBezierPoint_get_index(KeyBlock *kb, float *point)
+{
+	float *start = (float *)kb->data;
+	
+	/* Unlike with rna_ShapeKeyPoint_get_index(), we cannot use key->elemsize here
+	 * since the default value for curves (16) is actually designed for BPoints
+	 * (i.e. NURBS Surfaces). The magic number "12" here was found by empirical
+	 * testing on a 64-bit system, and is similar to what's used for meshes and 
+	 * lattices. For more details, see T38013
+	 */
+	return (int)(point - start) / 12;
+}
+
 static char *rna_ShapeKeyPoint_path(PointerRNA *ptr)
 {
 	ID *id = (ID *)ptr->id.data;
@@ -444,7 +463,12 @@ static char *rna_ShapeKeyPoint_path(PointerRNA *ptr)
 	
 	if (kb) {
 		char name_esc_kb[sizeof(kb->name) * 2];
-		int index = rna_ShapeKeyPoint_get_index(key, kb, point);
+		int index;
+		
+		if (ptr->type == &RNA_ShapeKeyBezierPoint)
+			index = rna_ShapeKeyBezierPoint_get_index(kb, point);
+		else
+			index = rna_ShapeKeyPoint_get_index(key, kb, point);
 
 		BLI_strescape(name_esc_kb, kb->name, sizeof(name_esc_kb));
 		
@@ -546,12 +570,14 @@ static void rna_def_keyblock(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Name", "Name of Shape Key");
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_ShapeKey_name_set");
+	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 	RNA_def_struct_name_property(srna, prop);
 
 	/* keys need to be sorted to edit this */
 	prop = RNA_def_property(srna, "frame", PROP_FLOAT, PROP_TIME);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_float_sdna(prop, NULL, "pos");
+	RNA_def_property_float_funcs(prop, "rna_ShapeKey_frame_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Frame", "Frame for absolute keys");
 	RNA_def_property_update(prop, 0, "rna_Key_update_data");
 	

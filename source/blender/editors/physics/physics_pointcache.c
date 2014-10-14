@@ -29,8 +29,8 @@
  *  \ingroup edphys
  */
 
-
 #include <stdlib.h>
+#include <string.h>
 
 #include "MEM_guardedalloc.h"
 
@@ -40,9 +40,9 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
+#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
-#include "BKE_modifier.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_report.h"
@@ -73,6 +73,8 @@ typedef struct PTCacheExportJob {
 	
 	struct Main *bmain;
 	struct Scene *scene;
+	EvaluationContext eval_ctx;
+	
 	struct PointCache *cache;
 	struct PTCWriter *writer;
 	
@@ -99,15 +101,17 @@ static void ptcache_export_startjob(void *customdata, short *stop, short *do_upd
 	data->origfra = scene->r.cfra;
 	data->origframelen = scene->r.framelen;
 	scene->r.framelen = 1.0f;
+	memset(&data->eval_ctx, 0, sizeof(EvaluationContext));
+	data->eval_ctx.mode = DAG_EVAL_RENDER;
 	
-	G.is_break = FALSE;
+	G.is_break = false;
 	
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
 	PTC_bake(data->bmain, scene, data->writer, start_frame, end_frame, stop, do_update, progress);
 	
-	*do_update = TRUE;
+	*do_update = true;
 	*stop = 0;
 }
 
@@ -116,7 +120,7 @@ static void ptcache_export_endjob(void *customdata)
 	PTCacheExportJob *data = (PTCacheExportJob *)customdata;
 	Scene *scene = data->scene;
 	
-	G.is_rendering = FALSE;
+	G.is_rendering = false;
 	BKE_spacedata_draw_locks(false);
 	
 	/* free the cache writer (closes output file) */
@@ -125,7 +129,7 @@ static void ptcache_export_endjob(void *customdata)
 	/* reset scene frame */
 	scene->r.cfra = data->origfra;
 	scene->r.framelen = data->origframelen;
-	BKE_scene_update_for_newframe(data->bmain, scene, scene->lay);
+	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 }
 
 static int ptcache_export_exec(bContext *C, wmOperator *op)
@@ -148,7 +152,7 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 	/* XXX annoying hack: needed to prevent data corruption when changing
 	 * scene frame in separate threads
 	 */
-	G.is_rendering = TRUE;
+	G.is_rendering = true;
 	BKE_spacedata_draw_locks(true);
 	
 	/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,

@@ -60,7 +60,6 @@
 #include "volumetric.h"
 #include "volume_precache.h"
 
-#include "BKE_global.h"
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 /* defined in pipeline.c, is hardcopy of active dynamic allocated Render */
@@ -95,7 +94,7 @@ static int intersect_outside_volume(RayObject *tree, Isect *isect, float *offset
 }
 
 /* Uses ray tracing to check if a point is inside or outside an ObjectInstanceRen */
-static int point_inside_obi(RayObject *tree, ObjectInstanceRen *UNUSED(obi), const float co[3])
+static int point_inside_obi(RayObject *tree, ObjectInstanceRen *obi, const float co[3])
 {
 	Isect isect= {{0}};
 	float dir[3] = {0.0f, 0.0f, 1.0f};
@@ -112,7 +111,9 @@ static int point_inside_obi(RayObject *tree, ObjectInstanceRen *UNUSED(obi), con
 	isect.orig.face= NULL;
 	isect.orig.ob = NULL;
 
+	RE_instance_rotate_ray(obi, &isect);
 	final_depth = intersect_outside_volume(tree, &isect, dir, limit, depth);
+	RE_instance_rotate_ray_restore(obi, &isect);
 	
 	/* even number of intersections: point is outside
 	 * odd number: point is inside */
@@ -288,7 +289,7 @@ BLI_INLINE int lc_to_ms_I(int x, int y, int z, int *n)
 static float total_ss_energy(Render *re, int do_test_break, VolumePrecache *vp)
 {
 	int x, y, z;
-	int *res = vp->res;
+	const int *res = vp->res;
 	float energy=0.f;
 	
 	for (z=0; z < res[2]; z++) {
@@ -598,7 +599,7 @@ static void precache_launch_parts(Render *re, RayObject *tree, ShadeInput *shi, 
 	float voxel[3];
 	int sizex, sizey, sizez;
 	float bbmin[3], bbmax[3];
-	int *res;
+	const int *res;
 	int minx, maxx;
 	int miny, maxy;
 	int minz, maxz;

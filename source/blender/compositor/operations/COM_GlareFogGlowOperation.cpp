@@ -147,13 +147,13 @@ static void FHT2D(fREAL *data, unsigned int Mx, unsigned int My,
 	else {  // rectangular
 		unsigned int k, Nym = Ny - 1, stm = 1 << (Mx + My);
 		for (i = 0; stm > 0; i++) {
-			#define PRED(k) (((k & Nym) << Mx) + (k >> My))
+#define PRED(k) (((k & Nym) << Mx) + (k >> My))
 			for (j = PRED(i); j > i; j = PRED(j)) ;
 			if (j < i) continue;
 			for (k = i, j = PRED(i); j != i; k = j, j = PRED(j), stm--) {
 				t = data[j], data[j] = data[k], data[k] = t;
 			}
-			#undef PRED
+#undef PRED
 			stm--;
 		}
 	}
@@ -251,7 +251,7 @@ static void convolve(float *dst, MemoryBuffer *in1, MemoryBuffer *in2)
 	fRGB wt, *colp;
 	int x, y, ch;
 	int xbl, ybl, nxb, nyb, xbsz, ybsz;
-	int in2done = FALSE;
+	bool in2done = false;
 	const unsigned int kernelWidth = in2->getWidth();
 	const unsigned int kernelHeight = in2->getHeight();
 	const unsigned int imageWidth = in1->getWidth();
@@ -358,7 +358,7 @@ static void convolve(float *dst, MemoryBuffer *in1, MemoryBuffer *in2)
 				}
 
 			}
-			in2done = TRUE;
+			in2done = true;
 		}
 	}
 

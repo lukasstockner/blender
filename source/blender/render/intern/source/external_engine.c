@@ -57,8 +57,10 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
+#include "RE_bake.h"
 
 #include "initrender.h"
+#include "renderpipeline.h"
 #include "render_types.h"
 #include "render_result.h"
 
@@ -67,7 +69,7 @@
 static RenderEngineType internal_render_type = {
 	NULL, NULL,
 	"BLENDER_RENDER", N_("Blender Render"), RE_INTERNAL,
-	NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };
 
@@ -76,7 +78,7 @@ static RenderEngineType internal_render_type = {
 static RenderEngineType internal_game_type = {
 	NULL, NULL,
 	"BLENDER_GAME", N_("Blender Game"), RE_INTERNAL | RE_GAME,
-	NULL, NULL, NULL, NULL, NULL,
+	NULL, NULL, NULL, NULL, NULL, NULL,
 	{NULL, NULL, NULL}
 };
 
@@ -121,7 +123,7 @@ RenderEngineType *RE_engines_find(const char *idname)
 	return type;
 }
 
-int RE_engine_is_external(Render *re)
+bool RE_engine_is_external(Render *re)
 {
 	RenderEngineType *type = RE_engines_find(re->r.engine);
 	return (type && type->render);
@@ -131,7 +133,7 @@ int RE_engine_is_external(Render *re)
 
 RenderEngine *RE_engine_create(RenderEngineType *type)
 {
-	return RE_engine_create_ex(type, FALSE);
+	return RE_engine_create_ex(type, false);
 }
 
 RenderEngine *RE_engine_create_ex(RenderEngineType *type, bool use_for_viewport)
@@ -213,6 +215,11 @@ RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, 
 	if (result) {
 		RenderPart *pa;
 
+		/* Copy EXR tile settings, so pipeline knows whether this is a result
+		 * for Save Buffers enabled rendering.
+		 */
+		result->do_exr_tile = re->result->do_exr_tile;
+
 		BLI_addtail(&engine->fullresult, result);
 
 		result->tilerect.xmin += re->disprect.xmin;
@@ -235,11 +242,11 @@ void RE_engine_update_result(RenderEngine *engine, RenderResult *result)
 
 	if (result) {
 		result->renlay = result->layers.first; /* weak, draws first layer always */
-		re->display_draw(re->ddh, result, NULL);
+		re->display_update(re->duh, result, NULL);
 	}
 }
 
-void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel)
+void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel, int merge_results)
 {
 	Render *re = engine->re;
 
@@ -260,16 +267,21 @@ void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel
 			 * buffers, we are going to get openexr save errors */
 			fprintf(stderr, "RenderEngine.end_result: dimensions do not match any OpenEXR tile.\n");
 		}
+	}
 
-		if (re->result->do_exr_tile)
-			render_result_exr_file_merge(re->result, result);
+	if (!cancel || merge_results) {
+		if (re->result->do_exr_tile) {
+			if (!cancel) {
+				render_result_exr_file_merge(re->result, result);
+			}
+		}
 		else if (!(re->test_break(re->tbh) && (re->r.scemode & R_BUTS_PREVIEW)))
 			render_result_merge(re->result, result);
 
 		/* draw */
 		if (!re->test_break(re->tbh)) {
 			result->renlay = result->layers.first; /* weak, draws first layer always */
-			re->display_draw(re->ddh, result, NULL);
+			re->display_update(re->duh, result, NULL);
 		}
 	}
 
@@ -392,6 +404,107 @@ RenderData *RE_engine_get_render_data(Render *re)
 	return &re->r;
 }
 
+/* Bake */
+void RE_bake_engine_set_engine_parameters(Render *re, Main *bmain, Scene *scene)
+{
+	re->scene = scene;
+	re->main = bmain;
+	re->r = scene->r;
+
+	/* prevent crash when freeing the scene
+	 * but it potentially leaves unfreed memory blocks
+	 * not sure how to fix this yet -- dfelinto */
+	BLI_listbase_clear(&re->r.layers);
+}
+
+bool RE_bake_has_engine(Render *re)
+{
+	RenderEngineType *type = RE_engines_find(re->r.engine);
+	return (type->bake != NULL);
+}
+
+bool RE_bake_engine(
+        Render *re, Object *object, const BakePixel pixel_array[],
+        const size_t num_pixels, const int depth,
+        const ScenePassType pass_type, float result[])
+{
+	RenderEngineType *type = RE_engines_find(re->r.engine);
+	RenderEngine *engine;
+	int persistent_data = re->r.mode & R_PERSISTENT_DATA;
+
+	/* set render info */
+	re->i.cfra = re->scene->r.cfra;
+	BLI_strncpy(re->i.scene_name, re->scene->id.name + 2, sizeof(re->i.scene_name) - 2);
+	re->i.totface = re->i.totvert = re->i.totstrand = re->i.totlamp = re->i.tothalo = 0;
+
+	/* render */
+	engine = re->engine;
+
+	if (!engine) {
+		engine = RE_engine_create(type);
+		re->engine = engine;
+	}
+
+	engine->flag |= RE_ENGINE_RENDERING;
+
+	/* TODO: actually link to a parent which shouldn't happen */
+	engine->re = re;
+
+	engine->resolution_x = re->winx;
+	engine->resolution_y = re->winy;
+
+	RE_parts_init(re, false);
+	engine->tile_x = re->r.tilex;
+	engine->tile_y = re->r.tiley;
+
+	/* update is only called so we create the engine.session */
+	if (type->update)
+		type->update(engine, re->main, re->scene);
+
+	if (type->bake)
+		type->bake(engine, re->scene, object, pass_type, pixel_array, num_pixels, depth, result);
+
+	engine->tile_x = 0;
+	engine->tile_y = 0;
+	engine->flag &= ~RE_ENGINE_RENDERING;
+
+	/* re->engine becomes zero if user changed active render engine during render */
+	if (!persistent_data || !re->engine) {
+		RE_engine_free(engine);
+		re->engine = NULL;
+	}
+
+	RE_parts_free(re);
+
+	if (BKE_reports_contain(re->reports, RPT_ERROR))
+		G.is_break = true;
+
+	return true;
+}
+
+void RE_engine_frame_set(RenderEngine *engine, int frame, float subframe)
+{
+	Render *re = engine->re;
+	Scene *scene = re->scene;
+	double cfra = (double)frame + (double)subframe;
+
+	CLAMP(cfra, MINAFRAME, MAXFRAME);
+	BKE_scene_frame_set(scene, cfra);
+
+#ifdef WITH_PYTHON
+	BPy_BEGIN_ALLOW_THREADS;
+#endif
+
+	/* It's possible that here we're including layers which were never visible before. */
+	BKE_scene_update_for_newframe_ex(re->eval_ctx, re->main, scene, (1 << 20) - 1, true);
+
+#ifdef WITH_PYTHON
+	BPy_END_ALLOW_THREADS;
+#endif
+
+	BKE_scene_camera_switch_update(scene);
+}
+
 /* Render */
 
 static bool render_layer_exclude_animated(Scene *scene, SceneRenderLayer *srl)
@@ -420,6 +533,11 @@ int RE_engine_render(Render *re, int do_all)
 		return 0;
 	if (!do_all && (type->flag & RE_USE_POSTPROCESS))
 		return 0;
+
+	/* Lock drawing in UI during data phase. */
+	if (re->draw_lock) {
+		re->draw_lock(re->dlh, 1);
+	}
 
 	/* update animation here so any render layer animation is applied before
 	 * creating the render result */
@@ -457,7 +575,8 @@ int RE_engine_render(Render *re, int do_all)
 			lay &= non_excluded_lay;
 		}
 
-		BKE_scene_update_for_newframe(re->main, re->scene, lay);
+		BKE_scene_update_for_newframe_ex(re->eval_ctx, re->main, re->scene, lay, true);
+		render_update_anim_renderdata(re, &re->scene->r);
 	}
 
 	/* create render result */
@@ -474,8 +593,13 @@ int RE_engine_render(Render *re, int do_all)
 	}
 	BLI_rw_mutex_unlock(&re->resultmutex);
 
-	if (re->result == NULL)
+	if (re->result == NULL) {
+		/* Clear UI drawing locks. */
+		if (re->draw_lock) {
+			re->draw_lock(re->dlh, 0);
+		}
 		return 1;
+	}
 
 	/* set render info */
 	re->i.cfra = re->scene->r.cfra;
@@ -500,11 +624,12 @@ int RE_engine_render(Render *re, int do_all)
 	if (re->r.scemode & R_BUTS_PREVIEW)
 		engine->flag |= RE_ENGINE_PREVIEW;
 	engine->camera_override = re->camera_override;
+	engine->layer_override = re->layer_override;
 
 	engine->resolution_x = re->winx;
 	engine->resolution_y = re->winy;
 
-	RE_parts_init(re, FALSE);
+	RE_parts_init(re, false);
 	engine->tile_x = re->partx;
 	engine->tile_y = re->party;
 
@@ -513,7 +638,12 @@ int RE_engine_render(Render *re, int do_all)
 
 	if (type->update)
 		type->update(engine, re->main, re->scene);
-	
+
+	/* Clear UI drawing locks. */
+	if (re->draw_lock) {
+		re->draw_lock(re->dlh, 0);
+	}
+
 	if (type->render)
 		type->render(engine, re->scene);
 
@@ -535,11 +665,22 @@ int RE_engine_render(Render *re, int do_all)
 		BLI_rw_mutex_unlock(&re->resultmutex);
 	}
 
+	if (re->r.scemode & R_EXR_CACHE_FILE) {
+		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
+		render_result_exr_file_cache_write(re);
+		BLI_rw_mutex_unlock(&re->resultmutex);
+	}
+
 	RE_parts_free(re);
 
 	if (BKE_reports_contain(re->reports, RPT_ERROR))
-		G.is_break = TRUE;
+		G.is_break = true;
 	
+#ifdef WITH_FREESTYLE
+	if (re->r.mode & R_EDGE_FRS)
+		RE_RenderFreestyleExternal(re);
+#endif
+
 	return 1;
 }
 

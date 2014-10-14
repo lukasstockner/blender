@@ -25,17 +25,15 @@
 #ifndef __FREESTYLE_PYTHON_STROKEVERTEXITERATOR_H__
 #define __FREESTYLE_PYTHON_STROKEVERTEXITERATOR_H__
 
-#include "../../stroke/StrokeIterators.h"
-
 #include "../BPy_Iterator.h"
+
+#include "../../stroke/StrokeIterators.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#include <Python.h>
 
 extern PyTypeObject StrokeVertexIterator_Type;
 
@@ -45,7 +43,9 @@ extern PyTypeObject StrokeVertexIterator_Type;
 typedef struct {
 	BPy_Iterator py_it;
 	StrokeInternal::StrokeVertexIterator *sv_it;
-	int reversed;
+	bool reversed;
+	/* attribute to make next() work correctly */
+	bool at_start;
 } BPy_StrokeVertexIterator;
 
 ///////////////////////////////////////////////////////////////////////////////////////////

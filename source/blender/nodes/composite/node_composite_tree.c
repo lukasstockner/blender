@@ -32,20 +32,16 @@
 
 #include <stdio.h>
 
-#include "DNA_anim_types.h"
 #include "DNA_color_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_node_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_threads.h"
 
 #include "BLF_translation.h"
 
-#include "BKE_animsys.h"
 #include "BKE_colortools.h"
 #include "BKE_context.h"
-#include "BKE_fcurve.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
@@ -62,7 +58,7 @@
 #include "node_composite_util.h"
 
 #ifdef WITH_COMPOSITOR
-	#include "COM_compositor.h"
+#  include "COM_compositor.h"
 #endif
 
 static void composite_get_from_context(const bContext *C, bNodeTreeType *UNUSED(treetype), bNodeTree **r_ntree, ID **r_id, ID **r_from)
@@ -72,10 +68,6 @@ static void composite_get_from_context(const bContext *C, bNodeTreeType *UNUSED(
 	*r_from = NULL;
 	*r_id = &scene->id;
 	*r_ntree = scene->nodetree;
-	
-	/* update output sockets based on available layers */
-	ntreeCompositForceHidden(scene->nodetree);
-	
 }
 
 static void foreach_nodeclass(Scene *UNUSED(scene), void *calldata, bNodeClassCallback func)
@@ -112,9 +104,9 @@ static void free_cache(bNodeTree *ntree)
 }
 
 /* local tree then owns all compbufs */
-static void localize(bNodeTree *localtree, bNodeTree *ntree)
+static void localize(bNodeTree *UNUSED(localtree), bNodeTree *ntree)
 {
-	bNode *node, *node_next;
+	bNode *node;
 	bNodeSocket *sock;
 	
 	for (node = ntree->nodes.first; node; node = node->next) {
@@ -138,26 +130,6 @@ static void localize(bNodeTree *localtree, bNodeTree *ntree)
 			sock->new_sock->cache = sock->cache;
 			sock->cache = NULL;
 			sock->new_sock->new_sock = sock;
-		}
-	}
-	
-	/* replace muted nodes and reroute nodes by internal links */
-	for (node = localtree->nodes.first; node; node = node_next) {
-		node_next = node->next;
-		
-		if (node->flag & NODE_MUTED || node->type == NODE_REROUTE) {
-			/* make sure the update tag isn't lost when removing the muted node.
-			 * propagate this to all downstream nodes.
-			 */
-			if (node->need_exec) {
-				bNodeLink *link;
-				for (link = localtree->links.first; link; link = link->next)
-					if (link->fromnode == node && link->tonode)
-						link->tonode->need_exec = 1;
-			}
-			
-			nodeInternalRelink(localtree, node);
-			nodeFreeNode(localtree, node);
 		}
 	}
 }
@@ -218,6 +190,16 @@ static void update(bNodeTree *ntree)
 	}
 }
 
+static void composite_node_add_init(bNodeTree *UNUSED(bnodetree), bNode *bnode)
+{
+	/* Composite node will only show previews for input classes 
+	 * by default, other will be hidden 
+	 * but can be made visible with the show_preview option */
+	if (bnode->typeinfo->nclass != NODE_CLASS_INPUT) {
+		bnode->flag &= ~NODE_PREVIEW;
+	}	
+}
+
 bNodeTreeType *ntreeType_Composite;
 
 void register_node_tree_type_cmp(void)
@@ -238,6 +220,7 @@ void register_node_tree_type_cmp(void)
 	tt->local_merge = local_merge;
 	tt->update = update;
 	tt->get_from_context = composite_get_from_context;
+	tt->node_add_init = composite_node_add_init;
 	
 	tt->ext.srna = &RNA_CompositorNodeTree;
 	
@@ -246,14 +229,14 @@ void register_node_tree_type_cmp(void)
 
 void *COM_linker_hack = NULL;
 
-void ntreeCompositExecTree(bNodeTree *ntree, RenderData *rd, int rendering, int do_preview,
+void ntreeCompositExecTree(Scene *scene, bNodeTree *ntree, RenderData *rd, int rendering, int do_preview,
                            const ColorManagedViewSettings *view_settings,
                            const ColorManagedDisplaySettings *display_settings)
 {
 #ifdef WITH_COMPOSITOR
-	COM_execute(rd, ntree, rendering, view_settings, display_settings);
+	COM_execute(rd, scene, ntree, rendering, view_settings, display_settings);
 #else
-	(void)ntree, (void)rd, (void)rendering, (void)do_preview;
+	(void)scene, (void)ntree, (void)rd, (void)rendering, (void)do_preview;
 	(void)view_settings, (void)display_settings;
 #endif
 
@@ -276,11 +259,11 @@ void ntreeCompositForceHidden(bNodeTree *ntree)
 		/* XXX this stuff is called all the time, don't want that.
 		 * Updates should only happen when actually necessary.
 		 */
-		#if 0
+#if 0
 		else if (node->type == CMP_NODE_IMAGE) {
 			nodeUpdate(ntree, node);
 		}
-		#endif
+#endif
 	}
 
 }
@@ -355,7 +338,7 @@ int ntreeCompositTagAnimated(bNodeTree *ntree)
 		/* otherwise always tag these node types */
 		if (node->type == CMP_NODE_IMAGE) {
 			Image *ima = (Image *)node->id;
-			if (ima && ELEM(ima->source, IMA_SRC_MOVIE, IMA_SRC_SEQUENCE)) {
+			if (ima && BKE_image_is_animated(ima)) {
 				nodeUpdate(ntree, node);
 				tagged = 1;
 			}
@@ -366,7 +349,7 @@ int ntreeCompositTagAnimated(bNodeTree *ntree)
 		}
 		/* here was tag render layer, but this is called after a render, so re-composites fail */
 		else if (node->type == NODE_GROUP) {
-			if (ntreeCompositTagAnimated((bNodeTree *)node->id) ) {
+			if (ntreeCompositTagAnimated((bNodeTree *)node->id)) {
 				nodeUpdate(ntree, node);
 			}
 		}

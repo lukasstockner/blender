@@ -58,7 +58,7 @@ def replace_line(f, i, text, keep_indent=True):
 def source_list(path, filename_check=None):
     for dirpath, dirnames, filenames in os.walk(path):
 
-        # skip '.svn'
+        # skip '.git'
         if dirpath.startswith("."):
             continue
 
@@ -174,7 +174,7 @@ def cmake_get_src(f):
                             elif is_c(new_file):
                                 sources_c.append(new_file)
                                 global_refs.setdefault(new_file, []).append((f, i))
-                            elif l in ("PARENT_SCOPE", ):
+                            elif l in {"PARENT_SCOPE", }:
                                 # cmake var, ignore
                                 pass
                             elif new_file.endswith(".list"):

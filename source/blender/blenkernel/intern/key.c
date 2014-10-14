@@ -59,9 +59,6 @@
 #include "BKE_lattice.h"
 #include "BKE_library.h"
 #include "BKE_editmesh.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_deform.h"
 #include "BKE_scene.h"
 
 
@@ -109,7 +106,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 	Key *key;
 	char *el;
 	
-	key = BKE_libblock_alloc(&G.main->key, ID_KE, "Key");
+	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
 	
 	key->type = KEY_NORMAL;
 	key->from = id;
@@ -547,10 +544,10 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 
 
 /* currently only the first value of 'ofs' may be set. */
-static short key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
+static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
 {
 	if (key->from == NULL) {
-		return FALSE;
+		return false;
 	}
 
 	switch (GS(key->from->name)) {
@@ -575,10 +572,10 @@ static short key_pointer_size(const Key *key, const int mode, int *poinsize, int
 			break;
 		default:
 			BLI_assert(!"invalid 'key->from' ID type");
-			return FALSE;
+			return false;
 	}
 
-	return TRUE;
+	return true;
 }
 
 static void cp_key(const int start, int end, const int tot, char *poin, Key *key, KeyBlock *actkb, KeyBlock *kb, float *weights, const int mode)
@@ -1397,7 +1394,7 @@ float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
 	char *out;
 	int tot = 0, size = 0;
 
-	if (key == NULL || key->block.first == NULL)
+	if (key == NULL || BLI_listbase_is_empty(&key->block))
 		return NULL;
 
 	/* compute size of output array */
@@ -1558,12 +1555,26 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
  * \param name Optional name for the new keyblock.
  * \param do_force always use ctime even for relative keys.
  */
-KeyBlock *BKE_keyblock_add_ctime(Key *key, const char *name, const short do_force)
+KeyBlock *BKE_keyblock_add_ctime(Key *key, const char *name, const bool do_force)
 {
 	KeyBlock *kb = BKE_keyblock_add(key, name);
+	const float cpos = key->ctime / 100.0f;
 
+	/* In case of absolute keys, there is no point in adding more than one key with the same pos.
+	 * Hence only set new keybloc pos to current time if none previous one already use it.
+	 * Now at least people just adding absolute keys without touching to ctime
+	 * won't have to systematically use retiming func (and have ordering issues, too). See T39897.
+	 */
+	if (!do_force && (key->type != KEY_RELATIVE)) {
+		KeyBlock *it_kb;
+		for (it_kb = key->block.first; it_kb; it_kb = it_kb->next) {
+			if (it_kb->pos == cpos) {
+				return kb;
+			}
+		}
+	}
 	if (do_force || (key->type != KEY_RELATIVE)) {
-		kb->pos = key->ctime / 100.0f;
+		kb->pos = cpos;
 		BKE_key_sort(key);
 	}
 
@@ -1682,7 +1693,7 @@ void BKE_key_convert_from_lattice(Lattice *lt, KeyBlock *kb)
 void BKE_key_convert_to_lattice(KeyBlock *kb, Lattice *lt)
 {
 	BPoint *bp;
-	float *fp;
+	const float *fp;
 	int a, tot;
 
 	bp = lt->def;
@@ -1753,7 +1764,7 @@ void BKE_key_convert_to_curve(KeyBlock *kb, Curve *UNUSED(cu), ListBase *nurb)
 	Nurb *nu;
 	BezTriple *bezt;
 	BPoint *bp;
-	float *fp;
+	const float *fp;
 	int a, tot;
 
 	nu = nurb->first;
@@ -1823,7 +1834,7 @@ void BKE_key_convert_from_mesh(Mesh *me, KeyBlock *kb)
 void BKE_key_convert_to_mesh(KeyBlock *kb, Mesh *me)
 {
 	MVert *mvert;
-	float *fp;
+	const float *fp;
 	int a, tot;
 
 	mvert = me->mvert;
@@ -1840,7 +1851,7 @@ void BKE_key_convert_to_mesh(KeyBlock *kb, Mesh *me)
 float (*BKE_key_convert_to_vertcos(Object *ob, KeyBlock *kb))[3]
 {
 	float (*vertCos)[3], *co;
-	float *fp = kb->data;
+	const float *fp = kb->data;
 	int tot = 0, a;
 
 	/* Count of vertex coords in array */

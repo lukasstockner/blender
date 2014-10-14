@@ -27,24 +27,14 @@
  *  \ingroup edinterface
  */
 
-
 #include <math.h>
 #include <stdlib.h>
 #include <string.h>
-
-#ifndef WIN32
-#  include <unistd.h>
-#else
-#  include <io.h>
-#  include <direct.h>
-#  include "BLI_winstuff.h"
-#endif
 
 #include "MEM_guardedalloc.h"
 
 #include "GPU_extensions.h"
 
-#include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
@@ -479,13 +469,13 @@ static void init_brush_icons(void)
 
 #define INIT_BRUSH_ICON(icon_id, name)                                          \
 	{                                                                           \
-		unsigned char *rect = (unsigned char *)datatoc_ ##name## _png;			\
-		int size = datatoc_ ##name## _png_size;									\
-		DrawInfo *di;															\
+		unsigned char *rect = (unsigned char *)datatoc_ ##name## _png;          \
+		int size = datatoc_ ##name## _png_size;                                 \
+		DrawInfo *di;                                                           \
 		\
-		di = def_internal_icon(NULL, icon_id, 0, 0, w, ICON_TYPE_BUFFER);		\
-		di->data.buffer.image->datatoc_rect = rect;								\
-		di->data.buffer.image->datatoc_size = size;								\
+		di = def_internal_icon(NULL, icon_id, 0, 0, w, ICON_TYPE_BUFFER);       \
+		di->data.buffer.image->datatoc_rect = rect;                             \
+		di->data.buffer.image->datatoc_size = size;                             \
 	}
 	/* end INIT_BRUSH_ICON */
 
@@ -518,6 +508,8 @@ static void init_brush_icons(void)
 	INIT_BRUSH_ICON(ICON_BRUSH_SOFTEN, soften);
 	INIT_BRUSH_ICON(ICON_BRUSH_SUBTRACT, subtract);
 	INIT_BRUSH_ICON(ICON_BRUSH_TEXDRAW, texdraw);
+	INIT_BRUSH_ICON(ICON_BRUSH_TEXFILL, texfill);
+	INIT_BRUSH_ICON(ICON_BRUSH_TEXMASK, texmask);
 	INIT_BRUSH_ICON(ICON_BRUSH_THUMB, thumb);
 	INIT_BRUSH_ICON(ICON_BRUSH_ROTATE, twist);
 	INIT_BRUSH_ICON(ICON_BRUSH_VERTEXDRAW, vertexdraw);
@@ -614,13 +606,13 @@ static void init_internal_icons(void)
 #endif
 	if (b16buf == NULL)
 		b16buf = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_icons16_png,
-		                             datatoc_blender_icons16_png_size, IB_rect, NULL, "<blender icons>");
+		                               datatoc_blender_icons16_png_size, IB_rect, NULL, "<blender icons>");
 	if (b16buf)
 		IMB_premultiply_alpha(b16buf);
 
 	if (b32buf == NULL)
 		b32buf = IMB_ibImageFromMemory((unsigned char *)datatoc_blender_icons32_png,
-		                             datatoc_blender_icons32_png_size, IB_rect, NULL, "<blender icons>");
+		                               datatoc_blender_icons32_png_size, IB_rect, NULL, "<blender icons>");
 	if (b32buf)
 		IMB_premultiply_alpha(b32buf);
 	
@@ -709,7 +701,7 @@ static void init_iconfile_list(struct ListBase *list)
 	int totfile, i, index = 1;
 	const char *icondir;
 
-	list->first = list->last = NULL;
+	BLI_listbase_clear(list);
 	icondir = BLI_get_folder(BLENDER_DATAFILES, "icons");
 
 	if (icondir == NULL)
@@ -719,7 +711,7 @@ static void init_iconfile_list(struct ListBase *list)
 
 	for (i = 0; i < totfile; i++) {
 		if ((dir[i].type & S_IFREG)) {
-			char *filename = dir[i].relname;
+			const char *filename = dir[i].relname;
 			
 			if (BLI_testextensie(filename, ".png")) {
 				/* loading all icons on file start is overkill & slows startup
@@ -981,7 +973,7 @@ PreviewImage *UI_icon_to_preview(int icon_id)
 }
 
 static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh,
-                           unsigned int *rect, float alpha, const float rgb[3], short is_preview)
+                           unsigned int *rect, float alpha, const float rgb[3], const bool is_preview)
 {
 	ImBuf *ima = NULL;
 
@@ -1086,7 +1078,7 @@ static int get_draw_size(enum eIconSizes size)
 
 
 static void icon_draw_size(float x, float y, int icon_id, float aspect, float alpha, const float rgb[3],
-                           enum eIconSizes size, int draw_size, int UNUSED(nocreate), short is_preview)
+                           enum eIconSizes size, int draw_size, const bool UNUSED(nocreate), const bool is_preview)
 {
 	bTheme *btheme = UI_GetTheme();
 	Icon *icon = NULL;
@@ -1137,7 +1129,7 @@ static void icon_draw_size(float x, float y, int icon_id, float aspect, float al
 #endif
 		if (!iimg->rect) return;  /* something has gone wrong! */
 
-		glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		icon_draw_rect(x, y, w, h, aspect, iimg->w, iimg->h, iimg->rect, alpha, rgb, is_preview);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	}
@@ -1313,10 +1305,11 @@ int UI_rnaptr_icon_get(bContext *C, PointerRNA *ptr, int rnaicon, const bool big
 	return rnaicon;
 }
 
-static void icon_draw_at_size(float x, float y, int icon_id, float aspect, float alpha, enum eIconSizes size, int nocreate)
+static void icon_draw_at_size(float x, float y, int icon_id, float aspect, float alpha,
+                              enum eIconSizes size, const bool nocreate)
 {
 	int draw_size = get_draw_size(size);
-	icon_draw_size(x, y, icon_id, aspect, alpha, NULL, size, draw_size, nocreate, FALSE);
+	icon_draw_size(x, y, icon_id, aspect, alpha, NULL, size, draw_size, nocreate, false);
 }
 
 void UI_icon_draw_aspect(float x, float y, int icon_id, float aspect, float alpha)
@@ -1327,7 +1320,7 @@ void UI_icon_draw_aspect(float x, float y, int icon_id, float aspect, float alph
 void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, const float rgb[3])
 {
 	int draw_size = get_draw_size(ICON_SIZE_ICON);
-	icon_draw_size(x, y, icon_id, aspect, 1.0f, rgb, ICON_SIZE_ICON, draw_size, FALSE, FALSE);
+	icon_draw_size(x, y, icon_id, aspect, 1.0f, rgb, ICON_SIZE_ICON, draw_size, false, false);
 }
 
 /* draws icon with dpi scale factor */
@@ -1338,7 +1331,7 @@ void UI_icon_draw(float x, float y, int icon_id)
 
 void UI_icon_draw_size(float x, float y, int size, int icon_id, float alpha)
 {
-	icon_draw_size(x, y, icon_id, 1.0f, alpha, NULL, ICON_SIZE_ICON, size, TRUE, FALSE);
+	icon_draw_size(x, y, icon_id, 1.0f, alpha, NULL, ICON_SIZE_ICON, size, true, false);
 }
 
 void UI_icon_draw_preview(float x, float y, int icon_id)
@@ -1353,6 +1346,6 @@ void UI_icon_draw_preview_aspect(float x, float y, int icon_id, float aspect)
 
 void UI_icon_draw_preview_aspect_size(float x, float y, int icon_id, float aspect, int size)
 {
-	icon_draw_size(x, y, icon_id, aspect, 1.0f, NULL, ICON_SIZE_PREVIEW, size, FALSE, TRUE);
+	icon_draw_size(x, y, icon_id, aspect, 1.0f, NULL, ICON_SIZE_PREVIEW, size, false, true);
 }
 

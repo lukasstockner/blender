@@ -189,7 +189,9 @@ static bAction *poselib_init_new(Object *ob)
 	/* init object's poselib action (unlink old one if there) */
 	if (ob->poselib)
 		id_us_min(&ob->poselib->id);
+		
 	ob->poselib = add_empty_action(G.main, "PoseLib");
+	ob->poselib->idroot = ID_OB;
 	
 	return ob->poselib;
 }
@@ -305,7 +307,7 @@ static int poselib_sanitize_exec(bContext *C, wmOperator *op)
 		/* check if any pose matches this */
 		/* TODO: don't go looking through the list like this every time... */
 		for (marker = act->markers.first; marker; marker = marker->next) {
-			if (IS_EQ(marker->frame, (double)ak->cfra)) {
+			if (IS_EQ((double)marker->frame, (double)ak->cfra)) {
 				marker->flag = -1;
 				break;
 			}
@@ -499,7 +501,7 @@ void POSELIB_OT_pose_add(wmOperatorType *ot)
 /* ----- */
 
 /* can be called with C == NULL */
-static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), int *free)
+static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	Object *ob = get_poselib_object(C);
 	bAction *act = (ob) ? ob->poselib : NULL;
@@ -524,7 +526,7 @@ static EnumPropertyItem *poselib_stored_pose_itemf(bContext *C, PointerRNA *UNUS
 	}
 
 	RNA_enum_item_end(&item, &totitem);
-	*free = 1;
+	*r_free = true;
 
 	return item;
 }
@@ -610,6 +612,7 @@ void POSELIB_OT_pose_remove(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "pose", DummyRNA_NULL_items, 0, "Pose", "The pose to remove");
 	RNA_def_enum_funcs(prop, poselib_stored_pose_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 	ot->prop = prop;
 }
 
@@ -699,6 +702,7 @@ void POSELIB_OT_pose_rename(wmOperatorType *ot)
 	ot->prop = RNA_def_string(ot->srna, "name", "RenamedPose", 64, "New Pose Name", "New name for pose");
 	prop = RNA_def_enum(ot->srna, "pose", DummyRNA_NULL_items, 0, "Pose", "The pose to rename");
 	RNA_def_enum_funcs(prop, poselib_stored_pose_itemf);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
 }
 
 /* ************************************************************* */
@@ -878,7 +882,7 @@ static void poselib_apply_pose(tPoseLib_PreviewData *pld)
 			pchan = BKE_pose_channel_find_name(pose, agrp->name);
 			
 			if (pchan) {
-				short ok = 0;
+				bool ok = 0;
 				
 				/* check if this bone should get any animation applied */
 				if (pld->selcount == 0) {
@@ -920,7 +924,7 @@ static void poselib_keytag_pose(bContext *C, Scene *scene, tPoseLib_PreviewData 
 		pchan = BKE_pose_channel_find_name(pose, agrp->name);
 		
 		if (pchan) {
-			if ( (pld->selcount == 0) || ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED)) ) {
+			if ((pld->selcount == 0) || ((pchan->bone) && (pchan->bone->flag & BONE_SELECTED))) {
 				if (autokey) {
 					/* add datasource override for the PoseChannel, to be used later */
 					ANIM_relative_keyingset_add_source(&dsources, &pld->ob->id, &RNA_PoseBone, pchan); 
@@ -1069,7 +1073,7 @@ static void poselib_preview_get_next(tPoseLib_PreviewData *pld, int step)
 		}
 		
 		/* check if any matches */
-		if (pld->searchp.first == NULL) {
+		if (BLI_listbase_is_empty(&pld->searchp)) {
 			pld->marker = NULL;
 			return;
 		}
@@ -1413,7 +1417,7 @@ static void poselib_preview_init_data(bContext *C, wmOperator *op)
 		pld->marker = (pld->act) ? BLI_findlink(&pld->act->markers, pose_index) : NULL;
 	
 	/* check if valid poselib */
-	if (ELEM3(NULL, pld->ob, pld->pose, pld->arm)) {
+	if (ELEM(NULL, pld->ob, pld->pose, pld->arm)) {
 		BKE_report(op->reports, RPT_ERROR, "Pose lib is only for armatures in pose mode");
 		pld->state = PL_PREVIEW_ERROR;
 		return;
@@ -1486,7 +1490,6 @@ static void poselib_preview_cleanup(bContext *C, wmOperator *op)
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);  /* sets recalc flags */
 		else
 			BKE_pose_where_is(scene, ob);
-		
 	}
 	else if (pld->state == PL_PREVIEW_CONFIRM) {
 		/* tag poses as appropriate */
@@ -1506,6 +1509,9 @@ static void poselib_preview_cleanup(bContext *C, wmOperator *op)
 		else
 			BKE_pose_where_is(scene, ob);
 	}
+	
+	/* Request final redraw of the view. */
+	WM_event_add_notifier(C, NC_OBJECT | ND_POSE, pld->ob);
 	
 	/* free memory used for backups and searching */
 	poselib_backup_free_data(pld);

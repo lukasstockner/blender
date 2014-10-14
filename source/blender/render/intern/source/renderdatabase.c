@@ -66,20 +66,17 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
-#include "BLI_ghash.h"
-#include "BLI_memarena.h"
 
 #include "DNA_material_types.h" 
-#include "DNA_mesh_types.h" 
 #include "DNA_meshdata_types.h" 
 #include "DNA_texture_types.h" 
 
 #include "BKE_customdata.h"
-#include "BKE_texture.h" 
 #include "BKE_DerivedMesh.h"
 
 #include "RE_render_ext.h"	/* externtex */
 
+#include "rayintersection.h"
 #include "rayobject.h"
 #include "renderpipeline.h"
 #include "render_types.h"
@@ -995,10 +992,10 @@ HaloRen *RE_inithalo(Render *re, ObjectRen *obr, Material *ma,
 		xn=  har->xs - 0.5f*re->winx*(hoco1[0]/hoco1[3]);
 		yn=  har->ys - 0.5f*re->winy*(hoco1[1]/hoco1[3]);
 		if (xn==0.0f || (xn==0.0f && yn==0.0f)) zn= 0.0f;
-		else zn= atan2(yn, xn);
+		else zn = atan2f(yn, xn);
 
-		har->sin= sin(zn);
-		har->cos= cos(zn);
+		har->sin = sinf(zn);
+		har->cos = cosf(zn);
 		zn= len_v3v3(vec1, vec);
 
 		har->hasize= vectsize*zn + (1.0f-vectsize)*hasize;
@@ -1115,10 +1112,10 @@ HaloRen *RE_inithalo_particle(Render *re, ObjectRen *obr, DerivedMesh *dm, Mater
 		xn=  har->xs - 0.5f*re->winx*(hoco1[0]/hoco1[3]);
 		yn=  har->ys - 0.5f*re->winy*(hoco1[1]/hoco1[3]);
 		if (xn==0.0f || (xn==0.0f && yn==0.0f)) zn= 0.0;
-		else zn= atan2(yn, xn);
+		else zn = atan2f(yn, xn);
 
-		har->sin= sin(zn);
-		har->cos= cos(zn);
+		har->sin = sinf(zn);
+		har->cos = cosf(zn);
 		zn= len_v3v3(vec1, vec)*0.5f;
 
 		har->hasize= vectsize*zn + (1.0f-vectsize)*hasize;
@@ -1233,13 +1230,13 @@ HaloRen *RE_inithalo_particle(Render *re, ObjectRen *obr, DerivedMesh *dm, Mater
 /* -------------------------- operations on entire database ----------------------- */
 
 /* ugly function for halos in panorama */
-static int panotestclip(Render *re, int do_pano, float v[4])
+static int panotestclip(Render *re, bool do_pano, float v[4])
 {
 	/* part size (ensure we run RE_parts_clamp first) */
 	BLI_assert(re->partx == min_ii(re->r.tilex, re->rectx));
 	BLI_assert(re->party == min_ii(re->r.tiley, re->recty));
 
-	if (do_pano == FALSE) {
+	if (do_pano == false) {
 		return testclip(v);
 	}
 	else {
@@ -1277,7 +1274,7 @@ static int panotestclip(Render *re, int do_pano, float v[4])
 
 void project_renderdata(Render *re,
                         void (*projectfunc)(const float *, float mat[4][4], float *),
-                        int do_pano, float xoffs, int UNUSED(do_buckets))
+                        bool do_pano, float xoffs, bool UNUSED(do_buckets))
 {
 	ObjectRen *obr;
 	HaloRen *har = NULL;
@@ -1287,8 +1284,8 @@ void project_renderdata(Render *re,
 	if (do_pano) {
 		float panophi= xoffs;
 		
-		re->panosi= sin(panophi);
-		re->panoco= cos(panophi);
+		re->panosi = sinf(panophi);
+		re->panoco = cosf(panophi);
 	}
 
 	for (obr=re->objecttable.first; obr; obr=obr->next) {
@@ -1417,6 +1414,42 @@ void RE_makeRenderInstances(Render *re)
 
 	BLI_freelistN(&re->instancetable);
 	re->instancetable= newlist;
+}
+
+/* four functions to facilitate envmap rotation for raytrace */
+void RE_instance_rotate_ray_start(ObjectInstanceRen *obi, Isect *is)
+{
+	if (obi && (obi->flag & R_ENV_TRANSFORMED)) {
+		copy_v3_v3(is->origstart, is->start);
+		mul_m4_v3(obi->imat, is->start);
+	}
+}
+
+void RE_instance_rotate_ray_dir(ObjectInstanceRen *obi, Isect *is)
+{
+	if (obi && (obi->flag & R_ENV_TRANSFORMED)) {
+		float end[3];
+
+		copy_v3_v3(is->origdir, is->dir);
+		add_v3_v3v3(end, is->origstart, is->dir);
+
+		mul_m4_v3(obi->imat, end);
+		sub_v3_v3v3(is->dir, end, is->start);
+	}
+}
+
+void RE_instance_rotate_ray(ObjectInstanceRen *obi, Isect *is)
+{
+	RE_instance_rotate_ray_start(obi, is);
+	RE_instance_rotate_ray_dir(obi, is);
+}
+
+void RE_instance_rotate_ray_restore(ObjectInstanceRen *obi, Isect *is)
+{
+	if (obi && (obi->flag & R_ENV_TRANSFORMED)) {
+		copy_v3_v3(is->start, is->origstart);
+		copy_v3_v3(is->dir, is->origdir);
+	}
 }
 
 int clip_render_object(float boundbox[2][3], float bounds[4], float winmat[4][4])

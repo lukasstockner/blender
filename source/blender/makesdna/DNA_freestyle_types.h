@@ -32,6 +32,7 @@
  *  \ingroup DNA
  */
 
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 
 #ifdef __cplusplus
@@ -49,6 +50,7 @@ struct Text;
 #define FREESTYLE_FACE_SMOOTHNESS_FLAG      (1 << 3)
 #define FREESTYLE_ADVANCED_OPTIONS_FLAG     (1 << 4)
 #define FREESTYLE_CULLING                   (1 << 5)
+#define FREESTYLE_VIEW_MAP_CACHE            (1 << 6)
 
 /* FreestyleConfig::mode */
 #define FREESTYLE_CONTROL_SCRIPT_MODE  1
@@ -126,7 +128,7 @@ typedef struct FreestyleConfig {
 	ListBase modules;
 
 	int mode; /* scripting, editor */
-	int raycasting_algorithm; /* XXX deprecated */
+	int raycasting_algorithm  DNA_DEPRECATED;
 	int flags; /* suggestive contours, ridges/valleys, material boundaries */
 	float sphere_radius;
 	float dkr_epsilon;

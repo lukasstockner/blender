@@ -104,8 +104,10 @@ set(APISRC
 	rna_armature_api.c
 	rna_camera_api.c
 	rna_controller_api.c
+	rna_curve_api.c
 	rna_fcurve_api.c
 	rna_image_api.c
+	rna_lattice_api.c
 	rna_main_api.c
 	rna_material_api.c
 	rna_mesh_api.c
@@ -116,6 +118,7 @@ set(APISRC
 	rna_scene_api.c
 	rna_sensor_api.c
 	rna_sequencer_api.c
+	rna_space_api.c
 	rna_text_api.c
 	rna_ui_api.c
 	rna_wm_api.c
@@ -153,10 +156,16 @@ set(INC_SYS
 
 if(WITH_CYCLES)
 	add_definitions(-DWITH_CYCLES)
+	if(WITH_CYCLES_DEBUG)
+		add_definitions(-DWITH_CYCLES_DEBUG)
+	endif()
 endif()
 
 if(WITH_PYTHON)
 	add_definitions(-DWITH_PYTHON)
+	list(APPEND INC
+		../../python
+	)
 endif()
 
 if(WITH_GAMEENGINE)
@@ -207,6 +216,9 @@ if(WITH_CODEC_QUICKTIME)
 endif()
 
 if(WITH_CODEC_FFMPEG)
+	list(APPEND INC
+		../../../../intern/ffmpeg
+	)
 	list(APPEND INC_SYS
 		${FFMPEG_INCLUDE_DIRS}
 	)
@@ -256,6 +268,13 @@ if(WITH_BULLET)
 	add_definitions(-DWITH_BULLET)
 endif()
 
+if(WITH_FREESTYLE)
+	list(APPEND INC
+		../../freestyle
+	)
+	add_definitions(-DWITH_FREESTYLE)
+endif()
+
 if(WITH_ALEMBIC)
 	add_definitions(-DWITH_ALEMBIC)
 endif()
@@ -280,13 +299,14 @@ blender_include_dirs(
 	../../../../intern/audaspace/intern
 	../../../../intern/cycles/blender
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 	../../../../intern/atomic
 	../../../../intern/memutil
 	../../../../intern/smoke/extern
 )
 
 blender_include_dirs_sys(
-	${GLEW_INCLUDE_PATH}
+	"${GLEW_INCLUDE_PATH}"
 )
 
 add_executable(makesrna ${SRC} ${SRC_RNA_INC} ${SRC_DNA_INC})
@@ -314,5 +334,7 @@ set(SRC
 	rna_internal_types.h
 	rna_mesh_utils.h
 )
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}")

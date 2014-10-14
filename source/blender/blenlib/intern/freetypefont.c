@@ -32,11 +32,6 @@
  *  \ingroup bli
  */
 
-
-#ifdef _MSC_VER
-#  pragma warning (disable:4244)
-#endif
-
 #include <ft2build.h>
 #include FT_FREETYPE_H
 /* not needed yet */
@@ -50,6 +45,7 @@
 #include "BLI_utildefines.h"
 #include "BLI_vfontdata.h"
 #include "BLI_listbase.h"
+#include "BLI_ghash.h"
 #include "BLI_string.h"
 #include "BLI_math.h"
 
@@ -62,8 +58,11 @@ static FT_Library library;
 static FT_Error err;
 
 
-static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vfd)
+static VChar *freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vfd)
 {
+	const float scale = vfd->scale;
+	const float eps = 0.0001f;
+	const float eps_sq = eps * eps;
 	/* Blender */
 	struct Nurb *nu;
 	struct VChar *che;
@@ -73,16 +72,8 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 	FT_GlyphSlot glyph;
 	FT_UInt glyph_index;
 	FT_Outline ftoutline;
-	float scale, height;
 	float dx, dy;
-	int j, k, l, m = 0;
-
-	/* adjust font size */
-	height = ((double) face->bbox.yMax - (double) face->bbox.yMin);
-	if (height != 0.0f)
-		scale = 1.0f / height;
-	else
-		scale = 1.0f / 1000.0f;
+	int j, k, l, l_first = 0;
 
 	/*
 	 * Generate the character 3D data
@@ -93,12 +84,12 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 
 	/* If loading succeeded, convert the FT glyph to the internal format */
 	if (!err) {
-		int *npoints;
+		/* initialize as -1 to add 1 on first loop each time */
+		int contour_prev;
 		int *onpoints;
 
 		/* First we create entry for the new character to the character list */
 		che = (VChar *) MEM_callocN(sizeof(struct VChar), "objfnt_char");
-		BLI_addtail(&vfd->characters, che);
 
 		/* Take some data for modifying purposes */
 		glyph = face->glyph;
@@ -108,29 +99,27 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 		che->index = charcode;
 		che->width = glyph->advance.x * scale;
 
+		BLI_ghash_insert(vfd->characters, SET_UINT_IN_POINTER(che->index), che);
+
 		/* Start converting the FT data */
-		npoints = (int *)MEM_callocN((ftoutline.n_contours) * sizeof(int), "endpoints");
 		onpoints = (int *)MEM_callocN((ftoutline.n_contours) * sizeof(int), "onpoints");
 
-		/* calculate total points of each contour */
-		for (j = 0; j < ftoutline.n_contours; j++) {
-			if (j == 0)
-				npoints[j] = ftoutline.contours[j] + 1;
-			else
-				npoints[j] = ftoutline.contours[j] - ftoutline.contours[j - 1];
-		}
-
 		/* get number of on-curve points for beziertriples (including conic virtual on-points) */
-		for (j = 0; j < ftoutline.n_contours; j++) {
-			for (k = 0; k < npoints[j]; k++) {
+		for (j = 0, contour_prev = -1; j < ftoutline.n_contours; j++) {
+			const int n = ftoutline.contours[j] - contour_prev;
+			contour_prev = ftoutline.contours[j];
+
+			for (k = 0; k < n; k++) {
 				l = (j > 0) ? (k + ftoutline.contours[j - 1] + 1) : k;
+				if (k == 0) l_first = l;
 
 				if (ftoutline.tags[l] == FT_Curve_Tag_On)
 					onpoints[j]++;
 
-				if (k < npoints[j] - 1) {
-					if (ftoutline.tags[l] == FT_Curve_Tag_Conic &&
-					    ftoutline.tags[l + 1] == FT_Curve_Tag_Conic)
+				{
+					const int l_next = (k < n - 1) ? (l + 1) : l_first;
+					if (ftoutline.tags[l]      == FT_Curve_Tag_Conic &&
+					    ftoutline.tags[l_next] == FT_Curve_Tag_Conic)
 					{
 						onpoints[j]++;
 					}
@@ -139,7 +128,10 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 		}
 
 		/* contour loop, bezier & conic styles merged */
-		for (j = 0; j < ftoutline.n_contours; j++) {
+		for (j = 0, contour_prev = -1; j < ftoutline.n_contours; j++) {
+			const int n = ftoutline.contours[j] - contour_prev;
+			contour_prev = ftoutline.contours[j];
+
 			/* add new curve */
 			nu  =  (Nurb *)MEM_callocN(sizeof(struct Nurb), "objfnt_nurb");
 			bezt = (BezTriple *)MEM_callocN((onpoints[j]) * sizeof(BezTriple), "objfnt_bezt");
@@ -153,15 +145,18 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 			nu->bezt = bezt;
 
 			/* individual curve loop, start-end */
-			for (k = 0; k < npoints[j]; k++) {
-				if (j > 0) l = k + ftoutline.contours[j - 1] + 1; else l = k;
-				if (k == 0) m = l;
+			for (k = 0; k < n; k++) {
+				l = (j > 0) ? (k + ftoutline.contours[j - 1] + 1) : k;
+				if (k == 0) l_first = l;
 
 				/* virtual conic on-curve points */
-				if (k < npoints[j] - 1) {
-					if (ftoutline.tags[l] == FT_Curve_Tag_Conic && ftoutline.tags[l + 1] == FT_Curve_Tag_Conic) {
-						dx = (ftoutline.points[l].x + ftoutline.points[l + 1].x) * scale / 2.0f;
-						dy = (ftoutline.points[l].y + ftoutline.points[l + 1].y) * scale / 2.0f;
+				{
+					const int l_next = (k < n - 1) ? (l + 1) : l_first;
+					if (ftoutline.tags[l]      == FT_Curve_Tag_Conic &&
+					    ftoutline.tags[l_next] == FT_Curve_Tag_Conic)
+					{
+						dx = (ftoutline.points[l].x + ftoutline.points[l_next].x) * scale / 2.0f;
+						dy = (ftoutline.points[l].y + ftoutline.points[l_next].y) * scale / 2.0f;
 
 						/* left handle */
 						bezt->vec[0][0] = (dx + (2 * ftoutline.points[l].x) * scale) / 3.0f;
@@ -172,8 +167,8 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 						bezt->vec[1][1] = dy;
 
 						/* right handle */
-						bezt->vec[2][0] = (dx + (2 * ftoutline.points[l + 1].x) * scale) / 3.0f;
-						bezt->vec[2][1] = (dy + (2 * ftoutline.points[l + 1].y) * scale) / 3.0f;
+						bezt->vec[2][0] = (dx + (2 * ftoutline.points[l_next].x) * scale) / 3.0f;
+						bezt->vec[2][1] = (dy + (2 * ftoutline.points[l_next].y) * scale) / 3.0f;
 
 						bezt->h1 = bezt->h2 = HD_ALIGN;
 						bezt->radius = 1.0f;
@@ -183,40 +178,24 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 
 				/* on-curve points */
 				if (ftoutline.tags[l] == FT_Curve_Tag_On) {
+					const int l_prev = (k > 0)     ? (l - 1) : ftoutline.contours[j];
+					const int l_next = (k < n - 1) ? (l + 1) : l_first;
+
 					/* left handle */
-					if (k > 0) {
-						if (ftoutline.tags[l - 1] == FT_Curve_Tag_Cubic) {
-							bezt->vec[0][0] = ftoutline.points[l - 1].x * scale;
-							bezt->vec[0][1] = ftoutline.points[l - 1].y * scale;
-							bezt->h1 = HD_FREE;
-						}
-						else if (ftoutline.tags[l - 1] == FT_Curve_Tag_Conic) {
-							bezt->vec[0][0] = (ftoutline.points[l].x + (2 * ftoutline.points[l - 1].x)) * scale / 3.0f;
-							bezt->vec[0][1] = (ftoutline.points[l].y + (2 * ftoutline.points[l - 1].y)) * scale / 3.0f;
-							bezt->h1 = HD_FREE;
-						}
-						else {
-							bezt->vec[0][0] = ftoutline.points[l].x * scale - (ftoutline.points[l].x - ftoutline.points[l - 1].x) * scale / 3.0f;
-							bezt->vec[0][1] = ftoutline.points[l].y * scale - (ftoutline.points[l].y - ftoutline.points[l - 1].y) * scale / 3.0f;
-							bezt->h1 = HD_VECT;
-						}
+					if (ftoutline.tags[l_prev] == FT_Curve_Tag_Cubic) {
+						bezt->vec[0][0] = ftoutline.points[l_prev].x * scale;
+						bezt->vec[0][1] = ftoutline.points[l_prev].y * scale;
+						bezt->h1 = HD_FREE;
 					}
-					else { /* first point on curve */
-						if (ftoutline.tags[ftoutline.contours[j]] == FT_Curve_Tag_Cubic) {
-							bezt->vec[0][0] = ftoutline.points[ftoutline.contours[j]].x * scale;
-							bezt->vec[0][1] = ftoutline.points[ftoutline.contours[j]].y * scale;
-							bezt->h1 = HD_FREE;
-						}
-						else if (ftoutline.tags[ftoutline.contours[j]] == FT_Curve_Tag_Conic) {
-							bezt->vec[0][0] = (ftoutline.points[l].x + (2 * ftoutline.points[ftoutline.contours[j]].x)) * scale / 3.0f;
-							bezt->vec[0][1] = (ftoutline.points[l].y + (2 * ftoutline.points[ftoutline.contours[j]].y)) * scale / 3.0f;
-							bezt->h1 = HD_FREE;
-						}
-						else {
-							bezt->vec[0][0] = ftoutline.points[l].x * scale - (ftoutline.points[l].x - ftoutline.points[ftoutline.contours[j]].x) * scale / 3.0f;
-							bezt->vec[0][1] = ftoutline.points[l].y * scale - (ftoutline.points[l].y - ftoutline.points[ftoutline.contours[j]].y) * scale / 3.0f;
-							bezt->h1 = HD_VECT;
-						}
+					else if (ftoutline.tags[l_prev] == FT_Curve_Tag_Conic) {
+						bezt->vec[0][0] = (ftoutline.points[l].x + (2 * ftoutline.points[l_prev].x)) * scale / 3.0f;
+						bezt->vec[0][1] = (ftoutline.points[l].y + (2 * ftoutline.points[l_prev].y)) * scale / 3.0f;
+						bezt->h1 = HD_FREE;
+					}
+					else {
+						bezt->vec[0][0] = ftoutline.points[l].x * scale - (ftoutline.points[l].x - ftoutline.points[l_prev].x) * scale / 3.0f;
+						bezt->vec[0][1] = ftoutline.points[l].y * scale - (ftoutline.points[l].y - ftoutline.points[l_prev].y) * scale / 3.0f;
+						bezt->h1 = HD_VECT;
 					}
 
 					/* midpoint (on-curve point) */
@@ -224,54 +203,36 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 					bezt->vec[1][1] = ftoutline.points[l].y * scale;
 
 					/* right handle */
-					if (k < (npoints[j] - 1)) {
-						if (ftoutline.tags[l + 1] == FT_Curve_Tag_Cubic) {
-							bezt->vec[2][0] = ftoutline.points[l + 1].x * scale;
-							bezt->vec[2][1] = ftoutline.points[l + 1].y * scale;
-							bezt->h2 = HD_FREE;
-						}
-						else if (ftoutline.tags[l + 1] == FT_Curve_Tag_Conic) {
-							bezt->vec[2][0] = (ftoutline.points[l].x + (2 * ftoutline.points[l + 1].x)) * scale / 3.0f;
-							bezt->vec[2][1] = (ftoutline.points[l].y + (2 * ftoutline.points[l + 1].y)) * scale / 3.0f;
-							bezt->h2 = HD_FREE;
-						}
-						else {
-							bezt->vec[2][0] = ftoutline.points[l].x * scale - (ftoutline.points[l].x - ftoutline.points[l + 1].x) * scale / 3.0f;
-							bezt->vec[2][1] = ftoutline.points[l].y * scale - (ftoutline.points[l].y - ftoutline.points[l + 1].y) * scale / 3.0f;
-							bezt->h2 = HD_VECT;
-						}
+					if (ftoutline.tags[l_next] == FT_Curve_Tag_Cubic) {
+						bezt->vec[2][0] = ftoutline.points[l_next].x * scale;
+						bezt->vec[2][1] = ftoutline.points[l_next].y * scale;
+						bezt->h2 = HD_FREE;
 					}
-					else { /* last point on curve */
-						if (ftoutline.tags[m] == FT_Curve_Tag_Cubic) {
-							bezt->vec[2][0] = ftoutline.points[m].x * scale;
-							bezt->vec[2][1] = ftoutline.points[m].y * scale;
-							bezt->h2 = HD_FREE;
-						}
-						else if (ftoutline.tags[m] == FT_Curve_Tag_Conic) {
-							bezt->vec[2][0] = (ftoutline.points[l].x + (2 * ftoutline.points[m].x)) * scale / 3.0f;
-							bezt->vec[2][1] = (ftoutline.points[l].y + (2 * ftoutline.points[m].y)) * scale / 3.0f;
-							bezt->h2 = HD_FREE;
-						}
-						else {
-							bezt->vec[2][0] = ftoutline.points[l].x * scale - (ftoutline.points[l].x - ftoutline.points[m].x) * scale / 3.0f;
-							bezt->vec[2][1] = ftoutline.points[l].y * scale - (ftoutline.points[l].y - ftoutline.points[m].y) * scale / 3.0f;
-							bezt->h2 = HD_VECT;
-						}
+					else if (ftoutline.tags[l_next] == FT_Curve_Tag_Conic) {
+						bezt->vec[2][0] = (ftoutline.points[l].x + (2 * ftoutline.points[l_next].x)) * scale / 3.0f;
+						bezt->vec[2][1] = (ftoutline.points[l].y + (2 * ftoutline.points[l_next].y)) * scale / 3.0f;
+						bezt->h2 = HD_FREE;
+					}
+					else {
+						bezt->vec[2][0] = ftoutline.points[l].x * scale - (ftoutline.points[l].x - ftoutline.points[l_next].x) * scale / 3.0f;
+						bezt->vec[2][1] = ftoutline.points[l].y * scale - (ftoutline.points[l].y - ftoutline.points[l_next].y) * scale / 3.0f;
+						bezt->h2 = HD_VECT;
 					}
 
 					/* get the handles that are aligned, tricky...
-					 * dist_to_line_v2, check if the three beztriple points are on one line
-					 * len_squared_v2v2, see if there's a distance between the three points
-					 * len_squared_v2v2 again, to check the angle between the handles
-					 * finally, check if one of them is a vector handle */
+					 * - check if one of them is a vector handle.
+					 * - dist_squared_to_line_v2, check if the three beztriple points are on one line
+					 * - len_squared_v2v2, see if there's a distance between the three points
+					 * - len_squared_v2v2 again, to check the angle between the handles
+					 */
 					if ((bezt->h1 != HD_VECT && bezt->h2 != HD_VECT) &&
-					    (dist_to_line_v2(bezt->vec[0], bezt->vec[1], bezt->vec[2]) < 0.001f) &&
-					    (len_squared_v2v2(bezt->vec[0], bezt->vec[1]) > 0.0001f * 0.0001f) &&
-					    (len_squared_v2v2(bezt->vec[1], bezt->vec[2]) > 0.0001f * 0.0001f) &&
-					    (len_squared_v2v2(bezt->vec[0], bezt->vec[2]) > 0.0002f * 0.0001f) &&
+					    (dist_squared_to_line_v2(bezt->vec[0], bezt->vec[1], bezt->vec[2]) < (0.001f * 0.001f)) &&
+					    (len_squared_v2v2(bezt->vec[0], bezt->vec[1]) > eps_sq) &&
+					    (len_squared_v2v2(bezt->vec[1], bezt->vec[2]) > eps_sq) &&
+					    (len_squared_v2v2(bezt->vec[0], bezt->vec[2]) > eps_sq) &&
 					    (len_squared_v2v2(bezt->vec[0], bezt->vec[2]) >
 					     max_ff(len_squared_v2v2(bezt->vec[0], bezt->vec[1]),
-					          len_squared_v2v2(bezt->vec[1], bezt->vec[2]))))
+					            len_squared_v2v2(bezt->vec[1], bezt->vec[2]))))
 					{
 						bezt->h1 = bezt->h2 = HD_ALIGN;
 					}
@@ -280,13 +241,19 @@ static void freetypechar_to_vchar(FT_Face face, FT_ULong charcode, VFontData *vf
 				}
 			}
 		}
-		if (npoints) MEM_freeN(npoints);
-		if (onpoints) MEM_freeN(onpoints);
+
+		MEM_freeN(onpoints);
+
+		return che;
 	}
+
+	return NULL;
 }
 
-static int objchr_to_ftvfontdata(VFont *vfont, FT_ULong charcode)
+static VChar *objchr_to_ftvfontdata(VFont *vfont, FT_ULong charcode)
 {
+	VChar *che;
+
 	/* Freetype2 */
 	FT_Face face;
 
@@ -297,18 +264,20 @@ static int objchr_to_ftvfontdata(VFont *vfont, FT_ULong charcode)
 		                         vfont->temp_pf->size,
 		                         0,
 		                         &face);
-		if (err) return FALSE;
+		if (err) {
+			return NULL;
+		}
 	}
 	else {
-		err = TRUE;
-		return FALSE;
+		err = true;
+		return NULL;
 	}
-		
+
 	/* Read the char */
-	freetypechar_to_vchar(face, charcode, vfont->data);
-	
+	che = freetypechar_to_vchar(face, charcode, vfont->data);
+
 	/* And everything went ok */
-	return TRUE;
+	return che;
 }
 
 
@@ -316,6 +285,7 @@ static VFontData *objfnt_to_ftvfontdata(PackedFile *pf)
 {
 	/* Variables */
 	FT_Face face;
+	const FT_ULong charcode_reserve = 256;
 	FT_ULong charcode = 0, lcode;
 	FT_UInt glyph_index;
 	const char *fontname;
@@ -389,8 +359,19 @@ static VFontData *objfnt_to_ftvfontdata(PackedFile *pf)
 		lcode = charcode = FT_Get_First_Char(face, &glyph_index);
 	}
 
+
+	/* Adjust font size */
+	if (face->bbox.yMax != face->bbox.yMin) {
+		vfd->scale = (float)(1.0 / (double)(face->bbox.yMax - face->bbox.yMin));
+	}
+	else {
+		vfd->scale = 1.0f / 1000.0f;
+	}
+
 	/* Load characters */
-	while (charcode < 256) {
+	vfd->characters = BLI_ghash_int_new_ex(__func__, charcode_reserve);
+
+	while (charcode < charcode_reserve) {
 		/* Generate the font data */
 		freetypechar_to_vchar(face, charcode, vfd);
 
@@ -500,28 +481,26 @@ VFontData *BLI_vfontdata_from_freetypefont(PackedFile *pf)
 	return vfd;
 }
 
-int BLI_vfontchar_from_freetypefont(VFont *vfont, unsigned long character)
+VChar *BLI_vfontchar_from_freetypefont(VFont *vfont, unsigned long character)
 {
-	int success = FALSE;
+	VChar *che = NULL;
 
-	if (!vfont) return FALSE;
+	if (!vfont) return NULL;
 
 	/* Init Freetype */
 	err = FT_Init_FreeType(&library);
 	if (err) {
 		/* XXX error("Failed to load the Freetype font library"); */
-		return 0;
+		return NULL;
 	}
 
 	/* Load the character */
-	success = objchr_to_ftvfontdata(vfont, character);
-	if (success == FALSE) return FALSE;
+	che = objchr_to_ftvfontdata(vfont, character);
 
 	/* Free Freetype */
 	FT_Done_FreeType(library);
 
-	/* Ahh everything ok */
-	return TRUE;
+	return che;
 }
 
 #if 0

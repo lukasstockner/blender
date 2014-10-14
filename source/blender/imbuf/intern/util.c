@@ -34,9 +34,6 @@
 
 #ifdef _WIN32
 #  include <io.h>
-#  define open _open
-#  define read _read
-#  define close _close
 #endif
 
 #include <stdlib.h>
@@ -46,7 +43,6 @@
 #include "BLI_fileops.h"
 #include "BLI_string.h"
 
-#include "DNA_userdef_types.h"
 #include "BKE_global.h"
 
 #include "imbuf.h"
@@ -120,6 +116,7 @@ const char *imb_ext_image_qt[] = {
 	NULL
 };
 
+#if 0  /* UNUSED */
 const char *imb_ext_movie_qt[] = {
 	".avi",   
 	".flc",   
@@ -130,6 +127,7 @@ const char *imb_ext_movie_qt[] = {
 	".mv",
 	NULL
 };
+#endif
 
 const char *imb_ext_movie[] = {
 	".avi",
@@ -178,33 +176,34 @@ const char *imb_ext_audio[] = {
 	".aif",
 	".aiff",
 	".m4a",
+	".mka",
 	NULL
 };
 
-static int IMB_ispic_name(const char *name)
+int IMB_ispic_type(const char *name)
 {
 	/* increased from 32 to 64 because of the bitmaps header size */
 #define HEADER_SIZE 64
 
 	unsigned char buf[HEADER_SIZE];
 	ImFileType *type;
-	struct stat st;
+	BLI_stat_t st;
 	int fp;
 
 	if (UTIL_DEBUG) printf("IMB_ispic_name: loading %s\n", name);
 	
 	if (BLI_stat(name, &st) == -1)
-		return FALSE;
+		return false;
 	if (((st.st_mode) & S_IFMT) != S_IFREG)
-		return FALSE;
+		return false;
 
-	if ((fp = BLI_open(name, O_BINARY | O_RDONLY, 0)) < 0)
-		return FALSE;
+	if ((fp = BLI_open(name, O_BINARY | O_RDONLY, 0)) == -1)
+		return false;
 
 	memset(buf, 0, sizeof(buf));
 	if (read(fp, buf, HEADER_SIZE) <= 0) {
 		close(fp);
-		return FALSE;
+		return false;
 	}
 
 	close(fp);
@@ -226,29 +225,15 @@ static int IMB_ispic_name(const char *name)
 		}
 	}
 
-	return FALSE;
+	return 0;
 
 #undef HEADER_SIZE
 }
 
-int IMB_ispic(const char *filename)
+bool IMB_ispic(const char *name)
 {
-	if (U.uiflag & USER_FILTERFILEEXTS) {
-		if ((BLI_testextensie_array(filename, imb_ext_image)) ||
-		    (G.have_quicktime && BLI_testextensie_array(filename, imb_ext_image_qt)))
-		{
-			return IMB_ispic_name(filename);
-		}
-		else {
-			return FALSE;
-		}
-	}
-	else { /* no FILTERFILEEXTS */
-		return IMB_ispic_name(filename);
-	}
+	return (IMB_ispic_type(name) != 0);
 }
-
-
 
 static int isavi(const char *name)
 {
@@ -256,7 +241,7 @@ static int isavi(const char *name)
 	return AVI_is_avi(name);
 #else
 	(void)name;
-	return FALSE;
+	return false;
 #endif
 }
 
@@ -268,10 +253,6 @@ static int isqtime(const char *name)
 #endif
 
 #ifdef WITH_FFMPEG
-
-#ifdef _MSC_VER
-#define va_copy(dst, src) ((dst) = (src))
-#endif
 
 /* BLI_vsnprintf in ffmpeg_log_callback() causes invalid warning */
 #ifdef __GNUC__
@@ -332,16 +313,9 @@ static int isffmpeg(const char *filename)
 	AVCodec *pCodec;
 	AVCodecContext *pCodecCtx;
 
-	if (BLI_testextensie(filename, ".swf") ||
-	    BLI_testextensie(filename, ".jpg") ||
-	    BLI_testextensie(filename, ".png") ||
-	    BLI_testextensie(filename, ".dds") ||
-	    BLI_testextensie(filename, ".tga") ||
-	    BLI_testextensie(filename, ".bmp") ||
-	    BLI_testextensie(filename, ".tif") ||
-	    BLI_testextensie(filename, ".exr") ||
-	    BLI_testextensie(filename, ".cin") ||
-	    BLI_testextensie(filename, ".wav"))
+	if (BLI_testextensie_n(
+	        filename,
+	        ".swf", ".jpg", ".png", ".dds", ".tga", ".bmp", ".tif", ".exr", ".cin", ".wav", NULL))
 	{
 		return 0;
 	}
@@ -353,7 +327,7 @@ static int isffmpeg(const char *filename)
 
 	if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
 		if (UTIL_DEBUG) fprintf(stderr, "isffmpeg: avformat_find_stream_info failed\n");
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return 0;
 	}
 
@@ -372,7 +346,7 @@ static int isffmpeg(const char *filename)
 		}
 
 	if (videoStream == -1) {
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return 0;
 	}
 
@@ -381,17 +355,17 @@ static int isffmpeg(const char *filename)
 	/* Find the decoder for the video stream */
 	pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
 	if (pCodec == NULL) {
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return 0;
 	}
 
 	if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
-		av_close_input_file(pFormatCtx);
+		avformat_close_input(&pFormatCtx);
 		return 0;
 	}
 
 	avcodec_close(pCodecCtx);
-	av_close_input_file(pFormatCtx);
+	avformat_close_input(&pFormatCtx);
 
 	return 1;
 }
@@ -413,7 +387,7 @@ static int isredcode(const char *filename)
 int imb_get_anim_type(const char *name)
 {
 	int type;
-	struct stat st;
+	BLI_stat_t st;
 
 	if (UTIL_DEBUG) printf("in getanimtype: %s\n", name);
 
@@ -457,31 +431,11 @@ int imb_get_anim_type(const char *name)
 	return ANIM_NONE;
 }
  
-int IMB_isanim(const char *filename)
+bool IMB_isanim(const char *filename)
 {
 	int type;
 	
-	if (U.uiflag & USER_FILTERFILEEXTS) {
-		if (G.have_quicktime) {
-			if (BLI_testextensie_array(filename, imb_ext_movie_qt)) {	
-				type = imb_get_anim_type(filename);
-			}
-			else {
-				return(FALSE);
-			}
-		}
-		else { /* no quicktime */
-			if (BLI_testextensie_array(filename, imb_ext_movie)) {
-				type = imb_get_anim_type(filename);
-			}
-			else {
-				return(FALSE);
-			}
-		}
-	}
-	else { /* no FILTERFILEEXTS */
-		type = imb_get_anim_type(filename);
-	}
+	type = imb_get_anim_type(filename);
 	
 	return (type && type != ANIM_SEQUENCE);
 }

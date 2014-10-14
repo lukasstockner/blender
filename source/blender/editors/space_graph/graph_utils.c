@@ -78,7 +78,7 @@ bAnimListElem *get_active_fcurve_channel(bAnimContext *ac)
 		
 		/* remove first item from list, then free the rest of the list and return the stored one */
 		BLI_remlink(&anim_data, ale);
-		BLI_freelistN(&anim_data);
+		ANIM_animdata_freelist(&anim_data);
 		
 		return ale;
 	}
@@ -135,7 +135,7 @@ int graphop_visible_keyframes_poll(bContext *C)
 	}
 	
 	/* cleanup and return findings */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	return found;
 }
 
@@ -185,7 +185,7 @@ int graphop_editable_keyframes_poll(bContext *C)
 	}
 	
 	/* cleanup and return findings */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	return found;
 }
 
@@ -195,7 +195,7 @@ int graphop_active_fcurve_poll(bContext *C)
 	bAnimContext ac;
 	bAnimListElem *ale;
 	ScrArea *sa = CTX_wm_area(C);
-	short has_fcurve = 0;
+	bool has_fcurve = 0;
 	
 	/* firstly, check if in Graph Editor */
 	// TODO: also check for region?
@@ -251,7 +251,7 @@ int graphop_selected_fcurve_poll(bContext *C)
 		return 0;
 	
 	/* cleanup and return findings */
-	BLI_freelistN(&anim_data);
+	ANIM_animdata_freelist(&anim_data);
 	return 1;
 }
 

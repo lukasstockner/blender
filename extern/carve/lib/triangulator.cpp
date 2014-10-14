@@ -1,13 +1,13 @@
 // Begin License:
-// Copyright (C) 2006-2011 Tobias Sargeant (tobias.sargeant@gmail.com).
+// Copyright (C) 2006-2014 Tobias Sargeant (tobias.sargeant@gmail.com).
 // All rights reserved.
 //
 // This file is part of the Carve CSG Library (http://carve-csg.com/)
 //
-// This file may be used under the terms of the GNU General Public
-// License version 2.0 as published by the Free Software Foundation
-// and appearing in the file LICENSE.GPL2 included in the packaging of
-// this file.
+// This file may be used under the terms of either the GNU General
+// Public License version 2 or 3 (at your option) as published by the
+// Free Software Foundation and appearing in the files LICENSE.GPL2
+// and LICENSE.GPL3 included in the packaging of this file.
 //
 // This file is provided "AS IS" with NO WARRANTY OF ANY KIND,
 // INCLUDING THE WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR
@@ -26,14 +26,6 @@
 #include <sstream>
 
 #include <algorithm>
-
-// Support for latest Clang/LLVM on FreeBSD which does have different libcxx.
-//
-// TODO(sergey): Move it some some more generic header with platform-specific
-//               declarations.
-#ifdef _LIBCPP_VERSION
-#  define __is_heap is_heap
-#endif
 
 namespace {
   // private code related to hole patching.
@@ -129,7 +121,7 @@ namespace {
     std::vector<vertex_info *> queue;
 
     void checkheap() {
-#ifdef __GNUC__
+#if defined(HAVE_IS_HEAP)
       CARVE_ASSERT(std::__is_heap(queue.begin(), queue.end(), vertex_info_ordering()));
 #endif
     }
@@ -725,10 +717,10 @@ bool carve::triangulate::detail::doTriangulate(vertex_info *begin, std::vector<c
 
 
 
-bool testCandidateAttachment(const std::vector<std::vector<carve::geom2d::P2> > &poly,
-                             std::vector<std::pair<size_t, size_t> > &current_f_loop,
-                             size_t curr,
-                             carve::geom2d::P2 hole_min) {
+static bool testCandidateAttachment(const std::vector<std::vector<carve::geom2d::P2> > &poly,
+                                    std::vector<std::pair<size_t, size_t> > &current_f_loop,
+                                    size_t curr,
+                                    carve::geom2d::P2 hole_min) {
   const size_t SZ = current_f_loop.size();
 
   if (!carve::geom2d::internalToAngle(pvert(poly, current_f_loop[(curr+1) % SZ]),

@@ -39,8 +39,6 @@
 extern "C" { 
 #endif
 
-#include <float.h>
-
 struct BVHTree;
 typedef struct BVHTree BVHTree;
 
@@ -56,7 +54,7 @@ typedef struct BVHTreeNearest {
 	int index;          /* the index of the nearest found (untouched if none is found within a dist radius from the given coordinates) */
 	float co[3];        /* nearest coordinates (untouched it none is found within a dist radius from the given coordinates) */
 	float no[3];        /* normal at nearest coordinates (untouched it none is found within a dist radius from the given coordinates) */
-	float dist;         /* squared distance to search arround */
+	float dist_sq;      /* squared distance to search arround */
 	int flags;
 } BVHTreeNearest;
 
@@ -81,7 +79,7 @@ typedef void (*BVHTree_NearestPointCallback)(void *userdata, int index, const fl
 typedef void (*BVHTree_RayCastCallback)(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit);
 
 /* callback to range search query */
-typedef void (*BVHTree_RangeQuery)(void *userdata, int index, float squared_dist);
+typedef void (*BVHTree_RangeQuery)(void *userdata, int index, float dist_sq);
 
 BVHTree *BLI_bvhtree_new(int maxsize, float epsilon, char tree_type, char axis);
 void BLI_bvhtree_free(BVHTree *tree);
@@ -91,11 +89,11 @@ void BLI_bvhtree_insert(BVHTree *tree, int index, const float co[3], int numpoin
 void BLI_bvhtree_balance(BVHTree *tree);
 
 /* update: first update points/nodes, then call update_tree to refit the bounding volumes */
-int BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const float co_moving[3], int numpoints);
+bool BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const float co_moving[3], int numpoints);
 void BLI_bvhtree_update_tree(BVHTree *tree);
 
 /* collision/overlap: check two trees if they overlap, alloc's *overlap with length of the int return value */
-BVHTreeOverlap *BLI_bvhtree_overlap(BVHTree *tree1, BVHTree *tree2, unsigned int *result);
+BVHTreeOverlap *BLI_bvhtree_overlap(BVHTree *tree1, BVHTree *tree2, unsigned int *r_overlap_tot);
 
 float BLI_bvhtree_getepsilon(const BVHTree *tree);
 

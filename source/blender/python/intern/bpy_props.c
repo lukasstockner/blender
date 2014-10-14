@@ -63,15 +63,24 @@ static EnumPropertyItem property_flag_items[] = {
 	{PROP_SKIP_SAVE, "SKIP_SAVE", 0, "Skip Save", ""},
 	{PROP_ANIMATABLE, "ANIMATABLE", 0, "Animatable", ""},
 	{PROP_LIB_EXCEPTION, "LIBRARY_EDITABLE", 0, "Library Editable", ""},
+	{PROP_PROPORTIONAL, "PROPORTIONAL", 0, "Adjust values proportionally to eachother", ""},
 	{0, NULL, 0, NULL, NULL}};
+
+#define BPY_PROPDEF_OPTIONS_DOC \
+"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE', 'PROPORTIONAL'].\n" \
+"   :type options: set\n" \
 
 static EnumPropertyItem property_flag_enum_items[] = {
 	{PROP_HIDDEN, "HIDDEN", 0, "Hidden", ""},
 	{PROP_SKIP_SAVE, "SKIP_SAVE", 0, "Skip Save", ""},
 	{PROP_ANIMATABLE, "ANIMATABLE", 0, "Animatable", ""},
-	{PROP_ENUM_FLAG, "ENUM_FLAG", 0, "Enum Flag", ""},
 	{PROP_LIB_EXCEPTION, "LIBRARY_EDITABLE", 0, "Library Editable", ""},
+	{PROP_ENUM_FLAG, "ENUM_FLAG", 0, "Enum Flag", ""},
 	{0, NULL, 0, NULL, NULL}};
+
+#define BPY_PROPDEF_OPTIONS_ENUM_DOC \
+"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'ENUM_FLAG', 'LIBRARY_EDITABLE'].\n" \
+"   :type options: set\n" \
 
 /* subtypes */
 /* XXX Keep in sync with rna_rna.c's property_subtype_items ???
@@ -87,7 +96,12 @@ static EnumPropertyItem property_subtype_string_items[] = {
 	{PROP_NONE, "NONE", 0, "None", ""},
 	{0, NULL, 0, NULL, NULL}};
 
+#define BPY_PROPDEF_SUBTYPE_STRING_DOC \
+"   :arg subtype: Enumerator in ['FILE_PATH', 'DIR_PATH', 'FILE_NAME', 'BYTE_STRING', 'PASSWORD', 'NONE'].\n" \
+"   :type subtype: string\n" \
+
 static EnumPropertyItem property_subtype_number_items[] = {
+	{PROP_PIXEL, "PIXEL", 0, "Pixel", ""},
 	{PROP_UNSIGNED, "UNSIGNED", 0, "Unsigned", ""},
 	{PROP_PERCENTAGE, "PERCENTAGE", 0, "Percentage", ""},
 	{PROP_FACTOR, "FACTOR", 0, "Factor", ""},
@@ -97,6 +111,10 @@ static EnumPropertyItem property_subtype_number_items[] = {
 
 	{PROP_NONE, "NONE", 0, "None", ""},
 	{0, NULL, 0, NULL, NULL}};
+
+#define BPY_PROPDEF_SUBTYPE_NUMBER_DOC \
+"   :arg subtype: Enumerator in ['PIXEL', 'UNSIGNED', 'PERCENTAGE', 'FACTOR', 'ANGLE', 'TIME', 'DISTANCE', 'NONE'].\n" \
+"   :type subtype: string\n" \
 
 static EnumPropertyItem property_subtype_array_items[] = {
 	{PROP_COLOR, "COLOR", 0, "Color", ""},
@@ -114,6 +132,12 @@ static EnumPropertyItem property_subtype_array_items[] = {
 
 	{PROP_NONE, "NONE", 0, "None", ""},
 	{0, NULL, 0, NULL, NULL}};
+
+#define BPY_PROPDEF_SUBTYPE_ARRAY_DOC \
+"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', " \
+                                "'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', " \
+                                "'XYZ', 'COLOR_GAMMA', 'LAYER', 'NONE'].\n" \
+"   :type subtype: string\n"
 
 /* PyObject's */
 static PyObject *pymeth_BoolProperty = NULL;
@@ -196,7 +220,7 @@ static void bpy_prop_update_cb(struct bContext *C, struct PointerRNA *ptr, struc
 	PyObject *args;
 	PyObject *self;
 	PyObject *ret;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 
 	BLI_assert(py_data != NULL);
 
@@ -247,7 +271,7 @@ static int bpy_prop_boolean_get_cb(struct PointerRNA *ptr, struct PropertyRNA *p
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int value;
 
 	BLI_assert(py_data != NULL);
@@ -305,7 +329,7 @@ static void bpy_prop_boolean_set_cb(struct PointerRNA *ptr, struct PropertyRNA *
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 
 	BLI_assert(py_data != NULL);
 
@@ -359,7 +383,7 @@ static void bpy_prop_boolean_array_get_cb(struct PointerRNA *ptr, struct Propert
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int i, len = RNA_property_array_length(ptr, prop);
 
 	BLI_assert(py_data != NULL);
@@ -421,7 +445,7 @@ static void bpy_prop_boolean_array_set_cb(struct PointerRNA *ptr, struct Propert
 	PyObject *py_values;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int len = RNA_property_array_length(ptr, prop);
 
 	BLI_assert(py_data != NULL);
@@ -481,7 +505,7 @@ static int bpy_prop_int_get_cb(struct PointerRNA *ptr, struct PropertyRNA *prop)
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int value;
 
 	BLI_assert(py_data != NULL);
@@ -539,7 +563,7 @@ static void bpy_prop_int_set_cb(struct PointerRNA *ptr, struct PropertyRNA *prop
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 
 	BLI_assert(py_data != NULL);
 
@@ -593,7 +617,7 @@ static void bpy_prop_int_array_get_cb(struct PointerRNA *ptr, struct PropertyRNA
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int i, len = RNA_property_array_length(ptr, prop);
 
 	BLI_assert(py_data != NULL);
@@ -655,7 +679,7 @@ static void bpy_prop_int_array_set_cb(struct PointerRNA *ptr, struct PropertyRNA
 	PyObject *py_values;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int len = RNA_property_array_length(ptr, prop);
 
 	BLI_assert(py_data != NULL);
@@ -715,7 +739,7 @@ static float bpy_prop_float_get_cb(struct PointerRNA *ptr, struct PropertyRNA *p
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	float value;
 
 	BLI_assert(py_data != NULL);
@@ -773,7 +797,7 @@ static void bpy_prop_float_set_cb(struct PointerRNA *ptr, struct PropertyRNA *pr
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 
 	BLI_assert(py_data != NULL);
 
@@ -827,7 +851,7 @@ static void bpy_prop_float_array_get_cb(struct PointerRNA *ptr, struct PropertyR
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int i, len = RNA_property_array_length(ptr, prop);
 
 	BLI_assert(py_data != NULL);
@@ -889,7 +913,7 @@ static void bpy_prop_float_array_set_cb(struct PointerRNA *ptr, struct PropertyR
 	PyObject *py_values;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int len = RNA_property_array_length(ptr, prop);
 
 	BLI_assert(py_data != NULL);
@@ -949,7 +973,7 @@ static void bpy_prop_string_get_cb(struct PointerRNA *ptr, struct PropertyRNA *p
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 
 	BLI_assert(py_data != NULL);
 
@@ -1008,7 +1032,7 @@ static int bpy_prop_string_length_cb(struct PointerRNA *ptr, struct PropertyRNA 
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int length;
 
 	BLI_assert(py_data != NULL);
@@ -1070,7 +1094,7 @@ static void bpy_prop_string_set_cb(struct PointerRNA *ptr, struct PropertyRNA *p
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	PyObject *py_value;
 
 	BLI_assert(py_data != NULL);
@@ -1131,7 +1155,7 @@ static int bpy_prop_enum_get_cb(struct PointerRNA *ptr, struct PropertyRNA *prop
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 	int value;
 
 	BLI_assert(py_data != NULL);
@@ -1189,7 +1213,7 @@ static void bpy_prop_enum_set_cb(struct PointerRNA *ptr, struct PropertyRNA *pro
 	PyObject *ret;
 	PyGILState_STATE gilstate;
 	bool use_gil;
-	const int is_write_ok = pyrna_write_check();
+	const bool is_write_ok = pyrna_write_check();
 
 	BLI_assert(py_data != NULL);
 
@@ -1429,7 +1453,7 @@ static EnumPropertyItem *enum_items_from_py(PyObject *seq_fast, PyObject *def, i
 	return items;
 }
 
-static EnumPropertyItem *bpy_prop_enum_itemf_cb(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, int *free)
+static EnumPropertyItem *bpy_prop_enum_itemf_cb(struct bContext *C, PointerRNA *ptr, PropertyRNA *prop, bool *r_free)
 {
 	PyGILState_STATE gilstate;
 
@@ -1482,7 +1506,7 @@ static EnumPropertyItem *bpy_prop_enum_itemf_cb(struct bContext *C, PointerRNA *
 	}
 
 	if (err != -1) { /* worked */
-		*free = 1;
+		*r_free = true;
 	}
 	else {
 		printf_func_error(py_func);
@@ -1794,22 +1818,61 @@ static void bpy_prop_callback_assign_enum(struct PropertyRNA *prop, PyObject *ge
 "   :arg name: Name used in the user interface.\n" \
 "   :type name: string\n" \
 
-
 #define BPY_PROPDEF_DESC_DOC \
 "   :arg description: Text used for the tooltip and api documentation.\n" \
 "   :type description: string\n" \
-
 
 #define BPY_PROPDEF_UNIT_DOC \
 "   :arg unit: Enumerator in ['NONE', 'LENGTH', 'AREA', 'VOLUME', 'ROTATION', 'TIME', 'VELOCITY', 'ACCELERATION'].\n" \
 "   :type unit: string\n"	\
 
+#define BPY_PROPDEF_NUM_MIN_DOC \
+"   :arg min: Hard minimum, trying to assign a value below will silently assign this minimum instead.\n" \
+
+#define BPY_PROPDEF_NUM_MAX_DOC \
+"   :arg max: Hard maximum, trying to assign a value above will silently assign this maximum instead.\n" \
+
+#define BPY_PROPDEF_NUM_SOFTMIN_DOC \
+"   :arg soft_min: Soft minimum (>= *min*), user won't be able to drag the widget below this value in the UI.\n" \
+
+#define BPY_PROPDEF_NUM_SOFTMAX_DOC \
+"   :arg soft_max: Soft maximum (<= *max*), user won't be able to drag the widget above this value in the UI.\n" \
+
+#define BPY_PROPDEF_VECSIZE_DOC \
+"   :arg size: Vector dimensions in [1, " STRINGIFY(PYRNA_STACK_ARRAY) "].\n" \
+"   :type size: int\n" \
+
+#define BPY_PROPDEF_INT_STEP_DOC \
+"   :arg step: Step of increment/decrement in UI, in [1, 100], defaults to 1 (WARNING: unused currently!).\n" \
+"   :type step: int\n" \
+
+#define BPY_PROPDEF_FLOAT_STEP_DOC \
+"   :arg step: Step of increment/decrement in UI, in [1, 100], defaults to 3 (WARNING: actual value is /100).\n" \
+"   :type step: int\n" \
+
+#define BPY_PROPDEF_FLOAT_PREC_DOC \
+"   :arg precision: Maximum number of decimal digits to display, in [0, 6].\n" \
+"   :type precision: int\n" \
 
 #define BPY_PROPDEF_UPDATE_DOC \
-"   :arg update: function to be called when this value is modified,\n" \
+"   :arg update: Function to be called when this value is modified,\n" \
 "      This function must take 2 values (self, context) and return None.\n" \
 "      *Warning* there are no safety checks to avoid infinite recursion.\n" \
 "   :type update: function\n" \
+
+#define BPY_PROPDEF_GET_DOC \
+"   :arg get: Function to be called when this value is 'read',\n" \
+"      This function must take 1 value (self) and return the value of the property.\n" \
+"   :type get: function\n" \
+
+#define BPY_PROPDEF_SET_DOC \
+"   :arg set: Function to be called when this value is 'written',\n" \
+"      This function must take 2 values (self, value) and return None.\n" \
+"   :type set: function\n" \
+
+#define BPY_PROPDEF_TYPE_DOC \
+"   :arg type: A subclass of :class:`bpy.types.PropertyGroup`.\n" \
+"   :type type: class\n" \
 
 #if 0
 static int bpy_struct_id_used(StructRNA *srna, char *identifier)
@@ -1838,11 +1901,11 @@ PyDoc_STRVAR(BPy_BoolProperty_doc,
 "\n"
 BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
-"   :arg subtype: Enumerator in ['UNSIGNED', 'PERCENTAGE', 'FACTOR', 'ANGLE', 'TIME', 'DISTANCE', 'NONE'].\n"
-"   :type subtype: string\n"
+BPY_PROPDEF_OPTIONS_DOC
+BPY_PROPDEF_SUBTYPE_NUMBER_DOC
 BPY_PROPDEF_UPDATE_DOC
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -1859,7 +1922,7 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -1922,15 +1985,12 @@ BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
 "   :arg default: sequence of booleans the length of *size*.\n"
 "   :type default: sequence\n"
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
-"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', "
-                               "'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', "
-                               "'XYZ', 'COLOR_GAMMA', 'LAYER', 'NONE'].\n"
-"   :type subtype: string\n"
-"   :arg size: Vector dimensions in [1, and " STRINGIFY(PYRNA_STACK_ARRAY) "].\n"
-"   :type size: int\n"
+BPY_PROPDEF_OPTIONS_DOC
+BPY_PROPDEF_SUBTYPE_ARRAY_DOC
+BPY_PROPDEF_VECSIZE_DOC
 BPY_PROPDEF_UPDATE_DOC
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -1949,7 +2009,7 @@ static PyObject *BPy_BoolVectorProperty(PyObject *self, PyObject *args, PyObject
 		PyObject *pydef = NULL;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2011,8 +2071,8 @@ PyDoc_STRVAR(BPy_IntProperty_doc,
 ".. function:: IntProperty(name=\"\", "
                           "description=\"\", "
                           "default=0, "
-                          "min=-sys.maxint, max=sys.maxint, "
-                          "soft_min=-sys.maxint, soft_max=sys.maxint, "
+                          "min=-2**31, max=2**31-1, "
+                          "soft_min=-2**31, soft_max=2**31-1, "
                           "step=1, "
                           "options={'ANIMATABLE'}, "
                           "subtype='NONE', "
@@ -2024,11 +2084,20 @@ PyDoc_STRVAR(BPy_IntProperty_doc,
 "\n"
 BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
-"   :arg subtype: Enumerator in ['UNSIGNED', 'PERCENTAGE', 'FACTOR', 'ANGLE', 'TIME', 'DISTANCE', 'NONE'].\n"
-"   :type subtype: string\n"
+BPY_PROPDEF_NUM_MIN_DOC
+"   :type min: int\n"
+BPY_PROPDEF_NUM_MAX_DOC
+"   :type max: int\n"
+BPY_PROPDEF_NUM_SOFTMAX_DOC
+"   :type soft_min: int\n"
+BPY_PROPDEF_NUM_SOFTMIN_DOC
+"   :type soft_max: int\n"
+BPY_PROPDEF_INT_STEP_DOC
+BPY_PROPDEF_OPTIONS_DOC
+BPY_PROPDEF_SUBTYPE_NUMBER_DOC
 BPY_PROPDEF_UPDATE_DOC
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2046,7 +2115,7 @@ static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2097,9 +2166,10 @@ static PyObject *BPy_IntProperty(PyObject *self, PyObject *args, PyObject *kw)
 PyDoc_STRVAR(BPy_IntVectorProperty_doc,
 ".. function:: IntVectorProperty(name=\"\", "
                                 "description=\"\", "
-                                "default=(0, 0, 0), min=-sys.maxint, max=sys.maxint, "
-                                "soft_min=-sys.maxint, "
-                                "soft_max=sys.maxint, "
+                                "default=(0, 0, 0), min=-2**31, max=2**31-1, "
+                                "soft_min=-2**31, "
+                                "soft_max=2**31-1, "
+                                "step=1, "
                                 "options={'ANIMATABLE'}, "
                                 "subtype='NONE', "
                                 "size=3, "
@@ -2113,15 +2183,21 @@ BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
 "   :arg default: sequence of ints the length of *size*.\n"
 "   :type default: sequence\n"
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
-"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', "
-                                "'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', "
-                                "'XYZ', 'COLOR_GAMMA', 'LAYER', 'NONE'].\n"
-"   :type subtype: string\n"
-"   :arg size: Vector dimensions in [1, and " STRINGIFY(PYRNA_STACK_ARRAY) "].\n"
-"   :type size: int\n"
+BPY_PROPDEF_NUM_MIN_DOC
+"   :type min: int\n"
+BPY_PROPDEF_NUM_MAX_DOC
+"   :type max: int\n"
+BPY_PROPDEF_NUM_SOFTMIN_DOC
+"   :type soft_min: int\n"
+BPY_PROPDEF_NUM_SOFTMAX_DOC
+"   :type soft_max: int\n"
+BPY_PROPDEF_INT_STEP_DOC
+BPY_PROPDEF_OPTIONS_DOC
+BPY_PROPDEF_SUBTYPE_ARRAY_DOC
+BPY_PROPDEF_VECSIZE_DOC
 BPY_PROPDEF_UPDATE_DOC
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2142,7 +2218,7 @@ static PyObject *BPy_IntVectorProperty(PyObject *self, PyObject *args, PyObject 
 		PyObject *pydef = NULL;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2222,14 +2298,22 @@ PyDoc_STRVAR(BPy_FloatProperty_doc,
 "\n"
 BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
-"   :arg subtype: Enumerator in ['UNSIGNED', 'PERCENTAGE', 'FACTOR', 'ANGLE', 'TIME', 'DISTANCE', 'NONE'].\n"
-"   :type subtype: string\n"
+BPY_PROPDEF_NUM_MIN_DOC
+"   :type min: float\n"
+BPY_PROPDEF_NUM_MAX_DOC
+"   :type max: float\n"
+BPY_PROPDEF_NUM_SOFTMIN_DOC
+"   :type soft_min: float\n"
+BPY_PROPDEF_NUM_SOFTMAX_DOC
+"   :type soft_max: float\n"
+BPY_PROPDEF_FLOAT_STEP_DOC
+BPY_PROPDEF_FLOAT_PREC_DOC
+BPY_PROPDEF_OPTIONS_DOC
+BPY_PROPDEF_SUBTYPE_NUMBER_DOC
 BPY_PROPDEF_UNIT_DOC
 BPY_PROPDEF_UPDATE_DOC
-"   :arg precision: Number of digits of precision to display.\n"
-"   :type precision: int\n"
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2249,9 +2333,9 @@ static PyObject *BPy_FloatProperty(PyObject *self, PyObject *args, PyObject *kw)
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
-		char *pyunit = NULL;
+		const char *pyunit = NULL;
 		int unit = PROP_UNIT_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2315,6 +2399,7 @@ PyDoc_STRVAR(BPy_FloatVectorProperty_doc,
                                   "precision=2, "
                                   "options={'ANIMATABLE'}, "
                                   "subtype='NONE', "
+                                  "unit='NONE', "
                                   "size=3, "
                                   "update=None, "
                                   "get=None, "
@@ -2326,18 +2411,23 @@ BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
 "   :arg default: sequence of floats the length of *size*.\n"
 "   :type default: sequence\n"
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
-"   :arg subtype: Enumerator in ['COLOR', 'TRANSLATION', 'DIRECTION', "
-                               "'VELOCITY', 'ACCELERATION', 'MATRIX', 'EULER', 'QUATERNION', 'AXISANGLE', 'XYZ', "
-                               "'COLOR_GAMMA', 'LAYER', 'NONE'].\n"
-"   :type subtype: string\n"
+BPY_PROPDEF_NUM_MIN_DOC
+"   :type min: float\n"
+BPY_PROPDEF_NUM_MAX_DOC
+"   :type max: float\n"
+BPY_PROPDEF_NUM_SOFTMIN_DOC
+"   :type soft_min: float\n"
+BPY_PROPDEF_NUM_SOFTMAX_DOC
+"   :type soft_max: float\n"
+BPY_PROPDEF_OPTIONS_DOC
+BPY_PROPDEF_FLOAT_STEP_DOC
+BPY_PROPDEF_FLOAT_PREC_DOC
+BPY_PROPDEF_SUBTYPE_ARRAY_DOC
 BPY_PROPDEF_UNIT_DOC
-"   :arg size: Vector dimensions in [1, and " STRINGIFY(PYRNA_STACK_ARRAY) "].\n"
-"   :type size: int\n"
-"   :arg precision: Number of digits of precision to display.\n"
-"   :type precision: int\n"
+BPY_PROPDEF_VECSIZE_DOC
 BPY_PROPDEF_UPDATE_DOC
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2359,9 +2449,9 @@ static PyObject *BPy_FloatVectorProperty(PyObject *self, PyObject *args, PyObjec
 		PyObject *pydef = NULL;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
-		char *pyunit = NULL;
+		const char *pyunit = NULL;
 		int unit = PROP_UNIT_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2441,11 +2531,15 @@ PyDoc_STRVAR(BPy_StringProperty_doc,
 "\n"
 BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
-"   :arg subtype: Enumerator in ['FILE_PATH', 'DIR_PATH', 'FILE_NAME', 'NONE'].\n"
-"   :type subtype: string\n"
+"   :arg default: initializer string.\n"
+"   :type default: string\n"
+"   :arg maxlen: maximum length of the string.\n"
+"   :type maxlen: int\n"
+BPY_PROPDEF_OPTIONS_DOC
+BPY_PROPDEF_SUBTYPE_STRING_DOC
 BPY_PROPDEF_UPDATE_DOC
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2462,7 +2556,7 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
 		PropertyRNA *prop;
 		PyObject *pyopts = NULL;
 		int opts = 0;
-		char *pysubtype = NULL;
+		const char *pysubtype = NULL;
 		int subtype = PROP_NONE;
 		PyObject *update_cb = NULL;
 		PyObject *get_cb = NULL;
@@ -2492,7 +2586,7 @@ static PyObject *BPy_StringProperty(PyObject *self, PyObject *args, PyObject *kw
 
 		prop = RNA_def_property(srna, id, PROP_STRING, subtype);
 		if (maxlen != 0) RNA_def_property_string_maxlength(prop, maxlen + 1);  /* +1 since it includes null terminator */
-		if (def) RNA_def_property_string_default(prop, def);
+		if (def && def[0]) RNA_def_property_string_default(prop, def);
 		RNA_def_property_ui_text(prop, name ? name : id, description);
 
 		if (pyopts) {
@@ -2520,13 +2614,6 @@ PyDoc_STRVAR(BPy_EnumProperty_doc,
 "\n"
 "   Returns a new enumerator property definition.\n"
 "\n"
-BPY_PROPDEF_NAME_DOC
-BPY_PROPDEF_DESC_DOC
-"   :arg default: The default value for this enum, a string from the identifiers used in *items*.\n"
-"      If the *ENUM_FLAG* option is used this must be a set of such string identifiers instead.\n"
-"   :type default: string or set\n"
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'ENUM_FLAG', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
 "   :arg items: sequence of enum items formatted:\n"
 "      [(identifier, name, description, icon, number), ...] where the identifier is used\n"
 "      for python access and other values are used for the interface.\n"
@@ -2537,10 +2624,18 @@ BPY_PROPDEF_DESC_DOC
 "      For dynamic values a callback can be passed which returns a list in\n"
 "      the same format as the static list.\n"
 "      This function must take 2 arguments (self, context)\n"
-"      WARNING: Do not use generators here (they will work the first time, but will lead to empty values\n"
-"      in some unload/reload scenarii)!\n"
+"      WARNING: There is a known bug with using a callback,\n"
+"      Python must keep a reference to the strings returned or Blender will crash.\n"
 "   :type items: sequence of string tuples or a function\n"
+BPY_PROPDEF_NAME_DOC
+BPY_PROPDEF_DESC_DOC
+"   :arg default: The default value for this enum, a string from the identifiers used in *items*.\n"
+"      If the *ENUM_FLAG* option is used this must be a set of such string identifiers instead.\n"
+"   :type default: string or set\n"
+BPY_PROPDEF_OPTIONS_ENUM_DOC
 BPY_PROPDEF_UPDATE_DOC
+BPY_PROPDEF_GET_DOC
+BPY_PROPDEF_SET_DOC
 );
 static PyObject *BPy_EnumProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2680,19 +2775,18 @@ static StructRNA *pointer_type_from_py(PyObject *value, const char *error_prefix
 }
 
 PyDoc_STRVAR(BPy_PointerProperty_doc,
-".. function:: PointerProperty(type=\"\", "
+".. function:: PointerProperty(type=None, "
+                              "name=\"\", "
                               "description=\"\", "
                               "options={'ANIMATABLE'}, "
                               "update=None)\n"
 "\n"
 "   Returns a new pointer property definition.\n"
 "\n"
-"   :arg type: A subclass of :class:`bpy.types.PropertyGroup`.\n"
-"   :type type: class\n"
+BPY_PROPDEF_TYPE_DOC
 BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
+BPY_PROPDEF_OPTIONS_DOC
 BPY_PROPDEF_UPDATE_DOC
 );
 static PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *kw)
@@ -2746,19 +2840,17 @@ static PyObject *BPy_PointerProperty(PyObject *self, PyObject *args, PyObject *k
 }
 
 PyDoc_STRVAR(BPy_CollectionProperty_doc,
-".. function:: CollectionProperty(items, "
-                                 "type=\"\", "
+".. function:: CollectionProperty(type=None, "
+                                 "name=\"\", "
                                  "description=\"\", "
                                  "options={'ANIMATABLE'})\n"
 "\n"
 "   Returns a new collection property definition.\n"
 "\n"
-"   :arg type: A subclass of :class:`bpy.types.PropertyGroup`.\n"
-"   :type type: class\n"
+BPY_PROPDEF_TYPE_DOC
 BPY_PROPDEF_NAME_DOC
 BPY_PROPDEF_DESC_DOC
-"   :arg options: Enumerator in ['HIDDEN', 'SKIP_SAVE', 'ANIMATABLE', 'LIBRARY_EDITABLE'].\n"
-"   :type options: set\n"
+BPY_PROPDEF_OPTIONS_DOC
 );
 static PyObject *BPy_CollectionProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
@@ -2844,7 +2936,7 @@ static PyObject *BPy_RemoveProperty(PyObject *self, PyObject *args, PyObject *kw
 	else {
 		static const char *kwlist[] = {"attr", NULL};
 		
-		char *id = NULL;
+		const char *id = NULL;
 
 		if (!PyArg_ParseTupleAndKeywords(args, kw,
 		                                 "s:RemoveProperty",
@@ -2881,7 +2973,8 @@ static struct PyModuleDef props_module = {
 	PyModuleDef_HEAD_INIT,
 	"bpy.props",
 	"This module defines properties to extend blenders internal data, the result of these functions"
-	" is used to assign properties to classes registered with blender and can't be used directly.",
+	" is used to assign properties to classes registered with blender and can't be used directly.\n"
+	".. warning:: All parameters to these functions must be passed as keywords.",
 	-1, /* multiple "initialization" just copies the module dict. */
 	props_methods,
 	NULL, NULL, NULL, NULL

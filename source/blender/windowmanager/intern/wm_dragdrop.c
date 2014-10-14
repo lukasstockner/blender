@@ -26,8 +26,9 @@
 
 /** \file blender/windowmanager/intern/wm_dragdrop.c
  *  \ingroup wm
+ *
+ * Our own drag-and-drop, drag state and drop boxes.
  */
-
 
 #include <string.h>
 
@@ -43,13 +44,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-#include "BKE_blender.h"
 #include "BKE_context.h"
-#include "BKE_idprop.h"
-#include "BKE_library.h"
-#include "BKE_main.h"
 #include "BKE_screen.h"
-#include "BKE_global.h"
 
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
@@ -147,7 +143,7 @@ void wm_dropbox_free(void)
 /* *********************************** */
 
 /* note that the pointer should be valid allocated and not on stack */
-wmDrag *WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, double value)
+wmDrag *WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, double value, unsigned int flags)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmDrag *drag = MEM_callocN(sizeof(struct wmDrag), "new drag");
@@ -156,6 +152,7 @@ wmDrag *WM_event_start_drag(struct bContext *C, int icon, int type, void *poin, 
 	/* if multiple drags are added, they're drawn as list */
 	
 	BLI_addtail(&wm->drags, drag);
+	drag->flags = flags;
 	drag->icon = icon;
 	drag->type = type;
 	if (type == WM_DRAG_PATH)
@@ -175,6 +172,22 @@ void WM_event_drag_image(wmDrag *drag, ImBuf *imb, float scale, int sx, int sy)
 	drag->sy = sy;
 }
 
+void WM_drag_free(wmDrag *drag)
+{
+	if ((drag->flags & WM_DRAG_FREE_DATA) && drag->poin) {
+		MEM_freeN(drag->poin);
+	}
+
+	MEM_freeN(drag);
+}
+
+void WM_drag_free_list(struct ListBase *lb)
+{
+	wmDrag *drag;
+	while ((drag = BLI_pophead(lb))) {
+		WM_drag_free(drag);
+	}
+}
 
 static const char *dropbox_active(bContext *C, ListBase *handlers, wmDrag *drag, wmEvent *event)
 {
@@ -217,17 +230,17 @@ static const char *wm_dropbox_active(bContext *C, wmDrag *drag, wmEvent *event)
 static void wm_drop_operator_options(bContext *C, wmDrag *drag, wmEvent *event)
 {
 	wmWindow *win = CTX_wm_window(C);
-	int winsizex = WM_window_pixels_x(win);
-	int winsizey = WM_window_pixels_y(win);
+	const int winsize_x = WM_window_pixels_x(win);
+	const int winsize_y = WM_window_pixels_y(win);
 
 	/* for multiwin drags, we only do this if mouse inside */
-	if (event->x < 0 || event->y < 0 || event->x > winsizex || event->y > winsizey)
+	if (event->x < 0 || event->y < 0 || event->x > winsize_x || event->y > winsize_y)
 		return;
 	
 	drag->opname[0] = 0;
 	
 	/* check buttons (XXX todo rna and value) */
-	if (UI_but_active_drop_name(C) ) {
+	if (UI_but_active_drop_name(C)) {
 		BLI_strncpy(drag->opname, IFACE_("Paste name"), sizeof(drag->opname));
 	}
 	else {
@@ -304,7 +317,7 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmDrag *drag;
-	int winsizey = WM_window_pixels_y(win);
+	const int winsize_y = WM_window_pixels_y(win);
 	int cursorx, cursory, x, y;
 	
 	cursorx = win->eventstate->x;
@@ -366,16 +379,16 @@ void wm_drags_draw(bContext *C, wmWindow *win, rcti *rect)
 			if (drag->imb) {
 				x = cursorx - drag->sx / 2;
 
-				if (cursory + drag->sy / 2 + padding + iconsize < winsizey)
- 					y = cursory + drag->sy / 2 + padding;
+				if (cursory + drag->sy / 2 + padding + iconsize < winsize_y)
+					y = cursory + drag->sy / 2 + padding;
 				else
 					y = cursory - drag->sy / 2 - padding - iconsize - padding - iconsize;
 			}
 			else {
 				x = cursorx - 2 * padding;
 
-				if (cursory + iconsize + iconsize < winsizey)
- 					y = cursory + iconsize;
+				if (cursory + iconsize + iconsize < winsize_y)
+					y = cursory + iconsize;
 				else
 					y = cursory - iconsize - 2 * UI_DPI_FAC;
 			}

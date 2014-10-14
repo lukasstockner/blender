@@ -42,6 +42,22 @@
 
 /* all the list begin functions are added manually here, Main is not in SDNA */
 
+static int rna_Main_use_autopack_get(PointerRNA *UNUSED(ptr))
+{
+	if (G.fileflags & G_AUTOPACK)
+		return 1;
+
+	return 0;
+}
+
+static void rna_Main_use_autopack_set(PointerRNA *UNUSED(ptr), int value)
+{
+	if (value)
+		G.fileflags |= G_AUTOPACK;
+	else
+		G.fileflags &= ~G_AUTOPACK;
+}
+
 static int rna_Main_is_saved_get(PointerRNA *UNUSED(ptr))
 {
 	return G.relbase_valid;
@@ -56,7 +72,7 @@ static int rna_Main_is_dirty_get(PointerRNA *ptr)
 		return !wm->file_saved;
 	}
 
-	return TRUE;
+	return true;
 }
 
 static void rna_Main_filepath_get(PointerRNA *ptr, char *value)
@@ -265,6 +281,14 @@ static void rna_Main_linestyle_begin(CollectionPropertyIterator *iter, PointerRN
 	rna_iterator_listbase_begin(iter, &bmain->linestyle, NULL);
 }
 
+static void rna_Main_version_get(PointerRNA *ptr, int *value)
+{
+	Main *bmain = (Main *)ptr->data;
+	value[0] = bmain->versionfile / 100;
+	value[1] = bmain->versionfile % 100;
+	value[2] = bmain->subversionfile;
+}
+
 #ifdef UNIT_TEST
 
 static PointerRNA rna_Test_test_get(PointerRNA *ptr)
@@ -355,6 +379,16 @@ void RNA_def_main(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Main_is_saved_get", NULL);
 	RNA_def_property_ui_text(prop, "File is Saved", "Has the current session been saved to disk as a .blend file");
+
+	prop = RNA_def_property(srna, "use_autopack", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_use_autopack_get", "rna_Main_use_autopack_set");
+	RNA_def_property_ui_text(prop, "Use Autopack", "Automatically pack all external data into .blend file");
+
+	prop = RNA_def_int_vector(srna, "version", 3, NULL, 0, INT_MAX,
+	                   "Version", "Version of the blender the .blend was saved with", 0, INT_MAX);
+	RNA_def_property_int_funcs(prop, "rna_Main_version_get", NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_flag(prop, PROP_THICK_WRAP);
 
 	for (i = 0; lists[i].name; i++) {
 		prop = RNA_def_property(srna, lists[i].identifier, PROP_COLLECTION, PROP_NONE);

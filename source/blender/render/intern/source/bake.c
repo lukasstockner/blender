@@ -34,7 +34,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
-#include "BLI_blenlib.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -54,6 +53,8 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 #include "IMB_colormanagement.h"
+
+#include "RE_bake.h"
 
 /* local include */
 #include "rayintersection.h"
@@ -173,7 +174,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int UNUSED(qua
 		
 		/* only do AO for a full bake (and obviously AO bakes)
 		 * AO for light bakes is a leftover and might not be needed */
-		if (ELEM3(bs->type, RE_BAKE_ALL, RE_BAKE_AO, RE_BAKE_LIGHT))
+		if (ELEM(bs->type, RE_BAKE_ALL, RE_BAKE_AO, RE_BAKE_LIGHT))
 			shade_samples_do_AO(ssamp);
 		
 		if (shi->mat->nodetree && shi->mat->use_nodes) {
@@ -223,10 +224,14 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int UNUSED(qua
 			 * It needs to be done because in Blender
 			 * the normal used in the renderer points inward. It is generated
 			 * this way in calc_vertexnormals(). Should this ever change
-			 * this negate must be removed. */
-			shr.combined[0] = (-nor[0]) / 2.0f + 0.5f;
-			shr.combined[1] = nor[1]    / 2.0f + 0.5f;
-			shr.combined[2] = nor[2]    / 2.0f + 0.5f;
+			 * this negate must be removed.
+			 *
+			 * there is also a small 1e-5f bias for precision issues. otherwise
+			 * we randomly get 127 or 128 for neutral colors. we choose 128
+			 * because it is the convention flat color. * */
+			shr.combined[0] = (-nor[0]) / 2.0f + 0.5f + 1e-5f;
+			shr.combined[1] = nor[1]    / 2.0f + 0.5f + 1e-5f;
+			shr.combined[2] = nor[2]    / 2.0f + 0.5f + 1e-5f;
 		}
 		else if (bs->type == RE_BAKE_TEXTURE) {
 			copy_v3_v3(shr.combined, &shi->r);
@@ -298,7 +303,7 @@ static void bake_shade(void *handle, Object *ob, ShadeInput *shi, int UNUSED(qua
 			rgb_float_to_uchar(col, shr.combined);
 		}
 		
-		if (ELEM3(bs->type, RE_BAKE_ALL, RE_BAKE_TEXTURE, RE_BAKE_VERTEX_COLORS)) {
+		if (ELEM(bs->type, RE_BAKE_ALL, RE_BAKE_TEXTURE, RE_BAKE_VERTEX_COLORS)) {
 			col[3] = FTOCHAR(shr.alpha);
 		}
 		else {
@@ -369,7 +374,7 @@ static void bake_displacement(void *handle, ShadeInput *UNUSED(shi), float dist,
 			bs->vcol->b = col[2];
 		}
 		else {
-			char *imcol = (char *)(bs->rect + bs->rectx * y + x);
+			const char *imcol = (char *)(bs->rect + bs->rectx * y + x);
 			copy_v4_v4_char((char *)imcol, (char *)col);
 		}
 	}
@@ -932,8 +937,8 @@ void RE_bake_ibuf_filter(ImBuf *ibuf, char *mask, const int filter)
 void RE_bake_ibuf_normalize_displacement(ImBuf *ibuf, float *displacement, char *mask, float displacement_min, float displacement_max)
 {
 	int i;
-	float *current_displacement = displacement;
-	char *current_mask = mask;
+	const float *current_displacement = displacement;
+	const char *current_mask = mask;
 	float max_distance;
 
 	max_distance = max_ff(fabsf(displacement_min), fabsf(displacement_max));
@@ -977,6 +982,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 	int a, vdone = false, result = BAKE_RESULT_OK;
 	bool use_mask = false;
 	bool use_displacement_buffer = false;
+	bool do_manage = BKE_scene_check_color_management_enabled(re->scene);
 	
 	re->scene_color_manage = BKE_scene_check_color_management_enabled(re->scene);
 	
@@ -1016,7 +1022,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 
 	if (R.r.bake_flag & R_BAKE_VCOL) {
 		/* untag all meshes */
-		tag_main_lb(&G.main->mesh, false);
+		BKE_main_id_tag_listbase(&G.main->mesh, false);
 	}
 
 	BLI_init_threads(&threads, do_bake_thread, re->r.threads);
@@ -1036,6 +1042,7 @@ int RE_bake_shade_all_selected(Render *re, int type, Object *actob, short *do_up
 		}
 		handles[a].ssamp.shi[0].combinedflag = ~(SCE_PASS_SPEC);
 		handles[a].ssamp.shi[0].thread = a;
+		handles[a].ssamp.shi[0].do_manage = do_manage;
 		handles[a].ssamp.tot = 1;
 
 		handles[a].type = type;

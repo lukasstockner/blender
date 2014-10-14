@@ -33,22 +33,26 @@ set(INC
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
-
+	${GLEW_INCLUDE_PATH}
 )
 
 set(SRC
 	object_add.c
 	object_bake.c
+	object_bake_api.c
 	object_constraint.c
 	object_edit.c
 	object_group.c
 	object_hook.c
 	object_lattice.c
+	object_lod.c
 	object_modifier.c
 	object_ops.c
+	object_random.c
 	object_relations.c
 	object_select.c
 	object_shapekey.c
@@ -58,6 +62,8 @@ set(SRC
 
 	object_intern.h
 )
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_PYTHON)
 	add_definitions(-DWITH_PYTHON)

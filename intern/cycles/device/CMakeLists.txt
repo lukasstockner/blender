@@ -6,16 +6,14 @@ set(INC
 	../kernel/osl
 	../util
 	../render
+	../../glew-mx
 )
 
 set(INC_SYS
-	${OPENGL_INCLUDE_DIR}
 	${GLEW_INCLUDE_PATH}
+	../../../extern/cuew/include
+	../../../extern/clew/include
 )
-
-if(WITH_CYCLES_OPTIMIZED_KERNEL_SSE41)
-	 add_definitions(-DWITH_CYCLES_OPTIMIZED_KERNEL_SSE41=1)
-endif()	
 
 set(SRC
 	device.cpp
@@ -40,7 +38,7 @@ set(SRC_HEADERS
 	device_task.h
 )
 
-add_definitions(-DGLEW_STATIC)
+add_definitions(${GL_DEFINITIONS})
 
 include_directories(${INC})
 include_directories(SYSTEM ${INC_SYS})

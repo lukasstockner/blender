@@ -151,9 +151,11 @@ endif()
 		bf_intern_raskter
 		bf_intern_opencolorio
 		bf_intern_opennl
+		bf_intern_glew_mx
 		extern_rangetree
 		extern_wcwidth
 		extern_libmv
+		extern_glog
 	)
 
 	if(WITH_MOD_CLOTH_ELTOPO)
@@ -161,7 +163,7 @@ endif()
 	endif()
 
 	if(NOT WITH_SYSTEM_GLEW)
-		list(APPEND BLENDER_SORTED_LIBS extern_glew)
+		list(APPEND BLENDER_SORTED_LIBS ${BLENDER_GLEW_LIBRARIES})
 	endif()
 
 	if(WITH_LZMA)
@@ -173,11 +175,6 @@ endif()
 	endif()
 
 	list(APPEND BLENDER_SORTED_LIBS extern_colamd)
-
-	if(WITH_MOD_BOOLEAN)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_bsp)
-		list(APPEND BLENDER_SORTED_LIBS bf_intern_moto)
-	endif()
 
 	if(WITH_MOD_BOOLEAN)
 		list(APPEND BLENDER_SORTED_LIBS extern_carve)
@@ -232,3 +229,9 @@ if(WITH_PLAYER)
 endif()
 
 setup_liblinks(blenderplayer)
+
+# We put CLEW and CUEW here because OPENSUBDIV_LIBRARIES dpeends on them..
+if(WITH_CYCLES OR WITH_COMPOSITOR OR WITH_OPENSUBDIV)
+	target_link_libraries(blenderplayer "extern_clew")
+	target_link_libraries(blenderplayer "extern_cuew")
+endif()
