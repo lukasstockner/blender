@@ -965,8 +965,11 @@ static int actkeys_clean_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get cleaning threshold */
 	thresh = RNA_float_get(op->ptr, "threshold");
@@ -1025,15 +1028,18 @@ static void sample_action_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static int actkeys_sample_exec(bContext *C, wmOperator *UNUSED(op))
+static int actkeys_sample_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 	
 	/* sample keyframes */
 	sample_action_keys(&ac);
@@ -1138,8 +1144,11 @@ static int actkeys_expo_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get handle setting mode */
 	mode = RNA_enum_get(op->ptr, "type");
@@ -1209,8 +1218,11 @@ static int actkeys_ipo_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get handle setting mode */
 	mode = RNA_enum_get(op->ptr, "type");
@@ -1288,8 +1300,11 @@ static int actkeys_handletype_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get handle setting mode */
 	mode = RNA_enum_get(op->ptr, "type");
