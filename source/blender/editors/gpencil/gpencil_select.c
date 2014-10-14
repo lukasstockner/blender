@@ -365,7 +365,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	
 	/* "radius" is simply a threshold (screen space) to make it easier to test with a tolerance */
-	const float radius = 0.35f * U.widget_unit;
+	const float radius = 0.75f * U.widget_unit;
 	const int radius_squared = (int)(radius * radius);
 	
 	rctf *subrect = NULL;       /* for using the camera rect within the 3d view */
