@@ -155,6 +155,7 @@ static DLRBT_Node *nalloc_ak_gpframe(void *data)
 	/* store settings based on state of BezTriple */
 	ak->cfra = gpf->framenum;
 	ak->sel = (gpf->flag & GP_FRAME_SELECT) ? SELECT : 0;
+	ak->key_type = gpf->key_type;
 	
 	/* set 'modified', since this is used to identify long keyframes */
 	ak->modified = 1;
@@ -171,6 +172,10 @@ static void nupdate_ak_gpframe(void *node, void *data)
 	/* set selection status and 'touched' status */
 	if (gpf->flag & GP_FRAME_SELECT) ak->sel = SELECT;
 	ak->modified += 1;
+	
+	/* for keyframe type, 'proper' keyframes have priority over breakdowns (and other types for now) */
+	if (gpf->key_type == BEZT_KEYTYPE_KEYFRAME)
+		ak->key_type = BEZT_KEYTYPE_KEYFRAME;
 }
 
 /* ......... */

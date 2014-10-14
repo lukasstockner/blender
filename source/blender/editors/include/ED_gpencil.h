@@ -113,6 +113,8 @@ void  ED_gpencil_select_frame(struct bGPDlayer *gpl, int selx, short select_mode
 bool  ED_gplayer_frames_delete(struct bGPDlayer *gpl);
 void  ED_gplayer_frames_duplicate(struct bGPDlayer *gpl);
 
+void ED_gplayer_frames_keytype_set(struct bGPDlayer *gpl, short type);
+
 void  ED_gplayer_snap_frames(struct bGPDlayer *gpl, struct Scene *scene, short mode);
 
 #if 0

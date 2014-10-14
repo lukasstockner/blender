@@ -90,7 +90,9 @@ typedef struct bGPDframe {
 	ListBase strokes;	/* list of the simplified 'strokes' that make up the frame's data */
 	
 	int framenum;		/* frame number of this frame */
-	int flag;			/* temp settings */
+	
+	short flag;			/* temp settings */
+	short key_type;		/* keyframe type (eBezTriple_KeyframeType) */
 } bGPDframe;
 
 /* bGPDframe->flag */
