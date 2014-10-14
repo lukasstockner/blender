@@ -278,6 +278,8 @@ class GreasePencilDataPanel():
             col.prop(gpl, "line_width", slider=True)
             col.prop(gpl, "show_x_ray")
 
+            layout.separator()
+
             # Full-Row - Frame Locking
             row = layout.row()
             row.active = not gpl.lock
@@ -289,14 +291,30 @@ class GreasePencilDataPanel():
                 lock_label = "Lock Frame"
             row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
 
+            layout.separator()
+
             # Onion skinning
             col = layout.column(align=True)
             col.active = not gpl.lock
-            col.prop(gpl, "use_onion_skinning")
 
-            subcol = col.column()
-            subcol.active = gpl.use_onion_skinning
-            subcol.prop(gpl, "ghost_range_max", text="Frames")
+            row = col.row()
+            row.prop(gpl, "use_onion_skinning")
+            row.prop(gpl, "use_ghost_custom_colors", text="", icon='COLOR')
 
-            # XXX: replace "frames" with a split for "before" and "after",
-            # each of which contains a color/toggle for using that + number of frames
+            split = col.split(percentage = 0.5)
+            split.active = gpl.use_onion_skinning
+
+            # - Before Frames
+            sub = split.column(align=True)
+            row = sub.row(align=True)
+            row.active = gpl.use_ghost_custom_colors
+            row.prop(gpl, "before_color", text="")
+            sub.prop(gpl, "ghost_before_range", text="Before")
+
+
+            # - After Frames
+            sub = split.column(align=True)
+            row = sub.row(align=True)
+            row.active = gpl.use_ghost_custom_colors
+            row.prop(gpl, "after_color", text="")
+            sub.prop(gpl, "ghost_after_range", text="After")

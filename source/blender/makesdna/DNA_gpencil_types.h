@@ -108,9 +108,14 @@ typedef struct bGPDlayer {
 	ListBase frames;		/* list of annotations to display for frames (bGPDframe list) */
 	bGPDframe *actframe;	/* active frame (should be the frame that is currently being displayed) */
 	
-	int flag;				/* settings for layer */
+	short flag;				/* settings for layer */
 	short thickness;		/* current thickness to apply to strokes */
-	short gstep;			/* max number of frames between active and ghost to show (0=only those on either side) */
+	
+	short gstep;			/* Ghosts Before: max number of ghost frames to show between active frame and the one before it (0 = only the ghost itself) */
+	short gstep_next;		/* Ghosts After:  max number of ghost frames to show after active frame and the following it    (0 = only the ghost itself) */
+	
+	float gcolor_prev[3];	/* optional color for ghosts before the active frame */
+	float gcolor_next[3];	/* optional color for ghosts after the active frame */
 	
 	float color[4];			/* color that should be used to draw all the strokes in this layer */
 	
@@ -128,14 +133,18 @@ typedef enum eGPDlayer_Flag {
 	GP_LAYER_ACTIVE			= (1 << 2),
 	/* draw points of stroke for debugging purposes */
 	GP_LAYER_DRAWDEBUG 		= (1 << 3),
-	/* do onionskinning */
+	/* do onion skinning */
 	GP_LAYER_ONIONSKIN		= (1 << 4),
 	/* for editing in Action Editor */
 	GP_LAYER_SELECT			= (1 << 5),
 	/* current frame for layer can't be changed */
 	GP_LAYER_FRAMELOCK		= (1 << 6),
 	/* don't render xray (which is default) */
-	GP_LAYER_NO_XRAY		= (1 << 7)
+	GP_LAYER_NO_XRAY		= (1 << 7),
+	/* use custom color for ghosts before current frame */
+	GP_LAYER_GHOST_PREVCOL	= (1 << 8),
+	/* use custom color for ghosts after current frame */
+	GP_LAYER_GHOST_NEXTCOL	= (1 << 9)
 } eGPDlayer_Flag;
 
 /* Grease-Pencil Annotations - 'DataBlock' */

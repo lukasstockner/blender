@@ -714,8 +714,18 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		
 		/* draw 'onionskins' (frame left + right) */
 		if (gpl->flag & GP_LAYER_ONIONSKIN) {
-			/* drawing method - only immediately surrounding (gstep = 0),
-			 * or within a frame range on either side (gstep > 0)*/
+			/* Drawing method - only immediately surrounding (gstep = 0),
+			 * or within a frame range on either side (gstep > 0)
+			 */
+			
+			/* 1) Draw Previous Frames First */
+			if (gpl->flag & GP_LAYER_GHOST_PREVCOL) {
+				copy_v3_v3(tcolor, gpl->gcolor_prev);
+			}
+			else {
+				copy_v3_v3(tcolor, gpl->color);
+			}
+			
 			if (gpl->gstep) {
 				bGPDframe *gf;
 				float fac;
@@ -732,22 +742,6 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 					else 
 						break;
 				}
-				
-				/* now draw next frames */
-				for (gf = gpf->next; gf; gf = gf->next) {
-					/* check if frame is drawable */
-					if ((gf->framenum - gpf->framenum) <= gpl->gstep) {
-						/* alpha decreases with distance from curframe index */
-						fac = 1.0f - ((float)(gf->framenum - gpf->framenum) / (float)(gpl->gstep + 1));
-						tcolor[3] = color[3] * fac * 0.66f;
-						gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor);
-					}
-					else 
-						break;
-				}
-				
-				/* restore alpha */
-				glColor4fv(color);
 			}
 			else {
 				/* draw the strokes for the ghost frames (at half of the alpha set by user) */
@@ -755,15 +749,45 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 					tcolor[3] = (color[3] / 7);
 					gp_draw_strokes(gpf->prev, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor);
 				}
+			}
+			
+			
+			/* 2) Now draw next frames */
+			if (gpl->flag & GP_LAYER_GHOST_NEXTCOL) {
+				copy_v3_v3(tcolor, gpl->gcolor_next);
+			}
+			else {
+				copy_v3_v3(tcolor, gpl->color);
+			}
+			
+			if (gpl->gstep_next) {
+				bGPDframe *gf;
+				float fac;
 				
+				/* now draw next frames */
+				for (gf = gpf->next; gf; gf = gf->next) {
+					/* check if frame is drawable */
+					if ((gf->framenum - gpf->framenum) <= gpl->gstep_next) {
+						/* alpha decreases with distance from curframe index */
+						fac = 1.0f - ((float)(gf->framenum - gpf->framenum) / (float)(gpl->gstep_next + 1));
+						tcolor[3] = color[3] * fac * 0.66f;
+						gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor);
+					}
+					else 
+						break;
+				}
+			}
+			else {
+				/* draw the strokes for the ghost frames (at half of the alpha set by user) */
 				if (gpf->next) {
 					tcolor[3] = (color[3] / 4);
 					gp_draw_strokes(gpf->next, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor);
 				}
-				
-				/* restore alpha */
-				glColor4fv(color);
 			}
+			
+			/* 3) restore alpha */
+			copy_v4_v4(tcolor, color);
+			glColor4fv(color);
 		}
 		
 		/* draw the strokes already in active frame */

@@ -610,7 +610,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	/* Line Thickness */
 	prop = RNA_def_property(srna, "line_width", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "thickness");
-	RNA_def_property_range(prop, 1, 10);
+	RNA_def_property_range(prop, 1, 10); /* 10 px limit comes from Windows OpenGL limits for natively-drawn strokes */
 	RNA_def_property_ui_text(prop, "Thickness", "Thickness of strokes (in pixels)");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
@@ -620,12 +620,39 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Onion Skinning", "Ghost frames on either side of frame");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
-	prop = RNA_def_property(srna, "ghost_range_max", PROP_INT, PROP_NONE);
+	prop = RNA_def_property(srna, "ghost_before_range", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "gstep");
 	RNA_def_property_range(prop, 0, 120);
-	RNA_def_property_ui_text(prop, "Max Ghost Range",
-	                         "Maximum number of frames on either side of the active frame to show "
-	                         "(0 = show the 'first' available sketch on either side)");
+	RNA_def_property_ui_text(prop, "Frames Before",
+	                         "Maximum number of frames to show before current frame "
+	                         "(0 = show only the previous sketch)");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	prop = RNA_def_property(srna, "ghost_after_range", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "gstep_next");
+	RNA_def_property_range(prop, 0, 120);
+	RNA_def_property_ui_text(prop, "Frames After",
+	                         "Maximum number of frames to show after current frame "
+	                         "(0 = show only the next sketch)");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	prop = RNA_def_property(srna, "use_ghost_custom_colors", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_GHOST_PREVCOL | GP_LAYER_GHOST_NEXTCOL);
+	RNA_def_property_ui_text(prop, "Use Custom Ghost Colors", "Use custom colors for ghost frames");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	prop = RNA_def_property(srna, "before_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "gcolor_prev");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Before Color", "Base color for ghosts before the active frame");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	prop = RNA_def_property(srna, "after_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "gcolor_next");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "After Color", "Base color for ghosts after the active frame");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
 	/* Flags */
