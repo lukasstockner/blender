@@ -365,13 +365,15 @@ class DOPESHEET_MT_gpencil_frame(Menu):
         layout = self.layout
 
         layout.menu("DOPESHEET_MT_key_transform", text="Transform")
-
-        #layout.operator_menu_enum("action.snap", "type", text="Snap")
-        #layout.operator_menu_enum("action.mirror", "type", text="Mirror")
+        layout.operator_menu_enum("action.snap", "type", text="Snap")
+        layout.operator_menu_enum("action.mirror", "type", text="Mirror")
 
         layout.separator()
         layout.operator("action.duplicate")
         layout.operator("action.delete")
+
+        layout.separator()
+        layout.operator("action.keyframe_type")
 
         #layout.separator()
         #layout.operator("action.copy")
