@@ -3407,6 +3407,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 	/* step 4) draw special toggles  .................................
 	 *	- in Graph Editor, checkboxes for visibility in curves area
 	 *	- in NLA Editor, glowing dots for solo/not solo...
+	 *	- in Grease Pencil mode, color swatches for layer color
 	 */
 	if (ac->sl) {
 		if ((ac->spacetype == SPACE_IPO) && acf->has_setting(ac, ale, ACHANNEL_SETTING_VISIBLE)) {
@@ -3430,6 +3431,10 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 		else if ((ac->spacetype == SPACE_NLA) && acf->has_setting(ac, ale, ACHANNEL_SETTING_SOLO)) {
 			/* just skip - drawn as widget now */
 			offset += ICON_WIDTH; 
+		}
+		else if ((ac->datatype == ANIMCONT_GPENCIL) && (ale->type == ANIMTYPE_GPLAYER)) {
+			/* just skip - drawn as a widget */
+			offset += ICON_WIDTH;
 		}
 	}
 
@@ -3878,6 +3883,7 @@ void ANIM_channel_draw_widgets(bContext *C, bAnimContext *ac, bAnimListElem *ale
 	/* step 3) draw special toggles  .................................
 	 *	- in Graph Editor, checkboxes for visibility in curves area
 	 *	- in NLA Editor, glowing dots for solo/not solo...
+	 *	- in Grease Pencil mode, color swatches for layer color
 	 */
 	if (ac->sl) {
 		if ((ac->spacetype == SPACE_IPO) && acf->has_setting(ac, ale, ACHANNEL_SETTING_VISIBLE)) {
@@ -3889,6 +3895,23 @@ void ANIM_channel_draw_widgets(bContext *C, bAnimContext *ac, bAnimListElem *ale
 			/* 'solo' setting for NLA Tracks */
 			draw_setting_widget(ac, ale, acf, block, offset, ymid, ACHANNEL_SETTING_SOLO);
 			offset += ICON_WIDTH; 
+		}
+		else if ((ac->datatype == ANIMCONT_GPENCIL) && (ale->type == ANIMTYPE_GPLAYER)) {
+			/* color swatch for layer color */
+			bGPDlayer *gpl = (bGPDlayer *)ale->data;
+			PointerRNA ptr;
+			
+			RNA_pointer_create(ale->id, &RNA_GPencilLayer, ale->data, &ptr);
+			
+			uiBlockSetEmboss(block, UI_EMBOSS);
+			
+			uiDefButR(block, COLOR, 1, "", offset, yminc, ICON_WIDTH, ICON_WIDTH, 
+			          &ptr, "color", -1, 
+					  0, 0, 0, 0, gpl->info);
+			
+			uiBlockSetEmboss(block, UI_EMBOSSN);
+			
+			offset += ICON_WIDTH;
 		}
 	}
 	
