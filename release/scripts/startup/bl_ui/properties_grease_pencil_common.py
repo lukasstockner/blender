@@ -207,7 +207,6 @@ class GreasePencilDataPanel():
     def draw_header(self, context):
         self.layout.prop(context.space_data, "show_grease_pencil", text="")
 
-
     @staticmethod
     def draw(self, context):
         layout = self.layout
@@ -235,7 +234,6 @@ class GreasePencilDataPanel():
 
                 gpencil_stroke_placement_settings(context, layout, gpd)
 
-
     def draw_layers(self, context, layout, gpd):
         row = layout.row()
 
@@ -257,64 +255,67 @@ class GreasePencilDataPanel():
             sub.operator("gpencil.layer_move", icon='TRIA_UP', text="").type = 'UP'
             sub.operator("gpencil.layer_move", icon='TRIA_DOWN', text="").type = 'DOWN'
 
+        if gpl:
+            self.draw_layer(layout, gpl)
 
-            # layer settings
-            split = layout.split(percentage=0.5)
-            split.active = not gpl.lock
+    def draw_layer(self, layout, gpl):
+        # layer settings
+        split = layout.split(percentage=0.5)
+        split.active = not gpl.lock
 
-            # Column 1 - Appearance
-            col = split.column()
+        # Column 1 - Appearance
+        col = split.column()
 
-            subcol = col.column(align=True)
-            subcol.prop(gpl, "color", text="")
-            subcol.prop(gpl, "alpha", slider=True)
+        subcol = col.column(align=True)
+        subcol.prop(gpl, "color", text="")
+        subcol.prop(gpl, "alpha", slider=True)
 
-            #if debug:
-            #   col.prop(gpl, "show_points")
+        #if debug:
+        #   col.prop(gpl, "show_points")
 
-            # Column 2 - Options (& Current Frame)
-            col = split.column(align=True)
+        # Column 2 - Options (& Current Frame)
+        col = split.column(align=True)
 
-            col.prop(gpl, "line_width", slider=True)
-            col.prop(gpl, "show_x_ray")
+        col.prop(gpl, "line_width", slider=True)
+        col.prop(gpl, "show_x_ray")
 
-            layout.separator()
+        layout.separator()
 
-            # Full-Row - Frame Locking
-            row = layout.row()
-            row.active = not gpl.lock
+        # Full-Row - Frame Locking
+        row = layout.row()
+        row.active = not gpl.lock
 
-            if gpl.active_frame:
-                lock_status = "Locked" if gpl.lock_frame else "Unlocked"
-                lock_label = "Frame: %d (%s)" % (gpl.active_frame.frame_number, lock_status)
-            else:
-                lock_label = "Lock Frame"
-            row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
+        if gpl.active_frame:
+            lock_status = "Locked" if gpl.lock_frame else "Unlocked"
+            lock_label = "Frame: %d (%s)" % (gpl.active_frame.frame_number, lock_status)
+        else:
+            lock_label = "Lock Frame"
+        row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
 
-            layout.separator()
+        layout.separator()
 
-            # Onion skinning
-            col = layout.column(align=True)
-            col.active = not gpl.lock
+        # Onion skinning
+        col = layout.column(align=True)
+        col.active = not gpl.lock
 
-            row = col.row()
-            row.prop(gpl, "use_onion_skinning")
-            row.prop(gpl, "use_ghost_custom_colors", text="", icon='COLOR')
+        row = col.row()
+        row.prop(gpl, "use_onion_skinning")
+        row.prop(gpl, "use_ghost_custom_colors", text="", icon='COLOR')
 
-            split = col.split(percentage = 0.5)
-            split.active = gpl.use_onion_skinning
+        split = col.split(percentage = 0.5)
+        split.active = gpl.use_onion_skinning
 
-            # - Before Frames
-            sub = split.column(align=True)
-            row = sub.row(align=True)
-            row.active = gpl.use_ghost_custom_colors
-            row.prop(gpl, "before_color", text="")
-            sub.prop(gpl, "ghost_before_range", text="Before")
+        # - Before Frames
+        sub = split.column(align=True)
+        row = sub.row(align=True)
+        row.active = gpl.use_ghost_custom_colors
+        row.prop(gpl, "before_color", text="")
+        sub.prop(gpl, "ghost_before_range", text="Before")
 
 
-            # - After Frames
-            sub = split.column(align=True)
-            row = sub.row(align=True)
-            row.active = gpl.use_ghost_custom_colors
-            row.prop(gpl, "after_color", text="")
-            sub.prop(gpl, "ghost_after_range", text="After")
+        # - After Frames
+        sub = split.column(align=True)
+        row = sub.row(align=True)
+        row.active = gpl.use_ghost_custom_colors
+        row.prop(gpl, "after_color", text="")
+        sub.prop(gpl, "ghost_after_range", text="After")
