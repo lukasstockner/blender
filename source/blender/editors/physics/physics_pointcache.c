@@ -143,6 +143,10 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 	PTCacheExportJob *data;
 	wmJob *wm_job;
 	
+	if (!user_ptr.data) {
+		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "Missing point cache user info");
+		return OPERATOR_CANCELLED;
+	}
 	writer = PTC_writer_from_rna(scene, &user_ptr);
 	if (!writer) {
 		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "%s is not a valid point cache user type", RNA_struct_identifier(user_ptr.type));
