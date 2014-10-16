@@ -1829,7 +1829,9 @@ EOF
     cd blender_build
 
     # XXX Alembic cmake doesn't take these as options
-    export ALEMBIC_INSTALL_PREFIX=$_inst
+    # XXX Alembic creates a subfolder itself ... rather than fix their
+    # stupid build files, just expect this here by using $INST as prefix
+    export ALEMBIC_INSTALL_PREFIX=$INST
     export CMAKE_BUILD_TYPE=Release
 
     cmake_d="-D BUILD_SHARED_LIBS=ON"
