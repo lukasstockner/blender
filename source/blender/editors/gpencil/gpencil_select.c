@@ -112,38 +112,73 @@ static int gpencil_select_all_exec(bContext *C, wmOperator *op)
 		CTX_DATA_END;
 	}
 	
-	/* select or deselect all strokes */
-	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
-	{
-		bGPDspoint *pt;
-		int i;
-		bool selected = false;
-		
-		/* Change selection status of all points, then make the stroke match */
-		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-			switch (action) {
-				case SEL_SELECT:
-					pt->flag |= GP_SPOINT_SELECT;
-					break;
-				case SEL_DESELECT:
-					pt->flag &= ~GP_SPOINT_SELECT;
-					break;
-				case SEL_INVERT:
-					pt->flag ^= GP_SPOINT_SELECT;
-					break;
+	/* if deselecting, we need to deselect strokes across all frames
+	 *  - Currently, an exception is only given for deselection
+	 *    Selecting and toggling should only affect what's visible,
+	 *    while deselecting helps clean up unintended/forgotten
+	 *    stuff on other frames
+	 */
+	if (action == SEL_DESELECT) {
+		/* deselect strokes across editable layers
+		 * NOTE: we limit ourselves to editable layers, since once a layer is "locked/hidden
+		 *       nothing should be able to touch it
+		 */
+		CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+		{
+			bGPDframe *gpf;
+			
+			/* deselect all strokes on all frames */
+			for (gpf = gpl->frames.first; gpf; gpf = gpf->next) {
+				bGPDstroke *gps;
+				
+				for (gps = gpf->strokes.first; gps; gps = gps->next) {
+					bGPDspoint *pt;
+					int i;
+					
+					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+						pt->flag &= ~GP_SPOINT_SELECT;
+					}
+					
+					gps->flag &= ~GP_STROKE_SELECT;
+				}
+			}
+		}
+		CTX_DATA_END;
+	}
+	else {
+		/* select or deselect all strokes */
+		CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+		{
+			bGPDspoint *pt;
+			int i;
+			bool selected = false;
+			
+			/* Change selection status of all points, then make the stroke match */
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				switch (action) {
+					case SEL_SELECT:
+						pt->flag |= GP_SPOINT_SELECT;
+						break;
+					//case SEL_DESELECT:
+					//	pt->flag &= ~GP_SPOINT_SELECT;
+					//	break;
+					case SEL_INVERT:
+						pt->flag ^= GP_SPOINT_SELECT;
+						break;
+				}
+				
+				if (pt->flag & GP_SPOINT_SELECT)
+					selected = true;
 			}
 			
-			if (pt->flag & GP_SPOINT_SELECT)
-				selected = true;
+			/* Change status of stroke */
+			if (selected)
+				gps->flag |= GP_STROKE_SELECT;
+			else
+				gps->flag &= ~GP_STROKE_SELECT;
 		}
-		
-		/* Change status of stroke */
-		if (selected)
-			gps->flag |= GP_STROKE_SELECT;
-		else
-			gps->flag &= ~GP_STROKE_SELECT;
+		CTX_DATA_END;
 	}
-	CTX_DATA_END;
 	
 	/* updates */
 	WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
