@@ -23,6 +23,7 @@
 
 struct Main;
 struct Scene;
+struct EvaluationContext;
 
 namespace PTC {
 
@@ -31,7 +32,7 @@ class Writer;
 class Exporter
 {
 public:
-	Exporter(Main *bmain, Scene *scene, short *stop, short *do_update, float *progress);
+	Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short *stop, short *do_update, float *progress);
 	
 	void bake(Writer *writer, int start_frame, int end_frame);
 
@@ -44,6 +45,7 @@ private:
 	
 	Main *m_bmain;
 	Scene *m_scene;
+	EvaluationContext *m_evalctx;
 	
 	short *m_stop;
 	short *m_do_update;

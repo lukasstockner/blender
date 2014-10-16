@@ -27,6 +27,7 @@ extern "C" {
 
 struct Main;
 struct Scene;
+struct EvaluationContext;
 struct PointCache;
 struct PointerRNA;
 
@@ -44,7 +45,7 @@ struct PTCReader;
 void PTC_validate(struct PointCache *cache, int framenr);
 void PTC_invalidate(struct PointCache *cache);
 
-void PTC_bake(struct Main *bmain, struct Scene *scene, struct PTCWriter *writer, int start_frame, int end_frame,
+void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct PTCWriter *writer, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress);
 
 

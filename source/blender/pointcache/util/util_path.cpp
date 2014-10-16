@@ -58,7 +58,7 @@ static int ptc_path(char *filename, const char *path, ID *id, bool is_external, 
 	else {
 		/* use the temp path. this is weak but better then not using point cache at all */
 		/* temporary directory is assumed to exist and ALWAYS has a trailing slash */
-		BLI_snprintf(filename, FILE_MAX, "%s" PTC_DIRECTORY, BLI_temporary_dir());
+		BLI_snprintf(filename, FILE_MAX, "%s" PTC_DIRECTORY, BLI_temp_dir_session());
 	}
 	
 	return BLI_add_slash(filename); /* new strlen() */

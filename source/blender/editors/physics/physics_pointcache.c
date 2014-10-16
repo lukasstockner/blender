@@ -109,7 +109,7 @@ static void ptcache_export_startjob(void *customdata, short *stop, short *do_upd
 	/* XXX where to get this from? */
 	start_frame = scene->r.sfra;
 	end_frame = scene->r.efra;
-	PTC_bake(data->bmain, scene, data->writer, start_frame, end_frame, stop, do_update, progress);
+	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
 	
 	*do_update = true;
 	*stop = 0;

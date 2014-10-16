@@ -29,9 +29,10 @@ extern "C" {
 
 namespace PTC {
 
-Exporter::Exporter(Main *bmain, Scene *scene, short *stop, short *do_update, float *progress) :
+Exporter::Exporter(Main *bmain, Scene *scene, EvaluationContext *evalctx, short *stop, short *do_update, float *progress) :
     m_bmain(bmain),
     m_scene(scene),
+    m_evalctx(evalctx),
     m_stop(stop),
     m_do_update(do_update),
     m_progress(progress)
@@ -46,7 +47,7 @@ void Exporter::bake(Writer *writer, int start_frame, int end_frame)
 
 	for (int cfra = start_frame; cfra <= end_frame; ++cfra) {
 		m_scene->r.cfra = cfra;
-		BKE_scene_update_for_newframe(m_bmain, m_scene, m_scene->lay);
+		BKE_scene_update_for_newframe(m_evalctx, m_bmain, m_scene, m_scene->lay);
 
 		writer->write_sample();
 
