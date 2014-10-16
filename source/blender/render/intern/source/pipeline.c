@@ -2814,7 +2814,7 @@ void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *sr
 void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, int render)
 {
 	re->result_ok= 0;
-	if (render_initialize_from_main(re, &scene->r, bmain, scene, NULL, NULL, scene->lay, 0, 0)) {
+	if (render_initialize_from_main(re, &scene->r, bmain, scene, NULL, NULL, scene->lay, 0)) {
 		if (render)
 			do_render_fields_blur_3d(re);
 	}
