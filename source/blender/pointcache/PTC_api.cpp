@@ -26,10 +26,11 @@
 
 #include "particles.h"
 #include "cloth.h"
+#include "dynamicpaint.h"
+#include "mesh.h"
+#include "smoke.h"
 #include "softbody.h"
 #include "rigidbody.h"
-#include "smoke.h"
-#include "dynamicpaint.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -132,6 +133,11 @@ PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 		return PTC_writer_dynamicpaint(scene, ob, surface);
 	}
+	if (RNA_struct_is_a(ptr->type, &RNA_MeshCacheModifier)) {
+		Object *ob = (Object *)ptr->id.data;
+		MeshCacheModifierData *mcmd = (MeshCacheModifierData *)ptr->data;
+		return PTC_writer_mesh_cache(scene, ob, mcmd);
+	}
 	return NULL;
 }
 
@@ -166,6 +172,11 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 		Object *ob = (Object *)ptr->id.data;
 		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 		return PTC_reader_dynamicpaint(scene, ob, surface);
+	}
+	if (RNA_struct_is_a(ptr->type, &RNA_MeshCacheModifier)) {
+		Object *ob = (Object *)ptr->id.data;
+		MeshCacheModifierData *mcmd = (MeshCacheModifierData *)ptr->data;
+		return PTC_reader_mesh_cache(scene, ob, mcmd);
 	}
 	return NULL;
 }
@@ -243,14 +254,14 @@ PTCReader *PTC_reader_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface
 }
 
 /* DerivedMesh */
-PTCWriter *PTC_writer_derived_mesh(Scene *scene, Object *ob, DerivedMesh *dm)
+PTCWriter *PTC_writer_mesh_cache(Scene *scene, Object *ob, MeshCacheModifierData *mcmd)
 {
-	return NULL;
+	return (PTCWriter *)(new PTC::MeshCacheWriter(scene, ob, mcmd));
 }
 
-PTCReader *PTC_reader_derived_mesh(Scene *scene, Object *ob, DerivedMesh *dm)
+PTCReader *PTC_reader_mesh_cache(Scene *scene, Object *ob, MeshCacheModifierData *mcmd)
 {
-	return NULL;
+	return (PTCReader *)(new PTC::MeshCacheReader(scene, ob, mcmd));
 }
 
 #else

@@ -67,14 +67,16 @@ if(WITH_ALEMBIC)
 	intern/particles.cpp
 	intern/cloth.h
 	intern/cloth.cpp
-	intern/softbody.h
-	intern/softbody.cpp
-	intern/rigidbody.h
-	intern/rigidbody.cpp
-	intern/smoke.h
-	intern/smoke.cpp
 	intern/dynamicpaint.h
 	intern/dynamicpaint.cpp
+	intern/mesh.h
+	intern/mesh.cpp
+	intern/rigidbody.h
+	intern/rigidbody.cpp
+	intern/softbody.h
+	intern/softbody.cpp
+	intern/smoke.h
+	intern/smoke.cpp
 	)
 
 	add_definitions(-DWITH_ALEMBIC)
