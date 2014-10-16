@@ -585,7 +585,7 @@ static void sequencer_preview_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED
 	/* context changes */
 	switch (wmn->category) {
 		case NC_GPENCIL:
-			if (wmn->action == NA_EDITED) {
+			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
 				ED_region_tag_redraw(ar);
 			}
 			break;
