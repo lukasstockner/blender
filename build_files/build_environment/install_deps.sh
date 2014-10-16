@@ -3202,6 +3202,12 @@ print_info() {
     fi
   fi
 
+  if [ -d $INST/alembic ]; then
+    _1="-D ALEMBIC_ROOT_DIR=$INST/alembic"
+    PRINT "  $_1"
+    _buildargs="$_buildargs $_1"
+  fi
+
   PRINT ""
   PRINT "Or even simpler, just run (in your blender-source dir):"
   PRINT "  make -j$THREADS BUILD_CMAKE_ARGS=\"$_buildargs\""
@@ -3269,6 +3275,13 @@ print_info() {
       PRINT "BF_FFMPEG = '$INST/ffmpeg'"
     fi
     PRINT "BF_FFMPEG_LIB = 'avformat avcodec swscale avutil avdevice `print_info_ffmpeglink`'"
+  fi
+
+  if [ "$ALEMBIC_SKIP" = false ]; then
+    PRINT "WITH_BF_ALEMBIC = True"
+    if [ -d $INST/alembic ]; then
+      PRINT "BF_ALEMBIC = '$INST/alembic'"
+    fi
   fi
 
   if [ "$WITH_ALL" = false ]; then
