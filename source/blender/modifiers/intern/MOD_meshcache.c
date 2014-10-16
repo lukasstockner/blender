@@ -41,6 +41,7 @@
 #include "BKE_global.h"
 #include "BKE_mesh.h"
 #include "BKE_main.h"
+#include "BKE_pointcache.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -56,6 +57,8 @@ static void initData(ModifierData *md)
 
 	mcmd->flag = 0;
 	mcmd->type = MOD_MESHCACHE_TYPE_MDD;
+	mcmd->point_cache = BKE_ptcache_new();
+
 	mcmd->interp = MOD_MESHCACHE_INTERP_LINEAR;
 	mcmd->frame_scale = 1.0f;
 
@@ -68,11 +71,18 @@ static void initData(ModifierData *md)
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-#if 0
 	MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
 	MeshCacheModifierData *tmcmd = (MeshCacheModifierData *)target;
-#endif
+
 	modifier_copyData_generic(md, target);
+
+	tmcmd->point_cache = BKE_ptcache_copy(mcmd->point_cache, false);
+}
+
+static void freeData(ModifierData *md)
+{
+	MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
+	BKE_ptcache_free(mcmd->point_cache);
 }
 
 static bool dependsOnTime(ModifierData *md)
@@ -312,7 +322,7 @@ ModifierTypeInfo modifierType_MeshCache = {
 	/* applyModifierEM */   NULL,
 	/* initData */          initData,
 	/* requiredDataMask */  NULL,
-	/* freeData */          NULL,
+	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    NULL,
 	/* dependsOnTime */     dependsOnTime,

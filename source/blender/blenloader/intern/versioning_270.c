@@ -59,6 +59,7 @@
 
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_pointcache.h"
 
 #include "BLI_math.h"
 #include "BLI_string.h"
@@ -507,6 +508,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			RigidBodyWorld *rbw = sce->rigidbody_world;
 			if (rbw)
 				do_versions_pointcache(&sce->id, rbw->pointcache);
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "MeshCacheModifierData", "PointCache", "point_cache")) {
+		Object *ob;
+		ModifierData *md;
+
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_MeshCache) {
+					MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
+					mcmd->point_cache = BKE_ptcache_new();
+				}
+			}
 		}
 	}
 }

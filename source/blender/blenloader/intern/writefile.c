@@ -1545,6 +1545,11 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			writedata(wd, DATA, sizeof(float)*lmd->total_verts * 3, lmd->vertexco);
 		}
+		else if (md->type==eModifierType_MeshCache) {
+			MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
+
+			writestruct(wd, DATA, "PointCache", 1, mcmd->point_cache);
+		}
 	}
 }
 

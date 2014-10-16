@@ -3403,6 +3403,7 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
 	static EnumPropertyItem prop_format_type_items[] = {
 		{MOD_MESHCACHE_TYPE_MDD, "MDD", 0, "MDD ", ""},
 		{MOD_MESHCACHE_TYPE_PC2, "PC2", 0, "PC2", ""},
+		{MOD_MESHCACHE_TYPE_ALEMBIC_HDF5, "ALEMBIC_HDF5", 0, "Alembic/HDF5", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -3493,6 +3494,13 @@ static void rna_def_modifier_meshcache(BlenderRNA *brna)
 	RNA_def_property_range(prop, 0.0f, 1.0f);
 	RNA_def_property_ui_text(prop, "Influence", "Influence of the deformation");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	/* pointcache */
+	prop = RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_pointer_sdna(prop, NULL, "point_cache");
+	RNA_def_property_struct_type(prop, "PointCache");
+	RNA_def_property_ui_text(prop, "Point Cache", "");
 
 	/* -------------------------------------------------------------------- */
 	/* Axis Conversion */

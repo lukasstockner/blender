@@ -170,8 +170,16 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         sub.prop(md, "seed")
 
     def MESH_CACHE(self, layout, ob, md):
+        has_export = md.cache_format in {'ALEMBIC_HDF5'}
+
         layout.prop(md, "cache_format")
         layout.prop(md, "filepath")
+
+        if has_export:
+            col = layout.column()
+            col.context_pointer_set("point_cache", md.point_cache)
+            col.context_pointer_set("point_cache_user", md)
+            col.operator("PTCACHE_OT_export")
 
         layout.label(text="Evaluation:")
         layout.prop(md, "factor", slider=True)

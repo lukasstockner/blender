@@ -32,6 +32,7 @@ struct PointCache;
 struct PointerRNA;
 
 struct ClothModifierData;
+struct DerivedMesh;
 struct DynamicPaintSurface;
 struct Object;
 struct ParticleSystem;
@@ -86,6 +87,10 @@ struct PTCReader *PTC_reader_smoke(struct Scene *scene, struct Object *ob, struc
 /* Dynamic Paint */
 struct PTCWriter *PTC_writer_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
 struct PTCReader *PTC_reader_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
+
+/* DerivedMesh */
+struct PTCWriter *PTC_writer_derived_mesh(struct Scene *scene, struct Object *ob, struct DerivedMesh *dm);
+struct PTCReader *PTC_reader_derived_mesh(struct Scene *scene, struct Object *ob, struct DerivedMesh *dm);
 
 #ifdef __cplusplus
 } /* extern C */

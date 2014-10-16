@@ -242,6 +242,17 @@ PTCReader *PTC_reader_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface
 	return (PTCReader *)(new PTC::DynamicPaintReader(scene, ob, surface));
 }
 
+/* DerivedMesh */
+PTCWriter *PTC_writer_derived_mesh(Scene *scene, Object *ob, DerivedMesh *dm)
+{
+	return NULL;
+}
+
+PTCReader *PTC_reader_derived_mesh(Scene *scene, Object *ob, DerivedMesh *dm)
+{
+	return NULL;
+}
+
 #else
 
 void PTC_writer_free(PTCWriter *_writer)

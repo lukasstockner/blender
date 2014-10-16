@@ -4784,6 +4784,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			}
 			lmd->cache_system = NULL;
 		}
+		else if (md->type == eModifierType_MeshCache) {
+			MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
+
+			mcmd->point_cache = newdataadr(fd, mcmd->point_cache);
+		}
 	}
 }
 
