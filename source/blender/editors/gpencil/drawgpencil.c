@@ -75,6 +75,7 @@ typedef enum eDrawStrokeFlags {
 	GP_DRAWDATA_ONLYI2D     = (1 << 3),   /* only draw 'image' strokes */
 	GP_DRAWDATA_IEDITHACK   = (1 << 4),   /* special hack for drawing strokes in Image Editor (weird coordinates) */
 	GP_DRAWDATA_NO_XRAY     = (1 << 5),   /* don't draw xray in 3D view (which is default) */
+	GP_DRAWDATA_NO_ONIONS   = (1 << 6),	  /* no onionskins should be drawn (for animation playback) */
 } eDrawStrokeFlags;
 
 
@@ -791,7 +792,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		else dflag &= ~GP_DRAWDATA_NO_XRAY;
 		
 		/* draw 'onionskins' (frame left + right) */
-		if (gpl->flag & GP_LAYER_ONIONSKIN) {
+		if ((gpl->flag & GP_LAYER_ONIONSKIN) && !(dflag & GP_DRAWDATA_NO_ONIONS)) {
 			/* Drawing method - only immediately surrounding (gstep = 0),
 			 * or within a frame range on either side (gstep > 0)
 			 */
