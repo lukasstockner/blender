@@ -19,8 +19,8 @@
 #ifndef PTC_MESH_H
 #define PTC_MESH_H
 
-//#include <Alembic/AbcGeom/IPoints.h>
-//#include <Alembic/AbcGeom/OPoints.h>
+#include <Alembic/AbcGeom/IPolyMesh.h>
+#include <Alembic/AbcGeom/OPolyMesh.h>
 
 #include "reader.h"
 #include "schema.h"
@@ -28,6 +28,7 @@
 
 struct Object;
 struct MeshCacheModifierData;
+struct DerivedMesh;
 
 namespace PTC {
 
@@ -42,7 +43,7 @@ private:
 	Object *m_ob;
 	MeshCacheModifierData *m_mcmd;
 	
-//	AbcGeom::OPoints m_points;
+	AbcGeom::OPolyMesh m_mesh;
 };
 
 class MeshCacheReader : public Reader {
@@ -56,7 +57,7 @@ private:
 	Object *m_ob;
 	MeshCacheModifierData *m_mcmd;
 	
-//	AbcGeom::IPoints m_points;
+	AbcGeom::IPolyMesh m_mesh;
 };
 
 } /* namespace PTC */

@@ -32,6 +32,7 @@ struct PointCache;
 struct PointerRNA;
 
 struct ClothModifierData;
+struct DerivedMesh;
 struct DynamicPaintSurface;
 struct MeshCacheModifierData;
 struct Object;
