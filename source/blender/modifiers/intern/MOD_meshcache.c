@@ -36,6 +36,7 @@
 #include "BLI_path_util.h"
 #include "BLI_math.h"
 
+#include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_scene.h"
 #include "BKE_global.h"
@@ -52,6 +53,8 @@
 #include "MOD_modifiertypes.h"
 
 #include "MOD_util.h"
+
+struct BMEditMesh;
 
 static void initData(ModifierData *md)
 {
@@ -102,10 +105,9 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 }
 
 
-static bool MOD_meshcache_read_alembic_times(struct PTCReader *reader,
-                                             float (*vertexCos)[3], const int verts_tot, const char UNUSED(interp),
-                                             const float time, const float UNUSED(fps), const char UNUSED(time_mode),
-                                             const char **err_str)
+static DerivedMesh *MOD_meshcache_read_alembic_times(struct PTCReader *reader, const char UNUSED(interp),
+                                                     const float time, const float UNUSED(fps), const char UNUSED(time_mode),
+                                                     const char **err_str)
 {
 	DerivedMesh *result;
 	
@@ -115,117 +117,48 @@ static bool MOD_meshcache_read_alembic_times(struct PTCReader *reader,
 	}
 	
 	result = PTC_reader_mesh_cache_acquire_result(reader);
-	if (result->getNumVerts(result) != verts_tot) {
-		result->needsFree = 1;
-		result->release(result);
-		
-		*err_str = "Cache file vertex count mismatch";
-		return false;
-	}
 	
-	result->getVertCos(result, vertexCos);
-	result->release(result);
-	
-	return true;
+	return result;
 }
 
-static void meshcache_do(
-        MeshCacheModifierData *mcmd, Object *ob, DerivedMesh *UNUSED(dm),
-        float (*vertexCos_Real)[3], int numVerts)
+static DerivedMesh *meshcache_read_deform_cache(MeshCacheModifierData *mcmd, Object *ob, DerivedMesh *dm, float time, const char **err_str)
 {
-	const bool use_factor = mcmd->factor < 1.0f;
-	float (*vertexCos_Store)[3] = (use_factor || (mcmd->deform_mode == MOD_MESHCACHE_DEFORM_INTEGRATE)) ?
-	                              MEM_mallocN(sizeof(*vertexCos_Store) * numVerts, __func__) : NULL;
-	float (*vertexCos)[3] = vertexCos_Store ? vertexCos_Store : vertexCos_Real;
-
 	Scene *scene = mcmd->modifier.scene;
+	const bool use_factor = mcmd->factor < 1.0f;
 	const float fps = FPS;
-
+	
+	float (*vertexCos_Real)[3], (*vertexCos_Store)[3], (*vertexCos)[3];
+	int numVerts = dm->getNumVerts(dm);
+	DerivedMesh *finaldm = NULL;
+	
 	char filepath[FILE_MAX];
-	const char *err_str = NULL;
 	bool ok;
+	
+	vertexCos_Real = MEM_mallocN(sizeof(*vertexCos_Real) * numVerts, __func__);
+	dm->getVertCos(dm, vertexCos_Real);
 
-	float time;
-
-
-	/* -------------------------------------------------------------------- */
-	/* Interpret Time (the reading functions also do some of this ) */
-	if (mcmd->play_mode == MOD_MESHCACHE_PLAY_CFEA) {
-		const float cfra = BKE_scene_frame_get(scene);
-
-		switch (mcmd->time_mode) {
-			case MOD_MESHCACHE_TIME_FRAME:
-			{
-				time = cfra;
-				break;
-			}
-			case MOD_MESHCACHE_TIME_SECONDS:
-			{
-				time = cfra / fps;
-				break;
-			}
-			case MOD_MESHCACHE_TIME_FACTOR:
-			default:
-			{
-				time = cfra / fps;
-				break;
-			}
-		}
-
-		/* apply offset and scale */
-		time = (mcmd->frame_scale * time) - mcmd->frame_start;
-	}
-	else {  /*  if (mcmd->play_mode == MOD_MESHCACHE_PLAY_EVAL) { */
-		switch (mcmd->time_mode) {
-			case MOD_MESHCACHE_TIME_FRAME:
-			{
-				time = mcmd->eval_frame;
-				break;
-			}
-			case MOD_MESHCACHE_TIME_SECONDS:
-			{
-				time = mcmd->eval_time;
-				break;
-			}
-			case MOD_MESHCACHE_TIME_FACTOR:
-			default:
-			{
-				time = mcmd->eval_factor;
-				break;
-			}
-		}
-	}
-
-
-	/* -------------------------------------------------------------------- */
-	/* Read the File (or error out when the file is bad) */
-
+	vertexCos_Store = (use_factor || (mcmd->deform_mode == MOD_MESHCACHE_DEFORM_INTEGRATE)) ?
+	                   MEM_mallocN(sizeof(*vertexCos_Store) * numVerts, __func__) : NULL;
+	vertexCos = vertexCos_Store ? vertexCos_Store : vertexCos_Real;
+	
 	/* would be nice if we could avoid doing this _every_ frame */
 	BLI_strncpy(filepath, mcmd->filepath, sizeof(filepath));
 	BLI_path_abs(filepath, ID_BLEND_PATH(G.main, (ID *)ob));
-
+	
 	switch (mcmd->type) {
 		case MOD_MESHCACHE_TYPE_MDD:
 			ok = MOD_meshcache_read_mdd_times(filepath, vertexCos, numVerts,
-			                                  mcmd->interp, time, fps, mcmd->time_mode, &err_str);
+			                                  mcmd->interp, time, fps, mcmd->time_mode, err_str);
 			break;
 		case MOD_MESHCACHE_TYPE_PC2:
 			ok = MOD_meshcache_read_pc2_times(filepath, vertexCos, numVerts,
-			                                  mcmd->interp, time, fps, mcmd->time_mode, &err_str);
+			                                  mcmd->interp, time, fps, mcmd->time_mode, err_str);
 			break;
-		case MOD_MESHCACHE_TYPE_ALEMBIC_HDF5: {
-			struct PTCReader *reader = PTC_reader_mesh_cache(scene, ob, mcmd);
-			ok = MOD_meshcache_read_alembic_times(reader, vertexCos, numVerts,
-			                                      mcmd->interp, time, fps, mcmd->time_mode, &err_str);
-			PTC_reader_free(reader);
-			break;
-		}
 		default:
 			ok = false;
 			break;
 	}
-
-
+	
 	/* -------------------------------------------------------------------- */
 	/* tricky shape key integration (slow!) */
 	if (mcmd->deform_mode == MOD_MESHCACHE_DEFORM_INTEGRATE) {
@@ -271,14 +204,117 @@ static void meshcache_do(
 			MEM_freeN(vertexCos_New);
 		}
 	}
+	
+	if (vertexCos_Store) {
+		if (ok) {
+			if (use_factor) {
+				interp_vn_vn(*vertexCos_Real, *vertexCos_Store, mcmd->factor, numVerts * 3);
+			}
+			else {
+				memcpy(vertexCos_Real, vertexCos_Store, sizeof(*vertexCos_Store) * numVerts);
+			}
+		}
 
+		MEM_freeN(vertexCos_Store);
+	}
+
+	finaldm = CDDM_copy(dm);
+//	dm->release(dm);
+	
+	CDDM_apply_vert_coords(finaldm, vertexCos_Real);
+	MEM_freeN(vertexCos_Real);
+	
+	return finaldm;
+}
+
+static DerivedMesh *meshcache_do(MeshCacheModifierData *mcmd, Object *ob, DerivedMesh *dm)
+{
+	Scene *scene = mcmd->modifier.scene;
+	const float fps = FPS;
+
+	DerivedMesh *finaldm = NULL;
+	const char *err_str = NULL;
+	float time;
+
+	/* -------------------------------------------------------------------- */
+	/* Interpret Time (the reading functions also do some of this ) */
+	if (mcmd->play_mode == MOD_MESHCACHE_PLAY_CFEA) {
+		const float cfra = BKE_scene_frame_get(scene);
+
+		switch (mcmd->time_mode) {
+			case MOD_MESHCACHE_TIME_FRAME:
+				time = cfra;
+				break;
+			case MOD_MESHCACHE_TIME_SECONDS:
+				time = cfra / fps;
+				break;
+			case MOD_MESHCACHE_TIME_FACTOR:
+			default:
+				time = cfra / fps;
+				break;
+		}
+
+		/* apply offset and scale */
+		time = (mcmd->frame_scale * time) - mcmd->frame_start;
+	}
+	else {  /*  if (mcmd->play_mode == MOD_MESHCACHE_PLAY_EVAL) { */
+		switch (mcmd->time_mode) {
+			case MOD_MESHCACHE_TIME_FRAME:
+				time = mcmd->eval_frame;
+				break;
+			case MOD_MESHCACHE_TIME_SECONDS:
+				time = mcmd->eval_time;
+				break;
+			case MOD_MESHCACHE_TIME_FACTOR:
+			default:
+				time = mcmd->eval_factor;
+				break;
+		}
+	}
+
+
+	/* -------------------------------------------------------------------- */
+	/* Read the File (or error out when the file is bad) */
+
+	switch (mcmd->type) {
+		case MOD_MESHCACHE_TYPE_MDD:
+		case MOD_MESHCACHE_TYPE_PC2:
+			finaldm = meshcache_read_deform_cache(mcmd, ob, dm, time, &err_str);
+			break;
+		case MOD_MESHCACHE_TYPE_ALEMBIC_HDF5: {
+			struct PTCReader *reader = PTC_reader_mesh_cache(scene, ob, mcmd);
+			finaldm = MOD_meshcache_read_alembic_times(reader, mcmd->interp, time, fps, mcmd->time_mode, &err_str);
+			PTC_reader_free(reader);
+			break;
+		}
+#if 0
+		case MOD_MESHCACHE_TYPE_MDD:
+			ok = MOD_meshcache_read_mdd_times(filepath, vertexCos, numVerts,
+			                                  mcmd->interp, time, fps, mcmd->time_mode, &err_str);
+			break;
+		case MOD_MESHCACHE_TYPE_PC2:
+			ok = MOD_meshcache_read_pc2_times(filepath, vertexCos, numVerts,
+			                                  mcmd->interp, time, fps, mcmd->time_mode, &err_str);
+			break;
+		case MOD_MESHCACHE_TYPE_ALEMBIC_HDF5: {
+			struct PTCReader *reader = PTC_reader_mesh_cache(scene, ob, mcmd);
+			ok = MOD_meshcache_read_alembic_times(reader, vertexCos, numVerts,
+			                                      mcmd->interp, time, fps, mcmd->time_mode, &err_str);
+			PTC_reader_free(reader);
+			break;
+		}
+#endif
+		default:
+			finaldm = NULL;
+			break;
+	}
 
 	/* -------------------------------------------------------------------- */
 	/* Apply the transformation matrix (if needed) */
 	if (UNLIKELY(err_str)) {
 		modifier_setError(&mcmd->modifier, "%s", err_str);
 	}
-	else if (ok) {
+	else if (finaldm) {
 		bool use_matrix = false;
 		float mat[3][3];
 		unit_m3(mat);
@@ -299,27 +335,19 @@ static void meshcache_do(
 		}
 
 		if (use_matrix) {
+			MVert *mv, *mverts = finaldm->getVertArray(finaldm);
+			int numVerts = finaldm->getNumVerts(finaldm);
 			int i;
-			for (i = 0; i < numVerts; i++) {
-				mul_m3_v3(mat, vertexCos[i]);
+			for (i = 0, mv = mverts; i < numVerts; ++i, ++mv) {
+				mul_m3_v3(mat, mv->co);
 			}
 		}
 	}
-
-	if (vertexCos_Store) {
-		if (ok) {
-			if (use_factor) {
-				interp_vn_vn(*vertexCos_Real, *vertexCos_Store, mcmd->factor, numVerts * 3);
-			}
-			else {
-				memcpy(vertexCos_Real, vertexCos_Store, sizeof(*vertexCos_Store) * numVerts);
-			}
-		}
-
-		MEM_freeN(vertexCos_Store);
-	}
+	
+	return finaldm;
 }
 
+#if 0
 static void deformVerts(ModifierData *md, Object *ob,
                         DerivedMesh *derivedData,
                         float (*vertexCos)[3],
@@ -339,23 +367,42 @@ static void deformVertsEM(
 
 	meshcache_do(mcmd, ob, derivedData, vertexCos, numVerts);
 }
+#endif
 
+static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
+                                  DerivedMesh *dm,
+                                  ModifierApplyFlag UNUSED(flag))
+{
+	MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
+
+	return meshcache_do(mcmd, ob, dm);
+}
+
+static DerivedMesh *applyModifierEM(ModifierData *md, Object *ob,
+                                    struct BMEditMesh *UNUSED(editData),
+                                    DerivedMesh *dm,
+                                    ModifierApplyFlag UNUSED(flag))
+{
+	MeshCacheModifierData *mcmd = (MeshCacheModifierData *)md;
+
+	return meshcache_do(mcmd, ob, dm);
+}
 
 ModifierTypeInfo modifierType_MeshCache = {
 	/* name */              "Mesh Cache",
 	/* structName */        "MeshCacheModifierData",
 	/* structSize */        sizeof(MeshCacheModifierData),
-	/* type */              eModifierTypeType_OnlyDeform,
+	/* type */              eModifierTypeType_Constructive,
 	/* flags */             eModifierTypeFlag_AcceptsCVs |
 	                        eModifierTypeFlag_SupportsEditmode,
 
 	/* copyData */          copyData,
-	/* deformVerts */       deformVerts,
+	/* deformVerts */       NULL,
 	/* deformMatrices */    NULL,
-	/* deformVertsEM */     deformVertsEM,
+	/* deformVertsEM */     NULL,
 	/* deformMatricesEM */  NULL,
-	/* applyModifier */     NULL,
-	/* applyModifierEM */   NULL,
+	/* applyModifier */     applyModifier,
+	/* applyModifierEM */   applyModifierEM,
 	/* initData */          initData,
 	/* requiredDataMask */  NULL,
 	/* freeData */          freeData,

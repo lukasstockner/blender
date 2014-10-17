@@ -149,14 +149,25 @@ PTCReadSampleResult MeshCacheReader::read_sample(float frame)
 		const V3f &co = positions_data[i];
 		copy_v3_v3(mv->co, co.getValue());
 	}
+	
 	const int32_t *indices_data = indices->get();
 	for (i = 0, ml = mloops; i < totloops; ++i, ++ml) {
 		ml->v = indices_data[i];
 	}
+	
 	const int32_t *counts_data = counts->get();
+	int loopstart = 0;
 	for (i = 0, mp = mpolys; i < totpolys; ++i, ++mp) {
 		mp->totloop = counts_data[i];
+		mp->loopstart = loopstart;
+		
+		loopstart += mp->totloop;
 	}
+	
+	CDDM_calc_edges(m_result);
+	DM_ensure_normals(m_result);
+//	if (!DM_is_valid(m_result))
+//		return PTC_READ_SAMPLE_INVALID;
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
