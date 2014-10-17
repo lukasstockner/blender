@@ -264,6 +264,18 @@ PTCReader *PTC_reader_mesh_cache(Scene *scene, Object *ob, MeshCacheModifierData
 	return (PTCReader *)(new PTC::MeshCacheReader(scene, ob, mcmd));
 }
 
+struct DerivedMesh *PTC_reader_mesh_cache_acquire_result(PTCReader *_reader)
+{
+	PTC::MeshCacheReader *reader = (PTC::MeshCacheReader *)_reader;
+	return reader->acquire_result();
+}
+
+void PTC_reader_mesh_cache_discard_result(PTCReader *_reader)
+{
+	PTC::MeshCacheReader *reader = (PTC::MeshCacheReader *)_reader;
+	reader->discard_result();
+}
+
 #else
 
 void PTC_writer_free(PTCWriter *_writer)

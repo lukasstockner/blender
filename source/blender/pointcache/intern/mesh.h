@@ -51,6 +51,9 @@ public:
 	MeshCacheReader(Scene *scene, Object *ob, MeshCacheModifierData *mcmd);
 	~MeshCacheReader();
 	
+	DerivedMesh *acquire_result();
+	void discard_result();
+	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
@@ -58,6 +61,8 @@ private:
 	MeshCacheModifierData *m_mcmd;
 	
 	AbcGeom::IPolyMesh m_mesh;
+	
+	DerivedMesh *m_result;
 };
 
 } /* namespace PTC */

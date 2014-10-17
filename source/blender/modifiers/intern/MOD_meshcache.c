@@ -43,6 +43,8 @@
 #include "BKE_main.h"
 #include "BKE_pointcache.h"
 
+#include "PTC_api.h"
+
 #include "MEM_guardedalloc.h"
 
 #include "MOD_meshcache_util.h"  /* utility functions */
@@ -99,6 +101,33 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 	return (mcmd->factor <= 0.0f) || (mcmd->filepath[0] == '\0');
 }
 
+
+static bool MOD_meshcache_read_alembic_times(struct PTCReader *reader,
+                                             float (*vertexCos)[3], const int verts_tot, const char UNUSED(interp),
+                                             const float time, const float UNUSED(fps), const char UNUSED(time_mode),
+                                             const char **err_str)
+{
+	DerivedMesh *result;
+	
+	if (PTC_read_sample(reader, time) == PTC_READ_SAMPLE_INVALID) {
+		*err_str = "Cannot read Alembic cache file";
+		return false;
+	}
+	
+	result = PTC_reader_mesh_cache_acquire_result(reader);
+	if (result->getNumVerts(result) != verts_tot) {
+		result->needsFree = 1;
+		result->release(result);
+		
+		*err_str = "Cache file vertex count mismatch";
+		return false;
+	}
+	
+	result->getVertCos(result, vertexCos);
+	result->release(result);
+	
+	return true;
+}
 
 static void meshcache_do(
         MeshCacheModifierData *mcmd, Object *ob, DerivedMesh *UNUSED(dm),
@@ -184,6 +213,13 @@ static void meshcache_do(
 			ok = MOD_meshcache_read_pc2_times(filepath, vertexCos, numVerts,
 			                                  mcmd->interp, time, fps, mcmd->time_mode, &err_str);
 			break;
+		case MOD_MESHCACHE_TYPE_ALEMBIC_HDF5: {
+			struct PTCReader *reader = PTC_reader_mesh_cache(scene, ob, mcmd);
+			ok = MOD_meshcache_read_alembic_times(reader, vertexCos, numVerts,
+			                                      mcmd->interp, time, fps, mcmd->time_mode, &err_str);
+			PTC_reader_free(reader);
+			break;
+		}
 		default:
 			ok = false;
 			break;

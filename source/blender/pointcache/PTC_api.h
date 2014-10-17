@@ -92,6 +92,8 @@ struct PTCReader *PTC_reader_dynamicpaint(struct Scene *scene, struct Object *ob
 /* Mesh Cache Modifier */
 struct PTCWriter *PTC_writer_mesh_cache(struct Scene *scene, struct Object *ob, struct MeshCacheModifierData *mcmd);
 struct PTCReader *PTC_reader_mesh_cache(struct Scene *scene, struct Object *ob, struct MeshCacheModifierData *mcmd);
+struct DerivedMesh *PTC_reader_mesh_cache_acquire_result(struct PTCReader *reader);
+void PTC_reader_mesh_cache_discard_result(struct PTCReader *reader);
 
 #ifdef __cplusplus
 } /* extern C */
