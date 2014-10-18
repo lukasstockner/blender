@@ -1484,8 +1484,8 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	MultiresModifierData *mmd = get_multires_modifier(scene, ob, 0);
 	const bool has_multires = (mmd && mmd->sculptlvl != 0);
 	bool multires_applied = false;
-	const bool sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->sculpt && !useRenderParams;
-	const bool sculpt_dyntopo = (sculpt_mode && ob->sculpt->bm)  && !useRenderParams;
+	const bool sculpt_mode = ob->mode & OB_MODE_SCULPT && ob->paint && ob->paint->sculpt && !useRenderParams;
+	const bool sculpt_dyntopo = (sculpt_mode && ob->paint->sculpt->bm)  && !useRenderParams;
 	const int draw_flag = dm_drawflag_calc(scene->toolsettings);
 
 	/* Generic preview only in object mode! */
@@ -2282,11 +2282,16 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask,
 	ob->derivedDeform->needsFree = 0;
 	ob->lastDataMask = dataMask;
 
-	if ((ob->mode & OB_MODE_SCULPT) && ob->sculpt) {
+	if ((ob->mode & OB_MODE_SCULPT) && ob->paint && ob->paint->sculpt) {
 		/* create PBVH immediately (would be created on the fly too,
 		 * but this avoids waiting on first stroke) */
 
 		BKE_sculpt_update_mesh_elements(scene, scene->toolsettings->sculpt, ob, false, false);
+	}
+	else if ((ob->mode & OB_MODE_VERTEX_PAINT) && ob->paint) {
+		/* needs to be called after we ensure tessface */
+		DerivedMesh *dm = mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
+		ob->paint->pbvh = dm->getPBVH(ob, dm);
 	}
 
 	BLI_assert(!(ob->derivedFinal->dirty & DM_DIRTY_NORMALS));

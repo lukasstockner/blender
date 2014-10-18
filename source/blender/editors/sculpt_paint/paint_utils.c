@@ -53,6 +53,7 @@
 #include "BKE_DerivedMesh.h"
 #include "BKE_image.h"
 #include "BKE_paint.h"
+#include "BKE_pbvh.h"
 #include "BKE_report.h"
 
 #include "RNA_access.h"
@@ -223,6 +224,35 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
 	             "Action taken when a paint stroke is made");
 	
 }
+
+float paint_pbvh_raycast_init(ViewContext *vc, const float mouse[2], float ray_start[3], float ray_end[3], float ray_normal[3], bool original)
+{
+	float obimat[4][4];
+	float dist;
+	Object *ob = vc->obact;
+	RegionView3D *rv3d = vc->ar->regiondata;
+
+	/* TODO: what if the segment is totally clipped? (return == 0) */
+	ED_view3d_win_to_segment(vc->ar, vc->v3d, mouse, ray_start, ray_end, true);
+
+	invert_m4_m4(obimat, ob->obmat);
+	mul_m4_v3(obimat, ray_start);
+	mul_m4_v3(obimat, ray_end);
+
+	sub_v3_v3v3(ray_normal, ray_end, ray_start);
+	dist = normalize_v3(ray_normal);
+
+	if (!rv3d->is_persp) {
+		BKE_pbvh_raycast_project_ray_root(ob->paint->pbvh, original, ray_start, ray_end, ray_normal);
+
+		/* recalculate the normal */
+		sub_v3_v3v3(ray_normal, ray_end, ray_start);
+		dist = normalize_v3(ray_normal);
+	}
+
+	return dist;
+}
+
 
 /* 3D Paint */
 

@@ -384,7 +384,7 @@ static int hide_show_exec(bContext *C, wmOperator *op)
 
 	dm = mesh_get_derived_final(CTX_data_scene(C), ob, CD_MASK_BAREMESH);
 	pbvh = dm->getPBVH(ob, dm);
-	ob->sculpt->pbvh = pbvh;
+	ob->paint->pbvh = pbvh;
 
 	get_pbvh_nodes(pbvh, &nodes, &totnode, clip_planes, area);
 	pbvh_type = BKE_pbvh_type(pbvh);

@@ -377,9 +377,9 @@ void multires_force_update(Object *ob)
 	if (ob) {
 		BKE_object_free_derived_caches(ob);
 
-		if (ob->sculpt && ob->sculpt->pbvh) {
-			BKE_pbvh_free(ob->sculpt->pbvh);
-			ob->sculpt->pbvh = NULL;
+		if (ob->paint && ob->paint->pbvh) {
+			BKE_pbvh_free(ob->paint->pbvh);
+			ob->paint->pbvh = NULL;
 		}
 	}
 }

@@ -3353,23 +3353,23 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 		return NULL;
 	}
 
-	if (!ob->sculpt)
+	if (!ob->paint)
 		return NULL;
 
 	grid_pbvh = ccgDM_use_grid_pbvh(ccgdm);
 
-	if (ob->sculpt->pbvh) {
+	if (ob->paint->pbvh) {
 		if (grid_pbvh) {
 			/* pbvh's grids, gridadj and gridfaces points to data inside ccgdm
 			 * but this can be freed on ccgdm release, this updates the pointers
 			 * when the ccgdm gets remade, the assumption is that the topology
 			 * does not change. */
 			ccgdm_create_grids(dm);
-			BKE_pbvh_grids_update(ob->sculpt->pbvh, ccgdm->gridData, ccgdm->gridAdjacency, (void **)ccgdm->gridFaces,
+			BKE_pbvh_grids_update(ob->paint->pbvh, ccgdm->gridData, ccgdm->gridAdjacency, (void **)ccgdm->gridFaces,
 			                      ccgdm->gridFlagMats, ccgdm->gridHidden);
 		}
 
-		ccgdm->pbvh = ob->sculpt->pbvh;
+		ccgdm->pbvh = ob->paint->pbvh;
 	}
 
 	if (ccgdm->pbvh)
@@ -3383,20 +3383,20 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 
 		numGrids = ccgDM_getNumGrids(dm);
 
-		ob->sculpt->pbvh = ccgdm->pbvh = BKE_pbvh_new();
+		ob->paint->pbvh = ccgdm->pbvh = BKE_pbvh_new();
 		BKE_pbvh_build_grids(ccgdm->pbvh, ccgdm->gridData, ccgdm->gridAdjacency,
 		                     numGrids, &key, (void **) ccgdm->gridFaces, ccgdm->gridFlagMats, ccgdm->gridHidden);
 	}
 	else if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		ob->sculpt->pbvh = ccgdm->pbvh = BKE_pbvh_new();
+		ob->paint->pbvh = ccgdm->pbvh = BKE_pbvh_new();
 		BLI_assert(!(me->mface == NULL && me->mpoly != NULL)); /* BMESH ONLY complain if mpoly is valid but not mface */
 		BKE_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
 		                    me->totface, me->totvert, &me->vdata);
 	}
 
-	if (ccgdm->pbvh)
-		pbvh_show_diffuse_color_set(ccgdm->pbvh, ob->sculpt->show_diffuse_color);
+	if (ccgdm->pbvh && ob->paint->sculpt)
+		pbvh_show_diffuse_color_set(ccgdm->pbvh, ob->paint->sculpt->show_diffuse_color);
 
 	return ccgdm->pbvh;
 }

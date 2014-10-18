@@ -3743,17 +3743,17 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 
-			if ((v3d->flag2 & V3D_SHOW_SOLID_MATCAP) && ob->sculpt && (p = BKE_paint_get_active(scene))) {
+			if ((v3d->flag2 & V3D_SHOW_SOLID_MATCAP) && ob->paint && ob->paint->sculpt && (p = BKE_paint_get_active(scene))) {
 				GPUVertexAttribs gattribs;
 				float planes[4][4];
 				float (*fpl)[4] = NULL;
 				const bool fast = (p->flags & PAINT_FAST_NAVIGATE) && (rv3d->rflag & RV3D_NAVIGATING);
 
-				if (ob->sculpt->partial_redraw) {
+				if (ob->paint->partial_redraw) {
 					if (ar->do_draw & RGN_DRAW_PARTIAL) {
 						ED_sculpt_redraw_planes_get(planes, ar, rv3d, ob);
 						fpl = planes;
-						ob->sculpt->partial_redraw = 0;
+						ob->paint->partial_redraw = false;
 					}
 				}
 
@@ -3800,7 +3800,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 				    ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
 				    (base->flag & SELECT) &&
 				    (draw_wire == OBDRAW_WIRE_OFF) &&
-				    (ob->sculpt == NULL))
+				    (!ob->paint || !ob->paint->sculpt))
 				{
 					draw_mesh_object_outline(v3d, ob, dm);
 				}
@@ -3832,7 +3832,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			    ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) &&
 			    (base->flag & SELECT) &&
 			    (draw_wire == OBDRAW_WIRE_OFF) &&
-			    (ob->sculpt == NULL))
+			    (!ob->paint || !ob->paint->sculpt))
 			{
 				draw_mesh_object_outline(v3d, ob, dm);
 			}
@@ -3842,16 +3842,16 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glEnable(GL_LIGHTING);
 			glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
 
-			if (ob->sculpt && (p = BKE_paint_get_active(scene))) {
+			if (ob->paint && ob->paint->sculpt && (p = BKE_paint_get_active(scene))) {
 				float planes[4][4];
 				float (*fpl)[4] = NULL;
 				const bool fast = (p->flags & PAINT_FAST_NAVIGATE) && (rv3d->rflag & RV3D_NAVIGATING);
 
-				if (ob->sculpt->partial_redraw) {
+				if (ob->paint->partial_redraw) {
 					if (ar->do_draw & RGN_DRAW_PARTIAL) {
 						ED_sculpt_redraw_planes_get(planes, ar, rv3d, ob);
 						fpl = planes;
-						ob->sculpt->partial_redraw = 0;
+						ob->paint->partial_redraw = false;
 					}
 				}
 
@@ -3867,7 +3867,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 
 			glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 
-			if (!ob->sculpt && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
+			if ((!ob->paint || !ob->paint->sculpt) && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					glColor3ubv(ob_wire_col);
 				}
@@ -7262,7 +7262,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 					dt = OB_SOLID;
 				}
 
-				if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT)) {
+				if (ob->mode & OB_MODE_WEIGHT_PAINT) {
 					dt = OB_PAINT;
 				}
 

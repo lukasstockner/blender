@@ -1535,7 +1535,7 @@ static const char *object_mode_op_string(int mode)
 	if (mode == OB_MODE_SCULPT)
 		return "SCULPT_OT_sculptmode_toggle";
 	if (mode == OB_MODE_VERTEX_PAINT)
-		return "PAINT_OT_vertex_paint_toggle";
+		return "PAINT_OT_vertex_paint_pbvh_toggle";
 	if (mode == OB_MODE_WEIGHT_PAINT)
 		return "PAINT_OT_weight_paint_toggle";
 	if (mode == OB_MODE_TEXTURE_PAINT)

@@ -5120,8 +5120,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 	/* in case this value changes in future, clamp else we get undefined behavior */
 	CLAMP(ob->rotmode, ROT_MODE_MIN, ROT_MODE_MAX);
 
-	if (ob->sculpt) {
-		ob->sculpt = MEM_callocN(sizeof(SculptSession), "reload sculpt session");
+	if (ob->paint) {
+		ob->paint = MEM_callocN(sizeof(PaintSession), "reload paint session");
 	}
 
 	link_list(fd, &ob->lodlevels);

@@ -263,8 +263,8 @@ static void stats_object_pose(Object *ob, SceneStats *stats)
 
 static void stats_object_sculpt_dynamic_topology(Object *ob, SceneStats *stats)
 {
-	stats->totvert = ob->sculpt->bm->totvert;
-	stats->tottri = ob->sculpt->bm->totface;
+	stats->totvert = ob->paint->sculpt->bm->totvert;
+	stats->tottri = ob->paint->sculpt->bm->totface;
 }
 
 static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
@@ -338,7 +338,7 @@ static void stats_dupli_object(Base *base, Object *ob, SceneStats *stats)
 static bool stats_is_object_dynamic_topology_sculpt(Object *ob)
 {
 	return (ob && (ob->mode & OB_MODE_SCULPT) &&
-	        ob->sculpt && ob->sculpt->bm);
+	        ob->paint && ob->paint->sculpt && ob->paint->sculpt->bm);
 }
 
 /* Statistics displayed in info header. Called regularly on scene changes. */

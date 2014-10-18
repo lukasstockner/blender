@@ -1105,7 +1105,9 @@ void ED_operatortypes_paint(void)
 
 	/* vertex */
 	WM_operatortype_append(PAINT_OT_vertex_paint_toggle);
+	WM_operatortype_append(PAINT_OT_vertex_paint_pbvh_toggle);
 	WM_operatortype_append(PAINT_OT_vertex_paint);
+	WM_operatortype_append(PAINT_OT_vertex_paint_pbvh);
 	WM_operatortype_append(PAINT_OT_vertex_color_set);
 	WM_operatortype_append(PAINT_OT_vertex_color_smooth);
 

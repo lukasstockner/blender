@@ -507,7 +507,7 @@ void BKE_free_sculptsession_deformMats(SculptSession *ss)
 /* Write out the sculpt dynamic-topology BMesh to the Mesh */
 static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
 {
-	SculptSession *ss = ob->sculpt;
+	SculptSession *ss = ob->paint->sculpt;
 
 	if (ss->bm) {
 		if (ob->data) {
@@ -525,7 +525,7 @@ static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
 
 void BKE_sculptsession_bm_to_me(Object *ob, bool reorder)
 {
-	if (ob && ob->sculpt) {
+	if (ob && ob->paint && ob->paint->sculpt) {
 		sculptsession_bm_to_me_update_data_only(ob, reorder);
 
 		/* ensure the objects DerivedMesh mesh doesn't hold onto arrays now realloc'd in the mesh [#34473] */
@@ -535,8 +535,11 @@ void BKE_sculptsession_bm_to_me(Object *ob, bool reorder)
 
 void BKE_sculptsession_bm_to_me_for_render(Object *object)
 {
-	if (object && object->sculpt) {
-		if (object->sculpt->bm) {
+	if (object && object->paint && object->paint->sculpt) {
+		PaintSession *psession = object->paint;
+		SculptSession *ss = psession->sculpt;
+
+		if (ss->bm) {
 			/* Ensure no points to old arrays are stored in DM
 			 *
 			 * Apparently, we could not use DAG_id_tag_update
@@ -545,9 +548,9 @@ void BKE_sculptsession_bm_to_me_for_render(Object *object)
 			 */
 			BKE_object_free_derived_caches(object);
 
-			if (object->sculpt->pbvh) {
-				BKE_pbvh_free(object->sculpt->pbvh);
-				object->sculpt->pbvh = NULL;
+			if (psession->pbvh) {
+				BKE_pbvh_free(psession->pbvh);
+				psession->pbvh = NULL;
 			}
 
 			sculptsession_bm_to_me_update_data_only(object, false);
@@ -562,28 +565,17 @@ void BKE_sculptsession_bm_to_me_for_render(Object *object)
 
 void BKE_free_sculptsession(Object *ob)
 {
-	if (ob && ob->sculpt) {
-		SculptSession *ss = ob->sculpt;
-		DerivedMesh *dm = ob->derivedFinal;
+	if (ob && ob->paint && ob->paint->sculpt) {
+		PaintSession *psession = ob->paint;
+		SculptSession *ss = psession->sculpt;
 
 		if (ss->bm) {
 			BKE_sculptsession_bm_to_me(ob, true);
 			BM_mesh_free(ss->bm);
 		}
 
-		if (ss->pbvh)
-			BKE_pbvh_free(ss->pbvh);
 		if (ss->bm_log)
 			BM_log_free(ss->bm_log);
-
-		if (dm && dm->getPBVH)
-			dm->getPBVH(NULL, dm);  /* signal to clear */
-
-		if (ss->texcache)
-			MEM_freeN(ss->texcache);
-
-		if (ss->tex_pool)
-			BKE_image_pool_free(ss->tex_pool);
 
 		if (ss->layer_co)
 			MEM_freeN(ss->layer_co);
@@ -597,9 +589,36 @@ void BKE_free_sculptsession(Object *ob)
 
 		MEM_freeN(ss);
 
-		ob->sculpt = NULL;
+		psession->sculpt = NULL;
 	}
 }
+
+void BKE_free_paintsession(Object *ob) {
+
+	if (ob && ob->paint) {
+		PaintSession *psession = ob->paint;
+		DerivedMesh *dm = ob->derivedFinal;
+
+		if (psession->pbvh)
+			BKE_pbvh_free(psession->pbvh);
+
+		if (psession->texcache)
+			MEM_freeN(psession->texcache);
+
+		if (psession->tex_pool)
+			BKE_image_pool_free(psession->tex_pool);
+
+		if (dm && dm->getPBVH)
+			dm->getPBVH(NULL, dm);  /* signal to clear */
+
+		if (psession->sculpt)
+			BKE_free_sculptsession(ob);
+		
+		MEM_freeN(psession);
+		ob->paint = NULL;
+	}
+}
+
 
 /* Sculpt mode handles multires differently from regular meshes, but only if
  * it's the last modifier on the stack and it is not on the first level */
@@ -609,7 +628,7 @@ MultiresModifierData *BKE_sculpt_multires_active(Scene *scene, Object *ob)
 	ModifierData *md;
 	VirtualModifierData virtualModifierData;
 
-	if (ob->sculpt && ob->sculpt->bm) {
+	if (ob->paint && ob->paint->sculpt && ob->paint->sculpt->bm) {
 		/* can't combine multires and dynamic topology */
 		return NULL;
 	}
@@ -643,7 +662,7 @@ static bool sculpt_modifiers_active(Scene *scene, Sculpt *sd, Object *ob)
 	MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
 	VirtualModifierData virtualModifierData;
 
-	if (mmd || ob->sculpt->bm)
+	if (mmd || ob->paint->sculpt->bm)
 		return false;
 
 	/* non-locked shape keys could be handled in the same way as deformed mesh */
@@ -672,7 +691,8 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
                                      bool need_pmap, bool need_mask)
 {
 	DerivedMesh *dm;
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
+	SculptSession *ss = psession->sculpt;
 	Mesh *me = ob->data;
 	MultiresModifierData *mmd = BKE_sculpt_multires_active(scene, ob);
 
@@ -701,7 +721,7 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 	}
 
 	/* BMESH ONLY --- at some point we should move sculpt code to use polygons only - but for now it needs tessfaces */
-	BKE_mesh_tessface_ensure(me);
+	//BKE_mesh_tessface_ensure(me);
 
 	if (!mmd) ss->kb = BKE_keyblock_from_object(ob);
 	else ss->kb = NULL;
@@ -729,10 +749,10 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 		ss->vmask = CustomData_get_layer(&me->vdata, CD_PAINT_MASK);
 	}
 
-	ss->pbvh = dm->getPBVH(ob, dm);
+	psession->pbvh = dm->getPBVH(ob, dm);
 	ss->pmap = (need_pmap && dm->getPolyMap) ? dm->getPolyMap(ob, dm) : NULL;
 
-	pbvh_show_diffuse_color_set(ss->pbvh, ss->show_diffuse_color);
+	pbvh_show_diffuse_color_set(psession->pbvh, ss->show_diffuse_color);
 
 	if (ss->modifiers_active) {
 		if (!ss->orig_cos) {
@@ -743,7 +763,7 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 			ss->orig_cos = (ss->kb) ? BKE_keyblock_convert_to_vertcos(ob, ss->kb) : BKE_mesh_vertexCos_get(me, NULL);
 
 			BKE_crazyspace_build_sculpt(scene, ob, &ss->deform_imats, &ss->deform_cos);
-			BKE_pbvh_apply_vertCos(ss->pbvh, ss->deform_cos);
+			BKE_pbvh_apply_vertCos(psession->pbvh, ss->deform_cos);
 
 			for (a = 0; a < me->totvert; ++a) {
 				invert_m3(ss->deform_imats[a]);
@@ -760,14 +780,14 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 
 	/* if pbvh is deformed, key block is already applied to it */
 	if (ss->kb) {
-		bool pbvh_deformd = BKE_pbvh_isDeformed(ss->pbvh);
+		bool pbvh_deformd = BKE_pbvh_isDeformed(psession->pbvh);
 		if (!pbvh_deformd || ss->deform_cos == NULL) {
 			float (*vertCos)[3] = BKE_keyblock_convert_to_vertcos(ob, ss->kb);
 
 			if (vertCos) {
 				if (!pbvh_deformd) {
 					/* apply shape keys coordinates to PBVH */
-					BKE_pbvh_apply_vertCos(ss->pbvh, vertCos);
+					BKE_pbvh_apply_vertCos(psession->pbvh, vertCos);
 				}
 				if (ss->deform_cos == NULL) {
 					ss->deform_cos = vertCos;

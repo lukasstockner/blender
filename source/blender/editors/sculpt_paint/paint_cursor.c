@@ -534,7 +534,7 @@ static bool sculpt_get_brush_geometry(
 	mouse[0] = x;
 	mouse[1] = y;
 
-	if (vc->obact->sculpt && vc->obact->sculpt->pbvh &&
+	if (vc->obact->paint && vc->obact->paint->pbvh &&
 	    sculpt_stroke_get_location(C, location, mouse))
 	{
 		Brush *brush = BKE_paint_brush(paint);
@@ -1010,7 +1010,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 
 	/* TODO: as sculpt and other paint modes are unified, this
 	 * special mode of drawing will go away */
-	if ((mode == PAINT_SCULPT) && vc.obact->sculpt) {
+	if ((mode == PAINT_SCULPT) && vc.obact->paint->sculpt) {
 		float location[3];
 		int pixel_radius;
 		bool hit;

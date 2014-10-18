@@ -395,7 +395,7 @@ void BKE_object_free_ex(Object *ob, bool do_id_user)
 	if (ob->bsoft) bsbFree(ob->bsoft);
 	if (ob->gpulamp.first) GPU_lamp_free(ob);
 
-	BKE_free_sculptsession(ob);
+	BKE_free_paintsession(ob);
 
 	if (ob->pc_ids.first) BLI_freelistN(&ob->pc_ids);
 
@@ -1481,7 +1481,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 	BKE_constraints_copy(&obn->constraints, &ob->constraints, true);
 
 	obn->mode = OB_MODE_OBJECT;
-	obn->sculpt = NULL;
+	obn->paint = NULL;
 
 	/* increase user numbers */
 	id_us_plus((ID *)obn->data);
@@ -3179,25 +3179,26 @@ void BKE_object_handle_update(EvaluationContext *eval_ctx, Scene *scene, Object 
 
 void BKE_object_sculpt_modifiers_changed(Object *ob)
 {
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
+	SculptSession *ss = psession ? psession->sculpt : NULL;
 
 	if (ss) {
 		if (!ss->cache) {
 			/* we free pbvh on changes, except during sculpt since it can't deal with
 			 * changing PVBH node organization, we hope topology does not change in
 			 * the meantime .. weak */
-			if (ss->pbvh) {
-				BKE_pbvh_free(ss->pbvh);
-				ss->pbvh = NULL;
+			if (psession->pbvh) {
+				BKE_pbvh_free(psession->pbvh);
+				psession->pbvh = NULL;
 			}
 
-			BKE_free_sculptsession_deformMats(ob->sculpt);
+			BKE_free_sculptsession_deformMats(psession->sculpt);
 		}
 		else {
 			PBVHNode **nodes;
 			int n, totnode;
 
-			BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+			BKE_pbvh_search_gather(psession->pbvh, NULL, NULL, &nodes, &totnode);
 
 			for (n = 0; n < totnode; n++)
 				BKE_pbvh_node_mark_update(nodes[n]);

@@ -145,6 +145,7 @@ float paint_grid_paint_mask(const struct GridPaintMask *gpm, unsigned level,
 /* stroke related */
 void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, const float mouse_pos[2]);
 
+
 /* Session data (mode-specific) */
 
 typedef struct SculptSession {
@@ -169,8 +170,6 @@ typedef struct SculptSession {
 	/* Undo/redo log for dynamic topology sculpting */
 	struct BMLog *bm_log;
 
-	/* PBVH acceleration structure */
-	struct PBVH *pbvh;
 	bool show_diffuse_color;
 
 	/* Painting on deformed mesh */
@@ -178,14 +177,7 @@ typedef struct SculptSession {
 	float (*orig_cos)[3]; /* coords of undeformed mesh */
 	float (*deform_cos)[3]; /* coords of deformed mesh but without stroke displacement */
 	float (*deform_imats)[3][3]; /* crazyspace deformation matrices */
-
-	/* Partial redraw */
-	bool partial_redraw;
 	
-	/* Used to cache the render of the active texture */
-	unsigned int texcache_side, *texcache, texcache_actual;
-	struct ImagePool *tex_pool;
-
 	/* Layer brush persistence between strokes */
 	float (*layer_co)[3]; /* Copy of the mesh vertices' locations */
 
@@ -199,6 +191,24 @@ typedef struct SculptSession {
 	float average_stroke_accum[3];
 	int average_stroke_counter;
 } SculptSession;
+
+/* Session data (common) */
+typedef struct PaintSession {
+	/* PBVH acceleration structure */
+	struct PBVH *pbvh;
+
+	/* Used to cache the render of the active texture */
+	unsigned int texcache_side, *texcache, texcache_actual;
+	struct ImagePool *tex_pool;
+
+	/* Partial redraw */
+	bool partial_redraw;
+	
+	/* mode specific stuff */
+	SculptSession *sculpt;
+} PaintSession;
+
+void BKE_free_paintsession(struct Object *ob);
 
 void BKE_free_sculptsession(struct Object *ob);
 void BKE_free_sculptsession_deformMats(struct SculptSession *ss);

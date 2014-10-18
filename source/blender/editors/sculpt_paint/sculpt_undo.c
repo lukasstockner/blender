@@ -97,7 +97,8 @@ static int sculpt_undo_restore_coords(bContext *C, DerivedMesh *dm, SculptUndoNo
 	Scene *scene = CTX_data_scene(C);
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 	Object *ob = CTX_data_active_object(C);
-	SculptSession *ss = ob->sculpt;
+	SculptSession *ss = ob->paint->sculpt;
+	PaintSession *psession = ob->paint;
 	MVert *mvert;
 	int *index, i, j;
 	
@@ -144,7 +145,7 @@ static int sculpt_undo_restore_coords(bContext *C, DerivedMesh *dm, SculptUndoNo
 
 			/* pbvh uses it's own mvert array, so coords should be */
 			/* propagated to pbvh here */
-			BKE_pbvh_apply_vertCos(ss->pbvh, vertCos);
+			BKE_pbvh_apply_vertCos(psession->pbvh, vertCos);
 
 			MEM_freeN(vertCos);
 		}
@@ -188,7 +189,7 @@ static int sculpt_undo_restore_hidden(bContext *C, DerivedMesh *dm,
                                       SculptUndoNode *unode)
 {
 	Object *ob = CTX_data_active_object(C);
-	SculptSession *ss = ob->sculpt;
+	SculptSession *ss = ob->paint->sculpt;
 	int i;
 
 	if (unode->maxvert) {
@@ -225,7 +226,7 @@ static int sculpt_undo_restore_hidden(bContext *C, DerivedMesh *dm,
 static int sculpt_undo_restore_mask(bContext *C, DerivedMesh *dm, SculptUndoNode *unode)
 {
 	Object *ob = CTX_data_active_object(C);
-	SculptSession *ss = ob->sculpt;
+	SculptSession *ss = ob->paint->sculpt;
 	MVert *mvert;
 	float *vmask;
 	int *index, i, j;
@@ -268,7 +269,8 @@ static int sculpt_undo_restore_mask(bContext *C, DerivedMesh *dm, SculptUndoNode
 static void sculpt_undo_bmesh_restore_generic(bContext *C,
                                               SculptUndoNode *unode,
                                               Object *ob,
-                                              SculptSession *ss)
+                                              SculptSession *ss,
+                                              PaintSession *psession)
 {
 	if (unode->applied) {
 		BM_log_undo(ss->bm, ss->bm_log);
@@ -289,7 +291,7 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 		(void)C;
 #endif
 
-		BKE_pbvh_search_gather(ss->pbvh, NULL, NULL, &nodes, &totnode);
+		BKE_pbvh_search_gather(psession->pbvh, NULL, NULL, &nodes, &totnode);
 
 #pragma omp parallel for schedule(guided) if ((sd->flags & SCULPT_USE_OPENMP) && totnode > SCULPT_OMP_LIMIT)
 		for (i = 0; i < totnode; i++) {
@@ -300,7 +302,7 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 			MEM_freeN(nodes);
 	}
 	else {
-		sculpt_pbvh_clear(ob);
+		paint_pbvh_clear(ob);
 	}
 }
 
@@ -308,10 +310,10 @@ static void sculpt_undo_bmesh_restore_generic(bContext *C,
 static void sculpt_undo_bmesh_enable(Object *ob,
                                      SculptUndoNode *unode)
 {
-	SculptSession *ss = ob->sculpt;
+	SculptSession *ss = ob->paint->sculpt;
 	Mesh *me = ob->data;
 
-	sculpt_pbvh_clear(ob);
+	paint_pbvh_clear(ob);
 
 	/* Create empty BMesh and enable logging */
 	ss->bm = BM_mesh_create(&bm_mesh_allocsize_default);
@@ -370,7 +372,7 @@ static void sculpt_undo_bmesh_restore_end(bContext *C,
 static int sculpt_undo_bmesh_restore(bContext *C,
                                      SculptUndoNode *unode,
                                      Object *ob,
-                                     SculptSession *ss)
+                                     SculptSession *ss, PaintSession *psession)
 {
 	switch (unode->type) {
 		case SCULPT_UNDO_DYNTOPO_BEGIN:
@@ -383,7 +385,7 @@ static int sculpt_undo_bmesh_restore(bContext *C,
 
 		default:
 			if (ss->bm_log) {
-				sculpt_undo_bmesh_restore_generic(C, unode, ob, ss);
+				sculpt_undo_bmesh_restore_generic(C, unode, ob, ss, psession);
 				return true;
 			}
 			break;
@@ -398,7 +400,8 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 	Object *ob = CTX_data_active_object(C);
 	DerivedMesh *dm;
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
+	SculptSession *ss = psession->sculpt;
 	SculptUndoNode *unode;
 	bool update = false, rebuild = false;
 	bool need_mask = false;
@@ -419,7 +422,7 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 	/* call _after_ sculpt_update_mesh_elements() which may update 'ob->derivedFinal' */
 	dm = mesh_get_derived_final(scene, ob, 0);
 
-	if (lb->first && sculpt_undo_bmesh_restore(C, lb->first, ob, ss))
+	if (lb->first && sculpt_undo_bmesh_restore(C, lb->first, ob, ss, psession))
 		return;
 
 	for (unode = lb->first; unode; unode = unode->next) {
@@ -467,8 +470,8 @@ static void sculpt_undo_restore(bContext *C, ListBase *lb)
 		/* we update all nodes still, should be more clever, but also
 		 * needs to work correct when exiting/entering sculpt mode and
 		 * the nodes get recreated, though in that case it could do all */
-		BKE_pbvh_search_callback(ss->pbvh, NULL, NULL, update_cb, &rebuild);
-		BKE_pbvh_update(ss->pbvh, PBVH_UpdateBB | PBVH_UpdateOriginalBB | PBVH_UpdateRedraw, NULL);
+		BKE_pbvh_search_callback(psession->pbvh, NULL, NULL, update_cb, &rebuild);
+		BKE_pbvh_update(psession->pbvh, PBVH_UpdateBB | PBVH_UpdateOriginalBB | PBVH_UpdateRedraw, NULL);
 
 		if (BKE_sculpt_multires_active(scene, ob)) {
 			if (rebuild)
@@ -599,7 +602,8 @@ static SculptUndoNode *sculpt_undo_alloc_node(Object *ob, PBVHNode *node,
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_MESH);
 	SculptUndoNode *unode;
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
+	SculptSession *ss = psession->sculpt;
 	int totvert, allvert, totgrid, maxgrid, gridsize, *grids;
 	
 	unode = MEM_callocN(sizeof(SculptUndoNode), "SculptUndoNode");
@@ -608,8 +612,8 @@ static SculptUndoNode *sculpt_undo_alloc_node(Object *ob, PBVHNode *node,
 	unode->node = node;
 
 	if (node) {
-		BKE_pbvh_node_num_verts(ss->pbvh, node, &totvert, &allvert);
-		BKE_pbvh_node_get_grids(ss->pbvh, node, &grids, &totgrid,
+		BKE_pbvh_node_num_verts(psession->pbvh, node, &totvert, &allvert);
+		BKE_pbvh_node_get_grids(psession->pbvh, node, &grids, &totgrid,
 		                        &maxgrid, &gridsize, NULL, NULL);
 
 		unode->totvert = totvert;
@@ -631,7 +635,7 @@ static SculptUndoNode *sculpt_undo_alloc_node(Object *ob, PBVHNode *node,
 			break;
 		case SCULPT_UNDO_HIDDEN:
 			if (maxgrid)
-				sculpt_undo_alloc_and_store_hidden(ss->pbvh, unode);
+				sculpt_undo_alloc_and_store_hidden(psession->pbvh, unode);
 			else
 				unode->vert_hidden = BLI_BITMAP_NEW(allvert, "SculptUndoNode.vert_hidden");
 		
@@ -670,10 +674,11 @@ static SculptUndoNode *sculpt_undo_alloc_node(Object *ob, PBVHNode *node,
 
 static void sculpt_undo_store_coords(Object *ob, SculptUndoNode *unode)
 {
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
+	SculptSession *ss = psession->sculpt;
 	PBVHVertexIter vd;
 
-	BKE_pbvh_vertex_iter_begin(ss->pbvh, unode->node, vd, PBVH_ITER_ALL)
+	BKE_pbvh_vertex_iter_begin(psession->pbvh, unode->node, vd, PBVH_ITER_ALL)
 	{
 		copy_v3_v3(unode->co[vd.i], vd.co);
 		if (vd.no) copy_v3_v3_short(unode->no[vd.i], vd.no);
@@ -687,7 +692,7 @@ static void sculpt_undo_store_coords(Object *ob, SculptUndoNode *unode)
 
 static void sculpt_undo_store_hidden(Object *ob, SculptUndoNode *unode)
 {
-	PBVH *pbvh = ob->sculpt->pbvh;
+	PBVH *pbvh = ob->paint->pbvh;
 	PBVHNode *node = unode->node;
 
 	if (unode->grids) {
@@ -709,10 +714,10 @@ static void sculpt_undo_store_hidden(Object *ob, SculptUndoNode *unode)
 
 static void sculpt_undo_store_mask(Object *ob, SculptUndoNode *unode)
 {
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
 	PBVHVertexIter vd;
 
-	BKE_pbvh_vertex_iter_begin(ss->pbvh, unode->node, vd, PBVH_ITER_ALL)
+	BKE_pbvh_vertex_iter_begin(psession->pbvh, unode->node, vd, PBVH_ITER_ALL)
 	{
 		unode->mask[vd.i] = *vd.mask;
 	}
@@ -725,7 +730,8 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 {
 	ListBase *lb = undo_paint_push_get_list(UNDO_PAINT_MESH);
 	SculptUndoNode *unode = lb->first;
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
+	SculptSession *ss = psession->sculpt;
 	PBVHVertexIter vd;
 
 	if (!lb->first) {
@@ -776,7 +782,7 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 			case SCULPT_UNDO_MASK:
 				/* Before any vertex values get modified, ensure their
 				 * original positions are logged */
-				BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
+				BKE_pbvh_vertex_iter_begin(psession->pbvh, node, vd, PBVH_ITER_ALL) {
 					BM_log_vert_before_modified(ss->bm_log, vd.bm_vert, vd.cd_vert_mask_offset);
 				}
 				BKE_pbvh_vertex_iter_end;
@@ -786,7 +792,7 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 			{
 				GSetIterator gs_iter;
 				GSet *faces = BKE_pbvh_bmesh_node_faces(node);
-				BKE_pbvh_vertex_iter_begin(ss->pbvh, node, vd, PBVH_ITER_ALL) {
+				BKE_pbvh_vertex_iter_begin(psession->pbvh, node, vd, PBVH_ITER_ALL) {
 					BM_log_vert_before_modified(ss->bm_log, vd.bm_vert, vd.cd_vert_mask_offset);
 				}
 				BKE_pbvh_vertex_iter_end;
@@ -811,7 +817,8 @@ static SculptUndoNode *sculpt_undo_bmesh_push(Object *ob,
 SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node,
                                       SculptUndoType type)
 {
-	SculptSession *ss = ob->sculpt;
+	PaintSession *psession = ob->paint;
+	SculptSession *ss = psession->sculpt;
 	SculptUndoNode *unode;
 
 	/* list is manipulated by multiple threads, so we lock */
@@ -841,14 +848,14 @@ SculptUndoNode *sculpt_undo_push_node(Object *ob, PBVHNode *node,
 
 	if (unode->grids) {
 		int totgrid, *grids;
-		BKE_pbvh_node_get_grids(ss->pbvh, node, &grids, &totgrid,
+		BKE_pbvh_node_get_grids(psession->pbvh, node, &grids, &totgrid,
 		                        NULL, NULL, NULL, NULL);
 		memcpy(unode->grids, grids, sizeof(int) * totgrid);
 	}
 	else {
 		int *vert_indices, allvert;
-		BKE_pbvh_node_num_verts(ss->pbvh, node, NULL, &allvert);
-		BKE_pbvh_node_get_verts(ss->pbvh, node, &vert_indices, NULL);
+		BKE_pbvh_node_num_verts(psession->pbvh, node, NULL, &allvert);
+		BKE_pbvh_node_get_verts(psession->pbvh, node, &vert_indices, NULL);
 		memcpy(unode->index, vert_indices, sizeof(int) * unode->totvert);
 	}
 

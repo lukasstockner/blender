@@ -222,23 +222,26 @@ static const MeshElemMap *cdDM_getPolyMap(Object *ob, DerivedMesh *dm)
 
 static bool check_sculpt_object_deformed(Object *object, bool for_construction)
 {
+	SculptSession *ss = object->paint->sculpt;
 	bool deformed = false;
 
+	if (!ss)
+		return deformed;
 	/* Active modifiers means extra deformation, which can't be handled correct
 	 * on birth of PBVH and sculpt "layer" levels, so use PBVH only for internal brush
 	 * stuff and show final DerivedMesh so user would see actual object shape.
 	 */
-	deformed |= object->sculpt->modifiers_active;
+	deformed |= ss->modifiers_active;
 
 	if (for_construction) {
-		deformed |= object->sculpt->kb != NULL;
+		deformed |= ss->kb != NULL;
 	}
 	else {
 		/* As in case with modifiers, we can't synchronize deformation made against
 		 * PBVH and non-locked keyblock, so also use PBVH only for brushes and
 		 * final DM to give final result to user.
 		 */
-		deformed |= object->sculpt->kb && (object->shapeflag & OB_SHAPE_LOCK) == 0;
+		deformed |= ss->kb && (object->shapeflag & OB_SHAPE_LOCK) == 0;
 	}
 
 	return deformed;
@@ -254,37 +257,40 @@ static bool can_pbvh_draw(Object *ob, DerivedMesh *dm)
 		return false;
 	}
 
-	return cddm->mvert == me->mvert || ob->sculpt->kb;
+	return cddm->mvert == me->mvert || (ob->paint->sculpt && ob->paint->sculpt->kb);
 }
 
 static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 {
 	CDDerivedMesh *cddm = (CDDerivedMesh *) dm;
+	SculptSession *ss;
 
 	if (!ob) {
 		cddm->pbvh = NULL;
 		return NULL;
 	}
 
-	if (!ob->sculpt)
+	if (!ob->paint)
 		return NULL;
 
-	if (ob->sculpt->pbvh) {
-		cddm->pbvh = ob->sculpt->pbvh;
+	if (ob->paint->pbvh) {
+		cddm->pbvh = ob->paint->pbvh;
 		cddm->pbvh_draw = can_pbvh_draw(ob, dm);
 	}
 
+	ss = ob->paint->sculpt;
+
 	/* Sculpting on a BMesh (dynamic-topology) gets a special PBVH */
-	if (!cddm->pbvh && ob->sculpt->bm) {
+	if (!cddm->pbvh && ss && ss->bm) {
 		cddm->pbvh = BKE_pbvh_new();
 		cddm->pbvh_draw = true;
 
-		BKE_pbvh_build_bmesh(cddm->pbvh, ob->sculpt->bm,
-		                     ob->sculpt->bm_smooth_shading,
-		                     ob->sculpt->bm_log, ob->sculpt->cd_vert_node_offset,
-		                     ob->sculpt->cd_face_node_offset);
+		BKE_pbvh_build_bmesh(cddm->pbvh, ss->bm,
+		                     ss->bm_smooth_shading,
+		                     ss->bm_log, ss->cd_vert_node_offset,
+		                     ss->cd_face_node_offset);
 
-		pbvh_show_diffuse_color_set(cddm->pbvh, ob->sculpt->show_diffuse_color);
+		pbvh_show_diffuse_color_set(cddm->pbvh, ss->show_diffuse_color);
 	}
 		
 
@@ -303,9 +309,13 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 		BKE_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
 		                    me->totface, me->totvert, &me->vdata);
 
-		pbvh_show_diffuse_color_set(cddm->pbvh, ob->sculpt->show_diffuse_color);
+		if (ss) {
+			pbvh_show_diffuse_color_set(cddm->pbvh, ss->show_diffuse_color);
 
-		deformed = check_sculpt_object_deformed(ob, true);
+			deformed = check_sculpt_object_deformed(ob, true);
+		}
+		else 
+			deformed = false;
 
 		if (deformed && ob->derivedDeform) {
 			DerivedMesh *deformdm = ob->derivedDeform;

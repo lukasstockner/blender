@@ -61,7 +61,7 @@ int sculpt_poll_view3d(struct bContext *C);
 bool sculpt_stroke_get_location(bContext *C, float out[3], const float mouse[2]);
 
 /* Dynamic topology */
-void sculpt_pbvh_clear(Object *ob);
+void paint_pbvh_clear(Object *ob);
 void sculpt_dyntopo_node_layers_add(struct SculptSession *ss);
 void sculpt_update_after_dynamic_topology_toggle(bContext *C);
 void sculpt_dynamic_topology_enable(struct bContext *C);

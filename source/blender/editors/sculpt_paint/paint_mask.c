@@ -108,7 +108,7 @@ static int mask_flood_fill_exec(bContext *C, wmOperator *op)
 	value = RNA_float_get(op->ptr, "value");
 
 	BKE_sculpt_update_mesh_elements(scene, sd, ob, false, true);
-	pbvh = ob->sculpt->pbvh;
+	pbvh = ob->paint->pbvh;
 	multires = (BKE_pbvh_type(pbvh) == PBVH_GRIDS);
 
 	BKE_pbvh_search_gather(pbvh, NULL, NULL, &nodes, &totnode);
@@ -216,7 +216,7 @@ int ED_sculpt_mask_box_select(struct bContext *C, ViewContext *vc, const rcti *r
 	negate_m4(clip_planes);
 
 	BKE_sculpt_update_mesh_elements(scene, sd, ob, false, true);
-	pbvh = ob->sculpt->pbvh;
+	pbvh = ob->paint->pbvh;
 	multires = (BKE_pbvh_type(pbvh) == PBVH_GRIDS);
 
 	sculpt_undo_push_begin("Mask box fill");
@@ -362,7 +362,7 @@ static int paint_mask_gesture_lasso_exec(bContext *C, wmOperator *op)
 		negate_m4(clip_planes);
 
 		BKE_sculpt_update_mesh_elements(scene, sd, ob, false, true);
-		pbvh = ob->sculpt->pbvh;
+		pbvh = ob->paint->pbvh;
 		multires = (BKE_pbvh_type(pbvh) == PBVH_GRIDS);
 
 		sculpt_undo_push_begin("Mask lasso fill");

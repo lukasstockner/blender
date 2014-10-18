@@ -233,9 +233,9 @@ static void rna_Sculpt_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNU
 		DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 
-		if (ob->sculpt) {
-			ob->sculpt->bm_smooth_shading = ((scene->toolsettings->sculpt->flags &
-			                                  SCULPT_DYNTOPO_SMOOTH_SHADING) != 0);
+		if (ob->paint && ob->paint->sculpt) {
+			ob->paint->sculpt->bm_smooth_shading = ((scene->toolsettings->sculpt->flags &
+			                                       SCULPT_DYNTOPO_SMOOTH_SHADING) != 0);
 		}
 	}
 }
@@ -244,12 +244,12 @@ static void rna_Sculpt_ShowDiffuseColor_update(Main *UNUSED(bmain), Scene *scene
 {
 	Object *ob = (scene->basact) ? scene->basact->object : NULL;
 
-	if (ob && ob->sculpt) {
+	if (ob && ob->paint && ob->paint->sculpt) {
 		Sculpt *sd = scene->toolsettings->sculpt;
-		ob->sculpt->show_diffuse_color = ((sd->flags & SCULPT_SHOW_DIFFUSE) != 0);
+		ob->paint->sculpt->show_diffuse_color = ((sd->flags & SCULPT_SHOW_DIFFUSE) != 0);
 
-		if (ob->sculpt->pbvh)
-			pbvh_show_diffuse_color_set(ob->sculpt->pbvh, ob->sculpt->show_diffuse_color);
+		if (ob->paint->pbvh)
+			pbvh_show_diffuse_color_set(ob->paint->pbvh, ob->paint->sculpt->show_diffuse_color);
 
 		WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 	}

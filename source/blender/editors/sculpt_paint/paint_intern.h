@@ -121,6 +121,9 @@ void PAINT_OT_weight_gradient(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_vertex_paint(struct wmOperatorType *ot);
 
+void PAINT_OT_vertex_paint_pbvh_toggle(struct wmOperatorType *ot);
+void PAINT_OT_vertex_paint_pbvh(struct wmOperatorType *ot);
+
 unsigned int vpaint_get_current_col(struct Scene *scene, struct VPaint *vp);
 
 
@@ -219,6 +222,7 @@ void paint_get_tex_pixel_col(struct MTex *mtex, float u, float v, float rgba[4],
 void paint_sample_color(bContext *C, struct ARegion *ar, int x, int y, bool texpaint_proj, bool palette);
 
 void paint_stroke_operator_properties(struct wmOperatorType *ot);
+float paint_pbvh_raycast_init(struct ViewContext *vc, const float mouse[2], float ray_start[3], float ray_end[3], float ray_normal[3], bool original);
 
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
 

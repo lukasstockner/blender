@@ -1499,8 +1499,8 @@ int rna_DupliObject_index_get(PointerRNA *ptr)
 
 int rna_Object_use_dynamic_topology_sculpting_get(PointerRNA *ptr)
 {
-	SculptSession *ss = ((Object *)ptr->id.data)->sculpt;
-	return (ss && ss->bm);
+	PaintSession *psession = ((Object *)ptr->id.data)->paint;
+	return (psession && psession && psession->sculpt->bm);
 }
 
 static void rna_Object_lod_distance_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
