@@ -212,9 +212,13 @@ class GreasePencilDataPanel():
         layout = self.layout
 
         # owner of Grease Pencil data
-        # TODO: owner selector
         gpd_owner = context.gpencil_data_owner
         gpd = context.gpencil_data
+
+        # Owner Selector
+        # XXX: add this for 3D view too
+        if context.space_data.type == 'CLIP_EDITOR':
+            layout.prop(context.space_data, "grease_pencil_source", expand=True)
 
         # Grease Pencil data selector
         layout.template_ID(gpd_owner, "grease_pencil", new="gpencil.data_add", unlink="gpencil.data_unlink")
