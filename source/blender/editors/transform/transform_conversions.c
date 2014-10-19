@@ -249,7 +249,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 					}
 
 					dist_sq = len_squared_v3(vec);
-					if ((tob->rdist == -1.0f) || (dist_sq < (tob->rdist * tob->rdist))) {
+					if ((tob->rdist == -1.0f) || (dist_sq < SQUARE(tob->rdist))) {
 						tob->rdist = sqrtf(dist_sq);
 					}
 				}
@@ -4771,7 +4771,6 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 				/* (affirmative) returns for specific constraints here... */
 				/* constraints that require this regardless  */
 				if (ELEM(con->type,
-				         CONSTRAINT_TYPE_CHILDOF,
 				         CONSTRAINT_TYPE_FOLLOWPATH,
 				         CONSTRAINT_TYPE_CLAMPTO,
 				         CONSTRAINT_TYPE_OBJECTSOLVER,
@@ -4781,7 +4780,14 @@ static bool constraints_list_needinv(TransInfo *t, ListBase *list)
 				}
 				
 				/* constraints that require this only under special conditions */
-				if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
+				if (con->type == CONSTRAINT_TYPE_CHILDOF) {
+					/* ChildOf constraint only works when using all location components, see T42256. */
+					bChildOfConstraint *data = (bChildOfConstraint *)con->data;
+					
+					if ((data->flag & CHILDOF_LOCX) && (data->flag & CHILDOF_LOCY) && (data->flag & CHILDOF_LOCZ))
+						return true;
+				}
+				else if (con->type == CONSTRAINT_TYPE_ROTLIKE) {
 					/* CopyRot constraint only does this when rotating, and offset is on */
 					bRotateLikeConstraint *data = (bRotateLikeConstraint *)con->data;
 					

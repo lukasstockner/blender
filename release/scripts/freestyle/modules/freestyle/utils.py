@@ -86,6 +86,20 @@ def bounding_box(stroke):
     x, y = zip(*(svert.point for svert in stroke))
     return (Vector((min(x), min(y))), Vector((max(x), max(y))))
 
+def get_dashed_pattern(linestyle):
+    """Extracts the dashed pattern from the various UI options """
+    pattern = []
+    if linestyle.dash1 > 0 and linestyle.gap1 > 0:
+        pattern.append(linestyle.dash1)
+        pattern.append(linestyle.gap1)
+    if linestyle.dash2 > 0 and linestyle.gap2 > 0:
+        pattern.append(linestyle.dash2)
+        pattern.append(linestyle.gap2)
+    if linestyle.dash3 > 0 and linestyle.gap3 > 0:
+        pattern.append(linestyle.dash3)
+        pattern.append(linestyle.gap3)
+    return pattern
+
 # -- General helper functions -- #
 
 
@@ -217,8 +231,6 @@ def iter_material_value(stroke, func, attribute):
         # main
         if attribute == 'LINE':
             value = rgb_to_bw(*material.line[0:3])
-        elif attribute == 'ALPHA':
-            value = material.line[3]
         elif attribute == 'DIFF':
             value = rgb_to_bw(*material.diffuse[0:3])
         elif attribute == 'SPEC':
@@ -230,6 +242,8 @@ def iter_material_value(stroke, func, attribute):
             value = material.line[1]
         elif attribute == 'LINE_B':
             value = material.line[2]
+        elif attribute == 'LINE_A':
+            value = material.line[3]
         # diffuse seperate
         elif attribute == 'DIFF_R':
             value = material.diffuse[0]
@@ -237,6 +251,8 @@ def iter_material_value(stroke, func, attribute):
             value = material.diffuse[1]
         elif attribute == 'DIFF_B':
             value = material.diffuse[2]
+        elif attribute == 'ALPHA':
+            value = material.diffuse[3]
         # specular seperate
         elif attribute == 'SPEC_R':
             value = material.specular[0]
