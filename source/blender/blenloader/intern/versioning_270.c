@@ -437,18 +437,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	// uncomment when commiting
-		/*
-		if (!MAIN_VERSION_ATLEAST(main, 273, 0)) {
-			Scene *scene;
-
-			for (scene = main->scene.first; scene; scene = scene->id.next) {
-				scene->r.svg_mode = FREESTYLE_CONTROL_SVG_FRAME;
-			}
-		}
-	*/
-
-
 /*	if (!MAIN_VERSION_ATLEAST(main, 273, 0)) { */
 		if (!DNA_struct_elem_find(fd->filesdna, "Key", "short", "mix_mode")) {
 			Key *k;
