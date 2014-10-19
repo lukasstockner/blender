@@ -32,77 +32,77 @@
  *  \since March 2001
  *  \author nzc
  */
-
-typedef struct Object Object;
-typedef struct Key Key;
-typedef struct KeyBlock KeyBlock;
-typedef struct ID ID;
-typedef struct ListBase ListBase;
-typedef struct Curve Curve;
-typedef struct Scene Scene;
-typedef struct Lattice Lattice;
-typedef struct Mesh Mesh;
-typedef struct WeightsArrayCache WeightsArrayCache;
-typedef struct BMEditMesh BMEditMesh;
-typedef struct ScratchKeyBlock ScratchKeyBlock;
+struct Key;
+struct KeyBlock;
+struct ID;
+struct ListBase;
+struct Curve;
+struct Object;
+struct Scene;
+struct Lattice;
+struct Mesh;
+struct WeightsArrayCache;
+struct BMEditMesh;
+struct ScratchKeyBlock;
 
 /* Kernel prototypes */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void        BKE_key_free(Key *sc);
-void        BKE_key_free_nolib(Key *key);
-Key		   *BKE_key_add(ID *id);
-Key		   *BKE_key_copy(Key *key);
-Key		   *BKE_key_copy_nolib(Key *key);
-void        BKE_key_make_local(Key *key);
+void        BKE_key_free(struct Key *sc);
+void        BKE_key_free_nolib(struct Key *key);
+struct Key *BKE_key_add(struct ID *id);
+struct Key *BKE_key_copy(struct Key *key);
+struct Key *BKE_key_copy_nolib(struct Key *key);
+void        BKE_key_make_local(struct Key *key);
 /* overwrites data in 'to' with data in 'from', frees old 'to' data. 
  * does not touch any library data, animation data and ID and from */
-void		BKE_key_overwrite_data(Key *from, Key *to);
-void        BKE_key_sort(Key *key);
+void        BKE_key_overwrite_data(struct Key *from, struct Key *to);
+void        BKE_key_sort(struct Key *key);
 
 void key_curve_position_weights(float t, float data[4], int type);
 void key_curve_tangent_weights(float t, float data[4], int type);
 void key_curve_normal_weights(float t, float data[4], int type);
 
-float *BKE_key_evaluate_object_ex(Scene *scene, Object *ob, int *r_totelem,
+float *BKE_key_evaluate_object_ex(struct Scene *scene, struct Object *ob, int *r_totelem,
                                   float *arr, size_t arr_size);
-float *BKE_key_evaluate_object(Scene *scene, Object *ob, int *r_totelem);
+float *BKE_key_evaluate_object(struct Scene *scene, struct Object *ob, int *r_totelem);
 
-Key      *BKE_key_from_object(Object *ob);
-KeyBlock *BKE_keyblock_from_object(Object *ob);
-KeyBlock *BKE_keyblock_from_object_reference(Object *ob);
+struct Key      *BKE_key_from_object(struct Object *ob);
+struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
+struct KeyBlock *BKE_keyblock_from_object_reference(struct Object *ob);
 
-KeyBlock *BKE_keyblock_add(Key *key, const char *name);
-KeyBlock *BKE_keyblock_add_ctime(Key *key, const char *name, const bool do_force);
-KeyBlock *BKE_keyblock_from_key(Key *key, int index);
-KeyBlock *BKE_keyblock_find_name(Key *key, const char name[]);
-void      BKE_keyblock_copy_settings(KeyBlock *kb_dst, const KeyBlock *kb_src);
-char     *BKE_keyblock_curval_rnapath_get(Key *key, KeyBlock *kb);
+struct KeyBlock *BKE_keyblock_add(struct Key *key, const char *name);
+struct KeyBlock *BKE_keyblock_add_ctime(struct Key *key, const char *name, const bool do_force);
+struct KeyBlock *BKE_keyblock_from_key(struct Key *key, int index);
+struct KeyBlock *BKE_keyblock_find_name(struct Key *key, const char name[]);
+void             BKE_keyblock_copy_settings(struct KeyBlock *kb_dst, const struct KeyBlock *kb_src);
+char            *BKE_keyblock_curval_rnapath_get(struct Key *key, struct KeyBlock *kb);
 
 /* returns a pointer to active shape value (mixval/anim-driven val) */
-float    *BKE_keyblock_get_active_value(Object *ob, KeyBlock *kb);
+float    *BKE_keyblock_get_active_value(struct Object *ob, struct KeyBlock *kb);
 
 /* ==== scratch keyblock ==== */
 
 /* performs a first-time setup of the scratch. if it's already inited 
  * (e. g. existed in a mainfile), does nothing. */
-void BKE_key_init_scratch(Object *ob);
+void BKE_key_init_scratch(struct Object *ob);
 
 /* moves current edit data to and from the scratch shape */
-void BKE_key_editdata_to_scratch(Object *ob, bool shapedata_indeces_in_sync);
+void BKE_key_editdata_to_scratch(struct Object *ob, bool shapedata_indeces_in_sync);
 
 /* populates the current editdata from scratch shapekey */
-void BKE_key_editdata_from_scratch(Object *ob);
+void BKE_key_editdata_from_scratch(struct Object *ob);
 
 /* ==== editmote evaluation ==== */
 
 /* evaluates the current shape key situation and puts it into the editmesh coordinates */
-void BKE_key_eval_editmesh_rel(BMEditMesh *edbm, bool pinned);
+void BKE_key_eval_editmesh_rel(struct BMEditMesh *edbm, bool pinned);
 
 /* evaluates a relative mesh keyblock and puts the resulting offsets in out_offsets */
-void BKE_key_block_mesh_eval_rel(Object *ob, Key *key, KeyBlock *kb, bool use_vgroup, float (*out_offsets)[3]);
+void BKE_key_block_mesh_eval_rel(struct Object *ob, struct Key *key, struct KeyBlock *kb,
+                                 bool use_vgroup, float (*out_offsets)[3]);
 
 /* ========================= */
 
@@ -112,34 +112,33 @@ typedef struct WeightsArrayCache {
 	float **defgroup_weights;
 } WeightsArrayCache;
 
-float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCache *cache);
-void BKE_keyblock_free_per_block_weights(Key *key, float **per_keyblock_weights, WeightsArrayCache *cache);
-void BKE_key_evaluate_relative(Object *ob, const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
+float **BKE_keyblock_get_per_block_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
+void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_weights, struct WeightsArrayCache *cache);
+void BKE_key_evaluate_relative(struct Object *ob, const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode);
 
 /* conversion functions */
-void    BKE_key_convert_to_mesh(KeyBlock *kb, Mesh *me);
-void    BKE_key_convert_from_mesh(Mesh *me, KeyBlock *kb);
-void    BKE_key_convert_to_lattice(KeyBlock *kb, Lattice *lt);
-void    BKE_key_convert_from_lattice(Lattice *lt, KeyBlock *kb);
-void    BKE_key_convert_to_curve(KeyBlock *kb, Curve  *cu, ListBase *nurb);
-void    BKE_key_convert_from_curve(Curve *cu, KeyBlock *kb, ListBase *nurb);
-float (*BKE_key_convert_to_vertcos(Object *ob, KeyBlock *kb))[3];
-void    BKE_key_convert_from_vertcos(Object *ob, KeyBlock *kb, float (*vertCos)[3]);
-void    BKE_key_convert_from_offset(Object *ob, KeyBlock *kb, float (*ofs)[3]);
-
+void    BKE_key_convert_to_mesh(struct KeyBlock *kb, struct Mesh *me);
+void    BKE_key_convert_from_mesh(struct Mesh *me, struct KeyBlock *kb);
+void    BKE_key_convert_to_lattice(struct KeyBlock *kb, struct Lattice *lt);
+void    BKE_key_convert_from_lattice(struct Lattice *lt, struct KeyBlock *kb);
+void    BKE_key_convert_to_curve(struct KeyBlock *kb, struct Curve  *cu, struct ListBase *nurb);
+void    BKE_key_convert_from_curve(struct Curve *cu, struct KeyBlock *kb, struct ListBase *nurb);
+float (*BKE_key_convert_to_vertcos(struct Object *ob, struct KeyBlock *kb))[3];
+void    BKE_key_convert_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
+void    BKE_key_convert_from_offset(struct Object *ob, struct KeyBlock *kb, float (*ofs)[3]);
 
 /* other management */
 /* moves a shape key to new_index. safe, clamps index to key->totkey, updates reference keys and 
  * the object's active shape index */
-void	BKE_keyblock_move(Object *ob, KeyBlock *key_block, int new_index);
+void	BKE_keyblock_move(struct Object *ob, struct KeyBlock *key_block, int new_index);
 
 /* basic key math */
-float	(*BKE_keyblock_math_deltas(Object *ob, KeyBlock *a, KeyBlock *basis))[3];
-float	(*BKE_keyblock_math_deltas_mult(Object *ob, KeyBlock *a, KeyBlock *basis, float mult, float dists[]))[3];
+float	(*BKE_keyblock_math_deltas(struct Object *ob, struct KeyBlock *a, struct KeyBlock *basis))[3];
+float	(*BKE_keyblock_math_deltas_mult(struct Object *ob, struct KeyBlock *a, struct KeyBlock *basis, float mult, float dists[]))[3];
 
-void	BKE_keyblock_math_add(Object *ob, KeyBlock *r, KeyBlock *a, KeyBlock* basis, float mult);
-void	BKE_keyblock_math_interp(Object *ob, KeyBlock *r, KeyBlock *a, float mult);
+void	BKE_keyblock_math_add(struct Object *ob, struct KeyBlock *r, struct KeyBlock *a, struct KeyBlock* basis, float mult);
+void	BKE_keyblock_math_interp(struct Object *ob, struct KeyBlock *r, struct KeyBlock *a, float mult);
 
 
 /* key.c */

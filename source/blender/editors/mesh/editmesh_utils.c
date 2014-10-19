@@ -31,9 +31,9 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_key_types.h"
 
 #include "BLI_math.h"
 #include "BLI_alloca.h"
@@ -65,8 +65,6 @@
 #include "bmesh.h"
 
 #include "mesh_intern.h"  /* own include */
-
-
 
 /* ======================================================================== */
 
@@ -488,10 +486,10 @@ void EDBM_flag_enable_all(BMEditMesh *em, const char hflag)
 
 /* ===================== BMesh & Mesh syncronization stuff =============================================== */
 /*
-* When working with shape keys, the 95% of all edits are deform-only. This calls for a more efficient data
-* syncronization than just recalculating the RealMesh and BMesh every time the active shape key is changed.
-* The idea: detect if topology hadn't changed. If it had, run the heavy-duty tools from bmesh_mesh_conv.c.
-*/
+ * When working with shape keys, the 95% of all edits are deform-only. This calls for a more efficient data
+ * syncronization than just recalculating the RealMesh and BMesh every time the active shape key is changed.
+ * The idea: detect if topology hasn't changed. If it has, run the heavy-duty tools from bmesh_mesh_conv.c.
+ */
 
 static void update_bmesh_shapes(Object *ob)
 {
@@ -768,12 +766,13 @@ static void *editbtMesh_to_undoMesh(void *emv, void *obdata)
 	}
 
 	/* BM_mesh_validate(em->bm); */ /* for troubleshooting */
+
 	BM_mesh_bm_to_me(em->bm, &um->me, false, false);
 
 	um->selectmode = em->selectmode;
 	um->shapenr = em->bm->shapenr;
 
- 	return um;
+	return um;
 }
 
 static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
@@ -797,7 +796,7 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
 
 	em_tmp = BKE_editmesh_create(bm, true);
 	*em = *em_tmp;
-
+	
 	em->selectmode = um->selectmode;
 	bm->selectmode = um->selectmode;
 	em->ob = ob;
@@ -807,7 +806,7 @@ static void undoMesh_to_editbtMesh(void *umv, void *em_v, void *obdata)
 		BKE_key_overwrite_data(um->me.key, me->key);
 		BKE_key_init_scratch(ob);
 	}
-	
+
 	MEM_freeN(em_tmp);
 }
 

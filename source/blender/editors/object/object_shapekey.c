@@ -85,8 +85,8 @@ static void ED_object_shape_key_add(bContext *C, Scene *scene, Object *ob, const
 
 		/* in sculpt mode, set weight to 1 */
 		if (ob->mode == OB_MODE_SCULPT) 
-			kb->curval = kb->mixval = 1;
-		
+			kb->curval = kb->mixval = 1.0f;
+
 		WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
 	}
 }
@@ -153,8 +153,9 @@ static bool ED_object_shape_key_remove(Main *bmain, Object *ob)
 		if (kb->data) MEM_freeN(kb->data);
 		MEM_freeN(kb);
 
-		if (key->scratch.origin == kb)
+		if (key->scratch.origin == kb) {
 			key->scratch.origin = key->refkey;
+		}
 
 		if (ob->shapenr > 1) {
 			ob->shapenr--;

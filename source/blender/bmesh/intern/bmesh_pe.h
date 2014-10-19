@@ -40,4 +40,4 @@ void BM_prop_dist_calc(BMesh *bm, float loc_to_world_mtx[3][3], float proj_plane
  * from DNA_scene_types.h */
 float BM_prop_factor_distance(float dist, float maxdist, int mode);
 
-#endif
+#endif  /* __BMESH_PE_H__ */

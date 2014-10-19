@@ -314,9 +314,8 @@ static int calc_manipulator_stats(const bContext *C)
 				/* these two are to prevent anything from messing with twcent */
 				copy_v3_v3(scene->twmin, scene->twcent);
 				copy_v3_v3(scene->twmax, scene->twcent);
-
 				totsel = 1;
-			} 
+			}
 			else {
 				BMesh *bm = em->bm;
 				BMVert *eve;

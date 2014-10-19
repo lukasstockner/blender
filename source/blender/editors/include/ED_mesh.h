@@ -108,7 +108,6 @@ void EDBM_handle_active_shape_update(struct Object *ob, struct Scene *s);
 void EDBM_commit_scratch_to_active(struct Object *ob, struct Scene *s);
 void EDBM_update_scratch_from_active(struct Object *ob);
 
-
 /* flushes based on the current select mode.  if in vertex select mode,
  * verts select/deselect edges and faces, if in edge select mode,
  * edges select/deselect faces and vertices, and in face select mode faces select/deselect

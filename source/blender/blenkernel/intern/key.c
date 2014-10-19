@@ -36,9 +36,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
@@ -79,6 +79,7 @@
 
 /* extern, not threadsafe */
 int slurph_opt = 1;
+
 
 void BKE_key_free(Key *key)
 {
@@ -131,7 +132,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
 
-			key->elemsize = 3 * sizeof(float);
+			key->elemsize = ELEMSIZE_MESH;
 
 			break;
 		case ID_LT:
@@ -141,7 +142,7 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_FLOAT;
 			el[2] = 0;
 
-			key->elemsize = 3 * sizeof(float);
+			key->elemsize = ELEMSIZE_LATTICE;
 
 			break;
 		case ID_CU:
@@ -151,10 +152,11 @@ Key *BKE_key_add(ID *id)    /* common function */
 			el[1] = IPO_BPOINT;
 			el[2] = 0;
 
-			key->elemsize = 4 * sizeof(float);
+			key->elemsize = ELEMSIZE_CURVE;
 
 			break;
 	}
+	
 	return key;
 }
 
@@ -782,7 +784,6 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, const 
 	}
 }
 
-
 void BKE_key_evaluate_relative(Object *ob, const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode)
 {
@@ -812,6 +813,7 @@ void BKE_key_evaluate_relative(Object *ob, const int start, int end, const int t
 	cp_key(start, end, tot, basispoin, key, actkb, key->refkey, NULL, mode);
 	
 	/* step 2: do it */
+	
 	LISTBASE_ITER_FWD_INDEX(key->block, kb, keyblock_index) {
 		if (kb != key->refkey) {
 			float icuval = *BKE_keyblock_get_active_value(ob, kb);
@@ -1577,7 +1579,6 @@ KeyBlock *BKE_keyblock_add(Key *key, const char *name)
 	kb->type = KEY_CARDINAL;
 	
 	tot = BLI_countlist(&key->block);
-
 	if (name) {
 		BLI_strncpy(kb->name, name, sizeof(kb->name));
 	}
@@ -1766,7 +1767,6 @@ void BKE_key_convert_to_lattice(KeyBlock *kb, Lattice *lt)
 		copy_v3_v3(bp->vec, fp);
 	}
 }
-
 
 /************************* Curve ************************/
 void BKE_key_convert_from_curve(Curve *cu, KeyBlock *kb, ListBase *nurb)

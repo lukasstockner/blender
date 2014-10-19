@@ -398,7 +398,6 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 	WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, ob);
 }
 
-
 static KeyBlock *rna_ShapeKeyData_find_keyblock(Key *key, float *point)
 {
 	KeyBlock *kb;

@@ -106,10 +106,10 @@ void        BKE_editmesh_color_free(BMEditMesh *em);
 void        BKE_editmesh_color_ensure(BMEditMesh *em, const char htype);
 
 /* calculates a topology-dependent hash to detect if topology has been modified later */
-void		BKE_editmesh_topochange_calc(BMEditMesh *em);
+void        BKE_editmesh_topochange_calc(BMEditMesh *em);
 
 /* checks if the topology has changed since last call to BKE_editmesh_syncdata_calc. Does not recalc! */
-bool		BKE_editmesh_topo_has_changed(BMEditMesh *em);
+bool        BKE_editmesh_topo_has_changed(BMEditMesh *em);
 
 /* editderivedmesh.c */
 /* should really be defined in editmesh.c, but they use 'EditDerivedBMesh' */

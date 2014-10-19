@@ -144,7 +144,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
 #include "BLI_mempool.h"
-#include "BLI_math.h"		// shape key compression
+#include "BLI_math.h"		/* shape key compression */
 
 #include "BKE_action.h"
 #include "BKE_blender.h"
@@ -162,7 +162,7 @@
 #include "BKE_fcurve.h"
 #include "BKE_pointcache.h"
 #include "BKE_mesh.h"
-#include "BKE_key.h" // shape key compression
+#include "BKE_key.h" /* shape key compression */
 
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
 #include "NOD_common.h"
@@ -1756,10 +1756,9 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 	Key *key;
 	KeyBlock *kb;
 
-	key = idbase->first;
-
+	key= idbase->first;
 	while (key) {
-		if (key->id.us > 0 || wd->current) {
+		if (key->id.us>0 || wd->current) {
 			/* direct data */
 			if (GS(key->from->name) == ID_ME && !(U.flag & USER_LEGACY_KEYBLOCKS_FMT)) {
 				ListBase lb = key->block;
@@ -1821,7 +1820,7 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 			}
 		}
 
-		key = key->id.next;
+		key= key->id.next;
 	}
 	/* flush helps the compression for undo-save */
 	mywrite(wd, MYWRITE_FLUSH, 0);

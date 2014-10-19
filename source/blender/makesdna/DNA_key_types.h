@@ -59,8 +59,8 @@ typedef struct KeyBlock {
 
 	short type;        /* interpolation type (Key->type == KEY_NORMAL) only. */
 	short compressed;  /* for disk write/read; if 1, then they key's data is laid out as an array of
-					    * CompressedMeshVertex structs (total totelem).
-						* Mesh only. Does not do anything useful at runtime */
+	                    * CompressedMeshVertex structs (total totelem).
+	                    * Mesh only. Does not do anything useful at runtime */
 
 	short relative;    /* relative == 0 means first key is reference, otherwise the index of Key->blocks */
 	short flag;
@@ -107,7 +107,7 @@ typedef struct Key {
 	int elemsize;  /* size of each element in #KeyBlock.data, use for allocation and stride */
 	short pad;
 	short mix_mode; /* Key->type == KEY_RELATIVE only; defines whether the mix will be from the animation or
-					 * from the temporary user values */
+	                 * from the temporary user values */
 	
 	ListBase block;  /* list of KeyBlock's */
 	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
@@ -141,7 +141,7 @@ enum {
 /* Key->mix_mode */
 enum {
 	KEY_MIX_FROM_TEMPVALUES = 0,
-	KEY_MIX_FROM_ANIMDATA	= 1
+	KEY_MIX_FROM_ANIMDATA	= 1,
 };
 
 /* Key->flag */

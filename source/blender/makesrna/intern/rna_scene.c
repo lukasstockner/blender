@@ -2104,7 +2104,6 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "MeshStatVis");
 	RNA_def_property_ui_text(prop, "Mesh Statistics Visualization", NULL);
-
 }
 
 static void rna_def_unified_paint_settings(BlenderRNA  *brna)

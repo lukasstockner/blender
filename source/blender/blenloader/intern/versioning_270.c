@@ -277,16 +277,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				ma->mode2 = MA_CASTSHADOW;
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Key", "short", "mix_mode")) {
-			Key *k;
-
-			/* set mixing to be governed by animdata */
-			for (k = main->key.first; k; k = k->id.next) {
-				k->mix_mode = KEY_MIX_FROM_ANIMDATA;
-			}
-
-		}
-
 		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "BakeData", "bake")) {
 			Scene *sce;
 
@@ -459,4 +449,14 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 	*/
 
 
+/*	if (!MAIN_VERSION_ATLEAST(main, 273, 0)) { */
+		if (!DNA_struct_elem_find(fd->filesdna, "Key", "short", "mix_mode")) {
+			Key *k;
+
+			/* set mixing to be governed by animdata */
+			for (k = main->key.first; k; k = k->id.next) {
+				k->mix_mode = KEY_MIX_FROM_ANIMDATA;
+			}
+		}
+/*	} */
 }

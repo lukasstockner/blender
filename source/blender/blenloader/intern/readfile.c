@@ -3130,16 +3130,16 @@ static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 		for (a = 0; a < kb->totelem; a++) {
 			cp = key->elemstr;
 			poin = data;
-
+			
 			while (cp[0]) {  /* cp[0] == amount */
 				switch (cp[1]) {  /* cp[1] = type */
-				case IPO_FLOAT:
-				case IPO_BPOINT:
-				case IPO_BEZTRIPLE:
-					b = cp[0];
-					BLI_endian_switch_float_array((float *)poin, b);
-					poin += sizeof(float)* b;
-					break;
+					case IPO_FLOAT:
+					case IPO_BPOINT:
+					case IPO_BEZTRIPLE:
+						b = cp[0];
+						BLI_endian_switch_float_array((float *)poin, b);
+						poin += sizeof(float) * b;
+						break;
 				}
 
 				cp += 2;
@@ -3160,22 +3160,20 @@ static void direct_link_key(FileData *fd, Key *key)
 	direct_link_animdata(fd, key->adt);
 		
 	key->refkey= newdataadr(fd, key->refkey);
-
+	
 	key->scratch.origin = newdataadr(fd, key->scratch.origin);
 	key->scratch.data = newdataadr(fd, key->scratch.data);
-
+	
 	for (kb = key->block.first; kb; kb = kb->next) {
 		kb->data = newdataadr(fd, kb->data);
-
-		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
+		
+		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN)
 			switch_endian_keyblock(key, kb);
-		}
-
+		
 		if (kb->compressed && key->refkey != kb) {
 			uncompress_kb(key, kb);
 		}
 	}
-
 }
 
 /* ************ READ mball ***************** */
