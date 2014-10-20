@@ -38,6 +38,7 @@
 
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #include "BKE_movieclip.h"
 #include "BKE_tracking.h"
@@ -238,6 +239,37 @@ static bool check_track_trackable(MovieClip *clip,
 	return false;
 }
 
+/* Returns false if marker crossed margin area from frame bounds. */
+static bool tracking_check_marker_margin(libmv_Marker *libmv_marker,
+                                         int margin,
+                                         int frame_width,
+                                         int frame_height)
+{
+	float patch_min[2], patch_max[2];
+	float margin_left, margin_top, margin_right, margin_bottom;
+
+	INIT_MINMAX2(patch_min, patch_max);
+	minmax_v2v2_v2(patch_min, patch_max, libmv_marker->patch[0]);
+	minmax_v2v2_v2(patch_min, patch_max, libmv_marker->patch[1]);
+	minmax_v2v2_v2(patch_min, patch_max, libmv_marker->patch[2]);
+	minmax_v2v2_v2(patch_min, patch_max, libmv_marker->patch[3]);
+
+	margin_left   = max_ff(libmv_marker->center[0] - patch_min[0], margin);
+	margin_top    = max_ff(patch_max[1] - libmv_marker->center[1], margin);
+	margin_right  = max_ff(patch_max[0] - libmv_marker->center[0], margin);
+	margin_bottom = max_ff(libmv_marker->center[0] - patch_min[1], margin);
+
+	if (libmv_marker->center[0] < margin_left ||
+	    libmv_marker->center[0] > frame_width - margin_right ||
+	    libmv_marker->center[1] < margin_bottom ||
+	    libmv_marker->center[1] > frame_height - margin_top)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 AutoTrackContext *BKE_autotrack_context_new(MovieClip *clip,
                                             MovieClipUser *user,
                                             const bool backwards,
@@ -353,6 +385,14 @@ bool BKE_autotrack_context_step(AutoTrackContext *context)
 		                             options->track_index,
 		                             &libmv_current_marker))
 		{
+			if (!tracking_check_marker_margin(&libmv_current_marker,
+			                                  options->track->margin,
+			                                  context->frame_width,
+			                                  context->frame_height))
+			{
+				continue;
+			}
+
 			libmv_tracked_marker = libmv_current_marker;
 			libmv_tracked_marker.frame = frame + frame_delta;
 
