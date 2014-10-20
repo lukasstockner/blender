@@ -93,12 +93,20 @@ IF(UNIX AND NOT APPLE)
     MAIN_DEPENDENCY blender
     COMMAND rm -Rf ${TARGETDIR}/.blender
     COMMAND mkdir ${TARGETDIR}/.blender/
-    COMMAND cp ${CMAKE_SOURCE_DIR}/bin/.blender/.bfont.ttf ${TARGETDIR}/.blender/
-    COMMAND cp ${CMAKE_SOURCE_DIR}/bin/.blender/.Blanguages ${TARGETDIR}/.blender/
-    COMMAND cp -R ${CMAKE_SOURCE_DIR}/bin/.blender/locale ${TARGETDIR}/.blender/
     COMMAND cp -R ${CMAKE_SOURCE_DIR}/release/scripts ${TARGETDIR}/.blender/
     COMMAND find ${TARGETDIR} -name CVS -prune -exec rm -rf {} "\;"
   )
+
+  IF(WITH_INTERNATIONAL)
+    ADD_CUSTOM_COMMAND(TARGET blender
+      POST_BUILD
+      MAIN_DEPENDENCY blender
+      COMMAND cp ${CMAKE_SOURCE_DIR}/bin/.blender/.bfont.ttf ${TARGETDIR}/.blender/
+      COMMAND cp ${CMAKE_SOURCE_DIR}/bin/.blender/.Blanguages ${TARGETDIR}/.blender/
+      COMMAND cp -R ${CMAKE_SOURCE_DIR}/bin/.blender/locale ${TARGETDIR}/.blender/
+    )
+  ENDIF(WITH_INTERNATIONAL)
+
 ENDIF(UNIX AND NOT APPLE)
 
 IF(APPLE)
