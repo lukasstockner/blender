@@ -73,27 +73,26 @@ class MESH_UL_vgroups(UIList):
             layout.label(text="", icon_value=icon)
 
 
-def draw_shape_value(ob, kb, layout, emboss=False, text=""):
-    key = ob.data.shape_keys
-    if ob.mode != 'EDIT' or key.mix_from_animation:
-        layout.prop(kb, "value", emboss=emboss, text=text)
-    else:
-        layout.prop(kb, "edit_mix_value", emboss=emboss, text='Temp ' + text)
-
 class MESH_UL_shape_keys(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         # assert(isinstance(item, bpy.types.ShapeKey))
         obj = active_data
+        is_editmode = (obj.mode == 'EDIT')
         key = data
         key_block = item
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             split = layout.split(0.66, False)
             split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
             row = split.row(align=True)
-            if key_block.mute:
+            if key_block.mute or (is_editmode and not (obj.use_shape_key_edit_mode and obj.type == 'MESH')):
                 row.active = False
-            if not item.relative_key or index > 0 and key.use_relative:
-                draw_shape_value(obj, key_block, row)
+            if not key.use_relative:
+                row.prop(key_block, "frame", text="", emboss=False)
+            elif index > 0:
+                if is_editmode and not key.mix_from_animation:
+                    row.prop(key_block, "edit_mix_value", text="Temp", emboss=False)
+                else:
+                    row.prop(key_block, "value", text="", emboss=False)
             else:
                 row.label(text="")
             row.prop(key_block, "mute", text="", emboss=False)
@@ -277,8 +276,8 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             row.enabled = not is_editmode
             row.prop(key, "use_relative")
             row = split.row()
-            if ob.mode == 'ED   IT':    
-                row.prop(ts, "kb_auto_commit", text = "Auto-commit")
+            # if is_editmode:
+                # row.prop(ts, "kb_auto_commit", text = "Auto-commit")
             row.alignment = 'RIGHT'
             sub = row.row(align=True)
             sub.label()  # XXX, for alignment only
@@ -290,7 +289,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                     subsub.prop(ob, "use_shape_key_edit_mode", text="")
             else:
                 subsub.prop(ob, "show_only_shape_key", text="")
-                    
+
             sub = row.row()
             if key.use_relative:
                 sub.operator("object.shape_key_clear", icon='X', text="")
@@ -300,7 +299,10 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             if key.use_relative:
                 if ob.active_shape_key_index != 0:
                     row = layout.row()
-                    draw_shape_value(ob, kb, row, emboss=True, text="Value")
+                    if is_editmode and not key.mix_from_animation:
+                        row.prop(kb, "edit_mix_value", text="Temp Value")
+                    else:
+                        row.prop(kb, "value", text="Value")
 
                     split = layout.split()
 
