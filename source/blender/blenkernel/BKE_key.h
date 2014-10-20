@@ -129,16 +129,14 @@ void    BKE_key_convert_from_vertcos(struct Object *ob, struct KeyBlock *kb, flo
 void    BKE_key_convert_from_offset(struct Object *ob, struct KeyBlock *kb, float (*ofs)[3]);
 
 /* other management */
-/* moves a shape key to new_index. safe, clamps index to key->totkey, updates reference keys and 
- * the object's active shape index */
-void	BKE_keyblock_move(struct Object *ob, struct KeyBlock *key_block, int new_index);
+bool    BKE_keyblock_move(struct Object *ob, int org_index, int new_index);
 
 /* basic key math */
-float	(*BKE_keyblock_math_deltas(struct Object *ob, struct KeyBlock *a, struct KeyBlock *basis))[3];
-float	(*BKE_keyblock_math_deltas_mult(struct Object *ob, struct KeyBlock *a, struct KeyBlock *basis, float mult, float dists[]))[3];
+float   (*BKE_keyblock_math_deltas(struct Object *ob, struct KeyBlock *a, struct KeyBlock *basis))[3];
+float   (*BKE_keyblock_math_deltas_mult(struct Object *ob, struct KeyBlock *a, struct KeyBlock *basis, float mult, float dists[]))[3];
 
-void	BKE_keyblock_math_add(struct Object *ob, struct KeyBlock *r, struct KeyBlock *a, struct KeyBlock* basis, float mult);
-void	BKE_keyblock_math_interp(struct Object *ob, struct KeyBlock *r, struct KeyBlock *a, float mult);
+void    BKE_keyblock_math_add(struct Object *ob, struct KeyBlock *r, struct KeyBlock *a, struct KeyBlock* basis, float mult);
+void    BKE_keyblock_math_interp(struct Object *ob, struct KeyBlock *r, struct KeyBlock *a, float mult);
 
 
 /* key.c */

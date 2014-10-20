@@ -309,6 +309,16 @@ static int shape_key_mode_exists_poll(bContext *C)
 	       (BKE_keyblock_from_object(ob) != NULL);
 }
 
+static int shape_key_move_poll(bContext *C)
+{
+	/* Same as shape_key_mode_exists_poll above, but ensure we have at least two shapes! */
+	Object *ob = ED_object_context(C);
+	ID *data = (ob) ? ob->data : NULL;
+	Key *key = BKE_key_from_object(ob);
+
+	return (ob && !ob->id.lib && data && !data->lib && ob->mode != OB_MODE_EDIT && key && key->totkey > 1);
+}
+
 static int shape_key_poll(bContext *C)
 {
 	Object *ob = ED_object_context(C);
@@ -490,21 +500,11 @@ void OBJECT_OT_shape_key_mirror(wmOperatorType *ot)
 }
 
 
-static int shape_key_move_poll(bContext *C)
-{
-	Object *ob = ED_object_context(C);
-	ID *data = (ob) ? ob->data : NULL;
-	Key *key = BKE_key_from_object(ob);
-
-	return (ob && !ob->id.lib && data && !data->lib && ob->mode != OB_MODE_EDIT && key && key->totkey > 1);
-}
-
-static EnumPropertyItem slot_move[] = {
-	{ -2, "TOP", 0, "Top of the list", "" },
-	{ -1, "UP", 0, "Up", "" },
-	{ 1, "DOWN", 0, "Down", "" },
-	{ 2, "BOTTOM", 0, "Bottom of the list", "" },
-	{ 0, NULL, 0, NULL, NULL }
+enum {
+	KB_MOVE_TOP = -2,
+	KB_MOVE_UP = -1,
+	KB_MOVE_DOWN = 1,
+	KB_MOVE_BOTTOM = 2,
 };
 
 static int shape_key_move_exec(bContext *C, wmOperator *op)
@@ -512,26 +512,29 @@ static int shape_key_move_exec(bContext *C, wmOperator *op)
 	Object *ob = ED_object_context(C);
 
 	Key *key = BKE_key_from_object(ob);
-	KeyBlock *kb = BKE_keyblock_from_object(ob);
 	const int type = RNA_enum_get(op->ptr, "type");
 	const int totkey = key->totkey;
 	const int act_index = ob->shapenr - 1;
 	int new_index;
 
-	if (type == 2) {
-		new_index = totkey - 1;
-	}
-	else if (type == -2) {
-		if (act_index == 1 || act_index == 0)
-			new_index = 0; /* replace the ref key only if we're at the top already */
-		else
-			new_index = 1;
-	}
-	else {
-		new_index = (totkey + act_index + type) % totkey;
+	switch (type) {
+		case KB_MOVE_TOP:
+			/* Replace the ref key only if we're at the top already (only for relative keys) */
+			new_index = (ELEM(act_index, 0, 1) || key->type == KEY_NORMAL) ? 0 : 1;
+			break;
+		case KB_MOVE_BOTTOM:
+			new_index = totkey - 1;
+			break;
+		case KB_MOVE_UP:
+		case KB_MOVE_DOWN:
+		default:
+			new_index = (totkey + act_index + type) % totkey;
+			break;
 	}
 
-	BKE_keyblock_move(ob, kb, new_index);
+	if (!BKE_keyblock_move(ob, act_index, new_index)) {
+		return OPERATOR_CANCELLED;
+	}
 
 	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -541,6 +544,14 @@ static int shape_key_move_exec(bContext *C, wmOperator *op)
 
 void OBJECT_OT_shape_key_move(wmOperatorType *ot)
 {
+	static EnumPropertyItem slot_move[] = {
+		{KB_MOVE_TOP, "TOP", 0, "Top", "Top of the list"},
+		{KB_MOVE_UP, "UP", 0, "Up", ""},
+		{KB_MOVE_DOWN, "DOWN", 0, "Down", ""},
+		{KB_MOVE_BOTTOM, "BOTTOM", 0, "Bottom", "Bottom of the list"},
+		{ 0, NULL, 0, NULL, NULL }
+	};
+
 	/* identifiers */
 	ot->name = "Move Shape Key";
 	ot->idname = "OBJECT_OT_shape_key_move";
@@ -555,3 +566,4 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
 
 	RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }
+

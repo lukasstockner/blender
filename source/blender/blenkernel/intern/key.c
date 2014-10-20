@@ -2338,72 +2338,102 @@ void BKE_key_eval_editmesh_rel(BMEditMesh *edbm, bool pinned)
 
 /* ==========================================================*/
 
-void BKE_keyblock_move(Object *ob, KeyBlock *key_block, int new_index) 
+/** Move shape key from org_index to new_index. Safe, clamps index to valid range, updates reference keys,
+ * the object's active shape index, the 'frame' value in case of absolute keys, etc.
+ * Note indices are expected in real values (not 'fake' shapenr +1 ones).
+ *
+ * \param org_index if < 0, current object's active shape will be used as skey to move.
+ * \return true if something was done, else false.
+ */
+bool BKE_keyblock_move(Object *ob, int org_index, int new_index)
 {
 	Key *key = BKE_key_from_object(ob);
 	KeyBlock *kb;
-	int delete_index, insert_index;
-	int act_shape_index = ob->shapenr - 1;
+	const int act_index = ob->shapenr - 1;
+	const int totkey = key->totkey;
+	int i;
+	bool rev, in_range = false;
 
-	/* find where to put */
-	delete_index = BLI_findindex(&key->block, key_block);
-	insert_index = new_index - 1;
+	if (org_index < 0) {
+		org_index = act_index;
+	}
 
 	CLAMP(new_index, 0, key->totkey - 1);
+	CLAMP(org_index, 0, key->totkey - 1);
 
-	if (new_index == delete_index)
-		return;
+	if (new_index == org_index) {
+		return false;
+	}
 
-	BLI_remlink(&key->block, key_block);
+	rev = ((new_index - org_index) < 0) ? true : false;
 
-	if (insert_index >= key->totkey - 1) {
-		insert_index = key->totkey - 1;
+	/* We swap 'org' element with its previous/next neighbor (depending on direction of the move) repeatedly,
+	 * until we reach final position.
+	 * This allows us to only loop on the list once! */
+	if (rev) {
 		kb = key->block.last;
-		BLI_insertlinkafter(&key->block, kb, key_block);
-	} 
-	else if (insert_index < 0) {
-		/* special case -- position 0 */
-		insert_index = 0;
-		kb = key->block.first;
-		BLI_insertlinkbefore(&key->block, kb, key_block);
+		i = totkey - 1;
 	}
 	else {
-		kb = BLI_findlink(&key->block, insert_index);
-		BLI_insertlinkafter(&key->block, kb, key_block);
+		kb = key->block.first;
+		i = 0;
+	}
+	while (kb) {
+		if (i == org_index) {
+			in_range = true;  /* Start list items swapping... */
+		}
+		else if (i == new_index) {
+			in_range = false;  /* End list items swapping. */
+		}
+
+		if (in_range) {
+			KeyBlock *other_kb = rev ? kb->prev : kb->next;
+
+			/* Swap with previous/next list item. */
+			BLI_swaplinks(&key->block, kb, other_kb);
+
+			/* Swap absolute positions. */
+			SWAP(float, kb->pos, other_kb->pos);
+
+			kb = other_kb;
+		}
+
+		/* Adjust relative indices, this has to be done on the whole list! */
+		if (kb->relative == org_index) {
+			kb->relative = new_index;
+		}
+		else if (kb->relative < org_index && kb->relative >= new_index) {
+			/* remove after, insert before this index */
+			kb->relative++;
+		} 
+		else if (kb->relative > org_index && kb->relative <= new_index) {
+			/* remove before, insert after this index */
+			kb->relative--;
+		}
+
+		if (rev) {
+			kb = kb->prev;
+			i--;
+		}
+		else {
+			kb = kb->next;
+			i++;
+		}
 	}
 
-	/* patch refkey */
-	key->refkey = key->block.first;
-
-	/* fix abs positions */
-	SWAP(float, kb->pos, key_block->pos);
-
-	/* need to update active shape number if it's affected */
-	if (act_shape_index == delete_index) {
+	/* Need to update active shape number if it's affected, same principle as for relative indices above. */
+	if (org_index == act_index) {
 		ob->shapenr = new_index + 1;
-	} 
-	else if (insert_index <= act_shape_index && delete_index > act_shape_index) {
-		/* insert before, remove after */
+	}
+	else if (act_index < org_index && act_index >= new_index) {
 		ob->shapenr++;
-	} 
-	else if (insert_index >= act_shape_index && delete_index < act_shape_index) {
-		/* insert after, remove before */
+	}
+	else if (act_index > org_index && act_index <= new_index) {
 		ob->shapenr--;
 	}
 
-	/* patch basis indeces*/
-	LISTBASE_ITER_FWD(key->block, kb) {
-		if (kb->relative == delete_index) {
-			kb->relative = new_index;
-			continue;
-		}
-		if (new_index <= kb->relative && delete_index > kb->relative) {
-			/* insert before, remove after */
-			kb->relative++;
-		} 
-		else if (new_index >= kb->relative && delete_index < kb->relative) {
-			/* insert after, remove before */
-			kb->relative--;
-		}
-	}
+	/* First key is always refkey, matches interface and BKE_key_sort */
+	key->refkey = key->block.first;
+
+	return true;
 }

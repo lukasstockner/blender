@@ -72,7 +72,7 @@ typedef struct KeyBlock {
 	char   name[64];   /* MAX_NAME (unique name, user assigned) */
 	char   vgroup[64]; /* MAX_VGROUP_NAME (optional vertex group), array gets allocated into 'weights' when set */
 	
-	float mixval;	   /* animation-independent mix influence (Key->type == KEY_RELATIVE only) */
+	float mixval;      /* animation-independent mix influence (Key->type == KEY_RELATIVE only) */
 
 	/* ranges, for RNA and UI only to clamp 'curval' and 'mixval' */
 	float slidermin;
