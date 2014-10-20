@@ -251,7 +251,7 @@ if(WITH_LIBMV)
 	endif()
 else()
 	list(APPEND SRC
-		libmv-capi_stub.cc
+		intern/stub.cc
 	)
 endif()
 
