@@ -257,7 +257,7 @@ static bool tracking_check_marker_margin(libmv_Marker *libmv_marker,
 	margin_left   = max_ff(libmv_marker->center[0] - patch_min[0], margin);
 	margin_top    = max_ff(patch_max[1] - libmv_marker->center[1], margin);
 	margin_right  = max_ff(patch_max[0] - libmv_marker->center[0], margin);
-	margin_bottom = max_ff(libmv_marker->center[0] - patch_min[1], margin);
+	margin_bottom = max_ff(libmv_marker->center[1] - patch_min[1], margin);
 
 	if (libmv_marker->center[0] < margin_left ||
 	    libmv_marker->center[0] > frame_width - margin_right ||
