@@ -469,7 +469,7 @@ void BKE_autotrack_context_sync(AutoTrackContext *context)
 						BKE_tracking_marker_insert(options->track, &marker);
 					}
 				}
-				break;
+				continue;
 			}
 			if (libmv_autoTrackGetMarker(context->autotrack,
 			                             clip,
