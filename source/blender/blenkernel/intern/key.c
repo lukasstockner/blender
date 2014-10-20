@@ -2370,15 +2370,10 @@ bool BKE_keyblock_move(Object *ob, int org_index, int new_index)
 	/* We swap 'org' element with its previous/next neighbor (depending on direction of the move) repeatedly,
 	 * until we reach final position.
 	 * This allows us to only loop on the list once! */
-	if (rev) {
-		kb = key->block.last;
-		i = totkey - 1;
-	}
-	else {
-		kb = key->block.first;
-		i = 0;
-	}
-	while (kb) {
+	for (kb = (rev ? key->block.last : key->block.first), i = (rev ? totkey - 1 : 0);
+	     kb;
+	     kb = (rev ? kb->prev : kb->next), rev ? i-- : i++)
+	{
 		if (i == org_index) {
 			in_range = true;  /* Start list items swapping... */
 		}
@@ -2409,15 +2404,6 @@ bool BKE_keyblock_move(Object *ob, int org_index, int new_index)
 		else if (kb->relative > org_index && kb->relative <= new_index) {
 			/* remove before, insert after this index */
 			kb->relative--;
-		}
-
-		if (rev) {
-			kb = kb->prev;
-			i--;
-		}
-		else {
-			kb = kb->next;
-			i++;
 		}
 	}
 
