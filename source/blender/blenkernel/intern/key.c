@@ -2400,7 +2400,7 @@ bool BKE_keyblock_move(Object *ob, int org_index, int new_index)
 		else if (kb->relative < org_index && kb->relative >= new_index) {
 			/* remove after, insert before this index */
 			kb->relative++;
-		} 
+		}
 		else if (kb->relative > org_index && kb->relative <= new_index) {
 			/* remove before, insert after this index */
 			kb->relative--;
