@@ -36,6 +36,7 @@ incs = [
     '#/intern/rigidbody',
     '#/intern/elbeem/extern',
     '../include',
+    '../../pointcache',
     '../../blenfont',
     '../../blenkernel',
     '../../blenlib',

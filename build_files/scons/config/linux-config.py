@@ -226,6 +226,20 @@ BF_3DMOUSE_LIB_STATIC = '${BF_3DMOUSE_LIBPATH}/libspnav.a'
 #Freestyle
 WITH_BF_FREESTYLE = True
 
+# HDF5
+WITH_BF_HDF5 = True
+BF_HDF5 = '/usr'
+BF_HDF5_LIB = 'hdf5 hdf5_hl ${BF_OPENEXR}/lib/libHalf.a'
+BF_HDF5_LIBPATH='${BF_HDF5}/lib'
+
+# Alembic
+WITH_BF_ALEMBIC = True
+BF_ALEMBIC = '/opt/lib/alembic'
+BF_ALEMBIC_LIB = 'AlembicAbc AlembicAbcCollection AlembicAbcCoreFactory AlembicAbcCoreHDF5 AlembicAbcCoreAbstract AlembicAbcCoreOgawa AlembicAbcGeom AlembicAbcMaterial AlembicOgawa AlembicUtil ' + \
+    '${BF_HDF5}/lib/hdf5 ${BF_HDF5}/lib/hdf5_hl'
+BF_ALEMBIC_INC = '${BF_ALEMBIC}/include'
+BF_ALEMBIC_LIBPATH='${BF_ALEMBIC}/lib/static'
+
 ##
 CC = 'gcc'
 CXX = 'g++'

@@ -64,6 +64,7 @@ incs = [
     '../makesrna',
     '../modifiers',
     '../nodes',
+    '../pointcache',
     '../render/extern/include',
     '../windowmanager',
     env['BF_ZLIB_INC'],
