@@ -145,7 +145,7 @@ static void gp_drawui_layer(uiLayout *layout, bGPdata *gpd, bGPDlayer *gpl, cons
 	/* active */
 	block = uiLayoutGetBlock(sub);
 	icon = (gpl->flag & GP_LAYER_ACTIVE) ? ICON_RADIOBUT_ON : ICON_RADIOBUT_OFF;
-	but = uiDefIconButBitI(block, TOG, GP_LAYER_ACTIVE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y,
+	but = uiDefIconButBitS(block, TOG, GP_LAYER_ACTIVE, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y,
 	                       &gpl->flag, 0.0, 0.0, 0.0, 0.0, TIP_("Set active layer"));
 	uiButSetFunc(but, gp_ui_activelayer_cb, gpd, gpl);
 	
