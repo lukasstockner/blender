@@ -77,7 +77,11 @@ static void ed_keymap_gpencil_general(wmKeyConfig *keyconf)
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
 	
 	
-	/* Menus --------------------------------------- */
+	/* Viewport Tools ------------------------------- */
+	
+	/* Enter EditMode */
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", TABKEY, KM_PRESS, 0, DKEY);
+	RNA_string_set(kmi->ptr, "data_path", "gpencil_data.use_stroke_edit_mode");
 	
 	/* Pie Menu - For standard tools */
 	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_tool_palette", DKEY, KM_DBL_CLICK, 0, 0);
