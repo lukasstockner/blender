@@ -101,7 +101,7 @@ class GreasePencilStrokeEditPanel():
         edit_ok = context.editable_gpencil_strokes and gpd.use_stroke_edit_mode
 
         col = layout.column(align=True)
-        col.prop(gpd, "use_stroke_edit_mode", text="Enable Edit Mode", icon='EDIT', toggle=True)
+        col.prop(gpd, "use_stroke_edit_mode", text="Enable Editing", icon='EDIT', toggle=True)
 
         col.separator()
 
@@ -240,9 +240,14 @@ class GreasePencilDataPanel():
         else:
             self.draw_layers(context, layout, gpd)
 
-            # only sequencer doesn't have a toolbar to show this in,
+            # only sequencer doesn't have a toolbar to show these settings in,
             # so only show this for the sequencer...
             if context.space_data.type == 'SEQUENCE_EDITOR':
+                layout.separator()
+                layout.separator()
+
+                layout.prop(gpd, "use_stroke_edit_mode", text="Enable Stroke Editing", icon='EDIT', toggle=True)
+
                 layout.separator()
                 layout.separator()
 
