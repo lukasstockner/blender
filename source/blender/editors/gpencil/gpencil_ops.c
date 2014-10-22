@@ -36,6 +36,10 @@
 
 #include "BLI_blenlib.h"
 
+#include "BKE_context.h"
+
+#include "DNA_gpencil_types.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -47,9 +51,10 @@
 #include "gpencil_intern.h"
 
 /* ****************************************** */
-/* Generic Editing Keymap */
+/* Grease Pencil Keymaps */
 
-void ED_keymap_gpencil(wmKeyConfig *keyconf)
+/* Generic Drawing Keymap */
+static void ed_keymap_gpencil_general(wmKeyConfig *keyconf)
 {
 	wmKeyMap *keymap = WM_keymap_find(keyconf, "Grease Pencil", 0, 0);
 	wmKeyMapItem *kmi;
@@ -71,49 +76,80 @@ void ED_keymap_gpencil(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_draw", RIGHTMOUSE, KM_PRESS, 0, DKEY);
 	RNA_enum_set(kmi->ptr, "mode", GP_PAINTMODE_ERASER);
 	
+	
+	/* Menus --------------------------------------- */
+	
+	/* Pie Menu - For standard tools */
+	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_tool_palette", DKEY, KM_DBL_CLICK, 0, 0);
+}
+
+/* ==================== */
+
+/* Poll callback for stroke editing mode */
+static int gp_stroke_editmode_poll(bContext *C)
+{
+	bGPdata *gpd = CTX_data_gpencil_data(C);
+	return (gpd && (gpd->flag & GP_DATA_STROKE_EDITMODE));
+}
+
+/* Stroke Editing Keymap - Only when editmode is enabled */
+static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
+{
+	wmKeyMap *keymap = WM_keymap_find(keyconf, "Grease Pencil Stroke Edit Mode", 0, 0);
+	wmKeyMapItem *kmi;
+	
+	/* set poll callback - so that this keymap only gets enabled when stroke editmode is enabled */
+	keymap->poll = gp_stroke_editmode_poll;
+	
 	/* Selection ------------------------------------- */
 	/* select all */
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", AKEY, KM_PRESS, 0, DKEY);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", AKEY, KM_PRESS, 0, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_TOGGLE);
 	
-	// XXX? This is quite awkward to use...
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", IKEY, KM_PRESS, KM_CTRL, DKEY);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select_all", IKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_enum_set(kmi->ptr, "action", SEL_INVERT);
 	
 	/* circle select */
-	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, DKEY);
+	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, 0);
 	
 	/* normal select */
-	//WM_keymap_add_item(keymap, "GPENCIL_OT_select", RIGHTMOUSE, KM_PRESS, 0, DKEY);
+	WM_keymap_add_item(keymap, "GPENCIL_OT_select", SELECTMOUSE, KM_PRESS, 0, 0);
 	
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select", RIGHTMOUSE, KM_PRESS, KM_SHIFT, DKEY);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select", SELECTMOUSE, KM_PRESS, KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "extend", true);
 	RNA_boolean_set(kmi->ptr, "toggle", true);
 	
 	/* whole stroke select */
-	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select", WKEY, KM_PRESS, 0, DKEY);
+	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select", SELECTMOUSE, KM_PRESS, KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "entire_strokes", true);
 	
 	
 	/* Editing ----------------------------------------- */
-	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_duplicate", EKEY, KM_PRESS, 0, DKEY);
 	
-	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, DKEY);
+	/* duplicate and move selected points */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_duplicate", DKEY, KM_PRESS, KM_SHIFT, 0);
+	
+	
+	/* Transform Tools */
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
-	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, DKEY);
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_rotate", RKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
-	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_resize", SKEY, KM_PRESS, 0, DKEY);
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_resize", SKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
 	
-	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_mirror", MKEY, KM_PRESS, 0, DKEY);
+	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_mirror", MKEY, KM_PRESS, KM_CTRL, 0);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
-	
-	
-	/* Pie Menu */
-	/* XXX: This is currently still experimental! */
-	WM_keymap_add_menu_pie(keymap, "GPENCIL_PIE_tool_palette", DKEY, KM_DBL_CLICK, 0, 0);
+}
+
+/* ==================== */
+
+void ED_keymap_gpencil(wmKeyConfig *keyconf)
+{
+	ed_keymap_gpencil_general(keyconf);
+	ed_keymap_gpencil_editing(keyconf);
 }
 
 /* ****************************************** */

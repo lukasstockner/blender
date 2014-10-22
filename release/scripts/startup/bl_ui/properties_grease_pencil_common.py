@@ -89,15 +89,25 @@ class GreasePencilStrokeEditPanel():
     bl_category = "Grease Pencil"
     bl_region_type = 'TOOLS'
 
+    @classmethod
+    def poll(cls, context):
+        return (context.gpencil_data is not None)
+
     @staticmethod
     def draw(self, context):
         layout = self.layout
 
+        gpd = context.gpencil_data
+        edit_ok = context.editable_gpencil_strokes and gpd.use_stroke_edit_mode
+
         col = layout.column(align=True)
+        col.prop(gpd, "use_stroke_edit_mode", text="Enable Edit Mode", icon='EDIT', toggle=True)
+
+        col.separator()
 
         col.label(text="Select:")
         subcol = col.column(align=True)
-        subcol.active = bool(context.editable_gpencil_strokes)
+        subcol.active = edit_ok
         subcol.operator("gpencil.select_all", text="Select All")
         subcol.operator("gpencil.select_circle")
 
@@ -105,14 +115,14 @@ class GreasePencilStrokeEditPanel():
 
         col.label(text="Edit:")
         subcol = col.column(align=True)
-        subcol.active = bool(context.editable_gpencil_strokes)
+        subcol.active = edit_ok
         subcol.operator("gpencil.strokes_duplicate", text="Duplicate")
         subcol.operator("transform.mirror", text="Mirror").gpencil_strokes = True
 
         col.separator()
 
         subcol = col.column(align=True)
-        subcol.active = bool(context.editable_gpencil_strokes)
+        subcol.active = edit_ok
         subcol.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
         subcol.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
         subcol.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'

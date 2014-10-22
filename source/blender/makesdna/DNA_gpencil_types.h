@@ -191,6 +191,9 @@ typedef enum eGPdata_Flag {
 	GP_DATA_DEPTH_STROKE = (1 << 6),
 
 	GP_DATA_DEPTH_STROKE_ENDPOINTS = (1 << 7),
+	
+	/* Stroke Editing Mode - Toggle to enable alternative keymap for easier editing of stroke points */
+	GP_DATA_STROKE_EDITMODE	= (1 << 8)
 } eGPdata_Flag;
 
 #endif /*  __DNA_GPENCIL_TYPES_H__ */
