@@ -167,23 +167,30 @@ typedef struct bGPdata {
 } bGPdata;
 
 /* bGPdata->flag */
-// XXX many of these flags should be deprecated for more general ideas in 2.5
+/* NOTE: A few flags have been deprecated since early 2.5,
+ *       since they have been made redundant by interaction
+ *       changes made during the porting process.
+ */
+typedef enum eGPdata_Flag {
 	/* don't allow painting to occur at all */
-	// XXX is deprecated - not well understood
-// #define GP_DATA_LMBPLOCK	(1<<0)
+	/* GP_DATA_LMBPLOCK  = (1 << 0), */
+	
 	/* show debugging info in viewport (i.e. status print) */
-#define GP_DATA_DISPINFO	(1<<1)
+	GP_DATA_DISPINFO	= (1 << 1),
 	/* in Action Editor, show as expanded channel */
-#define GP_DATA_EXPAND		(1<<2)
+	GP_DATA_EXPAND		= (1 << 2),
+	
 	/* is the block overriding all clicks? */
-	// XXX is deprecated - nasty old concept
-// #define GP_DATA_EDITPAINT	(1<<3)
+ 	/* GP_DATA_EDITPAINT = (1 << 3), */
+	
 	/* new strokes are added in viewport space */
-#define GP_DATA_VIEWALIGN	(1<<4)
-	/* Project into the screens Z values */
-#define GP_DATA_DEPTH_VIEW	(1<<5)
-#define GP_DATA_DEPTH_STROKE (1<<6)
+	GP_DATA_VIEWALIGN	= (1 << 4),
+	
+	/* Project into the screen's Z values */
+	GP_DATA_DEPTH_VIEW	= (1 << 5),
+	GP_DATA_DEPTH_STROKE = (1 << 6),
 
-#define GP_DATA_DEPTH_STROKE_ENDPOINTS (1<<7)
+	GP_DATA_DEPTH_STROKE_ENDPOINTS = (1 << 7),
+} eGPdata_Flag;
 
 #endif /*  __DNA_GPENCIL_TYPES_H__ */
