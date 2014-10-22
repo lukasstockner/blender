@@ -99,6 +99,7 @@ bGPdata **ED_gpencil_data_get_pointers_direct(ID *screen_id, Scene *scene, ScrAr
 		
 		switch (sa->spacetype) {
 			case SPACE_VIEW3D: /* 3D-View */
+			case SPACE_TIME: /* Timeline - XXX: this is a hack to get it to show GP keyframes for 3D view */
 			{
 				/* default to using scene's data, unless it doesn't exist (and object's does instead) */
 				/* XXX: this will require a toggle switch later to be more predictable */
