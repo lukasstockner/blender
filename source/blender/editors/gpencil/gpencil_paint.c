@@ -1018,6 +1018,7 @@ static int gp_session_initdata(bContext *C, tGPsdata *p)
 	p->win = CTX_wm_window(C);
 
 	unit_m4(p->imat);
+	unit_m4(p->mat);
 	
 	switch (curarea->spacetype) {
 		/* supported views first */
@@ -1253,6 +1254,8 @@ static void gp_paint_initstroke(tGPsdata *p, short paintmode)
 	
 	p->gsc.subrect_data = p->subrect_data;
 	p->gsc.subrect = p->subrect;
+	
+	copy_m4_m4(p->gsc.mat, p->mat);
 	
 	
 	/* check if points will need to be made in view-aligned space */
