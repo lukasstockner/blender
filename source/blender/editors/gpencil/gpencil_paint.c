@@ -1739,11 +1739,8 @@ static int gpencil_draw_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	else
 		WM_cursor_modal_set(win, BC_PAINTBRUSHCURSOR);
 	
-	/* special hack: if there was an initial event, then we were invoked via a hotkey, and 
-	 * painting should start immediately. Otherwise, this was called from a toolbar, in which
-	 * case we should wait for the mouse to be clicked.
-	 */
-	if (event->val == KM_PRESS) {
+	/* only start drawing immediately if we're allowed to do so... */
+	if (RNA_boolean_get(op->ptr, "wait_for_input") == false) {
 		/* hotkey invoked - start drawing */
 		/* printf("\tGP - set first spot\n"); */
 		p->status = GP_STATUS_PAINTING;
@@ -2020,6 +2017,8 @@ void GPENCIL_OT_draw(wmOperatorType *ot)
 	
 	/* settings for drawing */
 	ot->prop = RNA_def_enum(ot->srna, "mode", prop_gpencil_drawmodes, 0, "Mode", "Way to interpret mouse movements");
-	
 	RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
+	
+	/* NOTE: wait for input is enabled by default, so that all UI code can work properly without needing users to know about this */
+	RNA_def_boolean(ot->srna, "wait_for_input", true, "Wait for Input", "Wait for first click instead of painting immediately");
 }
