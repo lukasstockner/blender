@@ -116,6 +116,9 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* circle select */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_select_circle", CKEY, KM_PRESS, 0, 0);
 	
+	/* border select */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_select_border", BKEY, KM_PRESS, 0, 0);
+	
 	/* normal select */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_select", SELECTMOUSE, KM_PRESS, 0, 0);
 	
@@ -169,6 +172,7 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_select);
 	WM_operatortype_append(GPENCIL_OT_select_all);
 	WM_operatortype_append(GPENCIL_OT_select_circle);
+	WM_operatortype_append(GPENCIL_OT_select_border);
 	
 	WM_operatortype_append(GPENCIL_OT_strokes_copy);
 	

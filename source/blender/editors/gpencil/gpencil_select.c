@@ -388,6 +388,131 @@ void GPENCIL_OT_select_circle(wmOperatorType *ot)
 }
 
 /* ********************************************** */
+/* Box Selection */
+
+static int gpencil_border_select_exec(bContext *C, wmOperator *op)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	View2D *v2d = &ar->v2d;
+	
+	const int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
+	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
+	const bool extend = RNA_boolean_get(op->ptr, "extend");
+	
+	rcti rect;
+	
+	rctf *subrect = NULL;       /* for using the camera rect within the 3d view */
+	rctf subrect_data = {0.0f};
+	
+	bool changed = false;
+	
+	
+	/* sanity checks */
+	if (sa == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No active area");
+		return OPERATOR_CANCELLED;
+	}
+	
+	/* for 3D View, init depth buffer stuff used for 3D projections... */
+	if (sa->spacetype == SPACE_VIEW3D) {
+		wmWindow *win = CTX_wm_window(C);
+		Scene *scene = CTX_data_scene(C);
+		View3D *v3d = (View3D *)CTX_wm_space_data(C);
+		RegionView3D *rv3d = ar->regiondata;
+		
+		/* init 3d depth buffers */
+		view3d_operator_needs_opengl(C);
+		view3d_region_operator_needs_opengl(win, ar);
+		ED_view3d_autodist_init(scene, ar, v3d, 0);
+		
+		/* for camera view set the subrect */
+		if (rv3d->persp == RV3D_CAMOB) {
+			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &subrect_data, true); /* no shift */
+			subrect = &subrect_data;
+		}
+	}
+	
+	/* deselect all strokes first? */
+	if (select && !extend) {
+		CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+		{
+			bGPDspoint *pt;
+			int i;
+			
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				pt->flag &= ~GP_SPOINT_SELECT;
+			}
+			
+			gps->flag &= ~GP_STROKE_SELECT;
+		}
+		CTX_DATA_END;
+	}
+	
+	/* get settings from operator */
+	WM_operator_properties_border_to_rcti(op, &rect);
+	
+	/* select/deselect points */
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		bGPDspoint *pt;
+		int i;
+		
+		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+			int x0, y0;
+			
+			/* convert point coords to screenspace */
+			gp_point_to_xy(ar, v2d, subrect, gps, pt, &x0, &y0);
+			
+			/* test if in selection rect */
+			if ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(&rect, x0, y0)) {
+				if (select) {
+					pt->flag |= GP_SPOINT_SELECT;
+				}
+				else {
+					pt->flag &= ~GP_SPOINT_SELECT;
+				}
+				
+				changed = true;
+			}
+		}
+		
+		/* Ensure that stroke selection is in sync with its points */
+		gpencil_stroke_sync_selection(gps);
+	}
+	CTX_DATA_END;
+	
+	/* updates */
+	if (changed) {
+		WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
+	}
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_select_border(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Border Select";
+	ot->description = "Select Grease Pencil strokes within a rectangular region";
+	ot->idname = "GPENCIL_OT_select_border";
+	
+	/* callbacks */
+	ot->invoke = WM_border_select_invoke;
+	ot->exec = gpencil_border_select_exec;
+	ot->modal = WM_border_select_modal;
+	ot->cancel = WM_border_select_cancel;
+	
+	ot->poll = gpencil_select_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	/* rna */
+	WM_operator_properties_gesture_border(ot, true);
+}
+
+/* ********************************************** */
 /* Mouse Click to Select */
 
 static int gpencil_select_exec(bContext *C, wmOperator *op)

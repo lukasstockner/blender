@@ -109,6 +109,7 @@ class GreasePencilStrokeEditPanel():
         subcol = col.column(align=True)
         subcol.active = edit_ok
         subcol.operator("gpencil.select_all", text="Select All")
+        subcol.operator("gpencil.select_border")
         subcol.operator("gpencil.select_circle")
 
         col.separator()
@@ -156,6 +157,7 @@ class GPENCIL_PIE_tool_palette(Menu):
                 # S - Select
                 col = pie.column()
                 col.operator("gpencil.select_all", text="Select All", icon='PARTICLE_POINT')
+                col.operator("gpencil.select_border", text="Border Select", icon='BORDER_RECT')
                 col.operator("gpencil.select_circle", text="Circle Select", icon='META_EMPTY')
                 #col.operator("gpencil.select", text="Stroke Under Mouse").entire_strokes = True
 
