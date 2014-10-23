@@ -278,21 +278,25 @@ class GreasePencilDataPanel():
         split = layout.split(percentage=0.5)
         split.active = not gpl.lock
 
-        # Column 1 - Appearance
-        col = split.column()
-
-        subcol = col.column(align=True)
-        subcol.prop(gpl, "color", text="")
-        subcol.prop(gpl, "alpha", slider=True)
-
-        #if debug:
-        #   col.prop(gpl, "show_points")
-
-        # Column 2 - Options (& Current Frame)
+        # Column 1 - Stroke
         col = split.column(align=True)
+        col.label(text="Stroke:")
+        col.prop(gpl, "color", text="")
+        col.prop(gpl, "alpha", slider=True)
 
-        col.prop(gpl, "line_width", slider=True)
-        col.prop(gpl, "show_x_ray")
+        # Column 2 - Fill
+        col = split.column(align=True)
+        col.label(text="Fill:")
+        col.prop(gpl, "fill_color", text="")
+        col.prop(gpl, "fill_alpha", text="Opacity", slider=True)
+		
+        # Options
+        row = layout.row()
+        row.prop(gpl, "line_width", slider=True)
+        row.prop(gpl, "show_x_ray")
+		
+        #if debug:
+        #   layout.prop(gpl, "show_points")
 
         layout.separator()
 

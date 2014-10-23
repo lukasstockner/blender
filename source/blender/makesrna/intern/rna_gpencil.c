@@ -596,7 +596,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_editable_func(prop, "rna_GPencilLayer_active_frame_editable");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
-	/* Drawing Color */
+	/* Stroke Drawing Color */
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
@@ -605,8 +605,22 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "alpha", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "color[3]");
-	RNA_def_property_range(prop, 0.3, 1.0f);
+	RNA_def_property_range(prop, 0.0, 1.0f);
 	RNA_def_property_ui_text(prop, "Opacity", "Layer Opacity");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	/* Fill Drawing Color */
+	prop = RNA_def_property(srna, "fill_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "fill");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Fill Color", "Color for filling insides of strokes in this layer");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	prop = RNA_def_property(srna, "fill_alpha", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "fill[3]");
+	RNA_def_property_range(prop, 0.0, 1.0f);
+	RNA_def_property_ui_text(prop, "Fill Opacity", "Opacity for filling insides of strokes");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
 	/* Line Thickness */

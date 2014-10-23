@@ -120,6 +120,7 @@ typedef struct bGPDlayer {
 	float gcolor_next[3];	/* optional color for ghosts after the active frame */
 	
 	float color[4];			/* color that should be used to draw all the strokes in this layer */
+	float fill[4];			/* color that should be used for drawing "fills" for strokes */
 	
 	char info[128];			/* optional reference info about this layer (i.e. "director's comments, 12/3")
 							 * this is used for the name of the layer  too and kept unique. */
