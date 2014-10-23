@@ -209,7 +209,7 @@ void GPENCIL_OT_select_all(wmOperatorType *ot)
 /* NOTE: Code here is adapted (i.e. copied directly) from gpencil_paint.c::gp_stroke_eraser_dostroke()
  *       It would be great to de-duplicate the logic here sometime, but that can wait...
  */
-static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, rctf *subrect,
+static bool gp_stroke_do_circle_sel(bGPDstroke *gps, GP_SpaceConversion *gsc,
                                     const int mx, const int my, const int radius, 
                                     const bool select, rcti *rect)
 {
@@ -219,7 +219,7 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, r
 	bool changed = false;
 	
 	if (gps->totpoints == 1) {
-		gp_point_to_xy(ar, v2d, subrect, gps, gps->points, &x0, &y0);
+		gp_point_to_xy(gsc, gps, gps->points, &x0, &y0);
 		
 		/* do boundbox check first */
 		if ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) {
@@ -248,8 +248,8 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, ARegion *ar, View2D *v2d, r
 			pt1 = gps->points + i;
 			pt2 = gps->points + i + 1;
 			
-			gp_point_to_xy(ar, v2d, subrect, gps, pt1, &x0, &y0);
-			gp_point_to_xy(ar, v2d, subrect, gps, pt2, &x1, &y1);
+			gp_point_to_xy(gsc, gps, pt1, &x0, &y0);
+			gp_point_to_xy(gsc, gps, pt2, &x1, &y1);
 			
 			/* check that point segment of the boundbox of the selection stroke */
 			if (((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(rect, x0, y0)) ||
@@ -296,8 +296,6 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	
-	
-	
 	const int mx = RNA_int_get(op->ptr, "x");
 	const int my = RNA_int_get(op->ptr, "y");
 	const int radius = RNA_int_get(op->ptr, "radius");
@@ -305,11 +303,11 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	const int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
 	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
 	
-	rctf *subrect = NULL;       /* for using the camera rect within the 3d view */
-	rctf subrect_data = {0.0f};
+	GP_SpaceConversion gsc = {0};
 	rcti rect = {0};            /* for bounding rect around circle (for quicky intersection testing) */
 	
 	bool changed = false;
+	
 	
 	/* sanity checks */
 	if (sa == NULL) {
@@ -317,24 +315,9 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	/* for 3D View, init depth buffer stuff used for 3D projections... */
-	if (sa->spacetype == SPACE_VIEW3D) {
-		wmWindow *win = CTX_wm_window(C);
-		Scene *scene = CTX_data_scene(C);
-		View3D *v3d = (View3D *)CTX_wm_space_data(C);
-		RegionView3D *rv3d = ar->regiondata;
-		
-		/* init 3d depth buffers */
-		view3d_operator_needs_opengl(C);
-		view3d_region_operator_needs_opengl(win, ar);
-		ED_view3d_autodist_init(scene, ar, v3d, 0);
-		
-		/* for camera view set the subrect */
-		if (rv3d->persp == RV3D_CAMOB) {
-			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &subrect_data, true); /* no shift */
-			subrect = &subrect_data;
-		}
-	}
+	/* init space conversion stuff */
+	gp_point_conversion_init(C, &gsc);
+	
 	
 	/* rect is rectangle of selection circle */
 	rect.xmin = mx - radius;
@@ -346,8 +329,7 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	/* find visible strokes, and select if hit */
 	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
 	{
-		changed |= gp_stroke_do_circle_sel(gps, ar, &ar->v2d, subrect, 
-										   mx, my, radius, select, &rect);
+		changed |= gp_stroke_do_circle_sel(gps, &gsc, mx, my, radius, select, &rect);
 	}
 	CTX_DATA_END;
 	
@@ -396,10 +378,8 @@ static int gpencil_border_select_exec(bContext *C, wmOperator *op)
 	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
 	const bool extend = RNA_boolean_get(op->ptr, "extend");
 	
-	rcti rect;
-	
-	rctf *subrect = NULL;       /* for using the camera rect within the 3d view */
-	rctf subrect_data = {0.0f};
+	GP_SpaceConversion gsc = {0};
+	rcti rect = {0};
 	
 	bool changed = false;
 	
@@ -410,24 +390,9 @@ static int gpencil_border_select_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	/* for 3D View, init depth buffer stuff used for 3D projections... */
-	if (sa->spacetype == SPACE_VIEW3D) {
-		wmWindow *win = CTX_wm_window(C);
-		Scene *scene = CTX_data_scene(C);
-		View3D *v3d = (View3D *)CTX_wm_space_data(C);
-		RegionView3D *rv3d = ar->regiondata;
-		
-		/* init 3d depth buffers */
-		view3d_operator_needs_opengl(C);
-		view3d_region_operator_needs_opengl(win, ar);
-		ED_view3d_autodist_init(scene, ar, v3d, 0);
-		
-		/* for camera view set the subrect */
-		if (rv3d->persp == RV3D_CAMOB) {
-			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &subrect_data, true); /* no shift */
-			subrect = &subrect_data;
-		}
-	}
+	/* init space conversion stuff */
+	gp_point_conversion_init(C, &gsc);
+	
 	
 	/* deselect all strokes first? */
 	if (select && !extend) {
@@ -458,7 +423,7 @@ static int gpencil_border_select_exec(bContext *C, wmOperator *op)
 			int x0, y0;
 			
 			/* convert point coords to screenspace */
-			gp_point_to_xy(ar, v2d, subrect, gps, pt, &x0, &y0);
+			gp_point_to_xy(&gsc, gps, pt, &x0, &y0);
 			
 			/* test if in selection rect */
 			if ((!ELEM(V2D_IS_CLIPPED, x0, y0)) && BLI_rcti_isect_pt(&rect, x0, y0)) {
@@ -518,14 +483,10 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 	View2D *v2d = &ar->v2d;
 	
 	Scene *scene = CTX_data_scene(C);
-	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	
 	/* "radius" is simply a threshold (screen space) to make it easier to test with a tolerance */
 	const float radius = 0.75f * U.widget_unit;
 	const int radius_squared = (int)(radius * radius);
-	
-	rctf *subrect = NULL;       /* for using the camera rect within the 3d view */
-	rctf subrect_data = {0.0f};
 	
 	bool extend = RNA_boolean_get(op->ptr, "extend");
 	bool deselect = RNA_boolean_get(op->ptr, "deselect");
@@ -535,36 +496,19 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 	int location[2] = {0};
 	int mx, my;
 	
+	GP_SpaceConversion gsc = {0};
+	
 	bGPDstroke *hit_stroke = NULL;
 	bGPDspoint *hit_point = NULL;
 	
 	/* sanity checks */
-	if (gpd == NULL) {
-		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
-		return OPERATOR_CANCELLED;
-	}
 	if (sa == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No active area");
 		return OPERATOR_CANCELLED;
 	}
 	
-	/* for 3D View, init depth buffer stuff used for 3D projections... */
-	if (sa->spacetype == SPACE_VIEW3D) {
-		wmWindow *win = CTX_wm_window(C);
-		View3D *v3d = (View3D *)CTX_wm_space_data(C);
-		RegionView3D *rv3d = ar->regiondata;
-		
-		/* init 3d depth buffers */
-		view3d_operator_needs_opengl(C);
-		view3d_region_operator_needs_opengl(win, ar);
-		ED_view3d_autodist_init(scene, ar, v3d, 0);
-		
-		/* for camera view set the subrect */
-		if (rv3d->persp == RV3D_CAMOB) {
-			ED_view3d_calc_camera_border(scene, ar, v3d, rv3d, &subrect_data, true); /* no shift */
-			subrect = &subrect_data;
-		}
-	}
+	/* init space conversion stuff */
+	gp_point_conversion_init(C, &gsc);
 	
 	/* get mouse location */
 	RNA_int_get_array(op->ptr, "location", location);
@@ -584,7 +528,7 @@ static int gpencil_select_exec(bContext *C, wmOperator *op)
 		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
 			int x0, y0;
 			
-			gp_point_to_xy(ar, v2d, subrect, gps, pt, &x0, &y0);
+			gp_point_to_xy(&gsc, gps, pt, &x0, &y0);
 		
 			/* do boundbox check first */
 			if (!ELEM(V2D_IS_CLIPPED, x0, x0)) {

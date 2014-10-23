@@ -31,23 +31,40 @@
 #ifndef __GPENCIL_INTERN_H__
 #define __GPENCIL_INTERN_H__
 
-/* internal exports only */
 
+#include "DNA_vec_types.h"
+
+
+/* internal exports only */
 struct bGPdata;
 struct bGPDstroke;
 struct bGPDspoint;
 
 struct ARegion;
 struct View2D;
-struct rctf;
 struct wmOperatorType;
-
 
 
 /* ***************************************************** */
 /* Internal API */
 
 /* Stroke Coordinates API ------------------------------ */
+/* gpencil_utils.c */
+
+typedef struct GP_SpaceConversion {
+	struct bGPdata *gpd;
+	struct bGPDlayer *gpl;
+	
+	struct ScrArea *sa;
+	struct ARegion *ar;
+	struct View2D *v2d;
+	
+	rctf *subrect;       /* for using the camera rect within the 3d view */
+	rctf subrect_data;
+	
+	float mat[4][4];     /* transform matrix on the strokes (introduced in [b770964]) */
+} GP_SpaceConversion;
+
 
 /** 
  * Check whether a given stroke segment is inside a circular brush 
@@ -62,15 +79,21 @@ struct wmOperatorType;
 bool gp_stroke_inside_circle(const int mval[2], const int UNUSED(mvalo[2]),
                              int rad, int x0, int y0, int x1, int y1);
 
+
+/**
+ * Init settings for stroke point space conversions 
+ *
+ * \param[out] r_gsc  The space conversion settings struct, populated with necessary params
+ */
+void gp_point_conversion_init(struct bContext *C, GP_SpaceConversion *r_gsc);
+
 /**
  * Convert a Grease Pencil coordinate (i.e. can be 2D or 3D) to screenspace (2D)
  *
- * \param subrect   For the camera view in the 3D Viewport
  * \param[out] r_x  The screen-space x-coordinate of the point
  * \param[out] r_y  The screen-space y-coordinate of the point
  */
-/* gpencil_paint.c */
-void gp_point_to_xy(struct ARegion *ar, struct View2D *v2d, struct rctf *subrect, struct bGPDstroke *gps, struct bGPDspoint *pt,
+void gp_point_to_xy(GP_SpaceConversion *settings, struct bGPDstroke *gps, struct bGPDspoint *pt,
                     int *r_x, int *r_y);
 
 /* ***************************************************** */
