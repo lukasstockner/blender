@@ -307,8 +307,8 @@ class GreasePencilDataPanel():
 
         layout.separator()
 
-        # Full-Row - Frame Locking
-        row = layout.row()
+        # Full-Row - Frame Locking (and Delete Frame)
+        row = layout.row(align=True)
         row.active = not gpl.lock
 
         if gpl.active_frame:
@@ -317,6 +317,7 @@ class GreasePencilDataPanel():
         else:
             lock_label = "Lock Frame"
         row.prop(gpl, "lock_frame", text=lock_label, icon='UNLOCKED')
+        row.operator("gpencil.active_frame_delete", text="", icon='X')
 
         layout.separator()
 

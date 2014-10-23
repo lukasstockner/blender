@@ -493,16 +493,23 @@ bGPDframe *gpencil_layer_getframe(bGPDlayer *gpl, int cframe, short addnew)
 bool gpencil_layer_delframe(bGPDlayer *gpl, bGPDframe *gpf)
 {
 	bool changed = false;
-
+	
 	/* error checking */
 	if (ELEM(NULL, gpl, gpf))
 		return false;
-		
+	
+	/* if this frame was active, make the previous frame active instead 
+	 * since it's tricky to set active frame otherwise
+	 */
+	if (gpl->actframe == gpf)
+		gpl->actframe = gpf->prev;
+	else
+		gpl->actframe = NULL;
+	
 	/* free the frame and its data */
 	changed = free_gpencil_strokes(gpf);
 	BLI_freelinkN(&gpl->frames, gpf);
-	gpl->actframe = NULL;
-
+	
 	return changed;
 }
 
