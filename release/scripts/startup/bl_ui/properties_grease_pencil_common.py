@@ -78,7 +78,8 @@ class GreasePencilDrawingToolsPanel():
             col.separator()
             col.separator()
 
-            col.label(text="Measure:")
+            col.label(text="Tools:")
+            col.operator("gpencil.convert", text="Convert...")
             col.operator("view3d.ruler")
 
 
@@ -203,17 +204,6 @@ class GPENCIL_UL_layer(UIList):
             layout.label(text="", icon_value=icon)
 
 
-class GPENCIL_MT_layer_specials(Menu):
-    bl_label = "Grease Pencil Layer Specials"
-    #COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        layout.operator("gpencil.convert", text='Convert', icon='OUTLINER_OB_CURVE')  # icon is not ideal
-        layout.operator("gpencil.active_frame_delete", text="Delete Frame", icon='X')  # icon is not ideal
-
-
 class GreasePencilDataPanel():
     # subclass must set
     # bl_space_type = 'IMAGE_EDITOR'
@@ -271,7 +261,6 @@ class GreasePencilDataPanel():
         sub = col.column(align=True)
         sub.operator("gpencil.layer_add", icon='ZOOMIN', text="")
         sub.operator("gpencil.layer_remove", icon='ZOOMOUT', text="")
-        sub.menu("GPENCIL_MT_layer_specials", icon='DOWNARROW_HLT', text="")
 
         gpl = context.active_gpencil_layer
         if gpl:
