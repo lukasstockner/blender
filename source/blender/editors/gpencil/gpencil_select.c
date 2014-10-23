@@ -296,8 +296,7 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
 	
-	Scene *scene = CTX_data_scene(C);
-	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	
 	
 	const int mx = RNA_int_get(op->ptr, "x");
 	const int my = RNA_int_get(op->ptr, "y");
@@ -313,10 +312,6 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	bool changed = false;
 	
 	/* sanity checks */
-	if (gpd == NULL) {
-		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
-		return OPERATOR_CANCELLED;
-	}
 	if (sa == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No active area");
 		return OPERATOR_CANCELLED;
@@ -325,6 +320,7 @@ static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 	/* for 3D View, init depth buffer stuff used for 3D projections... */
 	if (sa->spacetype == SPACE_VIEW3D) {
 		wmWindow *win = CTX_wm_window(C);
+		Scene *scene = CTX_data_scene(C);
 		View3D *v3d = (View3D *)CTX_wm_space_data(C);
 		RegionView3D *rv3d = ar->regiondata;
 		
