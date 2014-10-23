@@ -138,6 +138,7 @@ class GPENCIL_PIE_tool_palette(Menu):
         layout = self.layout
 
         pie = layout.menu_pie()
+        gpd = context.gpencil_data
 
         # W - Drawing Settings
         col = pie.column()
@@ -150,27 +151,31 @@ class GPENCIL_PIE_tool_palette(Menu):
         pie.operator("gpencil.draw", text="Eraser", icon='FORCE_CURVE').mode = 'ERASER'
 
         # Editing tools
-        if context.editable_gpencil_strokes:
-            # S - Select
-            col = pie.column()
-            col.operator("gpencil.select_all", text="Select All", icon='PARTICLE_POINT')
-            col.operator("gpencil.select_circle", text="Circle Select", icon='META_EMPTY')
-            #col.operator("gpencil.select", text="Stroke Under Mouse").entire_strokes = True
+        if gpd:
+            if gpd.use_stroke_edit_mode and context.editable_gpencil_strokes:
+                # S - Select
+                col = pie.column()
+                col.operator("gpencil.select_all", text="Select All", icon='PARTICLE_POINT')
+                col.operator("gpencil.select_circle", text="Circle Select", icon='META_EMPTY')
+                #col.operator("gpencil.select", text="Stroke Under Mouse").entire_strokes = True
 
-            # N - Move
-            pie.operator("transform.translate", icon='MAN_TRANS').gpencil_strokes = True
+                # N - Move
+                pie.operator("transform.translate", icon='MAN_TRANS').gpencil_strokes = True
 
-            # NW - Rotate
-            pie.operator("transform.rotate", icon='MAN_ROT').gpencil_strokes = True
+                # NW - Rotate
+                pie.operator("transform.rotate", icon='MAN_ROT').gpencil_strokes = True
 
-            # NE - Scale
-            pie.operator("transform.resize", text="Scale", icon='MAN_SCALE').gpencil_strokes = True
+                # NE - Scale
+                pie.operator("transform.resize", text="Scale", icon='MAN_SCALE').gpencil_strokes = True
 
-            # SW - Copy
-            pie.operator("gpencil.strokes_duplicate", text="Copy...", icon='PARTICLE_PATH')
+                # SW - Copy
+                pie.operator("gpencil.strokes_duplicate", icon='PARTICLE_PATH')
 
-            # SE - Mirror?  (Best would be to do Settings here...)
-            pie.operator("transform.mirror", text="Mirror", icon='MOD_MIRROR').gpencil_strokes = True
+                # SE - Exit Edit Mode
+                pie.prop(gpd, "use_stroke_edit_mode", text="Exit Edit Mode", icon='EDIT')
+            else:
+                # Toggle Edit Mode
+                pie.prop(gpd, "use_stroke_edit_mode", text="Enable Stroke Editing", icon='EDIT')
 
 
 ###############################
