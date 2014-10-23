@@ -1233,14 +1233,14 @@ void SEQUENCER_OT_snap(struct wmOperatorType *ot)
 
 
 typedef struct TrimData {
-		int init_mouse[2];
-		float init_mouseloc[2];
-		TransSeq *ts;
-		Sequence **seq_array;
-		bool *trim;
-		int num_seq;
-		bool slow;
-		int slow_offset; /* offset at the point where offset was turned on */
+	int init_mouse[2];
+	float init_mouseloc[2];
+	TransSeq *ts;
+	Sequence **seq_array;
+	bool *trim;
+	int num_seq;
+	bool slow;
+	int slow_offset; /* offset at the point where offset was turned on */
 } TrimData;
 
 static void transseq_backup(TransSeq *ts, Sequence *seq)
@@ -1274,7 +1274,8 @@ static void transseq_restore(TransSeq *ts, Sequence *seq)
 	seq->len = ts->len;
 }
 
-static int trim_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool *trim, int offset, bool first_level) {
+static int trim_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool *trim, int offset, bool first_level)
+{
 	Sequence *seq;
 	int num_items = 0;
 
@@ -1297,7 +1298,8 @@ static int trim_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool
 	return num_items;
 }
 
-static int trim_count_sequences_rec(ListBase *seqbasep, bool first_level) {
+static int trim_count_sequences_rec(ListBase *seqbasep, bool first_level)
+{
 	Sequence *seq;
 	int trimmed_sequences = 0;
 
@@ -1508,6 +1510,8 @@ static int sequencer_trim_modal(bContext *C, wmOperator *op, const wmEvent *even
 			WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 			return OPERATOR_FINISHED;
 		}
+
+		case ESCKEY:
 		case RIGHTMOUSE:
 		{
 			int i;
@@ -1574,7 +1578,8 @@ void SEQUENCER_OT_trim(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	RNA_def_int(ot->srna, "offset", 0, INT32_MIN, INT32_MAX, "Offset", "offset to the data of the strip", INT32_MIN, INT32_MAX);
+	RNA_def_int(ot->srna, "offset", 0, INT32_MIN, INT32_MAX, "Offset", "Offset to the data of the strip",
+	            INT32_MIN, INT32_MAX);
 }
 
 
@@ -3151,9 +3156,7 @@ static int sequencer_copy_exec(bContext *C, wmOperator *op)
 		}
 
 		/* duplicate pointers */
-		for (seq = seqbase_clipboard.first; seq; seq = seq->next) {
-			BKE_sequence_clipboard_pointers_store(seq);
-		}
+		BKE_sequencer_base_clipboard_pointers_store(&seqbase_clipboard);
 	}
 
 	return OPERATOR_FINISHED;
@@ -3197,9 +3200,7 @@ static int sequencer_paste_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 	}
 
-	for (iseq = nseqbase.first; iseq; iseq = iseq->next) {
-		BKE_sequence_clipboard_pointers_restore(iseq, bmain);
-	}
+	BKE_sequencer_base_clipboard_pointers_restore(&nseqbase, bmain);
 
 	for (iseq = nseqbase.first; iseq; iseq = iseq->next) {
 		BKE_sequence_sound_init(scene, iseq);
