@@ -694,16 +694,18 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
 		 * the data we can.
 		 */
 		int clamped_origin_x = max_ii((int)region->min[0], 0),
-			clamped_origin_y = max_ii((int)region->min[1], 0);
-		int clamped_width = min_ii(width, orig_ibuf->x - region->min[0] - 1),
-			clamped_height = min_ii(height, orig_ibuf->y - region->min[1] - 1);
+		    clamped_origin_y = max_ii((int)region->min[1], 0);
+		int dst_offset_x = clamped_origin_x - (int)region->min[0],
+		    dst_offset_y = clamped_origin_y - (int)region->min[1];
+		int clamped_width = width - dst_offset_x,
+		    clamped_height = height - dst_offset_y;
 
 		final_ibuf = IMB_allocImBuf(width, height, 32, IB_rectfloat);
 
 		if (orig_ibuf->rect_float != NULL) {
 			IMB_rectcpy(final_ibuf, orig_ibuf,
-			            0, 0,
-			            region->min[0], region->min[1],
+			            dst_offset_x, dst_offset_y,
+			            clamped_origin_x, clamped_origin_y,
 			            clamped_width, clamped_height);
 		}
 		else {
@@ -717,8 +719,10 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
 				for (x = 0; x < clamped_width; ++x) {
 					int src_x = x + clamped_origin_x,
 					    src_y = y + clamped_origin_y;
-					int dst_index = (y * width + x) * 4,
-						src_index = (src_y * orig_ibuf->x + src_x) * 4;
+					int dst_x = x + dst_offset_x,
+					    dst_y = y + dst_offset_y;
+					int dst_index = (dst_y * width + dst_x) * 4,
+					    src_index = (src_y * orig_ibuf->x + src_x) * 4;
 					rgba_uchar_to_float(final_ibuf->rect_float + dst_index,
 					                    (unsigned char *)orig_ibuf->rect +
 					                                     src_index);
