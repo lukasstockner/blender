@@ -699,6 +699,8 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
 		    dst_offset_y = clamped_origin_y - (int)region->min[1];
 		int clamped_width = width - dst_offset_x,
 		    clamped_height = height - dst_offset_y;
+		clamped_width = min_ii(clamped_width, orig_ibuf->x - clamped_origin_x);
+		clamped_height = min_ii(clamped_height, orig_ibuf->y - clamped_origin_y);
 
 		final_ibuf = IMB_allocImBuf(width, height, 32, IB_rectfloat);
 
