@@ -149,53 +149,65 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 
 /* ----- Existing Strokes Drawing (3D and Point) ------ */
 
+/* draw a 3D stroke in "volumetric" style */
+/* XXX: for now, this is *only* for 3D strokes only! */
+static void gp_draw_stroke_volumetric(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag)
+{
+	GLUquadricObj *qobj = gluNewQuadric();
+	
+	float base_modelview[4][4], modelview[4][4];
+	float base_loc[3];
+	
+	bGPDspoint *pt;
+	int i;
+	
+	
+	/* Get the basic modelview matrix we use for performing calculations */
+	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)base_modelview);
+	copy_v3_v3(base_loc, base_modelview[3]);
+	
+	/* Create the basic view-aligned billboard matrix we're going to actually draw qobj with:
+	 * - We need to knock out the rotation so that we are 
+	 *   simply left with a camera-facing billboard
+	 * - The scale factors here are chosen so that the thickness
+	 *   is relatively reasonable. Otherwise, it gets far too
+	 *   large!
+	 */
+	scale_m4_fl(modelview, 0.1);
+	
+	/* draw each point as a disk... */
+	glPushMatrix();
+	
+	for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
+		/* apply translation to base_modelview, so that the translated point is put in the right place */
+		translate_m4(base_modelview, pt->x, pt->y, pt->z);
+		
+		/* copy the translation component to the billboard matrix we're going to use,
+		 * then reset the base matrix to the original values so that we can do the same
+		 * for the next point without accumulation/pollution effects
+		 */
+		copy_v3_v3(modelview[3], base_modelview[3]); /* copy offset value */
+		copy_v3_v3(base_modelview[3], base_loc);     /* restore */
+		
+		/* apply our billboard matrix for drawing... */
+		glLoadMatrixf((float *)modelview);
+		
+		/* draw the disk using the current state... */
+		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+	}
+	
+	glPopMatrix();
+}
+
 /* draw a given stroke - just a single dot (only one point) */
 static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dflag, short sflag,
                                  int offsx, int offsy, int winx, int winy)
 {
 	/* draw point */
 	if (sflag & GP_STROKE_3DSPACE) {
-#if 0
 		glBegin(GL_POINTS);
 		glVertex3fv(&points->x);
 		glEnd();
-#endif
-		GLUquadricObj *qobj = gluNewQuadric(); 
-		float modelview[16];
-		float scale[3];
-		
-		gluQuadricDrawStyle(qobj, GLU_FILL); 
-		
-		glPushMatrix();
-		
-		glTranslatef(points->x, points->y, points->z);
-		
-		glGetFloatv(GL_MODELVIEW_MATRIX, modelview);
-		
-		scale[0] = len_v3(&modelview[0]);
-		scale[1] = len_v3(&modelview[4]);
-		scale[2] = len_v3(&modelview[8]);
-		
-		modelview[0] = scale[0] * 0.1; // 0,0
-		modelview[1] = 0.0f;
-		modelview[2] = 0.0f;
-		
-		modelview[4] = 0.0f;
-		modelview[5] = scale[1] * 0.1; // 1,1
-		modelview[6] = 0.0f;
-		
-		modelview[8] = 0.0;
-		modelview[9] = 0.0;
-		modelview[10] = scale[2] * 0.1; // 2,2
-		
-		glLoadMatrixf(modelview);
-		
-		/* need to translate drawing position, but must reset after too! */
-		gluDisk(qobj, 0.0,  thickness, 32, 1); 
-		
-		glPopMatrix();
-		
-		gluDeleteQuadric(qobj);
 	}
 	else {
 		float co[2];
@@ -247,7 +259,6 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 	float curpressure = points[0].pressure;
 	int i;
 	
-#if 0
 	/* draw stroke curve */
 	glLineWidth(curpressure * thickness);
 	glBegin(GL_LINE_STRIP);
@@ -273,54 +284,6 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 		}
 	}
 	glEnd();
-#endif
-	
-	{
-		GLUquadricObj *qobj = gluNewQuadric();
-		float modelview[16];
-		float scale[3];
-		
-		gluQuadricDrawStyle(qobj, GLU_FILL); 
-		
-		glGetFloatv(GL_MODELVIEW_MATRIX, modelview);
-		
-		scale[0] = len_v3(&modelview[0]);
-		scale[1] = len_v3(&modelview[4]);
-		scale[2] = len_v3(&modelview[8]);
-		
-		modelview[0] = scale[0] * 0.1; // 0,0
-		modelview[1] = 0.0f;
-		modelview[2] = 0.0f;
-		
-		modelview[4] = 0.0f;
-		modelview[5] = scale[1] * 0.1; // 1,1
-		modelview[6] = 0.0f;
-		
-		modelview[8] = 0.0;
-		modelview[9] = 0.0;
-		modelview[10] = scale[2] * 0.1; // 2,2
-		
-		
-		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
-			float translated_modelview[16];
-			
-			glPushMatrix();
-			
-			glTranslatef(pt->x, pt->y, pt->z);
-			
-			glGetFloatv(GL_MODELVIEW_MATRIX, translated_modelview);
-			
-			modelview[12] = translated_modelview[12];
-			modelview[13] = translated_modelview[13];
-			modelview[14] = translated_modelview[14];
-			
-			glLoadMatrixf(modelview);
-			
-			gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1); 
-			
-			glPopMatrix();
-		}
-	}	
 	
 	/* draw debug points of curve on top? */
 	/* XXX: for now, we represent "selected" strokes in the same way as debug, which isn't used anymore */
@@ -624,6 +587,9 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 				glPolygonOffset(-1.0f, -1.0f);
 #endif
 			}
+			
+			// if (dflag & GP_LAYER_VOLUMETRIC)
+			gp_draw_stroke_volumetric(gps->points, gps->totpoints, lthick, dflag, gps->flag);
 			
 			if (gps->totpoints == 1) {
 				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
