@@ -197,6 +197,7 @@ static void gp_draw_stroke_volumetric(bGPDspoint *points, int totpoints, short t
 	}
 	
 	glPopMatrix();
+	gluDeleteQuadric(qobj);
 }
 
 /* draw a given stroke - just a single dot (only one point) */
