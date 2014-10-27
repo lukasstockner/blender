@@ -147,11 +147,56 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 	}
 }
 
-/* ----- Existing Strokes Drawing (3D and Point) ------ */
+/* ----------- Volumetric Strokes --------------- */
+
+/* draw a 2D stroke in "volumetric" style
+ * NOTE: this is currently only for drawing the stroke buffer, which doesn't have any coordinate offsets/transforms
+ */
+static void gp_draw_stroke_volumetric_2d(tGPspoint *points, int totpoints, short thickness, short dflag, short sflag)
+{
+	GLUquadricObj *qobj = gluNewQuadric();
+	float modelview[4][4];
+	
+	tGPspoint *pt;
+	int i;
+	
+	
+	/* error checking */
+	if ((points == NULL) || (totpoints <= 0))
+		return;
+	
+	/* check if buffer can be drawn */
+	if (dflag & (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_ONLYV2D))
+		return;
+	
+	
+	/* get basic matrix - should be camera space (i.e ."identity") */
+	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
+	
+	
+	/* draw points */
+	glPushMatrix();
+	
+	for (i = 0, pt = points; i < totpoints; i++, pt++) {
+		/* set the transformed position */
+		modelview[3][0] = pt->x;
+		modelview[3][1] = pt->y;
+		
+		glLoadMatrixf((float *)modelview);
+		
+		/* draw the disk using the current state... */
+		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+		
+		
+		modelview[3][0] = modelview[3][1] = 0.0f;
+	}
+	
+	glPopMatrix();
+	gluDeleteQuadric(qobj);
+}
 
 /* draw a 3D stroke in "volumetric" style */
-/* XXX: for now, this is *only* for 3D strokes only! */
-static void gp_draw_stroke_volumetric(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag)
+static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag)
 {
 	GLUquadricObj *qobj = gluNewQuadric();
 	
@@ -173,7 +218,7 @@ static void gp_draw_stroke_volumetric(bGPDspoint *points, int totpoints, short t
 	 *   is relatively reasonable. Otherwise, it gets far too
 	 *   large!
 	 */
-	scale_m4_fl(modelview, 0.1);
+	scale_m4_fl(modelview, 0.1f);
 	
 	/* draw each point as a disk... */
 	glPushMatrix();
@@ -199,6 +244,8 @@ static void gp_draw_stroke_volumetric(bGPDspoint *points, int totpoints, short t
 	glPopMatrix();
 	gluDeleteQuadric(qobj);
 }
+
+/* ----- Existing Strokes Drawing (3D and Point) ------ */
 
 /* draw a given stroke - just a single dot (only one point) */
 static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dflag, short sflag,
@@ -590,7 +637,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 			}
 			
 			// if (dflag & GP_LAYER_VOLUMETRIC)
-			gp_draw_stroke_volumetric(gps->points, gps->totpoints, lthick, dflag, gps->flag);
+			gp_draw_stroke_volumetric_3d(gps->points, gps->totpoints, lthick, dflag, gps->flag);
 			
 			if (gps->totpoints == 1) {
 				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
@@ -875,6 +922,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		{
 			/* Buffer stroke needs to be drawn with a different linestyle
 			 * to help differentiate them from normal strokes. */
+			gp_draw_stroke_volumetric_2d(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
 			gp_draw_stroke_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
 		}
 	}
