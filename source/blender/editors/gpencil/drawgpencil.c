@@ -149,10 +149,10 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 
 /* ----------- Volumetric Strokes --------------- */
 
-/* draw a 2D stroke in "volumetric" style
- * NOTE: this is currently only for drawing the stroke buffer, which doesn't have any coordinate offsets/transforms
+/* draw a 2D buffer stroke in "volumetric" style
+ * NOTE: the stroke buffer doesn't have any coordinate offsets/transforms
  */
-static void gp_draw_stroke_volumetric_2d(tGPspoint *points, int totpoints, short thickness, short dflag, short sflag)
+static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, short thickness, short dflag, short sflag)
 {
 	GLUquadricObj *qobj = gluNewQuadric();
 	float modelview[4][4];
@@ -170,7 +170,7 @@ static void gp_draw_stroke_volumetric_2d(tGPspoint *points, int totpoints, short
 		return;
 	
 	
-	/* get basic matrix - should be camera space (i.e ."identity") */
+	/* get basic matrix - should be camera space (i.e "identity") */
 	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
 	
 	
@@ -922,7 +922,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		{
 			/* Buffer stroke needs to be drawn with a different linestyle
 			 * to help differentiate them from normal strokes. */
-			gp_draw_stroke_volumetric_2d(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
+			gp_draw_stroke_volumetric_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
 			gp_draw_stroke_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
 		}
 	}
