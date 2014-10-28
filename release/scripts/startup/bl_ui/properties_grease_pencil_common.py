@@ -99,7 +99,7 @@ class GreasePencilStrokeEditPanel():
         layout = self.layout
 
         gpd = context.gpencil_data
-        edit_ok = context.editable_gpencil_strokes and gpd.use_stroke_edit_mode
+        edit_ok = bool(context.editable_gpencil_strokes) and bool(gpd.use_stroke_edit_mode)
 
         col = layout.column(align=True)
         col.prop(gpd, "use_stroke_edit_mode", text="Enable Editing", icon='EDIT', toggle=True)
