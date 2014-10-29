@@ -161,7 +161,6 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 	tGPspoint *pt;
 	int i;
 	
-	
 	/* error checking */
 	if ((points == NULL) || (totpoints <= 0))
 		return;
@@ -170,10 +169,8 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 	if (dflag & (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_ONLYV2D))
 		return;
 	
-	
 	/* get basic matrix - should be camera space (i.e "identity") */
 	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
-	
 	
 	/* draw points */
 	glPushMatrix();
@@ -190,6 +187,56 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 		
 		
 		modelview[3][0] = modelview[3][1] = 0.0f;
+	}
+	
+	glPopMatrix();
+	gluDeleteQuadric(qobj);
+}
+
+/* draw a 2D strokes in "volumetric" style */
+static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag,
+                                         int offsx, int offsy, int winx, int winy)
+{
+	GLUquadricObj *qobj = gluNewQuadric();
+	float modelview[4][4];
+	float baseloc[3];
+	
+	bGPDspoint *pt;
+	int i;
+	
+	
+	/* get basic matrix */
+	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
+	copy_v3_v3(baseloc, modelview[3]);
+	
+	/* draw points */
+	glPushMatrix();
+	
+	for (i = 0, pt = points; i < totpoints; i++, pt++) {
+		/* set the transformed position */
+		if (sflag & GP_STROKE_2DSPACE) {
+			translate_m4(modelview, pt->x, pt->y, 0.0f);
+		}
+		else if (sflag & GP_STROKE_2DIMAGE) {
+			const float x = (float)((pt->x * winx) + offsx);
+			const float y = (float)((pt->y * winy) + offsy);
+			
+			translate_m4(modelview, x, y, 0.0f);
+		}
+		else {
+			const float x = (float)(pt->x / 100 * winx) + offsx;
+			const float y = (float)(pt->y / 100 * winy) + offsy;
+			
+			translate_m4(modelview, x, y, 0.0f);
+		}
+		
+		glLoadMatrixf((float *)modelview);
+		
+		/* draw the disk using the current state... */
+		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+		
+		/* restore matrix */
+		copy_v3_v3(modelview[3], baseloc);
 	}
 	
 	glPopMatrix();
@@ -664,11 +711,16 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 		}
 		else {
 			/* 2D Strokes... */
-			if (gps->totpoints == 1) {
-				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			if (dflag & GP_DRAWDATA_VOLUMETRIC) {
+				gp_draw_stroke_volumetric_2d(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
 			}
 			else {
-				gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, offsx, offsy, winx, winy);
+				if (gps->totpoints == 1) {
+					gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+				}
+				else {
+					gp_draw_stroke_2d(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, offsx, offsy, winx, winy);
+				}
 			}
 		}
 	}
