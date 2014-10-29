@@ -777,7 +777,7 @@ static ImBuf *accessor_get_ibuf(TrackingImageAccessor *accessor,
 			IMB_freeImBuf(final_ibuf);
 		}
 		final_ibuf = float_image_to_ibuf(&output_image);
-		libmv_floatImaheDestroy(&output_image);
+		libmv_floatImageDestroy(&output_image);
 	}
 
 	/* it's possible processing stil didn't happen at this point,
