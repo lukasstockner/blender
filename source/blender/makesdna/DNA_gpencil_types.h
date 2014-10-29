@@ -147,7 +147,9 @@ typedef enum eGPDlayer_Flag {
 	/* use custom color for ghosts before current frame */
 	GP_LAYER_GHOST_PREVCOL	= (1 << 8),
 	/* use custom color for ghosts after current frame */
-	GP_LAYER_GHOST_NEXTCOL	= (1 << 9)
+	GP_LAYER_GHOST_NEXTCOL	= (1 << 9),
+	/* "volumetric" strokes (i.e. GLU Quadric discs in 3D) */
+	GP_LAYER_VOLUMETRIC		= (1 << 10),
 } eGPDlayer_Flag;
 
 /* Grease-Pencil Annotations - 'DataBlock' */

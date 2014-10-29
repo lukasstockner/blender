@@ -76,6 +76,7 @@ typedef enum eDrawStrokeFlags {
 	GP_DRAWDATA_IEDITHACK   = (1 << 4),   /* special hack for drawing strokes in Image Editor (weird coordinates) */
 	GP_DRAWDATA_NO_XRAY     = (1 << 5),   /* don't draw xray in 3D view (which is default) */
 	GP_DRAWDATA_NO_ONIONS   = (1 << 6),	  /* no onionskins should be drawn (for animation playback) */
+	GP_DRAWDATA_VOLUMETRIC	= (1 << 7),   /* draw strokes as "volumetric" circular billbards */
 } eDrawStrokeFlags;
 
 
@@ -636,14 +637,18 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 #endif
 			}
 			
-			// if (dflag & GP_LAYER_VOLUMETRIC)
-			gp_draw_stroke_volumetric_3d(gps->points, gps->totpoints, lthick, dflag, gps->flag);
-			
-			if (gps->totpoints == 1) {
-				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			if (dflag & GP_DRAWDATA_VOLUMETRIC) {
+				/* volumetric stroke drawing */
+				gp_draw_stroke_volumetric_3d(gps->points, gps->totpoints, lthick, dflag, gps->flag);
 			}
 			else {
-				gp_draw_stroke_3d(gps->points, gps->totpoints, lthick, debug, gps->flag);
+				/* 3D Lines - OpenGL primitives-based */
+				if (gps->totpoints == 1) {
+					gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+				}
+				else {
+					gp_draw_stroke_3d(gps->points, gps->totpoints, lthick, debug, gps->flag);
+				}
 			}
 			
 			if (no_xray) {
@@ -658,6 +663,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 			}
 		}
 		else {
+			/* 2D Strokes... */
 			if (gps->totpoints == 1) {
 				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
 			}
@@ -892,6 +898,10 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		if (gpl->flag & GP_LAYER_NO_XRAY) dflag |=  GP_DRAWDATA_NO_XRAY;
 		else dflag &= ~GP_DRAWDATA_NO_XRAY;
 		
+		/* apply volumetric setting */
+		if (gpl->flag & GP_LAYER_VOLUMETRIC) dflag |= GP_DRAWDATA_VOLUMETRIC;
+		else dflag &= ~GP_DRAWDATA_VOLUMETRIC;
+		
 		/* draw 'onionskins' (frame left + right) */
 		if ((gpl->flag & GP_LAYER_ONIONSKIN) && !(dflag & GP_DRAWDATA_NO_ONIONS)) {
 			/* Drawing method - only immediately surrounding (gstep = 0),
@@ -921,9 +931,17 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		    (gpf->flag & GP_FRAME_PAINT))
 		{
 			/* Buffer stroke needs to be drawn with a different linestyle
-			 * to help differentiate them from normal strokes. */
-			gp_draw_stroke_volumetric_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
-			gp_draw_stroke_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
+			 * to help differentiate them from normal strokes.
+			 * 
+			 * It should also be noted that sbuffer contains temporary point types
+			 * i.e. tGPspoints NOT bGPDspoints
+			 */
+			if (gpl->flag & GP_LAYER_VOLUMETRIC) {
+				gp_draw_stroke_volumetric_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
+			}
+			else {
+				gp_draw_stroke_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
+			}
 		}
 	}
 	
