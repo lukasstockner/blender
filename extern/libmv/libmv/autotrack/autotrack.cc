@@ -57,13 +57,13 @@ class DisableChannelsTransform : public FrameAccessor::Transform {
                   (disable_green ? 0.0f : 0.7152f) +
                   (disable_blue  ? 0.0f : 0.0722f);
 
-    output->Resize(input.Width(), input.Height(), 1);
+    output->Resize(input.Height(), input.Width(), 1);
     for (int y = 0; y < input.Height(); y++) {
       for (int x = 0; x < input.Width(); x++) {
-        float r = disable_red   ? 0.0f : input(x, y, 0);
-        float g = disable_green ? 0.0f : input(x, y, 1);
-        float b = disable_blue  ? 0.0f : input(x, y, 2);
-        (*output)(x, y, 0) = (0.2126f * r + 0.7152f * g + 0.0722f * b) / scale;
+        float r = disable_red   ? 0.0f : input(y, x, 0);
+        float g = disable_green ? 0.0f : input(y, x, 1);
+        float b = disable_blue  ? 0.0f : input(y, x, 2);
+        (*output)(y, x, 0) = (0.2126f * r + 0.7152f * g + 0.0722f * b) / scale;
       }
     }
   }
