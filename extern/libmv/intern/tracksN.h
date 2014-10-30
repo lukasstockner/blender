@@ -81,7 +81,7 @@ typedef struct libmv_Marker {
   int reference_frame;
   libmv_MarkerModelType model_type;
   int model_id;
-  int visible_channels;
+  int disabled_channels;
 } libmv_Marker;
 
 #ifdef __cplusplus

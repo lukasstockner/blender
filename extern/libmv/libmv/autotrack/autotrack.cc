@@ -34,18 +34,17 @@ namespace {
 
 class DisableChannelsTransform : public FrameAccessor::Transform {
  public:
-  DisableChannelsTransform(int visible_channels)
-      : visible_channels_(visible_channels) {  }
+  DisableChannelsTransform(int disabled_channels)
+      : disabled_channels_(disabled_channels) {  }
 
   int64_t key() const {
-    // We invert bits here so key is never null.
-    return !visible_channels_;
+    return disabled_channels_;
   }
 
   void run(const FloatImage& input, FloatImage* output) const {
-    bool disable_red   = (visible_channels_ & Marker::CHANNEL_R) == 0,
-         disable_green = (visible_channels_ & Marker::CHANNEL_G) == 0,
-         disable_blue  = (visible_channels_ & Marker::CHANNEL_B) == 0;
+    bool disable_red   = (disabled_channels_ & Marker::CHANNEL_R) != 0,
+         disable_green = (disabled_channels_ & Marker::CHANNEL_G) != 0,
+         disable_blue  = (disabled_channels_ & Marker::CHANNEL_B) != 0;
 
     LG << "Disabling channels: "
        << (disable_red   ? "R " : "")
@@ -71,7 +70,7 @@ class DisableChannelsTransform : public FrameAccessor::Transform {
 
  private:
   // Bitfield representing visible channels, bits are from Marker::Channel.
-  int visible_channels_;
+  int disabled_channels_;
 };
 
 template<typename QuadT, typename ArrayT>
@@ -100,10 +99,8 @@ FrameAccessor::Key GetImageForMarker(const Marker& marker,
   // Ideally we would need to pass IntRegion to the frame accessor.
   Region region = marker.search_region.Rounded();
   libmv::scoped_ptr<FrameAccessor::Transform> transform = NULL;
-  if (marker.visible_channels != (Marker::CHANNEL_R |
-                                  Marker::CHANNEL_G |
-                                  Marker::CHANNEL_B)) {
-    transform.reset(new DisableChannelsTransform(marker.visible_channels));
+  if (marker.disabled_channels != 0) {
+    transform.reset(new DisableChannelsTransform(marker.disabled_channels));
   }
   return frame_accessor->GetImage(marker.clip,
                                   marker.frame,
