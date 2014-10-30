@@ -76,7 +76,8 @@ typedef enum eDrawStrokeFlags {
 	GP_DRAWDATA_IEDITHACK   = (1 << 4),   /* special hack for drawing strokes in Image Editor (weird coordinates) */
 	GP_DRAWDATA_NO_XRAY     = (1 << 5),   /* don't draw xray in 3D view (which is default) */
 	GP_DRAWDATA_NO_ONIONS   = (1 << 6),	  /* no onionskins should be drawn (for animation playback) */
-	GP_DRAWDATA_VOLUMETRIC	= (1 << 7),   /* draw strokes as "volumetric" circular billbards */
+	GP_DRAWDATA_VOLUMETRIC	= (1 << 7),   /* draw strokes as "volumetric" circular billboards */
+	GP_DRAWDATA_FILL        = (1 << 8),   /* fill insides/bounded-regions of strokes */
 } eDrawStrokeFlags;
 
 
@@ -177,6 +178,7 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 	
 	for (i = 0, pt = points; i < totpoints; i++, pt++) {
 		/* set the transformed position */
+		// TODO: scale should change based on zoom level, which requires proper translation mult too!
 		modelview[3][0] = pt->x;
 		modelview[3][1] = pt->y;
 		
@@ -291,6 +293,49 @@ static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, shor
 	
 	glPopMatrix();
 	gluDeleteQuadric(qobj);
+}
+
+
+/* --------------- Stroke Fills ----------------- */
+
+/* draw fills for shapes */
+static void gp_draw_stroke_fill(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag,
+                                int offsx, int offsy, int winx, int winy)
+{
+	bGPDspoint *pt;
+	int i;
+	
+	BLI_assert(totpoints >= 3);
+	
+	/* As an initial implementation, we use the OpenGL filled polygon drawing 
+	 * here since it's the easiest option to implement for this case. It does
+	 * come with limitations (notably for concave shapes), though it shouldn't
+	 * be much of an issue in most cases.
+	 */
+	glBegin(GL_POLYGON);
+	
+	for (i = 0, pt = points; i < totpoints; i++, pt++) {
+		if (sflag & GP_STROKE_3DSPACE) {
+			glVertex3fv(&pt->x);
+		}
+		else if (sflag & GP_STROKE_2DSPACE) {
+			glVertex2fv(&pt->x);
+		}
+		else if (sflag & GP_STROKE_2DIMAGE) {
+			const float x = (float)((pt->x * winx) + offsx);
+			const float y = (float)((pt->y * winy) + offsy);
+			
+			glVertex2f(x, y);
+		}
+		else {
+			const float x = (float)(pt->x / 100 * winx) + offsx;
+			const float y = (float)(pt->y / 100 * winy) + offsy;
+			
+			glVertex2f(x, y);
+		}
+	}
+	
+	glEnd();
 }
 
 /* ----- Existing Strokes Drawing (3D and Point) ------ */
@@ -653,12 +698,9 @@ static bool gp_can_draw_stroke(const bGPDstroke *gps, const int dflag)
 
 /* draw a set of strokes */
 static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int winy, int dflag,
-                            short debug, short lthick, const float color[4])
+                            short debug, short lthick, const float color[4], const float fill_color[4])
 {
 	bGPDstroke *gps;
-	
-	/* set color first (may need to reset it again later too) */
-	glColor4fv(color);
 	
 	for (gps = gpf->strokes.first; gps; gps = gps->next) {
 		/* check if stroke can be drawn */
@@ -683,6 +725,15 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 				glPolygonOffset(-1.0f, -1.0f);
 #endif
 			}
+			
+			/* 3D Fill */
+			if ((dflag & GP_DRAWDATA_FILL) && (gps->totpoints >= 3)) {
+				glColor4fv(fill_color);
+				gp_draw_stroke_fill(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			}
+			
+			/* 3D Stroke */
+			glColor4fv(color);
 			
 			if (dflag & GP_DRAWDATA_VOLUMETRIC) {
 				/* volumetric stroke drawing */
@@ -710,11 +761,20 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 			}
 		}
 		else {
+			/* 2D - Fill */
+			if ((dflag & GP_DRAWDATA_FILL) && (gps->totpoints >= 3)) {
+				gp_draw_stroke_fill(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			}
+			
 			/* 2D Strokes... */
+			glColor4fv(color);
+			
 			if (dflag & GP_DRAWDATA_VOLUMETRIC) {
+				/* blob/disk-based "volumetric" drawing */
 				gp_draw_stroke_volumetric_2d(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
 			}
 			else {
+				/* normal 2D strokes */
 				if (gps->totpoints == 1) {
 					gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
 				}
@@ -855,7 +915,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 				/* alpha decreases with distance from curframe index */
 				fac = 1.0f - ((float)(gpf->framenum - gf->framenum) / (float)(gpl->gstep + 1));
 				color[3] = alpha * fac * 0.66f;
-				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 			}
 			else 
 				break;
@@ -865,7 +925,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 		/* draw the strokes for the ghost frames (at half of the alpha set by user) */
 		if (gpf->prev) {
 			color[3] = (alpha / 7);
-			gp_draw_strokes(gpf->prev, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+			gp_draw_strokes(gpf->prev, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 		}
 	}
 	
@@ -889,7 +949,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 				/* alpha decreases with distance from curframe index */
 				fac = 1.0f - ((float)(gf->framenum - gpf->framenum) / (float)(gpl->gstep_next + 1));
 				color[3] = alpha * fac * 0.66f;
-				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 			}
 			else 
 				break;
@@ -899,7 +959,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 		/* draw the strokes for the ghost frames (at half of the alpha set by user) */
 		if (gpf->next) {
 			color[3] = (alpha / 4);
-			gp_draw_strokes(gpf->next, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+			gp_draw_strokes(gpf->next, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 		}
 	}
 	
@@ -954,6 +1014,10 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		if (gpl->flag & GP_LAYER_VOLUMETRIC) dflag |= GP_DRAWDATA_VOLUMETRIC;
 		else dflag &= ~GP_DRAWDATA_VOLUMETRIC;
 		
+		/* apply fill setting */
+		// XXX: this is not a very good limit
+		if (gpl->fill[3] > 0.001f)  dflag |= GP_DRAWDATA_FILL;
+		
 		/* draw 'onionskins' (frame left + right) */
 		if ((gpl->flag & GP_LAYER_ONIONSKIN) && !(dflag & GP_DRAWDATA_NO_ONIONS)) {
 			/* Drawing method - only immediately surrounding (gstep = 0),
@@ -964,7 +1028,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		
 		/* draw the strokes already in active frame */
 		tcolor[3] = color[3];
-		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor);
+		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor, gpl->fill);
 		
 		/* Draw verts of selected strokes 
 		 * 	- locked layers can't be edited, so there's no point showing these verts
