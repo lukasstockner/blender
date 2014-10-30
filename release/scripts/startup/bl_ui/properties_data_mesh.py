@@ -254,7 +254,7 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
 
         rows = 2
         if kb:
-            rows = 7
+            rows = 4
         row.template_list("MESH_UL_shape_keys", "", key, "key_blocks", ob, "active_shape_key_index", rows=rows)
 
         col = row.column()
@@ -268,19 +268,19 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
             col.separator()
 
             sub = col.column(align=True)
-            sub.operator("object.shape_key_move", icon='TRIA_UP_BAR', text="").type = 'TOP'
             sub.operator("object.shape_key_move", icon='TRIA_UP', text="").type = 'UP'
             sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").type = 'DOWN'
-            sub.operator("object.shape_key_move", icon='TRIA_DOWN_BAR', text="").type = 'BOTTOM'
 
             split = layout.split(percentage=0.4)
             row = split.row()
             row.enabled = not is_editmode
             row.prop(key, "use_relative")
+
             row = split.row()
             # if is_editmode:
                 # row.prop(ts, "kb_auto_commit", text = "Auto-commit")
             row.alignment = 'RIGHT'
+
             sub = row.row(align=True)
             sub.label()  # XXX, for alignment only
             subsub = sub.row(align=True)
