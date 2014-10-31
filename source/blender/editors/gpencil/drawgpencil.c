@@ -149,6 +149,31 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 	}
 }
 
+/* --------- 2D Stroke Drawing Helpers --------- */
+
+/* helper function to calculate x-y drawing coordinates for 2D points */
+static void gp_calc_2d_stroke_xy(bGPDspoint *pt, short sflag, int offsx, int offsy, int winx, int winy, float r_co[2])
+{
+	if (sflag & GP_STROKE_2DSPACE) {
+		r_co[0] = pt->x;
+		r_co[1] = pt->y;
+	}
+	else if (sflag & GP_STROKE_2DIMAGE) {
+		const float x = (float)((pt->x * winx) + offsx);
+		const float y = (float)((pt->y * winy) + offsy);
+		
+		r_co[0] = x;
+		r_co[1] = y;
+	}
+	else {
+		const float x = (float)(pt->x / 100 * winx) + offsx;
+		const float y = (float)(pt->y / 100 * winy) + offsy;
+		
+		r_co[0] = x;
+		r_co[1] = y;
+	}
+}
+
 /* ----------- Volumetric Strokes --------------- */
 
 /* draw a 2D buffer stroke in "volumetric" style
@@ -216,21 +241,10 @@ static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, shor
 	
 	for (i = 0, pt = points; i < totpoints; i++, pt++) {
 		/* set the transformed position */
-		if (sflag & GP_STROKE_2DSPACE) {
-			translate_m4(modelview, pt->x, pt->y, 0.0f);
-		}
-		else if (sflag & GP_STROKE_2DIMAGE) {
-			const float x = (float)((pt->x * winx) + offsx);
-			const float y = (float)((pt->y * winy) + offsy);
-			
-			translate_m4(modelview, x, y, 0.0f);
-		}
-		else {
-			const float x = (float)(pt->x / 100 * winx) + offsx;
-			const float y = (float)(pt->y / 100 * winy) + offsy;
-			
-			translate_m4(modelview, x, y, 0.0f);
-		}
+		float co[2];
+		
+		gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+		translate_m4(modelview, co[0], co[1], 0.0f);
 		
 		glLoadMatrixf((float *)modelview);
 		
@@ -318,20 +332,11 @@ static void gp_draw_stroke_fill(bGPDspoint *points, int totpoints, short thickne
 		if (sflag & GP_STROKE_3DSPACE) {
 			glVertex3fv(&pt->x);
 		}
-		else if (sflag & GP_STROKE_2DSPACE) {
-			glVertex2fv(&pt->x);
-		}
-		else if (sflag & GP_STROKE_2DIMAGE) {
-			const float x = (float)((pt->x * winx) + offsx);
-			const float y = (float)((pt->y * winy) + offsy);
-			
-			glVertex2f(x, y);
-		}
 		else {
-			const float x = (float)(pt->x / 100 * winx) + offsx;
-			const float y = (float)(pt->y / 100 * winy) + offsy;
+			float co[2];
 			
-			glVertex2f(x, y);
+			gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+			glVertex2fv(co);
 		}
 	}
 	
@@ -354,18 +359,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 		float co[2];
 		
 		/* get coordinates of point */
-		if (sflag & GP_STROKE_2DSPACE) {
-			co[0] = points->x;
-			co[1] = points->y;
-		}
-		else if (sflag & GP_STROKE_2DIMAGE) {
-			co[0] = (points->x * winx) + offsx;
-			co[1] = (points->y * winy) + offsy;
-		}
-		else {
-			co[0] = (points->x / 100 * winx) + offsx;
-			co[1] = (points->y / 100 * winy) + offsy;
-		}
+		gp_calc_2d_stroke_xy(points, sflag, offsx, offsy, winx, winy, co);
 		
 		/* if thickness is less than GP_DRAWTHICKNESS_SPECIAL, simple dot looks ok
 		 *  - also mandatory in if Image Editor 'image-based' dot
@@ -456,21 +450,10 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 		
 		glBegin(GL_LINE_STRIP);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
-			if (sflag & GP_STROKE_2DSPACE) {
-				glVertex2f(pt->x, pt->y);
-			}
-			else if (sflag & GP_STROKE_2DIMAGE) {
-				const float x = (pt->x * winx) + offsx;
-				const float y = (pt->y * winy) + offsy;
-				
-				glVertex2f(x, y);
-			}
-			else {
-				const float x = (pt->x / 100 * winx) + offsx;
-				const float y = (pt->y / 100 * winy) + offsy;
-				
-				glVertex2f(x, y);
-			}
+			float co[2];
+			
+			gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+			glVertex2fv(co);
 		}
 		glEnd();
 	}
@@ -494,22 +477,8 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 			float pthick;           /* thickness at segment point */
 			
 			/* get x and y coordinates from points */
-			if (sflag & GP_STROKE_2DSPACE) {
-				s0[0] = pt1->x;      s0[1] = pt1->y;
-				s1[0] = pt2->x;      s1[1] = pt2->y;
-			}
-			else if (sflag & GP_STROKE_2DIMAGE) {
-				s0[0] = (pt1->x * winx) + offsx;
-				s0[1] = (pt1->y * winy) + offsy;
-				s1[0] = (pt2->x * winx) + offsx;
-				s1[1] = (pt2->y * winy) + offsy;
-			}
-			else {
-				s0[0] = (pt1->x / 100 * winx) + offsx;
-				s0[1] = (pt1->y / 100 * winy) + offsy;
-				s1[0] = (pt2->x / 100 * winx) + offsx;
-				s1[1] = (pt2->y / 100 * winy) + offsy;
-			}
+			gp_calc_2d_stroke_xy(pt1, sflag, offsx, offsy, winx, winy, s0);
+			gp_calc_2d_stroke_xy(pt2, sflag, offsx, offsy, winx, winy, s1);
 			
 			/* calculate gradient and normal - 'angle'=(ny/nx) */
 			m1[1] = s1[1] - s0[1];
@@ -643,21 +612,10 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 		
 		glBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
-			if (sflag & GP_STROKE_2DSPACE) {
-				glVertex2fv(&pt->x);
-			}
-			else if (sflag & GP_STROKE_2DIMAGE) {
-				const float x = (float)((pt->x * winx) + offsx);
-				const float y = (float)((pt->y * winy) + offsy);
-				
-				glVertex2f(x, y);
-			}
-			else {
-				const float x = (float)(pt->x / 100 * winx) + offsx;
-				const float y = (float)(pt->y / 100 * winy) + offsy;
-				
-				glVertex2f(x, y);
-			}
+			float co[2];
+			
+			gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+			glVertex2fv(co);
 		}
 		glEnd();
 	}
@@ -837,20 +795,11 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 			if (gps->flag & GP_STROKE_3DSPACE) {
 				glVertex3fv(&pt->x);
 			}
-			else if (gps->flag & GP_STROKE_2DSPACE) {
-				glVertex2fv(&pt->x);
-			}
-			else if (gps->flag & GP_STROKE_2DIMAGE) {
-				const float x = (float)((pt->x * winx) + offsx);
-				const float y = (float)((pt->y * winy) + offsy);
-				
-				glVertex2f(x, y);
-			}
 			else {
-				const float x = (float)(pt->x / 100 * winx) + offsx;
-				const float y = (float)(pt->y / 100 * winy) + offsy;
+				float co[2];
 				
-				glVertex2f(x, y);
+				gp_calc_2d_stroke_xy(pt, gps->flag, offsx, offsy, winx, winy, co);
+				glVertex2fv(co);
 			}
 		}
 		glEnd();
@@ -866,20 +815,11 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 				if (gps->flag & GP_STROKE_3DSPACE) {
 					glVertex3fv(&pt->x);
 				}
-				else if (gps->flag & GP_STROKE_2DSPACE) {
-					glVertex2fv(&pt->x);
-				}
-				else if (gps->flag & GP_STROKE_2DIMAGE) {
-					const float x = (float)((pt->x * winx) + offsx);
-					const float y = (float)((pt->y * winy) + offsy);
-					
-					glVertex2f(x, y);
-				}
 				else {
-					const float x = (float)(pt->x / 100 * winx) + offsx;
-					const float y = (float)(pt->y / 100 * winy) + offsy;
+					float co[2];
 					
-					glVertex2f(x, y);
+					gp_calc_2d_stroke_xy(pt, gps->flag, offsx, offsy, winx, winy, co);
+					glVertex2fv(co);
 				}
 			}
 		}
