@@ -388,7 +388,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 }
 
 /* draw a given stroke in 3d (i.e. in 3d-space), using simple ogl lines */
-static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness, short debug, short sflag)
+static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness, bool debug, short sflag)
 {
 	bGPDspoint *pt;
 	float curpressure = points[0].pressure;
@@ -434,7 +434,7 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 
 /* draw a given stroke in 2d */
 static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness_s, short dflag, short sflag,
-                              short debug, int offsx, int offsy, int winx, int winy)
+                              bool debug, int offsx, int offsy, int winx, int winy)
 {
 	/* otherwise thickness is twice that of the 3D view */
 	float thickness = (float)thickness_s * 0.5f;
@@ -656,7 +656,7 @@ static bool gp_can_draw_stroke(const bGPDstroke *gps, const int dflag)
 
 /* draw a set of strokes */
 static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int winy, int dflag,
-                            short debug, short lthick, const float color[4], const float fill_color[4])
+                            bool debug, short lthick, const float color[4], const float fill_color[4])
 {
 	bGPDstroke *gps;
 	
@@ -963,7 +963,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		bGPDframe *gpf;
 		
-		short debug = (gpl->flag & GP_LAYER_DRAWDEBUG) ? 1 : 0;
+		bool debug = (gpl->flag & GP_LAYER_DRAWDEBUG) ? true : false;
 		short lthick = gpl->thickness;
 		float color[4], tcolor[4];
 		
