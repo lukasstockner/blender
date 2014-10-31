@@ -725,7 +725,7 @@ static void TRANSFORM_OT_bend(struct wmOperatorType *ot)
 
 	RNA_def_float_rotation(ot->srna, "value", 1, NULL, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_shear(struct wmOperatorType *ot)
@@ -745,7 +745,7 @@ static void TRANSFORM_OT_shear(struct wmOperatorType *ot)
 
 	RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT);
 	// XXX Shear axis?
 }
 
@@ -807,7 +807,7 @@ static void TRANSFORM_OT_tosphere(struct wmOperatorType *ot)
 
 	RNA_def_float_factor(ot->srna, "value", 0, 0, 1, "Factor", "", 0, 1);
 
-	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP);
+	Transform_Properties(ot, P_PROPORTIONAL | P_MIRROR | P_SNAP | P_GPENCIL_EDIT);
 }
 
 static void TRANSFORM_OT_mirror(struct wmOperatorType *ot)

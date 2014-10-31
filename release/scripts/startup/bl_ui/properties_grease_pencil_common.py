@@ -129,6 +129,14 @@ class GreasePencilStrokeEditPanel():
         subcol.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
         subcol.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'
 
+        col.separator()
+
+        subcol = col.column(align=True)
+        subcol.active = edit_ok
+        subcol.operator("transform.bend", text="Bend").gpencil_strokes = True
+        subcol.operator("transform.shear", text="Shear").gpencil_strokes = True
+        subcol.operator("transform.tosphere", text="To Sphere").gpencil_strokes = True
+
 
 ###############################
 
