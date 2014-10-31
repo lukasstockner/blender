@@ -965,7 +965,6 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		
 		bool debug = (gpl->flag & GP_LAYER_DRAWDEBUG) ? true : false;
 		short lthick = gpl->thickness;
-		float color[4], tcolor[4];
 		
 		/* don't draw layer if hidden */
 		if (gpl->flag & GP_LAYER_HIDE) 
@@ -978,9 +977,6 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		
 		/* set color, stroke thickness, and point size */
 		glLineWidth(lthick);
-		copy_v4_v4(color, gpl->color); // just for copying 4 array elements
-		copy_v4_v4(tcolor, gpl->color); // additional copy of color (for ghosting)
-		glColor4fv(color);
 		glPointSize((float)(gpl->thickness + 2));
 		
 		/* apply xray layer setting */
@@ -1004,8 +1000,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		}
 		
 		/* draw the strokes already in active frame */
-		tcolor[3] = color[3];
-		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor, gpl->fill);
+		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, gpl->color, gpl->fill);
 		
 		/* Draw verts of selected strokes 
 		 * 	- locked layers can't be edited, so there's no point showing these verts
@@ -1014,7 +1009,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		/* XXX: perhaps we don't want to show these when users are drawing... */
 		if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
 			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, 
-			                     (gpl->color[3] < 0.95f) ? tcolor : NULL);
+			                     (gpl->color[3] < 0.95f) ? gpl->color : NULL);
 		}
 		
 		/* Check if may need to draw the active stroke cache, only if this layer is the active layer
