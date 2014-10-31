@@ -76,6 +76,8 @@ typedef enum eDrawStrokeFlags {
 	GP_DRAWDATA_IEDITHACK   = (1 << 4),   /* special hack for drawing strokes in Image Editor (weird coordinates) */
 	GP_DRAWDATA_NO_XRAY     = (1 << 5),   /* don't draw xray in 3D view (which is default) */
 	GP_DRAWDATA_NO_ONIONS   = (1 << 6),	  /* no onionskins should be drawn (for animation playback) */
+	GP_DRAWDATA_VOLUMETRIC	= (1 << 7),   /* draw strokes as "volumetric" circular billboards */
+	GP_DRAWDATA_FILL        = (1 << 8),   /* fill insides/bounded-regions of strokes */
 } eDrawStrokeFlags;
 
 
@@ -147,6 +149,200 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 	}
 }
 
+/* --------- 2D Stroke Drawing Helpers --------- */
+
+/* helper function to calculate x-y drawing coordinates for 2D points */
+static void gp_calc_2d_stroke_xy(bGPDspoint *pt, short sflag, int offsx, int offsy, int winx, int winy, float r_co[2])
+{
+	if (sflag & GP_STROKE_2DSPACE) {
+		r_co[0] = pt->x;
+		r_co[1] = pt->y;
+	}
+	else if (sflag & GP_STROKE_2DIMAGE) {
+		const float x = (float)((pt->x * winx) + offsx);
+		const float y = (float)((pt->y * winy) + offsy);
+		
+		r_co[0] = x;
+		r_co[1] = y;
+	}
+	else {
+		const float x = (float)(pt->x / 100 * winx) + offsx;
+		const float y = (float)(pt->y / 100 * winy) + offsy;
+		
+		r_co[0] = x;
+		r_co[1] = y;
+	}
+}
+
+/* ----------- Volumetric Strokes --------------- */
+
+/* draw a 2D buffer stroke in "volumetric" style
+ * NOTE: the stroke buffer doesn't have any coordinate offsets/transforms
+ */
+static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, short thickness, short dflag, short sflag)
+{
+	GLUquadricObj *qobj = gluNewQuadric();
+	float modelview[4][4];
+	
+	tGPspoint *pt;
+	int i;
+	
+	/* error checking */
+	if ((points == NULL) || (totpoints <= 0))
+		return;
+	
+	/* check if buffer can be drawn */
+	if (dflag & (GP_DRAWDATA_ONLY3D | GP_DRAWDATA_ONLYV2D))
+		return;
+	
+	/* get basic matrix - should be camera space (i.e "identity") */
+	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
+	
+	/* draw points */
+	glPushMatrix();
+	
+	for (i = 0, pt = points; i < totpoints; i++, pt++) {
+		/* set the transformed position */
+		// TODO: scale should change based on zoom level, which requires proper translation mult too!
+		modelview[3][0] = pt->x;
+		modelview[3][1] = pt->y;
+		
+		glLoadMatrixf((float *)modelview);
+		
+		/* draw the disk using the current state... */
+		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+		
+		
+		modelview[3][0] = modelview[3][1] = 0.0f;
+	}
+	
+	glPopMatrix();
+	gluDeleteQuadric(qobj);
+}
+
+/* draw a 2D strokes in "volumetric" style */
+static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag,
+                                         int offsx, int offsy, int winx, int winy)
+{
+	GLUquadricObj *qobj = gluNewQuadric();
+	float modelview[4][4];
+	float baseloc[3];
+	
+	bGPDspoint *pt;
+	int i;
+	
+	
+	/* get basic matrix */
+	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
+	copy_v3_v3(baseloc, modelview[3]);
+	
+	/* draw points */
+	glPushMatrix();
+	
+	for (i = 0, pt = points; i < totpoints; i++, pt++) {
+		/* set the transformed position */
+		float co[2];
+		
+		gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+		translate_m4(modelview, co[0], co[1], 0.0f);
+		
+		glLoadMatrixf((float *)modelview);
+		
+		/* draw the disk using the current state... */
+		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+		
+		/* restore matrix */
+		copy_v3_v3(modelview[3], baseloc);
+	}
+	
+	glPopMatrix();
+	gluDeleteQuadric(qobj);
+}
+
+/* draw a 3D stroke in "volumetric" style */
+static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag)
+{
+	GLUquadricObj *qobj = gluNewQuadric();
+	
+	float base_modelview[4][4], modelview[4][4];
+	float base_loc[3];
+	
+	bGPDspoint *pt;
+	int i;
+	
+	
+	/* Get the basic modelview matrix we use for performing calculations */
+	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)base_modelview);
+	copy_v3_v3(base_loc, base_modelview[3]);
+	
+	/* Create the basic view-aligned billboard matrix we're going to actually draw qobj with:
+	 * - We need to knock out the rotation so that we are 
+	 *   simply left with a camera-facing billboard
+	 * - The scale factors here are chosen so that the thickness
+	 *   is relatively reasonable. Otherwise, it gets far too
+	 *   large!
+	 */
+	scale_m4_fl(modelview, 0.1f);
+	
+	/* draw each point as a disk... */
+	glPushMatrix();
+	
+	for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
+		/* apply translation to base_modelview, so that the translated point is put in the right place */
+		translate_m4(base_modelview, pt->x, pt->y, pt->z);
+		
+		/* copy the translation component to the billboard matrix we're going to use,
+		 * then reset the base matrix to the original values so that we can do the same
+		 * for the next point without accumulation/pollution effects
+		 */
+		copy_v3_v3(modelview[3], base_modelview[3]); /* copy offset value */
+		copy_v3_v3(base_modelview[3], base_loc);     /* restore */
+		
+		/* apply our billboard matrix for drawing... */
+		glLoadMatrixf((float *)modelview);
+		
+		/* draw the disk using the current state... */
+		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+	}
+	
+	glPopMatrix();
+	gluDeleteQuadric(qobj);
+}
+
+
+/* --------------- Stroke Fills ----------------- */
+
+/* draw fills for shapes */
+static void gp_draw_stroke_fill(bGPDspoint *points, int totpoints, short thickness, short dflag, short sflag,
+                                int offsx, int offsy, int winx, int winy)
+{
+	bGPDspoint *pt;
+	int i;
+	
+	BLI_assert(totpoints >= 3);
+	
+	/* As an initial implementation, we use the OpenGL filled polygon drawing 
+	 * here since it's the easiest option to implement for this case. It does
+	 * come with limitations (notably for concave shapes), though it shouldn't
+	 * be much of an issue in most cases.
+	 */
+	glBegin(GL_POLYGON);
+	
+	for (i = 0, pt = points; i < totpoints; i++, pt++) {
+		if (sflag & GP_STROKE_3DSPACE) {
+			glVertex3fv(&pt->x);
+		}
+		else {
+			float co[2];
+			
+			gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+			glVertex2fv(co);
+		}
+	}
+	
+	glEnd();
+}
+
 /* ----- Existing Strokes Drawing (3D and Point) ------ */
 
 /* draw a given stroke - just a single dot (only one point) */
@@ -163,18 +359,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 		float co[2];
 		
 		/* get coordinates of point */
-		if (sflag & GP_STROKE_2DSPACE) {
-			co[0] = points->x;
-			co[1] = points->y;
-		}
-		else if (sflag & GP_STROKE_2DIMAGE) {
-			co[0] = (points->x * winx) + offsx;
-			co[1] = (points->y * winy) + offsy;
-		}
-		else {
-			co[0] = (points->x / 100 * winx) + offsx;
-			co[1] = (points->y / 100 * winy) + offsy;
-		}
+		gp_calc_2d_stroke_xy(points, sflag, offsx, offsy, winx, winy, co);
 		
 		/* if thickness is less than GP_DRAWTHICKNESS_SPECIAL, simple dot looks ok
 		 *  - also mandatory in if Image Editor 'image-based' dot
@@ -203,7 +388,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 }
 
 /* draw a given stroke in 3d (i.e. in 3d-space), using simple ogl lines */
-static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness, short debug, short sflag)
+static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness, bool debug, short sflag)
 {
 	bGPDspoint *pt;
 	float curpressure = points[0].pressure;
@@ -248,8 +433,8 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 /* ----- Fancy 2D-Stroke Drawing ------ */
 
 /* draw a given stroke in 2d */
-static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s, short dflag, short sflag,
-                           short debug, int offsx, int offsy, int winx, int winy)
+static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness_s, short dflag, short sflag,
+                              bool debug, int offsx, int offsy, int winx, int winy)
 {
 	/* otherwise thickness is twice that of the 3D view */
 	float thickness = (float)thickness_s * 0.5f;
@@ -265,21 +450,10 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 		
 		glBegin(GL_LINE_STRIP);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
-			if (sflag & GP_STROKE_2DSPACE) {
-				glVertex2f(pt->x, pt->y);
-			}
-			else if (sflag & GP_STROKE_2DIMAGE) {
-				const float x = (pt->x * winx) + offsx;
-				const float y = (pt->y * winy) + offsy;
-				
-				glVertex2f(x, y);
-			}
-			else {
-				const float x = (pt->x / 100 * winx) + offsx;
-				const float y = (pt->y / 100 * winy) + offsy;
-				
-				glVertex2f(x, y);
-			}
+			float co[2];
+			
+			gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+			glVertex2fv(co);
 		}
 		glEnd();
 	}
@@ -303,22 +477,8 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 			float pthick;           /* thickness at segment point */
 			
 			/* get x and y coordinates from points */
-			if (sflag & GP_STROKE_2DSPACE) {
-				s0[0] = pt1->x;      s0[1] = pt1->y;
-				s1[0] = pt2->x;      s1[1] = pt2->y;
-			}
-			else if (sflag & GP_STROKE_2DIMAGE) {
-				s0[0] = (pt1->x * winx) + offsx;
-				s0[1] = (pt1->y * winy) + offsy;
-				s1[0] = (pt2->x * winx) + offsx;
-				s1[1] = (pt2->y * winy) + offsy;
-			}
-			else {
-				s0[0] = (pt1->x / 100 * winx) + offsx;
-				s0[1] = (pt1->y / 100 * winy) + offsy;
-				s1[0] = (pt2->x / 100 * winx) + offsx;
-				s1[1] = (pt2->y / 100 * winy) + offsy;
-			}
+			gp_calc_2d_stroke_xy(pt1, sflag, offsx, offsy, winx, winy, s0);
+			gp_calc_2d_stroke_xy(pt2, sflag, offsx, offsy, winx, winy, s1);
 			
 			/* calculate gradient and normal - 'angle'=(ny/nx) */
 			m1[1] = s1[1] - s0[1];
@@ -452,21 +612,10 @@ static void gp_draw_stroke(bGPDspoint *points, int totpoints, short thickness_s,
 		
 		glBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
-			if (sflag & GP_STROKE_2DSPACE) {
-				glVertex2fv(&pt->x);
-			}
-			else if (sflag & GP_STROKE_2DIMAGE) {
-				const float x = (float)((pt->x * winx) + offsx);
-				const float y = (float)((pt->y * winy) + offsy);
-				
-				glVertex2f(x, y);
-			}
-			else {
-				const float x = (float)(pt->x / 100 * winx) + offsx;
-				const float y = (float)(pt->y / 100 * winy) + offsy;
-				
-				glVertex2f(x, y);
-			}
+			float co[2];
+			
+			gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
+			glVertex2fv(co);
 		}
 		glEnd();
 	}
@@ -507,12 +656,9 @@ static bool gp_can_draw_stroke(const bGPDstroke *gps, const int dflag)
 
 /* draw a set of strokes */
 static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int winy, int dflag,
-                            short debug, short lthick, const float color[4])
+                            bool debug, short lthick, const float color[4], const float fill_color[4])
 {
 	bGPDstroke *gps;
-	
-	/* set color first (may need to reset it again later too) */
-	glColor4fv(color);
 	
 	for (gps = gpf->strokes.first; gps; gps = gps->next) {
 		/* check if stroke can be drawn */
@@ -538,11 +684,27 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 #endif
 			}
 			
-			if (gps->totpoints == 1) {
-				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			/* 3D Fill */
+			if ((dflag & GP_DRAWDATA_FILL) && (gps->totpoints >= 3)) {
+				glColor4fv(fill_color);
+				gp_draw_stroke_fill(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			}
+			
+			/* 3D Stroke */
+			glColor4fv(color);
+			
+			if (dflag & GP_DRAWDATA_VOLUMETRIC) {
+				/* volumetric stroke drawing */
+				gp_draw_stroke_volumetric_3d(gps->points, gps->totpoints, lthick, dflag, gps->flag);
 			}
 			else {
-				gp_draw_stroke_3d(gps->points, gps->totpoints, lthick, debug, gps->flag);
+				/* 3D Lines - OpenGL primitives-based */
+				if (gps->totpoints == 1) {
+					gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+				}
+				else {
+					gp_draw_stroke_3d(gps->points, gps->totpoints, lthick, debug, gps->flag);
+				}
 			}
 			
 			if (no_xray) {
@@ -557,11 +719,26 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 			}
 		}
 		else {
-			if (gps->totpoints == 1) {
-				gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			/* 2D - Fill */
+			if ((dflag & GP_DRAWDATA_FILL) && (gps->totpoints >= 3)) {
+				gp_draw_stroke_fill(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+			}
+			
+			/* 2D Strokes... */
+			glColor4fv(color);
+			
+			if (dflag & GP_DRAWDATA_VOLUMETRIC) {
+				/* blob/disk-based "volumetric" drawing */
+				gp_draw_stroke_volumetric_2d(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
 			}
 			else {
-				gp_draw_stroke(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, offsx, offsy, winx, winy);
+				/* normal 2D strokes */
+				if (gps->totpoints == 1) {
+					gp_draw_stroke_point(gps->points, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
+				}
+				else {
+					gp_draw_stroke_2d(gps->points, gps->totpoints, lthick, dflag, gps->flag, debug, offsx, offsy, winx, winy);
+				}
 			}
 		}
 	}
@@ -572,6 +749,28 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 {
 	bGPDstroke *gps;
 	
+	const int no_xray = (dflag & GP_DRAWDATA_NO_XRAY);
+	int mask_orig = 0;
+	
+	/* set up depth masks... */
+	if (dflag & GP_DRAWDATA_ONLY3D) {
+		if (no_xray) {
+			glGetIntegerv(GL_DEPTH_WRITEMASK, &mask_orig);
+			glDepthMask(0);
+			glEnable(GL_DEPTH_TEST);
+			
+			/* first arg is normally rv3d->dist, but this isn't
+			 * available here and seems to work quite well without */
+			bglPolygonOffset(1.0f, 1.0f);
+#if 0
+			glEnable(GL_POLYGON_OFFSET_LINE);
+			glPolygonOffset(-1.0f, -1.0f);
+#endif
+		}
+	}
+	
+	
+	/* draw stroke verts */
 	for (gps = gpf->strokes.first; gps; gps = gps->next) {
 		bGPDspoint *pt;
 		float vsize, bsize;
@@ -618,20 +817,11 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 			if (gps->flag & GP_STROKE_3DSPACE) {
 				glVertex3fv(&pt->x);
 			}
-			else if (gps->flag & GP_STROKE_2DSPACE) {
-				glVertex2fv(&pt->x);
-			}
-			else if (gps->flag & GP_STROKE_2DIMAGE) {
-				const float x = (float)((pt->x * winx) + offsx);
-				const float y = (float)((pt->y * winy) + offsy);
-				
-				glVertex2f(x, y);
-			}
 			else {
-				const float x = (float)(pt->x / 100 * winx) + offsx;
-				const float y = (float)(pt->y / 100 * winy) + offsy;
+				float co[2];
 				
-				glVertex2f(x, y);
+				gp_calc_2d_stroke_xy(pt, gps->flag, offsx, offsy, winx, winy, co);
+				glVertex2fv(co);
 			}
 		}
 		glEnd();
@@ -647,24 +837,30 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 				if (gps->flag & GP_STROKE_3DSPACE) {
 					glVertex3fv(&pt->x);
 				}
-				else if (gps->flag & GP_STROKE_2DSPACE) {
-					glVertex2fv(&pt->x);
-				}
-				else if (gps->flag & GP_STROKE_2DIMAGE) {
-					const float x = (float)((pt->x * winx) + offsx);
-					const float y = (float)((pt->y * winy) + offsy);
-					
-					glVertex2f(x, y);
-				}
 				else {
-					const float x = (float)(pt->x / 100 * winx) + offsx;
-					const float y = (float)(pt->y / 100 * winy) + offsy;
+					float co[2];
 					
-					glVertex2f(x, y);
+					gp_calc_2d_stroke_xy(pt, gps->flag, offsx, offsy, winx, winy, co);
+					glVertex2fv(co);
 				}
 			}
 		}
 		glEnd();
+	}
+	
+	
+	/* clear depth mask */
+	if (dflag & GP_DRAWDATA_ONLY3D) {
+		if (no_xray) {
+			glDepthMask(mask_orig);
+			glDisable(GL_DEPTH_TEST);
+			
+			bglPolygonOffset(0.0, 0.0);
+#if 0
+			glDisable(GL_POLYGON_OFFSET_LINE);
+			glPolygonOffset(0, 0);
+#endif
+		}
 	}
 }
 
@@ -696,7 +892,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 				/* alpha decreases with distance from curframe index */
 				fac = 1.0f - ((float)(gpf->framenum - gf->framenum) / (float)(gpl->gstep + 1));
 				color[3] = alpha * fac * 0.66f;
-				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 			}
 			else 
 				break;
@@ -706,7 +902,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 		/* draw the strokes for the ghost frames (at half of the alpha set by user) */
 		if (gpf->prev) {
 			color[3] = (alpha / 7);
-			gp_draw_strokes(gpf->prev, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+			gp_draw_strokes(gpf->prev, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 		}
 	}
 	
@@ -730,7 +926,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 				/* alpha decreases with distance from curframe index */
 				fac = 1.0f - ((float)(gf->framenum - gpf->framenum) / (float)(gpl->gstep_next + 1));
 				color[3] = alpha * fac * 0.66f;
-				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+				gp_draw_strokes(gf, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 			}
 			else 
 				break;
@@ -740,7 +936,7 @@ static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int of
 		/* draw the strokes for the ghost frames (at half of the alpha set by user) */
 		if (gpf->next) {
 			color[3] = (alpha / 4);
-			gp_draw_strokes(gpf->next, offsx, offsy, winx, winy, dflag, debug, lthick, color);
+			gp_draw_strokes(gpf->next, offsx, offsy, winx, winy, dflag, debug, lthick, color, color);
 		}
 	}
 	
@@ -767,9 +963,8 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
 		bGPDframe *gpf;
 		
-		short debug = (gpl->flag & GP_LAYER_DRAWDEBUG) ? 1 : 0;
+		bool debug = (gpl->flag & GP_LAYER_DRAWDEBUG) ? true : false;
 		short lthick = gpl->thickness;
-		float color[4], tcolor[4];
 		
 		/* don't draw layer if hidden */
 		if (gpl->flag & GP_LAYER_HIDE) 
@@ -782,14 +977,19 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		
 		/* set color, stroke thickness, and point size */
 		glLineWidth(lthick);
-		copy_v4_v4(color, gpl->color); // just for copying 4 array elements
-		copy_v4_v4(tcolor, gpl->color); // additional copy of color (for ghosting)
-		glColor4fv(color);
 		glPointSize((float)(gpl->thickness + 2));
 		
 		/* apply xray layer setting */
 		if (gpl->flag & GP_LAYER_NO_XRAY) dflag |=  GP_DRAWDATA_NO_XRAY;
 		else dflag &= ~GP_DRAWDATA_NO_XRAY;
+		
+		/* apply volumetric setting */
+		if (gpl->flag & GP_LAYER_VOLUMETRIC) dflag |= GP_DRAWDATA_VOLUMETRIC;
+		else dflag &= ~GP_DRAWDATA_VOLUMETRIC;
+		
+		/* apply fill setting */
+		// XXX: this is not a very good limit
+		if (gpl->fill[3] > 0.001f)  dflag |= GP_DRAWDATA_FILL;
 		
 		/* draw 'onionskins' (frame left + right) */
 		if ((gpl->flag & GP_LAYER_ONIONSKIN) && !(dflag & GP_DRAWDATA_NO_ONIONS)) {
@@ -800,8 +1000,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		}
 		
 		/* draw the strokes already in active frame */
-		tcolor[3] = color[3];
-		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, tcolor);
+		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, gpl->color, gpl->fill);
 		
 		/* Draw verts of selected strokes 
 		 * 	- locked layers can't be edited, so there's no point showing these verts
@@ -810,7 +1009,7 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		/* XXX: perhaps we don't want to show these when users are drawing... */
 		if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
 			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, 
-			                     (gpl->color[3] < 0.95f) ? tcolor : NULL);
+			                     (gpl->color[3] < 0.95f) ? gpl->color : NULL);
 		}
 		
 		/* Check if may need to draw the active stroke cache, only if this layer is the active layer
@@ -820,8 +1019,17 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		    (gpf->flag & GP_FRAME_PAINT))
 		{
 			/* Buffer stroke needs to be drawn with a different linestyle
-			 * to help differentiate them from normal strokes. */
-			gp_draw_stroke_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
+			 * to help differentiate them from normal strokes.
+			 * 
+			 * It should also be noted that sbuffer contains temporary point types
+			 * i.e. tGPspoints NOT bGPDspoints
+			 */
+			if (gpl->flag & GP_LAYER_VOLUMETRIC) {
+				gp_draw_stroke_volumetric_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
+			}
+			else {
+				gp_draw_stroke_buffer(gpd->sbuffer, gpd->sbuffer_size, lthick, dflag, gpd->sbuffer_sflag);
+			}
 		}
 	}
 	

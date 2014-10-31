@@ -66,6 +66,28 @@ static int rna_GPencilLayer_active_frame_editable(PointerRNA *ptr)
 		return 1;
 }
 
+static void rna_GPencilLayer_line_width_range(PointerRNA *ptr, int *min, int *max,
+                                              int *UNUSED(softmin), int *UNUSED(softmax))
+{
+	bGPDlayer *gpl = ptr->data;
+	
+	/* The restrictions on max width here are due to OpenGL on Windows not supporting
+	 * any widths greater than 10 (for driver-drawn) strokes/points.
+	 *
+	 * Although most of our 2D strokes also don't suffer from this restriction,
+	 * it's relatively hard to test for that. So, for now, only volumetric strokes
+	 * get to be larger...
+	 */
+	if (gpl->flag & GP_LAYER_VOLUMETRIC) {
+		*min = 1;
+		*max = 300;
+	}
+	else {
+		*min = 1;
+		*max = 10;
+	}
+}
+
 static PointerRNA rna_GPencil_active_layer_get(PointerRNA *ptr)
 {
 	bGPdata *gpd = ptr->id.data;
@@ -596,7 +618,14 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	RNA_def_property_editable_func(prop, "rna_GPencilLayer_active_frame_editable");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 
-	/* Drawing Color */
+	/* Draw Style */
+	// TODO: replace these with a "draw type" combo (i.e. strokes only, filled strokes, strokes + fills, volumetric)?
+	prop = RNA_def_property(srna, "use_volumetric_strokes", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_LAYER_VOLUMETRIC);
+	RNA_def_property_ui_text(prop, "Volumetric Strokes", "Draw strokes as a series of circular blobs, resulting in a volumetric effect");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	/* Stroke Drawing Color */
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
 	RNA_def_property_array(prop, 3);
 	RNA_def_property_range(prop, 0.0f, 1.0f);
@@ -605,14 +634,29 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "alpha", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "color[3]");
-	RNA_def_property_range(prop, 0.3, 1.0f);
+	RNA_def_property_range(prop, 0.0, 1.0f);
 	RNA_def_property_ui_text(prop, "Opacity", "Layer Opacity");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	/* Fill Drawing Color */
+	prop = RNA_def_property(srna, "fill_color", PROP_FLOAT, PROP_COLOR_GAMMA);
+	RNA_def_property_float_sdna(prop, NULL, "fill");
+	RNA_def_property_array(prop, 3);
+	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_ui_text(prop, "Fill Color", "Color for filling region bounded by each stroke");
+	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
+	
+	prop = RNA_def_property(srna, "fill_alpha", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "fill[3]");
+	RNA_def_property_range(prop, 0.0, 1.0f);
+	RNA_def_property_ui_text(prop, "Fill Opacity", "Opacity for filling region bounded by each stroke");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	
 	/* Line Thickness */
 	prop = RNA_def_property(srna, "line_width", PROP_INT, PROP_PIXEL);
 	RNA_def_property_int_sdna(prop, NULL, "thickness");
-	RNA_def_property_range(prop, 1, 10); /* 10 px limit comes from Windows OpenGL limits for natively-drawn strokes */
+	//RNA_def_property_range(prop, 1, 10); /* 10 px limit comes from Windows OpenGL limits for natively-drawn strokes */
+	RNA_def_property_int_funcs(prop, NULL, NULL, "rna_GPencilLayer_line_width_range");
 	RNA_def_property_ui_text(prop, "Thickness", "Thickness of strokes (in pixels)");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, "rna_GPencil_update");
 	

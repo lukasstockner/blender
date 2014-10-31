@@ -120,6 +120,7 @@ typedef struct bGPDlayer {
 	float gcolor_next[3];	/* optional color for ghosts after the active frame */
 	
 	float color[4];			/* color that should be used to draw all the strokes in this layer */
+	float fill[4];			/* color that should be used for drawing "fills" for strokes */
 	
 	char info[128];			/* optional reference info about this layer (i.e. "director's comments, 12/3")
 							 * this is used for the name of the layer  too and kept unique. */
@@ -146,7 +147,9 @@ typedef enum eGPDlayer_Flag {
 	/* use custom color for ghosts before current frame */
 	GP_LAYER_GHOST_PREVCOL	= (1 << 8),
 	/* use custom color for ghosts after current frame */
-	GP_LAYER_GHOST_NEXTCOL	= (1 << 9)
+	GP_LAYER_GHOST_NEXTCOL	= (1 << 9),
+	/* "volumetric" strokes (i.e. GLU Quadric discs in 3D) */
+	GP_LAYER_VOLUMETRIC		= (1 << 10),
 } eGPDlayer_Flag;
 
 /* Grease-Pencil Annotations - 'DataBlock' */

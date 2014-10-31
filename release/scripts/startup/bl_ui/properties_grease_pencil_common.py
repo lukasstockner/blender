@@ -99,7 +99,7 @@ class GreasePencilStrokeEditPanel():
         layout = self.layout
 
         gpd = context.gpencil_data
-        edit_ok = context.editable_gpencil_strokes and gpd.use_stroke_edit_mode
+        edit_ok = bool(context.editable_gpencil_strokes) and bool(gpd.use_stroke_edit_mode)
 
         col = layout.column(align=True)
         col.prop(gpd, "use_stroke_edit_mode", text="Enable Editing", icon='EDIT', toggle=True)
@@ -278,21 +278,31 @@ class GreasePencilDataPanel():
         split = layout.split(percentage=0.5)
         split.active = not gpl.lock
 
-        # Column 1 - Appearance
-        col = split.column()
+        # Column 1 - Stroke
+        col = split.column(align=True)
+        col.label(text="Stroke:")
+        col.prop(gpl, "color", text="")
+        col.prop(gpl, "alpha", slider=True)
 
-        subcol = col.column(align=True)
-        subcol.prop(gpl, "color", text="")
-        subcol.prop(gpl, "alpha", slider=True)
+        # Column 2 - Fill
+        col = split.column(align=True)
+        col.label(text="Fill:")
+        col.prop(gpl, "fill_color", text="")
+        col.prop(gpl, "fill_alpha", text="Opacity", slider=True)
+
+        # Options
+        split = layout.split(percentage=0.5)
+        split.active = not gpl.lock
+
+        col = split.column(align=True)
+        col.prop(gpl, "line_width", slider=True)
+        col.prop(gpl, "use_volumetric_strokes")
+
+        col = split.column(align=True)
+        col.prop(gpl, "show_x_ray")
 
         #if debug:
-        #   col.prop(gpl, "show_points")
-
-        # Column 2 - Options (& Current Frame)
-        col = split.column(align=True)
-
-        col.prop(gpl, "line_width", slider=True)
-        col.prop(gpl, "show_x_ray")
+        #   layout.prop(gpl, "show_points")
 
         layout.separator()
 
