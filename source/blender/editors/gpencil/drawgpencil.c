@@ -749,6 +749,28 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 {
 	bGPDstroke *gps;
 	
+	const int no_xray = (dflag & GP_DRAWDATA_NO_XRAY);
+	int mask_orig = 0;
+	
+	/* set up depth masks... */
+	if (dflag & GP_DRAWDATA_ONLY3D) {
+		if (no_xray) {
+			glGetIntegerv(GL_DEPTH_WRITEMASK, &mask_orig);
+			glDepthMask(0);
+			glEnable(GL_DEPTH_TEST);
+			
+			/* first arg is normally rv3d->dist, but this isn't
+			 * available here and seems to work quite well without */
+			bglPolygonOffset(1.0f, 1.0f);
+#if 0
+			glEnable(GL_POLYGON_OFFSET_LINE);
+			glPolygonOffset(-1.0f, -1.0f);
+#endif
+		}
+	}
+	
+	
+	/* draw stroke verts */
 	for (gps = gpf->strokes.first; gps; gps = gps->next) {
 		bGPDspoint *pt;
 		float vsize, bsize;
@@ -824,6 +846,21 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 			}
 		}
 		glEnd();
+	}
+	
+	
+	/* clear depth mask */
+	if (dflag & GP_DRAWDATA_ONLY3D) {
+		if (no_xray) {
+			glDepthMask(mask_orig);
+			glDisable(GL_DEPTH_TEST);
+			
+			bglPolygonOffset(0.0, 0.0);
+#if 0
+			glDisable(GL_POLYGON_OFFSET_LINE);
+			glPolygonOffset(0, 0);
+#endif
+		}
 	}
 }
 
