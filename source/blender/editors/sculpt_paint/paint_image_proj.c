@@ -5281,7 +5281,7 @@ static int add_simple_uvs_exec(bContext *C, wmOperator *UNUSED(op))
 	/* set the margin really quickly before the packing operation*/
 	scene->toolsettings->uvcalc_margin = 0.001f;
 	ED_uvedit_pack_islands(scene, ob, bm, false, false, true);
-	BM_mesh_bm_to_me(bm, me, false);
+	BM_mesh_bm_to_me(bm, me, false, true);
 	BM_mesh_free(bm);
 
 	if (synch_selection)
