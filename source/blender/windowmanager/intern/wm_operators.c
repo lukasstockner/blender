@@ -2842,6 +2842,9 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 	                 G_FILE_MESH_COMPAT);
 #endif
 
+	BKE_BIT_TEST_SET(fileflags, RNA_boolean_get(op->ptr, "use_shapekey_compat"),
+	                 G_FILE_SHAPEKEY_COMPAT);
+
 	if (wm_file_write(C, path, fileflags, op->reports) != 0)
 		return OPERATOR_CANCELLED;
 
@@ -2891,6 +2894,8 @@ static void WM_OT_save_as_mainfile(wmOperatorType *ot)
 	                "Save using legacy mesh format (no ngons) - WARNING: only saves tris and quads, other ngons will "
 	                "be lost (no implicit triangulation)");
 #endif
+	RNA_def_boolean(ot->srna, "use_shapekey_compat", false, "Legacy ShapeKey Format",
+	                "Save using legacy ShapeKey format (no compression)");
 }
 
 /* *************** save file directly ******** */
@@ -2958,6 +2963,8 @@ static void WM_OT_save_mainfile(wmOperatorType *ot)
 	                               WM_FILESEL_FILEPATH, FILE_DEFAULTDISPLAY);
 	RNA_def_boolean(ot->srna, "compress", 0, "Compress", "Write compressed .blend file");
 	RNA_def_boolean(ot->srna, "relative_remap", 0, "Remap Relative", "Remap relative paths when saving in a different directory");
+	RNA_def_boolean(ot->srna, "use_shapekey_compat", false, "Legacy ShapeKey Format",
+	                "Save using legacy ShapeKey format (no compression)");
 }
 
 static void WM_OT_window_fullscreen_toggle(wmOperatorType *ot)

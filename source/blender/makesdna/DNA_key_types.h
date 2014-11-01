@@ -58,9 +58,7 @@ typedef struct KeyBlock {
 	float curval;      /* influence (typically [0 - 1] but can be more), (Key->type == KEY_RELATIVE) only.*/
 
 	short type;        /* interpolation type (Key->type == KEY_NORMAL) only. */
-	short compressed;  /* for disk write/read; if 1, then they key's data is laid out as an array of
-	                    * CompressedMeshVertex structs (total totelem).
-	                    * Mesh only. Does not do anything useful at runtime */
+	short pad1;
 
 	short relative;    /* relative == 0 means first key is reference, otherwise the index of Key->blocks */
 	short flag;
@@ -146,8 +144,14 @@ enum {
 
 /* Key->flag */
 enum {
-	KEY_DS_EXPAND   = 1
+	KEY_DS_EXPAND   = 1 << 0,
+	/* File save only - if set, key's data is laid out as an array of CompressedMeshVertex structs (total totelem).
+	 * Mesh only. Does not do anything useful at runtime */
+	KEY_COMPRESSED  = 1 << 1,
 };
+
+/* Min squared distance between org vertex and skey one, to store the skey in file (compressed mode only). */
+#define KEY_MIN_SQUARED_LEN 1e-6f
 
 /* KeyBlock->type */
 enum {

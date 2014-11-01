@@ -3118,7 +3118,7 @@ static void switch_endian_keyblock(Key *key, KeyBlock *kb)
 	const char *data, *poin, *cp;
 	data = kb->data;
 
-	if (kb->compressed) {
+	if (kb->flag & KEY_COMPRESSED) {
 		CompressedMeshVertex *verts = (CompressedMeshVertex *)data;
 		for (a = 0; a < kb->totelem; ++a) {
 			BLI_endian_switch_int32(&verts[a].vertex_index);
@@ -3170,7 +3170,7 @@ static void direct_link_key(FileData *fd, Key *key)
 		if (fd->flags & FD_FLAGS_SWITCH_ENDIAN)
 			switch_endian_keyblock(key, kb);
 		
-		if (kb->compressed && key->refkey != kb) {
+		if ((kb->flag & KEY_COMPRESSED) && key->refkey != kb) {
 			uncompress_kb(key, kb);
 		}
 	}

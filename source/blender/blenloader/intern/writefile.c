@@ -310,6 +310,7 @@ typedef struct {
 #ifdef USE_BMESH_SAVE_AS_COMPAT
 	char use_mesh_compat; /* option to save with older mesh format */
 #endif
+	char use_skey_compat; /* option to save skeys without compression */
 } WriteData;
 
 static WriteData *writedata_new(WriteWrap *ww)
@@ -1708,10 +1709,10 @@ static void compress_kb(KeyBlock *kb, Key *key_owner)
 
 	BLI_assert(kb->data); /* should not happen at any time! */
 
-	n_changed_verts = 0; /* counts CompressedMeshVertexes */
+	n_changed_verts = 0; /* counts CompressedMeshVertex's */
 	for (a = 0; a < rk->totelem; ++a) {
 		sub_v3_v3v3(diff, rkbco[a], kbco[a]);
-		if (len_squared_v3(diff) > 0.0001f) {
+		if (len_squared_v3(diff) > KEY_MIN_SQUARED_LEN) {
 			/* this vert's pos has changed from the base */
 			copy_v3_v3(verts[n_changed_verts].co, kbco[a]);
 			verts[n_changed_verts].vertex_index = a;
@@ -1720,9 +1721,9 @@ static void compress_kb(KeyBlock *kb, Key *key_owner)
 	}
 
 	/* time to decide if we're going to win space by saving to compressed format */
+	/*    size we get with compress        size we get without compress */
 	if (n_changed_verts * sizeof(verts) < rk->totelem * sizeof(float)* 3) {
-		/*       size we get with compress      */   /* size we get without compress */
-		kb->compressed = 1;
+		kb->flag |= KEY_COMPRESSED;
 		kb->totelem = n_changed_verts;
 
 		MEM_freeN(kb->data);
@@ -1730,13 +1731,13 @@ static void compress_kb(KeyBlock *kb, Key *key_owner)
 
 		if (G.debug_value == 1) {
 			printf("Compressed Shape Key %s, %.2f times smaller\n", kb->name,
-				(rk->totelem * sizeof(float) * 3.0f) / (n_changed_verts * sizeof(CompressedMeshVertex)));
+			       (rk->totelem * sizeof(float) * 3.0f) / (n_changed_verts * sizeof(CompressedMeshVertex)));
 		}
 	}
 	else {
 		MEM_freeN(verts);
 		/* just ensure */
-		kb->compressed = 0;
+		kb->flag &= ~KEY_COMPRESSED;
 	}
 }
 
@@ -1760,7 +1761,7 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 	while (key) {
 		if (key->id.us>0 || wd->current) {
 			/* direct data */
-			if (GS(key->from->name) == ID_ME && !(U.flag & USER_LEGACY_KEYBLOCKS_FMT)) {
+			if (GS(key->from->name) == ID_ME && !wd->use_skey_compat) {
 				ListBase lb = key->block;
 
 				/* if mesh keys, save a compressed copy */
@@ -1782,15 +1783,12 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 				compress_keyblocks(dupe);
 
 				/* direct */
-				kb = key->block.first;
-
-				while (kb) {
+				for (kb = key->block.first; kb; kb = kb->next) {
 					writestruct(wd, DATA, "KeyBlock", 1, kb);
-					if (kb->compressed) 
-						writedata(wd, DATA, sizeof(CompressedMeshVertex)* kb->totelem, kb->data);
+					if (kb->flag & KEY_COMPRESSED)
+						writedata(wd, DATA, kb->totelem * sizeof(CompressedMeshVertex), kb->data);
 					else
 						writedata(wd, DATA, kb->totelem * key->elemsize, kb->data);
-					kb = kb->next;
 				}
 
 				/* restore key data */
@@ -1810,12 +1808,10 @@ static void write_keys(WriteData *wd, ListBase *idbase)
 					write_animdata(wd, key->adt);
 
 				/* direct */
-				kb = key->block.first;
-				while (kb) {
-					kb->compressed = 0;
+				for (kb = key->block.first; kb; kb = kb->next) {
+					kb->flag &= ~KEY_COMPRESSED;
 					writestruct(wd, DATA, "KeyBlock", 1, kb);
 					if (kb->data) writedata(wd, DATA, kb->totelem * key->elemsize, kb->data);
-					kb = kb->next;
 				}
 			}
 		}
@@ -3606,6 +3602,8 @@ static int write_file_handle(
 #ifdef USE_BMESH_SAVE_AS_COMPAT
 	wd->use_mesh_compat = (write_flags & G_FILE_MESH_COMPAT) != 0;
 #endif
+
+	wd->use_skey_compat = (write_flags & G_FILE_SHAPEKEY_COMPAT) != 0;
 
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
 	/* don't write compatibility data on undo */

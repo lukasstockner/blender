@@ -166,6 +166,7 @@ enum {
 #define G_FILE_HISTORY           (1 << 25)
 #define G_FILE_MESH_COMPAT       (1 << 26)              /* BMesh option to save as older mesh format */
 #define G_FILE_SAVE_COPY         (1 << 27)              /* restore paths after editing them */
+#define G_FILE_SHAPEKEY_COMPAT   (1 << 28)              /* Option to save as older shapekey format (no compression) */
 
 #define G_FILE_FLAGS_RUNTIME (G_FILE_NO_UI | G_FILE_RELATIVE_REMAP | G_FILE_MESH_COMPAT | G_FILE_SAVE_COPY)
 

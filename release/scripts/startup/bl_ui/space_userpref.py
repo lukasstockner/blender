@@ -929,7 +929,6 @@ class USERPREF_PT_file(Panel):
         col.prop(paths, "hide_recent_locations")
         col.prop(paths, "hide_system_bookmarks")
         col.prop(paths, "show_thumbnails")
-        col.prop(paths, "legacy_keyblocks")
 
         col.separator()
 
