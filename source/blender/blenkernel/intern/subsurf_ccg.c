@@ -72,10 +72,9 @@
 #  include "BLI_array.h"
 #endif
 
-#include "GL/glew.h"
-
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_glew.h"
 #include "GPU_material.h"
 
 #include "CCGSubSurf.h"
@@ -2353,8 +2352,9 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 				mat_nr_cache = mat_nr;
 			}
-			tf = tf_base + gridOffset;
-			tf_stencil = tf_stencil_base + gridOffset;
+
+			tf = tf_base ? tf_base + gridOffset : NULL;
+			tf_stencil = tf_stencil_base ? tf_stencil_base + gridOffset : NULL;
 			gridOffset += gridFaces * gridFaces * numVerts;
 		}
 
@@ -2398,25 +2398,25 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 						float *d_co = CCG_grid_elem_co(&key, faceGridData, x, y + 1);
 
 						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[1]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[1]);
 						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
 						glNormal3sv(ln[0][1]);
 						glVertex3fv(d_co);
 
 						if (tf) glTexCoord2fv(tf->uv[2]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[2]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[2]);
 						if (cp) glColor3ub(cp[11], cp[10], cp[9]);
 						glNormal3sv(ln[0][2]);
 						glVertex3fv(c_co);
 
 						if (tf) glTexCoord2fv(tf->uv[3]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[3]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[3]);
 						if (cp) glColor3ub(cp[15], cp[14], cp[13]);
 						glNormal3sv(ln[0][3]);
 						glVertex3fv(b_co);
 
 						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[0]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[0]);
 						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
 						glNormal3sv(ln[0][0]);
 						glVertex3fv(a_co);
@@ -2438,13 +2438,13 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 						b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
 						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[0]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[0]);
 						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
 						glNormal3fv(CCG_elem_no(&key, a));
 						glVertex3fv(CCG_elem_co(&key, a));
 
 						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[1]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[1]);
 						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
 						glNormal3fv(CCG_elem_no(&key, b));
 						glVertex3fv(CCG_elem_co(&key, b));
@@ -2460,13 +2460,13 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 					b = CCG_grid_elem(&key, faceGridData, x, y + 1);
 
 					if (tf) glTexCoord2fv(tf->uv[3]);
-					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[3]);
+					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[3]);
 					if (cp) glColor3ub(cp[15], cp[14], cp[13]);
 					glNormal3fv(CCG_elem_no(&key, a));
 					glVertex3fv(CCG_elem_co(&key, a));
 
 					if (tf) glTexCoord2fv(tf->uv[2]);
-					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[2]);
+					if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[2]);
 					if (cp) glColor3ub(cp[11], cp[10], cp[9]);
 					glNormal3fv(CCG_elem_no(&key, b));
 					glVertex3fv(CCG_elem_co(&key, b));
@@ -2491,22 +2491,22 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 						ccgDM_glNormalFast(a_co, b_co, c_co, d_co);
 
 						if (tf) glTexCoord2fv(tf->uv[1]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[1]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[1]);
 						if (cp) glColor3ub(cp[7], cp[6], cp[5]);
 						glVertex3fv(d_co);
 
 						if (tf) glTexCoord2fv(tf->uv[2]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[2]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[2]);
 						if (cp) glColor3ub(cp[11], cp[10], cp[9]);
 						glVertex3fv(c_co);
 
 						if (tf) glTexCoord2fv(tf->uv[3]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[3]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[3]);
 						if (cp) glColor3ub(cp[15], cp[14], cp[13]);
 						glVertex3fv(b_co);
 
 						if (tf) glTexCoord2fv(tf->uv[0]);
-						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE1, tf_stencil->uv[0]);
+						if (tf_stencil) glMultiTexCoord2fv(GL_TEXTURE2, tf_stencil->uv[0]);
 						if (cp) glColor3ub(cp[3], cp[2], cp[1]);
 						glVertex3fv(a_co);
 

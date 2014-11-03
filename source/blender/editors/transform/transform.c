@@ -58,6 +58,7 @@
 #include "BKE_particle.h"
 #include "BKE_unit.h"
 #include "BKE_mask.h"
+#include "BKE_report.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -270,7 +271,8 @@ void convertViewVec(TransInfo *t, float r_vec[3], int dx, int dy)
 			r_vec[0] = dx;
 			r_vec[1] = dy;
 		}
-		else {	const float mval_f[2] = {(float)dx, (float)dy};
+		else {
+			const float mval_f[2] = {(float)dx, (float)dy};
 			ED_view3d_win_to_delta(t->ar, mval_f, r_vec, t->zfac);
 		}
 	}
@@ -1123,47 +1125,22 @@ int transformEvent(TransInfo *t, const wmEvent *event)
 				handled = true;
 				break;
 			case TFM_MODAL_AXIS_X:
-				if ((t->flag & T_NO_CONSTRAINT) == 0) {
-					if (cmode == 'X') {
-						stopConstraint(t);
-					}
-					else {
-						if (t->flag & T_2D_EDIT) {
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS0), IFACE_("along X"));
-						}
-						else {
-							setUserConstraint(t, t->current_orientation, (CON_AXIS0), IFACE_("along %s X"));
-						}
-					}
+				if (!(t->flag & T_NO_CONSTRAINT)) {
+					transform_event_xyz_constraint(t, XKEY, cmode);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Y:
 				if ((t->flag & T_NO_CONSTRAINT) == 0) {
-					if (cmode == 'Y') {
-						stopConstraint(t);
-					}
-					else {
-						if (t->flag & T_2D_EDIT) {
-							setUserConstraint(t, V3D_MANIP_GLOBAL, (CON_AXIS1), IFACE_("along Y"));
-						}
-						else {
-							setUserConstraint(t, t->current_orientation, (CON_AXIS1), IFACE_("along %s Y"));
-						}
-					}
+					transform_event_xyz_constraint(t, YKEY, cmode);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
 				break;
 			case TFM_MODAL_AXIS_Z:
-				if ((t->flag & (T_NO_CONSTRAINT | T_2D_EDIT)) == 0) {
-					if (cmode == 'Z') {
-						stopConstraint(t);
-					}
-					else {
-						setUserConstraint(t, t->current_orientation, (CON_AXIS2), IFACE_("along %s Z"));
-					}
+				if ((t->flag & (T_NO_CONSTRAINT)) == 0) {
+					transform_event_xyz_constraint(t, ZKEY, cmode);
 					t->redraw |= TREDRAW_HARD;
 					handled = true;
 				}
@@ -1838,24 +1815,26 @@ static void drawAutoKeyWarning(TransInfo *UNUSED(t), ARegion *ar)
 	
 	BLF_width_and_height_default(printable, BLF_DRAW_STR_DUMMY_MAX, &printable_size[0], &printable_size[1]);
 	
-	xco = rect.xmax - (int)printable_size[0] - 10;
-	yco = rect.ymax - (int)printable_size[1] - 10;
+	xco = (rect.xmax - U.widget_unit) - (int)printable_size[0];
+	yco = (rect.ymax - U.widget_unit);
 	
 	/* warning text (to clarify meaning of overlays)
 	 * - original color was red to match the icon, but that clashes badly with a less nasty border
 	 */
 	UI_ThemeColorShade(TH_TEXT_HI, -50);
 #ifdef WITH_INTERNATIONAL
-	BLF_draw_default(xco, ar->winy - 17, 0.0f, printable, BLF_DRAW_STR_DUMMY_MAX);
+	BLF_draw_default(xco, yco, 0.0f, printable, BLF_DRAW_STR_DUMMY_MAX);
 #else
-	BLF_draw_default_ascii(xco, ar->winy - 17, 0.0f, printable, BLF_DRAW_STR_DUMMY_MAX);
+	BLF_draw_default_ascii(xco, yco, 0.0f, printable, BLF_DRAW_STR_DUMMY_MAX);
 #endif
 	
 	/* autokey recording icon... */
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	
-	xco -= (ICON_DEFAULT_WIDTH + 2);
+	xco -= U.widget_unit;
+	yco -= (int)printable_size[1] / 2;
+
 	UI_icon_draw(xco, yco, ICON_REC);
 	
 	glDisable(GL_BLEND);
@@ -2051,7 +2030,6 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 	initTransInfo(C, t, op, event);
 
 	if (t->spacetype == SPACE_VIEW3D) {
-		//calc_manipulator_stats(curarea);
 		initTransformOrientation(C, t);
 
 		t->draw_handle_apply = ED_region_draw_cb_activate(t->ar->type, drawTransformApply, t, REGION_DRAW_PRE_VIEW);
@@ -2872,7 +2850,7 @@ static void Bend(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN * 2];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Bend Angle: %s Radius: %s Alt, Clamp %s"),
 		             &c[0], &c[NUM_STR_REP_LEN],
@@ -3040,7 +3018,7 @@ static void applyShear(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 		
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Shear: %s %s"), c, t->proptext);
 	}
@@ -3141,7 +3119,7 @@ static void headerResize(TransInfo *t, float vec[3], char str[MAX_INFO_LEN])
 	char tvec[NUM_STR_REP_LEN * 3];
 	size_t ofs = 0;
 	if (hasNumInput(&t->num)) {
-		outputNumInput(&(t->num), tvec, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), tvec, &t->scene->unit);
 	}
 	else {
 		BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
@@ -3181,37 +3159,22 @@ static void headerResize(TransInfo *t, float vec[3], char str[MAX_INFO_LEN])
 	}
 }
 
-/* FLT_EPSILON is too small [#29633], 0.0000001f starts to flip */
-#define TX_FLIP_EPS 0.00001f
-BLI_INLINE int tx_sign(const float a)
-{
-	return (a < -TX_FLIP_EPS ? 1 : a > TX_FLIP_EPS ? 2 : 3);
-}
-BLI_INLINE int tx_vec_sign_flip(const float a[3], const float b[3])
-{
-	return ((tx_sign(a[0]) & tx_sign(b[0])) == 0 ||
-	        (tx_sign(a[1]) & tx_sign(b[1])) == 0 ||
-	        (tx_sign(a[2]) & tx_sign(b[2])) == 0);
-}
-
-/* smat is reference matrix, only scaled */
+/**
+ * \a smat is reference matrix only.
+ *
+ * \note this is a tricky area, before making changes see: T29633, T42444
+ */
 static void TransMat3ToSize(float mat[3][3], float smat[3][3], float size[3])
 {
-	float vec[3];
-	
-	copy_v3_v3(vec, mat[0]);
-	size[0] = normalize_v3(vec);
-	copy_v3_v3(vec, mat[1]);
-	size[1] = normalize_v3(vec);
-	copy_v3_v3(vec, mat[2]);
-	size[2] = normalize_v3(vec);
-	
-	/* first tried with dotproduct... but the sign flip is crucial */
-	if (tx_vec_sign_flip(mat[0], smat[0]) ) size[0] = -size[0];
-	if (tx_vec_sign_flip(mat[1], smat[1]) ) size[1] = -size[1];
-	if (tx_vec_sign_flip(mat[2], smat[2]) ) size[2] = -size[2];
-}
+	float rmat[3][3];
 
+	mat3_to_rot_size(rmat, size, mat);
+
+	/* first tried with dotproduct... but the sign flip is crucial */
+	if (dot_v3v3(rmat[0], smat[0]) < 0.0f) size[0] = -size[0];
+	if (dot_v3v3(rmat[1], smat[1]) < 0.0f) size[1] = -size[1];
+	if (dot_v3v3(rmat[2], smat[2]) < 0.0f) size[2] = -size[2];
+}
 
 static void ElementResize(TransInfo *t, TransData *td, float mat[3][3])
 {
@@ -3555,7 +3518,7 @@ static void applyToSphere(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 		
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("To Sphere: %s %s"), c, t->proptext);
 	}
@@ -3919,7 +3882,7 @@ static void applyRotation(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 		
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		
 		ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Rot: %s %s %s"), &c[0], t->con.text, t->proptext);
 	}
@@ -4023,7 +3986,7 @@ static void applyTrackball(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN * 2];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, IFACE_("Trackball: %s %s %s"),
 		                    &c[0], &c[NUM_STR_REP_LEN], t->proptext);
@@ -4064,6 +4027,9 @@ static void initTranslation(TransInfo *t)
 {
 	if (t->spacetype == SPACE_ACTION) {
 		/* this space uses time translate */
+		BKE_report(t->reports, RPT_ERROR, 
+		           "Use 'Time_Translate' transform mode instead of 'Translation' mode "
+		           "for translating keyframes in Dope Sheet Editor");
 		t->state = TRANS_CANCEL;
 	}
 
@@ -4125,7 +4091,7 @@ static void headerTranslation(TransInfo *t, float vec[3], char str[MAX_INFO_LEN]
 	float dist;
 
 	if (hasNumInput(&t->num)) {
-		outputNumInput(&(t->num), tvec, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), tvec, &t->scene->unit);
 		dist = len_v3(t->num.val);
 	}
 	else {
@@ -4221,29 +4187,21 @@ static void applyTranslationValue(TransInfo *t, float vec[3])
 		
 		if (td->flag & TD_SKIP)
 			continue;
-		
+
 		/* handle snapping rotation before doing the translation */
 		if (usingSnappingNormal(t)) {
 			if (validSnappingNormal(t)) {
 				const float *original_normal;
-				float axis[3];
-				float quat[4];
 				float mat[3][3];
-				float angle;
 				
 				/* In pose mode, we want to align normals with Y axis of bones... */
 				if (t->flag & T_POSE)
 					original_normal = td->axismtx[1];
 				else
 					original_normal = td->axismtx[2];
-				
-				cross_v3_v3v3(axis, original_normal, t->tsnap.snapNormal);
-				angle = saacos(dot_v3v3(original_normal, t->tsnap.snapNormal));
-				
-				axis_angle_to_quat(quat, axis, angle);
-				
-				quat_to_mat3(mat, quat);
-				
+
+				rotation_between_vecs_to_mat3(mat, original_normal, t->tsnap.snapNormal);
+
 				ElementRotation(t, td, mat, V3D_LOCAL);
 			}
 			else {
@@ -4373,7 +4331,7 @@ static void applyShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 	ofs += BLI_strncpy_rlen(str + ofs, IFACE_("Shrink/Fatten:"), MAX_INFO_LEN - ofs);
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		ofs += BLI_snprintf(str + ofs, MAX_INFO_LEN - ofs, " %s", c);
 	}
 	else {
@@ -4468,7 +4426,7 @@ static void applyTilt(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Tilt: %s° %s"), &c[0], t->proptext);
 
@@ -4546,7 +4504,7 @@ static void applyCurveShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Shrink/Fatten: %s"), c);
 	}
 	else {
@@ -4624,7 +4582,7 @@ static void applyMaskShrinkFatten(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Feather Shrink/Fatten: %s"), c);
 	}
 	else {
@@ -4717,7 +4675,7 @@ static void applyPushPull(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Push/Pull: %s%s %s"), c, t->con.text, t->proptext);
 	}
@@ -4810,7 +4768,7 @@ static void applyBevelWeight(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		if (weight >= 0.0f)
 			BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Bevel Weight: +%s %s"), c, t->proptext);
@@ -4888,7 +4846,7 @@ static void applyCrease(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		if (crease >= 0.0f)
 			BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Crease: +%s %s"), c, t->proptext);
@@ -4958,7 +4916,7 @@ static void headerBoneSize(TransInfo *t, float vec[3], char str[MAX_INFO_LEN])
 {
 	char tvec[NUM_STR_REP_LEN * 3];
 	if (hasNumInput(&t->num)) {
-		outputNumInput(&(t->num), tvec, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), tvec, &t->scene->unit);
 	}
 	else {
 		BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
@@ -5095,7 +5053,7 @@ static void applyBoneEnvelope(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 		
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Envelope: %s"), c);
 	}
 	else {
@@ -6270,7 +6228,7 @@ static void applyEdgeSlide(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		if (is_proportional) {
 			BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Edge Slide: %s (E)ven: %s"),
@@ -6793,7 +6751,7 @@ static void applyVertSlide(TransInfo *t, const int UNUSED(mval[2]))
 	ofs += BLI_strncpy_rlen(str + ofs, IFACE_("Vert Slide: "), MAX_INFO_LEN - ofs);
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 		ofs += BLI_strncpy_rlen(str + ofs, &c[0], MAX_INFO_LEN - ofs);
 	}
 	else {
@@ -6860,7 +6818,7 @@ static void applyBoneRoll(TransInfo *t, const int UNUSED(mval[2]))
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Roll: %s"), &c[0]);
 	}
@@ -6934,7 +6892,7 @@ static void applyBakeTime(TransInfo *t, const int mval[2])
 	if (hasNumInput(&t->num)) {
 		char c[NUM_STR_REP_LEN];
 
-		outputNumInput(&(t->num), c, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), c, &t->scene->unit);
 
 		if (time >= 0.0f)
 			BLI_snprintf(str, MAX_INFO_LEN, IFACE_("Time: +%s %s"), c, t->proptext);
@@ -7145,7 +7103,7 @@ static void headerSeqSlide(TransInfo *t, float val[2], char str[MAX_INFO_LEN])
 	size_t ofs = 0;
 
 	if (hasNumInput(&t->num)) {
-		outputNumInput(&(t->num), tvec, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), tvec, &t->scene->unit);
 	}
 	else {
 		BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.0f, %.0f", val[0], val[1]);
@@ -7371,7 +7329,7 @@ static void headerTimeTranslate(TransInfo *t, char str[MAX_INFO_LEN])
 
 	/* if numeric input is active, use results from that, otherwise apply snapping to result */
 	if (hasNumInput(&t->num)) {
-		outputNumInput(&(t->num), tvec, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), tvec, &t->scene->unit);
 	}
 	else {
 		const Scene *scene = t->scene;
@@ -7535,7 +7493,7 @@ static void headerTimeSlide(TransInfo *t, float sval, char str[MAX_INFO_LEN])
 	char tvec[NUM_STR_REP_LEN * 3];
 
 	if (hasNumInput(&t->num)) {
-		outputNumInput(&(t->num), tvec, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), tvec, &t->scene->unit);
 	}
 	else {
 		float minx = *((float *)(t->customData));
@@ -7683,7 +7641,7 @@ static void headerTimeScale(TransInfo *t, char str[MAX_INFO_LEN])
 	char tvec[NUM_STR_REP_LEN * 3];
 
 	if (hasNumInput(&t->num))
-		outputNumInput(&(t->num), tvec, t->scene->unit.scale_length);
+		outputNumInput(&(t->num), tvec, &t->scene->unit);
 	else
 		BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", t->values[0]);
 

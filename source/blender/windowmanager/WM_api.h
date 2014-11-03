@@ -47,6 +47,7 @@ extern "C" {
 #endif
 
 struct bContext;
+struct GHashIterator;
 struct IDProperty;
 struct wmEvent;
 struct wmEventHandler;
@@ -223,12 +224,13 @@ void		WM_operator_stack_clear(struct wmWindowManager *wm);
 void		WM_operator_handlers_clear(wmWindowManager *wm, struct wmOperatorType *ot);
 
 struct wmOperatorType *WM_operatortype_find(const char *idname, bool quiet);
-struct GHashIterator  *WM_operatortype_iter(void);
+void        WM_operatortype_iter(struct GHashIterator *ghi);
 void		WM_operatortype_append(void (*opfunc)(struct wmOperatorType *));
 void		WM_operatortype_append_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 void		WM_operatortype_append_macro_ptr(void (*opfunc)(struct wmOperatorType *, void *), void *userdata);
 void        WM_operatortype_remove_ptr(struct wmOperatorType *ot);
 bool        WM_operatortype_remove(const char *idname);
+void        WM_operatortype_last_properties_clear_all(void);
 
 struct wmOperatorType *WM_operatortype_append_macro(const char *idname, const char *name, const char *description, int flag);
 struct wmOperatorTypeMacro *WM_operatortype_macro_define(struct wmOperatorType *ot, const char *idname);
@@ -361,6 +363,10 @@ void		wmSubWindowScissorSet	(struct wmWindow *win, int swinid, const struct rcti
 void		wmFrustum			(float x1, float x2, float y1, float y2, float n, float f);
 void		wmOrtho				(float x1, float x2, float y1, float y2, float n, float f);
 void		wmOrtho2			(float x1, float x2, float y1, float y2);
+			/* use for conventions (avoid hard-coded offsets all over) */
+void		wmOrtho2_region_pixelspace(const struct ARegion *ar);
+void		wmOrtho2_region_ui(const struct ARegion *ar);
+void		wmOrtho2_pixelspace(const float x, const float y);
 
 			/* utilities */
 void		WM_framebuffer_index_set(int index);

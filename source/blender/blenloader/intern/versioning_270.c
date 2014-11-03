@@ -35,6 +35,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_brush_types.h"
+#include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
@@ -42,6 +43,7 @@
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_actuator_types.h"
 
@@ -108,6 +110,19 @@ static void do_version_constraints_radians_degrees_270_5(ListBase *lb)
 				copy_v3_v3(data->to_min_scale, data->to_min);
 				copy_v3_v3(data->to_max_scale, data->to_max);
 			}
+		}
+	}
+}
+
+static void do_version_constraints_stretch_to_limits(ListBase *lb)
+{
+	bConstraint *con;
+
+	for (con = lb->first; con; con = con->next) {
+		if (con->type == CONSTRAINT_TYPE_STRETCHTO) {
+			bStretchToConstraint *data = (bStretchToConstraint *)con->data;
+			data->bulge_min = 1.0f;
+			data->bulge_max = 1.0f;
 		}
 	}
 }
@@ -348,12 +363,78 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		for (br = main->brush.first; br; br = br->id.next) {
 			br->fill_threshold = 0.2f;
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "int", "mat")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Bevel) {
+						BevelModifierData *bmd = (BevelModifierData *)md;
+						bmd->mat = -1;
+					}
+				}
+			}
+		}
 	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
-		Scene *scene;
-		for (scene = main->scene.first; scene; scene = scene->id.next) {
-			scene->r.preview_start_resolution = 64;
+	if (!MAIN_VERSION_ATLEAST(main, 271, 6)) {
+		Object *ob;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_ParticleSystem) {
+					ParticleSystemModifierData *pmd = (ParticleSystemModifierData *)md;
+					if (pmd->psys && pmd->psys->clmd) {
+						pmd->psys->clmd->sim_parms->vel_damping = 1.0f;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 0)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->r.preview_start_resolution = 64;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 1)) {
+		Brush *br;
+		for (br = main->brush.first; br; br = br->id.next) {
+			if ((br->ob_mode & OB_MODE_SCULPT) && ELEM(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK))
+				br->alpha = 1.0f;
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 2)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Image", "float", "gen_color")) {
+			Image *image;
+			for (image = main->image.first; image != NULL; image = image->id.next) {
+				image->gen_color[3] = 1.0f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "bStretchToConstraint", "float", "bulge_min")) {
+			Object *ob;
+
+			/* Update Transform constraint (again :|). */
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				do_version_constraints_stretch_to_limits(&ob->constraints);
+
+				if (ob->pose) {
+					/* Bones constraints! */
+					bPoseChannel *pchan;
+					for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+						do_version_constraints_stretch_to_limits(&pchan->constraints);
+					}
+				}
+			}
 		}
 	}
 }

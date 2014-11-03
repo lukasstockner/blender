@@ -1099,7 +1099,7 @@ void UI_view2d_view_ortho(View2D *v2d)
 /* Set view matrices to only use one axis of 'cur' only
  *	- xaxis     = if non-zero, only use cur x-axis, otherwise use cur-yaxis (mostly this will be used for x)
  */
-void UI_view2d_view_orthoSpecial(ARegion *ar, View2D *v2d, short xaxis)
+void UI_view2d_view_orthoSpecial(ARegion *ar, View2D *v2d, const bool xaxis)
 {
 	rctf curmasked;
 	float xofs, yofs;
@@ -2355,12 +2355,8 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 
 	/* investigate using BLF_ascender() */
 	const float default_height = g_v2d_strings ? BLF_height_default("28", 3) : 0.0f;
-	
-	// glMatrixMode(GL_PROJECTION);
-	// glPushMatrix();
-	// glMatrixMode(GL_MODELVIEW);
-	// glPushMatrix();
-	ED_region_pixelspace(ar);
+
+	wmOrtho2_region_ui(ar);
 
 	for (v2s = g_v2d_strings; v2s; v2s = v2s->next) {
 		int xofs = 0, yofs;

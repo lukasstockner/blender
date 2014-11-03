@@ -166,7 +166,6 @@ void ED_render_engine_changed(Main *bmain)
 	bScreen *sc;
 	ScrArea *sa;
 	Scene *scene;
-	Material *ma;
 
 	for (sc = bmain->screen.first; sc; sc = sc->id.next)
 		for (sa = sc->areabase.first; sa; sa = sa->next)
@@ -176,14 +175,6 @@ void ED_render_engine_changed(Main *bmain)
 
 	for (scene = bmain->scene.first; scene; scene = scene->id.next)
 		ED_render_id_flush_update(bmain, &scene->id);
-
-	/* reset texture painting */
-	for (ma = bmain->mat.first; ma; ma = ma->id.next) {
-		if (ma->texpaintslot) {
-			BKE_texpaint_slots_clear(ma);
-			DAG_id_tag_update(&ma->id, 0);
-		}
-	}
 }
 
 /***************************** Updates ***********************************
@@ -483,15 +474,22 @@ static void image_changed(Main *bmain, Image *ima)
 			texture_changed(bmain, tex);
 }
 
-static void scene_changed(Main *bmain, Scene *UNUSED(scene))
+static void scene_changed(Main *bmain, Scene *scene)
 {
 	Object *ob;
 	Material *ma;
 
 	/* glsl */
-	for (ob = bmain->object.first; ob; ob = ob->id.next)
+	for (ob = bmain->object.first; ob; ob = ob->id.next) {
 		if (ob->gpulamp.first)
 			GPU_lamp_free(ob);
+		
+		if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+			BKE_texpaint_slots_refresh_object(scene, ob);
+			BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+			GPU_drawobject_free(ob->derivedFinal);			
+		}
+	}
 
 	for (ma = bmain->mat.first; ma; ma = ma->id.next)
 		if (ma->gpumaterial.first)
@@ -540,7 +538,7 @@ void ED_render_id_flush_update(Main *bmain, ID *id)
 
 void ED_render_internal_init(void)
 {
-	RenderEngineType *ret = RE_engines_find("BLENDER_RENDER");
+	RenderEngineType *ret = RE_engines_find(RE_engine_id_BLENDER_RENDER);
 	
 	ret->view_update = render_view3d_update;
 	ret->view_draw = render_view3d_draw;

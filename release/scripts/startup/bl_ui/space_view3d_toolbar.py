@@ -35,14 +35,6 @@ class View3DPanel():
 
 # **************** standard tool clusters ******************
 
-# History/Repeat tools
-def draw_repeat_tools(context, layout):
-    col = layout.column(align=True)
-    col.label(text="Repeat:")
-    col.operator("screen.repeat_last")
-    col.operator("screen.repeat_history", text="History...")
-
-
 # Keyframing tools
 def draw_keyframing_tools(context, layout):
     col = layout.column(align=True)
@@ -104,24 +96,6 @@ class VIEW3D_PT_tools_object(View3DPanel, Panel):
                 row = col.row(align=True)
                 row.operator("object.shade_smooth", text="Smooth")
                 row.operator("object.shade_flat", text="Flat")
-
-
-class VIEW3D_PT_tools_objectmode(View3DPanel, Panel):
-    bl_category = "Tools"
-    bl_context = "objectmode"
-    bl_label = "History"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-
-        col = layout.column(align=True)
-        row = col.row(align=True)
-        row.operator("ed.undo")
-        row.operator("ed.redo")
-        col.operator("ed.undo_history")
-
-        draw_repeat_tools(context, layout)
 
 
 class VIEW3D_PT_tools_add_object(View3DPanel, Panel):
@@ -362,8 +336,6 @@ class VIEW3D_PT_tools_meshedit(View3DPanel, Panel):
         col.operator_menu_enum("mesh.merge", "type")
         col.operator("mesh.remove_doubles")
 
-        draw_repeat_tools(context, layout)
-
 
 class VIEW3D_PT_tools_meshweight(View3DPanel, Panel):
     bl_category = "Tools"
@@ -541,8 +513,6 @@ class VIEW3D_PT_tools_curveedit(View3DPanel, Panel):
         col.operator("curve.smooth")
         col.operator("object.vertex_random")
 
-        draw_repeat_tools(context, layout)
-
 
 class VIEW3D_PT_tools_add_curve_edit(View3DPanel, Panel):
     bl_category = "Create"
@@ -597,8 +567,6 @@ class VIEW3D_PT_tools_surfaceedit(View3DPanel, Panel):
         col.label(text="Deform:")
         col.operator("object.vertex_random")
 
-        draw_repeat_tools(context, layout)
-
 
 class VIEW3D_PT_tools_add_surface_edit(View3DPanel, Panel):
     bl_category = "Create"
@@ -634,8 +602,6 @@ class VIEW3D_PT_tools_textedit(View3DPanel, Panel):
         col.operator("font.style_toggle", text="Bold").style = 'BOLD'
         col.operator("font.style_toggle", text="Italic").style = 'ITALIC'
         col.operator("font.style_toggle", text="Underline").style = 'UNDERLINE'
-
-        draw_repeat_tools(context, layout)
 
 
 # ********** default tools for editmode_armature ****************
@@ -678,8 +644,6 @@ class VIEW3D_PT_tools_armatureedit(View3DPanel, Panel):
         col.label(text="Deform:")
         col.operator("object.vertex_random")
 
-        draw_repeat_tools(context, layout)
-
 
 class VIEW3D_PT_tools_armatureedit_options(View3DPanel, Panel):
     bl_category = "Options"
@@ -712,8 +676,6 @@ class VIEW3D_PT_tools_mballedit(View3DPanel, Panel):
         col = layout.column(align=True)
         col.label(text="Deform:")
         col.operator("object.vertex_random")
-
-        draw_repeat_tools(context, layout)
 
 
 class VIEW3D_PT_tools_add_mball_edit(View3DPanel, Panel):
@@ -752,8 +714,6 @@ class VIEW3D_PT_tools_latticeedit(View3DPanel, Panel):
         col = layout.column(align=True)
         col.label(text="Deform:")
         col.operator("object.vertex_random")
-
-        draw_repeat_tools(context, layout)
 
 
 # ********** default tools for pose-mode ****************
@@ -797,8 +757,6 @@ class VIEW3D_PT_tools_posemode(View3DPanel, Panel):
         row.operator("pose.paths_calculate", text="Calculate")
         row.operator("pose.paths_clear", text="Clear")
 
-        draw_repeat_tools(context, layout)
-
 
 class VIEW3D_PT_tools_posemode_options(View3DPanel, Panel):
     bl_category = "Options"
@@ -817,6 +775,65 @@ class View3DPaintPanel(UnifiedPaintPanel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
 
+class VIEW3D_PT_imapaint_tools_missing(Panel, View3DPaintPanel):
+    bl_category = "Tools"
+    bl_label = "Missing Data"
+
+    @classmethod
+    def poll(cls, context):
+        toolsettings = context.tool_settings.image_paint
+        return context.image_paint_object and not toolsettings.detect_data()
+
+    def draw(self, context):
+        layout = self.layout
+        toolsettings = context.tool_settings.image_paint
+
+        col = layout.column()
+        col.label("Missing Data", icon='ERROR')
+        if toolsettings.missing_uvs:
+            col.separator()
+            col.label("Missing UVs", icon='INFO')
+            col.label("Unwrap the mesh in edit mode or generate a simple UVs")
+            col.operator("paint.add_simple_uvs")
+    
+        if toolsettings.mode == 'MATERIAL':
+            if toolsettings.missing_materials:
+                col.separator()
+                col.label("Missing Materials", icon='INFO')
+                col.label("Add a material and paint slot below")
+                col.operator_menu_enum("paint.add_texture_paint_slot", "type", text="Add Paint Slot")
+                   
+            elif toolsettings.missing_texture:
+                ob = context.active_object
+                mat = ob.active_material
+
+                col.separator()
+                if mat:
+                    col.label("Missing Texture Slots", icon='INFO')
+                    col.label("Add a paint slot below")
+                    col.operator_menu_enum("paint.add_texture_paint_slot", "type", text="Add Paint Slot")
+                else:
+                    col.label("Missing Materials", icon='INFO')
+                    col.label("Add a material and paint slot below")
+                    col.operator_menu_enum("paint.add_texture_paint_slot", "type", text="Add Paint Slot")
+ 
+
+        elif toolsettings.mode == 'IMAGE':
+            if toolsettings.missing_texture:
+                col.separator()
+                col.label("Missing Canvas", icon='INFO')
+                col.label("Add or assign a canvas image below")
+                col.label("Canvas Image")
+                col.template_ID(toolsettings, "canvas")
+                col.operator("image.new", text="New").gen_context = 'PAINT_CANVAS'
+
+        if toolsettings.missing_stencil:
+            col.separator()
+            col.label("Missing Stencil", icon='INFO')
+            col.label("Add or assign a stencil image below")
+            col.label("Stencil Image")
+            col.template_ID(toolsettings, "stencil_image")
+            col.operator("image.new", text="New").gen_context = 'PAINT_STENCIL'
 
 class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
     bl_category = "Tools"
@@ -886,14 +903,15 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
             self.prop_unified_size(row, context, brush, "use_pressure_size")
 
             # strength, use_strength_pressure, and use_strength_attenuation
-            if capabilities.has_strength:
-                col.separator()
-                row = col.row(align=True)
+            col.separator()
+            row = col.row(align=True)
 
-                if capabilities.has_space_attenuation:
-                    row.prop(brush, "use_space_attenuation", toggle=True, icon_only=True)
+            if capabilities.has_space_attenuation:
+                row.prop(brush, "use_space_attenuation", toggle=True, icon_only=True)
 
-                self.prop_unified_strength(row, context, brush, "strength", text="Strength")
+            self.prop_unified_strength(row, context, brush, "strength", text="Strength")
+
+            if capabilities.has_strength_pressure:
                 self.prop_unified_strength(row, context, brush, "use_pressure_strength")
 
             # auto_smooth_factor and use_inverse_smooth_pressure
@@ -1036,14 +1054,27 @@ class VIEW3D_PT_tools_brush(Panel, View3DPaintPanel):
 
 class TEXTURE_UL_texpaintslots(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
-        # ma = data
-        ima = item
+        mat = data
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(item, "name", text="", emboss=False, icon_value=icon)
+            if (not mat.use_nodes) and context.scene.render.engine in {'BLENDER_RENDER', 'BLENDER_GAME'}:
+                mtex_index = mat.texture_paint_slots[index].index
+                layout.prop(mat, "use_textures", text="", index=mtex_index)
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
             layout.label(text="")
+
+class VIEW3D_MT_tools_projectpaint_uvlayer(Menu):
+    bl_label = "Clone Layer"
+
+    def draw(self, context):
+        layout = self.layout
+
+        for i, tex in enumerate(context.active_object.data.uv_textures):
+            props = layout.operator("wm.context_set_int", text=tex.name, translate=False)
+            props.data_path = "active_object.data.uv_textures.active_index"
+            props.value = i
 
 
 class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
@@ -1066,32 +1097,53 @@ class VIEW3D_PT_slots_projectpaint(View3DPanel, Panel):
         ob = context.active_object
         col = layout.column()
 
-        if len(ob.material_slots) > 1:
-            col.label("Materials")
-            col.template_list("MATERIAL_UL_matslots", "layers",
-                              ob, "material_slots",
-                              ob, "active_material_index", rows=2)
+        col.label("Painting Mode")
+        col.prop(settings, "mode", text="")
+        col.separator()
 
-        mat = ob.active_material
-        if mat:
-            col.label("Available Paint Slots")
-            col.template_list("TEXTURE_UL_texpaintslots", "",
-                              mat, "texture_paint_images",
-                              mat, "paint_active_slot", rows=2)
+        if settings.mode == 'MATERIAL':
+            if len(ob.material_slots) > 1:
+                col.label("Materials")
+                col.template_list("MATERIAL_UL_matslots", "layers",
+                                  ob, "material_slots",
+                                  ob, "active_material_index", rows=2)
 
-            if (not mat.use_nodes) and (context.scene.render.engine == 'BLENDER_RENDER'):
-                col.operator_menu_enum("paint.add_texture_paint_slot", "type")
+            mat = ob.active_material
+            if mat:
+                col.label("Available Paint Slots")
+                col.template_list("TEXTURE_UL_texpaintslots", "",
+                                  mat, "texture_paint_images",
+                                  mat, "paint_active_slot", rows=2)
 
-                slot = mat.texture_paint_slots[mat.paint_active_slot]
-                col.separator()
-                col.label("UV Map")
-                col.prop_search(slot, "uv_layer", ob.data, "uv_textures", text="")
+                if (not mat.use_nodes) and context.scene.render.engine in {'BLENDER_RENDER', 'BLENDER_GAME'}:
+                    row = col.row(align=True)
+                    row.operator_menu_enum("paint.add_texture_paint_slot", "type")
+                    row.operator("paint.delete_texture_paint_slot", text="", icon='X')
 
+                    if mat.texture_paint_slots:
+                        slot = mat.texture_paint_slots[mat.paint_active_slot]
+
+                        col.prop(mat.texture_slots[slot.index], "blend_type")
+                        col.separator()
+                        col.label("UV Map")
+                        col.prop_search(slot, "uv_layer", ob.data, "uv_textures", text="")
+
+        elif settings.mode == 'IMAGE':
+            mesh = ob.data
+            uv_text = mesh.uv_textures.active.name if mesh.uv_textures.active else ""
+            col.label("Canvas Image")
+            col.template_ID(settings, "canvas")
+            col.operator("image.new", text="New").gen_context = 'PAINT_CANVAS'
+            col.label("UV Map")
+            col.menu("VIEW3D_MT_tools_projectpaint_uvlayer", text=uv_text, translate=False)
+
+        col.separator()
+        col.operator("image.save_dirty", text="Save All Images")
 
 
 class VIEW3D_PT_stencil_projectpaint(View3DPanel, Panel):
     bl_context = "imagepaint"
-    bl_label = "Stencil"
+    bl_label = "Mask"
     bl_category = "Slots"
 
     @classmethod
@@ -1119,10 +1171,10 @@ class VIEW3D_PT_stencil_projectpaint(View3DPanel, Panel):
         col.label("UV Map")
         col.menu("VIEW3D_MT_tools_projectpaint_stencil", text=stencil_text, translate=False)
 
-        col.label("Image")
-        row = col.row(align=True)
-        row.operator("image.new", icon='ZOOMIN', text="Add New").texstencil = True;
-        row.template_ID(ipaint, "stencil_image")
+        col.label("Stencil Image")
+        col.template_ID(ipaint, "stencil_image")
+        col.operator("image.new", text="New").gen_context = 'PAINT_STENCIL'
+
  
         col.label("Visualization")
         row = col.row(align=True)
@@ -1220,7 +1272,7 @@ class VIEW3D_PT_tools_brush_texture(Panel, View3DPaintPanel):
         brush_texture_settings(col, brush, context.sculpt_object)
 
 
-class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
+class VIEW3D_PT_tools_mask_texture(Panel, View3DPaintPanel):
     bl_category = "Tools"
     bl_context = "imagepaint"
     bl_label = "Texture Mask"
@@ -1228,8 +1280,8 @@ class VIEW3D_PT_tools_mask_texture(View3DPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        brush = context.tool_settings.image_paint.brush
-        return (context.image_paint_object and brush)
+        settings = cls.paint_settings(context)
+        return (settings and settings.brush and context.image_paint_object)
 
     def draw(self, context):
         layout = self.layout
@@ -1484,11 +1536,8 @@ class VIEW3D_PT_tools_brush_appearance(Panel, View3DPaintPanel):
 
     @classmethod
     def poll(cls, context):
-        toolsettings = context.tool_settings
-        return ((context.sculpt_object and toolsettings.sculpt) or
-                (context.vertex_paint_object and toolsettings.vertex_paint) or
-                (context.weight_paint_object and toolsettings.weight_paint) or
-                (context.image_paint_object and toolsettings.image_paint))
+        settings = cls.paint_settings(context)
+        return settings
 
     def draw(self, context):
         layout = self.layout
@@ -1626,7 +1675,6 @@ class VIEW3D_PT_tools_imagepaint_external(Panel, View3DPaintPanel):
         col.row().prop(ipaint, "screen_grab_size", text="")
 
         col.operator("paint.project_image", text="Apply Camera Image")
-        col.operator("image.save_dirty", text="Save All Edited")
 
 
 class VIEW3D_PT_tools_projectpaint(View3DPaintPanel, Panel):
@@ -1674,18 +1722,6 @@ class VIEW3D_PT_imagepaint_options(View3DPaintPanel):
 
         col = layout.column()
         self.unified_paint_settings(col, context)
-
-
-class VIEW3D_MT_tools_projectpaint_clone(Menu):
-    bl_label = "Clone Layer"
-
-    def draw(self, context):
-        layout = self.layout
-
-        for i, tex in enumerate(context.active_object.data.uv_textures):
-            props = layout.operator("wm.context_set_int", text=tex.name, translate=False)
-            props.data_path = "active_object.data.uv_texture_clone_index"
-            props.value = i
 
 
 class VIEW3D_MT_tools_projectpaint_stencil(Menu):
@@ -1773,6 +1809,31 @@ class VIEW3D_PT_tools_grease_pencil(GreasePencilPanel, Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_category = "Grease Pencil"
+
+
+# Note: moved here so that it's always in last position in 'Tools' panels!
+class VIEW3D_PT_tools_history(View3DPanel, Panel):
+    bl_category = "Tools"
+    # No bl_context, we are always available!
+    bl_label = "History"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        obj = context.object
+
+        col = layout.column(align=True)
+        row = col.row(align=True)
+        row.operator("ed.undo")
+        row.operator("ed.redo")
+        if obj is None or obj.mode not in {'SCULPT'}:
+            # Sculpt mode does not generate an undo menu it seems...
+            col.operator("ed.undo_history")
+
+        col = layout.column(align=True)
+        col.label(text="Repeat:")
+        col.operator("screen.repeat_last")
+        col.operator("screen.repeat_history", text="History...")
 
 
 if __name__ == "__main__":  # only for live edit.

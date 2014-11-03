@@ -490,12 +490,12 @@ static void widget_draw_tria_ex(
 	minsize = min_ii(BLI_rcti_size_x(rect), BLI_rcti_size_y(rect));
 
 	/* center position and size */
-	centx = (float)rect->xmin + 0.5f * minsize;
+	centx = (float)rect->xmin + 0.4f * minsize;
 	centy = (float)rect->ymin + 0.5f * minsize;
 	sizex = sizey = -0.5f * triasize * minsize;
 
 	if (where == 'r') {
-		centx = (float)rect->xmax - 0.5f * minsize;
+		centx = (float)rect->xmax - 0.4f * minsize;
 		sizex = -sizex;
 	}
 	else if (where == 't') {
@@ -746,6 +746,8 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 		glEnableClientState(GL_VERTEX_ARRAY);
 
 		for (j = 0; j < WIDGET_AA_JITTER; j++) {
+			unsigned char emboss[4];
+
 			glTranslatef(jit[j][0], jit[j][1], 0.0f);
 			
 			/* outline */
@@ -753,13 +755,17 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 			glVertexPointer(2, GL_FLOAT, 0, quad_strip);
 			glDrawArrays(GL_QUAD_STRIP, 0, wtb->totvert * 2 + 2);
-		
-			/* emboss bottom shadow */
-			if (wtb->emboss) {
-				glColor4f(1.0f, 1.0f, 1.0f, 0.02f);
 
-				glVertexPointer(2, GL_FLOAT, 0, quad_strip_emboss);
-				glDrawArrays(GL_QUAD_STRIP, 0, wtb->halfwayvert * 2);
+			/* emboss bottom shadow */
+			UI_GetThemeColor4ubv(TH_EMBOSS, emboss);
+
+			if (wtb->emboss) {
+				UI_GetThemeColor4ubv(TH_EMBOSS, emboss);
+				if (emboss[3]) {
+					glColor4ubv(emboss);
+					glVertexPointer(2, GL_FLOAT, 0, quad_strip_emboss);
+					glDrawArrays(GL_QUAD_STRIP, 0, wtb->halfwayvert * 2);
+				}
 			}
 			
 			glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
@@ -2172,8 +2178,8 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	glVertex2f(centx, centy);
 	
 	for (a = 0; a <= tot; a++, ang += radstep) {
-		float si = sin(ang);
-		float co = cos(ang);
+		float si = sinf(ang);
+		float co = cosf(ang);
 		
 		ui_hsvcircle_vals_from_pos(hsv, hsv + 1, rect, centx + co * radius, centy + si * radius);
 
@@ -2898,11 +2904,18 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 
 	widgetbase_draw(&wtb, wcol);
 	
-	if (but->a1 == UI_PALETTE_COLOR && but->a2 == UI_PALETTE_COLOR_ACTIVE) {
+	if (but->a1 == UI_PALETTE_COLOR && ((Palette *)but->rnapoin.id.data)->active_color == (int)but->a2) {
 		float width = rect->xmax - rect->xmin;
 		float height = rect->ymax - rect->ymin;
-
-		glColor4ubv((unsigned char *)wcol->outline);
+		/* find color luminance and change it slightly */
+		float bw = rgb_to_bw(col);
+		
+		if (bw > 0.5)
+			bw -= 0.5;
+		else
+			bw += 0.5;
+		
+		glColor4f(bw, bw, bw, 1.0);
 		glBegin(GL_TRIANGLES);
 		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.9f * height);
 		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.5f * height);
@@ -3834,7 +3847,7 @@ void ui_draw_pie_center(uiBlock *block)
 
 	int subd = 40;
 
-	float angle = atan2(pie_dir[1], pie_dir[0]);
+	float angle = atan2f(pie_dir[1], pie_dir[0]);
 	float range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? ((float)M_PI / 2.0f) : ((float)M_PI / 4.0f);
 
 	glPushMatrix();
@@ -3866,6 +3879,14 @@ void ui_draw_pie_center(uiBlock *block)
 	glColor4ubv((GLubyte *)btheme->tui.wcol_pie_menu.outline);
 	glutil_draw_lined_arc(0.0f, (float)M_PI * 2.0f, pie_radius_internal, subd);
 	glutil_draw_lined_arc(0.0f, (float)M_PI * 2.0f, pie_radius_external, subd);
+
+	if (U.pie_menu_confirm > 0 && !(block->pie_data.flags & (UI_PIE_INVALID_DIR | UI_PIE_CLICK_STYLE))) {
+		float pie_confirm_radius = U.pixelsize * (pie_radius_internal + U.pie_menu_confirm);
+		float pie_confirm_external = U.pixelsize * (pie_radius_internal + U.pie_menu_confirm + 7.0f);
+
+		glColor4ub(btheme->tui.wcol_pie_menu.text_sel[0], btheme->tui.wcol_pie_menu.text_sel[1], btheme->tui.wcol_pie_menu.text_sel[2], 64);
+		draw_disk_shaded(angle - range / 2.0f, range, pie_confirm_radius, pie_confirm_external, subd, NULL, NULL, false);
+	}
 
 	glDisable(GL_BLEND);
 	glPopMatrix();

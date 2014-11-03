@@ -1476,37 +1476,6 @@ void ED_curve_select_swap(EditNurb *editnurb, bool hide_handles)
 	}
 }
 
-/******************** transform operator **********************/
-
-void ED_curve_transform(Curve *cu, float mat[4][4])
-{
-	Nurb *nu;
-	BPoint *bp;
-	BezTriple *bezt;
-	int a;
-
-	float scale = mat4_to_scale(mat);
-
-	for (nu = cu->nurb.first; nu; nu = nu->next) {
-		if (nu->type == CU_BEZIER) {
-			a = nu->pntsu;
-			for (bezt = nu->bezt; a--; bezt++) {
-				mul_m4_v3(mat, bezt->vec[0]);
-				mul_m4_v3(mat, bezt->vec[1]);
-				mul_m4_v3(mat, bezt->vec[2]);
-				bezt->radius *= scale;
-			}
-			BKE_nurb_handles_calc(nu);
-		}
-		else {
-			a = nu->pntsu * nu->pntsv;
-			for (bp = nu->bp; a--; bp++)
-				mul_m4_v3(mat, bp->vec);
-		}
-	}
-	DAG_id_tag_update(&cu->id, 0);
-}
-
 /******************** separate operator ***********************/
 
 static int separate_exec(bContext *C, wmOperator *op)
@@ -4830,7 +4799,7 @@ bool ed_editnurb_spin(float viewmat[4][4], Object *obedit, const float axis[3], 
 	ok = true;
 
 	for (a = 0; a < 7; a++) {
-		ok = ed_editnurb_extrude_flag(cu->editnurb, 1);
+		ok = ed_editnurb_extrude_flag(cu->editnurb, SELECT);
 
 		if (ok == false)
 			return changed;
@@ -5291,7 +5260,7 @@ static int extrude_exec(bContext *C, wmOperator *UNUSED(op))
 		addvert_Nurb(C, 'e', NULL);
 	}
 	else {
-		if (ed_editnurb_extrude_flag(editnurb, 1)) { /* '1'= flag */
+		if (ed_editnurb_extrude_flag(editnurb, SELECT)) {
 			if (ED_curve_updateAnimPaths(obedit->data))
 				WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, obedit);
 
@@ -5417,7 +5386,7 @@ static int toggle_cyclic_invoke(bContext *C, wmOperator *op, const wmEvent *UNUS
 					layout = uiPupMenuLayout(pup);
 					uiItemsEnumO(layout, op->type->idname, "direction");
 					uiPupMenuEnd(C, pup);
-					return OPERATOR_CANCELLED;
+					return OPERATOR_INTERFACE;
 				}
 			}
 		}

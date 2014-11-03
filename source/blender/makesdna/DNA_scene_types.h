@@ -242,6 +242,7 @@ typedef enum ScenePassType {
 	SCE_PASS_SUBSURFACE_DIRECT        = (1 << 28),
 	SCE_PASS_SUBSURFACE_INDIRECT      = (1 << 29),
 	SCE_PASS_SUBSURFACE_COLOR         = (1 << 30),
+	SCE_PASS_DEBUG                    = (1 << 31),  /* This is a virtual pass. */
 } ScenePassType;
 
 /* note, srl->passflag is treestore element 'nr' in outliner, short still... */
@@ -835,18 +836,20 @@ typedef struct Paint {
 typedef struct ImagePaintSettings {
 	Paint paint;
 
-	short flag, pad;
+	short flag, missing_data;
 	
 	/* for projection painting only */
 	short seam_bleed, normal_angle;
 	short screen_grab_size[2]; /* capture size for re-projection */
 
-	int pad1;
+	int mode;                  /* mode used for texture painting */
 
-	void *paintcursor;			/* wm handle */
-	struct Image *stencil;      /* workaround until we support true layer masks */
+	void *paintcursor;		   /* wm handle */
+	struct Image *stencil;     /* workaround until we support true layer masks */
+	struct Image *clone;       /* clone layer for image mode for projective texture painting */
+	struct Image *canvas;      /* canvas when the explicit system is used for painting */
 	float stencil_col[3];
-	float pad2;
+	float pad1;
 } ImagePaintSettings;
 
 /* ------------------------------------------- */
@@ -1481,7 +1484,10 @@ enum {
 
 /* sequencer seq_prev_type seq_rend_type */
 
-
+/* scene->r.engine (scene.c) */
+extern const char *RE_engine_id_BLENDER_RENDER;
+extern const char *RE_engine_id_BLENDER_GAME;
+extern const char *RE_engine_id_CYCLES;
 
 /* **************** SCENE ********************* */
 
@@ -1708,6 +1714,11 @@ typedef enum SculptFlags {
 	SCULPT_DYNTOPO_DETAIL_CONSTANT = (1 << 13)
 } SculptFlags;
 
+typedef enum ImagePaintMode {
+	IMAGEPAINT_MODE_MATERIAL, /* detect texture paint slots from the material */
+	IMAGEPAINT_MODE_IMAGE,    /* select texture paint image directly */
+} ImagePaintMode;
+
 #if (DNA_DEPRECATED_GCC_POISON == 1)
 #pragma GCC poison SCULPT_SYMM_X SCULPT_SYMM_Y SCULPT_SYMM_Z SCULPT_SYMMETRY_FEATHER
 #endif
@@ -1725,6 +1736,11 @@ typedef enum SculptFlags {
 #define IMAGEPAINT_PROJECT_LAYER_CLONE	128
 #define IMAGEPAINT_PROJECT_LAYER_STENCIL	256
 #define IMAGEPAINT_PROJECT_LAYER_STENCIL_INV	512
+
+#define IMAGEPAINT_MISSING_UVS       (1 << 0)
+#define IMAGEPAINT_MISSING_MATERIAL  (1 << 1)
+#define IMAGEPAINT_MISSING_TEX       (1 << 2)
+#define IMAGEPAINT_MISSING_STENCIL   (1 << 3)
 
 /* toolsettings->uvcalc_flag */
 #define UVCALC_FILLHOLES			1

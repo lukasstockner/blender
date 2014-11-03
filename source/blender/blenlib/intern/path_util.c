@@ -873,9 +873,12 @@ bool BLI_path_abs(char *path, const char *basepath)
 	char tmp[FILE_MAX];
 	char base[FILE_MAX];
 #ifdef WIN32
-	char vol[3] = {'\0', '\0', '\0'};
 
-	BLI_strncpy(vol, path, 3);
+	/* without this: "" --> "C:\" */
+	if (*path == '\0') {
+		return wasrelative;
+	}
+
 	/* we are checking here if we have an absolute path that is not in the current
 	 * blend file as a lib main - we are basically checking for the case that a 
 	 * UNIX root '/' is passed.
@@ -1577,7 +1580,7 @@ void BLI_make_existing_file(const char *name)
 	char di[FILE_MAX];
 	BLI_split_dir_part(name, di, sizeof(di));
 
-	/* make if if the dir doesn't exist */
+	/* make if the dir doesn't exist */
 	BLI_dir_create_recursive(di);
 }
 

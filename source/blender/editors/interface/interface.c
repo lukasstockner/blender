@@ -51,6 +51,7 @@
 
 #include "BKE_context.h"
 #include "BKE_unit.h"
+#include "BKE_scene.h"
 #include "BKE_screen.h"
 #include "BKE_idprop.h"
 
@@ -1311,10 +1312,6 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	rcti rect;
 	int multisample_enabled;
 	
-	/* early exit if cancelled */
-	if ((block->flag & UI_BLOCK_RADIAL) && (block->pie_data.flags & UI_PIE_FINISHED))
-		return;
-
 	/* get menu region or area region */
 	ar = CTX_wm_menu(C);
 	if (!ar)
@@ -1346,8 +1343,8 @@ void uiDrawBlock(const bContext *C, uiBlock *block)
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix();
 	glLoadIdentity();
-	
-	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
+
+	wmOrtho2_region_ui(ar);
 	
 	/* back */
 	if (block->flag & UI_BLOCK_RADIAL)
@@ -1522,7 +1519,7 @@ void uiComposeLinks(uiBlock *block)
 					}
 				}
 				else if (link->poin) {
-					bt = ui_find_inlink(block, *(link->poin) );
+					bt = ui_find_inlink(block, *link->poin);
 					if (bt) {
 						if ((but->flag & UI_BUT_SCA_LINK_GREY) || (bt->flag & UI_BUT_SCA_LINK_GREY)) {
 							ui_add_link_line(&link->lines, but, bt, true);
@@ -1750,11 +1747,9 @@ bool ui_is_but_compatible(const uiBut *but_a, const uiBut *but_b)
 		return false;
 
 	if (but_a->rnaprop) {
+		/* skip 'rnapoin.data', 'rnapoin.id.data'
+		 * allow different data to have the same props edited at once */
 		if (but_a->rnapoin.type != but_b->rnapoin.type)
-			return false;
-		if (but_a->rnapoin.data != but_b->rnapoin.data)
-			return false;
-		if (but_a->rnapoin.id.data != but_b->rnapoin.id.data)
 			return false;
 		if (RNA_property_type(but_a->rnaprop) != RNA_property_type(but_b->rnaprop))
 			return false;
@@ -1942,27 +1937,13 @@ static double ui_get_but_scale_unit(uiBut *but, double value)
 	UnitSettings *unit = but->block->unit;
 	int unit_type = uiButGetUnitType(but);
 
-	if (unit_type == PROP_UNIT_LENGTH) {
-		return value * (double)unit->scale_length;
-	}
-	else if (unit_type == PROP_UNIT_CAMERA) {
-		return value * (double)unit->scale_length;
-	}
-	else if (unit_type == PROP_UNIT_AREA) {
-		return value * pow(unit->scale_length, 2);
-	}
-	else if (unit_type == PROP_UNIT_VOLUME) {
-		return value * pow(unit->scale_length, 3);
-	}
-	else if (unit_type == PROP_UNIT_MASS) {
-		return value * pow(unit->scale_length, 3);
-	}
-	else if (unit_type == PROP_UNIT_TIME) { /* WARNING - using evil_C :| */
+	/* Time unit is a bit special, not handled by BKE_scene_unit_scale() for now. */
+	if (unit_type == PROP_UNIT_TIME) { /* WARNING - using evil_C :| */
 		Scene *scene = CTX_data_scene(but->block->evil_C);
 		return FRA2TIME(value);
 	}
 	else {
-		return value;
+		return BKE_scene_unit_scale(unit, RNA_SUBTYPE_UNIT_VALUE(unit_type), value);
 	}
 }
 

@@ -62,7 +62,10 @@ from freestyle.predicates import (
     TrueBP1D,
     TrueUP1D,
     WithinImageBoundaryUP1D,
+    pyNFirstUP1D,
     pyNatureUP1D,
+    pyProjectedXBP1D,
+    pyProjectedYBP1D,
     pyZBP1D,
     )
 from freestyle.shaders import (
@@ -814,17 +817,14 @@ class FaceMarkOneUP1D(UnaryPredicate1D):
 
 class MaterialBoundaryUP0D(UnaryPredicate0D):
     def __call__(self, it):
-        if it.is_begin:
+        # can't use only it.is_end here, see commit rBeb8964fb7f19
+        if it.is_begin or it.at_last or it.is_end:
             return False
-        it_prev = Interface0DIterator(it)
-        it_prev.decrement()
-        v = it.object
-        it.increment()
-        if it.is_end:
-            return False
-        fe = v.get_fedge(it_prev.object)
+        it.decrement()
+        prev, v, succ = next(it), next(it), next(it)
+        fe = v.get_fedge(prev)
         idx1 = fe.material_index if fe.is_smooth else fe.material_index_left
-        fe = v.get_fedge(it.object)
+        fe = v.get_fedge(succ)
         idx2 = fe.material_index if fe.is_smooth else fe.material_index_left
         return idx1 != idx2
 
@@ -1009,11 +1009,6 @@ def process(layer_name, lineset_name):
             Operators.sequential_split(SplitPatternStartingUP0D(controller),
                                        SplitPatternStoppingUP0D(controller),
                                        sampling)
-    # select chains
-    if linestyle.use_length_min or linestyle.use_length_max:
-        length_min = linestyle.length_min if linestyle.use_length_min else None
-        length_max = linestyle.length_max if linestyle.use_length_max else None
-        Operators.select(LengthThresholdUP1D(length_min, length_max))
     # sort selected chains
     if linestyle.use_sorting:
         integration = integration_types.get(linestyle.integration_type, IntegrationType.MEAN)
@@ -1021,9 +1016,20 @@ def process(layer_name, lineset_name):
             bpred = pyZBP1D(integration)
         elif linestyle.sort_key == '2D_LENGTH':
             bpred = Length2DBP1D()
+        elif linestyle.sort_key == 'PROJECTED_X':
+            bpred = pyProjectedXBP1D(integration)
+        elif linestyle.sort_key == 'PROJECTED_Y':
+            bpred = pyProjectedYBP1D(integration)
         if linestyle.sort_order == 'REVERSE':
             bpred = NotBP1D(bpred)
         Operators.sort(bpred)
+    # select chains
+    if linestyle.use_length_min or linestyle.use_length_max:
+        length_min = linestyle.length_min if linestyle.use_length_min else None
+        length_max = linestyle.length_max if linestyle.use_length_max else None
+        Operators.select(LengthThresholdUP1D(length_min, length_max))
+    if linestyle.use_chain_count:
+        Operators.select(pyNFirstUP1D(linestyle.chain_count))
     # prepare a list of stroke shaders
     shaders_list = []
     for m in linestyle.geometry_modifiers:

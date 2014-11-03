@@ -182,8 +182,9 @@ typedef struct BMOpSlot {
 typedef enum {
 	BMO_OPTYPE_FLAG_NOP                 = 0,
 	BMO_OPTYPE_FLAG_UNTAN_MULTIRES      = (1 << 0),  /* switch from multires tangent space to absolute coordinates */
-	BMO_OPTYPE_FLAG_NORMALS_CALC        = (1 << 1),  /*switch from multires tangent space to absolute coordinates*/
-	BMO_OPTYPE_FLAG_SELECT_FLUSH        = (1 << 2)   /*switch from multires tangent space to absolute coordinates*/
+	BMO_OPTYPE_FLAG_NORMALS_CALC        = (1 << 1),
+	BMO_OPTYPE_FLAG_SELECT_FLUSH        = (1 << 2),
+	BMO_OPTYPE_FLAG_SELECT_VALIDATE     = (1 << 3),
 } BMOpTypeFlag;
 
 typedef struct BMOperator {
@@ -337,7 +338,8 @@ void BMO_mesh_flag_disable_all(BMesh *bm, BMOperator *op, const char htype, cons
 void BMO_mesh_selected_remap(BMesh *bm,
                              BMOpSlot *slot_vert_map,
                              BMOpSlot *slot_edge_map,
-                             BMOpSlot *slot_face_map);
+                             BMOpSlot *slot_face_map,
+                             const bool check_select);
 
 /* copies the values from another slot to the end of the output slot */
 #define BMO_slot_buffer_append(op_src, slots_src, slot_name_src,              \
@@ -392,6 +394,8 @@ void BMO_slot_buffer_from_enabled_hflag(BMesh *bm, BMOperator *op,
 void BMO_slot_buffer_from_disabled_hflag(BMesh *bm, BMOperator *op,
                                          BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name,
                                          const char htype, const char hflag);
+
+void  BMO_slot_buffer_from_array(BMOperator *op, BMOpSlot *slot, BMHeader **ele_buffer, int ele_buffer_len);
 
 void  BMO_slot_buffer_from_single(BMOperator *op, BMOpSlot *slot, BMHeader *ele);
 void *BMO_slot_buffer_get_single(BMOpSlot *slot);

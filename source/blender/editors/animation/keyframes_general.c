@@ -408,8 +408,8 @@ void sample_fcurve(FCurve *fcu)
 				 * keyframes while sampling will affect the outcome...
 				 *	- only start sampling+adding from index=1, so that we don't overwrite original keyframe
 				 */
-				range = (int)(ceil(end->vec[1][0] - start->vec[1][0]) );
-				sfra = (int)(floor(start->vec[1][0]) );
+				range = (int)(ceil(end->vec[1][0] - start->vec[1][0]));
+				sfra = (int)(floor(start->vec[1][0]));
 				
 				if (range) {
 					value_cache = MEM_callocN(sizeof(TempFrameValCache) * range, "IcuFrameValCache");
@@ -724,7 +724,7 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 		}
 	}
 	
-	/* just start pasting, with the the first keyframe on the current frame, and so on */
+	/* just start pasting, with the first keyframe on the current frame, and so on */
 	for (i = 0, bezt = aci->bezt; i < aci->totvert; i++, bezt++) {
 		/* temporarily apply offset to src beztriple while copying */
 		bezt->vec[0][0] += offset;
@@ -732,9 +732,9 @@ static void paste_animedit_keys_fcurve(FCurve *fcu, tAnimCopybufItem *aci, float
 		bezt->vec[2][0] += offset;
 		
 		/* insert the keyframe
-		 * NOTE: no special flags here for now
+		 * NOTE: we do not want to inherit handles from existing keyframes in this case!
 		 */
-		insert_bezt_fcurve(fcu, bezt, 0); 
+		insert_bezt_fcurve(fcu, bezt, INSERTKEY_OVERWRITE_FULL);
 		
 		/* un-apply offset from src beztriple after copying */
 		bezt->vec[0][0] -= offset;

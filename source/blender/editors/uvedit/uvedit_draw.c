@@ -71,7 +71,7 @@
 
 static void draw_uvs_lineloop_bmface(BMFace *efa, const int cd_loop_uv_offset);
 
-void draw_image_cursor(ARegion *ar, const float cursor[2])
+void ED_image_draw_cursor(ARegion *ar, const float cursor[2])
 {
 	float zoom[2], x_fac, y_fac;
 
@@ -946,14 +946,30 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 	glPointSize(1.0);
 }
 
-void draw_uvedit_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)
+
+static void draw_uv_shadows_get(SpaceImage *sima, Object *ob, Object *obedit, bool *show_shadow, bool *show_texpaint)
+{
+	*show_shadow = *show_texpaint = false;
+
+	if (ED_space_image_show_render(sima) || (sima->flag & SI_NO_DRAW_TEXPAINT))
+		return;
+
+	if ((sima->mode == SI_MODE_PAINT) && obedit && obedit->type == OB_MESH) {
+		struct BMEditMesh *em = BKE_editmesh_from_object(obedit);
+		
+		*show_shadow = EDBM_mtexpoly_check(em);
+	}
+	
+	*show_texpaint = (ob && ob->type == OB_MESH && ob->mode == OB_MODE_TEXTURE_PAINT);
+}
+
+void ED_uvedit_draw_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedit, Object *obact)
 {
 	ToolSettings *toolsettings = scene->toolsettings;
-	int show_uvedit, show_uvshadow, show_texpaint_uvshadow;
+	bool show_uvedit, show_uvshadow, show_texpaint_uvshadow;
 
-	show_texpaint_uvshadow = ED_space_image_show_texpaint(sima, obact);
 	show_uvedit = ED_space_image_show_uvedit(sima, obedit);
-	show_uvshadow = ED_space_image_show_uvshadow(sima, obedit);
+	draw_uv_shadows_get(sima, obact, obedit, &show_uvshadow, &show_texpaint_uvshadow);
 
 	if (show_uvedit || show_uvshadow || show_texpaint_uvshadow) {
 		if (show_uvshadow)
@@ -964,7 +980,7 @@ void draw_uvedit_main(SpaceImage *sima, ARegion *ar, Scene *scene, Object *obedi
 			draw_uvs_texpaint(sima, scene, obact);
 
 		if (show_uvedit && !(toolsettings->use_uv_sculpt))
-			draw_image_cursor(ar, sima->cursor);
+			ED_image_draw_cursor(ar, sima->cursor);
 	}
 }
 

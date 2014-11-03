@@ -110,7 +110,8 @@ class IMAGE_MT_view(Menu):
             layout.separator()
 
         layout.operator("screen.area_dupli")
-        layout.operator("screen.screen_full_area")
+        layout.operator("screen.screen_full_area", text="Toggle Maximize Area")
+        layout.operator("screen.screen_full_area").use_hide_panels = True
 
 
 class IMAGE_MT_select(Menu):
@@ -154,6 +155,7 @@ class IMAGE_MT_brush(Menu):
         ups = context.tool_settings.unified_paint_settings
         layout.prop(ups, "use_unified_size", text="Unified Size")
         layout.prop(ups, "use_unified_strength", text="Unified Strength")
+        layout.prop(ups, "use_unified_color", text="Unified Color")
         layout.separator()
 
         # brush tool
@@ -175,6 +177,8 @@ class IMAGE_MT_image(Menu):
         show_render = sima.show_render
 
         layout.operator("image.read_renderlayers")
+
+        layout.operator("image.save_dirty", text="Save All Images")
 
         if ima:
             if not show_render:
@@ -658,6 +662,11 @@ class IMAGE_PT_view_properties(Panel):
             sub.active = uvedit.show_stretch
             sub.row().prop(uvedit, "draw_stretch_type", expand=True)
 
+        if ima:
+            layout.separator()
+            render_slot = ima.render_slots.active
+            layout.prop(render_slot, "name", text="Slot Name")
+
 
 class IMAGE_PT_tools_transform_uvs(Panel, UVToolsPanel):
     bl_label = "Transform"
@@ -1012,10 +1021,12 @@ class IMAGE_UV_sculpt(Panel, ImagePaintPanel):
         col = layout.column()
         col.prop(toolsettings, "uv_sculpt_lock_borders")
         col.prop(toolsettings, "uv_sculpt_all_islands")
-        col.prop(toolsettings, "uv_sculpt_tool")
 
+        col.prop(toolsettings, "uv_sculpt_tool")
         if toolsettings.uv_sculpt_tool == 'RELAX':
             col.prop(toolsettings, "uv_relax_method")
+
+        col.prop(uvsculpt, "show_brush")
 
 
 class IMAGE_PT_tools_mask(MASK_PT_tools, Panel):
@@ -1068,7 +1079,7 @@ class IMAGE_PT_view_waveform(Panel):
         layout.template_waveform(sima, "scopes")
         row = layout.split(percentage=0.75)
         row.prop(sima.scopes, "waveform_alpha")
-        row.prop(sima.scopes, "waveform_mode", icon_only=True)
+        row.prop(sima.scopes, "waveform_mode", text="")
 
 
 class IMAGE_PT_view_vectorscope(Panel):

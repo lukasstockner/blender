@@ -180,10 +180,12 @@ void BlenderSync::sync_integrator()
 	integrator->volume_max_steps = get_int(cscene, "volume_max_steps");
 	integrator->volume_step_size = get_float(cscene, "volume_step_size");
 
-	integrator->no_caustics = get_boolean(cscene, "no_caustics");
+	integrator->caustics_reflective = get_boolean(cscene, "caustics_reflective");
+	integrator->caustics_refractive = get_boolean(cscene, "caustics_refractive");
 	integrator->filter_glossy = get_float(cscene, "blur_glossy");
 
 	integrator->seed = get_int(cscene, "seed");
+	integrator->sampling_pattern = (SamplingPattern)RNA_enum_get(&cscene, "sampling_pattern");
 
 	integrator->layer_flag = render_layer.layer;
 
@@ -231,10 +233,6 @@ void BlenderSync::sync_integrator()
 		integrator->subsurface_samples = subsurface_samples;
 		integrator->volume_samples = volume_samples;
 	}
-	
-
-	if(experimental)
-		integrator->sampling_pattern = (SamplingPattern)RNA_enum_get(&cscene, "sampling_pattern");
 
 	if(integrator->modified(previntegrator))
 		integrator->tag_update(scene);
@@ -517,7 +515,17 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine, BL::Use
 		params.shadingsystem = SHADINGSYSTEM_OSL;
 	
 	/* color managagement */
-	params.display_buffer_linear = GLEW_ARB_half_float_pixel && b_engine.support_display_space_shader(b_scene);
+#ifdef GLEW_MX
+	/* When using GLEW MX we need to check whether we've got an OpenGL
+	 * context for crrent window. This is because command line rendering
+	 * doesn't have OpenGL context actually.
+	 */
+	if(glewGetContext() != NULL)
+#endif
+	{
+		params.display_buffer_linear = GLEW_ARB_half_float_pixel &&
+		                               b_engine.support_display_space_shader(b_scene);
+	}
 
 	return params;
 }

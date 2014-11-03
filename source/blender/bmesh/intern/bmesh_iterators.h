@@ -94,7 +94,7 @@ extern const char bm_iter_itype_htype_map[BM_ITYPE_MAX];
 #ifdef DEBUG
 #  define BM_ITER_MESH_MUTABLE(ele, ele_next, iter, bm, itype) \
 	for (ele = BM_iter_new(iter, bm, itype, NULL); \
-	ele ? ((void)((iter)->count = BM_iter_mesh_count(bm, itype)), \
+	ele ? ((void)((iter)->count = BM_iter_mesh_count(itype, bm)), \
 	       (void)(ele_next = BM_iter_step(iter)), 1) : 0; \
 	ele = ele_next)
 #else
@@ -110,16 +110,7 @@ extern const char bm_iter_itype_htype_map[BM_ITYPE_MAX];
 	for (ele = BM_iter_new(iter, NULL, itype, data), indexvar = 0; ele; ele = BM_iter_step(iter), (indexvar)++)
 
 /* iterator type structs */
-struct BMIter__vert_of_mesh {
-	BMesh *bm;
-	BLI_mempool_iter pooliter;
-};
-struct BMIter__edge_of_mesh {
-	BMesh *bm;
-	BLI_mempool_iter pooliter;
-};
-struct BMIter__face_of_mesh {
-	BMesh *bm;
+struct BMIter__elem_of_mesh {
 	BLI_mempool_iter pooliter;
 };
 struct BMIter__edge_of_vert {
@@ -173,9 +164,7 @@ typedef void *(*BMIter__step_cb) (void *);
 typedef struct BMIter {
 	/* keep union first */
 	union {
-		struct BMIter__vert_of_mesh vert_of_mesh;
-		struct BMIter__edge_of_mesh edge_of_mesh;
-		struct BMIter__face_of_mesh face_of_mesh;
+		struct BMIter__elem_of_mesh elem_of_mesh;
 
 		struct BMIter__edge_of_vert edge_of_vert;
 		struct BMIter__face_of_vert face_of_vert;
@@ -196,7 +185,6 @@ typedef struct BMIter {
 	char itype;
 } BMIter;
 
-int     BM_iter_mesh_count(BMesh *bm, const char itype);
 void   *BM_iter_at_index(BMesh *bm, const char itype, void *data, int index) ATTR_WARN_UNUSED_RESULT;
 int     BM_iter_as_array(BMesh *bm, const char itype, void *data, void **array, const int len);
 void   *BM_iter_as_arrayN(BMesh *bm, const char itype, void *data, int *r_len,
@@ -207,9 +195,9 @@ void    *BMO_iter_as_arrayN(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *sl
                             int *r_len,
                             /* optional args to avoid an alloc (normally stack array) */
                             void **stack_array, int stack_array_size);
-
 int     BM_iter_elem_count_flag(const char itype, void *data, const char hflag, const bool value);
 int     BMO_iter_elem_count_flag(BMesh *bm, const char itype, void *data, const short oflag, const bool value);
+int     BM_iter_mesh_count(const char itype, BMesh *bm);
 int     BM_iter_mesh_count_flag(const char itype, BMesh *bm, const char hflag, const bool value);
 
 /* private for bmesh_iterators_inline.c */
@@ -219,9 +207,7 @@ int     BM_iter_mesh_count_flag(const char itype, BMesh *bm, const char hflag, c
 	void  bmiter__##name##_begin(struct BMIter__##name *iter); \
 	void *bmiter__##name##_step(struct BMIter__##name *iter)
 
-BMITER_CB_DEF(vert_of_mesh);
-BMITER_CB_DEF(edge_of_mesh);
-BMITER_CB_DEF(face_of_mesh);
+BMITER_CB_DEF(elem_of_mesh);
 BMITER_CB_DEF(edge_of_vert);
 BMITER_CB_DEF(face_of_vert);
 BMITER_CB_DEF(loop_of_vert);
@@ -236,5 +222,13 @@ BMITER_CB_DEF(loop_of_face);
 #undef BMITER_CB_DEF
 
 #include "intern/bmesh_iterators_inline.h"
+
+#define BM_ITER_CHECK_TYPE_DATA(data) \
+	CHECK_TYPE_ANY(data, void *, BMFace *, BMEdge *, BMVert *, BMLoop *, BMElem *)
+
+#define BM_iter_new(iter, bm, itype, data) \
+	(BM_ITER_CHECK_TYPE_DATA(data), BM_iter_new(iter, bm, itype, data))
+#define BM_iter_init(iter, bm, itype, data) \
+	(BM_ITER_CHECK_TYPE_DATA(data), BM_iter_init(iter, bm, itype, data))
 
 #endif /* __BMESH_ITERATORS_H__ */

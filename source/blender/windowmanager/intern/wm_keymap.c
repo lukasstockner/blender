@@ -589,8 +589,11 @@ static void wm_keymap_patch(wmKeyMap *km, wmKeyMap *diff_km)
 
 		/* add item */
 		if (kmdi->add_item) {
+			/* Do not re-add an already existing keymap item! See T42088. */
+			/* We seek only for exact copy here! See T42137. */
+			kmi_add = wm_keymap_find_item_equals(km, kmdi->add_item);
 			/* only if nothing to remove or item to remove found */
-			if (!kmdi->remove_item || kmi_remove) {
+			if (!kmi_add && (!kmdi->remove_item || kmi_remove)) {
 				kmi_add = wm_keymap_item_copy(kmdi->add_item);
 				kmi_add->flag |= KMI_USER_MODIFIED;
 
@@ -1426,7 +1429,7 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 	 *     BOID_OT
 	 *     BUTTONS_OT
 	 *     CONSTRAINT_OT
-	 *     DPAINT_OT
+	 *     PAINT_OT
 	 *     ED_OT
 	 *     FLUID_OT
 	 *     TEXTURE_OT
@@ -1542,8 +1545,11 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 	else if (STRPREFIX(opname, "FONT_OT")) {
 		km = WM_keymap_find_all(C, "Font", 0, 0);
 	}
+	/* Paint Face Mask */
+	else if (STRPREFIX(opname, "PAINT_OT_face_select")) {
+		km = WM_keymap_find_all(C, "Face Mask", 0, 0);
+	}
 	else if (STRPREFIX(opname, "PAINT_OT")) {
-		
 		/* check for relevant mode */
 		switch (CTX_data_mode_enum(C)) {
 			case OB_MODE_WEIGHT_PAINT:
@@ -1556,10 +1562,6 @@ wmKeyMap *WM_keymap_guess_opname(const bContext *C, const char *opname)
 				km = WM_keymap_find_all(C, "Image Paint", 0, 0);
 				break;
 		}
-	}
-	/* Paint Face Mask */
-	else if (STRPREFIX(opname, "PAINT_OT_face_select")) {
-		km = WM_keymap_find_all(C, "Face Mask", sl->spacetype, 0);
 	}
 	/* Timeline */
 	else if (STRPREFIX(opname, "TIME_OT")) {

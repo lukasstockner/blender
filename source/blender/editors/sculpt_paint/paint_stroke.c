@@ -68,6 +68,12 @@
 #include <float.h>
 #include <math.h>
 
+// #define DEBUG_TIME
+
+#ifdef DEBUG_TIME
+#  include "PIL_time_utildefines.h"
+#endif
+
 typedef struct PaintSample {
 	float mouse[2];
 	float pressure;
@@ -112,7 +118,7 @@ typedef struct PaintStroke {
 	float cached_size_pressure;
 	/* last pressure will store last pressure value for use in interpolation for space strokes */
 	float last_pressure;
-
+	int stroke_mode;
 
 	float zoom_2d;
 	int pen_flip;
@@ -283,9 +289,9 @@ static bool paint_brush_update(bContext *C,
 		const float dx = mouse[0] - stroke->initial_mouse[0];
 		const float dy = mouse[1] - stroke->initial_mouse[1];
 
-		ups->anchored_size = ups->pixel_radius = sqrt(dx * dx + dy * dy);
+		ups->anchored_size = ups->pixel_radius = sqrtf(dx * dx + dy * dy);
 
-		ups->brush_rotation = atan2(dx, dy) + M_PI;
+		ups->brush_rotation = atan2f(dx, dy) + M_PI;
 
 		if (brush->flag & BRUSH_EDGE_TO_EDGE) {
 			halfway[0] = dx * 0.5f + stroke->initial_mouse[0];
@@ -347,6 +353,20 @@ static bool paint_brush_update(bContext *C,
 	return location_success;
 }
 
+static bool paint_stroke_use_jitter(PaintMode mode, Brush *brush, bool invert)
+{
+	bool use_jitter = (brush->flag & BRUSH_ABSOLUTE_JITTER) ?
+		(brush->jitter_absolute != 0) : (brush->jitter != 0);
+
+	/* jitter-ed brush gives weird and unpredictable result for this
+	 * kinds of stroke, so manually disable jitter usage (sergey) */
+	use_jitter &= (brush->flag & (BRUSH_DRAG_DOT | BRUSH_ANCHORED)) == 0;
+	use_jitter &= (!ELEM(mode, PAINT_TEXTURE_2D, PAINT_TEXTURE_PROJECTIVE) ||
+	               !(invert && brush->imagepaint_tool == PAINT_TOOL_CLONE));
+
+
+	return use_jitter;
+}
 
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
 static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float mouse_in[2], float pressure)
@@ -382,7 +402,7 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 	copy_v2_v2(stroke->last_mouse_position, mouse_in);
 	stroke->last_pressure = pressure;
 
-	{
+	if (paint_stroke_use_jitter(mode, brush, stroke->stroke_mode == BRUSH_STROKE_INVERT)) {
 		float delta[2];
 		float factor = stroke->zoom_2d;
 
@@ -399,6 +419,9 @@ static void paint_brush_stroke_add_step(bContext *C, wmOperator *op, const float
 			mul_v2_fl(delta, factor);
 			add_v2_v2v2(mouse_out, mouse_in, delta);
 		}
+	}
+	else {
+		copy_v2_v2(mouse_out, mouse_in);
 	}
 
 	if (!paint_brush_update(C, brush, mode, stroke, mouse_in, mouse_out, pressure, location)) {
@@ -481,7 +504,7 @@ static float paint_stroke_overlapped_curve(Brush *br, float x, float spacing)
 	for (i = 0; i < n; i++) {
 		float xx;
 
-		xx = fabs(x0 + i * h);
+		xx = fabsf(x0 + i * h);
 
 		if (xx < 1.0f)
 			sum += BKE_brush_curve_strength(br, xx, 1);
@@ -615,6 +638,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 	stroke->done = done;
 	stroke->event_type = event_type; /* for modal, return event */
 	stroke->ups = ups;
+	stroke->stroke_mode = RNA_enum_get(op->ptr, "mode");
 
 	get_imapaint_zoom(C, &zoomx, &zoomy);
 	stroke->zoom_2d = max_ff(zoomx, zoomy);
@@ -740,7 +764,7 @@ bool paint_supports_smooth_stroke(Brush *br, PaintMode mode)
 
 bool paint_supports_texture(PaintMode mode)
 {
-	/* ommit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
+	/* omit: PAINT_WEIGHT, PAINT_SCULPT_UV, PAINT_INVALID */
 	return ELEM(mode, PAINT_SCULPT, PAINT_VERTEX, PAINT_TEXTURE_PROJECTIVE, PAINT_TEXTURE_2D);
 }
 
@@ -892,6 +916,7 @@ static void paint_stroke_line_end(bContext *C, wmOperator *op, PaintStroke *stro
 static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
 	Brush *br = stroke->brush;
+
 	if (br->flag & BRUSH_CURVE) {
 		const Scene *scene = CTX_data_scene(C);
 		const float spacing = paint_space_stroke_spacing(scene, stroke, 1.0f, 1.0f);
@@ -902,6 +927,10 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 
 		if (!pc)
 			return true;
+
+#ifdef DEBUG_TIME
+		TIMEIT_START(stroke);
+#endif
 
 		pcp = pc->points;
 		stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
@@ -938,6 +967,11 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 		}
 
 		stroke_done(C, op);
+
+#ifdef DEBUG_TIME
+		TIMEIT_END(stroke);
+#endif
+
 		return true;
 	}
 

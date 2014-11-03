@@ -26,6 +26,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -175,7 +176,7 @@ static int select_orientation_invoke(bContext *C, wmOperator *UNUSED(op), const 
 	uiItemsEnumO(layout, "TRANSFORM_OT_select_orientation", "orientation");
 	uiPupMenuEnd(C, pup);
 
-	return OPERATOR_CANCELLED;
+	return OPERATOR_INTERFACE;
 }
 
 static void TRANSFORM_OT_select_orientation(struct wmOperatorType *ot)
@@ -883,6 +884,27 @@ static void TRANSFORM_OT_edge_crease(struct wmOperatorType *ot)
 	Transform_Properties(ot, P_SNAP);
 }
 
+static int edge_bevelweight_exec(bContext *C, wmOperator *op)
+{
+	Mesh *me = (Mesh *)CTX_data_edit_object(C)->data;
+
+	/* auto-enable bevel edge weight drawing, then chain to common transform code */
+	me->drawflag |= ME_DRAWBWEIGHTS;
+
+	return transform_exec(C, op);
+}
+
+static int edge_bevelweight_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	Mesh *me = (Mesh *)CTX_data_edit_object(C)->data;
+
+	/* auto-enable bevel edge weight drawing, then chain to common transform code */
+	me->drawflag |= ME_DRAWBWEIGHTS;
+
+	return transform_invoke(C, op, event);
+}
+
+
 static void TRANSFORM_OT_edge_bevelweight(struct wmOperatorType *ot)
 {
 	/* identifiers */
@@ -892,8 +914,8 @@ static void TRANSFORM_OT_edge_bevelweight(struct wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
 	/* api callbacks */
-	ot->invoke = transform_invoke;
-	ot->exec   = transform_exec;
+	ot->invoke = edge_bevelweight_invoke;
+	ot->exec   = edge_bevelweight_exec;
 	ot->modal  = transform_modal;
 	ot->cancel = transform_cancel;
 	ot->poll   = ED_operator_editmesh;

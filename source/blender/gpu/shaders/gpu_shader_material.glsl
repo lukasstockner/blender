@@ -1211,7 +1211,12 @@ void mtex_mapping_size(vec3 texco, vec3 size, out vec3 outtexco)
 
 void mtex_2d_mapping(vec3 vec, out vec3 outvec)
 {
-	outvec = vec3(vec.xy*0.5 + vec2(0.5, 0.5), vec.z);
+	outvec = vec3(vec.xy*0.5 + vec2(0.5), vec.z);
+}
+
+vec3 mtex_2d_mapping(vec3 vec)
+{
+	return vec3(vec.xy*0.5 + vec2(0.5), vec.z);
 }
 
 void mtex_image(vec3 texco, sampler2D ima, out float value, out vec4 color)
@@ -1502,9 +1507,9 @@ void mtex_nspace_world(mat4 viewmat, vec3 texnormal, out vec3 outnormal)
 	outnormal = normalize((viewmat*vec4(texnormal, 0.0)).xyz);
 }
 
-void mtex_nspace_object(mat4 viewmat, mat4 obmat, vec3 texnormal, out vec3 outnormal)
+void mtex_nspace_object(vec3 texnormal, out vec3 outnormal)
 {
-	outnormal = normalize((viewmat*(obmat*vec4(texnormal, 0.0))).xyz);
+	outnormal = normalize(gl_NormalMatrix * texnormal);
 }
 
 void mtex_blend_normal(float norfac, vec3 normal, vec3 newnormal, out vec3 outnormal)
@@ -1955,6 +1960,11 @@ void shade_mul_value(float fac, vec4 col, out vec4 outcol)
 	outcol = col*fac;
 }
 
+void shade_mul_value_v3(float fac, vec3 col, out vec3 outcol)
+{
+	outcol = col*fac;
+}
+
 void shade_obcolor(vec4 col, vec4 obcol, out vec4 outcol)
 {
 	outcol = vec4(col.rgb*obcol.rgb, col.a);
@@ -2317,14 +2327,18 @@ void node_tex_coord(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat,
 	out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
 	out vec3 camera, out vec3 window, out vec3 reflection)
 {
-	generated = attr_orco * 0.5 + vec3(0.5, 0.5, 0.5);
+	generated = mtex_2d_mapping(attr_orco);
 	normal = normalize((obinvmat*(viewinvmat*vec4(N, 0.0))).xyz);
 	uv = attr_uv;
 	object = (obinvmat*(viewinvmat*vec4(I, 1.0))).xyz;
 	camera = I;
-	window = gl_FragCoord.xyz;
-	reflection = reflect(N, I);
+	vec4 projvec = gl_ProjectionMatrix * vec4(I, 1.0);
+	window = mtex_2d_mapping(projvec.xyz/projvec.w);
 
+	vec3 shade_I;
+	shade_view(I, shade_I);
+	vec3 view_reflection = reflect(shade_I, normalize(N));
+	reflection = (viewinvmat*vec4(view_reflection, 0.0)).xyz;
 }
 
 /* textures */

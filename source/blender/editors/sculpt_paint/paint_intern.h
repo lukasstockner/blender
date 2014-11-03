@@ -169,8 +169,6 @@ void *paint_proj_new_stroke(struct bContext *C, struct Object *ob, const float m
 void paint_proj_stroke(const struct bContext *C, void *ps, const float prevmval_i[2], const float mval_i[2], const bool eraser, float pressure, float distance, float size);
 void paint_proj_redraw(const struct bContext *C, void *pps, bool final);
 void paint_proj_stroke_done(void *ps);
-void paint_proj_mesh_data_ensure(bContext *C, struct Object *ob, struct wmOperator *op);
-bool proj_paint_add_slot(bContext *C, struct Material *ma, struct wmOperator *op);
 
 void paint_brush_color_get(struct Scene *scene, struct Brush *br, bool color_correction, bool invert, float distance, float pressure, float color[3], struct ColorManagedDisplay *display);
 bool paint_use_opacity_masking(struct Brush *brush);
@@ -184,7 +182,9 @@ void PAINT_OT_texture_paint_toggle(struct wmOperatorType *ot);
 void PAINT_OT_project_image(struct wmOperatorType *ot);
 void PAINT_OT_image_from_view(struct wmOperatorType *ot);
 void PAINT_OT_add_texture_paint_slot(struct wmOperatorType *ot);
+void PAINT_OT_delete_texture_paint_slot(struct wmOperatorType *ot);
 void PAINT_OT_image_paint(struct wmOperatorType *ot);
+void PAINT_OT_add_simple_uvs(struct wmOperatorType *ot);
 
 /* uv sculpting */
 int uv_sculpt_poll(struct bContext *C);
@@ -217,6 +217,9 @@ float paint_get_tex_pixel(struct MTex *mtex, float u, float v, struct ImagePool 
 void paint_get_tex_pixel_col(struct MTex *mtex, float u, float v, float rgba[4], struct ImagePool *pool, int thread, bool convert, struct ColorSpace *colorspace);
 
 void paint_sample_color(bContext *C, struct ARegion *ar, int x, int y, bool texpaint_proj, bool palette);
+
+void paint_stroke_operator_properties(struct wmOperatorType *ot);
+
 void BRUSH_OT_curve_preset(struct wmOperatorType *ot);
 
 void PAINT_OT_face_select_linked(struct wmOperatorType *ot);
@@ -287,12 +290,12 @@ typedef struct {
 	float *wdata; /* actual kernel */
 	int side; /* kernel side */
 	int side_squared; /* data side */
-	float pixel_len; /* pixels around center that kernel is wide */
+	int pixel_len; /* pixels around center that kernel is wide */
 } BlurKernel;
 
 enum BlurKernelType;
 /* can be extended to other blur kernels later */
-BlurKernel *paint_new_blur_kernel(struct Brush *br);
+BlurKernel *paint_new_blur_kernel(struct Brush *br, bool proj);
 void paint_delete_blur_kernel(BlurKernel *);
 
 /* paint curve defines */

@@ -701,7 +701,7 @@ static void init_mv_jit(float *jit, int num, int seed2, float amount)
 
 	rad1= (float)(1.0f/sqrtf((float)num));
 	rad2= (float)(1.0f/((float)num));
-	rad3= (float)sqrt((float)num)/((float)num);
+	rad3= (float)sqrtf((float)num)/((float)num);
 
 	rng = BLI_rng_new(31415926 + num + seed2);
 	x= 0;
@@ -4012,6 +4012,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 	if (!psys->clmd) {
 		psys->clmd = (ClothModifierData*)modifier_new(eModifierType_Cloth);
 		psys->clmd->sim_parms->goalspring = 0.0f;
+		psys->clmd->sim_parms->vel_damping = 1.0f;
 		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL|CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
 		psys->clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
 	}

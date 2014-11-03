@@ -27,6 +27,7 @@ setup_libdirs()
 
 blender_include_dirs(
 	../../intern/guardedalloc
+	../../intern/glew-mx
 	../blender/blenlib
 	../blender/blenkernel
 	../blender/blenloader
@@ -39,6 +40,9 @@ blender_include_dirs(
 	../blender/windowmanager
 )
 
+add_definitions(${GL_DEFINITIONS})
+blender_include_dirs("${GLEW_INCLUDE_PATH}")
+
 if(WIN32)
 	blender_include_dirs(../../intern/utfconv)
 endif()
@@ -46,6 +50,11 @@ endif()
 if(WITH_LIBMV)
 	blender_include_dirs(../../extern/libmv)
 	add_definitions(-DWITH_LIBMV)
+endif()
+
+if(WITH_CYCLES AND WITH_CYCLES_LOGGING)
+	blender_include_dirs(../../intern/cycles/blender)
+	add_definitions(-DWITH_CYCLES_LOGGING)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -391,18 +400,25 @@ endif()
 
 if(UNIX AND NOT APPLE)
 
-	install(
-		CODE
-		"
-		execute_process(COMMAND
-		                ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
-		                ${TARGETDIR}/blender
-		                ${TARGETDIR}/blender.1)
-		"
-	)
+	if(NOT WITH_PYTHON_MODULE)
+		install(
+			CODE
+			"
+			execute_process(COMMAND
+							${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
+							${TARGETDIR}/blender
+							${TARGETDIR}/blender.1)
+			"
+		)
+	endif()
 
 	# there are a few differences between portable and system install
 	if(WITH_INSTALL_PORTABLE)
+		install(
+			FILES ${TARGETDIR}/blender.1
+			DESTINATION ${TARGETDIR}
+		)
+
 		install(
 			FILES
 				${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
@@ -433,6 +449,11 @@ if(UNIX AND NOT APPLE)
 			install(
 				PROGRAMS ${TARGETDIR}/blender
 				DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
+			)
+			# manpage only with 'blender' binary
+			install(
+				FILES ${TARGETDIR}/blender.1
+				DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
 			)
 		endif()
 
@@ -467,10 +488,6 @@ if(UNIX AND NOT APPLE)
 		install(
 			PROGRAMS ${CMAKE_SOURCE_DIR}/release/bin/blender-thumbnailer.py
 			DESTINATION ${CMAKE_INSTALL_PREFIX}/bin
-		)
-		install(
-			FILES ${TARGETDIR}/blender.1
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/share/man/man1
 		)
 		install(
 			FILES ${BLENDER_TEXT_FILES}
@@ -597,13 +614,13 @@ elseif(WIN32)
 		string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
 
 		install(
-			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll
+			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}.dll ${LIBDIR}/python/lib/sqlite3.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Release;RelWithDebInfo;MinSizeRel
 		)
 
 		install(
-			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll
+			FILES ${LIBDIR}/python/lib/python${_PYTHON_VERSION_NO_DOTS}_d.dll ${LIBDIR}/python/lib/sqlite3_d.dll
 			DESTINATION ${TARGETDIR}
 			CONFIGURATIONS Debug
 		)
@@ -661,6 +678,18 @@ elseif(WIN32)
 		endif()
 
 		unset(_PYTHON_VERSION_NO_DOTS)
+	endif()
+
+	# EGL Runtime Components
+	if(WITH_GL_EGL)
+		if(WIN32)
+			install(FILES "${OPENGLES_DLL}"     DESTINATION ${TARGETDIR})
+			install(FILES "${OPENGLES_EGL_DLL}" DESTINATION ${TARGETDIR})
+
+			if(WITH_GL_ANGLE)
+				install(FILES "${D3DCOMPILER_DLL}" DESTINATION ${TARGETDIR})
+			endif()
+		endif()
 	endif()
 
 	if(MSVC)
@@ -872,7 +901,7 @@ elseif(APPLE)
 	if(WITH_GAMEENGINE AND WITH_PLAYER)
 		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
 		set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
-		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/MacOS/${BLENDER_VERSION})
+		set(PLAYER_TARGETDIR_VER ${TARGETDIR}/blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
 
 
 		# important to make a clean  install each time else old scripts get loaded.
@@ -942,7 +971,7 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
 		../icons/winblender.rc
 	)
 	add_executable(blender-launcher ${LAUNCHER_SRC})
-	target_link_libraries(blender-launcher ${PLATFORM_LINKLIBS})
+	target_link_libraries(blender-launcher bf_intern_utfconv ${PLATFORM_LINKLIBS})
 
 	set_target_properties(blender PROPERTIES OUTPUT_NAME blender-app)
 	set_target_properties(blender-launcher PROPERTIES OUTPUT_NAME blender)

@@ -82,6 +82,7 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
+#include "BKE_unit.h"
 #include "BKE_world.h"
 
 #include "RE_engine.h"
@@ -92,13 +93,14 @@
 
 #include "bmesh.h"
 
-//XXX #include "BIF_previewrender.h"
-//XXX #include "BIF_editseq.h"
-
 #ifdef WIN32
 #else
 #  include <sys/time.h>
 #endif
+
+const char *RE_engine_id_BLENDER_RENDER = "BLENDER_RENDER";
+const char *RE_engine_id_BLENDER_GAME = "BLENDER_GAME";
+const char *RE_engine_id_CYCLES = "CYCLES";
 
 void free_avicodecdata(AviCodecData *acd)
 {
@@ -520,6 +522,9 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 
 	sce->r.preview_start_resolution = 64;
 	
+	sce->r.line_thickness_mode = R_LINE_THICKNESS_ABSOLUTE;
+	sce->r.unit_line_thickness = 1.0f;
+
 	sce->toolsettings = MEM_callocN(sizeof(struct ToolSettings), "Tool Settings Struct");
 	sce->toolsettings->doublimit = 0.001;
 	sce->toolsettings->uvcalc_margin = 0.001f;
@@ -594,7 +599,7 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->r.ffcodecdata.audio_bitrate = 192;
 	sce->r.ffcodecdata.audio_channels = 2;
 
-	BLI_strncpy(sce->r.engine, "BLENDER_RENDER", sizeof(sce->r.engine));
+	BLI_strncpy(sce->r.engine, RE_engine_id_BLENDER_RENDER, sizeof(sce->r.engine));
 
 	sce->audio.distance_model = 2.0f;
 	sce->audio.doppler_factor = 1.0f;
@@ -1140,11 +1145,6 @@ void BKE_scene_frame_set(struct Scene *scene, double cfra)
 	double intpart;
 	scene->r.subframe = modf(cfra, &intpart);
 	scene->r.cfra = (int)intpart;
-
-	if (cfra < 0.0) {
-		scene->r.cfra -= 1;
-		scene->r.subframe = 1.0f + scene->r.subframe;
-	}
 }
 
 /* drivers support/hacks 
@@ -1904,6 +1904,16 @@ bool BKE_scene_use_new_shading_nodes(Scene *scene)
 	return (type && type->flag & RE_USE_SHADING_NODES);
 }
 
+bool BKE_scene_uses_blender_internal(struct Scene *scene)
+{
+	return STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER);
+}
+
+bool BKE_scene_uses_blender_game(struct Scene *scene)
+{
+	return STREQ(scene->r.engine, RE_engine_id_BLENDER_GAME);
+}
+
 void BKE_scene_base_flag_to_objects(struct Scene *scene)
 {
 	Base *base = scene->base.first;
@@ -1974,4 +1984,29 @@ int BKE_render_num_threads(const RenderData *rd)
 int BKE_scene_num_threads(const Scene *scene)
 {
 	return BKE_render_num_threads(&scene->r);
+}
+
+/* Apply the needed correction factor to value, based on unit_type (only length-related are affected currently)
+ * and unit->scale_length.
+ */
+double BKE_scene_unit_scale(const UnitSettings *unit, const int unit_type, double value)
+{
+	if (unit->system == USER_UNIT_NONE) {
+		/* Never apply scale_length when not using a unit setting! */
+		return value;
+	}
+
+	switch (unit_type) {
+		case B_UNIT_LENGTH:
+			return value * (double)unit->scale_length;
+		case B_UNIT_AREA:
+			return value * pow(unit->scale_length, 2);
+		case B_UNIT_VOLUME:
+			return value * pow(unit->scale_length, 3);
+		case B_UNIT_MASS:
+			return value * pow(unit->scale_length, 3);
+		case B_UNIT_CAMERA:  /* *Do not* use scene's unit scale for camera focal lens! See T42026. */
+		default:
+			return value;
+	}
 }

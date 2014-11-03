@@ -222,6 +222,8 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	if (multisample_enabled)
 		glDisable(GL_MULTISAMPLE_ARB);
 
+	wmOrtho2_region_ui(ar);
+
 	/* draw background */
 	ui_draw_tooltip_background(UI_GetStyle(), NULL, &bbox);
 
@@ -813,8 +815,10 @@ static void ui_searchbox_select(bContext *C, ARegion *ar, uiBut *but, int step)
 			data->active = 0;
 			ui_searchbox_update(C, ar, but, false);
 		}
-		else if (data->active < -1)
-			data->active = -1;
+		else {
+			/* only let users step into an 'unset' state for unlink buttons */
+			data->active = (but->type == SEARCH_MENU_UNLINK) ? -1 : 0;
+		}
 	}
 	
 	ED_region_tag_redraw(ar);
@@ -881,6 +885,12 @@ bool ui_searchbox_apply(uiBut *but, ARegion *ar)
 		BLI_strncpy(but->editstr, name, name_sep ? (name_sep - name) : data->items.maxstrlen);
 		
 		but->func_arg2 = data->items.pointers[data->active];
+
+		return true;
+	}
+	else if (but->type == SEARCH_MENU_UNLINK) {
+		/* It is valid for _UNLINK flavor to have no active element (it's a valid way to unlink). */
+		but->editstr[0] = '\0';
 
 		return true;
 	}
@@ -1020,7 +1030,7 @@ static void ui_searchbox_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	uiSearchboxData *data = ar->regiondata;
 	
 	/* pixel space */
-	wmOrtho2(-0.01f, ar->winx - 0.01f, -0.01f, ar->winy - 0.01f);
+	wmOrtho2_region_ui(ar);
 
 	if (data->noback == false)
 		ui_draw_search_back(NULL, NULL, &data->bbox);  /* style not used yet */
@@ -1165,8 +1175,9 @@ ARegion *ui_searchbox_create(bContext *C, ARegion *butregion, uiBut *but)
 		/* widget rect, in region coords */
 		data->bbox.xmin = width;
 		data->bbox.xmax = BLI_rcti_size_x(&ar->winrct) - width;
-		data->bbox.ymin = width;
-		data->bbox.ymax = BLI_rcti_size_y(&ar->winrct) - width;
+		/* Do not use shadow width for height, gives insane margin with big shadows, and issue T41548 with small ones */
+		data->bbox.ymin = 8 * UI_DPI_FAC;
+		data->bbox.ymax = BLI_rcti_size_y(&ar->winrct) - 8 * UI_DPI_FAC;
 		
 		/* check if button is lower half */
 		if (but->rect.ymax < BLI_rctf_cent_y(&but->block->rect)) {
@@ -2698,8 +2709,14 @@ static float uiPieTitleWidth(const char *name, int icon)
 
 uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const wmEvent *event)
 {
-	uiStyle *style = UI_GetStyleDraw();
-	uiPieMenu *pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
+	uiStyle *style;
+	uiPieMenu *pie;
+	short event_type;
+
+	wmWindow *win = CTX_wm_window(C);
+
+	style = UI_GetStyleDraw();
+	pie = MEM_callocN(sizeof(uiPopupMenu), "pie menu");
 
 	pie->block_radial = uiBeginBlock(C, NULL, __func__, UI_EMBOSS);
 	/* may be useful later to allow spawning pies
@@ -2707,7 +2724,30 @@ uiPieMenu *uiPieMenuBegin(struct bContext *C, const char *title, int icon, const
 	/* pie->block_radial->flag |= UI_BLOCK_POPUP_MEMORY; */
 	pie->block_radial->puphash = ui_popup_menu_hash(title);
 	pie->block_radial->flag |= UI_BLOCK_RADIAL;
-	pie->block_radial->pie_data.event = event->type;
+
+	/* if pie is spawned by a left click, it is always assumed to be click style */
+	if (event->type == LEFTMOUSE) {
+		pie->block_radial->pie_data.flags |= UI_PIE_CLICK_STYLE;
+		pie->block_radial->pie_data.event = EVENT_NONE;
+		win->lock_pie_event = EVENT_NONE;
+	}
+	else {
+		if (win->last_pie_event != EVENT_NONE) {
+			/* original pie key has been released, so don't propagate the event */
+			if (win->lock_pie_event == EVENT_NONE) {
+				event_type = EVENT_NONE;
+				pie->block_radial->pie_data.flags |= UI_PIE_CLICK_STYLE;
+			}
+			else
+				event_type = win->last_pie_event;
+		}
+		else {
+			event_type = event->type;
+		}
+
+		pie->block_radial->pie_data.event = event_type;
+		win->lock_pie_event = event_type;
+	}
 
 	pie->layout = uiBlockLayout(pie->block_radial, UI_LAYOUT_VERTICAL, UI_LAYOUT_PIEMENU, 0, 0, 200, 0, 0, style);
 	pie->mx = event->x;
@@ -2754,7 +2794,7 @@ uiLayout *uiPieMenuLayout(uiPieMenu *pie)
 	return pie->layout;
 }
 
-void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event)
+int uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *event)
 {
 	uiPieMenu *pie;
 	uiLayout *layout;
@@ -2763,11 +2803,11 @@ void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *even
 
 	if (mt == NULL) {
 		printf("%s: named menu \"%s\" not found\n", __func__, idname);
-		return;
+		return OPERATOR_CANCELLED;
 	}
 
 	if (mt->poll && mt->poll(C, mt) == 0)
-		return;
+		return OPERATOR_CANCELLED;
 
 	pie = uiPieMenuBegin(C, IFACE_(mt->label), ICON_NONE, event);
 	layout = uiPieMenuLayout(pie);
@@ -2782,10 +2822,12 @@ void uiPieMenuInvoke(struct bContext *C, const char *idname, const wmEvent *even
 	mt->draw(C, &menu);
 
 	uiPieMenuEnd(C, pie);
+
+	return OPERATOR_INTERFACE;
 }
 
-void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
-                             const char *propname, const wmEvent *event)
+int uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *opname,
+                            const char *propname, const wmEvent *event)
 {
 	uiPieMenu *pie;
 	uiLayout *layout;
@@ -2797,10 +2839,12 @@ void uiPieOperatorEnumInvoke(struct bContext *C, const char *title, const char *
 	uiItemsEnumO(layout, opname, propname);
 
 	uiPieMenuEnd(C, pie);
+
+	return OPERATOR_INTERFACE;
 }
 
-void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path,
-                     const wmEvent *event)
+int uiPieEnumInvoke(struct bContext *C, const char *title, const char *path,
+                    const wmEvent *event)
 {
 	PointerRNA ctx_ptr;
 	PointerRNA r_ptr;
@@ -2811,22 +2855,25 @@ void uiPieEnumInvoke(struct bContext *C, const char *title, const char *path,
 	RNA_pointer_create(NULL, &RNA_Context, C, &ctx_ptr);
 
 	if (!RNA_path_resolve(&ctx_ptr, path, &r_ptr, &r_prop)) {
-		return;
+		return OPERATOR_CANCELLED;
 	}
 
 	/* invalid property, only accept enums */
 	if (RNA_property_type(r_prop) != PROP_ENUM) {
 		BLI_assert(0);
-		return;
+		return OPERATOR_CANCELLED;
 	}
 
 	pie = uiPieMenuBegin(C, IFACE_(title), ICON_NONE, event);
+
 	layout = uiPieMenuLayout(pie);
 
 	layout = uiLayoutRadial(layout);
 	uiItemFullR(layout, &r_ptr, r_prop, RNA_NO_INDEX, 0, UI_ITEM_R_EXPAND, NULL, 0);
 
 	uiPieMenuEnd(C, pie);
+
+	return OPERATOR_INTERFACE;
 }
 
 
@@ -2881,7 +2928,7 @@ void uiPupMenuReports(bContext *C, ReportList *reports)
 	}
 }
 
-bool uiPupMenuInvoke(bContext *C, const char *idname, ReportList *reports)
+int uiPupMenuInvoke(bContext *C, const char *idname, ReportList *reports)
 {
 	uiPopupMenu *pup;
 	uiLayout *layout;
@@ -2890,11 +2937,11 @@ bool uiPupMenuInvoke(bContext *C, const char *idname, ReportList *reports)
 
 	if (mt == NULL) {
 		BKE_reportf(reports, RPT_ERROR, "Menu \"%s\" not found", idname);
-		return false;
+		return OPERATOR_CANCELLED;
 	}
 
 	if (mt->poll && mt->poll(C, mt) == 0)
-		return false;
+		return OPERATOR_CANCELLED;
 
 	pup = uiPupMenuBegin(C, IFACE_(mt->label), ICON_NONE);
 	layout = uiPupMenuLayout(pup);
@@ -2910,7 +2957,7 @@ bool uiPupMenuInvoke(bContext *C, const char *idname, ReportList *reports)
 
 	uiPupMenuEnd(C, pup);
 
-	return true;
+	return OPERATOR_INTERFACE;
 }
 
 

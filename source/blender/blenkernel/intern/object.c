@@ -42,6 +42,7 @@
 #include "DNA_constraint_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
+#include "DNA_lamp_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_material_types.h"
 #include "DNA_meta_types.h"
@@ -106,6 +107,7 @@
 #include "BKE_sequencer.h"
 #include "BKE_speaker.h"
 #include "BKE_softbody.h"
+#include "BKE_subsurf.h"
 #include "BKE_material.h"
 #include "BKE_camera.h"
 #include "BKE_image.h"
@@ -117,6 +119,8 @@
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
+
+#include "CCGSubSurf.h"
 
 #include "GPU_material.h"
 
@@ -184,6 +188,7 @@ void BKE_object_free_curve_cache(Object *ob)
 		if (ob->curve_cache->path) {
 			free_path(ob->curve_cache->path);
 		}
+		BKE_nurbList_free(&ob->curve_cache->deformed_nurbs);
 		MEM_freeN(ob->curve_cache);
 		ob->curve_cache = NULL;
 	}
@@ -320,18 +325,7 @@ void BKE_object_free_derived_caches(Object *ob)
 		ob->derivedDeform = NULL;
 	}
 	
-	if (ob->curve_cache) {
-		BKE_displist_free(&ob->curve_cache->disp);
-		BKE_curve_bevelList_free(&ob->curve_cache->bev);
-		if (ob->curve_cache->path) {
-			free_path(ob->curve_cache->path);
-			ob->curve_cache->path = NULL;
-		}
-
-		/* Signal for viewport to run DAG workarounds. */
-		MEM_freeN(ob->curve_cache);
-		ob->curve_cache = NULL;
-	}
+	BKE_object_free_curve_cache(ob);
 }
 
 /* do not free object itself */
@@ -873,9 +867,9 @@ bool BKE_object_is_in_wpaint_select_vert(Object *ob)
 {
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		return ( (ob->mode & OB_MODE_WEIGHT_PAINT) &&
-		         (me->edit_btmesh == NULL) &&
-		         (ME_EDIT_PAINT_SEL_MODE(me) == SCE_SELECT_VERTEX) );
+		return ((ob->mode & OB_MODE_WEIGHT_PAINT) &&
+		        (me->edit_btmesh == NULL) &&
+		        (ME_EDIT_PAINT_SEL_MODE(me) == SCE_SELECT_VERTEX));
 	}
 
 	return false;
@@ -1066,10 +1060,10 @@ void BKE_object_lod_add(Object *ob)
 	BLI_addtail(&ob->lodlevels, lod);
 }
 
-static int lod_cmp(void *a, void *b)
+static int lod_cmp(const void *a, const void *b)
 {
-	LodLevel *loda = (LodLevel *)a;
-	LodLevel *lodb = (LodLevel *)b;
+	const LodLevel *loda = a;
+	const LodLevel *lodb = b;
 
 	if (loda->distance < lodb->distance) return -1;
 	return loda->distance > lodb->distance;
@@ -1125,7 +1119,7 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 	}
 	else {
 		/* check for lower LoD */
-		while (current->next && dist_sq > (current->next->distance * current->next->distance)) {
+		while (current->next && dist_sq > SQUARE(current->next->distance)) {
 			current = current->next;
 		}
 	}
@@ -1526,6 +1520,18 @@ Object *BKE_object_copy(Object *ob)
 	return BKE_object_copy_ex(G.main, ob, false);
 }
 
+static void extern_local_object__modifiersForeachIDLink(
+        void *UNUSED(userData), Object *UNUSED(ob),
+        ID **idpoin)
+{
+	if (*idpoin) {
+		/* intentionally omit ID_OB */
+		if (ELEM(GS((*idpoin)->name), ID_IM, ID_TE)) {
+			id_lib_extern(*idpoin);
+		}
+	}
+}
+
 static void extern_local_object(Object *ob)
 {
 	ParticleSystem *psys;
@@ -1539,6 +1545,8 @@ static void extern_local_object(Object *ob)
 
 	for (psys = ob->particlesystem.first; psys; psys = psys->next)
 		id_lib_extern((ID *)psys->part);
+
+	modifiers_foreachIDLink(ob, extern_local_object__modifiersForeachIDLink, NULL);
 }
 
 void BKE_object_make_local(Object *ob)
@@ -1778,6 +1786,55 @@ void BKE_object_make_proxy(Object *ob, Object *target, Object *gob)
 	ob->dt = target->dt;
 }
 
+/**
+ * Use with newly created objects to set their size
+ * (used to apply scene-scale).
+ */
+void BKE_object_obdata_size_init(struct Object *ob, const float size)
+{
+	/* apply radius as a scale to types that support it */
+	switch (ob->type) {
+		case OB_EMPTY:
+		{
+			ob->empty_drawsize *= size;
+			break;
+		}
+		case OB_FONT:
+		{
+			Curve *cu = ob->data;
+			cu->fsize *= size;
+			break;
+		}
+		case OB_CAMERA:
+		{
+			Camera *cam = ob->data;
+			cam->drawsize *= size;
+			break;
+		}
+		case OB_LAMP:
+		{
+			Lamp *lamp = ob->data;
+			lamp->dist *= size;
+			lamp->area_size  *= size;
+			lamp->area_sizey *= size;
+			lamp->area_sizez *= size;
+			break;
+		}
+		/* Only lattice (not mesh, curve, mball...),
+		 * because its got data when newly added */
+		case OB_LATTICE:
+		{
+			struct Lattice *lt = ob->data;
+			float mat[4][4];
+
+			unit_m4(mat);
+			scale_m4_fl(mat, size);
+
+			BKE_lattice_transform(lt, (float (*)[4])mat, false);
+			break;
+		}
+	}
+}
 
 /* *************** CALC ****************** */
 
@@ -2097,26 +2154,59 @@ static void give_parvert(Object *par, int nr, float vec[3])
 			int numVerts = dm->getNumVerts(dm);
 
 			if (nr < numVerts) {
-				/* avoid dm->getVertDataArray() since it allocates arrays in the dm (not thread safe) */
-				int i;
+				bool use_special_ss_case = false;
 
-				if (em && dm->type == DM_TYPE_EDITBMESH) {
-					if (em->bm->elem_table_dirty & BM_VERT) {
-#ifdef VPARENT_THREADING_HACK
-						BLI_mutex_lock(&vparent_lock);
-						if (em->bm->elem_table_dirty & BM_VERT) {
-							BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+				if (dm->type == DM_TYPE_CCGDM) {
+					ModifierData *md;
+					VirtualModifierData virtualModifierData;
+					use_special_ss_case = true;
+					for (md = modifiers_getVirtualModifierList(par, &virtualModifierData);
+					     md != NULL;
+					     md = md->next)
+					{
+						ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+						/* TODO(sergey): Check for disabled modifiers. */
+						if (mti->type != eModifierTypeType_OnlyDeform && md->next != NULL) {
+							use_special_ss_case = false;
+							break;
 						}
-						BLI_mutex_unlock(&vparent_lock);
-#else
-						BLI_assert(!"Not safe for threading");
-						BM_mesh_elem_table_ensure(em->bm, BM_VERT);
-#endif
 					}
 				}
 
-				/* get the average of all verts with (original index == nr) */
-				if (CustomData_has_layer(&dm->vertData, CD_ORIGINDEX)) {
+				if (!use_special_ss_case) {
+					/* avoid dm->getVertDataArray() since it allocates arrays in the dm (not thread safe) */
+					if (em && dm->type == DM_TYPE_EDITBMESH) {
+						if (em->bm->elem_table_dirty & BM_VERT) {
+#ifdef VPARENT_THREADING_HACK
+							BLI_mutex_lock(&vparent_lock);
+							if (em->bm->elem_table_dirty & BM_VERT) {
+								BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+							}
+							BLI_mutex_unlock(&vparent_lock);
+#else
+							BLI_assert(!"Not safe for threading");
+							BM_mesh_elem_table_ensure(em->bm, BM_VERT);
+#endif
+						}
+					}
+				}
+
+				if (use_special_ss_case) {
+					/* Special case if the last modifier is SS and no constructive modifier
+					 * are in front of it.
+					 */
+					CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
+					CCGVert *ccg_vert = ccgSubSurf_getVert(ccgdm->ss, SET_INT_IN_POINTER(nr));
+					float *co = ccgSubSurf_getVertData(ccgdm->ss, ccg_vert);
+					add_v3_v3(vec, co);
+					count++;
+				}
+				else if (CustomData_has_layer(&dm->vertData, CD_ORIGINDEX) &&
+				         !(em && dm->type == DM_TYPE_EDITBMESH))
+				{
+					int i;
+
+					/* Get the average of all verts with (original index == nr). */
 					for (i = 0; i < numVerts; i++) {
 						const int *index = dm->getVertData(dm, i, CD_ORIGINDEX);
 						if (*index == nr) {
@@ -2155,8 +2245,18 @@ static void give_parvert(Object *par, int nr, float vec[3])
 		}
 	}
 	else if (ELEM(par->type, OB_CURVE, OB_SURF)) {
-		Curve *cu       = par->data;
-		ListBase *nurb  = BKE_curve_nurbs_get(cu);
+		ListBase *nurb;
+
+		/* Unless there's some weird depsgraph failure the cache should exist. */
+		BLI_assert(par->curve_cache != NULL);
+
+		if (par->curve_cache->deformed_nurbs.first != NULL) {
+			nurb = &par->curve_cache->deformed_nurbs;
+		}
+		else {
+			Curve *cu = par->data;
+			nurb = BKE_curve_nurbs_get(cu);
+		}
 
 		BKE_nurbList_index_get_co(nurb, nr, vec);
 	}
@@ -2287,7 +2387,16 @@ static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4
 
 static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[4][4])
 {
+<<<<<<< HEAD
 	float fac1 = (1.0f / (1.0f + fabsf(ob->sf)) );
+=======
+	float *fp1, *fp2;
+	float fac1, fac2;
+	int a;
+
+	/* include framerate */
+	fac1 = (1.0f / (1.0f + fabsf(ob->sf)));
+>>>>>>> master
 	if (fac1 >= 1.0f) return 0;
 
 	blend_m4_m4m4(obmat, slowmat, obmat, fac1);
@@ -3168,9 +3277,9 @@ bool BKE_boundbox_ray_hit_check(
 	return result;
 }
 
-static int pc_cmp(void *a, void *b)
+static int pc_cmp(const void *a, const void *b)
 {
-	LinkData *ad = a, *bd = b;
+	const LinkData *ad = a, *bd = b;
 	if (GET_INT_FROM_POINTER(ad->data) > GET_INT_FROM_POINTER(bd->data))
 		return 1;
 	else return 0;
