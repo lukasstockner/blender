@@ -2387,16 +2387,8 @@ static void solve_parenting(Scene *scene, Object *ob, Object *par, float obmat[4
 
 static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat[4][4])
 {
-<<<<<<< HEAD
 	float fac1 = (1.0f / (1.0f + fabsf(ob->sf)) );
-=======
-	float *fp1, *fp2;
-	float fac1, fac2;
-	int a;
 
-	/* include framerate */
-	fac1 = (1.0f / (1.0f + fabsf(ob->sf)));
->>>>>>> master
 	if (fac1 >= 1.0f) return 0;
 
 	blend_m4_m4m4(obmat, slowmat, obmat, fac1);
