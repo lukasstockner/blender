@@ -23,6 +23,8 @@ extern "C" {
 #include "DNA_rigidbody_types.h"
 }
 
+#include "PTC_api.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -67,3 +69,16 @@ PTCReadSampleResult RigidBodyReader::read_sample(float frame)
 }
 
 } /* namespace PTC */
+
+
+/* ==== C API ==== */
+
+PTCWriter *PTC_writer_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return (PTCWriter *)(new PTC::RigidBodyWriter(scene, rbw));
+}
+
+PTCReader *PTC_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return (PTCReader *)(new PTC::RigidBodyReader(scene, rbw));
+}

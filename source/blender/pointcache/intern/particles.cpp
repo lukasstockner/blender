@@ -23,6 +23,8 @@ extern "C" {
 #include "DNA_particle_types.h"
 }
 
+#include "PTC_api.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -322,3 +324,22 @@ PTCReadSampleResult ParticlesReader::read_sample(float frame)
 }
 
 } /* namespace PTC */
+
+
+/* ==== C API ==== */
+
+PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
+{
+	return (PTCWriter *)(new PTC::ParticlesWriter(scene, ob, psys));
+}
+
+PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
+{
+	return (PTCReader *)(new PTC::ParticlesReader(scene, ob, psys));
+}
+
+int PTC_reader_particles_totpoint(PTCReader *_reader)
+{
+	PTC::ParticlesReader *reader = (PTC::ParticlesReader *)_reader;
+	return reader->totpoint();
+}

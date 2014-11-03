@@ -30,6 +30,8 @@ extern "C" {
 #include "BKE_cdderivedmesh.h"
 }
 
+#include "PTC_api.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -188,3 +190,28 @@ void MeshCacheReader::discard_result()
 }
 
 } /* namespace PTC */
+
+
+/* ==== C API ==== */
+
+PTCWriter *PTC_writer_mesh_cache(Scene *scene, Object *ob, MeshCacheModifierData *mcmd)
+{
+	return (PTCWriter *)(new PTC::MeshCacheWriter(scene, ob, mcmd));
+}
+
+PTCReader *PTC_reader_mesh_cache(Scene *scene, Object *ob, MeshCacheModifierData *mcmd)
+{
+	return (PTCReader *)(new PTC::MeshCacheReader(scene, ob, mcmd));
+}
+
+struct DerivedMesh *PTC_reader_mesh_cache_acquire_result(PTCReader *_reader)
+{
+	PTC::MeshCacheReader *reader = (PTC::MeshCacheReader *)_reader;
+	return reader->acquire_result();
+}
+
+void PTC_reader_mesh_cache_discard_result(PTCReader *_reader)
+{
+	PTC::MeshCacheReader *reader = (PTC::MeshCacheReader *)_reader;
+	reader->discard_result();
+}

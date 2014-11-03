@@ -23,6 +23,8 @@ extern "C" {
 #include "DNA_object_force.h"
 }
 
+#include "PTC_api.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -69,3 +71,16 @@ PTCReadSampleResult SoftBodyReader::read_sample(float frame)
 }
 
 } /* namespace PTC */
+
+
+/* ==== C API ==== */
+
+PTCWriter *PTC_writer_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+{
+	return (PTCWriter *)(new PTC::SoftBodyWriter(scene, ob, softbody));
+}
+
+PTCReader *PTC_reader_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+{
+	return (PTCReader *)(new PTC::SoftBodyReader(scene, ob, softbody));
+}

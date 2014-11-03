@@ -23,6 +23,8 @@ extern "C" {
 #include "DNA_dynamicpaint_types.h"
 }
 
+#include "PTC_api.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -69,3 +71,16 @@ PTCReadSampleResult DynamicPaintReader::read_sample(float frame)
 }
 
 } /* namespace PTC */
+
+
+/* ==== C API ==== */
+
+PTCWriter *PTC_writer_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+{
+	return (PTCWriter *)(new PTC::DynamicPaintWriter(scene, ob, surface));
+}
+
+PTCReader *PTC_reader_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+{
+	return (PTCReader *)(new PTC::DynamicPaintReader(scene, ob, surface));
+}

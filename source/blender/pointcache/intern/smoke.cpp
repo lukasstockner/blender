@@ -23,6 +23,8 @@ extern "C" {
 #include "DNA_smoke_types.h"
 }
 
+#include "PTC_api.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -69,3 +71,16 @@ PTCReadSampleResult SmokeReader::read_sample(float frame)
 }
 
 } /* namespace PTC */
+
+
+/* ==== C API ==== */
+
+PTCWriter *PTC_writer_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+{
+	return (PTCWriter *)(new PTC::SmokeWriter(scene, ob, domain));
+}
+
+PTCReader *PTC_reader_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+{
+	return (PTCReader *)(new PTC::SmokeReader(scene, ob, domain));
+}

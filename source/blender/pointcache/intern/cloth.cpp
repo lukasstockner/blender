@@ -23,6 +23,8 @@ extern "C" {
 #include "DNA_modifier_types.h"
 }
 
+#include "PTC_api.h"
+
 namespace PTC {
 
 using namespace Abc;
@@ -69,3 +71,16 @@ PTCReadSampleResult ClothReader::read_sample(float frame)
 }
 
 } /* namespace PTC */
+
+
+/* ==== C API ==== */
+
+PTCWriter *PTC_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCWriter *)(new PTC::ClothWriter(scene, ob, clmd));
+}
+
+PTCReader *PTC_reader_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCReader *)(new PTC::ClothReader(scene, ob, clmd));
+}
