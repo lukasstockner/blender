@@ -1018,6 +1018,9 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		if (ED_gpencil_session_active() && (gpl->flag & GP_LAYER_ACTIVE) &&
 		    (gpf->flag & GP_FRAME_PAINT))
 		{
+			/* Set color for drawing buffer stroke - since this may not be set yet */
+			glColor4fv(gpl->color);
+			
 			/* Buffer stroke needs to be drawn with a different linestyle
 			 * to help differentiate them from normal strokes.
 			 * 
