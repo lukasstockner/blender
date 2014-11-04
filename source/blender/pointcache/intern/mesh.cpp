@@ -104,7 +104,8 @@ PointCacheReader::PointCacheReader(Scene *scene, Object *ob, PointCacheModifierD
 {
 	if (m_archive.valid()) {
 		IObject root = m_archive.getTop();
-		m_mesh = IPolyMesh(root, m_pcmd->modifier.name);
+		if (root.valid() && root.getChild(m_pcmd->modifier.name))
+			m_mesh = IPolyMesh(root, m_pcmd->modifier.name);
 	}
 }
 
