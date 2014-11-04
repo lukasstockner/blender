@@ -1832,9 +1832,10 @@ EOF
     # XXX Alembic creates a subfolder itself ... rather than fix their
     # stupid build files, just expect this here by using $INST as prefix
     export ALEMBIC_INSTALL_PREFIX=$INST
-    export CMAKE_BUILD_TYPE=Release
 
-    cmake_d="-D BUILD_SHARED_LIBS=ON"
+    cmake_d="-D CMAKE_BUILD_TYPE=Release"
+    cmake_d="$cmake_d -D CMAKE_INSTALL_PREFIX=$INST"
+    cmake_d="$cmake_d -D BUILD_SHARED_LIBS=ON"
     cmake_d="$cmake_d -D BUILD_STATIC_LIBS=ON"
     cmake_d="$cmake_d -D USE_PYTHON=OFF"
     cmake_d="$cmake_d -D USE_PYALEMBIC=OFF"
