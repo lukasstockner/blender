@@ -294,7 +294,6 @@ static bool gp_stroke_do_circle_sel(bGPDstroke *gps, GP_SpaceConversion *gsc,
 static int gpencil_circle_select_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
 	
 	const int mx = RNA_int_get(op->ptr, "x");
 	const int my = RNA_int_get(op->ptr, "y");
@@ -371,8 +370,6 @@ void GPENCIL_OT_select_circle(wmOperatorType *ot)
 static int gpencil_border_select_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
-	View2D *v2d = &ar->v2d;
 	
 	const int gesture_mode = RNA_int_get(op->ptr, "gesture_mode");
 	const bool select = (gesture_mode == GESTURE_MODAL_SELECT);
@@ -479,10 +476,6 @@ void GPENCIL_OT_select_border(wmOperatorType *ot)
 static int gpencil_select_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
-	View2D *v2d = &ar->v2d;
-	
-	Scene *scene = CTX_data_scene(C);
 	
 	/* "radius" is simply a threshold (screen space) to make it easier to test with a tolerance */
 	const float radius = 0.75f * U.widget_unit;
