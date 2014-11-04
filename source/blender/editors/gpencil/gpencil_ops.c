@@ -139,6 +139,9 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* duplicate and move selected points */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_duplicate", DKEY, KM_PRESS, KM_SHIFT, 0);
 	
+	/* delete */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_delete", XKEY, KM_PRESS, 0, 0);
+	
 	
 	/* Transform Tools */
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
@@ -187,6 +190,7 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_select_border);
 	
 	WM_operatortype_append(GPENCIL_OT_strokes_copy);
+	WM_operatortype_append(GPENCIL_OT_delete);
 	
 	/* Editing (Buttons) ------------ */
 	

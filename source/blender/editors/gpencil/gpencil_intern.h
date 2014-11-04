@@ -119,6 +119,7 @@ void GPENCIL_OT_select_circle(struct wmOperatorType *ot);
 void GPENCIL_OT_select_border(struct wmOperatorType *ot);
 
 void GPENCIL_OT_strokes_copy(struct wmOperatorType *ot);
+void GPENCIL_OT_delete(struct wmOperatorType *ot);
 
 /* buttons editing --- */
 

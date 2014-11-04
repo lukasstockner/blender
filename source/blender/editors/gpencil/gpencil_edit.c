@@ -687,6 +687,318 @@ void GPENCIL_OT_active_frame_delete(wmOperatorType *ot)
 	ot->poll = gp_actframe_delete_poll;
 }
 
+/* ******************* Delete Operator ************************ */
+
+typedef enum eGP_DeleteMode {
+	/* delete selected stroke points */
+	GP_DELETEOP_POINTS          = 0,
+	/* delete selected strokes */
+	GP_DELETEOP_STROKES         = 1,
+	/* delete active frame */
+	GP_DELETEOP_FRAME           = 2,
+	/* delete selected stroke points (without splitting stroke) */
+	GP_DELETEOP_POINTS_DISSOLVE = 3,
+} eGP_DeleteMode;
+
+
+// XXX: fixme
+static int gp_delete_poll(bContext *C)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+
+	/* only if there's an active layer with an active frame */
+	/* TODO: we probably require some selected strokes too? */
+	return (gpl && gpl->actframe);
+}
+
+/* Delete selected strokes */
+static int gp_delete_selected_strokes(bContext *C)
+{
+	bool changed = false;
+	
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+	{
+		bGPDframe *gpf = gpl->actframe;
+		bGPDstroke *gps, *gpsn;
+		
+		if (gpf == NULL)
+			continue;
+		
+		/* simply delete strokes which are selected */
+		for (gps = gpf->strokes.first; gps; gps = gpsn) {
+			gpsn = gps->next;
+			
+			if (gps->flag & GP_STROKE_SELECT) {
+				/* free stroke memory arrays, then stroke itself */
+				if (gps->points) MEM_freeN(gps->points);
+				BLI_freelinkN(&gpf->strokes, gps);
+				
+				changed = true;
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	if (changed) {
+		WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
+/* Delete selected points but keep the stroke */
+static int gp_dissolve_selected_points(bContext *C)
+{
+	bool changed = false;
+	
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+	{
+		bGPDframe *gpf = gpl->actframe;
+		bGPDstroke *gps, *gpsn;
+		
+		if (gpf == NULL)
+			continue;
+		
+		/* simply delete points from selected strokes
+		 * NOTE: we may still have to remove the stroke if it ends up having no points!
+		 */
+		for (gps = gpf->strokes.first; gps; gps = gpsn) {
+			gpsn = gps->next;
+			
+			if (gps->flag & GP_STROKE_SELECT) {
+				bGPDspoint *pt;
+				int i;
+				
+				int tot = gps->totpoints; /* number of points in new buffer */
+				
+				/* First Pass: Count how many points are selected (i.e. how many to remove) */
+				for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+					if (pt->flag & GP_SPOINT_SELECT) {
+						/* selected point - one of the points to remove */
+						tot--;
+					}
+				}
+				
+				/* if no points are left, we simply delete the entire stroke */
+				if (tot <= 0) {
+					/* remove the entire stroke */
+					MEM_freeN(gps->points);
+					BLI_freelinkN(&gpf->strokes, gps);
+				}
+				else {	
+					/* just copy all unselected into a smaller buffer */
+					bGPDspoint *new_points = MEM_callocN(sizeof(bGPDspoint) * tot, "new gp stroke points copy");
+					bGPDspoint *npt        = new_points;
+							
+					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+						if ((pt->flag & GP_SPOINT_SELECT) == 0) {
+							*npt = *pt;
+							npt++;
+						}
+					}
+					
+					/* free the old buffer */
+					MEM_freeN(gps->points);
+					
+					/* save the new buffer */
+					gps->points = new_points;
+					gps->totpoints = tot;
+					
+					/* deselect the stroke, since none of its selected points will still be selected */
+					gps->flag &= ~GP_STROKE_SELECT;
+				}
+				
+				changed = true;
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	if (changed) {
+		WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
+/* Split selected strokes into segments, splitting on selected points */
+static int gp_delete_selected_points(bContext *C)
+{
+	bool changed = false;
+	
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+	{
+		bGPDframe *gpf = gpl->actframe;
+		bGPDstroke *gps, *gpsn;
+		
+		if (gpf == NULL)
+			continue;
+		
+		/* simply delete strokes which are selected */
+		for (gps = gpf->strokes.first; gps; gps = gpsn) {
+			gpsn = gps->next;
+			
+			if (gps->flag & GP_STROKE_SELECT) {
+				bGPDspoint *pt;
+				int i;
+				
+				/* The algorithm used here is as follows:
+				 * 1) We firstly identify the number of "islands" of non-selected points
+				 *    which will all end up being in new strokes.
+				 *    - In the most extreme case (i.e. every other vert is a 1-vert island), 
+				 *      we have at most n / 2 islands
+				 *    - Once we start having larger islands than that, the number required
+				 *      becomes much less
+				 * 2) Each island gets converted to a new stroke
+				 */
+				typedef struct tGPDeleteIsland {
+					int start_idx;
+					int end_idx;
+				} tGPDeleteIsland;
+				
+				tGPDeleteIsland *islands = MEM_callocN(sizeof(tGPDeleteIsland) * (gps->totpoints + 1) / 2, "gp_point_islands");
+				bool in_island  = false;
+				int num_islands = 0;
+				
+				/* First Pass: Identify start/end of islands */
+				for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+					if (pt->flag & GP_SPOINT_SELECT) {
+						/* selected - stop accumulating to island */
+						in_island = false;
+					}
+					else {
+						/* unselected - start of a new island? */
+						int idx;
+						
+						if (in_island) {
+							/* extend existing island */
+							idx = num_islands - 1;
+							islands[idx].end_idx = i;
+						}
+						else {
+							/* start of new island */
+							in_island = true;
+							num_islands++;
+							
+							idx = num_islands - 1;
+							islands[idx].start_idx = islands[idx].end_idx = i;
+						}
+					}
+				}
+				
+				/* Watch out for special case where No islands = All points selected = Delete Stroke only */
+				if (num_islands) {
+					/* there are islands, so create a series of new strokes, adding them before the "next" stroke */
+					int idx;
+					
+					/* deselect old stroke, since it will be used as template for the new strokes */
+					gps->flag &= ~GP_STROKE_SELECT;
+					
+					/* create each new stroke... */
+					for (idx = 0; idx < num_islands; idx++) {
+						tGPDeleteIsland *island = &islands[idx];
+						bGPDstroke *new_stroke  = MEM_dupallocN(gps);
+						
+						/* compute new buffer size (+ 1 needed as the endpoint index is "inclusive") */
+						new_stroke->totpoints = island->end_idx - island->start_idx + 1;
+						new_stroke->points    = MEM_callocN(sizeof(bGPDspoint) * new_stroke->totpoints, "gp delete stroke fragment");
+						
+						/* copy over the relevant points */
+						memcpy(new_stroke->points, gps->points + island->start_idx, sizeof(bGPDspoint) * new_stroke->totpoints);
+						
+						/* add new stroke to the frame */
+						if (gpsn) {
+							BLI_insertlinkbefore(&gpf->strokes, gpsn, new_stroke);
+						}
+						else {
+							BLI_addtail(&gpf->strokes, new_stroke);
+						}
+					}
+					
+					/* free islands */
+					MEM_freeN(islands);
+					islands = NULL;
+				}
+				
+				/* Delete the old stroke */
+				MEM_freeN(gps->points);
+				BLI_freelinkN(&gpf->strokes, gps);
+				
+				changed = true;
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	if (changed) {
+		WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+}
+
+
+static int gp_delete_exec(bContext *C, wmOperator *op)
+{	
+	eGP_DeleteMode mode = RNA_enum_get(op->ptr, "type");
+	int result = OPERATOR_CANCELLED;
+	
+	switch (mode) {
+		case GP_DELETEOP_STROKES:	/* selected strokes */
+			result = gp_delete_selected_strokes(C);
+			break;
+		
+		case GP_DELETEOP_POINTS:	/* selected points (breaks the stroke into segments) */
+			result = gp_delete_selected_points(C);
+			break;
+		
+		case GP_DELETEOP_POINTS_DISSOLVE: /* selected points (without splitting the stroke) */
+			result = gp_dissolve_selected_points(C);
+			break;
+			
+		case GP_DELETEOP_FRAME:		/* active frame */
+			result = gp_actframe_delete_exec(C, op);
+			break;
+	}
+	
+	return result;
+}
+
+void GPENCIL_OT_delete(wmOperatorType *ot)
+{
+	static EnumPropertyItem prop_gpencil_delete_types[] = {
+		{GP_DELETEOP_POINTS, "POINTS", 0, "Points", "Delete selected points and split strokes into segments"},
+		{GP_DELETEOP_STROKES, "STROKES", 0, "Strokes", "Delete selected strokes"},
+		{GP_DELETEOP_FRAME, "FRAME", 0, "Frame", "Delete active frame"},
+		{0, "", 0, NULL, NULL},
+		{GP_DELETEOP_POINTS_DISSOLVE, "DISSOLVE_POINTS", 0, "Dissolve Points", "Delete selected points without splitting strokesp"},
+		{0, NULL, 0, NULL, NULL}
+	};
+	
+	/* identifiers */
+	ot->name = "Delete...";
+	ot->idname = "GPENCIL_OT_delete";
+	ot->description = "Delete selected Grease Pencil strokes, vertices, or frames";
+	
+	/* callbacks */
+	ot->invoke = WM_menu_invoke;
+	ot->exec = gp_delete_exec;
+	ot->poll = gp_delete_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
+	
+	/* props */
+	ot->prop = RNA_def_enum(ot->srna, "type", prop_gpencil_delete_types, 0, "Type", "Method used for deleting Grease Pencil data");
+}
+
 /* ************************************************ */
 /* Grease Pencil to Data Operator */
 
