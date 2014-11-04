@@ -185,6 +185,10 @@ void BKE_constraints_clear_evalob(bConstraintOb *cob)
 	
 	/* calculate delta of constraints evaluation */
 	invert_m4_m4(imat, cob->startmat);
+	/* XXX This would seem to be in wrong order. However, it does not work in 'right' order - would be nice to
+	 *     understand why premul is needed here instead of usual postmul?
+	 *     In any case, we **do not get a delta** here (e.g. startmat & matrix having same location, still gives
+	 *     a 'delta' with non-null translation component :/ ).*/
 	mul_m4_m4m4(delta, cob->matrix, imat);
 	
 	/* copy matrices back to source */
@@ -3457,10 +3461,16 @@ static void shrinkwrap_get_tarmat(bConstraint *con, bConstraintOb *cob, bConstra
 					}
 					
 					/* transform normal into requested space */
-					unit_m4(mat);
-					BKE_constraint_mat_convertspace(cob->ob, cob->pchan, mat, CONSTRAINT_SPACE_LOCAL, scon->projAxisSpace);
-					invert_m4(mat);
-					mul_mat3_m4_v3(mat, no);
+					/* We cannot use BKE_constraint_mat_convertspace here, it does not take into account scaling...
+					 * In theory we would not need it, but in this case we'd have to tweak SpaceTransform to also
+					 * optionally ignore scaling when handling normals - simpler to directly call BKE_object_to_mat4
+					 * if needed! See T42447. */
+					if (scon->projAxisSpace == CONSTRAINT_SPACE_WORLD) {
+						BKE_object_to_mat4(cob->ob, mat);
+						invert_m4(mat);
+						mul_mat3_m4_v3(mat, no);
+					}
+					/* Else, we remain in local space, nothing to do. */
 
 					if (normalize_v3(no) < FLT_EPSILON) {
 						fail = true;
