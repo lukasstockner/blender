@@ -50,7 +50,6 @@ void PTC_invalidate(struct PointCache *cache);
 void PTC_bake(struct Main *bmain, struct Scene *scene, struct EvaluationContext *evalctx, struct PTCWriter *writer, int start_frame, int end_frame,
               short *stop, short *do_update, float *progress);
 
-
 /*** Reader/Writer Interface ***/
 
 void PTC_writer_free(struct PTCWriter *writer);

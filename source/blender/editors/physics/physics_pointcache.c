@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
@@ -75,6 +76,7 @@ typedef struct PTCacheExportJob {
 	struct Scene *scene;
 	EvaluationContext eval_ctx;
 	
+	PointerRNA user_ptr;
 	struct PointCache *cache;
 	struct PTCWriter *writer;
 	
@@ -124,7 +126,15 @@ static void ptcache_export_endjob(void *customdata)
 	BKE_spacedata_draw_locks(false);
 	
 	/* free the cache writer (closes output file) */
-	PTC_writer_free(data->writer);
+	if (RNA_struct_is_a(data->user_ptr.type, &RNA_PointCacheModifier)) {
+		PointCacheModifierData *pcmd = (PointCacheModifierData *)data->user_ptr.data;
+		
+		PTC_writer_free(pcmd->writer);
+		pcmd->writer = NULL;
+	}
+	else {
+		PTC_writer_free(data->writer);
+	}
 	
 	/* reset scene frame */
 	scene->r.cfra = data->origfra;
@@ -139,7 +149,7 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	PointCache *cache = ptcache_ptr.data;
-	struct PTCWriter *writer;
+	struct PTCWriter *writer = NULL;
 	PTCacheExportJob *data;
 	wmJob *wm_job;
 	
@@ -147,10 +157,22 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "Missing point cache user info");
 		return OPERATOR_CANCELLED;
 	}
-	writer = PTC_writer_from_rna(scene, &user_ptr);
-	if (!writer) {
-		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "%s is not a valid point cache user type", RNA_struct_identifier(user_ptr.type));
-		return OPERATOR_CANCELLED;
+	
+	/* special case: point cache modifier uses internal writer
+	 * and needs to be set up for baking.
+	 */
+	if (RNA_struct_is_a(user_ptr.type, &RNA_PointCacheModifier)) {
+		Object *ob = (Object *)user_ptr.id.data;
+		PointCacheModifierData *pcmd = (PointCacheModifierData *)user_ptr.data;
+		
+		pcmd->writer = PTC_writer_point_cache(scene, ob, pcmd);
+	}
+	else {
+		writer = PTC_writer_from_rna(scene, &user_ptr);
+		if (!writer) {
+			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "%s is not a valid point cache user type", RNA_struct_identifier(user_ptr.type));
+			return OPERATOR_CANCELLED;
+		}
 	}
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
@@ -169,6 +191,7 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 	data = MEM_callocN(sizeof(PTCacheExportJob), "Point Cache Export Job");
 	data->bmain = bmain;
 	data->scene = scene;
+	data->user_ptr = user_ptr;
 	data->cache = cache;
 	data->writer = writer;
 	

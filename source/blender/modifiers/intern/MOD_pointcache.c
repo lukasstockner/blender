@@ -25,14 +25,15 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+
+#include "BLI_utildefines.h"
+#include "BLI_string.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
 
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
@@ -76,30 +77,57 @@ static void freeData(ModifierData *md)
 	BKE_ptcache_free(pcmd->point_cache);
 }
 
-static bool dependsOnTime(ModifierData *UNUSED(md))
+typedef enum ePointCacheModifierMode {
+	MOD_POINTCACHE_READ,
+	MOD_POINTCACHE_WRITE,
+} ePointCacheModifierMode;
+
+static ePointCacheModifierMode getMode(PointCacheModifierData *pcmd)
 {
-	return true;
+	if (pcmd->writer)
+		return MOD_POINTCACHE_WRITE;
+	else
+		return MOD_POINTCACHE_READ;
+}
+
+static bool dependsOnTime(ModifierData *md)
+{
+	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
+	
+	/* considered time-dependent when reading from cache file */
+	/* TODO check cache frame range here to optimize */
+	return getMode(pcmd) == MOD_POINTCACHE_READ;
 }
 
 static DerivedMesh *pointcache_do(PointCacheModifierData *pcmd, Object *ob, DerivedMesh *dm)
 {
 	Scene *scene = pcmd->modifier.scene;
 	const float cfra = BKE_scene_frame_get(scene);
+	const ePointCacheModifierMode mode = getMode(pcmd);
 	
 	DerivedMesh *finaldm = dm;
 
-	struct PTCReader *reader = PTC_reader_point_cache(scene, ob, pcmd);
-	
-	if (PTC_read_sample(reader, cfra) == PTC_READ_SAMPLE_INVALID) {
-		modifier_setError(&pcmd->modifier, "%s", "Cannot read Alembic cache file");
+	if (mode == MOD_POINTCACHE_WRITE) {
+		BLI_assert(pcmd->writer != NULL);
+		
+		pcmd->output_dm = dm;
+		PTC_write_sample(pcmd->writer);
+		pcmd->output_dm = NULL;
 	}
-	else {
-		DerivedMesh *result = PTC_reader_point_cache_acquire_result(reader);
-		if (result)
-			finaldm = result;
+	else if (mode == MOD_POINTCACHE_READ) {
+		struct PTCReader *reader = PTC_reader_point_cache(scene, ob, pcmd);
+		
+		if (PTC_read_sample(reader, cfra) == PTC_READ_SAMPLE_INVALID) {
+			modifier_setError(&pcmd->modifier, "%s", "Cannot read cache file");
+		}
+		else {
+			DerivedMesh *result = PTC_reader_point_cache_acquire_result(reader);
+			if (result)
+				finaldm = result;
+		}
+		
+		PTC_reader_free(reader);
 	}
-	
-	PTC_reader_free(reader);
 	
 	return finaldm;
 }

@@ -54,18 +54,18 @@ PointCacheWriter::~PointCacheWriter()
 
 void PointCacheWriter::write_sample()
 {
-	DerivedMesh *source_dm = m_ob->derivedFinal;
-	if (!source_dm)
+	DerivedMesh *output_dm = m_pcmd->output_dm;
+	if (!output_dm)
 		return;
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
 	
-	MVert *mv, *mverts = source_dm->getVertArray(source_dm);
-	MLoop *ml, *mloops = source_dm->getLoopArray(source_dm);
-	MPoly *mp, *mpolys = source_dm->getPolyArray(source_dm);
-	int totvert = source_dm->getNumVerts(source_dm);
-	int totloop = source_dm->getNumLoops(source_dm);
-	int totpoly = source_dm->getNumPolys(source_dm);
+	MVert *mv, *mverts = output_dm->getVertArray(output_dm);
+	MLoop *ml, *mloops = output_dm->getLoopArray(output_dm);
+	MPoly *mp, *mpolys = output_dm->getPolyArray(output_dm);
+	int totvert = output_dm->getNumVerts(output_dm);
+	int totloop = output_dm->getNumLoops(output_dm);
+	int totpoly = output_dm->getNumPolys(output_dm);
 	int i;
 	
 	std::vector<V3f> positions;
@@ -122,6 +122,8 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	
 	IPolyMeshSchema &schema = m_mesh.getSchema();
 //	TimeSamplingPtr ts = schema.getTimeSampling();
+	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
+		return PTC_READ_SAMPLE_INVALID;
 	
 	ISampleSelector ss = get_frame_sample_selector(frame);
 //	chrono_t time = ss.getRequestedTime();

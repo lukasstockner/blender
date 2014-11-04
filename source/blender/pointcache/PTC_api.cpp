@@ -131,11 +131,13 @@ PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 		return PTC_writer_dynamicpaint(scene, ob, surface);
 	}
+#if 0 /* modifier uses internal writer during scene update */
 	if (RNA_struct_is_a(ptr->type, &RNA_PointCacheModifier)) {
 		Object *ob = (Object *)ptr->id.data;
 		PointCacheModifierData *pcmd = (PointCacheModifierData *)ptr->data;
 		return PTC_writer_point_cache(scene, ob, pcmd);
 	}
+#endif
 	return NULL;
 }
 

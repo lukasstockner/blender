@@ -49,7 +49,8 @@ void Exporter::bake(Writer *writer, int start_frame, int end_frame)
 		m_scene->r.cfra = cfra;
 		BKE_scene_update_for_newframe(m_evalctx, m_bmain, m_scene, m_scene->lay);
 
-		writer->write_sample();
+		if (writer)
+			writer->write_sample();
 
 		set_progress((float)(cfra - start_frame + 1) / (float)(end_frame - start_frame + 1));
 
