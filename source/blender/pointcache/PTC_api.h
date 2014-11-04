@@ -57,8 +57,9 @@ void PTC_writer_free(struct PTCWriter *writer);
 void PTC_write_sample(struct PTCWriter *writer);
 
 void PTC_reader_free(struct PTCReader *reader);
-PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
 void PTC_reader_get_frame_range(struct PTCReader *reader, int *start_frame, int *end_frame);
+PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
+PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
 /* get writer/reader from RNA type */
 struct PTCWriter *PTC_writer_from_rna(struct Scene *scene, struct PointerRNA *ptr);

@@ -77,12 +77,6 @@ void PTC_reader_free(PTCReader *_reader)
 	delete reader;
 }
 
-PTCReadSampleResult PTC_read_sample(struct PTCReader *_reader, float frame)
-{
-	PTC::Reader *reader = (PTC::Reader *)_reader;
-	return reader->read_sample(frame);
-}
-
 void PTC_reader_get_frame_range(PTCReader *_reader, int *start_frame, int *end_frame)
 {
 	PTC::Reader *reader = (PTC::Reader *)_reader;
@@ -90,6 +84,18 @@ void PTC_reader_get_frame_range(PTCReader *_reader, int *start_frame, int *end_f
 	reader->get_frame_range(sfra, efra);
 	if (start_frame) *start_frame = sfra;
 	if (end_frame) *end_frame = efra;
+}
+
+PTCReadSampleResult PTC_read_sample(PTCReader *_reader, float frame)
+{
+	PTC::Reader *reader = (PTC::Reader *)_reader;
+	return reader->read_sample(frame);
+}
+
+PTCReadSampleResult PTC_test_sample(PTCReader *_reader, float frame)
+{
+	PTC::Reader *reader = (PTC::Reader *)_reader;
+	return reader->test_sample(frame);
 }
 
 /* get writer/reader from RNA type */

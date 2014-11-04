@@ -43,6 +43,7 @@ public:
 	void get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
+	PTCReadSampleResult test_sample(float frame);
 	virtual PTCReadSampleResult read_sample(float frame) = 0;
 	
 protected:

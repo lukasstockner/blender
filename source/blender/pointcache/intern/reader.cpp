@@ -62,4 +62,29 @@ ISampleSelector Reader::get_frame_sample_selector(float frame)
 	return ISampleSelector(frame_to_time(frame), ISampleSelector::kFloorIndex);
 }
 
+PTCReadSampleResult Reader::test_sample(float frame)
+{
+	if (m_archive.valid()) {
+		double start_time, end_time;
+		GetArchiveStartAndEndTime(m_archive, start_time, end_time);
+		float start_frame = time_to_frame(start_time);
+		float end_frame = time_to_frame(end_time);
+		
+		if (frame < start_frame)
+			return PTC_READ_SAMPLE_EARLY;
+		else if (frame > end_frame)
+			return PTC_READ_SAMPLE_LATE;
+		else {
+			/* TODO could also be EXACT, but INTERPOLATED is more general
+			 * do we need to support this?
+			 * checking individual time samplings is also possible, but more involved.
+			 */
+			return PTC_READ_SAMPLE_INTERPOLATED;
+		}
+	}
+	else {
+		return PTC_READ_SAMPLE_INVALID;
+	}
+}
+
 } /* namespace PTC */
