@@ -28,6 +28,7 @@
 
 struct Object;
 struct MeshCacheModifierData;
+struct PointCacheModifierData;
 struct DerivedMesh;
 
 namespace PTC {
@@ -59,6 +60,41 @@ public:
 private:
 	Object *m_ob;
 	MeshCacheModifierData *m_mcmd;
+	
+	AbcGeom::IPolyMesh m_mesh;
+	
+	DerivedMesh *m_result;
+};
+
+/* -------------------------------- */
+
+class PointCacheWriter : public Writer {
+public:
+	PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
+	~PointCacheWriter();
+	
+	void write_sample();
+	
+private:
+	Object *m_ob;
+	PointCacheModifierData *m_pcmd;
+	
+	AbcGeom::OPolyMesh m_mesh;
+};
+
+class PointCacheReader : public Reader {
+public:
+	PointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
+	~PointCacheReader();
+	
+	DerivedMesh *acquire_result();
+	void discard_result();
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+private:
+	Object *m_ob;
+	PointCacheModifierData *m_pcmd;
 	
 	AbcGeom::IPolyMesh m_mesh;
 	

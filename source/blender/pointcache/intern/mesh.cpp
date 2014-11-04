@@ -189,6 +189,160 @@ void MeshCacheReader::discard_result()
 	}
 }
 
+/* -------------------------------- */
+
+PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
+    Writer(scene, &ob->id, pcmd->point_cache),
+    m_ob(ob),
+    m_pcmd(pcmd)
+{
+	uint32_t fs = add_frame_sampling();
+	
+	OObject root = m_archive.getTop();
+	m_mesh = OPolyMesh(root, m_pcmd->modifier.name, fs);
+}
+
+PointCacheWriter::~PointCacheWriter()
+{
+}
+
+void PointCacheWriter::write_sample()
+{
+	DerivedMesh *source_dm = m_ob->derivedFinal;
+	if (!source_dm)
+		return;
+	
+	OPolyMeshSchema &schema = m_mesh.getSchema();
+	
+	MVert *mv, *mverts = source_dm->getVertArray(source_dm);
+	MLoop *ml, *mloops = source_dm->getLoopArray(source_dm);
+	MPoly *mp, *mpolys = source_dm->getPolyArray(source_dm);
+	int totvert = source_dm->getNumVerts(source_dm);
+	int totloop = source_dm->getNumLoops(source_dm);
+	int totpoly = source_dm->getNumPolys(source_dm);
+	int i;
+	
+	std::vector<V3f> positions;
+	positions.reserve(totvert);
+	std::vector<int> indices;
+	indices.reserve(totloop);
+	std::vector<int> counts;
+	counts.reserve(totpoly);
+	
+	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
+		float *co = mv->co;
+		positions.push_back(V3f(co[0], co[1], co[2]));
+	}
+	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
+		indices.push_back(ml->v);
+	}
+	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
+		counts.push_back(mp->totloop);
+	}
+	
+	OPolyMeshSchema::Sample sample = OPolyMeshSchema::Sample(
+	            P3fArraySample(positions),
+	            Int32ArraySample(indices),
+	            Int32ArraySample(counts)
+	            );
+
+	schema.set(sample);
+}
+
+
+PointCacheReader::PointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
+    Reader(scene, &ob->id, pcmd->point_cache),
+    m_ob(ob),
+    m_pcmd(pcmd),
+    m_result(NULL)
+{
+	if (m_archive.valid()) {
+		IObject root = m_archive.getTop();
+		m_mesh = IPolyMesh(root, m_pcmd->modifier.name);
+	}
+}
+
+PointCacheReader::~PointCacheReader()
+{
+}
+
+PTCReadSampleResult PointCacheReader::read_sample(float frame)
+{
+	/* discard existing result data */
+	discard_result();
+	
+	if (!m_mesh.valid())
+		return PTC_READ_SAMPLE_INVALID;
+	
+	IPolyMeshSchema &schema = m_mesh.getSchema();
+//	TimeSamplingPtr ts = schema.getTimeSampling();
+	
+	ISampleSelector ss = get_frame_sample_selector(frame);
+//	chrono_t time = ss.getRequestedTime();
+	
+//	std::pair<index_t, chrono_t> sres = ts->getFloorIndex(time, schema.getNumSamples());
+//	chrono_t stime = sres.second;
+//	float sframe = time_to_frame(stime);
+	
+	IPolyMeshSchema::Sample sample;
+	schema.get(sample, ss);
+	
+	P3fArraySamplePtr positions = sample.getPositions();
+	Int32ArraySamplePtr indices = sample.getFaceIndices();
+	Int32ArraySamplePtr counts = sample.getFaceCounts();
+	int totverts = positions->size();
+	int totloops = indices->size();
+	int totpolys = counts->size();
+	
+	m_result = CDDM_new(totverts, 0, 0, totloops, totpolys);
+	MVert *mv, *mverts = m_result->getVertArray(m_result);
+	MLoop *ml, *mloops = m_result->getLoopArray(m_result);
+	MPoly *mp, *mpolys = m_result->getPolyArray(m_result);
+	int i;
+	
+	const V3f *positions_data = positions->get();
+	for (i = 0, mv = mverts; i < totverts; ++i, ++mv) {
+		const V3f &co = positions_data[i];
+		copy_v3_v3(mv->co, co.getValue());
+	}
+	
+	const int32_t *indices_data = indices->get();
+	for (i = 0, ml = mloops; i < totloops; ++i, ++ml) {
+		ml->v = indices_data[i];
+	}
+	
+	const int32_t *counts_data = counts->get();
+	int loopstart = 0;
+	for (i = 0, mp = mpolys; i < totpolys; ++i, ++mp) {
+		mp->totloop = counts_data[i];
+		mp->loopstart = loopstart;
+		
+		loopstart += mp->totloop;
+	}
+	
+	CDDM_calc_edges(m_result);
+	DM_ensure_normals(m_result);
+//	if (!DM_is_valid(m_result))
+//		return PTC_READ_SAMPLE_INVALID;
+	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+DerivedMesh *PointCacheReader::acquire_result()
+{
+	DerivedMesh *dm = m_result;
+	m_result = NULL;
+	return dm;
+}
+
+void PointCacheReader::discard_result()
+{
+	if (m_result) {
+		m_result->release(m_result);
+		m_result = NULL;
+	}
+}
+
 } /* namespace PTC */
 
 
@@ -213,5 +367,29 @@ struct DerivedMesh *PTC_reader_mesh_cache_acquire_result(PTCReader *_reader)
 void PTC_reader_mesh_cache_discard_result(PTCReader *_reader)
 {
 	PTC::MeshCacheReader *reader = (PTC::MeshCacheReader *)_reader;
+	reader->discard_result();
+}
+
+/* -------------------------------- */
+
+PTCWriter *PTC_writer_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
+{
+	return (PTCWriter *)(new PTC::PointCacheWriter(scene, ob, pcmd));
+}
+
+PTCReader *PTC_reader_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
+{
+	return (PTCReader *)(new PTC::PointCacheReader(scene, ob, pcmd));
+}
+
+struct DerivedMesh *PTC_reader_point_cache_acquire_result(PTCReader *_reader)
+{
+	PTC::PointCacheReader *reader = (PTC::PointCacheReader *)_reader;
+	return reader->acquire_result();
+}
+
+void PTC_reader_point_cache_discard_result(PTCReader *_reader)
+{
+	PTC::PointCacheReader *reader = (PTC::PointCacheReader *)_reader;
 	reader->discard_result();
 }

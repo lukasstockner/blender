@@ -82,6 +82,7 @@ typedef enum ModifierType {
 	eModifierType_MeshCache         = 46,
 	eModifierType_LaplacianDeform   = 47,
 	eModifierType_Wireframe         = 48,
+	eModifierType_PointCache        = 49,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -1368,6 +1369,15 @@ enum {
 	MOD_WIREFRAME_CREASE        = (1 << 5),
 };
 
+/* point cache modifier */
+typedef struct PointCacheModifierData {
+	ModifierData modifier;
+	
+	int flag;
+	int pad;
+	
+	struct PointCache *point_cache;
+} PointCacheModifierData;
 
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */

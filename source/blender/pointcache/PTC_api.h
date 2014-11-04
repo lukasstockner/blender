@@ -37,6 +37,7 @@ struct DynamicPaintSurface;
 struct MeshCacheModifierData;
 struct Object;
 struct ParticleSystem;
+struct PointCacheModifierData;
 struct RigidBodyWorld;
 struct SmokeDomainSettings;
 struct SoftBody;
@@ -94,6 +95,12 @@ struct PTCWriter *PTC_writer_mesh_cache(struct Scene *scene, struct Object *ob, 
 struct PTCReader *PTC_reader_mesh_cache(struct Scene *scene, struct Object *ob, struct MeshCacheModifierData *mcmd);
 struct DerivedMesh *PTC_reader_mesh_cache_acquire_result(struct PTCReader *reader);
 void PTC_reader_mesh_cache_discard_result(struct PTCReader *reader);
+
+/* Modifier Stack */
+struct PTCWriter *PTC_writer_point_cache(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd);
+struct PTCReader *PTC_reader_point_cache(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd);
+struct DerivedMesh *PTC_reader_point_cache_acquire_result(struct PTCReader *reader);
+void PTC_reader_point_cache_discard_result(struct PTCReader *reader);
 
 #ifdef __cplusplus
 } /* extern C */
