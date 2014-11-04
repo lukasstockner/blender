@@ -34,7 +34,6 @@ struct PointerRNA;
 struct ClothModifierData;
 struct DerivedMesh;
 struct DynamicPaintSurface;
-struct MeshCacheModifierData;
 struct Object;
 struct ParticleSystem;
 struct PointCacheModifierData;
@@ -89,12 +88,6 @@ struct PTCReader *PTC_reader_smoke(struct Scene *scene, struct Object *ob, struc
 /* Dynamic Paint */
 struct PTCWriter *PTC_writer_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
 struct PTCReader *PTC_reader_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
-
-/* Mesh Cache Modifier */
-struct PTCWriter *PTC_writer_mesh_cache(struct Scene *scene, struct Object *ob, struct MeshCacheModifierData *mcmd);
-struct PTCReader *PTC_reader_mesh_cache(struct Scene *scene, struct Object *ob, struct MeshCacheModifierData *mcmd);
-struct DerivedMesh *PTC_reader_mesh_cache_acquire_result(struct PTCReader *reader);
-void PTC_reader_mesh_cache_discard_result(struct PTCReader *reader);
 
 /* Modifier Stack */
 struct PTCWriter *PTC_writer_point_cache(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd);

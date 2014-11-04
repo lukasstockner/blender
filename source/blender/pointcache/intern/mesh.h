@@ -27,46 +27,10 @@
 #include "writer.h"
 
 struct Object;
-struct MeshCacheModifierData;
 struct PointCacheModifierData;
 struct DerivedMesh;
 
 namespace PTC {
-
-class MeshCacheWriter : public Writer {
-public:
-	MeshCacheWriter(Scene *scene, Object *ob, MeshCacheModifierData *mcmd);
-	~MeshCacheWriter();
-	
-	void write_sample();
-	
-private:
-	Object *m_ob;
-	MeshCacheModifierData *m_mcmd;
-	
-	AbcGeom::OPolyMesh m_mesh;
-};
-
-class MeshCacheReader : public Reader {
-public:
-	MeshCacheReader(Scene *scene, Object *ob, MeshCacheModifierData *mcmd);
-	~MeshCacheReader();
-	
-	DerivedMesh *acquire_result();
-	void discard_result();
-	
-	PTCReadSampleResult read_sample(float frame);
-	
-private:
-	Object *m_ob;
-	MeshCacheModifierData *m_mcmd;
-	
-	AbcGeom::IPolyMesh m_mesh;
-	
-	DerivedMesh *m_result;
-};
-
-/* -------------------------------- */
 
 class PointCacheWriter : public Writer {
 public:

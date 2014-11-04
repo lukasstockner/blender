@@ -1301,13 +1301,11 @@ typedef struct MeshCacheModifierData {
 	float eval_factor;
 
 	char filepath[1024];  /* FILE_MAX */
-	struct PointCache *point_cache;
 } MeshCacheModifierData;
 
 enum {
 	MOD_MESHCACHE_TYPE_MDD  = 1,
 	MOD_MESHCACHE_TYPE_PC2  = 2,
-	MOD_MESHCACHE_TYPE_ALEMBIC_HDF5 = 3,
 };
 
 enum {

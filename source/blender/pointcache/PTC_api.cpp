@@ -125,10 +125,10 @@ PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 		return PTC_writer_dynamicpaint(scene, ob, surface);
 	}
-	if (RNA_struct_is_a(ptr->type, &RNA_MeshCacheModifier)) {
+	if (RNA_struct_is_a(ptr->type, &RNA_PointCacheModifier)) {
 		Object *ob = (Object *)ptr->id.data;
-		MeshCacheModifierData *mcmd = (MeshCacheModifierData *)ptr->data;
-		return PTC_writer_mesh_cache(scene, ob, mcmd);
+		PointCacheModifierData *pcmd = (PointCacheModifierData *)ptr->data;
+		return PTC_writer_point_cache(scene, ob, pcmd);
 	}
 	return NULL;
 }
@@ -165,10 +165,10 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 		DynamicPaintSurface *surface = (DynamicPaintSurface *)ptr->data;
 		return PTC_reader_dynamicpaint(scene, ob, surface);
 	}
-	if (RNA_struct_is_a(ptr->type, &RNA_MeshCacheModifier)) {
+	if (RNA_struct_is_a(ptr->type, &RNA_PointCacheModifier)) {
 		Object *ob = (Object *)ptr->id.data;
-		MeshCacheModifierData *mcmd = (MeshCacheModifierData *)ptr->data;
-		return PTC_reader_mesh_cache(scene, ob, mcmd);
+		PointCacheModifierData *pcmd = (PointCacheModifierData *)ptr->data;
+		return PTC_reader_point_cache(scene, ob, pcmd);
 	}
 	return NULL;
 }
