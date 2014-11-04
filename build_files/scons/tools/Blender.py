@@ -205,6 +205,9 @@ def setup_staticlibs(lenv):
         if lenv['WITH_BF_STATICOIIO']:
             statlibs += Split(lenv['BF_OIIO_LIB_STATIC'])
 
+    if lenv['WITH_BF_HDF5']:
+        libincs += Split(lenv['BF_HDF5_LIBPATH'])
+
     if lenv['WITH_BF_ALEMBIC']:
         libincs += Split(lenv['BF_ALEMBIC_LIBPATH'])
 
@@ -287,6 +290,9 @@ def setup_syslibs(lenv):
     if lenv['WITH_BF_OCIO']:
         if not lenv['WITH_BF_STATICOCIO']:
             syslibs += Split(lenv['BF_OCIO_LIB'])
+
+    if lenv['WITH_BF_HDF5']:
+        syslibs += Split(lenv['BF_HDF5_LIB'])
 
     if lenv['WITH_BF_ALEMBIC']:
         syslibs += Split(lenv['BF_ALEMBIC_LIB'])
