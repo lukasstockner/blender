@@ -792,7 +792,7 @@ static int gp_dissolve_selected_points(bContext *C)
 					/* just copy all unselected into a smaller buffer */
 					bGPDspoint *new_points = MEM_callocN(sizeof(bGPDspoint) * tot, "new gp stroke points copy");
 					bGPDspoint *npt        = new_points;
-							
+					
 					for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
 						if ((pt->flag & GP_SPOINT_SELECT) == 0) {
 							*npt = *pt;
@@ -919,11 +919,10 @@ static int gp_delete_selected_points(bContext *C)
 							BLI_addtail(&gpf->strokes, new_stroke);
 						}
 					}
-					
-					/* free islands */
-					MEM_freeN(islands);
-					islands = NULL;
 				}
+				
+				/* free islands */
+				MEM_freeN(islands);
 				
 				/* Delete the old stroke */
 				MEM_freeN(gps->points);
