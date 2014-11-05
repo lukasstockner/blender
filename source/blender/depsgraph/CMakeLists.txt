@@ -81,7 +81,6 @@ set(SRC
 	util/depsgraph_util_string.h
 	util/depsgraph_util_task.h
 	util/depsgraph_util_task.cpp
-	util/depsgraph_util_type_traits.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()

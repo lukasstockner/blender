@@ -133,14 +133,14 @@ static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType c
 void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSceneComponentType component, const char *description)
 {
 	eDepsNode_Type type = deg_build_scene_component_type(component);
-	ComponentKey comp_key(scene, type);
+	ComponentKey comp_key(&scene->id, type);
 	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
 }
 
 void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
 {
 	eDepsNode_Type type = deg_build_object_component_type(component);
-	ComponentKey comp_key(ob, type);
+	ComponentKey comp_key(&ob->id, type);
 	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
 }
 
@@ -162,13 +162,13 @@ RootDepsNode *DepsgraphNodeBuilder::add_root_node()
 	return m_graph->add_root_node();
 }
 
-IDDepsNode *DepsgraphNodeBuilder::add_id_node(IDPtr id)
+IDDepsNode *DepsgraphNodeBuilder::add_id_node(ID *id)
 {
 	const char *idtype_name = BKE_idcode_to_name(GS(id->name));
 	return m_graph->add_id_node(id, string_format("%s [%s]", id->name+2, idtype_name));
 }
 
-TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
+TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(ID *id)
 {
 	/* determine which node to attach timesource to */
 	if (id) {
@@ -209,7 +209,7 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(IDPtr id)
 	return NULL;
 }
 
-ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name)
+ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(ID *id, eDepsNode_Type comp_type, const string &comp_name)
 {
 	IDDepsNode *id_node = add_id_node(id);
 	ComponentDepsNode *comp_node = id_node->add_component(comp_type, comp_name);
@@ -225,7 +225,7 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ComponentDepsNode *c
 	return op_node;
 }
 
-OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name,
+OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name,
                                                             eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
 {
 	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
@@ -299,7 +299,7 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations()
 /* ************************************************* */
 /* Relations Builder */
 
-RNAPathKey::RNAPathKey(IDPtr id, const string &path) :
+RNAPathKey::RNAPathKey(ID *id, const string &path) :
     id(id)
 {
 	/* create ID pointer for root of path lookup */
@@ -311,7 +311,7 @@ RNAPathKey::RNAPathKey(IDPtr id, const string &path) :
 	}
 }
 
-RNAPathKey::RNAPathKey(IDPtr id, const PointerRNA &ptr, PropertyRNA *prop) :
+RNAPathKey::RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop) :
     id(id),
     ptr(ptr),
     prop(prop)

@@ -107,16 +107,16 @@ struct DepsgraphNodeBuilder {
 	~DepsgraphNodeBuilder();
 	
 	RootDepsNode *add_root_node();
-	IDDepsNode *add_id_node(IDPtr id);
-	TimeSourceDepsNode *add_time_source(IDPtr id);
+	IDDepsNode *add_id_node(ID *id);
+	TimeSourceDepsNode *add_time_source(ID *id);
 	
-	ComponentDepsNode *add_component_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name = "");
+	ComponentDepsNode *add_component_node(ID *id, eDepsNode_Type comp_type, const string &comp_name = "");
 	
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
-	OperationDepsNode *add_operation_node(IDPtr id, eDepsNode_Type comp_type, const string &comp_name,
+	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
-	OperationDepsNode *add_operation_node(IDPtr id, eDepsNode_Type comp_type,
+	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type,
 	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
 	{
 		return add_operation_node(id, comp_type, "", optype, op, description);
@@ -133,8 +133,8 @@ struct DepsgraphNodeBuilder {
 	void build_pose_constraints(Object *ob, bPoseChannel *pchan);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Object *ob);
-	void build_animdata(IDPtr id);
-	OperationDepsNode *build_driver(IDPtr id, FCurve *fcurve);
+	void build_animdata(ID *id);
+	OperationDepsNode *build_driver(ID *id, FCurve *fcurve);
 	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_rig(Object *ob);
@@ -165,17 +165,17 @@ struct RootKey
 struct TimeSourceKey
 {
 	TimeSourceKey() : id(NULL) {}
-	TimeSourceKey(IDPtr id) : id(id) {}
+	TimeSourceKey(ID *id) : id(id) {}
 	
-	IDPtr id;
+	ID *id;
 };
 
 struct ComponentKey
 {
 	ComponentKey() : id(NULL), type(DEPSNODE_TYPE_UNDEFINED), name("") {}
-	ComponentKey(IDPtr id, eDepsNode_Type type, const string &name = "") : id(id), type(type), name(name) {}
+	ComponentKey(ID *id, eDepsNode_Type type, const string &name = "") : id(id), type(type), name(name) {}
 	
-	IDPtr id;
+	ID *id;
 	eDepsNode_Type type;
 	string name;
 };
@@ -183,14 +183,14 @@ struct ComponentKey
 struct OperationKey
 {
 	OperationKey() : id(NULL), component_type(DEPSNODE_TYPE_UNDEFINED), component_name(""), name("") {}
-	OperationKey(IDPtr id, eDepsNode_Type component_type, const string &name) :
+	OperationKey(ID *id, eDepsNode_Type component_type, const string &name) :
 	    id(id), component_type(component_type), component_name(""), name(name)
 	{}
-	OperationKey(IDPtr id, eDepsNode_Type component_type, const string &component_name, const string &name) :
+	OperationKey(ID *id, eDepsNode_Type component_type, const string &component_name, const string &name) :
 	    id(id), component_type(component_type), component_name(component_name), name(name)
 	{}
 	
-	IDPtr id;
+	ID *id;
 	eDepsNode_Type component_type;
 	string component_name;
 	string name;
@@ -198,9 +198,9 @@ struct OperationKey
 
 struct RNAPathKey
 {
-	RNAPathKey(IDPtr id, const string &path);
-	RNAPathKey(IDPtr id, const PointerRNA &ptr, PropertyRNA *prop);
-	IDPtr id;
+	RNAPathKey(ID *id, const string &path);
+	RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop);
+	ID *id;
 	PointerRNA ptr;
 	PropertyRNA *prop;
 };
@@ -219,23 +219,23 @@ struct DepsgraphRelationBuilder {
 	void build_scene(Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
-	void build_constraints(Scene *scene, IDPtr id, eDepsNode_Type component_type, const string &component_subdata, ListBase *constraints);
-	void build_animdata(IDPtr id);
-	void build_driver(IDPtr id, FCurve *fcurve);
+	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const string &component_subdata, ListBase *constraints);
+	void build_animdata(ID *id);
+	void build_driver(ID *id, FCurve *fcurve);
 	void build_world(Scene *scene, World *world);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Scene *scene, Object *ob);
 	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_rig(Scene *scene, Object *ob);
-	void build_shapekeys(IDPtr obdata, Key *key);
+	void build_shapekeys(ID *obdata, Key *key);
 	void build_obdata_geom(Scene *scene, Object *ob);
 	void build_camera(Object *ob);
 	void build_lamp(Object *ob);
-	void build_nodetree(IDPtr owner, bNodeTree *ntree);
-	void build_material(IDPtr owner, Material *ma);
-	void build_texture(IDPtr owner, Tex *tex);
-	void build_texture_stack(IDPtr owner, MTex **texture_stack);
+	void build_nodetree(ID *owner, bNodeTree *ntree);
+	void build_material(ID *owner, Material *ma);
+	void build_texture(ID *owner, Tex *tex);
+	void build_texture_stack(ID *owner, MTex **texture_stack);
 	void build_compositor(Scene *scene);
 	
 protected:

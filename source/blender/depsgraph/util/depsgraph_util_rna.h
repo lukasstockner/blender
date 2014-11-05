@@ -31,18 +31,18 @@ extern "C" {
 #include "RNA_access.h"
 }
 
-struct IDPtr;
+//struct IDPtr;
 
 /* Utility functions for creating PointerRNA inline */
 
-BLI_INLINE PointerRNA make_rna_pointer(IDPtr id, StructRNA *type, void *data)
+BLI_INLINE PointerRNA make_rna_pointer(ID *id, StructRNA *type, void *data)
 {
 	PointerRNA ptr;
 	RNA_pointer_create(id, type, data, &ptr);
 	return ptr;
 }
 
-BLI_INLINE PointerRNA make_rna_id_pointer(IDPtr id)
+BLI_INLINE PointerRNA make_rna_id_pointer(ID *id)
 {
 	PointerRNA ptr;
 	RNA_id_pointer_create(id, &ptr);
