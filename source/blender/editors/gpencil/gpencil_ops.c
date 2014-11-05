@@ -137,7 +137,7 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	/* Editing ----------------------------------------- */
 	
 	/* duplicate and move selected points */
-	WM_keymap_add_item(keymap, "GPENCIL_OT_strokes_duplicate", DKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "GPENCIL_OT_duplicate_move", DKEY, KM_PRESS, KM_SHIFT, 0);
 	
 	/* delete */
 	WM_keymap_add_item(keymap, "GPENCIL_OT_delete", XKEY, KM_PRESS, 0, 0);
@@ -189,7 +189,7 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_select_circle);
 	WM_operatortype_append(GPENCIL_OT_select_border);
 	
-	WM_operatortype_append(GPENCIL_OT_strokes_copy);
+	WM_operatortype_append(GPENCIL_OT_duplicate);
 	WM_operatortype_append(GPENCIL_OT_delete);
 	
 	/* Editing (Buttons) ------------ */
@@ -213,10 +213,10 @@ void ED_operatormacros_gpencil(void)
 	wmOperatorType *ot;
 	wmOperatorTypeMacro *otmacro;
 
-	ot = WM_operatortype_append_macro("GPENCIL_OT_strokes_duplicate", "Duplicate Strokes",
+	ot = WM_operatortype_append_macro("GPENCIL_OT_duplicate_move", "Duplicate Strokes",
 	                                  "Make copies of the selected Grease Pencil strokes and move them",
 	                                  OPTYPE_UNDO | OPTYPE_REGISTER);
-	WM_operatortype_macro_define(ot, "GPENCIL_OT_strokes_copy");
+	WM_operatortype_macro_define(ot, "GPENCIL_OT_duplicate");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
 	RNA_enum_set(otmacro->ptr, "gpencil_strokes", true);
 }

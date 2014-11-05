@@ -491,7 +491,7 @@ void GPENCIL_OT_layer_move(wmOperatorType *ot)
 
 /* ******************* Copy Selected Strokes *********************** */
 
-static int gp_strokes_copy_poll(bContext *C)
+static int gp_duplicate_poll(bContext *C)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
@@ -502,7 +502,7 @@ static int gp_strokes_copy_poll(bContext *C)
 }
 
 /* Make copies of selected point segments in a selected stroke */
-static void gp_strokes_copy_points(const bGPDstroke *gps, ListBase *new_strokes)
+static void gp_duplicate_points(const bGPDstroke *gps, ListBase *new_strokes)
 {
 	bGPDspoint *pt;
 	int i;
@@ -560,7 +560,7 @@ static void gp_strokes_copy_points(const bGPDstroke *gps, ListBase *new_strokes)
 	}
 }
 
-static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
+static int gp_duplicate_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
 	bGPDlayer *gpl;
@@ -599,7 +599,7 @@ static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
 					}
 					else {
 						/* delegate to a helper, as there's too much to fit in here (for copying subsets)... */
-						gp_strokes_copy_points(gps, &new_strokes);
+						gp_duplicate_points(gps, &new_strokes);
 					}
 					
 					/* deselect original stroke, or else the originals get moved too 
@@ -621,16 +621,16 @@ static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-void GPENCIL_OT_strokes_copy(wmOperatorType *ot)
+void GPENCIL_OT_duplicate(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Copy Strokes";
-	ot->idname = "GPENCIL_OT_strokes_copy";
+	ot->idname = "GPENCIL_OT_duplicate";
 	ot->description = "Duplicate the selected Grease Pencil strokes";
 	
 	/* callbacks */
-	ot->exec = gp_strokes_copy_exec;
-	ot->poll = gp_strokes_copy_poll;
+	ot->exec = gp_duplicate_exec;
+	ot->poll = gp_duplicate_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
