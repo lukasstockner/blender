@@ -133,6 +133,9 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	kmi = WM_keymap_add_item(keymap, "GPENCIL_OT_select", SELECTMOUSE, KM_PRESS, KM_ALT, 0);
 	RNA_boolean_set(kmi->ptr, "entire_strokes", true);
 	
+	/* select linked */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_select_linked", LKEY, KM_PRESS, KM_CTRL, 0);
+	
 	
 	/* Editing ----------------------------------------- */
 	
@@ -188,6 +191,7 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_select_all);
 	WM_operatortype_append(GPENCIL_OT_select_circle);
 	WM_operatortype_append(GPENCIL_OT_select_border);
+	WM_operatortype_append(GPENCIL_OT_select_linked);
 	
 	WM_operatortype_append(GPENCIL_OT_duplicate);
 	WM_operatortype_append(GPENCIL_OT_delete);

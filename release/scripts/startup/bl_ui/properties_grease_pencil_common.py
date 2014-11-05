@@ -110,6 +110,7 @@ class GreasePencilStrokeEditPanel():
         subcol = col.column(align=True)
         subcol.active = edit_ok
         subcol.operator("gpencil.select_all", text="Select All")
+        subcol.operator("gpencil.select_linked")
         subcol.operator("gpencil.select_border")
         subcol.operator("gpencil.select_circle")
 
@@ -167,6 +168,7 @@ class GPENCIL_PIE_tool_palette(Menu):
                 # S - Select
                 col = pie.column()
                 col.operator("gpencil.select_all", text="Select All", icon='PARTICLE_POINT')
+                col.operator("gpencil.select_linked", text="Select Linked", icon='LINKED')
                 col.operator("gpencil.select_border", text="Border Select", icon='BORDER_RECT')
                 col.operator("gpencil.select_circle", text="Circle Select", icon='META_EMPTY')
                 #col.operator("gpencil.select", text="Stroke Under Mouse").entire_strokes = True
@@ -181,7 +183,7 @@ class GPENCIL_PIE_tool_palette(Menu):
                 pie.operator("transform.resize", text="Scale", icon='MAN_SCALE').gpencil_strokes = True
 
                 # SW - Copy
-                pie.operator("gpencil.strokes_duplicate", icon='PARTICLE_PATH')
+                pie.operator("gpencil.duplicate_move", icon='PARTICLE_PATH')
 
                 # SE - Exit Edit Mode
                 pie.prop(gpd, "use_stroke_edit_mode", text="Exit Edit Mode", icon='EDIT')

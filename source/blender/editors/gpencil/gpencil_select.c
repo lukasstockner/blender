@@ -203,6 +203,52 @@ void GPENCIL_OT_select_all(wmOperatorType *ot)
 }
 
 /* ********************************************** */
+/* Select Linked */
+
+static int gpencil_select_linked_exec(bContext *C, wmOperator *op)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	
+	if (gpd == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+		return OPERATOR_CANCELLED;
+	}
+	
+	/* select all points in selected strokes */
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		if (gps->flag & GP_STROKE_SELECT) {
+			bGPDspoint *pt;
+			int i;
+			
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				pt->flag |= GP_SPOINT_SELECT;
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	/* updates */
+	WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_select_linked(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Linked";
+	ot->idname = "GPENCIL_OT_select_linked";
+	ot->description = "Select all points in same strokes as already selected points";
+	
+	/* callbacks */
+	ot->exec = gpencil_select_linked_exec;
+	ot->poll = gpencil_select_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ********************************************** */
 /* Circle Select Operator */
 
 /* Helper to check if a given stroke is within the area */
