@@ -563,7 +563,6 @@ static void gp_duplicate_points(const bGPDstroke *gps, ListBase *new_strokes)
 static int gp_duplicate_exec(bContext *C, wmOperator *op)
 {
 	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	bGPDlayer *gpl;
 	
 	if (gpd == NULL) {
 		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
@@ -574,46 +573,47 @@ static int gp_duplicate_exec(bContext *C, wmOperator *op)
 	 * copy the strokes into a temporary buffer, then append
 	 * once all done
 	 */
-	for (gpl = gpd->layers.first; gpl; gpl = gpl->next) {
-		if ((gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) == 0 &&
-		    (gpl->actframe != NULL))
-		{
-			ListBase new_strokes = {NULL, NULL};
-			bGPDframe *gpf = gpl->actframe;
-			bGPDstroke *gps;
-			
-			/* make copies of selected strokes, and deselect these once we're done */
-			for (gps = gpf->strokes.first; gps; gps = gps->next) {
-				if (gps->flag & GP_STROKE_SELECT) {
-					if (gps->totpoints == 1) {
-						/* Special Case: If there's just a single point in this stroke... */
-						bGPDstroke *gpsd;
-						
-						/* make direct copies of the stroke and its points */
-						gpsd = MEM_dupallocN(gps);
-						gpsd->points = MEM_dupallocN(gps->points);
-						
-						/* add to temp buffer */
-						gpsd->next = gpsd->prev = NULL;
-						BLI_addtail(&new_strokes, gpsd);
-					}
-					else {
-						/* delegate to a helper, as there's too much to fit in here (for copying subsets)... */
-						gp_duplicate_points(gps, &new_strokes);
-					}
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+	{
+		ListBase new_strokes = {NULL, NULL};
+		bGPDframe *gpf = gpl->actframe;
+		bGPDstroke *gps;
+		
+		if (gpf == NULL)
+			continue;
+		
+		/* make copies of selected strokes, and deselect these once we're done */
+		for (gps = gpf->strokes.first; gps; gps = gps->next) {
+			if (gps->flag & GP_STROKE_SELECT) {
+				if (gps->totpoints == 1) {
+					/* Special Case: If there's just a single point in this stroke... */
+					bGPDstroke *gpsd;
 					
-					/* deselect original stroke, or else the originals get moved too 
-					 * (when using the copy + move macro)
-					 */
-					gps->flag &= ~GP_STROKE_SELECT;
+					/* make direct copies of the stroke and its points */
+					gpsd = MEM_dupallocN(gps);
+					gpsd->points = MEM_dupallocN(gps->points);
+					
+					/* add to temp buffer */
+					gpsd->next = gpsd->prev = NULL;
+					BLI_addtail(&new_strokes, gpsd);
 				}
+				else {
+					/* delegate to a helper, as there's too much to fit in here (for copying subsets)... */
+					gp_duplicate_points(gps, &new_strokes);
+				}
+				
+				/* deselect original stroke, or else the originals get moved too 
+				 * (when using the copy + move macro)
+				 */
+				gps->flag &= ~GP_STROKE_SELECT;
 			}
-			
-			/* add all new strokes in temp buffer to the frame (preventing double-copies) */
-			BLI_movelisttolist(&gpf->strokes, &new_strokes);
-			BLI_assert(new_strokes.first == NULL);
 		}
+		
+		/* add all new strokes in temp buffer to the frame (preventing double-copies) */
+		BLI_movelisttolist(&gpf->strokes, &new_strokes);
+		BLI_assert(new_strokes.first == NULL);
 	}
+	CTX_DATA_END;
 	
 	/* updates */
 	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
