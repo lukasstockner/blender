@@ -62,37 +62,37 @@ extern "C" {
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
-void BKE_animsys_eval_driver(ID *id, FCurve *fcurve) {}
+void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve) {}
 
-void BKE_object_constraints_evaluate(Object *ob) {}
-void BKE_pose_constraints_evaluate(Object *ob, bPoseChannel *pchan) {}
+void BKE_object_constraints_evaluate(EvaluationContext *eval_ctx, Object *ob) {}
+void BKE_pose_constraints_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan) {}
 
-void BKE_pose_iktree_evaluate(Object *ob, bPoseChannel *rootchan) {}
-void BKE_pose_splineik_evaluate(Object *ob, bPoseChannel *rootchan) {}
-void BKE_pose_eval_bone(Object *ob, bPoseChannel *pchan) {}
+void BKE_pose_iktree_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan) {}
+void BKE_pose_splineik_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan) {}
+void BKE_pose_eval_bone(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan) {}
 
-void BKE_pose_rebuild_op(Object *ob, bPose *pose) {}
-void BKE_pose_eval_init(Object *ob, bPose *pose) {}
-void BKE_pose_eval_flush(Object *ob, bPose *pose) {}
+void BKE_pose_rebuild_op(EvaluationContext *eval_ctx, Object *ob, bPose *pose) {}
+void BKE_pose_eval_init(EvaluationContext *eval_ctx, Object *ob, bPose *pose) {}
+void BKE_pose_eval_flush(EvaluationContext *eval_ctx, Object *ob, bPose *pose) {}
 
-void BKE_particle_system_eval(Object *ob, ParticleSystem *psys) {}
+void BKE_particle_system_eval(EvaluationContext *eval_ctx, Object *ob, ParticleSystem *psys) {}
 
-void BKE_rigidbody_rebuild_sim(Scene *scene) {}
-void BKE_rigidbody_eval_simulation(Scene *scene) {}
-void BKE_rigidbody_object_sync_transforms(Scene *scene, Object *ob) {}
+void BKE_rigidbody_rebuild_sim(EvaluationContext *eval_ctx, Scene *scene) {}
+void BKE_rigidbody_eval_simulation(EvaluationContext *eval_ctx, Scene *scene) {}
+void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob) {}
 
-void BKE_object_eval_local_transform(Scene *scene, Object *ob, int a, int b, int c) {
+void BKE_object_eval_local_transform(EvaluationContext *eval_ctx, Scene *scene, Object *ob, int a, int b, int c) {
 	printf("BKE_object_eval_local_transform on %s (%d, %d, %d)\n", ob->id.name, a, b, c);
 	BKE_object_where_is_calc_ex(scene, NULL, ob, NULL);
 }
-void BKE_object_eval_parent(Object *ob) {}
-void BKE_object_eval_modifier(Object *ob, ModifierData *md) {}
+void BKE_object_eval_parent(EvaluationContext *eval_ctx, Object *ob) {}
+void BKE_object_eval_modifier(EvaluationContext *eval_ctx, Object *ob, ModifierData *md) {}
 
-void BKE_mesh_eval_geometry(Mesh *mesh) {}
-void BKE_mball_eval_geometry(MetaBall *mball) {}
-void BKE_curve_eval_geometry(Curve *curve) {}
-void BKE_curve_eval_path(Curve *curve) {}
-void BKE_lattice_eval_geometry(Lattice *latt) {}
+void BKE_mesh_eval_geometry(EvaluationContext *eval_ctx, Mesh *mesh) {}
+void BKE_mball_eval_geometry(EvaluationContext *eval_ctx, MetaBall *mball) {}
+void BKE_curve_eval_geometry(EvaluationContext *eval_ctx, Curve *curve) {}
+void BKE_curve_eval_path(EvaluationContext *eval_ctx, Curve *curve) {}
+void BKE_lattice_eval_geometry(EvaluationContext *eval_ctx, Lattice *latt) {}
 
 const string deg_op_name_object_parent = "BKE_object_eval_parent";
 const string deg_op_name_object_local_transform = "BKE_object_eval_local_transform";

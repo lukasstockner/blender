@@ -87,7 +87,7 @@ void DEG_task_run_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 		/* should only be the case for NOOPs, which never get to this point */
 		BLI_assert(node->evaluate);
 		/* perform operation */
-		node->evaluate();
+		node->evaluate(state->eval_ctx);
 	}
 
 	/* note how long this took */

@@ -39,10 +39,11 @@
 struct ChannelDriver;
 struct ModifierData;
 struct PointerRNA;
+struct EvaluationContext;
 
 /* Evaluation Operation for atomic operation */
 // XXX: move this to another header that can be exposed?
-typedef function<void()> DepsEvalOperationCb;
+typedef function<void(struct EvaluationContext*)> DepsEvalOperationCb;
 
 /* Metatype of Nodes - The general "level" in the graph structure the node serves */
 typedef enum eDepsNode_Class {
