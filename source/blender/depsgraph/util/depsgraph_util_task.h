@@ -29,7 +29,7 @@
 
 #include "depsnode_operation.h"
 
-class Depsgraph;
+struct Depsgraph;
 struct EvaluationContext;
 struct TaskPool;
 

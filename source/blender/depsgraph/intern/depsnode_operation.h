@@ -69,7 +69,7 @@ struct OperationDepsNode : public DepsNode {
 	
 	void tag_update(Depsgraph *graph);
 	
-	bool is_noop() const { return evaluate == false; }
+	bool is_noop() const { return (bool)evaluate == false; }
 	
 	ComponentDepsNode *owner;     /* component that contains the operation */
 	

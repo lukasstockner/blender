@@ -272,23 +272,23 @@ struct DepsNodeHandle {
 #include "depsnode_component.h"
 
 template <class NodeType>
-static OperationDepsNode *get_entry_operation(NodeType *node)
+BLI_INLINE OperationDepsNode *get_entry_operation(NodeType *node)
 { return NULL; }
 
 template <class NodeType>
-static OperationDepsNode *get_exit_operation(NodeType *node)
+BLI_INLINE OperationDepsNode *get_exit_operation(NodeType *node)
 { return NULL; }
 
-template <> OperationDepsNode *get_entry_operation(OperationDepsNode *node)
+BLI_INLINE OperationDepsNode *get_entry_operation(OperationDepsNode *node)
 { return node; }
 
-template <> OperationDepsNode *get_exit_operation(OperationDepsNode *node)
+BLI_INLINE OperationDepsNode *get_exit_operation(OperationDepsNode *node)
 { return node; }
 
-template <> OperationDepsNode *get_entry_operation(ComponentDepsNode *node)
+BLI_INLINE OperationDepsNode *get_entry_operation(ComponentDepsNode *node)
 { return node ? node->entry_operation : NULL; }
 
-template <> OperationDepsNode *get_exit_operation(ComponentDepsNode *node)
+BLI_INLINE OperationDepsNode *get_exit_operation(ComponentDepsNode *node)
 { return node ? node->exit_operation : NULL; }
 
 template <typename KeyFrom, typename KeyTo>

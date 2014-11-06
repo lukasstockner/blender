@@ -99,6 +99,7 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr, const Prop
 		Object *ob = (Object *)ptr->data;
 		/* transforms props? */
 		// ...
+		(void)ob;  /* Currently ignored. */
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
 		Sequence *seq = (Sequence *)ptr->data;
