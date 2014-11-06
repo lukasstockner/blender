@@ -130,6 +130,7 @@ set(SRC
 	intern/object.c
 	intern/object_deform.c
 	intern/object_dupli.c
+	intern/object_update.c
 	intern/ocean.c
 	intern/packedFile.c
 	intern/paint.c

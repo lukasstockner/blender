@@ -81,10 +81,6 @@ void BKE_rigidbody_rebuild_sim(EvaluationContext *eval_ctx, Scene *scene) {}
 void BKE_rigidbody_eval_simulation(EvaluationContext *eval_ctx, Scene *scene) {}
 void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob) {}
 
-void BKE_object_eval_local_transform(EvaluationContext *eval_ctx, Scene *scene, Object *ob, int a, int b, int c) {
-	printf("BKE_object_eval_local_transform on %s (%d, %d, %d)\n", ob->id.name, a, b, c);
-	BKE_object_where_is_calc_ex(scene, NULL, ob, NULL);
-}
 void BKE_object_eval_parent(EvaluationContext *eval_ctx, Object *ob) {}
 void BKE_object_eval_modifier(EvaluationContext *eval_ctx, Object *ob, ModifierData *md) {}
 

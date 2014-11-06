@@ -43,7 +43,6 @@ void BKE_rigidbody_rebuild_sim(struct EvaluationContext *eval_ctx, Scene *scene)
 void BKE_rigidbody_eval_simulation(struct EvaluationContext *eval_ctx, Scene *scene); // BKE_rigidbody_do_simulation
 void BKE_rigidbody_object_sync_transforms(struct EvaluationContext *eval_ctx, Scene *scene, Object *ob); // BKE_rigidbody_sync_transforms
 
-void BKE_object_eval_local_transform(struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, int a, int b, int c);
 void BKE_object_eval_parent(struct EvaluationContext *eval_ctx, Object *ob);
 void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx, Object *ob, ModifierData *md);
 

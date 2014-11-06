@@ -170,9 +170,12 @@ void BKE_object_tfm_protected_restore(struct Object *ob,
                                       const ObjectTfmProtectedChannels *obtfm,
                                       const short protectflag);
 
+void BKE_object_eval_local_transform(struct EvaluationContext *eval_ctx,
+                                     struct Scene *scene,
+                                     struct Object *ob);
 void BKE_object_eval_geometry(struct EvaluationContext *eval_ctx,
-                                  struct Scene *scene,
-                                  struct Object *ob);
+                              struct Scene *scene,
+                              struct Object *ob);
 void BKE_object_handle_update(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void BKE_object_handle_update_ex(struct EvaluationContext *eval_ctx,
                                  struct Scene *scene, struct Object *ob,
