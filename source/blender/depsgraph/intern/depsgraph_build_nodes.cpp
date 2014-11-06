@@ -107,7 +107,7 @@ extern "C" {
 void DepsgraphNodeBuilder::build_scene(Scene *scene)
 {
 	/* timesource */
-	add_time_source(&scene->id);
+	add_time_source(NULL);
 	
 	/* build subgraph for set, and link this in... */
 	// XXX: depending on how this goes, that scene itself could probably store its
