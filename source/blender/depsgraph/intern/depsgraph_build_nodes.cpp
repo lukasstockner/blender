@@ -269,6 +269,11 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	if (ob->particlesystem.first) {
 		build_particles(ob);
 	}
+
+	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+	                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_geometry, _1, scene, ob),
+	                   "Object Eval");
+
 }
 
 void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
