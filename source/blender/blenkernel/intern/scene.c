@@ -1617,91 +1617,96 @@ static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
 
 void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
 {
-	if (DEG_get_eval_mode() == DEG_EVAL_MODE_OLD) {
-		Scene *sce_iter;
-		
-		/* keep this first */
-		BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
+	Scene *sce_iter;
+	bool use_new_eval = DEG_get_eval_mode() == DEG_EVAL_MODE_NEW;
 
-		/* (re-)build dependency graph if needed */
-		for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
-			DAG_scene_relations_update(bmain, sce_iter);
+	/* keep this first */
+	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
 
-		/* flush editing data if needed */
-		prepare_mesh_for_viewport_render(bmain, scene);
+	/* (re-)build dependency graph if needed */
+	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
+		DAG_scene_relations_update(bmain, sce_iter);
 
-		/* flush recalc flags to dependencies */
+	/* flush editing data if needed */
+	prepare_mesh_for_viewport_render(bmain, scene);
+
+	/* flush recalc flags to dependencies */
+	if (!use_new_eval) {
 		DAG_ids_flush_tagged(bmain);
+	}
+
+	/* removed calls to quick_cache, see pointcache.c */
 	
-		/* removed calls to quick_cache, see pointcache.c */
-		
-		/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
-		 * when trying to find materials with drivers that need evaluating [#32017] 
-		 */
-		BKE_main_id_tag_idcode(bmain, ID_MA, false);
-		BKE_main_id_tag_idcode(bmain, ID_LA, false);
-	
-		/* update all objects: drivers, matrices, displists, etc. flags set
-		 * by depgraph or manual, no layer check here, gets correct flushed
-		 *
-		 * in the future this should handle updates for all datablocks, not
-		 * only objects and scenes. - brecht */
-		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
-		/* update sound system animation (TODO, move to depsgraph) */
-		sound_update_scene(bmain, scene);
-	
-		/* extra call here to recalc scene animation (for sequencer) */
-		{
-			AnimData *adt = BKE_animdata_from_id(&scene->id);
-			float ctime = BKE_scene_frame_get(scene);
-			
-			if (adt && (adt->recalc & ADT_RECALC_ANIM))
-				BKE_animsys_evaluate_animdata(scene, &scene->id, adt, ctime, 0);
-		}
-	
-		/* Extra call here to recalc material animation.
-		 *
-		 * Need to do this so changing material settings from the graph/dopesheet
-		 * will update stuff in the viewport.
-		 */
-		if (DAG_id_type_tagged(bmain, ID_MA)) {
-			Material *material;
-			float ctime = BKE_scene_frame_get(scene);
-	
-			for (material = bmain->mat.first;
-			     material;
-			     material = material->id.next)
-			{
-				AnimData *adt = BKE_animdata_from_id(&material->id);
-				if (adt && (adt->recalc & ADT_RECALC_ANIM))
-					BKE_animsys_evaluate_animdata(scene, &material->id, adt, ctime, 0);
-			}
-		}
-	
-		/* Also do the same for node trees. */
-		if (DAG_id_type_tagged(bmain, ID_NT)) {
-			float ctime = BKE_scene_frame_get(scene);
-	
-			FOREACH_NODETREE(bmain, ntree, id)
-			{
-				AnimData *adt = BKE_animdata_from_id(&ntree->id);
-				if (adt && (adt->recalc & ADT_RECALC_ANIM))
-					BKE_animsys_evaluate_animdata(scene, &ntree->id, adt, ctime, 0);
-			}
-			FOREACH_NODETREE_END
-		}
-	
-		/* notify editors and python about recalc */
-		BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
-		DAG_ids_check_recalc(bmain, scene, false);
-	
-		/* clear recalc flags */
-		DAG_ids_clear_recalc(bmain);
+	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
+	 * when trying to find materials with drivers that need evaluating [#32017] 
+	 */
+	BKE_main_id_tag_idcode(bmain, ID_MA, false);
+	BKE_main_id_tag_idcode(bmain, ID_LA, false);
+
+	/* update all objects: drivers, matrices, displists, etc. flags set
+	 * by depgraph or manual, no layer check here, gets correct flushed
+	 *
+	 * in the future this should handle updates for all datablocks, not
+	 * only objects and scenes. - brecht */
+	if (use_new_eval) {
+		DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph);
 	}
 	else {
-		/* new depsgraph */
-		BLI_assert(scene->depsgraph);
-		DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph);
+		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
+	}
+
+	/* update sound system animation (TODO, move to depsgraph) */
+	sound_update_scene(bmain, scene);
+
+	/* extra call here to recalc scene animation (for sequencer) */
+	{
+		AnimData *adt = BKE_animdata_from_id(&scene->id);
+		float ctime = BKE_scene_frame_get(scene);
+		
+		if (adt && (adt->recalc & ADT_RECALC_ANIM))
+			BKE_animsys_evaluate_animdata(scene, &scene->id, adt, ctime, 0);
+	}
+
+	/* Extra call here to recalc material animation.
+	 *
+	 * Need to do this so changing material settings from the graph/dopesheet
+	 * will update stuff in the viewport.
+	 */
+	if (!use_new_eval && DAG_id_type_tagged(bmain, ID_MA)) {
+		Material *material;
+		float ctime = BKE_scene_frame_get(scene);
+
+		for (material = bmain->mat.first;
+		     material;
+		     material = material->id.next)
+		{
+			AnimData *adt = BKE_animdata_from_id(&material->id);
+			if (adt && (adt->recalc & ADT_RECALC_ANIM))
+				BKE_animsys_evaluate_animdata(scene, &material->id, adt, ctime, 0);
+		}
+	}
+
+	/* Also do the same for node trees. */
+	if (!use_new_eval && DAG_id_type_tagged(bmain, ID_NT)) {
+		float ctime = BKE_scene_frame_get(scene);
+
+		FOREACH_NODETREE(bmain, ntree, id)
+		{
+			AnimData *adt = BKE_animdata_from_id(&ntree->id);
+			if (adt && (adt->recalc & ADT_RECALC_ANIM))
+				BKE_animsys_evaluate_animdata(scene, &ntree->id, adt, ctime, 0);
+		}
+		FOREACH_NODETREE_END
+	}
+
+	/* notify editors and python about recalc */
+	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
+
+	if (!use_new_eval) {
+		DAG_ids_check_recalc(bmain, scene, false);
+
+		/* clear recalc flags */
+		DAG_ids_clear_recalc(bmain);
 	}
 }
 
