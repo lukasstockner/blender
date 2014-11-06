@@ -1560,16 +1560,6 @@ static char *rna_MeshStatVis_path(PointerRNA *UNUSED(ptr))
 	return BLI_strdup("tool_settings.statvis");
 }
 
-#pragma message("DEPSGRAPH PORTING XXX: The depsgraph_rebuild function in scene RNA is temporary")
-static void rna_Scene_depsgraph_rebuild(Scene *scene, Main *bmain)
-{
-	if (scene->depsgraph)
-		DEG_graph_free(scene->depsgraph);
-	
-	scene->depsgraph = DEG_graph_new();
-	DEG_graph_build_from_scene(scene->depsgraph, bmain, scene);
-}
-
 /* note: without this, when Multi-Paint is activated/deactivated, the colors
  * will not change right away when multiple bones are selected, this function
  * is not for general use and only for the few cases where changing scene
@@ -5794,10 +5784,6 @@ void RNA_def_scene(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "depsgraph", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "Depsgraph");
 	RNA_def_property_ui_text(prop, "Dependency Graph", "Dependencies in the scene data");
-
-	func = RNA_def_function(srna, "depsgraph_rebuild", "rna_Scene_depsgraph_rebuild");
-	RNA_def_function_flag(func, FUNC_USE_MAIN);
-	RNA_def_function_ui_description(func, "Rebuild the dependency graph");
 
 	/* Nestled Data  */
 	/* *** Non-Animated *** */
