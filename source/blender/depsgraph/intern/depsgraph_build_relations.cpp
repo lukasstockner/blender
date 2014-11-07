@@ -101,6 +101,58 @@ extern "C" {
 
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
+/* TODO(sergey): This is a stupid copy of function from depsgraph.c/ */
+static bool object_modifiers_use_time(Object *ob)
+{
+	ModifierData *md;
+
+	/* check if a modifier in modifier stack needs time input */
+	for (md = (ModifierData *)ob-> modifiers.first;
+	     md != NULL;
+	     md = (ModifierData *)md->next)
+	{
+		if (modifier_dependsOnTime(md)) {
+			return true;
+		}
+	}
+
+	/* check whether any modifiers are animated */
+	if (ob->adt) {
+		AnimData *adt = ob->adt;
+		FCurve *fcu;
+
+		/* action - check for F-Curves with paths containing 'modifiers[' */
+		if (adt->action) {
+			for (fcu = (FCurve *)adt->action->curves.first;
+			     fcu != NULL;
+			     fcu = (FCurve *)fcu->next)
+			{
+				if (fcu->rna_path && strstr(fcu->rna_path, "modifiers["))
+					return true;
+			}
+		}
+
+		/* This here allows modifier properties to get driven and still update properly
+		 *
+		 * Workaround to get [#26764] (e.g. subsurf levels not updating when animated/driven)
+		 * working, without the updating problems ([#28525] [#28690] [#28774] [#28777]) caused
+		 * by the RNA updates cache introduced in r.38649
+		 */
+		for (fcu = (FCurve *)adt->drivers.first;
+		     fcu != NULL;
+		     fcu = (FCurve *)fcu->next)
+		{
+			if (fcu->rna_path && strstr(fcu->rna_path, "modifiers["))
+				return true;
+		}
+
+		/* XXX: also, should check NLA strips, though for now assume that nobody uses
+		 * that and we can omit that for performance reasons... */
+	}
+
+	return false;
+}
+
 /* ************************************************* */
 /* Relations Builder */
 
@@ -152,6 +204,14 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 
 void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 {
+	/* TODO(sergey): This is mainly for the testing purposes, in the final
+	 * design we'll need to add relation between individual component to the
+	 * time source.
+	 */
+	if (object_modifiers_use_time(ob)) {
+		m_graph->add_new_time_relation(m_graph->find_id_node(&ob->id));
+	}
+
 	if (ob->parent)
 		build_object_parent(ob);
 	

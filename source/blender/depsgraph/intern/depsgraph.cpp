@@ -253,6 +253,13 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from, OperationDeps
 	return rel;
 }
 
+/* Add new dependency between outer ID node and time. */
+void Depsgraph::add_new_time_relation(IDDepsNode *from)
+{
+	TimeSourceDepsNode *time_src = find_time_source();
+	time_src->add_time_dependency(from);
+}
+
 /* Sort nodes to determine evaluation order for operation nodes
  * where dependency relationships won't get violated.
  */

@@ -248,11 +248,9 @@ void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
 	/* update time on primary timesource */
 	TimeSourceDepsNode *tsrc = graph->find_time_source();
 	tsrc->cfra = ctime;
-	
-#if 0 /* XXX TODO */
-	graph->tag_update(tsrc);
-#endif
-	
+
+	tsrc->tag_update(graph);
+
 	/* perform recalculation updates */
 	DEG_evaluate_on_refresh(eval_ctx, graph);
 }

@@ -67,6 +67,24 @@ DepsNode::~DepsNode()
 /* ******************************************************** */
 /* Generic Nodes */
 
+/* Time Source Node ============================================== */
+
+void TimeSourceDepsNode::tag_update(Depsgraph *graph)
+{
+	for (vector<IDDepsNode*>::const_iterator it_id = id_nodes.begin();
+	     it_id != id_nodes.end();
+	     ++it_id)
+	{
+		IDDepsNode *id_node = *it_id;
+		id_node->tag_update(graph);
+	}
+}
+
+void TimeSourceDepsNode::add_time_dependency(IDDepsNode *from)
+{
+	id_nodes.push_back(from);
+}
+
 /* Root Node ============================================== */
 
 TimeSourceDepsNode *RootDepsNode::add_time_source(const string &name)

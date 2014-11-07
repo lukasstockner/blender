@@ -27,6 +27,8 @@
 #ifndef __DEPSNODE_H__
 #define __DEPSNODE_H__
 
+#include <vector>
+
 #include "MEM_guardedalloc.h"
 
 #include "depsgraph_types.h"
@@ -83,18 +85,25 @@ public:
 #define DEG_DEPSNODE_DEFINE(NodeType, type_, tname_) \
 	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_)
 
+using std::vector;
 
 /* Generic Nodes ======================= */
 
 struct ComponentDepsNode;
+struct IDDepsNode;
 
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
 	// XXX: how do we keep track of the chain of time sources for propagation of delays?
-	
+
 	double cfra;                    /* new "current time" */
 	double offset;                  /* time-offset relative to the "official" time source that this one has */
-	
+
+	void tag_update(Depsgraph *graph);
+	void add_time_dependency(IDDepsNode *from);
+
+	vector<IDDepsNode*> id_nodes;
+
 	DEG_DEPSNODE_DECLARE;
 };
 
