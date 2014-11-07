@@ -780,13 +780,6 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 		if (gp_can_draw_stroke(gps, dflag) == false)
 			continue;
 		
-		/* Optimisation: only draw points for selected strokes
-		 * We assume that selected points can only occur in
-		 * strokes that are selected too.
-		 */
-		if ((gps->flag & GP_STROKE_SELECT) == 0)
-			continue;
-			
 		/* Get size of verts:
 		 * - The selected state needs to be larger than the unselected state so that
 		 *   they stand out more.
@@ -1002,12 +995,13 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		/* draw the strokes already in active frame */
 		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, gpl->color, gpl->fill);
 		
-		/* Draw verts of selected strokes 
+		/* Draw verts of strokes 
+		 *  - all points (in editable layers) are drawn, to make it clearer that
+		 *    edit mode is enabled
 		 * 	- locked layers can't be edited, so there's no point showing these verts
 		 *    as they will have no bearings on what gets edited
 		 */
-		/* XXX: perhaps we don't want to show these when users are drawing... */
-		if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
+		if ((gpd->flag & GP_DATA_STROKE_EDITMODE) && (gpl->flag & GP_LAYER_LOCKED) == 0) {
 			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, 
 			                     (gpl->color[3] < 0.95f) ? gpl->color : NULL);
 		}
