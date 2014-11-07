@@ -110,9 +110,16 @@ class GreasePencilStrokeEditPanel():
         subcol = col.column(align=True)
         subcol.active = edit_ok
         subcol.operator("gpencil.select_all", text="Select All")
-        subcol.operator("gpencil.select_linked")
         subcol.operator("gpencil.select_border")
         subcol.operator("gpencil.select_circle")
+
+        col.separator()
+
+        subcol = col.column(align=True)
+        subcol.active = edit_ok
+        subcol.operator("gpencil.select_linked")
+        subcol.operator("gpencil.select_more")
+        subcol.operator("gpencil.select_less")
 
         col.separator()
 

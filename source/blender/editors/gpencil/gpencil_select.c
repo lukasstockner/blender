@@ -249,6 +249,147 @@ void GPENCIL_OT_select_linked(wmOperatorType *ot)
 }
 
 /* ********************************************** */
+/* Select More */
+
+static int gpencil_select_more_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		if (gps->flag & GP_STROKE_SELECT) {
+			bGPDspoint *pt;
+			int i;
+			bool prev_sel;
+			
+			/* First Pass: Go in forward order, expanding selection if previous was selected (pre changes)... 
+			 * - This pass covers the "after" edges of selection islands
+			 */
+			prev_sel = false;
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				if (pt->flag & GP_SPOINT_SELECT) {
+					/* selected point - just set flag for next point */
+					prev_sel = true;
+				}
+				else {
+					/* unselected point - expand selection if previous was selected... */
+					if (prev_sel) {
+						pt->flag |= GP_SPOINT_SELECT;
+					}
+					prev_sel = false;
+				}
+			}
+			
+			/* Second Pass: Go in reverse order, doing the same as before (except in opposite order) 
+			 * - This pass covers the "before" edges of selection islands
+			 */
+			prev_sel = false;
+			for (pt -= 1; i > 0; i--, pt--) {
+				if (pt->flag & GP_SPOINT_SELECT) {
+					prev_sel = true;
+				}
+				else {
+					/* unselected point - expand selection if previous was selected... */
+					if (prev_sel) {
+						pt->flag |= GP_SPOINT_SELECT;
+					}
+					prev_sel = false;
+				}
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	/* updates */
+	WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_select_more(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select More";
+	ot->idname = "GPENCIL_OT_select_more";
+	ot->description = "Grow sets of selected Grease Pencil points";
+	
+	/* callbacks */
+	ot->exec = gpencil_select_more_exec;
+	ot->poll = gpencil_select_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ********************************************** */
+/* Select Less */
+
+static int gpencil_select_less_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		if (gps->flag & GP_STROKE_SELECT) {
+			bGPDspoint *pt;
+			int i;
+			bool prev_sel;
+			
+			/* First Pass: Go in forward order, shrinking selection if previous was not selected (pre changes)... 
+			 * - This pass covers the "after" edges of selection islands
+			 */
+			prev_sel = false;
+			for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+				if (pt->flag & GP_SPOINT_SELECT) {
+					/* shrink if previous wasn't selected */
+					if (prev_sel == false) {
+						pt->flag &= ~GP_SPOINT_SELECT;
+					}
+					prev_sel = true;
+				}
+				else {
+					/* mark previous as being unselected - and hence, is trigger for shrinking */
+					prev_sel = false;
+				}
+			}
+			
+			/* Second Pass: Go in reverse order, doing the same as before (except in opposite order) 
+			 * - This pass covers the "before" edges of selection islands
+			 */
+			prev_sel = false;
+			for (pt -= 1; i > 0; i--, pt--) {
+				if (pt->flag & GP_SPOINT_SELECT) {
+					/* shrink if previous wasn't selected */
+					if (prev_sel == false) {
+						pt->flag &= ~GP_SPOINT_SELECT;
+					}
+					prev_sel = true;
+				}
+				else {
+					/* mark previous as being unselected - and hence, is trigger for shrinking */
+					prev_sel = false;
+				}
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	/* updates */
+	WM_event_add_notifier(C, NC_GPENCIL | NA_SELECTED, NULL);
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_select_less(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Select Less";
+	ot->idname = "GPENCIL_OT_select_less";
+	ot->description = "Shrink sets of selected Grease Pencil points";
+	
+	/* callbacks */
+	ot->exec = gpencil_select_less_exec;
+	ot->poll = gpencil_select_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ********************************************** */
 /* Circle Select Operator */
 
 /* Helper to check if a given stroke is within the area */

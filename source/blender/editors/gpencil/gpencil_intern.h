@@ -117,7 +117,10 @@ void GPENCIL_OT_select(struct wmOperatorType *ot);
 void GPENCIL_OT_select_all(struct wmOperatorType *ot);
 void GPENCIL_OT_select_circle(struct wmOperatorType *ot);
 void GPENCIL_OT_select_border(struct wmOperatorType *ot);
+
 void GPENCIL_OT_select_linked(struct wmOperatorType *ot);
+void GPENCIL_OT_select_more(struct wmOperatorType *ot);
+void GPENCIL_OT_select_less(struct wmOperatorType *ot);
 
 void GPENCIL_OT_duplicate(struct wmOperatorType *ot);
 void GPENCIL_OT_delete(struct wmOperatorType *ot);
