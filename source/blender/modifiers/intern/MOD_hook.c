@@ -120,6 +120,19 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	HookModifierData *hmd = (HookModifierData *) md;
+
+	if (hmd->object) {
+		/* TODO(sergey): Different relation type depending on subtarget? */
+		DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_GEOMETRY, "Hook Modifier");
+	}
+}
+
 static float hook_falloff(const float co_1[3], const float co_2[3], const float falloff_squared, float fac)
 {
 	if (falloff_squared) {
@@ -286,7 +299,7 @@ ModifierTypeInfo modifierType_Hook = {
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

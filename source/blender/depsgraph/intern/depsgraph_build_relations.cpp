@@ -925,7 +925,11 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 				add_relation(prev_mod_key, mod_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Modifier Stack");
 			
 			if (mti->updateDepsgraph) {
-				DepsNodeHandle handle = create_node_handle(mod_key);
+				/* TODO(sergey): Currently we hook the relation to the uberupdate node,
+				 * om the future we'll hook it up to the particular modifier node.
+				 */
+				OperationKey eval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Object Eval");
+				DepsNodeHandle handle = create_node_handle(eval_key);
 				mti->updateDepsgraph(md, scene, ob, &handle);
 			}
 			
