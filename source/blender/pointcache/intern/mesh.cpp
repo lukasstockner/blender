@@ -46,6 +46,11 @@ PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierD
 	
 	OObject root = m_archive.getTop();
 	m_mesh = OPolyMesh(root, m_pcmd->modifier.name, fs);
+	
+	OPolyMeshSchema &schema = m_mesh.getSchema();
+	OCompoundProperty geom_props = schema.getArbGeomParams();
+	
+	m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
 }
 
 PointCacheWriter::~PointCacheWriter()
@@ -74,6 +79,12 @@ void PointCacheWriter::write_sample()
 	indices.reserve(totloop);
 	std::vector<int> counts;
 	counts.reserve(totpoly);
+	std::vector<bool_t> smooth;
+	smooth.reserve(totpoly);
+	
+	// TODO decide how to handle vertex/face normals, in caching vs. export ...
+//	std::vector<V2f> uvs;
+//	OV2fGeomParam::Sample uvs(V2fArraySample(uvs), kFacevaryingScope );
 	
 	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
 		float *co = mv->co;
@@ -84,6 +95,7 @@ void PointCacheWriter::write_sample()
 	}
 	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
 		counts.push_back(mp->totloop);
+		smooth.push_back((bool)(mp->flag & ME_SMOOTH));
 	}
 	
 	OPolyMeshSchema::Sample sample = OPolyMeshSchema::Sample(
@@ -91,8 +103,12 @@ void PointCacheWriter::write_sample()
 	            Int32ArraySample(indices),
 	            Int32ArraySample(counts)
 	            );
-
 	schema.set(sample);
+	
+	OBoolGeomParam::Sample sample_smooth;
+	sample_smooth.setVals(BoolArraySample(smooth));
+	sample_smooth.setScope(kUniformScope);
+	m_param_smooth.set(sample_smooth);
 }
 
 
@@ -122,6 +138,7 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	IPolyMeshSchema &schema = m_mesh.getSchema();
+	ICompoundProperty geom_props = schema.getArbGeomParams();
 //	TimeSamplingPtr ts = schema.getTimeSampling();
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
@@ -142,6 +159,14 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	int totverts = positions->size();
 	int totloops = indices->size();
 	int totpolys = counts->size();
+	
+	IBoolGeomParam param_smooth(geom_props, "smooth", 0);
+	BoolArraySamplePtr smooth;
+	if (param_smooth) {
+		IBoolGeomParam::Sample sample_smooth;
+		param_smooth.getExpanded(sample_smooth, ss);
+		smooth = sample_smooth.getVals();
+	}
 	
 	m_result = CDDM_new(totverts, 0, 0, totloops, totpolys);
 	MVert *mv, *mverts = m_result->getVertArray(m_result);
@@ -167,6 +192,18 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 		mp->loopstart = loopstart;
 		
 		loopstart += mp->totloop;
+	}
+	if (smooth) {
+		const bool_t *smooth_data = smooth->get();
+		bool changed = false;
+		for (i = 0, mp = mpolys; i < totpolys; ++i, ++mp) {
+			if (smooth_data[i]) {
+				mp->flag |= ME_SMOOTH;
+				changed = true;
+			}
+		}
+		if (changed)
+			m_result->dirty = (DMDirtyFlag)((int)m_result->dirty | DM_DIRTY_NORMALS);
 	}
 	
 	CDDM_calc_edges(m_result);

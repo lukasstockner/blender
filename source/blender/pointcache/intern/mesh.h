@@ -44,6 +44,7 @@ private:
 	PointCacheModifierData *m_pcmd;
 	
 	AbcGeom::OPolyMesh m_mesh;
+	AbcGeom::OBoolGeomParam m_param_smooth;
 };
 
 class PointCacheReader : public Reader {
