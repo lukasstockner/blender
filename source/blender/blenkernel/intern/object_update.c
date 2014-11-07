@@ -40,6 +40,7 @@
 #include "BKE_global.h"
 #include "BKE_armature.h"
 #include "BKE_action.h"
+#include "BKE_constraint.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_animsys.h"
@@ -57,12 +58,33 @@
 
 #include "DEG_depsgraph.h"
 
+#define PRINT if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW) printf
+
 void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
                                      Scene *scene,
                                      Object *ob)
 {
-	printf("%s on %s\n", __func__, ob->id.name);
-	BKE_object_where_is_calc_ex(scene, NULL, ob, NULL);
+	float ctime = BKE_scene_frame_get(scene);
+	PRINT("%s on %s\n", __func__, ob->id.name);
+	BKE_object_where_is_calc_time_ex(scene, ob, ctime, scene->rigidbody_world, NULL, false);
+}
+
+void BKE_object_constraints_evaluate(EvaluationContext *eval_ctx,
+                                     Scene *scene,
+                                     Object *ob)
+{
+	float ctime = BKE_scene_frame_get(scene);
+	(void) eval_ctx;  /* Ignored. */
+
+	PRINT("%s on %s\n", __func__, ob->id.name);
+
+	/* solve constraints */
+	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
+		bConstraintOb *cob;
+		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
+		BKE_constraints_solve(&ob->constraints, cob, ctime);
+		BKE_constraints_clear_evalob(cob);
+	}
 }
 
 void BKE_object_eval_geometry(EvaluationContext *eval_ctx,
@@ -74,9 +96,7 @@ void BKE_object_eval_geometry(EvaluationContext *eval_ctx,
 	Key *key;
 	float ctime = BKE_scene_frame_get(scene);
 
-	if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW) {
-		printf("%s on %s\n", __func__, ob->id.name);
-	}
+	PRINT("%s on %s\n", __func__, ob->id.name);
 
 	if (G.debug & G_DEBUG_DEPSGRAPH)
 		printf("recalcdata %s\n", ob->id.name + 2);

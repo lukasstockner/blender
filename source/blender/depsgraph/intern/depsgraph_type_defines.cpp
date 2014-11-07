@@ -64,7 +64,6 @@ extern "C" {
 
 void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve) {}
 
-void BKE_object_constraints_evaluate(EvaluationContext *eval_ctx, Object *ob) {}
 void BKE_pose_constraints_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan) {}
 
 void BKE_pose_iktree_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan) {}

@@ -229,7 +229,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	
 	/* object constraints */
 	if (ob->constraints.first) {
-		build_object_constraints(ob);
+		build_object_constraints(scene, ob);
 	}
 	
 	/* object data */
@@ -299,11 +299,11 @@ void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
  *
  * -- Aligorith, August 2013 
  */
-void DepsgraphNodeBuilder::build_object_constraints(Object *ob)
+void DepsgraphNodeBuilder::build_object_constraints(Scene *scene, Object *ob)
 {
 	/* create node for constraint stack */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-	                   DEPSOP_TYPE_EXEC, bind(BKE_object_constraints_evaluate, _1, ob),
+	                   DEPSOP_TYPE_EXEC, bind(BKE_object_constraints_evaluate, _1, scene, ob),
 	                   deg_op_name_constraint_stack);
 }
 

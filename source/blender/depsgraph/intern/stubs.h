@@ -26,7 +26,6 @@ struct EvaluationContext;
 
 void BKE_animsys_eval_driver(struct EvaluationContext *eval_ctx, ID *id, FCurve *fcurve);
 
-void BKE_object_constraints_evaluate(struct EvaluationContext *eval_ctx, Object *ob);
 void BKE_pose_constraints_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan);
 
 void BKE_pose_iktree_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan);

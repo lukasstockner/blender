@@ -2413,8 +2413,12 @@ static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat
 }
 
 /* note, scene is the active scene while actual_scene is the scene the object resides in */
+/* TODO(sergey): Extra do_constraints flag here is just to prevent code duplication for
+ * the time being we don't kick old depsgraph out.
+ */
 void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
-                                      RigidBodyWorld *rbw, float r_originmat[3][3])
+                                      RigidBodyWorld *rbw, float r_originmat[3][3],
+                                      bool do_constraints)
 {
 	if (ob == NULL) return;
 	
@@ -2446,7 +2450,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 	BKE_rigidbody_sync_transforms(rbw, ob, ctime);
 	
 	/* solve constraints */
-	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
+	if (do_constraints && ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
 		bConstraintOb *cob;
 		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
 		BKE_constraints_solve(&ob->constraints, cob, ctime);
@@ -2460,7 +2464,7 @@ void BKE_object_where_is_calc_time_ex(Scene *scene, Object *ob, float ctime,
 
 void BKE_object_where_is_calc_time(Scene *scene, Object *ob, float ctime)
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, ctime, NULL, NULL);
+	BKE_object_where_is_calc_time_ex(scene, ob, ctime, NULL, NULL, true);
 }
 
 /* get object transformation matrix without recalculating dependencies and
@@ -2487,11 +2491,11 @@ void BKE_object_where_is_calc_mat4(Scene *scene, Object *ob, float obmat[4][4])
 
 void BKE_object_where_is_calc_ex(Scene *scene, RigidBodyWorld *rbw, Object *ob, float r_originmat[3][3])
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), rbw, r_originmat);
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), rbw, r_originmat, true);
 }
 void BKE_object_where_is_calc(Scene *scene, Object *ob)
 {
-	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), NULL, NULL);
+	BKE_object_where_is_calc_time_ex(scene, ob, BKE_scene_frame_get(scene), NULL, NULL, true);
 }
 
 /* for calculation of the inverse parent transform, only used for editor */

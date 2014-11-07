@@ -406,6 +406,12 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 						//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
 					}
 				}
+				else if (con->type == CONSTRAINT_TYPE_SHRINKWRAP) {
+					/* Constraints which requires the target object surface. */
+					/* TODO(sergey): More cosntarints here? */
+					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_GEOMETRY);
+					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+				}
 				else {
 					/* standard object relation */
 					// TODO: loc vs rot vs scale?
