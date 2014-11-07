@@ -489,17 +489,17 @@ void GPENCIL_OT_layer_move(wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }
 
-/* ******************* Copy Selected Strokes *********************** */
+/* ************************************************ */
+/* Stroke Editing Operators */
 
-static int gp_duplicate_poll(bContext *C)
+/* poll callback for all stroke editing operators */
+static int gp_stroke_edit_poll(bContext *C)
 {
-	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
-
-	/* only if there's an active layer with an active frame */
-	/* TODO: we probably require some selected strokes too? */
-	return (gpl && gpl->actframe);
+	/* NOTE: this is a bit slower, but is the most accurate... */
+	return CTX_DATA_COUNT(C, editable_gpencil_strokes) != 0;
 }
+
+/* ************** Duplicate Selected Strokes **************** */
 
 /* Make copies of selected point segments in a selected stroke */
 static void gp_duplicate_points(const bGPDstroke *gps, ListBase *new_strokes)
@@ -624,13 +624,13 @@ static int gp_duplicate_exec(bContext *C, wmOperator *op)
 void GPENCIL_OT_duplicate(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Copy Strokes";
+	ot->name = "Duplicate Strokes";
 	ot->idname = "GPENCIL_OT_duplicate";
 	ot->description = "Duplicate the selected Grease Pencil strokes";
 	
 	/* callbacks */
 	ot->exec = gp_duplicate_exec;
-	ot->poll = gp_duplicate_poll;
+	ot->poll = gp_stroke_edit_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -680,6 +680,7 @@ void GPENCIL_OT_active_frame_delete(wmOperatorType *ot)
 	ot->name = "Delete Active Frame";
 	ot->idname = "GPENCIL_OT_active_frame_delete";
 	ot->description = "Delete the active frame for the active Grease Pencil datablock";
+	
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* callbacks */
@@ -700,17 +701,6 @@ typedef enum eGP_DeleteMode {
 	GP_DELETEOP_POINTS_DISSOLVE = 3,
 } eGP_DeleteMode;
 
-
-// XXX: fixme
-static int gp_delete_poll(bContext *C)
-{
-	bGPdata *gpd = ED_gpencil_data_get_active(C);
-	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
-
-	/* only if there's an active layer with an active frame */
-	/* TODO: we probably require some selected strokes too? */
-	return (gpl && gpl->actframe);
-}
 
 /* Delete selected strokes */
 static int gp_delete_selected_strokes(bContext *C)
@@ -989,7 +979,7 @@ void GPENCIL_OT_delete(wmOperatorType *ot)
 	/* callbacks */
 	ot->invoke = WM_menu_invoke;
 	ot->exec = gp_delete_exec;
-	ot->poll = gp_delete_poll;
+	ot->poll = gp_stroke_edit_poll;
 	
 	/* flags */
 	ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
