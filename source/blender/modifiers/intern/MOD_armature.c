@@ -114,6 +114,18 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	ArmatureModifierData *amd = (ArmatureModifierData *) md;
+
+	if (amd->object != NULL) {
+		DEG_add_object_relation(node, amd->object, DEG_OB_COMP_GEOMETRY, "Armature Modifier");
+	}
+}
+
 static void deformVerts(ModifierData *md, Object *ob,
                         DerivedMesh *derivedData,
                         float (*vertexCos)[3],
@@ -207,7 +219,7 @@ ModifierTypeInfo modifierType_Armature = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,
