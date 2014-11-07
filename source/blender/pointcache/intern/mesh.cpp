@@ -139,16 +139,10 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	
 	IPolyMeshSchema &schema = m_mesh.getSchema();
 	ICompoundProperty geom_props = schema.getArbGeomParams();
-//	TimeSamplingPtr ts = schema.getTimeSampling();
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	ISampleSelector ss = get_frame_sample_selector(frame);
-//	chrono_t time = ss.getRequestedTime();
-	
-//	std::pair<index_t, chrono_t> sres = ts->getFloorIndex(time, schema.getNumSamples());
-//	chrono_t stime = sres.second;
-//	float sframe = time_to_frame(stime);
 	
 	IPolyMeshSchema::Sample sample;
 	schema.get(sample, ss);
