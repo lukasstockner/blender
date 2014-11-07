@@ -36,6 +36,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_math.h"
 
 #include "BKE_global.h"
 #include "BKE_armature.h"
@@ -84,6 +85,11 @@ void BKE_object_constraints_evaluate(EvaluationContext *eval_ctx,
 		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
 		BKE_constraints_solve(&ob->constraints, cob, ctime);
 		BKE_constraints_clear_evalob(cob);
+
+		/* TODO(sergey): This is kind of retarded.. */
+		/* set negative scale flag in object */
+		if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
+		else ob->transflag &= ~OB_NEG_SCALE;
 	}
 }
 
