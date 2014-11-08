@@ -979,17 +979,25 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		glLineWidth(lthick);
 		glPointSize((float)(gpl->thickness + 2));
 		
-		/* apply xray layer setting */
-		if (gpl->flag & GP_LAYER_NO_XRAY) dflag |=  GP_DRAWDATA_NO_XRAY;
-		else dflag &= ~GP_DRAWDATA_NO_XRAY;
+		/* Add layer drawing settings to the set of "draw flags" 
+		 * NOTE: If the setting doesn't apply, it *must* be cleared,
+		 *       as dflag's carry over from the previous layer
+		 */
+#define GP_DRAWFLAG_APPLY(condition, draw_flag_value)     { \
+			if (condition) dflag |= (draw_flag_value);      \
+			else           dflag &= ~(draw_flag_value);     \
+		} (void)0
 		
-		/* apply volumetric setting */
-		if (gpl->flag & GP_LAYER_VOLUMETRIC) dflag |= GP_DRAWDATA_VOLUMETRIC;
-		else dflag &= ~GP_DRAWDATA_VOLUMETRIC;
+		/* xray... */
+		GP_DRAWFLAG_APPLY((gpl->flag & GP_LAYER_NO_XRAY), GP_DRAWDATA_NO_XRAY);
 		
-		/* apply fill setting */
+		/* volumetric strokes... */
+		GP_DRAWFLAG_APPLY((gpl->flag & GP_LAYER_VOLUMETRIC), GP_DRAWDATA_VOLUMETRIC);
+		
+		/* fill strokes... */
 		// XXX: this is not a very good limit
-		if (gpl->fill[3] > 0.001f)  dflag |= GP_DRAWDATA_FILL;
+		GP_DRAWFLAG_APPLY((gpl->fill[3] > 0.001f), GP_DRAWDATA_FILL);
+#undef GP_DRAWFLAG_APPLY
 		
 		/* draw 'onionskins' (frame left + right) */
 		if ((gpl->flag & GP_LAYER_ONIONSKIN) && !(dflag & GP_DRAWDATA_NO_ONIONS)) {
