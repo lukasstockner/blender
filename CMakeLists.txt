@@ -2530,9 +2530,9 @@ endif()
 
 # Enable C++11
 if(CMAKE_COMPILER_IS_GNUCC)
-	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11")
+	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11 -U__STRICT_ANSI__")
 elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
-	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11")
+	set(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} -std=c++11 -U__STRICT_ANSI__")
 endif()
 
 # Include warnings first, so its possible to disable them with user defined flags

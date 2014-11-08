@@ -39,6 +39,7 @@ incs = [
     '../../blenlib',
     '../../blenloader',
     '../../bmesh',
+    '../../depsgraph',
     '../../gpu',
     '../../imbuf',
     '../../makesdna',
