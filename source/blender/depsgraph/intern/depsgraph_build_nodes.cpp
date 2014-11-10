@@ -231,7 +231,18 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	if (ob->constraints.first) {
 		build_object_constraints(scene, ob);
 	}
-	
+
+	/* Temporary uber-update node, which does everything.
+	 * It is for the being we're porting old dependencies into the new system.
+	 * We'll get rid of this node as soon as all the granular update functions
+	 * are filled in.
+	 *
+	 * TODO(sergey): Get rid of this node.
+	 */
+	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
+	                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_uber_transform, _1, scene, ob),
+	                   "Object UberEval");
+
 	/* object data */
 	if (ob->data) {
 		ID *obdata = (ID *)ob->data;
@@ -270,9 +281,16 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 		build_particles(ob);
 	}
 
+	/* Temporary uber-update node, which does everything.
+	 * It is for the being we're porting old dependencies into the new system.
+	 * We'll get rid of this node as soon as all the granular update functions
+	 * are filled in.
+	 *
+	 * TODO(sergey): Get rid of this node.
+	 */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-	                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_geometry, _1, scene, ob),
-	                   "Object Eval");
+	                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_uber_data, _1, scene, ob),
+	                   "Object Data UberEval");
 
 }
 
@@ -303,7 +321,7 @@ void DepsgraphNodeBuilder::build_object_constraints(Scene *scene, Object *ob)
 {
 	/* create node for constraint stack */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-	                   DEPSOP_TYPE_EXEC, bind(BKE_object_constraints_evaluate, _1, scene, ob),
+	                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_constraints, _1, scene, ob),
 	                   deg_op_name_constraint_stack);
 }
 
@@ -581,7 +599,9 @@ void DepsgraphNodeBuilder::build_rig(Object *ob)
 		                   "Bone Transforms");
 		
 		/* constraints */
-		build_pose_constraints(ob, pchan);
+		if (pchan->constraints.first != NULL) {
+			build_pose_constraints(ob, pchan);
+		}
 		
 		/* IK Solvers...
 		 * - These require separate processing steps are pose-level
@@ -699,7 +719,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 //			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
 			
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_modifier, _1, ob, md),
+			                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_modifier, _1, scene, ob, md),
 			                   deg_op_name_modifier(md));
 		}
 	}

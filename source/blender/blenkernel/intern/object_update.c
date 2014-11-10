@@ -61,48 +61,46 @@
 
 #define PRINT if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW) printf
 
-void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
+void BKE_object_eval_local_transform(EvaluationContext *eval_ctx,
                                      Scene *scene,
                                      Object *ob)
 {
-	float ctime = BKE_scene_frame_get(scene);
 	PRINT("%s on %s\n", __func__, ob->id.name);
-	BKE_object_where_is_calc_time_ex(scene, ob, ctime, scene->rigidbody_world, NULL, false);
-}
 
-void BKE_object_constraints_evaluate(EvaluationContext *eval_ctx,
-                                     Scene *scene,
-                                     Object *ob)
-{
-	float ctime = BKE_scene_frame_get(scene);
 	(void) eval_ctx;  /* Ignored. */
-
-	PRINT("%s on %s\n", __func__, ob->id.name);
-
-	/* solve constraints */
-	if (ob->constraints.first && !(ob->transflag & OB_NO_CONSTRAINTS)) {
-		bConstraintOb *cob;
-		cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
-		BKE_constraints_solve(&ob->constraints, cob, ctime);
-		BKE_constraints_clear_evalob(cob);
-
-		/* TODO(sergey): This is kind of retarded.. */
-		/* set negative scale flag in object */
-		if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
-		else ob->transflag &= ~OB_NEG_SCALE;
-	}
+	(void) scene;  /* Ignored. */
 }
 
-void BKE_object_eval_geometry(EvaluationContext *eval_ctx,
-                              Scene *scene,
-                              Object *ob)
+void BKE_object_eval_constraints(EvaluationContext *eval_ctx,
+                                 Scene *scene,
+                                 Object *ob)
+{
+	PRINT("%s on %s\n", __func__, ob->id.name);
+	(void) eval_ctx;  /* Ignored. */
+	(void) scene;  /* Ignored. */
+	(void) ob;  /* Ignored. */
+}
+
+void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
+                              struct Scene *scene,
+                              struct Object *ob,
+                              struct ModifierData *md)
+{
+	PRINT("%s on %s\n", __func__, ob->id.name);
+	(void) eval_ctx;  /* Ignored. */
+	(void) scene;  /* Ignored. */
+	(void) ob;  /* Ignored. */
+	(void) md;  /* Ignored. */
+}
+
+void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
+                                   Scene *scene,
+                                   Object *ob)
 {
 	ID *data_id = (ID *)ob->data;
 	AnimData *adt = BKE_animdata_from_id(data_id);
 	Key *key;
 	float ctime = BKE_scene_frame_get(scene);
-
-	PRINT("%s on %s\n", __func__, ob->id.name);
 
 	if (G.debug & G_DEBUG_DEPSGRAPH)
 		printf("recalcdata %s\n", ob->id.name + 2);
@@ -237,4 +235,38 @@ void BKE_object_eval_geometry(EvaluationContext *eval_ctx,
 	}
 
 	/* quick cache removed */
+}
+
+void BKE_object_eval_uber_transform(EvaluationContext *eval_ctx,
+                                    Scene *scene,
+                                    Object *ob)
+{
+	(void) eval_ctx;  /* Ignored. */
+	(void) scene;  /* Ignored. */
+	/* TODO(sergey): Currently it's a duplicate of logic in BKE_object_handle_update_ex(). */
+	/* Handle proxy copy for target, */
+	if (ob->id.lib && ob->proxy_from) {
+		if (ob->proxy_from->proxy_group) {
+			/* Transform proxy into group space. */
+			Object *obg = ob->proxy_from->proxy_group;
+			invert_m4_m4(obg->imat, obg->obmat);
+			mul_m4_m4m4(ob->obmat, obg->imat, ob->proxy_from->obmat);
+			/* Should always be true. */
+			if (obg->dup_group) {
+				add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
+			}
+		}
+		else
+			copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
+	}
+	else
+		BKE_object_where_is_calc_ex(scene, scene->rigidbody_world, ob, NULL);
+}
+
+void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
+                               Scene *scene,
+                               Object *ob)
+{
+	PRINT("%s on %s\n", __func__, ob->id.name);
+	BKE_object_handle_data_update(eval_ctx, scene, ob);
 }

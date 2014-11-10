@@ -219,10 +219,18 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	build_animdata(&ob->id);
 	
 	/* object constraints */
+	OperationKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, deg_op_name_object_local_transform);
+	OperationKey ob_ubereval_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, "Object UberEval");
 	if (ob->constraints.first) {
 		build_constraints(scene, &ob->id, DEPSNODE_TYPE_TRANSFORM, "", &ob->constraints);
+		OperationKey constraint_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, deg_op_name_constraint_stack);
+		add_relation(local_transform_key, constraint_key, DEPSREL_TYPE_OPERATION, "Constraint Stack");
+		add_relation(constraint_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Constraint Stack");
 	}
-	
+	else {
+		add_relation(local_transform_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Transform");
+	}
+
 	/* object data */
 	if (ob->data) {
 		ID *obdata_id = (ID *)ob->data;
@@ -262,6 +270,11 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	if (ob->particlesystem.first) {
 		build_particles(scene, ob);
 	}
+
+	/* TODO(sergey): This is a temp solution for now only/ */
+	ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
+	ComponentKey geometry_key(&ob->id, DEPSNODE_TYPE_GEOMETRY);
+	add_relation(transform_key, geometry_key, DEPSREL_TYPE_COMPONENT_ORDER, "Object Transform");
 }
 
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)
@@ -336,14 +349,15 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
                                                  ListBase *constraints)
 {
 	OperationKey constraint_op_key(id, component_type, component_subdata, deg_op_name_constraint_stack);
-	
+
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
 		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+
 		/* invalid constraint type... */
 		if (cti == NULL)
 			continue;
-		
+
 		/* special case for camera tracking -- it doesn't use targets to define relations */
 		// TODO: we can now represent dependencies in a much richer manner, so review how this is done...
 		if (ELEM(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER, CONSTRAINT_TYPE_OBJECTSOLVER)) {
@@ -393,7 +407,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				}
 				else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 					/* bone */
-					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE);
+					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget);
 					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 				}
 				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
@@ -780,8 +794,8 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	OperationKey init_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_init);
 	OperationKey flush_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_flush);
 	
-	add_relation(rebuild_key, init_key, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Rebuild -> Pose Init] DepsRel");
-	add_relation(init_key, flush_key, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup] DepsRel");
+	add_relation(rebuild_key, init_key, DEPSREL_TYPE_OPERATION, "[Pose Rebuild -> Pose Init] DepsRel");
+	add_relation(init_key, flush_key, DEPSREL_TYPE_OPERATION, "[Pose Init -> Pose Cleanup] DepsRel");
 	
 	/* bones */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
@@ -798,7 +812,15 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		}
 		
 		/* constraints */
-		build_constraints(scene, &ob->id, DEPSNODE_TYPE_BONE, pchan->name, &pchan->constraints);
+		if (pchan->constraints.first != NULL) {
+			build_constraints(scene, &ob->id, DEPSNODE_TYPE_BONE, pchan->name, &pchan->constraints);
+			OperationKey transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Transforms");
+			OperationKey constraints_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, deg_op_name_constraint_stack);
+			add_relation(transforms_key, constraints_key, DEPSREL_TYPE_OPERATION, "Constraints Stack");
+		}
+
+		/* TODO(sergey): Assume for now that pose flush depends on all the pose channels/ */
+		add_relation(bone_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 	}
 	
 	/* IK Solvers...
@@ -826,6 +848,10 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			}
 		}
 	}
+
+	ComponentKey pose_eval_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
+	OperationKey ob_ubereval_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, "Object UberEval");
+	add_relation(pose_eval_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Pose `relation");
 }
 
 /* Shapekeys */
@@ -849,10 +875,11 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
 	ComponentKey geom_key(&ob->id, DEPSNODE_TYPE_GEOMETRY);
 	ComponentKey obdata_geom_key(obdata, DEPSNODE_TYPE_GEOMETRY);
+	OperationKey geom_eval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Geometry Eval");
 	
 	/* link components to each other */
 	add_relation(obdata_geom_key, geom_key, DEPSREL_TYPE_DATABLOCK, "Object Geometry Base Data");
-	
+
 	/* type-specific node/links */
 	switch (ob->type) {
 		case OB_MESH:
@@ -919,17 +946,18 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
 			OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, deg_op_name_modifier(md));
-			
-			/* stack relation: modifier depends on previous modifier in the stack */
-			if (md->prev)
+
+			if (md->prev) {
+				/* Stack relation: modifier depends on previous modifier in the stack */
 				add_relation(prev_mod_key, mod_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Modifier Stack");
-			
+			}
+			else {
+				/* Stack relation: first modifier depends on the geometry. */
+				add_relation(geom_eval_key, mod_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Modifier Stack");
+			}
+
 			if (mti->updateDepsgraph) {
-				/* TODO(sergey): Currently we hook the relation to the uberupdate node,
-				 * om the future we'll hook it up to the particular modifier node.
-				 */
-				OperationKey eval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Object Eval");
-				DepsNodeHandle handle = create_node_handle(eval_key);
+				DepsNodeHandle handle = create_node_handle(mod_key);
 				mti->updateDepsgraph(md, scene, ob, &handle);
 			}
 			
@@ -952,6 +980,20 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	/* geometry collision */
 	if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
 		// add geometry collider relations
+	}
+
+	/* Make sure uber update is the last in the dependencies.
+	 *
+	 * TODO(sergey): Get rid of this node.
+	 */
+	OperationKey obdata_ubereval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Object Data UberEval");
+	if (ob->modifiers.last) {
+		ModifierData *md = (ModifierData *)ob->modifiers.last;
+		OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, deg_op_name_modifier(md));
+		add_relation(mod_key, obdata_ubereval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Object Geometry UberEval");
+	}
+	else {
+		add_relation(geom_eval_key, obdata_ubereval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Object Geometry UberEval");
 	}
 }
 

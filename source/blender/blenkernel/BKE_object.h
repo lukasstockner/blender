@@ -50,6 +50,7 @@ struct MovieClip;
 struct Main;
 struct RigidBodyWorld;
 struct HookModifierData;
+struct ModifierData;
 
 void BKE_object_workob_clear(struct Object *workob);
 void BKE_object_workob_calc_parent(struct Scene *scene, struct Object *ob, struct Object *workob);
@@ -120,8 +121,7 @@ void BKE_object_where_is_calc(struct Scene *scene, struct Object *ob);
 void BKE_object_where_is_calc_ex(struct Scene *scene, struct RigidBodyWorld *rbw, struct Object *ob, float r_originmat[3][3]);
 void BKE_object_where_is_calc_time(struct Scene *scene, struct Object *ob, float ctime);
 void BKE_object_where_is_calc_time_ex(struct Scene *scene, struct Object *ob, float ctime,
-                                      struct RigidBodyWorld *rbw, float r_originmat[3][3],
-                                      bool do_constraints);
+                                      struct RigidBodyWorld *rbw, float r_originmat[3][3]);
 void BKE_object_where_is_calc_mat4(struct Scene *scene, struct Object *ob, float obmat[4][4]);
 
 /* possibly belong in own moduke? */
@@ -171,15 +171,27 @@ void BKE_object_tfm_protected_restore(struct Object *ob,
                                       const ObjectTfmProtectedChannels *obtfm,
                                       const short protectflag);
 
+/* Dependency graph evaluation callbacks. */
 void BKE_object_eval_local_transform(struct EvaluationContext *eval_ctx,
                                      struct Scene *scene,
                                      struct Object *ob);
-void BKE_object_constraints_evaluate(struct EvaluationContext *eval_ctx,
-                                     struct Scene *scene,
-                                     struct Object *ob);
-void BKE_object_eval_geometry(struct EvaluationContext *eval_ctx,
+void BKE_object_eval_constraints(struct EvaluationContext *eval_ctx,
+                                 struct Scene *scene,
+                                 struct Object *ob);
+void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
                               struct Scene *scene,
-                              struct Object *ob);
+                              struct Object *ob,
+                              struct ModifierData *md);
+void BKE_object_eval_uber_transform(struct EvaluationContext *eval_ctx,
+                                    struct Scene *scene,
+                                    struct Object *ob);
+void BKE_object_eval_uber_data(struct EvaluationContext *eval_ctx,
+                               struct Scene *scene,
+                               struct Object *ob);
+
+void BKE_object_handle_data_update(struct EvaluationContext *eval_ctx,
+                                   struct Scene *scene,
+                                   struct Object *ob);
 void BKE_object_handle_update(struct EvaluationContext *eval_ctx, struct Scene *scene, struct Object *ob);
 void BKE_object_handle_update_ex(struct EvaluationContext *eval_ctx,
                                  struct Scene *scene, struct Object *ob,

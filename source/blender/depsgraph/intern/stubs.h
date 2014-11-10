@@ -43,7 +43,6 @@ void BKE_rigidbody_eval_simulation(struct EvaluationContext *eval_ctx, Scene *sc
 void BKE_rigidbody_object_sync_transforms(struct EvaluationContext *eval_ctx, Scene *scene, Object *ob); // BKE_rigidbody_sync_transforms
 
 void BKE_object_eval_parent(struct EvaluationContext *eval_ctx, Object *ob);
-void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx, Object *ob, ModifierData *md);
 
 void BKE_mesh_eval_geometry(struct EvaluationContext *eval_ctx, Mesh *mesh);  // wrapper around makeDerivedMesh() - which gets BMesh, etc. data...
 void BKE_mball_eval_geometry(struct EvaluationContext *eval_ctx, MetaBall *mball); // BKE_displist_make_mball

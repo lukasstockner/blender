@@ -81,7 +81,6 @@ void BKE_rigidbody_eval_simulation(EvaluationContext *eval_ctx, Scene *scene) {}
 void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob) {}
 
 void BKE_object_eval_parent(EvaluationContext *eval_ctx, Object *ob) {}
-void BKE_object_eval_modifier(EvaluationContext *eval_ctx, Object *ob, ModifierData *md) {}
 
 void BKE_mesh_eval_geometry(EvaluationContext *eval_ctx, Mesh *mesh) {}
 void BKE_mball_eval_geometry(EvaluationContext *eval_ctx, MetaBall *mball) {}
