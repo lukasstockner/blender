@@ -209,6 +209,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	 * time source.
 	 */
 	if (object_modifiers_use_time(ob)) {
+		/* TODO(sergey): Replace with time relation. */
 		m_graph->add_new_time_relation(m_graph->find_id_node(&ob->id));
 	}
 
@@ -451,9 +452,12 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 	/* animation */
 	if (adt->action || adt->nla_tracks.first) {
 		/* wire up dependency to time source */
-		TimeSourceKey time_src_key;
-		add_relation(time_src_key, adt_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation] DepsRel");
-		
+		//TimeSourceKey time_src_key;
+		//add_relation(time_src_key, adt_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation] DepsRel");
+
+		/* TODO(sergey): Replace with time relation. */
+		m_graph->add_new_time_relation(m_graph->find_id_node(id));
+
 		// XXX: Hook up specific update callbacks for special properties which may need it...
 	}
 	
@@ -990,10 +994,15 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	if (ob->modifiers.last) {
 		ModifierData *md = (ModifierData *)ob->modifiers.last;
 		OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, deg_op_name_modifier(md));
-		add_relation(mod_key, obdata_ubereval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Object Geometry UberEval");
+		add_relation(mod_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
 	}
 	else {
-		add_relation(geom_eval_key, obdata_ubereval_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Object Geometry UberEval");
+		add_relation(geom_eval_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
+	}
+
+	if (ob->adt) {
+		ComponentKey adt_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
+		add_relation(adt_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
 	}
 }
 

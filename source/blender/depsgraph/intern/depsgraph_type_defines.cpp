@@ -62,7 +62,15 @@ extern "C" {
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
-void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve) {}
+void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve, TimeSourceDepsNode *time_src)
+{
+	printf("%s on %s\n", __func__, id->name);
+	if (ID_REAL_USERS(id) > 0) {
+		AnimData *adt = BKE_animdata_from_id(id);
+		float ctime = time_src->cfra;
+		BKE_animsys_evaluate_animdata(NULL, id, adt, ctime, ADT_RECALC_ANIM);
+	}
+}
 
 void BKE_pose_constraints_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan) {}
 
@@ -100,6 +108,15 @@ const string deg_op_name_pose_eval_flush = "Flush Pose Eval";
 const string deg_op_name_ik_solver = "IK Solver";
 const string deg_op_name_spline_ik_solver = "Spline IK Solver";
 const string deg_op_name_psys_eval = "PSys Eval";
+string deg_op_name_action_fcurve(const bAction *action, const FCurve *fcu)
+{
+	if (fcu->rna_path != NULL) {
+		return string_format("Action FCurve @ %s:%s[%d]", action->id.name + 2, fcu->rna_path, fcu->array_index);
+	}
+	else {
+		return string_format("Action FCurve @ %s:%p", action->id.name, fcu);
+	}
+}
 string deg_op_name_driver(const ChannelDriver *driver)
 {
 	return string_format("Driver @ %p", driver);

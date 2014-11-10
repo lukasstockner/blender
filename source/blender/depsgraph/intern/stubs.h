@@ -23,8 +23,9 @@ struct Lattice;
 struct ModifierData;
 struct ParticleSystem;
 struct EvaluationContext;
+struct TimeSourceDepsNode;
 
-void BKE_animsys_eval_driver(struct EvaluationContext *eval_ctx, ID *id, FCurve *fcurve);
+void BKE_animsys_eval_driver(struct EvaluationContext *eval_ctx, ID *id, FCurve *fcurve, TimeSourceDepsNode *time_src);
 
 void BKE_pose_constraints_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan);
 
