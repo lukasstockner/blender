@@ -112,8 +112,8 @@ void EDBM_update_scratch_from_active(struct Object *ob);
  * verts select/deselect edges and faces, if in edge select mode,
  * edges select/deselect faces and vertices, and in face select mode faces select/deselect
  * edges and vertices.*/
-void EDBM_select_more(struct BMEditMesh *em);
-void EDBM_select_less(struct BMEditMesh *em);
+void EDBM_select_more(struct BMEditMesh *em, const bool use_face_step);
+void EDBM_select_less(struct BMEditMesh *em, const bool use_face_step);
 
 void EDBM_selectmode_flush_ex(struct BMEditMesh *em, const short selectmode);
 void EDBM_selectmode_flush(struct BMEditMesh *em);
