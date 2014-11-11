@@ -74,20 +74,13 @@ static void copyData(ModifierData *md, ModifierData *target)
 static void freeData(ModifierData *md)
 {
 	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
-	BKE_ptcache_free(pcmd->point_cache);
-}
-
-typedef enum ePointCacheModifierMode {
-	MOD_POINTCACHE_READ,
-	MOD_POINTCACHE_WRITE,
-} ePointCacheModifierMode;
-
-static ePointCacheModifierMode getMode(PointCacheModifierData *pcmd)
-{
+	
+	if (pcmd->reader)
+		PTC_reader_free(pcmd->reader);
 	if (pcmd->writer)
-		return MOD_POINTCACHE_WRITE;
-	else
-		return MOD_POINTCACHE_READ;
+		PTC_writer_free(pcmd->writer);
+	
+	BKE_ptcache_free(pcmd->point_cache);
 }
 
 static bool dependsOnTime(ModifierData *md)
@@ -96,37 +89,35 @@ static bool dependsOnTime(ModifierData *md)
 	
 	/* considered time-dependent when reading from cache file */
 	/* TODO check cache frame range here to optimize */
-	return getMode(pcmd) == MOD_POINTCACHE_READ;
+	return PTC_mod_point_cache_get_mode(pcmd) == MOD_POINTCACHE_MODE_READ;
 }
 
 static DerivedMesh *pointcache_do(PointCacheModifierData *pcmd, Object *ob, DerivedMesh *dm)
 {
 	Scene *scene = pcmd->modifier.scene;
 	const float cfra = BKE_scene_frame_get(scene);
-	const ePointCacheModifierMode mode = getMode(pcmd);
+	ePointCacheModifierMode mode = PTC_mod_point_cache_get_mode(pcmd);
 	
 	DerivedMesh *finaldm = dm;
-
-	if (mode == MOD_POINTCACHE_WRITE) {
-		BLI_assert(pcmd->writer != NULL);
-		
+	
+	if (mode == MOD_POINTCACHE_MODE_NONE) {
+		mode = PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_READ);
+	}
+	
+	if (mode == MOD_POINTCACHE_MODE_WRITE) {
 		pcmd->output_dm = dm;
 		PTC_write_sample(pcmd->writer);
 		pcmd->output_dm = NULL;
 	}
-	else if (mode == MOD_POINTCACHE_READ) {
-		struct PTCReader *reader = PTC_reader_point_cache(scene, ob, pcmd);
-		
-		if (PTC_read_sample(reader, cfra) == PTC_READ_SAMPLE_INVALID) {
+	else if (mode == MOD_POINTCACHE_MODE_READ) {
+		if (PTC_read_sample(pcmd->reader, cfra) == PTC_READ_SAMPLE_INVALID) {
 			modifier_setError(&pcmd->modifier, "%s", "Cannot read cache file");
 		}
 		else {
-			DerivedMesh *result = PTC_reader_point_cache_acquire_result(reader);
+			DerivedMesh *result = PTC_reader_point_cache_acquire_result(pcmd->reader);
 			if (result)
 				finaldm = result;
 		}
-		
-		PTC_reader_free(reader);
 	}
 	
 	return finaldm;

@@ -90,10 +90,19 @@ struct PTCWriter *PTC_writer_dynamicpaint(struct Scene *scene, struct Object *ob
 struct PTCReader *PTC_reader_dynamicpaint(struct Scene *scene, struct Object *ob, struct DynamicPaintSurface *surface);
 
 /* Modifier Stack */
+typedef enum ePointCacheModifierMode {
+	MOD_POINTCACHE_MODE_NONE,
+	MOD_POINTCACHE_MODE_READ,
+	MOD_POINTCACHE_MODE_WRITE,
+} ePointCacheModifierMode;
+
 struct PTCWriter *PTC_writer_point_cache(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd);
 struct PTCReader *PTC_reader_point_cache(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd);
 struct DerivedMesh *PTC_reader_point_cache_acquire_result(struct PTCReader *reader);
 void PTC_reader_point_cache_discard_result(struct PTCReader *reader);
+ePointCacheModifierMode PTC_mod_point_cache_get_mode(struct PointCacheModifierData *pcmd);
+/* returns the actual new mode, in case a change didn't succeed */
+ePointCacheModifierMode PTC_mod_point_cache_set_mode(struct Scene *scene, struct Object *ob, struct PointCacheModifierData *pcmd, ePointCacheModifierMode mode);
 
 #ifdef __cplusplus
 } /* extern C */

@@ -1376,6 +1376,7 @@ typedef struct PointCacheModifierData {
 	
 	struct PointCache *point_cache;
 	
+	struct PTCReader *reader;
 	struct PTCWriter *writer;
 	struct DerivedMesh *output_dm;
 } PointCacheModifierData;

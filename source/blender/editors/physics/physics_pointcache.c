@@ -127,10 +127,10 @@ static void ptcache_export_endjob(void *customdata)
 	
 	/* free the cache writer (closes output file) */
 	if (RNA_struct_is_a(data->user_ptr.type, &RNA_PointCacheModifier)) {
+		Object *ob = (Object *)data->user_ptr.id.data;
 		PointCacheModifierData *pcmd = (PointCacheModifierData *)data->user_ptr.data;
 		
-		PTC_writer_free(pcmd->writer);
-		pcmd->writer = NULL;
+		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_NONE);
 	}
 	else {
 		PTC_writer_free(data->writer);
@@ -165,7 +165,7 @@ static int ptcache_export_exec(bContext *C, wmOperator *op)
 		Object *ob = (Object *)user_ptr.id.data;
 		PointCacheModifierData *pcmd = (PointCacheModifierData *)user_ptr.data;
 		
-		pcmd->writer = PTC_writer_point_cache(scene, ob, pcmd);
+		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_WRITE);
 	}
 	else {
 		writer = PTC_writer_from_rna(scene, &user_ptr);

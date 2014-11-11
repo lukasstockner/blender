@@ -249,3 +249,54 @@ void PTC_reader_point_cache_discard_result(PTCReader *_reader)
 	PTC::PointCacheReader *reader = (PTC::PointCacheReader *)_reader;
 	reader->discard_result();
 }
+
+ePointCacheModifierMode PTC_mod_point_cache_get_mode(PointCacheModifierData *pcmd)
+{
+	/* can't have simultaneous read and write */
+	if (pcmd->writer) {
+		BLI_assert(!pcmd->reader);
+		return MOD_POINTCACHE_MODE_WRITE;
+	}
+	else if (pcmd->reader) {
+		BLI_assert(!pcmd->writer);
+		return MOD_POINTCACHE_MODE_READ;
+	}
+	else
+		return MOD_POINTCACHE_MODE_NONE;
+}
+
+ePointCacheModifierMode PTC_mod_point_cache_set_mode(Scene *scene, Object *ob, PointCacheModifierData *pcmd, ePointCacheModifierMode mode)
+{
+	switch (mode) {
+		case MOD_POINTCACHE_MODE_READ:
+			if (pcmd->writer) {
+				PTC_writer_free(pcmd->writer);
+				pcmd->writer = NULL;
+			}
+			if (!pcmd->reader) {
+				pcmd->reader = PTC_reader_point_cache(scene, ob, pcmd);
+			}
+			return pcmd->reader ? MOD_POINTCACHE_MODE_READ : MOD_POINTCACHE_MODE_NONE;
+		
+		case MOD_POINTCACHE_MODE_WRITE:
+			if (pcmd->reader) {
+				PTC_reader_free(pcmd->reader);
+				pcmd->reader = NULL;
+			}
+			if (!pcmd->writer) {
+				pcmd->writer = PTC_writer_point_cache(scene, ob, pcmd);
+			}
+			return pcmd->writer ? MOD_POINTCACHE_MODE_WRITE : MOD_POINTCACHE_MODE_NONE;
+		
+		default:
+			if (pcmd->writer) {
+				PTC_writer_free(pcmd->writer);
+				pcmd->writer = NULL;
+			}
+			if (pcmd->reader) {
+				PTC_reader_free(pcmd->reader);
+				pcmd->reader = NULL;
+			}
+			return MOD_POINTCACHE_MODE_NONE;
+	}
+}

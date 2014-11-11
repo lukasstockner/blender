@@ -4794,6 +4794,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
 
 			pcmd->point_cache = newdataadr(fd, pcmd->point_cache);
+			pcmd->reader = NULL;
+			pcmd->writer = NULL;
 		}
 	}
 }
