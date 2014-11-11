@@ -45,6 +45,7 @@ private:
 	
 	AbcGeom::OPolyMesh m_mesh;
 	AbcGeom::OBoolGeomParam m_param_smooth;
+	AbcGeom::OInt32ArrayProperty m_prop_edges;
 };
 
 class PointCacheReader : public Reader {

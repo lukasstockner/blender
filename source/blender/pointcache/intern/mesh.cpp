@@ -49,8 +49,11 @@ PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierD
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();
+	OCompoundProperty user_props = schema.getUserProperties();
 	
 	m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
+	
+	m_prop_edges = OInt32ArrayProperty(user_props, "edges", 0);
 }
 
 PointCacheWriter::~PointCacheWriter()
@@ -68,9 +71,11 @@ void PointCacheWriter::write_sample()
 	MVert *mv, *mverts = output_dm->getVertArray(output_dm);
 	MLoop *ml, *mloops = output_dm->getLoopArray(output_dm);
 	MPoly *mp, *mpolys = output_dm->getPolyArray(output_dm);
+	MEdge *me, *medges = output_dm->getEdgeArray(output_dm);
 	int totvert = output_dm->getNumVerts(output_dm);
 	int totloop = output_dm->getNumLoops(output_dm);
 	int totpoly = output_dm->getNumPolys(output_dm);
+	int totedge = output_dm->getNumEdges(output_dm);
 	int i;
 	
 	std::vector<V3f> positions;
@@ -81,6 +86,8 @@ void PointCacheWriter::write_sample()
 	counts.reserve(totpoly);
 	std::vector<bool_t> smooth;
 	smooth.reserve(totpoly);
+	std::vector<int> edges;
+	edges.reserve(totedge * 2);
 	
 	// TODO decide how to handle vertex/face normals, in caching vs. export ...
 //	std::vector<V2f> uvs;
@@ -97,6 +104,10 @@ void PointCacheWriter::write_sample()
 		counts.push_back(mp->totloop);
 		smooth.push_back((bool)(mp->flag & ME_SMOOTH));
 	}
+	for (i = 0, me = medges; i < totedge; ++i, ++me) {
+		edges.push_back(me->v1);
+		edges.push_back(me->v2);
+	}
 	
 	OPolyMeshSchema::Sample sample = OPolyMeshSchema::Sample(
 	            P3fArraySample(positions),
@@ -109,6 +120,9 @@ void PointCacheWriter::write_sample()
 	sample_smooth.setVals(BoolArraySample(smooth));
 	sample_smooth.setScope(kUniformScope);
 	m_param_smooth.set(sample_smooth);
+	
+	OInt32ArrayProperty::sample_type sample_edges(edges);
+	m_prop_edges.set(sample_edges);
 }
 
 
@@ -139,6 +153,7 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	
 	IPolyMeshSchema &schema = m_mesh.getSchema();
 	ICompoundProperty geom_props = schema.getArbGeomParams();
+	ICompoundProperty user_props = schema.getUserProperties();
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
@@ -162,10 +177,19 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 		smooth = sample_smooth.getVals();
 	}
 	
-	m_result = CDDM_new(totverts, 0, 0, totloops, totpolys);
+	IInt32ArrayProperty prop_edges(user_props, "edges", 0);
+	Int32ArraySamplePtr edges;
+	if (prop_edges) {
+		prop_edges.get(edges, ss);
+	}
+	BLI_assert(edges->size() % 2 == 0); /* 2 vertex indices per edge */
+	int totedges = edges->size() >> 1;
+	
+	m_result = CDDM_new(totverts, totedges, 0, totloops, totpolys);
 	MVert *mv, *mverts = m_result->getVertArray(m_result);
 	MLoop *ml, *mloops = m_result->getLoopArray(m_result);
 	MPoly *mp, *mpolys = m_result->getPolyArray(m_result);
+	MEdge *me, *medges = m_result->getEdgeArray(m_result);
 	int i;
 	
 	const V3f *positions_data = positions->get();
@@ -200,7 +224,12 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 			m_result->dirty = (DMDirtyFlag)((int)m_result->dirty | DM_DIRTY_NORMALS);
 	}
 	
-	CDDM_calc_edges(m_result);
+	const int32_t *edges_data = edges->get();
+	for (i = 0, me = medges; i < totedges; ++i, ++me) {
+		me->v1 = edges_data[(i << 1)];
+		me->v2 = edges_data[(i << 1) + 1];
+	}
+	
 	DM_ensure_normals(m_result);
 //	if (!DM_is_valid(m_result))
 //		return PTC_READ_SAMPLE_INVALID;
