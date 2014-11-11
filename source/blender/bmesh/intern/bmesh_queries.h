@@ -151,6 +151,8 @@ int   BM_mesh_calc_edge_groups(BMesh *bm, int *r_groups_array, int (**r_group_in
                                BMElemFilterFunc filter_fn, void *user_data,
                                const char hflag_test) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(1, 2, 3);
 
+unsigned int BM_mesh_topology_hash(BMesh *bm);
+
 /* not really any good place  to put this */
 float bmesh_subd_falloff_calc(const int falloff, float val) ATTR_WARN_UNUSED_RESULT;
 

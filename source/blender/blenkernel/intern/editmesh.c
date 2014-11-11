@@ -250,110 +250,21 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 
 /* ==================== topology hashing ======================= */
 
- static unsigned int mm2_hash(char *key, unsigned int len, unsigned int seed) {
-		const unsigned int m = 0x5bd1e995;
-		char r = 24;
-		unsigned int h = len + seed;
-		for (; len >= 4; len -= 4, key += 4) {
-			unsigned int k = *(unsigned int *) key * m;
-			k ^= k >> r;
-			k *= m;
-			h = (h * m) ^ k;
-		}
-
-		switch (len) {
-			/* everything fall-through */
-			case 3: 
-				h ^= key[2] << 16;
-			case 2: 
-				h ^= key[1] << 8;
-			case 1: 
-				h ^= key[0];
-				h *= m;
-			default: /* do nothing */;
-		}
-		h ^= h >> 13;
-		h *= m;
-		h ^= h >> 15;
-		return h;
-}
-
-
- static int hashfunc(void *data, int len, int oldhash)
-{
-	return (int) mm2_hash(data, len, oldhash);
-}
-
- static int hashloop_topo(BMLoop *l, int oldhash)
-{
-	/* skip header, don't track customdata */
-	return hashfunc(((char *)l) + sizeof(BMHeader), sizeof(BMLoop) - sizeof(BMHeader), oldhash);
-}
-
- static int hashedge_topo(BMEdge *bme, int oldhash)
-{
-	return hashfunc(&bme->v1, sizeof(BMEdge) - sizeof(BMHeader) - sizeof(BMFlagLayer *), oldhash);
-}
-
- static int hashface_topo(BMFace *f, int oldhash)
-{
-	/* skip header & flags & face normals and material */
-	int a = f->len + GET_INT_FROM_POINTER(f->l_first);
-	return hashfunc(&a, sizeof(int), oldhash);
-}
-
- static int bmesh_topohash(BMesh *bm)
-{
-	BMIter iter;
-	BMFace *f;
-	BMVert *v;
-
-	int hash = bm->totedge + bm->totvert + bm->totloop + bm->totface;
-
-	if (!hash) {
-		return 0;
-	}
-
-	if (bm->totedge == 0 && bm->totface == 0) {
-		/* cloud mesh */
-		return hashfunc(&bm->totvert, sizeof(int), hash);
-	}
-
-	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
-		BM_elem_flag_set(f, BM_ELEM_TAG, false);
-	}
-
-	/* todo -- have a deeper look onto how we can do this the fastest and safest way */
-	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
-		if (v->e) {
-			hash = hashedge_topo(v->e, hash);
-			if (v->e->l && !BM_elem_flag_test_bool(v->e->l->f, BM_ELEM_TAG)) {
-				hash = hashloop_topo(v->e->l, hash);
-				hash = hashface_topo(v->e->l->f, hash);
-				BM_elem_flag_set(v->e->l->f, BM_ELEM_TAG, true);
-			}
-		}
-	}
-
-	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
-		BM_elem_flag_set(f, BM_ELEM_TAG, false);
-	}
-
-	return hash;
-}
-
 void BKE_editmesh_topochange_calc(BMEditMesh *em)
 {
-	em->topochange.topohash = bmesh_topohash(em->bm);
-	memcpy(&em->topochange.totvert, &em->bm->totvert, sizeof(int) * 4);
+	em->topochange.topohash = BM_mesh_topology_hash(em->bm);
+	em->topochange.totvert = em->bm->totvert;
+	em->topochange.totedge = em->bm->totedge;
+	em->topochange.totloop = em->bm->totloop;
+	em->topochange.totface = em->bm->totface;
 }
-
 
 bool BKE_editmesh_topo_has_changed(BMEditMesh *em)
 {
-	/* fast way to compare em->bm->totvert/totface/totetc with topochange */
-	if (!memcmp(&em->bm->totvert, &em->topochange.totvert, sizeof(int) * 4)) {
-		int hash = bmesh_topohash(em->bm);
+	if (em->bm->totvert == em->topochange.totvert || em->bm->totedge == em->topochange.totedge ||
+	    em->bm->totloop == em->topochange.totloop || em->bm->totface == em->topochange.totface)
+	{
+		int hash = BM_mesh_topology_hash(em->bm);
 		if (hash == em->topochange.topohash)
 			return false;
 		else return true;

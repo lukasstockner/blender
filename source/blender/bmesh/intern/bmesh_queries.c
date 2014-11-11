@@ -2350,6 +2350,140 @@ int BM_mesh_calc_edge_groups(BMesh *bm, int *r_groups_array, int (**r_group_inde
 	return group_curr;
 }
 
+/* TOPO hashing helpers. */
+/* murmur2A hashing func. */
+/* TODO: should go into BLI! */
+
+#define MM2A_M 0x5bd1e995
+
+#define MM2A_MIX(h, k)           \
+{                                \
+	(k) *= MM2A_M;               \
+	(k) ^= (k) >> 24;            \
+	(k) *= MM2A_M;               \
+	(h) *= ((h) * MM2A_M) ^ (k); \
+} (void)0
+
+typedef struct Murmur2A {
+	uint32_t hash;
+	uint32_t tail;
+	uint32_t count;
+	uint32_t size;
+} Murmur2A;
+
+static void mm2a_mix_tail(Murmur2A *mm2, const unsigned char *data, size_t len)
+{
+	while (len && ((len < 4) || mm2->count)) {
+		mm2->tail |= *(uint32_t *)(data++) << (mm2->count * 8);
+
+		mm2->count++;
+		len--;
+
+		if (mm2->count == 4) {
+			MM2A_MIX(mm2->hash, mm2->tail);
+			mm2->tail = 0;
+			mm2->count = 0;
+		}
+	}
+}
+
+static void mm2a_init(Murmur2A *mm2, uint32_t seed)
+{
+	mm2->hash  = seed;
+	mm2->tail  = 0;
+	mm2->count = 0;
+	mm2->size  = 0;
+}
+
+static void mm2a_add(Murmur2A *mm2, const unsigned char *data, size_t len)
+{
+	mm2->size += (uint32_t)len;
+
+	mm2a_mix_tail(mm2, data, len);
+
+	for (; len >= 4; data += 4, len -= 4) {
+		uint32_t k = *(uint32_t *)data;
+
+		MM2A_MIX(mm2->hash, k);
+	}
+
+	mm2a_mix_tail(mm2, data, len);
+}
+
+static void mm2a_add_int(Murmur2A *mm2, int data)
+{
+	mm2a_add(mm2, (const unsigned char *)&data, sizeof(data));
+}
+
+static uint32_t mm2a_end(Murmur2A *mm2)
+{
+	MM2A_MIX(mm2->hash, mm2->tail);
+	MM2A_MIX(mm2->hash, mm2->size);
+
+	mm2->hash ^= mm2->hash >> 13;
+	mm2->hash *= MM2A_M;
+	mm2->hash ^= mm2->hash >> 15;
+
+	return mm2->hash;
+}
+
+/**
+ * Calculate a hash of current topology.
+ *
+ * \param bm The BMesh.
+ * \return The hash, as an unsigned integer.
+ *
+ * \note We use vertex indices as core 'reference'.
+ */
+unsigned int BM_mesh_topology_hash(BMesh *bm)
+{
+	BMIter iter;
+	BMEdge *e;
+	BMLoop *l;
+	BMFace *f;
+
+	Murmur2A mm2;
+
+	unsigned int seed = (unsigned int)(bm->totvert + bm->totedge + bm->totloop + bm->totface);
+
+	if (!seed) {
+		return seed;
+	}
+
+	if (bm->totedge == 0) {
+		/* Cloud mesh, only vertices, totvert is good enough. */
+		return seed;
+	}
+
+	/* Now, we need vert indices! */
+	BM_mesh_elem_index_ensure(bm, BM_VERT);
+
+	/* Init the murmur hash. */
+	mm2a_init(&mm2, seed);
+
+	/* Compute edge topology, using only vert indices. */
+	BM_ITER_MESH(e, &iter, bm, BM_EDGES_OF_MESH) {
+		/* Edge topology is fully defined by its two vertices. */
+		mm2a_add_int(&mm2, BM_elem_index_get(e->v1));
+		mm2a_add_int(&mm2, BM_elem_index_get(e->v2));
+	}
+
+	if (bm->totface == 0) {
+		/* No face (nor loop), we are done. */
+		return mm2a_end(&mm2);
+	}
+
+	/* Else, we have to check all faces too - it *is* possible to change topology without affecting edges! */
+	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
+		/* Face topology is fully defined by its vertices and their order in it. */
+		BM_ITER_ELEM(l, &iter, f, BM_LOOPS_OF_FACE) {
+			mm2a_add_int(&mm2, BM_elem_index_get(l->v));
+		}
+	}
+
+	return mm2a_end(&mm2);
+}
+
 float bmesh_subd_falloff_calc(const int falloff, float val)
 {
 	switch (falloff) {
