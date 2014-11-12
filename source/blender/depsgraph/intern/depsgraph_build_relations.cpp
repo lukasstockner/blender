@@ -401,8 +401,14 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				}
 				else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 					/* bone */
+#if 0
 					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget);
 					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+#else
+					/* TODO(sergey): Bones evaluation currently happens in the uber data update node.. */
+					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_GEOMETRY);
+					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+#endif
 				}
 				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
 					/* vertex group */
