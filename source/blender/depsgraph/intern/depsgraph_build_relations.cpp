@@ -296,8 +296,14 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 			
 		case PARBONE: /* Bone Parent */
 		{
+#if 0
 			ComponentKey parent_key(&ob->parent->id, DEPSNODE_TYPE_BONE, ob->parsubstr);
 			add_relation(parent_key, ob_key, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
+#else
+			/* TODO(sergey): For until bones has real update funciton. */
+			ComponentKey parent_key(&ob->parent->id, DEPSNODE_TYPE_TRANSFORM);
+			add_relation(parent_key, ob_key, DEPSREL_TYPE_TRANSFORM, "Bone Parent");
+#endif
 		}
 		break;
 			
@@ -408,7 +414,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 					/* TODO(sergey): Bones evaluation currently happens in the uber data update node.. */
 					/* TODO(sergey): Once granularity is reached it sohuld be possible to get rid of this check. */
 					if (&ct->tar->id != id) {
-						ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_GEOMETRY);
+						ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
 						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 #endif
