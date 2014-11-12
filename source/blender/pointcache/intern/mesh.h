@@ -63,6 +63,8 @@ private:
 	PointCacheModifierData *m_pcmd;
 	
 	AbcGeom::IPolyMesh m_mesh;
+	AbcGeom::IBoolGeomParam m_param_smooth;
+	AbcGeom::IInt32ArrayProperty m_prop_edges;
 	
 	DerivedMesh *m_result;
 };

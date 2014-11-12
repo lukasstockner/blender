@@ -179,13 +179,96 @@ PointCacheReader::PointCacheReader(Scene *scene, Object *ob, PointCacheModifierD
 {
 	if (m_archive.valid()) {
 		IObject root = m_archive.getTop();
-		if (root.valid() && root.getChild(m_pcmd->modifier.name))
+		if (root.valid() && root.getChild(m_pcmd->modifier.name)) {
 			m_mesh = IPolyMesh(root, m_pcmd->modifier.name);
+			
+			IPolyMeshSchema &schema = m_mesh.getSchema();
+			ICompoundProperty geom_props = schema.getArbGeomParams();
+			ICompoundProperty user_props = schema.getUserProperties();
+			
+			m_param_smooth = IBoolGeomParam(geom_props, "smooth", 0);
+			m_prop_edges = IInt32ArrayProperty(user_props, "edges", 0);
+		}
 	}
 }
 
 PointCacheReader::~PointCacheReader()
 {
+}
+
+static void apply_sample_positions(DerivedMesh *dm, P3fArraySamplePtr sample)
+{
+	MVert *mv, *mverts = dm->getVertArray(dm);
+	int i, totvert = dm->getNumVerts(dm);
+	
+	const V3f *data = sample->get();
+	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
+		const V3f &co = data[i];
+		copy_v3_v3(mv->co, co.getValue());
+	}
+}
+
+static void apply_sample_vertex_indices(DerivedMesh *dm, Int32ArraySamplePtr sample)
+{
+	MLoop *ml, *mloops = dm->getLoopArray(dm);
+	int i, totloop = dm->getNumLoops(dm);
+	
+	BLI_assert(sample->size() == totloop);
+	
+	const int32_t *data = sample->get();
+	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
+		ml->v = data[i];
+	}
+}
+
+static void apply_sample_loop_counts(DerivedMesh *dm, Int32ArraySamplePtr sample)
+{
+	MPoly *mp, *mpolys = dm->getPolyArray(dm);
+	int i, totpoly = dm->getNumPolys(dm);
+	
+	BLI_assert(sample->size() == totpoly);
+	
+	const int32_t *data = sample->get();
+	int loopstart = 0;
+	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
+		mp->totloop = data[i];
+		mp->loopstart = loopstart;
+		
+		loopstart += mp->totloop;
+	}
+}
+
+static void apply_sample_poly_smooth(DerivedMesh *dm, BoolArraySamplePtr sample)
+{
+	MPoly *mp, *mpolys = dm->getPolyArray(dm);
+	int i, totpoly = dm->getNumPolys(dm);
+	
+	BLI_assert(sample->size() == totpoly);
+	
+	const bool_t *data = sample->get();
+	bool changed = false;
+	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
+		if (data[i]) {
+			mp->flag |= ME_SMOOTH;
+			changed = true;
+		}
+	}
+	if (changed)
+		dm->dirty = (DMDirtyFlag)((int)dm->dirty | DM_DIRTY_NORMALS);
+}
+
+static void apply_sample_edge_vertices(DerivedMesh *dm, Int32ArraySamplePtr sample)
+{
+	MEdge *me, *medges = dm->getEdgeArray(dm);
+	int i, totedge = dm->getNumEdges(dm);
+	
+	BLI_assert(sample->size() == totedge * 2);
+	
+	const int32_t *data = sample->get();
+	for (i = 0, me = medges; i < totedge; ++i, ++me) {
+		me->v1 = data[(i << 1)];
+		me->v2 = data[(i << 1) + 1];
+	}
 }
 
 PTCReadSampleResult PointCacheReader::read_sample(float frame)
@@ -197,8 +280,6 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	
 	IPolyMeshSchema &schema = m_mesh.getSchema();
-	ICompoundProperty geom_props = schema.getArbGeomParams();
-	ICompoundProperty user_props = schema.getUserProperties();
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
@@ -210,74 +291,34 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	P3fArraySamplePtr positions = sample.getPositions();
 	Int32ArraySamplePtr indices = sample.getFaceIndices();
 	Int32ArraySamplePtr counts = sample.getFaceCounts();
-	int totverts = positions->size();
-	int totloops = indices->size();
-	int totpolys = counts->size();
 	
-	IBoolGeomParam param_smooth(geom_props, "smooth", 0);
 	BoolArraySamplePtr smooth;
-	if (param_smooth) {
+	if (m_param_smooth) {
 		IBoolGeomParam::Sample sample_smooth;
-		param_smooth.getExpanded(sample_smooth, ss);
+		m_param_smooth.getExpanded(sample_smooth, ss);
 		smooth = sample_smooth.getVals();
 	}
 	
-	IInt32ArrayProperty prop_edges(user_props, "edges", 0);
 	Int32ArraySamplePtr edges;
-	if (prop_edges) {
-		prop_edges.get(edges, ss);
+	if (m_prop_edges) {
+		m_prop_edges.get(edges, ss);
+		BLI_assert(edges->size() % 2 == 0); /* 2 vertex indices per edge */
 	}
-	BLI_assert(edges->size() % 2 == 0); /* 2 vertex indices per edge */
+	
+	int totverts = positions->size();
+	int totloops = indices->size();
+	int totpolys = counts->size();
 	int totedges = edges->size() >> 1;
-	
 	m_result = CDDM_new(totverts, totedges, 0, totloops, totpolys);
-	MVert *mv, *mverts = m_result->getVertArray(m_result);
-	MLoop *ml, *mloops = m_result->getLoopArray(m_result);
-	MPoly *mp, *mpolys = m_result->getPolyArray(m_result);
-	MEdge *me, *medges = m_result->getEdgeArray(m_result);
-	int i;
 	
-	const V3f *positions_data = positions->get();
-	for (i = 0, mv = mverts; i < totverts; ++i, ++mv) {
-		const V3f &co = positions_data[i];
-		copy_v3_v3(mv->co, co.getValue());
-	}
-	
-	const int32_t *indices_data = indices->get();
-	for (i = 0, ml = mloops; i < totloops; ++i, ++ml) {
-		ml->v = indices_data[i];
-	}
-	
-	const int32_t *counts_data = counts->get();
-	int loopstart = 0;
-	for (i = 0, mp = mpolys; i < totpolys; ++i, ++mp) {
-		mp->totloop = counts_data[i];
-		mp->loopstart = loopstart;
-		
-		loopstart += mp->totloop;
-	}
-	if (smooth) {
-		const bool_t *smooth_data = smooth->get();
-		bool changed = false;
-		for (i = 0, mp = mpolys; i < totpolys; ++i, ++mp) {
-			if (smooth_data[i]) {
-				mp->flag |= ME_SMOOTH;
-				changed = true;
-			}
-		}
-		if (changed)
-			m_result->dirty = (DMDirtyFlag)((int)m_result->dirty | DM_DIRTY_NORMALS);
-	}
-	
-	const int32_t *edges_data = edges->get();
-	for (i = 0, me = medges; i < totedges; ++i, ++me) {
-		me->v1 = edges_data[(i << 1)];
-		me->v2 = edges_data[(i << 1) + 1];
-	}
+	apply_sample_positions(m_result, positions);
+	apply_sample_vertex_indices(m_result, indices);
+	apply_sample_loop_counts(m_result, counts);
+	apply_sample_edge_vertices(m_result, edges);
+	if (smooth)
+		apply_sample_poly_smooth(m_result, smooth);
 	
 	DM_ensure_normals(m_result);
-//	if (!DM_is_valid(m_result))
-//		return PTC_READ_SAMPLE_INVALID;
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
