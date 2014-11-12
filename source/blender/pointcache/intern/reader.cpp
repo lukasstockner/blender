@@ -21,6 +21,7 @@
 
 #include "reader.h"
 #include "util_path.h"
+#include "util_error_handler.h"
 
 extern "C" {
 #include "BLI_fileops.h"
@@ -37,7 +38,9 @@ Reader::Reader(Scene *scene, ID *id, PointCache *cache) :
     m_scene(scene)
 {
 	std::string filename = ptc_archive_path(cache, id);
-	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, ErrorHandler::kNoisyNoopPolicy);
+	PTC_SAFE_CALL_BEGIN
+	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	PTC_SAFE_CALL_END
 }
 
 Reader::~Reader()

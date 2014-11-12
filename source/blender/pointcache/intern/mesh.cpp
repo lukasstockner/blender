@@ -382,6 +382,8 @@ ePointCacheModifierMode PTC_mod_point_cache_get_mode(PointCacheModifierData *pcm
 
 ePointCacheModifierMode PTC_mod_point_cache_set_mode(Scene *scene, Object *ob, PointCacheModifierData *pcmd, ePointCacheModifierMode mode)
 {
+	PTC_error_handler_modifier(&pcmd->modifier);
+	
 	switch (mode) {
 		case MOD_POINTCACHE_MODE_READ:
 			if (pcmd->writer) {
@@ -414,4 +416,6 @@ ePointCacheModifierMode PTC_mod_point_cache_set_mode(Scene *scene, Object *ob, P
 			}
 			return MOD_POINTCACHE_MODE_NONE;
 	}
+	
+	PTC_error_handler_std();
 }

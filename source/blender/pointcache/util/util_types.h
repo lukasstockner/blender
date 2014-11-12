@@ -19,6 +19,18 @@
 #ifndef PTC_UTIL_TYPES_H
 #define PTC_UTIL_TYPES_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef enum PTCErrorLevel {
+	PTC_ERROR_INFO      = 1,
+	PTC_ERROR_WARNING   = 2,
+	PTC_ERROR_CRITICAL  = 3,
+} PTCErrorLevel;
+
+typedef void (*PTCErrorCallback)(void *userdata, PTCErrorLevel level, const char *message);
+
 typedef enum PTCReadSampleResult {
 	PTC_READ_SAMPLE_INVALID = 0,	/* no valid result can be retrieved */
 	PTC_READ_SAMPLE_EARLY,			/* request time before first sample */
@@ -26,5 +38,9 @@ typedef enum PTCReadSampleResult {
 	PTC_READ_SAMPLE_EXACT,			/* found sample for requested frame */
 	PTC_READ_SAMPLE_INTERPOLATED	/* no exact sample, but found enclosing samples for interpolation */
 } PTCReadSampleResult;
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif  /* PTC_UTIL_TYPES_H */

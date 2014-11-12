@@ -30,10 +30,12 @@ struct Scene;
 struct EvaluationContext;
 struct PointCache;
 struct PointerRNA;
+struct ReportList;
 
 struct ClothModifierData;
 struct DerivedMesh;
 struct DynamicPaintSurface;
+struct ModifierData;
 struct Object;
 struct ParticleSystem;
 struct PointCacheModifierData;
@@ -43,6 +45,12 @@ struct SoftBody;
 
 struct PTCWriter;
 struct PTCReader;
+
+/*** Error Handling ***/
+void PTC_error_handler_std(void);
+void PTC_error_handler_callback(PTCErrorCallback cb, void *userdata);
+void PTC_error_handler_reports(struct ReportList *reports);
+void PTC_error_handler_modifier(struct ModifierData *md);
 
 void PTC_validate(struct PointCache *cache, int framenr);
 void PTC_invalidate(struct PointCache *cache);
