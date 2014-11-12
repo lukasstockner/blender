@@ -26,8 +26,19 @@ namespace PTC {
 
 ErrorHandler *ErrorHandler::m_default_handler = new StdErrorHandler(PTC_ERROR_INFO);
 
+ErrorHandler::ErrorHandler() :
+    m_max_level(PTC_ERROR_NONE)
+{
+}
+
 ErrorHandler::~ErrorHandler()
 {
+}
+
+void ErrorHandler::set_error_level(PTCErrorLevel level)
+{
+	if (level > m_max_level)
+		m_max_level = level;
 }
 
 void ErrorHandler::set_default_handler(ErrorHandler *handler)

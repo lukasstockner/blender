@@ -42,6 +42,7 @@ public:
 	virtual ~Reader();
 	
 	void set_error_handler(ErrorHandler *handler);
+	bool valid() const;
 	
 	void get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);

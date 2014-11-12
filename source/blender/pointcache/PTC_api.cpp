@@ -53,6 +53,7 @@ void PTC_error_handler_callback(PTCErrorCallback cb, void *userdata)
 static ReportType report_type_from_error_level(PTCErrorLevel level)
 {
 	switch (level) {
+		case PTC_ERROR_NONE:        return RPT_DEBUG;
 		case PTC_ERROR_INFO:        return RPT_INFO;
 		case PTC_ERROR_WARNING:     return RPT_WARNING;
 		case PTC_ERROR_CRITICAL:    return RPT_ERROR;

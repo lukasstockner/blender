@@ -38,15 +38,20 @@ namespace PTC {
 class ErrorHandler
 {
 public:
+	ErrorHandler();
 	virtual ~ErrorHandler();
 	
 	virtual void handle(PTCErrorLevel level, const char *message) = 0;
+	void set_error_level(PTCErrorLevel level);
+	PTCErrorLevel max_error_level() const { return m_max_level; }
 	
 	static ErrorHandler *get_default_handler() { return m_default_handler; }
 	static void set_default_handler(ErrorHandler *handler);
 	static void clear_default_handler();
 	
 private:
+	PTCErrorLevel m_max_level;
+	
 	static ErrorHandler *m_default_handler;
 };
 
@@ -125,6 +130,7 @@ void handle_alembic_exception(T &handler, PTCErrorLevel level, const Alembic::Ut
 	const char *origin, *msg;
 	split_alembic_error_message(e.what(), &origin, &msg);
 	
+	handler.set_error_level(level);
 	handler.handle(level, msg);
 }
 
@@ -135,6 +141,7 @@ void handle_alembic_exception(T *handler, PTCErrorLevel level, const Alembic::Ut
 		const char *origin, *msg;
 		split_alembic_error_message(e.what(), &origin, &msg);
 		
+		handler->set_error_level(level);
 		handler->handle(level, msg);
 	}
 }

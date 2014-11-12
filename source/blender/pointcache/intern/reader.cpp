@@ -58,6 +58,11 @@ void Reader::set_error_handler(ErrorHandler *handler)
 	m_error_handler = handler;
 }
 
+bool Reader::valid() const
+{
+	return m_error_handler ? m_error_handler->max_error_level() >= PTC_ERROR_CRITICAL : true;
+}
+
 void Reader::get_frame_range(int &start_frame, int &end_frame)
 {
 	if (m_archive.valid()) {

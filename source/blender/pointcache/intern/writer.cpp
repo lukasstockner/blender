@@ -66,6 +66,11 @@ void Writer::set_error_handler(ErrorHandler *handler)
 	m_error_handler = handler;
 }
 
+bool Writer::valid() const
+{
+	return m_error_handler ? m_error_handler->max_error_level() >= PTC_ERROR_CRITICAL : true;
+}
+
 uint32_t Writer::add_frame_sampling()
 {
 	chrono_t cycle_time = seconds_per_frame();

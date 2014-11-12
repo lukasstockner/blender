@@ -24,6 +24,7 @@ extern "C" {
 #endif
 
 typedef enum PTCErrorLevel {
+	PTC_ERROR_NONE      = 0,
 	PTC_ERROR_INFO      = 1,
 	PTC_ERROR_WARNING   = 2,
 	PTC_ERROR_CRITICAL  = 3,

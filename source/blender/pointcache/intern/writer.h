@@ -40,6 +40,7 @@ public:
 	virtual ~Writer();
 	
 	void set_error_handler(ErrorHandler *handler);
+	bool valid() const;
 	
 	uint32_t add_frame_sampling();
 	
