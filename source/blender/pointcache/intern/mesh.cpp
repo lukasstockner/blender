@@ -60,6 +60,76 @@ PointCacheWriter::~PointCacheWriter()
 {
 }
 
+static P3fArraySample create_sample_positions(DerivedMesh *dm, std::vector<V3f> &data)
+{
+	MVert *mv, *mverts = dm->getVertArray(dm);
+	int i, totvert = dm->getNumVerts(dm);
+	
+	data.reserve(totvert);
+	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
+		float *co = mv->co;
+		data.push_back(V3f(co[0], co[1], co[2]));
+	}
+	
+	return P3fArraySample(data);
+}
+
+static Int32ArraySample create_sample_vertex_indices(DerivedMesh *dm, std::vector<int> &data)
+{
+	MLoop *ml, *mloops = dm->getLoopArray(dm);
+	int i, totloop = dm->getNumLoops(dm);
+	
+	data.reserve(totloop);
+	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
+		data.push_back(ml->v);
+	}
+	
+	return Int32ArraySample(data);
+}
+
+static Int32ArraySample create_sample_loop_counts(DerivedMesh *dm, std::vector<int> &data)
+{
+	MPoly *mp, *mpolys = dm->getPolyArray(dm);
+	int i, totpoly = dm->getNumPolys(dm);
+	
+	data.reserve(totpoly);
+	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
+		data.push_back(mp->totloop);
+	}
+	
+	return Int32ArraySample(data);
+}
+
+static OBoolGeomParam::Sample create_sample_poly_smooth(DerivedMesh *dm, std::vector<bool_t> &data)
+{
+	MPoly *mp, *mpolys = dm->getPolyArray(dm);
+	int i, totpoly = dm->getNumPolys(dm);
+	
+	data.reserve(totpoly);
+	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
+		data.push_back((bool)(mp->flag & ME_SMOOTH));
+	}
+	
+	OBoolGeomParam::Sample sample;
+	sample.setVals(BoolArraySample(data));
+	sample.setScope(kUniformScope);
+	return sample;
+}
+
+static OInt32ArrayProperty::sample_type create_sample_edge_vertices(DerivedMesh *dm, std::vector<int> &data)
+{
+	MEdge *me, *medges = dm->getEdgeArray(dm);
+	int i, totedge = dm->getNumEdges(dm);
+	
+	data.reserve(totedge * 2);
+	for (i = 0, me = medges; i < totedge; ++i, ++me) {
+		data.push_back(me->v1);
+		data.push_back(me->v2);
+	}
+	
+	return OInt32ArrayProperty::sample_type(data);
+}
+
 void PointCacheWriter::write_sample()
 {
 	DerivedMesh *output_dm = m_pcmd->output_dm;
@@ -68,61 +138,36 @@ void PointCacheWriter::write_sample()
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
 	
-	MVert *mv, *mverts = output_dm->getVertArray(output_dm);
-	MLoop *ml, *mloops = output_dm->getLoopArray(output_dm);
-	MPoly *mp, *mpolys = output_dm->getPolyArray(output_dm);
-	MEdge *me, *medges = output_dm->getEdgeArray(output_dm);
-	int totvert = output_dm->getNumVerts(output_dm);
-	int totloop = output_dm->getNumLoops(output_dm);
-	int totpoly = output_dm->getNumPolys(output_dm);
-	int totedge = output_dm->getNumEdges(output_dm);
-	int i;
-	
-	std::vector<V3f> positions;
-	positions.reserve(totvert);
-	std::vector<int> indices;
-	indices.reserve(totloop);
-	std::vector<int> counts;
-	counts.reserve(totpoly);
-	std::vector<bool_t> smooth;
-	smooth.reserve(totpoly);
-	std::vector<int> edges;
-	edges.reserve(totedge * 2);
+	std::vector<V3f> positions_buffer;
+	std::vector<int> indices_buffer;
+	std::vector<int> counts_buffer;
+	std::vector<bool_t> smooth_buffer;
+	std::vector<int> edges_buffer;
+//	std::vector<V2f> uvs;
+//	V2fArraySample()
 	
 	// TODO decide how to handle vertex/face normals, in caching vs. export ...
 //	std::vector<V2f> uvs;
 //	OV2fGeomParam::Sample uvs(V2fArraySample(uvs), kFacevaryingScope );
 	
-	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
-		float *co = mv->co;
-		positions.push_back(V3f(co[0], co[1], co[2]));
-	}
-	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
-		indices.push_back(ml->v);
-	}
-	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
-		counts.push_back(mp->totloop);
-		smooth.push_back((bool)(mp->flag & ME_SMOOTH));
-	}
-	for (i = 0, me = medges; i < totedge; ++i, ++me) {
-		edges.push_back(me->v1);
-		edges.push_back(me->v2);
-	}
+	P3fArraySample positions = create_sample_positions(output_dm, positions_buffer);
+	Int32ArraySample indices = create_sample_vertex_indices(output_dm, indices_buffer);
+	Int32ArraySample counts = create_sample_loop_counts(output_dm, counts_buffer);
+	OBoolGeomParam::Sample smooth = create_sample_poly_smooth(output_dm, smooth_buffer);
+	OInt32ArrayProperty::sample_type edges = create_sample_edge_vertices(output_dm, edges_buffer);
 	
 	OPolyMeshSchema::Sample sample = OPolyMeshSchema::Sample(
-	            P3fArraySample(positions),
-	            Int32ArraySample(indices),
-	            Int32ArraySample(counts)
+	            positions,
+	            indices,
+	            counts,
+	            OV2fGeomParam::Sample(), /* XXX define how/which UV map should be considered primary for the alembic schema */
+	            ON3fGeomParam::Sample()
 	            );
 	schema.set(sample);
 	
-	OBoolGeomParam::Sample sample_smooth;
-	sample_smooth.setVals(BoolArraySample(smooth));
-	sample_smooth.setScope(kUniformScope);
-	m_param_smooth.set(sample_smooth);
+	m_param_smooth.set(smooth);
 	
-	OInt32ArrayProperty::sample_type sample_edges(edges);
-	m_prop_edges.set(sample_edges);
+	m_prop_edges.set(edges);
 }
 
 
