@@ -142,9 +142,6 @@ struct Depsgraph {
 	                               eDepsRelation_Type type, 
 	                               const string &description);
 
-	/* Add new dependency between outer ID node and time. */
-	void add_new_time_relation(IDDepsNode *from);
-
 	/* Sort nodes to determine evaluation order for operation nodes
 	 * where dependency relationships won't get violated.
 	 */

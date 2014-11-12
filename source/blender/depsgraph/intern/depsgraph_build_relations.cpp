@@ -102,24 +102,20 @@ extern "C" {
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
 /* TODO(sergey): This is a stupid copy of function from depsgraph.c/ */
-static bool object_modifiers_use_time(Object *ob)
+static bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 {
-	ModifierData *md;
-
-	/* check if a modifier in modifier stack needs time input */
-	for (md = (ModifierData *)ob-> modifiers.first;
-	     md != NULL;
-	     md = (ModifierData *)md->next)
-	{
-		if (modifier_dependsOnTime(md)) {
-			return true;
-		}
+	if (modifier_dependsOnTime(md)) {
+		return true;
 	}
 
-	/* check whether any modifiers are animated */
+	/* Check whether modifier is animated. */
 	if (ob->adt) {
 		AnimData *adt = ob->adt;
 		FCurve *fcu;
+
+		char pattern[MAX_NAME + 10];
+		/* TODO(sergey): Escape modifier name. */
+		BLI_snprintf(pattern, sizeof(pattern), "modifiers[%s", md->name);
 
 		/* action - check for F-Curves with paths containing 'modifiers[' */
 		if (adt->action) {
@@ -127,7 +123,7 @@ static bool object_modifiers_use_time(Object *ob)
 			     fcu != NULL;
 			     fcu = (FCurve *)fcu->next)
 			{
-				if (fcu->rna_path && strstr(fcu->rna_path, "modifiers["))
+				if (fcu->rna_path && strstr(fcu->rna_path, pattern))
 					return true;
 			}
 		}
@@ -142,7 +138,7 @@ static bool object_modifiers_use_time(Object *ob)
 		     fcu != NULL;
 		     fcu = (FCurve *)fcu->next)
 		{
-			if (fcu->rna_path && strstr(fcu->rna_path, "modifiers["))
+			if (fcu->rna_path && strstr(fcu->rna_path, pattern))
 				return true;
 		}
 
@@ -204,15 +200,6 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 
 void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 {
-	/* TODO(sergey): This is mainly for the testing purposes, in the final
-	 * design we'll need to add relation between individual component to the
-	 * time source.
-	 */
-	if (object_modifiers_use_time(ob)) {
-		/* TODO(sergey): Replace with time relation. */
-		m_graph->add_new_time_relation(m_graph->find_id_node(&ob->id));
-	}
-
 	if (ob->parent)
 		build_object_parent(ob);
 	
@@ -270,6 +257,12 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	/* particle systems */
 	if (ob->particlesystem.first) {
 		build_particles(scene, ob);
+	}
+
+	if (ob->adt) {
+		ComponentKey adt_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
+		ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
+		add_relation(adt_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
 
 	/* TODO(sergey): This is a temp solution for now only/ */
@@ -452,11 +445,8 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 	/* animation */
 	if (adt->action || adt->nla_tracks.first) {
 		/* wire up dependency to time source */
-		//TimeSourceKey time_src_key;
-		//add_relation(time_src_key, adt_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation] DepsRel");
-
-		/* TODO(sergey): Replace with time relation. */
-		m_graph->add_new_time_relation(m_graph->find_id_node(id));
+		TimeSourceKey time_src_key;
+		add_relation(time_src_key, adt_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation] DepsRel");
 
 		// XXX: Hook up specific update callbacks for special properties which may need it...
 	}
@@ -964,7 +954,12 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 				DepsNodeHandle handle = create_node_handle(mod_key);
 				mti->updateDepsgraph(md, scene, ob, &handle);
 			}
-			
+
+			if (modifier_check_depends_on_time(ob, md)) {
+				TimeSourceKey time_src_key;
+				add_relation(time_src_key, mod_key, DEPSREL_TYPE_TIME, "Time Source");
+			}
+
 			prev_mod_key = mod_key;
 		}
 	}
@@ -998,11 +993,6 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	}
 	else {
 		add_relation(geom_eval_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
-	}
-
-	if (ob->adt) {
-		ComponentKey adt_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
-		add_relation(adt_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
 	}
 }
 

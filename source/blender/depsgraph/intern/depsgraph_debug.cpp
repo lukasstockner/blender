@@ -602,6 +602,10 @@ static void deg_debug_graphviz_graph_nodes(const DebugContext &ctx, const Depsgr
 		DepsNode *node = it->second;
 		deg_debug_graphviz_node(ctx, node);
 	}
+	TimeSourceDepsNode *time_source = graph->find_time_source(NULL);
+	if (time_source != NULL) {
+		deg_debug_graphviz_node(ctx, time_source);
+	}
 }
 
 static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const Depsgraph *graph)
@@ -627,6 +631,28 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 				OperationDepsNode *op_node = it->second;
 				deg_debug_graphviz_node_relations(ctx, op_node);
 			}
+		}
+	}
+
+	/* TODO(sergey): Cleen this up somehow? */
+	TimeSourceDepsNode *time_source = graph->find_time_source(NULL);
+	if (time_source != NULL) {
+		for (vector<OperationDepsNode*>::const_iterator link = time_source->outlinks.begin();
+		     link != time_source->outlinks.end();
+		     ++link)
+		{
+			OperationDepsNode *node = *link;
+			deg_debug_printf(ctx, "// %s -> %s\n", time_source->name.c_str(), node->name.c_str());
+			deg_debug_printf(ctx, "\"node_%p\"", time_source);
+			deg_debug_printf(ctx, " -> ");
+			deg_debug_printf(ctx, "\"node_%p\"", node);
+
+			deg_debug_printf(ctx, "[");
+			/* TODO(sergey): Use proper relation name here. */
+			deg_debug_printf(ctx, "label=\"%s\"", "Time Dependency");
+			deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+			deg_debug_printf(ctx, "];" NL);
+			deg_debug_printf(ctx, NL);
 		}
 	}
 #endif

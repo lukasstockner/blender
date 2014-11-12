@@ -100,9 +100,11 @@ struct TimeSourceDepsNode : public DepsNode {
 	double offset;                  /* time-offset relative to the "official" time source that this one has */
 
 	void tag_update(Depsgraph *graph);
-	void add_time_dependency(IDDepsNode *from);
 
-	vector<IDDepsNode*> id_nodes;
+	/* Add relation between this time source and given operation node. */
+	void add_new_relation(OperationDepsNode *to);
+
+	vector<OperationDepsNode*> outlinks;
 
 	DEG_DEPSNODE_DECLARE;
 };

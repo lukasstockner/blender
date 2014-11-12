@@ -211,7 +211,11 @@ struct DepsgraphRelationBuilder {
 	template <typename KeyFrom, typename KeyTo>
 	void add_relation(const KeyFrom &key_from, const KeyTo &key_to,
 	                  eDepsRelation_Type type, const string &description);
-	
+
+	template <typename KeyTo>
+	void add_relation(const TimeSourceKey &key_from, const KeyTo &key_to,
+	                  eDepsRelation_Type type, const string &description);
+
 	template <typename KeyType>
 	void add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
 	                              eDepsRelation_Type type, const string &description);
@@ -307,6 +311,19 @@ void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo
 		if (!op_to) {
 			/* XXX TODO handle as error or report if needed */
 		}
+	}
+}
+
+template <typename KeyTo>
+void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from, const KeyTo &key_to,
+                                            eDepsRelation_Type type, const string &description)
+{
+	BLI_assert(type == DEPSREL_TYPE_TIME);
+	TimeSourceDepsNode *time_from = find_node(key_from);
+	OperationDepsNode *op_to = get_entry_operation(find_node(key_to));
+	if (time_from && op_to) {
+		/* TODO(sergey): Store description as well. */
+		time_from->add_new_relation(op_to);
 	}
 }
 

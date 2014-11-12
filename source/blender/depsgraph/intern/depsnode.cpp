@@ -34,6 +34,7 @@ extern "C" {
 
 #include "depsnode.h" /* own include */
 #include "depsnode_component.h"
+#include "depsnode_operation.h"
 #include "depsgraph.h"
 #include "depsgraph_intern.h"
 
@@ -71,18 +72,18 @@ DepsNode::~DepsNode()
 
 void TimeSourceDepsNode::tag_update(Depsgraph *graph)
 {
-	for (vector<IDDepsNode*>::const_iterator it_id = id_nodes.begin();
-	     it_id != id_nodes.end();
-	     ++it_id)
+	for (vector<OperationDepsNode*>::const_iterator link = outlinks.begin();
+	     link != outlinks.end();
+	     ++link)
 	{
-		IDDepsNode *id_node = *it_id;
-		id_node->tag_update(graph);
+		OperationDepsNode *node = *link;
+		node->tag_update(graph);
 	}
 }
 
-void TimeSourceDepsNode::add_time_dependency(IDDepsNode *from)
+void TimeSourceDepsNode::add_new_relation(OperationDepsNode *to)
 {
-	id_nodes.push_back(from);
+	outlinks.push_back(to);
 }
 
 /* Root Node ============================================== */
