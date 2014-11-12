@@ -35,16 +35,27 @@ using namespace Abc;
 
 Reader::Reader(Scene *scene, ID *id, PointCache *cache) :
     FrameMapper(scene),
+    m_error_handler(0),
     m_scene(scene)
 {
 	std::string filename = ptc_archive_path(cache, id);
 	PTC_SAFE_CALL_BEGIN
 	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-	PTC_SAFE_CALL_END
+	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 Reader::~Reader()
 {
+	if (m_error_handler)
+		delete m_error_handler;
+}
+
+void Reader::set_error_handler(ErrorHandler *handler)
+{
+	if (m_error_handler)
+		delete m_error_handler;
+	
+	m_error_handler = handler;
 }
 
 void Reader::get_frame_range(int &start_frame, int &end_frame)

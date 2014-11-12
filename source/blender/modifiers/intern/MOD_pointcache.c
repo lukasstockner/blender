@@ -100,8 +100,6 @@ static DerivedMesh *pointcache_do(PointCacheModifierData *pcmd, Object *ob, Deri
 	
 	DerivedMesh *finaldm = dm;
 	
-	PTC_error_handler_modifier(&pcmd->modifier);
-	
 	if (mode == MOD_POINTCACHE_MODE_NONE) {
 		mode = PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_READ);
 	}
@@ -121,8 +119,6 @@ static DerivedMesh *pointcache_do(PointCacheModifierData *pcmd, Object *ob, Deri
 				finaldm = result;
 		}
 	}
-	
-	PTC_error_handler_std();
 	
 	return finaldm;
 }

@@ -24,6 +24,7 @@
 #include <Alembic/Abc/IArchive.h>
 #include <Alembic/Abc/ISampleSelector.h>
 
+#include "util/util_error_handler.h"
 #include "util/util_frame_mapper.h"
 #include "util/util_types.h"
 
@@ -40,6 +41,8 @@ public:
 	Reader(Scene *scene, ID *id, PointCache *cache);
 	virtual ~Reader();
 	
+	void set_error_handler(ErrorHandler *handler);
+	
 	void get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
@@ -48,6 +51,7 @@ public:
 	
 protected:
 	Abc::IArchive m_archive;
+	ErrorHandler *m_error_handler;
 	
 	Scene *m_scene;
 };

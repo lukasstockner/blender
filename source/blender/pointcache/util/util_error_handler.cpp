@@ -18,6 +18,10 @@
 
 #include "util_error_handler.h"
 
+extern "C" {
+#include "BKE_modifier.h"
+}
+
 namespace PTC {
 
 ErrorHandler *ErrorHandler::m_default_handler = new StdErrorHandler(PTC_ERROR_INFO);
@@ -69,6 +73,17 @@ CallbackErrorHandler::CallbackErrorHandler(PTCErrorCallback cb, void *userdata) 
 void CallbackErrorHandler::handle(PTCErrorLevel level, const char *message)
 {
 	m_callback(m_userdata, level, message);
+}
+
+
+ModifierErrorHandler::ModifierErrorHandler(ModifierData *md) :
+    m_modifier(md)
+{
+}
+
+void ModifierErrorHandler::handle(PTCErrorLevel UNUSED(level), const char *message)
+{
+	modifier_setError(m_modifier, "%s", message);
 }
 
 } /* namespace PTC */

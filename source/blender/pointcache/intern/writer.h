@@ -23,6 +23,7 @@
 
 #include <Alembic/Abc/OArchive.h>
 
+#include "util/util_error_handler.h"
 #include "util/util_frame_mapper.h"
 
 struct ID;
@@ -38,12 +39,15 @@ public:
 	Writer(Scene *scene, ID *id, PointCache *cache);
 	virtual ~Writer();
 	
+	void set_error_handler(ErrorHandler *handler);
+	
 	uint32_t add_frame_sampling();
 	
 	virtual void write_sample() = 0;
 	
 protected:
 	Abc::OArchive m_archive;
+	ErrorHandler *m_error_handler;
 	
 	Scene *m_scene;
 };

@@ -30,6 +30,7 @@ extern "C" {
 
 #include "util/util_types.h"
 
+struct ModifierData;
 struct ReportList;
 
 namespace PTC {
@@ -78,6 +79,18 @@ private:
 	void *m_userdata;
 };
 
+
+class ModifierErrorHandler : public ErrorHandler
+{
+public:
+	ModifierErrorHandler(ModifierData *md);
+	
+	void handle(PTCErrorLevel level, const char *message);
+	
+private:
+	ModifierData *m_modifier;
+};
+
 /* -------------------------------- */
 
 /* XXX With current Alembic version 1.5 we only get a combined error message.
@@ -118,10 +131,12 @@ void handle_alembic_exception(T &handler, PTCErrorLevel level, const Alembic::Ut
 template <typename T>
 void handle_alembic_exception(T *handler, PTCErrorLevel level, const Alembic::Util::Exception &e)
 {
-	const char *origin, *msg;
-	split_alembic_error_message(e.what(), &origin, &msg);
-	
-	handler->handle(level, msg);
+	if (handler) {
+		const char *origin, *msg;
+		split_alembic_error_message(e.what(), &origin, &msg);
+		
+		handler->handle(level, msg);
+	}
 }
 
 /* -------------------------------- */
@@ -131,7 +146,13 @@ void handle_alembic_exception(T *handler, PTCErrorLevel level, const Alembic::Ut
 #define PTC_SAFE_CALL_BEGIN \
 	try {
 
-#define PTC_SAFE_CALL_END_HANDLER(handler, level) \
+#define PTC_SAFE_CALL_END_HANDLER(handler) \
+	} \
+	catch (Alembic::Util::Exception e) { \
+		handle_alembic_exception((handler), PTC_ERROR_CRITICAL, e); \
+	}
+
+#define PTC_SAFE_CALL_END_HANDLER_LEVEL(handler, level) \
 	} \
 	catch (Alembic::Util::Exception e) { \
 		handle_alembic_exception((handler), (level), e); \

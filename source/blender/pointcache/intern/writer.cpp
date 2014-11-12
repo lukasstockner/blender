@@ -42,15 +42,28 @@ static void ensure_directory(const char *filename)
 
 Writer::Writer(Scene *scene, ID *id, PointCache *cache) :
     FrameMapper(scene),
+    m_error_handler(0),
     m_scene(scene)
 {
 	std::string filename = ptc_archive_path(cache, id);
 	ensure_directory(filename.c_str());
-	m_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, ErrorHandler::kThrowPolicy);
+	PTC_SAFE_CALL_BEGIN
+	m_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 Writer::~Writer()
 {
+	if (m_error_handler)
+		delete m_error_handler;
+}
+
+void Writer::set_error_handler(ErrorHandler *handler)
+{
+	if (m_error_handler)
+		delete m_error_handler;
+	
+	m_error_handler = handler;
 }
 
 uint32_t Writer::add_frame_sampling()
