@@ -406,8 +406,11 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 #else
 					/* TODO(sergey): Bones evaluation currently happens in the uber data update node.. */
-					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_GEOMETRY);
-					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					/* TODO(sergey): Once granularity is reached it sohuld be possible to get rid of this check. */
+					if (&ct->tar->id != id) {
+						ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_GEOMETRY);
+						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					}
 #endif
 				}
 				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
@@ -429,8 +432,11 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				else {
 					/* standard object relation */
 					// TODO: loc vs rot vs scale?
-					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
-					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					/* TODO(sergey): What to do if target is self? */
+					if (&ct->tar->id != id) {
+						ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
+						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					}
 				}
 			}
 			
