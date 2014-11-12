@@ -249,10 +249,7 @@ class GreasePencilDataPanel():
         layout.template_ID(gpd_owner, "grease_pencil", new="gpencil.data_add", unlink="gpencil.data_unlink")
 
         # Grease Pencil data...
-        if gpd is None:
-            # even with no data, this operator will still work, as it makes gpd too
-            layout.operator("gpencil.layer_add", text="New Layer", icon='ZOOMIN')
-        else:
+        if gpd:
             self.draw_layers(context, layout, gpd)
 
             # only sequencer doesn't have a toolbar to show these settings in,
