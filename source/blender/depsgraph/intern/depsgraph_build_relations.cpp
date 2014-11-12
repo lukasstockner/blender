@@ -732,6 +732,9 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 		
 		parchan  = parchan->parent;
 	}
+
+	OperationKey flush_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_flush);
+	add_relation(solver_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 }
 
 /* Spline IK Eval Steps */
@@ -770,6 +773,9 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pch
 		segcount++;
 		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* 255 is weak */
 	}
+
+	OperationKey flush_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_flush);
+	add_relation(solver_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 }
 
 /* Pose/Armature Bones Graph */
@@ -813,7 +819,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			add_relation(transforms_key, constraints_key, DEPSREL_TYPE_OPERATION, "Constraints Stack");
 		}
 
-		/* TODO(sergey): Assume for now that pose flush depends on all the pose channels/ */
+		/* TODO(sergey): Assume for now that pose flush depends on all the pose channels. */
 		add_relation(bone_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 	}
 	

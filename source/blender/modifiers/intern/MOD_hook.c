@@ -128,8 +128,10 @@ static void updateDepsgraph(ModifierData *md,
 	HookModifierData *hmd = (HookModifierData *) md;
 
 	if (hmd->object != NULL) {
-		/* TODO(sergey): Different relation type depending on subtarget? */
-		DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
+		if (hmd->subtarget[0])
+			DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_GEOMETRY, "Hook Modifier");
+		else
+			DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
 	}
 }
 

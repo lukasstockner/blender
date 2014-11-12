@@ -529,7 +529,7 @@ void DepsgraphNodeBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bConst
 	}
 	
 	/* operation node for evaluating/running IK Solver */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, pchan->name,
 	                   DEPSOP_TYPE_SIM, bind(BKE_pose_iktree_evaluate, _1, ob, rootchan),
 	                   deg_op_name_ik_solver);
 }
@@ -553,7 +553,7 @@ void DepsgraphNodeBuilder::build_splineik_pose(Object *ob, bPoseChannel *pchan, 
 	/* operation node for evaluating/running IK Solver
 	 * store the "root bone" of this chain in the solver, so it knows where to start
 	 */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, pchan->name,
 	                   DEPSOP_TYPE_SIM, bind(BKE_pose_splineik_evaluate, _1, ob, rootchan),
 	                   deg_op_name_spline_ik_solver);
 	// XXX: what sort of ID-data is needed?
