@@ -303,7 +303,7 @@ void info_depsgraphview_main(const struct bContext *C, struct ARegion *ar)\
 	float x, y, width, em;
 	int xco, yco;
 	
-	block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
+	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	
 	x = v2d->cur.xmin;
 	y = v2d->cur.ymax;
@@ -311,15 +311,15 @@ void info_depsgraphview_main(const struct bContext *C, struct ARegion *ar)\
 	
 	em = (ar->type->prefsizex) ? 10 : 20; /* works out to 10*UI_UNIT_X or 20*UI_UNIT_X */
 	
-	layout = uiBlockLayout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
-	                       x, y, width, em, 0, UI_GetStyle());
+	layout = UI_block_layout(block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+	                         x, y, width, em, 0, UI_style_get());
 	
 	depsgraphview_draw(C, layout);
 	
-	uiBlockLayoutResolve(block, &xco, &yco);
+	UI_block_layout_resolve(block, &xco, &yco);
 	
-	uiEndBlock(C, block);
-	uiDrawBlock(C, block);
+	UI_block_end(C, block);
+	UI_block_draw(C, block);
 
 //	UI_view2d_totRect_set(v2d, 1000, 1000);
 }
