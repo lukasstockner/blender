@@ -500,11 +500,12 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
 			if ((dtar->flag & DTAR_FLAG_STRUCT_REF) && (dtar->pchan_name[0])) {
 				Object *ob = (Object *)dtar->id;
 				bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
-				
-				/* get node associated with bone */
-				ComponentKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name);
-				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
-				             "[Target -> Driver] DepsRel");
+				if (pchan != NULL) {
+					/* get node associated with bone */
+					ComponentKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name);
+					add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
+					             "[Target -> Driver] DepsRel");
+				}
 			}
 			else {
 				/* resolve path to get node */

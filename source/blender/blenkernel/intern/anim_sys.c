@@ -1484,7 +1484,7 @@ static bool animsys_write_rna_setting(PointerRNA *ptr, char *path, int array_ind
 }
 
 /* Simple replacement based data-setting of the FCurve using RNA */
-static bool animsys_execute_fcurve(PointerRNA *ptr, AnimMapper *remap, FCurve *fcu)
+bool BKE_animsys_execute_fcurve(PointerRNA *ptr, AnimMapper *remap, FCurve *fcu)
 {
 	char *path = NULL;
 	bool free_path = false;
@@ -1519,7 +1519,7 @@ static void animsys_evaluate_fcurves(PointerRNA *ptr, ListBase *list, AnimMapper
 			/* check if this curve should be skipped */
 			if ((fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) == 0) {
 				calculate_fcurve(fcu, ctime);
-				animsys_execute_fcurve(ptr, remap, fcu); 
+				BKE_animsys_execute_fcurve(ptr, remap, fcu); 
 			}
 		}
 	}
@@ -1549,7 +1549,7 @@ static void animsys_evaluate_drivers(PointerRNA *ptr, AnimData *adt, float ctime
 				 * NOTE: for 'layering' option later on, we should check if we should remove old value before adding
 				 *       new to only be done when drivers only changed */
 				calculate_fcurve(fcu, ctime);
-				ok = animsys_execute_fcurve(ptr, NULL, fcu);
+				ok = BKE_animsys_execute_fcurve(ptr, NULL, fcu);
 				
 				/* clear recalc flag */
 				driver->flag &= ~DRIVER_FLAG_RECALC;
@@ -1618,7 +1618,7 @@ void animsys_evaluate_action_group(PointerRNA *ptr, bAction *act, bActionGroup *
 		/* check if this curve should be skipped */
 		if ((fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) == 0) {
 			calculate_fcurve(fcu, ctime);
-			animsys_execute_fcurve(ptr, remap, fcu); 
+			BKE_animsys_execute_fcurve(ptr, remap, fcu); 
 		}
 	}
 }

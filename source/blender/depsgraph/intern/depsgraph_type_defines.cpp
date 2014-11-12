@@ -44,6 +44,7 @@ extern "C" {
 #include "BKE_action.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
+#include "BKE_fcurve.h"
 #include "BKE_object.h"
 
 #include "DEG_depsgraph.h"
@@ -62,13 +63,29 @@ extern "C" {
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
-void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve, TimeSourceDepsNode *time_src)
+void BKE_animsys_eval_action(EvaluationContext *eval_ctx, ID *id, bAction *action, TimeSourceDepsNode *time_src)
 {
 	printf("%s on %s\n", __func__, id->name);
 	if (ID_REAL_USERS(id) > 0) {
 		AnimData *adt = BKE_animdata_from_id(id);
 		float ctime = time_src->cfra;
 		BKE_animsys_evaluate_animdata(NULL, id, adt, ctime, ADT_RECALC_ANIM);
+	}
+}
+
+void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve, TimeSourceDepsNode *time_src)
+{
+	/* TODO(sergey): De-duplicate with BKE animsys. */
+	printf("%s on %s\n", __func__, id->name);
+	if (ID_REAL_USERS(id) > 0 && (fcurve->driver->flag & DRIVER_FLAG_INVALID) == 0) {
+		float ctime = time_src->cfra;
+		PointerRNA id_ptr;
+		RNA_id_pointer_create(id, &id_ptr);
+		calculate_fcurve(fcurve, ctime);
+		if (!BKE_animsys_execute_fcurve(&id_ptr, NULL, fcurve)) {
+			fcurve->driver->flag |= DRIVER_FLAG_INVALID;
+		}
+		fcurve->driver->flag &= ~DRIVER_FLAG_RECALC;
 	}
 }
 
@@ -108,14 +125,9 @@ const string deg_op_name_pose_eval_flush = "Flush Pose Eval";
 const string deg_op_name_ik_solver = "IK Solver";
 const string deg_op_name_spline_ik_solver = "Spline IK Solver";
 const string deg_op_name_psys_eval = "PSys Eval";
-string deg_op_name_action_fcurve(const bAction *action, const FCurve *fcu)
+string deg_op_name_action(const bAction *action)
 {
-	if (fcu->rna_path != NULL) {
-		return string_format("Action FCurve @ %s:%s[%d]", action->id.name + 2, fcu->rna_path, fcu->array_index);
-	}
-	else {
-		return string_format("Action FCurve @ %s:%p", action->id.name, fcu);
-	}
+	return string_format("Action %s", action->id.name);
 }
 string deg_op_name_driver(const ChannelDriver *driver)
 {

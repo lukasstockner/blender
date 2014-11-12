@@ -349,19 +349,17 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 
 		/* actions */
 		if (adt->action != NULL) {
-			for (FCurve *fcu = (FCurve *)adt->action->curves.first; fcu; fcu = fcu->next) {
-				TimeSourceDepsNode *time_src = m_graph->find_time_source();
-				add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
-				                   DEPSOP_TYPE_EXEC, bind(BKE_animsys_eval_driver, _1, id, fcu, time_src),
-				                   deg_op_name_action_fcurve(adt->action, fcu));
-			}
+			TimeSourceDepsNode *time_src = m_graph->find_time_source();
+			add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
+			                   DEPSOP_TYPE_EXEC, bind(BKE_animsys_eval_action, _1, id, adt->action, time_src),
+			                   deg_op_name_action(adt->action));
 			/* TODO(sergey): Action groups. */
 		}
 
 		/* drivers */
 		for (FCurve *fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
 			/* create driver */
-			/*OperationDepsNode *driver_node =*/ build_driver(id, fcu);
+			/*OperationDepsNode *driver_node =*/ //build_driver(id, fcu);
 
 			/* hook up update callback associated with F-Curve */
 			// ...
