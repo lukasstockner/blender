@@ -116,7 +116,6 @@ set(TESTS_OUTPUT_DIR ${EXECUTABLE_OUTPUT_PATH}/tests CACHE INTERNAL "" FORCE)
 
 get_blender_version()
 
-
 # Blender internal features
 option(WITH_BLENDER "Build blender (disable to build only the blender player)" ON)
 mark_as_advanced(WITH_BLENDER)
@@ -367,6 +366,26 @@ if(WITH_GLEW_ES AND WITH_SYSTEM_GLEW)
 	message(WARNING Ignoring WITH_SYSTEM_GLEW and using WITH_GLEW_ES)
 	set(WITH_SYSTEM_GLEW OFF)
 endif()
+
+if(MSVC)
+	getDefaultWindowsPrefixBase(CMAKE_GENERIC_PROGRAM_FILES)
+	set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/${})
+endif()
+
+
+# By default we want to install to the directory we are compiling our executables
+# unless specified otherwise, which we currently do not allow
+IF(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+if(MSVC)
+	set(CMAKE_INSTALL_PREFIX ${EXECUTABLE_OUTPUT_PATH}/\${BUILD_TYPE} CACHE PATH "default install path" FORCE )
+elseif(APPLE)
+	set(CMAKE_INSTALL_PREFIX ${EXECUTABLE_OUTPUT_PATH}/\${BUILD_TYPE} CACHE PATH "default install path" FORCE )
+else()
+	set(CMAKE_INSTALL_PREFIX ${EXECUTABLE_OUTPUT_PATH} CACHE PATH "default install path" FORCE )
+endif()
+endif()
+
+
 
 # Apple
 
@@ -1114,30 +1133,6 @@ elseif(WIN32)
 		set(CMAKE_C_FLAGS_MINSIZEREL "/O1 /Ob1 /MT /MP" CACHE STRING "MSVC MT flags " FORCE)
 		set(CMAKE_C_FLAGS_RELWITHDEBINFO "/O2 /Ob1 /MT /Zi /MP" CACHE STRING "MSVC MT flags " FORCE)
 
-		# most msvc warnings are C & C++
-		set(_WARNINGS
-			# warning level:
-			"/W3"
-			"/w34062"  # switch statement contains 'default' but no 'case' labels
-			# disable:
-			"/wd4018"  # signed/unsigned mismatch
-			"/wd4065"  # switch statement contains 'default' but no 'case' labels
-			"/wd4127"  # conditional expression is constant
-			"/wd4181"  # qualifier applied to reference type; ignored
-			"/wd4200"  # zero-sized array in struct/union
-			"/wd4244"  # conversion from 'type1' to 'type2', possible loss of data
-			"/wd4267"  # conversion from 'size_t' to 'type', possible loss of data
-			"/wd4305"  # truncation from 'type1' to 'type2'
-			"/wd4800"  # forcing value to bool 'true' or 'false'
-			# errors:
-			"/we4013"  # 'function' undefined; assuming extern returning int
-			"/we4431"  # missing type specifier - int assumed
-		)
-
-		string(REPLACE ";" " " _WARNINGS "${_WARNINGS}")
-		set(C_WARNINGS "${_WARNINGS}")
-		set(CXX_WARNINGS "${_WARNINGS}")
-		unset(_WARNINGS)
 
 		set(PLATFORM_LINKFLAGS "/SUBSYSTEM:CONSOLE /STACK:2097152 /INCREMENTAL:NO /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:msvcmrt.lib /NODEFAULTLIB:msvcurt.lib /NODEFAULTLIB:msvcrtd.lib")
 
@@ -1718,6 +1713,12 @@ elseif(WIN32)
 			message(STATUS "OSL not found")
 		endif()
 	endif()
+
+	set(CPACK_PACKAGE_INSTALL_DIRECTORY "Blender Foundation/Blender")
+	set(CPACK_PACKAGE_INSTALL_REGISTRY_KEY "Blender Foundation/Blender")
+	set(CPACK_WIX_LICENSE_RTF ${CMAKE_SOURCE_DIR}/release/text/GPL-license.rtf)
+	set(CPACK_WIX_PRODUCT_ICON ${CMAKE_SOURCE_DIR}/source/icons/winblender.ico)
+	set(CPACK_WIX_UPGRADE_GUID "B767E4FD-7DE7-4094-B051-3AE62E13A17A")
 
 elseif(APPLE)
 
@@ -2519,7 +2520,31 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Intel")
 	# disable numbered, false positives
 	set(C_WARNINGS "${C_WARNINGS} -wd188,186,144,913,556")
 	set(CXX_WARNINGS "${CXX_WARNINGS} -wd188,186,144,913,556")
+elseif(CMAKE_C_COMPILER_ID MATCHES "MSVC")
+	# most msvc warnings are C & C++
+	set(_WARNINGS
+		# warning level:
+		"/W3"
+		"/w34062"  # switch statement contains 'default' but no 'case' labels
+		# disable:
+		"/wd4018"  # signed/unsigned mismatch
+		"/wd4065"  # switch statement contains 'default' but no 'case' labels
+		"/wd4127"  # conditional expression is constant
+		"/wd4181"  # qualifier applied to reference type; ignored
+		"/wd4200"  # zero-sized array in struct/union
+		"/wd4244"  # conversion from 'type1' to 'type2', possible loss of data
+		"/wd4267"  # conversion from 'size_t' to 'type', possible loss of data
+		"/wd4305"  # truncation from 'type1' to 'type2'
+		"/wd4800"  # forcing value to bool 'true' or 'false'
+		# errors:
+		"/we4013"  # 'function' undefined; assuming extern returning int
+		"/we4431"  # missing type specifier - int assumed
+	)
 
+	string(REPLACE ";" " " _WARNINGS "${_WARNINGS}")
+	set(C_WARNINGS "${_WARNINGS}")
+	set(CXX_WARNINGS "${_WARNINGS}")
+	unset(_WARNINGS)
 endif()
 
 # ensure python header is found since detection can fail, this could happen

@@ -595,6 +595,7 @@ typedef struct VolumeStep {
 } VolumeStep;
 
 typedef struct VolumeSegment {
+	VolumeStep stack_step;      /* stack storage for homogeneous step, to avoid malloc */
 	VolumeStep *steps;			/* recorded steps */
 	int numsteps;				/* number of steps */
 	int closure_flag;			/* accumulated closure flags from all steps */
@@ -627,11 +628,13 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 
 		/* compute exact steps in advance for malloc */
 		max_steps = max((int)ceilf(ray->t/step_size), 1);
+		segment->steps = (VolumeStep*)malloc(sizeof(VolumeStep)*max_steps);
 	}
 	else {
 		max_steps = 1;
 		step_size = ray->t;
 		random_jitter_offset = 0.0f;
+		segment->steps = &segment->stack_step;
 	}
 	
 	/* init accumulation variables */
@@ -640,10 +643,8 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	float3 cdf_distance = make_float3(0.0f, 0.0f, 0.0f);
 	float t = 0.0f;
 
-	segment->closure_flag = 0;
 	segment->numsteps = 0;
-
-	segment->steps = (VolumeStep*)malloc(sizeof(VolumeStep)*max_steps);
+	segment->closure_flag = 0;
 
 	VolumeStep *step = segment->steps;
 
@@ -729,7 +730,8 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 
 ccl_device void kernel_volume_decoupled_free(KernelGlobals *kg, VolumeSegment *segment)
 {
-	free(segment->steps);
+	if(segment->steps != &segment->stack_step)
+		free(segment->steps);
 }
 
 /* scattering for homogeneous and heterogeneous volumes, using decoupled ray
@@ -992,30 +994,28 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 
 		ShaderData sd;
 		shader_setup_from_ray(kg, &sd, &isect, &volume_ray, 0, 0);
-		if(sd.flag & SD_HAS_VOLUME) {
-			if(sd.flag & SD_BACKFACING) {
-				/* If ray exited the volume and never entered to that volume
-				 * it means that camera is inside such a volume.
-				 */
-				bool is_enclosed = false;
-				for(int i = 0; i < enclosed_index; ++i) {
-					if(enclosed_volumes[i] == sd.object) {
-						is_enclosed = true;
-						break;
-					}
-				}
-				if(is_enclosed == false) {
-					stack[stack_index].object = sd.object;
-					stack[stack_index].shader = sd.shader;
-					++stack_index;
+		if(sd.flag & SD_BACKFACING) {
+			/* If ray exited the volume and never entered to that volume
+			 * it means that camera is inside such a volume.
+			 */
+			bool is_enclosed = false;
+			for(int i = 0; i < enclosed_index; ++i) {
+				if(enclosed_volumes[i] == sd.object) {
+					is_enclosed = true;
+					break;
 				}
 			}
-			else {
-				/* If ray from camera enters the volume, this volume shouldn't
-				 * be added to the stak on exit.
-				 */
-				enclosed_volumes[enclosed_index++] = sd.object;
+			if(is_enclosed == false) {
+				stack[stack_index].object = sd.object;
+				stack[stack_index].shader = sd.shader;
+				++stack_index;
 			}
+		}
+		else {
+			/* If ray from camera enters the volume, this volume shouldn't
+			 * be added to the stack on exit.
+			 */
+			enclosed_volumes[enclosed_index++] = sd.object;
 		}
 
 		/* Move ray forward. */
