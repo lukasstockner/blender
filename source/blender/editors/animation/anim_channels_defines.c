@@ -3903,13 +3903,13 @@ void ANIM_channel_draw_widgets(bContext *C, bAnimContext *ac, bAnimListElem *ale
 			
 			RNA_pointer_create(ale->id, &RNA_GPencilLayer, ale->data, &ptr);
 			
-			uiBlockSetEmboss(block, UI_EMBOSS);
+			UI_block_emboss_set(block, UI_EMBOSS);
 			
-			uiDefButR(block, COLOR, 1, "", offset, yminc, ICON_WIDTH, ICON_WIDTH, 
+			uiDefButR(block, UI_BTYPE_COLOR, 1, "", offset, yminc, ICON_WIDTH, ICON_WIDTH, 
 			          &ptr, "color", -1, 
 					  0, 0, 0, 0, gpl->info);
 			
-			uiBlockSetEmboss(block, UI_EMBOSSN);
+			UI_block_emboss_set(block, UI_EMBOSS_NONE);
 			
 			offset += ICON_WIDTH;
 		}
