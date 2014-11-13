@@ -56,6 +56,8 @@ PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierD
 	m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
 	m_prop_edges = OInt32ArrayProperty(user_props, "edges", 0);
 	m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
+	m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
+	m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
 }
 
 PointCacheWriter::~PointCacheWriter()
@@ -145,6 +147,62 @@ static OInt32ArrayProperty::sample_type create_sample_edge_indices(DerivedMesh *
 	return OInt32ArrayProperty::sample_type(data);
 }
 
+static N3fArraySample create_sample_loop_normals(DerivedMesh *dm, std::vector<N3f> &data)
+{
+	CustomData *cdata = dm->getLoopDataLayout(dm);
+	float (*nor)[3], (*loopnors)[3];
+	int i, totloop = dm->getNumLoops(dm);
+	
+	if (!CustomData_has_layer(cdata, CD_NORMAL))
+		return N3fArraySample();
+	
+	loopnors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
+	
+	data.reserve(totloop);
+	for (i = 0, nor = loopnors; i < totloop; ++i, ++nor) {
+		float *vec = *nor;
+		data.push_back(N3f(vec[0], vec[1], vec[2]));
+	}
+	
+	return N3fArraySample(data);
+}
+
+static N3fArraySample create_sample_poly_normals(DerivedMesh *dm, std::vector<N3f> &data)
+{
+	CustomData *cdata = dm->getPolyDataLayout(dm);
+	float (*nor)[3], (*polynors)[3];
+	int i, totpoly = dm->getNumPolys(dm);
+	
+	if (!CustomData_has_layer(cdata, CD_NORMAL))
+		return N3fArraySample();
+	
+	polynors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
+	
+	data.reserve(totpoly);
+	for (i = 0, nor = polynors; i < totpoly; ++i, ++nor) {
+		float *vec = *nor;
+		data.push_back(N3f(vec[0], vec[1], vec[2]));
+	}
+	
+	return N3fArraySample(data);
+}
+
+static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<N3f> &data)
+{
+	MVert *mv, *mverts = dm->getVertArray(dm);
+	int i, totvert = dm->getNumVerts(dm);
+	
+	data.reserve(totvert);
+	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
+		float nor[3];
+		
+		normal_short_to_float_v3(nor, mv->no);
+		data.push_back(N3f(nor[0], nor[1], nor[2]));
+	}
+	
+	return N3fArraySample(data);
+}
+
 void PointCacheWriter::write_sample()
 {
 	DerivedMesh *output_dm = m_pcmd->output_dm;
@@ -159,6 +217,9 @@ void PointCacheWriter::write_sample()
 	std::vector<bool_t> smooth_buffer;
 	std::vector<int> edges_buffer;
 	std::vector<int> edges_index_buffer;
+	std::vector<N3f> loop_normals_buffer;
+	std::vector<N3f> poly_normals_buffer;
+	std::vector<N3f> vertex_normals_buffer;
 //	std::vector<V2f> uvs;
 //	V2fArraySample()
 	
@@ -172,15 +233,23 @@ void PointCacheWriter::write_sample()
 	OBoolGeomParam::Sample smooth = create_sample_poly_smooth(output_dm, smooth_buffer);
 	OInt32ArrayProperty::sample_type edges = create_sample_edge_vertices(output_dm, edges_buffer);
 	OInt32ArrayProperty::sample_type edges_index = create_sample_edge_indices(output_dm, edges_index_buffer);
+	N3fArraySample lnormals = create_sample_loop_normals(output_dm, loop_normals_buffer);
+	N3fArraySample pnormals = create_sample_poly_normals(output_dm, poly_normals_buffer);
+	N3fArraySample vnormals = create_sample_vertex_normals(output_dm, vertex_normals_buffer);
 	
 	OPolyMeshSchema::Sample sample = OPolyMeshSchema::Sample(
 	            positions,
 	            indices,
 	            counts,
 	            OV2fGeomParam::Sample(), /* XXX define how/which UV map should be considered primary for the alembic schema */
-	            ON3fGeomParam::Sample()
+	            ON3fGeomParam::Sample(lnormals, kFacevaryingScope)
 	            );
 	schema.set(sample);
+	
+	if (pnormals.valid())
+		m_param_poly_normals.set(ON3fGeomParam::Sample(pnormals, kUniformScope));
+	if (vnormals.valid())
+		m_param_vertex_normals.set(ON3fGeomParam::Sample(vnormals, kVertexScope));
 	
 	m_param_smooth.set(smooth);
 	
@@ -206,6 +275,9 @@ PointCacheReader::PointCacheReader(Scene *scene, Object *ob, PointCacheModifierD
 			ICompoundProperty geom_props = schema.getArbGeomParams();
 			ICompoundProperty user_props = schema.getUserProperties();
 			
+			m_param_loop_normals = schema.getNormalsParam();
+			m_param_poly_normals = IN3fGeomParam(geom_props, "poly_normals", 0);
+			m_param_vertex_normals = IN3fGeomParam(geom_props, "vertex_normals", 0);
 			m_param_smooth = IBoolGeomParam(geom_props, "smooth", 0);
 			m_prop_edges = IInt32ArrayProperty(user_props, "edges", 0);
 			m_prop_edges_index = IInt32ArrayProperty(user_props, "edges_index", 0);
@@ -261,6 +333,57 @@ static void apply_sample_loop_counts(DerivedMesh *dm, Int32ArraySamplePtr sample
 	}
 }
 
+static void apply_sample_loop_normals(DerivedMesh *dm, N3fArraySamplePtr sample)
+{
+	CustomData *cdata = dm->getLoopDataLayout(dm);
+	float (*nor)[3], (*loopnors)[3];
+	int i, totloop = dm->getNumLoops(dm);
+	
+	BLI_assert(sample->size() == totloop);
+	
+	if (CustomData_has_layer(cdata, CD_NORMAL))
+		loopnors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
+	else
+		loopnors = (float (*)[3])CustomData_add_layer(cdata, CD_NORMAL, CD_CALLOC, NULL, totloop);
+	
+	const N3f *data = sample->get();
+	for (i = 0, nor = loopnors; i < totloop; ++i, ++nor) {
+		copy_v3_v3(*nor, data[i].getValue());
+	}
+}
+
+static void apply_sample_poly_normals(DerivedMesh *dm, N3fArraySamplePtr sample)
+{
+	CustomData *cdata = dm->getPolyDataLayout(dm);
+	float (*nor)[3], (*polynors)[3];
+	int i, totpoly = dm->getNumPolys(dm);
+	
+	BLI_assert(sample->size() == totpoly);
+	
+	if (CustomData_has_layer(cdata, CD_NORMAL))
+		polynors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
+	else
+		polynors = (float (*)[3])CustomData_add_layer(cdata, CD_NORMAL, CD_CALLOC, NULL, totpoly);
+	
+	const N3f *data = sample->get();
+	for (i = 0, nor = polynors; i < totpoly; ++i, ++nor) {
+		copy_v3_v3(*nor, data[i].getValue());
+	}
+}
+
+static void apply_sample_vertex_normals(DerivedMesh *dm, N3fArraySamplePtr sample)
+{
+	MVert *mv, *mverts = dm->getVertArray(dm);
+	int i, totvert = dm->getNumVerts(dm);
+	
+	BLI_assert(sample->size() == totvert);
+	
+	const N3f *data = sample->get();
+	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
+		normal_float_to_short_v3(mv->no, data[i].getValue());
+	}
+}
+
 static void apply_sample_poly_smooth(DerivedMesh *dm, BoolArraySamplePtr sample)
 {
 	MPoly *mp, *mpolys = dm->getPolyArray(dm);
@@ -269,15 +392,11 @@ static void apply_sample_poly_smooth(DerivedMesh *dm, BoolArraySamplePtr sample)
 	BLI_assert(sample->size() == totpoly);
 	
 	const bool_t *data = sample->get();
-	bool changed = false;
 	for (i = 0, mp = mpolys; i < totpoly; ++i, ++mp) {
 		if (data[i]) {
 			mp->flag |= ME_SMOOTH;
-			changed = true;
 		}
 	}
-	if (changed)
-		dm->dirty = (DMDirtyFlag)((int)dm->dirty | DM_DIRTY_NORMALS);
 }
 
 static void apply_sample_edge_vertices(DerivedMesh *dm, Int32ArraySamplePtr sample)
@@ -324,9 +443,19 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	IPolyMeshSchema::Sample sample;
 	schema.get(sample, ss);
 	
+	bool has_normals = false;
 	P3fArraySamplePtr positions = sample.getPositions();
 	Int32ArraySamplePtr indices = sample.getFaceIndices();
 	Int32ArraySamplePtr counts = sample.getFaceCounts();
+	N3fArraySamplePtr lnormals, pnormals, vnormals;
+	if (m_param_loop_normals && m_param_poly_normals && m_param_vertex_normals) {
+		lnormals = m_param_loop_normals.getExpandedValue(ss).getVals();
+		pnormals = m_param_poly_normals.getExpandedValue(ss).getVals();
+		vnormals = m_param_vertex_normals.getExpandedValue(ss).getVals();
+		
+		/* we need all normal properties defined, otherwise have to recalculate */
+		has_normals = lnormals->valid() && pnormals->valid() && vnormals->valid();
+	}
 	
 	BoolArraySamplePtr smooth;
 	if (m_param_smooth) {
@@ -354,6 +483,15 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	apply_sample_positions(m_result, positions);
 	apply_sample_vertex_indices(m_result, indices);
 	apply_sample_loop_counts(m_result, counts);
+	if (has_normals) {
+		apply_sample_loop_normals(m_result, pnormals);
+		apply_sample_poly_normals(m_result, lnormals);
+		apply_sample_vertex_normals(m_result, vnormals);
+	}
+	else {
+		/* make sure normals are recalculated if there is no sample data */
+		m_result->dirty = (DMDirtyFlag)((int)m_result->dirty | DM_DIRTY_NORMALS);
+	}
 	if (has_edges) {
 		apply_sample_edge_vertices(m_result, edges);
 		apply_sample_edge_indices(m_result, edges_index);
@@ -363,7 +501,8 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	
 	if (!has_edges)
 		CDDM_calc_edges(m_result);
-	DM_ensure_normals(m_result);
+	
+	DM_ensure_normals(m_result); /* only recalculates normals if no valid samples were found (has_normals == false) */
 //	BLI_assert(DM_is_valid(m_result));
 	
 	return PTC_READ_SAMPLE_EXACT;

@@ -47,6 +47,9 @@ private:
 	AbcGeom::OBoolGeomParam m_param_smooth;
 	AbcGeom::OInt32ArrayProperty m_prop_edges;
 	AbcGeom::OInt32ArrayProperty m_prop_edges_index;
+	AbcGeom::ON3fGeomParam m_param_vertex_normals;
+	AbcGeom::ON3fGeomParam m_param_poly_normals;
+	/* note: loop normals are already defined as a parameter in the schema */
 };
 
 class PointCacheReader : public Reader {
@@ -67,6 +70,9 @@ private:
 	AbcGeom::IBoolGeomParam m_param_smooth;
 	AbcGeom::IInt32ArrayProperty m_prop_edges;
 	AbcGeom::IInt32ArrayProperty m_prop_edges_index;
+	AbcGeom::IN3fGeomParam m_param_loop_normals;
+	AbcGeom::IN3fGeomParam m_param_vertex_normals;
+	AbcGeom::IN3fGeomParam m_param_poly_normals;
 	
 	DerivedMesh *m_result;
 };
