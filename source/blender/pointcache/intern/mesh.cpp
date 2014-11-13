@@ -28,9 +28,13 @@ extern "C" {
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_cdderivedmesh.h"
+
+#include "PIL_time.h"
 }
 
 #include "PTC_api.h"
+
+//#define USE_TIMING
 
 namespace PTC {
 
@@ -428,6 +432,19 @@ static void apply_sample_edge_indices(DerivedMesh *dm, Int32ArraySamplePtr sampl
 
 PTCReadSampleResult PointCacheReader::read_sample(float frame)
 {
+#ifdef USE_TIMING
+	double start_time;
+	double time_get_sample, time_build_mesh, time_calc_edges, time_calc_normals;
+	
+#define PROFILE_START \
+	start_time = PIL_check_seconds_timer();
+#define PROFILE_END(var) \
+	var = PIL_check_seconds_timer() - start_time;
+#else
+#define PROFILE_START ;
+#define PROFILE_END(var) ;
+#endif
+	
 	/* discard existing result data */
 	discard_result();
 	
@@ -440,6 +457,7 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	
 	ISampleSelector ss = get_frame_sample_selector(frame);
 	
+	PROFILE_START;
 	IPolyMeshSchema::Sample sample;
 	schema.get(sample, ss);
 	
@@ -473,7 +491,9 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 		
 		has_edges = edges->valid() && edges_index->valid();
 	}
+	PROFILE_END(time_get_sample);
 	
+	PROFILE_START;
 	int totverts = positions->size();
 	int totloops = indices->size();
 	int totpolys = counts->size();
@@ -498,12 +518,27 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	}
 	if (smooth)
 		apply_sample_poly_smooth(m_result, smooth);
+	PROFILE_END(time_build_mesh);
 	
+	PROFILE_START;
 	if (!has_edges)
 		CDDM_calc_edges(m_result);
+	PROFILE_END(time_calc_edges);
 	
+	PROFILE_START;
 	DM_ensure_normals(m_result); /* only recalculates normals if no valid samples were found (has_normals == false) */
+	PROFILE_END(time_calc_normals);
+	
 //	BLI_assert(DM_is_valid(m_result));
+	
+#ifdef USE_TIMING
+	printf("-------- Point Cache Timing --------\n");
+	printf("read sample: %f seconds\n", time_get_sample);
+	printf("build mesh: %f seconds\n", time_build_mesh);
+	printf("calculate edges: %f seconds\n", time_calc_edges);
+	printf("calculate normals: %f seconds\n", time_calc_normals);
+	printf("------------------------------------\n");
+#endif
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
