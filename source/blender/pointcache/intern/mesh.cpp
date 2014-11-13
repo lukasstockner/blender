@@ -28,6 +28,7 @@ extern "C" {
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_cdderivedmesh.h"
+#include "BKE_mesh.h"
 
 #include "PIL_time.h"
 }
@@ -67,6 +68,30 @@ PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierD
 PointCacheWriter::~PointCacheWriter()
 {
 }
+
+/* XXX modifiers are not allowed to generate poly normals on their own!
+ * see assert in DerivedMesh.c : dm_ensure_display_normals
+ */
+#if 0
+static void ensure_normal_data(DerivedMesh *dm)
+{
+	MVert *mverts = dm->getVertArray(dm);
+	MLoop *mloops = dm->getLoopArray(dm);
+	MPoly *mpolys = dm->getPolyArray(dm);
+	CustomData *cdata = dm->getPolyDataLayout(dm);
+	float (*polynors)[3];
+	int totvert = dm->getNumVerts(dm);
+	int totloop = dm->getNumLoops(dm);
+	int totpoly = dm->getNumPolys(dm);
+	
+	if (CustomData_has_layer(cdata, CD_NORMAL))
+		polynors = (float (*)[3])CustomData_get_layer(cdata, CD_NORMAL);
+	else
+		polynors = (float (*)[3])CustomData_add_layer(cdata, CD_NORMAL, CD_CALLOC, NULL, totpoly);
+	
+	BKE_mesh_calc_normals_poly(mverts, totvert, mloops, mpolys, totloop, totpoly, polynors, false);
+}
+#endif
 
 static P3fArraySample create_sample_positions(DerivedMesh *dm, std::vector<V3f> &data)
 {
@@ -212,6 +237,10 @@ void PointCacheWriter::write_sample()
 	DerivedMesh *output_dm = m_pcmd->output_dm;
 	if (!output_dm)
 		return;
+	
+	/* TODO make this optional by a flag? */
+	/* XXX does not work atm, see comment above */
+	/*ensure_normal_data(output_dm);*/
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
 	
@@ -466,17 +495,22 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	Int32ArraySamplePtr indices = sample.getFaceIndices();
 	Int32ArraySamplePtr counts = sample.getFaceCounts();
 	N3fArraySamplePtr lnormals, pnormals, vnormals;
-	if (m_param_loop_normals && m_param_poly_normals && m_param_vertex_normals) {
-		lnormals = m_param_loop_normals.getExpandedValue(ss).getVals();
+	if (m_param_poly_normals && m_param_poly_normals.getNumSamples() > 0
+	    && m_param_vertex_normals && m_param_vertex_normals.getNumSamples() > 0) {
 		pnormals = m_param_poly_normals.getExpandedValue(ss).getVals();
 		vnormals = m_param_vertex_normals.getExpandedValue(ss).getVals();
 		
 		/* we need all normal properties defined, otherwise have to recalculate */
-		has_normals = lnormals->valid() && pnormals->valid() && vnormals->valid();
+		has_normals = pnormals->valid() && vnormals->valid();
+	}
+	if (has_normals) {
+		/* note: loop normals are not mandatory, but if poly/vertex normals don't exist they get recalculated anyway */
+		if (m_param_loop_normals && m_param_loop_normals.getNumSamples() > 0)
+			lnormals = m_param_loop_normals.getExpandedValue(ss).getVals();
 	}
 	
 	BoolArraySamplePtr smooth;
-	if (m_param_smooth) {
+	if (m_param_smooth && m_param_smooth.getNumSamples() > 0) {
 		IBoolGeomParam::Sample sample_smooth;
 		m_param_smooth.getExpanded(sample_smooth, ss);
 		smooth = sample_smooth.getVals();
@@ -484,7 +518,8 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	
 	bool has_edges = false;
 	Int32ArraySamplePtr edges, edges_index;
-	if (m_prop_edges && m_prop_edges_index) {
+	if (m_prop_edges && m_prop_edges.getNumSamples() > 0
+	    && m_prop_edges_index && m_prop_edges_index.getNumSamples() > 0) {
 		m_prop_edges.get(edges, ss);
 		m_prop_edges_index.get(edges_index, ss);
 		BLI_assert(edges->size() % 2 == 0); /* 2 vertex indices per edge */
@@ -504,9 +539,11 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	apply_sample_vertex_indices(m_result, indices);
 	apply_sample_loop_counts(m_result, counts);
 	if (has_normals) {
-		apply_sample_loop_normals(m_result, pnormals);
 		apply_sample_poly_normals(m_result, lnormals);
 		apply_sample_vertex_normals(m_result, vnormals);
+		
+		if (lnormals->valid())
+			apply_sample_loop_normals(m_result, pnormals);
 	}
 	else {
 		/* make sure normals are recalculated if there is no sample data */
