@@ -46,6 +46,7 @@ private:
 	AbcGeom::OPolyMesh m_mesh;
 	AbcGeom::OBoolGeomParam m_param_smooth;
 	AbcGeom::OInt32ArrayProperty m_prop_edges;
+	AbcGeom::OInt32ArrayProperty m_prop_edges_index;
 };
 
 class PointCacheReader : public Reader {
@@ -65,6 +66,7 @@ private:
 	AbcGeom::IPolyMesh m_mesh;
 	AbcGeom::IBoolGeomParam m_param_smooth;
 	AbcGeom::IInt32ArrayProperty m_prop_edges;
+	AbcGeom::IInt32ArrayProperty m_prop_edges_index;
 	
 	DerivedMesh *m_result;
 };

@@ -54,8 +54,8 @@ PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierD
 	OCompoundProperty user_props = schema.getUserProperties();
 	
 	m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
-	
 	m_prop_edges = OInt32ArrayProperty(user_props, "edges", 0);
+	m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
 }
 
 PointCacheWriter::~PointCacheWriter()
@@ -132,6 +132,19 @@ static OInt32ArrayProperty::sample_type create_sample_edge_vertices(DerivedMesh 
 	return OInt32ArrayProperty::sample_type(data);
 }
 
+static OInt32ArrayProperty::sample_type create_sample_edge_indices(DerivedMesh *dm, std::vector<int> &data)
+{
+	MLoop *ml, *mloops = dm->getLoopArray(dm);
+	int i, totloop = dm->getNumLoops(dm);
+	
+	data.reserve(totloop);
+	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
+		data.push_back(ml->e);
+	}
+	
+	return OInt32ArrayProperty::sample_type(data);
+}
+
 void PointCacheWriter::write_sample()
 {
 	DerivedMesh *output_dm = m_pcmd->output_dm;
@@ -145,6 +158,7 @@ void PointCacheWriter::write_sample()
 	std::vector<int> counts_buffer;
 	std::vector<bool_t> smooth_buffer;
 	std::vector<int> edges_buffer;
+	std::vector<int> edges_index_buffer;
 //	std::vector<V2f> uvs;
 //	V2fArraySample()
 	
@@ -157,6 +171,7 @@ void PointCacheWriter::write_sample()
 	Int32ArraySample counts = create_sample_loop_counts(output_dm, counts_buffer);
 	OBoolGeomParam::Sample smooth = create_sample_poly_smooth(output_dm, smooth_buffer);
 	OInt32ArrayProperty::sample_type edges = create_sample_edge_vertices(output_dm, edges_buffer);
+	OInt32ArrayProperty::sample_type edges_index = create_sample_edge_indices(output_dm, edges_index_buffer);
 	
 	OPolyMeshSchema::Sample sample = OPolyMeshSchema::Sample(
 	            positions,
@@ -170,6 +185,7 @@ void PointCacheWriter::write_sample()
 	m_param_smooth.set(smooth);
 	
 	m_prop_edges.set(edges);
+	m_prop_edges_index.set(edges_index);
 }
 
 
@@ -192,6 +208,7 @@ PointCacheReader::PointCacheReader(Scene *scene, Object *ob, PointCacheModifierD
 			
 			m_param_smooth = IBoolGeomParam(geom_props, "smooth", 0);
 			m_prop_edges = IInt32ArrayProperty(user_props, "edges", 0);
+			m_prop_edges_index = IInt32ArrayProperty(user_props, "edges_index", 0);
 		}
 	}
 }
@@ -204,6 +221,8 @@ static void apply_sample_positions(DerivedMesh *dm, P3fArraySamplePtr sample)
 {
 	MVert *mv, *mverts = dm->getVertArray(dm);
 	int i, totvert = dm->getNumVerts(dm);
+	
+	BLI_assert(sample->size() == totvert);
 	
 	const V3f *data = sample->get();
 	for (i = 0, mv = mverts; i < totvert; ++i, ++mv) {
@@ -275,6 +294,19 @@ static void apply_sample_edge_vertices(DerivedMesh *dm, Int32ArraySamplePtr samp
 	}
 }
 
+static void apply_sample_edge_indices(DerivedMesh *dm, Int32ArraySamplePtr sample)
+{
+	MLoop *ml, *mloops = dm->getLoopArray(dm);
+	int i, totloop = dm->getNumLoops(dm);
+	
+	BLI_assert(sample->size() == totloop);
+	
+	const int32_t *data = sample->get();
+	for (i = 0, ml = mloops; i < totloop; ++i, ++ml) {
+		ml->e = data[i];
+	}
+}
+
 PTCReadSampleResult PointCacheReader::read_sample(float frame)
 {
 	/* discard existing result data */
@@ -303,26 +335,36 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 		smooth = sample_smooth.getVals();
 	}
 	
-	Int32ArraySamplePtr edges;
-	if (m_prop_edges) {
+	bool has_edges = false;
+	Int32ArraySamplePtr edges, edges_index;
+	if (m_prop_edges && m_prop_edges_index) {
 		m_prop_edges.get(edges, ss);
+		m_prop_edges_index.get(edges_index, ss);
 		BLI_assert(edges->size() % 2 == 0); /* 2 vertex indices per edge */
+		
+		has_edges = edges->valid() && edges_index->valid();
 	}
 	
 	int totverts = positions->size();
 	int totloops = indices->size();
 	int totpolys = counts->size();
-	int totedges = edges->size() >> 1;
+	int totedges = has_edges ? edges->size() >> 1 : 0;
 	m_result = CDDM_new(totverts, totedges, 0, totloops, totpolys);
 	
 	apply_sample_positions(m_result, positions);
 	apply_sample_vertex_indices(m_result, indices);
 	apply_sample_loop_counts(m_result, counts);
-	apply_sample_edge_vertices(m_result, edges);
+	if (has_edges) {
+		apply_sample_edge_vertices(m_result, edges);
+		apply_sample_edge_indices(m_result, edges_index);
+	}
 	if (smooth)
 		apply_sample_poly_smooth(m_result, smooth);
 	
+	if (!has_edges)
+		CDDM_calc_edges(m_result);
 	DM_ensure_normals(m_result);
+//	BLI_assert(DM_is_valid(m_result));
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
