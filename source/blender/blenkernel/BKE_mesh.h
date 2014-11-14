@@ -282,7 +282,8 @@ void BKE_mesh_calc_relative_deform(
         const float (*vert_cos_org)[3],
               float (*vert_cos_new)[3]);
 
-
+/* Topology. */
+unsigned int BKE_mesh_topology_hash(struct Mesh *mesh);
 
 /* *** mesh_validate.c *** */
 

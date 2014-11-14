@@ -42,6 +42,7 @@
 #include "BLI_math.h"
 #include "BLI_edgehash.h"
 #include "BLI_bitmap.h"
+#include "BLI_hash_mm2a.h"
 #include "BLI_polyfill2d.h"
 #include "BLI_linklist.h"
 #include "BLI_linklist_stack.h"
@@ -2253,3 +2254,71 @@ void BKE_mesh_calc_relative_deform(
 	MEM_freeN(vert_accum);
 }
 /** \} */
+
+/* -------------------------------------------------------------------- */
+
+/** \name Mesh Topology Hashing
+ * \{ */
+
+/**
+ * This function computes a hash of current mesh's topology. Allows to detect any topology change.
+ *
+ * Similar to `BM_mesh_topology_hash()`.
+ * 
+ * \param mesh The Mesh.
+ * \return The hash, as an unsigned integer.
+ *
+ * \note We use vertex indices as core 'reference'.
+ */
+unsigned int BKE_mesh_topology_hash(Mesh *mesh)
+{
+	int me_idx, mp_idx;
+
+	BLI_HashMurmur2A mm2;
+
+	unsigned int seed = (unsigned int)mesh->totvert + (unsigned int)mesh->totedge +
+	                    (unsigned int)mesh->totloop + (unsigned int)mesh->totpoly;
+
+	if (!seed) {
+		return seed;
+	}
+
+	if (mesh->totedge == 0) {
+		/* Cloud mesh, only vertices, totvert is good enough. */
+		return seed;
+	}
+
+	/* Init the murmur hash. */
+	BLI_hash_mm2a_init(&mm2, seed);
+
+	/* Compute edge topology, using only vert indices. */
+	for (me_idx = 0; me_idx < mesh->totedge; me_idx++) {
+		MEdge *me = &mesh->medge[me_idx];
+
+		/* Edge topology is fully defined by its two vertices. */
+		BLI_hash_mm2a_add_int(&mm2, (int)me->v1);
+		BLI_hash_mm2a_add_int(&mm2, (int)me->v2);
+	}
+
+	if (mesh->totpoly == 0) {
+		/* No poly (nor loop), we are done. */
+		return (unsigned int)BLI_hash_mm2a_end(&mm2);
+	}
+
+	/* Else, we have to check all polys too - it *is* possible to change topology
+	 * without affecting edges nor changing numbers of verts/edges/loops/polys! */
+	for (mp_idx = 0; mp_idx < mesh->totpoly; mp_idx++) {
+		MPoly *mp = &mesh->mpoly[mp_idx];
+		int ml_idx = mp->loopstart;
+		const int ml_idx_end = mp->loopstart + mp->totloop;
+
+		/* Poly topology is fully defined by its vertices and their order in it. */
+		for (; ml_idx < ml_idx_end; ml_idx++) {
+			MLoop *ml = &mesh->mloop[ml_idx];
+
+			BLI_hash_mm2a_add_int(&mm2, (int)ml->v);
+		}
+	}
+
+	return (unsigned int)BLI_hash_mm2a_end(&mm2);
+}

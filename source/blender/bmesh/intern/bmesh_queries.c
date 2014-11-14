@@ -2354,6 +2354,8 @@ int BM_mesh_calc_edge_groups(BMesh *bm, int *r_groups_array, int (**r_group_inde
 /**
  * Calculate a hash of current topology.
  *
+ * Similar to `BKE_mesh_topology_hash()`.
+ *
  * \param bm The BMesh.
  * \return The hash, as an unsigned integer.
  *
@@ -2368,7 +2370,8 @@ unsigned int BM_mesh_topology_hash(BMesh *bm)
 
 	BLI_HashMurmur2A mm2;
 
-	unsigned int seed = (unsigned int)(bm->totvert + bm->totedge + bm->totloop + bm->totface);
+	unsigned int seed = (unsigned int)bm->totvert + (unsigned int)bm->totedge +
+	                    (unsigned int)bm->totloop + (unsigned int)bm->totface;
 
 	if (!seed) {
 		return seed;
@@ -2398,7 +2401,7 @@ unsigned int BM_mesh_topology_hash(BMesh *bm)
 	}
 
 	/* Else, we have to check all faces too - it *is* possible to change topology
-	 * without affecting edges nor changing numbers of verts/edges/faces/loops! */
+	 * without affecting edges nor changing numbers of verts/edges/loops/faces! */
 	BM_ITER_MESH(f, &iter, bm, BM_FACES_OF_MESH) {
 		/* Face topology is fully defined by its vertices and their order in it. */
 		BM_ITER_ELEM(l, &iter, f, BM_LOOPS_OF_FACE) {
