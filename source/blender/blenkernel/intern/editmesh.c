@@ -261,8 +261,8 @@ void BKE_editmesh_topochange_calc(BMEditMesh *em)
 
 bool BKE_editmesh_topo_has_changed(BMEditMesh *em)
 {
-	if (em->bm->totvert == em->topochange.totvert || em->bm->totedge == em->topochange.totedge ||
-	    em->bm->totloop == em->topochange.totloop || em->bm->totface == em->topochange.totface)
+	if (em->bm->totvert == em->topochange.totvert && em->bm->totedge == em->topochange.totedge &&
+	    em->bm->totloop == em->topochange.totloop && em->bm->totface == em->topochange.totface)
 	{
 		int hash = BM_mesh_topology_hash(em->bm);
 		if (hash == em->topochange.topohash)
