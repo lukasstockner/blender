@@ -33,6 +33,7 @@
 
 #include "DNA_key_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
 #include "DNA_key_types.h"
 
@@ -381,9 +382,13 @@ void EDBM_mesh_make(ToolSettings *ts, Object *ob)
 
 	/* we need to flush selection because the mode may have changed from when last in editmode */
 	EDBM_selectmode_flush(me->edit_btmesh);
-	
-	if (BKE_key_from_object(ob) && BKE_keyblock_from_object(ob))
-		BKE_editmesh_topochange_calc(me->edit_btmesh);
+
+	{
+		Key *k = BKE_key_from_object(ob);
+		if (k && BKE_keyblock_from_object(ob)) {
+			BKE_editmesh_topohash_compute(me->edit_btmesh, &k->topohash);
+		}
+	}
 }
 
 void EDBM_mesh_load(Object *ob)
@@ -603,7 +608,10 @@ static void recalc_keyblocks_from_scratch(Object *ob)
 void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
-	bool topo_changed = BKE_editmesh_topo_has_changed(em);
+	Key *k = BKE_key_from_object(ob);
+
+	/* XXX Check it is OK to update topohash here (i.e. subsequent calls to this are OK to assume same topo again). */
+	const bool topo_changed = !BKE_editmesh_topohash_identity(em, k->topohash, true);
 
 	if (topo_changed) {
 		EDBM_mesh_load(em->ob);
@@ -619,7 +627,7 @@ void EDBM_commit_scratch_to_active(Object *ob, Scene *s)
 		/* faster keyblock recalc */
 		recalc_keyblocks_from_scratch(ob);
 		/* update shapes customdata on bmesh from recalced keyblocks */
-		update_bmesh_shapes(ob);	
+		update_bmesh_shapes(ob);
 	}
 }
 
@@ -673,8 +681,9 @@ bool EDBM_mesh_from_editmesh(Object *obedit, bool do_free)
 		return false;
 	}
 
-	if (me->key && BKE_keyblock_from_object(obedit)) {
-		if (!BKE_editmesh_topo_has_changed(em)) {
+	if (k && BKE_keyblock_from_object(obedit)) {
+		/* XXX Check it is OK to update topohash here (i.e. subsequent calls to this are OK to assume same topo again). */
+		if (BKE_editmesh_topohash_identity(em, k->topohash, true)) {
 			BKE_key_editdata_to_scratch(obedit, true);
 			recalc_keyblocks_from_scratch(obedit);
 			update_bmesh_shapes(obedit);

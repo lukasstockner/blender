@@ -3166,7 +3166,9 @@ static void direct_link_key(FileData *fd, Key *key)
 	
 	key->scratch.origin = newdataadr(fd, key->scratch.origin);
 	key->scratch.data = newdataadr(fd, key->scratch.data);
-	
+
+	key->topohash = NULL;
+
 	for (kb = key->block.first; kb; kb = kb->next) {
 		kb->data = newdataadr(fd, kb->data);
 		

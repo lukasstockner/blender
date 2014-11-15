@@ -37,13 +37,7 @@ struct Mesh;
 struct Scene;
 struct DerivedMesh;
 struct MeshStatVis;
-
-/* struct for storing data to determine if the mesh's topology has changed */
-typedef struct {
-	int totvert, totedge, totloop, totface;
-	/* note the layout of totvert..totface is the same as in a BMesh so we can bulk copy/compare them */
-	int topohash;
-} EMTopoChangeData;
+struct MTopoHash;
 
 /* ok: the EDBM module is for editmode bmesh stuff.  in contrast, the 
  *     BMEdit module is for code shared with blenkernel that concerns
@@ -85,10 +79,6 @@ typedef struct BMEditMesh {
 	/* Object this editmesh came from (if it came from one) */
 	struct Object *ob;
 
-	/* used to know if the editmesh's topology has changed from a certain point in time,
-	 * use BKE_editmesh_topochange_calc/BKE_editmesh_topo_has_changed */
-	EMTopoChangeData topochange;
-
 	/*temp variables for x-mirror editing*/
 	int mirror_cdlayer; /* -1 is invalid */
 } BMEditMesh;
@@ -105,11 +95,9 @@ void        BKE_editmesh_update_linked_customdata(BMEditMesh *em);
 void        BKE_editmesh_color_free(BMEditMesh *em);
 void        BKE_editmesh_color_ensure(BMEditMesh *em, const char htype);
 
-/* calculates a topology-dependent hash to detect if topology has been modified later */
-void        BKE_editmesh_topochange_calc(BMEditMesh *em);
-
-/* checks if the topology has changed since last call to BKE_editmesh_syncdata_calc. Does not recalc! */
-bool        BKE_editmesh_topo_has_changed(BMEditMesh *em);
+/* Topology hash compute/check. */
+void        BKE_editmesh_topohash_compute(BMEditMesh *em, struct MTopoHash **topohash);
+bool        BKE_editmesh_topohash_identity(BMEditMesh *em, struct MTopoHash *topohash, const bool do_update);
 
 /* editderivedmesh.c */
 /* should really be defined in editmesh.c, but they use 'EditDerivedBMesh' */

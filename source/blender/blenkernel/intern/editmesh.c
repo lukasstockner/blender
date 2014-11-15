@@ -34,6 +34,7 @@
 #include "DNA_listBase.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_meshdata_types.h"
 
 #include "BLI_math.h"
 
@@ -250,24 +251,56 @@ void BKE_editmesh_color_ensure(BMEditMesh *em, const char htype)
 
 /* ==================== topology hashing ======================= */
 
-void BKE_editmesh_topochange_calc(BMEditMesh *em)
+/**
+ * Compute given \a em's topology signature, and stores it into \a topohash.
+ *
+ * If \a topohash is not yet allocated, will take care of this too, user must take care of freeing.
+ *
+ * \param em The BMEditMesh to check current topology.
+ * \param topohash The topology hash to fill in.
+ */
+void BKE_editmesh_topohash_compute(BMEditMesh *em, MTopoHash **topohash)
 {
-	em->topochange.topohash = BM_mesh_topology_hash(em->bm);
-	em->topochange.totvert = em->bm->totvert;
-	em->topochange.totedge = em->bm->totedge;
-	em->topochange.totloop = em->bm->totloop;
-	em->topochange.totface = em->bm->totface;
+	if (*topohash == NULL) {
+		*topohash = MEM_mallocN(sizeof(**topohash), __func__);
+	}
+
+	(*topohash)->totvert = em->bm->totvert;
+	(*topohash)->totedge = em->bm->totedge;
+	(*topohash)->totloop = em->bm->totloop;
+	(*topohash)->totpoly = em->bm->totface;
+
+	(*topohash)->hash = BM_mesh_topology_hash(em->bm);
 }
 
-bool BKE_editmesh_topo_has_changed(BMEditMesh *em)
+/**
+ * Checks if current \a em topology is identical to the one which generated \a topohash.
+ *
+ * \param em The BMEditMesh to check current topology.
+ * \param topohash The previously computed topology hash.
+ * \param do_update If true, update \a topohash to current \a em's topology 'signature'.
+ *
+ * \return True if topology matches given hash.
+ */
+bool BKE_editmesh_topohash_identity(BMEditMesh *em, MTopoHash *topohash, const bool do_update)
 {
-	if (em->bm->totvert == em->topochange.totvert && em->bm->totedge == em->topochange.totedge &&
-	    em->bm->totloop == em->topochange.totloop && em->bm->totface == em->topochange.totface)
+	if (do_update ||
+	    ((em->bm->totvert == topohash->totvert) && (em->bm->totedge == topohash->totedge) &&
+	     (em->bm->totloop == topohash->totloop) && (em->bm->totface == topohash->totpoly)))
 	{
-		int hash = BM_mesh_topology_hash(em->bm);
-		if (hash == em->topochange.topohash)
+		unsigned int hash = BM_mesh_topology_hash(em->bm);
+
+		if (hash != topohash->hash) {
+			if (do_update) {
+				topohash->totvert = em->bm->totvert;
+				topohash->totedge = em->bm->totedge;
+				topohash->totloop = em->bm->totloop;
+				topohash->totpoly = em->bm->totface;
+				topohash->hash = hash;
+			}
 			return false;
-		else return true;
+		}
+		return true;
 	}
-	return true;
+	return false;
 }

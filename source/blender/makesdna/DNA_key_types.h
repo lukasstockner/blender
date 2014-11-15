@@ -37,6 +37,7 @@
 
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
+#include "DNA_meshdata_types.h"
 #include "DNA_ID.h"
 
 struct AnimData;
@@ -95,8 +96,11 @@ typedef struct Key {
 	 * perhaps later on it could be defined as some other KeyBlock - campbell */
 	KeyBlock *refkey;
 	
-	/* Runtime KeyBlock where the 'real' data editing happens. Gets committed to its origin. */
+	/* 'Runtime' KeyBlock where the 'real' data editing happens. Gets committed to its origin (saved in .blend). */
 	ScratchKeyBlock scratch;
+
+	/* Strictly-runtime topology hash, to detect changes in topology of skeyed mesh. */
+	MTopoHash *topohash;
 
 	/* this is not a regular string, although it is \0 terminated
 	 * this is an array of (element_array_size, element_type) pairs

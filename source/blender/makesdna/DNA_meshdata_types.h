@@ -38,6 +38,27 @@
 struct Bone;
 struct Image;
 
+/* Generic mesh topology hash.
+ * Note we store also numbers of verts/edges/loops/polys, since checking those is much cheaper than recomputing
+ * the real hash, and should be enough to detect 99% of topology changes!
+ * Strictly runtime, never to be saved, so tag it as DNA-ignored.
+ */
+/* Note: only half-convinced we really need numbers of verts/edges/loops/polys here. Thing is, they are only useful
+ *       to detect topo *changes*, if topology remains the same we have to recompute the hash every time anyway,
+ *       and unchanged topology is the most common expected case... On the other hand, storing numbers here
+ *       does not add much overhead, and maybe we'll be happy to have this 'is changed' quick check in some cases?
+ */
+#
+#
+typedef struct MTopoHash {
+	int totvert;
+	int totedge;
+	int totloop;
+	int totpoly;
+
+	unsigned int hash;
+} MTopoHash;
+
 /*tessellation face, see MLoop/MPoly for the real face data*/
 typedef struct MFace {
 	unsigned int v1, v2, v3, v4;

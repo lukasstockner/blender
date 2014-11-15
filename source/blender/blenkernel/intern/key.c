@@ -93,8 +93,8 @@ void BKE_key_free(Key *key)
 		MEM_freeN(kb);
 	}
 
-	if (key->scratch.data)
-		MEM_freeN(key->scratch.data);
+	MEM_SAFE_FREE(key->scratch.data);
+	MEM_SAFE_FREE(key->topohash);
 }
 
 void BKE_key_free_nolib(Key *key)
@@ -107,8 +107,8 @@ void BKE_key_free_nolib(Key *key)
 		MEM_freeN(kb);
 	}
 
-	if (key->scratch.data)
-		MEM_freeN(key->scratch.data);
+	MEM_SAFE_FREE(key->scratch.data);
+	MEM_SAFE_FREE(key->topohash);
 }
 
 Key *BKE_key_add(ID *id)    /* common function */
@@ -122,7 +122,9 @@ Key *BKE_key_add(ID *id)    /* common function */
 	key->from = id;
 
 	key->uidgen = 1;
-	
+
+	key->topohash = NULL;
+
 	/* XXX the code here uses some defines which will soon be deprecated... */
 	switch (GS(id->name)) {
 		case ID_ME:
@@ -181,9 +183,13 @@ Key *BKE_key_copy(Key *key)
 		kbn = kbn->next;
 		kb = kb->next;
 	}
-	
-	if (key->scratch.data)
+
+	if (key->scratch.data) {
 		keyn->scratch.data = MEM_dupallocN(key->scratch.data);
+	}
+	if (key->topohash) {
+		keyn->topohash = MEM_dupallocN(key->topohash);
+	}
 
 	return keyn;
 }
@@ -197,13 +203,14 @@ void BKE_key_overwrite_data(Key *from, Key *to)
 			MEM_freeN(kbt->data);
 	}
 
-	if (to->scratch.data) {
-		MEM_freeN(to->scratch.data);
-		to->scratch.data = NULL;
-	}
+	MEM_SAFE_FREE(to->scratch.data);
+	MEM_SAFE_FREE(to->topohash);
 
 	if (from->scratch.data) {
 		to->scratch.data = MEM_dupallocN(from->scratch.data);
+	}
+	if (from->topohash) {
+		to->topohash = MEM_dupallocN(from->topohash);
 	}
 
 	BLI_freelistN(&to->block);
@@ -257,9 +264,13 @@ Key *BKE_key_copy_nolib(Key *key)
 		kb = kb->next;
 	}
 
-	if (key->scratch.data)
+	if (key->scratch.data) {
 		keyn->scratch.data = MEM_dupallocN(key->scratch.data);
-	
+	}
+	if (key->topohash) {
+		keyn->topohash = MEM_dupallocN(key->topohash);
+	}
+
 	return keyn;
 }
 
