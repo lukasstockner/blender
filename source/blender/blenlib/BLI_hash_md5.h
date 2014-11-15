@@ -18,29 +18,26 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BLI_MD5_H__
-#define __BLI_MD5_H__
+#ifndef __BLI_HASH_MD5_H__
+#define __BLI_HASH_MD5_H__
 
 /** \file BLI_hash_md5.h
  *  \ingroup bli
  */
-
-#include <stdio.h>
-#include <stdlib.h>
 
 /* Compute MD5 message digest for LEN bytes beginning at BUFFER.  The
  * result is always in little endian byte order, so that a byte-wise
  * output yields to the wanted ASCII representation of the message
  * digest.  */
 
-void *md5_buffer(const char *buffer, size_t len, void *resblock);
+void *BLI_hash_md5_buffer(const char *buffer, size_t len, void *resblock);
 
 /* Compute MD5 message digest for bytes read from STREAM.  The
  * resulting message digest number will be written into the 16 bytes
  * beginning at RESBLOCK.  */
 
-int md5_stream(FILE *stream, void *resblock);
+int BLI_hash_md5_stream(FILE *stream, void *resblock);
 
-char *md5_to_hexdigest(void *resblock, char r_hex_digest[33]);
+char *BLI_hash_md5_to_hexdigest(void *resblock, char r_hex_digest[33]);
 
-#endif  /* __BLI_MD5_H__ */
+#endif  /* __BLI_HASH_MD5_H__ */
