@@ -440,14 +440,20 @@ typedef struct {
 	GHOST_TEventDataPtr data;
 } GHOST_TEventDragnDropData;
 
-/** same with wmImeData */
+/** similar to wmImeData */
 typedef struct {
-	GHOST_TUserDataPtr result_len, composite_len; /** size_t */
-	GHOST_TUserDataPtr result, composite; /** char * utf8 encoding */
-	int cursor_position; /* Represents the cursor position in the IME composition. */
-	int target_start; /* Represents the position of the beginning of the selection */
-	int target_end; /* Represents the position of the end of the selection */
-	GHOST_TUserDataPtr tmp; /* custom temporal data */
+	/** size_t */
+	GHOST_TUserDataPtr result_len, composite_len; 
+	/** char * utf8 encoding */
+	GHOST_TUserDataPtr result, composite;
+	/** Cursor position in the IME composition. */
+	int cursor_position;
+	/** Represents the position of the beginning of the selection */
+	int target_start;
+	/** Represents the position of the end of the selection */
+	int target_end;
+	/** custom temporal data */
+	GHOST_TUserDataPtr tmp;
 } GHOST_TEventImeData;
 
 typedef struct {

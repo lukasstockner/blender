@@ -296,17 +296,17 @@ public:
 	}
 
 	virtual void enableIME(GHOST_TInt32 x,
-						   GHOST_TInt32 y,
-						   GHOST_TInt32 w,
-						   GHOST_TInt32 h,
-						   int completed)
+	                       GHOST_TInt32 y,
+	                       GHOST_TInt32 w,
+	                       GHOST_TInt32 h,
+	                       int completed)
 	{
-		// do nothing temporarily if not in windows
+		/* do nothing temporarily if not in windows */
 	}
 
 	virtual void disableIME() 
 	{
-		// do nothing temporarily if not in windows
+		/* do nothing temporarily if not in windows */
 	}
 
 protected:

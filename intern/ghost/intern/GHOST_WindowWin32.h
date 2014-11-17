@@ -254,13 +254,13 @@ public:
 	/** if the window currently resizing */
 	bool m_inLiveResize;
 
-	GHOST_ImeWin32 *getImeInput() { return &m_imeImput; }
+	GHOST_ImeWin32 *getImeInput() {return &m_imeImput;}
 
 	virtual void enableIME(GHOST_TInt32 x,
-						   GHOST_TInt32 y,
-						   GHOST_TInt32 w,
-						   GHOST_TInt32 h,
-						   int completed);
+	                       GHOST_TInt32 y,
+	                       GHOST_TInt32 w,
+	                       GHOST_TInt32 h,
+	                       int completed);
 
 	virtual void disableIME();
 
