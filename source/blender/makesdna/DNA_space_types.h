@@ -853,6 +853,8 @@ typedef struct SpaceText {
 	void *drawcache; /* cache for faster drawing */
 
 	float scroll_accum[2]; /* runtime, for scroll increments smaller than a line */
+
+	struct wmImeData *ime;
 } SpaceText;
 
 
@@ -1052,6 +1054,8 @@ typedef struct SpaceConsole {
 	
 	int sel_start;
 	int sel_end;
+
+	struct wmImeData *ime;
 } SpaceConsole;
 
 

@@ -302,6 +302,7 @@ struct uiBut {
 	float *editvec;
 	void *editcoba;
 	void *editcumap;
+	void *editime;
 	
 	/* pointer back */
 	uiBlock *block;
@@ -626,6 +627,9 @@ void ui_but_clipboard_free(void);
 void ui_panel_menu(struct bContext *C, ARegion *ar, Panel *pa);
 uiBut *ui_but_find_old(uiBlock *block_old, const uiBut *but_new);
 uiBut *ui_but_find_new(uiBlock *block_old, const uiBut *but_new);
+
+void ui_but_ime_reposition(uiBut *but, int x, int y, int complete);
+struct wmImeData *ui_but_get_ime_data(uiBut *but);
 
 /* interface_widgets.c */
 void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3);

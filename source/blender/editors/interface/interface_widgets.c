@@ -33,6 +33,8 @@
 #include <string.h>
 #include <assert.h>
 
+#include "MEM_guardedalloc.h"
+
 #include "DNA_brush_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
@@ -58,6 +60,8 @@
 
 
 #include "interface_intern.h"
+
+#include "WM_types.h"
 
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
@@ -1237,7 +1241,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	int drawstr_left_len = UI_MAX_DRAW_STR;
 	const char *drawstr = but->drawstr;
 	const char *drawstr_right = NULL;
+	char *drawstr_edit = NULL;
 	bool use_right_only = false;
+	wmImeData *ime = ui_but_get_ime_data(but);
 
 	UI_fontstyle_set(fstyle);
 	
@@ -1266,13 +1272,30 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			/* max length isn't used in this case,
 			 * we rely on string being NULL terminated. */
 			drawstr_left_len = INT_MAX;
-			drawstr = but->editstr;
+
+			if (ime && ime->composite_len) {
+				/* insert composite string into cursor pos */
+				char *str;
+				size_t len, slen;
+				len = strlen(but->editstr);
+				slen = ime->composite_len;
+				str = MEM_mallocN(sizeof(char) * (slen + len + 1), "drawstr edit buffer");
+				memcpy(str, but->editstr, sizeof(char) * but->pos);
+				memcpy(str + but->pos, ime->composite, sizeof(char) * slen);
+				memcpy(str + but->pos + slen, but->editstr + but->pos, sizeof(char) + (len - but->pos));
+				str[len + slen] = '\0';
+				drawstr = drawstr_edit = str;
+			}
+			else {
+				drawstr = but->editstr;
+			}
 		}
 	}
 
-
-	/* text button selection and cursor */
+	/* text button selection, cursor, composite underline */
 	if (but->editstr && but->pos != -1) {
+		int vpos;
+		int tx, ty;
 
 		/* text button selection */
 		if ((but->selend - but->selsta) > 0) {
@@ -1298,17 +1321,71 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		}
 
 		/* text cursor */
+		vpos = but->pos;
+		/* if is ime compositing, move the cursor */
+		if (ime && ime->composite_len && ime->cursor_position != -1)
+			vpos += ime->cursor_position;
+
 		if (but->pos >= but->ofs) {
 			int t;
 			if (drawstr[0] != 0) {
-				t = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->pos - but->ofs);
+				t = BLF_width(fstyle->uifont_id, drawstr + but->ofs, vpos - but->ofs);
 			}
 			else {
 				t = 0;
 			}
 
 			glColor3f(0.20, 0.6, 0.9);
-			glRecti(rect->xmin + t, rect->ymin + 2, rect->xmin + t + 2, rect->ymax - 2);
+
+			tx = rect->xmin + t + 2;
+			ty = rect->ymin + 2;
+			glRecti(rect->xmin + t, ty, tx, rect->ymax - 2);
+
+			/* ime cursor following */
+			ui_but_ime_reposition(but, tx + 5, ty + 3, false);
+		}
+
+		/* composite underline */
+		if (ime && ime->composite_len) {
+			int draw_start, draw_end, target_start = ime->target_start, target_end = ime->target_end;
+
+			if (drawstr[0] != 0) {
+
+				if (but->pos >= but->ofs) {
+					draw_start = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->pos - but->ofs);
+				}
+				else {
+					draw_start = 0;
+				}
+
+				draw_end = BLF_width(fstyle->uifont_id, drawstr + but->ofs, 
+								     ime->composite_len + but->pos - but->ofs);
+
+				glColor4ubv((unsigned char *)wcol->text);
+				glRecti(rect->xmin + draw_start,
+					rect->ymin + 2,
+					min_ii(rect->xmin + draw_end, rect->xmax - 2), rect->ymin + 1);
+
+				/* draw the thick line */
+				if (target_start != -1 && target_end != -1) {
+					target_end -= target_start;
+					target_start += but->pos;
+
+					if (target_start >= but->ofs) {
+						draw_start = BLF_width(fstyle->uifont_id, drawstr + but->ofs, target_start - but->ofs);
+					}
+					else {
+						draw_start = 0;
+					}
+
+					draw_end = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
+										 target_end + target_start - but->ofs);
+
+					glRecti(rect->xmin + draw_start,
+						rect->ymin + 3,
+						min_ii(rect->xmin + draw_end, rect->xmax - 2), rect->ymin + 1);
+				}
+			}
 		}
 	}
 	
@@ -1403,6 +1480,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		rect->xmax -= UI_TEXT_CLIP_MARGIN;
 		UI_fontstyle_draw(fstyle, rect, drawstr_right);
 	}
+
+	if (drawstr_edit)
+		MEM_freeN(drawstr_edit);
 }
 
 /* draws text and icons for buttons */

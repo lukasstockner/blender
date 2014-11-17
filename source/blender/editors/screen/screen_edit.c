@@ -54,6 +54,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "wm_window.h"
 
 #include "ED_object.h"
 #include "ED_screen.h"
@@ -1434,6 +1435,11 @@ void ED_screen_set_subwinactive(bContext *C, wmEvent *event)
 		else {
 			/* notifier invokes freeing the buttons... causing a bit too much redraws */
 			if (oldswin != scr->subwinactive) {
+				/* when cursor leave a region, disable IME,
+				 * used for disable IME when cursor leave text or console region
+				 */
+				wm_window_IME_disable(win);
+
 				region_cursor_set(win, scr->subwinactive, true);
 
 				/* this used to be a notifier, but needs to be done immediate

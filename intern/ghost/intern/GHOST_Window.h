@@ -295,6 +295,20 @@ public:
 		return 1.0f;
 	}
 
+	virtual void enableIME(GHOST_TInt32 x,
+						   GHOST_TInt32 y,
+						   GHOST_TInt32 w,
+						   GHOST_TInt32 h,
+						   int completed)
+	{
+		// do nothing temporarily if not in windows
+	}
+
+	virtual void disableIME() 
+	{
+		// do nothing temporarily if not in windows
+	}
+
 protected:
 	/**
 	 * Tries to install a rendering context in this window.

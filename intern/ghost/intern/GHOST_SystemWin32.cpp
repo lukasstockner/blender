@@ -787,6 +787,15 @@ GHOST_Event *GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type, GHOST_
 	return new GHOST_Event(system->getMilliSeconds(), type, window);
 }
 
+GHOST_Event *GHOST_SystemWin32::processImeEvent(
+		GHOST_TEventType type, 
+		GHOST_IWindow *window, 
+		GHOST_TEventImeData *data)
+{
+	GHOST_System *system = (GHOST_System *)getSystem();
+	return new GHOST_EventIME(system->getMilliSeconds(), type, window, data);
+}
+
 GHOST_TSuccess GHOST_SystemWin32::pushDragDropEvent(
         GHOST_TEventType eventType,
         GHOST_TDragnDropTypes draggedObjectType,
@@ -899,6 +908,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 
 	LRESULT lResult = 0;
 	GHOST_SystemWin32 *system = ((GHOST_SystemWin32 *)getSystem());
+	GHOST_EventManager *eventManager = system->getEventManager();
 	GHOST_ASSERT(system, "GHOST_SystemWin32::s_wndProc(): system not initialized");
 
 	if (hwnd) {
@@ -907,8 +917,13 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 			switch (msg) {
 				// we need to check if new key layout has AltGr
 				case WM_INPUTLANGCHANGE:
+				{
 					system->handleKeyboardChange();
+
+					window->getImeInput()->SetInputLanguage();
+
 					break;
+				}
 				////////////////////////////////////////////////////////////////////////
 				// Keyboard events, processed
 				////////////////////////////////////////////////////////////////////////
@@ -942,6 +957,54 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 							break;
 #endif
 					}
+					break;
+				}
+				////////////////////////////////////////////////////////////////////////
+				// IME events, processed, read more in GHOST_IME.h
+				////////////////////////////////////////////////////////////////////////
+				case WM_IME_SETCONTEXT:
+				{
+					window->getImeInput()->SetInputLanguage();
+					window->getImeInput()->CreateImeWindow(window->getHWND());
+					window->getImeInput()->CleanupComposition(window->getHWND());
+					window->getImeInput()->CheckFirst(window->getHWND());
+					break;
+				}
+				case WM_IME_STARTCOMPOSITION:
+				{
+					eventHandled = true;
+					/* remove input event before start comp event, avoid redundant input */
+					eventManager->removeTypeEvents(GHOST_kEventKeyDown, window);
+					window->getImeInput()->CreateImeWindow(window->getHWND());
+					window->getImeInput()->ResetComposition(window->getHWND());
+					event = processImeEvent(
+						GHOST_kEventImeCompositionStart,
+						window,
+						&window->getImeInput()->eventImeData);
+					break;
+				}
+				case WM_IME_COMPOSITION:
+				{
+					eventHandled = true;
+					window->getImeInput()->UpdateImeWindow(window->getHWND());
+					window->getImeInput()->UpdateInfo(window->getHWND());
+					event = processImeEvent(
+						GHOST_kEventImeComposition,
+						window,
+						&window->getImeInput()->eventImeData);
+					break;
+				}
+				case WM_IME_ENDCOMPOSITION:
+				{
+					eventHandled = true;
+					/* remove input event after end comp event, avoid redundant input */
+					eventManager->removeTypeEvents(GHOST_kEventKeyDown, window);
+					window->getImeInput()->ResetComposition(window->getHWND());
+					window->getImeInput()->DestroyImeWindow(window->getHWND());
+					event = processImeEvent(
+						GHOST_kEventImeCompositionEnd,
+						window,
+						&window->getImeInput()->eventImeData);
 					break;
 				}
 				////////////////////////////////////////////////////////////////////////

@@ -191,6 +191,11 @@ typedef struct wmWindow {
 	short last_pie_event;      /* exception to the above rule for nested pies, store last pie event for operators
 	                            * that spawn a new pie right after destruction of last pie */
 
+	short is_ime_composite; /* set to 1 if is ime composite */
+	short pad[3];
+	/* ime info, use during composing */
+	struct wmImeData *ime_data;
+
 	struct wmEvent *eventstate;   /* storage for event system */
 
 	struct wmSubWindow *curswin;  /* internal for wm_subwindow.c only */

@@ -45,6 +45,8 @@
 
 #include "textview.h"
 
+#include "WM_types.h"
+
 static void console_font_begin(TextViewContext *sc)
 {
 	/* 0.875 is based on: 16 pixels lines get 14 pixel text */
@@ -63,6 +65,7 @@ typedef struct ConsoleDrawContext {
 	int *pos_pick; // bottom of view == 0, top of file == combine chars, end of line is lower then start. 
 	const int *mval; // [2]
 	int draw;
+	struct wmImeData *ime;
 } ConsoleDrawContext;
 
 BLI_INLINE void console_step_sel(ConsoleDrawContext *cdc, const int step)
@@ -85,6 +88,23 @@ static void console_draw_sel(const char *str, const int sel[2], const int xy[2],
 		glRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);
 
 		glDisable(GL_BLEND);
+	}
+}
+
+static void console_draw_underline(const char *str, const int sel[2], const int xy[2], const int str_len_draw,
+							       int cwidth, int lheight, const unsigned char bg_sel[4])
+{
+	if (sel[0] <= str_len_draw && sel[1] >= 0) {
+		const int sta = txt_utf8_offset_to_column(str, max_ii(sel[0], 0));
+		const int end = txt_utf8_offset_to_column(str, min_ii(sel[1], str_len_draw));
+		int tmp[2];
+
+		glColor3ubv(bg_sel);
+
+		/* return the coord for IME window following */
+		tmp[0] = xy[0] + (cwidth * end);
+		tmp[1] = xy[1] - 2;
+		glRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, tmp[0], tmp[1]);
 	}
 }
 
@@ -124,6 +144,27 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 	int *offsets;             /* offsets of line beginnings for wrapping */
 	int y_next;
 	const int mono = blf_mono_font;
+	char *buf = NULL;
+	int cursor;
+
+	if (cdc->ime && !cdc->ime->tmp)
+		cdc->ime = NULL;
+
+	if (cdc->ime && cdc->ime->composite_len) {
+		size_t len, slen;
+		cursor = ((int *)cdc->ime->tmp)[2];
+
+		/* insert composite str */
+		len = str_len;
+		slen = cdc->ime->composite_len;
+		buf = MEM_mallocN(sizeof(char) * (slen + len + 1), "console edit buffer");
+		memcpy(buf, str, sizeof(char) * cursor);
+		memcpy(buf + cursor, cdc->ime->composite, sizeof(char) * slen);
+		memcpy(buf + cursor + slen, str + cursor, sizeof(char) + (len - cursor));
+		buf[len + slen] = '\0';
+		str = buf;
+		str_len += slen;
+	}
 
 	str_len = console_wrap_offsets(str, str_len, cdc->console_width, &tot_lines, &offsets);
 	y_next = cdc->xy[1] + cdc->lheight * tot_lines;
@@ -153,6 +194,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 
 		cdc->xy[1] = y_next;
 		MEM_freeN(offsets);
+		if (buf) MEM_freeN(buf);
 		return 1;
 	}
 	else if (y_next - cdc->lheight < cdc->ymin) {
@@ -165,6 +207,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		}
 
 		MEM_freeN(offsets);
+		if (buf) MEM_freeN(buf);
 		return 1;
 	}
 
@@ -173,9 +216,12 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		size_t len = str_len - initial_offset;
 		const char *s = str + initial_offset;
 		int i;
+		int cursors[2];
 		
 		int sel_orig[2];
 		copy_v2_v2_int(sel_orig, cdc->sel);
+
+		cursors[0] = cursor;
 
 		/* invert and swap for wrapping */
 		cdc->sel[0] = str_len - sel_orig[1];
@@ -199,6 +245,21 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			glColor3ubv(fg);
 		}
 
+		/* draw IME composite underline */
+		if (cdc->ime && cdc->ime->composite_len) {
+			cursors[0] -= initial_offset;
+			cursors[1] = cursors[0] + cdc->ime->composite_len;
+			console_draw_underline(s, cursors, cdc->xy, len, cdc->cwidth, 1, fg);
+
+			/* draw the thicker line */
+			if (cdc->ime->target_start != -1 && cdc->ime->target_end != -1) {
+				int isel[2];
+				isel[0] = cursors[0] + cdc->ime->target_start;
+				isel[1] = cursors[0] + cdc->ime->target_end;
+				console_draw_underline(s, isel, cdc->xy, len, cdc->cwidth, 2, fg);
+			}
+		}
+
 		cdc->xy[1] += cdc->lheight;
 
 		for (i = tot_lines - 1; i > 0; i--) {
@@ -215,11 +276,27 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 				glColor3ubv(fg);
 			}
 
+			/* draw IME composite underline */
+			if (cdc->ime && cdc->ime->composite_len) {
+				cursors[0] += len;
+				cursors[1] = cursors[0] + cdc->ime->composite_len;
+				console_draw_underline(s, cursors, cdc->xy, len, cdc->cwidth, 1, fg);
+
+				/* draw the thicker line */
+				if (cdc->ime->target_start != -1 && cdc->ime->target_end != -1) {
+					int isel[2];
+					isel[0] = cursors[0] + cdc->ime->target_start;
+					isel[1] = cursors[0] + cdc->ime->target_end;
+					console_draw_underline(s, isel, cdc->xy, len, cdc->cwidth, 2, fg);
+				}
+			}
+
 			cdc->xy[1] += cdc->lheight;
 			
 			/* check if were out of view bounds */
 			if (cdc->xy[1] > cdc->ymax) {
 				MEM_freeN(offsets);
+				if (buf) MEM_freeN(buf);
 				return 0;
 			}
 		}
@@ -250,15 +327,33 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			console_step_sel(cdc, -(str_len + 1));
 		}
 
+		/* draw IME composite underline */
+		if (cdc->ime && cdc->ime->composite_len) {
+			int isel[2];
+
+			isel[0] = cursor;
+			isel[1] = cursor + cdc->ime->composite_len;
+			console_draw_underline(str, isel, cdc->xy, str_len, cdc->cwidth, 1, fg);
+			
+			/* draw the thicker line */
+			if (cdc->ime->target_start != -1 && cdc->ime->target_end != -1) {
+				isel[0] = cursor + cdc->ime->target_start;
+				isel[1] = cursor + cdc->ime->target_end;
+				console_draw_underline(str, isel, cdc->xy, str_len, cdc->cwidth, 2, fg);
+			}
+		}
+
 		cdc->xy[1] += cdc->lheight;
 
 		if (cdc->xy[1] > cdc->ymax) {
 			MEM_freeN(offsets);
+			if (buf) MEM_freeN(buf);
 			return 0;
 		}
 	}
 
 	MEM_freeN(offsets);
+	if (buf) MEM_freeN(buf);
 	return 1;
 }
 
@@ -308,6 +403,7 @@ int textview_draw(TextViewContext *tvc, const int draw, int mval[2], void **mous
 	tvc->console_width = cdc.console_width;
 	tvc->iter_index = 0;
 
+
 	if (tvc->sel_start != tvc->sel_end) {
 		sel[0] = tvc->sel_start;
 		sel[1] = tvc->sel_end;
@@ -331,6 +427,11 @@ int textview_draw(TextViewContext *tvc, const int draw, int mval[2], void **mous
 				color_flag = tvc->line_color(tvc, fg, bg);
 
 			tvc->line_get(tvc, &ext_line, &ext_len);
+
+			if (tvc->iter_index == 0)
+				cdc.ime = tvc->ime;
+			else
+				cdc.ime = NULL;
 
 			if (!console_draw_string(&cdc, ext_line, ext_len,
 			                         (color_flag & TVC_LINE_FG) ? fg : NULL,

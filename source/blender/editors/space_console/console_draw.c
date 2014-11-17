@@ -48,6 +48,7 @@
 
 #include "console_intern.h"
 
+#include "WM_types.h"
 
 #include "../space_info/textview.h"
 
@@ -177,8 +178,26 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 
 		console_cursor_wrap_offset(sc->prompt, tvc->console_width, &offl, &offc, NULL);
 		console_cursor_wrap_offset(cl->line, tvc->console_width, &offl, &offc, cl->line + cl->cursor);
+
 		pen[0] = tvc->cwidth * offc;
 		pen[1] = -2 - tvc->lheight * offl;
+
+		/* consider the effect of composition string */
+		if (tvc->ime && tvc->ime->composite_len) {
+			char *end = NULL;
+			if (tvc->ime->cursor_position != -1)
+				end = tvc->ime->composite + tvc->ime->cursor_position;
+
+			console_cursor_wrap_offset(tvc->ime->composite, tvc->console_width, &offl, &offc, end);
+
+			/* cursor inside the composition string */
+			pen[0] = tvc->cwidth * offc;
+			pen[1] = -2 - tvc->lheight * offl;
+
+			if (end != NULL)
+				console_cursor_wrap_offset(end, tvc->console_width, &offl, &offc, NULL);
+		}
+
 
 		console_cursor_wrap_offset(cl->line + cl->cursor, tvc->console_width, &offl, &offc, NULL);
 		pen[1] += tvc->lheight * offl;
@@ -191,7 +210,15 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 		        (xy[1] + pen[1]),
 		        (xy[0] + pen[0]) + 1,
 		        (xy[1] + pen[1] + tvc->lheight)
-		        );
+				);
+
+		/* cursor following */
+		if (tvc->ime && tvc->ime->composite_len) {
+			int *tmp = tvc->ime->tmp;
+			tmp[0] = (xy[0] + pen[0]) + 1;
+			tmp[1] = (xy[1] + pen[1]) - 1;
+		}
+
 	}
 
 	console_line_color(fg, cl_iter->type);
@@ -232,6 +259,11 @@ static int console_textview_main__internal(struct SpaceConsole *sc, ARegion *ar,
 	tvc.ymin = v2d->cur.ymin;
 	tvc.ymax = v2d->cur.ymax;
 	tvc.winx = ar->winx - V2D_SCROLL_WIDTH;
+
+	if (draw)
+		tvc.ime = sc->ime;
+	else
+		tvc.ime = NULL;
 
 	console_scrollback_prompt_begin(sc, &cl_dummy);
 	ret = textview_draw(&tvc, draw, mval, mouse_pick, pos_pick);

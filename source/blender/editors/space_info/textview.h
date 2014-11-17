@@ -55,6 +55,8 @@ typedef struct TextViewContext {
 	int iter_char_next;	/* same as above, next \n */
 	int iter_tmp;		/* internal iterator use */
 
+	/* ime data */
+	struct wmImeData *ime;
 } TextViewContext;
 
 int textview_draw(struct TextViewContext *tvc, const int draw, int mval[2], void **mouse_pick, int *pos_pick);

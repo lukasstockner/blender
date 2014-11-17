@@ -34,6 +34,7 @@
 
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_text_types.h"
 #include "DNA_space_types.h"
@@ -52,6 +53,8 @@
 
 #include "text_intern.h"
 #include "text_format.h"
+
+#include "WM_types.h"
 
 /******************** text font drawing ******************/
 // XXX, fixme
@@ -370,6 +373,10 @@ static const char *txt_utf8_forward_columns(const char *str, int columns, int *p
 	return p;
 }
 
+static void text_draw_ime_underline(SpaceText *st, int x, int y, int len, int height) {
+	glRecti(x, y - 4, x + len, y - 4 + height);
+}
+
 static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w, const char *format, int skip)
 {
 	const bool use_syntax = (st->showsyntax && format);
@@ -410,10 +417,18 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 
 			/* Draw the visible portion of text on the overshot line */
 			for (a = fstart, ma = mstart; ma < mend; a++, ma += BLI_str_utf8_size_safe(str + ma)) {
+				int len;
 				if (use_syntax) {
 					if (fmt_prev != format[a]) format_draw_color(fmt_prev = format[a]);
 				}
-				x += text_font_draw_character_utf8(st, x, y, str + ma);
+				len = text_font_draw_character_utf8(st, x, y, str + ma);
+				/* draw underline */
+				if (format && format[a] == FMT_TYPE_ULINE)
+					text_draw_ime_underline(st, x, y, len, 1);
+				else
+				if (format && format[a] == FMT_TYPE_TULINE)
+					text_draw_ime_underline(st, x, y, len, 2);
+				x += len;
 				fpos++;
 			}
 			y -= st->lheight_dpi + TXT_LINE_SPACING;
@@ -432,11 +447,20 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 
 	/* Draw the remaining text */
 	for (a = fstart, ma = mstart; str[ma] && y > 0; a++, ma += BLI_str_utf8_size_safe(str + ma)) {
+		int len;
 		if (use_syntax) {
 			if (fmt_prev != format[a]) format_draw_color(fmt_prev = format[a]);
 		}
 
-		x += text_font_draw_character_utf8(st, x, y, str + ma);
+		len = text_font_draw_character_utf8(st, x, y, str + ma);
+
+		/* draw underline */
+		if (format && format[a] == FMT_TYPE_ULINE)
+			text_draw_ime_underline(st, x, y, len, 1);
+		else
+		if (format && format[a] == FMT_TYPE_TULINE)
+			text_draw_ime_underline(st, x, y, len, 2);
+		x += len;
 	}
 
 	flatten_string_free(&fs);
@@ -479,13 +503,20 @@ static void text_draw(SpaceText *st, char *str, int cshift, int maxwidth, int x,
 
 	x += st->cwidth * padding;
 
-	if (use_syntax) {
-		int a, str_shift = 0;
+	if ((use_syntax || (st->ime && st->ime->composite_len)) && format) {
+		int a, str_shift = 0, len;
 		char fmt_prev = 0xff;
 
 		for (a = 0; a < amount; a++) {
 			if (format[a] != fmt_prev) format_draw_color(fmt_prev = format[a]);
-			x += text_font_draw_character_utf8(st, x, y, in + str_shift);
+			len = text_font_draw_character_utf8(st, x, y, in + str_shift);
+			/* draw underline */
+			if (fmt_prev == FMT_TYPE_ULINE)
+				text_draw_ime_underline(st, x, y, len, 1);
+			else
+			if (fmt_prev == FMT_TYPE_TULINE)
+				text_draw_ime_underline(st, x, y, len, 2);
+			x += len;
 			str_shift += BLI_str_utf8_size_safe(in + str_shift);
 		}
 	}
@@ -1179,6 +1210,12 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		else {
 			UI_ThemeColor(TH_HILITE);
 			glRecti(x - 1, y, x + 1, y - lheight);
+
+			if (st->ime && st->ime->composite_len && text->curl) {
+				int *tmp = st->ime->tmp;
+				tmp[0] = x + 1;
+				tmp[1] = y - lheight - 3;
+			}
 		}
 	}
 }
@@ -1322,6 +1359,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	int i, x, y, winx, linecount = 0, lineno = 0;
 	int wraplinecount = 0, wrap_skip = 0;
 	int margin_column_x;
+	TextLine bak = {0};
 
 	/* if no text, nothing to do */
 	if (!text)
@@ -1330,6 +1368,55 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	/* dpi controlled line height and font size */
 	st->lheight_dpi = (U.widget_unit * st->lheight) / 20;
 	st->viewlines = (st->lheight_dpi) ? (int)ar->winy / (st->lheight_dpi + TXT_LINE_SPACING) : 0;
+
+	/* make sure st->ime->tmp is not a null pointer*/
+	if (st->ime && !st->ime->tmp)
+		st->ime = NULL;
+	/* if is composing, backup and insert composition string */
+	if (st->ime && st->ime->composite_len && text->curl) {
+		int culen, clen, tlen, tulen, i;
+		bak = *text->curl;
+		tmp = text->curl;
+		clen = st->ime->composite_len;
+		culen = BLI_strnlen_utf8(st->ime->composite, clen);
+		tlen = tmp->len;
+		tulen = BLI_strnlen_utf8(tmp->line, tlen);
+		tmp->line = MEM_mallocN(tlen + clen + 1, "text ime backup");
+		tmp->format = MEM_mallocN(tulen + culen + 1, "text ime backup");
+
+		i = text->curc;
+
+		memcpy(tmp->line, bak.line, i);
+		memcpy(tmp->line + i, st->ime->composite, clen);
+		memcpy(tmp->line + i + clen, bak.line + i, tlen - i);
+		tmp->line[clen + tlen] = '\0';
+		tmp->len += clen;
+
+		i = BLI_strnlen_utf8(bak.line, text->curc);
+		if (bak.format) {
+			memcpy(tmp->format, bak.format, i);
+			memset(tmp->format + i, FMT_TYPE_ULINE, culen);
+			memcpy(tmp->format + i + culen, bak.format + i, tulen - i);
+		}
+		else {
+			memset(tmp->format, FMT_TYPE_DEFAULT, culen + tulen);
+			memset(tmp->format + i, FMT_TYPE_ULINE, culen);
+		}
+
+		/* set thicker line format */
+		if (st->ime->target_start != -1 && st->ime->target_end != -1) {
+			int target_start = BLI_strnlen_utf8(st->ime->composite, st->ime->target_start);
+			int target_end = BLI_strnlen_utf8(st->ime->composite, st->ime->target_end);
+			target_end -= target_start;
+			memset(tmp->format + i + target_start, FMT_TYPE_TULINE, target_end);
+		}
+
+		tmp->format[culen + tulen] = '\0';
+
+		/* move the cursor */
+		text->curc += st->ime->cursor_position;
+		text->selc += st->ime->cursor_position;
+	}
 	
 	text_update_drawcache(st, ar);
 
@@ -1446,6 +1533,15 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	draw_suggestion_list(st, ar);
 	
 	text_font_end(st);
+
+	if (bak.line) {
+		MEM_freeN(text->curl->line);
+		MEM_freeN(text->curl->format);
+		*text->curl = bak;
+		/* recover the cursor */
+		text->curc -= st->ime->cursor_position;
+		text->selc -= st->ime->cursor_position;
+	}
 }
 
 /************************** update ***************************/

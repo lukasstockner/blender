@@ -331,6 +331,34 @@ public:
 
 	virtual float getNativePixelSize(void) = 0;
 
+	/**
+	* Enable the IME attached to the given window, i.e. allows user-input
+	* events to be dispatched to the IME.
+	* \param x requested x-coordinate of the rectangle
+	* \param y requested y-coordinate of the rectangle
+	* \param w requested width of the rectangle
+	* \param h requested height of the rectangle
+	* \param complete
+	*     Represents whether or not to complete the ongoing composition.
+	*     + true
+	*       After finishing the ongoing composition and close its IME windows,
+	*       start another composition and display its IME windows to the given
+	*       position.
+	*     + false
+	*       Just move the IME windows of the ongoing composition to the given
+	*       position without finishing it.
+	*/
+	virtual void enableIME(GHOST_TInt32 x,
+						   GHOST_TInt32 y,
+						   GHOST_TInt32 w,
+						   GHOST_TInt32 h,
+						   int completed) = 0;
+
+	/**
+	* Disable the IME attached to the given window, i.e. prohibits any user-input
+	* events from being dispatched to the IME.
+	*/
+	virtual void disableIME() = 0;
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IWindow")

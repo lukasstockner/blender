@@ -39,6 +39,7 @@
 
 #include "GHOST_Window.h"
 #include "GHOST_TaskbarWin32.h"
+#include "GHOST_ImeWin32.h"
 
 #include <wintab.h>
 #define PACKETDATA  (PK_BUTTONS | PK_NORMAL_PRESSURE | PK_ORIENTATION | PK_CURSOR)
@@ -253,6 +254,16 @@ public:
 	/** if the window currently resizing */
 	bool m_inLiveResize;
 
+	GHOST_ImeWin32 *getImeInput() { return &m_imeImput; }
+
+	virtual void enableIME(GHOST_TInt32 x,
+						   GHOST_TInt32 y,
+						   GHOST_TInt32 w,
+						   GHOST_TInt32 h,
+						   int completed);
+
+	virtual void disableIME();
+
 private:
 
 	/**
@@ -339,6 +350,9 @@ private:
 
 	/** Hwnd to parent window */
 	GHOST_TEmbedderWindowID m_parentWindowHwnd;
+
+	/** Handle input method editors event */
+	GHOST_ImeWin32 m_imeImput;
 };
 
 #endif // __GHOST_WINDOWWIN32_H__

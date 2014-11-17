@@ -48,7 +48,9 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "wm_window.h"
 
+#include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -167,6 +169,9 @@ static void console_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 	if (st->text && BLI_rcti_isect_pt(&st->txtbar, win->eventstate->x - ar->winrct.xmin, st->txtbar.ymin)) {
 		wmcursor = CURSOR_STD;
 	}
+	else {
+		wm_window_IME_enable(win, ar->winrct.xmin, ar->winrct.ymin, 0, 0, true);
+	}
 
 	WM_cursor_set(win, wmcursor);
 }
@@ -225,6 +230,11 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	SpaceConsole *sc = CTX_wm_space_console(C);
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
+	wmWindow *win = CTX_wm_window(C);
+	wmImeData *ime = win->ime_data;
+	int ime_active = ime && ime->composite_len &&
+					 BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
+
 
 	if (BLI_listbase_is_empty(&sc->scrollback))
 		WM_operator_name_call((bContext *)C, "CONSOLE_OT_banner", WM_OP_EXEC_DEFAULT, NULL);
@@ -239,7 +249,28 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	/* data... */
 
 	console_history_verify(C); /* make sure we have some command line */
+
+	/* get cursor position from console_textview_main and repositon ime window */
+	if (ime_active) {
+		ConsoleLine *line = (ConsoleLine *)sc->history.last;
+		int *xy = MEM_callocN(sizeof(int[3]), "console cursor pos");
+		sc->ime = ime;
+		ime->tmp = xy;
+		/* [0~1] last cursor coord in the window, [2] cursor pos in text */
+		xy[2] = line->cursor + strlen(sc->prompt);
+	}
+	else
+		sc->ime = NULL;
+
 	console_textview_main(sc, ar);
+
+	if (ime_active) {
+		int *xy = ime->tmp;
+		ime->tmp = NULL;
+		ui_region_to_window(ar, xy, xy+1);
+		wm_window_IME_enable(win, xy[0] + 5, xy[1], 0, 0, false);
+		MEM_freeN(xy);
+	}
 	
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
@@ -353,6 +384,8 @@ static void console_keymap(struct wmKeyConfig *keyconf)
 
 	WM_keymap_add_item(keymap, "CONSOLE_OT_indent", TABKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "CONSOLE_OT_unindent", TABKEY, KM_PRESS, KM_SHIFT, 0);
+
+	WM_keymap_add_item(keymap, "CONSOLE_OT_insert", WM_IME_COMPOSITE_START, KM_ANY, KM_ANY, 0);
 
 	WM_keymap_add_item(keymap, "CONSOLE_OT_insert", KM_TEXTINPUT, KM_ANY, KM_ANY, 0); // last!
 }

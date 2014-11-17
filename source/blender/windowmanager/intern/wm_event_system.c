@@ -3374,6 +3374,31 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 
+		case GHOST_kEventImeCompositionStart:
+		{
+			event.val = KM_PRESS;
+			win->is_ime_composite = true;
+			win->ime_data = customdata;
+			event.type = WM_IME_COMPOSITE_START;
+			wm_event_add(win, &event);
+			break;
+		}
+		case GHOST_kEventImeComposition:
+		{
+			event.val = KM_PRESS;
+			event.type = WM_IME_COMPOSITE_EVENT;
+			wm_event_add(win, &event);
+			break;
+		}
+		case GHOST_kEventImeCompositionEnd:
+		{
+			event.val = KM_PRESS;
+			win->is_ime_composite = false;
+			event.type = WM_IME_COMPOSITE_END;
+			wm_event_add(win, &event);
+			break;
+		}
+
 	}
 
 #if 0
@@ -3480,5 +3505,9 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 	return (event->tablet_data) ? true : false;
 }
 
+bool WM_event_is_switch_ime(const struct wmEvent *event) {
+	return event->val == KM_PRESS && event->type == SPACEKEY &&
+		   (event->ctrl || event->oskey || event->shift || event->alt);
+}
 
 /** \} */

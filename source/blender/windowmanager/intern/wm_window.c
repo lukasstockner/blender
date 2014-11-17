@@ -1524,3 +1524,13 @@ bool WM_window_is_fullscreen(wmWindow *win)
 	return win->windowstate == GHOST_kWindowStateFullScreen;
 }
 
+
+void wm_window_IME_enable(wmWindow *win, int x, int y, int w, int h, bool complete)
+{
+	GHOST_EnableIME(win->ghostwin, x, win->sizey - y, w, h, complete);
+}
+
+void wm_window_IME_disable(wmWindow *win)
+{
+	GHOST_DisableIME(win->ghostwin);
+}

@@ -93,6 +93,8 @@ enum {
 	FMT_TYPE_RESERVED   = 'r',  /* Reserved keywords currently not in use, but still prohibited (OSL -> switch e.g.) */
 	FMT_TYPE_KEYWORD    = 'b',  /* Built-in names (return, for, etc.) */
 	FMT_TYPE_DEFAULT    = 'q',  /* Regular text (identifiers, etc.) */
+	FMT_TYPE_ULINE      = 'u',  /* Regular text with underline, be used for composition string */
+	FMT_TYPE_TULINE     = 't',  /* Regular text with thicker underline, be used for target string */
 };
 
 TextFormatType *ED_text_format_get(Text *text);

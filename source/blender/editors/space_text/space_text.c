@@ -48,6 +48,7 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
+#include "wm_window.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -380,6 +381,8 @@ static void text_keymap(struct wmKeyConfig *keyconf)
 	WM_keymap_add_item(keymap, "TEXT_OT_autocomplete", SPACEKEY, KM_PRESS, KM_CTRL, 0);
 	
 	WM_keymap_add_item(keymap, "TEXT_OT_line_number", KM_TEXTINPUT, KM_ANY, KM_ANY, 0);
+
+	WM_keymap_add_item(keymap, "TEXT_OT_insert", WM_IME_COMPOSITE_START, KM_ANY, KM_ANY, 0);
 	WM_keymap_add_item(keymap, "TEXT_OT_insert", KM_TEXTINPUT, KM_ANY, KM_ANY, 0); // last!
 }
 
@@ -427,6 +430,10 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceText *st = CTX_wm_space_text(C);
+	wmWindow *win = CTX_wm_window(C);
+	wmImeData *ime = win->ime_data;
+	int ime_active = ime && ime->composite_len &&
+					 BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
 	//View2D *v2d = &ar->v2d;
 	
 	/* clear and setup matrix */
@@ -436,8 +443,25 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	// UI_view2d_view_ortho(v2d);
 		
 	/* data... */
-	draw_text_main(st, ar);
 	
+	/* get cursor position from draw_text_main and repositon ime window */
+	if (ime_active) {
+		st->ime = ime;
+		ime->tmp = MEM_callocN(sizeof(int) * 2, "text cursor pos");
+		/* [0~1] last cursor coord in the window */
+	}
+	else
+		st->ime = NULL;
+
+	draw_text_main(st, ar);
+
+	if (ime_active) {
+		int *xy = ime->tmp;
+		ime->tmp = NULL;
+		ui_region_to_window(ar, xy, xy+1);
+		wm_window_IME_enable(win, xy[0] + 5, xy[1], 0, 0, false);
+		MEM_freeN(xy);
+	}
 	/* reset view matrix */
 	// UI_view2d_view_restore(C);
 	
@@ -451,6 +475,11 @@ static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 
 	if (st->text && BLI_rcti_isect_pt(&st->txtbar, win->eventstate->x - ar->winrct.xmin, st->txtbar.ymin)) {
 		wmcursor = CURSOR_STD;
+	}
+
+	/* enable IME if the text region has text which can be edited */
+	if (st->text && !st->text->id.lib) {
+		wm_window_IME_enable(win, ar->winrct.xmin, ar->winrct.ymin, 0, 0, true);
 	}
 
 	WM_cursor_set(win, wmcursor);

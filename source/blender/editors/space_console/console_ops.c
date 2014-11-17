@@ -394,6 +394,33 @@ static int console_insert_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
+static int console_insert_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	wmWindow *win = CTX_wm_window(C);
+	wmImeData *ime = win->ime_data;
+	ARegion *ar = CTX_wm_region(C);
+
+	if (event->type == WM_IME_COMPOSITE_EVENT) {
+		ED_area_tag_redraw(CTX_wm_area(C));
+		console_scroll_bottom(ar);
+	}
+
+	/* composition complete 
+	 * some Japanese IMEs return result without WM_IME_COMPOSITE_END event
+	 */
+	if (event->type == WM_IME_COMPOSITE_EVENT && ime->result_len) {
+		char *str = "";
+		if (ime->result) str = ime->result;
+		RNA_string_set(op->ptr, "text", str);
+		console_insert_exec(C, op);
+	}
+
+	if (event->type == WM_IME_COMPOSITE_END)
+		return OPERATOR_FINISHED;
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
 static int console_insert_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	// if (!RNA_struct_property_is_set(op->ptr, "text")) { /* always set from keymap XXX */
@@ -405,6 +432,19 @@ static int console_insert_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 		if ((event->ctrl || event->oskey) && !event->utf8_buf[0]) {
 			return OPERATOR_PASS_THROUGH;
 		}
+		/* most IME shortcut for switch IME, fullwidth/halfwidth and so on */
+		if (WM_event_is_switch_ime(event))
+		{
+			return OPERATOR_PASS_THROUGH;
+		}
+		/* composition begin and enter modal */
+		else if (event->type == WM_IME_COMPOSITE_START) {
+			SpaceConsole *sc = CTX_wm_space_console(C);
+			WM_event_add_modal_handler(C, op);
+			/* clear seletion */
+			sc->sel_end = sc->sel_start;
+			return console_insert_modal(C, op, event);
+		} 
 		else {
 			char str[BLI_UTF8_MAX + 1];
 			size_t len;
@@ -436,6 +476,7 @@ void CONSOLE_OT_insert(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = console_insert_exec;
 	ot->invoke = console_insert_invoke;
+	ot->modal = console_insert_modal;
 	ot->poll = ED_operator_console_active;
 
 	/* properties */

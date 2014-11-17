@@ -1050,3 +1050,21 @@ GHOST_TSuccess GHOST_WindowWin32::endProgressBar()
 	return GHOST_kFailure;
 }
 
+
+void GHOST_WindowWin32::enableIME(GHOST_TInt32 x,
+								  GHOST_TInt32 y,
+								  GHOST_TInt32 w,
+								  GHOST_TInt32 h,
+								  int completed)
+{
+	h = 20; // text height
+	this->getImeInput()->EnableIME(
+		this->getHWND(),
+		GHOST_Rect(x, y-h, x, y),
+		(bool)completed);
+}
+
+void GHOST_WindowWin32::disableIME()
+{
+	this->getImeInput()->DisableIME(this->getHWND());
+}
