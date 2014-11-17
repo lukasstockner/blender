@@ -430,12 +430,6 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceText *st = CTX_wm_space_text(C);
-#ifdef WITH_INPUT_IME
-	wmWindow *win = CTX_wm_window(C);
-	wmImeData *ime = win->ime_data;
-	int ime_active = ime && ime->composite_len &&
-					 BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
-#endif
 	//View2D *v2d = &ar->v2d;
 	
 	/* clear and setup matrix */
