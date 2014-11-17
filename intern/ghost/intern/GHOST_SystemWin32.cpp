@@ -978,7 +978,10 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					eventManager->removeTypeEvents(GHOST_kEventKeyDown, window);
 					window->getImeInput()->CreateImeWindow(window->getHWND());
 					window->getImeInput()->ResetComposition(window->getHWND());
-					event = processImeEvent(GHOST_kEventImeCompositionStart, window, &window->getImeInput()->eventImeData);
+					event = processImeEvent(
+					        GHOST_kEventImeCompositionStart,
+					        window,
+					        &window->getImeInput()->eventImeData);
 					break;
 				}
 				case WM_IME_COMPOSITION:
@@ -986,7 +989,10 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					eventHandled = true;
 					window->getImeInput()->UpdateImeWindow(window->getHWND());
 					window->getImeInput()->UpdateInfo(window->getHWND());
-					event = processImeEvent(GHOST_kEventImeComposition, window, &window->getImeInput()->eventImeData);
+					event = processImeEvent(
+					        GHOST_kEventImeComposition,
+					        window,
+					        &window->getImeInput()->eventImeData);
 					break;
 				}
 				case WM_IME_ENDCOMPOSITION:
@@ -996,7 +1002,10 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					eventManager->removeTypeEvents(GHOST_kEventKeyDown, window);
 					window->getImeInput()->ResetComposition(window->getHWND());
 					window->getImeInput()->DestroyImeWindow(window->getHWND());
-					event = processImeEvent(GHOST_kEventImeCompositionEnd, window, &window->getImeInput()->eventImeData);
+					event = processImeEvent(
+					        GHOST_kEventImeCompositionEnd,
+					        window,
+					        &window->getImeInput()->eventImeData);
 					break;
 				}
 #endif /* WITH_INPUT_IME */

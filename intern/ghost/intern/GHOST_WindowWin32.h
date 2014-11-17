@@ -260,10 +260,10 @@ public:
 	GHOST_ImeWin32 *getImeInput() {return &m_imeImput;}
 
 	virtual void beginIME(GHOST_TInt32 x,
-	                       GHOST_TInt32 y,
-	                       GHOST_TInt32 w,
-	                       GHOST_TInt32 h,
-	                       int completed);
+	                      GHOST_TInt32 y,
+	                      GHOST_TInt32 w,
+	                      GHOST_TInt32 h,
+	                      int completed);
 
 	virtual void endIME();
 #endif /* WITH_INPUT_IME */
