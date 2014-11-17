@@ -2427,20 +2427,20 @@ static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const in
 }
 
 /* enable ime, and set up uibut ime data */
-static void ui_textedit_ime_enable(wmWindow *window, uiBut *UNUSED(but)) 
+static void ui_textedit_ime_enable(wmWindow *win, uiBut *UNUSED(but)) 
 {
 	int x, y;
 	/* enable IME and position to cursor, it's a trick */
-	x = window->eventstate->x;
+	x = win->eventstate->x;
 	/* flip y and move down a bit, prevent the IME panel cover the edit button */
-	y = window->eventstate->y - 12;
-	wm_window_IME_enable(window, x, y, 0, 0, true);
+	y = win->eventstate->y - 12;
+	wm_window_IME_enable(win, x, y, 0, 0, true);
 }
 
 /* disable ime, and clear uibut ime data */
-static void ui_textedit_ime_disable(wmWindow *window, uiBut *UNUSED(but)) 
+static void ui_textedit_ime_disable(wmWindow *win, uiBut *UNUSED(but)) 
 {
-	wm_window_IME_disable(window);
+	wm_window_IME_disable(win);
 }
 
 void ui_but_ime_reposition(uiBut *but, int x, int y, int complete) 
@@ -2460,8 +2460,6 @@ wmImeData *ui_but_get_ime_data(uiBut *but)
 static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
 	int len;
-
-	wmWindow *window;
 
 	if (data->str) {
 		MEM_freeN(data->str);
@@ -2522,7 +2520,8 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
-	wmWindow *window;
+	wmWindow *win;
+
 	if (but) {
 		if (ui_but_is_utf8(but)) {
 			int strip = BLI_utf8_invalid_strip(but->editstr, strlen(but->editstr));
@@ -2553,10 +2552,10 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 		but->pos = -1;
 	}
 
-	window = CTX_wm_window(C);
-	WM_cursor_modal_restore(window);
+	win = CTX_wm_window(C);
+	WM_cursor_modal_restore(win);
 
-	ui_textedit_ime_disable(window, but);
+	ui_textedit_ime_disable(win, but);
 }
 
 static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonData *data)
