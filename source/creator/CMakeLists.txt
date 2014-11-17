@@ -81,6 +81,10 @@ if(WITH_GAMEENGINE)
 endif()
 
 if(WITH_SDL)
+	if(WITH_SDL_DYNLOAD)
+		add_definitions(-DWITH_SDL_DYNLOAD)
+		blender_include_dirs(../../extern/sdlew/include)
+	endif()
 	add_definitions(-DWITH_SDL)
 endif()
 
@@ -211,6 +215,7 @@ if(WITH_PYTHON_MODULE)
 		set_target_properties(
 			blender
 			PROPERTIES
+				MACOSX_BUNDLE
 				LINK_FLAGS_RELEASE "${PLATFORM_LINKFLAGS}"
 				LINK_FLAGS_DEBUG "${PLATFORM_LINKFLAGS_DEBUG}"
 		)
@@ -271,9 +276,9 @@ elseif(WIN32)
 
 elseif(APPLE)
 	if(WITH_PYTHON_MODULE)
-		set(TARGETDIR_VER ${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION})
+		set(TARGETDIR_VER ${BLENDER_VERSION})
 	else()
-		set(TARGETDIR_VER ${CMAKE_INSTALL_PREFIX}/blender.app/Contents/Resources/${BLENDER_VERSION})
+		set(TARGETDIR_VER blender.app/Contents/Resources/${BLENDER_VERSION})
 	endif()
 
 endif()
@@ -391,11 +396,14 @@ endif()
 if(UNIX AND NOT APPLE)
 
 	if(NOT WITH_PYTHON_MODULE)
-	    add_custom_target(blender_man_page ALL
-	                      COMMAND ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py ${EXECUTABLE_OUTPUT_PATH}/blender ${CMAKE_CURRENT_BINARY_DIR}/blender.1)
-
-	    add_dependencies(blender_man_page blender)
-
+		if(WITH_DOC_MANPAGE)
+			add_custom_target(
+				blender_man_page ALL
+				COMMAND ${CMAKE_SOURCE_DIR}/doc/manpage/blender.1.py
+				        ${EXECUTABLE_OUTPUT_PATH}/blender
+				        ${CMAKE_CURRENT_BINARY_DIR}/blender.1)
+			add_dependencies(blender_man_page blender)
+		endif()
 	endif()
 
 	# there are a few differences between portable and system install
@@ -403,10 +411,12 @@ if(UNIX AND NOT APPLE)
 		if(WITH_PYTHON_MODULE)
 			# pass
 		else()
-			install(
-				FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
-				DESTINATION "."
-			)
+			if(WITH_DOC_MANPAGE)
+				install(
+					FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
+					DESTINATION "."
+				)
+			endif()
 		endif()
 		install(
 			TARGETS blender
@@ -443,19 +453,13 @@ if(UNIX AND NOT APPLE)
 				TARGETS blender
 				DESTINATION bin
 			)
-			# manpage only with 'blender' binary
-			install(
-				FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
-				DESTINATION share/man/man1
-			)
-		endif()
-
-
-		if(WITH_GAMEENGINE AND WITH_PLAYER)
-			install(
-				TARGETS blenderplayer
-				DESTINATION bin
-			)
+			if(WITH_DOC_MANPAGE)
+				# manpage only with 'blender' binary
+				install(
+					FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
+					DESTINATION share/man/man1
+				)
+			endif()
 		endif()
 
 		# misc files
@@ -747,7 +751,7 @@ elseif(WIN32)
 
 	if(WITH_SDL)
 		install(
-			FILES ${LIBDIR}/sdl/lib/SDL.dll
+			FILES ${LIBDIR}/sdl/lib/SDL2.dll
 			DESTINATION "."
 		)
 	endif()
@@ -813,34 +817,46 @@ elseif(APPLE)
 		MACOSX_BUNDLE_SHORT_VERSION_STRING ${BLENDER_VERSION}
 		MACOSX_BUNDLE_LONG_VERSION_STRING "${BLENDER_VERSION} ${BLENDER_DATE}")
 
+	# Gather the date in finder-style
+	execute_process(COMMAND date "+%m/%d/%Y/%H:%M"
+	OUTPUT_VARIABLE SETFILE_DATE
+	OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+	# Give the bundle actual creation/modification date
+	execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE} ${EXECUTABLE_OUTPUT_PATH}/blender.app)
+
+	install(
+		TARGETS blender
+		DESTINATION "."
+	)
 
 	# install release and app files
 	install(
 		FILES ${BLENDER_TEXT_FILES}
-		DESTINATION ${CMAKE_INSTALL_PREFIX}
+		DESTINATION blender.app/Contents
 	)
 
 	install(
 		FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
-		DESTINATION ${CMAKE_INSTALL_PREFIX}/blender.app/Contents
+		DESTINATION blender.app/Contents
 	)
 
 	install_dir(
 		${OSX_APP_SOURCEDIR}/Contents/Resources
-		\${CMAKE_INSTALL_PREFIX}/blender.app/Contents/
+		blender.app/Contents/
 	)
 
 	if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
 		install(
 			FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/blender.app/Contents/MacOS
+			DESTINATION blender.app/Contents/Resources/lib/
 		)
 	endif()
 
 	if(WITH_LLVM AND NOT LLVM_STATIC)
 		install(
 			FILES ${LIBDIR}/llvm/lib/libLLVM-3.4.dylib
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/blender.app/Contents/MacOS
+			DESTINATION blender.app/Contents/MacOS
 		)
 	endif()
 
@@ -883,7 +899,7 @@ elseif(APPLE)
 	if(WITH_GAMEENGINE AND WITH_PLAYER)
 		set(OSX_APP_PLAYER_SOURCEDIR ${CMAKE_SOURCE_DIR}/release/darwin/blenderplayer.app)
 		set(PLAYER_SOURCEINFO ${OSX_APP_PLAYER_SOURCEDIR}/Contents/Info.plist)
-		set(PLAYER_TARGETDIR_VER ${CMAKE_INSTALL_PREFIX}/blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
+		set(PLAYER_TARGETDIR_VER blenderplayer.app/Contents/Resources/${BLENDER_VERSION})
 
 
 		# important to make a clean  install each time else old scripts get loaded.
@@ -892,15 +908,26 @@ elseif(APPLE)
 			"file(REMOVE_RECURSE ${PLAYER_TARGETDIR_VER})"
 		)
 
+		# Give the bundle actual creation/modification date
+		execute_process(COMMAND SetFile -d ${SETFILE_DATE} -m ${SETFILE_DATE} ${EXECUTABLE_OUTPUT_PATH}/blenderplayer.app)
+
 		install(
 			FILES ${OSX_APP_PLAYER_SOURCEDIR}/Contents/PkgInfo
-			DESTINATION ${CMAKE_INSTALL_PREFIX}/blenderplayer.app/Contents
+			DESTINATION blenderplayer.app/Contents
 		)
 
 		install_dir(
 			${OSX_APP_PLAYER_SOURCEDIR}/Contents/Resources
-			\${CMAKE_INSTALL_PREFIX}/blenderplayer.app/Contents/
+			blenderplayer.app/Contents/
 		)
+
+		if(WITH_OPENMP AND CMAKE_C_COMPILER_ID MATCHES "Clang" AND NOT ${CMAKE_C_COMPILER_VERSION} VERSION_LESS '3.4')
+		install(
+		FILES ${LIBDIR}/openmp/lib/libiomp5.dylib
+		DESTINATION blenderplayer.app/Contents/Resources/lib/
+		)
+		endif()
+
 
 		# python
 		if(WITH_PYTHON AND NOT WITH_PYTHON_FRAMEWORK)
@@ -959,5 +986,23 @@ if(WIN32 AND NOT WITH_PYTHON_MODULE)
 	set_target_properties(blender-launcher PROPERTIES OUTPUT_NAME blender)
 
 	install(TARGETS blender blender-launcher
+			COMPONENT Blender
 			DESTINATION ".")
+
+	if(MSVC12_REDIST_DIR)
+		if(CMAKE_CL_64)
+			set(_WIN_PLATFORM x64)
+		else()
+			set(_WIN_PLATFORM x86)
+		endif()
+		install(
+			FILES ${MSVC12_REDIST_DIR}/${_WIN_PLATFORM}/Microsoft.VC120.CRT/msvcp120.dll
+				  ${MSVC12_REDIST_DIR}/${_WIN_PLATFORM}/Microsoft.VC120.CRT/msvcr120.dll
+		DESTINATION ".")
+		if(WITH_OPENMP)
+			install(
+				FILES ${MSVC12_REDIST_DIR}/${_WIN_PLATFORM}/Microsoft.VC120.OpenMP/vcomp120.dll
+				DESTINATION ".")
+		endif()
+	endif()
 endif()
