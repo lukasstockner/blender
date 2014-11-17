@@ -264,12 +264,14 @@ elseif(WIN32)
 		intern/GHOST_SystemWin32.cpp
 		intern/GHOST_WindowWin32.cpp
 		intern/GHOST_DropTargetWin32.cpp
+		intern/GHOST_ImeWin32.cpp
 
 		intern/GHOST_DisplayManagerWin32.h
 		intern/GHOST_DropTargetWin32.h
 		intern/GHOST_SystemWin32.h
 		intern/GHOST_WindowWin32.h
 		intern/GHOST_TaskbarWin32.h
+		intern/GHOST_ImeWin32.h
 	)
 
 	if(NOT WITH_GL_EGL)

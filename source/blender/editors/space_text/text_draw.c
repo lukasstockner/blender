@@ -1372,7 +1372,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 	/* dpi controlled line height and font size */
 	st->lheight_dpi = (U.widget_unit * st->lheight) / 20;
-	st->viewlines = (st->lheight_dpi) ? (int)(ar->winy - clip_min_y) / (st->lheight_dpi + TXT_LINE_SPACING) : 0
+	st->viewlines = (st->lheight_dpi) ? (int)(ar->winy - clip_min_y) / (st->lheight_dpi + TXT_LINE_SPACING) : 0;
 
 	/* make sure st->ime->tmp is not a null pointer*/
 	if (st->ime && !st->ime->tmp)

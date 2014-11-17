@@ -1326,7 +1326,6 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			}
 		}
 
-
 		/* text cursor */
 		vpos = but->pos;
 #ifdef WITH_INPUT_IME
