@@ -33,10 +33,12 @@
 extern "C" {
 #include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_math.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
+#include "DNA_armature_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
@@ -45,7 +47,14 @@ extern "C" {
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_fcurve.h"
+#include "BKE_scene.h"
 #include "BKE_object.h"
+
+/* TODO(sergey): This is rather temp solution anyway. */
+#include "../../ikplugin/BIK_api.h"
+
+#include "BKE_global.h"
+#include "BKE_main.h"
 
 #include "DEG_depsgraph.h"
 
@@ -89,15 +98,127 @@ void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve
 	}
 }
 
-void BKE_pose_constraints_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan) {}
-
-void BKE_pose_iktree_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan) {}
 void BKE_pose_splineik_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan) {}
-void BKE_pose_eval_bone(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan) {}
 
-void BKE_pose_rebuild_op(EvaluationContext *eval_ctx, Object *ob, bPose *pose) {}
-void BKE_pose_eval_init(EvaluationContext *eval_ctx, Object *ob, bPose *pose) {}
-void BKE_pose_eval_flush(EvaluationContext *eval_ctx, Object *ob, bPose *pose) {}
+void BKE_pose_rebuild_op(EvaluationContext *eval_ctx, Object *ob, bPose *pose)
+{
+	bArmature *arm = (bArmature *)ob->data;
+	printf("%s on %s\n", __func__, ob->id.name);
+	BLI_assert(ob->type == OB_ARMATURE);
+	if ((ob->pose == NULL) || (ob->pose->flag & POSE_RECALC)) {
+		BKE_pose_rebuild(ob, arm);
+	}
+}
+
+void BKE_pose_eval_init(EvaluationContext *eval_ctx,
+                        Scene *scene,
+                        Object *ob,
+                        bPose *pose)
+{
+	printf("%s on %s\n", __func__, ob->id.name);
+	BLI_assert(ob->type == OB_ARMATURE);
+	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
+	/* 1. clear flags */
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
+	     pchan != NULL;
+	     pchan = (bPoseChannel *)pchan->next)
+	{
+		pchan->flag &= ~(POSE_DONE | POSE_CHAIN | POSE_IKTREE | POSE_IKSPLINE);
+	}
+
+	/* 2a. construct the IK tree (standard IK) */
+	BIK_initialize_tree(scene, ob, ctime);
+
+	/* 2b. construct the Spline IK trees
+	 *  - this is not integrated as an IK plugin, since it should be able
+	 *	  to function in conjunction with standard IK
+	 */
+	BKE_pose_splineik_init_tree(scene, ob, ctime);
+}
+
+void BKE_pose_eval_bone(EvaluationContext *eval_ctx,
+                        Scene *scene,
+                        Object *ob,
+                        bPoseChannel *pchan) {
+	bArmature *arm = (bArmature *)ob->data;
+	printf("%s on %s phan %s\n", __func__, ob->id.name, pchan->name);
+	BLI_assert(ob->type == OB_ARMATURE);
+	if (arm->edbo || (arm->flag & ARM_RESTPOS)) {
+		Bone *bone = pchan->bone;
+		if (bone) {
+			copy_m4_m4(pchan->pose_mat, bone->arm_mat);
+			copy_v3_v3(pchan->pose_head, bone->arm_head);
+			copy_v3_v3(pchan->pose_tail, bone->arm_tail);
+		}
+	}
+	else {
+		/* TODO(sergey): Currently if there are constraints full transform is being
+		 * evaluated in BKE_pose_constraints_evaluate.
+		 */
+		if (pchan->constraints.first == NULL) {
+			if (pchan->flag & POSE_IKTREE || pchan->flag & POSE_IKSPLINE) {
+				/* pass */
+			}
+			else {
+				/* TODO(sergey): Use time source node for time. */
+				float ctime = BKE_scene_frame_get(scene); /* not accurate... */
+				BKE_pose_where_is_bone(scene, ob, pchan, ctime, 1);
+			}
+		}
+	}
+}
+
+void BKE_pose_constraints_evaluate(EvaluationContext *eval_ctx,
+                                   Object *ob,
+                                   bPoseChannel *pchan)
+{
+	printf("%s on %s phan %s\n", __func__, ob->id.name, pchan->name);
+	Scene *scene = (Scene*)G.main->scene.first;
+	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
+
+	if (pchan->flag & POSE_IKTREE || pchan->flag & POSE_IKSPLINE) {
+		/* IK are being solved separately/ */
+	}
+	else {
+		BKE_pose_where_is_bone(scene, ob, pchan, ctime, 1);
+	}
+}
+
+void BKE_pose_iktree_evaluate(EvaluationContext *eval_ctx,
+                              Scene *scene,
+                              Object *ob,
+                              bPoseChannel *rootchan)
+{
+	printf("%s on %s phan %s\n", __func__, ob->id.name, rootchan->name);
+	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
+	BIK_execute_tree(scene, ob, rootchan, ctime);
+}
+
+void BKE_pose_eval_flush(EvaluationContext *eval_ctx,
+                         Scene *scene,
+                         Object *ob,
+                         bPose *pose)
+{
+	bPoseChannel *pchan;
+	float imat[4][4];
+	printf("%s on %s\n", __func__, ob->id.name);
+	BLI_assert(ob->type == OB_ARMATURE);
+
+	/* 6. release the IK tree */
+	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
+	BIK_release_tree(scene, ob, ctime);
+
+	/* calculating deform matrices */
+	for (pchan = (bPoseChannel *)ob->pose->chanbase.first;
+	     pchan;
+	     pchan = (bPoseChannel *)pchan->next)
+	{
+		if (pchan->bone) {
+			invert_m4_m4(imat, pchan->bone->arm_mat);
+			mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
+		}
+	}
+}
 
 void BKE_particle_system_eval(EvaluationContext *eval_ctx, Object *ob, ParticleSystem *psys) {}
 

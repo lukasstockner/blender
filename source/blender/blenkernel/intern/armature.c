@@ -2024,6 +2024,11 @@ static void splineik_init_tree(Scene *scene, Object *ob, float UNUSED(ctime))
 	}
 }
 
+void BKE_pose_splineik_init_tree(Scene *scene, Object *ob, float ctime)
+{
+	splineik_init_tree(scene, ob, ctime);
+}
+
 /* ----------- */
 
 /* Evaluate spline IK for a given bone */

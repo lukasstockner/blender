@@ -263,7 +263,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 			break;
 			
 			case OB_ARMATURE: /* Pose */
-				build_rig(ob);
+				build_rig(scene, ob);
 				break;
 			
 			case OB_LAMP:   /* Lamp */
@@ -288,9 +288,12 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	 *
 	 * TODO(sergey): Get rid of this node.
 	 */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-	                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_uber_data, _1, scene, ob),
-	                   "Object Data UberEval");
+	if (ob->type != OB_ARMATURE) {
+		/* Armatures does no longer require uber node. */
+		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+		                   DEPSOP_TYPE_EXEC, bind(BKE_object_eval_uber_data, _1, scene, ob),
+		                   "Object Data UberEval");
+	}
 
 }
 
@@ -504,7 +507,7 @@ void DepsgraphNodeBuilder::build_particles(Object *ob)
 }
 
 /* IK Solver Eval Steps */
-void DepsgraphNodeBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
+void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
 	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
 	
@@ -527,8 +530,8 @@ void DepsgraphNodeBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bConst
 	}
 	
 	/* operation node for evaluating/running IK Solver */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, pchan->name,
-	                   DEPSOP_TYPE_SIM, bind(BKE_pose_iktree_evaluate, _1, ob, rootchan),
+	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
+	                   DEPSOP_TYPE_SIM, bind(BKE_pose_iktree_evaluate, _1, scene, ob, rootchan),
 	                   deg_op_name_ik_solver);
 }
 
@@ -558,7 +561,7 @@ void DepsgraphNodeBuilder::build_splineik_pose(Object *ob, bPoseChannel *pchan, 
 }
 
 /* Pose/Armature Bones Graph */
-void DepsgraphNodeBuilder::build_rig(Object *ob)
+void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 {
 	bArmature *arm = (bArmature *)ob->data;
 	
@@ -596,18 +599,21 @@ void DepsgraphNodeBuilder::build_rig(Object *ob)
 	                   DEPSOP_TYPE_REBUILD, bind(BKE_pose_rebuild_op, _1, ob, ob->pose), deg_op_name_pose_rebuild);
 	
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE,
-	                   DEPSOP_TYPE_INIT, bind(BKE_pose_eval_init, _1, ob, ob->pose), deg_op_name_pose_eval_init);
+	                   DEPSOP_TYPE_INIT, bind(BKE_pose_eval_init, _1, scene, ob, ob->pose), deg_op_name_pose_eval_init);
 	
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE,
-	                   DEPSOP_TYPE_POST, bind(BKE_pose_eval_flush, _1, ob, ob->pose), deg_op_name_pose_eval_flush);
+	                   DEPSOP_TYPE_POST, bind(BKE_pose_eval_flush, _1, scene, ob, ob->pose), deg_op_name_pose_eval_flush);
 	
 	/* bones */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		/* node for bone eval */
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
-		                   DEPSOP_TYPE_EXEC, bind(BKE_pose_eval_bone, _1, ob, pchan),
+		                   DEPSOP_TYPE_EXEC, bind(BKE_pose_eval_bone, _1, scene, ob, pchan),
 		                   "Bone Transforms");
-		
+
+		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+		                   DEPSOP_TYPE_EXEC, NULL, "Bone Final Transforms");
+
 		/* constraints */
 		if (pchan->constraints.first != NULL) {
 			build_pose_constraints(ob, pchan);
@@ -625,7 +631,7 @@ void DepsgraphNodeBuilder::build_rig(Object *ob)
 		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
 			switch (con->type) {
 				case CONSTRAINT_TYPE_KINEMATIC:
-					build_ik_pose(ob, pchan, con);
+					build_ik_pose(scene, ob, pchan, con);
 					break;
 					
 				case CONSTRAINT_TYPE_SPLINEIK:

@@ -268,5 +268,6 @@ void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
                                Object *ob)
 {
 	PRINT("%s on %s\n", __func__, ob->id.name);
+	BLI_assert(ob->type != OB_ARMATURE);
 	BKE_object_handle_data_update(eval_ctx, scene, ob);
 }

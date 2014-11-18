@@ -30,13 +30,25 @@ void BKE_animsys_eval_driver(struct EvaluationContext *eval_ctx, ID *id, FCurve 
 
 void BKE_pose_constraints_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan);
 
-void BKE_pose_iktree_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan);
+void BKE_pose_iktree_evaluate(struct EvaluationContext *eval_ctx,
+                              Scene *scene,
+                              Object *ob,
+                              bPoseChannel *rootchan);
 void BKE_pose_splineik_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan);
-void BKE_pose_eval_bone(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan);
+void BKE_pose_eval_bone(struct EvaluationContext *eval_ctx,
+                        Scene *scene,
+                        Object *ob,
+                        bPoseChannel *pchan);
 
 void BKE_pose_rebuild_op(struct EvaluationContext *eval_ctx, Object *ob, bPose *pose);
-void BKE_pose_eval_init(struct EvaluationContext *eval_ctx, Object *ob, bPose *pose);
-void BKE_pose_eval_flush(struct EvaluationContext *eval_ctx, Object *ob, bPose *pose);
+void BKE_pose_eval_init(struct EvaluationContext *eval_ctx,
+                        Scene *scene,
+                        Object *ob,
+                        bPose *pose);
+void BKE_pose_eval_flush(struct EvaluationContext *eval_ctx,
+                         Scene *scene,
+                         Object *ob,
+                         bPose *pose);
 
 void BKE_particle_system_eval(struct EvaluationContext *eval_ctx, Object *ob, ParticleSystem *psys);
 

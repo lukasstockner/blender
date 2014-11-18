@@ -265,7 +265,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 		add_relation(adt_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
 
-	/* TODO(sergey): This is a temp solution for now only/ */
+	/* TODO(sergey): This is a temp solution for now only. */
 	ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 	ComponentKey geometry_key(&ob->id, DEPSNODE_TYPE_GEOMETRY);
 	add_relation(transform_key, geometry_key, DEPSREL_TYPE_COMPONENT_ORDER, "Object Transform");
@@ -407,17 +407,8 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				}
 				else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 					/* bone */
-#if 0
 					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget);
 					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
-#else
-					/* TODO(sergey): Bones evaluation currently happens in the uber data update node.. */
-					/* TODO(sergey): Once granularity is reached it sohuld be possible to get rid of this check. */
-					if (&ct->tar->id != id) {
-						ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
-						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
-					}
-#endif
 				}
 				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
 					/* vertex group */
@@ -715,6 +706,36 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 	// TODO...
 }
 
+BLI_INLINE OperationKey bone_transforms_key(Object *ob,
+                                            bPoseChannel *pchan)
+{
+	if (pchan->constraints.first != NULL) {
+		return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, deg_op_name_constraint_stack);
+	}
+	return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Transforms");
+}
+
+/* TODO(sergey): Deduplicate with the node builder.  */
+static bPoseChannel* ik_solver_rootchan_find(bPoseChannel *pchan,
+                                             bKinematicConstraint *data)
+{
+	bPoseChannel *rootchan = pchan;
+	/* exclude tip from chain? */
+	if (!(data->flag & CONSTRAINT_IK_TIP)) {
+		rootchan = rootchan->parent;
+	}
+	if (rootchan) {
+		size_t segcount = 0;
+		while (rootchan->parent) {
+			/* continue up chain, until we reach target number of items... */
+			segcount++;
+			if ((segcount == data->rootbone) || (segcount > 255)) break;  /* XXX 255 is weak */
+			rootchan = rootchan->parent;
+		}
+	}
+	return rootchan;
+}
+
 /* IK Solver Eval Steps */
 void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
@@ -724,10 +745,24 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 	 * - assume that owner is always part of chain 
 	 * - see notes on direction of rel below...
 	 */
-	ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
-	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, pchan->name, deg_op_name_spline_ik_solver);
-	add_relation(bone_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
-	
+	bPoseChannel *rootchan = ik_solver_rootchan_find(pchan, data);
+	OperationKey transforms_key = bone_transforms_key(ob, pchan);
+	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, deg_op_name_ik_solver);
+	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
+
+	if (data->tar != ob) {
+		/* TODO(sergey): For until we'll store partial matricies in the depsgraph,
+		 * we create dependency bewteen target object and pose eval component.
+		 *
+		 * This way we ensuring the whole subtree is updated from sctratch without
+		 * need of intermediate matricies. This is an overkill, but good enough for
+		 * testing IK solver.
+		 */
+		ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_TRANSFORM);
+		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
+		add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
+	}
+
 	bPoseChannel *parchan = pchan;
 	/* exclude tip from chain? */
 	if (!(data->flag & CONSTRAINT_IK_TIP))
@@ -742,9 +777,15 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 		 * bone will ensure that users of this bone only
 		 * grab the result with IK solver results...
 		 */
-		ComponentKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name);
-		add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
-		
+		if (parchan != pchan) {
+			OperationKey parent_key = bone_transforms_key(ob, parchan);
+			add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Update");
+		}
+		parchan->flag |= POSE_DONE;
+
+		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, "Bone Final Transforms");
+		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
+
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
 		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
@@ -815,17 +856,18 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	
 	add_relation(rebuild_key, init_key, DEPSREL_TYPE_OPERATION, "[Pose Rebuild -> Pose Init] DepsRel");
 	add_relation(init_key, flush_key, DEPSREL_TYPE_OPERATION, "[Pose Init -> Pose Cleanup] DepsRel");
-	
+
+	if (ob->adt != NULL) {
+		ComponentKey animation_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
+		add_relation(animation_key, init_key, DEPSREL_TYPE_OPERATION, "Object Animation");
+	}
+
 	/* bones */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
-		
+		pchan->flag &= ~POSE_DONE;
 		/* bone parent */
-		if (pchan->parent) {
-			ComponentKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name);
-			add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
-		}
-		else {
+		if (pchan->parent == NULL) {
 			/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 			add_relation(init_key, bone_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 		}
@@ -868,9 +910,34 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		}
 	}
 
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
+	     pchan != NULL;
+	     pchan = pchan->next)
+	{
+		/* bone parent */
+		if (pchan->parent != NULL) {
+			ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+			if (pchan->flag & POSE_DONE) {
+				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent);
+				add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+			}
+			else {
+				ComponentKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name);
+				add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+			}
+		}
+
+		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Final Transforms");
+		if ((pchan->flag & POSE_DONE) == 0) {
+			OperationKey transforms_key = bone_transforms_key(ob, pchan);
+			add_relation(transforms_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Bone Final Transforms");
+		}
+	}
+
+	/* TODO(sergey): do we really need this relation? */
 	ComponentKey pose_eval_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
-	OperationKey ob_ubereval_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, "Object UberEval");
-	add_relation(pose_eval_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Pose `relation");
+	OperationKey geom_ubereval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Object Data UberEval");
+	add_relation(pose_eval_key, geom_ubereval_key, DEPSREL_TYPE_OPERATION, "Pose `relation");
 }
 
 /* Shapekeys */
@@ -1010,14 +1077,17 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	 *
 	 * TODO(sergey): Get rid of this node.
 	 */
-	OperationKey obdata_ubereval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Object Data UberEval");
-	if (ob->modifiers.last) {
-		ModifierData *md = (ModifierData *)ob->modifiers.last;
-		OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, deg_op_name_modifier(md));
-		add_relation(mod_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
-	}
-	else {
-		add_relation(geom_eval_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
+	if (ob->type != OB_ARMATURE) {
+		/* Armatures does no longer require uber node. */
+		OperationKey obdata_ubereval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Object Data UberEval");
+		if (ob->modifiers.last) {
+			ModifierData *md = (ModifierData *)ob->modifiers.last;
+			OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, deg_op_name_modifier(md));
+			add_relation(mod_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
+		}
+		else {
+			add_relation(geom_eval_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
+		}
 	}
 }
 
