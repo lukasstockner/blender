@@ -909,7 +909,7 @@ extern float GHOST_GetNativePixelSize(GHOST_WindowHandle windowhandle);
  *     true:  Start a new composition
  *     false: Move the IME windows to the given position without finishing it.
  */
-extern void GHOST_EnableIME(GHOST_WindowHandle windowhandle,
+extern void GHOST_BeginIME(GHOST_WindowHandle windowhandle,
                             GHOST_TInt32 x,
                             GHOST_TInt32 y,
                             GHOST_TInt32 w,
@@ -920,7 +920,7 @@ extern void GHOST_EnableIME(GHOST_WindowHandle windowhandle,
  * events from being dispatched to the IME.
  * \param windowhandle The window handle of the caller
  */
-extern void GHOST_DisableIME(GHOST_WindowHandle windowhandle);
+extern void GHOST_EndIME(GHOST_WindowHandle windowhandle);
 
 #ifdef __cplusplus
 }

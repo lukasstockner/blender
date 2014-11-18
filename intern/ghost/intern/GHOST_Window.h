@@ -295,6 +295,7 @@ public:
 		return 1.0f;
 	}
 
+#ifdef WITH_INPUT_IME
 	virtual void enableIME(GHOST_TInt32 x,
 	                       GHOST_TInt32 y,
 	                       GHOST_TInt32 w,
@@ -308,6 +309,7 @@ public:
 	{
 		/* do nothing temporarily if not in windows */
 	}
+#endif /* WITH_INPUT_IME */
 
 protected:
 	/**

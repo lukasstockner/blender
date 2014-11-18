@@ -915,7 +915,9 @@ float GHOST_GetNativePixelSize(GHOST_WindowHandle windowhandle)
 	return 1.0f;
 }
 
-void GHOST_EnableIME(GHOST_WindowHandle windowhandle,
+#ifdef WITH_INPUT_IME
+
+void GHOST_BeginIME(GHOST_WindowHandle windowhandle,
                      GHOST_TInt32 x,
                      GHOST_TInt32 y,
                      GHOST_TInt32 w,
@@ -926,8 +928,10 @@ void GHOST_EnableIME(GHOST_WindowHandle windowhandle,
 	window->enableIME(x, y, w, h, complete);
 }
 
-void GHOST_DisableIME(GHOST_WindowHandle windowhandle)
+void GHOST_EndIME(GHOST_WindowHandle windowhandle)
 {
 	GHOST_IWindow *window = (GHOST_IWindow *) windowhandle;
 	window->disableIME();
 }
+
+#endif /* WITH_INPUT_IME */

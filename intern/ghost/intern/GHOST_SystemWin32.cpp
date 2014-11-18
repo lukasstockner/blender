@@ -787,12 +787,13 @@ GHOST_Event *GHOST_SystemWin32::processWindowEvent(GHOST_TEventType type, GHOST_
 	return new GHOST_Event(system->getMilliSeconds(), type, window);
 }
 
-
+#ifdef WITH_INPUT_IME
 GHOST_Event *GHOST_SystemWin32::processImeEvent(GHOST_TEventType type, GHOST_IWindow *window, GHOST_TEventImeData *data)
 {
 	GHOST_System *system = (GHOST_System *)getSystem();
 	return new GHOST_EventIME(system->getMilliSeconds(), type, window, data);
 }
+#endif
 
 
 GHOST_TSuccess GHOST_SystemWin32::pushDragDropEvent(
@@ -918,7 +919,9 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 				case WM_INPUTLANGCHANGE:
 				{
 					system->handleKeyboardChange();
+#ifdef WITH_INPUT_IME
 					window->getImeInput()->SetInputLanguage();
+#endif
 					break;
 				}
 				////////////////////////////////////////////////////////////////////////
@@ -956,6 +959,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					}
 					break;
 				}
+#ifdef WITH_INPUT_IME
 				////////////////////////////////////////////////////////////////////////
 				// IME events, processed, read more in GHOST_IME.h
 				////////////////////////////////////////////////////////////////////////
@@ -995,6 +999,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, UINT msg, WPARAM wParam, 
 					event = processImeEvent(GHOST_kEventImeCompositionEnd, window, &window->getImeInput()->eventImeData);
 					break;
 				}
+#endif /* WITH_INPUT_IME */
 				////////////////////////////////////////////////////////////////////////
 				// Keyboard events, ignored
 				////////////////////////////////////////////////////////////////////////

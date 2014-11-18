@@ -90,7 +90,10 @@ void GHOST_ImeWin32::CreateImeWindow(HWND window_handle)
                 system_caret_ = true;
             }
         }
-    }
+	}
+#ifdef WITH_INPUT_IME
+	printf("ime works\n");
+#endif
     /* Restore the positions of the IME windows. */
     UpdateImeWindow(window_handle);
 }

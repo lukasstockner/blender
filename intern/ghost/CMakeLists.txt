@@ -264,14 +264,12 @@ elseif(WIN32)
 		intern/GHOST_SystemWin32.cpp
 		intern/GHOST_WindowWin32.cpp
 		intern/GHOST_DropTargetWin32.cpp
-		intern/GHOST_ImeWin32.cpp
 
 		intern/GHOST_DisplayManagerWin32.h
 		intern/GHOST_DropTargetWin32.h
 		intern/GHOST_SystemWin32.h
 		intern/GHOST_WindowWin32.h
 		intern/GHOST_TaskbarWin32.h
-		intern/GHOST_ImeWin32.h
 	)
 
 	if(NOT WITH_GL_EGL)
@@ -282,6 +280,14 @@ elseif(WIN32)
 		)
 	endif()
 
+	if(WITH_INPUT_IME)
+		add_definitions(-DWITH_INPUT_IME)
+		list(APPEND SRC
+			intern/GHOST_ImeWin32.cpp
+			intern/GHOST_ImeWin32.h
+		)
+	endif()
+	
 	if(WITH_INPUT_NDOF)
 		list(APPEND SRC
 			intern/GHOST_NDOFManagerWin32.cpp

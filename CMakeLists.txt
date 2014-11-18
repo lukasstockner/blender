@@ -313,6 +313,9 @@ mark_as_advanced(WITH_LIBMV_SCHUR_SPECIALIZATIONS)
 option(WITH_FREESTYLE     "Enable Freestyle (advanced edges rendering)" ON)
 
 # Misc
+if (WIN32)
+	option(WITH_INPUT_IME "Enable Input Method Editor (IME)" ON)
+endif()
 option(WITH_INPUT_NDOF "Enable NDOF input devices (SpaceNavigator and friends)" ${_init_INPUT_NDOF})
 option(WITH_RAYOPTIMIZATION	"Enable use of SIMD (SSE) optimizations for the raytracer" ON)
 option(WITH_OPENNL        "Enable use of Open Numerical Library" ON)

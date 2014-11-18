@@ -1527,10 +1527,10 @@ bool WM_window_is_fullscreen(wmWindow *win)
 
 void wm_window_IME_enable(wmWindow *win, int x, int y, int w, int h, bool complete)
 {
-	GHOST_EnableIME(win->ghostwin, x, win->sizey - y, w, h, complete);
+	GHOST_BeginIME(win->ghostwin, x, win->sizey - y, w, h, complete);
 }
 
 void wm_window_IME_disable(wmWindow *win)
 {
-	GHOST_DisableIME(win->ghostwin);
+	GHOST_EndIME(win->ghostwin);
 }
