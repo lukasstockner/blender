@@ -197,7 +197,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		if (buf) MEM_freeN(buf);
 		return 1;
 	}
-	else if (y_next - cdc->lheight < cdc->ymin) {
+	else if (y_next < cdc->ymin) {
 		/* have not reached the drawable area so don't break */
 		cdc->xy[1] = y_next;
 
