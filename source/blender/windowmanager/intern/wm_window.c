@@ -1525,12 +1525,14 @@ bool WM_window_is_fullscreen(wmWindow *win)
 }
 
 
-void wm_window_IME_enable(wmWindow *win, int x, int y, int w, int h, bool complete)
+#ifdef WITH_INPUT_IME
+void wm_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complete)
 {
 	GHOST_BeginIME(win->ghostwin, x, win->sizey - y, w, h, complete);
 }
 
-void wm_window_IME_disable(wmWindow *win)
+void wm_window_IME_end(wmWindow *win)
 {
 	GHOST_EndIME(win->ghostwin);
 }
+#endif /* WITH_INPUT_IME */

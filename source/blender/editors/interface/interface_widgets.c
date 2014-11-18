@@ -1243,7 +1243,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	const char *drawstr_right = NULL;
 	char *drawstr_edit = NULL;
 	bool use_right_only = false;
-	wmImeData *ime = ui_but_get_ime_data(but);
+	wmImeData *ime;
 
 	UI_fontstyle_set(fstyle);
 	
@@ -1273,6 +1273,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			 * we rely on string being NULL terminated. */
 			drawstr_left_len = INT_MAX;
 
+#ifdef WITH_INPUT_IME
+			ime = ui_but_get_ime_data(but);
+
 			if (ime && ime->composite_len) {
 				/* insert composite string into cursor pos */
 				char *str;
@@ -1287,6 +1290,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 				drawstr = drawstr_edit = str;
 			}
 			else {
+#else
+			if (1) {
+#endif
 				drawstr = but->editstr;
 			}
 		}
@@ -1320,11 +1326,16 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			}
 		}
 
+
 		/* text cursor */
 		vpos = but->pos;
+#ifdef WITH_INPUT_IME
 		/* if is ime compositing, move the cursor */
 		if (ime && ime->composite_len && ime->cursor_position != -1)
 			vpos += ime->cursor_position;
+#else
+		(void)ime;
+#endif
 
 		if (but->pos >= but->ofs) {
 			int t;
@@ -1337,6 +1348,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 			glColor3f(0.20, 0.6, 0.9);
 
+#ifdef WITH_INPUT_IME
 			tx = rect->xmin + t + 2;
 			ty = rect->ymin + 2;
 			glRecti(rect->xmin + t, ty, tx, rect->ymax - 2);
@@ -1386,6 +1398,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 						min_ii(rect->xmin + draw_end, rect->xmax - 2), rect->ymin + 1);
 				}
 			}
+#else
+			(void)ty; (void)tx;
+#endif
 		}
 	}
 	

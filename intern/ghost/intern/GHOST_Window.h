@@ -296,7 +296,7 @@ public:
 	}
 
 #ifdef WITH_INPUT_IME
-	virtual void enableIME(GHOST_TInt32 x,
+	virtual void beginIME(GHOST_TInt32 x,
 	                       GHOST_TInt32 y,
 	                       GHOST_TInt32 w,
 	                       GHOST_TInt32 h,
@@ -305,7 +305,7 @@ public:
 		/* do nothing temporarily if not in windows */
 	}
 
-	virtual void disableIME() 
+	virtual void endIME()
 	{
 		/* do nothing temporarily if not in windows */
 	}

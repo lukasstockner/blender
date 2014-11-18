@@ -2426,27 +2426,28 @@ static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const in
 	return changed;
 }
 
+#ifdef WITH_INPUT_IME
 /* enable ime, and set up uibut ime data */
-static void ui_textedit_ime_enable(wmWindow *win, uiBut *UNUSED(but)) 
+static void ui_textedit_ime_begin(wmWindow *win, uiBut *UNUSED(but))
 {
 	int x, y;
 	/* enable IME and position to cursor, it's a trick */
 	x = win->eventstate->x;
 	/* flip y and move down a bit, prevent the IME panel cover the edit button */
 	y = win->eventstate->y - 12;
-	wm_window_IME_enable(win, x, y, 0, 0, true);
+	wm_window_IME_begin(win, x, y, 0, 0, true);
 }
 
 /* disable ime, and clear uibut ime data */
-static void ui_textedit_ime_disable(wmWindow *win, uiBut *UNUSED(but)) 
+static void ui_textedit_ime_end(wmWindow *win, uiBut *UNUSED(but))
 {
-	wm_window_IME_disable(win);
+	wm_window_IME_end(win);
 }
 
 void ui_but_ime_reposition(uiBut *but, int x, int y, int complete) 
 {
 	ui_region_to_window(but->active->region, &x, &y);
-	wm_window_IME_enable(but->active->window, x, y-4, 0, 0, complete);
+	wm_window_IME_begin(but->active->window, x, y-4, 0, 0, complete);
 }
 
 wmImeData *ui_but_get_ime_data(uiBut *but) 
@@ -2456,9 +2457,11 @@ wmImeData *ui_but_get_ime_data(uiBut *but)
 	else
 		return NULL;
 }
+#endif /* WITH_INPUT_IME */
 
 static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
+	wmWindow *win = CTX_wm_window(C);
 	int len;
 
 	if (data->str) {
@@ -2515,7 +2518,13 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 	ui_but_update(but);
 	
-	WM_cursor_modal_set(CTX_wm_window(C), BC_TEXTEDITCURSOR);
+#ifdef WITH_INPUT_IME
+	WM_cursor_modal_set(win, BC_TEXTEDITCURSOR);
+
+	ui_textedit_ime_begin(win, but);
+#else
+	(void)win;
+#endif
 }
 
 static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
@@ -2552,10 +2561,14 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 		but->pos = -1;
 	}
 
+#ifdef WITH_INPUT_IME
 	win = CTX_wm_window(C);
 	WM_cursor_modal_restore(win);
 
-	ui_textedit_ime_disable(win, but);
+	ui_textedit_ime_end(win, but);
+#else
+	(void)win;
+#endif
 }
 
 static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonData *data)

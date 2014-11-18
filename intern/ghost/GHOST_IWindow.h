@@ -331,6 +331,7 @@ public:
 
 	virtual float getNativePixelSize(void) = 0;
 
+#ifdef WITH_INPUT_IME
 	/**
 	 * Enable IME attached to the given window, i.e. allows user-input
 	 * events to be dispatched to the IME.
@@ -342,7 +343,7 @@ public:
 	 *     true:  Start a new composition
 	 *     false: Move the IME windows to the given position without finishing it.
 	 */
-	virtual void enableIME(GHOST_TInt32 x,
+	virtual void beginIME(GHOST_TInt32 x,
                            GHOST_TInt32 y,
                            GHOST_TInt32 w,
                            GHOST_TInt32 h,
@@ -352,7 +353,8 @@ public:
 	 * Disable the IME attached to the given window, i.e. prohibits any user-input
 	 * events from being dispatched to the IME.
 	 */
-	virtual void disableIME() = 0;
+	virtual void endIME() = 0;
+#endif /* WITH_INPUT_IME */
 	
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_IWindow")

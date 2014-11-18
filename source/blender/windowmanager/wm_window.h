@@ -70,8 +70,8 @@ wmWindow	*wm_window_copy			(bContext *C, wmWindow *winorig);
 void		wm_window_testbreak		(void);
 
 /* *************** window IME api ************** */
-void		wm_window_IME_enable	(wmWindow *win, int x, int y, int w, int h, bool complete);
-void		wm_window_IME_disable	(wmWindow *win);
+void		wm_window_IME_begin	(wmWindow *win, int x, int y, int w, int h, bool complete);
+void		wm_window_IME_end	(wmWindow *win);
 
 /* *************** window operators ************** */
 int			wm_window_duplicate_exec(bContext *C, struct wmOperator *op);

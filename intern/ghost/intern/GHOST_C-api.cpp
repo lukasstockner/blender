@@ -925,13 +925,13 @@ void GHOST_BeginIME(GHOST_WindowHandle windowhandle,
                      int complete)
 {
 	GHOST_IWindow *window = (GHOST_IWindow *) windowhandle;
-	window->enableIME(x, y, w, h, complete);
+	window->beginIME(x, y, w, h, complete);
 }
 
 void GHOST_EndIME(GHOST_WindowHandle windowhandle)
 {
 	GHOST_IWindow *window = (GHOST_IWindow *) windowhandle;
-	window->disableIME();
+	window->endIME();
 }
 
 #endif /* WITH_INPUT_IME */

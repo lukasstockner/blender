@@ -130,10 +130,14 @@ if(WITH_BUILDINFO)
 	add_definitions(-DWITH_BUILDINFO)
 endif()
 
-if(WIN322)
+if(WIN32)
 	list(APPEND INC
 		../../../intern/utfconv
 	)
+
+	if(WITH_INPUT_IME)
+		add_definitions(-DWITH_INPUT_IME)
+	endif()
 endif()
 
 if(WITH_COMPOSITOR)

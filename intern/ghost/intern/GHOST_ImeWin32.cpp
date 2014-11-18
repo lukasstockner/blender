@@ -209,7 +209,7 @@ void GHOST_ImeWin32::CleanupComposition(HWND window_handle)
 void GHOST_ImeWin32::CheckFirst(HWND window_handle)
 {
 	if (is_first) {
-		this->DisableIME(window_handle);
+		this->EndIME(window_handle);
 		is_first = false;
 	}
 }
@@ -411,7 +411,7 @@ bool GHOST_ImeWin32::GetComposition(HWND window_handle, LPARAM lparam, ImeCompos
 }
 
 
-void GHOST_ImeWin32::DisableIME(HWND window_handle)
+void GHOST_ImeWin32::EndIME(HWND window_handle)
 {
 	/**
 	 * A renderer process have moved its input focus to a password input
@@ -428,7 +428,7 @@ void GHOST_ImeWin32::DisableIME(HWND window_handle)
 }
 
 
-void GHOST_ImeWin32::EnableIME(HWND window_handle, const GHOST_Rect &caret_rect, bool complete)
+void GHOST_ImeWin32::BeginIME(HWND window_handle, const GHOST_Rect &caret_rect, bool complete)
 {
 	if (is_enable && complete) return;
 	is_enable = true;

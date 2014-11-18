@@ -430,10 +430,12 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceText *st = CTX_wm_space_text(C);
+#ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime = win->ime_data;
 	int ime_active = ime && ime->composite_len &&
 					 BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
+#endif
 	//View2D *v2d = &ar->v2d;
 	
 	/* clear and setup matrix */
@@ -445,6 +447,7 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	/* data... */
 	
 	/* get cursor position from draw_text_main and repositon ime window */
+#ifdef WITH_INPUT_IME
 	if (ime_active) {
 		st->ime = ime;
 		ime->tmp = MEM_callocN(sizeof(int) * 2, "text cursor pos");
@@ -452,16 +455,19 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	}
 	else
 		st->ime = NULL;
+#endif /* WITH_INPUT_IME */
 
 	draw_text_main(st, ar);
 
+#ifdef WITH_INPUT_IME
 	if (ime_active) {
 		int *xy = ime->tmp;
 		ime->tmp = NULL;
 		ui_region_to_window(ar, xy, xy+1);
-		wm_window_IME_enable(win, xy[0] + 5, xy[1], 0, 0, false);
+		wm_window_IME_begin(win, xy[0] + 5, xy[1], 0, 0, false);
 		MEM_freeN(xy);
 	}
+#endif /* WITH_INPUT_IME */
 	/* reset view matrix */
 	// UI_view2d_view_restore(C);
 	
@@ -477,10 +483,12 @@ static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 		wmcursor = CURSOR_STD;
 	}
 
+#ifdef WITH_INPUT_IME
 	/* enable IME if the text region has text which can be edited */
 	if (st->text && !st->text->id.lib) {
-		wm_window_IME_enable(win, ar->winrct.xmin, ar->winrct.ymin, 0, 0, true);
+		wm_window_IME_begin(win, ar->winrct.xmin, ar->winrct.ymin, 0, 0, true);
 	}
+#endif
 
 	WM_cursor_set(win, wmcursor);
 }

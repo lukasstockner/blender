@@ -259,13 +259,13 @@ public:
 #ifdef WITH_INPUT_IME
 	GHOST_ImeWin32 *getImeInput() {return &m_imeImput;}
 
-	virtual void enableIME(GHOST_TInt32 x,
+	virtual void beginIME(GHOST_TInt32 x,
 	                       GHOST_TInt32 y,
 	                       GHOST_TInt32 w,
 	                       GHOST_TInt32 h,
 	                       int completed);
 
-	virtual void disableIME();
+	virtual void endIME();
 #endif /* WITH_INPUT_IME */
 
 private:

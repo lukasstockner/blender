@@ -298,7 +298,7 @@ public:
 	 *       Just move the IME windows of the ongoing composition to the given
 	 *       position without finishing it.
 	 */
-	void EnableIME(HWND window_handle,
+	void BeginIME(HWND window_handle,
 	               const GHOST_Rect& caret_rect,
 	               bool complete);
 
@@ -311,7 +311,7 @@ public:
 	 *   * window_handle [in] (HWND)
 	 *     Represents the window handle of the caller.
 	 */
-	void DisableIME(HWND window_handle);
+	void EndIME(HWND window_handle);
 
 	/* Updatg resultInfo and compInfo */
 	void UpdateInfo(HWND window_handle);

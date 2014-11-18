@@ -282,9 +282,10 @@ elseif(WIN32)
 
 	if(WITH_INPUT_IME)
 		add_definitions(-DWITH_INPUT_IME)
+
 		list(APPEND SRC
 			intern/GHOST_ImeWin32.cpp
-			
+				
 			intern/GHOST_ImeWin32.h
 		)
 	endif()

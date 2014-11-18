@@ -169,9 +169,11 @@ static void console_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 	if (st->text && BLI_rcti_isect_pt(&st->txtbar, win->eventstate->x - ar->winrct.xmin, st->txtbar.ymin)) {
 		wmcursor = CURSOR_STD;
 	}
+#ifdef WITH_INPUT_IME
 	else {
-		wm_window_IME_enable(win, ar->winrct.xmin, ar->winrct.ymin, 0, 0, true);
+		wm_window_IME_begin(win, ar->winrct.xmin, ar->winrct.ymin, 0, 0, true);
 	}
+#endif
 
 	WM_cursor_set(win, wmcursor);
 }
@@ -230,11 +232,12 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	SpaceConsole *sc = CTX_wm_space_console(C);
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
+#ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime = win->ime_data;
 	int ime_active = ime && ime->composite_len &&
 					 BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
-
+#endif
 
 	if (BLI_listbase_is_empty(&sc->scrollback))
 		WM_operator_name_call((bContext *)C, "CONSOLE_OT_banner", WM_OP_EXEC_DEFAULT, NULL);
@@ -250,6 +253,7 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 
 	console_history_verify(C); /* make sure we have some command line */
 
+#ifdef WITH_INPUT_IME
 	/* get cursor position from console_textview_main and repositon ime window */
 	if (ime_active) {
 		ConsoleLine *line = (ConsoleLine *)sc->history.last;
@@ -261,16 +265,19 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	}
 	else
 		sc->ime = NULL;
+#endif /* WITH_INPUT_IME */
 
 	console_textview_main(sc, ar);
 
+#ifdef WITH_INPUT_IME
 	if (ime_active) {
 		int *xy = ime->tmp;
 		ime->tmp = NULL;
 		ui_region_to_window(ar, xy, xy+1);
-		wm_window_IME_enable(win, xy[0] + 5, xy[1], 0, 0, false);
+		wm_window_IME_begin(win, xy[0] + 5, xy[1], 0, 0, false);
 		MEM_freeN(xy);
 	}
+#endif /* WITH_INPUT_IME */
 	
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
