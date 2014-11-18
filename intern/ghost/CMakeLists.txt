@@ -284,6 +284,7 @@ elseif(WIN32)
 		add_definitions(-DWITH_INPUT_IME)
 		list(APPEND SRC
 			intern/GHOST_ImeWin32.cpp
+			
 			intern/GHOST_ImeWin32.h
 		)
 	endif()
