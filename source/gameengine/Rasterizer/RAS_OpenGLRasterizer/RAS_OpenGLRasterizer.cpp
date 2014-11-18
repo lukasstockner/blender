@@ -440,8 +440,8 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 		glColor4f(m_debugShapes[i].m_color[0],m_debugShapes[i].m_color[1],m_debugShapes[i].m_color[2],1.f);
 		const MT_Scalar* fromPtr = &m_debugShapes[i].m_pos.x();
 		const MT_Scalar* toPtr= &m_debugShapes[i].m_param.x();
-		glVertex3dv(fromPtr);
-		glVertex3dv(toPtr);
+		glVertex3fv(fromPtr);
+		glVertex3fv(toPtr);
 	}
 	glEnd();
 
@@ -478,7 +478,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 			pos = pos*tr;
 			pos += m_debugShapes[i].m_pos;
 			const MT_Scalar* posPtr = &pos.x();
-			glVertex3dv(posPtr);
+			glVertex3fv(posPtr);
 		}
 		glEnd();
 	}
@@ -959,7 +959,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	m_viewmatrix.getValue(glviewmat);
 
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixd(glviewmat);
+	glLoadMatrixf(glviewmat);
 	m_campos = pos;
 }
 

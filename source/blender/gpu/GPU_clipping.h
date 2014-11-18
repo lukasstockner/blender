@@ -1,3 +1,6 @@
+#ifndef _GPU_CLIPPING_H_
+#define _GPU_CLIPPING_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -15,7 +18,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * The Original Code is Copyright (C) 2013 Blender Foundation.
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
  * All rights reserved.
  *
  * The Original Code is: all of this file.
@@ -25,49 +28,30 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/gpu/intern/gpu_init_exit.c
- *  \ingroup gpu
+/** \file blender/gpu/GPU_clipping.h
+ *   \ingroup gpu
  */
 
-#include "BLI_sys_types.h"
-#include "GPU_init_exit.h"  /* interface */
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-#include "intern/gpu_codegen.h"
-#include "intern/gpu_private.h"
+typedef struct GPUplane {
+	double equation[4];
+} GPUplane;
 
-/**
- * although the order of initialization and shutdown should not matter
- * (except for the extensions), I chose alphabetical and reverse alphabetical order
- */
+/* Set clipping planes and also applies appropriate transformations */
+void GPU_set_clip_planes(int clip_plane_count, const GPUplane clip_planes[]);
 
-static bool initialized = false;
+int GPU_get_clip_planes(GPUplane clip_planes_out[]);
 
-void GPU_init(void)
-{
-	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
-	if (initialized)
-		return;
+/* Set clip planes without transforming them.
+   Suitable for restoring a backup copy of previous clip plane state.
+   Keeps clip planes from getting transformed twice. */
+void GPU_restore_clip_planes(int clip_plane_count, const GPUplane clip_planes[]);
 
-	initialized = true;
-
-	gpu_extensions_init(); /* must come first */
-	gpu_matrix_init();
-
-	gpu_codegen_init();
-
-	GPU_DEBUG_INIT();
+#ifdef __cplusplus
 }
+#endif
 
-
-
-void GPU_exit(void)
-{
-	GPU_DEBUG_EXIT();
-
-	gpu_matrix_exit();
-	gpu_codegen_exit();
-
-	gpu_extensions_exit(); /* must come last */
-
-	initialized = false;
-}
+#endif /* _GPU_CLIPPING_H_ */

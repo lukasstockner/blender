@@ -54,6 +54,7 @@
 #include "BIF_glutil.h"
 
 #include "GPU_select.h"
+#include "GPU_matrix.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -626,7 +627,7 @@ void ED_view3d_clipping_calc_from_boundbox(float clip[4][4], const BoundBox *bb,
 void ED_view3d_clipping_calc(BoundBox *bb, float planes[4][4], bglMats *mats, const rcti *rect)
 {
 	float modelview[4][4];
-	double xs, ys, p[3];
+	float s[3], p[3];
 	int val, flip_sign, a;
 
 	/* near zero floating point values can give issues with gluUnProject
@@ -641,14 +642,15 @@ void ED_view3d_clipping_calc(BoundBox *bb, float planes[4][4], bglMats *mats, co
 	/* four clipping planes and bounding volume */
 	/* first do the bounding volume */
 	for (val = 0; val < 4; val++) {
-		xs = (val == 0 || val == 3) ? rect->xmin : rect->xmax;
-		ys = (val == 0 || val == 1) ? rect->ymin : rect->ymax;
+		s[0] = (val == 0 || val == 3) ? rect->xmin : rect->xmax;
+		s[1] = (val == 0 || val == 1) ? rect->ymin : rect->ymax;
+		s[2] = 0;
 
-		gluUnProject(xs, ys, 0.0, mats->modelview, mats->projection, mats->viewport, &p[0], &p[1], &p[2]);
-		copy_v3fl_v3db(bb->vec[val], p);
+		gpuUnProject(s, mats->modelview, mats->projection, mats->viewport, p);
+		copy_v3_v3(bb->vec[val], p);
 
-		gluUnProject(xs, ys, 1.0, mats->modelview, mats->projection, mats->viewport, &p[0], &p[1], &p[2]);
-		copy_v3fl_v3db(bb->vec[4 + val], p);
+		gpuUnProject(s, mats->modelview, mats->projection, mats->viewport, p);
+		copy_v3_v3(bb->vec[4 + val], p);
 	}
 
 	/* verify if we have negative scale. doing the transform before cross

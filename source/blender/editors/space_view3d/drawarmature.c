@@ -67,6 +67,7 @@
 #include "view3d_intern.h"
 
 #include "GPU_select.h"
+#include "GPU_primitives.h"
 
 /* *************** Armature Drawing - Coloring API ***************************** */
 
@@ -390,25 +391,19 @@ static void draw_bonevert(void)
 {
 	static GLuint displist = 0;
 	
-	if (displist == 0) {
-		GLUquadricObj   *qobj;
-		
+	if (displist == 0) {		
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 			
 		glPushMatrix();
 		
-		qobj    = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-		gluDisk(qobj, 0.0,  0.05, 16, 1);
-		
+		gpuDrawCircle(0.0f, 0.0f, 0.05f, 16);
+
 		glRotatef(90, 0, 1, 0);
-		gluDisk(qobj, 0.0,  0.05, 16, 1);
-		
+		gpuDrawCircle(0.0f, 0.0f, 0.05f, 16);
+
 		glRotatef(90, 1, 0, 0);
-		gluDisk(qobj, 0.0,  0.05, 16, 1);
-		
-		gluDeleteQuadric(qobj);  
+		gpuDrawCircle(0.0f, 0.0f, 0.05f, 16);
 		
 		glPopMatrix();
 		glEndList();
@@ -422,17 +417,13 @@ static void draw_bonevert_solid(void)
 	static GLuint displist = 0;
 	
 	if (displist == 0) {
-		GLUquadricObj *qobj;
+		GPUprim3 prim = GPU_PRIM_MIDFI_SOLID;
 		
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
-		
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_FILL); 
 		glShadeModel(GL_SMOOTH);
-		gluSphere(qobj, 0.05, 8, 5);
+		gpuSingleSphere(&prim, 0.05f);
 		glShadeModel(GL_FLAT);
-		gluDeleteQuadric(qobj);  
 		
 		glEndList();
 	}
@@ -854,12 +845,11 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 static void draw_sphere_bone(const short dt, int armflag, int boneflag, short constflag, unsigned int id,
                              bPoseChannel *pchan, EditBone *ebone)
 {
-	GLUquadricObj *qobj;
+	GPUprim3 prim;
 	float head, tail, length;
 	float fac1, fac2;
 	
 	glPushMatrix();
-	qobj = gluNewQuadric();
 
 	/* figure out the sizes of spheres */
 	if (ebone) {
@@ -887,11 +877,11 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		glEnable(GL_COLOR_MATERIAL);
 		glEnable(GL_LIGHTING);
 		
-		gluQuadricDrawStyle(qobj, GLU_FILL); 
+		prim = GPU_PRIM_MIDFI_SOLID;
 		glShadeModel(GL_SMOOTH);
 	}
 	else {
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
+		prim = GPU_PRIM_MIDFI_WIRE;
 	}
 	
 	/* sphere root color */
@@ -908,7 +898,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	if ((boneflag & BONE_CONNECTED) == 0) {
 		if (id != -1)
 			GPU_select_load_id(id | BONESEL_ROOT);
-		gluSphere(qobj, head, 16, 10);
+		gpuDrawSphere(&prim, head);
 	}
 	
 	/*	Draw tip point */
@@ -921,7 +911,7 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		GPU_select_load_id(id | BONESEL_TIP);
 	
 	glTranslatef(0.0f, 0.0f, length);
-	gluSphere(qobj, tail, 16, 10);
+	gpuDrawSphere(&prim, tail);
 	glTranslatef(0.0f, 0.0f, -length);
 	
 	/* base */
@@ -945,23 +935,31 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 		glPolygonOffset(-1.0f, -1.0f);
 		
 		glTranslatef(0.0f, 0.0f, head);
-		gluCylinder(qobj, fac1 * head + (1.0f - fac1) * tail, fac2 * tail + (1.0f - fac2) * head, length - head - tail, 16, 1);
+		gpuDrawCylinder(
+			&prim,
+			fac1 * head + (1.0f - fac1) * tail,
+			fac2 * tail + (1.0f - fac2) * head,
+			length - head - tail);
+		//GLU gluCylinder(qobj, fac1 * head + (1.0f - fac1) * tail, fac2 * tail + (1.0f - fac2) * head, length - head - tail, 16, 1);
 		glTranslatef(0.0f, 0.0f, -head);
 		
 		glDisable(GL_POLYGON_OFFSET_FILL);
 		
 		/* draw sphere on extrema */
 		glTranslatef(0.0f, 0.0f, length - tail);
-		gluSphere(qobj, fac2 * tail + (1.0f - fac2) * head, 16, 10);
+		gpuDrawSphere(&prim, fac2 * tail + (1.0f - fac2) * head);
+		//GLU Sphere(qobj, fac2 * tail + (1.0f - fac2) * head, 16, 10);
 		glTranslatef(0.0f, 0.0f, -length + tail);
 		
 		glTranslatef(0.0f, 0.0f, head);
-		gluSphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
+		gpuDrawSphere(&prim,  fac1 * head + (1.0f - fac1) * tail);
+		//GLU Sphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
 	}
 	else {
 		/* 1 sphere in center */
 		glTranslatef(0.0f, 0.0f, (head + length - tail) / 2.0f);
-		gluSphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
+		gpuDrawSphere(&prim,  fac1 * head + (1.0f - fac1) * tail);
+		//GLU Sphere(qobj, fac1 * head + (1.0f - fac1) * tail, 16, 10);
 	}
 	
 	/* restore */
@@ -972,7 +970,6 @@ static void draw_sphere_bone(const short dt, int armflag, int boneflag, short co
 	}
 	
 	glPopMatrix();
-	gluDeleteQuadric(qobj);  
 }
 
 static GLubyte bm_dot6[] = {0x0, 0x18, 0x3C, 0x7E, 0x7E, 0x3C, 0x18, 0x0};

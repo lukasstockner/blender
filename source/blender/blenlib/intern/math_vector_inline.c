@@ -361,6 +361,19 @@ MINLINE void sub_v3_v3v3(float r[3], const float a[3], const float b[3])
 	r[2] = a[2] - b[2];
 }
 
+MINLINE void copy_v2_flfl(float r[2], float f0, float f1)
+{
+	r[0] = f0;
+	r[1] = f1;
+}
+
+MINLINE void copy_v3_flflfl(float r[3], float f0, float f1, float f2)
+{
+	r[0] = f0;
+	r[1] = f1;
+	r[2] = f2;
+}
+
 MINLINE void sub_v4_v4(float r[4], const float a[4])
 {
 	r[0] -= a[0];

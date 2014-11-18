@@ -46,12 +46,22 @@ set(INC_SYS
 )
 
 set(SRC
+	intern/gpu_aspect.c
+	intern/gpu_basic.c
+	intern/gpu_blender_aspect.c
 	intern/gpu_buffers.c
 	intern/gpu_codegen.c
+	intern/gpu_common.c
+	intern/gpu_clipping.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
+	intern/gpu_immediate.c
 	intern/gpu_init_exit.c
 	intern/gpu_material.c
+	intern/gpu_matrix.c
+	intern/gpu_pixels.c
+	intern/gpu_primitives.c
+	intern/gpu_raster.c
 	intern/gpu_simple_shader.c
 	intern/gpu_select.c
 	intern/gpu_compositing.c
@@ -72,18 +82,29 @@ set(SRC
 	shaders/gpu_shader_vsm_store_vert.glsl
 	shaders/gpu_shader_fx_depth_resolve.glsl
 
+	GPU_aspect.h
 	GPU_buffers.h
+	GPU_clipping.h
+	GPU_common.h
 	GPU_draw.h
 	GPU_debug.h
 	GPU_extensions.h
 	GPU_glew.h
 	GPU_init_exit.h
 	GPU_material.h
+	GPU_matrix.h
+	GPU_pixels.h
+	GPU_primitives.h
+	GPU_raster.h
 	GPU_simple_shader.h
 	GPU_select.h
+	GPU_sprite.h
+	GPU_state_latch.h
 	GPU_compositing.h
+
 	intern/gpu_codegen.h
 	intern/gpu_private.h
+	intern/gpu_primitives_inline.h
 )
 
 data_to_c_simple(shaders/gpu_shader_material.glsl SRC)

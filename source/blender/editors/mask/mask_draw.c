@@ -54,6 +54,8 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
+#include "GPU_primitives.h"
+
 #include "mask_intern.h"  /* own include */
 
 static void mask_spline_color_get(MaskLayer *masklay, MaskSpline *spline, const bool is_sel,
@@ -142,16 +144,12 @@ static void draw_circle(const float x, const float y,
 
 	/* Initialize round circle shape. */
 	if (displist == 0) {
-		GLUquadricObj *qobj;
-
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
-
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, fill ? GLU_FILL : GLU_SILHOUETTE);
-		gluDisk(qobj, 0,  0.7, 8, 1);
-		gluDeleteQuadric(qobj);
-
+		if (fill)
+			gpuDrawDisk(0.0f, 0.0f,  0.7f, 16);
+		else
+			gpuDrawCircle(0.0f, 0.0f, 0.7f, 16);
 		glEndList();
 
 		if (fill) {

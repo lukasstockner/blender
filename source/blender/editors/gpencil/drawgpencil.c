@@ -56,6 +56,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_primitives.h"
+
 #include "ED_gpencil.h"
 #include "ED_view3d.h"
 
@@ -183,7 +185,6 @@ static void gp_calc_2d_stroke_xy(bGPDspoint *pt, short sflag, int offsx, int off
 static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, short thickness,
                                              short dflag, short UNUSED(sflag))
 {
-	GLUquadricObj *qobj = gluNewQuadric();
 	float modelview[4][4];
 	
 	tGPspoint *pt;
@@ -212,14 +213,12 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 		glLoadMatrixf((float *)modelview);
 		
 		/* draw the disk using the current state... */
-		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
-		
-		
+		gpuDrawDisk(0.0f,  0.0f, pt->pressure * thickness, 32);
+
 		modelview[3][0] = modelview[3][1] = 0.0f;
 	}
 
 	glPopMatrix();
-	gluDeleteQuadric(qobj);
 }
 
 /* draw a 2D strokes in "volumetric" style */
@@ -227,7 +226,6 @@ static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, shor
                                          short dflag, short sflag,
                                          int offsx, int offsy, int winx, int winy)
 {
-	GLUquadricObj *qobj = gluNewQuadric();
 	float modelview[4][4];
 	float baseloc[3];
 	float scalefac = 1.0f;
@@ -261,22 +259,19 @@ static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, shor
 		glLoadMatrixf((float *)modelview);
 		
 		/* draw the disk using the current state... */
-		gluDisk(qobj, 0.0,  pt->pressure * thickness * scalefac, 32, 1);
+		gpuDrawDisk(0.0f,  0.0f, pt->pressure * thickness * scalefac, 32);
 		
 		/* restore matrix */
 		copy_v3_v3(modelview[3], baseloc);
 	}
 	
 	glPopMatrix();
-	gluDeleteQuadric(qobj);
 }
 
 /* draw a 3D stroke in "volumetric" style */
 static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, short thickness,
                                          short UNUSED(dflag), short UNUSED(sflag))
 {
-	GLUquadricObj *qobj = gluNewQuadric();
-	
 	float base_modelview[4][4], modelview[4][4];
 	float base_loc[3];
 	
@@ -315,11 +310,10 @@ static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, shor
 		glLoadMatrixf((float *)modelview);
 		
 		/* draw the disk using the current state... */
-		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+		gpuDrawDisk(0.0f,  0.0f, pt->pressure * thickness, 32);
 	}
 	
 	glPopMatrix();
-	gluDeleteQuadric(qobj);
 }
 
 
@@ -390,16 +384,11 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 		}
 		else {
 			/* draw filled circle as is done in circf (but without the matrix push/pops which screwed things up) */
-			GLUquadricObj *qobj = gluNewQuadric();
-			
-			gluQuadricDrawStyle(qobj, GLU_FILL);
-			
+
 			/* need to translate drawing position, but must reset after too! */
 			glTranslatef(co[0], co[1], 0.0);
-			gluDisk(qobj, 0.0,  thickness, 32, 1);
+			gpuDrawDisk(co[0], co[1], thickness, 32);
 			glTranslatef(-co[0], -co[1], 0.0);
-			
-			gluDeleteQuadric(qobj);
 		}
 	}
 }

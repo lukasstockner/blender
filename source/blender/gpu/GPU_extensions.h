@@ -64,6 +64,7 @@ bool GPU_bicubic_bump_support(void);
 
 int GPU_max_texture_size(void);
 int GPU_color_depth(void);
+int GPU_max_textures(void);
 
 void GPU_code_generate_glsl_lib(void);
 
@@ -189,6 +190,7 @@ void GPU_shader_free(GPUShader *shader);
 void GPU_shader_bind(GPUShader *shader);
 void GPU_shader_unbind(void);
 
+int GPU_shader_get_attrib(GPUShader *shader, const char *name);
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
 void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
 	int arraysize, const float *value);

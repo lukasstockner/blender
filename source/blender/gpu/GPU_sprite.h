@@ -1,3 +1,6 @@
+#ifndef _GPU_SPRITE_H_
+#define _GPU_SPRITE_H_
+
 /*
  * ***** BEGIN GPL LICENSE BLOCK *****
  *
@@ -25,49 +28,38 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file source/blender/gpu/intern/gpu_init_exit.c
- *  \ingroup gpu
+/** \file blender/gpu/GPU_sprite.h
+ *   \ingroup gpu
  */
 
-#include "BLI_sys_types.h"
-#include "GPU_init_exit.h"  /* interface */
+#include "BLI_sys_types.h" // for uint32_t
 
-#include "intern/gpu_codegen.h"
-#include "intern/gpu_private.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/**
- * although the order of initialization and shutdown should not matter
- * (except for the extensions), I chose alphabetical and reverse alphabetical order
- */
+void GPU_sprite_begin(void);
+void GPU_sprite_end  (void);
 
-static bool initialized = false;
+void GPU_point_size (float size);
+void GPU_sprite_size(float size);
 
-void GPU_init(void)
-{
-	/* can't avoid calling this multiple times, see wm_window_add_ghostwindow */
-	if (initialized)
-		return;
+typedef enum GPUSpriteShaderOption {
+	GPU_SPRITE_CIRCULAR   = (1<<0), /* */
+	GPU_SPRITE_TEXTURE_2D = (1<<1), /* */
 
-	initialized = true;
+	GPU_SPRITE_OPTIONS_NUM         = 1,
+	GPU_SPRITE_OPTION_COMBINATIONS = (1<<GPU_SPRITE_OPTIONS_NUM)
+} GPUSpriteShaderOption;
 
-	gpu_extensions_init(); /* must come first */
-	gpu_matrix_init();
+void GPU_sprite_2f (float x, float y);
+void GPU_sprite_2fv(const float v[2]);
 
-	gpu_codegen_init();
+void GPU_sprite_3f (float x, float y, float z);
+void GPU_sprite_3fv(const float v[3]);
 
-	GPU_DEBUG_INIT();
+#ifdef __cplusplus
 }
+#endif
 
-
-
-void GPU_exit(void)
-{
-	GPU_DEBUG_EXIT();
-
-	gpu_matrix_exit();
-	gpu_codegen_exit();
-
-	gpu_extensions_exit(); /* must come last */
-
-	initialized = false;
-}
+#endif /* _GPU_SPRITE_H_ */

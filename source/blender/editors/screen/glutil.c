@@ -45,7 +45,6 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
-
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
 
@@ -964,8 +963,8 @@ void bgl_get_mats(bglMats *mats)
 {
 	const double badvalue = 1.0e-6;
 
-	glGetDoublev(GL_MODELVIEW_MATRIX, mats->modelview);
-	glGetDoublev(GL_PROJECTION_MATRIX, mats->projection);
+	glGetFloatv(GL_MODELVIEW_MATRIX, mats->modelview);
+	glGetFloatv(GL_PROJECTION_MATRIX, mats->projection);
 	glGetIntegerv(GL_VIEWPORT, (GLint *)mats->viewport);
 	
 	/* Very strange code here - it seems that certain bad values in the

@@ -66,6 +66,8 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
+#include "GPU_primitives.h"
+
 #include "screen_intern.h"
 
 extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3); /* xxx temp */
@@ -221,12 +223,9 @@ static void area_draw_azone(short x1, short y1, short x2, short y2)
 
 static void region_draw_azone_icon(AZone *az)
 {
-	GLUquadricObj *qobj = NULL; 
 	short midx = az->x1 + (az->x2 - az->x1) / 2;
 	short midy = az->y1 + (az->y2 - az->y1) / 2;
 		
-	qobj = gluNewQuadric();
-	
 	glPushMatrix();
 	glTranslatef(midx, midy, 0.0);
 	
@@ -235,18 +234,14 @@ static void region_draw_azone_icon(AZone *az)
 
 	glColor4f(1.f, 1.f, 1.f, 0.8f);
 
-	gluQuadricDrawStyle(qobj, GLU_FILL); 
-	gluDisk(qobj, 0.0,  4.25f, 16, 1);
-
+	gpuDrawDisk(0.0f, 0.0f, 4.25f, 16);
 	glColor4f(0.2f, 0.2f, 0.2f, 0.9f);
 	
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-	gluDisk(qobj, 0.0,  4.25f, 16, 1);
+	gpuDrawCircle(0, 0, 4.25, 16);
 	
 	glDisable(GL_LINE_SMOOTH);
 	
 	glPopMatrix();
-	gluDeleteQuadric(qobj);
 	
 	/* + */
 	sdrawline(midx, midy - 2, midx, midy + 3);

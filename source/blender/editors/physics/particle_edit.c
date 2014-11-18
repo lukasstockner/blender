@@ -81,6 +81,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
+#include "GPU_matrix.h"
+
 #include "physics_intern.h"
 
 void PE_create_particle_edit(Scene *scene, Object *ob, PointCache *cache, ParticleSystem *psys);
@@ -439,7 +441,7 @@ static bool key_test_depth(PEData *data, const float co[3], const int screen_co[
 {
 	View3D *v3d= data->vc.v3d;
 	ViewDepths *vd = data->vc.rv3d->depths;
-	double ux, uy, uz;
+	GLfloat u[3];
 	float depth;
 
 	/* nothing to do */
@@ -455,8 +457,8 @@ static bool key_test_depth(PEData *data, const float co[3], const int screen_co[
 	}
 #endif
 
-	gluProject(co[0], co[1], co[2], data->mats.modelview, data->mats.projection,
-	           (GLint *)data->mats.viewport, &ux, &uy, &uz);
+	gpuProject(co, data->mats.modelview, data->mats.projection,
+	           (GLint *)data->mats.viewport, u);
 
 	/* check if screen_co is within bounds because brush_cut uses out of screen coords */
 	if (screen_co[0] >= 0 && screen_co[0] < vd->w && screen_co[1] >= 0 && screen_co[1] < vd->h) {
@@ -467,7 +469,7 @@ static bool key_test_depth(PEData *data, const float co[3], const int screen_co[
 	else
 		return 0;
 
-	if ((float)uz - 0.00001f > depth)
+	if ((float)u[2] - 0.00001f > depth)
 		return 0;
 	else
 		return 1;

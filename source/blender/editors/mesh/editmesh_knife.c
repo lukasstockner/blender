@@ -71,6 +71,8 @@
 #include "RNA_access.h"
 #include "RNA_define.h"
 
+#include "GPU_matrix.h"
+
 #include "mesh_intern.h"  /* own include */
 
 #define KMAXDIST    10  /* max mouse distance from edge before not detecting it */
@@ -911,14 +913,12 @@ static void knife_finish_cut(KnifeTool_OpData *kcd)
 static void knifetool_draw_angle_snapping(const KnifeTool_OpData *kcd)
 {
 	bglMats mats;
-	double u[3], u1[2], u2[2], v1[3], v2[3], dx, dy;
+	float u[3], u1[3], u2[3], v1[3], v2[3], dx, dy;
 	double wminx, wminy, wmaxx, wmaxy;
 
 	/* make u the window coords of prevcage */
 	view3d_get_transformation(kcd->ar, kcd->vc.rv3d, kcd->ob, &mats);
-	gluProject(kcd->prev.cage[0], kcd->prev.cage[1], kcd->prev.cage[2],
-	           mats.modelview, mats.projection, mats.viewport,
-	           &u[0], &u[1], &u[2]);
+	gpuProject(kcd->prev.cage, mats.modelview, mats.projection, mats.viewport, u);
 
 	/* make u1, u2 the points on window going through u at snap angle */
 	wminx = kcd->ar->winrct.xmin;
@@ -990,18 +990,15 @@ static void knifetool_draw_angle_snapping(const KnifeTool_OpData *kcd)
 	}
 
 	/* unproject u1 and u2 back into object space */
-	gluUnProject(u1[0], u1[1], 0.0,
-	             mats.modelview, mats.projection, mats.viewport,
-	             &v1[0], &v1[1], &v1[2]);
-	gluUnProject(u2[0], u2[1], 0.0,
-	             mats.modelview, mats.projection, mats.viewport,
-	             &v2[0], &v2[1], &v2[2]);
+	u1[2] = u2[2] = 0.0f;
+	gpuUnProject(u1, mats.modelview, mats.projection, mats.viewport, v1);
+	gpuUnProject(u2, mats.modelview, mats.projection, mats.viewport, v2);
 
 	UI_ThemeColor(TH_TRANSFORM);
 	glLineWidth(2.0);
 	glBegin(GL_LINES);
-	glVertex3dv(v1);
-	glVertex3dv(v2);
+	glVertex3fv(v1);
+	glVertex3fv(v2);
 	glEnd();
 }
 

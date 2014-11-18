@@ -255,7 +255,11 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap)
 	int old_value = GTS.gpu_mipmap;
 
 	/* only actually enable if it's supported */
-	GTS.gpu_mipmap = gpu_mipmap && GLEW_EXT_framebuffer_object;
+	GTS.gpu_mipmap = gpu_mipmap && (GLEW_VERSION_3_0            ||
+	                                GLEW_ARB_framebuffer_object ||
+	                                GLEW_EXT_framebuffer_object ||
+	                                GLEW_ES_VERSION_2_0         ||
+	                                GLEW_OES_framebuffer_object );
 
 	if (old_value != GTS.gpu_mipmap) {
 		GPU_free_images();
@@ -692,6 +696,7 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, bool compare, boo
 void GPU_create_gl_tex(unsigned int *bind, unsigned int *rect, float *frect, int rectw, int recth,
                        bool mipmap, bool use_high_bit_depth, Image *ima)
 {
+	int internal_format = (use_high_bit_depth) ? ((GLEW_ARB_texture_float) ? GL_RGBA16F : GL_RGBA16): GL_RGBA;
 	ImBuf *ibuf = NULL;
 
 	int tpx = rectw;
@@ -701,7 +706,8 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *rect, float *frect, int
 	 * GPUs (OpenGL version >= 2.0) since they support non-power-of-two-textures 
 	 * Then don't bother scaling for hardware that supports NPOT textures! */
 	if ((!GPU_non_power_of_two_support() && !is_power_of_2_resolution(rectw, recth)) ||
-		is_over_resolution_limit(rectw, recth)) {
+		is_over_resolution_limit(rectw, recth))
+	{
 		rectw = smaller_power_of_2_limit(rectw);
 		recth = smaller_power_of_2_limit(recth);
 		
@@ -724,10 +730,7 @@ void GPU_create_gl_tex(unsigned int *bind, unsigned int *rect, float *frect, int
 	glBindTexture(GL_TEXTURE_2D, *bind);
 
 	if (use_high_bit_depth) {
-		if (GLEW_ARB_texture_float)
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16F,  rectw, recth, 0, GL_RGBA, GL_FLOAT, frect);
-		else
-			glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA16,  rectw, recth, 0, GL_RGBA, GL_FLOAT, frect);
+			glTexImage2D(GL_TEXTURE_2D, 0,  internal_format,  rectw, recth, 0, GL_RGBA, GL_FLOAT, frect);
 	}
 	else
 		glTexImage2D(GL_TEXTURE_2D, 0,  GL_RGBA,  rectw, recth, 0, GL_RGBA, GL_UNSIGNED_BYTE, rect);

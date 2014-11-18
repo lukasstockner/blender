@@ -52,6 +52,7 @@
 #include "WM_types.h"
 
 #include "GPU_select.h"
+#include "GPU_primitives.h"
 
 typedef int (*GestureDetectFct)(bContext *, SK_Gesture *, SK_Sketch *);
 typedef void (*GestureApplyFct)(bContext *, SK_Gesture *, SK_Sketch *);
@@ -434,13 +435,14 @@ static float sk_clampPointSize(SK_Point *pt, float size)
 	return max_ff(size * pt->size, size / 2);
 }
 
-static void sk_drawPoint(GLUquadric *quad, SK_Point *pt, float size)
+static void sk_drawPoint(struct GPUprim3 *prim, SK_Point *pt, float size)
 {
 	glTranslatef(pt->p[0], pt->p[1], pt->p[2]);
-	gluSphere(quad, sk_clampPointSize(pt, size), 8, 8);
+	gpuDrawSphere(prim, sk_clampPointSize(pt, size));
+	//GLU gluSphere(quad, sk_clampPointSize(pt, size), 8, 8);
 }
 
-static void sk_drawEdge(GLUquadric *quad, SK_Point *pt0, SK_Point *pt1, float size)
+static void sk_drawEdge(struct GPUprim3 *prim, SK_Point *pt0, SK_Point *pt1, float size)
 {
 	float vec1[3], vec2[3] = {0, 0, 1}, axis[3];
 	float angle, length;
@@ -457,10 +459,11 @@ static void sk_drawEdge(GLUquadric *quad, SK_Point *pt0, SK_Point *pt1, float si
 
 	glRotatef(angle * (float)(180.0 / M_PI) + 180.0f, axis[0], axis[1], axis[2]);
 
-	gluCylinder(quad, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length, 8, 8);
+	gpuDrawCylinder(prim, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length);
+	//GLU Cylinder(quad, sk_clampPointSize(pt1, size), sk_clampPointSize(pt0, size), length, 8, 8);
 }
 
-static void sk_drawNormal(GLUquadric *quad, SK_Point *pt, float size, float height)
+static void sk_drawNormal(struct GPUprim3 *prim, SK_Point *pt, float size, float height)
 {
 	float vec2[3] = {0, 0, 1}, axis[3];
 	float angle;
@@ -478,7 +481,9 @@ static void sk_drawNormal(GLUquadric *quad, SK_Point *pt, float size, float heig
 	glRotatef(angle * (float)(180.0 / M_PI), axis[0], axis[1], axis[2]);
 
 	glColor3f(0, 1, 1);
-	gluCylinder(quad, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height), 10, 2);
+
+	gpuDrawCylinder(prim, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height));
+	//GLU Cylinder(quad, sk_clampPointSize(pt, size), 0, sk_clampPointSize(pt, height), 10, 2);
 
 	glPopMatrix();
 }
@@ -487,8 +492,7 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 {
 	float rgb[3];
 	int i;
-	GLUquadric *quad = gluNewQuadric();
-	gluQuadricNormals(quad, GLU_SMOOTH);
+	struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 	if (id != -1) {
 		GPU_select_load_id(id);
@@ -496,10 +500,10 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 		for (i = 0; i < stk->nb_points; i++) {
 			glPushMatrix();
 
-			sk_drawPoint(quad, stk->points + i, 0.1);
+			sk_drawPoint(&prim, stk->points + i, 0.1);
 
 			if (i > 0) {
-				sk_drawEdge(quad, stk->points + i - 1, stk->points + i, 0.1);
+				sk_drawEdge(&prim, stk->points + i - 1, stk->points + i, 0.1);
 			}
 
 			glPopMatrix();
@@ -520,8 +524,8 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 
 			if (pt->type == PT_EXACT) {
 				glColor3f(0, 0, 0);
-				sk_drawPoint(quad, pt, 0.15);
-				sk_drawNormal(quad, pt, 0.05, 0.9);
+				sk_drawPoint(&prim, pt, 0.15);
+				sk_drawNormal(&prim, pt, 0.05, 0.9);
 			}
 
 			if (i >= start && i <= end) {
@@ -533,11 +537,11 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 
 			if (pt->type != PT_EXACT) {
 
-				sk_drawPoint(quad, pt, 0.1);
+				sk_drawPoint(&prim, pt, 0.1);
 			}
 
 			if (i > 0) {
-				sk_drawEdge(quad, pt - 1, pt, 0.1);
+				sk_drawEdge(&prim, pt - 1, pt, 0.1);
 			}
 
 			glPopMatrix();
@@ -546,7 +550,6 @@ static void sk_drawStroke(SK_Stroke *stk, int id, float color[3], int start, int
 		}
 	}
 
-	gluDeleteQuadric(quad);
 }
 
 static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *iter, NextSubdivisionFunc next_subdividion)
@@ -556,8 +559,7 @@ static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *ite
 	int bone_start = 0;
 	int end = iter->length;
 	int index;
-	GLUquadric *quad = gluNewQuadric();
-	gluQuadricNormals(quad, GLU_SMOOTH);
+	struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 	iter->head(iter);
 	copy_v3_v3(head, iter->p);
@@ -569,9 +571,9 @@ static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *ite
 		glPushMatrix();
 
 		glColor3f(0, 1, 0);
-		sk_drawPoint(quad, pt, 0.15);
+		sk_drawPoint(&prim, pt, 0.15);
 
-		sk_drawNormal(quad, pt, 0.05, 0.9);
+		sk_drawNormal(&prim, pt, 0.05, 0.9);
 
 		glPopMatrix();
 
@@ -580,8 +582,6 @@ static void drawSubdividedStrokeBy(ToolSettings *toolsettings, BArcIterator *ite
 
 		index = next_subdividion(toolsettings, iter, bone_start, end, head, tail);
 	}
-
-	gluDeleteQuadric(quad);
 }
 
 static void sk_drawStrokeSubdivision(ToolSettings *toolsettings, SK_Stroke *stk)
@@ -2057,8 +2057,7 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			}
 
 			if (last != NULL) {
-				GLUquadric *quad = gluNewQuadric();
-				gluQuadricNormals(quad, GLU_SMOOTH);
+				struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 				glPushMatrix();
 
@@ -2074,23 +2073,22 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 						break;
 				}
 
-				sk_drawPoint(quad, &sketch->next_point, 0.1);
+				sk_drawPoint(&prim, &sketch->next_point, 0.1);
 
 				glColor4f(selected_rgb[0], selected_rgb[1], selected_rgb[2], 0.3);
 
-				sk_drawEdge(quad, last, &sketch->next_point, 0.1);
+				sk_drawEdge(&prim, last, &sketch->next_point, 0.1);
 
 				glDisable(GL_BLEND);
 
 				glPopMatrix();
-
-				gluDeleteQuadric(quad);
 			}
 		}
 	}
 
 #if 0
 	if (BLI_listbase_is_empty(&sketch->depth_peels) == false) {
+		struct GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 		float colors[8][3] = {
 			{1, 0, 0},
 			{0, 1, 0},
@@ -2102,8 +2100,6 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			{0, 0, 0}
 		};
 		DepthPeel *p;
-		GLUquadric *quad = gluNewQuadric();
-		gluQuadricNormals(quad, GLU_SMOOTH);
 
 		for (p = sketch->depth_peels.first; p; p = p->next)
 		{
@@ -2113,11 +2109,10 @@ static void sk_drawSketch(Scene *scene, View3D *UNUSED(v3d), SK_Sketch *sketch, 
 			glColor3fv(colors[index]);
 			glPushMatrix();
 			glTranslatef(p->p[0], p->p[1], p->p[2]);
-			gluSphere(quad, 0.02, 8, 8);
+			gpuDrawSphere(&prim, 0.02);
 			glPopMatrix();
 		}
 
-		gluDeleteQuadric(quad);
 	}
 #endif
 

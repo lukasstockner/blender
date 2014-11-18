@@ -87,6 +87,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_select.h"
+#include "GPU_primitives.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -1518,17 +1519,15 @@ static void draw_bundle_sphere(void)
 	static GLuint displist = 0;
 
 	if (displist == 0) {
-		GLUquadricObj *qobj;
+		GPUprim3 prim = GPU_PRIM_LOFI_SOLID;
 
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_FILL);
 		glShadeModel(GL_SMOOTH);
-		gluSphere(qobj, 0.05, 8, 8);
+		gpuSingleSphere(&prim, 0.05f);
+		//GLU gluSphere(qobj, 0.05, 8, 8);
 		glShadeModel(GL_FLAT);
-		gluDeleteQuadric(qobj);
 
 		glEndList();
 	}
@@ -6396,25 +6395,19 @@ static void draw_empty_sphere(float size)
 	static GLuint displist = 0;
 	
 	if (displist == 0) {
-		GLUquadricObj   *qobj;
-		
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
 		glPushMatrix();
 		
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
-		gluDisk(qobj, 0.0,  1, 16, 1);
-		
+		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
+
 		glRotatef(90, 0, 1, 0);
-		gluDisk(qobj, 0.0,  1, 16, 1);
+		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
 		
 		glRotatef(90, 1, 0, 0);
-		gluDisk(qobj, 0.0,  1, 16, 1);
-		
-		gluDeleteQuadric(qobj);
-		
+		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
+
 		glPopMatrix();
 		glEndList();
 	}
@@ -6427,23 +6420,19 @@ static void draw_empty_sphere(float size)
 /* draw a cone for use as an empty drawtype */
 static void draw_empty_cone(float size)
 {
+	struct GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
 	float cent = 0;
 	float radius;
-	GLUquadricObj *qobj = gluNewQuadric();
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
-	
-	
+
 	glPushMatrix();
 	
 	radius = size;
 	glTranslatef(cent, cent, cent);
 	glScalef(radius, size * 2.0f, radius);
 	glRotatef(-90.0, 1.0, 0.0, 0.0);
-	gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+	gpuDrawCylinder(&prim, 1.0f, 0.0f, 1.0f);
 
 	glPopMatrix();
-	
-	gluDeleteQuadric(qobj);
 }
 
 static void drawspiral(const float cent[3], float rad, float tmat[4][4], int start)
@@ -6859,9 +6848,7 @@ static void draw_box(float vec[8][3])
 static void draw_bb_quadric(BoundBox *bb, char type, bool around_origin)
 {
 	float size[3], cent[3];
-	GLUquadricObj *qobj = gluNewQuadric();
-	
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE);
+	struct GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
 	
 	BKE_boundbox_calc_size_aabb(bb, size);
 
@@ -6877,32 +6864,30 @@ static void draw_bb_quadric(BoundBox *bb, char type, bool around_origin)
 		float scale = MAX3(size[0], size[1], size[2]);
 		glTranslatef(cent[0], cent[1], cent[2]);
 		glScalef(scale, scale, scale);
-		gluSphere(qobj, 1.0, 8, 5);
+		gpuDrawSphere(&prim, 1.0f);
 	}
 	else if (type == OB_BOUND_CYLINDER) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		glTranslatef(cent[0], cent[1], cent[2] - size[2]);
 		glScalef(radius, radius, 2.0f * size[2]);
-		gluCylinder(qobj, 1.0, 1.0, 1.0, 8, 1);
+		gpuDrawCylinder(&prim, 1.0f, 1.0f, 1.0f);
 	}
 	else if (type == OB_BOUND_CONE) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		glTranslatef(cent[0], cent[1], cent[2] - size[2]);
 		glScalef(radius, radius, 2.0f * size[2]);
-		gluCylinder(qobj, 1.0, 0.0, 1.0, 8, 1);
+		gpuDrawCylinder(&prim, 1.0f, 0.0f, 1.0f);
 	}
 	else if (type == OB_BOUND_CAPSULE) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		float length = size[2] > radius ? 2.0f * (size[2] - radius) : 0.0f;
 		glTranslatef(cent[0], cent[1], cent[2] - length * 0.5f);
-		gluCylinder(qobj, radius, radius, length, 8, 1);
-		gluSphere(qobj, radius, 8, 4);
+		gpuDrawCylinder(&prim, radius, radius, length);
+		gpuDrawSphere(&prim, radius);
 		glTranslatef(0.0, 0.0, length);
-		gluSphere(qobj, radius, 8, 4);
+		gpuDrawSphere(&prim, radius);
 	}
 	glPopMatrix();
-	
-	gluDeleteQuadric(qobj);
 }
 
 static void draw_bounding_volume(Object *ob, char type)

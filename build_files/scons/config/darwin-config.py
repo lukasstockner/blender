@@ -143,7 +143,7 @@ BF_ICONV_LIB = 'iconv'
 
 # Mesa Libs should go here if your using them as well....
 WITH_BF_STATICOPENGL = True
-BF_OPENGL_LIB = 'GL GLU'
+BF_OPENGL_LIB = 'GL'
 BF_OPENGL_LIBPATH = '/System/Library/Frameworks/OpenGL.framework/Libraries'
 BF_OPENGL_LINKFLAGS = ['-framework', 'OpenGL']
 

@@ -96,6 +96,7 @@
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
+#include "GPU_primitives.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -113,36 +114,24 @@ extern void bl_debug_color_set(const unsigned int col);
 
 void circf(float x, float y, float rad)
 {
-	GLUquadricObj *qobj = gluNewQuadric(); 
-	
-	gluQuadricDrawStyle(qobj, GLU_FILL); 
-	
 	glPushMatrix(); 
 	
 	glTranslatef(x, y, 0.0);
-	
-	gluDisk(qobj, 0.0,  rad, 32, 1);
+
+	gpuDrawDisk(0.0, 0.0, rad, 32);
 	
 	glPopMatrix(); 
-	
-	gluDeleteQuadric(qobj);
 }
 
 void circ(float x, float y, float rad)
 {
-	GLUquadricObj *qobj = gluNewQuadric(); 
-	
-	gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-	
 	glPushMatrix(); 
 	
 	glTranslatef(x, y, 0.0);
 	
-	gluDisk(qobj, 0.0,  rad, 32, 1);
-	
+	gpuDrawDisk(0.0, 0.0, rad, 32);
+
 	glPopMatrix(); 
-	
-	gluDeleteQuadric(qobj);
 }
 
 

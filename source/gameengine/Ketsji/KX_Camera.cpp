@@ -40,6 +40,8 @@
 
 #include "RAS_ICanvas.h"
 
+#include "GPU_matrix.h"
+
 KX_Camera::KX_Camera(void* sgReplicationInfo,
                      SG_Callbacks callbacks,
                      const RAS_CameraData& camdata,
@@ -990,9 +992,9 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	}
 
 	const GLint *viewport;
-	GLdouble win[3];
-	GLdouble modelmatrix[16];
-	GLdouble projmatrix[16];
+	float win[3];
+	float modelmatrix[16];
+	float projmatrix[16];
 
 	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
@@ -1002,7 +1004,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 
 	viewport = KX_GetActiveEngine()->GetCanvas()->GetViewPort();
 
-	gluProject(vect[0], vect[1], vect[2], modelmatrix, projmatrix, viewport, &win[0], &win[1], &win[2]);
+	gpuProject(&vect[0], modelmatrix, projmatrix, viewport, &win[0]);
 
 	vect[0] =  (win[0] - viewport[0]) / viewport[2];
 	vect[1] =  (win[1] - viewport[1]) / viewport[3];
@@ -1033,9 +1035,9 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	MT_Point3 campos, screenpos;
 
 	const GLint *viewport;
-	GLdouble win[3];
-	GLdouble modelmatrix[16];
-	GLdouble projmatrix[16];
+	GLfloat win[3];
+	GLfloat modelmatrix[16];
+	GLfloat projmatrix[16];
 
 	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
@@ -1053,7 +1055,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 
 	vect[2] = 0.f;
 
-	gluUnProject(vect[0], vect[1], vect[2], modelmatrix, projmatrix, viewport, &win[0], &win[1], &win[2]);
+	gpuUnProject(&vect[0], modelmatrix, projmatrix, viewport, &win[0]);
 
 	campos = this->GetCameraLocation();
 	screenpos = MT_Point3(win[0], win[1], win[2]);

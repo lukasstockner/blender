@@ -46,6 +46,7 @@
 #include "BKE_curve.h"
 #include "BKE_fcurve.h"
 
+#include "GPU_primitives.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -172,15 +173,10 @@ static void draw_fcurve_handle_control(float x, float y, float xscale, float ysc
 	
 	/* initialize round circle shape */
 	if (displist == 0) {
-		GLUquadricObj *qobj;
-		
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
-		qobj    = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_SILHOUETTE); 
-		gluDisk(qobj, 0,  0.7, 8, 1);
-		gluDeleteQuadric(qobj);  
+		gpuSingleCircle(0.0f, 0.0f, 0.7f, 8);
 		
 		glEndList();
 	}

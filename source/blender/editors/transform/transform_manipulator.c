@@ -73,6 +73,7 @@
 #include "transform.h"
 
 #include "GPU_select.h"
+#include "GPU_primitives.h"
 
 /* return codes for select, and drawing flags */
 
@@ -1315,17 +1316,7 @@ static void draw_manipulator_scale(
 	glFrontFace(GL_CCW);
 }
 
-
-static void draw_cone(GLUquadricObj *qobj, float len, float width)
-{
-	glTranslatef(0.0, 0.0, -0.5f * len);
-	gluCylinder(qobj, width, 0.0, len, 8, 1);
-	gluQuadricOrientation(qobj, GLU_INSIDE);
-	gluDisk(qobj, 0.0, width, 8, 1);
-	gluQuadricOrientation(qobj, GLU_OUTSIDE);
-	glTranslatef(0.0, 0.0, 0.5f * len);
-}
-
+#if 0
 static void draw_cylinder(GLUquadricObj *qobj, float len, float width)
 {
 
@@ -1340,13 +1331,14 @@ static void draw_cylinder(GLUquadricObj *qobj, float len, float width)
 	gluDisk(qobj, 0.0, width, 8, 1);
 	glTranslatef(0.0, 0.0, -0.5f * len);
 }
+#endif
 
 
 static void draw_manipulator_translate(
         View3D *v3d, RegionView3D *rv3d, int drawflags, int combo, int colcode,
         const bool UNUSED(is_moving), const bool is_picksel)
 {
-	GLUquadricObj *qobj;
+	GPUprim3 prim = GPU_PRIM_LOFI_SHADELESS;
 	float cylen = 0.01f * (float)U.tw_handlesize;
 	float cywid = 0.25f * cylen, dz, size;
 	float unitmat[4][4];
@@ -1391,8 +1383,7 @@ static void draw_manipulator_translate(
 	else if (combo & (V3D_MANIP_SCALE)) dz = 1.0f + 0.5f * cylen;
 	else dz = 1.0f;
 
-	qobj = gluNewQuadric();
-	gluQuadricDrawStyle(qobj, GLU_FILL);
+	prim.vsegs = 1;
 
 	for (i = 0; i < 3; i++) {
 		switch (axis_order[i]) {
@@ -1401,7 +1392,7 @@ static void draw_manipulator_translate(
 					glTranslatef(0.0, 0.0, dz);
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_Z);
 					else manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]));
-					draw_cone(qobj, cylen, cywid);
+					gpuDrawCone(&prim, cywid, cylen);
 					glTranslatef(0.0, 0.0, -dz);
 				}
 				break;
@@ -1411,7 +1402,7 @@ static void draw_manipulator_translate(
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_X);
 					else manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]));
 					glRotatef(90.0, 0.0, 1.0, 0.0);
-					draw_cone(qobj, cylen, cywid);
+					gpuDrawCone(&prim, cywid, cylen);
 					glRotatef(-90.0, 0.0, 1.0, 0.0);
 					glTranslatef(-dz, 0.0, 0.0);
 				}
@@ -1422,7 +1413,7 @@ static void draw_manipulator_translate(
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_Y);
 					else manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->tw_idot[1]));
 					glRotatef(-90.0, 1.0, 0.0, 0.0);
-					draw_cone(qobj, cylen, cywid);
+					gpuDrawCone(&prim, cywid, cylen);
 					glRotatef(90.0, 1.0, 0.0, 0.0);
 					glTranslatef(0.0, -dz, 0.0);
 				}
@@ -1430,13 +1421,13 @@ static void draw_manipulator_translate(
 		}
 	}
 
-	gluDeleteQuadric(qobj);
 	glLoadMatrixf(rv3d->viewmat);
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
 }
 
+#if 0
 static void draw_manipulator_rotate_cyl(
         View3D *v3d, RegionView3D *rv3d, int drawflags, const int combo, const int colcode,
         const bool is_moving, const bool is_picksel)
@@ -1559,6 +1550,7 @@ static void draw_manipulator_rotate_cyl(
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
 }
+#endif
 
 
 /* ********************************************* */
@@ -1629,6 +1621,7 @@ void BIF_draw_manipulator(const bContext *C)
 		glEnable(GL_BLEND);
 		if (v3d->twtype & V3D_MANIP_ROTATE) {
 
+#if 0
 			if (G.debug_value == 3) {
 				if (G.moving & (G_TRANSFORM_OBJ | G_TRANSFORM_EDIT))
 					draw_manipulator_rotate_cyl(v3d, rv3d, drawflags, v3d->twtype, MAN_MOVECOL, true, is_picksel);
@@ -1636,8 +1629,11 @@ void BIF_draw_manipulator(const bContext *C)
 					draw_manipulator_rotate_cyl(v3d, rv3d, drawflags, v3d->twtype, MAN_RGB, false, is_picksel);
 			}
 			else {
+#endif
 				draw_manipulator_rotate(v3d, rv3d, drawflags, v3d->twtype, false, is_picksel);
+#if 0
 			}
+#endif
 		}
 		if (v3d->twtype & V3D_MANIP_SCALE) {
 			draw_manipulator_scale(v3d, rv3d, drawflags, v3d->twtype, MAN_RGB, false, is_picksel);
@@ -1685,8 +1681,11 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 
 	/* do the drawing */
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
+#if 0
 		if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, is_picksel);
-		else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, is_picksel);
+		else
+#endif
+		draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, is_picksel);
 	}
 	if (v3d->twtype & V3D_MANIP_SCALE)
 		draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, is_picksel);
@@ -1700,8 +1699,11 @@ static int manipulator_selectbuf(ScrArea *sa, ARegion *ar, const int mval[2], fl
 
 		/* do the drawing */
 		if (v3d->twtype & V3D_MANIP_ROTATE) {
+#if 0
 			if (G.debug_value == 3) draw_manipulator_rotate_cyl(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, is_picksel);
-			else draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, is_picksel);
+			else
+#endif
+				draw_manipulator_rotate(v3d, rv3d, MAN_ROT_C & rv3d->twdrawflag, v3d->twtype, false, is_picksel);
 		}
 		if (v3d->twtype & V3D_MANIP_SCALE)
 			draw_manipulator_scale(v3d, rv3d, MAN_SCALE_C & rv3d->twdrawflag, v3d->twtype, MAN_RGB, false, is_picksel);

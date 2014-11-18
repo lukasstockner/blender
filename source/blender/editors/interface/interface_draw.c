@@ -57,6 +57,8 @@
 
 #include "UI_interface.h"
 
+#include "GPU_primitives.h"
+
 /* own include */
 #include "interface_intern.h"
 
@@ -1264,17 +1266,14 @@ void ui_draw_but_UNITVEC(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 	glScalef(size, size, size);
 
 	if (displist == 0) {
-		GLUquadricObj *qobj;
+		GPUprim3 prim = GPU_PRIM_HIFI_SOLID;
 
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
-		qobj = gluNewQuadric();
-		gluQuadricDrawStyle(qobj, GLU_FILL);
 		glShadeModel(GL_SMOOTH);
-		gluSphere(qobj, 100.0, 32, 24);
+		gpuSingleSphere(&prim, 100);
 		glShadeModel(GL_FLAT);
-		gluDeleteQuadric(qobj);
 		
 		glEndList();
 	}

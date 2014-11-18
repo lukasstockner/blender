@@ -71,6 +71,8 @@ void mul_m4_m3m4(float R[4][4], float A[3][3], float B[4][4]);
 void mul_m4_m4m3(float R[4][4], float A[4][4], float B[3][3]);
 void mul_m4_m4m4(float R[4][4], float A[4][4], float B[4][4]);
 void mul_m3_m3m4(float R[3][3], float A[4][4], float B[3][3]);
+void mult_m4_m4m4_q(float m1[4][4], float m3[4][4], float m2[4][4]);
+void mult_m4_m3m4_q(float m1[4][4], float m3[4][4], float m2[3][3]);
 
 /* mul_m3_series */
 void _va_mul_m3_series_3(float R[3][3], float M1[3][3], float M2[3][3]) ATTR_NONNULL();
@@ -105,6 +107,8 @@ void mul_v3_m4v3(float r[3], float M[4][4], const float v[3]);
 void mul_v2_m4v3(float r[2], float M[4][4], const float v[3]);
 void mul_v2_m2v2(float r[2], float M[2][2], const float v[2]);
 void mul_m2v2(float M[2][2], float v[2]);
+void mul_v3_m4v3_q(float r[3], float M[4][4], const float v[3]);
+void mul_v4_m4v3(float r[4], float M[4][4], const float v[3]);
 void mul_mat3_m4_v3(float M[4][4], float r[3]);
 void mul_m4_v4(float M[4][4], float r[4]);
 void mul_v4_m4v4(float r[4], float M[4][4], const float v[4]);
@@ -195,6 +199,8 @@ void invert_m4_m4_safe(float Ainv[4][4], float A[4][4]);
 void scale_m3_fl(float R[3][3], float scale);
 void scale_m4_fl(float R[4][4], float scale);
 
+void scale_m4(float m[][4], float x, float y, float z);
+
 float mat3_to_scale(float M[3][3]);
 float mat4_to_scale(float M[4][4]);
 
@@ -206,6 +212,7 @@ void mat4_to_size(float r[3], float M[4][4]);
 
 void translate_m4(float mat[4][4], float tx, float ty, float tz);
 void rotate_m4(float mat[4][4], const char axis, const float angle);
+void rotate_m4_right(float mat[4][4], const char axis);
 void rotate_m2(float mat[2][2], const float angle);
 void transform_pivot_set_m4(float mat[4][4], const float pivot[3]);
 
@@ -231,6 +238,14 @@ bool is_negative_m4(float mat[4][4]);
 
 bool is_zero_m3(float mat[3][3]);
 bool is_zero_m4(float mat[4][4]);
+
+/******************************** Projections ********************************/
+
+void mat4_ortho_set(float m[4][4], float left, float right, float bottom, float top, float nearVal, float farVal);
+void mat4_frustum_set(float m[4][4], float left, float right, float bottom, float top, float nearVal, float farVal);
+
+void mat4_look_from_origin(float m[4][4], float lookdir[3], float camup[3]);
+
 
 /* SpaceTransform helper */
 typedef struct SpaceTransform {

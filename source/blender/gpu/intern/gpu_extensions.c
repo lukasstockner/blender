@@ -140,6 +140,57 @@ int GPU_max_texture_size(void)
 	return GG.maxtexsize;
 }
 
+/*
+Computes the maximum number of textures 'n' that
+can be referenced by ActiveTexture(TEXTURE0+n-1)
+
+This is for any use of ActiveTexture.
+
+Individual limits, such as for the multitexture extension, gl_TexCoord,
+vertex shaders, fragment shader, etc. will each have different limits.
+*/
+static GLint get_max_textures(void)
+ {
+	GLint maxTextureUnits;
+	GLint maxTextureCoords;
+	GLint maxCombinedTextureImageUnits;
+
+	/* There has to be at least one texture so count that here */
+	maxTextureUnits = 1;
+
+#if !defined(GLEW_ES_ONLY)
+	if (GPU_PROFILE_COMPAT && (GLEW_VERSION_1_3 || GLEW_ARB_multitexture)) {
+		/* Multitexture typically supports only 2 or 4 texture stages even on modern hardware. */
+		glGetIntegerv(GL_MAX_TEXTURE_UNITS, &maxTextureUnits);
+	}
+#endif
+
+	/* Set to zero here in case they do not get set later */
+	maxTextureCoords             = 0;
+	maxCombinedTextureImageUnits = 0;
+
+	if (GLEW_VERSION_2_0 || GLEW_ES_VERSION_2_0 || GLEW_ARB_fragment_program) {
+#if !defined(GLEW_ES_ONLY)
+		if (GPU_PROFILE_COMPAT) {
+			/* size of gl_TexCoord array in GLSL */
+			glGetIntegerv(GL_MAX_TEXTURE_COORDS, &maxTextureCoords);
+		}
+#endif
+
+		/* Number of textures accessible by vertex, fragment, and geometry shaders combined. */
+		/* Individually the limits for each of those programmable units may be smaller. */
+		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxCombinedTextureImageUnits);
+	}
+
+	return MAX3(maxTextureUnits, maxTextureCoords, maxCombinedTextureImageUnits);
+}
+
+int GPU_max_textures(void)
+{
+	return GG.maxtextures;
+}
+
+
 void gpu_extensions_init(void)
 {
 	GLint r, g, b;
@@ -239,6 +290,8 @@ void gpu_extensions_init(void)
 	GG.os = GPU_OS_UNIX;
 #endif
 
+
+	GG.maxtextures = get_max_textures();
 
 	GPU_invalid_tex_init();
 	GPU_simple_shaders_init();
@@ -1624,6 +1677,11 @@ void GPU_shader_free(GPUShader *shader)
 	if (shader->object)
 		glDeleteObjectARB(shader->object);
 	MEM_freeN(shader);
+}
+
+int GPU_shader_get_attrib(GPUShader *shader, const char *name)
+{
+	return glGetAttribLocation(shader->object, name);
 }
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name)

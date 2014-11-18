@@ -126,8 +126,8 @@ WITH_BF_STATICOPENGL = False
 BF_OPENGL = 'C:\\MingW'
 BF_OPENGL_INC = '${BF_OPENGL}/include'
 BF_OPENGL_LIBINC = '${BF_OPENGL}/lib'
-BF_OPENGL_LIB = 'opengl32 glu32'
-BF_OPENGL_LIB_STATIC = [ '${BF_OPENGL}/lib/libGL.a', '${BF_OPENGL}/lib/libGLU.a',
+BF_OPENGL_LIB = 'opengl32'
+BF_OPENGL_LIB_STATIC = [ '${BF_OPENGL}/lib/libGL.a',
              '${BF_OPENGL}/lib/libXmu.a', '${BF_OPENGL}/lib/libXext.a',
              '${BF_OPENGL}/lib/libX11.a', '${BF_OPENGL}/lib/libXi.a' ]
 
