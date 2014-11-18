@@ -1273,6 +1273,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			 * we rely on string being NULL terminated. */
 			drawstr_left_len = INT_MAX;
 
+#ifdef WITH_INPUT_IME
+			ime = ui_but_get_ime_data(but);
+
 			if (ime && ime->composite_len) {
 				/* insert composite string into cursor pos */
 				char *str;
@@ -1287,6 +1290,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 				drawstr = drawstr_edit = str;
 			}
 			else {
+#else
+			if (1) {
+#endif
 				drawstr = but->editstr;
 			}
 		}
@@ -1319,6 +1325,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 				        rect->ymax - 2);
 			}
 		}
+
 
 		/* text cursor */
 		vpos = but->pos;

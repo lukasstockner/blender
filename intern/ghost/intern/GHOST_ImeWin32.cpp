@@ -208,10 +208,10 @@ void GHOST_ImeWin32::CleanupComposition(HWND window_handle)
 
 void GHOST_ImeWin32::CheckFirst(HWND window_handle)
 {
-    if (is_first) {
-        this->DisableIME(window_handle);
-        is_first = false;
-    }
+	if (is_first) {
+		this->EndIME(window_handle);
+		is_first = false;
+	}
 }
 
 
@@ -428,7 +428,7 @@ void GHOST_ImeWin32::EndIME(HWND window_handle)
 }
 
 
-void GHOST_ImeWin32::EnableIME(HWND window_handle, const GHOST_Rect& caret_rect, bool complete)
+void GHOST_ImeWin32::BeginIME(HWND window_handle, const GHOST_Rect &caret_rect, bool complete)
 {
 	if (is_enable && complete) return;
 	is_enable = true;
