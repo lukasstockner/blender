@@ -150,7 +150,7 @@ static void rna_GPencil_active_layer_index_range(PointerRNA *ptr, int *min, int 
 	bGPdata *gpd = (bGPdata *)ptr->id.data;
 
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&gpd->layers) - 1);
+	*max = max_ii(0, BLI_listbase_count(&gpd->layers) - 1);
 
 	*softmin = *min;
 	*softmax = *max;
