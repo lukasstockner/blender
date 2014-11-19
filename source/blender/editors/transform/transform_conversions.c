@@ -2168,6 +2168,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
                              BMEditMesh *em, BMVert *eve, float *bweight,
                              struct TransIslandData *v_island)
 {
+	float *no, _no[3];
 	BLI_assert(BM_elem_flag_test(eve, BM_ELEM_HIDDEN) == 0);
 
 	td->flag = 0;
@@ -2177,19 +2178,30 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	td->loc = eve->co;
 	copy_v3_v3(td->iloc, td->loc);
 
+	if ((t->mode == TFM_SHRINKFATTEN) &&
+	    (em->selectmode & SCE_SELECT_FACE) &&
+	    BM_elem_flag_test(eve, BM_ELEM_SELECT) &&
+	    (BM_vert_normal_update_ex(eve, BM_ELEM_SELECT, _no)))
+	{
+		no = _no;
+	}
+	else {
+		no = eve->no;
+	}
+
 	if (v_island) {
 		copy_v3_v3(td->center, v_island->co);
 		copy_m3_m3(td->axismtx, v_island->axismtx);
 	}
 	else if (t->around == V3D_LOCAL) {
 		copy_v3_v3(td->center, td->loc);
-		createSpaceNormal(td->axismtx, eve->no);
+		createSpaceNormal(td->axismtx, no);
 	}
 	else {
 		copy_v3_v3(td->center, td->loc);
 
 		/* Setting normals */
-		copy_v3_v3(td->axismtx[2], eve->no);
+		copy_v3_v3(td->axismtx[2], no);
 		td->axismtx[0][0]        =
 		    td->axismtx[0][1]    =
 		    td->axismtx[0][2]    =
@@ -2218,7 +2230,7 @@ static void VertsToTransData(TransInfo *t, TransData *td, TransDataExtension *tx
 	}
 	else if (t->mode == TFM_SHRINKFATTEN) {
 		td->ext = tx;
-		tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, BM_ELEM_SELECT);
+		tx->isize[0] = BM_vert_calc_shell_factor_ex(eve, no, BM_ELEM_SELECT);
 	}
 }
 
@@ -3139,7 +3151,7 @@ static void posttrans_gpd_clean(bGPdata *gpd)
 		bGPDframe *gpf, *gpfn;
 		bool is_double = false;
 
-		BLI_sortlist_r(&gpl->frames, &is_double, gpf_cmp_frame);
+		BLI_listbase_sort_r(&gpl->frames, &is_double, gpf_cmp_frame);
 
 		if (is_double) {
 			for (gpf = gpl->frames.first; gpf; gpf = gpfn) {
@@ -3166,7 +3178,7 @@ static void posttrans_mask_clean(Mask *mask)
 		MaskLayerShape *masklay_shape, *masklay_shape_next;
 		bool is_double = false;
 
-		BLI_sortlist_r(&masklay->splines_shapes, &is_double, masklay_shape_cmp_frame);
+		BLI_listbase_sort_r(&masklay->splines_shapes, &is_double, masklay_shape_cmp_frame);
 
 		if (is_double) {
 			for (masklay_shape = masklay->splines_shapes.first; masklay_shape; masklay_shape = masklay_shape_next) {

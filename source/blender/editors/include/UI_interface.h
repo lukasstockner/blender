@@ -102,8 +102,7 @@ enum {
 	UI_EMBOSS               = 0,  /* use widget style for drawing */
 	UI_EMBOSS_NONE          = 1,  /* Nothing, only icon and/or text */
 	UI_EMBOSS_PULLDOWN      = 2,  /* Pulldown menu style */
-	UI_EMBOSS_TABLE         = 3,  /* Table */
-	UI_EMBOSS_RADIAL        = 4,  /* Pie Menu */
+	UI_EMBOSS_RADIAL        = 3,  /* Pie Menu */
 };
 
 /* uiBlock->direction */
@@ -125,8 +124,8 @@ enum {
 
 /* uiBlock->flag (controls) */
 #define UI_BLOCK_LOOP           (1 << 0)
-#define UI_BLOCK_REDRAW         (1 << 1)
-#define UI_BLOCK_SEARCH_MENU    (1 << 2)
+#define UI_BLOCK_IS_FLIP        (1 << 1)
+#define UI_BLOCK_NO_FLIP        (1 << 2)
 #define UI_BLOCK_NUMSELECT      (1 << 3)
 #define UI_BLOCK_NO_WIN_CLIP    (1 << 4)   /* don't apply window clipping */ /* was UI_BLOCK_ENTER_OK */
 #define UI_BLOCK_CLIPBOTTOM     (1 << 5)
@@ -135,7 +134,7 @@ enum {
 #define UI_BLOCK_KEEP_OPEN      (1 << 8)
 #define UI_BLOCK_POPUP          (1 << 9)
 #define UI_BLOCK_OUT_1          (1 << 10)
-#define UI_BLOCK_NO_FLIP        (1 << 11)
+#define UI_BLOCK_SEARCH_MENU    (1 << 11)
 #define UI_BLOCK_POPUP_MEMORY   (1 << 12)
 #define UI_BLOCK_CLIP_EVENTS    (1 << 13)  /* stop handling mouse events */
 
@@ -240,49 +239,50 @@ typedef enum {
 typedef enum {
 	UI_BTYPE_BUT                    = (1 << 9),
 	UI_BTYPE_ROW                    = (2 << 9),
-	UI_BTYPE_TOGGLE                 = (3 << 9),
-	UI_BTYPE_NUM                    = (5 << 9),
-	UI_BTYPE_TEXT                   = (6 << 9),
+	UI_BTYPE_TEXT                   = (3 << 9),
+	UI_BTYPE_MENU                   = (4 << 9),  /* dropdown list */
+	UI_BTYPE_BUT_MENU               = (5 << 9),
+	UI_BTYPE_NUM                    = (6 << 9),  /* number button */
+	UI_BTYPE_NUM_SLIDER             = (7 << 9),  /* number slider */
+	UI_BTYPE_TOGGLE                 = (8 << 9),
 	UI_BTYPE_TOGGLE_N               = (9 << 9),
-	UI_BTYPE_LABEL                  = (10 << 9),
-	UI_BTYPE_MENU                   = (11 << 9),  /* Dropdown list, actually! */
-	UI_BTYPE_ICON_TOGGLE            = (13 << 9),
-	UI_BTYPE_NUM_SLIDER             = (14 << 9),
+	UI_BTYPE_ICON_TOGGLE            = (10 << 9),
+	UI_BTYPE_ICON_TOGGLE_N          = (11 << 9),
+	UI_BTYPE_BUT_TOGGLE             = (12 << 9),  /* same as regular toggle, but no on/off state displayed */
+	UI_BTYPE_CHECKBOX               = (13 << 9),  /* similar to toggle, display a 'tick' */
+	UI_BTYPE_CHECKBOX_N             = (14 << 9),
 	UI_BTYPE_COLOR                  = (15 << 9),
 	UI_BTYPE_SCROLL                 = (18 << 9),
 	UI_BTYPE_BLOCK                  = (19 << 9),
-	UI_BTYPE_BUT_MENU               = (20 << 9),
-	UI_BTYPE_SEPR                   = (21 << 9),
+	UI_BTYPE_LABEL                  = (20 << 9),
 	UI_BTYPE_LINK                   = (22 << 9),
 	UI_BTYPE_INLINK                 = (23 << 9),
 	UI_BTYPE_KEY_EVENT              = (24 << 9),
 	UI_BTYPE_HSVCUBE                = (26 << 9),
-	UI_BTYPE_PULLDOWN               = (27 << 9),  /* Menu, actually! */
+	UI_BTYPE_PULLDOWN               = (27 << 9),  /* menu (often used in headers), **_MENU /w different draw-type */
 	UI_BTYPE_ROUNDBOX               = (28 << 9),
 	UI_BTYPE_COLORBAND              = (30 << 9),
-	UI_BTYPE_UNITVEC                = (31 << 9),
+	UI_BTYPE_UNITVEC                = (31 << 9),  /* sphere widget (used to input a unit-vector, aka normal) */
 	UI_BTYPE_CURVE                  = (32 << 9),
-	UI_BTYPE_ICON_TOGGLE_N          = (34 << 9),
-	UI_BTYPE_LISTBOX                = (35 << 9),
-	UI_BTYPE_LISTROW                = (36 << 9),
-	UI_BTYPE_BUT_TOGGLE             = (37 << 9),
-	UI_BTYPE_CHECKBOX               = (38 << 9),
-	UI_BTYPE_CHECKBOX_N             = (39 << 9),
+	UI_BTYPE_LISTBOX                = (36 << 9),
+	UI_BTYPE_LISTROW                = (37 << 9),
 	UI_BTYPE_TRACK_PREVIEW          = (40 << 9),
+
 	/* buttons with value >= UI_BTYPE_SEARCH_MENU don't get undo pushes */
 	UI_BTYPE_SEARCH_MENU            = (41 << 9),
 	UI_BTYPE_EXTRA                  = (42 << 9),
 	UI_BTYPE_HSVCIRCLE              = (43 << 9),
 	UI_BTYPE_HOTKEY_EVENT           = (46 << 9),
-	UI_BTYPE_IMAGE                  = (47 << 9),
+	UI_BTYPE_IMAGE                  = (47 << 9),  /* non-interactive image, used for splash screen */
 	UI_BTYPE_HISTOGRAM              = (48 << 9),
 	UI_BTYPE_WAVEFORM               = (49 << 9),
 	UI_BTYPE_VECTORSCOPE            = (50 << 9),
 	UI_BTYPE_PROGRESS_BAR           = (51 << 9),
 	UI_BTYPE_SEARCH_MENU_UNLINK     = (52 << 9),
 	UI_BTYPE_NODE_SOCKET            = (53 << 9),
-	UI_BTYPE_SEPR_LINE              = (54 << 9),
-	UI_BTYPE_GRIP                   = (55 << 9),
+	UI_BTYPE_SEPR                   = (54 << 9),
+	UI_BTYPE_SEPR_LINE              = (55 << 9),
+	UI_BTYPE_GRIP                   = (56 << 9),  /* resize handle (resize uilist) */
 } eButType;
 
 #define BUTTYPE     (63 << 9)

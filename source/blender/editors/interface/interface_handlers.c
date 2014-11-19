@@ -390,7 +390,17 @@ void ui_pan_to_scroll(const wmEvent *event, int *type, int *val)
 
 bool ui_but_is_editable(const uiBut *but)
 {
-	return !ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE, UI_BTYPE_ROUNDBOX, UI_BTYPE_LISTBOX, UI_BTYPE_PROGRESS_BAR);
+	return !ELEM(but->type,
+	             UI_BTYPE_LABEL, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE,
+	             UI_BTYPE_ROUNDBOX, UI_BTYPE_LISTBOX, UI_BTYPE_PROGRESS_BAR);
+}
+
+bool ui_but_is_editable_as_text(const uiBut *but)
+{
+	return  ELEM(but->type,
+	             UI_BTYPE_TEXT, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER,
+	             UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK);
+
 }
 
 static uiBut *ui_but_prev(uiBut *but)
@@ -438,7 +448,10 @@ static uiBut *ui_but_last(uiBlock *block)
 static bool ui_but_is_cursor_warp(uiBut *but)
 {
 	if (U.uiflag & USER_CONTINUOUS_MOUSE) {
-		if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_HSVCIRCLE, UI_BTYPE_TRACK_PREVIEW, UI_BTYPE_HSVCUBE, UI_BTYPE_CURVE)) {
+		if (ELEM(but->type,
+		         UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_HSVCIRCLE,
+		         UI_BTYPE_TRACK_PREVIEW, UI_BTYPE_HSVCUBE, UI_BTYPE_CURVE))
+		{
 			return true;
 		}
 	}
@@ -2517,7 +2530,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 		return;
 
 	for (but = actbut->next; but; but = but->next) {
-		if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK)) {
+		if (ui_but_is_editable_as_text(but)) {
 			if (!(but->flag & UI_BUT_DISABLED)) {
 				data->postbut = but;
 				data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
@@ -2526,7 +2539,7 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 		}
 	}
 	for (but = block->buttons.first; but != actbut; but = but->next) {
-		if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK)) {
+		if (ui_but_is_editable_as_text(but)) {
 			if (!(but->flag & UI_BUT_DISABLED)) {
 				data->postbut = but;
 				data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
@@ -2545,7 +2558,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 		return;
 
 	for (but = actbut->prev; but; but = but->prev) {
-		if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK)) {
+		if (ui_but_is_editable_as_text(but)) {
 			if (!(but->flag & UI_BUT_DISABLED)) {
 				data->postbut = but;
 				data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
@@ -2554,7 +2567,7 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 		}
 	}
 	for (but = block->buttons.last; but != actbut; but = but->prev) {
-		if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER, UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK)) {
+		if (ui_but_is_editable_as_text(but)) {
 			if (!(but->flag & UI_BUT_DISABLED)) {
 				data->postbut = but;
 				data->posttype = BUTTON_ACTIVATE_TEXT_EDITING;
@@ -5381,7 +5394,7 @@ static bool ui_numedit_but_HISTOGRAM(uiBut *but, uiHandleButtonData *data, int m
 	float dy = my - data->draglasty;
 
 	/* scale histogram values (dy / 10 for better control) */
-	const float yfac = min_ff(powf(hist->ymax, 2.0f), 1.0f) * 0.5f;
+	const float yfac = min_ff(pow2f(hist->ymax), 1.0f) * 0.5f;
 	hist->ymax += (dy * 0.1f) * yfac;
 
 	/* 0.1 allows us to see HDR colors up to 10 */
@@ -8018,7 +8031,6 @@ float ui_block_calc_pie_segment(uiBlock *block, const float event_xy[2])
 
 	len = normalize_v2_v2(block->pie_data.pie_dir, seg2);
 
-	/* ten pixels for now, a bit arbitrary */
 	if (len < U.pie_menu_threshold * U.pixelsize)
 		block->pie_data.flags |= UI_PIE_INVALID_DIR;
 	else
@@ -8033,7 +8045,7 @@ static int ui_handle_menu_event(
 {
 	ARegion *ar;
 	uiBlock *block;
-	uiBut *but, *bt;
+	uiBut *but;
 	int mx, my, retval;
 	bool inside;
 	bool inside_title;  /* check for title dragging */
@@ -8161,7 +8173,9 @@ static int ui_handle_menu_event(
 							ui_pan_to_scroll(event, &type, &val);
 						
 						if (val == KM_PRESS) {
-							const eButType type_flip = UI_BTYPE_BUT | UI_BTYPE_ROW;
+							const bool is_next =
+							        (ELEM(type, DOWNARROWKEY, WHEELDOWNMOUSE) ==
+							        ((block->flag & UI_BLOCK_IS_FLIP) != 0));
 
 							if (ui_menu_pass_event_to_parent_if_nonactive(menu, but, level, retval))
 								break;
@@ -8172,56 +8186,22 @@ static int ui_handle_menu_event(
 
 							but = ui_but_find_active_in_region(ar);
 							if (but) {
-								/* is there a situation where UI_DIR_LEFT or UI_DIR_RIGHT would also change navigation direction? */
-								if (((ELEM(type, DOWNARROWKEY, WHEELDOWNMOUSE)) && (block->direction & UI_DIR_DOWN)) ||
-								    ((ELEM(type, DOWNARROWKEY, WHEELDOWNMOUSE)) && (block->direction & UI_DIR_RIGHT)) ||
-								    ((ELEM(type, UPARROWKEY, WHEELUPMOUSE)) && (block->direction & UI_DIR_UP)))
-								{
-									/* the following is just a hack - uiBut->type set to UI_BTYPE_BUT and UI_BTYPE_BUT_MENU have there menus built 
-									 * opposite ways - this should be changed so that all popup-menus use the same uiBlock->direction */
-									if (but->type & type_flip)
-										but = ui_but_next(but);
-									else
-										but = ui_but_prev(but);
-								}
-								else {
-									if (but->type & type_flip)
-										but = ui_but_prev(but);
-									else
-										but = ui_but_next(but);
-								}
-
-								if (but) {
-									ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE);
-									ui_menu_scroll(ar, block, my, but);
-								}
+								/* next button */
+								but = is_next ? ui_but_next(but) : ui_but_prev(but);
 							}
 
 							if (!but) {
-								if (((ELEM(type, UPARROWKEY, WHEELUPMOUSE)) && (block->direction & UI_DIR_DOWN)) ||
-								    ((ELEM(type, UPARROWKEY, WHEELUPMOUSE)) && (block->direction & UI_DIR_RIGHT)) ||
-								    ((ELEM(type, DOWNARROWKEY, WHEELDOWNMOUSE)) && (block->direction & UI_DIR_UP)))
-								{
-									if ((bt = ui_but_first(block)) && (bt->type & type_flip)) {
-										bt = ui_but_last(block);
-									}
-									else {
-										/* keep ui_but_first() */
-									}
+								/* wrap button */
+								uiBut *but_wrap;
+								but_wrap = is_next ? ui_but_first(block) : ui_but_last(block);
+								if (but_wrap) {
+									but = but_wrap;
 								}
-								else {
-									if ((bt = ui_but_first(block)) && (bt->type & type_flip)) {
-										/* keep ui_but_first() */
-									}
-									else {
-										bt = ui_but_last(block);
-									}
-								}
+							}
 
-								if (bt) {
-									ui_handle_button_activate(C, ar, bt, BUTTON_ACTIVATE);
-									ui_menu_scroll(ar, block, my, bt);
-								}
+							if (but) {
+								ui_handle_button_activate(C, ar, but, BUTTON_ACTIVATE);
+								ui_menu_scroll(ar, block, my, but);
 							}
 						}
 

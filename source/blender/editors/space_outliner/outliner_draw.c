@@ -197,7 +197,7 @@ static void restrictbutton_recursive_child(bContext *C, Scene *scene, Object *ob
 
 				RNA_id_pointer_create(&ob->id, &ptr);
 				prop = RNA_struct_find_property(&ptr, rnapropname);
-				fcu = rna_get_fcurve_context_ui(C, &ptr, prop, 0, &action, &driven);
+				fcu = rna_get_fcurve_context_ui(C, &ptr, prop, 0, NULL, &action, &driven);
 
 				if (fcu && !driven) {
 					id = ptr.id.data;
@@ -775,8 +775,6 @@ static void outliner_draw_rnabuts(uiBlock *block, Scene *scene, ARegion *ar, Spa
 	TreeStoreElem *tselem;
 	PointerRNA *ptr;
 	PropertyRNA *prop;
-	
-	UI_block_emboss_set(block, UI_EMBOSS_TABLE);
 
 	for (te = lb->first; te; te = te->next) {
 		tselem = TREESTORE(te);
