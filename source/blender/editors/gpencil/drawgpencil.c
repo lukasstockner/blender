@@ -1015,7 +1015,8 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		 *    as they will have no bearings on what gets edited
 		 */
 		/* XXX: perhaps we don't want to show these when users are drawing... */
-		if ((gpl->flag & GP_LAYER_LOCKED) == 0) {
+		/* XXX: for now, we only show editing info when stroke can be edited */
+		if ((gpl->flag & GP_LAYER_LOCKED) == 0 && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
 			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, 
 			                     (gpl->color[3] < 0.95f) ? gpl->color : NULL);
 		}
