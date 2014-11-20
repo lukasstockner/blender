@@ -771,8 +771,15 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 		 */
 		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
 		if ((data->tar->type == OB_ARMATURE) && (data->subtarget[0])) {
-			ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget);
-			add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
+			/* TODO(sergey): This is only for until granular update stores intermediate result. */
+			if (data->tar != ob) {
+				ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget);
+				add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
+			}
+			else {
+				ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget);
+				add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
+			}
 		}
 		else {
 			ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_TRANSFORM);
