@@ -129,7 +129,8 @@ static void updateDepsgraph(ModifierData *md,
 
 	if (hmd->object != NULL) {
 		if (hmd->subtarget[0])
-			DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_GEOMETRY, "Hook Modifier");
+			/* TODO(sergey): Hpw do we add relation to bone here? */
+			DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_EVAL_POSE, "Hook Modifier");
 		else
 			DEG_add_object_relation(node, hmd->object, DEG_OB_COMP_TRANSFORM, "Hook Modifier");
 	}
