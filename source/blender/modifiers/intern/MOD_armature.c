@@ -122,7 +122,7 @@ static void updateDepsgraph(ModifierData *md,
 	ArmatureModifierData *amd = (ArmatureModifierData *) md;
 
 	if (amd->object != NULL) {
-		DEG_add_object_relation(node, amd->object, DEG_OB_COMP_GEOMETRY, "Armature Modifier");
+		DEG_add_object_relation(node, amd->object, DEG_OB_COMP_EVAL_POSE, "Armature Modifier");
 	}
 }
 
