@@ -136,7 +136,7 @@ struct DepsgraphNodeBuilder {
 	void build_animdata(ID *id);
 	OperationDepsNode *build_driver(ID *id, FCurve *fcurve);
 	void build_ik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
-	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_splineik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_rig(Scene *scene, Object *ob);
 	void build_shapekeys(Key *key);
 	void build_obdata_geom(Scene *scene, Object *ob);

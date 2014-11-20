@@ -34,7 +34,7 @@ void BKE_pose_iktree_evaluate(struct EvaluationContext *eval_ctx,
                               Scene *scene,
                               Object *ob,
                               bPoseChannel *rootchan);
-void BKE_pose_splineik_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan);
+void BKE_pose_splineik_evaluate(struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, bPoseChannel *rootchan);
 void BKE_pose_eval_bone(struct EvaluationContext *eval_ctx,
                         Scene *scene,
                         Object *ob,

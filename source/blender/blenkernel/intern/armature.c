@@ -2642,3 +2642,8 @@ BoundBox *BKE_armature_boundbox_get(Object *ob)
 
 	return ob->bb;
 }
+
+void BKE_splineik_execute_tree(Scene *scene, Object *ob, bPoseChannel *pchan_root, float ctime)
+{
+	splineik_execute_tree(scene, ob, pchan_root, ctime);
+}

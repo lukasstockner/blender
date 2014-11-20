@@ -736,6 +736,23 @@ static bPoseChannel* ik_solver_rootchan_find(bPoseChannel *pchan,
 	return rootchan;
 }
 
+/* TODO(sergey): Deduplicate with above. */
+static bPoseChannel* splineik_solver_rootchan_find(bPoseChannel *pchan,
+                                                   bSplineIKConstraint *data)
+{
+	bPoseChannel *rootchan = pchan;
+	if (rootchan) {
+		size_t segcount = 0;
+		while (rootchan->parent) {
+			/* continue up chain, until we reach target number of items... */
+			segcount++;
+			if ((segcount == data->chainlen) || (segcount > 255)) break;  /* XXX 255 is weak */
+			rootchan = rootchan->parent;
+		}
+	}
+	return rootchan;
+}
+
 /* IK Solver Eval Steps */
 void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
@@ -801,22 +818,31 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
-	
-	ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
-	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, pchan->name, deg_op_name_spline_ik_solver);
+	bPoseChannel *rootchan = splineik_solver_rootchan_find(pchan, data);
+	OperationKey transforms_key = bone_transforms_key(ob, pchan);
+	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, deg_op_name_spline_ik_solver);
 	
 	/* attach owner to IK Solver too 
 	 * - assume that owner is always part of chain 
 	 * - see notes on direction of rel below...
 	 */
-	add_relation(bone_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
+	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Owner");
 	
 	/* attach path dependency to solver */
 	if (data->tar) {
-		ComponentKey curve_path_key(&data->tar->id, DEPSNODE_TYPE_GEOMETRY);
-		add_relation(curve_path_key, solver_key, DEPSREL_TYPE_GEOMETRY_EVAL, "[Curve.Path -> Spline IK] DepsRel");
+		/* TODO(sergey): For until we'll store partial matricies in the depsgraph,
+		 * we create dependency bewteen target object and pose eval component.
+		 * See IK pose for a bit more information.
+		 */
+		ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_GEOMETRY);
+		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
+		add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM,"[Curve.Path -> Spline IK] DepsRel");
 	}
-	
+
+	pchan->flag |= POSE_DONE;
+	OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Final Transforms");
+	add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
+
 	/* Walk to the chain's root */
 	size_t segcount = 0;
 	for (bPoseChannel *parchan = pchan->parent; parchan; parchan = parchan->parent) {
@@ -826,9 +852,15 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pch
 		 * bone will ensure that users of this bone only
 		 * grab the result with IK solver results...
 		 */
-		ComponentKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name);
-		add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
-		
+		if (parchan != pchan) {
+			OperationKey parent_key = bone_transforms_key(ob, parchan);
+			add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
+		}
+		parchan->flag |= POSE_DONE;
+
+		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, "Bone Final Transforms");
+		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
+
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
 		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* 255 is weak */

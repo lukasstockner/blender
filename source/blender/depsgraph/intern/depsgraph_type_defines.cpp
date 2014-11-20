@@ -98,8 +98,6 @@ void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve
 	}
 }
 
-void BKE_pose_splineik_evaluate(EvaluationContext *eval_ctx, Object *ob, bPoseChannel *rootchan) {}
-
 void BKE_pose_rebuild_op(EvaluationContext *eval_ctx, Object *ob, bPose *pose)
 {
 	bArmature *arm = (bArmature *)ob->data;
@@ -192,6 +190,16 @@ void BKE_pose_iktree_evaluate(EvaluationContext *eval_ctx,
 	printf("%s on %s phan %s\n", __func__, ob->id.name, rootchan->name);
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	BIK_execute_tree(scene, ob, rootchan, ctime);
+}
+
+void BKE_pose_splineik_evaluate(EvaluationContext *eval_ctx,
+                                Scene *scene,
+                                Object *ob,
+                                bPoseChannel *rootchan)
+{
+	printf("%s on %s phan %s\n", __func__, ob->id.name, rootchan->name);
+	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
+	BKE_splineik_execute_tree(scene, ob, rootchan, ctime);
 }
 
 void BKE_pose_eval_flush(EvaluationContext *eval_ctx,

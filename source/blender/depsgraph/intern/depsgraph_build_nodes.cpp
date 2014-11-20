@@ -536,7 +536,7 @@ void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel 
 }
 
 /* Spline IK Eval Steps */
-void DepsgraphNodeBuilder::build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
+void DepsgraphNodeBuilder::build_splineik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 	
@@ -554,8 +554,8 @@ void DepsgraphNodeBuilder::build_splineik_pose(Object *ob, bPoseChannel *pchan, 
 	/* operation node for evaluating/running IK Solver
 	 * store the "root bone" of this chain in the solver, so it knows where to start
 	 */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, pchan->name,
-	                   DEPSOP_TYPE_SIM, bind(BKE_pose_splineik_evaluate, _1, ob, rootchan),
+	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
+	                   DEPSOP_TYPE_SIM, bind(BKE_pose_splineik_evaluate, _1, scene, ob, rootchan),
 	                   deg_op_name_spline_ik_solver);
 	// XXX: what sort of ID-data is needed?
 }
@@ -635,7 +635,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 					break;
 					
 				case CONSTRAINT_TYPE_SPLINEIK:
-					build_splineik_pose(ob, pchan, con);
+					build_splineik_pose(scene, ob, pchan, con);
 					break;
 					
 				default:
