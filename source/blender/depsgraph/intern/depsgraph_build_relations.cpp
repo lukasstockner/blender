@@ -761,7 +761,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, deg_op_name_ik_solver);
 	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
 
-	if (data->tar != ob) {
+	if (data->tar != NULL) {
 		/* TODO(sergey): For until we'll store partial matricies in the depsgraph,
 		 * we create dependency bewteen target object and pose eval component.
 		 *
@@ -769,9 +769,15 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 		 * need of intermediate matricies. This is an overkill, but good enough for
 		 * testing IK solver.
 		 */
-		ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_TRANSFORM);
 		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
-		add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
+		if ((data->tar->type == OB_ARMATURE) && (data->subtarget[0])) {
+			ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget);
+			add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
+		}
+		else {
+			ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_TRANSFORM);
+			add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
+		}
 	}
 
 	bPoseChannel *parchan = pchan;
