@@ -387,7 +387,9 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	int a, fstart, fpos;                     /* utf8 chars */
 	int mi, ma, mstart, mend;                /* mem */
 	char fmt_prev = 0xff;
-	
+	/* don't draw lines below this */
+	const int clip_min_y = -(int)(st->lheight_dpi - 1);
+
 	flatten_string(st, &fs, str);
 	str = fs.buf;
 	max = w / st->cwidth;
@@ -438,7 +440,8 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 			mend = txt_utf8_forward_columns(str + mend, max, &padding) - str;
 			end = (wrap += max - padding);
 
-			if (y <= 0) break;
+			if (y <= clip_min_y)
+				break;
 		}
 		else if (str[mi] == ' ' || str[mi] == '-') {
 			wrap = i + 1; mend = mi + 1;
@@ -446,7 +449,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	}
 
 	/* Draw the remaining text */
-	for (a = fstart, ma = mstart; str[ma] && y > 0; a++, ma += BLI_str_utf8_size_safe(str + ma)) {
+	for (a = fstart, ma = mstart; str[ma] && y > clip_min_y; a++, ma += BLI_str_utf8_size_safe(str + ma)) {
 		int len;
 		if (use_syntax) {
 			if (fmt_prev != format[a]) format_draw_color(fmt_prev = format[a]);
@@ -1360,6 +1363,8 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	int wraplinecount = 0, wrap_skip = 0;
 	int margin_column_x;
 	TextLine bak = {0};
+	/* don't draw lines below this */
+	const int clip_min_y = -(int)(st->lheight_dpi - 1);
 
 	/* if no text, nothing to do */
 	if (!text)
@@ -1367,7 +1372,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 	/* dpi controlled line height and font size */
 	st->lheight_dpi = (U.widget_unit * st->lheight) / 20;
-	st->viewlines = (st->lheight_dpi) ? (int)ar->winy / (st->lheight_dpi + TXT_LINE_SPACING) : 0;
+	st->viewlines = (st->lheight_dpi) ? (int)(ar->winy - clip_min_y) / (st->lheight_dpi + TXT_LINE_SPACING) : 0
 
 	/* make sure st->ime->tmp is not a null pointer*/
 	if (st->ime && !st->ime->tmp)
@@ -1480,7 +1485,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	/* draw the text */
 	UI_ThemeColor(TH_TEXT);
 
-	for (i = 0; y > 0 && i < st->viewlines && tmp; i++, tmp = tmp->next) {
+	for (i = 0; y > clip_min_y && i < st->viewlines && tmp; i++, tmp = tmp->next) {
 		if (st->showsyntax && !tmp->format)
 			tft->format_line(st, tmp, false);
 
