@@ -2321,7 +2321,7 @@ static void dag_current_scene_layers(Main *bmain, ListBase *lb)
 	}
 }
 
-static void dag_group_on_visible_update(Group *group)
+static void dag_group_on_visible_update(Scene *scene, Group *group)
 {
 	GroupObject *go;
 
@@ -2334,6 +2334,7 @@ static void dag_group_on_visible_update(Group *group)
 		if (ELEM(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
 			go->ob->recalc |= OB_RECALC_DATA;
 			go->ob->id.flag |= LIB_DOIT;
+			DEG_id_tag_update(scene->depsgraph, &go->ob->id);
 			lib_id_recalc_tag(G.main, &go->ob->id);
 		}
 		if (go->ob->proxy_from) {
@@ -2343,7 +2344,7 @@ static void dag_group_on_visible_update(Group *group)
 		}
 
 		if (go->ob->dup_group)
-			dag_group_on_visible_update(go->ob->dup_group);
+			dag_group_on_visible_update(scene, go->ob->dup_group);
 	}
 }
 
@@ -2378,16 +2379,19 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 			oblay = (node) ? node->lay : ob->lay;
 
 			if ((oblay & lay) & ~scene->lay_updated) {
-				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
+				/* TODO(sergey): Why do we need armature here now but didn't need before? */
+				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE, OB_ARMATURE)) {
 					ob->recalc |= OB_RECALC_DATA;
+					DEG_id_tag_update(scene->depsgraph, &ob->id);
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
 				if (ob->proxy && (ob->proxy_group == NULL)) {
 					ob->proxy->recalc |= OB_RECALC_DATA;
+					DEG_id_tag_update(scene->depsgraph, &ob->proxy->id);
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
 				if (ob->dup_group)
-					dag_group_on_visible_update(ob->dup_group);
+					dag_group_on_visible_update(scene, ob->dup_group);
 			}
 		}
 

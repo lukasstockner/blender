@@ -183,7 +183,10 @@ void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 	ComponentDepsNode::init(id, subdata);
 	
 	/* name of component comes is bone name */
-	this->name = subdata;
+	/* TODO(sergey): This sets name to an empty string because subdata is
+	 * empty. Is it a bug?
+	 */
+	//this->name = subdata;
 	
 	/* bone-specific node data */
 	Object *ob = (Object *)id;
