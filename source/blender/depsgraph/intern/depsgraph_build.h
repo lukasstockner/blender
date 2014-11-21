@@ -206,6 +206,9 @@ struct RNAPathKey
 };
 
 struct DepsgraphRelationBuilder {
+	typedef vector<const char*> RootPChanVector;
+	typedef unordered_map<const char*, RootPChanVector> RootPChanMap;
+
 	DepsgraphRelationBuilder(Depsgraph *graph);
 	
 	template <typename KeyFrom, typename KeyTo>
@@ -229,8 +232,8 @@ struct DepsgraphRelationBuilder {
 	void build_world(Scene *scene, World *world);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Scene *scene, Object *ob);
-	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
-	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con);
+	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
+	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
 	void build_rig(Scene *scene, Object *ob);
 	void build_shapekeys(ID *obdata, Key *key);
 	void build_obdata_geom(Scene *scene, Object *ob);

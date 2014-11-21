@@ -747,8 +747,60 @@ static bPoseChannel* splineik_solver_rootchan_find(bPoseChannel *pchan,
 	return rootchan;
 }
 
+static void root_map_add_bone(const char *bone,
+                              const char *root,
+                              DepsgraphRelationBuilder::RootPChanMap *root_map)
+{
+	DepsgraphRelationBuilder::RootPChanMap::iterator found = root_map->find(bone);
+	printf("%s: %s %s\n", __func__, bone, root);
+	if (found != root_map->end()) {
+		found->second.push_back(root);
+	}
+	else {
+		DepsgraphRelationBuilder::RootPChanVector new_vector;
+		new_vector.push_back(root);
+		root_map->insert(std::pair<const char*, DepsgraphRelationBuilder::RootPChanVector> (bone, new_vector));
+	}
+}
+
+static bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap &root_map,
+                                           const char *pchan1, const char *pchan2)
+{
+	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found1 = root_map.find(pchan1);
+	if (found1 == root_map.end()) {
+		return false;
+	}
+
+	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found2 = root_map.find(pchan2);
+	if (found2 == root_map.end()) {
+		return false;
+	}
+
+	const DepsgraphRelationBuilder::RootPChanVector &vec1 = found1->second;
+	const DepsgraphRelationBuilder::RootPChanVector &vec2 = found2->second;
+
+	for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it1 = vec1.begin();
+	     it1 != vec1.end();
+	     ++it1)
+	{
+		for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it2 = vec2.begin();
+		     it2 != vec2.end();
+		     ++it2)
+		{
+			if (strcmp(*it1, *it2) == 0) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 /* IK Solver Eval Steps */
-void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
+void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
+                                             bPoseChannel *pchan,
+                                             bConstraint *con,
+                                             RootPChanMap *root_map)
 {
 	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
 	
@@ -786,6 +838,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 			add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
 		}
 	}
+	root_map_add_bone(pchan->name, rootchan->name, root_map);
 
 	bPoseChannel *parchan = pchan;
 	/* exclude tip from chain? */
@@ -810,6 +863,8 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, "Bone Final Transforms");
 		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
 
+		root_map_add_bone(parchan->name, rootchan->name, root_map);
+
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
 		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
@@ -822,7 +877,10 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob, bPoseChannel *pchan, bC
 }
 
 /* Spline IK Eval Steps */
-void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con)
+void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
+                                                   bPoseChannel *pchan,
+                                                   bConstraint *con,
+                                                   RootPChanMap *root_map)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 	bPoseChannel *rootchan = splineik_solver_rootchan_find(pchan, data);
@@ -850,6 +908,8 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pch
 	OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Final Transforms");
 	add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
 
+	root_map_add_bone(pchan->name, rootchan->name, root_map);
+
 	/* Walk to the chain's root */
 	size_t segcount = 0;
 	for (bPoseChannel *parchan = pchan->parent; parchan; parchan = parchan->parent) {
@@ -867,6 +927,8 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob, bPoseChannel *pch
 
 		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, "Bone Final Transforms");
 		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
+
+		root_map_add_bone(parchan->name, rootchan->name, root_map);
 
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
@@ -932,15 +994,16 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	 * - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
 	 * - Animated chain-lengths are a problem...
 	 */
+	RootPChanMap root_map;
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
 			switch (con->type) {
 				case CONSTRAINT_TYPE_KINEMATIC:
-					build_ik_pose(ob, pchan, con);
+					build_ik_pose(ob, pchan, con, &root_map);
 					break;
 					
 				case CONSTRAINT_TYPE_SPLINEIK:
-					build_splineik_pose(ob, pchan, con);
+					build_splineik_pose(ob, pchan, con, &root_map);
 					break;
 					
 				default:
@@ -956,7 +1019,13 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		/* bone parent */
 		if (pchan->parent != NULL) {
 			ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+			bool has_common_root = false;
 			if (pchan->flag & POSE_DONE) {
+				has_common_root = pchan_check_common_solver_root(root_map,
+				                                                 pchan->name,
+				                                                 pchan->parent->name);
+			}
+			if (has_common_root) {
 				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent);
 				add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
