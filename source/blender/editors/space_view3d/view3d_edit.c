@@ -1120,6 +1120,8 @@ static int viewrotate_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -1154,17 +1156,25 @@ static int viewrotate_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewrotate_apply(vod, event->x, event->y);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 /**
@@ -1222,26 +1232,31 @@ static int viewrotate_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		ED_region_tag_redraw(vod->ar);
 	}
 
-	if (event->type == MOUSEPAN) {
+	if (ELEM(event->type, MOUSEPAN, MOUSEROTATE)) {
 		/* Rotate direction we keep always same */
-		if (U.uiflag2 & USER_TRACKPAD_NATURAL)
-			viewrotate_apply(vod, 2 * event->x - event->prevx, 2 * event->y - event->prevy);
-		else
-			viewrotate_apply(vod, event->prevx, event->prevy);
-			
+		int x, y;
+
+		if (event->type == MOUSEPAN) {
+			if (U.uiflag2 & USER_TRACKPAD_NATURAL) {
+				x = 2 * event->x - event->prevx;
+				y = 2 * event->y - event->prevy;
+			}
+			else {
+				x = event->prevx;
+				y = event->prevy;
+			}
+		}
+		else {
+			/* MOUSEROTATE performs orbital rotation, so y axis delta is set to 0 */
+			x = event->prevx;
+			y = event->y;
+		}
+
+		viewrotate_apply(vod, x, y);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		
+
 		viewops_data_free(C, op);
-		
-		return OPERATOR_FINISHED;
-	}
-	else if (event->type == MOUSEROTATE) {
-		/* MOUSEROTATE performs orbital rotation, so y axis delta is set to 0 */
-		viewrotate_apply(vod, event->prevx, event->y);
-		ED_view3d_depth_tag_update(vod->rv3d);
-		
-		viewops_data_free(C, op);
-		
+
 		return OPERATOR_FINISHED;
 	}
 	else {
@@ -1947,6 +1962,8 @@ static int viewmove_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -1973,17 +1990,25 @@ static int viewmove_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewmove_apply(vod, event->x, event->y);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 static int viewmove_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2215,6 +2240,8 @@ static int viewzoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == TIMER && event->customdata == vod->timer) {
@@ -2245,16 +2272,25 @@ static int viewzoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewzoom_apply(vod, &event->x, U.viewzoom, (U.uiflag & USER_ZOOM_INVERT) != 0);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 static int viewzoom_exec(bContext *C, wmOperator *op)
@@ -2316,6 +2352,7 @@ static int viewzoom_exec(bContext *C, wmOperator *op)
 	ED_view3d_depth_tag_update(rv3d);
 
 	ED_view3d_camera_lock_sync(v3d, rv3d);
+	ED_view3d_camera_lock_autokey(v3d, rv3d, C, false, true);
 
 	ED_region_tag_redraw(ar);
 
@@ -2390,8 +2427,10 @@ static int viewzoom_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 				vod->origy = vod->oldy = vod->origy + event->x - event->prevx;
 				viewzoom_apply(vod, &event->prevx, USER_ZOOM_DOLLY, (U.uiflag & USER_ZOOM_INVERT) != 0);
 			}
+			ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+
 			ED_view3d_depth_tag_update(vod->rv3d);
-			
+
 			viewops_data_free(C, op);
 			return OPERATOR_FINISHED;
 		}
@@ -2487,6 +2526,8 @@ static int viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -2513,16 +2554,25 @@ static int viewdolly_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewdolly_apply(vod, event->x, event->y, (U.uiflag & USER_ZOOM_INVERT) != 0);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, false, true);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 static int viewdolly_exec(bContext *C, wmOperator *op)
@@ -3971,6 +4021,8 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ViewOpsData *vod = op->customdata;
 	short event_code = VIEW_PASS;
+	bool use_autokey = false;
+	int ret = OPERATOR_RUNNING_MODAL;
 
 	/* execute the events */
 	if (event->type == MOUSEMOVE) {
@@ -3997,16 +4049,25 @@ static int viewroll_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (event_code == VIEW_APPLY) {
 		viewroll_apply(vod, event->x, event->y);
+		if (ED_screen_animation_playing(CTX_wm_manager(C))) {
+			use_autokey = true;
+		}
 	}
 	else if (event_code == VIEW_CONFIRM) {
-		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, false);
 		ED_view3d_depth_tag_update(vod->rv3d);
-		viewops_data_free(C, op);
-
-		return OPERATOR_FINISHED;
+		use_autokey = true;
+		ret = OPERATOR_FINISHED;
 	}
 
-	return OPERATOR_RUNNING_MODAL;
+	if (use_autokey) {
+		ED_view3d_camera_lock_autokey(vod->v3d, vod->rv3d, C, true, false);
+	}
+
+	if (ret & OPERATOR_FINISHED) {
+		viewops_data_free(C, op);
+	}
+
+	return ret;
 }
 
 static EnumPropertyItem prop_view_roll_items[] = {
@@ -4282,41 +4343,16 @@ static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEven
 	View3D *v3d = CTX_wm_view3d(C);
 	Image *ima = NULL;
 	BGpic *bgpic;
-	char name[MAX_ID_NAME - 2];
-	bool exists = false;
+	
+	ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
+	if (!ima) {
+		return OPERATOR_CANCELLED;
+	}
 
-	const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
-	
-	/* check input variables */
-	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
-		char path[FILE_MAX];
-		
-		RNA_string_get(op->ptr, "filepath", path);
-		ima = BKE_image_load_exists_ex(path, &exists);
-	}
-	else if (RNA_struct_property_is_set(op->ptr, "name")) {
-		RNA_string_get(op->ptr, "name", name);
-		ima = (Image *)BKE_libblock_find_name(ID_IM, name);
-		exists = true;
-	}
-	
 	bgpic = background_image_add(C);
-	
-	if (ima) {
-		if (is_relative_path) {
-			if (exists == false) {
-				Main *bmain = CTX_data_main(C);
-				BLI_path_rel(ima->name, bmain->name);
-			}
-		}
+	bgpic->ima = ima;
 
-		bgpic->ima = ima;
-		
-		id_us_plus(&ima->id);
-		
-		if (!(v3d->flag & V3D_DISPBGPICS))
-			v3d->flag |= V3D_DISPBGPICS;
-	}
+	v3d->flag |= V3D_DISPBGPICS;
 	
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 	
