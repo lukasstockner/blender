@@ -37,6 +37,7 @@
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "BIF_gl.h"
@@ -143,28 +144,23 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 	int tot_lines;            /* total number of lines for wrapping */
 	int *offsets;             /* offsets of line beginnings for wrapping */
 	int y_next;
-	const int mono = blf_mono_font;
-	char *buf = NULL;
+	const int mono = blf_mono_font;;
 	int cursor;
 
-	if (cdc->ime && !cdc->ime->tmp)
-		cdc->ime = NULL;
-
-	if (cdc->ime && cdc->ime->composite_len) {
-		size_t len, slen;
-		cursor = ((int *)cdc->ime->tmp)[2];
+#ifdef WITH_INPUT_IME
+	if (cdc->ime && cdc->ime->cursor_xy && cdc->ime->composite_len) {
+		size_t slen;
+		char buf[1024]; /* should be enough */
+		cursor = cdc->ime->cursor_pos_text;
 
 		/* insert composite str */
-		len = str_len;
 		slen = cdc->ime->composite_len;
-		buf = MEM_mallocN(sizeof(char) * (slen + len + 1), "console edit buffer");
-		memcpy(buf, str, sizeof(char) * cursor);
-		memcpy(buf + cursor, cdc->ime->composite, sizeof(char) * slen);
-		memcpy(buf + cursor + slen, str + cursor, sizeof(char) + (len - cursor));
-		buf[len + slen] = '\0';
+		BLI_snprintf(buf, slen + str_len + 1, "%s%s%s", str, cdc->ime->composite, str + cursor);
+		
 		str = buf;
 		str_len += slen;
 	}
+#endif
 
 	str_len = console_wrap_offsets(str, str_len, cdc->console_width, &tot_lines, &offsets);
 	y_next = cdc->xy[1] + cdc->lheight * tot_lines;
@@ -194,7 +190,6 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 
 		cdc->xy[1] = y_next;
 		MEM_freeN(offsets);
-		if (buf) MEM_freeN(buf);
 		return 1;
 	}
 	else if (y_next < cdc->ymin) {
@@ -207,7 +202,6 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		}
 
 		MEM_freeN(offsets);
-		if (buf) MEM_freeN(buf);
 		return 1;
 	}
 
@@ -220,8 +214,6 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		
 		int sel_orig[2];
 		copy_v2_v2_int(sel_orig, cdc->sel);
-
-		cursors[0] = cursor;
 
 		/* invert and swap for wrapping */
 		cdc->sel[0] = str_len - sel_orig[1];
@@ -245,6 +237,9 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			glColor3ubv(fg);
 		}
 
+#ifdef WITH_INPUT_IME
+		cursors[0] = cursor;
+
 		/* draw IME composite underline */
 		if (cdc->ime && cdc->ime->composite_len) {
 			cursors[0] -= initial_offset;
@@ -259,6 +254,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 				console_draw_underline(s, isel, cdc->xy, len, cdc->cwidth, 2, fg);
 			}
 		}
+#endif
 
 		cdc->xy[1] += cdc->lheight;
 
@@ -276,6 +272,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 				glColor3ubv(fg);
 			}
 
+#ifdef WITH_INPUT_IME
 			/* draw IME composite underline */
 			if (cdc->ime && cdc->ime->composite_len) {
 				cursors[0] += len;
@@ -290,13 +287,15 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 					console_draw_underline(s, isel, cdc->xy, len, cdc->cwidth, 2, fg);
 				}
 			}
+#else
+			(void)cursor; (void)cursors;
+#endif
 
 			cdc->xy[1] += cdc->lheight;
 			
 			/* check if were out of view bounds */
 			if (cdc->xy[1] > cdc->ymax) {
 				MEM_freeN(offsets);
-				if (buf) MEM_freeN(buf);
 				return 0;
 			}
 		}
@@ -327,6 +326,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 			console_step_sel(cdc, -(str_len + 1));
 		}
 
+#ifdef WITH_INPUT_IME
 		/* draw IME composite underline */
 		if (cdc->ime && cdc->ime->composite_len) {
 			int isel[2];
@@ -342,18 +342,17 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 				console_draw_underline(str, isel, cdc->xy, str_len, cdc->cwidth, 2, fg);
 			}
 		}
+#endif
 
 		cdc->xy[1] += cdc->lheight;
 
 		if (cdc->xy[1] > cdc->ymax) {
 			MEM_freeN(offsets);
-			if (buf) MEM_freeN(buf);
 			return 0;
 		}
 	}
 
 	MEM_freeN(offsets);
-	if (buf) MEM_freeN(buf);
 	return 1;
 }
 

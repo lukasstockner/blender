@@ -433,8 +433,9 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 #ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime = win->ime_data;
-	int ime_active = ime && ime->composite_len &&
-					 BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
+	bool is_ime_active = ime &&
+	                     ime->composite_len &&
+	                     BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
 #endif
 	//View2D *v2d = &ar->v2d;
 	
@@ -448,26 +449,23 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* get cursor position from draw_text_main and repositon ime window */
 #ifdef WITH_INPUT_IME
-	if (ime_active) {
-		st->ime = ime;
-		ime->tmp = MEM_callocN(sizeof(int) * 2, "text cursor pos");
-		/* [0~1] last cursor coord in the window */
-	}
-	else
-		st->ime = NULL;
-#endif /* WITH_INPUT_IME */
+	st->ime = is_ime_active ? ime : NULL;
 
 	draw_text_main(st, ar);
 
-#ifdef WITH_INPUT_IME
-	if (ime_active) {
-		int *xy = ime->tmp;
-		ime->tmp = NULL;
-		ui_region_to_window(ar, xy, xy+1);
-		wm_window_IME_begin(win, xy[0] + 5, xy[1], 0, 0, false);
-		MEM_freeN(xy);
+	if (is_ime_active) {
+		int x = ime->cursor_xy[0];
+		int y = ime->cursor_xy[1];
+
+		ui_region_to_window(ar, &x, &y);
+		wm_window_IME_begin(win, x + 5, y, 0, 0, false);
+
+		ime->cursor_xy[0] = ime->cursor_xy[1] = 0;
 	}
-#endif /* WITH_INPUT_IME */
+#else
+	draw_text_main(st, ar);
+#endif
+
 	/* reset view matrix */
 	// UI_view2d_view_restore(C);
 	

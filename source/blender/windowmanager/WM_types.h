@@ -467,14 +467,19 @@ typedef struct wmTabletData {
 	float Ytilt;		/* as above */
 } wmTabletData;
 
-/* same with GHOST_TEventImeData */
+/* similar to GHOST_TEventImeData */
+/* XXX - names, comments */
 typedef struct wmImeData {
 	size_t result_len, composite_len;
-	char *result, *composite; /* utf8 encoding */
-	int cursor_position; /* Represents the cursor position in the IME composition. */
-	int target_start; /* Represents the position of the beginning of the selection */
-	int target_end; /* Represents the position of the end of the selection */
-	void *tmp; /* custom temporal data */
+
+	char *result;			/* utf8 encoding */
+	char *composite;		/* utf8 encoding */
+
+	int cursor_position;	/* cursor position in the IME composition. */
+	int target_start;		/* position of the beginning of the selection */
+	int target_end;			/* position of the end of the selection */
+	int cursor_xy[2];		/* text cursor position */
+	int cursor_pos_text;	/* cursor pos in text (console space only) */
 } wmImeData;
 
 typedef enum {  /* motion progress, for modal handlers */

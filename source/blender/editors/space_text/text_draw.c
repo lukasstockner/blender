@@ -1215,9 +1215,8 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			glRecti(x - 1, y, x + 1, y - lheight);
 
 			if (st->ime && st->ime->composite_len && text->curl) {
-				int *tmp = st->ime->tmp;
-				tmp[0] = x + 1;
-				tmp[1] = y - lheight - 3;
+				st->ime->cursor_xy[0] = x + 1;
+				st->ime->cursor_xy[1] = y - lheight - 3;
 			}
 		}
 	}
@@ -1374,38 +1373,43 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	st->lheight_dpi = (U.widget_unit * st->lheight) / 20;
 	st->viewlines = (st->lheight_dpi) ? (int)(ar->winy - clip_min_y) / (st->lheight_dpi + TXT_LINE_SPACING) : 0;
 
-	/* make sure st->ime->tmp is not a null pointer*/
-	if (st->ime && !st->ime->tmp)
-		st->ime = NULL;
+#ifdef WITH_INPUT_IME
 	/* if is composing, backup and insert composition string */
-	if (st->ime && st->ime->composite_len && text->curl) {
-		int culen, clen, tlen, tulen, i;
+	if (st->ime &&
+		st->ime->cursor_xy &&
+		st->ime->composite_len &&
+		text->curl)
+	{
+		int clen = st->ime->composite_len;
+		int tlen = text->curl->len;
+		int clen_utf8 = BLI_strnlen_utf8(st->ime->composite, clen);
+		int tlen_utf8 = BLI_strnlen_utf8(text->curl->line, tlen);
+
+		int max_size = tlen + clen + 1;
+		int max_size_utf8 = tlen_utf8 + clen_utf8 + 1;
+
+		int i = text->curc;
+
 		bak = *text->curl;
 		tmp = text->curl;
-		clen = st->ime->composite_len;
-		culen = BLI_strnlen_utf8(st->ime->composite, clen);
-		tlen = tmp->len;
-		tulen = BLI_strnlen_utf8(tmp->line, tlen);
-		tmp->line = MEM_mallocN(tlen + clen + 1, "text ime backup");
-		tmp->format = MEM_mallocN(tulen + culen + 1, "text ime backup");
 
-		i = text->curc;
+		/* XXX - would be good if we could avoid this as it mallocs every redraw
+		 * keep in mind we need to ensure virtually endless lines, so a limited array isn't a solution */
+		tmp->line = MEM_mallocN(max_size, "text ime backup");
+		tmp->format = MEM_mallocN(max_size_utf8, "text ime backup");
 
-		memcpy(tmp->line, bak.line, i);
-		memcpy(tmp->line + i, st->ime->composite, clen);
-		memcpy(tmp->line + i + clen, bak.line + i, tlen - i);
-		tmp->line[clen + tlen] = '\0';
+		BLI_snprintf(tmp->line, max_size, "%s%s%s", bak.line, st->ime->composite, bak.line + i);
+
 		tmp->len += clen;
 
 		i = BLI_strnlen_utf8(bak.line, text->curc);
 		if (bak.format) {
-			memcpy(tmp->format, bak.format, i);
-			memset(tmp->format + i, FMT_TYPE_ULINE, culen);
-			memcpy(tmp->format + i + culen, bak.format + i, tulen - i);
+			memset(tmp->format + i, FMT_TYPE_ULINE, clen_utf8);
+			BLI_snprintf(tmp->format, tlen_utf8 - i, "%s%s%s", bak.format, tmp->format + i, bak.format + i);
 		}
 		else {
-			memset(tmp->format, FMT_TYPE_DEFAULT, culen + tulen);
-			memset(tmp->format + i, FMT_TYPE_ULINE, culen);
+			memset(tmp->format, FMT_TYPE_DEFAULT, clen_utf8 + tlen_utf8);
+			memset(tmp->format + i, FMT_TYPE_ULINE, clen_utf8);
 		}
 
 		/* set thicker line format */
@@ -1416,12 +1420,13 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 			memset(tmp->format + i + target_start, FMT_TYPE_TULINE, target_end);
 		}
 
-		tmp->format[culen + tulen] = '\0';
+		tmp->format[clen_utf8 + tlen_utf8] = '\0';
 
 		/* move the cursor */
 		text->curc += st->ime->cursor_position;
 		text->selc += st->ime->cursor_position;
 	}
+#endif
 	
 	text_update_drawcache(st, ar);
 

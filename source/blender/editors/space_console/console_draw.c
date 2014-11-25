@@ -212,12 +212,13 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 		        (xy[1] + pen[1] + tvc->lheight)
 				);
 
+#ifdef WITH_INPUT_IME
 		/* cursor following */
 		if (tvc->ime && tvc->ime->composite_len) {
-			int *tmp = tvc->ime->tmp;
-			tmp[0] = (xy[0] + pen[0]) + 1;
-			tmp[1] = (xy[1] + pen[1]) - 1;
+			tvc->ime->cursor_xy[0] = (xy[0] + pen[0]) + 1;
+			tvc->ime->cursor_xy[1] = (xy[1] + pen[1]) - 1;
 		}
+#endif
 
 	}
 

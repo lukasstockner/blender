@@ -1239,7 +1239,7 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
 	int drawstr_left_len = UI_MAX_DRAW_STR;
-	const char *drawstr = but->drawstr;
+	char *drawstr = but->drawstr;
 	const char *drawstr_right = NULL;
 	char *drawstr_edit = NULL;
 	bool use_right_only = false;
@@ -1278,16 +1278,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 			if (ime && ime->composite_len) {
 				/* insert composite string into cursor pos */
-				char *str;
-				size_t len, slen;
-				len = strlen(but->editstr);
-				slen = ime->composite_len;
-				str = MEM_mallocN(sizeof(char) * (slen + len + 1), "drawstr edit buffer");
-				memcpy(str, but->editstr, sizeof(char) * but->pos);
-				memcpy(str + but->pos, ime->composite, sizeof(char) * slen);
-				memcpy(str + but->pos + slen, but->editstr + but->pos, sizeof(char) + (len - but->pos));
-				str[len + slen] = '\0';
-				drawstr = drawstr_edit = str;
+				BLI_snprintf(drawstr, UI_MAX_DRAW_STR, "%s%s%s", /* XXX drawstr is limited to 400 chars - check if that's enough */
+				             but->editstr, ime->composite,
+				             but->editstr + but->pos);
 			}
 			else {
 #else
@@ -1331,8 +1324,9 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		vpos = but->pos;
 #ifdef WITH_INPUT_IME
 		/* if is ime compositing, move the cursor */
-		if (ime && ime->composite_len && ime->cursor_position != -1)
+		if (ime && ime->composite_len && ime->cursor_position != -1) {
 			vpos += ime->cursor_position;
+		}
 #else
 		(void)ime;
 #endif
@@ -1495,9 +1489,6 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		rect->xmax -= UI_TEXT_CLIP_MARGIN;
 		UI_fontstyle_draw(fstyle, rect, drawstr_right);
 	}
-
-	if (drawstr_edit)
-		MEM_freeN(drawstr_edit);
 }
 
 /* draws text and icons for buttons */

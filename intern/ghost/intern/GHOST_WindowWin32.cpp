@@ -1055,7 +1055,7 @@ GHOST_TSuccess GHOST_WindowWin32::endProgressBar()
 void GHOST_WindowWin32::beginIME(GHOST_TInt32 x, GHOST_TInt32 y, GHOST_TInt32 w, GHOST_TInt32 h, int completed)
 {
 	h = 20; /* text height */
-	this->getImeInput()->BeginIME(this->getHWND(),	GHOST_Rect(x, y-h, x, y), (bool)completed);
+	this->getImeInput()->BeginIME(this->getHWND(),	GHOST_Rect(x, y - h , x, y), (bool)completed);
 }
 
 

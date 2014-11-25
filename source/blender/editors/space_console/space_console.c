@@ -235,8 +235,9 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 #ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime = win->ime_data;
-	int ime_active = ime && ime->composite_len &&
-					 BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
+	bool is_ime_active = ime &&
+	                     ime->composite_len &&
+	                     BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
 #endif
 
 	if (BLI_listbase_is_empty(&sc->scrollback))
@@ -255,28 +256,29 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 
 #ifdef WITH_INPUT_IME
 	/* get cursor position from console_textview_main and repositon ime window */
-	if (ime_active) {
+	if (is_ime_active) {
 		ConsoleLine *line = (ConsoleLine *)sc->history.last;
-		int *xy = MEM_callocN(sizeof(int[3]), "console cursor pos");
+
+		ime->cursor_pos_text = line->cursor + strlen(sc->prompt);
 		sc->ime = ime;
-		ime->tmp = xy;
-		/* [0~1] last cursor coord in the window, [2] cursor pos in text */
-		xy[2] = line->cursor + strlen(sc->prompt);
 	}
-	else
+	else {
 		sc->ime = NULL;
-#endif /* WITH_INPUT_IME */
+	}
 
 	console_textview_main(sc, ar);
 
-#ifdef WITH_INPUT_IME
-	if (ime_active) {
-		int *xy = ime->tmp;
-		ime->tmp = NULL;
-		ui_region_to_window(ar, xy, xy+1);
-		wm_window_IME_begin(win, xy[0] + 5, xy[1], 0, 0, false);
-		MEM_freeN(xy);
+	if (is_ime_active) {
+		int x = ime->cursor_xy[0];
+		int y = ime->cursor_xy[1];
+
+		ui_region_to_window(ar, &x, &y);
+		wm_window_IME_begin(win, x + 5, y, 0, 0, false);
+
+		ime->cursor_xy[0] = ime->cursor_xy[1] = 0;
 	}
+#else
+	console_textview_main(sc, ar);
 #endif /* WITH_INPUT_IME */
 	
 	/* reset view matrix */
