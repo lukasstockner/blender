@@ -55,6 +55,16 @@ static void rna_GPencil_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Pointe
 	WM_main_add_notifier(NC_GPENCIL | NA_EDITED, NULL);
 }
 
+static char *rna_GPencilLayer_path(PointerRNA *ptr)
+{
+	bGPDlayer *gpl = (bGPDlayer *)ptr->data;
+	char name_esc[sizeof(gpl->info) * 2];
+	
+	BLI_strescape(name_esc, gpl->info, sizeof(name_esc));
+	
+	return BLI_sprintfN("layers[\"%s\"]", name_esc);
+}
+
 static int rna_GPencilLayer_active_frame_editable(PointerRNA *ptr)
 {
 	bGPDlayer *gpl = (bGPDlayer *)ptr->data;
@@ -602,6 +612,7 @@ static void rna_def_gpencil_layer(BlenderRNA *brna)
 	srna = RNA_def_struct(brna, "GPencilLayer", NULL);
 	RNA_def_struct_sdna(srna, "bGPDlayer");
 	RNA_def_struct_ui_text(srna, "Grease Pencil Layer", "Collection of related sketches");
+	RNA_def_struct_path_func(srna, "rna_GPencilLayer_path");
 	
 	/* Name */
 	prop = RNA_def_property(srna, "info", PROP_STRING, PROP_NONE);
@@ -826,6 +837,9 @@ static void rna_def_gpencil_data(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "GPencilLayer");
 	RNA_def_property_ui_text(prop, "Layers", "");
 	rna_def_gpencil_layers_api(brna, prop);
+	
+	/* Animation Data */
+	rna_def_animdata_common(srna);
 	
 	/* Flags */
 	prop = RNA_def_property(srna, "draw_mode", PROP_ENUM, PROP_NONE);

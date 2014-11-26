@@ -33,6 +33,9 @@
 #include "DNA_listBase.h"
 #include "DNA_ID.h"
 
+struct AnimData;
+
+
 /* Grease-Pencil Annotations - 'Stroke Point'
  *	-> Coordinates may either be 2d or 3d depending on settings at the time
  * 	-> Coordinates of point on stroke, in proportions of window size
@@ -154,7 +157,8 @@ typedef enum eGPDlayer_Flag {
 
 /* Grease-Pencil Annotations - 'DataBlock' */
 typedef struct bGPdata {
-	ID id;					/* Grease Pencil data is */
+	ID id;					/* Grease Pencil data is a datablock */
+	struct AnimData *adt;   /* animation data - for animating draw settings */
 	
 	/* saved Grease-Pencil data */
 	ListBase layers;		/* bGPDlayers */

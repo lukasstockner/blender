@@ -45,6 +45,7 @@
 #include "DNA_gpencil_types.h"
 #include "DNA_userdef_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_global.h"
 #include "BKE_gpencil.h"
 #include "BKE_library.h"
@@ -115,6 +116,12 @@ void BKE_gpencil_free(bGPdata *gpd)
 {
 	/* free layers */
 	free_gpencil_layers(&gpd->layers);
+	
+	/* free animation data */
+	if (gpd->adt) {
+		BKE_free_animdata(&gpd->id);
+		gpd->adt = NULL;
+	}
 }
 
 /* -------- Container Creation ---------- */
