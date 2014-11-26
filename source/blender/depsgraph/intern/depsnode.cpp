@@ -193,7 +193,14 @@ void IDDepsNode::tag_update(Depsgraph *graph)
 {
 	for (ComponentMap::const_iterator it = components.begin(); it != components.end(); ++it) {
 		ComponentDepsNode *comp_node = it->second;
-		comp_node->tag_update(graph);
+		/* Animation component should only be tagged for update by the time updates,
+		 * or by tagging the animation itself.
+		 *
+		 * TODO(sergey): Make it faster than stupid string comparison.
+		 */
+		if (comp_node->name != "Animation Component") {
+			comp_node->tag_update(graph);
+		}
 	}
 }
 
