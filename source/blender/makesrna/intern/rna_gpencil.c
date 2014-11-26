@@ -67,7 +67,7 @@ static int rna_GPencilLayer_active_frame_editable(PointerRNA *ptr)
 }
 
 static void rna_GPencilLayer_line_width_range(PointerRNA *ptr, int *min, int *max,
-                                              int *UNUSED(softmin), int *UNUSED(softmax))
+                                              int *softmin, int *softmax)
 {
 	bGPDlayer *gpl = ptr->data;
 	
@@ -81,10 +81,16 @@ static void rna_GPencilLayer_line_width_range(PointerRNA *ptr, int *min, int *ma
 	if (gpl->flag & GP_LAYER_VOLUMETRIC) {
 		*min = 1;
 		*max = 300;
+		
+		*softmin = 1;
+		*softmax = 100;
 	}
 	else {
 		*min = 1;
 		*max = 10;
+		
+		*softmin = 1;
+		*softmax = 10;
 	}
 }
 
