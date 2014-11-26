@@ -709,50 +709,11 @@ BLI_INLINE OperationKey bone_transforms_key(Object *ob,
 	return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Transforms");
 }
 
-/* TODO(sergey): Deduplicate with the node builder.  */
-static bPoseChannel* ik_solver_rootchan_find(bPoseChannel *pchan,
-                                             bKinematicConstraint *data)
-{
-	bPoseChannel *rootchan = pchan;
-	/* exclude tip from chain? */
-	if (!(data->flag & CONSTRAINT_IK_TIP)) {
-		rootchan = rootchan->parent;
-	}
-	if (rootchan) {
-		size_t segcount = 0;
-		while (rootchan->parent) {
-			/* continue up chain, until we reach target number of items... */
-			segcount++;
-			if ((segcount == data->rootbone) || (segcount > 255)) break;  /* XXX 255 is weak */
-			rootchan = rootchan->parent;
-		}
-	}
-	return rootchan;
-}
-
-/* TODO(sergey): Deduplicate with above. */
-static bPoseChannel* splineik_solver_rootchan_find(bPoseChannel *pchan,
-                                                   bSplineIKConstraint *data)
-{
-	bPoseChannel *rootchan = pchan;
-	if (rootchan) {
-		size_t segcount = 0;
-		while (rootchan->parent) {
-			/* continue up chain, until we reach target number of items... */
-			segcount++;
-			if ((segcount == data->chainlen) || (segcount > 255)) break;  /* XXX 255 is weak */
-			rootchan = rootchan->parent;
-		}
-	}
-	return rootchan;
-}
-
 static void root_map_add_bone(const char *bone,
                               const char *root,
                               DepsgraphRelationBuilder::RootPChanMap *root_map)
 {
 	DepsgraphRelationBuilder::RootPChanMap::iterator found = root_map->find(bone);
-	printf("%s: %s %s\n", __func__, bone, root);
 	if (found != root_map->end()) {
 		found->second.push_back(root);
 	}
@@ -808,7 +769,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	 * - assume that owner is always part of chain 
 	 * - see notes on direction of rel below...
 	 */
-	bPoseChannel *rootchan = ik_solver_rootchan_find(pchan, data);
+	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
 	OperationKey transforms_key = bone_transforms_key(ob, pchan);
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, deg_op_name_ik_solver);
 	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
@@ -883,7 +844,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
                                                    RootPChanMap *root_map)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
-	bPoseChannel *rootchan = splineik_solver_rootchan_find(pchan, data);
+	bPoseChannel *rootchan = BKE_armature_splineik_solver_find_root(pchan, data);
 	OperationKey transforms_key = bone_transforms_key(ob, pchan);
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, deg_op_name_spline_ik_solver);
 	

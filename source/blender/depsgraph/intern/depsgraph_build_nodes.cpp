@@ -510,26 +510,9 @@ void DepsgraphNodeBuilder::build_particles(Object *ob)
 void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
 	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
-	
-	/* find the chain's root */
-	bPoseChannel *rootchan = pchan;
-	/* exclude tip from chain? */
-	if (!(data->flag & CONSTRAINT_IK_TIP)) {
-		rootchan = rootchan->parent;
-	}
-	
-	if (rootchan) {
-		size_t segcount = 0;
-		while (rootchan->parent) {
-			/* continue up chain, until we reach target number of items... */
-			segcount++;
-			if ((segcount == data->rootbone) || (segcount > 255)) break;  /* XXX 255 is weak */
-			
-			rootchan = rootchan->parent;
-		}
-	}
-	
-	/* operation node for evaluating/running IK Solver */
+	/* Find the chain's root. */
+	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
+	/* Operation node for evaluating/running IK Solver. */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
 	                   DEPSOP_TYPE_SIM, bind(BKE_pose_iktree_evaluate, _1, scene, ob, rootchan),
 	                   deg_op_name_ik_solver);
@@ -539,20 +522,10 @@ void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel 
 void DepsgraphNodeBuilder::build_splineik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
-	
-	/* find the chain's root */
-	bPoseChannel *rootchan = pchan;
-	size_t segcount = 0;
-	while (rootchan->parent) {
-		/* continue up chain, until we reach target number of items... */
-		segcount++;
-		if ((segcount == data->chainlen) || (segcount > 255)) break;  /* XXX 255 is weak */
-		
-		rootchan = rootchan->parent;
-	}
-	
-	/* operation node for evaluating/running IK Solver
-	 * store the "root bone" of this chain in the solver, so it knows where to start
+	/* Find the chain's root. */
+	bPoseChannel *rootchan = BKE_armature_splineik_solver_find_root(pchan, data);
+	/* Operation node for evaluating/running IK Solver.
+	 * Store the "root bone" of this chain in the solver, so it knows where to start.
 	 */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
 	                   DEPSOP_TYPE_SIM, bind(BKE_pose_splineik_evaluate, _1, scene, ob, rootchan),

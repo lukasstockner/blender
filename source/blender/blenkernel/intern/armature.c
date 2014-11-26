@@ -2643,6 +2643,47 @@ BoundBox *BKE_armature_boundbox_get(Object *ob)
 	return ob->bb;
 }
 
+/************** Graph evaluation ********************/
+
+bPoseChannel *BKE_armature_ik_solver_find_root(bPoseChannel *pchan,
+                                               bKinematicConstraint *data)
+{
+	bPoseChannel *rootchan = pchan;
+	if (!(data->flag & CONSTRAINT_IK_TIP)) {
+		/* Exclude tip from chain. */
+		rootchan = rootchan->parent;
+	}
+	if (rootchan != NULL) {
+		int segcount = 0;
+		while (rootchan->parent) {
+			/* Continue up chain, until we reach target number of items. */
+			segcount++;
+			if (segcount == data->rootbone) {
+				break;
+			}
+			rootchan = rootchan->parent;
+		}
+	}
+	return rootchan;
+}
+
+bPoseChannel* BKE_armature_splineik_solver_find_root(bPoseChannel *pchan,
+                                                     bSplineIKConstraint *data)
+{
+	bPoseChannel *rootchan = pchan;
+	int segcount = 0;
+	BLI_assert(rootchan != NULL);
+	while (rootchan->parent) {
+		/* Continue up chain, until we reach target number of items. */
+		segcount++;
+		if (segcount == data->chainlen) {
+			break;
+		}
+		rootchan = rootchan->parent;
+	}
+	return rootchan;
+}
+
 void BKE_splineik_execute_tree(Scene *scene, Object *ob, bPoseChannel *pchan_root, float ctime)
 {
 	splineik_execute_tree(scene, ob, pchan_root, ctime);

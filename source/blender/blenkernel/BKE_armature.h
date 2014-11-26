@@ -144,6 +144,14 @@ void b_bone_spline_setup(struct bPoseChannel *pchan, int rest, Mat4 result_array
 	(PBONE_VISIBLE(arm, bone) && !((bone)->flag & BONE_UNSELECTABLE))
 
 /* Evaluation helpers */
+struct bKinematicConstraint;
+struct bSplineIKConstraint;
+
+struct bPoseChannel *BKE_armature_ik_solver_find_root(struct bPoseChannel *pchan,
+                                                      struct bKinematicConstraint *data);
+struct bPoseChannel* BKE_armature_splineik_solver_find_root(struct bPoseChannel *pchan,
+                                                            struct bSplineIKConstraint *data);
+
 void BKE_pose_splineik_init_tree(struct Scene *scene, struct Object *ob, float ctime);
 void BKE_splineik_execute_tree(struct Scene *scene, struct Object *ob, struct bPoseChannel *pchan_root, float ctime);
 
