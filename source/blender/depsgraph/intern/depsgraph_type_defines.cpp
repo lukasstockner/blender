@@ -72,23 +72,29 @@ extern "C" {
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
-void BKE_animsys_eval_action(EvaluationContext *eval_ctx, ID *id, bAction *action, TimeSourceDepsNode *time_src)
+void BKE_animsys_eval_action(EvaluationContext *UNUSED(eval_ctx),
+                             ID *id,
+                             bAction *action,
+                             TimeSourceDepsNode *time_src)
 {
+	AnimData *adt = BKE_animdata_from_id(id);
+	PointerRNA id_ptr;
+	float ctime = time_src->cfra;
 	printf("%s on %s\n", __func__, id->name);
-	if (ID_REAL_USERS(id) > 0) {
-		AnimData *adt = BKE_animdata_from_id(id);
-		float ctime = time_src->cfra;
-		BKE_animsys_evaluate_animdata(NULL, id, adt, ctime, ADT_RECALC_ANIM);
-	}
+	RNA_id_pointer_create(id, &id_ptr);
+	animsys_evaluate_action(&id_ptr, action, adt->remap, ctime);
 }
 
-void BKE_animsys_eval_driver(EvaluationContext *eval_ctx, ID *id, FCurve *fcurve, TimeSourceDepsNode *time_src)
+void BKE_animsys_eval_driver(EvaluationContext *UNUSED(eval_ctx),
+                             ID *id,
+                             FCurve *fcurve,
+                             TimeSourceDepsNode *time_src)
 {
 	/* TODO(sergey): De-duplicate with BKE animsys. */
 	printf("%s on %s\n", __func__, id->name);
-	if (ID_REAL_USERS(id) > 0 && (fcurve->driver->flag & DRIVER_FLAG_INVALID) == 0) {
-		float ctime = time_src->cfra;
+	if ((fcurve->driver->flag & DRIVER_FLAG_INVALID) == 0) {
 		PointerRNA id_ptr;
+		float ctime = time_src->cfra;
 		RNA_id_pointer_create(id, &id_ptr);
 		calculate_fcurve(fcurve, ctime);
 		if (!BKE_animsys_execute_fcurve(&id_ptr, NULL, fcurve)) {
