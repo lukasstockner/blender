@@ -101,8 +101,10 @@ extern "C" {
 
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
+namespace {
+
 /* TODO(sergey): This is a stupid copy of function from depsgraph.c/ */
-static bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
+bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 {
 	if (modifier_dependsOnTime(md)) {
 		return true;
@@ -148,6 +150,65 @@ static bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 
 	return false;
 }
+
+BLI_INLINE OperationKey bone_transforms_key(Object *ob,
+                                            bPoseChannel *pchan)
+{
+	if (pchan->constraints.first != NULL) {
+		return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, deg_op_name_constraint_stack);
+	}
+	return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Transforms");
+}
+
+void root_map_add_bone(const char *bone,
+                       const char *root,
+                       DepsgraphRelationBuilder::RootPChanMap *root_map)
+{
+	DepsgraphRelationBuilder::RootPChanMap::iterator found = root_map->find(bone);
+	if (found != root_map->end()) {
+		found->second.push_back(root);
+	}
+	else {
+		DepsgraphRelationBuilder::RootPChanVector new_vector;
+		new_vector.push_back(root);
+		root_map->insert(std::pair<const char*, DepsgraphRelationBuilder::RootPChanVector> (bone, new_vector));
+	}
+}
+
+bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap &root_map,
+                                    const char *pchan1, const char *pchan2)
+{
+	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found1 = root_map.find(pchan1);
+	if (found1 == root_map.end()) {
+		return false;
+	}
+
+	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found2 = root_map.find(pchan2);
+	if (found2 == root_map.end()) {
+		return false;
+	}
+
+	const DepsgraphRelationBuilder::RootPChanVector &vec1 = found1->second;
+	const DepsgraphRelationBuilder::RootPChanVector &vec2 = found2->second;
+
+	for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it1 = vec1.begin();
+	     it1 != vec1.end();
+	     ++it1)
+	{
+		for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it2 = vec2.begin();
+		     it2 != vec2.end();
+		     ++it2)
+		{
+			if (strcmp(*it1, *it2) == 0) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+}  /* namespace */
 
 /* ************************************************* */
 /* Relations Builder */
@@ -698,63 +759,6 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 	
 	/* pointcache */
 	// TODO...
-}
-
-BLI_INLINE OperationKey bone_transforms_key(Object *ob,
-                                            bPoseChannel *pchan)
-{
-	if (pchan->constraints.first != NULL) {
-		return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, deg_op_name_constraint_stack);
-	}
-	return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Transforms");
-}
-
-static void root_map_add_bone(const char *bone,
-                              const char *root,
-                              DepsgraphRelationBuilder::RootPChanMap *root_map)
-{
-	DepsgraphRelationBuilder::RootPChanMap::iterator found = root_map->find(bone);
-	if (found != root_map->end()) {
-		found->second.push_back(root);
-	}
-	else {
-		DepsgraphRelationBuilder::RootPChanVector new_vector;
-		new_vector.push_back(root);
-		root_map->insert(std::pair<const char*, DepsgraphRelationBuilder::RootPChanVector> (bone, new_vector));
-	}
-}
-
-static bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap &root_map,
-                                           const char *pchan1, const char *pchan2)
-{
-	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found1 = root_map.find(pchan1);
-	if (found1 == root_map.end()) {
-		return false;
-	}
-
-	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found2 = root_map.find(pchan2);
-	if (found2 == root_map.end()) {
-		return false;
-	}
-
-	const DepsgraphRelationBuilder::RootPChanVector &vec1 = found1->second;
-	const DepsgraphRelationBuilder::RootPChanVector &vec2 = found2->second;
-
-	for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it1 = vec1.begin();
-	     it1 != vec1.end();
-	     ++it1)
-	{
-		for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it2 = vec2.begin();
-		     it2 != vec2.end();
-		     ++it2)
-		{
-			if (strcmp(*it1, *it2) == 0) {
-				return true;
-			}
-		}
-	}
-
-	return false;
 }
 
 /* IK Solver Eval Steps */
