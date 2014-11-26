@@ -3432,7 +3432,7 @@ void ANIM_channel_draw(bAnimContext *ac, bAnimListElem *ale, float yminc, float 
 			/* just skip - drawn as widget now */
 			offset += ICON_WIDTH; 
 		}
-		else if ((ac->datatype == ANIMCONT_GPENCIL) && (ale->type == ANIMTYPE_GPLAYER)) {
+		else if (ale->type == ANIMTYPE_GPLAYER) {
 			/* just skip - drawn as a widget */
 			offset += ICON_WIDTH;
 		}
@@ -3896,7 +3896,7 @@ void ANIM_channel_draw_widgets(bContext *C, bAnimContext *ac, bAnimListElem *ale
 			draw_setting_widget(ac, ale, acf, block, offset, ymid, ACHANNEL_SETTING_SOLO);
 			offset += ICON_WIDTH; 
 		}
-		else if ((ac->datatype == ANIMCONT_GPENCIL) && (ale->type == ANIMTYPE_GPLAYER)) {
+		else if (ale->type == ANIMTYPE_GPLAYER) {
 			/* color swatch for layer color */
 			bGPDlayer *gpl = (bGPDlayer *)ale->data;
 			PointerRNA ptr;
