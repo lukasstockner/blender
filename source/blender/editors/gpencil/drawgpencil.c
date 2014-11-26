@@ -1011,12 +1011,17 @@ static void gp_draw_data(bGPdata *gpd, int offsx, int offsy, int winx, int winy,
 		gp_draw_strokes(gpf, offsx, offsy, winx, winy, dflag, debug, lthick, gpl->color, gpl->fill);
 		
 		/* Draw verts of selected strokes 
+		 *  - when doing OpenGL renders, we don't want to be showing these, as that ends up flickering
 		 * 	- locked layers can't be edited, so there's no point showing these verts
 		 *    as they will have no bearings on what gets edited
+		 *  - only show when in editmode, since operators shouldn't work otherwise
+		 *    (NOTE: doing it this way means that the toggling editmode shows visible change immediately)
 		 */
 		/* XXX: perhaps we don't want to show these when users are drawing... */
-		/* XXX: for now, we only show editing info when stroke can be edited */
-		if ((gpl->flag & GP_LAYER_LOCKED) == 0 && (gpd->flag & GP_DATA_STROKE_EDITMODE)) {
+		if ((G.f & G_RENDER_OGL) == 0 &&
+		    (gpl->flag & GP_LAYER_LOCKED) == 0 && 
+		    (gpd->flag & GP_DATA_STROKE_EDITMODE))
+		{
 			gp_draw_strokes_edit(gpf, offsx, offsy, winx, winy, dflag, 
 			                     (gpl->color[3] < 0.95f) ? gpl->color : NULL);
 		}
