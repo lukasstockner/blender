@@ -72,6 +72,7 @@ class SEQUENCER_HT_header(Header):
         row.prop(scene, "lock_frame_selection_to_range", text="", toggle=True)
 
         layout.prop(st, "view_type", expand=True, text="")
+        layout.prop(st, "waveform_draw_type", text="")
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
             layout.prop(st, "display_mode", expand=True, text="")
@@ -83,6 +84,7 @@ class SEQUENCER_HT_header(Header):
 
             layout.separator()
             layout.operator("sequencer.refresh_all")
+            layout.prop(st, "show_backdrop")
         else:
             if st.view_type == 'SEQUENCER_PREVIEW':
                 layout.separator()
@@ -717,6 +719,7 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        st = context.space_data
         strip = act_strip(context)
         sound = strip.sound
 
@@ -735,7 +738,9 @@ class SEQUENCER_PT_sound(SequencerButtonsPanel, Panel):
 
             row.prop(sound, "use_memory_cache")
 
-        layout.prop(strip, "show_waveform")
+        if st.waveform_draw_type == 'DEFAULT_WAVEFORMS':
+            layout.prop(strip, "show_waveform")
+
         layout.prop(strip, "volume")
         layout.prop(strip, "pitch")
         layout.prop(strip, "pan")
