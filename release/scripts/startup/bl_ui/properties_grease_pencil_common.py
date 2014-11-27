@@ -252,19 +252,6 @@ class GreasePencilDataPanel():
         if gpd:
             self.draw_layers(context, layout, gpd)
 
-            # only sequencer doesn't have a toolbar to show these settings in,
-            # so only show this for the sequencer...
-            if context.space_data.type == 'SEQUENCE_EDITOR':
-                layout.separator()
-                layout.separator()
-
-                layout.prop(gpd, "use_stroke_edit_mode", text="Enable Stroke Editing", icon='EDIT', toggle=True)
-
-                layout.separator()
-                layout.separator()
-
-                gpencil_stroke_placement_settings(context, layout, gpd)
-
     def draw_layers(self, context, layout, gpd):
         row = layout.row()
 
@@ -360,3 +347,28 @@ class GreasePencilDataPanel():
         row.active = gpl.use_ghost_custom_colors
         row.prop(gpl, "after_color", text="")
         sub.prop(gpl, "ghost_after_range", text="After")
+
+
+class GreasePencilToolsPanel():
+    # subclass must set
+    # bl_space_type = 'IMAGE_EDITOR'
+    # bl_options = {'DEFAULT_CLOSED'}
+    bl_label = "Grease Pencil Settings"
+    bl_region_type = 'UI'
+
+    @classmethod
+    def poll(cls, context):
+        return (context.gpencil_data is not None)
+
+    @staticmethod
+    def draw(self, context):
+        layout = self.layout
+
+        gpd_owner = context.gpencil_data_owner
+        gpd = context.gpencil_data
+
+        layout.prop(gpd, "use_stroke_edit_mode", text="Enable Editing", icon='EDIT', toggle=True)
+
+        layout.separator()
+
+        gpencil_stroke_placement_settings(context, layout, gpd)
