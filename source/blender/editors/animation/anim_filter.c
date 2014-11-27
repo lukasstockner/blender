@@ -771,6 +771,21 @@ static bAnimListElem *make_new_animlistelem(void *data, short datatype, ID *owne
 				ale->adt = BKE_animdata_from_id(data);
 				break;
 			}
+			case ANIMTYPE_DSGPENCIL:
+			{
+				bGPdata *gpd = (bGPdata *)data;
+				AnimData *adt = gpd->adt;
+				
+				/* NOTE: we just reuse the same expand filter for this case */
+				ale->flag = EXPANDED_GPD(gpd);
+				
+				// XXX: currently, this is only used for access to its animation data
+				ale->key_data = (adt) ? adt->action : NULL;
+				ale->datatype = ALE_ACT;
+				
+				ale->adt = BKE_animdata_from_id(data);
+				break;
+			}
 			case ANIMTYPE_GROUP:
 			{
 				bActionGroup *agrp = (bActionGroup *)data;
@@ -1444,6 +1459,46 @@ static size_t animdata_filter_gpencil(ListBase *anim_data, void *UNUSED(data), i
 				items += tmp_items;
 			}
 		}
+	}
+	
+	/* return the number of items added to the list */
+	return items;
+}
+
+/* Helper for Grease Pencil data integrated with main DopeSheet */
+static size_t animdata_filter_ds_gpencil(bAnimContext *ac, ListBase *anim_data, bDopeSheet *ads, bGPdata *gpd, int filter_mode)
+{
+	ListBase tmp_data = {NULL, NULL};
+	size_t tmp_items = 0;
+	size_t items = 0;
+	
+	/* add relevant animation channels for Grease Pencil */
+	BEGIN_ANIMFILTER_SUBCHANNELS(EXPANDED_GPD(gpd))
+	{
+		/* add animation channels */
+		tmp_items += animfilter_block_data(ac, &tmp_data, ads, &gpd->id, filter_mode);
+		
+		/* add Grease Pencil layers */
+		// TODO: do these need a separate expander?
+		// XXX:  what order should these go in?
+	}
+	END_ANIMFILTER_SUBCHANNELS;
+	
+	/* did we find anything? */
+	if (tmp_items) {
+		/* include data-expand widget first */
+		if (filter_mode & ANIMFILTER_LIST_CHANNELS) {
+			/* check if filtering by active status */
+			// XXX: active check here needs checking
+			if (ANIMCHANNEL_ACTIVEOK(gpd)) {
+				ANIMCHANNEL_NEW_CHANNEL(gpd, ANIMTYPE_DSGPENCIL, gpd);
+			}
+		}
+		
+		/* now add the list of collected channels */
+		BLI_movelisttolist(anim_data, &tmp_data);
+		BLI_assert(BLI_listbase_is_empty(&tmp_data));
+		items += tmp_items;
 	}
 	
 	/* return the number of items added to the list */
@@ -2235,6 +2290,11 @@ static size_t animdata_filter_dopesheet_ob(bAnimContext *ac, ListBase *anim_data
 		if ((ob->particlesystem.first) && !(ads->filterflag & ADS_FILTER_NOPART)) {
 			tmp_items += animdata_filter_ds_particles(ac, &tmp_data, ads, ob, filter_mode);
 		}
+		
+		/* grease pencil */
+		if ((ob->gpd) && !(ads->filterflag & ADS_FILTER_NOGPENCIL)) {
+			tmp_items += animdata_filter_ds_gpencil(ac, &tmp_data, ads, ob->gpd, filter_mode);
+		}
 	}
 	END_ANIMFILTER_SUBCHANNELS;
 	
@@ -2369,6 +2429,7 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac, ListBase *anim_d
 	BEGIN_ANIMFILTER_SUBCHANNELS(EXPANDED_SCEC(sce))
 	{
 		bNodeTree *ntree = sce->nodetree;
+		bGPdata *gpd = sce->gpd;
 		World *wo = sce->world;
 		
 		/* Action, Drivers, or NLA for Scene */
@@ -2389,6 +2450,11 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac, ListBase *anim_d
 		/* line styles */
 		if ((ads->filterflag & ADS_FILTER_NOLINESTYLE) == 0) {
 			tmp_items += animdata_filter_ds_linestyle(ac, &tmp_data, ads, sce, filter_mode);
+		}
+		
+		/* grease pencil */
+		if ((gpd) && !(ads->filterflag & ADS_FILTER_NOGPENCIL)) {
+			tmp_items += animdata_filter_ds_gpencil(ac, &tmp_data, ads, gpd, filter_mode);
 		}
 		
 		/* TODO: one day, when sequencer becomes its own datatype, perhaps it should be included here */

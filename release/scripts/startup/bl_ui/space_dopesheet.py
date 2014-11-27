@@ -91,6 +91,8 @@ def dopesheet_filter(layout, context, genericFiltersOnly=False):
                 row.prop(dopesheet, "show_speakers", text="")
             if bpy.data.linestyles:
                 row.prop(dopesheet, "show_linestyles", text="")
+            if bpy.data.grease_pencil:
+                row.prop(dopesheet, "show_gpencil", text="")
 
 
 #######################################
