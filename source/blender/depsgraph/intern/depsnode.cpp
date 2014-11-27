@@ -88,6 +88,11 @@ void TimeSourceDepsNode::add_new_relation(OperationDepsNode *to)
 
 /* Root Node ============================================== */
 
+RootDepsNode::~RootDepsNode()
+{
+	delete time_source;
+}
+
 TimeSourceDepsNode *RootDepsNode::add_time_source(const string &name)
 {
 	if (!time_source) {
