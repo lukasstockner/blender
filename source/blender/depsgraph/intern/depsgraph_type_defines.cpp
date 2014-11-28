@@ -145,7 +145,7 @@ void BKE_pose_eval_bone(EvaluationContext *eval_ctx,
                         Object *ob,
                         bPoseChannel *pchan) {
 	bArmature *arm = (bArmature *)ob->data;
-	printf("%s on %s phan %s\n", __func__, ob->id.name, pchan->name);
+	printf("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
 	BLI_assert(ob->type == OB_ARMATURE);
 	if (arm->edbo || (arm->flag & ARM_RESTPOS)) {
 		Bone *bone = pchan->bone;
@@ -176,7 +176,7 @@ void BKE_pose_constraints_evaluate(EvaluationContext *eval_ctx,
                                    Object *ob,
                                    bPoseChannel *pchan)
 {
-	printf("%s on %s phan %s\n", __func__, ob->id.name, pchan->name);
+	printf("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
 	Scene *scene = (Scene*)G.main->scene.first;
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 
@@ -193,7 +193,7 @@ void BKE_pose_iktree_evaluate(EvaluationContext *eval_ctx,
                               Object *ob,
                               bPoseChannel *rootchan)
 {
-	printf("%s on %s phan %s\n", __func__, ob->id.name, rootchan->name);
+	printf("%s on %s pchan %s\n", __func__, ob->id.name, rootchan->name);
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	BIK_execute_tree(scene, ob, rootchan, ctime);
 }
@@ -203,7 +203,7 @@ void BKE_pose_splineik_evaluate(EvaluationContext *eval_ctx,
                                 Object *ob,
                                 bPoseChannel *rootchan)
 {
-	printf("%s on %s phan %s\n", __func__, ob->id.name, rootchan->name);
+	printf("%s on %s pchan %s\n", __func__, ob->id.name, rootchan->name);
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	BKE_splineik_execute_tree(scene, ob, rootchan, ctime);
 }
