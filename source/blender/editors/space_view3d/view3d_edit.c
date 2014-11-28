@@ -49,9 +49,7 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_font.h"
-#include "BKE_image.h"
 #include "BKE_library.h"
-#include "BKE_main.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_report.h"
@@ -4341,13 +4339,11 @@ static int background_image_add_exec(bContext *C, wmOperator *UNUSED(op))
 static int background_image_add_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	View3D *v3d = CTX_wm_view3d(C);
-	Image *ima = NULL;
+	Image *ima;
 	BGpic *bgpic;
 	
 	ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
-	if (!ima) {
-		return OPERATOR_CANCELLED;
-	}
+	/* may be NULL, continue anyway */
 
 	bgpic = background_image_add(C);
 	bgpic->ima = ima;
