@@ -400,4 +400,12 @@ class GreasePencilToolsPanel():
 
         layout.separator()
 
+        layout.label("Proportional Edit:")
+        row = layout.row()
+        row.prop(context.tool_settings, "proportional_edit", text="")
+        row.prop(context.tool_settings, "proportional_edit_falloff", text="")
+
+        layout.separator()
+        layout.separator()
+
         gpencil_stroke_placement_settings(context, layout, gpd)
