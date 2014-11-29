@@ -175,49 +175,42 @@ class GPENCIL_PIE_tool_palette(Menu):
                 # S - Exit Edit Mode
                 pie.prop(gpd, "use_stroke_edit_mode", text="Exit Edit Mode", icon='EDIT')
 
-                # N - Move
-                pie.operator("transform.translate", icon='MAN_TRANS').gpencil_strokes = True
+                # N - Transforms
+                col = pie.column()
+                row = col.row(align=True)
+                row.operator("transform.translate", icon='MAN_TRANS').gpencil_strokes = True
+                row.operator("transform.rotate",    icon='MAN_ROT').gpencil_strokes = True
+                row.operator("transform.resize",    text="Scale", icon='MAN_SCALE').gpencil_strokes = True
+                #row = col.row(align=True)
+                #row.label("Proportional Edit:")
+                #row.prop(context.tool_settings, "proportional_edit", text="", icon_only=True)
+                #row.prop(context.tool_settings, "proportional_edit_falloff", text="", icon_only=True)
 
-                # NW - Rotate
-                pie.operator("transform.rotate", icon='MAN_ROT').gpencil_strokes = True
+                # NW - Select (Non-Modal)
+                col = pie.column()
+                col.operator("gpencil.select_all", text="Select All", icon='PARTICLE_POINT')
+                col.operator("gpencil.select_linked", text="Select Linked", icon='LINKED')
 
-                # NE - Scale
-                pie.operator("transform.resize", text="Scale", icon='MAN_SCALE').gpencil_strokes = True
+                # NE - Select (Modal)
+                col = pie.column()
+                col.operator("gpencil.select_border", text="Border Select", icon='BORDER_RECT')
+                col.operator("gpencil.select_circle", text="Circle Select", icon='META_EMPTY')
 
-                # SW - More Tools
-                pie.operator("wm.call_menu_pie", text="Select...").name = "GPENCIL_PIE_select"
+                # SW - Edit Tools
+                col = pie.column()
+                col.operator("gpencil.duplicate_move", icon='PARTICLE_PATH', text="Duplicate")
+                col.operator("gpencil.delete", icon='X', text="Delete...")
 
-                # SE - Select
+                # SE - More Tools
                 pie.operator("wm.call_menu_pie", text="More...").name = "GPENCIL_PIE_tools_more"
             else:
                 # Toggle Edit Mode
                 pie.prop(gpd, "use_stroke_edit_mode", text="Enable Stroke Editing", icon='EDIT')
 
 
-class GPENCIL_PIE_select(Menu):
-    """A pie menu for quick access to Grease Pencil selection tools"""
-    bl_label = "Grease Pencil Select"
-
-    @classmethod
-    def poll(cls, context):
-        gpd = context.gpencil_data
-        return bool(gpd and gpd.use_stroke_edit_mode and context.editable_gpencil_strokes)
-
-    def draw(self, context):
-        layout = self.layout
-
-        pie = layout.menu_pie()
-        gpd = context.gpencil_data
-
-        pie.operator("gpencil.select_all", text="Select All", icon='PARTICLE_POINT')
-        pie.operator("gpencil.select_linked", text="Select Linked", icon='LINKED')
-        pie.operator("gpencil.select_border", text="Border Select", icon='BORDER_RECT')
-        pie.operator("gpencil.select_circle", text="Circle Select", icon='META_EMPTY')
-
-    
 class GPENCIL_PIE_tools_more(Menu):
     """A pie menu for quick access to Grease Pencil selection tools"""
-    bl_label = "Grease Pencil Tools"
+    bl_label = "More Grease Pencil Tools"
 
     @classmethod
     def poll(cls, context):
@@ -230,7 +223,6 @@ class GPENCIL_PIE_tools_more(Menu):
         pie = layout.menu_pie()
         gpd = context.gpencil_data
 
-        pie.operator("gpencil.duplicate_move", icon='PARTICLE_PATH')
         pie.operator("transform.mirror", icon='MOD_MIRROR').gpencil_strokes = True
         pie.operator("transform.bend").gpencil_strokes = True
         #pie.operator("transform.warp").gpencil_strokes = True
