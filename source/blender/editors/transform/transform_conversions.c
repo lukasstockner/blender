@@ -5614,7 +5614,10 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 	}
 
 
-	if (t->spacetype == SPACE_SEQ) {
+	if (t->options & CTX_GPENCIL_STROKES) {
+		/* pass */
+	}
+	else if (t->spacetype == SPACE_SEQ) {
 		/* freeSeqData in transform_conversions.c does this
 		 * keep here so the else at the end wont run... */
 
@@ -5931,9 +5934,6 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 		else
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 
-	}
-	else if (t->options & CTX_GPENCIL_STROKES) {
-		/* pass */
 	}
 	else if (t->options & CTX_PAINT_CURVE) {
 		/* pass */
@@ -7291,6 +7291,9 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 	TransData *td = NULL;
 	float mtx[3][3], smtx[3][3];
 	
+	const Scene *scene = CTX_data_scene(C);
+	const int cfra = CFRA;
+	
 	const int propedit = (t->flag & T_PROP_EDIT);
 	const int propedit_connected = (t->flag & T_PROP_CONNECTED);
 	
@@ -7368,6 +7371,54 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 			bGPDframe *gpf = gpl->actframe;
 			bGPDstroke *gps;
 			
+			/* Make a new frame to work on if the layer's frame and the current scene frame don't match up 
+			 * - This is useful when animating as it saves that "uh-oh" moment when you realise you've
+			 *   spent too much time editing the wrong frame...
+			 */
+			// XXX: should this be allowed when framelock is enabled?
+			if (gpf->framenum != cfra) {
+				bGPDframe *new_frame = gpencil_frame_duplicate(gpf);
+				bGPDframe *gf;
+				bool found = false;
+				
+				/* Find frame to insert it before */
+				for (gf = gpf->next; gf; gf = gf->next) {
+					if (gf->framenum > cfra) {
+						/* Add it here */
+						BLI_insertlinkbefore(&gpl->frames, gf, new_frame);
+						
+						found = true;
+						break;
+					}
+					else if (gf->framenum == cfra) {
+						/* This only happens when we're editing with framelock on...
+						 * - Delete the new frame and don't do anything else here...
+						 */
+						//printf("GP Frame convert to TransData - Copy aborted for frame %d -> %d\n", gpf->framenum, gf->framenum);
+						free_gpencil_strokes(new_frame);
+						MEM_freeN(new_frame);
+						new_frame = NULL;
+						
+						found = true;
+						break;
+					}
+				}
+				
+				if (found == false) {
+					/* Add new frame to the end */
+					BLI_addtail(&gpl->frames, new_frame);
+				}
+				
+				/* Edit the new frame instead, if it did get created + added */
+				if (new_frame) {
+					// TODO: tag this one as being "newly created" so that we can remove it if the edit is cancelled
+					new_frame->framenum = cfra;
+					
+					gpf = new_frame;
+				}
+			}
+			
+			/* Loop over strokes, adding TransData for points as needed... */
 			for (gps = gpf->strokes.first; gps; gps = gps->next) {
 				TransData *head = td;
 				TransData *tail = td;
