@@ -1318,6 +1318,9 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 					if (t->obedit) {
 						t->flag |= initTransInfo_edit_pet_to_flag(ts->proportional);
 					}
+					else if (t->options & CTX_GPENCIL_STROKES) {
+						t->flag |= initTransInfo_edit_pet_to_flag(ts->proportional);
+					}
 					else if (t->options & CTX_MASK) {
 						if (ts->proportional_mask) {
 							t->flag |= T_PROP_EDIT;

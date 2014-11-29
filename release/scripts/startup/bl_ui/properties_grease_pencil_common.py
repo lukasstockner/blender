@@ -181,10 +181,10 @@ class GPENCIL_PIE_tool_palette(Menu):
                 row.operator("transform.translate", icon='MAN_TRANS').gpencil_strokes = True
                 row.operator("transform.rotate",    icon='MAN_ROT').gpencil_strokes = True
                 row.operator("transform.resize",    text="Scale", icon='MAN_SCALE').gpencil_strokes = True
-                #row = col.row(align=True)
-                #row.label("Proportional Edit:")
-                #row.prop(context.tool_settings, "proportional_edit", text="", icon_only=True)
-                #row.prop(context.tool_settings, "proportional_edit_falloff", text="", icon_only=True)
+                row = col.row(align=True)
+                row.label("Proportional Edit:")
+                row.prop(context.tool_settings, "proportional_edit", text="", icon_only=True)
+                row.prop(context.tool_settings, "proportional_edit_falloff", text="", icon_only=True)
 
                 # NW - Select (Non-Modal)
                 col = pie.column()
