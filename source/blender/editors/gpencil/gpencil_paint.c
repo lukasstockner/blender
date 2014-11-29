@@ -1832,8 +1832,11 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 
 	/* we don't pass on key events, GP is used with key-modifiers - prevents Dkey to insert drivers */
 	if (ISKEYBOARD(event->type)) {
-		if (ELEM(event->type, LEFTARROWKEY, DOWNARROWKEY, RIGHTARROWKEY, UPARROWKEY)) {
-			/* allow some keys - for frame changing: [#33412] */
+		if (ELEM(event->type, LEFTARROWKEY, DOWNARROWKEY, RIGHTARROWKEY, UPARROWKEY, ZKEY)) {
+			/* allow some keys:
+			 *   - for frame changing [#33412]
+			 *   - for undo (during sketching sessions)
+			 */
 		}
 		else {
 			estate = OPERATOR_RUNNING_MODAL;
