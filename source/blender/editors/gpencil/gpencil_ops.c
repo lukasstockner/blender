@@ -46,6 +46,7 @@
 #include "RNA_access.h"
 
 #include "ED_gpencil.h"
+#include "ED_object.h"
 #include "ED_transform.h"
 
 #include "gpencil_intern.h"
@@ -173,6 +174,10 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	
 	WM_keymap_add_item(keymap, "TRANSFORM_OT_shear", SKEY, KM_PRESS, KM_ALT | KM_CTRL | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
+	
+	/* Proportional Editing */
+	ED_keymap_proportional_cycle(keyconf, keymap);
+	ED_keymap_proportional_editmode(keyconf, keymap, true);
 }
 
 /* ==================== */
