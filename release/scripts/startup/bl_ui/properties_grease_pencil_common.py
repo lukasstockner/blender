@@ -167,7 +167,13 @@ class GPENCIL_PIE_tool_palette(Menu):
 
         # E - Eraser
         # XXX: needs a dedicated icon...
-        pie.operator("gpencil.draw", text="Eraser", icon='FORCE_CURVE').mode = 'ERASER'
+        col = pie.column()
+        col.operator("gpencil.draw", text="Eraser", icon='FORCE_CURVE').mode = 'ERASER'
+
+        # E - "Settings" Palette is included here too, since it needs to be in a stable position...
+        if gpd and gpd.layers.active:
+            col.separator()
+            col.operator("wm.call_menu_pie", text="Settings...", icon='SCRIPTWIN').name = "GPENCIL_PIE_settings_palette"
 
         # Editing tools
         if gpd:
@@ -208,14 +214,13 @@ class GPENCIL_PIE_tool_palette(Menu):
                 pie.prop(gpd, "use_stroke_edit_mode", text="Enable Stroke Editing", icon='EDIT')
 
 
-class GPENCIL_PIE_tools_more(Menu):
-    """A pie menu for quick access to Grease Pencil selection tools"""
-    bl_label = "More Grease Pencil Tools"
+class GPENCIL_PIE_settings_palette(Menu):
+    """A pie menu for quick access to Grease Pencil settings"""
+    bl_label = "Grease Pencil Settings"
 
     @classmethod
     def poll(cls, context):
-        gpd = context.gpencil_data
-        return bool(gpd and gpd.use_stroke_edit_mode and context.editable_gpencil_strokes)
+        return bool(context.gpencil_data and context.active_gpencil_layer)
 
     def draw(self, context):
         layout = self.layout
@@ -243,16 +248,41 @@ class GPENCIL_PIE_tools_more(Menu):
         col.prop(gpl, "use_onion_skinning")
 
         # N - Active Layer
-        #XXX
+        # XXX: this should show an operator to change the active layer instead
         col = pie.column()
-        col.label("Active Layer:")
-        col.prop(gpl, "info")
+        col.label("Active Layer:      ")
+        col.prop(gpl, "info", text="")
+        #col.prop(gpd, "layers")
+        row = col.row()
+        row.prop(gpl, "lock")
+        row.prop(gpl, "hide")
+
+        
+class GPENCIL_PIE_tools_more(Menu):
+    """A pie menu for accessing more Grease Pencil tools"""
+    bl_label = "More Grease Pencil Tools"
+
+    @classmethod
+    def poll(cls, context):
+        gpd = context.gpencil_data
+        return bool(gpd and gpd.use_stroke_edit_mode and context.editable_gpencil_strokes)
+
+    def draw(self, context):
+        layout = self.layout
+
+        pie = layout.menu_pie()
+        gpd = context.gpencil_data
+        
+        pie.operator("gpencil.select_more", icon='ZOOMIN')
+        pie.operator("gpencil.select_less", icon='ZOOMOUT')
 		
-        # (Others) - Other tools
-        # XXX: these shouldn't be here?
         pie.operator("transform.mirror", icon='MOD_MIRROR').gpencil_strokes = True
-        pie.operator("transform.bend").gpencil_strokes = True
-        #pie.operator("transform.warp").gpencil_strokes = True
+        pie.operator("transform.bend", icon='MOD_SIMPLEDEFORM').gpencil_strokes = True
+        pie.operator("transform.shear", icon='MOD_TRIANGULATE').gpencil_strokes = True
+        pie.operator("transform.tosphere", icon='MOD_MULTIRES').gpencil_strokes = True
+		
+        pie.operator("gpencil.convert", icon='OUTLINER_OB_CURVE')
+        pie.operator("wm.call_menu_pie", text="Back to Main Palette...").name = "GPENCIL_PIE_tool_palette"
 
 ###############################
 
