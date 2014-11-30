@@ -28,8 +28,6 @@
  *  \ingroup spnode
  */
 
-
-
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
@@ -515,6 +513,11 @@ static void node_area_listener(bScreen *sc, ScrArea *sa, wmNotifier *wmn)
 				ED_area_tag_refresh(sa);
 			}
 			break;
+		case NC_GPENCIL:
+			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+				ED_area_tag_redraw(sa);
+			}
+			break;
 	}
 }
 
@@ -767,6 +770,8 @@ static void node_region_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegi
 			break;
 		case NC_GPENCIL:
 			if (wmn->action == NA_EDITED)
+				ED_region_tag_redraw(ar);
+			else if (wmn->data & ND_GPENCIL_EDITMODE)
 				ED_region_tag_redraw(ar);
 			break;
 	}
