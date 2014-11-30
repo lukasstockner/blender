@@ -2959,7 +2959,7 @@ static int text_insert_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			return OPERATOR_PASS_THROUGH;
 		}
 		/* most IME shortcut for switch IME, fullwidth/halfwidth and so on */
-		if (WM_event_is_switch_ime(event))
+		if (WM_event_is_ime_switch(event))
 		{
 			return OPERATOR_PASS_THROUGH;
 		}

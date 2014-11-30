@@ -270,7 +270,7 @@ void GHOST_ImeWin32::GetCaret(HIMC imm_context, LPARAM lparam, ImeComposition *c
 				target_start = clauses[clause_size - 2];
 				target_end = clauses[clause_size - 1];
 			}
-			else
+			else {
 				for (int i = 0; i < clause_size - 1; i++) {
 					if (clauses[i] == composition->cursor_position) {
 						target_start = clauses[i];
@@ -278,6 +278,7 @@ void GHOST_ImeWin32::GetCaret(HIMC imm_context, LPARAM lparam, ImeComposition *c
 						break;
 					}
 				}
+			}
 		}
 		else {
 			if (composition->cursor_position != -1) {
@@ -346,8 +347,6 @@ bool GHOST_ImeWin32::GetString(HIMC imm_context, WPARAM lparam, int type, ImeCom
 		int string_size = ::ImmGetCompositionStringW(imm_context, type, NULL, 0);
 		if (string_size > 0) {
 			int string_length = string_size / sizeof(wchar_t);
-			/* wchar_t *string_data = WriteInto(&composition->ime_string, */
-			/*                                 string_length + 1); */
 			wchar_t *string_data = new wchar_t[string_length + 1];
 			string_data[string_length] = '\0';
 			if (string_data) {

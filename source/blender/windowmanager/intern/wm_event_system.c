@@ -3504,9 +3504,11 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 	return (event->tablet_data) ? true : false;
 }
 
-bool WM_event_is_switch_ime(const struct wmEvent *event) {
+#ifdef WITH_INPUT_IME
+bool WM_event_is_ime_switch(const struct wmEvent *event) {
 	return event->val == KM_PRESS && event->type == SPACEKEY &&
 		   (event->ctrl || event->oskey || event->shift || event->alt);
 }
+#endif
 
 /** \} */

@@ -2634,10 +2634,10 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	bool changed = false, inbox = false, update = false;
 
 	wmWindow *win = CTX_wm_window(C);
-	int is_composing = win->is_ime_composite;
 	wmImeData *ime_data = win->ime_data;
+	bool is_ime_composing = win->is_ime_composite;
 	/* most os using ctrl/oskey + space to switch ime, avoid added space */
-	int is_switch_ime = WM_event_is_switch_ime(event);
+	bool is_ime_switch = WM_event_is_ime_switch(event);
 
 	switch (event->type) {
 		case MOUSEMOVE:
@@ -2716,7 +2716,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		}
 	}
 
-	if (event->val == KM_PRESS && !is_composing) {
+	if (event->val == KM_PRESS && !is_ime_composing) {
 		switch (event->type) {
 			case VKEY:
 			case XKEY:
@@ -2834,7 +2834,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 
 		if ((event->ascii || event->utf8_buf[0]) && 
 			(retval == WM_UI_HANDLER_CONTINUE) &&
-			!is_composing && !is_switch_ime)
+			!is_ime_composing && !is_ime_switch)
 		{
 			char ascii = event->ascii;
 			const char *utf8_buf = event->utf8_buf;
