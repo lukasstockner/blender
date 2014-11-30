@@ -159,7 +159,7 @@ class GPENCIL_PIE_tool_palette(Menu):
         pie = layout.menu_pie()
         gpd = context.gpencil_data
 
-        # W - Drawing Settings
+        # W - Drawing Types
         col = pie.column()
         col.operator("gpencil.draw", text="Draw", icon='GREASEPENCIL').mode = 'DRAW'
         col.operator("gpencil.draw", text="Straight Lines", icon='LINE_DATA').mode = 'DRAW_STRAIGHT'
@@ -222,11 +222,37 @@ class GPENCIL_PIE_tools_more(Menu):
 
         pie = layout.menu_pie()
         gpd = context.gpencil_data
+        gpl = context.active_gpencil_layer
 
+        # W - Stroke draw settings
+        col = pie.column(align=True)
+        col.label(text="Stroke")
+        col.prop(gpl, "color", text="")
+        col.prop(gpl, "alpha", text="", slider=True)
+
+        # E - Fill draw settings
+        col = pie.column(align=True)
+        col.label(text="Fill")
+        col.prop(gpl, "fill_color", text="")
+        col.prop(gpl, "fill_alpha", text="", slider=True)
+
+        # S - Layer settings
+        col = pie.column()
+        col.prop(gpl, "line_width", slider=True)
+        #col.prop(gpl, "use_volumetric_strokes")
+        col.prop(gpl, "use_onion_skinning")
+
+        # N - Active Layer
+        #XXX
+        col = pie.column()
+        col.label("Active Layer:")
+        col.prop(gpl, "info")
+		
+        # (Others) - Other tools
+        # XXX: these shouldn't be here?
         pie.operator("transform.mirror", icon='MOD_MIRROR').gpencil_strokes = True
         pie.operator("transform.bend").gpencil_strokes = True
         #pie.operator("transform.warp").gpencil_strokes = True
-
 
 ###############################
 
