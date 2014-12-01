@@ -673,7 +673,7 @@ static int node_ima_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *
 			return 1;
 	}
 	else if (drag->type == WM_DRAG_PATH) {
-		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE))   /* rule might not work? */
+		if (ELEM(drag->icon, 0, ICON_FILE_IMAGE, ICON_FILE_MOVIE))   /* rule might not work? */
 			return 1;
 	}
 	return 0;
@@ -702,9 +702,11 @@ static void node_id_path_drop_copy(wmDrag *drag, wmDropBox *drop)
 
 	if (id) {
 		RNA_string_set(drop->ptr, "name", id->name + 2);
+		RNA_struct_property_unset(drop->ptr, "filepath");
 	}
-	if (drag->path[0]) {
+	else if (drag->path[0]) {
 		RNA_string_set(drop->ptr, "filepath", drag->path);
+		RNA_struct_property_unset(drop->ptr, "name");
 	}
 }
 

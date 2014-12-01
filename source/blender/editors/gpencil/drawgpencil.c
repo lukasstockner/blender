@@ -223,16 +223,25 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 
 /* draw a 2D strokes in "volumetric" style */
 static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, short thickness,
-                                         short UNUSED(dflag), short sflag,
+                                         short dflag, short sflag,
                                          int offsx, int offsy, int winx, int winy)
 {
 	GLUquadricObj *qobj = gluNewQuadric();
 	float modelview[4][4];
 	float baseloc[3];
+	float scalefac = 1.0f;
 	
 	bGPDspoint *pt;
 	int i;
 	
+	
+	/* HACK: We need a scale factor for the drawing in the image editor,
+	 * which seems to use 1 unit as it's maximum size, whereas everything
+	 * else assumes 1 unit = 1 pixel. Otherwise, we only get a massive blob.
+	 */
+	if ((dflag & GP_DRAWDATA_IEDITHACK) && (dflag & GP_DRAWDATA_ONLYV2D)) {
+		scalefac = 0.001f;
+	}
 	
 	/* get basic matrix */
 	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
@@ -251,7 +260,7 @@ static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, shor
 		glLoadMatrixf((float *)modelview);
 		
 		/* draw the disk using the current state... */
-		gluDisk(qobj, 0.0,  pt->pressure * thickness, 32, 1);
+		gluDisk(qobj, 0.0,  pt->pressure * thickness * scalefac, 32, 1);
 		
 		/* restore matrix */
 		copy_v3_v3(modelview[3], baseloc);
@@ -442,30 +451,18 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 {
 	/* otherwise thickness is twice that of the 3D view */
 	float thickness = (float)thickness_s * 0.5f;
-
-	/* if thickness is less than GP_DRAWTHICKNESS_SPECIAL, 'smooth' opengl lines look better
-	 *  - 'smooth' opengl lines are also required if Image Editor 'image-based' stroke
-	 */
-	if ((thickness < GP_DRAWTHICKNESS_SPECIAL) ||
-	    ((dflag & GP_DRAWDATA_IEDITHACK) && (dflag & GP_DRAWDATA_ONLYV2D)))
-	{
-		bGPDspoint *pt;
-		int i;
-		
-		glBegin(GL_LINE_STRIP);
-		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
-			float co[2];
-			
-			gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
-			glVertex2fv(co);
-		}
-		glEnd();
+	
+	/* strokes in Image Editor need a scale factor, since units there are not pixels! */
+	float scalefac  = 1.0f;
+	if ((dflag & GP_DRAWDATA_IEDITHACK) && (dflag & GP_DRAWDATA_ONLYV2D)) {
+		scalefac = 0.001f;
 	}
+	
 	
 	/* tessellation code - draw stroke as series of connected quads with connection
 	 * edges rotated to minimize shrinking artifacts, and rounded endcaps
 	 */
-	else {
+	{
 		bGPDspoint *pt1, *pt2;
 		float pm[2];
 		int i;
@@ -492,7 +489,7 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 			m2[0] = m1[1];
 			
 			/* always use pressure from first point here */
-			pthick = (pt1->pressure * thickness);
+			pthick = (pt1->pressure * thickness * scalefac);
 			
 			/* if the first segment, start of segment is segment's normal */
 			if (i == 0) {
@@ -567,7 +564,7 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 			/* if last segment, also draw end of segment (defined as segment's normal) */
 			if (i == totpoints - 2) {
 				/* for once, we use second point's pressure (otherwise it won't be drawn) */
-				pthick = (pt2->pressure * thickness);
+				pthick = (pt2->pressure * thickness * scalefac);
 				
 				/* calculate points for end of segment */
 				mt[0] = m2[0] * pthick;
@@ -725,6 +722,7 @@ static void gp_draw_strokes(bGPDframe *gpf, int offsx, int offsy, int winx, int 
 		else {
 			/* 2D - Fill */
 			if ((dflag & GP_DRAWDATA_FILL) && (gps->totpoints >= 3)) {
+				glColor4fv(fill_color);
 				gp_draw_stroke_fill(gps->points, gps->totpoints, lthick, dflag, gps->flag, offsx, offsy, winx, winy);
 			}
 			
