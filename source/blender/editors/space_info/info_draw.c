@@ -191,7 +191,7 @@ static int report_textview_line_get(struct TextViewContext *tvc, const char **li
 	return 1;
 }
 
-static int report_textview_line_color(struct TextViewContext *tvc, unsigned char fg[3], unsigned char bg[3])
+static int report_textview_line_color(struct TextViewContext *tvc, struct wmImeData *ime_data, unsigned char fg[3], unsigned char bg[3])
 {
 	Report *report = (Report *)tvc->iter;
 	info_report_color(fg, bg, report, tvc->iter_tmp % 2);
@@ -232,7 +232,7 @@ static int report_textview_line_color(struct TextViewContext *tvc, unsigned char
 
 #undef USE_INFO_NEWLINE
 
-static int info_textview_main__internal(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports,
+static int info_textview_main__internal(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports, struct wmImeData *ime_data,
                                         int draw, int mval[2], void **mouse_pick, int *pos_pick)
 {
 	int ret = 0;
@@ -259,12 +259,12 @@ static int info_textview_main__internal(struct SpaceInfo *sinfo, ARegion *ar, Re
 	tvc.ymax = v2d->cur.ymax;
 	tvc.winx = ar->winx - V2D_SCROLL_WIDTH;
 
-	ret = textview_draw(&tvc, draw, mval, mouse_pick, pos_pick);
+	ret = textview_draw(&tvc, ime_data, draw, mval, mouse_pick, pos_pick);
 	
 	return ret;
 }
 
-void *info_text_pick(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports, int mouse_y)
+void *info_text_pick(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports, struct wmImeData *ime_data, int mouse_y)
 {
 	void *mouse_pick = NULL;
 	int mval[2];
@@ -272,19 +272,19 @@ void *info_text_pick(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports, 
 	mval[0] = 0;
 	mval[1] = mouse_y;
 
-	info_textview_main__internal(sinfo, ar, reports, 0, mval, &mouse_pick, NULL);
+	info_textview_main__internal(sinfo, ar, reports, ime_data, 0, mval, &mouse_pick, NULL);
 	return (void *)mouse_pick;
 }
 
 
-int info_textview_height(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports)
+int info_textview_height(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports, struct wmImeData *ime_data)
 {
 	int mval[2] = {INT_MAX, INT_MAX};
-	return info_textview_main__internal(sinfo, ar, reports, 0,  mval, NULL, NULL);
+	return info_textview_main__internal(sinfo, ar, reports, ime_data, 0,  mval, NULL, NULL);
 }
 
-void info_textview_main(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports)
+void info_textview_main(struct SpaceInfo *sinfo, ARegion *ar, ReportList *reports, struct wmImeData *ime_data)
 {
 	int mval[2] = {INT_MAX, INT_MAX};
-	info_textview_main__internal(sinfo, ar, reports, 1,  mval, NULL, NULL);
+	info_textview_main__internal(sinfo, ar, reports, ime_data, 1,  mval, NULL, NULL);
 }

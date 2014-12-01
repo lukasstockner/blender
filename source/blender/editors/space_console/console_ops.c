@@ -1058,10 +1058,10 @@ typedef struct SetConsoleCursor {
 } SetConsoleCursor;
 
 // TODO, cursor placement without selection
-static void console_cursor_set_to_pos(SpaceConsole *sc, ARegion *ar, SetConsoleCursor *scu, int mval[2], int UNUSED(sel))
+static void console_cursor_set_to_pos(SpaceConsole *sc, ARegion *ar, SetConsoleCursor *scu, wmImeData *ime_data, int mval[2], int UNUSED(sel))
 {
 	int pos;
-	pos = console_char_pick(sc, ar, mval);
+	pos = console_char_pick(sc, ar, ime_data, mval);
 
 	if (scu->sel_init == INT_MAX) {
 		scu->sel_init = pos;
@@ -1084,6 +1084,7 @@ static void console_cursor_set_to_pos(SpaceConsole *sc, ARegion *ar, SetConsoleC
 
 static void console_modal_select_apply(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	wmWindow *win = CTX_wm_window(C);
 	SpaceConsole *sc = CTX_wm_space_console(C);
 	ARegion *ar = CTX_wm_region(C);
 	SetConsoleCursor *scu = op->customdata;
@@ -1096,7 +1097,7 @@ static void console_modal_select_apply(bContext *C, wmOperator *op, const wmEven
 	sel_prev[0] = sc->sel_start;
 	sel_prev[1] = sc->sel_end;
 	
-	console_cursor_set_to_pos(sc, ar, scu, mval, true);
+	console_cursor_set_to_pos(sc, ar, scu, win->ime_data, mval, true);
 
 	/* only redraw if the selection changed */
 	if (sel_prev[0] != sc->sel_start || sel_prev[1] != sc->sel_end) {

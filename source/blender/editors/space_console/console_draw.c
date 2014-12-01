@@ -162,7 +162,7 @@ static void console_cursor_wrap_offset(const char *str, int width, int *row, int
 	return;
 }
 
-static int console_textview_line_color(struct TextViewContext *tvc, unsigned char fg[3], unsigned char UNUSED(bg[3]))
+static int console_textview_line_color(struct TextViewContext *tvc, wmImeData *ime_data, unsigned char fg[3], unsigned char UNUSED(bg[3]))
 {
 	ConsoleLine *cl_iter = (ConsoleLine *)tvc->iter;
 
@@ -182,12 +182,12 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 		pen[1] = -2 - tvc->lheight * offl;
 
 		/* consider the effect of composition string */
-		if (tvc->ime && tvc->ime->composite_len) {
+		if (ime_data && ime_data->composite_len) {
 			char *end = NULL;
-			if (tvc->ime->cursor_position != -1)
-				end = tvc->ime->composite + tvc->ime->cursor_position;
+			if (ime_data->cursor_position != -1)
+				end = ime_data->composite + ime_data->cursor_position;
 
-			console_cursor_wrap_offset(tvc->ime->composite, tvc->console_width, &offl, &offc, end);
+			console_cursor_wrap_offset(ime_data->composite, tvc->console_width, &offl, &offc, end);
 
 			/* cursor inside the composition string */
 			pen[0] = tvc->cwidth * offc;
@@ -213,9 +213,9 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 
 #ifdef WITH_INPUT_IME
 		/* cursor following */
-		if (tvc->ime && tvc->ime->composite_len) {
-			tvc->ime->cursor_xy[0] = (xy[0] + pen[0]) + 1;
-			tvc->ime->cursor_xy[1] = (xy[1] + pen[1]) - 1;
+		if (ime_data && ime_data->composite_len) {
+			ime_data->cursor_xy[0] = (xy[0] + pen[0]) + 1;
+			ime_data->cursor_xy[1] = (xy[1] + pen[1]) - 1;
 		}
 #endif
 
@@ -231,8 +231,8 @@ static void console_textview_const_colors(TextViewContext *UNUSED(tvc), unsigned
 	UI_GetThemeColor4ubv(TH_CONSOLE_SELECT, bg_sel);
 }
 
-static int console_textview_main__internal(struct SpaceConsole *sc, ARegion *ar, int draw,
-                                           int mval[2], void **mouse_pick, int *pos_pick)
+static int console_textview_main__internal(struct SpaceConsole *sc, ARegion *ar, wmImeData *ime_data,
+                                           int draw, int mval[2], void **mouse_pick, int *pos_pick)
 {
 	ConsoleLine cl_dummy = {NULL};
 	int ret = 0;
@@ -260,32 +260,33 @@ static int console_textview_main__internal(struct SpaceConsole *sc, ARegion *ar,
 	tvc.ymax = v2d->cur.ymax;
 	tvc.winx = ar->winx - V2D_SCROLL_WIDTH;
 
-	if (draw)
-		tvc.ime = sc->ime;
-	else
-		tvc.ime = NULL;
+#ifdef WITH_INPUT_IME
+	if (!draw) {
+		ime_data = NULL;
+	}
+#endif
 
 	console_scrollback_prompt_begin(sc, &cl_dummy);
-	ret = textview_draw(&tvc, draw, mval, mouse_pick, pos_pick);
+	ret = textview_draw(&tvc, ime_data, draw, mval, mouse_pick, pos_pick);
 	console_scrollback_prompt_end(sc, &cl_dummy);
 
 	return ret;
 }
 
 
-void console_textview_main(struct SpaceConsole *sc, ARegion *ar)
+void console_textview_main(struct SpaceConsole *sc, ARegion *ar, wmImeData *ime_data)
 {
 	int mval[2] = {INT_MAX, INT_MAX};
-	console_textview_main__internal(sc, ar, 1,  mval, NULL, NULL);
+	console_textview_main__internal(sc, ar, ime_data, 1, mval, NULL, NULL);
 }
 
 int console_textview_height(struct SpaceConsole *sc, ARegion *ar)
 {
 	int mval[2] = {INT_MAX, INT_MAX};
-	return console_textview_main__internal(sc, ar, 0,  mval, NULL, NULL);
+	return console_textview_main__internal(sc, ar, NULL, 0,  mval, NULL, NULL);
 }
 
-int console_char_pick(struct SpaceConsole *sc, ARegion *ar, const int mval[2])
+int console_char_pick(struct SpaceConsole *sc, ARegion *ar, wmImeData *ime_data, const int mval[2])
 {
 	int pos_pick = 0;
 	void *mouse_pick = NULL;
@@ -294,6 +295,6 @@ int console_char_pick(struct SpaceConsole *sc, ARegion *ar, const int mval[2])
 	mval_clamp[0] = CLAMPIS(mval[0], CONSOLE_DRAW_MARGIN, ar->winx - CONSOLE_DRAW_MARGIN);
 	mval_clamp[1] = CLAMPIS(mval[1], CONSOLE_DRAW_MARGIN, ar->winy - CONSOLE_DRAW_MARGIN);
 
-	console_textview_main__internal(sc, ar, 0, mval_clamp, &mouse_pick, &pos_pick);
+	console_textview_main__internal(sc, ar, ime_data, 0, mval_clamp, &mouse_pick, &pos_pick);
 	return pos_pick;
 }

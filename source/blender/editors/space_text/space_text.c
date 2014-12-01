@@ -432,9 +432,9 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	SpaceText *st = CTX_wm_space_text(C);
 #ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
-	wmImeData *ime = win->ime_data;
-	bool is_ime_active = ime &&
-	                     ime->composite_len &&
+	wmImeData *ime_data = win->ime_data;
+	bool is_ime_active = ime_data &&
+	                     ime_data->composite_len &&
 	                     BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
 #endif
 	//View2D *v2d = &ar->v2d;
@@ -449,21 +449,19 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* get cursor position from draw_text_main and repositon ime window */
 #ifdef WITH_INPUT_IME
-	st->ime = is_ime_active ? ime : NULL;
-
-	draw_text_main(st, ar);
+	draw_text_main(win, st, ar);
 
 	if (is_ime_active) {
-		int x = ime->cursor_xy[0];
-		int y = ime->cursor_xy[1];
+		int x = ime_data->cursor_xy[0];
+		int y = ime_data->cursor_xy[1];
 
 		ui_region_to_window(ar, &x, &y);
 		wm_window_IME_begin(win, x + 5, y, 0, 0, false);
 
-		ime->cursor_xy[0] = ime->cursor_xy[1] = 0;
+		ime_data->cursor_xy[0] = ime_data->cursor_xy[1] = 0;
 	}
 #else
-	draw_text_main(st, ar);
+	draw_text_main(win, st, ar);
 #endif
 
 	/* reset view matrix */

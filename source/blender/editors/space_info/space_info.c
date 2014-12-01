@@ -139,10 +139,11 @@ static void info_main_area_init(wmWindowManager *wm, ARegion *ar)
 
 static void info_textview_update_rect(const bContext *C, ARegion *ar)
 {
+	wmWindow *win = CTX_wm_window(C);
 	SpaceInfo *sinfo = CTX_wm_space_info(C);
 	View2D *v2d = &ar->v2d;
 
-	UI_view2d_totRect_set(v2d, ar->winx - 1, info_textview_height(sinfo, ar, CTX_wm_reports(C)));
+	UI_view2d_totRect_set(v2d, ar->winx - 1, info_textview_height(sinfo, ar, CTX_wm_reports(C), win->ime_data));
 }
 
 static void info_main_area_draw(const bContext *C, ARegion *ar)
@@ -151,6 +152,7 @@ static void info_main_area_draw(const bContext *C, ARegion *ar)
 	SpaceInfo *sinfo = CTX_wm_space_info(C);
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
+	wmWindow *win = CTX_wm_window(C);
 
 	/* clear and setup matrix */
 	UI_ThemeClearColor(TH_BACK);
@@ -165,7 +167,7 @@ static void info_main_area_draw(const bContext *C, ARegion *ar)
 	/* worlks best with no view2d matrix set */
 	UI_view2d_view_ortho(v2d);
 
-	info_textview_main(sinfo, ar, CTX_wm_reports(C));
+	info_textview_main(sinfo, ar, CTX_wm_reports(C), win->ime_data);
 
 	/* reset view matrix */
 	UI_view2d_view_restore(C);

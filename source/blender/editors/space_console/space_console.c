@@ -234,9 +234,9 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	View2DScrollers *scrollers;
 #ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
-	wmImeData *ime = win->ime_data;
-	bool is_ime_active = ime &&
-	                     ime->composite_len &&
+	wmImeData *ime_data = win->ime_data;
+	bool is_ime_active = ime_data &&
+	                     ime_data->composite_len &&
 	                     BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
 #endif
 
@@ -258,27 +258,25 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	/* get cursor position from console_textview_main and repositon ime window */
 	if (is_ime_active) {
 		ConsoleLine *line = (ConsoleLine *)sc->history.last;
-
-		ime->cursor_pos_text = line->cursor + strlen(sc->prompt);
-		sc->ime = ime;
+		ime_data->cursor_pos_text = line->cursor + strlen(sc->prompt);
 	}
 	else {
-		sc->ime = NULL;
+		ime_data = NULL;
 	}
 
-	console_textview_main(sc, ar);
+	console_textview_main(sc, ar, ime_data);
 
 	if (is_ime_active) {
-		int x = ime->cursor_xy[0];
-		int y = ime->cursor_xy[1];
+		int x = ime_data->cursor_xy[0];
+		int y = ime_data->cursor_xy[1];
 
 		ui_region_to_window(ar, &x, &y);
 		wm_window_IME_begin(win, x + 5, y, 0, 0, false);
 
-		ime->cursor_xy[0] = ime->cursor_xy[1] = 0;
+		ime_data->cursor_xy[0] = ime_data->cursor_xy[1] = 0;
 	}
 #else
-	console_textview_main(sc, ar);
+	console_textview_main(sc, ar, NULL);
 #endif /* WITH_INPUT_IME */
 	
 	/* reset view matrix */

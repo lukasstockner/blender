@@ -45,7 +45,7 @@ struct wmOperatorType;
 struct wmWindowManager;
 
 /* text_draw.c */
-void draw_text_main(struct SpaceText *st, struct ARegion *ar);
+void draw_text_main(struct wmWindow *win, struct SpaceText *st, struct ARegion *ar);
 
 void text_update_line_edited(struct TextLine *line);
 void text_update_edited(struct Text *text);

@@ -128,15 +128,16 @@ static int select_report_pick_exec(bContext *C, wmOperator *op)
 
 static int select_report_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	wmWindow *win = CTX_wm_window(C);
 	SpaceInfo *sinfo = CTX_wm_space_info(C);
 	ARegion *ar = CTX_wm_region(C);
 	ReportList *reports = CTX_wm_reports(C);
 	Report *report;
 
 	/* uses opengl */
-	wmSubWindowSet(CTX_wm_window(C), ar->swinid);
+	wmSubWindowSet(win, ar->swinid);
 	
-	report = info_text_pick(sinfo, ar, reports, event->mval[1]);
+	report = info_text_pick(sinfo, ar, reports, win->ime_data, event->mval[1]);
 
 	RNA_int_set(op->ptr, "report_index", BLI_findindex(&reports->list, report));
 
@@ -218,6 +219,7 @@ void INFO_OT_select_all_toggle(wmOperatorType *ot)
 /* borderselect operator */
 static int borderselect_exec(bContext *C, wmOperator *op)
 {
+	wmWindow *win = CTX_wm_window(C);
 	SpaceInfo *sinfo = CTX_wm_space_info(C);
 	ARegion *ar = CTX_wm_region(C);
 	ReportList *reports = CTX_wm_reports(C);
@@ -245,8 +247,8 @@ static int borderselect_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	report_min = info_text_pick(sinfo, ar, reports, rect.ymax);
-	report_max = info_text_pick(sinfo, ar, reports, rect.ymin);
+	report_min = info_text_pick(sinfo, ar, reports, win->ime_data, rect.ymax);
+	report_max = info_text_pick(sinfo, ar, reports, win->ime_data, rect.ymin);
 
 	/* get the first report if none found */
 	if (report_min == NULL) {

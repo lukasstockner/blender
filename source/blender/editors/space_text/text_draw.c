@@ -39,6 +39,7 @@
 #include "DNA_text_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BKE_context.h"
 #include "BKE_suggestions.h"
@@ -471,7 +472,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 	return lines;
 }
 
-static void text_draw(SpaceText *st, char *str, int cshift, int maxwidth, int x, int y, const char *format)
+static void text_draw(SpaceText *st, wmImeData *ime_data, char *str, int cshift, int maxwidth, int x, int y, const char *format)
 {
 	const bool use_syntax = (st->showsyntax && format);
 	FlattenString fs;
@@ -506,7 +507,7 @@ static void text_draw(SpaceText *st, char *str, int cshift, int maxwidth, int x,
 
 	x += st->cwidth * padding;
 
-	if ((use_syntax || (st->ime && st->ime->composite_len)) && format) {
+	if ((use_syntax || (ime_data && ime_data->composite_len)) && format) {
 		int a, str_shift = 0, len;
 		char fmt_prev = 0xff;
 
@@ -939,7 +940,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 
 /*********************** draw documentation *******************************/
 
-static void draw_documentation(SpaceText *st, ARegion *ar)
+static void draw_documentation(SpaceText *st, ARegion *ar, wmImeData *ime_data)
 {
 	TextLine *tmp;
 	char *docs, buf[DOC_WIDTH + 1], *p;
@@ -1002,7 +1003,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 			buf[i] = '\0';
 			if (lines >= 0) {
 				y -= st->lheight_dpi;
-				text_draw(st, buf, 0, 0, x + 4, y - 3, NULL);
+				text_draw(st, ime_data, buf, 0, 0, x + 4, y - 3, NULL);
 			}
 			i = 0; br = DOC_WIDTH; lines++;
 		}
@@ -1011,7 +1012,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 			buf[br] = '\0';
 			if (lines >= 0) {
 				y -= st->lheight_dpi;
-				text_draw(st, buf, 0, 0, x + 4, y - 3, NULL);
+				text_draw(st, ime_data, buf, 0, 0, x + 4, y - 3, NULL);
 			}
 			p -= i - br - 1; /* Rewind pointer to last break */
 			i = 0; br = DOC_WIDTH; lines++;
@@ -1021,13 +1022,13 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 
 	if (0 /* XXX doc_scroll*/ > 0 && lines < DOC_HEIGHT) {
 		// XXX doc_scroll--;
-		draw_documentation(st, ar);
+		draw_documentation(st, ar, ime_data);
 	}
 }
 
 /*********************** draw suggestion list *******************************/
 
-static void draw_suggestion_list(SpaceText *st, ARegion *ar)
+static void draw_suggestion_list(SpaceText *st, ARegion *ar, wmImeData *ime_data)
 {
 	SuggItem *item, *first, *last, *sel;
 	char str[SUGG_LIST_WIDTH * BLI_UTF8_MAX + 1];
@@ -1092,7 +1093,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 		}
 
 		format_draw_color(item->type);
-		text_draw(st, str, 0, 0, x + margin_x, y - 1, NULL);
+		text_draw(st, ime_data, str, 0, 0, x + margin_x, y - 1, NULL);
 
 		if (item == last) break;
 	}
@@ -1100,7 +1101,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 
 /*********************** draw cursor ************************/
 
-static void draw_cursor(SpaceText *st, ARegion *ar)
+static void draw_cursor(SpaceText *st, ARegion *ar, wmImeData *ime_data)
 {
 	Text *text = st->text;
 	int vcurl, vcurc, vsell, vselc, hidden = 0;
@@ -1214,10 +1215,12 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			UI_ThemeColor(TH_HILITE);
 			glRecti(x - 1, y, x + 1, y - lheight);
 
-			if (st->ime && st->ime->composite_len && text->curl) {
-				st->ime->cursor_xy[0] = x + 1;
-				st->ime->cursor_xy[1] = y - lheight - 3;
+#ifdef WITH_INPUT_IME
+			if (ime_data && ime_data->composite_len && text->curl) {
+				ime_data->cursor_xy[0] = x + 1;
+				ime_data->cursor_xy[1] = y - lheight - 3;
 			}
+#endif
 		}
 	}
 }
@@ -1351,17 +1354,17 @@ static void draw_brackets(SpaceText *st, ARegion *ar)
 
 /*********************** main area drawing *************************/
 
-void draw_text_main(SpaceText *st, ARegion *ar)
+void draw_text_main(wmWindow *win, SpaceText *st, ARegion *ar)
 {
 	Text *text = st->text;
 	TextFormatType *tft;
-	TextLine *tmp;
+	TextLine *tmp, bak = {0};
+	wmImeData *ime_data = win->ime_data;
 	rcti scroll, back;
 	char linenr[12];
 	int i, x, y, winx, linecount = 0, lineno = 0;
 	int wraplinecount = 0, wrap_skip = 0;
 	int margin_column_x;
-	TextLine bak = {0};
 	/* don't draw lines below this */
 	const int clip_min_y = -(int)(st->lheight_dpi - 1);
 
@@ -1375,14 +1378,14 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 
 #ifdef WITH_INPUT_IME
 	/* if is composing, backup and insert composition string */
-	if (st->ime &&
-		st->ime->cursor_xy &&
-		st->ime->composite_len &&
+	if (ime_data &&
+		ime_data->cursor_xy &&
+		ime_data->composite_len &&
 		text->curl)
 	{
-		int clen = st->ime->composite_len;
+		int clen = ime_data->composite_len;
 		int tlen = text->curl->len;
-		int clen_utf8 = BLI_strnlen_utf8(st->ime->composite, clen);
+		int clen_utf8 = BLI_strnlen_utf8(ime_data->composite, clen);
 		int tlen_utf8 = BLI_strnlen_utf8(text->curl->line, tlen);
 
 		int max_size = tlen + clen + 1;
@@ -1398,7 +1401,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		tmp->line = MEM_mallocN(max_size, "text ime backup");
 		tmp->format = MEM_mallocN(max_size_utf8, "text ime backup");
 
-		BLI_snprintf(tmp->line, max_size, "%s%s%s", bak.line, st->ime->composite, bak.line + i);
+		BLI_snprintf(tmp->line, max_size, "%s%s%s", bak.line, ime_data->composite, bak.line + i);
 
 		tmp->len += clen;
 
@@ -1413,9 +1416,9 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		}
 
 		/* set thicker line format */
-		if (st->ime->target_start != -1 && st->ime->target_end != -1) {
-			int target_start = BLI_strnlen_utf8(st->ime->composite, st->ime->target_start);
-			int target_end = BLI_strnlen_utf8(st->ime->composite, st->ime->target_end);
+		if (ime_data->target_start != -1 && ime_data->target_end != -1) {
+			int target_start = BLI_strnlen_utf8(ime_data->composite, ime_data->target_start);
+			int target_end = BLI_strnlen_utf8(ime_data->composite, ime_data->target_end);
 			target_end -= target_start;
 			memset(tmp->format + i + target_start, FMT_TYPE_TULINE, target_end);
 		}
@@ -1423,8 +1426,8 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		tmp->format[clen_utf8 + tlen_utf8] = '\0';
 
 		/* move the cursor */
-		text->curc += st->ime->cursor_position;
-		text->selc += st->ime->cursor_position;
+		text->curc += ime_data->cursor_position;
+		text->selc += ime_data->cursor_position;
 	}
 #endif
 	
@@ -1485,7 +1488,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	winx = ar->winx - TXT_SCROLL_WIDTH;
 	
 	/* draw cursor */
-	draw_cursor(st, ar);
+	draw_cursor(st, ar, ime_data);
 
 	/* draw the text */
 	UI_ThemeColor(TH_TEXT);
@@ -1515,7 +1518,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		}
 		else {
 			/* draw unwrapped text */
-			text_draw(st, tmp->line, st->left, ar->winx / st->cwidth, x, y, tmp->format);
+			text_draw(st, ime_data, tmp->line, st->left, ar->winx / st->cwidth, x, y, tmp->format);
 			y -= st->lheight_dpi + TXT_LINE_SPACING;
 		}
 		
@@ -1539,8 +1542,8 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 	draw_brackets(st, ar);
 	glTranslatef(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0f); /* XXX scroll requires exact pixel space */
 	draw_textscroll(st, &scroll, &back);
-	draw_documentation(st, ar);
-	draw_suggestion_list(st, ar);
+	draw_documentation(st, ar, ime_data);
+	draw_suggestion_list(st, ar, ime_data);
 	
 	text_font_end(st);
 
@@ -1548,9 +1551,11 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		MEM_freeN(text->curl->line);
 		MEM_freeN(text->curl->format);
 		*text->curl = bak;
+#ifdef WITH_INPUT_IME
 		/* recover the cursor */
-		text->curc -= st->ime->cursor_position;
-		text->selc -= st->ime->cursor_position;
+		text->curc -= ime_data->cursor_position;
+		text->selc -= ime_data->cursor_position;
+#endif
 	}
 }
 

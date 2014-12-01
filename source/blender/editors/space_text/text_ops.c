@@ -2917,17 +2917,17 @@ static int text_insert_exec(bContext *C, wmOperator *op)
 static int text_insert_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	wmWindow *win = CTX_wm_window(C);
-	wmImeData *ime = win->ime_data;
+	wmImeData *ime_data = win->ime_data;
 	Text *text = CTX_data_edit_text(C);
 
 	/* composition complete
 	* some Japanese IMEs return result without WM_IME_COMPOSITE_END event
 	*/
-	if (event->type == WM_IME_COMPOSITE_EVENT && ime->result_len) {
+	if (event->type == WM_IME_COMPOSITE_EVENT && ime_data->result_len) {
 		const char *str = "";
 		int ret;
 
-		if (ime->result) str = ime->result;
+		if (ime_data->result) str = ime_data->result;
 		RNA_string_set(op->ptr, "text", str);
 		ret = text_insert_exec(C, op);
 		if (ret == OPERATOR_CANCELLED)

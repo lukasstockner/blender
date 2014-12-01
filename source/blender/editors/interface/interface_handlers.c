@@ -2636,8 +2636,6 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime_data = win->ime_data;
 	bool is_ime_composing = win->is_ime_composite;
-	/* most os using ctrl/oskey + space to switch ime, avoid added space */
-	bool is_ime_switch = WM_event_is_ime_switch(event);
 
 	switch (event->type) {
 		case MOUSEMOVE:
@@ -2832,9 +2830,13 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 				break;
 		}
 
-		if ((event->ascii || event->utf8_buf[0]) && 
+		if ((event->ascii || event->utf8_buf[0]) &&
 			(retval == WM_UI_HANDLER_CONTINUE) &&
-			!is_ime_composing && !is_ime_switch)
+			!is_ime_composing
+#ifdef WITH_INPUT_IME
+			&& !WM_event_is_ime_switch(event)
+#endif
+			)
 		{
 			char ascii = event->ascii;
 			const char *utf8_buf = event->utf8_buf;
@@ -2870,6 +2872,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 			update = true;
 	}
 
+#ifdef WITH_INPUT_IME
 	if (event->type == WM_IME_COMPOSITE_START || event->type == WM_IME_COMPOSITE_EVENT) {
 		but->editime = ime_data;
 		changed = true;
@@ -2885,6 +2888,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		changed = true;
 		but->editime = NULL;
 	}
+#endif
 
 	if (changed) {
 		/* only update when typing for TAB key */

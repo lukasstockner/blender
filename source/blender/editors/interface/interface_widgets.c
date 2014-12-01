@@ -1243,7 +1243,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	const char *drawstr_right = NULL;
 	char *drawstr_edit = NULL;
 	bool use_right_only = false;
-	wmImeData *ime;
+	wmImeData *ime_data;
 
 	UI_fontstyle_set(fstyle);
 	
@@ -1274,12 +1274,12 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			drawstr_left_len = INT_MAX;
 
 #ifdef WITH_INPUT_IME
-			ime = ui_but_get_ime_data(but);
+			ime_data = ui_but_get_ime_data(but);
 
-			if (ime && ime->composite_len) {
+			if (ime_data && ime_data->composite_len) {
 				/* insert composite string into cursor pos */
 				BLI_snprintf(drawstr, UI_MAX_DRAW_STR, "%s%s%s", /* XXX drawstr is limited to 400 chars - check if that's enough */
-				             but->editstr, ime->composite,
+				             but->editstr, ime_data->composite,
 				             but->editstr + but->pos);
 			}
 			else {
@@ -1324,8 +1324,8 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		vpos = but->pos;
 #ifdef WITH_INPUT_IME
 		/* if is ime compositing, move the cursor */
-		if (ime && ime->composite_len && ime->cursor_position != -1) {
-			vpos += ime->cursor_position;
+		if (ime_data && ime_data->composite_len && ime_data->cursor_position != -1) {
+			vpos += ime_data->cursor_position;
 		}
 #else
 		(void)ime;
@@ -1352,8 +1352,8 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 		}
 
 		/* composite underline */
-		if (ime && ime->composite_len) {
-			int draw_start, draw_end, target_start = ime->target_start, target_end = ime->target_end;
+		if (ime_data && ime_data->composite_len) {
+			int draw_start, draw_end, target_start = ime_data->target_start, target_end = ime_data->target_end;
 
 			if (drawstr[0] != 0) {
 
@@ -1365,7 +1365,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 				}
 
 				draw_end = BLF_width(fstyle->uifont_id, drawstr + but->ofs, 
-								     ime->composite_len + but->pos - but->ofs);
+				                     ime_data->composite_len + but->pos - but->ofs);
 
 				glColor4ubv((unsigned char *)wcol->text);
 				glRecti(rect->xmin + draw_start,
@@ -1385,7 +1385,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 					}
 
 					draw_end = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
-										 target_end + target_start - but->ofs);
+					                     target_end + target_start - but->ofs);
 
 					glRecti(rect->xmin + draw_start,
 						rect->ymin + 3,
