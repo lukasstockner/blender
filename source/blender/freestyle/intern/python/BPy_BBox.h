@@ -26,6 +26,7 @@
 #define __FREESTYLE_PYTHON_BBOX_H__
 
 extern "C" {
+#include <math.h>
 #include <Python.h>
 }
 

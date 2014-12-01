@@ -26,6 +26,7 @@
 #define __FREESTYLE_PYTHON_CONVERT_H__
 
 extern "C" {
+#include <math.h>
 #include <Python.h>
 }
 

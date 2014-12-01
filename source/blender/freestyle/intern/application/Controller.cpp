@@ -23,6 +23,7 @@
  */
 
 extern "C" {
+#include <math.h>
 #include <Python.h>
 }
 

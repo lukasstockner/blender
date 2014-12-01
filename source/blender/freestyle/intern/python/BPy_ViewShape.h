@@ -26,6 +26,7 @@
 #define __FREESTYLE_PYTHON_VIEWSHAPE_H__
 
 extern "C" {
+#include <math.h>
 #include <Python.h>
 }
 
