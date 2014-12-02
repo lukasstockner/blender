@@ -2635,7 +2635,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime_data = win->ime_data;
-	bool is_ime_composing = win->is_ime_composite;
+	bool is_ime_composing = ime_data && ime_data->is_ime_composite;
 
 	switch (event->type) {
 		case MOUSEMOVE:
@@ -2831,10 +2831,10 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		}
 
 		if ((event->ascii || event->utf8_buf[0]) &&
-			(retval == WM_UI_HANDLER_CONTINUE) &&
-			!is_ime_composing
+			(retval == WM_UI_HANDLER_CONTINUE)
 #ifdef WITH_INPUT_IME
-			&& !WM_event_is_ime_switch(event)
+			 && !is_ime_composing &&
+			 !WM_event_is_ime_switch(event)
 #endif
 			)
 		{
@@ -2874,7 +2874,6 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 
 #ifdef WITH_INPUT_IME
 	if (event->type == WM_IME_COMPOSITE_START || event->type == WM_IME_COMPOSITE_EVENT) {
-		but->editime = ime_data;
 		changed = true;
 		
 		if (event->type == WM_IME_COMPOSITE_START && but->selend > but->selsta)
@@ -2886,7 +2885,6 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	}
 	else if (event->type == WM_IME_COMPOSITE_END) {
 		changed = true;
-		but->editime = NULL;
 	}
 #endif
 

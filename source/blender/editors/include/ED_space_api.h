@@ -78,5 +78,6 @@ void *ED_region_draw_cb_customdata(void *handle);
 /* generic callbacks */
 /* ed_util.c */
 void ED_region_draw_mouse_line_cb(const struct bContext *C, struct ARegion *ar, void *arg_info);
+void ED_text_draw_underline(int x, int y, int len, int height);
 
 #endif /* __ED_SPACE_API_H__ */

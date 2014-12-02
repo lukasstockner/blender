@@ -302,7 +302,6 @@ struct uiBut {
 	float *editvec;
 	void *editcoba;
 	void *editcumap;
-	void *editime;
 	
 	/* pointer back */
 	uiBlock *block;

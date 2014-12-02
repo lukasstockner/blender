@@ -475,14 +475,16 @@ typedef struct wmTabletData {
 typedef struct wmImeData {
 	size_t result_len, composite_len;
 
-	char *result;			/* utf8 encoding */
-	char *composite;		/* utf8 encoding */
+	char *result;           /* utf8 encoding */
+	char *composite;        /* utf8 encoding */
 
-	int cursor_position;	/* cursor position in the IME composition. */
-	int target_start;		/* position of the beginning of the selection */
-	int target_end;			/* position of the end of the selection */
-	int cursor_xy[2];		/* text cursor position */
-	int cursor_pos_text;	/* cursor pos in text (console space only) */
+	int cursor_position;    /* cursor position in the IME composition. */
+	int target_start;       /* position of the beginning of the selection */
+	int target_end;         /* position of the end of the selection */
+	int cursor_xy[2];       /* text cursor position */
+	int cursor_pos_text;    /* cursor pos in text (console space only) */
+	
+	bool is_ime_composite;  /* for uiBut only */
 } wmImeData;
 
 typedef enum {  /* motion progress, for modal handlers */

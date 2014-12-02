@@ -48,6 +48,8 @@
 
 #include "BIF_gl.h"
 
+#include "ED_space_api.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -374,10 +376,6 @@ static const char *txt_utf8_forward_columns(const char *str, int columns, int *p
 	return p;
 }
 
-static void text_draw_ime_underline(SpaceText *st, int x, int y, int len, int height) {
-	glRecti(x, y - 4, x + len, y - 4 + height);
-}
-
 static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w, const char *format, int skip)
 {
 	const bool use_syntax = (st->showsyntax && format);
@@ -427,10 +425,10 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 				len = text_font_draw_character_utf8(st, x, y, str + ma);
 				/* draw underline */
 				if (format && format[a] == FMT_TYPE_ULINE)
-					text_draw_ime_underline(st, x, y, len, 1);
+					ED_text_draw_underline(x, y, len, 1);
 				else
 				if (format && format[a] == FMT_TYPE_TULINE)
-					text_draw_ime_underline(st, x, y, len, 2);
+					ED_text_draw_underline(x, y, len, 2);
 				x += len;
 				fpos++;
 			}
@@ -460,10 +458,10 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 
 		/* draw underline */
 		if (format && format[a] == FMT_TYPE_ULINE)
-			text_draw_ime_underline(st, x, y, len, 1);
+			ED_text_draw_underline(x, y, len, 1);
 		else
 		if (format && format[a] == FMT_TYPE_TULINE)
-			text_draw_ime_underline(st, x, y, len, 2);
+			ED_text_draw_underline(x, y, len, 2);
 		x += len;
 	}
 
@@ -516,10 +514,10 @@ static void text_draw(SpaceText *st, wmImeData *ime_data, char *str, int cshift,
 			len = text_font_draw_character_utf8(st, x, y, in + str_shift);
 			/* draw underline */
 			if (fmt_prev == FMT_TYPE_ULINE)
-				text_draw_ime_underline(st, x, y, len, 1);
+				ED_text_draw_underline(x, y, len, 1);
 			else
 			if (fmt_prev == FMT_TYPE_TULINE)
-				text_draw_ime_underline(st, x, y, len, 2);
+				ED_text_draw_underline(x, y, len, 2);
 			x += len;
 			str_shift += BLI_str_utf8_size_safe(in + str_shift);
 		}
@@ -1358,8 +1356,7 @@ void draw_text_main(wmWindow *win, SpaceText *st, ARegion *ar)
 {
 	Text *text = st->text;
 	TextFormatType *tft;
-	TextLine *tmp, bak = {0};
-	wmImeData *ime_data = win->ime_data;
+	TextLine *tmp;
 	rcti scroll, back;
 	char linenr[12];
 	int i, x, y, winx, linecount = 0, lineno = 0;
@@ -1367,6 +1364,14 @@ void draw_text_main(wmWindow *win, SpaceText *st, ARegion *ar)
 	int margin_column_x;
 	/* don't draw lines below this */
 	const int clip_min_y = -(int)(st->lheight_dpi - 1);
+#ifdef WITH_INPUT_IME
+	TextLine bak = {0};
+	wmImeData *ime_data = win->ime_data;
+	bool is_ime_active = ime_data &&
+	                     ime_data->cursor_xy &&
+	                     ime_data->composite_len &&
+	                     BLI_rcti_isect_pt_v(&ar->winrct, &win->eventstate->x);
+#endif
 
 	/* if no text, nothing to do */
 	if (!text)
@@ -1378,11 +1383,7 @@ void draw_text_main(wmWindow *win, SpaceText *st, ARegion *ar)
 
 #ifdef WITH_INPUT_IME
 	/* if is composing, backup and insert composition string */
-	if (ime_data &&
-		ime_data->cursor_xy &&
-		ime_data->composite_len &&
-		text->curl)
-	{
+	if (is_ime_active && text->curl) {
 		int clen = ime_data->composite_len;
 		int tlen = text->curl->len;
 		int clen_utf8 = BLI_strnlen_utf8(ime_data->composite, clen);
@@ -1547,16 +1548,16 @@ void draw_text_main(wmWindow *win, SpaceText *st, ARegion *ar)
 	
 	text_font_end(st);
 
+#ifdef WITH_INPUT_IME
 	if (bak.line) {
 		MEM_freeN(text->curl->line);
 		MEM_freeN(text->curl->format);
 		*text->curl = bak;
-#ifdef WITH_INPUT_IME
 		/* recover the cursor */
 		text->curc -= ime_data->cursor_position;
 		text->selc -= ime_data->cursor_position;
-#endif
 	}
+#endif
 }
 
 /************************** update ***************************/

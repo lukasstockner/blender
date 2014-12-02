@@ -1436,9 +1436,7 @@ void ED_screen_set_subwinactive(bContext *C, wmEvent *event)
 			/* notifier invokes freeing the buttons... causing a bit too much redraws */
 			if (oldswin != scr->subwinactive) {
 #ifdef WITH_INPUT_IME
-				/* when cursor leave a region, disable IME,
-				 * used for disable IME when cursor leave text or console region
-				 */
+				/* when cursor leaves a region, disable IME */
 				wm_window_IME_end(win);
 #endif
 

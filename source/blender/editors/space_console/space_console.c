@@ -170,6 +170,7 @@ static void console_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 		wmcursor = CURSOR_STD;
 	}
 #ifdef WITH_INPUT_IME
+	/* XXX find a better place */
 	else {
 		wm_window_IME_begin(win, ar->winrct.xmin, ar->winrct.ymin, 0, 0, true);
 	}
@@ -255,22 +256,24 @@ static void console_main_area_draw(const bContext *C, ARegion *ar)
 	console_history_verify(C); /* make sure we have some command line */
 
 #ifdef WITH_INPUT_IME
-	/* get cursor position from console_textview_main and repositon ime window */
 	if (is_ime_active) {
+		/* get cursor position from console_textview_main and repositon ime window */
 		ConsoleLine *line = (ConsoleLine *)sc->history.last;
 		ime_data->cursor_pos_text = line->cursor + strlen(sc->prompt);
 	}
 	else {
+		/* delete ImeData if it didn't exist previously */
 		ime_data = NULL;
 	}
 
 	console_textview_main(sc, ar, ime_data);
 
-	if (is_ime_active) {
+	if (ime_data && is_ime_active) {
 		int x = ime_data->cursor_xy[0];
 		int y = ime_data->cursor_xy[1];
 
 		ui_region_to_window(ar, &x, &y);
+
 		wm_window_IME_begin(win, x + 5, y, 0, 0, false);
 
 		ime_data->cursor_xy[0] = ime_data->cursor_xy[1] = 0;

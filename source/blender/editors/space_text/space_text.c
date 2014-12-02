@@ -449,13 +449,17 @@ static void text_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* get cursor position from draw_text_main and repositon ime window */
 #ifdef WITH_INPUT_IME
+	if (!is_ime_active) {
+		ime_data = NULL;
+	}
 	draw_text_main(win, st, ar);
 
-	if (is_ime_active) {
+	if (ime_data && is_ime_active) {
 		int x = ime_data->cursor_xy[0];
 		int y = ime_data->cursor_xy[1];
 
 		ui_region_to_window(ar, &x, &y);
+
 		wm_window_IME_begin(win, x + 5, y, 0, 0, false);
 
 		ime_data->cursor_xy[0] = ime_data->cursor_xy[1] = 0;
