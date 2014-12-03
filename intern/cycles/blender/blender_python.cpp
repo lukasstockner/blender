@@ -14,6 +14,7 @@
  * limitations under the License
  */
 
+#include <cmath>
 #include <Python.h>
 
 #include "CCL_api.h"
