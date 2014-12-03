@@ -36,10 +36,6 @@
 // pass
 #endif
 
-#ifdef WITH_PYTHON
-#  include "AUD_PyInit.h"
-#  include "AUD_PyAPI.h"
-#endif
 
 #include <set>
 #include <cstdlib>
@@ -47,6 +43,11 @@
 #include <cmath>
 #include <sstream>
 #include <iostream>
+
+#ifdef WITH_PYTHON
+#  include "AUD_PyInit.h"
+#  include "AUD_PyAPI.h"
+#endif
 
 #include "AUD_NULLDevice.h"
 #include "AUD_I3DDevice.h"

@@ -26,6 +26,7 @@
  *  \ingroup audpython
  */
 
+#include <cmath>
 
 #include "AUD_PyAPI.h"
 #include <structmember.h>
