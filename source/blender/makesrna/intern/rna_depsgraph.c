@@ -53,6 +53,11 @@ static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 	fclose(f);
 }
 
+static void rna_Depsgraph_debug_rebuild(Depsgraph *UNUSED(graph), Main *bmain)
+{
+	DAG_relations_tag_update(bmain);
+}
+
 #else
 
 static void rna_def_depsgraph(BlenderRNA *brna)
@@ -67,6 +72,10 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	func = RNA_def_function(srna, "debug_graphviz", "rna_Depsgraph_debug_graphviz");
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func = RNA_def_function(srna, "debug_rebuild", "rna_Depsgraph_debug_rebuild");
+	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 }
 
