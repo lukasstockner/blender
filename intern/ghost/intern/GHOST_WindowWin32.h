@@ -193,8 +193,6 @@ public:
 	virtual GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
 
 	/**
-
-	/**
 	 * Invalidates the contents of this window.
 	 */
 	virtual GHOST_TSuccess invalidate();
