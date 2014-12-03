@@ -208,6 +208,7 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			params->flag |= RNA_boolean_get(op->ptr, "link") ? FILE_LINK : 0;
 			params->flag |= RNA_boolean_get(op->ptr, "autoselect") ? FILE_AUTOSELECT : 0;
 			params->flag |= RNA_boolean_get(op->ptr, "active_layer") ? FILE_ACTIVELAY : 0;
+			params->type = FILE_ASSET;
 		}
 
 		if (RNA_struct_find_property(op->ptr, "display_type"))

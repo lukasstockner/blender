@@ -666,6 +666,7 @@ enum FileSortTypeE {
 #define FILE_LOADLIB        1
 #define FILE_MAIN           2
 #define FILE_LOADFONT       3
+#define FILE_ASSET          4
 
 /* filesel op property -> action */
 typedef enum eFileSel_Action {

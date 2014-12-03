@@ -532,14 +532,19 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 }
 
 
+/* ------------------FILELIST------------------------ */
+
 static void filelist_read_main(struct FileList *filelist);
 static void filelist_read_library(struct FileList *filelist);
+static void filelist_read_library_flat(struct FileList *filelist);
 static void filelist_read_dir(struct FileList *filelist);
 
-/* ------------------FILELIST------------------------ */
+static int groupname_to_code(const char *group);
+
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(FileList), "filelist");
+	printf("%d\n", type);
 	switch (type) {
 		case FILE_MAIN:
 			p->readf = filelist_read_main;
@@ -547,6 +552,10 @@ FileList *filelist_new(short type)
 			break;
 		case FILE_LOADLIB:
 			p->readf = filelist_read_library;
+			p->filterf = is_filtered_lib;
+			break;
+		case FILE_ASSET:
+			p->readf = filelist_read_library_flat;
 			p->filterf = is_filtered_lib;
 			break;
 		default:
@@ -923,6 +932,103 @@ static void filelist_read_library(struct FileList *filelist)
 				}
 			}
 		}
+	}
+}
+
+static void filelist_read_library_flat(struct FileList *filelist)
+{
+	if (!filelist) return;
+	BLI_cleanup_dir(G.main->name, filelist->dir);
+	filelist_from_library(filelist);
+	if (!filelist->libfiledata) {
+		int num;
+		struct direntry *file;
+
+		printf("%s has no libfiledata\n", __func__);
+
+		BLI_make_exist(filelist->dir);
+		filelist_read_dir(filelist);
+		file = filelist->filelist;
+		for (num = 0; num < filelist->numfiles; num++, file++) {
+			if (BLO_has_bfile_extension(file->relname)) {
+				char name[FILE_MAX];
+
+				BLI_join_dirfile(name, sizeof(name), filelist->dir, file->relname);
+
+				/* prevent current file being used as acceptable dir */
+				if (BLI_path_cmp(G.main->name, name) != 0) {
+					file->type &= ~S_IFMT;
+					file->type |= S_IFDIR;
+				}
+			}
+		}
+	}
+	else {
+		struct direntry *file;
+		struct direntry *org_filelist = filelist->filelist;
+		int num, org_numfiles = filelist->numfiles;
+
+		char dir[FILE_MAX], group[BLO_GROUP_MAX];
+
+		BLI_assert(filelist_islibrary(filelist, dir, group));
+
+		printf("%s has libfiledata (%s)\n", __func__, group);
+
+		if (groupname_to_code(group)) {
+			/* We are at lowest possible level, nothing else to do. */
+			return;
+		}
+
+		file = org_filelist;
+		for (num = 0; num < org_numfiles; num++, file++) {
+			FileList *fl = filelist_new(FILE_LOADLIB);
+
+			char dir[FILE_MAX];
+
+			BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
+			filelist_setdir(fl, dir);
+			BLI_cleanup_dir(G.main->name, fl->dir);
+			filelist_from_library(fl);
+
+			if (fl->numfiles) {
+				int new_numfiles = fl->numfiles + filelist->numfiles;
+				struct direntry *new_filelist = malloc(sizeof(*new_filelist) * (size_t)new_numfiles);
+				struct direntry *f;
+				int i;
+
+				memcpy(&new_filelist[fl->numfiles], filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
+				for (i = 0, f = fl->filelist; i < fl->numfiles; i++, f++) {
+					printf("%s\n", file->relname);
+					BLI_join_dirfile(dir, sizeof(dir), fl->dir, file->relname);
+					BLI_cleanup_file(filelist->dir, dir);
+					printf("%s, %s, %s, %s\n", dir, fl->dir, file->relname, file->path);
+					new_filelist[i] = *f;
+					new_filelist[i].relname = BLI_strdup(dir);
+					//new_filelist[i].path = BLI_strdup(f->path);
+					/* those pointers are given to new_filelist... */
+					f->path = NULL;
+					f->poin = NULL;
+					f->image = NULL;
+				}
+
+				if (filelist->filelist != org_filelist) {
+					free(filelist->filelist);
+				}
+				filelist->filelist = new_filelist;
+				filelist->numfiles = new_numfiles;
+			}
+
+			filelist_free(fl);
+		}
+
+		if (filelist->filelist != org_filelist) {
+			free(org_filelist);
+		}
+
+		filelist_sort(filelist, FILE_SORT_ALPHA);
+
+		filelist->filter = 0;
+		filelist_filter(filelist);
 	}
 }
 
