@@ -292,7 +292,7 @@ static void file_draw_string(int sx, int sy, const char *string, float width, in
 
 	fs.align = align;
 
-	BLI_strncpy(fname, BLI_path_basename(string), FILE_MAXFILE);
+	BLI_strncpy(fname, string /*BLI_path_basename(string)*/, FILE_MAXFILE);
 	file_shorten_string(fname, width + 1.0f, 0);
 
 	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */

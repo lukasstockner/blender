@@ -2567,12 +2567,22 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	BlendHandle *bh;
 	Library *lib;
 	PropertyRNA *prop;
-	char name[FILE_MAX], dir[FILE_MAX], libname[FILE_MAX], group[BLO_GROUP_MAX];
+	char name[FILE_MAXFILE], root_dir[FILE_MAXDIR], dir[FILE_MAXDIR], libname[FILE_MAX], group[BLO_GROUP_MAX];
+	char *slash;
 	int idcode, totfiles = 0;
 	short flag;
 
 	RNA_string_get(op->ptr, "filename", name);
-	RNA_string_get(op->ptr, "directory", dir);
+	RNA_string_get(op->ptr, "directory", root_dir);
+
+	if ((slash = BLI_last_slash(name))) {
+		*slash = '\0';
+		BLI_strncpy(dir, root_dir, sizeof(dir) - 1);
+		BLI_path_append(dir, sizeof(dir) - 1, name);
+		BLI_add_slash(dir);
+		slash++;
+		BLI_strncpy(name, slash, sizeof(name) - (slash - name));
+	}
 
 	/* test if we have a valid data */
 	if (BLO_is_a_library(dir, libname, group) == 0) {
@@ -2604,6 +2614,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
+	printf("%s\n", libname);
 	bh = BLO_blendhandle_from_file(libname, op->reports);
 
 	if (bh == NULL) {
@@ -2647,10 +2658,24 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
 	else {
+		char tmp_dir[FILE_MAXDIR];
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
 			RNA_string_get(&itemptr, "name", name);
-			BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+
+			if ((slash = BLI_last_slash(name))) {
+				*slash = '\0';
+				BLI_strncpy(dir, root_dir, sizeof(dir) - 1);
+				BLI_path_append(dir, sizeof(dir) - 1, name);
+				BLI_add_slash(dir);
+				slash++;
+				BLI_strncpy(name, slash, sizeof(name) - (slash - name));
+			}
+
+			if (BLO_is_a_library(dir, libname, group)) {
+				idcode = BKE_idcode_from_name(group);
+				BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+			}
 		}
 		RNA_END;
 	}

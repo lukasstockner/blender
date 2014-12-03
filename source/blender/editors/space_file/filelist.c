@@ -1016,16 +1016,17 @@ static void filelist_read_library_flat(struct FileList *filelist)
 				new_filelist = malloc(sizeof(*new_filelist) * (size_t)new_numfiles);
 				memcpy(new_filelist, filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
 				for (i = filelist->numfiles, j = 0, f = fl->filelist; j < fl->numfiles; j++, f++) {
-					printf("%s\n", f->relname);
-					//~ if (STREQ(file->relname, "..")) {
+					//~ if (STREQ(f->relname, "..")) {
 						//~ new_numfiles--;
 						//~ continue;
 					//~ }
 					BLI_join_dirfile(dir, sizeof(dir), fl->dir, f->relname);
+					printf("%s, %s, %s, %s\n", filelist->dir, dir, "", "");
 					BLI_cleanup_file(filelist->dir, dir);
-					printf("%s, %s, %s, %s\n", dir, fl->dir, f->relname, f->path);
+					BLI_path_rel(dir, filelist->dir);
+					printf("\t\t-> %s, %s, %s, %s\n", dir, "", "", "");
 					new_filelist[i] = *f;
-					new_filelist[i].relname = BLI_strdup(dir);
+					new_filelist[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
 					//new_filelist[i].path = BLI_strdup(f->path);
 					/* those pointers are given to new_filelist... */
 					f->path = NULL;
