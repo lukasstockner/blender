@@ -25,7 +25,7 @@ struct ParticleSystem;
 struct EvaluationContext;
 struct TimeSourceDepsNode;
 
-void BKE_animsys_eval_action(struct EvaluationContext *eval_ctx, ID *id, bAction *action, TimeSourceDepsNode *time_src);
+void BKE_animsys_eval_animdata(struct EvaluationContext *eval_ctx, ID *id, TimeSourceDepsNode *time_src);
 void BKE_animsys_eval_driver(struct EvaluationContext *eval_ctx, ID *id, FCurve *fcurve, TimeSourceDepsNode *time_src);
 
 void BKE_pose_constraints_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan);

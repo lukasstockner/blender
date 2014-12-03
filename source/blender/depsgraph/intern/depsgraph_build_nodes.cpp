@@ -343,22 +343,26 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *ob, bPoseChannel *pcha
 void DepsgraphNodeBuilder::build_animdata(ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
-	if (!adt)
+	
+	if (adt == NULL)
 		return;
 	
 	/* animation */
 	if (adt->action || adt->nla_tracks.first || adt->drivers.first) {
+		TimeSourceDepsNode *time_src = m_graph->find_time_source();
+		
 		// XXX: Hook up specific update callbacks for special properties which may need it...
-
-		/* actions */
-		if (adt->action != NULL) {
-			TimeSourceDepsNode *time_src = m_graph->find_time_source();
+		
+		/* actions and NLA - as a single unit for now, as it gets complicated to schedule otherwise */
+		if ((adt->action) || (adt->nla_tracks.first)) {
 			add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
-			                   DEPSOP_TYPE_EXEC, bind(BKE_animsys_eval_action, _1, id, adt->action, time_src),
-			                   deg_op_name_action(adt->action));
-			/* TODO(sergey): Action groups. */
+			                   DEPSOP_TYPE_EXEC, bind(BKE_animsys_eval_animdata, _1, id, time_src),
+			                   deg_op_name_animdata(id));
+			
+			// TODO: for each channel affected, we might also want to add some support for running RNA update callbacks on them
+			// (which will be needed for proper handling of drivers later)
 		}
-
+		
 		/* drivers */
 		for (FCurve *fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
 			/* create driver */

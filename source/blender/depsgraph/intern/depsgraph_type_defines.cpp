@@ -72,17 +72,16 @@ extern "C" {
 
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
-void BKE_animsys_eval_action(EvaluationContext *UNUSED(eval_ctx),
+void BKE_animsys_eval_animdata(EvaluationContext *UNUSED(eval_ctx),
                              ID *id,
-                             bAction *action,
                              TimeSourceDepsNode *time_src)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
-	PointerRNA id_ptr;
+	Scene *scene = NULL; // XXX: this is only needed for flushing RNA updates, which should get handled as part of the graph instead...
 	float ctime = time_src->cfra;
+	
 	printf("%s on %s\n", __func__, id->name);
-	RNA_id_pointer_create(id, &id_ptr);
-	animsys_evaluate_action(&id_ptr, action, adt->remap, ctime);
+	BKE_animsys_evaluate_animdata(scene, id, adt, ctime, ADT_RECALC_ANIM);
 }
 
 void BKE_animsys_eval_driver(EvaluationContext *UNUSED(eval_ctx),
@@ -260,9 +259,10 @@ const string deg_op_name_pose_eval_flush = "Flush Pose Eval";
 const string deg_op_name_ik_solver = "IK Solver";
 const string deg_op_name_spline_ik_solver = "Spline IK Solver";
 const string deg_op_name_psys_eval = "PSys Eval";
-string deg_op_name_action(const bAction *action)
+string deg_op_name_animdata(const ID *id)
 {
-	return string_format("Action %s", action->id.name);
+	AnimData *adt = BKE_animdata_from_id((ID *)id);
+	return string_format("AnimData %s : %s", id->name, (adt->action) ? adt->action->id.name : "<None>");
 }
 string deg_op_name_driver(const ChannelDriver *driver)
 {
