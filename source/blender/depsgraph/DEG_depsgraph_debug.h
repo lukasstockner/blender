@@ -81,11 +81,6 @@ struct DepsgraphStatsID *DEG_stats_id(struct ID *id);
 
 void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char *label, bool show_eval);
 
-typedef void (*DEG_DebugEvalCb)(void *userdata, const char *message);
-
-void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb);
-void DEG_debug_eval_end(void);
-
 /* ************************************************ */
 
 #ifdef __cplusplus

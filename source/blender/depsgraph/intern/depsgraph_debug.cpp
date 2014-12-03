@@ -698,34 +698,6 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool
 
 #undef NL
 
-#ifndef NDEBUG
-#define DEG_DEBUG_BUILD
-#endif
-
-#ifdef DEG_DEBUG_BUILD
-
-static void *deg_debug_eval_userdata;
-DEG_DebugEvalCb deg_debug_eval_cb;
-
-void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb)
-{
-	deg_debug_eval_userdata = userdata;
-	deg_debug_eval_cb = cb;
-}
-
-void DEG_debug_eval_end(void)
-{
-	deg_debug_eval_userdata = NULL;
-	deg_debug_eval_cb = NULL;
-}
-
-#else /* DEG_DEBUG_BUILD */
-
-void DEG_debug_eval_init(void *userdata, DEG_DebugEvalCb cb) {}
-void DEG_debug_eval_end(void) {}
-
-#endif /* DEG_DEBUG_BUILD */
-
 /* ************************************************ */
 
 static string get_component_name(eDepsNode_Type type, const string &name = "")

@@ -74,21 +74,11 @@ void DEG_task_run_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 	double start_time = PIL_check_seconds_timer();
 	DepsgraphDebug::task_started(node);
 
-	if (DEG_get_eval_mode() == DEG_EVAL_MODE_SIM) {
-		/* simulate work, but actually just take a nap here ... */
+	/* should only be the case for NOOPs, which never get to this point */
+	BLI_assert(node->evaluate);
 
-		int min = 20, max = 30; /* default siesta duration in milliseconds */
-
-		int r = BLI_rng_get_int(deg_eval_sim_rng);
-		int ms = (int)(min) + r % ((int)(max) - (int)(min));
-		PIL_sleep_ms(ms);
-	}
-	else {
-		/* should only be the case for NOOPs, which never get to this point */
-		BLI_assert(node->evaluate);
-		/* perform operation */
-		node->evaluate(state->eval_ctx);
-	}
+	/* perform operation */
+	node->evaluate(state->eval_ctx);
 
 	/* note how long this took */
 	double end_time = PIL_check_seconds_timer();

@@ -74,7 +74,6 @@ eDEG_EvalMode DEG_get_eval_mode(void)
 {
 	switch (G.debug_value) {
 		case DEG_EVAL_MODE_NEW: return DEG_EVAL_MODE_NEW;
-		case DEG_EVAL_MODE_SIM: return DEG_EVAL_MODE_SIM;
 		default: return DEG_EVAL_MODE_OLD;
 	}
 }
@@ -83,7 +82,6 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 {
 	switch (mode) {
 		case DEG_EVAL_MODE_NEW: G.debug_value = DEG_EVAL_MODE_NEW;
-		case DEG_EVAL_MODE_SIM: G.debug_value = DEG_EVAL_MODE_SIM;
 		default: G.debug_value = DEG_EVAL_MODE_OLD;
 	}
 }
