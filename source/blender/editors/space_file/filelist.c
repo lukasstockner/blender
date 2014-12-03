@@ -911,6 +911,7 @@ static void filelist_read_library(struct FileList *filelist)
 {
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
+	printf("%s\n", filelist->dir);
 	filelist_from_library(filelist);
 	if (!filelist->libfiledata) {
 		int num;
@@ -933,12 +934,22 @@ static void filelist_read_library(struct FileList *filelist)
 			}
 		}
 	}
+	else {
+		int num;
+		struct direntry *file;
+
+		file = filelist->filelist;
+		for (num = 0; num < filelist->numfiles; num++, file++) {
+			printf("%s, %s, %s\n", filelist->dir, file->path, file->relname);
+		}
+	}
 }
 
 static void filelist_read_library_flat(struct FileList *filelist)
 {
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
+	printf("%s\n", filelist->dir);
 	filelist_from_library(filelist);
 	if (!filelist->libfiledata) {
 		int num;
@@ -985,20 +996,30 @@ static void filelist_read_library_flat(struct FileList *filelist)
 
 			char dir[FILE_MAX];
 
+			if (STREQ(file->relname, "..")) {
+				continue;
+			}
+
 			BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
 			filelist_setdir(fl, dir);
 			BLI_cleanup_dir(G.main->name, fl->dir);
+			printf("%s\n", fl->dir);
 			filelist_from_library(fl);
 
 			if (fl->numfiles) {
 				int new_numfiles = fl->numfiles + filelist->numfiles;
-				struct direntry *new_filelist = malloc(sizeof(*new_filelist) * (size_t)new_numfiles);
+				struct direntry *new_filelist;
 				struct direntry *f;
-				int i;
+				int i, j;
 
-				memcpy(&new_filelist[fl->numfiles], filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
-				for (i = 0, f = fl->filelist; i < fl->numfiles; i++, f++) {
+				new_filelist = malloc(sizeof(*new_filelist) * (size_t)new_numfiles);
+				memcpy(new_filelist, filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
+				for (i = filelist->numfiles, j = 0, f = fl->filelist; j < fl->numfiles; j++, f++) {
 					printf("%s\n", file->relname);
+					if (STREQ(file->relname, "..")) {
+						new_numfiles--;
+						continue;
+					}
 					BLI_join_dirfile(dir, sizeof(dir), fl->dir, file->relname);
 					BLI_cleanup_file(filelist->dir, dir);
 					printf("%s, %s, %s, %s\n", dir, fl->dir, file->relname, file->path);
@@ -1009,6 +1030,7 @@ static void filelist_read_library_flat(struct FileList *filelist)
 					f->path = NULL;
 					f->poin = NULL;
 					f->image = NULL;
+					i++;
 				}
 
 				if (filelist->filelist != org_filelist) {
