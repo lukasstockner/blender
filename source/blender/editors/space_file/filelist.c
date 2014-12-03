@@ -540,6 +540,7 @@ static void filelist_read_library_flat(struct FileList *filelist);
 static void filelist_read_dir(struct FileList *filelist);
 
 static int groupname_to_code(const char *group);
+static void filelist_from_library(struct FileList *filelist, const bool add_parent);
 
 FileList *filelist_new(short type)
 {
@@ -912,7 +913,7 @@ static void filelist_read_library(struct FileList *filelist)
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	printf("%s\n", filelist->dir);
-	filelist_from_library(filelist);
+	filelist_from_library(filelist, true);
 	if (!filelist->libfiledata) {
 		int num;
 		struct direntry *file;
@@ -950,7 +951,7 @@ static void filelist_read_library_flat(struct FileList *filelist)
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	printf("%s\n", filelist->dir);
-	filelist_from_library(filelist);
+	filelist_from_library(filelist, true);
 	if (!filelist->libfiledata) {
 		int num;
 		struct direntry *file;
@@ -1004,7 +1005,7 @@ static void filelist_read_library_flat(struct FileList *filelist)
 			filelist_setdir(fl, dir);
 			BLI_cleanup_dir(G.main->name, fl->dir);
 			printf("%s\n", fl->dir);
-			filelist_from_library(fl);
+			filelist_from_library(fl, false);
 
 			if (fl->numfiles) {
 				int new_numfiles = fl->numfiles + filelist->numfiles;
@@ -1015,14 +1016,14 @@ static void filelist_read_library_flat(struct FileList *filelist)
 				new_filelist = malloc(sizeof(*new_filelist) * (size_t)new_numfiles);
 				memcpy(new_filelist, filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
 				for (i = filelist->numfiles, j = 0, f = fl->filelist; j < fl->numfiles; j++, f++) {
-					printf("%s\n", file->relname);
-					if (STREQ(file->relname, "..")) {
-						new_numfiles--;
-						continue;
-					}
-					BLI_join_dirfile(dir, sizeof(dir), fl->dir, file->relname);
+					printf("%s\n", f->relname);
+					//~ if (STREQ(file->relname, "..")) {
+						//~ new_numfiles--;
+						//~ continue;
+					//~ }
+					BLI_join_dirfile(dir, sizeof(dir), fl->dir, f->relname);
 					BLI_cleanup_file(filelist->dir, dir);
-					printf("%s, %s, %s, %s\n", dir, fl->dir, file->relname, file->path);
+					printf("%s, %s, %s, %s\n", dir, fl->dir, f->relname, f->path);
 					new_filelist[i] = *f;
 					new_filelist[i].relname = BLI_strdup(dir);
 					//new_filelist[i].path = BLI_strdup(f->path);
@@ -1171,7 +1172,7 @@ static int groupname_to_code(const char *group)
 	return buf[0] ? BKE_idcode_from_name(buf) : 0;
 }
  
-void filelist_from_library(struct FileList *filelist)
+static void filelist_from_library(struct FileList *filelist, const bool add_parent)
 {
 	LinkNode *l, *names, *previews;
 	struct ImBuf *ima;
@@ -1216,22 +1217,26 @@ void filelist_from_library(struct FileList *filelist)
 		nnames = BLI_linklist_length(names);
 	}
 
-	filelist->numfiles = nnames + 1;
+	filelist->numfiles = add_parent ? nnames + 1 : nnames;
 	filelist->filelist = malloc(filelist->numfiles * sizeof(*filelist->filelist));
 	memset(filelist->filelist, 0, filelist->numfiles * sizeof(*filelist->filelist));
 
-	filelist->filelist[0].relname = BLI_strdup("..");
-	filelist->filelist[0].type |= S_IFDIR;
-		
+	if (add_parent) {
+		filelist->filelist[nnames].relname = BLI_strdup("..");
+		filelist->filelist[nnames].type |= S_IFDIR;
+	}
+
 	for (i = 0, l = names; i < nnames; i++, l = l->next) {
 		const char *blockname = l->link;
 
-		filelist->filelist[i + 1].relname = BLI_strdup(blockname);
+		printf("%s\n", blockname);
+
+		filelist->filelist[i].relname = BLI_strdup(blockname);
 		if (idcode) {
-			filelist->filelist[i + 1].type |= S_IFREG;
+			filelist->filelist[i].type |= S_IFREG;
 		}
 		else {
-			filelist->filelist[i + 1].type |= S_IFDIR;
+			filelist->filelist[i].type |= S_IFDIR;
 		}
 	}
 	
@@ -1251,8 +1256,8 @@ void filelist_from_library(struct FileList *filelist)
 				if (w > 0 && h > 0 && rect) {
 					ima = IMB_allocImBuf(w, h, 32, IB_rect);
 					memcpy(ima->rect, rect, w * h * sizeof(unsigned int));
-					filelist->filelist[i + 1].image = ima;
-					filelist->filelist[i + 1].flags = IMAGEFILE;
+					filelist->filelist[i].image = ima;
+					filelist->filelist[i].flags = IMAGEFILE;
 				}
 			}
 		}
