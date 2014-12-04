@@ -747,13 +747,10 @@ int filelist_geticon(struct FileList *filelist, const int index)
 		return ICON_FILE_TEXT;
 	else {
 		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX];
-		char *slash;
 
 		BLI_join_dirfile(path, sizeof(path), filelist->dir, file->relname);
-		slash = (char *)BLI_last_slash(path);
-		slash[1] = '\0';
 
-		if (BLO_is_a_library(path, dir, group)) {
+		if (BLO_library_path_explode(path, dir, group, NULL)) {
 			int idcode = groupname_to_code(group);
 
 			/* TODO: this should most likely be completed and moved to UI_interface_icons.h ? unless it already exists somewhere... */

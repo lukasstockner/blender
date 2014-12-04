@@ -47,6 +47,8 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
+#include "BLO_readfile.h"
+
 #include "BLF_translation.h"
 
 #include "IMB_imbuf_types.h"
@@ -254,7 +256,7 @@ static void file_draw_string(int sx, int sy, const char *string, float width, in
 
 	fs.align = align;
 
-	BLI_strncpy(fname, BLI_path_basename(string), FILE_MAXFILE);
+	BLI_strncpy(fname, string, FILE_MAXFILE);
 	file_shorten_string(fname, width + 1.0f, 0);
 
 	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */
@@ -469,12 +471,21 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	align = (FILE_IMGDISPLAY == params->display) ? UI_STYLE_TEXT_CENTER : UI_STYLE_TEXT_LEFT;
 
 	for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
+		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX], name_buff[MAX_ID_NAME], *name;
 		ED_fileselect_layout_tilepos(layout, i, &sx, &sy);
 		sx += (int)(v2d->tot.xmin + 0.1f * UI_UNIT_X);
 		sy = (int)(v2d->tot.ymax - sy);
 
 		file = filelist_file(files, i);
-		
+
+		BLI_join_dirfile(path, sizeof(path), filelist_dir(files), file->relname);
+		if (BLO_library_path_explode(path, dir, group, name_buff)) {
+			name = (name_buff[0] != '\0') ? name_buff : group;
+		}
+		else {
+			name = file->relname;
+		}
+
 		UI_ThemeColor4(TH_TEXT);
 
 
@@ -537,7 +548,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		if (!(file->selflag & EDITING_FILE)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
-			file_draw_string(sx + 1, tpos, file->relname, (float)textwidth, textheight, align);
+			file_draw_string(sx + 1, tpos, name, (float)textwidth, textheight, align);
 		}
 
 		if (params->display == FILE_SHORTDISPLAY) {

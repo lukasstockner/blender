@@ -2567,32 +2567,21 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	BlendHandle *bh;
 	Library *lib;
 	PropertyRNA *prop;
-	char name[FILE_MAXFILE], root_dir[FILE_MAXDIR], dir[FILE_MAXDIR], libname[FILE_MAX], group[BLO_GROUP_MAX];
-	char *slash;
+	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], libname[FILE_MAX], group[BLO_GROUP_MAX], name[FILE_MAXFILE];
 	int idcode, totfiles = 0;
 	short flag;
 
 	RNA_string_get(op->ptr, "filename", name);
-	RNA_string_get(op->ptr, "directory", root_dir);
+	RNA_string_get(op->ptr, "directory", dir);
 
-	if ((slash = BLI_last_slash(name))) {
-		*slash = '\0';
-		BLI_strncpy(dir, root_dir, sizeof(dir) - 1);
-		BLI_path_append(dir, sizeof(dir) - 1, name);
-		BLI_add_slash(dir);
-		slash++;
-		BLI_strncpy(name, slash, sizeof(name) - (slash - name));
-	}
-	else {
-		BLI_strncpy(dir, root_dir, sizeof(dir));
-	}
+	BLI_join_dirfile(path, sizeof(path), dir, name);
 
 	/* test if we have a valid data */
-	if (BLO_is_a_library(dir, libname, group) == 0) {
+	if (!BLO_library_path_explode(path, libname, group, name)) {
 		BKE_report(op->reports, RPT_ERROR, "Not a library");
 		return OPERATOR_CANCELLED;
 	}
-	else if (group[0] == 0) {
+	else if (group[0] == '\0') {
 		BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
 		return OPERATOR_CANCELLED;
 	}
@@ -2660,24 +2649,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
 	else {
-		char tmp_dir[FILE_MAXDIR];
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
 			RNA_string_get(&itemptr, "name", name);
 
-			if ((slash = BLI_last_slash(name))) {
-				*slash = '\0';
-				BLI_strncpy(dir, root_dir, sizeof(dir) - 1);
-				BLI_path_append(dir, sizeof(dir) - 1, name);
-				BLI_add_slash(dir);
-				slash++;
-				BLI_strncpy(name, slash, sizeof(name) - (slash - name));
-			}
-			else {
-				BLI_strncpy(dir, root_dir, sizeof(dir));
-			}
+			BLI_join_dirfile(path, sizeof(path), dir, name);
 
-			if (BLO_is_a_library(dir, libname, group)) {
+			if (BLO_library_path_explode(path, libname, group, name)) {
 				idcode = BKE_idcode_from_name(group);
 				BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 			}

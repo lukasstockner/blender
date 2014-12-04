@@ -1138,10 +1138,59 @@ void blo_freefiledata(FileData *fd)
 
 /* ************ DIV ****************** */
 
+/* XXX All this should be made safer regarding mem and strings handling! */
+
 bool BLO_has_bfile_extension(const char *str)
 {
 	const char *ext_test[4] = {".blend", ".ble", ".blend.gz", NULL};
 	return BLI_testextensie_array(str, ext_test);
+}
+
+bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char *r_name)
+{
+	/* We might get some data names with slashes, so we have to go up in path until we find blend file itself,
+	 * then we now next path item is group, and everything else is data name. */
+	char *slash, *prev_slash = NULL;
+
+	strcpy(r_dir, path);
+	if (r_group) {
+		r_group[0] = '\0';
+	}
+	if (r_name) {
+		r_name[0] = '\0';
+	}
+
+	while ((slash = (char *)BLI_last_slash(r_dir))) {
+		*slash = '\0';
+		if (BLO_has_bfile_extension(r_dir)) {
+			break;
+		}
+
+		if (prev_slash) {
+			*prev_slash = '/';
+		}
+		prev_slash = slash;
+	}
+
+	if (r_dir[0] == '\0') {
+		return false;
+	}
+
+	if (slash) {
+		BLI_assert(strlen(slash + 1) <= BLO_GROUP_MAX);
+		if (r_group) {
+			strcpy(r_group, slash + 1);
+		}
+	}
+
+	if (prev_slash) {
+		BLI_assert(strlen(prev_slash + 1) <= MAX_ID_NAME - 2);
+		if (r_name) {
+			strcpy(r_name, prev_slash + 1);
+		}
+	}
+
+	return true;
 }
 
 bool BLO_is_a_library(const char *path, char *dir, char *group)
