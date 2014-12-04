@@ -295,7 +295,7 @@ void info_textview_main(struct SpaceInfo *sinfo, ARegion *ar, ReportList *report
 	info_textview_main__internal(sinfo, ar, reports, 1,  mval, NULL, NULL);
 }
 
-void info_depsgraphview_main(const struct bContext *C, struct ARegion *ar)\
+void info_depsgraphview_main(const struct bContext *C, struct ARegion *ar)
 {
 	View2D *v2d = &ar->v2d;
 	uiBlock *block;
