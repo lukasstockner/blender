@@ -2583,6 +2583,9 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		slash++;
 		BLI_strncpy(name, slash, sizeof(name) - (slash - name));
 	}
+	else {
+		BLI_strncpy(dir, root_dir, sizeof(dir));
+	}
 
 	/* test if we have a valid data */
 	if (BLO_is_a_library(dir, libname, group) == 0) {
@@ -2669,6 +2672,9 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 				BLI_add_slash(dir);
 				slash++;
 				BLI_strncpy(name, slash, sizeof(name) - (slash - name));
+			}
+			else {
+				BLI_strncpy(dir, root_dir, sizeof(dir));
 			}
 
 			if (BLO_is_a_library(dir, libname, group)) {
