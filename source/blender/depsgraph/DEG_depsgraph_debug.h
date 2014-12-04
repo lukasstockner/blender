@@ -83,6 +83,9 @@ void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char 
 
 /* ************************************************ */
 
+bool DEG_debug_compare(const struct Depsgraph *graph1,
+                       const struct Depsgraph *graph2);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

@@ -894,3 +894,21 @@ DepsgraphStatsID *DEG_stats_id(ID *id)
 	
 	return DepsgraphDebug::get_id_stats(id, false);
 }
+
+bool DEG_debug_compare(const struct Depsgraph *graph1,
+                       const struct Depsgraph *graph2)
+{
+	BLI_assert(graph1 != NULL);
+	BLI_assert(graph2 != NULL);
+	if (graph1->operations.size() != graph2->operations.size()) {
+		return false;
+	}
+	/* TODO(sergey): Currently we only do real stupid check,
+	 * which is fast but which isn't 100% reliable.
+	 *
+	 * Would be cool to make it more robust, but it's good enough
+	 * for now. Also, proper graph check is actually NP-complex
+	 * problem..
+	 */
+	return true;
+}

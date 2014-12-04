@@ -91,6 +91,7 @@
 #pragma message("DEPSGRAPH PORTING XXX: only needed to hijack existing tagging functions until new depsgraph API is stabilized")
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_debug.h"
 
 static SpinLock threaded_update_lock;
 
@@ -1653,6 +1654,17 @@ void DAG_scene_relations_update(Main *bmain, Scene *sce)
 {
 	if (!sce->theDag)
 		dag_scene_build(bmain, sce);
+}
+
+void DAG_scene_relations_validate(Main *bmain, Scene *sce)
+{
+	Depsgraph *depsgraph = DEG_graph_new();
+	DEG_graph_build_from_scene(depsgraph, bmain, sce);
+	if (!DEG_debug_compare(depsgraph, sce->depsgraph)) {
+		fprintf(stderr, "ERROR! Depsgraph wasn't tagged for update when it should have!\n");
+		BLI_assert(!"This should not happen!");
+	}
+	DEG_graph_free(depsgraph);
 }
 
 void DAG_scene_free(Scene *sce)

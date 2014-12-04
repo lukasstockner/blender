@@ -1663,8 +1663,15 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
 
 	/* (re-)build dependency graph if needed */
-	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set)
+	for (sce_iter = scene; sce_iter; sce_iter = sce_iter->set) {
 		DAG_scene_relations_update(bmain, sce_iter);
+		/* Uncomment this to check if graph was properly tagged for update. */
+#if 0
+		if (use_new_eval) {
+			DAG_scene_relations_validate(bmain, sce_iter);
+		}
+#endif
+	}
 
 	/* flush editing data if needed */
 	prepare_mesh_for_viewport_render(bmain, scene);
