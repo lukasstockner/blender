@@ -78,8 +78,9 @@ void                filelist_setfilter(struct FileList *filelist, unsigned int f
 void                filelist_setfilter_types(struct FileList *filelist, const char *filter_glob);
 void                filelist_filter(struct FileList *filelist);
 void                filelist_imgsize(struct FileList *filelist, short w, short h);
-struct ImBuf *      filelist_getimage(struct FileList *filelist, int index);
-struct ImBuf *      filelist_geticon(struct FileList *filelist, int index);
+struct ImBuf *      filelist_getimage(struct FileList *filelist, const int index);
+struct ImBuf *      filelist_geticon_image(struct FileList *filelist, const int index);
+int                 filelist_geticon(struct FileList *filelist, const int index);
 short               filelist_changed(struct FileList *filelist);
 void                filelist_readdir(struct FileList *filelist);
 
@@ -91,6 +92,10 @@ bool                filelist_islibrary(struct FileList *filelist, char *dir, cha
 void                filelist_from_main(struct FileList *filelist);
 void                filelist_freelib(struct FileList *filelist);
 void                filelist_hideparent(struct FileList *filelist, short hide);
+
+/* helper, could probably go in BKE actually? */
+int                 groupname_to_code(const char *group);
+
 
 struct ListBase *   folderlist_new(void);
 void                folderlist_free(struct ListBase *folderlist);

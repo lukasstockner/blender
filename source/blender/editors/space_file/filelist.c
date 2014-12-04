@@ -350,6 +350,22 @@ static bool is_filtered_lib(struct direntry *file, const char *dir, unsigned int
 	return is_filtered;
 }
 
+static bool is_filtered_lib_flat(struct direntry *file, const char *dir, unsigned int filter, short hide_dot)
+{
+	bool is_filtered = false;
+	char tdir[FILE_MAX], tgroup[BLO_GROUP_MAX];
+	if (BLO_is_a_library(dir, tdir, tgroup)) {
+		is_filtered = !is_hidden_file(file->relname, hide_dot);
+		if (filter && !(filter & FOLDERFILE) && (file->type & S_IFDIR) && !STREQ(file->relname, "..")) {
+			is_filtered = false;
+		}
+	}
+	else {
+		is_filtered = is_filtered_file(file, dir, filter, hide_dot);
+	}
+	return is_filtered;
+}
+
 static bool is_filtered_main(struct direntry *file, const char *UNUSED(dir), unsigned int UNUSED(filter), short hide_dot)
 {
 	return !is_hidden_file(file->relname, hide_dot);
@@ -539,8 +555,7 @@ static void filelist_read_library(struct FileList *filelist);
 static void filelist_read_library_flat(struct FileList *filelist);
 static void filelist_read_dir(struct FileList *filelist);
 
-static int groupname_to_code(const char *group);
-static void filelist_from_library(struct FileList *filelist, const bool add_parent);
+static void filelist_from_library(struct FileList *filelist, const bool add_parent, const bool use_filter);
 
 FileList *filelist_new(short type)
 {
@@ -557,7 +572,7 @@ FileList *filelist_new(short type)
 			break;
 		case FILE_ASSET:
 			p->readf = filelist_read_library_flat;
-			p->filterf = is_filtered_lib;
+			p->filterf = is_filtered_lib_flat;
 			break;
 		default:
 			p->readf = filelist_read_dir;
@@ -628,40 +643,30 @@ short filelist_changed(struct FileList *filelist)
 	return filelist->changed;
 }
 
-ImBuf *filelist_getimage(struct FileList *filelist, int index)
+static struct direntry *filelist_geticon_get_file(struct FileList *filelist, const int index)
 {
-	ImBuf *ibuf = NULL;
-	int fidx = 0;
-
 	BLI_assert(G.background == false);
 
-	if ((index < 0) || (index >= filelist->numfiltered)) {
-		return NULL;
-	}
-	fidx = filelist->fidx[index];
-	ibuf = filelist->filelist[fidx].image;
-
-	return ibuf;
+	return filelist_file(filelist, index);
 }
 
-ImBuf *filelist_geticon(struct FileList *filelist, int index)
+ImBuf *filelist_getimage(struct FileList *filelist, const int index)
+{
+	struct direntry *file = filelist_geticon_get_file(filelist, index);
+
+	return file->image;
+}
+
+ImBuf *filelist_geticon_image(struct FileList *filelist, const int index)
 {
 	ImBuf *ibuf = NULL;
-	struct direntry *file = NULL;
-	int fidx = 0;
+	struct direntry *file = filelist_geticon_get_file(filelist, index);
 
-	BLI_assert(G.background == false);
-
-	if ((index < 0) || (index >= filelist->numfiltered)) {
-		return NULL;
-	}
-	fidx = filelist->fidx[index];
-	file = &filelist->filelist[fidx];
 	if (file->type & S_IFDIR) {
-		if (strcmp(filelist->filelist[fidx].relname, "..") == 0) {
+		if (strcmp(file->relname, "..") == 0) {
 			ibuf = gSpecialFileImages[SPECIAL_IMG_PARENT];
 		}
-		else if (strcmp(filelist->filelist[fidx].relname, ".") == 0) {
+		else if (strcmp(file->relname, ".") == 0) {
 			ibuf = gSpecialFileImages[SPECIAL_IMG_REFRESH];
 		}
 		else {
@@ -675,7 +680,7 @@ ImBuf *filelist_geticon(struct FileList *filelist, int index)
 	if (file->flags & BLENDERFILE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BLENDFILE];
 	}
-	else if ((file->flags & MOVIEFILE) || (file->flags & MOVIEFILE_ICON)) {
+	else if (file->flags & (MOVIEFILE | MOVIEFILE_ICON)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
 	}
 	else if (file->flags & SOUNDFILE) {
@@ -700,10 +705,119 @@ ImBuf *filelist_geticon(struct FileList *filelist, int index)
 	return ibuf;
 }
 
+int filelist_geticon(struct FileList *filelist, const int index)
+{
+	struct direntry *file = filelist_geticon_get_file(filelist, index);
+
+	if (file->type & S_IFDIR) {
+		if (strcmp(file->relname, "..") == 0) {
+			return ICON_FILE_PARENT;
+		}
+		if (file->flags & APPLICATIONBUNDLE) {
+			return ICON_UGLYPACKAGE;
+		}
+		if (file->flags & BLENDERFILE) {
+			return ICON_FILE_BLEND;
+		}
+		return ICON_FILE_FOLDER;
+	}
+	else if (file->flags & BLENDERFILE)
+		return ICON_FILE_BLEND;
+	else if (file->flags & BLENDERFILE_BACKUP)
+		return ICON_FILE_BACKUP;
+	else if (file->flags & IMAGEFILE)
+		return ICON_FILE_IMAGE;
+	else if (file->flags & MOVIEFILE)
+		return ICON_FILE_MOVIE;
+	else if (file->flags & PYSCRIPTFILE)
+		return ICON_FILE_SCRIPT;
+	else if (file->flags & SOUNDFILE)
+		return ICON_FILE_SOUND;
+	else if (file->flags & FTFONTFILE)
+		return ICON_FILE_FONT;
+	else if (file->flags & BTXFILE)
+		return ICON_FILE_BLANK;
+	else if (file->flags & COLLADAFILE)
+		return ICON_FILE_BLANK;
+	else if (file->flags & TEXTFILE)
+		return ICON_FILE_TEXT;
+	else {
+		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX];
+		char *slash;
+
+		BLI_join_dirfile(path, sizeof(path), filelist->dir, file->relname);
+		slash = (char *)BLI_last_slash(path);
+		slash[1] = '\0';
+
+		if (BLO_is_a_library(path, dir, group)) {
+			int idcode = groupname_to_code(group);
+
+			/* TODO: this should most likely be completed and moved to UI_interface_icons.h ? unless it already exists somewhere... */
+			switch (idcode) {
+				case ID_AC:
+					return ICON_ANIM_DATA;
+				case ID_AR:
+					return ICON_ARMATURE_DATA;
+				case ID_BR:
+					return ICON_BRUSH_DATA;
+				case ID_CA:
+					return ICON_CAMERA_DATA;
+				case ID_CU:
+					return ICON_CURVE_DATA;
+				case ID_GD:
+					return ICON_GREASEPENCIL;
+				case ID_GR:
+					return ICON_GROUP;
+				case ID_IM:
+					return ICON_IMAGE_DATA;
+				case ID_LA:
+					return ICON_LAMP_DATA;
+				case ID_LS:
+					return ICON_LINE_DATA;
+				case ID_LT:
+					return ICON_LATTICE_DATA;
+				case ID_MA:
+					return ICON_MATERIAL_DATA;
+				case ID_MB:
+					return ICON_META_DATA;
+				case ID_MC:
+					return ICON_CLIP;
+				case ID_ME:
+					return ICON_MESH_DATA;
+				case ID_MSK:
+					return ICON_FILE_BLANK;  /* TODO! */
+				case ID_NT:
+					return ICON_NODETREE;
+				case ID_OB:
+					return ICON_OBJECT_DATA;
+				case ID_PAL:
+					return ICON_FILE_BLANK;  /* TODO! */
+				case ID_PC:
+					return ICON_FILE_BLANK;  /* TODO! */
+				case ID_SCE:
+					return ICON_SCENE_DATA;
+				case ID_SPK:
+					return ICON_SPEAKER;
+				case ID_SO:
+					return ICON_SOUND;
+				case ID_TE:
+					return ICON_TEXTURE_DATA;
+				case ID_TXT:
+					return ICON_TEXT;
+				case ID_VF:
+					return ICON_FONT_DATA;
+				case ID_WO:
+					return ICON_WORLD_DATA;
+			}
+		}
+		return ICON_FILE_BLANK;
+	}
+}
+
 struct direntry *filelist_file(struct FileList *filelist, int index)
 {
 	int fidx = 0;
-	
+
 	if ((index < 0) || (index >= filelist->numfiltered)) {
 		return NULL;
 	}
@@ -913,7 +1027,7 @@ static void filelist_read_library(struct FileList *filelist)
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	printf("%s\n", filelist->dir);
-	filelist_from_library(filelist, true);
+	filelist_from_library(filelist, true, true);
 	if (!filelist->libfiledata) {
 		int num;
 		struct direntry *file;
@@ -951,7 +1065,7 @@ static void filelist_read_library_flat(struct FileList *filelist)
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	printf("%s\n", filelist->dir);
-	filelist_from_library(filelist, true);
+	filelist_from_library(filelist, true, false);
 	if (!filelist->libfiledata) {
 		int num;
 		struct direntry *file;
@@ -982,7 +1096,9 @@ static void filelist_read_library_flat(struct FileList *filelist)
 
 		char dir[FILE_MAX], group[BLO_GROUP_MAX];
 
-		BLI_assert(filelist_islibrary(filelist, dir, group));
+		const bool is_lib = filelist_islibrary(filelist, dir, group);
+
+		BLI_assert(is_lib);
 
 		printf("%s has libfiledata (%s)\n", __func__, group);
 
@@ -1005,7 +1121,7 @@ static void filelist_read_library_flat(struct FileList *filelist)
 			filelist_setdir(fl, dir);
 			BLI_cleanup_dir(G.main->name, fl->dir);
 			printf("%s\n", fl->dir);
-			filelist_from_library(fl, false);
+			filelist_from_library(fl, false, false);
 
 			if (fl->numfiles) {
 				int new_numfiles = fl->numfiles + filelist->numfiles;
@@ -1016,10 +1132,6 @@ static void filelist_read_library_flat(struct FileList *filelist)
 				new_filelist = malloc(sizeof(*new_filelist) * (size_t)new_numfiles);
 				memcpy(new_filelist, filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
 				for (i = filelist->numfiles, j = 0, f = fl->filelist; j < fl->numfiles; j++, f++) {
-					//~ if (STREQ(f->relname, "..")) {
-						//~ new_numfiles--;
-						//~ continue;
-					//~ }
 					BLI_join_dirfile(dir, sizeof(dir), fl->dir, f->relname);
 					printf("%s, %s, %s, %s\n", filelist->dir, dir, "", "");
 					BLI_cleanup_file(filelist->dir, dir);
@@ -1027,7 +1139,6 @@ static void filelist_read_library_flat(struct FileList *filelist)
 					printf("\t\t-> %s, %s, %s, %s\n", dir, "", "", "");
 					new_filelist[i] = *f;
 					new_filelist[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
-					//new_filelist[i].path = BLI_strdup(f->path);
 					/* those pointers are given to new_filelist... */
 					f->path = NULL;
 					f->poin = NULL;
@@ -1050,8 +1161,6 @@ static void filelist_read_library_flat(struct FileList *filelist)
 		}
 
 		filelist_sort(filelist, FILE_SORT_ALPHA);
-
-		filelist->filter = 0;
 		filelist_filter(filelist);
 	}
 }
@@ -1160,7 +1269,7 @@ bool filelist_islibrary(struct FileList *filelist, char *dir, char *group)
 	return BLO_is_a_library(filelist->dir, dir, group);
 }
 
-static int groupname_to_code(const char *group)
+int groupname_to_code(const char *group)
 {
 	char buf[BLO_GROUP_MAX];
 	char *lslash;
@@ -1173,7 +1282,7 @@ static int groupname_to_code(const char *group)
 	return buf[0] ? BKE_idcode_from_name(buf) : 0;
 }
  
-static void filelist_from_library(struct FileList *filelist, const bool add_parent)
+static void filelist_from_library(struct FileList *filelist, const bool add_parent, const bool use_filter)
 {
 	LinkNode *l, *names, *previews;
 	struct ImBuf *ima;
@@ -1271,8 +1380,10 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 
 	BLI_strncpy(G.main->name, filename, sizeof(filename));  /* prevent G.main->name to change */
 
-	filelist->filter = 0;
-	filelist_filter(filelist);
+	if (use_filter) {
+		filelist->filter = 0;
+		filelist_filter(filelist);
+	}
 }
 
 void filelist_hideparent(struct FileList *filelist, short hide)
