@@ -498,32 +498,33 @@ static bool is_filtered_main(struct direntry *file, const char *UNUSED(dir), Fil
 void filelist_filter(FileList *filelist)
 {
 	int num_filtered = 0;
-	int i, j;
+	int *fidx_tmp;
+	int i;
 
-	if (!filelist->filelist)
+	if (!filelist->filelist) {
 		return;
+	}
+
+	fidx_tmp = MEM_mallocN(sizeof(*fidx_tmp) * (size_t)filelist->numfiles, __func__);
 
 	/* How many files are left after filter ? */
 	for (i = 0; i < filelist->numfiles; ++i) {
 		struct direntry *file = &filelist->filelist[i];
 		if (filelist->filterf(file, filelist->dir, &filelist->filter_data)) {
-			num_filtered++;
+			fidx_tmp[num_filtered++] = i;
 		}
 	}
-	
+
 	if (filelist->fidx) {
 		MEM_freeN(filelist->fidx);
 		filelist->fidx = NULL;
 	}
-	filelist->fidx = (int *)MEM_callocN(num_filtered * sizeof(int), "filteridx");
+	/* Note: maybe we could even accept filelist->fidx to be filelist->numfiles -len allocated? */
+	filelist->fidx = (int *)MEM_mallocN(sizeof(*filelist->fidx) * (size_t)num_filtered, __func__);
+	memcpy(filelist->fidx, fidx_tmp, sizeof(*filelist->fidx) * (size_t)num_filtered);
 	filelist->numfiltered = num_filtered;
 
-	for (i = 0, j = 0; i < filelist->numfiles; ++i) {
-		struct direntry *file = &filelist->filelist[i];
-		if (filelist->filterf(file, filelist->dir, &filelist->filter_data)) {
-			filelist->fidx[j++] = i;
-		}
-	}
+	MEM_freeN(fidx_tmp);
 }
 
 void filelist_init_icons(void)
