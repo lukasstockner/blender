@@ -48,8 +48,6 @@
 
 #include "BIF_gl.h"
 
-#include "ED_space_api.h"
-
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -425,10 +423,10 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 				len = text_font_draw_character_utf8(st, x, y, str + ma);
 				/* draw underline */
 				if (format && format[a] == FMT_TYPE_ULINE)
-					ED_text_draw_underline(x, y, len, 1);
+					UI_text_draw_underline(x, y, len, 1);
 				else
 				if (format && format[a] == FMT_TYPE_TULINE)
-					ED_text_draw_underline(x, y, len, 2);
+					UI_text_draw_underline(x, y, len, 2);
 				x += len;
 				fpos++;
 			}
@@ -458,10 +456,10 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 
 		/* draw underline */
 		if (format && format[a] == FMT_TYPE_ULINE)
-			ED_text_draw_underline(x, y, len, 1);
+			UI_text_draw_underline(x, y, len, 1);
 		else
 		if (format && format[a] == FMT_TYPE_TULINE)
-			ED_text_draw_underline(x, y, len, 2);
+			UI_text_draw_underline(x, y, len, 2);
 		x += len;
 	}
 
@@ -514,10 +512,10 @@ static void text_draw(SpaceText *st, wmImeData *ime_data, char *str, int cshift,
 			len = text_font_draw_character_utf8(st, x, y, in + str_shift);
 			/* draw underline */
 			if (fmt_prev == FMT_TYPE_ULINE)
-				ED_text_draw_underline(x, y, len, 1);
+				UI_text_draw_underline(x, y, len, 1);
 			else
 			if (fmt_prev == FMT_TYPE_TULINE)
-				ED_text_draw_underline(x, y, len, 2);
+				UI_text_draw_underline(x, y, len, 2);
 			x += len;
 			str_shift += BLI_str_utf8_size_safe(in + str_shift);
 		}

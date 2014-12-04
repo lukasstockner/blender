@@ -395,6 +395,11 @@ void UI_draw_roundbox(float minx, float miny, float maxx, float maxy, float rad)
 	ui_draw_anti_roundbox(GL_POLYGON, minx, miny, maxx, maxy, rad, roundboxtype & UI_RB_ALPHA);
 }
 
+void UI_text_draw_underline(int pos_x, int pos_y, int len, int height) {
+	short ofs_y = 4 * U.pixelsize;
+	glRecti(pos_x, pos_y - ofs_y, pos_x + len, pos_y - ofs_y + (height * U.pixelsize));
+}
+
 /* ************** SPECIAL BUTTON DRAWING FUNCTIONS ************* */
 
 void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *rect)

@@ -46,6 +46,8 @@
 
 #include "textview.h"
 
+#include "UI_interface.h"
+
 #include "WM_types.h"
 
 static void console_font_begin(TextViewContext *sc)
@@ -92,19 +94,19 @@ static void console_draw_sel(const char *str, const int sel[2], const int xy[2],
 }
 
 static void console_draw_underline(const char *str, const int sel[2], const int xy[2], const int str_len_draw,
-							       int cwidth, int lheight, const unsigned char bg_sel[4])
+							       const int cwidth, const int height, const unsigned char bg_sel[4])
 {
 	if (sel[0] <= str_len_draw && sel[1] >= 0) {
-		const int sta = txt_utf8_offset_to_column(str, max_ii(sel[0], 0));
-		const int end = txt_utf8_offset_to_column(str, min_ii(sel[1], str_len_draw));
-		int tmp[2];
+		const int col_xmin = txt_utf8_offset_to_column(str, max_ii(sel[0], 0));
+		const int col_xmax = txt_utf8_offset_to_column(str, min_ii(sel[1], str_len_draw));
+
+		const int x = xy[0] + (cwidth * col_xmin);
+		const int y = xy[1];
+		const int width = (xy[0] + (cwidth * col_xmax)) - x;
 
 		glColor3ubv(bg_sel);
 
-		/* return the coord for IME window following */
-		tmp[0] = xy[0] + (cwidth * end);
-		tmp[1] = xy[1] - 2;
-		glRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, tmp[0], tmp[1]);
+		UI_text_draw_underline(x, y, width, height);
 	}
 }
 

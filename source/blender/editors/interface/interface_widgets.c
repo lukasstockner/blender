@@ -1236,6 +1236,48 @@ static void ui_text_clip_right_label(uiFontStyle *fstyle, uiBut *but, const rcti
 		BLF_disable(fstyle->uifont_id, BLF_KERNING_DEFAULT);
 }
 
+#ifdef WITH_INPUT_IME
+static void widget_draw_text_ime_underline(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect, wmImeData *ime_data, char *drawstr)
+{
+	int ofs_x, width;
+	int rect_x = BLI_rcti_size_x(rect);
+	int target_start = ime_data->target_start, target_end = ime_data->target_end;
+
+	if (drawstr[0] != 0) {
+		if (but->pos >= but->ofs) {
+			ofs_x = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->pos - but->ofs);
+		}
+		else {
+			ofs_x = 0;
+		}
+
+		width = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
+		                  ime_data->composite_len + but->pos - but->ofs);
+
+		glColor4ubv((unsigned char *)wcol->text);
+		UI_text_draw_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 1);
+
+		/* draw the thick line */
+		if (target_start != -1 && target_end != -1) {
+			target_end -= target_start;
+			target_start += but->pos;
+
+			if (target_start >= but->ofs) {
+				ofs_x = BLF_width(fstyle->uifont_id, drawstr + but->ofs, target_start - but->ofs);
+			}
+			else {
+				ofs_x = 0;
+			}
+
+			width = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
+			                  target_end + target_start - but->ofs);
+
+			UI_text_draw_underline(rect->xmin + ofs_x, rect->ymin + 6 * U.pixelsize, min_ii(width, rect_x - 2) - ofs_x, 2);
+		}
+	}
+}
+#endif
+
 static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
 	int drawstr_left_len = UI_MAX_DRAW_STR;
@@ -1278,16 +1320,13 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 			if (ime_data && ime_data->composite_len) {
 				/* insert composite string into cursor pos */
-				BLI_snprintf(drawstr, UI_MAX_DRAW_STR, "%s%s%s", /* XXX drawstr is limited to 400 chars - check if that's enough */
+				BLI_snprintf(drawstr, UI_MAX_DRAW_STR, "%s%s%s",
 				             but->editstr, ime_data->composite,
 				             but->editstr + but->pos);
 			}
-			else {
-#else
-			if (1) {
+			else
 #endif
 				drawstr = but->editstr;
-			}
 		}
 	}
 
@@ -1322,13 +1361,12 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 		/* text cursor */
 		vpos = but->pos;
+
 #ifdef WITH_INPUT_IME
 		/* if is ime compositing, move the cursor */
 		if (ime_data && ime_data->composite_len && ime_data->cursor_position != -1) {
 			vpos += ime_data->cursor_position;
 		}
-#else
-		(void)ime;
 #endif
 
 		if (but->pos >= but->ofs) {
@@ -1342,60 +1380,26 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 
 			glColor3f(0.20, 0.6, 0.9);
 
-#ifdef WITH_INPUT_IME
 			tx = rect->xmin + t + 2;
 			ty = rect->ymin + 2;
+
+			/* draw cursor */
 			glRecti(rect->xmin + t, ty, tx, rect->ymax - 2);
-
-			/* ime cursor following */
-			ui_but_ime_reposition(but, tx + 5, ty + 3, false);
 		}
 
-		/* composite underline */
+#ifdef WITH_INPUT_IME
 		if (ime_data && ime_data->composite_len) {
-			int draw_start, draw_end, target_start = ime_data->target_start, target_end = ime_data->target_end;
-
-			if (drawstr[0] != 0) {
-
-				if (but->pos >= but->ofs) {
-					draw_start = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->pos - but->ofs);
-				}
-				else {
-					draw_start = 0;
-				}
-
-				draw_end = BLF_width(fstyle->uifont_id, drawstr + but->ofs, 
-				                     ime_data->composite_len + but->pos - but->ofs);
-
-				glColor4ubv((unsigned char *)wcol->text);
-				glRecti(rect->xmin + draw_start,
-					rect->ymin + 2,
-					min_ii(rect->xmin + draw_end, rect->xmax - 2), rect->ymin + 1);
-
-				/* draw the thick line */
-				if (target_start != -1 && target_end != -1) {
-					target_end -= target_start;
-					target_start += but->pos;
-
-					if (target_start >= but->ofs) {
-						draw_start = BLF_width(fstyle->uifont_id, drawstr + but->ofs, target_start - but->ofs);
-					}
-					else {
-						draw_start = 0;
-					}
-
-					draw_end = BLF_width(fstyle->uifont_id, drawstr + but->ofs,
-					                     target_end + target_start - but->ofs);
-
-					glRecti(rect->xmin + draw_start,
-						rect->ymin + 3,
-						min_ii(rect->xmin + draw_end, rect->xmax - 2), rect->ymin + 1);
-				}
+			/* ime cursor following */
+			if (but->pos >= but->ofs) {
+				ui_but_ime_reposition(but, tx + 5, ty + 3, false);
 			}
-#else
-			(void)ty; (void)tx;
-#endif
+
+			/* composite underline */
+			widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
 		}
+#else
+			(void)ime_data;
+#endif
 	}
 	
 	if (fstyle->kerning == 1)

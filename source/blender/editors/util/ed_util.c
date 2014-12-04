@@ -318,9 +318,3 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 	glEnd();
 	setlinestyle(0);
 }
-
-/* ********************* Misc *********************** */
-
-void ED_text_draw_underline(int x, int y, int len, int height) {
-	glRecti(x, y - 4, x + len, y - 4 + height);
-}
