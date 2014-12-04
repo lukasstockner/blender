@@ -2658,6 +2658,12 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		case RIGHTMOUSE:
 		case ESCKEY:
 			if (event->val == KM_PRESS) {
+#ifdef WITH_INPUT_IME
+				/* skips button handling since it is not wanted */
+				if (is_ime_composing) {
+					break;
+				}
+#endif
 				data->cancel = true;
 				data->escapecancel = true;
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
