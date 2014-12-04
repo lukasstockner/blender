@@ -2916,6 +2916,7 @@ static int text_insert_exec(bContext *C, wmOperator *op)
 
 static int text_insert_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+#ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime_data = win->ime_data;
 	Text *text = CTX_data_edit_text(C);
@@ -2941,6 +2942,9 @@ static int text_insert_modal(bContext *C, wmOperator *op, const wmEvent *event)
 		/* only redraw, don't clean away format */
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_TEXT, text);
 	}
+#else
+	(void)C; (void)op; (void)event;
+#endif /* WITH_INPUT_IME */
 
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -2958,6 +2962,7 @@ static int text_insert_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 		if ((event->ctrl || event->oskey) && !event->utf8_buf[0]) {
 			return OPERATOR_PASS_THROUGH;
 		}
+#ifdef WITH_INPUT_IME
 		/* most IME shortcut for switch IME, fullwidth/halfwidth and so on */
 		if (WM_event_is_ime_switch(event))
 		{
@@ -2970,6 +2975,7 @@ static int text_insert_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			txt_delete_selected(text);
 			return text_insert_modal(C, op, event);
 		}
+#endif /* WITH_INPUT_IME */
 		else {
 			char str[BLI_UTF8_MAX + 1];
 			size_t len;

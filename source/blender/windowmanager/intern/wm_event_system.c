@@ -3373,6 +3373,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 
+#ifdef WITH_INPUT_IME
 		case GHOST_kEventImeCompositionStart:
 		{
 			event.val = KM_PRESS;
@@ -3397,6 +3398,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			wm_event_add(win, &event);
 			break;
 		}
+#endif /* WITH_INPUT_IME */
 
 	}
 

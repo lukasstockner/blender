@@ -93,6 +93,7 @@ static void console_draw_sel(const char *str, const int sel[2], const int xy[2],
 	}
 }
 
+#ifdef WITH_INPUT_IME
 static void console_draw_underline(const char *str, const int sel[2], const int xy[2], const int str_len_draw,
 							       const int cwidth, const int height, const unsigned char bg_sel[4])
 {
@@ -109,6 +110,7 @@ static void console_draw_underline(const char *str, const int sel[2], const int 
 		UI_text_draw_underline(x, y, width, height);
 	}
 }
+#endif /* WITH_INPUT_IME */
 
 /* warning: allocated memory for 'offsets' must be freed by caller */
 static int console_wrap_offsets(const char *str, int len, int width, int *lines, int **offsets)

@@ -421,6 +421,8 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 					if (fmt_prev != format[a]) format_draw_color(fmt_prev = format[a]);
 				}
 				len = text_font_draw_character_utf8(st, x, y, str + ma);
+
+#ifdef WITH_INPUT_IME
 				/* draw underline */
 				if (format && format[a] == FMT_TYPE_ULINE)
 					UI_text_draw_underline(x, y, len, 1);
@@ -428,6 +430,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 				if (format && format[a] == FMT_TYPE_TULINE)
 					UI_text_draw_underline(x, y, len, 2);
 				x += len;
+#endif
 				fpos++;
 			}
 			y -= st->lheight_dpi + TXT_LINE_SPACING;
@@ -454,6 +457,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 
 		len = text_font_draw_character_utf8(st, x, y, str + ma);
 
+#ifdef WITH_INPUT_IME
 		/* draw underline */
 		if (format && format[a] == FMT_TYPE_ULINE)
 			UI_text_draw_underline(x, y, len, 1);
@@ -461,6 +465,7 @@ static int text_draw_wrapped(SpaceText *st, const char *str, int x, int y, int w
 		if (format && format[a] == FMT_TYPE_TULINE)
 			UI_text_draw_underline(x, y, len, 2);
 		x += len;
+#endif
 	}
 
 	flatten_string_free(&fs);

@@ -396,6 +396,7 @@ static int console_insert_exec(bContext *C, wmOperator *op)
 
 static int console_insert_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+#ifdef WITH_INPUT_IME
 	wmWindow *win = CTX_wm_window(C);
 	wmImeData *ime = win->ime_data;
 	ARegion *ar = CTX_wm_region(C);
@@ -417,6 +418,9 @@ static int console_insert_modal(bContext *C, wmOperator *op, const wmEvent *even
 
 	if (event->type == WM_IME_COMPOSITE_END)
 		return OPERATOR_FINISHED;
+#else
+	(void)C; (void)op; (void)event;
+#endif /* WITH_INPUT_IME */
 
 	return OPERATOR_RUNNING_MODAL;
 }

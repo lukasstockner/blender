@@ -181,6 +181,7 @@ static int console_textview_line_color(struct TextViewContext *tvc, wmImeData *i
 		pen[0] = tvc->cwidth * offc;
 		pen[1] = -2 - tvc->lheight * offl;
 
+#ifdef WITH_INPUT_IME
 		/* consider the effect of composition string */
 		if (ime_data && ime_data->composite_len) {
 			char *end = NULL;
@@ -196,7 +197,7 @@ static int console_textview_line_color(struct TextViewContext *tvc, wmImeData *i
 			if (end != NULL)
 				console_cursor_wrap_offset(end, tvc->console_width, &offl, &offc, NULL);
 		}
-
+#endif /* WITH_INPUT_IME */
 
 		console_cursor_wrap_offset(cl->line + cl->cursor, tvc->console_width, &offl, &offc, NULL);
 		pen[1] += tvc->lheight * offl;
