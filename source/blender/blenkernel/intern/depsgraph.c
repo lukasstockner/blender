@@ -1656,6 +1656,15 @@ void DAG_scene_relations_update(Main *bmain, Scene *sce)
 		dag_scene_build(bmain, sce);
 }
 
+/* Tag specific ID node for rebuild, keep rest of the graph untouched. */
+void DAG_relations_tag_id_update(Main *bmain, ID *UNUSED(id))
+{
+	/* TODO(sergey): For now we tag the whole graph for rebuild,
+	 * once we'll have partial rebuilds implemented we'll use them.
+	 */
+	DAG_relations_tag_update(bmain);
+}
+
 void DAG_scene_relations_validate(Main *bmain, Scene *sce)
 {
 	Depsgraph *depsgraph = DEG_graph_new();
