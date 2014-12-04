@@ -86,20 +86,41 @@ void BKE_animsys_eval_animdata(EvaluationContext *UNUSED(eval_ctx),
 
 void BKE_animsys_eval_driver(EvaluationContext *UNUSED(eval_ctx),
                              ID *id,
-                             FCurve *fcurve,
+                             FCurve *fcu,
                              TimeSourceDepsNode *time_src)
 {
 	/* TODO(sergey): De-duplicate with BKE animsys. */
-	printf("%s on %s\n", __func__, id->name);
-	if ((fcurve->driver->flag & DRIVER_FLAG_INVALID) == 0) {
-		PointerRNA id_ptr;
-		float ctime = time_src->cfra;
-		RNA_id_pointer_create(id, &id_ptr);
-		calculate_fcurve(fcurve, ctime);
-		if (!BKE_animsys_execute_fcurve(&id_ptr, NULL, fcurve)) {
-			fcurve->driver->flag |= DRIVER_FLAG_INVALID;
+	printf("%s on %s (%s[%d])\n", __func__, id->name, fcu->rna_path, fcu->array_index);
+	
+	ChannelDriver *driver = fcu->driver;
+	PointerRNA id_ptr;
+	float ctime = time_src->cfra;
+	bool ok = false;
+	
+	RNA_id_pointer_create(id, &id_ptr);
+	
+	/* check if this driver's curve should be skipped */
+	if ((fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) == 0) {
+		/* check if driver itself is tagged for recalculation */
+		/* XXX driver recalc flag is not set yet by depsgraph! */
+		if ((driver) && !(driver->flag & DRIVER_FLAG_INVALID) /*&& (driver->flag & DRIVER_FLAG_RECALC)*/) {
+			/* evaluate this using values set already in other places
+			 * NOTE: for 'layering' option later on, we should check if we should remove old value before adding
+			 *       new to only be done when drivers only changed */
+			printf("\told val = %f\n", fcu->curval);
+			calculate_fcurve(fcu, ctime);
+			ok = BKE_animsys_execute_fcurve(&id_ptr, NULL, fcu);
+			printf("\tnew val = %f\n", fcu->curval);
+			
+			/* clear recalc flag */
+			driver->flag &= ~DRIVER_FLAG_RECALC;
+			
+			/* set error-flag if evaluation failed */
+			if (ok == 0) {
+				printf("invalid driver\n");
+				driver->flag |= DRIVER_FLAG_INVALID;
+			}
 		}
-		fcurve->driver->flag &= ~DRIVER_FLAG_RECALC;
 	}
 }
 

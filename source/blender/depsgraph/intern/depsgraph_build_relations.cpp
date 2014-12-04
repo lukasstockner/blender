@@ -321,9 +321,12 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	}
 
 	if (ob->adt) {
+		// FIXME: drivers
 		ComponentKey adt_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
+		ComponentKey params_key(&ob->id, DEPSNODE_TYPE_PARAMETERS);
 		ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 		add_relation(adt_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Object Animation");
+		add_relation(params_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Parameters");
 	}
 
 	/* TODO(sergey): This is a temp solution for now only. */
@@ -511,8 +514,10 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 		/* wire up dependency to time source */
 		TimeSourceKey time_src_key;
 		add_relation(time_src_key, adt_key, DEPSREL_TYPE_TIME, "[TimeSrc -> Animation] DepsRel");
-
+		
 		// XXX: Hook up specific update callbacks for special properties which may need it...
+		
+		// XXX: animdata "hierarchy" - top-level overrides need to go after lower-down
 	}
 	
 	/* drivers */
@@ -539,6 +544,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
 	/* create dependency between driver and data affected by it */
 	// XXX: this should return a parameter context for dealing with this...
 	RNAPathKey affected_key(id, fcurve->rna_path);
+	
 	/* make data dependent on driver */
 	add_relation(driver_key, affected_key, DEPSREL_TYPE_DRIVER, "[Driver -> Data] DepsRel");
 	
@@ -551,19 +557,26 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
 		/* only used targets */
 		DRIVER_TARGETS_USED_LOOPER(dvar) 
 		{
-			if (!dtar->id)
+			if (dtar->id == NULL)
 				continue;
 			
 			/* special handling for directly-named bones */
 			if ((dtar->flag & DTAR_FLAG_STRUCT_REF) && (dtar->pchan_name[0])) {
 				Object *ob = (Object *)dtar->id;
 				bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
+				
 				if (pchan != NULL) {
 					/* get node associated with bone */
 					ComponentKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name);
 					add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
 					             "[Target -> Driver] DepsRel");
 				}
+			}
+			else if (dtar->flag & DTAR_FLAG_STRUCT_REF) {
+				/* get node associated with the object's transforms */
+				ComponentKey target_key(dtar->id, DEPSNODE_TYPE_TRANSFORM);
+				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
+				             "[Target -> Driver] DepsRel");
 			}
 			else {
 				/* resolve path to get node */

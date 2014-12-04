@@ -366,7 +366,7 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 		/* drivers */
 		for (FCurve *fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
 			/* create driver */
-			/*OperationDepsNode *driver_node =*/ //build_driver(id, fcu);
+			build_driver(id, fcu);
 
 			/* hook up update callback associated with F-Curve */
 			// ...
