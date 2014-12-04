@@ -45,9 +45,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
-#include "BLI_linklist.h"
-#include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
+#include "BLI_fnmatch.h"
+#include "BLI_linklist.h"
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -103,7 +105,7 @@ typedef struct FileListFilter {
 	bool hide_dot;
 	unsigned int filter;
 	char filter_glob[64];
-	char filter_search[64];
+	char filter_search[66];  /* + 2 for heading/trailing implicit '*' wildcards. */
 } FileListFilter;
 
 typedef struct FileList {
@@ -458,7 +460,13 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(dir), Fil
 	else {
 		is_filtered = true;
 	}
-	return is_filtered && !is_hidden_file(file->relname, filter->hide_dot);
+	is_filtered = is_filtered && !is_hidden_file(file->relname, filter->hide_dot);
+	if (is_filtered && (filter->filter_search[0] != '\0')) {
+		if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+			is_filtered = false;
+		}
+	}
+	return is_filtered;
 }
 
 static bool is_filtered_lib(struct direntry *file, const char *dir, FileListFilter *filter)
@@ -467,6 +475,11 @@ static bool is_filtered_lib(struct direntry *file, const char *dir, FileListFilt
 	char tdir[FILE_MAX], tgroup[BLO_GROUP_MAX];
 	if (BLO_is_a_library(dir, tdir, tgroup)) {
 		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
+		if (is_filtered && (filter->filter_search[0] != '\0')) {
+			if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+				is_filtered = false;
+			}
+		}
 	}
 	else {
 		is_filtered = is_filtered_file(file, dir, filter);
@@ -482,6 +495,11 @@ static bool is_filtered_lib_flat(struct direntry *file, const char *dir, FileLis
 		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
 		if (filter && !(filter->filter & FOLDERFILE) && (file->type & S_IFDIR) && !STREQ(file->relname, "..")) {
 			is_filtered = false;
+		}
+		if (is_filtered && (filter->filter_search[0] != '\0')) {
+			if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+				is_filtered = false;
+			}
 		}
 	}
 	else {
@@ -858,19 +876,42 @@ int filelist_find(struct FileList *filelist, const char *filename)
 	return fidx;
 }
 
-void filelist_hidedot(struct FileList *filelist, const bool hide)
+void filelist_hidedot(FileList *filelist, const bool hide)
 {
 	filelist->filter_data.hide_dot = hide;
 }
 
-void filelist_setfilter(struct FileList *filelist, const unsigned int filter)
+void filelist_setfilter(FileList *filelist, const unsigned int filter)
 {
 	filelist->filter_data.filter = filter;
 }
 
-void filelist_setfilter_types(struct FileList *filelist, const char *filter_glob)
+void filelist_setfilter_types(FileList *filelist, const char *filter_glob)
 {
 	BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
+}
+
+void filelist_setfilter_search(struct FileList *filelist, const char *filter_search)
+{
+	int idx = 0;
+	const size_t max_search_len = sizeof(filelist->filter_data.filter_search) - 2;
+	const size_t slen = (size_t)min_ii((int)strlen(filter_search), (int)max_search_len);
+
+	if (slen == 0) {
+		filelist->filter_data.filter_search[0] = '\0';
+		return;
+	}
+
+	/* Implicitly add heading/trailing wildcards if needed. */
+	if (filter_search[idx] != '*') {
+		filelist->filter_data.filter_search[idx++] = '*';
+	}
+	memcpy(&filelist->filter_data.filter_search[idx], filter_search, slen);
+	idx += slen;
+	if (filelist->filter_data.filter_search[idx - 1] != '*') {
+		filelist->filter_data.filter_search[idx++] = '*';
+	}
+	filelist->filter_data.filter_search[idx] = '\0';
 }
 
 /* would recognize .blend as well */

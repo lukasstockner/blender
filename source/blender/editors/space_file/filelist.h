@@ -76,6 +76,7 @@ bool                filelist_is_selected(struct FileList *filelist, int index, F
 void                filelist_hidedot(struct FileList *filelist, const bool hide);
 void                filelist_setfilter(struct FileList *filelist, const unsigned int filter);
 void                filelist_setfilter_types(struct FileList *filelist, const char *filter_glob);
+void                filelist_setfilter_search(struct FileList *filelist, const char *filter_search);
 void                filelist_filter(struct FileList *filelist);
 void                filelist_imgsize(struct FileList *filelist, short w, short h);
 struct ImBuf *      filelist_getimage(struct FileList *filelist, const int index);

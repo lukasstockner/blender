@@ -3285,8 +3285,14 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "filter_glob", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "filter_glob");
 	RNA_def_property_ui_text(prop, "Extension Filter", "");
+	RNA_def_property_string_maxlength(prop, 63);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 
+	prop = RNA_def_property(srna, "filter_search", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "filter_search");
+	RNA_def_property_ui_text(prop, "Name Filter", "");
+	RNA_def_property_string_maxlength(prop, 63);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 }
 
 static void rna_def_space_filebrowser(BlenderRNA *brna)
