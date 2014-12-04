@@ -560,7 +560,6 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(FileList), "filelist");
-	printf("%d\n", type);
 	switch (type) {
 		case FILE_MAIN:
 			p->readf = filelist_read_main;
@@ -1026,7 +1025,6 @@ static void filelist_read_library(struct FileList *filelist)
 {
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
-	printf("%s\n", filelist->dir);
 	filelist_from_library(filelist, true, true);
 	if (!filelist->libfiledata) {
 		int num;
@@ -1049,28 +1047,16 @@ static void filelist_read_library(struct FileList *filelist)
 			}
 		}
 	}
-	else {
-		int num;
-		struct direntry *file;
-
-		file = filelist->filelist;
-		for (num = 0; num < filelist->numfiles; num++, file++) {
-			printf("%s, %s, %s\n", filelist->dir, file->path, file->relname);
-		}
-	}
 }
 
 static void filelist_read_library_flat(struct FileList *filelist)
 {
 	if (!filelist) return;
 	BLI_cleanup_dir(G.main->name, filelist->dir);
-	printf("%s\n", filelist->dir);
 	filelist_from_library(filelist, true, false);
 	if (!filelist->libfiledata) {
 		int num;
 		struct direntry *file;
-
-		printf("%s has no libfiledata\n", __func__);
 
 		BLI_make_exist(filelist->dir);
 		filelist_read_dir(filelist);
@@ -1100,8 +1086,6 @@ static void filelist_read_library_flat(struct FileList *filelist)
 
 		BLI_assert(is_lib);
 
-		printf("%s has libfiledata (%s)\n", __func__, group);
-
 		if (groupname_to_code(group)) {
 			/* We are at lowest possible level, nothing else to do. */
 			return;
@@ -1120,7 +1104,6 @@ static void filelist_read_library_flat(struct FileList *filelist)
 			BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
 			filelist_setdir(fl, dir);
 			BLI_cleanup_dir(G.main->name, fl->dir);
-			printf("%s\n", fl->dir);
 			filelist_from_library(fl, false, false);
 
 			if (fl->numfiles) {
@@ -1133,10 +1116,8 @@ static void filelist_read_library_flat(struct FileList *filelist)
 				memcpy(new_filelist, filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
 				for (i = filelist->numfiles, j = 0, f = fl->filelist; j < fl->numfiles; j++, f++) {
 					BLI_join_dirfile(dir, sizeof(dir), fl->dir, f->relname);
-					printf("%s, %s, %s, %s\n", filelist->dir, dir, "", "");
 					BLI_cleanup_file(filelist->dir, dir);
 					BLI_path_rel(dir, filelist->dir);
-					printf("\t\t-> %s, %s, %s, %s\n", dir, "", "", "");
 					new_filelist[i] = *f;
 					new_filelist[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
 					/* those pointers are given to new_filelist... */
@@ -1338,8 +1319,6 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 
 	for (i = 0, l = names; i < nnames; i++, l = l->next) {
 		const char *blockname = l->link;
-
-		printf("%s\n", blockname);
 
 		filelist->filelist[i].relname = BLI_strdup(blockname);
 		if (idcode) {

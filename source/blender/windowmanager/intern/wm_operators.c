@@ -2614,7 +2614,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	printf("%s\n", libname);
 	bh = BLO_blendhandle_from_file(libname, op->reports);
 
 	if (bh == NULL) {
