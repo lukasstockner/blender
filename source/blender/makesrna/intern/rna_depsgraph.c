@@ -55,7 +55,10 @@ static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 
 static void rna_Depsgraph_debug_rebuild(Depsgraph *UNUSED(graph), Main *bmain)
 {
+	Scene *sce;
 	DAG_relations_tag_update(bmain);
+	for (sce = bmain->scene.first; sce; sce = sce->id.next)
+		DAG_scene_relations_rebuild(bmain, sce);
 }
 
 #else
