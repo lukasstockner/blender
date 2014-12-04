@@ -542,11 +542,30 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
 	OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, deg_op_name_driver(driver));
 	
 	/* create dependency between driver and data affected by it */
-	// XXX: this should return a parameter context for dealing with this...
+	/* - direct property relationship... */
 	RNAPathKey affected_key(id, fcurve->rna_path);
-	
-	/* make data dependent on driver */
 	add_relation(driver_key, affected_key, DEPSREL_TYPE_DRIVER, "[Driver -> Data] DepsRel");
+	
+	/* driver -> data components (for interleaved evaluation - bones/constraints/modifiers) */
+	// XXX: this probably shouldn't be inlined here like this...
+	if (strstr(fcurve->rna_path, "pose.bones[\"") != NULL) {
+		/* interleaved drivers during bone eval */
+		char *bone_name = BLI_str_quoted_substrN(fcurve->rna_path, "pose.bones[");
+		
+		Object *ob = (Object *)id;
+		bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
+		
+		printf("driver on bone: id = %s, pchan = %s\n", id->name, pchan->name);
+		ComponentKey bone_key(id, DEPSNODE_TYPE_BONE, pchan->name);
+		DepsNode *bkey_node = find_node(bone_key);
+		if (bkey_node) {
+			printf("%s %d\n", bkey_node->name.c_str(), bkey_node->type);
+			add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> SubData] DepsRel");
+		}
+		else {
+			printf("couldn't find bone node!\n");
+		}
+	}
 	
 	/* ensure that affected prop's update callbacks will be triggered once done */
 	// TODO: implement this once the functionality to add these links exists in RNA
