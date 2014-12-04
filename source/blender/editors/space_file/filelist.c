@@ -292,6 +292,124 @@ static int compare_extension(const void *a1, const void *a2)
 	return (BLI_strcasecmp(sufix1, sufix2));
 }
 
+
+/* -----------------FOLDERLIST (previous/next) -------------- */
+
+ListBase *folderlist_new(void)
+{
+	ListBase *p = MEM_callocN(sizeof(ListBase), "folderlist");
+	return p;
+}
+
+void folderlist_popdir(struct ListBase *folderlist, char *dir)
+{
+	const char *prev_dir;
+	struct FolderList *folder;
+	folder = folderlist->last;
+
+	if (folder) {
+		/* remove the current directory */
+		MEM_freeN(folder->foldername);
+		BLI_freelinkN(folderlist, folder);
+
+		folder = folderlist->last;
+		if (folder) {
+			prev_dir = folder->foldername;
+			BLI_strncpy(dir, prev_dir, FILE_MAXDIR);
+		}
+	}
+	/* delete the folder next or use setdir directly before PREVIOUS OP */
+}
+
+void folderlist_pushdir(ListBase *folderlist, const char *dir)
+{
+	struct FolderList *folder, *previous_folder;
+	previous_folder = folderlist->last;
+
+	/* check if already exists */
+	if (previous_folder && previous_folder->foldername) {
+		if (BLI_path_cmp(previous_folder->foldername, dir) == 0) {
+			return;
+		}
+	}
+
+	/* create next folder element */
+	folder = (FolderList *)MEM_mallocN(sizeof(FolderList), "FolderList");
+	folder->foldername = BLI_strdup(dir);
+
+	/* add it to the end of the list */
+	BLI_addtail(folderlist, folder);
+}
+
+const char *folderlist_peeklastdir(ListBase *folderlist)
+{
+	struct FolderList *folder;
+
+	if (!folderlist->last)
+		return NULL;
+
+	folder = folderlist->last;
+	return folder->foldername;
+}
+
+int folderlist_clear_next(struct SpaceFile *sfile)
+{
+	struct FolderList *folder;
+
+	/* if there is no folder_next there is nothing we can clear */
+	if (!sfile->folders_next)
+		return 0;
+
+	/* if previous_folder, next_folder or refresh_folder operators are executed it doesn't clear folder_next */
+	folder = sfile->folders_prev->last;
+	if ((!folder) || (BLI_path_cmp(folder->foldername, sfile->params->dir) == 0))
+		return 0;
+
+	/* eventually clear flist->folders_next */
+	return 1;
+}
+
+/* not listbase itself */
+void folderlist_free(ListBase *folderlist)
+{
+	if (folderlist) {
+		FolderList *folder;
+		for (folder = folderlist->first; folder; folder = folder->next)
+			MEM_freeN(folder->foldername);
+		BLI_freelistN(folderlist);
+	}
+}
+
+ListBase *folderlist_duplicate(ListBase *folderlist)
+{
+	
+	if (folderlist) {
+		ListBase *folderlistn = MEM_callocN(sizeof(ListBase), "copy folderlist");
+		FolderList *folder;
+		
+		BLI_duplicatelist(folderlistn, folderlist);
+		
+		for (folder = folderlistn->first; folder; folder = folder->next) {
+			folder->foldername = MEM_dupallocN(folder->foldername);
+		}
+		return folderlistn;
+	}
+	return NULL;
+}
+
+
+/* ------------------FILELIST------------------------ */
+
+static void filelist_read_main(struct FileList *filelist);
+static void filelist_read_library(struct FileList *filelist);
+static void filelist_read_library_flat(struct FileList *filelist);
+static void filelist_read_dir(struct FileList *filelist);
+
+static void filelist_from_library(struct FileList *filelist, const bool add_parent, const bool use_filter);
+
+/* helper, could probably go in BKE actually? */
+static int groupname_to_code(const char *group);
+
 static bool is_hidden_file(const char *filename, short hide_dot)
 {
 	bool is_hidden = false;
@@ -443,119 +561,6 @@ void filelist_free_icons(void)
 		gSpecialFileImages[i] = NULL;
 	}
 }
-
-/* -----------------FOLDERLIST (previous/next) -------------- */
-ListBase *folderlist_new(void)
-{
-	ListBase *p = MEM_callocN(sizeof(ListBase), "folderlist");
-	return p;
-}
-
-void folderlist_popdir(struct ListBase *folderlist, char *dir)
-{
-	const char *prev_dir;
-	struct FolderList *folder;
-	folder = folderlist->last;
-
-	if (folder) {
-		/* remove the current directory */
-		MEM_freeN(folder->foldername);
-		BLI_freelinkN(folderlist, folder);
-
-		folder = folderlist->last;
-		if (folder) {
-			prev_dir = folder->foldername;
-			BLI_strncpy(dir, prev_dir, FILE_MAXDIR);
-		}
-	}
-	/* delete the folder next or use setdir directly before PREVIOUS OP */
-}
-
-void folderlist_pushdir(ListBase *folderlist, const char *dir)
-{
-	struct FolderList *folder, *previous_folder;
-	previous_folder = folderlist->last;
-
-	/* check if already exists */
-	if (previous_folder && previous_folder->foldername) {
-		if (BLI_path_cmp(previous_folder->foldername, dir) == 0) {
-			return;
-		}
-	}
-
-	/* create next folder element */
-	folder = (FolderList *)MEM_mallocN(sizeof(FolderList), "FolderList");
-	folder->foldername = BLI_strdup(dir);
-
-	/* add it to the end of the list */
-	BLI_addtail(folderlist, folder);
-}
-
-const char *folderlist_peeklastdir(ListBase *folderlist)
-{
-	struct FolderList *folder;
-
-	if (!folderlist->last)
-		return NULL;
-
-	folder = folderlist->last;
-	return folder->foldername;
-}
-
-int folderlist_clear_next(struct SpaceFile *sfile)
-{
-	struct FolderList *folder;
-
-	/* if there is no folder_next there is nothing we can clear */
-	if (!sfile->folders_next)
-		return 0;
-
-	/* if previous_folder, next_folder or refresh_folder operators are executed it doesn't clear folder_next */
-	folder = sfile->folders_prev->last;
-	if ((!folder) || (BLI_path_cmp(folder->foldername, sfile->params->dir) == 0))
-		return 0;
-
-	/* eventually clear flist->folders_next */
-	return 1;
-}
-
-/* not listbase itself */
-void folderlist_free(ListBase *folderlist)
-{
-	if (folderlist) {
-		FolderList *folder;
-		for (folder = folderlist->first; folder; folder = folder->next)
-			MEM_freeN(folder->foldername);
-		BLI_freelistN(folderlist);
-	}
-}
-
-ListBase *folderlist_duplicate(ListBase *folderlist)
-{
-	
-	if (folderlist) {
-		ListBase *folderlistn = MEM_callocN(sizeof(ListBase), "copy folderlist");
-		FolderList *folder;
-		
-		BLI_duplicatelist(folderlistn, folderlist);
-		
-		for (folder = folderlistn->first; folder; folder = folder->next) {
-			folder->foldername = MEM_dupallocN(folder->foldername);
-		}
-		return folderlistn;
-	}
-	return NULL;
-}
-
-
-/* ------------------FILELIST------------------------ */
-
-static void filelist_read_main(struct FileList *filelist);
-static void filelist_read_library(struct FileList *filelist);
-static void filelist_read_library_flat(struct FileList *filelist);
-static void filelist_read_dir(struct FileList *filelist);
-
-static void filelist_from_library(struct FileList *filelist, const bool add_parent, const bool use_filter);
 
 FileList *filelist_new(short type)
 {
@@ -816,7 +821,7 @@ int filelist_geticon(struct FileList *filelist, const int index)
 struct direntry *filelist_file(struct FileList *filelist, int index)
 {
 	int fidx = 0;
-
+	
 	if ((index < 0) || (index >= filelist->numfiltered)) {
 		return NULL;
 	}
@@ -1250,7 +1255,7 @@ bool filelist_islibrary(struct FileList *filelist, char *dir, char *group)
 	return BLO_is_a_library(filelist->dir, dir, group);
 }
 
-int groupname_to_code(const char *group)
+static int groupname_to_code(const char *group)
 {
 	char buf[BLO_GROUP_MAX];
 	char *lslash;

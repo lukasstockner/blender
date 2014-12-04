@@ -93,9 +93,6 @@ void                filelist_from_main(struct FileList *filelist);
 void                filelist_freelib(struct FileList *filelist);
 void                filelist_hideparent(struct FileList *filelist, short hide);
 
-/* helper, could probably go in BKE actually? */
-int                 groupname_to_code(const char *group);
-
 
 struct ListBase *   folderlist_new(void);
 void                folderlist_free(struct ListBase *folderlist);
