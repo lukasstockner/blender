@@ -190,6 +190,7 @@ class DATA_PT_camera_gpu_dof(Panel):
         col.prop(dof_options, "dof_fstop")
         col.prop(dof_options, "dof_focal_length")
         col.prop(dof_options, "dof_sensor")
+        col.prop(dof_options, "dof_quality_mode")
 
     @classmethod
     def poll(cls, context):
