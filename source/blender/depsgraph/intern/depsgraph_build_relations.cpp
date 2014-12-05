@@ -326,11 +326,6 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 		ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 		add_relation(adt_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
-
-	/* TODO(sergey): This is a temp solution for now only. */
-	ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
-	ComponentKey geometry_key(&ob->id, DEPSNODE_TYPE_GEOMETRY);
-	add_relation(transform_key, geometry_key, DEPSREL_TYPE_COMPONENT_ORDER, "Object Transform");
 }
 
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)
@@ -1049,11 +1044,6 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			add_relation(transforms_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Bone Final Transforms");
 		}
 	}
-
-	/* TODO(sergey): do we really need this relation? */
-	ComponentKey pose_eval_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
-	OperationKey geom_ubereval_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, "Object Data UberEval");
-	add_relation(pose_eval_key, geom_ubereval_key, DEPSREL_TYPE_OPERATION, "Pose `relation");
 }
 
 /* Shapekeys */
