@@ -668,7 +668,6 @@ enum FileSortTypeE {
 #define FILE_LOADLIB        1
 #define FILE_MAIN           2
 #define FILE_LOADFONT       3
-#define FILE_ASSET          4
 
 /* filesel op property -> action */
 typedef enum eFileSel_Action {
@@ -689,6 +688,7 @@ typedef enum eFileSel_Params_Flag {
 	FILE_FILTER         = (1 << 8),
 	FILE_BOOKMARKS      = (1 << 9),
 	FILE_GROUP_INSTANCE = (1 << 10),
+	FILE_SHOWFLAT       = (1 << 11),
 } eFileSel_Params_Flag;
 
 

@@ -204,6 +204,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	filelist_setfilter(sfile->files, params->flag & FILE_FILTER ? params->filter : 0);
 	filelist_setfilter_types(sfile->files, params->filter_glob);
 	filelist_setfilter_search(sfile->files, params->filter_search);
+	filelist_setrecursive(sfile->files, (params->flag & FILE_SHOWFLAT) != 0);
 
 	if (filelist_empty(sfile->files)) {
 		thumbnails_stop(wm, sfile->files);

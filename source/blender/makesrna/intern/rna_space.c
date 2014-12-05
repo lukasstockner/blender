@@ -3170,7 +3170,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	
+
 	static EnumPropertyItem file_display_items[] = {
 		{FILE_SHORTDISPLAY, "FILE_SHORTDISPLAY", ICON_SHORTDISPLAY, "Short List", "Display files as short list"},
 		{FILE_LONGDISPLAY, "FILE_LONGDISPLAY", ICON_LONGDISPLAY, "Long List", "Display files as a detailed list"},
@@ -3210,6 +3210,11 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "display");
 	RNA_def_property_enum_items(prop, file_display_items);
 	RNA_def_property_ui_text(prop, "Display Mode", "Display mode for the file list");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_property(srna, "use_flat_view", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", FILE_SHOWFLAT);
+	RNA_def_property_ui_text(prop, "Use Flat View", "Display all items found recursively from current position");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 
 	prop = RNA_def_property(srna, "use_filter", PROP_BOOLEAN, PROP_NONE);

@@ -126,7 +126,14 @@ typedef struct FileList {
 	void (*readf)(struct FileList *);
 	bool (*filterf)(struct direntry *file, const char *dir, FileListFilter *filter);
 
+	bool use_recursion;
+	short recursion_level;
 } FileList;
+
+#define FILELIST_MAX_RECURSION 3
+
+#define FILENAME_IS_BREADCRUMBS(_n) \
+	(((_n)[0] == '.' && (_n)[1] == '\0') || ((_n)[0] == '.' && (_n)[1] == '.' && (_n)[2] == '\0'))
 
 typedef struct FolderList {
 	struct FolderList *next, *prev;
@@ -410,7 +417,6 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 
 static void filelist_read_main(struct FileList *filelist);
 static void filelist_read_library(struct FileList *filelist);
-static void filelist_read_library_flat(struct FileList *filelist);
 static void filelist_read_dir(struct FileList *filelist);
 
 static void filelist_from_library(struct FileList *filelist, const bool add_parent, const bool use_filter);
@@ -426,9 +432,6 @@ static bool is_hidden_file(const char *filename, const bool hide_dot)
 		if (filename[0] == '.' && filename[1] != '.' && filename[1] != 0) {
 			is_hidden = true; /* ignore .file */
 		}
-		else if (((filename[0] == '.') && (filename[1] == 0))) {
-			is_hidden = true; /* ignore . */
-		}
 		else {
 			int len = strlen(filename);
 			if ((len > 0) && (filename[len - 1] == '~')) {
@@ -436,64 +439,48 @@ static bool is_hidden_file(const char *filename, const bool hide_dot)
 			}
 		}
 	}
-	else {
-		if (((filename[0] == '.') && (filename[1] == 0))) {
-			is_hidden = true; /* ignore . */
-		}
+	if (((filename[0] == '.') && (filename[1] == 0))) {
+		is_hidden = true; /* ignore . */
 	}
 	return is_hidden;
 }
 
-static bool is_filtered_file(struct direntry *file, const char *UNUSED(dir), FileListFilter *filter)
+static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), FileListFilter *filter)
 {
 	bool is_filtered = false;
 	if (filter->filter) {
 		if (file->flags & filter->filter) {
 			is_filtered = true;
 		}
-		else if (file->type & S_IFDIR) {
-			if (filter->filter & FOLDERFILE) {
-				is_filtered = true;
-			}
+		else if ((file->type & S_IFDIR) && ((filter->filter & FOLDERFILE) || FILENAME_IS_BREADCRUMBS(file->relname))) {
+			is_filtered = true;
 		}
 	}
 	else {
 		is_filtered = true;
 	}
-	is_filtered = is_filtered && !is_hidden_file(file->relname, filter->hide_dot);
+	if (is_filtered) {
+		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
+	}
 	if (is_filtered && (filter->filter_search[0] != '\0')) {
 		if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
 			is_filtered = false;
 		}
 	}
+
 	return is_filtered;
 }
 
-static bool is_filtered_lib(struct direntry *file, const char *dir, FileListFilter *filter)
+static bool is_filtered_lib(struct direntry *file, const char *root, FileListFilter *filter)
 {
 	bool is_filtered = false;
-	char tdir[FILE_MAX], tgroup[BLO_GROUP_MAX];
-	if (BLO_is_a_library(dir, tdir, tgroup)) {
-		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
-		if (is_filtered && (filter->filter_search[0] != '\0')) {
-			if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
-				is_filtered = false;
-			}
-		}
-	}
-	else {
-		is_filtered = is_filtered_file(file, dir, filter);
-	}
-	return is_filtered;
-}
+	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX];
 
-static bool is_filtered_lib_flat(struct direntry *file, const char *dir, FileListFilter *filter)
-{
-	bool is_filtered = false;
-	char tdir[FILE_MAX], tgroup[BLO_GROUP_MAX];
-	if (BLO_is_a_library(dir, tdir, tgroup)) {
+	BLI_join_dirfile(path, sizeof(path), dir, file->relname);
+
+	if (BLO_library_path_explode(path, dir, group, NULL)) {
 		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
-		if (filter && !(filter->filter & FOLDERFILE) && (file->type & S_IFDIR) && !STREQ(file->relname, "..")) {
+		if (is_filtered && (file->type & S_IFDIR) && !(filter->filter & FOLDERFILE) && !FILENAME_IS_BREADCRUMBS(file->relname)) {
 			is_filtered = false;
 		}
 		if (is_filtered && (filter->filter_search[0] != '\0')) {
@@ -503,8 +490,9 @@ static bool is_filtered_lib_flat(struct direntry *file, const char *dir, FileLis
 		}
 	}
 	else {
-		is_filtered = is_filtered_file(file, dir, filter);
+		is_filtered = is_filtered_file(file, root, filter);
 	}
+
 	return is_filtered;
 }
 
@@ -590,6 +578,7 @@ void filelist_free_icons(void)
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(FileList), "filelist");
+
 	switch (type) {
 		case FILE_MAIN:
 			p->readf = filelist_read_main;
@@ -599,15 +588,10 @@ FileList *filelist_new(short type)
 			p->readf = filelist_read_library;
 			p->filterf = is_filtered_lib;
 			break;
-		case FILE_ASSET:
-			p->readf = filelist_read_library_flat;
-			p->filterf = is_filtered_lib_flat;
-			break;
 		default:
 			p->readf = filelist_read_dir;
 			p->filterf = is_filtered_file;
 			break;
-
 	}
 	return p;
 }
@@ -657,6 +641,11 @@ const char *filelist_dir(struct FileList *filelist)
 void filelist_setdir(struct FileList *filelist, const char *dir)
 {
 	BLI_strncpy(filelist->dir, dir, sizeof(filelist->dir));
+}
+
+void filelist_setrecursive(struct FileList *filelist, const bool use_recursion)
+{
+	filelist->use_recursion = use_recursion;
 }
 
 void filelist_imgsize(struct FileList *filelist, short w, short h)
@@ -1049,15 +1038,103 @@ static void filelist_setfiletypes(struct FileList *filelist)
 	}
 }
 
+static void filelist_merge_sublist(struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size,
+                                   const char *root, struct FileList *sublist)
+{
+	if (sublist->numfiles) {
+		struct direntry *f;
+		int new_numfiles = sublist->numfiles + *filelist_used_size;
+		char dir[FILE_MAX];
+		int i, j;
+
+		if (new_numfiles > *filelist_buff_size) {
+			struct direntry *new_filelist;
+
+			*filelist_buff_size = new_numfiles * 2;
+			new_filelist = malloc(sizeof(*new_filelist) * (size_t)*filelist_buff_size);
+			if (*filelist_buff && *filelist_used_size) {
+				memcpy(new_filelist, *filelist_buff, sizeof(*new_filelist) * (size_t)*filelist_used_size);
+				free(*filelist_buff);
+			}
+			*filelist_buff = new_filelist;
+		}
+		for (i = *filelist_used_size, j = 0, f = sublist->filelist; j < sublist->numfiles; j++, f++) {
+			if (FILENAME_IS_BREADCRUMBS(f->relname)) {
+				/* Ignore 'inner' breadcrumbs! */
+				new_numfiles--;
+				continue;
+			}
+			BLI_join_dirfile(dir, sizeof(dir), sublist->dir, f->relname);
+			BLI_cleanup_file(root, dir);
+			BLI_path_rel(dir, root);
+			(*filelist_buff)[i] = *f;
+			(*filelist_buff)[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
+			/* those pointers are given to new_filelist... */
+			f->path = NULL;
+			f->poin = NULL;
+			f->image = NULL;
+			i++;
+		}
+
+		*filelist_used_size = new_numfiles;
+	}
+}
+
 static void filelist_read_dir(struct FileList *filelist)
 {
-	if (!filelist) return;
+	/* only used if recursing, will contain all non-immediate children then. */
+	struct direntry *file;
+	struct direntry *new_filelist = NULL;
+	int new_filelist_size = 0, new_filelist_buffsize = 0;
+	int i;
 
-	filelist->fidx = NULL;
-	filelist->filelist = NULL;
+	if (!filelist) {
+		return;
+	}
+
+	BLI_assert(filelist->fidx == NULL);
+	BLI_assert(filelist->filelist == NULL);
 
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	filelist->numfiles = BLI_dir_contents(filelist->dir, &(filelist->filelist));
+
+	if (filelist->use_recursion && filelist->recursion_level < FILELIST_MAX_RECURSION) {
+		file = filelist->filelist;
+		for (i = 0; i < filelist->numfiles; i++, file++) {
+			FileList *fl;
+			char dir[FILE_MAX];
+
+			if (FILENAME_IS_BREADCRUMBS(file->relname) || (file->type & S_IFDIR) == 0) {
+				continue;
+			}
+
+			fl = filelist_new(FILE_UNIX);
+			fl->use_recursion = true;
+			fl->recursion_level = filelist->recursion_level + 1;
+
+			BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
+			filelist_setdir(fl, dir);
+			BLI_cleanup_dir(G.main->name, fl->dir);
+			filelist_read_dir(fl);
+
+			filelist_merge_sublist(&new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
+
+			filelist_free(fl);
+		}
+	}
+
+	if (new_filelist) {
+		struct direntry *final_filelist;
+		int final_filelist_size = new_filelist_size + filelist->numfiles;
+
+		final_filelist = malloc(sizeof(*new_filelist) * (size_t)final_filelist_size);
+		memcpy(final_filelist, filelist->filelist, sizeof(*final_filelist) * (size_t)filelist->numfiles);
+		memcpy(&final_filelist[filelist->numfiles], new_filelist, sizeof(*final_filelist) * (size_t)new_filelist_size);
+
+		free(filelist->filelist);
+		filelist->filelist = final_filelist;
+		filelist->numfiles = final_filelist_size;
+	}
 
 	filelist_setfiletypes(filelist);
 	filelist_filter(filelist);
@@ -1071,45 +1148,27 @@ static void filelist_read_main(struct FileList *filelist)
 
 static void filelist_read_library(struct FileList *filelist)
 {
-	if (!filelist) return;
-	BLI_cleanup_dir(G.main->name, filelist->dir);
-	filelist_from_library(filelist, true, true);
-	if (!filelist->libfiledata) {
-		int num;
-		struct direntry *file;
+	/* only used if recursing, will contain all non-immediate children then. */
+	struct direntry *file;
+	struct direntry *new_filelist = NULL;
+	int new_filelist_size = 0, new_filelist_buffsize = 0;
+	int i;
 
-		BLI_make_exist(filelist->dir);
-		filelist_read_dir(filelist);
-		file = filelist->filelist;
-		for (num = 0; num < filelist->numfiles; num++, file++) {
-			if (BLO_has_bfile_extension(file->relname)) {
-				char name[FILE_MAX];
-
-				BLI_join_dirfile(name, sizeof(name), filelist->dir, file->relname);
-
-				/* prevent current file being used as acceptable dir */
-				if (BLI_path_cmp(G.main->name, name) != 0) {
-					file->type &= ~S_IFMT;
-					file->type |= S_IFDIR;
-				}
-			}
-		}
+	if (!filelist) {
+		return;
 	}
-}
 
-static void filelist_read_library_flat(struct FileList *filelist)
-{
-	if (!filelist) return;
+	BLI_assert(filelist->fidx == NULL);
+	BLI_assert(filelist->filelist == NULL);
+
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	filelist_from_library(filelist, true, false);
-	if (!filelist->libfiledata) {
-		int num;
-		struct direntry *file;
 
+	if (!filelist->libfiledata) {
 		BLI_make_exist(filelist->dir);
 		filelist_read_dir(filelist);
 		file = filelist->filelist;
-		for (num = 0; num < filelist->numfiles; num++, file++) {
+		for (i = 0; i < filelist->numfiles; i++, file++) {
 			if (BLO_has_bfile_extension(file->relname)) {
 				char name[FILE_MAX];
 
@@ -1119,15 +1178,30 @@ static void filelist_read_library_flat(struct FileList *filelist)
 				if (BLI_path_cmp(G.main->name, name) != 0) {
 					file->type &= ~S_IFMT;
 					file->type |= S_IFDIR;
+
+					if (filelist->use_recursion) {
+						FileList *fl;
+						char dir[FILE_MAX];
+
+						/* Note we do not consider recursion level here, it has no importance in .blend files anyway. */
+						fl = filelist_new(FILE_LOADLIB);
+						fl->use_recursion = true;
+
+						BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
+						filelist_setdir(fl, dir);
+						BLI_cleanup_dir(G.main->name, fl->dir);
+						filelist_read_library(fl);
+
+						filelist_merge_sublist(&new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
+
+						filelist_freelib(fl);
+						filelist_free(fl);
+					}
 				}
 			}
 		}
 	}
-	else {
-		struct direntry *file;
-		struct direntry *org_filelist = filelist->filelist;
-		int num, org_numfiles = filelist->numfiles;
-
+	else if (filelist->use_recursion) {
 		char dir[FILE_MAX], group[BLO_GROUP_MAX];
 
 		const bool is_lib = filelist_islibrary(filelist, dir, group);
@@ -1139,59 +1213,46 @@ static void filelist_read_library_flat(struct FileList *filelist)
 			return;
 		}
 
-		file = org_filelist;
-		for (num = 0; num < org_numfiles; num++, file++) {
-			FileList *fl = filelist_new(FILE_LOADLIB);
-
+		file = filelist->filelist;
+		for (i = 0; i < filelist->numfiles; i++, file++) {
+			FileList *fl;
 			char dir[FILE_MAX];
 
-			if (STREQ(file->relname, "..")) {
+			if (FILENAME_IS_BREADCRUMBS(file->relname)) {
 				continue;
 			}
+
+			/* Note we do not consider recursion level here, it has no importance in .blend files anyway. */
+			/* And no need to set recursion flag here either. */
+			fl = filelist_new(FILE_LOADLIB);
 
 			BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
 			filelist_setdir(fl, dir);
 			BLI_cleanup_dir(G.main->name, fl->dir);
 			filelist_from_library(fl, false, false);
 
-			if (fl->numfiles) {
-				int new_numfiles = fl->numfiles + filelist->numfiles;
-				struct direntry *new_filelist;
-				struct direntry *f;
-				int i, j;
+			filelist_merge_sublist(&new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
 
-				new_filelist = malloc(sizeof(*new_filelist) * (size_t)new_numfiles);
-				memcpy(new_filelist, filelist->filelist, sizeof(*new_filelist) * filelist->numfiles);
-				for (i = filelist->numfiles, j = 0, f = fl->filelist; j < fl->numfiles; j++, f++) {
-					BLI_join_dirfile(dir, sizeof(dir), fl->dir, f->relname);
-					BLI_cleanup_file(filelist->dir, dir);
-					BLI_path_rel(dir, filelist->dir);
-					new_filelist[i] = *f;
-					new_filelist[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
-					/* those pointers are given to new_filelist... */
-					f->path = NULL;
-					f->poin = NULL;
-					f->image = NULL;
-					i++;
-				}
-
-				if (filelist->filelist != org_filelist) {
-					free(filelist->filelist);
-				}
-				filelist->filelist = new_filelist;
-				filelist->numfiles = new_numfiles;
-			}
-
+			filelist_freelib(fl);
 			filelist_free(fl);
 		}
-
-		if (filelist->filelist != org_filelist) {
-			free(org_filelist);
-		}
-
-		filelist_sort(filelist, FILE_SORT_ALPHA);
-		filelist_filter(filelist);
 	}
+
+	if (new_filelist) {
+		struct direntry *final_filelist;
+		int final_filelist_size = new_filelist_size + filelist->numfiles;
+
+		final_filelist = malloc(sizeof(*new_filelist) * (size_t)final_filelist_size);
+		memcpy(final_filelist, filelist->filelist, sizeof(*final_filelist) * (size_t)filelist->numfiles);
+		memcpy(&final_filelist[filelist->numfiles], new_filelist, sizeof(*final_filelist) * (size_t)new_filelist_size);
+
+		free(filelist->filelist);
+		filelist->filelist = final_filelist;
+		filelist->numfiles = final_filelist_size;
+	}
+
+	filelist_sort(filelist, FILE_SORT_ALPHA);
+	filelist_filter(filelist);
 }
 
 void filelist_readdir(struct FileList *filelist)

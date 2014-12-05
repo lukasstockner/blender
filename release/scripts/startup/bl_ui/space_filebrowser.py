@@ -56,6 +56,7 @@ class FILEBROWSER_HT_header(Header):
             layout.prop(params, "sort_method", expand=True, text="")
 
             layout.prop(params, "show_hidden")
+            layout.prop(params, "use_flat_view")
             layout.prop(params, "use_filter", text="", icon='FILTER')
 
             row = layout.row(align=True)
