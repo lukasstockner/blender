@@ -498,10 +498,11 @@ bool BKE_read_file_from_memory(
 			BLO_update_defaults_startup_blend(bfd->main);
 		setup_app_data(C, bfd, "<memory2>");
 	}
-	else
+	else {
 		BKE_reports_prepend(reports, "Loading failed: ");
+	}
 
-	return (bfd ? 1 : 0);
+	return (bfd != NULL);
 }
 
 /* memfile is the undo buffer */
@@ -521,10 +522,11 @@ bool BKE_read_file_from_memfile(
 		
 		setup_app_data(C, bfd, "<memory1>");
 	}
-	else
+	else {
 		BKE_reports_prepend(reports, "Loading failed: ");
+	}
 
-	return (bfd ? 1 : 0);
+	return (bfd != NULL);
 }
 
 /* only read the userdef from a .blend */
@@ -839,13 +841,13 @@ bool BKE_undo_save_file(const char *filename)
 	int file, oflags;
 
 	if ((U.uiflag & USER_GLOBALUNDO) == 0) {
-		return 0;
+		return false;
 	}
 
 	uel = curundo;
 	if (uel == NULL) {
 		fprintf(stderr, "No undo buffer to save recovery file\n");
-		return 0;
+		return false;
 	}
 
 	/* note: This is currently used for autosave and 'quit.blend', where _not_ following symlinks is OK,
@@ -867,7 +869,7 @@ bool BKE_undo_save_file(const char *filename)
 	if (file == -1) {
 		fprintf(stderr, "Unable to save '%s': %s\n",
 		        filename, errno ? strerror(errno) : "Unknown error opening file");
-		return 0;
+		return false;
 	}
 
 	for (chunk = uel->memfile.chunks.first; chunk; chunk = chunk->next) {
@@ -881,9 +883,9 @@ bool BKE_undo_save_file(const char *filename)
 	if (chunk) {
 		fprintf(stderr, "Unable to save '%s': %s\n",
 		        filename, errno ? strerror(errno) : "Unknown error writing file");
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 /* sets curscene */

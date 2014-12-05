@@ -33,7 +33,6 @@
 #include <sys/stat.h>
 #include <limits.h>
 
-#include "BLF_api.h"
 
 #include "BLI_rect.h"
 #include "BLI_utildefines.h"
@@ -47,8 +46,6 @@
 
 #include "BIF_gl.h"
 
-#include "ED_datafiles.h"
-#include "ED_types.h"
 
 #include "UI_resources.h"
 #include "UI_interface.h"
