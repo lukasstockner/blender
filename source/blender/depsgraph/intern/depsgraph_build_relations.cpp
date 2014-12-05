@@ -546,15 +546,27 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
 	
 	/* driver -> data components (for interleaved evaluation - bones/constraints/modifiers) */
 	// XXX: this probably shouldn't be inlined here like this...
-	if (strstr(fcurve->rna_path, "pose.bones[\"") != NULL) {
+	if (strstr(fcurve->rna_path, "pose.bones[") != NULL) {
 		/* interleaved drivers during bone eval */
-		char *bone_name = BLI_str_quoted_substrN(fcurve->rna_path, "pose.bones[");
-		
 		Object *ob = (Object *)id;
-		bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
+		bPoseChannel *pchan;
+		char *bone_name;
 		
-		ComponentKey bone_key(id, DEPSNODE_TYPE_BONE, pchan->name);
-		add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> SubData] DepsRel");
+		bone_name = BLI_str_quoted_substrN(fcurve->rna_path, "pose.bones[");
+		pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
+		
+		if (bone_name) {
+			MEM_freeN(bone_name);
+			bone_name = NULL;
+		}
+		
+		if (pchan) {
+			ComponentKey bone_key(id, DEPSNODE_TYPE_BONE, pchan->name);
+			add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> SubData] DepsRel");
+		}
+		else {
+			printf("Couldn't find bone name for driver path - '%s'\n", fcurve->rna_path);
+		}
 	}
 	else {
 		if (GS(id->name) == ID_OB) {
