@@ -35,7 +35,6 @@
  */
 
 #include "BLI_math.h"
-#include "BLI_blenlib.h"
 #include "BLI_edgehash.h"
 #include "BLI_utildefines.h"
 #include "BLI_stackdefines.h"
@@ -49,7 +48,6 @@
 #include "BKE_editmesh.h"
 #include "BKE_curve.h"
 
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_object_types.h"
@@ -61,7 +59,6 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
-#include "GPU_material.h"
 
 #include <string.h>
 #include <limits.h>
@@ -1135,7 +1132,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 					}
 					if (numdata != 0) {
 						elementsize = GPU_attrib_element_size(datatypes, numdata);
-						buffer = GPU_buffer_alloc(elementsize * dm->drawObject->tot_triangle_point, true);
+						buffer = GPU_buffer_alloc(elementsize * dm->drawObject->tot_triangle_point, false);
 						if (buffer == NULL) {
 							GPU_buffer_unbind();
 							buffer = GPU_buffer_alloc(elementsize * dm->drawObject->tot_triangle_point, true);
@@ -2436,10 +2433,10 @@ static bool poly_gset_compare_fn(const void *k1, const void *k2)
 	    (pk1->totloops == pk2->totloops))
 	{
 		/* Equality - note that this does not mean equality of polys */
-		return 0;
+		return false;
 	}
 	else {
-		return 1;
+		return true;
 	}
 }
 

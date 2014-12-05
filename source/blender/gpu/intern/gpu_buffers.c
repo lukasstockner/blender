@@ -46,13 +46,11 @@
 #include "BLI_ghash.h"
 #include "BLI_threads.h"
 
-#include "DNA_material_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "BKE_ccg.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_paint.h"
-#include "BKE_material.h"
 #include "BKE_pbvh.h"
 
 #include "DNA_userdef_types.h"
@@ -61,8 +59,6 @@
 #include "GPU_draw.h"
 
 #include "bmesh.h"
-
-#include "gpu_extensions_private.h"
 
 typedef enum {
 	GPU_BUFFER_VERTEX_STATE = (1 << 0),
@@ -618,7 +614,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int *mat_orig_to_new;
 	int *cur_index_per_mat;
 	int i;
-	bool use_VBOs = (GLEW_ARB_vertex_buffer_object == 1) && !(U.gameflags & USER_DISABLE_VBO);
+	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO);
 	GLboolean uploaded;
 
 	pool = gpu_get_global_buffer_pool();
@@ -2744,7 +2740,7 @@ void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers)
 /* debug function, draws the pbvh BB */
 void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf)
 {
-	float quads[4][4][3] = {
+	const float quads[4][4][3] = {
 	    {
 	        {min[0], min[1], min[2]},
 	        {max[0], min[1], min[2]},
