@@ -1031,6 +1031,9 @@ static void filelist_setfiletypes(struct FileList *filelist)
 	file = filelist->filelist;
 	
 	for (num = 0; num < filelist->numfiles; num++, file++) {
+		if (file->flags & BLENDERLIB) {
+			continue;
+		}
 		file->type = file->s.st_mode;  /* restore the mess below */
 #ifndef __APPLE__
 		/* Don't check extensions for directories, allow in OSX cause bundles have extensions*/
@@ -1438,17 +1441,20 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 	if (add_parent) {
 		filelist->filelist[nnames].relname = BLI_strdup("..");
 		filelist->filelist[nnames].type |= S_IFDIR;
+		filelist->filelist[nnames].flags |= BLENDERLIB;
 	}
 
 	for (i = 0, l = names; i < nnames; i++, l = l->next) {
 		const char *blockname = l->link;
+		struct direntry *file = &filelist->filelist[i];
 
-		filelist->filelist[i].relname = BLI_strdup(blockname);
+		file->relname = BLI_strdup(blockname);
+		file->flags |= BLENDERLIB;
 		if (idcode) {
-			filelist->filelist[i].type |= S_IFREG;
+			file->type |= S_IFREG;
 		}
 		else {
-			filelist->filelist[i].type |= S_IFDIR;
+			file->type |= S_IFDIR;
 		}
 	}
 	

@@ -708,6 +708,8 @@ typedef enum eFileSel_File_Types {
 	COLLADAFILE         = (1 << 13),
 	OPERATORFILE        = (1 << 14), /* from filter_glob operator property */
 	APPLICATIONBUNDLE   = (1 << 15),
+
+	BLENDERLIB          = (1 << 31),
 } eFileSel_File_Types;
 
 /* Selection Flags in filesel: struct direntry, unsigned char selflag */
