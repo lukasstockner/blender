@@ -455,17 +455,17 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 		else if ((file->type & S_IFDIR) && ((filter->filter & FOLDERFILE) || FILENAME_IS_BREADCRUMBS(file->relname))) {
 			is_filtered = true;
 		}
+		if (is_filtered && (filter->filter_search[0] != '\0')) {
+			if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+				is_filtered = false;
+			}
+		}
 	}
 	else {
 		is_filtered = true;
 	}
 	if (is_filtered) {
 		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
-	}
-	if (is_filtered && (filter->filter_search[0] != '\0')) {
-		if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
-			is_filtered = false;
-		}
 	}
 
 	return is_filtered;
@@ -474,18 +474,22 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 static bool is_filtered_lib(struct direntry *file, const char *root, FileListFilter *filter)
 {
 	bool is_filtered = false;
-	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX];
+	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR];
 
-	BLI_join_dirfile(path, sizeof(path), dir, file->relname);
+	BLI_join_dirfile(path, sizeof(path), root, file->relname);
 
-	if (BLO_library_path_explode(path, dir, group, NULL)) {
+	if (BLO_library_path_explode(path, dir, NULL, NULL)) {
 		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
-		if (is_filtered && (file->type & S_IFDIR) && !(filter->filter & FOLDERFILE) && !FILENAME_IS_BREADCRUMBS(file->relname)) {
-			is_filtered = false;
-		}
-		if (is_filtered && (filter->filter_search[0] != '\0')) {
-			if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+		if (filter->filter) {
+			if (is_filtered && (file->type & S_IFDIR) && !(filter->filter & FOLDERFILE) &&
+			    !FILENAME_IS_BREADCRUMBS(file->relname))
+			{
 				is_filtered = false;
+			}
+			if (is_filtered && (filter->filter_search[0] != '\0')) {
+				if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+					is_filtered = false;
+				}
 			}
 		}
 	}
@@ -1035,7 +1039,7 @@ static void filelist_setfiletypes(struct FileList *filelist)
 		}
 #endif
 		file->flags = file_extension_type(filelist->dir, file->relname);
-		
+
 		if (filelist->filter_data.filter_glob[0] &&
 		    BLI_testextensie_glob(file->relname, filelist->filter_data.filter_glob))
 		{
@@ -1258,6 +1262,9 @@ static void filelist_read_library(struct FileList *filelist)
 		filelist->numfiles = final_filelist_size;
 	}
 
+	if (filelist->use_recursion) {
+		filelist_setfiletypes(filelist);
+	}
 	filelist_sort(filelist, FILE_SORT_ALPHA);
 	filelist_filter(filelist);
 }

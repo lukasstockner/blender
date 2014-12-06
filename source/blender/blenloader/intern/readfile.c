@@ -1172,7 +1172,7 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char
 		prev_slash = slash;
 	}
 
-	if (r_dir[0] == '\0') {
+	if (!slash) {
 		return false;
 	}
 
