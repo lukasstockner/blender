@@ -2571,6 +2571,8 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	int idcode, totfiles = 0;
 	short flag;
 
+	GSet *todo_libraries = NULL;
+
 	RNA_string_get(op->ptr, "filename", name);
 	RNA_string_get(op->ptr, "directory", dir);
 
@@ -2614,16 +2616,12 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-
 	/* from here down, no error returns */
-
-	idcode = BKE_idcode_from_name(group);
 
 	/* now we have or selected, or an indicated file */
 	if (RNA_boolean_get(op->ptr, "autoselect"))
 		BKE_scene_base_deselect_all(scene);
 
-	
 	flag = wm_link_append_flag(op);
 
 	/* sanity checks for flag */
@@ -2633,6 +2631,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		flag &= ~FILE_GROUP_INSTANCE;
 	}
 
+	idcode = BKE_idcode_from_name(group);
 
 	/* tag everything, all untagged data can be made local
 	 * its also generally useful to know what is new
@@ -2649,15 +2648,33 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
 	else {
+		todo_libraries = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
+
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
+			char curr_libname[FILE_MAX];
+			int curr_idcode;
+
 			RNA_string_get(&itemptr, "name", name);
 
 			BLI_join_dirfile(path, sizeof(path), dir, name);
 
-			if (BLO_library_path_explode(path, libname, group, name)) {
-				idcode = BKE_idcode_from_name(group);
-				BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+			if (BLO_library_path_explode(path, curr_libname, group, name)) {
+				if (!group[0] || !name[0]) {
+					continue;
+				}
+
+				curr_idcode = BKE_idcode_from_name(group);
+
+				if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
+					BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+				}
+				else {
+					BLI_join_dirfile(path, sizeof(path), curr_libname, group);
+					if (!BLI_gset_haskey(todo_libraries, path)) {
+						BLI_gset_insert(todo_libraries, BLI_strdup(path));
+					}
+				}
 			}
 		}
 		RNA_END;
@@ -2674,14 +2691,83 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		BKE_library_make_local(bmain, lib, true);
 	}
 
+	BLO_blendhandle_close(bh);
+
+	if (todo_libraries) {
+		GSetIterator libs_it;
+
+		GSET_ITER(libs_it, todo_libraries) {
+			char *libpath = (char *)BLI_gsetIterator_getKey(&libs_it);
+
+			BLO_library_path_explode(libpath, libname, group, NULL);
+			idcode = BKE_idcode_from_name(group);
+
+			bh = BLO_blendhandle_from_file(libname, op->reports);
+
+			if (bh == NULL) {
+				/* unlikely since we just browsed it, but possible
+				 * error reports will have been made by BLO_blendhandle_from_file() */
+				continue;
+			}
+
+			/* here appending/linking starts */
+			mainl = BLO_library_append_begin(bmain, &bh, libname);
+			lib = mainl->curlib;
+			BLI_assert(lib);
+
+			RNA_BEGIN (op->ptr, itemptr, "files")
+			{
+				char curr_libname[FILE_MAX];
+				int curr_idcode;
+
+				RNA_string_get(&itemptr, "name", name);
+
+				BLI_join_dirfile(path, sizeof(path), dir, name);
+
+				if (BLO_library_path_explode(path, curr_libname, group, name)) {
+					if (!group[0] || !name[0]) {
+						continue;
+					}
+
+					curr_idcode = BKE_idcode_from_name(group);
+
+					if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
+						BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+					}
+					else {
+						BLI_join_dirfile(path, sizeof(path), curr_libname, group);
+						if (!BLI_gset_haskey(todo_libraries, curr_libname)) {
+							BLI_gset_insert(todo_libraries, BLI_strdup(curr_libname));
+						}
+					}
+				}
+			}
+			RNA_END;
+
+			BLO_library_append_end(C, mainl, &bh, idcode, flag);
+
+			/* mark all library linked objects to be updated */
+			BKE_main_lib_objects_recalc_all(bmain);
+			IMB_colormanagement_check_file_config(bmain);
+
+			/* append, rather than linking */
+			if ((flag & FILE_LINK) == 0) {
+				BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
+				BKE_library_make_local(bmain, lib, true);
+			}
+
+			BLO_blendhandle_close(bh);
+		}
+
+		BLI_gset_free(todo_libraries, MEM_freeN);
+	}
+
 	/* important we unset, otherwise these object wont
 	 * link into other scenes from this blend file */
 	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, false);
 
 	/* recreate dependency graph to include new objects */
 	DAG_scene_relations_rebuild(bmain, scene);
-
-	BLO_blendhandle_close(bh);
 
 	/* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
 	BLI_strncpy(G.lib, dir, FILE_MAX);
