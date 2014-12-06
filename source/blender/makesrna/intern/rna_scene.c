@@ -3827,8 +3827,8 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem dof_quality_items[] = {
-	    {0, "NORMAL", 0, "Normal", "Use standard blurring depth of field"},
-	    {1, "HIGH", 0, "High", "Use diffusion solver depth of field"},
+	    {DOF_QUALITY_NORMAL, "NORMAL", 0, "Normal", "Use standard blurring depth of field"},
+	    {DOF_QUALITY_HIGH, "HIGH", 0, "High", "Use diffusion solver depth of field"},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
@@ -3873,9 +3873,9 @@ static void rna_def_gpu_ssao_fx(BlenderRNA *brna)
 	PropertyRNA *prop;
 
 	static EnumPropertyItem view3d_ssao_sample_items[] = {
-	    {0, "LOW", 0, "Low Quality", ""},
-	    {1, "MEDIUM", 0, "Medium Quality", ""},
-	    {2, "HIGH", 0, "High Quality", ""},
+	    {SSAO_QUALITY_LOW, "LOW", 0, "Low Quality", ""},
+	    {SSAO_QUALITY_MEDIUM, "MEDIUM", 0, "Medium Quality", ""},
+	    {SSAO_QUALITY_HIGH, "HIGH", 0, "High Quality", ""},
 	    {0, NULL, 0, NULL, NULL}
 	};
 
