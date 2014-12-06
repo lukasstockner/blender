@@ -645,7 +645,14 @@ void filelist_setdir(struct FileList *filelist, const char *dir)
 
 void filelist_setrecursive(struct FileList *filelist, const bool use_recursion)
 {
+	const bool do_free = (filelist->use_recursion != use_recursion);
+
 	filelist->use_recursion = use_recursion;
+
+	if (do_free) {
+		filelist_freelib(filelist);
+		filelist_free(filelist);
+	}
 }
 
 void filelist_imgsize(struct FileList *filelist, short w, short h)

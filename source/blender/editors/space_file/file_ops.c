@@ -178,18 +178,26 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 		params->active_file = selected_idx;
 
 		if (S_ISDIR(file->type)) {
+			const bool is_parent_dir = STREQ(file->relname, "..");
+
 			if (do_diropen == false) {
 				params->file[0] = '\0';
 				retval = FILE_SELECT_DIR;
 			}
 			/* the path is too long and we are not going up! */
-			else if (strcmp(file->relname, "..") && strlen(params->dir) + strlen(file->relname) >= FILE_MAX) {
+			else if (!is_parent_dir && strlen(params->dir) + strlen(file->relname) >= FILE_MAX) {
 				// XXX error("Path too long, cannot enter this directory");
 			}
 			else {
-				if (strcmp(file->relname, "..") == 0) {
+				if (is_parent_dir) {
 					/* avoids /../../ */
 					BLI_parent_dir(params->dir);
+
+					if (params->flag & FILE_SHOWFLAT) {
+						/* Disable 'show flat' when going up in tree! */
+						params->flag &= ~FILE_SHOWFLAT;
+						filelist_setrecursive(sfile->files, false);
+					}
 				}
 				else {
 					BLI_cleanup_dir(G.main->name, params->dir);
@@ -870,6 +878,11 @@ int file_parent_exec(bContext *C, wmOperator *UNUSED(unused))
 			}
 			else {
 				file_change_dir(C, 1);
+			}
+			if (sfile->params->flag & FILE_SHOWFLAT) {
+				/* Disable 'show flat' when going up in tree! */
+				sfile->params->flag &= ~FILE_SHOWFLAT;
+				filelist_setrecursive(sfile->files, false);
 			}
 			WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 		}
