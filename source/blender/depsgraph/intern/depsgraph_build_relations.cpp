@@ -97,7 +97,6 @@ extern "C" {
 #include "depsgraph_intern.h"
 
 #include "depsgraph_util_rna.h"
-#include "depsgraph_util_string.h"
 
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 

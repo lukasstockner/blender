@@ -98,7 +98,6 @@ extern "C" {
 #include "depsgraph_intern.h"
 
 #include "depsgraph_util_rna.h"
-#include "depsgraph_util_string.h"
 
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
@@ -165,7 +164,7 @@ RootDepsNode *DepsgraphNodeBuilder::add_root_node()
 IDDepsNode *DepsgraphNodeBuilder::add_id_node(ID *id)
 {
 	const char *idtype_name = BKE_idcode_to_name(GS(id->name));
-	return m_graph->add_id_node(id, string_format("%s [%s]", id->name+2, idtype_name));
+	return m_graph->add_id_node(id, string(id->name+2) + "[" + idtype_name + "]");
 }
 
 TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(ID *id)

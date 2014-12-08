@@ -277,15 +277,17 @@ const string deg_op_name_psys_eval = "PSys Eval";
 string deg_op_name_animdata(const ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id((ID *)id);
-	return string_format("AnimData %s : %s", id->name, (adt->action) ? adt->action->id.name : "<None>");
+	return string("AnimData") + id->name + string((adt->action) ? adt->action->id.name : "<None>");
 }
+
 string deg_op_name_driver(const ChannelDriver *driver)
 {
-	return string_format("Driver @ %p", driver);
+	return string("Driver") + driver->expression;
 }
+
 string deg_op_name_modifier(const ModifierData *md)
 {
-	return string_format("Modifier %s", md->name);
+	return string("Modifier") +  md->name;
 }
 
 /* ******************************************************** */

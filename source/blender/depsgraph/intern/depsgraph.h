@@ -41,7 +41,6 @@
 
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
-#include "depsgraph_util_string.h"
 
 using std::vector;
 

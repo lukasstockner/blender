@@ -706,7 +706,7 @@ static string get_component_name(eDepsNode_Type type, const string &name = "")
 	if (name.empty())
 		return string(factory->tname());
 	else
-		return string_format("%s | %s", factory->tname().c_str(), name.c_str());
+		return factory->tname() + " | " + name;
 }
 
 static void times_clear(DepsgraphStatsTimes &times)

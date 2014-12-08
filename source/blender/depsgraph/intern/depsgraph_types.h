@@ -34,7 +34,12 @@
 #define __DEPSGRAPH_TYPES_H__
 
 #include "depsgraph_util_function.h"
-#include "depsgraph_util_string.h"
+
+/* TODO(sergey): Ideally we'll just use char* and staticly allocated strings
+ * to avoid any possible overhead caused by string (re)allocation/formatting.
+ */
+#include <string>
+using std::string;
 
 struct bAction;
 struct ChannelDriver;

@@ -36,7 +36,6 @@
 #include "depsgraph_util_hash.h"
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
-#include "depsgraph_util_string.h"
 
 struct ID;
 struct Scene;

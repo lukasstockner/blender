@@ -35,7 +35,6 @@
 
 #include "depsgraph_util_id.h"
 #include "depsgraph_util_rna.h"
-#include "depsgraph_util_string.h"
 
 struct bConstraint;
 struct ListBase;

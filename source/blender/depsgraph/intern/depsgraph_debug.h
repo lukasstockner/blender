@@ -41,7 +41,7 @@ extern "C" {
 #include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph.h"
 
-#include "depsgraph_util_string.h"
+#include "depsgraph_types.h"
 
 struct DepsgraphStats;
 struct DepsgraphStatsID;
