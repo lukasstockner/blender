@@ -1195,7 +1195,10 @@ static int constraint_delete_exec(bContext *C, wmOperator *UNUSED(op))
 		if (is_ik) {
 			BIK_clear_data(ob->pose);
 		}
-		
+
+		/* relatiols */
+		DAG_relations_tag_update(CTX_data_main(C));
+
 		/* notifiers */
 		WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);
 		
