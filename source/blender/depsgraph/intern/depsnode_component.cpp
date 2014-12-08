@@ -117,8 +117,7 @@ void ComponentDepsNode::remove_operation(const string &name)
 	if (op_node) {
 		/* unregister */
 		this->operations.erase(name);
-		
-		delete op_node;
+		OBJECT_GUARDED_DELETE(op_node, OperationDepsNode);
 	}
 }
 
@@ -126,7 +125,7 @@ void ComponentDepsNode::clear_operations()
 {
 	for (OperationMap::const_iterator it = operations.begin(); it != operations.end(); ++it) {
 		OperationDepsNode *op_node = it->second;
-		delete op_node;
+		OBJECT_GUARDED_DELETE(op_node, OperationDepsNode);
 	}
 	operations.clear();
 }

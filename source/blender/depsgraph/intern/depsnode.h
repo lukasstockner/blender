@@ -72,10 +72,6 @@ public:
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
 	
 	virtual void tag_update(Depsgraph *graph) {}
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
-#endif
 };
 
 /* Macros for common static typeinfo */

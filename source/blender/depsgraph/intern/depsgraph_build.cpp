@@ -434,7 +434,7 @@ static void deg_graph_transitive_reduction(Depsgraph *graph)
 			++it_rel; /* increment in advance, so we can safely remove the relation */
 			
 			if (rel->from->done & OP_REACHABLE) {
-				delete rel;
+				OBJECT_GUARDED_DELETE(rel, DepsRelation);
 			}
 		}
 	}

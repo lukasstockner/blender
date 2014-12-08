@@ -51,7 +51,7 @@ Depsgraph::~Depsgraph()
 {
 	/* free root node - it won't have been freed yet... */
 	if (this->root_node) {
-		delete this->root_node;
+		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
 	}
 	
 	clear_id_nodes();
@@ -192,14 +192,14 @@ SubgraphDepsNode *Depsgraph::add_subgraph_node(const ID *id)
 void Depsgraph::remove_subgraph_node(SubgraphDepsNode *subgraph_node)
 {
 	subgraphs.erase(subgraph_node);
-	delete subgraph_node;
+	OBJECT_GUARDED_DELETE(subgraph_node, SubgraphDepsNode);
 }
 
 void Depsgraph::clear_subgraph_nodes()
 {
 	for (Subgraphs::iterator it = subgraphs.begin(); it != subgraphs.end(); ++it) {
 		SubgraphDepsNode *subgraph_node = *it;
-		delete subgraph_node;
+		OBJECT_GUARDED_DELETE(subgraph_node, SubgraphDepsNode);
 	}
 	subgraphs.clear();
 }
@@ -229,8 +229,7 @@ void Depsgraph::remove_id_node(const ID *id)
 	if (id_node) {
 		/* unregister */
 		this->id_hash.erase(id);
-		
-		delete id_node;
+		OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
 	}
 }
 
@@ -238,7 +237,7 @@ void Depsgraph::clear_id_nodes()
 {
 	for (IDNodeMap::const_iterator it = id_hash.begin(); it != id_hash.end(); ++it) {
 		IDDepsNode *id_node = it->second;
-		delete id_node;
+		OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
 	}
 	id_hash.clear();
 }
@@ -249,7 +248,7 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from, OperationDeps
                                           const string &description)
 {
 	/* create new relation, and add it to the graph */
-	DepsRelation *rel = new DepsRelation(from, to, type, description);
+	DepsRelation *rel = OBJECT_GUARDED_NEW(DepsRelation, from, to, type, description);
 	return rel;
 }
 
@@ -318,13 +317,13 @@ void Depsgraph::add_entry_tag(OperationDepsNode *node)
 /* Initialise a new Depsgraph */
 Depsgraph *DEG_graph_new()
 {
-	return new Depsgraph;
+	return OBJECT_GUARDED_NEW(Depsgraph);
 }
 
 /* Free graph's contents and graph itself */
 void DEG_graph_free(Depsgraph *graph)
 {
-	delete graph;
+	OBJECT_GUARDED_DELETE(graph, Depsgraph);
 }
 
 /* ************************************************** */

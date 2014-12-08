@@ -84,10 +84,6 @@ struct DepsRelation {
 	
 	DepsRelation(OperationDepsNode *from, OperationDepsNode *to, eDepsRelation_Type type, const string &description);
 	~DepsRelation();
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
-#endif
 };
 
 /* ************************************* */
@@ -164,10 +160,6 @@ struct Depsgraph {
 	OperationNodes operations; /* all operation nodes, sorted in order of single-thread traversal order */
 	
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
-	
-#ifdef WITH_CXX_GUARDEDALLOC
-	MEM_CXX_CLASS_ALLOC_FUNCS("DEG:DepsNode")
-#endif
 };
 
 /* Helper macros for interating over set of relationship

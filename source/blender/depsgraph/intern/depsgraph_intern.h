@@ -110,7 +110,7 @@ struct DepsNodeFactoryImpl : public DepsNodeFactory {
 	
 	DepsNode *create_node(const ID *id, const string &subdata, const string &name) const
 	{
-		DepsNode *node = new NodeType();
+		DepsNode *node = OBJECT_GUARDED_NEW(NodeType);
 		
 		/* populate base node settings */
 		node->type = type();
@@ -131,7 +131,7 @@ struct DepsNodeFactoryImpl : public DepsNodeFactory {
 	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const
 	{
 		BLI_assert(copy->type == type());
-		DepsNode *node = new NodeType();
+		DepsNode *node = OBJECT_GUARDED_NEW(NodeType);
 		
 		/* populate base node settings */
 		node->type = type();

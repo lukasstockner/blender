@@ -54,11 +54,11 @@ OperationDepsNode::~OperationDepsNode()
 	 * but only touch the same position as we are using here, which is safe.
 	 */
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
-		delete rel;
+		OBJECT_GUARDED_DELETE(rel, DepsRelation);
 	DEPSNODE_RELATIONS_ITER_END;
 	
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
-		delete rel;
+		OBJECT_GUARDED_DELETE(rel, DepsRelation);
 	DEPSNODE_RELATIONS_ITER_END;
 }
 

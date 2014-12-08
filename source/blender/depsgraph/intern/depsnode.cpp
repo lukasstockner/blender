@@ -90,7 +90,7 @@ void TimeSourceDepsNode::add_new_relation(OperationDepsNode *to)
 
 RootDepsNode::~RootDepsNode()
 {
-	delete time_source;
+	OBJECT_GUARDED_DELETE(time_source, TimeSourceDepsNode);
 }
 
 TimeSourceDepsNode *RootDepsNode::add_time_source(const string &name)
@@ -180,8 +180,7 @@ void IDDepsNode::remove_component(eDepsNode_Type type, const string &name)
 	if (comp_node) {
 		/* unregister */
 		this->components.erase(key);
-		
-		delete comp_node;
+		OBJECT_GUARDED_DELETE(comp_node, ComponentDepsNode);
 	}
 }
 
@@ -189,7 +188,7 @@ void IDDepsNode::clear_components()
 {
 	for (ComponentMap::const_iterator it = components.begin(); it != components.end(); ++it) {
 		ComponentDepsNode *comp_node = it->second;
-		delete comp_node;
+		OBJECT_GUARDED_DELETE(comp_node, ComponentDepsNode);
 	}
 	components.clear();
 }
