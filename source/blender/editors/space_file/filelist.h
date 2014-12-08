@@ -93,6 +93,8 @@ void                filelist_from_main(struct FileList *filelist);
 void                filelist_freelib(struct FileList *filelist);
 void                filelist_hideparent(struct FileList *filelist, short hide);
 
+char               *fileentry_uiname(const struct direntry *entry, char *dir);
+
 
 struct ListBase *   folderlist_new(void);
 void                folderlist_free(struct ListBase *folderlist);

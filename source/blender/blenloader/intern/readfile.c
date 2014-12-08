@@ -1150,7 +1150,7 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, cha
 {
 	/* We might get some data names with slashes, so we have to go up in path until we find blend file itself,
 	 * then we now next path item is group, and everything else is data name. */
-	char *slash, *prev_slash = NULL;
+	char *slash = NULL, *prev_slash = NULL;
 
 	r_dir[0] = '\0';
 	if (r_group) {

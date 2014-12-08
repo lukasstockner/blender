@@ -177,6 +177,8 @@ static bool compare_is_directory(const struct direntry *entry)
 static int compare_name(const void *a1, const void *a2)
 {
 	const struct direntry *entry1 = a1, *entry2 = a2;
+	char dir1[FILE_MAX_LIBEXTRA], dir2[FILE_MAX_LIBEXTRA];
+	char *name1, *name2;
 
 	/* type is equal to stat.st_mode */
 
@@ -200,14 +202,19 @@ static int compare_name(const void *a1, const void *a2)
 	if (strcmp(entry2->relname, ".") == 0) return (1);
 	if (strcmp(entry1->relname, "..") == 0) return (-1);
 	if (strcmp(entry2->relname, "..") == 0) return (1);
-	
-	return (BLI_natstrcmp(entry1->relname, entry2->relname));
+
+	name1 = fileentry_uiname(entry1, dir1);
+	name2 = fileentry_uiname(entry2, dir2);
+
+	return BLI_natstrcmp(name1, name2);
 }
 
 static int compare_date(const void *a1, const void *a2)	
 {
 	const struct direntry *entry1 = a1, *entry2 = a2;
-	
+	char dir1[FILE_MAX_LIBEXTRA], dir2[FILE_MAX_LIBEXTRA];
+	char *name1, *name2;
+
 	/* type is equal to stat.st_mode */
 
 	if (compare_is_directory(entry1)) {
@@ -233,13 +240,18 @@ static int compare_date(const void *a1, const void *a2)
 	
 	if (entry1->s.st_mtime < entry2->s.st_mtime) return 1;
 	if (entry1->s.st_mtime > entry2->s.st_mtime) return -1;
-	
-	else return BLI_natstrcmp(entry1->relname, entry2->relname);
+
+	name1 = fileentry_uiname(entry1, dir1);
+	name2 = fileentry_uiname(entry2, dir2);
+
+	return BLI_natstrcmp(name1, name2);
 }
 
 static int compare_size(const void *a1, const void *a2)	
 {
 	const struct direntry *entry1 = a1, *entry2 = a2;
+	char dir1[FILE_MAX_LIBEXTRA], dir2[FILE_MAX_LIBEXTRA];
+	char *name1, *name2;
 
 	/* type is equal to stat.st_mode */
 
@@ -266,7 +278,11 @@ static int compare_size(const void *a1, const void *a2)
 	
 	if (entry1->s.st_size < entry2->s.st_size) return 1;
 	if (entry1->s.st_size > entry2->s.st_size) return -1;
-	else return BLI_natstrcmp(entry1->relname, entry2->relname);
+
+	name1 = fileentry_uiname(entry1, dir1);
+	name2 = fileentry_uiname(entry2, dir2);
+
+	return BLI_natstrcmp(name1, name2);
 }
 
 static int compare_extension(const void *a1, const void *a2)
@@ -290,6 +306,21 @@ static int compare_extension(const void *a1, const void *a2)
 	else {
 		if (compare_is_directory(entry2)) return (1);
 	}
+
+	if (S_ISREG(entry1->type)) {
+		if (S_ISREG(entry2->type) == 0) return (-1);
+	}
+	else {
+		if (S_ISREG(entry2->type)) return (1);
+	}
+	if ((entry1->type & S_IFMT) < (entry2->type & S_IFMT)) return (-1);
+	if ((entry1->type & S_IFMT) > (entry2->type & S_IFMT)) return (1);
+
+	/* make sure "." and ".." are always first */
+	if (strcmp(entry1->relname, ".") == 0) return (-1);
+	if (strcmp(entry2->relname, ".") == 0) return (1);
+	if (strcmp(entry1->relname, "..") == 0) return (-1);
+	if (strcmp(entry2->relname, "..") == 0) return (1);
 
 	if ((entry1->flags & BLENDERLIB) && !(entry2->flags & BLENDERLIB)) return -1;
 	if (!(entry1->flags & BLENDERLIB) && (entry2->flags & BLENDERLIB)) return 1;
@@ -318,22 +349,7 @@ static int compare_extension(const void *a1, const void *a2)
 		return BLI_strcasecmp(name1, name2);
 	}
 
-	if (S_ISREG(entry1->type)) {
-		if (S_ISREG(entry2->type) == 0) return (-1);
-	}
-	else {
-		if (S_ISREG(entry2->type)) return (1);
-	}
-	if ((entry1->type & S_IFMT) < (entry2->type & S_IFMT)) return (-1);
-	if ((entry1->type & S_IFMT) > (entry2->type & S_IFMT)) return (1);
-
-	/* make sure "." and ".." are always first */
-	if (strcmp(entry1->relname, ".") == 0) return (-1);
-	if (strcmp(entry2->relname, ".") == 0) return (1);
-	if (strcmp(entry1->relname, "..") == 0) return (-1);
-	if (strcmp(entry2->relname, "..") == 0) return (1);
-
-	return (BLI_strcasecmp(sufix1, sufix2));
+	return BLI_strcasecmp(sufix1, sufix2);
 }
 
 
@@ -664,6 +680,28 @@ BlendHandle *filelist_lib(struct FileList *filelist)
 int filelist_numfiles(struct FileList *filelist)
 {
 	return filelist->numfiltered;
+}
+
+char *fileentry_uiname(const struct direntry *entry, char *dir)
+{
+	char *name;
+
+	if (entry->path && entry->flags & BLENDERLIB) {
+		char *group;
+		BLO_library_path_explode(entry->path, dir, &group, &name);
+		if (!name) {
+			name = group;
+		}
+	}
+	else if (entry->type & S_IFDIR) {
+		name = entry->relname;
+	}
+	else {
+		name = (char *)BLI_path_basename(entry->relname);
+	}
+	BLI_assert(name);
+
+	return name;
 }
 
 const char *filelist_dir(struct FileList *filelist)
