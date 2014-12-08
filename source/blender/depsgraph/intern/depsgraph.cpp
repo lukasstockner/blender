@@ -19,7 +19,7 @@
  * All rights reserved.
  *
  * Original Author: Joshua Leung
- * Contributor(s): None Yet
+ * Contributor(s): Sergey Sharybin
  *
  * ***** END GPL LICENSE BLOCK *****
  *
@@ -49,81 +49,86 @@ Depsgraph::Depsgraph()
 
 Depsgraph::~Depsgraph()
 {
-	/* free root node - it won't have been freed yet... */
+	/* Free root node - it won't have been freed yet... */
 	if (this->root_node) {
 		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
 	}
-	
 	clear_id_nodes();
 	clear_subgraph_nodes();
 }
 
 /* Query Conditions from RNA ----------------------- */
 
-static bool pointer_to_id_node_criteria(const PointerRNA *ptr, const PropertyRNA *prop,
+static bool pointer_to_id_node_criteria(const PointerRNA *ptr,
+                                        const PropertyRNA *prop,
                                         ID **id)
 {
 	if (!ptr->type)
 		return false;
-	
+
 	if (!prop) {
 		if (RNA_struct_is_ID(ptr->type)) {
 			*id = (ID *)ptr->data;
 			return true;
 		}
 	}
-	
+
 	return false;
 }
 
-static bool pointer_to_component_node_criteria(const PointerRNA *ptr, const PropertyRNA *prop,
+static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
+                                               const PropertyRNA *prop,
                                                ID **id,
-                                               eDepsNode_Type *type, string *subdata)
+                                               eDepsNode_Type *type,
+                                               string *subdata)
 {
 	if (!ptr->type)
 		return false;
-	
-	/* set default values for returns */
-	*id        = (ID *)ptr->id.data;        /* for obvious reasons... */
-	*subdata   = "";                        /* default to no subdata (e.g. bone) name lookup in most cases */
-	
-	/* handling of commonly known scenarios... */
+
+	/* Set default values for returns. */
+	*id      = (ID *)ptr->id.data;  /* For obvious reasons... */
+	*subdata = "";                 /* Default to no subdata (e.g. bone) name
+	                                * lookup in most cases. */
+
+	/* Handling of commonly known scenarios... */
 	if (ptr->type == &RNA_PoseBone) {
 		bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-		/* bone - generally, we just want the bone component... */
+		/* Bone - generally, we just want the bone component... */
 		*type = DEPSNODE_TYPE_BONE;
 		*subdata = pchan->name;
 		return true;
 	}
 	else if (ptr->type == &RNA_Object) {
 		Object *ob = (Object *)ptr->data;
-		/* transforms props? */
+		/* Transforms props? */
 		// ...
 		(void)ob;  /* Currently ignored. */
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
 		Sequence *seq = (Sequence *)ptr->data;
-		/* sequencer strip */
+		/* Sequencer strip */
 		*type = DEPSNODE_TYPE_SEQUENCER;
 		*subdata = seq->name; // xxx?
 		return true;
 	}
 	else if (prop) {
-		*type = DEPSNODE_TYPE_PARAMETERS;  /* all unknown data effectively falls under "parameter evaluation" */
+		/* All unknown data effectively falls under "parameter evaluation" */
+		*type = DEPSNODE_TYPE_PARAMETERS;
 		return true;
 	}
-	
+
 	return false;
 }
 
-/* Convenience wrapper to find node given just pointer + property */
-DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const
+/* Convenience wrapper to find node given just pointer + property. */
+DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr,
+                                            const PropertyRNA *prop) const
 {
 	ID *id;
 	eDepsNode_Type type;
 	string name;
-	
-	/* get querying conditions */
+
+	/* Get querying conditions. */
 	if (pointer_to_id_node_criteria(ptr, prop, &id)) {
 		return find_id_node(id);
 	}
@@ -132,7 +137,7 @@ DepsNode *Depsgraph::find_node_from_pointer(const PointerRNA *ptr, const Propert
 		if (id_node)
 			return id_node->find_component(type, name);
 	}
-	
+
 	return NULL;
 }
 
@@ -149,43 +154,44 @@ RootDepsNode *Depsgraph::add_root_node()
 
 TimeSourceDepsNode *Depsgraph::find_time_source(const ID *id) const
 {
-	/* search for one attached to a particular ID? */
+	/* Search for one attached to a particular ID? */
 	if (id) {
-		/* check if it was added as a component 
-		 * (as may be done for subgraphs needing timeoffset) 
+		/* Check if it was added as a component
+		 * (as may be done for subgraphs needing timeoffset).
 		 */
 		IDDepsNode *id_node = find_id_node(id);
-		
 		if (id_node) {
 			// XXX: review this
 //			return id_node->find_component(DEPSNODE_TYPE_TIMESOURCE);
 		}
+		BLI_assert(!"Not implemented yet");
 	}
 	else {
-		/* use "official" timesource */
+		/* Use "official" timesource. */
 		return root_node->time_source;
 	}
-	
 	return NULL;
 }
 
 SubgraphDepsNode *Depsgraph::add_subgraph_node(const ID *id)
 {
 	DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_SUBGRAPH);
-	SubgraphDepsNode *subgraph_node = (SubgraphDepsNode *)factory->create_node(id, "", id->name+2);
-	
-	/* add to subnodes list */
+	SubgraphDepsNode *subgraph_node =
+		(SubgraphDepsNode *)factory->create_node(id, "", id->name + 2);
+
+	/* Add to subnodes list. */
 	this->subgraphs.insert(subgraph_node);
-	
+
 	/* if there's an ID associated, add to ID-nodes lookup too */
 	if (id) {
-#if 0 /* XXX subgraph node is NOT a true IDDepsNode - what is this supposed to do? */
+#if 0
+		/* XXX subgraph node is NOT a true IDDepsNode - what is this supposed to do? */
 		// TODO: what to do if subgraph's ID has already been added?
 		BLI_assert(!graph->find_id_node(id));
 		graph->id_hash[id] = this;
 #endif
 	}
-	
+
 	return subgraph_node;
 }
 
@@ -197,7 +203,10 @@ void Depsgraph::remove_subgraph_node(SubgraphDepsNode *subgraph_node)
 
 void Depsgraph::clear_subgraph_nodes()
 {
-	for (Subgraphs::iterator it = subgraphs.begin(); it != subgraphs.end(); ++it) {
+	for (Subgraphs::iterator it = subgraphs.begin();
+	     it != subgraphs.end();
+	     ++it)
+	{
 		SubgraphDepsNode *subgraph_node = *it;
 		OBJECT_GUARDED_DELETE(subgraph_node, SubgraphDepsNode);
 	}
@@ -216,7 +225,7 @@ IDDepsNode *Depsgraph::add_id_node(const ID *id, const string &name)
 	if (!id_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_ID_REF);
 		id_node = (IDDepsNode *)factory->create_node(id, "", name);
-		
+
 		/* register */
 		this->id_hash[id] = id_node;
 	}
@@ -235,19 +244,23 @@ void Depsgraph::remove_id_node(const ID *id)
 
 void Depsgraph::clear_id_nodes()
 {
-	for (IDNodeMap::const_iterator it = id_hash.begin(); it != id_hash.end(); ++it) {
+	for (IDNodeMap::const_iterator it = id_hash.begin();
+	     it != id_hash.end();
+	     ++it)
+	{
 		IDDepsNode *id_node = it->second;
 		OBJECT_GUARDED_DELETE(id_node, IDDepsNode);
 	}
 	id_hash.clear();
 }
 
-/* Add new relationship between two nodes */
-DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from, OperationDepsNode *to, 
-                                          eDepsRelation_Type type, 
+/* Add new relationship between two nodes. */
+DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from,
+                                          OperationDepsNode *to,
+                                          eDepsRelation_Type type,
                                           const string &description)
 {
-	/* create new relation, and add it to the graph */
+	/* Create new relation, and add it to the graph. */
 	DepsRelation *rel = OBJECT_GUARDED_NEW(DepsRelation, from, to, type, description);
 	return rel;
 }
@@ -259,53 +272,57 @@ void Depsgraph::sort()
 {
 #if 0
 	void *ctx = NULL; // XXX: temp struct for keeping track of visited nodes, etc.?
-	
-	/* 1) traverse graph from root
+
+	/* 1) Traverse graph from root:
 	 *   - note when each graph was visited (within its peers)
 	 *   - tag/knock out relationships leading to cyclic dependencies
 	 */
-	DEG_graph_traverse(graph, DEG_Filter_ExecutableNodes, NULL, 
-	                          tag_nodes_for_sorting,      ctx); 
-	
-
-	/* 2) tweak order of nodes within each set of links */
-#endif	
+	DEG_graph_traverse(graph,
+	                   DEG_Filter_ExecutableNodes,
+	                   NULL,
+	                   tag_nodes_for_sorting,
+	                   ctx);
+	/* 2) Tweak order of nodes within each set of links. */
+#endif
 }
 
 /* ************************************************** */
 /* Relationships Management */
 
-DepsRelation::DepsRelation(OperationDepsNode *from, OperationDepsNode *to, eDepsRelation_Type type, const string &description)
+DepsRelation::DepsRelation(OperationDepsNode *from,
+                           OperationDepsNode *to,
+                           eDepsRelation_Type type,
+                           const string &description)
 {
 	this->from = from;
 	this->to = to;
 	this->type = type;
 	this->name = description;
-	
-	/* hook it up to the nodes which use it */
+
+	/* Hook it up to the nodes which use it. */
 	from->outlinks.insert(this);
 	to->inlinks.insert(this);
 }
 
 DepsRelation::~DepsRelation()
 {
-	/* sanity check */
+	/* Sanity check. */
 	BLI_assert(this->from && this->to);
-	/* remove it from the nodes that use it */
+	/* Remove it from the nodes that use it. */
 	this->from->outlinks.erase(this);
 	this->to->inlinks.erase(this);
 }
 
 /* Low level tagging -------------------------------------- */
 
-/* Tag a specific node as needing updates */
+/* Tag a specific node as needing updates. */
 void Depsgraph::add_entry_tag(OperationDepsNode *node)
 {
-	/* sanity check */
+	/* Sanity check. */
 	if (!node)
 		return;
-	
-	/* add to graph-level set of directly modified nodes to start searching from
+
+	/* Add to graph-level set of directly modified nodes to start searching from.
 	 * NOTE: this is necessary since we have several thousand nodes to play with...
 	 */
 	this->entry_tags.insert(node);
@@ -325,5 +342,3 @@ void DEG_graph_free(Depsgraph *graph)
 {
 	OBJECT_GUARDED_DELETE(graph, Depsgraph);
 }
-
-/* ************************************************** */
