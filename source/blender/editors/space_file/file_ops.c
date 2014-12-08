@@ -869,7 +869,7 @@ int file_parent_exec(bContext *C, wmOperator *UNUSED(unused))
 			/* if not browsing in .blend file, we still want to check whether the path is a directory */
 			if (sfile->params->type == FILE_LOADLIB) {
 				char tdir[FILE_MAX], tgroup[FILE_MAX];
-				if (BLO_is_a_library(sfile->params->dir, tdir, tgroup)) {
+				if (BLO_library_path_explode(sfile->params->dir, tdir, NULL, NULL)) {
 					file_change_dir(C, 0);
 				}
 				else {
@@ -1350,7 +1350,7 @@ void file_filename_enter_handle(bContext *C, void *UNUSED(arg_unused), void *arg
 			else if (sfile->params->type == FILE_LOADLIB) {
 				char tdir[FILE_MAX], tgroup[FILE_MAX];
 				BLI_add_slash(filepath);
-				if (BLO_is_a_library(filepath, tdir, tgroup)) {
+				if (BLO_library_path_explode(filepath, tdir, NULL, NULL)) {
 					BLI_cleanup_dir(G.main->name, filepath);
 					BLI_strncpy(sfile->params->dir, filepath, sizeof(sfile->params->dir));
 					sfile->params->file[0] = '\0';

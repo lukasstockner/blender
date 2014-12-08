@@ -1152,13 +1152,20 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char
 	 * then we now next path item is group, and everything else is data name. */
 	char *slash, *prev_slash = NULL;
 
-	strcpy(r_dir, path);
+	r_dir[0] = '\0';
 	if (r_group) {
 		r_group[0] = '\0';
 	}
 	if (r_name) {
 		r_name[0] = '\0';
 	}
+
+	/* if path leads to an existing directory or file, we can be sure we're not in a library */
+	if (BLI_is_dir(path) || BLI_is_file(path)) {
+		return false;
+	}
+
+	strcpy(r_dir, path);
 
 	while ((slash = (char *)BLI_last_slash(r_dir))) {
 		*slash = '\0';
@@ -1167,7 +1174,7 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char
 		}
 
 		if (prev_slash) {
-			*prev_slash = '/';
+			*prev_slash = SEP;
 		}
 		prev_slash = slash;
 	}
@@ -1191,49 +1198,6 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char
 	}
 
 	return true;
-}
-
-bool BLO_is_a_library(const char *path, char *dir, char *group)
-{
-	/* return ok when a blenderfile, in dir is the filename,
-	 * in group the type of libdata
-	 */
-	int len;
-	char *fd;
-	
-	/* if path leads to a directory we can be sure we're not in a library */
-	if (BLI_is_dir(path)) return 0;
-
-	strcpy(dir, path);
-	len = strlen(dir);
-	if (len < 7) return 0;
-	if ((dir[len - 1] != '/') && (dir[len - 1] != '\\')) return 0;
-	
-	group[0] = '\0';
-	dir[len - 1] = '\0';
-
-	/* Find the last slash */
-	fd = (char *)BLI_last_slash(dir);
-
-	if (fd == NULL) return 0;
-	*fd = 0;
-	if (BLO_has_bfile_extension(fd+1)) {
-		/* the last part of the dir is a .blend file, no group follows */
-		*fd = '/'; /* put back the removed slash separating the dir and the .blend file name */
-	}
-	else {
-		const char * const gp = fd + 1; // in case we have a .blend file, gp points to the group
-		
-		/* Find the last slash */
-		fd = (char *)BLI_last_slash(dir);
-		if (!fd || !BLO_has_bfile_extension(fd+1)) return 0;
-		
-		/* now we know that we are in a blend file and it is safe to 
-		 * assume that gp actually points to a group */
-		if (strcmp("Screen", gp) != 0)
-			BLI_strncpy(group, gp, BLO_GROUP_MAX);
-	}
-	return 1;
 }
 
 /* ************** OLD POINTERS ******************* */

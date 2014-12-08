@@ -207,12 +207,6 @@ bool BLO_has_bfile_extension(const char *str);
  */
 bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char *r_name);
 
-/**
- * return ok when a blenderfile, in dir is the filename,
- * in group the type of libdata
- */
-bool BLO_is_a_library(const char *path, char *dir, char *group);
-
 
 /**
  * Initialize the BlendHandle for appending or linking library data.

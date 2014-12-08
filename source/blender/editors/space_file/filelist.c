@@ -1375,7 +1375,7 @@ void filelist_sort(struct FileList *filelist, short sort)
 
 bool filelist_islibrary(struct FileList *filelist, char *dir, char *group)
 {
-	return BLO_is_a_library(filelist->dir, dir, group);
+	return BLO_library_path_explode(filelist->dir, dir, group, NULL);
 }
 
 static int groupname_to_code(const char *group)
