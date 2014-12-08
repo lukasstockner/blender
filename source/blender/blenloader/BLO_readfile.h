@@ -205,7 +205,7 @@ bool BLO_has_bfile_extension(const char *str);
  * \param r_name the string that'll contain data's name part of the path, if any. May be NULL.
  * \return true if path contains a blend file.
  */
-bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char *r_name);
+bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, char **r_name);
 
 
 /**

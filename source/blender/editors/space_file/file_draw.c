@@ -471,7 +471,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	align = (FILE_IMGDISPLAY == params->display) ? UI_STYLE_TEXT_CENTER : UI_STYLE_TEXT_LEFT;
 
 	for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
-		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX], name_buff[MAX_ID_NAME], *name;
+		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *group, *name;
 		ED_fileselect_layout_tilepos(layout, i, &sx, &sy);
 		sx += (int)(v2d->tot.xmin + 0.1f * UI_UNIT_X);
 		sy = (int)(v2d->tot.ymax - sy);
@@ -479,8 +479,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		file = filelist_file(files, i);
 
 		BLI_join_dirfile(path, sizeof(path), filelist_dir(files), file->relname);
-		if (BLO_library_path_explode(path, dir, group, name_buff)) {
-			name = (name_buff[0] != '\0') ? name_buff : group;
+		if (BLO_library_path_explode(path, dir, &group, &name)) {
+			if (!name) {
+				name = group;
+			}
+			BLI_assert(name);
 		}
 		else {
 			name = file->relname;

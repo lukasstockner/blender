@@ -88,7 +88,7 @@ int                 filelist_empty(struct FileList *filelist);
 void                filelist_parent(struct FileList *filelist);
 
 struct BlendHandle *filelist_lib(struct FileList *filelist);
-bool                filelist_islibrary(struct FileList *filelist, char *dir, char *group);
+bool                filelist_islibrary(struct FileList *filelist, char *dir, char **group);
 void                filelist_from_main(struct FileList *filelist);
 void                filelist_freelib(struct FileList *filelist);
 void                filelist_hideparent(struct FileList *filelist, short hide);

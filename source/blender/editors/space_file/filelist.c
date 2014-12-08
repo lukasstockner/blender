@@ -290,6 +290,34 @@ static int compare_extension(const void *a1, const void *a2)
 	else {
 		if (compare_is_directory(entry2)) return (1);
 	}
+
+	if ((entry1->flags & BLENDERLIB) && !(entry2->flags & BLENDERLIB)) return -1;
+	if (!(entry1->flags & BLENDERLIB) && (entry2->flags & BLENDERLIB)) return 1;
+	if ((entry1->flags & BLENDERLIB) && (entry2->flags & BLENDERLIB)) {
+		char lib1[FILE_MAX_LIBEXTRA], lib2[FILE_MAX_LIBEXTRA];
+		char *group1, *group2, *name1, *name2;
+		int grp_comp;
+
+		BLO_library_path_explode(entry1->path, lib1, &group1, &name1);
+		BLO_library_path_explode(entry2->path, lib2, &group2, &name2);
+
+		BLI_assert(group1);
+		BLI_assert(group2);
+
+		grp_comp = strcmp(group1, group2);
+		if (grp_comp != 0 || (!name1 && !name2)) {
+			return grp_comp;
+		}
+
+		if (!name1) {
+			return -1;
+		}
+		if (!name2) {
+			return 1;
+		}
+		return BLI_strcasecmp(name1, name2);
+	}
+
 	if (S_ISREG(entry1->type)) {
 		if (S_ISREG(entry2->type) == 0) return (-1);
 	}
@@ -298,13 +326,13 @@ static int compare_extension(const void *a1, const void *a2)
 	}
 	if ((entry1->type & S_IFMT) < (entry2->type & S_IFMT)) return (-1);
 	if ((entry1->type & S_IFMT) > (entry2->type & S_IFMT)) return (1);
-	
+
 	/* make sure "." and ".." are always first */
 	if (strcmp(entry1->relname, ".") == 0) return (-1);
 	if (strcmp(entry2->relname, ".") == 0) return (1);
 	if (strcmp(entry1->relname, "..") == 0) return (-1);
 	if (strcmp(entry2->relname, "..") == 0) return (1);
-	
+
 	return (BLI_strcasecmp(sufix1, sufix2));
 }
 
@@ -449,13 +477,14 @@ static bool is_hidden_file(const char *filename, const bool hide_dot)
 
 static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), FileListFilter *filter)
 {
-	bool is_filtered = false;
-	if (filter->filter) {
-		if (file->flags & filter->filter) {
-			is_filtered = true;
+	bool is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
+
+	if (is_filtered && filter->filter && !FILENAME_IS_BREADCRUMBS(file->relname)) {
+		if ((file->type & S_IFDIR) && !(filter->filter & FOLDERFILE)) {
+			is_filtered = false;
 		}
-		else if ((file->type & S_IFDIR) && ((filter->filter & FOLDERFILE) || FILENAME_IS_BREADCRUMBS(file->relname))) {
-			is_filtered = true;
+		if (!(file->type & S_IFDIR) && !(file->flags & filter->filter)) {
+			is_filtered = false;
 		}
 		if (is_filtered && (filter->filter_search[0] != '\0')) {
 			if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
@@ -463,29 +492,21 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 			}
 		}
 	}
-	else {
-		is_filtered = true;
-	}
-	if (is_filtered) {
-		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
-	}
 
 	return is_filtered;
 }
 
 static bool is_filtered_lib(struct direntry *file, const char *root, FileListFilter *filter)
 {
-	bool is_filtered = false;
-	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX];
+	bool is_filtered;
+	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *group;
 
 	BLI_join_dirfile(path, sizeof(path), root, file->relname);
 
-	if (BLO_library_path_explode(path, dir, group, NULL)) {
+	if (BLO_library_path_explode(path, dir, &group, NULL)) {
 		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
-		if (filter->filter) {
-			if (is_filtered && (file->type & S_IFDIR) && !(filter->filter & FOLDERFILE) &&
-			    !FILENAME_IS_BREADCRUMBS(file->relname))
-			{
+		if (is_filtered && filter->filter && !FILENAME_IS_BREADCRUMBS(file->relname)) {
+			if ((file->type & S_IFDIR) && !(filter->filter & FOLDERFILE)) {
 				is_filtered = false;
 			}
 			if (is_filtered && (filter->filter_search[0] != '\0')) {
@@ -493,7 +514,7 @@ static bool is_filtered_lib(struct direntry *file, const char *root, FileListFil
 					is_filtered = false;
 				}
 			}
-			if (is_filtered && group[0] != '\0') {
+			if (is_filtered && group) {
 				unsigned int filter_id = groupname_to_filter_id(group);
 				if (!(filter_id & filter->filter_id)) {
 					is_filtered = false;
@@ -777,11 +798,11 @@ int filelist_geticon(struct FileList *filelist, const int index)
 	else if (file->flags & TEXTFILE)
 		return ICON_FILE_TEXT;
 	else {
-		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX];
+		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *group;
 
 		BLI_join_dirfile(path, sizeof(path), filelist->dir, file->relname);
 
-		if (BLO_library_path_explode(path, dir, group, NULL)) {
+		if (BLO_library_path_explode(path, dir, &group, NULL) && group) {
 			int idcode = groupname_to_code(group);
 
 			/* TODO: this should most likely be completed and moved to UI_interface_icons.h ? unless it already exists somewhere... */
@@ -1218,13 +1239,13 @@ static void filelist_read_library(struct FileList *filelist)
 		}
 	}
 	else if (filelist->use_recursion) {
-		char dir[FILE_MAX], group[BLO_GROUP_MAX];
+		char dir[FILE_MAX], *group;
 
-		const bool is_lib = filelist_islibrary(filelist, dir, group);
+		const bool is_lib = filelist_islibrary(filelist, dir, &group);
 
 		BLI_assert(is_lib);
 
-		if (groupname_to_code(group)) {
+		if (group) {
 			/* We are at lowest possible level, nothing else to do. */
 			return;
 		}
@@ -1373,7 +1394,7 @@ void filelist_sort(struct FileList *filelist, short sort)
 }
 
 
-bool filelist_islibrary(struct FileList *filelist, char *dir, char *group)
+bool filelist_islibrary(struct FileList *filelist, char *dir, char **group)
 {
 	return BLO_library_path_explode(filelist->dir, dir, group, NULL);
 }
@@ -1382,7 +1403,9 @@ static int groupname_to_code(const char *group)
 {
 	char buf[BLO_GROUP_MAX];
 	char *lslash;
-	
+
+	BLI_assert(group);
+
 	BLI_strncpy(buf, group, sizeof(buf));
 	lslash = (char *)BLI_last_slash(buf);
 	if (lslash)
@@ -1459,12 +1482,12 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 {
 	LinkNode *l, *names, *previews;
 	struct ImBuf *ima;
-	int ok, i, nprevs, nnames, idcode;
+	int ok, i, nprevs, nnames, idcode = 0;
 	char filename[FILE_MAX];
-	char dir[FILE_MAX], group[BLO_GROUP_MAX];
+	char dir[FILE_MAX], *group;
 	
 	/* name test */
-	ok = filelist_islibrary(filelist, dir, group);
+	ok = filelist_islibrary(filelist, dir, &group);
 	if (!ok) {
 		/* free */
 		if (filelist->libfiledata) BLO_blendhandle_close(filelist->libfiledata);
@@ -1480,18 +1503,16 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 		filelist->libfiledata = BLO_blendhandle_from_file(dir, NULL);
 		if (filelist->libfiledata == NULL) return;
 	}
-	
-	idcode = groupname_to_code(group);
 
 	/* memory for strings is passed into filelist[i].relname
 	 * and freed in freefilelist */
-	if (idcode) {
+	if (group) {
+		idcode = groupname_to_code(group);
 		previews = BLO_blendhandle_get_previews(filelist->libfiledata, idcode, &nprevs);
 		names = BLO_blendhandle_get_datablock_names(filelist->libfiledata, idcode, &nnames);
 		/* ugh, no rewind, need to reopen */
 		BLO_blendhandle_close(filelist->libfiledata);
 		filelist->libfiledata = BLO_blendhandle_from_file(dir, NULL);
-		
 	}
 	else {
 		previews = NULL;
@@ -1515,8 +1536,9 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 		struct direntry *file = &filelist->filelist[i];
 
 		file->relname = BLI_strdup(blockname);
+		file->path = BLI_strdupcat(filelist->dir, blockname);
 		file->flags |= BLENDERLIB;
-		if (idcode) {
+		if (group && idcode) {
 			file->type |= S_IFREG;
 		}
 		else {
@@ -1550,7 +1572,7 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 	BLI_linklist_free(names, free);
 	if (previews) BLI_linklist_free(previews, BKE_previewimg_freefunc);
 
-	filelist_sort(filelist, FILE_SORT_ALPHA);
+	//~ filelist_sort(filelist, FILE_SORT_ALPHA);
 
 	BLI_strncpy(G.main->name, filename, sizeof(filename));  /* prevent G.main->name to change */
 

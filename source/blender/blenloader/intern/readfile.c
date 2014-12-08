@@ -1146,7 +1146,7 @@ bool BLO_has_bfile_extension(const char *str)
 	return BLI_testextensie_array(str, ext_test);
 }
 
-bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char *r_name)
+bool BLO_library_path_explode(const char *path, char *r_dir, char **r_group, char **r_name)
 {
 	/* We might get some data names with slashes, so we have to go up in path until we find blend file itself,
 	 * then we now next path item is group, and everything else is data name. */
@@ -1154,10 +1154,10 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char
 
 	r_dir[0] = '\0';
 	if (r_group) {
-		r_group[0] = '\0';
+		*r_group = NULL;
 	}
 	if (r_name) {
-		r_name[0] = '\0';
+		*r_name = NULL;
 	}
 
 	/* if path leads to an existing directory or file, we can be sure we're not in a library */
@@ -1183,17 +1183,17 @@ bool BLO_library_path_explode(const char *path, char *r_dir, char *r_group, char
 		return false;
 	}
 
-	if (slash) {
-		BLI_assert(strlen(slash + 1) <= BLO_GROUP_MAX);
+	if (slash[1] != '\0') {
+		BLI_assert(strlen(slash + 1) < BLO_GROUP_MAX);
 		if (r_group) {
-			strcpy(r_group, slash + 1);
+			*r_group = slash + 1;
 		}
 	}
 
-	if (prev_slash) {
-		BLI_assert(strlen(prev_slash + 1) <= MAX_ID_NAME - 2);
+	if (prev_slash && (prev_slash[1] != '\0')) {
+		BLI_assert(strlen(prev_slash + 1) < MAX_ID_NAME - 2);
 		if (r_name) {
-			strcpy(r_name, prev_slash + 1);
+			*r_name = prev_slash + 1;
 		}
 	}
 

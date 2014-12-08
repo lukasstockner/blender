@@ -2567,23 +2567,23 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	BlendHandle *bh;
 	Library *lib;
 	PropertyRNA *prop;
-	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], libname[FILE_MAX], group[BLO_GROUP_MAX], name[FILE_MAXFILE];
+	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX], *group, *name;
 	int idcode, totfiles = 0;
 	short flag;
 
 	GSet *todo_libraries = NULL;
 
-	RNA_string_get(op->ptr, "filename", name);
+	RNA_string_get(op->ptr, "filename", relname);
 	RNA_string_get(op->ptr, "directory", dir);
 
-	BLI_join_dirfile(path, sizeof(path), dir, name);
+	BLI_join_dirfile(path, sizeof(path), dir, relname);
 
 	/* test if we have a valid data */
-	if (!BLO_library_path_explode(path, libname, group, name)) {
+	if (!BLO_library_path_explode(path, libname, &group, &name)) {
 		BKE_report(op->reports, RPT_ERROR, "Not a library");
 		return OPERATOR_CANCELLED;
 	}
-	else if (group[0] == '\0') {
+	else if (!group) {
 		BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
 		return OPERATOR_CANCELLED;
 	}
@@ -2597,13 +2597,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	if (prop) {
 		totfiles = RNA_property_collection_length(op->ptr, prop);
 		if (totfiles == 0) {
-			if (name[0] == '\0') {
+			if (!name) {
 				BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
 				return OPERATOR_CANCELLED;
 			}
 		}
 	}
-	else if (name[0] == '\0') {
+	else if (!name) {
 		BKE_report(op->reports, RPT_ERROR, "Nothing indicated");
 		return OPERATOR_CANCELLED;
 	}
@@ -2655,12 +2655,12 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 			char curr_libname[FILE_MAX];
 			int curr_idcode;
 
-			RNA_string_get(&itemptr, "name", name);
+			RNA_string_get(&itemptr, "name", relname);
 
-			BLI_join_dirfile(path, sizeof(path), dir, name);
+			BLI_join_dirfile(path, sizeof(path), dir, relname);
 
-			if (BLO_library_path_explode(path, curr_libname, group, name)) {
-				if (!group[0] || !name[0]) {
+			if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
+				if (group || name) {
 					continue;
 				}
 
@@ -2699,7 +2699,8 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		GSET_ITER(libs_it, todo_libraries) {
 			char *libpath = (char *)BLI_gsetIterator_getKey(&libs_it);
 
-			BLO_library_path_explode(libpath, libname, group, NULL);
+			BLO_library_path_explode(libpath, libname, &group, NULL);
+			BLI_assert(group);
 			idcode = BKE_idcode_from_name(group);
 
 			bh = BLO_blendhandle_from_file(libname, op->reports);
@@ -2720,12 +2721,12 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 				char curr_libname[FILE_MAX];
 				int curr_idcode;
 
-				RNA_string_get(&itemptr, "name", name);
+				RNA_string_get(&itemptr, "name", relname);
 
-				BLI_join_dirfile(path, sizeof(path), dir, name);
+				BLI_join_dirfile(path, sizeof(path), dir, relname);
 
-				if (BLO_library_path_explode(path, curr_libname, group, name)) {
-					if (!group[0] || !name[0]) {
+				if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
+					if (!group || !name) {
 						continue;
 					}
 
