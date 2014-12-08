@@ -40,7 +40,6 @@ void BKE_pose_eval_bone(struct EvaluationContext *eval_ctx,
                         Object *ob,
                         bPoseChannel *pchan);
 
-void BKE_pose_rebuild_op(struct EvaluationContext *eval_ctx, Object *ob, bPose *pose);
 void BKE_pose_eval_init(struct EvaluationContext *eval_ctx,
                         Scene *scene,
                         Object *ob,

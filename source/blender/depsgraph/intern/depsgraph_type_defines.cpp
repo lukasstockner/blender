@@ -124,16 +124,6 @@ void BKE_animsys_eval_driver(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_pose_rebuild_op(EvaluationContext *eval_ctx, Object *ob, bPose *pose)
-{
-	bArmature *arm = (bArmature *)ob->data;
-	printf("%s on %s\n", __func__, ob->id.name);
-	BLI_assert(ob->type == OB_ARMATURE);
-	if ((ob->pose == NULL) || (ob->pose->flag & POSE_RECALC)) {
-		BKE_pose_rebuild(ob, arm);
-	}
-}
-
 void BKE_pose_eval_init(EvaluationContext *eval_ctx,
                         Scene *scene,
                         Object *ob,
@@ -142,6 +132,11 @@ void BKE_pose_eval_init(EvaluationContext *eval_ctx,
 	printf("%s on %s\n", __func__, ob->id.name);
 	BLI_assert(ob->type == OB_ARMATURE);
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
+
+	/* We demand having proper pose. */
+	BLI_assert(ob->pose != NULL);
+	BLI_assert((ob->pose->flag & POSE_RECALC) == 0);
+
 	/* 1. clear flags */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
 	     pchan != NULL;
@@ -274,7 +269,6 @@ const string deg_op_name_constraint_stack = "Constraint Stack";
 const string deg_op_name_rigidbody_world_rebuild = "Rigidbody World Rebuild";
 const string deg_op_name_rigidbody_world_simulate = "Rigidbody World Do Simulation";
 const string deg_op_name_rigidbody_object_sync = "RigidBodyObject Sync";
-const string deg_op_name_pose_rebuild = "Rebuild Pose";
 const string deg_op_name_pose_eval_init = "Init Pose Eval";
 const string deg_op_name_pose_eval_flush = "Flush Pose Eval";
 const string deg_op_name_ik_solver = "IK Solver";

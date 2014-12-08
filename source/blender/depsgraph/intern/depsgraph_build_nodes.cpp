@@ -541,7 +541,11 @@ void DepsgraphNodeBuilder::build_splineik_pose(Scene *scene, Object *ob, bPoseCh
 void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 {
 	bArmature *arm = (bArmature *)ob->data;
-	
+
+	/* We demand having proper pose. */
+	BLI_assert(ob->pose != NULL);
+	BLI_assert((ob->pose->flag & POSE_RECALC) == 0);
+
 	// TODO: bone names?
 	/* animation and/or drivers linking posebones to base-armature used to define them 
 	 * NOTE: AnimData here is really used to control animated deform properties, 
@@ -572,9 +576,6 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	// TODO: rest pose/editmode handling!
 	
 	/* pose eval context */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE,
-	                   DEPSOP_TYPE_REBUILD, bind(BKE_pose_rebuild_op, _1, ob, ob->pose), deg_op_name_pose_rebuild);
-	
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE,
 	                   DEPSOP_TYPE_INIT, bind(BKE_pose_eval_init, _1, scene, ob, ob->pose), deg_op_name_pose_eval_init);
 	

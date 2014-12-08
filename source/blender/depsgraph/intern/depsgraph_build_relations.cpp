@@ -954,11 +954,9 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	build_animdata(&arm->id);
 	
 	/* attach links between base operations */
-	OperationKey rebuild_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_rebuild);
 	OperationKey init_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_init);
 	OperationKey flush_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, deg_op_name_pose_eval_flush);
 	
-	add_relation(rebuild_key, init_key, DEPSREL_TYPE_OPERATION, "[Pose Rebuild -> Pose Init] DepsRel");
 	add_relation(init_key, flush_key, DEPSREL_TYPE_OPERATION, "[Pose Init -> Pose Cleanup] DepsRel");
 
 	if (ob->adt != NULL) {

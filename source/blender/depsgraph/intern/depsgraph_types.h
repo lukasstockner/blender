@@ -93,7 +93,6 @@ extern const string deg_op_name_constraint_stack;
 extern const string deg_op_name_rigidbody_world_rebuild;
 extern const string deg_op_name_rigidbody_world_simulate;
 extern const string deg_op_name_rigidbody_object_sync;
-extern const string deg_op_name_pose_rebuild;
 extern const string deg_op_name_pose_eval_init;
 extern const string deg_op_name_pose_eval_flush;
 extern const string deg_op_name_ik_solver;
