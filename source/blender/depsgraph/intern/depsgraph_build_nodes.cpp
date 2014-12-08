@@ -541,9 +541,10 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 {
 	bArmature *arm = (bArmature *)ob->data;
 
-	/* We demand having proper pose. */
-	BLI_assert(ob->pose != NULL);
-	BLI_assert((ob->pose->flag & POSE_RECALC) == 0);
+	/* Rbuild pose if not up to date. */
+	if (ob->pose == NULL || ob->pose->flag & POSE_RECALC) {
+		BKE_pose_rebuild(ob, arm);
+	}
 
 	// TODO: bone names?
 	/* animation and/or drivers linking posebones to base-armature used to define them 
