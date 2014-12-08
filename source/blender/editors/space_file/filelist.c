@@ -104,6 +104,7 @@ typedef struct ThumbnailJob {
 typedef struct FileListFilter {
 	bool hide_dot;
 	unsigned int filter;
+	unsigned int filter_id;
 	char filter_glob[64];
 	char filter_search[66];  /* + 2 for heading/trailing implicit '*' wildcards. */
 } FileListFilter;
@@ -423,6 +424,7 @@ static void filelist_from_library(struct FileList *filelist, const bool add_pare
 
 /* helper, could probably go in BKE actually? */
 static int groupname_to_code(const char *group);
+static unsigned int groupname_to_filter_id(const char *group);
 
 static bool is_hidden_file(const char *filename, const bool hide_dot)
 {
@@ -474,11 +476,11 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 static bool is_filtered_lib(struct direntry *file, const char *root, FileListFilter *filter)
 {
 	bool is_filtered = false;
-	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR];
+	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], group[BLO_GROUP_MAX];
 
 	BLI_join_dirfile(path, sizeof(path), root, file->relname);
 
-	if (BLO_library_path_explode(path, dir, NULL, NULL)) {
+	if (BLO_library_path_explode(path, dir, group, NULL)) {
 		is_filtered = !is_hidden_file(file->relname, filter->hide_dot);
 		if (filter->filter) {
 			if (is_filtered && (file->type & S_IFDIR) && !(filter->filter & FOLDERFILE) &&
@@ -488,6 +490,12 @@ static bool is_filtered_lib(struct direntry *file, const char *root, FileListFil
 			}
 			if (is_filtered && (filter->filter_search[0] != '\0')) {
 				if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+					is_filtered = false;
+				}
+			}
+			if (is_filtered && group[0] != '\0') {
+				unsigned int filter_id = groupname_to_filter_id(group);
+				if (!(filter_id & filter->filter_id)) {
 					is_filtered = false;
 				}
 			}
@@ -876,42 +884,36 @@ int filelist_find(struct FileList *filelist, const char *filename)
 	return fidx;
 }
 
-void filelist_hidedot(FileList *filelist, const bool hide)
+void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const unsigned int filter,
+                                const unsigned int filter_id, const char *filter_glob, const char *filter_search)
 {
-	filelist->filter_data.hide_dot = hide;
-}
+	filelist->filter_data.hide_dot = hide_dot;
 
-void filelist_setfilter(FileList *filelist, const unsigned int filter)
-{
 	filelist->filter_data.filter = filter;
-}
-
-void filelist_setfilter_types(FileList *filelist, const char *filter_glob)
-{
+	filelist->filter_data.filter_id = filter_id;
 	BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
-}
 
-void filelist_setfilter_search(struct FileList *filelist, const char *filter_search)
-{
-	int idx = 0;
-	const size_t max_search_len = sizeof(filelist->filter_data.filter_search) - 2;
-	const size_t slen = (size_t)min_ii((int)strlen(filter_search), (int)max_search_len);
+	{
+		int idx = 0;
+		const size_t max_search_len = sizeof(filelist->filter_data.filter_search) - 2;
+		const size_t slen = (size_t)min_ii((int)strlen(filter_search), (int)max_search_len);
 
-	if (slen == 0) {
-		filelist->filter_data.filter_search[0] = '\0';
-		return;
+		if (slen == 0) {
+			filelist->filter_data.filter_search[0] = '\0';
+		}
+		else {
+			/* Implicitly add heading/trailing wildcards if needed. */
+			if (filter_search[idx] != '*') {
+				filelist->filter_data.filter_search[idx++] = '*';
+			}
+			memcpy(&filelist->filter_data.filter_search[idx], filter_search, slen);
+			idx += slen;
+			if (filelist->filter_data.filter_search[idx - 1] != '*') {
+				filelist->filter_data.filter_search[idx++] = '*';
+			}
+			filelist->filter_data.filter_search[idx] = '\0';
+		}
 	}
-
-	/* Implicitly add heading/trailing wildcards if needed. */
-	if (filter_search[idx] != '*') {
-		filelist->filter_data.filter_search[idx++] = '*';
-	}
-	memcpy(&filelist->filter_data.filter_search[idx], filter_search, slen);
-	idx += slen;
-	if (filelist->filter_data.filter_search[idx - 1] != '*') {
-		filelist->filter_data.filter_search[idx++] = '*';
-	}
-	filelist->filter_data.filter_search[idx] = '\0';
 }
 
 /* would recognize .blend as well */
@@ -1387,6 +1389,70 @@ static int groupname_to_code(const char *group)
 		lslash[0] = '\0';
 
 	return buf[0] ? BKE_idcode_from_name(buf) : 0;
+}
+
+static unsigned int groupname_to_filter_id(const char *group)
+{
+	int id_code = groupname_to_code(group);
+
+	switch (id_code) {
+		case ID_AC:
+			return FILTER_ID_AC;
+		case ID_AR:
+			return FILTER_ID_AR;
+		case ID_BR:
+			return FILTER_ID_BR;
+		case ID_CA:
+			return FILTER_ID_CA;
+		case ID_CU:
+			return FILTER_ID_CU;
+		case ID_GD:
+			return FILTER_ID_GD;
+		case ID_GR:
+			return FILTER_ID_GR;
+		case ID_IM:
+			return FILTER_ID_IM;
+		case ID_LA:
+			return FILTER_ID_LA;
+		case ID_LS:
+			return FILTER_ID_LS;
+		case ID_LT:
+			return FILTER_ID_LT;
+		case ID_MA:
+			return FILTER_ID_MA;
+		case ID_MB:
+			return FILTER_ID_MB;
+		case ID_MC:
+			return FILTER_ID_MC;
+		case ID_ME:
+			return FILTER_ID_ME;
+		case ID_MSK:
+			return FILTER_ID_MSK;
+		case ID_NT:
+			return FILTER_ID_NT;
+		case ID_OB:
+			return FILTER_ID_OB;
+		case ID_PAL:
+			return FILTER_ID_PAL;
+		case ID_PC:
+			return FILTER_ID_PC;
+		case ID_SCE:
+			return FILTER_ID_SCE;
+		case ID_SPK:
+			return FILTER_ID_SPK;
+		case ID_SO:
+			return FILTER_ID_SO;
+		case ID_TE:
+			return FILTER_ID_TE;
+		case ID_TXT:
+			return FILTER_ID_TXT;
+		case ID_VF:
+			return FILTER_ID_VF;
+		case ID_WO:
+			return FILTER_ID_WO;
+		default:
+			return 0;
+	}
 }
  
 static void filelist_from_library(struct FileList *filelist, const bool add_parent, const bool use_filter)

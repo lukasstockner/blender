@@ -3188,6 +3188,37 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem file_filter_idtypes_items[] = {
+		{FILTER_ID_AC, "FILTER_ID_AC", ICON_ANIM_DATA, "Actions", "Show/hide Action datablocks"},
+		{FILTER_ID_AR, "FILTER_ID_AR", ICON_ARMATURE_DATA, "Armatures", "Show/hide Armature datablocks"},
+		{FILTER_ID_BR, "FILTER_ID_BR", ICON_BRUSH_DATA, "Brushes", "Show/hide Brushe datablocks"},
+		{FILTER_ID_CA, "FILTER_ID_CA", ICON_CAMERA_DATA, "Cameras", "Show/hide Camera datablocks"},
+		{FILTER_ID_CU, "FILTER_ID_CU", ICON_CURVE_DATA, "Curves", "Show/hide Curve datablocks"},
+		{FILTER_ID_GD, "FILTER_ID_GD", ICON_GREASEPENCIL, "Grease Pencil", "Show/hide Grease pencil datablocks"},
+		{FILTER_ID_GR, "FILTER_ID_GR", ICON_GROUP, "Groups", "Show/hide Group datablocks"},
+		{FILTER_ID_IM, "FILTER_ID_IM", ICON_IMAGE_DATA, "Images", "Show/hide Image datablocks"},
+		{FILTER_ID_LA, "FILTER_ID_LA", ICON_LAMP_DATA, "Lamps", "Show/hide Lamp datablocks"},
+		{FILTER_ID_LS, "FILTER_ID_LS", ICON_LINE_DATA, "Freestyle Linestyles", "Show/hide Freestyle's Line Style datablocks"},
+		{FILTER_ID_LT, "FILTER_ID_LT", ICON_LATTICE_DATA, "Lattices", "Show/hide Lattice datablocks"},
+		{FILTER_ID_MA, "FILTER_ID_MA", ICON_MATERIAL_DATA, "Materials", "Show/hide Material datablocks"},
+		{FILTER_ID_MB, "FILTER_ID_MB", ICON_META_DATA, "Metaballs", "Show/hide Mateball datablocks"},
+		{FILTER_ID_MC, "FILTER_ID_MC", ICON_CLIP, "Movie Clips", "Show/hide Movie Clip datablocks"},
+		{FILTER_ID_ME, "FILTER_ID_ME", ICON_MESH_DATA, "Meshes", "Show/hide Mesh datablocks"},
+		{FILTER_ID_MSK, "FILTER_ID_MSK", ICON_FILE_BLANK, "Masks", "Show/hide Mask datablocks"},  /* TODO */
+		{FILTER_ID_NT, "FILTER_ID_NT", ICON_NODETREE, "Node Trees", "Show/hide Node Tree datablocks"},
+		{FILTER_ID_OB, "FILTER_ID_OB", ICON_OBJECT_DATA, "Objects", "Show/hide Object datablocks"},
+		{FILTER_ID_PAL, "FILTER_ID_PAL", ICON_FILE_BLANK, "Palettes", "Show/hide Palette datablocks"},  /* TODO */
+		{FILTER_ID_PC, "FILTER_ID_PC", ICON_FILE_BLANK, "Paint Curves", "Show/hide Paint Curve datablocks"},  /* TODO */
+		{FILTER_ID_SCE, "FILTER_ID_SCE", ICON_SCENE_DATA, "Scenes", "Show/hide Scene datablocks"},
+		{FILTER_ID_SPK, "FILTER_ID_SPK", ICON_SPEAKER, "Speakers", "Show/hide Speaker datablocks"},
+		{FILTER_ID_SO, "FILTER_ID_SO", ICON_SOUND, "Sounds", "Show/hide Sound datablocks"},
+		{FILTER_ID_TE, "FILTER_ID_TE", ICON_TEXTURE_DATA, "Textures", "Show/hide Texture datablocks"},
+		{FILTER_ID_TXT, "FILTER_ID_TXT", ICON_TEXT, "Texts", "Show/hide Text datablocks"},
+		{FILTER_ID_VF, "FILTER_ID_VF", ICON_FONT_DATA, "Fonts", "Show/hide Font datablocks"},
+		{FILTER_ID_WO, "FILTER_ID_WO", ICON_WORLD_DATA, "Worlds", "Show/hide World datablocks"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "FileSelectParams", NULL);
 	RNA_def_struct_ui_text(srna, "File Select Parameters", "File Select Parameters");
 
@@ -3286,7 +3317,14 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Filter Folder", "Show folders");
 	RNA_def_property_ui_icon(prop, ICON_FILE_FOLDER, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
-	
+
+	prop = RNA_def_property(srna, "filter_id", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "filter_id");
+	RNA_def_property_enum_items(prop, file_filter_idtypes_items);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Filter ID types", "Which ID types to show/hide, when browsing a library");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
 	prop = RNA_def_property(srna, "filter_glob", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "filter_glob");
 	RNA_def_property_ui_text(prop, "Extension Filter", "");
@@ -3295,7 +3333,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "filter_search", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "filter_search");
-	RNA_def_property_ui_text(prop, "Name Filter", "");
+	RNA_def_property_ui_text(prop, "Name Filter", "Filter by name, supports '*' wilcard");
 	RNA_def_property_string_maxlength(prop, 63);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 }

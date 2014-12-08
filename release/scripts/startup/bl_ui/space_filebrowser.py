@@ -29,6 +29,8 @@ class FILEBROWSER_HT_header(Header):
 
         st = context.space_data
 
+        is_lib_browser = True  # TODO: Add a solid way to know whether we are browsing libs or not!!!
+
         layout.template_header()
 
         row = layout.row()
@@ -77,6 +79,10 @@ class FILEBROWSER_HT_header(Header):
                 row.prop(params, "use_filter_font", text="")
                 row.prop(params, "use_filter_sound", text="")
                 row.prop(params, "use_filter_text", text="")
+
+            if is_lib_browser:
+                row.separator()
+                row.prop(params, "filter_id", text="")
 
             row.separator()
             row.prop(params, "filter_search", text="")

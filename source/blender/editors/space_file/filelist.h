@@ -73,11 +73,9 @@ struct direntry *   filelist_file(struct FileList *filelist, int index);
 void                filelist_select(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check);
 void                filelist_select_file(struct FileList *filelist, int index, FileSelType select, unsigned int flag, FileCheckType check);
 bool                filelist_is_selected(struct FileList *filelist, int index, FileCheckType check);
-void                filelist_hidedot(struct FileList *filelist, const bool hide);
 void                filelist_setrecursive(struct FileList *filelist, const bool use_recursion);
-void                filelist_setfilter(struct FileList *filelist, const unsigned int filter);
-void                filelist_setfilter_types(struct FileList *filelist, const char *filter_glob);
-void                filelist_setfilter_search(struct FileList *filelist, const char *filter_search);
+void                filelist_setfilter_options(struct FileList *filelist, const bool hide_dot, const unsigned int filter,
+                                               const unsigned int filter_id, const char *filter_glob, const char *filter_search);
 void                filelist_filter(struct FileList *filelist);
 void                filelist_imgsize(struct FileList *filelist, short w, short h);
 struct ImBuf *      filelist_getimage(struct FileList *filelist, const int index);
