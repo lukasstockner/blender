@@ -25,25 +25,19 @@
  *
  * Core routines for how the Depsgraph works
  */
- 
-#include <stdio.h>
-#include <stdlib.h>
 
 #include <queue>
 
 extern "C" {
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_defs.h"
 #include "DNA_ID.h"
-#include "DNA_listBase.h"
-
-#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
 } /* extern "C" */
+
+#include "DEG_depsgraph.h"
 
 #include "depsgraph.h"
 #include "depsnode.h"
@@ -57,14 +51,16 @@ extern "C" {
 
 /* Data-Based Tagging ------------------------------- */
 
-/* Tag all nodes in ID-block for update 
- * ! This is a crude measure, but is most convenient for old code
+/* Tag all nodes in ID-block for update.
+ * This is a crude measure, but is most convenient for old code.
  */
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
 	IDDepsNode *node = graph->find_id_node(id);
 	if (node)
 		node->tag_update(graph);
+	else
+		printf("Missing node in %s, id %s\n", __func__, id->name);
 }
 
 /* Tag nodes related to a specific piece of data */
@@ -73,14 +69,20 @@ void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
 	DepsNode *node = graph->find_node_from_pointer(ptr, NULL);
 	if (node)
 		node->tag_update(graph);
+	else
+		printf("Missing node in %s\n", __func__);
 }
 
-/* Tag nodes related to a specific property */
-void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const PropertyRNA *prop)
+/* Tag nodes related to a specific property. */
+void DEG_property_tag_update(Depsgraph *graph,
+                             const PointerRNA *ptr,
+                             const PropertyRNA *prop)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, prop);
 	if (node)
 		node->tag_update(graph);
+	else
+		printf("Missing node in %s\n", __func__);
 }
 
 /* Update Flushing ---------------------------------- */
@@ -89,57 +91,67 @@ void DEG_property_tag_update(Depsgraph *graph, const PointerRNA *ptr, const Prop
 /* XXX This may get a dedicated implementation later if needed - lukas */
 typedef std::queue<OperationDepsNode*> FlushQueue;
 
-/* Flush updates from tagged nodes outwards until all affected nodes are tagged */
+/* Flush updates from tagged nodes outwards until all affected nodes are tagged. */
 void DEG_graph_flush_updates(Depsgraph *graph)
 {
 	/* sanity check */
 	if (graph == NULL)
 		return;
-	
+
 	FlushQueue queue;
-	/* starting from the tagged "entry" nodes, flush outwards... */
-	// NOTE: also need to ensure that for each of these, there is a path back to root, or else they won't be done
-	// NOTE: count how many nodes we need to handle - entry nodes may be component nodes which don't count for this purpose!
-	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin(); it != graph->entry_tags.end(); ++it) {
+	/* Starting from the tagged "entry" nodes, flush outwards... */
+	// NOTE: Also need to ensure that for each of these, there is a path back to
+	//       root, or else they won't be done.
+	// NOTE: Count how many nodes we need to handle - entry nodes may be
+	//       component nodes which don't count for this purpose!
+	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin();
+	     it != graph->entry_tags.end();
+	     ++it)
+	{
 		OperationDepsNode *node = *it;
 		queue.push(node);
 	}
-	
+
 	while (!queue.empty()) {
 		OperationDepsNode *node = queue.front();
 		queue.pop();
-		
-		/* flush to nodes along links... */
-		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+
+		/* Flush to nodes along links... */
+		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
+		     it != node->outlinks.end();
+		     ++it)
+		{
 			DepsRelation *rel = *it;
 			OperationDepsNode *to_node = rel->to;
-			
+
 			if (!(to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE)) {
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
 			}
 		}
 	}
-	
-	/* clear entry tags, since all tagged nodes should now be reachable from root */
+
+	/* Clear entry tags, since all tagged nodes should now be reachable from root. */
 	graph->entry_tags.clear();
 }
 
-/* Clear tags from all operation nodes */
+/* Clear tags from all operation nodes. */
 void DEG_graph_clear_tags(Depsgraph *graph)
 {
-	/* go over all operation nodes, clearing tags */
-	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+	/* Go over all operation nodes, clearing tags. */
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
+	     it != graph->operations.end();
+	     ++it)
+	{
 		OperationDepsNode *node = *it;
-		
-		/* clear node's "pending update" settings */
+
+		/* Clear node's "pending update" settings. */
 		node->flag &= ~(DEPSOP_FLAG_DIRECTLY_MODIFIED | DEPSOP_FLAG_NEEDS_UPDATE);
-		node->num_links_pending = 0; /* reset so that it can be bumped up again */
+		/* Reset so that it can be bumped up again. */
+		node->num_links_pending = 0;
 		node->scheduled = false;
 	}
-	
-	/* clear any entry tags which haven't been flushed */
+
+	/* Clear any entry tags which haven't been flushed. */
 	graph->entry_tags.clear();
 }
-
-/* ************************************************** */
