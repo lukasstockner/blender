@@ -2660,7 +2660,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 			BLI_join_dirfile(path, sizeof(path), dir, relname);
 
 			if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
-				if (group || name) {
+				if (!group || !name) {
 					continue;
 				}
 
@@ -2734,12 +2734,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 					if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
 						BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
-					}
-					else {
-						BLI_join_dirfile(path, sizeof(path), curr_libname, group);
-						if (!BLI_gset_haskey(todo_libraries, curr_libname)) {
-							BLI_gset_insert(todo_libraries, BLI_strdup(curr_libname));
-						}
 					}
 				}
 			}
