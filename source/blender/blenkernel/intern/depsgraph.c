@@ -982,10 +982,10 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	// solve_cycles(dag);
 	
 	/********* new depsgraph *********/
-	if (sce->depsgraph)
-		DEG_graph_free(sce->depsgraph);
-	sce->depsgraph = DEG_graph_new();
-	DEG_graph_build_from_scene(sce->depsgraph, bmain, sce);
+	if (sce->depsgraph == NULL) {
+		sce->depsgraph = DEG_graph_new();
+		DEG_graph_build_from_scene(sce->depsgraph, bmain, sce);
+	}
 	/******************/
 	
 	return dag;
@@ -1398,16 +1398,16 @@ static void scene_sort_groups(Main *bmain, Scene *sce)
 }
 
 /* free the depency graph */
-static void dag_scene_free(Scene *sce)
+static void dag_scene_free(Scene *sce, bool free_new_graph)
 {
 	if (sce->theDag) {
 		free_forest(sce->theDag);
 		MEM_freeN(sce->theDag);
 		sce->theDag = NULL;
 	}
-	
+
 	/********* new depsgraph *********/
-	if (sce->depsgraph) {
+	if (sce->depsgraph && free_new_graph) {
 		DEG_graph_free(sce->depsgraph);
 		sce->depsgraph = NULL;
 	}
@@ -1533,7 +1533,7 @@ static void dag_invisible_dependencies_check_flush(Main *bmain, Scene *scene)
 }
 
 /* sort the base list on dependency order */
-static void dag_scene_build(Main *bmain, Scene *sce)
+static void dag_scene_build(Main *bmain, Scene *sce, bool rebuild_new_graph)
 {
 	DagNode *node, *rootnode;
 	DagNodeQueue *nqueue;
@@ -1544,7 +1544,14 @@ static void dag_scene_build(Main *bmain, Scene *sce)
 	Base *base;
 
 	BLI_listbase_clear(&tempbase);
-	
+
+	/********* new depsgraph *********/
+	if (rebuild_new_graph && sce->depsgraph != NULL) {
+		DEG_graph_free(sce->depsgraph);
+		sce->depsgraph = NULL;
+	}
+	/******************/
+
 	build_dag(bmain, sce, DAG_RL_ALL_BUT_DATA);
 	
 	dag_check_cycle(sce->theDag);
@@ -1637,23 +1644,29 @@ static void dag_scene_build(Main *bmain, Scene *sce)
 void DAG_relations_tag_update(Main *bmain)
 {
 	Scene *sce;
-
-	for (sce = bmain->scene.first; sce; sce = sce->id.next)
-		dag_scene_free(sce);
+	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+		dag_scene_free(sce, false);
+		if (sce->depsgraph != NULL) {
+			DEG_graph_tag_relations_update(sce->depsgraph);
+		}
+	}
 }
 
 /* rebuild dependency graph only for a given scene */
 void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 {
-	dag_scene_free(sce);
+	dag_scene_free(sce, true);
 	DAG_scene_relations_update(bmain, sce);
 }
 
 /* create dependency graph if it was cleared or didn't exist yet */
 void DAG_scene_relations_update(Main *bmain, Scene *sce)
 {
+	if (sce->depsgraph != NULL) {
+		DEG_scene_relations_update(bmain, sce);
+	}
 	if (!sce->theDag)
-		dag_scene_build(bmain, sce);
+		dag_scene_build(bmain, sce, false);
 }
 
 /* Tag specific ID node for rebuild, keep rest of the graph untouched. */
@@ -1683,7 +1696,7 @@ void DAG_scene_free(Scene *sce)
 		MEM_freeN(sce->theDag);
 		sce->theDag = NULL;
 	}
-	
+
 	/********* new depsgraph *********/
 	if (sce->depsgraph) {
 		DEG_graph_free(sce->depsgraph);

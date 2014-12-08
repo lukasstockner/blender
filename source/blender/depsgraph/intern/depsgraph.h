@@ -98,6 +98,7 @@ struct Depsgraph {
 	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
 	typedef unordered_set<SubgraphDepsNode *> Subgraphs;
 	typedef unordered_set<OperationDepsNode *> EntryTags;
+	typedef unordered_set<const ID *> IDTags;
 	typedef vector<OperationDepsNode *> OperationNodes;
 
 	Depsgraph();
@@ -154,6 +155,12 @@ struct Depsgraph {
 	/* Tag a specific node as needing updates. */
 	void add_entry_tag(OperationDepsNode *node);
 
+	/* Tag a specific ID as needing updates. */
+	void add_id_tag(const ID *id);
+
+	/* Clear storage used by all nodes. */
+	void clear_all_nodes();
+
 	/* Core Graph Functionality ........... */
 
 	/* <ID : IDDepsNode> mapping from ID blocks to nodes representing these blocks
@@ -166,10 +173,18 @@ struct Depsgraph {
 	/* Subgraphs referenced in tree. */
 	Subgraphs subgraphs;
 
+	/* Indicates whether relations needs to be updated. */
+	bool need_update;
+
 	/* Quick-Access Temp Data ............. */
 
 	/* Nodes which have been tagged as "directly modified". */
 	EntryTags entry_tags;
+
+	/* Nodes which have been tagged for update but were missing
+	 * in the current dependency graph.
+	 */
+	IDTags id_tags;
 
 	/* Convenience Data ................... */
 

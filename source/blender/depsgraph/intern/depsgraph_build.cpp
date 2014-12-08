@@ -480,5 +480,60 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	deg_graph_transitive_reduction(graph);
 }
 
-/* ************************************************* */
+/* Tag relations for update. */
+void DEG_graph_tag_relations_update(Depsgraph *graph)
+{
+	graph->need_update = true;
+}
 
+/* Create new graph if didn't exist yet,
+ * or update relations if graph was tagged for update.
+ */
+void DEG_scene_relations_update(Main *bmain, Scene *scene)
+{
+	if (scene->depsgraph == NULL) {
+		/* Rebuild graph from scratch and exit. */
+		scene->depsgraph = DEG_graph_new();
+		DEG_graph_build_from_scene(scene->depsgraph, bmain, scene);
+		return;
+	}
+
+	Depsgraph *graph = scene->depsgraph;
+	if (!graph->need_update) {
+		/* Graph is up to date, nothing to do. */
+		return;
+	}
+
+	/* Store all oeprations which needs to be re-tagged in new graph. */
+	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin();
+	     it != graph->entry_tags.end();
+	     ++it)
+	{
+		OperationDepsNode *node = *it;
+		/* TODO(sergey): Ideally we'll need to only re-tag operations,
+		 * not the whole ID nodes.
+		 */
+		graph->add_id_tag(node->owner->owner->id);
+	}
+
+	/* Clear all previous nodes and operations. */
+	graph->clear_all_nodes();
+	graph->operations.clear();
+	graph->entry_tags.clear();
+
+	/* Build new nodes and relations. */
+	DEG_graph_build_from_scene(graph, bmain, scene);
+
+	for (Depsgraph::IDTags::const_iterator it = graph->id_tags.begin();
+	     it != graph->id_tags.end();
+	     ++it)
+	{
+		const ID *id = *it;
+		DEG_id_tag_update(graph, id);
+	}
+	graph->id_tags.clear();
+
+	graph->need_update = false;
+}
+
+/* ************************************************* */

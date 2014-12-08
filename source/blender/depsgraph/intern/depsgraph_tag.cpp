@@ -57,10 +57,13 @@ extern "C" {
 void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 {
 	IDDepsNode *node = graph->find_id_node(id);
-	if (node)
+	if (node) {
 		node->tag_update(graph);
-	else
-		printf("Missing node in %s, id %s\n", __func__, id->name);
+	}
+	else {
+		/* Store the ID for tagging later. */
+		graph->add_id_tag(id);
+	}
 }
 
 /* Tag nodes related to a specific piece of data */

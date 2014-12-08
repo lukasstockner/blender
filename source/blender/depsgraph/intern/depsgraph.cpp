@@ -328,6 +328,24 @@ void Depsgraph::add_entry_tag(OperationDepsNode *node)
 	this->entry_tags.insert(node);
 }
 
+/* Tag a specific ID as needing updates. */
+void Depsgraph::add_id_tag(const ID *id)
+{
+	/* Tagging of actual operations happens in DEG_scene_relations_update(). */
+	this->id_tags.insert(id);
+}
+
+void Depsgraph::clear_all_nodes()
+{
+	if (this->root_node) {
+		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
+		root_node = NULL;
+	}
+	clear_id_nodes();
+	clear_subgraph_nodes();
+	id_hash.clear();
+}
+
 /* ************************************************** */
 /* Public Graph API */
 
