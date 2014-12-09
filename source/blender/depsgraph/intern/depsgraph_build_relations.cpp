@@ -496,7 +496,8 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 void DepsgraphRelationBuilder::build_animdata(ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
-	if (!adt)
+	
+	if (adt == NULL)
 		return;
 	
 	ComponentKey adt_key(id, DEPSNODE_TYPE_ANIMATION);
@@ -520,9 +521,10 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 		// ...
 		
 		/* prevent driver from occurring before own animation... */
-		// NOTE: probably not strictly needed (anim before parameters anyway)...
-		add_relation(adt_key, driver_key, DEPSREL_TYPE_OPERATION, 
-		             "[AnimData Before Drivers] DepsRel");
+		if (adt->action || adt->nla_tracks.first) {
+			add_relation(adt_key, driver_key, DEPSREL_TYPE_OPERATION, 
+						 "[AnimData Before Drivers] DepsRel");
+		}
 		
 		build_driver(id, fcurve);
 	}
