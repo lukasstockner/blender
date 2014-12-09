@@ -274,6 +274,7 @@ const string deg_op_name_pose_eval_flush = "Flush Pose Eval";
 const string deg_op_name_ik_solver = "IK Solver";
 const string deg_op_name_spline_ik_solver = "Spline IK Solver";
 const string deg_op_name_psys_eval = "PSys Eval";
+
 string deg_op_name_animdata(const ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id((ID *)id);

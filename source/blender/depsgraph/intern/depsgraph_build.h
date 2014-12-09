@@ -233,6 +233,20 @@ struct DepsNodeHandle {
 
 #include "depsnode_component.h"
 
+// XXX: move elsewhere?
+BLI_INLINE string get_node_info_string(DepsNode *node)
+{
+	if (node != NULL) {
+		char typebuf[5];
+		sprintf(typebuf, "%d", node->type);
+		
+		return string("Node(") + typebuf + ", " + node->name + ")";
+	}
+	else {
+		return string("<No Node>");
+	}
+}
+
 template <class NodeType>
 BLI_INLINE OperationDepsNode *get_entry_operation(NodeType *node)
 { return NULL; }
@@ -257,21 +271,25 @@ template <typename KeyFrom, typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo &key_to,
                                             eDepsRelation_Type type, const string &description)
 {
-	OperationDepsNode *op_from = get_exit_operation(find_node(key_from));
-	OperationDepsNode *op_to = get_entry_operation(find_node(key_to));
+	DepsNode *node_from = find_node(key_from);
+	DepsNode *node_to   = find_node(key_to);
+	
+	OperationDepsNode *op_from = get_exit_operation(node_from);
+	OperationDepsNode *op_to = get_entry_operation(node_to);
+	
 	if (op_from && op_to) {
 		add_operation_relation(op_from, op_to, type, description);
 	}
 	else {
 		if (!op_from) {
 			/* XXX TODO handle as error or report if needed */
-			fprintf(stderr, "add_relation(%d, %s) - Could not find op_from\n",
-			        type, description.c_str());
+			fprintf(stderr, "add_relation(%d, %s) - Could not find op_from (%s)\n",
+			        type, description.c_str(), get_node_info_string(node_from).c_str());
 		}
 		if (!op_to) {
 			/* XXX TODO handle as error or report if needed */
-			fprintf(stderr, "add_relation(%d, %s) - Could not find op_to\n",
-			        type, description.c_str());
+			fprintf(stderr, "add_relation(%d, %s) - Could not find op_to (%s)\n",
+			        type, description.c_str(), get_node_info_string(node_to).c_str());
 		}
 	}
 }
