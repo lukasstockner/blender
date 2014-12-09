@@ -472,6 +472,7 @@ static unsigned int groupname_to_filter_id(const char *group);
 
 static bool is_hidden_file(const char *filename, const bool hide_dot)
 {
+	char *sep = (char *)BLI_last_slash(filename);
 	bool is_hidden = false;
 
 	if (hide_dot) {
@@ -485,8 +486,24 @@ static bool is_hidden_file(const char *filename, const bool hide_dot)
 			}
 		}
 	}
-	if (((filename[0] == '.') && (filename[1] == 0))) {
+	if (!is_hidden && ((filename[0] == '.') && (filename[1] == 0))) {
 		is_hidden = true; /* ignore . */
+	}
+	/* filename might actually be a piece of path, in which case we have to check all its parts. */
+	if (!is_hidden && sep) {
+		char tmp_filename[FILE_MAX_LIBEXTRA];
+
+		BLI_strncpy(tmp_filename, filename, sizeof(tmp_filename));
+		sep = tmp_filename + (sep - filename);
+		while (sep) {
+			BLI_assert(sep[1] != '\0');
+			if (is_hidden_file(sep + 1, hide_dot)) {
+				is_hidden = true;
+				break;
+			}
+			*sep = '\0';
+			sep = (char *)BLI_last_slash(tmp_filename);
+		}
 	}
 	return is_hidden;
 }
