@@ -716,11 +716,9 @@ void filelist_setdir(struct FileList *filelist, const char *dir)
 
 void filelist_setrecursive(struct FileList *filelist, const bool use_recursion)
 {
-	const bool do_free = (filelist->use_recursion != use_recursion);
+	if (filelist->use_recursion != use_recursion) {
+		filelist->use_recursion = use_recursion;
 
-	filelist->use_recursion = use_recursion;
-
-	if (do_free) {
 		filelist_freelib(filelist);
 		filelist_free(filelist);
 	}
@@ -1174,16 +1172,15 @@ static void filelist_read_dir(struct FileList *filelist)
 	filelist->numfiles = BLI_dir_contents(filelist->dir, &(filelist->filelist));
 
 	if (filelist->use_recursion && filelist->recursion_level < FILELIST_MAX_RECURSION) {
+		FileList *fl = filelist_new(FILE_UNIX);
 		file = filelist->filelist;
 		for (i = 0; i < filelist->numfiles; i++, file++) {
-			FileList *fl;
 			char dir[FILE_MAX];
 
 			if (FILENAME_IS_BREADCRUMBS(file->relname) || (file->type & S_IFDIR) == 0) {
 				continue;
 			}
 
-			fl = filelist_new(FILE_UNIX);
 			fl->use_recursion = true;
 			fl->recursion_level = filelist->recursion_level + 1;
 
@@ -1196,6 +1193,7 @@ static void filelist_read_dir(struct FileList *filelist)
 
 			filelist_free(fl);
 		}
+		MEM_freeN(fl);
 	}
 
 	if (new_filelist) {
@@ -1240,6 +1238,7 @@ static void filelist_read_library(struct FileList *filelist)
 	filelist_from_library(filelist, true, false);
 
 	if (!filelist->libfiledata) {
+		FileList *fl = filelist_new(FILE_LOADLIB);
 		BLI_make_exist(filelist->dir);
 		filelist_read_dir(filelist);
 		file = filelist->filelist;
@@ -1255,11 +1254,9 @@ static void filelist_read_library(struct FileList *filelist)
 					file->type |= S_IFDIR;
 
 					if (filelist->use_recursion) {
-						FileList *fl;
 						char dir[FILE_MAX];
 
 						/* Note we do not consider recursion level here, it has no importance in .blend files anyway. */
-						fl = filelist_new(FILE_LOADLIB);
 						fl->use_recursion = true;
 
 						BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
@@ -1275,8 +1272,10 @@ static void filelist_read_library(struct FileList *filelist)
 				}
 			}
 		}
+		MEM_freeN(fl);
 	}
 	else if (filelist->use_recursion) {
+		FileList *fl = filelist_new(FILE_LOADLIB);
 		char dir[FILE_MAX], *group;
 
 		const bool is_lib = filelist_islibrary(filelist, dir, &group);
@@ -1290,7 +1289,6 @@ static void filelist_read_library(struct FileList *filelist)
 
 		file = filelist->filelist;
 		for (i = 0; i < filelist->numfiles; i++, file++) {
-			FileList *fl;
 			char dir[FILE_MAX];
 
 			if (FILENAME_IS_BREADCRUMBS(file->relname)) {
@@ -1299,7 +1297,6 @@ static void filelist_read_library(struct FileList *filelist)
 
 			/* Note we do not consider recursion level here, it has no importance in .blend files anyway. */
 			/* And no need to set recursion flag here either. */
-			fl = filelist_new(FILE_LOADLIB);
 
 			BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
 			filelist_setdir(fl, dir);
@@ -1311,6 +1308,7 @@ static void filelist_read_library(struct FileList *filelist)
 			filelist_freelib(fl);
 			filelist_free(fl);
 		}
+		MEM_freeN(fl);
 	}
 
 	if (new_filelist) {

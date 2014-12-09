@@ -200,12 +200,12 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 		filelist_setdir(sfile->files, params->dir);
 		params->active_file = -1; // added this so it opens nicer (ton)
 	}
+	filelist_setrecursive(sfile->files, (params->flag & FILE_SHOWFLAT) != 0);
 	filelist_setfilter_options(sfile->files, params->flag & FILE_HIDE_DOT,
 	                                         params->flag & FILE_FILTER ? params->filter : 0,
 	                                         params->filter_id,
 	                                         params->filter_glob,
 	                                         params->filter_search);
-	filelist_setrecursive(sfile->files, (params->flag & FILE_SHOWFLAT) != 0);
 
 	if (filelist_empty(sfile->files)) {
 		thumbnails_stop(wm, sfile->files);
