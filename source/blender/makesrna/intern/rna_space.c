@@ -1375,6 +1375,13 @@ static void rna_SpaceClipEditor_view_type_update(Main *UNUSED(bmain), Scene *UNU
 	ED_area_tag_refresh(sa);
 }
 
+static int rna_SpaceFileBrowser_use_lib_get(PointerRNA *ptr)
+{
+	SpaceFile *sf = ptr->data;
+
+	return sf->params && (sf->params->type == FILE_LOADLIB);
+}
+
 #else
 
 static EnumPropertyItem dt_uv_items[] = {
@@ -3360,6 +3367,11 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "operator", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "op");
 	RNA_def_property_ui_text(prop, "Active Operator", "");
+
+	prop = RNA_def_property(srna, "use_library_browsing", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Library Browser", "Whether this file browser may browse blender files or not");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_SpaceFileBrowser_use_lib_get", NULL);
 }
 
 static void rna_def_space_info(BlenderRNA *brna)

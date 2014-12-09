@@ -29,7 +29,7 @@ class FILEBROWSER_HT_header(Header):
 
         st = context.space_data
 
-        is_lib_browser = True  # TODO: Add a solid way to know whether we are browsing libs or not!!!
+        is_lib_browser = st.use_library_browsing
 
         layout.template_header()
 
