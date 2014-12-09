@@ -514,41 +514,42 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 	}
 	
 	/* drivers */
-	for (FCurve *fcurve = (FCurve *)adt->drivers.first; fcurve; fcurve = fcurve->next) {
-		OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, deg_op_name_driver(fcurve->driver));
+	for (FCurve *fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
+		OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, deg_op_name_driver(fcu));
 		
-		/* hook up update callback associated with F-Curve */
-		// ...
+		/* create the driver's relations to targets */
+		build_driver(id, fcu);
 		
 		/* prevent driver from occurring before own animation... */
 		if (adt->action || adt->nla_tracks.first) {
 			add_relation(adt_key, driver_key, DEPSREL_TYPE_OPERATION, 
 						 "[AnimData Before Drivers] DepsRel");
 		}
-		
-		build_driver(id, fcurve);
 	}
 }
 
-void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
+void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 {
-	ChannelDriver *driver = fcurve->driver;
-	OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, deg_op_name_driver(driver));
+	ChannelDriver *driver = fcu->driver;
+	OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, deg_op_name_driver(fcu));
 	
 	/* create dependency between driver and data affected by it */
 	/* - direct property relationship... */
-	RNAPathKey affected_key(id, fcurve->rna_path);
+	RNAPathKey affected_key(id, fcu->rna_path);
 	add_relation(driver_key, affected_key, DEPSREL_TYPE_DRIVER, "[Driver -> Data] DepsRel");
+	
+	/* hook up update callback associated with F-Curve */
+	// ...
 	
 	/* driver -> data components (for interleaved evaluation - bones/constraints/modifiers) */
 	// XXX: this probably shouldn't be inlined here like this...
-	if (strstr(fcurve->rna_path, "pose.bones[") != NULL) {
+	if (strstr(fcu->rna_path, "pose.bones[") != NULL) {
 		/* interleaved drivers during bone eval */
 		Object *ob = (Object *)id;
 		bPoseChannel *pchan;
 		char *bone_name;
 		
-		bone_name = BLI_str_quoted_substrN(fcurve->rna_path, "pose.bones[");
+		bone_name = BLI_str_quoted_substrN(fcu->rna_path, "pose.bones[");
 		pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
 		
 		if (bone_name) {
@@ -561,7 +562,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
 			add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> SubData] DepsRel");
 		}
 		else {
-			printf("Couldn't find bone name for driver path - '%s'\n", fcurve->rna_path);
+			printf("Couldn't find bone name for driver path - '%s'\n", fcu->rna_path);
 		}
 	}
 	else {
@@ -595,20 +596,20 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcurve)
 					/* get node associated with bone */
 					ComponentKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name);
 					add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
-					             "[Target -> Driver] DepsRel");
+					             "[Bone Target -> Driver] DepsRel");
 				}
 			}
 			else if (dtar->flag & DTAR_FLAG_STRUCT_REF) {
 				/* get node associated with the object's transforms */
 				ComponentKey target_key(dtar->id, DEPSNODE_TYPE_TRANSFORM);
 				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
-				             "[Target -> Driver] DepsRel");
+				             "[Ob Target -> Driver] DepsRel");
 			}
 			else {
 				/* resolve path to get node */
 				RNAPathKey target_key(dtar->id, dtar->rna_path ? dtar->rna_path : "");
 				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
-				             "[Target -> Driver] DepsRel");
+				             "[RNA Target -> Driver] DepsRel");
 			}
 		}
 		DRIVER_TARGETS_LOOPER_END

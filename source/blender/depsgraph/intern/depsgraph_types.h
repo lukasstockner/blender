@@ -103,8 +103,9 @@ extern const string deg_op_name_pose_eval_flush;
 extern const string deg_op_name_ik_solver;
 extern const string deg_op_name_spline_ik_solver;
 extern const string deg_op_name_psys_eval;
+
 string deg_op_name_animdata(const ID *id);
-string deg_op_name_driver(const ChannelDriver *driver);
+string deg_op_name_driver(const FCurve *driver_fcurve);
 string deg_op_name_modifier(const ModifierData *md);
 
 /* Type of operation */

@@ -377,15 +377,15 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
  * < id: ID-Block that driver is attached to
  * < fcu: Driver-FCurve
  */
-OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcurve)
+OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 {
-	ChannelDriver *driver = fcurve->driver;
+	ChannelDriver *driver = fcu->driver;
 	
 	/* create data node for this driver ..................................... */
 	TimeSourceDepsNode *time_src = m_graph->find_time_source();
 	OperationDepsNode *driver_op = add_operation_node(id, DEPSNODE_TYPE_PARAMETERS,
-	                                                  DEPSOP_TYPE_EXEC, bind(BKE_animsys_eval_driver, _1, id, fcurve, time_src),
-	                                                  deg_op_name_driver(driver));
+	                                                  DEPSOP_TYPE_EXEC, bind(BKE_animsys_eval_driver, _1, id, fcu, time_src),
+	                                                  deg_op_name_driver(fcu));
 	
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
 	if (driver->type == DRIVER_TYPE_PYTHON) {
