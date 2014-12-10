@@ -207,40 +207,46 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	                                         params->filter_glob,
 	                                         params->filter_search);
 
+	if (filelist_force_reset(sfile->files)) {
+		filelist_readjob_stop(wm, sfile->files);
+		filelist_clear(sfile->files);
+	}
+
 	if (filelist_empty(sfile->files)) {
 		thumbnails_stop(wm, sfile->files);
-		filelist_readdir(sfile->files);
+		if (!filelist_readjob_running(wm, sfile->files)) {
+			filelist_readjob_start(sfile->files, C);
+		}
 		if (params->sort != FILE_SORT_NONE) {
 			filelist_sort(sfile->files, params->sort);
 		}
 		BLI_strncpy(params->dir, filelist_dir(sfile->files), FILE_MAX);
-		if (params->display == FILE_IMGDISPLAY) {
+		if (params->display == FILE_IMGDISPLAY && filelist_is_ready(sfile->files)) {
 			thumbnails_start(sfile->files, C);
 		}
 	}
 	else {
-		if (params->sort != FILE_SORT_NONE) {
+		if ((params->sort != FILE_SORT_NONE) && filelist_need_sorting(sfile->files)) {
 			thumbnails_stop(wm, sfile->files);
 			filelist_sort(sfile->files, params->sort);
-			if (params->display == FILE_IMGDISPLAY) {
+			if (params->display == FILE_IMGDISPLAY && filelist_is_ready(sfile->files)) {
 				thumbnails_start(sfile->files, C);
 			}
 		}
 		else {
-			if (params->display == FILE_IMGDISPLAY) {
+			if (params->display == FILE_IMGDISPLAY && filelist_is_ready(sfile->files)) {
 				if (!thumbnails_running(wm, sfile->files)) {
 					thumbnails_start(sfile->files, C);
 				}
 			}
 			else {
-				/* stop any running thumbnail jobs if we're not 
-				 * displaying them - speedup for NFS */
+				/* stop any running thumbnail jobs if we're not displaying them - speedup for NFS */
 				thumbnails_stop(wm, sfile->files);
 			}
-			filelist_filter(sfile->files);
 		}
 	}
-	
+	filelist_filter(sfile->files);
+
 	if (params->renamefile[0] != '\0') {
 		int idx = filelist_find(sfile->files, params->renamefile);
 		if (idx >= 0) {
@@ -320,7 +326,7 @@ static void file_main_area_draw(const bContext *C, ARegion *ar)
 	float col[3];
 
 	/* Needed, because filelist is not initialized on loading */
-	if (!sfile->files || filelist_empty(sfile->files))
+	if (!sfile->files || filelist_empty(sfile->files) || filelist_need_sorting(sfile->files))
 		file_refresh(C, NULL);
 
 	/* clear and setup matrix */

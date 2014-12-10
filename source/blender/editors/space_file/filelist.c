@@ -49,6 +49,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
@@ -93,14 +94,6 @@ typedef struct FileImage {
 	ImBuf *img;
 } FileImage;
 
-typedef struct ThumbnailJob {
-	ListBase loadimages;
-	const short *stop;
-	const short *do_update;
-	struct FileList *filelist;
-	ReportList reports;
-} ThumbnailJob;
-
 typedef struct FileListFilter {
 	bool hide_dot;
 	unsigned int filter;
@@ -117,14 +110,18 @@ typedef struct FileList {
 	char dir[FILE_MAX];
 	short prv_w;
 	short prv_h;
-	short changed;
+
+	bool force_reset;
+	bool filelist_ready;
+	bool need_sorting;
 
 	FileListFilter filter_data;
 
 	struct BlendHandle *libfiledata;
-	short hide_parent;
+	bool hide_parent;
 
 	void (*readf)(struct FileList *);
+	void (*read_jobf)(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
 	bool (*filterf)(struct direntry *file, const char *dir, FileListFilter *filter);
 
 	bool use_recursion;
@@ -464,6 +461,10 @@ static void filelist_read_main(struct FileList *filelist);
 static void filelist_read_library(struct FileList *filelist);
 static void filelist_read_dir(struct FileList *filelist);
 
+static void filelist_readjob_main(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
+static void filelist_readjob_library(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
+static void filelist_readjob_dir(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
+
 static void filelist_from_library(struct FileList *filelist, const bool add_parent, const bool use_filter);
 
 /* helper, could probably go in BKE actually? */
@@ -577,6 +578,11 @@ void filelist_filter(FileList *filelist)
 		return;
 	}
 
+	if (filelist->fidx) {
+		/* Assume it has already been filtered, nothing else to do! */
+		return;
+	}
+
 	fidx_tmp = MEM_mallocN(sizeof(*fidx_tmp) * (size_t)filelist->numfiles, __func__);
 
 	/* How many files are left after filter ? */
@@ -587,10 +593,6 @@ void filelist_filter(FileList *filelist)
 		}
 	}
 
-	if (filelist->fidx) {
-		MEM_freeN(filelist->fidx);
-		filelist->fidx = NULL;
-	}
 	/* Note: maybe we could even accept filelist->fidx to be filelist->numfiles -len allocated? */
 	filelist->fidx = (int *)MEM_mallocN(sizeof(*filelist->fidx) * (size_t)num_filtered, __func__);
 	memcpy(filelist->fidx, fidx_tmp, sizeof(*filelist->fidx) * (size_t)num_filtered);
@@ -648,20 +650,39 @@ FileList *filelist_new(short type)
 	switch (type) {
 		case FILE_MAIN:
 			p->readf = filelist_read_main;
+			p->read_jobf = filelist_readjob_main;
 			p->filterf = is_filtered_main;
 			break;
 		case FILE_LOADLIB:
 			p->readf = filelist_read_library;
+			p->read_jobf = filelist_readjob_library;
 			p->filterf = is_filtered_lib;
 			break;
 		default:
 			p->readf = filelist_read_dir;
+			p->read_jobf = filelist_readjob_dir;
 			p->filterf = is_filtered_file;
 			break;
 	}
 	return p;
 }
 
+void filelist_clear(struct FileList *filelist)
+{
+	if (!filelist) {
+		return;
+	}
+
+	if (filelist->fidx) {
+		MEM_freeN(filelist->fidx);
+		filelist->fidx = NULL;
+	}
+
+	BLI_free_filelist(filelist->filelist, filelist->numfiles);
+	filelist->numfiles = 0;
+	filelist->filelist = NULL;
+	filelist->numfiltered = 0;
+}
 
 void filelist_free(struct FileList *filelist)
 {
@@ -728,16 +749,17 @@ const char *filelist_dir(struct FileList *filelist)
 
 void filelist_setdir(struct FileList *filelist, const char *dir)
 {
-	BLI_strncpy(filelist->dir, dir, sizeof(filelist->dir));
+	if (!STREQ(filelist->dir, dir)) {
+		BLI_strncpy(filelist->dir, dir, sizeof(filelist->dir));
+		filelist->force_reset = true;
+	}
 }
 
 void filelist_setrecursive(struct FileList *filelist, const bool use_recursion)
 {
 	if (filelist->use_recursion != use_recursion) {
 		filelist->use_recursion = use_recursion;
-
-		filelist_freelib(filelist);
-		filelist_free(filelist);
+		filelist->force_reset = true;
 	}
 }
 
@@ -747,9 +769,19 @@ void filelist_imgsize(struct FileList *filelist, short w, short h)
 	filelist->prv_h = h;
 }
 
-short filelist_changed(struct FileList *filelist)
+bool filelist_force_reset(struct FileList *filelist)
 {
-	return filelist->changed;
+	return filelist->force_reset;
+}
+
+bool filelist_is_ready(struct FileList *filelist)
+{
+	return filelist->filelist_ready;
+}
+
+bool filelist_need_sorting(struct FileList *filelist)
+{
+	return filelist->need_sorting;
 }
 
 static struct direntry *filelist_geticon_get_file(struct FileList *filelist, const int index)
@@ -961,31 +993,45 @@ int filelist_find(struct FileList *filelist, const char *filename)
 void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const unsigned int filter,
                                 const unsigned int filter_id, const char *filter_glob, const char *filter_search)
 {
-	filelist->filter_data.hide_dot = hide_dot;
-
-	filelist->filter_data.filter = filter;
-	filelist->filter_data.filter_id = filter_id;
-	BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
-
+	if (filelist->filter_data.hide_dot != hide_dot ||
+	    filelist->filter_data.filter != filter ||
+	    filelist->filter_data.filter_id != filter_id ||
+	    !STREQ(filelist->filter_data.filter_glob, filter_glob) ||
+	    !(filter_search[0] == '*' ? STRPREFIX(filelist->filter_data.filter_search, filter_search) : STRPREFIX(filelist->filter_data.filter_search + 1, filter_search)))
 	{
-		int idx = 0;
-		const size_t max_search_len = sizeof(filelist->filter_data.filter_search) - 2;
-		const size_t slen = (size_t)min_ii((int)strlen(filter_search), (int)max_search_len);
+		filelist->filter_data.hide_dot = hide_dot;
 
-		if (slen == 0) {
-			filelist->filter_data.filter_search[0] = '\0';
+		filelist->filter_data.filter = filter;
+		filelist->filter_data.filter_id = filter_id;
+		BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
+
+		{
+			int idx = 0;
+			const size_t max_search_len = sizeof(filelist->filter_data.filter_search) - 2;
+			const size_t slen = (size_t)min_ii((int)strlen(filter_search), (int)max_search_len);
+
+			if (slen == 0) {
+				filelist->filter_data.filter_search[0] = '\0';
+			}
+			else {
+				/* Implicitly add heading/trailing wildcards if needed. */
+				if (filter_search[idx] != '*') {
+					filelist->filter_data.filter_search[idx++] = '*';
+				}
+				memcpy(&filelist->filter_data.filter_search[idx], filter_search, slen);
+				idx += slen;
+				if (filelist->filter_data.filter_search[idx - 1] != '*') {
+					filelist->filter_data.filter_search[idx++] = '*';
+				}
+				filelist->filter_data.filter_search[idx] = '\0';
+			}
 		}
-		else {
-			/* Implicitly add heading/trailing wildcards if needed. */
-			if (filter_search[idx] != '*') {
-				filelist->filter_data.filter_search[idx++] = '*';
-			}
-			memcpy(&filelist->filter_data.filter_search[idx], filter_search, slen);
-			idx += slen;
-			if (filelist->filter_data.filter_search[idx - 1] != '*') {
-				filelist->filter_data.filter_search[idx++] = '*';
-			}
-			filelist->filter_data.filter_search[idx] = '\0';
+
+		/* And now, free filtered data so that we now we have to filter again. */
+		if (filelist->fidx) {
+			MEM_freeN(filelist->fidx);
+			filelist->fidx = NULL;
+			filelist->numfiltered = 0;
 		}
 	}
 }
@@ -1128,7 +1174,7 @@ static void filelist_setfiletypes(struct FileList *filelist)
 	}
 }
 
-static void filelist_merge_sublist(struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size,
+static void filelist_merge_sublist(struct direntry *filelist_org, struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size,
                                    const char *root, struct FileList *sublist)
 {
 	if (sublist->numfiles) {
@@ -1144,7 +1190,9 @@ static void filelist_merge_sublist(struct direntry **filelist_buff, int *filelis
 			new_filelist = malloc(sizeof(*new_filelist) * (size_t)*filelist_buff_size);
 			if (*filelist_buff && *filelist_used_size) {
 				memcpy(new_filelist, *filelist_buff, sizeof(*new_filelist) * (size_t)*filelist_used_size);
-				free(*filelist_buff);
+				if (*filelist_buff != filelist_org) {
+					free(*filelist_buff);
+				}
 			}
 			*filelist_buff = new_filelist;
 		}
@@ -1188,6 +1236,8 @@ static void filelist_read_dir(struct FileList *filelist)
 	BLI_cleanup_dir(G.main->name, filelist->dir);
 	filelist->numfiles = BLI_dir_contents(filelist->dir, &(filelist->filelist));
 
+	filelist_setfiletypes(filelist);
+
 	if (filelist->use_recursion && filelist->recursion_level < FILELIST_MAX_RECURSION) {
 		FileList *fl = filelist_new(FILE_UNIX);
 		file = filelist->filelist;
@@ -1206,7 +1256,7 @@ static void filelist_read_dir(struct FileList *filelist)
 			BLI_cleanup_dir(G.main->name, fl->dir);
 			filelist_read_dir(fl);
 
-			filelist_merge_sublist(&new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
+			filelist_merge_sublist(NULL, &new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
 
 			filelist_free(fl);
 		}
@@ -1226,8 +1276,7 @@ static void filelist_read_dir(struct FileList *filelist)
 		filelist->numfiles = final_filelist_size;
 	}
 
-	filelist_setfiletypes(filelist);
-	filelist_filter(filelist);
+	filelist->need_sorting = true;
 }
 
 static void filelist_read_main(struct FileList *filelist)
@@ -1281,7 +1330,7 @@ static void filelist_read_library(struct FileList *filelist)
 						BLI_cleanup_dir(G.main->name, fl->dir);
 						filelist_read_library(fl);
 
-						filelist_merge_sublist(&new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
+						filelist_merge_sublist(NULL, &new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
 
 						filelist_freelib(fl);
 						filelist_free(fl);
@@ -1292,18 +1341,21 @@ static void filelist_read_library(struct FileList *filelist)
 		MEM_freeN(fl);
 	}
 	else if (filelist->use_recursion) {
-		FileList *fl = filelist_new(FILE_LOADLIB);
+		FileList *fl;
 		char dir[FILE_MAX], *group;
 
 		const bool is_lib = filelist_islibrary(filelist, dir, &group);
 
 		BLI_assert(is_lib);
 
+		filelist_setfiletypes(filelist);
+
 		if (group) {
 			/* We are at lowest possible level, nothing else to do. */
 			return;
 		}
 
+		fl = filelist_new(FILE_LOADLIB);
 		file = filelist->filelist;
 		for (i = 0; i < filelist->numfiles; i++, file++) {
 			char dir[FILE_MAX];
@@ -1319,8 +1371,9 @@ static void filelist_read_library(struct FileList *filelist)
 			filelist_setdir(fl, dir);
 			BLI_cleanup_dir(G.main->name, fl->dir);
 			filelist_from_library(fl, false, false);
+			filelist_setfiletypes(fl);
 
-			filelist_merge_sublist(&new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
+			filelist_merge_sublist(NULL, &new_filelist, &new_filelist_buffsize, &new_filelist_size, filelist->dir, fl);
 
 			filelist_freelib(fl);
 			filelist_free(fl);
@@ -1341,11 +1394,7 @@ static void filelist_read_library(struct FileList *filelist)
 		filelist->numfiles = final_filelist_size;
 	}
 
-	if (filelist->use_recursion) {
-		filelist_setfiletypes(filelist);
-	}
-	filelist_sort(filelist, FILE_SORT_ALPHA);
-	filelist_filter(filelist);
+	filelist->need_sorting = true;
 }
 
 void filelist_readdir(struct FileList *filelist)
@@ -1428,22 +1477,23 @@ bool filelist_is_selected(struct FileList *filelist, int index, FileCheckType ch
 
 void filelist_sort(struct FileList *filelist, short sort)
 {
-	switch (sort) {
-		case FILE_SORT_ALPHA:
-			qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_name);
-			break;
-		case FILE_SORT_TIME:
-			qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_date);
-			break;
-		case FILE_SORT_SIZE:
-			qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_size);
-			break;
-		case FILE_SORT_EXTENSION:
-			qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_extension);
-			break;
+	if (filelist->need_sorting) {
+		switch (sort) {
+			case FILE_SORT_ALPHA:
+				qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_name);
+				break;
+			case FILE_SORT_TIME:
+				qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_date);
+				break;
+			case FILE_SORT_SIZE:
+				qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_size);
+				break;
+			case FILE_SORT_EXTENSION:
+				qsort(filelist->filelist, filelist->numfiles, sizeof(struct direntry), compare_extension);
+				break;
+		}
+		filelist->need_sorting = false;
 	}
-
-	filelist_filter(filelist);
 }
 
 
@@ -1789,6 +1839,225 @@ void filelist_from_main(struct FileList *filelist)
 	filelist->filter_data.filter = 0;
 	filelist_filter(filelist);
 }
+
+
+
+
+static void filelist_readjob_dir(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
+{
+	/* only used if recursing, will contain all non-immediate children then. */
+	struct direntry *file;
+	int filelist_buffsize;
+	int i;
+
+	if (!filelist) {
+		return;
+	}
+
+	BLI_assert(filelist->fidx == NULL);
+	BLI_assert(filelist->filelist == NULL);
+
+	BLI_mutex_lock(lock);
+
+	BLI_cleanup_dir(G.main->name, filelist->dir);
+	filelist->numfiles = BLI_dir_contents(filelist->dir, &(filelist->filelist));
+
+	/* We only set filtypes for our own level, sub ones will be set by subcalls. */
+	filelist_setfiletypes(filelist);
+
+	BLI_mutex_unlock(lock);
+	*do_update = true;
+
+	if (!*stop && filelist->use_recursion && filelist->recursion_level < FILELIST_MAX_RECURSION) {
+		FileList *fl = filelist_new(FILE_UNIX);
+		struct direntry *org_files = filelist->filelist;
+		const int org_numfiles = filelist->numfiles;
+
+		filelist_buffsize = org_numfiles;
+		file = org_files;
+		for (i = 0; i < org_numfiles && !*stop; i++, file++) {
+			char dir[FILE_MAX];
+
+			if (FILENAME_IS_BREADCRUMBS(file->relname) || (file->type & S_IFDIR) == 0) {
+				continue;
+			}
+
+			fl->use_recursion = true;
+			fl->recursion_level = filelist->recursion_level + 1;
+
+			BLI_join_dirfile(dir, sizeof(dir), filelist->dir, file->relname);
+			filelist_setdir(fl, dir);
+			BLI_cleanup_dir(G.main->name, fl->dir);
+			/* XXX since we are passing a temp subfile here, inner updates wont give any results... :/ */
+			filelist_readjob_dir(fl, stop, do_update, lock);
+
+			BLI_mutex_lock(lock);
+
+			filelist_merge_sublist(org_files, &filelist->filelist, &filelist_buffsize, &filelist->numfiles, filelist->dir, fl);
+
+			BLI_mutex_unlock(lock);
+			*do_update = true;
+
+			filelist_free(fl);
+		}
+		MEM_freeN(fl);
+		if (org_files != filelist->filelist) {
+			free(org_files);
+		}
+	}
+}
+
+static void filelist_readjob_library(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
+{
+	BLI_mutex_lock(lock);
+
+	filelist_readjob_dir(filelist, stop, do_update, lock);
+
+	BLI_mutex_unlock(lock);
+}
+
+static void filelist_readjob_main(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
+{
+	BLI_mutex_lock(lock);
+
+	filelist_read_main(filelist);
+
+	BLI_mutex_unlock(lock);
+}
+
+
+typedef struct FileListReadJob {
+	ThreadMutex lock;
+	struct FileList *filelist;
+	struct FileList *tmp_filelist;
+	//~ ReportList reports;
+} FileListReadJob;
+
+static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update, float *UNUSED(progress))
+{
+	FileListReadJob *flrj = flrjv;
+
+	BLI_mutex_lock(&flrj->lock);
+
+	BLI_assert((flrj->tmp_filelist == NULL) && flrj->filelist);
+
+	flrj->tmp_filelist = MEM_dupallocN(flrj->filelist);
+
+	BLI_mutex_unlock(&flrj->lock);
+
+	flrj->tmp_filelist->filelist = NULL;
+	flrj->tmp_filelist->fidx = NULL;
+	flrj->tmp_filelist->numfiles = 0;
+	flrj->tmp_filelist->fidx = 0;
+	flrj->tmp_filelist->libfiledata = NULL;
+
+	flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, stop, do_update, &flrj->lock);
+
+	BLI_mutex_lock(&flrj->lock);
+	flrj->filelist->filelist_ready = true;
+	BLI_mutex_unlock(&flrj->lock);
+}
+
+static void filelist_readjob_update(void *flrjv)
+{
+	FileListReadJob *flrj = flrjv;
+	struct direntry *new_entries = NULL;
+	int num_new_entries = 0;
+
+	BLI_mutex_lock(&flrj->lock);
+
+	if (flrj->tmp_filelist->numfiles != flrj->filelist->numfiles) {
+		num_new_entries = flrj->tmp_filelist->numfiles;
+		new_entries = malloc(sizeof(*new_entries) * (size_t)(num_new_entries));
+		memcpy(new_entries, flrj->tmp_filelist->filelist, sizeof(*new_entries) * (size_t)(num_new_entries));
+	}
+
+	BLI_mutex_unlock(&flrj->lock);
+
+	if (new_entries) {
+		if (flrj->filelist->filelist) {
+			BLI_free_filelist(flrj->filelist->filelist, flrj->filelist->numfiles);
+		}
+		flrj->filelist->filelist = new_entries;
+		flrj->filelist->numfiles = num_new_entries;
+		if (flrj->filelist->fidx) {
+			MEM_freeN(flrj->filelist->fidx);
+			flrj->filelist->fidx = NULL;
+			flrj->filelist->numfiltered = 0;
+		}
+
+		flrj->filelist->need_sorting = true;
+	}
+}
+
+static void filelist_readjob_free(void *flrjv)
+{
+	FileListReadJob *flrj = flrjv;
+
+	if (flrj->tmp_filelist) {
+		filelist_freelib(flrj->tmp_filelist);
+		/* filelist_free(flrj->tmp_filelist); */
+		/* Do not use that here, it would also free data inside tmp_filelist->filelist,
+		 * which have actually be 'transferred' to filelist->filelist. */
+		if (flrj->tmp_filelist->filelist) {
+			free(flrj->tmp_filelist->filelist);
+		}
+		/* tmp_filelist shall never ever be filtered! */
+		BLI_assert(flrj->tmp_filelist->fidx == NULL);
+	}
+
+	BLI_mutex_end(&flrj->lock);
+
+	MEM_freeN(flrj);
+}
+
+void filelist_readjob_start(FileList *filelist, const bContext *C)
+{
+	wmJob *wm_job;
+	FileListReadJob *flrj;
+
+	/* prepare job data */
+	flrj = MEM_callocN(sizeof(FileListReadJob), __func__);
+	flrj->filelist = filelist;
+
+	filelist->force_reset = false;
+	filelist->filelist_ready = false;
+
+	BLI_mutex_init(&flrj->lock);
+
+	//~ BKE_reports_init(&tj->reports, RPT_PRINT);
+
+	/* setup job */
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), filelist, __func__,
+	                     0, WM_JOB_TYPE_FILESEL_FILLLIST);
+	WM_jobs_customdata_set(wm_job, flrj, filelist_readjob_free);
+	WM_jobs_timer(wm_job, 0.5, NC_WINDOW, NC_WINDOW);
+	WM_jobs_callbacks(wm_job, filelist_readjob_startjob, NULL, filelist_readjob_update, NULL);
+
+	/* start the job */
+	WM_jobs_start(CTX_wm_manager(C), wm_job);
+}
+
+void filelist_readjob_stop(wmWindowManager *wm, FileList *filelist)
+{
+	WM_jobs_kill(wm, filelist, NULL);
+}
+
+int filelist_readjob_running(wmWindowManager *wm, FileList *filelist)
+{
+	return WM_jobs_test(wm, filelist, WM_JOB_TYPE_FILESEL_FILLLIST);
+}
+
+
+
+
+typedef struct ThumbnailJob {
+	ListBase loadimages;
+	const short *stop;
+	const short *do_update;
+	struct FileList *filelist;
+	ReportList reports;
+} ThumbnailJob;
 
 static void thumbnail_joblist_free(ThumbnailJob *tj)
 {

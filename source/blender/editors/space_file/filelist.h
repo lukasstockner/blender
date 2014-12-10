@@ -64,6 +64,7 @@ struct FileList *   filelist_new(short type);
 void                filelist_init_icons(void);
 void                filelist_free_icons(void);
 int                 filelist_find(struct FileList *filelist, const char *file);
+void                filelist_clear(struct FileList *filelist);
 void                filelist_free(struct FileList *filelist);
 void                filelist_sort(struct FileList *filelist, short sort);
 int                 filelist_numfiles(struct FileList *filelist);
@@ -81,7 +82,9 @@ void                filelist_imgsize(struct FileList *filelist, short w, short h
 struct ImBuf *      filelist_getimage(struct FileList *filelist, const int index);
 struct ImBuf *      filelist_geticon_image(struct FileList *filelist, const int index);
 int                 filelist_geticon(struct FileList *filelist, const int index);
-short               filelist_changed(struct FileList *filelist);
+bool                filelist_force_reset(struct FileList *filelist);
+bool                filelist_is_ready(struct FileList *filelist);
+bool                filelist_need_sorting(struct FileList *filelist);
 void                filelist_readdir(struct FileList *filelist);
 
 int                 filelist_empty(struct FileList *filelist);
@@ -103,6 +106,10 @@ void                folderlist_popdir(struct ListBase *folderlist, char *dir);
 void                folderlist_pushdir(struct ListBase *folderlist, const char *dir);
 const char *        folderlist_peeklastdir(struct ListBase *folderdist);
 int                 folderlist_clear_next(struct SpaceFile *sfile);
+
+void                filelist_readjob_start(struct FileList *filelist, const struct bContext *C);
+void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);
+int                 filelist_readjob_running(struct wmWindowManager *wm, struct FileList *filelist);
 
 void                thumbnails_start(struct FileList *filelist, const struct bContext *C);
 void                thumbnails_stop(struct wmWindowManager *wm, struct FileList *filelist);
