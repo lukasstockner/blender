@@ -131,7 +131,7 @@ typedef struct FileList {
 	short recursion_level;
 } FileList;
 
-#define FILELIST_MAX_RECURSION 3
+#define FILELIST_MAX_RECURSION 1
 
 #define FILENAME_IS_BREADCRUMBS(_n) \
 	(((_n)[0] == '.' && (_n)[1] == '\0') || ((_n)[0] == '.' && (_n)[1] == '.' && (_n)[2] == '\0'))
