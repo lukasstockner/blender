@@ -2079,6 +2079,8 @@ static void filelist_readjob_update(void *flrjv)
 
 	if (flrj->tmp_filelist->numfiles != flrj->filelist->numfiles) {
 		num_new_entries = flrj->tmp_filelist->numfiles;
+		/* This way we are sure we won't share any mem with background job! */
+		/* Note direntry->poin is not handled here, sure not matter though. */
 		BLI_duplicate_filelist(&new_entries, flrj->tmp_filelist->filelist, num_new_entries);
 	}
 
@@ -2117,12 +2119,7 @@ static void filelist_readjob_free(void *flrjv)
 
 	if (flrj->tmp_filelist) {
 		filelist_freelib(flrj->tmp_filelist);
-		/* filelist_free(flrj->tmp_filelist); */
-		/* Do not use that here, it would also free data inside tmp_filelist->filelist,
-		 * which have actually be 'transferred' to filelist->filelist. */
-		if (flrj->tmp_filelist->filelist) {
-			free(flrj->tmp_filelist->filelist);
-		}
+		filelist_free(flrj->tmp_filelist);
 		/* tmp_filelist shall never ever be filtered! */
 		BLI_assert(flrj->tmp_filelist->fidx == NULL);
 	}
