@@ -201,6 +201,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 		params->active_file = -1; // added this so it opens nicer (ton)
 	}
 	filelist_setrecursive(sfile->files, (params->flag & FILE_SHOWFLAT) != 0);
+	filelist_setsorting(sfile->files, params->sort);
 	filelist_setfilter_options(sfile->files, params->flag & FILE_HIDE_DOT,
 	                                         params->flag & FILE_FILTER ? params->filter : 0,
 	                                         params->filter_id,
@@ -214,21 +215,14 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 
 	if (filelist_empty(sfile->files)) {
 		thumbnails_stop(wm, sfile->files);
-		if (!filelist_readjob_running(wm, sfile->files)) {
+		if (!filelist_pending(sfile->files)) {
 			filelist_readjob_start(sfile->files, C);
-		}
-		if (params->sort != FILE_SORT_NONE) {
-			filelist_sort(sfile->files, params->sort);
-		}
-		BLI_strncpy(params->dir, filelist_dir(sfile->files), FILE_MAX);
-		if (params->display == FILE_IMGDISPLAY && filelist_is_ready(sfile->files)) {
-			thumbnails_start(sfile->files, C);
 		}
 	}
 	else {
-		if ((params->sort != FILE_SORT_NONE) && filelist_need_sorting(sfile->files)) {
+		if (filelist_need_sorting(sfile->files)) {
 			thumbnails_stop(wm, sfile->files);
-			filelist_sort(sfile->files, params->sort);
+			filelist_sort(sfile->files);
 			if (params->display == FILE_IMGDISPLAY && filelist_is_ready(sfile->files)) {
 				thumbnails_start(sfile->files, C);
 			}
@@ -260,6 +254,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	}
 	if (sfile->layout) sfile->layout->dirty = true;
 
+	filelist_clear_refresh(sfile->files);
 }
 
 static void file_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
@@ -326,7 +321,7 @@ static void file_main_area_draw(const bContext *C, ARegion *ar)
 	float col[3];
 
 	/* Needed, because filelist is not initialized on loading */
-	if (!sfile->files || filelist_empty(sfile->files) || filelist_need_sorting(sfile->files))
+	if (!sfile->files || filelist_empty(sfile->files))
 		file_refresh(C, NULL);
 
 	/* clear and setup matrix */

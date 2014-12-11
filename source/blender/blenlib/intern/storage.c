@@ -409,7 +409,34 @@ unsigned int BLI_dir_contents(const char *dirname,  struct direntry **filelist)
 	return dir_ctx.nrfiles;
 }
 
-/* frees storage for an array of direntries, including the array itself. */
+/**
+ * Deep-duplicate of an array of direntries, including the array itself.
+ */
+void BLI_duplicate_filelist(struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries)
+{
+	unsigned int i;
+
+	*dest_filelist = malloc(sizeof(**dest_filelist) * (size_t)(nrentries));
+	for (i = 0; i < nrentries; ++i) {
+		struct direntry * const src = &src_filelist[i];
+		struct direntry *dest = &(*dest_filelist)[i];
+		*dest = *src;
+		if (dest->image) {
+			dest->image = IMB_dupImBuf(src->image);
+		}
+		if (dest->relname) {
+			dest->relname = MEM_dupallocN(src->relname);
+		}
+		if (dest->path) {
+			dest->path = MEM_dupallocN(src->path);
+		}
+		/* entry->poin assumed not needing any handling here. */
+	}
+}
+
+/**
+ * frees storage for an array of direntries, including the array itself.
+ */
 void BLI_free_filelist(struct direntry *filelist, unsigned int nrentries)
 {
 	unsigned int i;
