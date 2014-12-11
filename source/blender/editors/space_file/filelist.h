@@ -103,7 +103,6 @@ int                 filelist_geticon(struct FileList *filelist, const int index)
 struct BlendHandle *filelist_lib(struct FileList *filelist);
 bool                filelist_islibrary(struct FileList *filelist, char *dir, char **group);
 void                filelist_freelib(struct FileList *filelist);
-void                filelist_hideparent(struct FileList *filelist, short hide);
 
 char               *fileentry_uiname(const struct direntry *entry, char *dir);
 

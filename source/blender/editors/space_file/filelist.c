@@ -461,7 +461,7 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 /* ------------------FILELIST------------------------ */
 
 static void filelist_readjob_main(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
-static void filelist_readjob_library(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
+static void filelist_readjob_lib(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
 static void filelist_readjob_dir(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
 
 /* helper, could probably go in BKE actually? */
@@ -650,7 +650,7 @@ FileList *filelist_new(short type)
 			p->filterf = is_filtered_main;
 			break;
 		case FILE_LOADLIB:
-			p->read_jobf = filelist_readjob_library;
+			p->read_jobf = filelist_readjob_lib;
 			p->filterf = is_filtered_lib;
 			break;
 		default:
@@ -1178,48 +1178,6 @@ static void filelist_setfiletypes(const char *root, struct direntry *files, cons
 	}
 }
 
-static void filelist_merge_sublist_ex(struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size,
-                                      const char *root, const char *subdir, struct direntry *subfiles, const int num_subfiles, const bool ignore_breadcrumbs)
-{
-	if (num_subfiles) {
-		struct direntry *f;
-		int new_numfiles = num_subfiles + *filelist_used_size;
-		char dir[FILE_MAX];
-		int i, j;
-
-		if (new_numfiles > *filelist_buff_size) {
-			struct direntry *new_filelist;
-
-			*filelist_buff_size = new_numfiles * 2;
-			new_filelist = malloc(sizeof(*new_filelist) * (size_t)*filelist_buff_size);
-			if (*filelist_buff && *filelist_used_size) {
-				memcpy(new_filelist, *filelist_buff, sizeof(*new_filelist) * (size_t)*filelist_used_size);
-				free(*filelist_buff);
-			}
-			*filelist_buff = new_filelist;
-		}
-		for (i = *filelist_used_size, j = 0, f = subfiles; j < num_subfiles; j++, f++) {
-			if (ignore_breadcrumbs && FILENAME_IS_BREADCRUMBS(f->relname)) {
-				/* Ignore 'inner' breadcrumbs! */
-				new_numfiles--;
-				continue;
-			}
-			BLI_join_dirfile(dir, sizeof(dir), subdir, f->relname);
-			BLI_cleanup_file(root, dir);
-			BLI_path_rel(dir, root);
-			(*filelist_buff)[i] = *f;
-			(*filelist_buff)[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
-			/* those pointers are given to new_filelist... */
-			f->path = NULL;
-			f->poin = NULL;
-			f->image = NULL;
-			i++;
-		}
-
-		*filelist_used_size = new_numfiles;
-	}
-}
-
 int filelist_empty(struct FileList *filelist)
 {
 	return filelist->filelist == NULL;
@@ -1407,13 +1365,64 @@ static unsigned int groupname_to_filter_id(const char *group)
 			return 0;
 	}
 }
- 
-static void filelist_from_library_ex(const char *root, struct direntry **files, int *num_files)
+
+/*
+ * From here, we are in 'Job Context', i.e. have to be careful about sharing stuff between bacground working thread
+ * and main one (used by UI among other things).
+ */
+
+/* This helper is highly specialized for our needs, it 'transfers' most data (strings/pointers) from subfiles to
+ * filelist_buff. Only dirname->relname is actually duplicated.
+ */
+static void filelist_readjob_merge_sublist(
+        struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size,
+        const char *root, const char *subdir, struct direntry *subfiles, const int num_subfiles,
+        const bool ignore_breadcrumbs)
+{
+	if (num_subfiles) {
+		struct direntry *f;
+		int new_numfiles = num_subfiles + *filelist_used_size;
+		char dir[FILE_MAX];
+		int i, j;
+
+		if (new_numfiles > *filelist_buff_size) {
+			struct direntry *new_filelist;
+
+			*filelist_buff_size = new_numfiles * 2;
+			new_filelist = malloc(sizeof(*new_filelist) * (size_t)*filelist_buff_size);
+			if (*filelist_buff && *filelist_used_size) {
+				memcpy(new_filelist, *filelist_buff, sizeof(*new_filelist) * (size_t)*filelist_used_size);
+				free(*filelist_buff);
+			}
+			*filelist_buff = new_filelist;
+		}
+		for (i = *filelist_used_size, j = 0, f = subfiles; j < num_subfiles; j++, f++) {
+			if (ignore_breadcrumbs && FILENAME_IS_BREADCRUMBS(f->relname)) {
+				/* Ignore 'inner' breadcrumbs! */
+				new_numfiles--;
+				continue;
+			}
+			BLI_join_dirfile(dir, sizeof(dir), subdir, f->relname);
+			BLI_cleanup_file(root, dir);
+			BLI_path_rel(dir, root);
+			(*filelist_buff)[i] = *f;
+			(*filelist_buff)[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
+			/* those pointers are given to new_filelist... */
+			f->path = NULL;
+			f->poin = NULL;
+			f->image = NULL;
+			i++;
+		}
+
+		*filelist_used_size = new_numfiles;
+	}
+}
+
+static void filelist_readjob_list_lib(const char *root, struct direntry **files, int *num_files)
 {
 	LinkNode *l, *names, *previews;
 	struct ImBuf *ima;
 	int ok, i, nprevs, nnames, idcode = 0;
-	//~ char filename[FILE_MAX];
 	char dir[FILE_MAX], *group;
 
 	struct BlendHandle *libfiledata = NULL;
@@ -1423,8 +1432,6 @@ static void filelist_from_library_ex(const char *root, struct direntry **files, 
 	if (!ok) {
 		return;
 	}
-
-	//~ BLI_strncpy(filename, G.main->name, sizeof(filename));
 
 	/* there we go */
 	libfiledata = BLO_blendhandle_from_file(dir, NULL);
@@ -1498,18 +1505,12 @@ static void filelist_from_library_ex(const char *root, struct direntry **files, 
 	if (previews) {
 		BLI_linklist_free(previews, BKE_previewimg_freefunc);
 	}
-
-	//~ BLI_strncpy(G.main->name, filename, sizeof(filename));  /* prevent G.main->name to change */
-}
-
-void filelist_hideparent(struct FileList *filelist, short hide)
-{
-	filelist->hide_parent = hide;
 }
 
 #if 0
 /* Kept for reference here, in case we want to add back that feature later. We do not need it currently. */
-void filelist_from_main(struct FileList *filelist)
+/* Code ***NOT*** updated for job stuff! */
+static void filelist_readjob_main_rec(struct FileList *filelist)
 {
 	ID *id;
 	struct direntry *files, *firstlib = NULL;
@@ -1529,9 +1530,9 @@ void filelist_from_main(struct FileList *filelist)
 		
 		/* make directories */
 #ifdef WITH_FREESTYLE
-		filelist->numfiles = 25;
-#else
 		filelist->numfiles = 24;
+#else
+		filelist->numfiles = 23;
 #endif
 		filelist->filelist = (struct direntry *)malloc(filelist->numfiles * sizeof(struct direntry));
 		
@@ -1541,30 +1542,30 @@ void filelist_from_main(struct FileList *filelist)
 		}
 		
 		filelist->filelist[0].relname = BLI_strdup("..");
-		filelist->filelist[2].relname = BLI_strdup("Scene");
-		filelist->filelist[3].relname = BLI_strdup("Object");
-		filelist->filelist[4].relname = BLI_strdup("Mesh");
-		filelist->filelist[5].relname = BLI_strdup("Curve");
-		filelist->filelist[6].relname = BLI_strdup("Metaball");
-		filelist->filelist[7].relname = BLI_strdup("Material");
-		filelist->filelist[8].relname = BLI_strdup("Texture");
-		filelist->filelist[9].relname = BLI_strdup("Image");
-		filelist->filelist[10].relname = BLI_strdup("Ika");
-		filelist->filelist[11].relname = BLI_strdup("Wave");
-		filelist->filelist[12].relname = BLI_strdup("Lattice");
-		filelist->filelist[13].relname = BLI_strdup("Lamp");
-		filelist->filelist[14].relname = BLI_strdup("Camera");
-		filelist->filelist[15].relname = BLI_strdup("Ipo");
-		filelist->filelist[16].relname = BLI_strdup("World");
-		filelist->filelist[17].relname = BLI_strdup("Screen");
-		filelist->filelist[18].relname = BLI_strdup("VFont");
-		filelist->filelist[19].relname = BLI_strdup("Text");
-		filelist->filelist[20].relname = BLI_strdup("Armature");
-		filelist->filelist[21].relname = BLI_strdup("Action");
-		filelist->filelist[22].relname = BLI_strdup("NodeTree");
-		filelist->filelist[23].relname = BLI_strdup("Speaker");
+		filelist->filelist[1].relname = BLI_strdup("Scene");
+		filelist->filelist[2].relname = BLI_strdup("Object");
+		filelist->filelist[3].relname = BLI_strdup("Mesh");
+		filelist->filelist[4].relname = BLI_strdup("Curve");
+		filelist->filelist[5].relname = BLI_strdup("Metaball");
+		filelist->filelist[6].relname = BLI_strdup("Material");
+		filelist->filelist[7].relname = BLI_strdup("Texture");
+		filelist->filelist[8].relname = BLI_strdup("Image");
+		filelist->filelist[9].relname = BLI_strdup("Ika");
+		filelist->filelist[10].relname = BLI_strdup("Wave");
+		filelist->filelist[11].relname = BLI_strdup("Lattice");
+		filelist->filelist[12].relname = BLI_strdup("Lamp");
+		filelist->filelist[13].relname = BLI_strdup("Camera");
+		filelist->filelist[14].relname = BLI_strdup("Ipo");
+		filelist->filelist[15].relname = BLI_strdup("World");
+		filelist->filelist[16].relname = BLI_strdup("Screen");
+		filelist->filelist[17].relname = BLI_strdup("VFont");
+		filelist->filelist[18].relname = BLI_strdup("Text");
+		filelist->filelist[19].relname = BLI_strdup("Armature");
+		filelist->filelist[20].relname = BLI_strdup("Action");
+		filelist->filelist[21].relname = BLI_strdup("NodeTree");
+		filelist->filelist[22].relname = BLI_strdup("Speaker");
 #ifdef WITH_FREESTYLE
-		filelist->filelist[24].relname = BLI_strdup("FreestyleLineStyle");
+		filelist->filelist[23].relname = BLI_strdup("FreestyleLineStyle");
 #endif
 		filelist_sort(filelist);
 	}
@@ -1660,9 +1661,7 @@ void filelist_from_main(struct FileList *filelist)
 }
 #endif
 
-
-
-static void filelist_readjob_dir_ex(
+static void filelist_readjob_dir_rec(
         FileList *filelist, int *filelist_buffsize, const char *dir, const char *filter_glob, const int recursion_level,
         short *stop, short *do_update, ThreadMutex *lock)
 {
@@ -1681,8 +1680,8 @@ static void filelist_readjob_dir_ex(
 
 	BLI_mutex_lock(lock);
 
-	filelist_merge_sublist_ex(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
-	                          dir, files, num_files, recursion_level != 0);
+	filelist_readjob_merge_sublist(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
+	                               dir, files, num_files, recursion_level != 0);
 
 	BLI_mutex_unlock(lock);
 
@@ -1698,8 +1697,8 @@ static void filelist_readjob_dir_ex(
 
 			BLI_join_dirfile(subdir, sizeof(subdir), dir, file->relname);
 			BLI_cleanup_dir(G.main->name, subdir);
-			filelist_readjob_dir_ex(filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
-			                        stop, do_update, lock);
+			filelist_readjob_dir_rec(filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
+			                         stop, do_update, lock);
 		}
 	}
 	BLI_free_filelist(files, num_files);
@@ -1723,10 +1722,10 @@ static void filelist_readjob_dir(FileList *filelist, short *stop, short *do_upda
 
 	BLI_cleanup_dir(G.main->name, dir);
 
-	filelist_readjob_dir_ex(filelist, &filelist_buffsize, dir, filter_glob, 0, stop, do_update, lock);
+	filelist_readjob_dir_rec(filelist, &filelist_buffsize, dir, filter_glob, 0, stop, do_update, lock);
 }
 
-static void filelist_readjob_lib_ex(
+static void filelist_readjob_lib_rec(
         FileList *filelist, int *filelist_buffsize, const char *dir, const char *filter_glob, const int recursion_level,
         const char *main_name, short *stop, short *do_update, ThreadMutex *lock)
 {
@@ -1741,7 +1740,7 @@ static void filelist_readjob_lib_ex(
 	}
 
 	BLI_cleanup_dir(G.main->name, filelist->dir);
-	filelist_from_library_ex(dir, &files, &num_files);
+	filelist_readjob_list_lib(dir, &files, &num_files);
 
 	if (!files) {
 		is_lib = false;
@@ -1768,8 +1767,8 @@ static void filelist_readjob_lib_ex(
 
 	BLI_mutex_lock(lock);
 
-	filelist_merge_sublist_ex(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
-	                          dir, files, num_files, recursion_level != 0);
+	filelist_readjob_merge_sublist(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
+	                               dir, files, num_files, recursion_level != 0);
 
 	BLI_mutex_unlock(lock);
 
@@ -1786,14 +1785,14 @@ static void filelist_readjob_lib_ex(
 
 			BLI_join_dirfile(subdir, sizeof(subdir), dir, file->relname);
 			BLI_cleanup_dir(G.main->name, subdir);
-			filelist_readjob_lib_ex(filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
-			                        main_name, stop, do_update, lock);
+			filelist_readjob_lib_rec(filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
+			                         main_name, stop, do_update, lock);
 		}
 	}
 	BLI_free_filelist(files, num_files);
 }
 
-static void filelist_readjob_library(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
+static void filelist_readjob_lib(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
 {
 	char dir[FILE_MAX];
 	char main_name[FILE_MAX];
@@ -1813,7 +1812,7 @@ static void filelist_readjob_library(FileList *filelist, short *stop, short *do_
 
 	BLI_cleanup_dir(G.main->name, dir);
 
-	filelist_readjob_lib_ex(filelist, &filelist_buffsize, dir, filter_glob, 0, main_name, stop, do_update, lock);
+	filelist_readjob_lib_rec(filelist, &filelist_buffsize, dir, filter_glob, 0, main_name, stop, do_update, lock);
 }
 
 static void filelist_readjob_main(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
