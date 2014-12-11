@@ -124,8 +124,8 @@ typedef struct FileList {
 	struct BlendHandle *libfiledata;
 	bool hide_parent;
 
-	void (*read_jobf)(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
-	bool (*filterf)(struct direntry *file, const char *dir, FileListFilter *filter);
+	void (*read_jobf)(struct FileList *, const char *, short *, short *, float *, ThreadMutex *);
+	bool (*filterf)(struct direntry *, const char *, FileListFilter *);
 
 	bool use_recursion;
 	short recursion_level;
@@ -460,9 +460,9 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 
 /* ------------------FILELIST------------------------ */
 
-static void filelist_readjob_main(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
-static void filelist_readjob_lib(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
-static void filelist_readjob_dir(struct FileList *, short *stop, short *do_update, ThreadMutex *lock);
+static void filelist_readjob_main(struct FileList *, const char *, short *, short *, float *, ThreadMutex *);
+static void filelist_readjob_lib(struct FileList *, const char *, short *, short *, float *, ThreadMutex *);
+static void filelist_readjob_dir(struct FileList *, const char *, short *, short *, float *, ThreadMutex *);
 
 /* helper, could probably go in BKE actually? */
 static int groupname_to_code(const char *group);
@@ -1661,77 +1661,14 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 }
 #endif
 
-static void filelist_readjob_dir_rec(
+static void filelist_readjob_dir_lib_rec(
+        const bool do_lib, const char *main_name,
         FileList *filelist, int *filelist_buffsize, const char *dir, const char *filter_glob, const int recursion_level,
-        short *stop, short *do_update, ThreadMutex *lock)
-{
-	/* only used if recursing, will contain all non-immediate children then. */
-	struct direntry *file, *files;
-	int num_files = 0;
-	int i;
-
-	if (!filelist) {
-		return;
-	}
-
-	num_files = BLI_dir_contents(dir, &files);
-	/* We only set filtypes for our own level, sub ones will be set by subcalls. */
-	filelist_setfiletypes(dir, files, num_files, filter_glob);
-
-	BLI_mutex_lock(lock);
-
-	filelist_readjob_merge_sublist(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
-	                               dir, files, num_files, recursion_level != 0);
-
-	BLI_mutex_unlock(lock);
-
-	*do_update = true;
-
-	if (!*stop && filelist->use_recursion && recursion_level < FILELIST_MAX_RECURSION) {
-		for (i = 0, file = files; i < num_files && !*stop; i++, file++) {
-			char subdir[FILE_MAX];
-
-			if (FILENAME_IS_BREADCRUMBS(file->relname) || (file->type & S_IFDIR) == 0) {
-				continue;
-			}
-
-			BLI_join_dirfile(subdir, sizeof(subdir), dir, file->relname);
-			BLI_cleanup_dir(G.main->name, subdir);
-			filelist_readjob_dir_rec(filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
-			                         stop, do_update, lock);
-		}
-	}
-	BLI_free_filelist(files, num_files);
-}
-
-static void filelist_readjob_dir(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
-{
-	char dir[FILE_MAX];
-	char filter_glob[64];  /* TODO should be define! */
-	int filelist_buffsize = 0;
-
-	BLI_assert(filelist->fidx == NULL);
-	BLI_assert(filelist->filelist == NULL);
-
-	BLI_mutex_lock(lock);
-
-	BLI_strncpy(dir, filelist->dir, sizeof(dir));
-	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));
-
-	BLI_mutex_unlock(lock);
-
-	BLI_cleanup_dir(G.main->name, dir);
-
-	filelist_readjob_dir_rec(filelist, &filelist_buffsize, dir, filter_glob, 0, stop, do_update, lock);
-}
-
-static void filelist_readjob_lib_rec(
-        FileList *filelist, int *filelist_buffsize, const char *dir, const char *filter_glob, const int recursion_level,
-        const char *main_name, short *stop, short *do_update, ThreadMutex *lock)
+        short *stop, short *do_update, float *progress, int *done_files, ThreadMutex *lock)
 {
 	/* only used if recursing, will contain all non-immediate children then. */
 	struct direntry *file, *files = NULL;
-	bool is_lib = true;
+	bool is_lib = do_lib;
 	int num_files = 0;
 	int i;
 
@@ -1739,28 +1676,38 @@ static void filelist_readjob_lib_rec(
 		return;
 	}
 
-	BLI_cleanup_dir(G.main->name, filelist->dir);
-	filelist_readjob_list_lib(dir, &files, &num_files);
+	if (do_lib) {
+		filelist_readjob_list_lib(dir, &files, &num_files);
+
+		if (!files) {
+			is_lib = false;
+			num_files = BLI_dir_contents(dir, &files);
+		}
+	}
+	else {
+		num_files = BLI_dir_contents(dir, &files);
+	}
 
 	if (!files) {
-		is_lib = false;
-		num_files = BLI_dir_contents(dir, &files);
+		return;
 	}
 
 	/* We only set filtypes for our own level, sub ones will be set by subcalls. */
 	filelist_setfiletypes(dir, files, num_files, filter_glob);
 
-	/* Promote blend files from mere file status to prestigious directory one! */
-	for (i = 0, file = files; i < num_files; i++, file++) {
-		if (BLO_has_bfile_extension(file->relname)) {
-			char name[FILE_MAX];
+	if (do_lib) {
+		/* Promote blend files from mere file status to prestigious directory one! */
+		for (i = 0, file = files; i < num_files; i++, file++) {
+			if (BLO_has_bfile_extension(file->relname)) {
+				char name[FILE_MAX];
 
-			BLI_join_dirfile(name, sizeof(name), dir, file->relname);
+				BLI_join_dirfile(name, sizeof(name), dir, file->relname);
 
-			/* prevent current file being used as acceptable dir */
-			if (BLI_path_cmp(main_name, name) != 0) {
-				file->type &= ~S_IFMT;
-				file->type |= S_IFDIR;
+				/* prevent current file being used as acceptable dir */
+				if (BLI_path_cmp(main_name, name) != 0) {
+					file->type &= ~S_IFMT;
+					file->type |= S_IFDIR;
+				}
 			}
 		}
 	}
@@ -1769,35 +1716,47 @@ static void filelist_readjob_lib_rec(
 
 	filelist_readjob_merge_sublist(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
 	                               dir, files, num_files, recursion_level != 0);
+
+	(*done_files)++;
+	*progress = (float)(*done_files) / filelist->numfiles;
+
+	//~ printf("%f (%d / %d)\n", *progress, *done_files, filelist->numfiles);
 
 	BLI_mutex_unlock(lock);
 
 	*do_update = true;
 
 	/* in case it's a lib we don't care anymore about max recursion level... */
-	if (!*stop && filelist->use_recursion && (is_lib || (recursion_level < FILELIST_MAX_RECURSION))) {
+	if (!*stop && filelist->use_recursion && ((do_lib && is_lib) || (recursion_level < FILELIST_MAX_RECURSION))) {
 		for (i = 0, file = files; i < num_files && !*stop; i++, file++) {
 			char subdir[FILE_MAX];
 
-			if (FILENAME_IS_BREADCRUMBS(file->relname) || (file->type & S_IFDIR) == 0) {
+			if (FILENAME_IS_BREADCRUMBS(file->relname)) {
+				/* do not increase done_files here, we completly ignore those. */
+				continue;
+			}
+			else if ((file->type & S_IFDIR) == 0) {
+				(*done_files)++;
 				continue;
 			}
 
 			BLI_join_dirfile(subdir, sizeof(subdir), dir, file->relname);
-			BLI_cleanup_dir(G.main->name, subdir);
-			filelist_readjob_lib_rec(filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
-			                         main_name, stop, do_update, lock);
+			BLI_cleanup_dir(main_name, subdir);
+			filelist_readjob_dir_lib_rec(do_lib, main_name,
+			                             filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
+			                             stop, do_update, progress, done_files, lock);
 		}
 	}
 	BLI_free_filelist(files, num_files);
 }
 
-static void filelist_readjob_lib(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
+static void filelist_readjob_dir(
+        FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
 {
 	char dir[FILE_MAX];
-	char main_name[FILE_MAX];
 	char filter_glob[64];  /* TODO should be define! */
 	int filelist_buffsize = 0;
+	int done_files = 0;
 
 	BLI_assert(filelist->fidx == NULL);
 	BLI_assert(filelist->filelist == NULL);
@@ -1805,22 +1764,47 @@ static void filelist_readjob_lib(FileList *filelist, short *stop, short *do_upda
 	BLI_mutex_lock(lock);
 
 	BLI_strncpy(dir, filelist->dir, sizeof(dir));
-	BLI_strncpy(main_name, G.main->name, sizeof(main_name));
 	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));
 
 	BLI_mutex_unlock(lock);
 
-	BLI_cleanup_dir(G.main->name, dir);
+	BLI_cleanup_dir(main_name, dir);
 
-	filelist_readjob_lib_rec(filelist, &filelist_buffsize, dir, filter_glob, 0, main_name, stop, do_update, lock);
+	filelist_readjob_dir_lib_rec(false, main_name, filelist, &filelist_buffsize, dir, filter_glob, 0,
+	                             stop, do_update, progress, &done_files, lock);
 }
 
-static void filelist_readjob_main(FileList *filelist, short *stop, short *do_update, ThreadMutex *lock)
+static void filelist_readjob_lib(
+        FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
+{
+	char dir[FILE_MAX];
+	char filter_glob[64];  /* TODO should be define! */
+	int filelist_buffsize = 0;
+	int done_files = 0;
+
+	BLI_assert(filelist->fidx == NULL);
+	BLI_assert(filelist->filelist == NULL);
+
+	BLI_mutex_lock(lock);
+
+	BLI_strncpy(dir, filelist->dir, sizeof(dir));
+	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));
+
+	BLI_mutex_unlock(lock);
+
+	BLI_cleanup_dir(main_name, dir);
+
+	filelist_readjob_dir_lib_rec(true, main_name, filelist, &filelist_buffsize, dir, filter_glob, 0,
+	                             stop, do_update, progress, &done_files, lock);
+}
+
+static void filelist_readjob_main(
+        FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
 {
 	BLI_mutex_lock(lock);
 
 	/* TODO! */
-	filelist_readjob_dir(filelist, stop, do_update, lock);
+	filelist_readjob_dir(filelist, main_name, stop, do_update, progress, lock);
 
 	BLI_mutex_unlock(lock);
 }
@@ -1828,12 +1812,13 @@ static void filelist_readjob_main(FileList *filelist, short *stop, short *do_upd
 
 typedef struct FileListReadJob {
 	ThreadMutex lock;
+	char main_name[FILE_MAX];
 	struct FileList *filelist;
 	struct FileList *tmp_filelist;
 	//~ ReportList reports;
 } FileListReadJob;
 
-static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update, float *UNUSED(progress))
+static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update, float *progress)
 {
 	FileListReadJob *flrj = flrjv;
 
@@ -1853,7 +1838,7 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 	flrj->tmp_filelist->fidx = 0;
 	flrj->tmp_filelist->libfiledata = NULL;
 
-	flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, stop, do_update, &flrj->lock);
+	flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
 
 	printf("END filelist reading (%d files, STOPPED: %d, DO_UPDATE: %d)\n", flrj->filelist->numfiles, *stop, *do_update);
 }
@@ -1896,8 +1881,6 @@ static void filelist_readjob_endjob(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
 
-	printf("%s, ENDED, %d files\n", __func__, flrj->filelist->numfiles);
-
 	flrj->filelist->filelist_pending = false;
 	flrj->filelist->filelist_ready = true;
 }
@@ -1926,6 +1909,7 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	/* prepare job data */
 	flrj = MEM_callocN(sizeof(FileListReadJob), __func__);
 	flrj->filelist = filelist;
+	BLI_strncpy(flrj->main_name, G.main->name, sizeof(flrj->main_name));
 
 	filelist->force_reset = false;
 	filelist->filelist_ready = false;
@@ -1936,21 +1920,18 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	//~ BKE_reports_init(&tj->reports, RPT_PRINT);
 
 	/* setup job */
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), filelist, __func__,
-	                     0, WM_JOB_TYPE_FILESEL_READDIR);
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), CTX_wm_area(C), "Listing Dirs...",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_FILESEL_READDIR);
 	WM_jobs_customdata_set(wm_job, flrj, filelist_readjob_free);
-	WM_jobs_timer(wm_job, 0.01, NC_SPACE | ND_SPACE_FILE_LIST, NC_SPACE | ND_SPACE_FILE_LIST);
+	WM_jobs_timer(wm_job, 0.1, NC_SPACE | ND_SPACE_FILE_LIST, NC_SPACE | ND_SPACE_FILE_LIST);
 	WM_jobs_callbacks(wm_job, filelist_readjob_startjob, NULL, filelist_readjob_update, filelist_readjob_endjob);
 
 	/* start the job */
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
-
-	//~ PIL_sleep_ms(10);
 }
 
 void filelist_readjob_stop(wmWindowManager *wm, FileList *filelist)
 {
-	printf("killing filelist reading\n");
 	WM_jobs_kill_type(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
 }
 

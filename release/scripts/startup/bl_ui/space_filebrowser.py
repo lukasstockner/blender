@@ -87,6 +87,8 @@ class FILEBROWSER_HT_header(Header):
             row.separator()
             row.prop(params, "filter_search", text="")
 
+        layout.template_running_jobs()
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)
