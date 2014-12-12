@@ -1311,7 +1311,7 @@ void DepsgraphRelationBuilder::build_texture_stack(ID *owner, MTex **texture_sta
 	/* for now assume that all texture-stacks have same number of max items */
 	for (i = 0; i < MAX_MTEX; i++) {
 		MTex *mtex = texture_stack[i];
-		if (mtex)
+		if (mtex && mtex->tex)
 			build_texture(owner, mtex->tex);
 	}
 }

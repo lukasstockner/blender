@@ -830,7 +830,7 @@ void DepsgraphNodeBuilder::build_texture_stack(DepsNode *owner_node, MTex **text
 	/* for now assume that all texture-stacks have same number of max items */
 	for (i = 0; i < MAX_MTEX; i++) {
 		MTex *mtex = texture_stack[i];
-		if (mtex)
+		if (mtex && mtex->tex)
 			build_texture(owner_node, mtex->tex);
 	}
 }
