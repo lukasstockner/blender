@@ -91,7 +91,7 @@ OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
 	return it != this->operations.end() ? it->second : NULL;
 }
 
-OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, const string &name)
+OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name)
 {
 	OperationDepsNode *op_node = find_operation(name);
 	if (!op_node) {
@@ -106,6 +106,7 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 	/* attach extra data */
 	op_node->evaluate = op;
 	op_node->optype = optype;
+	op_node->opcode = opcode;
 	op_node->name = name;
 	
 	return op_node;

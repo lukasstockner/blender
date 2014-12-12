@@ -215,19 +215,21 @@ ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(ID *id, eDepsNode_Ty
 }
 
 OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ComponentDepsNode *comp_node,
-                                                            eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
+                                                            eDepsOperation_Type optype, DepsEvalOperationCb op, 
+                                                            eDepsOperation_Code opcode, const string &description)
 {
-	OperationDepsNode *op_node = comp_node->add_operation(optype, op, description);
+	OperationDepsNode *op_node = comp_node->add_operation(optype, op, opcode, description);
 	m_graph->operations.push_back(op_node);
 	return op_node;
 }
 
 OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name,
-                                                            eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
+                                                            eDepsOperation_Type optype, DepsEvalOperationCb op,
+                                                            eDepsOperation_Code opcode, const string &description)
 {
 	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
 	
-	OperationDepsNode *op_node = comp_node->add_operation(optype, op, description);
+	OperationDepsNode *op_node = comp_node->add_operation(optype, op, opcode, description);
 	m_graph->operations.push_back(op_node);
 	
 	return op_node;
@@ -260,7 +262,7 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 	}
 	else if (entry_ops.size() > 1) {
 		/* multiple entry ops, add a barrier node as a single entry point */
-		node->entry_operation = add_operation_node(node, DEPSOP_TYPE_INIT, NULL, "Entry");
+		node->entry_operation = add_operation_node(node, DEPSOP_TYPE_INIT, NULL, DEG_OPCODE_NOOP, "Entry");
 		for (OperationsVector::const_iterator it = entry_ops.begin(); it != entry_ops.end(); ++it) {
 			OperationDepsNode *op_node = *it;
 			m_graph->add_new_relation(node->entry_operation, op_node, DEPSREL_TYPE_OPERATION, "Component entry relation");
@@ -273,7 +275,7 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 	}
 	else if (exit_ops.size() > 1) {
 		/* multiple exit ops, add a barrier node as a single exit point */
-		node->exit_operation = add_operation_node(node, DEPSOP_TYPE_OUT, NULL, "Exit");
+		node->exit_operation = add_operation_node(node, DEPSOP_TYPE_OUT, NULL, DEG_OPCODE_NOOP, "Exit");
 		for (OperationsVector::const_iterator it = exit_ops.begin(); it != exit_ops.end(); ++it) {
 			OperationDepsNode *op_node = *it;
 			m_graph->add_new_relation(op_node, node->exit_operation, DEPSREL_TYPE_OPERATION, "Component exit relation");
@@ -357,6 +359,7 @@ OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) 
 	if (!comp_node)
 		return NULL;
 	
+	// XXX...
 	OperationDepsNode *op_node = comp_node->find_operation(key.name);
 	return op_node;
 }

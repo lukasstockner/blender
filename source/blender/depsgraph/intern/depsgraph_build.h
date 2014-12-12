@@ -67,14 +67,14 @@ struct DepsgraphNodeBuilder {
 	
 	ComponentDepsNode *add_component_node(ID *id, eDepsNode_Type comp_type, const string &comp_name = "");
 	
-	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node,
-	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
-	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name,
-	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description);
-	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type,
-	                                      eDepsOperation_Type optype, DepsEvalOperationCb op, const string &description)
+	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsOperation_Type optype,
+	                                      DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &description = "");
+	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name, eDepsOperation_Type optype,
+	                                      DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &description = "");
+	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type, eDepsOperation_Type optype,
+	                                      DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &description = "")
 	{
-		return add_operation_node(id, comp_type, "", optype, op, description);
+		return add_operation_node(id, comp_type, "", optype, op, opcode, description);
 	}
 	
 	void verify_entry_exit_operations();
