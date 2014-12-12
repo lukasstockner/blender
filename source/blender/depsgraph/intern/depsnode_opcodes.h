@@ -1,0 +1,126 @@
+﻿/*
+ * ***** BEGIN GPL LICENSE BLOCK *****
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ * The Original Code is Copyright (C) 2014 Blender Foundation.
+ * All rights reserved.
+ *
+ * Original Author: Joshua Leung
+ * Contributor(s): None Yet
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/* == OpCodes for OperationDepsNodes == 
+ * This file defines all the "operation codes" (opcodes) used to identify
+ * common operation node types. The intention of these defines is to have
+ * a fast and reliable way of identifying the relevant nodes within a component
+ * without having to use fragile dynamic strings.
+ *
+ * This file is meant to be used like UI_icons.h. That is, before including
+ * the file, the host file must define the DEG_OPCODE(_label) macro, which
+ * is responsible for converting the define into whatever form is suitable.
+ */
+
+#ifndef __DEPSNODE_OPCODES_H__
+#define __DEPSNODE_OPCODES_H__
+
+/* Example macro define: */
+/* #define DEF_DEG_OPCODE(label) DEG_OPCODE_##label, */
+
+/* Generic Operations ------------------------------ */
+
+/* Placeholder for operations which don't need special mention */
+DEF_DEG_OPCODE(OPERATION)
+
+DEF_DEG_OPCODE(NOOP)
+
+/* Animation, Drivers, etc. ------------------------ */
+
+/* NLA + Action */
+DEF_DEG_OPCODE(ANIMATION)
+
+/* Driver */
+DEF_DEG_OPCODE(DRIVER)
+
+/* Proxy Inherit? */
+//DEF_DEG_OPCODE(PROXY)
+
+/* Transform --------------------------------------- */
+
+/* Transform entry point - local transforms only */
+DEF_DEG_OPCODE(TRANSFORM_LOCAL)
+
+/* Parenting */
+DEF_DEG_OPCODE(TRANSFORM_PARENT)
+
+/* Constraints */
+DEF_DEG_OPCODE(TRANSFORM_CONSTRAINTS)
+//DEF_DEG_OPCODE(TRANSFORM_CONSTRAINTS_INIT)
+//DEF_DEG_OPCODE(TRANSFORM_CONSTRAINT)
+//DEF_DEG_OPCODE(TRANSFORM_CONSTRAINTS_DONE)
+
+//DEF_DEG_OPCODE(TRANSFORM_RIGIDBODY)
+
+/* Transform exitpoint */
+DEF_DEG_OPCODE(TRANSFORM_FINAL)
+
+/* Geometry ---------------------------------------- */
+
+/* Placeholder - UberEval */
+DEF_DEG_OPCODE(GEOMETRY_UBEREVAL)
+
+/* Modifier */
+DEF_DEG_OPCODE(GEOMETRY_MODIFIER)
+
+/* Curve Objects - Path Calculation (used for path-following tools) */
+DEF_DEG_OPCODE(GEOMETRY_PATH)
+
+/* Pose -------------------------------------------- */
+
+/* Init IK Trees, etc. */
+DEF_DEG_OPCODE(POSE_INIT)
+
+/* Free IK Trees + Compute Deform Matrices */
+DEF_DEG_OPCODE(POSE_DONE)
+
+/* IK/Spline Solvers */
+DEF_DEG_OPCODE(POSE_IK_SOLVER)
+DEF_DEG_OPCODE(POSE_SPLINE_IK_SOLVER)
+
+/* Bone -------------------------------------------- */
+
+/* Bone local transforms - Entrypoint */
+DEF_DEG_OPCODE(BONE_LOCAL)
+
+/* Pose-space conversion (includes parent + restpose) */
+DEF_DEG_OPCODE(BONE_POSE_PARENT)
+
+/* Constraints */
+DEF_DEG_OPCODE(BONE_CONSTRAINTS)
+//DEF_DEG_OPCODE(BONE_CONSTRAINTS_INIT)
+//DEF_DEG_OPCODE(BONE_CONSTRAINT)
+//DEF_DEG_OPCODE(BONE_CONSTRAINTS_DONE)
+
+/* Bone transforms are ready 
+ * - "PRE_IK"            This (internal) noop is used to signal that all pre-IK operations are done
+ *                       NOTE: it isn't strictly necessary, as it should be possible to infer this from the data
+ * - "FINAL_TRANSFORM"   This noop is used to signal that the bone's final pose transform can be read by others
+ */
+// TODO: deform mats could get calculated in the final_transform ops...
+DEF_DEG_OPCODE(BONE_TRANSFORM_FINAL)
+
+#endif /* __DEPSNODE_OPCODES_H__ */

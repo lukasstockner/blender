@@ -47,6 +47,13 @@ struct ID;
 struct Depsgraph;
 struct DepsgraphCopyContext;
 
+/* Identifiers for common operations (as an enum) */
+typedef enum eDepsOperation_Code {
+	#define DEF_DEG_OPCODE(label) DEG_OPCODE_##label,
+	#include "depsnode_opcodes.h"
+	#undef DEF_DEG_OPCODE
+} eDepsOperation_Code;
+
 /* Flags for Depsgraph Nodes */
 typedef enum eDepsOperation_Flag {
 	/* node needs to be updated */
@@ -83,6 +90,8 @@ struct OperationDepsNode : public DepsNode {
 	bool scheduled;
 	
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
+	int   opcode;                 /* (eDepsOperation_Code) identifier for the operation being performed */	
+	
 	int flag;                     /* (eDepsOperation_Flag) extra settings affecting evaluation */
 	int done;                     /* generic tag for traversal algorithms */
 	
