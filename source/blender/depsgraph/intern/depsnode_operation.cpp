@@ -64,7 +64,7 @@ OperationDepsNode::~OperationDepsNode()
 
 void OperationDepsNode::tag_update(Depsgraph *graph)
 {
-	/* tag for update, but also not that this was the source of an update */
+	/* tag for update, but also note that this was the source of an update */
 	flag |= (DEPSOP_FLAG_NEEDS_UPDATE | DEPSOP_FLAG_DIRECTLY_MODIFIED);
 	
 	graph->add_entry_tag(this);

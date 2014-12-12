@@ -968,10 +968,14 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
 		pchan->flag &= ~POSE_DONE;
+		
 		/* bone parent */
 		if (pchan->parent == NULL) {
 			/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
 			add_relation(init_key, bone_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
+		}
+		else {
+			/* link bone/component to parent bone (see next loop) */
 		}
 		
 		/* constraints */
@@ -1027,10 +1031,12 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 				                                                 pchan->parent->name);
 			}
 			if (has_common_root) {
+				fprintf(stderr, "common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
 				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent);
 				add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
 			else {
+				fprintf(stderr, "not common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
 				ComponentKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name);
 				add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
