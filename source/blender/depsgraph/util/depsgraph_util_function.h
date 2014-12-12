@@ -25,10 +25,22 @@
 #ifndef __DEPSGRAPH_UTIL_FUNCTION_H__
 #define __DEPSGRAPH_UTIL_FUNCTION_H__
 
+#if __cplusplus > 199711L
+
 #include <functional>
 
-using std::bind;
 using std::function;
 using namespace std::placeholders;
+#define function_bind std::bind
+
+#else
+
+#include <boost/bind.hpp>
+#include <boost/function.hpp>
+
+using boost::function;
+#define function_bind boost::bind
+
+#endif
 
 #endif /* __DEPSGRAPH_UTIL_SET_H__ */
