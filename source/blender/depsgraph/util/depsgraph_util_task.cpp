@@ -30,7 +30,6 @@
 #include "PIL_time.h"
 
 extern "C" {
-#include "BLI_rand.h" /* XXX for eval simulation only, remove eventually */
 #include "BLI_task.h"
 }
 
@@ -40,21 +39,6 @@ extern "C" {
 #include "depsgraph_util_task.h"
 
 /* Task */
-
-/* **** eval simulation **** */
-static RNG *deg_eval_sim_rng = NULL;
-
-static void deg_eval_sim_init()
-{
-	deg_eval_sim_rng = BLI_rng_new((unsigned int)(PIL_check_seconds_timer() * 0x7FFFFFFF));
-}
-
-static void deg_eval_sim_free()
-{
-	BLI_rng_free(deg_eval_sim_rng);
-	deg_eval_sim_rng = NULL;
-}
-/* ******** */
 
 void DEG_task_run_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
 {
