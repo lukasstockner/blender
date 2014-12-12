@@ -2419,6 +2419,15 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 					DEG_id_tag_update(scene->depsgraph, &ob->id);
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
+				/* This should not be needed here, but in some cases, like after a redo, we can end up with
+				 * a wrong final matrix (see T42472).
+				 * Quoting Sergey, this comes from BKE_object_handle_update_ex, which is calling
+				 * BKE_object_where_is_calc_ex when it shouldn't, but that issue is not easily fixable.
+				 */
+				else {
+					ob->recalc |= OB_RECALC_OB;
+					lib_id_recalc_tag(bmain, &ob->id);
+				}
 				if (ob->proxy && (ob->proxy_group == NULL)) {
 					ob->proxy->recalc |= OB_RECALC_DATA;
 					DEG_id_tag_update(scene->depsgraph, &ob->proxy->id);
