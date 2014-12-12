@@ -97,8 +97,6 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
 
-#include "depsgraph_util_rna.h"
-
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
 /* ************************************************* */
@@ -302,7 +300,8 @@ RNAPathKey::RNAPathKey(ID *id, const string &path) :
     id(id)
 {
 	/* create ID pointer for root of path lookup */
-	PointerRNA id_ptr = make_rna_id_pointer(id);
+	PointerRNA id_ptr;
+	RNA_id_pointer_create(id, &id_ptr);
 	/* try to resolve path... */
 	if (!RNA_path_resolve(&id_ptr, path.c_str(), &this->ptr, &this->prop)) {
 		this->ptr = PointerRNA_NULL;
