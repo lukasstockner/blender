@@ -27,10 +27,6 @@
 #ifndef __DEPSGRAPH_BUILD_H__
 #define __DEPSGRAPH_BUILD_H__
 
-#include <cstddef> /* for std::size_t */
-#include <tuple>
-#include <type_traits>
-
 #include "depsgraph_types.h"
 
 #include "depsgraph_util_id.h"
@@ -60,45 +56,6 @@ struct IDDepsNode;
 struct TimeSourceDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
-
-namespace detail {
-
-using std::forward;
-using std::tuple;
-using std::tuple_size;
-using std::get;
-using std::size_t;
-
-template <size_t N>
-struct bind_operation_tuple_impl {
-	template <typename Func, typename... Args, typename... ArgsTail>
-	static DepsEvalOperationCb bind_operation_tuple(Func &&func, tuple<Args...> &&args, ArgsTail... tail)
-	{
-		typedef decltype(get<N-1>(args)) T;
-		T &&head = get<N-1>(args);
-		
-		return bind_operation_tuple_impl<N-1>::bind_operation_tuple(forward<Func>(func), forward<tuple<Args...>>(args), forward<T>(head), tail...);
-	}
-};
-
-template <>
-struct bind_operation_tuple_impl<0> {
-	template <typename Func, typename... Args, typename... ArgsTail>
-	static DepsEvalOperationCb bind_operation_tuple(Func &&func, tuple<Args...> &&args, ArgsTail... tail)
-	{
-		return std::bind(func, tail...);
-	}
-};
-
-} /* namespace detail */
-
-template <typename Func, typename... Args>
-static DepsEvalOperationCb bind_operation(Func func, Args... args)
-{
-	typedef std::tuple_size<std::tuple<Args...>> args_size;
-	
-	return detail::bind_operation_tuple_impl<args_size::value>::bind_operation_tuple(func, std::tuple<Args...>(args...));
-}
 
 struct DepsgraphNodeBuilder {
 	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);

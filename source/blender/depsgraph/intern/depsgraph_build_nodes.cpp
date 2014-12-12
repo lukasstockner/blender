@@ -298,7 +298,7 @@ void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 {
 	/* init operation */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-	                   DEPSOP_TYPE_INIT, bind_operation(BKE_object_eval_local_transform, _1, scene, ob),
+	                   DEPSOP_TYPE_INIT, bind(BKE_object_eval_local_transform, _1, scene, ob),
 	                   deg_op_name_object_local_transform);
 }
 
