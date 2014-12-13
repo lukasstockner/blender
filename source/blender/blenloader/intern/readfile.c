@@ -1837,6 +1837,25 @@ static void IDP_LibLinkProperty(IDProperty *UNUSED(prop), int UNUSED(switch_endi
 {
 }
 
+/* ************ READ IMAGE PREVIEW *************** */
+
+static PreviewImage *direct_link_preview_image(FileData *fd, PreviewImage *old_prv)
+{
+	PreviewImage *prv = newdataadr(fd, old_prv);
+	
+	if (prv) {
+		int i;
+		for (i = 0; i < NUM_ICON_SIZES; ++i) {
+			if (prv->rect[i]) {
+				prv->rect[i] = newdataadr(fd, prv->rect[i]);
+			}
+			prv->gputexture[i] = NULL;
+		}
+	}
+	
+	return prv;
+}
+
 /* ************ READ ID *************** */
 
 static void direct_link_id(FileData *fd, ID *id)
@@ -1898,7 +1917,7 @@ static void direct_link_brush(FileData *fd, Brush *brush)
 	else
 		BKE_brush_curve_preset(brush, CURVE_PRESET_SHARP);
 
-	brush->preview = NULL;
+	brush->preview = direct_link_preview_image(fd, brush->preview);
 	brush->icon_imbuf = NULL;
 }
 
@@ -1958,25 +1977,6 @@ static PackedFile *direct_link_packedfile(FileData *fd, PackedFile *oldpf)
 	}
 	
 	return pf;
-}
-
-/* ************ READ IMAGE PREVIEW *************** */
-
-static PreviewImage *direct_link_preview_image(FileData *fd, PreviewImage *old_prv)
-{
-	PreviewImage *prv = newdataadr(fd, old_prv);
-	
-	if (prv) {
-		int i;
-		for (i = 0; i < NUM_ICON_SIZES; ++i) {
-			if (prv->rect[i]) {
-				prv->rect[i] = newdataadr(fd, prv->rect[i]);
-			}
-			prv->gputexture[i] = NULL;
-		}
-	}
-	
-	return prv;
 }
 
 /* ************ READ ANIMATION STUFF ***************** */
