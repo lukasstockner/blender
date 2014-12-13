@@ -5139,6 +5139,8 @@ static void direct_link_object(FileData *fd, Object *ob)
 
 	link_list(fd, &ob->lodlevels);
 	ob->currentlod = ob->lodlevels.first;
+
+	ob->preview = direct_link_preview_image(fd, ob->preview);
 }
 
 /* ************ READ SCENE ***************** */
@@ -6890,6 +6892,8 @@ static void lib_link_sound(FileData *fd, Main *main)
 static void direct_link_group(FileData *fd, Group *group)
 {
 	link_list(fd, &group->gobject);
+
+	group->preview = direct_link_preview_image(fd, group->preview);
 }
 
 static void lib_link_group(FileData *fd, Main *main)

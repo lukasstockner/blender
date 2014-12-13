@@ -292,6 +292,8 @@ typedef struct Object {
 
 	ListBase lodlevels;		/* contains data for levels of detail */
 	LodLevel *currentlod;
+
+	struct PreviewImage *preview;
 } Object;
 
 /* Warning, this is not used anymore because hooks are now modifiers */

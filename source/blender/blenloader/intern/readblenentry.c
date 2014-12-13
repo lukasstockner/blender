@@ -161,6 +161,8 @@ LinkNode *BLO_blendhandle_get_previews(BlendHandle *bh, int ofblocktype, int *to
 				case ID_IM: /* fall through */
 				case ID_WO: /* fall through */
 				case ID_LA: /* fall through */
+				case ID_OB: /* fall through */
+				case ID_GR: /* fall through */
 					new_prv = MEM_callocN(sizeof(PreviewImage), "newpreview");
 					BLI_linklist_prepend(&previews, new_prv);
 					tot++;
