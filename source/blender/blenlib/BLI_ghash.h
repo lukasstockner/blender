@@ -128,6 +128,7 @@ unsigned int    BLI_ghashutil_strhash_n(const char *key, size_t n);
                 CHECK_TYPE_INLINE(key, char *), \
                 BLI_ghashutil_strhash_p(key))
 unsigned int    BLI_ghashutil_strhash_p(const void *key);
+unsigned int    BLI_ghashutil_strhash_p_murmur(const void *key);
 bool            BLI_ghashutil_strcmp(const void *a, const void *b);
 
 #define         BLI_ghashutil_inthash(key) ( \
@@ -140,10 +141,14 @@ unsigned int    BLI_ghashutil_uinthash(unsigned int key);
 unsigned int    BLI_ghashutil_uinthash_v4(const unsigned int key[4]);
 #define         BLI_ghashutil_inthash_v4_p \
    ((GSetHashFP)BLI_ghashutil_uinthash_v4)
+#define         BLI_ghashutil_uinthash_v4_p \
+   ((GSetHashFP)BLI_ghashutil_uinthash_v4)
+unsigned int    BLI_ghashutil_uinthash_v4_p_murmur(const void *ptr);
 bool            BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b);
 #define         BLI_ghashutil_inthash_v4_cmp \
                 BLI_ghashutil_uinthash_v4_cmp
 unsigned int    BLI_ghashutil_inthash_p(const void *ptr);
+unsigned int    BLI_ghashutil_inthash_p_murmur(const void *ptr);
 bool            BLI_ghashutil_intcmp(const void *a, const void *b);
 
 /** \} */
@@ -230,10 +235,10 @@ BLI_INLINE bool BLI_gsetIterator_done(GSetIterator *gsi) { return BLI_ghashItera
 	     BLI_gsetIterator_done(&gs_iter_) == false;                           \
 	     BLI_gsetIterator_step(&gs_iter_), i_++)
 
-#ifdef DEBUG
+//~ #ifdef DEBUG
 double BLI_ghash_calc_quality(GHash *gh);
 double BLI_gset_calc_quality(GSet *gs);
-#endif
+//~ #endif
 
 #ifdef __cplusplus
 }

@@ -41,17 +41,28 @@
 
 #include "BLI_sys_types.h"  /* for intptr_t support */
 #include "BLI_utildefines.h"
+#include "BLI_hash_mm2a.h"
 #include "BLI_mempool.h"
 #include "BLI_ghash.h"
 #include "BLI_strict_flags.h"
 
+//~ #define USE_MODULO_BUCKETS
 
+#ifdef USE_MODULO_BUCKETS
 const unsigned int hashsizes[] = {
 	5, 11, 17, 37, 67, 131, 257, 521, 1031, 2053, 4099, 8209, 
 	16411, 32771, 65537, 131101, 262147, 524309, 1048583, 2097169, 
 	4194319, 8388617, 16777259, 33554467, 67108879, 134217757, 
 	268435459
 };
+#else
+const unsigned int hashsizes[] = {
+	3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191,
+	16383, 32767, 65535, 131071, 262143, 524287, 1048575, 2097151,
+	4194303, 8388607, 16777215, 33554431, 67108863, 134217727,
+	268435455
+};
+#endif
 
 /* internal flag to ensure sets values aren't used */
 #ifndef NDEBUG
@@ -94,7 +105,11 @@ struct GHash {
  */
 BLI_INLINE unsigned int ghash_keyhash(GHash *gh, const void *key)
 {
+#ifdef USE_MODULO_BUCKETS
 	return gh->hashfp(key) % gh->nbuckets;
+#else
+	return gh->hashfp(key) & gh->nbuckets;
+#endif
 }
 
 /**
@@ -700,6 +715,12 @@ unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
 	hash += key[3];
 	return hash;
 }
+unsigned int BLI_ghashutil_uinthash_v4_p_murmur(const void *ptr)
+{
+	const unsigned int *key = ptr;
+
+	return BLI_hash_mm2((const unsigned char *)key, sizeof(*key) * 4, 0);
+}
 
 bool BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
 {
@@ -730,6 +751,13 @@ unsigned int BLI_ghashutil_inthash_p(const void *ptr)
 	key ^=  (key >> 17);
 
 	return (unsigned int)(key & 0xffffffff);
+}
+
+unsigned int BLI_ghashutil_inthash_p_murmur(const void *ptr)
+{
+	const unsigned int *key = ptr;
+
+	return BLI_hash_mm2((const unsigned char *)key, sizeof(*key), 0);
 }
 
 bool BLI_ghashutil_intcmp(const void *a, const void *b)
@@ -767,6 +795,12 @@ unsigned int BLI_ghashutil_strhash_p(const void *ptr)
 	}
 
 	return h;
+}
+unsigned int BLI_ghashutil_strhash_p_murmur(const void *ptr)
+{
+	const unsigned char *key = ptr;
+
+	return BLI_hash_mm2(key, strlen((const char *)key), 0);
 }
 bool BLI_ghashutil_strcmp(const void *a, const void *b)
 {
@@ -1008,7 +1042,7 @@ GSet *BLI_gset_pair_new(const char *info)
 
 /** \name Debugging & Introspection
  * \{ */
-#ifdef DEBUG
+//~ #ifdef DEBUG
 
 /**
  * Measure how well the hash function performs
@@ -1040,5 +1074,5 @@ double BLI_gset_calc_quality(GSet *gs)
 	return BLI_ghash_calc_quality((GHash *)gs);
 }
 
-#endif
+//~ #endif
 /** \} */
