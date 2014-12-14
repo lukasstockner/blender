@@ -263,34 +263,6 @@ void BKE_curve_eval_geometry(EvaluationContext *eval_ctx, Curve *curve) {}
 void BKE_curve_eval_path(EvaluationContext *eval_ctx, Curve *curve) {}
 void BKE_lattice_eval_geometry(EvaluationContext *eval_ctx, Lattice *latt) {}
 
-const string deg_op_name_object_parent = "BKE_object_eval_parent";
-const string deg_op_name_object_local_transform = "BKE_object_eval_local_transform";
-const string deg_op_name_constraint_stack = "Constraint Stack";
-const string deg_op_name_rigidbody_world_rebuild = "Rigidbody World Rebuild";
-const string deg_op_name_rigidbody_world_simulate = "Rigidbody World Do Simulation";
-const string deg_op_name_rigidbody_object_sync = "RigidBodyObject Sync";
-const string deg_op_name_pose_eval_init = "Init Pose Eval";
-const string deg_op_name_pose_eval_flush = "Flush Pose Eval";
-const string deg_op_name_ik_solver = "IK Solver";
-const string deg_op_name_spline_ik_solver = "Spline IK Solver";
-const string deg_op_name_psys_eval = "PSys Eval";
-
-string deg_op_name_animdata(const ID *id)
-{
-	AnimData *adt = BKE_animdata_from_id((ID *)id);
-	return string("[AnimData] ") + id->name + string((adt->action) ? adt->action->id.name : "<None>");
-}
-
-string deg_op_name_driver(const FCurve *fcu)
-{
-	return string("[Driver] ") + fcu->rna_path;
-}
-
-string deg_op_name_modifier(const ModifierData *md)
-{
-	return string("[Modifier] ") +  md->name;
-}
-
 /* ******************************************************** */
 /* External API */
 

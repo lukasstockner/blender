@@ -95,24 +95,6 @@ typedef enum eDepsOperation_Code {
 	#undef DEF_DEG_OPCODE
 } eDepsOperation_Code;
 
-/* XXX this needs to be revisited, probably operation types could be
- * combined in a concise struct with name+callback+eDepsOperation_Type
- */
-extern const string deg_op_name_object_parent;
-extern const string deg_op_name_object_local_transform;
-extern const string deg_op_name_constraint_stack;
-extern const string deg_op_name_rigidbody_world_rebuild;
-extern const string deg_op_name_rigidbody_world_simulate;
-extern const string deg_op_name_rigidbody_object_sync;
-extern const string deg_op_name_pose_eval_init;
-extern const string deg_op_name_pose_eval_flush;
-extern const string deg_op_name_ik_solver;
-extern const string deg_op_name_spline_ik_solver;
-extern const string deg_op_name_psys_eval;
-
-string deg_op_name_animdata(const ID *id);
-string deg_op_name_driver(const FCurve *driver_fcurve);
-string deg_op_name_modifier(const ModifierData *md);
 
 /* Type of operation */
 typedef enum eDepsOperation_Type {
