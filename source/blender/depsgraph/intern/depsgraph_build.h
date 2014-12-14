@@ -137,17 +137,36 @@ struct ComponentKey
 
 struct OperationKey
 {
-	OperationKey() : id(NULL), component_type(DEPSNODE_TYPE_UNDEFINED), component_name(""), name("") {}
+	OperationKey() : 
+	    id(NULL), component_type(DEPSNODE_TYPE_UNDEFINED), component_name(""), opcode(DEG_OPCODE_OPERATION), name("")
+	{}
+	
 	OperationKey(ID *id, eDepsNode_Type component_type, const string &name) :
-	    id(id), component_type(component_type), component_name(""), name(name)
+	    id(id), component_type(component_type), component_name(""), opcode(DEG_OPCODE_OPERATION), name(name)
 	{}
 	OperationKey(ID *id, eDepsNode_Type component_type, const string &component_name, const string &name) :
-	    id(id), component_type(component_type), component_name(component_name), name(name)
+	    id(id), component_type(component_type), component_name(component_name), opcode(DEG_OPCODE_OPERATION), name(name)
 	{}
+	
+	OperationKey(ID *id, eDepsNode_Type component_type, eDepsOperation_Code opcode) :
+	    id(id), component_type(component_type), component_name(""), opcode(opcode), name("")
+	{}
+	OperationKey(ID *id, eDepsNode_Type component_type, const string &component_name, eDepsOperation_Code opcode) :
+	    id(id), component_type(component_type), component_name(component_name), opcode(opcode), name("")
+	{}
+	
+	OperationKey(ID *id, eDepsNode_Type component_type, eDepsOperation_Code opcode, const string &name) :
+	    id(id), component_type(component_type), component_name(""), opcode(opcode), name(name)
+	{}
+	OperationKey(ID *id, eDepsNode_Type component_type, const string &component_name, eDepsOperation_Code opcode, const string &name) :
+	    id(id), component_type(component_type), component_name(component_name), opcode(opcode), name(name)
+	{}
+	
 	
 	ID *id;
 	eDepsNode_Type component_type;
 	string component_name;
+	eDepsOperation_Code opcode;
 	string name;
 };
 

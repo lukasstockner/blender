@@ -88,7 +88,13 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_EVAL_PARTICLES   = 23,       /* Particle Systems Component */
 } eDepsNode_Type;
 
-/* Standard operation names */
+/* Identifiers for common operations (as an enum) */
+typedef enum eDepsOperation_Code {
+	#define DEF_DEG_OPCODE(label) DEG_OPCODE_##label,
+	#include "depsnode_opcodes.h"
+	#undef DEF_DEG_OPCODE
+} eDepsOperation_Code;
+
 /* XXX this needs to be revisited, probably operation types could be
  * combined in a concise struct with name+callback+eDepsOperation_Type
  */
