@@ -37,8 +37,8 @@ extern "C" {
 
 #include "depsgraph.h" /* own include */
 #include "depsnode.h"
-#include "depsnode_component.h"
 #include "depsnode_operation.h"
+#include "depsnode_component.h"
 #include "depsgraph_intern.h"
 #include "depsgraph_debug.h"
 

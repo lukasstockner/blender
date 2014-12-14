@@ -31,6 +31,7 @@
 
 #include "DEG_depsgraph.h"
 #include "depsnode.h"
+#include "depsnode_operation.h"
 
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
