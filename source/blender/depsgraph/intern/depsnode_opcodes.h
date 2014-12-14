@@ -46,6 +46,9 @@
 /* Placeholder for operations which don't need special mention */
 DEF_DEG_OPCODE(OPERATION)
 
+// XXX: Placeholder while porting depsgraph code
+DEF_DEG_OPCODE(PLACEHOLDER)
+
 DEF_DEG_OPCODE(NOOP)
 
 /* Animation, Drivers, etc. ------------------------ */
@@ -73,14 +76,18 @@ DEF_DEG_OPCODE(TRANSFORM_CONSTRAINTS)
 //DEF_DEG_OPCODE(TRANSFORM_CONSTRAINT)
 //DEF_DEG_OPCODE(TRANSFORM_CONSTRAINTS_DONE)
 
-//DEF_DEG_OPCODE(TRANSFORM_RIGIDBODY)
+/* Rigidbody Sim - Copy Results */
+DEF_DEG_OPCODE(TRANSFORM_RIGIDBODY)
 
 /* Transform exitpoint */
 DEF_DEG_OPCODE(TRANSFORM_FINAL)
 
+/* XXX: ubereval is for temporary porting purposes only */
+DEF_DEG_OPCODE(OBJECT_UBEREVAL)
+
 /* Geometry ---------------------------------------- */
 
-/* Placeholder - UberEval */
+/* XXX: Placeholder - UberEval */
 DEF_DEG_OPCODE(GEOMETRY_UBEREVAL)
 
 /* Modifier */
@@ -122,5 +129,10 @@ DEF_DEG_OPCODE(BONE_CONSTRAINTS)
  */
 // TODO: deform mats could get calculated in the final_transform ops...
 DEF_DEG_OPCODE(BONE_TRANSFORM_FINAL)
+
+/* Particles --------------------------------------- */
+
+/* XXX: placeholder - Particle System eval */
+DEF_DEG_OPCODE(PSYS_EVAL)
 
 #endif /* __DEPSNODE_OPCODES_H__ */
