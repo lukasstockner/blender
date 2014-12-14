@@ -221,7 +221,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	if (ob->parent) {
 		add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
 		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_parent, _1, ob),
-		                   deg_op_name_object_parent);
+		                   DEG_OPCODE_TRANSFORM_PARENT);
 	}
 	
 	/* object constraints */
@@ -238,7 +238,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	 */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
 	                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_uber_transform, _1, scene, ob),
-	                   "Object UberEval");
+	                   DEG_OPCODE_OBJECT_UBEREVAL);
 
 	/* object data */
 	if (ob->data) {
@@ -289,7 +289,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 		/* Armatures does no longer require uber node. */
 		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
-		                   "Object Data UberEval");
+		                   DEG_OPCODE_GEOMETRY_UBEREVAL);
 	}
 
 }
@@ -299,8 +299,8 @@ void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 	/* init operation */
 
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-	                   DEPSOP_TYPE_INIT, bind(BKE_object_eval_local_transform, _1, scene, ob),
-	                   deg_op_name_object_local_transform);
+	                   DEPSOP_TYPE_INIT, function_bind(BKE_object_eval_local_transform, _1, scene, ob),
+	                   DEG_OPCODE_TRANSFORM_LOCAL);
 }
 
 /* == Constraints Graph Notes ==
@@ -323,7 +323,7 @@ void DepsgraphNodeBuilder::build_object_constraints(Scene *scene, Object *ob)
 	/* create node for constraint stack */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
 	                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_constraints, _1, scene, ob),
-	                   deg_op_name_constraint_stack);
+	                   DEG_OPCODE_TRANSFORM_CONSTRAINTS);
 }
 
 void DepsgraphNodeBuilder::build_pose_constraints(Object *ob, bPoseChannel *pchan)
@@ -331,7 +331,7 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *ob, bPoseChannel *pcha
 	/* create node for constraint stack */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
 	                   DEPSOP_TYPE_EXEC, function_bind(BKE_pose_constraints_evaluate, _1, ob, pchan),
-	                   deg_op_name_constraint_stack);
+	                   DEG_OPCODE_BONE_CONSTRAINTS);
 }
 
 /* Build graph nodes for AnimData block 
@@ -355,7 +355,7 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 		if ((adt->action) || (adt->nla_tracks.first)) {
 			add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_animdata, _1, id, time_src),
-			                   deg_op_name_animdata(id));
+			                   DEG_OPCODE_ANIMATION, id->name);
 			
 			// TODO: for each channel affected, we might also want to add some support for running RNA update callbacks on them
 			// (which will be needed for proper handling of drivers later)
@@ -384,7 +384,7 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 	TimeSourceDepsNode *time_src = m_graph->find_time_source();
 	OperationDepsNode *driver_op = add_operation_node(id, DEPSNODE_TYPE_PARAMETERS,
 	                                                  DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_driver, _1, id, fcu, time_src),
-	                                                  deg_op_name_driver(fcu));
+	                                                  DEG_OPCODE_DRIVER, fcu->rna_path);
 	
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
 	if (driver->type == DRIVER_TYPE_PYTHON) {
@@ -448,13 +448,13 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 	/* init/rebuild operation */
 	/*OperationDepsNode *init_node =*/ add_operation_node(&scene->id, DEPSNODE_TYPE_TRANSFORM,
 	                                                      DEPSOP_TYPE_REBUILD, function_bind(BKE_rigidbody_rebuild_sim, _1, scene),
-	                                                      deg_op_name_rigidbody_world_rebuild);
+	                                                      DEG_OPCODE_PLACEHOLDER, "Rigidbody World Rebuild"); // XXX
 	
 	/* do-sim operation */
 	// XXX: what happens if we need to split into several groups?
 	/*OperationDepsNode *sim_node =*/ add_operation_node(&scene->id, DEPSNODE_TYPE_TRANSFORM,
 	                                                     DEPSOP_TYPE_SIM, function_bind(BKE_rigidbody_eval_simulation, _1, scene),
-	                                                     deg_op_name_rigidbody_world_simulate);
+	                                                     DEG_OPCODE_PLACEHOLDER, "Rigidbody World Do Simulation"); // XXX
 	
 	/* objects - simulation participants */
 	if (rbw->group) {
@@ -468,7 +468,7 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 			/* object's transform component - where the rigidbody operation lives */
 			add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_rigidbody_object_sync_transforms, _1, scene, ob), /* xxx: function name */
-			                   deg_op_name_rigidbody_object_sync);
+			                   DEG_OPCODE_TRANSFORM_RIGIDBODY);
 		}
 	}
 }
@@ -501,7 +501,7 @@ void DepsgraphNodeBuilder::build_particles(Object *ob)
 		/* this particle system */
 		add_operation_node(psys_comp,
 		                   DEPSOP_TYPE_EXEC, function_bind(BKE_particle_system_eval, _1, ob, psys),
-		                   deg_op_name_psys_eval);
+		                   DEG_OPCODE_PSYS_EVAL);
 	}
 	
 	/* pointcache */
@@ -517,7 +517,7 @@ void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel 
 	/* Operation node for evaluating/running IK Solver. */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
 	                   DEPSOP_TYPE_SIM, function_bind(BKE_pose_iktree_evaluate, _1, scene, ob, rootchan),
-	                   deg_op_name_ik_solver);
+	                   DEG_OPCODE_POSE_IK_SOLVER);
 }
 
 /* Spline IK Eval Steps */
@@ -526,13 +526,12 @@ void DepsgraphNodeBuilder::build_splineik_pose(Scene *scene, Object *ob, bPoseCh
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 	/* Find the chain's root. */
 	bPoseChannel *rootchan = BKE_armature_splineik_solver_find_root(pchan, data);
-	/* Operation node for evaluating/running IK Solver.
+	/* Operation node for evaluating/running Spline IK Solver.
 	 * Store the "root bone" of this chain in the solver, so it knows where to start.
 	 */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
 	                   DEPSOP_TYPE_SIM, function_bind(BKE_pose_splineik_evaluate, _1, scene, ob, rootchan),
-	                   deg_op_name_spline_ik_solver);
-	// XXX: what sort of ID-data is needed?
+	                   DEG_OPCODE_POSE_SPLINE_IK_SOLVER);
 }
 
 /* Pose/Armature Bones Graph */
@@ -576,20 +575,25 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	
 	/* pose eval context */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE,
-	                   DEPSOP_TYPE_INIT, function_bind(BKE_pose_eval_init, _1, scene, ob, ob->pose), deg_op_name_pose_eval_init);
+	                   DEPSOP_TYPE_INIT, function_bind(BKE_pose_eval_init, _1, scene, ob, ob->pose), DEG_OPCODE_POSE_INIT);
 	
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE,
-	                   DEPSOP_TYPE_POST, function_bind(BKE_pose_eval_flush, _1, scene, ob, ob->pose), deg_op_name_pose_eval_flush);
+	                   DEPSOP_TYPE_POST, function_bind(BKE_pose_eval_flush, _1, scene, ob, ob->pose), DEG_OPCODE_POSE_DONE);
 	
 	/* bones */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		/* node for bone eval */
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_pose_eval_bone, _1, scene, ob, pchan),
-		                   "Bone Transforms");
-
+		                   DEPSOP_TYPE_INIT, NULL, // XXX
+		                   DEG_OPCODE_BONE_LOCAL);
+		
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
-		                   DEPSOP_TYPE_EXEC, NULL, "Bone Final Transforms");
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_pose_eval_bone, _1, scene, ob, pchan), // XXX
+		                   DEG_OPCODE_BONE_POSE_PARENT);
+		
+		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+		                   DEPSOP_TYPE_POST, NULL, // XXX
+		                   DEG_OPCODE_BONE_TRANSFORM_FINAL);
 
 		/* constraints */
 		if (pchan->constraints.first != NULL) {
@@ -645,7 +649,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			/* evaluation operations */
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_mesh_eval_geometry, _1, (Mesh *)obdata),
-			                   "Geometry Eval");
+			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
 		break;
 		
@@ -659,7 +663,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 				/* NOTE: only the motherball gets evaluated! */
 				add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 				                   DEPSOP_TYPE_EXEC, function_bind(BKE_mball_eval_geometry, _1, (MetaBall *)obdata),
-				                   "Geometry Eval");
+				                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 			}
 		}
 		break;
@@ -671,12 +675,12 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			/* - calculate curve geometry (including path) */
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
-			                   "Geometry Eval");
+			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 			
 			/* - calculate curve path - this is used by constraints, etc. */
 			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_curve_eval_path, _1, (Curve *)obdata),
-			                   "Path");
+			                   DEG_OPCODE_GEOMETRY_PATH, "Path");
 		}
 		break;
 		
@@ -685,7 +689,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			/* nurbs evaluation operations */
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
-			                   "Geometry Eval");
+			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
 		break;
 		
@@ -694,7 +698,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			/* lattice evaluation operations */
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_lattice_eval_geometry, _1, (Lattice *)obdata),
-			                   "Geometry Eval");
+			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
 		break;
 	}
@@ -713,7 +717,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_modifier, _1, scene, ob, md),
-			                   deg_op_name_modifier(md));
+			                   DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
 		}
 	}
 	
@@ -725,6 +729,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			Material *ma = give_current_material(ob, a);
 			
 			if (ma) {
+				// XXX?!
 				ComponentDepsNode *geom_node = add_component_node(&ob->id, DEPSNODE_TYPE_GEOMETRY);
 				build_material(geom_node, ma);
 			}
