@@ -33,6 +33,7 @@
 #include "depsnode.h"
 #include "depsnode_operation.h"
 
+#include "depsgraph_util_hash.h"
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
 
@@ -45,9 +46,46 @@ struct EvaluationContext;
 struct OperationDepsNode;
 struct BoneComponentDepsNode;
 
+
 /* ID Component - Base type for all components */
 struct ComponentDepsNode : public DepsNode {
-	typedef unordered_map<string, OperationDepsNode *> OperationMap;
+	/* Key used to look up operations within a component */
+	struct OperationIDKey
+	{
+		eDepsOperation_Code opcode;
+		string name;
+		
+		
+		OperationIDKey() : 
+			opcode(DEG_OPCODE_OPERATION), name("")
+		{}
+		OperationIDKey(eDepsOperation_Code opcode) :
+			opcode(opcode), name("")
+		{}
+		OperationIDKey(eDepsOperation_Code opcode, const string &name) :
+		   opcode(opcode), name(name)
+		{}
+		
+		
+		bool operator==(const OperationIDKey &other) const
+		{
+			return (opcode == other.opcode) && (name == other.name);
+		}
+	};
+	
+	/* XXX can't specialize std::hash for this purpose, because ComponentKey is a nested type ...
+	 * http://stackoverflow.com/a/951245
+	 */
+	struct operation_key_hash {
+		bool operator() (const OperationIDKey &key) const
+		{
+			return hash_combine(hash<int>()(key.opcode), hash<string>()(key.name));
+		}
+	};
+	
+	/* Typedef for container of operations */
+	typedef unordered_map<OperationIDKey, OperationDepsNode *, operation_key_hash> OperationMap;
+	
 	
 	ComponentDepsNode();
 	
@@ -68,7 +106,7 @@ struct ComponentDepsNode : public DepsNode {
 	 */
 	OperationDepsNode *add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name);
 	
-	void remove_operation(const string &name);
+	void remove_operation(eDepsOperation_Code opcode, const string &name);
 	void clear_operations();
 	
 	void tag_update(Depsgraph *graph);

@@ -59,6 +59,7 @@ void ComponentDepsNode::init(const ID *id, const string &subdata)
 /* Copy 'component' node */
 void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src)
 {
+#if 0 // XXX: remove all this
 	/* duplicate list of operation nodes */
 	this->operations.clear();
 	
@@ -77,6 +78,7 @@ void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode 
 	
 	/* copy evaluation contexts */
 	//
+#endif
 }
 
 /* Free 'component' node */
@@ -87,9 +89,10 @@ ComponentDepsNode::~ComponentDepsNode()
 
 OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode, const string &name) const
 {
-	// FIXME: how to perform this lookup?
-	OperationMap::const_iterator it = this->operations.find(name);
-	return it != this->operations.end() ? it->second : NULL;
+	OperationIDKey key(opcode, name);
+	OperationMap::const_iterator it = this->operations.find(key);
+	
+	return (it != this->operations.end()) ? it->second : NULL;
 }
 
 OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name)
@@ -100,7 +103,7 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
 		
 		/* register */
-		this->operations[name] = op_node;
+		this->operations[OperationIDKey(opcode, name)] = op_node;
 		op_node->owner = this;
 	}
 	
@@ -113,12 +116,12 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 	return op_node;
 }
 
-void ComponentDepsNode::remove_operation(const string &name)
+void ComponentDepsNode::remove_operation(eDepsOperation_Code opcode, const string &name)
 {
-	OperationDepsNode *op_node = find_operation(name);
+	OperationDepsNode *op_node = find_operation(opcode, name);
 	if (op_node) {
 		/* unregister */
-		this->operations.erase(name);
+		this->operations.erase(OperationIDKey(opcode, name));
 		OBJECT_GUARDED_DELETE(op_node, OperationDepsNode);
 	}
 }
