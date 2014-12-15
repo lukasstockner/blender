@@ -593,7 +593,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 		
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
 		                   DEPSOP_TYPE_POST, NULL, // XXX
-		                   DEG_OPCODE_BONE_TRANSFORM_FINAL);
+		                   DEG_OPCODE_BONE_DONE);
 
 		/* constraints */
 		if (pchan->constraints.first != NULL) {

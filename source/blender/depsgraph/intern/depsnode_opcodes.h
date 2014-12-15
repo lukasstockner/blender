@@ -128,7 +128,7 @@ DEF_DEG_OPCODE(BONE_CONSTRAINTS)
  * - "FINAL_TRANSFORM"   This noop is used to signal that the bone's final pose transform can be read by others
  */
 // TODO: deform mats could get calculated in the final_transform ops...
-DEF_DEG_OPCODE(BONE_TRANSFORM_FINAL)
+DEF_DEG_OPCODE(BONE_DONE)
 
 /* Particles --------------------------------------- */
 
