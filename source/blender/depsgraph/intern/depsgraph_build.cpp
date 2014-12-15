@@ -359,8 +359,7 @@ OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) 
 	if (!comp_node)
 		return NULL;
 	
-	// XXX...
-	OperationDepsNode *op_node = comp_node->find_operation(key.name);
+	OperationDepsNode *op_node = comp_node->find_operation(key.opcode, key.name);
 	return op_node;
 }
 

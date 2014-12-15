@@ -55,7 +55,8 @@ struct ComponentDepsNode : public DepsNode {
 	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
 	~ComponentDepsNode();
 	
-	OperationDepsNode *find_operation(const string &name) const;
+	OperationDepsNode *find_operation(eDepsOperation_Code opcode, const string &name) const;
+	
 	/* Create a new node for representing an operation and add this to graph
 	 * ! If an existing node is found, it will be modified. This helps when node may 
 	 *   have been partially created earlier (e.g. parent ref before parent item is added)
@@ -66,6 +67,7 @@ struct ComponentDepsNode : public DepsNode {
 	 * < name: Identifier for operation - used to find/locate it again
 	 */
 	OperationDepsNode *add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name);
+	
 	void remove_operation(const string &name);
 	void clear_operations();
 	

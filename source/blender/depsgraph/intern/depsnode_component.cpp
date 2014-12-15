@@ -85,15 +85,16 @@ ComponentDepsNode::~ComponentDepsNode()
 	clear_operations();
 }
 
-OperationDepsNode *ComponentDepsNode::find_operation(const string &name) const
+OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode, const string &name) const
 {
+	// FIXME: how to perform this lookup?
 	OperationMap::const_iterator it = this->operations.find(name);
 	return it != this->operations.end() ? it->second : NULL;
 }
 
 OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name)
 {
-	OperationDepsNode *op_node = find_operation(name);
+	OperationDepsNode *op_node = find_operation(opcode, name);
 	if (!op_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_OPERATION);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
