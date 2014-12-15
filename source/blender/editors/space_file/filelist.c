@@ -81,6 +81,7 @@
 #include "WM_types.h"
 
 #include "UI_resources.h"
+#include "UI_interface_icons.h"
 
 #include "filelist.h"
 
@@ -89,10 +90,13 @@ struct FileList;
 typedef struct FileImage {
 	struct FileImage *next, *prev;
 	char path[FILE_MAX];
+	char relname[FILE_MAX];
 	unsigned int flags;
+	unsigned int type;
 	int index;
 	short done;
 	ImBuf *img;
+	ImBuf *icon;
 } FileImage;
 
 typedef struct FileListFilter {
@@ -807,96 +811,100 @@ ImBuf *filelist_getimage(struct FileList *filelist, const int index)
 	return file->image;
 }
 
-ImBuf *filelist_geticon_image(struct FileList *filelist, const int index)
+static ImBuf *filelist_geticon_image_ex(const unsigned int type, const unsigned int flags, const char *relname)
 {
 	ImBuf *ibuf = NULL;
-	struct direntry *file = filelist_geticon_get_file(filelist, index);
 
-	if (file->type & S_IFDIR) {
-		if (strcmp(file->relname, "..") == 0) {
+	if (type & S_IFDIR) {
+		if (strcmp(relname, "..") == 0) {
 			ibuf = gSpecialFileImages[SPECIAL_IMG_PARENT];
 		}
-		else if (strcmp(file->relname, ".") == 0) {
+		else if (strcmp(relname, ".") == 0) {
 			ibuf = gSpecialFileImages[SPECIAL_IMG_REFRESH];
 		}
 		else {
 			ibuf = gSpecialFileImages[SPECIAL_IMG_FOLDER];
 		}
 	}
-	else {
-		ibuf = gSpecialFileImages[SPECIAL_IMG_UNKNOWNFILE];
-	}
-
-	if (file->flags & BLENDERFILE) {
+	else if (flags & (BLENDERFILE)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BLENDFILE];
 	}
-	else if (file->flags & (MOVIEFILE | MOVIEFILE_ICON)) {
+	else if (flags & (BLENDERLIB)) {
+		ibuf = gSpecialFileImages[SPECIAL_IMG_UNKNOWNFILE];
+	}
+	else if (flags & (MOVIEFILE | MOVIEFILE_ICON)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
 	}
-	else if (file->flags & SOUNDFILE) {
+	else if (flags & SOUNDFILE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_SOUNDFILE];
 	}
-	else if (file->flags & PYSCRIPTFILE) {
+	else if (flags & PYSCRIPTFILE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_PYTHONFILE];
 	}
-	else if (file->flags & FTFONTFILE) {
+	else if (flags & FTFONTFILE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_FONTFILE];
 	}
-	else if (file->flags & TEXTFILE) {
+	else if (flags & TEXTFILE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_TEXTFILE];
 	}
-	else if (file->flags & IMAGEFILE) {
+	else if (flags & IMAGEFILE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_LOADING];
 	}
-	else if (file->flags & BLENDERFILE_BACKUP) {
+	else if (flags & BLENDERFILE_BACKUP) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BACKUP];
+	}
+	else {
+		ibuf = gSpecialFileImages[SPECIAL_IMG_UNKNOWNFILE];
 	}
 
 	return ibuf;
 }
 
-int filelist_geticon(struct FileList *filelist, const int index)
+ImBuf *filelist_geticon_image(struct FileList *filelist, const int index)
 {
 	struct direntry *file = filelist_geticon_get_file(filelist, index);
 
-	if (file->type & S_IFDIR) {
-		if (strcmp(file->relname, "..") == 0) {
+	return filelist_geticon_image_ex(file->type, file->flags, file->relname);
+}
+
+static int filelist_geticon_ex(const unsigned int type, const unsigned int flags, const char *path, const char *relname, const bool ignore_libdir)
+{
+	if (type & S_IFDIR && !(ignore_libdir && (flags & BLENDERLIB))) {
+		if (strcmp(relname, "..") == 0) {
 			return ICON_FILE_PARENT;
 		}
-		if (file->flags & APPLICATIONBUNDLE) {
+		if (flags & APPLICATIONBUNDLE) {
 			return ICON_UGLYPACKAGE;
 		}
-		if (file->flags & BLENDERFILE) {
+		if (flags & BLENDERFILE) {
 			return ICON_FILE_BLEND;
 		}
 		return ICON_FILE_FOLDER;
 	}
-	else if (file->flags & BLENDERFILE)
+	else if (flags & BLENDERFILE)
 		return ICON_FILE_BLEND;
-	else if (file->flags & BLENDERFILE_BACKUP)
+	else if (flags & BLENDERFILE_BACKUP)
 		return ICON_FILE_BACKUP;
-	else if (file->flags & IMAGEFILE)
+	else if (flags & IMAGEFILE)
 		return ICON_FILE_IMAGE;
-	else if (file->flags & MOVIEFILE)
+	else if (flags & MOVIEFILE)
 		return ICON_FILE_MOVIE;
-	else if (file->flags & PYSCRIPTFILE)
+	else if (flags & PYSCRIPTFILE)
 		return ICON_FILE_SCRIPT;
-	else if (file->flags & SOUNDFILE)
+	else if (flags & SOUNDFILE)
 		return ICON_FILE_SOUND;
-	else if (file->flags & FTFONTFILE)
+	else if (flags & FTFONTFILE)
 		return ICON_FILE_FONT;
-	else if (file->flags & BTXFILE)
+	else if (flags & BTXFILE)
 		return ICON_FILE_BLANK;
-	else if (file->flags & COLLADAFILE)
+	else if (flags & COLLADAFILE)
 		return ICON_FILE_BLANK;
-	else if (file->flags & TEXTFILE)
+	else if (flags & TEXTFILE)
 		return ICON_FILE_TEXT;
-	else {
-		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *group;
+	else if (flags & BLENDERLIB) {
+		char lib[FILE_MAXDIR], *group;
 
-		BLI_join_dirfile(path, sizeof(path), filelist->dir, file->relname);
-
-		if (BLO_library_path_explode(path, dir, &group, NULL) && group) {
+		if (BLO_library_path_explode(path, lib, &group, NULL) && group) {
 			int idcode = groupname_to_code(group);
 
 			/* TODO: this should most likely be completed and moved to UI_interface_icons.h ? unless it already exists somewhere... */
@@ -957,8 +965,15 @@ int filelist_geticon(struct FileList *filelist, const int index)
 					return ICON_WORLD_DATA;
 			}
 		}
-		return ICON_FILE_BLANK;
 	}
+	return ICON_FILE_BLANK;
+}
+
+int filelist_geticon(struct FileList *filelist, const int index)
+{
+	struct direntry *file = filelist_geticon_get_file(filelist, index);
+
+	return filelist_geticon_ex(file->type, file->flags, file->path, file->relname, false);
 }
 
 struct direntry *filelist_file(struct FileList *filelist, int index)
@@ -1948,6 +1963,7 @@ int filelist_readjob_running(wmWindowManager *wm, FileList *filelist)
 
 typedef struct ThumbnailJob {
 	ListBase loadimages;
+	ImBuf *static_icons_buffers[BIFICONID_LAST];
 	const short *stop;
 	const short *do_update;
 	struct FileList *filelist;
@@ -1962,6 +1978,9 @@ static void thumbnail_joblist_free(ThumbnailJob *tj)
 	for (; limg; limg = limg->next) {
 		if ((limg->img) && (!limg->done)) {
 			IMB_freeImBuf(limg->img);
+		}
+		if (limg->icon) {
+			IMB_freeImBuf(limg->icon);
 		}
 	}
 	BLI_freelistN(&tj->loadimages);
@@ -1981,6 +2000,16 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 		}
 		else if (limg->flags & (BLENDERFILE | BLENDERFILE_BACKUP)) {
 			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
+		}
+		else if (limg->flags & BLENDERLIB) {
+			if (!limg->img) {
+				limg->img = IMB_dupImBuf(filelist_geticon_image_ex(limg->type, limg->flags, limg->relname));
+			}
+			if (limg->img && limg->icon) {
+				IMB_rectblend(limg->img, limg->img, limg->icon, NULL, NULL, NULL, 0.0f,
+				              limg->img->x - limg->icon->x, limg->img->y - limg->icon->y, 0, 0, 0, 0,
+				              limg->icon->x, limg->icon->y, IMB_BLEND_MIX, true);
+			}
 		}
 		else if (limg->flags & MOVIEFILE) {
 			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
@@ -2030,17 +2059,48 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 	wmJob *wm_job;
 	ThumbnailJob *tj;
 	int idx;
-	
+
 	/* prepare job data */
 	tj = MEM_callocN(sizeof(ThumbnailJob), "thumbnails\n");
 	tj->filelist = filelist;
 	for (idx = 0; idx < filelist->numfiles; idx++) {
-		if (!filelist->filelist[idx].image) {
-			if ((filelist->filelist[idx].flags & (IMAGEFILE | MOVIEFILE | BLENDERFILE | BLENDERFILE_BACKUP))) {
+		if (!filelist->filelist[idx].path) {
+			continue;
+		}
+		/* for blenlib items we overlay the ID type's icon... */
+		if (!filelist->filelist[idx].image || (filelist->filelist[idx].flags & BLENDERLIB)) {
+			if ((filelist->filelist[idx].flags & (IMAGEFILE | MOVIEFILE | BLENDERFILE | BLENDERFILE_BACKUP | BLENDERLIB))) {
 				FileImage *limg = MEM_callocN(sizeof(FileImage), "loadimage");
-				BLI_strncpy(limg->path, filelist->filelist[idx].path, FILE_MAX);
+				BLI_strncpy(limg->path, filelist->filelist[idx].path, sizeof(limg->path));
+				BLI_strncpy(limg->relname, filelist->filelist[idx].relname, sizeof(limg->relname));
+				if (filelist->filelist[idx].image) {
+					limg->img = IMB_dupImBuf(filelist->filelist[idx].image);
+				}
 				limg->index = idx;
 				limg->flags = filelist->filelist[idx].flags;
+				limg->type = filelist->filelist[idx].type;
+				if (filelist->filelist[idx].flags & BLENDERLIB) {
+					/* XXX We have to do this here, this is not threadsafe. */
+					int icon_id = filelist_geticon_ex(limg->type, limg->flags, limg->path, limg->relname, true);
+
+					/* We cache static icons! */
+					if (icon_id < BIFICONID_LAST) {
+						if (!tj->static_icons_buffers[icon_id]) {
+							tj->static_icons_buffers[icon_id] = UI_icon_to_imbuf(icon_id);
+						}
+						else {
+							/* increment refcount! */
+							IMB_refImBuf(tj->static_icons_buffers[icon_id]);
+						}
+						limg->icon = tj->static_icons_buffers[icon_id];
+					}
+					else {
+						limg->icon = UI_icon_to_imbuf(icon_id);
+					}
+				}
+				else {
+					limg->icon = NULL;
+				}
 				BLI_addtail(&tj->loadimages, limg);
 			}
 		}
