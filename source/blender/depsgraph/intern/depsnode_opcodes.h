@@ -33,11 +33,10 @@
  * This file is meant to be used like UI_icons.h. That is, before including
  * the file, the host file must define the DEG_OPCODE(_label) macro, which
  * is responsible for converting the define into whatever form is suitable.
+ * Therefore, it intentionally doesn't have header guards.
  */
 
-#ifndef __DEPSNODE_OPCODES_H__
-#define __DEPSNODE_OPCODES_H__
-
+ 
 /* Example macro define: */
 /* #define DEF_DEG_OPCODE(label) DEG_OPCODE_##label, */
 
@@ -134,5 +133,3 @@ DEF_DEG_OPCODE(BONE_DONE)
 
 /* XXX: placeholder - Particle System eval */
 DEF_DEG_OPCODE(PSYS_EVAL)
-
-#endif /* __DEPSNODE_OPCODES_H__ */
