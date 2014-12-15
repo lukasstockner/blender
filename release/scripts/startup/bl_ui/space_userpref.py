@@ -1217,7 +1217,7 @@ class USERPREF_PT_addons(Panel):
 
         split = layout.split(percentage=0.2)
         col = split.column()
-        col.prop(context.window_manager, "addon_search", text="", icon='VIEWZOOM')
+        col.prop(context.window_manager, "addon_search", text="")
 
         col.label(text="Supported Level")
         col.prop(context.window_manager, "addon_support", expand=True)

@@ -112,7 +112,7 @@ typedef enum PropertySubType {
 	PROP_DIRPATH           = 2,
 	PROP_FILENAME          = 3,
 	PROP_BYTESTRING        = 4, /* a string which should be represented as bytes in python, NULL terminated though. */
-	/* 5 was used by "PROP_TRANSLATE" sub-type, which is now a flag. */
+	PROP_SEARCH            = 5, /* a search string, which updates on each keystroke instead of waiting for final enter. */
 	PROP_PASSWORD          = 6, /* a string which should not be displayed in UI */
 
 	/* numbers */

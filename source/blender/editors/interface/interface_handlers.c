@@ -2888,9 +2888,10 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 			retval = WM_UI_HANDLER_BREAK;
 			
 		}
-		/* textbutton with magnifier icon: do live update for search button */
-		if (but->icon == ICON_VIEWZOOM)
+		/* textbutton with this flag: do live update (e.g. for search buttons) */
+		if (but->flag & UI_BUT_TEXTEDIT_UPDATE) {
 			update = true;
+		}
 	}
 
 #ifdef WITH_INPUT_IME

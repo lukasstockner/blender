@@ -91,6 +91,7 @@ static EnumPropertyItem property_subtype_string_items[] = {
 	{PROP_DIRPATH, "DIR_PATH", 0, "Directory Path", ""},
 	{PROP_FILENAME, "FILE_NAME", 0, "Filename", ""},
 	{PROP_BYTESTRING, "BYTE_STRING", 0, "Byte String", ""},
+	{PROP_SEARCH, "SEARCH", 0, "Search", "A search string (updates on each keystroke)"},
 	{PROP_PASSWORD, "PASSWORD", 0, "Password", "A string that is displayed hidden ('********')"},
 
 	{PROP_NONE, "NONE", 0, "None", ""},

@@ -38,7 +38,7 @@ class OUTLINER_HT_header(Header):
 
         layout.prop(space, "display_mode", text="")
 
-        layout.prop(space, "filter_text", icon='VIEWZOOM', text="")
+        layout.prop(space, "filter_text", text="")
 
         layout.separator()
 
