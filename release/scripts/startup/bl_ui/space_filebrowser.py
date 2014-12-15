@@ -81,8 +81,10 @@ class FILEBROWSER_HT_header(Header):
                 row.prop(params, "use_filter_text", text="")
 
             if is_lib_browser:
-                row.separator()
-                row.prop(params, "filter_id", text="")
+                row.prop(params, "use_filter_blendid", text="")
+                if (params.use_filter_blendid) :
+                    row.separator()
+                    row.prop(params, "filter_id", text="")
 
             row.separator()
             row.prop(params, "filter_search", text="")

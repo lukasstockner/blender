@@ -3216,11 +3216,11 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 		{FILTER_ID_MB, "FILTER_ID_MB", ICON_META_DATA, "Metaballs", "Show/hide Mateball datablocks"},
 		{FILTER_ID_MC, "FILTER_ID_MC", ICON_CLIP, "Movie Clips", "Show/hide Movie Clip datablocks"},
 		{FILTER_ID_ME, "FILTER_ID_ME", ICON_MESH_DATA, "Meshes", "Show/hide Mesh datablocks"},
-		{FILTER_ID_MSK, "FILTER_ID_MSK", ICON_FILE_BLANK, "Masks", "Show/hide Mask datablocks"},  /* TODO */
+		{FILTER_ID_MSK, "FILTER_ID_MSK", ICON_MOD_MASK, "Masks", "Show/hide Mask datablocks"},
 		{FILTER_ID_NT, "FILTER_ID_NT", ICON_NODETREE, "Node Trees", "Show/hide Node Tree datablocks"},
 		{FILTER_ID_OB, "FILTER_ID_OB", ICON_OBJECT_DATA, "Objects", "Show/hide Object datablocks"},
-		{FILTER_ID_PAL, "FILTER_ID_PAL", ICON_FILE_BLANK, "Palettes", "Show/hide Palette datablocks"},  /* TODO */
-		{FILTER_ID_PC, "FILTER_ID_PC", ICON_FILE_BLANK, "Paint Curves", "Show/hide Paint Curve datablocks"},  /* TODO */
+		{FILTER_ID_PAL, "FILTER_ID_PAL", ICON_COLOR, "Palettes", "Show/hide Palette datablocks"},
+		{FILTER_ID_PC, "FILTER_ID_PC", ICON_CURVE_BEZCURVE, "Paint Curves", "Show/hide Paint Curve datablocks"},
 		{FILTER_ID_SCE, "FILTER_ID_SCE", ICON_SCENE_DATA, "Scenes", "Show/hide Scene datablocks"},
 		{FILTER_ID_SPK, "FILTER_ID_SPK", ICON_SPEAKER, "Speakers", "Show/hide Speaker datablocks"},
 		{FILTER_ID_SO, "FILTER_ID_SO", ICON_SOUND, "Sounds", "Show/hide Sound datablocks"},
@@ -3328,6 +3328,12 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "filter", FOLDERFILE);
 	RNA_def_property_ui_text(prop, "Filter Folder", "Show folders");
 	RNA_def_property_ui_icon(prop, ICON_FILE_FOLDER, 0);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_property(srna, "use_filter_blendid", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "filter", BLENDERLIB);
+	RNA_def_property_ui_text(prop, "Filter Blender IDs", "Show .blend files items (objects, materials, etc.)");
+	RNA_def_property_ui_icon(prop, ICON_BLENDER, 0);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 
 	prop = RNA_def_property(srna, "filter_id", PROP_ENUM, PROP_NONE);

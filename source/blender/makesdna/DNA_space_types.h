@@ -597,10 +597,11 @@ typedef struct FileSelectParams {
 	short flag; /* settings for filter, hiding dots files,...  */
 	short sort; /* sort order */
 	short display; /* display mode flag */
-	short filter; /* filter when (flags & FILE_FILTER) is true */
+	int filter; /* filter when (flags & FILE_FILTER) is true */
 
 	/* XXX --- still unused -- */
 	short f_fp; /* show font preview */
+	short pad_s1;
 	char fp_str[8]; /* string to use for font preview */
 
 	/* XXX --- end unused -- */

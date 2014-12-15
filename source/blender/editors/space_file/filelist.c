@@ -932,15 +932,15 @@ int filelist_geticon(struct FileList *filelist, const int index)
 				case ID_ME:
 					return ICON_MESH_DATA;
 				case ID_MSK:
-					return ICON_FILE_BLANK;  /* TODO! */
+					return ICON_MOD_MASK;  /* TODO! this would need its own icon! */
 				case ID_NT:
 					return ICON_NODETREE;
 				case ID_OB:
 					return ICON_OBJECT_DATA;
 				case ID_PAL:
-					return ICON_FILE_BLANK;  /* TODO! */
+					return ICON_COLOR;  /* TODO! this would need its own icon! */
 				case ID_PC:
-					return ICON_FILE_BLANK;  /* TODO! */
+					return ICON_CURVE_BEZCURVE;  /* TODO! this would need its own icon! */
 				case ID_SCE:
 					return ICON_SCENE_DATA;
 				case ID_SPK:

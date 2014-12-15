@@ -1249,6 +1249,8 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 	prop = RNA_def_boolean(ot->srna, "filter_folder", (filter & FOLDERFILE) != 0, "Filter folders", "");
 	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+	prop = RNA_def_boolean(ot->srna, "filter_blenlib", (filter & BLENDERLIB) != 0, "Filter Blender IDs", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
 	prop = RNA_def_int(ot->srna, "filemode", type, FILE_LOADLIB, FILE_SPECIAL,
 	                   "File Browser Mode", "The setting for the file browser mode to load a .blend file, a library or a special file",
@@ -2812,7 +2814,7 @@ static void WM_OT_link(wmOperatorType *ot)
 	ot->flag |= OPTYPE_UNDO;
 
 	WM_operator_properties_filesel(
-	        ot, FOLDERFILE | BLENDERFILE, FILE_LOADLIB, FILE_OPENFILE,
+	        ot, FOLDERFILE | BLENDERFILE | BLENDERLIB, FILE_LOADLIB, FILE_OPENFILE,
 	        WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_RELPATH | WM_FILESEL_FILES,
 	        FILE_DEFAULTDISPLAY);
 	
@@ -2832,7 +2834,7 @@ static void WM_OT_append(wmOperatorType *ot)
 	ot->flag |= OPTYPE_UNDO;
 
 	WM_operator_properties_filesel(
-		ot, FOLDERFILE | BLENDERFILE, FILE_LOADLIB, FILE_OPENFILE,
+		ot, FOLDERFILE | BLENDERFILE | BLENDERLIB, FILE_LOADLIB, FILE_OPENFILE,
 		WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES,
 		FILE_DEFAULTDISPLAY);
 
