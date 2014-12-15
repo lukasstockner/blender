@@ -1763,6 +1763,8 @@ static void filelist_readjob_dir(
 
 	BLI_mutex_lock(lock);
 
+	BLI_add_slash(filelist->dir);
+
 	BLI_strncpy(dir, filelist->dir, sizeof(dir));
 	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));
 
@@ -1786,6 +1788,8 @@ static void filelist_readjob_lib(
 	BLI_assert(filelist->filelist == NULL);
 
 	BLI_mutex_lock(lock);
+
+	BLI_add_slash(filelist->dir);
 
 	BLI_strncpy(dir, filelist->dir, sizeof(dir));
 	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));
