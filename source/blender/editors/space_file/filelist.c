@@ -1495,7 +1495,6 @@ static void filelist_readjob_list_lib(const char *root, struct direntry **files,
 					ima = IMB_allocImBuf(w, h, 32, IB_rect);
 					memcpy(ima->rect, rect, w * h * sizeof(unsigned int));
 					file->image = ima;
-					file->flags = IMAGEFILE;
 				}
 			}
 		}
