@@ -342,8 +342,10 @@ TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(const TimeSourceKey &key
 ComponentDepsNode *DepsgraphRelationBuilder::find_node(const ComponentKey &key) const
 {
 	IDDepsNode *id_node = m_graph->find_id_node(key.id);
-	if (!id_node)
+	if (!id_node) {
+		fprintf(stderr, "find_node component: Could not find ID\n");
 		return NULL;
+	}
 	
 	ComponentDepsNode *node = id_node->find_component(key.type, key.name);
 	return node;
@@ -352,14 +354,21 @@ ComponentDepsNode *DepsgraphRelationBuilder::find_node(const ComponentKey &key) 
 OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) const
 {
 	IDDepsNode *id_node = m_graph->find_id_node(key.id);
-	if (!id_node)
+	if (!id_node) {
+		fprintf(stderr, "find_node operation: Could not find ID\n");
 		return NULL;
+	}
 	
 	ComponentDepsNode *comp_node = id_node->find_component(key.component_type, key.component_name);
-	if (!comp_node)
+	if (!comp_node) {
+		fprintf(stderr, "find_node operation: Could not find component\n");
 		return NULL;
+	}
 	
 	OperationDepsNode *op_node = comp_node->find_operation(key.opcode, key.name);
+	if (!op_node) {
+		fprintf(stderr, "find_node_operation: Failed for (%d, '%s')\n", key.opcode, key.name.c_str());
+	}
 	return op_node;
 }
 
