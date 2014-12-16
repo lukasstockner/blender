@@ -193,8 +193,6 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 
-	//~ printf("%s : %s\n", __func__, params->filter_search);
-
 	if (!sfile->folders_prev)
 		sfile->folders_prev = folderlist_new();
 	if (!sfile->files) {

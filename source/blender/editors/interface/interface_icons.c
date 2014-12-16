@@ -904,8 +904,8 @@ void UI_icons_init(int first_dyn_id)
 static int preview_render_size(enum eIconSizes size)
 {
 	switch (size) {
-		case ICON_SIZE_ICON:    return ICON_DEFAULT_HEIGHT;
-		case ICON_SIZE_PREVIEW: return PREVIEW_DEFAULT_HEIGHT;
+		case ICON_SIZE_ICON:    return ICON_RENDER_DEFAULT_HEIGHT;
+		case ICON_SIZE_PREVIEW: return PREVIEW_RENDER_DEFAULT_HEIGHT;
 	}
 	return 0;
 }

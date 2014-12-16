@@ -297,10 +297,10 @@ ImBuf *IMB_thumb_create(const char *path, ThumbSize size, ThumbSource source, Im
 
 	switch (size) {
 		case THB_NORMAL:
-			tsize = PREVIEW_DEFAULT_HEIGHT;
+			tsize = PREVIEW_RENDER_DEFAULT_HEIGHT;
 			break;
 		case THB_LARGE:
-			tsize = PREVIEW_DEFAULT_HEIGHT * 2;
+			tsize = PREVIEW_RENDER_DEFAULT_HEIGHT * 2;
 			break;
 		case THB_FAIL:
 			tsize = 1;
