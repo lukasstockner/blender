@@ -869,7 +869,7 @@ ImBuf *filelist_geticon_image(struct FileList *filelist, const int index)
 
 static int filelist_geticon_ex(const unsigned int type, const unsigned int flags, const char *path, const char *relname, const bool ignore_libdir)
 {
-	if (type & S_IFDIR && !(ignore_libdir && (flags & BLENDERLIB))) {
+	if (type & S_IFDIR && !(ignore_libdir && (flags & (BLENDERLIB | BLENDERFILE)))) {
 		if (strcmp(relname, "..") == 0) {
 			return ICON_FILE_PARENT;
 		}
@@ -2008,7 +2008,7 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 			if (limg->img && limg->icon) {
 				IMB_rectblend(limg->img, limg->img, limg->icon, NULL, NULL, NULL, 0.0f,
 				              limg->img->x - limg->icon->x, limg->img->y - limg->icon->y, 0, 0, 0, 0,
-				              limg->icon->x, limg->icon->y, IMB_BLEND_MIX, true);
+				              limg->icon->x, limg->icon->y, IMB_BLEND_MIX, false);
 			}
 		}
 		else if (limg->flags & MOVIEFILE) {

@@ -973,6 +973,7 @@ PreviewImage *UI_icon_to_preview(int icon_id)
 	return NULL;
 }
 
+/* Shall always return straight alpha! */
 ImBuf *UI_icon_to_imbuf(int icon_id)
 {
 	Icon *icon = BKE_icon_get(icon_id);
@@ -994,6 +995,7 @@ ImBuf *UI_icon_to_imbuf(int icon_id)
 		/* TODO */
 	}
 	else if (di->type == ICON_TYPE_TEXTURE) {
+		/* We have to go searching in OpenGL texture... */
 		ImBuf *icons = IMB_allocImBuf(icongltex.w, icongltex.h, 32, IB_rect);
 
 		glEnable(GL_TEXTURE_2D);
@@ -1006,6 +1008,7 @@ ImBuf *UI_icon_to_imbuf(int icon_id)
 
 		imbuf = IMB_allocImBuf(di->data.texture.w, di->data.texture.h, 32, IB_rect);
 		IMB_rectcpy(imbuf, icons, 0, 0, di->data.texture.x, di->data.texture.y, di->data.texture.w, di->data.texture.h);
+		IMB_unpremultiply_alpha(imbuf);  /* those were premultiplied in init_internal_icons() */
 
 		IMB_freeImBuf(icons);
 	}
@@ -1019,6 +1022,7 @@ ImBuf *UI_icon_to_imbuf(int icon_id)
 		if (iimg->rect) {
 			imbuf = IMB_allocImBuf(iimg->w, iimg->h, 32, IB_rect);
 			memcpy(imbuf->rect, iimg->rect, sizeof(unsigned int) * imbuf->x * imbuf->y);
+			IMB_unpremultiply_alpha(imbuf);  /* those were premultiplied in init_internal_icons() */
 		}
 	}
 	else if (di->type == ICON_TYPE_PREVIEW) {
