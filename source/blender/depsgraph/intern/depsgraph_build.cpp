@@ -472,7 +472,9 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	node_builder.add_root_node();
 	node_builder.build_scene(scene);
 	
+	// XXX: this exists, but may break some other cases later...
 	node_builder.verify_entry_exit_operations();
+	
 	
 	DepsgraphRelationBuilder relation_builder(graph);
 	/* hook scene up to the root node as entrypoint to graph */
@@ -481,6 +483,9 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 */
 	//relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 	relation_builder.build_scene(scene);
+	
+	/* only now add entry/exit nodes, now that we know what relations each node will have */
+	//node_builder.verify_entry_exit_operations();
 	
 #if 0
 	/* sort nodes to determine evaluation order (in most cases) */
