@@ -380,7 +380,15 @@ DepsNode *DepsgraphRelationBuilder::find_node(const RNAPathKey &key) const
 void DepsgraphRelationBuilder::add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
                                                       eDepsRelation_Type type, const string &description)
 {
-	m_graph->add_new_relation(node_from, node_to, type, description);
+	if (node_from && node_to) {
+		m_graph->add_new_relation(node_from, node_to, type, description);
+	}
+	else {
+		fprintf(stderr, "add_operation_relation(%p = %s, %p = %s, %d, %s) Failed\n",
+		        node_from, (node_from) ? node_from->identifier().c_str() : "<None>",
+		        node_to,   (node_to)   ? node_to->identifier().c_str() : "<None>",
+		        type, description.c_str());
+	}
 }
 
 /* -------------------------------------------------- */
