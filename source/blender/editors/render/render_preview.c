@@ -46,6 +46,7 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "PIL_time.h"
 
 #include "BLO_readfile.h"
 
@@ -927,7 +928,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 	ShaderPreview *sp = customdata;
 	ID *id = sp->id;
 	short idtype = GS(id->name);
-	
+
 	if (idtype == ID_IM) {
 		Image *ima = (Image *)id;
 		ImBuf *ibuf = NULL;
@@ -1098,11 +1099,31 @@ static void icon_preview_free(void *customdata)
 	MEM_freeN(ip);
 }
 
+void ED_preview_icon_render(const bContext *C, void *UNUSED(owner), ID *id, unsigned int *rect, int sizex, int sizey)
+{
+	IconPreview ip = {0};
+	short stop = false, update = false;
+	float progress = 0.0f;
+
+	/* customdata for preview thread */
+	ip.scene = CTX_data_scene(C);
+	ip.owner = id;
+	ip.id = id;
+
+	icon_preview_add_size(&ip, rect, sizex, sizey);
+
+	icon_preview_startjob_all_sizes(&ip, &stop, &update, &progress);
+
+	icon_preview_endjob(&ip);
+
+	BLI_freelistN(&ip.sizes);
+}
+
 void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *rect, int sizex, int sizey)
 {
 	wmJob *wm_job;
 	IconPreview *ip, *old_ip;
-	
+
 	/* suspended start means it starts after 1 timer step, see WM_jobs_timer below */
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview",
 	                     WM_JOB_EXCL_RENDER | WM_JOB_SUSPEND, WM_JOB_TYPE_RENDER_PREVIEW);

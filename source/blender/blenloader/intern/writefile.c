@@ -596,9 +596,6 @@ static void write_previews(WriteData *wd, PreviewImage *prv)
 		short h = prv->h[1];
 		unsigned int *rect = prv->rect[1];
 
-		printf("\t\tsmall: %p (%d x %d)\n", prv->rect[0], prv->w[0], prv->h[0]);
-		printf("\t\t  big: %p (%d x %d)\n", prv->rect[1], prv->w[1], prv->h[1]);
-
 		/* don't write out large previews if not requested */
 		if (!(U.flag & USER_SAVE_PREVIEWS)) {
 			prv->w[1] = 0;
@@ -1685,7 +1682,6 @@ static void write_objects(WriteData *wd, ListBase *idbase)
 			writelist(wd, DATA, "LodLevel", &ob->lodlevels);
 		}
 
-		printf("write_previews: %s\n", ob->id.name);
 		write_previews(wd, ob->preview);
 
 		ob= ob->id.next;
@@ -2108,7 +2104,6 @@ static void write_images(WriteData *wd, ListBase *idbase)
 				writedata(wd, DATA, pf->size, pf->data);
 			}
 
-			printf("write_previews: %s\n", ima->id.name);
 			write_previews(wd, ima->preview);
 		}
 		ima= ima->id.next;
@@ -2147,7 +2142,6 @@ static void write_textures(WriteData *wd, ListBase *idbase)
 				write_nodetree(wd, tex->nodetree);
 			}
 			
-			printf("write_previews: %s\n", tex->id.name);
 			write_previews(wd, tex->preview);
 		}
 		tex= tex->id.next;
@@ -2189,7 +2183,6 @@ static void write_materials(WriteData *wd, ListBase *idbase)
 				write_nodetree(wd, ma->nodetree);
 			}
 
-			printf("write_previews: %s\n", ma->id.name);
 			write_previews(wd, ma->preview);
 		}
 		ma= ma->id.next;
@@ -2220,7 +2213,6 @@ static void write_worlds(WriteData *wd, ListBase *idbase)
 				write_nodetree(wd, wrld->nodetree);
 			}
 			
-			printf("write_previews: %s\n", wrld->id.name);
 			write_previews(wd, wrld->preview);
 		}
 		wrld= wrld->id.next;
@@ -2255,7 +2247,6 @@ static void write_lamps(WriteData *wd, ListBase *idbase)
 				write_nodetree(wd, la->nodetree);
 			}
 
-			printf("write_previews: %s\n", la->id.name);
 			write_previews(wd, la->preview);
 			
 		}
@@ -2947,7 +2938,6 @@ static void write_groups(WriteData *wd, ListBase *idbase)
 			writestruct(wd, ID_GR, "Group", 1, group);
 			if (group->id.properties) IDP_WriteProperty(group->id.properties, wd);
 
-			printf("write_previews: %s\n", group->id.name);
 			write_previews(wd, group->preview);
 
 			go= group->gobject.first;
@@ -3056,7 +3046,6 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 			if (brush->curve)
 				writestruct(wd, DATA, "ColorBand", 1, brush->gradient);
 
-			printf("write_previews: %s\n", brush->id.name);
 			write_previews(wd, brush->preview);
 		}
 	}

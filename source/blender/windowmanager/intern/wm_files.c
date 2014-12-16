@@ -62,6 +62,7 @@
 
 #include "BLF_translation.h"
 
+#include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -101,6 +102,7 @@
 #include "GHOST_Path-api.h"
 
 #include "UI_interface.h"
+#include "UI_interface_icons.h"
 #include "UI_view2d.h"
 
 #include "GPU_draw.h"
@@ -894,6 +896,37 @@ bool write_crash_blend(void)
 	}
 }
 
+static void wm_ensure_previews(bContext *C, Main *mainvar)
+{
+	ID *id;
+
+	for (id = mainvar->mat.first; id; id = id->next) {
+		UI_id_icon_render(C, id, false, false);
+		UI_id_icon_render(C, id, true, true);
+	}
+
+	for (id = mainvar->tex.first; id; id = id->next) {
+		UI_id_icon_render(C, id, false, false);
+		UI_id_icon_render(C, id, true, true);
+	}
+
+	for (id = mainvar->image.first; id; id = id->next) {
+		UI_id_icon_render(C, id, false, false);
+		UI_id_icon_render(C, id, true, true);
+	}
+
+	for (id = mainvar->world.first; id; id = id->next) {
+		UI_id_icon_render(C, id, false, false);
+		UI_id_icon_render(C, id, true, true);
+	}
+
+	for (id = mainvar->lamp.first; id; id = id->next) {
+		UI_id_icon_render(C, id, false, false);
+		UI_id_icon_render(C, id, true, true);
+	}
+}
+
+
 /**
  * \see #wm_homefile_write_exec wraps #BLO_write_file in a similar way.
  */
@@ -938,6 +971,8 @@ int wm_file_write(bContext *C, const char *filepath, int fileflags, ReportList *
 	/* save before exit_editmode, otherwise derivedmeshes for shared data corrupt #27765) */
 	if ((U.flag & USER_SAVE_PREVIEWS) && BLI_thread_is_main()) {
 		ibuf_thumb = blend_file_thumb(CTX_data_scene(C), CTX_wm_screen(C), &thumb);
+
+		wm_ensure_previews(C, G.main);
 	}
 
 	BLI_callback_exec(G.main, NULL, BLI_CB_EVT_SAVE_PRE);
