@@ -273,11 +273,15 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 		build_constraints(scene, &ob->id, DEPSNODE_TYPE_TRANSFORM, "", &ob->constraints);
 		
 		OperationKey constraint_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_CONSTRAINTS);
-		add_relation(local_transform_key, constraint_key, DEPSREL_TYPE_OPERATION, "Constraint Stack");
-		add_relation(constraint_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Constraint Stack");
+		add_operation_relation(find_node(local_transform_key), find_node(constraint_key), DEPSREL_TYPE_OPERATION, "Constraint Stack");
+		add_operation_relation(find_node(constraint_key), find_node(ob_ubereval_key), DEPSREL_TYPE_OPERATION, "Constraint Stack");
+		//add_relation(local_transform_key, constraint_key, DEPSREL_TYPE_OPERATION, "Constraint Stack");
+		//add_relation(constraint_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Constraint Stack");
 	}
 	else {
-		add_relation(local_transform_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Transform");
+		printf("connecting local to uber\n");
+		//add_relation(local_transform_key, ob_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Transform");
+		add_operation_relation(find_node(local_transform_key), find_node(ob_ubereval_key), DEPSREL_TYPE_OPERATION, "Object Transform");
 	}
 	
 	
@@ -565,7 +569,10 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		
 		if (pchan) {
 			ComponentKey bone_key(id, DEPSNODE_TYPE_BONE, pchan->name);
-			add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> SubData]");
+			//add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> SubData]");
+			add_operation_relation(find_node(driver_key),
+			                       find_node(OperationKey(id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL)),
+			                       DEPSREL_TYPE_DRIVER, "[Driver -> SubData]");
 		}
 		else {
 			printf("Couldn't find bone name for driver path - '%s'\n", fcu->rna_path);
@@ -577,7 +584,8 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 			ComponentKey params_key(id, DEPSNODE_TYPE_PARAMETERS);
 			OperationKey local_transform_key(id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_LOCAL);
 			
-			add_relation(params_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Parameters");
+			//add_relation(params_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Parameters");
+			add_operation_relation(find_node(driver_key), find_node(local_transform_key), DEPSREL_TYPE_OPERATION, "Parameters");
 		}
 	}
 	
@@ -601,15 +609,23 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 				if (pchan != NULL) {
 					/* get node associated with bone */
 					ComponentKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name);
-					add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
-					             "[Bone Target -> Driver]");
+					//add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
+					//             "[Bone Target -> Driver]");
+					add_operation_relation(find_node(OperationKey(dtar->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE)),
+										   find_node(driver_key),
+										   DEPSREL_TYPE_DRIVER_TARGET,
+										   "[Bone Target -> Driver]");
 				}
 			}
 			else if (dtar->flag & DTAR_FLAG_STRUCT_REF) {
 				/* get node associated with the object's transforms */
 				ComponentKey target_key(dtar->id, DEPSNODE_TYPE_TRANSFORM);
-				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
-				             "[Ob Target -> Driver]");
+				//add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET,
+				//             "[Ob Target -> Driver]");
+				add_operation_relation(find_node(OperationKey(dtar->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL)),
+										   find_node(driver_key),
+										   DEPSREL_TYPE_DRIVER_TARGET,
+										   "[Bone Target -> Driver]");
 			}
 			else {
 				/* resolve path to get node */
@@ -965,7 +981,8 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	OperationKey init_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_INIT);
 	OperationKey flush_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_DONE);
 	
-	add_relation(init_key, flush_key, DEPSREL_TYPE_OPERATION, "[Pose Init -> Pose Cleanup] DepsRel");
+	//add_relation(init_key, flush_key, DEPSREL_TYPE_OPERATION, "[Pose Init -> Pose Cleanup]");
+	add_operation_relation(find_node(init_key), find_node(flush_key), DEPSREL_TYPE_OPERATION, "[Pose Init -> Pose Cleanup]");
 
 	if (ob->adt != NULL) {
 		ComponentKey animation_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
@@ -975,16 +992,25 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	/* bones */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+		OperationKey bone_local_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
 		pchan->flag &= ~POSE_DONE;
 		
 		/* bone parent */
 		if (pchan->parent == NULL) {
 			/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
-			add_relation(init_key, bone_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
+			//add_relation(init_key, bone_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
+			add_operation_relation(find_node(init_key), 
+						 find_node(bone_local_key),
+						 DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 		}
 		else {
 			/* link bone/component to parent bone (see next loop) */
 		}
+		
+		/* local to pose parenting operation */
+		add_operation_relation(find_node(bone_local_key),
+							   find_node(OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT)),
+							   DEPSREL_TYPE_OPERATION, "Bone Local - PoseSpace Link");
 		
 		/* constraints */
 		if (pchan->constraints.first != NULL) {
@@ -992,11 +1018,15 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			
 			OperationKey transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT);
 			OperationKey constraints_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_CONSTRAINTS);
-			add_relation(transforms_key, constraints_key, DEPSREL_TYPE_OPERATION, "Constraints Stack");
+			//add_relation(transforms_key, constraints_key, DEPSREL_TYPE_OPERATION, "Constraints Stack");
+			add_operation_relation(find_node(transforms_key), find_node(constraints_key), DEPSREL_TYPE_OPERATION, "Constraints Stack");
 		}
 
 		/* TODO(sergey): Assume for now that pose flush depends on all the pose channels. */
-		add_relation(bone_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
+		//add_relation(bone_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
+		add_operation_relation(find_node(OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE)),
+							   find_node(flush_key),
+							   DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 	}
 	
 	/* IK Solvers...
@@ -1033,7 +1063,8 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		/* bone parent */
 		// FIXME: this code is broken
 		if (pchan->parent != NULL) {
-			ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+			//ComponentKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name);
+			OperationKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT);
 			bool has_common_root = false;
 			if (pchan->flag & POSE_DONE) {
 				has_common_root = pchan_check_common_solver_root(root_map,
@@ -1042,20 +1073,24 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			}
 			if (has_common_root) {
 				fprintf(stderr, "common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
-				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent);
-				add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent); // XXX: does this settle for pre-IK?
+				//add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+				add_operation_relation(find_node(parent_transforms_key), find_node(bone_key), DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
 			else {
 				fprintf(stderr, "not common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
-				ComponentKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name);
-				add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+				//ComponentKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name);
+				//add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+				OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name, DEG_OPCODE_BONE_DONE);
+				add_operation_relation(find_node(parent_key), find_node(bone_key), DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
 		}
 
 		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
 		if ((pchan->flag & POSE_DONE) == 0) {
 			OperationKey transforms_key = bone_transforms_key(ob, pchan);
-			add_relation(transforms_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Bone Final Transforms");
+			//add_relation(transforms_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Bone Final Transforms");
+			add_operation_relation(find_node(transforms_key), find_node(final_transforms_key), DEPSREL_TYPE_TRANSFORM, "Bone Final Transforms");
 		}
 	}
 }
