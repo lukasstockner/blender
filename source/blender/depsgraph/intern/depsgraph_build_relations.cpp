@@ -408,7 +408,8 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const string &component_subdata,
                                                  ListBase *constraints)
 {
-	OperationKey constraint_op_key(id, component_type, component_subdata, DEG_OPCODE_TRANSFORM_CONSTRAINTS);
+	OperationKey constraint_op_key(id, component_type, component_subdata,
+	                               (component_type == DEPSNODE_TYPE_BONE) ? DEG_OPCODE_BONE_CONSTRAINTS : DEG_OPCODE_TRANSFORM_CONSTRAINTS);
 
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
@@ -467,8 +468,10 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				}
 				else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 					/* bone */
-					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget);
-					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					//ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget);
+					//add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_DONE);
+					add_operation_relation(find_node(target_key), find_node(constraint_op_key), DEPSREL_TYPE_TRANSFORM, cti->name);
 				}
 				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
 					/* vertex group */
@@ -491,8 +494,10 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 					// TODO: loc vs rot vs scale?
 					/* TODO(sergey): What to do if target is self? */
 					if (&ct->tar->id != id) {
-						ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
-						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+						//ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
+						//add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
+						add_operation_relation(find_node(target_key), find_node(constraint_op_key), DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 				}
 			}
