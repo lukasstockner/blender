@@ -68,7 +68,7 @@ public:
 	DepsNode();
 	virtual ~DepsNode();
 	
-	virtual string identifier();
+	virtual string identifier() const;
 	
 	virtual void init(const ID *id, const string &subdata) {}
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}

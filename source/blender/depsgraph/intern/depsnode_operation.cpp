@@ -62,7 +62,7 @@ OperationDepsNode::~OperationDepsNode()
 	DEPSNODE_RELATIONS_ITER_END;
 }
 
-string OperationDepsNode::identifier()
+string OperationDepsNode::identifier() const
 {
 	/* identifiers for operations */
 	const char *DEG_OPNAMES[] = {
