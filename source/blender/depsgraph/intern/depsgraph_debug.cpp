@@ -362,7 +362,7 @@ static void deg_debug_graphviz_node_style(const DebugContext &ctx, const DepsNod
 static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNode *node)
 {
 	const char *shape = "box";
-	const char *name = node->name.c_str();
+	const char *name = node->identifier().c_str();
 	float priority = -1.0f;
 	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION)
 		priority = ((OperationDepsNode *)node)->eval_priority;
@@ -389,7 +389,7 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNo
 
 static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx, const DepsNode *node)
 {
-	const char *name = node->name.c_str();
+	const char *name = node->identifier().c_str();
 	
 	deg_debug_printf(ctx, "// %s\n", name);
 	deg_debug_printf(ctx, "subgraph \"cluster_%p\" {" NL, node);
@@ -547,7 +547,7 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const Ope
 		const DepsNode *tail = rel->to; /* same as node */
 		const DepsNode *head = rel->from;
 		
-		deg_debug_printf(ctx, "// %s -> %s\n", head->name.c_str(), tail->name.c_str());
+		deg_debug_printf(ctx, "// %s -> %s\n", head->identifier().c_str(), tail->identifier().c_str());
 		deg_debug_printf(ctx, "\"node_%p\"", head);
 		deg_debug_printf(ctx, " -> ");
 		deg_debug_printf(ctx, "\"node_%p\"", tail);
@@ -642,7 +642,7 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 		     ++link)
 		{
 			OperationDepsNode *node = *link;
-			deg_debug_printf(ctx, "// %s -> %s\n", time_source->name.c_str(), node->name.c_str());
+			deg_debug_printf(ctx, "// %s -> %s\n", time_source->identifier().c_str(), node->identifier().c_str());
 			deg_debug_printf(ctx, "\"node_%p\"", time_source);
 			deg_debug_printf(ctx, " -> ");
 			deg_debug_printf(ctx, "\"node_%p\"", node);
