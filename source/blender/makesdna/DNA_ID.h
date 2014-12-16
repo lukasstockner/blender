@@ -165,6 +165,8 @@ typedef struct PreviewImage {
 	unsigned int h[2];
 	short changed[2];
 	short changed_timestamp[2];
+	short user_edited[2];  /* if user-edited, do not auto-update this anymore! */
+	short pad[2];
 	unsigned int *rect[2];
 	struct GPUTexture *gputexture[2];
 } PreviewImage;

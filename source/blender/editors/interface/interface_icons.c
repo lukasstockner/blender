@@ -939,6 +939,11 @@ static void icon_set_image(bContext *C, ID *id, PreviewImage *prv_img, enum eIco
 		return;
 	}
 
+	if (prv_img->user_edited[size]) {
+		/* user-edited preview, do not auto-update! */
+		return;
+	}
+
 	icon_create_rect(prv_img, size);
 
 	if (wait) {

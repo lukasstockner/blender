@@ -158,6 +158,20 @@ void BKE_previewimg_free(PreviewImage **prv)
 	}
 }
 
+void BKE_previewimg_clear(struct PreviewImage *prv, enum eIconSizes size)
+{
+	if (prv->rect[size]) {
+		MEM_freeN(prv->rect[size]);
+		prv->rect[size] = NULL;
+	}
+	if (prv->gputexture[size]) {
+		GPU_texture_free(prv->gputexture[size]);
+	}
+	prv->h[size] = prv->w[size] = 0;
+	prv->changed[size] = true;
+	prv->changed_timestamp[size] = 0;
+}
+
 PreviewImage *BKE_previewimg_copy(PreviewImage *prv)
 {
 	PreviewImage *prv_img = NULL;
