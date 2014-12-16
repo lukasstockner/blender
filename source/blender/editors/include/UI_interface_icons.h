@@ -33,6 +33,7 @@
 #define __UI_INTERFACE_ICONS_H__
 
 struct bContext;
+struct ID;
 struct Image;
 struct ImBuf;
 struct World;
@@ -50,11 +51,10 @@ typedef struct IconFile {
 
 #define ICON_DEFAULT_HEIGHT 16
 #define ICON_DEFAULT_WIDTH  16
+#define PREVIEW_DEFAULT_HEIGHT 128
 
 #define ICON_DEFAULT_HEIGHT_SCALE ((int)(UI_UNIT_Y * 0.8f))
 #define ICON_DEFAULT_WIDTH_SCALE  ((int)(UI_UNIT_X * 0.8f))
-
-#define PREVIEW_DEFAULT_HEIGHT 128
 
 #define ICON_RENDER_DEFAULT_HEIGHT 32
 #define PREVIEW_RENDER_DEFAULT_HEIGHT 128
@@ -65,6 +65,8 @@ typedef struct IconFile {
 void UI_icons_init(int first_dyn_id);
 int UI_icon_get_width(int icon_id);
 int UI_icon_get_height(int icon_id);
+
+void UI_id_icon_render(struct bContext *C, struct ID *id, const bool big);
 
 void UI_icon_draw(float x, float y, int icon_id);
 void UI_icon_draw_preview(float x, float y, int icon_id);

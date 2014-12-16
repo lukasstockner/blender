@@ -590,7 +590,8 @@ void IDP_WriteProperty(IDProperty *prop, void *wd)
 
 static void write_previews(WriteData *wd, PreviewImage *prv)
 {
-	if (prv) {
+	/* Never write previews when doing memsave (i.e. undo/redo)! */
+	if (prv && !wd->current) {
 		short w = prv->w[1];
 		short h = prv->h[1];
 		unsigned int *rect = prv->rect[1];

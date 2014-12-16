@@ -1217,13 +1217,16 @@ static void ui_id_preview_image_render_size(bContext *C, ID *id, PreviewImage *p
 {
 	if ((pi->changed[size] || !pi->rect[size])) { /* changed only ever set by dynamic icons */
 		/* create the rect if necessary */
+
+		printf("%s: %s\n", __func__, id->name);
+
 		icon_set_image(C, id, pi, size);
 
 		pi->changed[size] = 0;
 	}
 }
 
-static void ui_id_icon_render(bContext *C, ID *id, const bool big)
+void UI_id_icon_render(bContext *C, ID *id, const bool big)
 {
 	PreviewImage *pi = BKE_previewimg_get(id);
 
@@ -1247,6 +1250,9 @@ static void ui_id_brush_render(bContext *C, ID *id)
 		/* check if rect needs to be created; changed
 		 * only set by dynamic icons */
 		if ((pi->changed[i] || !pi->rect[i])) {
+
+			printf("%s: %s\n", __func__, id->name);
+
 			icon_set_image(C, id, pi, i);
 			pi->changed[i] = 0;
 		}
@@ -1323,7 +1329,7 @@ int ui_id_icon_get(bContext *C, ID *id, const bool big)
 		case ID_LA: /* fall through */
 			iconid = BKE_icon_getid(id);
 			/* checks if not exists, or changed */
-			ui_id_icon_render(C, id, big);
+			UI_id_icon_render(C, id, big);
 			break;
 		default:
 			break;
