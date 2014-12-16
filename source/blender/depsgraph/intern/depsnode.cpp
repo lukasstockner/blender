@@ -25,6 +25,7 @@
  */
 
 #include <stdlib.h>
+#include <string.h>
 
 #include "BLI_utildefines.h"
 
@@ -64,6 +65,15 @@ DepsNode::~DepsNode()
 {
 }
 
+
+/* Generic identifier for Depsgraph Nodes */
+string DepsNode::identifier()
+{
+	char typebuf[5];
+	sprintf(typebuf, "%d", type);
+	
+	return string("Node(") + "t: " + typebuf + ", n: '" + name + "')";
+}
 
 /* ******************************************************** */
 /* Generic Nodes */

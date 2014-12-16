@@ -67,6 +67,8 @@ struct OperationDepsNode : public DepsNode {
 	OperationDepsNode();
 	~OperationDepsNode();
 	
+	string identifier();
+	
 	void tag_update(Depsgraph *graph);
 	
 	bool is_noop() const { return (bool)evaluate == false; }

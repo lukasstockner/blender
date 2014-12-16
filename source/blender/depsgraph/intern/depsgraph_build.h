@@ -256,10 +256,7 @@ struct DepsNodeHandle {
 BLI_INLINE string get_node_info_string(DepsNode *node)
 {
 	if (node != NULL) {
-		char typebuf[5];
-		sprintf(typebuf, "%d", node->type);
-		
-		return string("Node(") + typebuf + ", " + node->name + ")";
+		return node->identifier();
 	}
 	else {
 		return string("<No Node>");

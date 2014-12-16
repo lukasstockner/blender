@@ -62,6 +62,21 @@ OperationDepsNode::~OperationDepsNode()
 	DEPSNODE_RELATIONS_ITER_END;
 }
 
+string OperationDepsNode::identifier()
+{
+	/* identifiers for operations */
+	const char *DEG_OPNAMES[] = {
+		#define DEF_DEG_OPCODE(label) #label,
+		#include "depsnode_opcodes.h"
+		#undef DEF_DEG_OPCODE
+		
+		"<Invalid>"
+	};
+	
+	BLI_assert((opcode > 0) && (opcode < ARRAY_SIZE(DEG_OPNAMES)));
+	return string(DEG_OPNAMES[opcode]) + "(" + name + ")";
+}
+
 void OperationDepsNode::tag_update(Depsgraph *graph)
 {
 	/* tag for update, but also note that this was the source of an update */
