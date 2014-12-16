@@ -87,10 +87,25 @@ ComponentDepsNode::~ComponentDepsNode()
 	clear_operations();
 }
 
+string ComponentDepsNode::identifier() const
+{
+	const char *idname = this->owner->name.c_str();
+	
+	char typebuf[5];
+	sprintf(typebuf, "%d", type);
+	
+	return string("Component(") + idname + " : [" + typebuf + "] " + name.c_str() + ")";
+}
+
 OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode, const string &name) const
 {
 	OperationIDKey key(opcode, name);
+	
+	printf("===\nfind_operation: %s, %d, %s\n", this->identifier().c_str(), opcode, name.c_str());
+	key.print_info();
+	
 	OperationMap::const_iterator it = this->operations.find(key);
+	printf("found = %p\n===\n", (it != this->operations.end()) ? it->second : NULL);
 	
 	return (it != this->operations.end()) ? it->second : NULL;
 }

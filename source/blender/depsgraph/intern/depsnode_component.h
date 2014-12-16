@@ -66,6 +66,10 @@ struct ComponentDepsNode : public DepsNode {
 		   opcode(opcode), name(name)
 		{}
 		
+		void print_info() const
+		{
+			printf("OperationIDKey(%d, %s)\n", opcode, name.c_str());
+		}
 		
 		bool operator==(const OperationIDKey &other) const
 		{
@@ -88,10 +92,12 @@ struct ComponentDepsNode : public DepsNode {
 	
 	
 	ComponentDepsNode();
+	~ComponentDepsNode();
 	
 	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
-	~ComponentDepsNode();
+	
+	string identifier() const;
 	
 	OperationDepsNode *find_operation(eDepsOperation_Code opcode, const string &name) const;
 	

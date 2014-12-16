@@ -67,7 +67,7 @@ DepsNode::~DepsNode()
 
 
 /* Generic identifier for Depsgraph Nodes */
-string DepsNode::identifier()
+string DepsNode::identifier() const
 {
 	char typebuf[5];
 	sprintf(typebuf, "%d", type);
