@@ -122,13 +122,32 @@ struct TimeSourceKey
 	TimeSourceKey() : id(NULL) {}
 	TimeSourceKey(ID *id) : id(id) {}
 	
+	string identifier() const
+	{
+		return string("TimeSourceKey");
+	}
+	
 	ID *id;
 };
 
 struct ComponentKey
 {
-	ComponentKey() : id(NULL), type(DEPSNODE_TYPE_UNDEFINED), name("") {}
-	ComponentKey(ID *id, eDepsNode_Type type, const string &name = "") : id(id), type(type), name(name) {}
+	ComponentKey() :
+	    id(NULL), type(DEPSNODE_TYPE_UNDEFINED), name("")
+	{}
+	ComponentKey(ID *id, eDepsNode_Type type, const string &name = "") :
+	    id(id), type(type), name(name)
+	{}
+	
+	string identifier() const
+	{
+		const char *idname = (id) ? id->name : "<None>";
+		
+		char typebuf[5];
+		sprintf(typebuf, "%d", type);
+		
+		return string("ComponentKey(") + idname + ", " + typebuf + ", '" + name + "')";
+	}
 	
 	ID *id;
 	eDepsNode_Type type;
@@ -162,6 +181,16 @@ struct OperationKey
 	    id(id), component_type(component_type), component_name(component_name), opcode(opcode), name(name)
 	{}
 	
+	string identifier() const
+	{
+		char typebuf[5], codebuf[5];
+		
+		sprintf(typebuf, "%d", component_type);
+		sprintf(codebuf, "%d", opcode); // XXX: use the string defs instead
+		
+		return string("OperationKey(") + "t: " + typebuf + ", cn: '" + component_name + "', c: " + codebuf + ", n: '" + name + "')";
+	}
+	
 	
 	ID *id;
 	eDepsNode_Type component_type;
@@ -172,8 +201,14 @@ struct OperationKey
 
 struct RNAPathKey
 {
+	// Note: see depsgraph_build.cpp for implementation
 	RNAPathKey(ID *id, const string &path);
-	RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop);
+	
+	RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop) :
+	    id(id), ptr(ptr), prop(prop)
+	{}
+	
+	
 	ID *id;
 	PointerRNA ptr;
 	PropertyRNA *prop;

@@ -311,13 +311,6 @@ RNAPathKey::RNAPathKey(ID *id, const string &path) :
 	}
 }
 
-RNAPathKey::RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop) :
-    id(id),
-    ptr(ptr),
-    prop(prop)
-{
-}
-
 DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
     m_graph(graph)
 {

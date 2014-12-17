@@ -102,6 +102,7 @@ struct ComponentDepsNode : public DepsNode {
 	
 	string identifier() const;
 	
+	OperationDepsNode *find_operation(OperationIDKey key) const;
 	OperationDepsNode *find_operation(eDepsOperation_Code opcode, const string &name) const;
 	
 	/* Create a new node for representing an operation and add this to graph

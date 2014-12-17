@@ -97,12 +97,24 @@ string ComponentDepsNode::identifier() const
 	return string("Component(") + idname + " - " + typebuf + " " + name.c_str() + ")";
 }
 
+OperationDepsNode *ComponentDepsNode::find_operation(OperationIDKey key) const
+{
+	OperationMap::const_iterator it = this->operations.find(key);
+	
+	if (it != this->operations.end()) {
+		return it->second;
+	}
+	else {
+		fprintf(stderr, "%s: find_operation(%s) failed\n",
+		        this->identifier().c_str(), key.identifier().c_str());
+		return NULL;
+	}
+}
+
 OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode, const string &name) const
 {
 	OperationIDKey key(opcode, name);
-	
-	OperationMap::const_iterator it = this->operations.find(key);
-	return (it != this->operations.end()) ? it->second : NULL;
+	return find_operation(key);
 }
 
 OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name)
