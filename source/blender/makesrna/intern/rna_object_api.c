@@ -112,6 +112,42 @@ static void rna_Scene_mat_convert_space(Object *ob, ReportList *reports, bPoseCh
 	BKE_constraint_mat_convertspace(ob, pchan, (float (*)[4])mat_ret, from, to);
 }
 
+static void rna_Object_matrix_camera(Object *ob, float mat_ret[16], int width, int height, float scalex, float scaley)
+{
+	CameraParams params;
+
+	/* setup parameters */
+	BKE_camera_params_init(&params);
+	BKE_camera_params_from_object(&params, ob);
+
+	/* compute matrix, viewplane, .. */
+	BKE_camera_params_compute_viewplane(&params, width, height, scalex, scaley);
+	BKE_camera_params_compute_matrix(&params);
+
+	printf("cam viewplane: %f, %f, %f, %f\n", params.viewplane.xmin, params.viewplane.xmax, params.viewplane.ymin, params.viewplane.ymax);
+	print_m4("cam mat", params.winmat);
+
+	copy_m4_m4((float (*)[4])mat_ret, params.winmat);
+}
+#if 0
+static void rna_Object_camera_fit_points(Object *ob, float (*cos)[3], float co_ret[3], int width, int height, float scalex, float scaley)
+{
+	CameraParams params;
+
+	/* setup parameters */
+	BKE_camera_params_init(&params);
+	BKE_camera_params_from_object(&params, ob);
+
+	/* compute matrix, viewplane, .. */
+	BKE_camera_params_compute_viewplane(&params, width, height, scalex, scaley);
+	BKE_camera_params_compute_matrix(&params);
+
+	printf("cam viewplane: %f, %f, %f, %f\n", params.viewplane.xmin, params.viewplane.xmax, params.viewplane.ymin, params.viewplane.ymax);
+	print_m4("cam mat", params.winmat);
+
+	copy_m4_m4((float (*)[4])mat_ret, params.winmat);
+}
+#endif
 /* copied from Mesh_getFromObject and adapted to RNA interface */
 /* settings: 0 - preview, 1 - render */
 static Mesh *rna_Object_to_mesh(
@@ -467,6 +503,18 @@ void RNA_api_object(StructRNA *srna)
 	                    "The space in which 'matrix' is currently");
 	parm = RNA_def_enum(func, "to_space", space_items, CONSTRAINT_SPACE_WORLD, "",
 	                    "The space to which you want to transform 'matrix'");
+
+	/* Camera-related operations */
+	func = RNA_def_function(srna, "matrix_camera", "rna_Object_matrix_camera");
+	RNA_def_function_ui_description(func, "Generate the camera projection matrix of this object (mostly useful for Camera and Lamp types)");
+	parm = RNA_def_property(func, "matrix_return", PROP_FLOAT, PROP_MATRIX);
+	RNA_def_property_multi_array(parm, 2, rna_matrix_dimsize_4x4);
+	RNA_def_property_ui_text(parm, "", "The camera projection matrix");
+	RNA_def_function_output(func, parm);
+	parm = RNA_def_int(func, "width", 1, 0, INT_MAX, "", "Width of the render area", 0, 10000);
+	parm = RNA_def_int(func, "height", 1, 0, INT_MAX, "", "Height of the render area", 0, 10000);
+	parm = RNA_def_float(func, "scale_x", 1.0f, 1.0e-6f, FLT_MAX, "", "Width scaling factor", 1.0e-6f, 100.0f);
+	parm = RNA_def_float(func, "scale_y", 1.0f, 1.0e-6f, FLT_MAX, "", "height scaling factor", 1.0e-6f, 100.0f);
 
 	/* mesh */
 	func = RNA_def_function(srna, "to_mesh", "rna_Object_to_mesh");

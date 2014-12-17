@@ -330,6 +330,8 @@ void BKE_camera_params_compute_viewplane(CameraParams *params, int winx, int win
 	dx = params->shiftx * viewfac + winx * params->offsetx;
 	dy = params->shifty * viewfac + winy * params->offsety;
 
+	//~ printf("dx: %f, dy: %f\n", dx, dy);
+
 	viewplane.xmin += dx;
 	viewplane.ymin += dy;
 	viewplane.xmax += dx;
@@ -458,12 +460,12 @@ void BKE_camera_view_frame(Scene *scene, Camera *camera, float r_vec[4][3])
 	                         dummy_asp, dummy_shift, &dummy_drawsize, r_vec);
 }
 
+#define CAMERA_VIEWFRAME_NUM_PLANES 4
 
 typedef struct CameraViewFrameData {
-	float plane_tx[4][4];  /* 4 planes (not 4x4 matrix)*/
-	float frame_tx[4][3];
-	float normal_tx[4][3];
-	float dist_vals_sq[4];  /* distance squared (signed) */
+	float plane_tx[CAMERA_VIEWFRAME_NUM_PLANES][4];  /* 6 planes */
+	float normal_tx[CAMERA_VIEWFRAME_NUM_PLANES][3];
+	float dist_vals_sq[CAMERA_VIEWFRAME_NUM_PLANES];  /* distance squared (signed) */
 	unsigned int tot;
 } CameraViewFrameData;
 
@@ -472,7 +474,7 @@ static void camera_to_frame_view_cb(const float co[3], void *user_data)
 	CameraViewFrameData *data = (CameraViewFrameData *)user_data;
 	unsigned int i;
 
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < CAMERA_VIEWFRAME_NUM_PLANES; i++) {
 		float nd = dist_signed_squared_to_plane_v3(co, data->plane_tx[i]);
 		if (nd < data->dist_vals_sq[i]) {
 			data->dist_vals_sq[i] = nd;
@@ -483,55 +485,133 @@ static void camera_to_frame_view_cb(const float co[3], void *user_data)
 }
 
 /* don't move the camera, just yield the fit location */
-/* only valid for perspective cameras */
-bool BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object *camera_ob, float r_co[3])
+/* r_scale only valid/useful for ortho cameras */
+bool BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object *camera_ob, float r_co[3], float *r_scale)
 {
-	float shift[2];
-	float plane_tx[4][3];
+	CameraParams params;
+	float plane_tx[CAMERA_VIEWFRAME_NUM_PLANES][3];
 	float rot_obmat[3][3];
-	const float zero[3] = {0, 0, 0};
+	float rot_obmat_transposed_inversed[4][4];
 	CameraViewFrameData data_cb;
 
 	unsigned int i;
 
-	BKE_camera_view_frame(scene, camera_ob->data, data_cb.frame_tx);
+	/* just in case */
+	*r_scale = 1.0f;
+
+	/* setup parameters */
+	BKE_camera_params_init(&params);
+	BKE_camera_params_from_object(&params, camera_ob);
+
+	/* compute matrix, viewplane, .. */
+	if (scene) {
+		BKE_camera_params_compute_viewplane(&params, scene->r.xsch, scene->r.ysch, scene->r.xasp, scene->r.yasp);
+	}
+	else {
+		BKE_camera_params_compute_viewplane(&params, 1, 1, 1.0f, 1.0f);
+	}
+	BKE_camera_params_compute_matrix(&params);
 
 	copy_m3_m4(rot_obmat, camera_ob->obmat);
 	normalize_m3(rot_obmat);
+	/* To transform a plane in its homogeneous representation (4d vector),
+	 * we need the inverse of the transpose of the transform matrix... */
+	copy_m4_m3(rot_obmat_transposed_inversed, rot_obmat);
+	transpose_m4(rot_obmat_transposed_inversed);
+	invert_m4(rot_obmat_transposed_inversed);
 
-	for (i = 0; i < 4; i++) {
-		/* normalize so Z is always 1.0f*/
-		mul_v3_fl(data_cb.frame_tx[i], 1.0f / data_cb.frame_tx[i][2]);
-	}
+	print_m4_id(params.winmat);
 
-	/* get the shift back out of the frame */
-	shift[0] = (data_cb.frame_tx[0][0] +
-	            data_cb.frame_tx[1][0] +
-	            data_cb.frame_tx[2][0] +
-	            data_cb.frame_tx[3][0]) / 4.0f;
-	shift[1] = (data_cb.frame_tx[0][1] +
-	            data_cb.frame_tx[1][1] +
-	            data_cb.frame_tx[2][1] +
-	            data_cb.frame_tx[3][1]) / 4.0f;
+	/* Easy frustum plane extraction fro; a projection matrix:
+	 *
+	 * https://fgiesen.wordpress.com/2012/08/31/frustum-planes-from-the-projection-matrix/
+	 * http://www8.cs.umu.se/kurser/5DV051/HT12/lab/plane_extraction.pdf
+	 */
 
-	for (i = 0; i < 4; i++) {
-		mul_m3_v3(rot_obmat, data_cb.frame_tx[i]);
-	}
+	/* Right plane */
+	data_cb.plane_tx[0][0] = params.winmat[0][3] - params.winmat[0][0];
+	data_cb.plane_tx[0][1] = params.winmat[1][3] - params.winmat[1][0];
+	data_cb.plane_tx[0][2] = params.winmat[2][3] - params.winmat[2][0];
+	data_cb.plane_tx[0][3] = params.winmat[3][3] - params.winmat[3][0];
+	mul_m4_v4(rot_obmat_transposed_inversed, data_cb.plane_tx[0]);
+	normalize_v3_v3(data_cb.normal_tx[0], data_cb.plane_tx[0]);
 
-	for (i = 0; i < 4; i++) {
-		normal_tri_v3(data_cb.normal_tx[i], zero, data_cb.frame_tx[i], data_cb.frame_tx[(i + 1) % 4]);
-		plane_from_point_normal_v3(data_cb.plane_tx[i], data_cb.frame_tx[i], data_cb.normal_tx[i]);
+	/* Bottom plane */
+	data_cb.plane_tx[1][0] = params.winmat[0][3] + params.winmat[0][1];
+	data_cb.plane_tx[1][1] = params.winmat[1][3] + params.winmat[1][1];
+	data_cb.plane_tx[1][2] = params.winmat[2][3] + params.winmat[2][1];
+	data_cb.plane_tx[1][3] = params.winmat[3][3] + params.winmat[3][1];
+	mul_m4_v4(rot_obmat_transposed_inversed, data_cb.plane_tx[1]);
+	normalize_v3_v3(data_cb.normal_tx[1], data_cb.plane_tx[1]);
+
+	/* Left plane */
+	data_cb.plane_tx[2][0] = params.winmat[0][3] + params.winmat[0][0];
+	data_cb.plane_tx[2][1] = params.winmat[1][3] + params.winmat[1][0];
+	data_cb.plane_tx[2][2] = params.winmat[2][3] + params.winmat[2][0];
+	data_cb.plane_tx[2][3] = params.winmat[3][3] + params.winmat[3][0];
+	mul_m4_v4(rot_obmat_transposed_inversed, data_cb.plane_tx[2]);
+	normalize_v3_v3(data_cb.normal_tx[2], data_cb.plane_tx[2]);
+
+	/* Top plane */
+	data_cb.plane_tx[3][0] = params.winmat[0][3] - params.winmat[0][1];
+	data_cb.plane_tx[3][1] = params.winmat[1][3] - params.winmat[1][1];
+	data_cb.plane_tx[3][2] = params.winmat[2][3] - params.winmat[2][1];
+	data_cb.plane_tx[3][3] = params.winmat[3][3] - params.winmat[3][1];
+	mul_m4_v4(rot_obmat_transposed_inversed, data_cb.plane_tx[3]);
+	normalize_v3_v3(data_cb.normal_tx[3], data_cb.plane_tx[3]);
+
+	for (i = 0; i < CAMERA_VIEWFRAME_NUM_PLANES; i++) {
+		print_v4_id(data_cb.plane_tx[i]);
+		print_v3_id(data_cb.normal_tx[i]);
 	}
 
 	/* initialize callback data */
 	copy_v4_fl(data_cb.dist_vals_sq, FLT_MAX);
 	data_cb.tot = 0;
 	/* run callback on all visible points */
-	BKE_scene_foreach_display_point(scene, v3d, BA_SELECT,
-	                                camera_to_frame_view_cb, &data_cb);
+	BKE_scene_foreach_display_point(scene, v3d, BA_SELECT, camera_to_frame_view_cb, &data_cb);
 
 	if (data_cb.tot <= 1) {
 		return false;
+	}
+
+	if (params.is_ortho) {
+		float dists[CAMERA_VIEWFRAME_NUM_PLANES];
+		float cam_plane_x[3] = {1.0f, 0.0f, 0.0f};
+		float cam_plane_y[3] = {0.0f, 1.0f, 0.0f};
+		float cam_plane_z[3] = {0.0f, 0.0f, 1.0f};
+
+		mul_m3_v3(rot_obmat, cam_plane_x);
+		mul_m3_v3(rot_obmat, cam_plane_y);
+		mul_m3_v3(rot_obmat, cam_plane_z);
+
+		/* apply the dist-from-plane's to the transformed plane points */
+		for (i = 0; i < CAMERA_VIEWFRAME_NUM_PLANES; i++) {
+			dists[i] = sqrtf_signed(data_cb.dist_vals_sq[i]);
+			printf("dist[%d]: %f\n", i, dists[i]);
+		}
+
+		printf("x diff: %f; y diff: %f, z diff: %f\n", (dists[0] + dists[2]) / 2.0f, (dists[1] + dists[3]) / 2.0f, (dists[4] + dists[5]) / 2.0f);
+
+		zero_v3(r_co);
+		print_v3_id(r_co);
+		madd_v3_v3fl(r_co, cam_plane_x, -(dists[0] - dists[2]) / 2.0f);
+		madd_v3_v3fl(r_co, cam_plane_y, -(dists[3] - dists[1]) / 2.0f);
+		madd_v3_v3fl(r_co, cam_plane_z, -dists[4] + 1.0f);
+		if ((dists[0] + dists[2]) > (dists[1] + dists[3])) {
+			*r_scale = params.ortho_scale - (dists[1] + dists[3]) * (params.viewplane.xmax - params.viewplane.xmin) / (params.viewplane.ymax - params.viewplane.ymin);
+		}
+		else {
+			*r_scale = params.ortho_scale - (dists[0] + dists[2]) * (params.viewplane.ymax - params.viewplane.ymin) / (params.viewplane.xmax - params.viewplane.xmin);
+		}
+		print_v3_id(r_co);
+		printf("r_scale: %f\n", *r_scale);
+
+		//~ r_co[0] = camera_ob->obmat[3][0] + (dists[0] + dists[2]) / 2.0f;
+		//~ r_co[1] = camera_ob->obmat[3][1] + (dists[1] + dists[3]) / 2.0f;
+		//~ r_co[2] = camera_ob->obmat[3][2];
+
+		return true;
 	}
 	else {
 		float plane_isect_1[3], plane_isect_1_no[3], plane_isect_1_other[3];
@@ -540,7 +620,7 @@ bool BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object
 		float plane_isect_pt_1[3], plane_isect_pt_2[3];
 
 		/* apply the dist-from-plane's to the transformed plane points */
-		for (i = 0; i < 4; i++) {
+		for (i = 0; i < CAMERA_VIEWFRAME_NUM_PLANES; i++) {
 			mul_v3_v3fl(plane_tx[i], data_cb.normal_tx[i], sqrtf_signed(data_cb.dist_vals_sq[i]));
 		}
 
@@ -578,18 +658,20 @@ bool BKE_camera_view_frame_fit_to_scene(Scene *scene, struct View3D *v3d, Object
 
 				/* offset shift */
 				normalize_v3(plane_isect_1_no);
-				madd_v3_v3fl(r_co, plane_isect_1_no, shift[1] * -plane_isect_delta_len);
+				madd_v3_v3fl(r_co, plane_isect_1_no, params.shifty * plane_isect_delta_len);
 			}
 			else {
 				copy_v3_v3(r_co, plane_isect_pt_2);
 
 				/* offset shift */
 				normalize_v3(plane_isect_2_no);
-				madd_v3_v3fl(r_co, plane_isect_2_no, shift[0] * -plane_isect_delta_len);
+				madd_v3_v3fl(r_co, plane_isect_2_no, params.shiftx * plane_isect_delta_len);
 			}
-
 
 			return true;
 		}
 	}
 }
+
+//~ bool BKE_camera_view_frame_fit_to_coordinates(Scene *scene, , Object *camera_ob, float r_co[3])
+
