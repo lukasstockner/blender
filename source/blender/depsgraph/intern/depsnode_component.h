@@ -66,9 +66,12 @@ struct ComponentDepsNode : public DepsNode {
 		   opcode(opcode), name(name)
 		{}
 		
-		void print_info() const
+		string identifier() const
 		{
-			printf("OperationIDKey(%d, %s)\n", opcode, name.c_str());
+			char codebuf[5];
+			sprintf(codebuf, "%d", opcode);
+			
+			return string("OperationIDKey(") + codebuf + ", " + name + ")";
 		}
 		
 		bool operator==(const OperationIDKey &other) const

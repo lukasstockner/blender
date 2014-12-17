@@ -101,8 +101,11 @@ OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode,
 {
 	OperationIDKey key(opcode, name);
 	
-	printf("===\nfind_operation: %s, %d, %s\n", this->identifier().c_str(), opcode, name.c_str());
-	key.print_info();
+	printf("===\nfind_operation: %s -> (%d, %s) = (%s)\n", this->identifier().c_str(), opcode, name.c_str(), key.identifier().c_str());
+	
+	for (OperationMap::const_iterator it2 = this->operations.begin(); it2 != this->operations.end(); ++it2) {
+		printf("  %s : %s\n", it2->first.identifier().c_str(), it2->second->identifier().c_str());
+	}
 	
 	OperationMap::const_iterator it = this->operations.find(key);
 	printf("found = %p\n===\n", (it != this->operations.end()) ? it->second : NULL);
@@ -118,7 +121,9 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
 		
 		/* register */
-		this->operations[OperationIDKey(opcode, name)] = op_node;
+		OperationIDKey key(opcode, name);
+		this->operations[key] = op_node;
+		
 		op_node->owner = this;
 	}
 	
