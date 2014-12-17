@@ -863,7 +863,9 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 		parchan = pchan->parent;
 	
 	/* Walk to the chain's root */
-	size_t segcount = 0;
+	//size_t segcount = 0;
+	int segcount = 0;
+	
 	while (parchan) {
 		/* Make IK-solver dependent on this bone's result,
 		 * since it can only run after the standard results 
@@ -928,7 +930,9 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 	root_map_add_bone(pchan->name, rootchan->name, root_map);
 
 	/* Walk to the chain's root */
-	size_t segcount = 0;
+	//size_t segcount = 0;
+	int segcount = 0;
+	
 	for (bPoseChannel *parchan = pchan->parent; parchan; parchan = parchan->parent) {
 		/* Make Spline IK solver dependent on this bone's result,
 		 * since it can only run after the standard results 
