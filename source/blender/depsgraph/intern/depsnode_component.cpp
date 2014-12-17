@@ -101,15 +101,7 @@ OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode,
 {
 	OperationIDKey key(opcode, name);
 	
-	printf("===\nfind_operation: %s -> (%d, %s) = (%s)\n", this->identifier().c_str(), opcode, name.c_str(), key.identifier().c_str());
-	
-	for (OperationMap::const_iterator it2 = this->operations.begin(); it2 != this->operations.end(); ++it2) {
-		printf("  %s : %s\n", it2->first.identifier().c_str(), it2->second->identifier().c_str());
-	}
-	
 	OperationMap::const_iterator it = this->operations.find(key);
-	printf("found = %p\n===\n", (it != this->operations.end()) ? it->second : NULL);
-	
 	return (it != this->operations.end()) ? it->second : NULL;
 }
 
