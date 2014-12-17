@@ -217,28 +217,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 	/* AnimData */
 	build_animdata(&ob->id);
 	
-	/* object parent */
-	if (ob->parent) {
-		add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_parent, _1, ob),
-		                   DEG_OPCODE_TRANSFORM_PARENT);
-	}
-	
-	/* object constraints */
-	if (ob->constraints.first) {
-		build_object_constraints(scene, ob);
-	}
-
-	/* Temporary uber-update node, which does everything.
-	 * It is for the being we're porting old dependencies into the new system.
-	 * We'll get rid of this node as soon as all the granular update functions
-	 * are filled in.
-	 *
-	 * TODO(sergey): Get rid of this node.
-	 */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-	                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_uber_transform, _1, scene, ob),
-	                   DEG_OPCODE_OBJECT_UBEREVAL);
 
 	/* object data */
 	if (ob->data) {
@@ -296,11 +274,33 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
 
 void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 {
-	/* init operation */
-
+	/* local transforms (from transform channels - loc/rot/scale + deltas) */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
 	                   DEPSOP_TYPE_INIT, function_bind(BKE_object_eval_local_transform, _1, scene, ob),
 	                   DEG_OPCODE_TRANSFORM_LOCAL);
+					   
+	/* object parent */
+	if (ob->parent) {
+		add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_parent, _1, ob),
+		                   DEG_OPCODE_TRANSFORM_PARENT);
+	}
+	
+	/* object constraints */
+	if (ob->constraints.first) {
+		build_object_constraints(scene, ob);
+	}
+
+	/* Temporary uber-update node, which does everything.
+	 * It is for the being we're porting old dependencies into the new system.
+	 * We'll get rid of this node as soon as all the granular update functions
+	 * are filled in.
+	 *
+	 * TODO(sergey): Get rid of this node.
+	 */
+	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
+	                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_uber_transform, _1, scene, ob),
+	                   DEG_OPCODE_OBJECT_UBEREVAL);
 }
 
 /* == Constraints Graph Notes ==
