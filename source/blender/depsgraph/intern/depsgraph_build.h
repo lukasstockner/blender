@@ -292,8 +292,9 @@ void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo
 	DepsNode *node_from = find_node(key_from);
 	DepsNode *node_to   = find_node(key_to);
 	
-	OperationDepsNode *op_from = get_exit_operation(node_from);
-	OperationDepsNode *op_to = get_entry_operation(node_to);
+	// XXX: warning - don't use node_from and node_to directly, as that breaks the templates...
+	OperationDepsNode *op_from = get_exit_operation(find_node(key_from));
+	OperationDepsNode *op_to = get_entry_operation(find_node(key_to));
 	
 	if (op_from && op_to) {
 		add_operation_relation(op_from, op_to, type, description);
