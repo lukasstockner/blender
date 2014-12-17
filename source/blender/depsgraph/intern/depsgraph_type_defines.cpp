@@ -158,7 +158,8 @@ void BKE_pose_eval_init(EvaluationContext *eval_ctx,
 void BKE_pose_eval_bone(EvaluationContext *eval_ctx,
                         Scene *scene,
                         Object *ob,
-                        bPoseChannel *pchan) {
+                        bPoseChannel *pchan) 
+{
 	bArmature *arm = (bArmature *)ob->data;
 	printf("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
 	BLI_assert(ob->type == OB_ARMATURE);

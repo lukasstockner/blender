@@ -512,8 +512,10 @@ void DepsgraphNodeBuilder::build_particles(Object *ob)
 void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
 	bKinematicConstraint *data = (bKinematicConstraint *)con->data;
+	
 	/* Find the chain's root. */
 	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
+	
 	/* Operation node for evaluating/running IK Solver. */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
 	                   DEPSOP_TYPE_SIM, function_bind(BKE_pose_iktree_evaluate, _1, scene, ob, rootchan),
@@ -524,8 +526,10 @@ void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel 
 void DepsgraphNodeBuilder::build_splineik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con)
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
+	
 	/* Find the chain's root. */
 	bPoseChannel *rootchan = BKE_armature_splineik_solver_find_root(pchan, data);
+	
 	/* Operation node for evaluating/running Spline IK Solver.
 	 * Store the "root bone" of this chain in the solver, so it knows where to start.
 	 */
@@ -571,7 +575,6 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	 *   so that we can redirect those to point at either the the post-IK/
 	 *   post-constraint/post-matrix steps, as needed.
 	 */
-	// TODO: rest pose/editmode handling!
 	
 	/* pose eval context */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE,
@@ -584,17 +587,17 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		/* node for bone eval */
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
-		                   DEPSOP_TYPE_INIT, NULL, // XXX
+		                   DEPSOP_TYPE_INIT, NULL, // XXX: BKE_pose_eval_bone_local
 		                   DEG_OPCODE_BONE_LOCAL);
 		
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_pose_eval_bone, _1, scene, ob, pchan), // XXX
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_pose_eval_bone, _1, scene, ob, pchan), // XXX: BKE_pose_eval_bone_pose
 		                   DEG_OPCODE_BONE_POSE_PARENT);
 		
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
-		                   DEPSOP_TYPE_POST, NULL, // XXX
+		                   DEPSOP_TYPE_POST, NULL, // XXX: BKE_eval_bone_done ?
 		                   DEG_OPCODE_BONE_DONE);
-
+		
 		/* constraints */
 		if (pchan->constraints.first != NULL) {
 			build_pose_constraints(ob, pchan);

@@ -179,7 +179,8 @@ struct RNAPathKey
 	PropertyRNA *prop;
 };
 
-struct DepsgraphRelationBuilder {
+struct DepsgraphRelationBuilder 
+{
 	typedef vector<const char*> RootPChanVector;
 	typedef unordered_map<const char*, RootPChanVector> RootPChanMap;
 
@@ -236,7 +237,8 @@ private:
 	Depsgraph *m_graph;
 };
 
-struct DepsNodeHandle {
+struct DepsNodeHandle 
+{
 	DepsNodeHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
 	    builder(builder),
 	    node(node),
