@@ -129,25 +129,12 @@ static void rna_Object_matrix_camera(Object *ob, float mat_ret[16], int width, i
 
 	copy_m4_m4((float (*)[4])mat_ret, params.winmat);
 }
-#if 0
-static void rna_Object_camera_fit_points(Object *ob, float (*cos)[3], float co_ret[3], int width, int height, float scalex, float scaley)
+
+static void rna_Object_camera_fit_coordinates(Object *ob, Scene *scene, int num_cos, float *cos, float co_ret[3], float *scale_ret)
 {
-	CameraParams params;
-
-	/* setup parameters */
-	BKE_camera_params_init(&params);
-	BKE_camera_params_from_object(&params, ob);
-
-	/* compute matrix, viewplane, .. */
-	BKE_camera_params_compute_viewplane(&params, width, height, scalex, scaley);
-	BKE_camera_params_compute_matrix(&params);
-
-	printf("cam viewplane: %f, %f, %f, %f\n", params.viewplane.xmin, params.viewplane.xmax, params.viewplane.ymin, params.viewplane.ymax);
-	print_m4("cam mat", params.winmat);
-
-	copy_m4_m4((float (*)[4])mat_ret, params.winmat);
+	BKE_camera_view_frame_fit_to_coordinates(scene, (float (*)[3])cos, num_cos / 3, ob, co_ret, scale_ret);
 }
-#endif
+
 /* copied from Mesh_getFromObject and adapted to RNA interface */
 /* settings: 0 - preview, 1 - render */
 static Mesh *rna_Object_to_mesh(
@@ -515,6 +502,20 @@ void RNA_api_object(StructRNA *srna)
 	parm = RNA_def_int(func, "height", 1, 0, INT_MAX, "", "Height of the render area", 0, 10000);
 	parm = RNA_def_float(func, "scale_x", 1.0f, 1.0e-6f, FLT_MAX, "", "Width scaling factor", 1.0e-6f, 100.0f);
 	parm = RNA_def_float(func, "scale_y", 1.0f, 1.0e-6f, FLT_MAX, "", "height scaling factor", 1.0e-6f, 100.0f);
+
+	func = RNA_def_function(srna, "camera_fit_coordinates", "rna_Object_camera_fit_coordinates");
+	RNA_def_function_ui_description(func, "Compute the coordinate (and scale for ortho cameras) given object should be to 'see' all given coordinates");
+	parm = RNA_def_pointer(func, "scene", "Scene", "", "Scene to get render size information from, if available");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_float_array(func, "coordinates", 1, NULL, -FLT_MAX, FLT_MAX, "", "Coordinates to fit in", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_DYNAMIC);
+	parm = RNA_def_property(func, "co_return", PROP_FLOAT, PROP_XYZ);
+	RNA_def_property_array(parm, 3);
+	RNA_def_property_ui_text(parm, "", "The location to aim to be able to see all given points");
+	RNA_def_property_flag(parm, PROP_OUTPUT);
+	parm = RNA_def_property(func, "scale_return", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(parm, "", "The ortho scale to aim to be able to see all given points (if relevant)");
+	RNA_def_property_flag(parm, PROP_OUTPUT);
 
 	/* mesh */
 	func = RNA_def_function(srna, "to_mesh", "rna_Object_to_mesh");
