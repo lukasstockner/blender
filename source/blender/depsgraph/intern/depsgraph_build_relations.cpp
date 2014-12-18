@@ -259,11 +259,19 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 {
 	/* Object Transforms */
-	// XXX: lcoal transform -> parent key when parent is present!
-	OperationKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_LOCAL);
+	eDepsOperation_Code base_op = (ob->parent) ? DEG_OPCODE_TRANSFORM_PARENT : DEG_OPCODE_TRANSFORM_LOCAL;
+	OperationKey base_op_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, base_op);
 	
-	if (ob->parent)
+	OperationKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_LOCAL);
+	OperationKey parent_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_PARENT);
+	
+	if (ob->parent) {
+		/* parent relationship */
 		build_object_parent(ob);
+		
+		/* local -> parent */
+		add_relation(local_transform_key, parent_transform_key, DEPSREL_TYPE_COMPONENT_ORDER, "[ObLocal -> ObParent]");
+	}
 	
 	
 	/* object constraints */
@@ -271,15 +279,19 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	OperationKey ob_ubereval_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_OBJECT_UBEREVAL);
 	
 	if (ob->constraints.first) {
+		OperationKey constraint_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_CONSTRAINTS);
+		
+		/* constraint relations */
+		// TODO: provide base op
+		// XXX: this is broken
 		build_constraints(scene, &ob->id, DEPSNODE_TYPE_TRANSFORM, "", &ob->constraints);
 		
-		OperationKey constraint_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_CONSTRAINTS);
-		add_relation(local_transform_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "[Ob Local -> Constraint Stack]");
+		/* operation order */
+		add_relation(base_op_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "[ObBase-> Constraint Stack]");
 		add_relation(constraint_key, ob_ubereval_key, DEPSREL_TYPE_COMPONENT_ORDER, "Temp Ubereval");
 	}
 	else {
-		printf("connecting local to uber\n");
-		add_relation(local_transform_key, ob_ubereval_key, DEPSREL_TYPE_COMPONENT_ORDER, "Object Transform");
+		add_relation(base_op_key, ob_ubereval_key, DEPSREL_TYPE_COMPONENT_ORDER, "Object Transform");
 	}
 	
 	
@@ -289,7 +301,6 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	// XXX: fixme
 	if (ob->adt) {
 		ComponentKey adt_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
-		ComponentKey transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 		add_relation(adt_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
 	
@@ -337,7 +348,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 {
-	ComponentKey ob_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
+	OperationKey ob_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_PARENT);
 	
 	/* type-specific links */
 	switch (ob->partype) {
