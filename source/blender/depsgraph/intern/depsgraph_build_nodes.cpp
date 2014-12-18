@@ -301,6 +301,11 @@ void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
 	                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_uber_transform, _1, scene, ob),
 	                   DEG_OPCODE_OBJECT_UBEREVAL);
+	
+	/* object transform is done */
+	add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
+	                   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_done, _1, ob),
+	                   DEG_OPCODE_TRANSFORM_FINAL);
 }
 
 /* == Constraints Graph Notes ==

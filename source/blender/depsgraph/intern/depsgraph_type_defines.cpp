@@ -254,7 +254,14 @@ void BKE_particle_system_eval(EvaluationContext *eval_ctx, Object *ob, ParticleS
 
 void BKE_rigidbody_rebuild_sim(EvaluationContext *eval_ctx, Scene *scene) {}
 void BKE_rigidbody_eval_simulation(EvaluationContext *eval_ctx, Scene *scene) {}
-void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob) {}
+
+void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
+{
+	printf("%s on %s\n", __func__, ob->id.name);
+	
+	(void) eval_ctx; /* Ignored. */
+	(void) scene; /* Ignored. */
+}
 
 void BKE_mesh_eval_geometry(EvaluationContext *eval_ctx, Mesh *mesh) {}
 void BKE_mball_eval_geometry(EvaluationContext *eval_ctx, MetaBall *mball) {}

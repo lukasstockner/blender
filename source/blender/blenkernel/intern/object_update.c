@@ -90,6 +90,13 @@ void BKE_object_eval_constraints(EvaluationContext *eval_ctx,
 	(void) ob;  /* Ignored. */
 }
 
+void BKE_object_eval_done(EvaluationContext *eval_ctx, Object *ob)
+{
+	PRINT("%s on %s\n", __func__, ob->id.name);
+	(void) eval_ctx; /* Ignored. */
+	(void) ob;  /* Ignored. */
+}
+
 void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
                               struct Scene *scene,
                               struct Object *ob,
