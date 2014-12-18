@@ -49,6 +49,7 @@ extern "C" {
 #include "BKE_fcurve.h"
 #include "BKE_scene.h"
 #include "BKE_object.h"
+#include "BKE_rigidbody.h"
 
 /* TODO(sergey): This is rather temp solution anyway. */
 #include "../../ikplugin/BIK_api.h"
@@ -257,10 +258,13 @@ void BKE_rigidbody_eval_simulation(EvaluationContext *eval_ctx, Scene *scene) {}
 
 void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
+	RigidBodyWorld *rbw = scene->rigidbody_world;
+	float ctime = BKE_scene_frame_get(scene);
+	
 	printf("%s on %s\n", __func__, ob->id.name);
 	
-	(void) eval_ctx; /* Ignored. */
-	(void) scene; /* Ignored. */
+	/* read values pushed into RBO from sim/cache... */
+	BKE_rigidbody_sync_transforms(rbw, ob, ctime);
 }
 
 void BKE_mesh_eval_geometry(EvaluationContext *eval_ctx, Mesh *mesh) {}

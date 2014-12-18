@@ -66,35 +66,69 @@ void BKE_object_eval_local_transform(EvaluationContext *eval_ctx,
                                      Object *ob)
 {
 	PRINT("%s on %s\n", __func__, ob->id.name);
-
-	(void) eval_ctx;  /* Ignored. */
-	(void) scene;  /* Ignored. */
+	
+	/* calculate local matrix */
+	BKE_object_to_mat4(ob, ob->obmat);
 }
 
+/* XXX: expose this in a proper header, or shuffle the code around to get it working */
+extern void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
+
+/* Evaluate parent */
+/* NOTE: based on solve_parenting(), but with the cruft stripped out */
 void BKE_object_eval_parent(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
+	Object *par = ob->parent;
+	
+	float totmat[4][4];
+	float tmat[4][4];
+	float locmat[4][4];
+	
 	PRINT("%s on %s\n", __func__, ob->id.name);
-
-	(void) eval_ctx;  /* Ignored. */
-	(void) scene;  /* Ignored. */
-	(void) ob; /* Ignored. */
+	
+	/* get local matrix (but don't calculate it, as that was done already!) */
+	// XXX: redundant?
+	copy_m4_m4(locmat, ob->obmat);
+	
+	/* get parent effect matrix */
+	ob_get_parent_matrix(scene, ob, par, totmat);
+	
+	/* total */
+	mul_m4_m4m4(tmat, totmat, ob->parentinv);
+	mul_m4_m4m4(ob->obmat, tmat, locmat);
+	
+	/* origin, for help line */	
+	if ((ob->partype & PARTYPE) == PARSKEL) {
+		copy_v3_v3(ob->orig, par->obmat[3]);
+	}
+	else {
+		copy_v3_v3(ob->orig, totmat[3]);
+	}
 }
 
 void BKE_object_eval_constraints(EvaluationContext *eval_ctx,
                                  Scene *scene,
                                  Object *ob)
 {
+	bConstraintOb *cob;
+	float ctime = BKE_scene_frame_get(scene);
+	
 	PRINT("%s on %s\n", __func__, ob->id.name);
-	(void) eval_ctx;  /* Ignored. */
-	(void) scene;  /* Ignored. */
-	(void) ob;  /* Ignored. */
+	
+	/* evaluate constraints stack */
+	// TODO: split this into pre (i.e. BKE_constraints_make_evalob, per-constraint (i.e. inner body of BKE_constraints_solve), post (i.e. BKE_constraints_clear_evalob)
+	cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
+	BKE_constraints_solve(&ob->constraints, cob, ctime);
+	BKE_constraints_clear_evalob(cob);
 }
 
 void BKE_object_eval_done(EvaluationContext *eval_ctx, Object *ob)
 {
 	PRINT("%s on %s\n", __func__, ob->id.name);
-	(void) eval_ctx; /* Ignored. */
-	(void) ob;  /* Ignored. */
+	
+	/* set negative scale flag in object */
+	if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
+	else ob->transflag &= ~OB_NEG_SCALE;
 }
 
 void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
@@ -257,9 +291,10 @@ void BKE_object_eval_uber_transform(EvaluationContext *eval_ctx,
                                     Scene *scene,
                                     Object *ob)
 {
-	(void) eval_ctx;  /* Ignored. */
-	(void) scene;  /* Ignored. */
 	/* TODO(sergey): Currently it's a duplicate of logic in BKE_object_handle_update_ex(). */
+	// XXX: it's almost redundant now...
+	
+	
 	/* Handle proxy copy for target, */
 	if (ob->id.lib && ob->proxy_from) {
 		if (ob->proxy_from->proxy_group) {
@@ -275,8 +310,6 @@ void BKE_object_eval_uber_transform(EvaluationContext *eval_ctx,
 		else
 			copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 	}
-	else
-		BKE_object_where_is_calc_ex(scene, scene->rigidbody_world, ob, NULL);
 }
 
 void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,

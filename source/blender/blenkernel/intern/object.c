@@ -2314,7 +2314,7 @@ static void ob_parvert3(Object *ob, Object *par, float mat[4][4])
 	}
 }
 
-static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4])
+void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4])
 {
 	float tmat[4][4];
 	float vec[3];
