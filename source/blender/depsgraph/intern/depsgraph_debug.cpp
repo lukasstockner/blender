@@ -23,7 +23,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  *
- * Implementation of Querying and Filtering API's
+ * Implementation of tools for debugging the depsgraph
  */
 
 #include <stdlib.h>

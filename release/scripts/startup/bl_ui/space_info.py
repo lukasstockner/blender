@@ -53,7 +53,7 @@ class INFO_HT_header(Header):
         row = layout.row(align=True)
         row.label(text="Depsgraph:", icon='RADIO')
         row.operator("depsgraph.rebuild", text="", icon='FILE_REFRESH')
-        row.operator("depsgraph.export_graphviz", text="Export...", icon='SCRIPTWIN').filepath = "graph.dot"
+        row.operator("depsgraph.export_graphviz", text="Export...", icon='EXPORT').filepath = "graph.dot"
 
         layout.separator()
 

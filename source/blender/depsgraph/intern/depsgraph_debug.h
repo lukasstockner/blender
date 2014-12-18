@@ -22,12 +22,6 @@
  * Contributor(s): None Yet
  *
  * ***** END GPL LICENSE BLOCK *****
- *
- * "Operation Contexts" are used to pass state info (scene, parameter info, cfra)
- * as well as the temporary data structure(s) that operations should perform their
- * operations on. Thus, instead of operations potentially messing up state in places
- * they shouldn't be touching, they are just provided with thread-safe micro-environments
- * in which to work.
  */
 
 #ifndef __DEPSGRAPH_DEBUG_H__
