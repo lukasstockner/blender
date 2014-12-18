@@ -27,8 +27,6 @@
 #ifndef __DEPSNODE_H__
 #define __DEPSNODE_H__
 
-#include <vector>
-
 #include "MEM_guardedalloc.h"
 
 #include "depsgraph_types.h"
@@ -102,9 +100,6 @@ struct DepsNode {
 	static const DepsNode::TypeInfo typeinfo
 #define DEG_DEPSNODE_DEFINE(NodeType, type_, tname_) \
 	const DepsNode::TypeInfo NodeType::typeinfo = DepsNode::TypeInfo(type_, tname_)
-
-/* TODO(sergey): Move to depsgraph_types.h. */
-using std::vector;
 
 /* Generic Nodes ======================= */
 

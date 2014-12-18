@@ -39,7 +39,10 @@
  * to avoid any possible overhead caused by string (re)allocation/formatting.
  */
 #include <string>
+#include <vector>
+
 using std::string;
+using std::vector;
 
 struct bAction;
 struct ChannelDriver;
