@@ -50,11 +50,11 @@ Depsgraph::Depsgraph()
 Depsgraph::~Depsgraph()
 {
 	/* Free root node - it won't have been freed yet... */
-	if (this->root_node) {
-		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
-	}
 	clear_id_nodes();
 	clear_subgraph_nodes();
+	if (this->root_node != NULL) {
+		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
+	}
 }
 
 /* Query Conditions from RNA ----------------------- */
