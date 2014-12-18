@@ -474,11 +474,15 @@ static void deg_graph_transitive_reduction(Depsgraph *graph)
 		}
 		
 		/* remove redundant paths to the target */
-		for (OperationDepsNode::Relations::const_iterator it_rel = target->inlinks.begin(); it_rel != target->inlinks.end();) {
+		for (DepsNode::Relations::const_iterator it_rel = target->inlinks.begin(); it_rel != target->inlinks.end();) {
 			DepsRelation *rel = *it_rel;
 			++it_rel; /* increment in advance, so we can safely remove the relation */
 			
-			if (rel->from->done & OP_REACHABLE) {
+			if (rel->from->type == DEPSNODE_TYPE_TIMESOURCE) {
+				/* HACK: time source nodes don't get "done" flag set/cleared */
+				// TODO: there will be other types in future, so iterators above need modifying
+			}
+			else if (rel->from->done & OP_REACHABLE) {
 				OBJECT_GUARDED_DELETE(rel, DepsRelation);
 			}
 		}
