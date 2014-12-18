@@ -326,13 +326,13 @@ void Depsgraph::add_id_tag(const ID *id)
 
 void Depsgraph::clear_all_nodes()
 {
+	clear_id_nodes();
+	clear_subgraph_nodes();
+	id_hash.clear();
 	if (this->root_node) {
 		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
 		root_node = NULL;
 	}
-	clear_id_nodes();
-	clear_subgraph_nodes();
-	id_hash.clear();
 }
 
 /* ************************************************** */
