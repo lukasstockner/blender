@@ -121,7 +121,10 @@ static void calculate_pending_parents(Depsgraph *graph)
 		if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
 			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin(); it_rel != node->inlinks.end(); ++it_rel) {
 				DepsRelation *rel = *it_rel;
-				if (rel->from->flag & DEPSOP_FLAG_NEEDS_UPDATE)
+				OperationDepsNode *from = (OperationDepsNode *)rel->from;
+				
+				BLI_assert(rel->from->type == DEPSNODE_TYPE_OPERATION);
+				if (from->flag & DEPSOP_FLAG_NEEDS_UPDATE)
 					++node->num_links_pending;
 			}
 		}
@@ -142,9 +145,12 @@ static void calculate_eval_priority(OperationDepsNode *node)
 		
 		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 			DepsRelation *rel = *it;
-			calculate_eval_priority(rel->to);
 			
-			node->eval_priority += rel->to->eval_priority;
+			OperationDepsNode *to = (OperationDepsNode *)rel->to;
+			BLI_assert(to->type == DEPSNODE_TYPE_OPERATION);
+			
+			calculate_eval_priority(to);
+			node->eval_priority += to->eval_priority;
 		}
 	}
 	else
@@ -169,7 +175,8 @@ void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx, Depsgrap
 {
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
 		DepsRelation *rel = *it;
-		OperationDepsNode *child = rel->to;
+		OperationDepsNode *child = (OperationDepsNode *)rel->to;
+		BLI_assert(child->type == DEPSNODE_TYPE_OPERATION);
 		
 		if (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
 			BLI_assert(child->num_links_pending > 0);

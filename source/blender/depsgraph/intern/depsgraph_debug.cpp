@@ -131,7 +131,8 @@ static int deg_debug_node_color_index(const DepsNode *node)
 	switch (node->type) {
 		case DEPSNODE_TYPE_ID_REF:
 			return 5;
-		case DEPSNODE_TYPE_OPERATION: {
+		case DEPSNODE_TYPE_OPERATION:
+		{
 			OperationDepsNode *op_node = (OperationDepsNode *)node;
 			if (op_node->is_noop())
 				return 8;
@@ -425,7 +426,8 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 static void deg_debug_graphviz_node(const DebugContext &ctx, const DepsNode *node)
 {
 	switch (node->type) {
-		case DEPSNODE_TYPE_ID_REF: {
+		case DEPSNODE_TYPE_ID_REF:
+		{
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
 			if (id_node->components.empty()) {
 				deg_debug_graphviz_node_single(ctx, node);
@@ -441,7 +443,8 @@ static void deg_debug_graphviz_node(const DebugContext &ctx, const DepsNode *nod
 			break;
 		}
 		
-		case DEPSNODE_TYPE_SUBGRAPH: {
+		case DEPSNODE_TYPE_SUBGRAPH:
+		{
 			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
 			if (sub_node->graph) {
 				deg_debug_graphviz_node_cluster_begin(ctx, node);
@@ -518,14 +521,16 @@ static bool deg_debug_graphviz_is_cluster(const DepsNode *node)
 static bool deg_debug_graphviz_is_owner(const DepsNode *node, const DepsNode *other)
 {
 	switch (node->tclass) {
-		case DEPSNODE_CLASS_COMPONENT: {
+		case DEPSNODE_CLASS_COMPONENT:
+		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (comp_node->owner == other)
 				return true;
 			break;
 		}
 		
-		case DEPSNODE_CLASS_OPERATION: {
+		case DEPSNODE_CLASS_OPERATION:
+		{
 			OperationDepsNode *op_node = (OperationDepsNode *)node;
 			if (op_node->owner == other)
 				return true;
@@ -540,7 +545,7 @@ static bool deg_debug_graphviz_is_owner(const DepsNode *node, const DepsNode *ot
 	return false;
 }
 
-static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const OperationDepsNode *node)
+static void deg_debug_graphviz_node_relations(const DebugContext &ctx, const DepsNode *node)
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
 	{
@@ -634,26 +639,10 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 		}
 	}
 
-	/* TODO(sergey): Cleen this up somehow? */
 	TimeSourceDepsNode *time_source = graph->find_time_source(NULL);
 	if (time_source != NULL) {
-		for (vector<OperationDepsNode*>::const_iterator link = time_source->outlinks.begin();
-		     link != time_source->outlinks.end();
-		     ++link)
-		{
-			OperationDepsNode *node = *link;
-			deg_debug_printf(ctx, "// %s -> %s\n", time_source->identifier().c_str(), node->identifier().c_str());
-			deg_debug_printf(ctx, "\"node_%p\"", time_source);
-			deg_debug_printf(ctx, " -> ");
-			deg_debug_printf(ctx, "\"node_%p\"", node);
-
-			deg_debug_printf(ctx, "[");
-			/* TODO(sergey): Use proper relation name here. */
-			deg_debug_printf(ctx, "label=\"%s\"", "Time Dependency");
-			deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
-			deg_debug_printf(ctx, "];" NL);
-			deg_debug_printf(ctx, NL);
-		}
+		printf("drawing timesource deps\n");
+		deg_debug_graphviz_node_relations(ctx, time_source);
 	}
 #endif
 }

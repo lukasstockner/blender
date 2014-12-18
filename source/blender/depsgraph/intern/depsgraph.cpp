@@ -265,6 +265,16 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from,
 	return rel;
 }
 
+/* Add new relation between two nodes */
+DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to, 
+                                          eDepsRelation_Type type, 
+                                          const string &description)
+{
+	/* Create new relation, and add it to the graph. */
+	DepsRelation *rel = OBJECT_GUARDED_NEW(DepsRelation, from, to, type, description);
+	return rel;
+}
+
 /* Sort nodes to determine evaluation order for operation nodes
  * where dependency relationships won't get violated.
  */
@@ -289,8 +299,8 @@ void Depsgraph::sort()
 /* ************************************************** */
 /* Relationships Management */
 
-DepsRelation::DepsRelation(OperationDepsNode *from,
-                           OperationDepsNode *to,
+DepsRelation::DepsRelation(DepsNode *from,
+                           DepsNode *to,
                            eDepsRelation_Type type,
                            const string &description)
 {

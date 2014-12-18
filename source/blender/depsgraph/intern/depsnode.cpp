@@ -82,19 +82,17 @@ string DepsNode::identifier() const
 
 void TimeSourceDepsNode::tag_update(Depsgraph *graph)
 {
-	for (vector<OperationDepsNode*>::const_iterator link = outlinks.begin();
-	     link != outlinks.end();
-	     ++link)
+	for (DepsNode::Relations::const_iterator it = outlinks.begin();
+	     it != outlinks.end();
+	     ++it)
 	{
-		OperationDepsNode *node = *link;
+		DepsRelation *rel = *it;
+		
+		DepsNode *node = rel->to;
 		node->tag_update(graph);
 	}
 }
 
-void TimeSourceDepsNode::add_new_relation(OperationDepsNode *to)
-{
-	outlinks.push_back(to);
-}
 
 /* Root Node ============================================== */
 

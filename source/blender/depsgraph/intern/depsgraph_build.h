@@ -262,6 +262,7 @@ protected:
 	OperationDepsNode *find_node(const OperationKey &key) const;
 	DepsNode *find_node(const RNAPathKey &key) const;
 	
+	void add_time_relation(TimeSourceDepsNode *timesrc, DepsNode *node_to, const string &description);
 	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
 	                            eDepsRelation_Type type, const string &description);
 	
@@ -355,9 +356,12 @@ void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from, const
 	BLI_assert(type == DEPSREL_TYPE_TIME);
 	TimeSourceDepsNode *time_from = find_node(key_from);
 	OperationDepsNode *op_to = get_entry_operation(find_node(key_to));
+	
 	if (time_from && op_to) {
-		/* TODO(sergey): Store description as well. */
-		time_from->add_new_relation(op_to);
+		add_time_relation(time_from, op_to, description);
+	}
+	else {
+		
 	}
 }
 

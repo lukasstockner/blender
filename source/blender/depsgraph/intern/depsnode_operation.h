@@ -62,7 +62,7 @@ typedef enum eDepsOperation_Flag {
 
 /* Atomic Operation - Base type for all operations */
 struct OperationDepsNode : public DepsNode {
-	typedef unordered_set<DepsRelation *> Relations;
+	
 	
 	OperationDepsNode();
 	~OperationDepsNode();
@@ -77,8 +77,6 @@ struct OperationDepsNode : public DepsNode {
 	
 	DepsEvalOperationCb evaluate; /* callback for operation */
 	
-	Relations inlinks;          /* nodes which this one depends on */
-	Relations outlinks;         /* nodes which depend on this one */
 	
 	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	float eval_priority;
@@ -88,7 +86,6 @@ struct OperationDepsNode : public DepsNode {
 	int   opcode;                 /* (eDepsOperation_Code) identifier for the operation being performed */	
 	
 	int flag;                     /* (eDepsOperation_Flag) extra settings affecting evaluation */
-	int done;                     /* generic tag for traversal algorithms */
 	
 	DEG_DEPSNODE_DECLARE;
 };

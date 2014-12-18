@@ -64,6 +64,18 @@ struct DepsNode {
 	eDepsNode_Type type;        /* structural type of node */
 	eDepsNode_Class tclass;     /* type of data/behaviour represented by node... */
 	
+	
+	/* Relationships between nodes
+	 * The reason why all depsgraph nodes are descended from this type (apart from basic serialisation
+	 * benefits - from the typeinfo) is that we can have relationships between these nodes!
+	 */
+	typedef unordered_set<DepsRelation *> Relations;
+	
+	Relations inlinks;          /* nodes which this one depends on */
+	Relations outlinks;         /* nodes which depend on this one */
+	
+	int done;                   /* generic tag for traversal algorithms */
+	
 public:
 	DepsNode();
 	virtual ~DepsNode();
@@ -91,18 +103,13 @@ struct IDDepsNode;
 
 /* Time Source Node */
 struct TimeSourceDepsNode : public DepsNode {
-	// XXX: how do we keep track of the chain of time sources for propagation of delays?
-
 	double cfra;                    /* new "current time" */
 	double offset;                  /* time-offset relative to the "official" time source that this one has */
-
+	
+	// TODO: evaluate() operation needed
+	
 	void tag_update(Depsgraph *graph);
-
-	/* Add relation between this time source and given operation node. */
-	void add_new_relation(OperationDepsNode *to);
-
-	vector<OperationDepsNode*> outlinks;
-
+	
 	DEG_DEPSNODE_DECLARE;
 };
 

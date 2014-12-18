@@ -391,6 +391,19 @@ DepsNode *DepsgraphRelationBuilder::find_node(const RNAPathKey &key) const
 	return m_graph->find_node_from_pointer(&key.ptr, key.prop);
 }
 
+void DepsgraphRelationBuilder::add_time_relation(TimeSourceDepsNode *timesrc, DepsNode *node_to, const string &description)
+{
+	if (timesrc && node_to) {
+		m_graph->add_new_relation(timesrc, node_to, DEPSREL_TYPE_TIME, description);
+	}
+	else {
+		fprintf(stderr, "add_time_relation(%p = %s, %p = %s, %s) Failed\n", 
+		        timesrc,   (timesrc) ? timesrc->identifier().c_str() : "<None>",
+		        node_to,   (node_to) ? node_to->identifier().c_str() : "<None>",
+		        description.c_str());
+	}
+}
+
 void DepsgraphRelationBuilder::add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
                                                       eDepsRelation_Type type, const string &description)
 {
@@ -424,7 +437,7 @@ enum {
 	OP_REACHABLE = 2,
 };
 
-static void deg_graph_tag_paths_recursive(OperationDepsNode *node)
+static void deg_graph_tag_paths_recursive(DepsNode *node)
 {
 	if (node->done & OP_VISITED)
 		return;

@@ -73,8 +73,8 @@ typedef enum eDepsRelation_Flag {
 /* B depends on A (A -> B) */
 struct DepsRelation {
 	/* the nodes in the relationship (since this is shared between the nodes) */
-	OperationDepsNode *from;      /* A */
-	OperationDepsNode *to;        /* B */
+	DepsNode *from;               /* A */
+	DepsNode *to;                 /* B */
 
 	/* relationship attributes */
 	string name;                  /* label for debugging */
@@ -82,8 +82,8 @@ struct DepsRelation {
 	eDepsRelation_Type type;      /* type */
 	int flag;                     /* (eDepsRelation_Flag) */
 
-	DepsRelation(OperationDepsNode *from,
-	             OperationDepsNode *to,
+	DepsRelation(DepsNode *from,
+	             DepsNode *to,
 	             eDepsRelation_Type type,
 	             const string &description);
 
@@ -144,6 +144,11 @@ struct Depsgraph {
 	/* Add new relationship between two nodes. */
 	DepsRelation *add_new_relation(OperationDepsNode *from,
 	                               OperationDepsNode *to,
+	                               eDepsRelation_Type type,
+	                               const string &description);
+								   
+	DepsRelation *add_new_relation(DepsNode *from,
+	                               DepsNode *to,
 	                               eDepsRelation_Type type,
 	                               const string &description);
 
