@@ -123,7 +123,8 @@ static void calculate_pending_parents(Depsgraph *graph)
 				DepsRelation *rel = *it_rel;
 				OperationDepsNode *from = (OperationDepsNode *)rel->from;
 				
-				BLI_assert(rel->from->type == DEPSNODE_TYPE_OPERATION);
+				BLI_assert(ELEM(rel->from->type, DEPSNODE_TYPE_OPERATION,
+				                                 DEPSNODE_TYPE_TIMESOURCE));
 				if (from->flag & DEPSOP_FLAG_NEEDS_UPDATE)
 					++node->num_links_pending;
 			}
