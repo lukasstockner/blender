@@ -66,12 +66,12 @@ DepsNode::~DepsNode()
 }
 
 
-/* Generic identifier for Depsgraph Nodes */
+/* Generic identifier for Depsgraph Nodes. */
 string DepsNode::identifier() const
 {
 	char typebuf[7];
 	sprintf(typebuf, "(%d)", type);
-	
+
 	return string(typebuf) + " : " + name;
 }
 
@@ -87,7 +87,6 @@ void TimeSourceDepsNode::tag_update(Depsgraph *graph)
 	     ++it)
 	{
 		DepsRelation *rel = *it;
-		
 		DepsNode *node = rel->to;
 		node->tag_update(graph);
 	}
@@ -121,60 +120,65 @@ static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
 
 /* ID Node ================================================ */
 
-/* Initialise 'id' node - from pointer data given */
+/* Initialise 'id' node - from pointer data given. */
 void IDDepsNode::init(const ID *id, const string &UNUSED(subdata))
 {
-	/* store ID-pointer */
+	/* Store ID-pointer. */
 	BLI_assert(id != NULL);
 	this->id = (ID *)id;
-	
+
 	/* NOTE: components themselves are created if/when needed.
-	 * This prevents problems with components getting added 
+	 * This prevents problems with components getting added
 	 * twice if an ID-Ref needs to be created to house it...
 	 */
 }
 
-/* Free 'id' node */
+/* Free 'id' node. */
 IDDepsNode::~IDDepsNode()
 {
 	clear_components();
 }
 
-/* Copy 'id' node */
+/* Copy 'id' node. */
 void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 {
-	/* iterate over items in original hash, adding them to new hash */
-	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin(); it != this->components.end(); ++it) {
-		/* get current <type : component> mapping */
+	/* Iterate over items in original hash, adding them to new hash. */
+	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin();
+	     it != this->components.end();
+	     ++it)
+	{
+		/* Get current <type : component> mapping. */
 		ComponentKey c_key      = it->first;
 		DepsNode *old_component = it->second;
-		
-		/* make a copy of component */
-		ComponentDepsNode *component     = (ComponentDepsNode *)DEG_copy_node(dcc, old_component);
-		
-		/* add new node to hash... */
+
+		/* Make a copy of component. */
+		ComponentDepsNode *component = (ComponentDepsNode *)DEG_copy_node(dcc, old_component);
+
+		/* Add new node to hash... */
 		this->components[c_key] = component;
 	}
-	
+
 	// TODO: perform a second loop to fix up links?
 }
 
-ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type, const string &name) const
+ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type,
+                                              const string &name) const
 {
 	ComponentKey key(type, name);
 	ComponentMap::const_iterator it = components.find(key);
 	return it != components.end() ? it->second : NULL;
 }
 
-ComponentDepsNode *IDDepsNode::add_component(eDepsNode_Type type, const string &name)
+ComponentDepsNode *IDDepsNode::add_component(eDepsNode_Type type,
+                                             const string &name)
 {
 	ComponentKey key(type, name);
 	ComponentDepsNode *comp_node = find_component(type, name);
 	if (!comp_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
 		comp_node = (ComponentDepsNode *)factory->create_node(this->id, "", name);
-		
-		/* register */
+
+		/* Register. */
 		this->components[key] = comp_node;
 		comp_node->owner = this;
 	}
@@ -186,7 +190,7 @@ void IDDepsNode::remove_component(eDepsNode_Type type, const string &name)
 	ComponentKey key(type, name);
 	ComponentDepsNode *comp_node = find_component(type, name);
 	if (comp_node) {
-		/* unregister */
+		/* Unregister. */
 		this->components.erase(key);
 		OBJECT_GUARDED_DELETE(comp_node, ComponentDepsNode);
 	}
@@ -194,7 +198,10 @@ void IDDepsNode::remove_component(eDepsNode_Type type, const string &name)
 
 void IDDepsNode::clear_components()
 {
-	for (ComponentMap::const_iterator it = components.begin(); it != components.end(); ++it) {
+	for (ComponentMap::const_iterator it = components.begin();
+	     it != components.end();
+	     ++it)
+	{
 		ComponentDepsNode *comp_node = it->second;
 		OBJECT_GUARDED_DELETE(comp_node, ComponentDepsNode);
 	}
@@ -203,10 +210,13 @@ void IDDepsNode::clear_components()
 
 void IDDepsNode::tag_update(Depsgraph *graph)
 {
-	for (ComponentMap::const_iterator it = components.begin(); it != components.end(); ++it) {
+	for (ComponentMap::const_iterator it = components.begin();
+	     it != components.end();
+	     ++it)
+	{
 		ComponentDepsNode *comp_node = it->second;
-		/* Animation component should only be tagged for update by the time updates,
-		 * or by tagging the animation itself.
+		/* Animation component should only be tagged for update by the time
+		 * updates or by tagging the animation itself.
 		 *
 		 * TODO(sergey): Make it faster than stupid string comparison.
 		 */
@@ -221,35 +231,38 @@ static DepsNodeFactoryImpl<IDDepsNode> DNTI_ID_REF;
 
 /* Subgraph Node ========================================== */
 
-/* Initialise 'subgraph' node - from pointer data given */
+/* Initialise 'subgraph' node - from pointer data given. */
 void SubgraphDepsNode::init(const ID *id, const string &UNUSED(subdata))
 {
-	/* store ID-ref if provided */
+	/* Store ID-ref if provided. */
 	this->root_id = (ID *)id;
-	
+
 	/* NOTE: graph will need to be added manually,
-	 * as we don't have any way of passing this down
+	 * as we don't have any way of passing this down.
 	 */
 }
 
 /* Free 'subgraph' node */
 SubgraphDepsNode::~SubgraphDepsNode()
 {
-	/* only free if graph not shared, of if this node is the first reference to it... */
+	/* Only free if graph not shared, of if this node is the first
+	 * reference to it...
+	 */
 	// XXX: prune these flags a bit...
 	if ((this->flag & SUBGRAPH_FLAG_FIRSTREF) || !(this->flag & SUBGRAPH_FLAG_SHARED)) {
-		/* free the referenced graph */
+		/* Free the referenced graph. */
 		DEG_graph_free(this->graph);
 		this->graph = NULL;
 	}
 }
 
 /* Copy 'subgraph' node - Assume that the subgraph doesn't get copied for now... */
-void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc, const SubgraphDepsNode *src)
+void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc,
+                            const SubgraphDepsNode *src)
 {
 	//const SubgraphDepsNode *src_node = (const SubgraphDepsNode *)src;
 	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
-	
+
 	/* for now, subgraph itself isn't copied... */
 }
 
@@ -261,7 +274,7 @@ void DEG_register_base_depsnodes()
 {
 	DEG_register_node_typeinfo(&DNTI_ROOT);
 	DEG_register_node_typeinfo(&DNTI_TIMESOURCE);
-	
+
 	DEG_register_node_typeinfo(&DNTI_ID_REF);
 	DEG_register_node_typeinfo(&DNTI_SUBGRAPH);
 }
