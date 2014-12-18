@@ -86,27 +86,25 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 	}
 }
 
-/* *************************************************** */
-/* Multi-Threaded Evaluation Internals */
+/* ************************************ */
+/* Multi-Threaded Evaluation Internals. */
 
 static SpinLock threaded_update_lock;
 
-/* Initialise threading lock - called during application startup */
+/* Initialise threading lock - called during application startup. */
 void DEG_threaded_init(void)
 {
 	BLI_spin_init(&threaded_update_lock);
 }
 
-/* Free threading lock - called during application shutdown */
+/* Free threading lock - called during application shutdown. */
 void DEG_threaded_exit(void)
 {
 	DepsgraphDebug::stats_free();
-	
 	BLI_spin_end(&threaded_update_lock);
 }
 
-
-/* *************************************************** */
+/* ********************** */
 /* Evaluation Entrypoints */
 
 static void calculate_pending_parents(Depsgraph *graph)
@@ -140,36 +138,41 @@ static void calculate_pending_parents(Depsgraph *graph)
 
 static void calculate_eval_priority(OperationDepsNode *node)
 {
-	if (node->done)
+	if (node->done) {
 		return;
+	}
 	node->done = 1;
-	
+
 	if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
 		/* XXX standard cost of a node, could be estimated somewhat later on */
 		const float cost = 1.0f;
 		/* NOOP nodes have no cost */
 		node->eval_priority = node->is_noop() ? cost : 0.0f;
-		
-		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+
+		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
+		     it != node->outlinks.end();
+		     ++it)
+		{
 			DepsRelation *rel = *it;
-			
 			OperationDepsNode *to = (OperationDepsNode *)rel->to;
 			BLI_assert(to->type == DEPSNODE_TYPE_OPERATION);
-			
 			calculate_eval_priority(to);
 			node->eval_priority += to->eval_priority;
 		}
 	}
-	else
+	else {
 		node->eval_priority = 0.0f;
+	}
 }
 
 static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph)
 {
 	BLI_spin_lock(&threaded_update_lock);
-	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
+	     it != graph->operations.end();
+	     ++it)
+	{
 		OperationDepsNode *node = *it;
-		
 		if ((node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0) {
 			BLI_task_pool_push(pool, DEG_task_run_func, node, false, TASK_PRIORITY_LOW);
 			node->scheduled = true;
@@ -178,23 +181,27 @@ static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgrap
 	BLI_spin_unlock(&threaded_update_lock);
 }
 
-void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph, OperationDepsNode *node)
+void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
+                           Depsgraph *graph, OperationDepsNode *node)
 {
-	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin(); it != node->outlinks.end(); ++it) {
+	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
+	     it != node->outlinks.end();
+	     ++it)
+	{
 		DepsRelation *rel = *it;
 		OperationDepsNode *child = (OperationDepsNode *)rel->to;
 		BLI_assert(child->type == DEPSNODE_TYPE_OPERATION);
-		
+
 		if (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
 			BLI_assert(child->num_links_pending > 0);
 			atomic_sub_uint32(&child->num_links_pending, 1);
-			
+
 			if (child->num_links_pending == 0) {
 				BLI_spin_lock(&threaded_update_lock);
 				bool need_schedule = !child->scheduled;
 				child->scheduled = true;
 				BLI_spin_unlock(&threaded_update_lock);
-				
+
 				if (need_schedule) {
 					BLI_task_pool_push(pool, DEG_task_run_func, child, false, TASK_PRIORITY_LOW);
 				}
@@ -204,15 +211,15 @@ void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx, Depsgrap
 }
 
 
-/* Evaluate all nodes tagged for updating 
- * ! This is usually done as part of main loop, but may also be 
- *   called from frame-change update
+/* Evaluate all nodes tagged for updating,
+ * ! This is usually done as part of main loop, but may also be
+ *   called from frame-change update.
  */
 void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 {
-	/* generate base evaluation context, upon which all the others are derived... */
+	/* Generate base evaluation context, upon which all the others are derived. */
 	// TODO: this needs both main and scene access...
-	
+
 	/* XXX could use a separate pool for each eval context */
 	DepsgraphEvalState state;
 	state.eval_ctx = eval_ctx;
@@ -220,51 +227,56 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, &state);
-	
-	/* recursively push updates out to all nodes dependent on this, 
+
+	/* Recursively push updates out to all nodes dependent on this,
 	 * until all affected are tagged and/or scheduled up for eval
 	 */
 	DEG_graph_flush_updates(graph);
-	
+
 	calculate_pending_parents(graph);
-	
-	/* clear tags */
-	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+
+	/* Clear tags. */
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
+	     it != graph->operations.end();
+	     ++it)
+	{
 		OperationDepsNode *node = *it;
 		node->done = 0;
 	}
-	/* calculate priority for operation nodes */
-	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
+
+	/* Calculate priority for operation nodes. */
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
+	     it != graph->operations.end();
+	     ++it)
+	{
 		OperationDepsNode *node = *it;
 		calculate_eval_priority(node);
 	}
-	
+
 	DepsgraphDebug::eval_begin(eval_ctx);
-	
+
 	schedule_graph(task_pool, eval_ctx, graph);
-	
+
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
-	
+
 	DepsgraphDebug::eval_end(eval_ctx);
-	
-	/* clear any uncleared tags - just in case */
+
+	/* Clear any uncleared tags - just in case. */
 	DEG_graph_clear_tags(graph);
 }
 
-/* Frame-change happened for root scene that graph belongs to */
+/* Frame-change happened for root scene that graph belongs to. */
 void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
                                  Depsgraph *graph,
                                  double ctime)
 {
-	/* update time on primary timesource */
+	/* Update time on primary timesource. */
 	TimeSourceDepsNode *tsrc = graph->find_time_source();
 	tsrc->cfra = ctime;
 
 	tsrc->tag_update(graph);
 
-	/* perform recalculation updates */
+	/* Perform recalculation updates. */
 	DEG_evaluate_on_refresh(eval_ctx, graph);
 }
-
-/* *************************************************** */
