@@ -26,36 +26,17 @@
  * Evaluation engine entrypoints for Depsgraph Engine
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "MEM_guardedalloc.h"
 
+#include "PIL_time.h"
+
 extern "C" {
-#include "BLI_blenlib.h"
-#include "BLI_string.h"
 #include "BLI_task.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_anim_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+#include "DNA_ID.h"
 
-#include "BKE_action.h"
-#include "BKE_animsys.h"
-#include "BKE_constraint.h"
-#include "BKE_DerivedMesh.h"
-#include "BKE_main.h"
-#include "BKE_object.h"
-#include "BKE_scene.h"
 #include "BKE_global.h" /* XXX only for debug value, remove eventually */
-
-#include "DEG_depsgraph.h"
-
-#include "RNA_access.h"
-#include "RNA_types.h"
 } /* extern "C" */
 
 #include "atomic_ops.h"
@@ -88,6 +69,44 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 
 /* ********************** */
 /* Evaluation Entrypoints */
+
+struct DepsgraphEvalState {
+	EvaluationContext *eval_ctx;
+	Depsgraph *graph;
+};
+
+static void deg_task_run_func(TaskPool *pool,
+                              void *taskdata,
+                              int UNUSED(threadid))
+{
+	DepsgraphEvalState *state = (DepsgraphEvalState *)BLI_task_pool_userdata(pool);
+	OperationDepsNode *node = (OperationDepsNode *)taskdata;
+	if (node->is_noop()) {
+		deg_schedule_children(pool, state->eval_ctx, state->graph, node);
+		return;
+	}
+
+	/* Get context. */
+	// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
+	ComponentDepsNode *comp = node->owner;
+	BLI_assert(comp != NULL);
+
+	/* Take note of current time. */
+	double start_time = PIL_check_seconds_timer();
+	DepsgraphDebug::task_started(node);
+
+	/* Should only be the case for NOOPs, which never get to this point. */
+	BLI_assert(node->evaluate != NULL);
+
+	/* Perform operation. */
+	node->evaluate(state->eval_ctx);
+
+	/* Note how long this took. */
+	double end_time = PIL_check_seconds_timer();
+	DepsgraphDebug::task_completed(node, end_time - start_time);
+
+	deg_schedule_children(pool, state->eval_ctx, state->graph, node);
+}
 
 static void calculate_pending_parents(Depsgraph *graph)
 {
@@ -156,7 +175,7 @@ static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgrap
 	{
 		OperationDepsNode *node = *it;
 		if ((node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0) {
-			BLI_task_pool_push(pool, DEG_task_run_func, node, false, TASK_PRIORITY_LOW);
+			BLI_task_pool_push(pool, deg_task_run_func, node, false, TASK_PRIORITY_LOW);
 			node->scheduled = true;
 		}
 	}
@@ -185,13 +204,12 @@ void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
 				BLI_spin_unlock(&graph->lock);
 
 				if (need_schedule) {
-					BLI_task_pool_push(pool, DEG_task_run_func, child, false, TASK_PRIORITY_LOW);
+					BLI_task_pool_push(pool, deg_task_run_func, child, false, TASK_PRIORITY_LOW);
 				}
 			}
 		}
 	}
 }
-
 
 /* Evaluate all nodes tagged for updating,
  * ! This is usually done as part of main loop, but may also be

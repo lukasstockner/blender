@@ -35,8 +35,6 @@
 
 #include "DEG_depsgraph.h"
 
-#include "depsgraph_util_task.h"
-
 struct Depsgraph;
 struct OperationDepsNode;
 
@@ -136,7 +134,7 @@ typedef struct DEG_PoseContext {
 
 struct Depsgraph;
 struct OperationDepsNode;
-struct Taskpool;
+struct TaskPool;
 void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph, OperationDepsNode *node);
 
 #endif // __DEPSGRAPH_EVAL_TYPES_H__
