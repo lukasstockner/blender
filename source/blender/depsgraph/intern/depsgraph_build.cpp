@@ -242,18 +242,23 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 	/* cache these in a vector, so we don't invalidate the iterators
 	 * by adding operations inside the loop
 	 */
-	OperationsVector entry_ops, exit_ops;
+	OperationsVector source_ops, sink_ops;	/* nodes without any links (i.e. all of them when this gets called) */
+	OperationsVector entry_ops, exit_ops;	/* nodes tagged as being entry/exit points */
 	
 	for (ComponentDepsNode::OperationMap::const_iterator it = node->operations.begin(); it != node->operations.end(); ++it) {
 		OperationDepsNode *op_node = it->second;
 		
 		/* entry node? */
-		if (op_node->inlinks.empty())
+		if (op_node->optype == DEPSOP_TYPE_INIT)
 			entry_ops.push_back(op_node);
+		else if (op_node->inlinks.empty())
+			source_ops.push_back(op_node);
 		
 		/* exit node? */
-		if (op_node->outlinks.empty())
+		if (op_node->optype == DEPSOP_TYPE_POST)
 			exit_ops.push_back(op_node);
+		else if (op_node->outlinks.empty())
+			sink_ops.push_back(op_node);
 	}
 	
 	if (entry_ops.size() == 1) {
@@ -268,6 +273,14 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 			m_graph->add_new_relation(node->entry_operation, op_node, DEPSREL_TYPE_OPERATION, "Component entry relation");
 		}
 	}
+	else if (source_ops.size() == 1) {
+		/* single unlinked op, just use directly */
+		node->entry_operation = source_ops.front();
+	}
+	else if (source_ops.size() > 1) {
+		/* multiple unlinked op, add a barrier node as a single entry point */
+		// XXX: problematic for drivers
+	}
 	
 	if (exit_ops.size() == 1) {
 		/* single exit op, just use this directly */
@@ -280,6 +293,14 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 			OperationDepsNode *op_node = *it;
 			m_graph->add_new_relation(op_node, node->exit_operation, DEPSREL_TYPE_OPERATION, "Component exit relation");
 		}
+	}
+	else if (sink_ops.size() == 1) {
+		/* single unlinked op, just use this directly */
+		node->exit_operation = sink_ops.front();
+	}
+	else if (sink_ops.size() > 1) {
+		/* multiple unlinked ops, add a barrier node as a single exit point */
+		// XXX: problematic for drivers
 	}
 }
 
