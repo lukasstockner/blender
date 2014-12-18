@@ -125,7 +125,7 @@ void DEG_graph_flush_updates(Depsgraph *graph)
 		     ++it)
 		{
 			DepsRelation *rel = *it;
-			OperationDepsNode *to_node = rel->to;
+			OperationDepsNode *to_node = (OperationDepsNode *)rel->to;
 
 			if (!(to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE)) {
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;

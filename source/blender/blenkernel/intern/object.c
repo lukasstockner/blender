@@ -2314,6 +2314,9 @@ static void ob_parvert3(Object *ob, Object *par, float mat[4][4])
 	}
 }
 
+/* XXX: expose this in a proper header, or shuffle the code around to get it working */
+extern void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
+
 void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4])
 {
 	float tmat[4][4];

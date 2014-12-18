@@ -61,8 +61,8 @@
 
 #define PRINT if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW) printf
 
-void BKE_object_eval_local_transform(EvaluationContext *eval_ctx,
-                                     Scene *scene,
+void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
+                                     Scene *UNUSED(scene),
                                      Object *ob)
 {
 	PRINT("%s on %s\n", __func__, ob->id.name);
@@ -76,7 +76,7 @@ extern void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float pa
 
 /* Evaluate parent */
 /* NOTE: based on solve_parenting(), but with the cruft stripped out */
-void BKE_object_eval_parent(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
+void BKE_object_eval_parent(EvaluationContext *UNUSED(eval_ctx), Scene *scene, Object *ob)
 {
 	Object *par = ob->parent;
 	
@@ -106,7 +106,7 @@ void BKE_object_eval_parent(EvaluationContext *eval_ctx, Scene *scene, Object *o
 	}
 }
 
-void BKE_object_eval_constraints(EvaluationContext *eval_ctx,
+void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
                                  Scene *scene,
                                  Object *ob)
 {
@@ -122,7 +122,7 @@ void BKE_object_eval_constraints(EvaluationContext *eval_ctx,
 	BKE_constraints_clear_evalob(cob);
 }
 
-void BKE_object_eval_done(EvaluationContext *eval_ctx, Object *ob)
+void BKE_object_eval_done(EvaluationContext *UNUSED(eval_ctx), Object *ob)
 {
 	PRINT("%s on %s\n", __func__, ob->id.name);
 	
@@ -287,8 +287,8 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	/* quick cache removed */
 }
 
-void BKE_object_eval_uber_transform(EvaluationContext *eval_ctx,
-                                    Scene *scene,
+void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
+                                    Scene *UNUSED(scene),
                                     Object *ob)
 {
 	/* TODO(sergey): Currently it's a duplicate of logic in BKE_object_handle_update_ex(). */

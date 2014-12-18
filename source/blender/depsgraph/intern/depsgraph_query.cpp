@@ -102,7 +102,7 @@ static void DEG_graph_traverse_from_node(Depsgraph *graph, OperationDepsNode *st
 			/* ensure that relationship is not tagged for ignoring (i.e. cyclic, etc.) */
 			// TODO: cyclic refs should probably all get clustered towards the end, so that we can just stop on the first one
 			if ((rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
-				OperationDepsNode *child_node = rel->to;
+				OperationDepsNode *child_node = (OperationDepsNode *)rel->to;
 				
 				/* only visit node if the filtering function agrees */
 				if ((filter == NULL) || filter(graph, child_node, filter_data)) {			

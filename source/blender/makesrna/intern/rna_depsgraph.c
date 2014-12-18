@@ -70,10 +70,10 @@ static void rna_Depsgraph_debug_stats(Depsgraph *graph, ReportList *reports)
 	DEG_stats_simple(graph, &outer, &ops, &rels);
 	
 	// XXX: report doesn't seem to work
-	printf("Approx %u Operations, %u Relations, %u Outer Nodes\n",
+	printf("Approx %lu Operations, %lu Relations, %lu Outer Nodes\n",
 	       ops, rels, outer);
 		   
-	BKE_reportf(reports, RPT_WARNING, "Approx. %u Operations, %u Relations, %u Outer Nodes",
+	BKE_reportf(reports, RPT_WARNING, "Approx. %lu Operations, %lu Relations, %lu Outer Nodes",
 	            ops, rels, outer);
 }
 
