@@ -1606,7 +1606,6 @@ int main(
 	/* after level 1 args, this is so playanim skips RNA init */
 	RNA_init();
 
-	DEG_threaded_init();
 	RE_engines_init();
 	init_nodesystem();
 	psys_init_rng();

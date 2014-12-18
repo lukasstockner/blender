@@ -33,16 +33,13 @@
 #ifndef __DEPSGRAPH_H__
 #define __DEPSGRAPH_H__
 
-#include <vector>
-
 #include "MEM_guardedalloc.h"
+#include "BLI_threads.h"  /* for SpinLock */
 
 #include "depsgraph_types.h"
 
 #include "depsgraph_util_map.h"
 #include "depsgraph_util_set.h"
-
-using std::vector;
 
 struct PointerRNA;
 struct PropertyRNA;
@@ -54,7 +51,6 @@ struct IDDepsNode;
 struct SubgraphDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
-
 
 /* ************************************* */
 /* Relationships Between Nodes */
@@ -146,7 +142,7 @@ struct Depsgraph {
 	                               OperationDepsNode *to,
 	                               eDepsRelation_Type type,
 	                               const string &description);
-								   
+
 	DepsRelation *add_new_relation(DepsNode *from,
 	                               DepsNode *to,
 	                               eDepsRelation_Type type,
@@ -191,6 +187,11 @@ struct Depsgraph {
 	/* XXX: should be collected after building (if actually needed?) */
 	/* All operation nodes, sorted in order of single-thread traversal order. */
 	OperationNodes operations;
+
+	/* Spin lock for threading-critical operations.
+	 * Mainly used by graph evaluation.
+	 */
+	SpinLock lock;
 
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
 };

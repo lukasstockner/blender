@@ -45,6 +45,7 @@ extern "C" {
 Depsgraph::Depsgraph()
 {
 	this->root_node = NULL;
+	BLI_spin_init(&lock);
 }
 
 Depsgraph::~Depsgraph()
@@ -55,6 +56,7 @@ Depsgraph::~Depsgraph()
 	if (this->root_node != NULL) {
 		OBJECT_GUARDED_DELETE(this->root_node, RootDepsNode);
 	}
+	BLI_spin_end(&lock);
 }
 
 /* Query Conditions from RNA ----------------------- */

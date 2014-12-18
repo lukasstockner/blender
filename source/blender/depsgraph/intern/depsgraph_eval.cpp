@@ -86,24 +86,6 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 	}
 }
 
-/* ************************************ */
-/* Multi-Threaded Evaluation Internals. */
-
-static SpinLock threaded_update_lock;
-
-/* Initialise threading lock - called during application startup. */
-void DEG_threaded_init(void)
-{
-	BLI_spin_init(&threaded_update_lock);
-}
-
-/* Free threading lock - called during application shutdown. */
-void DEG_threaded_exit(void)
-{
-	DepsgraphDebug::stats_free();
-	BLI_spin_end(&threaded_update_lock);
-}
-
 /* ********************** */
 /* Evaluation Entrypoints */
 
@@ -167,7 +149,7 @@ static void calculate_eval_priority(OperationDepsNode *node)
 
 static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph)
 {
-	BLI_spin_lock(&threaded_update_lock);
+	BLI_spin_lock(&graph->lock);
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
 	     it != graph->operations.end();
 	     ++it)
@@ -178,7 +160,7 @@ static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgrap
 			node->scheduled = true;
 		}
 	}
-	BLI_spin_unlock(&threaded_update_lock);
+	BLI_spin_unlock(&graph->lock);
 }
 
 void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
@@ -197,10 +179,10 @@ void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
 			atomic_sub_uint32(&child->num_links_pending, 1);
 
 			if (child->num_links_pending == 0) {
-				BLI_spin_lock(&threaded_update_lock);
+				BLI_spin_lock(&graph->lock);
 				bool need_schedule = !child->scheduled;
 				child->scheduled = true;
-				BLI_spin_unlock(&threaded_update_lock);
+				BLI_spin_unlock(&graph->lock);
 
 				if (need_schedule) {
 					BLI_task_pool_push(pool, DEG_task_run_func, child, false, TASK_PRIORITY_LOW);

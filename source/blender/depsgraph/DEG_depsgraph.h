@@ -139,16 +139,6 @@ void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
 void DEG_evaluate_on_refresh(struct EvaluationContext *eval_ctx,
                              Depsgraph *graph);
 
-/* ----------------------------------------------- */
-
-/* Initialise threading lock - called during application startup */
-void DEG_threaded_init(void);
-
-/* Free threading lock - called during application shutdown */
-void DEG_threaded_exit(void);
-
-/* ************************************************ */
-
 #ifdef __cplusplus
 } /* extern "C" */
 #endif
