@@ -40,6 +40,8 @@
 
 #ifdef RNA_RUNTIME
 
+#include "BKE_report.h"
+
 #include "DEG_depsgraph_debug.h"
 
 static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
@@ -61,6 +63,20 @@ static void rna_Depsgraph_debug_rebuild(Depsgraph *UNUSED(graph), Main *bmain)
 		DAG_scene_relations_rebuild(bmain, sce);
 }
 
+static void rna_Depsgraph_debug_stats(Depsgraph *graph, ReportList *reports)
+{
+	size_t outer, ops, rels;
+	
+	DEG_stats_simple(graph, &outer, &ops, &rels);
+	
+	// XXX: report doesn't seem to work
+	printf("Approx %u Operations, %u Relations, %u Outer Nodes\n",
+	       ops, rels, outer);
+		   
+	BKE_reportf(reports, RPT_WARNING, "Approx. %u Operations, %u Relations, %u Outer Nodes",
+	            ops, rels, outer);
+}
+
 #else
 
 static void rna_def_depsgraph(BlenderRNA *brna)
@@ -80,6 +96,10 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	func = RNA_def_function(srna, "debug_rebuild", "rna_Depsgraph_debug_rebuild");
 	RNA_def_function_flag(func, FUNC_USE_MAIN);
 	RNA_def_property_flag(parm, PROP_REQUIRED);
+	
+	func = RNA_def_function(srna, "debug_stats", "rna_Depsgraph_debug_stats");
+	RNA_def_function_ui_description(func, "Report the number of elements in the Dependency Graph");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 }
 
 void RNA_def_depsgraph(BlenderRNA *brna)

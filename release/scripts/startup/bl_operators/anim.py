@@ -368,6 +368,17 @@ class UpdateAnimatedTransformConstraint(Operator):
 
 ######################################
 
+class DEPSGRAPH_OT_stats(Operator):
+    """Report the number of elements in the dependency graph"""
+    bl_idname = "depsgraph.stats"
+    bl_label = "Depsgraph Stats Report"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        context.scene.depsgraph.debug_stats()
+        return {'FINISHED'}
+
+
 class DEPSGRAPH_OT_rebuild(Operator):
     """Force the dependency graph to be rebuilt to account for modified dependencies"""
     bl_idname = "depsgraph.rebuild"

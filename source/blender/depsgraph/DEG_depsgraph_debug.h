@@ -76,6 +76,13 @@ void DEG_stats_verify(struct DepsgraphSettings *settings);
 
 struct DepsgraphStatsID *DEG_stats_id(struct ID *id);
 
+/* ------------------------------------------------ */
+
+void DEG_stats_simple(const struct Depsgraph *graph, 
+                      size_t *r_outer,
+                      size_t *r_operations,
+                      size_t *r_relations);
+
 /* ************************************************ */
 /* Graphviz Debugging */
 

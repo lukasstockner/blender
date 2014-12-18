@@ -902,3 +902,51 @@ bool DEG_debug_compare(const struct Depsgraph *graph1,
 	 */
 	return true;
 }
+
+/* ------------------------------------------------ */
+
+/**
+ * Obtain simple statistics about the complexity of the depsgraph
+ * \param[out] r_outer       The number of outer nodes in the graph
+ * \param[out] r_operations  The number of operation nodes in the graph
+ * \param[out] r_relations   The number of relations between (executable) nodes in the graph
+ */
+void DEG_stats_simple(const Depsgraph *graph, size_t *r_outer,
+                      size_t *r_operations, size_t *r_relations)
+{
+	/* number of operations */
+	if (r_operations) {
+		/* All operations should be in this list, allowing us to count the total number of nodes */
+		*r_operations = graph->operations.size();
+	}
+	
+	/* count number of outer nodes and/or relations between these */
+	if (r_outer || r_relations) {
+		size_t tot_outer = 0;
+		size_t tot_rels = 0;
+		
+		for (Depsgraph::IDNodeMap::const_iterator it = graph->id_hash.begin(); it != graph->id_hash.end(); ++it) {
+			IDDepsNode *id_node = it->second;
+			tot_outer++;
+			
+			for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin(); it != id_node->components.end(); ++it) {
+				ComponentDepsNode *comp_node = it->second;
+				tot_outer++;
+				
+				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin(); it != comp_node->operations.end(); ++it) {
+					OperationDepsNode *op_node = it->second;
+					tot_rels += op_node->inlinks.size();
+				}
+			}
+		}
+
+		TimeSourceDepsNode *time_source = graph->find_time_source(NULL);
+		if (time_source != NULL) {
+			tot_rels += time_source->inlinks.size();
+		}
+		
+		if (r_relations) *r_relations = tot_rels;
+		if (r_outer)     *r_outer     = tot_outer;
+	}
+}
+
