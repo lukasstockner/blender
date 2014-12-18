@@ -69,10 +69,10 @@ DepsNode::~DepsNode()
 /* Generic identifier for Depsgraph Nodes */
 string DepsNode::identifier() const
 {
-	char typebuf[5];
-	sprintf(typebuf, "%d", type);
+	char typebuf[7];
+	sprintf(typebuf, "(%d)", type);
 	
-	return string("Node(") + "t: " + typebuf + ", n: '" + name + "')";
+	return string(typebuf) + " : " + name;
 }
 
 /* ******************************************************** */

@@ -89,12 +89,12 @@ ComponentDepsNode::~ComponentDepsNode()
 
 string ComponentDepsNode::identifier() const
 {
-	const char *idname = this->owner->name.c_str();
+	string &idname = this->owner->name;
 	
-	char typebuf[5];
-	sprintf(typebuf, "%d", type);
+	char typebuf[7];
+	sprintf(typebuf, "(%d)", type);
 	
-	return string("Component(") + idname + " - " + typebuf + " " + name.c_str() + ")";
+	return string(typebuf) + name + " : " + idname;
 }
 
 OperationDepsNode *ComponentDepsNode::find_operation(OperationIDKey key) const
