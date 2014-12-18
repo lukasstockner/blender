@@ -490,12 +490,14 @@ static void deg_debug_graphviz_node(const DebugContext &ctx, const DepsNode *nod
 static bool deg_debug_graphviz_is_cluster(const DepsNode *node)
 {
 	switch (node->type) {
-		case DEPSNODE_TYPE_ID_REF: {
+		case DEPSNODE_TYPE_ID_REF:
+		{
 			const IDDepsNode *id_node = (const IDDepsNode *)node;
 			return !id_node->components.empty();
 		}
 		
-		case DEPSNODE_TYPE_SUBGRAPH: {
+		case DEPSNODE_TYPE_SUBGRAPH:
+		{
 			SubgraphDepsNode *sub_node = (SubgraphDepsNode *)node;
 			return sub_node->graph != NULL;
 		}
@@ -641,7 +643,6 @@ static void deg_debug_graphviz_graph_relations(const DebugContext &ctx, const De
 
 	TimeSourceDepsNode *time_source = graph->find_time_source(NULL);
 	if (time_source != NULL) {
-		printf("drawing timesource deps\n");
 		deg_debug_graphviz_node_relations(ctx, time_source);
 	}
 #endif

@@ -152,11 +152,6 @@ struct Depsgraph {
 	                               eDepsRelation_Type type,
 	                               const string &description);
 
-	/* Sort nodes to determine evaluation order for operation nodes
-	 * where dependency relationships won't get violated.
-	 */
-	void sort();
-
 	/* Tag a specific node as needing updates. */
 	void add_entry_tag(OperationDepsNode *node);
 

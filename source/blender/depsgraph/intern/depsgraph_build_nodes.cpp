@@ -466,7 +466,7 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 		for (GroupObject *go = (GroupObject *)rbw->group->gobject.first; go; go = go->next) {
 			Object *ob = go->ob;
 			
-			if (!ob || ob->type != OB_MESH)
+			if (!ob || (ob->type != OB_MESH))
 				continue;
 			
 			/* 2) create operation for flushing results */
@@ -549,7 +549,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	bArmature *arm = (bArmature *)ob->data;
 
 	/* Rbuild pose if not up to date. */
-	if (ob->pose == NULL || ob->pose->flag & POSE_RECALC) {
+	if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC)) {
 		BKE_pose_rebuild(ob, arm);
 	}
 
