@@ -27,10 +27,10 @@ if "bpy" in locals():
 import bpy
 from bpy.types import Operator
 from bpy.props import (IntProperty,
-                       BoolProperty,
-                       EnumProperty,
-                       StringProperty,
-                       )
+                    BoolProperty,
+                    EnumProperty,
+                    StringProperty,
+                    )
 
 
 class ANIM_OT_keying_set_export(Operator):
@@ -100,10 +100,10 @@ class ANIM_OT_keying_set_export(Operator):
 
             """
             - idtype_list is used to get the list of id-datablocks from
-              bpy.data.* since this info isn't available elsewhere
+            bpy.data.* since this info isn't available elsewhere
             - id.bl_rna.name gives a name suitable for UI,
-              with a capitalised first letter, but we need
-              the plural form that's all lower case
+            with a capitalised first letter, but we need
+            the plural form that's all lower case
             """
 
             idtype_list = ksp.id.bl_rna.name.lower() + "s"
@@ -211,8 +211,8 @@ class BakeAction(Operator):
             description="Which data's transformations to bake",
             options={'ENUM_FLAG'},
             items=(('POSE', "Pose", "Bake bones transformations"),
-                   ('OBJECT', "Object", "Bake object transformations"),
-                   ),
+                ('OBJECT', "Object", "Bake object transformations"),
+                ),
             default={'POSE'},
             )
 
@@ -280,7 +280,7 @@ class ClearUselessActions(Operator):
                     removed += 1
 
         self.report({'INFO'}, "Removed %d empty and/or fake-user only Actions"
-                              % removed)
+                            % removed)
         return {'FINISHED'}
 
 
@@ -365,3 +365,50 @@ class UpdateAnimatedTransformConstraint(Operator):
             text.from_string(log)
             self.report({'INFO'}, "Complete report available on '%s' text datablock" % text.name)
         return {'FINISHED'}
+
+######################################
+
+class DEPSGRAPH_OT_rebuild(Operator):
+    """Force the dependency graph to be rebuilt to account for modified dependencies"""
+    bl_idname = "depsgraph.rebuild"
+    bl_label = "Rebuild Depsgraph"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        context.scene.depsgraph.debug_rebuild()
+        return {'FINISHED'}
+
+        
+class DEPSGRAPH_OT_export_graphviz(Operator):
+    """Force the dependency graph to be rebuilt to account for modified dependencies"""
+    bl_idname = "depsgraph.export_graphviz"
+    bl_label = "Export Depsgraph to Graphviz"
+    bl_options = {'REGISTER'}
+    
+    filepath = StringProperty(
+            subtype='FILE_PATH',
+            #value=bpy.path.abspath("../graphs/"),
+            )
+    filter_folder = BoolProperty(
+            name="Filter folders",
+            default=True,
+            options={'HIDDEN'},
+            )
+    filter_glob = StringProperty(
+            name="Extension Filter",
+            default="*.dot",
+            options={'HIDDEN'},
+            )
+
+    def execute(self, context):
+        if not self.filepath:
+            raise Exception("Filepath not set")
+            
+        context.scene.depsgraph.debug_graphviz(self.filepath)
+        return {'FINISHED'}
+        
+    def invoke(self, context, event):
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+

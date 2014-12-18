@@ -50,6 +50,13 @@ class INFO_HT_header(Header):
 
         layout.separator()
 
+        row = layout.row(align=True)
+        row.label(text="Depsgraph:", icon='RADIO')
+        row.operator("depsgraph.rebuild", text="", icon='FILE_REFRESH')
+        row.operator("depsgraph.export_graphviz", text="Export...", icon='SCRIPTWIN').filepath = "graph.dot"
+
+        layout.separator()
+
         layout.template_running_jobs()
 
         layout.template_reports_banner()
