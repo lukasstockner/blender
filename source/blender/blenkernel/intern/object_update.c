@@ -71,6 +71,15 @@ void BKE_object_eval_local_transform(EvaluationContext *eval_ctx,
 	(void) scene;  /* Ignored. */
 }
 
+void BKE_object_eval_parent(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
+{
+	PRINT("%s on %s\n", __func__, ob->id.name);
+
+	(void) eval_ctx;  /* Ignored. */
+	(void) scene;  /* Ignored. */
+	(void) ob; /* Ignored. */
+}
+
 void BKE_object_eval_constraints(EvaluationContext *eval_ctx,
                                  Scene *scene,
                                  Object *ob)

@@ -282,7 +282,7 @@ void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 	/* object parent */
 	if (ob->parent) {
 		add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_parent, _1, ob),
+		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_parent, _1, scene, ob),
 		                   DEG_OPCODE_TRANSFORM_PARENT);
 	}
 	

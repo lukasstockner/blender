@@ -175,9 +175,17 @@ void BKE_object_tfm_protected_restore(struct Object *ob,
 void BKE_object_eval_local_transform(struct EvaluationContext *eval_ctx,
                                      struct Scene *scene,
                                      struct Object *ob);
+void BKE_object_eval_parent(struct EvaluationContext *eval_ctx,
+                            struct Scene *scene,
+                            struct Object *ob);
 void BKE_object_eval_constraints(struct EvaluationContext *eval_ctx,
                                  struct Scene *scene,
                                  struct Object *ob);
+
+/* (placeholder helpers for granular object transform updates) */
+void BKE_object_solve_parenting(struct Scene *scene, struct Object *ob, struct Object *par, float obmat[4][4], float slowmat[4][4],
+                                float r_originmat[3][3], const bool set_origin);
+
 void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
                               struct Scene *scene,
                               struct Object *ob,
