@@ -70,6 +70,9 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 /* ********************** */
 /* Evaluation Entrypoints */
 
+static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
+                                  Depsgraph *graph, OperationDepsNode *node);
+
 struct DepsgraphEvalState {
 	EvaluationContext *eval_ctx;
 	Depsgraph *graph;
@@ -182,8 +185,8 @@ static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgrap
 	BLI_spin_unlock(&graph->lock);
 }
 
-void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
-                           Depsgraph *graph, OperationDepsNode *node)
+static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
+                                  Depsgraph *graph, OperationDepsNode *node)
 {
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
 	     it != node->outlinks.end();
