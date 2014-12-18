@@ -264,7 +264,11 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	
 	OperationKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_LOCAL);
 	OperationKey parent_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_PARENT);
+	OperationKey final_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
 	
+	OperationKey ob_ubereval_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_OBJECT_UBEREVAL);
+	
+	/* parenting */
 	if (ob->parent) {
 		/* parent relationship */
 		build_object_parent(ob);
@@ -273,11 +277,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 		add_relation(local_transform_key, parent_transform_key, DEPSREL_TYPE_COMPONENT_ORDER, "[ObLocal -> ObParent]");
 	}
 	
-	
 	/* object constraints */
-	// XXX: fixme!!!
-	OperationKey ob_ubereval_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_OBJECT_UBEREVAL);
-	
 	if (ob->constraints.first) {
 		OperationKey constraint_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_CONSTRAINTS);
 		
@@ -288,10 +288,19 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 		
 		/* operation order */
 		add_relation(base_op_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "[ObBase-> Constraint Stack]");
+		add_relation(constraint_key, final_transform_key, DEPSREL_TYPE_COMPONENT_ORDER, "[ObConstraints -> Done]");
+		
+		// XXX
 		add_relation(constraint_key, ob_ubereval_key, DEPSREL_TYPE_COMPONENT_ORDER, "Temp Ubereval");
+		add_relation(ob_ubereval_key, final_transform_key, DEPSREL_TYPE_COMPONENT_ORDER, "Temp Ubereval");
 	}
 	else {
-		add_relation(base_op_key, ob_ubereval_key, DEPSREL_TYPE_COMPONENT_ORDER, "Object Transform");
+		/* operation order */
+		add_relation(base_op_key, final_transform_key, DEPSREL_TYPE_COMPONENT_ORDER, "Object Transform");
+		
+		// XXX
+		add_relation(base_op_key, ob_ubereval_key, DEPSREL_TYPE_COMPONENT_ORDER, "Temp Ubereval");
+		add_relation(ob_ubereval_key, final_transform_key, DEPSREL_TYPE_COMPONENT_ORDER, "Temp Ubereval");
 	}
 	
 	
@@ -348,7 +357,9 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 {
-	OperationKey ob_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_PARENT);
+	/* XXX: for now, need to use the component key (not just direct to the parent op), or else the matrix doesn't get reset */
+	//OperationKey ob_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_PARENT);
+	ComponentKey ob_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 	
 	/* type-specific links */
 	switch (ob->partype) {
