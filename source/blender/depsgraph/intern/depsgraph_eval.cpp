@@ -111,22 +111,28 @@ void DEG_threaded_exit(void)
 
 static void calculate_pending_parents(Depsgraph *graph)
 {
-	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin(); it_op != graph->operations.end(); ++it_op) {
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
 		OperationDepsNode *node = *it_op;
-		
+
 		node->num_links_pending = 0;
 		node->scheduled = false;
-		
+
 		/* count number of inputs that need updates */
 		if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
-			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin(); it_rel != node->inlinks.end(); ++it_rel) {
+			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
+			     it_rel != node->inlinks.end();
+			     ++it_rel)
+		{
 				DepsRelation *rel = *it_rel;
-				OperationDepsNode *from = (OperationDepsNode *)rel->from;
-				
-				BLI_assert(ELEM(rel->from->type, DEPSNODE_TYPE_OPERATION,
-				                                 DEPSNODE_TYPE_TIMESOURCE));
-				if (from->flag & DEPSOP_FLAG_NEEDS_UPDATE)
-					++node->num_links_pending;
+				if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+					OperationDepsNode *from = (OperationDepsNode *)rel->from;
+					if (from->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+						++node->num_links_pending;
+					}
+				}
 			}
 		}
 	}
