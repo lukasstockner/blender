@@ -577,6 +577,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 	// XXX: this probably shouldn't be inlined here like this...
 	if (strstr(fcu->rna_path, "pose.bones[") != NULL) {
 		/* interleaved drivers during bone eval */
+		// TODO: ideally, if this is for a constraint, it goes to said constraint
 		Object *ob = (Object *)id;
 		bPoseChannel *pchan;
 		char *bone_name;
@@ -591,10 +592,20 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		
 		if (pchan) {
 			OperationKey bone_key(id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
-			add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> SubData]");
+			add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> Bone]");
 		}
 		else {
 			printf("Couldn't find bone name for driver path - '%s'\n", fcu->rna_path);
+		}
+	}
+	else if (GS(id->name) == ID_OB && strstr(fcu->rna_path, "modifiers[")) {
+		/* modifier driver - connect directly to the modifier */
+		char *modifier_name = BLI_str_quoted_substrN(fcu->rna_path, "modifiers[");
+		if (modifier_name) {
+			OperationKey modifier_key(id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_MODIFIER, modifier_name);
+			add_relation(driver_key, modifier_key, DEPSREL_TYPE_DRIVER, "[Driver -> Modifier]");
+			
+			MEM_freeN(modifier_name);
 		}
 	}
 	else {
