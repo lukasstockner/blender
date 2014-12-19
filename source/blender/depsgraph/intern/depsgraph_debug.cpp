@@ -362,19 +362,19 @@ static void deg_debug_graphviz_node_style(const DebugContext &ctx, const DepsNod
 static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNode *node)
 {
 	const char *shape = "box";
-	const char *name = node->identifier().c_str();
+	const string name = node->identifier();
 	float priority = -1.0f;
 	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION)
 		priority = ((OperationDepsNode *)node)->eval_priority;
 	
-	deg_debug_printf(ctx, "// %s\n", name);
+	deg_debug_printf(ctx, "// %s\n", name.c_str());
 	deg_debug_printf(ctx, "\"node_%p\"", node);
 	deg_debug_printf(ctx, "[");
 //	deg_debug_printf(ctx, "label=<<B>%s</B>>", name);
 	if (priority >= 0.0f)
-		deg_debug_printf(ctx, "label=<%s<BR/>(<I>%.2f</I>)>", name, priority);
+		deg_debug_printf(ctx, "label=<%s<BR/>(<I>%.2f</I>)>", name.c_str(), priority);
 	else
-		deg_debug_printf(ctx, "label=<%s>", name);
+		deg_debug_printf(ctx, "label=<%s>", name.c_str());
 	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 	deg_debug_printf(ctx, ",fontsize=%f", deg_debug_graphviz_node_label_size);
 	deg_debug_printf(ctx, ",shape=%s", shape);
@@ -389,12 +389,12 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx, const DepsNo
 
 static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx, const DepsNode *node)
 {
-	const char *name = node->identifier().c_str();
+	const string name = node->identifier().c_str();
 	
-	deg_debug_printf(ctx, "// %s\n", name);
+	deg_debug_printf(ctx, "// %s\n", name.c_str());
 	deg_debug_printf(ctx, "subgraph \"cluster_%p\" {" NL, node);
 //	deg_debug_printf(ctx, "label=<<B>%s</B>>;" NL, name);
-	deg_debug_printf(ctx, "label=<%s>;" NL, name);
+	deg_debug_printf(ctx, "label=<%s>;" NL, name.c_str());
 	deg_debug_printf(ctx, "fontname=\"%s\";" NL, deg_debug_graphviz_fontname);
 	deg_debug_printf(ctx, "fontsize=%f;" NL, deg_debug_graphviz_node_label_size);
 	deg_debug_printf(ctx, "style="); deg_debug_graphviz_node_style(ctx, node); deg_debug_printf(ctx, ";" NL);
