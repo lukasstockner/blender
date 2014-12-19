@@ -30,7 +30,7 @@ import re
 import sys
 
 # XXX Relative import does not work here when used from Blender...
-from bl_previews_utils import utils
+#~ from bl_previews_utils import utils
 
 import bpy
 from mathutils import Vector, Euler
