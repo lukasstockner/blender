@@ -655,7 +655,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			//Mesh *me = (Mesh *)ob->data;
 			
 			/* evaluation operations */
-			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_mesh_eval_geometry, _1, (Mesh *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
@@ -669,7 +669,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			if (mom == ob) {
 				/* metaball evaluation operations */
 				/* NOTE: only the motherball gets evaluated! */
-				add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+				add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 				                   DEPSOP_TYPE_EXEC, function_bind(BKE_mball_eval_geometry, _1, (MetaBall *)obdata),
 				                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 			}
@@ -681,7 +681,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		{
 			/* curve evaluation operations */
 			/* - calculate curve geometry (including path) */
-			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 			
@@ -695,7 +695,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		case OB_SURF: /* Nurbs Surface */
 		{
 			/* nurbs evaluation operations */
-			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
@@ -704,7 +704,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		case OB_LATTICE: /* Lattice */
 		{
 			/* lattice evaluation operations */
-			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_lattice_eval_geometry, _1, (Lattice *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
@@ -723,6 +723,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 //			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
 			
+			// FIXME: this should eventually be on the obdata datablock's geometry?
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_modifier, _1, scene, ob, md),
 			                   DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
