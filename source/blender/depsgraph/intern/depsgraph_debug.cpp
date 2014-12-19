@@ -60,7 +60,6 @@ extern "C" {
 #include "depsnode_operation.h"
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
-#include "depsgraph_queue.h"
 
 /* ************************************************ */
 /* Graphviz Debugging */
