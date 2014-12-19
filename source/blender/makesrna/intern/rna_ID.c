@@ -441,7 +441,9 @@ static void rna_IDPreview_size_set(PointerRNA *ptr, const int *values, enum eIco
 
 	BKE_previewimg_clear(prv_img, size);
 
-	prv_img->rect[size] = MEM_callocN(values[0] * values[1] * sizeof(unsigned int), "prv_rect");
+	if (values[0] && values[1]) {
+		prv_img->rect[size] = MEM_callocN(values[0] * values[1] * sizeof(unsigned int), "prv_rect");
+	}
 
 	prv_img->w[size] = values[0];
 	prv_img->h[size] = values[1];

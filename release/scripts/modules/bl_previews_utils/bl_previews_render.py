@@ -42,13 +42,13 @@ def object_children_recursive(ob):
         yield child
         yield from object_children_recursive(child)
 
-def object_merge_bbox(bbox, ob):
+def object_merge_bbox(bbox, ob, ob_space):
     if ob.bound_box:
         ob_bbox = ob.bound_box
     else:
-        ob_bbox = ((0.0, 0.0, 0.0),)
+        ob_bbox = ((-ob.scale.x, -ob.scale.y, -ob.scale.z), (ob.scale.x, ob.scale.y, ob.scale.z))
     for v in ob.bound_box:
-        v = ob.matrix_world * Vector(v)
+        v = ob_space.matrix_world.inverted() * ob.matrix_world * Vector(v)
         if bbox[0].x > v.x:
             bbox[0].x = v.x
         if bbox[0].y > v.y:
@@ -110,14 +110,19 @@ def do_previews_bi(do_objects, do_groups):
         for root in bpy.data.objects:
             if root in objects_ignored:
                 continue
+            if root.type not in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'}:
+                continue
             bbox = (Vector((1e9, 1e9, 1e9)), Vector((-1e9, -1e9, -1e9)))
-            objects = (root,) + tuple(object_children_recursive(ob))
+            objects = (root,) # + tuple(object_children_recursive(ob))
             for ob in objects:
                 if ob.name not in render_scene.objects:
                     render_scene.objects.link(ob)
                 ob.hide_render = False
                 render_scene.update()
-                object_merge_bbox(bbox, ob)
+                object_merge_bbox(bbox, ob, render_camera)
+            # Our bbox has been generated in camera local space, bring it back in world one
+            bbox[0][:] = render_camera.matrix_world * bbox[0]
+            bbox[1][:] = render_camera.matrix_world * bbox[1]
             cos = (
                 bbox[0].x, bbox[0].y, bbox[0].z,
                 bbox[0].x, bbox[0].y, bbox[1].z,
@@ -170,6 +175,15 @@ def do_previews_bi(do_objects, do_groups):
     bpy.ops.wm.save_mainfile()
 
 
+def do_clear_previews(do_objects, do_groups):
+    if do_objects:
+        for ob in bpy.data.objects:
+            ob.preview.image_size = (0, 0)
+
+    print("Saving %s..." % bpy.data.filepath)
+    bpy.ops.wm.save_mainfile()
+
+
 def main():
     try:
         import bpy
@@ -184,11 +198,15 @@ def main():
 
     import argparse
     parser = argparse.ArgumentParser(description="Use Blender to generate previews for currently open Blender file's items.")
-    parser.add_argument('--no_objects', default=True, action="store_false", help="Do not generate previews for object IDs.")
-    parser.add_argument('--no_groups', default=True, action="store_false", help="Do not generate previews for group IDs.")
+    parser.add_argument('--clear', default=False, action="store_true", help="Clear previews instead of generating them.")
+    parser.add_argument('--no_objects', default=True, action="store_false", help="Do not generate/clear previews for object IDs.")
+    parser.add_argument('--no_groups', default=True, action="store_false", help="Do not generate/clear previews for group IDs.")
     args = parser.parse_args()
 
-    do_previews_bi(do_objects=args.no_objects, do_groups=args.no_groups)
+    if args.clear:
+        do_clear_previews(do_objects=args.no_objects, do_groups=args.no_groups)
+    else:
+        do_previews_bi(do_objects=args.no_objects, do_groups=args.no_groups)
 
     sys.argv = back_argv
 
