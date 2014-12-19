@@ -30,9 +30,19 @@
 
 extern "C" {
 #include "DNA_action_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_windowmanager_types.h"
+
+#include "BKE_depsgraph.h"
+#include "BKE_library.h"
+#include "BKE_main.h"
 
 #include "RNA_access.h"
+
+/* TODO(sergey): because of bloody "new" in the BKE_screen.h. */
+unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 }
 
 #include "depsgraph.h" /* own include */
@@ -43,8 +53,9 @@ extern "C" {
 #include "depsgraph_debug.h"
 
 Depsgraph::Depsgraph()
+  : root_node(NULL),
+    layers((1 << 20) - 1)
 {
-	this->root_node = NULL;
 	BLI_spin_init(&lock);
 }
 
@@ -337,6 +348,23 @@ void Depsgraph::clear_all_nodes()
 	}
 }
 
+/* Layers Visibility -------------------------------------- */
+
+/* Tag a specific invisible node as needing updates when becoming visible. */
+void Depsgraph::add_invisible_entry_tag(OperationDepsNode *node)
+{
+	BLI_assert(node != NULL);
+	IDDepsNode *id_node = node->owner->owner;
+	invisible_entry_tags.insert(node);
+}
+
+/* Get layers for which nodes are to be evaluated. */
+int Depsgraph::layers_for_context(EvaluationContext *eval_ctx)
+{
+	return (eval_ctx->mode == DAG_EVAL_RENDER) ? (1 << 20) - 1
+	                                           : layers;
+}
+
 /* ************************************************** */
 /* Public Graph API */
 
@@ -350,4 +378,47 @@ Depsgraph *DEG_graph_new()
 void DEG_graph_free(Depsgraph *graph)
 {
 	OBJECT_GUARDED_DELETE(graph, Depsgraph);
+}
+
+/* Update dependency graph for events when visible scenes/layers changes. */
+void DEG_graph_on_visible_update(Main *bmain, Depsgraph *graph)
+{
+	wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
+	int old_layers = graph->layers;
+	if (wm != NULL) {
+		BKE_main_id_flag_listbase(&bmain->scene, LIB_DOIT, true);
+		graph->layers = 0;
+		for (wmWindow *win = (wmWindow *)wm->windows.first;
+		     win != NULL;
+		     win = (wmWindow *)win->next)
+		{
+			Scene *scene = win->screen->scene;
+			if (scene->id.flag & LIB_DOIT) {
+				graph->layers |= BKE_screen_visible_layers(win->screen, scene);
+				scene->id.flag &= ~LIB_DOIT;
+			}
+		}
+	}
+	else {
+		/* All the layers for background render for now. */
+		graph->layers = (1 << 20) - 1;
+	}
+	if (old_layers != graph->layers) {
+		/* Re-tag nodes which became visible. */
+		for (Depsgraph::EntryTags::const_iterator it = graph->invisible_entry_tags.begin();
+		     it != graph->invisible_entry_tags.end();
+		     ++it)
+		{
+			OperationDepsNode *node = *it;
+			/* TODO(sergey): For the simplicity we're trying to re-schedule
+			 * all the nodes, regardless of their layers visibility.
+			 *
+			 * In the future when storage for such flags becomes more permanent
+			 * we'll optimize this out.
+			 */
+			node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
+			graph->add_entry_tag(node);
+		}
+		graph->invisible_entry_tags.clear();
+	}
 }

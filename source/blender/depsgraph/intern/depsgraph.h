@@ -193,6 +193,27 @@ struct Depsgraph {
 	 */
 	SpinLock lock;
 
+	/* Layers Visibility .................. */
+
+	/* Tag a specific invisible node as needing updates when becoming visible. */
+	void add_invisible_entry_tag(OperationDepsNode *node);
+
+	/* Get layers for which nodes are to be evaluated. */
+	int layers_for_context(EvaluationContext *eval_ctx);
+
+	/* Visible layers bitfield, used for skipping invisible objects updates. */
+	int layers;
+
+	/* Invisible nodes which have been tagged as "directly modified".
+	 * They're being flushed for update after graph visibility changes.
+	 *
+	 * TODO(sergey): This is a tempotrary solution for until we'll have storage
+	 * associated with the IDs, so we can keep dirty/tagged for update/etc flags
+	 * in there. This would also solve issues with accessing .updated ID flag
+	 * from python.
+	 */
+	EntryTags invisible_entry_tags;
+
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
 };
 

@@ -56,6 +56,7 @@ typedef struct Depsgraph Depsgraph;
 /* ------------------------------------------------ */
 
 struct EvaluationContext;
+struct Main;
 
 struct PointerRNA;
 struct PropertyRNA;
@@ -87,6 +88,8 @@ Depsgraph *DEG_graph_new(void);
 /* Free Depsgraph itself and all its data */
 void DEG_graph_free(Depsgraph *graph);
 
+/* Update dependency graph for events when visible scenes/layers changes. */
+void DEG_graph_on_visible_update(struct Main *bmain, Depsgraph *graph);
 
 /* Node Types Registry ---------------------------- */
 
@@ -111,7 +114,7 @@ void DEG_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, con
 /* Update Flushing ------------------------------- */
 
 /* Flush updates */
-void DEG_graph_flush_updates(Depsgraph *graph);
+void DEG_graph_flush_updates(struct EvaluationContext *eval_ctx, Depsgraph *graph);
 
 /* Clear all update tags 
  * - For aborted updates, or after successful evaluation

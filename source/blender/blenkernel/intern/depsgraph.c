@@ -2458,6 +2458,16 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 			DAG_id_tag_update(&mask->id, 0);
 		}
 	}
+
+	/* Inform new dependnecy graphs about visibility changes. */
+	{
+		Scene *scene;
+		for (scene = bmain->scene.first; scene != NULL; scene = scene->id.next) {
+			if (scene->depsgraph != NULL) {
+				DEG_graph_on_visible_update(bmain, scene->depsgraph);
+			}
+		}
+	}
 }
 
 static void dag_id_flush_update__isDependentTexture(void *userData, Object *UNUSED(ob), ID **idpoin)

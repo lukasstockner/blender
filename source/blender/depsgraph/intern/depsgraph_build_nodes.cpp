@@ -118,12 +118,12 @@ void DepsgraphNodeBuilder::build_scene(Scene *scene)
 		Object *ob = base->object;
 		
 		/* object itself */
-		build_object(scene, ob);
+		build_object(scene, base, ob);
 		
 		/* object that this is a proxy for */
 		// XXX: the way that proxies work needs to be completely reviewed!
 		if (ob->proxy) {
-			build_object(scene, ob->proxy);
+			build_object(scene, base, ob->proxy);
 		}
 		
 		/* handled in next loop... 
@@ -209,8 +209,11 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 	return subgraph_node;
 }
 
-void DepsgraphNodeBuilder::build_object(Scene *scene, Object *ob)
+void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 {
+	IDDepsNode *id_node = add_id_node(&ob->id);
+	id_node->layers |= base->lay;
+
 	/* standard components */
 	build_object_transform(scene, ob);
 	

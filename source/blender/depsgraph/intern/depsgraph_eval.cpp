@@ -200,15 +200,22 @@ static void calculate_eval_priority(OperationDepsNode *node)
 	}
 }
 
-static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgraph *graph)
+static void schedule_graph(TaskPool *pool,
+                           EvaluationContext *eval_ctx,
+                           Depsgraph *graph)
 {
+	int layers = graph->layers_for_context(eval_ctx);
 	BLI_spin_lock(&graph->lock);
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
 	     it != graph->operations.end();
 	     ++it)
 	{
 		OperationDepsNode *node = *it;
-		if ((node->flag & DEPSOP_FLAG_NEEDS_UPDATE) && node->num_links_pending == 0) {
+		IDDepsNode *id_node = node->owner->owner;
+		if ((node->flag & DEPSOP_FLAG_NEEDS_UPDATE) &&
+		    node->num_links_pending == 0 &&
+		    (id_node->layers & layers) != 0)
+		{
 			BLI_task_pool_push(pool, deg_task_run_func, node, false, TASK_PRIORITY_LOW);
 			node->scheduled = true;
 		}
@@ -219,6 +226,7 @@ static void schedule_graph(TaskPool *pool, EvaluationContext *eval_ctx, Depsgrap
 static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
                                   Depsgraph *graph, OperationDepsNode *node)
 {
+	int layers = graph->layers_for_context(eval_ctx);
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
 	     it != node->outlinks.end();
 	     ++it)
@@ -228,10 +236,14 @@ static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
 		BLI_assert(child->type == DEPSNODE_TYPE_OPERATION);
 
 		if (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+			IDDepsNode *id_child = child->owner->owner;
+
 			BLI_assert(child->num_links_pending > 0);
 			atomic_sub_uint32(&child->num_links_pending, 1);
 
-			if (child->num_links_pending == 0) {
+			if (child->num_links_pending == 0 &&
+			    (id_child->layers & layers) != 0)
+			{
 				BLI_spin_lock(&graph->lock);
 				bool need_schedule = !child->scheduled;
 				child->scheduled = true;
@@ -265,7 +277,7 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 	/* Recursively push updates out to all nodes dependent on this,
 	 * until all affected are tagged and/or scheduled up for eval
 	 */
-	DEG_graph_flush_updates(graph);
+	DEG_graph_flush_updates(eval_ctx, graph);
 
 	calculate_pending_parents(graph);
 

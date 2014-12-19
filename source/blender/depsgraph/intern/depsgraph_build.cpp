@@ -489,6 +489,11 @@ static void deg_graph_transitive_reduction(Depsgraph *graph)
 	}
 }
 
+static void deg_graph_flush_node_layers(Depsgraph *graph)
+{
+	/* TODO(sergey): Needs to be implemented. */
+}
+
 /* -------------------------------------------------- */
 
 /* Build depsgraph for the given scene, and dump results in given graph container */
@@ -532,6 +537,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 #endif
 	
 	deg_graph_transitive_reduction(graph);
+	deg_graph_flush_node_layers(graph);
 }
 
 /* Tag relations for update. */
@@ -574,6 +580,7 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 	graph->clear_all_nodes();
 	graph->operations.clear();
 	graph->entry_tags.clear();
+	graph->invisible_entry_tags.clear();
 
 	/* Build new nodes and relations. */
 	DEG_graph_build_from_scene(graph, bmain, scene);

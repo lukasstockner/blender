@@ -187,6 +187,9 @@ struct IDDepsNode : public DepsNode {
 	/* Hash to make it faster to look up components. */
 	ComponentMap components;
 
+	/* Layers of this node with accumulated layers of it's output relations. */
+	int layers;
+
 	DEG_DEPSNODE_DECLARE;
 };
 
