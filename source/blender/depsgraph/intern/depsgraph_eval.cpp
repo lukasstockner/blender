@@ -36,7 +36,10 @@ extern "C" {
 
 #include "DNA_ID.h"
 
+#include "BKE_depsgraph.h"
 #include "BKE_global.h" /* XXX only for debug value, remove eventually */
+#include "BKE_main.h"
+
 } /* extern "C" */
 
 #include "atomic_ops.h"
@@ -67,9 +70,38 @@ void DEG_set_eval_mode(eDEG_EvalMode mode)
 	}
 }
 
+/* ****************** */
+/* Evaluation Context */
+
+/* Create new evaluation context. */
+EvaluationContext *DEG_evaluation_context_new(int mode)
+{
+	EvaluationContext *eval_ctx =
+		(EvaluationContext *)MEM_callocN(sizeof(EvaluationContext),
+		                                 "EvaluationContext");
+	eval_ctx->mode = mode;
+	return eval_ctx;
+}
+
+/* Initialize evaluation context.
+ * Used by the areas which currently overrides the context or doesn't have
+ * access to a proper one.
+ */
+void DEG_evaluation_context_init(EvaluationContext *eval_ctx, int mode)
+{
+	eval_ctx->mode = mode;
+}
+
+/* Free evaluation context. */
+void DEG_evaluation_context_free(EvaluationContext *eval_ctx)
+{
+	MEM_freeN(eval_ctx);
+}
+
 /* ********************** */
 /* Evaluation Entrypoints */
 
+/* Forward declarations. */
 static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
                                   Depsgraph *graph, OperationDepsNode *node);
 

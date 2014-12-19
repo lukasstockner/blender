@@ -121,7 +121,21 @@ void DEG_graph_clear_tags(Depsgraph *graph);
 /* ************************************************ */
 /* Evaluation Engine API */
 
-/* ----------------------------------------------- */
+/* Evaluation Context ---------------------------- */
+
+/* Create new evaluation context. */
+struct EvaluationContext *DEG_evaluation_context_new(int mode);
+
+/* Initialize evaluation context.
+ * Used by the areas which currently overrides the context or doesn't have
+ * access to a proper one.
+ */
+void DEG_evaluation_context_init(struct EvaluationContext *eval_ctx, int mode);
+
+/* Free evaluation context. */
+void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);
+
+/* Graph Evaluation  ----------------------------- */
 
 /* Frame changed recalculation entrypoint 
  * < context_type: context to perform evaluation for

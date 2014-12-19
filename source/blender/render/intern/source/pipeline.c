@@ -83,6 +83,8 @@
 #  include "FRS_freestyle.h"
 #endif
 
+#include "DEG_depsgraph.h"
+
 /* internal */
 #include "render_result.h"
 #include "render_types.h"
@@ -385,8 +387,7 @@ Render *RE_NewRender(const char *name)
 		BLI_addtail(&RenderGlobal.renderlist, re);
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
-		re->eval_ctx = MEM_callocN(sizeof(EvaluationContext), "re->eval_ctx");
-		re->eval_ctx->mode = DAG_EVAL_RENDER;
+		re->eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
 	}
 	
 	RE_InitRenderCB(re);
