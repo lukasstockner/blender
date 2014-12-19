@@ -195,7 +195,8 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 			}
 		}
 		else {
-			BKE_pose_where_is(scene, ob);
+			// XXX: standard evaluation is now handled by our new nodes, so this case is not needed anymore
+			//BKE_pose_where_is(scene, ob);
 		}
 		break;
 
