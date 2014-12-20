@@ -73,6 +73,7 @@ def do_previews_bi(do_objects, do_groups):
     render_image = None
 
     objects_ignored = {render_camera, render_lamp}
+    groups_ignored = {}
 
     render_world.use_sky_blend = True
     render_world.horizon_color = 0.9, 0.9, 0.9
@@ -156,6 +157,47 @@ def do_previews_bi(do_objects, do_groups):
         for ob, is_rendered in zip(bpy.data.objects, prev_shown):
             ob.hide_render = is_rendered
 
+    if do_groups:
+        for grp in bpy.data.groups:
+            if grp in groups_ignored:
+                continue
+            bpy.ops.object.group_instance_add(group=grp.name)
+            grp_ob = next((ob for ob in render_scene.objects if ob.dupli_group and ob.dupli_group.name == grp.name))
+            bbox = (Vector((1e9, 1e9, 1e9)), Vector((-1e9, -1e9, -1e9)))
+            render_scene.update()
+            for ob in grp.objects:
+                object_merge_bbox(bbox, ob, render_camera)
+            # Our bbox has been generated in camera local space, bring it back in world one
+            bbox[0][:] = render_camera.matrix_world * bbox[0]
+            bbox[1][:] = render_camera.matrix_world * bbox[1]
+            cos = (
+                bbox[0].x, bbox[0].y, bbox[0].z,
+                bbox[0].x, bbox[0].y, bbox[1].z,
+                bbox[0].x, bbox[1].y, bbox[0].z,
+                bbox[0].x, bbox[1].y, bbox[1].z,
+                bbox[1].x, bbox[0].y, bbox[0].z,
+                bbox[1].x, bbox[0].y, bbox[1].z,
+                bbox[1].x, bbox[1].y, bbox[0].z,
+                bbox[1].x, bbox[1].y, bbox[1].z,
+            )
+            loc, ortho_scale = render_camera.camera_fit_coordinates(render_scene, cos)
+            render_camera.location = loc
+            loc, ortho_scale = render_lamp.camera_fit_coordinates(render_scene, cos)
+            render_lamp.location = loc
+            render_scene.update()
+
+            bpy.ops.render.render(write_still=True)
+
+            if render_image is None:
+                render_image = bpy.data.images.load(render_scene.render.filepath)
+            else:
+                render_image.reload()
+            pix = tuple(int(r * 255) + int(g * 255) * 256 + int(b * 255) * 256**2 + int(a * 255) * 256**3 for r, g, b, a in zip(*[iter(render_image.pixels)] * 4))  # XXX To be done properly!!!!!!
+            grp.preview.image_size = (128, 128)
+            grp.preview.image_pixels = pix
+
+            render_scene.objects.unlink(grp_ob)
+
     bpy.context.screen.scene = prev_scene
     render_scene.world = None
     render_scene.camera = None
@@ -179,6 +221,10 @@ def do_clear_previews(do_objects, do_groups):
     if do_objects:
         for ob in bpy.data.objects:
             ob.preview.image_size = (0, 0)
+
+    if do_groups:
+        for grp in bpy.data.groups:
+            grp.preview.image_size = (0, 0)
 
     print("Saving %s..." % bpy.data.filepath)
     bpy.ops.wm.save_mainfile()
