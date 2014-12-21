@@ -108,5 +108,42 @@ int ED_file_extension_icon(const char *relname);
 
 void ED_file_read_bookmarks(void);
 
+/* File menu stuff */
+
+typedef enum FSMenuCategory {
+	FS_CATEGORY_SYSTEM,
+	FS_CATEGORY_SYSTEM_BOOKMARKS,
+	FS_CATEGORY_BOOKMARKS,
+	FS_CATEGORY_RECENT
+} FSMenuCategory;
+
+typedef enum FSMenuInsert {
+	FS_INSERT_SORTED = (1 << 0),
+	FS_INSERT_SAVE   = (1 << 1),
+	FS_INSERT_FIRST  = (1 << 2),   /* moves the item to the front of the list when its not already there */
+	FS_APPEND_LAST   = (1 << 3)   /* just append to preseve delivered order */
+} FSMenuInsert;
+
+struct FSMenu;
+struct FSMenuEntry;
+
+struct FSMenu *fsmenu_get(void);
+struct FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory category);
+
+/** Returns the number of entries in the Fileselect Menu */
+int fsmenu_get_nentries(struct FSMenu *fsmenu, FSMenuCategory category);
+
+struct FSMenuEntry *fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory category, int index);
+
+/** Returns the fsmenu entry (path) at \a index (or NULL if a bad index) or a separator.
+ */
+char *fsmenu_get_entry_path(struct FSMenu *fsmenu, FSMenuCategory category, int index);
+
+/** Returns the fsmenu name at \a index (or NULL if a bad index) or a separator.
+ */
+char *fsmenu_get_entry_name(struct FSMenu *fsmenu, FSMenuCategory category, int index);
+char *fsmenu_entry_get_name(struct FSMenuEntry *fsentry);
+void fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name);
+
 #endif /* __ED_FILESELECT_H__ */
 

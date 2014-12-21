@@ -44,6 +44,8 @@
 
 #include "RNA_access.h"
 
+#include "ED_fileselect.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 
@@ -90,32 +92,32 @@ static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory cat
 	col = uiLayoutColumn(box, true);
 
 	for (i = 0; i < nentries; ++i) {
-		char dir[FILE_MAX];
-		char temp[FILE_MAX];
 		uiLayout *layout = uiLayoutRow(col, false);
-		char *entry;
+		char *entry_path;
+		char *entry_name;
 		
-		entry = fsmenu_get_entry(fsmenu, category, i);
+		entry_path = fsmenu_get_entry_path(fsmenu, category, i);
+		entry_name = fsmenu_get_entry_name(fsmenu, category, i);
 		
 		/* set this list item as active if we have a match */
 		if (sfile->params) {
-			if (BLI_path_cmp(sfile->params->dir, entry) == 0) {
+			if (BLI_path_cmp(sfile->params->dir, entry_path) == 0) {
 				*nr = i;
 			}
 		}
 
 		/* create nice bookmark name, shows last directory in the full path currently */
-		BLI_strncpy(temp, entry, FILE_MAX);
-		BLI_add_slash(temp);
-		BLI_getlastdir(temp, dir, FILE_MAX);
-		BLI_del_slash(dir);
+		//BLI_strncpy(temp, entry, FILE_MAX);
+		//BLI_add_slash(temp);
+		//BLI_getlastdir(temp, dir, FILE_MAX);
+		//BLI_del_slash(dir);
 
-		if (dir[0] == 0)
-			BLI_strncpy(dir, entry, FILE_MAX);
+		//if (dir[0] == 0)
+			//BLI_strncpy(dir, entry, FILE_MAX);
 
 		/* create list item */
-		but = uiDefIconTextButS(block, UI_BTYPE_LISTROW, 0, icon, dir, 0, 0, UI_UNIT_X * 10, UI_UNIT_Y, nr, 0, i, 0, 0, entry);
-		UI_but_func_set(but, file_panel_cb, entry, NULL);
+		but = uiDefIconTextButS(block, UI_BTYPE_LISTROW, 0, icon, entry_name, 0, 0, UI_UNIT_X * 10, UI_UNIT_Y, nr, 0, i, 0, 0, entry_path);
+		UI_but_func_set(but, file_panel_cb, entry_path, NULL);
 		UI_but_flag_disable(but, UI_BUT_UNDO); /* skip undo on screen buttons */
 		UI_but_drawflag_enable(but, UI_BUT_ICON_LEFT | UI_BUT_TEXT_LEFT);
 
@@ -132,8 +134,8 @@ static void file_panel_system(const bContext *C, Panel *pa)
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
 
-	if (sfile)
-		file_panel_category(C, pa, FS_CATEGORY_SYSTEM, &sfile->systemnr, ICON_DISK_DRIVE, 0);
+	//~ if (sfile)
+		//~ file_panel_category(C, pa, FS_CATEGORY_SYSTEM, &sfile->systemnr, ICON_DISK_DRIVE, 0);
 }
 
 static int file_panel_system_bookmarks_poll(const bContext *C, PanelType *UNUSED(pt))

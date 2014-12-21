@@ -637,6 +637,15 @@ typedef struct SpaceFile {
 	short systemnr, pad2;
 } SpaceFile;
 
+/* FSMenuEntry's without paths indicate seperators */
+typedef struct FSMenuEntry {
+	struct FSMenuEntry *next;
+
+	char *path;
+	char name[256];  /* FILE_MAXFILE */
+	short save;
+	short pad[3];
+} FSMenuEntry;
 
 /* FileSelectParams.display */
 enum FileDisplayTypeE {

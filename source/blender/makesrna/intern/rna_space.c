@@ -56,6 +56,8 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
+#include "ED_fileselect.h"
+
 #include "RNA_enum_types.h"
 
 
@@ -1380,6 +1382,132 @@ static int rna_SpaceFileBrowser_use_lib_get(PointerRNA *ptr)
 	SpaceFile *sf = ptr->data;
 
 	return sf->params && (sf->params->type == FILE_LOADLIB);
+}
+
+/* File browser. */
+
+static void rna_FileBrowser_FSMenuEntry_name_get(PointerRNA *ptr, char *value)
+{
+	BLI_strncpy(value, fsmenu_entry_get_name(ptr->data), sizeof(value));
+}
+
+static void rna_FileBrowser_FSMenu_next(CollectionPropertyIterator *iter)
+{
+	ListBaseIterator *internal = &iter->internal.listbase;
+
+	if (internal->skip) {
+		do {
+			internal->link = (Link *)(((FSMenuEntry *)(internal->link))->next);
+			iter->valid = (internal->link != NULL);
+		} while (iter->valid && internal->skip(iter, internal->link));
+	}
+	else {
+		internal->link = (Link *)(((FSMenuEntry *)(internal->link))->next);
+		iter->valid = (internal->link != NULL);
+	}
+}
+
+static void rna_FileBrowser_FSMenu_begin(CollectionPropertyIterator *iter, FSMenuCategory category)
+{
+	ListBaseIterator *internal = &iter->internal.listbase;
+
+	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenuEntry *fsmentry = fsmenu_get_category(fsmenu, category);
+
+	internal->link = (fsmentry) ? (Link *)fsmentry : NULL;
+	internal->skip = NULL;
+
+	iter->valid = (internal->link != NULL);
+
+	//if (skip && iter->valid && skip(iter, internal->link)) {
+		//rna_FileBrowser_FSMenu_next(iter);
+	//}
+}
+
+static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
+{
+	ListBaseIterator *internal = &iter->internal.listbase;
+	PointerRNA r_ptr;
+
+	RNA_pointer_create(NULL, &RNA_FileBrowserFSMenuEntry, internal->link, &r_ptr);
+
+	return r_ptr;
+}
+
+static void rna_FileBrowser_FSMenu_end(CollectionPropertyIterator *UNUSED(iter))
+{
+}
+
+static void rna_FileBrowser_FSMenuSystem_data_begin(CollectionPropertyIterator *iter, PointerRNA *UNUSED(ptr))
+{
+	rna_FileBrowser_FSMenu_begin(iter, FS_CATEGORY_SYSTEM);
+}
+
+static int rna_FileBrowser_FSMenuSystem_data_length(PointerRNA *UNUSED(ptr))
+{
+	struct FSMenu *fsmenu = fsmenu_get();
+
+	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_SYSTEM);
+}
+
+static int rna_FileBrowser_FSMenu_active_get(PointerRNA *ptr, const FSMenuCategory category)
+{
+	SpaceFile *sf = ptr->data;
+	//struct FSMenu *fsmenu = fsmenu_get();
+	int actnr = -1;
+
+	switch (category) {
+		case FS_CATEGORY_SYSTEM:
+			actnr = sf->systemnr;
+			break;
+	}
+
+	return actnr;
+
+	//if (actnr != -1) {
+		//const char *path = fsmenu_get_entry_path(fsmenu, category, actnr);
+		//
+	//}
+}
+
+static void rna_FileBrowser_FSMenu_active_set(PointerRNA *ptr, int value, const FSMenuCategory category)
+{
+	SpaceFile *sf = ptr->data;
+	struct FSMenu *fsmenu = fsmenu_get();
+	FSMenuEntry *fsm = fsmenu_get_entry(fsmenu, category, value);
+
+	if (fsm && sf->params) {
+		switch (category) {
+			case FS_CATEGORY_SYSTEM:
+				sf->systemnr = value;
+				break;
+		}
+
+		BLI_strncpy(sf->params->dir, fsm->path, sizeof(sf->params->dir));
+	}
+}
+
+static void rna_FileBrowser_FSMenu_active_range(PointerRNA *UNUSED(ptr), int *min, int *max, int *softmin, int *softmax, const FSMenuCategory category)
+{
+	struct FSMenu *fsmenu = fsmenu_get();
+
+	*min = *softmin = -1;
+	*max = *softmax = fsmenu_get_nentries(fsmenu, category) - 1;
+}
+
+static int rna_FileBrowser_FSMenuSystem_active_get(PointerRNA *ptr)
+{
+	return rna_FileBrowser_FSMenu_active_get(ptr, FS_CATEGORY_SYSTEM);
+}
+
+static void rna_FileBrowser_FSMenuSystem_active_set(PointerRNA *ptr, int value)
+{
+	rna_FileBrowser_FSMenu_active_set(ptr, value, FS_CATEGORY_SYSTEM);
+}
+
+static void rna_FileBrowser_FSMenuSystem_active_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+{
+	rna_FileBrowser_FSMenu_active_range(ptr, min, max, softmin, softmax, FS_CATEGORY_SYSTEM);
 }
 
 #else
@@ -3356,6 +3484,30 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 }
 
+static void rna_def_filemenu_entry(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "FileBrowserFSMenuEntry", NULL);
+	RNA_def_struct_sdna(srna, "FSMenuEntry");
+	RNA_def_struct_ui_text(srna, "File Select Parameters", "File Select Parameters");
+
+	prop = RNA_def_property(srna, "path", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_string_sdna(prop, NULL, "path");
+	RNA_def_property_ui_text(prop, "Path", "");
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "name");
+	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_name_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Name", "");
+
+	prop = RNA_def_property(srna, "use_save", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "save", 1);
+	RNA_def_property_ui_text(prop, "Save", "Whether this path is saved in bookmarks, or generated from OS");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+}
+
 static void rna_def_space_filebrowser(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -3383,6 +3535,25 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Library Browser", "Whether this file browser may browse blender files or not");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_SpaceFileBrowser_use_lib_get", NULL);
+
+	/* bookmarks, recent files etc. */
+	//RNA_define_verify_sdna(false);
+
+	prop = RNA_def_collection(srna, "system_folders", "FileBrowserFSMenuEntry", "System Folders",
+	                          "System's folders (usually root, available hard drives, etc)");
+	RNA_def_property_collection_funcs(prop, "rna_FileBrowser_FSMenuSystem_data_begin", "rna_FileBrowser_FSMenu_next",
+	                                  "rna_FileBrowser_FSMenu_end", "rna_FileBrowser_FSMenu_get",
+	                                  "rna_FileBrowser_FSMenuSystem_data_length", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	//RNA_define_verify_sdna(true);
+
+	prop = RNA_def_int(srna, "system_folders_active", -1, -1, INT_MAX, "Active System Folder",
+	                   "Index of active system folder (-1 if none)", -1, INT_MAX);
+	RNA_def_property_int_sdna(prop, NULL, "systemnr");
+	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuSystem_active_get",
+	                           "rna_FileBrowser_FSMenuSystem_active_set", "rna_FileBrowser_FSMenuSystem_active_range");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 }
 
 static void rna_def_space_info(BlenderRNA *brna)
@@ -3985,6 +4156,7 @@ void RNA_def_space(BlenderRNA *brna)
 	rna_def_space_sequencer(brna);
 	rna_def_space_text(brna);
 	rna_def_fileselect_params(brna);
+	rna_def_filemenu_entry(brna);
 	rna_def_space_filebrowser(brna);
 	rna_def_space_outliner(brna);
 	rna_def_background_image(brna);

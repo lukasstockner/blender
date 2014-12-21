@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Header
+from bpy.types import Header, Panel
 
 
 class FILEBROWSER_HT_header(Header):
@@ -90,6 +90,45 @@ class FILEBROWSER_HT_header(Header):
             row.prop(params, "filter_search", text="")
 
         layout.template_running_jobs()
+
+
+
+class FILEBROWSER_UL_dir(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        direntry = item
+        space = context.space_data
+        icon = 'DISK_DRIVE' if active_propname == "system_folders_active" else 'NONE'
+
+        if (space.params.directory == direntry.path):
+            setattr(active_data, active_propname, index)
+
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            row = layout.row(align=True)
+
+            row.prop(direntry, "name", text="", emboss=False, icon=icon)
+
+            if direntry.use_save:
+                row.label("CaN DeLeTe")
+
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.prop(direntry, "path", text="")
+
+
+class FILEBROWSER_PT_system_folders(Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'CHANNELS'
+    bl_label = "System Folders"
+    #bl_options = {'HIDE_HEADER'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        space = context.space_data
+
+        if space.system_folders:
+            #~ print(space.system_folders_active)
+            layout.template_list("FILEBROWSER_UL_dir", "system_folders", space, "system_folders", space, "system_folders_active", rows=1, maxrows=6)
 
 
 if __name__ == "__main__":  # only for live edit.

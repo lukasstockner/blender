@@ -40,6 +40,10 @@
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 
+#include "DNA_space_types.h"
+
+#include "ED_fileselect.h"
+
 #ifdef WIN32
 #  include <windows.h> /* need to include windows.h so _WIN32_IE is defined  */
 #  ifndef _WIN32_IE
@@ -63,15 +67,6 @@
 
 /* FSMENU HANDLING */
 
-/* FSMenuEntry's without paths indicate seperators */
-typedef struct _FSMenuEntry FSMenuEntry;
-struct _FSMenuEntry {
-	FSMenuEntry *next;
-
-	char *path;
-	short save;
-};
-
 typedef struct FSMenu {
 	FSMenuEntry *fsmenu_system;
 	FSMenuEntry *fsmenu_system_bookmarks;
@@ -89,7 +84,7 @@ FSMenu *fsmenu_get(void)
 	return g_fsmenu;
 }
 
-static FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory category)
+struct FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory category)
 {
 	FSMenuEntry *fsm_head = NULL;
 
@@ -140,15 +135,75 @@ int fsmenu_get_nentries(struct FSMenu *fsmenu, FSMenuCategory category)
 	return count;
 }
 
-char *fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
+FSMenuEntry *fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory category, int index)
 {
 	FSMenuEntry *fsm_iter;
 
-	for (fsm_iter = fsmenu_get_category(fsmenu, category); fsm_iter && idx; fsm_iter = fsm_iter->next) {
-		idx--;
+	for (fsm_iter = fsmenu_get_category(fsmenu, category); fsm_iter && index; fsm_iter = fsm_iter->next) {
+		index--;
 	}
 
-	return fsm_iter ? fsm_iter->path : NULL;
+	return fsm_iter;
+}
+
+char *fsmenu_get_entry_path(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
+{
+	FSMenuEntry *fsm = fsmenu_get_entry(fsmenu, category, idx);
+
+	return fsm ? fsm->path : NULL;
+}
+
+static void fsmenu_entry_generate_name(struct FSMenuEntry *fsentry, char *name, size_t name_size)
+{
+	char temp[FILE_MAX];
+
+	BLI_strncpy(temp, fsentry->path, FILE_MAX);
+	BLI_add_slash(temp);
+	BLI_getlastdir(temp, name, name_size);
+	BLI_del_slash(name);
+	if (!name[0]) {
+		name[0] = '/';
+		name[1] = '\0';
+	}
+}
+
+char *fsmenu_entry_get_name(struct FSMenuEntry *fsentry)
+{
+	if (fsentry->name[0]) {
+		return fsentry->name;
+	}
+	else {
+		/* Here we abuse fsm_iter->name, keeping first char NULL. */
+		char *name = fsentry->name + 1;
+		size_t name_size = sizeof(fsentry->name) - 1;
+
+		fsmenu_entry_generate_name(fsentry, name, name_size);
+		return name;
+	}
+}
+
+void fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name)
+{
+	if (!STREQ(name, fsentry->name)) {
+		char tmp_name[FILE_MAXFILE];
+		size_t tmp_name_size = sizeof(tmp_name);
+
+		fsmenu_entry_generate_name(fsentry, tmp_name, tmp_name_size);
+		if (!name[0] || STREQ(tmp_name, name)) {
+			/* reset name to default behavior. */
+			fsentry->name[0] = '\0';
+		}
+		else {
+			BLI_strncpy(fsentry->name, name, sizeof(fsentry->name));
+		}
+	}
+}
+
+char *fsmenu_get_entry_name(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
+{
+	FSMenuEntry *fsm = fsmenu_get_entry(fsmenu, category, idx);
+
+	return fsm ? fsmenu_entry_get_name(fsm) : NULL;
 }
 
 short fsmenu_can_save(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
@@ -162,7 +217,7 @@ short fsmenu_can_save(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
 	return fsm_iter ? fsm_iter->save : 0;
 }
 
-void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const char *path, FSMenuInsert flag)
+void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const char *path, const char *name, FSMenuInsert flag)
 {
 	FSMenuEntry *fsm_prev;
 	FSMenuEntry *fsm_iter;
@@ -201,6 +256,12 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const c
 	fsm_iter = MEM_mallocN(sizeof(*fsm_iter), "fsme");
 	fsm_iter->path = BLI_strdup(path);
 	fsm_iter->save = (flag & FS_INSERT_SAVE) != 0;
+	if (name && name[0]) {
+		BLI_strncpy(fsm_iter->name, name, sizeof(fsm_iter->name));
+	}
+	else {
+		fsm_iter->name[0] = '\0';
+	}
 
 	if (fsm_prev) {
 		if (flag & FS_INSERT_FIRST) {
@@ -261,6 +322,9 @@ void fsmenu_write_file(struct FSMenu *fsmenu, const char *filename)
 	fprintf(fp, "[Bookmarks]\n");
 	for (fsm_iter = fsmenu_get_category(fsmenu, FS_CATEGORY_BOOKMARKS); fsm_iter; fsm_iter = fsm_iter->next) {
 		if (fsm_iter->path && fsm_iter->save) {
+			if (fsm_iter->name[0] && !STREQ(fsm_iter->name, fsm_iter->path)) {
+				fprintf(fp, "!%s\n", fsm_iter->name);
+			}
 			fprintf(fp, "%s\n", fsm_iter->path);
 		}
 	}
@@ -276,6 +340,7 @@ void fsmenu_write_file(struct FSMenu *fsmenu, const char *filename)
 void fsmenu_read_bookmarks(struct FSMenu *fsmenu, const char *filename)
 {
 	char line[FILE_MAXDIR];
+	char name[FILE_MAXFILE];
 	FSMenuCategory category = FS_CATEGORY_BOOKMARKS;
 	FILE *fp;
 
@@ -288,6 +353,15 @@ void fsmenu_read_bookmarks(struct FSMenu *fsmenu, const char *filename)
 		}
 		else if (strncmp(line, "[Recent]", 8) == 0) {
 			category = FS_CATEGORY_RECENT;
+		}
+		else if (line[0] == '!') {
+			int len = strlen(line);
+			if (len > 0) {
+				if (line[len - 1] == '\n') {
+					line[len - 1] = '\0';
+				}
+				BLI_strncpy(name, line + 1, sizeof(name));
+			}
 		}
 		else {
 			int len = strlen(line);
@@ -302,9 +376,11 @@ void fsmenu_read_bookmarks(struct FSMenu *fsmenu, const char *filename)
 				if (BLI_exists(line))
 #endif
 				{
-					fsmenu_insert_entry(fsmenu, category, line, FS_INSERT_SAVE);
+					fsmenu_insert_entry(fsmenu, category, line, name, FS_INSERT_SAVE);
 				}
 			}
+			/* always reset name. */
+			name[0] = '\0';
 		}
 	}
 	fclose(fp);
@@ -329,16 +405,16 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 				tmps[2] = '\\';
 				tmps[3] = 0;
 				
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, tmps, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, tmps, NULL, FS_INSERT_SORTED);
 			}
 		}
 
 		/* Adding Desktop and My Documents */
 		if (read_bookmarks) {
 			SHGetSpecialFolderPath(0, line, CSIDL_PERSONAL, 0);
-			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			SHGetSpecialFolderPath(0, line, CSIDL_DESKTOPDIRECTORY, 0);
-			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 		}
 	}
 #else
@@ -361,7 +437,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 			FSRefMakePath(&dir, path, FILE_MAX);
 			if (strcmp((char *)path, "/home") && strcmp((char *)path, "/net")) {
 				/* /net and /home are meaningless on OSX, home folders are stored in /Users */
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)path, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)path, NULL, FS_INSERT_SORTED);
 			}
 		}
 
@@ -371,26 +447,26 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 		home = getenv("HOME");
 		if (read_bookmarks && home) {
 			BLI_snprintf(line, sizeof(line), "%s/", home);
-			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			BLI_snprintf(line, sizeof(line), "%s/Desktop/", home);
 			if (BLI_exists(line)) {
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			}
 			BLI_snprintf(line, sizeof(line), "%s/Documents/", home);
 			if (BLI_exists(line)) {
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			}
 			BLI_snprintf(line, sizeof(line), "%s/Pictures/", home);
 			if (BLI_exists(line)) {
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			}
 			BLI_snprintf(line, sizeof(line), "%s/Music/", home);
 			if (BLI_exists(line)) {
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			}
 			BLI_snprintf(line, sizeof(line), "%s/Movies/", home);
 			if (BLI_exists(line)) {
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			}
 		}
 #else /* OSX 10.6+ */
@@ -410,7 +486,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 				continue;
 			
 			CFURLGetFileSystemRepresentation(cfURL, false, (UInt8 *)defPath, FILE_MAX);
-			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)defPath, FS_INSERT_SORTED);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, (char *)defPath, NULL, FS_INSERT_SORTED);
 		}
 		
 		CFRelease(volEnum);
@@ -447,7 +523,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 				/* Exclude "all my files" as it makes no sense in blender fileselector */
 				/* Exclude "airdrop" if wlan not active as it would show "" ) */
 				if (!strstr(line, "myDocuments.cannedSearch") && (*line != '\0')) {
-					fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_APPEND_LAST);
+					fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_APPEND_LAST);
 				}
 				
 				CFRelease(pathString);
@@ -466,10 +542,10 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 		if (read_bookmarks && home) {
 			BLI_snprintf(line, sizeof(line), "%s/", home);
-			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			BLI_snprintf(line, sizeof(line), "%s/Desktop/", home);
 			if (BLI_exists(line)) {
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 			}
 		}
 
@@ -494,10 +570,10 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 					len = strlen(mnt->mnt_dir);
 					if (len && mnt->mnt_dir[len - 1] != '/') {
 						BLI_snprintf(line, sizeof(line), "%s/", mnt->mnt_dir);
-						fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, line, FS_INSERT_SORTED);
+						fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, line, NULL, FS_INSERT_SORTED);
 					}
 					else {
-						fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, mnt->mnt_dir, FS_INSERT_SORTED);
+						fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, mnt->mnt_dir, NULL, FS_INSERT_SORTED);
 					}
 
 					found = 1;
@@ -510,7 +586,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 			/* fallback */
 			if (!found)
-				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, "/", FS_INSERT_SORTED);
+				fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM, "/", NULL, FS_INSERT_SORTED);
 		}
 	}
 #endif
