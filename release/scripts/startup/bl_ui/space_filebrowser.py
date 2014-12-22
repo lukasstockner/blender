@@ -107,16 +107,9 @@ class FILEBROWSER_UL_dir(bpy.types.UIList):
         if active_propname == "recent_folders_active":
             icon = 'FILE_FOLDER'
 
-        #~ if (space.params.directory == direntry.path):
-            #~ setattr(active_data, active_propname, index)
-
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
-
             row.prop(direntry, "name", text="", emboss=False, icon=icon)
-
-            if direntry.use_save:
-                row.label("CaN DeLeTe")
 
         elif self.layout_type in {'GRID'}:
             layout.alignment = 'CENTER'
@@ -130,12 +123,12 @@ class FILEBROWSER_PT_system_folders(Panel):
 
     def draw(self, context):
         layout = self.layout
-
         space = context.space_data
 
         if space.system_folders:
-            #~ print(space.system_folders_active)
-            layout.template_list("FILEBROWSER_UL_dir", "system_folders", space, "system_folders", space, "system_folders_active", rows=1, maxrows=6)
+            row = layout.row()
+            row.template_list("FILEBROWSER_UL_dir", "system_folders", space, "system_folders",
+                              space, "system_folders_active", rows=1, maxrows=6)
 
 
 class FILEBROWSER_PT_system_bookmarks(Panel):
@@ -149,12 +142,12 @@ class FILEBROWSER_PT_system_bookmarks(Panel):
 
     def draw(self, context):
         layout = self.layout
-
         space = context.space_data
 
         if space.system_bookmarks:
-            #~ print(space.system_folders_active)
-            layout.template_list("FILEBROWSER_UL_dir", "system_bookmarks", space, "system_bookmarks", space, "system_bookmarks_active", rows=1, maxrows=6)
+            row = layout.row()
+            row.template_list("FILEBROWSER_UL_dir", "system_bookmarks", space, "system_bookmarks",
+                              space, "system_bookmarks_active", rows=1, maxrows=6)
 
 
 class FILEBROWSER_PT_bookmarks(Panel):
@@ -164,12 +157,16 @@ class FILEBROWSER_PT_bookmarks(Panel):
 
     def draw(self, context):
         layout = self.layout
-
         space = context.space_data
 
         if space.bookmarks:
-            #~ print(space.system_folders_active)
-            layout.template_list("FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks", space, "bookmarks_active", rows=1, maxrows=6)
+            row = layout.row()
+            row.template_list("FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks",
+                              space, "bookmarks_active", rows=1, maxrows=6)
+
+            col = row.column(align=True)
+            col.operator("file.bookmark_add", icon='ZOOMIN', text="")
+            col.operator("file.bookmark_delete", icon='ZOOMOUT', text="")
 
 
 class FILEBROWSER_PT_recent_folders(Panel):
@@ -183,12 +180,15 @@ class FILEBROWSER_PT_recent_folders(Panel):
 
     def draw(self, context):
         layout = self.layout
-
         space = context.space_data
 
         if space.recent_folders:
-            #~ print(space.system_folders_active)
-            layout.template_list("FILEBROWSER_UL_dir", "recent_folders", space, "recent_folders", space, "recent_folders_active", rows=1, maxrows=6)
+            row = layout.row()
+            row.template_list("FILEBROWSER_UL_dir", "recent_folders", space, "recent_folders",
+                                 space, "recent_folders_active", rows=1, maxrows=6)
+
+            col = row.column(align=True)
+            col.operator("file.reset_recent", icon='X', text="")
 
 
 if __name__ == "__main__":  # only for live edit.

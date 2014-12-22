@@ -504,11 +504,20 @@ void FILE_OT_bookmark_add(wmOperatorType *ot)
 static int bookmark_delete_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
+	SpaceFile *sfile = CTX_wm_space_file(C);
 	struct FSMenu *fsmenu = fsmenu_get();
 	int nentries = fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
-	
-	if (RNA_struct_find_property(op->ptr, "index")) {
-		int index = RNA_int_get(op->ptr, "index");
+
+	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "index");
+
+	if (prop) {
+		int index;
+		if (RNA_property_is_set(op->ptr, prop)) {
+			index = RNA_int_get(op->ptr, "index");
+		}
+		else {  /* if index unset, use active bookmark... */
+			index = sfile->bookmarknr;
+		}
 		if ((index > -1) && (index < nentries)) {
 			char name[FILE_MAX];
 			
@@ -552,7 +561,7 @@ static int reset_recent_exec(bContext *C, wmOperator *UNUSED(op))
 	BLI_make_file_string("/", name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
 	fsmenu_write_file(fsmenu, name);
 	ED_area_tag_redraw(sa);
-		
+
 	return OPERATOR_FINISHED;
 }
 
