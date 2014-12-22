@@ -634,7 +634,7 @@ typedef struct SpaceFile {
 	struct FileLayout *layout;
 	
 	short recentnr, bookmarknr;
-	short systemnr, pad2;
+	short systemnr, system_bookmarknr;
 } SpaceFile;
 
 /* FSMenuEntry's without paths indicate seperators */

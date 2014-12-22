@@ -79,7 +79,7 @@ static void file_panel_category(const bContext *C, Panel *pa, FSMenuCategory cat
 	int i, nentries = fsmenu_get_nentries(fsmenu, category);
 
 	/* reset each time */
-	*nr = -1;
+	//~ *nr = -1;
 
 	/* hide if no entries */
 	if (nentries == 0)
@@ -148,9 +148,9 @@ static void file_panel_system_bookmarks(const bContext *C, Panel *pa)
 {
 	SpaceFile *sfile = CTX_wm_space_file(C);
 
-	if (sfile && !(U.uiflag & USER_HIDE_SYSTEM_BOOKMARKS)) {
-		file_panel_category(C, pa, FS_CATEGORY_SYSTEM_BOOKMARKS, &sfile->systemnr, ICON_BOOKMARKS, 0);
-	}
+	//~ if (sfile && !(U.uiflag & USER_HIDE_SYSTEM_BOOKMARKS)) {
+		//~ file_panel_category(C, pa, FS_CATEGORY_SYSTEM_BOOKMARKS, &sfile->systemnr, ICON_BOOKMARKS, 0);
+	//~ }
 
 }
 
@@ -164,7 +164,7 @@ static void file_panel_bookmarks(const bContext *C, Panel *pa)
 		uiItemO(row, IFACE_("Add"), ICON_ZOOMIN, "file.bookmark_add");
 		uiItemL(row, NULL, ICON_NONE);
 
-		file_panel_category(C, pa, FS_CATEGORY_BOOKMARKS, &sfile->bookmarknr, ICON_BOOKMARKS, 1);
+		//~ file_panel_category(C, pa, FS_CATEGORY_BOOKMARKS, &sfile->bookmarknr, ICON_BOOKMARKS, 1);
 	}
 }
 
@@ -185,7 +185,7 @@ static void file_panel_recent(const bContext *C, Panel *pa)
 			uiItemO(row, IFACE_("Reset"), ICON_X, "file.reset_recent");
 			uiItemL(row, NULL, ICON_NONE);
 
-			file_panel_category(C, pa, FS_CATEGORY_RECENT, &sfile->recentnr, ICON_FILE_FOLDER, 0);
+			//~ file_panel_category(C, pa, FS_CATEGORY_RECENT, &sfile->recentnr, ICON_FILE_FOLDER, 0);
 		}
 	}
 }

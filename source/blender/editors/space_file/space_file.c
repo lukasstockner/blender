@@ -192,6 +192,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
+	struct FSMenu *fsmenu = fsmenu_get();
 
 	if (!sfile->folders_prev)
 		sfile->folders_prev = folderlist_new();
@@ -207,6 +208,12 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	                                         params->filter_id,
 	                                         params->filter_glob,
 	                                         params->filter_search);
+
+	/* Update the active indices of bookmarks & co. */
+	sfile->systemnr = fsmenu_get_active_indices(fsmenu, FS_CATEGORY_SYSTEM, params->dir);
+	sfile->system_bookmarknr = fsmenu_get_active_indices(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, params->dir);
+	sfile->bookmarknr = fsmenu_get_active_indices(fsmenu, FS_CATEGORY_BOOKMARKS, params->dir);
+	sfile->recentnr = fsmenu_get_active_indices(fsmenu, FS_CATEGORY_RECENT, params->dir);
 
 	if (filelist_force_reset(sfile->files)) {
 		filelist_readjob_stop(wm, sfile->files);

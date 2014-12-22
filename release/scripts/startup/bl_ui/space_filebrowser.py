@@ -99,8 +99,8 @@ class FILEBROWSER_UL_dir(bpy.types.UIList):
         space = context.space_data
         icon = 'DISK_DRIVE' if active_propname == "system_folders_active" else 'NONE'
 
-        if (space.params.directory == direntry.path):
-            setattr(active_data, active_propname, index)
+        #~ if (space.params.directory == direntry.path):
+            #~ setattr(active_data, active_propname, index)
 
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.row(align=True)
@@ -118,8 +118,7 @@ class FILEBROWSER_UL_dir(bpy.types.UIList):
 class FILEBROWSER_PT_system_folders(Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'CHANNELS'
-    bl_label = "System Folders"
-    #bl_options = {'HIDE_HEADER'}
+    bl_label = "System"
 
     def draw(self, context):
         layout = self.layout
@@ -129,6 +128,59 @@ class FILEBROWSER_PT_system_folders(Panel):
         if space.system_folders:
             #~ print(space.system_folders_active)
             layout.template_list("FILEBROWSER_UL_dir", "system_folders", space, "system_folders", space, "system_folders_active", rows=1, maxrows=6)
+
+
+class FILEBROWSER_PT_system_bookmarks(Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'CHANNELS'
+    bl_label = "System Bookmarks"
+
+    @classmethod
+    def poll(cls, context):
+        return not context.user_preferences.filepaths.hide_system_bookmarks
+
+    def draw(self, context):
+        layout = self.layout
+
+        space = context.space_data
+
+        if space.system_bookmarks:
+            #~ print(space.system_folders_active)
+            layout.template_list("FILEBROWSER_UL_dir", "system_bookmarks", space, "system_bookmarks", space, "system_bookmarks_active", rows=1, maxrows=6)
+
+
+class FILEBROWSER_PT_bookmarks(Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'CHANNELS'
+    bl_label = "Bookmarks"
+
+    def draw(self, context):
+        layout = self.layout
+
+        space = context.space_data
+
+        if space.bookmarks:
+            #~ print(space.system_folders_active)
+            layout.template_list("FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks", space, "bookmarks_active", rows=1, maxrows=6)
+
+
+class FILEBROWSER_PT_recent_folders(Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'CHANNELS'
+    bl_label = "Recent"
+
+    @classmethod
+    def poll(cls, context):
+        return not context.user_preferences.filepaths.hide_recent_locations
+
+    def draw(self, context):
+        layout = self.layout
+
+        space = context.space_data
+
+        if space.recent_folders:
+            #~ print(space.system_folders_active)
+            layout.template_list("FILEBROWSER_UL_dir", "recent_folders", space, "recent_folders", space, "recent_folders_active", rows=1, maxrows=6)
 
 
 if __name__ == "__main__":  # only for live edit.

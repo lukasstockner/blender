@@ -1391,6 +1391,13 @@ static void rna_FileBrowser_FSMenuEntry_name_get(PointerRNA *ptr, char *value)
 	BLI_strncpy(value, fsmenu_entry_get_name(ptr->data), sizeof(value));
 }
 
+static int rna_FileBrowser_FSMenuEntry_name_get_editable(PointerRNA *ptr)
+{
+	FSMenuEntry *fsm = ptr->data;
+
+	return fsm->save;
+}
+
 static void rna_FileBrowser_FSMenu_next(CollectionPropertyIterator *iter)
 {
 	ListBaseIterator *internal = &iter->internal.listbase;
@@ -1418,10 +1425,6 @@ static void rna_FileBrowser_FSMenu_begin(CollectionPropertyIterator *iter, FSMen
 	internal->skip = NULL;
 
 	iter->valid = (internal->link != NULL);
-
-	//if (skip && iter->valid && skip(iter, internal->link)) {
-		//rna_FileBrowser_FSMenu_next(iter);
-	//}
 }
 
 static PointerRNA rna_FileBrowser_FSMenu_get(CollectionPropertyIterator *iter)
@@ -1450,24 +1453,63 @@ static int rna_FileBrowser_FSMenuSystem_data_length(PointerRNA *UNUSED(ptr))
 	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_SYSTEM);
 }
 
+static void rna_FileBrowser_FSMenuSystemBookmark_data_begin(CollectionPropertyIterator *iter, PointerRNA *UNUSED(ptr))
+{
+	rna_FileBrowser_FSMenu_begin(iter, FS_CATEGORY_SYSTEM_BOOKMARKS);
+}
+
+static int rna_FileBrowser_FSMenuSystemBookmark_data_length(PointerRNA *UNUSED(ptr))
+{
+	struct FSMenu *fsmenu = fsmenu_get();
+
+	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
+}
+
+static void rna_FileBrowser_FSMenuBookmark_data_begin(CollectionPropertyIterator *iter, PointerRNA *UNUSED(ptr))
+{
+	rna_FileBrowser_FSMenu_begin(iter, FS_CATEGORY_BOOKMARKS);
+}
+
+static int rna_FileBrowser_FSMenuBookmark_data_length(PointerRNA *UNUSED(ptr))
+{
+	struct FSMenu *fsmenu = fsmenu_get();
+
+	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
+}
+
+static void rna_FileBrowser_FSMenuRecent_data_begin(CollectionPropertyIterator *iter, PointerRNA *UNUSED(ptr))
+{
+	rna_FileBrowser_FSMenu_begin(iter, FS_CATEGORY_RECENT);
+}
+
+static int rna_FileBrowser_FSMenuRecent_data_length(PointerRNA *UNUSED(ptr))
+{
+	struct FSMenu *fsmenu = fsmenu_get();
+
+	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_RECENT);
+}
+
 static int rna_FileBrowser_FSMenu_active_get(PointerRNA *ptr, const FSMenuCategory category)
 {
 	SpaceFile *sf = ptr->data;
-	//struct FSMenu *fsmenu = fsmenu_get();
 	int actnr = -1;
 
 	switch (category) {
 		case FS_CATEGORY_SYSTEM:
 			actnr = sf->systemnr;
 			break;
+		case FS_CATEGORY_SYSTEM_BOOKMARKS:
+			actnr = sf->system_bookmarknr;
+			break;
+		case FS_CATEGORY_BOOKMARKS:
+			actnr = sf->bookmarknr;
+			break;
+		case FS_CATEGORY_RECENT:
+			actnr = sf->recentnr;
+			break;
 	}
 
 	return actnr;
-
-	//if (actnr != -1) {
-		//const char *path = fsmenu_get_entry_path(fsmenu, category, actnr);
-		//
-	//}
 }
 
 static void rna_FileBrowser_FSMenu_active_set(PointerRNA *ptr, int value, const FSMenuCategory category)
@@ -1480,6 +1522,15 @@ static void rna_FileBrowser_FSMenu_active_set(PointerRNA *ptr, int value, const 
 		switch (category) {
 			case FS_CATEGORY_SYSTEM:
 				sf->systemnr = value;
+				break;
+			case FS_CATEGORY_SYSTEM_BOOKMARKS:
+				sf->system_bookmarknr = value;
+				break;
+			case FS_CATEGORY_BOOKMARKS:
+				sf->bookmarknr = value;
+				break;
+			case FS_CATEGORY_RECENT:
+				sf->recentnr = value;
 				break;
 		}
 
@@ -1508,6 +1559,51 @@ static void rna_FileBrowser_FSMenuSystem_active_set(PointerRNA *ptr, int value)
 static void rna_FileBrowser_FSMenuSystem_active_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
 {
 	rna_FileBrowser_FSMenu_active_range(ptr, min, max, softmin, softmax, FS_CATEGORY_SYSTEM);
+}
+
+static int rna_FileBrowser_FSMenuSystemBookmark_active_get(PointerRNA *ptr)
+{
+	return rna_FileBrowser_FSMenu_active_get(ptr, FS_CATEGORY_SYSTEM_BOOKMARKS);
+}
+
+static void rna_FileBrowser_FSMenuSystemBookmark_active_set(PointerRNA *ptr, int value)
+{
+	rna_FileBrowser_FSMenu_active_set(ptr, value, FS_CATEGORY_SYSTEM_BOOKMARKS);
+}
+
+static void rna_FileBrowser_FSMenuSystemBookmark_active_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+{
+	rna_FileBrowser_FSMenu_active_range(ptr, min, max, softmin, softmax, FS_CATEGORY_SYSTEM_BOOKMARKS);
+}
+
+static int rna_FileBrowser_FSMenuBookmark_active_get(PointerRNA *ptr)
+{
+	return rna_FileBrowser_FSMenu_active_get(ptr, FS_CATEGORY_BOOKMARKS);
+}
+
+static void rna_FileBrowser_FSMenuBookmark_active_set(PointerRNA *ptr, int value)
+{
+	rna_FileBrowser_FSMenu_active_set(ptr, value, FS_CATEGORY_BOOKMARKS);
+}
+
+static void rna_FileBrowser_FSMenuBookmark_active_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+{
+	rna_FileBrowser_FSMenu_active_range(ptr, min, max, softmin, softmax, FS_CATEGORY_BOOKMARKS);
+}
+
+static int rna_FileBrowser_FSMenuRecent_active_get(PointerRNA *ptr)
+{
+	return rna_FileBrowser_FSMenu_active_get(ptr, FS_CATEGORY_RECENT);
+}
+
+static void rna_FileBrowser_FSMenuRecent_active_set(PointerRNA *ptr, int value)
+{
+	rna_FileBrowser_FSMenu_active_set(ptr, value, FS_CATEGORY_RECENT);
+}
+
+static void rna_FileBrowser_FSMenuRecent_active_range(PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+{
+	rna_FileBrowser_FSMenu_active_range(ptr, min, max, softmin, softmax, FS_CATEGORY_RECENT);
 }
 
 #else
@@ -3500,6 +3596,7 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
 	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_name_get", NULL, NULL);
+	RNA_def_property_editable_func(prop, "rna_FileBrowser_FSMenuEntry_name_get_editable");
 	RNA_def_property_ui_text(prop, "Name", "");
 
 	prop = RNA_def_property(srna, "use_save", PROP_BOOLEAN, PROP_NONE);
@@ -3537,8 +3634,6 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, "rna_SpaceFileBrowser_use_lib_get", NULL);
 
 	/* bookmarks, recent files etc. */
-	//RNA_define_verify_sdna(false);
-
 	prop = RNA_def_collection(srna, "system_folders", "FileBrowserFSMenuEntry", "System Folders",
 	                          "System's folders (usually root, available hard drives, etc)");
 	RNA_def_property_collection_funcs(prop, "rna_FileBrowser_FSMenuSystem_data_begin", "rna_FileBrowser_FSMenu_next",
@@ -3546,13 +3641,53 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	                                  "rna_FileBrowser_FSMenuSystem_data_length", NULL, NULL, NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
-	//RNA_define_verify_sdna(true);
-
 	prop = RNA_def_int(srna, "system_folders_active", -1, -1, INT_MAX, "Active System Folder",
 	                   "Index of active system folder (-1 if none)", -1, INT_MAX);
 	RNA_def_property_int_sdna(prop, NULL, "systemnr");
 	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuSystem_active_get",
 	                           "rna_FileBrowser_FSMenuSystem_active_set", "rna_FileBrowser_FSMenuSystem_active_range");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_collection(srna, "system_bookmarks", "FileBrowserFSMenuEntry", "System Bookmarks",
+	                          "System's bookmarks");
+	RNA_def_property_collection_funcs(prop, "rna_FileBrowser_FSMenuSystemBookmark_data_begin", "rna_FileBrowser_FSMenu_next",
+	                                  "rna_FileBrowser_FSMenu_end", "rna_FileBrowser_FSMenu_get",
+	                                  "rna_FileBrowser_FSMenuSystemBookmark_data_length", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_int(srna, "system_bookmarks_active", -1, -1, INT_MAX, "Active System Bookmark",
+	                   "Index of active system bookmark (-1 if none)", -1, INT_MAX);
+	RNA_def_property_int_sdna(prop, NULL, "system_bookmarknr");
+	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuSystemBookmark_active_get",
+	                           "rna_FileBrowser_FSMenuSystemBookmark_active_set", "rna_FileBrowser_FSMenuSystemBookmark_active_range");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_collection(srna, "bookmarks", "FileBrowserFSMenuEntry", "Bookmarks",
+	                          "User's bookmarks");
+	RNA_def_property_collection_funcs(prop, "rna_FileBrowser_FSMenuBookmark_data_begin", "rna_FileBrowser_FSMenu_next",
+	                                  "rna_FileBrowser_FSMenu_end", "rna_FileBrowser_FSMenu_get",
+	                                  "rna_FileBrowser_FSMenuBookmark_data_length", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_int(srna, "bookmarks_active", -1, -1, INT_MAX, "Active Bookmark",
+	                   "Index of active bookmark (-1 if none)", -1, INT_MAX);
+	RNA_def_property_int_sdna(prop, NULL, "bookmarknr");
+	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuBookmark_active_get",
+	                           "rna_FileBrowser_FSMenuBookmark_active_set", "rna_FileBrowser_FSMenuBookmark_active_range");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_collection(srna, "recent_folders", "FileBrowserFSMenuEntry", "Recent Folders",
+	                          "");
+	RNA_def_property_collection_funcs(prop, "rna_FileBrowser_FSMenuRecent_data_begin", "rna_FileBrowser_FSMenu_next",
+	                                  "rna_FileBrowser_FSMenu_end", "rna_FileBrowser_FSMenu_get",
+	                                  "rna_FileBrowser_FSMenuRecent_data_length", NULL, NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+	prop = RNA_def_int(srna, "recent_folders_active", -1, -1, INT_MAX, "Active Recent Folder",
+	                   "Index of active recent folder (-1 if none)", -1, INT_MAX);
+	RNA_def_property_int_sdna(prop, NULL, "recentnr");
+	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuRecent_active_get",
+	                           "rna_FileBrowser_FSMenuRecent_active_set", "rna_FileBrowser_FSMenuRecent_active_range");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 }
 

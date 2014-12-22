@@ -70,5 +70,8 @@ void    fsmenu_free(void);
 /** Refresh system directory menu */
 void    fsmenu_refresh_system_category(struct FSMenu *fsmenu);
 
+/** Get active index based on given directory. */
+int     fsmenu_get_active_indices(struct FSMenu *fsmenu, enum FSMenuCategory category, const char *dir);
+
 #endif
 

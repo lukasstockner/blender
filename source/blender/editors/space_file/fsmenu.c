@@ -635,3 +635,16 @@ void fsmenu_free(void)
 	g_fsmenu = NULL;
 }
 
+int fsmenu_get_active_indices(struct FSMenu *fsmenu, enum FSMenuCategory category, const char *dir)
+{
+	FSMenuEntry *fsm_iter = fsmenu_get_category(fsmenu, category);
+	int i;
+
+	for (i = 0; fsm_iter; fsm_iter = fsm_iter->next, i++) {
+		if (BLI_path_cmp(dir, fsm_iter->path) == 0) {
+			return i;
+		}
+	}
+
+	return -1;
+}
