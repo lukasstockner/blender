@@ -97,7 +97,15 @@ class FILEBROWSER_UL_dir(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         direntry = item
         space = context.space_data
-        icon = 'DISK_DRIVE' if active_propname == "system_folders_active" else 'NONE'
+        icon = 'NONE'
+        if active_propname == "system_folders_active":
+            icon = 'DISK_DRIVE'
+        if active_propname == "system_bookmarks_active":
+            icon = 'BOOKMARKS'
+        if active_propname == "bookmarks_active":
+            icon = 'BOOKMARKS'
+        if active_propname == "recent_folders_active":
+            icon = 'FILE_FOLDER'
 
         #~ if (space.params.directory == direntry.path):
             #~ setattr(active_data, active_propname, index)
