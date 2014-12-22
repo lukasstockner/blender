@@ -1388,7 +1388,14 @@ static int rna_SpaceFileBrowser_use_lib_get(PointerRNA *ptr)
 
 static void rna_FileBrowser_FSMenuEntry_name_get(PointerRNA *ptr, char *value)
 {
-	BLI_strncpy(value, fsmenu_entry_get_name(ptr->data), sizeof(value));
+	strcpy(value, fsmenu_entry_get_name(ptr->data));
+}
+
+static void rna_FileBrowser_FSMenuEntry_name_set(PointerRNA *ptr, const char *value)
+{
+	FSMenuEntry *fsm = ptr->data;
+
+	fsmenu_entry_set_name(fsm, value);
 }
 
 static int rna_FileBrowser_FSMenuEntry_name_get_editable(PointerRNA *ptr)
@@ -3595,7 +3602,7 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
-	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_name_get", NULL, NULL);
+	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_name_get", NULL, "rna_FileBrowser_FSMenuEntry_name_set");
 	RNA_def_property_editable_func(prop, "rna_FileBrowser_FSMenuEntry_name_get_editable");
 	RNA_def_property_ui_text(prop, "Name", "");
 
