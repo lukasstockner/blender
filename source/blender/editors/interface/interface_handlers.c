@@ -87,6 +87,10 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#ifdef WITH_INPUT_IME
+#  include "wm_window.h"
+#endif
+
 /* place the mouse at the scaled down location when un-grabbing */
 #define USE_CONT_MOUSE_CORRECT
 /* support dragging toggle buttons */
@@ -102,6 +106,9 @@
 #define USE_DRAG_POPUP
 
 #define UI_MAX_PASSWORD_STR 128
+
+/* This hack is needed because we don't have a good way to re-reference keymap items once added: T42944 */
+#define USE_KEYMAP_ADD_HACK
 
 /* proto */
 static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to);
@@ -2425,8 +2432,52 @@ static bool ui_textedit_copypaste(uiBut *but, uiHandleButtonData *data, const in
 	return changed;
 }
 
+#ifdef WITH_INPUT_IME
+/* enable ime, and set up uibut ime data */
+static void ui_textedit_ime_begin(wmWindow *win, uiBut *UNUSED(but))
+{
+	/* XXX Is this really needed? */
+	int x, y;
+
+	BLI_assert(win->ime_data == NULL);
+
+	/* enable IME and position to cursor, it's a trick */
+	x = win->eventstate->x;
+	/* flip y and move down a bit, prevent the IME panel cover the edit button */
+	y = win->eventstate->y - 12;
+
+	wm_window_IME_begin(win, x, y, 0, 0, true);
+}
+
+/* disable ime, and clear uibut ime data */
+static void ui_textedit_ime_end(wmWindow *win, uiBut *UNUSED(but))
+{
+	wm_window_IME_end(win);
+}
+
+void ui_but_ime_reposition(uiBut *but, int x, int y, bool complete)
+{
+	BLI_assert(but->active);
+
+	ui_region_to_window(but->active->region, &x, &y);
+	wm_window_IME_begin(but->active->window, x, y - 4, 0, 0, complete);
+}
+
+/* should be ui_but_ime_data_get */
+wmIMEData *ui_but_get_ime_data(uiBut *but)
+{
+	if (but->active && but->active->window) {
+		return but->active->window->ime_data;
+	}
+	else {
+		return NULL;
+	}
+}
+#endif  /* WITH_INPUT_IME */
+
 static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
+	wmWindow *win = CTX_wm_window(C);
 	int len;
 
 	if (data->str) {
@@ -2482,12 +2533,18 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 	but->flag &= ~UI_BUT_REDALERT;
 
 	ui_but_update(but);
-	
-	WM_cursor_modal_set(CTX_wm_window(C), BC_TEXTEDITCURSOR);
+
+	WM_cursor_modal_set(win, BC_TEXTEDITCURSOR);
+
+#ifdef WITH_INPUT_IME
+	ui_textedit_ime_begin(win, but);
+#endif
 }
 
 static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
+	wmWindow *win = CTX_wm_window(C);
+
 	if (but) {
 		if (ui_but_is_utf8(but)) {
 			int strip = BLI_utf8_invalid_strip(but->editstr, strlen(but->editstr));
@@ -2518,7 +2575,13 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 		but->pos = -1;
 	}
 	
-	WM_cursor_modal_restore(CTX_wm_window(C));
+	WM_cursor_modal_restore(win);
+
+#ifdef WITH_INPUT_IME
+	if (win->ime_data) {
+		ui_textedit_ime_end(win, but);
+	}
+#endif
 }
 
 static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonData *data)
@@ -2583,6 +2646,14 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 	int retval = WM_UI_HANDLER_CONTINUE;
 	bool changed = false, inbox = false, update = false;
 
+#ifdef WITH_INPUT_IME
+	wmWindow *win = CTX_wm_window(C);
+	wmIMEData *ime_data = win->ime_data;
+	bool is_ime_composing = ime_data && ime_data->is_ime_composing;
+#else
+	bool is_ime_composing = false;
+#endif
+
 	switch (event->type) {
 		case MOUSEMOVE:
 		case MOUSEPAN:
@@ -2603,6 +2674,12 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		case RIGHTMOUSE:
 		case ESCKEY:
 			if (event->val == KM_PRESS) {
+#ifdef WITH_INPUT_IME
+				/* skips button handling since it is not wanted */
+				if (is_ime_composing) {
+					break;
+				}
+#endif
 				data->cancel = true;
 				data->escapecancel = true;
 				button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -2660,7 +2737,7 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		}
 	}
 
-	if (event->val == KM_PRESS) {
+	if (event->val == KM_PRESS && !is_ime_composing) {
 		switch (event->type) {
 			case VKEY:
 			case XKEY:
@@ -2776,7 +2853,15 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 				break;
 		}
 
-		if ((event->ascii || event->utf8_buf[0]) && (retval == WM_UI_HANDLER_CONTINUE)) {
+		if ((event->ascii || event->utf8_buf[0]) &&
+		    (retval == WM_UI_HANDLER_CONTINUE)
+#ifdef WITH_INPUT_IME
+		    &&
+		    !is_ime_composing &&
+		    !WM_event_is_ime_switch(event)
+#endif
+		    )
+		{
 			char ascii = event->ascii;
 			const char *utf8_buf = event->utf8_buf;
 
@@ -2810,6 +2895,25 @@ static void ui_do_but_textedit(bContext *C, uiBlock *block, uiBut *but, uiHandle
 		if (but->icon == ICON_VIEWZOOM)
 			update = true;
 	}
+
+#ifdef WITH_INPUT_IME
+	if (event->type == WM_IME_COMPOSITE_START || event->type == WM_IME_COMPOSITE_EVENT) {
+		changed = true;
+
+		if (event->type == WM_IME_COMPOSITE_START && but->selend > but->selsta) {
+			ui_textedit_delete_selection(but, data);
+		}
+		if (event->type == WM_IME_COMPOSITE_EVENT && ime_data->result_len) {
+			ui_textedit_type_buf(
+			        but, data,
+			        ime_data->str_result,
+			        ime_data->result_len);
+		}
+	}
+	else if (event->type == WM_IME_COMPOSITE_END) {
+		changed = true;
+	}
+#endif
 
 	if (changed) {
 		/* only update when typing for TAB key */
@@ -3063,10 +3167,10 @@ static int ui_do_but_HOTKEYEVT(bContext *C, uiBut *but, uiHandleButtonData *data
 		}
 	}
 	else if (data->state == BUTTON_STATE_WAIT_KEY_EVENT) {
-		
-		if (event->type == MOUSEMOVE)
+		if (ELEM(event->type, MOUSEMOVE, INBETWEEN_MOUSEMOVE)) {
 			return WM_UI_HANDLER_CONTINUE;
-		
+		}
+
 		if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
 			/* only cancel if click outside the button */
 			if (ui_but_contains_point_px(but->active->region, but, event->x, event->y) == 0) {
@@ -5694,6 +5798,10 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *ar, void *arg)
 	return block;
 }
 
+#ifdef USE_KEYMAP_ADD_HACK
+static int g_kmi_id_hack;
+#endif
+
 static uiBlock *menu_add_shortcut(bContext *C, ARegion *ar, void *arg)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
@@ -5734,7 +5842,10 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *ar, void *arg)
 	uiItemR(layout, &ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 	
 	UI_block_bounds_set_popup(block, 6, -50, 26);
-	
+
+#ifdef USE_KEYMAP_ADD_HACK
+	g_kmi_id_hack = kmi_id;
+#endif
 	return block;
 }
 
@@ -5743,9 +5854,20 @@ static void menu_add_shortcut_cancel(struct bContext *C, void *arg1)
 	uiBut *but = (uiBut *)arg1;
 	wmKeyMap *km;
 	wmKeyMapItem *kmi;
-	IDProperty *prop = (but->opptr) ? but->opptr->data : NULL;
-	int kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, true, &km);
-	
+#ifndef USE_KEYMAP_ADD_HACK
+	IDProperty *prop;
+#endif
+	int kmi_id;
+
+#ifdef USE_KEYMAP_ADD_HACK
+	km = WM_keymap_guess_opname(C, but->optype->idname);
+	kmi_id = g_kmi_id_hack;
+	UNUSED_VARS(but);
+#else
+	prop  = (but->opptr) ? but->opptr->data : NULL;
+	kmi_id = WM_key_event_operator_id(C, but->optype->idname, but->opcontext, prop, true, &km);
+#endif
+
 	kmi = WM_keymap_item_find_id(km, kmi_id);
 	WM_keymap_remove_item(km, kmi);
 }
@@ -6256,6 +6378,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 		case UI_BTYPE_TOGGLE_N:
 		case UI_BTYPE_CHECKBOX:
 		case UI_BTYPE_CHECKBOX_N:
+		case UI_BTYPE_ROW:
 			retval = ui_do_but_TOG(C, but, data, event);
 			break;
 		case UI_BTYPE_SCROLL:
@@ -6278,7 +6401,6 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 			break;
 		case UI_BTYPE_ROUNDBOX:
 		case UI_BTYPE_LABEL:
-		case UI_BTYPE_ROW:
 		case UI_BTYPE_IMAGE:
 		case UI_BTYPE_PROGRESS_BAR:
 		case UI_BTYPE_NODE_SOCKET:

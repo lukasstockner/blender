@@ -1990,7 +1990,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	             BLENDER_VERSION / 100, BLENDER_VERSION % 100);
 	uiItemStringO(col, IFACE_("Release Log"), ICON_URL, "WM_OT_url_open", "url", url);
 	uiItemStringO(col, IFACE_("Manual"), ICON_URL, "WM_OT_url_open", "url",
-	              "http://wiki.blender.org/index.php/Doc:2.6/Manual");
+	              "http://www.blender.org/manual");
 	uiItemStringO(col, IFACE_("Blender Website"), ICON_URL, "WM_OT_url_open", "url", "http://www.blender.org");
 	if (STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "release")) {
 		BLI_snprintf(url, sizeof(url), "http://www.blender.org/documentation/blender_python_api_%d_%d"
@@ -2642,6 +2642,13 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	mainl = BLO_library_append_begin(bmain, &bh, libname);
 	lib = mainl->curlib;
 	BLI_assert(lib);
+
+	if (mainl->versionfile < 250) {
+		BKE_reportf(op->reports, RPT_WARNING,
+		            "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will "
+		            "be done! You may want to re-save your lib file with current Blender",
+		            mainl->versionfile, mainl->subversionfile);
+	}
 
 	if (totfiles == 0) {
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
@@ -4802,6 +4809,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
 	WM_modalkeymap_assign(keymap, "MASK_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "NODE_OT_select_circle");
 	WM_modalkeymap_assign(keymap, "GPENCIL_OT_select_circle");
+	WM_modalkeymap_assign(keymap, "GRAPH_OT_select_circle");	
 
 }
 
