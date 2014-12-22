@@ -314,15 +314,17 @@ void fsmenu_remove_entry(struct FSMenu *fsmenu, FSMenuCategory category, int idx
 void fsmenu_write_file(struct FSMenu *fsmenu, const char *filename)
 {
 	FSMenuEntry *fsm_iter = NULL;
+	char fsm_name[FILE_MAX];
 	int nwritten = 0;
 
 	FILE *fp = BLI_fopen(filename, "w");
 	if (!fp) return;
-	
+
 	fprintf(fp, "[Bookmarks]\n");
 	for (fsm_iter = fsmenu_get_category(fsmenu, FS_CATEGORY_BOOKMARKS); fsm_iter; fsm_iter = fsm_iter->next) {
 		if (fsm_iter->path && fsm_iter->save) {
-			if (fsm_iter->name[0] && !STREQ(fsm_iter->name, fsm_iter->path)) {
+			fsmenu_entry_generate_name(fsm_iter, fsm_name, sizeof(fsm_name));
+			if (fsm_iter->name[0] && !STREQ(fsm_iter->name, fsm_name)) {
 				fprintf(fp, "!%s\n", fsm_iter->name);
 			}
 			fprintf(fp, "%s\n", fsm_iter->path);
@@ -331,6 +333,10 @@ void fsmenu_write_file(struct FSMenu *fsmenu, const char *filename)
 	fprintf(fp, "[Recent]\n");
 	for (fsm_iter = fsmenu_get_category(fsmenu, FS_CATEGORY_RECENT); fsm_iter && (nwritten < FSMENU_RECENT_MAX); fsm_iter = fsm_iter->next, ++nwritten) {
 		if (fsm_iter->path && fsm_iter->save) {
+			fsmenu_entry_generate_name(fsm_iter, fsm_name, sizeof(fsm_name));
+			if (fsm_iter->name[0] && !STREQ(fsm_iter->name, fsm_name)) {
+				fprintf(fp, "!%s\n", fsm_iter->name);
+			}
 			fprintf(fp, "%s\n", fsm_iter->path);
 		}
 	}
