@@ -116,7 +116,7 @@ void BKE_material_free_ex(Material *ma, bool do_id_user)
 		MEM_freeN(ma->texpaintslot);
 
 	if (ma->gpumaterial.first)
-		GPU_material_free(ma);
+		GPU_material_free(&ma->gpumaterial);
 }
 
 void init_material(Material *ma)
@@ -1153,28 +1153,28 @@ static bool material_in_nodetree(bNodeTree *ntree, Material *mat)
 		if (node->id) {
 			if (GS(node->id->name) == ID_MA) {
 				if (node->id == (ID *)mat) {
-					return 1;
+					return true;
 				}
 			}
 			else if (node->type == NODE_GROUP) {
 				if (material_in_nodetree((bNodeTree *)node->id, mat)) {
-					return 1;
+					return true;
 				}
 			}
 		}
 	}
 
-	return 0;
+	return false;
 }
 
 bool material_in_material(Material *parmat, Material *mat)
 {
 	if (parmat == mat)
-		return 1;
+		return true;
 	else if (parmat->nodetree && parmat->use_nodes)
 		return material_in_nodetree(parmat->nodetree, mat);
 	else
-		return 0;
+		return false;
 }
 
 
@@ -1336,7 +1336,7 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
 	short index = 0, i;
 
 	bool use_nodes = BKE_scene_use_new_shading_nodes(scene);
-	bool is_bi = BKE_scene_uses_blender_internal(scene);
+	bool is_bi = BKE_scene_uses_blender_internal(scene) || BKE_scene_uses_blender_game(scene);
 	
 	if (!ma)
 		return;
@@ -1740,7 +1740,7 @@ void paste_matcopybuf(Material *ma)
 		MEM_freeN(ma->nodetree);
 	}
 
-	GPU_material_free(ma);
+	GPU_material_free(&ma->gpumaterial);
 
 	id = (ma->id);
 	memcpy(ma, &matcopybuf, sizeof(Material));

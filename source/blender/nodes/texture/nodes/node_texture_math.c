@@ -58,16 +58,16 @@ static void exec(void *UNUSED(data),
 
 	switch (node->custom1) {
 
-		case 0: /* Add */
+		case NODE_MATH_ADD:
 			out[0]->vec[0] = in0 + in1;
 			break;
-		case 1: /* Subtract */
+		case NODE_MATH_SUB:
 			out[0]->vec[0] = in0 - in1;
 			break;
-		case 2: /* Multiply */
+		case NODE_MATH_MUL:
 			out[0]->vec[0] = in0 * in1;
 			break;
-		case 3: /* Divide */
+		case NODE_MATH_DIVIDE:
 		{
 			if (in1 == 0) /* We don't want to divide by zero. */
 				out[0]->vec[0] = 0.0f;
@@ -75,22 +75,22 @@ static void exec(void *UNUSED(data),
 				out[0]->vec[0] = in0 / in1;
 			break;
 		}
-		case 4: /* Sine */
+		case NODE_MATH_SIN:
 		{
 			out[0]->vec[0] = sinf(in0);
 			break;
 		}
-		case 5: /* Cosine */
+		case NODE_MATH_COS:
 		{
 			out[0]->vec[0] = cosf(in0);
 			break;
 		}
-		case 6: /* Tangent */
+		case NODE_MATH_TAN:
 		{
 			out[0]->vec[0] = tanf(in0);
 			break;
 		}
-		case 7: /* Arc-Sine */
+		case NODE_MATH_ASIN:
 		{
 			/* Can't do the impossible... */
 			if (in0 <= 1.0f && in0 >= -1.0f)
@@ -99,7 +99,7 @@ static void exec(void *UNUSED(data),
 				out[0]->vec[0] = 0.0f;
 			break;
 		}
-		case 8: /* Arc-Cosine */
+		case NODE_MATH_ACOS:
 		{
 			/* Can't do the impossible... */
 			if (in0 <= 1.0f && in0 >= -1.0f)
@@ -108,12 +108,12 @@ static void exec(void *UNUSED(data),
 				out[0]->vec[0] = 0.0;
 			break;
 		}
-		case 9: /* Arc-Tangent */
+		case NODE_MATH_ATAN:
 		{
 			out[0]->vec[0] = atan(in0);
 			break;
 		}
-		case 10: /* Power */
+		case NODE_MATH_POW:
 		{
 			/* Only raise negative numbers by full integers */
 			if (in0 >= 0.0f) {
@@ -130,7 +130,7 @@ static void exec(void *UNUSED(data),
 			}
 			break;
 		}
-		case 11: /* Logarithm */
+		case NODE_MATH_LOG:
 		{
 			/* Don't want any imaginary numbers... */
 			if (in0 > 0.0f  && in1 > 0.0f)
@@ -139,7 +139,7 @@ static void exec(void *UNUSED(data),
 				out[0]->vec[0] = 0.0;
 			break;
 		}
-		case 12: /* Minimum */
+		case NODE_MATH_MIN:
 		{
 			if (in0 < in1)
 				out[0]->vec[0] = in0;
@@ -147,7 +147,7 @@ static void exec(void *UNUSED(data),
 				out[0]->vec[0] = in1;
 			break;
 		}
-		case 13: /* Maximum */
+		case NODE_MATH_MAX:
 		{
 			if (in0 > in1)
 				out[0]->vec[0] = in0;
@@ -155,13 +155,13 @@ static void exec(void *UNUSED(data),
 				out[0]->vec[0] = in1;
 			break;
 		}
-		case 14: /* Round */
+		case NODE_MATH_ROUND:
 		{
 			out[0]->vec[0] = (in0 < 0.0f) ? (int)(in0 - 0.5f) : (int)(in0 + 0.5f);
 			break;
 		}
 
-		case 15: /* Less Than */
+		case NODE_MATH_LESS:
 		{
 			if (in0 < in1)
 				out[0]->vec[0] = 1.0f;
@@ -170,7 +170,7 @@ static void exec(void *UNUSED(data),
 			break;
 		}
 
-		case 16: /* Greater Than */
+		case NODE_MATH_GREATER:
 		{
 			if (in0 > in1)
 				out[0]->vec[0] = 1.0f;
@@ -179,7 +179,7 @@ static void exec(void *UNUSED(data),
 			break;
 		}
 
-		case 17: /* Modulo */
+		case NODE_MATH_MOD:
 		{
 			if (in1 == 0.0f)
 				out[0]->vec[0] = 0.0f;
@@ -188,7 +188,7 @@ static void exec(void *UNUSED(data),
 			break;
 		}
 
-		case 18: /* Absolute */
+		case NODE_MATH_ABS:
 		{
 			out[0]->vec[0] = fabsf(in0);
 			break;

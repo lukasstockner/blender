@@ -296,7 +296,9 @@ static int armature_calc_roll_exec(bContext *C, wmOperator *op)
 				float cursor_rel[3];
 				sub_v3_v3v3(cursor_rel, cursor_local, ebone->head);
 				if (axis_flip) negate_v3(cursor_rel);
-				ebone->roll = ED_rollBoneToVector(ebone, cursor_rel, axis_only);
+				if (normalize_v3(cursor_rel) != 0.0f) {
+					ebone->roll = ED_rollBoneToVector(ebone, cursor_rel, axis_only);
+				}
 			}
 		}
 	}
@@ -567,7 +569,7 @@ static int armature_fill_bones_exec(bContext *C, wmOperator *op)
 	 *  2) between the two joints (order is dependent on active-bone/hierarchy)
 	 *  3+) error (a smarter method involving finding chains needs to be worked out
 	 */
-	count = BLI_countlist(&points);
+	count = BLI_listbase_count(&points);
 	
 	if (count == 0) {
 		BKE_report(op->reports, RPT_ERROR, "No joints selected");
