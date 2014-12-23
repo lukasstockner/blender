@@ -50,7 +50,7 @@ typedef struct GPUDOFOptions {
 	float dof_focal_length;
 	float dof_sensor;
 	int dof_quality_mode;
-	int pad;
+	int dof_num_blades;
 } GPUDOFOptions;
 
 /* properties for SSAO effect */

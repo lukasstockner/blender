@@ -78,10 +78,9 @@ struct GPUFX {
 	/* final near coc buffer. */
 	GPUTexture *dof_near_coc_final_buffer;
 
-	/* diffusion depth of field */
-	int num_diff_buffers;
-	GPUTexture **dof_diffusion_buffers;
-
+	/* high quality dof texture downsamplers. 5 levels means 32 pixels wide */
+	GPUTexture *dof_nearfar_coc[5];
+	
 	/* texture bound to the depth attachment of the gbuffer */
 	GPUTexture *depth_buffer;
 
@@ -125,17 +124,6 @@ static void cleanup_fx_dof_buffers(GPUFX *fx)
 	if (fx->dof_near_coc_final_buffer) {
 		GPU_texture_free(fx->dof_near_coc_final_buffer);
 		fx->dof_near_coc_final_buffer = NULL;
-	}
-
-	if (fx->dof_diffusion_buffers) {
-		int i;
-
-		for (i = 0; i < fx->num_diff_buffers; i++) {
-			GPU_texture_free(fx->dof_diffusion_buffers[i]);
-			MEM_freeN(fx->dof_diffusion_buffers);
-			fx->dof_diffusion_buffers = NULL;
-			fx->num_diff_buffers = 0;
-		}
 	}
 }
 
@@ -287,7 +275,10 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	/* create textures for dof effect */
 	if (fxflags & GPU_FX_DEPTH_OF_FIELD) {
 		if (options->dof_options->dof_quality_mode == DOF_QUALITY_HIGH) {
-			/* we need to generate a pyramid of images that will be operated */
+			/* we use a different scheme here */
+			if (!fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer) {
+				
+			}
 		}
 		else {
 			if (!fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer) {
