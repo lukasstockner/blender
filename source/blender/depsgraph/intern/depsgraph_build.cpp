@@ -26,6 +26,7 @@
  * Methods for constructing depsgraph
  */
 
+#include <stack>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -491,7 +492,64 @@ static void deg_graph_transitive_reduction(Depsgraph *graph)
 
 static void deg_graph_flush_node_layers(Depsgraph *graph)
 {
-	/* TODO(sergey): Needs to be implemented. */
+	std::stack<OperationDepsNode*> stack;
+
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		node->done = 0;
+		node->num_links_pending = 0;
+		for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
+		     it_rel != node->inlinks.end();
+		     ++it_rel)
+		{
+			DepsRelation *rel = *it_rel;
+			if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+				++node->num_links_pending;
+			}
+		}
+		if (node->num_links_pending == 0) {
+			stack.push(node);
+		}
+	}
+
+	while (!stack.empty()) {
+		OperationDepsNode *node = stack.top();
+		if (node->done == 0 && node->outlinks.size() != 0) {
+			for (OperationDepsNode::Relations::const_iterator it_rel = node->outlinks.begin();
+			     it_rel != node->outlinks.end();
+			     ++it_rel)
+			{
+				DepsRelation *rel = *it_rel;
+				if (rel->to->type == DEPSNODE_TYPE_OPERATION) {
+					OperationDepsNode *to = (OperationDepsNode *)rel->to;
+					BLI_assert(to->num_links_pending > 0);
+					--to->num_links_pending;
+					if (to->num_links_pending == 0) {
+						stack.push(to);
+					}
+				}
+			}
+			node->done = 1;
+		}
+		else {
+			stack.pop();
+			IDDepsNode *id_node = node->owner->owner;
+			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
+			     it_rel != node->inlinks.end();
+			     ++it_rel)
+			{
+				DepsRelation *rel = *it_rel;
+				if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+					OperationDepsNode *from = (OperationDepsNode *)rel->from;
+					IDDepsNode *id_from = from->owner->owner;
+					id_node->layers |= id_from->layers;
+				}
+			}
+		}
+	}
 }
 
 /* -------------------------------------------------- */

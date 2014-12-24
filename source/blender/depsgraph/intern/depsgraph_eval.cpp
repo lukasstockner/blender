@@ -158,7 +158,7 @@ static void calculate_pending_parents(Depsgraph *graph)
 			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
 			     it_rel != node->inlinks.end();
 			     ++it_rel)
-		{
+			{
 				DepsRelation *rel = *it_rel;
 				if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
 					OperationDepsNode *from = (OperationDepsNode *)rel->from;
