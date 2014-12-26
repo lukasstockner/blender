@@ -1908,10 +1908,12 @@ static void filelist_readjob_free(void *flrjv)
 	FileListReadJob *flrj = flrjv;
 
 	if (flrj->tmp_filelist) {
-		filelist_freelib(flrj->tmp_filelist);
-		filelist_free(flrj->tmp_filelist);
 		/* tmp_filelist shall never ever be filtered! */
 		BLI_assert(flrj->tmp_filelist->fidx == NULL);
+
+		filelist_freelib(flrj->tmp_filelist);
+		filelist_free(flrj->tmp_filelist);
+		MEM_freeN(flrj->tmp_filelist);
 	}
 
 	BLI_mutex_end(&flrj->lock);
