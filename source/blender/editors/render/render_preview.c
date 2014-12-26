@@ -928,7 +928,7 @@ static void icon_preview_startjob(void *customdata, short *stop, short *do_updat
 	ShaderPreview *sp = customdata;
 	ID *id = sp->id;
 	short idtype = GS(id->name);
-
+	
 	if (idtype == ID_IM) {
 		Image *ima = (Image *)id;
 		ImBuf *ibuf = NULL;
@@ -1123,7 +1123,7 @@ void ED_preview_icon_job(const bContext *C, void *owner, ID *id, unsigned int *r
 {
 	wmJob *wm_job;
 	IconPreview *ip, *old_ip;
-
+	
 	/* suspended start means it starts after 1 timer step, see WM_jobs_timer below */
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), owner, "Icon Preview",
 	                     WM_JOB_EXCL_RENDER | WM_JOB_SUSPEND, WM_JOB_TYPE_RENDER_PREVIEW);

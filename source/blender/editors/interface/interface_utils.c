@@ -90,6 +90,10 @@ uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int ind
 				but = uiDefButR_prop(block, UI_BTYPE_NUM_SLIDER, 0, name, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
 			else
 				but = uiDefButR_prop(block, UI_BTYPE_NUM, 0, name, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
+
+			if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
+				UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE);
+			}
 			break;
 		}
 		case PROP_ENUM:
@@ -101,12 +105,6 @@ uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int ind
 				but = uiDefButR_prop(block, UI_BTYPE_MENU, 0, name, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
 			break;
 		case PROP_STRING:
-		{
-			const bool is_search = (RNA_property_subtype(prop) == PROP_SEARCH);
-
-			if (is_search && !icon) {
-				icon = ICON_VIEWZOOM;
-			}
 			if (icon && name && name[0] == '\0')
 				but = uiDefIconButR_prop(block, UI_BTYPE_TEXT, 0, icon, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
 			else if (icon)
@@ -114,11 +112,10 @@ uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int ind
 			else
 				but = uiDefButR_prop(block, UI_BTYPE_TEXT, 0, name, x1, y1, x2, y2, ptr, prop, index, 0, 0, -1, -1, NULL);
 
-			if (is_search) {
+			if (RNA_property_flag(prop) & PROP_TEXTEDIT_UPDATE) {
 				UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE);
 			}
 			break;
-		}
 		case PROP_POINTER:
 		{
 			PointerRNA pptr;

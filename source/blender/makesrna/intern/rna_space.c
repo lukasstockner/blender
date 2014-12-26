@@ -1823,9 +1823,10 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Display Mode", "Type of information to display");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 	
-	prop = RNA_def_property(srna, "filter_text", PROP_STRING, PROP_SEARCH);
+	prop = RNA_def_property(srna, "filter_text", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "search_string");
 	RNA_def_property_ui_text(prop, "Display Filter", "Live search filtering string");
+	RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 	
 	prop = RNA_def_property(srna, "use_filter_case_sensitive", PROP_BOOLEAN, PROP_NONE);
@@ -3413,7 +3414,7 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-
+	
 	static EnumPropertyItem file_display_items[] = {
 		{FILE_SHORTDISPLAY, "FILE_SHORTDISPLAY", ICON_SHORTDISPLAY, "Short List", "Display files as short list"},
 		{FILE_LONGDISPLAY, "FILE_LONGDISPLAY", ICON_LONGDISPLAY, "Long List", "Display files as a detailed list"},
@@ -3580,10 +3581,11 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_string_maxlength(prop, 63);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 
-	prop = RNA_def_property(srna, "filter_search", PROP_STRING, PROP_SEARCH);
+	prop = RNA_def_property(srna, "filter_search", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "filter_search");
 	RNA_def_property_ui_text(prop, "Name Filter", "Filter by name, supports '*' wilcard");
 	RNA_def_property_string_maxlength(prop, 63);
+	RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 }
 
@@ -3754,8 +3756,9 @@ static void rna_def_space_userpref(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Filter Type", "Filter method");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, NULL);
 
-	prop = RNA_def_property(srna, "filter_text", PROP_STRING, PROP_SEARCH);
+	prop = RNA_def_property(srna, "filter_text", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "filter");
+	RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
 	RNA_def_property_ui_text(prop, "Filter", "Search term for filtering in the UI");
 
 }

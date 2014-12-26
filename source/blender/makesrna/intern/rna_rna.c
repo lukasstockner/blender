@@ -57,7 +57,6 @@ EnumPropertyItem property_subtype_items[] = {
 	{PROP_FILEPATH, "FILEPATH", 0, "File Path", ""},
 	{PROP_DIRPATH, "DIRPATH", 0, "Directory Path", ""},
 	{PROP_FILENAME, "FILENAME", 0, "File Name", ""},
-	{PROP_SEARCH, "SEARCH", 0, "Search", "A search string (updates on each keystroke)"},
 	{PROP_PASSWORD, "PASSWORD", 0, "Password", "A string that is displayed hidden ('********')"},
 
 	/* numbers */

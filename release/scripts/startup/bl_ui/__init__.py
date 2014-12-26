@@ -117,7 +117,7 @@ def register():
     WindowManager.addon_search = StringProperty(
             name="Search",
             description="Search within the selected filter",
-            subtype='SEARCH',
+            options={'TEXTEDIT_UPDATE'},
             )
     WindowManager.addon_filter = EnumProperty(
             items=addon_filter_items,

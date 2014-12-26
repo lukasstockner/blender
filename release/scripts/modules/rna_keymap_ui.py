@@ -404,5 +404,4 @@ def draw_keymaps(context, layout):
     rowsubsub = rowsub.row(align=True)
     if not ok:
         rowsubsub.alert = True
-    rowsubsub.prop(spref, "filter_text", text="")
-
+    rowsubsub.prop(spref, "filter_text", text="", icon='VIEWZOOM')

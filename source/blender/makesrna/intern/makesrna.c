@@ -2511,7 +2511,6 @@ static const char *rna_property_subtypename(PropertySubType type)
 		case PROP_LAYER: return "PROP_LAYER";
 		case PROP_LAYER_MEMBER: return "PROP_LAYER_MEMBER";
 		case PROP_PASSWORD: return "PROP_PASSWORD";
-		case PROP_SEARCH: return "PROP_SEARCH";
 		default:
 		{
 			/* in case we don't have a type preset that includes the subtype */

@@ -112,7 +112,7 @@ typedef enum PropertySubType {
 	PROP_DIRPATH           = 2,
 	PROP_FILENAME          = 3,
 	PROP_BYTESTRING        = 4, /* a string which should be represented as bytes in python, NULL terminated though. */
-	PROP_SEARCH            = 5, /* a search string, which updates on each keystroke instead of waiting for final enter. */
+	/* 5 was used by "PROP_TRANSLATE" sub-type, which is now a flag. */
 	PROP_PASSWORD          = 6, /* a string which should not be displayed in UI */
 
 	/* numbers */
@@ -147,7 +147,7 @@ typedef enum PropertySubType {
 } PropertySubType;
 
 /* Make sure enums are updated with these */
-/* HIGHEST FLAG IN USE: 1 << 30 */
+/* HIGHEST FLAG IN USE: 1 << 31 */
 typedef enum PropertyFlag {
 	/* editable means the property is editable in the user
 	 * interface, properties are editable by default except
@@ -164,6 +164,10 @@ typedef enum PropertyFlag {
 	 * properties are animatable by default except for pointers
 	 * and collections */
 	PROP_ANIMATABLE              = (1 << 1),
+
+	/* This flag means when the property's widget is in 'textedit' mode, it will be updated after every typed char,
+	 * instead of waiting final validation. Used e.g. for text searchbox. */
+	PROP_TEXTEDIT_UPDATE         = (1 << 31),
 
 	/* icon */
 	PROP_ICONS_CONSECUTIVE       = (1 << 12),
