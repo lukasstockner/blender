@@ -1391,6 +1391,11 @@ static void rna_FileBrowser_FSMenuEntry_name_get(PointerRNA *ptr, char *value)
 	strcpy(value, fsmenu_entry_get_name(ptr->data));
 }
 
+static int rna_FileBrowser_FSMenuEntry_name_length(PointerRNA *ptr)
+{
+	return (int)strlen(fsmenu_entry_get_name(ptr->data));
+}
+
 static void rna_FileBrowser_FSMenuEntry_name_set(PointerRNA *ptr, const char *value)
 {
 	FSMenuEntry *fsm = ptr->data;
@@ -3604,7 +3609,9 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "name");
-	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_name_get", NULL, "rna_FileBrowser_FSMenuEntry_name_set");
+	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_name_get",
+	                                    "rna_FileBrowser_FSMenuEntry_name_length",
+	                                    "rna_FileBrowser_FSMenuEntry_name_set");
 	RNA_def_property_editable_func(prop, "rna_FileBrowser_FSMenuEntry_name_get_editable");
 	RNA_def_property_ui_text(prop, "Name", "");
 
