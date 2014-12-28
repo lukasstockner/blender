@@ -1872,7 +1872,7 @@ static void filelist_readjob_update(void *flrjv)
 	if (flrj->tmp_filelist->numfiles != flrj->filelist->numfiles) {
 		num_new_entries = flrj->tmp_filelist->numfiles;
 		/* This way we are sure we won't share any mem with background job! */
-		/* Note direntry->poin is not handled here, sure not matter though. */
+		/* Note direntry->poin is not handled here, should not matter though. */
 		BLI_duplicate_filelist(&new_entries, flrj->tmp_filelist->filelist, num_new_entries);
 	}
 
@@ -1943,7 +1943,7 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), CTX_wm_area(C), "Listing Dirs...",
 	                     WM_JOB_PROGRESS, WM_JOB_TYPE_FILESEL_READDIR);
 	WM_jobs_customdata_set(wm_job, flrj, filelist_readjob_free);
-	WM_jobs_timer(wm_job, 0.1, NC_SPACE | ND_SPACE_FILE_LIST, NC_SPACE | ND_SPACE_FILE_LIST);
+	WM_jobs_timer(wm_job, 0.01, NC_SPACE | ND_SPACE_FILE_LIST, NC_SPACE | ND_SPACE_FILE_LIST);
 	WM_jobs_callbacks(wm_job, filelist_readjob_startjob, NULL, filelist_readjob_update, filelist_readjob_endjob);
 
 	/* start the job */
