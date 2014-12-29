@@ -281,6 +281,11 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 	else if (source_ops.size() > 1) {
 		/* multiple unlinked op, add a barrier node as a single entry point */
 		// XXX: problematic for drivers
+		node->entry_operation = add_operation_node(node, DEPSOP_TYPE_INIT, NULL, DEG_OPCODE_NOOP, "Entry");
+		for (OperationsVector::const_iterator it = source_ops.begin(); it != source_ops.end(); ++it) {
+			OperationDepsNode *op_node = *it;
+			m_graph->add_new_relation(node->entry_operation, op_node, DEPSREL_TYPE_OPERATION, "Component entry relation");
+		}
 	}
 	
 	if (exit_ops.size() == 1) {
@@ -302,6 +307,11 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 	else if (sink_ops.size() > 1) {
 		/* multiple unlinked ops, add a barrier node as a single exit point */
 		// XXX: problematic for drivers
+		node->exit_operation = add_operation_node(node, DEPSOP_TYPE_OUT, NULL, DEG_OPCODE_NOOP, "Exit");
+		for (OperationsVector::const_iterator it = sink_ops.begin(); it != sink_ops.end(); ++it) {
+			OperationDepsNode *op_node = *it;
+			m_graph->add_new_relation(op_node, node->exit_operation, DEPSREL_TYPE_OPERATION, "Component exit relation");
+		}
 	}
 	
 	BLI_assert(node->operations.size() == 0 || node->entry_operation != NULL);
