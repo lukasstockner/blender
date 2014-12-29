@@ -351,7 +351,7 @@ static int vpaint_mode_toggle_exec(bContext *C, wmOperator *op)
 
 		paint_cursor_start(C, vertex_paint_poll);
 
-		BKE_paint_init(&vp->paint, PAINT_CURSOR_VERTEX_PAINT);
+		BKE_paint_init(&scene->toolsettings->unified_paint_settings, &vp->paint, PAINT_CURSOR_VERTEX_PAINT);
 	}
 
 	/* update modifier stack for mapping requirements */

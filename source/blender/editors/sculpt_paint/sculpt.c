@@ -4125,7 +4125,6 @@ static bool sculpt_brush_stroke_init(bContext *C, wmOperator *op)
 	Object *ob = CTX_data_active_object(C);
 	Sculpt *sd = CTX_data_tool_settings(C)->sculpt;
 	PaintSession *psession = CTX_data_active_object(C)->paint;
-	SculptSession *ss = psession->sculpt;
 	Brush *brush = BKE_paint_brush(&sd->paint);
 	int mode = RNA_enum_get(op->ptr, "mode");
 	bool is_smooth;
