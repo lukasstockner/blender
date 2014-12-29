@@ -3284,15 +3284,10 @@ bool DAG_is_acyclic(Scene *scene)
 
 #else
 
-void DAG_init(void)
-{
-	DEG_register_node_types();
-}
-
-void DAG_exit(void)
-{
-	DEG_free_node_types();
-}
+/* *********************************************************************
+ * Stubs to avoid linking issues and make sure legacy crap is not used *
+ * *********************************************************************
+ */
 
 DagNodeQueue *queue_create(int UNUSED(slots))
 {
@@ -3399,6 +3394,105 @@ void graph_print_adj_list(DagForest *UNUSED(dag))
 	BLI_assert(!"Should not be used with new dependnecy graph");
 }
 
+void DAG_scene_flush_update(Main *UNUSED(bmain),
+                            Scene *UNUSED(sce),
+                            unsigned int UNUSED(lay),
+                            const short UNUSED(time))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_scene_update_flags(Main *UNUSED(bmain),
+                            Scene *UNUSED(scene),
+                            unsigned int UNUSED(lay),
+                            const bool UNUSED(do_time),
+                            const bool UNUSED(do_invisible_flush))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_ids_flush_tagged(Main *UNUSED(bmain))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_ids_clear_recalc(Main *UNUSED(bmain))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_id_tag_update(ID *id, short flag)
+{
+	DAG_id_tag_update_ex(G.main, id, flag);
+}
+
+/* ******************* DAG FOR ARMATURE POSE ***************** */
+
+void DAG_pose_sort(Object *UNUSED(ob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+/* ************************  DAG FOR THREADED UPDATE  ********************* */
+
+void DAG_threaded_update_begin(Scene *UNUSED(scene),
+                               void (*func)(void *node, void *user_data),
+                               void *UNUSED(user_data))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	(void)func;
+}
+
+void DAG_threaded_update_handle_node_updated(void *UNUSED(node_v),
+                                             void (*func)(void *node, void *user_data),
+                                             void *UNUSED(user_data))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	(void)func;
+}
+
+/* ************************ DAG querying ********************* */
+
+Object *DAG_get_node_object(void *UNUSED(node_v))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+const char *DAG_get_node_name(Scene *UNUSED(scene), void *UNUSED(node_v))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return "INVALID";
+}
+
+short DAG_get_eval_flags_for_object(Scene *UNUSED(scene),
+                                    void *UNUSED(object))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return 0;
+}
+
+bool DAG_is_acyclic(Scene *UNUSED(scene))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return false;
+}
+
+/* ************************************
+ * This functions are to be supported *
+ * ************************************
+ */
+
+void DAG_init(void)
+{
+	DEG_register_node_types();
+}
+
+void DAG_exit(void)
+{
+	DEG_free_node_types();
+}
+
 /* ************************ API *********************** */
 
 /* mechanism to allow editors to be informed of depsgraph updates,
@@ -3475,23 +3569,6 @@ void DAG_scene_free(Scene *scene)
 	}
 }
 
-void DAG_scene_flush_update(Main *UNUSED(bmain),
-                            Scene *UNUSED(sce),
-                            unsigned int UNUSED(lay),
-                            const short UNUSED(time))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-}
-
-void DAG_scene_update_flags(Main *UNUSED(bmain),
-                            Scene *UNUSED(scene),
-                            unsigned int UNUSED(lay),
-                            const bool UNUSED(do_time),
-                            const bool UNUSED(do_invisible_flush))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-}
-
 void DAG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 {
 #pragma message "do_time is not currently supported in the new depsgraph"
@@ -3503,21 +3580,11 @@ void DAG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 	}
 }
 
-void DAG_ids_flush_tagged(Main *UNUSED(bmain))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-}
-
 void DAG_ids_check_recalc(Main *UNUSED(bmain),
                           Scene *UNUSED(scene),
                           bool UNUSED(time))
 {
 #pragma message "Need to be ported to new depsgraph"
-}
-
-void DAG_ids_clear_recalc(Main *UNUSED(bmain))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
 }
 
 void DAG_id_tag_update_ex(Main *bmain, ID *id, short UNUSED(flag))
@@ -3529,11 +3596,6 @@ void DAG_id_tag_update_ex(Main *bmain, ID *id, short UNUSED(flag))
 		if (scene->depsgraph)
 			DEG_id_tag_update(scene->depsgraph, id);
 	}
-}
-
-void DAG_id_tag_update(ID *id, short flag)
-{
-	DAG_id_tag_update_ex(G.main, id, flag);
 }
 
 void DAG_id_type_tag(Main *bmain, short idtype)
@@ -3558,64 +3620,13 @@ int DAG_id_type_tagged(Main *bmain, short idtype)
 	return bmain->id_tag_update[((char *)&idtype)[0]];
 }
 
-/* ******************* DAG FOR ARMATURE POSE ***************** */
-
-void DAG_pose_sort(Object *UNUSED(ob))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-}
-
-/* ************************  DAG FOR THREADED UPDATE  ********************* */
-
-void DAG_threaded_update_begin(Scene *UNUSED(scene),
-                               void (*func)(void *node, void *user_data),
-                               void *UNUSED(user_data))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-	(void)func;
-}
-
-void DAG_threaded_update_handle_node_updated(void *UNUSED(node_v),
-                                             void (*func)(void *node, void *user_data),
-                                             void *UNUSED(user_data))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-	(void)func;
-}
-
 /* ************************ DAG DEBUGGING ********************* */
 
 void DAG_print_dependencies(Main *UNUSED(bmain),
                             Scene *scene,
                             Object *UNUSED(ob))
 {
-        DEG_debug_graphviz(scene->depsgraph, stdout, "Depsgraph", false);
+	DEG_debug_graphviz(scene->depsgraph, stdout, "Depsgraph", false);
 }
 
-/* ************************ DAG querying ********************* */
-
-Object *DAG_get_node_object(void *UNUSED(node_v))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-	return NULL;
-}
-
-const char *DAG_get_node_name(Scene *UNUSED(scene), void *UNUSED(node_v))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-	return "INVALID";
-}
-
-short DAG_get_eval_flags_for_object(Scene *UNUSED(scene),
-                                    void *UNUSED(object))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-	return 0;
-}
-
-bool DAG_is_acyclic(Scene *UNUSED(scene))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-	return false;
-}
 #endif
