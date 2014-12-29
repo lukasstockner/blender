@@ -143,7 +143,7 @@ float paint_grid_paint_mask(const struct GridPaintMask *gpm, unsigned level,
                             unsigned x, unsigned y);
 
 /* stroke related */
-void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, const float mouse_pos[2]);
+void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, struct Brush *brush, const float mouse_pos[2]);
 
 /* Session data (mode-specific) */
 
@@ -194,7 +194,6 @@ typedef struct SculptSession {
 
 	/* last paint/sculpt stroke location */
 	bool last_stroke_valid;
-	float last_stroke[3];
 
 	float average_stroke_accum[3];
 	int average_stroke_counter;
