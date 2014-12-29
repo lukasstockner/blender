@@ -653,7 +653,7 @@ def read_opts(env, cfg, args):
         ('BF_LLVM_LIBPATH', 'LLVM library path', ''),
         ('BF_LLVM_LIB_STATIC', 'LLVM static library', ''),
 
-        ('BF_PROGRAM_LINKFLAGS', 'Link flags applied only to final binaries (blender and blenderplayer, not makesrna/makesdna)', '')
+        ('BF_PROGRAM_LINKFLAGS', 'Link flags applied only to final binaries (blender and blenderplayer, not makesrna/makesdna)', ''),
 
         (BoolVariable('WITH_BF_LEGACY_DEPSGRAPH', 'Build Blender with legacy dependency graph', True)),
     ) # end of opts.AddOptions()
