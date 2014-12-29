@@ -303,6 +303,9 @@ void DepsgraphNodeBuilder::verify_entry_exit_operations(ComponentDepsNode *node)
 		/* multiple unlinked ops, add a barrier node as a single exit point */
 		// XXX: problematic for drivers
 	}
+	
+	BLI_assert(node->operations.size() == 0 || node->entry_operation != NULL);
+	BLI_assert(node->operations.size() == 0 || node->exit_operation != NULL);
 }
 
 void DepsgraphNodeBuilder::verify_entry_exit_operations()
