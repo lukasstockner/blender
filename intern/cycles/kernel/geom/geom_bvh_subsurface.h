@@ -169,6 +169,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 					}
 
 					++stackPtr;
+					kernel_assert(stackPtr < BVH_STACK_SIZE);
 					traversalStack[stackPtr] = nodeAddrChild1;
 				}
 				else {
@@ -250,6 +251,7 @@ ccl_device uint BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 #endif
 
 						++stackPtr;
+						kernel_assert(stackPtr < BVH_STACK_SIZE);
 						traversalStack[stackPtr] = ENTRYPOINT_SENTINEL;
 
 						nodeAddr = kernel_tex_fetch(__object_node, object);
@@ -316,6 +318,7 @@ ccl_device_inline uint BVH_FUNCTION_NAME(KernelGlobals *kg,
 	else
 #endif
 	{
+		kernel_assert(kernel_data.bvh.use_qbvh == false);
 		return BVH_FUNCTION_FULL_NAME(BVH)(kg,
 		                                   ray,
 		                                   isect_array,
