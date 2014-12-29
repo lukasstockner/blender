@@ -100,11 +100,13 @@ static SpinLock threaded_update_lock;
 void DAG_init(void)
 {
 	BLI_spin_init(&threaded_update_lock);
+	DEG_register_node_types();
 }
 
 void DAG_exit(void)
 {
 	BLI_spin_end(&threaded_update_lock);
+	DEG_free_node_types();
 }
 
 /* Queue and stack operations for dag traversal 
@@ -3284,12 +3286,12 @@ bool DAG_is_acyclic(Scene *scene)
 
 void DAG_init(void)
 {
-#pragma message "need to be re-implemented actually"
+	DEG_register_node_types();
 }
 
 void DAG_exit(void)
 {
-#pragma message "need to be re-implemented actually"
+	DEG_free_node_types();
 }
 
 DagNodeQueue *queue_create(int UNUSED(slots))

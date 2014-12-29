@@ -1584,7 +1584,6 @@ int main(
 	BKE_images_init();
 	BKE_modifier_init();
 	DAG_init();
-	DEG_register_node_types();
 
 	BKE_brush_system_init();
 	RE_init_texture_rng();

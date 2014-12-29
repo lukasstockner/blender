@@ -121,7 +121,6 @@ void free_blender(void)
 	IMB_exit();
 	BKE_images_exit();
 	DAG_exit();
-	DEG_free_node_types();
 
 	BKE_brush_system_exit();
 	RE_exit_texture_rng();	
