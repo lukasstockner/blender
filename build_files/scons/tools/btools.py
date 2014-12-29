@@ -198,7 +198,7 @@ def validate_arguments(args, bc):
             'C_WARN', 'CC_WARN', 'CXX_WARN',
             'LLIBS', 'PLATFORM_LINKFLAGS', 'MACOSX_ARCHITECTURE', 'MACOSX_SDK', 'XCODE_CUR_VER', 'C_COMPILER_ID',
             'BF_CYCLES_CUDA_BINARIES_ARCH', 'BF_PROGRAM_LINKFLAGS', 'MACOSX_DEPLOYMENT_TARGET',
-            'WITH_BF_CYCLES_DEBUG', 'WITH_BF_CYCLES_LOGGING'
+            'WITH_BF_CYCLES_DEBUG', 'WITH_BF_CYCLES_LOGGING', 'WITH_BF_LEGACY_DEPSGRAPH'
     ]
 
 
@@ -654,6 +654,8 @@ def read_opts(env, cfg, args):
         ('BF_LLVM_LIB_STATIC', 'LLVM static library', ''),
 
         ('BF_PROGRAM_LINKFLAGS', 'Link flags applied only to final binaries (blender and blenderplayer, not makesrna/makesdna)', '')
+
+        (BoolVariable('WITH_BF_LEGACY_DEPSGRAPH', 'Build Blender with legacy dependency graph', True)),
     ) # end of opts.AddOptions()
 
     return localopts

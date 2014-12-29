@@ -1808,9 +1808,12 @@ void BKE_pose_rebuild(Object *ob, bArmature *arm)
 
 	BKE_pose_update_constraint_flags(ob->pose); /* for IK detection for example */
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 	/* the sorting */
+	/* Sorting for new dependnecy graph is done on the scene graph level. */
 	if (counter > 1)
 		DAG_pose_sort(ob);
+#endif
 
 	ob->pose->flag &= ~POSE_RECALC;
 	ob->pose->flag |= POSE_WAS_REBUILT;

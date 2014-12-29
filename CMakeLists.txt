@@ -434,6 +434,9 @@ if(MSVC)
 	set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/${})
 endif()
 
+# Dependency graph
+option(WITH_LEGACY_DEPSGRAPH "Build Blender with legacy dependency graph" ON)
+
 # avoid using again
 option_defaults_clear()
 

@@ -55,18 +55,27 @@ extern "C" {
 
 eDEG_EvalMode DEG_get_eval_mode(void)
 {
+#ifdef WITH_LEGACY_DEPSGRAPH
 	switch (G.debug_value) {
 		case DEG_EVAL_MODE_NEW: return DEG_EVAL_MODE_NEW;
 		default: return DEG_EVAL_MODE_OLD;
 	}
+#else
+	BLI_assert(!"Should not be used with new depsgraph");
+	return DEG_EVAL_MODE_NEW;
+#endif
 }
 
 void DEG_set_eval_mode(eDEG_EvalMode mode)
 {
+#ifdef WITH_LEGACY_DEPSGRAPH
 	switch (mode) {
 		case DEG_EVAL_MODE_NEW: G.debug_value = DEG_EVAL_MODE_NEW;
 		default: G.debug_value = DEG_EVAL_MODE_OLD;
 	}
+#else
+	BLI_assert(!"Should not be used with new depsgraph");
+#endif
 }
 
 /* ****************** */

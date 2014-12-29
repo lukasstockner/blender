@@ -1164,6 +1164,7 @@ void BKE_scene_frame_set(struct Scene *scene, double cfra)
 	scene->r.cfra = (int)intpart;
 }
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 /* drivers support/hacks 
  *  - this method is called from scene_update_tagged_recursive(), so gets included in viewport + render
  *	- these are always run since the depsgraph can't handle non-object data
@@ -1264,6 +1265,7 @@ static void scene_depsgraph_hack(EvaluationContext *eval_ctx, Scene *scene, Scen
 		}
 	}
 }
+#endif  /* WITH_LEGACY_DEPSGRAPH */
 
 /* That's like really a bummer, because currently animation data for armatures
  * might want to use pose, and pose might be missing on the object.
@@ -1315,7 +1317,12 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
  * would pollute STDERR with whole bunch of timing information which then
  * could be parsed and nicely visualized.
  */
-#undef DETAILED_ANALYSIS_OUTPUT
+#ifdef WITH_LEGACY_DEPSGRAPH
+#  undef DETAILED_ANALYSIS_OUTPUT
+#else
+/* ALWAYS KEEY DISABLED! */
+#  undef DETAILED_ANALYSIS_OUTPUT
+#endif
 
 /* Mballs evaluation uses BKE_scene_base_iter_next which calls
  * duplilist for all objects in the scene. This leads to conflict
@@ -1327,6 +1334,7 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
  */
 #define MBALL_SINGLETHREAD_HACK
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 typedef struct StatisicsEntry {
 	struct StatisicsEntry *next, *prev;
 	Object *object;
@@ -1606,6 +1614,7 @@ static void scene_update_tagged_recursive(EvaluationContext *eval_ctx, Main *bma
 	BKE_mask_update_scene(bmain, scene);
 	
 }
+#endif  /* WITH_LEGACY_DEPSGRAPH */
 
 static bool check_rendered_viewport_visible(Main *bmain)
 {
@@ -1657,7 +1666,9 @@ static void prepare_mesh_for_viewport_render(Main *bmain, Scene *scene)
 void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *scene)
 {
 	Scene *sce_iter;
+#ifdef WITH_LEGACY_DEPSGRAPH
 	bool use_new_eval = DEG_get_eval_mode() == DEG_EVAL_MODE_NEW;
+#endif
 
 	/* keep this first */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_PRE);
@@ -1667,7 +1678,10 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 		DAG_scene_relations_update(bmain, sce_iter);
 		/* Uncomment this to check if graph was properly tagged for update. */
 #if 0
-		if (use_new_eval) {
+#ifdef WITH_LEGACY_DEPSGRAPH
+		if (use_new_eval)
+#endif
+		{
 			DAG_scene_relations_validate(bmain, sce_iter);
 		}
 #endif
@@ -1676,10 +1690,12 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	/* flush editing data if needed */
 	prepare_mesh_for_viewport_render(bmain, scene);
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 	/* flush recalc flags to dependencies */
 	if (!use_new_eval) {
 		DAG_ids_flush_tagged(bmain);
 	}
+#endif
 
 	/* removed calls to quick_cache, see pointcache.c */
 	
@@ -1694,12 +1710,16 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 *
 	 * in the future this should handle updates for all datablocks, not
 	 * only objects and scenes. - brecht */
+#ifdef WITH_LEGACY_DEPSGRAPH
 	if (use_new_eval) {
 		DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph);
 	}
 	else {
 		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
 	}
+#else
+	DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph);
+#endif
 
 	/* update sound system animation (TODO, move to depsgraph) */
 	sound_update_scene(bmain, scene);
@@ -1718,6 +1738,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 * Need to do this so changing material settings from the graph/dopesheet
 	 * will update stuff in the viewport.
 	 */
+#ifdef WITH_LEGACY_DEPSGRAPH
 	if (!use_new_eval && DAG_id_type_tagged(bmain, ID_MA)) {
 		Material *material;
 		float ctime = BKE_scene_frame_get(scene);
@@ -1744,16 +1765,19 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 		}
 		FOREACH_NODETREE_END
 	}
+#endif
 
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 	if (!use_new_eval) {
 		DAG_ids_check_recalc(bmain, scene, false);
 
 		/* clear recalc flags */
 		DAG_ids_clear_recalc(bmain);
 	}
+#endif
 }
 
 /* applies changes right away, does all sets too */
@@ -1769,7 +1793,13 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 #ifdef DETAILED_ANALYSIS_OUTPUT
 	double start_time = PIL_check_seconds_timer();
 #endif
+#ifdef WITH_LEGACY_DEPSGRAPH
 	bool use_new_eval = DEG_get_eval_mode() == DEG_EVAL_MODE_NEW;
+#else
+	/* TODO(sergey): Pass to evaluation routines instead of storing layer in the graph? */
+	(void) lay;
+	(void) do_invisible_flush;
+#endif
 
 	/* keep this first */
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_PRE);
@@ -1793,6 +1823,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
 		DAG_scene_relations_update(bmain, sce_iter);
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 	if (!use_new_eval) {
 		/* flush recalc flags to dependencies, if we were only changing a frame
 		 * this would not be necessary, but if a user or a script has modified
@@ -1803,6 +1834,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 		 * so don't call within 'scene_update_tagged_recursive' */
 		DAG_scene_update_flags(bmain, sce, lay, true, do_invisible_flush);   // only stuff that moves or needs display still
 	}
+#endif
 
 	BKE_mask_evaluate_all_masks(bmain, ctime, true);
 
@@ -1830,29 +1862,37 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	scene_do_rb_simulation_recursive(sce, ctime);
 
 	/* BKE_object_handle_update() on all objects, groups and sets */
+#ifdef WITH_LEGACY_DEPSGRAPH
 	if (use_new_eval) {
 		DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime);
 	}
 	else {
 		scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
 	}
+#else
+	DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime);
+#endif
 
 	/* update sound system animation (TODO, move to depsgraph) */
 	sound_update_scene(bmain, sce);
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 	if (!use_new_eval) {
 		scene_depsgraph_hack(eval_ctx, sce, sce);
 	}
+#endif
 
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 	if (!use_new_eval) {
 		DAG_ids_check_recalc(bmain, sce, true);
 		/* clear recalc flags */
 		DAG_ids_clear_recalc(bmain);
 	}
+#endif
 
 #ifdef DETAILED_ANALYSIS_OUTPUT
 	fprintf(stderr, "frame update start_time %f duration %f\n", start_time, PIL_check_seconds_timer() - start_time);

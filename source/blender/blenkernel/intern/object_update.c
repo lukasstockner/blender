@@ -59,7 +59,11 @@
 
 #include "DEG_depsgraph.h"
 
-#define PRINT if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW) printf
+#ifdef WITH_LEGACY_DEPSGRAPH
+#  define PRINT if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW) printf
+#else
+#  define PRINT printf
+#endif
 
 void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
                                      Scene *UNUSED(scene),
