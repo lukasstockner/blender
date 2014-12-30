@@ -102,4 +102,8 @@ else()
 	endif()
 endif()
 
+if(WITH_LEGACY_DEPSGRAPH)
+	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
+endif()
+
 blender_add_lib(bf_depsgraph "${SRC}" "${INC}" "${INC_SYS}")

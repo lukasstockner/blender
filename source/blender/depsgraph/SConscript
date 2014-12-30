@@ -64,6 +64,9 @@ else:
     print("-- Replacing unordered_map/set with map/set (warning: slower!)")
     defs.append('DEG_NO_UNORDERED_MAP')
 
+if env['WITH_BF_LEGACY_DEPSGRAPH']:
+    defs.append('WITH_LEGACY_DEPSGRAPH')
+
 env.BlenderLib(libname='bf_depsgraph', sources=sources,
                includes=incs, defines=defs,
                libtype=['core', 'player'], priority=[200, 40])
