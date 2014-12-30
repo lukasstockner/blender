@@ -233,8 +233,6 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ID *id, eDepsNode_Ty
 	OperationDepsNode *op_node = comp_node->add_operation(optype, op, opcode, description);
 	m_graph->operations.push_back(op_node);
 	
-	// TODO: mark as entry/exit if appropriate
-	
 	return op_node;
 }
 

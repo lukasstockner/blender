@@ -124,11 +124,28 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_OPERATION);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
 		
-		/* register */
+		/* register opnode in this component's operation set */
 		OperationIDKey key(opcode, name);
 		this->operations[key] = op_node;
 		
+		/* set as entry/exit node of component (if appropriate) */
+		if (optype == DEPSOP_TYPE_INIT) {
+			BLI_assert(this->entry_operation == NULL);
+			this->entry_operation = op_node;
+		}
+		else if (optype == DEPSOP_TYPE_POST) {
+			// XXX: review whether DEPSOP_TYPE_OUT is better than DEPSOP_TYPE_POST, or maybe have both?
+			BLI_assert(this->exit_operation == NULL);
+			this->exit_operation = op_node;
+		}
+		
+		/* set backlink */
 		op_node->owner = this;
+	}
+	else {
+		/* we have a duplicate node! */
+		fprintf(stderr, "add_operation: Operation already exists - %s has %s at %p\n",
+		        this->identifier().c_str(), op_node->identifier().c_str(), op_node);
 	}
 	
 	/* attach extra data */
