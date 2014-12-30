@@ -203,6 +203,14 @@ struct RNAPathKey
 	    id(id), ptr(ptr), prop(prop)
 	{}
 	
+	string identifier() const
+	{
+		const char *id_name   = (id) ?  id->name : "<No ID>";
+		const char *prop_name = (prop) ? RNA_property_identifier(prop) : "<No Prop>";
+		
+		return string("RnaPathKey(") + "id: " + id_name + ", prop: " + prop_name +  "')";
+	}
+	
 	
 	ID *id;
 	PointerRNA ptr;
@@ -285,17 +293,6 @@ struct DepsNodeHandle
 
 #include "depsnode_component.h"
 
-// XXX: move elsewhere?
-BLI_INLINE string get_node_info_string(DepsNode *node)
-{
-	if (node != NULL) {
-		return node->identifier();
-	}
-	else {
-		return string("<No Node>");
-	}
-}
-
 template <class NodeType>
 BLI_INLINE OperationDepsNode *get_entry_operation(NodeType *node)
 { return NULL; }
@@ -320,8 +317,8 @@ template <typename KeyFrom, typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo &key_to,
                                             eDepsRelation_Type type, const string &description)
 {
-	DepsNode *node_from = find_node(key_from);
-	DepsNode *node_to   = find_node(key_to);
+	//DepsNode *node_from = find_node(key_from);
+	//DepsNode *node_to   = find_node(key_to);
 	
 	// XXX: warning - don't use node_from and node_to directly, as that breaks the templates...
 	OperationDepsNode *op_from = get_exit_operation(find_node(key_from));
@@ -334,12 +331,12 @@ void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo
 		if (!op_from) {
 			/* XXX TODO handle as error or report if needed */
 			fprintf(stderr, "add_relation(%d, %s) - Could not find op_from (%s)\n",
-			        type, description.c_str(), get_node_info_string(node_from).c_str());
+			        type, description.c_str(), key_from.identifier().c_str());
 		}
 		if (!op_to) {
 			/* XXX TODO handle as error or report if needed */
 			fprintf(stderr, "add_relation(%d, %s) - Could not find op_to (%s)\n",
-			        type, description.c_str(), get_node_info_string(node_to).c_str());
+			        type, description.c_str(), key_to.identifier().c_str());
 		}
 	}
 }
