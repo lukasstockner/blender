@@ -659,7 +659,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			
 			/* evaluation operations */
 			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_mesh_eval_geometry, _1, (Mesh *)obdata),
+			                   DEPSOP_TYPE_INIT, function_bind(BKE_mesh_eval_geometry, _1, (Mesh *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
 		break;
@@ -673,7 +673,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 				/* metaball evaluation operations */
 				/* NOTE: only the motherball gets evaluated! */
 				add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
-				                   DEPSOP_TYPE_EXEC, function_bind(BKE_mball_eval_geometry, _1, (MetaBall *)obdata),
+				                   DEPSOP_TYPE_INIT, function_bind(BKE_mball_eval_geometry, _1, (MetaBall *)obdata),
 				                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 			}
 		}
@@ -685,7 +685,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			/* curve evaluation operations */
 			/* - calculate curve geometry (including path) */
 			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
+			                   DEPSOP_TYPE_INIT, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 			
 			/* - calculate curve path - this is used by constraints, etc. */
@@ -699,7 +699,7 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		{
 			/* nurbs evaluation operations */
 			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
+			                   DEPSOP_TYPE_INIT, function_bind(BKE_curve_eval_geometry, _1, (Curve *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
 		break;
@@ -708,11 +708,13 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		{
 			/* lattice evaluation operations */
 			add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_lattice_eval_geometry, _1, (Lattice *)obdata),
+			                   DEPSOP_TYPE_INIT, function_bind(BKE_lattice_eval_geometry, _1, (Lattice *)obdata),
 			                   DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
 		}
 		break;
 	}
+	
+	// TODO: "Done" operation
 	
 	/* ShapeKeys */
 	Key *key = BKE_key_from_object(ob);
