@@ -77,8 +77,6 @@ struct DepsgraphNodeBuilder {
 		return add_operation_node(id, comp_type, "", optype, op, opcode, description);
 	}
 	
-	void verify_entry_exit_operations();
-	
 	void build_scene(Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
 	void build_group(Group *group);
@@ -103,9 +101,6 @@ struct DepsgraphNodeBuilder {
 	void build_texture_stack(DepsNode *owner_node, MTex **texture_stack);
 	void build_world(World *world);
 	void build_compositor(Scene *scene);
-	
-protected:
-	void verify_entry_exit_operations(ComponentDepsNode *node);
 	
 private:
 	Main *m_bmain;
