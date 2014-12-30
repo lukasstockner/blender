@@ -289,6 +289,11 @@ struct DepsNodeHandle
 	const string &default_name;
 };
 
+/* Utilities for Builders ----------------------------------------------------- */
+
+/* Get unique identifier for FCurves and Drivers */
+string deg_fcurve_id_name(const FCurve *fcu);
+
 /* Inline Function Templates -------------------------------------------------- */
 
 #include "depsnode_component.h"

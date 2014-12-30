@@ -392,7 +392,7 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 	TimeSourceDepsNode *time_src = m_graph->find_time_source();
 	OperationDepsNode *driver_op = add_operation_node(id, DEPSNODE_TYPE_PARAMETERS,
 	                                                  DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_driver, _1, id, fcu, time_src),
-	                                                  DEG_OPCODE_DRIVER, fcu->rna_path);
+	                                                  DEG_OPCODE_DRIVER, deg_fcurve_id_name(fcu));
 	
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
 	if (driver->type == DRIVER_TYPE_PYTHON) {

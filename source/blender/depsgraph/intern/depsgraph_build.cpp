@@ -143,6 +143,18 @@ void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObj
 }
 
 /* ************************************************* */
+/* Utilities for Builders */
+
+/* Get unique identifier for FCurves and Drivers */
+string deg_fcurve_id_name(const FCurve *fcu)
+{
+	char index_buf[32];
+	sprintf(index_buf, "[%d]", fcu->array_index);
+	
+	return string(fcu->rna_path) + index_buf;
+}
+
+/* ************************************************* */
 /* Node Builder */
 
 DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph) :

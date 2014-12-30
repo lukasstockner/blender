@@ -563,7 +563,7 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 {
 	ChannelDriver *driver = fcu->driver;
-	OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_DRIVER, fcu->rna_path);
+	OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_DRIVER, deg_fcurve_id_name(fcu));
 	
 	/* create dependency between driver and data affected by it */
 	/* - direct property relationship... */
