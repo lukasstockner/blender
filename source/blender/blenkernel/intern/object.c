@@ -2019,7 +2019,8 @@ void BKE_object_to_mat4(Object *ob, float mat[4][4])
 	add_v3_v3v3(mat[3], ob->loc, ob->dloc);
 }
 
-static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
+/* XXX: expose this in a proper header, or shuffle the code around to get it working */
+extern void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
 
 void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4])
 {
@@ -2318,8 +2319,6 @@ static void ob_parvert3(Object *ob, Object *par, float mat[4][4])
 	}
 }
 
-/* XXX: expose this in a proper header, or shuffle the code around to get it working */
-extern void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
 
 void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4])
 {
