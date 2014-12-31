@@ -269,7 +269,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	if (ob->type != OB_ARMATURE) {
 		/* Armatures does no longer require uber node. */
 		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-		                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
+		                   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
 		                   DEG_OPCODE_GEOMETRY_UBEREVAL);
 	}
 
