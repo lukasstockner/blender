@@ -468,15 +468,15 @@ static void deg_graph_flush_node_layers(Depsgraph *graph)
 		else {
 			stack.pop();
 			IDDepsNode *id_node = node->owner->owner;
-			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
-			     it_rel != node->inlinks.end();
+			for (OperationDepsNode::Relations::const_iterator it_rel = node->outlinks.begin();
+			     it_rel != node->outlinks.end();
 			     ++it_rel)
 			{
 				DepsRelation *rel = *it_rel;
-				if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
-					OperationDepsNode *from = (OperationDepsNode *)rel->from;
-					IDDepsNode *id_from = from->owner->owner;
-					id_node->layers |= id_from->layers;
+				if (rel->to->type == DEPSNODE_TYPE_OPERATION) {
+					OperationDepsNode *to = (OperationDepsNode *)rel->to;
+					IDDepsNode *id_to = to->owner->owner;
+					id_node->layers |= id_to->layers;
 				}
 			}
 		}
