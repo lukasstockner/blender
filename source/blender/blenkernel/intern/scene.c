@@ -1863,7 +1863,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	/* BKE_object_handle_update() on all objects, groups and sets */
 #ifdef WITH_LEGACY_DEPSGRAPH
 	if (use_new_eval) {
-		DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime);
+		DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime, lay);
 	}
 	else {
 		scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
