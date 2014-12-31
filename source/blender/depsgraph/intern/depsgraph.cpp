@@ -358,13 +358,6 @@ void Depsgraph::add_invisible_entry_tag(OperationDepsNode *node)
 	invisible_entry_tags.insert(node);
 }
 
-/* Get layers for which nodes are to be evaluated. */
-int Depsgraph::layers_for_context(EvaluationContext *eval_ctx)
-{
-	return (eval_ctx->mode == DAG_EVAL_RENDER) ? (1 << 20) - 1
-	                                           : layers;
-}
-
 /* ************************************************** */
 /* Public Graph API */
 

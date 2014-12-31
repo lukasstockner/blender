@@ -1797,7 +1797,6 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	bool use_new_eval = DEG_get_eval_mode() == DEG_EVAL_MODE_NEW;
 #else
 	/* TODO(sergey): Pass to evaluation routines instead of storing layer in the graph? */
-	(void) lay;
 	(void) do_invisible_flush;
 #endif
 
@@ -1870,7 +1869,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 		scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
 	}
 #else
-	DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime);
+	DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime, lay);
 #endif
 
 	/* update sound system animation (TODO, move to depsgraph) */

@@ -95,13 +95,14 @@ void DEG_property_tag_update(Depsgraph *graph,
 typedef std::queue<OperationDepsNode*> FlushQueue;
 
 /* Flush updates from tagged nodes outwards until all affected nodes are tagged. */
-void DEG_graph_flush_updates(EvaluationContext *eval_ctx, Depsgraph *graph)
+void DEG_graph_flush_updates(EvaluationContext *eval_ctx,
+                             Depsgraph *graph,
+                             const int layers)
 {
 	/* sanity check */
 	if (graph == NULL)
 		return;
 
-	int layers = graph->layers_for_context(eval_ctx);
 	FlushQueue queue;
 	/* Starting from the tagged "entry" nodes, flush outwards... */
 	// NOTE: Also need to ensure that for each of these, there is a path back to

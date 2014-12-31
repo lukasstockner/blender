@@ -114,7 +114,9 @@ void DEG_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, con
 /* Update Flushing ------------------------------- */
 
 /* Flush updates */
-void DEG_graph_flush_updates(struct EvaluationContext *eval_ctx, Depsgraph *graph);
+void DEG_graph_flush_updates(struct EvaluationContext *eval_ctx,
+                             Depsgraph *graph,
+                             const int layers);
 
 /* Clear all update tags 
  * - For aborted updates, or after successful evaluation
@@ -146,9 +148,18 @@ void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);
  */
 void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
                                  Depsgraph *graph,
-                                 double ctime);
+                                 double ctime,
+                                 const int layer);
 
-/* Data changed recalculation entrypoint 
+/* Data changed recalculation entrypoint.
+ * < context_type: context to perform evaluation for
+ * < layers: visible layers bitmask to update the graph for
+ */
+void DEG_evaluate_on_refresh_ex(struct EvaluationContext *eval_ctx,
+                                Depsgraph *graph,
+                                const int layers);
+
+/* Data changed recalculation entrypoint.
  * < context_type: context to perform evaluation for
  */
 void DEG_evaluate_on_refresh(struct EvaluationContext *eval_ctx,

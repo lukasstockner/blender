@@ -198,9 +198,6 @@ struct Depsgraph {
 	/* Tag a specific invisible node as needing updates when becoming visible. */
 	void add_invisible_entry_tag(OperationDepsNode *node);
 
-	/* Get layers for which nodes are to be evaluated. */
-	int layers_for_context(EvaluationContext *eval_ctx);
-
 	/* Visible layers bitfield, used for skipping invisible objects updates. */
 	int layers;
 

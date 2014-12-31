@@ -110,12 +110,16 @@ void DEG_evaluation_context_free(EvaluationContext *eval_ctx)
 /* Evaluation Entrypoints */
 
 /* Forward declarations. */
-static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
-                                  Depsgraph *graph, OperationDepsNode *node);
+static void schedule_children(TaskPool *pool,
+                              EvaluationContext *eval_ctx,
+                              Depsgraph *graph,
+                              OperationDepsNode *node,
+                              const int layers);
 
 struct DepsgraphEvalState {
 	EvaluationContext *eval_ctx;
 	Depsgraph *graph;
+	int layers;
 };
 
 static void deg_task_run_func(TaskPool *pool,
@@ -124,31 +128,29 @@ static void deg_task_run_func(TaskPool *pool,
 {
 	DepsgraphEvalState *state = (DepsgraphEvalState *)BLI_task_pool_userdata(pool);
 	OperationDepsNode *node = (OperationDepsNode *)taskdata;
-	if (node->is_noop()) {
-		deg_schedule_children(pool, state->eval_ctx, state->graph, node);
-		return;
+
+	if (!node->is_noop()) {
+		/* Get context. */
+		// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
+		ComponentDepsNode *comp = node->owner;
+		BLI_assert(comp != NULL);
+
+		/* Take note of current time. */
+		double start_time = PIL_check_seconds_timer();
+		DepsgraphDebug::task_started(node);
+
+		/* Should only be the case for NOOPs, which never get to this point. */
+		BLI_assert(node->evaluate != NULL);
+
+		/* Perform operation. */
+		node->evaluate(state->eval_ctx);
+
+		/* Note how long this took. */
+		double end_time = PIL_check_seconds_timer();
+		DepsgraphDebug::task_completed(node, end_time - start_time);
 	}
 
-	/* Get context. */
-	// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
-	ComponentDepsNode *comp = node->owner;
-	BLI_assert(comp != NULL);
-
-	/* Take note of current time. */
-	double start_time = PIL_check_seconds_timer();
-	DepsgraphDebug::task_started(node);
-
-	/* Should only be the case for NOOPs, which never get to this point. */
-	BLI_assert(node->evaluate != NULL);
-
-	/* Perform operation. */
-	node->evaluate(state->eval_ctx);
-
-	/* Note how long this took. */
-	double end_time = PIL_check_seconds_timer();
-	DepsgraphDebug::task_completed(node, end_time - start_time);
-
-	deg_schedule_children(pool, state->eval_ctx, state->graph, node);
+	schedule_children(pool, state->eval_ctx, state->graph, node, state->layers);
 }
 
 static void calculate_pending_parents(Depsgraph *graph)
@@ -211,9 +213,9 @@ static void calculate_eval_priority(OperationDepsNode *node)
 
 static void schedule_graph(TaskPool *pool,
                            EvaluationContext *eval_ctx,
-                           Depsgraph *graph)
+                           Depsgraph *graph,
+                           const int layers)
 {
-	int layers = graph->layers_for_context(eval_ctx);
 	BLI_spin_lock(&graph->lock);
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
 	     it != graph->operations.end();
@@ -232,10 +234,12 @@ static void schedule_graph(TaskPool *pool,
 	BLI_spin_unlock(&graph->lock);
 }
 
-static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
-                                  Depsgraph *graph, OperationDepsNode *node)
+static void schedule_children(TaskPool *pool,
+                              EvaluationContext *eval_ctx,
+                              Depsgraph *graph,
+                              OperationDepsNode *node,
+                              const int layers)
 {
-	int layers = graph->layers_for_context(eval_ctx);
 	for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
 	     it != node->outlinks.end();
 	     ++it)
@@ -270,7 +274,9 @@ static void deg_schedule_children(TaskPool *pool, EvaluationContext *eval_ctx,
  * ! This is usually done as part of main loop, but may also be
  *   called from frame-change update.
  */
-void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
+void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
+                                Depsgraph *graph,
+                                const int layers)
 {
 	/* Generate base evaluation context, upon which all the others are derived. */
 	// TODO: this needs both main and scene access...
@@ -279,6 +285,7 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 	DepsgraphEvalState state;
 	state.eval_ctx = eval_ctx;
 	state.graph = graph;
+	state.layers = layers;
 
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, &state);
@@ -286,7 +293,7 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 	/* Recursively push updates out to all nodes dependent on this,
 	 * until all affected are tagged and/or scheduled up for eval
 	 */
-	DEG_graph_flush_updates(eval_ctx, graph);
+	DEG_graph_flush_updates(eval_ctx, graph, layers);
 
 	calculate_pending_parents(graph);
 
@@ -310,7 +317,7 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 
 	DepsgraphDebug::eval_begin(eval_ctx);
 
-	schedule_graph(task_pool, eval_ctx, graph);
+	schedule_graph(task_pool, eval_ctx, graph, layers);
 
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
@@ -321,10 +328,18 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx, Depsgraph *graph)
 	DEG_graph_clear_tags(graph);
 }
 
+/* Evaluate all nodes tagged for updating. */
+void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx,
+                             Depsgraph *graph)
+{
+	DEG_evaluate_on_refresh_ex(eval_ctx, graph, graph->layers);
+}
+
 /* Frame-change happened for root scene that graph belongs to. */
 void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
                                  Depsgraph *graph,
-                                 double ctime)
+                                 double ctime,
+                                 const int layers)
 {
 	/* Update time on primary timesource. */
 	TimeSourceDepsNode *tsrc = graph->find_time_source();
@@ -333,5 +348,5 @@ void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
 	tsrc->tag_update(graph);
 
 	/* Perform recalculation updates. */
-	DEG_evaluate_on_refresh(eval_ctx, graph);
+	DEG_evaluate_on_refresh_ex(eval_ctx, graph, layers);
 }
