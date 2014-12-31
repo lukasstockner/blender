@@ -3292,6 +3292,7 @@ bool DAG_is_acyclic(Scene *scene)
 DagNodeQueue *queue_create(int UNUSED(slots))
 {
 	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
 }
 
 void queue_raz(DagNodeQueue *UNUSED(queue))
@@ -3337,6 +3338,7 @@ DagForest *build_dag(Main *UNUSED(bmain),
                      short UNUSED(mask))
 {
 	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
 }
 
 void free_forest(DagForest *UNUSED(Dag))
