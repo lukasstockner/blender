@@ -666,12 +666,12 @@ void filelist_filter(FileList *filelist)
 void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const bool hide_parent, const unsigned int filter,
                                 const unsigned int filter_id, const char *filter_glob, const char *filter_search)
 {
-	if (filelist->filter_data.hide_dot != hide_dot ||
+	if ((filelist->filter_data.hide_dot != hide_dot) ||
 	    (filelist->filter_data.hide_parent != hide_parent) ||
-	    filelist->filter_data.filter != filter ||
-	    filelist->filter_data.filter_id != filter_id ||
+	    (filelist->filter_data.filter != filter) ||
+	    (filelist->filter_data.filter_id != filter_id) ||
 	    !STREQ(filelist->filter_data.filter_glob, filter_glob) ||
-	    !(filter_search[0] == '*' ? STRPREFIX(filelist->filter_data.filter_search, filter_search) : STRPREFIX(filelist->filter_data.filter_search + 1, filter_search)))
+	    (BLI_fnmatch_strcmp_ignore_endswildcards(filelist->filter_data.filter_search, filter_search) != 0))
 	{
 		filelist->filter_data.hide_dot = hide_dot;
 		filelist->filter_data.hide_parent = hide_parent;
@@ -679,28 +679,8 @@ void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const b
 		filelist->filter_data.filter = filter;
 		filelist->filter_data.filter_id = filter_id;
 		BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
-
-		{
-			int idx = 0;
-			const size_t max_search_len = sizeof(filelist->filter_data.filter_search) - 2;
-			const size_t slen = (size_t)min_ii((int)strlen(filter_search), (int)max_search_len);
-
-			if (slen == 0) {
-				filelist->filter_data.filter_search[0] = '\0';
-			}
-			else {
-				/* Implicitly add heading/trailing wildcards if needed. */
-				if (filter_search[idx] != '*') {
-					filelist->filter_data.filter_search[idx++] = '*';
-				}
-				memcpy(&filelist->filter_data.filter_search[idx], filter_search, slen);
-				idx += slen;
-				if (filelist->filter_data.filter_search[idx - 1] != '*') {
-					filelist->filter_data.filter_search[idx++] = '*';
-				}
-				filelist->filter_data.filter_search[idx] = '\0';
-			}
-		}
+		BLI_fnmatch_strncpy_add_endswildcards(filelist->filter_data.filter_search, filter_search,
+		                                      sizeof(filelist->filter_data.filter_search));
 
 		/* And now, free filtered data so that we now we have to filter again. */
 		filelist_filter_clear(filelist);
