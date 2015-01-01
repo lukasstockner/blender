@@ -78,4 +78,10 @@ extern int fnmatch __P((const char *__pattern, const char *__string,
 }
 #endif
 
+/* Helpers. */
+#include "BLI_sys_types.h"
+
+void BLI_fnmatch_strncpy_add_endswildcards(char *dst, const char *src, size_t len);
+int BLI_fnmatch_strcmp_ignore_endswildcards(const char *str1, const char *str2);
+
 #endif /* __BLI_FNMATCH_H__ */
