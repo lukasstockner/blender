@@ -60,26 +60,34 @@ typedef enum FileCheckType {
 	CHECK_ALL = 3
 } FileCheckType;
 
-void                filelist_init_icons(void);
-void                filelist_free_icons(void);
+struct ListBase *   folderlist_new(void);
+void                folderlist_free(struct ListBase *folderlist);
+struct ListBase *   folderlist_duplicate(ListBase *folderlist);
+void                folderlist_popdir(struct ListBase *folderlist, char *dir);
+void                folderlist_pushdir(struct ListBase *folderlist, const char *dir);
+const char *        folderlist_peeklastdir(struct ListBase *folderdist);
+int                 folderlist_clear_next(struct SpaceFile *sfile);
 
-struct FileList *   filelist_new(short type);
-void                filelist_clear(struct FileList *filelist);
-void                filelist_free(struct FileList *filelist);
 
 void                filelist_setsorting(struct FileList *filelist, const short sort);
 bool                filelist_need_sorting(struct FileList *filelist);
 void                filelist_sort(struct FileList *filelist);
 
-void                filelist_setfilter_options(struct FileList *filelist, const bool hide_dot, const unsigned int filter,
-                                               const unsigned int filter_id, const char *filter_glob, const char *filter_search);
+void                filelist_setfilter_options(struct FileList *filelist, const bool hide_dot, const bool hide_parent,
+                                               const unsigned int filter, const unsigned int filter_id,
+                                               const char *filter_glob, const char *filter_search);
 void                filelist_filter(struct FileList *filelist);
 
-bool                filelist_force_reset(struct FileList *filelist);
-bool                filelist_pending(struct FileList *filelist);
-bool                filelist_is_ready(struct FileList *filelist);
-bool                filelist_need_refresh(struct FileList *filelist);
-void                filelist_clear_refresh(struct FileList *filelist);
+void                filelist_init_icons(void);
+void                filelist_free_icons(void);
+void                filelist_imgsize(struct FileList *filelist, short w, short h);
+struct ImBuf *      filelist_getimage(struct FileList *filelist, const int index);
+struct ImBuf *      filelist_geticon_image(struct FileList *filelist, const int index);
+int                 filelist_geticon(struct FileList *filelist, const int index);
+
+struct FileList *   filelist_new(short type);
+void                filelist_clear(struct FileList *filelist);
+void                filelist_free(struct FileList *filelist);
 
 const char *        filelist_dir(struct FileList *filelist);
 void                filelist_setdir(struct FileList *filelist, const char *dir);
@@ -89,16 +97,17 @@ int                 filelist_numfiles(struct FileList *filelist);
 struct direntry *   filelist_file(struct FileList *filelist, int index);
 int                 filelist_find(struct FileList *filelist, const char *file);
 
+bool                filelist_force_reset(struct FileList *filelist);
+bool                filelist_pending(struct FileList *filelist);
+bool                filelist_is_ready(struct FileList *filelist);
+bool                filelist_need_refresh(struct FileList *filelist);
+void                filelist_clear_refresh(struct FileList *filelist);
+
 void                filelist_select(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check);
 void                filelist_select_file(struct FileList *filelist, int index, FileSelType select, unsigned int flag, FileCheckType check);
 bool                filelist_is_selected(struct FileList *filelist, int index, FileCheckType check);
 
 void                filelist_setrecursive(struct FileList *filelist, const bool use_recursion);
-
-void                filelist_imgsize(struct FileList *filelist, short w, short h);
-struct ImBuf *      filelist_getimage(struct FileList *filelist, const int index);
-struct ImBuf *      filelist_geticon_image(struct FileList *filelist, const int index);
-int                 filelist_geticon(struct FileList *filelist, const int index);
 
 struct BlendHandle *filelist_lib(struct FileList *filelist);
 bool                filelist_islibrary(struct FileList *filelist, char *dir, char **group);
@@ -110,16 +119,7 @@ void                filelist_readjob_start(struct FileList *filelist, const stru
 void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);
 int                 filelist_readjob_running(struct wmWindowManager *wm, struct FileList *filelist);
 
-
-
-struct ListBase *   folderlist_new(void);
-void                folderlist_free(struct ListBase *folderlist);
-struct ListBase *   folderlist_duplicate(ListBase *folderlist);
-void                folderlist_popdir(struct ListBase *folderlist, char *dir);
-void                folderlist_pushdir(struct ListBase *folderlist, const char *dir);
-const char *        folderlist_peeklastdir(struct ListBase *folderdist);
-int                 folderlist_clear_next(struct SpaceFile *sfile);
-
+bool                filelist_need_thumbnails(struct FileList *filelist);
 void                thumbnails_start(struct FileList *filelist, const struct bContext *C);
 void                thumbnails_stop(struct wmWindowManager *wm, struct FileList *filelist);
 int                 thumbnails_running(struct wmWindowManager *wm, struct FileList *filelist);

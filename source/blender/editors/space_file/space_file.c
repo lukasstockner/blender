@@ -194,8 +194,9 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 	struct FSMenu *fsmenu = fsmenu_get();
 
-	if (!sfile->folders_prev)
+	if (!sfile->folders_prev) {
 		sfile->folders_prev = folderlist_new();
+	}
 	if (!sfile->files) {
 		sfile->files = filelist_new(params->type);
 		params->active_file = -1; // added this so it opens nicer (ton)
@@ -204,6 +205,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	filelist_setrecursive(sfile->files, (params->flag & FILE_SHOWFLAT) != 0);
 	filelist_setsorting(sfile->files, params->sort);
 	filelist_setfilter_options(sfile->files, params->flag & FILE_HIDE_DOT,
+	                                         false, /* TODO hide_parent, should be controllable? */
 	                                         params->flag & FILE_FILTER ? params->filter : 0,
 	                                         params->filter_id,
 	                                         params->filter_glob,
@@ -226,26 +228,21 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 			filelist_readjob_start(sfile->files, C);
 		}
 	}
-	else {
-		if (filelist_need_sorting(sfile->files)) {
-			thumbnails_stop(wm, sfile->files);
-			filelist_sort(sfile->files);
-			if (params->display == FILE_IMGDISPLAY && filelist_is_ready(sfile->files)) {
-				thumbnails_start(sfile->files, C);
-			}
-		}
-		else {
-			if (params->display == FILE_IMGDISPLAY && filelist_is_ready(sfile->files)) {
-				if (!thumbnails_running(wm, sfile->files)) {
-					thumbnails_start(sfile->files, C);
-				}
-			}
-			else {
-				/* stop any running thumbnail jobs if we're not displaying them - speedup for NFS */
-				thumbnails_stop(wm, sfile->files);
-			}
+	else if (filelist_need_sorting(sfile->files)) {
+		thumbnails_stop(wm, sfile->files);
+		filelist_sort(sfile->files);
+	}
+
+	if ((params->display == FILE_IMGDISPLAY) && filelist_need_thumbnails(sfile->files)) {
+		if (!thumbnails_running(wm, sfile->files)) {
+			thumbnails_start(sfile->files, C);
 		}
 	}
+	else {
+		/* stop any running thumbnail jobs if we're not displaying them - speedup for NFS */
+		thumbnails_stop(wm, sfile->files);
+	}
+
 	filelist_filter(sfile->files);
 
 	if (params->renamefile[0] != '\0') {
@@ -259,7 +256,10 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 		BLI_strncpy(sfile->params->renameedit, sfile->params->renamefile, sizeof(sfile->params->renameedit));
 		params->renamefile[0] = '\0';
 	}
-	if (sfile->layout) sfile->layout->dirty = true;
+
+	if (sfile->layout) {
+		sfile->layout->dirty = true;
+	}
 
 	filelist_clear_refresh(sfile->files);
 }
