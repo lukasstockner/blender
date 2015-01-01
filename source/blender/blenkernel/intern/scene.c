@@ -1712,13 +1712,13 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 * only objects and scenes. - brecht */
 #ifdef WITH_LEGACY_DEPSGRAPH
 	if (use_new_eval) {
-		DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph);
+		DEG_evaluate_on_refresh(eval_ctx, bmain, scene->depsgraph);
 	}
 	else {
 		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
 	}
 #else
-	DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph);
+	DEG_evaluate_on_refresh(eval_ctx, bmain, scene->depsgraph);
 #endif
 
 	/* update sound system animation (TODO, move to depsgraph) */
@@ -1770,14 +1770,11 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	/* notify editors and python about recalc */
 	BLI_callback_exec(bmain, &scene->id, BLI_CB_EVT_SCENE_UPDATE_POST);
 
-#ifdef WITH_LEGACY_DEPSGRAPH
-	if (!use_new_eval) {
-		DAG_ids_check_recalc(bmain, scene, false);
+	/* Inform editors about possible changes. */
+	DAG_ids_check_recalc(bmain, scene, false);
 
-		/* clear recalc flags */
-		DAG_ids_clear_recalc(bmain);
-	}
-#endif
+	/* clear recalc flags */
+	DAG_ids_clear_recalc(bmain);
 }
 
 /* applies changes right away, does all sets too */
@@ -1863,13 +1860,13 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	/* BKE_object_handle_update() on all objects, groups and sets */
 #ifdef WITH_LEGACY_DEPSGRAPH
 	if (use_new_eval) {
-		DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime, lay);
+		DEG_evaluate_on_framechange(eval_ctx, bmain, sce->depsgraph, ctime, lay);
 	}
 	else {
 		scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
 	}
 #else
-	DEG_evaluate_on_framechange(eval_ctx, sce->depsgraph, ctime, lay);
+	DEG_evaluate_on_framechange(eval_ctx, bmain, sce->depsgraph, ctime, lay);
 #endif
 
 	/* update sound system animation (TODO, move to depsgraph) */
@@ -1885,13 +1882,11 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_SCENE_UPDATE_POST);
 	BLI_callback_exec(bmain, &sce->id, BLI_CB_EVT_FRAME_CHANGE_POST);
 
-#ifdef WITH_LEGACY_DEPSGRAPH
-	if (!use_new_eval) {
-		DAG_ids_check_recalc(bmain, sce, true);
-		/* clear recalc flags */
-		DAG_ids_clear_recalc(bmain);
-	}
-#endif
+	/* Inform editors about possible changes. */
+	DAG_ids_check_recalc(bmain, sce, true);
+
+	/* clear recalc flags */
+	DAG_ids_clear_recalc(bmain);
 
 #ifdef DETAILED_ANALYSIS_OUTPUT
 	fprintf(stderr, "frame update start_time %f duration %f\n", start_time, PIL_check_seconds_timer() - start_time);

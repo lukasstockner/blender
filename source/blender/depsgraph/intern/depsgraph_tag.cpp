@@ -26,15 +26,29 @@
  * Core routines for how the Depsgraph works
  */
 
+#include <cstring>
 #include <queue>
 
 extern "C" {
 #include "BLI_utildefines.h"
 
 #include "DNA_ID.h"
+#include "DNA_object_types.h"
+#include "DNA_particle_types.h"
+#include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
+#include "DNA_windowmanager_types.h"
+
+#include "BKE_global.h"
+#include "BKE_library.h"
+#include "BKE_main.h"
+#include "BKE_node.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
+
+/* TODO(sergey): because of bloody "new" in the BKE_screen.h. */
+unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 } /* extern "C" */
 
 #include "DEG_depsgraph.h"
@@ -51,12 +65,38 @@ extern "C" {
 
 /* Data-Based Tagging ------------------------------- */
 
+static void lib_id_recalc_tag(Main *bmain, ID *id)
+{
+	id->flag |= LIB_ID_RECALC;
+	DEG_id_type_tag(bmain, GS(id->name));
+}
+
+static void lib_id_recalc_data_tag(Main *bmain, ID *id)
+{
+	id->flag |= LIB_ID_RECALC_DATA;
+	DEG_id_type_tag(bmain, GS(id->name));
+}
+
+static void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
+{
+	if (flag) {
+		if (flag & OB_RECALC_OB)
+			lib_id_recalc_tag(bmain, id);
+		if (flag & (OB_RECALC_DATA | PSYS_RECALC))
+			lib_id_recalc_data_tag(bmain, id);
+	}
+	else {
+		lib_id_recalc_tag(bmain, id);
+	}
+}
+
 /* Tag all nodes in ID-block for update.
  * This is a crude measure, but is most convenient for old code.
  */
-void DEG_id_tag_update(Depsgraph *graph, const ID *id)
+void DEG_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id)
 {
 	IDDepsNode *node = graph->find_id_node(id);
+	lib_id_recalc_tag(bmain, id);
 	if (node) {
 		node->tag_update(graph);
 	}
@@ -67,25 +107,75 @@ void DEG_id_tag_update(Depsgraph *graph, const ID *id)
 }
 
 /* Tag nodes related to a specific piece of data */
-void DEG_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
+void DEG_graph_data_tag_update(Depsgraph *graph, const PointerRNA *ptr)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, NULL);
-	if (node)
+	if (node) {
 		node->tag_update(graph);
-	else
+	}
+	else {
 		printf("Missing node in %s\n", __func__);
+		BLI_assert(!"Shouldn't happens since it'll miss crucial update.");
+	}
 }
 
 /* Tag nodes related to a specific property. */
-void DEG_property_tag_update(Depsgraph *graph,
-                             const PointerRNA *ptr,
-                             const PropertyRNA *prop)
+void DEG_graph_property_tag_update(Depsgraph *graph,
+                                   const PointerRNA *ptr,
+                                   const PropertyRNA *prop)
 {
 	DepsNode *node = graph->find_node_from_pointer(ptr, prop);
-	if (node)
+	if (node) {
 		node->tag_update(graph);
-	else
+	}
+	else {
 		printf("Missing node in %s\n", __func__);
+		BLI_assert(!"Shouldn't happens since it'll miss crucial update.");
+	}
+}
+
+/* Tag given ID for an update in all the dependency graphs. */
+void DEG_id_tag_update(ID *id, short flag)
+{
+	DEG_id_tag_update_ex(G.main, id, flag);
+}
+
+void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
+{
+	lib_id_recalc_tag_flag(bmain, id, flag);
+	for (Scene *scene = (Scene *)bmain->scene.first;
+	     scene != NULL;
+	     scene = (Scene *)scene->id.next)
+	{
+		if (scene->depsgraph) {
+			if (flag & OB_RECALC_DATA && GS(id->name) == ID_OB) {
+				Object *object = (Object*)id;
+				DEG_graph_id_tag_update(bmain,
+				                        scene->depsgraph,
+				                        (ID*)object->data);
+			}
+			DEG_graph_id_tag_update(bmain, scene->depsgraph, id);
+		}
+	}
+}
+
+/* Tag given ID type for update. */
+void DEG_id_type_tag(Main *bmain, short idtype)
+{
+	if (idtype == ID_NT) {
+		/* Stupid workaround so parent datablocks of nested nodetree get looped
+		 * over when we loop over tagged datablock types.
+		 */
+		DEG_id_type_tag(bmain, ID_MA);
+		DEG_id_type_tag(bmain, ID_TE);
+		DEG_id_type_tag(bmain, ID_LA);
+		DEG_id_type_tag(bmain, ID_WO);
+		DEG_id_type_tag(bmain, ID_SCE);
+	}
+	/* We tag based on first ID type character to avoid
+	 * looping over all ID's in case there are no tags.
+	 */
+	bmain->id_tag_update[((char *)&idtype)[0]] = 1;
 }
 
 /* Update Flushing ---------------------------------- */
@@ -95,7 +185,8 @@ void DEG_property_tag_update(Depsgraph *graph,
 typedef std::queue<OperationDepsNode*> FlushQueue;
 
 /* Flush updates from tagged nodes outwards until all affected nodes are tagged. */
-void DEG_graph_flush_updates(EvaluationContext *eval_ctx,
+void DEG_graph_flush_updates(Main *bmain,
+                             EvaluationContext *eval_ctx,
                              Depsgraph *graph,
                              const int layers)
 {
@@ -126,6 +217,11 @@ void DEG_graph_flush_updates(EvaluationContext *eval_ctx,
 	while (!queue.empty()) {
 		OperationDepsNode *node = queue.front();
 		queue.pop();
+
+		IDDepsNode *id_node = node->owner->owner;
+		lib_id_recalc_tag(bmain, id_node->id);
+		/* TODO(sergey): For until we've got proper data nodes in the graph. */
+		lib_id_recalc_data_tag(bmain, id_node->id);
 
 		/* Flush to nodes along links... */
 		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
@@ -165,4 +261,121 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 
 	/* Clear any entry tags which haven't been flushed. */
 	graph->entry_tags.clear();
+}
+
+/* Update dependency graph when visible scenes/layers changes. */
+void DEG_graph_on_visible_update(Main *bmain, Depsgraph *graph)
+{
+	wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
+	int old_layers = graph->layers;
+	if (wm != NULL) {
+		BKE_main_id_flag_listbase(&bmain->scene, LIB_DOIT, true);
+		graph->layers = 0;
+		for (wmWindow *win = (wmWindow *)wm->windows.first;
+		     win != NULL;
+		     win = (wmWindow *)win->next)
+		{
+			Scene *scene = win->screen->scene;
+			if (scene->id.flag & LIB_DOIT) {
+				graph->layers |= BKE_screen_visible_layers(win->screen, scene);
+				scene->id.flag &= ~LIB_DOIT;
+			}
+		}
+	}
+	else {
+		/* All the layers for background render for now. */
+		graph->layers = (1 << 20) - 1;
+	}
+	if (old_layers != graph->layers) {
+		/* Re-tag nodes which became visible. */
+		for (Depsgraph::EntryTags::const_iterator it = graph->invisible_entry_tags.begin();
+		     it != graph->invisible_entry_tags.end();
+		     ++it)
+		{
+			OperationDepsNode *node = *it;
+			/* TODO(sergey): For the simplicity we're trying to re-schedule
+			 * all the nodes, regardless of their layers visibility.
+			 *
+			 * In the future when storage for such flags becomes more permanent
+			 * we'll optimize this out.
+			 */
+			node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
+			graph->add_entry_tag(node);
+		}
+		graph->invisible_entry_tags.clear();
+	}
+}
+
+void DEG_on_visible_update(Main *bmain, const bool do_time)
+{
+	for (Scene *scene = (Scene*)bmain->scene.first;
+	     scene != NULL;
+	     scene = (Scene*)scene->id.next)
+	{
+		if (scene->depsgraph != NULL) {
+			DEG_graph_on_visible_update(bmain, scene->depsgraph);
+		}
+	}
+}
+
+/* Check if something was changed in the database and inform
+ * editors about this.
+ */
+void DEG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
+{
+	ListBase *lbarray[MAX_LIBARRAY];
+	int a;
+	bool updated = false;
+
+	/* Loop over all ID types. */
+	a  = set_listbasepointers(bmain, lbarray);
+	while (a--) {
+		ListBase *lb = lbarray[a];
+		ID *id = (ID*)lb->first;
+
+		/* We tag based on first ID type character to avoid
+		 * looping over all ID's in case there are no tags.
+		 */
+		if (id && bmain->id_tag_update[id->name[0]]) {
+			updated = true;
+			break;
+		}
+	}
+
+	deg_editors_scene_update(bmain, scene, (updated || time));
+}
+
+void DEG_ids_clear_recalc(Main *bmain)
+{
+	ListBase *lbarray[MAX_LIBARRAY];
+	bNodeTree *ntree;
+	int a;
+
+	/* TODO(sergey): Re-implement POST_UPDATE_HANDLER_WORKAROUND using entry_tags
+	 * and id_tags storage from the new depenency graph.
+	 */
+
+	/* Loop over all ID types. */
+	a  = set_listbasepointers(bmain, lbarray);
+	while (a--) {
+		ListBase *lb = lbarray[a];
+		ID *id = (ID *)lb->first;
+
+		/* We tag based on first ID type character to avoid
+		 * looping over all ID's in case there are no tags.
+		 */
+		if (id && bmain->id_tag_update[id->name[0]]) {
+			for (; id; id = (ID *)id->next) {
+				id->flag &= ~(LIB_ID_RECALC | LIB_ID_RECALC_DATA);
+
+				/* Some ID's contain semi-datablock nodetree */
+				ntree = ntreeFromID(id);
+				if (ntree != NULL) {
+					ntree->id.flag &= ~(LIB_ID_RECALC | LIB_ID_RECALC_DATA);
+				}
+			}
+		}
+	}
+
+	memset(bmain->id_tag_update, 0, sizeof(bmain->id_tag_update));
 }

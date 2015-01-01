@@ -94,7 +94,7 @@ struct Depsgraph {
 	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
 	typedef unordered_set<SubgraphDepsNode *> Subgraphs;
 	typedef unordered_set<OperationDepsNode *> EntryTags;
-	typedef unordered_set<const ID *> IDTags;
+	typedef unordered_set<ID *> IDTags;
 	typedef vector<OperationDepsNode *> OperationNodes;
 
 	Depsgraph();
@@ -152,7 +152,7 @@ struct Depsgraph {
 	void add_entry_tag(OperationDepsNode *node);
 
 	/* Tag a specific ID as needing updates. */
-	void add_id_tag(const ID *id);
+	void add_id_tag(ID *id);
 
 	/* Clear storage used by all nodes. */
 	void clear_all_nodes();

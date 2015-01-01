@@ -156,4 +156,10 @@ DepsNodeFactory *DEG_get_node_factory(const eDepsNode_Type type);
 /* Get typeinfo for provided node */
 DepsNodeFactory *DEG_node_get_factory(const DepsNode *node);
 
-#endif // __DEPSGRAPH_INTERN_H__
+/* Editors Integration -------------------------------------------------- */
+
+void deg_editors_id_update(struct Main *bmain, struct ID *id);
+
+void deg_editors_scene_update(struct Main *bmain, struct Scene *scene, bool updated);
+
+#endif  /* __DEPSGRAPH_INTERN_H__ */

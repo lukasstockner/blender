@@ -43,6 +43,8 @@ extern "C" {
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
+#include "BKE_main.h"
+
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
 
@@ -199,4 +201,9 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 	
 	/* return copied node */
 	return dst;
+}
+
+bool DEG_id_type_tagged(Main *bmain, short idtype)
+{
+	return bmain->id_tag_update[((char *)&idtype)[0]] != 0;
 }

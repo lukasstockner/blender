@@ -518,10 +518,23 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	deg_graph_flush_node_layers(graph);
 }
 
-/* Tag relations for update. */
+/* Tag graph relations for update. */
 void DEG_graph_tag_relations_update(Depsgraph *graph)
 {
 	graph->need_update = true;
+}
+
+/* Tag all relations for update. */
+void DEG_relations_tag_update(Main *bmain)
+{
+	for (Scene *scene = (Scene *)bmain->scene.first;
+	     scene != NULL;
+	     scene = (Scene *)scene->id.next)
+	{
+		if (scene->depsgraph != NULL) {
+			DEG_graph_tag_relations_update(scene->depsgraph);
+		}
+	}
 }
 
 /* Create new graph if didn't exist yet,
@@ -567,12 +580,28 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 	     it != graph->id_tags.end();
 	     ++it)
 	{
-		const ID *id = *it;
-		DEG_id_tag_update(graph, id);
+		ID *id = *it;
+		DEG_graph_id_tag_update(bmain, graph, id);
 	}
 	graph->id_tags.clear();
 
 	graph->need_update = false;
 }
 
-/* ************************************************* */
+/* Rebuild dependency graph only for a given scene. */
+void DEG_scene_relations_rebuild(Main *bmain, Scene *scene)
+{
+	BLI_assert(graph->entry_tags.size() == NULL);
+	BLI_assert(graph->id_tags.size() == NULL);
+	DEG_graph_free(scene->depsgraph);
+	scene->depsgraph = NULL;
+	DEG_scene_relations_update(bmain, scene);
+}
+
+void DEG_scene_graph_free(Scene *scene)
+{
+	if (scene->depsgraph) {
+		DEG_graph_free(scene->depsgraph);
+		scene->depsgraph = NULL;
+	}
+}

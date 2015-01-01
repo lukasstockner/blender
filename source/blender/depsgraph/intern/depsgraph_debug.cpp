@@ -46,6 +46,7 @@ extern "C" {
 
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph_build.h"
 
 #include "RNA_access.h"
 #include "RNA_types.h"
@@ -899,6 +900,18 @@ bool DEG_debug_compare(const struct Depsgraph *graph1,
 	 * problem..
 	 */
 	return true;
+}
+
+void DEG_debug_scene_relations_validate(Main *bmain,
+                                        Scene *scene)
+{
+	Depsgraph *depsgraph = DEG_graph_new();
+	DEG_graph_build_from_scene(depsgraph, bmain, scene);
+	if (!DEG_debug_compare(depsgraph, scene->depsgraph)) {
+		fprintf(stderr, "ERROR! Depsgraph wasn't tagged for update when it should have!\n");
+		BLI_assert(!"This should not happen!");
+	}
+	DEG_graph_free(depsgraph);
 }
 
 /* ------------------------------------------------ */

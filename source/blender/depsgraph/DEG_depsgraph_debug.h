@@ -90,8 +90,14 @@ void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char 
 
 /* ************************************************ */
 
+/* Compare two dependency graphs. */
 bool DEG_debug_compare(const struct Depsgraph *graph1,
                        const struct Depsgraph *graph2);
+
+/* Check that dependnecies in the graph are really up to date. */
+void DEG_debug_scene_relations_validate(struct Main *bmain,
+                                        struct Scene *scene);
+
 
 #ifdef __cplusplus
 } /* extern "C" */

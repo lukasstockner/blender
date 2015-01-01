@@ -88,9 +88,6 @@ Depsgraph *DEG_graph_new(void);
 /* Free Depsgraph itself and all its data */
 void DEG_graph_free(Depsgraph *graph);
 
-/* Update dependency graph for events when visible scenes/layers changes. */
-void DEG_graph_on_visible_update(struct Main *bmain, Depsgraph *graph);
-
 /* Node Types Registry ---------------------------- */
 
 /* Register all node types */
@@ -102,23 +99,52 @@ void DEG_free_node_types(void);
 /* Update Tagging -------------------------------- */
 
 /* Tag node(s) associated with states such as time and visibility */
-// XXX: what are these for?
 void DEG_scene_update_flags(Depsgraph *graph, const bool do_time);
-void DEG_on_visible_update(Depsgraph *graph, const bool do_time);
+
+/* Update dependency graph when visible scenes/layers changes. */
+void DEG_graph_on_visible_update(struct Main *bmain, Depsgraph *graph);
+
+/* Update all dependency graphs when visible scenes/layers changes. */
+void DEG_on_visible_update(struct Main *bmain, const bool do_time);
 
 /* Tag node(s) associated with changed data for later updates */
-void DEG_id_tag_update(Depsgraph *graph, const struct ID *id);
-void DEG_data_tag_update(Depsgraph *graph, const struct PointerRNA *ptr);
-void DEG_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, const struct PropertyRNA *prop);
+void DEG_graph_id_tag_update(struct Main *bmain,
+                             Depsgraph *graph,
+                             struct ID *id);
+void DEG_graph_data_tag_update(Depsgraph *graph, const struct PointerRNA *ptr);
+void DEG_graph_property_tag_update(Depsgraph *graph, const struct PointerRNA *ptr, const struct PropertyRNA *prop);
+
+/* Tag given ID for an update in all the dependency graphs. */
+void DEG_id_tag_update(struct ID *id, short flag);
+void DEG_id_tag_update_ex(struct Main *bmain,
+                          struct ID *id,
+                          short flag);
+
+/* Tag given ID type for update.
+ *
+ * Used by all sort of render engines to quicly check if
+ * IDs of a given type need to be checked for update.
+ */
+void DEG_id_type_tag(struct Main *bmain, short idtype);
+
+void DEG_ids_clear_recalc(struct Main *bmain);
 
 /* Update Flushing ------------------------------- */
 
 /* Flush updates */
-void DEG_graph_flush_updates(struct EvaluationContext *eval_ctx,
+void DEG_graph_flush_updates(struct Main *bmain,
+                             struct EvaluationContext *eval_ctx,
                              Depsgraph *graph,
                              const int layers);
 
-/* Clear all update tags 
+/* Check if something was changed in the database and inform
+ * editors about this.
+ */
+void DEG_ids_check_recalc(struct Main *bmain,
+                          struct Scene *scene,
+                          bool time);
+
+/* Clear all update tags
  * - For aborted updates, or after successful evaluation
  */
 void DEG_graph_clear_tags(Depsgraph *graph);
@@ -147,6 +173,7 @@ void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);
  * < ctime: (frame) new frame to evaluate values on
  */
 void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
+                                 struct Main *bmain,
                                  Depsgraph *graph,
                                  double ctime,
                                  const int layer);
@@ -156,6 +183,7 @@ void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
  * < layers: visible layers bitmask to update the graph for
  */
 void DEG_evaluate_on_refresh_ex(struct EvaluationContext *eval_ctx,
+                                struct Main *bmain,
                                 Depsgraph *graph,
                                 const int layers);
 
@@ -163,7 +191,23 @@ void DEG_evaluate_on_refresh_ex(struct EvaluationContext *eval_ctx,
  * < context_type: context to perform evaluation for
  */
 void DEG_evaluate_on_refresh(struct EvaluationContext *eval_ctx,
+                             struct Main *bmain,
                              Depsgraph *graph);
+
+/* Editors Integration  -------------------------- */
+
+/* Mechanism to allow editors to be informed of depsgraph updates,
+ * to do their own updates based on changes.
+ */
+
+typedef void (*DEG_EditorUpdateIDCb)(struct Main *bmain, struct ID *id);
+typedef void (*DEG_EditorUpdateSceneCb)(struct Main *bmain,
+                                        struct Scene *scene,
+                                        int updated);
+
+/* Set callbacks which are being called when depsgraph changes. */
+void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func,
+                               DEG_EditorUpdateSceneCb scene_func);
 
 #ifdef __cplusplus
 } /* extern "C" */

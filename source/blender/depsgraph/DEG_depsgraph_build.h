@@ -48,21 +48,26 @@ extern "C" {
 
 /* Graph Building -------------------------------- */
 
-#if 0 /* XXX unused, old API functions */
-/* Rebuild dependency graph only for a given scene */
-void DEG_scene_relations_rebuild(Depsgraph *graph, struct Main *bmain, struct Scene *scene);
-#endif
-
 /* Build depsgraph for the given scene, and dump results in given graph container */
 void DEG_graph_build_from_scene(struct Depsgraph *graph, struct Main *bmain, struct Scene *scene);
 
-/* Tag relations for update. */
+/* Tag relations from the given graph for update. */
 void DEG_graph_tag_relations_update(struct Depsgraph *graph);
+
+/* Tag all relations in the database for update.*/
+void DEG_relations_tag_update(struct Main *bmain);
 
 /* Create new graph if didn't exist yet,
  * or update relations if graph was tagged for update.
  */
 void DEG_scene_relations_update(struct Main *bmain, struct Scene *scene);
+
+/* Rebuild dependency graph only for a given scene. */
+void DEG_scene_relations_rebuild(struct Main *bmain,
+                                 struct Scene *scene);
+
+/* Delete scene graph. */
+void DEG_scene_graph_free(struct Scene *scene);
 
 /* Add Dependencies  ----------------------------- */
 

@@ -275,6 +275,7 @@ static void schedule_children(TaskPool *pool,
  *   called from frame-change update.
  */
 void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
+                                Main *bmain,
                                 Depsgraph *graph,
                                 const int layers)
 {
@@ -293,7 +294,7 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 	/* Recursively push updates out to all nodes dependent on this,
 	 * until all affected are tagged and/or scheduled up for eval
 	 */
-	DEG_graph_flush_updates(eval_ctx, graph, layers);
+	DEG_graph_flush_updates(bmain, eval_ctx, graph, layers);
 
 	calculate_pending_parents(graph);
 
@@ -330,13 +331,15 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 
 /* Evaluate all nodes tagged for updating. */
 void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx,
+                             Main *bmain,
                              Depsgraph *graph)
 {
-	DEG_evaluate_on_refresh_ex(eval_ctx, graph, graph->layers);
+	DEG_evaluate_on_refresh_ex(eval_ctx, bmain, graph, graph->layers);
 }
 
 /* Frame-change happened for root scene that graph belongs to. */
 void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
+                                 Main *bmain,
                                  Depsgraph *graph,
                                  double ctime,
                                  const int layers)
@@ -348,5 +351,5 @@ void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
 	tsrc->tag_update(graph);
 
 	/* Perform recalculation updates. */
-	DEG_evaluate_on_refresh_ex(eval_ctx, graph, layers);
+	DEG_evaluate_on_refresh_ex(eval_ctx, bmain, graph, layers);
 }

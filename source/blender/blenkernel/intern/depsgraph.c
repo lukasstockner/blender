@@ -92,6 +92,7 @@
 #include "DEG_depsgraph.h"
 #include "DEG_depsgraph_build.h"
 #include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph_query.h"
 
 #ifdef WITH_LEGACY_DEPSGRAPH
 
@@ -985,13 +986,6 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	/* cycle detection and solving */
 	// solve_cycles(dag);
 	
-	/********* new depsgraph *********/
-	if (sce->depsgraph == NULL) {
-		sce->depsgraph = DEG_graph_new();
-		DEG_graph_build_from_scene(sce->depsgraph, bmain, sce);
-	}
-	/******************/
-	
 	return dag;
 }
 
@@ -1343,6 +1337,9 @@ void DAG_editors_update_cb(void (*id_func)(Main *bmain, ID *id), void (*scene_fu
 {
 	EditorsUpdateIDCb = id_func;
 	EditorsUpdateSceneCb = scene_func;
+
+	/* New dependency graph. */
+	DEG_editors_set_update_cb(id_func, scene_func);
 }
 
 static void dag_editors_id_update(Main *bmain, ID *id)
@@ -1409,13 +1406,7 @@ static void dag_scene_free(Scene *sce, bool free_new_graph)
 		MEM_freeN(sce->theDag);
 		sce->theDag = NULL;
 	}
-
-	/********* new depsgraph *********/
-	if (sce->depsgraph && free_new_graph) {
-		DEG_graph_free(sce->depsgraph);
-		sce->depsgraph = NULL;
-	}
-	/******************/
+	DEG_scene_graph_free(sce);
 }
 
 /* Chech whether object data needs to be evaluated before it
@@ -1549,13 +1540,6 @@ static void dag_scene_build(Main *bmain, Scene *sce, bool rebuild_new_graph)
 
 	BLI_listbase_clear(&tempbase);
 
-	/********* new depsgraph *********/
-	if (rebuild_new_graph && sce->depsgraph != NULL) {
-		DEG_graph_free(sce->depsgraph);
-		sce->depsgraph = NULL;
-	}
-	/******************/
-
 	build_dag(bmain, sce, DAG_RL_ALL_BUT_DATA);
 	
 	dag_check_cycle(sce->theDag);
@@ -1650,47 +1634,32 @@ void DAG_relations_tag_update(Main *bmain)
 	Scene *sce;
 	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
 		dag_scene_free(sce, false);
-		if (sce->depsgraph != NULL) {
-			DEG_graph_tag_relations_update(sce->depsgraph);
-		}
 	}
+	/* New dependency graph. */
+	DEG_relations_tag_update(bmain);
 }
 
 /* rebuild dependency graph only for a given scene */
 void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 {
-	dag_scene_free(sce, true);
-	DAG_scene_relations_update(bmain, sce);
+	dag_scene_free(sce, false);
+	DEG_scene_relations_update(bmain, sce);
+	/* New dependency graph. */
+	DEG_scene_relations_rebuild(bmain, sce);
 }
 
 /* create dependency graph if it was cleared or didn't exist yet */
 void DAG_scene_relations_update(Main *bmain, Scene *sce)
 {
-	if (sce->depsgraph != NULL) {
-		DEG_scene_relations_update(bmain, sce);
-	}
 	if (!sce->theDag)
 		dag_scene_build(bmain, sce, false);
-}
-
-/* Tag specific ID node for rebuild, keep rest of the graph untouched. */
-void DAG_relations_tag_id_update(Main *bmain, ID *UNUSED(id))
-{
-	/* TODO(sergey): For now we tag the whole graph for rebuild,
-	 * once we'll have partial rebuilds implemented we'll use them.
-	 */
-	DAG_relations_tag_update(bmain);
+	/* New dependency graph. */
+	DEG_scene_relations_update(bmain, sce);
 }
 
 void DAG_scene_relations_validate(Main *bmain, Scene *sce)
 {
-	Depsgraph *depsgraph = DEG_graph_new();
-	DEG_graph_build_from_scene(depsgraph, bmain, sce);
-	if (!DEG_debug_compare(depsgraph, sce->depsgraph)) {
-		fprintf(stderr, "ERROR! Depsgraph wasn't tagged for update when it should have!\n");
-		BLI_assert(!"This should not happen!");
-	}
-	DEG_graph_free(depsgraph);
+	DEG_debug_scene_relations_validate(bmain, sce);
 }
 
 void DAG_scene_free(Scene *sce)
@@ -2372,7 +2341,6 @@ static void dag_group_on_visible_update(Scene *scene, Group *group)
 		if (ELEM(go->ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
 			go->ob->recalc |= OB_RECALC_DATA;
 			go->ob->id.flag |= LIB_DOIT;
-			DEG_id_tag_update(scene->depsgraph, &go->ob->id);
 			lib_id_recalc_tag(G.main, &go->ob->id);
 		}
 		if (go->ob->proxy_from) {
@@ -2420,7 +2388,6 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 				/* TODO(sergey): Why do we need armature here now but didn't need before? */
 				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE, OB_ARMATURE)) {
 					ob->recalc |= OB_RECALC_DATA;
-					DEG_id_tag_update(scene->depsgraph, &ob->id);
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
 				/* This should not be needed here, but in some cases, like after a redo, we can end up with
@@ -2434,7 +2401,6 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 				}
 				if (ob->proxy && (ob->proxy_group == NULL)) {
 					ob->proxy->recalc |= OB_RECALC_DATA;
-					DEG_id_tag_update(scene->depsgraph, &ob->proxy->id);
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
 				if (ob->dup_group)
@@ -2464,14 +2430,7 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 	}
 
 	/* Inform new dependnecy graphs about visibility changes. */
-	{
-		Scene *scene;
-		for (scene = bmain->scene.first; scene != NULL; scene = scene->id.next) {
-			if (scene->depsgraph != NULL) {
-				DEG_graph_on_visible_update(bmain, scene->depsgraph);
-			}
-		}
-	}
+	DEG_on_visible_update(bmain, do_time);
 }
 
 static void dag_id_flush_update__isDependentTexture(void *userData, Object *UNUSED(ob), ID **idpoin)
@@ -2901,15 +2860,7 @@ void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 		}
 	}
 	
-	/* XXX sneaky update for testing new depsgraph */
-	{
-		/* for now Depsgraph is stored in Scene, so just tag all of them ... */
-		Scene *scene;
-		for (scene = G.main->scene.first; scene; scene = scene->id.next) {
-			if (scene->depsgraph)
-				DEG_id_tag_update(scene->depsgraph, id);
-		}
-	}
+	DEG_id_tag_update_ex(bmain, id, flag);
 }
 
 void DAG_id_tag_update(ID *id, short flag)
@@ -3418,16 +3369,6 @@ void DAG_ids_flush_tagged(Main *UNUSED(bmain))
 	BLI_assert(!"Should not be used with new dependnecy graph");
 }
 
-void DAG_ids_clear_recalc(Main *UNUSED(bmain))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-}
-
-void DAG_id_tag_update(ID *id, short flag)
-{
-	DAG_id_tag_update_ex(G.main, id, flag);
-}
-
 /* ******************* DAG FOR ARMATURE POSE ***************** */
 
 void DAG_pose_sort(Object *UNUSED(ob))
@@ -3497,129 +3438,73 @@ void DAG_exit(void)
 
 /* ************************ API *********************** */
 
-/* mechanism to allow editors to be informed of depsgraph updates,
- * to do their own updates based on changes... */
-static void (*EditorsUpdateIDCb)(Main *bmain, ID *id) = NULL;
-static void (*EditorsUpdateSceneCb)(Main *bmain, Scene *scene, int updated) = NULL;
-
-void DAG_editors_update_cb(void (*id_func)(Main *bmain, ID *id), void (*scene_func)(Main *bmain, Scene *scene, int updated))
+void DAG_editors_update_cb(DEG_EditorUpdateIDCb id_func,
+                           DEG_EditorUpdateSceneCb scene_func)
 {
-#pragma message "need to be re-implemented actually"
-	EditorsUpdateIDCb = id_func;
-	EditorsUpdateSceneCb = scene_func;
+	DEG_editors_set_update_cb(id_func, scene_func);
 }
 
 /* Tag all relations for update. */
 void DAG_relations_tag_update(Main *bmain)
 {
-	Scene *scene;
-	for (scene = bmain->scene.first;
-	     scene != NULL;
-	     scene = scene->id.next)
-	{
-		if (scene->depsgraph != NULL) {
-			DEG_graph_tag_relations_update(scene->depsgraph);
-		}
-	}
+	DEG_relations_tag_update(bmain);
 }
 
 /* Rebuild dependency graph only for a given scene. */
 void DAG_scene_relations_rebuild(Main *bmain, Scene *scene)
 {
-	DAG_scene_free(scene);
-	DAG_scene_relations_update(bmain, scene);
+	DEG_scene_relations_rebuild(bmain, scene);
 }
 
 /* Create dependency graph if it was cleared or didn't exist yet. */
-void DAG_scene_relations_update(Main *bmain,
-                                Scene *scene)
+void DAG_scene_relations_update(Main *bmain, Scene *scene)
 {
-	if (scene->depsgraph != NULL) {
-		DEG_scene_relations_update(bmain, scene);
-	}
-	else {
-		scene->depsgraph = DEG_graph_new();
-		DEG_graph_build_from_scene(scene->depsgraph, bmain, scene);
-	}
+	DEG_scene_relations_update(bmain, scene);
 }
 
-/* Tag specific ID node for rebuild, keep rest of the graph untouched. */
-void DAG_relations_tag_id_update(Main *bmain, ID *UNUSED(id))
+void DAG_scene_relations_validate(Main *bmain, Scene *scene)
 {
-	/* TODO(sergey): For now we tag the whole graph for rebuild,
-	 * once we'll have partial rebuilds implemented we'll use them.
-	 */
-	DAG_relations_tag_update(bmain);
-}
-
-void DAG_scene_relations_validate(Main *bmain, Scene *sce)
-{
-	Depsgraph *depsgraph = DEG_graph_new();
-	DEG_graph_build_from_scene(depsgraph, bmain, sce);
-	if (!DEG_debug_compare(depsgraph, sce->depsgraph)) {
-		fprintf(stderr, "ERROR! Depsgraph wasn't tagged for update when it should have!\n");
-		BLI_assert(!"This should not happen!");
-	}
-	DEG_graph_free(depsgraph);
+	DEG_debug_scene_relations_validate(bmain, scene);
 }
 
 void DAG_scene_free(Scene *scene)
 {
-	if (scene->depsgraph) {
-		DEG_graph_free(scene->depsgraph);
-		scene->depsgraph = NULL;
-	}
+	DEG_scene_graph_free(scene);
 }
 
-void DAG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
+void DAG_on_visible_update(Main *bmain, const bool do_time)
 {
-#pragma message "do_time is not currently supported in the new depsgraph"
-	Scene *scene;
-	for (scene = bmain->scene.first; scene != NULL; scene = scene->id.next) {
-		if (scene->depsgraph != NULL) {
-			DEG_graph_on_visible_update(bmain, scene->depsgraph);
-		}
-	}
+	DEG_on_visible_update(bmain, do_time);
 }
 
-void DAG_ids_check_recalc(Main *UNUSED(bmain),
-                          Scene *UNUSED(scene),
-                          bool UNUSED(time))
+void DAG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
 {
-#pragma message "Need to be ported to new depsgraph"
+	DEG_ids_check_recalc(bmain, scene, time);
 }
 
-void DAG_id_tag_update_ex(Main *bmain, ID *id, short UNUSED(flag))
+void DAG_id_tag_update(ID *id, short flag)
 {
-#pragma message "Flag is not currently supported in the new depsgraph"
-	Scene *scene;
-	/* For now Depsgraph is stored in Scene, so just tag all of them ... */
-	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
-		if (scene->depsgraph)
-			DEG_id_tag_update(scene->depsgraph, id);
-	}
+	DEG_id_tag_update_ex(G.main, id, flag);
+}
+
+void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
+{
+	DEG_id_tag_update_ex(bmain, id, flag);
 }
 
 void DAG_id_type_tag(Main *bmain, short idtype)
 {
-#pragma message "Need to be ported to new depsgraph"
-	if (idtype == ID_NT) {
-		/* stupid workaround so parent datablocks of nested nodetree get looped
-		 * over when we loop over tagged datablock types */
-		DAG_id_type_tag(bmain, ID_MA);
-		DAG_id_type_tag(bmain, ID_TE);
-		DAG_id_type_tag(bmain, ID_LA);
-		DAG_id_type_tag(bmain, ID_WO);
-		DAG_id_type_tag(bmain, ID_SCE);
-	}
-
-	bmain->id_tag_update[((char *)&idtype)[0]] = 1;
+	DEG_id_type_tag(bmain, idtype);
 }
 
 int DAG_id_type_tagged(Main *bmain, short idtype)
 {
-#pragma message "Need to be ported to new depsgraph"
-	return bmain->id_tag_update[((char *)&idtype)[0]];
+	return DEG_id_type_tagged(bmain, idtype);
+}
+
+void DAG_ids_clear_recalc(Main *bmain)
+{
+	DEG_ids_clear_recalc(bmain);
 }
 
 /* ************************ DAG DEBUGGING ********************* */

@@ -30,19 +30,7 @@
 
 extern "C" {
 #include "DNA_action_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_windowmanager_types.h"
-
-#include "BKE_depsgraph.h"
-#include "BKE_library.h"
-#include "BKE_main.h"
-
-#include "RNA_access.h"
-
-/* TODO(sergey): because of bloody "new" in the BKE_screen.h. */
-unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 }
 
 #include "depsgraph.h" /* own include */
@@ -50,7 +38,9 @@ unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 #include "depsnode_operation.h"
 #include "depsnode_component.h"
 #include "depsgraph_intern.h"
-#include "depsgraph_debug.h"
+
+static DEG_EditorUpdateIDCb deg_editor_update_id_cb = NULL;
+static DEG_EditorUpdateSceneCb deg_editor_update_scene_cb = NULL;
 
 Depsgraph::Depsgraph()
   : root_node(NULL),
@@ -331,7 +321,7 @@ void Depsgraph::add_entry_tag(OperationDepsNode *node)
 }
 
 /* Tag a specific ID as needing updates. */
-void Depsgraph::add_id_tag(const ID *id)
+void Depsgraph::add_id_tag(ID *id)
 {
 	/* Tagging of actual operations happens in DEG_scene_relations_update(). */
 	this->id_tags.insert(id);
@@ -373,45 +363,24 @@ void DEG_graph_free(Depsgraph *graph)
 	OBJECT_GUARDED_DELETE(graph, Depsgraph);
 }
 
-/* Update dependency graph for events when visible scenes/layers changes. */
-void DEG_graph_on_visible_update(Main *bmain, Depsgraph *graph)
+/* Set callbacks which are being called when depsgraph changes. */
+void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func,
+                               DEG_EditorUpdateSceneCb scene_func)
 {
-	wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
-	int old_layers = graph->layers;
-	if (wm != NULL) {
-		BKE_main_id_flag_listbase(&bmain->scene, LIB_DOIT, true);
-		graph->layers = 0;
-		for (wmWindow *win = (wmWindow *)wm->windows.first;
-		     win != NULL;
-		     win = (wmWindow *)win->next)
-		{
-			Scene *scene = win->screen->scene;
-			if (scene->id.flag & LIB_DOIT) {
-				graph->layers |= BKE_screen_visible_layers(win->screen, scene);
-				scene->id.flag &= ~LIB_DOIT;
-			}
-		}
+	deg_editor_update_id_cb = id_func;
+	deg_editor_update_scene_cb = scene_func;
+}
+
+void deg_editors_id_update(Main *bmain, ID *id)
+{
+	if (deg_editor_update_id_cb != NULL) {
+		deg_editor_update_id_cb(bmain, id);
 	}
-	else {
-		/* All the layers for background render for now. */
-		graph->layers = (1 << 20) - 1;
-	}
-	if (old_layers != graph->layers) {
-		/* Re-tag nodes which became visible. */
-		for (Depsgraph::EntryTags::const_iterator it = graph->invisible_entry_tags.begin();
-		     it != graph->invisible_entry_tags.end();
-		     ++it)
-		{
-			OperationDepsNode *node = *it;
-			/* TODO(sergey): For the simplicity we're trying to re-schedule
-			 * all the nodes, regardless of their layers visibility.
-			 *
-			 * In the future when storage for such flags becomes more permanent
-			 * we'll optimize this out.
-			 */
-			node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
-			graph->add_entry_tag(node);
-		}
-		graph->invisible_entry_tags.clear();
+}
+
+void deg_editors_scene_update(Main *bmain, Scene *scene, bool updated)
+{
+	if (deg_editor_update_scene_cb != NULL) {
+		deg_editor_update_scene_cb(bmain, scene, updated);
 	}
 }
