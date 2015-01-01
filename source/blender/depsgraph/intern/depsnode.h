@@ -139,11 +139,11 @@ struct RootDepsNode : public DepsNode {
 
 /* ID-Block Reference */
 struct IDDepsNode : public DepsNode {
-	struct ComponentKey {
-		ComponentKey(eDepsNode_Type type, const string &name = "")
+	struct ComponentIDKey {
+		ComponentIDKey(eDepsNode_Type type, const string &name = "")
 		    : type(type), name(name) {}
 
-		bool operator== (const ComponentKey &other) const
+		bool operator== (const ComponentIDKey &other) const
 		{
 			return type == other.type && name == other.name;
 		}
@@ -152,19 +152,19 @@ struct IDDepsNode : public DepsNode {
 		string name;
 	};
 
-	/* XXX can't specialize std::hash for this purpose, because ComponentKey is
+	/* XXX can't specialize std::hash for this purpose, because ComponentIDKey is
 	 * a nested type ...
 	 *
 	 *   http://stackoverflow.com/a/951245
 	 */
 	struct component_key_hash {
-		bool operator() (const ComponentKey &key) const
+		bool operator() (const ComponentIDKey &key) const
 		{
 			return hash_combine(hash<int>()(key.type), hash<string>()(key.name));
 		}
 	};
 
-	typedef unordered_map<ComponentKey,
+	typedef unordered_map<ComponentIDKey,
 	                      ComponentDepsNode*,
 	                      component_key_hash> ComponentMap;
 

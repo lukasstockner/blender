@@ -148,7 +148,7 @@ void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 	     ++it)
 	{
 		/* Get current <type : component> mapping. */
-		ComponentKey c_key      = it->first;
+		ComponentIDKey c_key    = it->first;
 		DepsNode *old_component = it->second;
 
 		/* Make a copy of component. */
@@ -164,7 +164,7 @@ void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type,
                                               const string &name) const
 {
-	ComponentKey key(type, name);
+	ComponentIDKey key(type, name);
 	ComponentMap::const_iterator it = components.find(key);
 	return it != components.end() ? it->second : NULL;
 }
@@ -172,7 +172,7 @@ ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type,
 ComponentDepsNode *IDDepsNode::add_component(eDepsNode_Type type,
                                              const string &name)
 {
-	ComponentKey key(type, name);
+	ComponentIDKey key(type, name);
 	ComponentDepsNode *comp_node = find_component(type, name);
 	if (!comp_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(type);
@@ -187,7 +187,7 @@ ComponentDepsNode *IDDepsNode::add_component(eDepsNode_Type type,
 
 void IDDepsNode::remove_component(eDepsNode_Type type, const string &name)
 {
-	ComponentKey key(type, name);
+	ComponentIDKey key(type, name);
 	ComponentDepsNode *comp_node = find_component(type, name);
 	if (comp_node) {
 		/* Unregister. */
