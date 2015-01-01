@@ -248,7 +248,13 @@ typedef struct FileList {
 
 	struct BlendHandle *libfiledata;
 
+	/* Set given path as root directory, may change given string in place to a valid value. */
+	void (*checkdirf)(struct FileList *, char *);
+
+	/* Fill filelist (to be called by read job). */
 	void (*read_jobf)(struct FileList *, const char *, short *, short *, float *, ThreadMutex *);
+
+	/* Filter current filelist. */
 	bool (*filterf)(struct direntry *, const char *, FileListFilter *);
 } FileList;
 
@@ -918,20 +924,43 @@ int filelist_geticon(struct FileList *filelist, const int index)
 
 /* ********** Main ********** */
 
+static void filelist_checkdir_dir(struct FileList *UNUSED(filelist), char *r_dir)
+{
+	BLI_make_exist(r_dir);
+}
+
+static void filelist_checkdir_lib(struct FileList *UNUSED(filelist), char *r_dir)
+{
+	char dir[FILE_MAXDIR];
+	if (!BLO_library_path_explode(r_dir, dir, NULL, NULL)) {
+		/* if not a valid library, we need it to be a valid directory! */
+		BLI_make_exist(r_dir);
+	}
+}
+
+static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
+{
+	/* TODO */
+	filelist_checkdir_lib(filelist, r_dir);
+}
+
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(FileList), "filelist");
 
 	switch (type) {
 		case FILE_MAIN:
+			p->checkdirf = filelist_checkdir_main;
 			p->read_jobf = filelist_readjob_main;
 			p->filterf = is_filtered_main;
 			break;
 		case FILE_LOADLIB:
+			p->checkdirf = filelist_checkdir_lib;
 			p->read_jobf = filelist_readjob_lib;
 			p->filterf = is_filtered_lib;
 			break;
 		default:
+			p->checkdirf = filelist_checkdir_dir;
 			p->read_jobf = filelist_readjob_dir;
 			p->filterf = is_filtered_file;
 			break;
@@ -1021,10 +1050,22 @@ const char *filelist_dir(struct FileList *filelist)
 	return filelist->dir;
 }
 
-void filelist_setdir(struct FileList *filelist, const char *dir)
+/**
+ * May modifies in place given r_dir, which is expected to be FILE_MAX_LIBEXTRA length.
+ */
+void filelist_setdir(struct FileList *filelist, char *r_dir)
 {
-	if (!STREQ(filelist->dir, dir)) {
-		BLI_strncpy(filelist->dir, dir, sizeof(filelist->dir));
+#ifndef NDEBUG
+	size_t len = strlen(r_dir);
+	BLI_assert((len < FILE_MAX_LIBEXTRA - 1) || r_dir[len - 1] == '/');
+#endif
+
+	BLI_cleanup_dir(G.main->name, r_dir);
+	BLI_add_slash(r_dir);
+	filelist->checkdirf(filelist, r_dir);
+
+	if (!STREQ(filelist->dir, r_dir)) {
+		BLI_strncpy(filelist->dir, r_dir, sizeof(filelist->dir));
 		filelist->force_reset = true;
 	}
 }
@@ -1777,14 +1818,10 @@ static void filelist_readjob_dir(
 
 	BLI_mutex_lock(lock);
 
-	BLI_add_slash(filelist->dir);
-
 	BLI_strncpy(dir, filelist->dir, sizeof(dir));
 	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));
 
 	BLI_mutex_unlock(lock);
-
-	BLI_cleanup_dir(main_name, dir);
 
 	filelist_readjob_dir_lib_rec(false, main_name, filelist, &filelist_buffsize, dir, filter_glob, 0,
 	                             stop, do_update, progress, &done_files, lock);
@@ -1802,8 +1839,6 @@ static void filelist_readjob_lib(
 	BLI_assert(filelist->filelist == NULL);
 
 	BLI_mutex_lock(lock);
-
-	BLI_add_slash(filelist->dir);
 
 	BLI_strncpy(dir, filelist->dir, sizeof(dir));
 	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));

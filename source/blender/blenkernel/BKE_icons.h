@@ -48,6 +48,8 @@ typedef struct Icon Icon;
 struct PreviewImage;
 struct ID;
 
+enum eIconSizes;
+
 void BKE_icons_init(int first_dyn_id);
 
 /* return icon id for library object or create new icon if not found */
