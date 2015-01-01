@@ -864,6 +864,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, DEG_OPCODE_POSE_IK_SOLVER);
 	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
 
+	// TODO: pole target?
 	if (data->tar != NULL) {
 		/* TODO(sergey): For until we'll store partial matricies in the depsgraph,
 		 * we create dependency bewteen target object and pose eval component.
@@ -952,6 +953,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 		 * we create dependency bewteen target object and pose eval component.
 		 * See IK pose for a bit more information.
 		 */
+		// TODO: the bigggest point here is that we need the curve PATH and not just the general geometry...
 		ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_GEOMETRY);
 		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
 		add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM,"[Curve.Path -> Spline IK] DepsRel");
@@ -1006,7 +1008,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	// TODO: we need a bit of an exception here to redirect drivers to posebones?
 	build_animdata(&arm->id);
 	
-	/* attach links between base operations */
+	/* attach links between pose operations */
 	OperationKey init_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_INIT);
 	OperationKey flush_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_DONE);
 	
@@ -1017,7 +1019,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		add_relation(animation_key, init_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
 
-	/* bones */
+	/* links between bones in the same component */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		OperationKey bone_local_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
 		OperationKey bone_pose_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT);
@@ -1025,14 +1027,10 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		
 		pchan->flag &= ~POSE_DONE;
 		
-		/* bone parent */
-		if (pchan->parent == NULL) {
-			/* link bone/component to pose "sources" if it doesn't have any obvious dependencies */
-			add_relation(init_key, bone_local_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
-		}
-		else {
-			/* link bone/component to parent bone (see next loop) */
-		}
+		/* pose init to bone local 
+		 * NOTE: although slightly redundant for IK, it is simpler t odo it with this
+		 */
+		add_relation(init_key, bone_local_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 		
 		/* local to pose parenting operation */
 		add_relation(bone_local_key, bone_pose_key, DEPSREL_TYPE_OPERATION, "Bone Local - PoseSpace Link");
@@ -1045,7 +1043,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			add_relation(bone_pose_key, constraints_key, DEPSREL_TYPE_OPERATION, "Constraints Stack");
 		}
 		
-		/* TODO(sergey): Assume for now that pose flush depends on all the pose channels. */
+		/* assume that all bones must be done for the pose to be ready (for deformers) */
 		add_relation(bone_done_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 	}
 	
@@ -1076,27 +1074,38 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		}
 	}
 
+	/* links between different bones - parenting relationships */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
 	     pchan != NULL;
 	     pchan = pchan->next)
 	{
 		/* bone parent */
-		// FIXME: this code is broken
 		if (pchan->parent != NULL) {
+			/* "pose_parent" grabs the operation used for evaluating the parent contribution */
 			OperationKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT);
+			
+			/* check if bone is part of an IK chain and is in the same IK tree as its parent
+			 * NOTE: POSE_DONE is set if the bone is parent of an IK chain
+			 */
 			bool has_common_root = false;
 			if (pchan->flag & POSE_DONE) {
 				has_common_root = pchan_check_common_solver_root(root_map,
 				                                                 pchan->name,
 				                                                 pchan->parent->name);
 			}
+			
+			/* hook up parent to child, accounting for IK tree issues */
 			if (has_common_root) {
+				/* bone is part of same IK tree as parent - we use the last operation before "done" to prevent lockups
+				 * as both bones won't be done until the IK solver runs
+				 */
 				fprintf(stderr, "common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
 				
 				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent); // XXX: does this settle for pre-IK?
 				add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
 			else {
+				/* bone is not in same IK tree as parent - can just directly use parent's "done" */
 				fprintf(stderr, "not common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
 				
 				OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name, DEG_OPCODE_BONE_DONE);
@@ -1104,6 +1113,8 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			}
 		}
 		
+		/* if bone is not part of IK chain, when it's done, it can just be added */
+		// XXX: technically, we don't even need to do this check; the extra rels would be optimised away anyway be the transitive_reduction
 		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
 		if ((pchan->flag & POSE_DONE) == 0) {
 			OperationKey transforms_key = bone_transforms_key(ob, pchan);

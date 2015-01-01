@@ -23,7 +23,7 @@
  *
  * ***** END GPL LICENSE BLOCK *****
  *
- * Methods for constructing depsgraph
+ * Methods for constructing depsgraph's nodes
  */
 
 #include <stdio.h>
