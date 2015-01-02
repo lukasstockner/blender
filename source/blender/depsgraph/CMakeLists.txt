@@ -50,6 +50,7 @@ set(SRC
 	intern/depsgraph_build.cpp
 	intern/depsgraph_build_nodes.cpp
 	intern/depsgraph_build_relations.cpp
+	intern/depsgraph_build_idusers.cpp
 	intern/depsgraph_debug.cpp
 	intern/depsgraph_eval.cpp
 	intern/depsgraph_query.cpp

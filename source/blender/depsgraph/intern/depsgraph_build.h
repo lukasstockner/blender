@@ -276,6 +276,20 @@ private:
 	Depsgraph *m_graph;
 };
 
+struct DepsgraphIDUsersBuilder {
+	DepsgraphIDUsersBuilder(Depsgraph *graph);
+	
+	void add_relation(const ID *from_id, const ID *to_id,
+	                  eDepsRelation_Type type, const string &description);
+	
+	void build_scene(Scene *scene);
+	void build_object(Scene *scene, Object *ob);
+	
+private:
+	Depsgraph *m_graph;
+};
+
+
 struct DepsNodeHandle 
 {
 	DepsNodeHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :

@@ -483,7 +483,36 @@ static void deg_graph_flush_node_layers(Depsgraph *graph)
 	}
 }
 
-/* -------------------------------------------------- */
+/* ************************************************* */
+/* Datablock User Relationships Builder */
+
+DepsgraphIDUsersBuilder::DepsgraphIDUsersBuilder(Depsgraph *graph) :
+    m_graph(graph)
+{
+}
+
+
+void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
+	                                       eDepsRelation_Type type, const string &description)
+{
+	IDDepsNode *node_from = m_graph->find_id_node(from_id);
+	IDDepsNode *node_to = m_graph->find_id_node(to_id);
+	
+	if (node_from && node_to) {
+		m_graph->add_new_relation(node_from, node_to, type, description);
+	}
+	else {
+		fprintf(stderr, "ID Builder add_relation(%s => %s, %s => %s, %d, %s) Failed\n",
+		        (from_id) ? from_id->name : "<No ID>",
+		        (node_from) ? node_from->identifier().c_str() : "<None>",
+		        (to_id) ? to_id->name : "<No ID>",
+		        (node_to)   ? node_to->identifier().c_str() : "<None>",
+		        type, description.c_str());
+	}
+}
+
+/* ************************************************* */
+/* Graph Building API's */
 
 /* Build depsgraph for the given scene, and dump results in given graph container */
 // XXX: assume that this is called from outside, given the current scene as the "main" scene 
@@ -497,6 +526,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	BKE_main_id_tag_idcode(bmain, ID_WO, false);
 	BKE_main_id_tag_idcode(bmain, ID_TE, false);
 	
+	/* 1) Generate all the nodes in the graph first */
 	DepsgraphNodeBuilder node_builder(bmain, graph);
 	/* create root node for scene first
 	 * - this way it should be the first in the graph,
@@ -505,6 +535,14 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	node_builder.add_root_node();
 	node_builder.build_scene(scene);
 	
+	/* 2) Generate relationships between ID nodes and/or components, to make it easier to keep track
+	 *    of which datablocks use which ones (e.g. for checking which objects share the same geometry
+	 *    when we only know the shared datablock)
+	 */
+	DepsgraphIDUsersBuilder users_builder(graph);
+	users_builder.build_scene(scene);
+	
+	/* 3) Hook up relationships between operations - to determine evaluation order */
 	DepsgraphRelationBuilder relation_builder(graph);
 	/* hook scene up to the root node as entrypoint to graph */
 	/* XXX what does this relation actually mean?
@@ -514,7 +552,10 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	relation_builder.build_scene(scene);
 	
 	
+	/* 4) Simplify the graph by removing redundant relations (to optimise traversal later) */
+	// TODO: it would be useful to have an option to disable this in cases where it is causing trouble
 	deg_graph_transitive_reduction(graph);
+	
 	deg_graph_flush_node_layers(graph);
 }
 
