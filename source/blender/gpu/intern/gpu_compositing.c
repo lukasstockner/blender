@@ -520,6 +520,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_unbind(src);
 			GPU_depth_texture_mode(fx->depth_buffer, true, false);
 			GPU_texture_unbind(fx->depth_buffer);
+			GPU_texture_unbind(fx->jitter_buffer);
+			GPU_texture_unbind(fx->ssao_concentric_samples_tex);
 
 			/* may not be attached, in that case this just returns */
 			if (target) {
