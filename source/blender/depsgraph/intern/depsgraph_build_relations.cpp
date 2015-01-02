@@ -1033,14 +1033,8 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 /* Pose/Armature Bones Graph */
 void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 {
-	bArmature *arm = (bArmature *)ob->data;
-	
 	/* Armature-Data */
 	// TODO: selection status?
-	
-	/* animation and/or drivers linking posebones to base-armature used to define them */
-	// TODO: we need a bit of an exception here to redirect drivers to posebones?
-	build_animdata(&arm->id);
 	
 	/* attach links between pose operations */
 	OperationKey init_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_INIT);
