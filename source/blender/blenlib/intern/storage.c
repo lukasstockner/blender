@@ -411,8 +411,12 @@ unsigned int BLI_dir_contents(const char *dirname,  struct direntry **filelist)
 
 /**
  * Deep-duplicate of an array of direntries, including the array itself.
+ *
+ * \param dup_poin If given, called for each non-NULL direntry->poin. Otherwise, pointer is always simply copied over.
  */
-void BLI_duplicate_filelist(struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries)
+void BLI_duplicate_filelist(
+        struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries,
+        void *(*dup_poin)(void *))
 {
 	unsigned int i;
 
@@ -430,7 +434,9 @@ void BLI_duplicate_filelist(struct direntry **dest_filelist, struct direntry *sr
 		if (dest->path) {
 			dest->path = MEM_dupallocN(src->path);
 		}
-		/* entry->poin assumed not needing any handling here. */
+		if (dest->poin && dup_poin) {
+			dest->poin = dup_poin(src->poin);
+		}
 	}
 }
 

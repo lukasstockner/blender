@@ -1907,8 +1907,8 @@ static void filelist_readjob_update(void *flrjv)
 	if (flrj->tmp_filelist->numfiles != flrj->filelist->numfiles) {
 		num_new_entries = flrj->tmp_filelist->numfiles;
 		/* This way we are sure we won't share any mem with background job! */
-		/* Note direntry->poin is not handled here, should not matter though. */
-		BLI_duplicate_filelist(&new_entries, flrj->tmp_filelist->filelist, num_new_entries);
+		/* Note direntry->poin is not handled here, should not matter though currently. */
+		BLI_duplicate_filelist(&new_entries, flrj->tmp_filelist->filelist, num_new_entries, NULL);
 	}
 
 	BLI_mutex_unlock(&flrj->lock);
