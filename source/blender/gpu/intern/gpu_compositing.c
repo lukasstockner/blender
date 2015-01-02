@@ -268,7 +268,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	if (!fx->color_buffer || !fx->depth_buffer || w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]) {
 		cleanup_fx_gl_data(fx, false);
 		
-		if (!(fx->color_buffer = GPU_texture_create_2D(w, h, NULL, err_out))) {
+		if (!(fx->color_buffer = GPU_texture_create_2D(w, h, NULL, GPU_HDR_HALF_FLOAT, err_out))) {
 			printf(".256%s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
 			return false;
@@ -309,17 +309,17 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 				fx->dof_near_w = w / 4;
 				fx->dof_near_h = h / 4;
 
-				if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, GPU_HDR_NONE, err_out))) {
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
 					return false;
 				}
-				if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, GPU_HDR_NONE, err_out))) {
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
 					return false;
 				}
-				if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, err_out))) {
+				if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, GPU_HDR_NONE, err_out))) {
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
 					return false;
@@ -335,7 +335,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	/* we need to pass data between shader stages, allocate an extra color buffer */
 	if (num_passes > 1) {
 		if(!fx->color_buffer_sec) {
-			if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, err_out))) {
+			if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, GPU_HDR_HALF_FLOAT, err_out))) {
 				printf(".256%s\n", err_out);
 				cleanup_fx_gl_data(fx, true);
 				return false;
