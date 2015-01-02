@@ -63,6 +63,21 @@ DepsNode::DepsNode()
 
 DepsNode::~DepsNode()
 {
+	/* free links
+	 * note: deleting relations will remove them from the node relations set,
+	 * but only touch the same position as we are using here, which is safe.
+	 */
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->inlinks, rel)
+	{
+		OBJECT_GUARDED_DELETE(rel, DepsRelation);
+	}
+	DEPSNODE_RELATIONS_ITER_END;
+	
+	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
+	{
+		OBJECT_GUARDED_DELETE(rel, DepsRelation);
+	}
+	DEPSNODE_RELATIONS_ITER_END;
 }
 
 
