@@ -37,12 +37,6 @@ enum DOFMode {
 	DOF_QUALITY_HIGH = 1,
 };
 
-enum SSAOMode {
-	SSAO_QUALITY_LOW = 0,
-	SSAO_QUALITY_MEDIUM = 1,
-	SSAO_QUALITY_HIGH = 2,
-};
-
 /* properties for dof effect */
 typedef struct GPUDOFOptions {
 	float dof_focus_distance; /* focal distance for depth of field */
@@ -59,7 +53,7 @@ typedef struct GPUSSAOOptions {
 	float ssao_color[3];
 	float ssao_distance_max;
 	float ssao_attenuation;
-	int ssao_ray_sample_mode; /* ray samples, we use presets here for easy control instead of */
+	int ssao_num_samples; /* ray samples, we use presets here for easy control instead of */
 	int pad;
 } GPUSSAOOptions;
 

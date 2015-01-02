@@ -3892,13 +3892,6 @@ static void rna_def_gpu_ssao_fx(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem view3d_ssao_sample_items[] = {
-	    {SSAO_QUALITY_LOW, "LOW", 0, "Low Quality", ""},
-	    {SSAO_QUALITY_MEDIUM, "MEDIUM", 0, "Medium Quality", ""},
-	    {SSAO_QUALITY_HIGH, "HIGH", 0, "High Quality", ""},
-	    {0, NULL, 0, NULL, NULL}
-	};
-
 	srna = RNA_def_struct(brna, "GPUSSAOOptions", NULL);
 	RNA_def_struct_ui_text(srna, "GPU SSAO", "Options for GPU based screen space ambient occlusion");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
@@ -3920,9 +3913,9 @@ static void rna_def_gpu_ssao_fx(BlenderRNA *brna)
 	RNA_def_property_ui_range(prop, 1.0f, 100.0f, 1, 3);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
-	prop = RNA_def_property(srna, "ssao_ray_sample_mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Sample mode", "Quality of the SSAO algorithm");
-	RNA_def_property_enum_items(prop, view3d_ssao_sample_items);
+	prop = RNA_def_property(srna, "ssao_num_samples", PROP_INT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Samples", "Number of samples. Final number is squared");
+	RNA_def_property_range(prop, 1, 30); /* 0 is needed for compression. */	
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
 	prop = RNA_def_property(srna, "ssao_color", PROP_FLOAT, PROP_COLOR_GAMMA);

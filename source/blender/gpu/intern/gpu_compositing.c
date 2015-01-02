@@ -53,9 +53,6 @@
 static const float fullscreencos[4][2] = {{-1.0f, -1.0f}, {1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, 1.0f}};
 static const float fullscreenuvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
 
-static float ssao_sample_directions[16][2];
-static bool init = false;
-
 struct GPUFX {
 	/* we borrow the term gbuffer from deferred rendering however this is just a regular 
 	 * depth/color framebuffer. Could be extended later though */
@@ -86,6 +83,10 @@ struct GPUFX {
 
 	/* texture used for jittering for various effects */
 	GPUTexture *jitter_buffer;
+	
+	/* texture used for ssao */
+	int ssao_sample_count;
+	GPUTexture *ssao_concentric_samples_tex;
 
 	/* dimensions of the gbuffer */
 	int gbuffer_dim[2];
@@ -149,6 +150,11 @@ static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 
 	cleanup_fx_dof_buffers(fx);
 
+	if (fx->ssao_concentric_samples_tex) {
+		GPU_texture_free(fx->ssao_concentric_samples_tex);
+		fx->ssao_concentric_samples_tex = NULL;
+	}
+	
 	if (fx->jitter_buffer && do_fbo) {
 		GPU_texture_free(fx->jitter_buffer);
 		fx->jitter_buffer = NULL;
@@ -167,49 +173,52 @@ void GPU_destroy_fx_compositor(GPUFX *fx)
 	MEM_freeN(fx);
 }
 
-static GPUTexture * create_jitter_texture (void)
+static GPUTexture * create_jitter_texture(void)
 {
 	float jitter [64 * 64][2];
 	int i;
 
 	for (i = 0; i < 64 * 64; i++) {
-		jitter[i][0] = BLI_frand();
-		jitter[i][1] = BLI_frand();
+		jitter[i][0] = 2.0f * BLI_frand() - 1.0;
+		jitter[i][1] = 2.0f * BLI_frand() - 1.0;
 		normalize_v2(jitter[i]);
 	}
 
 	return GPU_texture_create_2D_procedural(64, 64, &jitter[0][0], NULL);
 }
 
-static void create_sample_directions(void)
+/* concentric mapping, see*/
+static GPUTexture * create_concentric_sample_texture(int side)
 {
-	int i;
-	float dir[4][2] = {{1.0f, 0.0f},
-	                  {0.0f, 1.0f},
-	                  {-1.0f, 0.0f},
-	                  {0.0f, -1.0f}};
+	GPUTexture *tex;
+	float midpoint = 0.5f * (side - 1);
+	float *texels = MEM_mallocN(sizeof(float) * 2 * side * side, "concentric_tex");
+	int i, j;
 
-	for (i = 0; i < 4; i++) {
-		copy_v2_v2(ssao_sample_directions[i], dir[i]);
+	for (i = 0; i < side; i++) {
+		for (j = 0; j < side; j++) {
+			int index = (i * side + j) * 2;
+			float a = 1.0f - i / midpoint;
+			float b = 1.0f - j / midpoint;
+			float phi, r;
+			if (a * a > b * b) {
+				r = a;
+				phi = (M_PI_4) * (b / a);
+			}
+			else {
+				r = b;
+				phi = M_PI_2 - (M_PI_4) * (a / b);
+			}
+			texels[index] = r * cos(phi);
+			texels[index + 1] = r * sin(phi);
+		}
 	}
 
-	for (i = 0; i < 4; i++) {
-		float mat[2][2];
-		rotate_m2(mat, M_PI/4.0);
-
-		copy_v2_v2(ssao_sample_directions[i + 4], ssao_sample_directions[i]);
-		mul_m2v2(mat, ssao_sample_directions[i + 4]);
-	}
-
-	for (i = 0; i < 8; i++) {
-		float mat[2][2];
-		rotate_m2(mat, M_PI/8.0);
-		copy_v2_v2(ssao_sample_directions[i + 8], ssao_sample_directions[i]);
-		mul_m2v2(mat, ssao_sample_directions[i + 8]);
-	}
-
-	init = true;
+	tex = GPU_texture_create_1D_procedural(side * side, texels, NULL);
+	MEM_freeN(texels);
+	return tex;
 }
+
 
 bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxflags, GPUFXOptions *options)
 {
@@ -228,7 +237,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	if (!options->dof_options  || (options->dof_options->dof_quality_mode == DOF_QUALITY_HIGH)) {
 		fxflags &= ~GPU_FX_DEPTH_OF_FIELD;
 	}
-	if (!options->ssao_options) {
+	if (!options->ssao_options || options->ssao_options->ssao_num_samples < 1) {
 		fxflags &= ~GPU_FX_SSAO;
 	}
 
@@ -269,6 +278,21 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 			printf("%.256s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
 			return false;
+		}
+	}
+	
+	if (fxflags & GPU_FX_SSAO) {
+		if (options->ssao_options->ssao_num_samples != fx->ssao_sample_count || !fx->ssao_concentric_samples_tex) {
+			if (options->ssao_options->ssao_num_samples < 1)
+				options->ssao_options->ssao_num_samples = 1;
+			
+			fx->ssao_sample_count = options->ssao_options->ssao_num_samples;
+			
+			if (fx->ssao_concentric_samples_tex) {
+				GPU_texture_free(fx->ssao_concentric_samples_tex);
+			}
+			
+			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(options->ssao_options->ssao_num_samples);
 		}
 	}
 	
@@ -435,28 +459,11 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPUSSAOOptions *options = fx->options.ssao_options;
 			int color_uniform, depth_uniform;
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
-			int ssao_jitter_uniform, ssao_direction_uniform;
+			int ssao_jitter_uniform, ssao_concentric_tex;
 			float ssao_params[4] = {options->ssao_distance_max, options->ssao_darkening, options->ssao_attenuation, 0.0f};
 			float sample_params[4];
 
-			if (!init)
-				create_sample_directions();
-
-			switch (options->ssao_ray_sample_mode) {
-				case SSAO_QUALITY_LOW:
-					sample_params[0] = 4;
-					sample_params[1] = 4;
-					break;
-				case SSAO_QUALITY_MEDIUM:
-					sample_params[0] = 8;
-					sample_params[1] = 5;
-					break;
-				case SSAO_QUALITY_HIGH:
-					sample_params[0] = 16;
-					sample_params[1] = 10;
-					break;
-			}
-
+			sample_params[0] = fx->ssao_sample_count * fx->ssao_sample_count;
 			/* multiplier so we tile the random texture on screen */
 			sample_params[2] = fx->gbuffer_dim[0] / 64.0;
 			sample_params[3] = fx->gbuffer_dim[1] / 64.0;
@@ -467,8 +474,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			depth_uniform = GPU_shader_get_uniform(ssao_shader, "depthbuffer");
 			viewvecs_uniform = GPU_shader_get_uniform(ssao_shader, "viewvecs");
 			ssao_sample_params_uniform = GPU_shader_get_uniform(ssao_shader, "ssao_sample_params");
+			ssao_concentric_tex = GPU_shader_get_uniform(ssao_shader, "ssao_concentric_tex");
 			ssao_jitter_uniform = GPU_shader_get_uniform(ssao_shader, "jitter_tex");
-			ssao_direction_uniform = GPU_shader_get_uniform(ssao_shader, "sample_directions");
 
 			GPU_shader_bind(ssao_shader);
 
@@ -476,7 +483,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_vector(ssao_shader, ssao_color_uniform, 4, 1, options->ssao_color);
 			GPU_shader_uniform_vector(ssao_shader, viewvecs_uniform, 4, 3, viewvecs[0]);
 			GPU_shader_uniform_vector(ssao_shader, ssao_sample_params_uniform, 4, 1, sample_params);
-			GPU_shader_uniform_vector(ssao_shader, ssao_direction_uniform, 2, 16, ssao_sample_directions[0]);
 
 			GPU_texture_bind(src, numslots++);
 			GPU_shader_uniform_texture(ssao_shader, color_uniform, src);
@@ -488,6 +494,9 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_bind(fx->jitter_buffer, numslots++);
 			GPU_shader_uniform_texture(ssao_shader, ssao_jitter_uniform, fx->jitter_buffer);
 
+			GPU_texture_bind(fx->ssao_concentric_samples_tex, numslots++);
+			GPU_shader_uniform_texture(ssao_shader, ssao_concentric_tex, fx->ssao_concentric_samples_tex);
+			
 			/* set invalid color in case shader fails */
 			glColor3f(1.0, 0.0, 1.0);
 
