@@ -97,7 +97,15 @@ extern "C" {
 #include "depsgraph_intern.h"
 
 /* ******************************************** */
-/* ID User Builder */
+/* ID User Builder
+ *
+ * This builder creates links between ID datablocks to
+ * say that datablock B "uses" datablock A.
+ *
+ * NOTE: This ordering is the *opposite* of the way
+ *       we typically think of hierarchical relationships.
+ *       For example, "ob.data" becomes "obdata -> object"
+ */
 
 void DepsgraphIDUsersBuilder::build_scene(Scene *scene)
 {
@@ -129,8 +137,8 @@ void DepsgraphIDUsersBuilder::build_object(Scene *scene, Object *ob)
 {
 	ID *ob_id = &ob->id;
 	
-	/* scene -> object */
-	add_relation(&scene->id, ob_id, DEPSREL_TYPE_DATABLOCK, "Scene Object"); 
+	/* object -> scene */
+	add_relation(ob_id, &scene->id, DEPSREL_TYPE_DATABLOCK, "Scene Object");
 	
 	/* object animation */
 	//build_animdata(&ob->id);
@@ -139,8 +147,8 @@ void DepsgraphIDUsersBuilder::build_object(Scene *scene, Object *ob)
 	if (ob->data) {
 		ID *obdata_id = (ID *)ob->data;
 		
-		/* object -> obdata */
-		add_relation(ob_id, obdata_id, DEPSREL_TYPE_DATABLOCK, "Object Data");
+		/* obdata -> object */
+		add_relation(obdata_id, ob_id, DEPSREL_TYPE_DATABLOCK, "Object Data");
 		
 		/* ob data animation */
 		//build_animdata(obdata_id);
