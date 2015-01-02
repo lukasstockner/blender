@@ -125,8 +125,7 @@ static void updateDepsgraph(ModifierData *md,
                             Object *UNUSED(ob),
                             struct DepsNodeHandle *node)
 {
-	HookModifierData *hmd = (HookModifierData *) md;
-
+	HookModifierData *hmd = (HookModifierData *)md;
 	if (hmd->object != NULL) {
 		if (hmd->subtarget[0])
 			/* TODO(sergey): Hpw do we add relation to bone here? */

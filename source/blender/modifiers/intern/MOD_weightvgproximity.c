@@ -46,6 +46,8 @@
 #include "BKE_texture.h"          /* Texture masking. */
 
 #include "depsgraph_private.h"
+#include "DEG_depsgraph_build.h"
+
 #include "MEM_guardedalloc.h"
 #include "MOD_weightvg_util.h"
 
@@ -336,6 +338,23 @@ static void updateDepgraph(ModifierData *md, DagForest *forest, struct Scene *UN
 		                 "WeightVGProximity Modifier");
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *ob,
+                            struct DepsNodeHandle *node)
+{
+	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *)md;
+	if (wmd->proximity_ob_target != NULL) {
+		DEG_add_object_relation(node, wmd->proximity_ob_target, DEG_OB_COMP_TRANSFORM, "WeightVGProximity Modifier");
+	}
+	if (wmd->mask_tex_map_obj != NULL && wmd->mask_tex_mapping == MOD_DISP_MAP_OBJECT) {
+		DEG_add_object_relation(node, wmd->mask_tex_map_obj, DEG_OB_COMP_TRANSFORM, "WeightVGProximity Modifier");
+	}
+	if (wmd->mask_tex_mapping == MOD_DISP_MAP_GLOBAL) {
+		DEG_add_object_relation(node, ob, DEG_OB_COMP_TRANSFORM, "WeightVGProximity Modifier");
+	}
+}
+
 static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 {
 	WeightVGProximityModifierData *wmd = (WeightVGProximityModifierData *) md;
@@ -564,7 +583,7 @@ ModifierTypeInfo modifierType_WeightVGProximity = {
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ foreachObjectLink,

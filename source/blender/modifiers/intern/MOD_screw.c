@@ -46,6 +46,8 @@
 #include "BKE_cdderivedmesh.h"
 
 #include "depsgraph_private.h"
+#include "DEG_depsgraph_build.h"
+
 #include "MOD_modifiertypes.h"
 #include "MEM_guardedalloc.h"
 
@@ -1073,6 +1075,17 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	ScrewModifierData *ltmd = (ScrewModifierData *)md;
+	if (ltmd->ob_axis != NULL) {
+		DEG_add_object_relation(node, ltmd->ob_axis, DEG_OB_COMP_TRANSFORM, "Screw Modifier");
+	}
+}
+
 static void foreachObjectLink(
         ModifierData *md, Object *ob,
         void (*walk)(void *userData, Object *ob, Object **obpoin),
@@ -1106,7 +1119,7 @@ ModifierTypeInfo modifierType_Screw = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

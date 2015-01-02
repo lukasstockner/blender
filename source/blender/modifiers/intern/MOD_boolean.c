@@ -93,8 +93,7 @@ static void updateDepsgraph(ModifierData *md,
                             Object *ob,
                             struct DepsNodeHandle *node)
 {
-	BooleanModifierData *bmd = (BooleanModifierData *) md;
-
+	BooleanModifierData *bmd = (BooleanModifierData *)md;
 	if (bmd->object != NULL) {
 		DEG_add_object_relation(node, bmd->object, DEG_OB_COMP_TRANSFORM, "Boolean Modifier");
 		DEG_add_object_relation(node, bmd->object, DEG_OB_COMP_GEOMETRY, "Boolean Modifier");

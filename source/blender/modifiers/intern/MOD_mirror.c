@@ -43,7 +43,9 @@
 #include "BKE_deform.h"
 
 #include "MEM_guardedalloc.h"
+
 #include "depsgraph_private.h"
+#include "DEG_depsgraph_build.h"
 
 static void initData(ModifierData *md)
 {
@@ -84,6 +86,17 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 
 		dag_add_relation(forest, latNode, obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA, "Mirror Modifier");
+	}
+}
+
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	MirrorModifierData *mmd = (MirrorModifierData *)md;
+	if (mmd->mirror_ob != NULL) {
+		DEG_add_object_relation(node, mmd->mirror_ob, DEG_OB_COMP_TRANSFORM, "Mirror Modifier");
 	}
 }
 
@@ -360,7 +373,7 @@ ModifierTypeInfo modifierType_Mirror = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

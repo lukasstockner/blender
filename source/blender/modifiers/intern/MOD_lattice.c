@@ -111,7 +111,7 @@ static void updateDepsgraph(ModifierData *md,
                             Object *UNUSED(ob),
                             struct DepsNodeHandle *node)
 {
-	LatticeModifierData *lmd = (LatticeModifierData *) md;
+	LatticeModifierData *lmd = (LatticeModifierData *)md;
 	if (lmd->object != NULL) {
 		DEG_add_object_relation(node, lmd->object, DEG_OB_COMP_GEOMETRY, "Lattice Modifier");
 	}

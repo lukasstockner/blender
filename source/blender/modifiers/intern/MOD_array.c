@@ -133,6 +133,29 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	ArrayModifierData *amd = (ArrayModifierData *)md;
+	if (amd->start_cap != NULL) {
+		DEG_add_object_relation(node, amd->start_cap, DEG_OB_COMP_TRANSFORM, "Hook Modifier Start Cap");
+	}
+	if (amd->end_cap != NULL) {
+		DEG_add_object_relation(node, amd->end_cap, DEG_OB_COMP_TRANSFORM, "Hook Modifier End Cap");
+	}
+	if (amd->curve_ob) {
+		/* TODO(sergey): Need to do the same eval_flags trick for path
+		 * as happening in legacy depsgraph callback.
+		 */
+		DEG_add_object_relation(node, amd->end_cap, DEG_OB_COMP_GEOMETRY, "Hook Modifier Curve");
+	}
+	if (amd->offset_ob != NULL) {
+		DEG_add_object_relation(node, amd->offset_ob, DEG_OB_COMP_TRANSFORM, "Hook Modifier Offset");
+	}
+}
+
 static float vertarray_size(const MVert *mvert, int numVerts, int axis)
 {
 	int i;
@@ -769,7 +792,7 @@ ModifierTypeInfo modifierType_Array = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

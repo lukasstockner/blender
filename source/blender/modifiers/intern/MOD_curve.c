@@ -45,6 +45,7 @@
 #include "BKE_modifier.h"
 
 #include "depsgraph_private.h"
+#include "DEG_depsgraph_build.h"
 
 
 static void initData(ModifierData *md)
@@ -107,6 +108,23 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	CurveModifierData *cmd = (CurveModifierData *)md;
+	if (cmd->object != NULL) {
+		/* TODO(sergey): Need to do the same eval_flags trick for path
+		 * as happening in legacy depsgraph callback.
+		 */
+		/* TODO(sergey): Currently path is evaluated as a part of modifier stack,
+		 * might be changed in the future.
+		 */
+		DEG_add_object_relation(node, cmd->object, DEG_OB_COMP_GEOMETRY, "Curve Modifier");
+	}
+}
+
 static void deformVerts(ModifierData *md, Object *ob,
                         DerivedMesh *derivedData,
                         float (*vertexCos)[3],
@@ -155,7 +173,7 @@ ModifierTypeInfo modifierType_Curve = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  NULL,
 	/* foreachObjectLink */ foreachObjectLink,

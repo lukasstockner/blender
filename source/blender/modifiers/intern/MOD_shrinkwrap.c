@@ -161,14 +161,12 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 static void updateDepsgraph(ModifierData *md, struct Scene *UNUSED(scene), Object *UNUSED(ob),
                             struct DepsNodeHandle *node)
 {
-	ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *) md;
-
-	if (smd->target) {
+	ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;
+	if (smd->target != NULL) {
 		DEG_add_object_relation(node, smd->target, DEG_OB_COMP_TRANSFORM, "Shrinkwrap Modifier");
 		DEG_add_object_relation(node, smd->target, DEG_OB_COMP_GEOMETRY, "Shrinkwrap Modifier");
 	}
-
-	if (smd->auxTarget) {
+	if (smd->auxTarget != NULL) {
 		DEG_add_object_relation(node, smd->auxTarget, DEG_OB_COMP_TRANSFORM, "Shrinkwrap Modifier");
 		DEG_add_object_relation(node, smd->auxTarget, DEG_OB_COMP_GEOMETRY, "Shrinkwrap Modifier");
 	}

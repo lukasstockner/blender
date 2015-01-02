@@ -44,6 +44,7 @@
 #include "BKE_modifier.h"
 
 #include "depsgraph_private.h"
+#include "DEG_depsgraph_build.h"
 
 #include "MOD_fluidsim_util.h"
 #include "MEM_guardedalloc.h"
@@ -122,6 +123,31 @@ static void updateDepgraph(
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *scene,
+                            Object *ob,
+                            struct DepsNodeHandle *node)
+{
+	FluidsimModifierData *fluidmd = (FluidsimModifierData *) md;
+	if (fluidmd && fluidmd->fss) {
+		if (fluidmd->fss->type == OB_FLUIDSIM_DOMAIN) {
+			Base *base;
+			for (base = scene->base.first; base; base = base->next) {
+				Object *ob1 = base->object;
+				if (ob1 != ob) {
+					FluidsimModifierData *fluidmdtmp =
+					        (FluidsimModifierData *)modifiers_findByType(ob1, eModifierType_Fluidsim);
+
+					/* Only put dependencies from NON-DOMAIN fluids in here. */
+					if (fluidmdtmp && fluidmdtmp->fss && (fluidmdtmp->fss->type != OB_FLUIDSIM_DOMAIN)) {
+						DEG_add_object_relation(node, ob1, DEG_OB_COMP_TRANSFORM, "Fluidsim Object");
+					}
+				}
+			}
+		}
+	}
+}
+
 static bool dependsOnTime(ModifierData *UNUSED(md))
 {
 	return true;
@@ -150,7 +176,7 @@ ModifierTypeInfo modifierType_Fluidsim = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
-	/* updateDepsgraph */   NULL,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,
