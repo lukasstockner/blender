@@ -898,7 +898,8 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, DEG_OPCODE_POSE_IK_SOLVER);
 	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
 
-	// TODO: pole target?
+	/* IK target */
+	// XXX: this should get handled as part of the constraint code
 	if (data->tar != NULL) {
 		/* TODO(sergey): For until we'll store partial matricies in the depsgraph,
 		 * we create dependency bewteen target object and pose eval component.
@@ -926,6 +927,20 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	}
 	root_map_add_bone(pchan->name, rootchan->name, root_map);
 
+	/* Pole Target */
+	// XXX: this should get handled as part of the constraint code
+	if (data->poletar != NULL) {
+		if ((data->tar->type == OB_ARMATURE) && (data->subtarget[0])) {
+			ComponentKey target_key(&data->poletar->id, DEPSNODE_TYPE_BONE, data->subtarget);
+			add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
+		}
+		else {
+			ComponentKey target_key(&data->poletar->id, DEPSNODE_TYPE_TRANSFORM);
+			add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
+		}
+	}
+	
+	
 	bPoseChannel *parchan = pchan;
 	/* exclude tip from chain? */
 	if (!(data->flag & CONSTRAINT_IK_TIP))
