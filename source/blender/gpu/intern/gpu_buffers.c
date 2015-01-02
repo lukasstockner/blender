@@ -1573,7 +1573,7 @@ static void gpu_color_from_mask_quad_set(const CCGKey *key,
 }
 
 void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
-                             int *vert_indices, int totvert, const float *vmask,
+                             int *vert_indices, int totvert, const float *vmask, const int *lcol,
                              int (*face_vert_indices)[4], bool show_diffuse_color)
 {
 	VertexBufferFormat *vert_data;
@@ -1623,7 +1623,11 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 					VertexBufferFormat *out = vert_data + face_vert_indices[face][index]; \
 					if (vmask) \
 						gpu_color_from_mask_copy(vmask[vertex], diffuse_color, out->color); \
-					else \
+					else if (lcol) { \
+						char *lc = (char *)(lcol + vertex); \
+						copy_v3_v3_char((char *)out->color, lc); \
+						printf("updating vcol\n"); \
+					} else \
 						rgb_float_to_uchar(out->color, diffuse_color); \
 				} (void)0
 
@@ -1688,9 +1692,13 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 
 							if (vmask)
 								gpu_color_from_mask_copy(fmask, diffuse_color, out->color);
-							else
+							if (lcol) {
+								char *lc = (char *)(lcol + fv[vi[j][k]]);
+								copy_v3_v3_char((char *)out->color, lc);
+								printf("updating vcol\n");
+							} else
 								rgb_float_to_uchar(out->color, diffuse_color);
-
+							
 							vert_data++;
 						}
 					}
@@ -1713,7 +1721,7 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(int (*face_vert_indices)[4],
                                     MFace *mface, MVert *mvert,
                                     int *face_indices,
-                                    int totface)
+                                    int totface, bool no_indexed)
 {
 	GPU_PBVH_Buffers *buffers;
 	unsigned short *tri_data;
@@ -1721,7 +1729,7 @@ GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(int (*face_vert_indices)[4],
 
 	buffers = MEM_callocN(sizeof(GPU_PBVH_Buffers), "GPU_Buffers");
 	buffers->index_type = GL_UNSIGNED_SHORT;
-	buffers->smooth = mface[face_indices[0]].flag & ME_SMOOTH;
+	buffers->smooth = (mface[face_indices[0]].flag & ME_SMOOTH) && !no_indexed;
 
 	buffers->show_diffuse_color = false;
 	buffers->use_matcaps = false;

@@ -307,7 +307,7 @@ static PBVH *cdDM_getPBVH(Object *ob, DerivedMesh *dm)
 		BKE_mesh_tessface_ensure(me);
 		
 		BKE_pbvh_build_mesh(cddm->pbvh, me->mface, me->mvert,
-		                    me->totface, me->totvert, &me->vdata);
+		                    me->totface, me->totvert, &me->vdata, &me->ldata);
 
 		if (ss) {
 			pbvh_show_diffuse_color_set(cddm->pbvh, ss->show_diffuse_color);

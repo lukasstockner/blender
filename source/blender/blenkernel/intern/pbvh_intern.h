@@ -116,11 +116,18 @@ typedef enum {
 	PBVH_DYNTOPO_SMOOTH_SHADING = 1
 } PBVHFlags;
 
+/* don't use indexed drawing even if smooth shaded because we need to sample per face face data */
+typedef enum {
+	PBVH_DRAW_NO_INDEXED = 1
+} PBVHDraw;
+
 typedef struct PBVHBMeshLog PBVHBMeshLog;
+typedef enum PBVHType PBVHType;
 
 struct PBVH {
 	PBVHType type;
 	PBVHFlags flags;
+	PBVHDraw drawtype;
 
 	PBVHNode *nodes;
 	int node_mem_count, totnode;
@@ -135,6 +142,7 @@ struct PBVH {
 	MVert *verts;
 	MFace *faces;
 	CustomData *vdata;
+	CustomData *ldata;
 
 	/* Grid Data */
 	CCGKey gridkey;

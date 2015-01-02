@@ -3389,10 +3389,11 @@ static struct PBVH *ccgDM_getPBVH(Object *ob, DerivedMesh *dm)
 	}
 	else if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
+		void *ldata = (ob->mode & OB_MODE_VERTEX_PAINT) ? &me->ldata : NULL;
 		ob->paint->pbvh = ccgdm->pbvh = BKE_pbvh_new();
 		BLI_assert(!(me->mface == NULL && me->mpoly != NULL)); /* BMESH ONLY complain if mpoly is valid but not mface */
 		BKE_pbvh_build_mesh(ccgdm->pbvh, me->mface, me->mvert,
-		                    me->totface, me->totvert, &me->vdata);
+		                    me->totface, me->totvert, &me->vdata, ldata);
 	}
 
 	if (ccgdm->pbvh && ob->paint->sculpt)

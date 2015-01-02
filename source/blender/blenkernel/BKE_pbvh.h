@@ -62,7 +62,7 @@ typedef void (*BKE_pbvh_HitOccludedCallback)(PBVHNode *node, void *data, float *
 
 PBVH *BKE_pbvh_new(void);
 void BKE_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
-                         int totface, int totvert, struct CustomData *vdata);
+                         int totface, int totvert, struct CustomData *vdata, struct CustomData *ldata);
 void BKE_pbvh_build_grids(PBVH *bvh, struct CCGElem **grid_elems,
                           struct DMGridAdjacency *gridadj, int totgrid,
                           struct CCGKey *key, void **gridfaces, struct DMFlagMat *flagmats,
@@ -115,7 +115,7 @@ void BKE_pbvh_draw(PBVH *bvh, float (*planes)[4], float (*face_nors)[3],
                    int (*setMaterial)(int matnr, void *attribs), bool wireframe);
 
 /* PBVH Access */
-typedef enum {
+typedef enum PBVHType {
 	PBVH_FACES,
 	PBVH_GRIDS,
 	PBVH_BMESH

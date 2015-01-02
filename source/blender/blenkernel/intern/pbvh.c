@@ -538,7 +538,7 @@ static void pbvh_build(PBVH *bvh, BB *cb, BBC *prim_bbc, int totprim)
 }
 
 /* Do a full rebuild with on Mesh data structure */
-void BKE_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, int totface, int totvert, struct CustomData *vdata)
+void BKE_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, int totface, int totvert, struct CustomData *vdata, CustomData *ldata)
 {
 	BBC *prim_bbc = NULL;
 	BB cb;
@@ -551,7 +551,11 @@ void BKE_pbvh_build_mesh(PBVH *bvh, MFace *faces, MVert *verts, int totface, int
 	bvh->totvert = totvert;
 	bvh->leaf_limit = LEAF_LIMIT;
 	bvh->vdata = vdata;
-
+	bvh->ldata = ldata;
+	
+	if (bvh->ldata) {
+		bvh->drawtype |= PBVH_DRAW_NO_INDEXED;
+	}
 	BB_reset(&cb);
 
 	/* For each face, store the AABB and the AABB centroid */
@@ -1095,7 +1099,7 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode)
 						GPU_build_mesh_pbvh_buffers(node->face_vert_indices,
 					                           bvh->faces, bvh->verts,
 					                           node->prim_indices,
-					                           node->totprim);
+					                           node->totprim, (bvh->drawtype & PBVH_DRAW_NO_INDEXED) != 0);
 					break;
 				case PBVH_BMESH:
 					node->draw_buffers =
@@ -1126,6 +1130,8 @@ static void pbvh_update_draw_buffers(PBVH *bvh, PBVHNode **nodes, int totnode)
 					                        node->face_verts,
 					                        CustomData_get_layer(bvh->vdata,
 					                                             CD_PAINT_MASK),
+					                        CustomData_get_layer(bvh->ldata,
+						                                         CD_MLOOPCOL),
 					                        node->face_vert_indices,
 					                        bvh->show_diffuse_color);
 					break;
