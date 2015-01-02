@@ -334,9 +334,14 @@ static int node_add_file_exec(bContext *C, wmOperator *op)
 	}
 	
 	node->id = (ID *)ima;
-	
-	BKE_image_signal(ima, NULL, IMA_SIGNAL_RELOAD);
-	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+
+	/* When adding new image file via drag-drop we need to load imbuf in order
+	 * to get proper image source.
+	 */
+	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
+		BKE_image_signal(ima, NULL, IMA_SIGNAL_RELOAD);
+		WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
+	}
 
 	snode_notify(C, snode);
 	snode_dag_update(C, snode);
@@ -448,8 +453,8 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
 	PointerRNA ptr, idptr;
 	PropertyRNA *prop;
 	const char *idname;
-	char _treename[MAX_ID_NAME - 2];
-	char *treename = _treename;
+	char treename_buf[MAX_ID_NAME - 2];
+	const char *treename;
 	
 	if (RNA_struct_property_is_set(op->ptr, "type")) {
 		prop = RNA_struct_find_property(op->ptr, "type");
@@ -461,10 +466,11 @@ static int new_node_tree_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	
 	if (RNA_struct_property_is_set(op->ptr, "name")) {
-		RNA_string_get(op->ptr, "name", treename);
+		RNA_string_get(op->ptr, "name", treename_buf);
+		treename = treename_buf;
 	}
 	else {
-		treename = (char *)DATA_("NodeTree");
+		treename = DATA_("NodeTree");
 	}
 	
 	if (!ntreeTypeFind(idname)) {

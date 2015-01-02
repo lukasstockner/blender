@@ -187,7 +187,7 @@ typedef struct ProjPaintImage {
 	ImagePaintPartialRedraw *partRedrawRect;
 	volatile void **undoRect; /* only used to build undo tiles during painting */
 	unsigned short **maskRect; /* the mask accumulation must happen on canvas, not on space screen bucket.
-	                  * Here we store the mask rectangle */
+	                            * Here we store the mask rectangle */
 	bool **valid; /* store flag to enforce validation of undo rectangle */
 	int touch;
 } ProjPaintImage;
@@ -2496,10 +2496,10 @@ static void project_paint_face_init(const ProjPaintState *ps, const int thread_i
 				CLAMP(bounds_px.ymax, 0, ibuf->y);
 			}
 
-			/*
+#if 0
 			project_paint_undo_tiles_init(&bounds_px, ps->projImages + image_index, tmpibuf,
 			                              tile_width, threaded, ps->do_masking);
-			*/
+#endif
 			/* clip face and */
 
 			has_isect = 0;
@@ -4286,7 +4286,7 @@ static void *do_projectpaint_thread(void *ph_v)
 				if (dist_sq <= brush_radius_sq) {
 					dist = sqrtf(dist_sq);
 
-					falloff = BKE_brush_curve_strength_clamp(ps->brush, dist, brush_radius);
+					falloff = BKE_brush_curve_strength(ps->brush, dist, brush_radius);
 
 					if (falloff > 0.0f) {
 						float texrgb[3];
@@ -4521,7 +4521,34 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
 			touch_any = 1;
 		}
 	}
+	
+	/* calculate pivot for rotation around seletion if needed */
+	if (U.uiflag & USER_ORBIT_SELECTION) {
+		float w[3];
+		int side, index;
+		
+		index = project_paint_PickFace(ps, pos, w, &side);
+		
+		if (index != -1) {
+			MFace *mf;
+			float world[3];
+			UnifiedPaintSettings *ups = &ps->scene->toolsettings->unified_paint_settings;
 
+			mf = ps->dm_mface + index;
+
+			if (side == 0) {
+				interp_v3_v3v3v3(world, ps->dm_mvert[(*(&mf->v1))].co, ps->dm_mvert[(*(&mf->v2))].co, ps->dm_mvert[(*(&mf->v3))].co, w);
+			}
+			else {
+				interp_v3_v3v3v3(world, ps->dm_mvert[(*(&mf->v1))].co, ps->dm_mvert[(*(&mf->v3))].co, ps->dm_mvert[(*(&mf->v4))].co, w);
+			}
+			
+			ups->average_stroke_counter++;
+			add_v3_v3(ups->average_stroke_accum, world);
+			ups->last_stroke_valid = true;
+		}
+	}
+	
 	return touch_any;
 }
 
