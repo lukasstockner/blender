@@ -217,10 +217,8 @@ void IDDepsNode::tag_update(Depsgraph *graph)
 		ComponentDepsNode *comp_node = it->second;
 		/* Animation component should only be tagged for update by the time
 		 * updates or by tagging the animation itself.
-		 *
-		 * TODO(sergey): Make it faster than stupid string comparison.
 		 */
-		if (comp_node->name != "Animation Component") {
+		if (comp_node->type != DEPSNODE_TYPE_ANIMATION) {
 			comp_node->tag_update(graph);
 		}
 	}
