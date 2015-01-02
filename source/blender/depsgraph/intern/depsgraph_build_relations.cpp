@@ -598,6 +598,40 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 			printf("Couldn't find bone name for driver path - '%s'\n", fcu->rna_path);
 		}
 	}
+	else if (GS(id->name) == ID_AR && strstr(fcu->rna_path, "bones[")) {
+		/* drivers on armature-level bone settings (i.e. bbone stuff),
+		 * which will affect the evaluation of corresponding pose bones
+		 */
+		IDDepsNode *arm_node = m_graph->find_id_node(id);
+		char *bone_name = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
+		
+		if (arm_node && bone_name) {
+			/* find objects which use this, and make their eval callbacks depend on this */
+			DEPSNODE_RELATIONS_ITER_BEGIN(arm_node->outlinks, rel)
+			{
+				IDDepsNode *to_node = (IDDepsNode *)rel->to;
+				
+				/* we only care about objects with pose data which use this... */
+				if (GS(to_node->id->name) == ID_OB) {
+					Object *ob = (Object *)to_node->id;
+					bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, bone_name); // NOTE: ob->pose may be NULL
+					
+					if (pchan) {
+						OperationKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
+						add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Arm Bone -> Driver -> Bone]");
+					}
+				}
+			}
+			DEPSNODE_RELATIONS_ITER_END;
+			
+			/* free temp data */
+			MEM_freeN(bone_name);
+			bone_name = NULL;
+		}
+		else {
+			printf("Couldn't find armature bone name for driver path - '%s'\n", fcu->rna_path);
+		}
+	}
 	else if (GS(id->name) == ID_OB && strstr(fcu->rna_path, "modifiers[")) {
 		/* modifier driver - connect directly to the modifier */
 		char *modifier_name = BLI_str_quoted_substrN(fcu->rna_path, "modifiers[");
