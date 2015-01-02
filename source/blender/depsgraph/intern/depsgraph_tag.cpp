@@ -150,9 +150,11 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 		if (scene->depsgraph) {
 			if (flag & OB_RECALC_DATA && GS(id->name) == ID_OB) {
 				Object *object = (Object*)id;
-				DEG_graph_id_tag_update(bmain,
-				                        scene->depsgraph,
-				                        (ID*)object->data);
+				if (object->data != NULL) {
+					DEG_graph_id_tag_update(bmain,
+					                        scene->depsgraph,
+					                        (ID*)object->data);
+				}
 			}
 			DEG_graph_id_tag_update(bmain, scene->depsgraph, id);
 		}
@@ -175,7 +177,7 @@ void DEG_id_type_tag(Main *bmain, short idtype)
 	/* We tag based on first ID type character to avoid
 	 * looping over all ID's in case there are no tags.
 	 */
-	bmain->id_tag_update[((char *)&idtype)[0]] = 1;
+	bmain->id_tag_update[((unsigned char *)&idtype)[0]] = 1;
 }
 
 /* Update Flushing ---------------------------------- */
@@ -336,7 +338,7 @@ void DEG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
 		/* We tag based on first ID type character to avoid
 		 * looping over all ID's in case there are no tags.
 		 */
-		if (id && bmain->id_tag_update[id->name[0]]) {
+		if (id && bmain->id_tag_update[(unsigned char)id->name[0]]) {
 			updated = true;
 			break;
 		}
@@ -364,7 +366,7 @@ void DEG_ids_clear_recalc(Main *bmain)
 		/* We tag based on first ID type character to avoid
 		 * looping over all ID's in case there are no tags.
 		 */
-		if (id && bmain->id_tag_update[id->name[0]]) {
+		if (id && bmain->id_tag_update[(unsigned char)id->name[0]]) {
 			for (; id; id = (ID *)id->next) {
 				id->flag &= ~(LIB_ID_RECALC | LIB_ID_RECALC_DATA);
 

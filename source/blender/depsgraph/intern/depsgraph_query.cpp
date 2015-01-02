@@ -205,5 +205,5 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src)
 
 bool DEG_id_type_tagged(Main *bmain, short idtype)
 {
-	return bmain->id_tag_update[((char *)&idtype)[0]] != 0;
+	return bmain->id_tag_update[((unsigned char *)&idtype)[0]] != 0;
 }

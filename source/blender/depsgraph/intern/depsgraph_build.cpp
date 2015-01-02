@@ -632,10 +632,12 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 /* Rebuild dependency graph only for a given scene. */
 void DEG_scene_relations_rebuild(Main *bmain, Scene *scene)
 {
-	BLI_assert(graph->entry_tags.size() == NULL);
-	BLI_assert(graph->id_tags.size() == NULL);
-	DEG_graph_free(scene->depsgraph);
-	scene->depsgraph = NULL;
+	if (scene->depsgraph != NULL) {
+		BLI_assert(scene->depsgraph->entry_tags.size() == 0);
+		BLI_assert(scene->depsgraph->id_tags.size() == 0);
+		DEG_graph_free(scene->depsgraph);
+		scene->depsgraph = NULL;
+	}
 	DEG_scene_relations_update(bmain, scene);
 }
 
