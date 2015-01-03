@@ -670,8 +670,9 @@ void filelist_filter(FileList *filelist)
 	MEM_freeN(fidx_tmp);
 }
 
-void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const bool hide_parent, const unsigned int filter,
-                                const unsigned int filter_id, const char *filter_glob, const char *filter_search)
+void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const bool hide_parent,
+                                const unsigned int filter, const unsigned int filter_id,
+                                const char *filter_glob, const char *filter_search)
 {
 	if ((filelist->filter_data.hide_dot != hide_dot) ||
 	    (filelist->filter_data.hide_parent != hide_parent) ||
