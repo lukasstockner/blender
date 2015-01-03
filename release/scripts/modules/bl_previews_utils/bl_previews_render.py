@@ -134,9 +134,9 @@ def do_previews_bi(do_objects, do_groups):
                 bbox[1].x, bbox[1].y, bbox[0].z,
                 bbox[1].x, bbox[1].y, bbox[1].z,
             )
-            loc, ortho_scale = render_camera.camera_fit_coordinates(render_scene, cos)
+            loc, ortho_scale = render_camera.camera_fit_coords(render_scene, cos)
             render_camera.location = loc
-            loc, ortho_scale = render_lamp.camera_fit_coordinates(render_scene, cos)
+            loc, ortho_scale = render_lamp.camera_fit_coords(render_scene, cos)
             render_lamp.location = loc
             render_scene.update()
 
@@ -180,9 +180,9 @@ def do_previews_bi(do_objects, do_groups):
                 bbox[1].x, bbox[1].y, bbox[0].z,
                 bbox[1].x, bbox[1].y, bbox[1].z,
             )
-            loc, ortho_scale = render_camera.camera_fit_coordinates(render_scene, cos)
+            loc, ortho_scale = render_camera.camera_fit_coords(render_scene, cos)
             render_camera.location = loc
-            loc, ortho_scale = render_lamp.camera_fit_coordinates(render_scene, cos)
+            loc, ortho_scale = render_lamp.camera_fit_coords(render_scene, cos)
             render_lamp.location = loc
             render_scene.update()
 
