@@ -210,6 +210,7 @@ typedef struct FileImage {
 	int index;
 	short done;
 	ImBuf *img;
+	ImBuf *org_img;
 	ImBuf *icon;
 } FileImage;
 
@@ -2041,32 +2042,58 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 	tj->do_update = do_update;
 
 	while ((*stop == 0) && (limg)) {
+		ImBuf *img = limg->org_img;
 		if (limg->flags & IMAGEFILE) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
+			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
 		}
 		else if (limg->flags & (BLENDERFILE | BLENDERFILE_BACKUP)) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
+			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
 		}
 		else if (limg->flags & BLENDERLIB) {
-			if (!limg->img) {
-				limg->img = IMB_dupImBuf(filelist_geticon_image_ex(limg->type, limg->flags, limg->relname));
-			}
-			if (limg->img && limg->icon) {
-				IMB_rectblend(limg->img, limg->img, limg->icon, NULL, NULL, NULL, 0.0f,
-				              limg->img->x - limg->icon->x, limg->img->y - limg->icon->y, 0, 0, 0, 0,
-				              limg->icon->x, limg->icon->y, IMB_BLEND_MIX, false);
+			if (!img) {
+				img = IMB_dupImBuf(filelist_geticon_image_ex(limg->type, limg->flags, limg->relname));
 			}
 		}
 		else if (limg->flags & MOVIEFILE) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
-			if (!limg->img) {
+			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
+			if (!img) {
 				/* remember that file can't be loaded via IMB_open_anim */
 				limg->flags &= ~MOVIEFILE;
 				limg->flags |= MOVIEFILE_ICON;
 			}
 		}
+		if (img && limg->icon) {
+			/* When we overlay an icon over an image, we want that image to be always the same size,
+			 * otherwise icon will be scaled up or down in UI, which is ugly! */
+			if (!ELEM(PREVIEW_RENDER_DEFAULT_HEIGHT, img->x, img->y)) {
+				unsigned int newx, newy;
+
+				/* Only scale down... */
+				if ((img->x > img->y) && (img->x > PREVIEW_RENDER_DEFAULT_HEIGHT)) {
+					newx = (unsigned int)((float)img->y / (float)img->x * (float)PREVIEW_RENDER_DEFAULT_HEIGHT);
+					newy = PREVIEW_RENDER_DEFAULT_HEIGHT;
+					IMB_scaleImBuf(img, newx, newy);
+				}
+				else if ((img->y > img->x) && (img->y > PREVIEW_RENDER_DEFAULT_HEIGHT)) {
+					newx = PREVIEW_RENDER_DEFAULT_HEIGHT;
+					newy = (unsigned int)((float)img->x / (float)img->y * (float)PREVIEW_RENDER_DEFAULT_HEIGHT);
+					IMB_scaleImBuf(img, newx, newy);
+				}
+				/* Else, center in new picture with the right dimension. */
+				else {
+					ImBuf *timg = IMB_allocImBuf(PREVIEW_RENDER_DEFAULT_HEIGHT, PREVIEW_RENDER_DEFAULT_HEIGHT, 4, IB_rect);
+					IMB_rectcpy(timg, img, (timg->x - img->x) / 2, (timg->y - img->y) / 2, 0, 0, img->x, img->y);
+					IMB_freeImBuf(img);
+					img = timg;
+				}
+			}
+			IMB_rectblend(img, img, limg->icon, NULL, NULL, NULL, 0.0f,
+			              img->x - limg->icon->x, img->y - limg->icon->y, 0, 0, 0, 0,
+			              limg->icon->x, limg->icon->y, IMB_BLEND_MIX, false);
+		}
+		limg->img = img;
 		*do_update = true;
-		PIL_sleep_ms(10);
+		PIL_sleep_ms(1);
 		limg = limg->next;
 	}
 }
@@ -2079,13 +2106,15 @@ static void thumbnails_update(void *tjv)
 		FileImage *limg = tj->loadimages.first;
 		while (limg) {
 			if (!limg->done && limg->img) {
-				tj->filelist->filelist[limg->index].image = limg->img;
+				tj->filelist->filelist[limg->index].image = IMB_dupImBuf(limg->img);
 				/* update flag for movie files where thumbnail can't be created */
 				if (limg->flags & MOVIEFILE_ICON) {
 					tj->filelist->filelist[limg->index].flags &= ~MOVIEFILE;
 					tj->filelist->filelist[limg->index].flags |= MOVIEFILE_ICON;
 				}
 				limg->done = true;
+				IMB_freeImBuf(limg->img);
+				limg->img = NULL;
 			}
 			limg = limg->next;
 		}
@@ -2129,7 +2158,7 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 				BLI_strncpy(limg->path, filelist->filelist[idx].path, sizeof(limg->path));
 				BLI_strncpy(limg->relname, filelist->filelist[idx].relname, sizeof(limg->relname));
 				if (filelist->filelist[idx].image) {
-					limg->img = IMB_dupImBuf(filelist->filelist[idx].image);
+					limg->org_img = IMB_dupImBuf(filelist->filelist[idx].image);
 				}
 				limg->index = idx;
 				limg->flags = filelist->filelist[idx].flags;
