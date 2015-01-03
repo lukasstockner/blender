@@ -372,6 +372,10 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->keyborder_select; break;
 				case TH_CFRAME:
 					cp = ts->cframe; break;
+				case TH_TIME_KEYFRAME:
+					cp = ts->time_keyframe; break;
+				case TH_TIME_GP_KEYFRAME:
+					cp = ts->time_gp_keyframe; break;
 				case TH_NURB_ULINE:
 					cp = ts->nurb_uline; break;
 				case TH_NURB_VLINE:
@@ -506,6 +510,17 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 				case TH_HANDLE_VERTEX_SIZE:
 					cp = &ts->handle_vertex_size;
 					break;
+					
+				case TH_GP_VERTEX:
+					cp = ts->gp_vertex;
+					break;
+				case TH_GP_VERTEX_SELECT:
+					cp = ts->gp_vertex_select;
+					break;
+				case TH_GP_VERTEX_SIZE:
+					cp = &ts->gp_vertex_size;
+					break;
+					
 				case TH_DOPESHEET_CHANNELOB:
 					cp = ts->ds_channel;
 					break;
@@ -893,6 +908,9 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->tv3d.freestyle_face_mark, 0x7f, 0xff, 0x7f, 51);
 	rgba_char_args_set_fl(btheme->tv3d.paint_curve_handle, 0.5f, 1.0f, 0.5f, 0.5f);
 	rgba_char_args_set_fl(btheme->tv3d.paint_curve_pivot, 1.0f, 0.5f, 0.5f, 0.5f);
+	rgba_char_args_set(btheme->tv3d.gp_vertex, 0, 0, 0, 255);
+	rgba_char_args_set(btheme->tv3d.gp_vertex_select, 255, 133, 0, 255);
+	btheme->tv3d.gp_vertex_size = 3;
 
 	btheme->tv3d.facedot_size = 4;
 
@@ -1111,6 +1129,9 @@ void ui_theme_init_default(void)
 	rgba_char_args_set_fl(btheme->ttime.back,   0.45, 0.45, 0.45, 1.0);
 	rgba_char_args_set_fl(btheme->ttime.grid,   0.36, 0.36, 0.36, 1.0);
 	rgba_char_args_set(btheme->ttime.shade1,  173, 173, 173, 255);      /* sliders */
+	
+	rgba_char_args_set(btheme->ttime.time_keyframe, 0xDD, 0xD7, 0x00, 1.0);
+	rgba_char_args_set(btheme->ttime.time_gp_keyframe, 0xB5, 0xE6, 0x1D, 1.0);
 	
 	/* space node, re-uses syntax and console color storage */
 	btheme->tnode = btheme->tv3d;
@@ -2503,6 +2524,32 @@ void init_userdef_do_versions(void)
 		bTheme *btheme;
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set_fl(btheme->tui.widget_emboss, 1.0f, 1.0f, 1.0f, 0.02f);
+		}
+	}
+	
+	if (U.versionfile < 273 || (U.versionfile == 273 && U.subversionfile < 1)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			/* Grease Pencil vertex settings */
+			rgba_char_args_set(btheme->tv3d.gp_vertex, 0, 0, 0, 255);
+			rgba_char_args_set(btheme->tv3d.gp_vertex_select, 255, 133, 0, 255);
+			btheme->tv3d.gp_vertex_size = 3;
+			
+			rgba_char_args_set(btheme->tseq.gp_vertex, 0, 0, 0, 255);
+			rgba_char_args_set(btheme->tseq.gp_vertex_select, 255, 133, 0, 255);
+			btheme->tseq.gp_vertex_size = 3;
+			
+			rgba_char_args_set(btheme->tima.gp_vertex, 0, 0, 0, 255);
+			rgba_char_args_set(btheme->tima.gp_vertex_select, 255, 133, 0, 255);
+			btheme->tima.gp_vertex_size = 3;
+			
+			rgba_char_args_set(btheme->tnode.gp_vertex, 0, 0, 0, 255);
+			rgba_char_args_set(btheme->tnode.gp_vertex_select, 255, 133, 0, 255);
+			btheme->tnode.gp_vertex_size = 3;
+			
+			/* Timeline Keyframe Indicators */
+			rgba_char_args_set(btheme->ttime.time_keyframe, 0xDD, 0xD7, 0x00, 1.0);
+			rgba_char_args_set(btheme->ttime.time_gp_keyframe, 0xB5, 0xE6, 0x1D, 1.0);
 		}
 	}
 

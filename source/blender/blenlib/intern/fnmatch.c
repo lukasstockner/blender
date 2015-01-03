@@ -17,8 +17,6 @@
   along with this program; if not, write to the Free Software Foundation,
   Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-#include "BLI_fnmatch.h"
-
 #ifdef WIN32
 
 /* Enable GNU extensions in fnmatch.h.  */
@@ -28,6 +26,7 @@
 
 #include <errno.h>
 #include <ctype.h>
+#include "BLI_fnmatch.h"
 
 
 /* Comment out all this code if we are using the GNU C Library, and are not
@@ -244,88 +243,4 @@ fnmatch (const char *pattern, const char *string, int flags)
 
 #endif /* WIN32 */
 
-/* Helpers. */
 
-#include <string.h>
-
-#include "BLI_utildefines.h"
-#include "BLI_string.h"
-
-/**
- * Copy src into dst, adding heading/trailing fnmatch wildcards ('*') if needed.
- *
- * \param len the size of dst.
- */
-void BLI_fnmatch_strncpy_add_endswildcards(char *dst, const char *src, size_t len)
-{
-	if (src[0] == '\0') {
-		dst[0] = '\0';
-	}
-	else {
-		/* Add heading/trailing wildcards if needed. */
-		int idx = 0;
-		size_t src_len;
-
-		if (src[idx] != '*') {
-			dst[idx++] = '*';
-			len--;
-		}
-		len--;  /* trailing '\0' */
-
-		src_len = BLI_strnlen(src, len);
-		if ((src[src_len - 1] != '*') && (src_len == len)) {
-			src_len--;
-		}
-
-		memcpy(&dst[idx], src, src_len);
-		idx += src_len;
-
-		if (dst[idx - 1] != '*') {
-			dst[idx++] = '*';
-		}
-		dst[idx] = '\0';
-	}
-}
-
-/**
- * Like strcmp, but ignore heading/trailing fnmatch wildcards ('*').
- */
-int BLI_fnmatch_strcmp_ignore_endswildcards(const char *str1, const char *str2)
-{
-	size_t str1_len, str2_len;
-
-	if (*str1 == '*') {
-		str1++;
-	}
-	if (*str2 == '*') {
-		str2++;
-	}
-
-	str1_len = strlen(str1);
-	str2_len = strlen(str2);
-
-	if (str1_len && (str1[str1_len - 1] == '*')) {
-		str1_len--;
-	}
-	if (str2_len && (str2[str2_len - 1] == '*')) {
-		str2_len--;
-	}
-
-	if (str1_len == str2_len) {
-		return strncmp(str1, str2, str2_len);
-	}
-	else if (str1_len > str2_len) {
-		int ret = strncmp(str1, str2, str2_len);
-		if (ret == 0) {
-			ret = 1;
-		}
-		return ret;
-	}
-	else {
-		int ret = strncmp(str1, str2, str1_len);
-		if (ret == 0) {
-			ret = -1;
-		}
-		return ret;
-	}
-}

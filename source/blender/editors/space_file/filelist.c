@@ -677,7 +677,7 @@ void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const b
 	    (filelist->filter_data.filter != filter) ||
 	    (filelist->filter_data.filter_id != filter_id) ||
 	    !STREQ(filelist->filter_data.filter_glob, filter_glob) ||
-	    (BLI_fnmatch_strcmp_ignore_endswildcards(filelist->filter_data.filter_search, filter_search) != 0))
+	    (BLI_strcmp_ignore_pad(filelist->filter_data.filter_search, filter_search, '*') != 0))
 	{
 		filelist->filter_data.hide_dot = hide_dot;
 		filelist->filter_data.hide_parent = hide_parent;
@@ -685,8 +685,8 @@ void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const b
 		filelist->filter_data.filter = filter;
 		filelist->filter_data.filter_id = filter_id;
 		BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
-		BLI_fnmatch_strncpy_add_endswildcards(filelist->filter_data.filter_search, filter_search,
-		                                      sizeof(filelist->filter_data.filter_search));
+		BLI_strncpy_ensure_pad(filelist->filter_data.filter_search, filter_search, '*',
+		                       sizeof(filelist->filter_data.filter_search));
 
 		/* And now, free filtered data so that we now we have to filter again. */
 		filelist_filter_clear(filelist);
@@ -979,7 +979,7 @@ void filelist_clear(struct FileList *filelist)
 		filelist->fidx = NULL;
 	}
 
-	BLI_free_filelist(filelist->filelist, filelist->numfiles);
+	BLI_filelist_free(filelist->filelist, filelist->numfiles, NULL);
 	filelist->numfiles = 0;
 	filelist->filelist = NULL;
 	filelist->numfiltered = 0;
@@ -1001,7 +1001,7 @@ void filelist_free(struct FileList *filelist)
 
 	filelist->need_thumbnails = false;
 
-	BLI_free_filelist(filelist->filelist, filelist->numfiles);
+	BLI_filelist_free(filelist->filelist, filelist->numfiles, NULL);
 	filelist->numfiles = 0;
 	filelist->filelist = NULL;
 }
@@ -1736,11 +1736,11 @@ static void filelist_readjob_dir_lib_rec(
 
 		if (!files) {
 			is_lib = false;
-			num_files = BLI_dir_contents(dir, &files);
+			num_files = BLI_filelist_dir_contents(dir, &files);
 		}
 	}
 	else {
-		num_files = BLI_dir_contents(dir, &files);
+		num_files = BLI_filelist_dir_contents(dir, &files);
 	}
 
 	if (!files) {
@@ -1802,7 +1802,7 @@ static void filelist_readjob_dir_lib_rec(
 			                             stop, do_update, progress, done_files, lock);
 		}
 	}
-	BLI_free_filelist(files, num_files);
+	BLI_filelist_free(files, num_files, NULL);
 }
 
 static void filelist_readjob_dir(
@@ -1908,14 +1908,14 @@ static void filelist_readjob_update(void *flrjv)
 		num_new_entries = flrj->tmp_filelist->numfiles;
 		/* This way we are sure we won't share any mem with background job! */
 		/* Note direntry->poin is not handled here, should not matter though currently. */
-		BLI_duplicate_filelist(&new_entries, flrj->tmp_filelist->filelist, num_new_entries, NULL);
+		BLI_filelist_duplicate(&new_entries, flrj->tmp_filelist->filelist, num_new_entries, NULL);
 	}
 
 	BLI_mutex_unlock(&flrj->lock);
 
 	if (new_entries) {
 		if (flrj->filelist->filelist) {
-			BLI_free_filelist(flrj->filelist->filelist, flrj->filelist->numfiles);
+			BLI_filelist_free(flrj->filelist->filelist, flrj->filelist->numfiles, NULL);
 		}
 		flrj->filelist->filelist = new_entries;
 		flrj->filelist->numfiles = num_new_entries;
