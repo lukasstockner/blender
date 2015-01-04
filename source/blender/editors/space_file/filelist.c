@@ -262,25 +262,27 @@ typedef struct FileList {
 #define FILELIST_MAX_RECURSION 3
 
 #define FILENAME_IS_BREADCRUMBS(_n) \
-	(((_n)[0] == '.' && (_n)[1] == '\0') || ((_n)[0] == '.' && (_n)[1] == '.' && (_n)[2] == '\0'))
+	((_n)[0] == '.' && ((_n)[1] == '\0' || ((_n)[1] == '.' && (_n)[2] == '\0')))
 
 #define SPECIAL_IMG_SIZE 48
 #define SPECIAL_IMG_ROWS 4
 #define SPECIAL_IMG_COLS 4
 
-#define SPECIAL_IMG_FOLDER 0
-#define SPECIAL_IMG_PARENT 1
-#define SPECIAL_IMG_REFRESH 2
-#define SPECIAL_IMG_BLENDFILE 3
-#define SPECIAL_IMG_SOUNDFILE 4
-#define SPECIAL_IMG_MOVIEFILE 5
-#define SPECIAL_IMG_PYTHONFILE 6
-#define SPECIAL_IMG_TEXTFILE 7
-#define SPECIAL_IMG_FONTFILE 8
-#define SPECIAL_IMG_UNKNOWNFILE 9
-#define SPECIAL_IMG_LOADING 10
-#define SPECIAL_IMG_BACKUP 11
-#define SPECIAL_IMG_MAX SPECIAL_IMG_BACKUP + 1
+enum {
+	SPECIAL_IMG_FOLDER      = 0,
+	SPECIAL_IMG_PARENT      = 1,
+	SPECIAL_IMG_REFRESH     = 2,
+	SPECIAL_IMG_BLENDFILE   = 3,
+	SPECIAL_IMG_SOUNDFILE   = 4,
+	SPECIAL_IMG_MOVIEFILE   = 5,
+	SPECIAL_IMG_PYTHONFILE  = 6,
+	SPECIAL_IMG_TEXTFILE    = 7,
+	SPECIAL_IMG_FONTFILE    = 8,
+	SPECIAL_IMG_UNKNOWNFILE = 9,
+	SPECIAL_IMG_LOADING     = 10,
+	SPECIAL_IMG_BACKUP      = 11,
+	SPECIAL_IMG_MAX
+};
 
 static ImBuf *gSpecialFileImages[SPECIAL_IMG_MAX];
 
@@ -302,7 +304,7 @@ static bool compare_is_directory(const struct direntry *entry)
 	/* for library browse .blend files may be treated as directories, but
 	 * for sorting purposes they should be considered regular files */
 	if (S_ISDIR(entry->type))
-		return !(entry->flags & (BLENDERFILE | BLENDERFILE_BACKUP));
+		return !(entry->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP));
 	
 	return false;
 }
@@ -455,9 +457,9 @@ static int compare_extension(const void *a1, const void *a2)
 	if (strcmp(entry1->relname, "..") == 0) return (-1);
 	if (strcmp(entry2->relname, "..") == 0) return (1);
 
-	if ((entry1->flags & BLENDERLIB) && !(entry2->flags & BLENDERLIB)) return -1;
-	if (!(entry1->flags & BLENDERLIB) && (entry2->flags & BLENDERLIB)) return 1;
-	if ((entry1->flags & BLENDERLIB) && (entry2->flags & BLENDERLIB)) {
+	if ((entry1->flags & FILE_TYPE_BLENDERLIB) && !(entry2->flags & FILE_TYPE_BLENDERLIB)) return -1;
+	if (!(entry1->flags & FILE_TYPE_BLENDERLIB) && (entry2->flags & FILE_TYPE_BLENDERLIB)) return 1;
+	if ((entry1->flags & FILE_TYPE_BLENDERLIB) && (entry2->flags & FILE_TYPE_BLENDERLIB)) {
 		char lib1[FILE_MAX_LIBEXTRA], lib2[FILE_MAX_LIBEXTRA];
 		char *group1, *group2, *name1, *name2;
 		int grp_comp;
@@ -576,7 +578,7 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 	bool is_filtered = !is_hidden_file(file->relname, filter);
 
 	if (is_filtered && filter->filter && !FILENAME_IS_BREADCRUMBS(file->relname)) {
-		if ((file->type & S_IFDIR) && !(filter->filter & FOLDERFILE)) {
+		if ((file->type & S_IFDIR) && !(filter->filter & FILE_TYPE_FOLDER)) {
 			is_filtered = false;
 		}
 		if (!(file->type & S_IFDIR) && !(file->flags & filter->filter)) {
@@ -602,7 +604,7 @@ static bool is_filtered_lib(struct direntry *file, const char *root, FileListFil
 	if (BLO_library_path_explode(path, dir, &group, NULL)) {
 		is_filtered = !is_hidden_file(file->relname, filter);
 		if (is_filtered && filter->filter && !FILENAME_IS_BREADCRUMBS(file->relname)) {
-			if ((file->type & S_IFDIR) && !(filter->filter & FOLDERFILE)) {
+			if ((file->type & S_IFDIR) && !(filter->filter & FILE_TYPE_FOLDER)) {
 				is_filtered = false;
 			}
 			if (is_filtered && (filter->filter_search[0] != '\0')) {
@@ -774,31 +776,31 @@ static ImBuf *filelist_geticon_image_ex(const unsigned int type, const unsigned 
 			ibuf = gSpecialFileImages[SPECIAL_IMG_FOLDER];
 		}
 	}
-	else if (flags & (BLENDERFILE)) {
+	else if (flags & (FILE_TYPE_BLENDER)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BLENDFILE];
 	}
-	else if (flags & (BLENDERLIB)) {
+	else if (flags & (FILE_TYPE_BLENDERLIB)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_UNKNOWNFILE];
 	}
-	else if (flags & (MOVIEFILE | MOVIEFILE_ICON)) {
+	else if (flags & (FILE_TYPE_MOVIE | FILE_TYPE_MOVIE_ICON)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
 	}
-	else if (flags & SOUNDFILE) {
+	else if (flags & FILE_TYPE_SOUND) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_SOUNDFILE];
 	}
-	else if (flags & PYSCRIPTFILE) {
+	else if (flags & FILE_TYPE_PYSCRIPT) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_PYTHONFILE];
 	}
-	else if (flags & FTFONTFILE) {
+	else if (flags & FILE_TYPE_FTFONT) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_FONTFILE];
 	}
-	else if (flags & TEXTFILE) {
+	else if (flags & FILE_TYPE_TEXT) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_TEXTFILE];
 	}
-	else if (flags & IMAGEFILE) {
+	else if (flags & FILE_TYPE_IMAGE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_LOADING];
 	}
-	else if (flags & BLENDERFILE_BACKUP) {
+	else if (flags & FILE_TYPE_BLENDER_BACKUP) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BACKUP];
 	}
 	else {
@@ -817,39 +819,39 @@ ImBuf *filelist_geticon_image(struct FileList *filelist, const int index)
 
 static int filelist_geticon_ex(const unsigned int type, const unsigned int flags, const char *path, const char *relname, const bool ignore_libdir)
 {
-	if (type & S_IFDIR && !(ignore_libdir && (flags & (BLENDERLIB | BLENDERFILE)))) {
+	if (type & S_IFDIR && !(ignore_libdir && (flags & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER)))) {
 		if (strcmp(relname, "..") == 0) {
 			return ICON_FILE_PARENT;
 		}
-		if (flags & APPLICATIONBUNDLE) {
+		if (flags & FILE_TYPE_APPLICATIONBUNDLE) {
 			return ICON_UGLYPACKAGE;
 		}
-		if (flags & BLENDERFILE) {
+		if (flags & FILE_TYPE_BLENDER) {
 			return ICON_FILE_BLEND;
 		}
 		return ICON_FILE_FOLDER;
 	}
-	else if (flags & BLENDERFILE)
+	else if (flags & FILE_TYPE_BLENDER)
 		return ICON_FILE_BLEND;
-	else if (flags & BLENDERFILE_BACKUP)
+	else if (flags & FILE_TYPE_BLENDER_BACKUP)
 		return ICON_FILE_BACKUP;
-	else if (flags & IMAGEFILE)
+	else if (flags & FILE_TYPE_IMAGE)
 		return ICON_FILE_IMAGE;
-	else if (flags & MOVIEFILE)
+	else if (flags & FILE_TYPE_MOVIE)
 		return ICON_FILE_MOVIE;
-	else if (flags & PYSCRIPTFILE)
+	else if (flags & FILE_TYPE_PYSCRIPT)
 		return ICON_FILE_SCRIPT;
-	else if (flags & SOUNDFILE)
+	else if (flags & FILE_TYPE_SOUND)
 		return ICON_FILE_SOUND;
-	else if (flags & FTFONTFILE)
+	else if (flags & FILE_TYPE_FTFONT)
 		return ICON_FILE_FONT;
-	else if (flags & BTXFILE)
+	else if (flags & FILE_TYPE_BTX)
 		return ICON_FILE_BLANK;
-	else if (flags & COLLADAFILE)
+	else if (flags & FILE_TYPE_COLLADA)
 		return ICON_FILE_BLANK;
-	else if (flags & TEXTFILE)
+	else if (flags & FILE_TYPE_TEXT)
 		return ICON_FILE_TEXT;
-	else if (flags & BLENDERLIB) {
+	else if (flags & FILE_TYPE_BLENDERLIB) {
 		char lib[FILE_MAXDIR], *group;
 
 		if (BLO_library_path_explode(path, lib, &group, NULL) && group) {
@@ -1029,7 +1031,7 @@ char *fileentry_uiname(const struct direntry *entry, char *dir)
 {
 	char *name;
 
-	if (entry->path && entry->flags & BLENDERLIB) {
+	if (entry->path && entry->flags & FILE_TYPE_BLENDERLIB) {
 		char *group;
 		BLO_library_path_explode(entry->path, dir, &group, &name);
 		if (!name) {
@@ -1172,47 +1174,47 @@ static bool file_is_blend_backup(const char *str)
 static int path_extension_type(const char *path)
 {
 	if (BLO_has_bfile_extension(path)) {
-		return BLENDERFILE;
+		return FILE_TYPE_BLENDER;
 	}
 	else if (file_is_blend_backup(path)) {
-		return BLENDERFILE_BACKUP;
+		return FILE_TYPE_BLENDER_BACKUP;
 	}
 	else if (BLI_testextensie(path, ".app")) {
-		return APPLICATIONBUNDLE;
+		return FILE_TYPE_APPLICATIONBUNDLE;
 	}
 	else if (BLI_testextensie(path, ".py")) {
-		return PYSCRIPTFILE;
+		return FILE_TYPE_PYSCRIPT;
 	}
 	else if (BLI_testextensie_n(path, ".txt", ".glsl", ".osl", ".data", NULL)) {
-		return TEXTFILE;
+		return FILE_TYPE_TEXT;
 	}
 	else if (BLI_testextensie_n(path, ".ttf", ".ttc", ".pfb", ".otf", ".otc", NULL)) {
-		return FTFONTFILE;
+		return FILE_TYPE_FTFONT;
 	}
 	else if (BLI_testextensie(path, ".btx")) {
-		return BTXFILE;
+		return FILE_TYPE_BTX;
 	}
 	else if (BLI_testextensie(path, ".dae")) {
-		return COLLADAFILE;
+		return FILE_TYPE_COLLADA;
 	}
 	else if (BLI_testextensie_array(path, imb_ext_image) ||
 	         (G.have_quicktime && BLI_testextensie_array(path, imb_ext_image_qt)))
 	{
-		return IMAGEFILE;
+		return FILE_TYPE_IMAGE;
 	}
 	else if (BLI_testextensie(path, ".ogg")) {
 		if (IMB_isanim(path)) {
-			return MOVIEFILE;
+			return FILE_TYPE_MOVIE;
 		}
 		else {
-			return SOUNDFILE;
+			return FILE_TYPE_SOUND;
 		}
 	}
 	else if (BLI_testextensie_array(path, imb_ext_movie)) {
-		return MOVIEFILE;
+		return FILE_TYPE_MOVIE;
 	}
 	else if (BLI_testextensie_array(path, imb_ext_audio)) {
-		return SOUNDFILE;
+		return FILE_TYPE_SOUND;
 	}
 	return 0;
 }
@@ -1228,25 +1230,25 @@ int ED_file_extension_icon(const char *path)
 {
 	int type = path_extension_type(path);
 	
-	if (type == BLENDERFILE)
+	if (type == FILE_TYPE_BLENDER)
 		return ICON_FILE_BLEND;
-	else if (type == BLENDERFILE_BACKUP)
+	else if (type == FILE_TYPE_BLENDER_BACKUP)
 		return ICON_FILE_BACKUP;
-	else if (type == IMAGEFILE)
+	else if (type == FILE_TYPE_IMAGE)
 		return ICON_FILE_IMAGE;
-	else if (type == MOVIEFILE)
+	else if (type == FILE_TYPE_MOVIE)
 		return ICON_FILE_MOVIE;
-	else if (type == PYSCRIPTFILE)
+	else if (type == FILE_TYPE_PYSCRIPT)
 		return ICON_FILE_SCRIPT;
-	else if (type == SOUNDFILE)
+	else if (type == FILE_TYPE_SOUND)
 		return ICON_FILE_SOUND;
-	else if (type == FTFONTFILE)
+	else if (type == FILE_TYPE_FTFONT)
 		return ICON_FILE_FONT;
-	else if (type == BTXFILE)
+	else if (type == FILE_TYPE_BTX)
 		return ICON_FILE_BLANK;
-	else if (type == COLLADAFILE)
+	else if (type == FILE_TYPE_COLLADA)
 		return ICON_FILE_BLANK;
-	else if (type == TEXTFILE)
+	else if (type == FILE_TYPE_TEXT)
 		return ICON_FILE_TEXT;
 	
 	return ICON_FILE_BLANK;
@@ -1258,7 +1260,7 @@ static void filelist_setfiletypes(const char *root, struct direntry *files, cons
 	int num;
 
 	for (num = 0, file = files; num < numfiles; num++, file++) {
-		if (file->flags & BLENDERLIB) {
+		if (file->flags & FILE_TYPE_BLENDERLIB) {
 			continue;
 		}
 		file->type = file->s.st_mode;  /* restore the mess below */
@@ -1271,7 +1273,7 @@ static void filelist_setfiletypes(const char *root, struct direntry *files, cons
 		file->flags = file_extension_type(root, file->relname);
 
 		if (filter_glob[0] && BLI_testextensie_glob(file->relname, filter_glob)) {
-			file->flags = OPERATORFILE;
+			file->flags = FILE_TYPE_OPERATOR;
 		}
 	}
 }
@@ -1333,12 +1335,12 @@ bool filelist_is_selected(struct FileList *filelist, int index, FileCheckType ch
 	}
 	switch (check) {
 		case CHECK_DIRS:
-			return S_ISDIR(file->type) && (file->selflag & SELECTED_FILE);
+			return S_ISDIR(file->type) && (file->selflag & FILE_SEL_SELECTED);
 		case CHECK_FILES:
-			return S_ISREG(file->type) && (file->selflag & SELECTED_FILE);
+			return S_ISREG(file->type) && (file->selflag & FILE_SEL_SELECTED);
 		case CHECK_ALL:
 		default:
-			return (file->selflag & SELECTED_FILE) != 0;
+			return (file->selflag & FILE_SEL_SELECTED) != 0;
 	}
 }
 
@@ -1521,7 +1523,7 @@ static void filelist_readjob_list_lib(const char *root, struct direntry **files,
 
 	(*files)[nnames].relname = BLI_strdup("..");
 	(*files)[nnames].type |= S_IFDIR;
-	(*files)[nnames].flags |= BLENDERLIB;
+	(*files)[nnames].flags |= FILE_TYPE_BLENDERLIB;
 
 	for (i = 0, l = names; i < nnames; i++, l = l->next) {
 		const char *blockname = l->link;
@@ -1529,7 +1531,7 @@ static void filelist_readjob_list_lib(const char *root, struct direntry **files,
 
 		file->relname = BLI_strdup(blockname);
 		file->path = BLI_strdupcat(root, blockname);
-		file->flags |= BLENDERLIB;
+		file->flags |= FILE_TYPE_BLENDERLIB;
 		if (group && idcode) {
 			file->type |= S_IFREG;
 		}
@@ -1679,10 +1681,10 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 #if 0               /* XXXXX TODO show the selection status of the objects */
 					if (!filelist->has_func) { /* F4 DATA BROWSE */
 						if (idcode == ID_OB) {
-							if ( ((Object *)id)->flag & SELECT) files->selflag |= SELECTED_FILE;
+							if ( ((Object *)id)->flag & SELECT) files->selflag |= FILE_SEL_SELECTED;
 						}
 						else if (idcode == ID_SCE) {
-							if ( ((Scene *)id)->r.scemode & R_BG_RENDER) files->selflag |= SELECTED_FILE;
+							if ( ((Scene *)id)->r.scemode & R_BG_RENDER) files->selflag |= FILE_SEL_SELECTED;
 						}
 					}
 #endif
@@ -1690,7 +1692,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 					files->poin = id;
 					fake = id->flag & LIB_FAKEUSER;
 					if (idcode == ID_MA || idcode == ID_TE || idcode == ID_LA || idcode == ID_WO || idcode == ID_IM) {
-						files->flags |= IMAGEFILE;
+						files->flags |= FILE_TYPE_IMAGE;
 					}
 					if      (id->lib && fake) BLI_snprintf(files->extra, sizeof(files->extra), "LF %d",    id->us);
 					else if (id->lib)         BLI_snprintf(files->extra, sizeof(files->extra), "L    %d",  id->us);
@@ -2044,23 +2046,23 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 
 	while ((*stop == 0) && (limg)) {
 		ImBuf *img = limg->org_img;
-		if (limg->flags & IMAGEFILE) {
+		if (limg->flags & FILE_TYPE_IMAGE) {
 			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
 		}
-		else if (limg->flags & (BLENDERFILE | BLENDERFILE_BACKUP)) {
+		else if (limg->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
 			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
 		}
-		else if (limg->flags & BLENDERLIB) {
+		else if (limg->flags & FILE_TYPE_BLENDERLIB) {
 			if (!img) {
 				img = IMB_dupImBuf(filelist_geticon_image_ex(limg->type, limg->flags, limg->relname));
 			}
 		}
-		else if (limg->flags & MOVIEFILE) {
-			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
-			if (!img) {
+		else if (limg->flags & FILE_TYPE_MOVIE) {
+			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
+			if (!limg->img) {
 				/* remember that file can't be loaded via IMB_open_anim */
-				limg->flags &= ~MOVIEFILE;
-				limg->flags |= MOVIEFILE_ICON;
+				limg->flags &= ~FILE_TYPE_MOVIE;
+				limg->flags |= FILE_TYPE_MOVIE_ICON;
 			}
 		}
 		if (img && limg->icon) {
@@ -2109,9 +2111,9 @@ static void thumbnails_update(void *tjv)
 			if (!limg->done && limg->img) {
 				tj->filelist->filelist[limg->index].image = IMB_dupImBuf(limg->img);
 				/* update flag for movie files where thumbnail can't be created */
-				if (limg->flags & MOVIEFILE_ICON) {
-					tj->filelist->filelist[limg->index].flags &= ~MOVIEFILE;
-					tj->filelist->filelist[limg->index].flags |= MOVIEFILE_ICON;
+				if (limg->flags & FILE_TYPE_MOVIE_ICON) {
+					tj->filelist->filelist[limg->index].flags &= ~FILE_TYPE_MOVIE;
+					tj->filelist->filelist[limg->index].flags |= FILE_TYPE_MOVIE_ICON;
 				}
 				limg->done = true;
 				IMB_freeImBuf(limg->img);
@@ -2153,8 +2155,8 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 			continue;
 		}
 		/* for blenlib items we overlay the ID type's icon... */
-		if (!filelist->filelist[idx].image || (filelist->filelist[idx].flags & BLENDERLIB)) {
-			if ((filelist->filelist[idx].flags & (IMAGEFILE | MOVIEFILE | BLENDERFILE | BLENDERFILE_BACKUP | BLENDERLIB))) {
+		if (!filelist->filelist[idx].image || (filelist->filelist[idx].flags & FILE_TYPE_BLENDERLIB)) {
+			if ((filelist->filelist[idx].flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB))) {
 				FileImage *limg = MEM_callocN(sizeof(FileImage), "loadimage");
 				BLI_strncpy(limg->path, filelist->filelist[idx].path, sizeof(limg->path));
 				BLI_strncpy(limg->relname, filelist->filelist[idx].relname, sizeof(limg->relname));
@@ -2164,7 +2166,7 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 				limg->index = idx;
 				limg->flags = filelist->filelist[idx].flags;
 				limg->type = filelist->filelist[idx].type;
-				if (filelist->filelist[idx].flags & BLENDERLIB) {
+				if (filelist->filelist[idx].flags & FILE_TYPE_BLENDERLIB) {
 					/* XXX We have to do this here, this is not threadsafe. */
 					int icon_id = filelist_geticon_ex(limg->type, limg->flags, limg->path, limg->relname, true);
 

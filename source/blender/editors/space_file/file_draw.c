@@ -484,10 +484,10 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		UI_ThemeColor4(TH_TEXT);
 
 
-		if (!(file->selflag & EDITING_FILE)) {
-			if ((params->active_file == i) || (file->selflag & HILITED_FILE) || (file->selflag & SELECTED_FILE)) {
-				int colorid = (file->selflag & SELECTED_FILE) ? TH_HILITE : TH_BACK;
-				int shade = (params->active_file == i) || (file->selflag & HILITED_FILE) ? 20 : 0;
+		if (!(file->selflag & FILE_SEL_EDITING)) {
+			if ((params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) || (file->selflag & FILE_SEL_SELECTED)) {
+				int colorid = (file->selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
+				int shade = (params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
 
 				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
 				if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
@@ -509,7 +509,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				is_icon = 1;
 			}
 			
-			file_draw_preview(block, files, i, sx, sy, imb, layout, !is_icon && (file->flags & IMAGEFILE), do_drag);
+			file_draw_preview(block, files, i, sx, sy, imb, layout, !is_icon && (file->flags & FILE_TYPE_IMAGE), do_drag);
 		}
 		else {
 			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i),
@@ -519,7 +519,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		UI_ThemeColor4(TH_TEXT);
 
-		if (file->selflag & EDITING_FILE) {
+		if (file->selflag & FILE_SEL_EDITING) {
 			uiBut *but;
 			short width;
 
@@ -542,11 +542,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
 			UI_but_flag_disable(but, UI_BUT_UNDO);
 			if (false == UI_but_active_only(C, ar, block, but)) {
-				file->selflag &= ~EDITING_FILE;
+				file->selflag &= ~FILE_SEL_EDITING;
 			}
 		}
 
-		if (!(file->selflag & EDITING_FILE)) {
+		if (!(file->selflag & FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
 			file_draw_string(sx + 1, tpos, name, (float)textwidth, textheight, align);
 		}
