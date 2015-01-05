@@ -146,11 +146,23 @@ FSMenuEntry *fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory category, in
 	return fsm_iter;
 }
 
+char *fsmenu_entry_get_path(struct FSMenuEntry *fsentry)
+{
+	return fsentry->path;
+}
+
 char *fsmenu_get_entry_path(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
 {
 	FSMenuEntry *fsm = fsmenu_get_entry(fsmenu, category, idx);
 
-	return fsm ? fsm->path : NULL;
+	return fsmenu_entry_get_path(fsm);
+}
+
+void fsmenu_entry_set_path(struct FSMenuEntry *fsentry, const char *path)
+{
+	MEM_SAFE_FREE(fsentry->path);
+
+	fsentry->path = (path && path[0]) ? BLI_strdup(path) : NULL;
 }
 
 static void fsmenu_entry_generate_name(struct FSMenuEntry *fsentry, char *name, size_t name_size)

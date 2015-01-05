@@ -2833,6 +2833,30 @@ static void uilist_resize_update_cb(bContext *UNUSED(C), void *arg1, void *UNUSE
 	}
 }
 
+#define UILIST_RENAME_TOOLTIP N_("Double click to rename")
+#define UILIST_TOOLTIP_LEN FILE_MAXDIR + 100
+
+static const char *uilist_generate_advanced_tooltip(char *tooltip_buff, size_t tooltip_len, PointerRNA *itemptr)
+{
+	PropertyRNA *prop = RNA_struct_find_property(itemptr, "uilist_dynamic_tooltip");
+
+	if (prop && (RNA_property_type(prop) == PROP_STRING)) {
+		char dyn_tooltip_buff[UILIST_TOOLTIP_LEN];
+		char *dyn_tooltip = RNA_property_string_get_alloc(itemptr, prop, dyn_tooltip_buff, sizeof(dyn_tooltip_buff), NULL);
+
+		BLI_snprintf(tooltip_buff, tooltip_len, "%s - %s", TIP_(UILIST_RENAME_TOOLTIP), dyn_tooltip);
+
+		if (dyn_tooltip != dyn_tooltip_buff) {
+			MEM_freeN(dyn_tooltip);
+		}
+
+		return tooltip_buff;
+
+	}
+
+	return TIP_(UILIST_RENAME_TOOLTIP);
+}
+
 void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, const char *list_id,
                     PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr, const char *active_propname,
                     int rows, int maxrows, int layout_type, int columns)
@@ -3049,6 +3073,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 				/* create list items */
 				for (i = layoutdata.start_idx; i < layoutdata.end_idx; i++) {
 					PointerRNA *itemptr = &items_ptr[i].item;
+					char tooltip_buff[UILIST_TOOLTIP_LEN];
 					int org_i = items_ptr[i].org_idx;
 					int flt_flag = items_ptr[i].flt_flag;
 					subblock = uiLayoutGetBlock(col);
@@ -3061,7 +3086,8 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 					sub = uiLayoutRow(overlap, false);
 
 					but = uiDefButR_prop(subblock, UI_BTYPE_LISTROW, 0, "", 0, 0, UI_UNIT_X * 10, UI_UNIT_Y,
-					                     active_dataptr, activeprop, 0, 0, org_i, 0, 0, TIP_("Double click to rename"));
+					                     active_dataptr, activeprop, 0, 0, org_i, 0, 0,
+					                     uilist_generate_advanced_tooltip(tooltip_buff, sizeof(tooltip_buff), itemptr));
 
 					sub = uiLayoutRow(overlap, false);
 
@@ -3237,6 +3263,9 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 		MEM_freeN(items_ptr);
 	}
 }
+
+#undef UILIST_RENAME_TOOLTIP
+#undef UILIST_TOOLTIP_LEN
 
 /************************* Operator Search Template **************************/
 

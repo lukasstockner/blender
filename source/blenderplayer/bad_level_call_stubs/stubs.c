@@ -358,6 +358,8 @@ struct FSMenu *fsmenu_get(void) RET_NULL
 struct FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory category) RET_NULL
 int fsmenu_get_nentries(struct FSMenu *fsmenu, FSMenuCategory category) RET_ZERO
 struct FSMenuEntry *fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory category, int index) RET_NULL
+char *fsmenu_entry_get_path(struct FSMenuEntry *fsentry) RET_NULL
+void fsmenu_entry_set_path(struct FSMenuEntry *fsentry, const char *name) RET_NONE
 char *fsmenu_entry_get_name(struct FSMenuEntry *fsentry) RET_NULL
 void fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name) RET_NONE
 

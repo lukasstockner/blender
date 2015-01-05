@@ -1386,6 +1386,27 @@ static int rna_SpaceFileBrowser_use_lib_get(PointerRNA *ptr)
 
 /* File browser. */
 
+static void rna_FileBrowser_FSMenuEntry_path_get(PointerRNA *ptr, char *value)
+{
+	char *path = fsmenu_entry_get_path(ptr->data);
+
+	strcpy(value, path ? path : "");
+}
+
+static int rna_FileBrowser_FSMenuEntry_path_length(PointerRNA *ptr)
+{
+	char *path = fsmenu_entry_get_path(ptr->data);
+
+	return (int)(path ? strlen(path) : 0);
+}
+
+static void rna_FileBrowser_FSMenuEntry_path_set(PointerRNA *ptr, const char *value)
+{
+	FSMenuEntry *fsm = ptr->data;
+
+	fsmenu_entry_set_path(fsm, value);
+}
+
 static void rna_FileBrowser_FSMenuEntry_name_get(PointerRNA *ptr, char *value)
 {
 	strcpy(value, fsmenu_entry_get_name(ptr->data));
@@ -3600,6 +3621,9 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "path", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_string_sdna(prop, NULL, "path");
+	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_path_get",
+	                                    "rna_FileBrowser_FSMenuEntry_path_length",
+	                                    "rna_FileBrowser_FSMenuEntry_path_set");
 	RNA_def_property_ui_text(prop, "Path", "");
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
@@ -3609,6 +3633,13 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 	                                    "rna_FileBrowser_FSMenuEntry_name_set");
 	RNA_def_property_editable_func(prop, "rna_FileBrowser_FSMenuEntry_name_get_editable");
 	RNA_def_property_ui_text(prop, "Name", "");
+
+	prop = RNA_def_property(srna, "uilist_dynamic_tooltip", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "path");
+	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_path_get",
+	                              "rna_FileBrowser_FSMenuEntry_path_length", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 
 	prop = RNA_def_property(srna, "use_save", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "save", 1);

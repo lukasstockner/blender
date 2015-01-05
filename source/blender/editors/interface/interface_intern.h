@@ -254,7 +254,9 @@ struct uiBut {
 	uiLink *link;
 	short linkto[2];  /* region relative coords */
 	
-	const char *tip, *lockstr;
+	char tipdata[UI_MAX_NAME_STR];
+	char *tip;
+	const char *lockstr;
 
 	BIFIconID icon;
 	bool lock;

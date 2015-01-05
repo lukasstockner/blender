@@ -751,6 +751,23 @@ static bool ui_but_update_from_old_block(const bContext *C, uiBlock *block, uiBu
 			BLI_strncpy(oldbut->strdata, but->strdata, sizeof(oldbut->strdata));
 		}
 
+		if (but->tip != but->tipdata) {
+			if (oldbut->tip != oldbut->tipdata) {
+				SWAP(char *, but->tip, oldbut->tip);
+			}
+			else {
+				oldbut->tip = but->tip;
+				but->tip = but->tipdata;
+			}
+		}
+		else {
+			if (oldbut->tip != oldbut->tipdata) {
+				MEM_SAFE_FREE(oldbut->tip);
+				oldbut->tip = oldbut->tipdata;
+			}
+			BLI_strncpy(oldbut->tipdata, but->tipdata, sizeof(oldbut->tipdata));
+		}
+
 		BLI_remlink(&block->buttons, but);
 		ui_but_free(C, but);
 
@@ -2430,6 +2447,9 @@ static void ui_but_free(const bContext *C, uiBut *but)
 	if (but->str && but->str != but->strdata) {
 		MEM_freeN(but->str);
 	}
+	if (but->tip && but->tip != but->tipdata) {
+		MEM_freeN(but->tip);
+	}
 	ui_free_link(but->link);
 
 	if ((but->type == UI_BTYPE_IMAGE) && but->poin) {
@@ -3059,6 +3079,20 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	}
 	memcpy(but->str, str, slen + 1);
 
+	if (tip) {
+		slen = strlen(tip);
+		if (slen >= UI_MAX_NAME_STR) {
+			but->tip = MEM_mallocN(slen + 1, "ui_def_but tip");
+		}
+		else {
+			but->tip = but->tipdata;
+		}
+		memcpy(but->tip, tip, slen + 1);
+	}
+	else {
+		but->tip = NULL;
+	}
+
 	but->rect.xmin = x;
 	but->rect.ymin = y;
 	but->rect.xmax = but->rect.xmin + width;
@@ -3069,7 +3103,6 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	but->hardmax = but->softmax = max;
 	but->a1 = a1;
 	but->a2 = a2;
-	but->tip = tip;
 
 	but->lock = block->lock;
 	but->lockstr = block->lockstr;

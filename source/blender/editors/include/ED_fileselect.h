@@ -137,7 +137,9 @@ struct FSMenuEntry *fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory categ
 
 /** Returns the fsmenu entry (path) at \a index (or NULL if a bad index) or a separator.
  */
+char *fsmenu_entry_get_path(struct FSMenuEntry *fsentry);
 char *fsmenu_get_entry_path(struct FSMenu *fsmenu, FSMenuCategory category, int index);
+void fsmenu_entry_set_path(struct FSMenuEntry *fsentry, const char *path);
 
 /** Returns the fsmenu name at \a index (or NULL if a bad index) or a separator.
  */
