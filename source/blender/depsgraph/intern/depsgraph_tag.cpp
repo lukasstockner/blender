@@ -54,6 +54,7 @@ unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 #include "DEG_depsgraph.h"
 
 #include "depsgraph.h"
+#include "depsgraph_debug.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
@@ -142,6 +143,7 @@ void DEG_id_tag_update(ID *id, short flag)
 
 void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 {
+	deg_debug_printf("%s: id=%s flag=%d\n", id->name, flag);
 	lib_id_recalc_tag_flag(bmain, id, flag);
 	for (Scene *scene = (Scene *)bmain->scene.first;
 	     scene != NULL;
