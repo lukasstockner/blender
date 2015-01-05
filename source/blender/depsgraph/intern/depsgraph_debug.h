@@ -28,12 +28,8 @@
 #define __DEPSGRAPH_DEBUG_H__
 
 extern "C" {
-#include "DNA_userdef_types.h"
 #include "BLI_threads.h"
 }
-
-#include "DEG_depsgraph_debug.h"
-#include "DEG_depsgraph.h"
 
 #include "depsgraph_types.h"
 
@@ -48,29 +44,34 @@ struct Depsgraph;
 
 struct DepsgraphDebug {
 	static DepsgraphStats *stats;
-	
+
 	static void stats_init();
 	static void stats_free();
-	
+
 	static void verify_stats(DepsgraphSettings *settings);
 	static void reset_stats();
-	
+
 	static void eval_begin(const EvaluationContext *eval_ctx);
 	static void eval_end(const EvaluationContext *eval_ctx);
-	static void eval_step(const EvaluationContext *eval_ctx, const char *message);
-	
+	static void eval_step(const EvaluationContext *eval_ctx,
+	                      const char *message);
+
 	static void task_started(const OperationDepsNode *node);
 	static void task_completed(const OperationDepsNode *node, double time);
-	
+
 	static DepsgraphStatsID *get_id_stats(ID *id, bool create);
-	static DepsgraphStatsComponent *get_component_stats(DepsgraphStatsID *id_stats, const string &name, bool create);
-	static DepsgraphStatsComponent *get_component_stats(ID *id, const string &name, bool create)
+	static DepsgraphStatsComponent *get_component_stats(DepsgraphStatsID *id_stats,
+	                                                    const string &name,
+	                                                    bool create);
+	static DepsgraphStatsComponent *get_component_stats(ID *id,
+	                                                    const string &name,
+	                                                    bool create)
 	{
 		return get_component_stats(get_id_stats(id, create), name, create);
 	}
-	
+
 protected:
 	static ThreadMutex stats_mutex;
 };
 
-#endif // __DEPSGRAPH_DEBUG_H__
+#endif  /* __DEPSGRAPH_DEBUG_H__ */
