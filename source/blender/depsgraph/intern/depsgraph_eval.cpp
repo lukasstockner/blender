@@ -132,8 +132,9 @@ static void deg_task_run_func(TaskPool *pool,
 	if (!node->is_noop()) {
 		/* Get context. */
 		// TODO: who initialises this? "Init" operations aren't able to initialise it!!!
-		ComponentDepsNode *comp = node->owner;
-		BLI_assert(comp != NULL);
+		/* TODO(sergey): Wedon't use component contexts at this moment. */
+		/* ComponentDepsNode *comp = node->owner; */
+		BLI_assert(node->owner != NULL);
 
 		/* Take note of current time. */
 		double start_time = PIL_check_seconds_timer();

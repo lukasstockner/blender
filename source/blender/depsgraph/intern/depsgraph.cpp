@@ -344,7 +344,6 @@ void Depsgraph::clear_all_nodes()
 void Depsgraph::add_invisible_entry_tag(OperationDepsNode *node)
 {
 	BLI_assert(node != NULL);
-	IDDepsNode *id_node = node->owner->owner;
 	invisible_entry_tags.insert(node);
 }
 
