@@ -199,13 +199,14 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	if (!sfile->files) {
 		sfile->files = filelist_new(params->type);
 		filelist_setdir(sfile->files, params->dir);
-		params->active_file = -1; // added this so it opens nicer (ton)
+		params->active_file = -1; /* added this so it opens nicer (ton) */
 	}
 	filelist_setsorting(sfile->files, params->sort);
 	filelist_setfilter_options(sfile->files, params->flag & FILE_HIDE_DOT,
 	                                         false, /* TODO hide_parent, should be controllable? */
 	                                         params->flag & FILE_FILTER ? params->filter : 0,
-	                                         params->filter_glob);
+	                                         params->filter_glob,
+	                                         params->filter_search);
 
 	if (filelist_empty(sfile->files)) {
 		thumbnails_stop(wm, sfile->files);
@@ -235,7 +236,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 		if (idx >= 0) {
 			struct direntry *file = filelist_file(sfile->files, idx);
 			if (file) {
-				file->selflag |= EDITING_FILE;
+				file->selflag |= FILE_SEL_EDITING;
 			}
 		}
 		BLI_strncpy(sfile->params->renameedit, sfile->params->renamefile, sizeof(sfile->params->renameedit));
