@@ -54,10 +54,16 @@ typedef enum GPUFXShaderEffect {
 	GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE = 4,
 	GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR = 5,
 	GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE = 6,
+
+	/* following are for high quality dof */
+	GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF = 7, /* downsample to half render target */
+	GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF_COC = 8, /* downsample coc (mainly near coc) */
+	GPU_SHADER_FX_DEPTH_OF_FIELD_BLUR = 9, /* combined calculation of near and far dof buffers */
+	GPU_SHADER_FX_DEPTH_OF_FIELD_FINAL_COMBINE = 10 /* final combination pass */
 } GPUFXShaderEffect;
 
 /* keep in synch with enum above! */
-#define MAX_FX_SHADERS 7
+#define MAX_FX_SHADERS 11
 
 /* generate a new FX compositor */
 GPUFX *GPU_create_fx_compositor(void);
