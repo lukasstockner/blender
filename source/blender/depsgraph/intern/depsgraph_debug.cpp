@@ -51,8 +51,10 @@ extern "C" {
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
-/* ************************************************ */
+/* ****************** */
 /* Graphviz Debugging */
+
+static SpinLock lock;
 
 #define NL "\r\n"
 
@@ -771,10 +773,11 @@ void DepsgraphDebug::eval_step(const EvaluationContext *eval_ctx,
 #endif
 }
 
-void DepsgraphDebug::task_started(const OperationDepsNode *node)
+void DepsgraphDebug::task_started(Depsgraph *graph,
+                                  const OperationDepsNode *node)
 {
 	if (stats) {
-		BLI_mutex_lock(&stats_mutex);
+		BLI_spin_lock(&graph->lock);
 
 		ComponentDepsNode *comp = node->owner;
 		ID *id = comp->owner->id;
@@ -789,14 +792,16 @@ void DepsgraphDebug::task_started(const OperationDepsNode *node)
 			times_clear(comp_stats->times);
 		}
 
-		BLI_mutex_unlock(&stats_mutex);
+		BLI_spin_unlock(&graph->lock);
 	}
 }
 
-void DepsgraphDebug::task_completed(const OperationDepsNode *node, double time)
+void DepsgraphDebug::task_completed(Depsgraph *graph,
+                                    const OperationDepsNode *node,
+                                    double time)
 {
 	if (stats) {
-		BLI_mutex_lock(&stats_mutex);
+		BLI_spin_lock(&graph->lock);
 
 		ComponentDepsNode *comp = node->owner;
 		ID *id = comp->owner->id;
@@ -811,15 +816,14 @@ void DepsgraphDebug::task_completed(const OperationDepsNode *node, double time)
 			times_add(comp_stats->times, time);
 		}
 
-		BLI_mutex_unlock(&stats_mutex);
+		BLI_spin_unlock(&graph->lock);
 	}
 }
 
-/* ************************************************ */
+/* ********** */
 /* Statistics */
 
 DepsgraphStats *DepsgraphDebug::stats = NULL;
-ThreadMutex DepsgraphDebug::stats_mutex;
 
 /* GHash callback */
 static void deg_id_stats_free(void *val)
@@ -837,16 +841,12 @@ void DepsgraphDebug::stats_init()
 	if (!stats) {
 		stats = (DepsgraphStats *)MEM_callocN(sizeof(DepsgraphStats), "Depsgraph Stats");
 		stats->id_stats = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "Depsgraph ID Stats Hash");
-
-		BLI_mutex_init(&stats_mutex);
 	}
 }
 
 void DepsgraphDebug::stats_free()
 {
 	if (stats) {
-		BLI_mutex_end(&stats_mutex);
-
 		BLI_ghash_free(stats->id_stats, NULL, deg_id_stats_free);
 		MEM_freeN(stats);
 		stats = NULL;

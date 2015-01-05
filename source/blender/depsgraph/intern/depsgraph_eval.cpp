@@ -137,7 +137,7 @@ static void deg_task_run_func(TaskPool *pool,
 
 		/* Take note of current time. */
 		double start_time = PIL_check_seconds_timer();
-		DepsgraphDebug::task_started(node);
+		DepsgraphDebug::task_started(state->graph, node);
 
 		/* Should only be the case for NOOPs, which never get to this point. */
 		BLI_assert(node->evaluate != NULL);
@@ -147,7 +147,9 @@ static void deg_task_run_func(TaskPool *pool,
 
 		/* Note how long this took. */
 		double end_time = PIL_check_seconds_timer();
-		DepsgraphDebug::task_completed(node, end_time - start_time);
+		DepsgraphDebug::task_completed(state->graph,
+		                               node,
+		                               end_time - start_time);
 	}
 
 	schedule_children(pool, state->eval_ctx, state->graph, node, state->layers);

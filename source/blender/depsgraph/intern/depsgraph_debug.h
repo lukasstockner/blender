@@ -27,10 +27,6 @@
 #ifndef __DEPSGRAPH_DEBUG_H__
 #define __DEPSGRAPH_DEBUG_H__
 
-extern "C" {
-#include "BLI_threads.h"
-}
-
 #include "depsgraph_types.h"
 
 struct DepsgraphStats;
@@ -56,8 +52,10 @@ struct DepsgraphDebug {
 	static void eval_step(const EvaluationContext *eval_ctx,
 	                      const char *message);
 
-	static void task_started(const OperationDepsNode *node);
-	static void task_completed(const OperationDepsNode *node, double time);
+	static void task_started(Depsgraph *graph, const OperationDepsNode *node);
+	static void task_completed(Depsgraph *graph,
+	                           const OperationDepsNode *node,
+	                           double time);
 
 	static DepsgraphStatsID *get_id_stats(ID *id, bool create);
 	static DepsgraphStatsComponent *get_component_stats(DepsgraphStatsID *id_stats,
@@ -69,9 +67,6 @@ struct DepsgraphDebug {
 	{
 		return get_component_stats(get_id_stats(id, create), name, create);
 	}
-
-protected:
-	static ThreadMutex stats_mutex;
 };
 
 #endif  /* __DEPSGRAPH_DEBUG_H__ */
