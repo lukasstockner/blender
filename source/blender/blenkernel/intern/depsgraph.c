@@ -1399,7 +1399,7 @@ static void scene_sort_groups(Main *bmain, Scene *sce)
 }
 
 /* free the depency graph */
-static void dag_scene_free(Scene *sce, bool free_new_graph)
+static void dag_scene_free(Scene *sce)
 {
 	if (sce->theDag) {
 		free_forest(sce->theDag);
@@ -1528,7 +1528,7 @@ static void dag_invisible_dependencies_check_flush(Main *bmain, Scene *scene)
 }
 
 /* sort the base list on dependency order */
-static void dag_scene_build(Main *bmain, Scene *sce, bool rebuild_new_graph)
+static void dag_scene_build(Main *bmain, Scene *sce)
 {
 	DagNode *node, *rootnode;
 	DagNodeQueue *nqueue;
@@ -1633,7 +1633,7 @@ void DAG_relations_tag_update(Main *bmain)
 {
 	Scene *sce;
 	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-		dag_scene_free(sce, false);
+		dag_scene_free(sce);
 	}
 	/* New dependency graph. */
 	DEG_relations_tag_update(bmain);
@@ -1642,7 +1642,7 @@ void DAG_relations_tag_update(Main *bmain)
 /* rebuild dependency graph only for a given scene */
 void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 {
-	dag_scene_free(sce, false);
+	dag_scene_free(sce);
 	DEG_scene_relations_update(bmain, sce);
 	/* New dependency graph. */
 	DEG_scene_relations_rebuild(bmain, sce);
@@ -1652,7 +1652,7 @@ void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 void DAG_scene_relations_update(Main *bmain, Scene *sce)
 {
 	if (!sce->theDag)
-		dag_scene_build(bmain, sce, false);
+		dag_scene_build(bmain, sce);
 	/* New dependency graph. */
 	DEG_scene_relations_update(bmain, sce);
 }
