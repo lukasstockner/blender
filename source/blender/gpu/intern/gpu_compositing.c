@@ -65,8 +65,8 @@ struct GPUFX {
 	GPUTexture *color_buffer_sec;
 
 	/* all those buffers below have to coexist. Fortunately they are all quarter sized (1/16th of memory) of original framebuffer */
-	float dof_near_w;
-	float dof_near_h;
+	int dof_downsampled_w;
+	int dof_downsampled_h;
 
 	/* texture used for near coc and color blurring calculation */
 	GPUTexture *dof_near_coc_buffer;
@@ -75,8 +75,13 @@ struct GPUFX {
 	/* final near coc buffer. */
 	GPUTexture *dof_near_coc_final_buffer;
 
-	/* high quality dof texture downsamplers. 5 levels means 32 pixels wide */
-	GPUTexture *dof_nearfar_coc[5];
+	/* half size blur buffer */
+	GPUTexture *dof_half_downsampled;
+	/* high quality dof texture downsamplers. 6 levels means 64 pixels wide */
+	GPUTexture *dof_nearfar_coc[6];
+	GPUTexture *dof_near_blur;
+	GPUTexture *dof_far_blur;
+	GPUTexture *dof_concentric_samples_tex;
 	
 	/* texture bound to the depth attachment of the gbuffer */
 	GPUTexture *depth_buffer;
@@ -125,6 +130,30 @@ static void cleanup_fx_dof_buffers(GPUFX *fx)
 	if (fx->dof_near_coc_final_buffer) {
 		GPU_texture_free(fx->dof_near_coc_final_buffer);
 		fx->dof_near_coc_final_buffer = NULL;
+	}
+	
+	if (fx->dof_half_downsampled) {
+		GPU_texture_free(fx->dof_half_downsampled);
+		fx->dof_half_downsampled = NULL;
+	}
+	if (fx->dof_nearfar_coc[0]) {
+		int i;
+		for (i = 0; i < 6; i++) {
+			GPU_texture_free(fx->dof_nearfar_coc[i]);
+			fx->dof_nearfar_coc[i] = NULL;
+		}
+	}
+	if (fx->dof_near_blur) {
+		GPU_texture_free(fx->dof_near_blur);
+		fx->dof_near_blur = NULL;
+	}
+	if (fx->dof_far_blur) {
+		GPU_texture_free(fx->dof_far_blur);
+		fx->dof_far_blur = NULL;
+	}
+	if (fx->dof_concentric_samples_tex) {
+		GPU_texture_free(fx->dof_concentric_samples_tex);
+		fx->dof_concentric_samples_tex = NULL;
 	}
 }
 
@@ -268,7 +297,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	if (!fx->color_buffer || !fx->depth_buffer || w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]) {
 		cleanup_fx_gl_data(fx, false);
 		
-		if (!(fx->color_buffer = GPU_texture_create_2D(w, h, NULL, GPU_HDR_HALF_FLOAT, err_out))) {
+		if (!(fx->color_buffer = GPU_texture_create_2D(w, h, NULL, GPU_HDR_NONE, err_out))) {
 			printf(".256%s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
 			return false;
@@ -295,31 +324,73 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(options->ssao_options->ssao_num_samples);
 		}
 	}
+	else {
+		if (fx->ssao_concentric_samples_tex) {
+			GPU_texture_free(fx->ssao_concentric_samples_tex);
+			fx->ssao_concentric_samples_tex = NULL;
+		}
+	}
 	
 	/* create textures for dof effect */
 	if (fxflags & GPU_FX_DEPTH_OF_FIELD) {
 		if (options->dof_options->dof_quality_mode == DOF_QUALITY_HIGH) {
 			/* we use a different scheme here */
-			if (!fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer) {
-				
+			if (!fx->dof_near_blur || !fx->dof_far_blur || !fx->dof_nearfar_coc || !fx->dof_half_downsampled) {
+				int i, ds_w, ds_h;
+				/* half width instead of quad width */
+				fx->dof_downsampled_w = w / 2;
+				fx->dof_downsampled_h = h / 2;
+				ds_w = fx->dof_downsampled_w;
+				ds_h = fx->dof_downsampled_h;
+
+				if (!(fx->dof_near_blur = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
+					printf("%.256s\n", err_out);
+					cleanup_fx_gl_data(fx, true);
+					return false;
+				}
+				if (!(fx->dof_far_blur = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
+					printf("%.256s\n", err_out);
+					cleanup_fx_gl_data(fx, true);
+					return false;
+				}
+				if (!(fx->dof_half_downsampled = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
+					printf("%.256s\n", err_out);
+					cleanup_fx_gl_data(fx, true);
+					return false;
+				}
+				for (i = 0; i < 6; i++) {
+					if (!(fx->dof_nearfar_coc[i] = GPU_texture_create_2D(ds_w, ds_h, NULL, GPU_HDR_NONE, err_out))) {
+						printf("%.256s\n", err_out);
+						cleanup_fx_gl_data(fx, true);
+						return false;
+					}
+					ds_w /= 2;
+					ds_h /= 2;
+				}
+				/* arbitrary number for now (7), but will be improved later */
+				if (!(fx->dof_concentric_samples_tex = create_concentric_sample_texture(7))) {
+					printf("%.256s\n", err_out);
+					cleanup_fx_gl_data(fx, true);
+					return false;
+				}
 			}
 		}
 		else {
 			if (!fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer) {
-				fx->dof_near_w = w / 4;
-				fx->dof_near_h = h / 4;
+				fx->dof_downsampled_w = w / 4;
+				fx->dof_downsampled_h = h / 4;
 
-				if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, GPU_HDR_NONE, err_out))) {
+				if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
 					return false;
 				}
-				if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, GPU_HDR_NONE, err_out))) {
+				if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
 					return false;
 				}
-				if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_near_w, fx->dof_near_h, NULL, GPU_HDR_NONE, err_out))) {
+				if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
 					printf("%.256s\n", err_out);
 					cleanup_fx_gl_data(fx, true);
 					return false;
@@ -335,7 +406,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 	/* we need to pass data between shader stages, allocate an extra color buffer */
 	if (num_passes > 1) {
 		if(!fx->color_buffer_sec) {
-			if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, GPU_HDR_HALF_FLOAT, err_out))) {
+			if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, GPU_HDR_NONE, err_out))) {
 				printf(".256%s\n", err_out);
 				cleanup_fx_gl_data(fx, true);
 				return false;
@@ -543,18 +614,18 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 	/* second pass, dof */
 	if (fx->effects & GPU_FX_DEPTH_OF_FIELD) {
 		GPUDOFOptions *options = fx->options.dof_options;
+		float dof_params[4];
+		float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
+		float scale_camera = 0.001f / scale;
+		float aperture = 2.0f * scale_camera * options->dof_focal_length / options->dof_fstop;
+
+		dof_params[0] = aperture * fabs(scale_camera * options->dof_focal_length / (options->dof_focus_distance - scale_camera * options->dof_focal_length));
+		dof_params[1] = options->dof_focus_distance;
+		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
+		dof_params[3] = 0.0f;
 
 		if (options->dof_quality_mode == DOF_QUALITY_NORMAL) {
 			GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4, *dof_shader_pass5;
-			float dof_params[4];
-			float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
-			float scale_camera = 0.001f / scale;
-			float aperture = 2.0f * scale_camera * options->dof_focal_length / options->dof_fstop; // * v3d->dof_aperture;
-
-			dof_params[0] = aperture * fabs(scale_camera * options->dof_focal_length / (options->dof_focus_distance - scale_camera * options->dof_focal_length));
-			dof_params[1] = options->dof_focus_distance;
-			dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
-			dof_params[3] = 0.0f;
 
 			/* DOF effect has many passes but most of them are performed on a texture whose dimensions are 4 times less than the original
 			 * (16 times lower than original screen resolution). Technique used is not very exact but should be fast enough and is based
