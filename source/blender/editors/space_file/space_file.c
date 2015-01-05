@@ -199,7 +199,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	}
 	if (!sfile->files) {
 		sfile->files = filelist_new(params->type);
-		params->active_file = -1; // added this so it opens nicer (ton)
+		params->active_file = -1; /* added this so it opens nicer (ton) */
 	}
 	filelist_setdir(sfile->files, params->dir);
 	filelist_setrecursive(sfile->files, (params->flag & FILE_SHOWFLAT) != 0);
