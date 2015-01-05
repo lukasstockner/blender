@@ -60,16 +60,16 @@
 #include "DEG_depsgraph.h"
 
 #ifdef WITH_LEGACY_DEPSGRAPH
-#  define PRINT if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW) printf
+#  define DEBUG_PRINT if (DEG_get_eval_mode() == DEG_EVAL_MODE_NEW && G.debug & G_DEBUG_DEPSGRAPH) printf
 #else
-#  define PRINT printf
+#  define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
 #endif
 
 void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
                                      Scene *UNUSED(scene),
                                      Object *ob)
 {
-	PRINT("%s on %s\n", __func__, ob->id.name);
+	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	
 	/* calculate local matrix */
 	BKE_object_to_mat4(ob, ob->obmat);
@@ -88,7 +88,7 @@ void BKE_object_eval_parent(EvaluationContext *UNUSED(eval_ctx), Scene *scene, O
 	float tmat[4][4];
 	float locmat[4][4];
 	
-	PRINT("%s on %s\n", __func__, ob->id.name);
+	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	
 	/* get local matrix (but don't calculate it, as that was done already!) */
 	// XXX: redundant?
@@ -117,7 +117,7 @@ void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
 	bConstraintOb *cob;
 	float ctime = BKE_scene_frame_get(scene);
 	
-	PRINT("%s on %s\n", __func__, ob->id.name);
+	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	
 	/* evaluate constraints stack */
 	// TODO: split this into pre (i.e. BKE_constraints_make_evalob, per-constraint (i.e. inner body of BKE_constraints_solve), post (i.e. BKE_constraints_clear_evalob)
@@ -128,7 +128,7 @@ void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
 
 void BKE_object_eval_done(EvaluationContext *UNUSED(eval_ctx), Object *ob)
 {
-	PRINT("%s on %s\n", __func__, ob->id.name);
+	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	
 	/* set negative scale flag in object */
 	if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
@@ -140,7 +140,7 @@ void BKE_object_eval_modifier(struct EvaluationContext *eval_ctx,
                               struct Object *ob,
                               struct ModifierData *md)
 {
-	PRINT("%s on %s\n", __func__, ob->id.name);
+	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	(void) eval_ctx;  /* Ignored. */
 	(void) scene;  /* Ignored. */
 	(void) ob;  /* Ignored. */
@@ -321,7 +321,7 @@ void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
                                Scene *scene,
                                Object *ob)
 {
-	PRINT("%s on %s\n", __func__, ob->id.name);
+	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	BLI_assert(ob->type != OB_ARMATURE);
 	BKE_object_handle_data_update(eval_ctx, scene, ob);
 }

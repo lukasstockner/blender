@@ -162,7 +162,7 @@ struct DebugContext {
 	bool show_eval_priority;
 };
 
-static void deg_debug_printf(const DebugContext &ctx, const char *fmt, ...)
+static void deg_debug_fprintf(const DebugContext &ctx, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -174,10 +174,10 @@ static void deg_debug_graphviz_legend_color(const DebugContext &ctx,
                                             const char *name,
                                             const char *color)
 {
-	deg_debug_printf(ctx, "<TR>");
-	deg_debug_printf(ctx, "<TD>%s</TD>", name);
-	deg_debug_printf(ctx, "<TD BGCOLOR=\"%s\"></TD>", color);
-	deg_debug_printf(ctx, "</TR>" NL);
+	deg_debug_fprintf(ctx, "<TR>");
+	deg_debug_fprintf(ctx, "<TD>%s</TD>", name);
+	deg_debug_fprintf(ctx, "<TD BGCOLOR=\"%s\"></TD>", color);
+	deg_debug_fprintf(ctx, "</TR>" NL);
 }
 
 #if 0
@@ -187,7 +187,7 @@ static void deg_debug_graphviz_legend_line(const DebugContext &ctx,
                                            const char *style)
 {
 	/* XXX TODO */
-	deg_debug_printf(ctx, "" NL);
+	deg_debug_fprintf(ctx, "" NL);
 }
 
 static void deg_debug_graphviz_legend_cluster(const DebugContext &ctx,
@@ -195,22 +195,22 @@ static void deg_debug_graphviz_legend_cluster(const DebugContext &ctx,
                                               const char *color,
                                               const char *style)
 {
-	deg_debug_printf(ctx, "<TR>");
-	deg_debug_printf(ctx, "<TD>%s</TD>", name);
-	deg_debug_printf(ctx, "<TD CELLPADDING=\"4\"><TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\">");
-	deg_debug_printf(ctx, "<TR><TD BGCOLOR=\"%s\"></TD></TR>", color);
-	deg_debug_printf(ctx, "</TABLE></TD>");
-	deg_debug_printf(ctx, "</TR>" NL);
+	deg_debug_fprintf(ctx, "<TR>");
+	deg_debug_fprintf(ctx, "<TD>%s</TD>", name);
+	deg_debug_fprintf(ctx, "<TD CELLPADDING=\"4\"><TABLE BORDER=\"1\" CELLBORDER=\"0\" CELLSPACING=\"0\" CELLPADDING=\"0\">");
+	deg_debug_fprintf(ctx, "<TR><TD BGCOLOR=\"%s\"></TD></TR>", color);
+	deg_debug_fprintf(ctx, "</TABLE></TD>");
+	deg_debug_fprintf(ctx, "</TR>" NL);
 }
 #endif
 
 static void deg_debug_graphviz_legend(const DebugContext &ctx)
 {
-	deg_debug_printf(ctx, "{" NL);
-	deg_debug_printf(ctx, "rank = sink;" NL);
-	deg_debug_printf(ctx, "Legend [shape=none, margin=0, label=<" NL);
-	deg_debug_printf(ctx, "  <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" NL);
-	deg_debug_printf(ctx, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
+	deg_debug_fprintf(ctx, "{" NL);
+	deg_debug_fprintf(ctx, "rank = sink;" NL);
+	deg_debug_fprintf(ctx, "Legend [shape=none, margin=0, label=<" NL);
+	deg_debug_fprintf(ctx, "  <TABLE BORDER=\"0\" CELLBORDER=\"1\" CELLSPACING=\"0\" CELLPADDING=\"4\">" NL);
+	deg_debug_fprintf(ctx, "<TR><TD COLSPAN=\"2\"><B>Legend</B></TD></TR>" NL);
 
 #ifdef COLOR_SCHEME_NODE_CLASS
 	const char **colors = deg_debug_colors_light;
@@ -230,11 +230,11 @@ static void deg_debug_graphviz_legend(const DebugContext &ctx)
 	}
 #endif
 
-	deg_debug_printf(ctx, "</TABLE>" NL);
-	deg_debug_printf(ctx, ">" NL);
-	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
-	deg_debug_printf(ctx, "];" NL);
-	deg_debug_printf(ctx, "}" NL);
+	deg_debug_fprintf(ctx, "</TABLE>" NL);
+	deg_debug_fprintf(ctx, ">" NL);
+	deg_debug_fprintf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+	deg_debug_fprintf(ctx, "];" NL);
+	deg_debug_fprintf(ctx, "}" NL);
 }
 
 #if 0 /* unused */
@@ -268,7 +268,7 @@ static void deg_debug_graphviz_node_color(const DebugContext &ctx,
 			}
 		}
 	}
-	deg_debug_printf(ctx, "\"%s\"", color);
+	deg_debug_fprintf(ctx, "\"%s\"", color);
 }
 
 static void deg_debug_graphviz_node_penwidth(const DebugContext &ctx,
@@ -289,7 +289,7 @@ static void deg_debug_graphviz_node_penwidth(const DebugContext &ctx,
 			}
 		}
 	}
-	deg_debug_printf(ctx, "\"%f\"", penwidth);
+	deg_debug_fprintf(ctx, "\"%f\"", penwidth);
 }
 
 static void deg_debug_graphviz_node_fillcolor(const DebugContext &ctx,
@@ -298,7 +298,7 @@ static void deg_debug_graphviz_node_fillcolor(const DebugContext &ctx,
 	const char *defaultcolor = "gainsboro";
 	int color_index = deg_debug_node_color_index(node);
 	const char *fillcolor = color_index < 0 ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
-	deg_debug_printf(ctx, "\"%s\"", fillcolor);
+	deg_debug_fprintf(ctx, "\"%s\"", fillcolor);
 }
 
 #if 0 /* implementation using stripes, a bit too noisy ... */
@@ -312,17 +312,17 @@ static void deg_debug_graphviz_node_fillcolor(const DebugContext &ctx,
 	const char *base_color = color_index < 0 ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
 	if (ctx.show_tags &&
 	    (node->flag & (DEPSNODE_FLAG_DIRECTLY_MODIFIED | DEPSNODE_FLAG_NEEDS_UPDATE))) {
-		deg_debug_printf(ctx, "\"");
+		deg_debug_fprintf(ctx, "\"");
 		for (int i = 0; i < num_stripes; ++i) {
 			if (i > 0) {
-				deg_debug_printf(ctx, ":");
+				deg_debug_fprintf(ctx, ":");
 			}
-			deg_debug_printf(ctx, "%s:%s", base_color, color_needs_update);
+			deg_debug_fprintf(ctx, "%s:%s", base_color, color_needs_update);
 		}
-		deg_debug_printf(ctx, "\"");
+		deg_debug_fprintf(ctx, "\"");
 	}
 	else {
-		deg_debug_printf(ctx, "\"%s\"", base_color);
+		deg_debug_fprintf(ctx, "\"%s\"", base_color);
 	}
 }
 #endif
@@ -334,13 +334,13 @@ static void deg_debug_graphviz_relation_color(const DebugContext &ctx,
 #if 0 /* disabled for now, edge colors are hardly distinguishable */
 	int color = deg_debug_relation_type_color_index(rel->type);
 	if (color < 0) {
-		deg_debug_printf(ctx, "%s", defaultcolor);
+		deg_debug_fprintf(ctx, "%s", defaultcolor);
 	}
 	else {
-		deg_debug_printf(ctx, "\"%s\"", deg_debug_colors_dark[color % deg_debug_max_colors]);
+		deg_debug_fprintf(ctx, "\"%s\"", deg_debug_colors_dark[color % deg_debug_max_colors]);
 	}
 #else
-	deg_debug_printf(ctx, "%s", defaultcolor);
+	deg_debug_fprintf(ctx, "%s", defaultcolor);
 #endif
 }
 
@@ -357,13 +357,13 @@ static void deg_debug_graphviz_node_style(const DebugContext &ctx, const DepsNod
 	}
 	switch (node->tclass) {
 		case DEPSNODE_CLASS_GENERIC:
-			deg_debug_printf(ctx, "\"%s\"", base_style);
+			deg_debug_fprintf(ctx, "\"%s\"", base_style);
 			break;
 		case DEPSNODE_CLASS_COMPONENT:
-			deg_debug_printf(ctx, "\"%s\"", base_style);
+			deg_debug_fprintf(ctx, "\"%s\"", base_style);
 			break;
 		case DEPSNODE_CLASS_OPERATION:
-			deg_debug_printf(ctx, "\"%s,rounded\"", base_style);
+			deg_debug_fprintf(ctx, "\"%s,rounded\"", base_style);
 			break;
 	}
 }
@@ -377,56 +377,56 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx,
 	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION) {
 		priority = ((OperationDepsNode *)node)->eval_priority;
 	}
-	deg_debug_printf(ctx, "// %s\n", name.c_str());
-	deg_debug_printf(ctx, "\"node_%p\"", node);
-	deg_debug_printf(ctx, "[");
-//	deg_debug_printf(ctx, "label=<<B>%s</B>>", name);
+	deg_debug_fprintf(ctx, "// %s\n", name.c_str());
+	deg_debug_fprintf(ctx, "\"node_%p\"", node);
+	deg_debug_fprintf(ctx, "[");
+//	deg_debug_fprintf(ctx, "label=<<B>%s</B>>", name);
 	if (priority >= 0.0f) {
-		deg_debug_printf(ctx, "label=<%s<BR/>(<I>%.2f</I>)>",
+		deg_debug_fprintf(ctx, "label=<%s<BR/>(<I>%.2f</I>)>",
 		                 name.c_str(),
 		                 priority);
 	}
 	else {
-		deg_debug_printf(ctx, "label=<%s>", name.c_str());
+		deg_debug_fprintf(ctx, "label=<%s>", name.c_str());
 	}
-	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
-	deg_debug_printf(ctx, ",fontsize=%f", deg_debug_graphviz_node_label_size);
-	deg_debug_printf(ctx, ",shape=%s", shape);
-	deg_debug_printf(ctx, ",style="); deg_debug_graphviz_node_style(ctx, node);
-	deg_debug_printf(ctx, ",color="); deg_debug_graphviz_node_color(ctx, node);
-	deg_debug_printf(ctx, ",fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node);
-	deg_debug_printf(ctx, ",penwidth="); deg_debug_graphviz_node_penwidth(ctx, node);
-	deg_debug_printf(ctx, "];" NL);
-	deg_debug_printf(ctx, NL);
+	deg_debug_fprintf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+	deg_debug_fprintf(ctx, ",fontsize=%f", deg_debug_graphviz_node_label_size);
+	deg_debug_fprintf(ctx, ",shape=%s", shape);
+	deg_debug_fprintf(ctx, ",style="); deg_debug_graphviz_node_style(ctx, node);
+	deg_debug_fprintf(ctx, ",color="); deg_debug_graphviz_node_color(ctx, node);
+	deg_debug_fprintf(ctx, ",fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node);
+	deg_debug_fprintf(ctx, ",penwidth="); deg_debug_graphviz_node_penwidth(ctx, node);
+	deg_debug_fprintf(ctx, "];" NL);
+	deg_debug_fprintf(ctx, NL);
 }
 
 static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx,
                                                   const DepsNode *node)
 {
 	const string name = node->identifier().c_str();
-	deg_debug_printf(ctx, "// %s\n", name.c_str());
-	deg_debug_printf(ctx, "subgraph \"cluster_%p\" {" NL, node);
-//	deg_debug_printf(ctx, "label=<<B>%s</B>>;" NL, name);
-	deg_debug_printf(ctx, "label=<%s>;" NL, name.c_str());
-	deg_debug_printf(ctx, "fontname=\"%s\";" NL, deg_debug_graphviz_fontname);
-	deg_debug_printf(ctx, "fontsize=%f;" NL, deg_debug_graphviz_node_label_size);
-	deg_debug_printf(ctx, "style="); deg_debug_graphviz_node_style(ctx, node); deg_debug_printf(ctx, ";" NL);
-	deg_debug_printf(ctx, "color="); deg_debug_graphviz_node_color(ctx, node); deg_debug_printf(ctx, ";" NL);
-	deg_debug_printf(ctx, "fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node); deg_debug_printf(ctx, ";" NL);
-	deg_debug_printf(ctx, "penwidth="); deg_debug_graphviz_node_penwidth(ctx, node); deg_debug_printf(ctx, ";" NL);
+	deg_debug_fprintf(ctx, "// %s\n", name.c_str());
+	deg_debug_fprintf(ctx, "subgraph \"cluster_%p\" {" NL, node);
+//	deg_debug_fprintf(ctx, "label=<<B>%s</B>>;" NL, name);
+	deg_debug_fprintf(ctx, "label=<%s>;" NL, name.c_str());
+	deg_debug_fprintf(ctx, "fontname=\"%s\";" NL, deg_debug_graphviz_fontname);
+	deg_debug_fprintf(ctx, "fontsize=%f;" NL, deg_debug_graphviz_node_label_size);
+	deg_debug_fprintf(ctx, "style="); deg_debug_graphviz_node_style(ctx, node); deg_debug_fprintf(ctx, ";" NL);
+	deg_debug_fprintf(ctx, "color="); deg_debug_graphviz_node_color(ctx, node); deg_debug_fprintf(ctx, ";" NL);
+	deg_debug_fprintf(ctx, "fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node); deg_debug_fprintf(ctx, ";" NL);
+	deg_debug_fprintf(ctx, "penwidth="); deg_debug_graphviz_node_penwidth(ctx, node); deg_debug_fprintf(ctx, ";" NL);
 	/* dummy node, so we can add edges between clusters */
-	deg_debug_printf(ctx, "\"node_%p\"", node);
-	deg_debug_printf(ctx, "[");
-	deg_debug_printf(ctx, "shape=%s", "point");
-	deg_debug_printf(ctx, ",style=%s", "invis");
-	deg_debug_printf(ctx, "];" NL);
-	deg_debug_printf(ctx, NL);
+	deg_debug_fprintf(ctx, "\"node_%p\"", node);
+	deg_debug_fprintf(ctx, "[");
+	deg_debug_fprintf(ctx, "shape=%s", "point");
+	deg_debug_fprintf(ctx, ",style=%s", "invis");
+	deg_debug_fprintf(ctx, "];" NL);
+	deg_debug_fprintf(ctx, NL);
 }
 
 static void deg_debug_graphviz_node_cluster_end(const DebugContext &ctx)
 {
-	deg_debug_printf(ctx, "}" NL);
-	deg_debug_printf(ctx, NL);
+	deg_debug_fprintf(ctx, "}" NL);
+	deg_debug_fprintf(ctx, NL);
 }
 
 static void deg_debug_graphviz_graph_nodes(const DebugContext &ctx,
@@ -564,29 +564,29 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx,
 	{
 		const DepsNode *tail = rel->to; /* same as node */
 		const DepsNode *head = rel->from;
-		deg_debug_printf(ctx, "// %s -> %s\n",
+		deg_debug_fprintf(ctx, "// %s -> %s\n",
 		                 head->identifier().c_str(),
 		                 tail->identifier().c_str());
-		deg_debug_printf(ctx, "\"node_%p\"", head);
-		deg_debug_printf(ctx, " -> ");
-		deg_debug_printf(ctx, "\"node_%p\"", tail);
+		deg_debug_fprintf(ctx, "\"node_%p\"", head);
+		deg_debug_fprintf(ctx, " -> ");
+		deg_debug_fprintf(ctx, "\"node_%p\"", tail);
 
-		deg_debug_printf(ctx, "[");
-		deg_debug_printf(ctx, "label=\"%s\"", rel->name.c_str());
-		deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
-		deg_debug_printf(ctx, ",color="); deg_debug_graphviz_relation_color(ctx, rel);
+		deg_debug_fprintf(ctx, "[");
+		deg_debug_fprintf(ctx, "label=\"%s\"", rel->name.c_str());
+		deg_debug_fprintf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+		deg_debug_fprintf(ctx, ",color="); deg_debug_graphviz_relation_color(ctx, rel);
 		/* NOTE: edge from node to own cluster is not possible and gives graphviz
 		 * warning, avoid this here by just linking directly to the invisible
 		 * placeholder node
 		 */
 		if (deg_debug_graphviz_is_cluster(tail) && !deg_debug_graphviz_is_owner(head, tail)) {
-			deg_debug_printf(ctx, ",ltail=\"cluster_%p\"", tail);
+			deg_debug_fprintf(ctx, ",ltail=\"cluster_%p\"", tail);
 		}
 		if (deg_debug_graphviz_is_cluster(head) && !deg_debug_graphviz_is_owner(tail, head)) {
-			deg_debug_printf(ctx, ",lhead=\"cluster_%p\"", head);
+			deg_debug_fprintf(ctx, ",lhead=\"cluster_%p\"", head);
 		}
-		deg_debug_printf(ctx, "];" NL);
-		deg_debug_printf(ctx, NL);
+		deg_debug_fprintf(ctx, "];" NL);
+		deg_debug_fprintf(ctx, NL);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 
@@ -710,22 +710,22 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool
 	ctx.show_tags = show_eval;
 	ctx.show_eval_priority = show_eval;
 
-	deg_debug_printf(ctx, "digraph depgraph {" NL);
-	deg_debug_printf(ctx, "rankdir=LR;" NL);
-	deg_debug_printf(ctx, "graph [");
-	deg_debug_printf(ctx, "compound=true");
-	deg_debug_printf(ctx, ",labelloc=\"t\"");
-	deg_debug_printf(ctx, ",fontsize=%f", deg_debug_graphviz_graph_label_size);
-	deg_debug_printf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
-	deg_debug_printf(ctx, ",label=\"%s\"", label);
-	deg_debug_printf(ctx, "];" NL);
+	deg_debug_fprintf(ctx, "digraph depgraph {" NL);
+	deg_debug_fprintf(ctx, "rankdir=LR;" NL);
+	deg_debug_fprintf(ctx, "graph [");
+	deg_debug_fprintf(ctx, "compound=true");
+	deg_debug_fprintf(ctx, ",labelloc=\"t\"");
+	deg_debug_fprintf(ctx, ",fontsize=%f", deg_debug_graphviz_graph_label_size);
+	deg_debug_fprintf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
+	deg_debug_fprintf(ctx, ",label=\"%s\"", label);
+	deg_debug_fprintf(ctx, "];" NL);
 
 	deg_debug_graphviz_graph_nodes(ctx, graph);
 	deg_debug_graphviz_graph_relations(ctx, graph);
 
 	deg_debug_graphviz_legend(ctx);
 
-	deg_debug_printf(ctx, "}" NL);
+	deg_debug_fprintf(ctx, "}" NL);
 }
 
 #undef NL

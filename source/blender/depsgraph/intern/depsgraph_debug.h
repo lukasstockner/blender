@@ -27,7 +27,13 @@
 #ifndef __DEPSGRAPH_DEBUG_H__
 #define __DEPSGRAPH_DEBUG_H__
 
+#include <stdarg.h>
+
 #include "depsgraph_types.h"
+
+extern "C" {
+#include "BKE_global.h"
+}
 
 struct DepsgraphStats;
 struct DepsgraphStatsID;
@@ -68,5 +74,15 @@ struct DepsgraphDebug {
 		return get_component_stats(get_id_stats(id, create), name, create);
 	}
 };
+
+BLI_INLINE void deg_debug_printf(const char *format, ...)
+{
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		va_list args;
+		va_start(args, format);
+		vfprintf(stdout, format, args);
+		va_end(args);
+	}
+}
 
 #endif  /* __DEPSGRAPH_DEBUG_H__ */

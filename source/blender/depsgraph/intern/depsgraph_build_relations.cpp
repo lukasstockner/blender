@@ -595,7 +595,9 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 			add_relation(driver_key, bone_key, DEPSREL_TYPE_DRIVER, "[Driver -> Bone]");
 		}
 		else {
-			printf("Couldn't find bone name for driver path - '%s'\n", fcu->rna_path);
+			fprintf(stderr,
+			        "Couldn't find bone name for driver path - '%s'\n",
+			        fcu->rna_path);
 		}
 	}
 	else if (GS(id->name) == ID_AR && strstr(fcu->rna_path, "bones[")) {
@@ -629,7 +631,9 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 			bone_name = NULL;
 		}
 		else {
-			printf("Couldn't find armature bone name for driver path - '%s'\n", fcu->rna_path);
+			fprintf(stderr,
+			        "Couldn't find armature bone name for driver path - '%s'\n",
+			        fcu->rna_path);
 		}
 	}
 	else if (GS(id->name) == ID_OB && strstr(fcu->rna_path, "modifiers[")) {
