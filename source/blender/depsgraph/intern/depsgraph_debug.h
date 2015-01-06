@@ -75,14 +75,11 @@ struct DepsgraphDebug {
 	}
 };
 
-BLI_INLINE void deg_debug_printf(const char *format, ...)
-{
-	if (G.debug & G_DEBUG_DEPSGRAPH) {
-		va_list args;
-		va_start(args, format);
-		vfprintf(stdout, format, args);
-		va_end(args);
-	}
-}
+#define DEG_DEBUG_PRINTF(...) \
+	{ \
+		if (G.debug & G_DEBUG_DEPSGRAPH) { \
+			fprintf(stderr, __VA_ARGS__); \
+		} \
+	} \
 
 #endif  /* __DEPSGRAPH_DEBUG_H__ */

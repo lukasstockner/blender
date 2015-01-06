@@ -78,7 +78,7 @@ void BKE_animsys_eval_animdata(EvaluationContext *UNUSED(eval_ctx),
                              ID *id,
                              TimeSourceDepsNode *time_src)
 {
-	deg_debug_printf("%s on %s\n", __func__, id->name);
+	DEG_DEBUG_PRINTF("%s on %s\n", __func__, id->name);
 	AnimData *adt = BKE_animdata_from_id(id);
 	Scene *scene = NULL; // XXX: this is only needed for flushing RNA updates, which should get handled as part of the graph instead...
 	float ctime = time_src->cfra;
@@ -91,7 +91,7 @@ void BKE_animsys_eval_driver(EvaluationContext *UNUSED(eval_ctx),
                              TimeSourceDepsNode *time_src)
 {
 	/* TODO(sergey): De-duplicate with BKE animsys. */
-	deg_debug_printf("%s on %s (%s[%d])\n",
+	DEG_DEBUG_PRINTF("%s on %s (%s[%d])\n",
 	                 __func__,
 	                 id->name,
 	                 fcu->rna_path,
@@ -134,7 +134,7 @@ void BKE_pose_eval_init(EvaluationContext *eval_ctx,
                         Object *ob,
                         bPose *pose)
 {
-	deg_debug_printf("%s on %s\n", __func__, ob->id.name);
+	DEG_DEBUG_PRINTF("%s on %s\n", __func__, ob->id.name);
 	BLI_assert(ob->type == OB_ARMATURE);
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 
@@ -165,7 +165,7 @@ void BKE_pose_eval_bone(EvaluationContext *eval_ctx,
                         Object *ob,
                         bPoseChannel *pchan) 
 {
-	deg_debug_printf("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
+	DEG_DEBUG_PRINTF("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
 	bArmature *arm = (bArmature *)ob->data;
 	BLI_assert(ob->type == OB_ARMATURE);
 	if (arm->edbo || (arm->flag & ARM_RESTPOS)) {
@@ -197,7 +197,7 @@ void BKE_pose_constraints_evaluate(EvaluationContext *eval_ctx,
                                    Object *ob,
                                    bPoseChannel *pchan)
 {
-	deg_debug_printf("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
+	DEG_DEBUG_PRINTF("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
 	Scene *scene = (Scene*)G.main->scene.first;
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 
@@ -214,7 +214,7 @@ void BKE_pose_iktree_evaluate(EvaluationContext *eval_ctx,
                               Object *ob,
                               bPoseChannel *rootchan)
 {
-	deg_debug_printf("%s on %s pchan %s\n", __func__, ob->id.name, rootchan->name);
+	DEG_DEBUG_PRINTF("%s on %s pchan %s\n", __func__, ob->id.name, rootchan->name);
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	BIK_execute_tree(scene, ob, rootchan, ctime);
 }
@@ -224,7 +224,7 @@ void BKE_pose_splineik_evaluate(EvaluationContext *eval_ctx,
                                 Object *ob,
                                 bPoseChannel *rootchan)
 {
-	deg_debug_printf("%s on %s pchan %s\n", __func__, ob->id.name, rootchan->name);
+	DEG_DEBUG_PRINTF("%s on %s pchan %s\n", __func__, ob->id.name, rootchan->name);
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	BKE_splineik_execute_tree(scene, ob, rootchan, ctime);
 }
@@ -234,7 +234,7 @@ void BKE_pose_eval_flush(EvaluationContext *eval_ctx,
                          Object *ob,
                          bPose *pose)
 {
-	deg_debug_printf("%s on %s\n", __func__, ob->id.name);
+	DEG_DEBUG_PRINTF("%s on %s\n", __func__, ob->id.name);
 	bPoseChannel *pchan;
 	float imat[4][4];
 	BLI_assert(ob->type == OB_ARMATURE);
@@ -262,7 +262,7 @@ void BKE_rigidbody_eval_simulation(EvaluationContext *eval_ctx, Scene *scene) {}
 
 void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
-	deg_debug_printf("%s on %s\n", __func__, ob->id.name);
+	DEG_DEBUG_PRINTF("%s on %s\n", __func__, ob->id.name);
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	float ctime = BKE_scene_frame_get(scene);
 	/* read values pushed into RBO from sim/cache... */

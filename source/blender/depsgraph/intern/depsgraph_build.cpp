@@ -330,7 +330,7 @@ void DepsgraphRelationBuilder::add_time_relation(TimeSourceDepsNode *timesrc, De
 		m_graph->add_new_relation(timesrc, node_to, DEPSREL_TYPE_TIME, description);
 	}
 	else {
-		deg_debug_printf("add_time_relation(%p = %s, %p = %s, %s) Failed\n",
+		DEG_DEBUG_PRINTF("add_time_relation(%p = %s, %p = %s, %s) Failed\n",
 		                 timesrc,   (timesrc) ? timesrc->identifier().c_str() : "<None>",
 		                 node_to,   (node_to) ? node_to->identifier().c_str() : "<None>",
 		                 description.c_str());
@@ -344,7 +344,7 @@ void DepsgraphRelationBuilder::add_operation_relation(OperationDepsNode *node_fr
 		m_graph->add_new_relation(node_from, node_to, type, description);
 	}
 	else {
-		deg_debug_printf("add_operation_relation(%p = %s, %p = %s, %d, %s) Failed\n",
+		DEG_DEBUG_PRINTF("add_operation_relation(%p = %s, %p = %s, %d, %s) Failed\n",
 		                 node_from, (node_from) ? node_from->identifier().c_str() : "<None>",
 		                 node_to,   (node_to)   ? node_to->identifier().c_str() : "<None>",
 		                 type, description.c_str());
