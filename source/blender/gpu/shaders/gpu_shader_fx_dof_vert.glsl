@@ -26,10 +26,10 @@ void vert_dof_first_pass()
 	color_uv1 = gl_MultiTexCoord0.xy + vec2(-1.5, -1.5) * invrendertargetdim;
 	color_uv2 = gl_MultiTexCoord0.xy + vec2(0.5, -1.5) * invrendertargetdim;
 
-	depth_uv1 = gl_MultiTexCoord0.xy + vec2(-1.5, -1.5) * invrendertargetdim;;
-	depth_uv2 = gl_MultiTexCoord0.xy + vec2(-0.5, -1.5) * invrendertargetdim;;
-	depth_uv3 = gl_MultiTexCoord0.xy + vec2(0.5, -1.5) * invrendertargetdim;;
-	depth_uv4 = gl_MultiTexCoord0.xy + vec2(1.5, -1.5) * invrendertargetdim;;
+	depth_uv1 = gl_MultiTexCoord0.xy + vec2(-1.5, -1.5) * invrendertargetdim;
+	depth_uv2 = gl_MultiTexCoord0.xy + vec2(-0.5, -1.5) * invrendertargetdim;
+	depth_uv3 = gl_MultiTexCoord0.xy + vec2(0.5, -1.5) * invrendertargetdim;
+	depth_uv4 = gl_MultiTexCoord0.xy + vec2(1.5, -1.5) * invrendertargetdim;
 
 	gl_Position = gl_Vertex;
 }

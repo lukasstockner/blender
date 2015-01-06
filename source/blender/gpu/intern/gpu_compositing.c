@@ -880,6 +880,22 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		}
 		/* high quality diffusion solver */
 		else {
+			GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4;
+
+			/* DOF effect has many passes but most of them are performed on a texture whose dimensions are 4 times less than the original
+			 * (16 times lower than original screen resolution). Technique used is not very exact but should be fast enough and is based
+			 * on "Practical Post-Process Depth of Field" see http://http.developer.nvidia.com/GPUGems3/gpugems3_ch28.html */
+			dof_shader_pass1 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF, is_persp);
+			dof_shader_pass2 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF_COC, is_persp);
+			dof_shader_pass3 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE, is_persp);
+			dof_shader_pass4 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR, is_persp);
+
+			/* error occured, restore framebuffers and return */
+			if (!dof_shader_pass1) {
+				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
+				GPU_framebuffer_restore();
+				return false;
+			}
 
 		}
 	}

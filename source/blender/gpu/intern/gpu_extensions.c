@@ -83,6 +83,8 @@ extern char datatoc_gpu_shader_fx_vert_glsl[];
 extern char datatoc_gpu_shader_fx_ssao_frag_glsl[];
 extern char datatoc_gpu_shader_fx_dof_frag_glsl[];
 extern char datatoc_gpu_shader_fx_dof_vert_glsl[];
+extern char datatoc_gpu_shader_fx_dof_high_frag_glsl[];
+extern char datatoc_gpu_shader_fx_dof_high_vert_glsl[];
 extern char datatoc_gpu_shader_fx_lib_glsl[];
 
 typedef struct GPUShaders {
@@ -1762,6 +1764,16 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 			case GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE:
 				strcat(defines, "#define FIFTH_PASS\n");
 				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+				break;
+				
+			case GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF:
+				strcat(defines, "#define HALF_DOWNSAMPLE_PASS\n");
+				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_high_vert_glsl, datatoc_gpu_shader_fx_dof_high_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
+				break;
+
+			case GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF_COC:
+				strcat(defines, "#define HALF_DOWNSAMPLE_COC_PASS\n");
+				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_high_vert_glsl, datatoc_gpu_shader_fx_dof_high_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 				break;
 		}
 	}
