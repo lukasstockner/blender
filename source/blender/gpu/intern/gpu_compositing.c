@@ -264,7 +264,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, int fxf
 
 	/* disable effects if no options passed for them */
 	if (!options->dof_options  || (options->dof_options->dof_quality_mode == DOF_QUALITY_HIGH)) {
-		fxflags &= ~GPU_FX_DEPTH_OF_FIELD;
+		//fxflags &= ~GPU_FX_DEPTH_OF_FIELD;
 	}
 	if (!options->ssao_options || options->ssao_options->ssao_num_samples < 1) {
 		fxflags &= ~GPU_FX_SSAO;
@@ -637,7 +637,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			dof_shader_pass5 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE, is_persp);
 
 			/* error occured, restore framebuffers and return */
-			if (!dof_shader_pass1 || !dof_shader_pass2 || !dof_shader_pass3 || !dof_shader_pass4 || !dof_shader_pass5) {
+			if (!(dof_shader_pass1 && dof_shader_pass2 && dof_shader_pass3 && dof_shader_pass4 && dof_shader_pass5)) {
 				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
 				GPU_framebuffer_restore();
 				return false;
@@ -880,23 +880,119 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		}
 		/* high quality diffusion solver */
 		else {
-			GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4;
+			GPUShader *dof_shader_pass1, *dof_shader_pass2;//, *dof_shader_pass3, *dof_shader_pass4;
 
-			/* DOF effect has many passes but most of them are performed on a texture whose dimensions are 4 times less than the original
-			 * (16 times lower than original screen resolution). Technique used is not very exact but should be fast enough and is based
-			 * on "Practical Post-Process Depth of Field" see http://http.developer.nvidia.com/GPUGems3/gpugems3_ch28.html */
 			dof_shader_pass1 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF, is_persp);
 			dof_shader_pass2 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_DOWNSAMPLE_HALF_COC, is_persp);
-			dof_shader_pass3 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE, is_persp);
-			dof_shader_pass4 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR, is_persp);
+			//dof_shader_pass3 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_BLUR, is_persp);
+			//dof_shader_pass4 = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_DEPTH_OF_FIELD_FINAL_COMBINE, is_persp);
 
 			/* error occured, restore framebuffers and return */
-			if (!dof_shader_pass1) {
+			if (!(dof_shader_pass1 && dof_shader_pass2)) {
 				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
 				GPU_framebuffer_restore();
 				return false;
 			}
+			
+			/* downsample pass */
+			{
+				int invrendertargetdim_uniform, color_uniform, depth_uniform, dof_uniform;
+				int viewvecs_uniform;
 
+				float invrendertargetdim[2] = {1.0f / fx->gbuffer_dim[0], 1.0f / fx->gbuffer_dim[1]};
+
+				dof_uniform = GPU_shader_get_uniform(dof_shader_pass1, "dof_params");
+				invrendertargetdim_uniform = GPU_shader_get_uniform(dof_shader_pass1, "invrendertargetdim");
+				color_uniform = GPU_shader_get_uniform(dof_shader_pass1, "colorbuffer");
+				depth_uniform = GPU_shader_get_uniform(dof_shader_pass1, "depthbuffer");
+				viewvecs_uniform = GPU_shader_get_uniform(dof_shader_pass1, "viewvecs");
+
+				GPU_shader_bind(dof_shader_pass1);
+
+				GPU_shader_uniform_vector(dof_shader_pass1, dof_uniform, 4, 1, dof_params);
+				GPU_shader_uniform_vector(dof_shader_pass1, invrendertargetdim_uniform, 2, 1, invrendertargetdim);
+				GPU_shader_uniform_vector(dof_shader_pass1, viewvecs_uniform, 4, 3, viewvecs[0]);
+
+				GPU_texture_bind(src, numslots++);
+				GPU_shader_uniform_texture(dof_shader_pass1, color_uniform, src);
+
+				GPU_texture_bind(fx->depth_buffer, numslots++);
+				GPU_depth_texture_mode(fx->depth_buffer, false, true);
+				GPU_shader_uniform_texture(dof_shader_pass1, depth_uniform, fx->depth_buffer);
+
+				/* target is the downsampled coc buffer */
+				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_half_downsampled, 0, NULL);
+				/* binding takes care of setting the viewport to the downsampled size */
+				GPU_texture_bind_as_framebuffer(fx->dof_half_downsampled);
+
+				glDisable(GL_DEPTH_TEST);
+				glDrawArrays(GL_QUADS, 0, 4);
+				/* disable bindings */
+				GPU_texture_unbind(src);
+				GPU_depth_texture_mode(fx->depth_buffer, true, false);
+				GPU_texture_unbind(fx->depth_buffer);
+
+				GPU_framebuffer_texture_unbind(fx->gbuffer, fx->dof_half_downsampled);
+				GPU_framebuffer_texture_detach(fx->dof_half_downsampled);
+				numslots = 0;
+				
+			}
+
+			/* final pass, merge blurred layers according to final calculated coc */
+			{
+				int half_downsampled_uniform, nearfar_uniform;
+				
+				GPU_shader_bind(dof_shader_pass2);
+
+				//GPU_shader_uniform_vector(dof_shader_pass2, dof_uniform, 4, 1, dof_params);
+				//GPU_shader_uniform_vector(dof_shader_pass2, invrendertargetdim_uniform, 2, 1, invrendertargetdim);
+				//GPU_shader_uniform_vector(dof_shader_pass2, viewvecs_uniform, 4, 3, viewvecs[0]);
+
+				//GPU_texture_bind(src, numslots++);
+				//GPU_shader_uniform_texture(dof_shader_pass5, original_uniform, src);
+
+				half_downsampled_uniform = GPU_shader_get_uniform(dof_shader_pass2, "colorbuffer");
+				nearfar_uniform = GPU_shader_get_uniform(dof_shader_pass2, "cocbuffer");
+				
+				GPU_texture_bind(fx->dof_half_downsampled, numslots++);
+				GPU_shader_uniform_texture(dof_shader_pass2, half_downsampled_uniform, fx->dof_half_downsampled);
+
+				GPU_texture_bind(fx->dof_nearfar_coc[0], numslots++);
+				GPU_shader_uniform_texture(dof_shader_pass2, nearfar_uniform, fx->dof_nearfar_coc[0]);
+
+				/* if this is the last pass, prepare for rendering on the frambuffer */
+				if (passes_left-- == 1) {
+					GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
+					if (ofs) {
+						GPU_offscreen_bind(ofs, false);
+					}
+					else
+						GPU_framebuffer_restore();
+				}
+				else {
+					/* bind the ping buffer to the color buffer */
+					GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
+				}
+				glDisable(GL_DEPTH_TEST);
+				glDrawArrays(GL_QUADS, 0, 4);
+				/* disable bindings */
+				GPU_texture_unbind(fx->dof_half_downsampled);
+				GPU_texture_unbind(fx->dof_nearfar_coc[0]);
+
+				/* may not be attached, in that case this just returns */
+				if (target) {
+					GPU_framebuffer_texture_detach(target);
+					if (ofs) {
+						GPU_offscreen_bind(ofs, false);
+					}
+					else {
+						GPU_framebuffer_restore();
+					}
+				}
+
+				SWAP(GPUTexture *, target, src);
+				numslots = 0;
+			}
 		}
 	}
 

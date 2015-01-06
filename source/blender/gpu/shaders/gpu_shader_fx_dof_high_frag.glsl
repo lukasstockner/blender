@@ -11,6 +11,8 @@ varying vec2 depth_uv4;
 uniform sampler2D colorbuffer;
 // depth buffer
 uniform sampler2D depthbuffer;
+// circle of confusion buffer
+uniform sampler2D cocbuffer;
 
 // this includes focal distance in x and aperture size in y
 uniform vec4 dof_params;
@@ -24,9 +26,9 @@ float calculate_signed_coc(in float zdepth)
 	return coc * dof_params.z;
 }
 
-void half_downsample_frag()
+void half_downsample_frag(void)
 {
-	vec4 depthv, final_coc;
+	vec4 depthv;
 	depthv.r = calculate_signed_coc(texture2D(depthbuffer, depth_uv1).r);
 	depthv.g = calculate_signed_coc(texture2D(depthbuffer, depth_uv2).r);
 	depthv.b = calculate_signed_coc(texture2D(depthbuffer, depth_uv3).r);
@@ -39,7 +41,13 @@ void half_downsample_frag()
 	gl_FragData[1].b = gl_FragData[1].a = 0.0;
 	
 	/* framebuffer output 1 is bound to half size color. linear filtering should take care of averaging here */
-	gl_FragData[0] = texture2D(colorbuffer, uvcoordsvar);
+	gl_FragData[0] = texture2D(colorbuffer, uvcoordsvar.xy);
+}
+
+void final_combine_frag(void)
+{
+	/* framebuffer output 1 is bound to half size color. linear filtering should take care of averaging here */
+	gl_FragColor = texture2D(colorbuffer, uvcoordsvar.xy);
 }
 
 void main(void)
@@ -47,7 +55,6 @@ void main(void)
 #ifdef HALF_DOWNSAMPLE_PASS
 	half_downsample_frag();
 #elif defined(HALF_DOWNSAMPLE_COC_PASS)
-
+	final_combine_frag();
 #endif
-
 }
