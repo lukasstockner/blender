@@ -2,10 +2,10 @@ uniform vec2 invrendertargetdim;
 
 //texture coordinates for framebuffer read
 varying vec4 uvcoordsvar;
-varying vec2 depth_uv1;
-varying vec2 depth_uv2;
-varying vec2 depth_uv3;
-varying vec2 depth_uv4;
+varying vec2 uv1;
+varying vec2 uv2;
+varying vec2 uv3;
+varying vec2 uv4;
 
 // color buffer
 uniform sampler2D colorbuffer;
@@ -32,10 +32,10 @@ void half_downsample_frag(void)
 {
 	vec4 depthv, coc;
 	
-	depthv.r = texture2D(depthbuffer, depth_uv1).r;
-	depthv.g = texture2D(depthbuffer, depth_uv2).r;
-	depthv.b = texture2D(depthbuffer, depth_uv3).r;
-	depthv.a = texture2D(depthbuffer, depth_uv4).r;
+	depthv.r = texture2D(depthbuffer, uv1).r;
+	depthv.g = texture2D(depthbuffer, uv2).r;
+	depthv.b = texture2D(depthbuffer, uv3).r;
+	depthv.a = texture2D(depthbuffer, uv4).r;
 	
 	coc = calculate_signed_coc(get_view_space_z_from_depth(vec4(viewvecs[0].z), vec4(viewvecs[1].z), depthv));
 	
@@ -45,6 +45,21 @@ void half_downsample_frag(void)
 	gl_FragData[1].g = max(max(max(coc.r, coc.g), max(coc.b, coc.a)), 0.0);
 	/* framebuffer output 1 is bound to half size color. linear filtering should take care of averaging here */
 	gl_FragData[0] = texture2D(colorbuffer, uvcoordsvar.xy);
+}
+
+
+void downsample_coc(void)
+{
+	/* basically here we just assemble all nearby values from the texture and use the maximum for near coc 
+	 * this ensures the gathe as scatter technique at the end will work */
+	
+	vec4 coc;
+	coc.r = texture2D(cocbuffer, uv1).r;
+	coc.g = texture2D(cocbuffer, uv2).r;
+	coc.b = texture2D(cocbuffer, uv3).r;
+	coc.a = texture2D(cocbuffer, uv4).r;
+	
+	gl_FragColor.r = max(max(coc.r, coc.g), max(coc.b, coc.a));
 }
 
 void final_combine_frag(void)
