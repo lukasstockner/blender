@@ -35,10 +35,9 @@ void half_downsample_frag(void)
 	depthv.a = calculate_signed_coc(texture2D(depthbuffer, depth_uv4).r);
 	
 	/* near coc, keep the min here */
-	//gl_FragData[1].r = max(-min(min(depthv.r, depthv.g), min(depthv.b, depthv.a)), 0.0);
+	gl_FragData[1].r = max(-min(min(depthv.r, depthv.g), min(depthv.b, depthv.a)), 0.0);
 	/* far coc keep the max */
-	//gl_FragData[1].g = max(max(max(depthv.r, depthv.g), max(depthv.b, depthv.a)), 0.0);
-	gl_FragData[1] = vec4(1.0);
+	gl_FragData[1].g = max(max(max(depthv.r, depthv.g), max(depthv.b, depthv.a)), 0.0);
 	/* framebuffer output 1 is bound to half size color. linear filtering should take care of averaging here */
 	gl_FragData[0] = texture2D(colorbuffer, uvcoordsvar.xy);
 }
@@ -47,9 +46,9 @@ void final_combine_frag(void)
 {
 	vec4 coc = texture2D(cocbuffer, uvcoordsvar.xy);
 	/* framebuffer output 1 is bound to half size color. linear filtering should take care of averaging here */
-//	gl_FragColor = texture2D(colorbuffer, uvcoordsvar.xy);
-	gl_FragColor = coc;
-//	gl_FragColor.g *= coc.g;
+	gl_FragColor = texture2D(colorbuffer, uvcoordsvar.xy);
+	gl_FragColor.g *= coc.g;
+	gl_FragColor.r *= coc.r;
 }
 
 void main(void)

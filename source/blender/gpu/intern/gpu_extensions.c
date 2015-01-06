@@ -1099,7 +1099,7 @@ void GPU_texture_bind_as_framebuffer(GPUTexture *tex)
 void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
 {
 	int numslots = 0, i;
-	GLubyte attachments[4];
+	GLenum attachments[4];
 	
 	if (!fb->colortex[slot]) {
 		fprintf(stderr, "Error, framebuffer slot empty!");
