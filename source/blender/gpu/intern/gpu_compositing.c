@@ -878,7 +878,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				numslots = 0;
 			}
 		}
-		/* high quality diffusion solver */
+		/* high quality */
 		else {
 			GPUShader *dof_shader_pass1, *dof_shader_pass2;//, *dof_shader_pass3, *dof_shader_pass4;
 
@@ -922,8 +922,10 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 				/* target is the downsampled coc buffer */
 				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_half_downsampled, 0, NULL);
+				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_nearfar_coc[0], 1, NULL);
 				/* binding takes care of setting the viewport to the downsampled size */
-				GPU_texture_bind_as_framebuffer(fx->dof_half_downsampled);
+				GPU_framebuffer_slots_bind(fx->gbuffer, 0);
+				GPU_framebuffer_check_valid(fx->gbuffer, NULL);
 
 				glDisable(GL_DEPTH_TEST);
 				glDrawArrays(GL_QUADS, 0, 4);
@@ -934,6 +936,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 				GPU_framebuffer_texture_unbind(fx->gbuffer, fx->dof_half_downsampled);
 				GPU_framebuffer_texture_detach(fx->dof_half_downsampled);
+				GPU_framebuffer_texture_detach(fx->dof_nearfar_coc[0]);
 				numslots = 0;
 				
 			}

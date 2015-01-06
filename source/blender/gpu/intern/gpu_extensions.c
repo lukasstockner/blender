@@ -1096,13 +1096,23 @@ void GPU_texture_bind_as_framebuffer(GPUTexture *tex)
 	glPushMatrix();
 }
 
-void GPU_framebuffer_slot_bind(GPUFrameBuffer *fb, int slot)
+void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
 {
+	int numslots = 0, i;
+	GLubyte attachments[4];
+	
 	if (!fb->colortex[slot]) {
 		fprintf(stderr, "Error, framebuffer slot empty!");
 		return;
 	}
-
+	
+	for (i = 0 ; i < 4; i++) {
+		if (fb->colortex[i]) {
+			attachments[numslots] = GL_COLOR_ATTACHMENT0_EXT + i;
+			numslots++;
+		}
+	}
+	
 	/* push attributes */
 	glPushAttrib(GL_ENABLE_BIT | GL_VIEWPORT_BIT);
 	glDisable(GL_SCISSOR_TEST);
@@ -1111,7 +1121,7 @@ void GPU_framebuffer_slot_bind(GPUFrameBuffer *fb, int slot)
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
 
 	/* last bound prevails here, better allow explicit control here too */
-	glDrawBuffer(GL_COLOR_ATTACHMENT0_EXT + slot);
+	glDrawBuffers(numslots, attachments);
 	glReadBuffer(GL_COLOR_ATTACHMENT0_EXT + slot);
 
 	/* push matrices and set default viewport and matrix */
@@ -1343,7 +1353,7 @@ void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
 {
 	glDisable(GL_SCISSOR_TEST);
 	if (save)
-		GPU_framebuffer_slot_bind(ofs->fb, 0);
+		GPU_framebuffer_slots_bind(ofs->fb, 0);
 	else {
 		GPU_framebuffer_bind_no_save(ofs->fb, 0);
 	}
