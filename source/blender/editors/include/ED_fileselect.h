@@ -129,6 +129,7 @@ struct FSMenuEntry;
 
 struct FSMenu *fsmenu_get(void);
 struct FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory category);
+void fsmenu_set_category(struct FSMenu *fsmenu, FSMenuCategory category, struct FSMenuEntry *fsm_head);
 
 /** Returns the number of entries in the Fileselect Menu */
 int fsmenu_get_nentries(struct FSMenu *fsmenu, FSMenuCategory category);

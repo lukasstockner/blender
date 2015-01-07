@@ -105,7 +105,7 @@ struct FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory ca
 	return fsm_head;
 }
 
-static void fsmenu_set_category(struct FSMenu *fsmenu, FSMenuCategory category, FSMenuEntry *fsm_head)
+void fsmenu_set_category(struct FSMenu *fsmenu, FSMenuCategory category, FSMenuEntry *fsm_head)
 {
 	switch (category) {
 		case FS_CATEGORY_SYSTEM:

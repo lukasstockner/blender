@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Header, Panel
+from bpy.types import Header, Panel, Menu
 
 
 class FILEBROWSER_HT_header(Header):
@@ -150,6 +150,16 @@ class FILEBROWSER_PT_system_bookmarks(Panel):
                               space, "system_bookmarks_active", rows=1, maxrows=6)
 
 
+class FILEBROWSER_MT_bookmarks_specials(Menu):
+    bl_label = "Bookmarks Specials"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("file.bookmark_move", icon='TRIA_UP_BAR', text="Move To Top").direction = 'TOP'
+        layout.operator("file.bookmark_move", icon='TRIA_DOWN_BAR', text="Move To Bottom").direction = 'BOTTOM'
+
+
 class FILEBROWSER_PT_bookmarks(Panel):
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'CHANNELS'
@@ -161,12 +171,19 @@ class FILEBROWSER_PT_bookmarks(Panel):
 
         if space.bookmarks:
             row = layout.row()
+            num_rows = len(space.bookmarks)
             row.template_list("FILEBROWSER_UL_dir", "bookmarks", space, "bookmarks",
-                              space, "bookmarks_active", rows=1, maxrows=6)
+                              space, "bookmarks_active", rows=(2 if num_rows < 2 else 4), maxrows=6)
 
             col = row.column(align=True)
             col.operator("file.bookmark_add", icon='ZOOMIN', text="")
             col.operator("file.bookmark_delete", icon='ZOOMOUT', text="")
+            col.menu("FILEBROWSER_MT_bookmarks_specials", icon='DOWNARROW_HLT', text="")
+
+            if num_rows > 1:
+                col.separator()
+                col.operator("file.bookmark_move", icon='TRIA_UP', text="").direction = 'UP'
+                col.operator("file.bookmark_move", icon='TRIA_DOWN', text="").direction = 'DOWN'
 
 
 class FILEBROWSER_PT_recent_folders(Panel):

@@ -577,6 +577,136 @@ void FILE_OT_bookmark_delete(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
+enum {
+	FILE_BOOKMARK_MOVE_TOP = -2,
+	FILE_BOOKMARK_MOVE_UP = -1,
+	FILE_BOOKMARK_MOVE_DOWN = 1,
+	FILE_BOOKMARK_MOVE_BOTTOM = 2,
+};
+
+static int bookmark_move_exec(bContext *C, wmOperator *op)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	SpaceFile *sfile = CTX_wm_space_file(C);
+	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenuEntry *fsmentry = fsmenu_get_category(fsmenu, FS_CATEGORY_BOOKMARKS);
+	struct FSMenuEntry *fsme_psrc, *fsme_pdst, *fsme;
+
+	char fname[FILE_MAX];
+
+	const int direction = RNA_enum_get(op->ptr, "direction");
+	const int totitems = fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
+	const int act_index = sfile->bookmarknr;
+	int new_index, i;
+
+	switch (direction) {
+		case FILE_BOOKMARK_MOVE_TOP:
+			new_index = 0;
+			break;
+		case FILE_BOOKMARK_MOVE_BOTTOM:
+			new_index = totitems - 1;
+			break;
+		case FILE_BOOKMARK_MOVE_UP:
+		case FILE_BOOKMARK_MOVE_DOWN:
+		default:
+			new_index = (totitems + act_index + direction) % totitems;
+			break;
+	}
+
+	if (new_index == act_index) {
+		return OPERATOR_CANCELLED;
+	}
+
+	fsme_psrc = fsme_pdst = NULL;
+
+	if (new_index < act_index) {
+		for (fsme = fsmentry, i = 0; fsme; fsme = fsme->next, i++) {
+			if (i == new_index - 1) {
+				fsme_pdst = fsme;
+			}
+			else if (i == act_index - 1) {
+				fsme_psrc = fsme;
+				break;
+			}
+		}
+
+		BLI_assert(fsme_psrc && fsme_psrc->next && (!fsme_pdst || fsme_pdst->next));
+
+		fsme = fsme_psrc->next;
+		fsme_psrc->next = fsme->next;
+		if (fsme_pdst) {
+			fsme->next = fsme_pdst->next;
+			fsme_pdst->next = fsme;
+		}
+		else {
+			/* destination is first element of the list... */
+			fsme->next = fsmentry;
+			fsmentry = fsme;
+			fsmenu_set_category(fsmenu, FS_CATEGORY_BOOKMARKS, fsmentry);
+		}
+	}
+	else {
+		for (fsme = fsmentry, i = 0; fsme; fsme = fsme->next, i++) {
+			if (i == new_index) {
+				fsme_pdst = fsme;
+				break;
+			}
+			else if (i == act_index - 1) {
+				fsme_psrc = fsme;
+			}
+		}
+
+		BLI_assert(fsme_pdst && (!fsme_psrc || fsme_psrc->next));
+
+		if (fsme_psrc) {
+			fsme = fsme_psrc->next;
+			fsme_psrc->next = fsme->next;
+		}
+		else {
+			/* source is first element of the list... */
+			fsme = fsmentry;
+			fsmentry = fsme->next;
+			fsmenu_set_category(fsmenu, FS_CATEGORY_BOOKMARKS, fsmentry);
+		}
+		fsme->next = fsme_pdst->next;
+		fsme_pdst->next = fsme;
+	}
+
+	/* Need to update active bookmark number. */
+	sfile->bookmarknr = new_index;
+
+	BLI_make_file_string("/", fname, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
+	fsmenu_write_file(fsmenu, fname);
+
+	ED_area_tag_redraw(sa);
+	return OPERATOR_FINISHED;
+}
+
+void FILE_OT_bookmark_move(wmOperatorType *ot)
+{
+	static EnumPropertyItem slot_move[] = {
+	    {FILE_BOOKMARK_MOVE_TOP, "TOP", 0, "Top", "Top of the list"},
+		{FILE_BOOKMARK_MOVE_UP, "UP", 0, "Up", ""},
+		{FILE_BOOKMARK_MOVE_DOWN, "DOWN", 0, "Down", ""},
+		{FILE_BOOKMARK_MOVE_BOTTOM, "BOTTOM", 0, "Bottom", "Bottom of the list"},
+		{ 0, NULL, 0, NULL, NULL }
+	};
+
+	/* identifiers */
+	ot->name = "Move Bookmark";
+	ot->idname = "FILE_OT_bookmark_move";
+	ot->description = "Move the active bookmark up/down in the list";
+
+	/* api callbacks */
+	ot->poll = ED_operator_file_active;
+	ot->exec = bookmark_move_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER;  /* No undo! */
+
+	RNA_def_enum(ot->srna, "direction", slot_move, 0, "Direction", "Direction to move, UP or DOWN");
+}
+
 static int reset_recent_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
