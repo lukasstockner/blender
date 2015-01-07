@@ -62,7 +62,6 @@
 
 #include "BLF_translation.h"
 
-#include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -898,34 +897,20 @@ bool write_crash_blend(void)
 
 static void wm_ensure_previews(bContext *C, Main *mainvar)
 {
+	ListBase *lb[] = {&mainvar->mat, &mainvar->tex, &mainvar->image, &mainvar->world, &mainvar->lamp, NULL};
 	ID *id;
+	int i;
 
-	for (id = mainvar->mat.first; id; id = id->next) {
-		UI_id_icon_render(C, id, false, false);
-		UI_id_icon_render(C, id, true, true);
-	}
-
-	for (id = mainvar->tex.first; id; id = id->next) {
-		UI_id_icon_render(C, id, false, false);
-		UI_id_icon_render(C, id, true, true);
-	}
-
-	for (id = mainvar->image.first; id; id = id->next) {
-		UI_id_icon_render(C, id, false, false);
-		UI_id_icon_render(C, id, true, true);
-	}
-
-	for (id = mainvar->world.first; id; id = id->next) {
-		UI_id_icon_render(C, id, false, false);
-		UI_id_icon_render(C, id, true, true);
-	}
-
-	for (id = mainvar->lamp.first; id; id = id->next) {
-		UI_id_icon_render(C, id, false, false);
-		UI_id_icon_render(C, id, true, true);
+	for (i = 0; lb[i]; i++) {
+		for (id = lb[i]->first; id; id = id->next) {
+			/* Only preview non-library datablocks, lib ones do not pertain to this .blend file! */
+			if (!id->lib) {
+				UI_id_icon_render(C, id, false, false);
+				UI_id_icon_render(C, id, true, false);
+			}
+		}
 	}
 }
-
 
 /**
  * \see #wm_homefile_write_exec wraps #BLO_write_file in a similar way.
