@@ -2181,6 +2181,32 @@ bool ui_but_string_set_eval_num(bContext *C, uiBut *but, const char *str, double
 	return ok;
 }
 
+/* just the assignment/free part */
+static void ui_but_string_set_internal(uiBut *but, const char *str, size_t str_len)
+{
+	BLI_assert(str_len == strlen(str));
+	BLI_assert(but->str == NULL);
+	str_len += 1;
+
+	if (str_len > UI_MAX_NAME_STR) {
+		but->str = MEM_mallocN(str_len, "ui_def_but str");
+	}
+	else {
+		but->str = but->strdata;
+	}
+	memcpy(but->str, str, str_len);
+}
+
+static void ui_but_string_free_internal(uiBut *but)
+{
+	if (but->str) {
+		if (but->str != but->strdata) {
+			MEM_freeN(but->str);
+		}
+		/* must call 'ui_but_string_set_internal' after */
+		but->str = NULL;
+	}
+}
 
 bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 {
@@ -2631,9 +2657,13 @@ void ui_but_update(uiBut *but)
 			UI_GET_BUT_VALUE_INIT(but, value);
 			if      (value < (double)but->hardmin) ui_but_value_set(but, but->hardmin);
 			else if (value > (double)but->hardmax) ui_but_value_set(but, but->hardmax);
+
+			/* max must never be smaller than min! Both being equal is allowed though */
+			BLI_assert(but->softmin <= but->softmax &&
+			           but->hardmin <= but->hardmax);
 			break;
 			
-		case UI_BTYPE_ICON_TOGGLE: 
+		case UI_BTYPE_ICON_TOGGLE:
 		case UI_BTYPE_ICON_TOGGLE_N:
 			if (!but->rnaprop || (RNA_property_flag(but->rnaprop) & PROP_ICONS_CONSECUTIVE)) {
 				if (but->flag & UI_SELECT) but->iconadd = 1;
@@ -2663,7 +2693,9 @@ void ui_but_update(uiBut *but)
 						if (RNA_property_enum_name_gettexted(but->block->evil_C,
 						                                     &but->rnapoin, but->rnaprop, value, &buf))
 						{
-							BLI_strncpy(but->str, buf, sizeof(but->strdata));
+							size_t slen = strlen(buf);
+							ui_but_string_free_internal(but);
+							ui_but_string_set_internal(but, buf, slen);
 						}
 					}
 				}
@@ -3071,13 +3103,7 @@ static uiBut *ui_def_but(uiBlock *block, int type, int retval, const char *str,
 	but->retval = retval;
 
 	slen = strlen(str);
-	if (slen >= UI_MAX_NAME_STR) {
-		but->str = MEM_mallocN(slen + 1, "ui_def_but str");
-	}
-	else {
-		but->str = but->strdata;
-	}
-	memcpy(but->str, str, slen + 1);
+	ui_but_string_set_internal(but, str, slen);
 
 	if (tip) {
 		slen = strlen(tip);
