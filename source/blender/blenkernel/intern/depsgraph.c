@@ -1406,7 +1406,6 @@ static void dag_scene_free(Scene *sce)
 		MEM_freeN(sce->theDag);
 		sce->theDag = NULL;
 	}
-	DEG_scene_graph_free(sce);
 }
 
 /* Chech whether object data needs to be evaluated before it
