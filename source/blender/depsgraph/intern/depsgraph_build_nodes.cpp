@@ -717,7 +717,15 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		}
 		break;
 	}
-	
+
+	add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
+	                   DEPSOP_TYPE_POST, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Eval Done");
+
+	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+	                   DEPSOP_TYPE_INIT, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Eval Init");
+
 	// TODO: "Done" operation
 	
 	/* ShapeKeys */

@@ -1191,10 +1191,17 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
 	ComponentKey geom_key(&ob->id, DEPSNODE_TYPE_GEOMETRY);
 	ComponentKey obdata_geom_key(obdata, DEPSNODE_TYPE_GEOMETRY);
-	OperationKey geom_eval_key(obdata, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
-	
+
+	/* Link object data evaluation node to exit operation. */
+	OperationKey obdata_geom_eval_key(obdata, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
+	OperationKey obdata_geom_done_key(obdata, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Eval Done");
+	add_relation(obdata_geom_eval_key, obdata_geom_done_key, DEPSREL_TYPE_DATABLOCK, "ObData Geom Eval Done");
+
 	/* link components to each other */
 	add_relation(obdata_geom_key, geom_key, DEPSREL_TYPE_DATABLOCK, "Object Geometry Base Data");
+
+	/* Init operation of object-level geometry evaluation. */
+	OperationKey geom_init_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Eval Init");
 
 	/* type-specific node/links */
 	switch (ob->type) {
@@ -1269,7 +1276,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			}
 			else {
 				/* Stack relation: first modifier depends on the geometry. */
-				add_relation(geom_eval_key, mod_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Modifier Stack");
+				add_relation(geom_init_key, mod_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Modifier Stack");
 			}
 
 			if (mti->updateDepsgraph) {
@@ -1315,8 +1322,8 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 			OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
 			add_relation(mod_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
 		}
-		else if (obdata != NULL) {
-			add_relation(geom_eval_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
+		else {
+			add_relation(geom_init_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
 		}
 	}
 }
