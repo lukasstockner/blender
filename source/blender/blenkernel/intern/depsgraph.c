@@ -1933,7 +1933,11 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 	DagAdjList *itA;
 	Object *ob;
 	int lasttime;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		return;
+	}
+
 	if (sce->theDag == NULL) {
 		printf("DAG zero... not allowed to happen!\n");
 		DAG_scene_relations_update(bmain, sce);
