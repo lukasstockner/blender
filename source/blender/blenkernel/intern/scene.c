@@ -1667,7 +1667,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 {
 	Scene *sce_iter;
 #ifdef WITH_LEGACY_DEPSGRAPH
-	bool use_new_eval = DEG_get_eval_mode() == DEG_EVAL_MODE_NEW;
+	bool use_new_eval = !DEG_depsgraph_use_legacy();
 #endif
 
 	/* keep this first */
@@ -1791,7 +1791,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	double start_time = PIL_check_seconds_timer();
 #endif
 #ifdef WITH_LEGACY_DEPSGRAPH
-	bool use_new_eval = DEG_get_eval_mode() == DEG_EVAL_MODE_NEW;
+	bool use_new_eval = !DEG_depsgraph_use_legacy();
 #else
 	/* TODO(sergey): Pass to evaluation routines instead of storing layer in the graph? */
 	(void) do_invisible_flush;

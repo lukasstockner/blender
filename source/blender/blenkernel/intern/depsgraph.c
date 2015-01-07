@@ -1335,11 +1335,14 @@ static void (*EditorsUpdateSceneCb)(Main *bmain, Scene *scene, int updated) = NU
 
 void DAG_editors_update_cb(void (*id_func)(Main *bmain, ID *id), void (*scene_func)(Main *bmain, Scene *scene, int updated))
 {
-	EditorsUpdateIDCb = id_func;
-	EditorsUpdateSceneCb = scene_func;
-
-	/* New dependency graph. */
-	DEG_editors_set_update_cb(id_func, scene_func);
+	if (DEG_depsgraph_use_legacy()) {
+		EditorsUpdateIDCb = id_func;
+		EditorsUpdateSceneCb = scene_func;
+	}
+	else {
+		/* New dependency graph. */
+		DEG_editors_set_update_cb(id_func, scene_func);
+	}
 }
 
 static void dag_editors_id_update(Main *bmain, ID *id)
@@ -1630,51 +1633,65 @@ static void dag_scene_build(Main *bmain, Scene *sce)
 /* clear all dependency graphs */
 void DAG_relations_tag_update(Main *bmain)
 {
-	Scene *sce;
-	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
-		dag_scene_free(sce);
+	if (DEG_depsgraph_use_legacy()) {
+		Scene *sce;
+		for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+			dag_scene_free(sce);
+		}
 	}
-	/* New dependency graph. */
-	DEG_relations_tag_update(bmain);
+	else {
+		/* New dependency graph. */
+		DEG_relations_tag_update(bmain);
+	}
 }
 
 /* rebuild dependency graph only for a given scene */
 void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 {
-	dag_scene_free(sce);
-	DEG_scene_relations_update(bmain, sce);
-	/* New dependency graph. */
-	DEG_scene_relations_rebuild(bmain, sce);
+	if (DEG_depsgraph_use_legacy()) {
+		dag_scene_free(sce);
+	}
+	else {
+		/* New dependency graph. */
+		DEG_scene_relations_rebuild(bmain, sce);
+	}
 }
 
 /* create dependency graph if it was cleared or didn't exist yet */
 void DAG_scene_relations_update(Main *bmain, Scene *sce)
 {
-	if (!sce->theDag)
-		dag_scene_build(bmain, sce);
-	/* New dependency graph. */
-	DEG_scene_relations_update(bmain, sce);
+	if (DEG_depsgraph_use_legacy()) {
+		if (!sce->theDag)
+			dag_scene_build(bmain, sce);
+	}
+	else {
+		/* New dependency graph. */
+		DEG_scene_relations_update(bmain, sce);
+	}
 }
 
 void DAG_scene_relations_validate(Main *bmain, Scene *sce)
 {
-	DEG_debug_scene_relations_validate(bmain, sce);
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_debug_scene_relations_validate(bmain, sce);
+	}
 }
 
 void DAG_scene_free(Scene *sce)
 {
-	if (sce->theDag) {
-		free_forest(sce->theDag);
-		MEM_freeN(sce->theDag);
-		sce->theDag = NULL;
+	if (DEG_depsgraph_use_legacy()) {
+		if (sce->theDag) {
+			free_forest(sce->theDag);
+			MEM_freeN(sce->theDag);
+			sce->theDag = NULL;
+		}
 	}
-
-	/********* new depsgraph *********/
-	if (sce->depsgraph) {
-		DEG_graph_free(sce->depsgraph);
-		sce->depsgraph = NULL;
+	else {
+		if (sce->depsgraph) {
+			DEG_graph_free(sce->depsgraph);
+			sce->depsgraph = NULL;
+		}
 	}
-	/******************/
 }
 
 static void lib_id_recalc_tag(Main *bmain, ID *id)
@@ -2357,7 +2374,13 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 {
 	ListBase listbase;
 	DagSceneLayer *dsl;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		/* Inform new dependnecy graphs about visibility changes. */
+		DEG_on_visible_update(bmain, do_time);
+		return;
+	}
+
 	/* get list of visible scenes and layers */
 	dag_current_scene_layers(bmain, &listbase);
 	
@@ -2427,9 +2450,6 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 			DAG_id_tag_update(&mask->id, 0);
 		}
 	}
-
-	/* Inform new dependnecy graphs about visibility changes. */
-	DEG_on_visible_update(bmain, do_time);
 }
 
 static void dag_id_flush_update__isDependentTexture(void *userData, Object *UNUSED(ob), ID **idpoin)
@@ -2800,6 +2820,11 @@ void DAG_ids_clear_recalc(Main *bmain)
 
 void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 {
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_id_tag_update_ex(bmain, id, flag);
+		return;
+	}
+
 	if (id == NULL) return;
 
 	if (G.debug & G_DEBUG_DEPSGRAPH) {
@@ -2858,8 +2883,6 @@ void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 			/* BLI_assert(!"invalid flag for this 'idtype'"); */
 		}
 	}
-	
-	DEG_id_tag_update_ex(bmain, id, flag);
 }
 
 void DAG_id_tag_update(ID *id, short flag)

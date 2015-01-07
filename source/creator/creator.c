@@ -326,6 +326,9 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--debug-all");
 
 	printf("\n");
+	BLI_argsPrintArgDoc(ba, "--legacy-depsgraph");
+
+	printf("\n");
 	BLI_argsPrintArgDoc(ba, "--debug-fpe");
 	BLI_argsPrintArgDoc(ba, "--disable-crash-handler");
 
@@ -834,6 +837,12 @@ static int set_threads(int argc, const char **argv, void *UNUSED(data))
 		printf("\nError: you must specify a number of threads between 0 and %d '-t / --threads'.\n", BLENDER_MAX_THREADS);
 		return 0;
 	}
+}
+
+static int depsgraph_use_legacy(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	DEG_depsgraph_switch_to_legacy();
+	return 0;
 }
 
 static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
@@ -1385,6 +1394,8 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 	BLI_argsAdd(ba, 1, NULL, "--debug-jobs",  "\n\tEnable time profiling for background jobs.", debug_mode_generic, (void *)G_DEBUG_JOBS);
 	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph", "\n\tEnable debug messages from dependency graph", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH);
+
+	BLI_argsAdd(ba, 1, NULL, "--legacy-depsgraph", "\n\tUse legacy dependency graph", depsgraph_use_legacy, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", "<verbose>\n\tSet logging verbosity level.", set_verbosity, NULL);
 

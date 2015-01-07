@@ -53,26 +53,24 @@ extern "C" {
 #include "depsgraph_intern.h"
 #include "depsgraph_debug.h"
 
-eDEG_EvalMode DEG_get_eval_mode(void)
+#ifdef WITH_LEGACY_DEPSGRAPH
+static bool use_legacy_depsgraph = false;
+#endif
+
+bool DEG_depsgraph_use_legacy(void)
 {
 #ifdef WITH_LEGACY_DEPSGRAPH
-	switch (G.debug_value) {
-		case DEG_EVAL_MODE_NEW: return DEG_EVAL_MODE_NEW;
-		default: return DEG_EVAL_MODE_OLD;
-	}
+	return use_legacy_depsgraph;
 #else
 	BLI_assert(!"Should not be used with new depsgraph");
-	return DEG_EVAL_MODE_NEW;
+	return false;
 #endif
 }
 
-void DEG_set_eval_mode(eDEG_EvalMode mode)
+void DEG_depsgraph_switch_to_legacy(void)
 {
 #ifdef WITH_LEGACY_DEPSGRAPH
-	switch (mode) {
-		case DEG_EVAL_MODE_NEW: G.debug_value = DEG_EVAL_MODE_NEW;
-		default: G.debug_value = DEG_EVAL_MODE_OLD;
-	}
+	use_legacy_depsgraph = true;
 #else
 	BLI_assert(!"Should not be used with new depsgraph");
 #endif

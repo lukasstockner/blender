@@ -65,14 +65,8 @@ struct PropertyRNA;
 extern "C" {
 #endif
 
-/* XXX arbitrary debug values to test the depsgraph, remove eventually */
-typedef enum eDEG_EvalMode {
-	DEG_EVAL_MODE_OLD = 0, /* also works with any other debug_value, if not used below */
-	DEG_EVAL_MODE_NEW = 14228,
-} eDEG_EvalMode;
-
-eDEG_EvalMode DEG_get_eval_mode(void);
-void DEG_set_eval_mode(eDEG_EvalMode mode);
+bool DEG_depsgraph_use_legacy(void);
+void DEG_depsgraph_switch_to_legacy(void);
 
 /* ************************************************ */
 /* Depsgraph API */
