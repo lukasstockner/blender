@@ -258,21 +258,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	if (ob->particlesystem.first) {
 		build_particles(ob);
 	}
-
-	/* Temporary uber-update node, which does everything.
-	 * It is for the being we're porting old dependencies into the new system.
-	 * We'll get rid of this node as soon as all the granular update functions
-	 * are filled in.
-	 *
-	 * TODO(sergey): Get rid of this node.
-	 */
-	if (ob->type != OB_ARMATURE) {
-		/* Armatures does no longer require uber node. */
-		add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-		                   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
-		                   DEG_OPCODE_GEOMETRY_UBEREVAL);
-	}
-
 }
 
 void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
@@ -516,6 +501,7 @@ void DepsgraphNodeBuilder::build_particles(Object *ob)
 		build_animdata(&part->id);
 		
 		/* this particle system */
+		// TODO: for now, this will just be a placeholder "ubereval" node
 		add_operation_node(psys_comp,
 		                   DEPSOP_TYPE_EXEC, function_bind(BKE_particle_system_eval, _1, ob, psys),
 		                   DEG_OPCODE_PSYS_EVAL);
@@ -658,9 +644,18 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 {
 	ID *obdata = (ID *)ob->data;
 	
-	/* nodes for result of obdata's evaluation, and geometry evaluation on object */
+	/* Temporary uber-update node, which does everything.
+	 * It is for the being we're porting old dependencies into the new system.
+	 * We'll get rid of this node as soon as all the granular update functions
+	 * are filled in.
+	 *
+	 * TODO(sergey): Get rid of this node.
+	 */
+	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+					   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
+					   DEG_OPCODE_GEOMETRY_UBEREVAL);
 	
-	/* type-specific node/links */
+	/* nodes for result of obdata's evaluation, and geometry evaluation on object */
 	switch (ob->type) {
 		case OB_MESH:
 		{
@@ -735,9 +730,6 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		ModifierData *md;
 		
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
-//			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
-			
-			// FIXME: this should eventually be on the obdata datablock's geometry?
 			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
 			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_modifier, _1, scene, ob, md),
 			                   DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
