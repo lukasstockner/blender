@@ -101,10 +101,15 @@ struct ComponentDepsNode : public DepsNode {
 	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
 	
 	string identifier() const;
-	
+
+	/* Find an existing operation, will throw an assert() if it does not exist. */
 	OperationDepsNode *find_operation(OperationIDKey key) const;
 	OperationDepsNode *find_operation(eDepsOperation_Code opcode, const string &name) const;
-	
+
+	/* Check operation exists and return it. */
+	OperationDepsNode *has_operation(OperationIDKey key) const;
+	OperationDepsNode *has_operation(eDepsOperation_Code opcode, const string &name) const;
+
 	/* Create a new node for representing an operation and add this to graph
 	 * ! If an existing node is found, it will be modified. This helps when node may 
 	 *   have been partially created earlier (e.g. parent ref before parent item is added)

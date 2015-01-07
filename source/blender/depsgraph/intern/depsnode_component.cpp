@@ -107,6 +107,7 @@ OperationDepsNode *ComponentDepsNode::find_operation(OperationIDKey key) const
 	else {
 		fprintf(stderr, "%s: find_operation(%s) failed\n",
 		        this->identifier().c_str(), key.identifier().c_str());
+		BLI_assert(!"Request for non-existing operation, should not happen");
 		return NULL;
 	}
 }
@@ -117,9 +118,25 @@ OperationDepsNode *ComponentDepsNode::find_operation(eDepsOperation_Code opcode,
 	return find_operation(key);
 }
 
+OperationDepsNode *ComponentDepsNode::has_operation(OperationIDKey key) const
+{
+	OperationMap::const_iterator it = this->operations.find(key);
+	if (it != this->operations.end()) {
+		return it->second;
+	}
+	return NULL;
+}
+
+OperationDepsNode *ComponentDepsNode::has_operation(eDepsOperation_Code opcode,
+                                                    const string &name) const
+{
+	OperationIDKey key(opcode, name);
+	return has_operation(key);
+}
+
 OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name)
 {
-	OperationDepsNode *op_node = find_operation(opcode, name);
+	OperationDepsNode *op_node = has_operation(opcode, name);
 	if (!op_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_OPERATION);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
