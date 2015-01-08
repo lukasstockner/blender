@@ -1173,17 +1173,32 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 /* Shapekeys */
 void DepsgraphRelationBuilder::build_shapekeys(ID *obdata, Key *key)
 {
+	ComponentKey obdata_key(obdata, DEPSNODE_TYPE_GEOMETRY);
+	
+	/* attach animdata to geometry */
 	build_animdata(&key->id);
+	
+	if (key->adt) {
+		// TODO: this should really be handled in build_animdata, since many of these cases will need it
+		if (key->adt->action || key->adt->nla_tracks.first) {
+			ComponentKey adt_key(&key->id, DEPSNODE_TYPE_ANIMATION);
+			add_relation(adt_key, obdata_key, DEPSREL_TYPE_OPERATION, "Animation");
+		}
+		
+		/* NOTE: individual shapekey drivers are handled above already */
+	}
 	
 	/* attach to geometry */
 	// XXX: aren't shapekeys now done as a pseudo-modifier on object?
-	ComponentKey obdata_key(obdata, DEPSNODE_TYPE_GEOMETRY);
-	ComponentKey key_key(&key->id, DEPSNODE_TYPE_GEOMETRY);
+	ComponentKey key_key(&key->id, DEPSNODE_TYPE_GEOMETRY); // FIXME: this doesn't exist
 	add_relation(key_key, obdata_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
 }
 
-/* ObData Geometry Evaluation */
-// XXX: what happens if the datablock is shared!
+/* ObData Geometry Evaluation
+ * ==========================
+ * To better support 
+ *
+ */
 void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 {
 	ID *obdata = (ID *)ob->data;
