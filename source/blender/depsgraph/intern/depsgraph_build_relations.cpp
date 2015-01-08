@@ -1016,8 +1016,8 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 	}
 
 	pchan->flag |= POSE_DONE;
-	OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, "Bone Final Transforms");
-	add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
+	OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
+	add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Result");
 
 	root_map_add_bone(pchan->name, rootchan->name, root_map);
 
@@ -1039,7 +1039,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 		parchan->flag |= POSE_DONE;
 
 		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_DONE);
-		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
+		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Result");
 
 		root_map_add_bone(parchan->name, rootchan->name, root_map);
 
