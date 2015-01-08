@@ -61,7 +61,7 @@ static void rna_Depsgraph_debug_rebuild(Depsgraph *UNUSED(graph), Main *bmain)
 	DAG_relations_tag_update(bmain);
 	for (sce = bmain->scene.first; sce; sce = sce->id.next) {
 		DAG_scene_relations_rebuild(bmain, sce);
-		DEG_graph_on_visible_update(bmain, sce->depsgraph);
+		DEG_graph_on_visible_update(bmain, sce);
 	}
 }
 

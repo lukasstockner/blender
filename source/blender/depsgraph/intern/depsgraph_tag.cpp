@@ -268,8 +268,9 @@ void DEG_graph_clear_tags(Depsgraph *graph)
 }
 
 /* Update dependency graph when visible scenes/layers changes. */
-void DEG_graph_on_visible_update(Main *bmain, Depsgraph *graph)
+void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 {
+	Depsgraph *graph = scene->depsgraph;
 	wmWindowManager *wm = (wmWindowManager *)bmain->wm.first;
 	int old_layers = graph->layers;
 	if (wm != NULL) {
@@ -307,7 +308,24 @@ void DEG_graph_on_visible_update(Main *bmain, Depsgraph *graph)
 			graph->add_entry_tag(node);
 		}
 		graph->invisible_entry_tags.clear();
+		/* Tag all objects which becomes visible (or which becomes needed for dependencies)
+		 * for recalc.
+		 *
+		 * This is mainly needed on file load only, after that updates of invisible objects
+		 * will be stored in the pending list.
+		 */
+		for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
+		     it != graph->operations.end();
+		     ++it)
+		{
+			OperationDepsNode *node = *it;
+			IDDepsNode *id_node = node->owner->owner;
+			if ((id_node->layers & scene->lay_updated) == 0) {
+				id_node->tag_update(graph);
+			}
+		}
 	}
+	scene->lay_updated |= graph->layers;
 }
 
 void DEG_on_visible_update(Main *bmain, const bool do_time)
@@ -317,7 +335,7 @@ void DEG_on_visible_update(Main *bmain, const bool do_time)
 	     scene = (Scene*)scene->id.next)
 	{
 		if (scene->depsgraph != NULL) {
-			DEG_graph_on_visible_update(bmain, scene->depsgraph);
+			DEG_graph_on_visible_update(bmain, scene);
 		}
 	}
 }
