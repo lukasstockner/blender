@@ -250,7 +250,7 @@ static void schedule_children(TaskPool *pool,
 		BLI_assert(child->type == DEPSNODE_TYPE_OPERATION);
 
 		if (child->scheduled) {
-			/* Happens  */
+			/* Happens when having cyclic dependencies. */
 			continue;
 		}
 
