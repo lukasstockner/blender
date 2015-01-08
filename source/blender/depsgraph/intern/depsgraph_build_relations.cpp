@@ -567,8 +567,8 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 	
 	/* create dependency between driver and data affected by it */
 	/* - direct property relationship... */
-	RNAPathKey affected_key(id, fcu->rna_path);
-	add_relation(driver_key, affected_key, DEPSREL_TYPE_DRIVER, "[Driver -> Data] DepsRel");
+	//RNAPathKey affected_key(id, fcu->rna_path);
+	//add_relation(driver_key, affected_key, DEPSREL_TYPE_DRIVER, "[Driver -> Data] DepsRel");
 	
 	/* hook up update callback associated with F-Curve */
 	// ...
