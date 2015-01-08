@@ -249,6 +249,11 @@ static void schedule_children(TaskPool *pool,
 		OperationDepsNode *child = (OperationDepsNode *)rel->to;
 		BLI_assert(child->type == DEPSNODE_TYPE_OPERATION);
 
+		if (child->scheduled) {
+			/* Happens  */
+			continue;
+		}
+
 		if (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
 			IDDepsNode *id_child = child->owner->owner;
 
