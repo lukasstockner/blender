@@ -546,19 +546,23 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 {
 	bArmature *arm = (bArmature *)ob->data;
 
-	/* Rbuild pose if not up to date. */
-	if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC)) {
-		BKE_pose_rebuild(ob, arm);
-	}
-
-	// TODO: bone names?
 	/* animation and/or drivers linking posebones to base-armature used to define them 
 	 * NOTE: AnimData here is really used to control animated deform properties, 
 	 *       which ideally should be able to be unique across different instances.
 	 *       Eventually, we need some type of proxy/isolation mechanism inbetween here
 	 *       to ensure that we can use same rig multiple times in same scene...
+	 *
+	 *       However, since the armature is obdata, it's drivers have already been added
+	 *       before this function was called, so nothing needs to happen here...
 	 */
-	build_animdata(&arm->id);
+	/* build_animdata(&arm->id); */
+
+	
+	/* Rebuild pose if not up to date. */
+	if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC)) {
+		BKE_pose_rebuild(ob, arm);
+	}
+
 	
 	/* == Pose Rig Graph ==
 	 * Pose Component:
