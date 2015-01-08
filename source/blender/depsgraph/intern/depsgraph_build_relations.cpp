@@ -108,6 +108,7 @@ bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 	}
 
 	/* Check whether modifier is animated. */
+	// TODO: this should be handled as part of build_animdata()  -- Aligorith
 	if (ob->adt) {
 		AnimData *adt = ob->adt;
 		FCurve *fcu;
@@ -307,8 +308,8 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	/* AnimData */
 	build_animdata(&ob->id);
 	
-	// XXX: fixme
-	if (ob->adt) {
+	// XXX: This should be hooked up by the build_animdata code
+	if (ob->adt && (ob->adt->action || ob->adt->nla_tracks.first)) {
 		ComponentKey adt_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
 		add_relation(adt_key, local_transform_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
@@ -358,6 +359,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 {
 	/* XXX: for now, need to use the component key (not just direct to the parent op), or else the matrix doesn't get reset */
+	// XXX: @sergey - it would be good if we got that backwards flushing working when tagging for updates 
 	//OperationKey ob_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_PARENT);
 	ComponentKey ob_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 	
@@ -480,6 +482,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				
 				if (ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
 					/* ignore IK constraints - these are handled separately (on pose level) */
+					// XXX: this is bad - it precludes using geometry targets -- aligorith
 				}
 				else if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO)) {
 					/* these constraints require path geometry data... */
@@ -511,7 +514,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				else {
 					/* standard object relation */
 					// TODO: loc vs rot vs scale?
-					/* TODO(sergey): What to do if target is self? */
+					/* TODO(sergey): What to do if target is self?  -- should use local transform or just the previous constraint in that case... */
 					if (&ct->tar->id != id) {
 						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
 						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
@@ -1273,8 +1276,9 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	
 	/* ShapeKeys */
 	Key *key = BKE_key_from_object(ob);
-	if (key)
+	if (key) {
 		build_shapekeys(obdata, key);
+	}
 	
 	/* Modifiers */
 	if (ob->modifiers.first) {
