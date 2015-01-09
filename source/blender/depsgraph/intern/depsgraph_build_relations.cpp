@@ -507,9 +507,12 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				}
 				else if (con->type == CONSTRAINT_TYPE_SHRINKWRAP) {
 					/* Constraints which requires the target object surface. */
-					/* TODO(sergey): More cosntarints here? */
 					ComponentKey target_key(&ct->tar->id, DEPSNODE_TYPE_GEOMETRY);
 					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					
+					/* NOTE: obdata eval now doesn't necessarily depend on the object's transform... */
+					ComponentKey target_transform_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
+					add_relation(target_transform_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 				}
 				else {
 					/* standard object relation */
