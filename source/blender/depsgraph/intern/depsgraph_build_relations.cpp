@@ -393,8 +393,12 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 		{
 			if (ob->parent->type == OB_LATTICE) {
 				/* Lattice Deform Parent - Virtual Modifier */
+				// XXX: no virtual modifiers should be left!
 				ComponentKey parent_key(&ob->parent->id, DEPSNODE_TYPE_TRANSFORM);
+				ComponentKey geom_key(&ob->parent->id, DEPSNODE_TYPE_GEOMETRY);
+				
 				add_relation(parent_key, ob_key, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent");
+				add_relation(geom_key, ob_key, DEPSREL_TYPE_STANDARD, "Lattice Deform Parent Geom");
 			}
 			else if (ob->parent->type == OB_CURVE) {
 				Curve *cu = (Curve *)ob->parent->data;
