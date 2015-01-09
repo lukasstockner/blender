@@ -372,8 +372,12 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx,
                                            const DepsNode *node)
 {
 	const char *shape = "box";
-	const string name = node->identifier();
+	string name = node->identifier();
 	float priority = -1.0f;
+	if (node->type == DEPSNODE_TYPE_ID_REF) {
+		IDDepsNode *id_node = (IDDepsNode *)node;
+		name += " (Layers: " + std::to_string(id_node->layers) + ") ";
+	}
 	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION) {
 		priority = ((OperationDepsNode *)node)->eval_priority;
 	}
@@ -403,7 +407,11 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx,
 static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx,
                                                   const DepsNode *node)
 {
-	const string name = node->identifier().c_str();
+	string name = node->identifier().c_str();
+	if (node->type == DEPSNODE_TYPE_ID_REF) {
+		IDDepsNode *id_node = (IDDepsNode *)node;
+		name += " (Layers: " + std::to_string(id_node->layers) + ") ";
+	}
 	deg_debug_fprintf(ctx, "// %s\n", name.c_str());
 	deg_debug_fprintf(ctx, "subgraph \"cluster_%p\" {" NL, node);
 //	deg_debug_fprintf(ctx, "label=<<B>%s</B>>;" NL, name);
