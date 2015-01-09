@@ -112,17 +112,17 @@ void BKE_animsys_eval_driver(EvaluationContext *UNUSED(eval_ctx),
 			/* evaluate this using values set already in other places
 			 * NOTE: for 'layering' option later on, we should check if we should remove old value before adding
 			 *       new to only be done when drivers only changed */
-			printf("\told val = %f\n", fcu->curval);
+			//printf("\told val = %f\n", fcu->curval);
 			calculate_fcurve(fcu, ctime);
 			ok = BKE_animsys_execute_fcurve(&id_ptr, NULL, fcu);
-			printf("\tnew val = %f\n", fcu->curval);
+			//printf("\tnew val = %f\n", fcu->curval);
 			
 			/* clear recalc flag */
 			driver->flag &= ~DRIVER_FLAG_RECALC;
 			
 			/* set error-flag if evaluation failed */
 			if (ok == 0) {
-				printf("invalid driver\n");
+				printf("invalid driver - %s[%d]\n", fcu->rna_path, fcu->array_index);
 				driver->flag |= DRIVER_FLAG_INVALID;
 			}
 		}
