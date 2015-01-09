@@ -948,16 +948,159 @@ bool DEG_debug_compare(const struct Depsgraph *graph1,
 	return true;
 }
 
-void DEG_debug_scene_relations_validate(Main *bmain,
+bool DEG_debug_scene_relations_validate(Main *bmain,
                                         Scene *scene)
 {
 	Depsgraph *depsgraph = DEG_graph_new();
+	bool valid = true;
 	DEG_graph_build_from_scene(depsgraph, bmain, scene);
 	if (!DEG_debug_compare(depsgraph, scene->depsgraph)) {
 		fprintf(stderr, "ERROR! Depsgraph wasn't tagged for update when it should have!\n");
 		BLI_assert(!"This should not happen!");
+		valid = false;
 	}
 	DEG_graph_free(depsgraph);
+	return valid;
+}
+
+bool DEG_debug_consistency_check(Depsgraph *graph)
+{
+	/* Validate links exists in both directions. */
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		for (OperationDepsNode::Relations::const_iterator it_rel = node->outlinks.begin();
+		     it_rel != node->outlinks.end();
+		     ++it_rel)
+		{
+			DepsRelation *rel = *it_rel;
+
+			int counter1 = 0;
+			for (OperationDepsNode::Relations::const_iterator tmp_rel = node->outlinks.begin();
+			     tmp_rel != node->outlinks.end();
+			     ++tmp_rel)
+			{
+				if (*tmp_rel == rel) {
+					++counter1;
+				}
+			}
+
+			int counter2 = 0;
+			for (OperationDepsNode::Relations::const_iterator tmp_rel = rel->to->inlinks.begin();
+			     tmp_rel != rel->to->inlinks.end();
+			     ++tmp_rel)
+			{
+				if (*tmp_rel == rel) {
+					++counter2;
+				}
+			}
+
+			if (counter1 != counter2) {
+				printf("Relation exists in outgoing direction but not in incoming (%d vs. %d).\n",
+				       counter1, counter2);
+				return false;
+			}
+		}
+	}
+
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
+		     it_rel != node->inlinks.end();
+		     ++it_rel)
+		{
+			DepsRelation *rel = *it_rel;
+
+			int counter1 = 0;
+			for (OperationDepsNode::Relations::const_iterator tmp_rel = node->inlinks.begin();
+			     tmp_rel != node->inlinks.end();
+			     ++tmp_rel)
+			{
+				if (*tmp_rel == rel) {
+					++counter1;
+				}
+			}
+
+			int counter2 = 0;
+			for (OperationDepsNode::Relations::const_iterator tmp_rel = rel->from->outlinks.begin();
+			     tmp_rel != rel->from->outlinks.end();
+			     ++tmp_rel)
+			{
+				if (*tmp_rel == rel) {
+					++counter2;
+				}
+			}
+
+			if (counter1 != counter2) {
+				printf("Relation exists in incoming direction but not in outcoming (%d vs. %d).\n",
+				       counter1, counter2);
+			}
+		}
+	}
+
+	/* Validate node valency calculated in both directions. */
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		node->num_links_pending = 0;
+		node->done = 0;
+	}
+
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		if (node->done) {
+			printf("Node %s is twice in the operations!\n",
+			       node->identifier().c_str());
+			return false;
+		}
+		for (OperationDepsNode::Relations::const_iterator it_rel = node->outlinks.begin();
+		     it_rel != node->outlinks.end();
+		     ++it_rel)
+		{
+			DepsRelation *rel = *it_rel;
+			if (rel->to->type == DEPSNODE_TYPE_OPERATION) {
+				OperationDepsNode *to = (OperationDepsNode *)rel->to;
+				BLI_assert(to->num_links_pending < to->inlinks.size());
+				++to->num_links_pending;
+			}
+		}
+		node->done = 1;
+	}
+
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		int num_links_pending = 0;
+		for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
+		     it_rel != node->inlinks.end();
+		     ++it_rel)
+		{
+			DepsRelation *rel = *it_rel;
+			if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+				++num_links_pending;
+			}
+		}
+		if (node->num_links_pending != num_links_pending) {
+			printf("Valency mismatch: %s, %d != %d\n",
+			       node->identifier().c_str(),
+			       node->num_links_pending, num_links_pending);
+			printf("Number of inlinks: %lu\n", node->inlinks.size());
+			return false;
+		}
+	}
+	return true;
 }
 
 /* ------------------------------------------------ */

@@ -84,6 +84,7 @@ extern "C" {
 #include "BKE_world.h"
 
 #include "DEG_depsgraph.h"
+#include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph_build.h"
 
 #include "RNA_access.h"
@@ -570,6 +571,12 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	deg_graph_transitive_reduction(graph);
 	
 	deg_graph_flush_node_layers(graph);
+#if 0
+	if (!DEG_debug_consistency_check(graph)) {
+		printf("Consistency validation failed, ABORTING!\n");
+		abort();
+	}
+#endif
 }
 
 /* Tag graph relations for update. */
