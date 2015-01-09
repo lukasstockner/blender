@@ -229,24 +229,36 @@ ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(ID *id, eDepsNode_Ty
 }
 
 OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ComponentDepsNode *comp_node,
-                                                            eDepsOperation_Type optype, DepsEvalOperationCb op, 
-                                                            eDepsOperation_Code opcode, const string &description)
+                                                            eDepsOperation_Type optype,
+                                                            DepsEvalOperationCb op,
+                                                            eDepsOperation_Code opcode,
+                                                            const string &description)
 {
-	OperationDepsNode *op_node = comp_node->add_operation(optype, op, opcode, description);
-	m_graph->operations.push_back(op_node);
+	OperationDepsNode *op_node = comp_node->has_operation(opcode, description);
+	if (op_node == NULL) {
+		op_node = comp_node->add_operation(optype, op, opcode, description);
+		m_graph->operations.push_back(op_node);
+	}
+	else {
+		/* TODO(sergey): Ideally graph builder shouldn't create duplicate nodes. */
+		fprintf(stderr, "add_operation: Operation already exists - %s has %s at %p\n",
+		        comp_node->identifier().c_str(),
+		        op_node->identifier().c_str(),
+		        op_node);
+	}
 	return op_node;
 }
 
-OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name,
-                                                            eDepsOperation_Type optype, DepsEvalOperationCb op,
-                                                            eDepsOperation_Code opcode, const string &description)
+OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ID *id,
+                                                            eDepsNode_Type comp_type,
+                                                            const string &comp_name,
+                                                            eDepsOperation_Type optype,
+                                                            DepsEvalOperationCb op,
+                                                            eDepsOperation_Code opcode,
+                                                            const string &description)
 {
 	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
-	
-	OperationDepsNode *op_node = comp_node->add_operation(optype, op, opcode, description);
-	m_graph->operations.push_back(op_node);
-	
-	return op_node;
+	return add_operation_node(comp_node, optype, op, opcode, description);
 }
 
 /* ************************************************* */
