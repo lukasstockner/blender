@@ -376,7 +376,9 @@ static void deg_debug_graphviz_node_single(const DebugContext &ctx,
 	float priority = -1.0f;
 	if (node->type == DEPSNODE_TYPE_ID_REF) {
 		IDDepsNode *id_node = (IDDepsNode *)node;
-		name += " (Layers: " + std::to_string(id_node->layers) + ") ";
+		char buf[256];
+		BLI_snprintf(buf, sizeof(buf), " (Layers: %d)", id_node->layers);
+		name += buf;
 	}
 	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION) {
 		priority = ((OperationDepsNode *)node)->eval_priority;
@@ -410,7 +412,9 @@ static void deg_debug_graphviz_node_cluster_begin(const DebugContext &ctx,
 	string name = node->identifier().c_str();
 	if (node->type == DEPSNODE_TYPE_ID_REF) {
 		IDDepsNode *id_node = (IDDepsNode *)node;
-		name += " (Layers: " + std::to_string(id_node->layers) + ") ";
+		char buf[256];
+		BLI_snprintf(buf, sizeof(buf), " (Layers: %d)", id_node->layers);
+		name += buf;
 	}
 	deg_debug_fprintf(ctx, "// %s\n", name.c_str());
 	deg_debug_fprintf(ctx, "subgraph \"cluster_%p\" {" NL, node);
@@ -1104,7 +1108,7 @@ bool DEG_debug_consistency_check(Depsgraph *graph)
 			printf("Valency mismatch: %s, %d != %d\n",
 			       node->identifier().c_str(),
 			       node->num_links_pending, num_links_pending);
-			printf("Number of inlinks: %lu\n", node->inlinks.size());
+			printf("Number of inlinks: %d\n", (int)node->inlinks.size());
 			return false;
 		}
 	}
