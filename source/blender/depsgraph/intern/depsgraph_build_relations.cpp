@@ -580,11 +580,8 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 	//RNAPathKey affected_key(id, fcu->rna_path);
 	//add_relation(driver_key, affected_key, DEPSREL_TYPE_DRIVER, "[Driver -> Data] DepsRel");
 	
-	/* hook up update callback associated with F-Curve */
-	// ...
-	
 	/* driver -> data components (for interleaved evaluation - bones/constraints/modifiers) */
-	// XXX: this probably shouldn't be inlined here like this...
+	// XXX: this probably should probably be moved out into a separate function
 	if (strstr(fcu->rna_path, "pose.bones[") != NULL) {
 		/* interleaved drivers during bone eval */
 		// TODO: ideally, if this is for a constraint, it goes to said constraint
@@ -1200,14 +1197,12 @@ void DepsgraphRelationBuilder::build_shapekeys(ID *obdata, Key *key)
 	
 	/* attach to geometry */
 	// XXX: aren't shapekeys now done as a pseudo-modifier on object?
-	ComponentKey key_key(&key->id, DEPSNODE_TYPE_GEOMETRY); // FIXME: this doesn't exist
-	add_relation(key_key, obdata_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
+	//ComponentKey key_key(&key->id, DEPSNODE_TYPE_GEOMETRY); // FIXME: this doesn't exist
+	//add_relation(key_key, obdata_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
 }
 
 /* ObData Geometry Evaluation
  * ==========================
- * To better support 
- *
  */
 void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 {
