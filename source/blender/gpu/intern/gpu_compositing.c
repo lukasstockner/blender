@@ -35,6 +35,7 @@
 #include "BLI_rect.h"
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_listbase.h"
 
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
@@ -107,6 +108,53 @@ struct GPUFX {
 	/* we have a stencil, restore the previous state */
 	bool restore_stencil;
 };
+
+
+/* compositing link between compostiting stages, */
+typedef struct GPUCompositingLink {
+	GPUTexture *texture;
+	char *inslot;
+	char *outslot;
+	int flag;
+} GPUCompositingLink;
+
+/* compositing node - it's different than material nodes because outputs are buffers - inputs can be
+ * uniforms or other beasts inputs*/
+typedef struct GPUCompositingNode {
+	GPUShader *shader;
+	int w, h;
+	ListBase inputs;
+	ListBase outputs;
+} GPUCompositingNode;
+
+
+static GPUCompositingNode *gpu_compositing_node_new(GPUShader *shader, int w, int h)
+{
+	GPUCompositingNode *node = MEM_callocN(sizeof(GPUCompositingNode), "GPUCompositingNode");
+	node->w = w;
+	node->h = h;
+	node->shader = shader;
+	
+	return node;
+}
+
+static void gpu_compositing_nodes_link(GPUCompositingNode *nodei, GPUCompositingNode *nodeo, char *input, char *output)
+{
+	GPUCompositingLink *link = MEM_callocN(sizeof(GPUCompositingLink), "GPUCompositingNode");
+	
+	link->inslot = input;
+	link->outslot = output;
+	
+	BLI_addhead(&nodei->inputs, BLI_genericNodeN(link));
+	BLI_addhead(&nodeo->outputs, BLI_genericNodeN(link));
+}
+
+
+static void gpu_compositing_node_free(GPUCompositingNode *node)
+{
+	BLI_freelistN(&node->inputs);
+	BLI_freelistN(&node->outputs);
+}
 
 
 /* generate a new FX compositor */

@@ -1390,6 +1390,7 @@ struct GPUShader {
 	GLhandleARB fragment;	/* handle for fragment shader */
 	GLhandleARB lib;		/* handle for libment shader */
 	int totattrib;			/* total number of attributes */
+	int uniforms;			/* required uniforms */
 };
 
 static void shader_print_errors(const char *task, char *log, const char **code, int totcode)
