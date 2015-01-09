@@ -1203,7 +1203,22 @@ void DepsgraphRelationBuilder::build_shapekeys(ID *obdata, Key *key)
 
 /* ObData Geometry Evaluation
  * ==========================
+ * The evaluation of geometry on objects is as follows:
+ * - The actual evaluated of the derived geometry (e.g. DerivedMesh, DispList, etc.)
+ *   occurs in the Geometry component of the object which references this. This includes
+ *   modifiers, and the temporary "ubereval" for geometry.
+ * - Therefore, each user of a piece of shared geometry data ends up evaluating its own
+ *   version of the stuff, complete with whatever modifiers it may use.
+ *
+ * - The datablocks for the geometry data - "obdata" (e.g. ID_ME, ID_CU, ID_LT, etc.) are used for
+ *     1) calculating the bounding boxes of the geometry data,
+ *     2) aggregating inward links from other objects (e.g. for text on curve, etc.)
+ *        and also for the links coming from the shapekey datablocks
+ * - Animation/Drivers affecting the parameters of the geometry are made to trigger
+ *   updates on the obdata geometry component, which then trigger downstream
+ *   re-evaluation of the individual instances of this geometry.
  */
+// TODO: Materials and lighting should probably get their own component, instead of being lumped under geometry?
 void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 {
 	ID *obdata = (ID *)ob->data;
