@@ -214,6 +214,7 @@ void DEG_graph_flush_updates(Main *bmain,
 			queue.push(node);
 		}
 		else {
+			node->flag &= ~DEPSOP_FLAG_NEEDS_UPDATE;
 			graph->add_invisible_entry_tag(node);
 		}
 	}
@@ -234,8 +235,11 @@ void DEG_graph_flush_updates(Main *bmain,
 		{
 			DepsRelation *rel = *it;
 			OperationDepsNode *to_node = (OperationDepsNode *)rel->to;
+			IDDepsNode *id_node = to_node->owner->owner;
 
-			if (!(to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE)) {
+			if ((id_node->layers & layers) != 0 &&
+			    (to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE) == 0)
+			{
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
 			}

@@ -154,19 +154,22 @@ static void deg_task_run_func(TaskPool *pool,
 	schedule_children(pool, state->eval_ctx, state->graph, node, state->layers);
 }
 
-static void calculate_pending_parents(Depsgraph *graph)
+static void calculate_pending_parents(Depsgraph *graph, int layers)
 {
 	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
 	     it_op != graph->operations.end();
 	     ++it_op)
 	{
 		OperationDepsNode *node = *it_op;
+		IDDepsNode *id_node = node->owner->owner;
 
 		node->num_links_pending = 0;
 		node->scheduled = false;
 
 		/* count number of inputs that need updates */
-		if (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+		if ((id_node->layers & layers) != 0 &&
+		    (node->flag & DEPSOP_FLAG_NEEDS_UPDATE) != 0)
+		{
 			for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
 			     it_rel != node->inlinks.end();
 			     ++it_rel)
@@ -254,15 +257,14 @@ static void schedule_children(TaskPool *pool,
 			continue;
 		}
 
-		if (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
-			IDDepsNode *id_child = child->owner->owner;
-
+		IDDepsNode *id_child = child->owner->owner;
+		if ((id_child->layers & layers) != 0 &&
+		    (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) != 0)
+		{
 			BLI_assert(child->num_links_pending > 0);
 			atomic_sub_uint32(&child->num_links_pending, 1);
 
-			if (child->num_links_pending == 0 &&
-			    (id_child->layers & layers) != 0)
-			{
+			if (child->num_links_pending == 0) {
 				BLI_spin_lock(&graph->lock);
 				bool need_schedule = !child->scheduled;
 				child->scheduled = true;
@@ -302,7 +304,7 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 	 */
 	DEG_graph_flush_updates(bmain, eval_ctx, graph, layers);
 
-	calculate_pending_parents(graph);
+	calculate_pending_parents(graph, layers);
 
 	/* Clear tags. */
 	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
