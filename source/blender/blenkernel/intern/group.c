@@ -159,6 +159,10 @@ Group *BKE_group_copy(Group *group)
 		groupn->preview = BKE_previewimg_copy(group->preview);
 	}
 
+	if (group->id.lib) {
+		BKE_id_lib_local_paths(G.main, group->id.lib, &groupn->id);
+	}
+
 	return groupn;
 }
 
