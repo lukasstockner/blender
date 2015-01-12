@@ -545,7 +545,7 @@ short copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 		aci->array_index = fcu->array_index;
 		
 		/* detect if this is a bone. We do that here rather than during pasting because ID pointers will get invalidated if we undo.
-		 * storing the relavant information here helps avoiding crashes if we undo-repaste */
+		 * storing the relevant information here helps avoiding crashes if we undo-repaste */
 		if ((aci->id_type == ID_OB) && (((Object *)aci->id)->type == OB_ARMATURE) && aci->rna_path) {
 			Object *ob = (Object *)aci->id;
 			char *str_start;
@@ -747,7 +747,7 @@ static tAnimCopybufItem *pastebuf_match_index_only(FCurve *fcu, const short from
 static void do_curve_mirror_flippping(tAnimCopybufItem *aci, BezTriple *bezt)
 {
 	if (aci->is_bone) {
-		int slength = strlen(aci->rna_path);
+		const size_t slength = strlen(aci->rna_path);
 		bool flip = false;
 		if (BLI_strn_endswith(aci->rna_path, "location", slength) && aci->array_index == 0)
 			flip = true;

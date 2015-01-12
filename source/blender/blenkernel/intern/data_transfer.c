@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/blenkernel/intern/object_data_transfer.c
+/** \file blender/blenkernel/intern/data_transfer.c
  *  \ingroup bke
  */
 
@@ -44,7 +44,7 @@
 
 #include "BKE_context.h"
 #include "BKE_customdata.h"
-#include "BKE_object_data_transfer.h"
+#include "BKE_data_transfer.h"
 #include "BKE_deform.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_mapping.h"
@@ -366,6 +366,17 @@ static bool data_transfer_layersmapping_cdlayers_multisrc_to_dst(
 	int idx_src = num_layers_src;
 	int idx_dst, tot_dst = CustomData_number_of_layers(cd_dst, cddata_type);
 	bool *data_dst_to_delete = NULL;
+
+	if (!use_layers_src) {
+		/* No source at all, we can only delete all dest if requested... */
+		if (use_delete) {
+			idx_dst = tot_dst;
+			while (idx_dst--) {
+				CustomData_free_layer(cd_dst, cddata_type, num_elem_dst, idx_dst);
+			}
+		}
+		return true;
+	}
 
 	switch (tolayers) {
 		case DT_LAYERS_INDEX_DST:
