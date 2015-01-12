@@ -1943,10 +1943,7 @@ void CcdPhysicsEnvironment::MergeEnvironment(PHY_IPhysicsEnvironment *other_env)
 
 CcdPhysicsEnvironment::~CcdPhysicsEnvironment()
 {
-
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 	m_wrapperVehicles.clear();
-#endif //NEW_BULLET_VEHICLE_SUPPORT
 
 	//m_broadphase->DestroyScene();
 	//delete broadphase ? release reference on broadphase ?
@@ -2349,16 +2346,14 @@ bool CcdOverlapFilterCallBack::needBroadphaseCollision(btBroadphaseProxy* proxy0
 }
 
 
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 
 //complex constraint for vehicles
-PHY_IVehicle*	CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
+PHY_IVehicle* CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 {
 	int i;
-
 	int numVehicles = m_wrapperVehicles.size();
-	for (i=0;i<numVehicles;i++)
-	{
+
+	for (i=0; i<numVehicles; i++) {
 		WrapperVehicle* wrapperVehicle = m_wrapperVehicles[i];
 		if (wrapperVehicle->GetVehicle()->getUserConstraintId() == constraintId)
 			return wrapperVehicle;
@@ -2366,8 +2361,6 @@ PHY_IVehicle*	CcdPhysicsEnvironment::GetVehicleConstraint(int constraintId)
 
 	return 0;
 }
-
-#endif //NEW_BULLET_VEHICLE_SUPPORT
 
 
 PHY_ICharacter* CcdPhysicsEnvironment::GetCharacterController(KX_GameObject *ob)
@@ -2841,7 +2834,6 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 			return hinge->getUserConstraintId();
 			break;
 		}
-#ifdef NEW_BULLET_VEHICLE_SUPPORT
 
 	case PHY_VEHICLE_CONSTRAINT:
 		{
@@ -2858,7 +2850,6 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 
 			break;
 		};
-#endif //NEW_BULLET_VEHICLE_SUPPORT
 
 	default:
 		{
