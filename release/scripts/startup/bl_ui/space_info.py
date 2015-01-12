@@ -203,6 +203,10 @@ class INFO_MT_file_previews(Menu):
         layout = self.layout
 
         layout.operator("wm.previews_ensure")
+        layout.operator("wm.previews_generate_objects")
+
+        layout.separator()
+        layout.operator("wm.previews_clear")
 
 
 class INFO_MT_game(Menu):

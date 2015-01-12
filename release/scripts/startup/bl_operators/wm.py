@@ -25,6 +25,7 @@ from bpy.props import (StringProperty,
                        IntProperty,
                        FloatProperty,
                        EnumProperty,
+                       CollectionProperty,
                        )
 
 from bpy.app.translations import pgettext_tip as tip_
@@ -2114,3 +2115,60 @@ class WM_OT_addon_expand(Operator):
         info = addon_utils.module_bl_info(mod)
         info["show_expanded"] = not info["show_expanded"]
         return {'FINISHED'}
+
+# ########## Datablock previews... ##########
+
+class WM_OT_generate_previews(Operator):
+    """Generate selected .blend file's object and groups previews"""
+    bl_idname = "wm.previews_generate_objects"
+    bl_label = "Generate Object/Groups Previews"
+    bl_options = {'REGISTER'}
+
+    # -----------
+    # File props.
+    files = CollectionProperty(type=bpy.types.OperatorFileListElement, options={'HIDDEN', 'SKIP_SAVE'})
+
+    directory = StringProperty(maxlen=1024, subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+
+    # Show only images/videos, and directories!
+    filter_blender = BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+    filter_folder = BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        if "subprocess" in locals():
+            import imp
+            imp.reload(preview_render)
+        else:
+            import os
+            import subprocess
+            from bl_previews_utils import bl_previews_render as preview_render
+
+        context.window_manager.progress_begin(0, len(self.files))
+        context.window_manager.progress_update(0)
+        for i, fn in enumerate(self.files):
+            blen_path = os.path.join(self.directory, fn.name)
+            cmmd = (
+                bpy.app.binary_path,
+                #~ "--background",
+                "--factory-startup",
+                blen_path,
+                "--python",
+                os.path.join(os.path.dirname(preview_render.__file__), "bl_previews_render.py"),
+                "--",
+                "bl_previews_render.py",  # arg parser expects first arg to be prog name!
+            )
+            # Not working (UI is not refreshed...).
+            #self.report({'INFO'}, "Extracting messages, this will take some time...")
+            if subprocess.call(cmmd):
+                self.report({'ERROR'}, "Previews generation process failed for file '%s'!" % blend_path)
+                context.window_manager.progress_end()
+                return {'CANCELLED'}
+            context.window_manager.progress_update(i + 1)
+        context.window_manager.progress_end()
+
+        return {'FINISHED'}
+
