@@ -327,10 +327,26 @@ BLI_INLINE OperationDepsNode *get_exit_operation(OperationDepsNode *node)
 { return node; }
 
 BLI_INLINE OperationDepsNode *get_entry_operation(ComponentDepsNode *node)
-{ return node ? node->entry_operation : NULL; }
+{
+	if (node) {
+		if (node->entry_operation)
+			return node->entry_operation;
+		else if (node->operations.size() == 1)
+			return node->operations.begin()->second;
+	}
+	return NULL;
+}
 
 BLI_INLINE OperationDepsNode *get_exit_operation(ComponentDepsNode *node)
-{ return node ? node->exit_operation : NULL; }
+{
+	if (node) {
+		if (node->exit_operation)
+			return node->exit_operation;
+		else if (node->operations.size() == 1)
+			return node->operations.begin()->second;
+	}
+	return NULL;
+}
 
 template <typename KeyFrom, typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo &key_to,
