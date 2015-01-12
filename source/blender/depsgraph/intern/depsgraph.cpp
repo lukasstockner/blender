@@ -26,10 +26,18 @@
  * Core routines for how the Depsgraph works
  */
 
+#include <string.h>
+
 #include "MEM_guardedalloc.h"
+
+#include "BLI_listbase.h"
 
 extern "C" {
 #include "DNA_action_types.h"
+#include "DNA_armature_types.h"
+#include "DNA_constraint_types.h"
+#include "DNA_key_types.h"
+#include "DNA_object_types.h"
 #include "DNA_sequence_types.h"
 }
 
@@ -96,16 +104,85 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
 	/* Handling of commonly known scenarios... */
 	if (ptr->type == &RNA_PoseBone) {
 		bPoseChannel *pchan = (bPoseChannel *)ptr->data;
+		
 		/* Bone - generally, we just want the bone component... */
 		*type = DEPSNODE_TYPE_BONE;
 		*subdata = pchan->name;
+		
+		return true;
+	}
+	else if (ptr->type == &RNA_Bone) {
+		Bone *bone = (Bone *)ptr->data;
+		
+		/* armature-level bone, but it ends up going to bone component anyway */
+		// TODO: the ID in thise case will end up being bArmature, not Object as needed!
+		*type = DEPSNODE_TYPE_BONE;
+		*subdata = bone->name;
+		//*id = ...
+		
+		return true;
+	}
+	else if (RNA_struct_is_a(ptr->type, &RNA_Constraint)) {
+		Object *ob = (Object *)ptr->id.data;
+		bConstraint *con = (bConstraint *)ptr->data;
+		
+		/* object or bone? */
+		if (BLI_findindex(&ob->constraints, con) != -1) {
+			/* object transform */
+			// XXX: for now, we can't address the specific constraint or the constraint stack...
+			*type = DEPSNODE_TYPE_TRANSFORM;
+			return true;
+		}
+		else if (ob->pose) {
+			bPoseChannel *pchan;
+			for (pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+				if (BLI_findindex(&pchan->constraints, con) != -1) {
+					/* bone transforms */
+					*type = DEPSNODE_TYPE_BONE;
+					*subdata = pchan->name;
+					return true;
+				}
+			}
+		}
+	}
+	else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
+		//ModifierData *md = (ModifierData *)ptr->data;
+		
+		/* Modifier */
+		/* NOTE: subdata is not the same as "operation name", 
+		 * so although we have unique ops for modifiers,
+		 * we can't lump them together
+		 */
+		*type = DEPSNODE_TYPE_BONE;
+		//*subdata = md->name;
+		
 		return true;
 	}
 	else if (ptr->type == &RNA_Object) {
-		Object *ob = (Object *)ptr->data;
+		//Object *ob = (Object *)ptr->data;
+		
 		/* Transforms props? */
+		if (prop) {
+			const char *prop_identifier = RNA_property_identifier((PropertyRNA *)prop);
+			
+			if (strstr(prop_identifier, "location") ||
+			    strstr(prop_identifier, "rotation") ||
+			    strstr(prop_identifier, "scale"))
+			{
+				*type = DEPSNODE_TYPE_TRANSFORM;
+				return true;
+			}
+		}
 		// ...
-		(void)ob;  /* Currently ignored. */
+	}
+	else if (ptr->type == &RNA_ShapeKey) {
+		Key *key = (Key *)ptr->id.data;
+		
+		/* ShapeKeys are currently handled as geometry on the geometry that owns it */
+		*id = key->from; // XXX
+		*type = DEPSNODE_TYPE_GEOMETRY;
+		
+		return true;
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
 		Sequence *seq = (Sequence *)ptr->data;
@@ -114,7 +191,8 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
 		*subdata = seq->name; // xxx?
 		return true;
 	}
-	else if (prop) {
+	
+	if (prop) {
 		/* All unknown data effectively falls under "parameter evaluation" */
 		*type = DEPSNODE_TYPE_PARAMETERS;
 		return true;
