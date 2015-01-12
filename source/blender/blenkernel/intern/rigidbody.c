@@ -62,8 +62,6 @@
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
 
-#include "RNA_access.h"
-
 #ifdef WITH_BULLET
 
 /* ************************************** */
@@ -1158,7 +1156,7 @@ static void rigidbody_update_ob_array(RigidBodyWorld *rbw)
 	GroupObject *go;
 	int i, n;
 
-	n = BLI_countlist(&rbw->group->gobject);
+	n = BLI_listbase_count(&rbw->group->gobject);
 
 	if (rbw->numbodies != n) {
 		rbw->numbodies = n;
@@ -1499,7 +1497,7 @@ void BKE_rigidbody_rebuild_world(Scene *scene, float ctime)
 	cache = rbw->pointcache;
 
 	/* flag cache as outdated if we don't have a world or number of objects in the simulation has changed */
-	if (rbw->physics_world == NULL || rbw->numbodies != BLI_countlist(&rbw->group->gobject)) {
+	if (rbw->physics_world == NULL || rbw->numbodies != BLI_listbase_count(&rbw->group->gobject)) {
 		cache->flag |= PTCACHE_OUTDATED;
 	}
 

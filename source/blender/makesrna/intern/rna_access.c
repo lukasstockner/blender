@@ -466,7 +466,7 @@ static const char *rna_ensure_property_identifier(const PropertyRNA *prop)
 	if (prop->magic == RNA_MAGIC)
 		return prop->identifier;
 	else
-		return ((IDProperty *)prop)->name;
+		return ((const IDProperty *)prop)->name;
 }
 
 static const char *rna_ensure_property_description(PropertyRNA *prop)
@@ -499,7 +499,7 @@ static const char *rna_ensure_property_name(const PropertyRNA *prop)
 	if (prop->magic == RNA_MAGIC)
 		name = prop->name;
 	else
-		name = ((IDProperty *)prop)->name;
+		name = ((const IDProperty *)prop)->name;
 
 	return name;
 }
@@ -1630,9 +1630,10 @@ bool RNA_property_animated(PointerRNA *ptr, PropertyRNA *prop)
 	if (RNA_property_array_check(prop))
 		len = RNA_property_array_length(ptr, prop);
 
-	for (index = 0; index < len; index++)
-		if (rna_get_fcurve(ptr, prop, index, NULL, &driven))
+	for (index = 0; index < len; index++) {
+		if (rna_get_fcurve(ptr, prop, index, NULL, NULL, &driven))
 			return true;
+	}
 
 	return false;
 }
@@ -4283,7 +4284,7 @@ char *RNA_path_append(const char *path, PointerRNA *UNUSED(ptr), PropertyRNA *pr
 
 	/* add .identifier */
 	if (path) {
-		BLI_dynstr_append(dynstr, (char *)path);
+		BLI_dynstr_append(dynstr, path);
 		if (*path)
 			BLI_dynstr_append(dynstr, ".");
 	}
@@ -4959,7 +4960,7 @@ bool RNA_enum_is_equal(bContext *C, PointerRNA *ptr, const char *name, const cha
 
 	if (prop) {
 		int i;
-		bool cmp;
+		bool cmp = false;
 
 		RNA_property_enum_items(C, ptr, prop, &item, NULL, &free);
 		i = RNA_enum_from_identifier(item, enumname);

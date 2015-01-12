@@ -85,7 +85,7 @@ static int act_new_exec(bContext *C, wmOperator *UNUSED(op))
 	PropertyRNA *prop;
 
 	/* hook into UI */
-	uiIDContextProperty(C, &ptr, &prop);
+	UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
 	
 	if (prop) {
 		bAction *action = NULL, *oldact = NULL;
@@ -545,7 +545,7 @@ static short copy_action_keys(bAnimContext *ac)
 
 
 static short paste_action_keys(bAnimContext *ac,
-                               const eKeyPasteOffset offset_mode, const eKeyMergeMode merge_mode)
+                               const eKeyPasteOffset offset_mode, const eKeyMergeMode merge_mode, bool flip)
 {	
 	ListBase anim_data = {NULL, NULL};
 	int filter, ok = 0;
@@ -562,7 +562,7 @@ static short paste_action_keys(bAnimContext *ac,
 		ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
 	
 	/* paste keyframes */
-	ok = paste_animedit_keys(ac, &anim_data, offset_mode, merge_mode);
+	ok = paste_animedit_keys(ac, &anim_data, offset_mode, merge_mode, flip);
 
 	/* clean up */
 	ANIM_animdata_freelist(&anim_data);
@@ -622,6 +622,7 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
 
 	const eKeyPasteOffset offset_mode = RNA_enum_get(op->ptr, "offset");
 	const eKeyMergeMode merge_mode = RNA_enum_get(op->ptr, "merge");
+	const bool flipped = RNA_boolean_get(op->ptr, "flipped");
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -638,7 +639,7 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
 	}
 	else {
 		/* non-zero return means an error occurred while trying to paste */
-		if (paste_action_keys(&ac, offset_mode, merge_mode)) {
+		if (paste_action_keys(&ac, offset_mode, merge_mode, flipped)) {
 			return OPERATOR_CANCELLED;
 		}
 	}
@@ -651,6 +652,7 @@ static int actkeys_paste_exec(bContext *C, wmOperator *op)
  
 void ACTION_OT_paste(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
 	/* identifiers */
 	ot->name = "Paste Keyframes";
 	ot->idname = "ACTION_OT_paste";
@@ -667,6 +669,8 @@ void ACTION_OT_paste(wmOperatorType *ot)
 	/* props */
 	RNA_def_enum(ot->srna, "offset", keyframe_paste_offset_items, KEYFRAME_PASTE_OFFSET_CFRA_START, "Offset", "Paste time offset of keys");
 	RNA_def_enum(ot->srna, "merge", keyframe_paste_merge_items, KEYFRAME_PASTE_MERGE_MIX, "Type", "Method of merging pasted keys and existing");
+	prop = RNA_def_boolean(ot->srna, "flipped", false, "Flipped", "Paste keyframes from mirrored bones if they exist");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /* ******************** Insert Keyframes Operator ************************* */
@@ -965,8 +969,11 @@ static int actkeys_clean_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get cleaning threshold */
 	thresh = RNA_float_get(op->ptr, "threshold");
@@ -1025,15 +1032,18 @@ static void sample_action_keys(bAnimContext *ac)
 
 /* ------------------- */
 
-static int actkeys_sample_exec(bContext *C, wmOperator *UNUSED(op))
+static int actkeys_sample_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 	
 	/* sample keyframes */
 	sample_action_keys(&ac);
@@ -1138,8 +1148,11 @@ static int actkeys_expo_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get handle setting mode */
 	mode = RNA_enum_get(op->ptr, "type");
@@ -1209,8 +1222,11 @@ static int actkeys_ipo_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get handle setting mode */
 	mode = RNA_enum_get(op->ptr, "type");
@@ -1288,8 +1304,11 @@ static int actkeys_handletype_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK)) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get handle setting mode */
 	mode = RNA_enum_get(op->ptr, "type");
@@ -1324,7 +1343,7 @@ void ACTION_OT_handle_type(wmOperatorType *ot)
 
 /* ******************** Set Keyframe-Type Operator *********************** */
 
-/* this function is responsible for setting interpolation mode for keyframes */
+/* this function is responsible for setting keyframe type for keyframes */
 static void setkeytype_action_keys(bAnimContext *ac, short mode) 
 {
 	ListBase anim_data = {NULL, NULL};
@@ -1349,6 +1368,29 @@ static void setkeytype_action_keys(bAnimContext *ac, short mode)
 	ANIM_animdata_freelist(&anim_data);
 }
 
+/* this function is responsible for setting the keyframe type for Grease Pencil frames */
+static void setkeytype_gpencil_keys(bAnimContext *ac, short mode)
+{
+	ListBase anim_data = {NULL, NULL};
+	bAnimListElem *ale;
+	int filter;
+	
+	/* filter data */
+	filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_FOREDIT | ANIMFILTER_NODUPLIS);
+	ANIM_animdata_filter(ac, &anim_data, filter, ac->data, ac->datatype);
+	
+	/* loop through each layer */
+	for (ale = anim_data.first; ale; ale = ale->next) {
+		if (ale->type == ANIMTYPE_GPLAYER) {
+			ED_gplayer_frames_keytype_set(ale->data, mode);
+			ale->update |= ANIM_UPDATE_DEPS;
+		}
+	}
+
+	ANIM_animdata_update(ac, &anim_data);
+	ANIM_animdata_freelist(&anim_data);
+}
+
 /* ------------------- */
 
 static int actkeys_keytype_exec(bContext *C, wmOperator *op)
@@ -1359,14 +1401,22 @@ static int actkeys_keytype_exec(bContext *C, wmOperator *op)
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
 		return OPERATOR_CANCELLED;
-	if (ELEM(ac.datatype, ANIMCONT_GPENCIL, ANIMCONT_MASK))
+		
+	if (ac.datatype == ANIMCONT_MASK) {
+		BKE_report(op->reports, RPT_ERROR, "Not implemented for Masks");
 		return OPERATOR_PASS_THROUGH;
+	}
 		
 	/* get handle setting mode */
 	mode = RNA_enum_get(op->ptr, "type");
 	
 	/* set handle type */
-	setkeytype_action_keys(&ac, mode);
+	if (ac.datatype == ANIMCONT_GPENCIL) {
+		setkeytype_gpencil_keys(&ac, mode);
+	}
+	else {
+		setkeytype_action_keys(&ac, mode);
+	}
 	
 	/* set notifier that keyframe properties have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME_PROP, NULL);

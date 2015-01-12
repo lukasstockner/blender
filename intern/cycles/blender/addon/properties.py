@@ -11,7 +11,7 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License
+# limitations under the License.
 #
 
 # <pep8 compliant>
@@ -652,6 +652,12 @@ class CyclesLampSettings(bpy.types.PropertyGroup):
                 description="Number of light samples to render for each AA sample",
                 min=1, max=10000,
                 default=1,
+                )
+        cls.max_bounces = IntProperty(
+                name="Max Bounces",
+                description="Maximum number of bounces the light will contribute to the render",
+                min=0, max=1024,
+                default=1024,
                 )
         cls.use_multiple_importance_sampling = BoolProperty(
                 name="Multiple Importance Sample",

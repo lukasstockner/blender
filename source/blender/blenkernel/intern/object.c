@@ -96,6 +96,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_mball.h"
 #include "BKE_modifier.h"
+#include "BKE_node.h"
 #include "BKE_object.h"
 #include "BKE_paint.h"
 #include "BKE_particle.h"
@@ -435,6 +436,7 @@ void BKE_object_unlink(Object *ob)
 	Scene *sce;
 	SceneRenderLayer *srl;
 	FreestyleLineSet *lineset;
+	bNodeTree *ntree;
 	Curve *cu;
 	Tex *tex;
 	Group *group;
@@ -636,17 +638,22 @@ void BKE_object_unlink(Object *ob)
 	}
 	
 	/* materials */
-	mat = bmain->mat.first;
-	while (mat) {
-	
+	for (mat = bmain->mat.first; mat; mat = mat->id.next) {
+		if (mat->nodetree) {
+			ntreeSwitchID(mat->nodetree, &ob->id, NULL);
+		}
 		for (a = 0; a < MAX_MTEX; a++) {
 			if (mat->mtex[a] && ob == mat->mtex[a]->object) {
 				/* actually, test for lib here... to do */
 				mat->mtex[a]->object = NULL;
 			}
 		}
+	}
 
-		mat = mat->id.next;
+	/* node trees */
+	for (ntree = bmain->nodetree.first; ntree; ntree = ntree->id.next) {
+		if (ntree->type == NTREE_SHADER)
+			ntreeSwitchID(ntree, &ob->id, NULL);
 	}
 	
 	/* textures */
@@ -1071,14 +1078,14 @@ static int lod_cmp(const void *a, const void *b)
 
 void BKE_object_lod_sort(Object *ob)
 {
-	BLI_sortlist(&ob->lodlevels, lod_cmp);
+	BLI_listbase_sort(&ob->lodlevels, lod_cmp);
 }
 
 bool BKE_object_lod_remove(Object *ob, int level)
 {
 	LodLevel *rem;
 
-	if (level < 1 || level > BLI_countlist(&ob->lodlevels) - 1)
+	if (level < 1 || level > BLI_listbase_count(&ob->lodlevels) - 1)
 		return false;
 
 	rem = BLI_findlink(&ob->lodlevels, level);
@@ -1091,7 +1098,7 @@ bool BKE_object_lod_remove(Object *ob, int level)
 	MEM_freeN(rem);
 
 	/* If there are no user defined lods, remove the base lod as well */
-	if (BLI_countlist(&ob->lodlevels) == 1) {
+	if (BLI_listbase_is_single(&ob->lodlevels)) {
 		LodLevel *base = ob->lodlevels.first;
 		BLI_remlink(&ob->lodlevels, base);
 		MEM_freeN(base);
@@ -1129,7 +1136,7 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 
 bool BKE_object_lod_is_usable(Object *ob, Scene *scene)
 {
-	bool active = (scene) ? ob == OBACT : 0;
+	bool active = (scene) ? ob == OBACT : false;
 	return (ob->mode == OB_MODE_OBJECT || !active);
 }
 
@@ -1395,10 +1402,10 @@ bool BKE_object_pose_context_check(Object *ob)
 	    (ob->pose) &&
 	    (ob->mode & OB_MODE_POSE))
 	{
-		return 1;
+		return true;
 	}
 	else {
-		return 0;
+		return false;
 	}
 }
 
@@ -1510,6 +1517,10 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 
 	/* Copy runtime surve data. */
 	obn->curve_cache = NULL;
+
+	if (ob->id.lib) {
+		BKE_id_lib_local_paths(bmain, ob->id.lib, &obn->id);
+	}
 
 	return obn;
 }
@@ -2012,12 +2023,16 @@ void BKE_object_to_mat4(Object *ob, float mat[4][4])
 	add_v3_v3v3(mat[3], ob->loc, ob->dloc);
 }
 
+static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
+
 void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4])
 {
 	if (ob->parent) {
-		float invmat[4][4]; /* for inverse of parent's matrix */
-		invert_m4_m4(invmat, ob->parent->obmat);
-		mul_m4_m4m4(mat, invmat, ob->obmat);
+		float par_imat[4][4];
+
+		ob_get_parent_matrix(NULL, ob, ob->parent, par_imat);
+		invert_m4(par_imat);
+		mul_m4_m4m4(mat, par_imat, ob->obmat);
 	}
 	else {
 		copy_m4_m4(mat, ob->obmat);
@@ -2192,14 +2207,15 @@ static void give_parvert(Object *par, int nr, float vec[3])
 				}
 
 				if (use_special_ss_case) {
-					/* Special case if the last modifier is SS and no constructive modifier
-					 * are in front of it.
-					 */
+					/* Special case if the last modifier is SS and no constructive modifier are in front of it. */
 					CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
 					CCGVert *ccg_vert = ccgSubSurf_getVert(ccgdm->ss, SET_INT_IN_POINTER(nr));
-					float *co = ccgSubSurf_getVertData(ccgdm->ss, ccg_vert);
-					add_v3_v3(vec, co);
-					count++;
+					/* In case we deleted some verts, nr may refer to inexistent one now, see T42557. */
+					if (ccg_vert) {
+						float *co = ccgSubSurf_getVertData(ccgdm->ss, ccg_vert);
+						add_v3_v3(vec, co);
+						count++;
+					}
 				}
 				else if (CustomData_has_layer(&dm->vertData, CD_ORIGINDEX) &&
 				         !(em && dm->type == DM_TYPE_EDITBMESH))
@@ -2389,11 +2405,12 @@ static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat
 {
 	float fac1 = (1.0f / (1.0f + fabsf(ob->sf)) );
 
-	if (fac1 >= 1.0f) return 0;
+	if (fac1 >= 1.0f)
+		return false;
 
 	blend_m4_m4m4(obmat, slowmat, obmat, fac1);
 
-	return 1;
+	return true;
 }
 
 /* note, scene is the active scene while actual_scene is the scene the object resides in */
@@ -2517,16 +2534,15 @@ void BKE_object_apply_mat4(Object *ob, float mat[4][4], const bool use_compat, c
 		mul_m4_m4m4(diff_mat, parent_mat, ob->parentinv);
 		invert_m4_m4(imat, diff_mat);
 		mul_m4_m4m4(rmat, imat, mat); /* get the parent relative matrix */
-		BKE_object_apply_mat4(ob, rmat, use_compat, false);
 
 		/* same as below, use rmat rather than mat */
 		mat4_to_loc_rot_size(ob->loc, rot, ob->size, rmat);
-		BKE_object_mat3_to_rot(ob, rot, use_compat);
 	}
 	else {
 		mat4_to_loc_rot_size(ob->loc, rot, ob->size, mat);
-		BKE_object_mat3_to_rot(ob, rot, use_compat);
 	}
+
+	BKE_object_mat3_to_rot(ob, rot, use_compat);
 
 	sub_v3_v3(ob->loc, ob->dloc);
 
@@ -3282,7 +3298,7 @@ int BKE_object_insert_ptcache(Object *ob)
 	LinkData *link = NULL;
 	int i = 0;
 
-	BLI_sortlist(&ob->pc_ids, pc_cmp);
+	BLI_listbase_sort(&ob->pc_ids, pc_cmp);
 
 	for (link = ob->pc_ids.first, i = 0; link; link = link->next, i++) {
 		int index = GET_INT_FROM_POINTER(link->data);
@@ -3327,7 +3343,7 @@ void BKE_object_delete_ptcache(Object *ob, int index)
 /* shape key utility function */
 
 /************************* Mesh ************************/
-static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_meshkey(Object *ob, const char *name, const bool from_mix)
 {
 	Mesh *me = ob->data;
 	Key *key = me->key;
@@ -3343,12 +3359,12 @@ static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, cons
 	if (newkey || from_mix == false) {
 		/* create from mesh */
 		kb = BKE_keyblock_add_ctime(key, name, false);
-		BKE_key_convert_from_mesh(me, kb);
+		BKE_keyblock_convert_from_mesh(me, kb);
 	}
 	else {
 		/* copy from current values */
 		int totelem;
-		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
+		float *data = BKE_key_evaluate_object(ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -3359,7 +3375,7 @@ static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, cons
 	return kb;
 }
 /************************* Lattice ************************/
-static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_lattkey(Object *ob, const char *name, const bool from_mix)
 {
 	Lattice *lt = ob->data;
 	Key *key = lt->key;
@@ -3380,13 +3396,13 @@ static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, cons
 			kb->totelem = basekb->totelem;
 		}
 		else {
-			BKE_key_convert_from_lattice(lt, kb);
+			BKE_keyblock_convert_from_lattice(lt, kb);
 		}
 	}
 	else {
 		/* copy from current values */
 		int totelem;
-		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
+		float *data = BKE_key_evaluate_object(ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -3397,7 +3413,7 @@ static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, cons
 	return kb;
 }
 /************************* Curve ************************/
-static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_curvekey(Object *ob, const char *name, const bool from_mix)
 {
 	Curve *cu = ob->data;
 	Key *key = cu->key;
@@ -3420,13 +3436,13 @@ static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, con
 			kb->totelem = basekb->totelem;
 		}
 		else {
-			BKE_key_convert_from_curve(cu, kb, lb);
+			BKE_keyblock_convert_from_curve(cu, kb, lb);
 		}
 	}
 	else {
 		/* copy from current values */
 		int totelem;
-		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
+		float *data = BKE_key_evaluate_object(ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -3437,16 +3453,16 @@ static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, con
 	return kb;
 }
 
-KeyBlock *BKE_object_insert_shape_key(Scene *scene, Object *ob, const char *name, const bool from_mix)
+KeyBlock *BKE_object_insert_shape_key(Object *ob, const char *name, const bool from_mix)
 {	
 	switch (ob->type) {
 		case OB_MESH:
-			return insert_meshkey(scene, ob, name, from_mix);
+			return insert_meshkey(ob, name, from_mix);
 		case OB_CURVE:
 		case OB_SURF:
-			return insert_curvekey(scene, ob, name, from_mix);
+			return insert_curvekey(ob, name, from_mix);
 		case OB_LATTICE:
-			return insert_lattkey(scene, ob, name, from_mix);
+			return insert_lattkey(ob, name, from_mix);
 		default:
 			return NULL;
 	}

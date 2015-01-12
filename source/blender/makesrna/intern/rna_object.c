@@ -42,10 +42,13 @@
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 
+#include "BKE_camera.h"
 #include "BKE_paint.h"
 #include "BKE_editmesh.h"
 #include "BKE_group.h" /* needed for BKE_group_object_exists() */
 #include "BKE_object.h" /* Needed for BKE_object_matrix_local_get() */
+#include "BKE_object_deform.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -231,21 +234,21 @@ static void rna_Object_matrix_local_get(PointerRNA *ptr, float values[16])
 static void rna_Object_matrix_local_set(PointerRNA *ptr, const float values[16])
 {
 	Object *ob = ptr->id.data;
+	float local_mat[4][4];
 
-	/* localspace matrix is truly relative to the parent, but parameters
-	 * stored in object are relative to parentinv matrix.  Undo the parent
-	 * inverse part before updating obmat and calling apply_obmat() */
+	/* localspace matrix is truly relative to the parent, but parameters stored in object are
+	 * relative to parentinv matrix. Undo the parent inverse part before applying it as local matrix. */
 	if (ob->parent) {
 		float invmat[4][4];
 		invert_m4_m4(invmat, ob->parentinv);
-		mul_m4_m4m4(ob->obmat, invmat, (float(*)[4])values);
+		mul_m4_m4m4(local_mat, invmat, (float(*)[4])values);
 	}
 	else {
-		copy_m4_m4(ob->obmat, (float(*)[4])values);
+		copy_m4_m4(local_mat, (float(*)[4])values);
 	}
 
-	/* don't use compat so we get predictable rotation */
-	BKE_object_apply_mat4(ob, ob->obmat, false, false);
+	/* don't use compat so we get predictable rotation, and do not use parenting either, because it's a local matrix! */
+	BKE_object_apply_mat4(ob, local_mat, false, false);
 }
 
 static void rna_Object_matrix_basis_get(PointerRNA *ptr, float values[16])
@@ -585,7 +588,7 @@ static void rna_Object_active_vertex_group_index_range(PointerRNA *ptr, int *min
 	Object *ob = (Object *)ptr->id.data;
 
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&ob->defbase) - 1);
+	*max = max_ii(0, BLI_listbase_count(&ob->defbase) - 1);
 }
 
 void rna_object_vgroup_name_index_get(PointerRNA *ptr, char *value, int index)
@@ -738,7 +741,7 @@ static void rna_Object_active_particle_system_index_range(PointerRNA *ptr, int *
 {
 	Object *ob = (Object *)ptr->id.data;
 	*min = 0;
-	*max = max_ii(0, BLI_countlist(&ob->particlesystem) - 1);
+	*max = max_ii(0, BLI_listbase_count(&ob->particlesystem) - 1);
 }
 
 static int rna_Object_active_particle_system_index_get(PointerRNA *ptr)
@@ -777,7 +780,7 @@ static void rna_Object_rotation_axis_angle_set(PointerRNA *ptr, const float *val
 	
 	/* for now, assume that rotation mode is axis-angle */
 	ob->rotAngle = value[0];
-	copy_v3_v3(ob->rotAxis, (float *)&value[1]);
+	copy_v3_v3(ob->rotAxis, &value[1]);
 	
 	/* TODO: validate axis? */
 }
@@ -943,6 +946,7 @@ static void rna_MaterialSlot_name_get(PointerRNA *ptr, char *str)
 static void rna_MaterialSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_Object_internal_update(bmain, scene, ptr);
+
 	WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, ptr->id.data);
 	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, NULL);
 }
@@ -1250,7 +1254,7 @@ static void rna_Object_active_shape_key_index_range(PointerRNA *ptr, int *min, i
 
 	*min = 0;
 	if (key) {
-		*max = BLI_countlist(&key->block) - 1;
+		*max = BLI_listbase_count(&key->block) - 1;
 		if (*max < 0) *max = 0;
 	}
 	else {
@@ -1398,7 +1402,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
 
 static bDeformGroup *rna_Object_vgroup_new(Object *ob, const char *name)
 {
-	bDeformGroup *defgroup = ED_vgroup_add_name(ob, name);
+	bDeformGroup *defgroup = BKE_object_defgroup_add_name(ob, name);
 
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 
@@ -1413,7 +1417,7 @@ static void rna_Object_vgroup_remove(Object *ob, ReportList *reports, PointerRNA
 		return;
 	}
 
-	ED_vgroup_delete(ob, defgroup);
+	BKE_object_defgroup_remove(ob, defgroup);
 	RNA_POINTER_INVALIDATE(defgroup_ptr);
 
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
@@ -1421,7 +1425,7 @@ static void rna_Object_vgroup_remove(Object *ob, ReportList *reports, PointerRNA
 
 static void rna_Object_vgroup_clear(Object *ob)
 {
-	ED_vgroup_clear(ob);
+	BKE_object_defgroup_remove_all(ob);
 
 	WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
 }
@@ -1431,7 +1435,7 @@ static void rna_VertexGroup_vertex_add(ID *id, bDeformGroup *def, ReportList *re
 {
 	Object *ob = (Object *)id;
 
-	if (ED_vgroup_object_is_edit_mode(ob)) {
+	if (BKE_object_is_in_editmode_vgroup(ob)) {
 		BKE_report(reports, RPT_ERROR, "VertexGroup.add(): cannot be called while object is in edit mode");
 		return;
 	}
@@ -1446,7 +1450,7 @@ static void rna_VertexGroup_vertex_remove(ID *id, bDeformGroup *dg, ReportList *
 {
 	Object *ob = (Object *)id;
 
-	if (ED_vgroup_object_is_edit_mode(ob)) {
+	if (BKE_object_is_in_editmode_vgroup(ob)) {
 		BKE_report(reports, RPT_ERROR, "VertexGroup.remove(): cannot be called while object is in edit mode");
 		return;
 	}
@@ -2442,7 +2446,9 @@ static void rna_def_object(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "matrix_local", PROP_FLOAT, PROP_MATRIX);
 	RNA_def_property_multi_array(prop, 2, rna_matrix_dimsize_4x4);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-	RNA_def_property_ui_text(prop, "Local Matrix", "Parent relative transformation matrix");
+	RNA_def_property_ui_text(prop, "Local Matrix", "Parent relative transformation matrix - "
+	                         "WARNING: Only takes into account 'Object' parenting, so e.g. in case of bone parenting "
+	                         "you get a matrix relative to the Armature object, not to the actual parent bone");
 	RNA_def_property_float_funcs(prop, "rna_Object_matrix_local_get", "rna_Object_matrix_local_set", NULL);
 	RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, NULL);
 
@@ -2742,16 +2748,16 @@ static void rna_def_object(BlenderRNA *brna)
 	/* Grease Pencil */
 	prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "gpd");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "GreasePencil");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
 	RNA_def_property_ui_text(prop, "Grease Pencil Data", "Grease Pencil datablock");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 	
 	/* pose */
 	prop = RNA_def_property(srna, "pose_library", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "poselib");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "Action");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
 	RNA_def_property_ui_text(prop, "Pose Library", "Action used as a pose library for armatures");
 
 	prop = RNA_def_property(srna, "pose", PROP_POINTER, PROP_NONE);

@@ -91,6 +91,8 @@ def dopesheet_filter(layout, context, genericFiltersOnly=False):
                 row.prop(dopesheet, "show_speakers", text="")
             if bpy.data.linestyles:
                 row.prop(dopesheet, "show_linestyles", text="")
+            if bpy.data.grease_pencil:
+                row.prop(dopesheet, "show_gpencil", text="")
 
 
 #######################################
@@ -129,6 +131,8 @@ class DOPESHEET_HT_header(Header):
         row = layout.row(align=True)
         row.operator("action.copy", text="", icon='COPYDOWN')
         row.operator("action.paste", text="", icon='PASTEDOWN')
+        row.operator("action.paste", text="", icon='PASTEFLIPDOWN').flipped = True
+
 
 
 class DOPESHEET_MT_editor_menus(Menu):
@@ -365,13 +369,15 @@ class DOPESHEET_MT_gpencil_frame(Menu):
         layout = self.layout
 
         layout.menu("DOPESHEET_MT_key_transform", text="Transform")
-
-        #layout.operator_menu_enum("action.snap", "type", text="Snap")
-        #layout.operator_menu_enum("action.mirror", "type", text="Mirror")
+        layout.operator_menu_enum("action.snap", "type", text="Snap")
+        layout.operator_menu_enum("action.mirror", "type", text="Mirror")
 
         layout.separator()
         layout.operator("action.duplicate")
         layout.operator("action.delete")
+
+        layout.separator()
+        layout.operator("action.keyframe_type")
 
         #layout.separator()
         #layout.operator("action.copy")

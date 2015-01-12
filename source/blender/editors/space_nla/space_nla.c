@@ -180,7 +180,7 @@ static void nla_init(struct wmWindowManager *UNUSED(wm), ScrArea *sa)
 {
 	SpaceNla *snla = (SpaceNla *)sa->spacedata.first;
 	
-	/* init dopesheet data if non-existant (i.e. for old files) */
+	/* init dopesheet data if non-existent (i.e. for old files) */
 	if (snla->ads == NULL) {
 		snla->ads = MEM_callocN(sizeof(bDopeSheet), "NlaEdit DopeSheet");
 		snla->ads->source = (ID *)G.main->scene.first; // XXX this is bad, but we need this to be set correct
@@ -236,7 +236,7 @@ static void nla_channel_area_draw(const bContext *C, ARegion *ar)
 	
 	/* data */
 	if (ANIM_animdata_get_context(C, &ac)) {
-		draw_nla_channel_list((bContext *)C, &ac, ar);
+		draw_nla_channel_list(C, &ac, ar);
 	}
 	
 	/* reset view matrix */

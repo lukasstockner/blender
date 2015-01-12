@@ -30,13 +30,12 @@
  */
 
 
-#include "zlib.h"
-
 #include <limits.h>
 
 #ifndef WIN32
 #  include <unistd.h> // for read close
 #else
+#  include <zlib.h>  /* odd include order-issue */
 #  include <io.h> // for open close read
 #  include "winsock2.h"
 #  include "BLI_winstuff.h"
@@ -94,14 +93,9 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 
-#include "IMB_imbuf.h"  // for proxy / timecode versioning stuff
-
 #include "NOD_socket.h"
 
 #include "BLO_readfile.h"
-#include "BLO_undofile.h"
-
-#include "RE_engine.h"
 
 #include "readfile.h"
 
@@ -518,6 +512,40 @@ static void do_version_free_effects_245(ListBase *lb)
 
 	while ((eff = BLI_pophead(lb))) {
 		do_version_free_effect_245(eff);
+	}
+}
+
+static void do_version_constraints_245(ListBase *lb)
+{
+	bConstraint *con;
+	bConstraintTarget *ct;
+
+	for (con = lb->first; con; con = con->next) {
+		if (con->type == CONSTRAINT_TYPE_PYTHON) {
+			bPythonConstraint *data = (bPythonConstraint *)con->data;
+			if (data->tar) {
+				/* version patching needs to be done */
+				ct = MEM_callocN(sizeof(bConstraintTarget), "PyConTarget");
+
+				ct->tar = data->tar;
+				BLI_strncpy(ct->subtarget, data->subtarget, sizeof(ct->subtarget));
+				ct->space = con->tarspace;
+
+				BLI_addtail(&data->targets, ct);
+				data->tarnum++;
+
+				/* clear old targets to avoid problems */
+				data->tar = NULL;
+				data->subtarget[0] = '\0';
+			}
+		}
+		else if (con->type == CONSTRAINT_TYPE_LOCLIKE) {
+			bLocateLikeConstraint *data = (bLocateLikeConstraint *)con->data;
+
+			/* new headtail functionality makes Bone-Tip function obsolete */
+			if (data->flag & LOCLIKE_TIP)
+				con->headtail = 1.0f;
+		}
 	}
 }
 
@@ -2957,69 +2985,14 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 	if ((main->versionfile < 245) || (main->versionfile == 245 && main->subversionfile < 7)) {
 		Object *ob;
 		bPoseChannel *pchan;
-		bConstraint *con;
-		bConstraintTarget *ct;
 
 		for (ob = main->object.first; ob; ob = ob->id.next) {
 			if (ob->pose) {
 				for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-					for (con = pchan->constraints.first; con; con = con->next) {
-						if (con->type == CONSTRAINT_TYPE_PYTHON) {
-							bPythonConstraint *data = (bPythonConstraint *)con->data;
-							if (data->tar) {
-								/* version patching needs to be done */
-								ct = MEM_callocN(sizeof(bConstraintTarget), "PyConTarget");
-
-								ct->tar = data->tar;
-								BLI_strncpy(ct->subtarget, data->subtarget, sizeof(ct->subtarget));
-								ct->space = con->tarspace;
-
-								BLI_addtail(&data->targets, ct);
-								data->tarnum++;
-
-								/* clear old targets to avoid problems */
-								data->tar = NULL;
-								data->subtarget[0] = '\0';
-							}
-						}
-						else if (con->type == CONSTRAINT_TYPE_LOCLIKE) {
-							bLocateLikeConstraint *data = (bLocateLikeConstraint *)con->data;
-
-							/* new headtail functionality makes Bone-Tip function obsolete */
-							if (data->flag & LOCLIKE_TIP)
-								con->headtail = 1.0f;
-						}
-					}
+					do_version_constraints_245(&pchan->constraints);
 				}
 			}
-
-			for (con = ob->constraints.first; con; con = con->next) {
-				if (con->type == CONSTRAINT_TYPE_PYTHON) {
-					bPythonConstraint *data = (bPythonConstraint *)con->data;
-					if (data->tar) {
-						/* version patching needs to be done */
-						ct = MEM_callocN(sizeof(bConstraintTarget), "PyConTarget");
-
-						ct->tar = data->tar;
-						BLI_strncpy(ct->subtarget, data->subtarget, sizeof(ct->subtarget));
-						ct->space = con->tarspace;
-
-						BLI_addtail(&data->targets, ct);
-						data->tarnum++;
-
-						/* clear old targets to avoid problems */
-						data->tar = NULL;
-						data->subtarget[0] = '\0';
-					}
-				}
-				else if (con->type == CONSTRAINT_TYPE_LOCLIKE) {
-					bLocateLikeConstraint *data = (bLocateLikeConstraint *)con->data;
-
-					/* new headtail functionality makes Bone-Tip function obsolete */
-					if (data->flag & LOCLIKE_TIP)
-						con->headtail = 1.0f;
-				}
-			}
+			do_version_constraints_245(&ob->constraints);
 
 			if (ob->soft && ob->soft->keys) {
 				SoftBody *sb = ob->soft;
@@ -3085,7 +3058,7 @@ void blo_do_versions_pre250(FileData *fd, Library *lib, Main *main)
 				BLI_addtail(&ob->particlesystem, psys);
 
 				md = modifier_new(eModifierType_ParticleSystem);
-				BLI_snprintf(md->name, sizeof(md->name), "ParticleSystem %i", BLI_countlist(&ob->particlesystem));
+				BLI_snprintf(md->name, sizeof(md->name), "ParticleSystem %i", BLI_listbase_count(&ob->particlesystem));
 				psmd = (ParticleSystemModifierData*) md;
 				psmd->psys = psys;
 				BLI_addtail(&ob->modifiers, md);

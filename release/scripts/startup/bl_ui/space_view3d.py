@@ -19,6 +19,7 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
+from bl_ui.properties_grease_pencil_common import GreasePencilDataPanel
 from bl_ui.properties_paint_common import UnifiedPaintPanel
 from bpy.app.translations import contexts as i18n_contexts
 
@@ -56,7 +57,12 @@ class VIEW3D_HT_header(Header):
                 row.prop(view, "use_occlude_geometry", text="")
 
             # Proportional editing
-            if mode in {'EDIT', 'PARTICLE_EDIT'}:
+            if context.gpencil_data and context.gpencil_data.use_stroke_edit_mode:
+                row = layout.row(align=True)
+                row.prop(toolsettings, "proportional_edit", icon_only=True)
+                if toolsettings.proportional_edit != 'DISABLED':
+                    row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
+            elif mode in {'EDIT', 'PARTICLE_EDIT'}:
                 row = layout.row(align=True)
                 row.prop(toolsettings, "proportional_edit", icon_only=True)
                 if toolsettings.proportional_edit != 'DISABLED':
@@ -65,6 +71,13 @@ class VIEW3D_HT_header(Header):
                 row = layout.row(align=True)
                 row.prop(toolsettings, "use_proportional_edit_objects", icon_only=True)
                 if toolsettings.use_proportional_edit_objects:
+                    row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
+        else:
+            # Proportional editing
+            if context.gpencil_data and context.gpencil_data.use_stroke_edit_mode:
+                row = layout.row(align=True)
+                row.prop(toolsettings, "proportional_edit", icon_only=True)
+                if toolsettings.proportional_edit != 'DISABLED':
                     row.prop(toolsettings, "proportional_edit_falloff", icon_only=True)
 
         # Snap
@@ -1082,6 +1095,8 @@ class VIEW3D_MT_object(Menu):
         layout.separator()
 
         layout.operator("object.join")
+        layout.operator("object.data_transfer")
+        layout.operator("object.datalayout_transfer")
 
         layout.separator()
 
@@ -1588,7 +1603,9 @@ class VIEW3D_MT_paint_weight(Menu):
         layout.operator("object.vertex_group_quantize", text="Quantize")
         layout.operator("object.vertex_group_levels", text="Levels")
         layout.operator("object.vertex_group_blend", text="Blend")
-        layout.operator("object.vertex_group_transfer_weight", text="Transfer Weights")
+        prop = layout.operator("object.data_transfer", text="Transfer Weights")
+        prop.use_reverse_transfer = True
+        prop.data_type = 'VGROUP_WEIGHTS'
         layout.operator("object.vertex_group_limit_total", text="Limit Total")
         layout.operator("object.vertex_group_fix", text="Fix Deforms")
 
@@ -2434,7 +2451,6 @@ class VIEW3D_MT_edit_curve_ctrlpoints(Menu):
         if edit_object.type == 'CURVE':
             layout.operator("transform.tilt")
             layout.operator("curve.tilt_clear")
-            layout.operator("curve.separate")
 
             layout.separator()
 
@@ -2703,6 +2719,12 @@ class VIEW3D_MT_edit_armature_roll(Menu):
 
 # ********** Panel **********
 
+class VIEW3D_PT_grease_pencil(GreasePencilDataPanel, Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+
+    # NOTE: this is just a wrapper around the generic GP Panel
+
 
 class VIEW3D_PT_view3d_properties(Panel):
     bl_space_type = 'VIEW_3D'
@@ -2813,6 +2835,7 @@ class VIEW3D_PT_view3d_display(Panel):
 
         col = layout.column()
         col.prop(view, "show_only_render")
+        col.prop(view, "show_world")
 
         col = layout.column()
         display_all = not view.show_only_render

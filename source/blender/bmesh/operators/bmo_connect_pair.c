@@ -141,7 +141,7 @@ static void state_calc_co_pair(const PathContext *pc,
 
 /**
  * Ideally we wouldn't need this and for most cases we don't.
- * But when a face has vertices that are on the boundary more then once this becomes tricky.
+ * But when a face has vertices that are on the boundary more than once this becomes tricky.
  */
 static bool state_link_find(PathLinkState *state, BMElem *ele)
 {
@@ -468,11 +468,19 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 #endif
 
 		/* get third axis */
+		normalize_v3(basis_dir);
+		normalize_v3(basis_nor);
 		cross_v3_v3v3(basis_tmp, basis_dir, basis_nor);
+		if (UNLIKELY(normalize_v3(basis_tmp) < FLT_EPSILON)) {
+			ortho_v3_v3(basis_nor, basis_dir);
+			normalize_v3(basis_nor);
+			cross_v3_v3v3(basis_tmp, basis_dir, basis_nor);
+			normalize_v3(basis_tmp);
+		}
 
-		normalize_v3_v3(pc.matrix[0], basis_tmp);
-		normalize_v3_v3(pc.matrix[1], basis_dir);
-		normalize_v3_v3(pc.matrix[2], basis_nor);
+		copy_v3_v3(pc.matrix[0], basis_tmp);
+		copy_v3_v3(pc.matrix[1], basis_dir);
+		copy_v3_v3(pc.matrix[2], basis_nor);
 		invert_m3(pc.matrix);
 
 		pc.axis_sep = dot_m3_v3_row_x(pc.matrix, pc.v_a->co);
@@ -491,6 +499,9 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 	while (pc.state_lb.first) {
 		PathLinkState *state, *state_next;
 		found_all = true;
+#ifdef DEBUG_PRINT
+		printf("\n%s: stepping %d\n", __func__, BLI_listbase_count(&pc.state_lb));
+#endif
 		for (state = pc.state_lb.first; state; state = state_next) {
 			state_next = state->next;
 			if (state->link_last->ele == (BMElem *)pc.v_b) {

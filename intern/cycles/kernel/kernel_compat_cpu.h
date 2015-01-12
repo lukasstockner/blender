@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __KERNEL_COMPAT_CPU_H__
@@ -25,10 +25,12 @@
 #include "util_half.h"
 #include "util_types.h"
 
-/* On 64bit linux single precision exponent is really slow comparing to the
- * double precision version, even with float<->double conversion involved.
+/* On x86_64, versions of glibc < 2.16 have an issue where expf is
+ * much slower than the double version.  This was fixed in glibc 2.16.
  */
-#if !defined(__KERNEL_GPU__) && defined(__linux__) && defined(__x86_64__)
+#if !defined(__KERNEL_GPU__)  && defined(__x86_64__) && defined(__x86_64__) && \
+     defined(__GNU_LIBRARY__) && defined(__GLIBC__ ) && defined(__GLIBC_MINOR__) && \
+     (__GLIBC__ <= 2 && __GLIBC_MINOR__ < 16)
 #  define expf(x) ((float)exp((double)(x)))
 #endif
 
@@ -50,7 +52,7 @@ template<typename T> struct texture  {
 		return data[index];
 	}
 
-#if 0
+#ifdef __KERNEL_SSE2__
 	ccl_always_inline ssef fetch_ssef(int index)
 	{
 		kernel_assert(index >= 0 && index < width);
@@ -341,6 +343,12 @@ typedef texture_image<uchar4> texture_image_uchar4;
 #define kernel_tex_image_interp_3d_ex(tex, x, y, z, interpolation) ((tex < MAX_FLOAT_IMAGES) ? kg->texture_float_images[tex].interp_3d_ex(x, y, z, interpolation) : kg->texture_byte_images[tex - MAX_FLOAT_IMAGES].interp_3d_ex(x, y, z, interpolation))
 
 #define kernel_data (kg->__data)
+
+#ifdef __KERNEL_SSE2__
+typedef vector3<sseb> sse3b;
+typedef vector3<ssef> sse3f;
+typedef vector3<ssei> sse3i;
+#endif
 
 CCL_NAMESPACE_END
 

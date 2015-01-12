@@ -37,7 +37,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_curve_types.h"
-#include "DNA_meshdata_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_types.h"
 #include "DNA_vfont_types.h"
@@ -814,7 +813,7 @@ static void curve_calc_modifiers_pre(Scene *scene, Object *ob, ListBase *nurb,
 		required_mode |= eModifierMode_Editmode;
 
 	if (cu->editnurb == NULL) {
-		keyVerts = BKE_key_evaluate_object(scene, ob, &numVerts);
+		keyVerts = BKE_key_evaluate_object(ob, &numVerts);
 
 		if (keyVerts) {
 			/* split coords from key data, the latter also includes

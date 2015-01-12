@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __UTIL_MATH_H__
@@ -122,6 +122,24 @@ ccl_device_inline double max(double a, double b)
 ccl_device_inline double min(double a, double b)
 {
 	return (a < b)? a: b;
+}
+
+/* These 2 guys are templated for usage with registers data.
+ *
+ * NOTE: Since this is CPU-only functions it is ok to use references here.
+ * But for other devices we'll need to be careful about this.
+ */
+
+template<typename T>
+ccl_device_inline T min4(const T& a, const T& b, const T& c, const T& d)
+{
+	return min(min(a,b),min(c,d));
+}
+
+template<typename T>
+ccl_device_inline T max4(const T& a, const T& b, const T& c, const T& d)
+{
+	return max(max(a,b),max(c,d));
 }
 
 #endif
@@ -312,6 +330,12 @@ ccl_device_inline float2 normalize_len(const float2 a, float *t)
 {
 	*t = len(a);
 	return a/(*t);
+}
+
+ccl_device_inline float2 safe_normalize(const float2 a)
+{
+	float t = len(a);
+	return (t)? a/t: a;
 }
 
 ccl_device_inline bool operator==(const float2 a, const float2 b)
@@ -508,6 +532,12 @@ ccl_device_inline float3 normalize_len(const float3 a, float *t)
 {
 	*t = len(a);
 	return a/(*t);
+}
+
+ccl_device_inline float3 safe_normalize(const float3 a)
+{
+	float t = len(a);
+	return (t)? a/t: a;
 }
 
 #ifndef __KERNEL_OPENCL__
@@ -815,6 +845,12 @@ ccl_device_inline float len(const float4 a)
 ccl_device_inline float4 normalize(const float4 a)
 {
 	return a/len(a);
+}
+
+ccl_device_inline float4 safe_normalize(const float4 a)
+{
+	float t = len(a);
+	return (t)? a/t: a;
 }
 
 ccl_device_inline float4 min(float4 a, float4 b)
@@ -1431,6 +1467,22 @@ ccl_device bool map_to_sphere(float *r_u, float *r_v,
 	else {
 		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
 		return false;
+	}
+}
+
+ccl_device_inline int util_max_axis(float3 vec)
+{
+	if(vec.x > vec.y) {
+		if(vec.x > vec.z)
+			return 0;
+		else
+			return 2;
+	}
+	else {
+		if(vec.y > vec.z)
+			return 1;
+		else
+			return 2;
 	}
 }
 

@@ -130,12 +130,16 @@ extern "C" {
 #include "DNA_scene_types.h"
 
 #include "PHY_IPhysicsEnvironment.h"
+
+extern "C" {
 #include "BKE_main.h"
 #include "BKE_global.h"
 #include "BKE_library.h"
+#include "BKE_appdir.h"
 #include "BLI_blenlib.h"
 #include "GPU_material.h"
 #include "MEM_guardedalloc.h"
+}
 
 /* for converting new scenes */
 #include "KX_BlenderSceneConverter.h"
@@ -2075,7 +2079,7 @@ PyObject *initGamePlayerPythonScripting(Main *maggie, int argc, char** argv)
 	 * somehow it remembers the sys.path - Campbell
 	 */
 	static bool first_time = true;
-	const char * const py_path_bundle = BLI_get_folder(BLENDER_SYSTEM_PYTHON, NULL);
+	const char * const py_path_bundle = BKE_appdir_folder_id(BLENDER_SYSTEM_PYTHON, NULL);
 
 	/* not essential but nice to set our name */
 	static wchar_t program_path_wchar[FILE_MAX]; /* python holds a reference */
