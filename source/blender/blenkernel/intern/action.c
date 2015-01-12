@@ -216,6 +216,10 @@ bAction *BKE_action_copy(bAction *src)
 		}
 	}
 	
+	if (src->id.lib) {
+		BKE_id_lib_local_paths(G.main, src->id.lib, &dst->id);
+	}
+
 	return dst;
 }
 
