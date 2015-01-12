@@ -61,10 +61,10 @@
 #include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_icons.h"
+#include "BKE_idcode.h"
 #include "BKE_main.h"
 #include "BKE_report.h"
 #include "BLO_readfile.h"
-#include "BKE_idcode.h"
 
 #include "DNA_space_types.h"
 
@@ -1324,64 +1324,7 @@ static unsigned int groupname_to_filter_id(const char *group)
 {
 	int id_code = groupname_to_code(group);
 
-	switch (id_code) {
-		case ID_AC:
-			return FILTER_ID_AC;
-		case ID_AR:
-			return FILTER_ID_AR;
-		case ID_BR:
-			return FILTER_ID_BR;
-		case ID_CA:
-			return FILTER_ID_CA;
-		case ID_CU:
-			return FILTER_ID_CU;
-		case ID_GD:
-			return FILTER_ID_GD;
-		case ID_GR:
-			return FILTER_ID_GR;
-		case ID_IM:
-			return FILTER_ID_IM;
-		case ID_LA:
-			return FILTER_ID_LA;
-		case ID_LS:
-			return FILTER_ID_LS;
-		case ID_LT:
-			return FILTER_ID_LT;
-		case ID_MA:
-			return FILTER_ID_MA;
-		case ID_MB:
-			return FILTER_ID_MB;
-		case ID_MC:
-			return FILTER_ID_MC;
-		case ID_ME:
-			return FILTER_ID_ME;
-		case ID_MSK:
-			return FILTER_ID_MSK;
-		case ID_NT:
-			return FILTER_ID_NT;
-		case ID_OB:
-			return FILTER_ID_OB;
-		case ID_PAL:
-			return FILTER_ID_PAL;
-		case ID_PC:
-			return FILTER_ID_PC;
-		case ID_SCE:
-			return FILTER_ID_SCE;
-		case ID_SPK:
-			return FILTER_ID_SPK;
-		case ID_SO:
-			return FILTER_ID_SO;
-		case ID_TE:
-			return FILTER_ID_TE;
-		case ID_TXT:
-			return FILTER_ID_TXT;
-		case ID_VF:
-			return FILTER_ID_VF;
-		case ID_WO:
-			return FILTER_ID_WO;
-		default:
-			return 0;
-	}
+	return BKE_idcode_to_idfilter(id_code);
 }
 
 /*

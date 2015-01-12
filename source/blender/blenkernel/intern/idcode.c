@@ -176,6 +176,136 @@ const char *BKE_idcode_to_name_plural(int code)
 }
 
 /**
+ * Convert an idcode into an idfilter (e.g. ID_OB -> FILTER_ID_OB).
+ */
+int BKE_idcode_to_idfilter(const int idcode)
+{
+	switch (idcode) {
+		case ID_AC:
+			return FILTER_ID_AC;
+		case ID_AR:
+			return FILTER_ID_AR;
+		case ID_BR:
+			return FILTER_ID_BR;
+		case ID_CA:
+			return FILTER_ID_CA;
+		case ID_CU:
+			return FILTER_ID_CU;
+		case ID_GD:
+			return FILTER_ID_GD;
+		case ID_GR:
+			return FILTER_ID_GR;
+		case ID_IM:
+			return FILTER_ID_IM;
+		case ID_LA:
+			return FILTER_ID_LA;
+		case ID_LS:
+			return FILTER_ID_LS;
+		case ID_LT:
+			return FILTER_ID_LT;
+		case ID_MA:
+			return FILTER_ID_MA;
+		case ID_MB:
+			return FILTER_ID_MB;
+		case ID_MC:
+			return FILTER_ID_MC;
+		case ID_ME:
+			return FILTER_ID_ME;
+		case ID_MSK:
+			return FILTER_ID_MSK;
+		case ID_NT:
+			return FILTER_ID_NT;
+		case ID_OB:
+			return FILTER_ID_OB;
+		case ID_PAL:
+			return FILTER_ID_PAL;
+		case ID_PC:
+			return FILTER_ID_PC;
+		case ID_SCE:
+			return FILTER_ID_SCE;
+		case ID_SPK:
+			return FILTER_ID_SPK;
+		case ID_SO:
+			return FILTER_ID_SO;
+		case ID_TE:
+			return FILTER_ID_TE;
+		case ID_TXT:
+			return FILTER_ID_TXT;
+		case ID_VF:
+			return FILTER_ID_VF;
+		case ID_WO:
+			return FILTER_ID_WO;
+		default:
+			return 0;
+	}
+}
+
+/**
+ * Convert an idfilter into an idcode (e.g. FILTER_ID_OB -> ID_OB).
+ */
+int BKE_idcode_from_idfilter(const int idfilter)
+{
+	switch (idfilter) {
+		case FILTER_ID_AC:
+			return ID_AC;
+		case FILTER_ID_AR:
+			return ID_AR;
+		case FILTER_ID_BR:
+			return ID_BR;
+		case FILTER_ID_CA:
+			return ID_CA;
+		case FILTER_ID_CU:
+			return ID_CU;
+		case FILTER_ID_GD:
+			return ID_GD;
+		case FILTER_ID_GR:
+			return ID_GR;
+		case FILTER_ID_IM:
+			return ID_IM;
+		case FILTER_ID_LA:
+			return ID_LA;
+		case FILTER_ID_LS:
+			return ID_LS;
+		case FILTER_ID_LT:
+			return ID_LT;
+		case FILTER_ID_MA:
+			return ID_MA;
+		case FILTER_ID_MB:
+			return ID_MB;
+		case FILTER_ID_MC:
+			return ID_MC;
+		case FILTER_ID_ME:
+			return ID_ME;
+		case FILTER_ID_MSK:
+			return ID_MSK;
+		case FILTER_ID_NT:
+			return ID_NT;
+		case FILTER_ID_OB:
+			return ID_OB;
+		case FILTER_ID_PAL:
+			return ID_PAL;
+		case FILTER_ID_PC:
+			return ID_PC;
+		case FILTER_ID_SCE:
+			return ID_SCE;
+		case FILTER_ID_SPK:
+			return ID_SPK;
+		case FILTER_ID_SO:
+			return ID_SO;
+		case FILTER_ID_TE:
+			return ID_TE;
+		case FILTER_ID_TXT:
+			return ID_TXT;
+		case FILTER_ID_VF:
+			return ID_VF;
+		case FILTER_ID_WO:
+			return ID_WO;
+		default:
+			return 0;
+	}
+}
+
+/**
  * Return an ID code and steps the index forward 1.
  *
  * \param index start as 0.
