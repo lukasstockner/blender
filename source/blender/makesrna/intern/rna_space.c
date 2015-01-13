@@ -3512,9 +3512,13 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Display Mode", "Display mode for the file list");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 
-	prop = RNA_def_property(srna, "use_flat_view", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", FILE_SHOWFLAT);
-	RNA_def_property_ui_text(prop, "Use Flat View", "Display all items found recursively from current position");
+	prop = RNA_def_property(srna, "recursion_level", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "recursion_level");
+	RNA_def_property_range(prop, 0, FILE_LIST_MAX_RECURSION);
+	RNA_def_property_ui_range(prop, 0, 3, 1, 1);
+	RNA_def_property_ui_text(prop, "Recursion Level",
+	                         "Numbers of dirtree levels to show simultaneously "
+	                         "(use '1' to only show .blend content flat, and '0' to disable completely)");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 
 	prop = RNA_def_property(srna, "use_filter", PROP_BOOLEAN, PROP_NONE);

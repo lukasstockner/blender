@@ -599,9 +599,10 @@ typedef struct FileSelectParams {
 	short display; /* display mode flag */
 	int filter; /* filter when (flags & FILE_FILTER) is true */
 
+	short recursion_level;  /* max number of levels in dirtree to show at once, 0 to disable recursion. */
+
 	/* XXX --- still unused -- */
 	short f_fp; /* show font preview */
-	short pad_s1;
 	char fp_str[8]; /* string to use for font preview */
 
 	/* XXX --- end unused -- */
@@ -700,7 +701,6 @@ typedef enum eFileSel_Params_Flag {
 	FILE_FILTER         = (1 << 8),
 	FILE_BOOKMARKS      = (1 << 9),
 	FILE_GROUP_INSTANCE = (1 << 10),
-	FILE_SHOWFLAT       = (1 << 11),
 } eFileSel_Params_Flag;
 
 
@@ -731,6 +731,8 @@ typedef enum eDirEntry_SelectFlag {
 	FILE_SEL_SELECTED       = (1 << 3),
 	FILE_SEL_EDITING        = (1 << 4),
 } eDirEntry_SelectFlag;
+
+#define FILE_LIST_MAX_RECURSION 4
 
 /* Image/UV Editor ======================================== */
 

@@ -202,7 +202,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 		params->active_file = -1; /* added this so it opens nicer (ton) */
 	}
 	filelist_setdir(sfile->files, params->dir);
-	filelist_setrecursive(sfile->files, (params->flag & FILE_SHOWFLAT) != 0);
+	filelist_setrecursion(sfile->files, params->recursion_level);
 	filelist_setsorting(sfile->files, params->sort);
 	filelist_setfilter_options(sfile->files, params->flag & FILE_HIDE_DOT,
 	                                         false, /* TODO hide_parent, should be controllable? */

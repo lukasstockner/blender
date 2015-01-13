@@ -244,7 +244,7 @@ typedef struct FileList {
 
 	bool need_thumbnails;
 
-	bool use_recursion;
+	short max_recursion;
 	short recursion_level;
 
 	struct BlendHandle *libfiledata;
@@ -258,8 +258,6 @@ typedef struct FileList {
 	/* Filter current filelist. */
 	bool (*filterf)(struct direntry *, const char *, FileListFilter *);
 } FileList;
-
-#define FILELIST_MAX_RECURSION 3
 
 #define FILENAME_IS_BREADCRUMBS(_n) \
 	((_n)[0] == '.' && ((_n)[1] == '\0' || ((_n)[1] == '.' && (_n)[2] == '\0')))
@@ -1029,10 +1027,10 @@ void filelist_setdir(struct FileList *filelist, char *r_dir)
 	}
 }
 
-void filelist_setrecursive(struct FileList *filelist, const bool use_recursion)
+void filelist_setrecursion(struct FileList *filelist, const int recursion_level)
 {
-	if (filelist->use_recursion != use_recursion) {
-		filelist->use_recursion = use_recursion;
+	if (filelist->max_recursion != recursion_level) {
+		filelist->max_recursion = recursion_level;
 		filelist->force_reset = true;
 	}
 }
@@ -1684,7 +1682,7 @@ static void filelist_readjob_dir_lib_rec(
 	*do_update = true;
 
 	/* in case it's a lib we don't care anymore about max recursion level... */
-	if (!*stop && filelist->use_recursion && ((do_lib && is_lib) || (recursion_level < FILELIST_MAX_RECURSION))) {
+	if (!*stop && filelist->max_recursion && ((do_lib && is_lib) || (recursion_level < filelist->max_recursion))) {
 		for (i = 0, file = files; i < num_files && !*stop; i++, file++) {
 			char subdir[FILE_MAX];
 
