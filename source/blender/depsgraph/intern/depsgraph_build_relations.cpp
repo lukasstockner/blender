@@ -379,6 +379,9 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 			add_relation(parent_key, ob_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Vertex Parent");
 			/* XXX not sure what this is for or how you could be done properly - lukas */
 			//parent_node->customdata_mask |= CD_MASK_ORIGINDEX;
+			
+			ComponentKey transform_key(&ob->parent->id, DEPSNODE_TYPE_TRANSFORM);
+			add_relation(transform_key, ob_key, DEPSREL_TYPE_TRANSFORM, "Vertex Parent TFM");
 		}
 		break;
 			
@@ -407,8 +410,9 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 					/* Follow Path */
 					ComponentKey parent_key(&ob->parent->id, DEPSNODE_TYPE_GEOMETRY);
 					add_relation(parent_key, ob_key, DEPSREL_TYPE_TRANSFORM, "Curve Follow Parent");
-					// XXX: link to geometry or object? both are needed?
-					// XXX: link to timesource too?
+					
+					ComponentKey transform_key(&ob->parent->id, DEPSNODE_TYPE_TRANSFORM);
+					add_relation(transform_key, ob_key, DEPSREL_TYPE_TRANSFORM, "Curve Follow TFM");
 				}
 				else {
 					/* Standard Parent */
