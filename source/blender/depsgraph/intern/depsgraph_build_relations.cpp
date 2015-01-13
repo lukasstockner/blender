@@ -708,6 +708,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 				
 				if (pchan != NULL) {
 					/* get node associated with bone */
+					// XXX: watch the space!
 					OperationKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
 					add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET, "[Bone Target -> Driver]");
 				}
@@ -715,7 +716,28 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 			else if (dtar->flag & DTAR_FLAG_STRUCT_REF) {
 				/* get node associated with the object's transforms */
 				OperationKey target_key(dtar->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
-				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET, "[Bone Target -> Driver]");
+				add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET, "[Target -> Driver]");
+			}
+			else if (dtar->rna_path && strstr(dtar->rna_path, "pose.bones[")) {
+				/* workaround for ensuring that local bone transforms don't end up
+				 * having to wait for pose eval to finish (to prevent cycles)
+				 */
+				Object *ob = (Object *)dtar->id;
+				bPoseChannel *pchan;
+				char *bone_name;
+				
+				bone_name = BLI_str_quoted_substrN(dtar->rna_path, "pose.bones[");
+				pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
+				
+				if (bone_name) {
+					MEM_freeN(bone_name);
+					bone_name = NULL;
+				}
+				
+				if (pchan) {
+					OperationKey bone_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
+					add_relation(bone_key, driver_key, DEPSREL_TYPE_DRIVER, "[RNA Bone -> Driver]");
+				}
 			}
 			else {
 				/* resolve path to get node */
