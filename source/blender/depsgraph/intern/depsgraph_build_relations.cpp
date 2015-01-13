@@ -521,8 +521,24 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				else {
 					/* standard object relation */
 					// TODO: loc vs rot vs scale?
-					/* TODO(sergey): What to do if target is self?  -- should use local transform or just the previous constraint in that case... */
-					if (&ct->tar->id != id) {
+					if (&ct->tar->id == id) {
+						/* Constraint targetting own object:
+						 * - This case is fine IFF we're dealing with a bone constraint pointing to
+						 *   its own armature. In that case, it's just transform -> bone.
+						 * - If however it is a real self targetting case, just make it depend on the
+						 *   previous constraint (or the pre-constraint state)...
+						 */
+						if ((ct->tar->type == OB_ARMATURE) && (component_type == DEPSNODE_TYPE_BONE)) {
+							OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
+							add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+						}
+						else {
+							OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_LOCAL);
+							add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+						}
+					}
+					else {
+						/* normal object dependency */
 						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
 						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
