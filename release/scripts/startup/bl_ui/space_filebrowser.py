@@ -87,7 +87,7 @@ class FILEBROWSER_HT_header(Header):
                     row.prop(params, "filter_id", text="")
 
             row.separator()
-            row.prop(params, "filter_search", text="")
+            row.prop(params, "filter_search", text="", icon='VIEWZOOM')
 
         layout.template_running_jobs()
 
