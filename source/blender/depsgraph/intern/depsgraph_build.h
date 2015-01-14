@@ -308,57 +308,16 @@ struct DepsNodeHandle
 /* Get unique identifier for FCurves and Drivers */
 string deg_fcurve_id_name(const FCurve *fcu);
 
-/* Inline Function Templates -------------------------------------------------- */
-
-#include "depsnode_component.h"
-
-template <class NodeType>
-BLI_INLINE OperationDepsNode *get_entry_operation(NodeType *node)
-{ return NULL; }
-
-template <class NodeType>
-BLI_INLINE OperationDepsNode *get_exit_operation(NodeType *node)
-{ return NULL; }
-
-BLI_INLINE OperationDepsNode *get_entry_operation(OperationDepsNode *node)
-{ return node; }
-
-BLI_INLINE OperationDepsNode *get_exit_operation(OperationDepsNode *node)
-{ return node; }
-
-BLI_INLINE OperationDepsNode *get_entry_operation(ComponentDepsNode *node)
-{
-	if (node) {
-		if (node->entry_operation)
-			return node->entry_operation;
-		else if (node->operations.size() == 1)
-			return node->operations.begin()->second;
-	}
-	return NULL;
-}
-
-BLI_INLINE OperationDepsNode *get_exit_operation(ComponentDepsNode *node)
-{
-	if (node) {
-		if (node->exit_operation)
-			return node->exit_operation;
-		else if (node->operations.size() == 1)
-			return node->operations.begin()->second;
-	}
-	return NULL;
-}
-
 template <typename KeyFrom, typename KeyTo>
-void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo &key_to,
-                                            eDepsRelation_Type type, const string &description)
+void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from,
+                                            const KeyTo &key_to,
+                                            eDepsRelation_Type type,
+                                            const string &description)
 {
-	//DepsNode *node_from = find_node(key_from);
-	//DepsNode *node_to   = find_node(key_to);
-	
-	// XXX: warning - don't use node_from and node_to directly, as that breaks the templates...
-	OperationDepsNode *op_from = get_exit_operation(find_node(key_from));
-	OperationDepsNode *op_to = get_entry_operation(find_node(key_to));
-	
+	DepsNode *node_from = find_node(key_from);
+	DepsNode *node_to = find_node(key_to);
+	OperationDepsNode *op_from = node_from ? node_from->get_exit_operation() : NULL;
+	OperationDepsNode *op_to = node_to ? node_to->get_entry_operation() : NULL;
 	if (op_from && op_to) {
 		add_operation_relation(op_from, op_to, type, description);
 	}
@@ -377,31 +336,36 @@ void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from, const KeyTo
 }
 
 template <typename KeyTo>
-void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from, const KeyTo &key_to,
-                                            eDepsRelation_Type type, const string &description)
+void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from,
+                                            const KeyTo &key_to,
+                                            eDepsRelation_Type type,
+                                            const string &description)
 {
 	BLI_assert(type == DEPSREL_TYPE_TIME);
 	TimeSourceDepsNode *time_from = find_node(key_from);
-	OperationDepsNode *op_to = get_entry_operation(find_node(key_to));
-	
+	DepsNode *node_to = find_node(key_to);
+	OperationDepsNode *op_to = node_to ? node_to->get_entry_operation() : NULL;
 	if (time_from && op_to) {
 		add_time_relation(time_from, op_to, description);
 	}
 	else {
-		
 	}
 }
 
 template <typename KeyType>
-void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
-                                                        eDepsRelation_Type type, const string &description)
+void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from,
+                                                        const DepsNodeHandle *handle,
+                                                        eDepsRelation_Type type,
+                                                        const string &description)
 {
-	OperationDepsNode *op_from = get_exit_operation(find_node(key_from));
-	OperationDepsNode *op_to = get_entry_operation(handle->node);
+	DepsNode *node_from = find_node(key_from);
+	OperationDepsNode *op_from = node_from ? node_from->get_exit_operation() : NULL;
+	OperationDepsNode *op_to = handle->node->get_entry_operation();
 	if (op_from && op_to) {
 		add_operation_relation(op_from, op_to, type, description);
 	}
 	else {
+		abort();
 		if (!op_from) {
 			/* XXX TODO handle as error or report if needed */
 		}
@@ -412,10 +376,10 @@ void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from,
 }
 
 template <typename KeyType>
-DepsNodeHandle DepsgraphRelationBuilder::create_node_handle(const KeyType &key, const string &default_name)
+DepsNodeHandle DepsgraphRelationBuilder::create_node_handle(const KeyType &key,
+                                                            const string &default_name)
 {
 	return DepsNodeHandle(this, find_node(key), default_name);
 }
 
-
-#endif // __DEPSGRAPH_BUILD_H__
+#endif // __DEPSGRAPH_BUILD_H__ */

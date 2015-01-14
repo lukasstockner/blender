@@ -93,6 +93,9 @@ struct DepsNode {
 	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
 
 	virtual void tag_update(Depsgraph *graph) {}
+
+	virtual OperationDepsNode *get_entry_operation() { return NULL; }
+	virtual OperationDepsNode *get_exit_operation() { return NULL; }
 };
 
 /* Macros for common static typeinfo. */

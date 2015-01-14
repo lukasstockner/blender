@@ -208,7 +208,7 @@ bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap
 
 }  /* namespace */
 
-/* ************************************************* */
+/* ***************** */
 /* Relations Builder */
 
 void DepsgraphRelationBuilder::build_scene(Scene *scene)

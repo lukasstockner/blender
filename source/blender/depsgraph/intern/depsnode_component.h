@@ -134,7 +134,10 @@ struct ComponentDepsNode : public DepsNode {
 	 * NOTE: this does not free the actual context in question
 	 */
 	virtual void eval_context_free(EvaluationContext *eval_ctx) {}
-	
+
+	OperationDepsNode *get_entry_operation();
+	OperationDepsNode *get_exit_operation();
+
 	IDDepsNode *owner;
 	
 	OperationMap operations;    /* inner nodes for this component */

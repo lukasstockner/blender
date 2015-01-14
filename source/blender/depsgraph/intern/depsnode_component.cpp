@@ -201,6 +201,24 @@ void ComponentDepsNode::tag_update(Depsgraph *graph)
 	}
 }
 
+OperationDepsNode *ComponentDepsNode::get_entry_operation()
+{
+	if (entry_operation)
+		return entry_operation;
+	else if (operations.size() == 1)
+		return operations.begin()->second;
+	return NULL;
+}
+
+OperationDepsNode *ComponentDepsNode::get_exit_operation()
+{
+	if (exit_operation)
+		return exit_operation;
+	else if (operations.size() == 1)
+		return operations.begin()->second;
+	return NULL;
+}
+
 /* Parameter Component Defines ============================ */
 
 DEG_DEPSNODE_DEFINE(ParametersComponentDepsNode, DEPSNODE_TYPE_PARAMETERS, "Parameters Component");

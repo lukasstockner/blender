@@ -72,7 +72,10 @@ struct OperationDepsNode : public DepsNode {
 	void tag_update(Depsgraph *graph);
 	
 	bool is_noop() const { return (bool)evaluate == false; }
-	
+
+	OperationDepsNode *get_entry_operation() { return this; }
+	OperationDepsNode *get_exit_operation() { return this; }
+
 	ComponentDepsNode *owner;     /* component that contains the operation */
 	
 	DepsEvalOperationCb evaluate; /* callback for operation */
