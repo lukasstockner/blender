@@ -4492,3 +4492,15 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 	r_rect->xmax = r_rect->xmin + tb->w;
 	r_rect->ymin = r_rect->ymax - tb->h;
 }
+
+/* **** Depsgraph evaluation **** */
+
+void BKE_curve_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
+                             Curve *UNUSED(curve))
+{
+}
+
+void BKE_curve_eval_path(EvaluationContext *UNUSED(eval_ctx),
+                         Curve *UNUSED(curve))
+{
+}

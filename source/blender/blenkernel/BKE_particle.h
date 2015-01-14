@@ -411,6 +411,14 @@ void reset_particle(struct ParticleSimulationData *sim, struct ParticleData *pa,
 
 float psys_get_current_display_percentage(struct ParticleSystem *psys);
 
+/* **** Depsgraph evaluation **** */
+
+struct EvaluationContext;
+
+void BKE_particle_system_eval(struct EvaluationContext *eval_ctx,
+                              struct Object *ob,
+                              struct ParticleSystem *psys);
+
 /* psys_reset */
 #define PSYS_RESET_ALL          1
 #define PSYS_RESET_DEPSGRAPH    2

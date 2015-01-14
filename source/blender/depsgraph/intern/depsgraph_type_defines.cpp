@@ -129,26 +129,6 @@ void BKE_animsys_eval_driver(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
-void BKE_particle_system_eval(EvaluationContext *eval_ctx, Object *ob, ParticleSystem *psys) {}
-
-void BKE_rigidbody_rebuild_sim(EvaluationContext *eval_ctx, Scene *scene) {}
-void BKE_rigidbody_eval_simulation(EvaluationContext *eval_ctx, Scene *scene) {}
-
-void BKE_rigidbody_object_sync_transforms(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
-{
-	DEG_DEBUG_PRINTF("%s on %s\n", __func__, ob->id.name);
-	RigidBodyWorld *rbw = scene->rigidbody_world;
-	float ctime = BKE_scene_frame_get(scene);
-	/* read values pushed into RBO from sim/cache... */
-	BKE_rigidbody_sync_transforms(rbw, ob, ctime);
-}
-
-void BKE_mesh_eval_geometry(EvaluationContext *eval_ctx, Mesh *mesh) {}
-void BKE_mball_eval_geometry(EvaluationContext *eval_ctx, MetaBall *mball) {}
-void BKE_curve_eval_geometry(EvaluationContext *eval_ctx, Curve *curve) {}
-void BKE_curve_eval_path(EvaluationContext *eval_ctx, Curve *curve) {}
-void BKE_lattice_eval_geometry(EvaluationContext *eval_ctx, Lattice *latt) {}
-
 /* ******************************************************** */
 /* External API */
 
