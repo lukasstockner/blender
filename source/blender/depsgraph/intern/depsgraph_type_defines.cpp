@@ -31,36 +31,15 @@
 #include <string.h>
 
 extern "C" {
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
-#include "DNA_action_types.h"
 #include "DNA_anim_types.h"
-#include "DNA_armature_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
 
-#include "BKE_action.h"
 #include "BKE_animsys.h"
-#include "BKE_armature.h"
 #include "BKE_fcurve.h"
-#include "BKE_scene.h"
-#include "BKE_object.h"
-#include "BKE_rigidbody.h"
-
-/* TODO(sergey): This is rather temp solution anyway. */
-#include "../../ikplugin/BIK_api.h"
-
-#include "BKE_global.h"
-#include "BKE_main.h"
 
 #include "DEG_depsgraph.h"
-
-#include "RNA_access.h"
-#include "RNA_types.h"
 } /* extern "C" */
 
 #include "depsgraph_debug.h"
