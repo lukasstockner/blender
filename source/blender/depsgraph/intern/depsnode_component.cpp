@@ -195,6 +195,10 @@ void ComponentDepsNode::clear_operations()
 
 void ComponentDepsNode::tag_update(Depsgraph *graph)
 {
+	OperationDepsNode *entry_op = get_entry_operation();
+	if (entry_op != NULL && entry_op->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+		return;
+	}
 	for (OperationMap::const_iterator it = operations.begin(); it != operations.end(); ++it) {
 		OperationDepsNode *op_node = it->second;
 		op_node->tag_update(graph);
