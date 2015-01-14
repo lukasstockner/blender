@@ -28,27 +28,6 @@ struct TimeSourceDepsNode;
 void BKE_animsys_eval_animdata(struct EvaluationContext *eval_ctx, ID *id, TimeSourceDepsNode *time_src);
 void BKE_animsys_eval_driver(struct EvaluationContext *eval_ctx, ID *id, FCurve *fcurve, TimeSourceDepsNode *time_src);
 
-void BKE_pose_constraints_evaluate(struct EvaluationContext *eval_ctx, Object *ob, bPoseChannel *pchan);
-
-void BKE_pose_iktree_evaluate(struct EvaluationContext *eval_ctx,
-                              Scene *scene,
-                              Object *ob,
-                              bPoseChannel *rootchan);
-void BKE_pose_splineik_evaluate(struct EvaluationContext *eval_ctx, Scene *scene, Object *ob, bPoseChannel *rootchan);
-void BKE_pose_eval_bone(struct EvaluationContext *eval_ctx,
-                        Scene *scene,
-                        Object *ob,
-                        bPoseChannel *pchan);
-
-void BKE_pose_eval_init(struct EvaluationContext *eval_ctx,
-                        Scene *scene,
-                        Object *ob,
-                        bPose *pose);
-void BKE_pose_eval_flush(struct EvaluationContext *eval_ctx,
-                         Scene *scene,
-                         Object *ob,
-                         bPose *pose);
-
 void BKE_particle_system_eval(struct EvaluationContext *eval_ctx, Object *ob, ParticleSystem *psys);
 
 void BKE_rigidbody_rebuild_sim(struct EvaluationContext *eval_ctx, Scene *scene); // BKE_rigidbody_rebuild_sim

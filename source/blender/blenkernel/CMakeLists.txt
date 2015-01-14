@@ -67,6 +67,7 @@ set(SRC
 	intern/anim_sys.c
 	intern/appdir.c
 	intern/armature.c
+	intern/armature_update.c
 	intern/autoexec.c
 	intern/blender.c
 	intern/bmfont.c
