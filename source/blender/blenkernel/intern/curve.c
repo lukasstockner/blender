@@ -4496,11 +4496,23 @@ void BKE_curve_rect_from_textbox(const struct Curve *cu, const struct TextBox *t
 /* **** Depsgraph evaluation **** */
 
 void BKE_curve_eval_geometry(EvaluationContext *UNUSED(eval_ctx),
-                             Curve *UNUSED(curve))
+                             Curve *curve)
 {
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		printf("%s on %s\n", __func__, curve->id.name);
+	}
+	if (curve->bb == NULL || (curve->bb->flag & BOUNDBOX_DIRTY)) {
+		BKE_curve_texspace_calc(curve);
+	}
 }
 
 void BKE_curve_eval_path(EvaluationContext *UNUSED(eval_ctx),
-                         Curve *UNUSED(curve))
+                         Curve *curve)
 {
+	/* TODO(sergey): This will probably need to be a part of
+	 * the modifier stack still.
+	 */
+	if (G.debug & G_DEBUG_DEPSGRAPH) {
+		printf("%s on %s\n", __func__, curve->id.name);
+	}
 }
