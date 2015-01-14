@@ -28,36 +28,22 @@
 
 #include "MEM_guardedalloc.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
-#include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
+#include "BLI_math.h"
 
-#include "DNA_action_types.h"
-#include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_curve_types.h"
-#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_action.h"
 #include "BKE_anim.h"
-#include "BKE_animsys.h"
 #include "BKE_armature.h"
-#include "BKE_constraint.h"
 #include "BKE_curve.h"
 #include "BKE_depsgraph.h"
 #include "BKE_displist.h"
 #include "BKE_fcurve.h"
 #include "BKE_scene.h"
-#include "BKE_object.h"
-#include "BKE_rigidbody.h"
 
 #include "BIK_api.h"
 
@@ -65,9 +51,6 @@
 #include "BKE_main.h"
 
 #include "DEG_depsgraph.h"
-
-#include "RNA_access.h"
-#include "RNA_types.h"
 
 #ifdef WITH_LEGACY_DEPSGRAPH
 #  define DEBUG_PRINT if (!DEG_depsgraph_use_legacy() && G.debug & G_DEBUG_DEPSGRAPH) printf
