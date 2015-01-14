@@ -91,10 +91,11 @@ extern "C" {
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
-#include "depsgraph_types.h"
 #include "depsgraph_build.h"
+#include "depsgraph_debug.h"
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
+#include "depsgraph_types.h"
 
 #include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
 
@@ -1195,15 +1196,13 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 				/* bone is part of same IK tree as parent - we use the last operation before "done" to prevent lockups
 				 * as both bones won't be done until the IK solver runs
 				 */
-				fprintf(stderr, "common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
-				
+				DEG_DEBUG_PRINTF("common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
 				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent); // XXX: does this settle for pre-IK?
 				add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
 			else {
 				/* bone is not in same IK tree as parent - can just directly use parent's "done" */
-				fprintf(stderr, "not common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
-				
+				DEG_DEBUG_PRINTF("not common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
 				OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name, DEG_OPCODE_BONE_DONE);
 				add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 			}
