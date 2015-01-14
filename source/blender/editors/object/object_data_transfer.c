@@ -226,7 +226,7 @@ static EnumPropertyItem *dt_mix_mode_itemf(bContext *C, PointerRNA *ptr, Propert
 
 	BKE_object_data_transfer_get_dttypes_capacity(dtdata_type, &support_advanced_mixing, &support_threshold);
 
-	if (support_advanced_mixing) {
+	if (support_threshold) {
 		RNA_enum_items_add_value(&item, &totitem, DT_mix_mode_items, CDT_MIX_REPLACE_ABOVE_THRESHOLD);
 		RNA_enum_items_add_value(&item, &totitem, DT_mix_mode_items, CDT_MIX_REPLACE_BELOW_THRESHOLD);
 	}
@@ -643,7 +643,7 @@ void OBJECT_OT_datalayout_transfer(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 
-	ot->name = "Transfer Mesh Datalayout";
+	ot->name = "Transfer Mesh Data Layout";
 	ot->description = "Transfer layout of data layer(s) from active to selected meshes";
 	ot->idname = "OBJECT_OT_datalayout_transfer";
 
