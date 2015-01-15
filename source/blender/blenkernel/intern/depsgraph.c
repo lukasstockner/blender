@@ -2708,6 +2708,11 @@ void DAG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
 	int a;
 	bool updated = false;
 
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_ids_check_recalc(bmain, scene, time);
+		return;
+	}
+
 	/* loop over all ID types */
 	a  = set_listbasepointers(bmain, lbarray);
 
