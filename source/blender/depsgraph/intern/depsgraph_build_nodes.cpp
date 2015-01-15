@@ -833,8 +833,11 @@ void DepsgraphNodeBuilder::build_material(DepsNode *owner_node, Material *ma)
 	if (id_is_tagged(ma_id))
 		return;
 	id_tag_set(ma_id);
-	
+
 	/* material itself */
+	add_id_node(ma_id);
+
+	/* material animation */
 	build_animdata(ma_id);
 	
 	/* textures */
