@@ -212,6 +212,7 @@ void DEG_graph_flush_updates(Main *bmain,
 		IDDepsNode *id_node = node->owner->owner;
 		if (id_node->layers & layers) {
 			queue.push(node);
+			deg_editors_id_update(bmain, id_node->id);
 		}
 		else {
 			node->flag &= ~DEPSOP_FLAG_NEEDS_UPDATE;
@@ -242,6 +243,7 @@ void DEG_graph_flush_updates(Main *bmain,
 			{
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
+				deg_editors_id_update(bmain, id_node->id);
 			}
 		}
 	}

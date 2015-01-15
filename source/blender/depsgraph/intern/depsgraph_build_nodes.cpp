@@ -835,7 +835,8 @@ void DepsgraphNodeBuilder::build_material(DepsNode *owner_node, Material *ma)
 	id_tag_set(ma_id);
 
 	/* material itself */
-	add_id_node(ma_id);
+	IDDepsNode *id_node = add_id_node(ma_id);
+	id_node->layers = (1 << 20) - 1;
 
 	add_operation_node(ma_id, DEPSNODE_TYPE_SHADING,
 	                   DEPSOP_TYPE_EXEC, NULL,
