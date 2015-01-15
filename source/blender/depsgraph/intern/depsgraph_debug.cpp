@@ -95,6 +95,7 @@ static const int deg_debug_node_type_color_map[][2] = {
     {DEPSNODE_TYPE_TRANSFORM,    7},
     {DEPSNODE_TYPE_GEOMETRY,     8},
     {DEPSNODE_TYPE_SEQUENCER,    9},
+    {DEPSNODE_TYPE_SHADING,      10},
     {-1,                         0}
 };
 #endif
@@ -490,6 +491,7 @@ static void deg_debug_graphviz_node(const DebugContext &ctx,
 		case DEPSNODE_TYPE_SEQUENCER:
 		case DEPSNODE_TYPE_EVAL_POSE:
 		case DEPSNODE_TYPE_BONE:
+		case DEPSNODE_TYPE_SHADING:
 		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (!comp_node->operations.empty()) {

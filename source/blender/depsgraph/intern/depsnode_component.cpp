@@ -285,6 +285,11 @@ static DepsNodeFactoryImpl<BoneComponentDepsNode> DNTI_BONE;
 DEG_DEPSNODE_DEFINE(ParticlesComponentDepsNode, DEPSNODE_TYPE_EVAL_PARTICLES, "Particles Component");
 static DepsNodeFactoryImpl<ParticlesComponentDepsNode> DNTI_EVAL_PARTICLES;
 
+/* Shading Component Defines ============================ */
+
+DEG_DEPSNODE_DEFINE(ShadingComponentDepsNode, DEPSNODE_TYPE_SHADING, "Shading Component");
+static DepsNodeFactoryImpl<ShadingComponentDepsNode> DNTI_SHADING;
+
 
 /* Node Types Register =================================== */
 
@@ -301,4 +306,5 @@ void DEG_register_component_depsnodes()
 	DEG_register_node_typeinfo(&DNTI_BONE);
 	
 	DEG_register_node_typeinfo(&DNTI_EVAL_PARTICLES);
+	DEG_register_node_typeinfo(&DNTI_SHADING);
 }

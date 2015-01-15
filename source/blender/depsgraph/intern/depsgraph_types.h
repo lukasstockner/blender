@@ -89,6 +89,7 @@ typedef enum eDepsNode_Type {
 	DEPSNODE_TYPE_BONE             = 22,       /* Bone Component - Child/Subcomponent of Pose */
 	
 	DEPSNODE_TYPE_EVAL_PARTICLES   = 23,       /* Particle Systems Component */
+	DEPSNODE_TYPE_SHADING          = 24,       /* Material Shading Component */
 } eDepsNode_Type;
 
 /* Identifiers for common operations (as an enum) */

@@ -126,6 +126,7 @@ static eDepsNode_Type deg_build_object_component_type(eDepsObjectComponentType c
 		case DEG_OB_COMP_EVAL_POSE:         return DEPSNODE_TYPE_EVAL_POSE;
 		case DEG_OB_COMP_BONE:              return DEPSNODE_TYPE_BONE;
 		case DEG_OB_COMP_EVAL_PARTICLES:    return DEPSNODE_TYPE_EVAL_PARTICLES;
+		case DEG_OB_COMP_SHADING:           return DEPSNODE_TYPE_SHADING;
 	}
 	return DEPSNODE_TYPE_UNDEFINED;
 }

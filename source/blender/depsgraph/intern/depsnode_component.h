@@ -190,6 +190,10 @@ struct ParticlesComponentDepsNode : public ComponentDepsNode {
 	DEG_DEPSNODE_DECLARE;
 };
 
+struct ShadingComponentDepsNode : public ComponentDepsNode {
+	DEG_DEPSNODE_DECLARE;
+};
+
 
 void DEG_register_component_depsnodes();
 

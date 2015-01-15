@@ -98,6 +98,7 @@ typedef enum eDepsObjectComponentType {
 	DEG_OB_COMP_BONE,              /* Bone Component - Child/Subcomponent of Pose */
 	
 	DEG_OB_COMP_EVAL_PARTICLES,    /* Particle Systems Component */
+	DEG_OB_COMP_SHADING,           /* Material Shading Component */
 } eDepsObjectComponentType;
 
 void DEG_add_scene_relation(struct DepsNodeHandle *node, struct Scene *scene, eDepsSceneComponentType component, const char *description);
