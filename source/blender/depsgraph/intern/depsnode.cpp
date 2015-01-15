@@ -141,6 +141,7 @@ void IDDepsNode::init(const ID *id, const string &UNUSED(subdata))
 	/* Store ID-pointer. */
 	BLI_assert(id != NULL);
 	this->id = (ID *)id;
+	this->layers = (1 << 20) - 1;
 
 	/* NOTE: components themselves are created if/when needed.
 	 * This prevents problems with components getting added

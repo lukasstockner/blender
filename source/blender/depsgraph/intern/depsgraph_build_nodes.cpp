@@ -214,7 +214,7 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 {
 	IDDepsNode *id_node = add_id_node(&ob->id);
-	id_node->layers |= base->lay;
+	id_node->layers = base->lay;
 
 	/* standard components */
 	build_object_transform(scene, ob);
@@ -835,8 +835,7 @@ void DepsgraphNodeBuilder::build_material(DepsNode *owner_node, Material *ma)
 	id_tag_set(ma_id);
 
 	/* material itself */
-	IDDepsNode *id_node = add_id_node(ma_id);
-	id_node->layers = (1 << 20) - 1;
+	add_id_node(ma_id);
 
 	add_operation_node(ma_id, DEPSNODE_TYPE_SHADING,
 	                   DEPSOP_TYPE_EXEC, NULL,
