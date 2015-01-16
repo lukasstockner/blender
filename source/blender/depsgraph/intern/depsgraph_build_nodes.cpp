@@ -349,7 +349,7 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 		/* actions and NLA - as a single unit for now, as it gets complicated to schedule otherwise */
 		if ((adt->action) || (adt->nla_tracks.first)) {
 			/* create the node */
-			OperationDepsNode *adt_op;
+			OperationDepsNode *adt_op; // XXX: unread
 			adt_op = add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
 			                            DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_animdata, _1, id, time_src),
 			                            DEG_OPCODE_ANIMATION, id->name);
@@ -437,18 +437,25 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 	 */
 	
 	/* create nodes ------------------------------------------------------------------------ */
-	/* XXX this needs to be reviewed! */
+	/* XXX: is this the right component, or do we want to use another one instead? */
 	
 	/* init/rebuild operation */
 	/*OperationDepsNode *init_node =*/ add_operation_node(&scene->id, DEPSNODE_TYPE_TRANSFORM,
 	                                                      DEPSOP_TYPE_REBUILD, function_bind(BKE_rigidbody_rebuild_sim, _1, scene),
-	                                                      DEG_OPCODE_PLACEHOLDER, "Rigidbody World Rebuild"); // XXX
+	                                                      DEG_OPCODE_RIGIDBODY_REBUILD);
 	
 	/* do-sim operation */
 	// XXX: what happens if we need to split into several groups?
-	/*OperationDepsNode *sim_node =*/ add_operation_node(&scene->id, DEPSNODE_TYPE_TRANSFORM,
+	OperationDepsNode *sim_node     = add_operation_node(&scene->id, DEPSNODE_TYPE_TRANSFORM,
 	                                                     DEPSOP_TYPE_SIM, function_bind(BKE_rigidbody_eval_simulation, _1, scene),
-	                                                     DEG_OPCODE_PLACEHOLDER, "Rigidbody World Do Simulation"); // XXX
+	                                                     DEG_OPCODE_RIGIDBODY_SIM);
+	
+	/* XXX: For now, the sim node is the only one that really matters here. If any other
+	 * sims get added later, we may have to remove these hacks... 
+	 */
+	sim_node->owner->entry_operation = sim_node;
+	sim_node->owner->exit_operation  = sim_node;
+	
 	
 	/* objects - simulation participants */
 	if (rbw->group) {
@@ -461,7 +468,7 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 			/* 2) create operation for flushing results */
 			/* object's transform component - where the rigidbody operation lives */
 			add_operation_node(&ob->id, DEPSNODE_TYPE_TRANSFORM,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_rigidbody_object_sync_transforms, _1, scene, ob), /* xxx: function name */
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_rigidbody_object_sync_transforms, _1, scene, ob),
 			                   DEG_OPCODE_TRANSFORM_RIGIDBODY);
 		}
 	}

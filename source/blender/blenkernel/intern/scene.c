@@ -1805,12 +1805,16 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	 * call this at the start so modifiers with textures don't lag 1 frame */
 	BKE_image_update_frame(bmain, sce->r.cfra);
 	
+#ifdef WITH_LEGACY_DEPSGRAPH
 	/* rebuild rigid body worlds before doing the actual frame update
 	 * this needs to be done on start frame but animation playback usually starts one frame later
 	 * we need to do it here to avoid rebuilding the world on every simulation change, which can be very expensive
 	 */
-	scene_rebuild_rbw_recursive(sce, ctime);
-
+	if (!use_new_eval) {
+		scene_rebuild_rbw_recursive(sce, ctime);
+	}
+#endif
+	
 	sound_set_cfra(sce->r.cfra);
 	
 	/* clear animation overrides */
@@ -1855,8 +1859,12 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 
 	/* run rigidbody sim */
 	/* NOTE: current position is so that rigidbody sim affects other objects, might change in the future */
-	scene_do_rb_simulation_recursive(sce, ctime);
-
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval) {
+		scene_do_rb_simulation_recursive(sce, ctime);
+	}
+#endif
+	
 	/* BKE_object_handle_update() on all objects, groups and sets */
 #ifdef WITH_LEGACY_DEPSGRAPH
 	if (use_new_eval) {

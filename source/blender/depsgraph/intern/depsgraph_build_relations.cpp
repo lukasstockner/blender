@@ -256,6 +256,11 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 		}
 	}
 #endif
+
+	/* rigidbody */
+	if (scene->rigidbody_world) {
+		build_rigidbody(scene);
+	}
 	
 	/* scene's animation and drivers */
 	if (scene->adt) {
@@ -793,8 +798,8 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 {
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 	
-	OperationKey init_key(&scene->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_PLACEHOLDER, "Rigidbody World Rebuild"); // XXX
-	OperationKey sim_key(&scene->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_PLACEHOLDER, "Rigidbody World Do Simulation"); // XXX
+	OperationKey init_key(&scene->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_RIGIDBODY_REBUILD);
+	OperationKey sim_key(&scene->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_RIGIDBODY_SIM);
 	
 	/* rel between the two sim-nodes */
 	add_relation(init_key, sim_key, DEPSREL_TYPE_OPERATION, "Rigidbody [Init -> SimStep]");
