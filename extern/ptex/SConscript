@@ -1,0 +1,8 @@
+Import ('env')
+
+sources = env.Glob('*.cpp')
+
+incs = '.'
+defs = ''
+
+env.BlenderLib ('extern_ptex', sources, Split(incs), Split(defs), libtype=['extern'], priority=[100] )

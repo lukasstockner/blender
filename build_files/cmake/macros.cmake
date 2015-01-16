@@ -575,6 +575,7 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		extern_libmv
 		extern_glog
 		extern_sdlew
+		extern_ptex
 
 		bf_intern_glew_mx
 	)

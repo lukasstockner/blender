@@ -12,6 +12,8 @@ SConscript(['rangetree/SConscript'])
 SConscript(['wcwidth/SConscript'])
 SConscript(['libmv/SConscript'])
 
+SConscript(['ptex/SConscript'])
+
 if env['WITH_BF_GAMEENGINE']:
     SConscript(['recastnavigation/SConscript'])
 
