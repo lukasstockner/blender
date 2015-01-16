@@ -360,10 +360,9 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 		/* actions and NLA - as a single unit for now, as it gets complicated to schedule otherwise */
 		if ((adt->action) || (adt->nla_tracks.first)) {
 			/* create the node */
-			OperationDepsNode *adt_op; // XXX: unread
-			adt_op = add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
-			                            DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_animdata, _1, id, time_src),
-			                            DEG_OPCODE_ANIMATION, id->name);
+			add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_animdata, _1, id, time_src),
+			                   DEG_OPCODE_ANIMATION, id->name);
 			
 			// TODO: for each channel affected, we might also want to add some support for running RNA update callbacks on them
 			// (which will be needed for proper handling of drivers later)
