@@ -169,7 +169,7 @@ enum {
 #define KM_OSKEY2	128
 
 /* KM_MOD_ flags for wmKeyMapItem and wmEvent.alt/shift/oskey/ctrl  */
-/* note that KM_ANY and false are used with these defines too */
+/* note that KM_ANY and KM_NOTHING are used with these defines too */
 #define KM_MOD_FIRST  1
 #define KM_MOD_SECOND 2
 
@@ -323,6 +323,9 @@ typedef struct wmNotifier {
 #define ND_NLA				(73<<16)
 #define ND_NLA_ACTCHANGE	(74<<16)
 #define ND_FCURVES_ORDER	(75<<16)
+
+	/* NC_GPENCIL */
+#define ND_GPENCIL_EDITMODE	(85<<16)
 
 	/* NC_GEOM Geometry */
 	/* Mesh, Curve, MetaBall, Armature, .. */
@@ -554,9 +557,7 @@ typedef struct wmOperatorType {
 	/* pointer to modal keymap, do not free! */
 	struct wmKeyMap *modalkeymap;
 
-	/* only used for operators defined with python
-	 * use to store pointers to python functions */
-	void *pyop_data;
+	/* python needs the operator type as well */
 	int (*pyop_poll)(struct bContext *, struct wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT;
 
 	/* RNA integration */
@@ -566,6 +567,24 @@ typedef struct wmOperatorType {
 	short flag;
 
 } wmOperatorType;
+
+#ifdef WITH_INPUT_IME
+/* *********** Input Method Editor (IME) *********** */
+
+/* similar to GHOST_TEventImeData */
+typedef struct wmIMEData {
+	size_t result_len, composite_len;
+
+	char *str_result;           /* utf8 encoding */
+	char *str_composite;        /* utf8 encoding */
+
+	int cursor_pos;             /* cursor position in the IME composition. */
+	int sel_start;              /* beginning of the selection */
+	int sel_end;                /* end of the selection */
+
+	bool is_ime_composing;
+} wmIMEData;
+#endif
 
 /* **************** Paint Cursor ******************* */
 

@@ -62,6 +62,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
 
+#include "BKE_appdir.h"
 #include "BKE_animsys.h"
 #include "BKE_armature.h"
 #include "BKE_bvhutils.h"
@@ -207,7 +208,7 @@ void smoke_reallocate_highres_fluid(SmokeDomainSettings *sds, float dx, int res[
 	/* smoke_turbulence_init uses non-threadsafe functions from fftw3 lib (like fftw_plan & co). */
 	BLI_lock_thread(LOCK_FFTW);
 
-	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BLI_temp_dir_session(), use_fire, use_colors);
+	sds->wt = smoke_turbulence_init(res, sds->amplify + 1, sds->noise, BKE_tempdir_session(), use_fire, use_colors);
 
 	BLI_unlock_thread(LOCK_FFTW);
 
@@ -953,7 +954,7 @@ static bool subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int
 
 	/* if other is dynamic paint canvas, don't update */
 	if (smd && (smd->type & MOD_SMOKE_TYPE_DOMAIN))
-		return 1;
+		return true;
 
 	/* if object has parents, update them too */
 	if (parent_recursion) {
@@ -965,7 +966,7 @@ static bool subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int
 		/* skip subframe if object is parented
 		 *  to vertex of a dynamic paint canvas */
 		if (is_domain && (ob->partype == PARVERT1 || ob->partype == PARVERT3))
-			return 0;
+			return false;
 
 		/* also update constraint targets */
 		for (con = ob->constraints.first; con; con = con->next) {
@@ -1011,7 +1012,7 @@ static bool subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int
 		BKE_pose_where_is(scene, ob);
 	}
 
-	return 0;
+	return false;
 }
 
 /**********************************************************
@@ -1424,7 +1425,7 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 
 static void sample_derivedmesh(
         SmokeFlowSettings *sfs, MVert *mvert, MTFace *tface, MFace *mface,
-        float *influence_map, float *velocity_map, int index, int base_res[3], float flow_center[3],
+        float *influence_map, float *velocity_map, int index, const int base_res[3], float flow_center[3],
         BVHTreeFromMesh *treeData, const float ray_start[3], const float *vert_vel,
         bool has_velocity, int defgrp_index, MDeformVert *dvert, float x, float y, float z)
 {

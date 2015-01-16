@@ -687,11 +687,11 @@ bool fcurve_are_keyframes_usable(FCurve *fcu)
 {
 	/* F-Curve must exist */
 	if (fcu == NULL)
-		return 0;
+		return false;
 		
 	/* F-Curve must not have samples - samples are mutually exclusive of keyframes */
 	if (fcu->fpt)
-		return 0;
+		return false;
 	
 	/* if it has modifiers, none of these should "drastically" alter the curve */
 	if (fcu->modifiers.first) {
@@ -718,7 +718,7 @@ bool fcurve_are_keyframes_usable(FCurve *fcu)
 					FMod_Generator *data = (FMod_Generator *)fcm->data;
 					
 					if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0)
-						return 0;
+						return false;
 					break;
 				}
 				case FMODIFIER_TYPE_FN_GENERATOR:
@@ -726,18 +726,18 @@ bool fcurve_are_keyframes_usable(FCurve *fcu)
 					FMod_FunctionGenerator *data = (FMod_FunctionGenerator *)fcm->data;
 					
 					if ((data->flag & FCM_GENERATOR_ADDITIVE) == 0)
-						return 0;
+						return false;
 					break;
 				}
 				/* always harmful - cannot allow */
 				default:
-					return 0;
+					return false;
 			}
 		}
 	}
 	
 	/* keyframes are usable */
-	return 1;
+	return true;
 }
 
 bool BKE_fcurve_is_protected(FCurve *fcu)
@@ -1283,7 +1283,7 @@ static float dvar_eval_locDiff(ChannelDriver *driver, DriverVar *dvar)
 					
 					/* extract transform just like how the constraints do it! */
 					copy_m4_m4(mat, pchan->pose_mat);
-					BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL);
+					BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL, false);
 					
 					/* ... and from that, we get our transform */
 					copy_v3_v3(tmp_loc, mat[3]);
@@ -1308,7 +1308,7 @@ static float dvar_eval_locDiff(ChannelDriver *driver, DriverVar *dvar)
 					
 					/* extract transform just like how the constraints do it! */
 					copy_m4_m4(mat, ob->obmat);
-					BKE_constraint_mat_convertspace(ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL);
+					BKE_constraint_mat_convertspace(ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
 					
 					/* ... and from that, we get our transform */
 					copy_v3_v3(tmp_loc, mat[3]);
@@ -1385,7 +1385,7 @@ static float dvar_eval_transChan(ChannelDriver *driver, DriverVar *dvar)
 			if (dtar->flag & DTAR_FLAG_LOCAL_CONSTS) {
 				/* just like how the constraints do it! */
 				copy_m4_m4(mat, pchan->pose_mat);
-				BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL);
+				BKE_constraint_mat_convertspace(ob, pchan, mat, CONSTRAINT_SPACE_POSE, CONSTRAINT_SPACE_LOCAL, false);
 			}
 			else {
 				/* specially calculate local matrix, since chan_mat is not valid 
@@ -1412,7 +1412,7 @@ static float dvar_eval_transChan(ChannelDriver *driver, DriverVar *dvar)
 			if (dtar->flag & DTAR_FLAG_LOCAL_CONSTS) {
 				/* just like how the constraints do it! */
 				copy_m4_m4(mat, ob->obmat);
-				BKE_constraint_mat_convertspace(ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL);
+				BKE_constraint_mat_convertspace(ob, NULL, mat, CONSTRAINT_SPACE_WORLD, CONSTRAINT_SPACE_LOCAL, false);
 			}
 			else {
 				/* transforms to matrix */
@@ -2165,8 +2165,8 @@ static float fcurve_eval_keyframes(FCurve *fcu, BezTriple *bezts, float evaltime
 							 * the value is simply the shared value (see T40372 -> F91346)
 							 */
 							cvalue = v1[1];
- 						}
- 						else {
+						}
+						else {
 							/* adjust handles so that they don't overlap (forming a loop) */
 							correct_bezpart(v1, v2, v3, v4);
 							

@@ -81,7 +81,6 @@
 #include "wm_window.h"
 #include "wm_event_system.h"
 #include "wm_event_types.h"
-#include "wm_draw.h"
 
 #ifndef NDEBUG
 #  include "RNA_enum_types.h"
@@ -542,7 +541,7 @@ void WM_event_print(const wmEvent *event)
 		       event->shift, event->ctrl, event->alt, event->oskey, event->keymodifier,
 		       event->x, event->y, event->ascii,
 		       BLI_str_utf8_size(event->utf8_buf), event->utf8_buf,
-		       event->keymap_idname, (void *)event);
+		       event->keymap_idname, (const void *)event);
 
 		if (ISNDOF(event->type)) {
 			const wmNDOFMotionData *ndof = event->customdata;
@@ -1708,16 +1707,12 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 
 			/* remlink now, for load file case before removing*/
 			BLI_remlink(handlers, handler);
-				
+
 			if (val != EVT_FILESELECT_EXTERNAL_CANCEL) {
-				if (screen != handler->filescreen) {
-					ED_screen_full_prevspace(C, CTX_wm_area(C));
-				}
-				else {
-					ED_area_prevspace(C, CTX_wm_area(C));
-				}
+				ScrArea *sa = CTX_wm_area(C);
+				ED_screen_retore_temp_type(C, sa, screen != handler->filescreen);
 			}
-				
+
 			wm_handler_op_context(C, handler);
 
 			/* needed for UI_popup_menu_reports */
@@ -2323,6 +2318,14 @@ void wm_event_do_handlers(bContext *C)
 				}
 
 				for (sa = win->screen->areabase.first; sa; sa = sa->next) {
+					/* after restoring a screen from SCREENMAXIMIZED we have to wait
+					 * with the screen handling till the region coordinates are updated */
+					if (win->screen->skip_handling == true) {
+						/* restore for the next iteration of wm_event_do_handlers */
+						win->screen->skip_handling = false;
+						break;
+					}
+
 					if (wm_event_inside_i(event, &sa->totrct)) {
 						CTX_wm_area_set(C, sa);
 
@@ -3050,6 +3053,13 @@ static void wm_event_add_mousemove(wmWindow *win, const wmEvent *event)
 void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int UNUSED(time), void *customdata)
 {
 	wmWindow *owin;
+
+	/* Having both, event and evt, can be highly confusing to work with, but is necessary for
+	 * our current event system, so let's clear things up a bit:
+	 * - data added to event only will be handled immediately, but will not be copied to the next event
+	 * - data added to evt only stays, but is handled with the next event -> execution delay
+	 * - data added to event and evt stays and is handled immediately
+	 */
 	wmEvent event, *evt = win->eventstate;
 
 	/* initialize and copy state (only mouse x y and modifiers) */
@@ -3190,6 +3200,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		case GHOST_kEventKeyUp:
 		{
 			GHOST_TEventKeyData *kd = customdata;
+			short keymodifier = KM_NOTHING;
 			event.type = convert_key(kd->key);
 			event.ascii = kd->ascii;
 			memcpy(event.utf8_buf, kd->utf8_buf, sizeof(event.utf8_buf)); /* might be not null terminated*/
@@ -3230,28 +3241,38 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 				}
 			}
 
-			/* modifiers assign to eventstate, so next event gets the modifer (makes modifier key events work) */
 			/* assigning both first and second is strange - campbell */
 			switch (event.type) {
-				case LEFTSHIFTKEY: case RIGHTSHIFTKEY:
-					evt->shift = (event.val == KM_PRESS) ?
-					            ((evt->ctrl || evt->alt || evt->oskey) ? (KM_MOD_FIRST | KM_MOD_SECOND) : KM_MOD_FIRST) :
-					            false;
+				case LEFTSHIFTKEY:
+				case RIGHTSHIFTKEY:
+					if (event.val == KM_PRESS) {
+						if (evt->ctrl || evt->alt || evt->oskey) keymodifier = (KM_MOD_FIRST | KM_MOD_SECOND);
+						else keymodifier = KM_MOD_FIRST;
+					}
+					event.shift = evt->shift = keymodifier;
 					break;
-				case LEFTCTRLKEY: case RIGHTCTRLKEY:
-					evt->ctrl = (event.val == KM_PRESS) ?
-					            ((evt->shift || evt->alt || evt->oskey) ? (KM_MOD_FIRST | KM_MOD_SECOND) : KM_MOD_FIRST) :
-					            false;
+				case LEFTCTRLKEY:
+				case RIGHTCTRLKEY:
+					if (event.val == KM_PRESS) {
+						if (evt->shift || evt->alt || evt->oskey) keymodifier = (KM_MOD_FIRST | KM_MOD_SECOND);
+						else keymodifier = KM_MOD_FIRST;
+					}
+					event.ctrl = evt->ctrl = keymodifier;
 					break;
-				case LEFTALTKEY: case RIGHTALTKEY:
-					evt->alt = (event.val == KM_PRESS) ?
-					            ((evt->ctrl || evt->shift || evt->oskey) ? (KM_MOD_FIRST | KM_MOD_SECOND) : KM_MOD_FIRST) :
-					            false;
+				case LEFTALTKEY:
+				case RIGHTALTKEY:
+					if (event.val == KM_PRESS) {
+						if (evt->ctrl || evt->shift || evt->oskey) keymodifier = (KM_MOD_FIRST | KM_MOD_SECOND);
+						else keymodifier = KM_MOD_FIRST;
+					}
+					event.alt = evt->alt = keymodifier;
 					break;
 				case OSKEY:
-					evt->oskey = (event.val == KM_PRESS) ?
-					            ((evt->ctrl || evt->alt || evt->shift) ? (KM_MOD_FIRST | KM_MOD_SECOND) : KM_MOD_FIRST) :
-					            false;
+					if (event.val == KM_PRESS) {
+						if (evt->ctrl || evt->alt || evt->shift) keymodifier = (KM_MOD_FIRST | KM_MOD_SECOND);
+						else keymodifier = KM_MOD_FIRST;
+					}
+					event.oskey = evt->oskey = keymodifier;
 					break;
 				default:
 					if (event.val == KM_PRESS && event.keymodifier == 0)
@@ -3374,6 +3395,33 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			break;
 		}
 
+#ifdef WITH_INPUT_IME
+		case GHOST_kEventImeCompositionStart:
+		{
+			event.val = KM_PRESS;
+			win->ime_data = customdata;
+			win->ime_data->is_ime_composing = true;
+			event.type = WM_IME_COMPOSITE_START;
+			wm_event_add(win, &event);
+			break;
+		}
+		case GHOST_kEventImeComposition:
+		{
+			event.val = KM_PRESS;
+			event.type = WM_IME_COMPOSITE_EVENT;
+			wm_event_add(win, &event);
+			break;
+		}
+		case GHOST_kEventImeCompositionEnd:
+		{
+			event.val = KM_PRESS;
+			win->ime_data->is_ime_composing = false;
+			event.type = WM_IME_COMPOSITE_END;
+			wm_event_add(win, &event);
+			break;
+		}
+#endif /* WITH_INPUT_IME */
+
 	}
 
 #if 0
@@ -3480,5 +3528,13 @@ bool WM_event_is_tablet(const struct wmEvent *event)
 	return (event->tablet_data) ? true : false;
 }
 
+#ifdef WITH_INPUT_IME
+/* most os using ctrl/oskey + space to switch ime, avoid added space */
+bool WM_event_is_ime_switch(const struct wmEvent *event)
+{
+	return event->val == KM_PRESS && event->type == SPACEKEY &&
+	       (event->ctrl || event->oskey || event->shift || event->alt);
+}
+#endif
 
 /** \} */

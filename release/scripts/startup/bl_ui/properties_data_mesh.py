@@ -29,7 +29,7 @@ class MESH_MT_vertex_group_specials(Menu):
     def draw(self, context):
         layout = self.layout
 
-        layout.operator("object.vertex_group_sort", icon='SORTALPHA').sort_type = "NAME"
+        layout.operator("object.vertex_group_sort", icon='SORTALPHA', text="Sort by Name").sort_type = "NAME"
         layout.operator("object.vertex_group_sort", icon='ARMATURE_DATA', text="Sort by Bone Hierarchy").sort_type = "BONE_HIERARCHY"
         layout.operator("object.vertex_group_copy", icon='COPY_ID')
         layout.operator("object.vertex_group_copy_to_linked", icon='LINK_AREA')
@@ -317,7 +317,6 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
                 row = layout.column()
                 row.active = enable_edit_value
                 row.prop(key, "eval_time")
-                row.prop(key, "slurph")
 
 
 class DATA_PT_uv_texture(MeshButtonsPanel, Panel):

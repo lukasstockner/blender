@@ -67,7 +67,6 @@
 
 
 #include "render_types.h"
-#include "renderdatabase.h"
 #include "texture.h"
 #include "voxeldata.h"
 

@@ -29,8 +29,8 @@ set(INC
 	.
 	# ../blenkernel  # dont add this back!
 	../makesdna
-	../../../intern/ghost
 	../../../intern/guardedalloc
+	../../../intern/atomic
 	../../../extern/wcwidth
 )
 
@@ -52,6 +52,7 @@ set(SRC
 	intern/BLI_memarena.c
 	intern/BLI_mempool.c
 	intern/DLRB_tree.c
+	intern/astar.c
 	intern/boxpack2d.c
 	intern/buffer.c
 	intern/callbacks.c
@@ -85,6 +86,7 @@ set(SRC
 	intern/noise.c
 	intern/path_util.c
 	intern/polyfill2d.c
+	intern/polyfill2d_beautify.c
 	intern/quadric.c
 	intern/rand.c
 	intern/rct.c
@@ -112,6 +114,7 @@ set(SRC
 	BLI_alloca.h
 	BLI_args.h
 	BLI_array.h
+	BLI_astar.h
 	BLI_bitmap.h
 	BLI_blenlib.h
 	BLI_boxpack2d.h
@@ -161,6 +164,7 @@ set(SRC
 	BLI_noise.h
 	BLI_path_util.h
 	BLI_polyfill2d.h
+	BLI_polyfill2d_beautify.h
 	BLI_quadric.h
 	BLI_rand.h
 	BLI_rect.h
@@ -188,13 +192,6 @@ set(SRC
 	PIL_time.h
 	PIL_time_utildefines.h
 )
-
-if(WITH_BINRELOC)
-	list(APPEND INC_SYS
-		${BINRELOC_INCLUDE_DIRS}
-	)
-	add_definitions(-DWITH_BINRELOC)
-endif()
 
 if(WITH_MEM_VALGRIND)
 	add_definitions(-DWITH_MEM_VALGRIND)

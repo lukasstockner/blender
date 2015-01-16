@@ -47,7 +47,6 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "BLF_api.h"
 #include "BLF_translation.h"
 
 #include "IMB_imbuf_types.h"
@@ -67,7 +66,6 @@
 
 #include "WM_types.h"
 
-#include "fsmenu.h"
 #include "filelist.h"
 
 #include "file_intern.h"    // own include
@@ -113,6 +111,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	SpaceFile *sfile  = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 	ARegion *artmp;
+	const bool is_browse_only = (sfile->op == NULL);
 	
 	/* Initialize UI block. */
 	BLI_snprintf(uiblockstr, sizeof(uiblockstr), "win %p", (void *)ar);
@@ -126,15 +125,22 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 			available_w -= chan_offs;
 		}
 	}
-	
-	/* Is there enough space for the execute / cancel buttons? */
-	loadbutton = UI_fontstyle_string_width(params->title) + btn_margin;
-	CLAMP_MIN(loadbutton, btn_minw);
 
-	if (available_w <= loadbutton + separator + input_minw || params->title[0] == 0) {
+	/* Is there enough space for the execute / cancel buttons? */
+
+
+	if (is_browse_only) {
 		loadbutton = 0;
 	}
 	else {
+		loadbutton = UI_fontstyle_string_width(params->title) + btn_margin;
+		CLAMP_MIN(loadbutton, btn_minw);
+		if (available_w <= loadbutton + separator + input_minw) {
+			loadbutton = 0;
+		}
+	}
+
+	if (loadbutton) {
 		line1_w -= (loadbutton + separator);
 		line2_w  = line1_w;
 	}
@@ -147,7 +153,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	else {
 		line2_w -= (fnumbuttons + separator);
 	}
-	
+
 	/* Text input fields for directory and file. */
 	if (available_w > 0) {
 		int overwrite_alert = file_draw_check_exists(sfile);
@@ -235,33 +241,33 @@ static int get_file_icon(struct direntry *file)
 		if (strcmp(file->relname, "..") == 0) {
 			return ICON_FILE_PARENT;
 		}
-		if (file->flags & APPLICATIONBUNDLE) {
+		if (file->flags & FILE_TYPE_APPLICATIONBUNDLE) {
 			return ICON_UGLYPACKAGE;
 		}
-		if (file->flags & BLENDERFILE) {
+		if (file->flags & FILE_TYPE_BLENDER) {
 			return ICON_FILE_BLEND;
 		}
 		return ICON_FILE_FOLDER;
 	}
-	else if (file->flags & BLENDERFILE)
+	else if (file->flags & FILE_TYPE_BLENDER)
 		return ICON_FILE_BLEND;
-	else if (file->flags & BLENDERFILE_BACKUP)
+	else if (file->flags & FILE_TYPE_BLENDER_BACKUP)
 		return ICON_FILE_BACKUP;
-	else if (file->flags & IMAGEFILE)
+	else if (file->flags & FILE_TYPE_IMAGE)
 		return ICON_FILE_IMAGE;
-	else if (file->flags & MOVIEFILE)
+	else if (file->flags & FILE_TYPE_MOVIE)
 		return ICON_FILE_MOVIE;
-	else if (file->flags & PYSCRIPTFILE)
+	else if (file->flags & FILE_TYPE_PYSCRIPT)
 		return ICON_FILE_SCRIPT;
-	else if (file->flags & SOUNDFILE)
+	else if (file->flags & FILE_TYPE_SOUND)
 		return ICON_FILE_SOUND;
-	else if (file->flags & FTFONTFILE)
+	else if (file->flags & FILE_TYPE_FTFONT)
 		return ICON_FILE_FONT;
-	else if (file->flags & BTXFILE)
+	else if (file->flags & FILE_TYPE_BTX)
 		return ICON_FILE_BLANK;
-	else if (file->flags & COLLADAFILE)
+	else if (file->flags & FILE_TYPE_COLLADA)
 		return ICON_FILE_BLANK;
-	else if (file->flags & TEXTFILE)
+	else if (file->flags & FILE_TYPE_TEXT)
 		return ICON_FILE_TEXT;
 	else
 		return ICON_FILE_BLANK;
@@ -516,10 +522,15 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		UI_ThemeColor4(TH_TEXT);
 
 
-		if (!(file->selflag & EDITING_FILE)) {
-			if ((params->active_file == i) || (file->selflag & HILITED_FILE) || (file->selflag & SELECTED_FILE)) {
-				int colorid = (file->selflag & SELECTED_FILE) ? TH_HILITE : TH_BACK;
-				int shade = (params->active_file == i) || (file->selflag & HILITED_FILE) ? 20 : 0;
+		if (!(file->selflag & FILE_SEL_EDITING)) {
+			if ((params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) || (file->selflag & FILE_SEL_SELECTED)) {
+				int colorid = (file->selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
+				int shade = (params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
+
+				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
+				if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
+					colorid = TH_BACK;
+				}
 				draw_tile(sx, sy - 1, layout->tile_w + 4, sfile->layout->tile_h + layout->tile_border_y, colorid, shade);
 			}
 		}
@@ -536,7 +547,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				is_icon = 1;
 			}
 			
-			file_draw_preview(block, file, sx, sy, imb, layout, !is_icon && (file->flags & IMAGEFILE), do_drag);
+			file_draw_preview(block, file, sx, sy, imb, layout, !is_icon && (file->flags & FILE_TYPE_IMAGE), do_drag);
 		}
 		else {
 			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), get_file_icon(file), ICON_DEFAULT_WIDTH_SCALE, ICON_DEFAULT_HEIGHT_SCALE, do_drag);
@@ -545,7 +556,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		UI_ThemeColor4(TH_TEXT);
 
-		if (file->selflag & EDITING_FILE) {
+		if (file->selflag & FILE_SEL_EDITING) {
 			uiBut *but;
 			short width;
 
@@ -568,11 +579,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
 			UI_but_flag_disable(but, UI_BUT_UNDO);
 			if (false == UI_but_active_only(C, ar, block, but)) {
-				file->selflag &= ~EDITING_FILE;
+				file->selflag &= ~FILE_SEL_EDITING;
 			}
 		}
 
-		if (!(file->selflag & EDITING_FILE)) {
+		if (!(file->selflag & FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
 			file_draw_string(sx + 1, tpos, file->relname, (float)textwidth, textheight, align);
 		}

@@ -60,6 +60,7 @@
 #include "BKE_editmesh.h"
 #include "BKE_deform.h"
 #include "BKE_object.h"
+#include "BKE_object_deform.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -68,7 +69,6 @@
 
 #include "ED_armature.h"
 #include "ED_gpencil.h"
-#include "ED_object.h"
 #include "ED_mesh.h"
 #include "ED_screen.h"
 
@@ -844,9 +844,9 @@ static void view3d_panel_vgroup(const bContext *C, Panel *pa)
 
 		col = uiLayoutColumn(bcol, true);
 
-		vgroup_validmap = ED_vgroup_subset_from_select_type(ob, subset_type, &vgroup_tot, &subset_count);
+		vgroup_validmap = BKE_object_defgroup_subset_from_select_type(ob, subset_type, &vgroup_tot, &subset_count);
 		for (i = 0, dg = ob->defbase.first; dg; i++, dg = dg->next) {
-			bool locked = dg->flag & DG_LOCK_WEIGHT;
+			bool locked = (dg->flag & DG_LOCK_WEIGHT) != 0;
 			if (vgroup_validmap[i]) {
 				MDeformWeight *dw = defvert_find_index(dv, i);
 				if (dw) {
@@ -1183,14 +1183,6 @@ void view3d_buttons_register(ARegionType *art)
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = view3d_panel_transform;
 	pt->poll = view3d_panel_transform_poll;
-	BLI_addtail(&art->paneltypes, pt);
-
-	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel gpencil");
-	strcpy(pt->idname, "VIEW3D_PT_gpencil");
-	strcpy(pt->label, N_("Grease Pencil"));  /* XXX C panels are not available through RNA (bpy.types)! */
-	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
-	pt->draw_header = ED_gpencil_panel_standard_header;
-	pt->draw = ED_gpencil_panel_standard;
 	BLI_addtail(&art->paneltypes, pt);
 
 	pt = MEM_callocN(sizeof(PanelType), "spacetype view3d panel vgroup");

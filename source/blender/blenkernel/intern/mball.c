@@ -238,6 +238,10 @@ MetaBall *BKE_mball_copy(MetaBall *mb)
 	mbn->editelems = NULL;
 	mbn->lastelem = NULL;
 	
+	if (mb->id.lib) {
+		BKE_id_lib_local_paths(G.main, mb->id.lib, &mbn->id);
+	}
+
 	return mbn;
 }
 
@@ -2436,10 +2440,10 @@ bool BKE_mball_center_bounds(MetaBall *mb, float r_cent[3])
 
 	if (BKE_mball_minmax(mb, min, max)) {
 		mid_v3_v3v3(r_cent, min, max);
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
 void BKE_mball_transform(MetaBall *mb, float mat[4][4])

@@ -41,7 +41,6 @@
 #include "BLI_utildefines.h"
 #include "BLI_linklist_stack.h"
 
-#include "BLF_translation.h"
 
 #include "BKE_context.h"
 #include "BKE_global.h"
@@ -896,7 +895,7 @@ static void region_azone_tria(ScrArea *sa, AZone *az, ARegion *ar)
 
 static void region_azone_initialize(ScrArea *sa, ARegion *ar, AZEdge edge, const bool is_fullscreen)
 {
-	AZone *az;
+	AZone *az = NULL;
 	const bool is_hidden = (ar->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) == 0;
 	
 	if (is_hidden || !is_fullscreen) {
@@ -907,7 +906,7 @@ static void region_azone_initialize(ScrArea *sa, ARegion *ar, AZEdge edge, const
 		az->edge = edge;
 	}
 	
-	if (ar->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) {
+	if (!is_hidden) {
 		if (!is_fullscreen) {
 			if (G.debug_value == 3)
 				region_azone_icon(sa, az, ar);
@@ -1352,8 +1351,18 @@ static void ed_default_handlers(wmWindowManager *wm, ScrArea *sa, ListBase *hand
 	}
 	if (flag & ED_KEYMAP_GPENCIL) {
 		/* grease pencil */
-		wmKeyMap *keymap = WM_keymap_find(wm->defaultconf, "Grease Pencil", 0, 0);
-		WM_event_add_keymap_handler(handlers, keymap);
+		/* NOTE: This is now 2 keymaps - One for basic functionality, 
+		 *       and one that only applies when "Edit Mode" is enabled 
+		 *       for strokes.
+		 *
+		 *       For now, it's easier to just include both, 
+		 *       since you hardly want one without the other.
+		 */
+		wmKeyMap *keymap_general = WM_keymap_find(wm->defaultconf, "Grease Pencil", 0, 0);
+		wmKeyMap *keymap_edit = WM_keymap_find(wm->defaultconf, "Grease Pencil Stroke Edit Mode", 0, 0);
+		
+		WM_event_add_keymap_handler(handlers, keymap_general);
+		WM_event_add_keymap_handler(handlers, keymap_edit);
 	}
 	if (flag & ED_KEYMAP_HEADER) {
 		/* standard keymap for headers regions */

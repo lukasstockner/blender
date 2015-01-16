@@ -92,6 +92,8 @@
 
 #include "PIL_time.h"
 
+#include "RE_engine.h"
+
 #include "image_intern.h"
 
 /******************** view navigation utilities *********************/
@@ -1052,6 +1054,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	char path[FILE_MAX];
 	int frame_seq_len = 0;
 	int frame_ofs = 1;
+	bool exists = false;
 
 	const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
 
@@ -1070,7 +1073,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
 	errno = 0;
 
-	ima = BKE_image_load_exists(path);
+	ima = BKE_image_load_exists_ex(path, &exists);
 
 	if (!ima) {
 		if (op->customdata) MEM_freeN(op->customdata);
@@ -1084,8 +1087,9 @@ static int image_open_exec(bContext *C, wmOperator *op)
 
 	/* only image path after save, never ibuf */
 	if (is_relative_path) {
-		const char *relbase = ID_BLEND_PATH(bmain, &ima->id);
-		BLI_path_rel(ima->name, relbase);
+		if (!exists) {
+			BLI_path_rel(ima->name, bmain->name);
+		}
 	}
 
 	/* hook into UI */
@@ -1127,7 +1131,7 @@ static int image_open_exec(bContext *C, wmOperator *op)
 	}
 
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
 	
 	BKE_image_signal(ima, iuser, IMA_SIGNAL_RELOAD);
 	WM_event_add_notifier(C, NC_IMAGE | NA_EDITED, ima);
@@ -1203,7 +1207,7 @@ void IMAGE_OT_open(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILES | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
@@ -1279,7 +1283,7 @@ static int image_replace_exec(bContext *C, wmOperator *op)
 		sima->image->source = IMA_SRC_FILE;
 
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 	
 	BKE_icon_changed(BKE_icon_getid(&sima->image->id));
 	BKE_image_signal(sima->image, &sima->iuser, IMA_SIGNAL_RELOAD);
@@ -1322,7 +1326,7 @@ void IMAGE_OT_replace(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* properties */
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
@@ -1732,7 +1736,7 @@ void IMAGE_OT_save_as(wmOperatorType *ot)
 	RNA_def_boolean(ot->srna, "save_as_render", 0, "Save As Render", "Apply render part of display transform when saving byte image");
 	RNA_def_boolean(ot->srna, "copy", 0, "Copy", "Create a new image file without modifying the current image in blender");
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_SAVE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_SAVE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
@@ -1880,7 +1884,7 @@ static int image_reload_exec(bContext *C, wmOperator *UNUSED(op))
 		return OPERATOR_CANCELLED;
 
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 	
 	// XXX other users?
 	BKE_image_signal(ima, (sima) ? &sima->iuser : NULL, IMA_SIGNAL_RELOAD);
@@ -2309,7 +2313,7 @@ static int image_unpack_exec(bContext *C, wmOperator *op)
 		BKE_report(op->reports, RPT_WARNING, "AutoPack is enabled, so image will be packed again on file save");
 	
 	/* XXX unpackImage frees image buffers */
-	ED_preview_kill_jobs(C);
+	ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
 	
 	unpackImage(op->reports, ima, method);
 	
@@ -2580,8 +2584,9 @@ static int image_sample_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	ImageSampleInfo *info;
 
 	if (ar->regiontype == RGN_TYPE_WINDOW) {
-		if (event->mval[1] <= 16)
+		if (event->mval[1] <= 16 && ED_space_image_show_cache(sima)) {
 			return OPERATOR_PASS_THROUGH;
+		}
 	}
 
 	if (!ED_space_image_has_buffer(sima))
@@ -3015,8 +3020,10 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	ARegion *ar = CTX_wm_region(C);
 
 	if (ar->regiontype == RGN_TYPE_WINDOW) {
-		if (event->mval[1] > 16)
+		SpaceImage *sima = CTX_wm_space_image(C);
+		if (event->mval[1] > 16 || !ED_space_image_show_cache(sima)) {
 			return OPERATOR_PASS_THROUGH;
+		}
 	}
 
 	RNA_int_set(op->ptr, "frame", frame_from_event(C, event));
@@ -3108,7 +3115,20 @@ static int render_border_exec(bContext *C, wmOperator *op)
 {
 	ARegion *ar = CTX_wm_region(C);
 	Scene *scene = CTX_data_scene(C);
+	Render *re = RE_GetRender(scene->id.name);
+	RenderData *rd;
 	rctf border;
+
+	if (re == NULL) {
+		/* Shouldn't happen, but better be safe close to the release. */
+		return OPERATOR_CANCELLED;
+	}
+
+	rd = RE_engine_get_render_data(re);
+	if ((rd->mode & (R_BORDER | R_CROP)) == (R_BORDER | R_CROP)) {
+		BKE_report(op->reports, RPT_INFO, "Can not set border from a cropped render");
+		return OPERATOR_CANCELLED;
+	}
 
 	/* get rectangle from operator */
 	WM_operator_properties_border_to_rctf(op, &border);

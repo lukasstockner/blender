@@ -1474,7 +1474,7 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 		return;
 	}
 
-	lastd = bp->vertex_only ? bv->offset : e->offset_l;
+	lastd = e->offset_l;
 	do {
 		if (e->is_bev) {
 			/* handle only left side of beveled edge e here: next iteration should do right side */
@@ -1557,9 +1557,10 @@ static void build_boundary(BevelParams *bp, BevVert *bv, bool construct)
 				/* None of e->prev, e, e->next are beveled.
 				 * could either leave alone or add slide points to make
 				 * one polygon around bv->v.  For now, we choose latter.
+				 * For vertex bevel, we use e->offset_l as slide distance.
 				 * Could slide to make an even bevel plane but for now will
 				 * just use last distance a meet point moved from bv->v. */
-				slide_dist(e, bv->v, lastd, co);
+				slide_dist(e, bv->v, bp->vertex_only ? e->offset_l : lastd, co);
 				if (construct) {
 					v = add_new_bound_vert(mem_arena, vm, co);
 					v->efirst = v->elast = e;
@@ -2229,7 +2230,6 @@ static VMesh *make_cube_corner_adj_vmesh(BevelParams *bp)
 	BoundVert *bndv;
 	int i, j, k, ns2;
 	float co[3], coc[3];
-	float w;
 
 	if (r == PRO_SQUARE_R)
 		return make_cube_corner_straight(mem_arena, nseg);
@@ -2262,10 +2262,8 @@ static VMesh *make_cube_corner_adj_vmesh(BevelParams *bp)
 		bndv = bndv->next;
 	}
 	/* center vertex */
-	w = (float)(1.0 / M_SQRT3);
-	co[0] = w;
-	co[1] = w;
-	co[2] = w;
+	copy_v3_fl(co, M_SQRT1_3);
+
 	if (nseg > 2) {
 		if (r > 1.5f)
 			mul_v3_fl(co, 1.4f);
@@ -3080,6 +3078,18 @@ static BevVert *bevel_vert_construct(BMesh *bm, BevelParams *bp, BMVert *v)
 				e->offset_l_spec *= weight;
 				e->offset_r_spec *= weight;
 			}
+		}
+		else if (bp->vertex_only) {
+			/* Weight has already been applied to bv->offset, if present.
+			 * Transfer to e->offset_[lr]_spec and treat percent as special case */
+			if (bp->offset_type == BEVEL_AMT_PERCENT) {
+				v2 = BM_edge_other_vert(e->e, bv->v);
+				e->offset_l_spec = BM_edge_calc_length(e->e) * bv->offset / 100.0f;
+			}
+			else {
+				e->offset_l_spec = bv->offset;
+			}
+			e->offset_r_spec = e->offset_l_spec;
 		}
 		else {
 			e->offset_l_spec = e->offset_r_spec = 0.0f;

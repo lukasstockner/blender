@@ -2199,6 +2199,10 @@ static void rna_NodeSocketStandard_float_range(PointerRNA *ptr, float *min, floa
 	bNodeSocketValueFloat *dval = sock->default_value;
 	int subtype = sock->typeinfo->subtype;
 	
+	if (dval->max < dval->min) {
+		dval->max = dval->min;
+	}
+	
 	*min = (subtype == PROP_UNSIGNED ? 0.0f : -FLT_MAX);
 	*max = FLT_MAX;
 	*softmin = dval->min;
@@ -2211,6 +2215,10 @@ static void rna_NodeSocketStandard_int_range(PointerRNA *ptr, int *min, int *max
 	bNodeSocketValueInt *dval = sock->default_value;
 	int subtype = sock->typeinfo->subtype;
 	
+	if (dval->max < dval->min) {
+		dval->max = dval->min;
+	}
+	
 	*min = (subtype == PROP_UNSIGNED ? 0 : INT_MIN);
 	*max = INT_MAX;
 	*softmin = dval->min;
@@ -2221,6 +2229,10 @@ static void rna_NodeSocketStandard_vector_range(PointerRNA *ptr, float *min, flo
 {
 	bNodeSocket *sock = ptr->data;
 	bNodeSocketValueVector *dval = sock->default_value;
+	
+	if (dval->max < dval->min) {
+		dval->max = dval->min;
+	}
 	
 	*min = -FLT_MAX;
 	*max = FLT_MAX;
@@ -7572,8 +7584,8 @@ static void rna_def_nodetree(BlenderRNA *brna)
 	/* Grease Pencil */
 	prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "gpd");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_struct_type(prop, "GreasePencil");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
 	RNA_def_property_ui_text(prop, "Grease Pencil Data", "Grease Pencil datablock");
 	RNA_def_property_update(prop, NC_NODE, NULL);
 	

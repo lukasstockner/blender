@@ -50,6 +50,7 @@
 #include "DNA_sequence_types.h"
 
 #include "BKE_curve.h"
+#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mask.h"
@@ -58,8 +59,6 @@
 #include "BKE_tracking.h"
 #include "BKE_movieclip.h"
 #include "BKE_image.h"
-
-#include "NOD_composite.h"
 
 static struct {
 	ListBase splines;
@@ -857,6 +856,10 @@ Mask *BKE_mask_copy(Mask *mask)
 		mask_new->id.us++;
 	}
 
+	if (mask->id.lib) {
+		BKE_id_lib_local_paths(G.main, mask->id.lib, &mask_new->id);
+	}
+
 	return mask_new;
 }
 
@@ -1187,11 +1190,12 @@ void BKE_mask_point_parent_matrix_get(MaskSplinePoint *point, float ctime, float
 					MovieTrackingPlaneTrack *plane_track = BKE_tracking_plane_track_get_named(tracking, ob, parent->sub_parent);
 
 					if (plane_track) {
-						MovieTrackingPlaneMarker *plane_marker = BKE_tracking_plane_marker_get(plane_track, clip_framenr);
+						float corners[4][2];
 						float aspx, aspy;
 						float frame_size[2], H[3][3], mask_from_clip_matrix[3][3], mask_to_clip_matrix[3][3];
 
-						BKE_tracking_homography_between_two_quads(parent->parent_corners_orig, plane_marker->corners, H);
+						BKE_tracking_plane_marker_get_subframe_corners(plane_track, ctime, corners);
+						BKE_tracking_homography_between_two_quads(parent->parent_corners_orig, corners, H);
 
 						unit_m3(mask_from_clip_matrix);
 

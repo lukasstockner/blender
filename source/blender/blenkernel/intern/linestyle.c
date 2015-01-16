@@ -53,8 +53,6 @@
 #include "BKE_colortools.h"
 #include "BKE_animsys.h"
 
-#include "RNA_access.h"
-
 static const char *modifier_name[LS_MODIFIER_NUM] = {
 	NULL,
 	"Along Stroke",
@@ -211,6 +209,10 @@ FreestyleLineStyle *BKE_linestyle_copy(FreestyleLineStyle *linestyle)
 		BKE_linestyle_thickness_modifier_copy(new_linestyle, m);
 	for (m = (LineStyleModifier *)linestyle->geometry_modifiers.first; m; m = m->next)
 		BKE_linestyle_geometry_modifier_copy(new_linestyle, m);
+
+	if (linestyle->id.lib) {
+		BKE_id_lib_local_paths(G.main, linestyle->id.lib, &new_linestyle->id);
+	}
 
 	return new_linestyle;
 }

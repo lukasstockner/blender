@@ -49,7 +49,6 @@
 #include "BKE_report.h"
 #include "BKE_sound.h"
 
-#include "IMB_imbuf.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -62,8 +61,10 @@
 #include "ED_screen.h"
 #include "ED_transform.h"
 #include "ED_sequencer.h"
+#include "ED_space_api.h"
 
 #include "UI_view2d.h"
+
 
 /* own include */
 #include "sequencer_intern.h"
@@ -178,6 +179,10 @@ static void seq_proxy_build_job(const bContext *C)
 	struct SeqIndexBuildContext *context;
 	LinkData *link;
 	Sequence *seq;
+
+	if (ed == NULL) {
+		return;
+	}
 
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), sa, "Building Proxies",
 	                     WM_JOB_PROGRESS, WM_JOB_TYPE_SEQ_BUILD_PROXY);
@@ -385,7 +390,7 @@ Sequence *find_nearest_seq(Scene *scene, View2D *v2d, int *hand, const int mval[
 					displen = (float)abs(seq->startdisp - seq->enddisp);
 					
 					if (displen / pixelx > 16) { /* don't even try to grab the handles of small strips */
-						/* Set the max value to handle to 1/3 of the total len when its less then 28.
+						/* Set the max value to handle to 1/3 of the total len when its less than 28.
 						 * This is important because otherwise selecting handles happens even when you click in the middle */
 						
 						if ((displen / 3) < 30 * pixelx) {
@@ -493,6 +498,13 @@ bool ED_space_sequencer_check_show_imbuf(SpaceSeq *sseq)
 	return (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW) &&
 	        ELEM(sseq->mainb, SEQ_DRAW_SEQUENCE, SEQ_DRAW_IMG_IMBUF));
 }
+
+bool ED_space_sequencer_check_show_strip(SpaceSeq *sseq)
+{
+	return (ELEM(sseq->view, SEQ_VIEW_SEQUENCE, SEQ_VIEW_SEQUENCE_PREVIEW) &&
+	        ELEM(sseq->mainb, SEQ_DRAW_SEQUENCE, SEQ_DRAW_IMG_IMBUF));
+}
+
 
 int seq_effect_find_selected(Scene *scene, Sequence *activeseq, int type, Sequence **selseq1, Sequence **selseq2, Sequence **selseq3, const char **error_str)
 {
@@ -1129,11 +1141,20 @@ int sequencer_strip_has_path_poll(bContext *C)
 	return (((ed = BKE_sequencer_editing_get(CTX_data_scene(C), false)) != NULL) && ((seq = ed->act_seq) != NULL) && (SEQ_HAS_PATH(seq)));
 }
 
-int sequencer_view_poll(bContext *C)
+int sequencer_view_preview_poll(bContext *C)
 {
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	Editing *ed = BKE_sequencer_editing_get(CTX_data_scene(C), false);
 	if (ed && sseq && (sseq->mainb == SEQ_DRAW_IMG_IMBUF))
+		return 1;
+
+	return 0;
+}
+
+int sequencer_view_strips_poll(bContext *C)
+{
+	SpaceSeq *sseq = CTX_wm_space_seq(C);
+	if (sseq && ED_space_sequencer_check_show_strip(sseq))
 		return 1;
 
 	return 0;
@@ -1231,7 +1252,6 @@ void SEQUENCER_OT_snap(struct wmOperatorType *ot)
 	RNA_def_int(ot->srna, "frame", 0, INT_MIN, INT_MAX, "Frame", "Frame where selected strips will be snapped", INT_MIN, INT_MAX);
 }
 
-
 typedef struct SlipData {
 	int init_mouse[2];
 	float init_mouseloc[2];
@@ -1241,6 +1261,7 @@ typedef struct SlipData {
 	int num_seq;
 	bool slow;
 	int slow_offset; /* offset at the point where offset was turned on */
+	void *draw_handle;
 } SlipData;
 
 static void transseq_backup(TransSeq *ts, Sequence *seq)
@@ -1274,15 +1295,30 @@ static void transseq_restore(TransSeq *ts, Sequence *seq)
 	seq->len = ts->len;
 }
 
-static int slip_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool *trim, int offset, bool first_level)
+static void draw_slip_extensions(const bContext *C, ARegion *ar, void *data)
+{
+	Scene *scene = CTX_data_scene(C);
+	SlipData *td = data;
+	int i;
+
+	for (i = 0; i < td->num_seq; i++) {
+		Sequence *seq = td->seq_array[i];
+
+		if ((seq->type != SEQ_TYPE_META) && td->trim[i]) {
+			draw_sequence_extensions(scene, ar, seq);
+		}
+	}
+}
+
+static int slip_add_sequences_rec(ListBase *seqbasep, Sequence **seq_array, bool *trim, int offset, bool do_trim)
 {
 	Sequence *seq;
 	int num_items = 0;
 
 	for (seq = seqbasep->first; seq; seq = seq->next) {
-		if (!first_level || (!(seq->type & SEQ_TYPE_EFFECT) && (seq->flag & SELECT))) {
+		if (!do_trim || (!(seq->type & SEQ_TYPE_EFFECT) && (seq->flag & SELECT))) {
 			seq_array[offset + num_items] = seq;
-			trim[offset + num_items] = first_level;
+			trim[offset + num_items] = do_trim;
 			num_items++;
 
 			if (seq->type == SEQ_TYPE_META) {
@@ -1322,6 +1358,7 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	SlipData *data;
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
+	ARegion *ar = CTX_wm_region(C);
 	float mouseloc[2];
 	int num_seq, i;
 	View2D *v2d = UI_view2d_fromcontext(C);
@@ -1344,6 +1381,8 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 		transseq_backup(data->ts + i, data->seq_array[i]);
 	}
 
+	data->draw_handle = ED_region_draw_cb_activate(ar->type, draw_slip_extensions, data, REGION_DRAW_POST_VIEW);
+
 	UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &mouseloc[0], &mouseloc[1]);
 
 	copy_v2_v2_int(data->init_mouse, event->mval);
@@ -1352,6 +1391,9 @@ static int sequencer_slip_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	data->slow = false;
 
 	WM_event_add_modal_handler(C, op);
+
+	/* notify so we draw extensions immediately */
+	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
 	return OPERATOR_RUNNING_MODAL;
 }
@@ -1463,6 +1505,7 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 	Scene *scene = CTX_data_scene(C);
 	SlipData *data = (SlipData *)op->customdata;
 	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
 
 	switch (event->type) {
 		case MOUSEMOVE:
@@ -1504,6 +1547,7 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 
 		case LEFTMOUSE:
 		{
+			ED_region_draw_cb_exit(ar->type, data->draw_handle);
 			MEM_freeN(data->seq_array);
 			MEM_freeN(data->trim);
 			MEM_freeN(data->ts);
@@ -1531,6 +1575,8 @@ static int sequencer_slip_modal(bContext *C, wmOperator *op, const wmEvent *even
 				BKE_sequence_reload_new_file(scene, seq, false);
 				BKE_sequence_calc(scene, seq);
 			}
+
+			ED_region_draw_cb_exit(ar->type, data->draw_handle);
 
 			MEM_freeN(data->seq_array);
 			MEM_freeN(data->ts);
@@ -1586,7 +1632,6 @@ void SEQUENCER_OT_slip(struct wmOperatorType *ot)
 	RNA_def_int(ot->srna, "offset", 0, INT32_MIN, INT32_MAX, "Offset", "Offset to the data of the strip",
 	            INT32_MIN, INT32_MAX);
 }
-
 
 /* mute operator */
 static int sequencer_mute_exec(bContext *C, wmOperator *op)
@@ -2810,74 +2855,13 @@ void SEQUENCER_OT_view_selected(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER;
 }
 
-
-static int find_next_prev_edit(Scene *scene, int cfra,
-                               const short side,
-                               const bool do_skip_mute, const bool do_center)
-{
-	Editing *ed = BKE_sequencer_editing_get(scene, false);
-	Sequence *seq;
-	
-	int dist, best_dist, best_frame = cfra;
-	int seq_frames[2], seq_frames_tot;
-
-	best_dist = MAXFRAME * 2;
-
-	if (ed == NULL) return cfra;
-	
-	for (seq = ed->seqbasep->first; seq; seq = seq->next) {
-		int i;
-
-		if (do_skip_mute && (seq->flag & SEQ_MUTE)) {
-			continue;
-		}
-
-		if (do_center) {
-			seq_frames[0] = (seq->startdisp + seq->enddisp) / 2;
-			seq_frames_tot = 1;
-		}
-		else {
-			seq_frames[0] = seq->startdisp;
-			seq_frames[1] = seq->enddisp;
-
-			seq_frames_tot = 2;
-		}
-
-		for (i = 0; i < seq_frames_tot; i++) {
-			const int seq_frame = seq_frames[i];
-
-			dist = MAXFRAME * 2;
-
-			switch (side) {
-				case SEQ_SIDE_LEFT:
-					if (seq_frame < cfra) {
-						dist = cfra - seq_frame;
-					}
-					break;
-				case SEQ_SIDE_RIGHT:
-					if (seq_frame > cfra) {
-						dist = seq_frame - cfra;
-					}
-					break;
-			}
-
-			if (dist < best_dist) {
-				best_frame = seq_frame;
-				best_dist = dist;
-			}
-		}
-	}
-
-	return best_frame;
-}
-
 static bool strip_jump_internal(Scene *scene,
                                 const short side,
                                 const bool do_skip_mute, const bool do_center)
 {
 	bool changed = false;
 	int cfra = CFRA;
-	int nfra = find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center);
+	int nfra = BKE_sequencer_find_next_prev_edit(scene, cfra, side, do_skip_mute, do_center, false);
 	
 	if (nfra != cfra) {
 		CFRA = nfra;
@@ -3350,7 +3334,7 @@ void SEQUENCER_OT_view_ghost_border(wmOperatorType *ot)
 	ot->invoke = WM_border_select_invoke;
 	ot->exec = view_ghost_border_exec;
 	ot->modal = WM_border_select_modal;
-	ot->poll = sequencer_view_poll;
+	ot->poll = sequencer_view_preview_poll;
 	ot->cancel = WM_border_select_cancel;
 
 	/* flags */
@@ -3361,9 +3345,39 @@ void SEQUENCER_OT_view_ghost_border(wmOperatorType *ot)
 }
 
 /* rebuild_proxy operator */
-static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
+
+static int sequencer_rebuild_proxy_invoke(bContext *C, wmOperator *UNUSED(op),
+                                          const wmEvent *UNUSED(event))
 {
 	seq_proxy_build_job(C);
+
+	return OPERATOR_FINISHED;
+}
+
+static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	Editing *ed = BKE_sequencer_editing_get(scene, false);
+	Sequence *seq;
+
+	if (ed == NULL) {
+		return OPERATOR_CANCELLED;
+	}
+
+	SEQP_BEGIN(ed, seq)
+	{
+		if ((seq->flag & SELECT)) {
+			struct SeqIndexBuildContext *context;
+			short stop = 0, do_update;
+			float progress;
+			context = BKE_sequencer_proxy_rebuild_context(bmain, scene, seq);
+			BKE_sequencer_proxy_rebuild(context, &stop, &do_update, &progress);
+			BKE_sequencer_proxy_rebuild_finish(context, 0);
+			BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
+		}
+	}
+	SEQ_END
 
 	return OPERATOR_FINISHED;
 }
@@ -3376,8 +3390,8 @@ void SEQUENCER_OT_rebuild_proxy(wmOperatorType *ot)
 	ot->description = "Rebuild all selected proxies and timecode indices using the job system";
 	
 	/* api callbacks */
+	ot->invoke = sequencer_rebuild_proxy_invoke;
 	ot->exec = sequencer_rebuild_proxy_exec;
-	ot->poll = ED_operator_sequencer_active;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER;
@@ -3619,8 +3633,7 @@ void SEQUENCER_OT_change_path(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_DIRECTORY | WM_FILESEL_RELPATH | WM_FILESEL_FILEPATH | WM_FILESEL_FILES,
 	                               FILE_DEFAULTDISPLAY);
 }
-

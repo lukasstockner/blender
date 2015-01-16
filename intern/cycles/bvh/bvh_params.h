@@ -49,8 +49,6 @@ public:
 	/* QBVH */
 	int use_qbvh;
 
-	int pad;
-
 	/* fixed parameters */
 	enum {
 		MAX_DEPTH = 64,
@@ -75,7 +73,6 @@ public:
 		top_level = false;
 		use_cache = false;
 		use_qbvh = false;
-		pad = false;
 	}
 
 	/* SAH costs */
@@ -114,6 +111,11 @@ public:
 	__forceinline int prim_index() const { return __float_as_int(rbounds.min.w); }
 	__forceinline int prim_object() const { return __float_as_int(rbounds.max.w); }
 	__forceinline int prim_type() const { return type; }
+
+	BVHReference& operator=(const BVHReference &arg) {
+		memcpy(this, &arg, sizeof(BVHReference));
+		return *this;
+	}
 
 protected:
 	BoundBox rbounds;

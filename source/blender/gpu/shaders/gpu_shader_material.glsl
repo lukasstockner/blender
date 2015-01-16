@@ -357,6 +357,12 @@ void normal(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
 	outdot = -dot(dir, nor);
 }
 
+void normal_new_shading(vec3 dir, vec3 nor, out vec3 outnor, out float outdot)
+{
+	outnor = normalize(nor);
+	outdot = dot(normalize(dir), nor);
+}
+
 void curves_vec(float fac, vec3 vec, sampler2D curvemap, out vec3 outvec)
 {
 	outvec.x = texture2D(curvemap, vec2((vec.x + 1.0)*0.5, 0.0)).x;
@@ -2256,6 +2262,22 @@ void node_emission(vec4 color, float strength, vec3 N, out vec4 result)
 	result = color*strength;
 }
 
+/* background */
+
+void background_transform_to_world(vec3 viewvec, out vec3 worldvec)
+{
+	vec4 v = (gl_ProjectionMatrix[3][3] == 0.0) ? vec4(viewvec, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
+	vec4 co_homogenous = (gl_ProjectionMatrixInverse * v);
+
+	vec4 co = vec4(co_homogenous.xyz / co_homogenous.w, 0.0);
+	worldvec = (gl_ModelViewMatrixInverse * co).xyz;
+}
+
+void node_background(vec4 color, float strength, vec3 N, out vec4 result)
+{
+	result = color*strength;
+}
+
 /* closures */
 
 void node_mix_shader(float fac, vec4 shader1, vec4 shader2, out vec4 shader)
@@ -2350,18 +2372,42 @@ void node_tex_coord(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat,
 	out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
 	out vec3 camera, out vec3 window, out vec3 reflection)
 {
-	generated = mtex_2d_mapping(attr_orco);
+	generated = attr_orco * 0.5 + vec3(0.5);
 	normal = normalize((obinvmat*(viewinvmat*vec4(N, 0.0))).xyz);
 	uv = attr_uv;
 	object = (obinvmat*(viewinvmat*vec4(I, 1.0))).xyz;
-	camera = I;
+	camera = vec3(I.xy, -I.z);
 	vec4 projvec = gl_ProjectionMatrix * vec4(I, 1.0);
-	window = mtex_2d_mapping(projvec.xyz/projvec.w);
+	window = vec3(mtex_2d_mapping(projvec.xyz/projvec.w).xy, 0.0);
 
 	vec3 shade_I;
 	shade_view(I, shade_I);
 	vec3 view_reflection = reflect(shade_I, normalize(N));
 	reflection = (viewinvmat*vec4(view_reflection, 0.0)).xyz;
+}
+
+void node_tex_coord_background(vec3 I, vec3 N, mat4 viewinvmat, mat4 obinvmat,
+	vec3 attr_orco, vec3 attr_uv,
+	out vec3 generated, out vec3 normal, out vec3 uv, out vec3 object,
+	out vec3 camera, out vec3 window, out vec3 reflection)
+{
+	vec4 v = (gl_ProjectionMatrix[3][3] == 0.0) ? vec4(I, 1.0) : vec4(0.0, 0.0, 1.0, 1.0);
+	vec4 co_homogenous = (gl_ProjectionMatrixInverse * v);
+
+	vec4 co = vec4(co_homogenous.xyz / co_homogenous.w, 0.0);
+
+	co = normalize(co);
+	vec3 coords = (gl_ModelViewMatrixInverse * co).xyz;
+
+	generated = coords;
+	normal = -coords;
+	uv = vec3(attr_uv.xy, 0.0);
+	object = coords;
+
+	camera = vec3(co.xy, -co.z);
+	window = (gl_ProjectionMatrix[3][3] == 0.0) ? vec3(mtex_2d_mapping(I).xy, 0.0) : vec3(0.5, 0.5, 0.0);
+
+	reflection = -coords;
 }
 
 /* textures */
@@ -2390,17 +2436,34 @@ void node_tex_clouds(vec3 co, float size, out vec4 color, out float fac)
 	fac = 1.0;
 }
 
-void node_tex_environment(vec3 co, sampler2D ima, out vec4 color)
+void node_tex_environment_equirectangular(vec3 co, sampler2D ima, out vec4 color)
 {
-	float u = (atan(co.y, co.x) + M_PI)/(2.0*M_PI);
-	float v = atan(co.z, hypot(co.x, co.y))/M_PI + 0.5;
+	vec3 nco = normalize(co);
+	float u = -atan(nco.y, nco.x)/(2.0*M_PI) + 0.5;
+	float v = atan(nco.z, hypot(nco.x, nco.y))/M_PI + 0.5;
+
+	color = texture2D(ima, vec2(u, v));
+}
+
+void node_tex_environment_mirror_ball(vec3 co, sampler2D ima, out vec4 color)
+{
+	vec3 nco = normalize(co);
+
+	nco.y -= 1.0;
+
+	float div = 2.0*sqrt(max(-0.5*nco.y, 0.0));
+	if(div > 0.0)
+		nco /= div;
+
+	float u = 0.5*(nco.x + 1.0);
+	float v = 0.5*(nco.z + 1.0);
 
 	color = texture2D(ima, vec2(u, v));
 }
 
 void node_tex_environment_empty(vec3 co, out vec4 color)
 {
-	color = vec4(0.0);
+	color = vec4(1.0, 0.0, 1.0, 1.0);
 }
 
 void node_tex_image(vec3 co, sampler2D ima, out vec4 color, out float alpha)
@@ -2504,6 +2567,11 @@ void node_bump(float strength, float dist, float height, vec3 N, out vec3 result
 /* output */
 
 void node_output_material(vec4 surface, vec4 volume, float displacement, out vec4 result)
+{
+	result = surface;
+}
+
+void node_output_world(vec4 surface, vec4 volume, out vec4 result)
 {
 	result = surface;
 }

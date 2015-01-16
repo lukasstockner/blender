@@ -904,7 +904,7 @@ void uiItemsFullEnumO(uiLayout *layout, const char *opname, const char *propname
 	if (prop && RNA_property_type(prop) == PROP_ENUM) {
 		EnumPropertyItem *item, *item_array = NULL;
 		bool free;
-		uiLayout *split;
+		uiLayout *split = NULL;
 		uiLayout *target;
 
 		if (radial) {
@@ -1450,8 +1450,8 @@ typedef struct CollItemSearch {
 
 static int sort_search_items_list(const void *a, const void *b)
 {
-	CollItemSearch *cis1 = (CollItemSearch *)a;
-	CollItemSearch *cis2 = (CollItemSearch *)b;
+	const CollItemSearch *cis1 = (CollItemSearch *)a;
+	const CollItemSearch *cis2 = (CollItemSearch *)b;
 	
 	if (BLI_strcasecmp(cis1->name, cis2->name) > 0)
 		return 1;
@@ -1492,7 +1492,7 @@ static void rna_search_cb(const struct bContext *C, void *arg_but, const char *s
 			BLI_strncpy(name_ui, id->name + 2, sizeof(name_ui));
 #endif
 			name = BLI_strdup(name_ui);
-			iconid = ui_id_icon_get((bContext *)C, id, false);
+			iconid = ui_id_icon_get(C, id, false);
 		}
 		else {
 			name = RNA_struct_name_get_alloc(&itemptr, NULL, 0, NULL); /* could use the string length here */
@@ -1922,9 +1922,25 @@ static void menu_item_enum_rna_menu(bContext *UNUSED(C), uiLayout *layout, void 
 	layout->root->block->flag |= UI_BLOCK_IS_FLIP;
 }
 
-void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name, int icon)
+void uiItemMenuEnumR_prop(uiLayout *layout, struct PointerRNA *ptr, PropertyRNA *prop, const char *name, int icon)
 {
 	MenuItemLevel *lvl;
+
+	if (!name)
+		name = RNA_property_ui_name(prop);
+	if (layout->root->type == UI_LAYOUT_MENU && !icon)
+		icon = ICON_BLANK1;
+
+	lvl = MEM_callocN(sizeof(MenuItemLevel), "MenuItemLevel");
+	lvl->rnapoin = *ptr;
+	BLI_strncpy(lvl->propname, RNA_property_identifier(prop), sizeof(lvl->propname));
+	lvl->opcontext = layout->root->opcontext;
+
+	ui_item_menu(layout, name, icon, menu_item_enum_rna_menu, NULL, lvl, RNA_property_description(prop), false);
+}
+
+void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name, int icon)
+{
 	PropertyRNA *prop;
 
 	prop = RNA_struct_find_property(ptr, propname);
@@ -1934,17 +1950,7 @@ void uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propn
 		return;
 	}
 
-	if (!name)
-		name = RNA_property_ui_name(prop);
-	if (layout->root->type == UI_LAYOUT_MENU && !icon)
-		icon = ICON_BLANK1;
-
-	lvl = MEM_callocN(sizeof(MenuItemLevel), "MenuItemLevel");
-	lvl->rnapoin = *ptr;
-	BLI_strncpy(lvl->propname, propname, sizeof(lvl->propname));
-	lvl->opcontext = layout->root->opcontext;
-
-	ui_item_menu(layout, name, icon, menu_item_enum_rna_menu, NULL, lvl, RNA_property_description(prop), false);
+	uiItemMenuEnumR_prop(layout, ptr, prop, name, icon);
 }
 
 /**************************** Layout Items ***************************/

@@ -1137,7 +1137,7 @@ static LodLevel *lod_level_select(Object *ob, const float camera_position[3])
 
 bool BKE_object_lod_is_usable(Object *ob, Scene *scene)
 {
-	bool active = (scene) ? ob == OBACT : 0;
+	bool active = (scene) ? ob == OBACT : false;
 	return (ob->mode == OB_MODE_OBJECT || !active);
 }
 
@@ -1403,10 +1403,10 @@ bool BKE_object_pose_context_check(Object *ob)
 	    (ob->pose) &&
 	    (ob->mode & OB_MODE_POSE))
 	{
-		return 1;
+		return true;
 	}
 	else {
-		return 0;
+		return false;
 	}
 }
 
@@ -1518,6 +1518,10 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 
 	/* Copy runtime surve data. */
 	obn->curve_cache = NULL;
+
+	if (ob->id.lib) {
+		BKE_id_lib_local_paths(bmain, ob->id.lib, &obn->id);
+	}
 
 	return obn;
 }
@@ -2020,12 +2024,16 @@ void BKE_object_to_mat4(Object *ob, float mat[4][4])
 	add_v3_v3v3(mat[3], ob->loc, ob->dloc);
 }
 
+static void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
+
 void BKE_object_matrix_local_get(struct Object *ob, float mat[4][4])
 {
 	if (ob->parent) {
-		float invmat[4][4]; /* for inverse of parent's matrix */
-		invert_m4_m4(invmat, ob->parent->obmat);
-		mul_m4_m4m4(mat, invmat, ob->obmat);
+		float par_imat[4][4];
+
+		ob_get_parent_matrix(NULL, ob, ob->parent, par_imat);
+		invert_m4(par_imat);
+		mul_m4_m4m4(mat, par_imat, ob->obmat);
 	}
 	else {
 		copy_m4_m4(mat, ob->obmat);
@@ -2402,7 +2410,7 @@ static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat
 
 	/* include framerate */
 	fac1 = (1.0f / (1.0f + fabsf(ob->sf)));
-	if (fac1 >= 1.0f) return 0;
+	if (fac1 >= 1.0f) return false;
 	fac2 = 1.0f - fac1;
 
 	fp1 = obmat[0];
@@ -2411,7 +2419,7 @@ static bool where_is_object_parslow(Object *ob, float obmat[4][4], float slowmat
 		fp1[0] = fac1 * fp1[0] + fac2 * fp2[0];
 	}
 
-	return 1;
+	return true;
 }
 
 /* note, scene is the active scene while actual_scene is the scene the object resides in */
@@ -2535,16 +2543,15 @@ void BKE_object_apply_mat4(Object *ob, float mat[4][4], const bool use_compat, c
 		mul_m4_m4m4(diff_mat, parent_mat, ob->parentinv);
 		invert_m4_m4(imat, diff_mat);
 		mul_m4_m4m4(rmat, imat, mat); /* get the parent relative matrix */
-		BKE_object_apply_mat4(ob, rmat, use_compat, false);
 
 		/* same as below, use rmat rather than mat */
 		mat4_to_loc_rot_size(ob->loc, rot, ob->size, rmat);
-		BKE_object_mat3_to_rot(ob, rot, use_compat);
 	}
 	else {
 		mat4_to_loc_rot_size(ob->loc, rot, ob->size, mat);
-		BKE_object_mat3_to_rot(ob, rot, use_compat);
 	}
+
+	BKE_object_mat3_to_rot(ob, rot, use_compat);
 
 	sub_v3_v3(ob->loc, ob->dloc);
 
@@ -3345,7 +3352,7 @@ void BKE_object_delete_ptcache(Object *ob, int index)
 /* shape key utility function */
 
 /************************* Mesh ************************/
-static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_meshkey(Object *ob, const char *name, const bool from_mix)
 {
 	Mesh *me = ob->data;
 	Key *key = me->key;
@@ -3366,7 +3373,7 @@ static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, cons
 	else {
 		/* copy from current values */
 		int totelem;
-		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
+		float *data = BKE_key_evaluate_object(ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -3377,7 +3384,7 @@ static KeyBlock *insert_meshkey(Scene *scene, Object *ob, const char *name, cons
 	return kb;
 }
 /************************* Lattice ************************/
-static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_lattkey(Object *ob, const char *name, const bool from_mix)
 {
 	Lattice *lt = ob->data;
 	Key *key = lt->key;
@@ -3404,7 +3411,7 @@ static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, cons
 	else {
 		/* copy from current values */
 		int totelem;
-		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
+		float *data = BKE_key_evaluate_object(ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -3415,7 +3422,7 @@ static KeyBlock *insert_lattkey(Scene *scene, Object *ob, const char *name, cons
 	return kb;
 }
 /************************* Curve ************************/
-static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, const bool from_mix)
+static KeyBlock *insert_curvekey(Object *ob, const char *name, const bool from_mix)
 {
 	Curve *cu = ob->data;
 	Key *key = cu->key;
@@ -3444,7 +3451,7 @@ static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, con
 	else {
 		/* copy from current values */
 		int totelem;
-		float *data = BKE_key_evaluate_object(scene, ob, &totelem);
+		float *data = BKE_key_evaluate_object(ob, &totelem);
 
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -3455,16 +3462,16 @@ static KeyBlock *insert_curvekey(Scene *scene, Object *ob, const char *name, con
 	return kb;
 }
 
-KeyBlock *BKE_object_insert_shape_key(Scene *scene, Object *ob, const char *name, const bool from_mix)
+KeyBlock *BKE_object_insert_shape_key(Object *ob, const char *name, const bool from_mix)
 {	
 	switch (ob->type) {
 		case OB_MESH:
-			return insert_meshkey(scene, ob, name, from_mix);
+			return insert_meshkey(ob, name, from_mix);
 		case OB_CURVE:
 		case OB_SURF:
-			return insert_curvekey(scene, ob, name, from_mix);
+			return insert_curvekey(ob, name, from_mix);
 		case OB_LATTICE:
-			return insert_lattkey(scene, ob, name, from_mix);
+			return insert_lattkey(ob, name, from_mix);
 		default:
 			return NULL;
 	}
@@ -3509,6 +3516,88 @@ int BKE_object_is_modified(Scene *scene, Object *ob)
 	return flag;
 }
 
+/* Check of objects moves in time. */
+/* NOTE: This function is currently optimized for usage in combination
+ * with mti->canDeform, so modifiers can quickly check if their target
+ * objects moves (causing deformation motion blur) or not.
+ *
+ * This makes it possible to give some degree of false-positives here,
+ * but it's currently an acceptable tradeoff between complexity and check
+ * speed. In combination with checks of modifier stack and real life usage
+ * percentage of false-positives shouldn't be that hight.
+ */
+static bool object_moves_in_time(Object *object)
+{
+	AnimData *adt = object->adt;
+	if (adt != NULL) {
+		/* If object has any sort of animation data assume it is moving. */
+		if (adt->action != NULL ||
+		    !BLI_listbase_is_empty(&adt->nla_tracks) ||
+		    !BLI_listbase_is_empty(&adt->drivers) ||
+		    !BLI_listbase_is_empty(&adt->overrides))
+		{
+			return true;
+		}
+	}
+	if (!BLI_listbase_is_empty(&object->constraints)) {
+		return true;
+	}
+	if (object->parent != NULL) {
+		/* TODO(sergey): Do recursive check here? */
+		return true;
+	}
+	return false;
+}
+
+static bool constructive_modifier_is_deform_modified(ModifierData *md)
+{
+	/* TODO(sergey): Consider generalizing this a bit so all modifier logic
+	 * is concentrated in MOD_{modifier}.c file,
+	 */
+	if (md->type == eModifierType_Array) {
+		ArrayModifierData *amd = (ArrayModifierData *)md;
+		/* TODO(sergey): Check if curve is deformed. */
+		return (amd->start_cap != NULL && object_moves_in_time(amd->start_cap)) ||
+		       (amd->end_cap != NULL && object_moves_in_time(amd->end_cap)) ||
+		       (amd->curve_ob != NULL && object_moves_in_time(amd->curve_ob)) ||
+		       (amd->offset_ob != NULL && object_moves_in_time(amd->offset_ob));
+	}
+	else if (md->type == eModifierType_Mirror) {
+		MirrorModifierData *mmd = (MirrorModifierData *)md;
+		return mmd->mirror_ob != NULL && object_moves_in_time(mmd->mirror_ob);
+	}
+	else if (md->type == eModifierType_Screw) {
+		ScrewModifierData *smd = (ScrewModifierData *)md;
+		return smd->ob_axis != NULL && object_moves_in_time(smd->ob_axis);
+	}
+	return false;
+}
+
+static bool modifiers_has_animation_check(Object *ob)
+{
+	/* TODO(sergey): This is a bit code duplication with depsgraph, but
+	 * would be nicer to solve this as a part of new dependency graph
+	 * work, so we avoid conflicts and so.
+	 */
+	if (ob->adt != NULL) {
+		AnimData *adt = ob->adt;
+		FCurve *fcu;
+		if (adt->action != NULL) {
+			for (fcu = adt->action->curves.first; fcu; fcu = fcu->next) {
+				if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
+					return true;
+				}
+			}
+		}
+		for (fcu = adt->drivers.first; fcu; fcu = fcu->next) {
+			if (fcu->rna_path && strstr(fcu->rna_path, "modifiers[")) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 /* test if object is affected by deforming modifiers (for motion blur). again
  * most important is to avoid false positives, this is to skip computations
  * and we can still if there was actual deformation afterwards */
@@ -3517,6 +3606,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 	ModifierData *md;
 	VirtualModifierData virtualModifierData;
 	int flag = 0;
+	const bool is_modifier_animated = modifiers_has_animation_check(ob);
 
 	if (BKE_key_from_object(ob))
 		flag |= eModifierMode_Realtime | eModifierMode_Render;
@@ -3527,8 +3617,14 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 	     md = md->next)
 	{
 		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		bool can_deform = mti->type == eModifierTypeType_OnlyDeform ||
+		                  is_modifier_animated;
 
-		if (mti->type == eModifierTypeType_OnlyDeform) {
+		if (!can_deform) {
+			can_deform = constructive_modifier_is_deform_modified(md);
+		}
+
+		if (can_deform) {
 			if (!(flag & eModifierMode_Render) && modifier_isEnabled(scene, md, eModifierMode_Render))
 				flag |= eModifierMode_Render;
 

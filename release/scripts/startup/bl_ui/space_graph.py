@@ -52,6 +52,7 @@ class GRAPH_HT_header(Header):
         row = layout.row(align=True)
         row.operator("graph.copy", text="", icon='COPYDOWN')
         row.operator("graph.paste", text="", icon='PASTEDOWN')
+        row.operator("graph.paste", text="", icon='PASTEFLIPDOWN').flipped = True
 
         row = layout.row(align=True)
         if st.has_ghost_curves:
@@ -189,8 +190,12 @@ class GRAPH_MT_channel(Menu):
 
         layout.separator()
         layout.operator("anim.channels_editable_toggle")
-        layout.operator("anim.channels_visibility_set")
         layout.operator_menu_enum("graph.extrapolation_type", "type", text="Extrapolation Mode")
+
+        layout.separator()
+        layout.operator("graph.hide", text="Hide Selected Curves").unselected = False
+        layout.operator("graph.hide", text="Hide Unselected Curves").unselected = True
+        layout.operator("graph.reveal")
 
         layout.separator()
         layout.operator("anim.channels_expand")

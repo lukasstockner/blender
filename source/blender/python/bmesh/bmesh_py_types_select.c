@@ -43,11 +43,8 @@
 #include "bmesh_py_types.h"
 #include "bmesh_py_types_select.h"
 
-
-
 #include "../generic/py_capi_utils.h"
-
-#include "bmesh_py_api.h" /* own include */
+#include "../generic/python_utildefines.h"
 
 PyDoc_STRVAR(bpy_bmeditselseq_active_doc,
 "The last selected element or None (read-only).\n\n:type: :class:`BMVert`, :class:`BMEdge` or :class:`BMFace`"
@@ -197,7 +194,6 @@ static PyObject *bpy_bmeditselseq_subscript_slice(BPy_BMEditSelSeq *self, Py_ssi
 	bool ok;
 
 	PyObject *list;
-	PyObject *item;
 	BMEditSelection *ese;
 
 	BPY_BM_CHECK_OBJ(self);
@@ -222,9 +218,7 @@ static PyObject *bpy_bmeditselseq_subscript_slice(BPy_BMEditSelSeq *self, Py_ssi
 
 	/* add items until stop */
 	while ((ese = ese->next)) {
-		item = BPy_BMElem_CreatePyObject(self->bm, &ese->ele->head);
-		PyList_Append(list, item);
-		Py_DECREF(item);
+		PyList_APPEND(list, BPy_BMElem_CreatePyObject(self->bm, &ese->ele->head));
 
 		count++;
 		if (count == stop) {

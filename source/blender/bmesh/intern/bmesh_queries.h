@@ -27,9 +27,9 @@
  *  \ingroup bmesh
  */
 
-bool    BM_vert_in_face(BMFace *f, BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-int     BM_verts_in_face_count(BMFace *f, BMVert **varr, int len) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-bool    BM_verts_in_face(BMFace *f, BMVert **varr, int len) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+bool    BM_vert_in_face(BMVert *v, BMFace *f) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int     BM_verts_in_face_count(BMVert **varr, int len, BMFace *f) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+bool    BM_verts_in_face(BMVert **varr, int len, BMFace *f) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 bool    BM_edge_in_face(BMEdge *e, BMFace *f) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 BLI_INLINE bool    BM_edge_in_loop(const BMEdge *e, const BMLoop *l) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
@@ -64,10 +64,10 @@ BMFace *BM_vert_pair_share_face_by_angle(
         BMLoop **r_l_a, BMLoop **r_l_b,
         const bool allow_adjacent) ATTR_NONNULL();
 
-int     BM_vert_edge_count_nonwire(BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-int     BM_vert_edge_count(BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-int     BM_edge_face_count(BMEdge *e) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
-int     BM_vert_face_count(BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int     BM_vert_edge_count_nonwire(const BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int     BM_vert_edge_count(const BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int     BM_edge_face_count(const BMEdge *e) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+int     BM_vert_face_count(const BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 BMEdge *BM_vert_other_disk_edge(BMVert *v, BMEdge *e) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 bool    BM_vert_is_edge_pair(BMVert *v) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
@@ -83,6 +83,8 @@ bool    BM_edge_is_convex(const BMEdge *e) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL(
 
 bool    BM_loop_is_convex(const BMLoop *l) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 BLI_INLINE bool BM_loop_is_adjacent(const BMLoop *l_a, const BMLoop *l_b) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+float   BM_loop_point_side_of_loop_test(const BMLoop *l, const float co[3]) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
+float   BM_loop_point_side_of_edge_test(const BMLoop *l, const float co[3]) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 
 float   BM_loop_calc_face_angle(BMLoop *l) ATTR_WARN_UNUSED_RESULT ATTR_NONNULL();
 void    BM_loop_calc_face_normal(BMLoop *l, float r_normal[3]) ATTR_NONNULL();

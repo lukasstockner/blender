@@ -207,6 +207,11 @@ btRigidBody* CcdPhysicsController::GetRigidBody()
 {
 	return btRigidBody::upcast(m_object);
 }
+const btRigidBody* CcdPhysicsController::GetRigidBody() const
+{
+	return btRigidBody::upcast(m_object);
+}
+
 btCollisionObject*	CcdPhysicsController::GetCollisionObject()
 {
 	return m_object;
@@ -1354,6 +1359,42 @@ void		CcdPhysicsController::Jump()
 void		CcdPhysicsController::SetActive(bool active)
 {
 }
+
+float		CcdPhysicsController::GetLinearDamping() const
+{
+	const btRigidBody* body = GetRigidBody();
+	if (body)
+		return body->getLinearDamping();
+	return 0;
+}
+
+float		CcdPhysicsController::GetAngularDamping() const
+{
+	const	btRigidBody* body = GetRigidBody();
+	if (body)
+		return body->getAngularDamping();
+	return 0;
+}
+
+void		CcdPhysicsController::SetLinearDamping(float damping)
+{
+	SetDamping(damping, GetAngularDamping());
+}
+
+void		CcdPhysicsController::SetAngularDamping(float damping)
+{
+	SetDamping(GetLinearDamping(), damping);
+}
+
+void		CcdPhysicsController::SetDamping(float linear, float angular)
+{
+	btRigidBody* body = GetRigidBody();
+	if (!body) return;
+
+	body->setDamping(linear, angular);
+}
+
+
 		// reading out information from physics
 MT_Vector3		CcdPhysicsController::GetLinearVelocity()
 {
@@ -2265,7 +2306,7 @@ bool CcdShapeConstructionInfo::UpdateMesh(class KX_GameObject* gameobj, class RA
 		/* transverts are only used for deformed RAS_Meshes, the RAS_TexVert data
 		 * is too hard to get at, see below for details */
 		float (*transverts)[3] = NULL;
-		int transverts_tot= 0; /* with deformed meshes - should always be greater then the max orginal index, or we get crashes */
+		int transverts_tot= 0; /* with deformed meshes - should always be greater than the max orginal index, or we get crashes */
 
 		if (deformer) {
 			/* map locations from the deformed array

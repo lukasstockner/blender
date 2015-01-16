@@ -27,7 +27,6 @@
  *  \ingroup render
  */
 
-
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -50,24 +49,17 @@
 
 #include "BKE_node.h"
 
-
-#include "PIL_time.h"
-
 #include "render_result.h"
 #include "render_types.h"
-#include "renderpipeline.h"
 #include "rendercore.h"
 #include "renderdatabase.h"
-#include "pixelblending.h"
 #include "pixelshading.h"
 #include "shading.h"
-#include "texture.h"
 #include "volumetric.h"
 
 #include "rayintersection.h"
 #include "rayobject.h"
 #include "raycounter.h"
-
 
 #define RAY_TRA		1
 #define RAY_INSIDE	2
@@ -1562,7 +1554,7 @@ void ray_trace(ShadeInput *shi, ShadeResult *shr)
 			}
 			
 			if (shi->combinedflag & SCE_PASS_REFLECT) {
-				/* values in shr->spec can be greater then 1.0.
+				/* values in shr->spec can be greater than 1.0.
 				 * In this case the mircol uses a zero blending factor, so ignoring it is ok.
 				 * Fixes bug #18837 - when the spec is higher then 1.0,
 				 * diff can become a negative color - Campbell  */

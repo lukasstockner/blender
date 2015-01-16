@@ -60,6 +60,7 @@ extern "C" {
 
 #include "FRS_freestyle.h"
 #include "RNA_access.h"
+#include "BKE_appdir.h"
 #include "DNA_scene_types.h"
 #include "bpy_rna.h" /* pyrna_struct_CreatePyObject() */
 
@@ -152,7 +153,7 @@ static PyObject *Freestyle_blendRamp(PyObject *self, PyObject *args)
 		return NULL;
 	}
 	ramp_blend(type, a, fac, b);
-	return Vector_CreatePyObject(a, 3, Py_NEW, NULL);
+	return Vector_CreatePyObject(a, 3, NULL);
 }
 
 #include "BKE_texture.h" /* do_colorband() */
@@ -186,7 +187,7 @@ static PyObject *Freestyle_evaluateColorRamp(PyObject *self, PyObject *args)
 		PyErr_SetString(PyExc_ValueError, "failed to evaluate the color ramp");
 		return NULL;
 	}
-	return Vector_CreatePyObject(out, 4, Py_NEW, NULL);
+	return Vector_CreatePyObject(out, 4, NULL);
 }
 
 #include "DNA_color_types.h"
@@ -492,7 +493,7 @@ PyObject *Freestyle_Init(void)
 	PyDict_SetItemString(PySys_GetObject("modules"), module_definition.m_name, module);
 
 	// update 'sys.path' for Freestyle Python API modules
-	const char * const path = BLI_get_folder(BLENDER_SYSTEM_SCRIPTS, "freestyle");
+	const char * const path = BKE_appdir_folder_id(BLENDER_SYSTEM_SCRIPTS, "freestyle");
 	if (path) {
 		char modpath[FILE_MAX];
 		BLI_join_dirfile(modpath, sizeof(modpath), path, "modules");

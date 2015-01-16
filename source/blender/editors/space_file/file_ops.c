@@ -34,6 +34,7 @@
 
 #include "BLO_readfile.h"
 
+#include "BKE_appdir.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_global.h"
@@ -219,7 +220,7 @@ static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select,
 	const FileCheckType check_type = (sfile->params->flag & FILE_DIRSEL_ONLY) ? CHECK_DIRS : CHECK_ALL;
 	
 	/* flag the files as selected in the filelist */
-	filelist_select(sfile->files, &sel, select, SELECTED_FILE, check_type);
+	filelist_select(sfile->files, &sel, select, FILE_SEL_SELECTED, check_type);
 	
 	/* Don't act on multiple selected files */
 	if (sel.first != sel.last) select = 0;
@@ -258,9 +259,25 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 
 		sel = file_selection_get(C, &rect, 0);
 		if ( (sel.first != params->sel_first) || (sel.last != params->sel_last) ) {
-			file_deselect_all(sfile, HILITED_FILE);
-			filelist_select(sfile->files, &sel, FILE_SEL_ADD, HILITED_FILE, CHECK_ALL);
+			int idx;
+
+			file_deselect_all(sfile, FILE_SEL_HIGHLIGHTED);
+			filelist_select(sfile->files, &sel, FILE_SEL_ADD, FILE_SEL_HIGHLIGHTED, CHECK_ALL);
 			WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+			/* dont highlight readonly file (".." or ".") on border select */
+			for (idx = sel.last; idx >= 0; idx--) {
+				struct direntry *file = filelist_file(sfile->files, idx);
+
+				if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
+					file->selflag &= ~FILE_SEL_HIGHLIGHTED;
+				}
+
+				/* active_file gets highlighted as well - make sure it is no readonly file */
+				if (sel.last == idx) {
+					params->active_file = idx;
+				}
+			}
 		}
 		params->sel_first = sel.first; params->sel_last = sel.last;
 
@@ -268,7 +285,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 	else {
 		params->active_file = -1;
 		params->sel_first = params->sel_last = -1;
-		file_deselect_all(sfile, HILITED_FILE);
+		file_deselect_all(sfile, FILE_SEL_HIGHLIGHTED);
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 	}
 
@@ -288,7 +305,7 @@ static int file_border_select_exec(bContext *C, wmOperator *op)
 	if (!extend) {
 		SpaceFile *sfile = CTX_wm_space_file(C);
 
-		file_deselect_all(sfile, SELECTED_FILE);
+		file_deselect_all(sfile, FILE_SEL_SELECTED);
 	}
 
 	BLI_rcti_isect(&(ar->v2d.mask), &rect, &rect);
@@ -340,8 +357,20 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	if (!BLI_rcti_isect_pt(&ar->v2d.mask, rect.xmin, rect.ymin))
 		return OPERATOR_CANCELLED;
 
-	/* single select, deselect all selected first */
-	if (!extend) file_deselect_all(sfile, SELECTED_FILE);
+	if (sfile && sfile->params) {
+		int idx = sfile->params->active_file;
+
+		if (idx >= 0) {
+			struct direntry *file = filelist_file(sfile->files, idx);
+			if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
+				/* skip - If a readonly file (".." or ".") is selected, skip deselect all! */
+			}
+			else {
+				/* single select, deselect all selected first */
+				if (!extend) file_deselect_all(sfile, FILE_SEL_SELECTED);
+			}
+		}
+	}
 
 	ret = file_select(C, &rect, extend ? FILE_SEL_TOGGLE : FILE_SEL_ADD, fill, do_diropen);
 	if (FILE_SELECT_DIR == ret)
@@ -398,11 +427,11 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	/* select all only if previously no file was selected */
 	if (is_selected) {
-		filelist_select(sfile->files, &sel, FILE_SEL_REMOVE, SELECTED_FILE, CHECK_ALL);
+		filelist_select(sfile->files, &sel, FILE_SEL_REMOVE, FILE_SEL_SELECTED, CHECK_ALL);
 	}
 	else {
 		const FileCheckType check_type = (sfile->params->flag & FILE_DIRSEL_ONLY) ? CHECK_DIRS : CHECK_FILES;
-		filelist_select(sfile->files, &sel, FILE_SEL_ADD, SELECTED_FILE, check_type);
+		filelist_select(sfile->files, &sel, FILE_SEL_ADD, FILE_SEL_SELECTED, check_type);
 	}
 	ED_area_tag_redraw(sa);
 	return OPERATOR_FINISHED;
@@ -472,7 +501,7 @@ static int bookmark_add_exec(bContext *C, wmOperator *UNUSED(op))
 		char name[FILE_MAX];
 	
 		fsmenu_insert_entry(fsmenu, FS_CATEGORY_BOOKMARKS, params->dir, FS_INSERT_SAVE);
-		BLI_make_file_string("/", name, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
+		BLI_make_file_string("/", name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
 		fsmenu_write_file(fsmenu, name);
 	}
 
@@ -504,7 +533,7 @@ static int bookmark_delete_exec(bContext *C, wmOperator *op)
 			char name[FILE_MAX];
 			
 			fsmenu_remove_entry(fsmenu, FS_CATEGORY_BOOKMARKS, index);
-			BLI_make_file_string("/", name, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
+			BLI_make_file_string("/", name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
 			fsmenu_write_file(fsmenu, name);
 			ED_area_tag_redraw(sa);
 		}
@@ -540,7 +569,7 @@ static int reset_recent_exec(bContext *C, wmOperator *UNUSED(op))
 	while (fsmenu_get_entry(fsmenu, FS_CATEGORY_RECENT, 0) != NULL) {
 		fsmenu_remove_entry(fsmenu, FS_CATEGORY_RECENT, 0);
 	}
-	BLI_make_file_string("/", name, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
+	BLI_make_file_string("/", name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
 	fsmenu_write_file(fsmenu, name);
 	ED_area_tag_redraw(sa);
 		
@@ -821,7 +850,7 @@ int file_exec(bContext *C, wmOperator *exec_op)
 			fsmenu_insert_entry(fsmenu_get(), FS_CATEGORY_RECENT, sfile->params->dir, FS_INSERT_SAVE | FS_INSERT_FIRST);
 		}
 
-		BLI_make_file_string(G.main->name, filepath, BLI_get_folder_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
+		BLI_make_file_string(G.main->name, filepath, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
 		fsmenu_write_file(fsmenu_get(), filepath);
 		WM_event_fileselect_event(wm, op, EVT_FILESELECT_EXEC);
 
@@ -1197,7 +1226,7 @@ static void file_expand_directory(bContext *C)
 		else if (sfile->params->dir[0] == '~') {
 			char tmpstr[sizeof(sfile->params->dir) - 1];
 			BLI_strncpy(tmpstr, sfile->params->dir + 1, sizeof(tmpstr));
-			BLI_join_dirfile(sfile->params->dir, sizeof(sfile->params->dir), BLI_getDefaultDocumentFolder(), tmpstr);
+			BLI_join_dirfile(sfile->params->dir, sizeof(sfile->params->dir), BKE_appdir_folder_default(), tmpstr);
 		}
 
 		else if (sfile->params->dir[0] == '\0')
@@ -1481,7 +1510,7 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 		int numfiles = filelist_numfiles(sfile->files);
 		if ( (0 <= idx) && (idx < numfiles) ) {
 			struct direntry *file = filelist_file(sfile->files, idx);
-			filelist_select_file(sfile->files, idx, FILE_SEL_ADD, EDITING_FILE, CHECK_ALL);
+			filelist_select_file(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
 			BLI_strncpy(sfile->params->renameedit, file->relname, FILE_MAXFILE);
 			sfile->params->renamefile[0] = '\0';
 		}
