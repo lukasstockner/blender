@@ -834,8 +834,28 @@ void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
 			add_relation(trans_op, rbo_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> RBO Sync");
 			add_relation(sim_key, rbo_key, DEPSREL_TYPE_COMPONENT_ORDER, "Rigidbody Sim Eval -> RBO Sync");
 			
-			OperationKey constraint_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_CONSTRAINTS);
-			add_relation(rbo_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
+			/* if constraints exist, those depend on the result of the rigidbody sim
+			 * - This allows constraints to modify the result of the sim (i.e. clamping)
+			 *   while still allowing the sim to depend on some changes to the objects.
+			 *   Also, since constraints are hooked up to the final nodes, this link
+			 *   means that we can also fit in there too...
+			 * - Later, it might be good to include a constraint in the stack allowing us
+			 *   to control whether rigidbody eval gets interleaved into the constraint stack
+			 */
+			if (ob->constraints.first) {
+				OperationKey constraint_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_CONSTRAINTS);
+				add_relation(rbo_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Ob Constraints");
+			}
+			else {
+				/* final object transform depends on rigidbody */
+				OperationKey done_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_TRANSFORM_FINAL);
+				add_relation(rbo_key, done_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Done");
+				
+				// XXX: ubereval will be removed eventually, but we still need it in the meantime
+				OperationKey uber_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, DEG_OPCODE_OBJECT_UBEREVAL);
+				add_relation(rbo_key, uber_key, DEPSREL_TYPE_COMPONENT_ORDER, "RBO Sync -> Uber (Temp)");
+			}
+			
 			
 			/* needed to get correct base values */
 			add_relation(trans_op, sim_key, DEPSREL_TYPE_OPERATION, "Base Ob Transform -> Rigidbody Sim Eval");
