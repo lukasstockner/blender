@@ -159,12 +159,14 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 	if (G.debug & G_DEBUG_DEPSGRAPH)
 		printf("recalcdata %s\n", ob->id.name + 2);
 
+	// XXX: legacy depsgraph only!!!
 	if (adt) {
 		/* evaluate drivers - datalevel */
 		/* XXX: for mesh types, should we push this to derivedmesh instead? */
 		BKE_animsys_evaluate_animdata(scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
 	}
-
+	
+	// XXX: legacy depsgraph only!!!
 	key = BKE_key_from_object(ob);
 	if (key && key->block.first) {
 		if (!(ob->shapeflag & OB_SHAPE_LOCK))
