@@ -44,6 +44,7 @@ extern "C" {
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_effect_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
@@ -276,6 +277,11 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 	if (scene->nodetree) {
 		build_compositor(scene);
 	}
+	
+	/* grease pencil */
+	if (scene->gpd) {
+		build_gpencil(&scene->id, scene->gpd);
+	}
 }
 
 void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
@@ -374,6 +380,11 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 	/* particle systems */
 	if (ob->particlesystem.first) {
 		build_particles(scene, ob);
+	}
+	
+	/* grease pencil */
+	if (ob->gpd) {
+		build_gpencil(&ob->id, ob->gpd);
 	}
 }
 
@@ -1521,6 +1532,7 @@ void DepsgraphRelationBuilder::build_material(ID *owner, Material *ma)
 		return;
 	id_tag_set(ma_id);
 	
+	/* animation */
 	build_animdata(ma_id);
 	
 	/* textures */
@@ -1570,4 +1582,12 @@ void DepsgraphRelationBuilder::build_compositor(Scene *scene)
 {
 	/* For now, just a plain wrapper? */
 	build_nodetree(&scene->id, scene->nodetree);
+}
+
+void DepsgraphRelationBuilder::build_gpencil(ID *UNUSED(owner), bGPdata *gpd)
+{
+	/* animation */
+	build_animdata(&gpd->id);
+	
+	// TODO: parent object (when that feature is implemented)
 }

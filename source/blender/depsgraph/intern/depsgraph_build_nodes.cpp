@@ -44,6 +44,7 @@ extern "C" {
 #include "DNA_constraint_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_effect_types.h"
+#include "DNA_gpencil_types.h"
 #include "DNA_group_types.h"
 #include "DNA_key_types.h"
 #include "DNA_lamp_types.h"
@@ -170,6 +171,11 @@ void DepsgraphNodeBuilder::build_scene(Scene *scene)
 	
 	/* sequencer */
 	// XXX...
+	
+	/* grease pencil */
+	if (scene->gpd) {
+		build_gpencil(scene->gpd);
+	}
 }
 
 /* Build depsgraph for the given group
@@ -259,6 +265,11 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* particle systems */
 	if (ob->particlesystem.first) {
 		build_particles(ob);
+	}
+	
+	/* grease pencil */
+	if (ob->gpd) {
+		build_gpencil(ob->gpd);
 	}
 }
 
@@ -904,4 +915,18 @@ void DepsgraphNodeBuilder::build_compositor(Scene *scene)
 	/* for now, nodetrees are just parameters; compositing occurs in internals of renderer... */
 	ComponentDepsNode *owner_node = add_component_node(&scene->id, DEPSNODE_TYPE_PARAMETERS);
 	build_nodetree(owner_node, scene->nodetree);
+}
+
+void DepsgraphNodeBuilder::build_gpencil(bGPdata *gpd)
+{
+	ID *gpd_id = &gpd->id;
+	
+	/* gpencil itself */
+	// XXX: what about multiple users of same datablock? This should only get added once
+	add_id_node(gpd_id);
+	
+	/* The main reason Grease Pencil is included here is because the animation (and drivers)
+	 * need to be hosted somewhere...
+	 */
+	build_animdata(gpd_id);
 }

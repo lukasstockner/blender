@@ -101,6 +101,7 @@ struct DepsgraphNodeBuilder {
 	void build_texture_stack(DepsNode *owner_node, MTex **texture_stack);
 	void build_world(World *world);
 	void build_compositor(Scene *scene);
+	void build_gpencil(bGPdata *gpd);
 	
 private:
 	Main *m_bmain;
@@ -257,6 +258,7 @@ struct DepsgraphRelationBuilder
 	void build_texture(ID *owner, Tex *tex);
 	void build_texture_stack(ID *owner, MTex **texture_stack);
 	void build_compositor(Scene *scene);
+	void build_gpencil(ID *owner, bGPdata *gpd);
 	
 protected:
 	RootDepsNode *find_node(const RootKey &key) const;
