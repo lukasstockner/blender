@@ -39,7 +39,6 @@ _modules = [
     "rigidbody",
     "screen_play_rendered_anim",
     "sequencer",
-    "system_generate_blendfile_previews",
     "uvcalc_follow_active",
     "uvcalc_lightmap",
     "uvcalc_smart_project",
