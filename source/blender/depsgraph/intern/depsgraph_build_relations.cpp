@@ -256,6 +256,21 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 		}
 	}
 #endif
+	
+	/* scene's animation and drivers */
+	if (scene->adt) {
+		build_animdata(&scene->id);
+	}
+	
+	/* world */
+	if (scene->world) {
+		build_world(scene, scene->world);
+	}
+	
+	/* compo nodes */
+	if (scene->nodetree) {
+		build_compositor(scene);
+	}
 }
 
 void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
