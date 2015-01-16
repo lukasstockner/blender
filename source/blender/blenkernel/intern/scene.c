@@ -1848,8 +1848,12 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	 * can be overridden by settings from Scene, which owns the Texture through a hierarchy
 	 * such as Scene->World->MTex/Texture) can still get correctly overridden.
 	 */
-	BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
-	/*...done with recursive funcs */
+#ifdef WITH_LEGACY_DEPSGRAPH
+	if (!use_new_eval) {
+		BKE_animsys_evaluate_all_animation(bmain, sce, ctime);
+		/*...done with recursive funcs */
+	}
+#endif
 
 	/* clear "LIB_DOIT" flag from all materials, to prevent infinite recursion problems later 
 	 * when trying to find materials with drivers that need evaluating [#32017] 
