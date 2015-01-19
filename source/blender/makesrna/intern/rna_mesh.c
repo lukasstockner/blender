@@ -849,6 +849,43 @@ static int rna_MeshUVLoopLayer_data_length(PointerRNA *ptr)
 	return (me->edit_btmesh) ? 0 : me->totloop;
 }
 
+/* Ptex */
+DEFINE_CUSTOMDATA_LAYER_COLLECTION(ptex, ldata, CD_LOOP_PTEX)
+DEFINE_CUSTOMDATA_LAYER_COLLECTION_ACTIVEITEM(ptex, ldata, CD_LOOP_PTEX, active, MeshLoopPtexLayer)
+
+static int rna_PtexTessFace_uv_get_length(PointerRNA *UNUSED(ptr),
+										  int length[RNA_MAX_ARRAY_DIMENSION])
+{
+	length[0] = 4;
+	length[1] = 2;
+	return length[0] * length[1];
+}
+
+static void rna_PtexTessFace_uv_get(PointerRNA *ptr, float *values)
+{
+	MTessFacePtex *tfp = (MTessFacePtex *)ptr->data;
+	const int totvert = 4;
+
+	memcpy(values, tfp->uv, totvert * 2 * sizeof(float));
+}
+
+static void rna_PtexTessFace_uv_set(PointerRNA *UNUSED(ptr),
+									const float *UNUSED(values))
+{
+	BLI_assert(!"rna_PtexTessFace_uv_set not implemented");
+}
+
+static PointerRNA rna_MeshLoopPtexLayer_image_get(PointerRNA *ptr)
+{
+	// TODO
+	PointerRNA rptr;
+	CustomDataLayer *cdl = ptr->data;
+	MLoopPtex *loop_ptex = cdl->data;
+	Image *image = loop_ptex->image;
+	RNA_id_pointer_create(image ? &image->id : NULL, &rptr);
+	return rptr;
+}
+
 /* face uv_textures */
 
 DEFINE_CUSTOMDATA_LAYER_COLLECTION(tessface_uv_texture, fdata, CD_MTFACE)
@@ -1271,6 +1308,17 @@ static int rna_MeshTessFace_index_get(PointerRNA *ptr)
 	Mesh *me = rna_mesh(ptr);
 	MFace *face = (MFace *)ptr->data;
 	return (int)(face - me->mface);
+}
+
+static PointerRNA rna_MeshTessFace_ptex_tess_face_get(PointerRNA *ptr)
+{
+	Mesh *me = rna_mesh(ptr);
+	PointerRNA rptr;
+	MTessFacePtex * const ptf = CustomData_get(&me->fdata,
+											   rna_MeshTessFace_index_get(ptr),
+											   CD_TESSFACE_PTEX);
+	RNA_pointer_create(&me->id, &RNA_PtexTessFace, ptf, &rptr);
+	return rptr;
 }
 
 static int rna_MeshPolygon_index_get(PointerRNA *ptr)
@@ -1885,6 +1933,25 @@ static void rna_def_medge(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Index", "Index of this edge");
 }
 
+static void rna_def_mptex(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+	const int uv_dim[] = {4, 2};
+
+	srna = RNA_def_struct(brna, "PtexTessFace", NULL);
+	RNA_def_struct_sdna(srna, "MTessFacePtex");
+
+	RNA_def_property(srna, "id", PROP_INT, PROP_NONE);
+
+	prop = RNA_def_property(srna, "uv", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_multi_array(prop, 2, uv_dim);
+	RNA_def_property_flag(prop, PROP_DYNAMIC);
+	RNA_def_property_dynamic_array_funcs(prop, "rna_PtexTessFace_uv_get_length");
+	RNA_def_property_float_funcs(prop, "rna_PtexTessFace_uv_get", "rna_PtexTessFace_uv_set", NULL);
+	RNA_def_property_ui_text(prop, "UV", "");
+}
+
 static void rna_def_mface(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1960,6 +2027,11 @@ static void rna_def_mface(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_int_funcs(prop, "rna_MeshTessFace_index_get", NULL, NULL);
 	RNA_def_property_ui_text(prop, "Index", "Index of this face");
+
+	prop = RNA_def_property(srna, "ptex_tess_face", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "PtexTessFace");
+	RNA_def_property_pointer_funcs(prop, "rna_MeshTessFace_ptex_tess_face_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "PtexTessFace", "");
 }
 
 
@@ -2456,6 +2528,29 @@ static void rna_def_mloopcol(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 }
 
+static void rna_def_mloopptex(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "MeshLoopPtexLayer", NULL);
+	RNA_def_struct_ui_text(srna, "Mesh Ptex Layer", "Layer of Ptex loops in a Mesh datablock");
+	RNA_def_struct_sdna(srna, "CustomDataLayer");
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_struct_name_property(srna, prop);
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_MeshLoopLayer_name_set");
+	RNA_def_property_ui_text(prop, "Name", "Name of Ptex layer");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+	prop = RNA_def_property(srna, "image", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_funcs(prop, "rna_MeshLoopPtexLayer_image_get", NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "Image");
+	/* RNA_def_property_flag(prop, PROP_EDITABLE); */
+	/* RNA_def_property_ui_text(prop, "Image", ""); */
+	/* RNA_def_property_update(prop, 0, "rna_Mesh_update_data"); */
+}
+
 static void rna_def_mproperties(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2796,6 +2891,31 @@ static void rna_def_loop_colors(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_int_funcs(prop, "rna_Mesh_vertex_color_active_index_get",
 	                           "rna_Mesh_vertex_color_active_index_set", "rna_Mesh_vertex_color_index_range");
 	RNA_def_property_ui_text(prop, "Active Vertex Color Index", "Active vertex color index");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+}
+
+static void rna_def_loop_ptex(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	RNA_def_property_srna(cprop, "LoopPtex");
+	srna = RNA_def_struct(brna, "LoopPtex", NULL);
+	RNA_def_struct_sdna(srna, "Mesh");
+	RNA_def_struct_ui_text(srna, "Loop Ptex", "Collection of loop Ptex");
+
+	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_funcs(prop, "rna_Mesh_ptex_active_index_get",
+	                           "rna_Mesh_ptex_active_index_set", "rna_Mesh_ptex_index_range");
+	RNA_def_property_ui_text(prop, "Active Ptex Index", "Active ptex index");
+	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
+
+	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "MeshLoopPtexLayer");
+	RNA_def_property_pointer_funcs(prop, "rna_Mesh_ptex_active_get",
+	                               "rna_Mesh_ptex_active_set", NULL, NULL);
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
+	RNA_def_property_ui_text(prop, "Active Ptex loop layer", "Active Ptex loop layer");
 	RNA_def_property_update(prop, 0, "rna_Mesh_update_data");
 }
 
@@ -3163,6 +3283,15 @@ static void rna_def_mesh(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Vertex Colors", "All vertex colors");
 	rna_def_loop_colors(brna, prop);
 
+	/* Ptex */
+	prop = RNA_def_property(srna, "loop_ptex", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "ldata.layers", "ldata.totlayer");
+	RNA_def_property_collection_funcs(prop, "rna_Mesh_ptexs_begin", NULL, NULL, NULL,
+	                                  "rna_Mesh_ptexs_length", NULL, NULL, NULL);
+	RNA_def_property_struct_type(prop, "MeshLoopPtexLayer");
+	RNA_def_property_ui_text(prop, "Ptex", "All Ptex layers");
+	rna_def_loop_ptex(brna, prop);
+
 	/* TODO, vertex, edge customdata layers (bmesh py api can access already) */
 	prop = RNA_def_property(srna, "polygon_layers_float", PROP_COLLECTION, PROP_NONE);
 	RNA_def_property_collection_sdna(prop, NULL, "pdata.layers", "pdata.totlayer");
@@ -3453,6 +3582,8 @@ void RNA_def_mesh(BlenderRNA *brna)
 	rna_def_mcol(brna);
 	rna_def_mloopcol(brna);
 	rna_def_mproperties(brna);
+	rna_def_mptex(brna);
+	rna_def_mloopptex(brna);
 }
 
 #endif
