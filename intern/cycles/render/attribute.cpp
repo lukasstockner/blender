@@ -359,7 +359,7 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_FACE);
 				break;
 			case ATTR_STD_PTEX_UV:
-				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_VERTEX);
+				attr = add(name, TypeDesc::TypePoint, ATTR_ELEMENT_CORNER);
 				break;
 			case ATTR_STD_GENERATED_TRANSFORM:
 				attr = add(name, TypeDesc::TypeMatrix, ATTR_ELEMENT_MESH);
