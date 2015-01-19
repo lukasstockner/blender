@@ -577,6 +577,9 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 			image->animated = b_image_node.image_user().use_auto_refresh();
 			image->use_alpha = b_image.use_alpha();
 
+			// TODO(nicholasbishop)
+			image->ptex = string_endswith(image->filename, ".ptx");
+
 			/* TODO(sergey): Does not work properly when we change builtin type. */
 			if (b_image.is_updated()) {
 				scene->image_manager->tag_reload_image(image->filename,
@@ -589,6 +592,15 @@ static ShaderNode *add_node(Scene *scene, BL::BlendData b_data, BL::Scene b_scen
 		image->interpolation = (InterpolationType)b_image_node.interpolation();
 		image->projection_blend = b_image_node.projection_blend();
 		get_tex_mapping(&image->tex_mapping, b_image_node.texture_mapping());
+		node = image;
+	}
+	else if (b_node.is_a(&RNA_ShaderNodeTexPtex)) {
+		// TODO
+		BL::ShaderNodeTexPtex b_image_node(b_node);
+		PtexTextureNode *image = new PtexTextureNode();
+
+		image->ptex = true;
+		image->ptex_layer = b_image_node.layer_name();
 		node = image;
 	}
 	else if (b_node.is_a(&RNA_ShaderNodeTexEnvironment)) {

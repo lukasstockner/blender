@@ -73,8 +73,8 @@ public:
 
 	bool need_update;
 
-	boost::function<void(const string &filename, void *data, bool &is_float, int &width, int &height, int &depth, int &channels)> builtin_image_info_cb;
-	boost::function<bool(const string &filename, void *data, unsigned char *pixels)> builtin_image_pixels_cb;
+	boost::function<void(const string &filename, void *data, bool &is_float, int &width, int &height, int &depth, int &channels, int &num_ptex_regions)> builtin_image_info_cb;
+	boost::function<bool(const string &filename, void *data, unsigned char *pixels, PtexRegions ptex_regions, int num_ptex_regions)> builtin_image_pixels_cb;
 	boost::function<bool(const string &filename, void *data, float *pixels)> builtin_image_float_pixels_cb;
 
 	struct Image {
@@ -102,7 +102,8 @@ private:
 	void *osl_texture_system;
 	bool pack_images;
 
-	bool file_load_image(Image *img, device_vector<uchar4>& tex_img);
+	bool file_load_image(Image *img, device_vector<uchar4>& tex_img,
+						 DeviceScene *dscene, int slot);
 	bool file_load_float_image(Image *img, device_vector<float4>& tex_img);
 
 	void device_load_image(Device *device, DeviceScene *dscene, int slot, Progress *progess);

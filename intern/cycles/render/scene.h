@@ -108,6 +108,9 @@ public:
 	/* integrator */
 	device_vector<uint> sobol_directions;
 
+	/* ptex */
+	device_vector<uint> ptex_table;
+
 	/* cpu images */
 	device_vector<uchar4> tex_image[TEX_EXTENDED_NUM_IMAGES_CPU];
 	device_vector<float4> tex_float_image[TEX_EXTENDED_NUM_FLOAT_IMAGES];

@@ -27,6 +27,10 @@
 #include <OSL/oslexec.h>
 #endif
 
+#ifdef WITH_PTEX
+#include "BPX_pack.h"
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 ImageManager::ImageManager()
@@ -96,7 +100,8 @@ bool ImageManager::is_float_image(const string& filename, void *builtin_data, bo
 	if(builtin_data) {
 		if(builtin_image_info_cb) {
 			int width, height, depth, channels;
-			builtin_image_info_cb(filename, builtin_data, is_float, width, height, depth, channels);
+			int num_ptex_regions;
+			builtin_image_info_cb(filename, builtin_data, is_float, width, height, depth, channels, num_ptex_regions);
 		}
 
 		if(is_float)
@@ -348,7 +353,77 @@ void ImageManager::tag_reload_image(const string& filename, void *builtin_data, 
 	}
 }
 
-bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
+// TODO
+static PtexRegions ptex_table_reserve(DeviceScene *dscene,
+									  const int texture_slot,
+									  const int texture_width,
+									  const int texture_height,
+									  const int num_ptex_regions)
+{
+	// Simple encoding (not necessarily a good one):
+	//
+	// Two-step lookup: index is image slot, value there is an another
+	// index into same array. At that index, two ints store
+	// width/height of the whole texture. Then come 4-tuples of Ptex
+	// regions (x, y, w, h ints).
+	if (dscene->ptex_table.size() == 0) {
+		dscene->ptex_table.resize(TEX_EXTENDED_NUM_IMAGES_CPU);
+	}
+
+	uint offset = dscene->ptex_table.size();
+	uint *table_data = dscene->ptex_table.resize(offset +
+												 2 +
+												 num_ptex_regions);
+	table_data[texture_slot] = offset;
+	table_data[offset] = texture_width;
+	offset++;
+	table_data[offset] = texture_height;
+	offset++;
+
+	return (PtexRegions)(&table_data[offset]);
+}
+
+struct PtexPackUcharContext {
+	uchar **pixels;
+	device_vector<uchar4> &tex_img;
+	DeviceScene *dscene;
+	int slot;
+};
+
+static BPXImageBuf *ptex_pack_uchar_cb(const struct PtexPackedLayout *layout,
+									   void *c)
+{
+	PtexPackUcharContext &context = *static_cast<PtexPackUcharContext*>(c);
+	const int width = ptex_packed_layout_width(layout);
+	const int height = ptex_packed_layout_height(layout);
+	const int depth = 1;
+	(*context.pixels) = (uchar*)context.tex_img.resize(width, height, depth);
+
+	const int num_regions = BPX_packed_layout_num_regions(layout);
+	PtexRegions regions = ptex_table_reserve(context.dscene, context.slot,
+											 // TODO: 4
+											 width, height, num_regions*4);
+
+	for (int i = 0; i < num_regions; i++) {
+		int x, y, w, h;
+		if (ptex_packed_layout_item(layout, i, &x, &y, &w, &h)) {
+			regions[i][0] = x;
+			regions[i][1] = y;
+			regions[i][2] = w;
+			regions[i][3] = h;
+		}
+		else {
+			// TODO
+			assert(!"TODO");
+		}
+	}
+
+	return BPX_image_buf_wrap(width, height, 4, BPX_TYPE_DESC_UINT8,
+							  *context.pixels);
+}
+
+bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
+								   DeviceScene *dscene, int slot)
 {
 	if(img->filename == "")
 		return false;
@@ -356,6 +431,8 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 	ImageInput *in = NULL;
 	int width, height, depth, components;
 
+	bool use_ptex_file = false;
+	int num_ptex_regions = 0;
 	if(!img->builtin_data) {
 		/* load image from file through OIIO */
 		in = ImageInput::create(img->filename);
@@ -374,8 +451,14 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 			return false;
 		}
 
-		width = spec.width;
-		height = spec.height;
+		if (in->format_name() == std::string("ptex")) {
+			use_ptex_file = true;
+		}
+		else {
+			width = spec.width;
+			height = spec.height;
+		}
+
 		depth = spec.depth;
 		components = spec.nchannels;
 	}
@@ -385,7 +468,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 			return false;
 
 		bool is_float;
-		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components);
+		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components, num_ptex_regions);
 	}
 
 	/* we only handle certain number of components */
@@ -399,8 +482,27 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 	}
 
 	/* read RGBA pixels */
-	uchar *pixels = (uchar*)tex_img.resize(width, height, depth);
+	uchar *pixels = NULL;
 	bool cmyk = false;
+
+	if (use_ptex_file) {
+		BPXImageBuf *packed_buf;
+		BPXImageInput *bpx_in = reinterpret_cast<BPXImageInput*>(in);
+		// TODO, subtraction
+		PtexPackUcharContext context = {&pixels, tex_img, dscene, slot - 1024};
+		packed_buf = BPX_image_buf_ptex_pack(bpx_in, ptex_pack_uchar_cb,
+											 &context);
+		delete in;
+
+		if (!packed_buf) {
+			return false;
+		}
+
+		BPX_image_buf_free(packed_buf);
+		in = NULL;
+	} else {
+		pixels = (uchar*)tex_img.resize(width, height, depth);
+	}
 
 	if(in) {
 		if(depth <= 1) {
@@ -421,8 +523,15 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img)
 		in->close();
 		delete in;
 	}
-	else {
-		builtin_image_pixels_cb(img->filename, img->builtin_data, pixels);
+	else if (!use_ptex_file) {
+		PtexRegions ptex_regions;
+		thread_scoped_lock device_lock(device_mutex);
+		ptex_regions = ptex_table_reserve(dscene, slot - 1024, width,
+										  height, num_ptex_regions);
+
+
+		builtin_image_pixels_cb(img->filename, img->builtin_data, pixels,
+								ptex_regions, num_ptex_regions);
 	}
 
 	if(cmyk) {
@@ -509,7 +618,8 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 			return false;
 
 		bool is_float;
-		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components);
+		int num_ptex_regions;
+		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components, num_ptex_regions);
 	}
 
 	if(components < 1 || width == 0 || height == 0) {
@@ -675,7 +785,7 @@ void ImageManager::device_load_image(Device *device, DeviceScene *dscene, int sl
 			device->tex_free(tex_img);
 		}
 
-		if(!file_load_image(img, tex_img)) {
+		if(!file_load_image(img, tex_img, dscene, slot)) {
 			/* on failure to load, we set a 1x1 pixels pink image */
 			uchar *pixels = (uchar*)tex_img.resize(1, 1);
 
@@ -788,6 +898,7 @@ void ImageManager::device_update(Device *device, DeviceScene *dscene, Progress& 
 	if(pack_images)
 		device_pack_images(device, dscene, progress);
 
+	device->tex_alloc("__ptex_table", dscene->ptex_table);
 	need_update = false;
 }
 
@@ -864,9 +975,11 @@ void ImageManager::device_free(Device *device, DeviceScene *dscene)
 
 	device->tex_free(dscene->tex_image_packed);
 	device->tex_free(dscene->tex_image_packed_info);
+	device->tex_free(dscene->ptex_table);
 
 	dscene->tex_image_packed.clear();
 	dscene->tex_image_packed_info.clear();
+	dscene->ptex_table.clear();
 
 	images.clear();
 	float_images.clear();

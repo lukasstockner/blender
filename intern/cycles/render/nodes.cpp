@@ -200,6 +200,7 @@ ImageTextureNode::ImageTextureNode()
 	interpolation = INTERPOLATION_LINEAR;
 	projection_blend = 0.0f;
 	animated = false;
+	ptex = false;
 
 	add_input("Vector", SHADER_SOCKET_POINT, ShaderInput::TEXTURE_UV);
 	add_output("Color", SHADER_SOCKET_COLOR);
@@ -234,6 +235,10 @@ void ImageTextureNode::attributes(Shader *shader, AttributeRequestSet *attribute
 	}
 #endif
 
+	if (ptex) {
+		attributes->add(ATTR_STD_PTEX_UV);
+	}
+
 	ShaderNode::attributes(shader, attributes);
 }
 
@@ -242,6 +247,21 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 	ShaderInput *vector_in = input("Vector");
 	ShaderOutput *color_out = output("Color");
 	ShaderOutput *alpha_out = output("Alpha");
+
+	if (ptex) {
+		int attr = compiler.attribute(ATTR_STD_PTEX_UV);
+		compiler.stack_assign(vector_in);
+		compiler.add_node(NODE_ATTR, attr, vector_in->stack_offset,
+						  NODE_ATTR_FLOAT3);
+	}
+
+	if (ptex) {
+		// TODO
+		// int attr = compiler.attribute(ATTR_STD_PTEX_LAYER);
+		// compiler.stack_assign(out);
+		// compiler.add_node(attr_node, attr, out->stack_offset, NODE_ATTR_FLOAT3);
+		// slot = 
+	}
 
 	image_manager = compiler.image_manager;
 	if(is_float == -1) {
@@ -261,6 +281,11 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 		compiler.stack_assign(vector_in);
 
 		int srgb = (is_linear || color_space != "Color")? 0: 1;
+		// TODO(nicholasbishop): clean this up of course
+		int flags = srgb;
+		if (ptex || string_endswith(filename, ".ptx")) {
+			flags |= 2;
+		}
 		int vector_offset = vector_in->stack_offset;
 
 		if(!tex_mapping.skip()) {
@@ -275,7 +300,7 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 					vector_offset,
 					color_out->stack_offset,
 					alpha_out->stack_offset,
-					srgb),
+					flags),
 				projection_enum[projection]);
 		}
 		else {
@@ -285,7 +310,7 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 					vector_offset,
 					color_out->stack_offset,
 					alpha_out->stack_offset,
-					srgb),
+					flags & 1),
 				__float_as_int(projection_blend));
 		}
 
@@ -362,6 +387,221 @@ void ImageTextureNode::compile(OSLCompiler& compiler)
 			break;
 	}
 	compiler.add(this, "node_image_texture");
+}
+
+PtexTextureNode::PtexTextureNode()
+: ShaderNode("ptex_texture")
+{
+	image_manager = NULL;
+	slot = -1;
+	is_float = -1;
+	is_linear = false;
+	use_alpha = true;
+	filename = "";
+	builtin_data = NULL;
+	color_space = ustring("Color");
+	projection = ustring("Flat");
+	interpolation = INTERPOLATION_LINEAR;
+	projection_blend = 0.0f;
+	animated = false;
+
+	add_input("Layer", SHADER_SOCKET_FLOAT);
+	add_input("Vector", SHADER_SOCKET_POINT);
+	add_output("Color", SHADER_SOCKET_COLOR);
+	add_output("Alpha", SHADER_SOCKET_FLOAT);
+}
+
+PtexTextureNode::~PtexTextureNode()
+{
+	// if(image_manager)
+	// 	image_manager->remove_image(filename, builtin_data, interpolation);
+}
+
+ShaderNode *PtexTextureNode::clone() const
+{
+	PtexTextureNode *node = new PtexTextureNode(*this);
+	node->image_manager = NULL;
+	node->slot = -1;
+	node->is_float = -1;
+	node->is_linear = false;
+	return node;
+}
+
+void PtexTextureNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+#ifdef WITH_PTEX
+	/* todo: avoid loading other texture coordinates when using ptex,
+	 * and hide texture coordinate socket in the UI */
+	if (shader->has_surface && string_endswith(filename, ".ptx")) {
+		/* ptex */
+		attributes->add(ATTR_STD_PTEX_FACE_ID);
+		attributes->add(ATTR_STD_PTEX_UV);
+	}
+#endif
+
+	attributes->add(ptex_layer);
+	attributes->add(ATTR_STD_PTEX_UV);
+
+	ShaderNode::attributes(shader, attributes);
+}
+
+void PtexTextureNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *layer_in = input("Layer");
+	ShaderInput *vector_in = input("Vector");
+	ShaderOutput *color_out = output("Color");
+	ShaderOutput *alpha_out = output("Alpha");
+	int layer_attr_id = -1;
+	
+
+	{
+		// TODO
+		layer_attr_id = compiler.attribute(ptex_layer);
+		//compiler.stack_assign(layer_in);
+		// compiler.add_node(NODE_ATTR, attr, layer_in->stack_offset,
+		// 				  NODE_ATTR_FLOAT);
+	}
+
+	{
+		int attr = compiler.attribute(ATTR_STD_PTEX_UV);
+		compiler.stack_assign(vector_in);
+		compiler.add_node(NODE_ATTR, attr, vector_in->stack_offset,
+						  NODE_ATTR_FLOAT3);
+	}
+
+	image_manager = compiler.image_manager;
+
+	
+
+	// if(slot != -1 && is_float == -1) {
+	// 	bool is_float_bool;
+	// 	slot = image_manager->add_image(filename, builtin_data,
+	// 	                                animated, 0, is_float_bool, is_linear,
+	// 	                                interpolation, use_alpha);
+	// 	is_float = (int)is_float_bool;
+	// }
+
+	if(!color_out->links.empty())
+		compiler.stack_assign(color_out);
+	if(!alpha_out->links.empty())
+		compiler.stack_assign(alpha_out);
+
+	if (true)
+	{
+		//if(slot != -1) {
+		compiler.stack_assign(layer_in);
+		compiler.stack_assign(vector_in);
+
+		int srgb = (is_linear || color_space != "Color")? 0: 1;
+		// TODO(nicholasbishop): clean this up of course
+		int flags = srgb;
+		if (ptex || string_endswith(filename, ".ptx")) {
+			flags |= 2;
+		}
+		flags |= 4;
+		int vector_offset = vector_in->stack_offset;
+
+		// if(!tex_mapping.skip()) {
+		// 	vector_offset = compiler.stack_find_offset(SHADER_SOCKET_VECTOR);
+		// 	tex_mapping.compile(compiler, vector_in->stack_offset, vector_offset);
+		// }
+
+		if(projection != "Box") {
+			compiler.add_node(NODE_TEX_IMAGE,
+				layer_attr_id,
+				compiler.encode_uchar4(
+					vector_offset,
+					color_out->stack_offset,
+					alpha_out->stack_offset,
+					flags),
+				 ImageTextureNode::projection_enum[projection]);
+		}
+		else {
+			compiler.add_node(NODE_TEX_IMAGE_BOX,
+				slot,
+				compiler.encode_uchar4(
+					vector_offset,
+					color_out->stack_offset,
+					alpha_out->stack_offset,
+					flags & 1),
+				__float_as_int(projection_blend));
+		}
+
+		if(vector_offset != vector_in->stack_offset)
+			compiler.stack_clear_offset(vector_in->type, vector_offset);
+	}
+	else {
+		/* image not found */
+		if(!color_out->links.empty()) {
+			compiler.add_node(NODE_VALUE_V, color_out->stack_offset);
+			compiler.add_node(NODE_VALUE_V, make_float3(TEX_IMAGE_MISSING_R,
+			                                            TEX_IMAGE_MISSING_G,
+			                                            TEX_IMAGE_MISSING_B));
+		}
+		if(!alpha_out->links.empty())
+			compiler.add_node(NODE_VALUE_F, __float_as_int(TEX_IMAGE_MISSING_A), alpha_out->stack_offset);
+	}
+}
+
+void PtexTextureNode::compile(OSLCompiler& compiler)
+{
+	#if 0
+	ShaderOutput *alpha_out = output("Alpha");
+
+	tex_mapping.compile(compiler);
+
+	image_manager = compiler.image_manager;
+	if(is_float == -1) {
+		if(builtin_data == NULL) {
+			is_float = (int)image_manager->is_float_image(filename, NULL, is_linear);
+		}
+		else {
+			bool is_float_bool;
+			slot = image_manager->add_image(filename, builtin_data,
+			                                animated, 0, is_float_bool, is_linear,
+			                                interpolation, use_alpha);
+			is_float = (int)is_float_bool;
+		}
+	}
+
+	if(slot == -1) {
+		compiler.parameter("filename", filename.c_str());
+	}
+	else {
+		/* TODO(sergey): It's not so simple to pass custom attribute
+		 * to the texture() function in order to make builtin images
+		 * support more clear. So we use special file name which is
+		 * "@<slot_number>" and check whether file name matches this
+		 * mask in the OSLRenderServices::texture().
+		 */
+		compiler.parameter("filename", string_printf("@%d", slot).c_str());
+	}
+	if(is_linear || color_space != "Color")
+		compiler.parameter("color_space", "Linear");
+	else
+		compiler.parameter("color_space", "sRGB");
+	compiler.parameter("projection", projection);
+	compiler.parameter("projection_blend", projection_blend);
+	compiler.parameter("is_float", is_float);
+	compiler.parameter("use_alpha", !alpha_out->links.empty());
+
+	switch (interpolation) {
+		case INTERPOLATION_CLOSEST:
+			compiler.parameter("interpolation", "closest");
+			break;
+		case INTERPOLATION_CUBIC:
+			compiler.parameter("interpolation", "cubic");
+			break;
+		case INTERPOLATION_SMART:
+			compiler.parameter("interpolation", "smart");
+			break;
+		case INTERPOLATION_LINEAR:
+		default:
+			compiler.parameter("interpolation", "linear");
+			break;
+	}
+	compiler.add(this, "node_image_texture");
+#endif
 }
 
 /* Environment Texture */

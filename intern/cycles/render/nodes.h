@@ -80,9 +80,35 @@ public:
 	InterpolationType interpolation;
 	float projection_blend;
 	bool animated;
+	bool ptex;
+	ustring ptex_layer;
 
 	static ShaderEnum color_space_enum;
 	static ShaderEnum projection_enum;
+};
+
+// TODO
+class PtexTextureNode : public ShaderNode {
+public:
+	SHADER_NODE_NO_CLONE_CLASS(PtexTextureNode)
+	~PtexTextureNode();
+	ShaderNode *clone() const;
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
+
+	ImageManager *image_manager;
+	int slot;
+	int is_float;
+	bool is_linear;
+	bool use_alpha;
+	string filename;
+	void *builtin_data;
+	ustring color_space;
+	ustring projection;
+	InterpolationType interpolation;
+	float projection_blend;
+	bool animated;
+	bool ptex;
+	ustring ptex_layer;
 };
 
 class EnvironmentTextureNode : public TextureNode {

@@ -377,7 +377,57 @@ ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *sta
 		co = texco_remap_square(co);
 		map_to_tube(&co.x, &co.y, co.x, co.y, co.z);
 	}
-	float4 f = svm_image_texture(kg, id, co.x, co.y, srgb, use_alpha);
+
+	float4 f;
+
+	// TODO
+	bool err = false;
+	if (srgb & 4) {
+		AttributeElement ae;
+		int image_attr_offset = find_attribute(kg, sd, id, &ae);
+		if(image_attr_offset == ATTR_STD_NOT_FOUND) {
+			/* Error */
+			err = true;
+		}
+		else {
+			float fid = kernel_tex_fetch(__attributes_float,
+										 image_attr_offset);
+			id = (int)(fid + 0.5f);
+		}
+	}
+
+	if (err) {
+		f = make_float4(1.0f, 0.0f, 1.0f, 1.0f);
+	}
+	else if (srgb & 2) {
+		assert(co.x >= 0 && co.x <= 1);
+		assert(co.y >= 0 && co.y <= 1);
+
+		// TODO: test hacks for Ptex
+		uint face_id = (uint)(co[2] + 0.5f);
+		uint offset = kernel_tex_fetch(__ptex_table, id - /* TODO */ 1024);
+		float2 tex_size =
+			make_float2((float)kernel_tex_fetch(__ptex_table, offset + 0),
+						(float)kernel_tex_fetch(__ptex_table, offset + 1));
+		offset += 2;
+		offset += 4 * face_id;
+
+		float2 ptex_origin =
+			make_float2((float)kernel_tex_fetch(__ptex_table, offset + 0),
+						(float)kernel_tex_fetch(__ptex_table, offset + 1));
+		float2 ptex_res =
+			make_float2((float)kernel_tex_fetch(__ptex_table, offset + 2),
+						(float)kernel_tex_fetch(__ptex_table, offset + 3));
+
+		float2 ptex_uv = ptex_origin + make_float2(co.x, co.y) * ptex_res;
+		ptex_uv /= tex_size;
+
+		f = svm_image_texture(kg, id, ptex_uv.x, ptex_uv.y, srgb,
+									 use_alpha);
+	}
+	else {
+		f = svm_image_texture(kg, id, co.x, co.y, srgb, use_alpha);
+	}
 
 	if(stack_valid(out_offset))
 		stack_store_float3(stack, out_offset, make_float3(f.x, f.y, f.z));

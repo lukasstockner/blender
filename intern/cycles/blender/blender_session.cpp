@@ -101,8 +101,8 @@ void BlenderSession::create_session()
 	scene = new Scene(scene_params, session_params.device);
 
 	/* setup callbacks for builtin image support */
-	scene->image_manager->builtin_image_info_cb = function_bind(&BlenderSession::builtin_image_info, this, _1, _2, _3, _4, _5, _6, _7);
-	scene->image_manager->builtin_image_pixels_cb = function_bind(&BlenderSession::builtin_image_pixels, this, _1, _2, _3);
+	scene->image_manager->builtin_image_info_cb = function_bind(&BlenderSession::builtin_image_info, this, _1, _2, _3, _4, _5, _6, _7, _8);
+	scene->image_manager->builtin_image_pixels_cb = function_bind(&BlenderSession::builtin_image_pixels, this, _1, _2, _3, _4, _5);
 	scene->image_manager->builtin_image_float_pixels_cb = function_bind(&BlenderSession::builtin_image_float_pixels, this, _1, _2, _3);
 
 	/* create session */
@@ -927,7 +927,7 @@ int BlenderSession::builtin_image_frame(const string &builtin_name)
 	return atoi(builtin_name.substr(last + 1, builtin_name.size() - last - 1).c_str());
 }
 
-void BlenderSession::builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels)
+void BlenderSession::builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels, int &num_ptex_regions)
 {
 	/* empty image */
 	is_float = false;
@@ -953,6 +953,10 @@ void BlenderSession::builtin_image_info(const string &builtin_name, void *builti
 		height = b_image.size()[1];
 		depth = 1;
 		channels = b_image.channels();
+
+		// TODO: ptex
+		is_float = false;
+		num_ptex_regions = b_image.ptex_regions().length;
 	}
 	else if(b_id.is_a(&RNA_Object)) {
 		/* smoke volume data */
@@ -981,7 +985,8 @@ void BlenderSession::builtin_image_info(const string &builtin_name, void *builti
 	}
 }
 
-bool BlenderSession::builtin_image_pixels(const string &builtin_name, void *builtin_data, unsigned char *pixels)
+bool BlenderSession::builtin_image_pixels(const string &builtin_name, void *builtin_data, unsigned char *pixels,
+										  PtexRegions ptex_regions, const int num_ptex_regions)
 {
 	if(!builtin_data)
 		return false;
@@ -1017,6 +1022,14 @@ bool BlenderSession::builtin_image_pixels(const string &builtin_name, void *buil
 					cp[3] = 255;
 			}
 		}
+	}
+
+	{
+		// TODO
+		BL::DynamicArray<int> regions = b_image.ptex_regions();
+		assert(num_ptex_regions == regions.length);
+		memcpy(ptex_regions, regions.data,
+			   sizeof(**ptex_regions) * num_ptex_regions);
 	}
 
 	/* premultiply, byte images are always straight for blender */

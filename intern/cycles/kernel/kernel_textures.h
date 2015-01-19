@@ -71,6 +71,9 @@ KERNEL_TEX(float, texture_float, __lookup_table)
 /* sobol */
 KERNEL_TEX(uint, texture_uint, __sobol_directions)
 
+/* ptex */
+KERNEL_TEX(uint, texture_uint, __ptex_table)
+
 /* full-float image */
 KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float_000)
 KERNEL_IMAGE_TEX(float4, texture_image_float4, __tex_image_float_001)

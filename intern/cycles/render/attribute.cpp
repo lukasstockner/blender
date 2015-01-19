@@ -230,6 +230,8 @@ const char *Attribute::standard_name(AttributeStandard std)
 			return "heat";
 		case ATTR_STD_VOLUME_VELOCITY:
 			return "velocity";
+		case ATTR_STD_PTEX_LAYER:
+			return "ptex_layer";
 		case ATTR_STD_NOT_FOUND:
 		case ATTR_STD_NONE:
 		case ATTR_STD_NUM:
@@ -374,6 +376,9 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
 				break;
 			case ATTR_STD_VOLUME_VELOCITY:
 				attr = add(name, TypeDesc::TypeVector, ATTR_ELEMENT_VOXEL);
+				break;
+			case ATTR_STD_PTEX_LAYER:
+				attr = add(name, TypeDesc::TypeFloat, ATTR_ELEMENT_MESH);
 				break;
 			default:
 				assert(0);
