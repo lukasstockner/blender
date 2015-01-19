@@ -105,6 +105,11 @@ typedef enum GPUMatType {
 	GPU_MATERIAL_TYPE_WORLD = 2,
 } GPUMatType;
 
+typedef enum {
+	GPU_PTEX_INPUT_NONE = 0,
+	GPU_PTEX_INPUT_IMAGE,
+	GPU_PTEX_INPUT_MAP
+} GPUPtexInputType;
 
 typedef enum GPUBlendMode {
 	GPU_BLEND_SOLID = 0,
@@ -155,6 +160,7 @@ GPUNodeLink *GPU_attribute(CustomDataType type, const char *name);
 GPUNodeLink *GPU_uniform(float *num);
 GPUNodeLink *GPU_dynamic_uniform(float *num, GPUDynamicType dynamictype, void *data);
 GPUNodeLink *GPU_image(struct Image *ima, struct ImageUser *iuser, bool is_data);
+GPUNodeLink *GPU_node_link_ptex(GPUPtexInputType ptex, const char *layer_name, struct Image *image);
 GPUNodeLink *GPU_image_preview(struct PreviewImage *prv);
 GPUNodeLink *GPU_texture(int size, float *pixels);
 GPUNodeLink *GPU_dynamic_texture(struct GPUTexture *tex, GPUDynamicType dynamictype, void *data);
@@ -178,7 +184,7 @@ void GPU_material_free(struct ListBase *gpumaterial);
 void GPU_materials_free(void);
 
 bool GPU_lamp_override_visible(GPULamp *lamp, struct SceneRenderLayer *srl, struct Material *ma);
-void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double time, int mipmap, float viewmat[4][4], float viewinv[4][4], float cameraborder[4], bool scenelock);
+void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double time, int mipmap, float viewmat[4][4], float viewinv[4][4], float cameraborder[4], bool scenelock, struct Object *ob);
 void GPU_material_bind_uniforms(GPUMaterial *material, float obmat[4][4], float obcol[4], float autobumpscale);
 void GPU_material_unbind(GPUMaterial *material);
 int GPU_material_bound(GPUMaterial *material);

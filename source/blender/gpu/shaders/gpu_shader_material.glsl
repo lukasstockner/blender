@@ -2479,6 +2479,27 @@ void node_tex_image(vec3 co, sampler2D ima, out vec4 color, out float alpha)
 	alpha = color.a;
 }
 
+vec2 ptex_calc_packed_uv(vec3 ptex_uv, sampler2D ptex_map, vec2 tex_size)
+{
+	ivec2 offset = ivec2(int(ptex_uv.z + 0.5), 0);
+	vec4 pm = texelFetch(ptex_map, offset, 0);
+	vec2 rect_xy = pm.xy;
+	vec2 rect_wh = pm.zw;
+
+	vec2 uv = (ptex_uv.xy * rect_wh + rect_xy) / tex_size;
+
+	return uv;
+}
+
+void node_tex_ptex(vec3 co, sampler2D ima, sampler2D ptex_map,
+				   out vec4 color, out float alpha)
+{
+	vec2 tex_size = vec2(textureSize(ima, 0));
+	vec2 packed_uv = ptex_calc_packed_uv(co, ptex_map, tex_size);
+
+	node_tex_image(vec3(packed_uv, 0), ima, color, alpha);
+}
+
 void node_tex_image_empty(vec3 co, out vec4 color, out float alpha)
 {
 	color = vec4(0.0);

@@ -38,6 +38,7 @@
 #include "DNA_customdata_types.h"
 #include "DNA_image_types.h"
 #include "DNA_material_types.h"
+#include "DNA_object_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -48,6 +49,10 @@
 #include "GPU_extensions.h"
 
 #include "BLI_sys_types.h" // for intptr_t support
+
+#include "BKE_customdata.h"
+#include "BKE_DerivedMesh.h"
+#include "BKE_ptex.h"
 
 #include "gpu_codegen.h"
 
@@ -359,7 +364,7 @@ static int codegen_input_has_texture(GPUInput *input)
 {
 	if (input->link)
 		return 0;
-	else if (input->ima || input->prv)
+	else if (input->ima || input->prv || input->ptex)
 		return 1;
 	else
 		return input->tex != NULL;
@@ -432,6 +437,11 @@ static void codegen_set_unique_ids(ListBase *nodes)
 				if (input->link) {
 					/* input is texture from buffer */
 					codegen_set_texid(bindhash, input, &texid, input->link);
+				}
+				else if (input->ptex) {
+					// TODO
+					input->texid = texid++;
+					input->bindtex = 1;
 				}
 				else if (input->ima) {
 					/* input is texture from image */
@@ -780,7 +790,7 @@ static void gpu_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 				continue;
 			}
 
-			if (input->ima || input->tex || input->prv)
+			if (input->ima || input->tex || input->prv || input->ptex)
 				BLI_snprintf(input->shadername, sizeof(input->shadername), "samp%d", input->texid);
 			else
 				BLI_snprintf(input->shadername, sizeof(input->shadername), "unf%d", input->id);
@@ -788,7 +798,7 @@ static void gpu_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 			/* pass non-dynamic uniforms to opengl */
 			extract = 0;
 
-			if (input->ima || input->tex || input->prv) {
+			if (input->ima || input->tex || input->prv || input->ptex) {
 				if (input->bindtex)
 					extract = 1;
 			}
@@ -809,7 +819,9 @@ static void gpu_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 	GPU_shader_unbind();
 }
 
-void GPU_pass_bind(GPUPass *pass, double time, int mipmap)
+void GPU_pass_bind(GPUPass *pass, double time, int mipmap,
+				   // TODO
+				   Object *ob)
 {
 	GPUInput *input;
 	GPUShader *shader = pass->shader;
@@ -819,6 +831,28 @@ void GPU_pass_bind(GPUPass *pass, double time, int mipmap)
 		return;
 
 	GPU_shader_bind(shader);
+
+	// TODO: putting this here for now so that texture creation
+	// doesn't screw up bindings
+	for (input=inputs->first; input; input=input->next) {
+		if (input->ptex != GPU_PTEX_INPUT_NONE) {
+			// TODO
+			Image *image = (input->ptex_image ?
+							input->ptex_image :
+							BKE_ptex_mesh_image_get(ob, input->attribname));
+			input->tex = NULL;
+			if (image) {
+				if (input->ptex == GPU_PTEX_INPUT_IMAGE) {
+					input->tex = GPU_texture_from_blender(image,
+														  NULL, false,
+														  time, false);
+				}
+				else if (input->ptex == GPU_PTEX_INPUT_MAP) {
+					input->tex = GPU_ptex_texture_from_blender(image, NULL);
+				}
+			}
+		}
+	}
 
 	/* now bind the textures */
 	for (input=inputs->first; input; input=input->next) {
@@ -846,7 +880,7 @@ void GPU_pass_update_uniforms(GPUPass *pass)
 
 	/* pass dynamic inputs to opengl, others were removed */
 	for (input=inputs->first; input; input=input->next)
-		if (!(input->ima || input->tex || input->prv))
+		if (!(input->ima || input->tex || input->prv || input->ptex))
 			GPU_shader_uniform_vector(shader, input->shaderloc, input->type, 1,
 				input->dynamicvec);
 }
@@ -864,7 +898,7 @@ void GPU_pass_unbind(GPUPass *pass)
 		if (input->tex && input->bindtex)
 			GPU_texture_unbind(input->tex);
 
-		if (input->ima || input->prv)
+		if (input->ima || input->prv || input->ptex)
 			input->tex = NULL;
 	}
 	
@@ -992,6 +1026,18 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const GPUType 
 		}
 		input->textarget = GL_TEXTURE_2D;
 		input->textype = GPU_TEX2D;
+		MEM_freeN(link);
+	}
+	else if (link->ptex) {
+		input->type = GPU_VEC4;
+		input->source = GPU_SOURCE_TEX;
+		input->ptex = link->ptex;
+		input->textarget = GL_TEXTURE_2D;
+		input->textype = GPU_TEX2D;
+		if (link->attribname) {
+			BLI_strncpy(input->attribname, link->attribname, sizeof(input->attribname));
+		}
+		input->ptex_image = link->ptr1;
 		MEM_freeN(link);
 	}
 	else if (link->attribtype) {
@@ -1192,6 +1238,20 @@ GPUNodeLink *GPU_image(Image *ima, ImageUser *iuser, bool is_data)
 	link->ptr1 = ima;
 	link->ptr2 = iuser;
 	link->image_isdata = is_data;
+
+	return link;
+}
+
+// TODO
+GPUNodeLink *GPU_node_link_ptex(const GPUPtexInputType ptex,
+								const char *layer_name,
+								Image *image)
+{
+	GPUNodeLink *link = GPU_node_link_create();
+
+	link->ptex = ptex;
+	link->attribname = layer_name;
+	link->ptr1 = image;
 
 	return link;
 }

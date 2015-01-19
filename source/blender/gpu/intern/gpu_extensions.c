@@ -49,6 +49,10 @@
 #include "GPU_extensions.h"
 #include "GPU_simple_shader.h"
 
+// TODO
+#include "BKE_image.h"
+#include "IMB_imbuf_types.h"
+
 #include "intern/gpu_extensions_private.h"
 
 #include <stdlib.h>
@@ -694,6 +698,53 @@ GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256])
 
 		GPU_texture_unbind(tex);
 	}
+
+	return tex;
+}
+
+// Very TODO, the code in this file could use a bit of a scrub
+GPUTexture *GPU_ptex_texture_from_blender(Image *ima, ImageUser *UNUSED(iuser))
+{
+
+	ImBuf *ibuf;
+	GPUTexture *tex;
+	int size;
+	ImPtexRegion *data;
+	void *lock;
+
+	if (ima->ptex_gputexture) {
+		return ima->ptex_gputexture;
+	}
+
+	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
+	if (!ibuf) return NULL;
+
+	size = ibuf->num_ptex_regions;
+	data = ibuf->ptex_regions;
+
+	tex = GPU_texture_create_nD(size, 1, 2, NULL, 0, NULL);
+	ima->ptex_gputexture = tex;
+
+	if (tex) {
+		/* Now we tweak some of the settings */
+		/* glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); */
+		/* glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); */
+		// TODO
+		float (*tmp)[4] = MEM_mallocN(sizeof(*tmp) * size, "tmp");
+		int i;
+		for (i = 0; i < size; i++) {
+			tmp[i][0] = data[i].x;
+			tmp[i][1] = data[i].y;
+			tmp[i][2] = data[i].width;
+			tmp[i][3] = data[i].height;
+		}
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, size, 1, 0, GL_RGBA, GL_FLOAT, tmp);
+		MEM_freeN(tmp);
+
+		GPU_texture_unbind(tex);
+	}
+
+	BKE_image_release_ibuf(ima, ibuf, lock);
 
 	return tex;
 }

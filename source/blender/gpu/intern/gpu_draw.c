@@ -1288,6 +1288,11 @@ void GPU_free_image(Image *ima)
 		ima->gputexture= NULL;
 	}
 
+	if (ima->ptex_gputexture) {
+		GPU_texture_free(ima->ptex_gputexture);
+		ima->ptex_gputexture= NULL;
+	}
+
 	/* free repeated image binding */
 	if (ima->repbind) {
 		glDeleteTextures(ima->totbind, (GLuint *)ima->repbind);
@@ -1652,7 +1657,7 @@ int GPU_enable_material(int nr, void *attribs)
 
 			gpumat = GPU_material_from_blender(GMS.gscene, mat);
 			GPU_material_vertex_attributes(gpumat, gattribs);
-			GPU_material_bind(gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT), GMS.gviewmat, GMS.gviewinv, GMS.gviewcamtexcofac, GMS.gscenelock);
+			GPU_material_bind(gpumat, GMS.gob->lay, GMS.glay, 1.0, !(GMS.gob->mode & OB_MODE_TEXTURE_PAINT), GMS.gviewmat, GMS.gviewinv, GMS.gviewcamtexcofac, GMS.gscenelock, GMS.gob);
 
 			auto_bump_scale = GMS.gob->derivedFinal != NULL ? GMS.gob->derivedFinal->auto_bump_scale : 1.0f;
 			GPU_material_bind_uniforms(gpumat, GMS.gob->obmat, GMS.gob->col, auto_bump_scale);
