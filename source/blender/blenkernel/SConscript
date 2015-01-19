@@ -45,6 +45,7 @@ incs = [
     '#/intern/raskter',
     '#/intern/rigidbody',
     '#/extern/bullet2/src',
+    '#/extern/ptex',
     env['BF_GLEW_INC'],
     '#/intern/ghost',
     '#/intern/glew-mx',

@@ -60,6 +60,7 @@
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_remap.h"
 #include "BKE_multires.h"
+#include "BKE_ptex.h"
 
 #include "bmesh.h"
 
@@ -1184,6 +1185,44 @@ static void layerSwap_flnor(void *data, const int *corner_indices)
 	memcpy(flnors, nors, sizeof(nors));
 }
 
+/*** CD_LOOP_PTEX ***/
+
+static void layerCopy_loop_ptex(const void *src, void *dst, int count)
+{
+	const MLoopPtex *loop_ptex_src = src;
+	MLoopPtex *loop_ptex_dst = dst;
+	int i;
+
+	memcpy(loop_ptex_dst, loop_ptex_src, sizeof(*loop_ptex_dst) * count);
+	for (i = 0; i < count; i++) {
+		loop_ptex_dst[i].rect = MEM_dupallocN(loop_ptex_dst[i].rect);
+	}
+}
+
+static void layerDefault_loop_ptex(void *data, int count)
+{
+	MLoopPtex *loop_ptex = data;
+	int i;
+
+	memset(loop_ptex, 0, sizeof(*loop_ptex) * count);
+	for (i = 0; i < count; i++) {
+		loop_ptex[i].texel_info.data_type = MPTEX_DATA_TYPE_UINT8;
+		loop_ptex[i].texel_info.num_channels = 4;
+	}
+}
+
+static void layerFree_loop_ptex(void *data, int count, int UNUSED(size))
+{
+	MLoopPtex *loop_ptex = data;
+	int i;
+
+	for (i = 0; i < count; i++) {
+		BKE_loop_ptex_free(&loop_ptex[i]);
+	}
+}
+
+/**********************/
+
 static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	/* 0: CD_MVERT */
 	{sizeof(MVert), "MVert", 1, NULL, NULL, NULL, NULL, NULL, NULL},
@@ -1301,6 +1340,13 @@ static const LayerTypeInfo LAYERTYPEINFO[CD_NUMTYPES] = {
 	{sizeof(short[4][3]), "", 0, NULL, NULL, NULL, NULL, layerSwap_flnor, NULL},
 	/* 41: CD_CUSTOMLOOPNORMAL */
 	{sizeof(short[2]), "vec2s", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 42: CD_LOOP_INTERP */
+	{sizeof(MLoopInterp), "", 0, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 43: CD_TESSFACE_PTEX */
+	{sizeof(MTessFacePtex), "MTessFacePtex", 1, NULL, NULL, NULL, NULL, NULL, NULL},
+	/* 44: CD_LOOP_PTEX */
+	{sizeof(MLoopPtex), "MLoopPtex", 1, N_("Ptex"), layerCopy_loop_ptex,
+	 layerFree_loop_ptex, NULL, NULL, layerDefault_loop_ptex},
 };
 
 /* note, numbers are from trunk and need updating for bmesh */
@@ -1318,9 +1364,10 @@ static const char *LAYERTYPENAMES[CD_NUMTYPES] = {
 	/* 35-36 */ "CDGridPaintMask", "CDMVertSkin",
 	/* 37-38 */ "CDFreestyleEdge", "CDFreestyleFace",
 	/* 39-41 */ "CDMLoopTangent", "CDTessLoopNormal", "CDCustomLoopNormal",
+	/* 42-44 */ "CDLoopInterp", "CDTessFacePtex", "CDLoopPtex",
 };
 
-
+/* TODO(nicholasbishop): check more on which need various ptex layers */
 const CustomDataMask CD_MASK_BAREMESH =
     CD_MASK_MVERT | CD_MASK_MEDGE | CD_MASK_MFACE | CD_MASK_MLOOP | CD_MASK_MPOLY | CD_MASK_BWEIGHT;
 const CustomDataMask CD_MASK_MESH =
@@ -1330,7 +1377,8 @@ const CustomDataMask CD_MASK_MESH =
     CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_MPOLY | CD_MASK_MLOOP |
     CD_MASK_MTEXPOLY | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
     CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
-    CD_MASK_CUSTOMLOOPNORMAL;
+    CD_MASK_CUSTOMLOOPNORMAL |
+	CD_MASK_TESSFACE_PTEX | CD_MASK_LOOP_PTEX | CD_MASK_LOOP_INTERP;
 const CustomDataMask CD_MASK_EDITMESH =
     CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_MTFACE | CD_MASK_MLOOPUV |
     CD_MASK_MLOOPCOL | CD_MASK_MTEXPOLY | CD_MASK_SHAPE_KEYINDEX |
@@ -1344,14 +1392,16 @@ const CustomDataMask CD_MASK_DERIVEDMESH =
     CD_MASK_PROP_STR | CD_MASK_ORIGSPACE | CD_MASK_ORIGSPACE_MLOOP | CD_MASK_ORCO | CD_MASK_TANGENT |
     CD_MASK_PREVIEW_MCOL | CD_MASK_SHAPEKEY | CD_MASK_RECAST |
     CD_MASK_ORIGINDEX | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
-    CD_MASK_CUSTOMLOOPNORMAL;
+    CD_MASK_CUSTOMLOOPNORMAL |
+	CD_MASK_TESSFACE_PTEX | CD_MASK_LOOP_PTEX | CD_MASK_LOOP_INTERP;
 const CustomDataMask CD_MASK_BMESH =
     CD_MASK_MLOOPUV | CD_MASK_MLOOPCOL | CD_MASK_MTEXPOLY |
     CD_MASK_MSTICKY | CD_MASK_MDEFORMVERT | CD_MASK_PROP_FLT | CD_MASK_PROP_INT |
     CD_MASK_PROP_STR | CD_MASK_SHAPEKEY | CD_MASK_SHAPE_KEYINDEX | CD_MASK_MDISPS |
     CD_MASK_CREASE | CD_MASK_BWEIGHT | CD_MASK_RECAST | CD_MASK_PAINT_MASK |
     CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN | CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
-    CD_MASK_CUSTOMLOOPNORMAL;
+    CD_MASK_CUSTOMLOOPNORMAL |
+    CD_MASK_LOOP_PTEX | CD_MASK_LOOP_INTERP;
 const CustomDataMask CD_MASK_FACECORNERS =  /* XXX Not used anywhere! */
     CD_MASK_MTFACE | CD_MASK_MCOL | CD_MASK_MTEXPOLY | CD_MASK_MLOOPUV |
     CD_MASK_MLOOPCOL | CD_MASK_NORMAL | CD_MASK_MLOOPTANGENT;
@@ -1366,7 +1416,8 @@ const CustomDataMask CD_MASK_EVERYTHING =
     /* BMESH ONLY END */
     CD_MASK_PAINT_MASK | CD_MASK_GRID_PAINT_MASK | CD_MASK_MVERT_SKIN |
     CD_MASK_FREESTYLE_EDGE | CD_MASK_FREESTYLE_FACE |
-    CD_MASK_MLOOPTANGENT | CD_MASK_TESSLOOPNORMAL | CD_MASK_CUSTOMLOOPNORMAL;
+    CD_MASK_MLOOPTANGENT | CD_MASK_TESSLOOPNORMAL | CD_MASK_CUSTOMLOOPNORMAL |
+	CD_MASK_TESSFACE_PTEX | CD_MASK_LOOP_PTEX | CD_MASK_LOOP_INTERP;
 
 static const LayerTypeInfo *layerType_getInfo(int type)
 {
@@ -2456,6 +2507,9 @@ void CustomData_from_bmeshpoly(CustomData *fdata, CustomData *pdata, CustomData 
 		}
 		else if (ldata->layers[i].type == CD_NORMAL) {
 			CustomData_add_layer_named(fdata, CD_TESSLOOPNORMAL, CD_CALLOC, NULL, total, ldata->layers[i].name);
+		}
+		else if (ldata->layers[i].type == CD_LOOP_INTERP) {
+			CustomData_add_layer_named(fdata, CD_TESSFACE_PTEX, CD_CALLOC, NULL, total, ldata->layers[i].name);
 		}
 	}
 

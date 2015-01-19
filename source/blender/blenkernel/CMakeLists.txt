@@ -48,6 +48,7 @@ set(INC
 	../../../intern/smoke/extern
 	../../../intern/atomic
 	../../../extern/libmv
+	../../../extern/ptex
 
 	# XXX - BAD LEVEL CALL WM_api.h
 	../windowmanager
@@ -68,6 +69,7 @@ set(SRC
 	intern/appdir.c
 	intern/armature.c
 	intern/autoexec.c
+	intern/bke_ptex.c
 	intern/blender.c
 	intern/bmfont.c
 	intern/boids.c
@@ -250,6 +252,7 @@ set(SRC
 	BKE_pbvh.h
 	BKE_pointcache.h
 	BKE_property.h
+	BKE_ptex.h
 	BKE_report.h
 	BKE_rigidbody.h
 	BKE_sca.h

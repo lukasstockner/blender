@@ -280,6 +280,67 @@ typedef struct MVertSkin {
 	int flag;
 } MVertSkin;
 
+// TODO: rename with M prefix
+typedef enum PtexDataType {
+	MPTEX_DATA_TYPE_UINT8   = 0,
+	/* Reserved for compatibility with Ptex file format
+	 * specification */
+	/* MPTEX_DATA_TYPE_UINT16  = 1, */
+	/* MPTEX_DATA_TYPE_FLOAT16 = 2, */
+	MPTEX_DATA_TYPE_FLOAT32 = 3,
+} PtexDataType;
+
+typedef struct MPtexTexelInfo {
+	unsigned char num_channels;
+
+	/* enum PtexDataType */
+	unsigned char data_type;
+
+	unsigned char pad[2];
+} MPtexTexelInfo;
+
+
+typedef struct MPtexLogRes {
+	unsigned char u;
+	unsigned char v;
+
+	unsigned char pad[2];
+} MPtexLogRes;
+
+/* Ptex texture data attached to mesh poly loops
+ *
+ * The texture is rectanglular (doesn't have to be square), and the
+ * number of pixels on each side must be a power of two. The number of
+ * texels in the texture is (2^logres.u * 2^logres.v).
+ *
+ * All channels have the same data type and resolution, so the rect
+ * array's length in bytes is:
+ *     num_texels *
+ *     texel_info.num_channels *
+ *     data_type_size_in_bytes
+ */
+typedef struct MLoopPtex {
+	/* TODO, shouldn't be in each loop? */
+	struct Image *image;
+
+	/* Channel data array */
+	void *rect;
+
+	MPtexLogRes logres;
+
+	int pad1;
+
+	/* TODO, shouldn't be in each loop */
+	MPtexTexelInfo texel_info;
+
+	int pad2;
+} MLoopPtex;
+
+typedef struct MTessFacePtex {
+	float uv[4][2];
+	int id;
+} MTessFacePtex;
+
 typedef struct FreestyleEdge {
 	char flag;
 	char pad[3];
