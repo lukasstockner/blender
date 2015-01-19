@@ -190,6 +190,9 @@ void IMB_freeImBuf(ImBuf *ibuf)
 			if (ibuf->dds_data.data != NULL) {
 				free(ibuf->dds_data.data); /* dds_data.data is allocated by DirectDrawSurface::readData(), so don't use MEM_freeN! */
 			}
+			if (ibuf->ptex_regions) {
+				MEM_freeN(ibuf->ptex_regions);
+			}
 			MEM_freeN(ibuf);
 		}
 	}
@@ -469,6 +472,10 @@ ImBuf *IMB_dupImBuf(ImBuf *ibuf1)
 		tbuf.mipmap[a] = NULL;
 	tbuf.dds_data.data = NULL;
 	
+	if (ibuf1->ptex_regions) {
+		tbuf.ptex_regions = MEM_dupallocN(ibuf1->ptex_regions);
+	}
+
 	/* set malloc flag */
 	tbuf.mall               = ibuf2->mall;
 	tbuf.c_handle           = NULL;

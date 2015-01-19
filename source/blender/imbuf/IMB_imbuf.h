@@ -549,5 +549,24 @@ void IMB_processor_apply_threaded(int buffer_lines, int handle_size, void *init_
 void IMB_ffmpeg_init(void);
 const char *IMB_ffmpeg_last_error(void);
 
+/* ptex */
+
+struct BPXImageBuf;
+struct PtexPackedLayout;
+
+/* Create a new BPXImageBuf that wraps an ImBuf
+ *
+ * The BPXImageBuf will have access to the original ImBuf memory
+ * rather than allocating a copy.
+ *
+ * Return NULL on failure.
+ *
+ * The result should be freed with BPX_image_buf_free() when no longer
+ * needed. */
+struct BPXImageBuf *IMB_imbuf_as_bpx_image_buf(struct ImBuf *ibuf);
+
+/* Create an ImBuf from a finalized PtexPackedLayout */
+struct ImBuf *IMB_alloc_from_ptex_layout(const struct PtexPackedLayout *layout);
+
 #endif
 

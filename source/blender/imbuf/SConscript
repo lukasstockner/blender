@@ -36,6 +36,7 @@ incs = [
     '#/intern/ffmpeg',
     '#/intern/guardedalloc',
     '#/intern/memutil',
+    '#/extern/ptex',
     '../avi',
     '../blenkernel',
     '../blenlib',

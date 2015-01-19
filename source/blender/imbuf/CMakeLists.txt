@@ -30,6 +30,7 @@ set(INC
 	../blenloader
 	../makesdna
 	../makesrna
+	../../../extern/ptex
 	../../../intern/guardedalloc
 	../../../intern/memutil
 )
@@ -50,6 +51,7 @@ set(SRC
 	intern/filetype.c
 	intern/filter.c
 	intern/imageprocess.c
+	intern/imb_ptex.c
 	intern/indexer.c
 	intern/indexer_dv.c
 	intern/iris.c

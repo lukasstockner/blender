@@ -57,6 +57,14 @@ typedef struct DDSData {
 	unsigned int size; /* The size of the compressed data */
 } DDSData;
 
+// TODO
+typedef struct {
+	int x;
+	int y;
+	int width;
+	int height;
+} ImPtexRegion;
+
 /**
  * \ingroup imbuf
  * This is the abstraction of an image.  ImBuf is the basic type used for all
@@ -136,6 +144,10 @@ typedef struct ImBuf {
 
 	/* information for compressed textures */
 	struct DDSData dds_data;
+
+	/* TODO */
+	ImPtexRegion *ptex_regions; /* array */
+	int num_ptex_regions;
 } ImBuf;
 
 /* Moved from BKE_bmfont_types.h because it is a userflag bit mask. */
@@ -182,6 +194,11 @@ typedef struct ImBuf {
 #ifdef WITH_OPENIMAGEIO
 #define PSD				(1 << 31)
 #endif
+
+/* TODO(nicholasbishop): this is a really confusing list of defines */
+//#ifdef WITH_PTEX
+#define IMB_PTEX		(1 << 29)
+//#endif
 
 #define PNG				(1 << 30)
 #define TGA				(1 << 28)

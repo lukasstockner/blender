@@ -104,6 +104,8 @@ const char *imb_ext_image_filepath_only[] = {
 #ifdef WITH_OPENIMAGEIO
 	".psd", ".pdd", ".psb",
 #endif
+	// TODO
+	".ptx",
 	NULL
 };
 

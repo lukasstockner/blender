@@ -121,5 +121,13 @@ void imb_loadtiletiff(struct ImBuf *ibuf, unsigned char *mem, size_t size,
 	int tx, int ty, unsigned int *rect);
 int imb_savetiff(struct ImBuf *ibuf, const char *name, int flags);
 
+/* ptex */
+void imb_init_ptex(void);
+void imb_exit_ptex(void);
+int imb_is_a_ptex(unsigned char *buf);
+int imb_is_a_ptex_filepath(const char *name);
+struct ImBuf *imb_load_ptex_filepath(const char *name, int flags,
+									 char colorspace[IM_MAX_SPACE]);
+
 #endif	/* __IMB_FILETYPE_H__ */
 
