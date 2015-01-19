@@ -259,6 +259,83 @@ static void create_mesh_volume_attributes(Scene *scene, BL::Object b_ob, Mesh *m
 
 /* Create Mesh */
 
+static const int quad_split_pattern[2][2][3] = {
+	/* Note that first pattern is the one used for triangle inputs */
+	{{0, 1, 2}, {0, 2, 3}},
+	{{0, 1, 3}, {2, 3, 1}}
+};
+
+static int quad_split_pattern_index(const float3 &a, 
+									const float3 &b, 
+									const float3 &c, 
+									const float3 &d)
+{
+	if (is_zero(cross(b - a, c - a)) || is_zero(cross(c - a, d - a))) {
+		return 1;
+	}
+	else {
+		return 0;
+	}
+}
+
+static void mesh_add_ptex_face_attributes(Mesh *mesh, BL::Mesh b_mesh,
+										  const vector<int> &nverts,
+										  const vector<int> &face_split_pattern)
+{
+	BL::Mesh::tessfaces_iterator f;
+	Attribute *face_id_attr = mesh->attributes.add(ATTR_STD_PTEX_UV);
+	mesh->attributes.reserve();
+
+	float3 (*dst)[3] = (float3(*)[3])face_id_attr->data_float3();
+	size_t cur_tri = 0;
+	size_t cur_tessface = 0;
+
+	for (b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f) {
+		BL::PtexTessFace ptex = f->ptex_tess_face();
+		if (!ptex) break;
+		const int num_triangles = (nverts[cur_tessface] == 4) ? 2 : 1;
+		const int spi = face_split_pattern[cur_tessface];
+
+		for (int i = 0; i < num_triangles; i++) {
+			for (int j = 0; j < 3; j++) {
+				const int ci = quad_split_pattern[spi][i][j];
+
+				dst[cur_tri][j] = make_float3(ptex.uv()[ci * 2 + 0],
+											  ptex.uv()[ci * 2 + 1],
+											  ptex.id());
+			}
+			cur_tri++;
+		}
+
+		cur_tessface++;
+	}
+}
+
+static void mesh_add_ptex_layer_data(Scene *scene, Mesh *mesh, BL::Mesh b_mesh)
+{
+	BL::Mesh::loop_ptex_iterator l;
+	for (b_mesh.loop_ptex.begin(l); l != b_mesh.loop_ptex.end(); ++l) {
+		const ustring layer_name = ustring(l->name());
+		if (mesh->need_attribute(scene, layer_name)) {
+			Attribute *attr = mesh->attributes.add(layer_name,
+												   TypeDesc::TypeFloat,
+												   ATTR_ELEMENT_MESH);
+			//mesh->attributes.reserve();
+			float *slot = attr->data_float();
+			bool is_float;
+			bool is_linear;
+			// TODO
+
+			BL::Image image = l->image();
+
+			// Other alternative is: get data, pack new image here
+			(*slot) = scene->image_manager->add_image
+				("TODO", image.ptr.data, false, 1,
+				 is_float, is_linear, INTERPOLATION_LINEAR, true);
+		}
+	}
+}
+
 static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<uint>& used_shaders)
 {
 	/* count vertices and faces */
@@ -306,6 +383,7 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 
 	/* create faces */
 	vector<int> nverts(numfaces);
+	vector<int> face_split_pattern(numfaces);
 	int fi = 0, ti = 0;
 
 	for(b_mesh.tessfaces.begin(f); f != b_mesh.tessfaces.end(); ++f, ++fi) {
@@ -337,23 +415,31 @@ static void create_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, const vector<
 		}
 
 		/* create triangles */
+		int spi;
 		if(n == 4) {
-			if(is_zero(cross(mesh->verts[vi[1]] - mesh->verts[vi[0]], mesh->verts[vi[2]] - mesh->verts[vi[0]])) ||
-			   is_zero(cross(mesh->verts[vi[2]] - mesh->verts[vi[0]], mesh->verts[vi[3]] - mesh->verts[vi[0]])))
-			{
-				mesh->set_triangle(ti++, vi[0], vi[1], vi[3], shader, smooth);
-				mesh->set_triangle(ti++, vi[2], vi[3], vi[1], shader, smooth);
-			}
-			else {
-				mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth);
-				mesh->set_triangle(ti++, vi[0], vi[2], vi[3], shader, smooth);
-			}
+			spi = quad_split_pattern_index(mesh->verts[vi[0]],
+										   mesh->verts[vi[1]],
+										   mesh->verts[vi[2]],
+										   mesh->verts[vi[3]]);
+			
 		}
-		else
-			mesh->set_triangle(ti++, vi[0], vi[1], vi[2], shader, smooth);
+		else {
+			spi = 0;
+		}
+		face_split_pattern[fi] = spi;
+			
+		for (int i = 0; i < (n == 4 ? 2 : 1); i++) {
+			const int *c = quad_split_pattern[spi][i];
+			mesh->set_triangle(ti++, vi[c[0]], vi[c[1]], vi[c[2]],
+							   shader, smooth);
+		}
 
 		nverts[fi] = n;
 	}
+
+	/* Add Ptex data if needed */
+	mesh_add_ptex_face_attributes(mesh, b_mesh, nverts, face_split_pattern);
+	mesh_add_ptex_layer_data(scene, mesh, b_mesh);
 
 	/* create vertex color attributes */
 	{
