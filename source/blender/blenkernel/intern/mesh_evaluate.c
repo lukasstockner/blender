@@ -53,6 +53,7 @@
 #include "BKE_customdata.h"
 #include "BKE_mesh.h"
 #include "BKE_multires.h"
+#include "BKE_ptex.h"
 #include "BKE_report.h"
 
 #include "BLI_strict_flags.h"
@@ -2158,6 +2159,7 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData
 	const bool hasPCol = CustomData_has_layer(ldata, CD_PREVIEW_MLOOPCOL);
 	const bool hasOrigSpace = CustomData_has_layer(ldata, CD_ORIGSPACE_MLOOP);
 	const bool hasLoopNormal = CustomData_has_layer(ldata, CD_NORMAL);
+	const bool hasPtex = CustomData_has_layer(ldata, CD_LOOP_INTERP);
 	int findex, i, j;
 	const int *pidx;
 	unsigned int (*lidx)[4];
@@ -2220,6 +2222,17 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData
 			for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
 				normal_float_to_short_v3((*fnors)[j], lnors[(*lidx)[j]]);
 			}
+		}
+	}
+
+	if (hasPtex) {
+		MTessFacePtex *dst = CustomData_get_layer(fdata, CD_TESSFACE_PTEX);
+		const MLoopInterp *src = CustomData_get_layer(ldata, CD_LOOP_INTERP);
+
+		for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, dst++) {
+			const int num_indices = ((mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3);
+
+			BKE_ptex_tess_face_interp(dst, src, *lidx, num_indices);
 		}
 	}
 }
