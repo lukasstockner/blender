@@ -59,6 +59,7 @@
 #include "BKE_object.h"
 #include "BKE_object_deform.h"
 #include "BKE_paint.h"
+#include "BKE_ptex.h"
 #include "BKE_texture.h"
 #include "BKE_multires.h"
 #include "BKE_bvhutils.h"
@@ -1503,6 +1504,8 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	const bool do_loop_normals = (me->flag & ME_AUTOSMOOTH) != 0;
 	const float loop_normals_split_angle = me->smoothresh;
 
+	const bool ptex_requested = (dataMask & CD_MASK_TESSFACE_PTEX);
+
 	VirtualModifierData virtualModifierData;
 
 	ModifierApplyFlag app_flags = useRenderParams ? MOD_APPLY_RENDER : 0;
@@ -1520,6 +1523,10 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		firstmd = ob->modifiers.first;
 		if (firstmd && firstmd->type == eModifierType_Armature)
 			firstmd = firstmd->next;
+	}
+
+	if (ptex_requested) {
+		dataMask |= CD_MASK_LOOP_INTERP;
 	}
 
 	md = firstmd;
@@ -1719,6 +1726,10 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 				dm = CDDM_from_mesh(me);
 				ASSERT_IS_VALID_DM(dm);
 
+				if (ptex_requested) {
+					BKE_ptex_derived_mesh_inject(dm);
+				}
+
 				if (build_shapekey_layers)
 					add_shapekey_layers(dm, me, ob);
 
@@ -1882,6 +1893,12 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	}
 	else {
 		finaldm = CDDM_from_mesh(me);
+
+		// TODO(nicholasbishop): de-duplicate!
+
+		if (ptex_requested) {
+			BKE_ptex_derived_mesh_inject(finaldm);
+		}
 		
 		if (build_shapekey_layers) {
 			add_shapekey_layers(finaldm, me, ob);
@@ -1902,6 +1919,14 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 
 		if (deform_r && *deform_r)
 			add_orco_dm(ob, NULL, *deform_r, NULL, CD_ORCO);
+	}
+
+	if (ptex_requested) {
+		DerivedMesh *tdm = BKE_ptex_derived_mesh_subdivide(finaldm);
+		if (finaldm != tdm) {
+			finaldm->release(finaldm);
+			finaldm = tdm;
+		}
 	}
 
 	if (do_loop_normals) {
@@ -2273,6 +2298,9 @@ static void mesh_build_data(Scene *scene, Object *ob, CustomDataMask dataMask,
 
 	BKE_object_free_derived_caches(ob);
 	BKE_object_sculpt_modifiers_changed(ob);
+
+	// TODO:
+	dataMask |= CD_MASK_TESSFACE_PTEX;
 
 	mesh_calc_modifiers(scene, ob, NULL, &ob->derivedDeform,
 	                    &ob->derivedFinal, 0, 1,
@@ -3077,6 +3105,21 @@ void DM_vertex_attributes_from_gpu(DerivedMesh *dm, GPUVertexAttribs *gattribs, 
 			attribs->orco.gl_index = gattribs->layer[b].glindex;
 			attribs->orco.gl_texco = gattribs->layer[b].gltexco;
 		}
+		else if (gattribs->layer[b].type == CD_TESSFACE_PTEX) {
+			layer = CustomData_get_layer_index(fdata, CD_TESSFACE_PTEX);
+			attribs->totptex = 1;
+			if (layer != -1) {
+				attribs->ptex.array = fdata->layers[layer].data;
+				attribs->ptex.em_offset = vdata->layers[layer].offset;
+			}
+			else {
+				attribs->ptex.array = NULL;
+				attribs->ptex.em_offset = -1;
+			}
+
+			attribs->ptex.gl_index = gattribs->layer[b].glindex;
+			attribs->ptex.gl_texco = gattribs->layer[b].gltexco;
+		}
 	}
 }
 
@@ -3140,6 +3183,22 @@ void DM_draw_attrib_vertex(DMVertexAttribs *attribs, int a, int index, int vert)
 		/*const*/ float (*array)[4] = attribs->tang.array;
 		const float *tang = (array) ? array[a * 4 + vert] : zero;
 		glVertexAttrib4fvARB(attribs->tang.gl_index, tang);
+	}
+
+	/* ptex texture coordinates */
+	if (attribs->totptex) {
+		MTessFacePtex *array = attribs->ptex.array;
+		float ptex[3] = {0.0f, 0.0f, 0.0f};
+		if (array) {
+			// TODO
+			copy_v2_v2(ptex, attribs->ptex.array[a].uv[vert]);
+			ptex[2] = attribs->ptex.array[a].id;
+		}
+
+		if (attribs->ptex.gl_texco)
+			glTexCoord3fv(ptex);
+		else
+			glVertexAttrib3fvARB(attribs->ptex.gl_index, ptex);
 	}
 }
 

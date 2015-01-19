@@ -745,7 +745,12 @@ typedef struct DMVertexAttribs {
 		int em_offset, gl_index, gl_texco;
 	} orco;
 
-	int tottface, totmcol, tottang, totorco;
+	struct {
+		struct MTessFacePtex *array;
+		int em_offset, gl_index, gl_texco;
+	} ptex;
+
+	int tottface, totmcol, tottang, totorco, totptex;
 } DMVertexAttribs;
 
 void DM_vertex_attributes_from_gpu(DerivedMesh *dm,
