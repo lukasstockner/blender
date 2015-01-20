@@ -62,6 +62,7 @@
 #include "BKE_mesh_mapping.h"
 #include "BKE_multires.h"
 #include "BKE_paint.h"
+#include "BKE_ptex.h"
 #include "BKE_scene.h"
 #include "BKE_subsurf.h"
 
@@ -2869,6 +2870,21 @@ static void ccg_loops_to_corners(CustomData *fdata, CustomData *ldata,
 			copy_v2_v2(of->uv[j], lof->uv);
 		}
 	}
+
+	// TODO
+	{
+		MTessFacePtex *dst = CustomData_get(fdata, findex, CD_TESSFACE_PTEX);
+		MLoopInterp *loop_interp = CustomData_get(ldata, loopstart,
+												  CD_LOOP_INTERP);
+		if (loop_interp) {
+			enum {
+				num_loop_indices = 4
+			};
+			const unsigned int loop_indices[num_loop_indices] = {0, 1, 2, 3};
+
+			BKE_ptex_tess_face_interp(dst, loop_interp, loop_indices, num_loop_indices);
+		}
+	}
 }
 
 static void *ccgDM_get_vert_data_layer(DerivedMesh *dm, int type)
@@ -3011,13 +3027,14 @@ static void *ccgDM_get_tessface_data_layer(DerivedMesh *dm, int type)
 
 static void *ccgDM_get_poly_data_layer(DerivedMesh *dm, int type)
 {
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	const int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
+
 	if (type == CD_ORIGINDEX) {
 		/* create origindex on demand to save memory */
-		CCGDerivedMesh *ccgdm = (CCGDerivedMesh *)dm;
-		CCGSubSurf *ss = ccgdm->ss;
 		int *origindex;
 		int a, i, index, totface;
-		int gridFaces = ccgSubSurf_getGridSize(ss) - 1;
 
 		/* Avoid re-creation if the layer exists already */
 		origindex = DM_get_poly_data_layer(dm, CD_ORIGINDEX);
@@ -3067,7 +3084,7 @@ static void *ccgDM_get_edge_data(DerivedMesh *dm, int index, int type)
 
 static void *ccgDM_get_tessface_data(DerivedMesh *dm, int index, int type)
 {
-	if (ELEM(type, CD_ORIGINDEX, CD_TESSLOOPNORMAL)) {
+	if (ELEM(type, CD_ORIGINDEX, CD_TESSLOOPNORMAL, CD_TESSFACE_PTEX)) {
 		/* ensure creation of CD_ORIGINDEX/CD_TESSLOOPNORMAL layers */
 		ccgDM_get_tessface_data_layer(dm, type);
 	}
@@ -3077,10 +3094,12 @@ static void *ccgDM_get_tessface_data(DerivedMesh *dm, int index, int type)
 
 static void *ccgDM_get_poly_data(DerivedMesh *dm, int index, int type)
 {
-	if (type == CD_ORIGINDEX) {
+#if 1
+	if (type == CD_ORIGINDEX || type == CD_TESSFACE_PTEX) {
 		/* ensure creation of CD_ORIGINDEX layer */
 		ccgDM_get_tessface_data_layer(dm, type);
 	}
+#endif
 
 	return DM_get_poly_data(dm, index, type);
 }
@@ -3451,6 +3470,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->dm.getVertDataArray = ccgDM_get_vert_data_layer;
 	ccgdm->dm.getEdgeDataArray = ccgDM_get_edge_data_layer;
 	ccgdm->dm.getTessFaceDataArray = ccgDM_get_tessface_data_layer;
+	ccgdm->dm.getLoopDataArray = DM_get_loop_data_layer;
 	ccgdm->dm.getPolyDataArray = ccgDM_get_poly_data_layer;
 	ccgdm->dm.getNumGrids = ccgDM_getNumGrids;
 	ccgdm->dm.getGridSize = ccgDM_getGridSize;
@@ -3560,6 +3580,18 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	mcol = DM_get_tessface_data_layer(&ccgdm->dm, CD_MCOL);
 #endif
 
+	
+	// TODO, quick hacks
+#if 1
+	// BKE_ptex_derived_mesh_interp_coords(dm);
+
+	// Loop DM thing will then interpolate correctly (?)
+
+	/* ccgDM_get_poly_data_layer(&ccgdm->dm, CD_TESSFACE_PTEX); */
+	CustomData_add_layer(&ccgdm->dm.faceData, CD_TESSFACE_PTEX, 
+	                     CD_CALLOC, NULL, ccgdm->dm.numTessFaceData);
+#endif
+
 	loopindex = loopindex2 = 0; /* current loop index */
 	for (index = 0; index < totface; index++) {
 		CCGFace *f = ccgdm->faceMap[index].face;
@@ -3572,7 +3604,6 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 #ifdef USE_DYNSIZE
 		int loopidx[numVerts], vertidx[numVerts];
 #endif
-
 		w = get_ss_weights(&wtable, gridCuts, numVerts);
 
 		ccgdm->faceMap[index].startVert = vertNum;
@@ -3659,25 +3690,38 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 			/*interpolate per-face data*/
 			for (y = 0; y < gridFaces; y++) {
 				for (x = 0; x < gridFaces; x++) {
-					w2 = w + s * numVerts * g2_wid * g2_wid + (y * g2_wid + x) * numVerts;
-					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-					                  loopidx, w2, NULL, numVerts, loopindex2);
-					loopindex2++;
+					int x2, y2;
+					int pu2 = 0;
+					for (x2 = 0; x2 <= 1; x2++) {
+						for (y2 = 0; y2 <= 1; y2++) {
+							/* This gives the (x,y) pattern:
+							 * (0,0) (0,1) (1,1) (1,0) */
+							int y3 = (x2 == 0) ? y2 : 1 - y2;
 
-					w2 = w + s * numVerts * g2_wid * g2_wid + ((y + 1) * g2_wid + (x)) * numVerts;
-					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-					                  loopidx, w2, NULL, numVerts, loopindex2);
-					loopindex2++;
+							/* Pointer arithmetic */
+							w2 = w + (s * numVerts * g2_wid * g2_wid +
+							          ((y + y3) * g2_wid +
+							           (x + x2)) * numVerts);
 
-					w2 = w + s * numVerts * g2_wid * g2_wid + ((y + 1) * g2_wid + (x + 1)) * numVerts;
-					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-					                  loopidx, w2, NULL, numVerts, loopindex2);
-					loopindex2++;
-					
-					w2 = w + s * numVerts * g2_wid * g2_wid + ((y) * g2_wid + (x + 1)) * numVerts;
-					CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
-					                  loopidx, w2, NULL, numVerts, loopindex2);
-					loopindex2++;
+							CustomData_interp(&dm->loopData, &ccgdm->dm.loopData,
+							                  loopidx, w2, NULL, numVerts, loopindex2);
+							
+							/* TODO */
+							{
+								MLoopInterp *dst = CustomData_get_layer(&ccgdm->dm.loopData, CD_LOOP_INTERP);
+								MLoopInterp *src = CustomData_get_layer(&dm->loopData, CD_LOOP_INTERP);
+
+								if (dst) {
+									dst[loopindex2].uv[0] = (float)(y + y3) / (float)(gridFaces);
+									dst[loopindex2].uv[1] = (float)(x + x2) / (float)(gridFaces);
+									dst[loopindex2].id = src[loopidx[s]].id;
+								}
+							}
+							pu2++;
+
+							loopindex2++;
+						}
+					}
 
 					/*copy over poly data, e.g. mtexpoly*/
 					CustomData_copy_data(&dm->polyData, &ccgdm->dm.polyData, origIndex, faceNum, 1);
@@ -3800,7 +3844,7 @@ static CCGDerivedMesh *getCCGDerivedMesh(CCGSubSurf *ss,
 	ccgdm->dm.numPolyData = faceNum;
 
 	/* All tessellated CD layers were updated! */
-	ccgdm->dm.dirty &= ~DM_DIRTY_TESS_CDLAYERS;
+	//ccgdm->dm.dirty &= ~DM_DIRTY_TESS_CDLAYERS;
 
 #ifndef USE_DYNSIZE
 	BLI_array_free(vertidx);
