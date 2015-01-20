@@ -337,7 +337,7 @@ OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) 
 	
 	OperationDepsNode *op_node = comp_node->find_operation(key.opcode, key.name);
 	if (!op_node) {
-		fprintf(stderr, "find_node_operation: Failed for (%d, '%s')\n", key.opcode, key.name.c_str());
+		fprintf(stderr, "find_node_operation: Failed for (%s, '%s')\n", DEG_OPNAMES[key.opcode], key.name.c_str());
 	}
 	return op_node;
 }

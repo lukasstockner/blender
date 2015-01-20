@@ -40,6 +40,18 @@ extern "C" {
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
 /* ******************************************************** */
+/* OpNode Identifiers Array - Exported to other depsgraph files too... */
+
+/* identifiers for operations */
+const char *DEG_OPNAMES[] = {
+	#define DEF_DEG_OPCODE(label) #label,
+	#include "depsnode_opcodes.h"
+	#undef DEF_DEG_OPCODE
+	
+	"<Invalid>"
+};
+
+/* ******************************************************** */
 /* Inner Nodes */
 
 OperationDepsNode::OperationDepsNode() :
@@ -53,15 +65,6 @@ OperationDepsNode::~OperationDepsNode()
 
 string OperationDepsNode::identifier() const
 {
-	/* identifiers for operations */
-	const char *DEG_OPNAMES[] = {
-		#define DEF_DEG_OPCODE(label) #label,
-		#include "depsnode_opcodes.h"
-		#undef DEF_DEG_OPCODE
-		
-		"<Invalid>"
-	};
-	
 	BLI_assert((opcode > 0) && (opcode < ARRAY_SIZE(DEG_OPNAMES)));
 	return string(DEG_OPNAMES[opcode]) + "(" + name + ")";
 }

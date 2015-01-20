@@ -179,12 +179,10 @@ struct OperationKey
 	
 	string identifier() const
 	{
-		char typebuf[5], codebuf[5];
-		
+		char typebuf[5];
 		sprintf(typebuf, "%d", component_type);
-		sprintf(codebuf, "%d", opcode); // XXX: use the string defs instead
 		
-		return string("OperationKey(") + "t: " + typebuf + ", cn: '" + component_name + "', c: " + codebuf + ", n: '" + name + "')";
+		return string("OperationKey(") + "t: " + typebuf + ", cn: '" + component_name + "', c: " + DEG_OPNAMES[opcode] + ", n: '" + name + "')";
 	}
 	
 	

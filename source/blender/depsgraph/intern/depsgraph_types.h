@@ -99,6 +99,9 @@ typedef enum eDepsOperation_Code {
 	#undef DEF_DEG_OPCODE
 } eDepsOperation_Code;
 
+/* String defines for these opcodes, defined in depsnode_operation.cpp */
+extern const char *DEG_OPNAMES[];
+
 
 /* Type of operation */
 typedef enum eDepsOperation_Type {
