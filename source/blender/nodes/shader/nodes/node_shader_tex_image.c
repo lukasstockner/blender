@@ -54,6 +54,18 @@ static void node_shader_init_tex_image(bNodeTree *UNUSED(ntree), bNode *node)
 	node->storage = tex;
 }
 
+/* TODO(nicholasbishop) */
+static bool image_node_needs_ptex(Image *ima, ImageUser *iuser)
+{
+	ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
+	bool ret;
+
+	ret = (ibuf && ibuf->num_ptex_regions);
+	BKE_image_release_ibuf(ima, ibuf, NULL);
+
+	return ret;
+}
+
 static int node_shader_gpu_tex_image(GPUMaterial *mat, bNode *node, bNodeExecData *UNUSED(execdata), GPUNodeStack *in, GPUNodeStack *out)
 {
 	Image *ima = (Image *)node->id;
@@ -64,13 +76,26 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat, bNode *node, bNodeExecDat
 
 	if (!ima)
 		return GPU_stack_link(mat, "node_tex_image_empty", in, out);
-	
-	if (!in[0].link)
-		in[0].link = GPU_attribute(CD_MTFACE, "");
 
-	node_shader_gpu_tex_mapping(mat, node, in, out);
+	/* TODO(nicholasbishop) */
+	if (image_node_needs_ptex(ima, iuser)) {
+		in[0].link = GPU_attribute(CD_TESSFACE_PTEX, "");
 
-	ret = GPU_stack_link(mat, "node_tex_image", in, out, GPU_image(ima, iuser, isdata));
+		ret = GPU_stack_link(mat, "node_tex_ptex", in, out,
+							 GPU_image(ima, iuser, isdata),
+							 GPU_node_link_ptex(GPU_PTEX_INPUT_MAP,
+												NULL, ima));
+		return ret;
+	}
+	else {
+		if (!in[0].link)
+			in[0].link = GPU_attribute(CD_MTFACE, "");
+
+		node_shader_gpu_tex_mapping(mat, node, in, out);
+
+		ret = GPU_stack_link(mat, "node_tex_image", in, out,
+							 GPU_image(ima, iuser, isdata));
+	}
 
 	if (ret) {
 		ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
