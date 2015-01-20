@@ -2864,7 +2864,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
 			GPUMaterial *gpumat = GPU_material_world(scene, scene->world);
 
 			/* calculate full shader for background */
-			GPU_material_bind(gpumat, 1, 1, 1.0, false, rv3d->viewmat, rv3d->viewinv, rv3d->viewcamtexcofac, (v3d->scenelock != 0));
+			GPU_material_bind(gpumat, 1, 1, 1.0, false, rv3d->viewmat, rv3d->viewinv, rv3d->viewcamtexcofac, (v3d->scenelock != 0), NULL);
 			
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);

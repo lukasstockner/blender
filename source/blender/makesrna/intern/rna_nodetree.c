@@ -3651,6 +3651,18 @@ static void def_sh_tex_wave(StructRNA *srna)
 	RNA_def_property_update(prop, 0, "rna_Node_update");
 }
 
+static void def_sh_tex_ptex(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	RNA_def_struct_sdna_from(srna, "NodeTexPtex", "storage");
+	def_sh_tex(srna);
+
+	prop = RNA_def_property(srna, "layer_name", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Layer Name", "Name of Ptex layer");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_sh_tex_coord(StructRNA *srna)
 {
 	PropertyRNA *prop;

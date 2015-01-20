@@ -81,6 +81,7 @@ typedef struct Image {
 	
 	struct MovieCache *cache;	/* not written in file */
 	struct GPUTexture *gputexture;	/* not written in file */
+	struct GPUTexture *ptex_gputexture;	/* not written in file */
 	
 	/* sources from: */
 	struct anim *anim;

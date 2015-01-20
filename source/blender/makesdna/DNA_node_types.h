@@ -779,6 +779,11 @@ typedef struct NodeTexMagic {
 	int pad;
 } NodeTexMagic;
 
+typedef struct NodeTexPtex {
+	NodeTexBase base;
+	char layer_name[64];
+} NodeTexPtex;
+
 typedef struct NodeShaderAttribute {
 	char name[64];
 } NodeShaderAttribute;

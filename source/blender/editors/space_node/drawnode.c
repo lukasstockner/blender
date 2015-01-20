@@ -923,6 +923,16 @@ static void node_shader_buts_uvalongstroke(uiLayout *layout, bContext *UNUSED(C)
 	uiItemR(layout, ptr, "use_tips", 0, NULL, 0);
 }
 
+static void node_shader_buts_ptex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+{
+	PointerRNA obptr = CTX_data_pointer_get(C, "active_object");
+
+	if (obptr.data && RNA_enum_get(&obptr, "type") == OB_MESH) {
+		PointerRNA dataptr = RNA_pointer_get(&obptr, "data");
+		uiItemPointerR(layout, ptr, "layer_name", &dataptr, "loop_ptex", "", ICON_NONE);
+	}
+}
+
 static void node_shader_buts_normal_map(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
 	uiItemR(layout, ptr, "space", 0, "", 0);
@@ -1166,6 +1176,9 @@ static void node_shader_set_butfunc(bNodeType *ntype)
 			break;
 		case SH_NODE_OUTPUT_LINESTYLE:
 			ntype->draw_buttons = node_buts_output_linestyle;
+			break;
+		case SH_NODE_TEX_PTEX:
+			ntype->draw_buttons = node_shader_buts_ptex;
 			break;
 	}
 }

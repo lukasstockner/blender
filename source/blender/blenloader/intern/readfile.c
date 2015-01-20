@@ -1319,6 +1319,8 @@ void blo_make_image_pointer_map(FileData *fd, Main *oldmain)
 			oldnewmap_insert(fd->imamap, ima->cache, ima->cache, 0);
 		if (ima->gputexture)
 			oldnewmap_insert(fd->imamap, ima->gputexture, ima->gputexture, 0);
+		if (ima->ptex_gputexture)
+			oldnewmap_insert(fd->imamap, ima->ptex_gputexture, ima->ptex_gputexture, 0);
 		if (ima->rr)
 			oldnewmap_insert(fd->imamap, ima->rr, ima->rr, 0);
 		for (a=0; a < IMA_MAX_RENDER_SLOT; a++)
@@ -1357,12 +1359,14 @@ void blo_end_image_pointer_map(FileData *fd, Main *oldmain)
 			ima->bindcode = 0;
 			ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
 			ima->gputexture = NULL;
+			ima->ptex_gputexture = NULL;
 			ima->rr = NULL;
 		}
 		for (i = 0; i < IMA_MAX_RENDER_SLOT; i++)
 			ima->renders[i] = newimaadr(fd, ima->renders[i]);
 		
 		ima->gputexture = newimaadr(fd, ima->gputexture);
+		ima->ptex_gputexture = newimaadr(fd, ima->ptex_gputexture);
 		ima->rr = newimaadr(fd, ima->rr);
 	}
 	for (; sce; sce = sce->id.next) {
@@ -3360,6 +3364,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 		ima->bindcode = 0;
 		ima->tpageflag &= ~IMA_GLBIND_IS_DATA;
 		ima->gputexture = NULL;
+		ima->ptex_gputexture = NULL;
 		ima->rr = NULL;
 	}
 	

@@ -377,6 +377,49 @@ static void rna_Image_pixels_set(PointerRNA *ptr, const float *values)
 	BKE_image_release_ibuf(ima, ibuf, lock);
 }
 
+// TODO
+static int rna_Image_ptex_regions_get_length(PointerRNA *ptr,
+											 int length[RNA_MAX_ARRAY_DIMENSION])
+{
+	Image *ima = ptr->id.data;
+	ImBuf *ibuf;
+	void *lock;
+
+	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
+
+	if (ibuf && ibuf->ptex_regions)
+		length[0] = ibuf->num_ptex_regions * 4;
+	else
+		length[0] = 0;
+
+	BKE_image_release_ibuf(ima, ibuf, lock);
+
+	return length[0];
+}
+
+static void rna_Image_ptex_regions_get(PointerRNA *ptr, int *values)
+{
+	Image *ima = ptr->id.data;
+	ImBuf *ibuf;
+	void *lock;
+
+	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
+
+	if (ibuf && ibuf->ptex_regions) {
+		memcpy(values, ibuf->ptex_regions,
+			   sizeof(*values) * ibuf->num_ptex_regions * 4);
+	}
+
+	BKE_image_release_ibuf(ima, ibuf, lock);
+}
+
+static void rna_Image_ptex_regions_set(PointerRNA *UNUSED(ptr),
+									   const int *UNUSED(values))
+{
+	BLI_assert(!"rna_Image_ptex_regions_set not implemented");
+}
+//
+
 static int rna_Image_channels_get(PointerRNA *ptr)
 {
 	Image *im = (Image *)ptr->data;
@@ -804,6 +847,32 @@ static void rna_def_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Pixels", "Image pixels in floating point values");
 	RNA_def_property_dynamic_array_funcs(prop, "rna_Image_pixels_get_length");
 	RNA_def_property_float_funcs(prop, "rna_Image_pixels_get", "rna_Image_pixels_set", NULL);
+
+	// TODO
+#if 0
+	{
+		StructRNA *srna2 = RNA_def_struct(brna, "ImagePtexRegion", NULL);
+		
+		prop = RNA_def_property(srna, "x", PROP_INT, PROP_NONE);
+		RNA_def_property_int_funcs(prop, "rna_ImagePtexRegion_x_get", "rna_ImagePtexRegion_x_set", NULL);
+	}
+	prop = RNA_def_property(srna, "ptex_table", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ImagePtexRegion");
+	RNA_def_property_collection_funcs(prop, "rna_Image_ptex_regions_begin",
+									  "rna_iterator_array_next",
+	                                  "rna_Image_ptex_regions_end",
+									  "rna_iterator_array_get",
+									  NULL, NULL, NULL, NULL);
+#else
+	prop = RNA_def_property(srna, "ptex_regions", PROP_INT, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_DYNAMIC);
+	RNA_def_property_multi_array(prop, 1, NULL);
+	RNA_def_property_ui_text(prop, "Ptex Regions", "");
+	RNA_def_property_dynamic_array_funcs(prop,
+										 "rna_Image_ptex_regions_get_length");
+	RNA_def_property_int_funcs(prop, "rna_Image_ptex_regions_get",
+							   "rna_Image_ptex_regions_set", NULL);
+#endif
 
 	prop = RNA_def_property(srna, "channels", PROP_INT, PROP_UNSIGNED);
 	RNA_def_property_int_funcs(prop, "rna_Image_channels_get", NULL, NULL);
