@@ -732,6 +732,8 @@ void DEG_debug_graphviz(const Depsgraph *graph, FILE *f, const char *label, bool
 	deg_debug_fprintf(ctx, ",fontsize=%f", deg_debug_graphviz_graph_label_size);
 	deg_debug_fprintf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 	deg_debug_fprintf(ctx, ",label=\"%s\"", label);
+	deg_debug_fprintf(ctx, ",splines=ortho");
+	//deg_debug_fprintf(ctx, ",overlap=false");
 	deg_debug_fprintf(ctx, "];" NL);
 
 	deg_debug_graphviz_graph_nodes(ctx, graph);
