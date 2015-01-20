@@ -46,6 +46,7 @@
 #include "BKE_data_transfer.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_dynamicpaint.h"
+#include "BKE_effect.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_remap.h"
 #include "BKE_multires.h"
@@ -717,6 +718,28 @@ static int rna_LaplacianDeformModifier_is_bind_get(PointerRNA *ptr)
 {
 	LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData *)ptr->data;
 	return ((lmd->flag & MOD_LAPLACIANDEFORM_BIND) && (lmd->cache_system != NULL));
+}
+
+static int rna_ClothModifier_show_debug_data_get(PointerRNA *ptr)
+{
+	ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+	return clmd->debug_data != NULL;
+}
+
+static void rna_ClothModifier_show_debug_data_set(PointerRNA *ptr, int value)
+{
+	ClothModifierData *clmd = (ClothModifierData *)ptr->data;
+	if (value) {
+		if (!clmd->debug_data) {
+			clmd->debug_data = BKE_sim_debug_data_new();
+		}
+	}
+	else {
+		if (clmd->debug_data) {
+			BKE_sim_debug_data_free(clmd->debug_data);
+			clmd->debug_data = NULL;
+		}
+	}
 }
 
 /* NOTE: Curve and array modifiers requires curve path to be evaluated,
@@ -2465,9 +2488,34 @@ static void rna_def_modifier_cloth(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "coll_parms");
 	RNA_def_property_ui_text(prop, "Cloth Collision Settings", "");
 	
+	prop = RNA_def_property(srna, "solver_result", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ClothSolverResult");
+	RNA_def_property_pointer_sdna(prop, NULL, "solver_result");
+	RNA_def_property_ui_text(prop, "Solver Result", "");
+	
 	prop = RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_ui_text(prop, "Point Cache", "");
+	
+	prop = RNA_def_property(srna, "show_debug_data", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_ClothModifier_show_debug_data_get", "rna_ClothModifier_show_debug_data_set");
+	RNA_def_property_ui_text(prop, "Debug", "Show debug info");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "hair_grid_min", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "hair_grid_min");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Hair Grid Minimum", "");
+
+	prop = RNA_def_property(srna, "hair_grid_max", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "hair_grid_max");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Hair Grid Maximum", "");
+
+	prop = RNA_def_property(srna, "hair_grid_resolution", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "hair_grid_res");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Hair Grid Resolution", "");
 }
 
 static void rna_def_modifier_smoke(BlenderRNA *brna)

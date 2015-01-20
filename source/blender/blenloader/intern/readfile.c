@@ -113,6 +113,7 @@
 
 #include "BKE_armature.h"
 #include "BKE_brush.h"
+#include "BKE_cloth.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -3830,6 +3831,13 @@ static void direct_link_particlesettings(FileData *fd, ParticleSettings *part)
 	direct_link_partdeflect(part->pd);
 	direct_link_partdeflect(part->pd2);
 
+	part->clumpcurve = newdataadr(fd, part->clumpcurve);
+	if (part->clumpcurve)
+		direct_link_curvemapping(fd, part->clumpcurve);
+	part->roughcurve = newdataadr(fd, part->roughcurve);
+	if (part->roughcurve)
+		direct_link_curvemapping(fd, part->roughcurve);
+
 	part->effector_weights = newdataadr(fd, part->effector_weights);
 	if (!part->effector_weights)
 		part->effector_weights = BKE_add_effector_weights(part->eff_group);
@@ -3878,6 +3886,8 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				psys->clmd->ptcaches.first = psys->clmd->ptcaches.last= NULL;
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
 				psys->clmd->modifier.error = NULL;
+				
+				psys->clmd->debug_data = NULL;
 			}
 		}
 		else {
@@ -3946,6 +3956,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);
 			psys->clmd->clothObject = NULL;
+			psys->clmd->hairdata = NULL;
 			
 			psys->clmd->sim_parms= newdataadr(fd, psys->clmd->sim_parms);
 			psys->clmd->coll_parms= newdataadr(fd, psys->clmd->coll_parms);
@@ -3955,8 +3966,12 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 				if (psys->clmd->sim_parms->presets > 10)
 					psys->clmd->sim_parms->presets = 0;
 			}
+			if (psys->clmd->coll_parms) {
+				psys->clmd->coll_parms->flags |= CLOTH_COLLSETTINGS_FLAG_POINTS;
+			}
 			
 			psys->hair_in_dm = psys->hair_out_dm = NULL;
+			psys->clmd->solver_result = NULL;
 			
 			psys->clmd->point_cache = psys->pointcache;
 		}
@@ -4671,6 +4686,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			ClothModifierData *clmd = (ClothModifierData *)md;
 			
 			clmd->clothObject = NULL;
+			clmd->hairdata = NULL;
 			
 			clmd->sim_parms= newdataadr(fd, clmd->sim_parms);
 			clmd->coll_parms= newdataadr(fd, clmd->coll_parms);
@@ -4689,6 +4705,9 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					clmd->sim_parms->effector_weights = BKE_add_effector_weights(NULL);
 				}
 			}
+			
+			clmd->solver_result = NULL;
+			clmd->debug_data = NULL;
 		}
 		else if (md->type == eModifierType_Fluidsim) {
 			FluidsimModifierData *fluidmd = (FluidsimModifierData *)md;
@@ -5264,6 +5283,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 				        newlibadr_us(fd, sce->id.lib, sce->toolsettings->imapaint.canvas);
 			
 			sce->toolsettings->skgen_template = newlibadr(fd, sce->id.lib, sce->toolsettings->skgen_template);
+			
+			sce->toolsettings->particle.shape_object = newlibadr(fd, sce->id.lib, sce->toolsettings->particle.shape_object);
 			
 			for (base = sce->base.first; base; base = next) {
 				next = base->next;
@@ -7590,9 +7611,7 @@ static BHead *read_global(BlendFileData *bfd, FileData *fd, BHead *bhead)
 	bfd->main->build_commit_timestamp = fg->build_commit_timestamp;
 	BLI_strncpy(bfd->main->build_hash, fg->build_hash, sizeof(bfd->main->build_hash));
 	
-	bfd->winpos = fg->winpos;
 	bfd->fileflags = fg->fileflags;
-	bfd->displaymode = fg->displaymode;
 	bfd->globalf = fg->globalf;
 	BLI_strncpy(bfd->filename, fg->filename, sizeof(bfd->filename));
 	

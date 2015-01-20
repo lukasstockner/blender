@@ -564,6 +564,17 @@ typedef struct ClothModifierData {
 	struct ClothCollSettings *coll_parms; /* definition is in DNA_cloth_types.h */
 	struct PointCache *point_cache;       /* definition is in DNA_object_force.h */
 	struct ListBase ptcaches;
+	/* XXX nasty hack, remove once hair can be separated from cloth modifier data */
+	struct ClothHairData *hairdata;
+	/* grid geometry values of hair continuum */
+	float hair_grid_min[3];
+	float hair_grid_max[3];
+	int hair_grid_res[3];
+	float hair_grid_cellsize;
+	
+	struct ClothSolverResult *solver_result;
+	
+	struct SimDebugData *debug_data;      /* debug info */
 } ClothModifierData;
 
 typedef struct CollisionModifierData {

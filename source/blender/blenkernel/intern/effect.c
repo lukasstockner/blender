@@ -30,6 +30,7 @@
  */
 
 #include <stddef.h>
+#include <stdarg.h>
 
 #include <math.h>
 #include <stdlib.h>
@@ -51,6 +52,7 @@
 #include "BLI_noise.h"
 #include "BLI_rand.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "PIL_time.h"
 
@@ -1023,4 +1025,145 @@ void pdDoEffectors(ListBase *effectors, ListBase *colliders, EffectorWeights *we
 			}
 		}
 	}
+}
+
+/* ======== Simulation Debugging ======== */
+
+unsigned int BKE_sim_debug_data_hash(int i)
+{
+	return BLI_ghashutil_uinthash((unsigned int)i);
+}
+
+unsigned int BKE_sim_debug_data_hash_combine(unsigned int kx, unsigned int ky)
+{
+#define rot(x,k) (((x)<<(k)) | ((x)>>(32-(k))))
+
+	unsigned int a, b, c;
+
+	a = b = c = 0xdeadbeef + (2 << 2) + 13;
+	a += kx;
+	b += ky;
+
+	c ^= b; c -= rot(b,14);
+	a ^= c; a -= rot(c,11);
+	b ^= a; b -= rot(a,25);
+	c ^= b; c -= rot(b,16);
+	a ^= c; a -= rot(c,4);
+	b ^= a; b -= rot(a,14);
+	c ^= b; c -= rot(b,24);
+
+	return c;
+
+#undef rot
+}
+
+static unsigned int debug_element_hash(const void *key)
+{
+	const SimDebugElement *elem = key;
+	return elem->hash;
+}
+
+static bool debug_element_compare(const void *a, const void *b)
+{
+	const SimDebugElement *elem1 = a;
+	const SimDebugElement *elem2 = b;
+
+	if (elem1->hash == elem2->hash) {
+		return 0;
+	}
+	return 1;
+}
+
+static void debug_element_free(void *val)
+{
+	SimDebugElement *elem = val;
+	MEM_freeN(elem);
+}
+
+SimDebugData *BKE_sim_debug_data_new(void)
+{
+	SimDebugData *debug_data = MEM_callocN(sizeof(SimDebugData), "sim debug data");
+	debug_data->gh = BLI_ghash_new(debug_element_hash, debug_element_compare, "sim debug element hash");
+	return debug_data;
+	
+}
+
+static void debug_data_insert(SimDebugData *debug_data, SimDebugElement *elem)
+{
+	SimDebugElement *old_elem = BLI_ghash_lookup(debug_data->gh, elem);
+	if (old_elem) {
+		*old_elem = *elem;
+		MEM_freeN(elem);
+	}
+	else
+		BLI_ghash_insert(debug_data->gh, elem, elem);
+}
+
+void BKE_sim_debug_data_add_element(SimDebugData *debug_data, int type, const float v1[3], const float v2[3], float r, float g, float b, const char *category, unsigned int hash)
+{
+	unsigned int category_hash = BLI_ghashutil_strhash_p(category);
+	SimDebugElement *elem;
+	if (!debug_data)
+		return;
+	
+	elem = MEM_callocN(sizeof(SimDebugElement), "sim debug data element");
+	elem->type = type;
+	elem->category_hash = category_hash;
+	elem->hash = hash;
+	elem->color[0] = r;
+	elem->color[1] = g;
+	elem->color[2] = b;
+	copy_v3_v3(elem->v1, v1);
+	copy_v3_v3(elem->v2, v2);
+	
+	debug_data_insert(debug_data, elem);
+}
+
+void BKE_sim_debug_data_remove_element(SimDebugData *debug_data, unsigned int hash)
+{
+	SimDebugElement dummy;
+	if (!debug_data)
+		return;
+	
+	dummy.hash = hash;
+	BLI_ghash_remove(debug_data->gh, &dummy, NULL, debug_element_free);
+}
+
+void BKE_sim_debug_data_clear(SimDebugData *debug_data)
+{
+	if (!debug_data)
+		return;
+	
+	if (debug_data->gh)
+		BLI_ghash_clear(debug_data->gh, NULL, debug_element_free);
+}
+
+void BKE_sim_debug_data_clear_category(SimDebugData *debug_data, const char *category)
+{
+	int category_hash = (int)BLI_ghashutil_strhash_p(category);
+	
+	if (!debug_data)
+		return;
+	
+	if (debug_data->gh) {
+		GHashIterator iter;
+		BLI_ghashIterator_init(&iter, debug_data->gh);
+		while(!BLI_ghashIterator_done(&iter)) {
+			SimDebugElement *elem = BLI_ghashIterator_getValue(&iter);
+			BLI_ghashIterator_step(&iter); /* removing invalidates the current iterator, so step before removing */
+			
+			if (elem->category_hash == category_hash)
+				BLI_ghash_remove(debug_data->gh, elem, NULL, debug_element_free);
+		}
+	}
+}
+
+void BKE_sim_debug_data_free(SimDebugData *debug_data)
+{
+	if (!debug_data)
+		return;
+	
+	if (debug_data->gh)
+		BLI_ghash_free(debug_data->gh, NULL, debug_element_free);
+	MEM_freeN(debug_data);
 }
