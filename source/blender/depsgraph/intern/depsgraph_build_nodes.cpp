@@ -609,6 +609,10 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
 		                   DEPSOP_TYPE_EXEC, function_bind(BKE_pose_eval_bone, _1, scene, ob, pchan), // XXX: BKE_pose_eval_bone_pose
 		                   DEG_OPCODE_BONE_POSE_PARENT);
+						   
+		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+		                   DEPSOP_TYPE_OUT, NULL, /* NOTE: dedicated noop for easier relationship construction */
+		                   DEG_OPCODE_BONE_READY);
 		
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
 		                   DEPSOP_TYPE_POST, NULL, // XXX: BKE_eval_bone_done ?

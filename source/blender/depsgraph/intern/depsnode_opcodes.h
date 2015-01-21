@@ -126,11 +126,13 @@ DEF_DEG_OPCODE(BONE_CONSTRAINTS)
 //DEF_DEG_OPCODE(BONE_CONSTRAINTS_DONE)
 
 /* Bone transforms are ready 
- * - "PRE_IK"            This (internal) noop is used to signal that all pre-IK operations are done
- *                       NOTE: it isn't strictly necessary, as it should be possible to infer this from the data
- * - "FINAL_TRANSFORM"   This noop is used to signal that the bone's final pose transform can be read by others
+ * - "READY"             This (internal) noop is used to signal that all pre-IK operations are done.
+ *                       Its role is to help mediate situations where cyclic relations may otherwise form
+ *                       (i.e. one bone in chain targetting another in same chain)
+ * - "DONE"              This noop is used to signal that the bone's final pose transform can be read by others
  */
 // TODO: deform mats could get calculated in the final_transform ops...
+DEF_DEG_OPCODE(BONE_READY)
 DEF_DEG_OPCODE(BONE_DONE)
 
 /* Particles --------------------------------------- */

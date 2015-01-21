@@ -532,8 +532,17 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				}
 				else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 					/* bone */
-					OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_DONE); // XXX: ik vs normal
-					add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					if (&ct->tar->id == id) {
+						/* same armature - use the "ready" state only, to avoid collisions with IK */
+						/* NOTE: in some cases, this may break (i.e. if the target is in a separate chain which can get safely evaluated first) */
+						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_READY);
+						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					}
+					else {
+						/* different armature - we can safely use the result of that */
+						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_DONE);
+						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+					}
 				}
 				else if (ELEM(ct->tar->type, OB_MESH, OB_LATTICE) && (ct->subtarget[0])) {
 					/* vertex group */
@@ -999,8 +1008,9 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	 * - see notes on direction of rel below...
 	 */
 	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
-	OperationKey transforms_key = bone_transforms_key(ob, pchan);
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, DEG_OPCODE_POSE_IK_SOLVER);
+	
+	OperationKey transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_READY);
 	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
 
 	/* IK target */
@@ -1013,15 +1023,18 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 		 * need of intermediate matricies. This is an overkill, but good enough for
 		 * testing IK solver.
 		 */
+		// FIXME: geometry targets...
 		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
 		if ((data->tar->type == OB_ARMATURE) && (data->subtarget[0])) {
 			/* TODO(sergey): This is only for until granular update stores intermediate result. */
 			if (data->tar != ob) {
+				/* different armature - can just read the results */
 				ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget);
 				add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
 			}
 			else {
-				ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget);
+				/* same armature - we'll use the ready state only, just in case this bone is in the chain we're solving */
+				OperationKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget, DEG_OPCODE_BONE_READY);
 				add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
 			}
 		}
@@ -1036,6 +1049,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	// XXX: this should get handled as part of the constraint code
 	if (data->poletar != NULL) {
 		if ((data->tar->type == OB_ARMATURE) && (data->subtarget[0])) {
+			// XXX: same armature issues - ready vs done?
 			ComponentKey target_key(&data->poletar->id, DEPSNODE_TYPE_BONE, data->subtarget);
 			add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
 		}
@@ -1063,7 +1077,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 		 * grab the result with IK solver results...
 		 */
 		if (parchan != pchan) {
-			OperationKey parent_key = bone_transforms_key(ob, parchan);
+			OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_READY);
 			add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Chain Parent");
 		}
 		parchan->flag |= POSE_DONE;
@@ -1131,7 +1145,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 		 * grab the result with IK solver results...
 		 */
 		if (parchan != pchan) {
-			OperationKey parent_key = bone_transforms_key(ob, parchan);
+			OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_READY);
 			add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
 		}
 		parchan->flag |= POSE_DONE;
@@ -1167,29 +1181,53 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		add_relation(animation_key, init_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
 
-	/* links between bones in the same component */
+	/* links between operations for each bone */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		OperationKey bone_local_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
 		OperationKey bone_pose_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT);
+		OperationKey bone_ready_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_READY);
 		OperationKey bone_done_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
 		
 		pchan->flag &= ~POSE_DONE;
 		
-		/* pose init to bone local 
-		 * NOTE: although slightly redundant for IK, it is simpler t odo it with this
-		 */
+		/* pose init to bone local */
 		add_relation(init_key, bone_local_key, DEPSREL_TYPE_OPERATION, "PoseEval Source-Bone Link");
 		
 		/* local to pose parenting operation */
 		add_relation(bone_local_key, bone_pose_key, DEPSREL_TYPE_OPERATION, "Bone Local - PoseSpace Link");
 		
+		/* parent relation */
+		// XXX: does this need different handling (as in bottom, commented out loop) when IK is required?
+		if (pchan->parent != NULL) {
+			/* NOTE: here we use "ready" so that it doesn't block IK chains */
+			OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name, DEG_OPCODE_BONE_READY);
+			add_relation(parent_key, bone_pose_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
+		}
+		
 		/* constraints */
 		if (pchan->constraints.first != NULL) {
+			/* constraints stack and constraint dependencies */
 			build_constraints(scene, &ob->id, DEPSNODE_TYPE_BONE, pchan->name, &pchan->constraints);
 			
+			/* pose -> constraints */
 			OperationKey constraints_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_CONSTRAINTS);
 			add_relation(bone_pose_key, constraints_key, DEPSREL_TYPE_OPERATION, "Constraints Stack");
+			
+			/* constraints -> ready */
+			// TODO: when constraint stack is exploded, this step should occur before the first IK solver
+			add_relation(constraints_key, bone_ready_key, DEPSREL_TYPE_OPERATION, "Constraints -> Ready");
 		}
+		else {
+			/* pose -> ready */
+			add_relation(bone_pose_key, bone_ready_key, DEPSREL_TYPE_OPERATION, "Pose -> Ready");
+		}
+		
+		/* bone ready -> done 
+		 * NOTE: For bones without IK, this is all that's needed.
+		 *       For IK chains however, an additional rel is created from IK to done,
+		 *       with transitive reduction removing this one...
+		 */
+		add_relation(bone_ready_key, bone_done_key, DEPSREL_TYPE_OPERATION, "Ready -> Done");
 		
 		/* assume that all bones must be done for the pose to be ready (for deformers) */
 		add_relation(bone_done_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
@@ -1222,6 +1260,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		}
 	}
 
+#if 0
 	/* links between different bones - parenting relationships */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
 	     pchan != NULL;
@@ -1267,6 +1306,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			add_relation(transforms_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Bone Final Transforms");
 		}
 	}
+#endif
 }
 
 /* Shapekeys */
