@@ -535,7 +535,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 					if (&ct->tar->id == id) {
 						/* same armature - use the "ready" state only, to avoid collisions with IK */
 						/* NOTE: in some cases, this may break (i.e. if the target is in a separate chain which can get safely evaluated first) */
-						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_READY);
+						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_DONE);
 						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 					else {
@@ -1034,7 +1034,8 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			}
 			else {
 				/* same armature - we'll use the ready state only, just in case this bone is in the chain we're solving */
-				OperationKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget, DEG_OPCODE_BONE_READY);
+				//OperationKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget, DEG_OPCODE_BONE_READY);
+				OperationKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget, DEG_OPCODE_BONE_DONE);
 				add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
 			}
 		}
