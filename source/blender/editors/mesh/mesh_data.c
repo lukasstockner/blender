@@ -47,9 +47,11 @@
 #include "BKE_main.h"
 #include "BKE_mesh.h"
 #include "BKE_paint.h"
+#include "BKE_ptex.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 
+#include "RNA_access.h"
 #include "RNA_define.h"
 
 #include "WM_api.h"
@@ -130,7 +132,7 @@ static void delete_customdata_layer(Mesh *me, CustomDataLayer *layer)
 	CustomData *data;
 	int layer_index, tot, n;
 
-	data = mesh_customdata_get_type(me, (ELEM(type, CD_MLOOPUV, CD_MLOOPCOL)) ? BM_LOOP : BM_FACE, &tot);
+	data = mesh_customdata_get_type(me, (ELEM(type, CD_MLOOPUV, CD_MLOOPCOL, CD_LOOP_PTEX)) ? BM_LOOP : BM_FACE, &tot);
 	layer_index = CustomData_get_layer_index(data, type);
 	n = (layer - &data->layers[layer_index]);
 	BLI_assert(n >= 0 && (n + layer_index) < data->totlayer);
@@ -711,6 +713,248 @@ void MESH_OT_vertex_color_remove(wmOperatorType *ot)
 	/* api callbacks */
 	ot->exec = mesh_vertex_color_remove_exec;
 	ot->poll = layers_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/*** ptex operator ***/
+
+static int mesh_ptex_add(Mesh *me, const char *name, const bool active_set)
+{
+	int layernum = 0;
+
+	if (me->edit_btmesh) {
+		/* TODO */
+		assert(!me->edit_btmesh);
+	}
+	else {
+		MLoopPtex *layer_data;
+
+		layernum = CustomData_number_of_layers(&me->ldata, CD_LOOP_PTEX);
+
+		/* TODO: duplicate current layer? */
+		layer_data = CustomData_add_layer_named(&me->ldata, CD_LOOP_PTEX,
+												CD_DEFAULT, NULL,
+												me->totloop, name);
+
+		{
+			// TODO
+			int i;
+			MPtexTexelInfo texel_info = {4, MPTEX_DATA_TYPE_UINT8};
+			MPtexLogRes logres = {5, 5};
+			for (i = 0; i < me->totloop; i++) {
+				BKE_loop_ptex_init(&layer_data[i], texel_info, logres);
+			}
+		}
+
+		if (active_set || layernum == 0) {
+			CustomData_set_layer_active(&me->ldata, CD_LOOP_PTEX, layernum);
+		}
+
+		BKE_mesh_update_customdata_pointers(me, true);
+	}
+
+	DAG_id_tag_update(&me->id, 0);
+	WM_main_add_notifier(NC_GEOM | ND_DATA, me);
+
+	return layernum;
+}
+
+static int mesh_ptex_add_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = ED_object_context(C);
+	Mesh *me = ob->data;
+
+	if (mesh_ptex_add(me, NULL, true) == -1)
+		return OPERATOR_CANCELLED;
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_ptex_add(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Ptex";
+	ot->description = "Add Ptex layer";
+	ot->idname = "MESH_OT_ptex_add";
+	
+	/* api callbacks */
+	ot->poll = layers_poll;
+	ot->exec = mesh_ptex_add_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static bool mesh_ptex_remove_index(Mesh *me, const int n)
+{
+	CustomData *ldata = GET_CD_DATA(me, ldata);
+	CustomDataLayer *cdl;
+	int index;
+
+	index = CustomData_get_layer_index_n(ldata, CD_LOOP_PTEX, n);
+	cdl = (index == -1) ? NULL : &ldata->layers[index];
+
+	if (!cdl)
+		return false;
+
+	delete_customdata_layer(me, cdl);
+	DAG_id_tag_update(&me->id, 0);
+	WM_main_add_notifier(NC_GEOM | ND_DATA, me);
+
+	return true;
+}
+
+static bool mesh_ptex_remove_active(Mesh *me)
+{
+	CustomData *ldata = GET_CD_DATA(me, ldata);
+	const int n = CustomData_get_active_layer(ldata, CD_LOOP_PTEX);
+	if (n != -1) {
+		return mesh_ptex_remove_index(me, n);
+	}
+	else {
+		return false;
+	}
+}
+
+static int mesh_ptex_remove_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = ED_object_context(C);
+	Mesh *me = ob->data;
+
+	if (!mesh_ptex_remove_active(me))
+		return OPERATOR_CANCELLED;
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_ptex_remove(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Remove Ptex";
+	ot->description = "Remove Ptex layer";
+	ot->idname = "MESH_OT_ptex_remove";
+	
+	/* api callbacks */
+	ot->exec = mesh_ptex_remove_exec;
+	ot->poll = layers_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+typedef enum {
+	PTEX_RES_CHANGE_MODE_HALVE,
+	PTEX_RES_CHANGE_MODE_DOUBLE
+} PtexResChangeMode;
+
+static MPtexLogRes mesh_ptex_new_logres_calc(const PtexResChangeMode mode,
+											 const MPtexLogRes old_res)
+{
+	MPtexLogRes new_res = {0, 0};
+	const int limit = 24;
+	switch (mode) {
+		case PTEX_RES_CHANGE_MODE_HALVE:
+			new_res.u = (old_res.u > 0) ? old_res.u - 1 : 0;
+			new_res.v = (old_res.v > 0) ? old_res.v - 1 : 0;
+			break;
+
+		case PTEX_RES_CHANGE_MODE_DOUBLE:
+			new_res.u = (old_res.u < limit) ? old_res.u + 1 : old_res.u;
+			new_res.v = (old_res.v < limit) ? old_res.v + 1 : old_res.v;
+			break;
+	}
+	return new_res;
+}
+
+static int mesh_ptex_res_change_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_context(C);
+	Mesh *me = ob->data;
+	int i;
+
+	MLoopPtex *loop_ptex = CustomData_get_layer(&me->ldata, CD_LOOP_PTEX);
+	const PtexResChangeMode mode = RNA_enum_get(op->ptr, "mode");
+
+	for (i = 0; i < me->totpoly; i++) {
+		const MPoly *poly = &me->mpoly[i];
+		int j;
+
+		if (poly->flag & ME_FACE_SEL) {
+			for (j = 0; j < poly->totloop; j++) {
+				const int loop_index = poly->loopstart + j;
+				MLoopPtex *lp = &loop_ptex[loop_index];
+
+				const MPtexLogRes new_logres =
+					mesh_ptex_new_logres_calc(mode, lp->logres);
+
+				BKE_loop_ptex_resize(lp, new_logres);
+			}
+		}
+	}
+
+	/* TODO, not sure how this will look yet */
+	loop_ptex[0].image = NULL;
+
+	DAG_id_tag_update(&me->id, 0);
+	WM_main_add_notifier(NC_GEOM | ND_DATA, me);
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_ptex_res_change(wmOperatorType *ot)
+{
+	static const EnumPropertyItem mode_items[3] = {
+		{PTEX_RES_CHANGE_MODE_HALVE, "HALVE", 0, "Halve"},
+		{PTEX_RES_CHANGE_MODE_DOUBLE, "DOUBLE", 0, "Double"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	/* identifiers */
+	ot->name = "Change Ptex Resolution";
+	ot->description = "Increase or decrease the Ptex resolution of selected faces";
+	ot->idname = "MESH_OT_ptex_res_change";
+	
+	/* api callbacks */
+	ot->poll = layers_poll;
+	ot->exec = mesh_ptex_res_change_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "mode", mode_items,
+				 PTEX_RES_CHANGE_MODE_HALVE, "Mode", "");
+}
+
+static int mesh_ptex_import_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = ED_object_context(C);
+	Mesh *me = ob->data;
+	// TODO(nicholasbishop): add file browse, for now just use
+	// hardcoded test path
+	const char *path = "/home/nicholasbishop/blends/nonquad/nonquad.ptx";
+
+	if (BKE_ptex_import(me, path)) {
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_ptex_import(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Import Ptex";
+	ot->description = "Import Ptex layer";
+	ot->idname = "MESH_OT_ptex_import";
+	
+	/* api callbacks */
+	ot->poll = layers_poll;
+	ot->exec = mesh_ptex_import_exec;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

@@ -235,6 +235,10 @@ void MESH_OT_uv_texture_add(struct wmOperatorType *ot);
 void MESH_OT_uv_texture_remove(struct wmOperatorType *ot);
 void MESH_OT_vertex_color_add(struct wmOperatorType *ot);
 void MESH_OT_vertex_color_remove(struct wmOperatorType *ot);
+void MESH_OT_ptex_add(struct wmOperatorType *ot);
+void MESH_OT_ptex_remove(struct wmOperatorType *ot);
+void MESH_OT_ptex_res_change(struct wmOperatorType *ot);
+void MESH_OT_ptex_import(struct wmOperatorType *ot);
 /* no create_mask yet */
 void MESH_OT_customdata_clear_mask(struct wmOperatorType *ot);
 void MESH_OT_customdata_clear_skin(struct wmOperatorType *ot);
