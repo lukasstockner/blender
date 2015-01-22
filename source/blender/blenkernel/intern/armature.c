@@ -1825,7 +1825,6 @@ void BKE_pose_rebuild(Object *ob, bArmature *arm)
 	BKE_pose_channels_hash_make(ob->pose);
 }
 
-
 /* ********************** THE POSE SOLVER ******************* */
 
 /* loc/rot/size to given mat4 */

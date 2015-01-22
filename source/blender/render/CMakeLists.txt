@@ -34,6 +34,7 @@ set(INC
 	../depsgraph
 	../makesdna
 	../makesrna
+	../physics
 	../../../intern/guardedalloc
 	../../../intern/mikktspace
 	../../../intern/smoke/extern
