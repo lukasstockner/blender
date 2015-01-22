@@ -636,6 +636,16 @@ void BKE_pose_constraints_evaluate(EvaluationContext *UNUSED(eval_ctx),
 	}
 }
 
+void BKE_pose_bone_done(EvaluationContext *UNUSED(eval_ctx),
+                        bPoseChannel *pchan)
+{
+	float imat[4][4];
+	if (pchan->bone) {
+		invert_m4_m4(imat, pchan->bone->arm_mat);
+		mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
+	}
+}
+
 void BKE_pose_iktree_evaluate(EvaluationContext *UNUSED(eval_ctx),
                               Scene *scene,
                               Object *ob,
@@ -661,21 +671,10 @@ void BKE_pose_eval_flush(EvaluationContext *UNUSED(eval_ctx),
                          Object *ob,
                          bPose *UNUSED(pose))
 {
-	bPoseChannel *pchan;
-	float imat[4][4];
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	BLI_assert(ob->type == OB_ARMATURE);
 
 	/* 6. release the IK tree */
 	BIK_release_tree(scene, ob, ctime);
-
-	/* calculating deform matrices */
-	for (pchan = ob->pose->chanbase.first; pchan != NULL; pchan = pchan->next)
-	{
-		if (pchan->bone) {
-			invert_m4_m4(imat, pchan->bone->arm_mat);
-			mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
-		}
-	}
 }

@@ -170,6 +170,9 @@ void BKE_pose_constraints_evaluate(struct EvaluationContext *eval_ctx,
                                    struct Object *ob,
                                    struct bPoseChannel *pchan);
 
+void BKE_pose_bone_done(struct EvaluationContext *eval_ctx,
+                        struct bPoseChannel *pchan);
+
 void BKE_pose_iktree_evaluate(struct EvaluationContext *eval_ctx,
                               struct Scene *scene,
                               struct Object *ob,

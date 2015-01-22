@@ -615,7 +615,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 		                   DEG_OPCODE_BONE_READY);
 		
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
-		                   DEPSOP_TYPE_POST, NULL, // XXX: BKE_eval_bone_done ?
+		                   DEPSOP_TYPE_POST, function_bind(BKE_pose_bone_done, _1, pchan),
 		                   DEG_OPCODE_BONE_DONE);
 		
 		/* constraints */
