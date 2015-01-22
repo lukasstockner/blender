@@ -365,7 +365,6 @@ void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from,
 		add_operation_relation(op_from, op_to, type, description);
 	}
 	else {
-		abort();
 		if (!op_from) {
 			/* XXX TODO handle as error or report if needed */
 		}
