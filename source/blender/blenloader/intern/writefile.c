@@ -153,6 +153,7 @@
 #include "BKE_library.h" // for  set_listbasepointers
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_ptex.h"
 #include "BKE_report.h"
 #include "BKE_sequencer.h"
 #include "BKE_subsurf.h"
@@ -1871,6 +1872,21 @@ static void write_grid_paint_mask(WriteData *wd, int count, GridPaintMask *grid_
 	}
 }
 
+static void write_loop_ptex(WriteData *wd, int count, MLoopPtex *loop_ptex)
+{
+	if (loop_ptex) {
+		int i;
+		writestruct(wd, DATA, "MLoopPtex", count, loop_ptex);
+		for (i = 0; i < count; ++i) {
+			MLoopPtex *lp = &loop_ptex[i];
+			if (lp->rect) {
+				const size_t num_bytes = BKE_loop_ptex_rect_num_bytes(lp);
+				writedata(wd, DATA, num_bytes, lp->rect);
+			}
+		}
+	}
+}
+
 static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data, int partial_type, int partial_count)
 {
 	CustomData data_tmp;
@@ -1909,6 +1925,9 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 		}
 		else if (layer->type == CD_GRID_PAINT_MASK) {
 			write_grid_paint_mask(wd, count, layer->data);
+		}
+		else if (layer->type == CD_LOOP_PTEX) {
+			write_loop_ptex(wd, count, layer->data);
 		}
 		else {
 			CustomData_file_write_info(layer->type, &structname, &structnum);

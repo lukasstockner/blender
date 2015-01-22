@@ -4190,6 +4190,14 @@ static void direct_link_customdata(FileData *fd, CustomData *data, int count)
 				direct_link_mdisps(fd, count, layer->data, layer->flag & CD_FLAG_EXTERNAL);
 			else if (layer->type == CD_GRID_PAINT_MASK)
 				direct_link_grid_paint_mask(fd, count, layer->data);
+			else if (layer->type == CD_LOOP_PTEX) {
+				MLoopPtex *loop_ptex = layer->data;
+				int j;
+				for (j = 0; j < count; ++j) {
+					loop_ptex[j].rect = newdataadr(fd, loop_ptex[j].rect);
+					loop_ptex[j].image = NULL;
+				}
+			}
 			i++;
 		}
 	}
