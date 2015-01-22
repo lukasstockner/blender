@@ -535,6 +535,9 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 					if (&ct->tar->id == id) {
 						/* same armature - use the "ready" state only, to avoid collisions with IK */
 						/* NOTE: in some cases, this may break (i.e. if the target is in a separate chain which can get safely evaluated first) */
+						// XXX: using "done" here breaks in-chain deps, while using "ready" here breaks most production rigs instead... Maybe we need the rootmap checks here?
+
+						//OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_READY);
 						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_DONE);
 						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
