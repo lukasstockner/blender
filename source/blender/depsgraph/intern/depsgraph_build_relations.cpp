@@ -151,15 +151,6 @@ bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 	return false;
 }
 
-BLI_INLINE OperationKey bone_transforms_key(Object *ob,
-                                            bPoseChannel *pchan)
-{
-	if (pchan->constraints.first != NULL) {
-		return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_CONSTRAINTS);
-	}
-	return OperationKey(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT);
-}
-
 void root_map_add_bone(const char *bone,
                        const char *root,
                        DepsgraphRelationBuilder::RootPChanMap *root_map)
@@ -1110,7 +1101,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 {
 	bSplineIKConstraint *data = (bSplineIKConstraint *)con->data;
 	bPoseChannel *rootchan = BKE_armature_splineik_solver_find_root(pchan, data);
-	OperationKey transforms_key = bone_transforms_key(ob, pchan);
+	OperationKey transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_READY);
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, DEG_OPCODE_POSE_SPLINE_IK_SOLVER);
 	
 	/* attach owner to IK Solver too 
