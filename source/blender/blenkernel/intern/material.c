@@ -1371,8 +1371,14 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
 		}
 
 		for (node = ma->nodetree->nodes.first; node; node = node->next) {
-			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE && node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id)
-				count++;
+			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+				if (node->typeinfo->type == SH_NODE_TEX_IMAGE && node->id) {
+					count++;
+				}
+				else if (node->typeinfo->type == SH_NODE_TEX_PTEX) {
+					count++;
+				}
+			}
 		}
 
 		if (count == 0) {
@@ -1408,6 +1414,22 @@ void BKE_texpaint_slot_refresh_cache(Scene *scene, Material *ma)
 				else {
 					ma->texpaintslot[index].index = -1;
 				}
+				index++;
+			}
+			//  TODO
+			if (node->typeinfo->nclass == NODE_CLASS_TEXTURE &&
+				node->typeinfo->type == SH_NODE_TEX_PTEX)
+			{
+				NodeTexPtex *storage = node->storage;
+
+				if (active_node == node)
+					ma->paint_active_slot = index;
+
+				// TODO
+				ma->texpaintslot[index].index = 0;
+				ma->texpaintslot[index].uvname = storage->layer_name;
+				ma->texpaintslot[index].ima = NULL;
+
 				index++;
 			}
 		}
