@@ -223,6 +223,9 @@ typedef struct ProjPaintState {
 	MTFace         **dm_mtface_clone;    /* other UV map, use for cloning between layers */
 	MTFace         *dm_mtface_stencil;
 
+	/* TODO */
+	MTFace *dm_mtface_ptex;
+
 	Image *stencil_ima;
 	Image *canvas_ima;
 	Image *clone_ima;
@@ -3317,7 +3320,8 @@ static bool proj_paint_state_dm_init(ProjPaintState *ps)
 		ps->dm_release = true;
 	}
 
-	if (!CustomData_has_layer(&ps->dm->faceData, CD_MTFACE)) {
+	if (!CustomData_has_layer(&ps->dm->faceData, CD_MTFACE) &&
+		!CustomData_has_layer(&ps->dm->faceData, CD_TESSFACE_PTEX)) {
 
 		if (ps->dm_release)
 			ps->dm->release(ps->dm);
@@ -3334,6 +3338,11 @@ static bool proj_paint_state_dm_init(ProjPaintState *ps)
 	ps->dm_mvert = ps->dm->getVertArray(ps->dm);
 	ps->dm_mface = ps->dm->getTessFaceArray(ps->dm);
 	ps->dm_mtface = MEM_mallocN(ps->dm_totface * sizeof(MTFace *), "proj_paint_mtfaces");
+	// TODO
+	if (CustomData_has_layer(&ps->dm->faceData, CD_TESSFACE_PTEX)) {
+		ps->dm_mtface_ptex = MEM_callocN(ps->dm_totface * sizeof(*ps->dm_mtface_ptex),
+										 "ProjPaintState.dm_mtface_ptex");
+	}
 
 	return true;
 }
@@ -3596,6 +3605,12 @@ static void project_paint_prepare_all_faces(
 	MFace *mf;
 	int image_index = -1, face_index;
 
+	Mesh *me = ps->ob->data;
+	MLoopPtex *loop_ptex = CustomData_get_layer(&me->ldata, CD_LOOP_PTEX);
+	MTessFacePtex *tess_ptex = NULL;
+
+	tess_ptex = ps->dm->getTessFaceDataArray(ps->dm, CD_TESSFACE_PTEX);
+
 	for (face_index = 0, tf = ps->dm_mtface, mf = ps->dm_mface; face_index < ps->dm_totface; mf++, tf++, face_index++) {
 		bool is_face_sel;
 
@@ -3609,6 +3624,8 @@ static void project_paint_prepare_all_faces(
 			slot = project_paint_face_paint_slot(ps, face_index);
 			/* all faces should have a valid slot, reassert here */
 			if (slot == NULL) {
+				// TODO
+				BLI_assert(!"Ptex TODO");
 				tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
 				tpage = ps->canvas_ima;
 			}
@@ -3617,6 +3634,12 @@ static void project_paint_prepare_all_faces(
 					if (!slot->uvname || !(tf_base = CustomData_get_layer_named(&ps->dm->faceData, CD_MTFACE, slot->uvname)))
 						tf_base = CustomData_get_layer(&ps->dm->faceData, CD_MTFACE);
 					slot_last = slot;
+				}
+
+				// TODO
+				if (loop_ptex) {
+					slot->ima = loop_ptex->image;
+					tf_base = ps->dm_mtface_ptex;
 				}
 
 				/* don't allow using the same inage for painting and stencilling */
@@ -3631,6 +3654,24 @@ static void project_paint_prepare_all_faces(
 		}
 
 		*tf = tf_base + face_index;
+		// TODO
+		if (ps->dm_mtface_ptex) {
+			ImBuf *ibuf = BKE_image_acquire_ibuf(slot->ima, NULL, NULL);
+			if (ibuf && ibuf->ptex_regions) {
+				// I'm sleepy				
+				int abc;
+				for (abc = 0; abc < 4; abc++) {
+					float *dst = (*tf)->uv[abc];
+					const float *uv = tess_ptex[face_index].uv[abc];
+					const ImPtexRegion *ipr =
+						&ibuf->ptex_regions[tess_ptex[face_index].id];
+
+					dst[0] = (uv[0] * ipr->width + ipr->x) / ibuf->x;
+					dst[1] = (uv[1] * ipr->height + ipr->y) / ibuf->y;
+				}
+			}
+			BKE_image_release_ibuf(slot->ima, ibuf, NULL);
+		}
 
 		if (project_paint_clone_face_skip(ps, layer_clone, slot, face_index)) {
 			continue;
@@ -3698,7 +3739,7 @@ static void project_paint_begin(ProjPaintState *ps)
 
 	const int diameter = 2 * BKE_brush_size_get(ps->scene, ps->brush);
 
-	bool reset_threads = false;
+	bool reset_threads = true;
 
 	/* ---- end defines ---- */
 
@@ -3813,6 +3854,10 @@ static void project_paint_end(ProjPaintState *ps)
 	if (ps->thread_tot > 1) {
 		BLI_spin_end(ps->tile_lock);
 		MEM_freeN((void *)ps->tile_lock);
+	}
+	if (ps->dm_mtface_ptex) {
+		MEM_freeN(ps->dm_mtface_ptex);
+		ps->dm_mtface_ptex = NULL;
 	}
 	image_undo_end_locks();
 
@@ -5261,6 +5306,12 @@ bool BKE_paint_proj_mesh_data_check(Scene *scene, Object *ob, bool *uvs, bool *m
 
 	if (layernum == 0) {
 		hasuvs = false;
+
+		layernum = CustomData_number_of_layers(&me->ldata, CD_LOOP_PTEX);
+
+		if (layernum) {
+			hasuvs = true;
+		}
 	}
 
 	/* Make sure we have a stencil to paint on! */
