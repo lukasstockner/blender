@@ -573,6 +573,9 @@ void BKE_pose_eval_init(EvaluationContext *UNUSED(eval_ctx),
 	BLI_assert(ob->pose != NULL);
 	BLI_assert((ob->pose->flag & POSE_RECALC) == 0);
 
+	/* imat is needed for solvers. */
+	invert_m4_m4(ob->imat, ob->obmat);
+
 	/* 1. clear flags */
 	for (pchan = pose->chanbase.first; pchan != NULL; pchan = pchan->next) {
 		pchan->flag &= ~(POSE_DONE | POSE_CHAIN | POSE_IKTREE | POSE_IKSPLINE);
