@@ -574,12 +574,12 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				else if ((ct->tar->type == OB_ARMATURE) && (ct->subtarget[0])) {
 					/* bone */
 					if (&ct->tar->id == id) {
-						/* same armature - use the "ready" state only, to avoid collisions with IK */
-						/* NOTE: in some cases, this may break (i.e. if the target is in a separate chain which can get safely evaluated first) */
-						// XXX: using "done" here breaks in-chain deps, while using "ready" here breaks most production rigs instead... Maybe we need the rootmap checks here?
+						/* same armature  */
 						eDepsOperation_Code target_key_opcode;
-
-						// FIXME: need the original strings, or else the pointers will fail!
+						
+						/* Using "done" here breaks in-chain deps, while using "ready" here breaks most production rigs instead...
+						 * So, we do a compromise here, and only do this when an IK chain conflict may occur
+						 */
 						if (root_map->has_common_root(component_subdata, ct->subtarget)) {
 							target_key_opcode = DEG_OPCODE_BONE_READY;
 						}
@@ -1298,10 +1298,18 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		add_relation(bone_local_key, bone_pose_key, DEPSREL_TYPE_OPERATION, "Bone Local - PoseSpace Link");
 		
 		/* parent relation */
-		// XXX: does this need different handling (as in bottom, commented out loop) when IK is required?
 		if (pchan->parent != NULL) {
-			/* NOTE: here we use "ready" so that it doesn't block IK chains */
-			OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name, DEG_OPCODE_BONE_READY);
+			eDepsOperation_Code parent_key_opcode;
+			
+			/* NOTE: this difference in handling allows us to prevent lockups while ensuring correct poses for separate chains */
+			if (root_map.has_common_root(pchan->name, pchan->parent->name)) {
+				parent_key_opcode = DEG_OPCODE_BONE_READY;
+			}
+			else {
+				parent_key_opcode = DEG_OPCODE_BONE_DONE;
+			}
+			
+			OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name, parent_key_opcode);
 			add_relation(parent_key, bone_pose_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
 		}
 		
