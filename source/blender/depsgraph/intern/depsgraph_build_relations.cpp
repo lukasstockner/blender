@@ -1244,21 +1244,33 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	 * - Animated chain-lengths are a problem...
 	 */
 	RootPChanMap root_map;
+	bool have_ik_solver = false;
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
 			switch (con->type) {
 				case CONSTRAINT_TYPE_KINEMATIC:
 					build_ik_pose(ob, pchan, con, &root_map);
+					have_ik_solver = true;
 					break;
 					
 				case CONSTRAINT_TYPE_SPLINEIK:
 					build_splineik_pose(ob, pchan, con, &root_map);
+					have_ik_solver = true;
 					break;
 					
 				default:
 					break;
 			}
 		}
+	}
+
+	if (have_ik_solver) {
+		/* TODO(sergey): Once partial updates are possible use relation between
+		 * object transform and solver itself in it's build function.
+		 */
+		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
+		ComponentKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
+		add_relation(local_transform_key, pose_key, DEPSREL_TYPE_TRANSFORM, "Local Transforms");
 	}
 
 #if 0
