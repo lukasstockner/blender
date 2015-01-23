@@ -238,7 +238,8 @@ struct DepsgraphRelationBuilder
 	void build_scene(Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
-	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const string &component_subdata, ListBase *constraints);
+	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata, 
+	                       ListBase *constraints, RootPChanMap *root_map);
 	void build_animdata(ID *id);
 	void build_driver(ID *id, FCurve *fcurve);
 	void build_world(Scene *scene, World *world);

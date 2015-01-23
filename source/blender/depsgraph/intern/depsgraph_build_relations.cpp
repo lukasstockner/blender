@@ -151,6 +151,21 @@ bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 	return false;
 }
 
+void root_map_debug(const DepsgraphRelationBuilder::RootPChanMap *root_map)
+{
+	printf("Root Map Contains:\n");
+	for (auto it = root_map->begin(); it != root_map->end(); it++) {
+		const char *bname = it->first;
+		const DepsgraphRelationBuilder::RootPChanVector roots = it->second;
+
+		printf("  %s : (", bname);
+		for (auto it2 = roots.begin(); it2 != roots.end(); it2++) {
+			printf("%s, ", *it2);
+		}
+		printf(")\n");
+	}
+}
+
 void root_map_add_bone(const char *bone,
                        const char *root,
                        DepsgraphRelationBuilder::RootPChanMap *root_map)
@@ -164,18 +179,24 @@ void root_map_add_bone(const char *bone,
 		new_vector.push_back(root);
 		root_map->insert(std::pair<const char*, DepsgraphRelationBuilder::RootPChanVector> (bone, new_vector));
 	}
+	printf("rootmap add - %s -> %s (%d)\n", bone, root, root_map->find(bone) != root_map->end());
 }
 
-bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap &root_map,
+bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap *root_map,
                                     const char *pchan1, const char *pchan2)
 {
-	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found1 = root_map.find(pchan1);
-	if (found1 == root_map.end()) {
+	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found1 = root_map->find(pchan1);
+	if (found1 == root_map->end()) {
+		// XXX: why does this fail?!
+		printf("%s not found in rootmap (for %s => %s)\n", pchan1, pchan1, pchan2);
+		root_map_debug(root_map);
 		return false;
 	}
 
-	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found2 = root_map.find(pchan2);
-	if (found2 == root_map.end()) {
+	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found2 = root_map->find(pchan2);
+	if (found2 == root_map->end()) {
+		printf("%s not found in rootmap (for %s => %s)\n", pchan2, pchan1, pchan2);
+		root_map_debug(root_map);
 		return false;
 	}
 
@@ -191,11 +212,13 @@ bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap
 		     ++it2)
 		{
 			if (strcmp(*it1, *it2) == 0) {
+				printf("found common in rootmap (for %s => %s) ==> (%s => %s)\n", pchan1, pchan2, *it1, *it2);
 				return true;
 			}
 		}
 	}
 
+	printf("not found in rootmap (%s => %s)\n", pchan1, pchan2);
 	return false;
 }
 
@@ -303,7 +326,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 		/* constraint relations */
 		// TODO: provide base op
 		// XXX: this is broken
-		build_constraints(scene, &ob->id, DEPSNODE_TYPE_TRANSFORM, "", &ob->constraints);
+		build_constraints(scene, &ob->id, DEPSNODE_TYPE_TRANSFORM, "", &ob->constraints, NULL);
 		
 		/* operation order */
 		add_relation(base_op_key, constraint_key, DEPSREL_TYPE_COMPONENT_ORDER, "[ObBase-> Constraint Stack]");
@@ -458,8 +481,8 @@ void DepsgraphRelationBuilder::build_object_parent(Object *ob)
 	}
 }
 
-void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const string &component_subdata,
-                                                 ListBase *constraints)
+void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata,
+                                                 ListBase *constraints, RootPChanMap *root_map)
 {
 	OperationKey constraint_op_key(id, component_type, component_subdata,
 	                               (component_type == DEPSNODE_TYPE_BONE) ? DEG_OPCODE_BONE_CONSTRAINTS : DEG_OPCODE_TRANSFORM_CONSTRAINTS);
@@ -527,9 +550,17 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 						/* same armature - use the "ready" state only, to avoid collisions with IK */
 						/* NOTE: in some cases, this may break (i.e. if the target is in a separate chain which can get safely evaluated first) */
 						// XXX: using "done" here breaks in-chain deps, while using "ready" here breaks most production rigs instead... Maybe we need the rootmap checks here?
+						eDepsOperation_Code target_key_opcode;
 
-						//OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_READY);
-						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, DEG_OPCODE_BONE_DONE);
+						// FIXME: need the original strings, or else the pointers will fail!
+						if (pchan_check_common_solver_root(root_map, component_subdata, ct->subtarget)) {
+							target_key_opcode = DEG_OPCODE_BONE_READY;
+						}
+						else {
+							target_key_opcode = DEG_OPCODE_BONE_DONE;
+						}
+
+						OperationKey target_key(&ct->tar->id, DEPSNODE_TYPE_BONE, ct->subtarget, target_key_opcode);
 						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 					else {
@@ -1176,6 +1207,53 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		add_relation(animation_key, init_key, DEPSREL_TYPE_OPERATION, "Object Animation");
 	}
 
+	/* IK Solvers...
+	* - These require separate processing steps are pose-level
+	*   to be executed between chains of bones (i.e. once the
+	*   base transforms of a bunch of bones is done)
+	*
+	* - We build relations for these before the dependencies
+	*   between ops in the same component as it is necessary
+	*   to check whether such bones are in the same IK chain
+	*   (or else we get weird issues with either in-chain
+	*   references, or with bones being parented to IK'd bones)
+	*
+	* Unsolved Issues:
+	* - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
+	* - Animated chain-lengths are a problem...
+	*/
+	RootPChanMap root_map;
+	bool have_ik_solver = false;
+	
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
+			switch (con->type) {
+				case CONSTRAINT_TYPE_KINEMATIC:
+					build_ik_pose(ob, pchan, con, &root_map);
+					have_ik_solver = true;
+					break;
+
+				case CONSTRAINT_TYPE_SPLINEIK:
+					build_splineik_pose(ob, pchan, con, &root_map);
+					have_ik_solver = true;
+					break;
+
+				default:
+					break;
+			}
+		}
+	}
+	root_map_debug(&root_map);
+	
+	if (have_ik_solver) {
+		/* TODO(sergey): Once partial updates are possible use relation between
+		 * object transform and solver itself in it's build function.
+		 */
+		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
+		ComponentKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
+		add_relation(local_transform_key, pose_key, DEPSREL_TYPE_TRANSFORM, "Local Transforms");
+	}
+
 	/* links between operations for each bone */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		OperationKey bone_local_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
@@ -1202,7 +1280,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		/* constraints */
 		if (pchan->constraints.first != NULL) {
 			/* constraints stack and constraint dependencies */
-			build_constraints(scene, &ob->id, DEPSNODE_TYPE_BONE, pchan->name, &pchan->constraints);
+			build_constraints(scene, &ob->id, DEPSNODE_TYPE_BONE, pchan->name, &pchan->constraints, &root_map);
 			
 			/* pose -> constraints */
 			OperationKey constraints_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_CONSTRAINTS);
@@ -1228,45 +1306,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		add_relation(bone_done_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 	}
 	
-	/* IK Solvers...
-	 * - These require separate processing steps are pose-level
-	 *   to be executed between chains of bones (i.e. once the
-	 *   base transforms of a bunch of bones is done)
-	 *
-	 * Unsolved Issues:
-	 * - Care is needed to ensure that multi-headed trees work out the same as in ik-tree building
-	 * - Animated chain-lengths are a problem...
-	 */
-	RootPChanMap root_map;
-	bool have_ik_solver = false;
-	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
-		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
-			switch (con->type) {
-				case CONSTRAINT_TYPE_KINEMATIC:
-					build_ik_pose(ob, pchan, con, &root_map);
-					have_ik_solver = true;
-					break;
-					
-				case CONSTRAINT_TYPE_SPLINEIK:
-					build_splineik_pose(ob, pchan, con, &root_map);
-					have_ik_solver = true;
-					break;
-					
-				default:
-					break;
-			}
-		}
-	}
-
-	if (have_ik_solver) {
-		/* TODO(sergey): Once partial updates are possible use relation between
-		 * object transform and solver itself in it's build function.
-		 */
-		ComponentKey pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
-		ComponentKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
-		add_relation(local_transform_key, pose_key, DEPSREL_TYPE_TRANSFORM, "Local Transforms");
-	}
-
+	
 #if 0
 	/* links between different bones - parenting relationships */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
