@@ -1341,55 +1341,6 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		/* assume that all bones must be done for the pose to be ready (for deformers) */
 		add_relation(bone_done_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 	}
-	
-	
-#if 0
-	/* links between different bones - parenting relationships */
-	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
-	     pchan != NULL;
-	     pchan = pchan->next)
-	{
-		/* bone parent */
-		if (pchan->parent != NULL) {
-			/* "pose_parent" grabs the operation used for evaluating the parent contribution */
-			OperationKey bone_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_POSE_PARENT);
-			
-			/* check if bone is part of an IK chain and is in the same IK tree as its parent
-			 * NOTE: POSE_DONE is set if the bone is parent of an IK chain
-			 */
-			bool has_common_root = false;
-			if (pchan->flag & POSE_DONE) {
-				has_common_root = pchan_check_common_solver_root(root_map,
-				                                                 pchan->name,
-				                                                 pchan->parent->name);
-			}
-			
-			/* hook up parent to child, accounting for IK tree issues */
-			if (has_common_root) {
-				/* bone is part of same IK tree as parent - we use the last operation before "done" to prevent lockups
-				 * as both bones won't be done until the IK solver runs
-				 */
-				DEG_DEBUG_PRINTF("common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
-				OperationKey parent_transforms_key = bone_transforms_key(ob, pchan->parent); // XXX: does this settle for pre-IK?
-				add_relation(parent_transforms_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
-			}
-			else {
-				/* bone is not in same IK tree as parent - can just directly use parent's "done" */
-				DEG_DEBUG_PRINTF("not common root: %s (par = %s)\n", pchan->name, pchan->parent->name);
-				OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->parent->name, DEG_OPCODE_BONE_DONE);
-				add_relation(parent_key, bone_key, DEPSREL_TYPE_TRANSFORM, "[Parent Bone -> Child Bone]");
-			}
-		}
-		
-		/* if bone is not part of IK chain, when it's done, it can just be added */
-		// XXX: technically, we don't even need to do this check; the extra rels would be optimised away anyway be the transitive_reduction
-		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
-		if ((pchan->flag & POSE_DONE) == 0) {
-			OperationKey transforms_key = bone_transforms_key(ob, pchan);
-			add_relation(transforms_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Bone Final Transforms");
-		}
-	}
-#endif
 }
 
 /* Shapekeys */
