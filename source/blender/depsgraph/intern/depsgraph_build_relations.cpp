@@ -34,6 +34,7 @@
 
 extern "C" {
 #include "BLI_blenlib.h"
+#include "BLI_ghash.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -151,78 +152,104 @@ bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 	return false;
 }
 
-void root_map_debug(const DepsgraphRelationBuilder::RootPChanMap *root_map)
-{
-	printf("Root Map Contains:\n");
-	for (auto it = root_map->begin(); it != root_map->end(); it++) {
-		const char *bname = it->first;
-		const DepsgraphRelationBuilder::RootPChanVector roots = it->second;
+}  /* namespace */
 
-		printf("  %s : (", bname);
-		for (auto it2 = roots.begin(); it2 != roots.end(); it2++) {
-			printf("%s, ", *it2);
+/* ***************** */
+/* Pose Channels "Root" Map */
+
+DepsgraphRelationBuilder::RootPChanMap::RootPChanMap()
+{
+	/* just create empty map */
+	m_map = BLI_ghash_str_new("RootPChanMap");
+}
+
+static void free_rootpchanmap_valueset(void *val)
+{
+	/* just need to free the set itself - the names stored are all references */
+	GSet *values = (GSet *)val;
+	BLI_gset_free(values, NULL);
+}
+
+DepsgraphRelationBuilder::RootPChanMap::~RootPChanMap()
+{
+	/* free the map, and all the value sets */
+	BLI_ghash_free(m_map, NULL, free_rootpchanmap_valueset);
+}
+
+/* Debug contents of map */
+void DepsgraphRelationBuilder::RootPChanMap::print_debug()
+{
+	GHashIterator it1;
+	GSetIterator it2;
+	
+	printf("Root PChan Map:\n");
+	GHASH_ITER(it1, m_map) {
+		const char *item = (const char *)BLI_ghashIterator_getKey(&it1);
+		GSet *values = (GSet *)BLI_ghashIterator_getValue(&it1);
+
+		printf("  %s : { ", item);
+		GSET_ITER(it2, values) {
+			const char *val = (const char *)BLI_gsetIterator_getKey(&it2);
+			printf("%s, ", val);
 		}
-		printf(")\n");
+		printf("}\n");
 	}
 }
 
-void root_map_add_bone(const char *bone,
-                       const char *root,
-                       DepsgraphRelationBuilder::RootPChanMap *root_map)
+/* Add a mapping */
+void DepsgraphRelationBuilder::RootPChanMap::add_bone(const char *bone, const char *root)
 {
-	DepsgraphRelationBuilder::RootPChanMap::iterator found = root_map->find(bone);
-	if (found != root_map->end()) {
-		found->second.push_back(root);
+	if (BLI_ghash_haskey(m_map, bone)) {
+		/* add new entry */
+		GSet *values = (GSet *)BLI_ghash_lookup(m_map, bone);
+		BLI_gset_insert(values, (void *)root);
 	}
 	else {
-		DepsgraphRelationBuilder::RootPChanVector new_vector;
-		new_vector.push_back(root);
-		root_map->insert(std::pair<const char*, DepsgraphRelationBuilder::RootPChanVector> (bone, new_vector));
+		/* create new set and mapping */
+		GSet *values = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "RootPChanMap Value Set");
+		BLI_ghash_insert(m_map, (void *)bone, (void *)values);
+
+		/* add new entry now */
+		BLI_gset_insert(values, (void *)root);
 	}
-	printf("rootmap add - %s -> %s (%d)\n", bone, root, root_map->find(bone) != root_map->end());
 }
 
-bool pchan_check_common_solver_root(const DepsgraphRelationBuilder::RootPChanMap *root_map,
-                                    const char *pchan1, const char *pchan2)
+/* Check if there's a common root bone between two bones */
+bool DepsgraphRelationBuilder::RootPChanMap::has_common_root(const char *bone1, const char *bone2)
 {
-	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found1 = root_map->find(pchan1);
-	if (found1 == root_map->end()) {
-		// XXX: why does this fail?!
-		printf("%s not found in rootmap (for %s => %s)\n", pchan1, pchan1, pchan2);
-		root_map_debug(root_map);
+	/* Ensure that both are in the map... */
+	if (BLI_ghash_haskey(m_map, bone1) == false) {
+		printf("RootPChanMap: bone1 '%s' not found (%s => %s)\n", bone1, bone1, bone2);
+		print_debug();
 		return false;
 	}
 
-	const DepsgraphRelationBuilder::RootPChanMap::const_iterator found2 = root_map->find(pchan2);
-	if (found2 == root_map->end()) {
-		printf("%s not found in rootmap (for %s => %s)\n", pchan2, pchan1, pchan2);
-		root_map_debug(root_map);
+	if (BLI_ghash_haskey(m_map, bone2) == false) {
+		printf("RootPChanMap: bone2 '%s' not found (%s => %s)\n", bone2, bone1, bone2);
+		print_debug();
 		return false;
 	}
 
-	const DepsgraphRelationBuilder::RootPChanVector &vec1 = found1->second;
-	const DepsgraphRelationBuilder::RootPChanVector &vec2 = found2->second;
+	GSet *bone1_roots = (GSet *)BLI_ghash_lookup(m_map, (void *)bone1);
+	GSet *bone2_roots = (GSet *)BLI_ghash_lookup(m_map, (void *)bone2);
 
-	for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it1 = vec1.begin();
-	     it1 != vec1.end();
-	     ++it1)
-	{
-		for (DepsgraphRelationBuilder::RootPChanVector::const_iterator it2 = vec2.begin();
-		     it2 != vec2.end();
-		     ++it2)
-		{
-			if (strcmp(*it1, *it2) == 0) {
-				printf("found common in rootmap (for %s => %s) ==> (%s => %s)\n", pchan1, pchan2, *it1, *it2);
+	GSetIterator it1, it2;
+	GSET_ITER(it1, bone1_roots) {
+		GSET_ITER(it2, bone2_roots) {
+			const char *v1 = (const char *)BLI_gsetIterator_getKey(&it1);
+			const char *v2 = (const char *)BLI_gsetIterator_getKey(&it2);
+
+			if (strcmp(v1, v2) == 0) {
+				printf("RootPchanMap: %s in common for %s => %s\n", v1, bone1, bone2);
 				return true;
 			}
 		}
 	}
 
-	printf("not found in rootmap (%s => %s)\n", pchan1, pchan2);
+	printf("RootPChanMap: No common root found (%s => %s)\n", bone1, bone2);
 	return false;
 }
 
-}  /* namespace */
 
 /* ***************** */
 /* Relations Builder */
@@ -553,7 +580,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 						eDepsOperation_Code target_key_opcode;
 
 						// FIXME: need the original strings, or else the pointers will fail!
-						if (pchan_check_common_solver_root(root_map, component_subdata, ct->subtarget)) {
+						if (root_map->has_common_root(component_subdata, ct->subtarget)) {
 							target_key_opcode = DEG_OPCODE_BONE_READY;
 						}
 						else {
@@ -1069,7 +1096,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
 		}
 	}
-	root_map_add_bone(pchan->name, rootchan->name, root_map);
+	root_map->add_bone(pchan->name, rootchan->name);
 
 	/* Pole Target */
 	// XXX: this should get handled as part of the constraint code
@@ -1111,7 +1138,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_DONE);
 		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
 
-		root_map_add_bone(parchan->name, rootchan->name, root_map);
+		root_map->add_bone(parchan->name, rootchan->name);
 
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
@@ -1157,7 +1184,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 	OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
 	add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Result");
 
-	root_map_add_bone(pchan->name, rootchan->name, root_map);
+	root_map->add_bone(pchan->name, rootchan->name);
 
 	/* Walk to the chain's root */
 	//size_t segcount = 0;
@@ -1179,7 +1206,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 		OperationKey final_transforms_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_DONE);
 		add_relation(solver_key, final_transforms_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Result");
 
-		root_map_add_bone(parchan->name, rootchan->name, root_map);
+		root_map->add_bone(parchan->name, rootchan->name);
 
 		/* continue up chain, until we reach target number of items... */
 		segcount++;
@@ -1243,7 +1270,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			}
 		}
 	}
-	root_map_debug(&root_map);
+	root_map.print_debug();
 	
 	if (have_ik_solver) {
 		/* TODO(sergey): Once partial updates are possible use relation between
@@ -1253,6 +1280,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		ComponentKey local_transform_key(&ob->id, DEPSNODE_TYPE_TRANSFORM);
 		add_relation(local_transform_key, pose_key, DEPSREL_TYPE_TRANSFORM, "Local Transforms");
 	}
+	
 
 	/* links between operations for each bone */
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {

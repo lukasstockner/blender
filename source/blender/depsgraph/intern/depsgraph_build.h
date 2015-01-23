@@ -31,8 +31,8 @@
 
 #include "depsgraph_util_id.h"
 
-struct bConstraint;
 struct ListBase;
+struct GHash;
 struct ID;
 struct FCurve;
 struct Group;
@@ -43,6 +43,7 @@ struct MTex;
 struct bNodeTree;
 struct Object;
 struct bPoseChannel;
+struct bConstraint;
 struct Scene;
 struct Tex;
 struct World;
@@ -218,8 +219,30 @@ struct RNAPathKey
 
 struct DepsgraphRelationBuilder 
 {
-	typedef vector<const char*> RootPChanVector;
-	typedef unordered_map<const char*, RootPChanVector> RootPChanMap;
+	struct RootPChanMap {
+		/* ctor and dtor - Create and free the internal map respectively */
+		RootPChanMap();
+		~RootPChanMap();
+
+		/* Debug contents of map */
+		void print_debug();
+
+		/* Add a mapping */
+		void add_bone(const char *bone, const char *root);
+
+		/* Check if there's a common root bone between two bones */
+		bool has_common_root(const char *bone1, const char *bone2);
+		
+	private:
+		/* The actual map:
+		 * - Keys are "strings" (const char *) - not dynamically allocated
+		 * - Values are "sets" (const char *) - not dynamically allocated
+		 *
+		 * We don't use the C++ maps here, as it's more convenient to use
+		 * Blender's GHash and be able to compare by-value instead of by-ref
+		 */
+		struct GHash *m_map;
+	};
 
 	DepsgraphRelationBuilder(Depsgraph *graph);
 	
