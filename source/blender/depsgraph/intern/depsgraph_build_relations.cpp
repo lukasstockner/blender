@@ -219,13 +219,13 @@ bool DepsgraphRelationBuilder::RootPChanMap::has_common_root(const char *bone1, 
 {
 	/* Ensure that both are in the map... */
 	if (BLI_ghash_haskey(m_map, bone1) == false) {
-		printf("RootPChanMap: bone1 '%s' not found (%s => %s)\n", bone1, bone1, bone2);
+		//fprintf("RootPChanMap: bone1 '%s' not found (%s => %s)\n", bone1, bone1, bone2);
 		print_debug();
 		return false;
 	}
 
 	if (BLI_ghash_haskey(m_map, bone2) == false) {
-		printf("RootPChanMap: bone2 '%s' not found (%s => %s)\n", bone2, bone1, bone2);
+		//fprintf("RootPChanMap: bone2 '%s' not found (%s => %s)\n", bone2, bone1, bone2);
 		print_debug();
 		return false;
 	}
@@ -240,13 +240,13 @@ bool DepsgraphRelationBuilder::RootPChanMap::has_common_root(const char *bone1, 
 			const char *v2 = (const char *)BLI_gsetIterator_getKey(&it2);
 
 			if (strcmp(v1, v2) == 0) {
-				printf("RootPchanMap: %s in common for %s => %s\n", v1, bone1, bone2);
+				//fprintf("RootPchanMap: %s in common for %s => %s\n", v1, bone1, bone2);
 				return true;
 			}
 		}
 	}
 
-	printf("RootPChanMap: No common root found (%s => %s)\n", bone1, bone2);
+	//fprintf("RootPChanMap: No common root found (%s => %s)\n", bone1, bone2);
 	return false;
 }
 
@@ -1270,7 +1270,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 			}
 		}
 	}
-	root_map.print_debug();
+	//root_map.print_debug();
 	
 	if (have_ik_solver) {
 		/* TODO(sergey): Once partial updates are possible use relation between
