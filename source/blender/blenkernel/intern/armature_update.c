@@ -626,12 +626,12 @@ void BKE_pose_constraints_evaluate(EvaluationContext *UNUSED(eval_ctx),
                                    bPoseChannel *pchan)
 {
 	Scene *scene = (Scene*)G.main->scene.first;
-	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	DEBUG_PRINT("%s on %s pchan %s\n", __func__, ob->id.name, pchan->name);
 	if (pchan->flag & POSE_IKTREE || pchan->flag & POSE_IKSPLINE) {
 		/* IK are being solved separately/ */
 	}
 	else {
+		float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 		BKE_pose_where_is_bone(scene, ob, pchan, ctime, 1);
 	}
 }
