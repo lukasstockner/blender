@@ -106,6 +106,9 @@ extern "C" {
 
 void DepsgraphNodeBuilder::build_scene(Scene *scene)
 {
+	/* scene ID block */
+	add_id_node(&scene->id);
+	
 	/* timesource */
 	add_time_source(NULL);
 	
