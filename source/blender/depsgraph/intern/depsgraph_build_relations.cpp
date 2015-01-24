@@ -220,13 +220,13 @@ bool DepsgraphRelationBuilder::RootPChanMap::has_common_root(const char *bone1, 
 	/* Ensure that both are in the map... */
 	if (BLI_ghash_haskey(m_map, bone1) == false) {
 		//fprintf("RootPChanMap: bone1 '%s' not found (%s => %s)\n", bone1, bone1, bone2);
-		print_debug();
+		//print_debug();
 		return false;
 	}
 
 	if (BLI_ghash_haskey(m_map, bone2) == false) {
 		//fprintf("RootPChanMap: bone2 '%s' not found (%s => %s)\n", bone2, bone1, bone2);
-		print_debug();
+		//print_debug();
 		return false;
 	}
 
