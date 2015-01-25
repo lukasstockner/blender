@@ -111,6 +111,15 @@ class MESH_UL_uvmaps_vcols(UIList):
             layout.label(text="", icon_value=icon)
 
 
+class MESH_UL_ptex(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            layout.prop(item, "name", text="", emboss=False, icon_value=icon)
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
 class MeshButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -178,6 +187,31 @@ class DATA_PT_texture_space(MeshButtonsPanel, Panel):
         row = layout.row()
         row.column().prop(mesh, "texspace_location", text="Location")
         row.column().prop(mesh, "texspace_size", text="Size")
+
+
+class DATA_PT_ptex(MeshButtonsPanel, Panel):
+    bl_label = "Ptex"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        me = context.mesh
+
+        row = layout.row()
+        col = row.column()
+
+        col.template_list("MESH_UL_ptex", "loop_ptex", me, "loop_ptex", me.loop_ptex, "active_index", rows=1)
+
+        col = row.column(align=True)
+        col.operator("mesh.ptex_add", icon='ZOOMIN', text="")
+        col.operator("mesh.ptex_remove", icon='ZOOMOUT', text="")
+
+        layout.operator("mesh.ptex_res_change",
+                        text='Halve Resolution').mode = 'HALVE'
+        layout.operator("mesh.ptex_res_change",
+                        text='Double Resolution').mode = 'DOUBLE'
+        layout.operator("mesh.ptex_import")
 
 
 class DATA_PT_vertex_groups(MeshButtonsPanel, Panel):

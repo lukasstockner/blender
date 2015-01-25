@@ -1409,6 +1409,7 @@ def get_panels():
         "DATA_PT_context_speaker",
         "DATA_PT_normals",
         "DATA_PT_texture_space",
+        "DATA_PT_ptex",
         "DATA_PT_curve_texture_space",
         "DATA_PT_mball_texture_space",
         "DATA_PT_vertex_groups",
