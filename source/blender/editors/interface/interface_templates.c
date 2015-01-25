@@ -2838,20 +2838,21 @@ static void uilist_resize_update_cb(bContext *UNUSED(C), void *arg1, void *UNUSE
 
 static const char *uilist_generate_advanced_tooltip(char *tooltip_buff, size_t tooltip_len, PointerRNA *itemptr)
 {
-	PropertyRNA *prop = RNA_struct_find_property(itemptr, "uilist_dynamic_tooltip");
+	if (itemptr && itemptr->data) {
+		PropertyRNA *prop = RNA_struct_find_property(itemptr, "uilist_dynamic_tooltip");
 
-	if (prop && (RNA_property_type(prop) == PROP_STRING)) {
-		char dyn_tooltip_buff[UILIST_TOOLTIP_LEN];
-		char *dyn_tooltip = RNA_property_string_get_alloc(itemptr, prop, dyn_tooltip_buff, sizeof(dyn_tooltip_buff), NULL);
+		if (prop && (RNA_property_type(prop) == PROP_STRING)) {
+			char dyn_tooltip_buff[UILIST_TOOLTIP_LEN];
+			char *dyn_tooltip = RNA_property_string_get_alloc(itemptr, prop, dyn_tooltip_buff, sizeof(dyn_tooltip_buff), NULL);
 
-		BLI_snprintf(tooltip_buff, tooltip_len, "%s - %s", TIP_(UILIST_RENAME_TOOLTIP), dyn_tooltip);
+			BLI_snprintf(tooltip_buff, tooltip_len, "%s - %s", TIP_(UILIST_RENAME_TOOLTIP), dyn_tooltip);
 
-		if (dyn_tooltip != dyn_tooltip_buff) {
-			MEM_freeN(dyn_tooltip);
+			if (dyn_tooltip != dyn_tooltip_buff) {
+				MEM_freeN(dyn_tooltip);
+			}
+
+			return tooltip_buff;
 		}
-
-		return tooltip_buff;
-
 	}
 
 	return TIP_(UILIST_RENAME_TOOLTIP);
