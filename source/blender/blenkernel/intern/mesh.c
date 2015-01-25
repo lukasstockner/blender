@@ -52,6 +52,7 @@
 #include "BKE_material.h"
 #include "BKE_modifier.h"
 #include "BKE_multires.h"
+#include "BKE_ptex.h"
 #include "BKE_key.h"
 #include "BKE_mball.h"
 #include "BKE_depsgraph.h"
@@ -2249,6 +2250,9 @@ Mesh *BKE_mesh_new_from_object(
 				if (calc_undeformed)
 					mask |= CD_MASK_ORCO;
 
+				// TODO
+				mask |= CD_MASK_LOOP_PTEX;
+
 				/* Write the display mesh into the dummy mesh */
 				if (render)
 					dm = mesh_create_derived_render(sce, ob, mask);
@@ -2256,8 +2260,41 @@ Mesh *BKE_mesh_new_from_object(
 					dm = mesh_create_derived_view(sce, ob, mask);
 
 				tmpmesh = BKE_mesh_add(bmain, "Mesh");
-				DM_to_mesh(dm, tmpmesh, ob, mask);
+				DM_to_mesh(dm, tmpmesh, ob, mask | CD_MASK_TESSFACE_PTEX);
 				dm->release(dm);
+
+				// TODO: very TODO
+				{
+					Mesh *src_me = ob->data;
+					const int num_layers =
+						CustomData_number_of_layers(&tmpmesh->ldata, CD_LOOP_PTEX);
+					/* const int off = CustomData_get_offset(&tmpmesh->ldata, */
+					/* 									  CD_LOOP_PTEX); */
+					int i;
+
+					BLI_assert(CustomData_number_of_layers(&src_me->ldata,
+														   CD_LOOP_PTEX) ==
+							   num_layers);
+
+					for (i = 0; i < num_layers; i++) {
+						const char *name = CustomData_get_layer_name(&tmpmesh->ldata,
+																	 CD_LOOP_PTEX, i);
+						MLoopPtex *dst = CustomData_get_layer_n
+							(&tmpmesh->ldata, CD_LOOP_PTEX, i);
+						
+						const MLoopPtex *src = CustomData_get_layer_n
+							(&src_me->ldata, CD_LOOP_PTEX, i);
+
+						if (src && dst && name) {
+							if (src->image) {
+								dst->image = src->image;
+							}
+							else {
+								dst->image = BKE_ptex_mesh_image_get(ob, name);
+							}
+						}
+					}
+				}
 			}
 
 			/* BKE_mesh_add/copy gives us a user count we don't need */
