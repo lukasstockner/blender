@@ -287,7 +287,7 @@ void file_calc_previews(const bContext *C, ARegion *ar)
 }
 
 static void file_draw_preview(uiBlock *block, struct FileList *files, const int index,
-                              int sx, int sy, ImBuf *imb, FileLayout *layout, bool dropshadow, bool drag)
+                              int sx, int sy, ImBuf *imb, int icon, FileLayout *layout, bool dropshadow, bool drag)
 {
 	if (imb) {
 		uiBut *but;
@@ -339,6 +339,10 @@ static void file_draw_preview(uiBlock *block, struct FileList *files, const int 
 		glColor4f(1.0, 1.0, 1.0, 1.0);
 		glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
 		
+		if (icon) {
+			UI_icon_draw((float)xco, (float)yco, icon);
+		}
+
 		/* border */
 		if (dropshadow) {
 			glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
@@ -349,7 +353,7 @@ static void file_draw_preview(uiBlock *block, struct FileList *files, const int 
 		if (drag) {
 			struct direntry *file = filelist_file(files, index);
 			but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, "");
-			UI_but_drag_set_image(but, file->path, filelist_geticon(files, index), imb, scale);
+			UI_but_drag_set_image(but, file->path, filelist_geticon(files, index, true), imb, scale);
 		}
 		
 		glDisable(GL_BLEND);
@@ -511,17 +515,18 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		do_drag = !(STREQ(file->relname, "..") || STREQ(file->relname, "."));
 
 		if (FILE_IMGDISPLAY == params->display) {
+			const int icon = filelist_geticon(files, i, false);
 			is_icon = 0;
 			imb = filelist_getimage(files, i);
 			if (!imb) {
 				imb = filelist_geticon_image(files, i);
 				is_icon = 1;
 			}
-			
-			file_draw_preview(block, files, i, sx, sy, imb, layout, !is_icon && (file->flags & FILE_TYPE_IMAGE), do_drag);
+
+			file_draw_preview(block, files, i, sx, sy, imb, icon, layout, !is_icon && (file->flags & FILE_TYPE_IMAGE), do_drag);
 		}
 		else {
-			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i),
+			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i, true),
 			               ICON_DEFAULT_WIDTH_SCALE, ICON_DEFAULT_HEIGHT_SCALE, do_drag);
 			sx += ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X;
 		}

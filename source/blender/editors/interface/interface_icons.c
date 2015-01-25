@@ -988,6 +988,7 @@ PreviewImage *UI_icon_to_preview(int icon_id)
 	return NULL;
 }
 
+#if 0  /* Unused in the end, is it worth keeping it still?
 /* Shall always return straight alpha! */
 ImBuf *UI_icon_to_imbuf(int icon_id)
 {
@@ -1051,6 +1052,7 @@ ImBuf *UI_icon_to_imbuf(int icon_id)
 
 	return imbuf;
 }
+#endif
 
 static void icon_draw_rect(float x, float y, int w, int h, float UNUSED(aspect), int rw, int rh,
                            unsigned int *rect, float alpha, const float rgb[3], const bool is_preview)

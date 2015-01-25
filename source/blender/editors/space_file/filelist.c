@@ -204,14 +204,10 @@ struct FileList;
 typedef struct FileImage {
 	struct FileImage *next, *prev;
 	char path[FILE_MAX];
-	char relname[FILE_MAX];
 	unsigned int flags;
-	unsigned int type;
 	int index;
 	short done;
 	ImBuf *img;
-	ImBuf *org_img;
-	ImBuf *icon;
 } FileImage;
 
 typedef struct FileListFilter {
@@ -770,21 +766,27 @@ ImBuf *filelist_geticon_image(struct FileList *filelist, const int index)
 	return filelist_geticon_image_ex(file->type, file->flags, file->relname);
 }
 
-static int filelist_geticon_ex(const unsigned int type, const unsigned int flags, const char *path, const char *relname, const bool ignore_libdir)
+static int filelist_geticon_ex(
+        const unsigned int type, const unsigned int flags, const char *path, const char *relname,
+        const bool is_main, const bool ignore_libdir)
 {
 	if (type & S_IFDIR && !(ignore_libdir && (flags & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER)))) {
 		if (strcmp(relname, "..") == 0) {
-			return ICON_FILE_PARENT;
+			return is_main ? ICON_FILE_PARENT : ICON_NONE;
 		}
-		if (flags & FILE_TYPE_APPLICATIONBUNDLE) {
+		else if (flags & FILE_TYPE_APPLICATIONBUNDLE) {
 			return ICON_UGLYPACKAGE;
 		}
-		if (flags & FILE_TYPE_BLENDER) {
+		else if (flags & FILE_TYPE_BLENDER) {
 			return ICON_FILE_BLEND;
 		}
-		return ICON_FILE_FOLDER;
+		else if (is_main) {
+			/* Do not return icon for folders if icons are not 'main' draw type (e.g. when used over previews). */
+			return ICON_FILE_FOLDER;
+		}
 	}
-	else if (flags & FILE_TYPE_BLENDER)
+
+	if (flags & FILE_TYPE_BLENDER)
 		return ICON_FILE_BLEND;
 	else if (flags & FILE_TYPE_BLENDER_BACKUP)
 		return ICON_FILE_BACKUP;
@@ -869,14 +871,14 @@ static int filelist_geticon_ex(const unsigned int type, const unsigned int flags
 			}
 		}
 	}
-	return ICON_FILE_BLANK;
+	return is_main ? ICON_FILE_BLANK : ICON_NONE;
 }
 
-int filelist_geticon(struct FileList *filelist, const int index)
+int filelist_geticon(struct FileList *filelist, const int index, const bool is_main)
 {
 	struct direntry *file = filelist_geticon_get_file(filelist, index);
 
-	return filelist_geticon_ex(file->type, file->flags, file->path, file->relname, false);
+	return filelist_geticon_ex(file->type, file->flags, file->path, file->relname, is_main, false);
 }
 
 /* ********** Main ********** */
@@ -1925,9 +1927,6 @@ static void thumbnail_joblist_free(ThumbnailJob *tj)
 		if ((limg->img) && (!limg->done)) {
 			IMB_freeImBuf(limg->img);
 		}
-		if (limg->icon) {
-			IMB_freeImBuf(limg->icon);
-		}
 	}
 	BLI_freelistN(&tj->loadimages);
 }
@@ -1941,17 +1940,11 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 	tj->do_update = do_update;
 
 	while ((*stop == 0) && (limg)) {
-		ImBuf *img = limg->org_img;
 		if (limg->flags & FILE_TYPE_IMAGE) {
-			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
+			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
 		}
 		else if (limg->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
-			img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
-		}
-		else if (limg->flags & FILE_TYPE_BLENDERLIB) {
-			if (!img) {
-				img = IMB_dupImBuf(filelist_geticon_image_ex(limg->type, limg->flags, limg->relname));
-			}
+			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
 		}
 		else if (limg->flags & FILE_TYPE_MOVIE) {
 			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
@@ -1961,36 +1954,6 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 				limg->flags |= FILE_TYPE_MOVIE_ICON;
 			}
 		}
-		if (img && limg->icon) {
-			/* When we overlay an icon over an image, we want that image to be always the same size,
-			 * otherwise icon will be scaled up or down in UI, which is ugly! */
-			if (!ELEM(PREVIEW_RENDER_DEFAULT_HEIGHT, img->x, img->y)) {
-				unsigned int newx, newy;
-
-				/* Only scale down... */
-				if ((img->x > img->y) && (img->x > PREVIEW_RENDER_DEFAULT_HEIGHT)) {
-					newx = (unsigned int)((float)img->y / (float)img->x * (float)PREVIEW_RENDER_DEFAULT_HEIGHT);
-					newy = PREVIEW_RENDER_DEFAULT_HEIGHT;
-					IMB_scaleImBuf(img, newx, newy);
-				}
-				else if ((img->y > img->x) && (img->y > PREVIEW_RENDER_DEFAULT_HEIGHT)) {
-					newx = PREVIEW_RENDER_DEFAULT_HEIGHT;
-					newy = (unsigned int)((float)img->x / (float)img->y * (float)PREVIEW_RENDER_DEFAULT_HEIGHT);
-					IMB_scaleImBuf(img, newx, newy);
-				}
-				/* Else, center in new picture with the right dimension. */
-				else {
-					ImBuf *timg = IMB_allocImBuf(PREVIEW_RENDER_DEFAULT_HEIGHT, PREVIEW_RENDER_DEFAULT_HEIGHT, 4, IB_rect);
-					IMB_rectcpy(timg, img, (timg->x - img->x) / 2, (timg->y - img->y) / 2, 0, 0, img->x, img->y);
-					IMB_freeImBuf(img);
-					img = timg;
-				}
-			}
-			IMB_rectblend(img, img, limg->icon, NULL, NULL, NULL, 0.0f,
-			              img->x - limg->icon->x, img->y - limg->icon->y, 0, 0, 0, 0,
-			              limg->icon->x, limg->icon->y, IMB_BLEND_MIX, false);
-		}
-		limg->img = img;
 		*do_update = true;
 		PIL_sleep_ms(1);
 		limg = limg->next;
@@ -2050,40 +2013,14 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 		if (!filelist->filelist[idx].path) {
 			continue;
 		}
-		/* for blenlib items we overlay the ID type's icon... */
-		if (!filelist->filelist[idx].image || (filelist->filelist[idx].flags & FILE_TYPE_BLENDERLIB)) {
-			if ((filelist->filelist[idx].flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB))) {
+		if (!filelist->filelist[idx].image) {
+			if (filelist->filelist[idx].flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE |
+			                                     FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))
+			{
 				FileImage *limg = MEM_callocN(sizeof(FileImage), "loadimage");
 				BLI_strncpy(limg->path, filelist->filelist[idx].path, sizeof(limg->path));
-				BLI_strncpy(limg->relname, filelist->filelist[idx].relname, sizeof(limg->relname));
-				if (filelist->filelist[idx].image) {
-					limg->org_img = IMB_dupImBuf(filelist->filelist[idx].image);
-				}
 				limg->index = idx;
 				limg->flags = filelist->filelist[idx].flags;
-				limg->type = filelist->filelist[idx].type;
-				if (filelist->filelist[idx].flags & FILE_TYPE_BLENDERLIB) {
-					/* XXX We have to do this here, this is not threadsafe. */
-					int icon_id = filelist_geticon_ex(limg->type, limg->flags, limg->path, limg->relname, true);
-
-					/* We cache static icons! */
-					if (icon_id < BIFICONID_LAST) {
-						if (!tj->static_icons_buffers[icon_id]) {
-							tj->static_icons_buffers[icon_id] = UI_icon_to_imbuf(icon_id);
-						}
-						else {
-							/* increment refcount! */
-							IMB_refImBuf(tj->static_icons_buffers[icon_id]);
-						}
-						limg->icon = tj->static_icons_buffers[icon_id];
-					}
-					else {
-						limg->icon = UI_icon_to_imbuf(icon_id);
-					}
-				}
-				else {
-					limg->icon = NULL;
-				}
 				BLI_addtail(&tj->loadimages, limg);
 			}
 		}
