@@ -114,6 +114,7 @@
 static void ui_but_smart_controller_add(bContext *C, uiBut *from, uiBut *to);
 static void ui_but_link_add(bContext *C, uiBut *from, uiBut *to);
 static int ui_do_but_EXIT(bContext *C, uiBut *but, struct uiHandleButtonData *data, const wmEvent *event);
+static bool ui_but_find_select_in_enum__cmp(const uiBut *but_a, const uiBut *but_b);
 
 #ifdef USE_KEYNAV_LIMIT
 static void ui_mouse_motion_keynav_init(struct uiKeyNavLock *keynav, const wmEvent *event);
@@ -3347,6 +3348,38 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 #endif
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 			return WM_UI_HANDLER_BREAK;
+		}
+		else if (ELEM(event->type, WHEELDOWNMOUSE, WHEELUPMOUSE) && event->alt) {
+			/* Support alt+wheel on expanded enum rows */
+			if (but->type == UI_BTYPE_ROW) {
+				const int direction = (event->type == WHEELDOWNMOUSE) ? -1 : 1;
+				uiBut *but_select = ui_but_find_select_in_enum(but, direction);
+				if (but_select) {
+					uiBut *but_other = (direction == -1) ? but_select->next : but_select->prev;
+					if (but_other && ui_but_find_select_in_enum__cmp(but, but_other)) {
+						ARegion *ar = data->region;
+
+						data->cancel = true;
+						button_activate_exit(C, but, data, false, false);
+
+						/* Activate the text button. */
+						button_activate_init(C, ar, but_other, BUTTON_ACTIVATE_OVER);
+						data = but_other->active;
+						if (data) {
+							ui_apply_but(C, but->block, but_other, but_other->active, true);
+							button_activate_exit(C, but_other, data, false, false);
+
+							/* restore active button */
+							button_activate_init(C, ar, but, BUTTON_ACTIVATE_OVER);
+						}
+						else {
+							/* shouldn't happen */
+							BLI_assert(0);
+						}
+					}
+				}
+				return WM_UI_HANDLER_BREAK;
+			}
 		}
 	}
 	return WM_UI_HANDLER_CONTINUE;
@@ -6597,6 +6630,45 @@ static bool ui_but_isect_pie_seg(uiBlock *block, uiBut *but)
 	return false;
 }
 
+static bool ui_but_find_select_in_enum__cmp(const uiBut *but_a, const uiBut *but_b)
+{
+	return ((but_a->type == but_b->type) &&
+	        (but_a->alignnr == but_b->alignnr) &&
+	        (but_a->poin == but_b->poin) &&
+	        (but_a->rnapoin.type == but_b->rnapoin.type) &&
+	        (but_a->rnaprop == but_b->rnaprop));
+}
+
+/**
+ * Finds the pressed button in an aligned row (typically an expanded enum).
+ *
+ * \param direction  Use when there may be multiple buttons pressed.
+ */
+uiBut *ui_but_find_select_in_enum(uiBut *but, int direction)
+{
+	uiBut *but_iter = but;
+	uiBut *but_found = NULL;
+	BLI_assert(ELEM(direction, -1, 1));
+
+	while ((but_iter->prev) &&
+	       ui_but_find_select_in_enum__cmp(but_iter->prev, but))
+	{
+		but_iter = but_iter->prev;
+	}
+
+	while (but_iter && ui_but_find_select_in_enum__cmp(but_iter, but)) {
+		if (but_iter->flag & UI_SELECT) {
+			but_found = but_iter;
+			if (direction == 1) {
+				break;
+			}
+		}
+		but_iter = but_iter->next;
+	}
+
+	return but_found;
+}
+
 uiBut *ui_but_find_active_in_region(ARegion *ar)
 {
 	uiBlock *block;
@@ -9129,13 +9201,13 @@ static void ui_region_handler_remove(bContext *C, void *UNUSED(userdata))
 		ui_apply_but_funcs_after(C);
 }
 
+/* handle buttons at the window level, modal, for example while
+ * number sliding, text editing, or when a menu block is open */
 static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *UNUSED(userdata))
 {
 	ARegion *ar;
 	uiBut *but;
 
-	/* here we handle buttons at the window level, modal, for example
-	 * while number sliding, text editing, or when a menu block is open */
 	ar = CTX_wm_menu(C);
 	if (!ar)
 		ar = CTX_wm_region(C);
@@ -9143,13 +9215,32 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void *UNUSE
 	but = ui_but_find_active_in_region(ar);
 
 	if (but) {
+		bScreen *screen = CTX_wm_screen(C);
+		ARegion *ar_temp;
 		uiBut *but_other;
 		uiHandleButtonData *data;
+		bool is_inside_menu = false;
+
+		/* look for a popup menu containing the mouse */
+		for (ar_temp = screen->regionbase.first; ar_temp; ar_temp = ar_temp->next) {
+			rcti rect = ar_temp->winrct;
+
+			/* resize region rect to ignore shadow */
+			BLI_rcti_resize(&rect, (BLI_rcti_size_x(&ar_temp->winrct) - UI_ThemeMenuShadowWidth() * 2),
+			                (BLI_rcti_size_y(&ar_temp->winrct) - UI_ThemeMenuShadowWidth() * 2));
+			if (BLI_rcti_isect_pt_v(&rect, &event->x)) {
+				BLI_assert(ar_temp->type->regionid == RGN_TYPE_TEMPORARY);
+
+				is_inside_menu = true;
+				break;
+			}
+		}
 
 		/* handle activated button events */
 		data = but->active;
 
 		if ((data->state == BUTTON_STATE_MENU_OPEN) &&
+		    (is_inside_menu == false) && /* make sure mouse isn't inside another menu (see T43247) */
 		    (but->type == UI_BTYPE_PULLDOWN) &&
 		    (but_other = ui_but_find_mouse_over(ar, event)) &&
 		    (but != but_other) &&
