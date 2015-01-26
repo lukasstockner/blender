@@ -304,26 +304,51 @@ static int compare_direntry_generic(const struct direntry *entry1, const struct 
 {
 	/* type is equal to stat.st_mode */
 
-	if (compare_is_directory(entry1)) {
-		if (compare_is_directory(entry2) == 0) return (-1);
+	if (S_ISDIR(entry1->type)) {
+	    if (S_ISDIR(entry2->type)) {
+			/* If both entires are tagged as dirs, we make a 'sub filter' that shows first the real dirs,
+			 * then libs (.blend files), then categories in libs. */
+			if (entry1->flags & FILE_TYPE_BLENDERLIB) {
+				if (!(entry2->flags & FILE_TYPE_BLENDERLIB)) {
+					return 1;
+				}
+			}
+			else if (entry2->flags & FILE_TYPE_BLENDERLIB) {
+				return -1;
+			}
+			else if (entry1->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+				if (!(entry2->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))) {
+					return 1;
+				}
+			}
+			else if (entry2->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+				return -1;
+			}
+		}
+		else {
+			return -1;
+		}
 	}
-	else {
-		if (compare_is_directory(entry2)) return (1);
+	else if (S_ISDIR(entry2->type)) {
+	    return 1;
 	}
+
 	if (S_ISREG(entry1->type)) {
-		if (S_ISREG(entry2->type) == 0) return (-1);
+		if (!S_ISREG(entry2->type)) {
+			return -1;
+		}
 	}
-	else {
-		if (S_ISREG(entry2->type)) return (1);
+	else if (S_ISREG(entry2->type)) {
+		return 1;
 	}
-	if ((entry1->type & S_IFMT) < (entry2->type & S_IFMT)) return (-1);
-	if ((entry1->type & S_IFMT) > (entry2->type & S_IFMT)) return (1);
+	if ((entry1->type & S_IFMT) < (entry2->type & S_IFMT)) return -1;
+	if ((entry1->type & S_IFMT) > (entry2->type & S_IFMT)) return 1;
 	
 	/* make sure "." and ".." are always first */
-	if (FILENAME_IS_CURRENT(entry1->relname)) return (-1);
-	if (FILENAME_IS_CURRENT(entry2->relname)) return (1);
-	if (FILENAME_IS_PARENT(entry1->relname)) return (-1);
-	if (FILENAME_IS_PARENT(entry2->relname)) return (1);
+	if (FILENAME_IS_CURRENT(entry1->relname)) return -1;
+	if (FILENAME_IS_CURRENT(entry2->relname)) return 1;
+	if (FILENAME_IS_PARENT(entry1->relname)) return -1;
+	if (FILENAME_IS_PARENT(entry2->relname)) return 1;
 	
 	return 0;
 }
