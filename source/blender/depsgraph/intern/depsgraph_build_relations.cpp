@@ -1132,6 +1132,9 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 		if (parchan != pchan) {
 			OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_READY);
 			add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Chain Parent");
+
+			OperationKey done_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_DONE);
+			add_relation(solver_key, done_key, DEPSREL_TYPE_TRANSFORM, "IK Chain Result");
 		}
 		parchan->flag |= POSE_DONE;
 
@@ -1200,6 +1203,9 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 		if (parchan != pchan) {
 			OperationKey parent_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_READY);
 			add_relation(parent_key, solver_key, DEPSREL_TYPE_TRANSFORM, "Spline IK Solver Update");
+
+			OperationKey done_key(&ob->id, DEPSNODE_TYPE_BONE, parchan->name, DEG_OPCODE_BONE_DONE);
+			add_relation(solver_key, done_key, DEPSREL_TYPE_TRANSFORM, "IK Chain Result");
 		}
 		parchan->flag |= POSE_DONE;
 
