@@ -74,6 +74,7 @@
 #include "BKE_mesh_mapping.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
+#include "BKE_ptex.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
 #include "BKE_texture.h"
@@ -3856,6 +3857,12 @@ static void project_paint_end(ProjPaintState *ps)
 		MEM_freeN((void *)ps->tile_lock);
 	}
 	if (ps->dm_mtface_ptex) {
+		Mesh *me = ps->ob->data;
+		MLoopPtex *loop_ptex = CustomData_get_layer(&me->ldata, CD_LOOP_PTEX);
+
+		// TODO
+		BKE_ptex_update_from_image(loop_ptex, me->totloop);
+
 		MEM_freeN(ps->dm_mtface_ptex);
 		ps->dm_mtface_ptex = NULL;
 	}
