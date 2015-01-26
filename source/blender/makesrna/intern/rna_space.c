@@ -3650,6 +3650,7 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 	                                    "rna_FileBrowser_FSMenuEntry_name_set");
 	RNA_def_property_editable_func(prop, "rna_FileBrowser_FSMenuEntry_name_get_editable");
 	RNA_def_property_ui_text(prop, "Name", "");
+	RNA_def_struct_name_property(srna, prop);
 
 	prop = RNA_def_property(srna, "uilist_dynamic_tooltip", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "path");
