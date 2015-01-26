@@ -557,6 +557,11 @@ void BKE_splineik_execute_tree(Scene *scene, Object *ob, bPoseChannel *pchan_roo
 
 /* *************** Depsgraph evaluation callbacks ************ */
 
+/* XXX: Temp hack for cycles detection! */
+enum {
+	POSE_UNUSED2 = (1 << 4)
+};
+
 void BKE_pose_eval_init(EvaluationContext *UNUSED(eval_ctx),
                         Scene *scene,
                         Object *ob,
@@ -579,6 +584,7 @@ void BKE_pose_eval_init(EvaluationContext *UNUSED(eval_ctx),
 	/* 1. clear flags */
 	for (pchan = pose->chanbase.first; pchan != NULL; pchan = pchan->next) {
 		pchan->flag &= ~(POSE_DONE | POSE_CHAIN | POSE_IKTREE | POSE_IKSPLINE);
+		pchan->flag &= ~POSE_UNUSED2;
 	}
 
 	/* 2a. construct the IK tree (standard IK) */
@@ -647,6 +653,7 @@ void BKE_pose_bone_done(EvaluationContext *UNUSED(eval_ctx),
 		invert_m4_m4(imat, pchan->bone->arm_mat);
 		mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
 	}
+	pchan->flag |= POSE_UNUSED2;
 }
 
 void BKE_pose_iktree_evaluate(EvaluationContext *UNUSED(eval_ctx),
@@ -677,6 +684,24 @@ void BKE_pose_eval_flush(EvaluationContext *UNUSED(eval_ctx),
 	float ctime = BKE_scene_frame_get(scene); /* not accurate... */
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	BLI_assert(ob->type == OB_ARMATURE);
+
+	{
+		bPoseChannel *pchan;
+		for (pchan = ob->pose->chanbase.first;
+		     pchan != NULL;
+		     pchan = pchan->next)
+		{
+			if ((pchan->flag & POSE_UNUSED2) == 0) {
+				float imat[4][4];
+				printf("ERROR: Pose channel %s did not evaluate, should not happen!\n",
+				       pchan->name);
+				if (pchan->bone) {
+					invert_m4_m4(imat, pchan->bone->arm_mat);
+					mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
+				}
+			}
+		}
+	}
 
 	/* 6. release the IK tree */
 	BIK_release_tree(scene, ob, ctime);
