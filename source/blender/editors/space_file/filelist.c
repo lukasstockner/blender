@@ -255,9 +255,6 @@ typedef struct FileList {
 	bool (*filterf)(struct direntry *, const char *, FileListFilter *);
 } FileList;
 
-#define FILENAME_IS_BREADCRUMBS(_n) \
-	((_n)[0] == '.' && ((_n)[1] == '\0' || ((_n)[1] == '.' && (_n)[2] == '\0')))
-
 #define SPECIAL_IMG_SIZE 48
 #define SPECIAL_IMG_ROWS 4
 #define SPECIAL_IMG_COLS 4
@@ -323,10 +320,10 @@ static int compare_direntry_generic(const struct direntry *entry1, const struct 
 	if ((entry1->type & S_IFMT) > (entry2->type & S_IFMT)) return (1);
 	
 	/* make sure "." and ".." are always first */
-	if (strcmp(entry1->relname, ".") == 0) return (-1);
-	if (strcmp(entry2->relname, ".") == 0) return (1);
-	if (strcmp(entry1->relname, "..") == 0) return (-1);
-	if (strcmp(entry2->relname, "..") == 0) return (1);
+	if (FILENAME_IS_CURRENT(entry1->relname)) return (-1);
+	if (FILENAME_IS_CURRENT(entry2->relname)) return (1);
+	if (FILENAME_IS_PARENT(entry1->relname)) return (-1);
+	if (FILENAME_IS_PARENT(entry2->relname)) return (1);
 	
 	return 0;
 }
@@ -526,7 +523,7 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 {
 	bool is_filtered = !is_hidden_file(file->relname, filter);
 
-	if (is_filtered && filter->filter && !FILENAME_IS_BREADCRUMBS(file->relname)) {
+	if (is_filtered && filter->filter && !FILENAME_IS_CURRPAR(file->relname)) {
 		if ((file->type & S_IFDIR) && !(filter->filter & FILE_TYPE_FOLDER)) {
 			is_filtered = false;
 		}
@@ -552,7 +549,7 @@ static bool is_filtered_lib(struct direntry *file, const char *root, FileListFil
 
 	if (BLO_library_path_explode(path, dir, &group, NULL)) {
 		is_filtered = !is_hidden_file(file->relname, filter);
-		if (is_filtered && filter->filter && !FILENAME_IS_BREADCRUMBS(file->relname)) {
+		if (is_filtered && filter->filter && !FILENAME_IS_CURRPAR(file->relname)) {
 			if ((file->type & S_IFDIR) && !(filter->filter & FILE_TYPE_FOLDER)) {
 				is_filtered = false;
 			}
@@ -715,10 +712,10 @@ static ImBuf *filelist_geticon_image_ex(const unsigned int type, const unsigned 
 	ImBuf *ibuf = NULL;
 
 	if (type & S_IFDIR) {
-		if (strcmp(relname, "..") == 0) {
+		if (FILENAME_IS_PARENT(relname)) {
 			ibuf = gSpecialFileImages[SPECIAL_IMG_PARENT];
 		}
-		else if (strcmp(relname, ".") == 0) {
+		else if (FILENAME_IS_CURRENT(relname)) {
 			ibuf = gSpecialFileImages[SPECIAL_IMG_REFRESH];
 		}
 		else {
@@ -771,7 +768,7 @@ static int filelist_geticon_ex(
         const bool is_main, const bool ignore_libdir)
 {
 	if (type & S_IFDIR && !(ignore_libdir && (flags & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER)))) {
-		if (strcmp(relname, "..") == 0) {
+		if (FILENAME_IS_PARENT(relname)) {
 			return is_main ? ICON_FILE_PARENT : ICON_NONE;
 		}
 		else if (flags & FILE_TYPE_APPLICATIONBUNDLE) {
@@ -1010,7 +1007,7 @@ const char *filelist_dir(struct FileList *filelist)
 }
 
 /**
- * May modifies in place given r_dir, which is expected to be FILE_MAX_LIBEXTRA length.
+ * May modify in place given r_dir, which is expected to be FILE_MAX_LIBEXTRA length.
  */
 void filelist_setdir(struct FileList *filelist, char *r_dir)
 {
@@ -1085,7 +1082,8 @@ int filelist_find(struct FileList *filelist, const char *filename)
 
 	
 	for (i = 0; i < filelist->numfiles; ++i) {
-		if (strcmp(filelist->filelist[i].relname, filename) == 0) {  /* not dealing with user input so don't need BLI_path_cmp */
+		/* not dealing with user input so don't need BLI_path_cmp */
+		if (STREQ(filelist->filelist[i].relname, filename)) {
 			index = i;
 			break;
 		}
@@ -1358,7 +1356,7 @@ static void filelist_readjob_merge_sublist(
 			*filelist_buff = new_filelist;
 		}
 		for (i = *filelist_used_size, j = 0, f = subfiles; j < num_subfiles; j++, f++) {
-			if (ignore_breadcrumbs && FILENAME_IS_BREADCRUMBS(f->relname)) {
+			if (ignore_breadcrumbs && FILENAME_IS_CURRPAR(f->relname)) {
 				/* Ignore 'inner' breadcrumbs! */
 				new_numfiles--;
 				continue;
@@ -1419,7 +1417,7 @@ static void filelist_readjob_list_lib(const char *root, struct direntry **files,
 	*files = malloc(*num_files * sizeof(**files));
 	memset(*files, 0, *num_files * sizeof(**files));
 
-	(*files)[nnames].relname = BLI_strdup("..");
+	(*files)[nnames].relname = BLI_strdup(FILENAME_PARENT);
 	(*files)[nnames].type |= S_IFDIR;
 	(*files)[nnames].flags |= FILE_TYPE_BLENDERLIB;
 
@@ -1501,7 +1499,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 			filelist->filelist[a].type |= S_IFDIR;
 		}
 		
-		filelist->filelist[0].relname = BLI_strdup("..");
+		filelist->filelist[0].relname = BLI_strdup(FILENAME_PARENT);
 		filelist->filelist[1].relname = BLI_strdup("Scene");
 		filelist->filelist[2].relname = BLI_strdup("Object");
 		filelist->filelist[3].relname = BLI_strdup("Mesh");
@@ -1554,7 +1552,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 		
 		if (!filelist->filter_data.hide_parent) {
 			memset(&(filelist->filelist[0]), 0, sizeof(struct direntry));
-			filelist->filelist[0].relname = BLI_strdup("..");
+			filelist->filelist[0].relname = BLI_strdup(FILENAME_PARENT);
 			filelist->filelist[0].type |= S_IFDIR;
 		
 			files++;
@@ -1688,7 +1686,7 @@ static void filelist_readjob_dir_lib_rec(
 		for (i = 0, file = files; i < num_files && !*stop; i++, file++) {
 			char subdir[FILE_MAX];
 
-			if (FILENAME_IS_BREADCRUMBS(file->relname)) {
+			if (FILENAME_IS_CURRPAR(file->relname)) {
 				/* do not increase done_files here, we completly ignore those. */
 				continue;
 			}

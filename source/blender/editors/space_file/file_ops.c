@@ -178,7 +178,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 		params->active_file = selected_idx;
 
 		if (S_ISDIR(file->type)) {
-			const bool is_parent_dir = STREQ(file->relname, "..");
+			const bool is_parent_dir = FILENAME_IS_PARENT(file->relname);
 
 			if (do_diropen == false) {
 				params->file[0] = '\0';
@@ -277,7 +277,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 			for (idx = sel.last; idx >= 0; idx--) {
 				struct direntry *file = filelist_file(sfile->files, idx);
 
-				if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
+				if (FILENAME_IS_CURRPAR(file->relname)) {
 					file->selflag &= ~FILE_SEL_HIGHLIGHTED;
 				}
 
@@ -370,7 +370,7 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 		if (idx >= 0) {
 			struct direntry *file = filelist_file(sfile->files, idx);
-			if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
+			if (FILENAME_IS_CURRPAR(file->relname)) {
 				/* skip - If a readonly file (".." or ".") is selected, skip deselect all! */
 			}
 			else {
@@ -1683,7 +1683,7 @@ static int file_rename_poll(bContext *C)
 
 		if (idx >= 0) {
 			struct direntry *file = filelist_file(sfile->files, idx);
-			if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
+			if (FILENAME_IS_CURRPAR(file->relname)) {
 				poll = 0;
 			}
 		}
