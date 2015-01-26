@@ -200,9 +200,9 @@ void DepsgraphRelationBuilder::RootPChanMap::print_debug()
 void DepsgraphRelationBuilder::RootPChanMap::add_bone(const char *bone, const char *root)
 {
 	if (BLI_ghash_haskey(m_map, bone)) {
-		/* add new entry */
+		/* add new entry, but only add the root if it doesn't already exist in there */
 		GSet *values = (GSet *)BLI_ghash_lookup(m_map, bone);
-		BLI_gset_insert(values, (void *)root);
+		BLI_gset_add(values, (void *)root);
 	}
 	else {
 		/* create new set and mapping */
