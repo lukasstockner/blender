@@ -1,0 +1,9 @@
+#!/usr/bin/python
+Import ('env')
+
+sources = env.Glob('src/*/*.c') + env.Glob('src/*/*.cpp')
+
+defs = ''
+incs = '. ogdf ' 
+
+env.BlenderLib ('extern_ogdf', sources, Split(incs), Split(defs), libtype=['extern'], priority=[40] )

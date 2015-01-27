@@ -53,3 +53,8 @@ if env['WITH_GHOST_XDND']:
 
 if env['WITH_BF_SDL'] and env['WITH_BF_SDL_DYNLOAD']:
     SConscript(['sdlew/SConscript'])
+
+
+if env['WITH_BF_OGDF']:
+    SConscript(['ogdf/SConscript'])
+
