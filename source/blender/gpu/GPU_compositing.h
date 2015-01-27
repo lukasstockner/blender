@@ -32,6 +32,10 @@
 #ifndef __GPU_COMPOSITING_H__
 #define __GPU_COMPOSITING_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* opaque handle for framebuffer compositing effects (defined in gpu_compositing.c )*/
 typedef struct GPUFX GPUFX;
 
@@ -76,5 +80,9 @@ bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, rcti *scissor_rect, 
 
 /* do compositing on the fx passes that have been initialized */
 bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __GPU_COMPOSITING_H__

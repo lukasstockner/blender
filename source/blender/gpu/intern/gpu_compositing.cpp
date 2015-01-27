@@ -34,7 +34,12 @@
 #include "BLI_sys_types.h"
 #include "BLI_rect.h"
 #include "BLI_math.h"
+#include "BLI_listbase.h"
+#include "BLI_linklist.h"
+
+extern "C" {
 #include "BLI_rand.h"
+}
 #include "BLI_listbase.h"
 
 #include "DNA_vec_types.h"
@@ -109,58 +114,170 @@ struct GPUFX {
 	bool restore_stencil;
 };
 
+/* concentric mapping, see "A Low Distortion Map Between Disk and Square" and
+ * http://psgraphics.blogspot.nl/2011/01/improved-code-for-concentric-map.html */
+static GPUTexture * create_concentric_sample_texture(int side)
+{
+	GPUTexture *tex;
+	float midpoint = 0.5f * (side - 1);
+	float *texels = (float *)MEM_mallocN(sizeof(float) * 2 * side * side, "concentric_tex");
+	int i, j;
 
-/* compositing link between compostiting stages, */
-typedef struct GPUCompositingLink {
-	GPUTexture *texture;
-	char *inslot;
-	char *outslot;
-	int flag;
-} GPUCompositingLink;
+	for (i = 0; i < side; i++) {
+		for (j = 0; j < side; j++) {
+			int index = (i * side + j) * 2;
+			float a = 1.0f - i / midpoint;
+			float b = 1.0f - j / midpoint;
+			float phi, r;
+			if (a * a > b * b) {
+				r = a;
+				phi = (M_PI_4) * (b / a);
+			}
+			else {
+				r = b;
+				phi = M_PI_2 - (M_PI_4) * (a / b);
+			}
+			texels[index] = r * cos(phi);
+			texels[index + 1] = r * sin(phi);
+		}
+	}
+
+	tex = GPU_texture_create_1D_procedural(side * side, texels, NULL);
+	MEM_freeN(texels);
+	return tex;
+}
 
 /* compositing node - it's different than material nodes because outputs are buffers - inputs can be
- * uniforms or other beasts inputs*/
-typedef struct GPUCompositingNode {
-	GPUShader *shader;
-	int w, h;
-	ListBase inputs;
-	ListBase outputs;
-} GPUCompositingNode;
+ * uniforms or other types. outputs are always textures */
+class GPUCompositingNode {
+	private:
+		GPUShader *shader;
+		int w, h;
+		ListBase inputs;
+		ListBase outputs;
+		
+	public:
+		GPUCompositingNode(GPUShader *shader, int w, int h);
+		~GPUCompositingNode();
+		float getWidth() {return w;}
+		float getHeight() {return h;}
+		void setShader(GPUShader *sh) {shader = sh;}
+};
 
-
-static GPUCompositingNode *gpu_compositing_node_new(GPUShader *shader, int w, int h)
+GPUCompositingNode::GPUCompositingNode(GPUShader *shader, int w, int h)
 {
-	GPUCompositingNode *node = MEM_callocN(sizeof(GPUCompositingNode), "GPUCompositingNode");
-	node->w = w;
-	node->h = h;
-	node->shader = shader;
-	
-	return node;
+	this->w = w;
+	this->h = h;
+	this->shader = shader;
 }
 
-static void gpu_compositing_nodes_link(GPUCompositingNode *nodei, GPUCompositingNode *nodeo, char *input, char *output)
-{
-	GPUCompositingLink *link = MEM_callocN(sizeof(GPUCompositingLink), "GPUCompositingNode");
-	
-	link->inslot = input;
-	link->outslot = output;
-	
-	BLI_addhead(&nodei->inputs, BLI_genericNodeN(link));
-	BLI_addhead(&nodeo->outputs, BLI_genericNodeN(link));
+GPUCompositingNode::~GPUCompositingNode() {
+	GPU_shader_free(shader);
+	BLI_freelistN(&inputs);
+	BLI_freelistN(&outputs);
 }
 
+/* compositing link between compostiting stages, */
+class GPUCompositingLink {
+	private:
+		GPUTexture *intexture;
+		char *outslot;
+		int flag;
+	
+	public:
+		GPUCompositingLink(GPUCompositingNode *nodei, GPUCompositingNode *nodeo, int inslot, char *output);
+		~GPUCompositingLink();
+};
 
-static void gpu_compositing_node_free(GPUCompositingNode *node)
+GPUCompositingLink::GPUCompositingLink(GPUCompositingNode *nodei, GPUCompositingNode *nodeo, int inslot, char *output)
 {
-	BLI_freelistN(&node->inputs);
-	BLI_freelistN(&node->outputs);
+	this->intexture = intexture;
+	this->outslot = output;
 }
 
+class GPUEffect {
+	protected:
+		ListBase nodes;
+
+	public:
+		virtual ~GPUEffect() {}
+		
+		// prepare or cleanup nodes accorging to new effect parameters
+		virtual void prepare(GPUFXOptions *options, int w, int h) = 0;
+		// queue the effect nodes for execution
+		virtual void queue() = 0;
+		//checks if effect has been initialized with sane inputs
+		virtual bool checkvalid() = 0;
+		virtual void cleanup() = 0;
+};
+
+class GPUDOFEffect : public GPUEffect {
+	public:
+		GPUDOFEffect();
+		~GPUDOFEffect();
+};
+
+class GPUSSAOEffect : public GPUEffect {
+	private:
+		GPUShader *shader_persp;
+		GPUShader *shader_ortho;
+		GPUTexture *concentric_samples_tex;
+		int num_samples;
+		/* old target dimensions */
+		int oldx, oldy;
+	
+	public:
+		GPUSSAOEffect();
+		~GPUSSAOEffect() {cleanup();}
+
+		// prepare or cleanup nodes accorging to new effect parameters
+		void prepare(GPUFXOptions *options, int w, int h);
+		// queue the effect nodes for execution
+		void queue(){}
+		bool checkvalid() {return true;}
+		void cleanup(){}
+};
+
+GPUSSAOEffect::GPUSSAOEffect()
+{
+	/* compile shaders here */
+	shader_persp = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_SSAO, true);
+	shader_ortho = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_SSAO, false);
+}
+
+void GPUSSAOEffect::prepare(GPUFXOptions *options, int UNUSED(w), int UNUSED(h))
+{
+	if (options->ssao_options) {
+		if (options->ssao_options->ssao_num_samples != num_samples || !concentric_samples_tex) {
+			if (options->ssao_options->ssao_num_samples < 1)
+				options->ssao_options->ssao_num_samples = 1;
+			
+			num_samples = options->ssao_options->ssao_num_samples;
+			
+			if (concentric_samples_tex) {
+				GPU_texture_free(concentric_samples_tex);
+			}
+			
+			concentric_samples_tex = create_concentric_sample_texture(num_samples);
+		}
+	}
+	else {
+		if (concentric_samples_tex) {
+			GPU_texture_free(concentric_samples_tex);
+			concentric_samples_tex = NULL;
+		}
+	}
+}
+
+/* manages resources and data flow between nodes */
+class GPUCompositorManager {
+	
+};
 
 /* generate a new FX compositor */
 GPUFX *GPU_create_fx_compositor(void)
 {
-	GPUFX *fx = MEM_callocN(sizeof(GPUFX), "GPUFX compositor");
+	GPUFX *fx = (GPUFX *)MEM_callocN(sizeof(GPUFX), "GPUFX compositor");
 	
 	return fx;
 }
@@ -262,38 +379,6 @@ static GPUTexture * create_jitter_texture(void)
 	}
 
 	return GPU_texture_create_2D_procedural(64, 64, &jitter[0][0], NULL);
-}
-
-/* concentric mapping, see*/
-static GPUTexture * create_concentric_sample_texture(int side)
-{
-	GPUTexture *tex;
-	float midpoint = 0.5f * (side - 1);
-	float *texels = MEM_mallocN(sizeof(float) * 2 * side * side, "concentric_tex");
-	int i, j;
-
-	for (i = 0; i < side; i++) {
-		for (j = 0; j < side; j++) {
-			int index = (i * side + j) * 2;
-			float a = 1.0f - i / midpoint;
-			float b = 1.0f - j / midpoint;
-			float phi, r;
-			if (a * a > b * b) {
-				r = a;
-				phi = (M_PI_4) * (b / a);
-			}
-			else {
-				r = b;
-				phi = M_PI_2 - (M_PI_4) * (a / b);
-			}
-			texels[index] = r * cos(phi);
-			texels[index + 1] = r * sin(phi);
-		}
-	}
-
-	tex = GPU_texture_create_1D_procedural(side * side, texels, NULL);
-	MEM_freeN(texels);
-	return tex;
 }
 
 

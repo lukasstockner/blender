@@ -108,7 +108,7 @@ int GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver);
  */
 
 typedef enum GPUHDRType {
-	GPU_HDR_NONE =          0,
+	GPU_HDR_NONE =       0,
 	GPU_HDR_HALF_FLOAT = 1,
 	GPU_HDR_FULL_FLOAT = (1 << 1),
 } GPUHDRType;
