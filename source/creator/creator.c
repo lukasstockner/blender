@@ -75,6 +75,10 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include "RNA_define.h"
+#include "RNA_types.h"
+
+#include "BKE_asset.h"
 #include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_brush.h"
@@ -107,8 +111,6 @@
 #include "ED_util.h"
 
 #include "WM_api.h"
-
-#include "RNA_define.h"
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
@@ -1737,6 +1739,7 @@ int main(
 	psys_init_rng();
 	/* end second init */
 
+	BKE_asset_engines_init();
 
 #if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
 	G.background = true; /* python module mode ALWAYS runs in background mode (for now) */
