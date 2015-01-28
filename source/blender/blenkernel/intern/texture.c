@@ -349,7 +349,11 @@ bool do_colorband(const ColorBand *coba, float in, float out[4])
 		CBData left, right;
 
 		/* we're looking for first pos > in */
-		for (a = 0; a < coba->tot; a++, cbd1++) if (cbd1->pos > in) break;
+		for (a = 0; a < coba->tot; a++, cbd1++) {
+			if (cbd1->pos > in) {
+				break;
+			}
+		}
 
 		if (a == coba->tot) {
 			cbd2 = cbd1 - 1;
@@ -1630,7 +1634,7 @@ void BKE_texture_get_value(Scene *scene, Tex *texture, float *tex_co, TexResult 
 	}
 
 	/* no node textures for now */
-	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage);
+	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage, false);
 
 	/* if the texture gave an RGB value, we assume it didn't give a valid
 	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.

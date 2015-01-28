@@ -146,11 +146,12 @@ static void proxy_startjob(void *pjv, short *stop, short *do_update, float *prog
 		struct SeqIndexBuildContext *context = link->data;
 
 		BKE_sequencer_proxy_rebuild(context, stop, do_update, progress);
-	}
-
-	if (*stop) {
-		pj->stop = 1;
-		fprintf(stderr,  "Canceling proxy rebuild on users request...\n");
+		
+		if (*stop) {
+			pj->stop = 1;
+			fprintf(stderr,  "Canceling proxy rebuild on users request...\n");
+			break;
+		}
 	}
 }
 
@@ -987,13 +988,13 @@ static void UNUSED_FUNCTION(seq_remap_paths) (Scene *scene)
 // XXX	if (0 == sbutton(to, 0, sizeof(to)-1, "To: "))
 //		return;
 	
-	if (strcmp(to, from) == 0)
+	if (STREQ(to, from))
 		return;
 	
 	SEQP_BEGIN (ed, seq)
 	{
 		if (seq->flag & SELECT) {
-			if (strncmp(seq->strip->dir, from, strlen(from)) == 0) {
+			if (STREQLEN(seq->strip->dir, from, strlen(from))) {
 				printf("found %s\n", seq->strip->dir);
 				
 				/* strip off the beginning */
