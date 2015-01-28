@@ -55,7 +55,8 @@ const char *DEG_OPNAMES[] = {
 /* Inner Nodes */
 
 OperationDepsNode::OperationDepsNode() :
-    eval_priority(0.0f)
+    eval_priority(0.0f),
+    flag(0)
 {
 }
 
