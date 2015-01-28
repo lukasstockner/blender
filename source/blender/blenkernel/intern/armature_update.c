@@ -649,6 +649,7 @@ void BKE_pose_bone_done(EvaluationContext *UNUSED(eval_ctx),
                         bPoseChannel *pchan)
 {
 	float imat[4][4];
+	DEBUG_PRINT("%s on pchan %s\n", __func__, pchan->name);
 	if (pchan->bone) {
 		invert_m4_m4(imat, pchan->bone->arm_mat);
 		mul_m4_m4m4(pchan->chan_mat, pchan->pose_mat, imat);
