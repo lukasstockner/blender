@@ -57,6 +57,7 @@ struct IDDepsNode;
 struct TimeSourceDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
+struct RootPChanMap;
 
 struct DepsgraphNodeBuilder {
 	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);
@@ -219,31 +220,6 @@ struct RNAPathKey
 
 struct DepsgraphRelationBuilder 
 {
-	struct RootPChanMap {
-		/* ctor and dtor - Create and free the internal map respectively */
-		RootPChanMap();
-		~RootPChanMap();
-
-		/* Debug contents of map */
-		void print_debug();
-
-		/* Add a mapping */
-		void add_bone(const char *bone, const char *root);
-
-		/* Check if there's a common root bone between two bones */
-		bool has_common_root(const char *bone1, const char *bone2);
-		
-	private:
-		/* The actual map:
-		 * - Keys are "strings" (const char *) - not dynamically allocated
-		 * - Values are "sets" (const char *) - not dynamically allocated
-		 *
-		 * We don't use the C++ maps here, as it's more convenient to use
-		 * Blender's GHash and be able to compare by-value instead of by-ref
-		 */
-		struct GHash *m_map;
-	};
-
 	DepsgraphRelationBuilder(Depsgraph *graph);
 	
 	template <typename KeyFrom, typename KeyTo>
