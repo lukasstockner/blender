@@ -177,12 +177,29 @@ static const char *deg_debug_ogdf_node_color(const DebugContext &ctx, const Deps
 	return fillcolor;
 }
 
+/* ----------------------------------- */
+
+static void deg_debug_ogdf_owner_relations(const DebugContext &ctx,
+                                               const DepsNode *parent,
+                                               const DepsNode *child)
+{
+	/* Node ownership hierarchy */
+	ogdf::node head_node = ctx.node_map[parent];
+	ogdf::node tail_node = ctx.node_map[child];
+	
+	ogdf::edge e = ctx.G->newEdge(head_node, tail_node);
+
+	//ctx.GA->arrowEdge(e) = ogdf::GraphAttributes::EdgeArrow::last;
+	ctx.GA->colorEdge(e) = ogdf::String("#CCCCCC");
+}
+
+/* ----------------------------------- */
+
 static void deg_debug_ogdf_node_single(const DebugContext &ctx, const DepsNode *node)
 {
 	string name = node->identifier();
 	//float priority = -1.0f;
 
-#if 0 // XXX: crashes for now
 	if (node->type == DEPSNODE_TYPE_ID_REF) {
 		IDDepsNode *id_node = (IDDepsNode *)node;
 
@@ -191,7 +208,6 @@ static void deg_debug_ogdf_node_single(const DebugContext &ctx, const DepsNode *
 
 		name += buf;
 	}
-#endif
 	//if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION) {
 	//	priority = ((OperationDepsNode *)node)->eval_priority;
 	//}
@@ -217,12 +233,16 @@ static void deg_debug_ogdf_node(const DebugContext &ctx, const DepsNode *node)
 				deg_debug_ogdf_node_single(ctx, node);
 			}
 			else {
+				deg_debug_ogdf_node_single(ctx, node);
+				
 				for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin();
 					it != id_node->components.end();
 					++it)
 				{
 					const ComponentDepsNode *comp = it->second;
 					deg_debug_ogdf_node(ctx, comp);
+					
+					deg_debug_ogdf_owner_relations(ctx, node, comp);
 				}
 			}
 			break;
@@ -252,12 +272,16 @@ static void deg_debug_ogdf_node(const DebugContext &ctx, const DepsNode *node)
 		{
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (!comp_node->operations.empty()) {
+				deg_debug_ogdf_node_single(ctx, node);
+				
 				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin();
 					it != comp_node->operations.end();
 					++it)
 				{
 					const DepsNode *op_node = it->second;
 					deg_debug_ogdf_node(ctx, op_node);
+					
+					deg_debug_ogdf_owner_relations(ctx, node, op_node);
 				}
 			}
 			else {
@@ -441,6 +465,7 @@ void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 							 ogdf::GraphAttributes::nodeLabel |
 							 ogdf::GraphAttributes::nodeColor |
 							 ogdf::GraphAttributes::edgeLabel |
+							 ogdf::GraphAttributes::edgeColor |
 		                     ogdf::GraphAttributes::edgeArrow);
 
 	/* build OGDF graph from depsgraph */
