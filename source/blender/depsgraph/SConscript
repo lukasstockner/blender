@@ -67,6 +67,9 @@ else:
 if env['WITH_BF_LEGACY_DEPSGRAPH']:
     defs.append('WITH_LEGACY_DEPSGRAPH')
 
+if env['WITH_BF_OGDF']:
+	incs.append('#/extern/ogdf')
+
 env.BlenderLib(libname='bf_depsgraph', sources=sources,
                includes=incs, defines=defs,
                libtype=['core', 'player'], priority=[200, 40])
