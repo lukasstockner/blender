@@ -29,6 +29,8 @@
 #ifndef __DEG_DEPSGRAPH_DEBUG_H__
 #define __DEG_DEPSGRAPH_DEBUG_H__
 
+#include <stdio.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
