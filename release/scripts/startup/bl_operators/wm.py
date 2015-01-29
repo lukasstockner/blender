@@ -20,13 +20,14 @@
 
 import bpy
 from bpy.types import Operator
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       IntProperty,
-                       FloatProperty,
-                       EnumProperty,
-                       CollectionProperty,
-                       )
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        IntProperty,
+        FloatProperty,
+        EnumProperty,
+        CollectionProperty,
+        )
 
 from bpy.app.translations import pgettext_tip as tip_
 
@@ -1988,7 +1989,6 @@ class WM_OT_addon_install(Operator):
             # if not compressed file just copy into the addon path
             try:
                 shutil.copyfile(pyfile, path_dest)
-
             except:
                 traceback.print_exc()
                 return {'CANCELLED'}
