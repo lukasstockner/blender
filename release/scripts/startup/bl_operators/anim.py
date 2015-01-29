@@ -393,9 +393,43 @@ class DEPSGRAPH_OT_rebuild(Operator):
         context.scene.depsgraph.debug_rebuild()
         return {'FINISHED'}
 
+
+class DEPSGRAPH_OT_export_gml(Operator):
+    """Export the dependency graph to GML using OGDF"""
+    bl_idname = "depsgraph.export_gml"
+    bl_label = "Export Depsgraph to GML"
+    bl_options = {'REGISTER'}
+    
+    filepath = StringProperty(
+            subtype='FILE_PATH',
+            #value=bpy.path.abspath("../graphs/"),
+            )
+    filter_folder = BoolProperty(
+            name="Filter folders",
+            default=True,
+            options={'HIDDEN'},
+            )
+    filter_glob = StringProperty(
+            name="Extension Filter",
+            default="*.gml",
+            options={'HIDDEN'},
+            )
+
+    def execute(self, context):
+        if not self.filepath:
+            raise Exception("Filepath not set")
+            
+        context.scene.depsgraph.debug_ogdf(self.filepath)
+        return {'FINISHED'}
         
+    def invoke(self, context, event):
+        wm = context.window_manager
+        wm.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+
 class DEPSGRAPH_OT_export_graphviz(Operator):
-    """Force the dependency graph to be rebuilt to account for modified dependencies"""
+    """Export the dependency graph for rendering using GraphViz"""
     bl_idname = "depsgraph.export_graphviz"
     bl_label = "Export Depsgraph to Graphviz"
     bl_options = {'REGISTER'}

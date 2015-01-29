@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+/* NOTE: OGDF needs to come before Blender headers, or else there will be compile errors on mingw64 */
 #include <ogdf/basic/Graph.h>
 #include <ogdf/layered/OptimalHierarchyLayout.h>
 
@@ -54,16 +55,22 @@ extern "C" {
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
-using namespace ogdf;
-
 /* ****************** */
 /* OGDF Debugging */
 
+/* Typedef for mapping from Depsgraph Nodes to OGDF Nodes */
+typedef unordered_map<const DepsNode *, ogdf::node> GraphNodesMap;
+
+/* Helper data passed to all calls here */
 struct DebugContext {
-	FILE *file;
+	/* the output graph, and formatting info for the graph */
+	ogdf::Graph *G;
+	ogdf::GraphAttributes *GA;
 
-	Graph *outgraph;
+	/* mapping from Depsgraph Nodes to OGDF nodes */
+	GraphNodesMap node_map;
 
+	/* flags for what to include */
 	bool show_tags;
 	bool show_eval_priority;
 
@@ -76,44 +83,125 @@ static void deg_debug_ogdf_graph_relations(const DebugContext &ctx, const Depsgr
 
 /* -------------------------------- */
 
+/* Only one should be enabled, defines whether graphviz nodes
+* get colored by individual types or classes.
+*/
+#define COLOR_SCHEME_NODE_CLASS 1
+//#define COLOR_SCHEME_NODE_TYPE  2
+
+#ifdef COLOR_SCHEME_NODE_TYPE
+static const int deg_debug_node_type_color_map[][2] = {
+	{ DEPSNODE_TYPE_ROOT, 0 },
+	{ DEPSNODE_TYPE_TIMESOURCE, 1 },
+	{ DEPSNODE_TYPE_ID_REF, 2 },
+	{ DEPSNODE_TYPE_SUBGRAPH, 3 },
+
+	/* Outer Types */
+	{ DEPSNODE_TYPE_PARAMETERS, 4 },
+	{ DEPSNODE_TYPE_PROXY, 5 },
+	{ DEPSNODE_TYPE_ANIMATION, 6 },
+	{ DEPSNODE_TYPE_TRANSFORM, 7 },
+	{ DEPSNODE_TYPE_GEOMETRY, 8 },
+	{ DEPSNODE_TYPE_SEQUENCER, 9 },
+	{ DEPSNODE_TYPE_SHADING, 10 },
+	{ -1, 0 }
+};
+#endif
+
+static const int deg_debug_max_colors = 12;
+static const char *deg_debug_colors_dark[] = {"#6e8997", "#144f77", "#76945b",
+                                              "#216a1d", "#a76665", "#971112",
+                                              "#a87f49", "#0a9540", "#86768e",
+                                              "#462866", "#a9a965", "#753b1a"};
+static const char *deg_debug_colors[] = {"#a6cee3", "#1f78b4", "#b2df8a",
+                                         "#33a02c", "#fb9a99", "#e31a1c",
+                                         "#fdbf6f", "#ff7f00", "#cab2d6",
+                                         "#6a3d9a", "#ffff99", "#b15928"};
+static const char *deg_debug_colors_light[] = {"#8dd3c7", "#ffffb3", "#bebada",
+                                               "#fb8072", "#80b1d3", "#fdb462",
+                                               "#b3de69", "#fccde5", "#d9d9d9",
+                                               "#bc80bd", "#ccebc5","#ffed6f"};
+
+static int deg_debug_node_color_index(const DepsNode *node)
+{
+#ifdef COLOR_SCHEME_NODE_CLASS
+	/* Some special types. */
+	switch (node->type) {
+		case DEPSNODE_TYPE_ID_REF:
+			return 5;
+		case DEPSNODE_TYPE_OPERATION:
+		{
+			OperationDepsNode *op_node = (OperationDepsNode *)node;
+			if (op_node->is_noop())
+				return 8;
+		}
+
+		default:
+			break;
+	}
+	/* Do others based on class. */
+	switch (node->tclass) {
+		case DEPSNODE_CLASS_OPERATION:
+			return 4;
+		case DEPSNODE_CLASS_COMPONENT:
+			return 1;
+		default:
+			return 9;
+	}
+#endif
+
+#ifdef COLOR_SCHEME_NODE_TYPE
+	const int(*pair)[2];
+	for (pair = deg_debug_node_type_color_map; (*pair)[0] >= 0; ++pair) {
+		if ((*pair)[0] == node->type) {
+			return (*pair)[1];
+		}
+	}
+	return -1;
+#endif
+}
+
+static const char *deg_debug_ogdf_node_color(const DebugContext &ctx, const DepsNode *node)
+{
+	const int color_index = deg_debug_node_color_index(node);
+	const char *defaultcolor = "#DCDCDC";
+	const char *fillcolor = (color_index < 0) ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
+	printf("      color is %s with index %d\n", fillcolor, color_index);
+	return fillcolor;
+}
+
 static void deg_debug_ogdf_node_single(const DebugContext &ctx, const DepsNode *node)
 {
-	const char *shape = "box";
 	string name = node->identifier();
-	float priority = -1.0f;
+	//float priority = -1.0f;
+
+#if 0 // XXX: crashes for now
 	if (node->type == DEPSNODE_TYPE_ID_REF) {
 		IDDepsNode *id_node = (IDDepsNode *)node;
+
 		char buf[256];
 		BLI_snprintf(buf, sizeof(buf), " (Layers: %d)", id_node->layers);
+
 		name += buf;
 	}
-	if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION) {
-		priority = ((OperationDepsNode *)node)->eval_priority;
-	}
-
-#if 0
-	deg_debug_fprintf(ctx, "// %s\n", name.c_str());
-	deg_debug_fprintf(ctx, "\"node_%p\"", node);
-	deg_debug_fprintf(ctx, "[");
-	//	deg_debug_fprintf(ctx, "label=<<B>%s</B>>", name);
-	if (priority >= 0.0f) {
-		deg_debug_fprintf(ctx, "label=<%s<BR/>(<I>%.2f</I>)>",
-			name.c_str(),
-			priority);
-	}
-	else {
-		deg_debug_fprintf(ctx, "label=<%s>", name.c_str());
-	}
-	deg_debug_fprintf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
-	deg_debug_fprintf(ctx, ",fontsize=%f", deg_debug_graphviz_node_label_size);
-	deg_debug_fprintf(ctx, ",shape=%s", shape);
-	deg_debug_fprintf(ctx, ",style="); deg_debug_graphviz_node_style(ctx, node);
-	deg_debug_fprintf(ctx, ",color="); deg_debug_graphviz_node_color(ctx, node);
-	deg_debug_fprintf(ctx, ",fillcolor="); deg_debug_graphviz_node_fillcolor(ctx, node);
-	deg_debug_fprintf(ctx, ",penwidth="); deg_debug_graphviz_node_penwidth(ctx, node);
-	deg_debug_fprintf(ctx, "];" NL);
-	deg_debug_fprintf(ctx, NL);
 #endif
+	//if (ctx.show_eval_priority && node->tclass == DEPSNODE_CLASS_OPERATION) {
+	//	priority = ((OperationDepsNode *)node)->eval_priority;
+	//}
+
+	/* create node */
+	ogdf::node v = ctx.G->newNode();
+
+	printf("  doing node - %s\n", name.c_str());
+	ctx.GA->labelNode(v) = ogdf::String(name.c_str());
+
+	printf("  with color...\n");
+	ctx.GA->colorNode(v) = ogdf::String(deg_debug_ogdf_node_color(ctx, node)); /* ogdf::Color == ogdf::String */
+	// TODO: style/shape - rounded rect, vs straight-edge, vs ellipse?
+
+	/* add to reference mapping for later reference when building relations */
+	printf("  adding to map\n");
+	ctx.node_map[node] = v;
 }
 
 static void deg_debug_ogdf_node(const DebugContext &ctx, const DepsNode *node)
@@ -204,12 +292,17 @@ static void deg_debug_ogdf_node_relations(const DebugContext &ctx, const DepsNod
 {
 	DEPSNODE_RELATIONS_ITER_BEGIN(node->inlinks, rel)
 	{
-		const DepsNode *tail = rel->to; /* same as node */
 		const DepsNode *head = rel->from;
+		const DepsNode *tail = rel->to; /* same as node */
 
-		// XXX: IMPLEMENT ME!
-		(void)tail;
-		(void)head;
+		ogdf::node head_node = ctx.node_map[head];
+		ogdf::node tail_node = ctx.node_map[tail];
+
+		/* create new edge for this relationship */
+		ogdf::edge e = ctx.G->newEdge(head_node, tail_node);
+
+		ctx.GA->arrowEdge(e) = ogdf::GraphAttributes::EdgeArrow::last;
+		ctx.GA->labelEdge(e) = ogdf::String(rel->name.c_str());
 	}
 	DEPSNODE_RELATIONS_ITER_END;
 
@@ -286,36 +379,45 @@ static void deg_debug_ogdf_graph_relations(const DebugContext &ctx, const Depsgr
 
 /* -------------------------------- */
 
-void DEG_debug_ogdf(const Depsgraph *graph, FILE *f, const char *label)
+void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 {
 	if (!graph) {
 		return;
 	}
 
 	/* create OGDF graph */
-	Graph outgraph;
+	ogdf::Graph outgraph;
 
-	GraphAttributes GA(outgraph, GraphAttributes::nodeGraphics |
-					   GraphAttributes::edgeGraphics |
-					   GraphAttributes::nodeLabel |
-					   GraphAttributes::nodeStyle |
-					   GraphAttributes::edgeType |
-					   GraphAttributes::edgeArrow |
-					   GraphAttributes::edgeStyle);
+	ogdf::GraphAttributes GA(outgraph,
+	                         ogdf::GraphAttributes::nodeGraphics |
+					         ogdf::GraphAttributes::edgeGraphics |
+							 ogdf::GraphAttributes::nodeLabel |
+		                     ogdf::GraphAttributes::nodeStyle |
+							 ogdf::GraphAttributes::nodeColor |
+							 ogdf::GraphAttributes::edgeLabel |
+							 ogdf::GraphAttributes::edgeType |
+		                     ogdf::GraphAttributes::edgeArrow |
+		                     ogdf::GraphAttributes::edgeStyle);
 
 	/* build OGDF graph from depsgraph */
 	DebugContext ctx;
 
-	ctx.outgraph = &outgraph;
-	ctx.file = f;
+	ctx.G = &outgraph;
+	ctx.GA = &GA;
 	ctx.show_eval_priority = false;
 
+	printf("Converting to OGDF...\n");
 	
 	deg_debug_ogdf_graph_nodes(ctx, graph);
 	deg_debug_ogdf_graph_relations(ctx, graph);
 
-	/* export it */
 
+	/* compute graph layout */
+	printf("Computing Layout...\n");
+
+	/* export it */
+	printf("Exporting GML to '%s'...\n", filename);
+	GA.writeGML(filename);
 }
 
 /* ****************** */

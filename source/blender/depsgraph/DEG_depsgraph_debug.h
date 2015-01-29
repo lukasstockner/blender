@@ -84,9 +84,10 @@ void DEG_stats_simple(const struct Depsgraph *graph,
                       size_t *r_relations);
 
 /* ************************************************ */
-/* Graphviz Debugging */
+/* Diagram-Based Graph Debugging */
 
 void DEG_debug_graphviz(const struct Depsgraph *graph, FILE *stream, const char *label, bool show_eval);
+void DEG_debug_ogdf(const struct Depsgraph *graph, const char *filename);
 
 /* ************************************************ */
 

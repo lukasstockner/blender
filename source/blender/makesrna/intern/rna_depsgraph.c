@@ -55,6 +55,13 @@ static void rna_Depsgraph_debug_graphviz(Depsgraph *graph, const char *filename)
 	fclose(f);
 }
 
+static void rna_Depsgraph_debug_ogdf(Depsgraph *graph, const char *filename)
+{
+	if (filename != NULL) {
+		DEG_debug_ogdf(graph, filename);
+	}
+}
+
 static void rna_Depsgraph_debug_rebuild(Depsgraph *UNUSED(graph), Main *bmain)
 {
 	Scene *sce;
@@ -93,6 +100,11 @@ static void rna_def_depsgraph(BlenderRNA *brna)
 	func = RNA_def_function(srna, "debug_graphviz", "rna_Depsgraph_debug_graphviz");
 	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
 	                                "File in which to store graphviz debug output");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func = RNA_def_function(srna, "debug_ogdf", "rna_Depsgraph_debug_ogdf");
+	parm = RNA_def_string_file_path(func, "filename", NULL, FILE_MAX, "File Name",
+	                                 "File in which to store GML debug output");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 
 	func = RNA_def_function(srna, "debug_rebuild", "rna_Depsgraph_debug_rebuild");

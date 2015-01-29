@@ -54,7 +54,8 @@ class INFO_HT_header(Header):
         row.label(text="Depsgraph:", icon='RADIO')
         row.operator("depsgraph.stats", text="", icon='INFO')
         row.operator("depsgraph.rebuild", text="", icon='FILE_REFRESH')
-        row.operator("depsgraph.export_graphviz", text="Export...", icon='EXPORT').filepath = "graph.dot"
+        row.operator("depsgraph.export_graphviz", text="To GV...", icon='EXPORT').filepath = "graph.dot"
+        row.operator("depsgraph.export_gml", text="GML...", icon='EXPORT').filepath = "graph.gml"
 
         layout.separator()
 
