@@ -27,8 +27,6 @@
 #ifndef __DEPSGRAPH_DEBUG_H__
 #define __DEPSGRAPH_DEBUG_H__
 
-#include <stdarg.h>
-
 #include "depsgraph_types.h"
 
 extern "C" {

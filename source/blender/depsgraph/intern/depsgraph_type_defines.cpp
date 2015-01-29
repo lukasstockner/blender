@@ -25,10 +25,6 @@
  *
  * Defines and code for core node types
  */
- 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 extern "C" {
 #include "BLI_utildefines.h"
@@ -39,23 +35,22 @@ extern "C" {
 #include "BKE_animsys.h"
 #include "BKE_fcurve.h"
 
+#include "RNA_access.h"
+
 #include "DEG_depsgraph.h"
 } /* extern "C" */
 
 #include "depsgraph_debug.h"
-#include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
 
-#include "depsgraph_util_map.h"
-
 #include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
 void BKE_animsys_eval_animdata(EvaluationContext *UNUSED(eval_ctx),
-                             ID *id,
-                             TimeSourceDepsNode *time_src)
+                               ID *id,
+                               TimeSourceDepsNode *time_src)
 {
 	DEG_DEBUG_PRINTF("%s on %s\n", __func__, id->name);
 	AnimData *adt = BKE_animdata_from_id(id);

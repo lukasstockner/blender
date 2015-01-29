@@ -24,12 +24,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include "MEM_guardedalloc.h"
+
 extern "C" {
 #include "BLI_utildefines.h"
-
-#include "DNA_object_types.h"
-
-#include "BKE_action.h"
 } /* extern "C" */
 
 #include "depsnode_operation.h" /* own include */
@@ -37,17 +35,15 @@ extern "C" {
 #include "depsgraph.h"
 #include "depsgraph_intern.h"
 
-#include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
-
 /* ******************************************************** */
 /* OpNode Identifiers Array - Exported to other depsgraph files too... */
 
 /* identifiers for operations */
 const char *DEG_OPNAMES[] = {
-	#define DEF_DEG_OPCODE(label) #label,
-	#include "depsnode_opcodes.h"
-	#undef DEF_DEG_OPCODE
-	
+#define DEF_DEG_OPCODE(label) #label,
+#include "depsnode_opcodes.h"
+#undef DEF_DEG_OPCODE
+
 	"<Invalid>"
 };
 

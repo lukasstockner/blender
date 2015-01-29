@@ -33,8 +33,6 @@
 #ifndef __DEPSGRAPH_EVAL_TYPES_H__
 #define __DEPSGRAPH_EVAL_TYPES_H__
 
-#include "DEG_depsgraph.h"
-
 struct Depsgraph;
 struct OperationDepsNode;
 

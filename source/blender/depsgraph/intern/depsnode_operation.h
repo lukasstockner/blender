@@ -27,20 +27,7 @@
 #ifndef __DEPSNODE_OPERATION_H__
 #define __DEPSNODE_OPERATION_H__
 
-#include <stdlib.h>
-
-#include "MEM_guardedalloc.h"
-
-extern "C" {
-#include "BLI_utildefines.h"
-
-#include "RNA_access.h"
-}
-
 #include "depsnode.h"
-
-#include "depsgraph_util_map.h"
-#include "depsgraph_util_set.h"
 
 struct ID;
 

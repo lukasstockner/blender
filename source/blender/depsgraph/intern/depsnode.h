@@ -27,8 +27,6 @@
 #ifndef __DEPSNODE_H__
 #define __DEPSNODE_H__
 
-#include "MEM_guardedalloc.h"
-
 #include "depsgraph_types.h"
 
 #include "depsgraph_util_hash.h"

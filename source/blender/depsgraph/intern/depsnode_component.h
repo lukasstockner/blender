@@ -27,11 +27,7 @@
 #ifndef __DEPSNODE_COMPONENT_H__
 #define __DEPSNODE_COMPONENT_H__
 
-#include "MEM_guardedalloc.h"
-
-#include "DEG_depsgraph.h"
 #include "depsnode.h"
-#include "depsnode_operation.h"
 
 #include "depsgraph_util_hash.h"
 #include "depsgraph_util_map.h"

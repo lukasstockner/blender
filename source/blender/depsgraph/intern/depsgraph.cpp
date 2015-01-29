@@ -39,8 +39,11 @@ extern "C" {
 #include "DNA_key_types.h"
 #include "DNA_object_types.h"
 #include "DNA_sequence_types.h"
+
+#include "RNA_access.h"
 }
 
+#include "DEG_depsgraph.h"
 #include "depsgraph.h" /* own include */
 #include "depsnode.h"
 #include "depsnode_operation.h"

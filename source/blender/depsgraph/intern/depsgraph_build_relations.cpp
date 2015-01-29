@@ -100,8 +100,6 @@ extern "C" {
 
 #include "depsgraph_util_pchanmap.h"
 
-#include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
-
 namespace {
 
 /* TODO(sergey): This is a stupid copy of function from depsgraph.c/ */

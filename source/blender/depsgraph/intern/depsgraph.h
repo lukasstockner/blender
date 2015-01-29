@@ -33,7 +33,6 @@
 #ifndef __DEPSGRAPH_H__
 #define __DEPSGRAPH_H__
 
-#include "MEM_guardedalloc.h"
 #include "BLI_threads.h"  /* for SpinLock */
 
 #include "depsgraph_types.h"

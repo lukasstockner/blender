@@ -31,26 +31,21 @@
 #include "PIL_time.h"
 
 extern "C" {
-#include "BLI_task.h"
 #include "BLI_utildefines.h"
-
-#include "DNA_ID.h"
+#include "BLI_task.h"
 
 #include "BKE_depsgraph.h"
-#include "BKE_global.h" /* XXX only for debug value, remove eventually */
-#include "BKE_main.h"
 
+#include "DEG_depsgraph.h"
 } /* extern "C" */
 
 #include "atomic_ops.h"
 
+#include "depsgraph_eval.h"
 #include "depsgraph.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
-#include "depsgraph_types.h"
-#include "depsgraph_eval.h"
-#include "depsgraph_intern.h"
 #include "depsgraph_debug.h"
 
 #ifdef WITH_LEGACY_DEPSGRAPH

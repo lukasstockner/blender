@@ -32,33 +32,25 @@
 extern "C" {
 #include "BLI_utildefines.h"
 
-#include "DNA_ID.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "BKE_global.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
 
-#include "RNA_access.h"
-#include "RNA_types.h"
+#include "DEG_depsgraph.h"
 
 /* TODO(sergey): because of bloody "new" in the BKE_screen.h. */
 unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 } /* extern "C" */
 
-#include "DEG_depsgraph.h"
-
-#include "depsgraph.h"
 #include "depsgraph_debug.h"
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
-#include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
 /* ************************************************** */

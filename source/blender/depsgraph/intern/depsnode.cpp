@@ -24,19 +24,18 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "BLI_utildefines.h"
 
 extern "C" {
 #include "DNA_ID.h"
+#include "DEG_depsgraph.h"
 }
 
 #include "depsnode.h" /* own include */
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
-#include "depsgraph.h"
 #include "depsgraph_intern.h"
 
 /* ************************************************** */

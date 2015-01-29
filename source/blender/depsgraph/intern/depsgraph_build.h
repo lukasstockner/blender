@@ -27,8 +27,6 @@
 #ifndef __DEPSGRAPH_BUILD_H__
 #define __DEPSGRAPH_BUILD_H__
 
-#include "depsgraph_types.h"
-
 #include "depsgraph_util_id.h"
 
 struct ListBase;

@@ -27,6 +27,8 @@
 #include <string.h>
 
 extern "C" {
+#include "BLI_utildefines.h"
+
 #include "DNA_object_types.h"
 
 #include "BKE_action.h"
@@ -35,8 +37,6 @@ extern "C" {
 #include "depsnode_component.h" /* own include */
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
-
-#include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
 
 /* ******************************************************** */
 /* Outer Nodes */

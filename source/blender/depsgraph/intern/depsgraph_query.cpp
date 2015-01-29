@@ -26,40 +26,21 @@
  * Implementation of Querying and Filtering API's
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include "MEM_guardedalloc.h"
 
 extern "C" {
-#include "BLI_blenlib.h"
-#include "BLI_ghash.h"
 #include "BLI_utildefines.h"
-
-#include "DNA_action_types.h"
-#include "DNA_ID.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_sequence_types.h"
+#include "BLI_ghash.h"
 
 #include "BKE_main.h"
 
-#include "DEG_depsgraph.h"
 #include "DEG_depsgraph_query.h"
-
-#include "RNA_access.h"
-#include "RNA_types.h"
 } /* extern "C" */
 
-#include "depsnode.h"
-#include "depsnode_component.h"
-#include "depsnode_operation.h"
-#include "depsgraph_types.h"
-#include "depsgraph_intern.h"
 #include "depsgraph_queue.h"
-
-#include "stubs.h" // XXX: THIS MUST BE REMOVED WHEN THE DEPSGRAPH REFACTOR IS DONE
+#include "depsnode.h"
+#include "depsnode_operation.h"
+#include "depsgraph_intern.h"
 
 /* ************************************************ */
 /* Low-Level Graph Traversal */

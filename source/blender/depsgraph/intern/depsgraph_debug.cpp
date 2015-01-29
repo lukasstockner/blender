@@ -33,10 +33,12 @@ extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_listbase.h"
 #include "BLI_ghash.h"
+#include "BLI_string.h"
 
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 
+#include "DEG_depsgraph.h"
 #include "DEG_depsgraph_debug.h"
 #include "DEG_depsgraph_build.h"
 
@@ -48,7 +50,6 @@ extern "C" {
 #include "depsnode.h"
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
-#include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
 /* ****************** */

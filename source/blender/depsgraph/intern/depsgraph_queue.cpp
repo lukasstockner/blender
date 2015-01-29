@@ -26,16 +26,14 @@
  * Implementation of special queue type for use in Depsgraph traversals
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 
 #include "MEM_guardedalloc.h"
 
 extern "C" {
-#include "BLI_blenlib.h"
+#include "BLI_utildefines.h"
 #include "BLI_heap.h"
 #include "BLI_ghash.h"
-#include "BLI_utildefines.h"
 } /* extern "C" */
 
 #include "depsgraph_queue.h"
