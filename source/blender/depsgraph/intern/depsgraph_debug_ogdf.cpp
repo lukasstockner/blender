@@ -31,7 +31,14 @@
 
 /* NOTE: OGDF needs to come before Blender headers, or else there will be compile errors on mingw64 */
 #include <ogdf/basic/Graph.h>
-#include <ogdf/layered/OptimalHierarchyLayout.h>
+
+#include <ogdf/energybased/FMMMLayout.h>
+
+#include <ogdf/planarity/PlanarizationLayout.h>
+#include <ogdf/planarity/VariableEmbeddingInserter.h>
+#include <ogdf/planarity/FastPlanarSubgraph.h>
+#include <ogdf/orthogonal/OrthoLayout.h>
+#include <ogdf/planarity/EmbedderMinDepthMaxFaceLayers.h>
 
 extern "C" {
 #include "BLI_listbase.h"
@@ -375,6 +382,52 @@ static void deg_debug_ogdf_graph_relations(const DebugContext &ctx, const Depsgr
 
 /* -------------------------------- */
 
+static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
+{
+	printf("Not Implemented Yet - Nothing works!\n");
+}
+
+#if 0
+// XXX: this crashes with a segfault in clearAllBends()
+static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
+{
+	ogdf::FMMMLayout fmmm;
+
+	fmmm.useHighLevelOptions(true);
+	fmmm.unitEdgeLength(15.0);
+	fmmm.newInitialPlacement(true);
+	fmmm.qualityVersusSpeed(ogdf::FMMMLayout::qvsGorgeousAndEfficient);
+
+	fmmm.call(GA);
+}
+#endif
+
+#if 0
+// XXX: this is currently not usable, as it crashes with an Arithmetic Exception (FPE)
+static void debug_ogdf_do_layout(GraphAttributes &GA)
+{
+	ogdf::PlanarizationLayout pl;
+
+	ogdf::FastPlanarSubgraph *ps = new ogdf::FastPlanarSubgraph;
+	ps->runs(100);
+	ogdf::VariableEmbeddingInserter *ves = new ogdf::VariableEmbeddingInserter;
+	ves->removeReinsert(ogdf::EdgeInsertionModule::rrAll);
+	pl.setSubgraph(ps);
+	pl.setInserter(ves);
+
+	ogdf::EmbedderMinDepthMaxFaceLayers *emb = new ogdf::EmbedderMinDepthMaxFaceLayers;
+	pl.setEmbedder(emb);
+
+	ogdf::OrthoLayout *ol = new ogdf::OrthoLayout;
+	ol->separation(20.0);
+	ol->cOverhang(0.4);
+	ol->setOptions(2 + 4);
+	pl.setPlanarLayouter(ol);
+
+	pl.call(GA);
+}
+#endif
+
 void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 {
 	if (!graph) {
@@ -388,7 +441,6 @@ void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 							 ogdf::GraphAttributes::nodeLabel |
 							 ogdf::GraphAttributes::nodeColor |
 							 ogdf::GraphAttributes::edgeLabel |
-							 ogdf::GraphAttributes::edgeType |
 		                     ogdf::GraphAttributes::edgeArrow);
 
 	/* build OGDF graph from depsgraph */
@@ -406,6 +458,8 @@ void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 
 	/* compute graph layout */
 	printf("Computing Layout...\n");
+	debug_ogdf_do_layout(GA);
+
 
 	/* export it */
 	printf("Exporting GML to '%s'...\n", filename);
