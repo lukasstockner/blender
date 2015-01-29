@@ -389,15 +389,11 @@ void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 	ogdf::Graph outgraph;
 
 	ogdf::GraphAttributes GA(outgraph,
-	                         ogdf::GraphAttributes::nodeGraphics |
-					         ogdf::GraphAttributes::edgeGraphics |
 							 ogdf::GraphAttributes::nodeLabel |
-		                     ogdf::GraphAttributes::nodeStyle |
 							 ogdf::GraphAttributes::nodeColor |
 							 ogdf::GraphAttributes::edgeLabel |
 							 ogdf::GraphAttributes::edgeType |
-		                     ogdf::GraphAttributes::edgeArrow |
-		                     ogdf::GraphAttributes::edgeStyle);
+		                     ogdf::GraphAttributes::edgeArrow);
 
 	/* build OGDF graph from depsgraph */
 	DebugContext ctx;
