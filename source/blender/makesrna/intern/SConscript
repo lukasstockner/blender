@@ -154,6 +154,9 @@ if env['WITH_BF_FREESTYLE']:
     defs.append('WITH_FREESTYLE')
     incs += ' ../../freestyle'
 
+if env['WITH_BF_OGDF']:
+    defs.append('WITH_OGDF')
+
 if env['OURPLATFORM'] == 'linux':
     cflags='-pthread'
 
