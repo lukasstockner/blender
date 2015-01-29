@@ -166,7 +166,7 @@ static const char *deg_debug_ogdf_node_color(const DebugContext &ctx, const Deps
 	const int color_index = deg_debug_node_color_index(node);
 	const char *defaultcolor = "#DCDCDC";
 	const char *fillcolor = (color_index < 0) ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
-	printf("      color is %s with index %d\n", fillcolor, color_index);
+	
 	return fillcolor;
 }
 
@@ -192,15 +192,11 @@ static void deg_debug_ogdf_node_single(const DebugContext &ctx, const DepsNode *
 	/* create node */
 	ogdf::node v = ctx.G->newNode();
 
-	printf("  doing node - %s\n", name.c_str());
 	ctx.GA->labelNode(v) = ogdf::String(name.c_str());
-
-	printf("  with color...\n");
 	ctx.GA->colorNode(v) = ogdf::String(deg_debug_ogdf_node_color(ctx, node)); /* ogdf::Color == ogdf::String */
 	// TODO: style/shape - rounded rect, vs straight-edge, vs ellipse?
 
 	/* add to reference mapping for later reference when building relations */
-	printf("  adding to map\n");
 	ctx.node_map[node] = v;
 }
 
