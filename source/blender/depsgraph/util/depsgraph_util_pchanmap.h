@@ -19,7 +19,7 @@
  * All rights reserved.
  *
  * Original Author: Sergey Sharybin
- * Contributor(s): jushua Leung
+ * Contributor(s): Joshua Leung
  *
  * ***** END GPL LICENSE BLOCK *****
  */

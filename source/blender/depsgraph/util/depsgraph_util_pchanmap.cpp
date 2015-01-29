@@ -19,13 +19,14 @@
  * All rights reserved.
  *
  * Original Author: Sergey Sharybin
- * Contributor(s): Jushua Leung
+ * Contributor(s): Joshua Leung
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
 #include "depsgraph_util_pchanmap.h"
 
+#include <stdio.h>
 #include <string.h>
 
 extern "C" {
