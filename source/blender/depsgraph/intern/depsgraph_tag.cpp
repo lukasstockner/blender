@@ -26,6 +26,7 @@
  * Core routines for how the Depsgraph works
  */
 
+#include <stdio.h>
 #include <cstring>
 #include <queue>
 

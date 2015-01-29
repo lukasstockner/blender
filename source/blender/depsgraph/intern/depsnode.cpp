@@ -24,6 +24,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+#include <stdio.h>
 #include <string.h>
 
 #include "BLI_utildefines.h"
