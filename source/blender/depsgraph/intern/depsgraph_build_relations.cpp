@@ -999,6 +999,11 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 		}
 	}
 	root_map->add_bone(pchan->name, rootchan->name);
+	
+	if ((data->tar) && (data->tar == ob) && (data->subtarget[0])) {
+		/* Prevent target's constraints from linking to anything from same chain that it controls */
+		root_map->add_bone(data->subtarget, rootchan->name);
+	}
 
 	/* Pole Target */
 	// XXX: this should get handled as part of the constraint code
