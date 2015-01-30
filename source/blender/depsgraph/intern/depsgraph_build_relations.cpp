@@ -465,7 +465,6 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				
 				if (ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK)) {
 					/* ignore IK constraints - these are handled separately (on pose level) */
-					// XXX: this is bad - it precludes using geometry targets -- aligorith
 				}
 				else if (ELEM(con->type, CONSTRAINT_TYPE_FOLLOWPATH, CONSTRAINT_TYPE_CLAMPTO)) {
 					/* these constraints require path geometry data... */
@@ -988,12 +987,22 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			}
 			else {
 				/* same armature - we'll use the ready state only, just in case this bone is in the chain we're solving */
-				//OperationKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget, DEG_OPCODE_BONE_READY);
 				OperationKey target_key(&data->tar->id, DEPSNODE_TYPE_BONE, data->subtarget, DEG_OPCODE_BONE_DONE);
 				add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
 			}
 		}
+		else if (ELEM(data->tar->type, OB_MESH, OB_LATTICE) && (data->subtarget[0])) {
+			/* vertex group target */
+			/* NOTE: for now, we don't need to represent vertex groups separately... */
+			ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_GEOMETRY);
+			add_relation(target_key, solver_key, DEPSREL_TYPE_GEOMETRY_EVAL, con->name);
+			
+			if (data->tar->type == OB_MESH) {
+				//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+			}
+		}
 		else {
+			/* Standard Object Target */
 			ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_TRANSFORM);
 			add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
 		}
@@ -1012,6 +1021,16 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			// XXX: same armature issues - ready vs done?
 			ComponentKey target_key(&data->poletar->id, DEPSNODE_TYPE_BONE, data->subtarget);
 			add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
+		}
+		else if (ELEM(data->poletar->type, OB_MESH, OB_LATTICE) && (data->subtarget[0])) {
+			/* vertex group target */
+			/* NOTE: for now, we don't need to represent vertex groups separately... */
+			ComponentKey target_key(&data->poletar->id, DEPSNODE_TYPE_GEOMETRY);
+			add_relation(target_key, solver_key, DEPSREL_TYPE_GEOMETRY_EVAL, con->name);
+			
+			if (data->poletar->type == OB_MESH) {
+				//node2->customdata_mask |= CD_MASK_MDEFORMVERT;
+			}
 		}
 		else {
 			ComponentKey target_key(&data->poletar->id, DEPSNODE_TYPE_TRANSFORM);
