@@ -38,8 +38,10 @@ extern "C" {
 
 struct AssetEngine;
 struct AssetEngineType;
+struct direntry;
 struct ExtensionRNA;
 struct ListBase;
+struct uiLayout;
 
 #if 0
 #include "DNA_scene_types.h"
@@ -86,26 +88,65 @@ struct BakePixel;
 
 #endif
 
+enum {
+	AE_STATUS_VALID   = 1 << 0,
+	AE_STATUS_RUNNING = 1 << 1,  /* Asset engine is performing some background tasks... */
+};
+
 extern ListBase asset_engines;
+
+/* AE instance is valid, is running, is idle, etc. */
+typedef int (*ae_status)(struct AssetEngine *engine, const int job_id);
+typedef float (*ae_progress)(struct AssetEngine *engine, const int job_id);
+
+/* ***** All callbacks below shall be non-blocking (i.e. return immediately). ***** */
+/* Those callbacks will be called from a 'fake-job' start *and* update functions (i.e. main thread, working one will
+ * just sleep).
+ * If given id is not null, engine should update from a running job if available, otherwise it should start a new one.
+ * It is the responsability of the engine to start/stop background processes to actually perform tasks as/if needed.
+ */
+
+/* Return (list) everything available at given root path. */
+typedef int (*ae_list_dir)(struct AssetEngine *engine, const int id, const char *root_path, struct direntry **entries_r);
+/* Ensure given direntries are really available for append/link (some kind of 'anticipated loading'...). */
+typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int id, struct direntry *entries);
+
+/* ***** All callbacks below are blocking. They shall be completed upon return. ***** */
+
+/* 'pre-loading' hook, called before opening/appending/linking given entries.
+ * E.g. allows the engine to ensure entries' paths are actually valid by downloading requested data, etc.
+ * Note it is also allowed to change that list, add/remove items, etc. This allows to present 'fake' entries to user,
+ * and then import actual data.
+ */
+typedef bool (*ae_load_pre)(struct AssetEngine *engine, struct direntry *entries, int *num_entries);
+
+/* 'post-loading' hook, called after opening/appending/linking given entries.
+ * E.g. allows an advanced engine to make fancy scripted operations over loaded items. */
+typedef bool (*ae_load_post)(struct AssetEngine *engine, struct ID *items, const int *num_items);
+
+/* Draw callback for the engine's panel. */
+typedef bool (*ae_draw_panel)(struct AssetEngine *engine, struct uiLayout *layout);
+
 
 typedef struct AssetEngineType {
 	struct AssetEngineType *next, *prev;
 
 	/* type info */
-	char idname[64]; // best keep the same size as BKE_ST_MAXNAME
+	char idname[64]; /* best keep the same size as BKE_ST_MAXNAME */
 	char name[64];
 	int flag;
 
-#if 0
-	void (*update)(struct RenderEngine *engine, struct Main *bmain, struct Scene *scene);
-	void (*render)(struct RenderEngine *engine, struct Scene *scene);
-	void (*bake)(struct RenderEngine *engine, struct Scene *scene, struct Object *object, const int pass_type, const struct BakePixel *pixel_array, const int num_pixels, const int depth, void *result);
+	/* API */
+	ae_status status;
+	ae_progress progress;
 
-	void (*view_update)(struct RenderEngine *engine, const struct bContext *context);
-	void (*view_draw)(struct RenderEngine *engine, const struct bContext *context);
+	ae_list_dir list_dir;
+	ae_ensure_entries ensure_entries;
 
-	void (*update_script_node)(struct RenderEngine *engine, struct bNodeTree *ntree, struct bNode *node);
-#endif
+	ae_load_pre load_pre;
+	ae_load_post load_post;
+
+	ae_draw_panel draw_panel;
 
 	/* RNA integration */
 	struct ExtensionRNA ext;

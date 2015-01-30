@@ -40,6 +40,7 @@
 
 #include "BLF_translation.h"
 
+#include "BLI_fileops_types.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -82,8 +83,6 @@ AssetEngineType *BKE_asset_engines_find(const char *idname)
 	AssetEngineType *type;
 
 	type = BLI_findstring(&asset_engines, idname, offsetof(AssetEngineType, idname));
-//	if (!type)
-//		type = &internal_render_type;
 
 	return type;
 }
@@ -94,7 +93,11 @@ AssetEngineType *BKE_asset_engines_find(const char *idname)
 
 AssetEngine *BKE_asset_engine_create(AssetEngineType *type)
 {
-	AssetEngine *engine = MEM_callocN(sizeof(AssetEngine), __func__);
+	AssetEngine *engine;
+
+	BLI_assert(type);
+
+	engine = MEM_callocN(sizeof(AssetEngine), __func__);
 	engine->type = type;
 
 	return engine;
