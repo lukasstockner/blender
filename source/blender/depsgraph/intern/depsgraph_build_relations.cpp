@@ -1137,9 +1137,9 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	
 	add_relation(init_key, flush_key, DEPSREL_TYPE_COMPONENT_ORDER, "[Pose Init -> Pose Cleanup]");
 
-	if (ob->adt != NULL) {
+	if (ob->adt && (ob->adt->action || ob->adt->nla_tracks.first)) {
 		ComponentKey animation_key(&ob->id, DEPSNODE_TYPE_ANIMATION);
-		add_relation(animation_key, init_key, DEPSREL_TYPE_OPERATION, "Object Animation");
+		add_relation(animation_key, init_key, DEPSREL_TYPE_OPERATION, "Rig Animation");
 	}
 
 	/* IK Solvers...
