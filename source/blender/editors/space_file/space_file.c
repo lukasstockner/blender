@@ -71,7 +71,7 @@ static SpaceLink *file_new(const bContext *UNUSED(C))
 {
 	ARegion *ar;
 	SpaceFile *sfile;
-	
+
 	sfile = MEM_callocN(sizeof(SpaceFile), "initfile");
 	sfile->spacetype = SPACE_FILE;
 
@@ -81,11 +81,17 @@ static SpaceLink *file_new(const bContext *UNUSED(C))
 	ar->regiontype = RGN_TYPE_HEADER;
 	ar->alignment = RGN_ALIGN_TOP;
 
-	/* channel list region */
-	ar = MEM_callocN(sizeof(ARegion), "channel area for file");
+	/* Tools region */
+	ar = MEM_callocN(sizeof(ARegion), "tools area for file");
 	BLI_addtail(&sfile->regionbase, ar);
-	ar->regiontype = RGN_TYPE_CHANNELS;
+	ar->regiontype = RGN_TYPE_TOOLS;
 	ar->alignment = RGN_ALIGN_LEFT;
+
+	/* Tool props (aka operator) region */
+	ar = MEM_callocN(sizeof(ARegion), "tool props area for file");
+	BLI_addtail(&sfile->regionbase, ar);
+	ar->regiontype = RGN_TYPE_TOOL_PROPS;
+	ar->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
 
 	/* ui list region */
 	ar = MEM_callocN(sizeof(ARegion), "ui area for file");
@@ -490,7 +496,7 @@ static void file_keymap(struct wmKeyConfig *keyconf)
 }
 
 
-static void file_channel_area_init(wmWindowManager *wm, ARegion *ar)
+static void file_tools_area_init(wmWindowManager *wm, ARegion *ar)
 {
 	wmKeyMap *keymap;
 
@@ -502,12 +508,12 @@ static void file_channel_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 }
 
-static void file_channel_area_draw(const bContext *C, ARegion *ar)
+static void file_tools_area_draw(const bContext *C, ARegion *ar)
 {
 	ED_region_panels(C, ar, 1, NULL, -1);
 }
 
-static void file_channel_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
+static void file_tools_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *UNUSED(ar), wmNotifier *UNUSED(wmn))
 {
 #if 0
 	/* context changes */
@@ -633,12 +639,24 @@ void ED_spacetype_file(void)
 
 	/* regions: channels (directories) */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype file region");
-	art->regionid = RGN_TYPE_CHANNELS;
+	art->regionid = RGN_TYPE_TOOLS;
 	art->prefsizex = 240;
+	art->prefsizey = 60;
 	art->keymapflag = ED_KEYMAP_UI;
-	art->listener = file_channel_area_listener;
-	art->init = file_channel_area_init;
-	art->draw = file_channel_area_draw;
+	art->listener = file_tools_area_listener;
+	art->init = file_tools_area_init;
+	art->draw = file_tools_area_draw;
+	BLI_addhead(&st->regiontypes, art);
+
+	/* regions: tool properties */
+	art = MEM_callocN(sizeof(ARegionType), "spacetype file operator region");
+	art->regionid = RGN_TYPE_TOOL_PROPS;
+	art->prefsizex = 0;
+	art->prefsizey = 240;
+	art->keymapflag = ED_KEYMAP_UI;
+	art->listener = file_tools_area_listener;
+	art->init = file_tools_area_init;
+	art->draw = file_tools_area_draw;
 	BLI_addhead(&st->regiontypes, art);
 	file_panels_register(art);
 

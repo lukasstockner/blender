@@ -1574,7 +1574,7 @@ ARegion *file_buttons_region(ScrArea *sa)
 	ARegion *ar, *arnew;
 	
 	for (ar = sa->regionbase.first; ar; ar = ar->next)
-		if (ar->regiontype == RGN_TYPE_CHANNELS)
+		if (ar->regiontype == RGN_TYPE_TOOLS)
 			return ar;
 
 	/* add subdiv level; after header */
@@ -1585,14 +1585,17 @@ ARegion *file_buttons_region(ScrArea *sa)
 	/* is error! */
 	if (ar == NULL) return NULL;
 	
-	arnew = MEM_callocN(sizeof(ARegion), "buttons for file panels");
-	
+	arnew = MEM_callocN(sizeof(ARegion), "tools for file");
 	BLI_insertlinkafter(&sa->regionbase, ar, arnew);
-	arnew->regiontype = RGN_TYPE_CHANNELS;
+	arnew->regiontype = RGN_TYPE_TOOLS;
 	arnew->alignment = RGN_ALIGN_LEFT;
-	
 	arnew->flag = RGN_FLAG_HIDDEN;
-	
+
+	ar = MEM_callocN(sizeof(ARegion), "tool props for file");
+	BLI_insertlinkafter(&sa->regionbase, arnew, ar);
+	ar->regiontype = RGN_TYPE_TOOL_PROPS;
+	ar->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
+
 	return arnew;
 }
 

@@ -51,10 +51,13 @@
 
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_screen.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+
+#include "MEM_guardedalloc.h"
 
 #include "BLO_readfile.h"
 
@@ -526,6 +529,33 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				part->child_flag |= PART_CHILD_USE_CLUMP_CURVE;
 			if (part->roughcurve)
 				part->child_flag |= PART_CHILD_USE_ROUGH_CURVE;
+		}
+	}
+
+	{
+		bScreen *scr;
+		ScrArea *sa;
+		SpaceLink *sl;
+		ARegion *ar;
+
+		for (scr = main->screen.first; scr; scr = scr->id.next) {
+			/* add new regions for filebrowser */
+			for (sa = scr->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_FILE) {
+						for (ar = sl->regionbase.first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_CHANNELS) {
+								break;
+							}
+						}
+
+						if (ar) {
+							BKE_area_region_free(NULL, ar);
+							BLI_freelinkN(&sl->regionbase, ar);
+						}
+					}
+				}
+			}
 		}
 	}
 }
