@@ -325,9 +325,17 @@ void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from,
 			fprintf(stderr, "add_relation(%d, %s) - Could not find op_from (%s)\n",
 			        type, description.c_str(), key_from.identifier().c_str());
 		}
+		else {
+			fprintf(stderr, "add_relation(%d, %s) - Failed, but op_from (%s) was ok\n",
+			        type, description.c_str(), key_from.identifier().c_str());
+		}
 		if (!op_to) {
 			/* XXX TODO handle as error or report if needed */
 			fprintf(stderr, "add_relation(%d, %s) - Could not find op_to (%s)\n",
+			        type, description.c_str(), key_to.identifier().c_str());
+		}
+		else {
+			fprintf(stderr, "add_relation(%d, %s) - Failed, but op_to (%s) was ok\n",
 			        type, description.c_str(), key_to.identifier().c_str());
 		}
 	}
