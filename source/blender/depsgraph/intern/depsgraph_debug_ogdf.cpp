@@ -32,6 +32,11 @@
 /* NOTE: OGDF needs to come before Blender headers, or else there will be compile errors on mingw64 */
 #include <ogdf/basic/Graph.h>
 
+#include <ogdf/layered/SugiyamaLayout.h>
+#include <ogdf/layered/OptimalRanking.h>
+#include <ogdf/layered/MedianHeuristic.h>
+#include <ogdf/layered/OptimalHierarchyLayout.h>
+
 #include <ogdf/energybased/FMMMLayout.h>
 
 #include <ogdf/planarity/PlanarizationLayout.h>
@@ -407,10 +412,30 @@ static void deg_debug_ogdf_graph_relations(const DebugContext &ctx, const Depsgr
 
 /* -------------------------------- */
 
+//#if 0
 static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
 {
 	printf("Not Implemented Yet - Nothing works!\n");
 }
+//#endif
+
+#if 0
+// XXX: disabled, as requires COIN or some other "LPSolver", or else there will be missing defines
+static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
+{
+	ogdf::SugiyamaLayout SL;
+    SL.setRanking(new ogdf::OptimalRanking);
+    SL.setCrossMin(new ogdf::MedianHeuristic);
+ 
+    ogdf::OptimalHierarchyLayout *ohl = new ogdf::OptimalHierarchyLayout;
+    ohl->layerDistance(30.0);
+    ohl->nodeDistance(25.0);
+    ohl->weightBalancing(0.8);
+    SL.setLayout(ohl);
+ 
+    SL.call(GA);
+}
+#endif
 
 #if 0
 // XXX: this crashes with a segfault in clearAllBends()
@@ -428,8 +453,9 @@ static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
 #endif
 
 #if 0
-// XXX: this is currently not usable, as it crashes with an Arithmetic Exception (FPE)
-static void debug_ogdf_do_layout(GraphAttributes &GA)
+// XXX: this is currently not usable, as it crashes with an Arithmetic Exception (FPE) if run "as is"
+// XXX: it will segfault instead though if setOptions() uses different flags
+static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
 {
 	ogdf::PlanarizationLayout pl;
 
@@ -448,7 +474,7 @@ static void debug_ogdf_do_layout(GraphAttributes &GA)
 	ol->cOverhang(0.4);
 	ol->setOptions(2 + 4);
 	pl.setPlanarLayouter(ol);
-
+	
 	pl.call(GA);
 }
 #endif
