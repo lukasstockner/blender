@@ -578,7 +578,9 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	
 	/* 4) Simplify the graph by removing redundant relations (to optimise traversal later) */
 	// TODO: it would be useful to have an option to disable this in cases where it is causing trouble
-	deg_graph_transitive_reduction(graph);
+	if (G.debug_value != 799) {
+		deg_graph_transitive_reduction(graph);
+	}
 	
 	deg_graph_flush_node_layers(graph);
 #if 0
