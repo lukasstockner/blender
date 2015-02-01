@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "BLF_translation.h"
 
@@ -181,7 +182,8 @@ static void seq_proxy_build_job(const bContext *C)
 	struct SeqIndexBuildContext *context;
 	LinkData *link;
 	Sequence *seq;
-
+	GSet *file_list;
+	
 	if (ed == NULL) {
 		return;
 	}
@@ -202,16 +204,19 @@ static void seq_proxy_build_job(const bContext *C)
 		WM_jobs_callbacks(wm_job, proxy_startjob, NULL, NULL, proxy_endjob);
 	}
 
+	file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
 	SEQP_BEGIN (ed, seq)
 	{
 		if ((seq->flag & SELECT)) {
-			context = BKE_sequencer_proxy_rebuild_context(pj->main, pj->scene, seq);
+			context = BKE_sequencer_proxy_rebuild_context(pj->main, pj->scene, seq, file_list);
 			link = BLI_genericNodeN(context);
 			BLI_addtail(&pj->queue, link);
 		}
 	}
 	SEQ_END
 
+	BLI_gset_free(file_list, MEM_freeN);
+	
 	if (!WM_jobs_is_running(wm_job)) {
 		G.is_break = false;
 		WM_jobs_start(CTX_wm_manager(C), wm_job);
@@ -3362,18 +3367,21 @@ static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	Sequence *seq;
-
+	GSet *file_list;
+	
 	if (ed == NULL) {
 		return OPERATOR_CANCELLED;
 	}
 
+	file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
+	
 	SEQP_BEGIN(ed, seq)
 	{
 		if ((seq->flag & SELECT)) {
 			struct SeqIndexBuildContext *context;
 			short stop = 0, do_update;
 			float progress;
-			context = BKE_sequencer_proxy_rebuild_context(bmain, scene, seq);
+			context = BKE_sequencer_proxy_rebuild_context(bmain, scene, seq, file_list);
 			BKE_sequencer_proxy_rebuild(context, &stop, &do_update, &progress);
 			BKE_sequencer_proxy_rebuild_finish(context, 0);
 			BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
@@ -3381,6 +3389,8 @@ static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	SEQ_END
 
+	BLI_gset_free(file_list, MEM_freeN);
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -3414,30 +3424,43 @@ static int sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
 	bool proxy_75 = RNA_boolean_get(op->ptr, "proxy_75");
 	bool proxy_100 = RNA_boolean_get(op->ptr, "proxy_100");
 	bool override = RNA_boolean_get(op->ptr, "override");
+	bool turnon = true;
 
 	if (ed == NULL || 
 	    !(proxy_25 || proxy_50 || proxy_75 || proxy_100)) {
-		return OPERATOR_FINISHED;
+		turnon = false;
 	}
 
 	SEQP_BEGIN(ed, seq)
 	{
 		if ((seq->flag & SELECT)) {
-			if (seq->type == SEQ_TYPE_MOVIE) {
-				if (!seq->strip->proxy) {
-					BKE_sequencer_proxy_set(seq, true);
-				}
+			if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE, SEQ_TYPE_META, SEQ_TYPE_SCENE, SEQ_TYPE_MULTICAM)) {
+				BKE_sequencer_proxy_set(seq, turnon);
 				
 				if (proxy_25)
 					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_25;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_25;
+				
 				if (proxy_50)
 					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_50;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_50;
+				
 				if (proxy_75)
 					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_75;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_75;
+				
 				if (proxy_100)
 					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_100;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_100;
+				
 				if (!override)
 					seq->strip->proxy->build_flags |= SEQ_PROXY_SKIP_EXISTING;
+				else 
+					seq->strip->proxy->build_flags &= ~SEQ_PROXY_SKIP_EXISTING;
 			}
 		}
 	}
@@ -3451,7 +3474,7 @@ static int sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
 void SEQUENCER_OT_enable_proxies(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Enable Proxies";
+	ot->name = "Set Selected Strip Proxies";
 	ot->idname = "SEQUENCER_OT_enable_proxies";
 	ot->description = "Enable selected proxies on all selected Movie strips";
 	
