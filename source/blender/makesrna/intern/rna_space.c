@@ -1381,14 +1381,14 @@ static int rna_SpaceFileBrowser_use_lib_get(PointerRNA *ptr)
 
 static void rna_FileBrowser_FSMenuEntry_path_get(PointerRNA *ptr, char *value)
 {
-	char *path = fsmenu_entry_get_path(ptr->data);
+	char *path = ED_fsmenu_entry_get_path(ptr->data);
 
 	strcpy(value, path ? path : "");
 }
 
 static int rna_FileBrowser_FSMenuEntry_path_length(PointerRNA *ptr)
 {
-	char *path = fsmenu_entry_get_path(ptr->data);
+	char *path = ED_fsmenu_entry_get_path(ptr->data);
 
 	return (int)(path ? strlen(path) : 0);
 }
@@ -1397,24 +1397,24 @@ static void rna_FileBrowser_FSMenuEntry_path_set(PointerRNA *ptr, const char *va
 {
 	FSMenuEntry *fsm = ptr->data;
 
-	fsmenu_entry_set_path(fsm, value);
+	ED_fsmenu_entry_set_path(fsm, value);
 }
 
 static void rna_FileBrowser_FSMenuEntry_name_get(PointerRNA *ptr, char *value)
 {
-	strcpy(value, fsmenu_entry_get_name(ptr->data));
+	strcpy(value, ED_fsmenu_entry_get_name(ptr->data));
 }
 
 static int rna_FileBrowser_FSMenuEntry_name_length(PointerRNA *ptr)
 {
-	return (int)strlen(fsmenu_entry_get_name(ptr->data));
+	return (int)strlen(ED_fsmenu_entry_get_name(ptr->data));
 }
 
 static void rna_FileBrowser_FSMenuEntry_name_set(PointerRNA *ptr, const char *value)
 {
 	FSMenuEntry *fsm = ptr->data;
 
-	fsmenu_entry_set_name(fsm, value);
+	ED_fsmenu_entry_set_name(fsm, value);
 }
 
 static int rna_FileBrowser_FSMenuEntry_name_get_editable(PointerRNA *ptr)
@@ -1444,8 +1444,8 @@ static void rna_FileBrowser_FSMenu_begin(CollectionPropertyIterator *iter, FSMen
 {
 	ListBaseIterator *internal = &iter->internal.listbase;
 
-	struct FSMenu *fsmenu = fsmenu_get();
-	struct FSMenuEntry *fsmentry = fsmenu_get_category(fsmenu, category);
+	struct FSMenu *fsmenu = ED_fsmenu_get();
+	struct FSMenuEntry *fsmentry = ED_fsmenu_get_category(fsmenu, category);
 
 	internal->link = (fsmentry) ? (Link *)fsmentry : NULL;
 	internal->skip = NULL;
@@ -1474,9 +1474,9 @@ static void rna_FileBrowser_FSMenuSystem_data_begin(CollectionPropertyIterator *
 
 static int rna_FileBrowser_FSMenuSystem_data_length(PointerRNA *UNUSED(ptr))
 {
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 
-	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_SYSTEM);
+	return ED_fsmenu_get_nentries(fsmenu, FS_CATEGORY_SYSTEM);
 }
 
 static void rna_FileBrowser_FSMenuSystemBookmark_data_begin(CollectionPropertyIterator *iter, PointerRNA *UNUSED(ptr))
@@ -1486,9 +1486,9 @@ static void rna_FileBrowser_FSMenuSystemBookmark_data_begin(CollectionPropertyIt
 
 static int rna_FileBrowser_FSMenuSystemBookmark_data_length(PointerRNA *UNUSED(ptr))
 {
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 
-	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
+	return ED_fsmenu_get_nentries(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
 }
 
 static void rna_FileBrowser_FSMenuBookmark_data_begin(CollectionPropertyIterator *iter, PointerRNA *UNUSED(ptr))
@@ -1498,9 +1498,9 @@ static void rna_FileBrowser_FSMenuBookmark_data_begin(CollectionPropertyIterator
 
 static int rna_FileBrowser_FSMenuBookmark_data_length(PointerRNA *UNUSED(ptr))
 {
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 
-	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
+	return ED_fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
 }
 
 static void rna_FileBrowser_FSMenuRecent_data_begin(CollectionPropertyIterator *iter, PointerRNA *UNUSED(ptr))
@@ -1510,9 +1510,9 @@ static void rna_FileBrowser_FSMenuRecent_data_begin(CollectionPropertyIterator *
 
 static int rna_FileBrowser_FSMenuRecent_data_length(PointerRNA *UNUSED(ptr))
 {
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 
-	return fsmenu_get_nentries(fsmenu, FS_CATEGORY_RECENT);
+	return ED_fsmenu_get_nentries(fsmenu, FS_CATEGORY_RECENT);
 }
 
 static int rna_FileBrowser_FSMenu_active_get(PointerRNA *ptr, const FSMenuCategory category)
@@ -1541,8 +1541,8 @@ static int rna_FileBrowser_FSMenu_active_get(PointerRNA *ptr, const FSMenuCatego
 static void rna_FileBrowser_FSMenu_active_set(PointerRNA *ptr, int value, const FSMenuCategory category)
 {
 	SpaceFile *sf = ptr->data;
-	struct FSMenu *fsmenu = fsmenu_get();
-	FSMenuEntry *fsm = fsmenu_get_entry(fsmenu, category, value);
+	struct FSMenu *fsmenu = ED_fsmenu_get();
+	FSMenuEntry *fsm = ED_fsmenu_get_entry(fsmenu, category, value);
 
 	if (fsm && sf->params) {
 		switch (category) {
@@ -1564,12 +1564,13 @@ static void rna_FileBrowser_FSMenu_active_set(PointerRNA *ptr, int value, const 
 	}
 }
 
-static void rna_FileBrowser_FSMenu_active_range(PointerRNA *UNUSED(ptr), int *min, int *max, int *softmin, int *softmax, const FSMenuCategory category)
+static void rna_FileBrowser_FSMenu_active_range(
+        PointerRNA *UNUSED(ptr), int *min, int *max, int *softmin, int *softmax, const FSMenuCategory category)
 {
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 
 	*min = *softmin = -1;
-	*max = *softmax = fsmenu_get_nentries(fsmenu, category) - 1;
+	*max = *softmax = ED_fsmenu_get_nentries(fsmenu, category) - 1;
 }
 
 static int rna_FileBrowser_FSMenuSystem_active_get(PointerRNA *ptr)

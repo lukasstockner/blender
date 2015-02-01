@@ -76,7 +76,7 @@ typedef struct FSMenu {
 
 static FSMenu *g_fsmenu = NULL;
 
-FSMenu *fsmenu_get(void)
+FSMenu *ED_fsmenu_get(void)
 {
 	if (!g_fsmenu) {
 		g_fsmenu = MEM_callocN(sizeof(struct FSMenu), "fsmenu");
@@ -84,7 +84,7 @@ FSMenu *fsmenu_get(void)
 	return g_fsmenu;
 }
 
-struct FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory category)
+struct FSMenuEntry *ED_fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory category)
 {
 	FSMenuEntry *fsm_head = NULL;
 
@@ -105,7 +105,7 @@ struct FSMenuEntry *fsmenu_get_category(struct FSMenu *fsmenu, FSMenuCategory ca
 	return fsm_head;
 }
 
-void fsmenu_set_category(struct FSMenu *fsmenu, FSMenuCategory category, FSMenuEntry *fsm_head)
+void ED_fsmenu_set_category(struct FSMenu *fsmenu, FSMenuCategory category, FSMenuEntry *fsm_head)
 {
 	switch (category) {
 		case FS_CATEGORY_SYSTEM:
@@ -123,35 +123,35 @@ void fsmenu_set_category(struct FSMenu *fsmenu, FSMenuCategory category, FSMenuE
 	}
 }
 
-int fsmenu_get_nentries(struct FSMenu *fsmenu, FSMenuCategory category)
+int ED_fsmenu_get_nentries(struct FSMenu *fsmenu, FSMenuCategory category)
 {
 	FSMenuEntry *fsm_iter;
 	int count = 0;
 
-	for (fsm_iter = fsmenu_get_category(fsmenu, category); fsm_iter; fsm_iter = fsm_iter->next) {
+	for (fsm_iter = ED_fsmenu_get_category(fsmenu, category); fsm_iter; fsm_iter = fsm_iter->next) {
 		count++;
 	}
 
 	return count;
 }
 
-FSMenuEntry *fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory category, int index)
+FSMenuEntry *ED_fsmenu_get_entry(struct FSMenu *fsmenu, FSMenuCategory category, int index)
 {
 	FSMenuEntry *fsm_iter;
 
-	for (fsm_iter = fsmenu_get_category(fsmenu, category); fsm_iter && index; fsm_iter = fsm_iter->next) {
+	for (fsm_iter = ED_fsmenu_get_category(fsmenu, category); fsm_iter && index; fsm_iter = fsm_iter->next) {
 		index--;
 	}
 
 	return fsm_iter;
 }
 
-char *fsmenu_entry_get_path(struct FSMenuEntry *fsentry)
+char *ED_fsmenu_entry_get_path(struct FSMenuEntry *fsentry)
 {
 	return fsentry->path;
 }
 
-void fsmenu_entry_set_path(struct FSMenuEntry *fsentry, const char *path)
+void ED_fsmenu_entry_set_path(struct FSMenuEntry *fsentry, const char *path)
 {
 	MEM_SAFE_FREE(fsentry->path);
 
@@ -172,7 +172,7 @@ static void fsmenu_entry_generate_name(struct FSMenuEntry *fsentry, char *name, 
 	}
 }
 
-char *fsmenu_entry_get_name(struct FSMenuEntry *fsentry)
+char *ED_fsmenu_entry_get_name(struct FSMenuEntry *fsentry)
 {
 	if (fsentry->name[0]) {
 		return fsentry->name;
@@ -187,7 +187,7 @@ char *fsmenu_entry_get_name(struct FSMenuEntry *fsentry)
 	}
 }
 
-void fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name)
+void ED_fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name)
 {
 	if (!STREQ(name, fsentry->name)) {
 		char tmp_name[FILE_MAXFILE];
@@ -208,7 +208,7 @@ short fsmenu_can_save(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
 {
 	FSMenuEntry *fsm_iter;
 
-	for (fsm_iter = fsmenu_get_category(fsmenu, category); fsm_iter && idx; fsm_iter = fsm_iter->next) {
+	for (fsm_iter = ED_fsmenu_get_category(fsmenu, category); fsm_iter && idx; fsm_iter = fsm_iter->next) {
 		idx--;
 	}
 
@@ -221,7 +221,7 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const c
 	FSMenuEntry *fsm_iter;
 	FSMenuEntry *fsm_head;
 
-	fsm_head = fsmenu_get_category(fsmenu, category);
+	fsm_head = ED_fsmenu_get_category(fsmenu, category);
 	fsm_prev = fsm_head;  /* this is odd and not really correct? */
 
 	for (fsm_iter = fsm_head; fsm_iter; fsm_prev = fsm_iter, fsm_iter = fsm_iter->next) {
@@ -232,7 +232,7 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const c
 					if (fsm_iter != fsm_head) {
 						fsm_prev->next = fsm_iter->next;
 						fsm_iter->next = fsm_head;
-						fsmenu_set_category(fsmenu, category, fsm_iter);
+						ED_fsmenu_set_category(fsmenu, category, fsm_iter);
 					}
 				}
 				return;
@@ -264,7 +264,7 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const c
 	if (fsm_prev) {
 		if (flag & FS_INSERT_FIRST) {
 			fsm_iter->next = fsm_head;
-			fsmenu_set_category(fsmenu, category, fsm_iter);
+			ED_fsmenu_set_category(fsmenu, category, fsm_iter);
 		}
 		else {
 			fsm_iter->next = fsm_prev->next;
@@ -273,7 +273,7 @@ void fsmenu_insert_entry(struct FSMenu *fsmenu, FSMenuCategory category, const c
 	}
 	else {
 		fsm_iter->next = fsm_head;
-		fsmenu_set_category(fsmenu, category, fsm_iter);
+		ED_fsmenu_set_category(fsmenu, category, fsm_iter);
 	}
 }
 
@@ -283,7 +283,7 @@ void fsmenu_remove_entry(struct FSMenu *fsmenu, FSMenuCategory category, int idx
 	FSMenuEntry *fsm_iter;
 	FSMenuEntry *fsm_head;
 
-	fsm_head = fsmenu_get_category(fsmenu, category);
+	fsm_head = ED_fsmenu_get_category(fsmenu, category);
 
 	for (fsm_iter = fsm_head; fsm_iter && idx; fsm_prev = fsm_iter, fsm_iter = fsm_iter->next)
 		idx--;
@@ -300,7 +300,7 @@ void fsmenu_remove_entry(struct FSMenu *fsmenu, FSMenuCategory category, int idx
 			}
 			else {
 				fsm_head = fsm_iter->next;
-				fsmenu_set_category(fsmenu, category, fsm_head);
+				ED_fsmenu_set_category(fsmenu, category, fsm_head);
 			}
 			/* free entry */
 			MEM_freeN(fsm_iter->path);
@@ -319,7 +319,7 @@ void fsmenu_write_file(struct FSMenu *fsmenu, const char *filename)
 	if (!fp) return;
 
 	fprintf(fp, "[Bookmarks]\n");
-	for (fsm_iter = fsmenu_get_category(fsmenu, FS_CATEGORY_BOOKMARKS); fsm_iter; fsm_iter = fsm_iter->next) {
+	for (fsm_iter = ED_fsmenu_get_category(fsmenu, FS_CATEGORY_BOOKMARKS); fsm_iter; fsm_iter = fsm_iter->next) {
 		if (fsm_iter->path && fsm_iter->save) {
 			fsmenu_entry_generate_name(fsm_iter, fsm_name, sizeof(fsm_name));
 			if (fsm_iter->name[0] && !STREQ(fsm_iter->name, fsm_name)) {
@@ -329,7 +329,7 @@ void fsmenu_write_file(struct FSMenu *fsmenu, const char *filename)
 		}
 	}
 	fprintf(fp, "[Recent]\n");
-	for (fsm_iter = fsmenu_get_category(fsmenu, FS_CATEGORY_RECENT); fsm_iter && (nwritten < FSMENU_RECENT_MAX); fsm_iter = fsm_iter->next, ++nwritten) {
+	for (fsm_iter = ED_fsmenu_get_category(fsmenu, FS_CATEGORY_RECENT); fsm_iter && (nwritten < FSMENU_RECENT_MAX); fsm_iter = fsm_iter->next, ++nwritten) {
 		if (fsm_iter->path && fsm_iter->save) {
 			fsmenu_entry_generate_name(fsm_iter, fsm_name, sizeof(fsm_name));
 			if (fsm_iter->name[0] && !STREQ(fsm_iter->name, fsm_name)) {
@@ -602,7 +602,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 static void fsmenu_free_category(struct FSMenu *fsmenu, FSMenuCategory category)
 {
-	FSMenuEntry *fsm_iter = fsmenu_get_category(fsmenu, category);
+	FSMenuEntry *fsm_iter = ED_fsmenu_get_category(fsmenu, category);
 
 	while (fsm_iter) {
 		FSMenuEntry *fsm_next = fsm_iter->next;
@@ -619,10 +619,10 @@ static void fsmenu_free_category(struct FSMenu *fsmenu, FSMenuCategory category)
 void fsmenu_refresh_system_category(struct FSMenu *fsmenu)
 {
 	fsmenu_free_category(fsmenu, FS_CATEGORY_SYSTEM);
-	fsmenu_set_category(fsmenu, FS_CATEGORY_SYSTEM, NULL);
+	ED_fsmenu_set_category(fsmenu, FS_CATEGORY_SYSTEM, NULL);
 
 	fsmenu_free_category(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS);
-	fsmenu_set_category(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, NULL);
+	ED_fsmenu_set_category(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, NULL);
 
 	/* Add all entries to system category */
 	fsmenu_read_system(fsmenu, true);
@@ -643,7 +643,7 @@ void fsmenu_free(void)
 
 int fsmenu_get_active_indices(struct FSMenu *fsmenu, enum FSMenuCategory category, const char *dir)
 {
-	FSMenuEntry *fsm_iter = fsmenu_get_category(fsmenu, category);
+	FSMenuEntry *fsm_iter = ED_fsmenu_get_category(fsmenu, category);
 	int i;
 
 	for (i = 0; fsm_iter; fsm_iter = fsm_iter->next, i++) {

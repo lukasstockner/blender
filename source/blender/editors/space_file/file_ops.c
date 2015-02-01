@@ -502,7 +502,7 @@ static int bookmark_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 	struct FileSelectParams *params = ED_fileselect_get_params(sfile);
 
 	if (params->dir[0] != '\0') {
@@ -533,8 +533,8 @@ static int bookmark_delete_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	struct FSMenu *fsmenu = fsmenu_get();
-	int nentries = fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
+	struct FSMenu *fsmenu = ED_fsmenu_get();
+	int nentries = ED_fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
 
 	PropertyRNA *prop = RNA_struct_find_property(op->ptr, "index");
 
@@ -588,14 +588,14 @@ static int bookmark_move_exec(bContext *C, wmOperator *op)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	struct FSMenu *fsmenu = fsmenu_get();
-	struct FSMenuEntry *fsmentry = fsmenu_get_category(fsmenu, FS_CATEGORY_BOOKMARKS);
+	struct FSMenu *fsmenu = ED_fsmenu_get();
+	struct FSMenuEntry *fsmentry = ED_fsmenu_get_category(fsmenu, FS_CATEGORY_BOOKMARKS);
 	struct FSMenuEntry *fsme_psrc, *fsme_pdst, *fsme;
 
 	char fname[FILE_MAX];
 
 	const int direction = RNA_enum_get(op->ptr, "direction");
-	const int totitems = fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
+	const int totitems = ED_fsmenu_get_nentries(fsmenu, FS_CATEGORY_BOOKMARKS);
 	const int act_index = sfile->bookmarknr;
 	int new_index, i;
 
@@ -642,7 +642,7 @@ static int bookmark_move_exec(bContext *C, wmOperator *op)
 			/* destination is first element of the list... */
 			fsme->next = fsmentry;
 			fsmentry = fsme;
-			fsmenu_set_category(fsmenu, FS_CATEGORY_BOOKMARKS, fsmentry);
+			ED_fsmenu_set_category(fsmenu, FS_CATEGORY_BOOKMARKS, fsmentry);
 		}
 	}
 	else {
@@ -666,7 +666,7 @@ static int bookmark_move_exec(bContext *C, wmOperator *op)
 			/* source is first element of the list... */
 			fsme = fsmentry;
 			fsmentry = fsme->next;
-			fsmenu_set_category(fsmenu, FS_CATEGORY_BOOKMARKS, fsmentry);
+			ED_fsmenu_set_category(fsmenu, FS_CATEGORY_BOOKMARKS, fsmentry);
 		}
 		fsme->next = fsme_pdst->next;
 		fsme_pdst->next = fsme;
@@ -711,9 +711,9 @@ static int reset_recent_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	char name[FILE_MAX];
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 	
-	while (fsmenu_get_entry(fsmenu, FS_CATEGORY_RECENT, 0) != NULL) {
+	while (ED_fsmenu_get_entry(fsmenu, FS_CATEGORY_RECENT, 0) != NULL) {
 		fsmenu_remove_entry(fsmenu, FS_CATEGORY_RECENT, 0);
 	}
 	BLI_make_file_string("/", name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
@@ -994,11 +994,13 @@ int file_exec(bContext *C, wmOperator *exec_op)
 		file_sfile_to_operator(op, sfile, filepath);
 
 		if (BLI_exists(sfile->params->dir)) {
-			fsmenu_insert_entry(fsmenu_get(), FS_CATEGORY_RECENT, sfile->params->dir, NULL, FS_INSERT_SAVE | FS_INSERT_FIRST);
+			fsmenu_insert_entry(ED_fsmenu_get(), FS_CATEGORY_RECENT, sfile->params->dir, NULL,
+			                    FS_INSERT_SAVE | FS_INSERT_FIRST);
 		}
 
-		BLI_make_file_string(G.main->name, filepath, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
-		fsmenu_write_file(fsmenu_get(), filepath);
+		BLI_make_file_string(G.main->name, filepath, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL),
+		                     BLENDER_BOOKMARK_FILE);
+		fsmenu_write_file(ED_fsmenu_get(), filepath);
 		WM_event_fileselect_event(wm, op, EVT_FILESELECT_EXEC);
 
 	}
@@ -1077,7 +1079,7 @@ static int file_refresh_exec(bContext *C, wmOperator *UNUSED(unused))
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 
 	ED_fileselect_clear(wm, sfile);
 

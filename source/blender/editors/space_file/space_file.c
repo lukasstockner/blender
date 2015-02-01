@@ -155,7 +155,7 @@ static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 	SpaceFile *sfile = (SpaceFile *)sa->spacedata.first;
 
 	/* refresh system directory list */
-	fsmenu_refresh_system_category(fsmenu_get());
+	fsmenu_refresh_system_category(ED_fsmenu_get());
 
 	if (sfile->layout) sfile->layout->dirty = true;
 }
@@ -198,7 +198,7 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
-	struct FSMenu *fsmenu = fsmenu_get();
+	struct FSMenu *fsmenu = ED_fsmenu_get();
 
 	if (!sfile->folders_prev) {
 		sfile->folders_prev = folderlist_new();
@@ -690,12 +690,12 @@ void ED_file_read_bookmarks(void)
 	
 	fsmenu_free();
 
-	fsmenu_read_system(fsmenu_get(), true);
+	fsmenu_read_system(ED_fsmenu_get(), true);
 
 	if (cfgdir) {
 		char name[FILE_MAX];
 		BLI_make_file_string("/", name, cfgdir, BLENDER_BOOKMARK_FILE);
-		fsmenu_read_bookmarks(fsmenu_get(), name);
+		fsmenu_read_bookmarks(ED_fsmenu_get(), name);
 	}
 }
 
