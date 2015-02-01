@@ -151,13 +151,6 @@ char *fsmenu_entry_get_path(struct FSMenuEntry *fsentry)
 	return fsentry->path;
 }
 
-char *fsmenu_get_entry_path(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
-{
-	FSMenuEntry *fsm = fsmenu_get_entry(fsmenu, category, idx);
-
-	return fsmenu_entry_get_path(fsm);
-}
-
 void fsmenu_entry_set_path(struct FSMenuEntry *fsentry, const char *path)
 {
 	MEM_SAFE_FREE(fsentry->path);
@@ -209,13 +202,6 @@ void fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name)
 			BLI_strncpy(fsentry->name, name, sizeof(fsentry->name));
 		}
 	}
-}
-
-char *fsmenu_get_entry_name(struct FSMenu *fsmenu, FSMenuCategory category, int idx)
-{
-	FSMenuEntry *fsm = fsmenu_get_entry(fsmenu, category, idx);
-
-	return fsm ? fsmenu_entry_get_name(fsm) : NULL;
 }
 
 short fsmenu_can_save(struct FSMenu *fsmenu, FSMenuCategory category, int idx)

@@ -290,16 +290,6 @@ static void filelist_filter_clear(FileList *filelist);
 
 /* ********** Sort helpers ********** */
 
-static bool compare_is_directory(const struct direntry *entry)
-{
-	/* for library browse .blend files may be treated as directories, but
-	 * for sorting purposes they should be considered regular files */
-	if (S_ISDIR(entry->type))
-		return !(entry->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP));
-	
-	return false;
-}
-
 static int compare_direntry_generic(const struct direntry *entry1, const struct direntry *entry2)
 {
 	/* type is equal to stat.st_mode */

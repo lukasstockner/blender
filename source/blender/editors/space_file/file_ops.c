@@ -713,7 +713,7 @@ static int reset_recent_exec(bContext *C, wmOperator *UNUSED(op))
 	char name[FILE_MAX];
 	struct FSMenu *fsmenu = fsmenu_get();
 	
-	while (fsmenu_get_entry_path(fsmenu, FS_CATEGORY_RECENT, 0) != NULL) {
+	while (fsmenu_get_entry(fsmenu, FS_CATEGORY_RECENT, 0) != NULL) {
 		fsmenu_remove_entry(fsmenu, FS_CATEGORY_RECENT, 0);
 	}
 	BLI_make_file_string("/", name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
