@@ -1052,9 +1052,10 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			add_relation(target_key, solver_key, DEPSREL_TYPE_TRANSFORM, con->name);
 		}
 	}
-	
-	printf("\nStarting IK Build: pchan = %s, target = (%s, %s), segcount = %d\n", pchan->name, data->tar->id.name, data->subtarget, data->rootbone);
-	
+
+	DEG_DEBUG_PRINTF("\nStarting IK Build: pchan = %s, target = (%s, %s), segcount = %d\n",
+	                 pchan->name, data->tar->id.name, data->subtarget, data->rootbone);
+
 	bPoseChannel *parchan = pchan;
 	/* exclude tip from chain? */
 	if (!(data->flag & CONSTRAINT_IK_TIP))
@@ -1086,7 +1087,7 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 		root_map->add_bone(parchan->name, rootchan->name);
 
 		/* continue up chain, until we reach target number of items... */
-		printf("  %d = %s\n", segcount, parchan->name);
+		DEG_DEBUG_PRINTF("  %d = %s\n", segcount, parchan->name);
 		segcount++;
 		if ((segcount == data->rootbone) || (segcount > 255)) break;  /* 255 is weak */
 		
