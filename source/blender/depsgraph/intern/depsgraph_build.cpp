@@ -665,10 +665,7 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 void DEG_scene_relations_rebuild(Main *bmain, Scene *scene)
 {
 	if (scene->depsgraph != NULL) {
-		BLI_assert(scene->depsgraph->entry_tags.size() == 0);
-		BLI_assert(scene->depsgraph->id_tags.size() == 0);
-		DEG_graph_free(scene->depsgraph);
-		scene->depsgraph = NULL;
+		DEG_graph_tag_relations_update(scene->depsgraph);
 	}
 	DEG_scene_relations_update(bmain, scene);
 }
