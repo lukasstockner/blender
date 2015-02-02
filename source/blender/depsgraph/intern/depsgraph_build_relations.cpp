@@ -702,23 +702,17 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 				if (target_pchan != NULL) {
 					/* get node associated with bone */
 					// XXX: watch the space!
-					eDepsOperation_Code target_key_opcode;
 					/* Some casescan't use final bone transform, for example:
 					 * - Driving the bone with itself (addressed here)
 					 * - Relations inside an IK chain (TODO?)
 					 */
-					if (dtar->id == id) {
-						if (pchan != NULL && STREQ(pchan->name, target_pchan->name)) {
-							target_key_opcode = DEG_OPCODE_BONE_READY;
-						}
-						else {
-							target_key_opcode = DEG_OPCODE_BONE_DONE;
-						}
+					if (dtar->id == id &&
+					    pchan != NULL &&
+					    STREQ(pchan->name, target_pchan->name))
+					{
+						continue;
 					}
-					else {
-						target_key_opcode = DEG_OPCODE_BONE_DONE;
-					}
-					OperationKey target_key(dtar->id, DEPSNODE_TYPE_BONE, target_pchan->name, target_key_opcode);
+					OperationKey target_key(dtar->id, DEPSNODE_TYPE_BONE, target_pchan->name, DEG_OPCODE_BONE_DONE);
 					add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET, "[Bone Target -> Driver]");
 				}
 			}
@@ -732,19 +726,20 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 				 * having to wait for pose eval to finish (to prevent cycles)
 				 */
 				Object *ob = (Object *)dtar->id;
-				bPoseChannel *pchan;
-				char *bone_name;
-				
-				bone_name = BLI_str_quoted_substrN(dtar->rna_path, "pose.bones[");
-				pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
-				
+				char *bone_name = BLI_str_quoted_substrN(dtar->rna_path, "pose.bones[");
+				bPoseChannel *target_pchan = BKE_pose_channel_find_name(ob->pose, bone_name);
 				if (bone_name) {
 					MEM_freeN(bone_name);
 					bone_name = NULL;
 				}
-				
-				if (pchan) {
-					OperationKey bone_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_LOCAL);
+				if (target_pchan) {
+					if (dtar->id == id &&
+					    pchan != NULL &&
+					    STREQ(pchan->name, target_pchan->name))
+					{
+						continue;
+					}
+					OperationKey bone_key(dtar->id, DEPSNODE_TYPE_BONE, target_pchan->name, DEG_OPCODE_BONE_LOCAL);
 					add_relation(bone_key, driver_key, DEPSREL_TYPE_DRIVER, "[RNA Bone -> Driver]");
 				}
 			}
