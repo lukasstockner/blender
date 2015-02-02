@@ -588,7 +588,8 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 {
 	ChannelDriver *driver = fcu->driver;
 	OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_DRIVER, deg_fcurve_id_name(fcu));
-	
+	bPoseChannel *pchan = NULL;
+
 	/* create dependency between driver and data affected by it */
 	/* - direct property relationship... */
 	//RNAPathKey affected_key(id, fcu->rna_path);
@@ -600,7 +601,6 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		/* interleaved drivers during bone eval */
 		// TODO: ideally, if this is for a constraint, it goes to said constraint
 		Object *ob = (Object *)id;
-		bPoseChannel *pchan;
 		char *bone_name;
 		
 		bone_name = BLI_str_quoted_substrN(fcu->rna_path, "pose.bones[");
@@ -698,12 +698,27 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 			/* special handling for directly-named bones */
 			if ((dtar->flag & DTAR_FLAG_STRUCT_REF) && (dtar->pchan_name[0])) {
 				Object *ob = (Object *)dtar->id;
-				bPoseChannel *pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
-				
-				if (pchan != NULL) {
+				bPoseChannel *target_pchan = BKE_pose_channel_find_name(ob->pose, dtar->pchan_name);
+				if (target_pchan != NULL) {
 					/* get node associated with bone */
 					// XXX: watch the space!
-					OperationKey target_key(dtar->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
+					eDepsOperation_Code target_key_opcode;
+					/* Some casescan't use final bone transform, for example:
+					 * - Driving the bone with itself (addressed here)
+					 * - Relations inside an IK chain (TODO?)
+					 */
+					if (dtar->id == id) {
+						if (pchan != NULL && STREQ(pchan->name, target_pchan->name)) {
+							target_key_opcode = DEG_OPCODE_BONE_READY;
+						}
+						else {
+							target_key_opcode = DEG_OPCODE_BONE_DONE;
+						}
+					}
+					else {
+						target_key_opcode = DEG_OPCODE_BONE_DONE;
+					}
+					OperationKey target_key(dtar->id, DEPSNODE_TYPE_BONE, target_pchan->name, target_key_opcode);
 					add_relation(target_key, driver_key, DEPSREL_TYPE_DRIVER_TARGET, "[Bone Target -> Driver]");
 				}
 			}
