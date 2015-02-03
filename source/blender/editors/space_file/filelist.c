@@ -1254,10 +1254,12 @@ static void filelist_setfiletypes(const char *root, struct direntry *files, cons
 			continue;
 		}
 #endif
-		file->flags = file_extension_type(root, file->relname);
 
 		if (filter_glob[0] && BLI_testextensie_glob(file->relname, filter_glob)) {
 			file->flags = FILE_TYPE_OPERATOR;
+		}
+		else {
+			file->flags = file_extension_type(root, file->relname);
 		}
 	}
 }
@@ -1367,7 +1369,7 @@ static unsigned int groupname_to_filter_id(const char *group)
 static void filelist_readjob_merge_sublist(
         struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size,
         const char *root, const char *subdir, struct direntry *subfiles, const int num_subfiles,
-        const bool ignore_breadcrumbs)
+        const bool ignore_currpar)
 {
 	if (num_subfiles) {
 		struct direntry *f;
@@ -1387,8 +1389,8 @@ static void filelist_readjob_merge_sublist(
 			*filelist_buff = new_filelist;
 		}
 		for (i = *filelist_used_size, j = 0, f = subfiles; j < num_subfiles; j++, f++) {
-			if (ignore_breadcrumbs && FILENAME_IS_CURRPAR(f->relname)) {
-				/* Ignore 'inner' breadcrumbs! */
+			if (ignore_currpar&& FILENAME_IS_CURRPAR(f->relname)) {
+				/* Ignore 'inner' curr/parent! */
 				new_numfiles--;
 				continue;
 			}
@@ -1664,13 +1666,9 @@ static void filelist_readjob_dir_lib_rec(
 
 	if (do_lib) {
 		filelist_readjob_list_lib(dir, &files, &num_files);
-
-		if (!files) {
-			is_lib = false;
-			num_files = BLI_filelist_dir_contents(dir, &files);
-		}
 	}
-	else {
+	if (!files) {
+		is_lib = false;
 		num_files = BLI_filelist_dir_contents(dir, &files);
 	}
 
@@ -1701,7 +1699,7 @@ static void filelist_readjob_dir_lib_rec(
 	BLI_mutex_lock(lock);
 
 	filelist_readjob_merge_sublist(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
-	                               dir, files, num_files, recursion_level != 0);
+	                               dir, files, num_files, recursion_level > 1);
 
 	(*done_files)++;
 	*progress = (float)(*done_files) / filelist->numfiles;
@@ -1713,7 +1711,7 @@ static void filelist_readjob_dir_lib_rec(
 	*do_update = true;
 
 	/* in case it's a lib we don't care anymore about max recursion level... */
-	if (!*stop && filelist->max_recursion && ((do_lib && is_lib) || (recursion_level < filelist->max_recursion))) {
+	if (!*stop && filelist->max_recursion && (do_lib || (recursion_level < filelist->max_recursion))) {
 		for (i = 0, file = files; i < num_files && !*stop; i++, file++) {
 			char subdir[FILE_MAX];
 
@@ -1723,6 +1721,12 @@ static void filelist_readjob_dir_lib_rec(
 			}
 			else if ((file->type & S_IFDIR) == 0) {
 				(*done_files)++;
+				continue;
+			}
+			else if (!is_lib && (recursion_level >= filelist->max_recursion) &&
+			         !ELEM(file->flags, FILE_TYPE_BLENDER, FILE_TYPE_BLENDER_BACKUP))
+			{
+				/* Do not recurse in real directories in this case, only in .blend libs. */
 				continue;
 			}
 
@@ -1754,7 +1758,7 @@ static void filelist_readjob_dir(
 
 	BLI_mutex_unlock(lock);
 
-	filelist_readjob_dir_lib_rec(false, main_name, filelist, &filelist_buffsize, dir, filter_glob, 0,
+	filelist_readjob_dir_lib_rec(false, main_name, filelist, &filelist_buffsize, dir, filter_glob, 1,
 	                             stop, do_update, progress, &done_files, lock);
 }
 
@@ -1778,7 +1782,7 @@ static void filelist_readjob_lib(
 
 	BLI_cleanup_dir(main_name, dir);
 
-	filelist_readjob_dir_lib_rec(true, main_name, filelist, &filelist_buffsize, dir, filter_glob, 0,
+	filelist_readjob_dir_lib_rec(true, main_name, filelist, &filelist_buffsize, dir, filter_glob, 1,
 	                             stop, do_update, progress, &done_files, lock);
 }
 

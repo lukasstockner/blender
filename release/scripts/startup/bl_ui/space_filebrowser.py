@@ -57,7 +57,7 @@ class FILEBROWSER_HT_header(Header):
             layout.prop(params, "display_type", expand=True, text="")
             layout.prop(params, "sort_method", expand=True, text="")
 
-            layout.prop(params, "recursion_level", slider=True)
+            layout.prop(params, "recursion_level")
             layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
             layout.prop(params, "use_filter", text="", icon='FILTER')
 
