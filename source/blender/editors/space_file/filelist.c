@@ -213,6 +213,7 @@ typedef struct FileImage {
 typedef struct FileListFilter {
 	bool hide_dot;
 	bool hide_parent;
+	bool hide_lib_dir;
 	unsigned int filter;
 	unsigned int filter_id;
 	char filter_glob[64];
@@ -558,24 +559,29 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 static bool is_filtered_lib(struct direntry *file, const char *root, FileListFilter *filter)
 {
 	bool is_filtered;
-	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *group;
+	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *group, *name;
 
 	BLI_join_dirfile(path, sizeof(path), root, file->relname);
 
-	if (BLO_library_path_explode(path, dir, &group, NULL)) {
+	if (BLO_library_path_explode(path, dir, &group, &name)) {
 		is_filtered = !is_hidden_file(file->relname, filter);
 		if (is_filtered && filter->filter && !FILENAME_IS_CURRPAR(file->relname)) {
 			if ((file->type & S_IFDIR) && !(filter->filter & FILE_TYPE_FOLDER)) {
 				is_filtered = false;
 			}
-			if (is_filtered && (filter->filter_search[0] != '\0')) {
-				if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
+			if (is_filtered && group) {
+				if (!name && filter->hide_lib_dir) {
 					is_filtered = false;
 				}
+				else {
+					unsigned int filter_id = groupname_to_filter_id(group);
+					if (!(filter_id & filter->filter_id)) {
+						is_filtered = false;
+					}
+				}
 			}
-			if (is_filtered && group) {
-				unsigned int filter_id = groupname_to_filter_id(group);
-				if (!(filter_id & filter->filter_id)) {
+			if (is_filtered && (filter->filter_search[0] != '\0')) {
+				if (fnmatch(filter->filter_search, file->relname, FNM_CASEFOLD) != 0) {
 					is_filtered = false;
 				}
 			}
@@ -612,6 +618,16 @@ void filelist_filter(FileList *filelist)
 	if (filelist->fidx) {
 		/* Assume it has already been filtered, nothing else to do! */
 		return;
+	}
+
+	filelist->filter_data.hide_lib_dir = false;
+	if (filelist->max_recursion) {
+		/* Never show lib ID 'categories' directories when we are in 'flat' mode, unless
+		 * root path is a blend file. */
+		char dir[FILE_MAXDIR];
+		if (!filelist_islibrary(filelist, dir, NULL)) {
+			filelist->filter_data.hide_lib_dir = true;
+		}
 	}
 
 	fidx_tmp = MEM_mallocN(sizeof(*fidx_tmp) * (size_t)filelist->numfiles, __func__);
