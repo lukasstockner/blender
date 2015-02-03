@@ -193,7 +193,7 @@ bool BM_vert_pair_share_face_check(
 		BMFace *f;
 
 		BM_ITER_ELEM (f, &iter, v_a, BM_FACES_OF_VERT) {
-			if (BM_vert_in_face(f, v_b)) {
+			if (BM_vert_in_face(v_b, f)) {
 				return true;
 			}
 		}
@@ -212,7 +212,7 @@ bool BM_vert_pair_share_face_check_cb(
 
 		BM_ITER_ELEM (f, &iter, v_a, BM_FACES_OF_VERT) {
 			if (test_fn(f, user_data)) {
-				if (BM_vert_in_face(f, v_b)) {
+				if (BM_vert_in_face(v_b, f)) {
 					return true;
 				}
 			}
@@ -375,7 +375,7 @@ BMLoop *BM_vert_find_first_loop(BMVert *v)
 /**
  * Returns true if the vertex is used in a given face.
  */
-bool BM_vert_in_face(BMFace *f, BMVert *v)
+bool BM_vert_in_face(BMVert *v, BMFace *f)
 {
 	BMLoop *l_iter, *l_first;
 
@@ -403,7 +403,7 @@ bool BM_vert_in_face(BMFace *f, BMVert *v)
  * Compares the number of vertices in an array
  * that appear in a given face
  */
-int BM_verts_in_face_count(BMFace *f, BMVert **varr, int len)
+int BM_verts_in_face_count(BMVert **varr, int len, BMFace *f)
 {
 	BMLoop *l_iter, *l_first;
 
@@ -447,7 +447,7 @@ int BM_verts_in_face_count(BMFace *f, BMVert **varr, int len)
 /**
  * Return true if all verts are in the face.
  */
-bool BM_verts_in_face(BMFace *f, BMVert **varr, int len)
+bool BM_verts_in_face(BMVert **varr, int len, BMFace *f)
 {
 	BMLoop *l_iter, *l_first;
 
@@ -663,7 +663,7 @@ BMEdge *BM_vert_other_disk_edge(BMVert *v, BMEdge *e_first)
 /**
  * Returns edge length
  */
-float BM_edge_calc_length(BMEdge *e)
+float BM_edge_calc_length(const BMEdge *e)
 {
 	return len_v3v3(e->v1->co, e->v2->co);
 }
@@ -671,7 +671,7 @@ float BM_edge_calc_length(BMEdge *e)
 /**
  * Returns edge length squared (for comparisons)
  */
-float BM_edge_calc_length_squared(BMEdge *e)
+float BM_edge_calc_length_squared(const BMEdge *e)
 {
 	return len_squared_v3v3(e->v1->co, e->v2->co);
 }
@@ -731,9 +731,9 @@ bool BM_edge_loop_pair(BMEdge *e, BMLoop **r_la, BMLoop **r_lb)
 /**
  * Fast alternative to ``(BM_vert_edge_count(v) == 2)``
  */
-bool BM_vert_is_edge_pair(BMVert *v)
+bool BM_vert_is_edge_pair(const BMVert *v)
 {
-	BMEdge *e = v->e;
+	const BMEdge *e = v->e;
 	if (e) {
 		const BMDiskLink *dl = bmesh_disk_edge_link_from_vert(e, v);
 		return (dl->next == dl->prev);
@@ -1602,7 +1602,7 @@ bool BM_face_exists(BMVert **varr, int len, BMFace **r_existface)
 #if 0
 	BM_ITER_ELEM (f, &viter, v_search, BM_FACES_OF_VERT) {
 		if (f->len == len) {
-			if (BM_verts_in_face(f, varr, len)) {
+			if (BM_verts_in_face(varr, len, f)) {
 				if (r_existface) {
 					*r_existface = f;
 				}
@@ -1860,7 +1860,7 @@ bool BM_face_exists_overlap(BMVert **varr, const int len, BMFace **r_f_overlap)
 	for (i = 0; i < len; i++) {
 		BM_ITER_ELEM (f, &viter, varr[i], BM_FACES_OF_VERT) {
 			if (BM_ELEM_API_FLAG_TEST(f, _FLAG_OVERLAP) == 0) {
-				if (len <= BM_verts_in_face_count(f, varr, len)) {
+				if (len <= BM_verts_in_face_count(varr, len, f)) {
 					if (r_f_overlap)
 						*r_f_overlap = f;
 

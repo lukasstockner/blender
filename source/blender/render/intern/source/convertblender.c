@@ -1344,11 +1344,13 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 
 	if (re->r.scemode & R_VIEWPORT_PREVIEW) { /* preview render */
 		totchild = (int)((float)totchild * (float)part->disp / 100.0f);
-		step_nbr = part->draw_step;
+		step_nbr = 1 << part->draw_step;
 	}
 	else {
-		step_nbr = part->ren_step;
+		step_nbr = 1 << part->ren_step;
 	}
+	if (ELEM(part->kink, PART_KINK_SPIRAL))
+		step_nbr += part->kink_extra_steps;
 
 	psys->flag |= PSYS_DRAWING;
 
@@ -1432,7 +1434,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 
 /* 2.6 setup strand rendering */
 	if (part->ren_as == PART_DRAW_PATH && psys->pathcache) {
-		path_nbr=(int)pow(2.0, (double) step_nbr);
+		path_nbr = step_nbr;
 
 		if (path_nbr) {
 			if (!ELEM(ma->material_type, MA_TYPE_HALO, MA_TYPE_WIRE)) {
@@ -1551,7 +1553,7 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 
 			if (path_nbr) {
 				cache = psys->pathcache[a];
-				max_k = (int)cache->steps;
+				max_k = (int)cache->segments;
 			}
 
 			if (totchild && (part->draw&PART_DRAW_PARENT)==0) continue;
@@ -1562,10 +1564,10 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 			if (path_nbr) {
 				cache = psys->childcache[a-totpart];
 
-				if (cache->steps < 0)
+				if (cache->segments < 0)
 					continue;
 
-				max_k = (int)cache->steps;
+				max_k = (int)cache->segments;
 			}
 			
 			pa_time = psys_get_child_time(psys, cpa, cfra, &pa_birthtime, &pa_dietime);
@@ -2721,12 +2723,13 @@ static void init_render_curve(Render *re, ObjectRen *obr, int timeoffset)
 						vlr->v4= NULL;
 
 						/* to prevent float accuracy issues, we calculate normal in local object space (not world) */
-						if (area_tri_v3(co3, co2, co1)>FLT_EPSILON) {
-							if (negative_scale)
-								normal_tri_v3(tmp, co1, co2, co3);
-							else
-								normal_tri_v3(tmp, co3, co2, co1);
-							add_v3_v3(n, tmp);
+						if (normal_tri_v3(tmp, co1, co2, co3) > FLT_EPSILON) {
+							if (negative_scale == false) {
+								add_v3_v3(n, tmp);
+							}
+							else {
+								sub_v3_v3(n, tmp);
+							}
 						}
 
 						vlr->mat= matar[ dl->col ];

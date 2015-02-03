@@ -545,7 +545,7 @@ short copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 		aci->array_index = fcu->array_index;
 		
 		/* detect if this is a bone. We do that here rather than during pasting because ID pointers will get invalidated if we undo.
-		 * storing the relavant information here helps avoiding crashes if we undo-repaste */
+		 * storing the relevant information here helps avoiding crashes if we undo-repaste */
 		if ((aci->id_type == ID_OB) && (((Object *)aci->id)->type == OB_ARMATURE) && aci->rna_path) {
 			Object *ob = (Object *)aci->id;
 			char *str_start;
@@ -615,7 +615,8 @@ short copy_animedit_keys(bAnimContext *ac, ListBase *anim_data)
 	return 0;
 }
 
-static void flip_names(tAnimCopybufItem *aci, char **name) {
+static void flip_names(tAnimCopybufItem *aci, char **name)
+{
 	if (aci->is_bone) {
 		char *str_start;
 		if ((str_start = strstr(aci->rna_path, "pose.bones["))) {
@@ -644,7 +645,7 @@ static void flip_names(tAnimCopybufItem *aci, char **name) {
 			BLI_strncpy(str_iter, bname_new, length + 1);
 			str_iter += length;
 			BLI_strncpy(str_iter, str_end, postfix_l + 1);
-			str_iter[postfix_l] = 0;
+			str_iter[postfix_l] = '\0';
 		}
 	}
 }
@@ -662,14 +663,14 @@ static tAnimCopybufItem *pastebuf_match_path_full(FCurve *fcu, const short from_
 				if ((from_single) || (aci->array_index == fcu->array_index)) {
 					char *name = NULL;
 					flip_names(aci, &name);
-					if (strcmp(name, fcu->rna_path) == 0) {
+					if (STREQ(name, fcu->rna_path)) {
 						MEM_freeN(name);
 						break;
 					}
 					MEM_freeN(name);
 				}
 			}
-			else if (to_simple || (strcmp(aci->rna_path, fcu->rna_path) == 0)) {
+			else if (to_simple || STREQ(aci->rna_path, fcu->rna_path)) {
 				if ((from_single) || (aci->array_index == fcu->array_index)) {
 					break;
 				}
@@ -710,7 +711,7 @@ static tAnimCopybufItem *pastebuf_match_path_property(FCurve *fcu, const short f
 					int len_path = strlen(fcu->rna_path);
 					if (len_id <= len_path) {
 						/* note, paths which end with "] will fail with this test - Animated ID Props */
-						if (strcmp(identifier, fcu->rna_path + (len_path - len_id)) == 0) {
+						if (STREQ(identifier, fcu->rna_path + (len_path - len_id))) {
 							if ((from_single) || (aci->array_index == fcu->array_index))
 								break;
 						}
@@ -743,17 +744,18 @@ static tAnimCopybufItem *pastebuf_match_index_only(FCurve *fcu, const short from
 
 /* ................ */
 
-static void do_curve_mirror_flippping(tAnimCopybufItem *aci, BezTriple *bezt) {
+static void do_curve_mirror_flippping(tAnimCopybufItem *aci, BezTriple *bezt)
+{
 	if (aci->is_bone) {
-		int slength = strlen(aci->rna_path);
+		const size_t slength = strlen(aci->rna_path);
 		bool flip = false;
-		if (BLI_strn_ends_with(aci->rna_path, "location", slength) && aci->array_index == 0) 
+		if (BLI_strn_endswith(aci->rna_path, "location", slength) && aci->array_index == 0)
 			flip = true;
-		else if (BLI_strn_ends_with(aci->rna_path, "rotation_quaternion", slength) && ELEM(aci->array_index, 2, 3))
+		else if (BLI_strn_endswith(aci->rna_path, "rotation_quaternion", slength) && ELEM(aci->array_index, 2, 3))
 			flip = true;
-		else if (BLI_strn_ends_with(aci->rna_path, "rotation_euler", slength) && ELEM(aci->array_index, 1, 2))
+		else if (BLI_strn_endswith(aci->rna_path, "rotation_euler", slength) && ELEM(aci->array_index, 1, 2))
 			flip = true;
-		else if (BLI_strn_ends_with(aci->rna_path, "rotation_axis_angle", slength) && ELEM(aci->array_index, 2, 3))
+		else if (BLI_strn_endswith(aci->rna_path, "rotation_axis_angle", slength) && ELEM(aci->array_index, 2, 3))
 			flip = true;
 		
 		if (flip) {

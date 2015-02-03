@@ -273,6 +273,7 @@ typedef enum eSpaceOutliner_Flag {
 	SO_NEWSELECTED          = (1 << 1),
 	SO_HIDE_RESTRICTCOLS    = (1 << 2),
 	SO_HIDE_KEYINGSETINFO   = (1 << 3),
+	SO_SKIP_SORT_ALPHA      = (1 << 4),
 } eSpaceOutliner_Flag;
 
 /* SpaceOops->outlinevis */
@@ -527,12 +528,13 @@ typedef enum eSpaceSeq_Flag {
 	SEQ_DRAWFRAMES              = (1 << 0),
 	SEQ_MARKER_TRANS            = (1 << 1),
 	SEQ_DRAW_COLOR_SEPARATED    = (1 << 2),
-	SEQ_DRAW_SAFE_MARGINS       = (1 << 3),
+	SEQ_SHOW_SAFE_MARGINS       = (1 << 3),
 	SEQ_SHOW_GPENCIL            = (1 << 4),
 	SEQ_NO_DRAW_CFRANUM         = (1 << 5),
 	SEQ_USE_ALPHA               = (1 << 6), /* use RGBA display mode for preview */
 	SEQ_ALL_WAVEFORMS           = (1 << 7), /* draw all waveforms */
 	SEQ_NO_WAVEFORMS            = (1 << 8), /* draw no waveforms */
+	SEQ_SHOW_SAFE_CENTER        = (1 << 9),
 } eSpaceSeq_Flag;
 
 /* sseq->view */
@@ -932,7 +934,7 @@ typedef struct bNodeTreePath {
 	bNodeInstanceKey parent_key;	/* base key for nodes in this tree instance */
 	int pad;
 	float view_center[2];			/* v2d center point, so node trees can have different offsets in editors */
-	/* XXX this is not automatically updated when node names are changed! */
+	
 	char node_name[64];		/* MAX_NAME */
 } bNodeTreePath;
 
@@ -1199,6 +1201,9 @@ typedef enum eSpace_Type {
 	
 	SPACEICONMAX = SPACE_CLIP
 } eSpace_Type;
+
+/* use for function args */
+#define SPACE_TYPE_ANY -1
 
 // TODO: SPACE_SCRIPT
 #if (DNA_DEPRECATED_GCC_POISON == 1)

@@ -165,8 +165,23 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
+	progress.set_status("Updating Camera");
+	camera->device_update(device, &dscene, this);
+
+	if(progress.get_cancel() || device->have_error()) return;
+
 	progress.set_status("Updating Objects");
 	object_manager->device_update(device, &dscene, this, progress);
+
+	if(progress.get_cancel() || device->have_error()) return;
+
+	progress.set_status("Updating Meshes Flags");
+	mesh_manager->device_update_flags(device, &dscene, this, progress);
+
+	if(progress.get_cancel() || device->have_error()) return;
+
+	progress.set_status("Updating Objects Flags");
+	object_manager->device_update_flags(device, &dscene, this, progress);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
@@ -175,8 +190,8 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
-	progress.set_status("Updating Objects Flags");
-	object_manager->device_update_flags(device, &dscene, this, progress);
+	progress.set_status("Updating Camera Volume");
+	camera->device_update_volume(device, &dscene, this);
 
 	if(progress.get_cancel() || device->have_error()) return;
 
@@ -187,12 +202,6 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	progress.set_status("Updating Lookup Tables");
 	lookup_tables->device_update(device, &dscene);
-
-	if(progress.get_cancel() || device->have_error()) return;
-
-	/* TODO(sergey): Make sure camera is not needed above. */
-	progress.set_status("Updating Camera");
-	camera->device_update(device, &dscene, this);
 
 	if(progress.get_cancel() || device->have_error()) return;
 

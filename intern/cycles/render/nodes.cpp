@@ -174,8 +174,10 @@ static ShaderEnum image_projection_init()
 {
 	ShaderEnum enm;
 
-	enm.insert("Flat", 0);
-	enm.insert("Box", 1);
+	enm.insert("Flat", NODE_IMAGE_PROJ_FLAT);
+	enm.insert("Box", NODE_IMAGE_PROJ_BOX);
+	enm.insert("Sphere", NODE_IMAGE_PROJ_SPHERE);
+	enm.insert("Tube", NODE_IMAGE_PROJ_TUBE);
 
 	return enm;
 }
@@ -266,14 +268,15 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 			tex_mapping.compile(compiler, vector_in->stack_offset, vector_offset);
 		}
 
-		if(projection == "Flat") {
+		if(projection != "Box") {
 			compiler.add_node(NODE_TEX_IMAGE,
 				slot,
 				compiler.encode_uchar4(
 					vector_offset,
 					color_out->stack_offset,
 					alpha_out->stack_offset,
-					srgb));
+					srgb),
+				projection_enum[projection]);
 		}
 		else {
 			compiler.add_node(NODE_TEX_IMAGE_BOX,
@@ -285,7 +288,7 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 					srgb),
 				__float_as_int(projection_blend));
 		}
-	
+
 		if(vector_offset != vector_in->stack_offset)
 			compiler.stack_clear_offset(vector_in->type, vector_offset);
 	}
@@ -1946,6 +1949,8 @@ void EmissionNode::compile(OSLCompiler& compiler)
 BackgroundNode::BackgroundNode()
 : ShaderNode("background")
 {
+	special_type = SHADER_SPECIAL_TYPE_BACKGROUND;
+
 	add_input("Color", SHADER_SOCKET_COLOR, make_float3(0.8f, 0.8f, 0.8f));
 	add_input("Strength", SHADER_SOCKET_FLOAT, 1.0f);
 	add_input("SurfaceMixWeight", SHADER_SOCKET_FLOAT, 0.0f, ShaderInput::USE_SVM);
@@ -2258,6 +2263,8 @@ TextureCoordinateNode::TextureCoordinateNode()
 	add_output("Reflection", SHADER_SOCKET_NORMAL);
 
 	from_dupli = false;
+	use_transform = false;
+	ob_tfm = transform_identity();
 }
 
 void TextureCoordinateNode::attributes(Shader *shader, AttributeRequestSet *attributes)
@@ -2345,7 +2352,14 @@ void TextureCoordinateNode::compile(SVMCompiler& compiler)
 	out = output("Object");
 	if(!out->links.empty()) {
 		compiler.stack_assign(out);
-		compiler.add_node(texco_node, NODE_TEXCO_OBJECT, out->stack_offset);
+		compiler.add_node(texco_node, NODE_TEXCO_OBJECT, out->stack_offset, use_transform);
+		if(use_transform) {
+			Transform ob_itfm = transform_inverse(ob_tfm);
+			compiler.add_node(ob_itfm.x);
+			compiler.add_node(ob_itfm.y);
+			compiler.add_node(ob_itfm.z);
+			compiler.add_node(ob_itfm.w);
+		}
 	}
 
 	out = output("Camera");
@@ -2386,7 +2400,10 @@ void TextureCoordinateNode::compile(OSLCompiler& compiler)
 		compiler.parameter("is_background", true);
 	if(compiler.output_type() == SHADER_TYPE_VOLUME)
 		compiler.parameter("is_volume", true);
-	
+	compiler.parameter("use_transform", use_transform);
+	Transform ob_itfm = transform_transpose(transform_inverse(ob_tfm));
+	compiler.parameter("object_itfm", ob_itfm);
+
 	compiler.parameter("from_dupli", from_dupli);
 
 	compiler.add(this, "node_texture_coordinate");

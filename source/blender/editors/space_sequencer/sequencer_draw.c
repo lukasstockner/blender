@@ -70,6 +70,7 @@
 
 #include "WM_api.h"
 
+#include "MEM_guardedalloc.h"
 
 /* own include */
 #include "sequencer_intern.h"
@@ -200,23 +201,25 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		
 		SoundWaveform *waveform;
 		
-		if (!sound->mutex)
-			sound->mutex = BLI_mutex_alloc();
+		if (!sound->spinlock) {
+			sound->spinlock = MEM_mallocN(sizeof(SpinLock), "sound_spinlock");
+			BLI_spin_init(sound->spinlock);
+		}
 		
-		BLI_mutex_lock(sound->mutex);
+		BLI_spin_lock(sound->spinlock);
 		if (!seq->sound->waveform) {
 			if (!(sound->flags & SOUND_FLAGS_WAVEFORM_LOADING)) {
 				/* prevent sounds from reloading */
 				seq->sound->flags |= SOUND_FLAGS_WAVEFORM_LOADING;
-				BLI_mutex_unlock(sound->mutex);
+				BLI_spin_unlock(sound->spinlock);
 				sequencer_preview_add_sound(C, seq);
 			}
 			else {
-				BLI_mutex_unlock(sound->mutex);
+				BLI_spin_unlock(sound->spinlock);
 			}
 			return;  /* nothing to draw */
 		}
-		BLI_mutex_unlock(sound->mutex);
+		BLI_spin_unlock(sound->spinlock);
 		
 		waveform = seq->sound->waveform;
 		
@@ -467,7 +470,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 		}
 	}
 	else if (seq->type == SEQ_TYPE_MOVIECLIP) {
-		if (seq->clip && strcmp(name, seq->clip->id.name + 2) != 0) {
+		if (seq->clip && !STREQ(name, seq->clip->id.name + 2)) {
 			str_len = BLI_snprintf(str, sizeof(str), "%s: %s | %d",
 			                       name, seq->clip->id.name + 2, seq->len);
 		}
@@ -477,7 +480,7 @@ static void draw_seq_text(View2D *v2d, Sequence *seq, float x1, float x2, float 
 		}
 	}
 	else if (seq->type == SEQ_TYPE_MASK) {
-		if (seq->mask && strcmp(name, seq->mask->id.name + 2) != 0) {
+		if (seq->mask && !STREQ(name, seq->mask->id.name + 2)) {
 			str_len = BLI_snprintf(str, sizeof(str), "%s: %s | %d",
 			                       name, seq->mask->id.name + 2, seq->len);
 		}
@@ -1292,24 +1295,18 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glEnd();
 
 		/* safety border */
-		if ((sseq->flag & SEQ_DRAW_SAFE_MARGINS) != 0) {
-			float fac = 0.1;
+		if (sseq->flag & SEQ_SHOW_SAFE_MARGINS) {
+			UI_draw_safe_areas(
+			        x1, x2, y1, y2,
+			        scene->safe_areas.title,
+			        scene->safe_areas.action);
 
-			float a = fac * (x2 - x1);
-			x1 += a;
-			x2 -= a;
-
-			a = fac * (y2 - y1);
-			y1 += a;
-			y2 -= a;
-
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-			UI_draw_roundbox_corner_set(UI_CNR_ALL);
-			UI_draw_roundbox_gl_mode(GL_LINE_LOOP, x1, y1, x2, y2, 12.0);
-
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
+			if (sseq->flag & SEQ_SHOW_SAFE_CENTER) {
+				UI_draw_safe_areas(
+				        x1, x2, y1, y2,
+				        scene->safe_areas.title_center,
+				        scene->safe_areas.action_center);
+			}
 		}
 
 		setlinestyle(0);

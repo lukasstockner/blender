@@ -481,7 +481,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
             name="Bake Type",
             default='COMBINED',
             description="Type of pass to bake",
-            items = (
+            items=(
                 ('COMBINED', "Combined", ""),
                 ('AO', "Ambient Occlusion", ""),
                 ('SHADOW', "Shadow", ""),
@@ -581,6 +581,34 @@ class CyclesCameraSettings(bpy.types.PropertyGroup):
                 description="Lens focal length (mm)",
                 min=0.01, soft_max=15.0, max=100.0,
                 default=10.5,
+                )
+        cls.latitude_min = FloatProperty(
+                name="Min Latitude",
+                description="Minimum latitude (vertical angle) for the equirectangular lens",
+                min=-0.5 * math.pi, max=0.5 * math.pi,
+                subtype='ANGLE',
+                default=-0.5 * math.pi,
+                )
+        cls.latitude_max = FloatProperty(
+                name="Max Latitude",
+                description="Maximum latitude (vertical angle) for the equirectangular lens",
+                min=-0.5 * math.pi, max=0.5 * math.pi,
+                subtype='ANGLE',
+                default=0.5 * math.pi,
+                )
+        cls.longitude_min = FloatProperty(
+                name="Min Longitude",
+                description="Minimum longitude (horizontal angle) for the equirectangular lens",
+                min=-math.pi, max=math.pi,
+                subtype='ANGLE',
+                default=-math.pi,
+                )
+        cls.longitude_max = FloatProperty(
+                name="Max Longitude",
+                description="Maximum longitude (horizontal angle) for the equirectangular lens",
+                min=-math.pi, max=math.pi,
+                subtype='ANGLE',
+                default=math.pi,
                 )
 
     @classmethod

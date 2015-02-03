@@ -1160,7 +1160,7 @@ static int need_add_seq_dup(Sequence *seq)
 			continue;
 		}
 
-		if (!strcmp(p->strip->stripdata->name, seq->strip->stripdata->name))
+		if (STREQ(p->strip->stripdata->name, seq->strip->stripdata->name))
 			return(2);
 		p = p->prev;
 	}
@@ -1172,7 +1172,7 @@ static int need_add_seq_dup(Sequence *seq)
 			continue;
 		}
 
-		if (!strcmp(p->strip->stripdata->name, seq->strip->stripdata->name))
+		if (STREQ(p->strip->stripdata->name, seq->strip->stripdata->name))
 			return(0);
 		p = p->next;
 	}
@@ -1191,7 +1191,7 @@ static void outliner_add_seq_dup(SpaceOops *soops, Sequence *seq, TreeElement *t
 			continue;
 		}
 
-		if (!strcmp(p->strip->stripdata->name, seq->strip->stripdata->name))
+		if (STREQ(p->strip->stripdata->name, seq->strip->stripdata->name))
 			/* ch = */ /* UNUSED */ outliner_add_element(soops, &te->subtree, (void *)p, te, TSE_SEQUENCE, index);
 		p = p->next;
 	}
@@ -1311,7 +1311,10 @@ static void outliner_sort(SpaceOops *soops, ListBase *lb)
 	TreeElement *te;
 	TreeStoreElem *tselem;
 	int totelem = 0;
-	
+
+	if (soops->flag & SO_SKIP_SORT_ALPHA)
+		return;
+
 	te = lb->last;
 	if (te == NULL) return;
 	tselem = TREESTORE(te);
@@ -1398,9 +1401,9 @@ static int outliner_filter_tree(SpaceOops *soops, ListBase *lb)
 		search_string = soops->search_string;
 	}
 	else {
-		search_string = search_buff;
 		/* Implicitly add heading/trailing wildcards if needed. */
-		BLI_strncpy_ensure_pad(search_string, soops->search_string, '*', sizeof(search_string));
+		BLI_strncpy_ensure_pad(search_buff, soops->search_string, '*', sizeof(search_buff));
+		search_string = search_buff;
 	}
 
 	for (te = lb->first; te; te = ten) {

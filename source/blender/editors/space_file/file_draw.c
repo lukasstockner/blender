@@ -111,6 +111,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	SpaceFile *sfile  = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 	ARegion *artmp;
+	const bool is_browse_only = (sfile->op == NULL);
 	
 	/* Initialize UI block. */
 	BLI_snprintf(uiblockstr, sizeof(uiblockstr), "win %p", (void *)ar);
@@ -124,15 +125,23 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 			available_w -= chan_offs;
 		}
 	}
-	
-	/* Is there enough space for the execute / cancel buttons? */
-	loadbutton = UI_fontstyle_string_width(params->title) + btn_margin;
-	CLAMP_MIN(loadbutton, btn_minw);
 
-	if (available_w <= loadbutton + separator + input_minw || params->title[0] == 0) {
+	/* Is there enough space for the execute / cancel buttons? */
+
+
+	if (is_browse_only) {
 		loadbutton = 0;
 	}
 	else {
+		const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
+		loadbutton = UI_fontstyle_string_width(fstyle, params->title) + btn_margin;
+		CLAMP_MIN(loadbutton, btn_minw);
+		if (available_w <= loadbutton + separator + input_minw) {
+			loadbutton = 0;
+		}
+	}
+
+	if (loadbutton) {
 		line1_w -= (loadbutton + separator);
 		line2_w  = line1_w;
 	}
@@ -145,7 +154,7 @@ void file_draw_buttons(const bContext *C, ARegion *ar)
 	else {
 		line2_w -= (fnumbuttons + separator);
 	}
-	
+
 	/* Text input fields for directory and file. */
 	if (available_w > 0) {
 		int overwrite_alert = file_draw_check_exists(sfile);
@@ -230,7 +239,7 @@ static void draw_tile(int sx, int sy, int width, int height, int colorid, int sh
 static int get_file_icon(struct direntry *file)
 {
 	if (file->type & S_IFDIR) {
-		if (strcmp(file->relname, "..") == 0) {
+		if (FILENAME_IS_PARENT(file->relname)) {
 			return ICON_FILE_PARENT;
 		}
 		if (file->flags & FILE_TYPE_APPLICATIONBUNDLE) {
@@ -394,7 +403,7 @@ static void renamebutton_cb(bContext *C, void *UNUSED(arg1), char *oldname)
 	BLI_strncpy(filename, sfile->params->renameedit, sizeof(filename));
 	BLI_make_file_string(G.main->name, newname, sfile->params->dir, filename);
 
-	if (strcmp(orgname, newname) != 0) {
+	if (!STREQ(orgname, newname)) {
 		if (!BLI_exists(newname)) {
 			BLI_rename(orgname, newname);
 			/* to make sure we show what is on disk */
@@ -520,7 +529,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				int shade = (params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
 
 				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
-				if (STREQ(file->relname, "..") || STREQ(file->relname, ".")) {
+				if (FILENAME_IS_CURRPAR(file->relname)) {
 					colorid = TH_BACK;
 				}
 				draw_tile(sx, sy - 1, layout->tile_w + 4, sfile->layout->tile_h + layout->tile_border_y, colorid, shade);
@@ -529,7 +538,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		UI_draw_roundbox_corner_set(UI_CNR_NONE);
 
 		/* don't drag parent or refresh items */
-		do_drag = !(STREQ(file->relname, "..") || STREQ(file->relname, "."));
+		do_drag = !(FILENAME_IS_CURRPAR(file->relname));
 
 		if (FILE_IMGDISPLAY == params->display) {
 			is_icon = 0;
