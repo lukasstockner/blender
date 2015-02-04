@@ -4841,6 +4841,11 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			if (fd->flags & FD_FLAGS_SWITCH_ENDIAN) {
 				BLI_endian_switch_int32_array(hmd->indexar, hmd->totindex);
 			}
+
+			hmd->curfalloff = newdataadr(fd, hmd->curfalloff);
+			if (hmd->curfalloff) {
+				direct_link_curvemapping(fd, hmd->curfalloff);
+			}
 		}
 		else if (md->type == eModifierType_ParticleSystem) {
 			ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)md;
@@ -6874,9 +6879,10 @@ static void direct_link_sound(FileData *fd, bSound *sound)
 		sound->waveform = NULL;
 	}
 		
-	if (sound->mutex)
-		sound->mutex = BLI_mutex_alloc();
-	
+	if (sound->spinlock) {
+		sound->spinlock = MEM_mallocN(sizeof(SpinLock), "sound_spinlock");
+		BLI_spin_init(sound->spinlock);
+	}
 	/* clear waveform loading flag */
 	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
 

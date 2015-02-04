@@ -284,8 +284,8 @@ class INFO_MT_window(Menu):
 
         layout.separator()
 
-        layout.operator("screen.screenshot").full = True
-        layout.operator("screen.screencast").full = True
+        layout.operator("screen.screenshot")
+        layout.operator("screen.screencast")
 
         if sys.platform[:3] == "win":
             layout.separator()

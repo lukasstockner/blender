@@ -37,6 +37,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #include "BLF_translation.h"
 
@@ -64,6 +65,7 @@
 #include "ED_space_api.h"
 
 #include "UI_view2d.h"
+#include "UI_interface.h"
 
 
 /* own include */
@@ -180,7 +182,8 @@ static void seq_proxy_build_job(const bContext *C)
 	struct SeqIndexBuildContext *context;
 	LinkData *link;
 	Sequence *seq;
-
+	GSet *file_list;
+	
 	if (ed == NULL) {
 		return;
 	}
@@ -201,16 +204,19 @@ static void seq_proxy_build_job(const bContext *C)
 		WM_jobs_callbacks(wm_job, proxy_startjob, NULL, NULL, proxy_endjob);
 	}
 
+	file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
 	SEQP_BEGIN (ed, seq)
 	{
 		if ((seq->flag & SELECT)) {
-			context = BKE_sequencer_proxy_rebuild_context(pj->main, pj->scene, seq);
+			context = BKE_sequencer_proxy_rebuild_context(pj->main, pj->scene, seq, file_list);
 			link = BLI_genericNodeN(context);
 			BLI_addtail(&pj->queue, link);
 		}
 	}
 	SEQ_END
 
+	BLI_gset_free(file_list, MEM_freeN);
+	
 	if (!WM_jobs_is_running(wm_job)) {
 		G.is_break = false;
 		WM_jobs_start(CTX_wm_manager(C), wm_job);
@@ -3361,18 +3367,21 @@ static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	Scene *scene = CTX_data_scene(C);
 	Editing *ed = BKE_sequencer_editing_get(scene, false);
 	Sequence *seq;
-
+	GSet *file_list;
+	
 	if (ed == NULL) {
 		return OPERATOR_CANCELLED;
 	}
 
+	file_list = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, "file list");
+	
 	SEQP_BEGIN(ed, seq)
 	{
 		if ((seq->flag & SELECT)) {
 			struct SeqIndexBuildContext *context;
 			short stop = 0, do_update;
 			float progress;
-			context = BKE_sequencer_proxy_rebuild_context(bmain, scene, seq);
+			context = BKE_sequencer_proxy_rebuild_context(bmain, scene, seq, file_list);
 			BKE_sequencer_proxy_rebuild(context, &stop, &do_update, &progress);
 			BKE_sequencer_proxy_rebuild_finish(context, 0);
 			BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
@@ -3380,6 +3389,8 @@ static int sequencer_rebuild_proxy_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 	SEQ_END
 
+	BLI_gset_free(file_list, MEM_freeN);
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -3396,6 +3407,88 @@ void SEQUENCER_OT_rebuild_proxy(wmOperatorType *ot)
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER;
+}
+
+static int sequencer_enable_proxies_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+{
+	return WM_operator_props_dialog_popup(C, op, 10 * UI_UNIT_X, 5 * UI_UNIT_Y);
+}
+
+static int sequencer_enable_proxies_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	Editing *ed = BKE_sequencer_editing_get(scene, false);
+	Sequence *seq;
+	bool proxy_25 = RNA_boolean_get(op->ptr, "proxy_25");
+	bool proxy_50 = RNA_boolean_get(op->ptr, "proxy_50");
+	bool proxy_75 = RNA_boolean_get(op->ptr, "proxy_75");
+	bool proxy_100 = RNA_boolean_get(op->ptr, "proxy_100");
+	bool override = RNA_boolean_get(op->ptr, "override");
+	bool turnon = true;
+
+	if (ed == NULL || !(proxy_25 || proxy_50 || proxy_75 || proxy_100)) {
+		turnon = false;
+	}
+
+	SEQP_BEGIN(ed, seq)
+	{
+		if ((seq->flag & SELECT)) {
+			if (ELEM(seq->type, SEQ_TYPE_MOVIE, SEQ_TYPE_IMAGE, SEQ_TYPE_META, SEQ_TYPE_SCENE, SEQ_TYPE_MULTICAM)) {
+				BKE_sequencer_proxy_set(seq, turnon);
+				
+				if (proxy_25)
+					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_25;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_25;
+				
+				if (proxy_50)
+					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_50;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_50;
+				
+				if (proxy_75)
+					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_75;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_75;
+				
+				if (proxy_100)
+					seq->strip->proxy->build_size_flags |= SEQ_PROXY_IMAGE_SIZE_100;
+				else 
+					seq->strip->proxy->build_size_flags &= ~SEQ_PROXY_IMAGE_SIZE_100;
+				
+				if (!override)
+					seq->strip->proxy->build_flags |= SEQ_PROXY_SKIP_EXISTING;
+				else 
+					seq->strip->proxy->build_flags &= ~SEQ_PROXY_SKIP_EXISTING;
+			}
+		}
+	}
+	SEQ_END
+
+	WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+	
+	return OPERATOR_FINISHED;
+}
+
+void SEQUENCER_OT_enable_proxies(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Set Selected Strip Proxies";
+	ot->idname = "SEQUENCER_OT_enable_proxies";
+	ot->description = "Enable selected proxies on all selected Movie strips";
+	
+	/* api callbacks */
+	ot->invoke = sequencer_enable_proxies_invoke;
+	ot->exec = sequencer_enable_proxies_exec;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER;
+	
+	RNA_def_boolean(ot->srna, "proxy_25", false, "25%", "");
+	RNA_def_boolean(ot->srna, "proxy_50", false, "50%", "");
+	RNA_def_boolean(ot->srna, "proxy_75", false, "75%", "");
+	RNA_def_boolean(ot->srna, "proxy_100", false, "100%", "");
+	RNA_def_boolean(ot->srna, "override", false, "Override", "");
 }
 
 /* change ops */

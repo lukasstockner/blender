@@ -114,6 +114,7 @@ EnumPropertyItem proportional_falloff_items[] = {
 	{PROP_SMOOTH, "SMOOTH", ICON_SMOOTHCURVE, "Smooth", "Smooth falloff"},
 	{PROP_SPHERE, "SPHERE", ICON_SPHERECURVE, "Sphere", "Spherical falloff"},
 	{PROP_ROOT, "ROOT", ICON_ROOTCURVE, "Root", "Root falloff"},
+	{PROP_INVSQUARE, "INVERSE_SQUARE", ICON_ROOTCURVE, "Inverse Square", "Inverse Square falloff"},
 	{PROP_SHARP, "SHARP", ICON_SHARPCURVE, "Sharp", "Sharp falloff"},
 	{PROP_LIN, "LINEAR", ICON_LINCURVE, "Linear", "Linear falloff"},
 	{PROP_CONST, "CONSTANT", ICON_NOCURVE, "Constant", "Constant falloff"},
@@ -3214,7 +3215,7 @@ static void rna_def_scene_game_recast_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "slope_max", PROP_FLOAT, PROP_ANGLE);
 	RNA_def_property_float_sdna(prop, NULL, "agentmaxslope");
-	RNA_def_property_range(prop, 0, M_PI / 2);
+	RNA_def_property_range(prop, 0, M_PI_2);
 	RNA_def_property_ui_text(prop, "Max Slope", "Maximum walkable slope angle");
 	RNA_def_property_update(prop, NC_SCENE, NULL);
 

@@ -414,8 +414,7 @@ void free_hair(Object *UNUSED(ob), ParticleSystem *psys, int dynamics)
 	if (psys->clmd) {
 		if (dynamics) {
 			BKE_ptcache_free_list(&psys->ptcaches);
-			psys->clmd->point_cache = psys->pointcache = NULL;
-			BLI_listbase_clear(&psys->clmd->ptcaches);
+			psys->pointcache = NULL;
 
 			modifier_free((ModifierData *)psys->clmd);
 			
@@ -4059,8 +4058,8 @@ void psys_get_dupli_path_transform(ParticleSimulationData *sim, ParticleData *pa
 		normalize_v3(nor);
 
 		/* make sure that we get a proper side vector */
-		if (fabsf(dot_v3v3(nor, vec)) > 0.999999) {
-			if (fabsf(dot_v3v3(nor, xvec)) > 0.999999) {
+		if (fabsf(dot_v3v3(nor, vec)) > 0.999999f) {
+			if (fabsf(dot_v3v3(nor, xvec)) > 0.999999f) {
 				nor[0] = 0.0f;
 				nor[1] = 1.0f;
 				nor[2] = 0.0f;

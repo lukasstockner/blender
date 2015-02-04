@@ -860,14 +860,14 @@ void BKE_image_memorypack(Image *ima)
 
 void BKE_image_tag_time(Image *ima)
 {
-	ima->lastused = (int)PIL_check_seconds_timer();
+	ima->lastused = PIL_check_seconds_timer_i();
 }
 
 #if 0
 static void tag_all_images_time()
 {
 	Image *ima;
-	int ctime = (int)PIL_check_seconds_timer();
+	int ctime = PIL_check_seconds_timer_i();
 
 	ima = G.main->image.first;
 	while (ima) {
@@ -2600,11 +2600,15 @@ static ImBuf *image_load_movie_file(Image *ima, ImageUser *iuser, int frame)
 
 	if (ima->anim == NULL) {
 		char str[FILE_MAX];
+		int flags = IB_rect;
+		if (ima->flag & IMA_DEINTERLACE) {
+			flags |= IB_animdeinterlace;
+		}
 
 		BKE_image_user_file_path(iuser, ima, str);
 
 		/* FIXME: make several stream accessible in image editor, too*/
-		ima->anim = openanim(str, IB_rect, 0, ima->colorspace_settings.name);
+		ima->anim = openanim(str, flags, 0, ima->colorspace_settings.name);
 
 		/* let's initialize this user */
 		if (ima->anim && iuser && iuser->frames == 0)
