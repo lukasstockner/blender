@@ -2788,7 +2788,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	
 	/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
 	GPU_materials_free();
-	BLO_blendhandle_close(bh);
 
 	/* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
 	BLI_strncpy(G.lib, dir, FILE_MAX);
