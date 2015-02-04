@@ -535,6 +535,98 @@ void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
 	}
 }
 
+/* *************** */
+/* Cycle detection */
+
+static void deg_graph_detect_cycles(Depsgraph *graph)
+{
+	struct StackEntry {
+		OperationDepsNode *node;
+		StackEntry *from;
+		DepsRelation *via_relation;
+	};
+	/* Not is not visited at all during traversal. */
+	const int NODE_NOT_VISITED = 0;
+	/* Node has been visited during traversal and not in current stack. */
+	const int NODE_VISITED = 1;
+	/* Node has been visited during traversal and is in current stack. */
+	const int NODE_IN_STACK = 2;
+
+	std::stack<StackEntry> traversal_stack;
+	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
+	     it_op != graph->operations.end();
+	     ++it_op)
+	{
+		OperationDepsNode *node = *it_op;
+		bool has_inlinks = false;
+		for (OperationDepsNode::Relations::const_iterator it_rel = node->inlinks.begin();
+		     it_rel != node->inlinks.end();
+		     ++it_rel)
+		{
+			DepsRelation *rel = *it_rel;
+			if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+				has_inlinks = true;
+			}
+		}
+		if (has_inlinks == false) {
+			StackEntry entry;
+			entry.node = node;
+			entry.from = NULL;
+			entry.via_relation = NULL;
+			traversal_stack.push(entry);
+			node->done = NODE_IN_STACK;
+		}
+		else {
+			node->done = NODE_NOT_VISITED;
+		}
+	}
+
+	while (!traversal_stack.empty()) {
+		StackEntry &entry = traversal_stack.top();
+		OperationDepsNode *node = entry.node;;
+		bool all_child_traversed = true;
+		for (OperationDepsNode::Relations::const_iterator it_rel = node->outlinks.begin();
+		     it_rel != node->outlinks.end();
+		     ++it_rel)
+		{
+			DepsRelation *rel = *it_rel;
+			if (rel->to->type == DEPSNODE_TYPE_OPERATION) {
+				OperationDepsNode *to = (OperationDepsNode *)rel->to;
+				if (to->done == NODE_IN_STACK) {
+					printf("Dependency cycle detected:\n");
+					printf("  '%s' depends on '%s' through '%s'\n",
+					       to->identifier().c_str(),
+					       node->identifier().c_str(),
+					       rel->name.c_str());
+					StackEntry *current = &entry;
+					while (current->node != to) {
+						BLI_assert(current != NULL);
+						printf("  '%s' depends on '%s' through '%s'\n",
+						       current->node->identifier().c_str(),
+						       current->from->node->identifier().c_str(),
+						       current->via_relation->name.c_str());
+						current = current->from;
+					}
+				}
+				else if (to->done == NODE_NOT_VISITED) {
+					StackEntry new_entry;
+					new_entry.node = to;
+					new_entry.from = &entry;
+					new_entry.via_relation = rel;
+					traversal_stack.push(new_entry);
+					to->done = NODE_IN_STACK;
+					all_child_traversed = false;
+					break;
+				}
+			}
+		}
+		if (all_child_traversed) {
+			node->done = NODE_VISITED;
+			traversal_stack.pop();
+		}
+	}
+}
+
 /* ************************************************* */
 /* Graph Building API's */
 
@@ -574,8 +666,10 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 */
 	//relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
 	relation_builder.build_scene(scene);
-	
-	
+
+	/* Detect and solve cycles. */
+	deg_graph_detect_cycles(graph);
+
 	/* 4) Simplify the graph by removing redundant relations (to optimise traversal later) */
 	// TODO: it would be useful to have an option to disable this in cases where it is causing trouble
 	if (G.debug_value != 799) {
