@@ -371,6 +371,7 @@ DepsRelation::DepsRelation(DepsNode *from,
 	this->to = to;
 	this->type = type;
 	this->name = description;
+	this->flag = 0;
 
 	/* Hook it up to the nodes which use it. */
 	from->outlinks.insert(this);

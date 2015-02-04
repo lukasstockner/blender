@@ -170,7 +170,9 @@ static void calculate_pending_parents(Depsgraph *graph, int layers)
 			     ++it_rel)
 			{
 				DepsRelation *rel = *it_rel;
-				if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+				if (rel->from->type == DEPSNODE_TYPE_OPERATION &&
+				    (rel->flag & DEPSREL_FLAG_CYCLIC) == 0)
+				{
 					OperationDepsNode *from = (OperationDepsNode *)rel->from;
 					if (from->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
 						++node->num_links_pending;
@@ -256,8 +258,10 @@ static void schedule_children(TaskPool *pool,
 		if ((id_child->layers & layers) != 0 &&
 		    (child->flag & DEPSOP_FLAG_NEEDS_UPDATE) != 0)
 		{
-			BLI_assert(child->num_links_pending > 0);
-			atomic_sub_uint32(&child->num_links_pending, 1);
+			if ((rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
+				BLI_assert(child->num_links_pending > 0);
+				atomic_sub_uint32(&child->num_links_pending, 1);
+			}
 
 			if (child->num_links_pending == 0) {
 				BLI_spin_lock(&graph->lock);

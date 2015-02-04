@@ -607,6 +607,8 @@ static void deg_graph_detect_cycles(Depsgraph *graph)
 						       current->via_relation->name.c_str());
 						current = current->from;
 					}
+					/* TODO(sergey): So called roussian rlette cycle solver. */
+					rel->flag |= DEPSREL_FLAG_CYCLIC;
 				}
 				else if (to->done == NODE_NOT_VISITED) {
 					StackEntry new_entry;
