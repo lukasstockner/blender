@@ -3630,8 +3630,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "logic_step_max", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "maxlogicstep");
-	RNA_def_property_ui_range(prop, 1, 5, 1, 1);
-	RNA_def_property_range(prop, 1, 5);
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_range(prop, 1, 50, 1, 1);
 	RNA_def_property_ui_text(prop, "Max Logic Steps",
 	                         "Maximum number of logic frame per game frame if graphics slows down the game, "
 	                         "higher value allows better synchronization with physics");
@@ -3639,8 +3639,8 @@ static void rna_def_scene_game_data(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "physics_step_max", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "maxphystep");
-	RNA_def_property_ui_range(prop, 1, 5, 1, 1);
-	RNA_def_property_range(prop, 1, 5);
+	RNA_def_property_range(prop, 1, 10000);
+	RNA_def_property_ui_range(prop, 1, 50, 1, 1);
 	RNA_def_property_ui_text(prop, "Max Physics Steps",
 	                         "Maximum number of physics step per game frame if graphics slows down the game, "
 	                         "higher value allows physics to keep up with realtime");
@@ -4689,6 +4689,7 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_glsl_update");
 	
 	prop = RNA_def_property(srna, "use_freestyle", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_boolean_sdna(prop, NULL, "mode", R_EDGE_FRS);
 	RNA_def_property_ui_text(prop, "Edge", "Draw stylized strokes using Freestyle");
 	RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_Scene_freestyle_update");
