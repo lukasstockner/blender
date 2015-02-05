@@ -461,7 +461,8 @@ static void deg_graph_flush_node_layers(Depsgraph *graph)
 		     ++it_rel)
 		{
 			DepsRelation *rel = *it_rel;
-			if (rel->from->type == DEPSNODE_TYPE_OPERATION) {
+			if (rel->from->type == DEPSNODE_TYPE_OPERATION &&
+			    (rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
 				++node->num_links_pending;
 			}
 		}
@@ -480,8 +481,10 @@ static void deg_graph_flush_node_layers(Depsgraph *graph)
 				DepsRelation *rel = *it_rel;
 				if (rel->to->type == DEPSNODE_TYPE_OPERATION) {
 					OperationDepsNode *to = (OperationDepsNode *)rel->to;
-					BLI_assert(to->num_links_pending > 0);
-					--to->num_links_pending;
+					if ((rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
+						BLI_assert(to->num_links_pending > 0);
+						--to->num_links_pending;
+					}
 					if (to->num_links_pending == 0) {
 						stack.push(to);
 					}
@@ -674,7 +677,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 
 	/* 4) Simplify the graph by removing redundant relations (to optimise traversal later) */
 	// TODO: it would be useful to have an option to disable this in cases where it is causing trouble
-	if (G.debug_value != 799) {
+	if (G.debug_value == 799) {
 		deg_graph_transitive_reduction(graph);
 	}
 	

@@ -223,7 +223,7 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 {
 	IDDepsNode *id_node = add_id_node(&ob->id);
-	id_node->layers = base->lay;
+	//id_node->layers = base->lay;
 
 	/* standard components */
 	build_object_transform(scene, ob);
