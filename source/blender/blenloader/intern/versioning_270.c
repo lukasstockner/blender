@@ -476,66 +476,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 	
-	if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "float", "bending_damping")) {
-		Object *ob;
-		ModifierData *md;
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Cloth) {
-					ClothModifierData *clmd = (ClothModifierData *)md;
-					clmd->sim_parms->bending_damping = 0.5f;
-				}
-				else if (md->type == eModifierType_ParticleSystem) {
-					ParticleSystemModifierData *pmd = (ParticleSystemModifierData *)md;
-					if (pmd->psys->clmd) {
-						pmd->psys->clmd->sim_parms->bending_damping = 0.5f;
-					}
-				}
-			}
-		}
-	}
-
-	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "float", "clump_noise_size")) {
-		ParticleSettings *part;
-		for (part = main->particle.first; part; part = part->id.next) {
-			part->clump_noise_size = 1.0f;
-		}
-	}
-
-	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "int", "kink_extra_steps")) {
-		ParticleSettings *part;
-		for (part = main->particle.first; part; part = part->id.next) {
-			part->kink_extra_steps = 4;
-		}
-	}
-
-	if (!DNA_struct_elem_find(fd->filesdna, "MTex", "float", "kinkampfac")) {
-		ParticleSettings *part;
-		for (part = main->particle.first; part; part = part->id.next) {
-			int a;
-			for (a = 0; a < MAX_MTEX; a++) {
-				MTex *mtex = part->mtex[a];
-				if (mtex) {
-					mtex->kinkampfac = 1.0f;
-				}
-			}
-		}
-	}
-
-	if (!DNA_struct_elem_find(fd->filesdna, "HookModifierData", "char", "flag")) {
-		Object *ob;
-
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			ModifierData *md;
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Hook) {
-					HookModifierData *hmd = (HookModifierData *)md;
-					hmd->falloff_type = eHook_Falloff_InvSquare;
-				}
-			}
-		}
-	}
-
 	if (!MAIN_VERSION_ATLEAST(main, 273, 3)) {
 		ParticleSettings *part;
 		for (part = main->particle.first; part; part = part->id.next) {
@@ -547,26 +487,61 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 273, 6)) {
-		bScreen *scr;
-		ScrArea *sa;
-		SpaceLink *sl;
-		ARegion *ar;
-
-		for (scr = main->screen.first; scr; scr = scr->id.next) {
-			/* add new regions for filebrowser */
-			for (sa = scr->areabase.first; sa; sa = sa->next) {
-				for (sl = sa->spacedata.first; sl; sl = sl->next) {
-					if (sl->spacetype == SPACE_FILE) {
-						for (ar = sl->regionbase.first; ar; ar = ar->next) {
-							if (ar->regiontype == RGN_TYPE_CHANNELS) {
-								break;
-							}
+		if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "float", "bending_damping")) {
+			Object *ob;
+			ModifierData *md;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Cloth) {
+						ClothModifierData *clmd = (ClothModifierData *)md;
+						clmd->sim_parms->bending_damping = 0.5f;
+					}
+					else if (md->type == eModifierType_ParticleSystem) {
+						ParticleSystemModifierData *pmd = (ParticleSystemModifierData *)md;
+						if (pmd->psys->clmd) {
+							pmd->psys->clmd->sim_parms->bending_damping = 0.5f;
 						}
+					}
+				}
+			}
+		}
 
-						if (ar) {
-							BKE_area_region_free(NULL, ar);
-							BLI_freelinkN(&sl->regionbase, ar);
-						}
+		if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "float", "clump_noise_size")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				part->clump_noise_size = 1.0f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "int", "kink_extra_steps")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				part->kink_extra_steps = 4;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "MTex", "float", "kinkampfac")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				int a;
+				for (a = 0; a < MAX_MTEX; a++) {
+					MTex *mtex = part->mtex[a];
+					if (mtex) {
+						mtex->kinkampfac = 1.0f;
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "HookModifierData", "char", "flag")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Hook) {
+						HookModifierData *hmd = (HookModifierData *)md;
+						hmd->falloff_type = eHook_Falloff_InvSquare;
 					}
 				}
 			}
@@ -587,6 +562,33 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 			FOREACH_NODETREE_END
+		}
+	}
+
+	{
+		bScreen *scr;
+		ScrArea *sa;
+		SpaceLink *sl;
+		ARegion *ar;
+
+		for (scr = main->screen.first; scr; scr = scr->id.next) {
+			/* Remove old deprecated region from filebrowsers */
+			for (sa = scr->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_FILE) {
+						for (ar = sl->regionbase.first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_CHANNELS) {
+								break;
+							}
+						}
+
+						if (ar) {
+							BKE_area_region_free(NULL, ar);
+							BLI_freelinkN(&sl->regionbase, ar);
+						}
+					}
+				}
+			}
 		}
 	}
 }
