@@ -465,6 +465,17 @@ static void updateDepgraph(ModifierData *md, DagForest *forest, struct Scene *UN
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	NormalEditModifierData *smd = (NormalEditModifierData *) md;
+	if (smd->target) {
+		DEG_add_object_relation(node, smd->target, DEG_OB_COMP_GEOMETRY, "NormalEdit Modifier");
+	}
+}
+
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *dm, ModifierApplyFlag UNUSED(flag))
 {
 	normalEditModifier_do((NormalEditModifierData *)md, ob, dm);
@@ -493,6 +504,7 @@ ModifierTypeInfo modifierType_NormalEdit = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */  dependsOnNormals,
 	/* foreachObjectLink */ foreachObjectLink,
