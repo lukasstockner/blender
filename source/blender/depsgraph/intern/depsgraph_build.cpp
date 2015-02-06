@@ -541,6 +541,34 @@ void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
 /* *************** */
 /* Cycle detection */
 
+static void deg_graph_print_cycle_rel(const OperationDepsNode *to, const OperationDepsNode *from, const DepsRelation *rel)
+{
+	string to_owner = "", from_owner = "";
+	
+	/* NOTE: subdata name only matters for bones; all other components currently should just use the ID instead */
+	if (to->owner->type == DEPSNODE_TYPE_BONE) {
+		to_owner = to->owner->owner->name + "." + to->owner->name + ".";
+	}
+	else {
+		to_owner = to->owner->owner->name + ".";
+	}
+	
+	if (from->owner->type == DEPSNODE_TYPE_BONE) {
+		from_owner = from->owner->owner->name + "." + from->owner->name + ".";
+	}
+	else {
+		from_owner = from->owner->owner->name + ".";
+	}
+	
+	
+	printf("  '%s%s' depends on '%s%s' through '%s'\n",
+	       to_owner.c_str(),
+	       to->identifier().c_str(),
+	       from_owner.c_str(),
+	       from->identifier().c_str(),
+	       rel->name.c_str());
+}
+
 static void deg_graph_detect_cycles(Depsgraph *graph)
 {
 	struct StackEntry {
@@ -586,7 +614,7 @@ static void deg_graph_detect_cycles(Depsgraph *graph)
 
 	while (!traversal_stack.empty()) {
 		StackEntry &entry = traversal_stack.top();
-		OperationDepsNode *node = entry.node;;
+		OperationDepsNode *node = entry.node;
 		bool all_child_traversed = true;
 		for (OperationDepsNode::Relations::const_iterator it_rel = node->outlinks.begin();
 		     it_rel != node->outlinks.end();
@@ -597,17 +625,12 @@ static void deg_graph_detect_cycles(Depsgraph *graph)
 				OperationDepsNode *to = (OperationDepsNode *)rel->to;
 				if (to->done == NODE_IN_STACK) {
 					printf("Dependency cycle detected:\n");
-					printf("  '%s' depends on '%s' through '%s'\n",
-					       to->identifier().c_str(),
-					       node->identifier().c_str(),
-					       rel->name.c_str());
+					deg_graph_print_cycle_rel(to, node, rel);
+					
 					StackEntry *current = &entry;
 					while (current->node != to) {
 						BLI_assert(current != NULL);
-						printf("  '%s' depends on '%s' through '%s'\n",
-						       current->node->identifier().c_str(),
-						       current->from->node->identifier().c_str(),
-						       current->via_relation->name.c_str());
+						deg_graph_print_cycle_rel(current->node, current->from->node, current->via_relation);
 						current = current->from;
 					}
 					/* TODO(sergey): So called roussian rlette cycle solver. */
