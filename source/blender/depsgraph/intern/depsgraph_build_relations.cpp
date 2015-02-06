@@ -168,15 +168,18 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 		
 		/* object itself */
 		build_object(scene, ob);
-		
-#if 0
+
 		/* object that this is a proxy for */
-		// XXX: the way that proxies work needs to be completely reviewed!
 		if (ob->proxy) {
 			build_object(scene, ob->proxy);
+			/* TODO(sergey): This is an inverted relation, matches old depsgraph
+			 * behavior and need to be investigated if it still need to be inverted.
+			 */
+			ComponentKey ob_pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
+			ComponentKey proxy_pose_key(&ob->proxy->id, DEPSNODE_TYPE_TRANSFORM);
+			add_relation(ob_pose_key, proxy_pose_key, DEPSREL_TYPE_TRANSFORM, "Proxy");
 		}
-#endif
-		
+
 #if 0
 		/* handled in next loop... 
 		 * NOTE: in most cases, setting dupli-group means that we may want
