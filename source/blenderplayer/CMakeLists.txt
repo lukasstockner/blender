@@ -169,6 +169,7 @@ endif()
 		extern_libmv
 		extern_glog
 		extern_sdlew
+		extern_ptex
 	)
 
 	if(WITH_MOD_CLOTH_ELTOPO)
