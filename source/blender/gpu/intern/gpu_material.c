@@ -280,7 +280,7 @@ bool GPU_lamp_override_visible(GPULamp *lamp, SceneRenderLayer *srl, Material *m
 		return true;
 }
 
-void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double time, int mipmap, float viewmat[4][4], float viewinv[4][4], float camerafactors[4], bool scenelock, // TODO
+void GPU_material_bind(GPUMaterial *material, int oblay, int viewlay, double time, int mipmap, float viewmat[4][4], float viewinv[4][4], float camerafactors[4], bool scenelock,
 					   Object *ob)
 {
 	if (material->pass) {

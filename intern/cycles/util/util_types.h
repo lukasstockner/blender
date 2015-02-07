@@ -460,11 +460,7 @@ ccl_device_inline int4 make_int4(const float3& f)
 
 #endif
 
-// TODO
 typedef uint (*PtexRegions)[4];
-struct PtexRegion {
-	int x, y, width, height;
-};
 
 /* Interpolation types for textures
  * cuda also use texture space to store other objects */

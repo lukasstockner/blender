@@ -255,14 +255,6 @@ void ImageTextureNode::compile(SVMCompiler& compiler)
 						  NODE_ATTR_FLOAT3);
 	}
 
-	if (ptex) {
-		// TODO
-		// int attr = compiler.attribute(ATTR_STD_PTEX_LAYER);
-		// compiler.stack_assign(out);
-		// compiler.add_node(attr_node, attr, out->stack_offset, NODE_ATTR_FLOAT3);
-		// slot = 
-	}
-
 	image_manager = compiler.image_manager;
 	if(is_float == -1) {
 		bool is_float_bool;
@@ -451,16 +443,8 @@ void PtexTextureNode::compile(SVMCompiler& compiler)
 	ShaderInput *vector_in = input("Vector");
 	ShaderOutput *color_out = output("Color");
 	ShaderOutput *alpha_out = output("Alpha");
-	int layer_attr_id = -1;
-	
 
-	{
-		// TODO
-		layer_attr_id = compiler.attribute(ptex_layer);
-		//compiler.stack_assign(layer_in);
-		// compiler.add_node(NODE_ATTR, attr, layer_in->stack_offset,
-		// 				  NODE_ATTR_FLOAT);
-	}
+	const int layer_attr_id = compiler.attribute(ptex_layer);
 
 	{
 		int attr = compiler.attribute(ATTR_STD_PTEX_UV);
@@ -471,21 +455,12 @@ void PtexTextureNode::compile(SVMCompiler& compiler)
 
 	image_manager = compiler.image_manager;
 
-	
-
-	// if(slot != -1 && is_float == -1) {
-	// 	bool is_float_bool;
-	// 	slot = image_manager->add_image(filename, builtin_data,
-	// 	                                animated, 0, is_float_bool, is_linear,
-	// 	                                interpolation, use_alpha);
-	// 	is_float = (int)is_float_bool;
-	// }
-
 	if(!color_out->links.empty())
 		compiler.stack_assign(color_out);
 	if(!alpha_out->links.empty())
 		compiler.stack_assign(alpha_out);
 
+	// TODO
 	if (true)
 	{
 		//if(slot != -1) {

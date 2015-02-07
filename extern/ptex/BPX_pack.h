@@ -7,8 +7,6 @@ extern "C"{
 
 /* BPX is short for Blender Ptex */
 
-/* TODO(nicholasbishop): merge some bits of bl_pack.h */
-
 /* TODO(nicholasbishop): more comments and organization */
 
 typedef struct BPXImageBuf BPXImageBuf;

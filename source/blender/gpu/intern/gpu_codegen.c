@@ -819,9 +819,7 @@ static void gpu_nodes_extract_dynamic_inputs(GPUPass *pass, ListBase *nodes)
 	GPU_shader_unbind();
 }
 
-void GPU_pass_bind(GPUPass *pass, double time, int mipmap,
-				   // TODO
-				   Object *ob)
+void GPU_pass_bind(GPUPass *pass, double time, int mipmap, Object *ob)
 {
 	GPUInput *input;
 	GPUShader *shader = pass->shader;
