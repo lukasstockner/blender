@@ -12,16 +12,6 @@
 
 /* TODO(nicholasbishop): color space stuff */
 
-void imb_init_ptex(void)
-{
-	// TODO
-}
-
-void imb_exit_ptex(void)
-{
-	// TODO
-}
-
 int imb_is_a_ptex(unsigned char *buf)
 {
 	unsigned char magic[4] = "Ptex";

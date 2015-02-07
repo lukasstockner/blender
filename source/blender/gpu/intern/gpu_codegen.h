@@ -179,9 +179,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, struct GPUNodeLink *outlink,
 
 struct GPUShader *GPU_pass_shader(GPUPass *pass);
 
-void GPU_pass_bind(GPUPass *pass, double time, int mipmap,
-				   // TODO
-				   struct Object *ob);
+void GPU_pass_bind(GPUPass *pass, double time, int mipmap, struct Object *ob);
 void GPU_pass_update_uniforms(GPUPass *pass);
 void GPU_pass_unbind(GPUPass *pass);
 
