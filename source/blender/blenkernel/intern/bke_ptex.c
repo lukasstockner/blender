@@ -51,7 +51,7 @@ typedef struct {
 	int v;
 } MPtexRes;
 
-static int ptex_data_type_num_bytes(const PtexDataType data_type)
+static int ptex_data_type_num_bytes(const MPtexDataType data_type)
 {
 	switch (data_type) {
 		case MPTEX_DATA_TYPE_UINT8:
@@ -60,7 +60,7 @@ static int ptex_data_type_num_bytes(const PtexDataType data_type)
 			return 4;
 	}
 
-	BLI_assert(!"Invalid PtexDataType");
+	BLI_assert(!"Invalid MPtexDataType");
 	return 0;
 }
 
@@ -220,7 +220,7 @@ void BKE_loop_ptex_free(MLoopPtex *loop_ptex)
 #ifdef WITH_PTEX
 
 static void ptex_data_from_float(void *dst_v, const float *src,
-								 const PtexDataType data_type,
+								 const MPtexDataType data_type,
 								 const size_t count)
 {
 	int i;
@@ -241,7 +241,7 @@ static void ptex_data_from_float(void *dst_v, const float *src,
 			}
 	}
 
-	BLI_assert(!"Invalid PtexDataType");
+	BLI_assert(!"Invalid MPtexDataType");
 }
 
 static void *bke_ptex_texels_malloc(const MPtexTexelInfo texel_info,
@@ -522,7 +522,7 @@ static void ptex_filter_borders_update(ImBuf *ibuf, const Mesh *me)
 }
 
 static bool bpx_type_desc_to_mptex_data_type(const BPXTypeDesc type_desc,
-											 PtexDataType *data_type)
+											 MPtexDataType *data_type)
 {
 	if (data_type) {
 		switch (type_desc) {
@@ -539,7 +539,7 @@ static bool bpx_type_desc_to_mptex_data_type(const BPXTypeDesc type_desc,
 	return false;
 }
 
-static bool bpx_type_desc_from_mptex_data_type(const PtexDataType data_type,
+static bool bpx_type_desc_from_mptex_data_type(const MPtexDataType data_type,
 											   BPXTypeDesc *type_desc) {
 	if (type_desc) {
 		switch (data_type) {
@@ -681,12 +681,12 @@ Image *BKE_ptex_mesh_image_get(struct Object *ob,
 	return NULL;
 }
 
-PtexDataType BKE_ptex_texel_data_type(const MPtexTexelInfo texel_info)
+MPtexDataType BKE_ptex_texel_data_type(const MPtexTexelInfo texel_info)
 {
 	return texel_info.data_type;
 }
 
-PtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex)
+MPtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex)
 {
 	return loop_ptex->texel_info.data_type;
 }
@@ -802,7 +802,7 @@ bool BKE_ptex_log_res_from_res(MPtexLogRes *logres,
 }
 
 bool BKE_ptex_texel_info_init(MPtexTexelInfo *texel_info,
-							  const PtexDataType data_type,
+							  const MPtexDataType data_type,
 							  const int num_channels)
 {
 	/* TODO(nicholasbishop): for now limit number of channels to
@@ -822,7 +822,7 @@ static bool bke_ptex_texel_info_from_bpx(const BPXImageInput *input,
 {
 	BPXTypeDesc type_desc = BPX_TYPE_DESC_UINT8;
 	int num_channels = 0;
-	PtexDataType data_type = MPTEX_DATA_TYPE_UINT8;
+	MPtexDataType data_type = MPTEX_DATA_TYPE_UINT8;
 
 	if (!input || !texel_info) {
 		return false;

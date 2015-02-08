@@ -49,8 +49,8 @@ size_t BKE_ptex_rect_num_bytes(const MPtexTexelInfo texel_info,
 size_t BKE_ptex_bytes_per_texel(const MPtexTexelInfo texel_info);
 
 /* SDNA uses built-in type, these just convert to enum member */
-PtexDataType BKE_ptex_texel_data_type(const MPtexTexelInfo texel_info);
-PtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex);
+MPtexDataType BKE_ptex_texel_data_type(const MPtexTexelInfo texel_info);
+MPtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex);
 
 void BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes logres);
 
@@ -83,7 +83,7 @@ void BKE_ptex_tess_face_interp(MTessFacePtex *tess_face_ptex,
 bool BKE_ptex_log_res_from_res(MPtexLogRes *logres, const int u, const int v);
 
 bool BKE_ptex_texel_info_init(MPtexTexelInfo *texel_info,
-							  const PtexDataType data_type,
+							  const MPtexDataType data_type,
 							  const int num_channels);
 
 bool BKE_ptex_import(struct Mesh *me, const char filepath[]);

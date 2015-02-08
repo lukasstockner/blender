@@ -280,20 +280,19 @@ typedef struct MVertSkin {
 	int flag;
 } MVertSkin;
 
-// TODO: rename with M prefix
-typedef enum PtexDataType {
+typedef enum MPtexDataType {
 	MPTEX_DATA_TYPE_UINT8   = 0,
 	/* Reserved for compatibility with Ptex file format
 	 * specification */
 	/* MPTEX_DATA_TYPE_UINT16  = 1, */
 	/* MPTEX_DATA_TYPE_FLOAT16 = 2, */
 	MPTEX_DATA_TYPE_FLOAT32 = 3,
-} PtexDataType;
+} MPtexDataType;
 
 typedef struct MPtexTexelInfo {
 	unsigned char num_channels;
 
-	/* enum PtexDataType */
+	/* enum MPtexDataType */
 	unsigned char data_type;
 
 	unsigned char pad[2];
