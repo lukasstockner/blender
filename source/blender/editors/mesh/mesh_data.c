@@ -927,22 +927,31 @@ void MESH_OT_ptex_res_change(wmOperatorType *ot)
 				 PTEX_RES_CHANGE_MODE_HALVE, "Mode", "");
 }
 
-static int mesh_ptex_import_exec(bContext *C, wmOperator *UNUSED(op))
+static int mesh_ptex_import_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	Mesh *me = ob->data;
-	// TODO(nicholasbishop): add file browse, for now just use
-	// hardcoded test path
-	const char *path = "/home/nicholasbishop/blends/nonquad/nonquad.ptx";
+	char path[FILE_MAX];
+
+	RNA_string_get(op->ptr, "filepath", path);
 
 	if (BKE_ptex_import(me, path)) {
 		return OPERATOR_FINISHED;
 	}
 	else {
+		BKE_report(op->reports, RPT_ERROR, "Failed to load Ptex file");
 		return OPERATOR_CANCELLED;
 	}
 
 	return OPERATOR_FINISHED;
+}
+
+static int mesh_ptex_import_invoke(bContext *C, wmOperator *op,
+								   const wmEvent *UNUSED(event)) 
+{ 
+	WM_event_add_fileselect(C, op);
+
+	return OPERATOR_RUNNING_MODAL;
 }
 
 void MESH_OT_ptex_import(wmOperatorType *ot)
@@ -954,10 +963,17 @@ void MESH_OT_ptex_import(wmOperatorType *ot)
 	
 	/* api callbacks */
 	ot->poll = layers_poll;
+	ot->invoke = mesh_ptex_import_invoke;
 	ot->exec = mesh_ptex_import_exec;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	/* TODO(nicholasbishop): lots of options here, not sure what's correct */
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
+								   FILE_SPECIAL, FILE_OPENFILE,
+	                               WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILES,
+								   FILE_DEFAULTDISPLAY);
 }
 
 /* *** CustomData clear functions, we need an operator for each *** */
