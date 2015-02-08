@@ -316,13 +316,92 @@ static void bpx_rect_from_im_ptex_region(BPXRect *dst,
 	dst->yend = src->y + src->height;
 }
 
-static void ptex_adj_edge(int *adj_loop,
+/* Constants */
+enum {
+	BKE_PTEX_NO_ADJ_POLY = -1,
+
+	/* Filtering expects edges to have one or two adjacent polys */
+	BKE_PTEX_MAX_ADJ_POLYS = 2
+};
+
+typedef struct {
+	int polys[BKE_PTEX_MAX_ADJ_POLYS];
+} BKEPtexEdgeAdj;
+
+static BKEPtexEdgeAdj *bke_ptex_edge_adj_alloc(const Mesh *me)
+{
+	BKEPtexEdgeAdj *adj;
+	int edge_index;
+
+	adj = MEM_mallocN(sizeof(*adj) * me->totedge, "BKEPtexEdgeAdj");
+	for (edge_index = 0; edge_index < me->totedge; edge_index++) {
+		int i;
+		for (i = 0; i < BKE_PTEX_MAX_ADJ_POLYS; i++) {
+			adj[edge_index].polys[i] = BKE_PTEX_NO_ADJ_POLY;
+		}
+	}
+
+	return adj;
+}
+
+/* TODO(nicholasbishop): code like this probably already exists
+ * somewhere? */
+static BKEPtexEdgeAdj *bke_ptex_edge_adj_init(const Mesh *me)
+{
+	BKEPtexEdgeAdj *adj;
+	int poly_index;
+
+	adj = bke_ptex_edge_adj_alloc(me);
+	if (!adj) {
+		return NULL;
+	}
+
+	for (poly_index = 0; poly_index < me->totpoly; poly_index++) {
+		const MPoly *p = &me->mpoly[poly_index];
+		int i;
+		for (i = 0; i < p->totloop; i++) {
+			const int li = p->loopstart + i;
+			const MLoop *l = &me->mloop[li];
+			const int ei = l->e;
+			int j;
+
+			BLI_assert(ei >= 0 && ei < me->totedge);
+			for (j = 0; j < BKE_PTEX_MAX_ADJ_POLYS; j++) {
+				if (adj[ei].polys[j] == BKE_PTEX_NO_ADJ_POLY) {
+					adj[ei].polys[j] = poly_index;
+					break;
+				}
+			}
+		}
+	}
+
+	return adj;
+}
+
+static int bke_ptex_edge_adj_other_poly(const BKEPtexEdgeAdj *edge_adj,
+										const int poly_index)
+{
+	if (edge_adj) {
+		int i;
+		for (i = 0; i < BKE_PTEX_MAX_ADJ_POLYS; i++) {
+			if (edge_adj->polys[i] == poly_index) {
+				return edge_adj->polys[BKE_PTEX_MAX_ADJ_POLYS - i - 1];
+			}
+		}
+	}
+	return BKE_PTEX_NO_ADJ_POLY;
+}
+
+static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
+						  int *adj_loop,
 						  BPXEdge *adj_edge,
 						  const Mesh *me,
-						  const MPoly *p1,
+						  const int poly_index1,
 						  const int loop_offset,
 						  const BPXSide loop_side)
 {
+	const MPoly *p1 = &me->mpoly[poly_index1];
+
 	BLI_assert(adj_loop);
 	BLI_assert(adj_edge);
 	BLI_assert(loop_offset >= 0 && loop_offset < p1->totloop);
@@ -344,8 +423,8 @@ static void ptex_adj_edge(int *adj_loop,
 	}
 	else {
 		const MLoop *l1;
+		int poly_index2;
 		int e1_offset;
-		int i;
 
 		if (loop_side == BPX_SIDE_TOP) {
 			e1_offset = loop_offset;
@@ -354,19 +433,18 @@ static void ptex_adj_edge(int *adj_loop,
 			e1_offset = (p1->totloop + loop_offset - 1) % p1->totloop;
 		}
 		l1 = &me->mloop[p1->loopstart + e1_offset];
-		
-		/* TODO(nicholasbishop: use proper lookup here to avoid long
-		 * iteration */
-		for (i = 0; i < me->totpoly; i++) {
-			const MPoly *p2 = &me->mpoly[i];
-			int j;
 
-			if (p1 == p2) {
-				continue;
-			}
-
-			for (j = 0; j < p2->totloop; j++) {
-				const int li2 = p2->loopstart + j;
+		poly_index2 = bke_ptex_edge_adj_other_poly(&adj[l1->e], poly_index1);
+		if (poly_index2 == BKE_PTEX_NO_ADJ_POLY) {
+			/* Reuse self */
+			(*adj_loop) = p1->loopstart + loop_offset;
+			adj_edge->side = loop_side;
+		}
+		else {
+			MPoly *p2 = &me->mpoly[poly_index2];
+			int i;
+			for (i = 0; i < p2->totloop; i++) {
+				const int li2 = p2->loopstart + i;
 				const MLoop *l2 = &me->mloop[li2];
 				if (l1->e == l2->e) {
 					/* TODO(nicholasbishop): probably making an
@@ -376,11 +454,11 @@ static void ptex_adj_edge(int *adj_loop,
 					/* Next loop */
 					
 					if (loop_side == BPX_SIDE_TOP) {
-						(*adj_loop) = p2->loopstart + ((j + 1) % p2->totloop);
+						(*adj_loop) = p2->loopstart + ((i + 1) % p2->totloop);
 						adj_edge->side = BPX_SIDE_RIGHT;
 					}
 					else {
-						(*adj_loop) = p2->loopstart + j;
+						(*adj_loop) = p2->loopstart + i;
 						adj_edge->side = BPX_SIDE_TOP;
 					}
 					return;
@@ -397,7 +475,12 @@ static void ptex_adj_edge(int *adj_loop,
 static void ptex_filter_borders_update(ImBuf *ibuf, const Mesh *me)
 {
 	BPXImageBuf *bpx_buf = IMB_imbuf_as_bpx_image_buf(ibuf);
+	BKEPtexEdgeAdj *adj = bke_ptex_edge_adj_init(me);
 	int i;
+
+	if (!adj) {
+		return;
+	}
 
 	BLI_assert(bpx_buf);
 
@@ -419,7 +502,7 @@ static void ptex_filter_borders_update(ImBuf *ibuf, const Mesh *me)
 			for (k = 0; k < 4; k++) {
 				int adj_loop = -1;
 
-				ptex_adj_edge(&adj_loop, &adj_edge[k], me, p, j, k);
+				ptex_adj_edge(adj, &adj_loop, &adj_edge[k], me, i, j, k);
 				BLI_assert(adj_loop >= 0);
 
 				bpx_rect_from_im_ptex_region(&adj_rect[k],
@@ -434,6 +517,7 @@ static void ptex_filter_borders_update(ImBuf *ibuf, const Mesh *me)
 		}
 	}
 
+	MEM_freeN(adj);
 	BPX_image_buf_free(bpx_buf);
 }
 
