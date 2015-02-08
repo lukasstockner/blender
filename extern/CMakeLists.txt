@@ -95,6 +95,6 @@ if(WITH_SDL AND WITH_SDL_DYNLOAD)
 	add_subdirectory(sdlew)
 endif()
 
-# if(WITH_PTEX)
+if(WITH_PTEX)
 	add_subdirectory(ptex)
-# endif()
+endif()

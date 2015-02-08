@@ -90,12 +90,12 @@ ImFileType IMB_FILE_TYPES[] = {
 	{NULL, NULL, NULL, imb_is_a_photoshop, imb_ftype_default, NULL, imb_load_photoshop, NULL, NULL, IM_FTYPE_FLOAT, PSD, COLOR_ROLE_DEFAULT_FLOAT},
 #endif
 	/* TODO */
-	//#ifdef WITH_PTEX
+#ifdef WITH_PTEX
 	{NULL, NULL, imb_is_a_ptex, imb_is_a_ptex_filepath,
 	 imb_ftype_default, NULL /* load */, imb_load_ptex_filepath,
 	 NULL /* save */, NULL /* load_tile */, IM_FTYPE_FLOAT, IMB_PTEX,
 	 COLOR_ROLE_DEFAULT_BYTE},
-	//#endif
+#endif
 	{NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0}
 };
 

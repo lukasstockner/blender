@@ -17,27 +17,40 @@
  *
  */
 
+#include "MEM_guardedalloc.h"
+
+#include "DNA_image_types.h"
+
+#include "BLI_math_vector.h"
+#include "BLI_utildefines.h"
+
+#include "BKE_image.h"
+#include "BKE_ptex.h"
+
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
+
+#ifdef WITH_PTEX
 #include <string.h>
 
-#include "BLI_utildefines.h"
 
 #include "BKE_customdata.h"
 #include "BKE_DerivedMesh.h"
-#include "BKE_image.h"
 #include "BKE_mesh.h"
-#include "BKE_ptex.h"
 #include "BKE_subsurf.h"
 #include "BLI_math_base.h"
 #include "BLI_math_interp.h"
-#include "BLI_math_vector.h"
-#include "DNA_image_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "GPU_extensions.h"
-#include "IMB_imbuf.h"
-#include "IMB_imbuf_types.h"
-#include "MEM_guardedalloc.h"
 #include "BPX_pack.h"
+#endif
+
+/* Like MPtexLogRes, but actual values instead of log */
+typedef struct {
+	int u;
+	int v;
+} MPtexRes;
 
 static int ptex_data_type_num_bytes(const PtexDataType data_type)
 {
@@ -70,12 +83,6 @@ static size_t ptex_area_from_logres(const MPtexLogRes logres)
 	return ptex_res_from_rlog2(logres.u) * ptex_res_from_rlog2(logres.v);
 }
 
-/* Like MPtexLogRes, but actual values instead of log */
-typedef struct {
-	int u;
-	int v;
-} MPtexRes;
-
 static MPtexRes bke_ptex_res_from_logres(const MPtexLogRes logres)
 {
 	MPtexRes res = {
@@ -84,6 +91,134 @@ static MPtexRes bke_ptex_res_from_logres(const MPtexLogRes logres)
 	};
 	return res;
 }
+
+size_t BKE_ptex_bytes_per_texel(const MPtexTexelInfo texel_info)
+{
+	return (ptex_data_type_num_bytes(texel_info.data_type) *
+			texel_info.num_channels);
+}
+
+size_t BKE_ptex_rect_num_bytes(const MPtexTexelInfo texel_info,
+							   const MPtexLogRes logres)
+{
+	return (BKE_ptex_bytes_per_texel(texel_info) *
+			ptex_area_from_logres(logres));
+}
+
+size_t BKE_loop_ptex_rect_num_bytes(const MLoopPtex *loop_ptex)
+{
+	return BKE_ptex_rect_num_bytes(loop_ptex->texel_info,
+								   loop_ptex->logres);
+}
+
+void BKE_ptex_tess_face_interp(MTessFacePtex *tess_face_ptex,
+							   const MLoopInterp *loop_interp,
+							   const unsigned int *loop_indices,
+							   const int num_loop_indices)
+{
+	int i;
+	BLI_assert(num_loop_indices == 4);
+	for (i = 0; i < 4; i++) {
+		const MLoopInterp *src = &loop_interp[loop_indices[i]];
+
+		if (i == 0) {
+			tess_face_ptex->id = src->id;
+		}
+		else {
+			BLI_assert(tess_face_ptex->id == src->id);
+		}
+
+		copy_v2_v2(tess_face_ptex->uv[i], src->uv);
+	}
+}
+
+void BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
+{
+	int i;
+
+	// TODO
+	Image *image;
+	ImBuf *ibuf;
+
+	if (!loop_ptex) {
+		return;
+	}
+
+	image = loop_ptex->image;
+	if (!image) {
+		return;
+	}
+
+	ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+
+	if (!ibuf) {
+		return;
+	}
+
+	// TODO
+	BLI_assert(ibuf->rect);
+	BLI_assert(ibuf->num_ptex_regions == totloop);
+	BLI_assert(loop_ptex->texel_info.num_channels == 4);
+
+	BLI_assert(ibuf->ptex_regions);
+	for (i = 0; i < totloop; i++) {
+		// TODO
+		MLoopPtex *pt = &loop_ptex[i];
+		const MPtexRes dst_res = bke_ptex_res_from_logres(pt->logres);
+		const size_t bytes_per_texel = BKE_ptex_bytes_per_texel(pt->texel_info);
+		const size_t dst_bytes_per_row = dst_res.u * bytes_per_texel;
+		const size_t src_bytes_per_row = ibuf->x * bytes_per_texel;
+		unsigned char *dst = pt->rect;
+		unsigned char *src = (unsigned char*)ibuf->rect;
+		ImPtexRegion *ptex_regions = &ibuf->ptex_regions[i];
+		int v;
+
+		BLI_assert(dst_res.u == ptex_regions->width);
+		BLI_assert(dst_res.v == ptex_regions->height);
+
+		src += (size_t)(src_bytes_per_row * ptex_regions->y + ptex_regions->x * bytes_per_texel);
+
+		for (v = 0; v < dst_res.v; v++) {
+			memcpy(dst, src, dst_bytes_per_row);
+			dst += dst_bytes_per_row;
+			src += src_bytes_per_row;
+		}
+	}
+
+	BKE_image_release_ibuf(image, ibuf, NULL);
+}
+
+static void *bke_ptex_texels_calloc(const MPtexTexelInfo texel_info,
+									const MPtexLogRes logres)
+{
+	return MEM_callocN(BKE_ptex_rect_num_bytes(texel_info, logres),
+					   "bke_ptex_texels_calloc");
+}
+
+void BKE_loop_ptex_init(MLoopPtex *loop_ptex,
+						const MPtexTexelInfo texel_info,
+						const MPtexLogRes logres)
+{
+	BLI_assert(ptex_rlog2_valid(logres.u));
+	BLI_assert(ptex_rlog2_valid(logres.v));
+	BLI_assert(texel_info.num_channels >= 1 &&
+			   texel_info.num_channels < 255);
+
+	loop_ptex->texel_info = texel_info;
+	loop_ptex->logres = logres;
+
+	loop_ptex->rect = bke_ptex_texels_calloc(texel_info, logres);
+}
+
+void BKE_loop_ptex_free(MLoopPtex *loop_ptex)
+{
+	if (loop_ptex->rect) {
+		MEM_freeN(loop_ptex->rect);
+	}
+	//mesh_ptex_pack_free(loop_ptex->pack);
+}
+
+#ifdef WITH_PTEX
 
 static void ptex_data_from_float(void *dst_v, const float *src,
 								 const PtexDataType data_type,
@@ -110,52 +245,11 @@ static void ptex_data_from_float(void *dst_v, const float *src,
 	BLI_assert(!"Invalid PtexDataType");
 }
 
-size_t BKE_ptex_bytes_per_texel(const MPtexTexelInfo texel_info)
-{
-	return (ptex_data_type_num_bytes(texel_info.data_type) *
-			texel_info.num_channels);
-}
-
-size_t BKE_ptex_rect_num_bytes(const MPtexTexelInfo texel_info,
-							   const MPtexLogRes logres)
-{
-	return (BKE_ptex_bytes_per_texel(texel_info) *
-			ptex_area_from_logres(logres));
-}
-
-size_t BKE_loop_ptex_rect_num_bytes(const MLoopPtex *loop_ptex)
-{
-	return BKE_ptex_rect_num_bytes(loop_ptex->texel_info,
-								   loop_ptex->logres);
-}
-
-static void *bke_ptex_texels_calloc(const MPtexTexelInfo texel_info,
-									const MPtexLogRes logres)
-{
-	return MEM_callocN(BKE_ptex_rect_num_bytes(texel_info, logres),
-					   "bke_ptex_texels_calloc");
-}
-
 static void *bke_ptex_texels_malloc(const MPtexTexelInfo texel_info,
 									const MPtexLogRes logres)
 {
 	return MEM_mallocN(BKE_ptex_rect_num_bytes(texel_info, logres),
 					   "bke_ptex_texels_malloc");
-}
-
-void BKE_loop_ptex_init(MLoopPtex *loop_ptex,
-						const MPtexTexelInfo texel_info,
-						const MPtexLogRes logres)
-{
-	BLI_assert(ptex_rlog2_valid(logres.u));
-	BLI_assert(ptex_rlog2_valid(logres.v));
-	BLI_assert(texel_info.num_channels >= 1 &&
-			   texel_info.num_channels < 255);
-
-	loop_ptex->texel_info = texel_info;
-	loop_ptex->logres = logres;
-
-	loop_ptex->rect = bke_ptex_texels_calloc(texel_info, logres);
 }
 
 /* TODO: for testing, fill initialized loop with some data */
@@ -504,14 +598,6 @@ Image *BKE_ptex_mesh_image_get(struct Object *ob,
 	return NULL;
 }
 
-void BKE_loop_ptex_free(MLoopPtex *loop_ptex)
-{
-	if (loop_ptex->rect) {
-		MEM_freeN(loop_ptex->rect);
-	}
-	//mesh_ptex_pack_free(loop_ptex->pack);
-}
-
 PtexDataType BKE_ptex_texel_data_type(const MPtexTexelInfo texel_info)
 {
 	return texel_info.data_type;
@@ -570,62 +656,6 @@ void BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes dst_logres)
 	}
 }
 
-void BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
-{
-	int i;
-
-	// TODO
-	Image *image;
-	ImBuf *ibuf;
-
-	if (!loop_ptex) {
-		return;
-	}
-
-	image = loop_ptex->image;
-	if (!image) {
-		return;
-	}
-
-	ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
-
-	if (!ibuf) {
-		return;
-	}
-
-	// TODO
-	BLI_assert(ibuf->rect);
-	BLI_assert(ibuf->num_ptex_regions == totloop);
-	BLI_assert(loop_ptex->texel_info.num_channels == 4);
-
-	BLI_assert(ibuf->ptex_regions);
-	for (i = 0; i < totloop; i++) {
-		// TODO
-		MLoopPtex *pt = &loop_ptex[i];
-		const MPtexRes dst_res = bke_ptex_res_from_logres(pt->logres);
-		const size_t bytes_per_texel = BKE_ptex_bytes_per_texel(pt->texel_info);
-		const size_t dst_bytes_per_row = dst_res.u * bytes_per_texel;
-		const size_t src_bytes_per_row = ibuf->x * bytes_per_texel;
-		unsigned char *dst = pt->rect;
-		unsigned char *src = (unsigned char*)ibuf->rect;
-		ImPtexRegion *ptex_regions = &ibuf->ptex_regions[i];
-		int v;
-
-		BLI_assert(dst_res.u == ptex_regions->width);
-		BLI_assert(dst_res.v == ptex_regions->height);
-
-		src += (size_t)(src_bytes_per_row * ptex_regions->y + ptex_regions->x * bytes_per_texel);
-
-		for (v = 0; v < dst_res.v; v++) {
-			memcpy(dst, src, dst_bytes_per_row);
-			dst += dst_bytes_per_row;
-			src += src_bytes_per_row;
-		}
-	}
-
-	BKE_image_release_ibuf(image, ibuf, NULL);
-}
-
 // All TODO
 void BKE_ptex_derived_mesh_inject(struct DerivedMesh *dm)
 {
@@ -668,27 +698,6 @@ struct DerivedMesh *BKE_ptex_derived_mesh_subdivide(struct DerivedMesh *dm)
 		smd.renderLevels = 1;
 
 		return subsurf_make_derived_from_derived(dm, &smd, NULL, flags);
-	}
-}
-
-void BKE_ptex_tess_face_interp(MTessFacePtex *tess_face_ptex,
-							   const MLoopInterp *loop_interp,
-							   const unsigned int *loop_indices,
-							   const int num_loop_indices)
-{
-	int i;
-	BLI_assert(num_loop_indices == 4);
-	for (i = 0; i < 4; i++) {
-		const MLoopInterp *src = &loop_interp[loop_indices[i]];
-
-		if (i == 0) {
-			tess_face_ptex->id = src->id;
-		}
-		else {
-			BLI_assert(tess_face_ptex->id == src->id);
-		}
-
-		copy_v2_v2(tess_face_ptex->uv[i], src->uv);
 	}
 }
 
@@ -942,3 +951,35 @@ bool BKE_ptex_import(Mesh *me, const char *filepath)
 
 	return true;
 }
+#else
+/* Stubs if WITH_PTEX is not defined */
+
+struct DerivedMesh;
+
+void BKE_ptex_derived_mesh_inject(struct DerivedMesh *UNUSED(dm))
+{
+}
+
+struct DerivedMesh *BKE_ptex_derived_mesh_subdivide(struct DerivedMesh *dm)
+{
+	return dm;
+}
+
+struct Image *BKE_ptex_mesh_image_get(struct Object *UNUSED(ob),
+									  const char UNUSED(layer_name[]))
+{
+	return NULL;
+}
+
+// TODO: should return error
+void BKE_loop_ptex_resize(MLoopPtex *UNUSED(loop_ptex),
+						  const MPtexLogRes UNUSED(dst_logres))
+{
+}
+
+bool BKE_ptex_import(struct Mesh *UNUSED(me), const char *UNUSED(filepath))
+{
+	return false;
+}
+
+#endif

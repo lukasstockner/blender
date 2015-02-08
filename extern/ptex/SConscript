@@ -2,7 +2,10 @@ Import ('env')
 
 sources = env.Glob('*.cpp')
 
-incs = '.'
+incs = ['.']
 defs = ''
 
-env.BlenderLib ('extern_ptex', sources, Split(incs), Split(defs), libtype=['extern'], priority=[100] )
+incs += Split(env['BF_OIIO_INC'])
+
+env.BlenderLib ('extern_ptex', sources, Split(incs), Split(defs),
+                libtype=['extern', 'player'], priority=[80, 200] )

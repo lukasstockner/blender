@@ -469,6 +469,10 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
+if(WITH_PTEX)
+	add_definitions(-DWITH_PTEX)
+endif()
+
 ## Warnings as errors, this is too strict!
 #if(MSVC)
 #	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")

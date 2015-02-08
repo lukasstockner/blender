@@ -279,6 +279,7 @@ option(WITH_IMAGE_DDS           "Enable DDS Image Support" ON)
 option(WITH_IMAGE_CINEON        "Enable CINEON and DPX Image Support" ON)
 option(WITH_IMAGE_HDR           "Enable HDR Image Support" ON)
 option(WITH_IMAGE_REDCODE       "Enable RedCode Image Support" ${_init_IMAGE_REDCODE})
+option(WITH_PTEX				"Enable Ptex Support (http://ptex.us)" ON)
 option(WITH_IMAGE_FRAMESERVER   "Enable image FrameServer Support for rendering" ON)
 
 # Audio/Video format support
@@ -2811,6 +2812,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_IMAGE_OPENJPEG)
 	info_cfg_option(WITH_IMAGE_REDCODE)
 	info_cfg_option(WITH_IMAGE_TIFF)
+	info_cfg_option(WITH_PTEX)
 
 	info_cfg_text("Audio:")
 	info_cfg_option(WITH_OPENAL)

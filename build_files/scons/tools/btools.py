@@ -113,7 +113,7 @@ def validate_arguments(args, bc):
             'WITH_BF_SNDFILE', 'BF_SNDFILE', 'BF_SNDFILE_INC', 'BF_SNDFILE_LIB', 'BF_SNDFILE_LIBPATH', 'WITH_BF_STATICSNDFILE', 'BF_SNDFILE_LIB_STATIC',
             'BF_PTHREADS', 'BF_PTHREADS_INC', 'BF_PTHREADS_LIB', 'BF_PTHREADS_LIBPATH',
             'WITH_BF_OPENEXR', 'BF_OPENEXR', 'BF_OPENEXR_INC', 'BF_OPENEXR_LIB', 'BF_OPENEXR_LIBPATH', 'WITH_BF_STATICOPENEXR', 'BF_OPENEXR_LIB_STATIC',
-            'WITH_BF_DDS', 'WITH_BF_CINEON', 'WITH_BF_HDR',
+            'WITH_BF_DDS', 'WITH_BF_CINEON', 'WITH_BF_HDR', 'WITH_BF_PTEX',
             'WITH_BF_FFMPEG', 'BF_FFMPEG_LIB','BF_FFMPEG_EXTRA', 'BF_FFMPEG',  'BF_FFMPEG_INC', 'BF_FFMPEG_DLL',
             'WITH_BF_STATICFFMPEG', 'BF_FFMPEG_LIB_STATIC',
             'WITH_BF_OGG', 'BF_OGG', 'BF_OGG_LIB',
@@ -336,6 +336,8 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_CINEON', 'Support CINEON and DPX image formats if true', True)),
 
         (BoolVariable('WITH_BF_HDR', 'Support HDR image formats if true', True)),
+
+        (BoolVariable('WITH_BF_PTEX', 'Support Ptex files if true', True)),
 
         (BoolVariable('WITH_BF_FRAMESERVER', 'Support export to a frameserver', True)),
 

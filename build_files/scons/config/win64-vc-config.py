@@ -72,6 +72,8 @@ BF_OPENEXR_LIB_STATIC = '${BF_OPENEXR}/lib/libHalf.a ${BF_OPENEXR}/lib/libIlmImf
 
 WITH_BF_DDS = True
 
+WITH_BF_PTEX = True
+
 WITH_BF_JPEG = True
 BF_JPEG = LIBDIR + '/jpeg'
 BF_JPEG_INC = '${BF_JPEG}/include'

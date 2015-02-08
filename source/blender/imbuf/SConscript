@@ -36,7 +36,6 @@ incs = [
     '#/intern/ffmpeg',
     '#/intern/guardedalloc',
     '#/intern/memutil',
-    '#/extern/ptex',
     '../avi',
     '../blenkernel',
     '../blenlib',
@@ -97,5 +96,11 @@ if env['WITH_BF_REDCODE']:
 if env['WITH_BF_QUICKTIME']:
     incs += ' ../quicktime ' + env['BF_QUICKTIME_INC']
     defs.append('WITH_QUICKTIME')
+
+if env['WITH_BF_PTEX']:
+    incs += ' #/extern/ptex'
+    defs.append('WITH_PTEX')
+else:
+    sources.remove(os.path.join('intern', 'imb_ptex.c'))
 
 env.BlenderLib ( libname = 'bf_imbuf', sources = sources, includes = Split(incs), defines = defs, libtype=['core','player'], priority = [185,115] )

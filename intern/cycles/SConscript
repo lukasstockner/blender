@@ -81,9 +81,12 @@ incs.append(env['BF_GLEW_INC'])
 incs.append('#/intern/glew-mx')
 incs.append('#/intern/atomic')
 incs.append('#intern/mikktspace')
-incs.extend('#extern/glew/include #extern/clew/include #extern/cuew/include #intern/mikktspace #extern/ptex'.split())
+if env['WITH_BF_PTEX']:
+    incs.append('#/extern/ptex')
+incs.extend('#extern/glew/include #extern/clew/include #extern/cuew/include #intern/mikktspace'.split())
 
-defs.append('WITH_PTEX')
+if env['WITH_BF_PTEX']:
+    defs.append('WITH_PTEX')
 
 incs.append(cycles['BF_OIIO_INC'])
 incs.append(cycles['BF_BOOST_INC'])

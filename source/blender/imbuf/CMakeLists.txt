@@ -30,7 +30,6 @@ set(INC
 	../blenloader
 	../makesdna
 	../makesrna
-	../../../extern/ptex
 	../../../intern/guardedalloc
 	../../../intern/memutil
 )
@@ -51,7 +50,6 @@ set(SRC
 	intern/filetype.c
 	intern/filter.c
 	intern/imageprocess.c
-	intern/imb_ptex.c
 	intern/indexer.c
 	intern/indexer_dv.c
 	intern/iris.c
@@ -176,6 +174,18 @@ if(WITH_IMAGE_HDR)
 		intern/radiance_hdr.c
 	)
 	add_definitions(-DWITH_HDR)
+endif()
+
+if(WITH_PTEX)
+  	list(APPEND INC
+		../../../extern/ptex
+	)
+
+	list(APPEND SRC
+		intern/imb_ptex.c
+	)
+
+	add_definitions(-DWITH_PTEX)
 endif()
 
 list(APPEND INC

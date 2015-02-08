@@ -353,6 +353,7 @@ void ImageManager::tag_reload_image(const string& filename, void *builtin_data, 
 	}
 }
 
+#ifdef WITH_PTEX
 // TODO
 static PtexRegions ptex_table_reserve(DeviceScene *dscene,
 									  const int texture_slot,
@@ -421,6 +422,16 @@ static BPXImageBuf *ptex_pack_uchar_cb(const struct PtexPackedLayout *layout,
 	return BPX_image_buf_wrap(width, height, 4, BPX_TYPE_DESC_UINT8,
 							  *context.pixels);
 }
+#else
+static PtexRegions ptex_table_reserve(DeviceScene *dscene,
+									  const int texture_slot,
+									  const int texture_width,
+									  const int texture_height,
+									  const int num_ptex_regions)
+{
+	return NULL;
+}
+#endif
 
 bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
 								   DeviceScene *dscene, int slot)
@@ -486,6 +497,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
 	bool cmyk = false;
 
 	if (use_ptex_file) {
+#ifdef WITH_PTEX
 		BPXImageBuf *packed_buf;
 		BPXImageInput *bpx_in = reinterpret_cast<BPXImageInput*>(in);
 		// TODO, subtraction
@@ -500,6 +512,10 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
 
 		BPX_image_buf_free(packed_buf);
 		in = NULL;
+#else
+		delete in;
+		in = NULL;
+#endif
 	} else {
 		pixels = (uchar*)tex_img.resize(width, height, depth);
 	}
@@ -526,6 +542,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
 	else if (!use_ptex_file) {
 		PtexRegions ptex_regions;
 		thread_scoped_lock device_lock(device_mutex);
+
 		ptex_regions = ptex_table_reserve(dscene, slot - 1024, width,
 										  height, num_ptex_regions);
 

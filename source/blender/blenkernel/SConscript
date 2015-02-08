@@ -45,7 +45,6 @@ incs = [
     '#/intern/raskter',
     '#/intern/rigidbody',
     '#/extern/bullet2/src',
-    '#/extern/ptex',
     env['BF_GLEW_INC'],
     '#/intern/ghost',
     '#/intern/glew-mx',
@@ -167,6 +166,10 @@ if env['WITH_BF_INTERNATIONAL']:
 
 if env['WITH_BF_FREESTYLE']:
     defs.append('WITH_FREESTYLE')
+
+if env['WITH_BF_PTEX']:
+    incs += ' #/extern/ptex'
+    defs.append('WITH_PTEX')
 
 if env['OURPLATFORM'] in ('win32-vc', 'win32-mingw', 'linuxcross', 'win64-vc', 'win64-mingw'):
     incs += ' ' + env['BF_PTHREADS_INC']

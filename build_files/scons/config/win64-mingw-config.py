@@ -54,6 +54,8 @@ BF_OPENEXR_LIBPATH = '${BF_OPENEXR}/lib'
 
 WITH_BF_DDS = True
 
+WITH_BF_PTEX = True
+
 WITH_BF_JPEG = True
 BF_JPEG = LIBDIR + '/jpeg'
 BF_JPEG_INC = '${BF_JPEG}/include'
