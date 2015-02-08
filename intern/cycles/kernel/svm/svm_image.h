@@ -404,7 +404,7 @@ ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *sta
 		assert(co.y >= 0 && co.y <= 1);
 
 		// TODO: test hacks for Ptex
-		uint face_id = (uint)(co[2] + 0.5f);
+		uint face_id = (uint)(co.z + 0.5f);
 		uint offset = kernel_tex_fetch(__ptex_table, id - /* TODO */ 1024);
 		float2 tex_size =
 			make_float2((float)kernel_tex_fetch(__ptex_table, offset + 0),
