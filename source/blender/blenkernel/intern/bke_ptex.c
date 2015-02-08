@@ -34,6 +34,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 
+#include "BLI_path_util.h"
 #include "BLI_math_base.h"
 #include "BLI_math_interp.h"
 
@@ -997,10 +998,9 @@ bool BKE_ptex_import(Mesh *me, const char *filepath)
 		return false;
 	}
 
-	// Layer name TODO
 	loop_ptex = CustomData_add_layer_named(&me->ldata, CD_LOOP_PTEX,
 										   CD_CALLOC, NULL, me->totloop,
-										   "<TODO>");
+										   BLI_path_basename(filepath));
 
 	if (!loop_ptex) {
 		BPX_image_input_free(input);
