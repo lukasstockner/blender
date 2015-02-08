@@ -37,4 +37,11 @@ set(SRC
 	bpx_c_api.cpp
 )
 
+if(WITH_OPENIMAGEIO)
+	list(APPEND INC_SYS
+		${OPENIMAGEIO_INCLUDE_DIRS}
+	)
+	add_definitions(-DWITH_OPENIMAGEIO)
+endif()
+
 blender_add_lib(extern_ptex "${SRC}" "${INC}" "${INC_SYS}")
