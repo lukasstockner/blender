@@ -1,5 +1,5 @@
-#ifndef __PTEX_PACKED_LAYOUT_H__
-#define __PTEX_PACKED_LAYOUT_H__
+#ifndef __BPX_PACKED_LAYOUT_H__
+#define __BPX_PACKED_LAYOUT_H__
 
 #include <algorithm>
 #include <cassert>
@@ -15,7 +15,7 @@
 //
 // TODO(nicholasbishop): not sure if it's worth aiming for
 // power-of-two output texture?
-struct PtexPackedLayout {
+struct BPXPackedLayout {
 	struct Item {
 		Item(const int u_res, const int v_res)
 			: u_res(u_res), v_res(v_res), id(-1), x(-1), y(-1)
@@ -31,7 +31,7 @@ struct PtexPackedLayout {
 
 	typedef std::vector<Item> Items;
 
-	PtexPackedLayout(const int count)
+	BPXPackedLayout(const int count)
 		: width(0), height(0), u_max_res(0), v_max_res(0)
 	{
 		items.reserve(count);

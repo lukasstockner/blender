@@ -8,7 +8,7 @@
 #include "BLI_string.h"
 #include "MEM_guardedalloc.h"
 
-#include "BPX_pack.h"
+#include "BPX_ptex.h"
 
 /* TODO(nicholasbishop): color space stuff */
 
@@ -23,10 +23,10 @@ int imb_is_a_ptex_filepath(const char *name)
 	return BLI_str_endswith(name, ".ptx");
 }
 
-ImBuf *IMB_alloc_from_ptex_layout(const struct PtexPackedLayout *layout)
+ImBuf *IMB_alloc_from_ptex_layout(const struct BPXPackedLayout *layout)
 {
-	ImBuf *ibuf = IMB_allocImBuf(ptex_packed_layout_width(layout),
-								 ptex_packed_layout_height(layout),
+	ImBuf *ibuf = IMB_allocImBuf(BPX_packed_layout_width(layout),
+								 BPX_packed_layout_height(layout),
 								 /* TODO? */
 								 32,
 								 /* TODO */
@@ -42,7 +42,7 @@ ImBuf *IMB_alloc_from_ptex_layout(const struct PtexPackedLayout *layout)
 
 		for (i = 0; i < ibuf->num_ptex_regions; i++) {
 			ImPtexRegion *dst_region = &ibuf->ptex_regions[i];
-			if (!ptex_packed_layout_item(layout, i, &dst_region->x,
+			if (!BPX_packed_layout_item(layout, i, &dst_region->x,
 										 &dst_region->y, &dst_region->width,
 										 &dst_region->height))
 			{
@@ -56,7 +56,7 @@ ImBuf *IMB_alloc_from_ptex_layout(const struct PtexPackedLayout *layout)
 	return ibuf;
 }
 
-static BPXImageBuf *imb_alloc_from_ptex_layout_cb(const struct PtexPackedLayout *layout,
+static BPXImageBuf *imb_alloc_from_ptex_layout_cb(const struct BPXPackedLayout *layout,
 												  void *vcontext)
 {
 	ImBuf **ibuf = vcontext;

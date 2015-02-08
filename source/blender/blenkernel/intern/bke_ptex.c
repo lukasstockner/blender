@@ -42,7 +42,7 @@
 #include "BKE_mesh.h"
 #include "BKE_subsurf.h"
 
-#include "BPX_pack.h"
+#include "BPX_ptex.h"
 #endif
 
 /* Like MPtexLogRes, but actual values instead of log */
@@ -495,7 +495,7 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
 {
 	BPXImageBuf *bpx_dst;
 	const int num_loops = me->totloop;
-	struct PtexPackedLayout *layout = NULL;
+	struct BPXPackedLayout *layout = NULL;
 	struct ImBuf *ibuf;
 	MPtexTexelInfo texel_info;
 	BPXTypeDesc type_desc;
@@ -511,19 +511,19 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
 	}
 
 	/* Create layout */
-	layout = ptex_packed_layout_new(num_loops);
+	layout = BPX_packed_layout_new(num_loops);
 	for (i = 0; i < num_loops; i++) {
-		ptex_packed_layout_add(layout,
-							   ptex_res_from_rlog2(loop_ptex[i].logres.u),
-							   ptex_res_from_rlog2(loop_ptex[i].logres.v),
-							   i);
+		BPX_packed_layout_add(layout,
+							  ptex_res_from_rlog2(loop_ptex[i].logres.u),
+							  ptex_res_from_rlog2(loop_ptex[i].logres.v),
+							  i);
 	}
-	ptex_packed_layout_finalize(layout);
+	BPX_packed_layout_finalize(layout);
 
 	/* Create ImBuf destination, this will get the region info too so
 	 * the layout can then be deleted */
 	ibuf = IMB_alloc_from_ptex_layout(layout);
-	ptex_packed_layout_delete(layout);
+	BPX_packed_layout_delete(layout);
 	if (!ibuf) {
 		return false;
 	}
@@ -532,7 +532,7 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
 	bpx_dst = IMB_imbuf_as_bpx_image_buf(ibuf);
 	if (!bpx_dst) {
 		IMB_freeImBuf(ibuf);
-		ptex_packed_layout_delete(layout);
+		BPX_packed_layout_delete(layout);
 		return false;
 	}
 

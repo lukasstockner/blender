@@ -391,12 +391,12 @@ struct PtexPackUcharContext {
 	int slot;
 };
 
-static BPXImageBuf *ptex_pack_uchar_cb(const struct PtexPackedLayout *layout,
+static BPXImageBuf *ptex_pack_uchar_cb(const struct BPXPackedLayout *layout,
 									   void *c)
 {
 	PtexPackUcharContext &context = *static_cast<PtexPackUcharContext*>(c);
-	const int width = ptex_packed_layout_width(layout);
-	const int height = ptex_packed_layout_height(layout);
+	const int width = BPX_packed_layout_width(layout);
+	const int height = BPX_packed_layout_height(layout);
 	const int depth = 1;
 	(*context.pixels) = (uchar*)context.tex_img.resize(width, height, depth);
 
@@ -407,7 +407,7 @@ static BPXImageBuf *ptex_pack_uchar_cb(const struct PtexPackedLayout *layout,
 
 	for (int i = 0; i < num_regions; i++) {
 		int x, y, w, h;
-		if (ptex_packed_layout_item(layout, i, &x, &y, &w, &h)) {
+		if (BPX_packed_layout_item(layout, i, &x, &y, &w, &h)) {
 			regions[i][0] = x;
 			regions[i][1] = y;
 			regions[i][2] = w;

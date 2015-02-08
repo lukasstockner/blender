@@ -1,5 +1,5 @@
-#ifndef __BPX_PACK_H__
-#define __BPX_PACK_H__
+#ifndef __BPX_PTEX_H__
+#define __BPX_PTEX_H__
 
 #ifdef __cplusplus
 extern "C"{
@@ -120,27 +120,26 @@ bool TODO_test_write(BPXImageBuf *bpx_buf, const char *path);
 
 bool BPX_image_buf_transform(BPXImageBuf *bpx_buf);
 
-int BPX_packed_layout_num_regions(const struct PtexPackedLayout *layout);
+int BPX_packed_layout_num_regions(const struct BPXPackedLayout *layout);
 
 typedef BPXImageBuf* (*BPXImageBufFromLayout)
-	(const struct PtexPackedLayout *layout, void *context);
+	(const struct BPXPackedLayout *layout, void *context);
 
 BPXImageBuf *BPX_image_buf_ptex_pack(BPXImageInput *bpx_src,
 									 BPXImageBufFromLayout dst_create_func,
 									 void *dst_create_context);
 
-// TODO: naming
-struct PtexPackedLayout;
-struct PtexPackedLayout *ptex_packed_layout_new(int count);
-void ptex_packed_layout_add(struct PtexPackedLayout *layout,
-							int u_res, int v_res, int id);
-void ptex_packed_layout_finalize(struct PtexPackedLayout *layout);
-int ptex_packed_layout_width(const struct PtexPackedLayout *layout);
-int ptex_packed_layout_height(const struct PtexPackedLayout *layout);
-bool ptex_packed_layout_item(const struct PtexPackedLayout *layout,
-							 int id, int *x, int *y,
-							 int *width, int *height);
-void ptex_packed_layout_delete(struct PtexPackedLayout *layout);
+struct BPXPackedLayout;
+struct BPXPackedLayout *BPX_packed_layout_new(int count);
+void BPX_packed_layout_add(struct BPXPackedLayout *layout,
+						   int u_res, int v_res, int id);
+void BPX_packed_layout_finalize(struct BPXPackedLayout *layout);
+int BPX_packed_layout_width(const struct BPXPackedLayout *layout);
+int BPX_packed_layout_height(const struct BPXPackedLayout *layout);
+bool BPX_packed_layout_item(const struct BPXPackedLayout *layout,
+							int id, int *x, int *y,
+							int *width, int *height);
+void BPX_packed_layout_delete(struct BPXPackedLayout *layout);
 
 #ifdef __cplusplus
 }  /* extern "C" */

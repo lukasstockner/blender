@@ -552,7 +552,7 @@ const char *IMB_ffmpeg_last_error(void);
 /* ptex */
 
 struct BPXImageBuf;
-struct PtexPackedLayout;
+struct BPXPackedLayout;
 
 /* Create a new BPXImageBuf that wraps an ImBuf
  *
@@ -565,8 +565,8 @@ struct PtexPackedLayout;
  * needed. */
 struct BPXImageBuf *IMB_imbuf_as_bpx_image_buf(struct ImBuf *ibuf);
 
-/* Create an ImBuf from a finalized PtexPackedLayout */
-struct ImBuf *IMB_alloc_from_ptex_layout(const struct PtexPackedLayout *layout);
+/* Create an ImBuf from a finalized BPXPackedLayout */
+struct ImBuf *IMB_alloc_from_ptex_layout(const struct BPXPackedLayout *layout);
 
 #endif
 

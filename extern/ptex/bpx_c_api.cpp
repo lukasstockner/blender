@@ -3,8 +3,8 @@
 #include <OpenImageIO/imagebuf.h>
 #include <OpenImageIO/imagebufalgo.h>
 
-#include "BPX_pack.h"
-#include "ptex_packed_layout.h"
+#include "BPX_packed_layout.h"
+#include "BPX_ptex.h"
 
 OIIO_NAMESPACE_USING
 
@@ -792,7 +792,7 @@ static bool bpx_ptex_file_mesh_edges(BPXMeshEdges &edges,
 	return true;
 }
 
-static BPXRect bpx_rect_from_layout_item(const PtexPackedLayout::Item &item)
+static BPXRect bpx_rect_from_layout_item(const BPXPackedLayout::Item &item)
 {
 	BPXRect rect;
 	rect.xbegin = item.x;
@@ -970,14 +970,14 @@ static bool bpx_ptex_mesh_init(BPXPtexMesh &mesh, ImageInput &src)
 
 static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 													 ImageInput &src,
-													 PtexPackedLayout &layout)
+													 BPXPackedLayout &layout)
 {
 	BPXPtexMesh mesh;
 	if (!bpx_ptex_mesh_init(mesh, src)) {
 		return false;
 	}
 
-	const PtexPackedLayout::Items &items = layout.get_items();
+	const BPXPackedLayout::Items &items = layout.get_items();
 
 	int cur_layout_item = 0;
 	for (int face_index = 0; face_index < mesh.num_faces; face_index++) {
@@ -986,7 +986,7 @@ static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 				return false;
 			}
 
-			const PtexPackedLayout::Item &item = items[cur_layout_item];
+			const BPXPackedLayout::Item &item = items[cur_layout_item];
 			const BPXRect dst_rect = bpx_rect_from_layout_item(item);
 
 			// TODO
@@ -1005,7 +1005,7 @@ static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 				{
 					return false;
 				}
-				const PtexPackedLayout::Item &adj_item = items[adj_layout_item];
+				const BPXPackedLayout::Item &adj_item = items[adj_layout_item];
 				adj_rect[side] = bpx_rect_from_layout_item(adj_item);
 			}
 
@@ -1067,12 +1067,12 @@ static bool bpx_ptex_face_vector(BPXPtexFaceSpecVec &vec, ImageInput &src)
 	return true;
 }
 
-int BPX_packed_layout_num_regions(const PtexPackedLayout *layout)
+int BPX_packed_layout_num_regions(const BPXPackedLayout *layout)
 {
 	return layout->get_items().size();
 }
 
-static bool bpx_image_buf_ptex_layout(PtexPackedLayout &layout, ImageInput &in,
+static bool bpx_image_buf_ptex_layout(BPXPackedLayout &layout, ImageInput &in,
 									  const BPXPtexFaceSpecVec &face_specs)
 {
 	ImageSpec spec = in.spec();
@@ -1084,11 +1084,11 @@ static bool bpx_image_buf_ptex_layout(PtexPackedLayout &layout, ImageInput &in,
 
 		const BPXPtexFaceSpec &pfs = face_specs.at(subimage);
 		if (pfs.subface) {
-			layout.add_item(PtexPackedLayout::Item(pfs.w, pfs.h));
+			layout.add_item(BPXPackedLayout::Item(pfs.w, pfs.h));
 		}
 		else {
 			for (int i = 0; i < QUAD_NUM_SIDES; i++) {
-				layout.add_item(PtexPackedLayout::Item(pfs.qw[i], pfs.qh[i]));
+				layout.add_item(BPXPackedLayout::Item(pfs.qw[i], pfs.qh[i]));
 			}
 		}
 
@@ -1105,7 +1105,7 @@ static bool bpx_image_buf_ptex_layout(PtexPackedLayout &layout, ImageInput &in,
 }
 
 static bool bpx_image_buf_fill_from_layout(ImageBuf &all_dst,
-										   const PtexPackedLayout &layout,
+										   const BPXPackedLayout &layout,
 										   const BPXPtexFaceSpecVec &face_specs,
 										   ImageInput &src)
 {
@@ -1124,7 +1124,7 @@ static bool bpx_image_buf_fill_from_layout(ImageBuf &all_dst,
 		src.read_image(src.spec().format, tmp.localpixels());
 
 		if (pfs.subface) {
-			const PtexPackedLayout::Item &item =
+			const BPXPackedLayout::Item &item =
 				layout.get_items().at(face_id);
 			const int xbegin = item.x;
 			const int ybegin = item.y;
@@ -1148,7 +1148,7 @@ static bool bpx_image_buf_fill_from_layout(ImageBuf &all_dst,
 			ROI dst_roi[QUAD_NUM_SIDES];
 			
 			for (int i = 0; i < QUAD_NUM_SIDES; i++) {
-				const PtexPackedLayout::Item &item =
+				const BPXPackedLayout::Item &item =
 					layout.get_items().at(face_id);
 				ImageSpec spec2 = spec;
 				spec2.width = pfs.qw[i];
@@ -1188,7 +1188,7 @@ BPXImageBuf *BPX_image_buf_ptex_pack(BPXImageInput *bpx_src,
 		return NULL;
 	}
 
-	PtexPackedLayout layout(face_specs.size());
+	BPXPackedLayout layout(face_specs.size());
 	if (!bpx_image_buf_ptex_layout(layout, in, face_specs)) {
 		return NULL;
 	}
@@ -1210,39 +1210,39 @@ BPXImageBuf *BPX_image_buf_ptex_pack(BPXImageInput *bpx_src,
 	return bpx_dst;
 }
 
-PtexPackedLayout *ptex_packed_layout_new(const int count)
+BPXPackedLayout *BPX_packed_layout_new(const int count)
 {
-	return new PtexPackedLayout(count);
+	return new BPXPackedLayout(count);
 }
 
-void ptex_packed_layout_add(PtexPackedLayout * const layout,
+void BPX_packed_layout_add(BPXPackedLayout * const layout,
 							const int u_res, const int v_res,
 							const int id)
 {
-	layout->add_item(PtexPackedLayout::Item(u_res, v_res));
+	layout->add_item(BPXPackedLayout::Item(u_res, v_res));
 }
 
-void ptex_packed_layout_finalize(PtexPackedLayout * const layout)
+void BPX_packed_layout_finalize(BPXPackedLayout * const layout)
 {
 	layout->finalize();
 }
 
-int ptex_packed_layout_width(const PtexPackedLayout * const layout)
+int BPX_packed_layout_width(const BPXPackedLayout * const layout)
 {
 	return layout->get_width();
 }
 
-int ptex_packed_layout_height(const PtexPackedLayout * const layout)
+int BPX_packed_layout_height(const BPXPackedLayout * const layout)
 {
 	return layout->get_height();
 }
 
-bool ptex_packed_layout_item(const PtexPackedLayout * const layout,
+bool BPX_packed_layout_item(const BPXPackedLayout * const layout,
 							 const int item_id, int *x, int *y,
 							 int *width, int *height)
 {
 	if (layout && x && y && width && height) {
-		const PtexPackedLayout::Items &items = layout->get_items();
+		const BPXPackedLayout::Items &items = layout->get_items();
 		if (item_id >= 0 && item_id < items.size()) {
 			(*x) = items[item_id].x;
 			(*y) = items[item_id].y;
@@ -1254,7 +1254,7 @@ bool ptex_packed_layout_item(const PtexPackedLayout * const layout,
 	return false;
 }
 
-void ptex_packed_layout_delete(PtexPackedLayout *layout)
+void BPX_packed_layout_delete(BPXPackedLayout *layout)
 {
 	delete layout;
 }

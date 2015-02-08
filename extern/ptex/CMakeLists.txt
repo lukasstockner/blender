@@ -31,7 +31,9 @@ set(INC_SYS
 )
 
 set(SRC
-	BPX_pack.h
+	BPX_ptex.h
+	BPX_packed_layout.h
+
 	bpx_c_api.cpp
 )
 
