@@ -802,9 +802,7 @@ struct DerivedMesh *BKE_ptex_derived_mesh_subdivide(struct DerivedMesh *dm)
 	}
 	else {
 		SubsurfModifierData smd = {{NULL}};
-
-		// TODO
-		SubsurfFlags flags = SUBSURF_IS_FINAL_CALC;
+		SubsurfFlags flags = 0;
 		smd.subdivType = ME_SIMPLE_SUBSURF;
 		smd.levels = 1;
 		smd.renderLevels = 1;
