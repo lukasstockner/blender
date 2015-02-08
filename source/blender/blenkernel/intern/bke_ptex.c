@@ -187,37 +187,12 @@ void BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 	BKE_image_release_ibuf(image, ibuf, NULL);
 }
 
-static void *bke_ptex_texels_calloc(const MPtexTexelInfo texel_info,
+static void *bke_ptex_texels_malloc(const MPtexTexelInfo texel_info,
 									const MPtexLogRes logres)
 {
-	return MEM_callocN(BKE_ptex_rect_num_bytes(texel_info, logres),
-					   "bke_ptex_texels_calloc");
+	return MEM_mallocN(BKE_ptex_rect_num_bytes(texel_info, logres),
+					   "bke_ptex_texels_malloc");
 }
-
-void BKE_loop_ptex_init(MLoopPtex *loop_ptex,
-						const MPtexTexelInfo texel_info,
-						const MPtexLogRes logres)
-{
-	BLI_assert(ptex_rlog2_valid(logres.u));
-	BLI_assert(ptex_rlog2_valid(logres.v));
-	BLI_assert(texel_info.num_channels >= 1 &&
-			   texel_info.num_channels < 255);
-
-	loop_ptex->texel_info = texel_info;
-	loop_ptex->logres = logres;
-
-	loop_ptex->rect = bke_ptex_texels_calloc(texel_info, logres);
-}
-
-void BKE_loop_ptex_free(MLoopPtex *loop_ptex)
-{
-	if (loop_ptex->rect) {
-		MEM_freeN(loop_ptex->rect);
-	}
-	//mesh_ptex_pack_free(loop_ptex->pack);
-}
-
-#ifdef WITH_PTEX
 
 static void ptex_data_from_float(void *dst_v, const float *src,
 								 const MPtexDataType data_type,
@@ -244,12 +219,66 @@ static void ptex_data_from_float(void *dst_v, const float *src,
 	BLI_assert(!"Invalid MPtexDataType");
 }
 
-static void *bke_ptex_texels_malloc(const MPtexTexelInfo texel_info,
-									const MPtexLogRes logres)
+/* Fill entire rect with same pixel
+ *
+ * fpixel must contain as many elements as the number of channels in
+ * loop_ptex. If loop_ptex's data type is not float, the input pixel
+ * will be converted to the correct type.
+ *
+ * Return true on success, false otherwise. */
+static bool bke_loop_ptex_fill(MLoopPtex *lp, const float *fpixel)
 {
-	return MEM_mallocN(BKE_ptex_rect_num_bytes(texel_info, logres),
-					   "bke_ptex_texels_malloc");
+	const int bytes_per_texel = BKE_ptex_bytes_per_texel(lp->texel_info);
+	const size_t area = ptex_area_from_logres(lp->logres);
+	char *dst = lp->rect;
+	int i;
+
+	if (!dst || area < 1) {
+		return false;
+	}
+
+	/* Copy fpixel into the first texel, converting input if
+	 * necessary */
+	ptex_data_from_float(lp->rect, fpixel, lp->texel_info.data_type,
+						 lp->texel_info.num_channels);
+
+	/* Copy first pixel to the rest */
+	for (i = 1; i < area; i++) {
+		dst += bytes_per_texel;
+		memcpy(dst, lp->rect, bytes_per_texel);
+	}
+
+	return true;
 }
+
+void BKE_loop_ptex_init(MLoopPtex *loop_ptex,
+						const MPtexTexelInfo texel_info,
+						const MPtexLogRes logres)
+{
+	BLI_assert(ptex_rlog2_valid(logres.u));
+	BLI_assert(ptex_rlog2_valid(logres.v));
+	BLI_assert(texel_info.num_channels >= 1 &&
+			   texel_info.num_channels <= 4);
+
+	loop_ptex->texel_info = texel_info;
+	loop_ptex->logres = logres;
+
+	loop_ptex->rect = bke_ptex_texels_malloc(texel_info, logres);
+	{
+		const float default_pixel[4] = {0.8, 0.8, 0.8, 1};
+		bke_loop_ptex_fill(loop_ptex, default_pixel);
+	}
+}
+
+void BKE_loop_ptex_free(MLoopPtex *loop_ptex)
+{
+	if (loop_ptex->rect) {
+		MEM_freeN(loop_ptex->rect);
+	}
+	//mesh_ptex_pack_free(loop_ptex->pack);
+}
+
+#ifdef WITH_PTEX
 
 /* TODO: for testing, fill initialized loop with some data */
 void BKE_loop_ptex_pattern_fill(MLoopPtex *lp, const int index)
