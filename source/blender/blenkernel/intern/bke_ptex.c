@@ -31,18 +31,17 @@
 #include "IMB_imbuf_types.h"
 
 #ifdef WITH_PTEX
-#include <string.h>
+#include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
 
+#include "BLI_math_base.h"
+#include "BLI_math_interp.h"
 
 #include "BKE_customdata.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh.h"
 #include "BKE_subsurf.h"
-#include "BLI_math_base.h"
-#include "BLI_math_interp.h"
-#include "DNA_mesh_types.h"
-#include "DNA_modifier_types.h"
-#include "GPU_extensions.h"
+
 #include "BPX_pack.h"
 #endif
 
