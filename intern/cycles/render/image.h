@@ -29,11 +29,11 @@
 CCL_NAMESPACE_BEGIN
 
 /* generic */
-#define TEX_NUM_IMAGES			94
+#define TEX_NUM_IMAGES			93
 #define TEX_IMAGE_BYTE_START	TEX_NUM_FLOAT_IMAGES
 
 /* extended gpu */
-#define TEX_EXTENDED_NUM_IMAGES_GPU		145
+#define TEX_EXTENDED_NUM_IMAGES_GPU		144
 
 /* extended cpu */
 #define TEX_EXTENDED_NUM_FLOAT_IMAGES	1024
