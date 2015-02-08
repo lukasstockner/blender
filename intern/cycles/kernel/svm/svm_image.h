@@ -400,8 +400,8 @@ ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *sta
 		f = make_float4(1.0f, 0.0f, 1.0f, 1.0f);
 	}
 	else if (srgb & 2) {
-		assert(co.x >= 0 && co.x <= 1);
-		assert(co.y >= 0 && co.y <= 1);
+		kernel_assert(co.x >= 0 && co.x <= 1);
+		kernel_assert(co.y >= 0 && co.y <= 1);
 
 		// TODO: test hacks for Ptex
 		uint face_id = (uint)(co.z + 0.5f);
