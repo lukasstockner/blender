@@ -229,6 +229,7 @@ KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_146)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_147)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_148)
 KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_149)
+KERNEL_IMAGE_TEX(uchar4, texture_image_uchar4, __tex_image_150)
 
 /* packed image (opencl) */
 KERNEL_TEX(uchar4, texture_uchar4, __tex_image_packed)
