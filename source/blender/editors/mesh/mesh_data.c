@@ -956,6 +956,8 @@ static int mesh_ptex_import_invoke(bContext *C, wmOperator *op,
 
 void MESH_OT_ptex_import(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "Import Ptex";
 	ot->description = "Import Ptex layer";
@@ -970,10 +972,13 @@ void MESH_OT_ptex_import(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
 	/* TODO(nicholasbishop): lots of options here, not sure what's correct */
-	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE,
-								   FILE_SPECIAL, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER, FILE_SPECIAL,
+								   FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILES,
 								   FILE_DEFAULTDISPLAY);
+
+	prop = RNA_def_string(ot->srna, "filter_glob", "*.ptx", 0, "Filter glob", "");
+	RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /* *** CustomData clear functions, we need an operator for each *** */
