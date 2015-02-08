@@ -129,7 +129,7 @@ if(WITH_CYCLES_STANDALONE_GUI)
 	add_definitions(-DWITH_CYCLES_STANDALONE_GUI)
 endif()
 
-if(WITH_CYCLES_PTEX)
+if(WITH_PTEX)
 	add_definitions(-DWITH_PTEX)
 	include_directories("../../extern/ptex")
 endif()

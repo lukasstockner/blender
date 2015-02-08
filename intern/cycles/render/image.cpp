@@ -28,7 +28,7 @@
 #endif
 
 #ifdef WITH_PTEX
-#include "BPX_pack.h"
+#include "BPX_ptex.h"
 #endif
 
 CCL_NAMESPACE_BEGIN
