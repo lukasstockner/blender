@@ -104,6 +104,7 @@ typedef struct TreeElement {
 #define TSE_KEYMAP          34
 #define TSE_KEYMAP_ITEM     35
 #define TSE_ID_BASE			36
+#define TSE_GP_LAYER        37
 
 /* button events */
 #define OL_NAMEBUTTON       1
@@ -166,6 +167,7 @@ void outliner_free_tree(ListBase *lb);
 void outliner_cleanup_tree(struct SpaceOops *soops);
 
 TreeElement *outliner_find_tse(struct SpaceOops *soops, TreeStoreElem *tse);
+TreeElement *outliner_find_tree_element(ListBase *lb, TreeStoreElem *store_elem);
 TreeElement *outliner_find_id(struct SpaceOops *soops, ListBase *lb, struct ID *id);
 struct ID *outliner_search_back(SpaceOops *soops, TreeElement *te, short idcode);
 
