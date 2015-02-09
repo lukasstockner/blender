@@ -71,7 +71,7 @@ struct BPXPackedLayout {
 			Item &item = *iter;
 
 			// Check if enough room on this row
-			if (dst_x + item.u_res + 2 * border >= width) {
+			if (dst_x + item.u_res + 2 * border > width) {
 				// Move to next row
 				assert(yinc != 0);
 				dst_y += yinc;
