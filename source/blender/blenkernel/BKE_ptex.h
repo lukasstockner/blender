@@ -54,6 +54,13 @@ MPtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex);
 
 void BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes logres);
 
+/* Copy regions from the image into loop_ptex
+ *
+ * TODO(nicholasbishop): should have some way to set which loops need
+ * updates, probably new flag in MLoopPtex
+ *
+ * Return true if successful (even if some loops have an error), false
+ * otherwise. */
 bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop);
 
 /* Add CD_LOOP_PTEX layer to DerivedMesh. The 'id' field will be just

@@ -132,64 +132,6 @@ void BKE_ptex_tess_face_interp(MTessFacePtex *tess_face_ptex,
 	}
 }
 
-bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
-{
-	int i;
-
-	// TODO
-	Image *image;
-	ImBuf *ibuf;
-
-	if (!loop_ptex) {
-		return false;
-	}
-
-	image = loop_ptex->image;
-	if (!image) {
-		return false;
-	}
-
-	ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
-
-	if (!ibuf) {
-		return false;
-	}
-
-	// TODO
-	BLI_assert(ibuf->rect);
-	BLI_assert(ibuf->num_ptex_regions == totloop);
-	BLI_assert(loop_ptex->texel_info.num_channels == 4);
-
-	BLI_assert(ibuf->ptex_regions);
-	for (i = 0; i < totloop; i++) {
-		// TODO
-		MLoopPtex *pt = &loop_ptex[i];
-		const MPtexRes dst_res = bke_ptex_res_from_logres(pt->logres);
-		const size_t bytes_per_texel = BKE_ptex_bytes_per_texel(pt->texel_info);
-		const size_t dst_bytes_per_row = dst_res.u * bytes_per_texel;
-		const size_t src_bytes_per_row = ibuf->x * bytes_per_texel;
-		unsigned char *dst = pt->rect;
-		unsigned char *src = (unsigned char*)ibuf->rect;
-		ImPtexRegion *ptex_regions = &ibuf->ptex_regions[i];
-		int v;
-
-		BLI_assert(dst_res.u == ptex_regions->width);
-		BLI_assert(dst_res.v == ptex_regions->height);
-
-		src += (size_t)(src_bytes_per_row * ptex_regions->y + ptex_regions->x * bytes_per_texel);
-
-		for (v = 0; v < dst_res.v; v++) {
-			memcpy(dst, src, dst_bytes_per_row);
-			dst += dst_bytes_per_row;
-			src += src_bytes_per_row;
-		}
-	}
-
-	BKE_image_release_ibuf(image, ibuf, NULL);
-
-	return true;
-}
-
 static void *bke_ptex_texels_malloc(const MPtexTexelInfo texel_info,
 									const MPtexLogRes logres)
 {
@@ -593,7 +535,7 @@ static BPXImageBuf *bpx_image_buf_wrap_loop_ptex(MLoopPtex *loop_ptex)
 	if (loop_ptex && loop_ptex->rect) {
 		const MPtexRes res = bke_ptex_res_from_logres(loop_ptex->logres);
 		const MPtexTexelInfo texel_info = loop_ptex->texel_info;
-		BPXTypeDesc type_desc = BPX_TYPE_DESC_UINT8;
+		BPXTypeDesc type_desc;
 		
 		if (bpx_type_desc_from_mptex_data_type(texel_info.data_type,
 											   &type_desc)) {
@@ -1067,6 +1009,68 @@ bool BKE_ptex_import(Mesh *me, const char *filepath)
 
 	return true;
 }
+
+bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
+{
+	BPXImageBuf *bpx_src;
+	int i;
+
+	// TODO
+	Image *image;
+	ImBuf *ibuf;
+
+	if (!loop_ptex) {
+		return false;
+	}
+
+	image = loop_ptex->image;
+	if (!image) {
+		return false;
+	}
+
+	ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+
+	if (!ibuf) {
+		return false;
+	}
+
+	// TODO
+	BLI_assert(ibuf->rect);
+	BLI_assert(ibuf->num_ptex_regions == totloop);
+	BLI_assert(ibuf->ptex_regions);
+
+	bpx_src = IMB_imbuf_as_bpx_image_buf(ibuf);
+	if (!bpx_src) {
+		return false;
+	}
+
+	for (i = 0; i < totloop; i++) {
+		MLoopPtex *lp = &loop_ptex[i];
+		BPXImageBuf *bpx_dst = bpx_image_buf_wrap_loop_ptex(lp);
+		BPXRect src_rect;
+		const ImPtexRegion *region = &ibuf->ptex_regions[i];
+
+		BLI_assert(bpx_dst);
+		if (!bpx_dst) {
+			continue;
+		}
+
+		src_rect.xbegin = region->x;
+		src_rect.xend = region->x + region->width;
+		src_rect.ybegin = region->y;
+		src_rect.yend = region->y + region->height;
+
+		if (!BPX_image_buf_pixels_copy_partial(bpx_dst, bpx_src,
+											   0, 0, &src_rect)) {
+			BLI_assert(!"copy from image to MLoopPtex failed");
+		}
+	}
+
+	BKE_image_release_ibuf(image, ibuf, NULL);
+
+	return true;
+}
+
 #else
 /* Stubs if WITH_PTEX is not defined */
 
@@ -1094,6 +1098,12 @@ void BKE_loop_ptex_resize(MLoopPtex *UNUSED(loop_ptex),
 }
 
 bool BKE_ptex_import(struct Mesh *UNUSED(me), const char *UNUSED(filepath))
+{
+	return false;
+}
+
+bool BKE_ptex_update_from_image(MLoopPtex *UNUSED(loop_ptex),
+								const int UNUSED(totloop))
 {
 	return false;
 }

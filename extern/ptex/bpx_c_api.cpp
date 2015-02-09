@@ -143,24 +143,41 @@ void BPX_image_buf_free(BPXImageBuf * const buf)
 
 bool BPX_image_buf_pixels_copy_partial(BPXImageBuf *bpx_dst,
 									   const BPXImageBuf *bpx_src,
-									   int xbegin, int ybegin,
+									   const int xbegin, const int ybegin,
 									   const BPXRect *src_rect)
 {
 	if (bpx_dst && bpx_src) {
 		ImageBuf *dst = bpx_image_buf_to_oiio_image_buf(bpx_dst);
+		const ImageSpec &dst_spec = dst->spec();
 		const ImageBuf *src = bpx_image_buf_to_oiio_image_buf(bpx_src);
 		ROI src_roi = src->roi();
-		const int zbegin = 0;
 		const int chbegin = 0;
 
 		if (src_rect) {
 			src_roi = bpx_rect_to_oiio_roi(*src_rect);
 		}
-		
+
+#if 0
+		const int zbegin = 0;
 		return ImageBufAlgo::paste(*dst, xbegin, ybegin, zbegin, chbegin,
 								   *src, src_roi);
-
-		return dst->copy(*src);
+#else
+		/* TODO(nicholasbishop): for some reason this code is much
+		 * faster than paste, but obviously a lot uglier too... would
+		 * like to figure out why, maybe just doing something silly */
+		const stride_t xstride = dst_spec.pixel_bytes();
+		const stride_t ystride = dst_spec.scanline_bytes();;
+		const stride_t zstride = 1;
+		const int chend = std::min(dst_spec.nchannels,
+								   src->spec().nchannels);
+		return src->get_pixel_channels(src_roi.xbegin, src_roi.xend,
+									   src_roi.ybegin, src_roi.yend,
+									   src_roi.zbegin, src_roi.zend,
+									   chbegin, chend,
+									   dst_spec.format,
+									   dst->pixeladdr(xbegin, ybegin),
+									   xstride, ystride, zstride);
+#endif
 	}
 	return false;
 }
