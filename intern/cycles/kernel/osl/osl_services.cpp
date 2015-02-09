@@ -50,7 +50,7 @@
 #include "kernel_accumulate.h"
 #include "kernel_shader.h"
 
-#ifdef WITH_PTEX
+#ifdef WITH_PTEX_OSL
 #include <Ptexture.h>
 #endif
 
@@ -115,7 +115,7 @@ OSLRenderServices::OSLRenderServices()
 	kernel_globals = NULL;
 	osl_ts = NULL;
 
-#ifdef WITH_PTEX
+#ifdef WITH_PTEX_OSL
 	size_t maxmem = 16384 * 1024;
 	ptex_cache = PtexCache::create(0, maxmem);
 #endif
@@ -123,7 +123,7 @@ OSLRenderServices::OSLRenderServices()
 
 OSLRenderServices::~OSLRenderServices()
 {
-#ifdef WITH_PTEX
+#ifdef WITH_PTEX_OSL
 	ptex_cache->release();
 #endif
 }
@@ -848,7 +848,7 @@ bool OSLRenderServices::texture(ustring filename, TextureOpt &options,
 	ShaderData *sd = (ShaderData *)(sg->renderstate);
 	KernelGlobals *kg = sd->osl_globals;
 
-#ifdef WITH_PTEX
+#ifdef WITH_PTEX_OSL
 	/* todo: this is just a quick hack, only works with particular files and options */
 	if(string_endswith(filename.string(), ".ptx")) {
 		float2 uv;
