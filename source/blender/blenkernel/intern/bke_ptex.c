@@ -677,7 +677,11 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
 
 	(*image) = BKE_image_add_from_imbuf(ibuf);
 
-	return true;
+	/* Image now owns the ImBuf */
+	IMB_freeImBuf(ibuf);
+
+	/* Return true only if Image was created successfully */
+	return (*image) != NULL;
 }
 
 Image *BKE_ptex_mesh_image_get(struct Object *ob,
