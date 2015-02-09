@@ -56,7 +56,7 @@ struct BPXPackedLayout {
 
 		// Decide on output width, TODO(nicholasbishop): extremely
 		// arbitrary for now
-		width = std::max(u_max_res + 2, 1024);
+		width = std::max(u_max_res + 2 * border, 4096);
 
 		// For now only packing mipmap level zero
 
