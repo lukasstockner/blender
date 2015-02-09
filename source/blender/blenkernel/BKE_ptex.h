@@ -52,7 +52,10 @@ size_t BKE_ptex_bytes_per_texel(const MPtexTexelInfo texel_info);
 MPtexDataType BKE_ptex_texel_data_type(const MPtexTexelInfo texel_info);
 MPtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex);
 
-void BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes logres);
+/* Resize loop_ptex to the new logres
+ *
+ * Return true if successful, false otherwise. */
+bool BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes logres);
 
 /* Copy regions from the image into loop_ptex
  *

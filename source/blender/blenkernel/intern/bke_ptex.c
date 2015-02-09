@@ -669,7 +669,7 @@ MPtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex)
 	return loop_ptex->texel_info.data_type;
 }
 
-void BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes dst_logres)
+bool BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes dst_logres)
 {
 	MPtexRes src_res = bke_ptex_res_from_logres(loop_ptex->logres);
 	MPtexRes dst_res = bke_ptex_res_from_logres(dst_logres);
@@ -711,9 +711,11 @@ void BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes dst_logres)
 		MEM_freeN(loop_ptex->rect);
 		loop_ptex->rect = dst_rect;
 		loop_ptex->logres = dst_logres;
+
+		return true;
 	}
 	else {
-		BLI_assert(!"TODO: BKE_loop_ptex_resize");
+		return false;
 	}
 }
 
@@ -1091,10 +1093,10 @@ struct Image *BKE_ptex_mesh_image_get(struct Object *UNUSED(ob),
 	return NULL;
 }
 
-// TODO: should return error
-void BKE_loop_ptex_resize(MLoopPtex *UNUSED(loop_ptex),
+bool BKE_loop_ptex_resize(MLoopPtex *UNUSED(loop_ptex),
 						  const MPtexLogRes UNUSED(dst_logres))
 {
+	return false;
 }
 
 bool BKE_ptex_import(struct Mesh *UNUSED(me), const char *UNUSED(filepath))

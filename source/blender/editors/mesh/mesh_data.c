@@ -889,7 +889,10 @@ static int mesh_ptex_res_change_exec(bContext *C, wmOperator *op)
 				const MPtexLogRes new_logres =
 					mesh_ptex_new_logres_calc(mode, lp->logres);
 
-				BKE_loop_ptex_resize(lp, new_logres);
+				if (!BKE_loop_ptex_resize(lp, new_logres)) {
+					/* TODO */
+					BLI_assert(!"Ptex resize failed");
+				}
 			}
 		}
 	}
