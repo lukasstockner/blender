@@ -931,11 +931,13 @@ static int mesh_ptex_import_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	Mesh *me = ob->data;
+	const int layernum = CustomData_number_of_layers(&me->ldata, CD_LOOP_PTEX);
 	char path[FILE_MAX];
 
 	RNA_string_get(op->ptr, "filepath", path);
 
 	if (BKE_ptex_import(me, path)) {
+		CustomData_set_layer_active(&me->ldata, CD_LOOP_PTEX, layernum);
 		return OPERATOR_FINISHED;
 	}
 	else {
