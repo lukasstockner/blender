@@ -85,8 +85,7 @@ struct BPXPackedLayout {
 
 			dst_x += item.u_res + (2 * border);
 			height = std::max(height, dst_y + item.v_res + (2 * border));
-			max_width = std::max(dst_x + item.u_res + (2 * border),
-								 max_width);
+			max_width = std::max(dst_x, max_width);
 
 			yinc = std::max(yinc, item.v_res + (2 * border));
 		}
