@@ -3860,8 +3860,10 @@ static void project_paint_end(ProjPaintState *ps)
 		Mesh *me = ps->ob->data;
 		MLoopPtex *loop_ptex = CustomData_get_layer(&me->ldata, CD_LOOP_PTEX);
 
-		// TODO
-		BKE_ptex_update_from_image(loop_ptex, me->totloop);
+		if (!BKE_ptex_update_from_image(loop_ptex, me->totloop)) {
+			// TODO
+			BLI_assert(!"BKE_ptex_update_from_image failed");
+		}
 
 		MEM_freeN(ps->dm_mtface_ptex);
 		ps->dm_mtface_ptex = NULL;

@@ -132,7 +132,7 @@ void BKE_ptex_tess_face_interp(MTessFacePtex *tess_face_ptex,
 	}
 }
 
-void BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
+bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 {
 	int i;
 
@@ -141,18 +141,18 @@ void BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 	ImBuf *ibuf;
 
 	if (!loop_ptex) {
-		return;
+		return false;
 	}
 
 	image = loop_ptex->image;
 	if (!image) {
-		return;
+		return false;
 	}
 
 	ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
 
 	if (!ibuf) {
-		return;
+		return false;
 	}
 
 	// TODO
@@ -186,6 +186,8 @@ void BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 	}
 
 	BKE_image_release_ibuf(image, ibuf, NULL);
+
+	return true;
 }
 
 static void *bke_ptex_texels_malloc(const MPtexTexelInfo texel_info,

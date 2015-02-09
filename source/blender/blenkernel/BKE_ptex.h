@@ -54,7 +54,7 @@ MPtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex);
 
 void BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes logres);
 
-void BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop);
+bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop);
 
 /* Add CD_LOOP_PTEX layer to DerivedMesh. The 'id' field will be just
  * the sequential loop indices, TODO */
