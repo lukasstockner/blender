@@ -485,14 +485,20 @@ enum InterpolationType {
  * incompatible types when assigning to type 'Foo' from type 'Bar'
  * ... the compiler optimizes away the temp var */
 #if defined(__GNUC__)
+#  if __cplusplus > 199711L
+#    define DECLTYPE(x) decltype(x)
+#  else
+#    define DECLTYPE(x) typeof(x)
+#  endif
+
 #define CHECK_TYPE(var, type)  {  \
-	decltype(var) *__tmp;         \
+	DECLTYPE(var) *__tmp;         \
 	__tmp = (type *)NULL;         \
 	(void)__tmp;                  \
 } (void)0
 
 #define CHECK_TYPE_PAIR(var_a, var_b)  {  \
-	decltype(var_a) *__tmp;               \
+	DECLTYPE(var_a) *__tmp;               \
 	__tmp = (typeof(var_b) *)NULL;        \
 	(void)__tmp;                          \
 } (void)0

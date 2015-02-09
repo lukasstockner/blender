@@ -569,13 +569,15 @@ static void deg_graph_print_cycle_rel(const OperationDepsNode *to, const Operati
 	       rel->name.c_str());
 }
 
+/* TODO(sergey): Consider moving to proper location. */
+struct StackEntry {
+	OperationDepsNode *node;
+	StackEntry *from;
+	DepsRelation *via_relation;
+};
+
 static void deg_graph_detect_cycles(Depsgraph *graph)
 {
-	struct StackEntry {
-		OperationDepsNode *node;
-		StackEntry *from;
-		DepsRelation *via_relation;
-	};
 	/* Not is not visited at all during traversal. */
 	const int NODE_NOT_VISITED = 0;
 	/* Node has been visited during traversal and not in current stack. */
