@@ -633,6 +633,18 @@ bool BPX_image_buf_transform(BPXImageBuf *bpx_dst)
 	return true;
 }
 
+bool BPX_image_buf_resize(BPXImageBuf *bpx_dst, BPXImageBuf *bpx_src)
+{
+	if (!bpx_dst || !bpx_src) {
+		return false;
+	}
+
+	ImageBuf &dst = *bpx_image_buf_to_oiio_image_buf(bpx_dst);
+	ImageBuf &src = *bpx_image_buf_to_oiio_image_buf(bpx_src);
+
+	return ImageBufAlgo::resize(dst, src);
+}
+
 static const int QUAD_NUM_SIDES = 4;
 struct BPXPtexFaceSpec {
 	int h;

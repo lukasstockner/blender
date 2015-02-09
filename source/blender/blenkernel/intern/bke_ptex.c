@@ -530,22 +530,33 @@ static bool bpx_type_desc_from_mptex_data_type(const MPtexDataType data_type,
 	return false;
 }
 
-static BPXImageBuf *bpx_image_buf_wrap_loop_ptex(MLoopPtex *loop_ptex)
+static BPXImageBuf *bpx_image_buf_wrap_ptex_rect(const MPtexLogRes logres,
+												 const MPtexTexelInfo info,
+												 void *rect)
 {
-	if (loop_ptex && loop_ptex->rect) {
-		const MPtexRes res = bke_ptex_res_from_logres(loop_ptex->logres);
-		const MPtexTexelInfo texel_info = loop_ptex->texel_info;
+	if (rect) {
+		const MPtexRes res = bke_ptex_res_from_logres(logres);
 		BPXTypeDesc type_desc;
 		
-		if (bpx_type_desc_from_mptex_data_type(texel_info.data_type,
-											   &type_desc)) {
+		if (bpx_type_desc_from_mptex_data_type(info.data_type, &type_desc)) {
 			return BPX_image_buf_wrap(res.u, res.v,
-									  texel_info.num_channels,
-									  type_desc, loop_ptex->rect);
+									  info.num_channels,
+									  type_desc, rect);
 		}
 	}
 
 	return NULL;
+}
+
+static BPXImageBuf *bpx_image_buf_wrap_loop_ptex(MLoopPtex *loop_ptex)
+{
+	if (!loop_ptex) {
+		return NULL;
+	}
+
+	return bpx_image_buf_wrap_ptex_rect(loop_ptex->logres,
+										loop_ptex->texel_info,
+										loop_ptex->rect);
 }
 
 /* TODO(nicholasbishop): sync up with code in imb_ptex.c */
@@ -669,54 +680,35 @@ MPtexDataType BKE_loop_ptex_texel_data_type(const MLoopPtex *loop_ptex)
 	return loop_ptex->texel_info.data_type;
 }
 
-bool BKE_loop_ptex_resize(MLoopPtex *loop_ptex, const MPtexLogRes dst_logres)
+bool BKE_loop_ptex_resize(MLoopPtex *lp, const MPtexLogRes dst_logres)
 {
-	MPtexRes src_res = bke_ptex_res_from_logres(loop_ptex->logres);
-	MPtexRes dst_res = bke_ptex_res_from_logres(dst_logres);
-
 	/* Same between src and dst */
-	const MPtexTexelInfo texel_info = loop_ptex->texel_info;
+	const MPtexTexelInfo texel_info = lp->texel_info;
 
-	// TODO
-	BLI_assert(BKE_ptex_texel_data_type(texel_info) ==
-			   MPTEX_DATA_TYPE_UINT8);
-	BLI_assert(texel_info.num_channels <= 4);
-
-	if (loop_ptex->rect) {
+	if (lp->rect) {
 		/* Allocate rect for new size */
 		void *dst_rect = bke_ptex_texels_malloc(texel_info, dst_logres);
-		unsigned char *dst_texel = dst_rect;
-		int u, v;
-		const float step_u = (float)(src_res.u - 1) / (float)dst_res.u;
-		const float step_v = (float)(src_res.v - 1) / (float)dst_res.v;
-		const float half_step_u = step_u * 0.5f;
-		float fv = step_v * 0.5f;
-		const size_t bytes_per_texel = BKE_ptex_bytes_per_texel(texel_info);
 
-		for (v = 0; v < dst_res.v; v++) {
-			float fu = half_step_u;
-			for (u = 0; u < dst_res.u; u++) {
-				BLI_assert(fu >= 0 && fu <= src_res.u);
-				BLI_assert(fv >= 0 && fv <= src_res.v);
-				BLI_bilinear_interpolation_char(loop_ptex->rect, dst_texel,
-												src_res.u, src_res.v,
-												texel_info.num_channels,
-												fu, fv);
-				dst_texel += bytes_per_texel;
-				fu += step_u;
-			}
-			fv += step_v;
+		BPXImageBuf *bpx_src = bpx_image_buf_wrap_loop_ptex(lp);
+		BPXImageBuf *bpx_dst = bpx_image_buf_wrap_ptex_rect(dst_logres,
+															texel_info,
+															dst_rect);
+
+		if (BPX_image_buf_resize(bpx_dst, bpx_src)) {
+			BPX_image_buf_free(bpx_src);
+			BPX_image_buf_free(bpx_dst);
+			MEM_freeN(lp->rect);
+			lp->rect = dst_rect;
+			lp->logres = dst_logres;
+			return true;
 		}
-
-		MEM_freeN(loop_ptex->rect);
-		loop_ptex->rect = dst_rect;
-		loop_ptex->logres = dst_logres;
-
-		return true;
+		else {
+			BPX_image_buf_free(bpx_src);
+			BPX_image_buf_free(bpx_dst);
+			MEM_freeN(dst_rect);
+		}
 	}
-	else {
-		return false;
-	}
+	return false;
 }
 
 // All TODO

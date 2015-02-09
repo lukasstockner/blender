@@ -120,6 +120,11 @@ bool TODO_test_write(BPXImageBuf *bpx_buf, const char *path);
 
 bool BPX_image_buf_transform(BPXImageBuf *bpx_buf);
 
+/* Resize all of src into dst, using dst's size
+ *
+ * Return true if successful, false otherwise. */
+bool BPX_image_buf_resize(BPXImageBuf *bpx_dst, BPXImageBuf *bpx_src);
+
 int BPX_packed_layout_num_regions(const struct BPXPackedLayout *layout);
 
 typedef BPXImageBuf* (*BPXImageBufFromLayout)
