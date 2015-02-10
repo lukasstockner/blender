@@ -560,7 +560,8 @@ static BPXImageBuf *bpx_image_buf_wrap_loop_ptex(MLoopPtex *loop_ptex)
 }
 
 /* TODO(nicholasbishop): sync up with code in imb_ptex.c */
-static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
+static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex,
+							const char *layer_name)
 {
 	BPXImageBuf *bpx_dst;
 	const int num_loops = me->totloop;
@@ -640,7 +641,9 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
 	IMB_freeImBuf(ibuf);
 
 	if (*image) {
-		id_us_min(&(*image)->id);
+		ID *id = &(*image)->id;
+		rename_id(id, layer_name);
+		id_us_min(id);
 		return true;
 	}
 	else {
@@ -660,7 +663,8 @@ Image *BKE_ptex_mesh_image_get(struct Object *ob,
 			// TODO
 			if (!loop_ptex->image) {
 				// TODO
-				const bool r = ptex_pack_loops(&loop_ptex->image, me, loop_ptex);
+				const bool r = ptex_pack_loops(&loop_ptex->image, me,
+											   loop_ptex, layer_name);
 				BLI_assert(r);
 			}
 			else if (loop_ptex->image->tpageflag & IMA_TPAGE_REFRESH) {
