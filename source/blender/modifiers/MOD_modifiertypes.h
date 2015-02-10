@@ -82,6 +82,7 @@ extern ModifierTypeInfo modifierType_MeshCache;
 extern ModifierTypeInfo modifierType_LaplacianDeform;
 extern ModifierTypeInfo modifierType_Wireframe;
 extern ModifierTypeInfo modifierType_DataTransfer;
+extern ModifierTypeInfo modifierType_NormalEdit;
 extern ModifierTypeInfo modifierType_PointCache;
 
 /* MOD_util.c */

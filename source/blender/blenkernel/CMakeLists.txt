@@ -36,6 +36,7 @@ set(INC
 	../bmesh
 	../modifiers
 	../nodes
+	../physics
 	../pointcache
 	../render/extern/include
 	../../../intern/ghost
@@ -46,8 +47,8 @@ set(INC
 	../../../intern/mikktspace
 	../../../intern/raskter
 	../../../intern/smoke/extern
-	../../../extern/libmv
 	../../../intern/atomic
+	../../../extern/libmv
 
 	# XXX - BAD LEVEL CALL WM_api.h
 	../windowmanager
@@ -107,7 +108,6 @@ set(SRC
 	intern/idprop.c
 	intern/image.c
 	intern/image_gen.c
-	intern/implicit.c
 	intern/ipo.c
 	intern/key.c
 	intern/lamp.c
@@ -138,6 +138,8 @@ set(SRC
 	intern/packedFile.c
 	intern/paint.c
 	intern/particle.c
+	intern/particle_child.c
+	intern/particle_distribute.c
 	intern/particle_system.c
 	intern/pbvh.c
 	intern/pbvh_bmesh.c

@@ -5354,7 +5354,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 								/* only if bone name matches too... 
 								 * NOTE: this will do constraints too, but those are ok to do here too?
 								 */
-								if (pchanName && strcmp(pchanName, pchan->name) == 0) 
+								if (pchanName && STREQ(pchanName, pchan->name)) 
 									insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 									
 								if (pchanName) MEM_freeN(pchanName);
@@ -5596,6 +5596,12 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 					/* free temporary faces to avoid automerging and deleting
 					 * during cleanup - psy-fi */
 					freeEdgeSlideTempFaces(sld);
+				}
+				else if (t->mode == TFM_VERT_SLIDE) {
+					/* as above */
+					VertSlideData *sld = t->customData;
+					projectVertSlideData(t, true);
+					freeVertSlideTempFaces(sld);
 				}
 
 				if (t->obedit->type == OB_MESH) {
@@ -7321,6 +7327,11 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 			bGPDstroke *gps;
 			
 			for (gps = gpf->strokes.first; gps; gps = gps->next) {
+				/* skip strokes that are invalid for current view */
+				if (ED_gpencil_stroke_can_use(C, gps) == false) {
+					continue;
+				}
+				
 				if (propedit) {
 					/* Proportional Editing... */
 					if (propedit_connected) {
@@ -7423,6 +7434,11 @@ static void createTransGPencil(bContext *C, TransInfo *t)
 				TransData *head = td;
 				TransData *tail = td;
 				bool stroke_ok;
+				
+				/* skip strokes that are invalid for current view */
+				if (ED_gpencil_stroke_can_use(C, gps) == false) {
+					continue;
+				}
 				
 				/* What we need to include depends on proportional editing settings... */
 				if (propedit) {

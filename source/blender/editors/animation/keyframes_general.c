@@ -641,7 +641,7 @@ static void flip_names(tAnimCopybufItem *aci, char **name)
 			str_iter = *name = MEM_mallocN(sizeof(char) * (prefix_l + postfix_l + length + 1), "flipped_path");
 			
 			BLI_strncpy(str_iter, aci->rna_path, prefix_l + 1);
-			str_iter += prefix_l ;
+			str_iter += prefix_l;
 			BLI_strncpy(str_iter, bname_new, length + 1);
 			str_iter += length;
 			BLI_strncpy(str_iter, str_end, postfix_l + 1);
@@ -663,14 +663,14 @@ static tAnimCopybufItem *pastebuf_match_path_full(FCurve *fcu, const short from_
 				if ((from_single) || (aci->array_index == fcu->array_index)) {
 					char *name = NULL;
 					flip_names(aci, &name);
-					if (strcmp(name, fcu->rna_path) == 0) {
+					if (STREQ(name, fcu->rna_path)) {
 						MEM_freeN(name);
 						break;
 					}
 					MEM_freeN(name);
 				}
 			}
-			else if (to_simple || (strcmp(aci->rna_path, fcu->rna_path) == 0)) {
+			else if (to_simple || STREQ(aci->rna_path, fcu->rna_path)) {
 				if ((from_single) || (aci->array_index == fcu->array_index)) {
 					break;
 				}
@@ -711,7 +711,7 @@ static tAnimCopybufItem *pastebuf_match_path_property(FCurve *fcu, const short f
 					int len_path = strlen(fcu->rna_path);
 					if (len_id <= len_path) {
 						/* note, paths which end with "] will fail with this test - Animated ID Props */
-						if (strcmp(identifier, fcu->rna_path + (len_path - len_id)) == 0) {
+						if (STREQ(identifier, fcu->rna_path + (len_path - len_id))) {
 							if ((from_single) || (aci->array_index == fcu->array_index))
 								break;
 						}

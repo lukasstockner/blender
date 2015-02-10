@@ -933,8 +933,9 @@ void BKE_mesh_remap_calc_loops_from_dm(
         const int mode, const SpaceTransform *space_transform, const float max_dist, const float ray_radius,
         MVert *verts_dst, const int numverts_dst, MEdge *edges_dst, const int numedges_dst,
         MLoop *loops_dst, const int numloops_dst, MPoly *polys_dst, const int numpolys_dst,
-        CustomData *ldata_dst, CustomData *pdata_dst, const float split_angle_dst, const bool dirty_nors_dst,
-        DerivedMesh *dm_src,
+        CustomData *ldata_dst, CustomData *pdata_dst,
+        const bool use_split_nors_dst, const float split_angle_dst, const bool dirty_nors_dst,
+        DerivedMesh *dm_src, const bool use_split_nors_src, const float split_angle_src,
         MeshRemapIslandsCalc gen_islands_src, const float islands_precision_src, MeshPairRemap *r_map)
 {
 	const float full_weight = 1.0f;
@@ -1046,21 +1047,24 @@ void BKE_mesh_remap_calc_loops_from_dm(
 				}
 			}
 			if (need_lnors_dst) {
+				short (*custom_nors_dst)[2] = CustomData_get_layer(ldata_dst, CD_CUSTOMLOOPNORMAL);
+
 				/* Cache poly nors into a temp CDLayer. */
 				loop_nors_dst = CustomData_get_layer(ldata_dst, CD_NORMAL);
-				if (!loop_nors_dst) {
-					loop_nors_dst = CustomData_add_layer(ldata_dst, CD_NORMAL, CD_CALLOC, NULL, numloops_dst);
-					CustomData_set_layer_flag(ldata_dst, CD_NORMAL, CD_FLAG_TEMPORARY);
-				}
-				if (dirty_nors_dst) {
+				if (dirty_nors_dst || !loop_nors_dst) {
+					if (!loop_nors_dst) {
+						loop_nors_dst = CustomData_add_layer(ldata_dst, CD_NORMAL, CD_CALLOC, NULL, numloops_dst);
+						CustomData_set_layer_flag(ldata_dst, CD_NORMAL, CD_FLAG_TEMPORARY);
+					}
 					BKE_mesh_normals_loop_split(verts_dst, numverts_dst, edges_dst, numedges_dst,
 					                            loops_dst, loop_nors_dst, numloops_dst,
-					                            polys_dst, poly_nors_dst, numpolys_dst, split_angle_dst);
+					                            polys_dst, (const float (*)[3])poly_nors_dst, numpolys_dst,
+					                            use_split_nors_dst, split_angle_dst, NULL, custom_nors_dst, NULL);
 				}
 			}
 			if (need_pnors_src || need_lnors_src) {
 				/* Simpler for now, calcNormals never stores pnors :( */
-				dm_src->calcLoopNormals(dm_src, /* TODO */ (float)M_PI);
+				dm_src->calcLoopNormals(dm_src, use_split_nors_src, split_angle_src);
 
 				if (need_pnors_src) {
 					poly_nors_src = dm_src->getPolyDataArray(dm_src, CD_NORMAL);
@@ -1425,7 +1429,7 @@ void BKE_mesh_remap_calc_loops_from_dm(
 					best_island = use_islands ? island_store.islands[best_island_index] : NULL;
 					as_graph = &as_graphdata[best_island_index];
 					poly_island_index_map = (int *)as_graph->custom_data;
-					BLI_astar_solution_init(as_graph, &as_solution, false);
+					BLI_astar_solution_init(as_graph, &as_solution, NULL);
 				}
 
 				for (plidx_dst = 0; plidx_dst < mp_dst->totloop; plidx_dst++) {
@@ -1448,8 +1452,18 @@ void BKE_mesh_remap_calc_loops_from_dm(
 							pidx_src = loop_to_poly_map_src[lidx_src];
 							/* If prev and curr poly are the same, no need to do anything more!!! */
 							if (!ELEM(pidx_src_prev, -1, pidx_src) && isld_steps_src) {
+								int pidx_isld_src, pidx_isld_src_prev;
+								if (poly_island_index_map) {
+									pidx_isld_src = poly_island_index_map[pidx_src];
+									pidx_isld_src_prev = poly_island_index_map[pidx_src_prev];
+								}
+								else {
+									pidx_isld_src = pidx_src;
+									pidx_isld_src_prev = pidx_src_prev;
+								}
+
 								BLI_astar_graph_solve(
-								        as_graph, poly_island_index_map[pidx_src_prev], poly_island_index_map[pidx_src],
+								        as_graph, pidx_isld_src_prev, pidx_isld_src,
 								        mesh_remap_calc_loops_astar_f_cost, &as_solution, isld_steps_src);
 								if (GET_INT_FROM_POINTER(as_solution.custom_data) && (as_solution.steps > 0)) {
 									/* Find first 'cutting edge' on path, and bring back lidx_src on poly just
@@ -1459,7 +1473,6 @@ void BKE_mesh_remap_calc_loops_from_dm(
 									 * but this is one more level of complexity, better to first see if
 									 * simple solution works!
 									 */
-									int pidx_isld_src = poly_island_index_map[pidx_src];
 									int last_valid_pidx_isld_src = -1;
 									/* Note we go backward here, from dest to src poly. */
 									for (i = as_solution.steps - 1; i--;) {
@@ -1525,8 +1538,18 @@ void BKE_mesh_remap_calc_loops_from_dm(
 
 							/* If prev and curr poly are the same, no need to do anything more!!! */
 							if (!ELEM(pidx_src_prev, -1, pidx_src) && isld_steps_src) {
+								int pidx_isld_src, pidx_isld_src_prev;
+								if (poly_island_index_map) {
+									pidx_isld_src = poly_island_index_map[pidx_src];
+									pidx_isld_src_prev = poly_island_index_map[pidx_src_prev];
+								}
+								else {
+									pidx_isld_src = pidx_src;
+									pidx_isld_src_prev = pidx_src_prev;
+								}
+
 								BLI_astar_graph_solve(
-								        as_graph, poly_island_index_map[pidx_src_prev], poly_island_index_map[pidx_src],
+								        as_graph, pidx_isld_src_prev, pidx_isld_src,
 								        mesh_remap_calc_loops_astar_f_cost, &as_solution, isld_steps_src);
 								if (GET_INT_FROM_POINTER(as_solution.custom_data) && (as_solution.steps > 0)) {
 									/* Find first 'cutting edge' on path, and bring back lidx_src on poly just
@@ -1536,7 +1559,6 @@ void BKE_mesh_remap_calc_loops_from_dm(
 									 * but this is one more level of complexity, better to first see if
 									 * simple solution works!
 									 */
-									int pidx_isld_src = poly_island_index_map[pidx_src];
 									int last_valid_pidx_isld_src = -1;
 									/* Note we go backward here, from dest to src poly. */
 									for (i = as_solution.steps - 1; i--;) {

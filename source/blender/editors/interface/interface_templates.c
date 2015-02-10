@@ -2862,7 +2862,7 @@ void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, co
 
 	/* validate arguments */
 	/* Forbid default UI_UL_DEFAULT_CLASS_NAME list class without a custom list_id! */
-	if (!strcmp(UI_UL_DEFAULT_CLASS_NAME, listtype_name) && !(list_id && list_id[0])) {
+	if (STREQ(UI_UL_DEFAULT_CLASS_NAME, listtype_name) && !(list_id && list_id[0])) {
 		RNA_warning("template_list using default '%s' UIList class must provide a custom list_id",
 		            UI_UL_DEFAULT_CLASS_NAME);
 		return;
@@ -3570,8 +3570,7 @@ void uiTemplateColorspaceSettings(uiLayout *layout, PointerRNA *ptr, const char 
 
 	colorspace_settings_ptr = RNA_property_pointer_get(ptr, prop);
 
-	uiItemL(layout, IFACE_("Input Color Space:"), ICON_NONE);
-	uiItemR(layout, &colorspace_settings_ptr, "name", 0, "", ICON_NONE);
+	uiItemR(layout, &colorspace_settings_ptr, "name", 0, IFACE_("Color Space"), ICON_NONE);
 }
 
 void uiTemplateColormanagedViewSettings(uiLayout *layout, bContext *UNUSED(C), PointerRNA *ptr, const char *propname)

@@ -235,9 +235,10 @@ static int ui_text_icon_width(uiLayout *layout, const char *name, int icon, bool
 	variable = (ui_layout_vary_direction(layout) == UI_ITEM_VARY_X);
 
 	if (variable) {
+		const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 		/* it may seem odd that the icon only adds (UI_UNIT_X / 4)
 		 * but taking margins into account its fine */
-		return (UI_fontstyle_string_width(name) +
+		return (UI_fontstyle_string_width(fstyle, name) +
 		        (UI_UNIT_X * ((compact ? 1.25f : 1.50f) +
 		                      (icon    ? 0.25f : 0.0f))));
 	}
@@ -639,7 +640,7 @@ static uiBut *ui_item_with_label(uiLayout *layout, uiBlock *block, const char *n
 	if (name[0]) {
 		/* XXX UI_fontstyle_string_width is not accurate */
 #if 0
-		labelw = UI_fontstyle_string_width(name);
+		labelw = UI_fontstyle_string_width(fstyle, name);
 		CLAMP(labelw, w / 4, 3 * w / 4);
 #endif
 		labelw = w / 3;
@@ -1003,7 +1004,7 @@ void uiItemEnumO_value(uiLayout *layout, const char *name, int icon, const char 
 	PointerRNA ptr;
 	PropertyRNA *prop;
 
-	UI_OPERATOR_ERROR_RET(ot, opname, return );
+	UI_OPERATOR_ERROR_RET(ot, opname, return);
 
 	WM_operator_properties_create_ptr(&ptr, ot);
 
@@ -1035,7 +1036,7 @@ void uiItemEnumO_string(uiLayout *layout, const char *name, int icon, const char
 	int value;
 	bool free;
 
-	UI_OPERATOR_ERROR_RET(ot, opname, return );
+	UI_OPERATOR_ERROR_RET(ot, opname, return);
 
 	WM_operator_properties_create_ptr(&ptr, ot);
 
@@ -1074,7 +1075,7 @@ void uiItemBooleanO(uiLayout *layout, const char *name, int icon, const char *op
 	wmOperatorType *ot = WM_operatortype_find(opname, 0); /* print error next */
 	PointerRNA ptr;
 
-	UI_OPERATOR_ERROR_RET(ot, opname, return );
+	UI_OPERATOR_ERROR_RET(ot, opname, return);
 
 	WM_operator_properties_create_ptr(&ptr, ot);
 	RNA_boolean_set(&ptr, propname, value);
@@ -1087,7 +1088,7 @@ void uiItemIntO(uiLayout *layout, const char *name, int icon, const char *opname
 	wmOperatorType *ot = WM_operatortype_find(opname, 0); /* print error next */
 	PointerRNA ptr;
 
-	UI_OPERATOR_ERROR_RET(ot, opname, return );
+	UI_OPERATOR_ERROR_RET(ot, opname, return);
 
 	WM_operator_properties_create_ptr(&ptr, ot);
 	RNA_int_set(&ptr, propname, value);
@@ -1100,7 +1101,7 @@ void uiItemFloatO(uiLayout *layout, const char *name, int icon, const char *opna
 	wmOperatorType *ot = WM_operatortype_find(opname, 0); /* print error next */
 	PointerRNA ptr;
 
-	UI_OPERATOR_ERROR_RET(ot, opname, return );
+	UI_OPERATOR_ERROR_RET(ot, opname, return);
 
 	WM_operator_properties_create_ptr(&ptr, ot);
 	RNA_float_set(&ptr, propname, value);
@@ -1113,7 +1114,7 @@ void uiItemStringO(uiLayout *layout, const char *name, int icon, const char *opn
 	wmOperatorType *ot = WM_operatortype_find(opname, 0); /* print error next */
 	PointerRNA ptr;
 
-	UI_OPERATOR_ERROR_RET(ot, opname, return );
+	UI_OPERATOR_ERROR_RET(ot, opname, return);
 
 	WM_operator_properties_create_ptr(&ptr, ot);
 	RNA_string_set(&ptr, propname, value);
@@ -1877,7 +1878,7 @@ void uiItemMenuEnumO(uiLayout *layout, bContext *C, const char *opname, const ch
 	MenuItemLevel *lvl;
 	uiBut *but;
 
-	UI_OPERATOR_ERROR_RET(ot, opname, return );
+	UI_OPERATOR_ERROR_RET(ot, opname, return);
 
 	if (!ot->srna) {
 		ui_item_disabled(layout, opname);

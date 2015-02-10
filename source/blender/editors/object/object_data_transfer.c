@@ -42,6 +42,7 @@
 
 #include "BKE_context.h"
 #include "BKE_data_transfer.h"
+#include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_mesh_mapping.h"
 #include "BKE_mesh_remap.h"
@@ -82,6 +83,7 @@ static EnumPropertyItem DT_layer_items[] = {
 	{DT_TYPE_BWEIGHT_EDGE, "BEVEL_WEIGHT_EDGE", 0, "Bevel Weight", "Transfer bevel weights"},
 	{DT_TYPE_FREESTYLE_EDGE, "FREESTYLE_EDGE", 0, "Freestyle Mark", "Transfer Freestyle edge mark"},
 	{0, "", 0, "Face Corner Data", ""},
+	{DT_TYPE_LNOR, "CUSTOM_NORMAL", 0, "Custom Normals", "Transfer custom normals"},
 	{DT_TYPE_VCOL, "VCOL", 0, "VCol", "Vertex (face corners) colors"},
 	{DT_TYPE_UV, "UV", 0, "UVs", "Transfer UV layers"},
 	{0, "", 0, "Face Data", ""},
@@ -393,12 +395,16 @@ static int data_transfer_exec(bContext *C, wmOperator *op)
 			}
 		}
 
+		DAG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
+
 		if (reverse_transfer) {
 			SWAP(Object *, ob_src, ob_dst);
 		}
 	}
 
 	BLI_freelistN(&ctx_objects);
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
 
 #if 0  /* TODO */
 	/* Note: issue with that is that if canceled, operator cannot be redone... Nasty in our case. */
@@ -592,6 +598,8 @@ static int datalayout_transfer_exec(bContext *C, wmOperator *op)
 
 		BKE_object_data_transfer_layout(scene, ob_src, ob_dst, dtmd->data_types, use_delete,
 		                                dtmd->layers_select_src, dtmd->layers_select_dst);
+
+		DAG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
 	}
 	else {
 		Object *ob_src = ob_act;
@@ -621,10 +629,14 @@ static int datalayout_transfer_exec(bContext *C, wmOperator *op)
 				BKE_object_data_transfer_layout(scene, ob_src, ob_dst, data_type, use_delete,
 				                                layers_select_src, layers_select_dst);
 			}
+
+			DAG_id_tag_update(&ob_dst->id, OB_RECALC_DATA);
 		}
 
 		BLI_freelistN(&ctx_objects);
 	}
+
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, NULL);
 
 	return OPERATOR_FINISHED;
 }

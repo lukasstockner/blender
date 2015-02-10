@@ -229,7 +229,7 @@ static int findFileRecursive(char *filename_new,
 
 	while ((de = readdir(dir)) != NULL) {
 
-		if (STREQ(".", de->d_name) || STREQ("..", de->d_name))
+		if (FILENAME_IS_CURRPAR(de->d_name))
 			continue;
 
 		BLI_join_dirfile(path, sizeof(path), dirname, de->d_name);
@@ -285,7 +285,7 @@ static bool findMissingFiles_visit_cb(void *userdata, char *path_dst, const char
 	filename_new[0] = '\0';
 
 	found = findFileRecursive(filename_new,
-	                          data->searchdir, BLI_path_basename((char *)path_src),
+	                          data->searchdir, BLI_path_basename(path_src),
 	                          &filesize, &recur_depth);
 
 	if (filesize == -1) { /* could not open dir */
@@ -297,7 +297,7 @@ static bool findMissingFiles_visit_cb(void *userdata, char *path_dst, const char
 	else if (found == false) {
 		BKE_reportf(data->reports, RPT_WARNING,
 		            "Could not find '%s' in '%s'",
-		            BLI_path_basename((char *)path_src), data->searchdir);
+		            BLI_path_basename(path_src), data->searchdir);
 		return false;
 	}
 	else {

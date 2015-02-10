@@ -118,9 +118,10 @@ void BKE_sound_free(bSound *sound)
 
 	sound_free_waveform(sound);
 	
-	if (sound->mutex) {
-		BLI_mutex_free(sound->mutex);
-		sound->mutex = NULL;
+	if (sound->spinlock) {
+		BLI_spin_end(sound->spinlock);
+		MEM_freeN(sound->spinlock);
+		sound->spinlock = NULL;
 	}
 	
 #endif  /* WITH_AUDASPACE */
@@ -687,8 +688,7 @@ void sound_free_waveform(bSound *sound)
 void sound_read_waveform(bSound *sound, short *stop)
 {
 	AUD_SoundInfo info = AUD_getInfo(sound->playback_handle);
-	SoundWaveform *waveform = MEM_mallocN(sizeof(SoundWaveform),
-										  "SoundWaveform");
+	SoundWaveform *waveform = MEM_mallocN(sizeof(SoundWaveform), "SoundWaveform");
 
 	if (info.length > 0) {
 		int length = info.length * SOUND_WAVE_SAMPLES_PER_SECOND;
@@ -710,18 +710,18 @@ void sound_read_waveform(bSound *sound, short *stop)
 			MEM_freeN(waveform->data);
 		}
 		MEM_freeN(waveform);
-		BLI_mutex_lock(sound->mutex);
+		BLI_spin_lock(sound->spinlock);
 		sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
-		BLI_mutex_unlock(sound->mutex);
+		BLI_spin_unlock(sound->spinlock);
 		return;
 	}
 		
 	sound_free_waveform(sound);
 	
-	BLI_mutex_lock(sound->mutex);
+	BLI_spin_lock(sound->spinlock);
 	sound->waveform = waveform;
 	sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
-	BLI_mutex_unlock(sound->mutex);
+	BLI_spin_unlock(sound->spinlock);
 }
 
 void sound_update_scene(Main *bmain, struct Scene *scene)

@@ -349,7 +349,11 @@ bool do_colorband(const ColorBand *coba, float in, float out[4])
 		CBData left, right;
 
 		/* we're looking for first pos > in */
-		for (a = 0; a < coba->tot; a++, cbd1++) if (cbd1->pos > in) break;
+		for (a = 0; a < coba->tot; a++, cbd1++) {
+			if (cbd1->pos > in) {
+				break;
+			}
+		}
 
 		if (a == coba->tot) {
 			cbd2 = cbd1 - 1;
@@ -745,6 +749,7 @@ void default_mtex(MTex *mtex)
 	mtex->lengthfac = 1.0f;
 	mtex->clumpfac = 1.0f;
 	mtex->kinkfac = 1.0f;
+	mtex->kinkampfac = 1.0f;
 	mtex->roughfac = 1.0f;
 	mtex->padensfac = 1.0f;
 	mtex->lifefac = 1.0f;
@@ -755,7 +760,7 @@ void default_mtex(MTex *mtex)
 	mtex->fieldfac = 1.0f;
 	mtex->normapspace = MTEX_NSPACE_TANGENT;
 	mtex->brush_map_mode = MTEX_MAP_MODE_TILED;
-	mtex->random_angle = 2.0f * M_PI;
+	mtex->random_angle = 2.0f * (float)M_PI;
 	mtex->brush_angle_mode = 0;
 }
 
@@ -1629,7 +1634,7 @@ void BKE_texture_get_value(Scene *scene, Tex *texture, float *tex_co, TexResult 
 	}
 
 	/* no node textures for now */
-	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage);
+	result_type = multitex_ext_safe(texture, tex_co, texres, NULL, do_color_manage, false);
 
 	/* if the texture gave an RGB value, we assume it didn't give a valid
 	 * intensity, since this is in the context of modifiers don't use perceptual color conversion.

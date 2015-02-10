@@ -71,6 +71,13 @@ CCL_NAMESPACE_BEGIN
 #define M_SQRT2_F	((float)1.41421356237309504880) 					/* sqrt(2) */
 #endif
 
+#ifndef M_LN2_F
+#define M_LN2_F      ((float)0.6931471805599453)        /* ln(2) */
+#endif
+
+#ifndef M_LN10_F
+#define M_LN10_F     ((float)2.3025850929940457)        /* ln(10) */
+#endif
 
 /* Scalar */
 
@@ -1450,6 +1457,20 @@ ccl_device bool ray_quad_intersect(
 }
 
 /* projections */
+ccl_device void map_to_tube(float *r_u, float *r_v,
+                            const float x, const float y, const float z)
+{
+	float len;
+	*r_v = (z + 1.0f) * 0.5f;
+	len = sqrtf(x * x + y * y);
+	if (len > 0.0f) {
+		*r_u = (1.0f - (atan2f(x / len, y / len) / M_PI_F)) * 0.5f;
+	}
+	else {
+		*r_v = *r_u = 0.0f; /* To avoid un-initialized variables. */
+	}
+}
+
 ccl_device bool map_to_sphere(float *r_u, float *r_v,
                               const float x, const float y, const float z)
 {

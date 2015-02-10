@@ -24,7 +24,7 @@ import pickle
 import re
 
 
-class SpellChecker():
+class SpellChecker:
     """
     A basic spell checker.
     """
@@ -454,6 +454,7 @@ class SpellChecker():
         "vcol", "vcols",
         "vgroup", "vgroups",
         "vinterlace",
+        "vse",
         "wasd", "wasdqe",  # keys...
         "wetmap", "wetmaps",
         "wpaint",

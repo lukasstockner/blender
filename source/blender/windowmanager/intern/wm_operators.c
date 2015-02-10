@@ -102,6 +102,8 @@
 #include "ED_util.h"
 #include "ED_view3d.h"
 
+#include "GPU_material.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
@@ -1187,7 +1189,7 @@ bool WM_operator_filesel_ensure_ext_imtype(wmOperator *op, const struct ImageFor
 	/* dont NULL check prop, this can only run on ops with a 'filepath' */
 	prop = RNA_struct_find_property(op->ptr, "filepath");
 	RNA_property_string_get(op->ptr, prop, filepath);
-	if (BKE_add_image_extension(filepath, im_format)) {
+	if (BKE_image_path_ensure_ext_from_imformat(filepath, im_format)) {
 		RNA_property_string_set(op->ptr, prop, filepath);
 		/* note, we could check for and update 'filename' here,
 		 * but so far nothing needs this. */
@@ -1675,7 +1677,7 @@ int WM_operator_ui_popup(bContext *C, wmOperator *op, int width, int height)
 /**
  * For use by #WM_operator_props_popup_call, #WM_operator_props_popup only.
  *
- * \note operator menu needs undo flag enabled , for redo callback */
+ * \note operator menu needs undo flag enabled, for redo callback */
 static int wm_operator_props_popup_ex(bContext *C, wmOperator *op,
                                       const bool do_call, const bool do_redo)
 {
@@ -2026,6 +2028,14 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	uiItemO(col, NULL, ICON_RECOVER_LAST, "WM_OT_recover_last_session");
 	uiItemL(col, "", ICON_NONE);
 	
+	mt = WM_menutype_find("USERPREF_MT_splash_footer", false);
+	if (mt) {
+		Menu menu = {NULL};
+		menu.layout = uiLayoutColumn(layout, false);
+		menu.type = mt;
+		mt->draw(C, &menu);
+	}
+
 	UI_block_bounds_set_centered(block, 0);
 	
 	return block;
@@ -2682,7 +2692,9 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 	/* recreate dependency graph to include new objects */
 	DAG_scene_relations_rebuild(bmain, scene);
-
+	
+	/* free gpu materials, some materials depend on existing objects, such as lamps so freeing correctly refreshes */
+	GPU_materials_free();
 	BLO_blendhandle_close(bh);
 
 	/* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
@@ -3804,8 +3816,8 @@ void WM_OT_straightline_gesture(wmOperatorType *ot)
 
 /* *********************** radial control ****************** */
 
-#define WM_RADIAL_CONTROL_DISPLAY_SIZE 200
-#define WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE 35
+#define WM_RADIAL_CONTROL_DISPLAY_SIZE (200 * U.pixelsize)
+#define WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE (35 * U.pixelsize)
 #define WM_RADIAL_CONTROL_DISPLAY_WIDTH (WM_RADIAL_CONTROL_DISPLAY_SIZE - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE)
 #define WM_RADIAL_CONTROL_HEADER_LENGTH 180
 #define WM_RADIAL_MAX_STR 6
@@ -3856,7 +3868,7 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
 		case PROP_DISTANCE:
 		case PROP_PERCENTAGE:
 		case PROP_PIXEL:
-			d[0] = rc->initial_value;
+			d[0] = rc->initial_value * U.pixelsize;
 			break;
 		case PROP_FACTOR:
 			d[0] = (1 - rc->initial_value) * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
@@ -3965,8 +3977,8 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 		case PROP_DISTANCE:
 		case PROP_PERCENTAGE:
 		case PROP_PIXEL:
-			r1 = rc->current_value;
-			r2 = rc->initial_value;
+			r1 = rc->current_value * U.pixelsize;
+			r2 = rc->initial_value * U.pixelsize;
 			tex_radius = r1;
 			alpha = 0.75;
 			break;
@@ -3990,11 +4002,6 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 			alpha = 0.75;
 			break;
 	}
-
-	/* adjust for DPI, like BKE_brush_size_get */
-	r1 *= U.pixelsize;
-	r2 *= U.pixelsize;
-	tex_radius *= U.pixelsize;
 
 	/* Keep cursor in the original place */
 	x = rc->initial_mouse[0] - ar->winrct.xmin;
@@ -4413,13 +4420,14 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 						case PROP_PIXEL:
 							new_value = dist;
 							if (snap) new_value = ((int)new_value + 5) / 10 * 10;
+							new_value /= U.pixelsize;
 							break;
 						case PROP_FACTOR:
 							new_value = (WM_RADIAL_CONTROL_DISPLAY_SIZE - dist) / WM_RADIAL_CONTROL_DISPLAY_WIDTH;
 							if (snap) new_value = ((int)ceil(new_value * 10.f) * 10.0f) / 100.f;
 							break;
 						case PROP_ANGLE:
-							new_value = atan2f(delta[1], delta[0]) + M_PI + angle_precision;
+							new_value = atan2f(delta[1], delta[0]) + (float)M_PI + angle_precision;
 							new_value = fmod(new_value, 2.0f * (float)M_PI);
 							if (new_value < 0.0f)
 								new_value += 2.0f * (float)M_PI;

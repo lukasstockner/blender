@@ -526,11 +526,114 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				br->mtex.brush_angle_mode |= MTEX_ANGLE_RANDOM;
 				br->mask_mtex.brush_angle_mode |= MTEX_ANGLE_RANDOM;
 			}
-			br->mtex.random_angle = 2.0f * M_PI;
-			br->mask_mtex.random_angle = 2.0f * M_PI;
+			br->mtex.random_angle = 2.0 * M_PI;
+			br->mask_mtex.random_angle = 2.0 * M_PI;
 		}
 
 #undef BRUSH_RAKE
 #undef BRUSH_RANDOM_ROTATION
+	}
+
+	/* Customizable Safe Areas */
+	if (!MAIN_VERSION_ATLEAST(main, 273, 2)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Scene", "DisplaySafeAreas", "safe_areas")) {
+			Scene *scene;
+
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				copy_v2_fl2(scene->safe_areas.title, 3.5f / 100.0f, 3.5f / 100.0f);
+				copy_v2_fl2(scene->safe_areas.action, 10.0f / 100.0f, 5.0f / 100.0f);
+				copy_v2_fl2(scene->safe_areas.title_center, 17.5f / 100.0f, 5.0f / 100.0f);
+				copy_v2_fl2(scene->safe_areas.action_center, 15.0f / 100.0f, 5.0f / 100.0f);
+			}
+		}
+	}
+	
+	if (!MAIN_VERSION_ATLEAST(main, 273, 3)) {
+		ParticleSettings *part;
+		for (part = main->particle.first; part; part = part->id.next) {
+			if (part->clumpcurve)
+				part->child_flag |= PART_CHILD_USE_CLUMP_CURVE;
+			if (part->roughcurve)
+				part->child_flag |= PART_CHILD_USE_ROUGH_CURVE;
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 6)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "float", "bending_damping")) {
+			Object *ob;
+			ModifierData *md;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Cloth) {
+						ClothModifierData *clmd = (ClothModifierData *)md;
+						clmd->sim_parms->bending_damping = 0.5f;
+					}
+					else if (md->type == eModifierType_ParticleSystem) {
+						ParticleSystemModifierData *pmd = (ParticleSystemModifierData *)md;
+						if (pmd->psys->clmd) {
+							pmd->psys->clmd->sim_parms->bending_damping = 0.5f;
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "float", "clump_noise_size")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				part->clump_noise_size = 1.0f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "int", "kink_extra_steps")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				part->kink_extra_steps = 4;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "MTex", "float", "kinkampfac")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				int a;
+				for (a = 0; a < MAX_MTEX; a++) {
+					MTex *mtex = part->mtex[a];
+					if (mtex) {
+						mtex->kinkampfac = 1.0f;
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "HookModifierData", "char", "flag")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Hook) {
+						HookModifierData *hmd = (HookModifierData *)md;
+						hmd->falloff_type = eHook_Falloff_InvSquare;
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "NodePlaneTrackDeformData", "char", "flag")) {
+			FOREACH_NODETREE(main, ntree, id) {
+				if (ntree->type == NTREE_COMPOSIT) {
+					bNode *node;
+					for (node = ntree->nodes.first; node; node = node->next) {
+						if (ELEM(node->type, CMP_NODE_PLANETRACKDEFORM)) {
+							NodePlaneTrackDeformData *data = node->storage;
+							data->flag = 0;
+							data->motion_blur_samples = 16;
+							data->motion_blur_shutter = 0.5f;
+						}
+					}
+				}
+			}
+			FOREACH_NODETREE_END
+		}
 	}
 }

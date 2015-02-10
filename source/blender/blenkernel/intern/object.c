@@ -684,6 +684,7 @@ void BKE_object_unlink(Object *ob)
 			if (sce->camera == ob) sce->camera = NULL;
 			if (sce->toolsettings->skgen_template == ob) sce->toolsettings->skgen_template = NULL;
 			if (sce->toolsettings->particle.object == ob) sce->toolsettings->particle.object = NULL;
+			if (sce->toolsettings->particle.shape_object == ob) sce->toolsettings->particle.shape_object = NULL;
 
 #ifdef DURIAN_CAMERA_SWITCH
 			{
@@ -1234,7 +1235,7 @@ BulletSoftBody *copy_bulletsoftbody(BulletSoftBody *bsb)
 	return bsbn;
 }
 
-static ParticleSystem *copy_particlesystem(ParticleSystem *psys)
+ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys)
 {
 	ParticleSystem *psysn;
 	ParticleData *pa;
@@ -1314,7 +1315,7 @@ void BKE_object_copy_particlesystems(Object *obn, Object *ob)
 
 	BLI_listbase_clear(&obn->particlesystem);
 	for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-		npsys = copy_particlesystem(psys);
+		npsys = BKE_object_copy_particlesystem(psys);
 
 		BLI_addtail(&obn->particlesystem, npsys);
 

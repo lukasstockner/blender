@@ -109,16 +109,17 @@ void Camera::update()
 {
 	if(!need_update)
 		return;
-	
+
+	/* Full viewport to camera border in the viewport. */
+	Transform fulltoborder = transform_from_viewplane(viewport_camera_border);
+	Transform bordertofull = transform_inverse(fulltoborder);
+
 	/* ndc to raster */
 	Transform screentocamera;
-	Transform ndctoraster = transform_scale(width, height, 1.0f);
+	Transform ndctoraster = transform_scale(width, height, 1.0f) * bordertofull;
 
 	/* raster to screen */
-	Transform screentondc = 
-		transform_scale(1.0f/(viewplane.right - viewplane.left),
-		                1.0f/(viewplane.top - viewplane.bottom), 1.0f) *
-		transform_translate(-viewplane.left, -viewplane.bottom, 0.0f);
+	Transform screentondc = fulltoborder * transform_from_viewplane(viewplane);
 
 	Transform screentoraster = ndctoraster * screentondc;
 	Transform rastertoscreen = transform_inverse(screentoraster);
@@ -277,11 +278,20 @@ void Camera::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	kcam->nearclip = nearclip;
 	kcam->cliplength = (farclip == FLT_MAX)? FLT_MAX: farclip - nearclip;
 
-	need_device_update = false;
-	previous_need_motion = need_motion;
-
 	/* Camera in volume. */
 	kcam->is_inside_volume = 0;
+
+	previous_need_motion = need_motion;
+}
+
+void Camera::device_update_volume(Device *device,
+                                  DeviceScene *dscene,
+                                  Scene *scene)
+{
+	if(!need_device_update) {
+		return;
+	}
+	KernelCamera *kcam = &dscene->data.cam;
 	BoundBox viewplane_boundbox = viewplane_bounds_get();
 	for(size_t i = 0; i < scene->objects.size(); ++i) {
 		Object *object = scene->objects[i];
@@ -293,6 +303,7 @@ void Camera::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 			break;
 		}
 	}
+	need_device_update = false;
 }
 
 void Camera::device_free(Device *device, DeviceScene *dscene)
@@ -346,6 +357,7 @@ float3 Camera::transform_raster_to_world(float raster_x, float raster_y)
 	if(type == CAMERA_PERSPECTIVE) {
 		D = transform_perspective(&rastertocamera,
 		                          make_float3(raster_x, raster_y, 0.0f));
+		float3 Pclip = normalize(D);
 		P = make_float3(0.0f, 0.0f, 0.0f);
 		/* TODO(sergey): Aperture support? */
 		P = transform_point(&cameratoworld, P);
@@ -354,7 +366,7 @@ float3 Camera::transform_raster_to_world(float raster_x, float raster_y)
 		 * be mistakes in here, currently leading to wrong camera-in-volume
 		 * detection.
 		 */
-		P += nearclip * D;
+		P += nearclip * D / Pclip.z;
 	}
 	else if (type == CAMERA_ORTHOGRAPHIC) {
 		D = make_float3(0.0f, 0.0f, 1.0f);
@@ -397,5 +409,15 @@ BoundBox Camera::viewplane_bounds_get()
 	return bounds;
 }
 
-CCL_NAMESPACE_END
+Transform Camera::transform_from_viewplane(BoundBox2D &viewplane)
+{
+	return
+		transform_scale(1.0f / (viewplane.right - viewplane.left),
+		                1.0f / (viewplane.top - viewplane.bottom),
+		                1.0f) *
+		transform_translate(-viewplane.left,
+		                    -viewplane.bottom,
+		                    0.0f);
+}
 
+CCL_NAMESPACE_END

@@ -65,6 +65,7 @@ incs = [
     '../makesrna',
     '../modifiers',
     '../nodes',
+    '../physics',
     '../pointcache',
     '../render/extern/include',
     '../windowmanager',

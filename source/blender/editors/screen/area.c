@@ -1645,6 +1645,8 @@ void ED_area_prevspace(bContext *C, ScrArea *sa)
 		/* no change */
 		return;
 	}
+	sa->flag &= ~AREA_FLAG_STACKED_FULLSCREEN;
+
 	ED_area_tag_redraw(sa);
 
 	/* send space change notifier */
@@ -2161,4 +2163,3 @@ void ED_region_cache_draw_cached_segments(const ARegion *ar, const int num_segme
 		}
 	}
 }
-

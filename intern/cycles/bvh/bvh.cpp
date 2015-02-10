@@ -263,6 +263,7 @@ void BVH::refit(Progress& progress)
 void BVH::pack_triangle(int idx, float4 woop[3])
 {
 	int tob = pack.prim_object[idx];
+	assert(tob >= 0 && tob < objects.size());
 	const Mesh *mesh = objects[tob]->mesh;
 
 	if(mesh->has_motion_blur())
@@ -455,7 +456,7 @@ void BVH::pack_instances(size_t nodes_size)
 			size_t nsize_bbox = (use_qbvh)? 6: 3;
 			int4 *bvh_nodes = &bvh->pack.nodes[0];
 			size_t bvh_nodes_size = bvh->pack.nodes.size(); 
-			int *bvh_is_leaf = (bvh->pack.is_leaf.size() != 0) ? &bvh->pack.is_leaf[0] : NULL;
+			bool *bvh_is_leaf = (bvh->pack.is_leaf.size() != 0) ? &bvh->pack.is_leaf[0] : NULL;
 
 			for(size_t i = 0, j = 0; i < bvh_nodes_size; i+=nsize, j++) {
 				memcpy(pack_nodes + pack_nodes_offset, bvh_nodes + i, nsize_bbox*sizeof(int4));

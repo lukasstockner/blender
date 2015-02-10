@@ -48,6 +48,7 @@
 
 #include "BKE_cloth.h"
 #include "BKE_cdderivedmesh.h"
+#include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_modifier.h"
@@ -177,6 +178,8 @@ static void copyData(ModifierData *md, ModifierData *target)
 	tclmd->point_cache = BKE_ptcache_new();
 	tclmd->point_cache->step = 1;
 	tclmd->clothObject = NULL;
+	tclmd->hairdata = NULL;
+	tclmd->solver_result = NULL;
 }
 
 static bool dependsOnTime(ModifierData *UNUSED(md))
@@ -204,6 +207,12 @@ static void freeData(ModifierData *md)
 		
 		BKE_ptcache_free(clmd->point_cache);
 		clmd->point_cache = NULL;
+		
+		if (clmd->hairdata)
+			MEM_freeN(clmd->hairdata);
+		
+		if (clmd->solver_result)
+			MEM_freeN(clmd->solver_result);
 	}
 }
 

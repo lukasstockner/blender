@@ -53,6 +53,7 @@ incs = [
     '../imbuf',
     '../makesdna',
     '../nodes',
+    '../physics',
     '../pointcache',
     '../render/extern/include',
     '../windowmanager',
