@@ -876,10 +876,12 @@ static int mesh_ptex_res_change_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = ED_object_context(C);
 	Mesh *me = ob->data;
-	int i;
-
-	MLoopPtex *loop_ptex = CustomData_get_layer(&me->ldata, CD_LOOP_PTEX);
+	const int layer_offset = CustomData_get_active_layer(&me->ldata,
+														 CD_LOOP_PTEX);
+	MLoopPtex *loop_ptex = CustomData_get_layer_n(&me->ldata, CD_LOOP_PTEX,
+												  layer_offset);
 	const PtexResChangeMode mode = RNA_enum_get(op->ptr, "mode");
+	int i;
 
 	for (i = 0; i < me->totpoly; i++) {
 		const MPoly *poly = &me->mpoly[i];
@@ -901,8 +903,7 @@ static int mesh_ptex_res_change_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	/* TODO, not sure how this will look yet */
-	loop_ptex[0].image = NULL;
+	BKE_ptex_image_mark_for_update(me, layer_offset);
 
 	DAG_id_tag_update(&me->id, 0);
 	WM_main_add_notifier(NC_GEOM | ND_DATA, me);

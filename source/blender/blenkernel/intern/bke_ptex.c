@@ -580,10 +580,13 @@ static BPXImageBuf *bpx_image_buf_wrap_loop_ptex(MLoopPtex *loop_ptex)
 }
 
 /* TODO(nicholasbishop): sync up with code in imb_ptex.c */
-static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex,
+/* TODO(nicholasbishop): should function apart, Image stuff really is
+ * separate from the packing stuff */
+static bool ptex_pack_loops(Image **image_r, Mesh *me, MLoopPtex *loop_ptex,
 							const char *layer_name)
 {
 	BPXImageBuf *bpx_dst;
+	Image *image;
 	const int num_loops = me->totloop;
 	struct BPXPackedLayout *layout = NULL;
 	struct ImBuf *ibuf;
@@ -591,7 +594,7 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex,
 	BPXTypeDesc type_desc;
 	int i;
 
-	if (!image) {
+	if (!image_r) {
 		return false;
 	}
 
@@ -654,52 +657,56 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex,
 	// TODO
 	IMB_float_from_rect(ibuf);
 
-	(*image) = BKE_image_add_from_imbuf(ibuf);
-	
+	image = *image_r;
+	if (image) {
+		BKE_image_free_buffers(image);
+		BKE_image_assign_ibuf(image, ibuf);
+	}
+	else {
+		image = BKE_image_add_from_imbuf(ibuf);
+
+		rename_id(&image->id, layer_name);
+		id_us_min(&image->id);
+
+		(*image_r) = image;
+	}
+
 	/* Image now owns the ImBuf */
 	IMB_freeImBuf(ibuf);
 
-	if (*image) {
-		ID *id = &(*image)->id;
-		rename_id(id, layer_name);
-		id_us_min(id);
-		return true;
-	}
-	else {
-		return false;
-	}
+	return image != NULL;
 }
 
 Image *BKE_ptex_mesh_image_get(struct Object *ob,
 							   const char layer_name[MAX_CUSTOMDATA_LAYER_NAME])
 {
 	Mesh *me = BKE_mesh_from_object(ob);
-	if (me) {
-		MLoopPtex *loop_ptex = CustomData_get_layer_named(&me->ldata,
-														  CD_LOOP_PTEX,
-														  layer_name);
-		if (loop_ptex) {
-			// TODO
-			if (!loop_ptex->image) {
-				// TODO
-				const bool r = ptex_pack_loops(&loop_ptex->image, me,
-											   loop_ptex, layer_name);
-				BLI_assert(r);
-			}
-			else if (loop_ptex->image->tpageflag & IMA_TPAGE_REFRESH) {
-				//mesh_ptex_pack_textures_free(loop_ptex->pack);
-				loop_ptex->image->tpageflag &= ~IMA_TPAGE_REFRESH;
-			}
-			// TODO
-
-			/* if (!loop_ptex->pack->mapping_texture) { */
-			/* 	mesh_ptex_pack_update_textures(loop_ptex->pack); */
-			/* } */
-
-			return loop_ptex->image;
-		}
+	MLoopPtex *loop_ptex;
+	if (!me) {
+		return NULL;
 	}
-	return NULL;
+
+	loop_ptex = CustomData_get_layer_named(&me->ldata, CD_LOOP_PTEX,
+										   layer_name);
+	if (!loop_ptex) {
+		return NULL;
+	}
+
+	if (!loop_ptex->image ||
+		!BKE_image_has_ibuf(loop_ptex->image, NULL))
+	{
+		// TODO
+		const bool r = ptex_pack_loops(&loop_ptex->image, me,
+									   loop_ptex, layer_name);
+		BLI_assert(r);
+	}
+	// TODO
+	else if (loop_ptex->image->tpageflag & IMA_TPAGE_REFRESH) {
+		//mesh_ptex_pack_textures_free(loop_ptex->pack);
+		loop_ptex->image->tpageflag &= ~IMA_TPAGE_REFRESH;
+	}
+
+	return loop_ptex->image;
 }
 
 MPtexDataType BKE_ptex_texel_data_type(const MPtexTexelInfo texel_info)
