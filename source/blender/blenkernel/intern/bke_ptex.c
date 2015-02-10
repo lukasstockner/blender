@@ -700,11 +700,6 @@ Image *BKE_ptex_mesh_image_get(struct Object *ob,
 									   loop_ptex, layer_name);
 		BLI_assert(r);
 	}
-	// TODO
-	else if (loop_ptex->image->tpageflag & IMA_TPAGE_REFRESH) {
-		//mesh_ptex_pack_textures_free(loop_ptex->pack);
-		loop_ptex->image->tpageflag &= ~IMA_TPAGE_REFRESH;
-	}
 
 	return loop_ptex->image;
 }
