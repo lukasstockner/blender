@@ -437,6 +437,19 @@ void PtexTextureNode::attributes(Shader *shader, AttributeRequestSet *attributes
 	ShaderNode::attributes(shader, attributes);
 }
 
+static NodeType node_attr_from_bump(const ShaderBump bump)
+{
+	if(bump == SHADER_BUMP_DX) {
+		return NODE_ATTR_BUMP_DX;
+	}
+	else if(bump == SHADER_BUMP_DY) {
+		return NODE_ATTR_BUMP_DY;
+	}
+	else {
+		return NODE_ATTR;
+	}
+}
+
 void PtexTextureNode::compile(SVMCompiler& compiler)
 {
 	ShaderInput *layer_in = input("Layer");
@@ -449,8 +462,9 @@ void PtexTextureNode::compile(SVMCompiler& compiler)
 	{
 		int attr = compiler.attribute(ATTR_STD_PTEX_UV);
 		compiler.stack_assign(vector_in);
-		compiler.add_node(NODE_ATTR, attr, vector_in->stack_offset,
-						  NODE_ATTR_FLOAT3);
+
+		compiler.add_node(node_attr_from_bump(bump), attr,
+						  vector_in->stack_offset, NODE_ATTR_FLOAT3);
 	}
 
 	image_manager = compiler.image_manager;
