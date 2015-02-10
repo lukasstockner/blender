@@ -482,6 +482,10 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		viewvecs[1][2] = vec_far[2] - viewvecs[0][2];
 	}
 
+	/* set invalid color in case shader fails */
+	glColor3f(1.0, 0.0, 1.0);
+	glDisable(GL_DEPTH_TEST);
+
 	/* ssao pass */
 	if (fx->effects & GPU_FX_SSAO) {
 		GPUShader *ssao_shader;
@@ -528,9 +532,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_bind(fx->ssao_concentric_samples_tex, numslots++);
 			GPU_shader_uniform_texture(ssao_shader, ssao_concentric_tex, fx->ssao_concentric_samples_tex);
 			
-			/* set invalid color in case shader fails */
-			glColor3f(1.0, 0.0, 1.0);
-
 			/* draw */
 			if (passes_left-- == 1) {
 				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
@@ -544,7 +545,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				/* bind the ping buffer to the color buffer */
 				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
 			}
-			glDisable(GL_DEPTH_TEST);
+
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 			/* disable bindings */
@@ -632,7 +633,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			/* binding takes care of setting the viewport to the downsampled size */
 			GPU_texture_bind_as_framebuffer(fx->dof_near_coc_buffer);
 
-			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(src);
@@ -724,7 +724,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, 0, NULL);
 
-			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(fx->dof_near_coc_buffer);
@@ -754,7 +753,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_buffer, 0, NULL);
 
-			glDisable(GL_DEPTH_TEST);
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(fx->dof_near_coc_final_buffer);
@@ -812,7 +810,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				/* bind the ping buffer to the color buffer */
 				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
 			}
-			glDisable(GL_DEPTH_TEST);
+
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(fx->dof_near_coc_buffer);
