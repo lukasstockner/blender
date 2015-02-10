@@ -54,8 +54,8 @@
 
 #include "MEM_guardedalloc.h"
 
-static const float fullscreencos[4][2] = {{-1.0f, -1.0f}, {1.0f, -1.0f}, {1.0f, 1.0f}, {-1.0f, 1.0f}};
-static const float fullscreenuvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 1.0f}};
+static const float fullscreencos[4][2] = {{-1.0f, -1.0f}, {1.0f, -1.0f}, {-1.0f, 1.0f}, {1.0f, 1.0f}};
+static const float fullscreenuvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}};
 
 struct GPUFX {
 	/* we borrow the term gbuffer from deferred rendering however this is just a regular 
@@ -545,7 +545,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
 			}
 			glDisable(GL_DEPTH_TEST);
-			glDrawArrays(GL_QUADS, 0, 4);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 			/* disable bindings */
 			GPU_texture_unbind(src);
@@ -633,7 +633,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_bind_as_framebuffer(fx->dof_near_coc_buffer);
 
 			glDisable(GL_DEPTH_TEST);
-			glDrawArrays(GL_QUADS, 0, 4);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(src);
 			GPU_depth_texture_mode(fx->depth_buffer, true, false);
@@ -678,7 +678,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, 0, NULL);
 
 			/* Drawing quad */
-			glDrawArrays(GL_QUADS, 0, 4);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 			/* *unbind/detach */
 			GPU_texture_unbind(fx->dof_near_coc_buffer);
@@ -693,7 +693,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_texture(dof_shader_pass2, color_uniform, fx->dof_near_coc_final_buffer);
 
 			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_blurred_buffer, 0, NULL);
-			glDrawArrays(GL_QUADS, 0, 4);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 			/* *unbind/detach */
 			GPU_depth_texture_mode(fx->depth_buffer, true, false);
@@ -725,7 +725,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, 0, NULL);
 
 			glDisable(GL_DEPTH_TEST);
-			glDrawArrays(GL_QUADS, 0, 4);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(fx->dof_near_coc_buffer);
 			GPU_texture_unbind(fx->dof_near_coc_blurred_buffer);
@@ -755,7 +755,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_buffer, 0, NULL);
 
 			glDisable(GL_DEPTH_TEST);
-			glDrawArrays(GL_QUADS, 0, 4);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(fx->dof_near_coc_final_buffer);
 
@@ -813,7 +813,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
 			}
 			glDisable(GL_DEPTH_TEST);
-			glDrawArrays(GL_QUADS, 0, 4);
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
 			GPU_texture_unbind(fx->dof_near_coc_buffer);
 			GPU_texture_unbind(fx->dof_near_coc_blurred_buffer);

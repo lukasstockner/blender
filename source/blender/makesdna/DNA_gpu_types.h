@@ -59,6 +59,5 @@ typedef struct GPUFXOptions {
 /* shaderfx enables */
 #define GPU_FX_DEPTH_OF_FIELD  1
 #define GPU_FX_SSAO           (1 << 1)
-#define GPU_FX_HDR            (1 << 2)
 
 #endif

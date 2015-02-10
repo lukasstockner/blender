@@ -462,7 +462,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 		 * running notifiers again will overwrite */
 		oglrender->scene->customdata_mask |= oglrender->scene->customdata_mask_modal;
 
-		if (oglrender->v3d->shader_fx & (GPU_FX_DEPTH_OF_FIELD | GPU_FX_DEPTH_OF_FIELD)) {
+		if (oglrender->v3d->shader_fx & (GPU_FX_DEPTH_OF_FIELD | GPU_FX_SSAO)) {
 			oglrender->fx = GPU_create_fx_compositor();
 		}
 	}
