@@ -720,16 +720,20 @@ void MESH_OT_vertex_color_remove(wmOperatorType *ot)
 
 /*** ptex operator ***/
 
-static int mesh_ptex_add(Mesh *me, const char *name, const bool active_set)
+static int mesh_ptex_add(const PtexToolSettings *pts, Mesh *me,
+						 const char *name, const bool active_set)
 {
 	int layernum = 0;
 
 	if (me->edit_btmesh) {
 		/* TODO */
 		assert(!me->edit_btmesh);
+		return -1;
 	}
 	else {
 		MLoopPtex *layer_data;
+		const MPtexLogRes logres = {pts->u_logres, pts->u_logres};
+		int i;
 
 		layernum = CustomData_number_of_layers(&me->ldata, CD_LOOP_PTEX);
 
@@ -740,9 +744,7 @@ static int mesh_ptex_add(Mesh *me, const char *name, const bool active_set)
 
 		{
 			// TODO
-			int i;
 			MPtexTexelInfo texel_info = {4, MPTEX_DATA_TYPE_UINT8};
-			MPtexLogRes logres = {5, 5};
 			for (i = 0; i < me->totloop; i++) {
 				BKE_loop_ptex_init(&layer_data[i], texel_info, logres);
 			}
@@ -764,9 +766,11 @@ static int mesh_ptex_add(Mesh *me, const char *name, const bool active_set)
 static int mesh_ptex_add_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Object *ob = ED_object_context(C);
+	Scene *scene = CTX_data_scene(C);
+	PtexToolSettings *pts = &scene->toolsettings->ptex_tool_settings;
 	Mesh *me = ob->data;
 
-	if (mesh_ptex_add(me, NULL, true) == -1)
+	if (mesh_ptex_add(pts, me, NULL, true) == -1)
 		return OPERATOR_CANCELLED;
 
 	return OPERATOR_FINISHED;

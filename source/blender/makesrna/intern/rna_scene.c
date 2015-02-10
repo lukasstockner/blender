@@ -2120,6 +2120,12 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "MeshStatVis");
 	RNA_def_property_ui_text(prop, "Mesh Statistics Visualization", NULL);
+
+	/* Ptex */
+	prop = RNA_def_property(srna, "ptex_tool_settings", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "PtexToolSettings");
+	RNA_def_property_ui_text(prop, "Ptex Tool Settings", NULL);
 }
 
 static void rna_def_unified_paint_settings(BlenderRNA  *brna)
@@ -2315,6 +2321,35 @@ static void rna_def_statvis(BlenderRNA  *brna)
 	RNA_def_property_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f));
 	RNA_def_property_ui_range(prop, -DEG2RADF(180.0f), DEG2RADF(180.0f), 0.001, 3);
 	RNA_def_property_ui_text(prop, "Distort Max", "Maximum angle to display");
+	RNA_def_property_update(prop, 0, "rna_EditMesh_update");
+}
+
+static void rna_def_ptex_tool_settings(BlenderRNA  *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem stat_type[] = {
+		{0, "LOGRES_0", 0, "1x1", ""},
+		{1, "LOGRES_1", 0, "2x2", ""},
+		{2, "LOGRES_2", 0, "4x4", ""},
+		{3, "LOGRES_3", 0, "8x8", ""},
+		{4, "LOGRES_4", 0, "16x16", ""},
+		{5, "LOGRES_5", 0, "32x32", ""},
+		{6, "LOGRES_6", 0, "64x64", ""},
+		{7, "LOGRES_7", 0, "128x128", ""},
+		{8, "LOGRES_8", 0, "256x256", ""},
+		{9, "LOGRES_9", 0, "512x512", ""},
+		{0, NULL, 0, NULL, NULL}};
+
+	srna = RNA_def_struct(brna, "PtexToolSettings", NULL);
+	RNA_def_struct_ui_text(srna, "Ptex Tool Settings", "");
+
+	prop = RNA_def_property(srna, "resolution", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "u_logres");
+	RNA_def_property_enum_items(prop, stat_type);
+	RNA_def_property_ui_text(prop, "Face Resolution",
+							 "Per-face resolution for new layers");
 	RNA_def_property_update(prop, 0, "rna_EditMesh_update");
 }
 
@@ -5852,6 +5887,7 @@ void RNA_def_scene(BlenderRNA *brna)
 	rna_def_tool_settings(brna);
 	rna_def_unified_paint_settings(brna);
 	rna_def_statvis(brna);
+	rna_def_ptex_tool_settings(brna);
 	rna_def_unit_settings(brna);
 	rna_def_scene_image_format_data(brna);
 	rna_def_scene_game_data(brna);

@@ -196,6 +196,7 @@ class DATA_PT_ptex(MeshButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        pts = context.tool_settings.ptex_tool_settings
         me = context.mesh
 
         row = layout.row()
@@ -206,6 +207,8 @@ class DATA_PT_ptex(MeshButtonsPanel, Panel):
         col = row.column(align=True)
         col.operator("mesh.ptex_add", icon='ZOOMIN', text="")
         col.operator("mesh.ptex_remove", icon='ZOOMOUT', text="")
+
+        layout.prop(pts, "resolution")
 
         layout.operator("mesh.ptex_res_change",
                         text='Halve Resolution').mode = 'HALVE'

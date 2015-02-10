@@ -1066,6 +1066,13 @@ typedef struct MeshStatVis {
 	float sharp_min, sharp_max;
 } MeshStatVis;
 
+typedef struct PtexToolSettings {
+	/* TODO(nicholasbishop): for now just expose one resolution
+	 * setting and use for both U and V resolution */
+	int u_logres;
+
+	int pad;
+} PtexToolSettings;
 
 /* *************************************************************** */
 /* Tool Settings */
@@ -1184,6 +1191,8 @@ typedef struct ToolSettings {
 	struct UnifiedPaintSettings unified_paint_settings;
 
 	struct MeshStatVis statvis;
+
+	struct PtexToolSettings ptex_tool_settings;
 } ToolSettings;
 
 /* *************************************************************** */
