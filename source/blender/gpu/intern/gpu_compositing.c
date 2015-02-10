@@ -421,6 +421,21 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, GPUFxFl
 	return true;
 }
 
+static void GPU_fx_bind_render_target(int *passes_left, GPUFX *fx, struct GPUOffScreen *ofs, GPUTexture *target)
+{
+	if ((*passes_left)-- == 1) {
+		GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
+		if (ofs) {
+			GPU_offscreen_bind(ofs, false);
+		}
+		else
+			GPU_framebuffer_restore();
+	}
+	else {
+		/* bind the ping buffer to the color buffer */
+		GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
+	}
+}
 
 bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs) {
 	GPUTexture *src, *target;
@@ -533,18 +548,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_texture(ssao_shader, ssao_concentric_tex, fx->ssao_concentric_samples_tex);
 			
 			/* draw */
-			if (passes_left-- == 1) {
-				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
-				if (ofs) {
-					GPU_offscreen_bind(ofs, false);
-				}
-				else
-					GPU_framebuffer_restore();
-			}
-			else {
-				/* bind the ping buffer to the color buffer */
-				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
-			}
+			GPU_fx_bind_render_target(&passes_left, fx, ofs, target);
 
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -798,18 +802,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_texture(dof_shader_pass5, depth_uniform, fx->depth_buffer);
 
 			/* if this is the last pass, prepare for rendering on the frambuffer */
-			if (passes_left-- == 1) {
-				GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
-				if (ofs) {
-					GPU_offscreen_bind(ofs, false);
-				}
-				else
-					GPU_framebuffer_restore();
-			}
-			else {
-				/* bind the ping buffer to the color buffer */
-				GPU_framebuffer_texture_attach(fx->gbuffer, target, 0, NULL);
-			}
+			GPU_fx_bind_render_target(&passes_left, fx, ofs, target);
 
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
