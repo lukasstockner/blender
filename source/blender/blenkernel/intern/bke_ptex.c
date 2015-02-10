@@ -25,6 +25,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_image.h"
+#include "BKE_library.h"
 #include "BKE_ptex.h"
 
 #include "IMB_imbuf.h"
@@ -220,7 +221,6 @@ void BKE_loop_ptex_free(MLoopPtex *loop_ptex)
 	if (loop_ptex->rect) {
 		MEM_freeN(loop_ptex->rect);
 	}
-	//mesh_ptex_pack_free(loop_ptex->pack);
 }
 
 #ifdef WITH_PTEX
@@ -570,6 +570,10 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
 	BPXTypeDesc type_desc;
 	int i;
 
+	if (!image) {
+		return false;
+	}
+
 	if (!loop_ptex) {
 		return false;
 	}
@@ -631,12 +635,17 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex)
 	IMB_float_from_rect(ibuf);
 
 	(*image) = BKE_image_add_from_imbuf(ibuf);
-
+	
 	/* Image now owns the ImBuf */
 	IMB_freeImBuf(ibuf);
 
-	/* Return true only if Image was created successfully */
-	return (*image) != NULL;
+	if (*image) {
+		id_us_min(&(*image)->id);
+		return true;
+	}
+	else {
+		return false;
+	}
 }
 
 Image *BKE_ptex_mesh_image_get(struct Object *ob,
