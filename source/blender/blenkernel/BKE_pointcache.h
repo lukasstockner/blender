@@ -40,46 +40,51 @@
 
 /* Point cache clearing option, for BKE_ptcache_id_clear, before
  * and after are non inclusive (they wont remove the cfra) */
-#define PTCACHE_CLEAR_ALL       0
-#define PTCACHE_CLEAR_FRAME     1
-#define PTCACHE_CLEAR_BEFORE    2
-#define PTCACHE_CLEAR_AFTER     3
+typedef enum ePointCache_ClearMode {
+	PTCACHE_CLEAR_ALL       = 0,
+	PTCACHE_CLEAR_FRAME     = 1,
+	PTCACHE_CLEAR_BEFORE    = 2,
+	PTCACHE_CLEAR_AFTER     = 3,
+} ePointCache_ClearMode;
 
 /* Point cache reset options */
-#define PTCACHE_RESET_DEPSGRAPH     0
-#define PTCACHE_RESET_BAKED         1
-#define PTCACHE_RESET_OUTDATED      2
-/* #define PTCACHE_RESET_FREE			3 */ /*UNUSED*/
+typedef enum ePointCache_ResetMode {
+	PTCACHE_RESET_DEPSGRAPH     = 0,
+	PTCACHE_RESET_BAKED         = 1,
+	PTCACHE_RESET_OUTDATED      = 2,
+/*	PTCACHE_RESET_FREE			= 3, */ /*UNUSED*/
+} ePointCache_ResetMode;
 
 /* Add the blendfile name after blendcache_ */
 #define PTCACHE_EXT ".bphys"
 #define PTCACHE_PATH "blendcache_"
 
-/* File open options, for BKE_ptcache_file_open */
-#define PTCACHE_FILE_READ   0
-#define PTCACHE_FILE_WRITE  1
-#define PTCACHE_FILE_UPDATE 2
-
 /* PTCacheID types */
-#define PTCACHE_TYPE_SOFTBODY           0
-#define PTCACHE_TYPE_PARTICLES          1
-#define PTCACHE_TYPE_CLOTH              2
-#define PTCACHE_TYPE_SMOKE_DOMAIN       3
-#define PTCACHE_TYPE_SMOKE_HIGHRES      4
-#define PTCACHE_TYPE_DYNAMICPAINT       5
-#define PTCACHE_TYPE_RIGIDBODY          6
+typedef enum ePointCache_Type {
+	PTCACHE_TYPE_SOFTBODY           = 0,
+	PTCACHE_TYPE_PARTICLES          = 1,
+	PTCACHE_TYPE_CLOTH              = 2,
+	PTCACHE_TYPE_SMOKE_DOMAIN       = 3,
+	PTCACHE_TYPE_SMOKE_HIGHRES      = 4,
+	PTCACHE_TYPE_DYNAMICPAINT       = 5,
+	PTCACHE_TYPE_RIGIDBODY          = 6,
+} ePointCache_Type;
 
 /* high bits reserved for flags that need to be stored in file */
-#define PTCACHE_TYPEFLAG_COMPRESS       (1 << 16)
-#define PTCACHE_TYPEFLAG_EXTRADATA      (1 << 17)
+typedef enum ePointCache_Flag {
+	PTCACHE_TYPEFLAG_COMPRESS       = (1 << 16),
+	PTCACHE_TYPEFLAG_EXTRADATA      = (1 << 17),
+} ePointCache_Flag;
 
 #define PTCACHE_TYPEFLAG_TYPEMASK           0x0000FFFF
 #define PTCACHE_TYPEFLAG_FLAGMASK           0xFFFF0000
 
 /* PTCache read return code */
-#define PTCACHE_READ_EXACT              1
-#define PTCACHE_READ_INTERPOLATED       2
-#define PTCACHE_READ_OLD                3
+typedef enum ePointCache_ReadResult {
+	PTCACHE_READ_EXACT              = 1,
+	PTCACHE_READ_INTERPOLATED       = 2,
+	PTCACHE_READ_OLD                = 3,
+} ePointCache_ReadResult;
 
 /* Structs */
 struct ClothModifierData;

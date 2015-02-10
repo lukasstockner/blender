@@ -104,6 +104,14 @@
 #  include "BLI_winstuff.h"
 #endif
 
+
+/* File open options, for BKE_ptcache_file_open */
+typedef enum ePointCache_FileMode {
+	PTCACHE_FILE_READ   = 0,
+	PTCACHE_FILE_WRITE  = 1,
+	PTCACHE_FILE_UPDATE = 2,
+} ePointCache_FileMode;
+
 #define PTCACHE_DATA_FROM(data, type, from)  \
 	if (data[type]) { \
 		memcpy(data[type], from, ptcache_data_size[type]); \
