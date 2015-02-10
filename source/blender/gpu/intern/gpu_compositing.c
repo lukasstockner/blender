@@ -37,9 +37,7 @@
 #include "BLI_listbase.h"
 #include "BLI_linklist.h"
 
-extern "C" {
 #include "BLI_rand.h"
-}
 #include "BLI_listbase.h"
 
 #include "DNA_vec_types.h"
@@ -576,6 +574,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 	/* second pass, dof */
 	if (fx->effects & GPU_FX_DEPTH_OF_FIELD) {
 		GPUDOFOptions *options = fx->options.dof_options;
+		GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4, *dof_shader_pass5;
 		float dof_params[4];
 		float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
 		float scale_camera = 0.001f / scale;
@@ -585,8 +584,6 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		dof_params[1] = options->dof_focus_distance;
 		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
 		dof_params[3] = 0.0f;
-
-		GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4, *dof_shader_pass5;
 
 		/* DOF effect has many passes but most of them are performed on a texture whose dimensions are 4 times less than the original
 			 * (16 times lower than original screen resolution). Technique used is not very exact but should be fast enough and is based

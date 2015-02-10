@@ -54,7 +54,7 @@ set(SRC
 	intern/gpu_material.c
 	intern/gpu_simple_shader.c
 	intern/gpu_select.c
-	intern/gpu_compositing.cpp
+	intern/gpu_compositing.c
 	intern/gpu_renderer.c
 
 	shaders/gpu_shader_fx_lib.glsl
