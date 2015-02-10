@@ -223,6 +223,26 @@ void BKE_loop_ptex_free(MLoopPtex *loop_ptex)
 	}
 }
 
+void BKE_ptex_image_mark_for_update(struct Mesh *me, const int layer_offset)
+{
+	MLoopPtex *loop_ptex;
+
+	BLI_assert(me);
+	if (!me) {
+		return;
+	}
+
+	loop_ptex = CustomData_get_layer_n(&me->ldata, CD_LOOP_PTEX, layer_offset);
+	BLI_assert(loop_ptex);
+	if (!loop_ptex) {
+		return;
+	}
+
+	if (loop_ptex->image) {
+		BKE_image_free_buffers(loop_ptex->image);
+	}
+}
+
 #ifdef WITH_PTEX
 
 /* TODO: for testing, fill initialized loop with some data */
