@@ -32,19 +32,12 @@
 #ifndef __DNA_GPU_TYPES_H__
 #define __DNA_GPU_TYPES_H__
 
-enum DOFMode {
-	DOF_QUALITY_NORMAL = 0,
-	DOF_QUALITY_HIGH = 1,
-};
-
 /* properties for dof effect */
 typedef struct GPUDOFOptions {
 	float dof_focus_distance; /* focal distance for depth of field */
 	float dof_fstop;
 	float dof_focal_length;
 	float dof_sensor;
-	int dof_quality_mode;
-	int dof_num_blades;
 } GPUDOFOptions;
 
 /* properties for SSAO effect */

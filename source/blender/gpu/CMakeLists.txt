@@ -61,8 +61,6 @@ set(SRC
 	shaders/gpu_shader_fx_ssao_frag.glsl
 	shaders/gpu_shader_fx_dof_frag.glsl
 	shaders/gpu_shader_fx_dof_vert.glsl
-	shaders/gpu_shader_fx_dof_high_frag.glsl
-	shaders/gpu_shader_fx_dof_high_vert.glsl
 	shaders/gpu_shader_fx_vert.glsl
 	shaders/gpu_shader_material.glsl
 	shaders/gpu_shader_sep_gaussian_blur_frag.glsl
@@ -100,8 +98,6 @@ data_to_c_simple(shaders/gpu_shader_fx_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_ssao_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_dof_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_dof_vert.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_fx_dof_high_frag.glsl SRC)
-data_to_c_simple(shaders/gpu_shader_fx_dof_high_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_fx_lib.glsl SRC)
 
 if(WITH_GAMEENGINE)

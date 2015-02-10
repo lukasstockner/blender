@@ -206,9 +206,6 @@ class DATA_PT_camera_gpu_dof(Panel):
         col.prop(dof_options, "dof_fstop")
         col.prop(dof_options, "dof_focal_length")
         col.prop(dof_options, "dof_sensor")
-        col.prop(dof_options, "dof_quality_mode")
-        if dof_options.dof_quality_mode == 'HIGH':
-            col.prop(dof_options, "dof_num_blades")
 
     @classmethod
     def poll(cls, context):

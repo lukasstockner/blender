@@ -3842,12 +3842,6 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	static EnumPropertyItem dof_quality_items[] = {
-	    {DOF_QUALITY_NORMAL, "NORMAL", 0, "Normal", "Use normal quality depth of field"},
-	    {DOF_QUALITY_HIGH, "HIGH", 0, "High", "Use high quality blurring depth of field"},
-	    {0, NULL, 0, NULL, NULL}
-	};
-
 	srna = RNA_def_struct(brna, "GPUDOFOptions", NULL);
 	RNA_def_struct_ui_text(srna, "GPU DOF", "Options for GPU based depth of field");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
@@ -3875,16 +3869,6 @@ static void rna_def_gpu_dof_fx(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "F/Stop", "FStop for dof effect");
 	RNA_def_property_range(prop, 0.0f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.1f, 64.0f, 10, 1);
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-
-	prop = RNA_def_property(srna, "dof_quality_mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Quality", "Quality of the dof effect");
-	RNA_def_property_enum_items(prop, dof_quality_items);
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-	
-	prop = RNA_def_property(srna, "dof_num_blades", PROP_INT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Blades", "Number of blades in camera");
-	RNA_def_property_range(prop, 5, 8);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 }
 

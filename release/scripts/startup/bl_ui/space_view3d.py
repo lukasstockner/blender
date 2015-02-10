@@ -2947,9 +2947,6 @@ class VIEW3D_PT_view3d_shading(Panel):
                     subcol.prop(dof_options, "dof_fstop")
                     subcol.prop(dof_options, "dof_focal_length")
                     subcol.prop(dof_options, "dof_sensor")
-                    subcol.prop(dof_options, "dof_quality_mode")
-                    if dof_options.dof_quality_mode == 'HIGH':
-                        subcol.prop(dof_options, "dof_num_blades")
 
             col.prop(view, "ssao")
             if view.ssao:
