@@ -91,6 +91,7 @@ void    BKE_imformat_defaults(struct ImageFormatData *im_format);
 void    BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const struct ImBuf *imbuf);
 
 struct anim *openanim(const char *name, int flags, int streamindex, char colorspace[IMA_MAX_SPACE]);
+struct anim *openanim_noload(const char *name, int flags, int streamindex, char colorspace[IMA_MAX_SPACE]);
 
 void    BKE_image_de_interlace(struct Image *ima, int odd);
 
@@ -184,9 +185,6 @@ void BKE_image_walk_all_users(const struct Main *mainp, void *customdata,
 
 /* ensures an Image exists for viewing nodes or render */
 struct Image *BKE_image_verify_viewer(int type, const char *name);
-
-/* force an ImBuf to become part of Image */
-void BKE_image_assign_ibuf(struct Image *ima, struct ImBuf *ibuf);
 
 /* called on frame change or before render */
 void BKE_image_user_frame_calc(struct ImageUser *iuser, int cfra, int fieldnr);

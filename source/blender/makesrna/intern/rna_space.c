@@ -1708,7 +1708,22 @@ static void rna_def_background_image(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Size", "Scaling factor for the background image");
 	RNA_def_property_range(prop, 0.0, FLT_MAX);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
-	
+
+	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_EULER);
+	RNA_def_property_float_sdna(prop, NULL, "rotation");
+	RNA_def_property_ui_text(prop, "Rotation", "Rotation for the background image");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "use_flip_x", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", V3D_BGPIC_FLIP_X);
+	RNA_def_property_ui_text(prop, "Flip Horizontally", "Flip the background image horizontally");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
+	prop = RNA_def_property(srna, "use_flip_y", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", V3D_BGPIC_FLIP_Y);
+	RNA_def_property_ui_text(prop, "Flip Vertically", "Flip the background image vertically");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
+
 	prop = RNA_def_property(srna, "opacity", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "blend");
 	RNA_def_property_float_funcs(prop, "rna_BackgroundImage_opacity_get", "rna_BackgroundImage_opacity_set", NULL);
@@ -2846,7 +2861,8 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_group_colors", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SACTION_NODRAWGCOLORS);
 	RNA_def_property_ui_text(prop, "Show Group Colors",
-	                         "Draw groups and channels with colors matching their corresponding groups");
+	                         "Draw groups and channels with colors matching their corresponding groups "
+	                         "(pose bones only currently)");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, NULL);
 	
 	/* editing */
@@ -3007,6 +3023,12 @@ static void rna_def_space_graph(BlenderRNA *brna)
 	RNA_def_property_boolean_funcs(prop, "rna_SpaceGraphEditor_has_ghost_curves_get", NULL);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Has Ghost Curves", "Graph Editor instance has some ghost curves stored");
+
+	/* auto view */
+	prop = RNA_def_property(srna, "use_auto_view_selected", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SIPO_AUTO_VIEW_SELECTED);
+	RNA_def_property_ui_text(prop, "Auto View Selected", "Automatically adjust view based on selection");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_GRAPH, NULL);
 
 	/* nromalize curves */
 	prop = RNA_def_property(srna, "use_normalization", PROP_BOOLEAN, PROP_NONE);

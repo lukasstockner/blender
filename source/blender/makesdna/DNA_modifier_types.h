@@ -83,6 +83,7 @@ typedef enum ModifierType {
 	eModifierType_LaplacianDeform   = 47,
 	eModifierType_Wireframe         = 48,
 	eModifierType_DataTransfer      = 49,
+	eModifierType_NormalEdit        = 50,
 	NUM_MODIFIER_TYPES
 } ModifierType;
 
@@ -535,15 +536,38 @@ typedef struct ArmatureModifierData {
 	char defgrp_name[64];     /* MAX_VGROUP_NAME */
 } ArmatureModifierData;
 
+enum {
+	MOD_HOOK_UNIFORM_SPACE = (1 << 0),
+};
+
+/* same as WarpModifierFalloff */
+typedef enum {
+	eHook_Falloff_None   = 0,
+	eHook_Falloff_Curve  = 1,
+	eHook_Falloff_Sharp  = 2, /* PROP_SHARP */
+	eHook_Falloff_Smooth = 3, /* PROP_SMOOTH */
+	eHook_Falloff_Root   = 4, /* PROP_ROOT */
+	eHook_Falloff_Linear = 5, /* PROP_LIN */
+	eHook_Falloff_Const  = 6, /* PROP_CONST */
+	eHook_Falloff_Sphere = 7, /* PROP_SPHERE */
+	eHook_Falloff_InvSquare = 8, /* PROP_INVSQUARE */
+	/* PROP_RANDOM not used */
+} HookModifierFalloff;
+
 typedef struct HookModifierData {
 	ModifierData modifier;
 
 	struct Object *object;
 	char subtarget[64];     /* optional name of bone target, MAX_ID_NAME-2 */
 
+	char flag;
+	char falloff_type;      /* use enums from WarpModifier (exact same functionality) */
+	char pad[6];
 	float parentinv[4][4];  /* matrix making current transform unmodified */
 	float cent[3];          /* visualization of hook */
 	float falloff;          /* if not zero, falloff is distance where influence zero */
+
+	struct CurveMapping *curfalloff;
 
 	int *indexar;           /* if NULL, it's using vertexgroup */
 	int totindex;
@@ -978,6 +1002,7 @@ typedef enum {
 	eWarp_Falloff_Linear = 5, /* PROP_LIN */
 	eWarp_Falloff_Const  = 6, /* PROP_CONST */
 	eWarp_Falloff_Sphere = 7, /* PROP_SPHERE */
+	eWarp_Falloff_InvSquare = 8, /* PROP_INVSQUARE */
 	/* PROP_RANDOM not used */
 } WarpModifierFalloff;
 
@@ -1419,5 +1444,37 @@ enum {
 	MOD_DATATRANSFER_USE_POLY         = 1 << 31,
 };
 
+/* Set Split Normals modifier */
+typedef struct NormalEditModifierData {
+	ModifierData modifier;
+	char defgrp_name[64];  /* MAX_VGROUP_NAME */
+	struct Object *target;  /* Source of normals, or center of ellipsoid. */
+	short mode;
+	short flag;
+	short mix_mode;
+	char pad[2];
+	float mix_factor;
+	float offset[3];
+} NormalEditModifierData;
+
+/* NormalEditModifierData.mode */
+enum {
+	MOD_NORMALEDIT_MODE_RADIAL        = 0,
+	MOD_NORMALEDIT_MODE_DIRECTIONAL   = 1,
+};
+
+/* NormalEditModifierData.flags */
+enum {
+	MOD_NORMALEDIT_INVERT_VGROUP            = (1 << 0),
+	MOD_NORMALEDIT_USE_DIRECTION_PARALLEL   = (1 << 1),
+};
+
+/* NormalEditModifierData.mix_mode */
+enum {
+	MOD_NORMALEDIT_MIX_COPY = 0,
+	MOD_NORMALEDIT_MIX_ADD  = 1,
+	MOD_NORMALEDIT_MIX_SUB  = 2,
+	MOD_NORMALEDIT_MIX_MUL  = 3,
+};
 
 #endif  /* __DNA_MODIFIER_TYPES_H__ */
