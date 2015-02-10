@@ -624,15 +624,14 @@ static bool ptex_pack_loops(Image **image, Mesh *me, MLoopPtex *loop_ptex,
 		BPX_image_buf_free(bpx_src);
 	}
 
-	// TODO
-	IMB_rectfill_alpha(ibuf, 1);
+	BPX_image_buf_free(bpx_dst);
 	ptex_filter_borders_update(ibuf, me);
 
-	BPX_image_buf_free(bpx_dst);
+	if (texel_info.num_channels < 4) {
+		IMB_rectfill_alpha(ibuf, 1);
+	}
 
 	// TODO
-	IMB_rectfill_alpha(ibuf, 1);
-
 	IMB_float_from_rect(ibuf);
 
 	(*image) = BKE_image_add_from_imbuf(ibuf);
