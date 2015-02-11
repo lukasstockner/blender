@@ -38,7 +38,7 @@ struct ARegionType;
 struct SpaceFile;
 
 /* file_ops.c */
-struct ARegion *file_buttons_region(struct ScrArea *sa);
+struct ARegion *file_tools_region(struct ScrArea *sa);
 
 /* file_draw.c */
 #define TILE_BORDER_X (UI_UNIT_X / 4)
@@ -104,7 +104,6 @@ float file_shorten_string(char *string, float w, int front);
 float file_string_width(const char *str);
 
 float file_font_pointsize(void);
-void file_change_dir(bContext *C, int checkdir);
 int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matched_file);
 int autocomplete_directory(struct bContext *C, char *str, void *arg_v);
 int autocomplete_file(struct bContext *C, char *str, void *arg_v);

@@ -40,6 +40,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_blenlib.h"
 
+#include "BKE_appdir.h"
+
 #include "DNA_space_types.h"
 
 #include "ED_fileselect.h"
@@ -153,9 +155,16 @@ char *ED_fsmenu_entry_get_path(struct FSMenuEntry *fsentry)
 
 void ED_fsmenu_entry_set_path(struct FSMenuEntry *fsentry, const char *path)
 {
-	MEM_SAFE_FREE(fsentry->path);
+	if ((!fsentry->path || !path || !STREQ(path, fsentry->path)) && (fsentry->path != path)) {
+		char tmp_name[FILE_MAXFILE];
 
-	fsentry->path = (path && path[0]) ? BLI_strdup(path) : NULL;
+		MEM_SAFE_FREE(fsentry->path);
+
+		fsentry->path = (path && path[0]) ? BLI_strdup(path) : NULL;
+
+		BLI_make_file_string("/", tmp_name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
+		fsmenu_write_file(ED_fsmenu_get(), tmp_name);
+	}
 }
 
 static void fsmenu_entry_generate_name(struct FSMenuEntry *fsentry, char *name, size_t name_size)
@@ -201,6 +210,9 @@ void ED_fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name)
 		else {
 			BLI_strncpy(fsentry->name, name, sizeof(fsentry->name));
 		}
+
+		BLI_make_file_string("/", tmp_name, BKE_appdir_folder_id_create(BLENDER_USER_CONFIG, NULL), BLENDER_BOOKMARK_FILE);
+		fsmenu_write_file(ED_fsmenu_get(), tmp_name);
 	}
 }
 
@@ -529,7 +541,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 				/* Exclude "all my files" as it makes no sense in blender fileselector */
 				/* Exclude "airdrop" if wlan not active as it would show "" ) */
 				if (!strstr(line, "myDocuments.cannedSearch") && (*line != '\0')) {
-					fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_APPEND_LAST);
+					fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_LAST);
 				}
 				
 				CFRelease(pathString);

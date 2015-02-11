@@ -193,7 +193,7 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 	return (SpaceLink *)sfilen;
 }
 
-static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
+static void file_refresh(const bContext *C, ScrArea *sa)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
@@ -268,6 +268,14 @@ static void file_refresh(const bContext *C, ScrArea *UNUSED(sa))
 	}
 
 	filelist_clear_refresh(sfile->files);
+
+	if (sa && BKE_area_find_region_type(sa, RGN_TYPE_TOOLS) == NULL) {
+		/* Create TOOLS/TOOL_PROPS regions. */
+		file_tools_region(sa);
+
+		ED_area_initialize(wm, CTX_wm_window(C), sa);
+		ED_area_tag_redraw(sa);
+	}
 }
 
 static void file_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)

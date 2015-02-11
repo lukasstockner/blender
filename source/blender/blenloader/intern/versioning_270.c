@@ -63,6 +63,7 @@
 
 #include "readfile.h"
 
+#include "MEM_guardedalloc.h"
 
 static void do_version_constraints_radians_degrees_270_1(ListBase *lb)
 {
@@ -565,7 +566,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	{
+	if (!MAIN_VERSION_ATLEAST(main, 273, 7)) {
 		bScreen *scr;
 		ScrArea *sa;
 		SpaceLink *sl;
@@ -583,6 +584,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 						}
 
 						if (ar) {
+							/* Free old deprecated 'channel' region... */
 							BKE_area_region_free(NULL, ar);
 							BLI_freelinkN(&sl->regionbase, ar);
 						}

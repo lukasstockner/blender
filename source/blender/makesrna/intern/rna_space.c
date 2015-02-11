@@ -206,6 +206,7 @@ static EnumPropertyItem buttons_texture_context_items[] = {
 #include "BKE_icons.h"
 
 #include "ED_buttons.h"
+#include "ED_fileselect.h"
 #include "ED_image.h"
 #include "ED_node.h"
 #include "ED_screen.h"
@@ -1397,6 +1398,8 @@ static void rna_FileBrowser_FSMenuEntry_path_set(PointerRNA *ptr, const char *va
 {
 	FSMenuEntry *fsm = ptr->data;
 
+	/* Note: this will write to file immediately.
+	 * Not nice (and to be fixed ultimately), but acceptable in this case for now. */
 	ED_fsmenu_entry_set_path(fsm, value);
 }
 
@@ -1414,6 +1417,8 @@ static void rna_FileBrowser_FSMenuEntry_name_set(PointerRNA *ptr, const char *va
 {
 	FSMenuEntry *fsm = ptr->data;
 
+	/* Note: this will write to file immediately.
+	 * Not nice (and to be fixed ultimately), but acceptable in this case for now. */
 	ED_fsmenu_entry_set_name(fsm, value);
 }
 
@@ -1571,6 +1576,11 @@ static void rna_FileBrowser_FSMenu_active_range(
 
 	*min = *softmin = -1;
 	*max = *softmax = ED_fsmenu_get_nentries(fsmenu, category) - 1;
+}
+
+static void rna_FileBrowser_FSMenu_active_update(struct bContext *C, PointerRNA *UNUSED(ptr))
+{
+	ED_file_change_dir(C, true);
 }
 
 static int rna_FileBrowser_FSMenuSystem_active_get(PointerRNA *ptr)
@@ -3675,13 +3685,6 @@ static void rna_def_filemenu_entry(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Name", "");
 	RNA_def_struct_name_property(srna, prop);
 
-	prop = RNA_def_property(srna, "uilist_dynamic_tooltip", PROP_STRING, PROP_NONE);
-	RNA_def_property_string_sdna(prop, NULL, "path");
-	RNA_def_property_string_funcs(prop, "rna_FileBrowser_FSMenuEntry_path_get",
-	                              "rna_FileBrowser_FSMenuEntry_path_length", NULL);
-	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-	RNA_def_property_flag(prop, PROP_HIDDEN);
-
 	prop = RNA_def_property(srna, "use_save", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "save", 1);
 	RNA_def_property_ui_text(prop, "Save", "Whether this path is saved in bookmarks, or generated from OS");
@@ -3729,7 +3732,8 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "systemnr");
 	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuSystem_active_get",
 	                           "rna_FileBrowser_FSMenuSystem_active_set", "rna_FileBrowser_FSMenuSystem_active_range");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, "rna_FileBrowser_FSMenu_active_update");
 
 	prop = RNA_def_collection(srna, "system_bookmarks", "FileBrowserFSMenuEntry", "System Bookmarks",
 	                          "System's bookmarks");
@@ -3743,7 +3747,8 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "system_bookmarknr");
 	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuSystemBookmark_active_get",
 	                           "rna_FileBrowser_FSMenuSystemBookmark_active_set", "rna_FileBrowser_FSMenuSystemBookmark_active_range");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, "rna_FileBrowser_FSMenu_active_update");
 
 	prop = RNA_def_collection(srna, "bookmarks", "FileBrowserFSMenuEntry", "Bookmarks",
 	                          "User's bookmarks");
@@ -3757,7 +3762,8 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "bookmarknr");
 	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuBookmark_active_get",
 	                           "rna_FileBrowser_FSMenuBookmark_active_set", "rna_FileBrowser_FSMenuBookmark_active_range");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, "rna_FileBrowser_FSMenu_active_update");
 
 	prop = RNA_def_collection(srna, "recent_folders", "FileBrowserFSMenuEntry", "Recent Folders",
 	                          "");
@@ -3771,7 +3777,8 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "recentnr");
 	RNA_def_property_int_funcs(prop, "rna_FileBrowser_FSMenuRecent_active_get",
 	                           "rna_FileBrowser_FSMenuRecent_active_set", "rna_FileBrowser_FSMenuRecent_active_range");
-	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, "rna_FileBrowser_FSMenu_active_update");
 }
 
 static void rna_def_space_info(BlenderRNA *brna)

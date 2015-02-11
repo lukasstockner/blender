@@ -254,8 +254,10 @@ struct uiBut {
 	uiLink *link;
 	short linkto[2];  /* region relative coords */
 	
-	char tipdata[UI_MAX_NAME_STR];
-	char *tip;
+	const char *tip;
+	uiButToolTipFunc tip_func;
+	void *tip_argN;
+
 	const char *lockstr;
 
 	BIFIconID icon;

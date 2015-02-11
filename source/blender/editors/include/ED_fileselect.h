@@ -108,6 +108,8 @@ int ED_file_extension_icon(const char *relname);
 
 void ED_file_read_bookmarks(void);
 
+void ED_file_change_dir(struct bContext *C, const bool checkdir);
+
 /* File menu stuff */
 
 typedef enum FSMenuCategory {
@@ -120,8 +122,8 @@ typedef enum FSMenuCategory {
 typedef enum FSMenuInsert {
 	FS_INSERT_SORTED = (1 << 0),
 	FS_INSERT_SAVE   = (1 << 1),
-	FS_INSERT_FIRST  = (1 << 2),   /* moves the item to the front of the list when its not already there */
-	FS_APPEND_LAST   = (1 << 3)   /* just append to preseve delivered order */
+	FS_INSERT_FIRST  = (1 << 2),  /* moves the item to the front of the list when its not already there */
+	FS_INSERT_LAST   = (1 << 3),  /* just append to preseve delivered order */
 } FSMenuInsert;
 
 struct FSMenu;
