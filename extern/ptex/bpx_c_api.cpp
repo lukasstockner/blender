@@ -11,34 +11,6 @@ OIIO_NAMESPACE_USING
 // TODO
 static const int nthreads = 1;
 
-/* Directed edges (uv1 -> uv2)
- *
- * 01______11
- *  |      |
- *  |      |
- *  |______|
- * 00      10
- */
-#if 0
-typedef enum {
-	/* Bottom */
-	BPX_EDGE_00_10 = 0,
-	BPX_EDGE_10_00 = 1,
-
-	/* Right */
-	BPX_EDGE_10_11 = 2,
-	BPX_EDGE_11_10 = 3,
-
-	/* Top */
-	BPX_EDGE_11_01 = 4,
-	BPX_EDGE_01_11 = 5,
-
-	/* Left */
-	BPX_EDGE_01_00 = 6,
-	BPX_EDGE_00_01 = 7,
-} BPXEdge;
-#endif
-
 static TypeDesc bpx_type_desc_to_oiio_type_desc(const BPXTypeDesc type_desc)
 {
 	switch (type_desc) {

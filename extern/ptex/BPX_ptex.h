@@ -1,6 +1,8 @@
 #ifndef __BPX_PTEX_H__
 #define __BPX_PTEX_H__
 
+#include "BPX_rect.h"
+
 #ifdef __cplusplus
 extern "C"{
 #endif
@@ -11,29 +13,6 @@ extern "C"{
 
 typedef struct BPXImageBuf BPXImageBuf;
 typedef struct BPXImageInput BPXImageInput;
-
-typedef struct {
-	int xbegin;
-	int ybegin;
-	int xend;
-	int yend;
-} BPXRect;
-
-/*
- * 01______11
- *  |      |
- *  |      |
- *  |______|
- * 00      10
- */
-typedef enum {
-	BPX_SIDE_BOTTOM = 0,  /* 00 -> 10 */
-	BPX_SIDE_RIGHT  = 1,  /* 10 -> 11 */
-	BPX_SIDE_TOP    = 2,  /* 11 -> 01 */
-	BPX_SIDE_LEFT   = 3,  /* 01 -> 00 */
-
-	BPX_NUM_SIDES   = 4
-} BPXSide;
 
 typedef struct {
 	BPXSide side;
