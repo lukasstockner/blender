@@ -617,77 +617,37 @@ bool BPX_image_buf_resize(BPXImageBuf *bpx_dst, BPXImageBuf *bpx_src)
 	return ImageBufAlgo::resize(dst, src);
 }
 
-static const int QUAD_NUM_SIDES = 4;
-struct BPXPtexFaceSpec {
-	int h;
-	int w;
-	int qw[QUAD_NUM_SIDES];
-	int qh[QUAD_NUM_SIDES];
-	bool subface;
-};
-typedef std::vector<BPXPtexFaceSpec> BPXPtexFaceSpecVec;
-
 // TODO, messy code
 
-static BPXPtexFaceSpec bpx_ptex_face_spec(const ImageSpec &spec,
-										  const bool subface)
+static const int *bpx_array_attrib(const char *key, const ImageSpec &spec,
+								   int &r_len)
 {
-	BPXPtexFaceSpec result;
+	r_len = 0;
 
-	// TODO
-	result.subface = subface;
-
-	result.w = spec.width;
-	result.h = spec.height;
-	if (!result.subface) {
-		const int hw = std::max(1, result.w / 2);
-		const int hh = std::max(1, result.h / 2);
-		int i;
-		for (i = 0; i < QUAD_NUM_SIDES; i++) {
-			if (i % 2 == 0) {
-				result.qw[i] = hw;
-				result.qh[i] = hh;
-			}
-			else {
-				result.qw[i] = hh;
-				result.qh[i] = hw;
-			}
-		}
+	const ImageIOParameter *p = spec.find_attribute(key);
+	if (!p || p->type().basetype != TypeDesc::INT32) {
+		return NULL;
 	}
-	
-	return result;
-}
 
-// Return number of subimages.
-//
-// TODO(nicholasbishop): probably a more direct way to access this
-// somehow?
-static int bpx_ptex_num_subimages(const std::vector<int> &face_vert_counts)
-{
-	const size_t end = face_vert_counts.size();
-	int count = 0;
-	for (size_t i = 0; i < end; i++) {
-		const int verts_in_face = face_vert_counts[i];
-		count += (verts_in_face == 4) ? 1 : verts_in_face;
+	const int *src = static_cast<const int *>(p->data());
+	if (src) {
+		r_len = p->type().numelements();
 	}
-	return count;
+
+	return src;
 }
 
 // Reset vector as a copy of image metadata
 static bool bpx_array_attrib_copy(std::vector<int> &vec, const char *key,
 								  const ImageSpec &spec)
 {
-	const ImageIOParameter *p = spec.find_attribute(key);
-	if (!p || p->type().basetype != TypeDesc::INT32) {
-		return false;
-	}
-
-	const int *src = static_cast<const int *>(p->data());
+	int len = 0;
+	const int *src = bpx_array_attrib(key, spec, len);
 	if (!src) {
 		return false;
 	}
 
-	vec = std::vector<int>(src, src + p->type().numelements());
+	vec = std::vector<int>(src, src + len);
 	return true;
 }
 
@@ -698,11 +658,6 @@ static bool bpx_array_attrib_copy(std::vector<int> &vec, const char *key,
 // not required?) attributes as a workaround.
 //
 // Reference for Ptex standard metakeys: http://ptex.us/metakeys.html
-
-static bool bpx_ptex_face_vert_counts(std::vector<int> &vec, ImageInput &in)
-{
-	return bpx_array_attrib_copy(vec, "PtexFaceVertCounts", in.spec());
-}
 
 static bool bpx_ptex_face_vert_indices(std::vector<int> &vec, ImageInput &in)
 {
@@ -728,30 +683,47 @@ struct BPXMeshEdge {
 	int faces[2];
 };
 
+struct BPXPtexMeshFace {
+	int len;
+
+	// Index of the face's first vertex within the face_vert_indices
+	// vector. The same index is used for accessing layout items.
+	int vert_index;
+
+	// Index of the face's first Ptex face in the file. Quads count as
+	// one image, all other polygons have as many subfaces as
+	// vertices.
+	int subimage;
+};
+
 // Outer vector index is a vertex index. The vertex stored in the
 // BPXMeshEdge is the whichever one has a higher index.
 //
 // TODO(nicholasbishop)
 typedef std::vector<std::vector<BPXMeshEdge> > BPXMeshEdges;
 
-static bool bpx_ptex_file_mesh_edges(BPXMeshEdges &edges,
-									 const std::vector<int> &face_vert_counts,
-									 const std::vector<int> &face_vert_indices)
+struct BPXPtexMesh {
+	std::vector<BPXPtexMeshFace> faces;
+	std::vector<int> face_vert_indices;
+	BPXMeshEdges edges;
+};
+
+static bool bpx_ptex_mesh_edges_init(BPXPtexMesh &mesh)
 {
-	const int num_verts = bpx_ptex_num_verts(face_vert_indices);
-	const int num_faces = face_vert_counts.size();
+	const int num_mesh_verts = bpx_ptex_num_verts(mesh.face_vert_indices);
 
-	edges.clear();
-	edges.resize(num_verts);
+	mesh.edges.clear();
+	mesh.edges.resize(num_mesh_verts);
 
-	int vstart = 0;
+	const int num_faces = mesh.faces.size();
 	for (int face_index = 0; face_index < num_faces; face_index++) {
-		const int num_verts = face_vert_counts[face_index];
-		const int *verts = &face_vert_indices[vstart];
+		const BPXPtexMeshFace &face = mesh.faces[face_index];
+		const int num_fv = face.len;
+		const int *verts = &mesh.face_vert_indices[face.vert_index];
 
-		for (int fv = 0; fv < num_verts; fv++) {
+		for (int fv = 0; fv < num_fv; fv++) {
 			int v1 = verts[fv];
-			int v2 = verts[(fv + 1) % num_verts];
+			int v2 = verts[(fv + 1) % num_fv];
 			if (v1 > v2) {
 				std::swap(v1, v2);
 			}
@@ -759,7 +731,7 @@ static bool bpx_ptex_file_mesh_edges(BPXMeshEdges &edges,
 				return false;
 			}
 
-			std::vector<BPXMeshEdge> &vec = edges.at(v1);
+			std::vector<BPXMeshEdge> &vec = mesh.edges.at(v1);
 			bool found = false;
 			for (int k = 0; k < vec.size(); k++) {
 				BPXMeshEdge &edge = vec[k];
@@ -783,11 +755,9 @@ static bool bpx_ptex_file_mesh_edges(BPXMeshEdges &edges,
 
 			if (!found) {
 				const BPXMeshEdge e = {v2, {face_index, BPX_ADJ_NONE}};
-				edges.at(v1).push_back(e);
+				mesh.edges.at(v1).push_back(e);
 			}
 		}
-
-		vstart += num_verts;
 	}
 
 	return true;
@@ -803,15 +773,7 @@ static BPXRect bpx_rect_from_layout_item(const BPXPackedLayout::Item &item)
 	return rect;
 }
 
-// TODO(nicholasbishop): lots of terrible code here, clean this up...
-
-struct BPXPtexMesh {
-	std::vector<int> face_vert_counts;
-	std::vector<int> face_vert_indices;
-	std::vector<int> face_to_region_map;
-	BPXMeshEdges edges;
-	int num_faces;
-};
+// TODO(nicholasbishop): still some stupid code, clean this up...
 
 static const BPXMeshEdge *bpx_mesh_edge_find(const BPXPtexMesh &mesh, int v1,
 											 int v2)
@@ -845,13 +807,12 @@ static int bpx_mesh_face_find_edge(const BPXPtexMesh &mesh,
 								   const int face_index,
 								   const BPXMeshEdge &e1)
 {
-	const int nsides1 = mesh.face_vert_counts.at(face_index);
-	const int region1 = mesh.face_to_region_map.at(face_index);
+	const int region1 = mesh.faces.at(face_index).vert_index;
 
-	const int num_fv = mesh.face_vert_counts[face_index];
+	const int num_fv = mesh.faces[face_index].len;
 	for (int fv = 0; fv < num_fv; fv++) {
 		const int v1 = mesh.face_vert_indices[region1 + fv];
-		const int v2 = mesh.face_vert_indices[region1 + (fv + 1) % nsides1];
+		const int v2 = mesh.face_vert_indices[region1 + (fv + 1) % num_fv];
 		const BPXMeshEdge *e2 = bpx_mesh_edge_find(mesh, v1, v2);
 		if (&e1 == e2) {
 			return fv;
@@ -866,8 +827,8 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 									 const int f1, const int fv1,
 									 const BPXRectSide &side1)
 {
-	const int nsides1 = mesh.face_vert_counts.at(f1);
-	const int region1 = mesh.face_to_region_map.at(f1);
+	const int nsides1 = mesh.faces.at(f1).len;
+	const int region1 = mesh.faces.at(f1).vert_index;
 
 	const int v1 = mesh.face_vert_indices[region1 + fv1];
 	const int vn = mesh.face_vert_indices[region1 + (fv1 + 1) % nsides1];
@@ -913,8 +874,8 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 			return true;
 		}
 
-		const int nsides2 = mesh.face_vert_counts.at(f2);
-		const int region2 = mesh.face_to_region_map.at(f2);
+		const int nsides2 = mesh.faces.at(f2).len;
+		const int region2 = mesh.faces.at(f2).vert_index;
 
 		// Find same edge in other face
 		const int fv2 = bpx_mesh_face_find_edge(mesh, f2, *edge);
@@ -943,27 +904,32 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 
 static bool bpx_ptex_mesh_init(BPXPtexMesh &mesh, ImageInput &src)
 {
-	if (!bpx_ptex_face_vert_counts(mesh.face_vert_counts, src)) {
+	int num_faces = 0;
+	const int *face_vert_counts = bpx_array_attrib("PtexFaceVertCounts",
+												   src.spec(), num_faces);
+	if (!face_vert_counts) {
 		return false;
 	}
-
-	mesh.num_faces = mesh.face_vert_counts.size();
 
 	if (!bpx_ptex_face_vert_indices(mesh.face_vert_indices, src)) {
 		return false;
 	}
 
-	if (!bpx_ptex_file_mesh_edges(mesh.edges, mesh.face_vert_counts,
-								  mesh.face_vert_indices))
-	{
-		return false;
+	mesh.faces.resize(num_faces);
+	int cur_vert = 0;
+	int cur_subimage = 0;
+	for (int i = 0; i < num_faces; i++) {
+		const int face_len = face_vert_counts[i];
+
+		mesh.faces[i].len = face_len;
+		mesh.faces[i].vert_index = cur_vert;
+		mesh.faces[i].subimage = cur_subimage;
+		cur_vert += face_len;
+		cur_subimage += (face_len == 4) ? 1 : face_len;
 	}
 
-	mesh.face_to_region_map.reserve(mesh.num_faces);
-	int cur_layout_item = 0;
-	for (int face_index = 0; face_index < mesh.num_faces; face_index++) {
-		mesh.face_to_region_map.push_back(cur_layout_item);
-		cur_layout_item += mesh.face_vert_counts[face_index];
+	if (!bpx_ptex_mesh_edges_init(mesh)) {
+		return false;
 	}
 
 	return true;
@@ -980,9 +946,11 @@ static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 
 	const BPXPackedLayout::Items &items = layout.get_items();
 
-	int cur_layout_item = 0;
-	for (int face_index = 0; face_index < mesh.num_faces; face_index++) {
-		for (int fv = 0; fv < mesh.face_vert_counts[face_index]; fv++) {
+	const int num_faces = mesh.faces.size();
+	for (int face_index = 0; face_index < num_faces; face_index++) {
+		const BPXPtexMeshFace &face = mesh.faces[face_index];
+		for (int fv = 0; fv < face.len; fv++) {
+			const int cur_layout_item = face.vert_index + fv;
 			if (cur_layout_item >= items.size()) {
 				return false;
 			}
@@ -1015,53 +983,6 @@ static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 			{
 				return false;
 			}
-
-			cur_layout_item++;
-		}
-	}
-
-	return true;
-}
-
-static bool bpx_ptex_face_vector(BPXPtexFaceSpecVec &vec, ImageInput &src)
-{
-	std::vector<int> face_vert_counts;
-	if (!bpx_ptex_face_vert_counts(face_vert_counts, src)) {
-		return false;
-	}
-
-	const int num_faces = face_vert_counts.size();
-	const int num_subimages = bpx_ptex_num_subimages(face_vert_counts);
-	vec.reserve(num_subimages);
-
-	// Important to initialize this, first seek doesn't set spec
-	ImageSpec spec = src.spec();
-
-	for (size_t i = 0; i < num_faces; i++) {
-		const int verts_in_face = face_vert_counts[i];
-
-		if (verts_in_face == 4) {
-			if (!src.seek_subimage(vec.size(), spec)) {
-				return false;
-			}
-			vec.push_back(bpx_ptex_face_spec(spec, false));
-		}
-		else if (verts_in_face >= 3) {
-			for (int j = 0; j < verts_in_face; j++) {
-				if (!src.seek_subimage(vec.size(), spec)) {
-					return false;
-				}
-				vec.push_back(bpx_ptex_face_spec(spec, true));
-			}
-		}
-		else {
-			// Invalid face information
-			return false;
-		}
-
-		// Sanity check the reserved length
-		if (vec.size() > num_subimages) {
-			return false;
 		}
 	}
 
@@ -1074,30 +995,47 @@ int BPX_packed_layout_num_regions(const BPXPackedLayout *layout)
 }
 
 static bool bpx_image_buf_ptex_layout(BPXPackedLayout &layout, ImageInput &in,
-									  const BPXPtexFaceSpecVec &face_specs)
+									  const BPXPtexMesh &mesh)
 {
 	ImageSpec spec = in.spec();
-	int subimage = 0;
-	while (in.seek_subimage(subimage, spec)) {
-		if (subimage >= face_specs.size()) {
-			return false;
-		}
 
-		const BPXPtexFaceSpec &pfs = face_specs.at(subimage);
-		if (pfs.subface) {
-			layout.add_item(BPXPackedLayout::Item(pfs.w, pfs.h));
-		}
-		else {
-			for (int i = 0; i < QUAD_NUM_SIDES; i++) {
-				layout.add_item(BPXPackedLayout::Item(pfs.qw[i], pfs.qh[i]));
+	const int num_faces = mesh.faces.size();
+	for (int face_index = 0; face_index < num_faces; face_index++) {
+		const BPXPtexMeshFace &face = mesh.faces[face_index];
+
+		const bool is_quad = (face.len == 4);
+		int subimage = face.subimage;
+
+		for (int fv = 0; fv < face.len; fv++) {
+			if (!in.seek_subimage(subimage, spec)) {
+				// Mesh data does not match up with texture data
+				return false;
 			}
+
+			// Width and height should already be powers of two
+			int w = spec.width;
+			int h = spec.height;
+
+			if (is_quad) {
+				const int hw = std::max(1, w / 2);
+				const int hh = std::max(1, h / 2);
+
+				if (fv % 2 == 0) {
+					w = hw;
+					h = hh;
+				}
+				else {
+					w = hh;
+					h = hw;
+				}
+			}
+			else {
+				subimage++;
+			}
+
+			// TODO(nicholasbishop): will add adjacency data here
+			layout.add_item(BPXPackedLayout::Item(w, h));
 		}
-
-		subimage++;
-	}
-
-	if (subimage != face_specs.size()) {
-		return false;
 	}
 
 	layout.finalize();
@@ -1105,71 +1043,80 @@ static bool bpx_image_buf_ptex_layout(BPXPackedLayout &layout, ImageInput &in,
 	return true;
 }
 
+// TODO(nicholasbishop): dedup with above
 static bool bpx_image_buf_fill_from_layout(ImageBuf &all_dst,
 										   const BPXPackedLayout &layout,
-										   const BPXPtexFaceSpecVec &face_specs,
-										   ImageInput &src)
+										   const BPXPtexMesh &mesh,
+										   ImageInput &in)
 {
-	ImageSpec spec = src.spec();
+	ImageSpec spec = in.spec();
 
-	int subimage = 0;
-	int face_id = 0;
-	while (src.seek_subimage(subimage, spec)) {
-		if (subimage >= face_specs.size()) {
-			return false;
-		}
+	const int num_faces = mesh.faces.size();
+	for (int face_index = 0; face_index < num_faces; face_index++) {
+		const BPXPtexMeshFace &face = mesh.faces[face_index];
 
-		const BPXPtexFaceSpec &pfs = face_specs.at(subimage);
+		// TODO
 
-		ImageBuf tmp(spec);
-		src.read_image(src.spec().format, tmp.localpixels());
-
-		if (pfs.subface) {
-			const BPXPackedLayout::Item &item =
-				layout.get_items().at(face_id);
-			const int xbegin = item.x;
-			const int ybegin = item.y;
-			const int zbegin = 0;
-			const int chbegin = 0;
-
-			ImageBuf tmp2;
-			if (!ImageBufAlgo::flipflop(tmp2, tmp)) {
+		if (face.len == 4) {
+			if (!in.seek_subimage(face.subimage, spec)) {
+				// Mesh data does not match up with texture data
 				return false;
 			}
-			tmp2.swap(tmp);
+
+			ImageBuf tmp(spec);
+			in.read_image(spec.format, tmp.localpixels());
+
+			ImageBuf *dsts[BPX_RECT_NUM_SIDES];
+			ROI dst_roi[BPX_RECT_NUM_SIDES];
 			
-			if (!ImageBufAlgo::paste(all_dst, xbegin, ybegin, zbegin, chbegin,
-									 tmp)) {
-				return false;
-			}
-			face_id++;
-		}
-		else {
-			ImageBuf *dsts[QUAD_NUM_SIDES];
-			ROI dst_roi[QUAD_NUM_SIDES];
-			
-			for (int i = 0; i < QUAD_NUM_SIDES; i++) {
-				const BPXPackedLayout::Item &item =
-					layout.get_items().at(face_id);
+			for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
+ 				const BPXPackedLayout::Item &item =
+					layout.get_items().at(face.vert_index + i);
 				ImageSpec spec2 = spec;
-				spec2.width = pfs.qw[i];
-				spec2.height = pfs.qh[i];
+				spec2.width = item.u_res;
+				spec2.height = item.v_res;
 				dsts[i] = new ImageBuf(all_dst.spec(), all_dst.localpixels());
 				dst_roi[i].xbegin = item.x;
 				dst_roi[i].ybegin = item.y;
-				
-				face_id++;
 			}
 			const bool r = bpx_image_buf_quad_split(dsts, &tmp, dst_roi);
-			for (int i = 0; i < QUAD_NUM_SIDES; i++) {
+			for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
 				delete dsts[i];
 			}
 			if (!r) {
 				return false;
 			}
 		}
+		else {
+			for (int fv = 0; fv < face.len; fv++) {
+				if (!in.seek_subimage(face.subimage + fv, spec)) {
+					// Mesh data does not match up with texture data
+					return false;
+				}
 
-		subimage++;
+				const BPXPackedLayout::Item &item =
+					layout.get_items().at(face.vert_index + fv);
+
+				ImageBuf tmp(spec);
+				in.read_image(spec.format, tmp.localpixels());
+
+				const int xbegin = item.x;
+				const int ybegin = item.y;
+				const int zbegin = 0;
+				const int chbegin = 0;
+
+				ImageBuf tmp2;
+				if (!ImageBufAlgo::flipflop(tmp2, tmp)) {
+					return false;
+				}
+				tmp2.swap(tmp);
+			
+				if (!ImageBufAlgo::paste(all_dst, xbegin, ybegin, zbegin, chbegin,
+										 tmp)) {
+					return false;
+				}
+			}			
+		}
 	}
 
 	return true;
@@ -1184,13 +1131,13 @@ BPXImageBuf *BPX_image_buf_ptex_pack(BPXImageInput *bpx_src,
 	}
 	ImageInput &in = *bpx_image_input_to_oiio_image_input(bpx_src);
 
-	BPXPtexFaceSpecVec face_specs;
-	if (!bpx_ptex_face_vector(face_specs, in)) {
+	BPXPtexMesh mesh;
+	if (!bpx_ptex_mesh_init(mesh, in)) {
 		return NULL;
 	}
 
-	BPXPackedLayout layout(face_specs.size());
-	if (!bpx_image_buf_ptex_layout(layout, in, face_specs)) {
+	BPXPackedLayout layout(mesh.face_vert_indices.size());
+	if (!bpx_image_buf_ptex_layout(layout, in, mesh)) {
 		return NULL;
 	}
 
@@ -1200,7 +1147,7 @@ BPXImageBuf *BPX_image_buf_ptex_pack(BPXImageInput *bpx_src,
 	}
 	ImageBuf &dst = *bpx_image_buf_to_oiio_image_buf(bpx_dst);
 
-	if (!bpx_image_buf_fill_from_layout(dst, layout, face_specs, in)) {
+	if (!bpx_image_buf_fill_from_layout(dst, layout, mesh, in)) {
 		return NULL;
 	}
 
