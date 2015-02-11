@@ -195,4 +195,13 @@ void animsys_evaluate_action_group(struct PointerRNA *ptr, struct bAction *act, 
 
 /* ************************************* */
 
+/* ------------ Evaluation API --------------- */
+
+struct EvaluationContext;
+
+void BKE_animsys_eval_animdata(struct EvaluationContext *eval_ctx, struct ID *id);
+void BKE_animsys_eval_driver(struct EvaluationContext *eval_ctx, struct ID *id, struct FCurve *fcurve);
+
+/* ************************************* */
+
 #endif /* __BKE_ANIMSYS_H__*/

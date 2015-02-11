@@ -2834,3 +2834,62 @@ void BKE_animsys_evaluate_all_animation(Main *main, Scene *scene, float ctime)
 }
 
 /* ***************************************** */ 
+
+/* ************** */
+/* Evaluation API */
+
+#define DEBUG_PRINT if (G.debug & G_DEBUG_DEPSGRAPH) printf
+
+void BKE_animsys_eval_animdata(EvaluationContext *eval_ctx, ID *id)
+{
+	AnimData *adt = BKE_animdata_from_id(id);
+	Scene *scene = NULL; /* XXX: this is only needed for flushing RNA updates,
+	                      * which should get handled as part of the graph instead...
+	                      */
+	DEBUG_PRINT("%s on %s\n", __func__, id->name);
+	BKE_animsys_evaluate_animdata(scene, id, adt, eval_ctx->ctime, ADT_RECALC_ANIM);
+}
+
+void BKE_animsys_eval_driver(EvaluationContext *eval_ctx,
+                             ID *id,
+                             FCurve *fcu)
+{
+	/* TODO(sergey): De-duplicate with BKE animsys. */
+	ChannelDriver *driver = fcu->driver;
+	PointerRNA id_ptr;
+	bool ok = false;
+
+	DEBUG_PRINT("%s on %s (%s[%d])\n",
+	            __func__,
+	            id->name,
+	            fcu->rna_path,
+	            fcu->array_index);
+
+	RNA_id_pointer_create(id, &id_ptr);
+
+	/* check if this driver's curve should be skipped */
+	if ((fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) == 0) {
+		/* check if driver itself is tagged for recalculation */
+		/* XXX driver recalc flag is not set yet by depsgraph! */
+		if ((driver) && !(driver->flag & DRIVER_FLAG_INVALID) /*&& (driver->flag & DRIVER_FLAG_RECALC)*/) {
+			/* evaluate this using values set already in other places
+			 * NOTE: for 'layering' option later on, we should check if we should remove old value before adding
+			 *       new to only be done when drivers only changed */
+			//printf("\told val = %f\n", fcu->curval);
+			calculate_fcurve(fcu, eval_ctx->ctime);
+			ok = BKE_animsys_execute_fcurve(&id_ptr, NULL, fcu);
+			//printf("\tnew val = %f\n", fcu->curval);
+
+			/* clear recalc flag */
+			driver->flag &= ~DRIVER_FLAG_RECALC;
+
+			/* set error-flag if evaluation failed */
+			if (ok == 0) {
+				printf("invalid driver - %s[%d]\n", fcu->rna_path, fcu->array_index);
+				driver->flag |= DRIVER_FLAG_INVALID;
+			}
+		}
+	}
+}
+
+#undef DEBUG_PRINT

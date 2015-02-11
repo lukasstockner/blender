@@ -294,6 +294,10 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 		return;
 	}
 
+	/* Set time for the current graph evaluation context. */
+	TimeSourceDepsNode *time_src = graph->find_time_source();
+	eval_ctx->ctime = time_src->cfra;
+
 	/* XXX could use a separate pool for each eval context */
 	DepsgraphEvalState state;
 	state.eval_ctx = eval_ctx;

@@ -99,8 +99,6 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
 
-#include "stubs.h" // XXX: REMOVE THIS INCLUDE ONCE DEPSGRAPH REFACTOR PROJECT IS DONE!!!
-
 /* ************************************************* */
 /* Node Builder */
 
@@ -356,15 +354,13 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 	
 	/* animation */
 	if (adt->action || adt->nla_tracks.first || adt->drivers.first) {
-		TimeSourceDepsNode *time_src = m_graph->find_time_source();
-		
 		// XXX: Hook up specific update callbacks for special properties which may need it...
 		
 		/* actions and NLA - as a single unit for now, as it gets complicated to schedule otherwise */
 		if ((adt->action) || (adt->nla_tracks.first)) {
 			/* create the node */
 			add_operation_node(id, DEPSNODE_TYPE_ANIMATION,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_animdata, _1, id, time_src),
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_animdata, _1, id),
 			                   DEG_OPCODE_ANIMATION, id->name);
 			
 			// TODO: for each channel affected, we might also want to add some support for running RNA update callbacks on them
@@ -388,9 +384,8 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 	ChannelDriver *driver = fcu->driver;
 	
 	/* create data node for this driver ..................................... */
-	TimeSourceDepsNode *time_src = m_graph->find_time_source();
 	OperationDepsNode *driver_op = add_operation_node(id, DEPSNODE_TYPE_PARAMETERS,
-	                                                  DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_driver, _1, id, fcu, time_src),
+	                                                  DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_driver, _1, id, fcu),
 	                                                  DEG_OPCODE_DRIVER, deg_fcurve_id_name(fcu));
 	
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
