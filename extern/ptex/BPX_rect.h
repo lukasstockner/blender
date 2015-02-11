@@ -6,8 +6,9 @@ extern "C"{
 #endif
 
 /* TODO(nicholasbishop): this is yet another 2D integer rect
- * structure. Would be better to reuse rcti. */
+ * structure. Could be nicer to reuse rcti. */
 
+/* Note: begin is inclusive, end is exclusive to match OIIO::ROI */
 typedef struct BPXRect {
 	int xbegin;
 	int xend;

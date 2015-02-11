@@ -42,10 +42,14 @@ ImBuf *IMB_alloc_from_ptex_layout(const struct BPXPackedLayout *layout)
 
 		for (i = 0; i < ibuf->num_ptex_regions; i++) {
 			ImPtexRegion *dst_region = &ibuf->ptex_regions[i];
-			if (!BPX_packed_layout_item(layout, i, &dst_region->x,
-										 &dst_region->y, &dst_region->width,
-										 &dst_region->height))
-			{
+			BPXRect rect;
+			if (BPX_packed_layout_item(layout, i, &rect)) {
+				dst_region->x = rect.xbegin;
+				dst_region->y = rect.ybegin;
+				dst_region->width = rect.xend - rect.xbegin;
+				dst_region->height = rect.yend - rect.ybegin;
+			}
+			else {
 				/* Error */
 				IMB_freeImBuf(ibuf);
 				return NULL;

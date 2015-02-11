@@ -1239,16 +1239,15 @@ int BPX_packed_layout_height(const BPXPackedLayout * const layout)
 }
 
 bool BPX_packed_layout_item(const BPXPackedLayout * const layout,
-							 const int item_id, int *x, int *y,
-							 int *width, int *height)
+							const int item_id, BPXRect *r_rect)
 {
-	if (layout && x && y && width && height) {
+	if (layout && r_rect) {
 		const BPXPackedLayout::Items &items = layout->get_items();
 		if (item_id >= 0 && item_id < items.size()) {
-			(*x) = items[item_id].x;
-			(*y) = items[item_id].y;
-			(*width) = items[item_id].u_res;
-			(*height) = items[item_id].v_res;
+			r_rect->xbegin = items[item_id].x;
+			r_rect->ybegin = items[item_id].y;
+			r_rect->xend = items[item_id].x + items[item_id].u_res;
+			r_rect->yend = items[item_id].y + items[item_id].v_res;
 			return true;
 		}
 	}

@@ -121,8 +121,8 @@ void BPX_packed_layout_finalize(struct BPXPackedLayout *layout);
 int BPX_packed_layout_width(const struct BPXPackedLayout *layout);
 int BPX_packed_layout_height(const struct BPXPackedLayout *layout);
 bool BPX_packed_layout_item(const struct BPXPackedLayout *layout,
-							int id, int *x, int *y,
-							int *width, int *height);
+							const int index,
+							struct BPXRect *r_rect);
 void BPX_packed_layout_delete(struct BPXPackedLayout *layout);
 
 #ifdef __cplusplus

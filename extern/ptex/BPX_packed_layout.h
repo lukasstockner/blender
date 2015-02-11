@@ -5,6 +5,8 @@
 #include <cassert>
 #include <vector>
 
+#include "BPX_rect.h"
+
 // TODO(nicholasbishop): there's a lot of room for improvement
 // here. None of this data is saved to a file, so we should be able to
 // safely improve it to improve performance, decrease memory usage,

@@ -406,12 +406,12 @@ static BPXImageBuf *ptex_pack_uchar_cb(const struct BPXPackedLayout *layout,
 											 width, height, num_regions*4);
 
 	for (int i = 0; i < num_regions; i++) {
-		int x, y, w, h;
-		if (BPX_packed_layout_item(layout, i, &x, &y, &w, &h)) {
-			regions[i][0] = x;
-			regions[i][1] = y;
-			regions[i][2] = w;
-			regions[i][3] = h;
+		BPXRect rect;
+		if (BPX_packed_layout_item(layout, i, &rect)) {
+			regions[i][0] = rect.xbegin;
+			regions[i][1] = rect.ybegin;
+			regions[i][2] = rect.xend - rect.xbegin;
+			regions[i][3] = rect.yend - rect.ybegin;
 		}
 		else {
 			// TODO
