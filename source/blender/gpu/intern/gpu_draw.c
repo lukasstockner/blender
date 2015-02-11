@@ -1030,6 +1030,23 @@ static bool GPU_check_scaled_image(ImBuf *ibuf, Image *ima, float *frect, int x,
 	return false;
 }
 
+/* If this is a Ptex ImBuf, expand update area to include filter
+ * borders */
+static void gpu_ptex_paint_update_rect(const ImBuf *ibuf, int *x, int *y,
+									   int *w, int *h)
+{
+	/* Pixel size of Ptex border */
+	const int border = 1;
+
+	if (ibuf->num_ptex_regions > 0) {
+		*x = MAX2((*x) - border, 0);
+		*y = MAX2((*y) - border, 0);
+
+		*w = MIN2((*w) + border * 2, ibuf->x - (*x));
+		*h = MIN2((*h) + border * 2, ibuf->y - (*y));
+	}
+}
+
 void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 {
 	ImBuf *ibuf;
@@ -1046,6 +1063,10 @@ void GPU_paint_update_image(Image *ima, int x, int y, int w, int h)
 		/* for the special case, we can do a partial update
 		 * which is much quicker for painting */
 		GLint row_length, skip_pixels, skip_rows;
+
+		/* TODO(nicholasbishop): not sure yet this will belong here, could
+		 * move to texpaint instead */
+		gpu_ptex_paint_update_rect(ibuf, &x, &y, &w, &h);
 
 		/* if color correction is needed, we must update the part that needs updating. */
 		if (ibuf->rect_float) {
