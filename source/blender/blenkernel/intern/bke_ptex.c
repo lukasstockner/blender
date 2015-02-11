@@ -654,9 +654,6 @@ static bool ptex_pack_loops(Image **image_r, Mesh *me, MLoopPtex *loop_ptex,
 		IMB_rectfill_alpha(ibuf, 1);
 	}
 
-	// TODO
-	IMB_float_from_rect(ibuf);
-
 	image = *image_r;
 	if (image) {
 		BKE_image_free_buffers(image);
