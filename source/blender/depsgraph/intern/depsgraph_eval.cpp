@@ -289,6 +289,11 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 	/* Generate base evaluation context, upon which all the others are derived. */
 	// TODO: this needs both main and scene access...
 
+	/* Nothing to update, early out. */
+	if (graph->entry_tags.size() == 0) {
+		return;
+	}
+
 	/* XXX could use a separate pool for each eval context */
 	DepsgraphEvalState state;
 	state.eval_ctx = eval_ctx;
