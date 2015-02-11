@@ -15,7 +15,7 @@ typedef struct BPXImageBuf BPXImageBuf;
 typedef struct BPXImageInput BPXImageInput;
 
 typedef struct {
-	BPXSide side;
+	BPXRectSide side;
 	bool reverse;
 } BPXEdge;
 	
@@ -90,8 +90,8 @@ bool BPX_image_input_read(BPXImageBuf *bpx_dst, BPXImageInput *bpx_src);
 
 bool BPX_rect_borders_update(BPXImageBuf *bpx_buf,
 							 const BPXRect *dst_rect,
-							 const BPXRect src_rect[BPX_NUM_SIDES],
-							 const BPXEdge src_edge[BPX_NUM_SIDES]);
+							 const BPXRect src_rect[BPX_RECT_NUM_SIDES],
+							 const BPXEdge src_edge[BPX_RECT_NUM_SIDES]);
 
 bool BPX_image_buf_quad_split(BPXImageBuf *dst[4], const BPXImageBuf *src);
 

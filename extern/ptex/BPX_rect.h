@@ -5,6 +5,23 @@
 extern "C"{
 #endif
 
+/*                   Top
+ *    (xbegin, yend)______(xend, yend)
+ *                 |      |
+ *            Left |      | Right
+ *                 |______|
+ * (xbegin, ybegin)        (xend, ybegin)
+ *                  Bottom
+ */
+typedef enum {
+	BPX_RECT_SIDE_BOTTOM = 0,
+	BPX_RECT_SIDE_RIGHT  = 1,
+	BPX_RECT_SIDE_TOP    = 2,
+	BPX_RECT_SIDE_LEFT   = 3,
+
+	BPX_RECT_NUM_SIDES   = 4
+} BPXRectSide;
+
 /* TODO(nicholasbishop): this is yet another 2D integer rect
  * structure. Could be nicer to reuse rcti. */
 
@@ -16,23 +33,6 @@ typedef struct BPXRect {
 	int ybegin;
 	int yend;
 } BPXRect;
-
-/*                   Top
- *    (xbegin, yend)______(xend, yend)
- *                 |      |
- *            Left |      | Right
- *                 |______|
- * (xbegin, ybegin)        (xend, ybegin)
- *                  Bottom
- */
-typedef enum {
-	BPX_SIDE_BOTTOM = 0,
-	BPX_SIDE_RIGHT  = 1,
-	BPX_SIDE_TOP    = 2,
-	BPX_SIDE_LEFT   = 3,
-
-	BPX_NUM_SIDES   = 4
-} BPXSide;
 
 #ifdef __cplusplus
 }  /* extern "C" */

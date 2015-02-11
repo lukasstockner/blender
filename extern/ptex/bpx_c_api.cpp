@@ -161,22 +161,22 @@ bool BPX_image_buf_pixels_copy(BPXImageBuf *bpx_dst, const BPXImageBuf *bpx_src,
 	return BPX_image_buf_pixels_copy_partial(bpx_dst, bpx_src, xbegin, ybegin, NULL);
 }
 
-static ROI bpx_roi_from_side(const ROI &roi, const BPXSide side)
+static ROI bpx_roi_from_side(const ROI &roi, const BPXRectSide side)
 {
 	switch (side) {
-		case BPX_SIDE_BOTTOM:
+		case BPX_RECT_SIDE_BOTTOM:
 			return ROI(roi.xbegin, roi.xend, roi.ybegin, roi.ybegin + 1);
 
-		case BPX_SIDE_RIGHT:
+		case BPX_RECT_SIDE_RIGHT:
 			return ROI(roi.xend - 1, roi.xend, roi.ybegin, roi.yend);
 
-		case BPX_SIDE_TOP:
+		case BPX_RECT_SIDE_TOP:
 			return ROI(roi.xbegin, roi.xend, roi.yend - 1, roi.yend);
 
-		case BPX_SIDE_LEFT:
+		case BPX_RECT_SIDE_LEFT:
 			return ROI(roi.xbegin, roi.xbegin + 1, roi.ybegin, roi.yend);
 
-		case BPX_NUM_SIDES:
+		case BPX_RECT_NUM_SIDES:
 			break;
 	}
 
@@ -184,31 +184,31 @@ static ROI bpx_roi_from_side(const ROI &roi, const BPXSide side)
 }
 
 static ROI bpx_filter_border_roi_from_side(const ROI &dst_roi,
-										   const BPXSide side)
+										   const BPXRectSide side)
 {
 	ROI roi = bpx_roi_from_side(dst_roi, side);
 	switch (side) {
-		case BPX_SIDE_BOTTOM:
+		case BPX_RECT_SIDE_BOTTOM:
 			roi.ybegin--;
 			roi.yend--;
 			break;
 
-		case BPX_SIDE_RIGHT:
+		case BPX_RECT_SIDE_RIGHT:
 			roi.xbegin++;
 			roi.xend++;
 			break;
 
-		case BPX_SIDE_TOP:
+		case BPX_RECT_SIDE_TOP:
 			roi.ybegin++;
 			roi.yend++;
 			break;
 
-		case BPX_SIDE_LEFT:
+		case BPX_RECT_SIDE_LEFT:
 			roi.xbegin--;
 			roi.xend--;
 			break;
 
-		case BPX_NUM_SIDES:
+		case BPX_RECT_NUM_SIDES:
 			assert(!"Invalid side");
 	}
 
@@ -274,7 +274,7 @@ static void bpx_apply_edge_transform(ImageBuf &buf,
 }
 
 static void bpx_side_to_image_buf(ImageBuf &dst, const ImageBuf &src,
-								  const ROI &src_roi, const BPXSide src_side)
+								  const ROI &src_roi, const BPXRectSide src_side)
 {
 	const ROI side_roi = bpx_roi_from_side(src_roi, src_side);
 	const bool result = ImageBufAlgo::cut(dst, src, side_roi);
@@ -342,8 +342,8 @@ static bool bpx_corner_average(ImageBuf &buf, const int dst_co[2],
 
 bool BPX_rect_borders_update(BPXImageBuf *bpx_buf,
 							 const BPXRect *dst_rect,
-							 const BPXRect src_rect[BPX_NUM_SIDES],
-							 const BPXEdge src_edge[BPX_NUM_SIDES])
+							 const BPXRect src_rect[BPX_RECT_NUM_SIDES],
+							 const BPXEdge src_edge[BPX_RECT_NUM_SIDES])
 {
 	if (!bpx_buf || !dst_rect) {
 		return false;
@@ -353,9 +353,9 @@ bool BPX_rect_borders_update(BPXImageBuf *bpx_buf,
 	const ROI dst_roi = bpx_rect_to_oiio_roi(*dst_rect);
 
 	// Sample adjacent regions to create filter edges
-	for (int i = 0; i < BPX_NUM_SIDES; i++) {
+	for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
 		const ROI src_roi = bpx_rect_to_oiio_roi(src_rect[i]);
-		const BPXSide dst_side = static_cast<BPXSide>(i);
+		const BPXRectSide dst_side = static_cast<BPXRectSide>(i);
 		const bool dst_reverse = false;
 		const BPXEdge dst_edge = {dst_side, dst_reverse};
 		bpx_create_border(buf, dst_roi, dst_edge, src_roi, src_edge[i]);
@@ -364,13 +364,13 @@ bool BPX_rect_borders_update(BPXImageBuf *bpx_buf,
 	// Average adjacent borders to fill in corners (not really correct
 	// but I'm guessing the difference won't be visible, and anyway
 	// this is only for bilinear filtering)
-	const int dst_co[BPX_NUM_SIDES][2] = {
+	const int dst_co[BPX_RECT_NUM_SIDES][2] = {
 		{dst_rect->xbegin - 1, dst_rect->ybegin - 1},
 		{dst_rect->xend      , dst_rect->ybegin - 1},
 		{dst_rect->xend      , dst_rect->yend      },
 		{dst_rect->xbegin - 1, dst_rect->yend      }
 	};
-	const int src_co[BPX_NUM_SIDES][CORNER_NUM_SOURCES][2] = {
+	const int src_co[BPX_RECT_NUM_SIDES][CORNER_NUM_SOURCES][2] = {
 		{{dst_co[0][0] + 1, dst_co[0][1]    },
 		 {dst_co[0][0],     dst_co[0][1] + 1}},
 		{{dst_co[1][0] - 1, dst_co[1][1]},
@@ -380,7 +380,7 @@ bool BPX_rect_borders_update(BPXImageBuf *bpx_buf,
 		{{dst_co[3][0] + 1, dst_co[3][1]},
 		 {dst_co[3][0],     dst_co[3][1] - 1}}
 	};
-	for (int i = 0; i < BPX_NUM_SIDES; i++) {
+	for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
 		if (!bpx_corner_average(buf, dst_co[i], src_co[i])) {
 			return false;
 		}
@@ -864,7 +864,7 @@ static int bpx_mesh_face_find_edge(const BPXPtexMesh &mesh,
 static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 									 const BPXPtexMesh &mesh,
 									 const int f1, const int fv1,
-									 const BPXSide &side1)
+									 const BPXRectSide &side1)
 {
 	const int nsides1 = mesh.face_vert_counts.at(f1);
 	const int region1 = mesh.face_to_region_map.at(f1);
@@ -874,7 +874,7 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 	const int vp = mesh.face_vert_indices[region1 + (nsides1 + fv1 - 1) % nsides1];
 
 	// TODO
-	//if (side1 == BPX_SIDE_TOP || side1 == BPX_SIDE_RIGHT) {
+	//if (side1 == BPX_RECT_SIDE_TOP || side1 == BPX_RECT_SIDE_RIGHT) {
 	if (0) {
 		// Reuse self
 		adj_layout_item = region1 + fv1;
@@ -885,18 +885,18 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 	// TODO?
 	adj_edge.reverse = true;
 
-	if (side1 == BPX_SIDE_BOTTOM) {
+	if (side1 == BPX_RECT_SIDE_BOTTOM) {
 		// Previous loop
 		adj_layout_item = region1 + ((nsides1 + fv1 - 1) % nsides1);
-		adj_edge.side = BPX_SIDE_LEFT;
+		adj_edge.side = BPX_RECT_SIDE_LEFT;
 	}
-	else if (side1 == BPX_SIDE_LEFT) {
+	else if (side1 == BPX_RECT_SIDE_LEFT) {
 		// Next loop
 		adj_layout_item = region1 + ((fv1 + 1) % nsides1);
-		adj_edge.side = BPX_SIDE_BOTTOM;
+		adj_edge.side = BPX_RECT_SIDE_BOTTOM;
 	}
 	else {
-		const int v2 = (side1 == BPX_SIDE_TOP) ? vn : vp;
+		const int v2 = (side1 == BPX_RECT_SIDE_TOP) ? vn : vp;
 
 		// Map from face to edge
 		const BPXMeshEdge *edge = bpx_mesh_edge_find(mesh, v1, v2);
@@ -925,13 +925,13 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 			return true;
 		}
 
-		if (side1 == BPX_SIDE_TOP) {
+		if (side1 == BPX_RECT_SIDE_TOP) {
 			adj_layout_item = region2 + ((fv2 + 1) % nsides2);
-			adj_edge.side = BPX_SIDE_RIGHT;
+			adj_edge.side = BPX_RECT_SIDE_RIGHT;
 		}
-		else if (side1 == BPX_SIDE_RIGHT) {
+		else if (side1 == BPX_RECT_SIDE_RIGHT) {
 			adj_layout_item = region2 + fv2;
-			adj_edge.side = BPX_SIDE_TOP;
+			adj_edge.side = BPX_RECT_SIDE_TOP;
 		}
 		else {
 			return false;
@@ -994,8 +994,8 @@ static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 			BPXRect adj_rect[4];
 			BPXEdge adj_edge[4];
 
-			for (int side = 0; side < BPX_NUM_SIDES; side++) {
-				const BPXSide bpx_side = static_cast<BPXSide>(side);
+			for (int side = 0; side < BPX_RECT_NUM_SIDES; side++) {
+				const BPXRectSide bpx_side = static_cast<BPXRectSide>(side);
 				int adj_layout_item = BPX_ADJ_NONE;
 
 				bpx_ptex_adj_layout_item(adj_layout_item, adj_edge[side],

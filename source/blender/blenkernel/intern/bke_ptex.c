@@ -392,7 +392,7 @@ static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
 						  const Mesh *me,
 						  const int poly_index1,
 						  const int loop_offset,
-						  const BPXSide loop_side)
+						  const BPXRectSide loop_side)
 {
 	const MPoly *p1 = &me->mpoly[poly_index1];
 
@@ -403,24 +403,24 @@ static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
 	/* TODO */
 	adj_edge->reverse = true;
 
-	if (loop_side == BPX_SIDE_BOTTOM) {
+	if (loop_side == BPX_RECT_SIDE_BOTTOM) {
 		/* Previous loop */
 		(*adj_loop) = p1->loopstart + ((p1->totloop + loop_offset - 1) %
 									   p1->totloop);
-		adj_edge->side = BPX_SIDE_LEFT;
+		adj_edge->side = BPX_RECT_SIDE_LEFT;
 	}
-	else if (loop_side == BPX_SIDE_LEFT) {
+	else if (loop_side == BPX_RECT_SIDE_LEFT) {
 		/* Next loop */
 		(*adj_loop) = p1->loopstart + ((loop_offset + 1) % p1->totloop);
 
-		adj_edge->side = BPX_SIDE_BOTTOM;
+		adj_edge->side = BPX_RECT_SIDE_BOTTOM;
 	}
 	else {
 		const MLoop *l1;
 		int poly_index2;
 		int e1_offset;
 
-		if (loop_side == BPX_SIDE_TOP) {
+		if (loop_side == BPX_RECT_SIDE_TOP) {
 			e1_offset = loop_offset;
 		}
 		else {
@@ -447,13 +447,13 @@ static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
 
 					/* Next loop */
 					
-					if (loop_side == BPX_SIDE_TOP) {
+					if (loop_side == BPX_RECT_SIDE_TOP) {
 						(*adj_loop) = p2->loopstart + ((i + 1) % p2->totloop);
-						adj_edge->side = BPX_SIDE_RIGHT;
+						adj_edge->side = BPX_RECT_SIDE_RIGHT;
 					}
 					else {
 						(*adj_loop) = p2->loopstart + i;
-						adj_edge->side = BPX_SIDE_TOP;
+						adj_edge->side = BPX_RECT_SIDE_TOP;
 					}
 					return;
 				}
