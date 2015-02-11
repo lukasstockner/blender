@@ -42,7 +42,6 @@ set(INC
 	../../../blender/blenkernel
 	../../../blender/blenlib
 	../../../blender/blenloader
-	../../../blender/depsgraph
 	../../../blender/gpu
 	../../../blender/imbuf
 	../../../blender/makesdna

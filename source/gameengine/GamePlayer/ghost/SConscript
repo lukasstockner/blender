@@ -55,7 +55,6 @@ incs = [
     '#source/blender/blenkernel',
     '#source/blender',
     '#source/blender/include',
-    '#source/blender/depsgraph',
     '#source/blender/makesdna',
     '#source/blender/makesrna',
     '#source/gameengine/Rasterizer',

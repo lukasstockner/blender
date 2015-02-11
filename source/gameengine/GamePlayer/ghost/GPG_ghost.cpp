@@ -77,8 +77,6 @@ extern "C"
 #include "BKE_text.h"
 #include "BKE_sound.h"
 
-#include "DEG_depsgraph.h"
-
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 	

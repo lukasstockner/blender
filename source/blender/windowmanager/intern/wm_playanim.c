@@ -61,8 +61,6 @@
 #include "BKE_depsgraph.h"
 #include "BKE_image.h"
 
-#include "DEG_depsgraph.h"
-
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
