@@ -2993,6 +2993,8 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 	char path[FILE_MAX];
 	int fileflags;
 
+	printf("G.save_over: %d\n", G.save_over);
+
 	save_set_compress(op);
 	
 	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
@@ -4896,8 +4898,9 @@ static void WM_OT_previews_ensure(wmOperatorType *ot)
 
 /* Only types supporting previews currently. */
 static EnumPropertyItem preview_id_type_items[] = {
-	{FILTER_ID_OB, "OBJECT", 0, "Objects", ""},
+    {FILTER_ID_SCE, "SCENE", 0, "Scenes", ""},
     {FILTER_ID_GR, "GROUP", 0, "Groups", ""},
+	{FILTER_ID_OB, "OBJECT", 0, "Objects", ""},
     {FILTER_ID_MA, "MATERIAL", 0, "Materials", ""},
     {FILTER_ID_LA, "LAMP", 0, "Lamps", ""},
     {FILTER_ID_WO, "WORLD", 0, "Worlds", ""},
@@ -4923,7 +4926,8 @@ static int previews_clear_exec(bContext *C, wmOperator *op)
 
 		if (!id) continue;
 
-		printf("%s: %d, %d, %d -> %d\n", id->name, GS(id->name), BKE_idcode_to_idfilter(GS(id->name)), id_filters, BKE_idcode_to_idfilter(GS(id->name)) & id_filters);
+//		printf("%s: %d, %d, %d -> %d\n", id->name, GS(id->name), BKE_idcode_to_idfilter(GS(id->name)),
+//		                                 id_filters, BKE_idcode_to_idfilter(GS(id->name)) & id_filters);
 
 		if (!id || !(BKE_idcode_to_idfilter(GS(id->name)) & id_filters)) {
 			continue;
@@ -4954,10 +4958,10 @@ static void WM_OT_previews_clear(wmOperatorType *ot)
 	ot->exec = previews_clear_exec;
 	ot->invoke = WM_menu_invoke;
 
-	ot->prop = RNA_def_enum(ot->srna, "id_type", preview_id_type_items,
-	                        FILTER_ID_OB | FILTER_ID_GR |
-	                        FILTER_ID_MA | FILTER_ID_LA | FILTER_ID_WO | FILTER_ID_TE | FILTER_ID_IM,
-	                        "DataBlock Type", "Which datablock previews to clear");
+	ot->prop = RNA_def_enum_flag(ot->srna, "id_type", preview_id_type_items,
+	                             FILTER_ID_SCE | FILTER_ID_OB | FILTER_ID_GR |
+		                         FILTER_ID_MA | FILTER_ID_LA | FILTER_ID_WO | FILTER_ID_TE | FILTER_ID_IM,
+	                             "DataBlock Type", "Which datablock previews to clear");
 }
 
 /* ******************************************************* */

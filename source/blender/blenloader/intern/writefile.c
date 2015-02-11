@@ -2494,6 +2494,8 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 			write_pointcaches(wd, &(sce->rigidbody_world->ptcaches));
 		}
 		
+		write_previews(wd, sce->preview);
+
 		sce= sce->id.next;
 	}
 	/* flush helps the compression for undo-save */

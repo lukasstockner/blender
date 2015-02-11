@@ -35,72 +35,254 @@ import sys
 import bpy
 from mathutils import Vector, Euler
 
-##### Utils #####
 
-def object_children_recursive(ob):
-    for child in ob.children:
-        yield child
-        yield from object_children_recursive(child)
-
-def object_merge_bbox(bbox, ob, ob_space):
-    if ob.bound_box:
-        ob_bbox = ob.bound_box
-    else:
-        ob_bbox = ((-ob.scale.x, -ob.scale.y, -ob.scale.z), (ob.scale.x, ob.scale.y, ob.scale.z))
-    for v in ob.bound_box:
-        v = ob_space.matrix_world.inverted() * ob.matrix_world * Vector(v)
-        if bbox[0].x > v.x:
-            bbox[0].x = v.x
-        if bbox[0].y > v.y:
-            bbox[0].y = v.y
-        if bbox[0].z > v.z:
-            bbox[0].z = v.z
-        if bbox[1].x < v.x:
-            bbox[1].x = v.x
-        if bbox[1].y < v.y:
-            bbox[1].y = v.y
-        if bbox[1].z < v.z:
-            bbox[1].z = v.z
+INTERN_PREVIEW_TYPES = {'MATERIAL', 'LAMP', 'WORLD', 'TEXTURE', 'IMAGE'}
+OBJECT_TYPES_RENDER = {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'}
 
 
-def do_previews_bi(do_objects, do_groups):
-    render_scene = bpy.data.scenes.new("TEMP_preview_render_scene")
-    render_world = bpy.data.worlds.new("TEMP_preview_render_world")
-    render_camera_data = bpy.data.cameras.new("TEMP_preview_render_camera")
-    render_camera = bpy.data.objects.new("TEMP_preview_render_camera", render_camera_data)
-    render_lamp_data = bpy.data.lamps.new("TEMP_preview_render_lamp", 'SPOT')
-    render_lamp = bpy.data.objects.new("TEMP_preview_render_lamp", render_lamp_data)
-    render_image = None
+def rna_backup_gen(data, include_props=None, exclude_props=None, root=()):
+    # only writable properties...
+    for p in data.bl_rna.properties:
+        pid = p.identifier
+        if pid in {'rna_type',}:
+            continue
+        path = root + (pid,)
+        if include_props is not None and path not in include_props:
+            continue
+        if exclude_props is not None and path in exclude_props:
+            continue
+        val = getattr(data, pid)
+        if val is not None and p.type == 'POINTER':
+            # recurse!
+            yield from rna_backup_gen(val, include_props, exclude_props, root=path)
+        elif data.is_property_readonly(pid):
+            continue
+        else:
+            yield path, val
 
-    objects_ignored = {render_camera, render_lamp}
-    groups_ignored = {}
 
-    render_world.use_sky_blend = True
-    render_world.horizon_color = 0.9, 0.9, 0.9
-    render_world.zenith_color = 0.5, 0.5, 0.5
-    render_world.ambient_color = 0.1, 0.1, 0.1
-    render_world.light_settings.use_environment_light = True
-    render_world.light_settings.environment_energy = 1.0
-    render_world.light_settings.environment_color = 'SKY_COLOR'
-    render_scene.world = render_world
+def rna_backup_restore(data, backup):
+    for path, val in backup:
+        dt = data
+        for pid in path[:-1]:
+            dt = getattr(dt, pid)
+        setattr(dt, path[-1], val)
 
-    render_camera.rotation_euler = Euler((1.1635528802871704, 0.0, 0.7853981852531433), 'XYZ')  # (66.67, 0.0, 45.0)
-    render_scene.camera = render_camera
-    render_scene.objects.link(render_camera)
 
-    render_lamp.rotation_euler = Euler((0.7853981852531433, 0.0, 1.7453292608261108), 'XYZ')  # (45.0, 0.0, 100.0)
-    render_lamp_data.falloff_type = 'CONSTANT'
-    render_lamp_data.spot_size = 1.0471975803375244  # 60
-    render_scene.objects.link(render_lamp)
+def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
+    # Helpers.
+    RenderContext = collections.namedtuple("RenderContext", (
+        "scene", "world", "camera", "lamp", "camera_data", "lamp_data", "image",
+        "backup_scene", "backup_world", "backup_camera", "backup_lamp", "backup_camera_data", "backup_lamp_data",
+    ))
 
-    render_scene.render.resolution_x = 128
-    render_scene.render.resolution_y = 128
-    render_scene.render.resolution_percentage = 100
-    render_scene.render.alpha_mode = 'TRANSPARENT'
-    render_scene.render.filepath = '/tmp/TEMP_preview_render.png'  # XXX To be done properly!!!!
+    def render_context_create(engine, objects_ignored):
+        if engine == '__SCENE':
+            backup_scene, backup_world, backup_camera, backup_lamp, backup_camera_data, backup_lamp_data = [()] * 6
+            scene = bpy.context.screen.scene
+            exclude_props = {('world',), ('camera',), ('tool_settings',), ('preview',)}
+            backup_scene = tuple(rna_backup_gen(scene, exclude_props=exclude_props))
+            world = scene.world
+            camera = scene.camera
+            if camera:
+                camera_data = camera.data
+            else:
+                backup_camera, backup_camera_data = [None] * 2
+                camera_data = bpy.data.cameras.new("TEMP_preview_render_camera")
+                camera = bpy.data.objects.new("TEMP_preview_render_camera", camera_data)
+                camera.rotation_euler = Euler((1.1635528802871704, 0.0, 0.7853981852531433), 'XYZ')  # (66.67, 0.0, 45.0)
+                scene.camera = camera
+                scene.objects.link(camera)
+            # TODO: add lamp if none found in scene?
+            lamp = None
+            lamp_data = None
+        else:
+            backup_scene, backup_world, backup_camera, backup_lamp, backup_camera_data, backup_lamp_data = [None] * 6
 
-    prev_scene = bpy.context.screen.scene
-    bpy.context.screen.scene = render_scene
+            scene = bpy.data.scenes.new("TEMP_preview_render_scene")
+            world = bpy.data.worlds.new("TEMP_preview_render_world")
+            camera_data = bpy.data.cameras.new("TEMP_preview_render_camera")
+            camera = bpy.data.objects.new("TEMP_preview_render_camera", camera_data)
+            lamp_data = bpy.data.lamps.new("TEMP_preview_render_lamp", 'SPOT')
+            lamp = bpy.data.objects.new("TEMP_preview_render_lamp", lamp_data)
+
+            objects_ignored.add((camera.name, lamp.name))
+
+            scene.world = world
+
+            camera.rotation_euler = Euler((1.1635528802871704, 0.0, 0.7853981852531433), 'XYZ')  # (66.67, 0.0, 45.0)
+            scene.camera = camera
+            scene.objects.link(camera)
+
+            lamp.rotation_euler = Euler((0.7853981852531433, 0.0, 1.7453292608261108), 'XYZ')  # (45.0, 0.0, 100.0)
+            lamp_data.falloff_type = 'CONSTANT'
+            lamp_data.spot_size = 1.0471975803375244  # 60
+            scene.objects.link(lamp)
+
+            if engine == 'BLENDER_RENDER':
+                scene.render.engine = 'BLENDER_RENDER'
+                scene.render.alpha_mode = 'TRANSPARENT'
+
+                world.use_sky_blend = True
+                world.horizon_color = 0.9, 0.9, 0.9
+                world.zenith_color = 0.5, 0.5, 0.5
+                world.ambient_color = 0.1, 0.1, 0.1
+                world.light_settings.use_environment_light = True
+                world.light_settings.environment_energy = 1.0
+                world.light_settings.environment_color = 'SKY_COLOR'
+            elif engine == 'CYCLES':
+                scene.render.engine = 'CYCLES'
+                scene.cycles.film_transparent = True
+                # TODO: define Cycles world?
+
+        scene.render.image_settings.file_format = 'PNG'
+        scene.render.image_settings.color_depth = '8'
+        scene.render.image_settings.color_mode = 'RGBA'
+        scene.render.image_settings.compression = 25
+        scene.render.resolution_x = 128
+        scene.render.resolution_y = 128
+        scene.render.resolution_percentage = 100
+        scene.render.filepath = '/tmp/TEMP_preview_render.png'  # XXX To be done properly!!!!
+        scene.render.use_overwrite = True
+        scene.render.use_stamp = False
+
+        image = bpy.data.images.new("TEMP_render_image", 128, 128, alpha=True)
+        image.source = 'FILE'
+        image.filepath = scene.render.filepath
+
+        return RenderContext(
+            scene, world, camera, lamp, camera_data, lamp_data, image,
+            backup_scene, backup_world, backup_camera, backup_lamp, backup_camera_data, backup_lamp_data,
+        )
+
+    def render_context_delete(render_context):
+        # Do not crash here, too much things can go wrong...
+        try:
+            scene = render_context.scene
+            if render_context.backup_scene is None:
+                scene.world = None
+                scene.camera = None
+                if render_context.camera:
+                    scene.objects.unlink(render_context.camera)
+                if render_context.lamp:
+                    scene.objects.unlink(render_context.lamp)
+                bpy.data.scenes.remove(scene)
+                scene = None
+            else:
+                rna_backup_restore(scene, render_context.backup_scene)
+            if render_context.backup_world is None:
+                if scene is not None:
+                    scene.world = None
+                bpy.data.worlds.remove(render_context.world)
+            else:
+                rna_backup_restore(render_context.world, render_context.backup_world)
+            if render_context.camera:
+                if render_context.backup_camera is None:
+                    if scene is not None:
+                        scene.camera = None
+                    bpy.data.objects.remove(render_context.camera)
+                    bpy.data.cameras.remove(render_context.camera_data)
+                else:
+                    rna_backup_restore(render_context.camera, render_context.backup_camera)
+                    rna_backup_restore(render_context.camera_data, render_context.backup_camera_data)
+            if render_context.lamp:
+                if render_context.backup_lamp is None:
+                    bpy.data.objects.remove(render_context.lamp)
+                    bpy.data.lamps.remove(render_context.lamp_data)
+                else:
+                    rna_backup_restore(render_context.lamp, render_context.backup_lamp)
+                    rna_backup_restore(render_context.lamp_data, render_context.backup_lamp_data)
+        except Exception as e:
+            print("ERROR:", e)
+            return False
+
+        render_context.image.user_clear()
+        bpy.data.images.remove(render_context.image)
+        return True
+
+    def objects_render_engine_guess(obs):
+        for obname in obs:
+            ob = bpy.data.objects[obname]
+            for matslot in ob.material_slots:
+                mat = matslot.material
+                if mat and mat.use_nodes and mat.node_tree:
+                    for nd in mat.node_tree.nodes:
+                        if nd.shading_compatibility == {'NEW_SHADING'}:
+                            return 'CYCLES'
+        return 'BLENDER_RENDER'
+
+    def object_bbox_merge(bbox, ob, ob_space):
+        if ob.bound_box:
+            ob_bbox = ob.bound_box
+        else:
+            ob_bbox = ((-ob.scale.x, -ob.scale.y, -ob.scale.z), (ob.scale.x, ob.scale.y, ob.scale.z))
+        for v in ob.bound_box:
+            v = ob_space.matrix_world.inverted() * ob.matrix_world * Vector(v)
+            if bbox[0].x > v.x:
+                bbox[0].x = v.x
+            if bbox[0].y > v.y:
+                bbox[0].y = v.y
+            if bbox[0].z > v.z:
+                bbox[0].z = v.z
+            if bbox[1].x < v.x:
+                bbox[1].x = v.x
+            if bbox[1].y < v.y:
+                bbox[1].y = v.y
+            if bbox[1].z < v.z:
+                bbox[1].z = v.z
+
+    def objects_bbox_calc(render_context, objects):
+        bbox = (Vector((1e9, 1e9, 1e9)), Vector((-1e9, -1e9, -1e9)))
+        for obname in objects:
+            ob = bpy.data.objects[obname]
+            object_bbox_merge(bbox, ob, render_context.camera)
+        # Our bbox has been generated in camera local space, bring it back in world one
+        bbox[0][:] = render_context.camera.matrix_world * bbox[0]
+        bbox[1][:] = render_context.camera.matrix_world * bbox[1]
+        cos = (
+            bbox[0].x, bbox[0].y, bbox[0].z,
+            bbox[0].x, bbox[0].y, bbox[1].z,
+            bbox[0].x, bbox[1].y, bbox[0].z,
+            bbox[0].x, bbox[1].y, bbox[1].z,
+            bbox[1].x, bbox[0].y, bbox[0].z,
+            bbox[1].x, bbox[0].y, bbox[1].z,
+            bbox[1].x, bbox[1].y, bbox[0].z,
+            bbox[1].x, bbox[1].y, bbox[1].z,
+        )
+        return cos
+
+    def preview_render_do(render_context, item, objects):
+        if objects is not None:
+            cos = objects_bbox_calc(render_context, objects)
+            if render_context.camera:  # This shall always be valid!
+                loc, ortho_scale = render_context.camera.camera_fit_coords(render_context.scene, cos)
+                render_context.camera.location = loc
+            if render_context.lamp:
+                loc, ortho_scale = render_context.lamp.camera_fit_coords(render_context.scene, cos)
+                render_context.lamp.location = loc
+        render_context.scene.update()
+
+        bpy.ops.render.render(write_still=True)
+
+        render_context.image.reload()
+        pix = tuple((round(r * 255)) + (round(g * 255) << 8) + (round(b * 255) << 16) + (round(a * 255) << 24)
+                    for r, g, b, a in zip(*[iter(render_context.image.pixels)] * 4))
+        item.preview.image_size = (128, 128)
+        item.preview.image_pixels = pix
+
+    # And now, main code!
+    do_save = True
+
+    if do_data_intern:
+        bpy.ops.wm.previews_clear(id_type=INTERN_PREVIEW_TYPES)
+        bpy.ops.wm.previews_ensure()
+
+    render_contexts = {}
+
+    objects_ignored = set()
+    groups_ignored = set()
+
+    prev_scenename = bpy.context.screen.scene.name
 
     if do_objects:
         prev_shown = tuple(ob.hide_render for ob in bpy.data.objects)
@@ -109,49 +291,31 @@ def do_previews_bi(do_objects, do_groups):
                 continue
             ob.hide_render = True
         for root in bpy.data.objects:
-            if root in objects_ignored:
+            if root.name in objects_ignored:
                 continue
-            if root.type not in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'}:
+            if root.type not in OBJECT_TYPES_RENDER:
                 continue
-            bbox = (Vector((1e9, 1e9, 1e9)), Vector((-1e9, -1e9, -1e9)))
-            objects = (root,) # + tuple(object_children_recursive(ob))
-            for ob in objects:
-                if ob.name not in render_scene.objects:
-                    render_scene.objects.link(ob)
+            objects = (root.name,)
+
+            render_engine = objects_render_engine_guess(objects)
+            render_context = render_contexts.get(render_engine, None)
+            if render_context is None:
+                render_context = render_context_create(render_engine, objects_ignored)
+                render_contexts[render_engine] = render_context
+            bpy.context.screen.scene = render_context.scene
+
+            for obname in objects:
+                ob = bpy.data.objects[obname]
+                if obname not in render_context.scene.objects:
+                    render_context.scene.objects.link(ob)
                 ob.hide_render = False
-                render_scene.update()
-                object_merge_bbox(bbox, ob, render_camera)
-            # Our bbox has been generated in camera local space, bring it back in world one
-            bbox[0][:] = render_camera.matrix_world * bbox[0]
-            bbox[1][:] = render_camera.matrix_world * bbox[1]
-            cos = (
-                bbox[0].x, bbox[0].y, bbox[0].z,
-                bbox[0].x, bbox[0].y, bbox[1].z,
-                bbox[0].x, bbox[1].y, bbox[0].z,
-                bbox[0].x, bbox[1].y, bbox[1].z,
-                bbox[1].x, bbox[0].y, bbox[0].z,
-                bbox[1].x, bbox[0].y, bbox[1].z,
-                bbox[1].x, bbox[1].y, bbox[0].z,
-                bbox[1].x, bbox[1].y, bbox[1].z,
-            )
-            loc, ortho_scale = render_camera.camera_fit_coords(render_scene, cos)
-            render_camera.location = loc
-            loc, ortho_scale = render_lamp.camera_fit_coords(render_scene, cos)
-            render_lamp.location = loc
-            render_scene.update()
+            render_context.scene.update()
 
-            bpy.ops.render.render(write_still=True)
+            preview_render_do(render_context, root, objects)
 
-            if render_image is None:
-                render_image = bpy.data.images.load(render_scene.render.filepath)
-            else:
-                render_image.reload()
-            pix = tuple(int(r * 255) + int(g * 255) * 256 + int(b * 255) * 256**2 + int(a * 255) * 256**3 for r, g, b, a in zip(*[iter(render_image.pixels)] * 4))  # XXX To be done properly!!!!!!
-            root.preview.image_size = (128, 128)
-            root.preview.image_pixels = pix
-
-            for ob in objects:
-                render_scene.objects.unlink(ob)
+            for obname in objects:
+                ob = bpy.data.objects[obname]
+                render_context.scene.objects.unlink(ob)
                 ob.hide_render = True
 
         for ob, is_rendered in zip(bpy.data.objects, prev_shown):
@@ -159,65 +323,66 @@ def do_previews_bi(do_objects, do_groups):
 
     if do_groups:
         for grp in bpy.data.groups:
-            if grp in groups_ignored:
+            if grp.name in groups_ignored:
                 continue
+            objects = tuple(ob.name for ob in grp.objects)
+
+            render_engine = objects_render_engine_guess(objects)
+            render_context = render_contexts.get(render_engine, None)
+            if render_context is None:
+                render_context = render_context_create(render_engine, objects_ignored)
+                render_contexts[render_engine] = render_context
+            bpy.context.screen.scene = render_context.scene
+
             bpy.ops.object.group_instance_add(group=grp.name)
-            grp_ob = next((ob for ob in render_scene.objects if ob.dupli_group and ob.dupli_group.name == grp.name))
-            bbox = (Vector((1e9, 1e9, 1e9)), Vector((-1e9, -1e9, -1e9)))
-            render_scene.update()
-            for ob in grp.objects:
-                object_merge_bbox(bbox, ob, render_camera)
-            # Our bbox has been generated in camera local space, bring it back in world one
-            bbox[0][:] = render_camera.matrix_world * bbox[0]
-            bbox[1][:] = render_camera.matrix_world * bbox[1]
-            cos = (
-                bbox[0].x, bbox[0].y, bbox[0].z,
-                bbox[0].x, bbox[0].y, bbox[1].z,
-                bbox[0].x, bbox[1].y, bbox[0].z,
-                bbox[0].x, bbox[1].y, bbox[1].z,
-                bbox[1].x, bbox[0].y, bbox[0].z,
-                bbox[1].x, bbox[0].y, bbox[1].z,
-                bbox[1].x, bbox[1].y, bbox[0].z,
-                bbox[1].x, bbox[1].y, bbox[1].z,
-            )
-            loc, ortho_scale = render_camera.camera_fit_coords(render_scene, cos)
-            render_camera.location = loc
-            loc, ortho_scale = render_lamp.camera_fit_coords(render_scene, cos)
-            render_lamp.location = loc
-            render_scene.update()
+            grp_ob = next((ob for ob in render_context.scene.objects if ob.dupli_group and ob.dupli_group.name == grp.name))
+            grp_obname = grp_ob.name
+            render_context.scene.update()
 
-            bpy.ops.render.render(write_still=True)
+            preview_render_do(render_context, grp, objects)
 
-            if render_image is None:
-                render_image = bpy.data.images.load(render_scene.render.filepath)
-            else:
-                render_image.reload()
-            pix = tuple(int(r * 255) + int(g * 255) * 256 + int(b * 255) * 256**2 + int(a * 255) * 256**3 for r, g, b, a in zip(*[iter(render_image.pixels)] * 4))  # XXX To be done properly!!!!!!
-            grp.preview.image_size = (128, 128)
-            grp.preview.image_pixels = pix
+            render_context.scene.objects.unlink(bpy.data.objects[grp_obname])
 
-            render_scene.objects.unlink(grp_ob)
+    bpy.context.screen.scene = bpy.data.scenes[prev_scenename]
+    for render_context in render_contexts.values():
+        if not render_context_delete(render_context):
+            do_save = False  # Do not save file if something went wrong here, we could 'pollute' it with temp data...
 
-    bpy.context.screen.scene = prev_scene
-    render_scene.world = None
-    render_scene.camera = None
-    render_scene.objects.unlink(render_camera)
-    render_scene.objects.unlink(render_lamp)
-    bpy.data.scenes.remove(render_scene)
-    bpy.data.worlds.remove(render_world)
-    bpy.data.objects.remove(render_camera)
-    bpy.data.cameras.remove(render_camera_data)
-    bpy.data.objects.remove(render_lamp)
-    bpy.data.lamps.remove(render_lamp_data)
-    if render_image is not None:
-        render_image.user_clear()
-        bpy.data.images.remove(render_image)
+    if do_scenes:
+        for scene in bpy.data.scenes:
+            has_camera = scene.camera is not None
+            bpy.context.screen.scene = scene
+            render_context = render_context_create('__SCENE', objects_ignored)
+            render_context.scene.update()
 
-    print("Saving %s..." % bpy.data.filepath)
-    bpy.ops.wm.save_mainfile()
+            objects = None
+            if not has_camera:
+                # We had to add a temp camera, now we need to place it to see interesting objects!
+                objects = tuple(ob.name for ob in scene.objects
+                                        if (not ob.hide_render) and (ob.type in OBJECT_TYPES_RENDER))
+
+            preview_render_do(render_context, scene, objects)
+
+            if not render_context_delete(render_context):
+                do_save = False
+
+    bpy.context.screen.scene = bpy.data.scenes[prev_scenename]
+    if do_save:
+        print("Saving %s..." % bpy.data.filepath)
+        try:
+            bpy.ops.wm.save_mainfile()
+        except Exception as e:
+            # Might fail in some odd cases, like e.g. in regression files we have glsl/ram_glsl.blend which
+            # references an inexistent texture... Better not break in this case, just spit error to console.
+            print("ERROR:", e)
+    else:
+        print("*NOT* Saving %s, because some error(s) happened while deleting temp render data..." % bpy.data.filepath)
 
 
 def do_clear_previews(do_objects, do_groups):
+    if do_data_intern:
+        bpy.ops.wm.previews_clear(id_type=INTERN_PREVIEW_TYPES)
+
     if do_objects:
         for ob in bpy.data.objects:
             ob.preview.image_size = (0, 0)
@@ -225,6 +390,10 @@ def do_clear_previews(do_objects, do_groups):
     if do_groups:
         for grp in bpy.data.groups:
             grp.preview.image_size = (0, 0)
+
+    if do_scenes:
+        for scene in bpy.data.scenes:
+            scene.preview.image_size = (0, 0)
 
     print("Saving %s..." % bpy.data.filepath)
     bpy.ops.wm.save_mainfile()
@@ -245,14 +414,19 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="Use Blender to generate previews for currently open Blender file's items.")
     parser.add_argument('--clear', default=False, action="store_true", help="Clear previews instead of generating them.")
-    parser.add_argument('--no_objects', default=True, action="store_false", help="Do not generate/clear previews for object IDs.")
+    parser.add_argument('--no_scenes', default=True, action="store_false", help="Do not generate/clear previews for scene IDs.")
     parser.add_argument('--no_groups', default=True, action="store_false", help="Do not generate/clear previews for group IDs.")
+    parser.add_argument('--no_objects', default=True, action="store_false", help="Do not generate/clear previews for object IDs.")
+    parser.add_argument('--no_data_intern', default=True, action="store_false",
+                        help="Do not generate/clear previews for mat/tex/image/etc. IDs (those handled by core Blender code).")
     args = parser.parse_args()
 
     if args.clear:
-        do_clear_previews(do_objects=args.no_objects, do_groups=args.no_groups)
+        do_clear_previews(do_objects=args.no_objects, do_groups=args.no_groups, do_scenes=args.no_scenes,
+                          do_data_intern=args.no_data_intern)
     else:
-        do_previews_bi(do_objects=args.no_objects, do_groups=args.no_groups)
+        do_previews(do_objects=args.no_objects, do_groups=args.no_groups, do_scenes=args.no_scenes,
+                    do_data_intern=args.no_data_intern)
 
     sys.argv = back_argv
 

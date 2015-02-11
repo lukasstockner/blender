@@ -42,6 +42,7 @@
 #include "DNA_lamp_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
+#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 
@@ -226,6 +227,10 @@ void BKE_previewimg_free_id(ID *id)
 		Group *group  = (Group *)id;
 		BKE_previewimg_free(&group->preview);
 	}
+	else if (GS(id->name) == ID_SCE) {
+		Scene *scene  = (Scene *)id;
+		BKE_previewimg_free(&scene->preview);
+	}
 }
 
 PreviewImage *BKE_previewimg_get(ID *id)
@@ -271,6 +276,11 @@ PreviewImage *BKE_previewimg_get(ID *id)
 		Group *group  = (Group *)id;
 		if (!group->preview) group->preview = BKE_previewimg_create();
 		prv_img = group->preview;
+	}
+	else if (GS(id->name) == ID_SCE) {
+		Scene *scene = (Scene *)id;
+		if (!scene->preview) scene->preview = BKE_previewimg_create();
+		prv_img = scene->preview;
 	}
 
 	return prv_img;

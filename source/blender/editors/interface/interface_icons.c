@@ -988,7 +988,7 @@ PreviewImage *UI_icon_to_preview(int icon_id)
 	return NULL;
 }
 
-#if 0  /* Unused in the end, is it worth keeping it still?
+#if 0  /* Unused in the end, is it worth keeping it still? */
 /* Shall always return straight alpha! */
 ImBuf *UI_icon_to_imbuf(int icon_id)
 {

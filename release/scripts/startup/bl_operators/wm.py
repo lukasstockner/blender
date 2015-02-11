@@ -2118,10 +2118,10 @@ class WM_OT_addon_expand(Operator):
 
 # ########## Datablock previews... ##########
 
-class WM_OT_generate_previews(Operator):
-    """Generate selected .blend file's object and groups previews"""
-    bl_idname = "wm.previews_generate_objects"
-    bl_label = "Generate Object/Groups Previews"
+class WM_OT_previews_batch_generate(Operator):
+    """Generate selected .blend file's previews"""
+    bl_idname = "wm.previews_batch_generate"
+    bl_label = "Batch-Generate Previews"
     bl_options = {'REGISTER'}
 
     # -----------
@@ -2133,6 +2133,17 @@ class WM_OT_generate_previews(Operator):
     # Show only images/videos, and directories!
     filter_blender = BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
     filter_folder = BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+
+    # -----------
+    # Own props.
+    use_scenes = BoolProperty(default=True, name="Scenes", description="Generate scenes' previews")
+    use_groups = BoolProperty(default=True, name="Groups", description="Generate groups' previews")
+    use_objects = BoolProperty(default=True, name="Objects", description="Generate objects' previews")
+    use_intern_data = BoolProperty(default=True, name="Mat/Tex/...",
+                                   description="Generate 'internal' previews (materials, textures, images, etc.)")
+
+    use_trusted = BoolProperty(default=False, name="Trusted Blend Files",
+                               description="Enable python evaluation for selected files")
 
     def invoke(self, context, event):
         context.window_manager.fileselect_add(self)
@@ -2153,18 +2164,105 @@ class WM_OT_generate_previews(Operator):
             blen_path = os.path.join(self.directory, fn.name)
             cmmd = (
                 bpy.app.binary_path,
-                #~ "--background",
+                "--background",
                 "--factory-startup",
+            )
+            if self.use_trusted:
+                cmmd = cmmd + ("--enable-autoexec",)
+            cmmd = cmmd + (
                 blen_path,
                 "--python",
                 os.path.join(os.path.dirname(preview_render.__file__), "bl_previews_render.py"),
                 "--",
                 "bl_previews_render.py",  # arg parser expects first arg to be prog name!
             )
-            # Not working (UI is not refreshed...).
-            #self.report({'INFO'}, "Extracting messages, this will take some time...")
+            if not self.use_scenes:
+                cmmd = cmmd + ('--no_scenes',)
+            if not self.use_groups:
+                cmmd = cmmd + ('--no_groups',)
+            if not self.use_objects:
+                cmmd = cmmd + ('--no_objects',)
+            if not self.use_intern_data:
+                cmmd = cmmd + ('--no_data_intern',)
             if subprocess.call(cmmd):
                 self.report({'ERROR'}, "Previews generation process failed for file '%s'!" % blend_path)
+                context.window_manager.progress_end()
+                return {'CANCELLED'}
+            context.window_manager.progress_update(i + 1)
+        context.window_manager.progress_end()
+
+        return {'FINISHED'}
+
+
+class WM_OT_previews_batch_clear(Operator):
+    """Clear selected .blend file's previews"""
+    bl_idname = "wm.previews_batch_clear"
+    bl_label = "Batch-Clear Previews"
+    bl_options = {'REGISTER'}
+
+    # -----------
+    # File props.
+    files = CollectionProperty(type=bpy.types.OperatorFileListElement, options={'HIDDEN', 'SKIP_SAVE'})
+
+    directory = StringProperty(maxlen=1024, subtype='FILE_PATH', options={'HIDDEN', 'SKIP_SAVE'})
+
+    # Show only images/videos, and directories!
+    filter_blender = BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+    filter_folder = BoolProperty(default=True, options={'HIDDEN', 'SKIP_SAVE'})
+
+    # -----------
+    # Own props.
+    use_scenes = BoolProperty(default=True, name="Scenes", description="Clear scenes' previews")
+    use_groups = BoolProperty(default=True, name="Groups", description="Clear groups' previews")
+    use_objects = BoolProperty(default=True, name="Objects", description="Clear objects' previews")
+    use_intern_data = BoolProperty(default=True, name="Mat/Tex/...",
+                                   description="Clear 'internal' previews (materials, textures, images, etc.)")
+
+    use_trusted = BoolProperty(default=False, name="Trusted Blend Files",
+                               description="Enable python evaluation for selected files")
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        if "subprocess" in locals():
+            import imp
+            imp.reload(preview_render)
+        else:
+            import os
+            import subprocess
+            from bl_previews_utils import bl_previews_render as preview_render
+
+        context.window_manager.progress_begin(0, len(self.files))
+        context.window_manager.progress_update(0)
+        for i, fn in enumerate(self.files):
+            blen_path = os.path.join(self.directory, fn.name)
+            cmmd = (
+                bpy.app.binary_path,
+                "--background",
+                "--factory-startup",
+            )
+            if self.use_trusted:
+                cmmd = cmmd + ("--enable-autoexec",)
+            cmmd = cmmd + (
+                blen_path,
+                "--python",
+                os.path.join(os.path.dirname(preview_render.__file__), "bl_previews_render.py"),
+                "--",
+                "bl_previews_render.py",  # arg parser expects first arg to be prog name!
+                "--clear",
+            )
+            if not self.use_scenes:
+                cmmd = cmmd + ('--no_scenes',)
+            if not self.use_groups:
+                cmmd = cmmd + ('--no_groups',)
+            if not self.use_objects:
+                cmmd = cmmd + ('--no_objects',)
+            if not self.use_intern_data:
+                cmmd = cmmd + ('--no_data_intern',)
+            if subprocess.call(cmmd):
+                self.report({'ERROR'}, "Previews clear process failed for file '%s'!" % blend_path)
                 context.window_manager.progress_end()
                 return {'CANCELLED'}
             context.window_manager.progress_update(i + 1)

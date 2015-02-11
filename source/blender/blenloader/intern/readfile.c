@@ -5720,6 +5720,8 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			rbw->ltime = (float)rbw->pointcache->startframe;
 		}
 	}
+
+	sce->preview = direct_link_preview_image(fd, sce->preview);
 }
 
 /* ************ READ WM ***************** */

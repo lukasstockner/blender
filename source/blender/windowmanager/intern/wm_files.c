@@ -439,6 +439,8 @@ bool WM_file_read(bContext *C, const char *filepath, ReportList *reports)
 			G.relbase_valid = 0;
 		}
 
+		printf("%s: G.save_over: %d\n", __func__, G.save_over);
+
 		/* this flag is initialized by the operator but overwritten on read.
 		 * need to re-enable it here else drivers + registered scripts wont work. */
 		if (G.f != G_f) {
