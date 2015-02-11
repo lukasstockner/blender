@@ -574,7 +574,7 @@ void DepsgraphRelationBuilder::build_animdata(ID *id)
 	
 	/* drivers */
 	for (FCurve *fcu = (FCurve *)adt->drivers.first; fcu; fcu = fcu->next) {
-		OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_DRIVER, fcu->rna_path);
+		OperationKey driver_key(id, DEPSNODE_TYPE_PARAMETERS, DEG_OPCODE_DRIVER, deg_fcurve_id_name(fcu));
 		
 		/* create the driver's relations to targets */
 		build_driver(id, fcu);
