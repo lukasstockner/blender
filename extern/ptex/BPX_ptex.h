@@ -88,10 +88,9 @@ bool BPX_image_input_seek_subimage(BPXImageInput *input, const int subimage,
 
 bool BPX_image_input_read(BPXImageBuf *bpx_dst, BPXImageInput *bpx_src);
 
-bool BPX_rect_borders_update(BPXImageBuf *bpx_buf,
-							 const BPXRect *dst_rect,
-							 const BPXRect src_rect[BPX_RECT_NUM_SIDES],
-							 const BPXEdge src_edge[BPX_RECT_NUM_SIDES]);
+/* TODO, stride here is not such a nice API */
+bool BPX_rect_borders_update(BPXImageBuf *bpx_buf, const BPXRect *dst_rect,
+							 const void *rects, const int rects_stride);
 
 bool BPX_image_buf_quad_split(BPXImageBuf *dst[4], const BPXImageBuf *src);
 
@@ -116,7 +115,7 @@ BPXImageBuf *BPX_image_buf_ptex_pack(BPXImageInput *bpx_src,
 struct BPXPackedLayout;
 struct BPXPackedLayout *BPX_packed_layout_new(int count);
 void BPX_packed_layout_add(struct BPXPackedLayout *layout,
-						   int u_res, int v_res, int id);
+						   const BPXRect *rect);
 void BPX_packed_layout_finalize(struct BPXPackedLayout *layout);
 int BPX_packed_layout_width(const struct BPXPackedLayout *layout);
 int BPX_packed_layout_height(const struct BPXPackedLayout *layout);

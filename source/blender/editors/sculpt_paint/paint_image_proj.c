@@ -3732,11 +3732,13 @@ static void project_paint_prepare_all_faces(
 				for (abc = 0; abc < 4; abc++) {
 					float *dst = (*tf)->uv[abc];
 					const float *uv = tess_ptex[face_index].uv[abc];
-					const ImPtexRegion *ipr =
+					const BPXRect *rect =
 						&ibuf->ptex_regions[tess_ptex[face_index].id];
+					const int width = rect->xend - rect->xbegin;
+					const int height = rect->yend - rect->ybegin;
 
-					dst[0] = (uv[0] * ipr->width + ipr->x) / ibuf->x;
-					dst[1] = (uv[1] * ipr->height + ipr->y) / ibuf->y;
+					dst[0] = (uv[0] * width + rect->xbegin) / ibuf->x;
+					dst[1] = (uv[1] * height + rect->ybegin) / ibuf->y;
 				}
 			}
 			BKE_image_release_ibuf(slot->ima, ibuf, NULL);

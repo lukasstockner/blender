@@ -30,6 +30,9 @@
 
 #include "DNA_vec_types.h"  /* for rcti */
 
+/* TODO(nicholasbishop) */
+#include "../../../extern/ptex/BPX_rect.h"
+
 /**
  * \file IMB_imbuf_types.h
  * \ingroup imbuf
@@ -56,14 +59,6 @@ typedef struct DDSData {
 	unsigned char *data; /* The compressed image data */
 	unsigned int size; /* The size of the compressed data */
 } DDSData;
-
-// TODO
-typedef struct {
-	int x;
-	int y;
-	int width;
-	int height;
-} ImPtexRegion;
 
 /**
  * \ingroup imbuf
@@ -145,8 +140,8 @@ typedef struct ImBuf {
 	/* information for compressed textures */
 	struct DDSData dds_data;
 
-	/* TODO */
-	ImPtexRegion *ptex_regions; /* array */
+	/* TODO, naming and include directives */
+	BPXRect *ptex_regions; /* array */
 	int num_ptex_regions;
 } ImBuf;
 

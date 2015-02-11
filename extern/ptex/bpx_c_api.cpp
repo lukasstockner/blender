@@ -340,35 +340,53 @@ static bool bpx_corner_average(ImageBuf &buf, const int dst_co[2],
 	return true;
 }
 
-bool BPX_rect_borders_update(BPXImageBuf *bpx_buf,
-							 const BPXRect *dst_rect,
-							 const BPXRect src_rect[BPX_RECT_NUM_SIDES],
-							 const BPXEdge src_edge[BPX_RECT_NUM_SIDES])
+bool BPX_rect_borders_update(BPXImageBuf *bpx_buf, const BPXRect *dst_rect,
+							 const void *rects_v, const int rects_stride)
 {
-	if (!bpx_buf || !dst_rect) {
+	if (!bpx_buf || !rects_v) {
 		return false;
 	}
 
 	ImageBuf &buf = *bpx_image_buf_to_oiio_image_buf(bpx_buf);
 	const ROI dst_roi = bpx_rect_to_oiio_roi(*dst_rect);
 
+	const unsigned char *rects_uc = static_cast<const unsigned char*>(rects_v);
+
 	// Sample adjacent regions to create filter edges
 	for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
-		const ROI src_roi = bpx_rect_to_oiio_roi(src_rect[i]);
 		const BPXRectSide dst_side = static_cast<BPXRectSide>(i);
 		const bool dst_reverse = false;
 		const BPXEdge dst_edge = {dst_side, dst_reverse};
-		bpx_create_border(buf, dst_roi, dst_edge, src_roi, src_edge[i]);
+
+		const BPXRectSideAdj &adj = dst_rect->adj[i];
+		const BPXRect *src_rect;
+		BPXEdge src_edge;
+		if (adj.index == BPX_RECT_SIDE_ADJ_NONE) {
+			// Re-use own border, effectively clamping the filter
+			src_rect = dst_rect;
+			src_edge.side = dst_side;
+			src_edge.reverse = false;
+
+		}
+		else {
+			const int offset = adj.index * rects_stride;
+			src_rect = reinterpret_cast<const BPXRect *>(rects_uc + offset);
+			src_edge.side = adj.side;
+			src_edge.reverse = true;
+		}
+			
+		const ROI src_roi = bpx_rect_to_oiio_roi(*src_rect);
+		bpx_create_border(buf, dst_roi, dst_edge, src_roi, src_edge);
 	}
 
-	// Average adjacent borders to fill in corners (not really correct
-	// but I'm guessing the difference won't be visible, and anyway
-	// this is only for bilinear filtering)
+	// Average adjacent borders to fill in
+	// corners. TODO(nicholasbishop): need to improve this, it is
+	// noticable after all
 	const int dst_co[BPX_RECT_NUM_SIDES][2] = {
-		{dst_rect->xbegin - 1, dst_rect->ybegin - 1},
-		{dst_rect->xend      , dst_rect->ybegin - 1},
-		{dst_rect->xend      , dst_rect->yend      },
-		{dst_rect->xbegin - 1, dst_rect->yend      }
+		{dst_roi.xbegin - 1, dst_roi.ybegin - 1},
+		{dst_roi.xend      , dst_roi.ybegin - 1},
+		{dst_roi.xend      , dst_roi.yend      },
+		{dst_roi.xbegin - 1, dst_roi.yend      }
 	};
 	const int src_co[BPX_RECT_NUM_SIDES][CORNER_NUM_SOURCES][2] = {
 		{{dst_co[0][0] + 1, dst_co[0][1]    },
@@ -812,10 +830,10 @@ static int bpx_mesh_face_find_edge(const BPXPtexMesh &mesh,
 }
 
 // TODO(nicholasbishop): deduplicate with bke_ptex.c
-static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
-									 const BPXPtexMesh &mesh,
-									 const int f1, const int fv1,
-									 const BPXRectSide &side1)
+static bool bpx_ptex_adj_rect(const BPXPtexMesh &mesh,
+							  const int f1, const int fv1,
+							  const BPXRectSide &side1,
+							  BPXRectSideAdj &r_adj)
 {
 	const int nsides1 = mesh.faces.at(f1).len;
 	const int region1 = mesh.faces.at(f1).vert_index;
@@ -824,27 +842,15 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 	const int vn = mesh.face_vert_indices[region1 + (fv1 + 1) % nsides1];
 	const int vp = mesh.face_vert_indices[region1 + (nsides1 + fv1 - 1) % nsides1];
 
-	// TODO
-	//if (side1 == BPX_RECT_SIDE_TOP || side1 == BPX_RECT_SIDE_RIGHT) {
-	if (0) {
-		// Reuse self
-		adj_layout_item = region1 + fv1;
-		adj_edge.side = side1;
-		return true;
-	}
-
-	// TODO?
-	adj_edge.reverse = true;
-
 	if (side1 == BPX_RECT_SIDE_BOTTOM) {
 		// Previous loop
-		adj_layout_item = region1 + ((nsides1 + fv1 - 1) % nsides1);
-		adj_edge.side = BPX_RECT_SIDE_LEFT;
+		r_adj.index = region1 + ((nsides1 + fv1 - 1) % nsides1);
+		r_adj.side = BPX_RECT_SIDE_LEFT;
 	}
 	else if (side1 == BPX_RECT_SIDE_LEFT) {
 		// Next loop
-		adj_layout_item = region1 + ((fv1 + 1) % nsides1);
-		adj_edge.side = BPX_RECT_SIDE_BOTTOM;
+		r_adj.index = region1 + ((fv1 + 1) % nsides1);
+		r_adj.side = BPX_RECT_SIDE_BOTTOM;
 	}
 	else {
 		const int v2 = (side1 == BPX_RECT_SIDE_TOP) ? vn : vp;
@@ -858,9 +864,7 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 		// Map to other face
 		const int f2 = bpx_mesh_other_face(*edge, f1);
 		if (f2 == BPX_ADJ_NONE) {
-			// Reuse self
-			adj_layout_item = region1 + fv1;
-			adj_edge.side = side1;
+			r_adj.index = BPX_RECT_SIDE_ADJ_NONE;
 			return true;
 		}
 
@@ -870,19 +874,17 @@ static bool bpx_ptex_adj_layout_item(int &adj_layout_item, BPXEdge &adj_edge,
 		// Find same edge in other face
 		const int fv2 = bpx_mesh_face_find_edge(mesh, f2, *edge);
 		if (fv2 == BPX_ADJ_NONE) {
-			// Reuse self
-			adj_layout_item = region1 + fv1;
-			adj_edge.side = side1;
+			r_adj.index = BPX_RECT_SIDE_ADJ_NONE;
 			return true;
 		}
 
 		if (side1 == BPX_RECT_SIDE_TOP) {
-			adj_layout_item = region2 + ((fv2 + 1) % nsides2);
-			adj_edge.side = BPX_RECT_SIDE_RIGHT;
+			r_adj.index = region2 + ((fv2 + 1) % nsides2);
+			r_adj.side = BPX_RECT_SIDE_RIGHT;
 		}
 		else if (side1 == BPX_RECT_SIDE_RIGHT) {
-			adj_layout_item = region2 + fv2;
-			adj_edge.side = BPX_RECT_SIDE_TOP;
+			r_adj.index = region2 + fv2;
+			r_adj.side = BPX_RECT_SIDE_TOP;
 		}
 		else {
 			return false;
@@ -925,63 +927,28 @@ static bool bpx_ptex_mesh_init(BPXPtexMesh &mesh, ImageInput &src)
 	return true;
 }
 
-static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
-													 ImageInput &src,
-													 BPXPackedLayout &layout)
-{
-	BPXPtexMesh mesh;
-	if (!bpx_ptex_mesh_init(mesh, src)) {
-		return false;
-	}
-
-	const BPXPackedLayout::Items &items = layout.get_items();
-
-	const int num_faces = mesh.faces.size();
-	for (int face_index = 0; face_index < num_faces; face_index++) {
-		const BPXPtexMeshFace &face = mesh.faces[face_index];
-		for (int fv = 0; fv < face.len; fv++) {
-			const int cur_layout_item = face.vert_index + fv;
-			if (cur_layout_item >= items.size()) {
-				return false;
-			}
-
-			const BPXPackedLayout::Item &item = items[cur_layout_item];
-			const BPXRect dst_rect = item.rect;
-
-			// TODO
-			BPXRect adj_rect[4];
-			BPXEdge adj_edge[4];
-
-			for (int side = 0; side < BPX_RECT_NUM_SIDES; side++) {
-				const BPXRectSide bpx_side = static_cast<BPXRectSide>(side);
-				int adj_layout_item = BPX_ADJ_NONE;
-
-				bpx_ptex_adj_layout_item(adj_layout_item, adj_edge[side],
-										 mesh, face_index, fv, bpx_side);
-
-				if (adj_layout_item == BPX_ADJ_NONE ||
-					adj_layout_item >= items.size())
-				{
-					return false;
-				}
-				const BPXPackedLayout::Item &adj_item = items[adj_layout_item];
-				adj_rect[side] = adj_item.rect;
-			}
-
-			if (!BPX_rect_borders_update(bpx_image_buf_from_oiio_image_buf(&dst),
-										 &dst_rect, adj_rect, adj_edge))
-			{
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
 int BPX_packed_layout_num_regions(const BPXPackedLayout *layout)
 {
 	return layout->get_items().size();
+}
+
+static bool bpx_ptex_filter_borders_update(ImageBuf &buf,
+										   const BPXPackedLayout &layout)
+{
+	BPXImageBuf *bpx_buf = bpx_image_buf_from_oiio_image_buf(&buf);
+
+	const BPXPackedLayout::Items &items = layout.get_items();
+	const void *rects = items.data();
+	const int rects_stride = sizeof(BPXPackedLayout::Item);
+
+	const int num_rects = items.size();
+	for (int i = 0; i < num_rects; i++) {
+		if (!BPX_rect_borders_update(bpx_buf, &items[i].rect,
+									 rects, rects_stride)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 static bool bpx_image_buf_ptex_layout(BPXPackedLayout &layout, ImageInput &in,
@@ -1003,33 +970,39 @@ static bool bpx_image_buf_ptex_layout(BPXPackedLayout &layout, ImageInput &in,
 			}
 
 			// Width and height should already be powers of two
-			int w = spec.width;
-			int h = spec.height;
+			BPXRect rect;
+			rect.xbegin = 0;
+			rect.ybegin = 0;
+			rect.xend = spec.width;
+			rect.yend = spec.height;
 
+			// Halve/rotate subquads
 			if (is_quad) {
-				const int hw = std::max(1, w / 2);
-				const int hh = std::max(1, h / 2);
+				const int hw = std::max(1, spec.width  / 2);
+				const int hh = std::max(1, spec.height / 2);
 
 				if (fv % 2 == 0) {
-					w = hw;
-					h = hh;
+					rect.xend = hw;
+					rect.yend = hh;
 				}
 				else {
-					w = hh;
-					h = hw;
+					rect.xend = hh;
+					rect.yend = hw;
 				}
 			}
 			else {
 				subimage++;
 			}
 
-			// TODO(nicholasbishop): will add adjacency data here
-			BPXRect r;
-			r.xbegin = 0;
-			r.ybegin = 0;
-			r.xend = w;
-			r.yend = h;
-			layout.add_rect(r);
+			// Add adjacency data
+			for (int rect_side = 0; rect_side < BPX_RECT_NUM_SIDES; rect_side++) {
+				const BPXRectSide bpx_rect_side = static_cast<BPXRectSide>(rect_side);
+
+				bpx_ptex_adj_rect(mesh, face_index, fv, bpx_rect_side,
+								  rect.adj[rect_side]);
+			}
+
+			layout.add_rect(rect);
 		}
 	}
 
@@ -1146,7 +1119,7 @@ BPXImageBuf *BPX_image_buf_ptex_pack(BPXImageInput *bpx_src,
 		return NULL;
 	}
 
-	if (!bpx_ptex_filter_borders_update_from_file(dst, in, layout)) {
+	if (!bpx_ptex_filter_borders_update(dst, layout)) {
 		return NULL;
 	}
 	
@@ -1159,16 +1132,9 @@ BPXPackedLayout *BPX_packed_layout_new(const int count)
 }
 
 void BPX_packed_layout_add(BPXPackedLayout * const layout,
-							const int u_res, const int v_res,
-							const int id)
+						   const BPXRect *rect)
 {
-	// TODO, adjacency
-	BPXRect r;
-	r.xbegin = 0;
-	r.ybegin = 0;
-	r.xend = u_res;
-	r.yend = v_res;
-	layout->add_rect(r);
+	layout->add_rect(*rect);
 }
 
 void BPX_packed_layout_finalize(BPXPackedLayout * const layout)

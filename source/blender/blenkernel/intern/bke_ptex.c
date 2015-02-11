@@ -301,15 +301,6 @@ void BKE_loop_ptex_pattern_fill(MLoopPtex *lp, const int index)
 BLI_STATIC_ASSERT(sizeof(MPtexTexelInfo) == 4, "MPtexTexelInfo size != 4");
 BLI_STATIC_ASSERT(sizeof(MPtexLogRes) == 4, "MPtexLogRes size != 4");
 
-static void bpx_rect_from_im_ptex_region(BPXRect *dst,
-										 const ImPtexRegion *src)
-{
-	dst->xbegin = src->x;
-	dst->ybegin = src->y;
-	dst->xend = src->x + src->width;
-	dst->yend = src->y + src->height;
-}
-
 /* Constants */
 enum {
 	BKE_PTEX_NO_ADJ_POLY = -1,
@@ -387,33 +378,27 @@ static int bke_ptex_edge_adj_other_poly(const BKEPtexEdgeAdj *edge_adj,
 }
 
 static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
-						  int *adj_loop,
-						  BPXEdge *adj_edge,
 						  const Mesh *me,
 						  const int poly_index1,
 						  const int loop_offset,
-						  const BPXRectSide loop_side)
+						  const BPXRectSide loop_side,
+						  BPXRectSideAdj *r_side_adj)
 {
 	const MPoly *p1 = &me->mpoly[poly_index1];
 
-	BLI_assert(adj_loop);
-	BLI_assert(adj_edge);
+	BLI_assert(r_side_adj);
 	BLI_assert(loop_offset >= 0 && loop_offset < p1->totloop);
-
-	/* TODO */
-	adj_edge->reverse = true;
 
 	if (loop_side == BPX_RECT_SIDE_BOTTOM) {
 		/* Previous loop */
-		(*adj_loop) = p1->loopstart + ((p1->totloop + loop_offset - 1) %
-									   p1->totloop);
-		adj_edge->side = BPX_RECT_SIDE_LEFT;
+		r_side_adj->index = p1->loopstart + ((p1->totloop + loop_offset - 1) %
+											 p1->totloop);
+		r_side_adj->side = BPX_RECT_SIDE_LEFT;
 	}
 	else if (loop_side == BPX_RECT_SIDE_LEFT) {
 		/* Next loop */
-		(*adj_loop) = p1->loopstart + ((loop_offset + 1) % p1->totloop);
-
-		adj_edge->side = BPX_RECT_SIDE_BOTTOM;
+		r_side_adj->index = p1->loopstart + ((loop_offset + 1) % p1->totloop);
+		r_side_adj->side = BPX_RECT_SIDE_BOTTOM;
 	}
 	else {
 		const MLoop *l1;
@@ -431,8 +416,7 @@ static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
 		poly_index2 = bke_ptex_edge_adj_other_poly(&adj[l1->e], poly_index1);
 		if (poly_index2 == BKE_PTEX_NO_ADJ_POLY) {
 			/* Reuse self */
-			(*adj_loop) = p1->loopstart + loop_offset;
-			adj_edge->side = loop_side;
+			r_side_adj->index = BPX_RECT_SIDE_ADJ_NONE;
 		}
 		else {
 			MPoly *p2 = &me->mpoly[poly_index2];
@@ -448,12 +432,12 @@ static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
 					/* Next loop */
 					
 					if (loop_side == BPX_RECT_SIDE_TOP) {
-						(*adj_loop) = p2->loopstart + ((i + 1) % p2->totloop);
-						adj_edge->side = BPX_RECT_SIDE_RIGHT;
+						r_side_adj->index = p2->loopstart + ((i + 1) % p2->totloop);
+						r_side_adj->side = BPX_RECT_SIDE_RIGHT;
 					}
 					else {
-						(*adj_loop) = p2->loopstart + i;
-						adj_edge->side = BPX_RECT_SIDE_TOP;
+						r_side_adj->index = p2->loopstart + i;
+						r_side_adj->side = BPX_RECT_SIDE_TOP;
 					}
 					return;
 				}
@@ -461,20 +445,15 @@ static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
 		}
 		
 		/* Reuse self */
-		(*adj_loop) = p1->loopstart + loop_offset;
-		adj_edge->side = loop_side;
+		r_side_adj->index = BPX_RECT_SIDE_ADJ_NONE;
 	}
 }
 
 static void ptex_filter_borders_update(ImBuf *ibuf, const Mesh *me)
 {
 	BPXImageBuf *bpx_buf = IMB_imbuf_as_bpx_image_buf(ibuf);
-	BKEPtexEdgeAdj *adj = bke_ptex_edge_adj_init(me);
+	const BPXRect *rects = ibuf->ptex_regions;
 	int i;
-
-	if (!adj) {
-		return;
-	}
 
 	BLI_assert(bpx_buf);
 
@@ -484,34 +463,16 @@ static void ptex_filter_borders_update(ImBuf *ibuf, const Mesh *me)
 
 		for (j = 0; j < p->totloop; j++) {
 			const int cur_loop = p->loopstart + j;
-			int k;
 
-			BPXRect dst_rect;
-
-			BPXRect adj_rect[4];
-			BPXEdge adj_edge[4];
-
-			bpx_rect_from_im_ptex_region(&dst_rect,
-										 &ibuf->ptex_regions[cur_loop]);
-			for (k = 0; k < 4; k++) {
-				int adj_loop = -1;
-
-				ptex_adj_edge(adj, &adj_loop, &adj_edge[k], me, i, j, k);
-				BLI_assert(adj_loop >= 0);
-
-				bpx_rect_from_im_ptex_region(&adj_rect[k],
-											 &ibuf->ptex_regions[adj_loop]);
-			}
-
-			if (!BPX_rect_borders_update(bpx_buf, &dst_rect,
-										 adj_rect, adj_edge))
+			const BPXRect *dst_rect = &rects[cur_loop];
+			if (!BPX_rect_borders_update(bpx_buf, dst_rect, rects,
+										 sizeof(BPXRect)))
 			{
 				BLI_assert(!"TODO");
 			}
 		}
 	}
 
-	MEM_freeN(adj);
 	BPX_image_buf_free(bpx_buf);
 }
 
@@ -579,6 +540,56 @@ static BPXImageBuf *bpx_image_buf_wrap_loop_ptex(MLoopPtex *loop_ptex)
 										loop_ptex->rect);
 }
 
+static struct BPXPackedLayout *bke_ptex_layout_from_mesh(const Mesh *me,
+														 const MLoopPtex *loop_ptex)
+{
+	struct BPXPackedLayout *layout;
+	BKEPtexEdgeAdj *edge_adj;
+	int poly_index;
+
+	layout = BPX_packed_layout_new(me->totloop);
+	if (!layout) {
+		return NULL;
+	}
+
+	edge_adj = bke_ptex_edge_adj_init(me);
+	if (!edge_adj) {
+		BPX_packed_layout_delete(layout);
+		return NULL;
+	}
+
+	
+
+	for (poly_index = 0; poly_index < me->totpoly; poly_index++) {
+		const MPoly *p = &me->mpoly[poly_index];
+		int loop_offset;
+
+		for (loop_offset = 0; loop_offset < p->totloop; loop_offset++) {
+			const int cur_loop = p->loopstart + loop_offset;
+			BPXRect rect;
+			int rect_side;
+
+			rect.xbegin = 0;
+			rect.ybegin = 0;
+			rect.xend = ptex_res_from_rlog2(loop_ptex[cur_loop].logres.u);
+			rect.yend = ptex_res_from_rlog2(loop_ptex[cur_loop].logres.v);
+
+			for (rect_side = 0; rect_side < BPX_RECT_NUM_SIDES; rect_side++) {
+				BPXRectSideAdj *side_adj = &rect.adj[rect_side];
+
+				ptex_adj_edge(edge_adj, me, poly_index, loop_offset,
+							  rect_side, side_adj);
+			}
+
+			BPX_packed_layout_add(layout, &rect);
+		}
+	}
+
+	MEM_freeN(edge_adj);
+	BPX_packed_layout_finalize(layout);
+	return layout;
+}
+
 /* TODO(nicholasbishop): sync up with code in imb_ptex.c */
 /* TODO(nicholasbishop): should function apart, Image stuff really is
  * separate from the packing stuff */
@@ -608,14 +619,10 @@ static bool ptex_pack_loops(Image **image_r, Mesh *me, MLoopPtex *loop_ptex,
 	}
 
 	/* Create layout */
-	layout = BPX_packed_layout_new(num_loops);
-	for (i = 0; i < num_loops; i++) {
-		BPX_packed_layout_add(layout,
-							  ptex_res_from_rlog2(loop_ptex[i].logres.u),
-							  ptex_res_from_rlog2(loop_ptex[i].logres.v),
-							  i);
+	layout = bke_ptex_layout_from_mesh(me, loop_ptex);
+	if (!layout) {
+		return false;
 	}
-	BPX_packed_layout_finalize(layout);
 
 	/* Create ImBuf destination, this will get the region info too so
 	 * the layout can then be deleted */
@@ -637,11 +644,12 @@ static bool ptex_pack_loops(Image **image_r, Mesh *me, MLoopPtex *loop_ptex,
 	for (i = 0; i < num_loops; i++) {
 		MLoopPtex *lp = &loop_ptex[i];
 		BPXImageBuf *bpx_src = bpx_image_buf_wrap_loop_ptex(lp);
-		const ImPtexRegion *region = &ibuf->ptex_regions[i];
+		const BPXRect *rect = &ibuf->ptex_regions[i];
 		bool r;
 		BLI_assert(bpx_src);
 
-		r = BPX_image_buf_pixels_copy(bpx_dst, bpx_src, region->x, region->y);
+		r = BPX_image_buf_pixels_copy(bpx_dst, bpx_src, rect->xbegin,
+									  rect->ybegin);
 		BLI_assert(r);
 		
 		BPX_image_buf_free(bpx_src);
@@ -1072,21 +1080,15 @@ bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 	for (i = 0; i < totloop; i++) {
 		MLoopPtex *lp = &loop_ptex[i];
 		BPXImageBuf *bpx_dst = bpx_image_buf_wrap_loop_ptex(lp);
-		BPXRect src_rect;
-		const ImPtexRegion *region = &ibuf->ptex_regions[i];
+		const BPXRect *src_rect = &ibuf->ptex_regions[i];
 
 		BLI_assert(bpx_dst);
 		if (!bpx_dst) {
 			continue;
 		}
 
-		src_rect.xbegin = region->x;
-		src_rect.xend = region->x + region->width;
-		src_rect.ybegin = region->y;
-		src_rect.yend = region->y + region->height;
-
 		if (!BPX_image_buf_pixels_copy_partial(bpx_dst, bpx_src,
-											   0, 0, &src_rect)) {
+											   0, 0, src_rect)) {
 			BLI_assert(!"copy from image to MLoopPtex failed");
 		}
 	}

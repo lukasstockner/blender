@@ -709,7 +709,7 @@ GPUTexture *GPU_ptex_texture_from_blender(Image *ima, ImageUser *UNUSED(iuser))
 	ImBuf *ibuf;
 	GPUTexture *tex;
 	int size;
-	ImPtexRegion *data;
+	BPXRect *data;
 	void *lock;
 
 	if (ima->ptex_gputexture) {
@@ -733,10 +733,11 @@ GPUTexture *GPU_ptex_texture_from_blender(Image *ima, ImageUser *UNUSED(iuser))
 		float (*tmp)[4] = MEM_mallocN(sizeof(*tmp) * size, "tmp");
 		int i;
 		for (i = 0; i < size; i++) {
-			tmp[i][0] = data[i].x;
-			tmp[i][1] = data[i].y;
-			tmp[i][2] = data[i].width;
-			tmp[i][3] = data[i].height;
+			const BPXRect *rect = &data[i];
+			tmp[i][0] = rect->xbegin;
+			tmp[i][1] = rect->ybegin;
+			tmp[i][2] = rect->xend - rect->xbegin;
+			tmp[i][3] = rect->yend - rect->ybegin;
 		}
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, size, 1, 0, GL_RGBA, GL_FLOAT, tmp);
 		MEM_freeN(tmp);
