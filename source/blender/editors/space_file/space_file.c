@@ -269,6 +269,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 
 	filelist_clear_refresh(sfile->files);
 
+	/* Might be called with NULL sa, see file_main_area_draw() below. */
 	if (sa && BKE_area_find_region_type(sa, RGN_TYPE_TOOLS) == NULL) {
 		/* Create TOOLS/TOOL_PROPS regions. */
 		file_tools_region(sa);
