@@ -763,16 +763,6 @@ static bool bpx_ptex_mesh_edges_init(BPXPtexMesh &mesh)
 	return true;
 }
 
-static BPXRect bpx_rect_from_layout_item(const BPXPackedLayout::Item &item)
-{
-	BPXRect rect;
-	rect.xbegin = item.x;
-	rect.ybegin = item.y;
-	rect.xend = item.x + item.u_res;
-	rect.yend = item.y + item.v_res;
-	return rect;
-}
-
 // TODO(nicholasbishop): still some stupid code, clean this up...
 
 static const BPXMeshEdge *bpx_mesh_edge_find(const BPXPtexMesh &mesh, int v1,
@@ -956,7 +946,7 @@ static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 			}
 
 			const BPXPackedLayout::Item &item = items[cur_layout_item];
-			const BPXRect dst_rect = bpx_rect_from_layout_item(item);
+			const BPXRect dst_rect = item.rect;
 
 			// TODO
 			BPXRect adj_rect[4];
@@ -975,7 +965,7 @@ static bool bpx_ptex_filter_borders_update_from_file(ImageBuf &dst,
 					return false;
 				}
 				const BPXPackedLayout::Item &adj_item = items[adj_layout_item];
-				adj_rect[side] = bpx_rect_from_layout_item(adj_item);
+				adj_rect[side] = adj_item.rect;
 			}
 
 			if (!BPX_rect_borders_update(bpx_image_buf_from_oiio_image_buf(&dst),
@@ -1034,7 +1024,12 @@ static bool bpx_image_buf_ptex_layout(BPXPackedLayout &layout, ImageInput &in,
 			}
 
 			// TODO(nicholasbishop): will add adjacency data here
-			layout.add_item(BPXPackedLayout::Item(w, h));
+			BPXRect r;
+			r.xbegin = 0;
+			r.ybegin = 0;
+			r.xend = w;
+			r.yend = h;
+			layout.add_rect(r);
 		}
 	}
 
@@ -1073,11 +1068,11 @@ static bool bpx_image_buf_fill_from_layout(ImageBuf &all_dst,
  				const BPXPackedLayout::Item &item =
 					layout.get_items().at(face.vert_index + i);
 				ImageSpec spec2 = spec;
-				spec2.width = item.u_res;
-				spec2.height = item.v_res;
+				spec2.width = item.width();
+				spec2.height = item.height();
 				dsts[i] = new ImageBuf(all_dst.spec(), all_dst.localpixels());
-				dst_roi[i].xbegin = item.x;
-				dst_roi[i].ybegin = item.y;
+				dst_roi[i].xbegin = item.rect.xbegin;
+				dst_roi[i].ybegin = item.rect.ybegin;
 			}
 			const bool r = bpx_image_buf_quad_split(dsts, &tmp, dst_roi);
 			for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
@@ -1100,8 +1095,8 @@ static bool bpx_image_buf_fill_from_layout(ImageBuf &all_dst,
 				ImageBuf tmp(spec);
 				in.read_image(spec.format, tmp.localpixels());
 
-				const int xbegin = item.x;
-				const int ybegin = item.y;
+				const int xbegin = item.rect.xbegin;
+				const int ybegin = item.rect.ybegin;
 				const int zbegin = 0;
 				const int chbegin = 0;
 
@@ -1167,7 +1162,13 @@ void BPX_packed_layout_add(BPXPackedLayout * const layout,
 							const int u_res, const int v_res,
 							const int id)
 {
-	layout->add_item(BPXPackedLayout::Item(u_res, v_res));
+	// TODO, adjacency
+	BPXRect r;
+	r.xbegin = 0;
+	r.ybegin = 0;
+	r.xend = u_res;
+	r.yend = v_res;
+	layout->add_rect(r);
 }
 
 void BPX_packed_layout_finalize(BPXPackedLayout * const layout)
@@ -1191,10 +1192,7 @@ bool BPX_packed_layout_item(const BPXPackedLayout * const layout,
 	if (layout && r_rect) {
 		const BPXPackedLayout::Items &items = layout->get_items();
 		if (item_id >= 0 && item_id < items.size()) {
-			r_rect->xbegin = items[item_id].x;
-			r_rect->ybegin = items[item_id].y;
-			r_rect->xend = items[item_id].x + items[item_id].u_res;
-			r_rect->yend = items[item_id].y + items[item_id].v_res;
+			(*r_rect) = items[item_id].rect;
 			return true;
 		}
 	}

@@ -19,16 +19,20 @@
 // power-of-two output texture?
 struct BPXPackedLayout {
 	struct Item {
-		Item(const int u_res, const int v_res)
-			: u_res(u_res), v_res(v_res), id(-1), x(-1), y(-1)
+		Item(const BPXRect &rect, const int id)
+		: rect(rect), id(id)
 		{}
 
-		int u_res;
-		int v_res;
+		const int width() const {
+			return rect.xend - rect.xbegin;
+		}
 
+		const int height() const {
+			return rect.yend - rect.ybegin;
+		}
+
+		BPXRect rect;
 		int id;
-		int x;
-		int y;
 	};
 
 	typedef std::vector<Item> Items;
@@ -39,12 +43,13 @@ struct BPXPackedLayout {
 		items.reserve(count);
 	}
 
-	void add_item(const Item &item)
+	void add_rect(const BPXRect &rect)
 	{
-		items.push_back(item);
-		items.back().id = items.size() - 1;
-		u_max_res = std::max(u_max_res, item.u_res);
-		v_max_res = std::max(v_max_res, item.v_res);
+		const int id = items.size();
+		items.push_back(Item(rect, id));
+		const Item &item = items.back();
+		u_max_res = std::max(u_max_res, item.width());
+		v_max_res = std::max(v_max_res, item.height());
 	}
 
 	void finalize()
@@ -72,8 +77,11 @@ struct BPXPackedLayout {
 			 iter != items.end(); ++iter) {
 			Item &item = *iter;
 
+			const int u_res = item.width();
+			const int v_res = item.height();
+
 			// Check if enough room on this row
-			if (dst_x + item.u_res + 2 * border > width) {
+			if (dst_x + u_res + 2 * border > width) {
 				// Move to next row
 				assert(yinc != 0);
 				dst_y += yinc;
@@ -82,14 +90,16 @@ struct BPXPackedLayout {
 			}
 
 			// Write final position
-			item.x = dst_x + border;
-			item.y = dst_y + border;
+			item.rect.xbegin = dst_x + border;
+			item.rect.ybegin = dst_y + border;
+			item.rect.xend = item.rect.xbegin + u_res;
+			item.rect.yend = item.rect.ybegin + v_res;
 
-			dst_x += item.u_res + (2 * border);
-			height = std::max(height, dst_y + item.v_res + (2 * border));
+			dst_x += u_res + (2 * border);
+			height = std::max(height, dst_y + v_res + (2 * border));
 			max_width = std::max(dst_x, max_width);
 
-			yinc = std::max(yinc, item.v_res + (2 * border));
+			yinc = std::max(yinc, v_res + (2 * border));
 		}
 
 		// TODO?
@@ -125,11 +135,11 @@ private:
 	// Order *descending* by v_res, then u_res
 	static bool sort_res(const Item &a, const Item &b)
 	{
-		if (a.v_res == b.v_res) {
-			return a.u_res > b.u_res;
+		if (a.height() == b.height()) {
+			return a.width() > b.width();
 		}
 		else {
-			return a.v_res > b.v_res;
+			return a.height() > b.height();
 		}
 	}
 
