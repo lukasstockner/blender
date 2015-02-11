@@ -57,7 +57,7 @@ struct ListBase;
  */
 typedef struct EvaluationContext {
 	int mode;               /* evaluation mode */
-	float ctime;            /* evlauaiton time */
+	float ctime;            /* evaluation time */
 } EvaluationContext;
 
 typedef enum eEvaluationMode {
