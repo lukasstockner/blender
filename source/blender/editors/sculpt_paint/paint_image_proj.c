@@ -62,6 +62,7 @@
 
 #include "BKE_camera.h"
 #include "BKE_context.h"
+#include "BKE_colortools.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_idprop.h"
@@ -257,7 +258,6 @@ typedef struct ProjPaintState {
 	float screenMax[2];
 	float screen_width;         /* Calculated from screenMin & screenMax */
 	float screen_height;
-	float cavity_multiplier;
 	int winx, winy;             /* from the carea or from the projection render */
 
 	/* options for projection painting */
@@ -305,6 +305,7 @@ typedef struct ProjPaintState {
 	/* redraw */
 	bool need_redraw;
 
+	struct CurveMapping *cavity_curve;
 	BlurKernel *blurkernel;
 
 	SpinLock *tile_lock;
@@ -1318,8 +1319,8 @@ static float project_paint_uvpixel_mask(
 		}
 
 		ca_mask = w[0] * ca1 + w[1] * ca2 + w[2] * ca3;
+		ca_mask = curvemapping_evaluateF(ps->cavity_curve, 0, ca_mask);
 		CLAMP(ca_mask, 0.0, 1.0);
-		ca_mask = 1.0f - ca_mask;
 		mask *= ca_mask;
 	}
 
@@ -3253,7 +3254,8 @@ static void proj_paint_state_cavity_init(ProjPaintState *ps)
 				float no[3];
 				mul_v3_fl(edges[a], 1.0f / counter[a]);
 				normal_short_to_float_v3(no, mv->no);
-				cavities[a] = ps->cavity_multiplier * 10.0f * dot_v3v3(no, edges[a]);
+				/* augment the diffe*/
+				cavities[a] = saacos(10.0f * dot_v3v3(no, edges[a])) * M_1_PI;
 			}
 			else
 				cavities[a] = 0.0;
@@ -4343,6 +4345,15 @@ static void do_projectpaint_mask_f(ProjPaintState *ps, ProjPixel *projPixel, flo
 	}
 }
 
+static void image_paint_partial_redraw_expand(ImagePaintPartialRedraw *cell,
+											  const ProjPixel *projPixel)
+{
+	cell->x1 = min_ii(cell->x1, (int)projPixel->x_px);
+	cell->y1 = min_ii(cell->y1, (int)projPixel->y_px);
+
+	cell->x2 = max_ii(cell->x2, (int)projPixel->x_px + 1);
+	cell->y2 = max_ii(cell->y2, (int)projPixel->y_px + 1);
+}
 
 /* run this for single and multithreaded painting */
 static void *do_projectpaint_thread(void *ph_v)
@@ -4496,11 +4507,7 @@ static void *do_projectpaint_thread(void *ph_v)
 					}
 
 					last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
-					last_partial_redraw_cell->x1 = min_ii(last_partial_redraw_cell->x1, (int)projPixel->x_px);
-					last_partial_redraw_cell->y1 = min_ii(last_partial_redraw_cell->y1, (int)projPixel->y_px);
-
-					last_partial_redraw_cell->x2 = max_ii(last_partial_redraw_cell->x2, (int)projPixel->x_px + 1);
-					last_partial_redraw_cell->y2 = max_ii(last_partial_redraw_cell->y2, (int)projPixel->y_px + 1);
+					image_paint_partial_redraw_expand(last_partial_redraw_cell, projPixel);
 				}
 				else {
 					if (is_floatbuf) {
@@ -4634,11 +4641,7 @@ static void *do_projectpaint_thread(void *ph_v)
 							*projPixel->valid = true;
 
 							last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
-							last_partial_redraw_cell->x1 = min_ii(last_partial_redraw_cell->x1, (int)projPixel->x_px);
-							last_partial_redraw_cell->y1 = min_ii(last_partial_redraw_cell->y1, (int)projPixel->y_px);
-
-							last_partial_redraw_cell->x2 = max_ii(last_partial_redraw_cell->x2, (int)projPixel->x_px + 1);
-							last_partial_redraw_cell->y2 = max_ii(last_partial_redraw_cell->y2, (int)projPixel->y_px + 1);
+							image_paint_partial_redraw_expand(last_partial_redraw_cell, projPixel);
 
 							/* texrgb is not used for clone, smear or soften */
 							switch (tool) {
@@ -4925,19 +4928,17 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 	ps->clone_ima = (!ps->do_material_slots) ? 
 	                settings->imapaint.clone : NULL;
 
+	ps->do_mask_cavity = (settings->imapaint.paint.flags & PAINT_USE_CAVITY_MASK) ? true : false;
+	ps->cavity_curve = settings->imapaint.paint.cavity_curve;
+
 	/* setup projection painting data */
 	if (ps->tool != PAINT_TOOL_FILL) {
 		ps->do_backfacecull = (settings->imapaint.flag & IMAGEPAINT_PROJECT_BACKFACE) ? false : true;
 		ps->do_occlude = (settings->imapaint.flag & IMAGEPAINT_PROJECT_XRAY) ? false : true;
 		ps->do_mask_normal = (settings->imapaint.flag & IMAGEPAINT_PROJECT_FLAT) ? false : true;
-		ps->do_mask_cavity = (settings->imapaint.flag & IMAGEPAINT_PROJECT_CAVITY) ? true : false;
-		ps->cavity_multiplier = settings->imapaint.cavity_mul;
-		if (settings->imapaint.flag & IMAGEPAINT_PROJECT_CAVITY_INV) {
-			ps->cavity_multiplier *= -1;
-		}
 	}
 	else {
-		ps->do_backfacecull = ps->do_occlude = ps->do_mask_normal = ps->do_mask_cavity = 0;
+		ps->do_backfacecull = ps->do_occlude = ps->do_mask_normal = 0;
 	}
 	ps->do_new_shading_nodes = BKE_scene_use_new_shading_nodes(scene); /* only cache the value */
 
