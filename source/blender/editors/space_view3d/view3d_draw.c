@@ -3528,9 +3528,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		else {
 			fx_settings.dof = NULL;
 		}
-		do_compositing = GPU_fx_compositor_initialize_passes(
-		        rv3d->compositor, &ar->winrct, &ar->drawrct,
-		        &fx_settings);
+		do_compositing = GPU_fx_compositor_initialize_passes(rv3d->compositor, &ar->winrct, &ar->drawrct, &fx_settings);
 	}
 	
 	/* clear the background */

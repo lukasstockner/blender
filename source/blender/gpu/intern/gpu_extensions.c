@@ -372,7 +372,9 @@ static void GPU_glTexSubImageEmpty(GLenum target, GLenum format, int x, int y, i
 	MEM_freeN(pixels);
 }
 
-static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, int depth, GPUHDRType hdr_type, int components, char err_out[256])
+static GPUTexture *GPU_texture_create_nD(
+        int w, int h, int n, float *fpixels, int depth, GPUHDRType hdr_type, int components,
+        char err_out[256])
 {
 	GPUTexture *tex;
 	GLenum type, format, internalformat;
@@ -420,7 +422,7 @@ static GPUTexture *GPU_texture_create_nD(int w, int h, int n, float *fpixels, in
 	}
 	else {
 		type = GL_FLOAT;
-		
+
 		if (components == 4) {
 			format = GL_RGBA;
 			switch (hdr_type) {
@@ -873,15 +875,15 @@ void GPU_depth_texture_mode(GPUTexture *tex, bool compare, bool use_filter)
 		GPU_print_error("Not enough texture slots.");
 		return;
 	}
-	
+
 	if (!tex->depth) {
 		GPU_print_error("Not a depth texture.");
 		return;
 	}
-	
+
 	if (tex->number == -1)
 		return;
-	
+
 	GPU_print_error("Pre Texture Unbind");
 
 	arbnumber = (GLenum)((GLuint)GL_TEXTURE0_ARB + tex->number);
@@ -1736,7 +1738,7 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 	/* avoid shaders out of range */
 	if (effects >= MAX_FX_SHADERS)
 		return NULL;
-	
+
 	offset = 2 * effects;
 
 	if (persp) {
@@ -1749,34 +1751,34 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 			case GPU_SHADER_FX_SSAO:
 				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_vert_glsl, datatoc_gpu_shader_fx_ssao_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 				break;
-				
+
 			case GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_ONE:
 				strcat(defines, "#define FIRST_PASS\n");
 				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 				break;
-				
+
 			case GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_TWO:
 				strcat(defines, "#define SECOND_PASS\n");
 				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 				break;
-				
+
 			case GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_THREE:
 				strcat(defines, "#define THIRD_PASS\n");
 				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 				break;
-				
+
 			case GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FOUR:
 				strcat(defines, "#define FOURTH_PASS\n");
 				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 				break;
-				
+
 			case GPU_SHADER_FX_DEPTH_OF_FIELD_PASS_FIVE:
 				strcat(defines, "#define FIFTH_PASS\n");
 				GG.shaders.fx_shaders[offset] = GPU_shader_create(datatoc_gpu_shader_fx_dof_vert_glsl, datatoc_gpu_shader_fx_dof_frag_glsl, datatoc_gpu_shader_fx_lib_glsl, defines);
 				break;
 		}
 	}
-	
+
 	return GG.shaders.fx_shaders[offset];
 }
 
@@ -1784,7 +1786,7 @@ GPUShader *GPU_shader_get_builtin_fx_shader(int effects, bool persp)
 void GPU_shader_free_builtin_shaders(void)
 {
 	int i;
-	
+
 	if (GG.shaders.vsm_store) {
 		MEM_freeN(GG.shaders.vsm_store);
 		GG.shaders.vsm_store = NULL;
@@ -1794,7 +1796,7 @@ void GPU_shader_free_builtin_shaders(void)
 		MEM_freeN(GG.shaders.sep_gaussian_blur);
 		GG.shaders.sep_gaussian_blur = NULL;
 	}
-	
+
 	for (i = 0; i < 2 * MAX_FX_SHADERS; i++) {
 		if (GG.shaders.fx_shaders[i]) {
 			MEM_freeN(GG.shaders.fx_shaders[i]);

@@ -69,7 +69,7 @@ typedef enum GPUFXShaderEffect {
 GPUFX *GPU_fx_compositor_create(void);
 
 /* destroy a text compositor */
-void GGPU_fx_compositor_destroy(GPUFX *fx);
+void GPU_fx_compositor_destroy(GPUFX *fx);
 
 /* initialize a framebuffer with size taken from the viewport */
 bool GPU_fx_compositor_initialize_passes(
@@ -79,8 +79,8 @@ bool GPU_fx_compositor_initialize_passes(
 /* do compositing on the fx passes that have been initialized */
 bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs);
 
-void GPU_default_dof_settings(struct GPUDOFSettings *dof);
-void GPU_default_ssao_settings(struct GPUSSAOSettings *ssao);
+void GPU_fx_compositor_init_dof_settings(struct GPUDOFSettings *dof);
+void GPU_fx_compositor_init_ssao_settings(struct GPUSSAOSettings *ssao);
 #ifdef __cplusplus
 }
 #endif

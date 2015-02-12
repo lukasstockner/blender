@@ -42,7 +42,7 @@ typedef struct GPUDOFSettings {
 
 /* properties for SSAO effect */
 typedef struct GPUSSAOSettings {
-	float darkening;
+	float darken;
 	float color[3];
 	float distance_max;
 	float attenuation;
@@ -63,4 +63,4 @@ typedef enum eGPUFXFlags {
 	GPU_FX_FLAG_SSAO        = (1 << 1),
 } eGPUFXFlags;
 
-#endif
+#endif  /* __DNA_GPU_TYPES_H__ */

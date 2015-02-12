@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -58,10 +58,10 @@ static const float fullscreencos[4][2] = {{-1.0f, -1.0f}, {1.0f, -1.0f}, {-1.0f,
 static const float fullscreenuvs[4][2] = {{0.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 1.0f}, {1.0f, 1.0f}};
 
 struct GPUFX {
-	/* we borrow the term gbuffer from deferred rendering however this is just a regular 
+	/* we borrow the term gbuffer from deferred rendering however this is just a regular
 	 * depth/color framebuffer. Could be extended later though */
 	GPUFrameBuffer *gbuffer;
-	
+
 	/* texture bound to the first color attachment of the gbuffer */
 	GPUTexture *color_buffer;
 
@@ -86,20 +86,20 @@ struct GPUFX {
 	GPUTexture *dof_near_blur;
 	GPUTexture *dof_far_blur;
 	GPUTexture *dof_concentric_samples_tex;
-	
+
 	/* texture bound to the depth attachment of the gbuffer */
 	GPUTexture *depth_buffer;
 
 	/* texture used for jittering for various effects */
 	GPUTexture *jitter_buffer;
-	
+
 	/* texture used for ssao */
 	int ssao_sample_count;
 	GPUTexture *ssao_concentric_samples_tex;
 
 	/* dimensions of the gbuffer */
 	int gbuffer_dim[2];
-	
+
 	GPUFXSettings settings;
 
 	/* or-ed flags of enabled effects */
@@ -148,8 +148,8 @@ static GPUTexture * create_concentric_sample_texture(int side)
 /* generate a new FX compositor */
 GPUFX *GPU_fx_compositor_create(void)
 {
-	GPUFX *fx = (GPUFX *)MEM_callocN(sizeof(GPUFX), "GPUFX compositor");
-	
+	GPUFX *fx = MEM_callocN(sizeof(GPUFX), "GPUFX compositor");
+
 	return fx;
 }
 
@@ -167,7 +167,7 @@ static void cleanup_fx_dof_buffers(GPUFX *fx)
 		GPU_texture_free(fx->dof_near_coc_final_buffer);
 		fx->dof_near_coc_final_buffer = NULL;
 	}
-	
+
 	if (fx->dof_half_downsampled) {
 		GPU_texture_free(fx->dof_half_downsampled);
 		fx->dof_half_downsampled = NULL;
@@ -211,7 +211,7 @@ static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 		GPU_framebuffer_texture_detach(fx->depth_buffer);
 		GPU_texture_free(fx->depth_buffer);
 		fx->depth_buffer = NULL;
-	}		
+	}
 
 	cleanup_fx_dof_buffers(fx);
 
@@ -219,7 +219,7 @@ static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 		GPU_texture_free(fx->ssao_concentric_samples_tex);
 		fx->ssao_concentric_samples_tex = NULL;
 	}
-	
+
 	if (fx->jitter_buffer && do_fbo) {
 		GPU_texture_free(fx->jitter_buffer);
 		fx->jitter_buffer = NULL;
@@ -232,7 +232,7 @@ static void cleanup_fx_gl_data(GPUFX *fx, bool do_fbo)
 }
 
 /* destroy a text compositor */
-void GGPU_fx_compositor_destroy(GPUFX *fx)
+void GPU_fx_compositor_destroy(GPUFX *fx)
 {
 	cleanup_fx_gl_data(fx, true);
 	MEM_freeN(fx);
@@ -281,7 +281,7 @@ bool GPU_fx_compositor_initialize_passes(
 		cleanup_fx_gl_data(fx, true);
 		return false;
 	}
-	
+
 	fx->num_passes = 0;
 	/* dof really needs a ping-pong buffer to work */
 	if (fx_flag & GPU_FX_FLAG_DOF)
@@ -290,44 +290,44 @@ bool GPU_fx_compositor_initialize_passes(
 	if (fx_flag & GPU_FX_FLAG_SSAO)
 		num_passes++;
 
-	if (!fx->gbuffer) 
+	if (!fx->gbuffer)
 		fx->gbuffer = GPU_framebuffer_create();
-	
+
 	/* try creating the jitter texture */
 	if (!fx->jitter_buffer)
 		fx->jitter_buffer = create_jitter_texture();
 
-	if (!fx->gbuffer) 
+	if (!fx->gbuffer)
 		return false;
-	
+
 	/* check if color buffers need recreation */
 	if (!fx->color_buffer || !fx->depth_buffer || w != fx->gbuffer_dim[0] || h != fx->gbuffer_dim[1]) {
 		cleanup_fx_gl_data(fx, false);
-		
+
 		if (!(fx->color_buffer = GPU_texture_create_2D(w, h, NULL, GPU_HDR_NONE, err_out))) {
 			printf(".256%s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
 			return false;
 		}
-		
+
 		if (!(fx->depth_buffer = GPU_texture_create_depth(w, h, err_out))) {
 			printf("%.256s\n", err_out);
 			cleanup_fx_gl_data(fx, true);
 			return false;
 		}
 	}
-	
+
 	if (fx_flag & GPU_FX_FLAG_SSAO) {
 		if (fx_settings->ssao->samples != fx->ssao_sample_count || !fx->ssao_concentric_samples_tex) {
 			if (fx_settings->ssao->samples < 1)
 				fx_settings->ssao->samples = 1;
-			
+
 			fx->ssao_sample_count = fx_settings->ssao->samples;
-			
+
 			if (fx->ssao_concentric_samples_tex) {
 				GPU_texture_free(fx->ssao_concentric_samples_tex);
 			}
-			
+
 			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(fx_settings->ssao->samples);
 		}
 	}
@@ -337,7 +337,7 @@ bool GPU_fx_compositor_initialize_passes(
 			fx->ssao_concentric_samples_tex = NULL;
 		}
 	}
-	
+
 	/* create textures for dof effect */
 	if (fx_flag & GPU_FX_FLAG_DOF) {
 		if (!fx->dof_near_coc_buffer || !fx->dof_near_coc_blurred_buffer || !fx->dof_near_coc_final_buffer) {
@@ -391,17 +391,17 @@ bool GPU_fx_compositor_initialize_passes(
 	}
 
 	/* bind the buffers */
-	
+
 	/* first depth buffer, because system assumes read/write buffers */
 	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->depth_buffer, 0, err_out))
 		printf("%.256s\n", err_out);
-	
+
 	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->color_buffer, 0, err_out))
 		printf("%.256s\n", err_out);
-	
+
 	if(!GPU_framebuffer_check_valid(fx->gbuffer, err_out))
 		printf("%.256s\n", err_out);
-	
+
 	GPU_texture_bind_as_framebuffer(fx->color_buffer);
 
 	/* enable scissor test. It's needed to ensure sculpting works correctly */
@@ -410,7 +410,7 @@ bool GPU_fx_compositor_initialize_passes(
 		int h_sc = BLI_rcti_size_y(scissor_rect) + 1;
 		glPushAttrib(GL_SCISSOR_BIT);
 		glEnable(GL_SCISSOR_TEST);
-		glScissor(scissor_rect->xmin - rect->xmin, scissor_rect->ymin - rect->ymin, 
+		glScissor(scissor_rect->xmin - rect->xmin, scissor_rect->ymin - rect->ymin,
 				  w_sc, h_sc);
 		fx->restore_stencil = true;
 	}
@@ -430,7 +430,7 @@ bool GPU_fx_compositor_initialize_passes(
 	return true;
 }
 
-static void GPU_fx_bind_render_target(int *passes_left, GPUFX *fx, struct GPUOffScreen *ofs, GPUTexture *target)
+static void gpu_fx_bind_render_target(int *passes_left, GPUFX *fx, struct GPUOffScreen *ofs, GPUTexture *target)
 {
 	if ((*passes_left)-- == 1) {
 		GPU_framebuffer_texture_unbind(fx->gbuffer, NULL);
@@ -446,7 +446,8 @@ static void GPU_fx_bind_render_target(int *passes_left, GPUFX *fx, struct GPUOff
 	}
 }
 
-bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs) {
+bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs)
+{
 	GPUTexture *src, *target;
 	int numslots = 0;
 	float invproj[4][4];
@@ -462,7 +463,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 	if (fx->effects == 0)
 		return false;
-	
+
 	/* first, unbind the render-to-texture framebuffer */
 	GPU_framebuffer_texture_detach(fx->color_buffer);
 	GPU_framebuffer_texture_detach(fx->depth_buffer);
@@ -519,7 +520,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			int color_uniform, depth_uniform;
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
 			int ssao_jitter_uniform, ssao_concentric_tex;
-			float ssao_params[4] = {fx_ssao->distance_max, fx_ssao->darkening, fx_ssao->attenuation, 0.0f};
+			float ssao_params[4] = {fx_ssao->distance_max, fx_ssao->darken, fx_ssao->attenuation, 0.0f};
 			float sample_params[4];
 
 			sample_params[0] = fx->ssao_sample_count * fx->ssao_sample_count;
@@ -555,9 +556,9 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 			GPU_texture_bind(fx->ssao_concentric_samples_tex, numslots++);
 			GPU_shader_uniform_texture(ssao_shader, ssao_concentric_tex, fx->ssao_concentric_samples_tex);
-			
+
 			/* draw */
-			GPU_fx_bind_render_target(&passes_left, fx, ofs, target);
+			gpu_fx_bind_render_target(&passes_left, fx, ofs, target);
 
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -839,24 +840,24 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_TEXTURE_COORD_ARRAY);
-	
+
 	GPU_shader_unbind();
 
 	return true;
 }
 
-void GPU_default_dof_settings(GPUDOFSettings *dof)
+void GPU_fx_compositor_init_dof_settings(GPUDOFSettings *fx_dof)
 {
-	dof->fstop = 128.0f;
-	dof->focal_length = 1.0f;
-	dof->focus_distance = 1.0f;
-	dof->sensor = 1.0f;
+	fx_dof->fstop = 128.0f;
+	fx_dof->focal_length = 1.0f;
+	fx_dof->focus_distance = 1.0f;
+	fx_dof->sensor = 1.0f;
 }
 
-void GPU_default_ssao_settings(GPUSSAOSettings *ssao)
+void GPU_fx_compositor_init_ssao_settings(GPUSSAOSettings *fx_ssao)
 {
-	ssao->darkening = 1.0f;
-	ssao->distance_max = 0.2f;
-	ssao->attenuation = 1.0f;
-	ssao->samples = 4;
+	fx_ssao->darken = 1.0f;
+	fx_ssao->distance_max = 0.2f;
+	fx_ssao->attenuation = 1.0f;
+	fx_ssao->samples = 4;
 }

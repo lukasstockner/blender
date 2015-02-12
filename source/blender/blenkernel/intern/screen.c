@@ -620,6 +620,6 @@ void BKE_screen_gpu_fx_validate(GPUFXSettings *fx_settings)
 		GPUSSAOSettings *fx_ssao;
 		fx_ssao = fx_settings->ssao = MEM_callocN(sizeof(GPUSSAOSettings), __func__);
 
-		GPU_default_ssao_settings(fx_ssao);
+		GPU_fx_compositor_init_ssao_settings(fx_ssao);
 	}
 }

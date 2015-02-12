@@ -69,7 +69,7 @@ void *BKE_camera_add(Main *bmain, const char *name)
 	cam->flag |= CAM_SHOWPASSEPARTOUT;
 	cam->passepartalpha = 0.5f;
 
-	GPU_default_dof_settings(&cam->gpu_dof);
+	GPU_fx_compositor_init_dof_settings(&cam->gpu_dof);
 
 	return cam;
 }

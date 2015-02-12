@@ -571,7 +571,7 @@ static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
 	}
 	
 	if (rv3d->compositor) {
-		GGPU_fx_compositor_destroy(rv3d->compositor);
+		GPU_fx_compositor_destroy(rv3d->compositor);
 		rv3d->compositor = NULL;
 	}
 }
@@ -729,7 +729,7 @@ static void view3d_main_area_free(ARegion *ar)
 			GPU_offscreen_free(rv3d->gpuoffscreen);
 		}
 		if (rv3d->compositor) {
-			GGPU_fx_compositor_destroy(rv3d->compositor);
+			GPU_fx_compositor_destroy(rv3d->compositor);
 		}
 
 		MEM_freeN(rv3d);
