@@ -102,8 +102,15 @@ extern "C" {
 /* ************************************************* */
 /* Node Builder */
 
-void DepsgraphNodeBuilder::build_scene(Scene *scene)
+void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 {
+	/* LIB_DOIT is used to indicate whether node for given ID was already
+	 * created or not. This flag is being set in add_id_node(), so functions
+	 * shouldn't bother with setting it, they only might query this flag when
+	 * needed.
+	 */
+	BKE_main_id_tag_all(bmain, false);
+
 	/* scene ID block */
 	add_id_node(&scene->id);
 
@@ -114,7 +121,7 @@ void DepsgraphNodeBuilder::build_scene(Scene *scene)
 	// XXX: depending on how this goes, that scene itself could probably store its
 	//      own little partial depsgraph?
 	if (scene->set) {
-		build_scene(scene->set);
+		build_scene(bmain, scene->set);
 	}
 
 	/* scene objects */
@@ -136,17 +143,15 @@ void DepsgraphNodeBuilder::build_scene(Scene *scene)
 		 *       modifications...
 		 */
 		if (ob->dup_group) {
-			id_tag_set(&ob->dup_group->id);
+			ob->dup_group->id.flag |= LIB_DOIT;
 		}
 	}
 
 	/* tagged groups */
 	for (Group *group = (Group *)m_bmain->group.first; group; group = (Group *)group->id.next) {
-		if (id_is_tagged(&group->id)) {
+		if (group->id.flag & LIB_DOIT) {
 			// TODO: we need to make this group reliant on the object that spawned it...
 			build_subgraph(group);
-
-			id_tag_clear(&group->id);
 		}
 	}
 
@@ -405,14 +410,10 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 /* Recursively build graph for world */
 void DepsgraphNodeBuilder::build_world(World *world)
 {
-	/* Prevent infinite recursion by checking (and tagging the world) as having been visited
-	 * already. This assumes wo->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
 	ID *world_id = &world->id;
-	if (id_is_tagged(world_id))
+	if (world_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(world_id);
+	}
 
 	/* world itself */
 	IDDepsNode *world_node = add_id_node(world_id); /* world shading/params? */
@@ -428,8 +429,6 @@ void DepsgraphNodeBuilder::build_world(World *world)
 	if (world->nodetree) {
 		build_nodetree(world_node, world->nodetree);
 	}
-
-	id_tag_clear(world_id);
 }
 
 /* Rigidbody Simulation - Scene Level */
@@ -828,14 +827,9 @@ void DepsgraphNodeBuilder::build_lamp(Object *ob)
 {
 	Lamp *la = (Lamp *)ob->data;
 	ID *lamp_id = &la->id;
-
-	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited
-	 * already. This assumes la->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
-	if (id_is_tagged(lamp_id))
+	if (lamp_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(lamp_id);
+	}
 
 	/* node for obdata */
 	ComponentDepsNode *param_node = add_component_node(lamp_id, DEPSNODE_TYPE_PARAMETERS);
@@ -847,8 +841,6 @@ void DepsgraphNodeBuilder::build_lamp(Object *ob)
 
 	/* textures */
 	build_texture_stack(param_node, la->mtex);
-
-	id_tag_clear(lamp_id);
 }
 
 void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree)
@@ -881,14 +873,10 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 /* Recursively build graph for material */
 void DepsgraphNodeBuilder::build_material(DepsNode *owner_node, Material *ma)
 {
-	/* Prevent infinite recursion by checking (and tagging the material) as having been visited
-	 * already. This assumes ma->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
 	ID *ma_id = &ma->id;
-	if (id_is_tagged(ma_id))
+	if (ma_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(ma_id);
+	}
 
 	/* material itself */
 	add_id_node(ma_id);
@@ -905,8 +893,6 @@ void DepsgraphNodeBuilder::build_material(DepsNode *owner_node, Material *ma)
 
 	/* material's nodetree */
 	build_nodetree(owner_node, ma->nodetree);
-
-	id_tag_clear(ma_id);
 }
 
 /* Texture-stack attached to some shading datablock */
@@ -925,22 +911,16 @@ void DepsgraphNodeBuilder::build_texture_stack(DepsNode *owner_node, MTex **text
 /* Recursively build graph for texture */
 void DepsgraphNodeBuilder::build_texture(DepsNode *owner_node, Tex *tex)
 {
-	/* Prevent infinite recursion by checking (and tagging the texture) as having been visited
-	 * already. This assumes tex->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
 	ID *tex_id = &tex->id;
-	if (id_is_tagged(tex_id))
+	if (tex_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(tex_id);
+	}
 
 	/* texture itself */
 	build_animdata(tex_id);
 
 	/* texture's nodetree */
 	build_nodetree(owner_node, tex->nodetree);
-
-	id_tag_clear(tex_id);
 }
 
 void DepsgraphNodeBuilder::build_compositor(Scene *scene)

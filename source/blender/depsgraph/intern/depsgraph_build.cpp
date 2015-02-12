@@ -662,14 +662,6 @@ static void deg_graph_detect_cycles(Depsgraph *graph)
 // XXX: assume that this is called from outside, given the current scene as the "main" scene
 void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 {
-	/* clear "LIB_DOIT" flag from all materials, etc.
-	 * to prevent infinite recursion problems later [#32017]
-	 */
-	BKE_main_id_tag_idcode(bmain, ID_MA, false);
-	BKE_main_id_tag_idcode(bmain, ID_LA, false);
-	BKE_main_id_tag_idcode(bmain, ID_WO, false);
-	BKE_main_id_tag_idcode(bmain, ID_TE, false);
-
 	/* 1) Generate all the nodes in the graph first */
 	DepsgraphNodeBuilder node_builder(bmain, graph);
 	/* create root node for scene first
@@ -677,14 +669,14 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 *   reflecting its role as the entrypoint
 	 */
 	node_builder.add_root_node();
-	node_builder.build_scene(scene);
+	node_builder.build_scene(bmain, scene);
 
 	/* 2) Generate relationships between ID nodes and/or components, to make it easier to keep track
 	 *    of which datablocks use which ones (e.g. for checking which objects share the same geometry
 	 *    when we only know the shared datablock)
 	 */
 	DepsgraphIDUsersBuilder users_builder(graph);
-	users_builder.build_scene(scene);
+	users_builder.build_scene(bmain, scene);
 
 	/* 3) Hook up relationships between operations - to determine evaluation order */
 	DepsgraphRelationBuilder relation_builder(graph);
@@ -693,7 +685,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 * it doesnt add any operations anyway and is not clear what part of the scene is to be connected.
 	 */
 	//relation_builder.add_relation(RootKey(), IDKey(scene), DEPSREL_TYPE_ROOT_TO_ACTIVE, "Root to Active Scene");
-	relation_builder.build_scene(scene);
+	relation_builder.build_scene(bmain, scene);
 
 	/* Detect and solve cycles. */
 	deg_graph_detect_cycles(graph);

@@ -27,8 +27,6 @@
 #ifndef __DEPSGRAPH_BUILD_H__
 #define __DEPSGRAPH_BUILD_H__
 
-#include "depsgraph_util_id.h"
-
 struct ListBase;
 struct GHash;
 struct ID;
@@ -77,7 +75,7 @@ struct DepsgraphNodeBuilder {
 		return add_operation_node(id, comp_type, "", optype, op, opcode, description);
 	}
 
-	void build_scene(Scene *scene);
+	void build_scene(Main *bmain, Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
 	void build_group(Group *group);
 	void build_object(Scene *scene, Base *base, Object *ob);
@@ -233,7 +231,7 @@ struct DepsgraphRelationBuilder
 	void add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
 	                              eDepsRelation_Type type, const string &description);
 
-	void build_scene(Scene *scene);
+	void build_scene(Main *bmain, Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
 	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata,
@@ -282,7 +280,7 @@ struct DepsgraphIDUsersBuilder {
 	void add_relation(const ID *from_id, const ID *to_id,
 	                  eDepsRelation_Type type, const string &description);
 
-	void build_scene(Scene *scene);
+	void build_scene(Main *bmain, Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 
 private:

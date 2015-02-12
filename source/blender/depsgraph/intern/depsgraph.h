@@ -132,7 +132,7 @@ struct Depsgraph {
 	void clear_subgraph_nodes();
 
 	IDDepsNode *find_id_node(const ID *id) const;
-	IDDepsNode *add_id_node(const ID *id, const string &name = "");
+	IDDepsNode *add_id_node(ID *id, const string &name = "");
 	void remove_id_node(const ID *id);
 	void clear_id_nodes();
 

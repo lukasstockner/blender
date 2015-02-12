@@ -107,7 +107,7 @@ extern "C" {
  *       For example, "ob.data" becomes "obdata -> object"
  */
 
-void DepsgraphIDUsersBuilder::build_scene(Scene *scene)
+void DepsgraphIDUsersBuilder::build_scene(Main *bmain, Scene *scene)
 {
 	/* scene set - do links to other scenes */
 	if (scene->set) {

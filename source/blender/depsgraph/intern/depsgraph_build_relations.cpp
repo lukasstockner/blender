@@ -156,8 +156,13 @@ bool modifier_check_depends_on_time(Object *ob, ModifierData *md)
 /* ***************** */
 /* Relations Builder */
 
-void DepsgraphRelationBuilder::build_scene(Scene *scene)
+void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 {
+	/* LIB_DOIT is used to indicate whether node for given ID was already
+	 * created or not.
+	 */
+	BKE_main_id_tag_all(bmain, false);
+
 	if (scene->set) {
 		// TODO: link set to scene, especially our timesource...
 	}
@@ -198,8 +203,6 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 		if (is_id_tagged(group)) {
 			// TODO: we need to make this group reliant on the object that spawned it...
 			build_subgraph_nodes(group);
-
-			id_tag_clear(group);
 		}
 	}
 #endif
@@ -763,14 +766,11 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 
 void DepsgraphRelationBuilder::build_world(Scene *scene, World *world)
 {
-	/* Prevent infinite recursion by checking (and tagging the world) as having been visited
-	 * already. This assumes wo->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
 	ID *world_id = &world->id;
-	if (id_is_tagged(world_id))
+	if (world_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(world_id);
+	}
+	world_id->flag |= LIB_DOIT;
 
 	build_animdata(world_id);
 
@@ -781,8 +781,6 @@ void DepsgraphRelationBuilder::build_world(Scene *scene, World *world)
 
 	/* world's nodetree */
 	build_nodetree(world_id, world->nodetree);
-
-	id_tag_clear(world_id);
 }
 
 void DepsgraphRelationBuilder::build_rigidbody(Scene *scene)
@@ -1520,14 +1518,10 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 {
 	Lamp *la = (Lamp *)ob->data;
 	ID *lamp_id = &la->id;
-
-	/* Prevent infinite recursion by checking (and tagging the lamp) as having been visited
-	 * already. This assumes la->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
-	if (id_is_tagged(lamp_id))
+	if (lamp_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(lamp_id);
+	}
+	lamp_id->flag |= LIB_DOIT;
 
 	/* lamp's nodetree */
 	if (la->nodetree) {
@@ -1536,8 +1530,6 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 
 	/* textures */
 	build_texture_stack(lamp_id, la->mtex);
-
-	id_tag_clear(lamp_id);
 }
 
 void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
@@ -1568,14 +1560,11 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 /* Recursively build graph for material */
 void DepsgraphRelationBuilder::build_material(ID *owner, Material *ma)
 {
-	/* Prevent infinite recursion by checking (and tagging the material) as having been visited
-	 * already. This assumes ma->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
 	ID *ma_id = &ma->id;
-	if (id_is_tagged(ma_id))
+	if (ma_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(ma_id);
+	}
+	ma_id->flag |= LIB_DOIT;
 
 	/* animation */
 	build_animdata(ma_id);
@@ -1585,29 +1574,22 @@ void DepsgraphRelationBuilder::build_material(ID *owner, Material *ma)
 
 	/* material's nodetree */
 	build_nodetree(owner, ma->nodetree);
-
-	id_tag_clear(ma_id);
 }
 
 /* Recursively build graph for texture */
 void DepsgraphRelationBuilder::build_texture(ID *owner, Tex *tex)
 {
-	/* Prevent infinite recursion by checking (and tagging the texture) as having been visited
-	 * already. This assumes tex->id.flag & LIB_DOIT isn't set by anything else
-	 * in the meantime... [#32017]
-	 */
 	ID *tex_id = &tex->id;
-	if (id_is_tagged(tex_id))
+	if (tex_id->flag & LIB_DOIT) {
 		return;
-	id_tag_set(tex_id);
+	}
+	tex_id->flag |= LIB_DOIT;
 
 	/* texture itself */
 	build_animdata(tex_id);
 
 	/* texture's nodetree */
 	build_nodetree(owner, tex->nodetree);
-
-	id_tag_clear(tex_id);
 }
 
 /* Texture-stack attached to some shading datablock */
