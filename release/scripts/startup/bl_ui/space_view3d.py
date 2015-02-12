@@ -2936,10 +2936,11 @@ class VIEW3D_PT_view3d_shading(Panel):
 
             fx_settings = view.fx_settings
 
-            col.prop(fx_settings, "use_dof")
-            if fx_settings.use_dof:
-                if view.region_3d.view_perspective == 'CAMERA':
-                    col.label("check dof properties in camera settings", icon='INFO')
+            sub = col.column()
+            sub.active = view.region_3d.view_perspective == 'CAMERA'
+            sub.prop(fx_settings, "use_dof")
+            if fx_settings.use_dof and sub.active:
+                sub.label("check dof properties in camera settings", icon='INFO')
 
             col.prop(fx_settings, "use_ssao")
             if fx_settings.use_ssao:

@@ -177,6 +177,7 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         layout = self.layout
 
         cam = context.camera
+        dof_options = cam.gpu_dof
 
         layout.label(text="Focus:")
 
@@ -187,28 +188,7 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
 
         col.active = cam.dof_object is None
         col.prop(cam, "dof_distance", text="Distance")
-
-
-class DATA_PT_camera_gpu_dof(Panel):
-    bl_label = "GPU Depth of Field"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
-    bl_context = "data"
-
-    def draw(self, context):
-        layout = self.layout
-
-        cam = context.camera
-
-        dof_options = cam.gpu_dof
-        col = layout.column(align=True)
-        col.label("Focus object or distance is set in Depth Of Field Panel")
-        col.label("Focal length and sensor also influence the effect")
-        col.prop(dof_options, "fstop")
-
-    @classmethod
-    def poll(cls, context):
-        return context.camera
+        col.prop(dof_options, "fstop", text="GPU fstop")
 
 
 class DATA_PT_camera_display(CameraButtonsPanel, Panel):
