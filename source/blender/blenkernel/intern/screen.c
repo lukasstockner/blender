@@ -39,6 +39,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GPU_compositing.h"
+
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
@@ -618,9 +620,6 @@ void BKE_screen_gpu_fx_validate(GPUFXSettings *fx_settings)
 		GPUSSAOSettings *fx_ssao;
 		fx_ssao = fx_settings->ssao = MEM_callocN(sizeof(GPUSSAOSettings), __func__);
 
-		fx_ssao->darkening = 1.0f;
-		fx_ssao->distance_max = 0.2f;
-		fx_ssao->attenuation = 1.0f;
-		fx_ssao->samples = 4;
+		GPU_default_ssao_settings(fx_ssao);
 	}
 }

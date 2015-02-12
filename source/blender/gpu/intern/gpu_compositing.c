@@ -844,3 +844,19 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 	return true;
 }
+
+void GPU_default_dof_settings(GPUDOFSettings *dof)
+{
+	dof->fstop = 128.0f;
+	dof->focal_length = 1.0f;
+	dof->focus_distance = 1.0f;
+	dof->sensor = 1.0f;
+}
+
+void GPU_default_ssao_settings(GPUSSAOSettings *ssao)
+{
+	ssao->darkening = 1.0f;
+	ssao->distance_max = 0.2f;
+	ssao->attenuation = 1.0f;
+	ssao->samples = 4;
+}

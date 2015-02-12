@@ -49,6 +49,8 @@
 #include "BKE_main.h"
 #include "BKE_screen.h"
 
+#include "GPU_compositing.h"
+
 /****************************** Camera Datablock *****************************/
 
 void *BKE_camera_add(Main *bmain, const char *name)
@@ -66,11 +68,8 @@ void *BKE_camera_add(Main *bmain, const char *name)
 	cam->ortho_scale = 6.0;
 	cam->flag |= CAM_SHOWPASSEPARTOUT;
 	cam->passepartalpha = 0.5f;
-	
-	cam->gpu_dof.fstop = 128.0f;
-	cam->gpu_dof.focal_length = 1.0f;
-	cam->gpu_dof.focus_distance = 1.0f;
-	cam->gpu_dof.sensor = 1.0f;
+
+	GPU_default_dof_settings(&cam->gpu_dof);
 
 	return cam;
 }
