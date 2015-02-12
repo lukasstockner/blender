@@ -2942,7 +2942,7 @@ class VIEW3D_PT_view3d_shading(Panel):
             if fx_settings.use_dof and sub.active:
                 sub.label("check dof properties in camera settings", icon='INFO')
 
-            col.prop(fx_settings, "use_ssao")
+            col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
             if fx_settings.use_ssao:
                 ssao_settings = fx_settings.ssao
                 subcol = col.column(align=True)
