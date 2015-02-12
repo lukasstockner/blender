@@ -311,7 +311,7 @@ void ED_view3d_draw_offscreen(
         struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int winx, int winy, float viewmat[4][4],
         float winmat[4][4], bool do_bgpic, bool do_sky, bool is_persp,
         struct GPUOffScreen *ofs,
-        struct GPUFX *fx, struct GPUFXSettings *fx_settings, enum eGPUFXFlags fx_flag);
+        struct GPUFX *fx, struct GPUFXSettings *fx_settings);
 
 struct ImBuf *ED_view3d_draw_offscreen_imbuf(struct Scene *scene, struct View3D *v3d, struct ARegion *ar, int sizex, int sizey, unsigned int flag,
                                              bool draw_background, int alpha_mode, char err_out[256]);

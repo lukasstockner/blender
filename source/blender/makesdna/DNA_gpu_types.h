@@ -53,12 +53,13 @@ typedef struct GPUSSAOSettings {
 typedef struct GPUFXSettings {
 	GPUDOFSettings *dof;
 	GPUSSAOSettings *ssao;
+	char fx_flag;  /* eGPUFXFlags */
+	char pad[7];
 } GPUFXSettings;
 
 
 /* shaderfx enables */
 typedef enum eGPUFXFlags {
-	GPU_FX_FLAG_NONE        = 0,
 	GPU_FX_FLAG_DOF         = (1 << 0),
 	GPU_FX_FLAG_SSAO        = (1 << 1),
 } eGPUFXFlags;

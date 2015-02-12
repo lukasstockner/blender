@@ -599,14 +599,25 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac)
 	return ((sqrtf(4.0f * zoomfac) - (float)M_SQRT2) * 50.0f);
 }
 
-void BKE_screen_view3d_ensure_FX(View3D *v3d)
+void BKE_screen_gpu_validate_fx(GPUFXSettings *fx_settings)
 {
-	if (!v3d->fx_settings.ssao) {
-		v3d->fx_settings.ssao = MEM_callocN(sizeof(GPUSSAOSettings), "view3d ssao options");
+	if ((fx_settings->dof == NULL) &&
+	    (fx_settings->fx_flag & GPU_FX_FLAG_DOF))
+	{
+		GPUDOFSettings *fx_dof;
+		fx_dof = fx_settings->dof = MEM_callocN(sizeof(GPUDOFSettings), __func__);
+		(void)fx_dof;
+	}
 
-		v3d->fx_settings.ssao->darkening = 1.0f;
-		v3d->fx_settings.ssao->distance_max = 0.2f;
-		v3d->fx_settings.ssao->attenuation = 1.0f;
-		v3d->fx_settings.ssao->samples = 4;
+	if ((fx_settings->ssao == NULL) &&
+	    (fx_settings->fx_flag & GPU_FX_FLAG_SSAO))
+	{
+		GPUSSAOSettings *fx_ssao;
+		fx_ssao = fx_settings->ssao = MEM_callocN(sizeof(GPUSSAOSettings), __func__);
+
+		fx_ssao->darkening = 1.0f;
+		fx_ssao->distance_max = 0.2f;
+		fx_ssao->attenuation = 1.0f;
+		fx_ssao->samples = 4;
 	}
 }

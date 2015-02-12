@@ -218,8 +218,7 @@ typedef struct View3D {
 	char zbuf, transp, xray;
 
 	/* built-in shader effects (eGPUFXFlags) */
-	char fx_flag;
-	char pad3[4];
+	char pad3[5];
 
 	struct GPUFXSettings fx_settings;
 

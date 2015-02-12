@@ -255,11 +255,12 @@ static GPUTexture * create_jitter_texture(void)
 
 bool GPU_fx_compositor_initialize_passes(
         GPUFX *fx, const rcti *rect, const rcti *scissor_rect,
-        const GPUFXSettings *fx_settings, eGPUFXFlags fx_flag)
+        const GPUFXSettings *fx_settings)
 {
 	int w = BLI_rcti_size_x(rect) + 1, h = BLI_rcti_size_y(rect) + 1;
 	char err_out[256];
 	int num_passes = 0;
+	char fx_flag = fx_settings->fx_flag;
 
 	fx->effects = 0;
 
@@ -343,17 +344,23 @@ bool GPU_fx_compositor_initialize_passes(
 			fx->dof_downsampled_w = w / 4;
 			fx->dof_downsampled_h = h / 4;
 
-			if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
+			if (!(fx->dof_near_coc_buffer = GPU_texture_create_2D(
+			          fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out)))
+			{
 				printf("%.256s\n", err_out);
 				cleanup_fx_gl_data(fx, true);
 				return false;
 			}
-			if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
+			if (!(fx->dof_near_coc_blurred_buffer = GPU_texture_create_2D(
+			          fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out)))
+			{
 				printf("%.256s\n", err_out);
 				cleanup_fx_gl_data(fx, true);
 				return false;
 			}
-			if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out))) {
+			if (!(fx->dof_near_coc_final_buffer = GPU_texture_create_2D(
+			          fx->dof_downsampled_w, fx->dof_downsampled_h, NULL, GPU_HDR_NONE, err_out)))
+			{
 				printf("%.256s\n", err_out);
 				cleanup_fx_gl_data(fx, true);
 				return false;

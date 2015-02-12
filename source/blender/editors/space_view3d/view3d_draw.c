@@ -2534,8 +2534,9 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 
 		/* no need to call ED_view3d_draw_offscreen_init since shadow buffers were already updated */
 		ED_view3d_draw_offscreen(
-		            scene, v3d, &ar, winsize, winsize, viewmat, winmat, false, false, true,
-		            NULL, NULL, NULL, 0);
+		            scene, v3d, &ar, winsize, winsize, viewmat, winmat,
+		            false, false, true,
+		            NULL, NULL, NULL);
 		GPU_lamp_shadow_buffer_unbind(shadow->lamp);
 		
 		v3d->drawtype = drawtype;
@@ -3057,7 +3058,7 @@ void ED_view3d_draw_offscreen(
         float viewmat[4][4], float winmat[4][4],
         bool do_bgpic, bool do_sky, bool is_persp,
         GPUOffScreen *ofs,
-        GPUFX *fx, GPUFXSettings *fx_settings, eGPUFXFlags fx_flag)
+        GPUFX *fx, GPUFXSettings *fx_settings)
 {
 	struct bThemeState theme_state;
 	int bwinx, bwiny;
@@ -3095,8 +3096,8 @@ void ED_view3d_draw_offscreen(
 	view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
 
 	/* framebuffer fx needed, we need to draw offscreen first */
-	if (v3d->fx_flag && fx) {
-		do_compositing = GPU_fx_compositor_initialize_passes(fx, &ar->winrct, NULL, fx_settings, fx_flag);
+	if (v3d->fx_settings.fx_flag && fx) {
+		do_compositing = GPU_fx_compositor_initialize_passes(fx, &ar->winrct, NULL, fx_settings);
 	}
 
 	/* clear opengl buffers */
@@ -3186,13 +3187,13 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 		ED_view3d_draw_offscreen(
 		        scene, v3d, ar, sizex, sizey, NULL, params.winmat,
 		        draw_background, draw_sky, !params.is_ortho,
-		        ofs, NULL, &fx_settings, GPU_FX_FLAG_NONE);
+		        ofs, NULL, &fx_settings);
 	}
 	else {
 		ED_view3d_draw_offscreen(
 		        scene, v3d, ar, sizex, sizey, NULL, NULL,
 		        draw_background, draw_sky, true,
-		        ofs, NULL, NULL, GPU_FX_FLAG_NONE);
+		        ofs, NULL, NULL);
 	}
 
 	/* read in pixels & stamp */
@@ -3515,9 +3516,9 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 #endif
 
 	/* framebuffer fx needed, we need to draw offscreen first */
-	if (v3d->fx_flag) {
+	if (v3d->fx_settings.fx_flag) {
 		GPUFXSettings fx_settings;
-		BKE_screen_view3d_ensure_FX(v3d);
+		BKE_screen_gpu_validate_fx(&v3d->fx_settings);
 		fx_settings = v3d->fx_settings;
 		if (!rv3d->compositor)
 			rv3d->compositor = GPU_fx_compositor_create();
@@ -3529,7 +3530,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		}
 		do_compositing = GPU_fx_compositor_initialize_passes(
 		        rv3d->compositor, &ar->winrct, &ar->drawrct,
-		        &fx_settings, v3d->fx_flag);
+		        &fx_settings);
 	}
 	
 	/* clear the background */

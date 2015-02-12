@@ -1707,6 +1707,13 @@ char *rna_GPUDOF_path(PointerRNA *ptr)
 	return BLI_strdup("");;
 }
 
+static void rna_GPUFXSettings_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
+{
+	GPUFXSettings *fx_settings = ptr->data;
+
+	BKE_screen_gpu_validate_fx(fx_settings);
+}
+
 #else
 
 static void rna_def_transform_orientation(BlenderRNA *brna)
@@ -3881,7 +3888,8 @@ static void rna_def_gpu_ssao_fx(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "GPU SSAO", "Settings for GPU based screen space ambient occlusion");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 
-	prop = RNA_def_property(srna, "darkening", PROP_FLOAT, PROP_NONE);
+	prop = RNA_def_property(srna, "darken", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "darkening");
 	RNA_def_property_ui_text(prop, "Darkening", "Darken the ssao effect");
 	RNA_def_property_range(prop, 0.0f, 250.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
@@ -3927,10 +3935,21 @@ static void rna_def_gpu_fx(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "GPUDOFSettings");
 	RNA_def_property_ui_text(prop, "Depth Of Field settings", "");
 
+	prop = RNA_def_property(srna, "use_dof", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "fx_flag", GPU_FX_FLAG_DOF);
+	RNA_def_property_ui_text(prop, "Depth Of Field", "Use depth of field on viewport using the values from active camera");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_GPUFXSettings_fx_update");
+
+
 	prop = RNA_def_property(srna, "ssao", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "GPUSSAOSettings");
 	RNA_def_property_ui_text(prop, "Screen Space Ambient Occlusion settings", "");
+
+	prop = RNA_def_property(srna, "use_ssao", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "fx_flag", GPU_FX_FLAG_SSAO);
+	RNA_def_property_ui_text(prop, "SSAO", "Use screen space ambient occlusion of field on viewport");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_GPUFXSettings_fx_update");
 }
 
 
