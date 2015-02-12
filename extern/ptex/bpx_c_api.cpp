@@ -1169,3 +1169,10 @@ void BPX_packed_layout_delete(BPXPackedLayout *layout)
 {
 	delete layout;
 }
+
+bool bpx_rect_contains_point(const BPXRect *rect, const int x,
+							 const int y)
+{
+	return (x >= rect->xbegin && x < rect->xend &&
+			y >= rect->ybegin && y < rect->yend);
+}

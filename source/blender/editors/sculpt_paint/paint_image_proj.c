@@ -131,7 +131,11 @@ BLI_INLINE unsigned char f_to_char(const float val)
 #define PROJ_BOUNDBOX_SQUARED  (PROJ_BOUNDBOX_DIV * PROJ_BOUNDBOX_DIV)
 
 //#define PROJ_DEBUG_PAINT 1
+
+/* TODO(nicholasbishop): investigate if this should become a runtime
+ * option for Ptex */
 //#define PROJ_DEBUG_NOSEAMBLEED 1
+
 //#define PROJ_DEBUG_PRINT_CLIP 1
 #define PROJ_DEBUG_WINCLIP 1
 
@@ -168,6 +172,7 @@ BLI_INLINE unsigned char f_to_char(const float val)
 
 #define PROJ_BUCKET_NULL        0
 #define PROJ_BUCKET_INIT        (1 << 0)
+#define PROJ_BUCKET_PTEX_UPDATE (1 << 1)
 // #define PROJ_BUCKET_CLONE_INIT	(1<<1)
 
 /* used for testing doubles, if a point is on a line etc */
@@ -239,6 +244,7 @@ typedef struct ProjPaintState {
 	MemArena *arena_mt[BLENDER_MAX_THREADS]; /* for multithreading, the first item is sometimes used for non threaded cases too */
 	LinkNode **bucketRect;              /* screen sized 2D array, each pixel has a linked list of ProjPixel's */
 	LinkNode **bucketFaces;             /* bucketRect aligned array linkList of faces overlapping each bucket */
+	GSet **bucketPtexRects;             /* TODO(nicholasbishop): add comment */
 	unsigned char *bucketFlags;         /* store if the bucks have been initialized  */
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	char *faceSeamFlags;                /* store info about faces, if they are initialized etc*/
@@ -2401,6 +2407,43 @@ static bool IsectPoly2Df_twoside(const float pt[2], float uv[][2], const int tot
 	return 1;
 }
 
+static void project_paint_bucket_ptex_rects_init(const ProjPaintState *ps,
+												 ImBuf *ibuf,
+												 const int bucket_index)
+{
+	const LinkNode *pixel_node = NULL;
+	GSet **set = NULL;
+
+	if (!ibuf || !ibuf->num_ptex_regions || !ps->bucketPtexRects) {
+		return;
+	}
+
+	/* Initialize GSet */
+	set = &ps->bucketPtexRects[bucket_index];
+	if (*set) {
+		/* Already initialized */
+		return;
+	}
+	(*set) = BLI_gset_ptr_new("proj paint bucket");
+
+	/* TODO(nicholasbishop): optimize */
+	for (pixel_node = ps->bucketRect[bucket_index]; pixel_node;
+		 pixel_node = pixel_node->next) {
+		const ProjPixel *pixel = pixel_node->link;
+		int i;
+
+		for (i = 0; i < ibuf->num_ptex_regions; i++) {
+			BPXRect *r = &ibuf->ptex_regions[i];
+			const int px = pixel->x_px;
+			const int py = pixel->y_px;
+			if (bpx_rect_contains_point(r, px, py)) {
+				BLI_gset_add(*set, r);
+				break;
+			}
+		}
+	}
+}
+
 /* One of the most important function for projection painting,
  * since it selects the pixels to be added into each bucket.
  *
@@ -2618,7 +2661,7 @@ static void project_paint_face_init(
 		}
 	} while (side--);
 
-
+	project_paint_bucket_ptex_rects_init(ps, ibuf, bucket_index);
 
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	if (ps->seam_bleed_px > 0.0f) {
@@ -3811,6 +3854,7 @@ static void project_paint_begin(ProjPaintState *ps)
 	const int diameter = 2 * BKE_brush_size_get(ps->scene, ps->brush);
 
 	bool reset_threads = true;
+	int num_buckets;
 
 	/* ---- end defines ---- */
 
@@ -3871,10 +3915,15 @@ static void project_paint_begin(ProjPaintState *ps)
 	CLAMP(ps->buckets_x, PROJ_BUCKET_RECT_MIN, PROJ_BUCKET_RECT_MAX);
 	CLAMP(ps->buckets_y, PROJ_BUCKET_RECT_MIN, PROJ_BUCKET_RECT_MAX);
 
-	ps->bucketRect = MEM_callocN(sizeof(LinkNode *) * ps->buckets_x * ps->buckets_y, "paint-bucketRect");
-	ps->bucketFaces = MEM_callocN(sizeof(LinkNode *) * ps->buckets_x * ps->buckets_y, "paint-bucketFaces");
+	num_buckets = ps->buckets_x * ps->buckets_y;
 
-	ps->bucketFlags = MEM_callocN(sizeof(char) * ps->buckets_x * ps->buckets_y, "paint-bucketFaces");
+	ps->bucketRect = MEM_callocN(sizeof(LinkNode *) * num_buckets, "paint-bucketRect");
+	ps->bucketFaces = MEM_callocN(sizeof(LinkNode *) * num_buckets, "paint-bucketFaces");
+
+	/* TODO(nicholasbishop): don't allocate if not ptex painting */
+	ps->bucketPtexRects = MEM_callocN(sizeof(GSet *) * num_buckets, "paint-bucketPtexRects");
+
+	ps->bucketFlags = MEM_callocN(sizeof(char) * num_buckets, "paint-bucketFaces");
 #ifndef PROJ_DEBUG_NOSEAMBLEED
 	proj_paint_state_seam_bleed_init(ps);
 #endif
@@ -3920,6 +3969,16 @@ static void project_paint_end(ProjPaintState *ps)
 	MEM_freeN(ps->screenCoords);
 	MEM_freeN(ps->bucketRect);
 	MEM_freeN(ps->bucketFaces);
+	if (ps->bucketPtexRects) {
+		const int num_buckets = ps->buckets_x * ps->buckets_y;
+		for (a = 0; a < num_buckets; a++) {
+			GSet *set = ps->bucketPtexRects[a];
+			if (set) {
+				BLI_gset_free(ps->bucketPtexRects[a], NULL);
+			}
+		}
+		MEM_freeN(ps->bucketPtexRects);
+	}
 	MEM_freeN(ps->bucketFlags);
 	MEM_freeN(ps->dm_mtface);
 	if (ps->do_layer_clone)
@@ -4564,6 +4623,7 @@ static void *do_projectpaint_thread(void *ph_v)
 
 					last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
 					image_paint_partial_redraw_expand(last_partial_redraw_cell, projPixel);
+					ps->bucketFlags[bucket_index] |= PROJ_BUCKET_PTEX_UPDATE;
 				}
 				else {
 					if (is_floatbuf) {
@@ -4698,6 +4758,7 @@ static void *do_projectpaint_thread(void *ph_v)
 
 							last_partial_redraw_cell = last_projIma->partRedrawRect + projPixel->bb_cell_index;
 							image_paint_partial_redraw_expand(last_partial_redraw_cell, projPixel);
+							ps->bucketFlags[bucket_index] |= PROJ_BUCKET_PTEX_UPDATE;
 
 							/* texrgb is not used for clone, smear or soften */
 							switch (tool) {
@@ -4769,6 +4830,40 @@ static void *do_projectpaint_thread(void *ph_v)
 	}
 
 	return NULL;
+}
+
+static void proj_paint_ptex_border_update(ProjPaintState *ps)
+{
+	const int num_buckets = ps->buckets_x * ps->buckets_y;
+	Mesh *me = ps->ob->data;
+	// TODO(nicholasbishop): need to select correct layer here
+	MLoopPtex *loop_ptex = CustomData_get_layer(&me->ldata, CD_LOOP_PTEX);
+	GSet *set = NULL;
+	int bucket_index;
+
+	if (!loop_ptex || !ps->bucketPtexRects) {
+		return;
+	}
+
+	/* Gather all Ptex rects in modified buckets */
+	set = BLI_gset_ptr_new("proj_paint_ptex_border_update GSet");
+	for (bucket_index = 0; bucket_index < num_buckets; bucket_index++) {
+		if (ps->bucketFlags[bucket_index] & PROJ_BUCKET_PTEX_UPDATE) {
+			GSetIterator iter;
+			GSET_ITER (iter, ps->bucketPtexRects[bucket_index]) {
+				BPXRect *rect = BLI_gsetIterator_getKey(&iter);
+				BLI_gset_add(set, rect);
+			}
+
+			ps->bucketFlags[bucket_index] &= ~PROJ_BUCKET_PTEX_UPDATE;
+		}
+	}
+
+	if (!BKE_ptex_filter_borders_update(loop_ptex->image, set)) {
+		BLI_assert(!"BKE_ptex_update_filter_borders failed");
+	}
+
+	BLI_gset_free(set, NULL);
 }
 
 static bool project_paint_op(void *state, const float lastpos[2], const float pos[2])
@@ -4868,6 +4963,10 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
 			add_v3_v3(ups->average_stroke_accum, world);
 			ups->last_stroke_valid = true;
 		}
+	}
+
+	if (touch_any) {
+		proj_paint_ptex_border_update(ps);
 	}
 	
 	return touch_any;

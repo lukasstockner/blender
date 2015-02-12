@@ -402,12 +402,17 @@ static void rna_Image_ptex_regions_get(PointerRNA *ptr, int *values)
 	Image *ima = ptr->id.data;
 	ImBuf *ibuf;
 	void *lock;
+	int i;
 
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 
-	if (ibuf && ibuf->ptex_regions) {
-		memcpy(values, ibuf->ptex_regions,
-			   sizeof(*values) * ibuf->num_ptex_regions * 4);
+	// TODO
+	for (i = 0; i < ibuf->num_ptex_regions; i++) {
+		const BPXRect *r = &ibuf->ptex_regions[i];
+		values[i * 4 + 0] = r->xbegin;
+		values[i * 4 + 1] = r->ybegin;
+		values[i * 4 + 2] = r->xend - r->xbegin;
+		values[i * 4 + 3] = r->yend - r->ybegin;
 	}
 
 	BKE_image_release_ibuf(ima, ibuf, lock);

@@ -45,7 +45,7 @@ typedef struct BPXRectSideAdj {
  * structure. Could be nicer to reuse rcti. */
 
 typedef struct BPXRect {
-	BPXRectSideAdj adj[4];
+	BPXRectSideAdj adj[BPX_RECT_NUM_SIDES];
 
 	/* Note: begin is inclusive, end is exclusive to match
 	 * OIIO::ROI */
@@ -56,6 +56,9 @@ typedef struct BPXRect {
 	int ybegin;
 	int yend;
 } BPXRect;
+
+bool bpx_rect_contains_point(const BPXRect *rect, const int x,
+							 const int y);
 
 #ifdef __cplusplus
 }  /* extern "C" */

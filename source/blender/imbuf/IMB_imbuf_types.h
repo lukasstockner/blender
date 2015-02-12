@@ -31,6 +31,7 @@
 #include "DNA_vec_types.h"  /* for rcti */
 
 /* TODO(nicholasbishop) */
+#include "../blenlib/BLI_utildefines.h"
 #include "../../../extern/ptex/BPX_rect.h"
 
 /**

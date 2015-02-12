@@ -35,6 +35,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 
+#include "BLI_ghash.h"
 #include "BLI_path_util.h"
 #include "BLI_math_base.h"
 #include "BLI_math_interp.h"
@@ -449,33 +450,6 @@ static void ptex_adj_edge(const BKEPtexEdgeAdj *adj,
 	}
 }
 
-static void ptex_filter_borders_update(ImBuf *ibuf, const Mesh *me)
-{
-	BPXImageBuf *bpx_buf = IMB_imbuf_as_bpx_image_buf(ibuf);
-	const BPXRect *rects = ibuf->ptex_regions;
-	int i;
-
-	BLI_assert(bpx_buf);
-
-	for (i = 0; i < me->totpoly; i++) {
-		const MPoly *p = &me->mpoly[i];
-		int j;
-
-		for (j = 0; j < p->totloop; j++) {
-			const int cur_loop = p->loopstart + j;
-
-			const BPXRect *dst_rect = &rects[cur_loop];
-			if (!BPX_rect_borders_update(bpx_buf, dst_rect, rects,
-										 sizeof(BPXRect)))
-			{
-				BLI_assert(!"TODO");
-			}
-		}
-	}
-
-	BPX_image_buf_free(bpx_buf);
-}
-
 static bool bpx_type_desc_to_mptex_data_type(const BPXTypeDesc type_desc,
 											 MPtexDataType *data_type)
 {
@@ -590,6 +564,82 @@ static struct BPXPackedLayout *bke_ptex_layout_from_mesh(const Mesh *me,
 	return layout;
 }
 
+static bool bke_ptex_imbuf_filter_borders_update(ImBuf *ibuf, GSet *rects)
+{
+	BPXImageBuf *bpx_buf;
+	GSetIterator iter;
+	BPXRect *all_rects;
+	int rects_stride;
+	bool result = true;
+
+	if (!ibuf) {
+		return false;
+	}
+
+	bpx_buf = IMB_imbuf_as_bpx_image_buf(ibuf);
+	if (!bpx_buf) {
+		return false;
+	}
+
+	all_rects = ibuf->ptex_regions;
+	rects_stride = sizeof(*ibuf->ptex_regions);
+
+	if (rects) {
+		/* TODO(nicholasbishop): this is not a great
+		 * solution. Adjacent edges should probably just be updated
+		 * together or something... also need to consider corners */
+		GSet *adj_rects = BLI_gset_ptr_new("GSet adj_rects");
+
+		GSET_ITER (iter, rects) {
+			const BPXRect *rect = BLI_gsetIterator_getKey(&iter);
+			int side;
+
+			for (side = 0; side < BPX_RECT_NUM_SIDES; side++) {
+				const int adj_index = rect->adj[side].index;
+				if (adj_index != BPX_RECT_SIDE_ADJ_NONE) {
+					BLI_gset_add(adj_rects, &all_rects[adj_index]);
+				}
+			}
+
+			if (!BPX_rect_borders_update(bpx_buf, rect, all_rects,
+										 rects_stride))
+			{
+				result = false;
+				break;
+			}
+		}
+
+		GSET_ITER (iter, adj_rects) {
+			const BPXRect *rect = BLI_gsetIterator_getKey(&iter);
+
+			if (!BPX_rect_borders_update(bpx_buf, rect, all_rects,
+										 rects_stride))
+			{
+				result = false;
+				break;
+			}
+		}
+
+		BLI_gset_free(adj_rects, NULL);
+	}
+	else {
+		int i;
+		for (i = 0; i < ibuf->num_ptex_regions; i++) {
+			const BPXRect *rect = &ibuf->ptex_regions[i];
+			if (!BPX_rect_borders_update(bpx_buf, rect, all_rects,
+										 rects_stride))
+			{
+				result = false;
+				break;
+			}
+		}
+	}
+
+	BPX_image_buf_free(bpx_buf);
+
+	return result;
+}
+
 /* TODO(nicholasbishop): sync up with code in imb_ptex.c */
 /* TODO(nicholasbishop): should function apart, Image stuff really is
  * separate from the packing stuff */
@@ -656,7 +706,9 @@ static bool ptex_pack_loops(Image **image_r, Mesh *me, MLoopPtex *loop_ptex,
 	}
 
 	BPX_image_buf_free(bpx_dst);
-	ptex_filter_borders_update(ibuf, me);
+	if (!bke_ptex_imbuf_filter_borders_update(ibuf, NULL)) {
+		BLI_assert(!"TODO");
+	}
 
 	if (texel_info.num_channels < 4) {
 		IMB_rectfill_alpha(ibuf, 1);
@@ -1098,6 +1150,27 @@ bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 	return true;
 }
 
+bool BKE_ptex_filter_borders_update(Image *image, GSet *rects)
+{
+	ImBuf *ibuf;
+	void *lock;
+	bool result;
+
+	if (!image || !rects) {
+		return false;
+	}
+
+	ibuf = BKE_image_acquire_ibuf(image, NULL, &lock);
+	if (!ibuf) {
+		return false;
+	}
+
+	result = bke_ptex_imbuf_filter_borders_update(ibuf, rects);
+	BKE_image_release_ibuf(image, ibuf, lock);
+
+	return result;
+}
+
 #else
 /* Stubs if WITH_PTEX is not defined */
 
@@ -1131,6 +1204,12 @@ bool BKE_ptex_import(struct Mesh *UNUSED(me), const char *UNUSED(filepath))
 
 bool BKE_ptex_update_from_image(MLoopPtex *UNUSED(loop_ptex),
 								const int UNUSED(totloop))
+{
+	return false;
+}
+
+bool BKE_ptex_filter_borders_update(MLoopPtex *UNUSED(loop_ptex),
+									Mesh *UNUSED(me))
 {
 	return false;
 }

@@ -24,6 +24,7 @@
 #include "DNA_meshdata_types.h"
 
 struct DerivedMesh;
+struct GSet;
 struct Image;
 struct Mesh;
 struct Object;
@@ -99,5 +100,10 @@ bool BKE_ptex_texel_info_init(MPtexTexelInfo *texel_info,
 bool BKE_ptex_import(struct Mesh *me, const char filepath[]);
 
 void BKE_ptex_image_mark_for_update(struct Mesh *me, const int layer_offset);
+
+/* Update borders for the set of BPXRects in rects
+ *
+ * Return true if successful, false otherwise */
+bool BKE_ptex_filter_borders_update(struct Image *image, struct GSet *rects);
 
 #endif
