@@ -32,7 +32,7 @@
 
 /* TODO(nicholasbishop) */
 #include "../blenlib/BLI_utildefines.h"
-#include "../../../extern/ptex/BPX_rect.h"
+#include "../../../intern/ptex/BPX_rect.h"
 
 /**
  * \file IMB_imbuf_types.h

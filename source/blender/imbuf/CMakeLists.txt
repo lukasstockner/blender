@@ -178,7 +178,7 @@ endif()
 
 if(WITH_PTEX)
   	list(APPEND INC
-		../../../extern/ptex
+		../../../intern/ptex
 	)
 
 	list(APPEND SRC

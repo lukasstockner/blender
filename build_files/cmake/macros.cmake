@@ -570,12 +570,12 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		cycles_subd
 		bf_intern_raskter
 		bf_intern_opencolorio
+		bf_intern_ptex
 		extern_rangetree
 		extern_wcwidth
 		extern_libmv
 		extern_glog
 		extern_sdlew
-		extern_ptex
 
 		bf_intern_glew_mx
 	)

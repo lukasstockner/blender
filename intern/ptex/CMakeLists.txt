@@ -45,4 +45,4 @@ if(WITH_OPENIMAGEIO)
 	add_definitions(-DWITH_OPENIMAGEIO)
 endif()
 
-blender_add_lib(extern_ptex "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_intern_ptex "${SRC}" "${INC}" "${INC_SYS}")

@@ -82,3 +82,6 @@ if(WIN32)
 	add_subdirectory(utfconv)
 endif()
 
+if(WITH_PTEX)
+	add_subdirectory(ptex)
+endif()

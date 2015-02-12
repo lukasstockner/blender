@@ -98,7 +98,7 @@ if env['WITH_BF_QUICKTIME']:
     defs.append('WITH_QUICKTIME')
 
 if env['WITH_BF_PTEX']:
-    incs += ' #/extern/ptex'
+    incs += ' #/intern/ptex'
     defs.append('WITH_PTEX')
 else:
     sources.remove(os.path.join('intern', 'imb_ptex.c'))

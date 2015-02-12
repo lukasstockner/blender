@@ -82,7 +82,7 @@ incs.append('#/intern/glew-mx')
 incs.append('#/intern/atomic')
 incs.append('#intern/mikktspace')
 if env['WITH_BF_PTEX']:
-    incs.append('#/extern/ptex')
+    incs.append('#/intern/ptex')
 incs.extend('#extern/glew/include #extern/clew/include #extern/cuew/include #intern/mikktspace'.split())
 
 if env['WITH_BF_PTEX']:

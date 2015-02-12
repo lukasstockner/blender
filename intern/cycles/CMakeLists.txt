@@ -131,7 +131,7 @@ endif()
 
 if(WITH_PTEX)
 	add_definitions(-DWITH_PTEX)
-	include_directories("../../extern/ptex")
+	include_directories("../../intern/ptex")
 endif()
 
 if(WITH_CYCLES_OPENSUBDIV)
