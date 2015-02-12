@@ -585,21 +585,8 @@ static bool bke_ptex_imbuf_filter_borders_update(ImBuf *ibuf, GSet *rects)
 	rects_stride = sizeof(*ibuf->ptex_rects);
 
 	if (rects) {
-		/* TODO(nicholasbishop): this is not a great
-		 * solution. Adjacent edges should probably just be updated
-		 * together or something... also need to consider corners */
-		GSet *adj_rects = BLI_gset_ptr_new("GSet adj_rects");
-
 		GSET_ITER (iter, rects) {
 			const BPXRect *rect = BLI_gsetIterator_getKey(&iter);
-			int side;
-
-			for (side = 0; side < BPX_RECT_NUM_SIDES; side++) {
-				const int adj_index = rect->adj[side].index;
-				if (adj_index != BPX_RECT_SIDE_ADJ_NONE) {
-					BLI_gset_add(adj_rects, &all_rects[adj_index]);
-				}
-			}
 
 			if (!BPX_rect_borders_update(bpx_buf, rect, all_rects,
 										 rects_stride))
@@ -608,19 +595,6 @@ static bool bke_ptex_imbuf_filter_borders_update(ImBuf *ibuf, GSet *rects)
 				break;
 			}
 		}
-
-		GSET_ITER (iter, adj_rects) {
-			const BPXRect *rect = BLI_gsetIterator_getKey(&iter);
-
-			if (!BPX_rect_borders_update(bpx_buf, rect, all_rects,
-										 rects_stride))
-			{
-				result = false;
-				break;
-			}
-		}
-
-		BLI_gset_free(adj_rects, NULL);
 	}
 	else {
 		int i;

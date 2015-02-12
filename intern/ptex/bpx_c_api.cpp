@@ -377,6 +377,10 @@ bool BPX_rect_borders_update(BPXImageBuf *bpx_buf, const BPXRect *dst_rect,
 			
 		const ROI src_roi = bpx_rect_to_oiio_roi(*src_rect);
 		bpx_create_border(buf, dst_roi, dst_edge, src_roi, src_edge);
+
+		// Also update in the other direction. TODO(nicholasbishop):
+		// names are a bit confusing now
+		bpx_create_border(buf, src_roi, src_edge, dst_roi, dst_edge);
 	}
 
 	// Average adjacent borders to fill in
