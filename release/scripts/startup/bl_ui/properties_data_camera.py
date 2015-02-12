@@ -203,6 +203,7 @@ class DATA_PT_camera_gpu_dof(Panel):
         dof_options = cam.gpu_dof
         col = layout.column(align=True)
         col.label("Focus object or distance is set in Depth Of Field Panel")
+        col.label("Focal length and sensor also influence the effect")
         col.prop(dof_options, "fstop")
 
     @classmethod

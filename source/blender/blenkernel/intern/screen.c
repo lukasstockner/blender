@@ -601,14 +601,7 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac)
 
 void BKE_screen_view3d_ensure_FX(View3D *v3d)
 {
-	if (!v3d->fx_options.dof || !v3d->fx_options.ssao) {
-		v3d->fx_options.dof = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
-
-		v3d->fx_options.dof->fstop = 128.0f;
-		v3d->fx_options.dof->focal_length = 1.0f;
-		v3d->fx_options.dof->focus_distance = 1.0f;
-		v3d->fx_options.dof->sensor = 1.0f;
-
+	if (!v3d->fx_options.ssao) {
 		v3d->fx_options.ssao = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
 
 		v3d->fx_options.ssao->darkening = 1.0f;

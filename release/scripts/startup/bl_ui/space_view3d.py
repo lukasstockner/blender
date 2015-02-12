@@ -2940,13 +2940,6 @@ class VIEW3D_PT_view3d_shading(Panel):
             if view.depth_of_field:
                 if (view.region_3d.view_perspective == 'CAMERA'):
                     col.label("check dof properties in camera settings", icon='INFO')
-                else:
-                    dof_options = fx_options.dof
-                    subcol = col.column(align=True)
-                    subcol.prop(dof_options, "focus_distance")
-                    subcol.prop(dof_options, "fstop")
-                    subcol.prop(dof_options, "focal_length")
-                    subcol.prop(dof_options, "sensor")
 
             col.prop(view, "ssao")
             if view.ssao:

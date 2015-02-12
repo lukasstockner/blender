@@ -3513,7 +3513,9 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		
 		if (rv3d->persp == RV3D_CAMOB && v3d->camera)
 			BKE_GPU_dof_from_camera(v3d->camera, &options);
-
+		else {
+			options.dof = NULL;
+		}
 		do_compositing = GPU_initialize_fx_passes(rv3d->compositor, &ar->winrct, &ar->drawrct, v3d->shader_fx, &options);
 	}
 	
