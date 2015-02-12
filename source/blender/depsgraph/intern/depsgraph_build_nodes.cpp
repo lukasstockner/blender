@@ -137,21 +137,9 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 			build_object(scene, base, ob->proxy);
 		}
 
-		/* handled in next loop...
-		 * NOTE: in most cases, setting dupli-group means that we may want
-		 *       to instance existing data and/or reuse it with very few
-		 *       modifications...
-		 */
+		/* Object dupligroup. */
 		if (ob->dup_group) {
-			ob->dup_group->id.flag |= LIB_DOIT;
-		}
-	}
-
-	/* tagged groups */
-	for (Group *group = (Group *)m_bmain->group.first; group; group = (Group *)group->id.next) {
-		if (group->id.flag & LIB_DOIT) {
-			// TODO: we need to make this group reliant on the object that spawned it...
-			build_subgraph(group);
+			build_group(scene, base, ob, ob->dup_group);
 		}
 	}
 
@@ -184,19 +172,22 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 	}
 }
 
-/* Build depsgraph for the given group
- * This is usually used for building subgraphs for groups to use
- */
-void DepsgraphNodeBuilder::build_group(Group *group)
+void DepsgraphNodeBuilder::build_group(Scene *scene,
+                                       Base *base,
+                                       Object *object,
+                                       Group *group)
 {
-	/* add group objects */
-	for (GroupObject *go = (GroupObject *)group->gobject.first; go; go = go->next) {
-		/*Object *ob = go->ob;*/
+	ID *group_id = &group->id;
+	if (group_id->flag & LIB_DOIT) {
+		return;
+	}
+	group_id->flag |= LIB_DOIT;
 
-		/* Each "group object" is effectively a separate instance of the underlying
-		 * object data. When the group is evaluated, the transform results and/or
-		 * some other attributes end up getting overridden by the group
-		 */
+	for (GroupObject *go = (GroupObject *)group->gobject.first;
+	     go != NULL;
+	     go = go->next)
+	{
+		build_object(scene, base, go->ob);
 	}
 }
 
@@ -210,7 +201,19 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 	Depsgraph *subgraph = DEG_graph_new();
 
 	DepsgraphNodeBuilder subgraph_builder(m_bmain, subgraph);
-	subgraph_builder.build_group(group);
+
+	/* add group objects */
+	for (GroupObject *go = (GroupObject *)group->gobject.first;
+	     go != NULL;
+	     go = go->next)
+	{
+		/*Object *ob = go->ob;*/
+
+		/* Each "group object" is effectively a separate instance of the underlying
+		 * object data. When the group is evaluated, the transform results and/or
+		 * some other attributes end up getting overridden by the group
+		 */
+	}
 
 	/* create a node for representing subgraph */
 	SubgraphDepsNode *subgraph_node = m_graph->add_subgraph_node(&group->id);
@@ -225,6 +228,12 @@ SubgraphDepsNode *DepsgraphNodeBuilder::build_subgraph(Group *group)
 
 void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 {
+	if (ob->id.flag & LIB_DOIT) {
+		IDDepsNode *id_node = m_graph->find_id_node(&ob->id);
+		id_node->layers = base->lay;
+		return;
+	}
+
 	IDDepsNode *id_node = add_id_node(&ob->id);
 	id_node->layers = base->lay;
 

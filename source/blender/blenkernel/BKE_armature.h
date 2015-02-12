@@ -188,7 +188,7 @@ void BKE_pose_eval_flush(struct EvaluationContext *eval_ctx,
                          struct Object *ob,
                          struct bPose *pose);
 
-void BKE_pose_eval_proxy_copy(struct EvaluationContext *UNUSED(eval_ctx),
+void BKE_pose_eval_proxy_copy(struct EvaluationContext *eval_ctx,
                               struct Object *ob);
 
 #ifdef __cplusplus

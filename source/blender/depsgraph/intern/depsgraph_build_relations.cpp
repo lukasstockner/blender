@@ -185,27 +185,11 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 			add_relation(ob_pose_key, proxy_pose_key, DEPSREL_TYPE_TRANSFORM, "Proxy");
 		}
 
-#if 0
-		/* handled in next loop...
-		 * NOTE: in most cases, setting dupli-group means that we may want
-		 *       to instance existing data and/or reuse it with very few
-		 *       modifications...
-		 */
+		/* Object dupligroup. */
 		if (ob->dup_group) {
-			id_tag_set(ob->dup_group);
-		}
-#endif
-	}
-
-#if 0
-	/* tagged groups */
-	for (Group *group = (Group *)m_bmain->group.first; group; group = (Group *)group->id.next) {
-		if (is_id_tagged(group)) {
-			// TODO: we need to make this group reliant on the object that spawned it...
-			build_subgraph_nodes(group);
+			build_group(scene, ob, ob->dup_group);
 		}
 	}
-#endif
 
 	/* rigidbody */
 	if (scene->rigidbody_world) {
@@ -233,8 +217,37 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 	}
 }
 
+void DepsgraphRelationBuilder::build_group(Scene *scene,
+                                           Object *object,
+                                           Group *group)
+{
+	ID *group_id = &group->id;
+	bool group_done = (group_id->flag & LIB_DOIT) != 0;
+	OperationKey object_local_transform_key(&object->id,
+	                                        DEPSNODE_TYPE_TRANSFORM,
+	                                        DEG_OPCODE_TRANSFORM_LOCAL);
+	for (GroupObject *go = (GroupObject *)group->gobject.first;
+	     go != NULL;
+	     go = go->next)
+	{
+		if (!group_done) {
+			build_object(scene, go->ob);
+		}
+		ComponentKey dupli_transform_key(&go->ob->id, DEPSNODE_TYPE_TRANSFORM);
+		add_relation(dupli_transform_key,
+		             object_local_transform_key,
+		             DEPSREL_TYPE_TRANSFORM,
+		             "Dupligroup");
+	}
+	group_id->flag |= LIB_DOIT;
+}
+
 void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 {
+	if (ob->id.flag & LIB_DOIT) {
+		return;
+	}
+
 	/* Object Transforms */
 	eDepsOperation_Code base_op = (ob->parent) ? DEG_OPCODE_TRANSFORM_PARENT : DEG_OPCODE_TRANSFORM_LOCAL;
 	OperationKey base_op_key(&ob->id, DEPSNODE_TYPE_TRANSFORM, base_op);

@@ -77,7 +77,7 @@ struct DepsgraphNodeBuilder {
 
 	void build_scene(Main *bmain, Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
-	void build_group(Group *group);
+	void build_group(Scene *scene, Base *base, Object *object, Group *group);
 	void build_object(Scene *scene, Base *base, Object *ob);
 	void build_object_transform(Scene *scene, Object *ob);
 	void build_object_constraints(Scene *scene, Object *ob);
@@ -232,6 +232,7 @@ struct DepsgraphRelationBuilder
 	                              eDepsRelation_Type type, const string &description);
 
 	void build_scene(Main *bmain, Scene *scene);
+	void build_group(Scene *scene, Object *object, Group *group);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
 	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata,
