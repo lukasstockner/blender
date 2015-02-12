@@ -2683,8 +2683,8 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 						writestruct(wd, DATA, "BGpic", 1, bgpic);
 					if (v3d->localvd) writestruct(wd, DATA, "View3D", 1, v3d->localvd);
 
-					if (v3d->fx_options.ssao)
-						writestruct(wd, DATA, "GPUSSAOOptions", 1, v3d->fx_options.ssao);
+					if (v3d->fx_settings.ssao)
+						writestruct(wd, DATA, "GPUSSAOSettings", 1, v3d->fx_settings.ssao);
 				}
 				else if (sl->spacetype==SPACE_IPO) {
 					SpaceIpo *sipo= (SpaceIpo *)sl;

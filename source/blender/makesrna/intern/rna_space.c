@@ -499,7 +499,7 @@ static void rna_SpaceView3D_matcap_enable(Main *UNUSED(bmain), Scene *UNUSED(sce
 
 static void rna_SpaceView3D_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
 {
-	View3D *v3d = (View3D *)(ptr->data);
+	View3D *v3d = ptr->data;
 
 	BKE_screen_view3d_ensure_FX(v3d);
 }
@@ -2477,17 +2477,17 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Matcap", "Image to use for Material Capture, active objects only");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_matcap_update");
 
-	prop = RNA_def_property(srna, "depth_of_field", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", GPU_FX_DEPTH_OF_FIELD);
+	prop = RNA_def_property(srna, "use_fx_dof", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "fx_flag", GPU_FX_FLAG_DOF);
 	RNA_def_property_ui_text(prop, "Depth Of Field", "Use depth of field on viewport using the values from active camera");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_fx_update");
-	
-	prop = RNA_def_property(srna, "ssao", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "shader_fx", GPU_FX_SSAO);
+
+	prop = RNA_def_property(srna, "use_fx_ssao", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "fx_flag", GPU_FX_FLAG_SSAO);
 	RNA_def_property_ui_text(prop, "SSAO", "Use screen space ambient occlusion of field on viewport");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_fx_update");
-	
-	prop = RNA_def_property(srna, "fx_options", PROP_POINTER, PROP_NONE);
+
+	prop = RNA_def_property(srna, "fx_settings", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "FX Options", "Options used for real time compositing");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 

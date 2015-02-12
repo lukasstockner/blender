@@ -1213,8 +1213,8 @@ void GPU_framebuffer_restore(void)
 
 void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *blurfb, GPUTexture *blurtex)
 {
-	float scaleh[2] = {1.0f/GPU_texture_opengl_width(blurtex), 0.0f};
-	float scalev[2] = {0.0f, 1.0f/GPU_texture_opengl_height(tex)};
+	const float scaleh[2] = {1.0f / GPU_texture_opengl_width(blurtex), 0.0f};
+	const float scalev[2] = {0.0f, 1.0f / GPU_texture_opengl_height(tex)};
 
 	GPUShader *blur_shader = GPU_shader_get_builtin_shader(GPU_SHADER_SEP_GAUSSIAN_BLUR);
 	int scale_uniform, texture_source_uniform;
@@ -1236,7 +1236,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	GG.currentfb = blurfb->object;
 
 	GPU_shader_bind(blur_shader);
-	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, (float *)scaleh);
+	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scaleh);
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, tex);
 	glViewport(0, 0, GPU_texture_opengl_width(blurtex), GPU_texture_opengl_height(blurtex));
 
@@ -1259,7 +1259,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	glTexCoord2d(1, 1); glVertex2f(-1, -1);
 	glTexCoord2d(0, 1); glVertex2f(1, -1);
 	glEnd();
-		
+
 	/* Blurring vertically */
 
 	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fb->object);
@@ -1268,7 +1268,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	GG.currentfb = fb->object;
 	
 	glViewport(0, 0, GPU_texture_opengl_width(tex), GPU_texture_opengl_height(tex));
-	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, (float *)scalev);
+	GPU_shader_uniform_vector(blur_shader, scale_uniform, 2, 1, scalev);
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
 	GPU_texture_bind(blurtex, 0);
 
@@ -1633,7 +1633,7 @@ int GPU_shader_get_uniform(GPUShader *shader, const char *name)
 	return glGetUniformLocationARB(shader->object, name);
 }
 
-void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int length, int arraysize, float *value)
+void GPU_shader_uniform_vector(GPUShader *UNUSED(shader), int location, int length, int arraysize, const float *value)
 {
 	if (location == -1)
 		return;

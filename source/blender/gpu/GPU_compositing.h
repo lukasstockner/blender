@@ -40,7 +40,7 @@ extern "C" {
 typedef struct GPUFX GPUFX;
 
 struct GPUOffScreen;
-struct GPUFXOptions;
+struct GPUFXSettings;
 struct RegionView3D;
 struct rcti;
 struct Scene;
@@ -65,13 +65,15 @@ typedef enum GPUFXShaderEffect {
 #define MAX_FX_SHADERS 11
 
 /* generate a new FX compositor */
-GPUFX *GPU_create_fx_compositor(void);
+GPUFX *GPU_fx_compositor_create(void);
 
 /* destroy a text compositor */
-void GPU_destroy_fx_compositor(GPUFX *fx);
+void GGPU_fx_compositor_destroy(GPUFX *fx);
 
 /* initialize a framebuffer with size taken from the viewport */
-bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, rcti *scissor_rect, enum eGPUFXFlags fxflags, struct GPUFXOptions *options);
+bool GPU_fx_compositor_initialize_passes(
+        GPUFX *fx, const struct rcti *rect, const struct rcti *scissor_rect,
+        const struct GPUFXSettings *fx_settings, enum eGPUFXFlags fx_flag);
 
 /* do compositing on the fx passes that have been initialized */
 bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs);

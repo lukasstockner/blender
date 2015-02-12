@@ -216,12 +216,12 @@ typedef struct View3D {
 
 	/* drawflags, denoting state */
 	char zbuf, transp, xray;
-	char pad3;
 
-	/* built-in shader effects */
-	int shader_fx;
+	/* built-in shader effects (eGPUFXFlags) */
+	char fx_flag;
+	char pad3[4];
 
-	struct GPUFXOptions fx_options;
+	struct GPUFXSettings fx_settings;
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */

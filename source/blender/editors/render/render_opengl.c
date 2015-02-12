@@ -212,9 +212,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 	else if (view_context) {
 		bool is_persp;
 		/* full copy */
-		GPUFXOptions options = {0};
-
-		options = v3d->fx_options;
+		GPUFXSettings fx_settings = v3d->fx_settings;
 
 		ED_view3d_draw_offscreen_init(scene, v3d);
 
@@ -226,7 +224,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			camera = v3d->camera;
 			RE_GetCameraWindow(oglrender->re, camera, scene->r.cfra, winmat);
 			is_persp = true;
-			BKE_GPU_dof_from_camera(camera, &options);
+			BKE_camera_to_gpu_dof(camera, &fx_settings);
 		}
 		else {
 			rctf viewplane;
@@ -242,7 +240,10 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		rect = MEM_mallocN(sizex * sizey * sizeof(unsigned char) * 4, "offscreen rect");
 
 		if ((scene->r.mode & R_OSA) == 0) {
-			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, draw_bgpic, draw_sky, oglrender->fx, is_persp, oglrender->ofs, &options, v3d->shader_fx);
+			ED_view3d_draw_offscreen(
+			        scene, v3d, ar, sizex, sizey, NULL, winmat,
+			        draw_bgpic, draw_sky, is_persp,
+			        oglrender->ofs, oglrender->fx, &fx_settings, v3d->fx_flag);
 			GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, rect);
 		}
 		else {
@@ -255,7 +256,10 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			BLI_jitter_init(jit_ofs, scene->r.osa);
 
 			/* first sample buffer, also initializes 'rv3d->persmat' */
-			ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat, draw_bgpic, draw_sky, oglrender->fx, is_persp, oglrender->ofs, &options, v3d->shader_fx);
+			ED_view3d_draw_offscreen(
+			        scene, v3d, ar, sizex, sizey, NULL, winmat,
+			        draw_bgpic, draw_sky, is_persp,
+			        oglrender->ofs, oglrender->fx, &fx_settings, v3d->fx_flag);
 			GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, rect);
 
 			for (i = 0; i < sizex * sizey * 4; i++)
@@ -268,7 +272,10 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 				                    (jit_ofs[j][0] * 2.0f) / sizex,
 				                    (jit_ofs[j][1] * 2.0f) / sizey);
 
-				ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, winmat_jitter, draw_bgpic, draw_sky, oglrender->fx, is_persp, oglrender->ofs, &options, v3d->shader_fx);
+				ED_view3d_draw_offscreen(
+				        scene, v3d, ar, sizex, sizey, NULL, winmat_jitter,
+				        draw_bgpic, draw_sky, is_persp,
+				        oglrender->ofs, oglrender->fx, &fx_settings, v3d->fx_flag);
 				GPU_offscreen_read_pixels(oglrender->ofs, GL_UNSIGNED_BYTE, rect);
 
 				for (i = 0; i < sizex * sizey * 4; i++)
@@ -461,8 +468,8 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
 		 * running notifiers again will overwrite */
 		oglrender->scene->customdata_mask |= oglrender->scene->customdata_mask_modal;
 
-		if (oglrender->v3d->shader_fx & (GPU_FX_DEPTH_OF_FIELD | GPU_FX_SSAO)) {
-			oglrender->fx = GPU_create_fx_compositor();
+		if (oglrender->v3d->fx_flag & (GPU_FX_FLAG_DOF | GPU_FX_FLAG_SSAO)) {
+			oglrender->fx = GPU_fx_compositor_create();
 		}
 	}
 
@@ -514,7 +521,7 @@ static void screen_opengl_render_end(bContext *C, OGLRender *oglrender)
 	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_RESULT, oglrender->scene);
 
 	if (oglrender->fx)
-		GPU_destroy_fx_compositor(oglrender->fx);
+		GGPU_fx_compositor_destroy(oglrender->fx);
 
 	GPU_offscreen_free(oglrender->ofs);
 

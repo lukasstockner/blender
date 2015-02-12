@@ -691,21 +691,18 @@ bool BKE_camera_view_frame_fit_to_coords(
 	return camera_frame_fit_calc_from_data(&params, &data_cb, r_co, r_scale);
 }
 
-void BKE_GPU_dof_from_camera(struct Object *camera, struct GPUFXOptions *options)
+void BKE_camera_to_gpu_dof(struct Object *camera, struct GPUFXSettings *r_fx_settings)
 {
 	if (camera->type == OB_CAMERA) {
 		Camera *cam = camera->data;
-		options->dof = &cam->gpu_dof;
-		options->dof->focal_length = cam->lens;
-		/* should probably use more magic here to get proper fit */
-		options->dof->sensor = cam->sensor_x;
+		r_fx_settings->dof = &cam->gpu_dof;
+		r_fx_settings->dof->focal_length = cam->lens;
+		r_fx_settings->dof->sensor = BKE_camera_sensor_size(cam->sensor_fit, cam->sensor_x, cam->sensor_y);
 		if (cam->dof_ob) {
-			float vec[3];
-			sub_v3_v3v3(vec, cam->dof_ob->obmat[3], camera->obmat[3]);
-			options->dof->focus_distance = len_v3(vec);
+			r_fx_settings->dof->focus_distance = len_v3v3(cam->dof_ob->obmat[3], camera->obmat[3]);
 		}
 		else {
-			options->dof->focus_distance = cam->YF_dofdist;
+			r_fx_settings->dof->focus_distance = cam->YF_dofdist;
 		}
 	}
 }

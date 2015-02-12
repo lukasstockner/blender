@@ -2533,7 +2533,9 @@ static void gpu_update_lamps_shadows(Scene *scene, View3D *v3d)
 		invert_m4_m4(rv3d.persinv, rv3d.viewinv);
 
 		/* no need to call ED_view3d_draw_offscreen_init since shadow buffers were already updated */
-		ED_view3d_draw_offscreen(scene, v3d, &ar, winsize, winsize, viewmat, winmat, false, false, NULL, true, NULL, NULL, 0);
+		ED_view3d_draw_offscreen(
+		            scene, v3d, &ar, winsize, winsize, viewmat, winmat, false, false, true,
+		            NULL, NULL, NULL, 0);
 		GPU_lamp_shadow_buffer_unbind(shadow->lamp);
 		
 		v3d->drawtype = drawtype;
@@ -3050,9 +3052,12 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
 /* ED_view3d_draw_offscreen_init should be called before this to initialize
  * stuff like shadow buffers
  */
-void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, int winy,
-                              float viewmat[4][4], float winmat[4][4],
-                              bool do_bgpic, bool do_sky, GPUFX *fx, bool is_persp, GPUOffScreen *ofs, GPUFXOptions *fxoptions, eGPUFXFlags fxflags)
+void ED_view3d_draw_offscreen(
+        Scene *scene, View3D *v3d, ARegion *ar, int winx, int winy,
+        float viewmat[4][4], float winmat[4][4],
+        bool do_bgpic, bool do_sky, bool is_persp,
+        GPUOffScreen *ofs,
+        GPUFX *fx, GPUFXSettings *fx_settings, eGPUFXFlags fx_flag)
 {
 	struct bThemeState theme_state;
 	int bwinx, bwiny;
@@ -3090,8 +3095,8 @@ void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, 
 	view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
 
 	/* framebuffer fx needed, we need to draw offscreen first */
-	if (v3d->shader_fx && fx) {
-		do_compositing = GPU_initialize_fx_passes(fx, &ar->winrct, NULL, fxflags, fxoptions);
+	if (v3d->fx_flag && fx) {
+		do_compositing = GPU_fx_compositor_initialize_passes(fx, &ar->winrct, NULL, fx_settings, fx_flag);
 	}
 
 	/* clear opengl buffers */
@@ -3165,7 +3170,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 	/* render 3d view */
 	if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
 		CameraParams params;
-		GPUFXOptions options = {0};
+		GPUFXSettings fx_settings = {0};
 		Object *camera = v3d->camera;
 
 		BKE_camera_params_init(&params);
@@ -3176,12 +3181,18 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 		BKE_camera_params_compute_viewplane(&params, sizex, sizey, scene->r.xasp, scene->r.yasp);
 		BKE_camera_params_compute_matrix(&params);
 
-		BKE_GPU_dof_from_camera(camera, &options);
+		BKE_camera_to_gpu_dof(camera, &fx_settings);
 
-		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, params.winmat, draw_background, draw_sky, NULL, !params.is_ortho, ofs, &options, 0);
+		ED_view3d_draw_offscreen(
+		        scene, v3d, ar, sizex, sizey, NULL, params.winmat,
+		        draw_background, draw_sky, !params.is_ortho,
+		        ofs, NULL, &fx_settings, GPU_FX_FLAG_NONE);
 	}
 	else {
-		ED_view3d_draw_offscreen(scene, v3d, ar, sizex, sizey, NULL, NULL, draw_background, draw_sky, NULL, true, ofs, NULL, 0);
+		ED_view3d_draw_offscreen(
+		        scene, v3d, ar, sizex, sizey, NULL, NULL,
+		        draw_background, draw_sky, true,
+		        ofs, NULL, NULL, GPU_FX_FLAG_NONE);
 	}
 
 	/* read in pixels & stamp */
@@ -3504,19 +3515,21 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 #endif
 
 	/* framebuffer fx needed, we need to draw offscreen first */
-	if (v3d->shader_fx) {
-		GPUFXOptions options;
+	if (v3d->fx_flag) {
+		GPUFXSettings fx_settings;
 		BKE_screen_view3d_ensure_FX(v3d);
-		options = v3d->fx_options;
+		fx_settings = v3d->fx_settings;
 		if (!rv3d->compositor)
-			rv3d->compositor = GPU_create_fx_compositor();
+			rv3d->compositor = GPU_fx_compositor_create();
 		
 		if (rv3d->persp == RV3D_CAMOB && v3d->camera)
-			BKE_GPU_dof_from_camera(v3d->camera, &options);
+			BKE_camera_to_gpu_dof(v3d->camera, &fx_settings);
 		else {
-			options.dof = NULL;
+			fx_settings.dof = NULL;
 		}
-		do_compositing = GPU_initialize_fx_passes(rv3d->compositor, &ar->winrct, &ar->drawrct, v3d->shader_fx, &options);
+		do_compositing = GPU_fx_compositor_initialize_passes(
+		        rv3d->compositor, &ar->winrct, &ar->drawrct,
+		        &fx_settings, v3d->fx_flag);
 	}
 	
 	/* clear the background */

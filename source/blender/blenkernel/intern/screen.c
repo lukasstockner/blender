@@ -601,12 +601,12 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac)
 
 void BKE_screen_view3d_ensure_FX(View3D *v3d)
 {
-	if (!v3d->fx_options.ssao) {
-		v3d->fx_options.ssao = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
+	if (!v3d->fx_settings.ssao) {
+		v3d->fx_settings.ssao = MEM_callocN(sizeof(GPUSSAOSettings), "view3d ssao options");
 
-		v3d->fx_options.ssao->darkening = 1.0f;
-		v3d->fx_options.ssao->distance_max = 0.2f;
-		v3d->fx_options.ssao->attenuation = 1.0f;
-		v3d->fx_options.ssao->num_samples = 4;
+		v3d->fx_settings.ssao->darkening = 1.0f;
+		v3d->fx_settings.ssao->distance_max = 0.2f;
+		v3d->fx_settings.ssao->attenuation = 1.0f;
+		v3d->fx_settings.ssao->samples = 4;
 	}
 }

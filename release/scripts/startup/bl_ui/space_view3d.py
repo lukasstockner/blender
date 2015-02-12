@@ -2934,22 +2934,22 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
-            fx_options = view.fx_options
+            fx_settings = view.fx_settings
 
-            col.prop(view, "depth_of_field")
-            if view.depth_of_field:
-                if (view.region_3d.view_perspective == 'CAMERA'):
+            col.prop(view, "use_fx_dof")
+            if view.use_fx_dof:
+                if view.region_3d.view_perspective == 'CAMERA':
                     col.label("check dof properties in camera settings", icon='INFO')
 
-            col.prop(view, "ssao")
-            if view.ssao:
-                ssao_options = fx_options.ssao
+            col.prop(view, "use_fx_ssao")
+            if view.use_fx_ssao:
+                ssao_settings = fx_settings.ssao
                 subcol = col.column(align=True)
-                subcol.prop(ssao_options, "darkening")
-                subcol.prop(ssao_options, "distance_max")
-                subcol.prop(ssao_options, "attenuation")
-                subcol.prop(ssao_options, "num_samples")
-                subcol.prop(ssao_options, "color")
+                subcol.prop(ssao_settings, "darkening")
+                subcol.prop(ssao_settings, "distance_max")
+                subcol.prop(ssao_settings, "attenuation")
+                subcol.prop(ssao_settings, "samples")
+                subcol.prop(ssao_settings, "color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):

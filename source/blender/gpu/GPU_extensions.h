@@ -189,7 +189,7 @@ void GPU_shader_unbind(void);
 
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
 void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
-	int arraysize, float *value);
+	int arraysize, const float *value);
 void GPU_shader_uniform_texture(GPUShader *shader, int location, GPUTexture *tex);
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value);
 

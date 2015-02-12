@@ -33,33 +33,34 @@
 #define __DNA_GPU_TYPES_H__
 
 /* properties for dof effect */
-typedef struct GPUDOFOptions {
+typedef struct GPUDOFSettings {
 	float focus_distance; /* focal distance for depth of field */
 	float fstop;
 	float focal_length;
 	float sensor;
-} GPUDOFOptions;
+} GPUDOFSettings;
 
 /* properties for SSAO effect */
-typedef struct GPUSSAOOptions {
+typedef struct GPUSSAOSettings {
 	float darkening;
 	float color[3];
 	float distance_max;
 	float attenuation;
-	int num_samples; /* ray samples, we use presets here for easy control instead of */
+	int samples; /* ray samples, we use presets here for easy control instead of */
 	int pad;
-} GPUSSAOOptions;
+} GPUSSAOSettings;
 
-typedef struct GPUFXOptions {
-	GPUDOFOptions *dof;
-	GPUSSAOOptions *ssao;
-} GPUFXOptions;
+typedef struct GPUFXSettings {
+	GPUDOFSettings *dof;
+	GPUSSAOSettings *ssao;
+} GPUFXSettings;
 
 
 /* shaderfx enables */
 typedef enum eGPUFXFlags {
-	GPU_FX_DEPTH_OF_FIELD  =  1,
-	GPU_FX_SSAO            = (1 << 1)
+	GPU_FX_FLAG_NONE        = 0,
+	GPU_FX_FLAG_DOF         = (1 << 0),
+	GPU_FX_FLAG_SSAO        = (1 << 1),
 } eGPUFXFlags;
 
 #endif

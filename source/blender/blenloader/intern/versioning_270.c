@@ -564,7 +564,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			FOREACH_NODETREE_END
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "GPUDOFOptions", "gpu_dof")) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "GPUDOFSettings", "gpu_dof")) {
 			Camera *ca;
 			for (ca = main->camera.first; ca; ca = ca->id.next) {
 				ca->gpu_dof.fstop = 128.0f;
