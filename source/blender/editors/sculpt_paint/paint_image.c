@@ -62,6 +62,7 @@
 #include "BKE_material.h"
 #include "BKE_node.h"
 #include "BKE_paint.h"
+#include "BKE_ptex.h"
 #include "BKE_texture.h"
 
 #include "UI_view2d.h"
@@ -88,6 +89,14 @@
 
 #include "paint_intern.h"
 
+/* TODO(nicholasbishop): testing this out as a solution for Ptex
+ * resolution changes */
+typedef struct {
+	BPXRect *rects;
+	int ibuf_dim[2];
+	int num_bytes;
+} UndoImagePtex;
+
 typedef struct UndoImageTile {
 	struct UndoImageTile *next, *prev;
 
@@ -108,6 +117,8 @@ typedef struct UndoImageTile {
 	short source, use_float;
 	char gen_type;
 	bool valid;
+
+	UndoImagePtex *ptex;
 } UndoImageTile;
 
 /* this is a static resource for non-globality,
@@ -222,6 +233,9 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	int allocsize;
 	short use_float = ibuf->rect_float ? 1 : 0;
 	void *data;
+	/* TODO(nicholasbishop): temporarily abusing x_tile to test undo
+	 * for Ptex resolution changes */
+	const bool full_ptex = (x_tile == -1);
 
 	/* check if tile is already pushed */
 
@@ -232,7 +246,7 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 			return data;
 	}
 
-	if (*tmpibuf == NULL)
+	if (!full_ptex && *tmpibuf == NULL)
 		*tmpibuf = IMB_allocImBuf(IMAPAINT_TILE_SIZE, IMAPAINT_TILE_SIZE, 32, IB_rectfloat | IB_rect);
 	
 	tile = MEM_callocN(sizeof(UndoImageTile), "UndoImageTile");
@@ -246,6 +260,9 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 		                         "UndoImageTile.mask");
 
 	allocsize = IMAPAINT_TILE_SIZE * IMAPAINT_TILE_SIZE * 4;
+	if (full_ptex) {
+		allocsize = ibuf->x * ibuf->y * 4;
+	}
 	allocsize *= (ibuf->rect_float) ? sizeof(float) : sizeof(char);
 	tile->rect.pt = MEM_mapallocN(allocsize, "UndeImageTile.rect");
 
@@ -260,7 +277,18 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 	if (valid)
 		*valid = &tile->valid;
 
-	undo_copy_tile(tile, *tmpibuf, ibuf, COPY);
+	if (full_ptex) {
+		tile->ptex = MEM_callocN(sizeof(*tile->ptex), "tile->ptex");
+		tile->ptex->rects = MEM_dupallocN(ibuf->ptex_regions);
+		tile->ptex->ibuf_dim[0] = ibuf->x;
+		tile->ptex->ibuf_dim[1] = ibuf->y;
+		tile->ptex->num_bytes = allocsize;
+
+		memcpy(tile->rect.uint, ibuf->rect, allocsize);
+	}
+	else {
+		undo_copy_tile(tile, *tmpibuf, ibuf, COPY);
+	}
 
 	if (proj)
 		BLI_spin_lock(&undolock);
@@ -314,6 +342,21 @@ static void image_undo_restore_runtime(ListBase *lb)
 	IMB_freeImBuf(tmpibuf);
 }
 
+static void image_undo_ptex_swap(UndoImageTile *tile, ImBuf *ibuf)
+{
+	UndoImagePtex *ptex = tile->ptex;
+
+	BLI_assert(!tile->prev && !tile->next);
+	BLI_assert(ptex->rects);
+	BLI_assert(ibuf->ptex_regions);
+
+	SWAP(BPXRect *, ptex->rects, ibuf->ptex_regions);
+	SWAP(unsigned int *, tile->rect.uint, ibuf->rect);
+
+	SWAP(int, ptex->ibuf_dim[0], ibuf->x);
+	SWAP(int, ptex->ibuf_dim[1], ibuf->y);
+}
+
 void ED_image_undo_restore(bContext *C, ListBase *lb)
 {
 	Main *bmain = CTX_data_main(C);
@@ -358,6 +401,10 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 			continue;
 		}
 
+		if (tile->ptex) {
+			image_undo_ptex_swap(tile, ibuf);
+		}
+
 		use_float = ibuf->rect_float ? 1 : 0;
 
 		if (use_float != tile->use_float) {
@@ -365,7 +412,9 @@ void ED_image_undo_restore(bContext *C, ListBase *lb)
 			continue;
 		}
 
-		undo_copy_tile(tile, tmpibuf, ibuf, RESTORE_COPY);
+		if (!tile->ptex) {
+			undo_copy_tile(tile, tmpibuf, ibuf, RESTORE_COPY);
+		}
 
 		GPU_free_image(ima); /* force OpenGL reload */
 		if (ibuf->rect_float)
@@ -386,8 +435,15 @@ void ED_image_undo_free(ListBase *lb)
 {
 	UndoImageTile *tile;
 
-	for (tile = lb->first; tile; tile = tile->next)
+	for (tile = lb->first; tile; tile = tile->next) {
 		MEM_freeN(tile->rect.pt);
+		if (tile->ptex) {
+			if (tile->ptex->rects) {
+				MEM_freeN(tile->ptex->rects);
+			}
+			MEM_freeN(tile->ptex);
+		}
+	}
 }
 
 static void image_undo_end(void)
@@ -1534,3 +1590,28 @@ int mask_paint_poll(bContext *C)
 	return BKE_paint_select_elem_test(CTX_data_active_object(C));
 }
 
+void ED_ptex_res_change_undo_begin(Object *ob, const char *layer_name,
+								   const wmOperator *op)
+{
+	Image *image;
+	ImBuf *ibuf;
+
+	image = BKE_ptex_mesh_image_get(ob, layer_name);
+	BLI_assert(image);
+	ibuf = BKE_image_acquire_ibuf(image, NULL, NULL);
+	BLI_assert(ibuf);
+
+	ED_undo_paint_push_begin(UNDO_PAINT_IMAGE, op->type->name,
+							 ED_image_undo_restore, ED_image_undo_free,
+							 NULL);
+
+	ED_imapaint_clear_partial_redraw();
+	image_undo_push_tile(image, ibuf, NULL, -1, -1, NULL, NULL, false);
+
+	BKE_image_release_ibuf(image, ibuf, NULL);
+}
+
+void ED_ptex_res_change_undo_end(void)
+{
+	ED_undo_paint_push_end(UNDO_PAINT_IMAGE);
+}

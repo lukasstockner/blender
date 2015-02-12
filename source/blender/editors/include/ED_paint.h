@@ -62,4 +62,8 @@ void ED_imapaint_clear_partial_redraw(void);
 void ED_imapaint_dirty_region(struct Image *ima, struct ImBuf *ibuf, int x, int y, int w, int h);
 void ED_imapaint_bucket_fill(struct bContext *C, float color[3], struct wmOperator *op);
 
+void ED_ptex_res_change_undo_begin(struct Object *ob, const char *layer_name,
+								   const struct wmOperator *op);
+void ED_ptex_res_change_undo_end(void);
+
 #endif /* __ED_PAINT_H__ */

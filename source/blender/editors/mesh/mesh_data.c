@@ -58,6 +58,7 @@
 #include "WM_types.h"
 
 #include "ED_mesh.h"
+#include "ED_paint.h"
 #include "ED_object.h"
 #include "ED_screen.h"
 #include "ED_uvedit.h"
@@ -878,10 +879,15 @@ static int mesh_ptex_res_change_exec(bContext *C, wmOperator *op)
 	Mesh *me = ob->data;
 	const int layer_offset = CustomData_get_active_layer(&me->ldata,
 														 CD_LOOP_PTEX);
+	const char *layer_name = CustomData_get_layer_name(&me->ldata,
+													   CD_LOOP_PTEX,
+													   layer_offset);
 	MLoopPtex *loop_ptex = CustomData_get_layer_n(&me->ldata, CD_LOOP_PTEX,
 												  layer_offset);
 	const PtexResChangeMode mode = RNA_enum_get(op->ptr, "mode");
 	int i;
+
+	ED_ptex_res_change_undo_begin(ob, layer_name, op);
 
 	for (i = 0; i < me->totpoly; i++) {
 		const MPoly *poly = &me->mpoly[i];
@@ -903,7 +909,9 @@ static int mesh_ptex_res_change_exec(bContext *C, wmOperator *op)
 		}
 	}
 
+	/* Force refresh */
 	BKE_ptex_image_mark_for_update(me, layer_offset);
+	BKE_ptex_mesh_image_get(ob, layer_name);
 
 	DAG_id_tag_update(&me->id, 0);
 	WM_main_add_notifier(NC_GEOM | ND_DATA, me);
