@@ -74,7 +74,7 @@ class PHYSICS_PT_softbody_cache(PhysicButtonsPanel, Panel):
 
     def draw(self, context):
         md = context.soft_body
-        point_cache_ui(self, context, md.point_cache, softbody_panel_enabled(md), 'SOFTBODY')
+        point_cache_ui(self, context, md.settings, md.point_cache, softbody_panel_enabled(md), 'SOFTBODY')
 
 
 class PHYSICS_PT_softbody_goal(PhysicButtonsPanel, Panel):

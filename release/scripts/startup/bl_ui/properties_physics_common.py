@@ -99,7 +99,7 @@ class PHYSICS_PT_add(PhysicButtonsPanel, Panel):
 
 # cache-type can be 'PSYS' 'HAIR' 'SMOKE' etc
 
-def point_cache_ui(self, context, cache, enabled, cachetype):
+def point_cache_ui(self, context, cache_user, cache, enabled, cachetype):
     ### special cases (don't ask, it's mysterious) ###
     # cache types that support external cache data
     supports_external       = (cachetype in {'PSYS', 'HAIR', 'SMOKE'})
@@ -116,6 +116,7 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
 
     layout = self.layout
     layout.context_pointer_set("point_cache", cache)
+    layout.context_pointer_set("point_cache_user", cache_user)
 
     row = layout.row()
     if supports_external:
@@ -123,8 +124,6 @@ def point_cache_ui(self, context, cache, enabled, cachetype):
 
         if supports_library_path:
             row.prop(cache, "use_library_path", "Use Lib Path")
-
-        layout.context_pointer_set("point_cache_user", context.particle_system)
 
     if cache.use_external:
         split = layout.split(percentage=0.35)

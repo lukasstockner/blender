@@ -422,7 +422,7 @@ class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):
     def draw(self, context):
         psys = context.particle_system
 
-        point_cache_ui(self, context, psys.point_cache, True, 'HAIR' if (psys.settings.type == 'HAIR') else 'PSYS')
+        point_cache_ui(self, context, psys, psys.point_cache, True, 'HAIR' if (psys.settings.type == 'HAIR') else 'PSYS')
 
 
 class PARTICLE_PT_velocity(ParticleButtonsPanel, Panel):
