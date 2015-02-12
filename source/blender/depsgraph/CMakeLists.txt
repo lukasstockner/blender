@@ -74,7 +74,6 @@ set(SRC
 	intern/depsgraph_intern.h
 	intern/depsgraph_queue.h
 	intern/depsgraph_types.h
-	intern/stubs.h
 
 	util/depsgraph_util_function.h
 	util/depsgraph_util_hash.h
