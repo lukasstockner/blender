@@ -812,7 +812,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_uniform_texture(dof_shader_pass5, depth_uniform, fx->depth_buffer);
 
 			/* if this is the last pass, prepare for rendering on the frambuffer */
-			GPU_fx_bind_render_target(&passes_left, fx, ofs, target);
+			gpu_fx_bind_render_target(&passes_left, fx, ofs, target);
 
 			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 			/* disable bindings */
