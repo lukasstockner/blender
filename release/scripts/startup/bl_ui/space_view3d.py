@@ -2934,14 +2934,14 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
-            fxoptions = view.fxoptions
+            fx_options = view.fx_options
 
             col.prop(view, "depth_of_field")
             if view.depth_of_field:
                 if (view.region_3d.view_perspective == 'CAMERA'):
                     col.label("check dof properties in camera settings", icon='INFO')
                 else:
-                    dof_options = fxoptions.dof_options
+                    dof_options = fx_options.dof_options
                     subcol = col.column(align=True)
                     subcol.prop(dof_options, "focus_distance")
                     subcol.prop(dof_options, "fstop")
@@ -2950,7 +2950,7 @@ class VIEW3D_PT_view3d_shading(Panel):
 
             col.prop(view, "ssao")
             if view.ssao:
-                ssao_options = fxoptions.ssao_options
+                ssao_options = fx_options.ssao_options
                 subcol = col.column(align=True)
                 subcol.prop(ssao_options, "darkening")
                 subcol.prop(ssao_options, "distance_max")

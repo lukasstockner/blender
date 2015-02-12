@@ -695,14 +695,15 @@ void BKE_GPU_dof_from_camera(struct Object *camera, struct GPUFXOptions *options
 {
 	if (camera->type == OB_CAMERA) {
 		Camera *cam = camera->data;
-		options->dof_options = &cam->gpu_dof;
+		options->dof = &cam->gpu_dof;
+		options->dof->focal_length = cam->lens;
 		if (cam->dof_ob) {
 			float vec[3];
 			sub_v3_v3v3(vec, cam->dof_ob->obmat[3], camera->obmat[3]);
-			options->dof_options->focus_distance = len_v3(vec);
+			options->dof->focus_distance = len_v3(vec);
 		}
 		else {
-			options->dof_options->focus_distance = cam->YF_dofdist;
+			options->dof->focus_distance = cam->YF_dofdist;
 		}
 	}
 }

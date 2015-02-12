@@ -51,8 +51,8 @@ typedef struct GPUSSAOOptions {
 } GPUSSAOOptions;
 
 typedef struct GPUFXOptions {
-	GPUDOFOptions *dof_options;
-	GPUSSAOOptions *ssao_options;
+	GPUDOFOptions *dof;
+	GPUSSAOOptions *ssao;
 } GPUFXOptions;
 
 

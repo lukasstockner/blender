@@ -2212,7 +2212,7 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "SSAO", "Use screen space ambient occlusion of field on viewport");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_fx_update");
 	
-	prop = RNA_def_property(srna, "fxoptions", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "fx_options", PROP_POINTER, PROP_NONE);
 	RNA_def_property_ui_text(prop, "FX Options", "Options used for real time compositing");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 

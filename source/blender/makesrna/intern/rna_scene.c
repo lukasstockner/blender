@@ -3922,12 +3922,12 @@ static void rna_def_gpu_fx(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "GPU FX Options", "Options for GPU based compositing");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 
-	prop = RNA_def_property(srna, "dof_options", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "dof", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "GPUDOFOptions");
 	RNA_def_property_ui_text(prop, "Depth Of Field Options", "");
 
-	prop = RNA_def_property(srna, "ssao_options", PROP_POINTER, PROP_NONE);
+	prop = RNA_def_property(srna, "ssao", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_struct_type(prop, "GPUSSAOOptions");
 	RNA_def_property_ui_text(prop, "Screen Space Ambient Occlusion Options", "");

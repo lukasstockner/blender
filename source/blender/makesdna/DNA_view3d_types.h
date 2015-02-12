@@ -221,7 +221,7 @@ typedef struct View3D {
 	/* built-in shader effects */
 	int shader_fx;
 
-	struct GPUFXOptions fxoptions;
+	struct GPUFXOptions fx_options;
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
 	struct Material *defmaterial;	/* used by matcap now */

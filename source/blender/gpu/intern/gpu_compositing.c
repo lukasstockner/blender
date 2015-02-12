@@ -267,10 +267,10 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, eGPUFXF
 	}
 
 	/* disable effects if no options passed for them */
-	if (!options->dof_options) {
+	if (!options->dof) {
 		fxflags &= ~GPU_FX_DEPTH_OF_FIELD;
 	}
-	if (!options->ssao_options || options->ssao_options->num_samples < 1) {
+	if (!options->ssao || options->ssao->num_samples < 1) {
 		fxflags &= ~GPU_FX_SSAO;
 	}
 
@@ -315,17 +315,17 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, eGPUFXF
 	}
 	
 	if (fxflags & GPU_FX_SSAO) {
-		if (options->ssao_options->num_samples != fx->ssao_sample_count || !fx->ssao_concentric_samples_tex) {
-			if (options->ssao_options->num_samples < 1)
-				options->ssao_options->num_samples = 1;
+		if (options->ssao->num_samples != fx->ssao_sample_count || !fx->ssao_concentric_samples_tex) {
+			if (options->ssao->num_samples < 1)
+				options->ssao->num_samples = 1;
 			
-			fx->ssao_sample_count = options->ssao_options->num_samples;
+			fx->ssao_sample_count = options->ssao->num_samples;
 			
 			if (fx->ssao_concentric_samples_tex) {
 				GPU_texture_free(fx->ssao_concentric_samples_tex);
 			}
 			
-			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(options->ssao_options->num_samples);
+			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(options->ssao->num_samples);
 		}
 	}
 	else {
@@ -506,7 +506,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		GPUShader *ssao_shader;
 		ssao_shader = GPU_shader_get_builtin_fx_shader(GPU_SHADER_FX_SSAO, is_persp);
 		if (ssao_shader) {
-			GPUSSAOOptions *options = fx->options.ssao_options;
+			GPUSSAOOptions *options = fx->options.ssao;
 			int color_uniform, depth_uniform;
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
 			int ssao_jitter_uniform, ssao_concentric_tex;
@@ -578,7 +578,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 	/* second pass, dof */
 	if (fx->effects & GPU_FX_DEPTH_OF_FIELD) {
-		GPUDOFOptions *options = fx->options.dof_options;
+		GPUDOFOptions *options = fx->options.dof;
 		GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4, *dof_shader_pass5;
 		float dof_params[4];
 		float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
