@@ -52,6 +52,7 @@
 
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_screen.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"
@@ -61,6 +62,7 @@
 
 #include "readfile.h"
 
+#include "MEM_guardedalloc.h"
 
 static void do_version_constraints_radians_degrees_270_1(ListBase *lb)
 {
@@ -569,6 +571,34 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				ca->gpu_dof.focal_length = 1.0f;
 				ca->gpu_dof.focus_distance = 1.0f;
 				ca->gpu_dof.sensor = 1.0f;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 7)) {
+		bScreen *scr;
+		ScrArea *sa;
+		SpaceLink *sl;
+		ARegion *ar;
+
+		for (scr = main->screen.first; scr; scr = scr->id.next) {
+			/* Remove old deprecated region from filebrowsers */
+			for (sa = scr->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_FILE) {
+						for (ar = sl->regionbase.first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_CHANNELS) {
+								break;
+							}
+						}
+
+						if (ar) {
+							/* Free old deprecated 'channel' region... */
+							BKE_area_region_free(NULL, ar);
+							BLI_freelinkN(&sl->regionbase, ar);
+						}
+					}
+				}
 			}
 		}
 	}
