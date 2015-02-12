@@ -666,6 +666,10 @@ void DepsgraphNodeBuilder::build_proxy_rig(Scene *scene, Object *ob)
 	{
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
 		                   DEPSOP_TYPE_INIT, NULL,
+		                   DEG_OPCODE_BONE_LOCAL);
+
+		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+		                   DEPSOP_TYPE_EXEC, NULL,
 		                   DEG_OPCODE_BONE_READY);
 
 		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
