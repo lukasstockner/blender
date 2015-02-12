@@ -697,6 +697,8 @@ void BKE_GPU_dof_from_camera(struct Object *camera, struct GPUFXOptions *options
 		Camera *cam = camera->data;
 		options->dof = &cam->gpu_dof;
 		options->dof->focal_length = cam->lens;
+		/* should probably use more magic here to get proper fit */
+		options->dof->sensor = cam->sensor_x;
 		if (cam->dof_ob) {
 			float vec[3];
 			sub_v3_v3v3(vec, cam->dof_ob->obmat[3], camera->obmat[3]);

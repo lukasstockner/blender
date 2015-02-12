@@ -204,8 +204,6 @@ class DATA_PT_camera_gpu_dof(Panel):
         col = layout.column(align=True)
         col.label("Focus object or distance is set in Depth Of Field Panel")
         col.prop(dof_options, "fstop")
-        col.prop(dof_options, "focal_length")
-        col.prop(dof_options, "sensor")
 
     @classmethod
     def poll(cls, context):
