@@ -250,7 +250,12 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 			break;
 			
 			case OB_ARMATURE: /* Pose */
-				build_rig(scene, ob);
+				if (ob->id.lib != NULL && ob->proxy_from != NULL) {
+					build_proxy_rig(scene, ob);
+				}
+				else {
+					build_rig(scene, ob);
+				}
 				break;
 			
 			case OB_LAMP:   /* Lamp */
@@ -645,6 +650,15 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 			}
 		}
 	}
+}
+
+void DepsgraphNodeBuilder::build_proxy_rig(Scene *scene, Object *ob)
+{
+	add_operation_node(&ob->id,
+	                   DEPSNODE_TYPE_EVAL_POSE,
+	                   DEPSOP_TYPE_EXEC,
+	                   function_bind(BKE_pose_eval_proxy_copy, _1, ob),
+	                   DEG_OPCODE_POSE_PROXY_COPY);
 }
 
 /* Shapekeys */

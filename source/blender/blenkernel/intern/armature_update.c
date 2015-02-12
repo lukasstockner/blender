@@ -37,6 +37,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_action.h"
 #include "BKE_anim.h"
 #include "BKE_armature.h"
 #include "BKE_curve.h"
@@ -706,4 +707,14 @@ void BKE_pose_eval_flush(EvaluationContext *UNUSED(eval_ctx),
 
 	/* 6. release the IK tree */
 	BIK_release_tree(scene, ob, ctime);
+}
+
+void BKE_pose_eval_proxy_copy(EvaluationContext *UNUSED(eval_ctx), Object *ob)
+{
+	BLI_assert(ob->id.lib != NULL && ob->proxy_from != NULL);
+	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
+	if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
+		printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
+		       ob->id.name + 2, ob->proxy_from->id.name + 2);
+	}
 }

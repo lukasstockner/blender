@@ -111,6 +111,9 @@ DEF_DEG_OPCODE(POSE_DONE)
 DEF_DEG_OPCODE(POSE_IK_SOLVER)
 DEF_DEG_OPCODE(POSE_SPLINE_IK_SOLVER)
 
+/* Copy proxy eval result */
+DEF_DEG_OPCODE(POSE_PROXY_COPY)
+
 /* Bone -------------------------------------------- */
 
 /* Bone local transforms - Entrypoint */

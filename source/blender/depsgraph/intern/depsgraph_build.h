@@ -91,6 +91,7 @@ struct DepsgraphNodeBuilder {
 	void build_ik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_splineik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_rig(Scene *scene, Object *ob);
+	void build_proxy_rig(Scene *scene, Object *ob);
 	void build_shapekeys(Key *key);
 	void build_obdata_geom(Scene *scene, Object *ob);
 	void build_camera(Object *ob);
@@ -245,6 +246,7 @@ struct DepsgraphRelationBuilder
 	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
 	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
 	void build_rig(Scene *scene, Object *ob);
+	void build_proxy_rig(Scene *scene, Object *ob);
 	void build_shapekeys(ID *obdata, Key *key);
 	void build_obdata_geom(Scene *scene, Object *ob);
 	void build_camera(Object *ob);

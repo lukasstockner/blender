@@ -176,7 +176,7 @@ void DepsgraphRelationBuilder::build_scene(Scene *scene)
 			 * behavior and need to be investigated if it still need to be inverted.
 			 */
 			ComponentKey ob_pose_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE);
-			ComponentKey proxy_pose_key(&ob->proxy->id, DEPSNODE_TYPE_TRANSFORM);
+			ComponentKey proxy_pose_key(&ob->proxy->id, DEPSNODE_TYPE_EVAL_POSE);
 			add_relation(ob_pose_key, proxy_pose_key, DEPSREL_TYPE_TRANSFORM, "Proxy");
 		}
 
@@ -310,7 +310,12 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 			
 			
 			case OB_ARMATURE: /* Pose */
-				build_rig(scene, ob);
+				if (ob->id.lib != NULL && ob->proxy_from != NULL) {
+					build_proxy_rig(scene, ob);
+				}
+				else {
+					build_rig(scene, ob);
+				}
 				break;
 			
 			case OB_LAMP:   /* Lamp */
@@ -1289,6 +1294,10 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 		/* assume that all bones must be done for the pose to be ready (for deformers) */
 		add_relation(bone_done_key, flush_key, DEPSREL_TYPE_OPERATION, "PoseEval Result-Bone Link");
 	}
+}
+
+void DepsgraphRelationBuilder::build_proxy_rig(Scene *scene, Object *ob)
+{
 }
 
 /* Shapekeys */
