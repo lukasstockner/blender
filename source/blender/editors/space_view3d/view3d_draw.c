@@ -3052,7 +3052,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
  */
 void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, int winy,
                               float viewmat[4][4], float winmat[4][4],
-                              bool do_bgpic, bool do_sky, GPUFX *fx, bool is_persp, GPUOffScreen *ofs, GPUFXOptions *fxoptions, GPUFxFlags fxflags)
+                              bool do_bgpic, bool do_sky, GPUFX *fx, bool is_persp, GPUOffScreen *ofs, GPUFXOptions *fxoptions, eGPUFxFlags fxflags)
 {
 	struct bThemeState theme_state;
 	int bwinx, bwiny;

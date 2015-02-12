@@ -45,7 +45,7 @@ struct RegionView3D;
 struct rcti;
 struct Scene;
 struct View3D;
-enum GPUFXFlags;
+enum eGPUFXFlags;
 
 /**** Public API *****/
 
@@ -71,7 +71,7 @@ GPUFX *GPU_create_fx_compositor(void);
 void GPU_destroy_fx_compositor(GPUFX *fx);
 
 /* initialize a framebuffer with size taken from the viewport */
-bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, rcti *scissor_rect, enum GPUFxFlags fxflags, struct GPUFXOptions *options);
+bool GPU_initialize_fx_passes(GPUFX *fx, struct rcti *rect, rcti *scissor_rect, enum eGPUFxFlags fxflags, struct GPUFXOptions *options);
 
 /* do compositing on the fx passes that have been initialized */
 bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, struct Scene *scene, struct GPUOffScreen *ofs);

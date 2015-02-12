@@ -2943,20 +2943,20 @@ class VIEW3D_PT_view3d_shading(Panel):
                 else:
                     dof_options = fxoptions.dof_options
                     subcol = col.column(align=True)
-                    subcol.prop(dof_options, "dof_focus_distance")
-                    subcol.prop(dof_options, "dof_fstop")
-                    subcol.prop(dof_options, "dof_focal_length")
-                    subcol.prop(dof_options, "dof_sensor")
+                    subcol.prop(dof_options, "focus_distance")
+                    subcol.prop(dof_options, "fstop")
+                    subcol.prop(dof_options, "focal_length")
+                    subcol.prop(dof_options, "sensor")
 
             col.prop(view, "ssao")
             if view.ssao:
                 ssao_options = fxoptions.ssao_options
                 subcol = col.column(align=True)
-                subcol.prop(ssao_options, "ssao_darkening")
-                subcol.prop(ssao_options, "ssao_distance_max")
-                subcol.prop(ssao_options, "ssao_attenuation")
-                subcol.prop(ssao_options, "ssao_num_samples")
-                subcol.prop(ssao_options, "ssao_color")
+                subcol.prop(ssao_options, "darkening")
+                subcol.prop(ssao_options, "distance_max")
+                subcol.prop(ssao_options, "attenuation")
+                subcol.prop(ssao_options, "num_samples")
+                subcol.prop(ssao_options, "color")
 
 
 class VIEW3D_PT_view3d_motion_tracking(Panel):

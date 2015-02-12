@@ -253,7 +253,7 @@ static GPUTexture * create_jitter_texture(void)
 }
 
 
-bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, GPUFxFlags fxflags, GPUFXOptions *options)
+bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, eGPUFxFlags fxflags, GPUFXOptions *options)
 {
 	int w = BLI_rcti_size_x(rect) + 1, h = BLI_rcti_size_y(rect) + 1;
 	char err_out[256];
@@ -270,7 +270,7 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, GPUFxFl
 	if (!options->dof_options) {
 		fxflags &= ~GPU_FX_DEPTH_OF_FIELD;
 	}
-	if (!options->ssao_options || options->ssao_options->ssao_num_samples < 1) {
+	if (!options->ssao_options || options->ssao_options->num_samples < 1) {
 		fxflags &= ~GPU_FX_SSAO;
 	}
 
@@ -315,17 +315,17 @@ bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, GPUFxFl
 	}
 	
 	if (fxflags & GPU_FX_SSAO) {
-		if (options->ssao_options->ssao_num_samples != fx->ssao_sample_count || !fx->ssao_concentric_samples_tex) {
-			if (options->ssao_options->ssao_num_samples < 1)
-				options->ssao_options->ssao_num_samples = 1;
+		if (options->ssao_options->num_samples != fx->ssao_sample_count || !fx->ssao_concentric_samples_tex) {
+			if (options->ssao_options->num_samples < 1)
+				options->ssao_options->num_samples = 1;
 			
-			fx->ssao_sample_count = options->ssao_options->ssao_num_samples;
+			fx->ssao_sample_count = options->ssao_options->num_samples;
 			
 			if (fx->ssao_concentric_samples_tex) {
 				GPU_texture_free(fx->ssao_concentric_samples_tex);
 			}
 			
-			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(options->ssao_options->ssao_num_samples);
+			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(options->ssao_options->num_samples);
 		}
 	}
 	else {
@@ -510,7 +510,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			int color_uniform, depth_uniform;
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
 			int ssao_jitter_uniform, ssao_concentric_tex;
-			float ssao_params[4] = {options->ssao_distance_max, options->ssao_darkening, options->ssao_attenuation, 0.0f};
+			float ssao_params[4] = {options->distance_max, options->darkening, options->attenuation, 0.0f};
 			float sample_params[4];
 
 			sample_params[0] = fx->ssao_sample_count * fx->ssao_sample_count;
@@ -530,7 +530,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_shader_bind(ssao_shader);
 
 			GPU_shader_uniform_vector(ssao_shader, ssao_uniform, 4, 1, ssao_params);
-			GPU_shader_uniform_vector(ssao_shader, ssao_color_uniform, 4, 1, options->ssao_color);
+			GPU_shader_uniform_vector(ssao_shader, ssao_color_uniform, 4, 1, options->color);
 			GPU_shader_uniform_vector(ssao_shader, viewvecs_uniform, 4, 3, viewvecs[0]);
 			GPU_shader_uniform_vector(ssao_shader, ssao_sample_params_uniform, 4, 1, sample_params);
 
@@ -583,11 +583,11 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		float dof_params[4];
 		float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
 		float scale_camera = 0.001f / scale;
-		float aperture = 2.0f * scale_camera * options->dof_focal_length / options->dof_fstop;
+		float aperture = 2.0f * scale_camera * options->focal_length / options->fstop;
 
-		dof_params[0] = aperture * fabs(scale_camera * options->dof_focal_length / (options->dof_focus_distance - scale_camera * options->dof_focal_length));
-		dof_params[1] = options->dof_focus_distance;
-		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
+		dof_params[0] = aperture * fabs(scale_camera * options->focal_length / (options->focus_distance - scale_camera * options->focal_length));
+		dof_params[1] = options->focus_distance;
+		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->sensor);
 		dof_params[3] = 0.0f;
 
 		/* DOF effect has many passes but most of them are performed on a texture whose dimensions are 4 times less than the original
@@ -656,7 +656,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			float tmp = invrendertargetdim[0];
 			invrendertargetdim[0] = 0.0f;
 
-			dof_params[2] = GPU_texture_opengl_width(fx->dof_near_coc_blurred_buffer) / (scale_camera * options->dof_sensor);
+			dof_params[2] = GPU_texture_opengl_width(fx->dof_near_coc_blurred_buffer) / (scale_camera * options->sensor);
 
 			dof_uniform = GPU_shader_get_uniform(dof_shader_pass2, "dof_params");
 			invrendertargetdim_uniform = GPU_shader_get_uniform(dof_shader_pass2, "invrendertargetdim");
@@ -706,7 +706,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			GPU_texture_unbind(fx->dof_near_coc_final_buffer);
 			GPU_framebuffer_texture_detach(fx->dof_near_coc_blurred_buffer);
 
-			dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->dof_sensor);
+			dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * options->sensor);
 
 			numslots = 0;
 		}

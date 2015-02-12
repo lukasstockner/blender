@@ -67,6 +67,11 @@ void *BKE_camera_add(Main *bmain, const char *name)
 	cam->flag |= CAM_SHOWPASSEPARTOUT;
 	cam->passepartalpha = 0.5f;
 	
+	cam->gpu_dof.fstop = 128.0f;
+	cam->gpu_dof.focal_length = 1.0f;
+	cam->gpu_dof.focus_distance = 1.0f;
+	cam->gpu_dof.sensor = 1.0f;
+
 	return cam;
 }
 
@@ -694,10 +699,10 @@ void BKE_GPU_dof_from_camera(struct Object *camera, struct GPUFXOptions *options
 		if (cam->dof_ob) {
 			float vec[3];
 			sub_v3_v3v3(vec, cam->dof_ob->obmat[3], camera->obmat[3]);
-			options->dof_options->dof_focus_distance = len_v3(vec);
+			options->dof_options->focus_distance = len_v3(vec);
 		}
 		else {
-			options->dof_options->dof_focus_distance = cam->YF_dofdist;
+			options->dof_options->focus_distance = cam->YF_dofdist;
 		}
 	}
 }

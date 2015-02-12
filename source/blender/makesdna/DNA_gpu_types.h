@@ -34,19 +34,19 @@
 
 /* properties for dof effect */
 typedef struct GPUDOFOptions {
-	float dof_focus_distance; /* focal distance for depth of field */
-	float dof_fstop;
-	float dof_focal_length;
-	float dof_sensor;
+	float focus_distance; /* focal distance for depth of field */
+	float fstop;
+	float focal_length;
+	float sensor;
 } GPUDOFOptions;
 
 /* properties for SSAO effect */
 typedef struct GPUSSAOOptions {
-	float ssao_darkening;
-	float ssao_color[3];
-	float ssao_distance_max;
-	float ssao_attenuation;
-	int ssao_num_samples; /* ray samples, we use presets here for easy control instead of */
+	float darkening;
+	float color[3];
+	float distance_max;
+	float attenuation;
+	int num_samples; /* ray samples, we use presets here for easy control instead of */
 	int pad;
 } GPUSSAOOptions;
 
@@ -57,9 +57,9 @@ typedef struct GPUFXOptions {
 
 
 /* shaderfx enables */
-typedef enum GPUFxFlags{
+typedef enum eGPUFxFlags{
 	GPU_FX_DEPTH_OF_FIELD  =  1,
 	GPU_FX_SSAO            = (1 << 1)
-} GPUFxFlags;
+} eGPUFxFlags;
 
 #endif
