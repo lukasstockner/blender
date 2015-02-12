@@ -220,6 +220,8 @@ typedef struct View3D {
 	/* built-in shader effects (eGPUFXFlags) */
 	char pad3[5];
 
+	/* note, 'fx_settings.dof' is currently _not_ allocated,
+	 * instead set (temporarily) from camera */
 	struct GPUFXSettings fx_settings;
 
 	void *properties_storage;		/* Nkey panel stores stuff here (runtime only!) */
