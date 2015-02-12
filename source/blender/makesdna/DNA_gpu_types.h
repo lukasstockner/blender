@@ -57,9 +57,9 @@ typedef struct GPUFXOptions {
 
 
 /* shaderfx enables */
-typedef enum eGPUFxFlags{
+typedef enum eGPUFXFlags {
 	GPU_FX_DEPTH_OF_FIELD  =  1,
 	GPU_FX_SSAO            = (1 << 1)
-} eGPUFxFlags;
+} eGPUFXFlags;
 
 #endif

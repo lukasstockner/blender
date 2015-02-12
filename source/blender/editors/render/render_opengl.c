@@ -214,8 +214,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 		/* full copy */
 		GPUFXOptions options = {0};
 
-		if (v3d->fxoptions)
-			options = *v3d->fxoptions;
+		options = v3d->fxoptions;
 
 		ED_view3d_draw_offscreen_init(scene, v3d);
 

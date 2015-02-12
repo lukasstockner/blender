@@ -18,8 +18,9 @@ uniform vec4 ssao_params;
 uniform vec4 ssao_sample_params;
 uniform vec4 ssao_color;
 
-/* store the view space vectors for the corners of the view frustum here. It helps to quickly reconstruct view space vectors
- * by using uv coordinates, see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
+/* store the view space vectors for the corners of the view frustum here.
+ * It helps to quickly reconstruct view space vectors by using uv coordinates,
+ * see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
 uniform vec4 viewvecs[3];
 
 float calculate_ssao_factor(float depth)

@@ -253,7 +253,7 @@ static GPUTexture * create_jitter_texture(void)
 }
 
 
-bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, eGPUFxFlags fxflags, GPUFXOptions *options)
+bool GPU_initialize_fx_passes(GPUFX *fx, rcti *rect, rcti *scissor_rect, eGPUFXFlags fxflags, GPUFXOptions *options)
 {
 	int w = BLI_rcti_size_x(rect) + 1, h = BLI_rcti_size_y(rect) + 1;
 	char err_out[256];

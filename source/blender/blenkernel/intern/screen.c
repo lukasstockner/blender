@@ -601,20 +601,19 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac)
 
 void BKE_screen_view3d_ensure_FX(View3D *v3d)
 {
-	if (!v3d->fxoptions) {
-		v3d->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
-		v3d->fxoptions->dof_options = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
+	if (!v3d->fxoptions.dof_options || !v3d->fxoptions.ssao_options) {
+		v3d->fxoptions.dof_options = MEM_callocN(sizeof(GPUDOFOptions), "view3d dof options");
 
-		v3d->fxoptions->dof_options->fstop = 128.0f;
-		v3d->fxoptions->dof_options->focal_length = 1.0f;
-		v3d->fxoptions->dof_options->focus_distance = 1.0f;
-		v3d->fxoptions->dof_options->sensor = 1.0f;
+		v3d->fxoptions.dof_options->fstop = 128.0f;
+		v3d->fxoptions.dof_options->focal_length = 1.0f;
+		v3d->fxoptions.dof_options->focus_distance = 1.0f;
+		v3d->fxoptions.dof_options->sensor = 1.0f;
 
-		v3d->fxoptions->ssao_options = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
+		v3d->fxoptions.ssao_options = MEM_callocN(sizeof(GPUSSAOOptions), "view3d ssao options");
 
-		v3d->fxoptions->ssao_options->darkening = 1.0f;
-		v3d->fxoptions->ssao_options->distance_max = 0.2f;
-		v3d->fxoptions->ssao_options->attenuation = 1.0f;
-		v3d->fxoptions->ssao_options->num_samples = 4;
+		v3d->fxoptions.ssao_options->darkening = 1.0f;
+		v3d->fxoptions.ssao_options->distance_max = 0.2f;
+		v3d->fxoptions.ssao_options->attenuation = 1.0f;
+		v3d->fxoptions.ssao_options->num_samples = 4;
 	}
 }

@@ -3052,7 +3052,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar, bool 
  */
 void ED_view3d_draw_offscreen(Scene *scene, View3D *v3d, ARegion *ar, int winx, int winy,
                               float viewmat[4][4], float winmat[4][4],
-                              bool do_bgpic, bool do_sky, GPUFX *fx, bool is_persp, GPUOffScreen *ofs, GPUFXOptions *fxoptions, eGPUFxFlags fxflags)
+                              bool do_bgpic, bool do_sky, GPUFX *fx, bool is_persp, GPUOffScreen *ofs, GPUFXOptions *fxoptions, eGPUFXFlags fxflags)
 {
 	struct bThemeState theme_state;
 	int bwinx, bwiny;
@@ -3507,7 +3507,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 	if (v3d->shader_fx) {
 		GPUFXOptions options;
 		BKE_screen_view3d_ensure_FX(v3d);
-		options = *v3d->fxoptions;
+		options = v3d->fxoptions;
 		if (!rv3d->compositor)
 			rv3d->compositor = GPU_create_fx_compositor();
 		

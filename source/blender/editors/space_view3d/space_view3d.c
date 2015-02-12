@@ -420,13 +420,10 @@ static void view3d_free(SpaceLink *sl)
 		MEM_freeN(vd->defmaterial);
 	}
 
-	if (vd->fxoptions) {
-		MEM_freeN(vd->fxoptions->dof_options);
-		if (vd->fxoptions->ssao_options)
-			MEM_freeN(vd->fxoptions->ssao_options);
-		if (vd->fxoptions->dof_options)
-			MEM_freeN(vd->fxoptions);
-	}
+		if (vd->fxoptions.ssao_options)
+			MEM_freeN(vd->fxoptions.ssao_options);
+		if (vd->fxoptions.dof_options)
+			MEM_freeN(vd->fxoptions.dof_options);
 }
 
 
@@ -468,12 +465,10 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
 	}
 
 	v3dn->properties_storage = NULL;
-	if (v3do->fxoptions)
-	{
-		v3dn->fxoptions = MEM_callocN(sizeof(GPUFXOptions), "view3d fx options");
-		v3dn->fxoptions->dof_options = MEM_dupallocN(v3do->fxoptions->dof_options);
-		v3dn->fxoptions->ssao_options = MEM_dupallocN(v3do->fxoptions->ssao_options);
-	}
+	if (v3dn->fxoptions.dof_options)
+		v3dn->fxoptions.dof_options = MEM_dupallocN(v3do->fxoptions.dof_options);
+	if (v3dn->fxoptions.ssao_options)
+		v3dn->fxoptions.ssao_options = MEM_dupallocN(v3do->fxoptions.ssao_options);
 
 	return (SpaceLink *)v3dn;
 }
