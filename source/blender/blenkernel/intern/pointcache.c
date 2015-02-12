@@ -141,7 +141,17 @@ static int ptcache_extra_datasize[] = {
 	sizeof(ParticleSpring)
 };
 
+/* Point cache clearing option, for ptcache_clear_intern, before
+ * and after are non inclusive (they wont remove the cfra) */
+typedef enum ePointCache_ClearMode {
+	PTCACHE_CLEAR_ALL       = 0,
+	PTCACHE_CLEAR_FRAME     = 1,
+	PTCACHE_CLEAR_BEFORE    = 2, /* unused */
+	PTCACHE_CLEAR_AFTER     = 3,
+} ePointCache_ClearMode;
+
 /* forward declerations */
+static void ptcache_clear_intern(PTCacheID *pid, ePointCache_ClearMode mode, unsigned int cfra);
 static int ptcache_file_compressed_read(PTCacheFile *pf, unsigned char *result, unsigned int len);
 static int ptcache_file_compressed_write(PTCacheFile *pf, unsigned char *in, unsigned int in_len, unsigned char *out, int mode);
 static int ptcache_file_write(PTCacheFile *pf, const void *f, unsigned int tot, unsigned int size);
@@ -2005,7 +2015,7 @@ static int ptcache_mem_frame_to_disk(PTCacheID *pid, PTCacheMem *pm)
 	PTCacheFile *pf = NULL;
 	unsigned int i, error = 0;
 	
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_FRAME, pm->frame);
+	ptcache_clear_intern(pid, PTCACHE_CLEAR_FRAME, pm->frame);
 
 	pf = ptcache_file_open(pid, PTCACHE_FILE_WRITE, pm->frame);
 
@@ -2285,13 +2295,13 @@ int BKE_ptcache_read(PTCacheID *pid, float cfra)
 	cfrai = (int)cfra;
 	/* clear invalid cache frames so that better stuff can be simulated */
 	if (cache->state.flag & PTC_STATE_OUTDATED) {
-		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, cfrai);
+		BKE_ptcache_truncate(pid, cfrai);
 	}
 	else if (cache->state.flag & PTC_STATE_FRAMES_SKIPPED) {
 		if (cfra <= cache->state.last_exact)
 			cache->state.flag &= ~PTC_STATE_FRAMES_SKIPPED;
 
-		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, MAX2(cfrai, cache->state.last_exact));
+		BKE_ptcache_truncate(pid, MAX2(cfrai, cache->state.last_exact));
 	}
 
 	return ret;
@@ -2301,7 +2311,7 @@ static int ptcache_write_stream(PTCacheID *pid, int cfra, int totpoint)
 	PTCacheFile *pf = NULL;
 	int error = 0;
 	
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_FRAME, cfra);
+	ptcache_clear_intern(pid, PTCACHE_CLEAR_FRAME, cfra);
 
 	pf = ptcache_file_open(pid, PTCACHE_FILE_WRITE, cfra);
 
@@ -2396,7 +2406,7 @@ static int ptcache_write_needed(PTCacheID *pid, int cfra, int *overwrite)
 
 	/* always start from scratch on the first frame */
 	if (cfra && cfra == cache->startframe) {
-		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, cfra);
+		BKE_ptcache_clear(pid);
 		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 		return 1;
 	}
@@ -2416,7 +2426,7 @@ static int ptcache_write_needed(PTCacheID *pid, int cfra, int *overwrite)
 	if (efra >= cache->startframe && cfra > efra) {
 		if (ofra >= cache->startframe && efra - ofra < cache->step) {
 			/* overwrite previous frame */
-			BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_FRAME, efra);
+			ptcache_clear_intern(pid, PTCACHE_CLEAR_FRAME, efra);
 			*overwrite = 1;
 		}
 		return 1;
@@ -2466,7 +2476,7 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
  */
 
 /* Clears & resets */
-void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
+static void ptcache_clear_intern(PTCacheID *pid, ePointCache_ClearMode mode, unsigned int cfra)
 {
 	unsigned int len; /* store the length of the string */
 	unsigned int sta, end;
@@ -2567,6 +2577,17 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 
 	BKE_ptcache_update_info(pid);
 }
+
+void BKE_ptcache_clear(PTCacheID *pid)
+{
+	ptcache_clear_intern(pid, PTCACHE_CLEAR_ALL, 0);
+}
+
+void BKE_ptcache_truncate(PTCacheID *pid, int lastframe)
+{
+	ptcache_clear_intern(pid, PTCACHE_CLEAR_AFTER, lastframe);
+}
+
 int  BKE_ptcache_id_exist(PTCacheID *pid, int cfra)
 {
 	char filename[MAX_PTCACHE_FILE];
@@ -2718,9 +2739,9 @@ int  BKE_ptcache_id_reset(Scene *scene, PTCacheID *pid, int mode)
 	}
 
 	if (clear)
-		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+		BKE_ptcache_clear(pid);
 	else if (after)
-		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, CFRA);
+		BKE_ptcache_truncate(pid, CFRA);
 
 	return (reset || clear || after);
 }
@@ -2927,7 +2948,7 @@ void BKE_ptcache_to_mem(PTCacheID *pid, ListBase *mem_cache)
 	int cfra, sfra = cache->startframe, efra = cache->endframe;
 
 	/* PTCACHE_DISK_CACHE flag was cleared already */
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+	BKE_ptcache_clear(pid);
 
 	for (cfra=sfra; cfra <= efra; cfra++) {
 		pm = ptcache_disk_frame_to_mem(pid, cfra);
@@ -2941,7 +2962,7 @@ void BKE_ptcache_from_mem(PTCacheID *pid, ListBase *mem_cache)
 	PTCacheMem *pm = mem_cache->first;
 
 	/* PTCACHE_DISK_CACHE flag was set already */
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+	BKE_ptcache_clear(pid);
 
 	for (; pm; pm=pm->next) {
 		if (ptcache_mem_frame_to_disk(pid, pm)==0)

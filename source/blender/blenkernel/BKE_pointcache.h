@@ -38,15 +38,6 @@
 #include "DNA_boid_types.h"
 #include <stdio.h> /* for FILE */
 
-/* Point cache clearing option, for BKE_ptcache_id_clear, before
- * and after are non inclusive (they wont remove the cfra) */
-typedef enum ePointCache_ClearMode {
-	PTCACHE_CLEAR_ALL       = 0,
-	PTCACHE_CLEAR_FRAME     = 1,
-	PTCACHE_CLEAR_BEFORE    = 2,
-	PTCACHE_CLEAR_AFTER     = 3,
-} ePointCache_ClearMode;
-
 /* Point cache reset options */
 typedef enum ePointCache_ResetMode {
 	PTCACHE_RESET_DEPSGRAPH     = 0,
@@ -258,8 +249,10 @@ void BKE_ptcache_ids_from_object(struct ListBase *lb, struct Object *ob, struct 
 /***************** Global funcs ****************************/
 void BKE_ptcache_remove(void);
 
+void BKE_ptcache_clear(struct PTCacheID *pid);
+void BKE_ptcache_truncate(struct PTCacheID *pid, int lastframe);
+
 /************ ID specific functions ************************/
-void    BKE_ptcache_id_clear(PTCacheID *id, int mode, unsigned int cfra);
 int     BKE_ptcache_id_exist(PTCacheID *id, int cfra);
 int     BKE_ptcache_id_reset(struct Scene *scene, PTCacheID *id, int mode);
 void    BKE_ptcache_id_time(PTCacheID *pid, struct Scene *scene, float cfra, int *startframe, int *endframe, float *timescale);

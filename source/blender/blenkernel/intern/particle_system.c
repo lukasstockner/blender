@@ -3796,7 +3796,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		sim->psmd->flag |= eParticleSystemFlag_Pars;
 
 		/* XXX needs stitcher implementation to copy over previous samples */
-//		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, cfra);
+//		BKE_ptcache_truncate(pid, cfra);
 	}
 
 /* 2. try to read from the cache */
@@ -3919,7 +3919,7 @@ void psys_changed_type(Object *ob, ParticleSystem *psys)
 		CLAMP(part->path_end, 0.0f, 100.0f);
 
 		/* XXX TODO */
-//		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
+//		BKE_ptcache_clear(&pid);
 	}
 	else {
 		free_hair(ob, psys, 1);
@@ -3981,7 +3981,7 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 		/* XXX TODO */
 //		PTCacheID pid;
 //		BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
-//		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
+//		BKE_ptcache_clear(&pid);
 	}
 	else {
 		free_keyed_keys(sim->psys);
