@@ -49,6 +49,8 @@
 
 #include "BPH_mass_spring.h"
 
+#include "PTC_api.h"
+
 // #include "PIL_time.h"  /* timing for debug prints */
 
 /* ********** cloth engine ******* */
@@ -306,20 +308,14 @@ void bvhselftree_update_from_cloth(ClothModifierData *clmd, int moving)
 
 static int do_init_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *result, int framenr)
 {
-	PointCache *cache;
-
-	cache= clmd->point_cache;
-
 	/* initialize simulation data if it didn't exist already */
 	if (clmd->clothObject == NULL) {
 		if (!cloth_from_object(ob, clmd, result, framenr, 1)) {
-			BKE_ptcache_invalidate(cache);
 			modifier_setError(&(clmd->modifier), "Can't initialize cloth");
 			return 0;
 		}
 	
 		if (clmd->clothObject == NULL) {
-			BKE_ptcache_invalidate(cache);
 			modifier_setError(&(clmd->modifier), "Null cloth object");
 			return 0;
 		}
@@ -436,28 +432,22 @@ static DerivedMesh *cloth_to_triangles(DerivedMesh *dm)
 void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*vertexCos)[3])
 {
 	PointCache *cache;
-	PTCacheID pid;
-	float timescale;
 	int framenr, startframe, endframe;
-	int cache_result;
+	PTCReadSampleResult cache_result;
+	struct PTCReader *cache_reader;
 
 	clmd->scene= scene;	/* nice to pass on later :) */
 	framenr= (int)scene->r.cfra;
 	cache= clmd->point_cache;
 
-	BKE_ptcache_id_from_cloth(&pid, ob, clmd);
-	BKE_ptcache_id_time(&pid, scene, framenr, &startframe, &endframe, &timescale);
-	clmd->sim_parms->timescale= timescale;
+	cache_reader = PTC_reader_cloth(scene, ob, clmd);
+	PTC_reader_get_frame_range(cache_reader, &startframe, &endframe);
+
+	clmd->sim_parms->timescale = 1.0f;
 
 	if (clmd->sim_parms->reset || (clmd->clothObject && dm->getNumVerts(dm) != clmd->clothObject->numverts)) {
 		clmd->sim_parms->reset = 0;
 		cloth_free_modifier(clmd);
-		
-		cache->state.flag |= PTC_STATE_OUTDATED;
-		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		BKE_ptcache_validate(cache, 0);
-		cache->state.last_exact= 0;
-		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 	}
 	
 	// unused in the moment, calculated separately in implicit.c
@@ -465,7 +455,6 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 
 	/* simulation is only active during a specific period */
 	if (framenr < startframe) {
-		BKE_ptcache_invalidate(cache);
 		return;
 	}
 	else if (framenr > endframe) {
@@ -479,52 +468,36 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	if (framenr == startframe) {
 		cloth_free_modifier(clmd);
 
-		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		BKE_ptcache_validate(cache, framenr);
-		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
-
 		do_init_cloth(ob, clmd, dm, framenr);
 		clmd->clothObject->last_frame= framenr;
 		return;
 	}
 
 	/* try to read from cache */
-	cache_result = BKE_ptcache_read(&pid, (float)framenr+scene->r.subframe);
+	cache_result = PTC_read_sample(cache_reader, (float)framenr+scene->r.subframe);
 
-	if (cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED) {
+	if (ELEM(cache_result, PTC_READ_SAMPLE_EXACT, PTC_READ_SAMPLE_INTERPOLATED)) {
 		BKE_cloth_solver_set_positions(clmd);
 		cloth_to_object (ob, clmd, vertexCos);
-
-		BKE_ptcache_validate(cache, framenr);
-
-		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->state.flag & PTC_STATE_REDO_NEEDED)
-			BKE_ptcache_write(&pid, framenr);
 
 		clmd->clothObject->last_frame= framenr;
 
 		return;
 	}
-	else if (cache_result==PTCACHE_READ_OLD) {
+	else if (cache_result == PTC_READ_SAMPLE_LATE) {
 		BKE_cloth_solver_set_positions(clmd);
 	}
 
 	if (framenr!=clmd->clothObject->last_frame+1)
 		return;
 
-	/* if on second frame, write cache for first frame */
-	if (cache->state.simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact==0))
-		BKE_ptcache_write(&pid, startframe);
-
 	clmd->sim_parms->timescale *= framenr - cache->state.simframe;
 
 	/* do simulation */
-	BKE_ptcache_validate(cache, framenr);
-
 	if (!do_step_cloth(ob, clmd, dm, framenr)) {
-		BKE_ptcache_invalidate(cache);
 	}
-	else
-		BKE_ptcache_write(&pid, framenr);
+	else {
+	}
 
 	cloth_to_object (ob, clmd, vertexCos);
 	clmd->clothObject->last_frame= framenr;
