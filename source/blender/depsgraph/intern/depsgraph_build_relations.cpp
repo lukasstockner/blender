@@ -1298,6 +1298,18 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 
 void DepsgraphRelationBuilder::build_proxy_rig(Scene *scene, Object *ob)
 {
+	OperationKey pose_init_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_INIT);
+	OperationKey pose_done_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_DONE);
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
+	     pchan != NULL;
+	     pchan = pchan->next)
+	{
+		OperationKey bone_ready_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_READY);
+		OperationKey bone_done_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_DONE);
+		add_relation(pose_init_key, bone_ready_key, DEPSREL_TYPE_OPERATION, "Pose Init -> Bone Ready");
+		add_relation(bone_ready_key, bone_done_key, DEPSREL_TYPE_OPERATION, "Ready -> Done");
+		add_relation(bone_done_key, pose_done_key, DEPSREL_TYPE_OPERATION, "Bone Done -> Pose Done");
+	}
 }
 
 /* Shapekeys */

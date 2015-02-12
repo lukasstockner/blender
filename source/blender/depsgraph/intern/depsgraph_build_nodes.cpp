@@ -656,9 +656,28 @@ void DepsgraphNodeBuilder::build_proxy_rig(Scene *scene, Object *ob)
 {
 	add_operation_node(&ob->id,
 	                   DEPSNODE_TYPE_EVAL_POSE,
-	                   DEPSOP_TYPE_EXEC,
+	                   DEPSOP_TYPE_INIT,
 	                   function_bind(BKE_pose_eval_proxy_copy, _1, ob),
-	                   DEG_OPCODE_POSE_PROXY_COPY);
+	                   DEG_OPCODE_POSE_INIT);
+
+	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first;
+	     pchan != NULL;
+	     pchan = pchan->next)
+	{
+		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+		                   DEPSOP_TYPE_INIT, NULL,
+		                   DEG_OPCODE_BONE_READY);
+
+		add_operation_node(&ob->id, DEPSNODE_TYPE_BONE, pchan->name,
+		                   DEPSOP_TYPE_POST, NULL,
+		                   DEG_OPCODE_BONE_DONE);
+	}
+
+	add_operation_node(&ob->id,
+	                   DEPSNODE_TYPE_EVAL_POSE,
+	                   DEPSOP_TYPE_POST,
+	                   NULL,
+	                   DEG_OPCODE_POSE_DONE);
 }
 
 /* Shapekeys */
