@@ -38,7 +38,7 @@ struct DepsgraphCopyContext;
 typedef enum eDepsOperation_Flag {
 	/* node needs to be updated */
 	DEPSOP_FLAG_NEEDS_UPDATE       = (1 << 0),
-	
+
 	/* node was directly modified, causing need for update */
 	/* XXX: intention is to make it easier to tell when we just need to take subgraphs */
 	DEPSOP_FLAG_DIRECTLY_MODIFIED  = (1 << 1),
@@ -49,34 +49,34 @@ typedef enum eDepsOperation_Flag {
 
 /* Atomic Operation - Base type for all operations */
 struct OperationDepsNode : public DepsNode {
-	
-	
+
+
 	OperationDepsNode();
 	~OperationDepsNode();
-	
+
 	string identifier() const;
-	
+
 	void tag_update(Depsgraph *graph);
-	
+
 	bool is_noop() const { return (bool)evaluate == false; }
 
 	OperationDepsNode *get_entry_operation() { return this; }
 	OperationDepsNode *get_exit_operation() { return this; }
 
 	ComponentDepsNode *owner;     /* component that contains the operation */
-	
+
 	DepsEvalOperationCb evaluate; /* callback for operation */
-	
-	
+
+
 	uint32_t num_links_pending; /* how many inlinks are we still waiting on before we can be evaluated... */
 	float eval_priority;
 	bool scheduled;
-	
+
 	short optype;                 /* (eDepsOperation_Type) stage of evaluation */
-	int   opcode;                 /* (eDepsOperation_Code) identifier for the operation being performed */	
-	
+	int   opcode;                 /* (eDepsOperation_Code) identifier for the operation being performed */
+
 	int flag;                     /* (eDepsOperation_Flag) extra settings affecting evaluation */
-	
+
 	DEG_DEPSNODE_DECLARE;
 };
 

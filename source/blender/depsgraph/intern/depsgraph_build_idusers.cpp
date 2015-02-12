@@ -113,46 +113,46 @@ void DepsgraphIDUsersBuilder::build_scene(Scene *scene)
 	if (scene->set) {
 		// XXX: how?
 	}
-	
+
 	/* scene objects */
 	for (Base *base = (Base *)scene->base.first; base; base = base->next) {
 		Object *ob = base->object;
 		build_object(scene, ob);
 	}
-	
+
 	/* world */
 	if (scene->world) {
 		//build_world(scene->world);
 	}
-	
+
 	/* compo nodes */
 	if (scene->nodetree) {
 		//build_compositor(scene);
 	}
-	
+
 	// XXX: scene's other data
 }
 
 void DepsgraphIDUsersBuilder::build_object(Scene *scene, Object *ob)
 {
 	ID *ob_id = &ob->id;
-	
+
 	/* object -> scene */
 	add_relation(ob_id, &scene->id, DEPSREL_TYPE_DATABLOCK, "Scene Object");
-	
+
 	/* object animation */
 	//build_animdata(&ob->id);
-	
+
 	/* object datablock */
 	if (ob->data) {
 		ID *obdata_id = (ID *)ob->data;
-		
+
 		/* obdata -> object */
 		add_relation(obdata_id, ob_id, DEPSREL_TYPE_DATABLOCK, "Object Data");
-		
+
 		/* ob data animation */
 		//build_animdata(obdata_id);
-		
+
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -164,31 +164,31 @@ void DepsgraphIDUsersBuilder::build_object(Scene *scene, Object *ob)
 			{
 				/* obdata -> geometry (i.e. shapekeys) */
 				//build_obdata_geom(scene, ob);
-				
+
 				/* materials */
-				
+
 				/* modifiers */
 			}
 			break;
-			
-			
+
+
 			case OB_ARMATURE: /* Pose */
 				/* rig -> custom shapes? */
 				//build_rig(scene, ob);
 				break;
-			
+
 			case OB_LAMP:   /* Lamp */
 				//build_lamp(ob);
 				break;
-				
+
 			case OB_CAMERA: /* Camera */
 				//build_camera(ob);
 				break;
 		}
 	}
-	
+
 	/* proxy */
-	
+
 	/* dupligroups? */
 }
 

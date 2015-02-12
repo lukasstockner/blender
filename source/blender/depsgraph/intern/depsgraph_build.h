@@ -60,13 +60,13 @@ struct RootPChanMap;
 struct DepsgraphNodeBuilder {
 	DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph);
 	~DepsgraphNodeBuilder();
-	
+
 	RootDepsNode *add_root_node();
 	IDDepsNode *add_id_node(ID *id);
 	TimeSourceDepsNode *add_time_source(ID *id);
-	
+
 	ComponentDepsNode *add_component_node(ID *id, eDepsNode_Type comp_type, const string &comp_name = "");
-	
+
 	OperationDepsNode *add_operation_node(ComponentDepsNode *comp_node, eDepsOperation_Type optype,
 	                                      DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &description = "");
 	OperationDepsNode *add_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name, eDepsOperation_Type optype,
@@ -76,7 +76,7 @@ struct DepsgraphNodeBuilder {
 	{
 		return add_operation_node(id, comp_type, "", optype, op, opcode, description);
 	}
-	
+
 	void build_scene(Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
 	void build_group(Group *group);
@@ -103,7 +103,7 @@ struct DepsgraphNodeBuilder {
 	void build_world(World *world);
 	void build_compositor(Scene *scene);
 	void build_gpencil(bGPdata *gpd);
-	
+
 private:
 	Main *m_bmain;
 	Depsgraph *m_graph;
@@ -118,12 +118,12 @@ struct TimeSourceKey
 {
 	TimeSourceKey() : id(NULL) {}
 	TimeSourceKey(ID *id) : id(id) {}
-	
+
 	string identifier() const
 	{
 		return string("TimeSourceKey");
 	}
-	
+
 	ID *id;
 };
 
@@ -135,17 +135,17 @@ struct ComponentKey
 	ComponentKey(ID *id, eDepsNode_Type type, const string &name = "") :
 	    id(id), type(type), name(name)
 	{}
-	
+
 	string identifier() const
 	{
 		const char *idname = (id) ? id->name : "<None>";
-		
+
 		char typebuf[5];
 		sprintf(typebuf, "%d", type);
-		
+
 		return string("ComponentKey(") + idname + ", " + typebuf + ", '" + name + "')";
 	}
-	
+
 	ID *id;
 	eDepsNode_Type type;
 	string name;
@@ -153,40 +153,40 @@ struct ComponentKey
 
 struct OperationKey
 {
-	OperationKey() : 
+	OperationKey() :
 	    id(NULL), component_type(DEPSNODE_TYPE_UNDEFINED), component_name(""), opcode(DEG_OPCODE_OPERATION), name("")
 	{}
-	
+
 	OperationKey(ID *id, eDepsNode_Type component_type, const string &name) :
 	    id(id), component_type(component_type), component_name(""), opcode(DEG_OPCODE_OPERATION), name(name)
 	{}
 	OperationKey(ID *id, eDepsNode_Type component_type, const string &component_name, const string &name) :
 	    id(id), component_type(component_type), component_name(component_name), opcode(DEG_OPCODE_OPERATION), name(name)
 	{}
-	
+
 	OperationKey(ID *id, eDepsNode_Type component_type, eDepsOperation_Code opcode) :
 	    id(id), component_type(component_type), component_name(""), opcode(opcode), name("")
 	{}
 	OperationKey(ID *id, eDepsNode_Type component_type, const string &component_name, eDepsOperation_Code opcode) :
 	    id(id), component_type(component_type), component_name(component_name), opcode(opcode), name("")
 	{}
-	
+
 	OperationKey(ID *id, eDepsNode_Type component_type, eDepsOperation_Code opcode, const string &name) :
 	    id(id), component_type(component_type), component_name(""), opcode(opcode), name(name)
 	{}
 	OperationKey(ID *id, eDepsNode_Type component_type, const string &component_name, eDepsOperation_Code opcode, const string &name) :
 	    id(id), component_type(component_type), component_name(component_name), opcode(opcode), name(name)
 	{}
-	
+
 	string identifier() const
 	{
 		char typebuf[5];
 		sprintf(typebuf, "%d", component_type);
-		
+
 		return string("OperationKey(") + "t: " + typebuf + ", cn: '" + component_name + "', c: " + DEG_OPNAMES[opcode] + ", n: '" + name + "')";
 	}
-	
-	
+
+
 	ID *id;
 	eDepsNode_Type component_type;
 	string component_name;
@@ -198,29 +198,29 @@ struct RNAPathKey
 {
 	// Note: see depsgraph_build.cpp for implementation
 	RNAPathKey(ID *id, const string &path);
-	
+
 	RNAPathKey(ID *id, const PointerRNA &ptr, PropertyRNA *prop) :
 	    id(id), ptr(ptr), prop(prop)
 	{}
-	
+
 	string identifier() const
 	{
 		const char *id_name   = (id) ?  id->name : "<No ID>";
 		const char *prop_name = (prop) ? RNA_property_identifier(prop) : "<No Prop>";
-		
+
 		return string("RnaPathKey(") + "id: " + id_name + ", prop: " + prop_name +  "')";
 	}
-	
-	
+
+
 	ID *id;
 	PointerRNA ptr;
 	PropertyRNA *prop;
 };
 
-struct DepsgraphRelationBuilder 
+struct DepsgraphRelationBuilder
 {
 	DepsgraphRelationBuilder(Depsgraph *graph);
-	
+
 	template <typename KeyFrom, typename KeyTo>
 	void add_relation(const KeyFrom &key_from, const KeyTo &key_to,
 	                  eDepsRelation_Type type, const string &description);
@@ -232,11 +232,11 @@ struct DepsgraphRelationBuilder
 	template <typename KeyType>
 	void add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
 	                              eDepsRelation_Type type, const string &description);
-	
+
 	void build_scene(Scene *scene);
 	void build_object(Scene *scene, Object *ob);
 	void build_object_parent(Object *ob);
-	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata, 
+	void build_constraints(Scene *scene, ID *id, eDepsNode_Type component_type, const char *component_subdata,
 	                       ListBase *constraints, RootPChanMap *root_map);
 	void build_animdata(ID *id);
 	void build_driver(ID *id, FCurve *fcurve);
@@ -257,47 +257,47 @@ struct DepsgraphRelationBuilder
 	void build_texture_stack(ID *owner, MTex **texture_stack);
 	void build_compositor(Scene *scene);
 	void build_gpencil(ID *owner, bGPdata *gpd);
-	
+
 protected:
 	RootDepsNode *find_node(const RootKey &key) const;
 	TimeSourceDepsNode *find_node(const TimeSourceKey &key) const;
 	ComponentDepsNode *find_node(const ComponentKey &key) const;
 	OperationDepsNode *find_node(const OperationKey &key) const;
 	DepsNode *find_node(const RNAPathKey &key) const;
-	
+
 	void add_time_relation(TimeSourceDepsNode *timesrc, DepsNode *node_to, const string &description);
 	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
 	                            eDepsRelation_Type type, const string &description);
-	
+
 	template <typename KeyType>
 	DepsNodeHandle create_node_handle(const KeyType &key, const string &default_name = "");
-	
+
 private:
 	Depsgraph *m_graph;
 };
 
 struct DepsgraphIDUsersBuilder {
 	DepsgraphIDUsersBuilder(Depsgraph *graph);
-	
+
 	void add_relation(const ID *from_id, const ID *to_id,
 	                  eDepsRelation_Type type, const string &description);
-	
+
 	void build_scene(Scene *scene);
 	void build_object(Scene *scene, Object *ob);
-	
+
 private:
 	Depsgraph *m_graph;
 };
 
 
-struct DepsNodeHandle 
+struct DepsNodeHandle
 {
 	DepsNodeHandle(DepsgraphRelationBuilder *builder, OperationDepsNode *node, const string &default_name = "") :
 	    builder(builder),
 	    node(node),
 	    default_name(default_name)
 	{}
-	
+
 	DepsgraphRelationBuilder *builder;
 	OperationDepsNode *node;
 	const string &default_name;

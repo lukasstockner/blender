@@ -63,20 +63,20 @@ void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode 
 #if 0 // XXX: remove all this
 	/* duplicate list of operation nodes */
 	this->operations.clear();
-	
+
 	for (OperationMap::const_iterator it = src->operations.begin(); it != src->operations.end(); ++it) {
 		const string &pchan_name = it->first;
 		OperationDepsNode *src_op = it->second;
-		
+
 		/* recursive copy */
 		DepsNodeFactory *factory = DEG_node_get_factory(src_op);
 		OperationDepsNode *dst_op = (OperationDepsNode *)factory->copy_node(dcc, src_op);
 		this->operations[pchan_name] = dst_op;
-			
+
 		/* fix links... */
 		// ...
 	}
-	
+
 	/* copy evaluation contexts */
 	//
 #endif
@@ -91,17 +91,17 @@ ComponentDepsNode::~ComponentDepsNode()
 string ComponentDepsNode::identifier() const
 {
 	string &idname = this->owner->name;
-	
+
 	char typebuf[7];
 	sprintf(typebuf, "(%d)", type);
-	
+
 	return string(typebuf) + name + " : " + idname;
 }
 
 OperationDepsNode *ComponentDepsNode::find_operation(OperationIDKey key) const
 {
 	OperationMap::const_iterator it = this->operations.find(key);
-	
+
 	if (it != this->operations.end()) {
 		return it->second;
 	}
@@ -141,11 +141,11 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 	if (!op_node) {
 		DepsNodeFactory *factory = DEG_get_node_factory(DEPSNODE_TYPE_OPERATION);
 		op_node = (OperationDepsNode *)factory->create_node(this->owner->id, "", name);
-		
+
 		/* register opnode in this component's operation set */
 		OperationIDKey key(opcode, name);
 		this->operations[key] = op_node;
-		
+
 		/* set as entry/exit node of component (if appropriate) */
 		if (optype == DEPSOP_TYPE_INIT) {
 			BLI_assert(this->entry_operation == NULL);
@@ -156,7 +156,7 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 			BLI_assert(this->exit_operation == NULL);
 			this->exit_operation = op_node;
 		}
-		
+
 		/* set backlink */
 		op_node->owner = this;
 	}
@@ -165,13 +165,13 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 		fprintf(stderr, "add_operation: Operation already exists - %s has %s at %p\n",
 		        this->identifier().c_str(), op_node->identifier().c_str(), op_node);
 	}
-	
+
 	/* attach extra data */
 	op_node->evaluate = op;
 	op_node->optype = optype;
 	op_node->opcode = opcode;
 	op_node->name = name;
-	
+
 	return op_node;
 }
 
@@ -266,13 +266,13 @@ void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 {
 	/* generic component-node... */
 	ComponentDepsNode::init(id, subdata);
-	
+
 	/* name of component comes is bone name */
 	/* TODO(sergey): This sets name to an empty string because subdata is
 	 * empty. Is it a bug?
 	 */
 	//this->name = subdata;
-	
+
 	/* bone-specific node data */
 	Object *ob = (Object *)id;
 	this->pchan = BKE_pose_channel_find_name(ob->pose, subdata.c_str());
@@ -302,10 +302,10 @@ void DEG_register_component_depsnodes()
 	DEG_register_node_typeinfo(&DNTI_TRANSFORM);
 	DEG_register_node_typeinfo(&DNTI_GEOMETRY);
 	DEG_register_node_typeinfo(&DNTI_SEQUENCER);
-	
+
 	DEG_register_node_typeinfo(&DNTI_EVAL_POSE);
 	DEG_register_node_typeinfo(&DNTI_BONE);
-	
+
 	DEG_register_node_typeinfo(&DNTI_EVAL_PARTICLES);
 	DEG_register_node_typeinfo(&DNTI_SHADING);
 }

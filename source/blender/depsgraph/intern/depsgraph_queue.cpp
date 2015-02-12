@@ -46,17 +46,17 @@ extern "C" {
 DepsgraphQueue *DEG_queue_new(void)
 {
 	DepsgraphQueue *q = (DepsgraphQueue *)MEM_callocN(sizeof(DepsgraphQueue), "DEG_queue_new()");
-	
+
 	/* init data structures for use here */
 	q->pending_heap = BLI_heap_new();
 	q->pending_hash = BLI_ghash_ptr_new("DEG Queue Pending Hash");
-	
+
 	q->ready_heap   = BLI_heap_new();
-	
+
 	/* init settings */
 	q->idx = 0;
 	q->tot = 0;
-	
+
 	/* return queue */
 	return q;
 }
@@ -67,11 +67,11 @@ void DEG_queue_free(DepsgraphQueue *q)
 	BLI_assert(BLI_heap_size(q->pending_heap) == 0);
 	BLI_assert(BLI_heap_size(q->ready_heap) == 0);
 	BLI_assert(BLI_ghash_size(q->pending_hash) == 0);
-	
+
 	BLI_heap_free(q->pending_heap, NULL);
 	BLI_heap_free(q->ready_heap, NULL);
 	BLI_ghash_free(q->pending_hash, NULL, NULL);
-	
+
 	/* free queue itself */
 	MEM_freeN(q);
 }
@@ -107,7 +107,7 @@ bool DEG_queue_is_empty(DepsgraphQueue *q)
 /* Add DepsNode to the queue
  * < dnode: (DepsNode *) node to add to the queue
  *          Each node is only added once to the queue; Subsequent pushes
- *          merely update its status (e.g. moving it from "pending" to "ready") 
+ *          merely update its status (e.g. moving it from "pending" to "ready")
  * < cost:  (float) new "num_links_pending" count for node *after* it has encountered
  *          via an outlink from the node currently being visited
  *          (i.e. we're one of the dependencies which may now be able
@@ -116,7 +116,7 @@ bool DEG_queue_is_empty(DepsgraphQueue *q)
 void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 {
 	HeapNode *hnode = NULL;
-	
+
 	/* Shortcut: Directly add to ready if node isn't waiting on anything now... */
 	if (cost == 0) {
 		/* node is now ready to be visited - schedule it up for such */
@@ -124,16 +124,16 @@ void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 			/* remove from pending queue - we're moving it to the scheduling queue */
 			hnode = (HeapNode *)BLI_ghash_lookup(q->pending_hash, dnode);
 			BLI_heap_remove(q->pending_heap, hnode);
-			
+
 			BLI_ghash_remove(q->pending_hash, dnode, NULL, NULL);
 		}
-		
+
 		/* schedule up node using latest count (of ready nodes) */
 		BLI_heap_insert(q->ready_heap, (float)q->idx, dnode);
 		q->idx++;
 	}
 	else {
-		/* node is still waiting on some other ancestors, 
+		/* node is still waiting on some other ancestors,
 		 * so add it to the pending heap in the meantime...
 		 */
 		// XXX: is this even necessary now?
@@ -154,7 +154,7 @@ void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 /* Grab a "ready" node from the queue */
 void *DEG_queue_pop(DepsgraphQueue *q)
 {
-	/* sanity check: if there are no "ready" nodes, 
+	/* sanity check: if there are no "ready" nodes,
 	 * start pulling from "pending" to keep things moving,
 	 * but throw a warning so that we know that something's up here...
 	 */
@@ -163,10 +163,10 @@ void *DEG_queue_pop(DepsgraphQueue *q)
 		// XXX: if/when it does happen, we may want instead to just wait until something pops up here...
 		printf("DepsgraphHeap Warning: No more ready nodes available. Trying from pending (idx = %d, tot = %d, pending = %d, ready = %d)\n",
 		       (int)q->idx, (int)q->tot, (int)DEG_queue_num_pending(q), (int)DEG_queue_num_ready(q));
-		
+
 		return BLI_heap_popmin(q->pending_heap);
 	}
-	else {	
+	else {
 		/* only grab "ready" nodes */
 		return BLI_heap_popmin(q->ready_heap);
 	}

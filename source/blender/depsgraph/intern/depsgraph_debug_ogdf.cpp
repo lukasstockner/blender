@@ -179,7 +179,7 @@ static const char *deg_debug_ogdf_node_color(const DebugContext &ctx, const Deps
 	const int color_index = deg_debug_node_color_index(node);
 	const char *defaultcolor = "#DCDCDC";
 	const char *fillcolor = (color_index < 0) ? defaultcolor : deg_debug_colors_light[color_index % deg_debug_max_colors];
-	
+
 	return fillcolor;
 }
 
@@ -192,7 +192,7 @@ static void deg_debug_ogdf_owner_relations(const DebugContext &ctx,
 	/* Node ownership hierarchy */
 	ogdf::node head_node = ctx.node_map[parent];
 	ogdf::node tail_node = ctx.node_map[child];
-	
+
 	ogdf::edge e = ctx.G->newEdge(head_node, tail_node);
 
 	//ctx.GA->arrowEdge(e) = ogdf::GraphAttributes::EdgeArrow::last;
@@ -240,14 +240,14 @@ static void deg_debug_ogdf_node(const DebugContext &ctx, const DepsNode *node)
 			}
 			else {
 				deg_debug_ogdf_node_single(ctx, node);
-				
+
 				for (IDDepsNode::ComponentMap::const_iterator it = id_node->components.begin();
 					it != id_node->components.end();
 					++it)
 				{
 					const ComponentDepsNode *comp = it->second;
 					deg_debug_ogdf_node(ctx, comp);
-					
+
 					deg_debug_ogdf_owner_relations(ctx, node, comp);
 				}
 			}
@@ -279,14 +279,14 @@ static void deg_debug_ogdf_node(const DebugContext &ctx, const DepsNode *node)
 			ComponentDepsNode *comp_node = (ComponentDepsNode *)node;
 			if (!comp_node->operations.empty()) {
 				deg_debug_ogdf_node_single(ctx, node);
-				
+
 				for (ComponentDepsNode::OperationMap::const_iterator it = comp_node->operations.begin();
 					it != comp_node->operations.end();
 					++it)
 				{
 					const DepsNode *op_node = it->second;
 					deg_debug_ogdf_node(ctx, op_node);
-					
+
 					deg_debug_ogdf_owner_relations(ctx, node, op_node);
 				}
 			}
@@ -426,13 +426,13 @@ static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
 	ogdf::SugiyamaLayout SL;
     SL.setRanking(new ogdf::OptimalRanking);
     SL.setCrossMin(new ogdf::MedianHeuristic);
- 
+
     ogdf::OptimalHierarchyLayout *ohl = new ogdf::OptimalHierarchyLayout;
     ohl->layerDistance(30.0);
     ohl->nodeDistance(25.0);
     ohl->weightBalancing(0.8);
     SL.setLayout(ohl);
- 
+
     SL.call(GA);
 }
 #endif
@@ -474,7 +474,7 @@ static void debug_ogdf_do_layout(ogdf::GraphAttributes &GA)
 	ol->cOverhang(0.4);
 	ol->setOptions(2 + 4);
 	pl.setPlanarLayouter(ol);
-	
+
 	pl.call(GA);
 }
 #endif
@@ -503,7 +503,7 @@ void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 	ctx.show_eval_priority = false;
 
 	printf("Converting to OGDF...\n");
-	
+
 	deg_debug_ogdf_graph_nodes(ctx, graph);
 	deg_debug_ogdf_graph_relations(ctx, graph);
 

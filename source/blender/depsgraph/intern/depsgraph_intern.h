@@ -25,8 +25,8 @@
  *
  * API's for internal use in the Depsgraph
  * - Also, defines for "Node Type Info"
- */ 
- 
+ */
+
 #ifndef __DEPSGRAPH_INTERN_H__
 #define __DEPSGRAPH_INTERN_H__
 
@@ -41,7 +41,7 @@ struct Scene;
 
 /* Graph Building ======================================================== */
 
-/* Build depsgraph for the given group, and dump results in given graph container 
+/* Build depsgraph for the given group, and dump results in given graph container
  * This is usually used for building subgraphs for groups to use...
  */
 void DEG_graph_build_from_group(Depsgraph *graph, struct Main *bmain, struct Group *group);
@@ -54,13 +54,13 @@ DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, struct Main *bma
 
 /* Depsgraph Copying Context (dcc)
  *
- * Keeps track of node relationships/links/etc. during the copy 
+ * Keeps track of node relationships/links/etc. during the copy
  * operation so that they can be safely remapped...
  */
 typedef struct DepsgraphCopyContext {
 	struct GHash *nodes_hash;   /* <DepsNode, DepsNode> mapping from src node to dst node */
 	struct GHash *rels_hash;    // XXX: same for relationships?
-	
+
 	// XXX: filtering criteria...
 } DepsgraphCopyContext;
 
@@ -91,7 +91,7 @@ struct DepsNodeFactory {
 	virtual eDepsNode_Type type() const = 0;
 	virtual eDepsNode_Class tclass() const = 0;
 	virtual const string &tname() const = 0;
-	
+
 	virtual DepsNode *create_node(const ID *id, const string &subdata, const string &name) const = 0;
 	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const = 0;
 };
@@ -101,40 +101,40 @@ struct DepsNodeFactoryImpl : public DepsNodeFactory {
 	eDepsNode_Type type() const { return NodeType::typeinfo.type; }
 	eDepsNode_Class tclass() const { return NodeType::typeinfo.tclass; }
 	const string &tname() const { return NodeType::typeinfo.tname; }
-	
+
 	DepsNode *create_node(const ID *id, const string &subdata, const string &name) const
 	{
 		DepsNode *node = OBJECT_GUARDED_NEW(NodeType);
-		
+
 		/* populate base node settings */
 		node->type = type();
 		node->tclass = tclass();
-		
+
 		if (!name.empty())
 			/* set name if provided ... */
 			node->name = name;
 		else
 			/* ... otherwise use default type name */
 			node->name = tname();
-		
+
 		node->init(id, subdata);
-		
+
 		return node;
 	}
-	
+
 	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const
 	{
 		BLI_assert(copy->type == type());
 		DepsNode *node = OBJECT_GUARDED_NEW(NodeType);
-		
+
 		/* populate base node settings */
 		node->type = type();
 		node->tclass = tclass();
 		// XXX: need to review the name here, as we can't have exact duplicates...
 		node->name = copy->name;
-		
+
 		node->copy(dcc, static_cast<const NodeType *>(copy));
-		
+
 		return node;
 	}
 };

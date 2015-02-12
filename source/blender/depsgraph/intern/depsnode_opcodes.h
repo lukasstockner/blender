@@ -24,7 +24,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/* == OpCodes for OperationDepsNodes == 
+/* == OpCodes for OperationDepsNodes ==
  * This file defines all the "operation codes" (opcodes) used to identify
  * common operation node types. The intention of these defines is to have
  * a fast and reliable way of identifying the relevant nodes within a component
@@ -36,7 +36,7 @@
  * Therefore, it intentionally doesn't have header guards.
  */
 
- 
+
 /* Example macro define: */
 /* #define DEF_DEG_OPCODE(label) DEG_OPCODE_##label, */
 
@@ -125,7 +125,7 @@ DEF_DEG_OPCODE(BONE_CONSTRAINTS)
 //DEF_DEG_OPCODE(BONE_CONSTRAINT)
 //DEF_DEG_OPCODE(BONE_CONSTRAINTS_DONE)
 
-/* Bone transforms are ready 
+/* Bone transforms are ready
  * - "READY"             This (internal) noop is used to signal that all pre-IK operations are done.
  *                       Its role is to help mediate situations where cyclic relations may otherwise form
  *                       (i.e. one bone in chain targetting another in same chain)

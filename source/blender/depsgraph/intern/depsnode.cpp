@@ -72,7 +72,7 @@ DepsNode::~DepsNode()
 		OBJECT_GUARDED_DELETE(rel, DepsRelation);
 	}
 	DEPSNODE_RELATIONS_ITER_END;
-	
+
 	DEPSNODE_RELATIONS_ITER_BEGIN(this->outlinks, rel)
 	{
 		OBJECT_GUARDED_DELETE(rel, DepsRelation);

@@ -147,7 +147,7 @@ void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char
 {
 	eDepsNode_Type type = deg_build_object_component_type(component);
 	ComponentKey comp_key(&ob->id, type, bone_name);
-	
+
 	// XXX: "Geometry Eval" might not always be true, but this only gets called from modifier building now
 	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
 }
@@ -160,7 +160,7 @@ string deg_fcurve_id_name(const FCurve *fcu)
 {
 	char index_buf[32];
 	sprintf(index_buf, "[%d]", fcu->array_index);
-	
+
 	return string(fcu->rna_path) + index_buf;
 }
 
@@ -195,7 +195,7 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(ID *id)
 #if 0 /* XXX TODO */
 		/* get ID node */
 		IDDepsNode id_node = m_graph->find_id_node(id);
-		
+
 		/* depends on what this is... */
 		switch (GS(id->name)) {
 			case ID_SCE: /* Scene - Usually sequencer strip causing time remapping... */
@@ -203,15 +203,15 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(ID *id)
 				// TODO...
 			}
 			break;
-			
+
 			case ID_GR: /* Group */
 			{
 				// TODO...
 			}
 			break;
-			
+
 			// XXX: time source...
-			
+
 			default:     /* Unhandled */
 				printf("%s(): Unhandled ID - %s \n", __func__, id->name);
 				break;
@@ -225,7 +225,7 @@ TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(ID *id)
 			return root_node->add_time_source("Time Source");
 		}
 	}
-	
+
 	return NULL;
 }
 
@@ -314,7 +314,7 @@ ComponentDepsNode *DepsgraphRelationBuilder::find_node(const ComponentKey &key) 
 		fprintf(stderr, "find_node component: Could not find ID\n");
 		return NULL;
 	}
-	
+
 	ComponentDepsNode *node = id_node->find_component(key.type, key.name);
 	return node;
 }
@@ -326,13 +326,13 @@ OperationDepsNode *DepsgraphRelationBuilder::find_node(const OperationKey &key) 
 		fprintf(stderr, "find_node operation: Could not find ID\n");
 		return NULL;
 	}
-	
+
 	ComponentDepsNode *comp_node = id_node->find_component(key.component_type, key.component_name);
 	if (!comp_node) {
 		fprintf(stderr, "find_node operation: Could not find component\n");
 		return NULL;
 	}
-	
+
 	OperationDepsNode *op_node = comp_node->find_operation(key.opcode, key.name);
 	if (!op_node) {
 		fprintf(stderr, "find_node_operation: Failed for (%s, '%s')\n", DEG_OPNAMES[key.opcode], key.name.c_str());
@@ -376,12 +376,12 @@ void DepsgraphRelationBuilder::add_operation_relation(OperationDepsNode *node_fr
 
 /* performs a transitive reduction to remove redundant relations
  * http://en.wikipedia.org/wiki/Transitive_reduction
- * 
+ *
  * XXX The current implementation is somewhat naive and has O(V*E) worst case runtime.
  * A more optimized algorithm can be implemented later, e.g.
- * 
+ *
  * http://www.sciencedirect.com/science/article/pii/0304397588900321/pdf?md5=3391e309b708b6f9cdedcd08f84f4afc&pid=1-s2.0-0304397588900321-main.pdf
- * 
+ *
  * Care has to be taken to make sure the algorithm can handle the cyclic case too!
  * (unless we can to prevent this case early on)
  */
@@ -396,10 +396,10 @@ static void deg_graph_tag_paths_recursive(DepsNode *node)
 	if (node->done & OP_VISITED)
 		return;
 	node->done |= OP_VISITED;
-	
+
 	for (OperationDepsNode::Relations::const_iterator it = node->inlinks.begin(); it != node->inlinks.end(); ++it) {
 		DepsRelation *rel = *it;
-		
+
 		deg_graph_tag_paths_recursive(rel->from);
 		/* do this only in inlinks loop, so the target node does not get flagged! */
 		rel->from->done |= OP_REACHABLE;
@@ -410,28 +410,28 @@ static void deg_graph_transitive_reduction(Depsgraph *graph)
 {
 	for (Depsgraph::OperationNodes::const_iterator it_target = graph->operations.begin(); it_target != graph->operations.end(); ++it_target) {
 		OperationDepsNode *target = *it_target;
-		
+
 		/* clear tags */
 		for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin(); it != graph->operations.end(); ++it) {
 			OperationDepsNode *node = *it;
 			node->done = 0;
 		}
-		
+
 		/* mark nodes from which we can reach the target
 		 * start with children, so the target node and direct children are not flagged
 		 */
 		target->done |= OP_VISITED;
 		for (OperationDepsNode::Relations::const_iterator it = target->inlinks.begin(); it != target->inlinks.end(); ++it) {
 			DepsRelation *rel = *it;
-			
+
 			deg_graph_tag_paths_recursive(rel->from);
 		}
-		
+
 		/* remove redundant paths to the target */
 		for (DepsNode::Relations::const_iterator it_rel = target->inlinks.begin(); it_rel != target->inlinks.end();) {
 			DepsRelation *rel = *it_rel;
 			++it_rel; /* increment in advance, so we can safely remove the relation */
-			
+
 			if (rel->from->type == DEPSNODE_TYPE_TIMESOURCE) {
 				/* HACK: time source nodes don't get "done" flag set/cleared */
 				// TODO: there will be other types in future, so iterators above need modifying
@@ -522,7 +522,7 @@ void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
 {
 	IDDepsNode *node_from = m_graph->find_id_node(from_id);
 	IDDepsNode *node_to = m_graph->find_id_node(to_id);
-	
+
 	if (node_from && node_to) {
 		m_graph->add_new_relation(node_from, node_to, type, description);
 	}
@@ -542,7 +542,7 @@ void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
 static void deg_graph_print_cycle_rel(const OperationDepsNode *to, const OperationDepsNode *from, const DepsRelation *rel)
 {
 	string to_owner = "", from_owner = "";
-	
+
 	/* NOTE: subdata name only matters for bones; all other components currently should just use the ID instead */
 	if (to->owner->type == DEPSNODE_TYPE_BONE) {
 		to_owner = to->owner->owner->name + "." + to->owner->name + ".";
@@ -550,15 +550,15 @@ static void deg_graph_print_cycle_rel(const OperationDepsNode *to, const Operati
 	else {
 		to_owner = to->owner->owner->name + ".";
 	}
-	
+
 	if (from->owner->type == DEPSNODE_TYPE_BONE) {
 		from_owner = from->owner->owner->name + "." + from->owner->name + ".";
 	}
 	else {
 		from_owner = from->owner->owner->name + ".";
 	}
-	
-	
+
+
 	printf("  '%s%s' depends on '%s%s' through '%s'\n",
 	       to_owner.c_str(),
 	       to->identifier().c_str(),
@@ -626,7 +626,7 @@ static void deg_graph_detect_cycles(Depsgraph *graph)
 				if (to->done == NODE_IN_STACK) {
 					printf("Dependency cycle detected:\n");
 					deg_graph_print_cycle_rel(to, node, rel);
-					
+
 					StackEntry *current = &entry;
 					while (current->node != to) {
 						BLI_assert(current != NULL);
@@ -659,17 +659,17 @@ static void deg_graph_detect_cycles(Depsgraph *graph)
 /* Graph Building API's */
 
 /* Build depsgraph for the given scene, and dump results in given graph container */
-// XXX: assume that this is called from outside, given the current scene as the "main" scene 
+// XXX: assume that this is called from outside, given the current scene as the "main" scene
 void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 {
-	/* clear "LIB_DOIT" flag from all materials, etc. 
-	 * to prevent infinite recursion problems later [#32017] 
+	/* clear "LIB_DOIT" flag from all materials, etc.
+	 * to prevent infinite recursion problems later [#32017]
 	 */
 	BKE_main_id_tag_idcode(bmain, ID_MA, false);
 	BKE_main_id_tag_idcode(bmain, ID_LA, false);
 	BKE_main_id_tag_idcode(bmain, ID_WO, false);
 	BKE_main_id_tag_idcode(bmain, ID_TE, false);
-	
+
 	/* 1) Generate all the nodes in the graph first */
 	DepsgraphNodeBuilder node_builder(bmain, graph);
 	/* create root node for scene first
@@ -678,14 +678,14 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	 */
 	node_builder.add_root_node();
 	node_builder.build_scene(scene);
-	
+
 	/* 2) Generate relationships between ID nodes and/or components, to make it easier to keep track
 	 *    of which datablocks use which ones (e.g. for checking which objects share the same geometry
 	 *    when we only know the shared datablock)
 	 */
 	DepsgraphIDUsersBuilder users_builder(graph);
 	users_builder.build_scene(scene);
-	
+
 	/* 3) Hook up relationships between operations - to determine evaluation order */
 	DepsgraphRelationBuilder relation_builder(graph);
 	/* hook scene up to the root node as entrypoint to graph */
@@ -703,7 +703,7 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 	if (G.debug_value == 799) {
 		deg_graph_transitive_reduction(graph);
 	}
-	
+
 	deg_graph_flush_node_layers(graph);
 #if 0
 	if (!DEG_debug_consistency_check(graph)) {

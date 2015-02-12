@@ -107,28 +107,28 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
 	/* Handling of commonly known scenarios... */
 	if (ptr->type == &RNA_PoseBone) {
 		bPoseChannel *pchan = (bPoseChannel *)ptr->data;
-		
+
 		/* Bone - generally, we just want the bone component... */
 		*type = DEPSNODE_TYPE_BONE;
 		*subdata = pchan->name;
-		
+
 		return true;
 	}
 	else if (ptr->type == &RNA_Bone) {
 		Bone *bone = (Bone *)ptr->data;
-		
+
 		/* armature-level bone, but it ends up going to bone component anyway */
 		// TODO: the ID in thise case will end up being bArmature, not Object as needed!
 		*type = DEPSNODE_TYPE_BONE;
 		*subdata = bone->name;
 		//*id = ...
-		
+
 		return true;
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Constraint)) {
 		Object *ob = (Object *)ptr->id.data;
 		bConstraint *con = (bConstraint *)ptr->data;
-		
+
 		/* object or bone? */
 		if (BLI_findindex(&ob->constraints, con) != -1) {
 			/* object transform */
@@ -150,24 +150,24 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Modifier)) {
 		//ModifierData *md = (ModifierData *)ptr->data;
-		
+
 		/* Modifier */
-		/* NOTE: subdata is not the same as "operation name", 
+		/* NOTE: subdata is not the same as "operation name",
 		 * so although we have unique ops for modifiers,
 		 * we can't lump them together
 		 */
 		*type = DEPSNODE_TYPE_BONE;
 		//*subdata = md->name;
-		
+
 		return true;
 	}
 	else if (ptr->type == &RNA_Object) {
 		//Object *ob = (Object *)ptr->data;
-		
+
 		/* Transforms props? */
 		if (prop) {
 			const char *prop_identifier = RNA_property_identifier((PropertyRNA *)prop);
-			
+
 			if (strstr(prop_identifier, "location") ||
 			    strstr(prop_identifier, "rotation") ||
 			    strstr(prop_identifier, "scale"))
@@ -180,11 +180,11 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
 	}
 	else if (ptr->type == &RNA_ShapeKey) {
 		Key *key = (Key *)ptr->id.data;
-		
+
 		/* ShapeKeys are currently handled as geometry on the geometry that owns it */
 		*id = key->from; // XXX
 		*type = DEPSNODE_TYPE_GEOMETRY;
-		
+
 		return true;
 	}
 	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
@@ -194,7 +194,7 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
 		*subdata = seq->name; // xxx?
 		return true;
 	}
-	
+
 	if (prop) {
 		/* All unknown data effectively falls under "parameter evaluation" */
 		*type = DEPSNODE_TYPE_PARAMETERS;
@@ -350,8 +350,8 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from,
 }
 
 /* Add new relation between two nodes */
-DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to, 
-                                          eDepsRelation_Type type, 
+DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to,
+                                          eDepsRelation_Type type,
                                           const string &description)
 {
 	/* Create new relation, and add it to the graph. */

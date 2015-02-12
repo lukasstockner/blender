@@ -65,7 +65,7 @@ void DEG_register_node_types(void)
 {
 	/* initialise registry */
 	_depsnode_typeinfo_registry = BLI_ghash_int_new("Depsgraph Node Type Registry");
-	
+
 	/* register node types */
 	DEG_register_base_depsnodes();
 	DEG_register_component_depsnodes();
@@ -92,7 +92,7 @@ DepsNodeFactory *DEG_node_get_factory(const DepsNode *node)
 {
 	if (!node)
 		return NULL;
-	
+
 	return DEG_get_node_factory(node->type);
 }
 

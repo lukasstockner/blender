@@ -25,7 +25,7 @@
  *
  * Defines for special queue type for use in Depsgraph traversals
  */
- 
+
 #ifndef __DEPSGRAPH_QUEUE_H__
 #define __DEPSGRAPH_QUEUE_H__
 
@@ -35,7 +35,7 @@ struct Heap;
 struct GHash;
 
 /* *********************************************** */
-/* Dependency Graph Traversal Queue 
+/* Dependency Graph Traversal Queue
  *
  * There are two parts to this:
  * a) "Pending" Nodes - This part contains the set of nodes
@@ -49,7 +49,7 @@ struct GHash;
  * Internally, the queue makes sure that each node in the graph
  * only gets added to the queue once. This is because there can
  * be multiple inlinks to each node given the way that the relations
- * work. 
+ * work.
  */
 
 /* Depsgraph Queue Type */
@@ -57,10 +57,10 @@ typedef struct DepsgraphQueue {
 	/* Pending */
 	struct Heap *pending_heap;         /* (valence:int, DepsNode*) */
 	struct GHash *pending_hash;        /* (DepsNode* : HeapNode*>) */
-	
+
 	/* Ready to be visited - fifo */
 	struct Heap *ready_heap;           /* (idx:int, DepsNode*) */
-	
+
 	/* Size/Order counts */
 	size_t idx;                        /* total number of nodes which are/have been ready so far (including those already visited) */
 	size_t tot;                        /* total number of nodes which have passed through queue; mainly for debug */
@@ -87,4 +87,4 @@ void *DEG_queue_pop(DepsgraphQueue *q);
 /* *********************************************** */
 
 #endif // DEPSGRAPH_QUEUE_H
- 
+

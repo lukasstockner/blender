@@ -50,9 +50,9 @@ struct ComponentDepsNode : public DepsNode {
 	{
 		eDepsOperation_Code opcode;
 		string name;
-		
-		
-		OperationIDKey() : 
+
+
+		OperationIDKey() :
 			opcode(DEG_OPCODE_OPERATION), name("")
 		{}
 		OperationIDKey(eDepsOperation_Code opcode) :
@@ -61,21 +61,21 @@ struct ComponentDepsNode : public DepsNode {
 		OperationIDKey(eDepsOperation_Code opcode, const string &name) :
 		   opcode(opcode), name(name)
 		{}
-		
+
 		string identifier() const
 		{
 			char codebuf[5];
 			sprintf(codebuf, "%d", opcode);
-			
+
 			return string("OperationIDKey(") + codebuf + ", " + name + ")";
 		}
-		
+
 		bool operator==(const OperationIDKey &other) const
 		{
 			return (opcode == other.opcode) && (name == other.name);
 		}
 	};
-	
+
 	/* XXX can't specialize std::hash for this purpose, because ComponentKey is a nested type ...
 	 * http://stackoverflow.com/a/951245
 	 */
@@ -85,17 +85,17 @@ struct ComponentDepsNode : public DepsNode {
 			return hash_combine(hash<int>()(key.opcode), hash<string>()(key.name));
 		}
 	};
-	
+
 	/* Typedef for container of operations */
 	typedef unordered_map<OperationIDKey, OperationDepsNode *, operation_key_hash> OperationMap;
-	
-	
+
+
 	ComponentDepsNode();
 	~ComponentDepsNode();
-	
+
 	void init(const ID *id, const string &subdata);
 	void copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src);
-	
+
 	string identifier() const;
 
 	/* Find an existing operation, will throw an assert() if it does not exist. */
@@ -107,7 +107,7 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *has_operation(eDepsOperation_Code opcode, const string &name) const;
 
 	/* Create a new node for representing an operation and add this to graph
-	 * ! If an existing node is found, it will be modified. This helps when node may 
+	 * ! If an existing node is found, it will be modified. This helps when node may
 	 *   have been partially created earlier (e.g. parent ref before parent item is added)
 	 *
 	 * < type: Operation node type (corresponding to context/component that it operates in)
@@ -116,17 +116,17 @@ struct ComponentDepsNode : public DepsNode {
 	 * < name: Identifier for operation - used to find/locate it again
 	 */
 	OperationDepsNode *add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name);
-	
+
 	void remove_operation(eDepsOperation_Code opcode, const string &name);
 	void clear_operations();
-	
+
 	void tag_update(Depsgraph *graph);
-	
+
 	/* Evaluation Context Management .................. */
-	
+
 	/* Initialise component's evaluation context used for the specified purpose */
 	virtual bool eval_context_init(EvaluationContext *eval_ctx) { return false; }
-	/* Free data in component's evaluation context which is used for the specified purpose 
+	/* Free data in component's evaluation context which is used for the specified purpose
 	 * NOTE: this does not free the actual context in question
 	 */
 	virtual void eval_context_free(EvaluationContext *eval_ctx) {}
@@ -135,11 +135,11 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *get_exit_operation();
 
 	IDDepsNode *owner;
-	
+
 	OperationMap operations;    /* inner nodes for this component */
 	OperationDepsNode *entry_operation;
 	OperationDepsNode *exit_operation;
-	
+
 	// XXX: a poll() callback to check if component's first node can be started?
 };
 
@@ -176,9 +176,9 @@ struct PoseComponentDepsNode : public ComponentDepsNode {
 /* Bone Component */
 struct BoneComponentDepsNode : public ComponentDepsNode {
 	void init(const ID *id, const string &subdata);
-	
+
 	struct bPoseChannel *pchan;     /* the bone that this component represents */
-	
+
 	DEG_DEPSNODE_DECLARE;
 };
 
