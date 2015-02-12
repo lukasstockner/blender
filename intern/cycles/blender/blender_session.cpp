@@ -927,7 +927,7 @@ int BlenderSession::builtin_image_frame(const string &builtin_name)
 	return atoi(builtin_name.substr(last + 1, builtin_name.size() - last - 1).c_str());
 }
 
-void BlenderSession::builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels, int &num_ptex_regions)
+void BlenderSession::builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels, int &num_ptex_rects)
 {
 	/* empty image */
 	is_float = false;
@@ -956,7 +956,7 @@ void BlenderSession::builtin_image_info(const string &builtin_name, void *builti
 
 		// TODO: ptex
 		is_float = false;
-		num_ptex_regions = b_image.ptex_regions().length;
+		num_ptex_rects = b_image.ptex_rects().length;
 	}
 	else if(b_id.is_a(&RNA_Object)) {
 		/* smoke volume data */
@@ -986,7 +986,7 @@ void BlenderSession::builtin_image_info(const string &builtin_name, void *builti
 }
 
 bool BlenderSession::builtin_image_pixels(const string &builtin_name, void *builtin_data, unsigned char *pixels,
-										  PtexRegions ptex_regions, const int num_ptex_regions)
+										  PtexRegions ptex_rects, const int num_ptex_rects)
 {
 	if(!builtin_data)
 		return false;
@@ -1026,10 +1026,10 @@ bool BlenderSession::builtin_image_pixels(const string &builtin_name, void *buil
 
 	{
 		// TODO
-		BL::DynamicArray<int> regions = b_image.ptex_regions();
-		assert(num_ptex_regions == regions.length);
-		memcpy(ptex_regions, regions.data,
-			   sizeof(**ptex_regions) * num_ptex_regions);
+		BL::DynamicArray<int> regions = b_image.ptex_rects();
+		assert(num_ptex_rects == regions.length);
+		memcpy(ptex_rects, regions.data,
+			   sizeof(**ptex_rects) * num_ptex_rects);
 	}
 
 	/* premultiply, byte images are always straight for blender */

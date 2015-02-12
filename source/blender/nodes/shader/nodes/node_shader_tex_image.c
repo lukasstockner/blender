@@ -60,7 +60,7 @@ static bool image_node_needs_ptex(Image *ima, ImageUser *iuser)
 	ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, NULL);
 	bool ret;
 
-	ret = (ibuf && ibuf->num_ptex_regions);
+	ret = (ibuf && ibuf->num_ptex_rects);
 	BKE_image_release_ibuf(ima, ibuf, NULL);
 
 	return ret;

@@ -100,8 +100,8 @@ bool ImageManager::is_float_image(const string& filename, void *builtin_data, bo
 	if(builtin_data) {
 		if(builtin_image_info_cb) {
 			int width, height, depth, channels;
-			int num_ptex_regions;
-			builtin_image_info_cb(filename, builtin_data, is_float, width, height, depth, channels, num_ptex_regions);
+			int num_ptex_rects;
+			builtin_image_info_cb(filename, builtin_data, is_float, width, height, depth, channels, num_ptex_rects);
 		}
 
 		if(is_float)
@@ -359,7 +359,7 @@ static PtexRegions ptex_table_reserve(DeviceScene *dscene,
 									  const int texture_slot,
 									  const int texture_width,
 									  const int texture_height,
-									  const int num_ptex_regions)
+									  const int num_ptex_rects)
 {
 	// Simple encoding (not necessarily a good one):
 	//
@@ -374,7 +374,7 @@ static PtexRegions ptex_table_reserve(DeviceScene *dscene,
 	uint offset = dscene->ptex_table.size();
 	uint *table_data = dscene->ptex_table.resize(offset +
 												 2 +
-												 num_ptex_regions);
+												 num_ptex_rects);
 	table_data[texture_slot] = offset;
 	table_data[offset] = texture_width;
 	offset++;
@@ -427,7 +427,7 @@ static PtexRegions ptex_table_reserve(DeviceScene *dscene,
 									  const int texture_slot,
 									  const int texture_width,
 									  const int texture_height,
-									  const int num_ptex_regions)
+									  const int num_ptex_rects)
 {
 	return NULL;
 }
@@ -443,7 +443,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
 	int width, height, depth, components;
 
 	bool use_ptex_file = false;
-	int num_ptex_regions = 0;
+	int num_ptex_rects = 0;
 	if(!img->builtin_data) {
 		/* load image from file through OIIO */
 		in = ImageInput::create(img->filename);
@@ -479,7 +479,7 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
 			return false;
 
 		bool is_float;
-		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components, num_ptex_regions);
+		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components, num_ptex_rects);
 	}
 
 	/* we only handle certain number of components */
@@ -540,15 +540,15 @@ bool ImageManager::file_load_image(Image *img, device_vector<uchar4>& tex_img,
 		delete in;
 	}
 	else if (!use_ptex_file) {
-		PtexRegions ptex_regions;
+		PtexRegions ptex_rects;
 		thread_scoped_lock device_lock(device_mutex);
 
-		ptex_regions = ptex_table_reserve(dscene, slot - 1024, width,
-										  height, num_ptex_regions);
+		ptex_rects = ptex_table_reserve(dscene, slot - 1024, width,
+										  height, num_ptex_rects);
 
 
 		builtin_image_pixels_cb(img->filename, img->builtin_data, pixels,
-								ptex_regions, num_ptex_regions);
+								ptex_rects, num_ptex_rects);
 	}
 
 	if(cmyk) {
@@ -635,8 +635,8 @@ bool ImageManager::file_load_float_image(Image *img, device_vector<float4>& tex_
 			return false;
 
 		bool is_float;
-		int num_ptex_regions;
-		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components, num_ptex_regions);
+		int num_ptex_rects;
+		builtin_image_info_cb(img->filename, img->builtin_data, is_float, width, height, depth, components, num_ptex_rects);
 	}
 
 	if(components < 1 || width == 0 || height == 0) {

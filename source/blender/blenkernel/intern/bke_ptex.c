@@ -581,8 +581,8 @@ static bool bke_ptex_imbuf_filter_borders_update(ImBuf *ibuf, GSet *rects)
 		return false;
 	}
 
-	all_rects = ibuf->ptex_regions;
-	rects_stride = sizeof(*ibuf->ptex_regions);
+	all_rects = ibuf->ptex_rects;
+	rects_stride = sizeof(*ibuf->ptex_rects);
 
 	if (rects) {
 		/* TODO(nicholasbishop): this is not a great
@@ -624,8 +624,8 @@ static bool bke_ptex_imbuf_filter_borders_update(ImBuf *ibuf, GSet *rects)
 	}
 	else {
 		int i;
-		for (i = 0; i < ibuf->num_ptex_regions; i++) {
-			const BPXRect *rect = &ibuf->ptex_regions[i];
+		for (i = 0; i < ibuf->num_ptex_rects; i++) {
+			const BPXRect *rect = &ibuf->ptex_rects[i];
 			if (!BPX_rect_borders_update(bpx_buf, rect, all_rects,
 										 rects_stride))
 			{
@@ -694,7 +694,7 @@ static bool ptex_pack_loops(Image **image_r, Mesh *me, MLoopPtex *loop_ptex,
 	for (i = 0; i < num_loops; i++) {
 		MLoopPtex *lp = &loop_ptex[i];
 		BPXImageBuf *bpx_src = bpx_image_buf_wrap_loop_ptex(lp);
-		const BPXRect *rect = &ibuf->ptex_regions[i];
+		const BPXRect *rect = &ibuf->ptex_rects[i];
 		bool r;
 		BLI_assert(bpx_src);
 
@@ -1121,8 +1121,8 @@ bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 
 	// TODO
 	BLI_assert(ibuf->rect);
-	BLI_assert(ibuf->num_ptex_regions == totloop);
-	BLI_assert(ibuf->ptex_regions);
+	BLI_assert(ibuf->num_ptex_rects == totloop);
+	BLI_assert(ibuf->ptex_rects);
 
 	bpx_src = IMB_imbuf_as_bpx_image_buf(ibuf);
 	if (!bpx_src) {
@@ -1132,7 +1132,7 @@ bool BKE_ptex_update_from_image(MLoopPtex *loop_ptex, const int totloop)
 	for (i = 0; i < totloop; i++) {
 		MLoopPtex *lp = &loop_ptex[i];
 		BPXImageBuf *bpx_dst = bpx_image_buf_wrap_loop_ptex(lp);
-		const BPXRect *src_rect = &ibuf->ptex_regions[i];
+		const BPXRect *src_rect = &ibuf->ptex_rects[i];
 
 		BLI_assert(bpx_dst);
 		if (!bpx_dst) {

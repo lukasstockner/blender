@@ -1038,7 +1038,7 @@ static void gpu_ptex_paint_update_rect(const ImBuf *ibuf, int *x, int *y,
 	/* Pixel size of Ptex border */
 	const int border = 1;
 
-	if (ibuf->num_ptex_regions > 0) {
+	if (ibuf->num_ptex_rects > 0) {
 		*x = MAX2((*x) - border, 0);
 		*y = MAX2((*y) - border, 0);
 

@@ -279,7 +279,7 @@ void *image_undo_push_tile(Image *ima, ImBuf *ibuf, ImBuf **tmpibuf, int x_tile,
 
 	if (full_ptex) {
 		tile->ptex = MEM_callocN(sizeof(*tile->ptex), "tile->ptex");
-		tile->ptex->rects = MEM_dupallocN(ibuf->ptex_regions);
+		tile->ptex->rects = MEM_dupallocN(ibuf->ptex_rects);
 		tile->ptex->ibuf_dim[0] = ibuf->x;
 		tile->ptex->ibuf_dim[1] = ibuf->y;
 		tile->ptex->num_bytes = allocsize;
@@ -348,9 +348,9 @@ static void image_undo_ptex_swap(UndoImageTile *tile, ImBuf *ibuf)
 
 	BLI_assert(!tile->prev && !tile->next);
 	BLI_assert(ptex->rects);
-	BLI_assert(ibuf->ptex_regions);
+	BLI_assert(ibuf->ptex_rects);
 
-	SWAP(BPXRect *, ptex->rects, ibuf->ptex_regions);
+	SWAP(BPXRect *, ptex->rects, ibuf->ptex_rects);
 	SWAP(unsigned int *, tile->rect.uint, ibuf->rect);
 
 	SWAP(int, ptex->ibuf_dim[0], ibuf->x);

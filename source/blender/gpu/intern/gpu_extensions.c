@@ -794,8 +794,8 @@ GPUTexture *GPU_ptex_texture_from_blender(Image *ima, ImageUser *UNUSED(iuser))
 	ibuf = BKE_image_acquire_ibuf(ima, NULL, &lock);
 	if (!ibuf) return NULL;
 
-	size = ibuf->num_ptex_regions;
-	data = ibuf->ptex_regions;
+	size = ibuf->num_ptex_rects;
+	data = ibuf->ptex_rects;
 
 	tex = GPU_texture_create_nD(size, 1, 2, NULL, 0, GPU_HDR_NONE, 4, NULL);
 	ima->ptex_gputexture = tex;

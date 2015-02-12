@@ -2414,7 +2414,7 @@ static void project_paint_bucket_ptex_rects_init(const ProjPaintState *ps,
 	const LinkNode *pixel_node = NULL;
 	GSet **set = NULL;
 
-	if (!ibuf || !ibuf->num_ptex_regions || !ps->bucketPtexRects) {
+	if (!ibuf || !ibuf->num_ptex_rects || !ps->bucketPtexRects) {
 		return;
 	}
 
@@ -2432,8 +2432,8 @@ static void project_paint_bucket_ptex_rects_init(const ProjPaintState *ps,
 		const ProjPixel *pixel = pixel_node->link;
 		int i;
 
-		for (i = 0; i < ibuf->num_ptex_regions; i++) {
-			BPXRect *r = &ibuf->ptex_regions[i];
+		for (i = 0; i < ibuf->num_ptex_rects; i++) {
+			BPXRect *r = &ibuf->ptex_rects[i];
 			const int px = pixel->x_px;
 			const int py = pixel->y_px;
 			if (bpx_rect_contains_point(r, px, py)) {
@@ -3769,14 +3769,14 @@ static void project_paint_prepare_all_faces(
 		// TODO
 		if (ps->dm_mtface_ptex) {
 			ImBuf *ibuf = BKE_image_acquire_ibuf(slot->ima, NULL, NULL);
-			if (ibuf && ibuf->ptex_regions) {
+			if (ibuf && ibuf->ptex_rects) {
 				// I'm sleepy				
 				int abc;
 				for (abc = 0; abc < 4; abc++) {
 					float *dst = (*tf)->uv[abc];
 					const float *uv = tess_ptex[face_index].uv[abc];
 					const BPXRect *rect =
-						&ibuf->ptex_regions[tess_ptex[face_index].id];
+						&ibuf->ptex_rects[tess_ptex[face_index].id];
 					const int width = rect->xend - rect->xbegin;
 					const int height = rect->yend - rect->ybegin;
 

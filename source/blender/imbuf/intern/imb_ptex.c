@@ -34,14 +34,14 @@ ImBuf *IMB_alloc_from_ptex_layout(const struct BPXPackedLayout *layout)
 	if (ibuf) {
 		int i;
 
-		/* Copy layout items into ImBuf.ptex_regions */
-		ibuf->num_ptex_regions = BPX_packed_layout_num_regions(layout);
-		ibuf->ptex_regions = MEM_mallocN(sizeof(*ibuf->ptex_regions) *
-										 ibuf->num_ptex_regions,
-										 "ImBuf ptex_regions");
+		/* Copy layout items into ImBuf.ptex_rects */
+		ibuf->num_ptex_rects = BPX_packed_layout_num_regions(layout);
+		ibuf->ptex_rects = MEM_mallocN(sizeof(*ibuf->ptex_rects) *
+										 ibuf->num_ptex_rects,
+										 "ImBuf ptex_rects");
 
-		for (i = 0; i < ibuf->num_ptex_regions; i++) {
-			BPXRect *rect = &ibuf->ptex_regions[i];
+		for (i = 0; i < ibuf->num_ptex_rects; i++) {
+			BPXRect *rect = &ibuf->ptex_rects[i];
 			if (!BPX_packed_layout_item(layout, i, rect)) {
 				/* Error */
 				IMB_freeImBuf(ibuf);

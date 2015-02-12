@@ -142,8 +142,8 @@ typedef struct ImBuf {
 	struct DDSData dds_data;
 
 	/* TODO, naming and include directives */
-	BPXRect *ptex_regions; /* array */
-	int num_ptex_regions;
+	BPXRect *ptex_rects; /* array */
+	int num_ptex_rects;
 } ImBuf;
 
 /* Moved from BKE_bmfont_types.h because it is a userflag bit mask. */
