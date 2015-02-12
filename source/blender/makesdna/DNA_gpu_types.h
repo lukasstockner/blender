@@ -42,7 +42,7 @@ typedef struct GPUDOFSettings {
 
 /* properties for SSAO effect */
 typedef struct GPUSSAOSettings {
-	float darken;
+	float factor;
 	float color[3];
 	float distance_max;
 	float attenuation;

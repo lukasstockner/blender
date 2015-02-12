@@ -520,7 +520,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			int color_uniform, depth_uniform;
 			int ssao_uniform, ssao_color_uniform, viewvecs_uniform, ssao_sample_params_uniform;
 			int ssao_jitter_uniform, ssao_concentric_tex;
-			float ssao_params[4] = {fx_ssao->distance_max, fx_ssao->darken, fx_ssao->attenuation, 0.0f};
+			float ssao_params[4] = {fx_ssao->distance_max, fx_ssao->factor, fx_ssao->attenuation, 0.0f};
 			float sample_params[4];
 
 			sample_params[0] = fx->ssao_sample_count * fx->ssao_sample_count;
@@ -856,7 +856,7 @@ void GPU_fx_compositor_init_dof_settings(GPUDOFSettings *fx_dof)
 
 void GPU_fx_compositor_init_ssao_settings(GPUSSAOSettings *fx_ssao)
 {
-	fx_ssao->darken = 1.0f;
+	fx_ssao->factor = 1.0f;
 	fx_ssao->distance_max = 0.2f;
 	fx_ssao->attenuation = 1.0f;
 	fx_ssao->samples = 4;

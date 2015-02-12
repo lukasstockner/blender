@@ -3888,8 +3888,8 @@ static void rna_def_gpu_ssao_fx(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "GPU SSAO", "Settings for GPU based screen space ambient occlusion");
 	RNA_def_struct_ui_icon(srna, ICON_RENDERLAYERS);
 
-	prop = RNA_def_property(srna, "darken", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Darkening", "Darken the ssao effect");
+	prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Strength", "Strength of the ssao effect");
 	RNA_def_property_range(prop, 0.0f, 250.0f);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, NULL);
 
