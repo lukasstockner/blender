@@ -51,7 +51,7 @@ typedef struct GPUSSAOSettings {
 } GPUSSAOSettings;
 
 typedef struct GPUFXSettings {
-	GPUDOFSettings *dof;  /* note, currently not allocated, instead set from camera */
+	GPUDOFSettings *dof;  /* note, currently not allocated, instead set (temporarily) from camera */
 	GPUSSAOSettings *ssao;
 	char fx_flag;  /* eGPUFXFlags */
 	char pad[7];
