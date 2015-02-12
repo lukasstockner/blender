@@ -16,10 +16,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_WRITER_H
-#define PTC_WRITER_H
+#ifndef PTC_ABC_WRITER_H
+#define PTC_ABC_WRITER_H
 
 #include <string>
+
+#include <Alembic/Abc/OArchive.h>
+
+#include "writer.h"
+
+#include "abc_frame_mapper.h"
 
 #include "util_error_handler.h"
 
@@ -29,32 +35,19 @@ struct Scene;
 
 namespace PTC {
 
-class WriterArchive {
-public:
-	virtual ~WriterArchive() {}
-};
+using namespace Alembic;
 
-class Writer {
+class AbcWriterArchive : public WriterArchive, public FrameMapper {
 public:
-	Writer(Scene *scene, ID *id, PointCache *cache, WriterArchive *archive);
-	virtual ~Writer();
+	AbcWriterArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler);
+	virtual ~AbcWriterArchive();
 	
-	void set_error_handler(ErrorHandler *handler);
-	bool valid() const;
+	uint32_t add_frame_sampling();
 	
-	virtual void write_sample() = 0;
-	
-	Scene *scene() const { return m_scene; }
-	ID *id() const { return m_id; }
-	PointCache *cache() const { return m_cache; }
+	Abc::OArchive archive;
 	
 protected:
 	ErrorHandler *m_error_handler;
-	WriterArchive *m_archive;
-	
-	Scene *m_scene;
-	ID *m_id;
-	PointCache *m_cache;
 };
 
 } /* namespace PTC */

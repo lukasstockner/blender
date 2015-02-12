@@ -16,32 +16,22 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <Alembic/AbcCoreHDF5/ReadWrite.h>
-#include <Alembic/Abc/ArchiveInfo.h>
-
 #include "reader.h"
-#include "util_path.h"
 #include "util_error_handler.h"
 
 extern "C" {
-#include "BLI_fileops.h"
-
 #include "DNA_scene_types.h"
 }
 
 namespace PTC {
 
-using namespace Abc;
-
-Reader::Reader(Scene *scene, ID *id, PointCache *cache) :
-    FrameMapper(scene),
+Reader::Reader(Scene *scene, ID *id, PointCache *cache, ReaderArchive *archive) :
     m_error_handler(0),
-    m_scene(scene)
+    m_archive(archive),
+    m_scene(scene),
+    m_id(id),
+    m_cache(cache)
 {
-	std::string filename = ptc_archive_path(cache, id);
-	PTC_SAFE_CALL_BEGIN
-	m_archive = IArchive(AbcCoreHDF5::ReadArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 Reader::~Reader()
@@ -61,49 +51,6 @@ void Reader::set_error_handler(ErrorHandler *handler)
 bool Reader::valid() const
 {
 	return m_error_handler ? m_error_handler->max_error_level() >= PTC_ERROR_CRITICAL : true;
-}
-
-void Reader::get_frame_range(int &start_frame, int &end_frame)
-{
-	if (m_archive.valid()) {
-		double start_time, end_time;
-		GetArchiveStartAndEndTime(m_archive, start_time, end_time);
-		start_frame = (int)time_to_frame(start_time);
-		end_frame = (int)time_to_frame(end_time);
-	}
-	else {
-		start_frame = end_frame = 1;
-	}
-}
-
-ISampleSelector Reader::get_frame_sample_selector(float frame)
-{
-	return ISampleSelector(frame_to_time(frame), ISampleSelector::kFloorIndex);
-}
-
-PTCReadSampleResult Reader::test_sample(float frame)
-{
-	if (m_archive.valid()) {
-		double start_time, end_time;
-		GetArchiveStartAndEndTime(m_archive, start_time, end_time);
-		float start_frame = time_to_frame(start_time);
-		float end_frame = time_to_frame(end_time);
-		
-		if (frame < start_frame)
-			return PTC_READ_SAMPLE_EARLY;
-		else if (frame > end_frame)
-			return PTC_READ_SAMPLE_LATE;
-		else {
-			/* TODO could also be EXACT, but INTERPOLATED is more general
-			 * do we need to support this?
-			 * checking individual time samplings is also possible, but more involved.
-			 */
-			return PTC_READ_SAMPLE_INTERPOLATED;
-		}
-	}
-	else {
-		return PTC_READ_SAMPLE_INVALID;
-	}
 }
 
 } /* namespace PTC */

@@ -16,7 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "mesh.h"
+#include "alembic.h"
+
+#include "abc_mesh.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -42,16 +44,15 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
-    Writer(scene, &ob->id, pcmd->point_cache),
-    m_ob(ob),
-    m_pcmd(pcmd)
+AbcPointCacheWriter::AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
+    PointCacheWriter(scene, ob, pcmd, &m_archive),
+    m_archive(scene, &ob->id, pcmd->point_cache, m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	
-	uint32_t fs = add_frame_sampling();
+	uint32_t fs = m_archive.add_frame_sampling();
 	
-	OObject root = m_archive.getTop();
+	OObject root = m_archive.archive.getTop();
 	m_mesh = OPolyMesh(root, m_pcmd->modifier.name, fs);
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
@@ -65,7 +66,7 @@ PointCacheWriter::PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierD
 	m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
 }
 
-PointCacheWriter::~PointCacheWriter()
+AbcPointCacheWriter::~AbcPointCacheWriter()
 {
 }
 
@@ -232,7 +233,7 @@ static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<
 	return N3fArraySample(data);
 }
 
-void PointCacheWriter::write_sample()
+void AbcPointCacheWriter::write_sample()
 {
 	DerivedMesh *output_dm = m_pcmd->output_dm;
 	if (!output_dm)
@@ -291,16 +292,14 @@ void PointCacheWriter::write_sample()
 }
 
 
-PointCacheReader::PointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
-    Reader(scene, &ob->id, pcmd->point_cache),
-    m_ob(ob),
-    m_pcmd(pcmd),
-    m_result(NULL)
+AbcPointCacheReader::AbcPointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd) :
+    PointCacheReader(scene, ob, pcmd, &m_archive),
+    m_archive(scene, &ob->id, pcmd->point_cache, m_error_handler)
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	
-	if (m_archive.valid()) {
-		IObject root = m_archive.getTop();
+	if (m_archive.archive.valid()) {
+		IObject root = m_archive.archive.getTop();
 		if (root.valid() && root.getChild(m_pcmd->modifier.name)) {
 			m_mesh = IPolyMesh(root, m_pcmd->modifier.name);
 			
@@ -318,7 +317,7 @@ PointCacheReader::PointCacheReader(Scene *scene, Object *ob, PointCacheModifierD
 	}
 }
 
-PointCacheReader::~PointCacheReader()
+AbcPointCacheReader::~AbcPointCacheReader()
 {
 }
 
@@ -459,7 +458,7 @@ static void apply_sample_edge_indices(DerivedMesh *dm, Int32ArraySamplePtr sampl
 	}
 }
 
-PTCReadSampleResult PointCacheReader::read_sample(float frame)
+PTCReadSampleResult AbcPointCacheReader::read_sample(float frame)
 {
 #ifdef USE_TIMING
 	double start_time;
@@ -484,7 +483,7 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	if (!schema.valid() || schema.getPositionsProperty().getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	ISampleSelector ss = get_frame_sample_selector(frame);
+	ISampleSelector ss = m_archive.get_frame_sample_selector(frame);
 	
 	PROFILE_START;
 	IPolyMeshSchema::Sample sample;
@@ -580,95 +579,16 @@ PTCReadSampleResult PointCacheReader::read_sample(float frame)
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-DerivedMesh *PointCacheReader::acquire_result()
+/* ==== API ==== */
+
+Writer *abc_writer_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
 {
-	DerivedMesh *dm = m_result;
-	m_result = NULL;
-	return dm;
+	return new AbcPointCacheWriter(scene, ob, pcmd);
 }
 
-void PointCacheReader::discard_result()
+Reader *abc_reader_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
 {
-	if (m_result) {
-		m_result->release(m_result);
-		m_result = NULL;
-	}
+	return new AbcPointCacheReader(scene, ob, pcmd);
 }
 
 } /* namespace PTC */
-
-
-/* ==== C API ==== */
-
-PTCWriter *PTC_writer_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
-{
-	return (PTCWriter *)(new PTC::PointCacheWriter(scene, ob, pcmd));
-}
-
-PTCReader *PTC_reader_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
-{
-	return (PTCReader *)(new PTC::PointCacheReader(scene, ob, pcmd));
-}
-
-struct DerivedMesh *PTC_reader_point_cache_acquire_result(PTCReader *_reader)
-{
-	PTC::PointCacheReader *reader = (PTC::PointCacheReader *)_reader;
-	return reader->acquire_result();
-}
-
-void PTC_reader_point_cache_discard_result(PTCReader *_reader)
-{
-	PTC::PointCacheReader *reader = (PTC::PointCacheReader *)_reader;
-	reader->discard_result();
-}
-
-ePointCacheModifierMode PTC_mod_point_cache_get_mode(PointCacheModifierData *pcmd)
-{
-	/* can't have simultaneous read and write */
-	if (pcmd->writer) {
-		BLI_assert(!pcmd->reader);
-		return MOD_POINTCACHE_MODE_WRITE;
-	}
-	else if (pcmd->reader) {
-		BLI_assert(!pcmd->writer);
-		return MOD_POINTCACHE_MODE_READ;
-	}
-	else
-		return MOD_POINTCACHE_MODE_NONE;
-}
-
-ePointCacheModifierMode PTC_mod_point_cache_set_mode(Scene *scene, Object *ob, PointCacheModifierData *pcmd, ePointCacheModifierMode mode)
-{
-	switch (mode) {
-		case MOD_POINTCACHE_MODE_READ:
-			if (pcmd->writer) {
-				PTC_writer_free(pcmd->writer);
-				pcmd->writer = NULL;
-			}
-			if (!pcmd->reader) {
-				pcmd->reader = PTC_reader_point_cache(scene, ob, pcmd);
-			}
-			return pcmd->reader ? MOD_POINTCACHE_MODE_READ : MOD_POINTCACHE_MODE_NONE;
-		
-		case MOD_POINTCACHE_MODE_WRITE:
-			if (pcmd->reader) {
-				PTC_reader_free(pcmd->reader);
-				pcmd->reader = NULL;
-			}
-			if (!pcmd->writer) {
-				pcmd->writer = PTC_writer_point_cache(scene, ob, pcmd);
-			}
-			return pcmd->writer ? MOD_POINTCACHE_MODE_WRITE : MOD_POINTCACHE_MODE_NONE;
-		
-		default:
-			if (pcmd->writer) {
-				PTC_writer_free(pcmd->writer);
-				pcmd->writer = NULL;
-			}
-			if (pcmd->reader) {
-				PTC_reader_free(pcmd->reader);
-				pcmd->reader = NULL;
-			}
-			return MOD_POINTCACHE_MODE_NONE;
-	}
-}

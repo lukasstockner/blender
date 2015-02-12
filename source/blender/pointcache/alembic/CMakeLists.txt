@@ -23,43 +23,47 @@
 
 set(INC
 	.
-	intern
-	util
-	../blenkernel
-	../blenlib
-	../makesdna
-	../makesrna
-	../../../intern/guardedalloc
+	../
+	../intern
+	../util
+	../../blenkernel
+	../../blenlib
+	../../makesdna
+	../../makesrna
+	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
+	${BOOST_INCLUDE_DIR}
+	${ALEMBIC_INCLUDE_DIRS}
+	${OPENEXR_INCLUDE_DIR}/OpenEXR
 )
 
 set(SRC
-	intern/alembic.h
-	intern/export.h
-	intern/export.cpp
-	intern/ptc_types.h
-	intern/ptc_types.cpp
-	intern/reader.h
-	intern/reader.cpp
-	intern/thread.h
-	intern/writer.h
-	intern/writer.cpp
+	abc_frame_mapper.cpp
+	abc_frame_mapper.h
+	abc_reader.cpp
+	abc_reader.h
+	abc_schema.h
+	abc_writer.cpp
+	abc_writer.h
 
-	util/util_error_handler.h
-	util/util_error_handler.cpp
-	util/util_path.h
-	util/util_path.cpp
-	util/util_types.h
-
-	PTC_api.h
-	PTC_api.cpp
+	abc_cloth.cpp
+	abc_cloth.h
+	abc_dynamicpaint.cpp
+	abc_dynamicpaint.h
+	abc_mesh.cpp
+	abc_mesh.h
+	abc_particles.cpp
+	abc_particles.h
+	abc_rigidbody.cpp
+	abc_rigidbody.h
+	abc_smoke.cpp
+	abc_smoke.h
+	abc_softbody.cpp
+	abc_softbody.h
 )
 
-if(WITH_ALEMBIC)
-	add_definitions(-DWITH_PTC_ALEMBIC)
-	add_subdirectory(alembic)
-endif()
+add_definitions(-DWITH_ALEMBIC)
 
-blender_add_lib(bf_pointcache "${SRC}" "${INC}" "${INC_SYS}")
+blender_add_lib(bf_pointcache_alembic "${SRC}" "${INC}" "${INC_SYS}")

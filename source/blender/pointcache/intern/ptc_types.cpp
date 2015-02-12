@@ -16,49 +16,27 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_SOFTBODY_H
-#define PTC_SOFTBODY_H
+#include "ptc_types.h"
 
-//#include <Alembic/AbcGeom/IPoints.h>
-//#include <Alembic/AbcGeom/OPoints.h>
-
-#include "reader.h"
-#include "schema.h"
-#include "writer.h"
-
-struct Object;
-struct SoftBody;
+extern "C" {
+#include "BKE_DerivedMesh.h"
+}
 
 namespace PTC {
 
-class SoftBodyWriter : public Writer {
-public:
-	SoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbody);
-	~SoftBodyWriter();
-	
-	void write_sample();
-	
-private:
-	Object *m_ob;
-	SoftBody *m_softbody;
-	
-//	AbcGeom::OPoints m_points;
-};
+DerivedMesh *PointCacheReader::acquire_result()
+{
+	DerivedMesh *dm = m_result;
+	m_result = NULL;
+	return dm;
+}
 
-class SoftBodyReader : public Reader {
-public:
-	SoftBodyReader(Scene *scene, Object *ob, SoftBody *softbody);
-	~SoftBodyReader();
-	
-	PTCReadSampleResult read_sample(float frame);
-	
-private:
-	Object *m_ob;
-	SoftBody *m_softbody;
-	
-//	AbcGeom::IPoints m_points;
-};
+void PointCacheReader::discard_result()
+{
+	if (m_result) {
+		m_result->release(m_result);
+		m_result = NULL;
+	}
+}
 
 } /* namespace PTC */
-
-#endif  /* PTC_SOFTBODY_H */

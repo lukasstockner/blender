@@ -16,7 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "rigidbody.h"
+#include "alembic.h"
+
+#include "abc_rigidbody.h"
 
 extern "C" {
 #include "DNA_scene_types.h"
@@ -30,55 +32,48 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-RigidBodyWriter::RigidBodyWriter(Scene *scene, RigidBodyWorld *rbw) :
-    Writer(scene, &scene->id, rbw->pointcache),
-    m_rbw(rbw)
-{
-	uint32_t fs = add_frame_sampling();
-	
-	OObject root = m_archive.getTop();
-//	m_points = OPoints(root, m_psys->name, fs);
-}
-
-RigidBodyWriter::~RigidBodyWriter()
+AbcRigidBodyWriter::AbcRigidBodyWriter(Scene *scene, RigidBodyWorld *rbw) :
+    RigidBodyWriter(scene, rbw, &m_archive),
+    m_archive(scene, &scene->id, rbw->pointcache, m_error_handler)
 {
 }
 
-void RigidBodyWriter::write_sample()
+AbcRigidBodyWriter::~AbcRigidBodyWriter()
+{
+}
+
+void AbcRigidBodyWriter::write_sample()
 {
 }
 
 
-RigidBodyReader::RigidBodyReader(Scene *scene, RigidBodyWorld *rbw) :
-    Reader(scene, &scene->id, rbw->pointcache),
-    m_rbw(rbw)
+AbcRigidBodyReader::AbcRigidBodyReader(Scene *scene, RigidBodyWorld *rbw) :
+    RigidBodyReader(scene, rbw, &m_archive),
+    m_archive(scene, &scene->id, rbw->pointcache, m_error_handler)
 {
-	if (m_archive.valid()) {
-		IObject root = m_archive.getTop();
-//		m_points = IPoints(root, m_psys->name);
+	if (m_archive.archive.valid()) {
 	}
 }
 
-RigidBodyReader::~RigidBodyReader()
+AbcRigidBodyReader::~AbcRigidBodyReader()
 {
 }
 
-PTCReadSampleResult RigidBodyReader::read_sample(float frame)
+PTCReadSampleResult AbcRigidBodyReader::read_sample(float frame)
 {
 	return PTC_READ_SAMPLE_INVALID;
 }
 
+/* ==== API ==== */
+
+Writer *abc_writer_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return new AbcRigidBodyWriter(scene, rbw);
+}
+
+Reader *abc_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return new AbcRigidBodyReader(scene, rbw);
+}
+
 } /* namespace PTC */
-
-
-/* ==== C API ==== */
-
-PTCWriter *PTC_writer_rigidbody(Scene *scene, RigidBodyWorld *rbw)
-{
-	return (PTCWriter *)(new PTC::RigidBodyWriter(scene, rbw));
-}
-
-PTCReader *PTC_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw)
-{
-	return (PTCReader *)(new PTC::RigidBodyReader(scene, rbw));
-}

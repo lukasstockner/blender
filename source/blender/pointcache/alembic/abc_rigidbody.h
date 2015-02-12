@@ -16,49 +16,46 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_DYNAMICPAINT_H
-#define PTC_DYNAMICPAINT_H
+#ifndef PTC_ABC_RIGIDBODY_H
+#define PTC_ABC_RIGIDBODY_H
 
 //#include <Alembic/AbcGeom/IPoints.h>
 //#include <Alembic/AbcGeom/OPoints.h>
 
-#include "reader.h"
-#include "schema.h"
-#include "writer.h"
+#include "ptc_types.h"
 
-struct Object;
-struct DynamicPaintSurface;
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
+
+struct RigidBodyWorld;
 
 namespace PTC {
 
-class DynamicPaintWriter : public Writer {
+class AbcRigidBodyWriter : public RigidBodyWriter {
 public:
-	DynamicPaintWriter(Scene *scene, Object *ob, DynamicPaintSurface *surface);
-	~DynamicPaintWriter();
+	AbcRigidBodyWriter(Scene *scene, RigidBodyWorld *rbw);
+	~AbcRigidBodyWriter();
 	
 	void write_sample();
 	
 private:
-	Object *m_ob;
-	DynamicPaintSurface *m_surface;
-	
+	AbcWriterArchive m_archive;
 //	AbcGeom::OPoints m_points;
 };
 
-class DynamicPaintReader : public Reader {
+class AbcRigidBodyReader : public RigidBodyReader {
 public:
-	DynamicPaintReader(Scene *scene, Object *ob, DynamicPaintSurface *surface);
-	~DynamicPaintReader();
+	AbcRigidBodyReader(Scene *scene, RigidBodyWorld *rbw);
+	~AbcRigidBodyReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	Object *m_ob;
-	DynamicPaintSurface *m_surface;
-	
+	AbcReaderArchive m_archive;
 //	AbcGeom::IPoints m_points;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_DYNAMICPAINT_H */
+#endif  /* PTC_RIGIDBODY_H */

@@ -16,13 +16,15 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "util_frame_mapper.h"
+#include "abc_frame_mapper.h"
 
 extern "C" {
 #include "DNA_scene_types.h"
 }
 
 namespace PTC {
+
+#ifdef WITH_ALEMBIC
 
 using namespace Abc;
 using namespace AbcCoreAbstract;
@@ -48,5 +50,7 @@ float FrameMapper::time_to_frame(chrono_t time) const
 {
 	return (float)(time * m_frames_per_sec) + 1.0f;
 }
+
+#endif /* WITH_ALEMBIC */
 
 } /* namespace PTC */

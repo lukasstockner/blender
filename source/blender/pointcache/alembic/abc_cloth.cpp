@@ -16,7 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "cloth.h"
+#include "alembic.h"
+
+#include "abc_cloth.h"
 
 extern "C" {
 #include "DNA_object_types.h"
@@ -30,57 +32,50 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-ClothWriter::ClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd) :
-    Writer(scene, &ob->id, clmd->point_cache),
-    m_ob(ob),
-    m_clmd(clmd)
-{
-	uint32_t fs = add_frame_sampling();
-	
-	OObject root = m_archive.getTop();
-//	m_points = OPoints(root, m_psys->name, fs);
-}
-
-ClothWriter::~ClothWriter()
+AbcClothWriter::AbcClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd) :
+    ClothWriter(scene, ob, clmd, &m_archive),
+    m_archive(scene, &ob->id, clmd->point_cache, m_error_handler)
 {
 }
 
-void ClothWriter::write_sample()
+AbcClothWriter::~AbcClothWriter()
+{
+}
+
+void AbcClothWriter::write_sample()
 {
 }
 
 
-ClothReader::ClothReader(Scene *scene, Object *ob, ClothModifierData *clmd) :
-    Reader(scene, &ob->id, clmd->point_cache),
-    m_ob(ob),
-    m_clmd(clmd)
+AbcClothReader::AbcClothReader(Scene *scene, Object *ob, ClothModifierData *clmd) :
+    ClothReader(scene, ob, clmd, &m_archive),
+    m_archive(scene, &ob->id, clmd->point_cache, m_error_handler)
 {
-	if (m_archive.valid()) {
-		IObject root = m_archive.getTop();
+	if (m_archive.archive.valid()) {
+		IObject root = m_archive.archive.getTop();
 //		m_points = IPoints(root, m_psys->name);
 	}
 }
 
-ClothReader::~ClothReader()
+AbcClothReader::~AbcClothReader()
 {
 }
 
-PTCReadSampleResult ClothReader::read_sample(float frame)
+PTCReadSampleResult AbcClothReader::read_sample(float frame)
 {
 	return PTC_READ_SAMPLE_INVALID;
 }
 
+/* ==== API ==== */
+
+Writer *abc_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return new AbcClothWriter(scene, ob, clmd);
+}
+
+Reader *abc_reader_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return new AbcClothReader(scene, ob, clmd);
+}
+
 } /* namespace PTC */
-
-
-/* ==== C API ==== */
-
-PTCWriter *PTC_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
-{
-	return (PTCWriter *)(new PTC::ClothWriter(scene, ob, clmd));
-}
-
-PTCReader *PTC_reader_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
-{
-	return (PTCReader *)(new PTC::ClothReader(scene, ob, clmd));
-}

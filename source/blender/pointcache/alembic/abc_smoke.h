@@ -16,34 +16,47 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_UTIL_FRAME_MAPPER_H
-#define PTC_UTIL_FRAME_MAPPER_H
+#ifndef PTC_ABC_SMOKE_H
+#define PTC_ABC_SMOKE_H
 
-#include <Alembic/AbcCoreAbstract/Foundation.h>
-#include <Alembic/Abc/ISampleSelector.h>
+//#include <Alembic/AbcGeom/IPoints.h>
+//#include <Alembic/AbcGeom/OPoints.h>
 
-struct Scene;
+#include "ptc_types.h"
+
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
+
+struct Object;
+struct SmokeDomainSettings;
 
 namespace PTC {
 
-using namespace Alembic;
-using Alembic::AbcCoreAbstract::chrono_t;
-
-class FrameMapper {
+class AbcSmokeWriter : public SmokeWriter {
 public:
-	FrameMapper(double fps);
-	FrameMapper(Scene *scene);
+	AbcSmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain);
+	~AbcSmokeWriter();
 	
-	double frames_per_second() const { return m_frames_per_sec; }
-	double seconds_per_frame() const { return m_sec_per_frame; }
-	
-	chrono_t frame_to_time(float frame) const;
-	float time_to_frame(chrono_t time) const;
+	void write_sample();
 	
 private:
-	double m_frames_per_sec, m_sec_per_frame;
+	AbcWriterArchive m_archive;
+//	AbcGeom::OPoints m_points;
+};
+
+class AbcSmokeReader : public SmokeReader {
+public:
+	AbcSmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain);
+	~AbcSmokeReader();
+	
+	PTCReadSampleResult read_sample(float frame);
+	
+private:
+	AbcReaderArchive m_archive;
+//	AbcGeom::IPoints m_points;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_UTIL_FRAME_MAPPER_H */
+#endif  /* PTC_SMOKE_H */

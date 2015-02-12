@@ -16,10 +16,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_READER_H
-#define PTC_READER_H
+#ifndef PTC_ABC_READER_H
+#define PTC_ABC_READER_H
 
 #include <string>
+
+#include <Alembic/Abc/IArchive.h>
+#include <Alembic/Abc/ISampleSelector.h>
+
+#include "reader.h"
+
+#include "abc_frame_mapper.h"
 
 #include "util_error_handler.h"
 #include "util_types.h"
@@ -30,47 +37,22 @@ struct Scene;
 
 namespace PTC {
 
-class ReaderArchive {
-public:
-	virtual ~ReaderArchive() {}
-	
-	virtual void get_frame_range(int &start_frame, int &end_frame) = 0;
-	
-	virtual PTCReadSampleResult test_sample(float frame) = 0;
-};
+using namespace Alembic;
 
-class Reader {
+class AbcReaderArchive : public ReaderArchive, public FrameMapper {
 public:
-	Reader(Scene *scene, ID *id, PointCache *cache, ReaderArchive *archive);
-	virtual ~Reader();
+	AbcReaderArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler);
+	virtual ~AbcReaderArchive();
 	
-	void set_error_handler(ErrorHandler *handler);
-	ErrorHandler *get_error_handler() const { return m_error_handler; }
-	bool valid() const;
+	void get_frame_range(int &start_frame, int &end_frame);
+	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
-	inline void get_frame_range(int &start_frame, int &end_frame)
-	{
-		return m_archive->get_frame_range(start_frame, end_frame);
-	}
+	PTCReadSampleResult test_sample(float frame);
 	
-	inline PTCReadSampleResult test_sample(float frame)
-	{
-		return m_archive->test_sample(frame);
-	}
-	
-	virtual PTCReadSampleResult read_sample(float frame) = 0;
-	
-	Scene *scene() const { return m_scene; }
-	ID *id() const { return m_id; }
-	PointCache *cache() const { return m_cache; }
+	Abc::IArchive archive;
 	
 protected:
 	ErrorHandler *m_error_handler;
-	ReaderArchive *m_archive;
-	
-	Scene *m_scene;
-	ID *m_id;
-	PointCache *m_cache;
 };
 
 } /* namespace PTC */

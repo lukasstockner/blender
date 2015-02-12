@@ -16,8 +16,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_SCHEMA_H
-#define PTC_SCHEMA_H
+#ifndef PTC_ABC_SCHEMA_H
+#define PTC_ABC_SCHEMA_H
 
 #include <Alembic/AbcGeom/SchemaInfoDeclarations.h>
 #include <Alembic/AbcGeom/IGeomBase.h>

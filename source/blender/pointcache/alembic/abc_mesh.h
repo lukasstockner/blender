@@ -16,15 +16,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_MESH_H
-#define PTC_MESH_H
+#ifndef PTC_ABC_MESH_H
+#define PTC_ABC_MESH_H
 
 #include <Alembic/AbcGeom/IPolyMesh.h>
 #include <Alembic/AbcGeom/OPolyMesh.h>
 
-#include "reader.h"
-#include "schema.h"
-#include "writer.h"
+#include "ptc_types.h"
+
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
 
 struct Object;
 struct PointCacheModifierData;
@@ -32,16 +34,15 @@ struct DerivedMesh;
 
 namespace PTC {
 
-class PointCacheWriter : public Writer {
+class AbcPointCacheWriter : public PointCacheWriter {
 public:
-	PointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
-	~PointCacheWriter();
+	AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
+	~AbcPointCacheWriter();
 	
 	void write_sample();
 	
 private:
-	Object *m_ob;
-	PointCacheModifierData *m_pcmd;
+	AbcWriterArchive m_archive;
 	
 	AbcGeom::OPolyMesh m_mesh;
 	AbcGeom::OBoolGeomParam m_param_smooth;
@@ -52,19 +53,15 @@ private:
 	/* note: loop normals are already defined as a parameter in the schema */
 };
 
-class PointCacheReader : public Reader {
+class AbcPointCacheReader : public PointCacheReader {
 public:
-	PointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
-	~PointCacheReader();
-	
-	DerivedMesh *acquire_result();
-	void discard_result();
+	AbcPointCacheReader(Scene *scene, Object *ob, PointCacheModifierData *pcmd);
+	~AbcPointCacheReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	Object *m_ob;
-	PointCacheModifierData *m_pcmd;
+	AbcReaderArchive m_archive;
 	
 	AbcGeom::IPolyMesh m_mesh;
 	AbcGeom::IBoolGeomParam m_param_smooth;
@@ -73,8 +70,6 @@ private:
 	AbcGeom::IN3fGeomParam m_param_loop_normals;
 	AbcGeom::IN3fGeomParam m_param_vertex_normals;
 	AbcGeom::IN3fGeomParam m_param_poly_normals;
-	
-	DerivedMesh *m_result;
 };
 
 } /* namespace PTC */

@@ -16,47 +16,40 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_WRITER_H
-#define PTC_WRITER_H
+#ifndef PTC_ABC_FRAME_MAPPER_H
+#define PTC_ABC_FRAME_MAPPER_H
 
-#include <string>
+#ifdef WITH_ALEMBIC
+#include <Alembic/AbcCoreAbstract/Foundation.h>
+#include <Alembic/Abc/ISampleSelector.h>
+#endif
 
-#include "util_error_handler.h"
-
-struct ID;
-struct PointCache;
 struct Scene;
 
 namespace PTC {
 
-class WriterArchive {
+#ifdef WITH_ALEMBIC
+
+using namespace Alembic;
+using Alembic::AbcCoreAbstract::chrono_t;
+
+class FrameMapper {
 public:
-	virtual ~WriterArchive() {}
+	FrameMapper(double fps);
+	FrameMapper(Scene *scene);
+	
+	double frames_per_second() const { return m_frames_per_sec; }
+	double seconds_per_frame() const { return m_sec_per_frame; }
+	
+	chrono_t frame_to_time(float frame) const;
+	float time_to_frame(chrono_t time) const;
+	
+private:
+	double m_frames_per_sec, m_sec_per_frame;
 };
 
-class Writer {
-public:
-	Writer(Scene *scene, ID *id, PointCache *cache, WriterArchive *archive);
-	virtual ~Writer();
-	
-	void set_error_handler(ErrorHandler *handler);
-	bool valid() const;
-	
-	virtual void write_sample() = 0;
-	
-	Scene *scene() const { return m_scene; }
-	ID *id() const { return m_id; }
-	PointCache *cache() const { return m_cache; }
-	
-protected:
-	ErrorHandler *m_error_handler;
-	WriterArchive *m_archive;
-	
-	Scene *m_scene;
-	ID *m_id;
-	PointCache *m_cache;
-};
+#endif /* WITH_ALEMBIC */
 
 } /* namespace PTC */
 
-#endif  /* PTC_WRITER_H */
+#endif  /* PTC_UTIL_FRAME_MAPPER_H */

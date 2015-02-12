@@ -21,14 +21,16 @@
 
 #include <stdio.h>
 
+#ifdef WITH_ALEMBIC
 #include <Alembic/Abc/ErrorHandler.h>
+#endif
 
 extern "C" {
 #include "BLI_utildefines.h"
 #include "BLI_string.h"
 }
 
-#include "util/util_types.h"
+#include "util_types.h"
 
 struct ModifierData;
 struct ReportList;
@@ -98,6 +100,8 @@ private:
 
 /* -------------------------------- */
 
+#ifdef WITH_ALEMBIC
+
 /* XXX With current Alembic version 1.5 we only get a combined error message.
  * This function try to extract some more information and return a nicer message format.
  */
@@ -146,6 +150,8 @@ void handle_alembic_exception(T *handler, PTCErrorLevel level, const Alembic::Ut
 	}
 }
 
+#endif
+
 /* -------------------------------- */
 
 /* macros for convenient exception handling */
@@ -153,23 +159,38 @@ void handle_alembic_exception(T *handler, PTCErrorLevel level, const Alembic::Ut
 #define PTC_SAFE_CALL_BEGIN \
 	try {
 
+#ifdef WITH_ALEMBIC
 #define PTC_SAFE_CALL_END_HANDLER(handler) \
 	} \
 	catch (Alembic::Util::Exception e) { \
 		handle_alembic_exception((handler), PTC_ERROR_CRITICAL, e); \
 	}
+#else
+#define PTC_SAFE_CALL_END_HANDLER(handler) \
+	}
+#endif
 
+#ifdef WITH_ALEMBIC
 #define PTC_SAFE_CALL_END_HANDLER_LEVEL(handler, level) \
 	} \
 	catch (Alembic::Util::Exception e) { \
 		handle_alembic_exception((handler), (level), e); \
 	}
+#else
+#define PTC_SAFE_CALL_END_HANDLER_LEVEL(handler, level) \
+	}
+#endif
 
+#ifdef WITH_ALEMBIC
 #define PTC_SAFE_CALL_END \
 	} \
 	catch (Alembic::Util::Exception e) { \
 		handle_alembic_exception(ErrorHandler::get_default_handler(), PTC_ERROR_CRITICAL, e); \
 	}
+#else
+#define PTC_SAFE_CALL_END \
+	}
+#endif
 
 /* -------------------------------- */
 

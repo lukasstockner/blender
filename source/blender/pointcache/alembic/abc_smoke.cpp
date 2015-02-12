@@ -16,7 +16,9 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include "smoke.h"
+#include "alembic.h"
+
+#include "abc_smoke.h"
 
 extern "C" {
 #include "DNA_object_types.h"
@@ -30,57 +32,54 @@ namespace PTC {
 using namespace Abc;
 using namespace AbcGeom;
 
-SmokeWriter::SmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
-    Writer(scene, &ob->id, domain->point_cache[0]),
-    m_ob(ob),
-    m_domain(domain)
+AbcSmokeWriter::AbcSmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
+    SmokeWriter(scene, ob, domain, &m_archive),
+    m_archive(scene, &ob->id, domain->point_cache[0], m_error_handler)
 {
-	uint32_t fs = add_frame_sampling();
+	uint32_t fs = m_archive.add_frame_sampling();
 	
-	OObject root = m_archive.getTop();
+	OObject root = m_archive.archive.getTop();
 //	m_points = OPoints(root, m_psys->name, fs);
 }
 
-SmokeWriter::~SmokeWriter()
+AbcSmokeWriter::~AbcSmokeWriter()
 {
 }
 
-void SmokeWriter::write_sample()
+void AbcSmokeWriter::write_sample()
 {
 }
 
 
-SmokeReader::SmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
-    Reader(scene, &ob->id, domain->point_cache[0]),
-    m_ob(ob),
-    m_domain(domain)
+AbcSmokeReader::AbcSmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain) :
+    SmokeReader(scene, ob, domain, &m_archive),
+    m_archive(scene, &ob->id, domain->point_cache[0], m_error_handler)
 {
-	if (m_archive.valid()) {
-		IObject root = m_archive.getTop();
+	if (m_archive.archive.valid()) {
+		IObject root = m_archive.archive.getTop();
 //		m_points = IPoints(root, m_psys->name);
 	}
 }
 
-SmokeReader::~SmokeReader()
+AbcSmokeReader::~AbcSmokeReader()
 {
 }
 
-PTCReadSampleResult SmokeReader::read_sample(float frame)
+PTCReadSampleResult AbcSmokeReader::read_sample(float frame)
 {
 	return PTC_READ_SAMPLE_INVALID;
 }
 
+/* ==== API ==== */
+
+Writer *abc_writer_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+{
+	return new AbcSmokeWriter(scene, ob, domain);
+}
+
+Reader *abc_reader_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+{
+	return new AbcSmokeReader(scene, ob, domain);
+}
+
 } /* namespace PTC */
-
-
-/* ==== C API ==== */
-
-PTCWriter *PTC_writer_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
-{
-	return (PTCWriter *)(new PTC::SmokeWriter(scene, ob, domain));
-}
-
-PTCReader *PTC_reader_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
-{
-	return (PTCReader *)(new PTC::SmokeReader(scene, ob, domain));
-}

@@ -16,47 +16,47 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_WRITER_H
-#define PTC_WRITER_H
+#ifndef PTC_ABC_SOFTBODY_H
+#define PTC_ABC_SOFTBODY_H
 
-#include <string>
+//#include <Alembic/AbcGeom/IPoints.h>
+//#include <Alembic/AbcGeom/OPoints.h>
 
-#include "util_error_handler.h"
+#include "ptc_types.h"
 
-struct ID;
-struct PointCache;
-struct Scene;
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
+
+struct Object;
+struct SoftBody;
 
 namespace PTC {
 
-class WriterArchive {
+class AbcSoftBodyWriter : public SoftBodyWriter {
 public:
-	virtual ~WriterArchive() {}
+	AbcSoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbody);
+	~AbcSoftBodyWriter();
+	
+	void write_sample();
+	
+private:
+	AbcWriterArchive m_archive;
+//	AbcGeom::OPoints m_points;
 };
 
-class Writer {
+class AbcSoftBodyReader : public SoftBodyReader {
 public:
-	Writer(Scene *scene, ID *id, PointCache *cache, WriterArchive *archive);
-	virtual ~Writer();
+	AbcSoftBodyReader(Scene *scene, Object *ob, SoftBody *softbody);
+	~AbcSoftBodyReader();
 	
-	void set_error_handler(ErrorHandler *handler);
-	bool valid() const;
+	PTCReadSampleResult read_sample(float frame);
 	
-	virtual void write_sample() = 0;
-	
-	Scene *scene() const { return m_scene; }
-	ID *id() const { return m_id; }
-	PointCache *cache() const { return m_cache; }
-	
-protected:
-	ErrorHandler *m_error_handler;
-	WriterArchive *m_archive;
-	
-	Scene *m_scene;
-	ID *m_id;
-	PointCache *m_cache;
+private:
+	AbcReaderArchive m_archive;
+//	AbcGeom::IPoints m_points;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_WRITER_H */
+#endif  /* PTC_SOFTBODY_H */

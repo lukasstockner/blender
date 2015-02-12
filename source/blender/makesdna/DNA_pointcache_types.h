@@ -188,5 +188,10 @@ typedef enum ePointCacheCompression {
 /* PTCACHE_OUTDATED + PTCACHE_FRAMES_SKIPPED */
 #define _PTCACHE_REDO_NEEDED_DEPRECATED			258
 
+typedef enum ePointCacheArchive_Type {
+	PTC_ARCHIVE_BPHYS		= 0,
+	PTC_ARCHIVE_ALEMBIC		= 1,
+} ePointCacheArchive_Type;
+
 #endif
 

@@ -16,49 +16,47 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_CLOTH_H
-#define PTC_CLOTH_H
+#ifndef PTC_ABC_DYNAMICPAINT_H
+#define PTC_ABC_DYNAMICPAINT_H
 
 //#include <Alembic/AbcGeom/IPoints.h>
 //#include <Alembic/AbcGeom/OPoints.h>
 
-#include "reader.h"
-#include "schema.h"
-#include "writer.h"
+#include "ptc_types.h"
+
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
 
 struct Object;
-struct ClothModifierData;
+struct DynamicPaintSurface;
 
 namespace PTC {
 
-class ClothWriter : public Writer {
+class AbcDynamicPaintWriter : public DynamicPaintWriter {
 public:
-	ClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd);
-	~ClothWriter();
+	AbcDynamicPaintWriter(Scene *scene, Object *ob, DynamicPaintSurface *surface);
+	~AbcDynamicPaintWriter();
 	
 	void write_sample();
 	
 private:
-	Object *m_ob;
-	ClothModifierData *m_clmd;
-	
+	AbcWriterArchive m_archive;
 //	AbcGeom::OPoints m_points;
 };
 
-class ClothReader : public Reader {
+class AbcDynamicPaintReader : public DynamicPaintReader {
 public:
-	ClothReader(Scene *scene, Object *ob, ClothModifierData *clmd);
-	~ClothReader();
+	AbcDynamicPaintReader(Scene *scene, Object *ob, DynamicPaintSurface *surface);
+	~AbcDynamicPaintReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	Object *m_ob;
-	ClothModifierData *m_clmd;
-	
+	AbcReaderArchive m_archive;
 //	AbcGeom::IPoints m_points;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_CLOTH_H */
+#endif  /* PTC_DYNAMICPAINT_H */

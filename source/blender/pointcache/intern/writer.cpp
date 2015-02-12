@@ -16,40 +16,21 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#include <Alembic/AbcCoreHDF5/ReadWrite.h>
-
 #include "writer.h"
-#include "util_path.h"
 
 extern "C" {
-#include "BLI_fileops.h"
-#include "BLI_path_util.h"
-
 #include "DNA_scene_types.h"
 }
 
 namespace PTC {
 
-using namespace Abc;
-
-/* make sure the file's directory exists */
-static void ensure_directory(const char *filename)
-{
-	char dir[FILE_MAXDIR];
-	BLI_split_dir_part(filename, dir, sizeof(dir));
-	BLI_dir_create_recursive(dir);
-}
-
-Writer::Writer(Scene *scene, ID *id, PointCache *cache) :
-    FrameMapper(scene),
+Writer::Writer(Scene *scene, ID *id, PointCache *cache, WriterArchive *archive) :
     m_error_handler(0),
-    m_scene(scene)
+    m_archive(archive),
+    m_scene(scene),
+    m_id(id),
+    m_cache(cache)
 {
-	std::string filename = ptc_archive_path(cache, id);
-	ensure_directory(filename.c_str());
-	PTC_SAFE_CALL_BEGIN
-	m_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
 Writer::~Writer()
@@ -69,13 +50,6 @@ void Writer::set_error_handler(ErrorHandler *handler)
 bool Writer::valid() const
 {
 	return m_error_handler ? m_error_handler->max_error_level() >= PTC_ERROR_CRITICAL : true;
-}
-
-uint32_t Writer::add_frame_sampling()
-{
-	chrono_t cycle_time = seconds_per_frame();
-	chrono_t start_time = 0.0f;
-	return m_archive.addTimeSampling(TimeSampling(cycle_time, start_time));
 }
 
 } /* namespace PTC */

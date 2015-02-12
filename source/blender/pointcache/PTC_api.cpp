@@ -18,13 +18,14 @@
 
 #include "PTC_api.h"
 
-#ifdef WITH_ALEMBIC
-
 #include "util/util_error_handler.h"
 
 #include "reader.h"
 #include "writer.h"
 #include "export.h"
+
+#include "alembic.h"
+#include "ptc_types.h"
 
 extern "C" {
 #include "BLI_math.h"
@@ -233,14 +234,159 @@ PTCReader *PTC_reader_from_rna(Scene *scene, PointerRNA *ptr)
 	return NULL;
 }
 
-#else
 
-void PTC_writer_free(PTCWriter *_writer)
+/* ==== CLOTH ==== */
+
+PTCWriter *PTC_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCWriter *)abc_writer_cloth(scene, ob, clmd);
+}
+
+PTCReader *PTC_reader_cloth(Scene *scene, Object *ob, ClothModifierData *clmd)
+{
+	return (PTCReader *)abc_reader_cloth(scene, ob, clmd);
+}
+
+
+/* ==== DYNAMIC PAINT ==== */
+
+PTCWriter *PTC_writer_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+{
+	return (PTCWriter *)abc_writer_dynamicpaint(scene, ob, surface);
+}
+
+PTCReader *PTC_reader_dynamicpaint(Scene *scene, Object *ob, DynamicPaintSurface *surface)
+{
+	return (PTCReader *)abc_reader_dynamicpaint(scene, ob, surface);
+}
+
+
+/* ==== MESH ==== */
+
+PTCWriter *PTC_writer_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
+{
+	return (PTCWriter *)abc_writer_point_cache(scene, ob, pcmd);
+}
+
+PTCReader *PTC_reader_point_cache(Scene *scene, Object *ob, PointCacheModifierData *pcmd)
+{
+	return (PTCReader *)abc_reader_point_cache(scene, ob, pcmd);
+}
+
+struct DerivedMesh *PTC_reader_point_cache_acquire_result(PTCReader *_reader)
+{
+	PointCacheReader *reader = (PointCacheReader *)_reader;
+	return reader->acquire_result();
+}
+
+void PTC_reader_point_cache_discard_result(PTCReader *_reader)
 {
 }
 
-void PTC_write(struct PTCWriter *_writer)
+ePointCacheModifierMode PTC_mod_point_cache_get_mode(PointCacheModifierData *pcmd)
 {
+	/* can't have simultaneous read and write */
+	if (pcmd->writer) {
+		BLI_assert(!pcmd->reader);
+		return MOD_POINTCACHE_MODE_WRITE;
+	}
+	else if (pcmd->reader) {
+		BLI_assert(!pcmd->writer);
+		return MOD_POINTCACHE_MODE_READ;
+	}
+	else
+		return MOD_POINTCACHE_MODE_NONE;
 }
 
-#endif
+ePointCacheModifierMode PTC_mod_point_cache_set_mode(Scene *scene, Object *ob, PointCacheModifierData *pcmd, ePointCacheModifierMode mode)
+{
+	switch (mode) {
+		case MOD_POINTCACHE_MODE_READ:
+			if (pcmd->writer) {
+				PTC_writer_free(pcmd->writer);
+				pcmd->writer = NULL;
+			}
+			if (!pcmd->reader) {
+				pcmd->reader = PTC_reader_point_cache(scene, ob, pcmd);
+			}
+			return pcmd->reader ? MOD_POINTCACHE_MODE_READ : MOD_POINTCACHE_MODE_NONE;
+		
+		case MOD_POINTCACHE_MODE_WRITE:
+			if (pcmd->reader) {
+				PTC_reader_free(pcmd->reader);
+				pcmd->reader = NULL;
+			}
+			if (!pcmd->writer) {
+				pcmd->writer = PTC_writer_point_cache(scene, ob, pcmd);
+			}
+			return pcmd->writer ? MOD_POINTCACHE_MODE_WRITE : MOD_POINTCACHE_MODE_NONE;
+		
+		default:
+			if (pcmd->writer) {
+				PTC_writer_free(pcmd->writer);
+				pcmd->writer = NULL;
+			}
+			if (pcmd->reader) {
+				PTC_reader_free(pcmd->reader);
+				pcmd->reader = NULL;
+			}
+			return MOD_POINTCACHE_MODE_NONE;
+	}
+}
+
+
+/* ==== PARTICLES ==== */
+
+PTCWriter *PTC_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys)
+{
+	return (PTCWriter *)abc_writer_particles(scene, ob, psys);
+}
+
+PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
+{
+	return (PTCReader *)abc_reader_particles(scene, ob, psys);
+}
+
+int PTC_reader_particles_totpoint(PTCReader *_reader)
+{
+	return ((PTC::ParticlesReader *)_reader)->totpoint();
+}
+
+
+/* ==== RIGID BODY ==== */
+
+PTCWriter *PTC_writer_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return (PTCWriter *)abc_writer_rigidbody(scene, rbw);
+}
+
+PTCReader *PTC_reader_rigidbody(Scene *scene, RigidBodyWorld *rbw)
+{
+	return (PTCReader *)abc_reader_rigidbody(scene, rbw);
+}
+
+
+/* ==== SMOKE ==== */
+
+PTCWriter *PTC_writer_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+{
+	return (PTCWriter *)abc_writer_smoke(scene, ob, domain);
+}
+
+PTCReader *PTC_reader_smoke(Scene *scene, Object *ob, SmokeDomainSettings *domain)
+{
+	return (PTCReader *)abc_reader_smoke(scene, ob, domain);
+}
+
+
+/* ==== SOFT BODY ==== */
+
+PTCWriter *PTC_writer_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+{
+	return (PTCWriter *)abc_writer_softbody(scene, ob, softbody);
+}
+
+PTCReader *PTC_reader_softbody(Scene *scene, Object *ob, SoftBody *softbody)
+{
+	return (PTCReader *)abc_reader_softbody(scene, ob, softbody);
+}

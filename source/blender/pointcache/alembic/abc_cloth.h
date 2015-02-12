@@ -16,49 +16,47 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_SMOKE_H
-#define PTC_SMOKE_H
+#ifndef PTC_ABC_CLOTH_H
+#define PTC_ABC_CLOTH_H
 
 //#include <Alembic/AbcGeom/IPoints.h>
 //#include <Alembic/AbcGeom/OPoints.h>
 
-#include "reader.h"
-#include "schema.h"
-#include "writer.h"
+#include "ptc_types.h"
+
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
 
 struct Object;
-struct SmokeDomainSettings;
+struct ClothModifierData;
 
 namespace PTC {
 
-class SmokeWriter : public Writer {
+class AbcClothWriter : public ClothWriter {
 public:
-	SmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *domain);
-	~SmokeWriter();
+	AbcClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd);
+	~AbcClothWriter();
 	
 	void write_sample();
 	
 private:
-	Object *m_ob;
-	SmokeDomainSettings *m_domain;
-	
+	AbcWriterArchive m_archive;
 //	AbcGeom::OPoints m_points;
 };
 
-class SmokeReader : public Reader {
+class AbcClothReader : public ClothReader {
 public:
-	SmokeReader(Scene *scene, Object *ob, SmokeDomainSettings *domain);
-	~SmokeReader();
+	AbcClothReader(Scene *scene, Object *ob, ClothModifierData *clmd);
+	~AbcClothReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	Object *m_ob;
-	SmokeDomainSettings *m_domain;
-	
+	AbcReaderArchive m_archive;
 //	AbcGeom::IPoints m_points;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_SMOKE_H */
+#endif  /* PTC_CLOTH_H */

@@ -16,46 +16,47 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_RIGIDBODY_H
-#define PTC_RIGIDBODY_H
+#ifndef PTC_ABC_PARTICLES_H
+#define PTC_ABC_PARTICLES_H
 
-//#include <Alembic/AbcGeom/IPoints.h>
-//#include <Alembic/AbcGeom/OPoints.h>
+#include <Alembic/AbcGeom/IPoints.h>
+#include <Alembic/AbcGeom/OPoints.h>
 
-#include "reader.h"
-#include "schema.h"
-#include "writer.h"
+#include "ptc_types.h"
 
-struct RigidBodyWorld;
+#include "abc_reader.h"
+#include "abc_schema.h"
+#include "abc_writer.h"
+
+struct Object;
+struct ParticleSystem;
 
 namespace PTC {
 
-class RigidBodyWriter : public Writer {
+class AbcParticlesWriter : public ParticlesWriter {
 public:
-	RigidBodyWriter(Scene *scene, RigidBodyWorld *rbw);
-	~RigidBodyWriter();
+	AbcParticlesWriter(Scene *scene, Object *ob, ParticleSystem *psys);
+	~AbcParticlesWriter();
 	
 	void write_sample();
 	
 private:
-	RigidBodyWorld *m_rbw;
-	
-//	AbcGeom::OPoints m_points;
+	AbcWriterArchive m_archive;
+	AbcGeom::OPoints m_points;
 };
 
-class RigidBodyReader : public Reader {
+class AbcParticlesReader : public ParticlesReader {
 public:
-	RigidBodyReader(Scene *scene, RigidBodyWorld *rbw);
-	~RigidBodyReader();
+	AbcParticlesReader(Scene *scene, Object *ob, ParticleSystem *psys);
+	~AbcParticlesReader();
 	
 	PTCReadSampleResult read_sample(float frame);
 	
 private:
-	RigidBodyWorld *m_rbw;
-	
-//	AbcGeom::IPoints m_points;
+	AbcReaderArchive m_archive;
+	AbcGeom::IPoints m_points;
 };
 
 } /* namespace PTC */
 
-#endif  /* PTC_RIGIDBODY_H */
+#endif  /* PTC_PARTICLES_H */
