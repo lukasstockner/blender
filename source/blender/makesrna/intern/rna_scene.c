@@ -1711,7 +1711,7 @@ static void rna_GPUFXSettings_fx_update(Main *UNUSED(bmain), Scene *UNUSED(scene
 {
 	GPUFXSettings *fx_settings = ptr->data;
 
-	BKE_screen_gpu_validate_fx(fx_settings);
+	BKE_screen_gpu_fx_validate(fx_settings);
 }
 
 #else

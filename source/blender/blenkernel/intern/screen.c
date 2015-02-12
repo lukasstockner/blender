@@ -599,15 +599,18 @@ float BKE_screen_view3d_zoom_from_fac(float zoomfac)
 	return ((sqrtf(4.0f * zoomfac) - (float)M_SQRT2) * 50.0f);
 }
 
-void BKE_screen_gpu_validate_fx(GPUFXSettings *fx_settings)
+void BKE_screen_gpu_fx_validate(GPUFXSettings *fx_settings)
 {
+	/* currently we use DOF from the camera _only_,
+	 * so we never allocate this, only copy from the Camera */
+#if 0
 	if ((fx_settings->dof == NULL) &&
 	    (fx_settings->fx_flag & GPU_FX_FLAG_DOF))
 	{
 		GPUDOFSettings *fx_dof;
 		fx_dof = fx_settings->dof = MEM_callocN(sizeof(GPUDOFSettings), __func__);
-		(void)fx_dof;
 	}
+#endif
 
 	if ((fx_settings->ssao == NULL) &&
 	    (fx_settings->fx_flag & GPU_FX_FLAG_SSAO))
