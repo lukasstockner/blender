@@ -2993,8 +2993,6 @@ static int wm_save_as_mainfile_exec(bContext *C, wmOperator *op)
 	char path[FILE_MAX];
 	int fileflags;
 
-	printf("G.save_over: %d\n", G.save_over);
-
 	save_set_compress(op);
 	
 	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
