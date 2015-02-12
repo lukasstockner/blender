@@ -19,8 +19,8 @@
 #ifndef PTC_ABC_CLOTH_H
 #define PTC_ABC_CLOTH_H
 
-//#include <Alembic/AbcGeom/IPoints.h>
-//#include <Alembic/AbcGeom/OPoints.h>
+#include <Alembic/AbcGeom/IPoints.h>
+#include <Alembic/AbcGeom/OPoints.h>
 
 #include "ptc_types.h"
 
@@ -42,7 +42,10 @@ public:
 	
 private:
 	AbcWriterArchive m_archive;
-//	AbcGeom::OPoints m_points;
+	
+	AbcGeom::OPoints m_points;
+	AbcGeom::OV3fGeomParam m_param_velocities;
+	AbcGeom::OP3fGeomParam m_param_goal_positions;
 };
 
 class AbcClothReader : public ClothReader {
@@ -54,7 +57,10 @@ public:
 	
 private:
 	AbcReaderArchive m_archive;
-//	AbcGeom::IPoints m_points;
+	
+	AbcGeom::IPoints m_points;
+	AbcGeom::IV3fGeomParam m_param_velocities;
+	AbcGeom::IP3fGeomParam m_param_goal_positions;
 };
 
 } /* namespace PTC */
