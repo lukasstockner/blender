@@ -136,6 +136,10 @@ void DEG_id_tag_update(ID *id, short flag)
 
 void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 {
+	if(id == NULL) {
+		/* Ideally should not happen, but old depsgraph allowed this. */
+		return;
+	}
 	DEG_DEBUG_PRINTF("%s: id=%s flag=%d\n", __func__, id->name, flag);
 	lib_id_recalc_tag_flag(bmain, id, flag);
 	for (Scene *scene = (Scene *)bmain->scene.first;
