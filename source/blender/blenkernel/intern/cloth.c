@@ -431,6 +431,8 @@ static DerivedMesh *cloth_to_triangles(DerivedMesh *dm)
  ************************************************/
 void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, DerivedMesh *dm, float (*vertexCos)[3])
 {
+	const float fps = FPS;
+	const float timescale = fps > 0.0f ? 1.0f / fps : 0.0f;
 	PointCache *cache;
 	int framenr, startframe, endframe;
 	PTCReadSampleResult cache_result;
@@ -440,10 +442,7 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	framenr= (int)scene->r.cfra;
 	cache= clmd->point_cache;
 
-	cache_reader = PTC_reader_cloth(scene, ob, clmd);
-	PTC_reader_get_frame_range(cache_reader, &startframe, &endframe);
-
-	clmd->sim_parms->timescale = 1.0f;
+	clmd->sim_parms->timescale = timescale;
 
 	if (clmd->sim_parms->reset || (clmd->clothObject && dm->getNumVerts(dm) != clmd->clothObject->numverts)) {
 		clmd->sim_parms->reset = 0;
@@ -453,6 +452,8 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	// unused in the moment, calculated separately in implicit.c
 	clmd->sim_parms->dt = clmd->sim_parms->timescale / clmd->sim_parms->stepsPerFrame;
 
+	cache_reader = PTC_reader_cloth(scene, ob, clmd);
+	PTC_reader_get_frame_range(cache_reader, &startframe, &endframe);
 	/* simulation is only active during a specific period */
 	if (framenr < startframe) {
 		return;
