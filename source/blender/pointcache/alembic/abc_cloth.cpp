@@ -90,6 +90,8 @@ static P3fArraySample create_sample_goal_positions(Cloth *cloth, std::vector<V3f
 void AbcClothWriter::write_sample()
 {
 	Cloth *cloth = m_clmd->clothObject;
+	if (!cloth)
+		return;
 	
 	OPointsSchema &schema = m_points.getSchema();
 	
