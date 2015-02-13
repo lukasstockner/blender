@@ -48,16 +48,18 @@ AbcReaderArchive::~AbcReaderArchive()
 {
 }
 
-void AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
+bool AbcReaderArchive::get_frame_range(int &start_frame, int &end_frame)
 {
 	if (archive.valid()) {
 		double start_time, end_time;
 		GetArchiveStartAndEndTime(archive, start_time, end_time);
 		start_frame = (int)time_to_frame(start_time);
 		end_frame = (int)time_to_frame(end_time);
+		return true;
 	}
 	else {
 		start_frame = end_frame = 1;
+		return false;
 	}
 }
 

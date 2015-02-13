@@ -44,7 +44,7 @@ public:
 	AbcReaderArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler);
 	virtual ~AbcReaderArchive();
 	
-	void get_frame_range(int &start_frame, int &end_frame);
+	bool get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
 	
 	PTCReadSampleResult test_sample(float frame);

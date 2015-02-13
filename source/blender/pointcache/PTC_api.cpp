@@ -130,13 +130,20 @@ void PTC_reader_free(PTCReader *_reader)
 	delete reader;
 }
 
-void PTC_reader_get_frame_range(PTCReader *_reader, int *start_frame, int *end_frame)
+bool PTC_reader_get_frame_range(PTCReader *_reader, int *start_frame, int *end_frame)
 {
 	PTC::Reader *reader = (PTC::Reader *)_reader;
 	int sfra, efra;
-	reader->get_frame_range(sfra, efra);
-	if (start_frame) *start_frame = sfra;
-	if (end_frame) *end_frame = efra;
+	if (reader->get_frame_range(sfra, efra)) {
+		if (start_frame) *start_frame = sfra;
+		if (end_frame) *end_frame = efra;
+		return true;
+	}
+	else {
+		if (start_frame) *start_frame = reader->cache()->startframe;
+		if (end_frame) *end_frame = reader->cache()->endframe;
+		return false;
+	}
 }
 
 PTCReadSampleResult PTC_read_sample(PTCReader *_reader, float frame)

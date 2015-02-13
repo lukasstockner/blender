@@ -64,7 +64,7 @@ void PTC_writer_free(struct PTCWriter *writer);
 void PTC_write_sample(struct PTCWriter *writer);
 
 void PTC_reader_free(struct PTCReader *reader);
-void PTC_reader_get_frame_range(struct PTCReader *reader, int *start_frame, int *end_frame);
+bool PTC_reader_get_frame_range(struct PTCReader *reader, int *start_frame, int *end_frame);
 PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
 PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 

@@ -34,7 +34,7 @@ class ReaderArchive {
 public:
 	virtual ~ReaderArchive() {}
 	
-	virtual void get_frame_range(int &start_frame, int &end_frame) = 0;
+	virtual bool get_frame_range(int &start_frame, int &end_frame) = 0;
 	
 	virtual PTCReadSampleResult test_sample(float frame) = 0;
 };
@@ -48,7 +48,7 @@ public:
 	ErrorHandler *get_error_handler() const { return m_error_handler; }
 	bool valid() const;
 	
-	inline void get_frame_range(int &start_frame, int &end_frame)
+	inline bool get_frame_range(int &start_frame, int &end_frame)
 	{
 		return m_archive->get_frame_range(start_frame, end_frame);
 	}
