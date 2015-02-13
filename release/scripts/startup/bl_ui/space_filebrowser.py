@@ -212,7 +212,6 @@ class FILEBROWSER_PT_recent_folders(Panel):
             col.operator("file.reset_recent", icon='X', text="")
 
 
-
 class FILEBROWSER_UL_dir(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         direntry = item

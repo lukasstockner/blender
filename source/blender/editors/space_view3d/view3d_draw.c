@@ -295,7 +295,7 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 	dx = fabs(x - (wx) * fx / fw);
 	if (dx == 0) dx = fabs(y - (wy) * fy / fw);
 	
-	glDepthMask(0);     /* disable write in zbuffer */
+	glDepthMask(GL_FALSE);     /* disable write in zbuffer */
 
 	/* check zoom out */
 	UI_ThemeColor(TH_GRID);
@@ -434,7 +434,7 @@ static void drawgrid(UnitSettings *unit, ARegion *ar, View3D *v3d, const char **
 
 	fdrawline(x, 0.0, x, (float)ar->winy); 
 
-	glDepthMask(1);  /* enable write in zbuffer */
+	glDepthMask(GL_TRUE);  /* enable write in zbuffer */
 }
 #undef GRID_MIN_PX
 
@@ -476,8 +476,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 	grid_scale = ED_view3d_grid_scale(scene, v3d, grid_unit);
 	grid = gridlines * grid_scale;
 
-	if (v3d->zbuf && scene->obedit)
-		glDepthMask(0);  /* for zbuffer-select */
+	glDepthMask(GL_FALSE);
 
 	UI_GetThemeColor3ubv(TH_GRID, col_grid);
 
@@ -546,7 +545,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 		}
 	}
 	
-	if (v3d->zbuf && scene->obedit) glDepthMask(1);
+	glDepthMask(GL_TRUE);
 }
 
 
@@ -1920,7 +1919,7 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 {
 	View3DAfter *v3da, *next;
 	
-	glDepthMask(0);
+	glDepthMask(GL_FALSE);
 	v3d->transp = true;
 	
 	for (v3da = v3d->afterdraw_transp.first; v3da; v3da = next) {
@@ -1931,17 +1930,19 @@ static void view3d_draw_transp(Scene *scene, ARegion *ar, View3D *v3d)
 	}
 	v3d->transp = false;
 	
-	glDepthMask(1);
+	glDepthMask(GL_TRUE);
 	
 }
 
 /* clears zbuffer and draws it over */
-static void view3d_draw_xray(Scene *scene, ARegion *ar, View3D *v3d, const bool clear)
+static void view3d_draw_xray(Scene *scene, ARegion *ar, View3D *v3d, bool *clear)
 {
 	View3DAfter *v3da, *next;
 
-	if (clear && v3d->zbuf)
+	if (*clear && v3d->zbuf) {
 		glClear(GL_DEPTH_BUFFER_BIT);
+		*clear = false;
+	}
 
 	v3d->xray = true;
 	for (v3da = v3d->afterdraw_xray.first; v3da; v3da = next) {
@@ -1965,6 +1966,8 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, const
 	v3d->xray = true;
 	v3d->transp = true;
 	
+	glDepthMask(GL_FALSE);
+
 	for (v3da = v3d->afterdraw_xraytransp.first; v3da; v3da = next) {
 		next = v3da->next;
 		draw_object(scene, ar, v3d, v3da->base, v3da->dflag);
@@ -1975,6 +1978,7 @@ static void view3d_draw_xraytransp(Scene *scene, ARegion *ar, View3D *v3d, const
 	v3d->transp = false;
 	v3d->xray = false;
 
+	glDepthMask(GL_TRUE);
 }
 
 /* *********************** */
@@ -2668,6 +2672,9 @@ static void view3d_draw_objects(
 	RegionView3D *rv3d = ar->regiondata;
 	Base *base;
 	const bool do_camera_frame = !draw_offscreen;
+	const bool draw_floor = (rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO);
+	const bool draw_grids = !draw_offscreen && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0;
+	bool xrayclear = true;
 
 	if (!draw_offscreen) {
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
@@ -2698,26 +2705,21 @@ static void view3d_draw_objects(
 		glEnable(GL_DEPTH_TEST);
 	}
 
-	if (!draw_offscreen) {
+	/* ortho grid goes first, does not write to depth buffer and doesn't need depth test so it will override
+	 * objects if done last */
+	if (draw_grids) {
 		/* needs to be done always, gridview is adjusted in drawgrid() now, but only for ortho views. */
 		rv3d->gridview = ED_view3d_grid_scale(scene, v3d, grid_unit);
 
-		if ((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) {
-			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
-				drawfloor(scene, v3d, grid_unit);
-			}
-		}
-		else {
-			if ((v3d->flag2 & V3D_RENDER_OVERRIDE) == 0) {
-				ED_region_pixelspace(ar);
-				*grid_unit = NULL;  /* drawgrid need this to detect/affect smallest valid unit... */
-				drawgrid(&scene->unit, ar, v3d, grid_unit);
-				/* XXX make function? replaces persp(1) */
-				glMatrixMode(GL_PROJECTION);
-				glLoadMatrixf(rv3d->winmat);
-				glMatrixMode(GL_MODELVIEW);
-				glLoadMatrixf(rv3d->viewmat);
-			}
+		if (!draw_floor) {
+			ED_region_pixelspace(ar);
+			*grid_unit = NULL;  /* drawgrid need this to detect/affect smallest valid unit... */
+			drawgrid(&scene->unit, ar, v3d, grid_unit);
+			/* XXX make function? replaces persp(1) */
+			glMatrixMode(GL_PROJECTION);
+			glLoadMatrixf(rv3d->winmat);
+			glMatrixMode(GL_MODELVIEW);
+			glLoadMatrixf(rv3d->viewmat);
 		}
 	}
 
@@ -2801,10 +2803,15 @@ static void view3d_draw_objects(
 		if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	}
 
+	/* perspective floor goes last to use scene depth and avoid writing to depth buffer */
+	if (draw_grids && draw_floor) {
+		drawfloor(scene, v3d, grid_unit);
+	}
+
 	/* transp and X-ray afterdraw stuff */
 	if (v3d->afterdraw_transp.first)     view3d_draw_transp(scene, ar, v3d);
-	if (v3d->afterdraw_xray.first)       view3d_draw_xray(scene, ar, v3d, true);
-	if (v3d->afterdraw_xraytransp.first) view3d_draw_xraytransp(scene, ar, v3d, true);
+	if (v3d->afterdraw_xray.first)       view3d_draw_xray(scene, ar, v3d, &xrayclear);
+	if (v3d->afterdraw_xraytransp.first) view3d_draw_xraytransp(scene, ar, v3d, xrayclear);
 
 	if (!draw_offscreen) {
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
@@ -3546,7 +3553,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 	if (do_compositing) {
 		GPU_fx_do_composite_pass(rv3d->compositor, rv3d->winmat, rv3d->is_persp, scene, NULL);
 	}
-	
+
 	/* Disable back anti-aliasing */
 	if (U.ogl_multisamples != USER_MULTISAMPLE_NONE) {
 		glDisable(GL_MULTISAMPLE_ARB);
