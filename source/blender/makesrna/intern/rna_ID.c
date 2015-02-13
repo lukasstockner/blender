@@ -415,6 +415,7 @@ static void rna_IDPreview_is_custom_set(PointerRNA *ptr, int value, enum eIconSi
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
 
 	BLI_assert(prv_img == BKE_previewimg_get(id));
+	UNUSED_VARS_NDEBUG(id);
 
 	prv_img->user_edited[size] = (short)value;
 	prv_img->changed[size] = true;
@@ -428,6 +429,7 @@ static void rna_IDPreview_size_get(PointerRNA *ptr, int *values, enum eIconSizes
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
 
 	BLI_assert(prv_img == BKE_previewimg_get(id));
+	UNUSED_VARS_NDEBUG(id);
 
 	values[0] = prv_img->w[size];
 	values[1] = prv_img->h[size];
@@ -439,6 +441,7 @@ static void rna_IDPreview_size_set(PointerRNA *ptr, const int *values, enum eIco
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
 
 	BLI_assert(prv_img == BKE_previewimg_get(id));
+	UNUSED_VARS_NDEBUG(id);
 
 	BKE_previewimg_clear(prv_img, size);
 
@@ -459,6 +462,7 @@ static int rna_IDPreview_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_A
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
 
 	BLI_assert(prv_img == BKE_previewimg_get(id));
+	UNUSED_VARS_NDEBUG(id);
 
 	length[0] = prv_img->w[size] * prv_img->h[size];
 
@@ -471,6 +475,7 @@ static void rna_IDPreview_pixels_get(PointerRNA *ptr, int *values, enum eIconSiz
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
 
 	BLI_assert(prv_img == BKE_previewimg_get(id));
+	UNUSED_VARS_NDEBUG(id);
 
 	memcpy(values, prv_img->rect[size], prv_img->w[size] * prv_img->h[size] * sizeof(unsigned int));
 }
@@ -481,6 +486,7 @@ static void rna_IDPreview_pixels_set(PointerRNA *ptr, const int *values, enum eI
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
 
 	BLI_assert(prv_img == BKE_previewimg_get(id));
+	UNUSED_VARS_NDEBUG(id);
 
 	memcpy(prv_img->rect[size], values, prv_img->w[size] * prv_img->h[size] * sizeof(unsigned int));
 	prv_img->user_edited[size] = true;

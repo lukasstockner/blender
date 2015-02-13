@@ -37,10 +37,10 @@
 #include <string.h>
 
 #ifndef WIN32
-#include <unistd.h>
+#  include <unistd.h>
 #else
-#include <io.h>
-#include <direct.h>
+#  include <io.h>
+#  include <direct.h>
 #endif   
 #include "MEM_guardedalloc.h"
 
@@ -49,6 +49,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
+#include "BLI_stack.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
@@ -1229,7 +1230,9 @@ int ED_file_extension_icon(const char *path)
 	return ICON_FILE_BLANK;
 }
 
-static void filelist_setfiletypes(const char *root, struct direntry *files, const int numfiles, const char *filter_glob)
+static void filelist_setfiletypes(
+        const char *root, struct direntry *files, const int numfiles, const char *filter_glob,
+        const bool do_lib, const char *main_name)
 {
 	struct direntry *file;
 	int num;
@@ -1251,6 +1254,19 @@ static void filelist_setfiletypes(const char *root, struct direntry *files, cons
 		}
 		else {
 			file->flags = file_extension_type(root, file->relname);
+		}
+
+		/* If we are considering .blend files as libs, promote them to directory status! */
+		if (do_lib && BLO_has_bfile_extension(file->relname)) {
+			char name[FILE_MAX];
+
+			BLI_join_dirfile(name, sizeof(name), root, file->relname);
+
+			/* prevent current file being used as acceptable dir */
+			if (BLI_path_cmp(main_name, name) != 0) {
+				file->type &= ~S_IFMT;
+				file->type |= S_IFDIR;
+			}
 		}
 	}
 }
@@ -1354,13 +1370,20 @@ static unsigned int groupname_to_filter_id(const char *group)
  * and main one (used by UI among other things).
  */
 
+typedef struct TodoDir {
+	int level;
+	char *dir;
+} TodoDir;
+
 /* This helper is highly specialized for our needs, it 'transfers' most data (strings/pointers) from subfiles to
  * filelist_buff. Only dirname->relname is actually duplicated.
+ * It also detects new sub-directories we want to list too, and add them to todo_dirs stack.
  */
 static void filelist_readjob_merge_sublist(
-        struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size,
-        const char *root, const char *subdir, struct direntry *subfiles, const int num_subfiles,
-        const bool ignore_currpar)
+        struct direntry **filelist_buff, int *filelist_buff_size, int *filelist_used_size, const char *main_name,
+        const char *root, const char *subdir, struct direntry *subfiles, const int num_subfiles, int *done_files,
+        const bool is_lib, const bool ignore_currpar, const int recursion_level, const int max_recursion,
+        BLI_Stack *todo_dirs)
 {
 	if (num_subfiles) {
 		struct direntry *f;
@@ -1380,7 +1403,7 @@ static void filelist_readjob_merge_sublist(
 			*filelist_buff = new_filelist;
 		}
 		for (i = *filelist_used_size, j = 0, f = subfiles; j < num_subfiles; j++, f++) {
-			if (ignore_currpar&& FILENAME_IS_CURRPAR(f->relname)) {
+			if (ignore_currpar && FILENAME_IS_CURRPAR(f->relname)) {
 				/* Ignore 'inner' curr/parent! */
 				new_numfiles--;
 				continue;
@@ -1390,6 +1413,32 @@ static void filelist_readjob_merge_sublist(
 			BLI_path_rel(dir, root);
 			(*filelist_buff)[i] = *f;
 			(*filelist_buff)[i].relname = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
+			(*done_files)++;
+
+			/* Here we decide whether current filedirentry is to be listed too, or not. */
+			/* Not a loop, just to be able to break. */
+			while (max_recursion && (is_lib || (recursion_level <= max_recursion))) {
+				TodoDir *td_dir;
+
+				if ((f->type & S_IFDIR) == 0) {
+					break;
+				}
+				else if (!is_lib && (recursion_level >= max_recursion) &&
+						 !ELEM(f->flags, FILE_TYPE_BLENDER, FILE_TYPE_BLENDER_BACKUP))
+				{
+					/* Do not recurse in real directories in this case, only in .blend libs. */
+					break;
+				}
+
+				/* We have a directory we want to list, add it to todo list! */
+				BLI_join_dirfile(dir, sizeof(dir), root, (*filelist_buff)[i].relname);
+				BLI_cleanup_dir(main_name, dir);
+				td_dir = BLI_stack_push_r(todo_dirs);
+				td_dir->level = recursion_level + 1;
+				td_dir->dir = BLI_strdup(dir);
+				break;
+			}
+
 			/* those pointers are given to new_filelist... */
 			f->path = NULL;
 			f->poin = NULL;
@@ -1437,9 +1486,9 @@ static void filelist_readjob_list_lib(const char *root, struct direntry **files,
 
 	BLO_blendhandle_close(libfiledata);
 
+	BLI_assert(*files == NULL);
 	*num_files = nnames + 1;
-	*files = malloc(*num_files * sizeof(**files));
-	memset(*files, 0, *num_files * sizeof(**files));
+	*files = calloc(*num_files, sizeof(**files));
 
 	(*files)[nnames].relname = BLI_strdup(FILENAME_PARENT);
 	(*files)[nnames].type |= S_IFDIR;
@@ -1640,101 +1689,60 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 }
 #endif
 
-static void filelist_readjob_dir_lib_rec(
+static void filelist_readjob_dir_lib(
         const bool do_lib, const char *main_name,
-        FileList *filelist, int *filelist_buffsize, const char *dir, const char *filter_glob, const int recursion_level,
+        FileList *filelist, int *filelist_buffsize, BLI_Stack *todo_dirs, const char *filter_glob,
         short *stop, short *do_update, float *progress, int *done_files, ThreadMutex *lock)
 {
-	/* only used if recursing, will contain all non-immediate children then. */
-	struct direntry *file, *files = NULL;
-	bool is_lib = do_lib;
-	int num_files = 0;
-	int i;
+	while (!BLI_stack_is_empty(todo_dirs) && !(*stop)) {
+		/* only used if recursing, will contain all non-immediate children then. */
+		struct direntry *files = NULL;
+		TodoDir td_dir;
+		bool is_lib = do_lib;
+		int num_files = 0;
 
-	if (!filelist) {
-		return;
-	}
+		BLI_stack_pop(todo_dirs, &td_dir);
 
-	if (do_lib) {
-		filelist_readjob_list_lib(dir, &files, &num_files);
-	}
-	if (!files) {
-		is_lib = false;
-		num_files = BLI_filelist_dir_contents(dir, &files);
-	}
-
-	if (!files) {
-		return;
-	}
-
-	/* We only set filtypes for our own level, sub ones will be set by subcalls. */
-	filelist_setfiletypes(dir, files, num_files, filter_glob);
-
-	if (do_lib) {
-		/* Promote blend files from mere file status to prestigious directory one! */
-		for (i = 0, file = files; i < num_files; i++, file++) {
-			if (BLO_has_bfile_extension(file->relname)) {
-				char name[FILE_MAX];
-
-				BLI_join_dirfile(name, sizeof(name), dir, file->relname);
-
-				/* prevent current file being used as acceptable dir */
-				if (BLI_path_cmp(main_name, name) != 0) {
-					file->type &= ~S_IFMT;
-					file->type |= S_IFDIR;
-				}
-			}
+		if (do_lib) {
+			filelist_readjob_list_lib(td_dir.dir, &files, &num_files);
 		}
-	}
-
-	BLI_mutex_lock(lock);
-
-	filelist_readjob_merge_sublist(&filelist->filelist, filelist_buffsize, &filelist->numfiles, filelist->dir,
-	                               dir, files, num_files, recursion_level > 1);
-
-	(*done_files)++;
-	*progress = (float)(*done_files) / filelist->numfiles;
-
-	//~ printf("%f (%d / %d)\n", *progress, *done_files, filelist->numfiles);
-
-	BLI_mutex_unlock(lock);
-
-	*do_update = true;
-
-	/* in case it's a lib we don't care anymore about max recursion level... */
-	if (!*stop && filelist->max_recursion && (do_lib || (recursion_level < filelist->max_recursion))) {
-		for (i = 0, file = files; i < num_files && !*stop; i++, file++) {
-			char subdir[FILE_MAX];
-
-			if (FILENAME_IS_CURRPAR(file->relname)) {
-				/* do not increase done_files here, we completly ignore those. */
-				continue;
-			}
-			else if ((file->type & S_IFDIR) == 0) {
-				(*done_files)++;
-				continue;
-			}
-			else if (!is_lib && (recursion_level >= filelist->max_recursion) &&
-			         !ELEM(file->flags, FILE_TYPE_BLENDER, FILE_TYPE_BLENDER_BACKUP))
-			{
-				/* Do not recurse in real directories in this case, only in .blend libs. */
-				continue;
-			}
-
-			BLI_join_dirfile(subdir, sizeof(subdir), dir, file->relname);
-			BLI_cleanup_dir(main_name, subdir);
-			filelist_readjob_dir_lib_rec(do_lib, main_name,
-			                             filelist, filelist_buffsize, subdir, filter_glob, recursion_level + 1,
-			                             stop, do_update, progress, done_files, lock);
+		if (!files) {
+			is_lib = false;
+			num_files = BLI_filelist_dir_contents(td_dir.dir, &files);
 		}
+
+		if (!files) {
+			continue;
+		}
+
+		/* We only set filtypes for our own level, sub ones will be set by later iterations. */
+		filelist_setfiletypes(td_dir.dir, files, num_files, filter_glob, do_lib, main_name);
+
+		BLI_mutex_lock(lock);
+
+		filelist_readjob_merge_sublist(&filelist->filelist, filelist_buffsize, &filelist->numfiles,
+		                               main_name, filelist->dir, td_dir.dir, files, num_files, done_files,
+		                               is_lib, td_dir.level > 1, td_dir.level, filelist->max_recursion, todo_dirs);
+
+		*progress = (float)(*done_files) / filelist->numfiles;
+
+		//~ printf("%f (%d / %d)\n", *progress, *done_files, filelist->numfiles);
+
+		BLI_mutex_unlock(lock);
+
+		*do_update = true;
+		BLI_filelist_free(files, num_files, NULL);
+		MEM_freeN(td_dir.dir);
 	}
-	BLI_filelist_free(files, num_files, NULL);
 }
 
-static void filelist_readjob_dir(
+static void filelist_readjob_do(
+        const bool is_lib,
         FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
 {
-	char dir[FILE_MAX];
+	BLI_Stack *todo_dirs;
+	TodoDir *td_dir;
+	char dir[FILE_MAX_LIBEXTRA];
 	char filter_glob[64];  /* TODO should be define! */
 	int filelist_buffsize = 0;
 	int done_files = 0;
@@ -1742,27 +1750,9 @@ static void filelist_readjob_dir(
 	BLI_assert(filelist->fidx == NULL);
 	BLI_assert(filelist->filelist == NULL);
 
-	BLI_mutex_lock(lock);
-
-	BLI_strncpy(dir, filelist->dir, sizeof(dir));
-	BLI_strncpy(filter_glob, filelist->filter_data.filter_glob, sizeof(filter_glob));
-
-	BLI_mutex_unlock(lock);
-
-	filelist_readjob_dir_lib_rec(false, main_name, filelist, &filelist_buffsize, dir, filter_glob, 1,
-	                             stop, do_update, progress, &done_files, lock);
-}
-
-static void filelist_readjob_lib(
-        FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
-{
-	char dir[FILE_MAX];
-	char filter_glob[64];  /* TODO should be define! */
-	int filelist_buffsize = 0;
-	int done_files = 0;
-
-	BLI_assert(filelist->fidx == NULL);
-	BLI_assert(filelist->filelist == NULL);
+	todo_dirs = BLI_stack_new(sizeof(*td_dir), __func__);
+	td_dir = BLI_stack_push_r(todo_dirs);
+	td_dir->level = 1;
 
 	BLI_mutex_lock(lock);
 
@@ -1772,20 +1762,37 @@ static void filelist_readjob_lib(
 	BLI_mutex_unlock(lock);
 
 	BLI_cleanup_dir(main_name, dir);
+	td_dir->dir = BLI_strdup(dir);
 
-	filelist_readjob_dir_lib_rec(true, main_name, filelist, &filelist_buffsize, dir, filter_glob, 1,
-	                             stop, do_update, progress, &done_files, lock);
+	filelist_readjob_dir_lib(is_lib, main_name, filelist, &filelist_buffsize, todo_dirs, filter_glob,
+	                         stop, do_update, progress, &done_files, lock);
+
+	/* If we were interrupted by stop, stack may not be empty and we need to free pending dir paths. */
+	while (!BLI_stack_is_empty(todo_dirs)) {
+		td_dir = BLI_stack_peek(todo_dirs);
+		MEM_freeN(td_dir->dir);
+		BLI_stack_discard(todo_dirs);
+	}
+	BLI_stack_free(todo_dirs);
+}
+
+static void filelist_readjob_dir(
+        FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
+{
+	filelist_readjob_do(false, filelist, main_name, stop, do_update, progress, lock);
+}
+
+static void filelist_readjob_lib(
+        FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
+{
+	filelist_readjob_do(true, filelist, main_name, stop, do_update, progress, lock);
 }
 
 static void filelist_readjob_main(
         FileList *filelist, const char *main_name, short *stop, short *do_update, float *progress, ThreadMutex *lock)
 {
-	BLI_mutex_lock(lock);
-
 	/* TODO! */
 	filelist_readjob_dir(filelist, main_name, stop, do_update, progress, lock);
-
-	BLI_mutex_unlock(lock);
 }
 
 

@@ -34,6 +34,7 @@
 
 struct bContext;
 struct ID;
+struct Scene;
 struct Image;
 struct ImBuf;
 struct World;
