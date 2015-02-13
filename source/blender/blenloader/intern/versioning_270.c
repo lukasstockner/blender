@@ -35,6 +35,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_sdna_types.h"
@@ -50,6 +51,7 @@
 #include "DNA_genfile.h"
 
 #include "BKE_main.h"
+#include "BKE_modifier.h"
 #include "BKE_node.h"
 #include "BKE_screen.h"
 
@@ -562,6 +564,16 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 			FOREACH_NODETREE_END
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "GPUDOFSettings", "gpu_dof")) {
+			Camera *ca;
+			for (ca = main->camera.first; ca; ca = ca->id.next) {
+				ca->gpu_dof.fstop = 128.0f;
+				ca->gpu_dof.focal_length = 1.0f;
+				ca->gpu_dof.focus_distance = 1.0f;
+				ca->gpu_dof.sensor = 1.0f;
+			}
+		}
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 273, 7)) {
@@ -587,6 +599,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 							BLI_freelinkN(&sl->regionbase, ar);
 						}
 					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 8)) {
+		Object *ob;
+		for (ob = main->object.first; ob != NULL; ob = ob->id.next) {
+			ModifierData *md;
+			for (md = ob->modifiers.last; md != NULL; md = md->prev) {
+				if (modifier_unique_name(&ob->modifiers, md)) {
+					printf("Warning: Object '%s' had several modifiers with the "
+					       "same name, renamed one of them to '%s'.\n",
+					       ob->id.name + 2, md->name);
 				}
 			}
 		}
