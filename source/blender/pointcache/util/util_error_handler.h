@@ -141,13 +141,15 @@ void handle_alembic_exception(T &handler, PTCErrorLevel level, const Alembic::Ut
 template <typename T>
 void handle_alembic_exception(T *handler, PTCErrorLevel level, const Alembic::Util::Exception &e)
 {
-	if (handler) {
-		const char *origin, *msg;
-		split_alembic_error_message(e.what(), &origin, &msg);
-		
-		handler->set_error_level(level);
-		handler->handle(level, msg);
-	}
+	static StdErrorHandler default_handler(PTC_ERROR_WARNING);
+	if (!handler)
+		handler = &default_handler;
+	
+	const char *origin, *msg;
+	split_alembic_error_message(e.what(), &origin, &msg);
+	
+	handler->set_error_level(level);
+	handler->handle(level, msg);
 }
 
 #endif
