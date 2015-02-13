@@ -373,6 +373,24 @@ DepsRelation::DepsRelation(DepsNode *from,
 	this->name = description;
 	this->flag = 0;
 
+#ifndef NDEBUG
+/*
+	for (OperationDepsNode::Relations::const_iterator it = from->outlinks.begin();
+	     it != from->outlinks.end();
+	     ++it)
+	{
+		DepsRelation *rel = *it;
+		if (rel->from == from &&
+		    rel->to == to &&
+		    rel->type == type &&
+		    rel->name == description)
+		{
+			BLI_assert(!"Duplicated relation, should not happen!");
+		}
+	}
+*/
+#endif
+
 	/* Hook it up to the nodes which use it. */
 	from->outlinks.insert(this);
 	to->inlinks.insert(this);

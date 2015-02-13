@@ -1381,79 +1381,15 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 {
 	ID *obdata = (ID *)ob->data;
 
-	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
-	ComponentKey geom_key(&ob->id, DEPSNODE_TYPE_GEOMETRY);
-	ComponentKey obdata_geom_key(obdata, DEPSNODE_TYPE_GEOMETRY);
-
-	/* Link object data evaluation node to exit operation. */
-	OperationKey obdata_geom_eval_key(obdata, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
-	OperationKey obdata_geom_done_key(obdata, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Eval Done");
-	add_relation(obdata_geom_eval_key, obdata_geom_done_key, DEPSREL_TYPE_DATABLOCK, "ObData Geom Eval Done");
-
-	/* link components to each other */
-	add_relation(obdata_geom_key, geom_key, DEPSREL_TYPE_DATABLOCK, "Object Geometry Base Data");
-
 	/* Init operation of object-level geometry evaluation. */
 	OperationKey geom_init_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Eval Init");
 
-	/* type-specific node/links */
-	switch (ob->type) {
-		case OB_MESH:
-			break;
+	/* get nodes for result of obdata's evaluation, and geometry evaluation on object */
+	ComponentKey obdata_geom_key(obdata, DEPSNODE_TYPE_GEOMETRY);
+	ComponentKey geom_key(&ob->id, DEPSNODE_TYPE_GEOMETRY);
 
-		case OB_MBALL:
-		{
-			Object *mom = BKE_mball_basis_find(scene, ob);
-
-			/* motherball - mom depends on children! */
-			if (mom != ob) {
-				/* non-motherball -> cannot be directly evaluated! */
-				ComponentKey mom_key(&mom->id, DEPSNODE_TYPE_GEOMETRY);
-				add_relation(geom_key, mom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
-			}
-		}
-		break;
-
-		case OB_CURVE:
-		case OB_FONT:
-		{
-			Curve *cu = (Curve *)obdata;
-
-			/* curve's dependencies */
-			// XXX: these needs geom data, but where is geom stored?
-			if (cu->bevobj) {
-				ComponentKey bevob_key(&cu->bevobj->id, DEPSNODE_TYPE_GEOMETRY);
-				add_relation(bevob_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
-			}
-			if (cu->taperobj) {
-				ComponentKey taperob_key(&cu->taperobj->id, DEPSNODE_TYPE_GEOMETRY);
-				add_relation(taperob_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
-			}
-			if (ob->type == OB_FONT) {
-				if (cu->textoncurve) {
-					ComponentKey textoncurve_key(&cu->taperobj->id, DEPSNODE_TYPE_GEOMETRY);
-					add_relation(textoncurve_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
-				}
-			}
-		}
-		break;
-
-		case OB_SURF: /* Nurbs Surface */
-		{
-		}
-		break;
-
-		case OB_LATTICE: /* Lattice */
-		{
-		}
-		break;
-	}
-
-	/* ShapeKeys */
-	Key *key = BKE_key_from_object(ob);
-	if (key) {
-		build_shapekeys(obdata, key);
-	}
+	/* link components to each other */
+	add_relation(obdata_geom_key, geom_key, DEPSREL_TYPE_DATABLOCK, "Object Geometry Base Data");
 
 	/* Modifiers */
 	if (ob->modifiers.first) {
@@ -1519,6 +1455,75 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		else {
 			add_relation(geom_init_key, obdata_ubereval_key, DEPSREL_TYPE_OPERATION, "Object Geometry UberEval");
 		}
+	}
+
+	if (obdata->flag & LIB_DOIT) {
+		return;
+	}
+	obdata->flag |= LIB_DOIT;
+
+	/* Link object data evaluation node to exit operation. */
+	OperationKey obdata_geom_eval_key(obdata, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Geometry Eval");
+	OperationKey obdata_geom_done_key(obdata, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_PLACEHOLDER, "Eval Done");
+	add_relation(obdata_geom_eval_key, obdata_geom_done_key, DEPSREL_TYPE_DATABLOCK, "ObData Geom Eval Done");
+
+	/* type-specific node/links */
+	switch (ob->type) {
+		case OB_MESH:
+			break;
+
+		case OB_MBALL:
+		{
+			Object *mom = BKE_mball_basis_find(scene, ob);
+
+			/* motherball - mom depends on children! */
+			if (mom != ob) {
+				/* non-motherball -> cannot be directly evaluated! */
+				ComponentKey mom_key(&mom->id, DEPSNODE_TYPE_GEOMETRY);
+				add_relation(geom_key, mom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Metaball Motherball");
+			}
+		}
+		break;
+
+		case OB_CURVE:
+		case OB_FONT:
+		{
+			Curve *cu = (Curve *)obdata;
+
+			/* curve's dependencies */
+			// XXX: these needs geom data, but where is geom stored?
+			if (cu->bevobj) {
+				ComponentKey bevob_key(&cu->bevobj->id, DEPSNODE_TYPE_GEOMETRY);
+				add_relation(bevob_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Bevel");
+			}
+			if (cu->taperobj) {
+				ComponentKey taperob_key(&cu->taperobj->id, DEPSNODE_TYPE_GEOMETRY);
+				add_relation(taperob_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Curve Taper");
+			}
+			if (ob->type == OB_FONT) {
+				if (cu->textoncurve) {
+					ComponentKey textoncurve_key(&cu->taperobj->id, DEPSNODE_TYPE_GEOMETRY);
+					add_relation(textoncurve_key, geom_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Text on Curve");
+				}
+			}
+		}
+		break;
+
+		case OB_SURF: /* Nurbs Surface */
+		{
+		}
+		break;
+
+		case OB_LATTICE: /* Lattice */
+		{
+		}
+		break;
+	}
+
+	/* ShapeKeys */
+	Key *key = BKE_key_from_object(ob);
+	if (key) {
+		build_shapekeys(obdata, key);
 	}
 }
 
