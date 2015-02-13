@@ -320,24 +320,249 @@ static void bpx_create_border(ImageBuf &buf,
 	bpx_write_border(buf, dst_edge_roi, side_buf, transform);
 }
 
-static const int CORNER_NUM_SOURCES = 2;
-static bool bpx_corner_average(ImageBuf &buf, const int dst_co[2],
-							   const int src_co[CORNER_NUM_SOURCES][2])
+static const BPXRect &bpx_get_rect(const int i, const void *rects_v,
+								   const int stride)
 {
-	const int nchannels = buf.nchannels();
-	std::vector<float> a(nchannels, 0.0f);
-	std::vector<float> b(nchannels, 0.0f);
+	const unsigned char *rects_uc = static_cast<const unsigned char*>(rects_v);
+	return *reinterpret_cast<const BPXRect *>(rects_uc + stride * i);
+}
 
-	buf.getpixel(src_co[0][0], src_co[0][1], a.data());
-	buf.getpixel(src_co[1][0], src_co[1][1], b.data());
+static void bpx_rect_corner_xy(const BPXRect &rect, const BPXRectSide side,
+							   int &r_x, int &r_y, const bool border)
+{
+	switch (side) {
+		case BPX_RECT_SIDE_BOTTOM:
+			r_x = rect.xbegin;
+			r_y = rect.ybegin;
+			if (border) {
+				r_x--;
+				r_y--;
+			}
+			break;
 
-	for (int i = 0; i < nchannels; i++) {
-		a[i] = (a[i] + b[i]) * 0.5f;
+		case BPX_RECT_SIDE_RIGHT:
+			r_x = rect.xend - 1;
+			r_y = rect.ybegin;
+			if (border) {
+				r_x++;
+				r_y--;
+			}
+			break;
+
+		case BPX_RECT_SIDE_TOP:
+			r_x = rect.xend - 1;
+			r_y = rect.yend - 1;
+			if (border) {
+				r_x++;
+				r_y++;
+			}
+			break;
+
+		case BPX_RECT_SIDE_LEFT:
+			r_x = rect.xbegin;
+			r_y = rect.yend - 1;
+			if (border) {
+				r_x--;
+				r_y++;
+			}
+			break;
+
+		case BPX_RECT_NUM_SIDES:
+			break;
+	}
+}
+
+static BPXRectSide bpx_rect_side_wrap(const BPXRectSide start,
+									  const int offset)
+{
+	const int start_i = static_cast<int>(start);
+	const int num = static_cast<int>(BPX_RECT_NUM_SIDES);
+	const int new_i = (start_i + num + offset) % num;
+	return static_cast<BPXRectSide>(new_i);
+}
+
+struct BPXCornerIter {
+public:
+	enum Direction {
+		CW,
+		CCW
+	};
+
+	BPXCornerIter(const void *rects_v, const int rects_stride,
+				  const BPXRect &orig_rect, const BPXRectSide orig_side,
+				  const Direction direction)
+		: rects_v(rects_v),
+		  rects_stride(rects_stride),
+		  orig_rect(&orig_rect),
+		  cur_rect(&orig_rect),
+		  cur_side(orig_side),
+		  direction(direction)
+	{}
+
+	// Return true if the iterator successfully moves to another face,
+	// false if the iterator has reached the end
+	bool next()
+	{
+		if (!cur_rect) {
+			return false;
+		}
+		const BPXRectSideAdj *adj;
+		if (direction == CW) {
+			adj = &cur_rect->adj[cur_side];
+		}
+		else {
+			adj = &cur_rect->adj[bpx_rect_side_wrap(cur_side, -1)];
+		}
+
+		if (adj->index == BPX_RECT_SIDE_ADJ_NONE) {
+			return false;
+		}
+		const BPXRect *next_rect = &bpx_get_rect(adj->index, rects_v,
+												 rects_stride);
+		if (orig_rect == next_rect) {
+			return false;
+		}
+
+		cur_rect = next_rect;
+		if (direction == CW) {
+			cur_side = bpx_rect_side_wrap(adj->side, 1);
+		}
+		else {
+			cur_side = adj->side;
+		}
+		return true;
 	}
 
-	buf.setpixel(dst_co[0], dst_co[1], a.data());
+	void flip_direction() {
+		orig_rect = cur_rect;
+		if (direction == CW) {
+			direction = CCW;
+		}
+		else {
+			direction = CW;
+		}
+	}
 
-	return true;
+	const BPXRect &get_rect() const {
+		return *cur_rect;
+	}
+
+	BPXRectSide get_side() const {
+		return cur_side;
+	}
+
+private:
+	const void *rects_v;
+	const int rects_stride;
+
+	const BPXRect *orig_rect;
+	const BPXRect *cur_rect;
+	BPXRectSide cur_side;
+
+	Direction direction;
+};
+
+// TODO
+struct BPXRectPixel {
+	int x;
+	int y;
+	int bx;
+	int by;
+};
+
+// TODO, better comments
+static void bpx_update_corner(ImageBuf &buf,
+							  const void *rects_v,
+							  const int rects_stride,
+							  const BPXRect &orig_rect,
+							  const BPXRectSide orig_side)
+{
+	const int nchannels = buf.nchannels();
+	std::vector<float> pixel(nchannels);
+
+	BPXCornerIter iter(rects_v, rects_stride,
+					   orig_rect, orig_side,
+					   BPXCornerIter::CW);
+	while (iter.next()) {
+		// Iterate as far as possible on one direction. Not needed if
+		// the faces loop all the way around the corner, but needed
+		// for boundaries.
+	}
+
+	std::vector<BPXRectPixel> corners;
+	int my_corner_index = 0;
+
+	// Iterate in the other direction to get all the pixels
+	iter.flip_direction();
+	do {
+		// Find rect corner coordinates
+		BPXRectPixel p;
+		bpx_rect_corner_xy(iter.get_rect(), iter.get_side(),
+						   p.x, p.y, false);
+		bpx_rect_corner_xy(iter.get_rect(), iter.get_side(),
+						   p.bx, p.by, true);
+
+		if (&iter.get_rect() == &orig_rect) {
+			my_corner_index = corners.size();
+		}
+		corners.push_back(p);
+	} while (iter.next());
+
+	std::vector<float> accum(nchannels, 0.0f);
+	float fac = 1.0f;
+
+	if (corners.size() == 1) {
+		const BPXRectPixel &c = corners[0];
+		buf.getpixel(c.x, c.y, pixel.data());
+	}
+	else if (corners.size() == 2) {
+		// Copy the other rects corner
+		const BPXRectPixel &c = corners[1 - my_corner_index];
+		buf.getpixel(c.x, c.y, pixel.data());
+	}
+	else if (corners.size() == 3) {
+		// Accumulate all three
+		fac = 1.0f / 3.0f;
+		for (int i = 0; i < corners.size(); i++) {
+			const BPXRectPixel &c = corners[i];
+			buf.getpixel(c.x, c.y, pixel.data());
+			for (int c = 0; c < nchannels; c++) {
+				accum[c] += pixel[c];
+			}
+		}
+	}
+	else if (corners.size() == 4) {
+		// Special case of the final else block, only one pixel to
+		// accumulate
+		const BPXRectPixel &c = corners[(my_corner_index + 2) % 4];
+		buf.getpixel(c.x, c.y, pixel.data());
+	}
+	else {
+		// Accumulate all but self and adjacent
+		fac = 1.0f / (corners.size() - 3);
+		for (int i = 0; i < corners.size(); i++) {
+			if (i != my_corner_index &&
+				((i + 1) % corners.size()) != my_corner_index &&
+				((i + corners.size() - 1) % corners.size()) != my_corner_index)
+			{
+				const BPXRectPixel &c = corners[i];
+				buf.getpixel(c.x, c.y, pixel.data());
+				for (int c = 0; c < nchannels; c++) {
+					accum[c] += pixel[c];
+				}
+			}
+		}
+	}
+
+	if (corners.size() == 3 || corners.size() >= 5) {
+		for (int c = 0; c < nchannels; c++) {
+			pixel[c] = accum[c] * fac;
+		}
+	}
+
+	// Copy pixel into the corner
+	const BPXRectPixel &c = corners[my_corner_index];
+	buf.setpixel(c.bx, c.by, pixel.data());
 }
 
 bool BPX_rect_borders_update(BPXImageBuf *bpx_buf, const BPXRect *dst_rect,
@@ -349,8 +574,6 @@ bool BPX_rect_borders_update(BPXImageBuf *bpx_buf, const BPXRect *dst_rect,
 
 	ImageBuf &buf = *bpx_image_buf_to_oiio_image_buf(bpx_buf);
 	const ROI dst_roi = bpx_rect_to_oiio_roi(*dst_rect);
-
-	const unsigned char *rects_uc = static_cast<const unsigned char*>(rects_v);
 
 	// Sample adjacent regions to create filter edges
 	for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
@@ -369,8 +592,7 @@ bool BPX_rect_borders_update(BPXImageBuf *bpx_buf, const BPXRect *dst_rect,
 
 		}
 		else {
-			const int offset = adj.index * rects_stride;
-			src_rect = reinterpret_cast<const BPXRect *>(rects_uc + offset);
+			src_rect = &bpx_get_rect(adj.index, rects_v, rects_stride);
 			src_edge.side = adj.side;
 			src_edge.reverse = true;
 		}
@@ -381,31 +603,8 @@ bool BPX_rect_borders_update(BPXImageBuf *bpx_buf, const BPXRect *dst_rect,
 		// Also update in the other direction. TODO(nicholasbishop):
 		// names are a bit confusing now
 		bpx_create_border(buf, src_roi, src_edge, dst_roi, dst_edge);
-	}
 
-	// Average adjacent borders to fill in
-	// corners. TODO(nicholasbishop): need to improve this, it is
-	// noticable after all
-	const int dst_co[BPX_RECT_NUM_SIDES][2] = {
-		{dst_roi.xbegin - 1, dst_roi.ybegin - 1},
-		{dst_roi.xend      , dst_roi.ybegin - 1},
-		{dst_roi.xend      , dst_roi.yend      },
-		{dst_roi.xbegin - 1, dst_roi.yend      }
-	};
-	const int src_co[BPX_RECT_NUM_SIDES][CORNER_NUM_SOURCES][2] = {
-		{{dst_co[0][0] + 1, dst_co[0][1]    },
-		 {dst_co[0][0],     dst_co[0][1] + 1}},
-		{{dst_co[1][0] - 1, dst_co[1][1]},
-		 {dst_co[1][0],     dst_co[1][1] + 1}},
-		{{dst_co[2][0] - 1, dst_co[2][1]},
-		 {dst_co[2][0],     dst_co[2][1] - 1}},
-		{{dst_co[3][0] + 1, dst_co[3][1]},
-		 {dst_co[3][0],     dst_co[3][1] - 1}}
-	};
-	for (int i = 0; i < BPX_RECT_NUM_SIDES; i++) {
-		if (!bpx_corner_average(buf, dst_co[i], src_co[i])) {
-			return false;
-		}
+		bpx_update_corner(buf, rects_v, rects_stride, *dst_rect, dst_side);
 	}
 
 	return true;
