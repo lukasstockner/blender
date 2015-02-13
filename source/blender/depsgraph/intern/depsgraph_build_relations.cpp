@@ -992,9 +992,6 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
 	OperationKey solver_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name, DEG_OPCODE_POSE_IK_SOLVER);
 
-	OperationKey transforms_key(&ob->id, DEPSNODE_TYPE_BONE, pchan->name, DEG_OPCODE_BONE_READY);
-	add_relation(transforms_key, solver_key, DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
-
 	/* IK target */
 	// XXX: this should get handled as part of the constraint code
 	if (data->tar != NULL) {
@@ -1035,12 +1032,13 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 			ComponentKey target_key(&data->tar->id, DEPSNODE_TYPE_TRANSFORM);
 			add_relation(target_key, pose_key, DEPSREL_TYPE_TRANSFORM, con->name);
 		}
-	}
-	root_map->add_bone(pchan->name, rootchan->name);
 
-	if ((data->tar) && (data->tar == ob) && (data->subtarget[0])) {
-		/* Prevent target's constraints from linking to anything from same chain that it controls */
-		root_map->add_bone(data->subtarget, rootchan->name);
+		if ((data->tar == ob) && (data->subtarget[0])) {
+			/* Prevent target's constraints from linking to anything from same
+			 * chain that it controls.
+			 */
+			root_map->add_bone(data->subtarget, rootchan->name);
+		}
 	}
 
 	/* Pole Target */
@@ -1072,8 +1070,20 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 
 	bPoseChannel *parchan = pchan;
 	/* exclude tip from chain? */
-	if (!(data->flag & CONSTRAINT_IK_TIP))
+	if (!(data->flag & CONSTRAINT_IK_TIP)) {
+		OperationKey tip_transforms_key(&ob->id, DEPSNODE_TYPE_BONE,
+		                                parchan->name, DEG_OPCODE_BONE_LOCAL);
+		add_relation(solver_key, tip_transforms_key,
+		             DEPSREL_TYPE_TRANSFORM, "IK Solver Result");
 		parchan = pchan->parent;
+	}
+
+	root_map->add_bone(parchan->name, rootchan->name);
+
+	OperationKey parchan_transforms_key(&ob->id, DEPSNODE_TYPE_BONE,
+	                                    parchan->name, DEG_OPCODE_BONE_READY);
+	add_relation(parchan_transforms_key, solver_key,
+	             DEPSREL_TYPE_TRANSFORM, "IK Solver Owner");
 
 	/* Walk to the chain's root */
 	//size_t segcount = 0;
