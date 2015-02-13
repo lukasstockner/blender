@@ -75,6 +75,9 @@ struct DepsgraphNodeBuilder {
 		return add_operation_node(id, comp_type, "", optype, op, opcode, description);
 	}
 
+	bool has_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name, eDepsOperation_Type optype,
+	                        eDepsOperation_Code opcode, const string &description = "");
+
 	void build_scene(Main *bmain, Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
 	void build_group(Scene *scene, Base *base, Object *object, Group *group);
@@ -295,7 +298,9 @@ struct DepsNodeHandle
 	    builder(builder),
 	    node(node),
 	    default_name(default_name)
-	{}
+	{
+		BLI_assert(node != NULL);
+	}
 
 	DepsgraphRelationBuilder *builder;
 	OperationDepsNode *node;

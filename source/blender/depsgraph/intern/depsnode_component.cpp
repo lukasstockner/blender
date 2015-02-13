@@ -161,9 +161,9 @@ OperationDepsNode *ComponentDepsNode::add_operation(eDepsOperation_Type optype, 
 		op_node->owner = this;
 	}
 	else {
-		/* we have a duplicate node! */
 		fprintf(stderr, "add_operation: Operation already exists - %s has %s at %p\n",
 		        this->identifier().c_str(), op_node->identifier().c_str(), op_node);
+		BLI_assert(!"Should not happen!");
 	}
 
 	/* attach extra data */

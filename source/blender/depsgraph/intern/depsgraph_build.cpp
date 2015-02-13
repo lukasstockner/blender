@@ -249,11 +249,11 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ComponentDepsNode *c
 		m_graph->operations.push_back(op_node);
 	}
 	else {
-		/* TODO(sergey): Ideally graph builder shouldn't create duplicate nodes. */
 		fprintf(stderr, "add_operation: Operation already exists - %s has %s at %p\n",
 		        comp_node->identifier().c_str(),
 		        op_node->identifier().c_str(),
 		        op_node);
+		BLI_assert(!"Should not happen!");
 	}
 	return op_node;
 }
@@ -268,6 +268,17 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(ID *id,
 {
 	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
 	return add_operation_node(comp_node, optype, op, opcode, description);
+}
+
+bool DepsgraphNodeBuilder::has_operation_node(ID *id,
+                                              eDepsNode_Type comp_type,
+                                              const string &comp_name,
+                                              eDepsOperation_Type optype,
+                                              eDepsOperation_Code opcode,
+                                              const string &description)
+{
+	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
+	return comp_node->has_operation(opcode, description) != NULL;
 }
 
 /* ************************************************* */

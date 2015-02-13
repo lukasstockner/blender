@@ -539,6 +539,12 @@ void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel 
 	/* Find the chain's root. */
 	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
 
+	if (has_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
+	                       DEPSOP_TYPE_SIM, DEG_OPCODE_POSE_IK_SOLVER))
+	{
+		return;
+	}
+
 	/* Operation node for evaluating/running IK Solver. */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
 	                   DEPSOP_TYPE_SIM, function_bind(BKE_pose_iktree_evaluate, _1, scene, ob, rootchan),
@@ -712,8 +718,54 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	 * TODO(sergey): Get rid of this node.
 	 */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-					   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
-					   DEG_OPCODE_GEOMETRY_UBEREVAL);
+	                   DEPSOP_TYPE_POST, function_bind(BKE_object_eval_uber_data, _1, scene, ob),
+	                   DEG_OPCODE_GEOMETRY_UBEREVAL);
+
+	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+	                   DEPSOP_TYPE_INIT, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Eval Init");
+
+	// TODO: "Done" operation
+
+	/* ShapeKeys */
+	Key *key = BKE_key_from_object(ob);
+	if (key)
+		build_shapekeys(key);
+
+	/* Modifiers */
+	if (ob->modifiers.first) {
+		ModifierData *md;
+
+		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
+			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
+			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_modifier, _1, scene, ob, md),
+			                   DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
+		}
+	}
+
+	/* materials */
+	if (ob->totcol) {
+		int a;
+
+		for (a = 1; a <= ob->totcol; a++) {
+			Material *ma = give_current_material(ob, a);
+
+			if (ma) {
+				// XXX?!
+				ComponentDepsNode *geom_node = add_component_node(&ob->id, DEPSNODE_TYPE_GEOMETRY);
+				build_material(geom_node, ma);
+			}
+		}
+	}
+
+	/* geometry collision */
+	if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
+		// add geometry collider relations
+	}
+
+	if (obdata->flag & LIB_DOIT) {
+		return;
+	}
 
 	/* nodes for result of obdata's evaluation, and geometry evaluation on object */
 	switch (ob->type) {
@@ -781,48 +833,6 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 	                   DEPSOP_TYPE_POST, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Eval Done");
-
-	add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-	                   DEPSOP_TYPE_INIT, NULL,
-	                   DEG_OPCODE_PLACEHOLDER, "Eval Init");
-
-	// TODO: "Done" operation
-
-	/* ShapeKeys */
-	Key *key = BKE_key_from_object(ob);
-	if (key)
-		build_shapekeys(key);
-
-	/* Modifiers */
-	if (ob->modifiers.first) {
-		ModifierData *md;
-
-		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
-			add_operation_node(&ob->id, DEPSNODE_TYPE_GEOMETRY,
-			                   DEPSOP_TYPE_EXEC, function_bind(BKE_object_eval_modifier, _1, scene, ob, md),
-			                   DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
-		}
-	}
-
-	/* materials */
-	if (ob->totcol) {
-		int a;
-
-		for (a = 1; a <= ob->totcol; a++) {
-			Material *ma = give_current_material(ob, a);
-
-			if (ma) {
-				// XXX?!
-				ComponentDepsNode *geom_node = add_component_node(&ob->id, DEPSNODE_TYPE_GEOMETRY);
-				build_material(geom_node, ma);
-			}
-		}
-	}
-
-	/* geometry collision */
-	if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_LATTICE)) {
-		// add geometry collider relations
-	}
 }
 
 /* Cameras */
