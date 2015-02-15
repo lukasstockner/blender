@@ -301,7 +301,7 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, const int U
 	BLI_assert(imb != NULL);
 
 	if ((imb->x * UI_DPI_FAC > layout->prv_w) ||
-		(imb->y * UI_DPI_FAC > layout->prv_h))
+	    (imb->y * UI_DPI_FAC > layout->prv_h))
 	{
 		if (imb->x > imb->y) {
 			scaledx = (float)layout->prv_w;

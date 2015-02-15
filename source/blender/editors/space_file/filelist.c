@@ -1550,31 +1550,30 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 	struct direntry *files, *firstlib = NULL;
 	ListBase *lb;
 	int a, fake, idcode, ok, totlib, totbl;
-	
+
 	// filelist->type = FILE_MAIN; // XXXXX TODO: add modes to filebrowser
 
 	if (filelist->dir[0] == '/') filelist->dir[0] = 0;
-	
+
 	if (filelist->dir[0]) {
 		idcode = groupname_to_code(filelist->dir);
 		if (idcode == 0) filelist->dir[0] = 0;
 	}
-	
+
 	if (filelist->dir[0] == 0) {
-		
 		/* make directories */
 #ifdef WITH_FREESTYLE
 		filelist->numfiles = 24;
 #else
 		filelist->numfiles = 23;
 #endif
-		filelist->filelist = MEM_mallocN(filelist->numfiles * sizeof(struct direntry), __func__);
-		
+		filelist->filelist = MEM_mallocN(sizeof(*filelist->filelist) * filelist->numfiles, __func__);
+
 		for (a = 0; a < filelist->numfiles; a++) {
 			memset(&(filelist->filelist[a]), 0, sizeof(struct direntry));
 			filelist->filelist[a].type |= S_IFDIR;
 		}
-		
+
 		filelist->filelist[0].relname = BLI_strdup(FILENAME_PARENT);
 		filelist->filelist[1].relname = BLI_strdup("Scene");
 		filelist->filelist[2].relname = BLI_strdup("Object");
@@ -1603,41 +1602,35 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 #endif
 	}
 	else {
-
 		/* make files */
 		idcode = groupname_to_code(filelist->dir);
-		
+
 		lb = which_libbase(G.main, idcode);
 		if (lb == NULL) return;
-		
-		id = lb->first;
+
 		filelist->numfiles = 0;
-		while (id) {
+		for (id = lb->first; id; id = id->next) {
 			if (!filelist->filter_data.hide_dot || id->name[2] != '.') {
 				filelist->numfiles++;
 			}
-			
-			id = id->next;
 		}
-		
+
 		/* XXXXX TODO: if databrowse F4 or append/link filelist->hide_parent has to be set */
 		if (!filelist->filter_data.hide_parent) filelist->numfiles += 1;
 		filelist->filelist = filelist->numfiles > 0 ? MEM_mallocN(sizeof(*filelist->filelist) * filelist->numfiles, __func__) : NULL;
 
 		files = filelist->filelist;
-		
+
 		if (!filelist->filter_data.hide_parent) {
 			memset(&(filelist->filelist[0]), 0, sizeof(struct direntry));
 			filelist->filelist[0].relname = BLI_strdup(FILENAME_PARENT);
 			filelist->filelist[0].type |= S_IFDIR;
-		
+
 			files++;
 		}
-		
-		id = lb->first;
+
 		totlib = totbl = 0;
-		
-		while (id) {
+		for (id = lb->first; id; id = id->next) {
 			ok = 1;
 			if (ok) {
 				if (!filelist->filter_data.hide_dot || id->name[2] != '.') {
@@ -1670,20 +1663,18 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 					else if (id->lib)         BLI_snprintf(files->extra, sizeof(files->extra), "L    %d",  id->us);
 					else if (fake)            BLI_snprintf(files->extra, sizeof(files->extra), "F    %d",  id->us);
 					else                      BLI_snprintf(files->extra, sizeof(files->extra), "      %d", id->us);
-					
+
 					if (id->lib) {
 						if (totlib == 0) firstlib = files;
 						totlib++;
 					}
-					
+
 					files++;
 				}
 				totbl++;
 			}
-			
-			id = id->next;
 		}
-		
+
 		/* only qsort of library blocks */
 		if (totlib > 1) {
 			qsort(firstlib, totlib, sizeof(struct direntry), compare_name);
