@@ -97,7 +97,7 @@ typedef struct FolderList {
 
 ListBase *folderlist_new(void)
 {
-	ListBase *p = MEM_callocN(sizeof(ListBase), "folderlist");
+	ListBase *p = MEM_callocN(sizeof(*p), __func__);
 	return p;
 }
 
@@ -134,7 +134,7 @@ void folderlist_pushdir(ListBase *folderlist, const char *dir)
 	}
 
 	/* create next folder element */
-	folder = (FolderList *)MEM_mallocN(sizeof(FolderList), "FolderList");
+	folder = MEM_mallocN(sizeof(*folder), __func__);
 	folder->foldername = BLI_strdup(dir);
 
 	/* add it to the end of the list */
@@ -184,7 +184,7 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 {
 	
 	if (folderlist) {
-		ListBase *folderlistn = MEM_callocN(sizeof(ListBase), "copy folderlist");
+		ListBase *folderlistn = MEM_callocN(sizeof(*folderlistn), __func__);
 		FolderList *folder;
 		
 		BLI_duplicatelist(folderlistn, folderlist);
@@ -643,7 +643,7 @@ void filelist_filter(FileList *filelist)
 	}
 
 	/* Note: maybe we could even accept filelist->fidx to be filelist->numfiles -len allocated? */
-	filelist->fidx = (int *)MEM_mallocN(sizeof(*filelist->fidx) * (size_t)num_filtered, __func__);
+	filelist->fidx = MEM_mallocN(sizeof(*filelist->fidx) * (size_t)num_filtered, __func__);
 	memcpy(filelist->fidx, fidx_tmp, sizeof(*filelist->fidx) * (size_t)num_filtered);
 	filelist->numfiltered = num_filtered;
 
@@ -934,7 +934,7 @@ static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
 
 FileList *filelist_new(short type)
 {
-	FileList *p = MEM_callocN(sizeof(FileList), "filelist");
+	FileList *p = MEM_callocN(sizeof(*p), __func__);
 
 	switch (type) {
 		case FILE_MAIN:
@@ -967,7 +967,10 @@ void filelist_clear(struct FileList *filelist)
 		filelist->fidx = NULL;
 	}
 
-	BLI_filelist_free(filelist->filelist, filelist->numfiles, NULL);
+	if (filelist->filelist) {
+		BLI_filelist_free(filelist->filelist, filelist->numfiles, NULL);
+	}
+
 	filelist->numfiles = 0;
 	filelist->filelist = NULL;
 	filelist->numfiltered = 0;
@@ -1395,10 +1398,10 @@ static void filelist_readjob_merge_sublist(
 			struct direntry *new_filelist;
 
 			*filelist_buff_size = new_numfiles * 2;
-			new_filelist = malloc(sizeof(*new_filelist) * (size_t)*filelist_buff_size);
+			new_filelist = MEM_mallocN(sizeof(*new_filelist) * (size_t)*filelist_buff_size, __func__);
 			if (*filelist_buff && *filelist_used_size) {
 				memcpy(new_filelist, *filelist_buff, sizeof(*new_filelist) * (size_t)*filelist_used_size);
-				free(*filelist_buff);
+				MEM_freeN(*filelist_buff);
 			}
 			*filelist_buff = new_filelist;
 		}
@@ -1488,7 +1491,7 @@ static void filelist_readjob_list_lib(const char *root, struct direntry **files,
 
 	BLI_assert(*files == NULL);
 	*num_files = nnames + 1;
-	*files = calloc(*num_files, sizeof(**files));
+	*files = MEM_callocN(sizeof(**files) * (size_t)*num_files, __func__);
 
 	(*files)[nnames].relname = BLI_strdup(FILENAME_PARENT);
 	(*files)[nnames].type |= S_IFDIR;
@@ -1565,7 +1568,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 #else
 		filelist->numfiles = 23;
 #endif
-		filelist->filelist = (struct direntry *)malloc(filelist->numfiles * sizeof(struct direntry));
+		filelist->filelist = MEM_mallocN(filelist->numfiles * sizeof(struct direntry), __func__);
 		
 		for (a = 0; a < filelist->numfiles; a++) {
 			memset(&(filelist->filelist[a]), 0, sizeof(struct direntry));
@@ -1619,7 +1622,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 		
 		/* XXXXX TODO: if databrowse F4 or append/link filelist->hide_parent has to be set */
 		if (!filelist->filter_data.hide_parent) filelist->numfiles += 1;
-		filelist->filelist = filelist->numfiles > 0 ? (struct direntry *)malloc(filelist->numfiles * sizeof(struct direntry)) : NULL;
+		filelist->filelist = filelist->numfiles > 0 ? MEM_mallocN(sizeof(*filelist->filelist) * filelist->numfiles, __func__) : NULL;
 
 		files = filelist->filelist;
 		
@@ -1643,7 +1646,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 						files->relname = BLI_strdup(id->name + 2);
 					}
 					else {
-						files->relname = MEM_mallocN(FILE_MAX + (MAX_ID_NAME - 2),     "filename for lib");
+						files->relname = MEM_mallocN(sizeof(*files->relname) * (FILE_MAX + (MAX_ID_NAME - 2)), __func__);
 						BLI_snprintf(files->relname, FILE_MAX + (MAX_ID_NAME - 2) + 3, "%s | %s", id->lib->name, id->name + 2);
 					}
 					files->type |= S_IFREG;
@@ -1900,7 +1903,7 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	FileListReadJob *flrj;
 
 	/* prepare job data */
-	flrj = MEM_callocN(sizeof(FileListReadJob), __func__);
+	flrj = MEM_callocN(sizeof(*flrj), __func__);
 	flrj->filelist = filelist;
 	BLI_strncpy(flrj->main_name, G.main->name, sizeof(flrj->main_name));
 
@@ -2038,7 +2041,7 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 	int idx;
 
 	/* prepare job data */
-	tj = MEM_callocN(sizeof(ThumbnailJob), "thumbnails\n");
+	tj = MEM_callocN(sizeof(*tj), __func__);
 	tj->filelist = filelist;
 	for (idx = 0; idx < filelist->numfiles; idx++) {
 		if (!filelist->filelist[idx].path) {
@@ -2048,7 +2051,7 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 			if (filelist->filelist[idx].flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE |
 			                                     FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))
 			{
-				FileImage *limg = MEM_callocN(sizeof(FileImage), "loadimage");
+				FileImage *limg = MEM_callocN(sizeof(*limg), __func__);
 				BLI_strncpy(limg->path, filelist->filelist[idx].path, sizeof(limg->path));
 				limg->index = idx;
 				limg->flags = filelist->filelist[idx].flags;
