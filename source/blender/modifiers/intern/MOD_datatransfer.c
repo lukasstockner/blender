@@ -37,6 +37,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_customdata.h"
+#include "BKE_cdderivedmesh.h"
 #include "BKE_data_transfer.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_library.h"
@@ -163,6 +164,12 @@ static bool isDisabled(ModifierData *md, int UNUSED(useRenderParams))
 }
 
 #define HIGH_POLY_WARNING 10000
+#define DT_TYPES_AFFECT_MESH ( \
+	DT_TYPE_BWEIGHT_VERT | \
+	DT_TYPE_BWEIGHT_EDGE | DT_TYPE_CREASE | DT_TYPE_SHARP_EDGE | \
+	DT_TYPE_LNOR | \
+	DT_TYPE_SHARP_FACE \
+)
 
 static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *derivedData,
                                   ModifierApplyFlag UNUSED(flag))
@@ -170,6 +177,10 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	DataTransferModifierData *dtmd = (DataTransferModifierData *) md;
 	DerivedMesh *dm = derivedData;
 	ReportList reports;
+
+	/* Only used to check wehther we are operating on org data or not... */
+	Mesh *me = ob->data;
+	MVert *mvert;
 
 	const bool invert_vgroup = (dtmd->flags & MOD_DATATRANSFER_INVERT_VGROUP) != 0;
 
@@ -180,6 +191,13 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 
 	if (space_transform) {
 		BLI_SPACE_TRANSFORM_SETUP(space_transform, ob, dtmd->ob_source);
+	}
+
+	mvert = dm->getVertArray(dm);
+	if ((me->mvert == mvert) && (dtmd->data_types & DT_TYPES_AFFECT_MESH)) {
+		/* We need to duplicate data here, otherwise setting custom normals, edges' shaprness, etc., could
+		 * modify org mesh, see T43671. */
+		dm = CDDM_copy(dm);
 	}
 
 	BKE_reports_init(&reports, RPT_STORE);
@@ -201,6 +219,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob, DerivedMesh *der
 	return dm;
 }
 
+#undef HIGH_POLY_WARNING
+#undef DT_TYPES_AFFECT_MESH
 
 ModifierTypeInfo modifierType_DataTransfer = {
 	/* name */              "DataTransfer",
