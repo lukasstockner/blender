@@ -1103,7 +1103,7 @@ static void rna_SpaceDopeSheetEditor_action_set(PointerRNA *ptr, PointerRNA valu
 	}
 }
 
-static void rna_SpaceDopeSheetEditor_action_update(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+static void rna_SpaceDopeSheetEditor_action_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	SpaceAction *saction = (SpaceAction *)(ptr->data);
 	Object *obact = (scene->basact) ? scene->basact->object : NULL;
@@ -1136,7 +1136,8 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *UNUSED(bmain), Scene *s
 		}
 		
 		/* force depsgraph flush too */
-		DAG_id_tag_update(&obact->id, OB_RECALC_OB | OB_RECALC_DATA);
+		DAG_id_tag_update(&obact->id, OB_RECALC_OB | OB_RECALC_DATA | OB_RECALC_TIME);
+		DAG_relations_tag_update(bmain);
 	}
 }
 
