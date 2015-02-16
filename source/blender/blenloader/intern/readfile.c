@@ -4450,11 +4450,11 @@ static void lib_link_object(FileData *fd, Main *main)
 				}
 				else if (act->type == ACT_ACTION) {
 					bActionActuator *aa = act->data;
-					aa->act= newlibadr(fd, ob->id.lib, aa->act);
+					aa->act= newlibadr_us(fd, ob->id.lib, aa->act);
 				}
 				else if (act->type == ACT_SHAPEACTION) {
 					bActionActuator *aa = act->data;
-					aa->act= newlibadr(fd, ob->id.lib, aa->act);
+					aa->act= newlibadr_us(fd, ob->id.lib, aa->act);
 				}
 				else if (act->type == ACT_PROPERTY) {
 					bPropertyActuator *pa = act->data;
@@ -6371,6 +6371,7 @@ static void direct_link_region(FileData *fd, ARegion *ar, int spacetype)
 				rv3d->render_engine = NULL;
 				rv3d->sms = NULL;
 				rv3d->smooth_timer = NULL;
+				rv3d->compositor = NULL;
 			}
 		}
 	}
@@ -6478,7 +6479,7 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 		/* add local view3d too */
 		else if (sa->spacetype == SPACE_VIEW3D)
 			blo_do_versions_view3d_split_250(sa->spacedata.first, &sa->regionbase);
-		
+
 		/* incase we set above */
 		sa->butspacetype = sa->spacetype;
 
@@ -6525,6 +6526,11 @@ static bool direct_link_screen(FileData *fd, bScreen *sc)
 				/* render can be quite heavy, set to solid on load */
 				if (v3d->drawtype == OB_RENDER)
 					v3d->drawtype = OB_SOLID;
+
+				if (v3d->fx_settings.dof)
+					v3d->fx_settings.dof = newdataadr(fd, v3d->fx_settings.dof);
+				if (v3d->fx_settings.ssao)
+					v3d->fx_settings.ssao = newdataadr(fd, v3d->fx_settings.ssao);
 				
 				blo_do_versions_view3d_split_250(v3d, &sl->regionbase);
 			}

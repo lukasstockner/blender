@@ -3676,6 +3676,12 @@ static void draw_mesh_object_outline(View3D *v3d, Object *ob, DerivedMesh *dm)
 	}
 }
 
+static bool object_is_halo(Scene *scene, Object *ob)
+{
+	const Material *ma = give_current_material(ob, 1);
+	return (ma && (ma->material_type == MA_TYPE_HALO) && !BKE_scene_use_new_shading_nodes(scene));
+}
+
 static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                             const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
@@ -3685,8 +3691,6 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	Object *ob = base->object;
 #endif
 	Mesh *me = ob->data;
-	Material *ma = give_current_material(ob, 1);
-	const bool hasHaloMat = (ma && (ma->material_type == MA_TYPE_HALO) && !BKE_scene_use_new_shading_nodes(scene));
 	eWireDrawMode draw_wire = OBDRAW_WIRE_OFF;
 	int /* totvert,*/ totedge, totface;
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
@@ -3722,7 +3726,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		if (((v3d->flag2 & V3D_RENDER_OVERRIDE) && v3d->drawtype >= OB_WIRE) == 0)
 			draw_bounding_volume(ob, ob->boundtype);
 	}
-	else if (hasHaloMat || (totface == 0 && totedge == 0)) {
+	else if ((totface == 0 && totedge == 0) ||
+	         ((!is_obact || (ob->mode == OB_MODE_OBJECT)) && object_is_halo(scene, ob)))
+	{
 		glPointSize(1.5);
 		dm->drawVerts(dm);
 		glPointSize(1.0);
@@ -7393,7 +7399,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->mode & (OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)) {
 			if (ob->type == OB_MESH) {
 				if (dt < OB_SOLID) {
-					zbufoff = 1;
+					zbufoff = true;
 					dt = OB_SOLID;
 				}
 

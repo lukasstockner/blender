@@ -125,6 +125,7 @@ def CLIP_default_settings_from_track(clip, track, framenr):
 
 
 class CLIP_OT_filter_tracks(bpy.types.Operator):
+    """Filter tracks which has weirdly looking spikes in motion curves"""
     bl_label = "Filter Tracks"
     bl_idname = "clip.filter_tracks"
     bl_options = {'UNDO', 'REGISTER'}
@@ -162,8 +163,8 @@ class CLIP_OT_filter_tracks(bpy.types.Operator):
             # Find tracks with markers in both this frame and the previous one.
             relevant_tracks = [
                     track for track in clip.tracking.tracks
-                    if track.markers.find_frame(frame) and
-                       track.markers.find_frame(frame - 1)]
+                    if (track.markers.find_frame(frame) and
+                        track.markers.find_frame(frame - 1))]
 
             if not relevant_tracks:
                 continue

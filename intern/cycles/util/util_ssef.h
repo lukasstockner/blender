@@ -580,7 +580,9 @@ ccl_device_inline const ssef set_sign_bit(const ssef &a)
 	return a ^ cast(ssei(S1 << 31, S2 << 31, S3 << 31, S4 << 31));
 }
 
-#endif
+////////////////////////////////////////////////////////////////////////////////
+/// Debug Functions
+////////////////////////////////////////////////////////////////////////////////
 
 ccl_device_inline void print_ssef(const char *label, const ssef &a)
 {
@@ -591,6 +593,8 @@ ccl_device_inline void print_ssef(const char *label, const ssef &a)
 	       (double)a[2],
 	       (double)a[3]);
 }
+
+#endif
 
 CCL_NAMESPACE_END
 
