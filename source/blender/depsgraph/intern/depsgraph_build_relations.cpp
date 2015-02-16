@@ -575,6 +575,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 				         CONSTRAINT_TYPE_LOCLIKE,
 				         CONSTRAINT_TYPE_TRANSLIKE))
 				{
+					/* TODO(sergey): Add used space check. */
 					ComponentKey target_transform_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
 					add_relation(target_transform_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 				}
@@ -1259,6 +1260,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 				case CONSTRAINT_TYPE_SIZELIKE:
 				case CONSTRAINT_TYPE_LOCLIKE:
 				case CONSTRAINT_TYPE_TRANSLIKE:
+					/* TODO(sergey): Add used space check. */
 					pose_depends_on_local_transform = true;
 					break;
 
