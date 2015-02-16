@@ -2909,12 +2909,14 @@ void BKE_ptcache_free_mem(ListBase *mem_cache)
 }
 void BKE_ptcache_free(PointCache *cache)
 {
-	if (cache->edit && cache->free_edit)
-		cache->free_edit(cache->edit);
-	if (cache->state.cached_frames)
-		MEM_freeN(cache->state.cached_frames);
-
-	MEM_freeN(cache);
+	if (cache) {
+		if (cache->edit && cache->free_edit)
+			cache->free_edit(cache->edit);
+		if (cache->state.cached_frames)
+			MEM_freeN(cache->state.cached_frames);
+		
+		MEM_freeN(cache);
+	}
 }
 
 PointCache *BKE_ptcache_copy(PointCache *cache, bool copy_data)
