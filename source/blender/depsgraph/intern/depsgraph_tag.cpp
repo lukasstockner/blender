@@ -84,6 +84,17 @@ static void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
 	}
 }
 
+static void anim_data_tag_update(Depsgraph *graph, ID *id)
+{
+	IDDepsNode *id_node = graph->find_id_node(id);
+	if (id_node != NULL) {
+		ComponentDepsNode *anim_comp = id_node->find_component(DEPSNODE_TYPE_ANIMATION);
+		if (anim_comp != NULL) {
+			anim_comp->tag_update(graph);
+		}
+	}
+}
+
 /* Tag all nodes in ID-block for update.
  * This is a crude measure, but is most convenient for old code.
  */
@@ -147,15 +158,24 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 	     scene = (Scene *)scene->id.next)
 	{
 		if (scene->depsgraph) {
+			Depsgraph *graph = scene->depsgraph;
 			if (flag & OB_RECALC_DATA && GS(id->name) == ID_OB) {
 				Object *object = (Object*)id;
 				if (object->data != NULL) {
 					DEG_graph_id_tag_update(bmain,
-					                        scene->depsgraph,
+					                        graph,
 					                        (ID*)object->data);
 				}
+				if (flag & OB_RECALC_TIME) {
+					anim_data_tag_update(graph, (ID*)object->data);
+				}
 			}
-			DEG_graph_id_tag_update(bmain, scene->depsgraph, id);
+			if (flag & (OB_RECALC_OB|OB_RECALC_DATA)) {
+				DEG_graph_id_tag_update(bmain, graph, id);
+			}
+			if (flag & OB_RECALC_TIME) {
+				anim_data_tag_update(graph, id);
+			}
 		}
 	}
 }
