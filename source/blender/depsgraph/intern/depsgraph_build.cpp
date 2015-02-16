@@ -152,6 +152,20 @@ void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char
 	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
 }
 
+void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)
+{
+	if (graph == NULL) {
+		BLI_assert(!"Graph should always be valid");
+		return;
+	}
+	IDDepsNode *id_node = graph->find_id_node(id);
+	if (id_node == NULL) {
+		BLI_assert(!"ID should always be valid");
+		return;
+	}
+	id_node->eval_flags |= flag;
+}
+
 /* ************************************************* */
 /* Utilities for Builders */
 

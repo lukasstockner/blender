@@ -3225,6 +3225,10 @@ short DAG_get_eval_flags_for_object(Scene *scene, void *object)
 {
 	DagNode *node;
 
+	if (!DEG_depsgraph_use_legacy()) {
+		return DEG_get_eval_flags_for_id(scene->depsgraph, (ID*)object);
+	}
+
 	if (scene->theDag == NULL) {
 		/* Happens when converting objects to mesh from a python script
 		 * after modifying scene graph.
@@ -3439,13 +3443,6 @@ const char *DAG_get_node_name(Scene *UNUSED(scene), void *UNUSED(node_v))
 	return "INVALID";
 }
 
-short DAG_get_eval_flags_for_object(Scene *UNUSED(scene),
-                                    void *UNUSED(object))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-	return 0;
-}
-
 bool DAG_is_acyclic(Scene *UNUSED(scene))
 {
 	BLI_assert(!"Should not be used with new dependnecy graph");
@@ -3536,6 +3533,11 @@ int DAG_id_type_tagged(Main *bmain, short idtype)
 void DAG_ids_clear_recalc(Main *bmain)
 {
 	DEG_ids_clear_recalc(bmain);
+}
+
+short DAG_get_eval_flags_for_object(Scene *scene, void *object)
+{
+	return DEG_get_eval_flags_for_id(scene->depsgraph, (ID*)object);
 }
 
 /* ************************ DAG DEBUGGING ********************* */

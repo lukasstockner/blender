@@ -64,6 +64,7 @@ extern "C" {
 #include "BKE_animsys.h"
 #include "BKE_constraint.h"
 #include "BKE_curve.h"
+#include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
 #include "BKE_group.h"
@@ -243,7 +244,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* AnimData */
 	build_animdata(&ob->id);
 
-
 	/* object data */
 	if (ob->data) {
 		ID *obdata = (ID *)ob->data;
@@ -260,6 +260,15 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 			case OB_LATTICE:
 			{
 				build_obdata_geom(scene, ob);
+				/* TODO(sergey): Only for until we support granular
+				 * update of curves.
+				 */
+				if (ob->type == OB_FONT) {
+					Curve *curve = (Curve *)ob->data;
+					if (curve->textoncurve) {
+						id_node->eval_flags |= DAG_EVAL_NEED_CURVE_PATH;
+					}
+				}
 			}
 			break;
 

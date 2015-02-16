@@ -109,7 +109,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 }
 
 static void updateDepsgraph(ModifierData *md,
-                            struct Scene *UNUSED(scene),
+                            struct Scene *scene,
                             Object *UNUSED(ob),
                             struct DepsNodeHandle *node)
 {
@@ -122,6 +122,7 @@ static void updateDepsgraph(ModifierData *md,
 		 * might be changed in the future.
 		 */
 		DEG_add_object_relation(node, cmd->object, DEG_OB_COMP_GEOMETRY, "Curve Modifier");
+		DEG_add_special_eval_flag(scene->depsgraph, &cmd->object->id, DAG_EVAL_NEED_CURVE_PATH);
 	}
 }
 

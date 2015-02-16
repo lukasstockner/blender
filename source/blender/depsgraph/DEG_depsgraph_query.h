@@ -181,6 +181,9 @@ size_t DEG_query_required_ids(struct ListBase *result, const struct ID *id, cons
 /* Check if given ID type was tagged for update. */
 bool DEG_id_type_tagged(struct Main *bmain, short idtype);
 
+/* Get additional evaluation flags for the given ID. */
+short DEG_get_eval_flags_for_id(struct Depsgraph *graph, struct ID *id);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

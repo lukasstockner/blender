@@ -188,3 +188,24 @@ bool DEG_id_type_tagged(Main *bmain, short idtype)
 {
 	return bmain->id_tag_update[((unsigned char *)&idtype)[0]] != 0;
 }
+
+short DEG_get_eval_flags_for_id(Depsgraph *graph, ID *id)
+{
+	if (graph == NULL) {
+		/* Happens when converting objects to mesh from a python script
+		 * after modifying scene graph.
+		 *
+		 * Currently harmless because it's only called for temporary
+		 * objects which are out of the DAG anyway.
+		 */
+		return 0;
+	}
+
+	IDDepsNode *id_node = graph->find_id_node(id);
+	if (id_node == NULL) {
+		/* TODO(sergey): Does it mean we need to check set scene? */
+		return 0;
+	}
+
+	return id_node->eval_flags;
+}

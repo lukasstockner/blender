@@ -191,6 +191,12 @@ struct IDDepsNode : public DepsNode {
 	/* Layers of this node with accumulated layers of it's output relations. */
 	int layers;
 
+	/* Additional flags needed for scene evaluation.
+	 * TODO(sergey): Only needed for until really granual updates
+	 * of all the entities.
+	 */
+	int eval_flags;
+
 	DEG_DEPSNODE_DECLARE;
 };
 
