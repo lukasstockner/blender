@@ -565,6 +565,20 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 						add_relation(target_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
 					}
 				}
+
+				/* Constraints which needs world's matrix for transform.
+				 * TODO(sergey): More constraints here?
+				 */
+				if (ELEM(con->type,
+				         CONSTRAINT_TYPE_ROTLIKE,
+				         CONSTRAINT_TYPE_SIZELIKE,
+				         CONSTRAINT_TYPE_LOCLIKE,
+				         CONSTRAINT_TYPE_TRANSLIKE))
+				{
+					ComponentKey target_transform_key(&ct->tar->id, DEPSNODE_TYPE_TRANSFORM);
+					add_relation(target_transform_key, constraint_op_key, DEPSREL_TYPE_TRANSFORM, cti->name);
+				}
+
 			}
 
 			if (cti->flush_constraint_targets)
@@ -1224,19 +1238,28 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	* - Animated chain-lengths are a problem...
 	*/
 	RootPChanMap root_map;
-	bool have_ik_solver = false;
-
+	bool pose_depends_on_local_transform = false;
 	for (bPoseChannel *pchan = (bPoseChannel *)ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 		for (bConstraint *con = (bConstraint *)pchan->constraints.first; con; con = con->next) {
 			switch (con->type) {
 				case CONSTRAINT_TYPE_KINEMATIC:
 					build_ik_pose(ob, pchan, con, &root_map);
-					have_ik_solver = true;
+					pose_depends_on_local_transform = true;
 					break;
 
 				case CONSTRAINT_TYPE_SPLINEIK:
 					build_splineik_pose(ob, pchan, con, &root_map);
-					have_ik_solver = true;
+					pose_depends_on_local_transform = true;
+					break;
+
+				/* Constraints which needs world's matrix for transform.
+				 * TODO(sergey): More constraints here?
+				 */
+				case CONSTRAINT_TYPE_ROTLIKE:
+				case CONSTRAINT_TYPE_SIZELIKE:
+				case CONSTRAINT_TYPE_LOCLIKE:
+				case CONSTRAINT_TYPE_TRANSLIKE:
+					pose_depends_on_local_transform = true;
 					break;
 
 				default:
@@ -1246,7 +1269,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	}
 	//root_map.print_debug();
 
-	if (have_ik_solver) {
+	if (pose_depends_on_local_transform) {
 		/* TODO(sergey): Once partial updates are possible use relation between
 		 * object transform and solver itself in it's build function.
 		 */
