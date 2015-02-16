@@ -25,6 +25,7 @@
  */
 
 #include "BLI_utildefines.h"
+#include "BLI_fileops_types.h"
 #include "BLI_path_util.h"
 
 #include "DNA_space_types.h"
@@ -444,7 +445,7 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	FunctionRNA *func;
+//	FunctionRNA *func;
 	
 	srna = RNA_def_struct(brna, "AssetEngine", NULL);
 	RNA_def_struct_sdna(srna, "AssetEngine");
