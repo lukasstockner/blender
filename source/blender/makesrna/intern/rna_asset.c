@@ -27,6 +27,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
 
+#include "DNA_space_types.h"
+
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
@@ -346,6 +348,98 @@ static PointerRNA rna_BakePixel_next_get(PointerRNA *ptr)
 
 #else /* RNA_RUNTIME */
 
+static void rna_def_asset_revision(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+//	FunctionRNA *func;
+
+	srna = RNA_def_struct(brna, "AssetRevision", NULL);
+	RNA_def_struct_sdna(srna, "FileDirEntryRevision");
+	RNA_def_struct_ui_text(srna, "Asset Entry Revision", "A revision of a single asset item");
+//	RNA_def_struct_ui_icon(srna, ICON_NONE);  /* XXX TODO */
+
+	prop = RNA_def_property(srna, "uuid", PROP_STRING, PROP_BYTESTRING);
+	RNA_def_property_ui_text(prop, "Revision UUID",
+	                         "Unique identifier of this revision (actual content depends on asset engine)");
+
+	/* TODO: all direntry items (through accessors even!) */
+}
+
+static void rna_def_asset_variant(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+//	FunctionRNA *func;
+
+	srna = RNA_def_struct(brna, "AssetVariant", NULL);
+	RNA_def_struct_sdna(srna, "FileDirEntryVariant");
+	RNA_def_struct_ui_text(srna, "Asset Entry Variant", "A variant of a single asset item (e.g. high-poly, low-poly, etc.)");
+//	RNA_def_struct_ui_icon(srna, ICON_NONE);  /* XXX TODO */
+
+	prop = RNA_def_property(srna, "revisions", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "revisions", "nbr_revisions");
+	RNA_def_property_struct_type(prop, "AssetRevision");
+	RNA_def_property_ui_text(prop, "Revisions", "Collection of asset variant's revisions");
+	rna_def_asset_revision(brna);
+
+	prop = RNA_def_property(srna, "active_revision", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "act_revision");
+	RNA_def_property_ui_text(prop, "Active Revision", "Revision of asset's variant curently active (selected)");
+
+	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Name", "");
+
+	prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Description", "");
+}
+
+static void rna_def_asset_entry(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+//	FunctionRNA *func;
+
+	srna = RNA_def_struct(brna, "AssetEntry", NULL);
+	RNA_def_struct_sdna(srna, "FileDirEntry");
+	RNA_def_struct_ui_text(srna, "Asset Entry", "A single asset item (quite similar to a file path)");
+//	RNA_def_struct_ui_icon(srna, ICON_NONE);  /* XXX TODO */
+
+	prop = RNA_def_property(srna, "variants", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "variants", "nbr_variants");
+	RNA_def_property_struct_type(prop, "AssetVariant");
+	RNA_def_property_ui_text(prop, "Variants", "Collection of asset variants");
+	rna_def_asset_variant(brna);
+
+	prop = RNA_def_property(srna, "active_variant", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "act_variant");
+	RNA_def_property_ui_text(prop, "Active Variant", "Variant of asset curently active (selected)");
+
+	/* TODO tags, status */
+}
+
+static void rna_def_asset_list(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+//	FunctionRNA *func;
+
+	srna = RNA_def_struct(brna, "AssetList", NULL);
+	RNA_def_struct_sdna(srna, "FileDirEntryArr");
+	RNA_def_struct_ui_text(srna, "Asset List", "List of assets (quite similar to a file list)");
+//	RNA_def_struct_ui_icon(srna, ICON_NONE);  /* XXX TODO */
+
+	prop = RNA_def_property(srna, "entries", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "entries", "nbr_entries");
+	RNA_def_property_struct_type(prop, "AssetEntry");
+	RNA_def_property_ui_text(prop, "Entries", "Collection of asset entries");
+	rna_def_asset_entry(brna);
+
+	prop = RNA_def_property(srna, "root_path", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "root");
+	RNA_def_property_ui_text(prop, "Root Path", "Root directory from which all asset entries come from");
+}
+
 static void rna_def_asset_engine(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -583,6 +677,7 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 void RNA_def_asset(BlenderRNA *brna)
 {
 	rna_def_asset_engine(brna);
+	rna_def_asset_list(brna);
 #if 0
 	rna_def_render_result(brna);
 	rna_def_render_layer(brna);
