@@ -72,7 +72,7 @@ def rna_backup_restore(data, backup):
 def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
     # Helpers.
     RenderContext = collections.namedtuple("RenderContext", (
-        "scene", "world", "camera", "lamp", "camera_data", "lamp_data", "image",
+        "scene", "world", "camera", "lamp", "camera_data", "lamp_data", "image",  # All those are names!
         "backup_scene", "backup_world", "backup_camera", "backup_lamp", "backup_camera_data", "backup_lamp_data",
     ))
 
@@ -151,53 +151,58 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         image.filepath = scene.render.filepath
 
         return RenderContext(
-            scene, world, camera, lamp, camera_data, lamp_data, image,
+            scene.name, world.name, camera.name, lamp.name if lamp else None,
+            camera_data.name, lamp_data.name if lamp_data else None, image.name,
             backup_scene, backup_world, backup_camera, backup_lamp, backup_camera_data, backup_lamp_data,
         )
 
     def render_context_delete(render_context):
         # Do not crash here, too much things can go wrong...
         try:
-            scene = render_context.scene
+            scene = bpy.data.scenes[render_context.scene]
             if render_context.backup_scene is None:
                 scene.world = None
                 scene.camera = None
                 if render_context.camera:
-                    scene.objects.unlink(render_context.camera)
+                    scene.objects.unlink(bpy.data.objects[render_context.camera])
                 if render_context.lamp:
-                    scene.objects.unlink(render_context.lamp)
+                    scene.objects.unlink(bpy.data.objects[render_context.lamp])
                 bpy.data.scenes.remove(scene)
                 scene = None
             else:
                 rna_backup_restore(scene, render_context.backup_scene)
+            world = bpy.data.worlds[render_context.world]
             if render_context.backup_world is None:
                 if scene is not None:
                     scene.world = None
-                bpy.data.worlds.remove(render_context.world)
+                bpy.data.worlds.remove(world)
             else:
-                rna_backup_restore(render_context.world, render_context.backup_world)
+                rna_backup_restore(world, render_context.backup_world)
             if render_context.camera:
+                camera = bpy.data.objects[render_context.camera]
                 if render_context.backup_camera is None:
                     if scene is not None:
                         scene.camera = None
-                    bpy.data.objects.remove(render_context.camera)
-                    bpy.data.cameras.remove(render_context.camera_data)
+                    bpy.data.objects.remove(camera)
+                    bpy.data.cameras.remove(bpy.data.cameras[render_context.camera_data])
                 else:
-                    rna_backup_restore(render_context.camera, render_context.backup_camera)
-                    rna_backup_restore(render_context.camera_data, render_context.backup_camera_data)
+                    rna_backup_restore(camera, render_context.backup_camera)
+                    rna_backup_restore(bpy.data.cameras[render_context.camera_data], render_context.backup_camera_data)
             if render_context.lamp:
+                lamp = bpy.data.objects[render_context.lamp]
                 if render_context.backup_lamp is None:
-                    bpy.data.objects.remove(render_context.lamp)
-                    bpy.data.lamps.remove(render_context.lamp_data)
+                    bpy.data.objects.remove(lamp)
+                    bpy.data.lamps.remove(bpy.data.lamps[render_context.lamp_data])
                 else:
-                    rna_backup_restore(render_context.lamp, render_context.backup_lamp)
-                    rna_backup_restore(render_context.lamp_data, render_context.backup_lamp_data)
+                    rna_backup_restore(lamp, render_context.backup_lamp)
+                    rna_backup_restore(bpy.data.lamps[render_context.lamp_data], render_context.backup_lamp_data)
         except Exception as e:
             print("ERROR:", e)
             return False
 
-        render_context.image.user_clear()
-        bpy.data.images.remove(render_context.image)
+        image = bpy.data.images[render_context.image]
+        image.user_clear()
+        bpy.data.images.remove(image)
         return True
 
     def objects_render_engine_guess(obs):
@@ -231,14 +236,14 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
             if bbox[1].z < v.z:
                 bbox[1].z = v.z
 
-    def objects_bbox_calc(render_context, objects):
+    def objects_bbox_calc(camera, objects):
         bbox = (Vector((1e9, 1e9, 1e9)), Vector((-1e9, -1e9, -1e9)))
         for obname in objects:
             ob = bpy.data.objects[obname]
-            object_bbox_merge(bbox, ob, render_context.camera)
+            object_bbox_merge(bbox, ob, camera)
         # Our bbox has been generated in camera local space, bring it back in world one
-        bbox[0][:] = render_context.camera.matrix_world * bbox[0]
-        bbox[1][:] = render_context.camera.matrix_world * bbox[1]
+        bbox[0][:] = camera.matrix_world * bbox[0]
+        bbox[1][:] = camera.matrix_world * bbox[1]
         cos = (
             bbox[0].x, bbox[0].y, bbox[0].z,
             bbox[0].x, bbox[0].y, bbox[1].z,
@@ -251,22 +256,26 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         )
         return cos
 
-    def preview_render_do(render_context, item, objects):
+    def preview_render_do(render_context, item_container, item_name, objects):
+        scene = bpy.data.scenes[render_context.scene]
         if objects is not None:
-            cos = objects_bbox_calc(render_context, objects)
-            if render_context.camera:  # This shall always be valid!
-                loc, ortho_scale = render_context.camera.camera_fit_coords(render_context.scene, cos)
-                render_context.camera.location = loc
-            if render_context.lamp:
-                loc, ortho_scale = render_context.lamp.camera_fit_coords(render_context.scene, cos)
-                render_context.lamp.location = loc
-        render_context.scene.update()
+            camera = bpy.data.objects[render_context.camera]
+            lamp = bpy.data.objects[render_context.lamp] if render_context.lamp is not None else None
+            cos = objects_bbox_calc(camera, objects)
+            loc, ortho_scale = camera.camera_fit_coords(scene, cos)
+            camera.location = loc
+            if lamp:
+                loc, ortho_scale = lamp.camera_fit_coords(scene, cos)
+                lamp.location = loc
+        scene.update()
 
         bpy.ops.render.render(write_still=True)
 
-        render_context.image.reload()
+        image = bpy.data.images[render_context.image]
+        item = getattr(bpy.data, item_container)[item_name]
+        image.reload()
         pix = tuple((round(r * 255)) + (round(g * 255) << 8) + (round(b * 255) << 16) + (round(a * 255) << 24)
-                    for r, g, b, a in zip(*[iter(render_context.image.pixels)] * 4))
+                    for r, g, b, a in zip(*[iter(image.pixels)] * 4))
         item.preview.image_size = (128, 128)
         item.preview.image_pixels = pix
 
@@ -302,20 +311,33 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
             if render_context is None:
                 render_context = render_context_create(render_engine, objects_ignored)
                 render_contexts[render_engine] = render_context
-            bpy.context.screen.scene = render_context.scene
+
+            scene = bpy.data.scenes[render_context.scene]
+            bpy.context.screen.scene = scene
 
             for obname in objects:
                 ob = bpy.data.objects[obname]
-                if obname not in render_context.scene.objects:
-                    render_context.scene.objects.link(ob)
+                if obname not in scene.objects:
+                    scene.objects.link(ob)
                 ob.hide_render = False
-            render_context.scene.update()
+            scene.update()
 
-            preview_render_do(render_context, root, objects)
+            preview_render_do(render_context, 'objects', root.name, objects)
 
+            # XXX Hyper Super Uber Suspicious Hack!
+            #     Without this, on windows build, script excepts with following message:
+            #         Traceback (most recent call last):
+            #         File "<string>", line 1, in <module>
+            #         File "<string>", line 451, in <module>
+            #         File "<string>", line 443, in main
+            #         File "<string>", line 327, in do_previews
+            #         OverflowError: Python int too large to convert to C long
+            #    ... :(
+            import sys
+            scene = bpy.data.scenes[render_context.scene]
             for obname in objects:
                 ob = bpy.data.objects[obname]
-                render_context.scene.objects.unlink(ob)
+                scene.objects.unlink(ob)
                 ob.hide_render = True
 
         for ob, is_rendered in zip(bpy.data.objects, prev_shown):
@@ -332,16 +354,19 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
             if render_context is None:
                 render_context = render_context_create(render_engine, objects_ignored)
                 render_contexts[render_engine] = render_context
-            bpy.context.screen.scene = render_context.scene
+
+            scene = bpy.data.scenes[render_context.scene]
+            bpy.context.screen.scene = scene
 
             bpy.ops.object.group_instance_add(group=grp.name)
-            grp_ob = next((ob for ob in render_context.scene.objects if ob.dupli_group and ob.dupli_group.name == grp.name))
+            grp_ob = next((ob for ob in scene.objects if ob.dupli_group and ob.dupli_group.name == grp.name))
             grp_obname = grp_ob.name
-            render_context.scene.update()
+            scene.update()
 
-            preview_render_do(render_context, grp, objects)
+            preview_render_do(render_context, 'groups', grp.name, objects)
 
-            render_context.scene.objects.unlink(bpy.data.objects[grp_obname])
+            scene = bpy.data.scenes[render_context.scene]
+            scene.objects.unlink(bpy.data.objects[grp_obname])
 
     bpy.context.screen.scene = bpy.data.scenes[prev_scenename]
     for render_context in render_contexts.values():
@@ -353,7 +378,7 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
             has_camera = scene.camera is not None
             bpy.context.screen.scene = scene
             render_context = render_context_create('__SCENE', objects_ignored)
-            render_context.scene.update()
+            scene.update()
 
             objects = None
             if not has_camera:
@@ -361,7 +386,7 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
                 objects = tuple(ob.name for ob in scene.objects
                                         if (not ob.hide_render) and (ob.type in OBJECT_TYPES_RENDER))
 
-            preview_render_do(render_context, scene, objects)
+            preview_render_do(render_context, 'scenes', scene.name, objects)
 
             if not render_context_delete(render_context):
                 do_save = False
