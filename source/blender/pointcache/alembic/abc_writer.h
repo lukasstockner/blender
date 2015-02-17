@@ -45,9 +45,6 @@ public:
 	uint32_t frame_sampling_index() const { return m_frame_sampling; }
 	Abc::TimeSamplingPtr frame_sampling();
 	
-	int num_samples();
-	bool has_samples();
-	
 	Abc::OArchive archive;
 	
 protected:

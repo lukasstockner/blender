@@ -67,14 +67,4 @@ TimeSamplingPtr AbcWriterArchive::frame_sampling()
 	return archive.getTimeSampling(m_frame_sampling);
 }
 
-int AbcWriterArchive::num_samples()
-{
-	return (int)frame_sampling()->getNumStoredTimes();
-}
-
-bool AbcWriterArchive::has_samples()
-{
-	return frame_sampling()->getNumStoredTimes() > 0;
-}
-
 } /* namespace PTC */
