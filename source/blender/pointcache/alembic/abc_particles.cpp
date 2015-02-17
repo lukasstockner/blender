@@ -391,98 +391,47 @@ static void paths_apply_sample_nvertices(ParticleCacheKey **pathcache, int totpa
 }
 
 /* Warning: apply_sample_nvertices has to be called before this! */
-static void paths_apply_sample_positions(ParticleCacheKey **pathcache, int totpart, P3fArraySamplePtr sample)
+static void paths_apply_sample_data(ParticleCacheKey **pathcache, int totpart,
+                                    P3fArraySamplePtr sample_pos,
+                                    V3fArraySamplePtr sample_vel,
+                                    QuatfArraySamplePtr sample_rot,
+                                    V3fArraySamplePtr sample_col,
+                                    FloatArraySamplePtr sample_time)
 {
-	int p, k, ktot;
+	int p, k;
 	
 //	BLI_assert(sample->size() == totvert);
 	
-	const V3f *data = sample->get();
+	const V3f *data_pos = sample_pos->get();
+	const V3f *data_vel = sample_vel->get();
+	const Quatf *data_rot = sample_rot->get();
+	const V3f *data_col = sample_col->get();
+	const float32_t *data_time = sample_time->get();
+	ParticleCacheKey **pkeys = pathcache;
 	
-	ktot = 0;
 	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int num_keys = keys->segments + 1;
+		ParticleCacheKey *key = *pkeys;
+		int num_keys = key->segments + 1;
 		
-		for (k = 0; k < num_keys; ++k, ++ktot) {
-			const V3f &co = data[ktot];
-			copy_v3_v3(keys[k].co, co.getValue());
+		for (k = 0; k < num_keys; ++k) {
+			copy_v3_v3(key->co, data_pos->getValue());
+			copy_v3_v3(key->vel, data_vel->getValue());
+			key->rot[0] = (*data_rot)[0];
+			key->rot[1] = (*data_rot)[1];
+			key->rot[2] = (*data_rot)[2];
+			key->rot[3] = (*data_rot)[3];
+			copy_v3_v3(key->col, data_col->getValue());
+			key->time = *data_time;
+			
+			++key;
+			++data_pos;
+			++data_vel;
+			++data_rot;
+			++data_col;
+			++data_time;
 		}
-	}
-}
-
-static void paths_apply_sample_velocities(ParticleCacheKey **pathcache, int totpart, V3fArraySamplePtr sample)
-{
-	int p, k, ktot;
-	
-	const V3f *data = sample->get();
-	
-	ktot = 0;
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int num_keys = keys->segments + 1;
 		
-		for (k = 0; k < num_keys; ++k, ++ktot) {
-			const V3f &vel = data[ktot];
-			copy_v3_v3(keys[k].vel, vel.getValue());
-		}
-	}
-}
-
-static void paths_apply_sample_rotations(ParticleCacheKey **pathcache, int totpart, QuatfArraySamplePtr sample)
-{
-	int p, k, ktot;
-	
-	const Quatf *data = sample->get();
-	
-	ktot = 0;
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int num_keys = keys->segments + 1;
-		
-		for (k = 0; k < num_keys; ++k, ++ktot) {
-			const Quatf &rot = data[ktot];
-			float *keyrot = keys[k].rot;
-			keyrot[0] = rot[0];
-			keyrot[1] = rot[1];
-			keyrot[2] = rot[2];
-			keyrot[3] = rot[3];
-		}
-	}
-}
-
-static void paths_apply_sample_colors(ParticleCacheKey **pathcache, int totpart, V3fArraySamplePtr sample)
-{
-	int p, k, ktot;
-	
-	const V3f *data = sample->get();
-	
-	ktot = 0;
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int num_keys = keys->segments + 1;
-		
-		for (k = 0; k < num_keys; ++k, ++ktot) {
-			const V3f &col = data[ktot];
-			copy_v3_v3(keys[k].col, col.getValue());
-		}
-	}
-}
-
-static void paths_apply_sample_times(ParticleCacheKey **pathcache, int totpart, FloatArraySamplePtr sample)
-{
-	int p, k, ktot;
-	
-	const float32_t *data = sample->get();
-	
-	ktot = 0;
-	for (p = 0; p < totpart; ++p) {
-		ParticleCacheKey *keys = pathcache[p];
-		int num_keys = keys->segments + 1;
-		
-		for (k = 0; k < num_keys; ++k, ++ktot) {
-			keys[k].time = data[ktot];
-		}
+		++pkeys;
 	}
 }
 
@@ -505,6 +454,10 @@ PTCReadSampleResult AbcParticlePathsReader::read_sample(float frame)
 	
 	P3fArraySamplePtr positions = sample.getPositions();
 	Int32ArraySamplePtr nvertices = sample.getCurvesNumVertices();
+	IV3fGeomParam::Sample sample_vel = m_param_velocities.getExpandedValue(ss);
+	IQuatfGeomParam::Sample sample_rot = m_param_rotations.getExpandedValue(ss);
+	IV3fGeomParam::Sample sample_col = m_param_colors.getExpandedValue(ss);
+	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	
 //	int totkeys = positions->size();
 	
@@ -512,31 +465,8 @@ PTCReadSampleResult AbcParticlePathsReader::read_sample(float frame)
 		BLI_assert(nvertices->size() == *m_totpath);
 		paths_apply_sample_nvertices(*m_pathcache, *m_totpath, nvertices);
 	}
-	paths_apply_sample_positions(*m_pathcache, *m_totpath, positions);
 	
-	if (m_param_velocities && m_param_velocities.getNumSamples() > 0) {
-		IV3fGeomParam::Sample sample_velocities;
-		m_param_velocities.getExpanded(sample_velocities, ss);
-		paths_apply_sample_velocities(*m_pathcache, *m_totpath, sample_velocities.getVals());
-	}
-	
-	if (m_param_rotations && m_param_rotations.getNumSamples() > 0) {
-		IQuatfGeomParam::Sample sample_rotations;
-		m_param_rotations.getExpanded(sample_rotations, ss);
-		paths_apply_sample_rotations(*m_pathcache, *m_totpath, sample_rotations.getVals());
-	}
-	
-	if (m_param_colors && m_param_colors.getNumSamples() > 0) {
-		IV3fGeomParam::Sample sample_colors;
-		m_param_colors.getExpanded(sample_colors, ss);
-		paths_apply_sample_colors(*m_pathcache, *m_totpath, sample_colors.getVals());
-	}
-	
-	if (m_param_times && m_param_times.getNumSamples() > 0) {
-		IFloatGeomParam::Sample sample_times;
-		m_param_times.getExpanded(sample_times, ss);
-		paths_apply_sample_times(*m_pathcache, *m_totpath, sample_times.getVals());
-	}
+	paths_apply_sample_data(*m_pathcache, *m_totpath, positions, sample_vel.getVals(), sample_rot.getVals(), sample_col.getVals(), sample_time.getVals());
 	
 	return PTC_READ_SAMPLE_EXACT;
 }
