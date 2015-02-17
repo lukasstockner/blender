@@ -567,7 +567,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
-			if ((BLI_is_dir(file->path) == false) && file->size[0]) {
+			if (!(file->type & S_IFDIR)) {
 				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
@@ -596,7 +596,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			file_draw_string(sx, sy, file->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
-			if ((BLI_is_dir(file->path) == false) && file->size[0]) {
+			if (!(file->type & S_IFDIR)) {
 				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
