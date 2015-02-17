@@ -50,18 +50,20 @@ AbcPointCacheWriter::AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheMod
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	
-	OObject root = m_archive.archive.getTop();
-	m_mesh = OPolyMesh(root, m_pcmd->modifier.name, m_archive.frame_sampling_index());
-	
-	OPolyMeshSchema &schema = m_mesh.getSchema();
-	OCompoundProperty geom_props = schema.getArbGeomParams();
-	OCompoundProperty user_props = schema.getUserProperties();
-	
-	m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
-	m_prop_edges = OInt32ArrayProperty(user_props, "edges", 0);
-	m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
-	m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
-	m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
+	if (m_archive.archive) {
+		OObject root = m_archive.archive.getTop();
+		m_mesh = OPolyMesh(root, m_pcmd->modifier.name, m_archive.frame_sampling_index());
+		
+		OPolyMeshSchema &schema = m_mesh.getSchema();
+		OCompoundProperty geom_props = schema.getArbGeomParams();
+		OCompoundProperty user_props = schema.getUserProperties();
+		
+		m_param_smooth = OBoolGeomParam(geom_props, "smooth", false, kUniformScope, 1, 0);
+		m_prop_edges = OInt32ArrayProperty(user_props, "edges", 0);
+		m_prop_edges_index = OInt32ArrayProperty(user_props, "edges_index", 0);
+		m_param_poly_normals = ON3fGeomParam(geom_props, "poly_normals", false, kUniformScope, 1, 0);
+		m_param_vertex_normals = ON3fGeomParam(geom_props, "vertex_normals", false, kVertexScope, 1, 0);
+	}
 }
 
 AbcPointCacheWriter::~AbcPointCacheWriter()
@@ -233,6 +235,9 @@ static N3fArraySample create_sample_vertex_normals(DerivedMesh *dm, std::vector<
 
 void AbcPointCacheWriter::write_sample()
 {
+	if (!m_archive.archive)
+		return;
+	
 	DerivedMesh *output_dm = m_pcmd->output_dm;
 	if (!output_dm)
 		return;

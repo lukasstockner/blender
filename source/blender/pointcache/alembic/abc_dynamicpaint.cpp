@@ -36,6 +36,8 @@ AbcDynamicPaintWriter::AbcDynamicPaintWriter(Scene *scene, Object *ob, DynamicPa
     DynamicPaintWriter(scene, ob, surface, &m_archive),
     m_archive(scene, &ob->id, surface->pointcache, m_error_handler)
 {
+	if (m_archive.archive) {
+	}
 }
 
 AbcDynamicPaintWriter::~AbcDynamicPaintWriter()
@@ -44,6 +46,8 @@ AbcDynamicPaintWriter::~AbcDynamicPaintWriter()
 
 void AbcDynamicPaintWriter::write_sample()
 {
+	if (!m_archive.archive)
+		return;
 }
 
 

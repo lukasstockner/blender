@@ -36,6 +36,8 @@ AbcRigidBodyWriter::AbcRigidBodyWriter(Scene *scene, RigidBodyWorld *rbw) :
     RigidBodyWriter(scene, rbw, &m_archive),
     m_archive(scene, &scene->id, rbw->pointcache, m_error_handler)
 {
+	if (m_archive.archive) {
+	}
 }
 
 AbcRigidBodyWriter::~AbcRigidBodyWriter()
@@ -44,6 +46,8 @@ AbcRigidBodyWriter::~AbcRigidBodyWriter()
 
 void AbcRigidBodyWriter::write_sample()
 {
+	if (!m_archive.archive)
+		return;
 }
 
 

@@ -43,14 +43,16 @@ AbcClothWriter::AbcClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
 	
-	OObject root = m_archive.archive.getTop();
-	m_points = OPoints(root, m_clmd->modifier.name, m_archive.frame_sampling_index());
-	
-	OPointsSchema &schema = m_points.getSchema();
-	OCompoundProperty geom_params = schema.getArbGeomParams();
-	
-	m_param_velocities = OV3fGeomParam(geom_params, "velocities", false, kVaryingScope, 1, 0);
-	m_param_goal_positions = OP3fGeomParam(geom_params, "goal_positions", false, kVaryingScope, 1, 0);
+	if (m_archive.archive) {
+		OObject root = m_archive.archive.getTop();
+		m_points = OPoints(root, m_clmd->modifier.name, m_archive.frame_sampling_index());
+		
+		OPointsSchema &schema = m_points.getSchema();
+		OCompoundProperty geom_params = schema.getArbGeomParams();
+		
+		m_param_velocities = OV3fGeomParam(geom_params, "velocities", false, kVaryingScope, 1, 0);
+		m_param_goal_positions = OP3fGeomParam(geom_params, "goal_positions", false, kVaryingScope, 1, 0);
+	}
 }
 
 AbcClothWriter::~AbcClothWriter()
@@ -87,6 +89,9 @@ static P3fArraySample create_sample_goal_positions(Cloth *cloth, std::vector<V3f
 
 void AbcClothWriter::write_sample()
 {
+	if (!m_archive.archive)
+		return;
+	
 	Cloth *cloth = m_clmd->clothObject;
 	if (!cloth)
 		return;

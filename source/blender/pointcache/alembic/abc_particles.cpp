@@ -41,8 +41,10 @@ AbcParticlesWriter::AbcParticlesWriter(Scene *scene, Object *ob, ParticleSystem 
     ParticlesWriter(scene, ob, psys, &m_archive),
     m_archive(scene, &ob->id, psys->pointcache, m_error_handler)
 {
-	OObject root = m_archive.archive.getTop();
-	m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
+	if (m_archive.archive) {
+		OObject root = m_archive.archive.getTop();
+		m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
+	}
 }
 
 AbcParticlesWriter::~AbcParticlesWriter()
@@ -51,6 +53,9 @@ AbcParticlesWriter::~AbcParticlesWriter()
 
 void AbcParticlesWriter::write_sample()
 {
+	if (!m_archive.archive)
+		return;
+	
 	OPointsSchema &schema = m_points.getSchema();
 	
 	int totpart = m_psys->totpart;
@@ -128,10 +133,12 @@ AbcParticlePathsWriter::AbcParticlePathsWriter(Scene *scene, Object *ob, Particl
     m_archive(NULL)
 {
 #if 0
-	OObject root = m_archive.archive.getTop();
-	/* XXX non-escaped string construction here ... */
-	m_parent_curves = OCurves(root, std::string(m_psys->name) + "__parent_paths", m_archive.frame_sampling_index());
-	m_child_curves = OCurves(root, std::string(m_psys->name) + "__child_paths", m_archive.frame_sampling_index());
+	if (m_archive->archive) {
+		OObject root = m_archive.archive.getTop();
+		/* XXX non-escaped string construction here ... */
+		m_parent_curves = OCurves(root, std::string(m_psys->name) + "__parent_paths", m_archive.frame_sampling_index());
+		m_child_curves = OCurves(root, std::string(m_psys->name) + "__child_paths", m_archive.frame_sampling_index());
+	}
 #endif
 }
 
@@ -291,6 +298,8 @@ static OFloatGeomParam::Sample paths_create_sample_times(ParticleCacheKey **path
 
 void AbcParticlePathsWriter::write_sample()
 {
+	if (!m_archive->archive)
+		return;
 	if (!(*m_pathcache))
 		return;
 	

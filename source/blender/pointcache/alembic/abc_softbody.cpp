@@ -36,8 +36,10 @@ AbcSoftBodyWriter::AbcSoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbod
     SoftBodyWriter(scene, ob, softbody, &m_archive),
     m_archive(scene, &ob->id, softbody->pointcache, m_error_handler)
 {
-	OObject root = m_archive.archive.getTop();
-//	m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
+	if (m_archive.archive) {
+//		OObject root = m_archive.archive.getTop();
+//		m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
+	}
 }
 
 AbcSoftBodyWriter::~AbcSoftBodyWriter()
@@ -46,6 +48,8 @@ AbcSoftBodyWriter::~AbcSoftBodyWriter()
 
 void AbcSoftBodyWriter::write_sample()
 {
+	if (!m_archive.archive)
+		return;
 }
 
 
