@@ -369,7 +369,7 @@ endif()
 mark_as_advanced(LLVM_STATIC)
 
 # disable for now, but plan to support on all platforms eventually
-option(WITH_MEM_JEMALLOC   "Enable malloc replacement (http://www.canonware.com/jemalloc)" OFF)
+option(WITH_MEM_JEMALLOC   "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
 mark_as_advanced(WITH_MEM_JEMALLOC)
 
 # currently only used for BLI_mempool
@@ -838,17 +838,21 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_SDL)
 		if(WITH_SDL_DYNLOAD)
-			set(SDLMAIN_LIBRARY)
 			set(SDL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/extern/sdlew/include/SDL2")
 			set(SDL_LIBRARY)
-			set(SDL_LIBRARY_TEMP)
 		else()
-			find_package_wrapper(SDL)
+			find_package_wrapper(SDL2)
+			if(SDL2_FOUND)
+				# Use same names for both versions of SDL until we move to 2.x.
+				set(SDL_INCLUDE_DIR "${SDL2_INCLUDE_DIR}")
+				set(SDL_LIBRARY "${SDL2_LIBRARY}")
+				set(SDL_FOUND "${SDL2_FOUND}")
+			else()
+				find_package_wrapper(SDL)
+			endif()
 			mark_as_advanced(
-				SDLMAIN_LIBRARY
 				SDL_INCLUDE_DIR
 				SDL_LIBRARY
-				SDL_LIBRARY_TEMP
 			)
 			# unset(SDLMAIN_LIBRARY CACHE)
 			if(NOT SDL_FOUND)
@@ -928,38 +932,18 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_CYCLES_OSL)
 		set(CYCLES_OSL ${LIBDIR}/osl CACHE PATH "Path to OpenShadingLanguage installation")
-
-		message(STATUS "CYCLES_OSL = ${CYCLES_OSL}")
-
-		# TODO(sergey): Move to dedicated FindOpenShadingLanguage.cmake
-		find_library(OSL_LIB_EXEC NAMES oslexec PATHS ${CYCLES_OSL}/lib)
-		find_library(OSL_LIB_COMP NAMES oslcomp PATHS ${CYCLES_OSL}/lib)
-		find_library(OSL_LIB_QUERY NAMES oslquery PATHS ${CYCLES_OSL}/lib)
-		find_path(OSL_INCLUDE_DIR OSL/oslclosure.h PATHS ${CYCLES_OSL}/include)
-		find_program(OSL_COMPILER NAMES oslc PATHS ${CYCLES_OSL}/bin)
-		if(EXISTS ${OSL_INCLUDE_DIR})
-			file(STRINGS "${OSL_INCLUDE_DIR}/OSL/oslversion.h" OSL_LIBRARY_VERSION_MAJOR
-			     REGEX "^[ \t]*#define[ \t]+OSL_LIBRARY_VERSION_MAJOR[ \t]+[0-9]+.*$")
-			file(STRINGS "${OSL_INCLUDE_DIR}/OSL/oslversion.h" OSL_LIBRARY_VERSION_MINOR
-			     REGEX "^[ \t]*#define[ \t]+OSL_LIBRARY_VERSION_MINOR[ \t]+[0-9]+.*$")
-			string(REGEX REPLACE ".*#define[ \t]+OSL_LIBRARY_VERSION_MAJOR[ \t]+([.0-9]+).*"
-			       "\\1" OSL_LIBRARY_VERSION_MAJOR ${OSL_LIBRARY_VERSION_MAJOR})
-			string(REGEX REPLACE ".*#define[ \t]+OSL_LIBRARY_VERSION_MINOR[ \t]+([.0-9]+).*"
-			       "\\1" OSL_LIBRARY_VERSION_MINOR ${OSL_LIBRARY_VERSION_MINOR})
+		if(NOT OSL_ROOT)
+			set(OSL_ROOT ${CYCLES_OSL})
 		endif()
-
-		if(${OSL_LIBRARY_VERSION_MAJOR} EQUAL "1" AND ${OSL_LIBRARY_VERSION_MINOR} LESS "6")
-			# Note: --whole-archive is needed to force loading of all symbols in liboslexec,
-			# otherwise LLVM is missing the osl_allocate_closure_component function
-			list(APPEND OSL_LIBRARIES ${OSL_LIB_COMP} -Wl,--whole-archive ${OSL_LIB_EXEC} -Wl,--no-whole-archive ${OSL_LIB_QUERY})
+		find_package_wrapper(OpenShadingLanguage)
+		if(OSL_FOUND)
+			if(${OSL_LIBRARY_VERSION_MAJOR} EQUAL "1" AND ${OSL_LIBRARY_VERSION_MINOR} LESS "6")
+				# Note: --whole-archive is needed to force loading of all symbols in liboslexec,
+				# otherwise LLVM is missing the osl_allocate_closure_component function
+				set(OSL_LIBRARIES ${OSL_OSLCOMP_LIBRARY} -Wl,--whole-archive ${OSL_OSLEXEC_LIBRARY} -Wl,--no-whole-archive ${OSL_OSLQUERY_LIBRARY})
+			endif()
 		else()
-			list(APPEND OSL_LIBRARIES ${OSL_LIB_COMP} ${OSL_LIB_EXEC} ${OSL_LIB_QUERY})
-		endif()
-
-		if(OSL_INCLUDE_DIR AND OSL_LIBRARIES AND OSL_COMPILER)
-			set(OSL_FOUND TRUE)
-		else()
-			message(STATUS "OSL not found")
+			message(STATUS "OSL not found, disabling it from Cycles")
 			set(WITH_CYCLES_OSL OFF)
 		endif()
 	endif()

@@ -218,9 +218,9 @@ void ED_object_base_init_transform(bContext *C, Base *base, const float loc[3], 
 
 /* Uses context to figure out transform for primitive.
  * Returns standard diameter. */
-float ED_object_new_primitive_matrix(bContext *C, Object *obedit,
-                                     const float loc[3], const float rot[3], float primmat[4][4],
-                                     bool apply_diameter)
+float ED_object_new_primitive_matrix(
+        bContext *C, Object *obedit,
+        const float loc[3], const float rot[3], float primmat[4][4])
 {
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
@@ -245,13 +245,6 @@ float ED_object_new_primitive_matrix(bContext *C, Object *obedit,
 
 	{
 		const float dia = v3d ? ED_view3d_grid_scale(scene, v3d, NULL) : ED_scene_grid_scale(scene, NULL);
-
-		if (apply_diameter) {
-			primmat[0][0] *= dia;
-			primmat[1][1] *= dia;
-			primmat[2][2] *= dia;
-		}
-
 		return dia;
 	}
 
@@ -304,18 +297,19 @@ bool ED_object_add_generic_get_opts(bContext *C, wmOperator *op, const char view
 {
 	View3D *v3d = CTX_wm_view3d(C);
 	unsigned int _layer;
+	PropertyRNA *prop;
 
-	/* Switch to Edit mode? */
-	if (RNA_struct_find_property(op->ptr, "enter_editmode")) { /* optional */
+	/* Switch to Edit mode? optional prop */
+	if ((prop = RNA_struct_find_property(op->ptr, "enter_editmode"))) {
 		bool _enter_editmode;
 		if (!enter_editmode)
 			enter_editmode = &_enter_editmode;
 
-		if (RNA_struct_property_is_set(op->ptr, "enter_editmode") && enter_editmode)
-			*enter_editmode = RNA_boolean_get(op->ptr, "enter_editmode");
+		if (RNA_property_is_set(op->ptr, prop) && enter_editmode)
+			*enter_editmode = RNA_property_boolean_get(op->ptr, prop);
 		else {
 			*enter_editmode = (U.flag & USER_ADD_EDITMODE) != 0;
-			RNA_boolean_set(op->ptr, "enter_editmode", *enter_editmode);
+			RNA_property_boolean_set(op->ptr, prop, *enter_editmode);
 		}
 	}
 
@@ -325,8 +319,9 @@ bool ED_object_add_generic_get_opts(bContext *C, wmOperator *op, const char view
 		if (!layer)
 			layer = &_layer;
 
-		if (RNA_struct_property_is_set(op->ptr, "layers")) {
-			RNA_boolean_get_array(op->ptr, "layers", layer_values);
+		prop = RNA_struct_find_property(op->ptr, "layers");
+		if (RNA_property_is_set(op->ptr, prop)) {
+			RNA_property_boolean_get_array(op->ptr, prop, layer_values);
 			*layer = 0;
 			for (a = 0; a < 20; a++) {
 				if (layer_values[a])
@@ -339,7 +334,7 @@ bool ED_object_add_generic_get_opts(bContext *C, wmOperator *op, const char view
 			for (a = 0; a < 20; a++) {
 				layer_values[a] = *layer & (1 << a);
 			}
-			RNA_boolean_set_array(op->ptr, "layers", layer_values);
+			RNA_property_boolean_set_array(op->ptr, prop, layer_values);
 		}
 
 		/* in local view we additionally add local view layers,
@@ -515,7 +510,7 @@ static int effector_add_exec(bContext *C, wmOperator *op)
 		cu = ob->data;
 		cu->flag |= CU_PATH | CU_3D;
 		ED_object_editmode_enter(C, 0);
-		ED_object_new_primitive_matrix(C, ob, loc, rot, mat, false);
+		ED_object_new_primitive_matrix(C, ob, loc, rot, mat);
 		BLI_addtail(&cu->editnurb->nurbs, add_nurbs_primitive(C, ob, mat, CU_NURBS | CU_PRIM_PATH, dia));
 		if (!enter_editmode)
 			ED_object_editmode_exit(C, EM_FREEDATA);
@@ -638,7 +633,7 @@ static int object_metaball_add_exec(bContext *C, wmOperator *op)
 		DAG_id_tag_update(&obedit->id, OB_RECALC_DATA);
 	}
 
-	ED_object_new_primitive_matrix(C, obedit, loc, rot, mat, false);
+	ED_object_new_primitive_matrix(C, obedit, loc, rot, mat);
 	dia = RNA_float_get(op->ptr, "radius");
 
 	add_metaball_primitive(C, obedit, mat, dia, RNA_enum_get(op->ptr, "type"));

@@ -185,6 +185,17 @@ static void clean_paths(Main *main)
 	}
 }
 
+static bool wm_scene_is_visible(wmWindowManager *wm, Scene *scene)
+{
+	wmWindow *win;
+	for (win = wm->windows.first; win; win = win->next) {
+		if (win->screen->scene == scene) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /* context matching */
 /* handle no-ui case */
 
@@ -228,6 +239,20 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 	
 	/* no load screens? */
 	if (mode != LOAD_UI) {
+		/* Logic for 'track_undo_scene' is to keep using the scene which the active screen has,
+		 * as long as the scene associated with the undo operation is visible in one of the open windows.
+		 *
+		 * - 'curscreen->scene' - scene the user is currently looking at.
+		 * - 'bfd->curscene' - scene undo-step was created in.
+		 *
+		 * This means users can have 2+ windows open and undo in both without screens switching.
+		 * But if they close one of the screens,
+		 * undo will ensure that the scene being operated on will be activated
+		 * (otherwise we'd be undoing on an off-screen scene which isn't acceptable).
+		 * see: T43424
+		 */
+		bool track_undo_scene;
+
 		/* comes from readfile.c */
 		SWAP(ListBase, G.main->wm, bfd->main->wm);
 		SWAP(ListBase, G.main->screen, bfd->main->screen);
@@ -237,15 +262,36 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		curscreen = CTX_wm_screen(C);
 		/* but use new Scene pointer */
 		curscene = bfd->curscene;
+
+		track_undo_scene = (mode == LOAD_UNDO && curscreen && bfd->main->wm.first);
+
 		if (curscene == NULL) curscene = bfd->main->scene.first;
 		/* empty file, we add a scene to make Blender work */
 		if (curscene == NULL) curscene = BKE_scene_add(bfd->main, "Empty");
-		
-		/* and we enforce curscene to be in current screen */
-		if (curscreen) curscreen->scene = curscene;  /* can run in bgmode */
+
+		if (track_undo_scene) {
+			/* keep the old (free'd) scene, let 'blo_lib_link_screen_restore'
+			 * replace it with 'curscene' if its needed */
+		}
+		else {
+			/* and we enforce curscene to be in current screen */
+			if (curscreen) {
+				/* can run in bgmode */
+				curscreen->scene = curscene;
+			}
+		}
 
 		/* clear_global will free G.main, here we can still restore pointers */
 		blo_lib_link_screen_restore(bfd->main, curscreen, curscene);
+		curscene = curscreen->scene;
+
+		if (track_undo_scene) {
+			wmWindowManager *wm = bfd->main->wm.first;
+			if (wm_scene_is_visible(wm, bfd->curscene) == false) {
+				curscene = bfd->curscene;
+				curscreen->scene = curscene;
+			}
+		}
 	}
 	
 	/* free G.main Main database */
