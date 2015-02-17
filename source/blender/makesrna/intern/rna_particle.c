@@ -3461,6 +3461,10 @@ static void rna_def_particle_system(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "PointCache");
 	RNA_def_property_ui_text(prop, "Point Cache", "");
 
+	prop = RNA_def_property(srna, "point_cache_paths", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", PSYS_CACHE_PATHS);
+	RNA_def_property_ui_text(prop, "Cache Paths", "Store final paths in the point cache");
+
 	/* offset ob */
 	prop = RNA_def_property(srna, "parent", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "parent");

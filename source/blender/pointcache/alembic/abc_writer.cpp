@@ -46,8 +46,15 @@ AbcWriterArchive::AbcWriterArchive(Scene *scene, ID *id, PointCache *cache, Erro
 {
 	std::string filename = ptc_archive_path(cache, id);
 	ensure_directory(filename.c_str());
+	
 	PTC_SAFE_CALL_BEGIN
+	
 	archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+	
+	chrono_t cycle_time = seconds_per_frame();
+	chrono_t start_time = 0.0f;
+	m_frame_sampling = archive.addTimeSampling(TimeSampling(cycle_time, start_time));
+	
 	PTC_SAFE_CALL_END_HANDLER(m_error_handler)
 }
 
@@ -55,11 +62,19 @@ AbcWriterArchive::~AbcWriterArchive()
 {
 }
 
-uint32_t AbcWriterArchive::add_frame_sampling()
+TimeSamplingPtr AbcWriterArchive::frame_sampling()
 {
-	chrono_t cycle_time = seconds_per_frame();
-	chrono_t start_time = 0.0f;
-	return archive.addTimeSampling(TimeSampling(cycle_time, start_time));
+	return archive.getTimeSampling(m_frame_sampling);
+}
+
+int AbcWriterArchive::num_samples()
+{
+	return (int)frame_sampling()->getNumStoredTimes();
+}
+
+bool AbcWriterArchive::has_samples()
+{
+	return frame_sampling()->getNumStoredTimes() > 0;
 }
 
 } /* namespace PTC */

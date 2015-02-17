@@ -40,6 +40,8 @@ public:
 	
 	void write_sample();
 	
+	AbcWriterArchive *archive() { return &m_archive; }
+	
 private:
 	AbcWriterArchive m_archive;
 	

@@ -543,6 +543,7 @@ typedef enum eParticleChildFlag {
 //#define PSYS_PROTECT_CACHE	4096 /* deprecated */
 #define PSYS_DISABLED			8192
 #define PSYS_OB_ANIM_RESTORE	16384 /* runtime flag */
+#define PSYS_CACHE_PATHS	32768
 
 /* pars->flag */
 #define PARS_UNEXIST		1

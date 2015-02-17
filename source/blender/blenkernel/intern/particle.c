@@ -86,6 +86,8 @@
 #include "BKE_scene.h"
 #include "BKE_deform.h"
 
+#include "PTC_api.h"
+
 #include "RE_render_ext.h"
 
 unsigned int PSYS_FRAND_SEED_OFFSET[PSYS_FRAND_COUNT];
@@ -2323,6 +2325,9 @@ static void exec_child_path_cache(TaskPool *UNUSED(pool), void *taskdata, int UN
 
 void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupdate)
 {
+	struct PTCReader *cache_reader = PTC_reader_particle_paths(sim->scene, sim->ob, sim->psys, PTC_PARTICLE_PATHS_CHILDREN);
+	PTCReadSampleResult cache_result;
+	
 	TaskScheduler *task_scheduler;
 	TaskPool *task_pool;
 	ParticleThreadContext ctx;
@@ -2353,32 +2358,36 @@ void psys_cache_child_paths(ParticleSimulationData *sim, float cfra, int editupd
 		sim->psys->totchildcache = totchild;
 	}
 	
-	/* cache parent paths */
-	ctx.parent_pass = 1;
-	psys_tasks_create(&ctx, totparent, &tasks_parent, &numtasks_parent);
-	for (i = 0; i < numtasks_parent; ++i) {
-		ParticleTask *task = &tasks_parent[i];
+	/* try reading from point cache */
+	cache_result = PTC_read_sample(cache_reader, cfra);
+	if (cache_result == PTC_READ_SAMPLE_INVALID) {
+		/* cache parent paths */
+		ctx.parent_pass = 1;
+		psys_tasks_create(&ctx, totparent, &tasks_parent, &numtasks_parent);
+		for (i = 0; i < numtasks_parent; ++i) {
+			ParticleTask *task = &tasks_parent[i];
+			
+			psys_task_init_path(task, sim);
+			BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
+		}
+		BLI_task_pool_work_and_wait(task_pool);
 		
-		psys_task_init_path(task, sim);
-		BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
-	}
-	BLI_task_pool_work_and_wait(task_pool);
-	
-	/* cache child paths */
-	ctx.parent_pass = 0;
-	psys_tasks_create(&ctx, totchild, &tasks_child, &numtasks_child);
-	for (i = 0; i < numtasks_child; ++i) {
-		ParticleTask *task = &tasks_child[i];
+		/* cache child paths */
+		ctx.parent_pass = 0;
+		psys_tasks_create(&ctx, totchild, &tasks_child, &numtasks_child);
+		for (i = 0; i < numtasks_child; ++i) {
+			ParticleTask *task = &tasks_child[i];
+			
+			psys_task_init_path(task, sim);
+			BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
+		}
+		BLI_task_pool_work_and_wait(task_pool);
 		
-		psys_task_init_path(task, sim);
-		BLI_task_pool_push(task_pool, exec_child_path_cache, task, false, TASK_PRIORITY_LOW);
+		BLI_task_pool_free(task_pool);
+		
+		psys_tasks_free(tasks_parent, numtasks_parent);
+		psys_tasks_free(tasks_child, numtasks_child);
 	}
-	BLI_task_pool_work_and_wait(task_pool);
-
-	BLI_task_pool_free(task_pool);
-	
-	psys_tasks_free(tasks_parent, numtasks_parent);
-	psys_tasks_free(tasks_child, numtasks_child);
 	
 	psys_thread_context_free(&ctx);
 }
@@ -2428,6 +2437,9 @@ static void cache_key_incremental_rotation(ParticleCacheKey *key0, ParticleCache
  * - Cached path data is also used to determine cut position for the editmode tool. */
 void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 {
+	struct PTCReader *cache_reader = PTC_reader_particle_paths(sim->scene, sim->ob, sim->psys, PTC_PARTICLE_PATHS_PARENTS);
+	PTCReadSampleResult cache_result;
+	
 	PARTICLE_PSMD;
 	ParticleEditSettings *pset = &sim->scene->toolsettings->particle;
 	ParticleSystem *psys = sim->psys;
@@ -2471,6 +2483,11 @@ void psys_cache_paths(ParticleSimulationData *sim, float cfra)
 	/* clear out old and create new empty path cache */
 	psys_free_path_cache(psys, psys->edit);
 	cache = psys->pathcache = psys_alloc_path_cache_buffers(&psys->pathcachebufs, totpart, segments + 1);
+	
+	/* try reading from point cache */
+	cache_result = PTC_read_sample(cache_reader, cfra);
+	if (cache_result != PTC_READ_SAMPLE_INVALID)
+		return;
 
 	psys->lattice_deform_data = psys_create_lattice_deform_data(sim);
 	ma = give_current_material(sim->ob, psys->part->omat);

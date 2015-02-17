@@ -164,15 +164,7 @@ PTCWriter *PTC_writer_from_rna(Scene *scene, PointerRNA *ptr)
 	if (RNA_struct_is_a(ptr->type, &RNA_ParticleSystem)) {
 		Object *ob = (Object *)ptr->id.data;
 		ParticleSystem *psys = (ParticleSystem *)ptr->data;
-		/* XXX particles are bad ...
-		 * this can be either the actual particle cache or the hair dynamics cache,
-		 * which is actually the cache of the internal cloth modifier
-		 */
-		bool use_cloth_cache = psys->part->type == PART_HAIR && (psys->flag & PSYS_HAIR_DYNAMICS);
-		if (use_cloth_cache && psys->clmd)
-			return PTC_writer_cloth(scene, ob, psys->clmd);
-		else
-			return PTC_writer_particles(scene, ob, psys);
+		return PTC_writer_particles_combined(scene, ob, psys);
 	}
 	if (RNA_struct_is_a(ptr->type, &RNA_ClothModifier)) {
 		Object *ob = (Object *)ptr->id.data;
@@ -373,6 +365,21 @@ PTCReader *PTC_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys)
 int PTC_reader_particles_totpoint(PTCReader *_reader)
 {
 	return ((PTC::ParticlesReader *)_reader)->totpoint();
+}
+
+//PTCWriter *PTC_writer_particle_paths(Scene *scene, Object *ob, ParticleSystem *psys)
+//{
+//	return (PTCWriter *)abc_writer_particle_paths(scene, ob, psys);
+//}
+
+PTCReader *PTC_reader_particle_paths(Scene *scene, Object *ob, ParticleSystem *psys, eParticlePathsMode mode)
+{
+	return (PTCReader *)abc_reader_particle_paths(scene, ob, psys, mode);
+}
+
+PTCWriter *PTC_writer_particles_combined(Scene *scene, Object *ob, ParticleSystem *psys)
+{
+	return (PTCWriter *)abc_writer_particle_combined(scene, ob, psys);
 }
 
 

@@ -42,12 +42,17 @@ public:
 	AbcWriterArchive(Scene *scene, ID *id, PointCache *cache, ErrorHandler *error_handler);
 	virtual ~AbcWriterArchive();
 	
-	uint32_t add_frame_sampling();
+	uint32_t frame_sampling_index() const { return m_frame_sampling; }
+	Abc::TimeSamplingPtr frame_sampling();
+	
+	int num_samples();
+	bool has_samples();
 	
 	Abc::OArchive archive;
 	
 protected:
 	ErrorHandler *m_error_handler;
+	uint32_t m_frame_sampling;
 };
 
 } /* namespace PTC */

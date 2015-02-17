@@ -26,10 +26,10 @@ namespace PTC {
 
 Writer::Writer(Scene *scene, ID *id, PointCache *cache, WriterArchive *archive) :
     m_error_handler(0),
-    m_archive(archive),
     m_scene(scene),
     m_id(id),
-    m_cache(cache)
+    m_cache(cache),
+    m_archive(archive)
 {
 }
 

@@ -36,10 +36,8 @@ AbcSoftBodyWriter::AbcSoftBodyWriter(Scene *scene, Object *ob, SoftBody *softbod
     SoftBodyWriter(scene, ob, softbody, &m_archive),
     m_archive(scene, &ob->id, softbody->pointcache, m_error_handler)
 {
-	uint32_t fs = m_archive.add_frame_sampling();
-	
 	OObject root = m_archive.archive.getTop();
-//	m_points = OPoints(root, m_psys->name, fs);
+//	m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
 }
 
 AbcSoftBodyWriter::~AbcSoftBodyWriter()

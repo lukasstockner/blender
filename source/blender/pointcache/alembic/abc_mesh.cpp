@@ -50,10 +50,8 @@ AbcPointCacheWriter::AbcPointCacheWriter(Scene *scene, Object *ob, PointCacheMod
 {
 	set_error_handler(new ModifierErrorHandler(&pcmd->modifier));
 	
-	uint32_t fs = m_archive.add_frame_sampling();
-	
 	OObject root = m_archive.archive.getTop();
-	m_mesh = OPolyMesh(root, m_pcmd->modifier.name, fs);
+	m_mesh = OPolyMesh(root, m_pcmd->modifier.name, m_archive.frame_sampling_index());
 	
 	OPolyMeshSchema &schema = m_mesh.getSchema();
 	OCompoundProperty geom_props = schema.getArbGeomParams();

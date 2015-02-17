@@ -50,11 +50,13 @@ public:
 	
 protected:
 	ErrorHandler *m_error_handler;
-	WriterArchive *m_archive;
 	
 	Scene *m_scene;
 	ID *m_id;
 	PointCache *m_cache;
+	
+private:
+	WriterArchive *m_archive;
 };
 
 } /* namespace PTC */

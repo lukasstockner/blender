@@ -415,14 +415,18 @@ class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):
         if psys.settings.is_fluid:
             return False
         phystype = psys.settings.physics_type
-        if phystype == 'NO' or phystype == 'KEYED':
-            return False
-        return (psys.settings.type in {'EMITTER', 'REACTOR'} or (psys.settings.type == 'HAIR' and psys.use_hair_dynamics)) and engine in cls.COMPAT_ENGINES
+        #if phystype == 'NO' or phystype == 'KEYED':
+        #    return False
+        #return (psys.settings.type in {'EMITTER', 'REACTOR'} or (psys.settings.type == 'HAIR' and psys.use_hair_dynamics)) and engine in cls.COMPAT_ENGINES
+        return engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
+        layout = self.layout
         psys = context.particle_system
 
         point_cache_ui(self, context, psys, psys.point_cache, True, 'HAIR' if (psys.settings.type == 'HAIR') else 'PSYS')
+
+        layout.prop(psys, "point_cache_paths")
 
 
 class PARTICLE_PT_velocity(ParticleButtonsPanel, Panel):

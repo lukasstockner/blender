@@ -36,10 +36,8 @@ AbcSmokeWriter::AbcSmokeWriter(Scene *scene, Object *ob, SmokeDomainSettings *do
     SmokeWriter(scene, ob, domain, &m_archive),
     m_archive(scene, &ob->id, domain->point_cache[0], m_error_handler)
 {
-	uint32_t fs = m_archive.add_frame_sampling();
-	
 	OObject root = m_archive.archive.getTop();
-//	m_points = OPoints(root, m_psys->name, fs);
+//	m_points = OPoints(root, m_psys->name, m_archive.frame_sampling_index());
 }
 
 AbcSmokeWriter::~AbcSmokeWriter()

@@ -22,6 +22,8 @@
 #include "reader.h"
 #include "writer.h"
 
+#include "PTC_api.h"
+
 struct Object;
 struct ClothModifierData;
 struct DynamicPaintSurface;
@@ -37,6 +39,9 @@ namespace PTC {
 /* Particles */
 Writer *abc_writer_particles(Scene *scene, Object *ob, ParticleSystem *psys);
 Reader *abc_reader_particles(Scene *scene, Object *ob, ParticleSystem *psys);
+//Writer *abc_writer_particle_paths(Scene *scene, Object *ob, ParticleSystem *psys);
+Reader *abc_reader_particle_paths(Scene *scene, Object *ob, ParticleSystem *psys, eParticlePathsMode mode);
+Writer *abc_writer_particle_combined(Scene *scene, Object *ob, ParticleSystem *psys);
 
 /* Cloth */
 Writer *abc_writer_cloth(Scene *scene, Object *ob, ClothModifierData *clmd);

@@ -77,6 +77,16 @@ struct PTCWriter *PTC_writer_particles(struct Scene *scene, struct Object *ob, s
 struct PTCReader *PTC_reader_particles(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
 int PTC_reader_particles_totpoint(struct PTCReader *reader);
 
+typedef enum eParticlePathsMode {
+	PTC_PARTICLE_PATHS_PARENTS = 0,
+	PTC_PARTICLE_PATHS_CHILDREN = 1,
+} eParticlePathsMode;
+
+//struct PTCWriter *PTC_writer_particle_paths(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+struct PTCReader *PTC_reader_particle_paths(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys, eParticlePathsMode mode);
+
+struct PTCWriter *PTC_writer_particles_combined(struct Scene *scene, struct Object *ob, struct ParticleSystem *psys);
+
 /* Cloth */
 struct PTCWriter *PTC_writer_cloth(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd);
 struct PTCReader *PTC_reader_cloth(struct Scene *scene, struct Object *ob, struct ClothModifierData *clmd);

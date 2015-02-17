@@ -43,10 +43,8 @@ AbcClothWriter::AbcClothWriter(Scene *scene, Object *ob, ClothModifierData *clmd
 {
 	set_error_handler(new ModifierErrorHandler(&clmd->modifier));
 	
-	uint32_t fs = m_archive.add_frame_sampling();
-	
 	OObject root = m_archive.archive.getTop();
-	m_points = OPoints(root, m_clmd->modifier.name, fs);
+	m_points = OPoints(root, m_clmd->modifier.name, m_archive.frame_sampling_index());
 	
 	OPointsSchema &schema = m_points.getSchema();
 	OCompoundProperty geom_params = schema.getArbGeomParams();
