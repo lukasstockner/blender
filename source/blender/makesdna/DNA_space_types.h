@@ -74,6 +74,7 @@ struct Mask;
 struct GHash;
 struct BLI_mempool;
 
+struct direntry;
 
 /* SpaceLink (Base) ==================================== */
 
@@ -710,7 +711,10 @@ typedef enum eFileSel_Params_Flag {
 } eFileSel_Params_Flag;
 
 
-/* files in filesel list: file types */
+/* files in filesel list: file types
+ * Note we could use mere values (instead of bitflags) for file types themselves,
+ * but since we do not lack of bytes currently...
+ */
 typedef enum eFileSel_File_Types {
 	FILE_TYPE_BLENDER           = (1 << 2),
 	FILE_TYPE_BLENDER_BACKUP    = (1 << 3),
@@ -727,6 +731,7 @@ typedef enum eFileSel_File_Types {
 	FILE_TYPE_OPERATOR          = (1 << 14), /* from filter_glob operator property */
 	FILE_TYPE_APPLICATIONBUNDLE = (1 << 15),
 
+	FILE_TYPE_DIR               = (1 << 30),  /* An FS directory (i.e. S_ISDIR on its path is true). */
 	FILE_TYPE_BLENDERLIB        = (1 << 31),
 } eFileSel_File_Types;
 
@@ -739,6 +744,78 @@ typedef enum eDirEntry_SelectFlag {
 } eDirEntry_SelectFlag;
 
 #define FILE_LIST_MAX_RECURSION 4
+
+/* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
+
+/* Container for a revision, only relevant in asset context. */
+typedef struct FileDirEntryRevision {
+	/* Unique identifier. Stored in a CustomProps once imported.
+	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
+	 * asset/datablock/variant/version.
+	 * Handled as bytes (i.e. **not** NULL-terminated). <- not true because of RNA?
+	 */
+	char uuid[1024];  /* ASSET_UUID_LENGTH */
+	char *relpath;
+	char *abspath;  /* XXX Get rid of this! */
+	int typeflag;  /* eFileSel_File_Types */
+	int selflag; /* eDirEntry_SelectFlag */
+
+	/* Those are direct copy from direntry. We may rework that later, but really not top priority. */
+	/* TODO: switch back to real values, no sense to keep this as string when it often not used at all! */
+	char    size[16];
+	char    mode1[4];
+	char    mode2[4];
+	char    mode3[4];
+	char    owner[16];
+	char    time[8];
+	char    date[16];
+	char    pad[4];
+
+	void *poin;
+	struct ImBuf *image;
+} FileDirEntryRevision;
+
+/* Container for a variant, only relevant in asset context. */
+typedef struct FileDirEntryVariant {
+	char *name;
+	char *description;
+
+	FileDirEntryRevision *revisions;
+	int nbr_revisions;
+	int act_revision;
+} FileDirEntryVariant;
+
+/* Container for mere direntry, with additional asset-related data. */
+typedef struct FileDirEntry {
+	/* Either point to active variant/revision if available, or own entry (in mere filebrowser case). */
+	FileDirEntryRevision *entry;
+
+	char **tags;
+	int nbr_tags;
+
+	short status;
+	short pad;
+
+	FileDirEntryVariant *variants;
+	int nbr_variants;
+	int act_variant;
+} FileDirEntry;
+
+/* Array of direntries. */
+typedef struct FileDirEntryArr {
+	FileDirEntry *entries;
+	int nbr_entries;
+	int pad;
+
+	char root[1024];	 /* FILE_MAX */
+} FileDirEntryArr;
+
+#define ASSET_UUID_LENGTH     1024
+
+enum {
+	ASSET_STATUS_LOCAL  = 1 << 0,  /* If active uuid is available localy/immediately. */
+	ASSET_STATUS_LATEST = 1 << 1,  /* If active uuid is latest available version. */
+};
 
 /* Image/UV Editor ======================================== */
 

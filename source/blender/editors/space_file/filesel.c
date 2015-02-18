@@ -490,24 +490,24 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 	}
 
 	for (i = 0; (i < numfiles); ++i) {
-		struct direntry *file = filelist_file(files, i);
+		FileDirEntry *file = filelist_file(files, i);
 		if (file) {
 			float len;
-			len = file_string_width(file->relname);
+			len = file_string_width(file->entry->relpath);
 			if (len > layout->column_widths[COLUMN_NAME]) layout->column_widths[COLUMN_NAME] = len;
-			len = file_string_width(file->date);
+			len = file_string_width(file->entry->date);
 			if (len > layout->column_widths[COLUMN_DATE]) layout->column_widths[COLUMN_DATE] = len;
-			len = file_string_width(file->time);
+			len = file_string_width(file->entry->time);
 			if (len > layout->column_widths[COLUMN_TIME]) layout->column_widths[COLUMN_TIME] = len;
-			len = file_string_width(file->size);
+			len = file_string_width(file->entry->size);
 			if (len > layout->column_widths[COLUMN_SIZE]) layout->column_widths[COLUMN_SIZE] = len;
-			len = file_string_width(file->mode1);
+			len = file_string_width(file->entry->mode1);
 			if (len > layout->column_widths[COLUMN_MODE1]) layout->column_widths[COLUMN_MODE1] = len;
-			len = file_string_width(file->mode2);
+			len = file_string_width(file->entry->mode2);
 			if (len > layout->column_widths[COLUMN_MODE2]) layout->column_widths[COLUMN_MODE2] = len;
-			len = file_string_width(file->mode3);
+			len = file_string_width(file->entry->mode3);
 			if (len > layout->column_widths[COLUMN_MODE3]) layout->column_widths[COLUMN_MODE3] = len;
-			len = file_string_width(file->owner);
+			len = file_string_width(file->entry->owner);
 			if (len > layout->column_widths[COLUMN_OWNER]) layout->column_widths[COLUMN_OWNER] = len;
 		}
 	}
@@ -643,7 +643,7 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 	int match = 0;
 	
 	int i;
-	struct direntry *file;
+	FileDirEntry *file;
 	int n = filelist_numfiles(sfile->files);
 
 	/* select any file that matches the pattern, this includes exact match 
@@ -651,11 +651,10 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 	 */
 	for (i = 0; i < n; i++) {
 		file = filelist_file(sfile->files, i);
-		/* use same rule as 'FileCheckType.CHECK_FILES' */
-		if (S_ISREG(file->type) && (fnmatch(pattern, file->relname, 0) == 0)) {
-			file->selflag |= FILE_SEL_SELECTED;
+		if (!(file->entry->typeflag & FILE_TYPE_DIR) && (fnmatch(pattern, file->entry->relpath, 0) == 0)) {
+			file->entry->selflag |= FILE_SEL_SELECTED;
 			if (!match) {
-				BLI_strncpy(matched_file, file->relname, FILE_MAX);
+				BLI_strncpy(matched_file, file->entry->relpath, FILE_MAX);
 			}
 			match++;
 		}
@@ -729,10 +728,8 @@ int autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 		int i;
 
 		for (i = 0; i < nentries; ++i) {
-			struct direntry *file = filelist_file(sfile->files, i);
-			if (file && (S_ISREG(file->type) || S_ISDIR(file->type))) {
-				UI_autocomplete_update_name(autocpl, file->relname);
-			}
+			FileDirEntry *file = filelist_file(sfile->files, i);
+			UI_autocomplete_update_name(autocpl, file->entry->relpath);
 		}
 		match = UI_autocomplete_end(autocpl, str);
 	}

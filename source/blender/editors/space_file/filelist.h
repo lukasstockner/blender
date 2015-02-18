@@ -44,9 +44,10 @@ struct FolderList;
 struct Main;
 struct ReportList;
 struct Scene;
-struct direntry;
 struct rcti;
 struct wmWindowManager;
+
+struct FileDirEntry;
 
 typedef enum FileSelType {
 	FILE_SEL_REMOVE = 0,
@@ -94,7 +95,7 @@ void                filelist_setdir(struct FileList *filelist, char *r_dir);
 
 int                 filelist_empty(struct FileList *filelist);
 int                 filelist_numfiles(struct FileList *filelist);
-struct direntry *   filelist_file(struct FileList *filelist, int index);
+FileDirEntry *      filelist_file(struct FileList *filelist, int index);
 int                 filelist_find(struct FileList *filelist, const char *file);
 
 bool                filelist_force_reset(struct FileList *filelist);
@@ -113,7 +114,7 @@ struct BlendHandle *filelist_lib(struct FileList *filelist);
 bool                filelist_islibrary(struct FileList *filelist, char *dir, char **group);
 void                filelist_freelib(struct FileList *filelist);
 
-char               *fileentry_uiname(const struct direntry *entry, char *dir);
+char               *fileentry_uiname(const struct FileDirEntry *entry, char *dir);
 
 void                filelist_readjob_start(struct FileList *filelist, const struct bContext *C);
 void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);

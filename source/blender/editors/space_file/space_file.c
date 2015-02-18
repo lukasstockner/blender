@@ -260,9 +260,9 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	if (params->renamefile[0] != '\0') {
 		int idx = filelist_find(sfile->files, params->renamefile);
 		if (idx >= 0) {
-			struct direntry *file = filelist_file(sfile->files, idx);
+			FileDirEntry *file = filelist_file(sfile->files, idx);
 			if (file) {
-				file->selflag |= FILE_SEL_EDITING;
+				file->entry->selflag |= FILE_SEL_EDITING;
 			}
 		}
 		BLI_strncpy(sfile->params->renameedit, sfile->params->renamefile, sizeof(sfile->params->renameedit));

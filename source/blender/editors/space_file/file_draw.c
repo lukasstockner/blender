@@ -287,7 +287,7 @@ void file_calc_previews(const bContext *C, ARegion *ar)
 	UI_view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
 }
 
-static void file_draw_preview(uiBlock *block, struct direntry *file, const int UNUSED(index),
+static void file_draw_preview(uiBlock *block, const char *path,
                               int sx, int sy, ImBuf *imb, int icon, FileLayout *layout, bool dropshadow, bool drag)
 {
 	uiBut *but;
@@ -351,10 +351,10 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, const int U
 		fdrawbox((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
 	}
 
-	but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, file->path);
+	but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, path);
 	/* dragregion */
 	if (drag) {
-		UI_but_drag_set_image(but, file->path, icon, imb, scale);
+		UI_but_drag_set_image(but, path, icon, imb, scale);
 	}
 
 	glDisable(GL_BLEND);
@@ -442,7 +442,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	FileLayout *layout = ED_fileselect_get_layout(sfile, ar);
 	View2D *v2d = &ar->v2d;
 	struct FileList *files = sfile->files;
-	struct direntry *file;
+	struct FileDirEntry *file;
 	ImBuf *imb;
 	uiBlock *block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	int numfiles;
@@ -491,19 +491,21 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		file = filelist_file(files, i);
 
-		BLI_join_dirfile(path, sizeof(path), filelist_dir(files), file->relname);
+		BLI_join_dirfile(path, sizeof(path), filelist_dir(files), file->entry->relpath);
 		name = fileentry_uiname(file, dir);
 
 		UI_ThemeColor4(TH_TEXT);
 
 
-		if (!(file->selflag & FILE_SEL_EDITING)) {
-			if ((params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) || (file->selflag & FILE_SEL_SELECTED)) {
-				int colorid = (file->selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
-				int shade = (params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
+		if (!(file->entry->selflag & FILE_SEL_EDITING)) {
+			if ((params->active_file == i) || (file->entry->selflag & FILE_SEL_HIGHLIGHTED) ||
+			    (file->entry->selflag & FILE_SEL_SELECTED))
+			{
+				int colorid = (file->entry->selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
+				int shade = (params->active_file == i) || (file->entry->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
 
 				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
-				if (FILENAME_IS_CURRPAR(file->relname)) {
+				if (FILENAME_IS_CURRPAR(file->entry->relpath)) {
 					colorid = TH_BACK;
 				}
 				draw_tile(sx, sy - 1, layout->tile_w + 4, sfile->layout->tile_h + layout->tile_border_y, colorid, shade);
@@ -512,7 +514,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		UI_draw_roundbox_corner_set(UI_CNR_NONE);
 
 		/* don't drag parent or refresh items */
-		do_drag = !(FILENAME_IS_CURRPAR(file->relname));
+		do_drag = !(FILENAME_IS_CURRPAR(file->entry->relpath));
 
 		if (FILE_IMGDISPLAY == params->display) {
 			const int icon = filelist_geticon(files, i, false);
@@ -523,17 +525,18 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				is_icon = 1;
 			}
 
-			file_draw_preview(block, file, i, sx, sy, imb, icon, layout, !is_icon && (file->flags & FILE_TYPE_IMAGE), do_drag);
+			file_draw_preview(block, path, sx, sy, imb, icon, layout,
+			                  !is_icon && (file->entry->typeflag & FILE_TYPE_IMAGE), do_drag);
 		}
 		else {
-			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i, true),
+			file_draw_icon(block, path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i, true),
 			               ICON_DEFAULT_WIDTH_SCALE, ICON_DEFAULT_HEIGHT_SCALE, do_drag);
 			sx += ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X;
 		}
 
 		UI_ThemeColor4(TH_TEXT);
 
-		if (file->selflag & FILE_SEL_EDITING) {
+		if (file->entry->selflag & FILE_SEL_EDITING) {
 			uiBut *but;
 			short width;
 
@@ -556,19 +559,19 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
 			UI_but_flag_disable(but, UI_BUT_UNDO);
 			if (false == UI_but_active_only(C, ar, block, but)) {
-				file->selflag &= ~FILE_SEL_EDITING;
+				file->entry->selflag &= ~FILE_SEL_EDITING;
 			}
 		}
 
-		if (!(file->selflag & FILE_SEL_EDITING)) {
+		if (!(file->entry->selflag & FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
 			file_draw_string(sx + 1, tpos, name, (float)textwidth, textheight, align);
 		}
 
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
-			if (!(file->type & S_IFDIR)) {
-				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+			if (!(file->entry->typeflag & FILE_TYPE_DIR)) {
+				file_draw_string(sx, sy, file->entry->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}
@@ -577,27 +580,27 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 #ifndef WIN32
 			/* rwx rwx rwx */
-			file_draw_string(sx, sy, file->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align); 
+			file_draw_string(sx, sy, file->entry->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align);
 			sx += layout->column_widths[COLUMN_MODE1] + column_space;
 
-			file_draw_string(sx, sy, file->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
+			file_draw_string(sx, sy, file->entry->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
 			sx += layout->column_widths[COLUMN_MODE2] + column_space;
 
-			file_draw_string(sx, sy, file->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
+			file_draw_string(sx, sy, file->entry->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
 			sx += layout->column_widths[COLUMN_MODE3] + column_space;
 
-			file_draw_string(sx, sy, file->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
+			file_draw_string(sx, sy, file->entry->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
 			sx += layout->column_widths[COLUMN_OWNER] + column_space;
 #endif
 
-			file_draw_string(sx, sy, file->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
+			file_draw_string(sx, sy, file->entry->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
 
-			file_draw_string(sx, sy, file->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
+			file_draw_string(sx, sy, file->entry->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
-			if (!(file->type & S_IFDIR)) {
-				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+			if (!(file->entry->typeflag & FILE_TYPE_DIR)) {
+				file_draw_string(sx, sy, file->entry->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}

@@ -256,7 +256,6 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 					if (BLI_stat(fullname, &file->s) != -1) {
 						file->type = file->s.st_mode;
 					}
-					file->flags = 0;
 					dir_ctx->nrfiles++;
 					file++;
 					dlink = dlink->next;
@@ -411,53 +410,60 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
 }
 
 /**
+ * Deep-duplicate of a single direntry.
+ *
+ * \param dup_poin If given, called for each non-NULL direntry->poin. Otherwise, pointer is always simply copied over.
+ */
+void BLI_filelist_entry_duplicate(struct direntry *dst, struct direntry *src)
+{
+	*dst = *src;
+	if (dst->relname) {
+		dst->relname = MEM_dupallocN(src->relname);
+	}
+	if (dst->path) {
+		dst->path = MEM_dupallocN(src->path);
+	}
+}
+
+/**
  * Deep-duplicate of an array of direntries, including the array itself.
  *
  * \param dup_poin If given, called for each non-NULL direntry->poin. Otherwise, pointer is always simply copied over.
  */
 void BLI_filelist_duplicate(
-        struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries,
-        void *(*dup_poin)(void *))
+        struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries)
 {
 	unsigned int i;
 
 	*dest_filelist = MEM_mallocN(sizeof(**dest_filelist) * (size_t)(nrentries), __func__);
 	for (i = 0; i < nrentries; ++i) {
 		struct direntry * const src = &src_filelist[i];
-		struct direntry *dest = &(*dest_filelist)[i];
-		*dest = *src;
-		if (dest->image) {
-			dest->image = IMB_dupImBuf(src->image);
-		}
-		if (dest->relname) {
-			dest->relname = MEM_dupallocN(src->relname);
-		}
-		if (dest->path) {
-			dest->path = MEM_dupallocN(src->path);
-		}
-		if (dest->poin && dup_poin) {
-			dest->poin = dup_poin(src->poin);
-		}
+		struct direntry *dst = &(*dest_filelist)[i];
+		BLI_filelist_entry_duplicate(dst, src);
+	}
+}
+
+/**
+ * frees storage for a single direntry, not the direntry itself.
+ */
+void BLI_filelist_entry_free(struct direntry *entry)
+{
+	if (entry->relname) {
+		MEM_freeN(entry->relname);
+	}
+	if (entry->path) {
+		MEM_freeN(entry->path);
 	}
 }
 
 /**
  * frees storage for an array of direntries, including the array itself.
  */
-void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries, void (*free_poin)(void *))
+void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries)
 {
 	unsigned int i;
 	for (i = 0; i < nrentries; ++i) {
-		struct direntry *entry = filelist + i;
-		if (entry->image) {
-			IMB_freeImBuf(entry->image);
-		}
-		if (entry->relname)
-			MEM_freeN(entry->relname);
-		if (entry->path)
-			MEM_freeN(entry->path);
-		if (entry->poin && free_poin)
-			free_poin(entry->poin);
+		BLI_filelist_entry_free(&filelist[i]);
 	}
 
 	if (filelist != NULL) {

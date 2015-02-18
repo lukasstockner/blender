@@ -756,7 +756,7 @@ static void init_iconfile_list(struct ListBase *list)
 		}
 	}
 
-	BLI_filelist_free(dir, totfile, NULL);
+	BLI_filelist_free(dir, totfile);
 	dir = NULL;
 }
 

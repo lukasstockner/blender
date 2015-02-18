@@ -93,10 +93,10 @@ char  *BLI_current_working_dir(char *dir, const size_t maxlen) ATTR_NONNULL();
 /* Filelist */
 
 unsigned int BLI_filelist_dir_contents(const char *dir, struct direntry **filelist);
-void BLI_filelist_duplicate(
-        struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries,
-        void *(*dup_poin)(void *));
-void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries, void (*free_poin)(void *));
+void BLI_filelist_entry_duplicate(struct direntry *dst, struct direntry *src);
+void BLI_filelist_duplicate(struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries);
+void BLI_filelist_entry_free(struct direntry *entry);
+void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries);
 
 /* Files */
 
