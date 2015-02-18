@@ -1350,6 +1350,320 @@ static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOption
 	glEnd();
 }
 
+static void cdDM_buffer_copy_vertex(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
+{
+	MVert *mvert;
+	MFace *f;
+	int i, j, start, totface;
+
+	mvert = dm->getVertArray(dm);
+	f = dm->getTessFaceArray(dm);
+
+	totface = dm->getNumTessFaces(dm);
+	for (i = 0; i < totface; i++, f++) {
+		start = index[mat_orig_to_new[f->mat_nr]];
+
+		/* v1 v2 v3 */
+		copy_v3_v3(&varray[start], mvert[f->v1].co);
+		copy_v3_v3(&varray[start + 3], mvert[f->v2].co);
+		copy_v3_v3(&varray[start + 6], mvert[f->v3].co);
+		index[mat_orig_to_new[f->mat_nr]] += 9;
+
+		if (f->v4) {
+			/* v3 v4 v1 */
+			copy_v3_v3(&varray[start + 9], mvert[f->v3].co);
+			copy_v3_v3(&varray[start + 12], mvert[f->v4].co);
+			copy_v3_v3(&varray[start + 15], mvert[f->v1].co);
+			index[mat_orig_to_new[f->mat_nr]] += 9;
+		}
+	}
+
+	/* copy loose points */
+	j = dm->drawObject->tot_triangle_point * 3;
+	for (i = 0; i < dm->drawObject->totvert; i++) {
+		if (dm->drawObject->vert_points[i].point_index >= dm->drawObject->tot_triangle_point) {
+			copy_v3_v3(&varray[j], mvert[i].co);
+			j += 3;
+		}
+	}
+}
+
+static void cdDM_buffer_copy_normal(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
+{
+	int i, totface;
+	int start;
+	float f_no[3];
+
+	const float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
+	short (*tlnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
+	MVert *mvert = dm->getVertArray(dm);
+	MFace *f = dm->getTessFaceArray(dm);
+
+	totface = dm->getNumTessFaces(dm);
+	for (i = 0; i < totface; i++, f++) {
+		const int smoothnormal = (f->flag & ME_SMOOTH);
+
+		start = index[mat_orig_to_new[f->mat_nr]];
+		index[mat_orig_to_new[f->mat_nr]] += f->v4 ? 18 : 9;
+
+		if (tlnors) {
+			short (*tlnor)[3] = tlnors[i];
+			/* Copy loop normals */
+			normal_short_to_float_v3(&varray[start], tlnor[0]);
+			normal_short_to_float_v3(&varray[start + 3], tlnor[1]);
+			normal_short_to_float_v3(&varray[start + 6], tlnor[2]);
+
+			if (f->v4) {
+				normal_short_to_float_v3(&varray[start + 9], tlnor[2]);
+				normal_short_to_float_v3(&varray[start + 12], tlnor[3]);
+				normal_short_to_float_v3(&varray[start + 15], tlnor[0]);
+			}
+		}
+		else if (smoothnormal) {
+			/* copy vertex normal */
+			normal_short_to_float_v3(&varray[start], mvert[f->v1].no);
+			normal_short_to_float_v3(&varray[start + 3], mvert[f->v2].no);
+			normal_short_to_float_v3(&varray[start + 6], mvert[f->v3].no);
+
+			if (f->v4) {
+				normal_short_to_float_v3(&varray[start + 9], mvert[f->v3].no);
+				normal_short_to_float_v3(&varray[start + 12], mvert[f->v4].no);
+				normal_short_to_float_v3(&varray[start + 15], mvert[f->v1].no);
+			}
+		}
+		else if (nors) {
+			/* copy cached face normal */
+			copy_v3_v3(&varray[start], &nors[i * 3]);
+			copy_v3_v3(&varray[start + 3], &nors[i * 3]);
+			copy_v3_v3(&varray[start + 6], &nors[i * 3]);
+
+			if (f->v4) {
+				copy_v3_v3(&varray[start + 9], &nors[i * 3]);
+				copy_v3_v3(&varray[start + 12], &nors[i * 3]);
+				copy_v3_v3(&varray[start + 15], &nors[i * 3]);
+			}
+		}
+		else {
+			/* calculate face normal */
+			if (f->v4)
+				normal_quad_v3(f_no, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co, mvert[f->v4].co);
+			else
+				normal_tri_v3(f_no, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
+
+			copy_v3_v3(&varray[start], f_no);
+			copy_v3_v3(&varray[start + 3], f_no);
+			copy_v3_v3(&varray[start + 6], f_no);
+
+			if (f->v4) {
+				copy_v3_v3(&varray[start + 9], f_no);
+				copy_v3_v3(&varray[start + 12], f_no);
+				copy_v3_v3(&varray[start + 15], f_no);
+			}
+		}
+	}
+}
+
+static void cdDM_buffer_copy_uv(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
+{
+	int start;
+	int i, totface;
+
+	MTFace *mtface;
+	MFace *f;
+
+	if (!(mtface = DM_get_tessface_data_layer(dm, CD_MTFACE)))
+		return;
+	f = dm->getTessFaceArray(dm);
+
+	totface = dm->getNumTessFaces(dm);
+	for (i = 0; i < totface; i++, f++) {
+		start = index[mat_orig_to_new[f->mat_nr]];
+
+		/* v1 v2 v3 */
+		copy_v2_v2(&varray[start], mtface[i].uv[0]);
+		copy_v2_v2(&varray[start + 2], mtface[i].uv[1]);
+		copy_v2_v2(&varray[start + 4], mtface[i].uv[2]);
+		index[mat_orig_to_new[f->mat_nr]] += 6;
+
+		if (f->v4) {
+			/* v3 v4 v1 */
+			copy_v2_v2(&varray[start + 6], mtface[i].uv[2]);
+			copy_v2_v2(&varray[start + 8], mtface[i].uv[3]);
+			copy_v2_v2(&varray[start + 10], mtface[i].uv[0]);
+			index[mat_orig_to_new[f->mat_nr]] += 6;
+		}
+	}
+}
+
+
+static void cdDM_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
+{
+	int start;
+	int i, totface;
+
+	int totmaterial = dm->totmat;
+	MTFace **mtface_base;
+	MTFace *stencil_base;
+	int stencil;
+	MFace *mf;
+
+	/* should have been checked for before, reassert */
+	BLI_assert(DM_get_tessface_data_layer(dm, CD_MTFACE));
+	mf = dm->getTessFaceArray(dm);
+	mtface_base = MEM_mallocN(totmaterial * sizeof(*mtface_base), "texslots");
+
+	for (i = 0; i < totmaterial; i++) {
+		mtface_base[i] = DM_paint_uvlayer_active_get(dm, i);
+	}
+
+	stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
+	stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
+
+	totface = dm->getNumTessFaces(dm);
+
+	for (i = 0; i < totface; i++, mf++) {
+		int mat_i = mf->mat_nr;
+		start = index[mat_orig_to_new[mat_i]];
+
+		/* v1 v2 v3 */
+		copy_v2_v2(&varray[start], mtface_base[mat_i][i].uv[0]);
+		copy_v2_v2(&varray[start + 2], stencil_base[i].uv[0]);
+		copy_v2_v2(&varray[start + 4], mtface_base[mat_i][i].uv[1]);
+		copy_v2_v2(&varray[start + 6], stencil_base[i].uv[1]);
+		copy_v2_v2(&varray[start + 8], mtface_base[mat_i][i].uv[2]);
+		copy_v2_v2(&varray[start + 10], stencil_base[i].uv[2]);
+		index[mat_orig_to_new[mat_i]] += 12;
+
+		if (mf->v4) {
+			/* v3 v4 v1 */
+			copy_v2_v2(&varray[start + 12], mtface_base[mat_i][i].uv[2]);
+			copy_v2_v2(&varray[start + 14], stencil_base[i].uv[2]);
+			copy_v2_v2(&varray[start + 16], mtface_base[mat_i][i].uv[3]);
+			copy_v2_v2(&varray[start + 18], stencil_base[i].uv[3]);
+			copy_v2_v2(&varray[start + 20], mtface_base[mat_i][i].uv[0]);
+			copy_v2_v2(&varray[start + 22], stencil_base[i].uv[0]);
+			index[mat_orig_to_new[mat_i]] += 12;
+		}
+	}
+
+	MEM_freeN(mtface_base);
+}
+
+
+static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
+{
+	v[0] = col[3];
+	v[1] = col[2];
+	v[2] = col[1];
+}
+
+/* treat varray_ as an array of MCol, four MCol's per face */
+static void cdDM_buffer_copy_mcol(DerivedMesh *dm, float *varray_, int *index, int *mat_orig_to_new, void *user)
+{
+	int i, totface;
+	unsigned char *varray = (unsigned char *)varray_;
+	unsigned char *mcol = (unsigned char *)user;
+	MFace *f = dm->getTessFaceArray(dm);
+
+	totface = dm->getNumTessFaces(dm);
+	for (i = 0; i < totface; i++, f++) {
+		int start = index[mat_orig_to_new[f->mat_nr]];
+
+		/* v1 v2 v3 */
+		copy_mcol_uc3(&varray[start], &mcol[i * 16]);
+		copy_mcol_uc3(&varray[start + 3], &mcol[i * 16 + 4]);
+		copy_mcol_uc3(&varray[start + 6], &mcol[i * 16 + 8]);
+		index[mat_orig_to_new[f->mat_nr]] += 9;
+
+		if (f->v4) {
+			/* v3 v4 v1 */
+			copy_mcol_uc3(&varray[start + 9], &mcol[i * 16 + 8]);
+			copy_mcol_uc3(&varray[start + 12], &mcol[i * 16 + 12]);
+			copy_mcol_uc3(&varray[start + 15], &mcol[i * 16]);
+			index[mat_orig_to_new[f->mat_nr]] += 9;
+		}
+	}
+}
+
+static void cdDM_buffer_copy_edge(DerivedMesh *dm, float *varray_, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+{
+	MEdge *medge;
+	unsigned int *varray = (unsigned int *)varray_;
+	int i, totedge;
+
+	medge = dm->getEdgeArray(dm);
+	totedge = dm->getNumEdges(dm);
+
+	for (i = 0; i < totedge; i++, medge++) {
+		varray[i * 2] = dm->drawObject->vert_points[medge->v1].point_index;
+		varray[i * 2 + 1] = dm->drawObject->vert_points[medge->v2].point_index;
+	}
+}
+
+static void cdDM_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
+{
+	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
+	int i, j = 0;
+
+	if (!tf)
+		return;
+
+	for (i = 0; i < dm->numTessFaceData; i++, tf++) {
+		MFace mf;
+		dm->getTessFace(dm, i, &mf);
+
+		copy_v2_v2(&varray[j], tf->uv[0]);
+		copy_v2_v2(&varray[j + 2], tf->uv[1]);
+
+		copy_v2_v2(&varray[j + 4], tf->uv[1]);
+		copy_v2_v2(&varray[j + 6], tf->uv[2]);
+
+		if (!mf.v4) {
+			copy_v2_v2(&varray[j + 8], tf->uv[2]);
+			copy_v2_v2(&varray[j + 10], tf->uv[0]);
+			j += 12;
+		}
+		else {
+			copy_v2_v2(&varray[j + 8], tf->uv[2]);
+			copy_v2_v2(&varray[j + 10], tf->uv[3]);
+
+			copy_v2_v2(&varray[j + 12], tf->uv[3]);
+			copy_v2_v2(&varray[j + 14], tf->uv[0]);
+			j += 16;
+		}
+	}
+}
+
+static void cdDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *index,
+                        int *mat_orig_to_new, void *user_data)
+{
+	switch(type) {
+		case GPU_BUFFER_VERTEX:
+			cdDM_buffer_copy_vertex(dm, varray, index, mat_orig_to_new, user_data);
+			break;
+		case GPU_BUFFER_NORMAL:
+			cdDM_buffer_copy_normal(dm, varray, index, mat_orig_to_new, user_data);
+			break;
+		case GPU_BUFFER_COLOR:
+			cdDM_buffer_copy_mcol(dm, varray, index, mat_orig_to_new, user_data);
+			break;
+		case GPU_BUFFER_UV:
+			cdDM_buffer_copy_uv(dm, varray, index, mat_orig_to_new, user_data);
+			break;
+		case GPU_BUFFER_UV_TEXPAINT:
+			cdDM_buffer_copy_uv_texpaint(dm, varray, index, mat_orig_to_new, user_data);
+			break;
+		case GPU_BUFFER_EDGE:
+			cdDM_buffer_copy_edge(dm, varray, index, mat_orig_to_new, user_data);
+			break;
+		case GPU_BUFFER_UVEDGE:
+			cdDM_buffer_copy_uvedge(dm, varray, index, mat_orig_to_new, user_data);
+			break;
+		default:
+			break;
+	}
+}
+
 static void cdDM_foreachMappedVert(
         DerivedMesh *dm,
         void (*func)(void *userData, int index, const float co[3], const float no_f[3], const short no_s[3]),
@@ -1564,6 +1878,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 	dm->drawMappedFacesTex = cdDM_drawMappedFacesTex;
 	dm->drawMappedFacesGLSL = cdDM_drawMappedFacesGLSL;
 	dm->drawMappedFacesMat = cdDM_drawMappedFacesMat;
+	dm->copy_gpu_data = cdDM_copy_gpu_data;
 
 	dm->foreachMappedVert = cdDM_foreachMappedVert;
 	dm->foreachMappedEdge = cdDM_foreachMappedEdge;

@@ -120,6 +120,18 @@ typedef struct GPUDrawObject {
 	int totedge;
 } GPUDrawObject;
 
+/* currently unused */
+// #define USE_GPU_POINT_LINK
+
+typedef struct GPUVertPointLink {
+#ifdef USE_GPU_POINT_LINK
+	struct GPUVertPointLink *next;
+#endif
+	/* -1 means uninitialized */
+	int point_index;
+} GPUVertPointLink;
+
+
 /* used for GLSL materials */
 typedef struct GPUAttrib {
 	int index;
