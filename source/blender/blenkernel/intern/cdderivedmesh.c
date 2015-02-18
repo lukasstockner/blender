@@ -1664,6 +1664,174 @@ static void cdDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *in
 	}
 }
 
+/* add a new point to the list of points related to a particular
+ * vertex */
+#ifdef USE_GPU_POINT_LINK
+
+static void gpu_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
+{
+	GPUVertPointLink *lnk;
+
+	lnk = &gdo->vert_points[vert_index];
+
+	/* if first link is in use, add a new link at the end */
+	if (lnk->point_index != -1) {
+		/* get last link */
+		for (; lnk->next; lnk = lnk->next) ;
+
+		/* add a new link from the pool */
+		lnk = lnk->next = &gdo->vert_points_mem[gdo->vert_points_usage];
+		gdo->vert_points_usage++;
+	}
+
+	lnk->point_index = point_index;
+}
+
+#else
+
+static void cdDM_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
+{
+	GPUVertPointLink *lnk;
+	lnk = &gdo->vert_points[vert_index];
+	if (lnk->point_index == -1) {
+		lnk->point_index = point_index;
+	}
+}
+
+#endif  /* USE_GPU_POINT_LINK */
+
+/* update the vert_points and triangle_to_mface fields with a new
+ * triangle */
+static void cdDM_drawobject_add_triangle(GPUDrawObject *gdo,
+                                        int base_point_index,
+                                        int face_index,
+                                        int v1, int v2, int v3)
+{
+	int i, v[3] = {v1, v2, v3};
+	for (i = 0; i < 3; i++)
+		cdDM_drawobject_add_vert_point(gdo, v[i], base_point_index + i);
+	gdo->triangle_to_mface[base_point_index / 3] = face_index;
+}
+
+/* for each vertex, build a list of points related to it; these lists
+ * are stored in an array sized to the number of vertices */
+static void cdDM_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int totface, int totmat)
+{
+	GPUBufferMaterial *mat;
+	int i, *mat_orig_to_new;
+
+	mat_orig_to_new = MEM_callocN(sizeof(*mat_orig_to_new) * totmat,
+	                                             "GPUDrawObject.mat_orig_to_new");
+	/* allocate the array and space for links */
+	gdo->vert_points = MEM_mallocN(sizeof(GPUVertPointLink) * gdo->totvert,
+	                               "GPUDrawObject.vert_points");
+#ifdef USE_GPU_POINT_LINK
+	gdo->vert_points_mem = MEM_callocN(sizeof(GPUVertPointLink) * gdo->tot_triangle_point,
+	                                   "GPUDrawObject.vert_points_mem");
+	gdo->vert_points_usage = 0;
+#endif
+
+	/* build a map from the original material indices to the new
+	 * GPUBufferMaterial indices */
+	for (i = 0; i < gdo->totmaterial; i++)
+		mat_orig_to_new[gdo->materials[i].mat_nr] = i;
+
+	/* -1 indicates the link is not yet used */
+	for (i = 0; i < gdo->totvert; i++) {
+#ifdef USE_GPU_POINT_LINK
+		gdo->vert_points[i].link = NULL;
+#endif
+		gdo->vert_points[i].point_index = -1;
+	}
+
+	for (i = 0; i < totface; i++, f++) {
+		mat = &gdo->materials[mat_orig_to_new[f->mat_nr]];
+
+		/* add triangle */
+		cdDM_drawobject_add_triangle(gdo, mat->start + mat->totpoint,
+		                            i, f->v1, f->v2, f->v3);
+		mat->totpoint += 3;
+
+		/* add second triangle for quads */
+		if (f->v4) {
+			cdDM_drawobject_add_triangle(gdo, mat->start + mat->totpoint,
+			                            i, f->v3, f->v4, f->v1);
+			mat->totpoint += 3;
+		}
+	}
+
+	/* map any unused vertices to loose points */
+	for (i = 0; i < gdo->totvert; i++) {
+		if (gdo->vert_points[i].point_index == -1) {
+			gdo->vert_points[i].point_index = gdo->tot_triangle_point + gdo->tot_loose_point;
+			gdo->tot_loose_point++;
+		}
+	}
+
+	MEM_freeN(mat_orig_to_new);
+}
+
+/* see GPUDrawObject's structure definition for a description of the
+ * data being initialized here */
+static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
+{
+	GPUDrawObject *gdo;
+	MFace *mface;
+	int totmat = dm->totmat;
+	int *points_per_mat;
+	int i, curmat, curpoint, totface;
+
+	/* object contains at least one material (default included) so zero means uninitialized dm */
+	BLI_assert(totmat != 0);
+
+	mface = dm->getTessFaceArray(dm);
+	totface = dm->getNumTessFaces(dm);
+
+	/* get the number of points used by each material, treating
+	 * each quad as two triangles */
+	points_per_mat = MEM_callocN(sizeof(*points_per_mat) * totmat, "GPU_drawobject_new.mat_orig_to_new");
+	for (i = 0; i < totface; i++)
+		points_per_mat[mface[i].mat_nr] += mface[i].v4 ? 6 : 3;
+
+	/* create the GPUDrawObject */
+	gdo = MEM_callocN(sizeof(GPUDrawObject), "GPUDrawObject");
+	gdo->totvert = dm->getNumVerts(dm);
+	gdo->totedge = dm->getNumEdges(dm);
+
+	/* count the number of materials used by this DerivedMesh */
+	for (i = 0; i < totmat; i++) {
+		if (points_per_mat[i] > 0)
+			gdo->totmaterial++;
+	}
+
+	/* allocate an array of materials used by this DerivedMesh */
+	gdo->materials = MEM_mallocN(sizeof(GPUBufferMaterial) * gdo->totmaterial,
+	                             "GPUDrawObject.materials");
+
+	/* initialize the materials array */
+	for (i = 0, curmat = 0, curpoint = 0; i < totmat; i++) {
+		if (points_per_mat[i] > 0) {
+			gdo->materials[curmat].start = curpoint;
+			gdo->materials[curmat].totpoint = 0;
+			gdo->materials[curmat].mat_nr = i;
+
+			curpoint += points_per_mat[i];
+			curmat++;
+		}
+	}
+
+	/* store total number of points used for triangles */
+	gdo->tot_triangle_point = curpoint;
+
+	gdo->triangle_to_mface = MEM_mallocN(sizeof(int) * (gdo->tot_triangle_point / 3),
+	                                     "GPUDrawObject.triangle_to_mface");
+
+	cdDM_drawobject_init_vert_points(gdo, mface, totface, totmat);
+	MEM_freeN(points_per_mat);
+
+	return gdo;
+}
+
 static void cdDM_foreachMappedVert(
         DerivedMesh *dm,
         void (*func)(void *userData, int index, const float co[3], const float no_f[3], const short no_s[3]),
@@ -1879,6 +2047,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 	dm->drawMappedFacesGLSL = cdDM_drawMappedFacesGLSL;
 	dm->drawMappedFacesMat = cdDM_drawMappedFacesMat;
 	dm->copy_gpu_data = cdDM_copy_gpu_data;
+	dm->gpuObjectNew = cdDM_GPUobject_new;
 
 	dm->foreachMappedVert = cdDM_foreachMappedVert;
 	dm->foreachMappedEdge = cdDM_foreachMappedEdge;
