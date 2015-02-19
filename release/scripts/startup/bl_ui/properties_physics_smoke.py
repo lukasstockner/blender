@@ -310,7 +310,7 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
         layout.label(text="Compression:")
         layout.prop(md, "point_cache_compress_type", expand=True)
 
-        point_cache_ui(self, context, md, cache, (cache.state.is_baked is False), 'SMOKE')
+        point_cache_ui(self, context, md, cache, True, 'SMOKE')
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):

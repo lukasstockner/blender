@@ -353,7 +353,7 @@ class SCENE_PT_rigid_body_cache(SceneButtonsPanel, Panel):
         scene = context.scene
         rbw = scene.rigidbody_world
 
-        point_cache_ui(self, context, rbw, rbw.point_cache, rbw.point_cache.state.is_baked is False and rbw.enabled, 'RIGID_BODY')
+        point_cache_ui(self, context, rbw, rbw.point_cache, rbw.enabled, 'RIGID_BODY')
 
 
 class SCENE_PT_rigid_body_field_weights(SceneButtonsPanel, Panel):

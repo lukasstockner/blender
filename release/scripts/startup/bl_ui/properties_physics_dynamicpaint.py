@@ -407,7 +407,7 @@ class PHYSICS_PT_dp_cache(PhysicButtonsPanel, Panel):
         surface = context.dynamic_paint.canvas_settings.canvas_surfaces.active
         cache = surface.point_cache
 
-        point_cache_ui(self, context, surface, cache, (cache.state.is_baked is False), 'DYNAMIC_PAINT')
+        point_cache_ui(self, context, surface, cache, True, 'DYNAMIC_PAINT')
 
 
 class PHYSICS_PT_dp_brush_source(PhysicButtonsPanel, Panel):
