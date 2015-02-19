@@ -112,6 +112,8 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 
 	cachelib = BKE_libblock_alloc(bmain, ID_CL, name);
 
+	BLI_strncpy(cachelib->filepath, "//cache/", sizeof(cachelib->filepath));
+
 	return cachelib;
 }
 
@@ -119,7 +121,6 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
 {
 	CacheLibrary *cachelibn;
-	int a;
 	
 	cachelibn = BKE_libblock_copy(&cachelib->id);
 	
