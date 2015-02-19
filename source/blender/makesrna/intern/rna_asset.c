@@ -355,6 +355,26 @@ static void rna_def_asset_revision(BlenderRNA *brna)
 	PropertyRNA *prop;
 //	FunctionRNA *func;
 
+	EnumPropertyItem asset_revision_types[] = {
+	    {FILE_TYPE_BLENDER, "BLENDER", 0, "Blender File", ""},
+//	    {FILE_TYPE_BLENDER_BACKUP, "", 0, "", ""},
+	    {FILE_TYPE_IMAGE, "IMAGE", 0, "Image", ""},
+	    {FILE_TYPE_MOVIE, "MOVIE", 0, "Movie", ""},
+	    {FILE_TYPE_PYSCRIPT, "PYSCRIPT", 0, "Python Script", ""},
+	    {FILE_TYPE_FTFONT, "FONT", 0, "Font", ""},
+	    {FILE_TYPE_SOUND, "SOUND", 0, "Sound", ""},
+	    {FILE_TYPE_TEXT, "TEXT", 0, "Text", ""},
+//	    {FILE_TYPE_MOVIE_ICON, "", 0, "", ""},
+//	    {FILE_TYPE_FOLDER, "", 0, "", ""},
+//	    {FILE_TYPE_BTX, "", 0, "", ""},
+//	    {FILE_TYPE_COLLADA, "", 0, "", ""},
+//	    {FILE_TYPE_OPERATOR, "", 0, "", ""},
+//	    {FILE_TYPE_APPLICATIONBUNDLE, "", 0, "", ""},
+	    {FILE_TYPE_DIR, "DIR", 0, "Directory", "An entry that can be used as 'root' path too"},
+	    {FILE_TYPE_BLENDERLIB, "BLENLIB", 0, "Blender Library", "An entry that is part of a .blend file"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "AssetRevision", NULL);
 	RNA_def_struct_sdna(srna, "FileDirEntryRevision");
 	RNA_def_struct_ui_text(srna, "Asset Entry Revision", "A revision of a single asset item");
@@ -364,7 +384,19 @@ static void rna_def_asset_revision(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Revision UUID",
 	                         "Unique identifier of this revision (actual content depends on asset engine)");
 
-	/* TODO: all direntry items (through accessors even!) */
+	prop = RNA_def_property(srna, "relpath", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Relative Path", "Relative AssetList's root_path");
+
+	prop = RNA_def_property(srna, "abspath", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Absolute Path", "");
+
+	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_bitflag_sdna(prop, NULL, "typeflag");
+	RNA_def_property_enum_items(prop, asset_revision_types);
+
+	/* TODO: size, time, etc. */
+
+	/* TODO: image (i.e. preview)? */
 }
 
 static void rna_def_asset_variant(BlenderRNA *brna)
