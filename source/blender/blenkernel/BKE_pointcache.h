@@ -38,6 +38,9 @@
 #include "DNA_boid_types.h"
 #include <stdio.h> /* for FILE */
 
+CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
+void BKE_cache_library_free(CacheLibrary *cache);
+
 /* Point cache reset options */
 typedef enum ePointCache_ResetMode {
 	PTCACHE_RESET_DEPSGRAPH     = 0,

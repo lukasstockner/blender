@@ -63,6 +63,7 @@
 #include "BKE_cloth.h"
 #include "BKE_dynamicpaint.h"
 #include "BKE_global.h"
+#include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_object.h"
@@ -103,6 +104,20 @@
 #else
 #  include "BLI_winstuff.h"
 #endif
+
+
+void BKE_cache_library_free(CacheLibrary *UNUSED(cache))
+{
+}
+
+CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
+{
+	CacheLibrary *cachelib;
+
+	cachelib = BKE_libblock_alloc(bmain, ID_CL, name);
+
+	return cachelib;
+}
 
 
 /* File open options, for BKE_ptcache_file_open */

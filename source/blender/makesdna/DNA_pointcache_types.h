@@ -33,12 +33,19 @@
 #define __DNA_POINTCACHE_TYPES_H__
 
 #include "DNA_defs.h"
+#include "DNA_ID.h"
 #include "DNA_listBase.h" /* XXX only needed for deprecated PTCacheMem, remove once that is replaced */
 
 /* XXX TODO point cache do_versions
  * This needs to be updated until officially included in master
  */
 #define PTCACHE_DO_VERSIONS(main) MAIN_VERSION_ATLEAST(main, 269, 6)
+
+typedef struct CacheLibrary {
+	ID id;
+	
+	char filepath[1024]; /* 1024 = FILE_MAX */
+} CacheLibrary;
 
 /* Point cache file data types:
  * - used as (1<<flag) so poke jahka if you reach the limit of 15

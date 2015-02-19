@@ -3429,6 +3429,19 @@ static void write_linestyles(WriteData *wd, ListBase *idbase)
 	}
 }
 
+static void write_cachelibraries(WriteData *wd, ListBase *idbase)
+{
+	CacheLibrary *cachelib;
+
+	for (cachelib = idbase->first; cachelib; cachelib = cachelib->id.next) {
+		if (cachelib->id.us > 0 || wd->current) {
+			writestruct(wd, ID_CL, "CacheLibrary", 1, cachelib);
+			if (cachelib->id.properties)
+				IDP_WriteProperty(cachelib->id.properties, wd);
+		}
+	}
+}
+
 /* context is usually defined by WM, two cases where no WM is available:
  * - for forward compatibility, curscreen has to be saved
  * - for undofile, curscene needs to be saved */
@@ -3557,6 +3570,7 @@ static int write_file_handle(
 	write_scripts  (wd, &mainvar->script);
 	write_gpencils (wd, &mainvar->gpencil);
 	write_linestyles(wd, &mainvar->linestyle);
+	write_cachelibraries(wd, &mainvar->cache_library);
 	write_libraries(wd,  mainvar->next);
 
 	if (write_user_block) {

@@ -77,6 +77,7 @@
 #include "BKE_mask.h"
 #include "BKE_gpencil.h"
 #include "BKE_linestyle.h"
+#include "BKE_pointcache.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_camera_types.h"
@@ -701,6 +702,22 @@ static void rna_Main_linestyles_remove(Main *bmain, ReportList *reports, Freesty
 	/* XXX python now has invalid pointer? */
 }
 
+static CacheLibrary *rna_Main_cachelibraries_new(Main *bmain, const char *name)
+{
+	CacheLibrary *cachelib = BKE_cache_library_add(bmain, name);
+	id_us_min(&cachelib->id);
+	return cachelib;
+}
+
+static void rna_Main_cachelibraries_remove(Main *bmain, ReportList *reports, CacheLibrary *cachelib)
+{
+	if (ID_REAL_USERS(cachelib) <= 0)
+		BKE_libblock_free(bmain, cachelib);
+	else
+		BKE_reportf(reports, RPT_ERROR, "Cache library '%s' must have zero users to be removed, found %d",
+		            cachelib->id.name + 2, ID_REAL_USERS(cachelib));
+}
+
 /* tag functions, all the same */
 static void rna_Main_cameras_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->camera, value); }
 static void rna_Main_scenes_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->scene, value); }
@@ -733,6 +750,7 @@ static void rna_Main_gpencil_tag(Main *bmain, int value) { BKE_main_id_tag_listb
 static void rna_Main_movieclips_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->movieclip, value); }
 static void rna_Main_masks_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->mask, value); }
 static void rna_Main_linestyle_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->linestyle, value); }
+static void rna_Main_cachelibraries_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->cache_library, value); }
 
 static int rna_Main_cameras_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_CA); }
 static int rna_Main_scenes_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_SCE); }
@@ -761,6 +779,7 @@ static int rna_Main_actions_is_updated_get(PointerRNA *ptr) { return DAG_id_type
 static int rna_Main_particles_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_PA); }
 static int rna_Main_gpencil_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_GD); }
 static int rna_Main_linestyle_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_LS); }
+static int rna_Main_cachelibraries_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_CL); }
 
 #else
 
@@ -1811,6 +1830,41 @@ void RNA_def_main_linestyles(BlenderRNA *brna, PropertyRNA *cprop)
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Main_linestyle_is_updated_get", NULL);
+}
+
+void RNA_def_main_cache_libraries(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+	PropertyRNA *prop;
+
+	RNA_def_property_srna(cprop, "BlendDataCacheLibraries");
+	srna = RNA_def_struct(brna, "BlendDataCacheLibraries", NULL);
+	RNA_def_struct_sdna(srna, "Main");
+	RNA_def_struct_ui_text(srna, "Main Cache Libraries", "Collection of cache libraries");
+
+	func = RNA_def_function(srna, "tag", "rna_Main_cachelibraries_tag");
+	parm = RNA_def_boolean(func, "value", 0, "Value", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func = RNA_def_function(srna, "new", "rna_Main_cachelibraries_new");
+	RNA_def_function_ui_description(func, "Add a new cache library to the main database");
+	parm = RNA_def_string(func, "name", "CacheLibrary", 0, "", "New name for the datablock");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return type */
+	parm = RNA_def_pointer(func, "cachelib", "CacheLibrary", "", "New cache library datablock");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_Main_cachelibraries_remove");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Remove a cache library from the current blendfile");
+	parm = RNA_def_pointer(func, "cachelib", "CacheLibrary", "", "Cache Library to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_cachelibraries_is_updated_get", NULL);
 }
 
 #endif
