@@ -154,6 +154,8 @@ typedef struct PointCache {
 
 	/**** NEW POINTCACHE ****/
 	char cachedir[768];	/* FILE_MAXDIR length */
+	
+	struct CacheLibrary *cachelib;
 } PointCache;
 
 typedef enum ePointCacheFlag {

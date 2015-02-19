@@ -3634,6 +3634,11 @@ static void direct_link_material(FileData *fd, Material *ma)
 }
 
 /* ************ READ PARTICLE SETTINGS ***************** */
+static void lib_link_pointcache(FileData *fd, ID *id, PointCache *cache)
+{
+	cache->cachelib = newlibadr_us(fd, id->lib, cache->cachelib);
+}
+
 static void direct_link_pointcache(FileData *UNUSED(fd), PointCache *cache)
 {
 	if (!cache)
@@ -3821,6 +3826,9 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
 				psys->clmd->modifier.error = NULL;
 			}
+			
+			if (psys->pointcache)
+				lib_link_pointcache(fd, id, psys->pointcache);
 		}
 		else {
 			/* particle modifier must be removed before particle system */
@@ -4523,8 +4531,12 @@ static void lib_link_object(FileData *fd, Main *main)
 			if (ob->pd)
 				lib_link_partdeflect(fd, &ob->id, ob->pd);
 			
-			if (ob->soft)
+			if (ob->soft) {
 				ob->soft->effector_weights->group = newlibadr(fd, ob->id.lib, ob->soft->effector_weights->group);
+				
+				if (ob->soft->pointcache)
+					lib_link_pointcache(fd, &ob->id, ob->soft->pointcache);
+			}
 			
 			lib_link_particlesystems(fd, ob, &ob->id, &ob->particlesystem);
 			lib_link_modifiers(fd, ob);
@@ -5310,6 +5322,8 @@ static void lib_link_scene(FileData *fd, Main *main)
 			/* rigidbody world relies on it's linked groups */
 			if (sce->rigidbody_world) {
 				RigidBodyWorld *rbw = sce->rigidbody_world;
+				if (rbw->pointcache)
+					lib_link_pointcache(fd, &sce->id, rbw->pointcache);
 				if (rbw->group)
 					rbw->group = newlibadr(fd, sce->id.lib, rbw->group);
 				if (rbw->constraints)

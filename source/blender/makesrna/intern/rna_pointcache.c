@@ -213,6 +213,12 @@ static void rna_def_pointcache(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Point Cache", "Point cache for physics simulations");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
 
+	prop = RNA_def_property(srna, "cache_library", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "cachelib");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+	RNA_def_property_ui_text(prop, "Cache Library", "Cache library to use for storage");
+	RNA_def_property_update(prop, NC_OBJECT, "rna_Cache_change");
+
 #ifdef POINTCACHE_OLD
 	prop = RNA_def_property(srna, "frame_start", PROP_INT, PROP_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "startframe");

@@ -221,6 +221,9 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 {
 	ClothModifierData *clmd = (ClothModifierData *) md;
 
+	if (clmd->point_cache)
+		walk(userData, ob, (ID **)&clmd->point_cache->cachelib);
+
 	if (clmd->coll_parms) {
 		walk(userData, ob, (ID **)&clmd->coll_parms->group);
 	}

@@ -38,10 +38,11 @@
 #include "MEM_guardedalloc.h"
 
 #include "DNA_group_types.h"
+#include "DNA_object_force.h"
 #include "DNA_object_types.h"
+#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
-#include "DNA_object_force.h"
 
 #include "BLI_utildefines.h"
 
@@ -179,6 +180,9 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 	SmokeModifierData *smd = (SmokeModifierData *) md;
 
 	if (smd->type == MOD_SMOKE_TYPE_DOMAIN && smd->domain) {
+		if (smd->domain->point_cache[0])
+			walk(userData, ob, (ID **)&smd->domain->point_cache[0]->cachelib);
+
 		walk(userData, ob, (ID **)&smd->domain->coll_group);
 		walk(userData, ob, (ID **)&smd->domain->fluid_group);
 		walk(userData, ob, (ID **)&smd->domain->eff_group);
