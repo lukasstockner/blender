@@ -97,41 +97,26 @@ class PHYSICS_PT_add(PhysicButtonsPanel, Panel):
                             'CONSTRAINT')  # RB_TODO needs better icon
 
 
-def cache_library_ui(context, layout, cachelib):
-    if not cachelib:
-        return
-
-    layout.prop(cachelib, "filepath")
-
-
 # cache-type can be 'PSYS' 'HAIR' 'SMOKE' etc
-def point_cache_ui(self, context, cache_user, cache, enabled, cachetype):
-    ### special cases (don't ask, it's mysterious) ###
-    # cache types that support external cache data
-    supports_external       = (cachetype in {'PSYS', 'HAIR', 'SMOKE'})
-    # only smoke supports library paths
-    supports_library_path   = (cachetype in {'SMOKE'})
-    # needs a saved blend file for paths
-    needs_saved_file        = (cachetype in {'SMOKE', 'DYNAMIC_PAINT'})
-    # make exception for smoke cache
-    show_settings           = (not cache.use_external or cachetype in {'SMOKE'})
-    # start/end frames
-    supports_frame_range    = not (cachetype in {'PSYS', 'DYNAMIC_PAINT'})
-    # frame step
-    supports_frame_step     = not (cachetype in {'SMOKE', 'CLOTH', 'DYNAMIC_PAINT', 'RIGID_BODY'})
 
+def point_cache_ui(self, context, cache, enabled, cachetype):
     layout = self.layout
-    layout.context_pointer_set("point_cache", cache)
-    layout.context_pointer_set("point_cache_user", cache_user)
 
-    layout.template_ID(cache, "cache_library", new="cachelibrary.new")
-    cache_library_ui(context, layout, cache.cache_library)
+    layout.context_pointer_set("point_cache", cache)
+
+    if not cachetype == 'RIGID_BODY':
+        row = layout.row()
+        row.template_list("UI_UL_list", "point_caches", cache, "point_caches",
+                          cache.point_caches, "active_index", rows=1)
+        col = row.column(align=True)
+        col.operator("ptcache.add", icon='ZOOMIN', text="")
+        col.operator("ptcache.remove", icon='ZOOMOUT', text="")
 
     row = layout.row()
-    if supports_external:
+    if cachetype in {'PSYS', 'HAIR', 'SMOKE'}:
         row.prop(cache, "use_external")
 
-        if supports_library_path:
+        if cachetype == 'SMOKE':
             row.prop(cache, "use_library_path", "Use Lib Path")
 
     if cache.use_external:
@@ -144,38 +129,54 @@ def point_cache_ui(self, context, cache_user, cache, enabled, cachetype):
         col.prop(cache, "index", text="")
         col.prop(cache, "filepath", text="")
 
-        cache_info = cache.state.info
+        cache_info = cache.info
         if cache_info:
             layout.label(text=cache_info)
     else:
-        if needs_saved_file and not bpy.data.is_saved:
-            layout.label(text="Cache is disabled until the file is saved")
-            layout.enabled = False
+        if cachetype in {'SMOKE', 'DYNAMIC_PAINT'}:
+            if not bpy.data.is_saved:
+                layout.label(text="Cache is disabled until the file is saved")
+                layout.enabled = False
 
-    if show_settings:
+    if not cache.use_external or cachetype == 'SMOKE':
         row = layout.row(align=True)
 
-        if supports_frame_range:
+        if cachetype not in {'PSYS', 'DYNAMIC_PAINT'}:
             row.enabled = enabled
             row.prop(cache, "frame_start")
             row.prop(cache, "frame_end")
-        if supports_frame_step:
+        if cachetype not in {'SMOKE', 'CLOTH', 'DYNAMIC_PAINT', 'RIGID_BODY'}:
             row.prop(cache, "frame_step")
 
         if cachetype != 'SMOKE':
-            layout.label(text=cache.state.info)
+            layout.label(text=cache.info)
 
         can_bake = True
 
         if cachetype not in {'SMOKE', 'DYNAMIC_PAINT', 'RIGID_BODY'}:
-            col = layout.column()
-            col.enabled = enabled and bpy.data.is_saved
+            split = layout.split()
+            split.enabled = enabled and bpy.data.is_saved
+
+            col = split.column()
+            col.prop(cache, "use_disk_cache")
+
+            col = split.column()
+            col.active = cache.use_disk_cache
             col.prop(cache, "use_library_path", "Use Lib Path")
 
             row = layout.row()
             row.enabled = enabled and bpy.data.is_saved
+            row.active = cache.use_disk_cache
             row.label(text="Compression:")
             row.prop(cache, "compression", expand=True)
+
+            layout.separator()
+
+            if cache.id_data.library and not cache.use_disk_cache:
+                can_bake = False
+
+                col = layout.column(align=True)
+                col.label(text="Linked object baking requires Disk Cache to be enabled", icon='INFO')
         else:
             layout.separator()
 
@@ -184,7 +185,23 @@ def point_cache_ui(self, context, cache_user, cache, enabled, cachetype):
 
         col = split.column()
 
-        col.operator("ptcache.export", text="Export")
+        if cache.is_baked is True:
+            col.operator("ptcache.free_bake", text="Free Bake")
+        else:
+            col.operator("ptcache.bake", text="Bake").bake = True
+
+        sub = col.row()
+        sub.enabled = (cache.frames_skipped or cache.is_outdated) and enabled
+        sub.operator("ptcache.bake", text="Calculate To Frame").bake = False
+
+        sub = col.column()
+        sub.enabled = enabled
+        sub.operator("ptcache.bake_from_cache", text="Current Cache to Bake")
+
+        col = split.column()
+        col.operator("ptcache.bake_all", text="Bake All Dynamics").bake = True
+        col.operator("ptcache.free_bake_all", text="Free All Bakes")
+        col.operator("ptcache.bake_all", text="Update All To Frame").bake = False
 
 
 def effector_weights_ui(self, context, weights, weight_type):

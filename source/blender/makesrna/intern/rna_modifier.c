@@ -4444,18 +4444,12 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 static void rna_def_modifier_pointcache(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
+	/*PropertyRNA *prop;*/
 
 	srna = RNA_def_struct(brna, "PointCacheModifier", "Modifier");
 	RNA_def_struct_ui_text(srna, "Point Cache Modifier", "Write and Read mesh results to/from point cache");
 	RNA_def_struct_sdna(srna, "PointCacheModifierData");
 	RNA_def_struct_ui_icon(srna, ICON_MOD_MESHDEFORM);  /* XXX, needs own icon */
-
-	prop = RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_NEVER_NULL);
-	RNA_def_property_pointer_sdna(prop, NULL, "point_cache");
-	RNA_def_property_struct_type(prop, "PointCache");
-	RNA_def_property_ui_text(prop, "Point Cache", "");
 }
 
 void RNA_def_modifier(BlenderRNA *brna)

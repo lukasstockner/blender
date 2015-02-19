@@ -26,7 +26,6 @@ set(INC
 	../../gpu
 	../../makesdna
 	../../makesrna
-	../../pointcache
 	../../windowmanager
 	../../../../intern/elbeem/extern
 	../../../../intern/guardedalloc

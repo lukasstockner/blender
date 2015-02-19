@@ -34,52 +34,52 @@
 
 #include "DNA_ID.h"
 #include "DNA_dynamicpaint_types.h"
-#include "DNA_pointcache_types.h"
+#include "DNA_object_force.h"
 #include "DNA_boid_types.h"
 #include <stdio.h> /* for FILE */
 
-CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
-CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib);
-void BKE_cache_library_free(CacheLibrary *cache);
+/* Point cache clearing option, for BKE_ptcache_id_clear, before
+ * and after are non inclusive (they wont remove the cfra) */
+#define PTCACHE_CLEAR_ALL       0
+#define PTCACHE_CLEAR_FRAME     1
+#define PTCACHE_CLEAR_BEFORE    2
+#define PTCACHE_CLEAR_AFTER     3
 
 /* Point cache reset options */
-typedef enum ePointCache_ResetMode {
-	PTCACHE_RESET_DEPSGRAPH     = 0,
-	PTCACHE_RESET_BAKED         = 1,
-	PTCACHE_RESET_OUTDATED      = 2,
-/*	PTCACHE_RESET_FREE			= 3, */ /*UNUSED*/
-} ePointCache_ResetMode;
+#define PTCACHE_RESET_DEPSGRAPH     0
+#define PTCACHE_RESET_BAKED         1
+#define PTCACHE_RESET_OUTDATED      2
+/* #define PTCACHE_RESET_FREE			3 */ /*UNUSED*/
 
 /* Add the blendfile name after blendcache_ */
 #define PTCACHE_EXT ".bphys"
 #define PTCACHE_PATH "blendcache_"
 
+/* File open options, for BKE_ptcache_file_open */
+#define PTCACHE_FILE_READ   0
+#define PTCACHE_FILE_WRITE  1
+#define PTCACHE_FILE_UPDATE 2
+
 /* PTCacheID types */
-typedef enum ePointCache_Type {
-	PTCACHE_TYPE_SOFTBODY           = 0,
-	PTCACHE_TYPE_PARTICLES          = 1,
-	PTCACHE_TYPE_CLOTH              = 2,
-	PTCACHE_TYPE_SMOKE_DOMAIN       = 3,
-	PTCACHE_TYPE_SMOKE_HIGHRES      = 4,
-	PTCACHE_TYPE_DYNAMICPAINT       = 5,
-	PTCACHE_TYPE_RIGIDBODY          = 6,
-} ePointCache_Type;
+#define PTCACHE_TYPE_SOFTBODY           0
+#define PTCACHE_TYPE_PARTICLES          1
+#define PTCACHE_TYPE_CLOTH              2
+#define PTCACHE_TYPE_SMOKE_DOMAIN       3
+#define PTCACHE_TYPE_SMOKE_HIGHRES      4
+#define PTCACHE_TYPE_DYNAMICPAINT       5
+#define PTCACHE_TYPE_RIGIDBODY          6
 
 /* high bits reserved for flags that need to be stored in file */
-typedef enum ePointCache_Flag {
-	PTCACHE_TYPEFLAG_COMPRESS       = (1 << 16),
-	PTCACHE_TYPEFLAG_EXTRADATA      = (1 << 17),
-} ePointCache_Flag;
+#define PTCACHE_TYPEFLAG_COMPRESS       (1 << 16)
+#define PTCACHE_TYPEFLAG_EXTRADATA      (1 << 17)
 
 #define PTCACHE_TYPEFLAG_TYPEMASK           0x0000FFFF
 #define PTCACHE_TYPEFLAG_FLAGMASK           0xFFFF0000
 
 /* PTCache read return code */
-typedef enum ePointCache_ReadResult {
-	PTCACHE_READ_EXACT              = 1,
-	PTCACHE_READ_INTERPOLATED       = 2,
-	PTCACHE_READ_OLD                = 3,
-} ePointCache_ReadResult;
+#define PTCACHE_READ_EXACT              1
+#define PTCACHE_READ_INTERPOLATED       2
+#define PTCACHE_READ_OLD                3
 
 /* Structs */
 struct ClothModifierData;
@@ -165,7 +165,25 @@ typedef struct PTCacheID {
 	int (*read_header)(PTCacheFile *pf);
 
 	struct PointCache *cache;
+	/* used for setting the current cache from ptcaches list */
+	struct PointCache **cache_ptr;
+	struct ListBase *ptcaches;
 } PTCacheID;
+
+typedef struct PTCacheBaker {
+	struct Main *main;
+	struct Scene *scene;
+	int bake;
+	int render;
+	int anim_init;
+	int quick_step;
+	struct PTCacheID *pid;
+	int (*break_test)(void *data);
+	void *break_data;
+	void (*progressbar)(void *data, int num);
+	void (*progressend)(void *data);
+	void *progresscontext;
+} PTCacheBaker;
 
 /* PTCacheEditKey->flag */
 #define PEK_SELECT      1
@@ -220,7 +238,6 @@ typedef struct PTCacheEdit {
 	PTCacheEditPoint *points;
 
 	struct PTCacheID pid;
-	struct ListBase mem_cache;
 
 	/* particles stuff */
 	struct ParticleSystem *psys;
@@ -253,10 +270,8 @@ void BKE_ptcache_ids_from_object(struct ListBase *lb, struct Object *ob, struct 
 /***************** Global funcs ****************************/
 void BKE_ptcache_remove(void);
 
-void BKE_ptcache_clear(struct PTCacheID *pid);
-void BKE_ptcache_truncate(struct PTCacheID *pid, int lastframe);
-
 /************ ID specific functions ************************/
+void    BKE_ptcache_id_clear(PTCacheID *id, int mode, unsigned int cfra);
 int     BKE_ptcache_id_exist(PTCacheID *id, int cfra);
 int     BKE_ptcache_id_reset(struct Scene *scene, PTCacheID *id, int mode);
 void    BKE_ptcache_id_time(PTCacheID *pid, struct Scene *scene, float cfra, int *startframe, int *endframe, float *timescale);
@@ -284,18 +299,28 @@ int     BKE_ptcache_read(PTCacheID *pid, float cfra);
 int     BKE_ptcache_write(PTCacheID *pid, unsigned int cfra);
 
 /******************* Allocate & free ***************/
-struct PointCache *BKE_ptcache_new(void);
+struct PointCache *BKE_ptcache_add(struct ListBase *ptcaches);
 void BKE_ptcache_free_mem(struct ListBase *mem_cache);
 void BKE_ptcache_free(struct PointCache *cache);
-struct PointCache *BKE_ptcache_copy(struct PointCache *cache, bool copy_data);
+void BKE_ptcache_free_list(struct ListBase *ptcaches);
+struct PointCache *BKE_ptcache_copy_list(struct ListBase *ptcaches_new, struct ListBase *ptcaches_old, bool copy_data);
 
 /********************** Baking *********************/
 
+/* Bakes cache with cache_step sized jumps in time, not accurate but very fast. */
+void BKE_ptcache_quick_cache_all(struct Main *bmain, struct Scene *scene);
+
+/* Bake cache or simulate to current frame with settings defined in the baker. */
+void BKE_ptcache_bake(struct PTCacheBaker *baker);
+
 /* Convert disk cache to memory cache. */
-void BKE_ptcache_to_mem(struct PTCacheID *pid, struct ListBase *mem_cache);
+void BKE_ptcache_disk_to_mem(struct PTCacheID *pid);
 
 /* Convert memory cache to disk cache. */
-void BKE_ptcache_from_mem(struct PTCacheID *pid, struct ListBase *mem_cache);
+void BKE_ptcache_mem_to_disk(struct PTCacheID *pid);
+
+/* Convert disk cache to memory cache and vice versa. Clears the cache that was converted. */
+void BKE_ptcache_toggle_disk_cache(struct PTCacheID *pid);
 
 /* Rename all disk cache files with a new name. Doesn't touch the actual content of the files. */
 void BKE_ptcache_disk_cache_rename(struct PTCacheID *pid, const char *name_src, const char *name_dst);

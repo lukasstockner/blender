@@ -58,17 +58,14 @@ static void initData(ModifierData *md)
 	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
 
 	pcmd->flag = 0;
-	pcmd->point_cache = BKE_ptcache_new();
 }
 
 static void copyData(ModifierData *md, ModifierData *target)
 {
-	PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
-	PointCacheModifierData *tpcmd = (PointCacheModifierData *)target;
+	/*PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
+	PointCacheModifierData *tpcmd = (PointCacheModifierData *)target;*/
 
 	modifier_copyData_generic(md, target);
-
-	tpcmd->point_cache = BKE_ptcache_copy(pcmd->point_cache, false);
 }
 
 static void freeData(ModifierData *md)
@@ -79,8 +76,6 @@ static void freeData(ModifierData *md)
 		PTC_reader_free(pcmd->reader);
 	if (pcmd->writer)
 		PTC_writer_free(pcmd->writer);
-	
-	BKE_ptcache_free(pcmd->point_cache);
 }
 
 static bool dependsOnTime(ModifierData *md)

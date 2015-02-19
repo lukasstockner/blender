@@ -91,7 +91,6 @@ static const char *includefiles[] = {
 	"DNA_object_types.h",
 	"DNA_object_force.h",
 	"DNA_object_fluidsim.h",
-	"DNA_pointcache_types.h",
 	"DNA_world_types.h",
 	"DNA_scene_types.h",
 	"DNA_view3d_types.h",
@@ -1288,5 +1287,4 @@ int main(int argc, char **argv)
 #include "DNA_rigidbody_types.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_linestyle_types.h"
-#include "DNA_pointcache_types.h"
 /* end of list */

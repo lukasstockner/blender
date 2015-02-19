@@ -1784,6 +1784,10 @@ class VIEW3D_PT_tools_particlemode(View3DPanel, Panel):
                 if md.type == pe.type:
                     ptcache = md.point_cache
 
+        if ptcache and len(ptcache.point_caches) > 1:
+            layout.template_list("UI_UL_list", "particles_point_caches", ptcache, "point_caches",
+                                 ptcache.point_caches, "active_index", rows=2, maxrows=3)
+
         if not pe.is_editable:
             layout.label(text="Point cache must be baked")
             layout.label(text="in memory to enable editing!")

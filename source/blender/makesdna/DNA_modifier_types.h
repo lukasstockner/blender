@@ -588,7 +588,7 @@ typedef struct ClothModifierData {
 	struct ClothSimSettings *sim_parms;   /* definition is in DNA_cloth_types.h */
 	struct ClothCollSettings *coll_parms; /* definition is in DNA_cloth_types.h */
 	struct PointCache *point_cache;       /* definition is in DNA_object_force.h */
-	struct ListBase ptcaches DNA_DEPRECATED;
+	struct ListBase ptcaches;
 	/* XXX nasty hack, remove once hair can be separated from cloth modifier data */
 	struct ClothHairData *hairdata;
 	/* grid geometry values of hair continuum */
@@ -1451,8 +1451,6 @@ typedef struct PointCacheModifierData {
 	
 	int flag;
 	int pad;
-	
-	struct PointCache *point_cache;
 	
 	struct PTCReader *reader;
 	struct PTCWriter *writer;

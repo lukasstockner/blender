@@ -2709,9 +2709,26 @@ static void validate_render_settings(Render *re)
 	}
 }
 
+static void update_physics_cache(Render *re, Scene *scene, int UNUSED(anim_init))
+{
+	PTCacheBaker baker;
+
+	baker.main = re->main;
+	baker.scene = scene;
+	baker.pid = NULL;
+	baker.bake = 0;
+	baker.render = 1;
+	baker.anim_init = 1;
+	baker.quick_step = 1;
+	baker.break_test = re->test_break;
+	baker.break_data = re->tbh;
+	baker.progressbar = NULL;
+
+	BKE_ptcache_bake(&baker);
+}
 /* evaluating scene options for general Blender render */
 static int render_initialize_from_main(Render *re, RenderData *rd, Main *bmain, Scene *scene, SceneRenderLayer *srl,
-                                       Object *camera_override, unsigned int lay_override, int anim)
+                                       Object *camera_override, unsigned int lay_override, int anim, int anim_init)
 {
 	int winx, winy;
 	rcti disprect;
@@ -2755,6 +2772,16 @@ static int render_initialize_from_main(Render *re, RenderData *rd, Main *bmain, 
 	/* check all scenes involved */
 	tag_scenes_for_render(re);
 
+	/*
+	 * Disabled completely for now,
+	 * can be later set as render profile option
+	 * and default for background render.
+	 */
+	if (0) {
+		/* make sure dynamics are up to date */
+		update_physics_cache(re, scene, anim_init);
+	}
+	
 	if (srl || scene->r.scemode & R_SINGLE_LAYER) {
 		BLI_rw_mutex_lock(&re->resultmutex, THREAD_LOCK_WRITE);
 		render_result_single_layer_begin(re);
@@ -2792,7 +2819,7 @@ void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *sr
 	
 	scene->r.cfra = frame;
 	
-	if (render_initialize_from_main(re, &scene->r, bmain, scene, srl, camera_override, lay_override, 0)) {
+	if (render_initialize_from_main(re, &scene->r, bmain, scene, srl, camera_override, lay_override, 0, 0)) {
 		MEM_reset_peak_memory();
 
 		BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_PRE);
@@ -2831,7 +2858,7 @@ void RE_BlenderFrame(Render *re, Main *bmain, Scene *scene, SceneRenderLayer *sr
 void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, int render)
 {
 	re->result_ok= 0;
-	if (render_initialize_from_main(re, &scene->r, bmain, scene, NULL, NULL, scene->lay, 0)) {
+	if (render_initialize_from_main(re, &scene->r, bmain, scene, NULL, NULL, scene->lay, 0, 0)) {
 		if (render)
 			do_render_fields_blur_3d(re);
 	}
@@ -2969,7 +2996,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 	BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_INIT);
 
 	/* do not fully call for each frame, it initializes & pops output window */
-	if (!render_initialize_from_main(re, &rd, bmain, scene, NULL, camera_override, lay_override, 0))
+	if (!render_initialize_from_main(re, &rd, bmain, scene, NULL, camera_override, lay_override, 0, 1))
 		return;
 	
 	/* ugly global still... is to prevent renderwin events and signal subsurfs etc to make full resol */
@@ -3032,7 +3059,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 			char name[FILE_MAX];
 			
 			/* only border now, todo: camera lens. (ton) */
-			render_initialize_from_main(re, &rd, bmain, scene, NULL, camera_override, lay_override, 1);
+			render_initialize_from_main(re, &rd, bmain, scene, NULL, camera_override, lay_override, 1, 0);
 
 			if (nfra != scene->r.cfra) {
 				/*

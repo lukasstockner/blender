@@ -53,8 +53,6 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_force.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"

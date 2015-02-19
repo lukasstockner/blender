@@ -259,7 +259,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 	psys->lattice_deform_data = psys_create_lattice_deform_data(&sim);
 
-	if (psys->flag & (PSYS_HAIR_DONE | PSYS_KEYED)) {
+	if (psys->flag & (PSYS_HAIR_DONE | PSYS_KEYED) || psys->pointcache->flag & PTCACHE_BAKED) {
 		float min[3], max[3];
 		INIT_MINMAX(min, max);
 		dm->getMinMax(dm, min, max);
@@ -302,7 +302,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 			mv->co[(axis + 2) % 3] = temp_co[(track + 2) % 3];
 
 			/* get particle state */
-			if ((psys->flag & (PSYS_HAIR_DONE | PSYS_KEYED)) &&
+			if ((psys->flag & (PSYS_HAIR_DONE | PSYS_KEYED) || psys->pointcache->flag & PTCACHE_BAKED) &&
 			    (pimd->flag & eParticleInstanceFlag_Path))
 			{
 				float ran = 0.0f;

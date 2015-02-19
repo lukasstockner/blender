@@ -86,7 +86,7 @@ struct IK_Data {
 typedef float Vector3[3];
 typedef float Vector4[4];
 struct IK_Target;
-typedef void (*PTCErrorCallback)(const iTaSC::ConstraintValues *values, unsigned int nvalues, IK_Target *iktarget);
+typedef void (*ErrorCallback)(const iTaSC::ConstraintValues *values, unsigned int nvalues, IK_Target *iktarget);
 
 // one structure for each target in the scene
 struct IK_Target
@@ -97,7 +97,7 @@ struct IK_Target
 	struct bConstraint*		blenderConstraint;
 	struct bPoseChannel*    rootChannel;
 	Object*					owner;			//for auto IK
-	PTCErrorCallback			errorCallback;
+	ErrorCallback			errorCallback;
 	std::string				targetName;
 	std::string				constraintName;
 	unsigned short			controlType;

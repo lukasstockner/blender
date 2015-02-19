@@ -37,7 +37,7 @@ def particle_panel_enabled(context, psys):
     if psys.settings.type in {'EMITTER', 'REACTOR'} and phystype in {'NO', 'KEYED'}:
         return True
     else:
-        return not psys.point_cache.lock_settings and (not psys.is_edited) and (not context.particle_system_editable)
+        return (psys.point_cache.is_baked is False) and (not psys.is_edited) and (not context.particle_system_editable)
 
 
 def particle_panel_poll(cls, context):
@@ -250,7 +250,7 @@ class PARTICLE_PT_emission(ParticleButtonsPanel, Panel):
         psys = context.particle_system
         part = particle_get_settings(context)
 
-        layout.enabled = particle_panel_enabled(context, psys)
+        layout.enabled = particle_panel_enabled(context, psys) and (psys is None or not psys.has_multiple_caches)
 
         row = layout.row()
         row.active = part.distribution != 'GRID'
@@ -333,7 +333,7 @@ class PARTICLE_PT_hair_dynamics(ParticleButtonsPanel, Panel):
         cloth = cloth_md.settings
         result = cloth_md.solver_result
 
-        layout.enabled = psys.use_hair_dynamics and not psys.point_cache.lock_settings
+        layout.enabled = psys.use_hair_dynamics and psys.point_cache.is_baked is False
 
         row = layout.row(align=True)
         row.menu("PARTICLE_MT_hair_dynamics_presets", text=bpy.types.PARTICLE_MT_hair_dynamics_presets.bl_label)
@@ -415,18 +415,14 @@ class PARTICLE_PT_cache(ParticleButtonsPanel, Panel):
         if psys.settings.is_fluid:
             return False
         phystype = psys.settings.physics_type
-        #if phystype == 'NO' or phystype == 'KEYED':
-        #    return False
-        #return (psys.settings.type in {'EMITTER', 'REACTOR'} or (psys.settings.type == 'HAIR' and psys.use_hair_dynamics)) and engine in cls.COMPAT_ENGINES
-        return engine in cls.COMPAT_ENGINES
+        if phystype == 'NO' or phystype == 'KEYED':
+            return False
+        return (psys.settings.type in {'EMITTER', 'REACTOR'} or (psys.settings.type == 'HAIR' and (psys.use_hair_dynamics or psys.point_cache.is_baked))) and engine in cls.COMPAT_ENGINES
 
     def draw(self, context):
-        layout = self.layout
         psys = context.particle_system
 
-        point_cache_ui(self, context, psys, psys.point_cache, True, 'HAIR' if (psys.settings.type == 'HAIR') else 'PSYS')
-
-        layout.prop(psys, "point_cache_paths")
+        point_cache_ui(self, context, psys.point_cache, True, 'HAIR' if (psys.settings.type == 'HAIR') else 'PSYS')
 
 
 class PARTICLE_PT_velocity(ParticleButtonsPanel, Panel):
@@ -945,8 +941,7 @@ class PARTICLE_PT_render(ParticleButtonsPanel, Panel):
             col.label(text="Timing:")
             col.prop(part, "use_absolute_path_time")
 
-            # XXX first case included baked caches before, this feature has been removed, not sure how it should work
-            if part.type == 'HAIR':
+            if part.type == 'HAIR' or psys.point_cache.is_baked:
                 col.prop(part, "path_start", text="Start", slider=not part.use_absolute_path_time)
             else:
                 col.prop(part, "trail_count")
@@ -1116,11 +1111,11 @@ class PARTICLE_PT_draw(ParticleButtonsPanel, Panel):
 
         if part.draw_percentage != 100 and psys is not None:
             if part.type == 'HAIR':
-                if psys.use_hair_dynamics:
+                if psys.use_hair_dynamics and psys.point_cache.is_baked is False:
                     layout.row().label(text="Display percentage makes dynamics inaccurate without baking!")
             else:
                 phystype = part.physics_type
-                if phystype != 'NO' and phystype != 'KEYED':
+                if phystype != 'NO' and phystype != 'KEYED' and psys.point_cache.is_baked is False:
                     layout.row().label(text="Display percentage makes dynamics inaccurate without baking!")
 
         row = layout.row()

@@ -38,27 +38,21 @@
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
-#include "DNA_dynamicpaint_types.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_sdna_types.h"
-#include "DNA_smoke_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
-#include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_particle_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_actuator_types.h"
-#include "DNA_rigidbody_types.h"
 
 #include "DNA_genfile.h"
 
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
-#include "BKE_pointcache.h"
 #include "BKE_screen.h"
 
 #include "BLI_math.h"
@@ -133,28 +127,6 @@ static void do_version_constraints_stretch_to_limits(ListBase *lb)
 			data->bulge_max = 1.0f;
 		}
 	}
-}
-
-static void do_versions_pointcache(ID *UNUSED(id), PointCache *cache)
-{
-	int oldflag = cache->flag;
-	int cache_flag = 0, cache_state_flag = 0;
-	
-	if (oldflag & _PTCACHE_EXTERNAL_DEPRECATED) cache_flag |= PTC_EXTERNAL;
-	if (oldflag & _PTCACHE_IGNORE_LIBPATH_DEPRECATED) cache_flag |= PTC_IGNORE_LIBPATH;
-	if (oldflag & _PTCACHE_IGNORE_CLEAR_DEPRECATED) cache_flag |= PTC_IGNORE_CLEAR;
-	/* BAKED used to set locking instead */
-	if (oldflag & _PTCACHE_BAKED_DEPRECATED) cache_flag |= PTC_LOCK_SETTINGS;
-	
-	/* REDO_NEEDED is combination of OUTDATED and FRAMES_SKIPPED, no need to copy */
-	if (oldflag & _PTCACHE_OUTDATED_DEPRECATED) cache_state_flag |= PTC_STATE_OUTDATED;
-	if (oldflag & _PTCACHE_BAKING_DEPRECATED) cache_state_flag |= PTC_STATE_BAKING;
-	if (oldflag & _PTCACHE_FRAMES_SKIPPED_DEPRECATED) cache_state_flag |= PTC_STATE_FRAMES_SKIPPED;
-	if (oldflag & _PTCACHE_READ_INFO_DEPRECATED) cache_state_flag |= PTC_STATE_READ_INFO;
-	if (oldflag & _PTCACHE_FAKE_SMOKE_DEPRECATED) cache_state_flag |= PTC_STATE_FAKE_SMOKE;
-	
-	cache->flag = cache_flag;
-	cache->state.flag = cache_state_flag;
 }
 
 void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
@@ -465,53 +437,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 					}
 				}
 			}
-		}
-	}
-	
-	/* memcache has been removed, clear BAKED flags to enforce rebaking */
-	if (!PTCACHE_DO_VERSIONS(main)) {
-		Object *ob;
-		Scene *sce;
-		for (ob = main->object.first; ob; ob = ob->id.next) {
-			ModifierData *md;
-			ParticleSystem *psys;
-			for (md = ob->modifiers.first; md; md = md->next) {
-				if (md->type == eModifierType_Fluidsim) {
-					FluidsimModifierData *fluidmd = (FluidsimModifierData *)md;
-					do_versions_pointcache(&ob->id, fluidmd->point_cache);
-				}
-				else if (md->type == eModifierType_Smoke) {
-					SmokeModifierData *smd = (SmokeModifierData *)md;
-					if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
-						do_versions_pointcache(&ob->id, smd->domain->point_cache[0]);
-					}
-				}
-				else if (md->type == eModifierType_Cloth) {
-					ClothModifierData *clmd = (ClothModifierData *) md;
-					do_versions_pointcache(&ob->id, clmd->point_cache);
-				}
-				else if (md->type == eModifierType_DynamicPaint) {
-					DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
-					if (pmd->canvas) {
-						DynamicPaintSurface *surface;
-						for (surface=pmd->canvas->surfaces.first; surface; surface=surface->next)
-							do_versions_pointcache(&ob->id, surface->pointcache);
-					}
-				}
-			}
-			
-			if (ob->soft) {
-				do_versions_pointcache(&ob->id, ob->soft->pointcache);
-			}
-			
-			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
-				do_versions_pointcache(&ob->id, psys->pointcache);
-			}
-		}
-		for (sce = main->scene.first; sce; sce = sce->id.next) {
-			RigidBodyWorld *rbw = sce->rigidbody_world;
-			if (rbw)
-				do_versions_pointcache(&sce->id, rbw->pointcache);
 		}
 	}
 

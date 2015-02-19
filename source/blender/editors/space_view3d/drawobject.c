@@ -37,7 +37,6 @@
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
-#include "DNA_object_force.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"

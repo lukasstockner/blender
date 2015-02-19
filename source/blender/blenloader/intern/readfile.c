@@ -80,11 +80,9 @@
 #include "DNA_nla_types.h"
 #include "DNA_node_types.h"
 #include "DNA_object_fluidsim.h" // NT
-#include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_packedFile_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_property_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_text_types.h"
@@ -1929,25 +1927,11 @@ static void direct_link_paint_curve(FileData *fd, PaintCurve *pc)
 	pc->points = newdataadr(fd, pc->points);
 }
 
+
 static void direct_link_script(FileData *UNUSED(fd), Script *script)
 {
 	script->id.us = 1;
 	SCRIPT_SET_NULL(script);
-}
-
-
-/* ************ READ CacheLibrary *************** */
-
-static void lib_link_cache_library(FileData *UNUSED(fd), Main *main)
-{
-	CacheLibrary *cachelib;
-	for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
-		cachelib->id.us = 1;
-	}
-}
-
-static void direct_link_cache_library(FileData *UNUSED(fd), CacheLibrary *UNUSED(cachelib))
-{
 }
 
 
@@ -3634,22 +3618,83 @@ static void direct_link_material(FileData *fd, Material *ma)
 }
 
 /* ************ READ PARTICLE SETTINGS ***************** */
-static void lib_link_pointcache(FileData *fd, ID *id, PointCache *cache)
+/* update this also to writefile.c */
+static const char *ptcache_data_struct[] = {
+	"", // BPHYS_DATA_INDEX
+	"", // BPHYS_DATA_LOCATION
+	"", // BPHYS_DATA_VELOCITY
+	"", // BPHYS_DATA_ROTATION
+	"", // BPHYS_DATA_AVELOCITY / BPHYS_DATA_XCONST */
+	"", // BPHYS_DATA_SIZE:
+	"", // BPHYS_DATA_TIMES:
+	"BoidData" // case BPHYS_DATA_BOIDS:
+};
+static void direct_link_pointcache(FileData *fd, PointCache *cache)
 {
-	cache->cachelib = newlibadr_us(fd, id->lib, cache->cachelib);
-}
-
-static void direct_link_pointcache(FileData *UNUSED(fd), PointCache *cache)
-{
-	if (!cache)
-		return;
+	if ((cache->flag & PTCACHE_DISK_CACHE)==0) {
+		PTCacheMem *pm;
+		PTCacheExtra *extra;
+		int i;
+		
+		link_list(fd, &cache->mem_cache);
+		
+		pm = cache->mem_cache.first;
+		
+		for (; pm; pm=pm->next) {
+			for (i=0; i<BPHYS_TOT_DATA; i++) {
+				pm->data[i] = newdataadr(fd, pm->data[i]);
+				
+				/* the cache saves non-struct data without DNA */
+				if (pm->data[i] && ptcache_data_struct[i][0]=='\0' && (fd->flags & FD_FLAGS_SWITCH_ENDIAN)) {
+					int tot = (BKE_ptcache_data_size (i) * pm->totpoint) / sizeof(int); /* data_size returns bytes */
+					int *poin = pm->data[i];
+					
+					BLI_endian_switch_int32_array(poin, tot);
+				}
+			}
+			
+			link_list(fd, &pm->extradata);
+			
+			for (extra=pm->extradata.first; extra; extra=extra->next)
+				extra->data = newdataadr(fd, extra->data);
+		}
+	}
+	else
+		BLI_listbase_clear(&cache->mem_cache);
 	
-	cache->state.simframe = 0;
+	cache->flag &= ~PTCACHE_SIMULATION_VALID;
+	cache->simframe = 0;
 	cache->edit = NULL;
 	cache->free_edit = NULL;
-	cache->state.cached_frames = NULL;
-	/* XXX previously could have memory cache with step != 1, remove */
-	cache->step = 1;
+	cache->cached_frames = NULL;
+}
+
+static void direct_link_pointcache_list(FileData *fd, ListBase *ptcaches, PointCache **ocache, int force_disk)
+{
+	if (ptcaches->first) {
+		PointCache *cache= NULL;
+		link_list(fd, ptcaches);
+		for (cache=ptcaches->first; cache; cache=cache->next) {
+			direct_link_pointcache(fd, cache);
+			if (force_disk) {
+				cache->flag |= PTCACHE_DISK_CACHE;
+				cache->step = 1;
+			}
+		}
+		
+		*ocache = newdataadr(fd, *ocache);
+	}
+	else if (*ocache) {
+		/* old "single" caches need to be linked too */
+		*ocache = newdataadr(fd, *ocache);
+		direct_link_pointcache(fd, *ocache);
+		if (force_disk) {
+			(*ocache)->flag |= PTCACHE_DISK_CACHE;
+			(*ocache)->step = 1;
+		}
+		
+		ptcaches->first = ptcaches->last = *ocache;
+	}
 }
 
 static void lib_link_partdeflect(FileData *fd, ID *id, PartDeflect *pd)
@@ -3823,12 +3868,10 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 				/* XXX - from reading existing code this seems correct but intended usage of
 				 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */
 				psys->clmd->point_cache = psys->pointcache;
+				psys->clmd->ptcaches.first = psys->clmd->ptcaches.last= NULL;
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
 				psys->clmd->modifier.error = NULL;
 			}
-			
-			if (psys->pointcache)
-				lib_link_pointcache(fd, id, psys->pointcache);
 		}
 		else {
 			/* particle modifier must be removed before particle system */
@@ -3891,8 +3934,7 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 		psys->pdd = NULL;
 		psys->renderdata = NULL;
 		
-		psys->pointcache = newdataadr(fd, psys->pointcache);
-		direct_link_pointcache(fd, psys->pointcache);
+		direct_link_pointcache_list(fd, &psys->ptcaches, &psys->pointcache, 0);
 		
 		if (psys->clmd) {
 			psys->clmd = newdataadr(fd, psys->clmd);
@@ -4531,12 +4573,8 @@ static void lib_link_object(FileData *fd, Main *main)
 			if (ob->pd)
 				lib_link_partdeflect(fd, &ob->id, ob->pd);
 			
-			if (ob->soft) {
+			if (ob->soft)
 				ob->soft->effector_weights->group = newlibadr(fd, ob->id.lib, ob->soft->effector_weights->group);
-				
-				if (ob->soft->pointcache)
-					lib_link_pointcache(fd, &ob->id, ob->soft->pointcache);
-			}
 			
 			lib_link_particlesystems(fd, ob, &ob->id, &ob->particlesystem);
 			lib_link_modifiers(fd, ob);
@@ -4636,8 +4674,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			clmd->sim_parms= newdataadr(fd, clmd->sim_parms);
 			clmd->coll_parms= newdataadr(fd, clmd->coll_parms);
 			
-			clmd->point_cache = newdataadr(fd, clmd->point_cache);
-			direct_link_pointcache(fd, clmd->point_cache);
+			direct_link_pointcache_list(fd, &clmd->ptcaches, &clmd->point_cache, 0);
 			
 			if (clmd->sim_parms) {
 				if (clmd->sim_parms->presets > 10)
@@ -4684,15 +4721,13 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				if (!smd->domain->effector_weights)
 					smd->domain->effector_weights = BKE_add_effector_weights(NULL);
 				
-				smd->domain->point_cache[0] = newdataadr(fd, smd->domain->point_cache[0]);
-				direct_link_pointcache(fd, smd->domain->point_cache[0]);
-				smd->domain->ptcaches[0].first = smd->domain->ptcaches[0].last = smd->domain->point_cache[0];
+				direct_link_pointcache_list(fd, &(smd->domain->ptcaches[0]), &(smd->domain->point_cache[0]), 1);
 				
 				/* Smoke uses only one cache from now on, so store pointer convert */
 				if (smd->domain->ptcaches[1].first || smd->domain->point_cache[1]) {
 					if (smd->domain->point_cache[1]) {
 						PointCache *cache = newdataadr(fd, smd->domain->point_cache[1]);
-						if (cache->state.flag & PTC_STATE_FAKE_SMOKE) {
+						if (cache->flag & PTCACHE_FAKE_SMOKE) {
 							/* Smoke was already saved in "new format" and this cache is a fake one. */
 						}
 						else {
@@ -4748,9 +4783,7 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 					for (surface=pmd->canvas->surfaces.first; surface; surface=surface->next) {
 						surface->canvas = pmd->canvas;
 						surface->data = NULL;
-						
-						surface->pointcache = newdataadr(fd, surface->pointcache);
-						direct_link_pointcache(fd, surface->pointcache);
+						direct_link_pointcache_list(fd, &(surface->ptcaches), &(surface->pointcache), 1);
 						
 						if (!(surface->effector_weights = newdataadr(fd, surface->effector_weights)))
 							surface->effector_weights = BKE_add_effector_weights(NULL);
@@ -4875,13 +4908,6 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 				BLI_endian_switch_float_array(lmd->vertexco, lmd->total_verts * 3);
 			}
 			lmd->cache_system = NULL;
-		}
-		else if (md->type == eModifierType_PointCache) {
-			PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
-
-			pcmd->point_cache = newdataadr(fd, pcmd->point_cache);
-			pcmd->reader = NULL;
-			pcmd->writer = NULL;
 		}
 	}
 }
@@ -5013,8 +5039,7 @@ static void direct_link_object(FileData *fd, Object *ob)
 		if (!sb->effector_weights)
 			sb->effector_weights = BKE_add_effector_weights(NULL);
 		
-		sb->pointcache = newdataadr(fd, sb->pointcache);
-		direct_link_pointcache(fd, sb->pointcache);
+		direct_link_pointcache_list(fd, &sb->ptcaches, &sb->pointcache, 0);
 	}
 	ob->bsoft = newdataadr(fd, ob->bsoft);
 	ob->fluidsimSettings= newdataadr(fd, ob->fluidsimSettings); /* NT */
@@ -5322,8 +5347,6 @@ static void lib_link_scene(FileData *fd, Main *main)
 			/* rigidbody world relies on it's linked groups */
 			if (sce->rigidbody_world) {
 				RigidBodyWorld *rbw = sce->rigidbody_world;
-				if (rbw->pointcache)
-					lib_link_pointcache(fd, &sce->id, rbw->pointcache);
 				if (rbw->group)
 					rbw->group = newlibadr(fd, sce->id.lib, rbw->group);
 				if (rbw->constraints)
@@ -5676,8 +5699,7 @@ static void direct_link_scene(FileData *fd, Scene *sce)
 			rbw->effector_weights = BKE_add_effector_weights(NULL);
 
 		/* link cache */
-		rbw->pointcache = newdataadr(fd, rbw->pointcache);
-		direct_link_pointcache(fd, rbw->pointcache);
+		direct_link_pointcache_list(fd, &rbw->ptcaches, &rbw->pointcache, false);
 		/* make sure simulation starts from the beginning after loading file */
 		if (rbw->pointcache) {
 			rbw->ltime = (float)rbw->pointcache->startframe;
@@ -7384,7 +7406,6 @@ static const char *dataname(short id_code)
 		case ID_MC: return "Data from MC";
 		case ID_MSK: return "Data from MSK";
 		case ID_LS: return "Data from LS";
-		case ID_CL: return "Data from CL";
 	}
 	return "Data from Lib Block";
 	
@@ -7570,9 +7591,6 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 			break;
 		case ID_PC:
 			direct_link_paint_curve(fd, (PaintCurve *)id);
-			break;
-		case ID_CL:
-			direct_link_cache_library(fd, (CacheLibrary *)id);
 			break;
 	}
 	
@@ -7768,7 +7786,6 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_mask(fd, main);
 	lib_link_linestyle(fd, main);
 	lib_link_gpencil(fd, main);
-	lib_link_cache_library(fd, main);
 
 	lib_link_mesh(fd, main);		/* as last: tpage images with users at zero */
 	

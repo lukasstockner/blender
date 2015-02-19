@@ -22,12 +22,13 @@
 #include <string>
 
 struct ID;
-struct CacheLibrary;
 struct Library;
 
 namespace PTC {
 
+#if 0
 bool ptc_archive_path(CacheLibrary *cachelib, std::string &filepath, Library *lib);
+#endif
 
 } /* namespace PTC */
 

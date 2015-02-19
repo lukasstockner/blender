@@ -47,8 +47,6 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
-#include "DNA_object_force.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
@@ -497,9 +495,9 @@ static void object_cacheIgnoreClear(Object *ob, int state)
 	for (pid = pidlist.first; pid; pid = pid->next) {
 		if (pid->cache) {
 			if (state)
-				pid->cache->flag |= PTC_IGNORE_CLEAR;
+				pid->cache->flag |= PTCACHE_IGNORE_CLEAR;
 			else
-				pid->cache->flag &= ~PTC_IGNORE_CLEAR;
+				pid->cache->flag &= ~PTCACHE_IGNORE_CLEAR;
 		}
 	}
 
@@ -930,7 +928,8 @@ static void surface_freeUnusedData(DynamicPaintSurface *surface)
 	if (!surface->data) return;
 
 	/* free bakedata if not active or surface is baked */
-	if (!(surface->flags & MOD_DPAINT_ACTIVE))
+	if (!(surface->flags & MOD_DPAINT_ACTIVE) ||
+	    (surface->pointcache && surface->pointcache->flag & PTCACHE_BAKED))
 	{
 		free_bakeData(surface->data);
 	}
@@ -964,7 +963,7 @@ void dynamicPaint_freeSurfaceData(DynamicPaintSurface *surface)
 void dynamicPaint_freeSurface(DynamicPaintSurface *surface)
 {
 	/* point cache */
-	BKE_ptcache_free(surface->pointcache);
+	BKE_ptcache_free_list(&(surface->ptcaches));
 	surface->pointcache = NULL;
 
 	if (surface->effector_weights)
@@ -1028,7 +1027,8 @@ DynamicPaintSurface *dynamicPaint_createNewSurface(DynamicPaintCanvasSettings *c
 	surface->type = MOD_DPAINT_SURFACE_T_PAINT;
 
 	/* cache */
-	surface->pointcache = BKE_ptcache_new();
+	surface->pointcache = BKE_ptcache_add(&(surface->ptcaches));
+	surface->pointcache->flag |= PTCACHE_DISK_CACHE;
 	surface->pointcache->step = 1;
 
 	/* Set initial values */
@@ -1969,12 +1969,10 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 				BKE_ptcache_id_time(&pid, scene, (float)scene->r.cfra, NULL, NULL, NULL);
 
 				/* reset non-baked cache at first frame */
-				if ((int)scene->r.cfra == surface->start_frame) {
-					dynamicPaint_clearSurface(scene, surface);
-
-					cache->state.flag |= PTC_STATE_REDO_NEEDED;
+				if ((int)scene->r.cfra == surface->start_frame && !(cache->flag & PTCACHE_BAKED)) {
+					cache->flag |= PTCACHE_REDO_NEEDED;
 					BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-					cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
+					cache->flag &= ~PTCACHE_REDO_NEEDED;
 				}
 
 				/* try to read from cache */
@@ -1982,7 +1980,7 @@ static void dynamicPaint_frameUpdate(DynamicPaintModifierData *pmd, Scene *scene
 					BKE_ptcache_validate(cache, (int)scene->r.cfra);
 				}
 				/* if read failed and we're on surface range do recalculate */
-				else if ((int)scene->r.cfra == current_frame) {
+				else if ((int)scene->r.cfra == current_frame && !(cache->flag & PTCACHE_BAKED)) {
 					/* calculate surface frame */
 					canvas->flags |= MOD_DPAINT_BAKING;
 					dynamicPaint_calculateFrame(surface, scene, ob, current_frame);

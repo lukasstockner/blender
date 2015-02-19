@@ -24,7 +24,6 @@
 #include "util_error_handler.h"
 
 struct ID;
-struct PointCache;
 struct Scene;
 
 namespace PTC {
@@ -36,7 +35,7 @@ public:
 
 class Writer {
 public:
-	Writer(Scene *scene, ID *id, PointCache *cache, WriterArchive *archive);
+	Writer(Scene *scene, ID *id, WriterArchive *archive);
 	virtual ~Writer();
 	
 	void set_error_handler(ErrorHandler *handler);
@@ -46,14 +45,12 @@ public:
 	
 	Scene *scene() const { return m_scene; }
 	ID *id() const { return m_id; }
-	PointCache *cache() const { return m_cache; }
 	
 protected:
 	ErrorHandler *m_error_handler;
 	
 	Scene *m_scene;
 	ID *m_id;
-	PointCache *m_cache;
 	
 private:
 	WriterArchive *m_archive;

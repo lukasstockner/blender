@@ -32,9 +32,7 @@
  *  \ingroup modifiers
  */
 
-#include "DNA_object_force.h"
 #include "DNA_object_types.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "MEM_guardedalloc.h"

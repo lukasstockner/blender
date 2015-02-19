@@ -38,7 +38,6 @@ set(DEFSRC
 	rna_armature.c
 	rna_boid.c
 	rna_brush.c
-	rna_cache_library.c
 	rna_camera.c
 	rna_cloth.c
 	rna_color.c
@@ -69,7 +68,6 @@ set(DEFSRC
 	rna_object_force.c
 	rna_packedfile.c
 	rna_particle.c
-	rna_pointcache.c
 	rna_pose.c
 	rna_property.c
 	rna_render.c
@@ -297,10 +295,6 @@ if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
 endif()
 
-if(WITH_ALEMBIC)
-	add_definitions(-DWITH_ALEMBIC)
-endif()
-
 # Build makesrna executable
 blender_include_dirs(
 	.
@@ -315,7 +309,6 @@ blender_include_dirs(
 	../../makesdna
 	../../nodes/
 	../../physics
-	../../pointcache/
 	../../windowmanager
 	../../editors/include
 	../../render/extern/include

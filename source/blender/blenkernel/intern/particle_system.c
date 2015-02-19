@@ -52,7 +52,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_curve_types.h"
@@ -86,12 +85,11 @@
 #include "BKE_material.h"
 #include "BKE_cloth.h"
 #include "BKE_lattice.h"
+#include "BKE_pointcache.h"
 #include "BKE_mesh.h"
 #include "BKE_modifier.h"
 #include "BKE_scene.h"
 #include "BKE_bvhutils.h"
-
-#include "PTC_api.h"
 
 #include "PIL_time.h"
 
@@ -114,6 +112,9 @@ static ThreadRWMutex psys_bvhtree_rwlock = BLI_RWLOCK_INITIALIZER;
 
 static int particles_are_dynamic(ParticleSystem *psys)
 {
+	if (psys->pointcache->flag & PTCACHE_BAKED)
+		return 0;
+
 	if (psys->part->type == PART_HAIR)
 		return psys->flag & PSYS_HAIR_DYNAMICS;
 	else
@@ -126,7 +127,7 @@ float psys_get_current_display_percentage(ParticleSystem *psys)
 
 	if ((psys->renderdata && !particles_are_dynamic(psys)) ||  /* non-dynamic particles can be rendered fully */
 	    (part->child_nbr && part->childtype)  ||    /* display percentage applies to children */
-	    (psys->pointcache->state.flag & PTC_STATE_BAKING))  /* baking is always done with full amount */
+	    (psys->pointcache->flag & PTCACHE_BAKING))  /* baking is always done with full amount */
 	{
 		return 1.0f;
 	}
@@ -134,9 +135,11 @@ float psys_get_current_display_percentage(ParticleSystem *psys)
 	return psys->part->disp/100.0f;
 }
 
-static int tot_particles(ParticleSystem *psys)
+static int tot_particles(ParticleSystem *psys, PTCacheID *pid)
 {
-	if (psys->part->distr == PART_DISTR_GRID && psys->part->from != PART_FROM_VERT)
+	if (pid && psys->pointcache->flag & PTCACHE_EXTERNAL)
+		return pid->cache->totpoint;
+	else if (psys->part->distr == PART_DISTR_GRID && psys->part->from != PART_FROM_VERT)
 		return psys->part->grid_res * psys->part->grid_res * psys->part->grid_res - psys->totunexist;
 	else
 		return psys->part->totpart - psys->totunexist;
@@ -149,7 +152,7 @@ void psys_reset(ParticleSystem *psys, int mode)
 	if (ELEM(mode, PSYS_RESET_ALL, PSYS_RESET_DEPSGRAPH)) {
 		if (mode == PSYS_RESET_ALL || !(psys->flag & PSYS_EDITED)) {
 			/* don't free if not absolutely necessary */
-			if (psys->totpart != tot_particles(psys)) {
+			if (psys->totpart != tot_particles(psys, NULL)) {
 				psys_free_particles(psys);
 				psys->totpart= 0;
 			}
@@ -182,7 +185,7 @@ void psys_reset(ParticleSystem *psys, int mode)
 	psys_free_path_cache(psys, psys->edit);
 
 	/* reset point cache */
-	PTC_invalidate(psys->pointcache);
+	BKE_ptcache_invalidate(psys->pointcache);
 
 	if (psys->fluid_springs) {
 		MEM_freeN(psys->fluid_springs);
@@ -1023,6 +1026,12 @@ void reset_particle(ParticleSimulationData *sim, ParticleData *pa, float dtime, 
 
 	pa->dietime = pa->time + pa->lifetime;
 
+	if (sim->psys->pointcache && sim->psys->pointcache->flag & PTCACHE_BAKED &&
+		sim->psys->pointcache->mem_cache.first) {
+		float dietime = psys_get_dietime_from_cache(sim->psys->pointcache, p);
+		pa->dietime = MIN2(pa->dietime, dietime);
+	}
+
 	if (pa->time > cfra)
 		pa->alive = PARS_UNBORN;
 	else if (pa->dietime <= cfra)
@@ -1162,17 +1171,20 @@ static void set_keyed_keys(ParticleSimulationData *sim)
 /************************************************/
 void psys_make_temp_pointcache(Object *ob, ParticleSystem *psys)
 {
-	if (psys->mem_pointcache.first == NULL) {
-		/* XXX TODO */
-//		PTCacheID pid;
-//		BKE_ptcache_id_from_particles(&pid, ob, psys);
-//		BKE_ptcache_to_mem(&pid, &psys->mem_pointcache);
+	PointCache *cache = psys->pointcache;
+
+	if (cache->flag & PTCACHE_DISK_CACHE && BLI_listbase_is_empty(&cache->mem_cache)) {
+		PTCacheID pid;
+		BKE_ptcache_id_from_particles(&pid, ob, psys);
+		cache->flag &= ~PTCACHE_DISK_CACHE;
+		BKE_ptcache_disk_to_mem(&pid);
+		cache->flag |= PTCACHE_DISK_CACHE;
 	}
 }
 static void psys_clear_temp_pointcache(ParticleSystem *psys)
 {
-	/* XXX TODO */
-//	BKE_ptcache_free_mem(&psys->mem_pointcache);
+	if (psys->pointcache->flag & PTCACHE_DISK_CACHE)
+		BKE_ptcache_free_mem(&psys->pointcache->mem_cache);
 }
 void psys_get_pointcache_start_end(Scene *scene, ParticleSystem *psys, int *sfra, int *efra)
 {
@@ -2892,19 +2904,19 @@ static void psys_update_path_cache(ParticleSimulationData *sim, float cfra)
 			psys_free_children(psys);
 	}
 
-	if ((part->type==PART_HAIR || psys->flag&PSYS_KEYED)==0)
-		skip = 1; /* only hair and keyed can have paths */
+	if ((part->type==PART_HAIR || psys->flag&PSYS_KEYED || psys->pointcache->flag & PTCACHE_BAKED)==0)
+		skip = 1; /* only hair, keyed and baked stuff can have paths */
 	else if (part->ren_as != PART_DRAW_PATH && !(part->type==PART_HAIR && ELEM(part->ren_as, PART_DRAW_OB, PART_DRAW_GR)))
 		skip = 1; /* particle visualization must be set as path */
 	else if (!psys->renderdata) {
 		if (part->draw_as != PART_DRAW_REND)
 			skip = 1; /* draw visualization */
-		else if (psys->pointcache->state.flag & PTC_STATE_BAKING)
+		else if (psys->pointcache->flag & PTCACHE_BAKING)
 			skip = 1; /* no need to cache paths while baking dynamics */
 		else if (psys_in_edit_mode(sim->scene, psys)) {
 			if ((pset->flag & PE_DRAW_PART)==0)
 				skip = 1;
-			else if (part->childtype==0 && !(psys->flag & PSYS_HAIR_DYNAMICS))
+			else if (part->childtype==0 && (psys->flag & PSYS_HAIR_DYNAMICS && psys->pointcache->flag & PTCACHE_BAKED)==0)
 				skip = 1; /* in edit mode paths are needed for child particles and dynamic hair */
 		}
 	}
@@ -3594,7 +3606,7 @@ static void cached_step(ParticleSimulationData *sim, float cfra)
 		/* update alive status and push events */
 		if (pa->time > cfra) {
 			pa->alive = PARS_UNBORN;
-			if (part->flag & PART_UNBORN && (psys->pointcache->flag & PTC_EXTERNAL) == 0)
+			if (part->flag & PART_UNBORN && (psys->pointcache->flag & PTCACHE_EXTERNAL) == 0)
 				reset_particle(sim, pa, 0.0f, cfra);
 		}
 		else if (dietime <= cfra)
@@ -3721,11 +3733,11 @@ static void particles_fluid_step(ParticleSimulationData *sim, int UNUSED(cfra))
 #endif // WITH_MOD_FLUID
 }
 
-static int emit_particles(ParticleSimulationData *sim, struct PTCReader *cache_reader, float UNUSED(cfra))
+static int emit_particles(ParticleSimulationData *sim, PTCacheID *pid, float UNUSED(cfra))
 {
 	ParticleSystem *psys = sim->psys;
 	int oldtotpart = psys->totpart;
-	int totpart = (cache_reader && psys->pointcache->flag & PTC_EXTERNAL) ? PTC_reader_particles_totpoint(cache_reader) : tot_particles(psys);
+	int totpart = tot_particles(psys, pid);
 
 	if (totpart != oldtotpart)
 		realloc_particles(sim, totpart);
@@ -3744,7 +3756,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	ParticleSystem *psys = sim->psys;
 	ParticleSettings *part = psys->part;
 	PointCache *cache = psys->pointcache;
-	struct PTCReader *cache_reader = NULL;
+	PTCacheID ptcacheid, *pid = NULL;
 	PARTICLE_P;
 	float disp, cache_cfra = cfra; /*, *vg_vel= 0, *vg_tan= 0, *vg_rot= 0, *vg_size= 0; */
 	int startframe = 0, endframe = 100, oldtotpart = 0;
@@ -3754,20 +3766,19 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		psys_clear_temp_pointcache(psys);
 
 		/* set suitable cache range automatically */
-		if ((cache->state.flag & PTC_STATE_BAKING)==0)
+		if ((cache->flag & (PTCACHE_BAKING|PTCACHE_BAKED))==0)
 			psys_get_pointcache_start_end(sim->scene, psys, &cache->startframe, &cache->endframe);
 
-		cache_reader = PTC_reader_particles(sim->scene, sim->ob, psys);
+		pid = &ptcacheid;
+		BKE_ptcache_id_from_particles(pid, sim->ob, psys);
 		
-		PTC_reader_get_frame_range(cache_reader, &startframe, &endframe);
+		BKE_ptcache_id_time(pid, sim->scene, 0.0f, &startframe, &endframe, NULL);
 
-		/* clear everything on start frame */
+		/* clear everythin on start frame */
 		if (cfra == startframe) {
-			/* XXX anything to do here? */
-			psys_reset(psys, PSYS_RESET_DEPSGRAPH);
-//			BKE_ptcache_id_reset(sim->scene, pid, PTCACHE_RESET_OUTDATED);
-			PTC_validate(cache, startframe);
-			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
+			BKE_ptcache_id_reset(sim->scene, pid, PTCACHE_RESET_OUTDATED);
+			BKE_ptcache_validate(cache, startframe);
+			cache->flag &= ~PTCACHE_REDO_NEEDED;
 		}
 		
 		CLAMP(cache_cfra, startframe, endframe);
@@ -3775,7 +3786,7 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 
 /* 1. emit particles and redo particles if needed */
 	oldtotpart = psys->totpart;
-	if (emit_particles(sim, cache_reader, cfra) || psys->recalc & PSYS_RECALC_RESET) {
+	if (emit_particles(sim, pid, cfra) || psys->recalc & PSYS_RECALC_RESET) {
 		distribute_particles(sim, part->from);
 		initialize_all_particles(sim);
 		/* reset only just created particles (on startframe all particles are recreated) */
@@ -3791,39 +3802,41 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 		/* flag for possible explode modifiers after this system */
 		sim->psmd->flag |= eParticleSystemFlag_Pars;
 
-		/* XXX needs stitcher implementation to copy over previous samples */
-//		BKE_ptcache_truncate(pid, cfra);
+		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_AFTER, cfra);
 	}
 
 /* 2. try to read from the cache */
-	if (cache_reader) {
-		PTCReadSampleResult cache_result = PTC_read_sample(cache_reader, cache_cfra);
+	if (pid) {
+		int cache_result = BKE_ptcache_read(pid, cache_cfra);
 
-		if (ELEM(cache_result, PTC_READ_SAMPLE_EXACT, PTC_READ_SAMPLE_INTERPOLATED)) {
+		if (ELEM(cache_result, PTCACHE_READ_EXACT, PTCACHE_READ_INTERPOLATED)) {
 			cached_step(sim, cfra);
 			update_children(sim);
 			psys_update_path_cache(sim, cfra);
 
-			PTC_validate(cache, (int)cache_cfra);
+			BKE_ptcache_validate(cache, (int)cache_cfra);
 
-			/* XXX TODO */
-//			if (cache_result == PTC_READ_SAMPLE_INTERPOLATED && cache->state.flag & PTC_STATE_REDO_NEEDED)
-//				BKE_ptcache_write(pid, (int)cache_cfra);
+			if (cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
+				BKE_ptcache_write(pid, (int)cache_cfra);
 
 			return;
 		}
-		else if (cache_result == PTC_READ_SAMPLE_EARLY) {
-			psys->cfra = (float)cache->state.simframe;
+		/* Cache is supposed to be baked, but no data was found so bail out */
+		else if (cache->flag & PTCACHE_BAKED) {
+			psys_reset(psys, PSYS_RESET_CACHE_MISS);
+			return;
+		}
+		else if (cache_result == PTCACHE_READ_OLD) {
+			psys->cfra = (float)cache->simframe;
 			cached_step(sim, psys->cfra);
 		}
 
 		/* if on second frame, write cache for first frame */
-		/* XXX TODO */
-//		if (psys->cfra == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->last_exact==0))
-//			BKE_ptcache_write(pid, startframe);
+		if (psys->cfra == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
+			BKE_ptcache_write(pid, startframe);
 	}
 	else
-		PTC_invalidate(cache);
+		BKE_ptcache_invalidate(cache);
 
 /* 3. do dynamics */
 	/* set particles to be not calculated TODO: can't work with pointcache */
@@ -3875,11 +3888,11 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 	}
 	
 /* 4. only write cache starting from second frame */
-//	if (pid) {
-//		BKE_ptcache_validate(cache, (int)cache_cfra);
-//		if ((int)cache_cfra != startframe)
-//			BKE_ptcache_write(pid, (int)cache_cfra);
-//	}
+	if (pid) {
+		BKE_ptcache_validate(cache, (int)cache_cfra);
+		if ((int)cache_cfra != startframe)
+			BKE_ptcache_write(pid, (int)cache_cfra);
+	}
 
 	update_children(sim);
 
@@ -3894,9 +3907,9 @@ static void system_step(ParticleSimulationData *sim, float cfra)
 void psys_changed_type(Object *ob, ParticleSystem *psys)
 {
 	ParticleSettings *part = psys->part;
-//	PTCacheID pid;
+	PTCacheID pid;
 
-//	BKE_ptcache_id_from_particles(&pid, ob, spsys);
+	BKE_ptcache_id_from_particles(&pid, ob, psys);
 
 	if (part->phystype != PART_PHYS_KEYED)
 		psys->flag &= ~PSYS_KEYED;
@@ -3914,8 +3927,7 @@ void psys_changed_type(Object *ob, ParticleSystem *psys)
 		CLAMP(part->path_start, 0.0f, 100.0f);
 		CLAMP(part->path_end, 0.0f, 100.0f);
 
-		/* XXX TODO */
-//		BKE_ptcache_clear(&pid);
+		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
 	}
 	else {
 		free_hair(ob, psys, 1);
@@ -3974,10 +3986,9 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 	ParticleSettings *part = sim->psys->part;
 
 	if (ELEM(part->phystype, PART_PHYS_NO, PART_PHYS_KEYED)) {
-		/* XXX TODO */
-//		PTCacheID pid;
-//		BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
-//		BKE_ptcache_clear(&pid);
+		PTCacheID pid;
+		BKE_ptcache_id_from_particles(&pid, sim->ob, sim->psys);
+		BKE_ptcache_id_clear(&pid, PTCACHE_CLEAR_ALL, 0);
 	}
 	else {
 		free_keyed_keys(sim->psys);
@@ -4008,9 +4019,7 @@ static void psys_prepare_physics(ParticleSimulationData *sim)
 }
 static int hair_needs_recalc(ParticleSystem *psys)
 {
-	/* XXX TODO */
-//	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || !psys->edit->edited) &&
-	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || true) &&
+	if (!(psys->flag & PSYS_EDITED) && (!psys->edit || !psys->edit->edited) &&
 	    ((psys->flag & PSYS_HAIR_DONE)==0 || psys->recalc & PSYS_RECALC_RESET || (psys->part->flag & PART_HAIR_REGROW && !psys->edit)))
 	{
 		return 1;

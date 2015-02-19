@@ -32,8 +32,6 @@
 #ifndef __DNA_SMOKE_TYPES_H__
 #define __DNA_SMOKE_TYPES_H__
 
-#include "DNA_defs.h"
-
 /* flags */
 enum {
 	MOD_SMOKE_HIGHRES = (1 << 1),  /* enable high resolution */
@@ -138,7 +136,7 @@ typedef struct SmokeDomainSettings {
 
 	/* Smoke uses only one cache from now on (index [0]), but keeping the array for now for reading old files. */
 	struct PointCache *point_cache[2];	/* definition is in DNA_object_force.h */
-	struct ListBase ptcaches[2] DNA_DEPRECATED;
+	struct ListBase ptcaches[2];
 	struct EffectorWeights *effector_weights;
 	int border_collisions;	/* How domain border collisions are handled */
 	float time_scale;

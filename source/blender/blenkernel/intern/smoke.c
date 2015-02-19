@@ -55,10 +55,8 @@
 #include "DNA_lamp_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_force.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_smoke_types.h"
 
@@ -394,7 +392,7 @@ static void smokeModifier_freeDomain(SmokeModifierData *smd)
 			MEM_freeN(smd->domain->effector_weights);
 		smd->domain->effector_weights = NULL;
 
-		BKE_ptcache_free(smd->domain->point_cache[0]);
+		BKE_ptcache_free_list(&(smd->domain->ptcaches[0]));
 		smd->domain->point_cache[0] = NULL;
 
 		MEM_freeN(smd->domain);
@@ -521,11 +519,13 @@ void smokeModifier_createType(struct SmokeModifierData *smd)
 
 			smd->domain->smd = smd;
 
-			smd->domain->point_cache[0] = BKE_ptcache_new();
+			smd->domain->point_cache[0] = BKE_ptcache_add(&(smd->domain->ptcaches[0]));
+			smd->domain->point_cache[0]->flag |= PTCACHE_DISK_CACHE;
 			smd->domain->point_cache[0]->step = 1;
 
 			/* Deprecated */
 			smd->domain->point_cache[1] = NULL;
+			BLI_listbase_clear(&smd->domain->ptcaches[1]);
 			/* set some standard values */
 			smd->domain->fluid = NULL;
 			smd->domain->fluid_mutex = BLI_rw_mutex_alloc();
@@ -938,9 +938,9 @@ static void object_cacheIgnoreClear(Object *ob, bool state)
 	for (pid = pidlist.first; pid; pid = pid->next) {
 		if (pid->cache) {
 			if (state)
-				pid->cache->flag |= PTC_IGNORE_CLEAR;
+				pid->cache->flag |= PTCACHE_IGNORE_CLEAR;
 			else
-				pid->cache->flag &= ~PTC_IGNORE_CLEAR;
+				pid->cache->flag &= ~PTCACHE_IGNORE_CLEAR;
 		}
 	}
 
@@ -2673,14 +2673,13 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 
 		if (!smd->domain->fluid || framenr == startframe)
 		{
-			smokeModifier_reset_ex(smd, false);
-
 			BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
+			smokeModifier_reset_ex(smd, false);
 			BKE_ptcache_validate(cache, framenr);
-			cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
+			cache->flag &= ~PTCACHE_REDO_NEEDED;
 		}
 
-		if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0)
+		if (!smd->domain->fluid && (framenr != startframe) && (smd->domain->flags & MOD_SMOKE_FILE_LOAD) == 0 && (cache->flag & PTCACHE_BAKED) == 0)
 			return;
 
 		smd->domain->flags &= ~MOD_SMOKE_FILE_LOAD;
@@ -2714,7 +2713,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		tstart();
 
 		/* if on second frame, write cache for first frame */
-		if ((int)smd->time == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact == 0)) {
+		if ((int)smd->time == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact == 0)) {
 			BKE_ptcache_write(&pid, startframe);
 		}
 

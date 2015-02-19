@@ -27,7 +27,6 @@ extern "C" {
 #include "BLI_utildefines.h"
 
 #include "DNA_ID.h"
-#include "DNA_pointcache_types.h"
 
 #include "BKE_appdir.h"
 #include "BKE_global.h"
@@ -36,6 +35,7 @@ extern "C" {
 
 namespace PTC {
 
+#if 0
 BLI_INLINE bool path_is_rel(const std::string &path)
 {
 	return BLI_path_is_rel(path.c_str());
@@ -96,5 +96,6 @@ bool ptc_archive_path(CacheLibrary *cachelib, std::string &filepath, Library *li
 	
 	return true;
 }
+#endif
 
 } /* namespace PTC */

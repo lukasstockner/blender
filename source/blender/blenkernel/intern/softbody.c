@@ -63,8 +63,6 @@ variables on the UI for now
 #include "DNA_curve_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_force.h"
-#include "DNA_pointcache_types.h"
 
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
@@ -3722,7 +3720,7 @@ SoftBody *sbNew(Scene *scene)
 	sb->shearstiff = 1.0f;
 	sb->solverflags |= SBSO_OLDERR;
 
-	sb->pointcache = BKE_ptcache_new();
+	sb->pointcache = BKE_ptcache_add(&sb->ptcaches);
 
 	if (!sb->effector_weights)
 		sb->effector_weights = BKE_add_effector_weights(NULL);
@@ -3736,7 +3734,7 @@ SoftBody *sbNew(Scene *scene)
 void sbFree(SoftBody *sb)
 {
 	free_softbody_intern(sb);
-	BKE_ptcache_free(sb->pointcache);
+	BKE_ptcache_free_list(&sb->ptcaches);
 	sb->pointcache = NULL;
 	if (sb->effector_weights)
 		MEM_freeN(sb->effector_weights);
@@ -4053,7 +4051,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	cache= sb->pointcache;
 
 	framenr= (int)cfra;
-	framedelta= framenr - cache->state.simframe;
+	framedelta= framenr - cache->simframe;
 
 	BKE_ptcache_id_from_softbody(&pid, ob, sb);
 	BKE_ptcache_id_time(&pid, scene, framenr, &startframe, &endframe, &timescale);
@@ -4104,14 +4102,14 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 		return;
 	}
 	if (framenr == startframe) {
-		sbFreeSimulation(sb);
-
 		BKE_ptcache_id_reset(scene, &pid, PTCACHE_RESET_OUTDATED);
-		BKE_ptcache_validate(cache, framenr);
-		cache->state.flag &= ~PTC_STATE_REDO_NEEDED;
 
 		/* first frame, no simulation to do, just set the positions */
 		softbody_update_positions(ob, sb, vertexCos, numVerts);
+
+		BKE_ptcache_validate(cache, framenr);
+		cache->flag &= ~PTCACHE_REDO_NEEDED;
+
 		sb->last_frame = framenr;
 
 		return;
@@ -4125,7 +4123,7 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 
 		BKE_ptcache_validate(cache, framenr);
 
-		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->state.flag & PTC_STATE_REDO_NEEDED)
+		if (cache_result == PTCACHE_READ_INTERPOLATED && cache->flag & PTCACHE_REDO_NEEDED)
 			BKE_ptcache_write(&pid, framenr);
 
 		sb->last_frame = framenr;
@@ -4135,12 +4133,17 @@ void sbObjectStep(Scene *scene, Object *ob, float cfra, float (*vertexCos)[3], i
 	else if (cache_result==PTCACHE_READ_OLD) {
 		; /* do nothing */
 	}
+	else if (/*ob->id.lib || */(cache->flag & PTCACHE_BAKED)) { /* "library linking & pointcaches" has to be solved properly at some point */
+		/* if baked and nothing in cache, do nothing */
+		BKE_ptcache_invalidate(cache);
+		return;
+	}
 
 	if (framenr!=sb->last_frame+1)
 		return;
 
 	/* if on second frame, write cache for first frame */
-	if (cache->state.simframe == startframe && (cache->state.flag & PTC_STATE_OUTDATED || cache->state.last_exact==0))
+	if (cache->simframe == startframe && (cache->flag & PTCACHE_OUTDATED || cache->last_exact==0))
 		BKE_ptcache_write(&pid, startframe);
 
 	softbody_update_positions(ob, sb, vertexCos, numVerts);

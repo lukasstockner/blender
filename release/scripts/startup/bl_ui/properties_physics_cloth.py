@@ -27,7 +27,7 @@ from bl_ui.properties_physics_common import (
 
 
 def cloth_panel_enabled(md):
-    return not md.point_cache.lock_settings
+    return md.point_cache.is_baked is False
 
 
 class CLOTH_MT_presets(Menu):
@@ -116,7 +116,7 @@ class PHYSICS_PT_cloth_cache(PhysicButtonsPanel, Panel):
 
     def draw(self, context):
         md = context.cloth
-        point_cache_ui(self, context, md, md.point_cache, cloth_panel_enabled(md), 'CLOTH')
+        point_cache_ui(self, context, md.point_cache, cloth_panel_enabled(md), 'CLOTH')
 
 
 class PHYSICS_PT_cloth_collision(PhysicButtonsPanel, Panel):

@@ -182,9 +182,13 @@ static void operatortypes_fluid(void)
 
 static void operatortypes_pointcache(void)
 {
-	WM_operatortype_append(PTCACHE_OT_export);
-	
-	WM_operatortype_append(CACHELIBRARY_OT_new);
+	WM_operatortype_append(PTCACHE_OT_bake_all);
+	WM_operatortype_append(PTCACHE_OT_free_bake_all);
+	WM_operatortype_append(PTCACHE_OT_bake);
+	WM_operatortype_append(PTCACHE_OT_free_bake);
+	WM_operatortype_append(PTCACHE_OT_bake_from_cache);
+	WM_operatortype_append(PTCACHE_OT_add);
+	WM_operatortype_append(PTCACHE_OT_remove);
 }
 
 /********************************* dynamic paint ***********************************/

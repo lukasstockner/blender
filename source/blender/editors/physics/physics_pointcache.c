@@ -30,41 +30,41 @@
  */
 
 #include <stdlib.h>
-#include <string.h>
-
-#include "MEM_guardedalloc.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_context.h"
-#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_main.h"
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
-#include "BKE_report.h"
-#include "BKE_scene.h"
-#include "BKE_screen.h"
-
-#include "PTC_api.h"
 
 #include "ED_particle.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
 
-#include "UI_interface.h"
-
-#include "BLF_translation.h"
-
 #include "RNA_access.h"
 #include "RNA_define.h"
 
 #include "physics_intern.h"
+
+static int cache_break_test(void *UNUSED(cbd))
+{
+	return (G.is_break == true);
+}
+static int ptcache_bake_all_poll(bContext *C)
+{
+	Scene *scene= CTX_data_scene(C);
+
+	if (!scene)
+		return 0;
+	
+	return 1;
+}
 
 static int ptcache_poll(bContext *C)
 {
@@ -72,204 +72,328 @@ static int ptcache_poll(bContext *C)
 	return (ptr.data && ptr.id.data);
 }
 
-typedef struct PTCacheExportJob {
-	short *stop, *do_update;
-	float *progress;
-	
-	struct Main *bmain;
-	struct Scene *scene;
-	EvaluationContext eval_ctx;
-	
-	PointerRNA user_ptr;
-	struct PointCache *cache;
-	struct PTCWriter *writer;
-	
-	int origfra;				/* original frame to reset scene after export */
-	float origframelen;			/* original frame length to reset scene after export */
-} PTCacheExportJob;
-
-static void ptcache_export_freejob(void *customdata)
+static void bake_console_progress(void *UNUSED(arg), int nr)
 {
-	PTCacheExportJob *data= (PTCacheExportJob *)customdata;
-	MEM_freeN(data);
+	printf("\rbake: %3i%%", nr);
+	fflush(stdout);
 }
 
-static void ptcache_export_startjob(void *customdata, short *stop, short *do_update, float *progress)
+static void bake_console_progress_end(void *UNUSED(arg))
 {
-	PTCacheExportJob *data= (PTCacheExportJob *)customdata;
-	Scene *scene = data->scene;
-	int start_frame, end_frame;
-	
-	data->stop = stop;
-	data->do_update = do_update;
-	data->progress = progress;
-	
-	data->origfra = scene->r.cfra;
-	data->origframelen = scene->r.framelen;
-	scene->r.framelen = 1.0f;
-	memset(&data->eval_ctx, 0, sizeof(EvaluationContext));
-	data->eval_ctx.mode = DAG_EVAL_RENDER;
-	
-	G.is_break = false;
-	
-	/* XXX where to get this from? */
-	start_frame = scene->r.sfra;
-	end_frame = scene->r.efra;
-	PTC_bake(data->bmain, scene, &data->eval_ctx, data->writer, start_frame, end_frame, stop, do_update, progress);
-	
-	*do_update = true;
-	*stop = 0;
+	printf("\rbake: done!\n");
 }
 
-static void ptcache_export_endjob(void *customdata)
+static void ptcache_free_bake(PointCache *cache)
 {
-	PTCacheExportJob *data = (PTCacheExportJob *)customdata;
-	Scene *scene = data->scene;
-	
-	G.is_rendering = false;
-	BKE_spacedata_draw_locks(false);
-	
-	/* free the cache writer (closes output file) */
-	if (RNA_struct_is_a(data->user_ptr.type, &RNA_PointCacheModifier)) {
-		Object *ob = (Object *)data->user_ptr.id.data;
-		PointCacheModifierData *pcmd = (PointCacheModifierData *)data->user_ptr.data;
-		
-		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_NONE);
-	}
-	else {
-		PTC_writer_free(data->writer);
-	}
-	
-	/* reset scene frame */
-	scene->r.cfra = data->origfra;
-	scene->r.framelen = data->origframelen;
-	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
-}
-
-static int ptcache_export_exec(bContext *C, wmOperator *op)
-{
-	PointerRNA ptcache_ptr = CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
-	PointerRNA user_ptr = CTX_data_pointer_get(C, "point_cache_user");
-	Main *bmain = CTX_data_main(C);
-	Scene *scene = CTX_data_scene(C);
-	PointCache *cache = ptcache_ptr.data;
-	struct PTCWriter *writer = NULL;
-	PTCacheExportJob *data;
-	wmJob *wm_job;
-	
-	if (!user_ptr.data) {
-		BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "Missing point cache user info");
-		return OPERATOR_CANCELLED;
-	}
-	
-	/* special case: point cache modifier uses internal writer
-	 * and needs to be set up for baking.
-	 */
-	if (RNA_struct_is_a(user_ptr.type, &RNA_PointCacheModifier)) {
-		Object *ob = (Object *)user_ptr.id.data;
-		PointCacheModifierData *pcmd = (PointCacheModifierData *)user_ptr.data;
-		
-		PTC_mod_point_cache_set_mode(scene, ob, pcmd, MOD_POINTCACHE_MODE_WRITE);
-	}
-	else {
-		writer = PTC_writer_from_rna(scene, &user_ptr);
-		if (!writer) {
-			BKE_reportf(op->reports, RPT_ERROR_INVALID_INPUT, "%s is not a valid point cache user type", RNA_struct_identifier(user_ptr.type));
-			return OPERATOR_CANCELLED;
+	if (cache->edit) {
+		if (!cache->edit->edited || 1) {// XXX okee("Lose changes done in particle mode?")) {
+			PE_free_ptcache_edit(cache->edit);
+			cache->edit = NULL;
+			cache->flag &= ~PTCACHE_BAKED;
 		}
 	}
-	
-	/* XXX annoying hack: needed to prevent data corruption when changing
-	 * scene frame in separate threads
-	 */
-	G.is_rendering = true;
-	BKE_spacedata_draw_locks(true);
-	
-	/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,
-	 * since we need to set G.is_rendering
-	 */
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Point Cache Export",
-	                     WM_JOB_PROGRESS | WM_JOB_EXCL_RENDER, WM_JOB_TYPE_PTCACHE_EXPORT);
-	
-	/* setup job */
-	data = MEM_callocN(sizeof(PTCacheExportJob), "Point Cache Export Job");
-	data->bmain = bmain;
-	data->scene = scene;
-	data->user_ptr = user_ptr;
-	data->cache = cache;
-	data->writer = writer;
-	
-	WM_jobs_customdata_set(wm_job, data, ptcache_export_freejob);
-	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
-	WM_jobs_callbacks(wm_job, ptcache_export_startjob, NULL, NULL, ptcache_export_endjob);
-	
-	WM_jobs_start(CTX_wm_manager(C), wm_job);
+	else {
+		cache->flag &= ~PTCACHE_BAKED;
+	}
+}
+
+static int ptcache_bake_all_exec(bContext *C, wmOperator *op)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene= CTX_data_scene(C);
+	wmWindow *win = G.background ? NULL : CTX_wm_window(C);
+	PTCacheBaker baker;
+
+	baker.main = bmain;
+	baker.scene = scene;
+	baker.pid = NULL;
+	baker.bake = RNA_boolean_get(op->ptr, "bake");
+	baker.render = 0;
+	baker.anim_init = 0;
+	baker.quick_step = 1;
+	baker.break_test = cache_break_test;
+	baker.break_data = NULL;
+
+	/* Disabled for now as this doesn't work properly,
+	 * and pointcache baking will be reimplemented with
+	 * the job system soon anyways. */
+	if (win) {
+		baker.progressbar = (void (*)(void *, int))WM_cursor_time;
+		baker.progressend = (void (*)(void *))WM_cursor_modal_restore;
+		baker.progresscontext = win;
+	}
+	else {
+		baker.progressbar = bake_console_progress;
+		baker.progressend = bake_console_progress_end;
+		baker.progresscontext = NULL;
+	}
+
+	BKE_ptcache_bake(&baker);
+
+	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, NULL);
+
+	return OPERATOR_FINISHED;
+}
+static int ptcache_free_bake_all_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene= CTX_data_scene(C);
+	Base *base;
+	PTCacheID *pid;
+	ListBase pidlist;
+
+	for (base=scene->base.first; base; base= base->next) {
+		BKE_ptcache_ids_from_object(&pidlist, base->object, scene, MAX_DUPLI_RECUR);
+
+		for (pid=pidlist.first; pid; pid=pid->next) {
+			ptcache_free_bake(pid->cache);
+		}
+		
+		BLI_freelistN(&pidlist);
+		
+		WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, base->object);
+	}
+
+	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
 
 	return OPERATOR_FINISHED;
 }
 
-void PTCACHE_OT_export(wmOperatorType *ot)
+void PTCACHE_OT_bake_all(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "Export";
-	ot->description = "Export point data";
-	ot->idname = "PTCACHE_OT_export";
-
+	ot->name = "Bake All Physics";
+	ot->description = "Bake all physics";
+	ot->idname = "PTCACHE_OT_bake_all";
+	
 	/* api callbacks */
-	ot->exec = ptcache_export_exec;
+	ot->exec = ptcache_bake_all_exec;
+	ot->poll = ptcache_bake_all_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "bake", 1, "Bake", "");
+}
+void PTCACHE_OT_free_bake_all(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Free All Physics Bakes";
+	ot->idname = "PTCACHE_OT_free_bake_all";
+	ot->description = "Free all baked caches of all objects in the current scene";
+	
+	/* api callbacks */
+	ot->exec = ptcache_free_bake_all_exec;
+	ot->poll = ptcache_bake_all_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+static int ptcache_bake_exec(bContext *C, wmOperator *op)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	wmWindow *win = G.background ? NULL : CTX_wm_window(C);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+	Object *ob= ptr.id.data;
+	PointCache *cache= ptr.data;
+	PTCacheBaker baker;
+	PTCacheID *pid;
+	ListBase pidlist;
+
+	BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
+	
+	for (pid=pidlist.first; pid; pid=pid->next) {
+		if (pid->cache == cache)
+			break;
+	}
+
+	baker.main = bmain;
+	baker.scene = scene;
+	baker.pid = pid;
+	baker.bake = RNA_boolean_get(op->ptr, "bake");
+	baker.render = 0;
+	baker.anim_init = 0;
+	baker.quick_step = 1;
+	baker.break_test = cache_break_test;
+	baker.break_data = NULL;
+
+	/* Disabled for now as this doesn't work properly,
+	 * and pointcache baking will be reimplemented with
+	 * the job system soon anyways. */
+	if (win) {
+		baker.progressbar = (void (*)(void *, int))WM_cursor_time;
+		baker.progressend = (void (*)(void *))WM_cursor_modal_restore;
+		baker.progresscontext = win;
+	}
+	else {
+		printf("\n"); /* empty first line before console reports */
+		baker.progressbar = bake_console_progress;
+		baker.progressend = bake_console_progress_end;
+		baker.progresscontext = NULL;
+	}
+
+	BKE_ptcache_bake(&baker);
+
+	BLI_freelistN(&pidlist);
+
+	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
+
+	return OPERATOR_FINISHED;
+}
+static int ptcache_free_bake_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+	PointCache *cache= ptr.data;
+	Object *ob= ptr.id.data;
+
+	ptcache_free_bake(cache);
+	
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
+
+	return OPERATOR_FINISHED;
+}
+static int ptcache_bake_from_cache_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+	PointCache *cache= ptr.data;
+	Object *ob= ptr.id.data;
+	
+	cache->flag |= PTCACHE_BAKED;
+	
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
+
+	return OPERATOR_FINISHED;
+}
+void PTCACHE_OT_bake(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Bake Physics";
+	ot->description = "Bake physics";
+	ot->idname = "PTCACHE_OT_bake";
+	
+	/* api callbacks */
+	ot->exec = ptcache_bake_exec;
 	ot->poll = ptcache_poll;
 
 	/* flags */
-	/* no undo for this operator, cannot restore old cache files anyway */
-	ot->flag = OPTYPE_REGISTER;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+
+	RNA_def_boolean(ot->srna, "bake", 0, "Bake", "");
 }
-
-
-/********************** new material operator *********************/
-
-static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
-{
-	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cachelib", &RNA_CacheLibrary).data;
-	Main *bmain = CTX_data_main(C);
-	PointerRNA ptr, idptr;
-	PropertyRNA *prop;
-	
-	/* add or copy material */
-	if (cachelib) {
-		cachelib = BKE_cache_library_copy(cachelib);
-	}
-	else {
-		cachelib = BKE_cache_library_add(bmain, DATA_("CacheLibrary"));
-	}
-	
-	/* hook into UI */
-	UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
-	
-	if (prop) {
-		/* when creating new ID blocks, use is already 1, but RNA
-		 * pointer se also increases user, so this compensates it */
-		cachelib->id.us--;
-		
-		RNA_id_pointer_create(&cachelib->id, &idptr);
-		RNA_property_pointer_set(&ptr, prop, idptr);
-		RNA_property_update(C, &ptr, prop);
-	}
-	
-	WM_event_add_notifier(C, NC_OBJECT, cachelib);
-	
-	return OPERATOR_FINISHED;
-}
-
-void CACHELIBRARY_OT_new(wmOperatorType *ot)
+void PTCACHE_OT_free_bake(wmOperatorType *ot)
 {
 	/* identifiers */
-	ot->name = "New Cache Library";
-	ot->idname = "CACHELIBRARY_OT_new";
-	ot->description = "Add a new cache library";
+	ot->name = "Free Physics Bake";
+	ot->description = "Free physics bake";
+	ot->idname = "PTCACHE_OT_free_bake";
 	
 	/* api callbacks */
-	ot->exec = new_cachelib_exec;
+	ot->exec = ptcache_free_bake_exec;
+	ot->poll = ptcache_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
 }
+void PTCACHE_OT_bake_from_cache(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Bake From Cache";
+	ot->description = "Bake from cache";
+	ot->idname = "PTCACHE_OT_bake_from_cache";
+	
+	/* api callbacks */
+	ot->exec = ptcache_bake_from_cache_exec;
+	ot->poll = ptcache_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+
+static int ptcache_add_new_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+	Object *ob= ptr.id.data;
+	PointCache *cache= ptr.data;
+	PTCacheID *pid;
+	ListBase pidlist;
+
+	BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
+	
+	for (pid=pidlist.first; pid; pid=pid->next) {
+		if (pid->cache == cache) {
+			PointCache *cache_new = BKE_ptcache_add(pid->ptcaches);
+			cache_new->step = pid->default_step;
+			*(pid->cache_ptr) = cache_new;
+			break;
+		}
+	}
+
+	BLI_freelistN(&pidlist);
+
+	WM_event_add_notifier(C, NC_SCENE|ND_FRAME, scene);
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
+
+	return OPERATOR_FINISHED;
+}
+static int ptcache_remove_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr= CTX_data_pointer_get_type(C, "point_cache", &RNA_PointCache);
+	Scene *scene= CTX_data_scene(C);
+	Object *ob= ptr.id.data;
+	PointCache *cache= ptr.data;
+	PTCacheID *pid;
+	ListBase pidlist;
+
+	BKE_ptcache_ids_from_object(&pidlist, ob, scene, MAX_DUPLI_RECUR);
+	
+	for (pid=pidlist.first; pid; pid=pid->next) {
+		if (pid->cache == cache) {
+			if (pid->ptcaches->first == pid->ptcaches->last)
+				continue; /* don't delete last cache */
+
+			BLI_remlink(pid->ptcaches, pid->cache);
+			BKE_ptcache_free(pid->cache);
+			*(pid->cache_ptr) = pid->ptcaches->first;
+
+			break;
+		}
+	}
+
+	BLI_freelistN(&pidlist);
+	
+	WM_event_add_notifier(C, NC_OBJECT|ND_POINTCACHE, ob);
+
+	return OPERATOR_FINISHED;
+}
+void PTCACHE_OT_add(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add New Cache";
+	ot->description = "Add new cache";
+	ot->idname = "PTCACHE_OT_add";
+	
+	/* api callbacks */
+	ot->exec = ptcache_add_new_exec;
+	ot->poll = ptcache_poll; // ptcache_bake_all_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+void PTCACHE_OT_remove(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Delete Current Cache";
+	ot->description = "Delete current cache";
+	ot->idname = "PTCACHE_OT_remove";
+	
+	/* api callbacks */
+	ot->exec = ptcache_remove_exec;
+	ot->poll = ptcache_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;
+}
+

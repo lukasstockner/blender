@@ -54,7 +54,7 @@ class PHYSICS_PT_smoke(PhysicButtonsPanel, Panel):
 
             split = layout.split()
 
-            split.enabled = not domain.point_cache.state.is_baked
+            split.enabled = not domain.point_cache.is_baked
 
             col = split.column()
             col.label(text="Resolution:")
@@ -176,7 +176,7 @@ class PHYSICS_PT_smoke_fire(PhysicButtonsPanel, Panel):
         domain = context.smoke.domain_settings
 
         split = layout.split()
-        split.enabled = not domain.point_cache.state.is_baked
+        split.enabled = not domain.point_cache.is_baked
 
         col = split.column(align=True)
         col.label(text="Reaction:")
@@ -212,7 +212,7 @@ class PHYSICS_PT_smoke_adaptive_domain(PhysicButtonsPanel, Panel):
         layout.active = domain.use_adaptive_domain
 
         split = layout.split()
-        split.enabled = (not domain.point_cache.state.is_baked)
+        split.enabled = (not domain.point_cache.is_baked)
 
         col = split.column(align=True)
         col.label(text="Resolution:")
@@ -247,7 +247,7 @@ class PHYSICS_PT_smoke_highres(PhysicButtonsPanel, Panel):
         layout.active = md.use_high_resolution
 
         split = layout.split()
-        split.enabled = not md.point_cache.state.is_baked
+        split.enabled = not md.point_cache.is_baked
 
         col = split.column()
         col.label(text="Resolution:")
@@ -310,7 +310,7 @@ class PHYSICS_PT_smoke_cache(PhysicButtonsPanel, Panel):
         layout.label(text="Compression:")
         layout.prop(md, "point_cache_compress_type", expand=True)
 
-        point_cache_ui(self, context, md, cache, True, 'SMOKE')
+        point_cache_ui(self, context, cache, (cache.is_baked is False), 'SMOKE')
 
 
 class PHYSICS_PT_smoke_field_weights(PhysicButtonsPanel, Panel):

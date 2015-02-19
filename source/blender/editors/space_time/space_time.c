@@ -133,7 +133,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 				break;
 		}
 
-		if (pid->cache->state.cached_frames == NULL)
+		if (pid->cache->cached_frames == NULL)
 			continue;
 
 		/* make sure we have stc with correct array length */
@@ -151,7 +151,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 
 		/* fill the vertex array with a quad for each cached frame */
 		for (i = sta, fp = stc->array; i <= end; i++) {
-			if (pid->cache->state.cached_frames[i - sta]) {
+			if (pid->cache->cached_frames[i - sta]) {
 				fp[0] = (float)i - 0.5f;
 				fp[1] = 0.0;
 				fp += 2;
@@ -213,7 +213,10 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		glRectf((float)sta, 0.0, (float)end, 1.0);
 		
 		col[3] = 0.4f;
-		if (pid->cache->state.flag & PTC_STATE_OUTDATED) {
+		if (pid->cache->flag & PTCACHE_BAKED) {
+			col[0] -= 0.4f; col[1] -= 0.4f; col[2] -= 0.4f;
+		}
+		else if (pid->cache->flag & PTCACHE_OUTDATED) {
 			col[0] += 0.4f; col[1] += 0.4f; col[2] += 0.4f;
 		}
 		glColor4fv(col);

@@ -94,7 +94,6 @@ typedef struct Main {
 	ListBase movieclip;
 	ListBase mask;
 	ListBase linestyle;
-	ListBase cache_library;
 
 	char id_tag_update[256];
 

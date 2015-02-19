@@ -29,7 +29,6 @@
 
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_object_types.h"
-#include "DNA_pointcache_types.h"
 #include "DNA_scene_types.h"
 
 #include "BLI_utildefines.h"
@@ -149,9 +148,6 @@ static void foreachIDLink(ModifierData *md, Object *ob,
 		DynamicPaintSurface *surface = pmd->canvas->surfaces.first;
 
 		for (; surface; surface = surface->next) {
-			if (surface->pointcache)
-				walk(userData, ob, (ID **)&surface->pointcache->cachelib);
-			
 			walk(userData, ob, (ID **)&surface->brush_group);
 			walk(userData, ob, (ID **)&surface->init_texture);
 		}

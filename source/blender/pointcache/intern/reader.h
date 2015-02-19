@@ -25,7 +25,6 @@
 #include "util_types.h"
 
 struct ID;
-struct PointCache;
 struct Scene;
 
 namespace PTC {
@@ -41,7 +40,7 @@ public:
 
 class Reader {
 public:
-	Reader(Scene *scene, ID *id, PointCache *cache, ReaderArchive *archive);
+	Reader(Scene *scene, ID *id, ReaderArchive *archive);
 	virtual ~Reader();
 	
 	void set_error_handler(ErrorHandler *handler);
@@ -62,7 +61,6 @@ public:
 	
 	Scene *scene() const { return m_scene; }
 	ID *id() const { return m_id; }
-	PointCache *cache() const { return m_cache; }
 	
 protected:
 	ErrorHandler *m_error_handler;
@@ -70,7 +68,6 @@ protected:
 	
 	Scene *m_scene;
 	ID *m_id;
-	PointCache *m_cache;
 };
 
 } /* namespace PTC */

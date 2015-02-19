@@ -49,7 +49,6 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_movieclip_types.h"
-#include "DNA_object_force.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
@@ -1179,7 +1178,7 @@ struct Object *BKE_object_lod_matob_get(Object *ob, Scene *scene)
 #endif  /* WITH_GAMEENGINE */
 
 
-SoftBody *copy_softbody(SoftBody *sb, bool copy_cache)
+SoftBody *copy_softbody(SoftBody *sb, bool copy_caches)
 {
 	SoftBody *sbn;
 	
@@ -1187,7 +1186,7 @@ SoftBody *copy_softbody(SoftBody *sb, bool copy_cache)
 	
 	sbn = MEM_dupallocN(sb);
 
-	if (copy_cache == false) {
+	if (copy_caches == false) {
 		sbn->totspring = sbn->totpoint = 0;
 		sbn->bpoint = NULL;
 		sbn->bspring = NULL;
@@ -1216,7 +1215,7 @@ SoftBody *copy_softbody(SoftBody *sb, bool copy_cache)
 	
 	sbn->scratch = NULL;
 
-	sbn->pointcache = BKE_ptcache_copy(sb->pointcache, copy_cache);
+	sbn->pointcache = BKE_ptcache_copy_list(&sbn->ptcaches, &sb->ptcaches, copy_caches);
 
 	if (sb->effector_weights)
 		sbn->effector_weights = MEM_dupallocN(sb->effector_weights);
@@ -1290,7 +1289,7 @@ ParticleSystem *BKE_object_copy_particlesystem(ParticleSystem *psys)
 	BLI_listbase_clear(&psysn->childcachebufs);
 	psysn->renderdata = NULL;
 	
-	psysn->pointcache = BKE_ptcache_copy(psys->pointcache, false);
+	psysn->pointcache = BKE_ptcache_copy_list(&psysn->ptcaches, &psys->ptcaches, false);
 
 	/* XXX - from reading existing code this seems correct but intended usage of
 	 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */

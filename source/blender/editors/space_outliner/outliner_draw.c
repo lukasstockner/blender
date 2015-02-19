@@ -1171,7 +1171,7 @@ static void tselem_draw_icon(uiBlock *block, int xmax, float x, float y, TreeSto
 					case eModifierType_NormalEdit:
 						UI_icon_draw(x, y, ICON_MOD_NORMALEDIT); break;
 					case eModifierType_PointCache:
-						UI_icon_draw(x, y, ICON_MOD_MESHDEFORM); break;  /* XXX, needs own icon */
+						UI_icon_draw(x, y, ICON_PHYSICS); break;
 					/* Default */
 					case eModifierType_None:
 					case eModifierType_ShapeKey:

@@ -566,7 +566,6 @@ macro(SETUP_BLENDER_SORTED_LIBS)
 		bf_blenfont
 		bf_pointcache
 		bf_pointcache_alembic
-		bf_pointcache
 		bf_intern_audaspace
 		bf_intern_mikktspace
 		bf_intern_dualcon

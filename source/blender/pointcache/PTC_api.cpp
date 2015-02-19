@@ -31,7 +31,6 @@ extern "C" {
 #include "BLI_math.h"
 
 #include "DNA_modifier_types.h"
-#include "DNA_pointcache_types.h"
 
 #include "BKE_modifier.h"
 #include "BKE_report.h"
@@ -87,22 +86,6 @@ void PTC_error_handler_modifier(struct ModifierData *md)
 }
 
 
-void PTC_validate(PointCache *cache, int framenr)
-{
-	if (cache) {
-		cache->state.simframe = framenr;
-	}
-}
-
-void PTC_invalidate(PointCache *cache)
-{
-	if (cache) {
-		cache->state.simframe = 0;
-		cache->state.last_exact = min_ii(cache->startframe, 0);
-	}
-}
-
-
 void PTC_writer_free(PTCWriter *_writer)
 {
 	PTC::Writer *writer = (PTC::Writer *)_writer;
@@ -140,8 +123,6 @@ bool PTC_reader_get_frame_range(PTCReader *_reader, int *start_frame, int *end_f
 		return true;
 	}
 	else {
-		if (start_frame) *start_frame = reader->cache()->startframe;
-		if (end_frame) *end_frame = reader->cache()->endframe;
 		return false;
 	}
 }
