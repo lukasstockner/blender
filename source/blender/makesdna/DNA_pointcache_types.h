@@ -153,8 +153,6 @@ typedef struct PointCache {
 	void (*free_edit)(struct PTCacheEdit *edit);	/* free callback */
 
 	/**** NEW POINTCACHE ****/
-	char cachedir[768];	/* FILE_MAXDIR length */
-	
 	struct CacheLibrary *cachelib;
 } PointCache;
 
