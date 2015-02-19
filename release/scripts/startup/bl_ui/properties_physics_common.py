@@ -97,8 +97,14 @@ class PHYSICS_PT_add(PhysicButtonsPanel, Panel):
                             'CONSTRAINT')  # RB_TODO needs better icon
 
 
-# cache-type can be 'PSYS' 'HAIR' 'SMOKE' etc
+def cache_library_ui(context, layout, cachelib):
+    if not cachelib:
+        return
 
+    layout.prop(cachelib, "filepath")
+
+
+# cache-type can be 'PSYS' 'HAIR' 'SMOKE' etc
 def point_cache_ui(self, context, cache_user, cache, enabled, cachetype):
     ### special cases (don't ask, it's mysterious) ###
     # cache types that support external cache data
@@ -119,6 +125,7 @@ def point_cache_ui(self, context, cache_user, cache, enabled, cachetype):
     layout.context_pointer_set("point_cache_user", cache_user)
 
     layout.template_ID(cache, "cache_library", new="cachelibrary.new")
+    cache_library_ui(context, layout, cache.cache_library)
 
     row = layout.row()
     if supports_external:
