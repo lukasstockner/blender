@@ -95,11 +95,16 @@ enum {
 	AE_STATUS_RUNNING = 1 << 1,  /* Asset engine is performing some background tasks... */
 };
 
+#define AE_FAKE_ENGINE_ID "none"
+
 extern ListBase asset_engines;
 
-/* AE instance is valid, is running, is idle, etc. */
+/* AE instance/job is valid, is running, is idle, etc. */
 typedef int (*ae_status)(struct AssetEngine *engine, const int job_id);
 typedef float (*ae_progress)(struct AssetEngine *engine, const int job_id);
+
+/* To force end of given job (e.g. because it was cancelled by user...). */
+typedef void (*ae_kill)(struct AssetEngine *engine, const int job_id);
 
 /* ***** All callbacks below shall be non-blocking (i.e. return immediately). ***** */
 /* Those callbacks will be called from a 'fake-job' start *and* update functions (i.e. main thread, working one will
@@ -139,6 +144,8 @@ typedef struct AssetEngineType {
 	/* API */
 	ae_status status;
 	ae_progress progress;
+
+	ae_kill kill;
 
 	ae_list_dir list_dir;
 	ae_ensure_entries ensure_entries;

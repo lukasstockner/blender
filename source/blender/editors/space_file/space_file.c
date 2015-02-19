@@ -39,13 +39,14 @@
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
 
+#include "RNA_access.h"
+#include "RNA_types.h"
 
 #include "BKE_appdir.h"
+#include "BKE_asset.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_global.h"
-
-#include "RNA_access.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -205,6 +206,11 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 	struct FSMenu *fsmenu = ED_fsmenu_get();
+	AssetEngineType *aet = NULL;
+
+	if (!STREQ(sfile->asset_engine, AE_FAKE_ENGINE_ID)) {
+		aet = BKE_asset_engines_find(sfile->asset_engine);
+	}
 
 	if (!sfile->folders_prev) {
 		sfile->folders_prev = folderlist_new();
@@ -213,6 +219,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		sfile->files = filelist_new(params->type);
 		params->active_file = -1; /* added this so it opens nicer (ton) */
 	}
+	filelist_assetengine_set(sfile->files, aet);
 	filelist_setdir(sfile->files, params->dir);
 	filelist_setrecursion(sfile->files, params->recursion_level);
 	filelist_setsorting(sfile->files, params->sort);

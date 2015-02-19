@@ -622,6 +622,8 @@ typedef struct SpaceFile {
 	
 	int scroll_offset;
 
+	char asset_engine[64];  /* BKE_ST_MAXNAME */
+
 	struct FileSelectParams *params; /* config and input for file select */
 	
 	struct FileList *files; /* holds the list of files to show */

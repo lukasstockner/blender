@@ -37,6 +37,7 @@
 extern "C" {
 #endif
 
+struct AssetEngineType;
 struct BlendHandle;
 struct FileList;
 struct FileSelection;
@@ -89,6 +90,8 @@ int                 filelist_geticon(struct FileList *filelist, const int index,
 struct FileList *   filelist_new(short type);
 void                filelist_clear(struct FileList *filelist);
 void                filelist_free(struct FileList *filelist);
+
+void                filelist_assetengine_set(struct FileList *filelist, struct AssetEngineType *aet);
 
 const char *        filelist_dir(struct FileList *filelist);
 void                filelist_setdir(struct FileList *filelist, char *r_dir);

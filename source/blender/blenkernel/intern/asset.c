@@ -59,6 +59,13 @@ ListBase asset_engines = {NULL, NULL};
 
 void BKE_asset_engines_init(void)
 {
+	/* We just add a dummy engine, which 'is' our intern filelisting code from space_file! */
+	AssetEngineType *aet = MEM_callocN(sizeof(*aet), __func__);
+
+	BLI_strncpy(aet->idname, AE_FAKE_ENGINE_ID, sizeof(aet->idname));
+	BLI_strncpy(aet->name, "None", sizeof(aet->name));
+
+	BLI_addhead(&asset_engines, aet);
 }
 
 void BKE_asset_engines_exit(void)
