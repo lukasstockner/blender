@@ -183,6 +183,8 @@ static void operatortypes_fluid(void)
 static void operatortypes_pointcache(void)
 {
 	WM_operatortype_append(PTCACHE_OT_export);
+	
+	WM_operatortype_append(CACHELIBRARY_OT_new);
 }
 
 /********************************* dynamic paint ***********************************/

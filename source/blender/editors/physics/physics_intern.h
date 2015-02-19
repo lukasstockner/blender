@@ -103,6 +103,8 @@ void DPAINT_OT_output_toggle(struct wmOperatorType *ot);
 /* physics_pointcache.c */
 void PTCACHE_OT_export(struct wmOperatorType *ot);
 
+void CACHELIBRARY_OT_new(struct wmOperatorType *ot);
+
 /* rigidbody_object.c */
 void RIGIDBODY_OT_object_add(struct wmOperatorType *ot);
 void RIGIDBODY_OT_object_remove(struct wmOperatorType *ot);

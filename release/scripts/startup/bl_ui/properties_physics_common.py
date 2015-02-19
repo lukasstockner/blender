@@ -118,7 +118,7 @@ def point_cache_ui(self, context, cache_user, cache, enabled, cachetype):
     layout.context_pointer_set("point_cache", cache)
     layout.context_pointer_set("point_cache_user", cache_user)
 
-    layout.template_ID(cache, "cache_library")
+    layout.template_ID(cache, "cache_library", new="cachelibrary.new")
 
     row = layout.row()
     if supports_external:

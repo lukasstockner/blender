@@ -39,6 +39,7 @@
 #include <stdio.h> /* for FILE */
 
 CacheLibrary *BKE_cache_library_add(struct Main *bmain, const char *name);
+CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib);
 void BKE_cache_library_free(CacheLibrary *cache);
 
 /* Point cache reset options */

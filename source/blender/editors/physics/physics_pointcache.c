@@ -57,6 +57,10 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "UI_interface.h"
+
+#include "BLF_translation.h"
+
 #include "RNA_access.h"
 #include "RNA_define.h"
 
@@ -218,4 +222,54 @@ void PTCACHE_OT_export(wmOperatorType *ot)
 	/* flags */
 	/* no undo for this operator, cannot restore old cache files anyway */
 	ot->flag = OPTYPE_REGISTER;
+}
+
+
+/********************** new material operator *********************/
+
+static int new_cachelib_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	CacheLibrary *cachelib = CTX_data_pointer_get_type(C, "cachelib", &RNA_CacheLibrary).data;
+	Main *bmain = CTX_data_main(C);
+	PointerRNA ptr, idptr;
+	PropertyRNA *prop;
+	
+	/* add or copy material */
+	if (cachelib) {
+		cachelib = BKE_cache_library_copy(cachelib);
+	}
+	else {
+		cachelib = BKE_cache_library_add(bmain, DATA_("CacheLibrary"));
+	}
+	
+	/* hook into UI */
+	UI_context_active_but_prop_get_templateID(C, &ptr, &prop);
+	
+	if (prop) {
+		/* when creating new ID blocks, use is already 1, but RNA
+		 * pointer se also increases user, so this compensates it */
+		cachelib->id.us--;
+		
+		RNA_id_pointer_create(&cachelib->id, &idptr);
+		RNA_property_pointer_set(&ptr, prop, idptr);
+		RNA_property_update(C, &ptr, prop);
+	}
+	
+	WM_event_add_notifier(C, NC_OBJECT, cachelib);
+	
+	return OPERATOR_FINISHED;
+}
+
+void CACHELIBRARY_OT_new(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "New Cache Library";
+	ot->idname = "CACHELIBRARY_OT_new";
+	ot->description = "Add a new cache library";
+	
+	/* api callbacks */
+	ot->exec = new_cachelib_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
 }

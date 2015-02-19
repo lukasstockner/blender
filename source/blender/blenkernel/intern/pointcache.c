@@ -106,10 +106,6 @@
 #endif
 
 
-void BKE_cache_library_free(CacheLibrary *UNUSED(cache))
-{
-}
-
 CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 {
 	CacheLibrary *cachelib;
@@ -117,6 +113,25 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 	cachelib = BKE_libblock_alloc(bmain, ID_CL, name);
 
 	return cachelib;
+}
+
+/* XXX keep synced with next function */
+CacheLibrary *BKE_cache_library_copy(CacheLibrary *cachelib)
+{
+	CacheLibrary *cachelibn;
+	int a;
+	
+	cachelibn = BKE_libblock_copy(&cachelib->id);
+	
+	if (cachelib->id.lib) {
+		BKE_id_lib_local_paths(G.main, cachelib->id.lib, &cachelibn->id);
+	}
+	
+	return cachelibn;
+}
+
+void BKE_cache_library_free(CacheLibrary *UNUSED(cache))
+{
 }
 
 
