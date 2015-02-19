@@ -21,8 +21,10 @@
 #include "util_path.h"
 
 extern "C" {
+#include "BLI_fileops.h"
 #include "BLI_path_util.h"
 #include "BLI_string.h"
+#include "BLI_utildefines.h"
 
 #include "DNA_ID.h"
 #include "DNA_pointcache_types.h"
@@ -34,86 +36,65 @@ extern "C" {
 
 namespace PTC {
 
-/* XXX do we want to use BLI C string functions here? just copied from BKE_pointcache for now */
-
-static int ptc_path(char *filename, const char *path, ID *id, bool is_external, bool ignore_libpath)
+BLI_INLINE bool path_is_rel(const std::string &path)
 {
-	Library *lib = id ? id->lib : NULL;
-	const char *blendfilename= (lib && !ignore_libpath) ? lib->filepath: G.main->name;
-
-	if (path && is_external) {
-		strcpy(filename, path);
-
-		if (BLI_path_is_rel(filename)) {
-			BLI_path_abs(filename, blendfilename);
-		}
-	}
-	else if (G.relbase_valid || lib) {
-		char file[FILE_MAXFILE]; /* we don't want the dir, only the file */
-
-		BLI_split_file_part(blendfilename, file, sizeof(file));
-		BLI_replace_extension(file, sizeof(file), ""); /* remove extension */
-		BLI_snprintf(filename, FILE_MAX, "//" PTC_DIRECTORY "%s", file); /* add blend file name to pointcache dir */
-		BLI_path_abs(filename, blendfilename);
-	}
-	else {
-		/* use the temp path. this is weak but better then not using point cache at all */
-		/* temporary directory is assumed to exist and ALWAYS has a trailing slash */
-		BLI_snprintf(filename, FILE_MAX, "%s" PTC_DIRECTORY, BKE_tempdir_session());
-	}
-	
-	return BLI_add_slash(filename); /* new strlen() */
+	return BLI_path_is_rel(path.c_str());
 }
 
-static int ptc_filename(char *filename, const char *name, int index, const char *path, ID *id,
-                        bool do_path, bool do_ext, bool is_external, bool ignore_libpath)
+BLI_INLINE bool is_dir(const std::string &path)
 {
-	char *newname;
-	int len = 0;
-	filename[0] = '\0';
-	newname = filename;
-	
-	if (!G.relbase_valid && !is_external)
-		return 0; /* save blend file before using disk pointcache */
-	
-	/* start with temp dir */
-	if (do_path) {
-		len = ptc_path(filename, path, id, is_external, ignore_libpath);
-		newname += len;
-	}
-	if (name[0] == '\0' && !is_external) {
-		const char *idname = (id->name + 2);
-		/* convert chars to hex so they are always a valid filename */
-		while ('\0' != *idname) {
-			BLI_snprintf(newname, FILE_MAX, "%02X", (char)(*idname++));
-			newname += 2;
-			len += 2;
-		}
-	}
-	else {
-		int namelen = (int)strlen(name); 
-		strcpy(newname, name); 
-		newname += namelen;
-		len += namelen;
-	}
-	
-	if (do_ext) {
-		if (index < 0 || !is_external) {
-			len += BLI_snprintf(newname, FILE_MAX, PTC_EXTENSION);
-		}
-		else {
-			len += BLI_snprintf(newname, FILE_MAX, "_%02u" PTC_EXTENSION, index);
-		}
-	}
-	
-	return len;
+	return BLI_is_dir(path.c_str());
 }
 
-std::string ptc_archive_path(PointCache *cache, ID *id)
+BLI_INLINE bool path_is_dirpath(const std::string &path)
 {
-	char filename[FILE_MAX];
-	ptc_filename(filename, cache->name, cache->index, cache->path, id, true, true, cache->flag & PTC_EXTERNAL, cache->flag & PTC_IGNORE_LIBPATH);
-	return std::string(filename);
+	/* last char is a slash? */
+	return *(BLI_last_slash(path.c_str()) + 1) == '\0';
+}
+
+BLI_INLINE std::string path_join_dirfile(const std::string &dir, const std::string &file)
+{
+	char path[FILE_MAX];
+	BLI_join_dirfile(path, sizeof(path), dir.c_str(), file.c_str());
+	return std::string(path);
+}
+
+BLI_INLINE std::string path_abs(const std::string &path, const std::string &basepath)
+{
+	char npath[FILE_MAX];
+	BLI_strncpy(npath, path.c_str(), sizeof(npath));
+	BLI_path_abs(npath, basepath.c_str());
+	return std::string(npath);
+}
+
+bool ptc_archive_path(CacheLibrary *cachelib, std::string &filepath, Library *lib)
+{
+	filepath = "";
+	
+	if (!cachelib)
+		return false;
+	
+	std::string abspath;
+	if (path_is_rel(cachelib->filepath)) {
+		if (G.relbase_valid || lib) {
+			std::string relbase = lib ? lib->filepath: G.main->name;
+			abspath = path_abs(cachelib->filepath, relbase);
+		}
+		else
+			return false;
+	}
+	else {
+		abspath = cachelib->filepath;
+	}
+	
+	if (path_is_dirpath(abspath) || is_dir(abspath)) {
+		filepath = path_join_dirfile(abspath, cachelib->id.name+2);
+	}
+	else {
+		filepath = abspath;
+	}
+	
+	return true;
 }
 
 } /* namespace PTC */

@@ -22,15 +22,12 @@
 #include <string>
 
 struct ID;
-struct PointCache;
+struct CacheLibrary;
+struct Library;
 
 namespace PTC {
 
-/* XXX make these configurable, just copied from BKE_pointcache for now */
-#define PTC_EXTENSION ".abc"
-#define PTC_DIRECTORY "blendcache_"
-
-std::string ptc_archive_path(PointCache *cache, ID *id);
+bool ptc_archive_path(CacheLibrary *cachelib, std::string &filepath, Library *lib);
 
 } /* namespace PTC */
 
