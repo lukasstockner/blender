@@ -2,11 +2,11 @@
 
 #include "testing/testing.h"
 
-#define BLI_INLINE
-
 extern "C" {
 #include "MEM_guardedalloc.h"
+#include "BLI_utildefines.h"
 #include "BLI_ghash.h"
+#include "BLI_rand.h"
 #include "BLI_string.h"
 #include "PIL_time_utildefines.h"
 }
@@ -128,164 +128,250 @@ Vivamus eu ligula blandit, imperdiet arcu at, rutrum sem. Aliquam erat volutpat.
 Nullam eget malesuada justo, at molestie quam. Sed consequat massa eu faucibus maximus. Curabitur placerat orci sapien, sit amet semper magna sodales non. Ut fermentum accumsan odio in consectetur. Morbi neque mi, vulputate nec mi ut, cursus scelerisque lectus. Nulla sapien enim, finibus id ipsum luctus, consequat ullamcorper lectus. Sed volutpat sed massa in sodales. Morbi lacinia diam eu commodo vulputate. Fusce aliquet pulvinar dolor in egestas. Fusce molestie commodo leo eu ultricies. Nulla mollis rhoncus pharetra. Pellentesque rutrum mauris ac lorem posuere, a eleifend mi rutrum. Nulla porta turpis aliquet felis congue rutrum. Fusce quis arcu in sem placerat condimentum a ut turpis. Quisque quis porttitor nulla. Donec sit amet quam tincidunt, pulvinar erat id, molestie dolor.\
 Praesent luctus vitae nunc vitae pellentesque. Praesent faucibus sed urna ut lacinia. Vivamus id justo quis dolor porta rutrum nec nec odio. Cras euismod tortor quis diam ultrices, eu mattis nisi consectetur. Fusce mattis nisi vel condimentum molestie. Fusce fringilla ut nibh volutpat elementum. Mauris posuere consectetur leo a aliquet. Donec quis sodales sapien. Maecenas ut felis tempus, eleifend mauris et, faucibus mi. Quisque fringilla orci arcu, sit amet porta risus hendrerit non. Aenean id sem nisi. Nullam non nisl vestibulum, pellentesque nisl et, imperdiet ligula. Sed laoreet fringilla felis. Proin ac dolor viverra tellus mollis aliquet eget et neque. Suspendisse mattis nulla vitae nulla sagittis blandit. Sed at tortor rutrum, ornare magna nec, pellentesque nisi. Etiam non aliquet tellus. Aliquam at ex suscipit, posuere sem sit amet, tincidunt.";
 
+/* Using http://corpora.uni-leipzig.de/downloads/eng_wikipedia_2010_1M-text.tar.gz (1 million of words, about 122MB of text)
+ * from http://corpora.informatik.uni-leipzig.de/download.html */
+#define TEXT_CORPUS_PATH "/home/i74700deb64/Téléchargements/eng_wikipedia_2010_1M-text/eng_wikipedia_2010_1M-sentences.txt"
+
+#define PRINTF_GHASH_STATS(_gh) \
+{ \
+	double q, lf; \
+	int minb, maxb; \
+	q = BLI_ghash_calc_quality((_gh), &lf, &minb, &maxb); \
+	printf("GHash stats:\n\tQuality (the lower the better): %f\n\tLoad: %f\n\tSmallest bucket: %d\n\tBiggest bucket: %d\n", \
+	       q, lf, minb, maxb); \
+} void (0)
+
+
+/* Str: whole text, lines and words from a 'corpus' text. */
+
+static void str_ghash_tests(GHash *ghash, const char *id)
+{
+	printf("\n========== SARTING %s ==========\n", id);
+
+#ifdef TEXT_CORPUS_PATH
+	size_t sz = 0;
+	char *data;
+	{
+		struct stat st;
+		if (stat(TEXT_CORPUS_PATH, &st) == 0)
+			sz = st.st_size;
+	}
+	if (sz != 0) {
+		FILE *f = fopen(TEXT_CORPUS_PATH, "r");
+
+		data = (char *)MEM_mallocN(sz + 1, __func__);
+		if (fread(data, sizeof(*data), sz, f) != sz) {
+			printf("ERROR in reading file %s!", TEXT_CORPUS_PATH);
+			MEM_freeN(data);
+			data = BLI_strdup(words10k);
+		}
+		data[sz] = '\0';
+		fclose(f);
+	}
+	else {
+		data = BLI_strdup(words10k);
+	}
+#else
+	char *data = BLI_strdup(words10k);
+#endif
+	char *data_p = BLI_strdup(data);
+	char *data_w = BLI_strdup(data);
+	char *data_bis = BLI_strdup(data);
+
+	{
+		char *p, *w, *c_p, *c_w;
+
+		TIMEIT_START(string_insert);
+
+		BLI_ghash_insert(ghash, data, SET_INT_IN_POINTER(data[0]));
+
+		for (p = c_p = data_p, w = c_w = data_w; *c_w; c_w++, c_p++) {
+			if (*c_p == '\n') {
+				*c_p = *c_w = '\0';
+				BLI_ghash_add(ghash, p, SET_INT_IN_POINTER(p[0]));
+				BLI_ghash_add(ghash, w, SET_INT_IN_POINTER(w[0]));
+				p = c_p + 1;
+				w = c_w + 1;
+			}
+			else if (*c_w == ' ') {
+				*c_w = '\0';
+				BLI_ghash_add(ghash, w, SET_INT_IN_POINTER(w[0]));
+				w = c_w + 1;
+			}
+		}
+
+		TIMEIT_END(string_insert);
+	}
+
+	PRINTF_GHASH_STATS(ghash);
+
+	{
+		char *p, *w, *c;
+		void *v;
+
+		TIMEIT_START(string_lookup);
+
+		v = BLI_ghash_lookup(ghash, data_bis);
+		EXPECT_EQ(data_bis[0], GET_INT_FROM_POINTER(v));
+
+		for (p = w = c = data_bis; *c; c++) {
+			if (*c == '\n') {
+				*c = '\0';
+				v = BLI_ghash_lookup(ghash, w);
+				EXPECT_EQ(w[0], GET_INT_FROM_POINTER(v));
+				v = BLI_ghash_lookup(ghash, p);
+				EXPECT_EQ(p[0], GET_INT_FROM_POINTER(v));
+				p = w = c + 1;
+			}
+			else if (*c == ' ') {
+				*c = '\0';
+				v = BLI_ghash_lookup(ghash, w);
+				EXPECT_EQ(w[0], GET_INT_FROM_POINTER(v));
+				w = c + 1;
+			}
+		}
+
+		TIMEIT_END(string_lookup);
+	}
+
+	BLI_ghash_free(ghash, NULL, NULL);
+	MEM_freeN(data);
+	MEM_freeN(data_p);
+	MEM_freeN(data_w);
+	MEM_freeN(data_bis);
+
+	printf("========== ENDED %s ==========\n\n", id);
+}
 
 TEST(ghash, TextGHash)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
-	char *data = BLI_strdup(words10k);
-	char *p, *w, *c;
 
-	TIMEIT_START(string_ghash_insert);
-
-	BLI_ghash_insert(ghash, data, data);
-
-	for (p = w = c = data; *c; c++) {
-		if (*c == '\n') {
-			*c = '\0';
-			if (!BLI_ghash_haskey(ghash, w)) {
-				BLI_ghash_insert(ghash, w, w);
-			}
-			if (!BLI_ghash_haskey(ghash, p)) {
-				BLI_ghash_insert(ghash, p, p);
-			}
-			*c = '\n';
-			p = w = c + 1;
-		}
-		else if (*c == ' ') {
-			*c = '\0';
-			if (!BLI_ghash_haskey(ghash, w)) {
-				BLI_ghash_insert(ghash, w, w);
-			}
-			*c = ' ';
-			w = c + 1;
-		}
-	}
-
-	TIMEIT_END(string_ghash_insert);
-
-	printf("GHash quality (the lower the better): %f\n", BLI_ghash_calc_quality(ghash));
-
-	BLI_ghash_free(ghash, NULL, NULL);
-	MEM_freeN(data);
+	str_ghash_tests(ghash, "StrGHash - GHash");
 }
 
 TEST(ghash, TextMurmur2a)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_strhash_p_murmur, BLI_ghashutil_strcmp, __func__);
-	char *data = BLI_strdup(words10k);
-	char *p, *w, *c;
 
-	TIMEIT_START(string_murmur_insert);
-
-	BLI_ghash_insert(ghash, data, data);
-
-	for (p = w = c = data; *c; c++) {
-		if (*c == '\n') {
-			*c = '\0';
-			if (!BLI_ghash_haskey(ghash, w)) {
-				BLI_ghash_insert(ghash, w, w);
-			}
-			if (!BLI_ghash_haskey(ghash, p)) {
-				BLI_ghash_insert(ghash, p, p);
-			}
-			*c = '\n';
-			p = w = c + 1;
-		}
-		else if (*c == ' ') {
-			*c = '\0';
-			if (!BLI_ghash_haskey(ghash, w)) {
-				BLI_ghash_insert(ghash, w, w);
-			}
-			*c = ' ';
-			w = c + 1;
-		}
-	}
-
-	TIMEIT_END(string_murmur_insert);
-
-	printf("GHash quality (the lower the better): %f\n", BLI_ghash_calc_quality(ghash));
-
-	BLI_ghash_free(ghash, NULL, NULL);
-	MEM_freeN(data);
+	str_ghash_tests(ghash, "StrGHash - Murmur");
 }
 
+
+/* Int: uniform 50M first integers. */
+
+static void int_ghash_tests(GHash *ghash, const char *id)
+{
+	printf("\n========== SARTING %s ==========\n", id);
+
+	const unsigned int nbr = 50000000;
+	{
+		unsigned int i = nbr;
+
+		TIMEIT_START(int_insert);
+
+		while (i--) {
+			BLI_ghash_insert(ghash, SET_UINT_IN_POINTER(i), SET_UINT_IN_POINTER(i));
+		}
+
+		TIMEIT_END(int_insert);
+	}
+
+	PRINTF_GHASH_STATS(ghash);
+
+	{
+		unsigned int i = nbr;
+
+		TIMEIT_START(int_lookup);
+
+		while (i--) {
+			void *v = BLI_ghash_lookup(ghash, SET_UINT_IN_POINTER(i));
+			EXPECT_EQ(i, GET_UINT_FROM_POINTER(v));
+		}
+
+		TIMEIT_END(int_lookup);
+	}
+
+	BLI_ghash_free(ghash, NULL, NULL);
+
+	printf("========== ENDED %s ==========\n\n", id);
+}
 
 TEST(ghash, IntGHash)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	unsigned int i = 10000000;
 
-	TIMEIT_START(int_ghash_insert);
-
-	while (i--) {
-		BLI_ghash_insert(ghash, &i, NULL);
-	}
-
-	TIMEIT_END(int_ghash_insert);
-
-	printf("GHash quality (the lower the better): %f\n", BLI_ghash_calc_quality(ghash));
-
-	BLI_ghash_free(ghash, NULL, NULL);
+	int_ghash_tests(ghash, "IntGHash - GHash");
 }
 
 TEST(ghash, IntMurmur2a)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
-	unsigned int i = 10000000;
 
-	TIMEIT_START(int_murmur_insert);
+	int_ghash_tests(ghash, "IntGHash - Murmur");
+}
 
-	while (i--) {
-		BLI_ghash_insert(ghash, &i, NULL);
+
+/* Int_v4: 10M of randomly-generated integer vectors. */
+
+static void int4_ghash_tests(GHash *ghash, const char *id)
+{
+	printf("\n========== SARTING %s ==========\n", id);
+
+	const unsigned int nbr = 10000000;
+	unsigned int (*data)[4] = (unsigned int (*)[4])MEM_mallocN(sizeof(*data) * (size_t)nbr, __func__);
+	unsigned int (*dt)[4];
+	unsigned int i, j;
+
+	{
+		RNG *rng = BLI_rng_new(0);
+		for (i = nbr, dt = data; i--; dt++) {
+			for (j = 4; j--; ) {
+				(*dt)[j] = BLI_rng_get_uint(rng);
+			}
+		}
+		BLI_rng_free(rng);
 	}
 
-	TIMEIT_END(int_murmur_insert);
+	{
+		TIMEIT_START(int_v4_insert);
 
-	printf("GHash quality (the lower the better): %f\n", BLI_ghash_calc_quality(ghash));
+		for (i = nbr, dt = data; i--; dt++) {
+			BLI_ghash_insert(ghash, *dt, SET_UINT_IN_POINTER(i));
+		}
+
+		TIMEIT_END(int_v4_insert);
+	}
+
+	PRINTF_GHASH_STATS(ghash);
+
+	{
+		TIMEIT_START(int_v4_lookup);
+
+		for (i = nbr, dt = data; i--; dt++) {
+			void *v = BLI_ghash_lookup(ghash, (void *)(*dt));
+			EXPECT_EQ(i, GET_UINT_FROM_POINTER(v));
+		}
+
+		TIMEIT_END(int_v4_lookup);
+	}
 
 	BLI_ghash_free(ghash, NULL, NULL);
+	MEM_freeN(data);
+
+	printf("========== ENDED %s ==========\n\n", id);
 }
 
 TEST(ghash, Int4GHash)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
-	unsigned int i[4] = {10000000, 0, 10000000, 70000000};
 
-	TIMEIT_START(int_v4_ghash_insert);
-
-	while (i[0]) {
-		BLI_ghash_insert(ghash, i, NULL);
-		i[0]--;
-		i[1]--;
-		i[2]--;
-		i[3]--;
-	}
-
-	TIMEIT_END(int_v4_ghash_insert);
-
-	printf("GHash quality (the lower the better): %f\n", BLI_ghash_calc_quality(ghash));
-
-	BLI_ghash_free(ghash, NULL, NULL);
+	int4_ghash_tests(ghash, "Int4GHash - GHash");
 }
 
 TEST(ghash, Int4Murmur2a)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p_murmur, BLI_ghashutil_uinthash_v4_cmp, __func__);
-	unsigned int i[4] = {10000000, 0, 10000000, 70000000};
 
-	TIMEIT_START(int_v4_murmur_insert);
-
-	while (i[0]) {
-		BLI_ghash_insert(ghash, i, NULL);
-		i[0]--;
-		i[1]--;
-		i[2]--;
-		i[3]--;
-	}
-
-	TIMEIT_END(int_v4_murmur_insert);
-
-	printf("GHash quality (the lower the better): %f\n", BLI_ghash_calc_quality(ghash));
-
-	BLI_ghash_free(ghash, NULL, NULL);
+	int4_ghash_tests(ghash, "Int4GHash - Murmur");
 }

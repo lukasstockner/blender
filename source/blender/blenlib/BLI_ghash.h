@@ -64,6 +64,7 @@ GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
 GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 void   BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 void   BLI_ghash_insert(GHash *gh, void *key, void *val);
+bool   BLI_ghash_add(GHash *gh, void *key, void *val);
 bool   BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 void  *BLI_ghash_lookup(GHash *gh, const void *key) ATTR_WARN_UNUSED_RESULT;
 void  *BLI_ghash_lookup_default(GHash *gh, const void *key, void *val_default) ATTR_WARN_UNUSED_RESULT;
@@ -134,21 +135,30 @@ bool            BLI_ghashutil_strcmp(const void *a, const void *b);
                 CHECK_TYPE_ANY(&(key), int *, const int *), \
                 BLI_ghashutil_uinthash((unsigned int)key))
 unsigned int    BLI_ghashutil_uinthash(unsigned int key);
+unsigned int    BLI_ghashutil_inthash_p(const void *ptr);
+unsigned int    BLI_ghashutil_inthash_p_murmur(const void *ptr);
+bool            BLI_ghashutil_intcmp(const void *a, const void *b);
+
+
+unsigned int    BLI_ghashutil_uinthash_v4(const unsigned int key[4]);
 #define         BLI_ghashutil_inthash_v4(key) ( \
                 CHECK_TYPE_ANY(key, int *, const int *), \
                 BLI_ghashutil_uinthash_v4((const unsigned int *)key))
-unsigned int    BLI_ghashutil_uinthash_v4(const unsigned int key[4]);
 #define         BLI_ghashutil_inthash_v4_p \
    ((GSetHashFP)BLI_ghashutil_uinthash_v4)
 #define         BLI_ghashutil_uinthash_v4_p \
    ((GSetHashFP)BLI_ghashutil_uinthash_v4)
-unsigned int    BLI_ghashutil_uinthash_v4_p_murmur(const void *ptr);
+unsigned int    BLI_ghashutil_uinthash_v4_murmur(const unsigned int key[4]);
+#define         BLI_ghashutil_inthash_v4_murmur(key) ( \
+                CHECK_TYPE_ANY(key, int *, const int *), \
+                BLI_ghashutil_uinthash_v4_murmur((const unsigned int *)key))
+#define         BLI_ghashutil_inthash_v4_p_murmur \
+   ((GSetHashFP)BLI_ghashutil_uinthash_v4_murmur)
+#define         BLI_ghashutil_uinthash_v4_p_murmur \
+   ((GSetHashFP)BLI_ghashutil_uinthash_v4_murmur)
 bool            BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b);
 #define         BLI_ghashutil_inthash_v4_cmp \
                 BLI_ghashutil_uinthash_v4_cmp
-unsigned int    BLI_ghashutil_inthash_p(const void *ptr);
-unsigned int    BLI_ghashutil_inthash_p_murmur(const void *ptr);
-bool            BLI_ghashutil_intcmp(const void *a, const void *b);
 
 /** \} */
 
@@ -235,8 +245,8 @@ BLI_INLINE bool BLI_gsetIterator_done(GSetIterator *gsi) { return BLI_ghashItera
 	     BLI_gsetIterator_step(&gs_iter_), i_++)
 
 //~ #ifdef DEBUG
-double BLI_ghash_calc_quality(GHash *gh);
-double BLI_gset_calc_quality(GSet *gs);
+double BLI_ghash_calc_quality(GHash *gh, double *r_load, int *r_min_bucket, int *r_max_bucket);
+double BLI_gset_calc_quality(GSet *gs, double *r_load, int *r_min_bucket, int *r_max_bucket);
 //~ #endif
 
 #ifdef __cplusplus

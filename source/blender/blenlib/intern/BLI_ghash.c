@@ -361,6 +361,26 @@ void BLI_ghash_insert(GHash *gh, void *key, void *val)
 }
 
 /**
+ * Like #BLI_ghash_insert, but does nothing in case \a key is already in the \a gh.
+ *
+ * Avoids #BLI_ghash_haskey, #BLI_ghash_insert calls (double lookups)
+ *
+ * \returns true if a new key has been added.
+ */
+bool BLI_ghash_add(GHash *gh, void *key, void *val)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	Entry *e = ghash_lookup_entry_ex(gh, key, hash);
+	if (e) {
+		return false;
+	}
+	else {
+		ghash_insert_ex(gh, key, val, hash);
+		return true;
+	}
+}
+
+/**
  * Inserts a new value to a key that may already be in ghash.
  *
  * Avoids #BLI_ghash_remove, #BLI_ghash_insert calls (double lookups)
@@ -717,11 +737,9 @@ unsigned int BLI_ghashutil_uinthash_v4(const unsigned int key[4])
 	hash += key[3];
 	return hash;
 }
-unsigned int BLI_ghashutil_uinthash_v4_p_murmur(const void *ptr)
+unsigned int BLI_ghashutil_uinthash_v4_murmur(const unsigned int key[4])
 {
-	const unsigned int *key = ptr;
-
-	return BLI_hash_mm2((const unsigned char *)key, sizeof(*key) * 4, 0);
+	return BLI_hash_mm2((const unsigned char *)key, sizeof(key), 0);
 }
 
 bool BLI_ghashutil_uinthash_v4_cmp(const void *a, const void *b)
@@ -757,9 +775,9 @@ unsigned int BLI_ghashutil_inthash_p(const void *ptr)
 
 unsigned int BLI_ghashutil_inthash_p_murmur(const void *ptr)
 {
-	const unsigned int *key = ptr;
+	uintptr_t key = (uintptr_t)ptr;
 
-	return BLI_hash_mm2((const unsigned char *)key, sizeof(*key), 0);
+	return BLI_hash_mm2((const unsigned char *)&key, sizeof(key), 0);
 }
 
 bool BLI_ghashutil_intcmp(const void *a, const void *b)
@@ -802,7 +820,7 @@ unsigned int BLI_ghashutil_strhash_p_murmur(const void *ptr)
 {
 	const unsigned char *key = ptr;
 
-	return BLI_hash_mm2(key, strlen((const char *)key), 0);
+	return BLI_hash_mm2(key, strlen((const char *)key) + 1, 0);
 }
 bool BLI_ghashutil_strcmp(const void *a, const void *b)
 {
@@ -1044,37 +1062,68 @@ GSet *BLI_gset_pair_new(const char *info)
 
 /** \name Debugging & Introspection
  * \{ */
-//~ #ifdef DEBUG
+
+#include "BLI_math.h"
 
 /**
- * Measure how well the hash function performs
- * (1.0 is approx as good as random distribution).
+ * Measure how well the hash function performs, i.e. variance of the distribution of the entries in the buckets.
+ * (0.0 is approx as good as even distribution).
  *
  * Smaller is better!
  */
-double BLI_ghash_calc_quality(GHash *gh)
+double BLI_ghash_calc_quality(GHash *gh, double *r_load, int *r_min_bucket, int *r_max_bucket)
 {
-	uint64_t sum = 0;
+	double sum = 0.0;
+	double mean;
 	unsigned int i;
 
-	if (gh->nentries == 0)
-		return -1.0;
+	if (gh->nentries == 0) {
+		if (r_load) {
+			*r_load = 0.0;
+		}
+		if (r_min_bucket) {
+			*r_min_bucket = 0;
+		}
+		if (r_max_bucket) {
+			*r_max_bucket = 0;
+		}
 
+		return 0.0;
+	}
+
+	mean = (double)gh->nentries / (double)gh->nbuckets;
+	if (r_load) {
+		*r_load = mean;
+	}
+	if (r_min_bucket) {
+		*r_min_bucket = INT_MAX;
+	}
+	if (r_max_bucket) {
+		*r_max_bucket = 0;
+	}
+
+	/* We already know our mean (i.e. load factor), easy to compute variance.
+	 * See http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Two-pass_algorithm
+	 */
 	for (i = 0; i < gh->nbuckets; i++) {
-		uint64_t count = 0;
+		int count = 0;
 		Entry *e;
 		for (e = gh->buckets[i]; e; e = e->next) {
-			count += 1;
+			count++;
 		}
-		sum += count * (count + 1);
+		if (r_min_bucket) {
+			*r_min_bucket = min_ii(*r_min_bucket, (int)count);
+		}
+		if (r_max_bucket) {
+			*r_max_bucket = max_ii(*r_max_bucket, (int)count);
+		}
+		sum += ((double)count - mean) * ((double)count - mean);
 	}
-	return ((double)sum * (double)gh->nbuckets /
-	        ((double)gh->nentries * (gh->nentries + 2 * gh->nbuckets - 1)));
+	return sum / (double)(gh->nbuckets - 1);
 }
-double BLI_gset_calc_quality(GSet *gs)
+double BLI_gset_calc_quality(GSet *gs, double *r_load, int *r_min_bucket, int *r_max_bucket)
 {
-	return BLI_ghash_calc_quality((GHash *)gs);
+	return BLI_ghash_calc_quality((GHash *)gs, r_load, r_min_bucket, r_max_bucket);
 }
 
-//~ #endif
 /** \} */
