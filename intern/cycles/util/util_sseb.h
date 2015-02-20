@@ -12,7 +12,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __UTIL_SSEB_H__
@@ -152,6 +152,16 @@ __forceinline bool any       ( const sseb& b ) { return _mm_movemask_ps(b) != 0x
 __forceinline bool none      ( const sseb& b ) { return _mm_movemask_ps(b) == 0x0; }
 
 __forceinline size_t movemask( const sseb& a ) { return _mm_movemask_ps(a); }
+
+////////////////////////////////////////////////////////////////////////////////
+/// Debug Functions
+////////////////////////////////////////////////////////////////////////////////
+
+ccl_device_inline void print_sseb(const char *label, const sseb &a)
+{
+	printf("%s: %df %df %df %d\n",
+	       label, a[0], a[1], a[2], a[3]);
+}
 
 #endif
 

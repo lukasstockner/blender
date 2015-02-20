@@ -195,6 +195,7 @@ static void setCallbacks(void);
 #ifndef WITH_PYTHON_MODULE
 
 static bool use_crash_handler = true;
+static bool use_abort_handler = true;
 
 /* set breakpoints here when running in debug mode, useful to catch floating point errors */
 #if defined(__linux__) || defined(_WIN32) || defined(OSX_SSE_FPE)
@@ -418,6 +419,12 @@ static int disable_crash_handler(int UNUSED(argc), const char **UNUSED(argv), vo
 	return 0;
 }
 
+static int disable_abort_handler(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	use_abort_handler = false;
+	return 0;
+}
+
 static int background_mode(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
 	G.background = 1;
@@ -590,6 +597,11 @@ static void blender_crash_handler(int signum)
 #endif
 }
 
+static void blender_abort_handler(int UNUSED(signum))
+{
+	/* Delete content of temp dir! */
+	BKE_tempdir_session_purge();
+}
 
 static int set_factory_startup(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
@@ -755,7 +767,7 @@ static int set_engine(int argc, const char **argv, void *data)
 {
 	bContext *C = data;
 	if (argc >= 2) {
-		if (!strcmp(argv[1], "help")) {
+		if (STREQ(argv[1], "help")) {
 			RenderEngineType *type = NULL;
 			printf("Blender Engine Listing:\n");
 			for (type = R_engines.first; type; type = type->next) {
@@ -773,6 +785,7 @@ static int set_engine(int argc, const char **argv, void *data)
 				}
 				else {
 					printf("\nError: engine not found '%s'\n", argv[1]);
+					exit(1);
 				}
 			}
 			else {
@@ -924,11 +937,11 @@ static int set_ge_parameters(int argc, const char **argv, void *data)
 			SYS_WriteCommandLineInt(syshandle, argv[a], 1);
 #endif
 			/* doMipMap */
-			if (!strcmp(argv[a], "nomipmap")) {
+			if (STREQ(argv[a], "nomipmap")) {
 				GPU_set_mipmap(0); //doMipMap = 0;
 			}
 			/* linearMipMap */
-			if (!strcmp(argv[a], "linearmipmap")) {
+			if (STREQ(argv[a], "linearmipmap")) {
 				GPU_set_linear_mipmap(1); //linearMipMap = 1;
 			}
 
@@ -1240,7 +1253,14 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 
 			CTX_wm_manager_set(C, NULL); /* remove wm to force check */
 			WM_check(C);
-			G.relbase_valid = 1;
+			if (bmain->name[0]) {
+				G.save_over = 1;
+				G.relbase_valid = 1;
+			}
+			else {
+				G.save_over = 0;
+				G.relbase_valid = 0;
+			}
 			if (CTX_wm_manager(C) == NULL) CTX_wm_manager_set(C, wm);  /* reset wm */
 
 			/* WM_file_read would call normally */
@@ -1346,6 +1366,7 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, "-Y", "--disable-autoexec", "\n\tDisable automatic python script execution (pydrivers & startup scripts)" PY_DISABLE_AUTO, disable_python, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--disable-crash-handler", "\n\tDisable the crash handler", disable_crash_handler, NULL);
+	BLI_argsAdd(ba, 1, NULL, "--disable-abort-handler", "\n\tDisable the abort handler", disable_abort_handler, NULL);
 
 #undef PY_ENABLE_AUTO
 #undef PY_DISABLE_AUTO
@@ -1551,7 +1572,22 @@ int main(
 #endif
 
 	setCallbacks();
+	
+#if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE)
+/* patch to ignore argument finder gives us (pid?) */
+	if (argc == 2 && STREQLEN(argv[1], "-psn_", 5)) {
+		extern int GHOST_HACK_getFirstFile(char buf[]);
+		static char firstfilebuf[512];
 
+		argc = 1;
+
+		if (GHOST_HACK_getFirstFile(firstfilebuf)) {
+			argc = 2;
+			argv[1] = firstfilebuf;
+		}
+	}
+#endif
+	
 #ifdef __FreeBSD__
 	fpsetmask(0);
 #endif
@@ -1590,6 +1626,10 @@ int main(
 	if (use_crash_handler) {
 		/* after parsing args */
 		signal(SIGSEGV, blender_crash_handler);
+	}
+
+	if (use_abort_handler) {
+		signal(SIGABRT, blender_abort_handler);
 	}
 #else
 	G.factory_startup = true;  /* using preferences or user startup makes no sense for py-as-module */

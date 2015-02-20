@@ -254,7 +254,7 @@ static int armature_select_linked_invoke(bContext *C, wmOperator *op, const wmEv
 
 static int armature_select_linked_poll(bContext *C)
 {
-	return (ED_operator_view3d_active(C) && ED_operator_editarmature(C) );
+	return (ED_operator_view3d_active(C) && ED_operator_editarmature(C));
 }
 
 void ARMATURE_OT_select_linked(wmOperatorType *ot)
@@ -485,7 +485,9 @@ bool mouse_armature(bContext *C, const int mval[2], bool extend, bool deselect, 
 
 	view3d_set_viewcontext(C, &vc);
 	
-	BIF_sk_selectStroke(C, mval, extend);
+	if (BIF_sk_selectStroke(C, mval, extend)) {
+		return true;
+	}
 	
 	nearBone = get_nearest_editbonepoint(&vc, mval, arm->edbo, 1, &selmask);
 	if (nearBone) {

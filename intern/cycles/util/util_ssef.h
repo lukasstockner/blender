@@ -12,7 +12,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __UTIL_SSEF_H__
@@ -578,6 +578,20 @@ template<size_t S1, size_t S2, size_t S3, size_t S4>
 ccl_device_inline const ssef set_sign_bit(const ssef &a)
 {
 	return a ^ cast(ssei(S1 << 31, S2 << 31, S3 << 31, S4 << 31));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Debug Functions
+////////////////////////////////////////////////////////////////////////////////
+
+ccl_device_inline void print_ssef(const char *label, const ssef &a)
+{
+	printf("%s: %.8f %.8f %.8f %.8f\n",
+	       label,
+	       (double)a[0],
+	       (double)a[1],
+	       (double)a[2],
+	       (double)a[3]);
 }
 
 #endif

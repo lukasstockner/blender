@@ -12,7 +12,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __UTIL_SSEI_H__
@@ -284,6 +284,16 @@ __forceinline void store4i_nt(void* ptr, const ssei& v) {
 #else
 	_mm_store_si128((__m128i*)ptr,v);
 #endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Debug Functions
+////////////////////////////////////////////////////////////////////////////////
+
+ccl_device_inline void print_ssei(const char *label, const ssei &a)
+{
+	printf("%s: %df %df %df %d\n",
+	       label, a[0], a[1], a[2], a[3]);
 }
 
 #endif

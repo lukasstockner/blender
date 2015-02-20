@@ -804,13 +804,13 @@ bool IDP_EqualsProperties_ex(IDProperty *prop1, IDProperty *prop2, const bool is
 		case IDP_STRING:
 		{
 			return (((prop1->len == prop2->len) &&
-			         strncmp(IDP_String(prop1), IDP_String(prop2), (size_t)prop1->len) == 0));
+			         STREQLEN(IDP_String(prop1), IDP_String(prop2), (size_t)prop1->len)));
 		}
 		case IDP_ARRAY:
 			if (prop1->len == prop2->len && prop1->subtype == prop2->subtype) {
 				return (memcmp(IDP_Array(prop1),
 				               IDP_Array(prop2),
-				               idp_size_table[(int)prop1->subtype] * (size_t)prop1->len));
+				               idp_size_table[(int)prop1->subtype] * (size_t)prop1->len) == 0);
 			}
 			return false;
 		case IDP_GROUP:

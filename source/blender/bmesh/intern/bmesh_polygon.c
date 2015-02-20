@@ -214,9 +214,6 @@ float BM_face_calc_area(BMFace *f)
 	if (f->len == 3) {
 		area = area_tri_v3(verts[0], verts[1], verts[2]);
 	}
-	else if (f->len == 4) {
-		area = area_quad_v3(verts[0], verts[1], verts[2], verts[3]);
-	}
 	else {
 		area = area_poly_v3((const float (*)[3])verts, f->len);
 	}
@@ -746,7 +743,9 @@ bool BM_face_point_inside_test(BMFace *f, const float co[3])
 void BM_face_triangulate(
         BMesh *bm, BMFace *f,
         BMFace **r_faces_new,
-        int *r_faces_new_tot,
+        int     *r_faces_new_tot,
+        BMEdge **r_edges_new,
+        int     *r_edges_new_tot,
         const int quad_method,
         const int ngon_method,
         const bool use_tag,
@@ -758,6 +757,7 @@ void BM_face_triangulate(
 	BMLoop *l_iter, *l_first, *l_new;
 	BMFace *f_new;
 	int nf_i = 0;
+	int ne_i = 0;
 	bool use_beauty = (ngon_method == MOD_TRIANGULATE_NGON_BEAUTY);
 
 	BLI_assert(BM_face_is_normal_valid(f));
@@ -783,38 +783,39 @@ void BM_face_triangulate(
 				break;
 			}
 			case MOD_TRIANGULATE_QUAD_SHORTEDGE:
-			{
-				BMLoop *l_v3, *l_v4;
-				float d1, d2;
-
-				l_v1 = l_first;
-				l_v2 = l_first->next->next;
-				l_v3 = l_first->next;
-				l_v4 = l_first->prev;
-
-				d1 = len_squared_v3v3(l_v1->v->co, l_v2->v->co);
-				d2 = len_squared_v3v3(l_v3->v->co, l_v4->v->co);
-
-				if (d2 < d1) {
-					l_v1 = l_v3;
-					l_v2 = l_v4;
-				}
-				break;
-			}
 			case MOD_TRIANGULATE_QUAD_BEAUTY:
 			default:
 			{
 				BMLoop *l_v3, *l_v4;
-				float cost;
+				bool split_24;
 
 				l_v1 = l_first->next;
 				l_v2 = l_first->next->next;
 				l_v3 = l_first->prev;
 				l_v4 = l_first;
 
-				cost = BM_verts_calc_rotate_beauty(l_v1->v, l_v2->v, l_v3->v, l_v4->v, 0, 0);
+				if (quad_method == MOD_TRIANGULATE_QUAD_SHORTEDGE) {
+					float d1, d2;
+					d1 = len_squared_v3v3(l_v4->v->co, l_v2->v->co);
+					d2 = len_squared_v3v3(l_v1->v->co, l_v3->v->co);
+					split_24 = ((d2 - d1) > 0.0f);
+				}
+				else {
+					/* first check if the quad is concave on either diagonal */
+					const int flip_flag = is_quad_flip_v3(l_v1->v->co, l_v2->v->co, l_v3->v->co, l_v4->v->co);
+					if (UNLIKELY(flip_flag & (1 << 0))) {
+						split_24 = true;
+					}
+					else if (UNLIKELY(flip_flag & (1 << 1))) {
+						split_24 = false;
+					}
+					else {
+						split_24 = (BM_verts_calc_rotate_beauty(l_v1->v, l_v2->v, l_v3->v, l_v4->v, 0, 0) > 0.0f);
+					}
+				}
 
-				if (cost < 0.0f) {
+				/* named confusingly, l_v1 is in fact the second vertex */
+				if (split_24) {
 					l_v1 = l_v4;
 					//l_v2 = l_v2;
 				}
@@ -836,6 +837,9 @@ void BM_face_triangulate(
 
 		if (r_faces_new) {
 			r_faces_new[nf_i++] = f_new;
+		}
+		if (r_edges_new) {
+			r_edges_new[ne_i++] = l_new->e;
 		}
 	}
 	else if (f->len > 4) {
@@ -897,8 +901,7 @@ void BM_face_triangulate(
 				}
 			}
 
-			/* we know any edge that we create and _isnt_ */
-			if (use_tag) {
+			if (use_tag || r_edges_new) {
 				/* new faces loops */
 				l_iter = l_first = l_new;
 				do {
@@ -908,7 +911,12 @@ void BM_face_triangulate(
 					bool is_new_edge = (l_iter == l_iter->radial_next);
 
 					if (is_new_edge) {
-						BM_elem_flag_enable(e, BM_ELEM_TAG);
+						if (use_tag) {
+							BM_elem_flag_enable(e, BM_ELEM_TAG);
+						}
+						if (r_edges_new) {
+							r_edges_new[ne_i++] = e;
+						}
 					}
 					/* note, never disable tag's */
 				} while ((l_iter = l_iter->next) != l_first);
@@ -926,6 +934,10 @@ void BM_face_triangulate(
 
 	if (r_faces_new_tot) {
 		*r_faces_new_tot = nf_i;
+	}
+
+	if (r_edges_new_tot) {
+		*r_edges_new_tot = ne_i;
 	}
 }
 

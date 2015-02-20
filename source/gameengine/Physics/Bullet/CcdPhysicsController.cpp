@@ -148,6 +148,7 @@ CcdPhysicsController::CcdPhysicsController (const CcdConstructionInfo& ci)
 	m_savedCollisionFilterGroup = 0;
 	m_savedCollisionFilterMask = 0;
 	m_savedMass = 0.0;
+	m_savedDyna = false;
 	m_suspended = false;
 	
 	CreateRigidbody();
@@ -207,6 +208,11 @@ btRigidBody* CcdPhysicsController::GetRigidBody()
 {
 	return btRigidBody::upcast(m_object);
 }
+const btRigidBody* CcdPhysicsController::GetRigidBody() const
+{
+	return btRigidBody::upcast(m_object);
+}
+
 btCollisionObject*	CcdPhysicsController::GetCollisionObject()
 {
 	return m_object;
@@ -1063,6 +1069,7 @@ void	CcdPhysicsController::SuspendDynamics(bool ghost)
 
 		m_savedCollisionFlags = body->getCollisionFlags();
 		m_savedMass = GetMass();
+		m_savedDyna = m_cci.m_bDyna;
 		m_savedCollisionFilterGroup = handle->m_collisionFilterGroup;
 		m_savedCollisionFilterMask = handle->m_collisionFilterMask;
 		m_suspended = true;
@@ -1071,6 +1078,7 @@ void	CcdPhysicsController::SuspendDynamics(bool ghost)
 			btCollisionObject::CF_STATIC_OBJECT|((ghost)?btCollisionObject::CF_NO_CONTACT_RESPONSE:(m_savedCollisionFlags&btCollisionObject::CF_NO_CONTACT_RESPONSE)),
 			btBroadphaseProxy::StaticFilter,
 			btBroadphaseProxy::AllFilter ^ btBroadphaseProxy::StaticFilter);
+		m_cci.m_bDyna = false;
 	}
 }
 
@@ -1087,6 +1095,7 @@ void	CcdPhysicsController::RestoreDynamics()
 			m_savedCollisionFilterGroup,
 			m_savedCollisionFilterMask);
 		body->activate();
+		m_cci.m_bDyna = m_savedDyna;
 		m_suspended = false;
 	}
 }
@@ -1354,6 +1363,42 @@ void		CcdPhysicsController::Jump()
 void		CcdPhysicsController::SetActive(bool active)
 {
 }
+
+float		CcdPhysicsController::GetLinearDamping() const
+{
+	const btRigidBody* body = GetRigidBody();
+	if (body)
+		return body->getLinearDamping();
+	return 0;
+}
+
+float		CcdPhysicsController::GetAngularDamping() const
+{
+	const	btRigidBody* body = GetRigidBody();
+	if (body)
+		return body->getAngularDamping();
+	return 0;
+}
+
+void		CcdPhysicsController::SetLinearDamping(float damping)
+{
+	SetDamping(damping, GetAngularDamping());
+}
+
+void		CcdPhysicsController::SetAngularDamping(float damping)
+{
+	SetDamping(GetLinearDamping(), damping);
+}
+
+void		CcdPhysicsController::SetDamping(float linear, float angular)
+{
+	btRigidBody* body = GetRigidBody();
+	if (!body) return;
+
+	body->setDamping(linear, angular);
+}
+
+
 		// reading out information from physics
 MT_Vector3		CcdPhysicsController::GetLinearVelocity()
 {

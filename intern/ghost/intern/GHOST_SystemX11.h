@@ -75,7 +75,7 @@ public:
 	/**
 	 * Destructor.
 	 */
-	virtual ~GHOST_SystemX11();
+	~GHOST_SystemX11();
 
 
 	GHOST_TSuccess
@@ -286,6 +286,12 @@ public:
 		int MotionEvent;
 		int ProxInEvent;
 		int ProxOutEvent;
+		int PressEvent;
+
+		int MotionEventEraser;
+		int ProxInEventEraser;
+		int ProxOutEventEraser;
+		int PressEventEraser;
 
 		int PressureLevels;
 		int XtiltLevels, YtiltLevels;
