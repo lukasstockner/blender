@@ -47,7 +47,7 @@
 #include "BLI_ghash.h"
 #include "BLI_strict_flags.h"
 
-//~ #define USE_MODULO_BUCKETS
+//#define USE_MODULO_BUCKETS
 
 #ifdef USE_MODULO_BUCKETS
 const unsigned int hashsizes[] = {
@@ -57,11 +57,12 @@ const unsigned int hashsizes[] = {
 	268435459
 };
 #else
+#define BTM(_b) ((1 << (_b)))
 const unsigned int hashsizes[] = {
-	3, 7, 15, 31, 63, 127, 255, 511, 1023, 2047, 4095, 8191,
-	16383, 32767, 65535, 131071, 262143, 524287, 1048575, 2097151,
-	4194303, 8388607, 16777215, 33554431, 67108863, 134217727,
-	268435455
+    BTM( 2), BTM( 3), BTM( 4), BTM( 5), BTM( 6), BTM( 7),
+    BTM( 8), BTM( 9), BTM(10), BTM(11), BTM(12), BTM(13), BTM(14), BTM(15),
+    BTM(16), BTM(17), BTM(18), BTM(19), BTM(20), BTM(21), BTM(22), BTM(23),
+    BTM(24), BTM(25), BTM(26), BTM(27), BTM(28), BTM(29), BTM(30)
 };
 #endif
 
@@ -109,7 +110,7 @@ BLI_INLINE unsigned int ghash_keyhash(GHash *gh, const void *key)
 #ifdef USE_MODULO_BUCKETS
 	return gh->hashfp(key) % gh->nbuckets;
 #else
-	return gh->hashfp(key) & gh->nbuckets;
+	return gh->hashfp(key) & (gh->nbuckets - 1);
 #endif
 }
 
