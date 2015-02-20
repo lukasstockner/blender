@@ -1104,7 +1104,7 @@ endmacro()
 macro(blender_project_hack_post)
 	# --------------
 	# MINGW HACK END
-	if (_reset_standard_libraries)
+	if(_reset_standard_libraries)
 		# Must come after projecINCt(...)
 		#
 		# MINGW workaround for -ladvapi32 being included which surprisingly causes

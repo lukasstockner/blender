@@ -253,8 +253,9 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 					file->relname = dlink->name;
 					file->path = BLI_strdupcat(dirname, dlink->name);
 					BLI_join_dirfile(fullname, sizeof(fullname), dirname, dlink->name);
-					BLI_stat(fullname, &file->s);
-					file->type = file->s.st_mode;
+					if (BLI_stat(fullname, &file->s) != -1) {
+						file->type = file->s.st_mode;
+					}
 					file->flags = 0;
 					dir_ctx->nrfiles++;
 					file++;
@@ -459,7 +460,9 @@ void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries, void (
 			free_poin(entry->poin);
 	}
 
-	MEM_freeN(filelist);
+	if (filelist != NULL) {
+		MEM_freeN(filelist);
+	}
 }
 
 
@@ -529,6 +532,7 @@ int BLI_exists(const char *name)
 	if (res == -1) return(0);
 #else
 	struct stat st;
+	BLI_assert(name);
 	if (stat(name, &st)) return(0);
 #endif
 	return(st.st_mode);
