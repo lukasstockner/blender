@@ -201,10 +201,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 			}
 		}
 		else {
-			// XXX: standard evaluation is now handled by our new nodes, so this case is not needed anymore
-			if (DEG_depsgraph_use_legacy()) {
-				BKE_pose_where_is(scene, ob);
-			}
+			BKE_pose_where_is(scene, ob);
 		}
 		break;
 
