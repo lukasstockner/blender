@@ -159,6 +159,14 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 	{
 		if (scene->depsgraph) {
 			Depsgraph *graph = scene->depsgraph;
+			if (flag == 0) {
+				/* TODO(sergey): Currently blender is still tagging IDs
+				 * for recalc just using flag=0. This isn't totally correct
+				 * but we'd better deal with such cases and don't fail.
+				 */
+				DEG_graph_id_tag_update(bmain, graph, id);
+				continue;
+			}
 			if (flag & OB_RECALC_DATA && GS(id->name) == ID_OB) {
 				Object *object = (Object*)id;
 				if (object->data != NULL) {
