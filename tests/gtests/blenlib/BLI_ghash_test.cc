@@ -132,6 +132,9 @@ Praesent luctus vitae nunc vitae pellentesque. Praesent faucibus sed urna ut lac
  * from http://corpora.informatik.uni-leipzig.de/download.html */
 #define TEXT_CORPUS_PATH "/home/i74700deb64/Téléchargements/eng_wikipedia_2010_1M-text/eng_wikipedia_2010_1M-sentences.txt"
 
+/* Resizing the hash has a huge cost over global filling operation! */
+#define GHASH_RESERVE
+
 #define PRINTF_GHASH_STATS(_gh) \
 { \
 	double q, lf; \
@@ -146,7 +149,7 @@ Praesent luctus vitae nunc vitae pellentesque. Praesent faucibus sed urna ut lac
 
 static void str_ghash_tests(GHash *ghash, const char *id)
 {
-	printf("\n========== SARTING %s ==========\n", id);
+	printf("\n========== STARTING %s ==========\n", id);
 
 #ifdef TEXT_CORPUS_PATH
 	size_t sz = 0;
@@ -182,6 +185,10 @@ static void str_ghash_tests(GHash *ghash, const char *id)
 		char *p, *w, *c_p, *c_w;
 
 		TIMEIT_START(string_insert);
+
+#ifdef GHASH_RESERVE
+		BLI_ghash_reserve(ghash, strlen(data) / 32);  /* rough estimation... */
+#endif
 
 		BLI_ghash_insert(ghash, data, SET_INT_IN_POINTER(data[0]));
 
@@ -262,13 +269,18 @@ TEST(ghash, TextMurmur2a)
 
 static void int_ghash_tests(GHash *ghash, const char *id)
 {
-	printf("\n========== SARTING %s ==========\n", id);
+	printf("\n========== STARTING %s ==========\n", id);
 
-	const unsigned int nbr = 50000000;
+	const unsigned int nbr = 100000000;
+
 	{
 		unsigned int i = nbr;
 
 		TIMEIT_START(int_insert);
+
+#ifdef GHASH_RESERVE
+		BLI_ghash_reserve(ghash, nbr);
+#endif
 
 		while (i--) {
 			BLI_ghash_insert(ghash, SET_UINT_IN_POINTER(i), SET_UINT_IN_POINTER(i));
@@ -316,9 +328,9 @@ TEST(ghash, IntMurmur2a)
 
 static void int4_ghash_tests(GHash *ghash, const char *id)
 {
-	printf("\n========== SARTING %s ==========\n", id);
+	printf("\n========== STARTING %s ==========\n", id);
 
-	const unsigned int nbr = 10000000;
+	const unsigned int nbr = 20000000;
 	unsigned int (*data)[4] = (unsigned int (*)[4])MEM_mallocN(sizeof(*data) * (size_t)nbr, __func__);
 	unsigned int (*dt)[4];
 	unsigned int i, j;
@@ -335,6 +347,10 @@ static void int4_ghash_tests(GHash *ghash, const char *id)
 
 	{
 		TIMEIT_START(int_v4_insert);
+
+#ifdef GHASH_RESERVE
+		BLI_ghash_reserve(ghash, nbr);
+#endif
 
 		for (i = nbr, dt = data; i--; dt++) {
 			BLI_ghash_insert(ghash, *dt, SET_UINT_IN_POINTER(i));

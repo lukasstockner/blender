@@ -47,23 +47,21 @@
 #include "BLI_ghash.h"
 #include "BLI_strict_flags.h"
 
-//#define USE_MODULO_BUCKETS
+//#define GHASH_USE_MODULO_BUCKETS
 
-#ifdef USE_MODULO_BUCKETS
+/* Also used by smallhash! */
 const unsigned int hashsizes[] = {
 	5, 11, 17, 37, 67, 131, 257, 521, 1031, 2053, 4099, 8209, 
 	16411, 32771, 65537, 131101, 262147, 524309, 1048583, 2097169, 
 	4194319, 8388617, 16777259, 33554467, 67108879, 134217757, 
 	268435459
 };
+
+#ifdef GHASH_USE_MODULO_BUCKETS
+#  define GHASH_MAX_SIZE 27
 #else
-#define BTM(_b) ((1 << (_b)))
-const unsigned int hashsizes[] = {
-    BTM( 2), BTM( 3), BTM( 4), BTM( 5), BTM( 6), BTM( 7),
-    BTM( 8), BTM( 9), BTM(10), BTM(11), BTM(12), BTM(13), BTM(14), BTM(15),
-    BTM(16), BTM(17), BTM(18), BTM(19), BTM(20), BTM(21), BTM(22), BTM(23),
-    BTM(24), BTM(25), BTM(26), BTM(27), BTM(28), BTM(29), BTM(30)
-};
+#  define GHASH_BUCKET_BIT_MIN 2
+#  define GHASH_BUCKET_BIT_MAX 28  /* About 268M of buckets... */
 #endif
 
 /* internal flag to ensure sets values aren't used */
@@ -75,6 +73,9 @@ const unsigned int hashsizes[] = {
 #  define IS_GHASH_ASSERT(gh)
 // #  define IS_GSET_ASSERT(eh)
 #endif
+
+#define GHASH_LIMIT_GROW(_nbkt) ((_nbkt) * 3) / 4
+#define GHASH_LIMIT_SHRINK(_nbkt) ((_nbkt) * 3) / 16
 
 /***/
 
@@ -91,10 +92,16 @@ struct GHash {
 	Entry **buckets;
 	struct BLI_mempool *entrypool;
 	unsigned int nbuckets;
-	unsigned int nentries;
-	unsigned int cursize, flag;
-};
+	unsigned int limit_grow, limit_shrink;
+#ifdef GHASH_USE_MODULO_BUCKETS
+	unsigned int cursize, size_min;
+#else
+	unsigned int bucket_mask, bucket_bit, bucket_bit_min;
+#endif
 
+	unsigned int nentries;
+	unsigned int flag;
+};
 
 /* -------------------------------------------------------------------- */
 /* GHash API */
@@ -107,23 +114,15 @@ struct GHash {
  */
 BLI_INLINE unsigned int ghash_keyhash(GHash *gh, const void *key)
 {
-#ifdef USE_MODULO_BUCKETS
+#ifdef GHASH_USE_MODULO_BUCKETS
 	return gh->hashfp(key) % gh->nbuckets;
 #else
-	return gh->hashfp(key) & (gh->nbuckets - 1);
+	return gh->hashfp(key) & gh->bucket_mask;
 #endif
 }
 
 /**
- * Check if the number of items in the GHash is large enough to require more buckets.
- */
-BLI_INLINE bool ghash_test_expand_buckets(const unsigned int nentries, const unsigned int nbuckets)
-{
-	return (nentries > nbuckets * 3);
-}
-
-/**
- * Expand buckets to the next size up.
+ * Expand buckets to the next size up or down.
  */
 BLI_INLINE void ghash_resize_buckets(GHash *gh, const unsigned int nbuckets)
 {
@@ -133,18 +132,51 @@ BLI_INLINE void ghash_resize_buckets(GHash *gh, const unsigned int nbuckets)
 	unsigned int i;
 	Entry *e;
 
-	BLI_assert(gh->nbuckets != nbuckets);
+	BLI_assert((gh->nbuckets != nbuckets) || !gh->buckets);
+//	printf("%s: %d -> %d\n", __func__, nbuckets_old, nbuckets);
 
 	gh->nbuckets = nbuckets;
-	buckets_new = (Entry **)MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
+#ifdef GHASH_USE_MODULO_BUCKETS
+#else
+	gh->bucket_mask = nbuckets - 1;
+#endif
 
-	for (i = 0; i < nbuckets_old; i++) {
-		Entry *e_next;
-		for (e = buckets_old[i]; e; e = e_next) {
-			const unsigned hash = ghash_keyhash(gh, e->key);
-			e_next = e->next;
-			e->next = buckets_new[hash];
-			buckets_new[hash] = e;
+	buckets_new = (Entry **)MEM_callocN(sizeof(*gh->buckets) * gh->nbuckets, __func__);
+
+	if (buckets_old) {
+		if (nbuckets > nbuckets_old) {
+			for (i = 0; i < nbuckets_old; i++) {
+				Entry *e_next;
+				for (e = buckets_old[i]; e; e = e_next) {
+					const unsigned hash = ghash_keyhash(gh, e->key);
+					e_next = e->next;
+					e->next = buckets_new[hash];
+					buckets_new[hash] = e;
+				}
+			}
+		}
+		else {
+			for (i = 0; i < nbuckets_old; i++) {
+#ifdef GHASH_USE_MODULO_BUCKETS
+				Entry *e_next;
+				for (e = buckets_old[i]; e; e = e_next) {
+					const unsigned hash = ghash_keyhash(gh, e->key);
+					e_next = e->next;
+					e->next = buckets_new[hash];
+					buckets_new[hash] = e;
+				}
+#else
+				/* No need to recompute hashes in this case, since our mask is just smaller, all items in old bucket i
+				 * will go in same new bucket (i & new_mask)! */
+				const unsigned hash = (i & gh->bucket_mask);
+
+				for (e = buckets_old[i]; e && e->next; e = e->next);
+				if (e) {
+					e->next = buckets_new[hash];
+					buckets_new[hash] = buckets_old[i];
+				}
+#endif
+			}
 		}
 	}
 
@@ -152,14 +184,91 @@ BLI_INLINE void ghash_resize_buckets(GHash *gh, const unsigned int nbuckets)
 	MEM_freeN(buckets_old);
 }
 
+//#include "PIL_time.h"
+//#include "PIL_time_utildefines.h"
+
 /**
- * Increase initial bucket size to match a reserved amount.
+ * Check if the number of items in the GHash is large enough to require more buckets,
+ * or small enough to require less buckets, and resize \a gh accordingly.
  */
-BLI_INLINE void ghash_buckets_reserve(GHash *gh, const unsigned int nentries_reserve)
+BLI_INLINE void ghash_expand_buckets(GHash *gh, const unsigned int nentries, const bool user_defined)
 {
-	while (ghash_test_expand_buckets(nentries_reserve, gh->nbuckets)) {
-		gh->nbuckets = hashsizes[++gh->cursize];
+	unsigned int new_nbuckets;
+
+	if (LIKELY(gh->buckets && (nentries < gh->limit_grow) && (nentries > gh->limit_shrink))) {
+		return;
 	}
+
+	new_nbuckets = gh->nbuckets;
+
+	while ((nentries > gh->limit_grow) &&
+#ifdef GHASH_USE_MODULO_BUCKETS
+	       (gh->cursize < GHASH_MAX_SIZE - 1))
+	{
+		new_nbuckets = hashsizes[++gh->cursize];
+#else
+	       (gh->bucket_bit < GHASH_BUCKET_BIT_MAX))
+	{
+		new_nbuckets = 1u << ++gh->bucket_bit;
+#endif
+		gh->limit_grow = GHASH_LIMIT_GROW(new_nbuckets);
+	}
+	while ((nentries < gh->limit_shrink) &&
+#ifdef GHASH_USE_MODULO_BUCKETS
+		   (gh->cursize > gh->size_min))
+	{
+		new_nbuckets = hashsizes[--gh->cursize];
+#else
+		  (gh->bucket_bit > gh->bucket_bit_min))
+	{
+		new_nbuckets = 1u << --gh->bucket_bit;
+#endif
+		gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
+	}
+
+	if (user_defined) {
+#ifdef GHASH_USE_MODULO_BUCKETS
+		gh->size_min = gh->cursize;
+#else
+		gh->bucket_bit_min = gh->bucket_bit;
+#endif
+	}
+
+	if ((new_nbuckets == gh->nbuckets) && gh->buckets) {
+		return;
+	}
+
+	gh->limit_grow = GHASH_LIMIT_GROW(new_nbuckets);
+	gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
+//	TIMEIT_BENCH(ghash_resize_buckets(gh, new_nbuckets), ghash_resize_buckets);
+	ghash_resize_buckets(gh, new_nbuckets);
+}
+
+/**
+ * Clear and reset \a gh buckets, reserve again buckets for given number of entries.
+ */
+BLI_INLINE void ghash_buckets_reset(GHash *gh, const unsigned int nentries)
+{
+	MEM_SAFE_FREE(gh->buckets);
+
+#ifdef GHASH_USE_MODULO_BUCKETS
+	gh->cursize = 0;
+	gh->size_min = 0;
+	gh->nbuckets = hashsizes[gh->cursize];
+#else
+	gh->bucket_bit = GHASH_BUCKET_BIT_MIN;
+	gh->bucket_bit_min = GHASH_BUCKET_BIT_MIN;
+	gh->nbuckets = 1u << gh->bucket_bit;
+	gh->bucket_mask = gh->nbuckets - 1;
+#endif
+
+	gh->limit_grow = GHASH_LIMIT_GROW(gh->nbuckets);
+	gh->limit_shrink = GHASH_LIMIT_SHRINK(gh->nbuckets);
+
+	gh->nentries = 0;
+	gh->flag = 0;
+
+	ghash_expand_buckets(gh, nentries, false);
 }
 
 /**
@@ -197,17 +306,8 @@ static GHash *ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
 	gh->hashfp = hashfp;
 	gh->cmpfp = cmpfp;
 
-	gh->nbuckets = hashsizes[0];  /* gh->cursize */
-	gh->nentries = 0;
-	gh->cursize = 0;
-	gh->flag = 0;
-
-	/* if we have reserved the number of elements that this hash will contain */
-	if (nentries_reserve) {
-		ghash_buckets_reserve(gh, nentries_reserve);
-	}
-
-	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
+	gh->buckets = NULL;
+	ghash_buckets_reset(gh, nentries_reserve);
 	gh->entrypool = BLI_mempool_create(entry_size, 64, 64, BLI_MEMPOOL_NOP);
 
 	return gh;
@@ -229,9 +329,7 @@ BLI_INLINE void ghash_insert_ex(GHash *gh, void *key, void *val,
 	e->val = val;
 	gh->buckets[hash] = e;
 
-	if (UNLIKELY(ghash_test_expand_buckets(++gh->nentries, gh->nbuckets))) {
-		ghash_resize_buckets(gh, hashsizes[++gh->cursize]);
-	}
+	ghash_expand_buckets(gh, ++gh->nentries, false);
 }
 
 /**
@@ -247,9 +345,7 @@ BLI_INLINE void ghash_insert_ex_keyonly(GHash *gh, void *key,
 	/* intentionally leave value unset */
 	gh->buckets[hash] = e;
 
-	if (UNLIKELY(ghash_test_expand_buckets(++gh->nentries, gh->nbuckets))) {
-		ghash_resize_buckets(gh, hashsizes[++gh->cursize]);
-	}
+	ghash_expand_buckets(gh, ++gh->nentries, false);
 }
 
 BLI_INLINE void ghash_insert(GHash *gh, void *key, void *val)
@@ -277,7 +373,7 @@ static Entry *ghash_remove_ex(GHash *gh, void *key, GHashKeyFreeFP keyfreefp, GH
 			if (e_prev) e_prev->next = e_next;
 			else   gh->buckets[hash] = e_next;
 
-			gh->nentries--;
+			ghash_expand_buckets(gh, --gh->nentries, false);
 			return e;
 		}
 		e_prev = e;
@@ -338,6 +434,14 @@ GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
 GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
 {
 	return BLI_ghash_new_ex(hashfp, cmpfp, info, 0);
+}
+
+/**
+ * Reverve given ammount of entries (resize \a gh accordingly if needed).
+ */
+void BLI_ghash_reserve(GHash *gh, const unsigned int nentries_reserve)
+{
+	ghash_expand_buckets(gh, nentries_reserve, true);
 }
 
 /**
@@ -513,17 +617,7 @@ void BLI_ghash_clear_ex(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valf
 	if (keyfreefp || valfreefp)
 		ghash_free_cb(gh, keyfreefp, valfreefp);
 
-	gh->nbuckets = hashsizes[0];  /* gh->cursize */
-	gh->nentries = 0;
-	gh->cursize = 0;
-
-	if (nentries_reserve) {
-		ghash_buckets_reserve(gh, nentries_reserve);
-	}
-
-	MEM_freeN(gh->buckets);
-	gh->buckets = MEM_callocN(gh->nbuckets * sizeof(*gh->buckets), "buckets");
-
+	ghash_buckets_reset(gh, nentries_reserve);
 	BLI_mempool_clear_ex(gh->entrypool, nentries_reserve ? (int)nentries_reserve : -1);
 }
 
