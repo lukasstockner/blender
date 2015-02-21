@@ -181,7 +181,9 @@ BLI_INLINE void ghash_resize_buckets(GHash *gh, const unsigned int nbuckets)
 	}
 
 	gh->buckets = buckets_new;
-	MEM_freeN(buckets_old);
+	if (buckets_old) {
+		MEM_freeN(buckets_old);
+	}
 }
 
 //#include "PIL_time.h"
