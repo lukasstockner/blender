@@ -754,7 +754,7 @@ static int rna_RenderSettings_save_buffers_get(PointerRNA *ptr)
 	else if (!BKE_scene_use_new_shading_nodes(scene))
 		return (rd->scemode & (R_EXR_TILE_FILE | R_FULL_SAMPLE)) != 0;
 	else 
-		return (rd->scemode & R_EXR_TILE_FILE);
+		return (rd->scemode & R_EXR_TILE_FILE) != 0;
 }
 
 static int rna_RenderSettings_full_sample_get(PointerRNA *ptr)
@@ -5917,7 +5917,7 @@ void RNA_def_scene(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "audio_volume", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "audio.volume");
-	RNA_def_property_range(prop, 0.0f, 1.0f);
+	RNA_def_property_range(prop, 0.0f, 100.0f);
 	RNA_def_property_ui_text(prop, "Volume", "Audio volume");
 	RNA_def_property_translation_context(prop, BLF_I18NCONTEXT_ID_SOUND);
 	RNA_def_property_update(prop, NC_SCENE, NULL);
