@@ -82,8 +82,9 @@ const unsigned int hashsizes[] = {
 typedef struct Entry {
 	struct Entry *next;
 
-	void *key, *val;
 	unsigned int hash;
+	void *key;
+	void *val;  /* This pointer ***must*** remain the last one, since it is 'virtually removed' for gset. */
 } Entry;
 
 struct GHash {
@@ -224,17 +225,19 @@ BLI_INLINE void ghash_expand_buckets(GHash *gh, const unsigned int nentries, con
 #endif
 		gh->limit_grow = GHASH_LIMIT_GROW(new_nbuckets);
 	}
-	while ((nentries < gh->limit_shrink) &&
+	if (gh->flag & GHASH_FLAG_ALLOW_SHRINK) {
+		while ((nentries < gh->limit_shrink) &&
 #ifdef GHASH_USE_MODULO_BUCKETS
-		   (gh->cursize > gh->size_min))
-	{
-		new_nbuckets = hashsizes[--gh->cursize];
+			   (gh->cursize > gh->size_min))
+		{
+			new_nbuckets = hashsizes[--gh->cursize];
 #else
-		  (gh->bucket_bit > gh->bucket_bit_min))
-	{
-		new_nbuckets = 1u << --gh->bucket_bit;
+			  (gh->bucket_bit > gh->bucket_bit_min))
+		{
+			new_nbuckets = 1u << --gh->bucket_bit;
 #endif
-		gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
+			gh->limit_shrink = GHASH_LIMIT_SHRINK(new_nbuckets);
+		}
 	}
 
 	if (user_defined) {
@@ -279,7 +282,7 @@ BLI_INLINE void ghash_buckets_reset(GHash *gh, const unsigned int nentries)
 	gh->nentries = 0;
 	gh->flag = 0;
 
-	ghash_expand_buckets(gh, nentries, false);
+	ghash_expand_buckets(gh, nentries, (nentries != 0));
 }
 
 /**
@@ -339,9 +342,9 @@ BLI_INLINE void ghash_insert_ex(
 	IS_GHASH_ASSERT(gh);
 
 	e->next = gh->buckets[bucket_hash];
+	e->hash = hash;
 	e->key = key;
 	e->val = val;
-	e->hash = hash;
 	gh->buckets[bucket_hash] = e;
 
 	ghash_expand_buckets(gh, ++gh->nentries, false);
@@ -357,9 +360,9 @@ BLI_INLINE void ghash_insert_ex_keyonly(
 	BLI_assert((gh->flag & GHASH_FLAG_ALLOW_DUPES) || (BLI_ghash_haskey(gh, key) == 0));
 
 	e->next = gh->buckets[bucket_hash];
+	e->hash = hash;
 	e->key = key;
 	/* intentionally leave value unset */
-	e->hash = hash;
 	gh->buckets[bucket_hash] = e;
 
 	ghash_expand_buckets(gh, ++gh->nentries, false);

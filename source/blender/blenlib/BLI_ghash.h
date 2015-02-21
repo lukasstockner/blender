@@ -54,7 +54,8 @@ typedef struct GHashIterator {
 } GHashIterator;
 
 enum {
-	GHASH_FLAG_ALLOW_DUPES = (1 << 0),  /* only checked for in debug mode */
+	GHASH_FLAG_ALLOW_DUPES  = (1 << 0),  /* Only checked for in debug mode */
+	GHASH_FLAG_ALLOW_SHRINK = (1 << 1),  /* Allow to shrink buckets' size. */
 };
 
 /* *** */
