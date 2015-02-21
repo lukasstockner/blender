@@ -1160,14 +1160,15 @@ GSet *BLI_gset_pair_new(const char *info)
 #include "BLI_math.h"
 
 /**
- * Measure how well the hash function performs, i.e. variance of the distribution of the entries in the buckets.
- * (0.0 is approx as good as even distribution).
+ * Measure how well the hash function performs (1.0 is approx as good as random distribution),
+ * and return a few other stats like load, variance of the distribution of the entries in the buckets, etc.
  *
  * Smaller is better!
  */
-double BLI_ghash_calc_quality(GHash *gh, double *r_load, int *r_min_bucket, int *r_max_bucket)
+double BLI_ghash_calc_quality(
+        GHash *gh, double *r_load, double *r_variance,
+        double *r_prop_empty_buckets, double *r_prop_overloaded_buckets, int *r_biggest_bucket)
 {
-	double sum = 0.0;
 	double mean;
 	unsigned int i;
 
@@ -1175,11 +1176,17 @@ double BLI_ghash_calc_quality(GHash *gh, double *r_load, int *r_min_bucket, int 
 		if (r_load) {
 			*r_load = 0.0;
 		}
-		if (r_min_bucket) {
-			*r_min_bucket = 0;
+		if (r_variance) {
+			*r_variance = 0.0;
 		}
-		if (r_max_bucket) {
-			*r_max_bucket = 0;
+		if (r_prop_empty_buckets) {
+			*r_prop_empty_buckets = 1.0;
+		}
+		if (r_prop_overloaded_buckets) {
+			*r_prop_overloaded_buckets = 0.0;
+		}
+		if (r_biggest_bucket) {
+			*r_biggest_bucket = 0;
 		}
 
 		return 0.0;
@@ -1189,35 +1196,62 @@ double BLI_ghash_calc_quality(GHash *gh, double *r_load, int *r_min_bucket, int 
 	if (r_load) {
 		*r_load = mean;
 	}
-	if (r_min_bucket) {
-		*r_min_bucket = INT_MAX;
-	}
-	if (r_max_bucket) {
-		*r_max_bucket = 0;
+	if (r_biggest_bucket) {
+		*r_biggest_bucket = 0;
 	}
 
-	/* We already know our mean (i.e. load factor), easy to compute variance.
-	 * See http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Two-pass_algorithm
-	 */
-	for (i = 0; i < gh->nbuckets; i++) {
-		int count = 0;
-		Entry *e;
-		for (e = gh->buckets[i]; e; e = e->next) {
-			count++;
+	if (r_variance) {
+		/* We already know our mean (i.e. load factor), easy to compute variance.
+		 * See http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Two-pass_algorithm
+		 */
+		double sum = 0.0;
+		for (i = 0; i < gh->nbuckets; i++) {
+			int count = 0;
+			Entry *e;
+			for (e = gh->buckets[i]; e; e = e->next) {
+				count++;
+			}
+			sum += ((double)count - mean) * ((double)count - mean);
 		}
-		if (r_min_bucket) {
-			*r_min_bucket = min_ii(*r_min_bucket, (int)count);
-		}
-		if (r_max_bucket) {
-			*r_max_bucket = max_ii(*r_max_bucket, (int)count);
-		}
-		sum += ((double)count - mean) * ((double)count - mean);
+		*r_variance = sum / (double)(gh->nbuckets - 1);
 	}
-	return sum / (double)(gh->nbuckets - 1);
+
+	{
+	   uint64_t sum = 0;
+	   uint64_t overloaded_buckets_threshold = (uint64_t)max_ii(GHASH_LIMIT_GROW(1), 1);
+	   uint64_t sum_overloaded = 0;
+	   uint64_t sum_empty = 0;
+
+	   for (i = 0; i < gh->nbuckets; i++) {
+		   uint64_t count = 0;
+		   Entry *e;
+		   for (e = gh->buckets[i]; e; e = e->next) {
+			   count++;
+		   }
+		   if (r_biggest_bucket) {
+			   *r_biggest_bucket = max_ii(*r_biggest_bucket, (int)count);
+		   }
+		   if (r_prop_overloaded_buckets && (count > overloaded_buckets_threshold)) {
+			   sum_overloaded++;
+		   }
+		   if (r_prop_empty_buckets && !count) {
+			   sum_empty++;
+		   }
+		   sum += count * (count + 1);
+	   }
+	   if (r_prop_overloaded_buckets) {
+		   *r_prop_overloaded_buckets = (double)sum_overloaded / (double)gh->nbuckets;
+	   }
+	   if (r_prop_empty_buckets) {
+		   *r_prop_empty_buckets = (double)sum_empty / (double)gh->nbuckets;
+	   }
+	   return ((double)sum * (double)gh->nbuckets /
+			   ((double)gh->nentries * (gh->nentries + 2 * gh->nbuckets - 1)));
+   }
 }
-double BLI_gset_calc_quality(GSet *gs, double *r_load, int *r_min_bucket, int *r_max_bucket)
+double BLI_gset_calc_quality(GSet *gs, double *r_load, double *r_variance, double *r_prop_empty_buckets, double *r_prop_overloaded_buckets, int *r_biggest_bucket)
 {
-	return BLI_ghash_calc_quality((GHash *)gs, r_load, r_min_bucket, r_max_bucket);
+	return BLI_ghash_calc_quality((GHash *)gs, r_load, r_variance, r_prop_empty_buckets, r_prop_overloaded_buckets, r_biggest_bucket);
 }
 
 /** \} */

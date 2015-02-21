@@ -245,10 +245,12 @@ BLI_INLINE bool BLI_gsetIterator_done(GSetIterator *gsi) { return BLI_ghashItera
 	     BLI_gsetIterator_done(&gs_iter_) == false;                           \
 	     BLI_gsetIterator_step(&gs_iter_), i_++)
 
-//~ #ifdef DEBUG
-double BLI_ghash_calc_quality(GHash *gh, double *r_load, int *r_min_bucket, int *r_max_bucket);
-double BLI_gset_calc_quality(GSet *gs, double *r_load, int *r_min_bucket, int *r_max_bucket);
-//~ #endif
+double BLI_ghash_calc_quality(
+        GHash *gh, double *r_load, double *r_variance,
+        double *r_prop_empty_buckets, double *r_prop_overloaded_buckets, int *r_biggest_bucket);
+double BLI_gset_calc_quality(
+        GSet *gs, double *r_load, double *r_variance,
+        double *r_prop_empty_buckets, double *r_prop_overloaded_buckets, int *r_biggest_bucket);
 
 #ifdef __cplusplus
 }

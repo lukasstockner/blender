@@ -137,11 +137,13 @@ Praesent luctus vitae nunc vitae pellentesque. Praesent faucibus sed urna ut lac
 
 #define PRINTF_GHASH_STATS(_gh) \
 { \
-	double q, lf; \
-	int minb, maxb; \
-	q = BLI_ghash_calc_quality((_gh), &lf, &minb, &maxb); \
-	printf("GHash stats:\n\tQuality (the lower the better): %f\n\tLoad: %f\n\tSmallest bucket: %d\n\tBiggest bucket: %d\n", \
-	       q, lf, minb, maxb); \
+	double q, lf, var, pempty, poverloaded; \
+	int bigb; \
+	q = BLI_ghash_calc_quality((_gh), &lf, &var, &pempty, &poverloaded, &bigb); \
+	printf("GHash stats (%d entries):\n\t" \
+	       "Quality (the lower the better): %f\n\tVariance (the lower the better): %f\n\tLoad: %f\n\t" \
+	       "Empty buckets: %.2f%%\n\tOverloaded buckets: %.2f%% (biggest bucket: %d)\n", \
+	       BLI_ghash_size(_gh), q, var, lf, pempty * 100.0, poverloaded * 100.0, bigb); \
 } void (0)
 
 
@@ -267,11 +269,9 @@ TEST(ghash, TextMurmur2a)
 
 /* Int: uniform 50M first integers. */
 
-static void int_ghash_tests(GHash *ghash, const char *id)
+static void int_ghash_tests(GHash *ghash, const char *id, const unsigned int nbr)
 {
 	printf("\n========== STARTING %s ==========\n", id);
-
-	const unsigned int nbr = 100000000;
 
 	{
 		unsigned int i = nbr;
@@ -313,24 +313,31 @@ TEST(ghash, IntGHash)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 
-	int_ghash_tests(ghash, "IntGHash - GHash");
+	int_ghash_tests(ghash, "IntGHash - GHash - 12000", 12000);
+
+	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+
+	int_ghash_tests(ghash, "IntGHash - GHash - 100000000", 100000000);
 }
 
 TEST(ghash, IntMurmur2a)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
 
-	int_ghash_tests(ghash, "IntGHash - Murmur");
+	int_ghash_tests(ghash, "IntGHash - Murmur - 12000", 12000);
+
+	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
+
+	int_ghash_tests(ghash, "IntGHash - Murmur - 100000000", 100000000);
 }
 
 
 /* Int_v4: 10M of randomly-generated integer vectors. */
 
-static void int4_ghash_tests(GHash *ghash, const char *id)
+static void int4_ghash_tests(GHash *ghash, const char *id, const unsigned int nbr)
 {
 	printf("\n========== STARTING %s ==========\n", id);
 
-	const unsigned int nbr = 20000000;
 	unsigned int (*data)[4] = (unsigned int (*)[4])MEM_mallocN(sizeof(*data) * (size_t)nbr, __func__);
 	unsigned int (*dt)[4];
 	unsigned int i, j;
@@ -382,12 +389,20 @@ TEST(ghash, Int4GHash)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
 
-	int4_ghash_tests(ghash, "Int4GHash - GHash");
+	int4_ghash_tests(ghash, "Int4GHash - GHash - 2000", 2000);
+
+	ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
+
+	int4_ghash_tests(ghash, "Int4GHash - GHash - 20000000", 20000000);
 }
 
 TEST(ghash, Int4Murmur2a)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p_murmur, BLI_ghashutil_uinthash_v4_cmp, __func__);
 
-	int4_ghash_tests(ghash, "Int4GHash - Murmur");
+	int4_ghash_tests(ghash, "Int4GHash - Murmur - 2000", 2000);
+
+	ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p_murmur, BLI_ghashutil_uinthash_v4_cmp, __func__);
+
+	int4_ghash_tests(ghash, "Int4GHash - Murmur - 20000000", 20000000);
 }
