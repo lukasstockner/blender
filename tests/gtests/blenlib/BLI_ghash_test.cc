@@ -267,7 +267,7 @@ TEST(ghash, TextMurmur2a)
 }
 
 
-/* Int: uniform 50M first integers. */
+/* Int: uniform 100M first integers. */
 
 static void int_ghash_tests(GHash *ghash, const char *id, const unsigned int nbr)
 {
@@ -332,7 +332,101 @@ TEST(ghash, IntMurmur2a)
 }
 
 
-/* Int_v4: 10M of randomly-generated integer vectors. */
+/* Int: random 50M integers. */
+
+static void randint_ghash_tests(GHash *ghash, const char *id, const unsigned int nbr)
+{
+	printf("\n========== STARTING %s ==========\n", id);
+
+	unsigned int *data = (unsigned int *)MEM_mallocN(sizeof(*data) * (size_t)nbr, __func__);
+	unsigned int *dt;
+	unsigned int i;
+
+	{
+		RNG *rng = BLI_rng_new(0);
+		for (i = nbr, dt = data; i--; dt++) {
+			*dt = BLI_rng_get_uint(rng);
+		}
+		BLI_rng_free(rng);
+	}
+
+	{
+		TIMEIT_START(int_insert);
+
+#ifdef GHASH_RESERVE
+		BLI_ghash_reserve(ghash, nbr);
+#endif
+
+		for (i = nbr, dt = data; i--; dt++) {
+			BLI_ghash_insert(ghash, SET_UINT_IN_POINTER(*dt), SET_UINT_IN_POINTER(*dt));
+		}
+
+		TIMEIT_END(int_insert);
+	}
+
+	PRINTF_GHASH_STATS(ghash);
+
+	{
+		TIMEIT_START(int_lookup);
+
+		for (i = nbr, dt = data; i--; dt++) {
+			void *v = BLI_ghash_lookup(ghash, SET_UINT_IN_POINTER(*dt));
+			EXPECT_EQ(*dt, GET_UINT_FROM_POINTER(v));
+		}
+
+		TIMEIT_END(int_lookup);
+	}
+
+	BLI_ghash_free(ghash, NULL, NULL);
+
+	printf("========== ENDED %s ==========\n\n", id);
+}
+
+TEST(ghash, IntGHash)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+
+	randint_ghash_tests(ghash, "RandIntGHash - GHash - 12000", 12000);
+
+	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+
+	randint_ghash_tests(ghash, "RandIntGHash - GHash - 50000000", 50000000);
+}
+
+TEST(ghash, IntMurmur2a)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
+
+	randint_ghash_tests(ghash, "RandIntGHash - Murmur - 12000", 12000);
+
+	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
+
+	randint_ghash_tests(ghash, "RandIntGHash - Murmur - 50000000", 50000000);
+}
+
+static unsigned int ghashutil_tests_nohash_p(const void *p)
+{
+	return GET_UINT_FROM_POINTER(p);
+}
+
+static bool ghashutil_tests_cmp_p(const void *a, const void *b)
+{
+	return a != b;
+}
+
+TEST(ghash, Int4NoHash)
+{
+	GHash *ghash = BLI_ghash_new(ghashutil_tests_nohash_p, ghashutil_tests_cmp_p, __func__);
+
+	randint_ghash_tests(ghash, "RandIntGHash - No Hash - 12000", 12000);
+
+	ghash = BLI_ghash_new(ghashutil_tests_nohash_p, ghashutil_tests_cmp_p, __func__);
+
+	randint_ghash_tests(ghash, "RandIntGHash - No Hash - 50000000", 50000000);
+}
+
+
+/* Int_v4: 20M of randomly-generated integer vectors. */
 
 static void int4_ghash_tests(GHash *ghash, const char *id, const unsigned int nbr)
 {
