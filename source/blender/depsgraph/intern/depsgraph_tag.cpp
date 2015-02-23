@@ -231,8 +231,7 @@ typedef std::queue<OperationDepsNode*> FlushQueue;
 /* Flush updates from tagged nodes outwards until all affected nodes are tagged. */
 void DEG_graph_flush_updates(Main *bmain,
                              EvaluationContext *eval_ctx,
-                             Depsgraph *graph,
-                             const int layers)
+                             Depsgraph *graph)
 {
 	/* sanity check */
 	if (graph == NULL)
@@ -250,14 +249,8 @@ void DEG_graph_flush_updates(Main *bmain,
 	{
 		OperationDepsNode *node = *it;
 		IDDepsNode *id_node = node->owner->owner;
-		if (id_node->layers & layers) {
-			queue.push(node);
-			deg_editors_id_update(bmain, id_node->id);
-		}
-		else {
-			node->flag &= ~DEPSOP_FLAG_NEEDS_UPDATE;
-			graph->add_invisible_entry_tag(node);
-		}
+		queue.push(node);
+		deg_editors_id_update(bmain, id_node->id);
 	}
 
 	while (!queue.empty()) {
@@ -277,10 +270,27 @@ void DEG_graph_flush_updates(Main *bmain,
 			DepsRelation *rel = *it;
 			OperationDepsNode *to_node = (OperationDepsNode *)rel->to;
 			IDDepsNode *id_node = to_node->owner->owner;
-
-			if ((id_node->layers & layers) != 0 &&
-			    (to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE) == 0)
-			{
+			if ((to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE) == 0) {
+				ID *id = id_node->id;
+				/* This code is used to preserve those areas which does direct
+				 * object update,
+				 *
+				 * Plus it ensures visibility changes and relations and layers
+				 * visibility update has proper flags to work with.
+				 */
+				if (GS(id->name) == ID_OB) {
+					Object *object = (Object *)id;
+					ComponentDepsNode *comp_node = to_node->owner;
+					if (comp_node->type == DEPSNODE_TYPE_ANIMATION) {
+						object->recalc |= OB_RECALC_TIME;
+					}
+					else if (comp_node->type == DEPSNODE_TYPE_TRANSFORM) {
+						object->recalc |= OB_RECALC_OB;
+					}
+					else {
+						object->recalc |= OB_RECALC_DATA;
+					}
+				}
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
 				deg_editors_id_update(bmain, id_node->id);
@@ -338,22 +348,6 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 		graph->layers = (1 << 20) - 1;
 	}
 	if (old_layers != graph->layers) {
-		/* Re-tag nodes which became visible. */
-		for (Depsgraph::EntryTags::const_iterator it = graph->invisible_entry_tags.begin();
-		     it != graph->invisible_entry_tags.end();
-		     ++it)
-		{
-			OperationDepsNode *node = *it;
-			/* TODO(sergey): For the simplicity we're trying to re-schedule
-			 * all the nodes, regardless of their layers visibility.
-			 *
-			 * In the future when storage for such flags becomes more permanent
-			 * we'll optimize this out.
-			 */
-			node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
-			graph->add_entry_tag(node);
-		}
-		graph->invisible_entry_tags.clear();
 		/* Tag all objects which becomes visible (or which becomes needed for dependencies)
 		 * for recalc.
 		 *
@@ -366,8 +360,25 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 		{
 			OperationDepsNode *node = *it;
 			IDDepsNode *id_node = node->owner->owner;
-			if ((id_node->layers & scene->lay_updated) == 0) {
+			ID *id = id_node->id;
+			if ((id->flag & LIB_ID_RECALC_ALL) != 0 ||
+			    (id_node->layers & scene->lay_updated) == 0)
+			{
 				id_node->tag_update(graph);
+			}
+			/* A bit of magic: if object->recalc is set it means somebody tagged
+			 * it for update. If corresponding ID recalc flags are zero it means
+			 * graph has been evaluated after that and the recalc was skipped
+			 * because of visibility check.
+			 */
+			if (GS(id->name) == ID_OB) {
+				Object *object = (Object *)id;
+				if ((id->flag & LIB_ID_RECALC_ALL) == 0 &&
+				    (object->recalc & OB_RECALC_ALL) != 0)
+				{
+					id_node->tag_update(graph,
+					                    (object->recalc & OB_RECALC_TIME) != 0);
+				}
 			}
 		}
 	}

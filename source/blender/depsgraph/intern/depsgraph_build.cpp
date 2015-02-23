@@ -539,17 +539,14 @@ static void deg_graph_build_finalize(Depsgraph *graph)
 			if (id->flag & LIB_ID_RECALC_ALL &&
 			    id->flag & LIB_DOIT)
 			{
-				id_node->tag_update(graph);
+				bool do_time = false;
 				if (GS(id->name) == ID_OB) {
 					Object *object = (Object *)id;
 					if (object->recalc & OB_RECALC_TIME) {
-						ComponentDepsNode *anim_comp =
-						        id_node->find_component(DEPSNODE_TYPE_ANIMATION);
-						if (anim_comp != NULL) {
-							anim_comp->tag_update(graph);
-						}
+						do_time = true;
 					}
 				}
+				id_node->tag_update(graph, do_time);
 				id->flag &= ~LIB_DOIT;
 			}
 		}
@@ -796,7 +793,6 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 	graph->clear_all_nodes();
 	graph->operations.clear();
 	graph->entry_tags.clear();
-	graph->invisible_entry_tags.clear();
 
 	/* Build new nodes and relations. */
 	DEG_graph_build_from_scene(graph, bmain, scene);

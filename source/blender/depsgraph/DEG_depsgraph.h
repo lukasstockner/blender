@@ -128,8 +128,7 @@ void DEG_ids_clear_recalc(struct Main *bmain);
 /* Flush updates */
 void DEG_graph_flush_updates(struct Main *bmain,
                              struct EvaluationContext *eval_ctx,
-                             Depsgraph *graph,
-                             const int layers);
+                             Depsgraph *graph);
 
 /* Check if something was changed in the database and inform
  * editors about this.

@@ -431,15 +431,6 @@ void Depsgraph::clear_all_nodes()
 	}
 }
 
-/* Layers Visibility -------------------------------------- */
-
-/* Tag a specific invisible node as needing updates when becoming visible. */
-void Depsgraph::add_invisible_entry_tag(OperationDepsNode *node)
-{
-	BLI_assert(node != NULL);
-	invisible_entry_tags.insert(node);
-}
-
 /* ************************************************** */
 /* Public Graph API */
 

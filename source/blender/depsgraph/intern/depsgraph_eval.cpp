@@ -310,7 +310,7 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 	/* Recursively push updates out to all nodes dependent on this,
 	 * until all affected are tagged and/or scheduled up for eval
 	 */
-	DEG_graph_flush_updates(bmain, eval_ctx, graph, layers);
+	DEG_graph_flush_updates(bmain, eval_ctx, graph);
 
 	calculate_pending_parents(graph, layers);
 

@@ -180,7 +180,7 @@ struct IDDepsNode : public DepsNode {
 	void remove_component(eDepsNode_Type type, const string &name = "");
 	void clear_components();
 
-	void tag_update(Depsgraph *graph);
+	void tag_update(Depsgraph *graph, bool do_time = false);
 
 	/* ID Block referenced. */
 	ID *id;

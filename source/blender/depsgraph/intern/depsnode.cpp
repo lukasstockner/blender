@@ -225,7 +225,7 @@ void IDDepsNode::clear_components()
 	components.clear();
 }
 
-void IDDepsNode::tag_update(Depsgraph *graph)
+void IDDepsNode::tag_update(Depsgraph *graph, bool do_time)
 {
 	for (ComponentMap::const_iterator it = components.begin();
 	     it != components.end();
@@ -235,7 +235,7 @@ void IDDepsNode::tag_update(Depsgraph *graph)
 		/* Animation component should only be tagged for update by the time
 		 * updates or by tagging the animation itself.
 		 */
-		if (comp_node->type != DEPSNODE_TYPE_ANIMATION) {
+		if (do_time || comp_node->type != DEPSNODE_TYPE_ANIMATION) {
 			comp_node->tag_update(graph);
 		}
 	}
