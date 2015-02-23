@@ -3506,6 +3506,52 @@ static void update_lods(Scene *scene, float camera_pos[3])
 }
 #endif
 
+/* uploads and caches view dependent state such as view/projection matrix */
+static void view3d_update_view_dependent_uniforms()
+{
+
+}
+
+static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, View3D *v3d,
+                                               ARegion *ar, const char **grid_unit)
+{
+	if (UI_GetThemeValue(TH_SHOW_BACK_GRAD)) {
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_ALWAYS);
+		glShadeModel(GL_SMOOTH);
+		glBegin(GL_QUADS);
+		UI_ThemeColor(TH_LOW_GRAD);
+		glVertex3f(-1.0, -1.0, 1.0);
+		glVertex3f(1.0, -1.0, 1.0);
+		UI_ThemeColor(TH_HIGH_GRAD);
+		glVertex3f(1.0, 1.0, 1.0);
+		glVertex3f(-1.0, 1.0, 1.0);
+		glEnd();
+		glShadeModel(GL_FLAT);
+
+		glDepthFunc(GL_LEQUAL);
+		glDisable(GL_DEPTH_TEST);
+
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+
+		glMatrixMode(GL_MODELVIEW);
+		glPopMatrix();
+	}
+	else {
+		UI_ThemeClearColor(TH_HIGH_GRAD);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	}
+}
+
+
 static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3D *v3d,
                                           ARegion *ar, const char **grid_unit)
 {
@@ -3716,7 +3762,7 @@ void view3d_main_area_draw(const bContext *C, ARegion *ar)
 	/* draw viewport using opengl */
 	if (v3d->drawtype != OB_RENDER || !view3d_main_area_do_render_draw(scene) || clip_border) {
 		if (U.gameflags & USER_VIEWPORT_2)
-			;
+			view3d_main_area_draw_viewport_new(C, scene, v3d, ar, &grid_unit);
 		else {
 			view3d_main_area_draw_objects(C, scene, v3d, ar, &grid_unit);
 		}
