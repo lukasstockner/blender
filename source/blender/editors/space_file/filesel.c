@@ -651,8 +651,8 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 	 */
 	for (i = 0; i < n; i++) {
 		file = filelist_file(sfile->files, i);
-		if (!(file->entry->typeflag & FILE_TYPE_DIR) && (fnmatch(pattern, file->entry->relpath, 0) == 0)) {
-			file->entry->selflag |= FILE_SEL_SELECTED;
+		if (!(file->typeflag & FILE_TYPE_DIR) && (fnmatch(pattern, file->entry->relpath, 0) == 0)) {
+			file->selflag |= FILE_SEL_SELECTED;
 			if (!match) {
 				BLI_strncpy(matched_file, file->entry->relpath, FILE_MAX);
 			}

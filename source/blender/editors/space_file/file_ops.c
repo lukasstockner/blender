@@ -178,7 +178,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 	{
 		params->active_file = selected_idx;
 
-		if (file->entry->typeflag & FILE_TYPE_DIR) {
+		if (file->typeflag & FILE_TYPE_DIR) {
 			const bool is_parent_dir = FILENAME_IS_PARENT(file->entry->relpath);
 
 			if (do_diropen == false) {
@@ -279,7 +279,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 				struct FileDirEntry *file = filelist_file(sfile->files, idx);
 
 				if (FILENAME_IS_CURRPAR(file->entry->relpath)) {
-					file->entry->selflag &= ~FILE_SEL_HIGHLIGHTED;
+					file->selflag &= ~FILE_SEL_HIGHLIGHTED;
 				}
 
 				/* active_file gets highlighted as well - make sure it is no readonly file */

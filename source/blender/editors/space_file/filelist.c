@@ -295,24 +295,24 @@ static int compare_direntry_generic(const FileDirEntry *entry1, const FileDirEnt
 {
 	/* type is equal to stat.st_mode */
 
-	if (entry1->entry->typeflag & FILE_TYPE_DIR) {
-	    if (entry2->entry->typeflag & FILE_TYPE_DIR) {
+	if (entry1->typeflag & FILE_TYPE_DIR) {
+	    if (entry2->typeflag & FILE_TYPE_DIR) {
 			/* If both entries are tagged as dirs, we make a 'sub filter' that shows first the real dirs,
 			 * then libs (.blend files), then categories in libs. */
-			if (entry1->entry->typeflag & FILE_TYPE_BLENDERLIB) {
-				if (!(entry2->entry->typeflag & FILE_TYPE_BLENDERLIB)) {
+			if (entry1->typeflag & FILE_TYPE_BLENDERLIB) {
+				if (!(entry2->typeflag & FILE_TYPE_BLENDERLIB)) {
 					return 1;
 				}
 			}
-			else if (entry2->entry->typeflag & FILE_TYPE_BLENDERLIB) {
+			else if (entry2->typeflag & FILE_TYPE_BLENDERLIB) {
 				return -1;
 			}
-			else if (entry1->entry->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
-				if (!(entry2->entry->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))) {
+			else if (entry1->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+				if (!(entry2->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))) {
 					return 1;
 				}
 			}
-			else if (entry2->entry->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+			else if (entry2->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
 				return -1;
 			}
 		}
@@ -320,7 +320,7 @@ static int compare_direntry_generic(const FileDirEntry *entry1, const FileDirEnt
 			return -1;
 		}
 	}
-	else if (entry2->entry->typeflag & FILE_TYPE_DIR) {
+	else if (entry2->typeflag & FILE_TYPE_DIR) {
 	    return 1;
 	}
 
@@ -430,9 +430,9 @@ static int compare_extension(const void *a1, const void *a2)
 	if (!sufix1) sufix1 = nil;
 	if (!sufix2) sufix2 = nil;
 
-	if ((entry1->entry->typeflag & FILE_TYPE_BLENDERLIB) && !(entry2->entry->typeflag & FILE_TYPE_BLENDERLIB)) return -1;
-	if (!(entry1->entry->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->entry->typeflag & FILE_TYPE_BLENDERLIB)) return 1;
-	if ((entry1->entry->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->entry->typeflag & FILE_TYPE_BLENDERLIB)) {
+	if ((entry1->typeflag & FILE_TYPE_BLENDERLIB) && !(entry2->typeflag & FILE_TYPE_BLENDERLIB)) return -1;
+	if (!(entry1->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->typeflag & FILE_TYPE_BLENDERLIB)) return 1;
+	if ((entry1->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->typeflag & FILE_TYPE_BLENDERLIB)) {
 		char lib1[FILE_MAX_LIBEXTRA], lib2[FILE_MAX_LIBEXTRA];
 		char *group1, *group2, *name1, *name2;
 		int grp_comp;
@@ -551,8 +551,8 @@ static bool is_filtered_file(FileDirEntry *file, const char *UNUSED(root), FileL
 	bool is_filtered = !is_hidden_file(file->entry->relpath, filter);
 
 	if (is_filtered && filter->filter && !FILENAME_IS_CURRPAR(file->entry->relpath)) {
-		if (file->entry->typeflag & FILE_TYPE_DIR) {
-			if (file->entry->typeflag & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+		if (file->typeflag & FILE_TYPE_DIR) {
+			if (file->typeflag & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
 				if (!(filter->filter & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))) {
 					is_filtered = false;
 				}
@@ -564,7 +564,7 @@ static bool is_filtered_file(FileDirEntry *file, const char *UNUSED(root), FileL
 			}
 		}
 		else {
-			if (!(file->entry->typeflag & filter->filter)) {
+			if (!(file->typeflag & filter->filter)) {
 				is_filtered = false;
 			}
 		}
@@ -588,8 +588,8 @@ static bool is_filtered_lib(FileDirEntry *file, const char *root, FileListFilter
 	if (BLO_library_path_explode(path, dir, &group, &name)) {
 		is_filtered = !is_hidden_file(file->entry->relpath, filter);
 		if (is_filtered && filter->filter && !FILENAME_IS_CURRPAR(file->entry->relpath)) {
-			if (file->entry->typeflag & FILE_TYPE_DIR) {
-				if (file->entry->typeflag & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+			if (file->typeflag & FILE_TYPE_DIR) {
+				if (file->typeflag & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
 					if (!(filter->filter & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))) {
 						is_filtered = false;
 					}
@@ -823,12 +823,11 @@ ImBuf *filelist_geticon_image(struct FileList *filelist, const int index)
 {
 	FileDirEntry *file = filelist_geticon_get_file(filelist, index);
 
-	return filelist_geticon_image_ex(file->entry->typeflag, file->entry->relpath);
+	return filelist_geticon_image_ex(file->typeflag, file->entry->relpath);
 }
 
 static int filelist_geticon_ex(
-        const unsigned int typeflag, const char *path, const char *relpath,
-        const bool is_main, const bool ignore_libdir)
+        const int typeflag, const int blentype, const char *relpath, const bool is_main, const bool ignore_libdir)
 {
 	if ((typeflag & FILE_TYPE_DIR) && !(ignore_libdir && (typeflag & (FILE_TYPE_BLENDERLIB | FILE_TYPE_BLENDER)))) {
 		if (FILENAME_IS_PARENT(relpath)) {
@@ -867,68 +866,62 @@ static int filelist_geticon_ex(
 	else if (typeflag & FILE_TYPE_TEXT)
 		return ICON_FILE_TEXT;
 	else if (typeflag & FILE_TYPE_BLENDERLIB) {
-		char lib[FILE_MAXDIR], *group;
-
-		if (BLO_library_path_explode(path, lib, &group, NULL) && group) {
-			int idcode = groupname_to_code(group);
-
-			/* TODO: this should most likely be completed and moved to UI_interface_icons.h ? unless it already exists somewhere... */
-			switch (idcode) {
-				case ID_AC:
-					return ICON_ANIM_DATA;
-				case ID_AR:
-					return ICON_ARMATURE_DATA;
-				case ID_BR:
-					return ICON_BRUSH_DATA;
-				case ID_CA:
-					return ICON_CAMERA_DATA;
-				case ID_CU:
-					return ICON_CURVE_DATA;
-				case ID_GD:
-					return ICON_GREASEPENCIL;
-				case ID_GR:
-					return ICON_GROUP;
-				case ID_IM:
-					return ICON_IMAGE_DATA;
-				case ID_LA:
-					return ICON_LAMP_DATA;
-				case ID_LS:
-					return ICON_LINE_DATA;
-				case ID_LT:
-					return ICON_LATTICE_DATA;
-				case ID_MA:
-					return ICON_MATERIAL_DATA;
-				case ID_MB:
-					return ICON_META_DATA;
-				case ID_MC:
-					return ICON_CLIP;
-				case ID_ME:
-					return ICON_MESH_DATA;
-				case ID_MSK:
-					return ICON_MOD_MASK;  /* TODO! this would need its own icon! */
-				case ID_NT:
-					return ICON_NODETREE;
-				case ID_OB:
-					return ICON_OBJECT_DATA;
-				case ID_PAL:
-					return ICON_COLOR;  /* TODO! this would need its own icon! */
-				case ID_PC:
-					return ICON_CURVE_BEZCURVE;  /* TODO! this would need its own icon! */
-				case ID_SCE:
-					return ICON_SCENE_DATA;
-				case ID_SPK:
-					return ICON_SPEAKER;
-				case ID_SO:
-					return ICON_SOUND;
-				case ID_TE:
-					return ICON_TEXTURE_DATA;
-				case ID_TXT:
-					return ICON_TEXT;
-				case ID_VF:
-					return ICON_FONT_DATA;
-				case ID_WO:
-					return ICON_WORLD_DATA;
-			}
+		/* TODO: this should most likely be completed and moved to UI_interface_icons.h ? unless it already exists somewhere... */
+		switch (blentype) {
+			case ID_AC:
+				return ICON_ANIM_DATA;
+			case ID_AR:
+				return ICON_ARMATURE_DATA;
+			case ID_BR:
+				return ICON_BRUSH_DATA;
+			case ID_CA:
+				return ICON_CAMERA_DATA;
+			case ID_CU:
+				return ICON_CURVE_DATA;
+			case ID_GD:
+				return ICON_GREASEPENCIL;
+			case ID_GR:
+				return ICON_GROUP;
+			case ID_IM:
+				return ICON_IMAGE_DATA;
+			case ID_LA:
+				return ICON_LAMP_DATA;
+			case ID_LS:
+				return ICON_LINE_DATA;
+			case ID_LT:
+				return ICON_LATTICE_DATA;
+			case ID_MA:
+				return ICON_MATERIAL_DATA;
+			case ID_MB:
+				return ICON_META_DATA;
+			case ID_MC:
+				return ICON_CLIP;
+			case ID_ME:
+				return ICON_MESH_DATA;
+			case ID_MSK:
+				return ICON_MOD_MASK;  /* TODO! this would need its own icon! */
+			case ID_NT:
+				return ICON_NODETREE;
+			case ID_OB:
+				return ICON_OBJECT_DATA;
+			case ID_PAL:
+				return ICON_COLOR;  /* TODO! this would need its own icon! */
+			case ID_PC:
+				return ICON_CURVE_BEZCURVE;  /* TODO! this would need its own icon! */
+			case ID_SCE:
+				return ICON_SCENE_DATA;
+			case ID_SPK:
+				return ICON_SPEAKER;
+			case ID_SO:
+				return ICON_SOUND;
+			case ID_TE:
+				return ICON_TEXTURE_DATA;
+			case ID_TXT:
+				return ICON_TEXT;
+			case ID_VF:
+				return ICON_FONT_DATA;
+			case ID_WO:
+				return ICON_WORLD_DATA;
 		}
 	}
 	return is_main ? ICON_FILE_BLANK : ICON_NONE;
@@ -938,7 +931,7 @@ int filelist_geticon(struct FileList *filelist, const int index, const bool is_m
 {
 	FileDirEntry *file = filelist_geticon_get_file(filelist, index);
 
-	return filelist_geticon_ex(file->entry->typeflag, file->entry->abspath, file->entry->relpath, is_main, false);
+	return filelist_geticon_ex(file->typeflag, file->blentype, file->entry->relpath, is_main, false);
 }
 
 /* ********** Main ********** */
@@ -1138,14 +1131,14 @@ char *fileentry_uiname(const FileDirEntry *entry, char *dir)
 	struct FileDirEntryRevision *rev = entry->entry;
 	char *name;
 
-	if (rev->abspath && (rev->typeflag & FILE_TYPE_BLENDERLIB)) {
+	if (rev->abspath && (entry->typeflag & FILE_TYPE_BLENDERLIB)) {
 		char *group;
 		BLO_library_path_explode(rev->abspath, dir, &group, &name);
 		if (!name) {
 			name = group;
 		}
 	}
-	else if (rev->typeflag & FILE_TYPE_DIR) {
+	else if (entry->typeflag & FILE_TYPE_DIR) {
 		name = rev->relpath;
 	}
 	else {
@@ -1354,45 +1347,6 @@ int ED_file_extension_icon(const char *path)
 	return ICON_FILE_BLANK;
 }
 
-static void filelist_setfiletypes(
-        const char *root, FileDirEntry *files, const int numfiles, const char *filter_glob,
-        const bool do_lib, const char *main_name)
-{
-	FileDirEntry *entry;
-	int num;
-
-	for (num = 0, entry = files; num < numfiles; num++, entry++) {
-		FileDirEntryRevision *file = entry->entry;
-
-		if (file->typeflag & FILE_TYPE_BLENDERLIB) {
-			continue;
-		}
-
-		/* If we are considering .blend files as libs, promote them to directory status! */
-		if (do_lib && BLO_has_bfile_extension(file->relpath)) {
-			char name[FILE_MAX];
-
-			file->typeflag = FILE_TYPE_BLENDER;
-
-			BLI_join_dirfile(name, sizeof(name), root, file->relpath);
-
-			/* prevent current file being used as acceptable dir */
-			if (BLI_path_cmp(main_name, name) != 0) {
-				file->typeflag |= FILE_TYPE_DIR;
-			}
-		}
-		/* Otherwise, do not check extensions for directories! */
-		else if (!(file->typeflag & FILE_TYPE_DIR)) {
-			if (filter_glob[0] && BLI_testextensie_glob(file->relpath, filter_glob)) {
-				file->typeflag = FILE_TYPE_OPERATOR;
-			}
-			else {
-				file->typeflag = file_extension_type(root, file->relpath);
-			}
-		}
-	}
-}
-
 int filelist_empty(struct FileList *filelist)
 {
 	return filelist->filelist.entries == NULL;
@@ -1402,30 +1356,29 @@ void filelist_select_file(FileList *filelist, int index, FileSelType select, uns
 {
 	FileDirEntry *entry = filelist_file(filelist, index);
 	if (entry) {
-		FileDirEntryRevision *file = entry->entry;
 		bool check_ok = false;
 		switch (check) {
 			case CHECK_DIRS:
-				check_ok = ((file->typeflag & FILE_TYPE_DIR) != 0);
+				check_ok = ((entry->typeflag & FILE_TYPE_DIR) != 0);
 				break;
 			case CHECK_ALL:
 				check_ok = true;
 				break;
 			case CHECK_FILES:
 			default:
-				check_ok = ((file->typeflag & FILE_TYPE_DIR) == 0);
+				check_ok = ((entry->typeflag & FILE_TYPE_DIR) == 0);
 				break;
 		}
 		if (check_ok) {
 			switch (select) {
 				case FILE_SEL_REMOVE:
-					file->selflag &= ~flag;
+					entry->selflag &= ~flag;
 					break;
 				case FILE_SEL_ADD:
-					file->selflag |= flag;
+					entry->selflag |= flag;
 					break;
 				case FILE_SEL_TOGGLE:
-					file->selflag ^= flag;
+					entry->selflag ^= flag;
 					break;
 			}
 		}
@@ -1447,15 +1400,14 @@ bool filelist_is_selected(FileList *filelist, int index, FileCheckType check)
 {
 	FileDirEntry *entry = filelist_file(filelist, index);
 	if (entry) {
-		FileDirEntryRevision *file = entry->entry;
 		switch (check) {
 			case CHECK_DIRS:
-				return ((file->typeflag & FILE_TYPE_DIR) != 0) && (file->selflag & FILE_SEL_SELECTED);
+				return ((entry->typeflag & FILE_TYPE_DIR) != 0) && (entry->selflag & FILE_SEL_SELECTED);
 			case CHECK_FILES:
-				return ((file->typeflag & FILE_TYPE_DIR) == 0) && (file->selflag & FILE_SEL_SELECTED);
+				return ((entry->typeflag & FILE_TYPE_DIR) == 0) && (entry->selflag & FILE_SEL_SELECTED);
 			case CHECK_ALL:
 			default:
-				return (file->selflag & FILE_SEL_SELECTED) != 0;
+				return (entry->selflag & FILE_SEL_SELECTED) != 0;
 		}
 	}
 
@@ -1586,11 +1538,11 @@ static void filelist_readjob_merge_sublist(
 			while (max_recursion && (is_lib || (recursion_level <= max_recursion))) {
 				TodoDir *td_dir;
 
-				if (((f->entry->typeflag & FILE_TYPE_DIR) == 0) || FILENAME_IS_CURRPAR(f->entry->relpath)) {
+				if (((f->typeflag & FILE_TYPE_DIR) == 0) || FILENAME_IS_CURRPAR(f->entry->relpath)) {
 					break;
 				}
 				else if (!is_lib && (recursion_level >= max_recursion) &&
-						 ((f->entry->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) == 0))
+						 ((f->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) == 0))
 				{
 					/* Do not recurse in real directories in this case, only in .blend libs. */
 					break;
@@ -1614,7 +1566,8 @@ static void filelist_readjob_merge_sublist(
 	}
 }
 
-static int filelist_readjob_list_dir(const char *root, DirEntriesBuffer *files)
+static int filelist_readjob_list_dir(
+        const char *root, DirEntriesBuffer *files, const char *filter_glob, const bool do_lib, const char *main_name)
 {
 	struct direntry *entries;
 	int nbr_entries;
@@ -1624,21 +1577,46 @@ static int filelist_readjob_list_dir(const char *root, DirEntriesBuffer *files)
 		int i = nbr_entries;
 		direntries_buffer_realloc(files, nbr_entries, 1, true);
 		while (i--) {
-			files->entries[i].entry = MEM_callocN(sizeof(*files->entries[i].entry), __func__);
-			files->entries[i].entry->relpath = entries[i].relname;
-			files->entries[i].entry->abspath = entries[i].path;
+			FileDirEntry *entry = &files->entries[i];
+			FileDirEntryRevision *rev = entry->entry = MEM_callocN(sizeof(*rev), __func__);
+			rev->relpath = entries[i].relname;
+			rev->abspath = entries[i].path;
 
 			if (S_ISDIR(entries[i].s.st_mode)) {
-				files->entries[i].entry->typeflag |= FILE_TYPE_DIR;
+				entry->typeflag |= FILE_TYPE_DIR;
 			}
 			/* TODO rather use real values from direntry.s!!! */
-			memcpy(files->entries[i].entry->size, entries[i].size, sizeof(files->entries[i].entry->size));
-			memcpy(files->entries[i].entry->mode1, entries[i].mode1, sizeof(files->entries[i].entry->mode1));
-			memcpy(files->entries[i].entry->mode2, entries[i].mode2, sizeof(files->entries[i].entry->mode2));
-			memcpy(files->entries[i].entry->mode3, entries[i].mode3, sizeof(files->entries[i].entry->mode3));
-			memcpy(files->entries[i].entry->owner, entries[i].owner, sizeof(files->entries[i].entry->owner));
-			memcpy(files->entries[i].entry->time, entries[i].time, sizeof(files->entries[i].entry->time));
-			memcpy(files->entries[i].entry->date, entries[i].date, sizeof(files->entries[i].entry->date));
+			memcpy(rev->size, entries[i].size, sizeof(rev->size));
+			memcpy(rev->mode1, entries[i].mode1, sizeof(rev->mode1));
+			memcpy(rev->mode2, entries[i].mode2, sizeof(rev->mode2));
+			memcpy(rev->mode3, entries[i].mode3, sizeof(rev->mode3));
+			memcpy(rev->owner, entries[i].owner, sizeof(rev->owner));
+			memcpy(rev->time, entries[i].time, sizeof(rev->time));
+			memcpy(rev->date, entries[i].date, sizeof(rev->date));
+
+			/* Set file type. */
+			/* If we are considering .blend files as libs, promote them to directory status! */
+			if (do_lib && BLO_has_bfile_extension(rev->relpath)) {
+				char name[FILE_MAX];
+
+				entry->typeflag = FILE_TYPE_BLENDER;
+
+				BLI_join_dirfile(name, sizeof(name), root, rev->relpath);
+
+				/* prevent current file being used as acceptable dir */
+				if (BLI_path_cmp(main_name, name) != 0) {
+					entry->typeflag |= FILE_TYPE_DIR;
+				}
+			}
+			/* Otherwise, do not check extensions for directories! */
+			else if (!(entry->typeflag & FILE_TYPE_DIR)) {
+				if (filter_glob[0] && BLI_testextensie_glob(rev->relpath, filter_glob)) {
+					entry->typeflag = FILE_TYPE_OPERATOR;
+				}
+				else {
+					entry->typeflag = file_extension_type(root, rev->relpath);
+				}
+			}
 		}
 		MEM_freeN(entries);
 	}
@@ -1687,17 +1665,22 @@ static int filelist_readjob_list_lib(const char *root, DirEntriesBuffer *files)
 	}
 
 	files->entries[nnames].entry->relpath = BLI_strdup(FILENAME_PARENT);
-	files->entries[nnames].entry->typeflag |= (FILE_TYPE_BLENDERLIB | FILE_TYPE_DIR);
+	files->entries[nnames].typeflag |= (FILE_TYPE_BLENDERLIB | FILE_TYPE_DIR);
 
 	for (i = 0, l = names; i < nnames; i++, l = l->next) {
 		const char *blockname = l->link;
-		FileDirEntryRevision *file = files->entries[i].entry;
+		FileDirEntry *entry = &files->entries[i];
+		FileDirEntryRevision *rev = entry->entry;
 
-		file->relpath = BLI_strdup(blockname);
-		file->abspath = BLI_strdupcat(root, blockname);
-		file->typeflag |= FILE_TYPE_BLENDERLIB;
+		rev->relpath = BLI_strdup(blockname);
+		rev->abspath = BLI_strdupcat(root, blockname);
+		entry->typeflag |= FILE_TYPE_BLENDERLIB;
 		if (!(group && idcode)) {
-			file->typeflag |= FILE_TYPE_DIR;
+			entry->typeflag |= FILE_TYPE_DIR;
+			entry->blentype = groupname_to_code(blockname);
+		}
+		else {
+			entry->blentype = idcode;
 		}
 	}
 
@@ -1763,7 +1746,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 		filelist_resize(filelist, filelist->filelist.nbr_entries);
 
 		for (a = 0; a < filelist->filelist.nbr_entries; a++) {
-			filelist->filelist.entries[a].entry->typeflag |= FILE_TYPE_DIR;
+			filelist->filelist.entries[a].typeflag |= FILE_TYPE_DIR;
 		}
 
 		filelist->filelist.entries[0].entry->relpath = BLI_strdup(FILENAME_PARENT);
@@ -1818,7 +1801,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 		
 		if (!filelist->filter_data.hide_parent) {
 			files->entry->relpath = BLI_strdup(FILENAME_PARENT);
-			files->entry->typeflag |= FILE_TYPE_DIR;
+			files->typeflag |= FILE_TYPE_DIR;
 
 			files++;
 		}
@@ -1850,7 +1833,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 					files->entry->poin = id;
 					fake = id->flag & LIB_FAKEUSER;
 					if (idcode == ID_MA || idcode == ID_TE || idcode == ID_LA || idcode == ID_WO || idcode == ID_IM) {
-						files->entry->typeflag |= FILE_TYPE_IMAGE;
+						files->typeflag |= FILE_TYPE_IMAGE;
 					}
 //					if      (id->lib && fake) BLI_snprintf(files->extra, sizeof(files->entry->extra), "LF %d",    id->us);
 //					else if (id->lib)         BLI_snprintf(files->extra, sizeof(files->entry->extra), "L    %d",  id->us);
@@ -1895,7 +1878,7 @@ static void filelist_readjob_dir_lib(
 		}
 		if (!nbr_entries) {
 			is_lib = false;
-			nbr_entries = filelist_readjob_list_dir(td_dir.dir, &td_files);
+			nbr_entries = filelist_readjob_list_dir(td_dir.dir, &td_files, filter_glob, do_lib, main_name);
 		}
 
 		if (!nbr_entries) {
@@ -1903,9 +1886,6 @@ static void filelist_readjob_dir_lib(
 		}
 
 		BLI_assert(nbr_entries = td_files.nbr_entries);
-
-		/* We only set filetypes for our own level, sub ones will be set by later iterations. */
-		filelist_setfiletypes(td_dir.dir, td_files.entries, td_files.nbr_entries, filter_glob, do_lib, main_name);
 
 		BLI_mutex_lock(lock);
 
@@ -2196,8 +2176,8 @@ static void thumbnails_update(void *tjv)
 				tj->filelist->filelist.entries[limg->index].entry->image = IMB_dupImBuf(limg->img);
 				/* update flag for movie files where thumbnail can't be created */
 				if (limg->flags & FILE_TYPE_MOVIE_ICON) {
-					tj->filelist->filelist.entries[limg->index].entry->typeflag &= ~FILE_TYPE_MOVIE;
-					tj->filelist->filelist.entries[limg->index].entry->typeflag |= FILE_TYPE_MOVIE_ICON;
+					tj->filelist->filelist.entries[limg->index].typeflag &= ~FILE_TYPE_MOVIE;
+					tj->filelist->filelist.entries[limg->index].typeflag |= FILE_TYPE_MOVIE_ICON;
 				}
 				limg->done = true;
 				IMB_freeImBuf(limg->img);
@@ -2239,13 +2219,13 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 			continue;
 		}
 		if (!filelist->filelist.entries[idx].entry->image) {
-			if (filelist->filelist.entries[idx].entry->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE |
+			if (filelist->filelist.entries[idx].typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE |
 			                                                       FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))
 			{
 				FileImage *limg = MEM_callocN(sizeof(*limg), __func__);
 				BLI_strncpy(limg->path, filelist->filelist.entries[idx].entry->abspath, sizeof(limg->path));
 				limg->index = idx;
-				limg->flags = filelist->filelist.entries[idx].entry->typeflag;
+				limg->flags = filelist->filelist.entries[idx].typeflag;
 				BLI_addtail(&tj->loadimages, limg);
 			}
 		}

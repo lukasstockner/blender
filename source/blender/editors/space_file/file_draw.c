@@ -497,12 +497,12 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		UI_ThemeColor4(TH_TEXT);
 
 
-		if (!(file->entry->selflag & FILE_SEL_EDITING)) {
-			if ((params->active_file == i) || (file->entry->selflag & FILE_SEL_HIGHLIGHTED) ||
-			    (file->entry->selflag & FILE_SEL_SELECTED))
+		if (!(file->selflag & FILE_SEL_EDITING)) {
+			if ((params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ||
+			    (file->selflag & FILE_SEL_SELECTED))
 			{
-				int colorid = (file->entry->selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
-				int shade = (params->active_file == i) || (file->entry->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
+				int colorid = (file->selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
+				int shade = (params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
 
 				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
 				if (FILENAME_IS_CURRPAR(file->entry->relpath)) {
@@ -526,7 +526,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			}
 
 			file_draw_preview(block, path, sx, sy, imb, icon, layout,
-			                  !is_icon && (file->entry->typeflag & FILE_TYPE_IMAGE), do_drag);
+			                  !is_icon && (file->typeflag & FILE_TYPE_IMAGE), do_drag);
 		}
 		else {
 			file_draw_icon(block, path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i, true),
@@ -536,7 +536,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		UI_ThemeColor4(TH_TEXT);
 
-		if (file->entry->selflag & FILE_SEL_EDITING) {
+		if (file->selflag & FILE_SEL_EDITING) {
 			uiBut *but;
 			short width;
 
@@ -559,18 +559,18 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
 			UI_but_flag_disable(but, UI_BUT_UNDO);
 			if (false == UI_but_active_only(C, ar, block, but)) {
-				file->entry->selflag &= ~FILE_SEL_EDITING;
+				file->selflag &= ~FILE_SEL_EDITING;
 			}
 		}
 
-		if (!(file->entry->selflag & FILE_SEL_EDITING)) {
+		if (!(file->selflag & FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
 			file_draw_string(sx + 1, tpos, name, (float)textwidth, textheight, align);
 		}
 
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
-			if (!(file->entry->typeflag & FILE_TYPE_DIR)) {
+			if (!(file->typeflag & FILE_TYPE_DIR)) {
 				file_draw_string(sx, sy, file->entry->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
@@ -599,7 +599,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			file_draw_string(sx, sy, file->entry->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
-			if (!(file->entry->typeflag & FILE_TYPE_DIR)) {
+			if (!(file->typeflag & FILE_TYPE_DIR)) {
 				file_draw_string(sx, sy, file->entry->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}

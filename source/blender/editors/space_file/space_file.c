@@ -262,7 +262,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		if (idx >= 0) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
 			if (file) {
-				file->entry->selflag |= FILE_SEL_EDITING;
+				file->selflag |= FILE_SEL_EDITING;
 			}
 		}
 		BLI_strncpy(sfile->params->renameedit, sfile->params->renamefile, sizeof(sfile->params->renameedit));

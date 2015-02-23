@@ -757,8 +757,6 @@ typedef struct FileDirEntryRevision {
 	char uuid[1024];  /* ASSET_UUID_LENGTH */
 	char *relpath;
 	char *abspath;  /* XXX Get rid of this! */
-	int typeflag;  /* eFileSel_File_Types */
-	int selflag; /* eDirEntry_SelectFlag */
 
 	/* Those are direct copy from direntry. We may rework that later, but really not top priority. */
 	/* TODO: switch back to real values, no sense to keep this as string when it often not used at all! */
@@ -775,7 +773,8 @@ typedef struct FileDirEntryRevision {
 	struct ImBuf *image;
 } FileDirEntryRevision;
 
-/* Container for a variant, only relevant in asset context. */
+/* Container for a variant, only relevant in asset context.
+ * In case there are no variants, a single one shall exist, with NULL name/description. */
 typedef struct FileDirEntryVariant {
 	char *name;
 	char *description;
@@ -790,11 +789,14 @@ typedef struct FileDirEntry {
 	/* Either point to active variant/revision if available, or own entry (in mere filebrowser case). */
 	FileDirEntryRevision *entry;
 
+	int typeflag;  /* eFileSel_File_Types */
+	int blentype;  /* ID type, in case typeflag has FILE_TYPE_BLENDERLIB set. */
+
 	char **tags;
 	int nbr_tags;
 
 	short status;
-	short pad;
+	short selflag; /* eDirEntry_SelectFlag */
 
 	FileDirEntryVariant *variants;
 	int nbr_variants;
