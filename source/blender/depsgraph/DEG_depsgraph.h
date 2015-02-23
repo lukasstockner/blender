@@ -185,7 +185,8 @@ void DEG_evaluate_on_refresh_ex(struct EvaluationContext *eval_ctx,
  */
 void DEG_evaluate_on_refresh(struct EvaluationContext *eval_ctx,
                              struct Main *bmain,
-                             Depsgraph *graph);
+                             Depsgraph *graph,
+                             struct Scene *scene);
 
 /* Editors Integration  -------------------------- */
 

@@ -35,6 +35,7 @@ extern "C" {
 #include "BLI_task.h"
 
 #include "BKE_depsgraph.h"
+#include "BKE_scene.h"
 
 #include "DEG_depsgraph.h"
 } /* extern "C" */
@@ -280,6 +281,8 @@ static void schedule_children(TaskPool *pool,
 /* Evaluate all nodes tagged for updating,
  * ! This is usually done as part of main loop, but may also be
  *   called from frame-change update.
+ *
+ * NOTE: Time sources should be all valid!
  */
 void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
                                 Main *bmain,
@@ -348,8 +351,13 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 /* Evaluate all nodes tagged for updating. */
 void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx,
                              Main *bmain,
-                             Depsgraph *graph)
+                             Depsgraph *graph,
+                             Scene *scene)
 {
+	/* Update time on primary timesource. */
+	TimeSourceDepsNode *tsrc = graph->find_time_source();
+	tsrc->cfra = BKE_scene_frame_get(scene);;
+
 	DEG_evaluate_on_refresh_ex(eval_ctx, bmain, graph, graph->layers);
 }
 

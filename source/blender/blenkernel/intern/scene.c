@@ -1718,13 +1718,13 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 * only objects and scenes. - brecht */
 #ifdef WITH_LEGACY_DEPSGRAPH
 	if (use_new_eval) {
-		DEG_evaluate_on_refresh(eval_ctx, bmain, scene->depsgraph);
+		DEG_evaluate_on_refresh(eval_ctx, bmain, scene->depsgraph, scene);
 	}
 	else {
 		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
 	}
 #else
-	DEG_evaluate_on_refresh(eval_ctx, bmain, scene->depsgraph);
+	DEG_evaluate_on_refresh(eval_ctx, bmain, scene->depsgraph, scene);
 #endif
 
 	/* update sound system animation (TODO, move to depsgraph) */

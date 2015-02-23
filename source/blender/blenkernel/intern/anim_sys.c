@@ -2846,7 +2846,7 @@ void BKE_animsys_eval_animdata(EvaluationContext *eval_ctx, ID *id)
 	Scene *scene = NULL; /* XXX: this is only needed for flushing RNA updates,
 	                      * which should get handled as part of the graph instead...
 	                      */
-	DEBUG_PRINT("%s on %s\n", __func__, id->name);
+	DEBUG_PRINT("%s on %s, time=%f\n\n", __func__, id->name, (double)eval_ctx->ctime);
 	BKE_animsys_evaluate_animdata(scene, id, adt, eval_ctx->ctime, ADT_RECALC_ANIM);
 }
 
