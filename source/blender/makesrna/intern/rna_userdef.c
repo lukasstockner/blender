@@ -4016,6 +4016,13 @@ static void rna_def_userdef_system(BlenderRNA *brna)
 	/* this isn't essential but nice to check if VBO draws any differently */
 	RNA_def_property_update(prop, NC_WINDOW, "rna_userdef_vbo_update");
 
+	prop = RNA_def_property(srna, "use_viewport_new", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "gameflags", USER_VIEWPORT_2);
+	RNA_def_property_ui_text(prop, "Viewport 2",
+	                         "Use new viewport code in viewport");
+	/* this isn't essential but nice to check if VBO draws any differently */
+	RNA_def_property_update(prop, NC_WINDOW, "rna_userdef_vbo_update");
+
 	prop = RNA_def_property(srna, "anisotropic_filter", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "anisotropic_filter");
 	RNA_def_property_enum_items(prop, anisotropic_items);
