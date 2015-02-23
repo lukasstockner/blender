@@ -93,7 +93,6 @@ struct Depsgraph {
 	typedef unordered_map<const ID *, IDDepsNode *> IDNodeMap;
 	typedef unordered_set<SubgraphDepsNode *> Subgraphs;
 	typedef unordered_set<OperationDepsNode *> EntryTags;
-	typedef unordered_set<ID *> IDTags;
 	typedef vector<OperationDepsNode *> OperationNodes;
 
 	Depsgraph();
@@ -150,9 +149,6 @@ struct Depsgraph {
 	/* Tag a specific node as needing updates. */
 	void add_entry_tag(OperationDepsNode *node);
 
-	/* Tag a specific ID as needing updates. */
-	void add_id_tag(ID *id);
-
 	/* Clear storage used by all nodes. */
 	void clear_all_nodes();
 
@@ -175,11 +171,6 @@ struct Depsgraph {
 
 	/* Nodes which have been tagged as "directly modified". */
 	EntryTags entry_tags;
-
-	/* Nodes which have been tagged for update but were missing
-	 * in the current dependency graph.
-	 */
-	IDTags id_tags;
 
 	/* Convenience Data ................... */
 

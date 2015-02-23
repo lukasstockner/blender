@@ -299,8 +299,7 @@ void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
 {
 	/* TODO(sergey): Currently it's a duplicate of logic in BKE_object_handle_update_ex(). */
 	// XXX: it's almost redundant now...
-	
-	
+
 	/* Handle proxy copy for target, */
 	if (ob->id.lib && ob->proxy_from) {
 		if (ob->proxy_from->proxy_group) {
@@ -316,6 +315,11 @@ void BKE_object_eval_uber_transform(EvaluationContext *UNUSED(eval_ctx),
 		else
 			copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 	}
+
+	ob->recalc &= ~(OB_RECALC_OB|OB_RECALC_TIME);
+	if (ob->data == NULL) {
+		ob->recalc &= ~OB_RECALC_DATA;
+	}
 }
 
 void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
@@ -325,4 +329,6 @@ void BKE_object_eval_uber_data(EvaluationContext *eval_ctx,
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
 	BLI_assert(ob->type != OB_ARMATURE);
 	BKE_object_handle_data_update(eval_ctx, scene, ob);
+
+	ob->recalc &= ~(OB_RECALC_DATA|OB_RECALC_TIME);
 }

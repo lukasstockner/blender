@@ -420,13 +420,6 @@ void Depsgraph::add_entry_tag(OperationDepsNode *node)
 	this->entry_tags.insert(node);
 }
 
-/* Tag a specific ID as needing updates. */
-void Depsgraph::add_id_tag(ID *id)
-{
-	/* Tagging of actual operations happens in DEG_scene_relations_update(). */
-	this->id_tags.insert(id);
-}
-
 void Depsgraph::clear_all_nodes()
 {
 	clear_id_nodes();

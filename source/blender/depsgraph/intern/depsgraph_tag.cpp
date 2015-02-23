@@ -74,6 +74,25 @@ static void lib_id_recalc_data_tag(Main *bmain, ID *id)
 static void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
 {
 	if (flag) {
+		/* This bit of code ensures legacy object->recalc flags
+		 * are still filled in the same way as it was expected
+		 * with the old dependency graph.
+		 *
+		 * This is because some areas like motion paths and likely
+		 * some other physics baking process are doing manual scene
+		 * update on all the frames, trying to minimize number of
+		 * updates.
+		 *
+		 * But this flag will also let us to re-construct entry
+		 * nodes for update after relations update and after layer
+		 * visibility changes.
+		 */
+		short idtype = GS(id->name);
+		if (idtype == ID_OB) {
+			Object *object = (Object *)id;
+			object->recalc |= (flag & OB_RECALC_ALL);
+		}
+
 		if (flag & OB_RECALC_OB)
 			lib_id_recalc_tag(bmain, id);
 		if (flag & (OB_RECALC_DATA | PSYS_RECALC))
@@ -102,12 +121,8 @@ void DEG_graph_id_tag_update(Main *bmain, Depsgraph *graph, ID *id)
 {
 	IDDepsNode *node = graph->find_id_node(id);
 	lib_id_recalc_tag(bmain, id);
-	if (node) {
+	if (node != NULL) {
 		node->tag_update(graph);
-	}
-	else {
-		/* Store the ID for tagging later. */
-		graph->add_id_tag(id);
 	}
 }
 

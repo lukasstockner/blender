@@ -468,7 +468,7 @@ static void deg_graph_transitive_reduction(Depsgraph *graph)
 	}
 }
 
-static void deg_graph_flush_node_layers(Depsgraph *graph)
+static void deg_graph_build_finalize(Depsgraph *graph)
 {
 	std::stack<OperationDepsNode*> stack;
 
@@ -492,6 +492,8 @@ static void deg_graph_flush_node_layers(Depsgraph *graph)
 		if (node->num_links_pending == 0) {
 			stack.push(node);
 		}
+		IDDepsNode *id_node = node->owner->owner;
+		id_node->id->flag |= LIB_DOIT;
 	}
 
 	while (!stack.empty()) {
@@ -528,6 +530,27 @@ static void deg_graph_flush_node_layers(Depsgraph *graph)
 					IDDepsNode *id_to = to->owner->owner;
 					id_node->layers |= id_to->layers;
 				}
+			}
+
+			/* Re-tag ID for update if it was tagged befoee the relations
+			 * update tag.
+			 */
+			ID *id = id_node->id;
+			if (id->flag & LIB_ID_RECALC_ALL &&
+			    id->flag & LIB_DOIT)
+			{
+				id_node->tag_update(graph);
+				if (GS(id->name) == ID_OB) {
+					Object *object = (Object *)id;
+					if (object->recalc & OB_RECALC_TIME) {
+						ComponentDepsNode *anim_comp =
+						        id_node->find_component(DEPSNODE_TYPE_ANIMATION);
+						if (anim_comp != NULL) {
+							anim_comp->tag_update(graph);
+						}
+					}
+				}
+				id->flag &= ~LIB_DOIT;
 			}
 		}
 	}
@@ -721,7 +744,9 @@ void DEG_graph_build_from_scene(Depsgraph *graph, Main *bmain, Scene *scene)
 		deg_graph_transitive_reduction(graph);
 	}
 
-	deg_graph_flush_node_layers(graph);
+	/* 5) Flush visibility layer and re-schedule nodes for update. */
+	deg_graph_build_finalize(graph);
+
 #if 0
 	if (!DEG_debug_consistency_check(graph)) {
 		printf("Consistency validation failed, ABORTING!\n");
@@ -767,18 +792,6 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 		return;
 	}
 
-	/* Store all oeprations which needs to be re-tagged in new graph. */
-	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin();
-	     it != graph->entry_tags.end();
-	     ++it)
-	{
-		OperationDepsNode *node = *it;
-		/* TODO(sergey): Ideally we'll need to only re-tag operations,
-		 * not the whole ID nodes.
-		 */
-		graph->add_id_tag(node->owner->owner->id);
-	}
-
 	/* Clear all previous nodes and operations. */
 	graph->clear_all_nodes();
 	graph->operations.clear();
@@ -787,15 +800,6 @@ void DEG_scene_relations_update(Main *bmain, Scene *scene)
 
 	/* Build new nodes and relations. */
 	DEG_graph_build_from_scene(graph, bmain, scene);
-
-	for (Depsgraph::IDTags::const_iterator it = graph->id_tags.begin();
-	     it != graph->id_tags.end();
-	     ++it)
-	{
-		ID *id = *it;
-		DEG_graph_id_tag_update(bmain, graph, id);
-	}
-	graph->id_tags.clear();
 
 	graph->need_update = false;
 }
