@@ -1475,6 +1475,7 @@ static ModifierData *mesh_find_start_modifier(Scene *scene, Object *ob, VirtualM
 	ModifierData *md;
 	
 	for (md = ob->modifiers.last; md; md = md->prev) {
+#if 0
 		if (md->type == eModifierType_PointCache) {
 			PointCacheModifierData *pcmd = (PointCacheModifierData *)md;
 			struct PTCReader *reader;
@@ -1494,6 +1495,7 @@ static ModifierData *mesh_find_start_modifier(Scene *scene, Object *ob, VirtualM
 				break;
 			}
 		}
+#endif
 	}
 	if (md)
 		return md;
