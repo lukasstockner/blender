@@ -571,13 +571,14 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 			if (!(file->typeflag & FILE_TYPE_DIR)) {
-				file_draw_string(sx, sy, file->entry->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				file_draw_string(sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}
 		else if (params->display == FILE_LONGDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 
+#if 0
 #ifndef WIN32
 			/* rwx rwx rwx */
 			file_draw_string(sx, sy, file->entry->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align);
@@ -592,15 +593,15 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			file_draw_string(sx, sy, file->entry->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
 			sx += layout->column_widths[COLUMN_OWNER] + column_space;
 #endif
-
-			file_draw_string(sx, sy, file->entry->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
+#endif
+			file_draw_string(sx, sy, file->entry->date_str, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
 
-			file_draw_string(sx, sy, file->entry->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
+			file_draw_string(sx, sy, file->entry->time_str, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
 			if (!(file->typeflag & FILE_TYPE_DIR)) {
-				file_draw_string(sx, sy, file->entry->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				file_draw_string(sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}

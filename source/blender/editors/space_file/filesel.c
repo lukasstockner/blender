@@ -495,12 +495,13 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 			float len;
 			len = file_string_width(file->entry->relpath);
 			if (len > layout->column_widths[COLUMN_NAME]) layout->column_widths[COLUMN_NAME] = len;
-			len = file_string_width(file->entry->date);
+			len = file_string_width(file->entry->date_str);
 			if (len > layout->column_widths[COLUMN_DATE]) layout->column_widths[COLUMN_DATE] = len;
-			len = file_string_width(file->entry->time);
+			len = file_string_width(file->entry->time_str);
 			if (len > layout->column_widths[COLUMN_TIME]) layout->column_widths[COLUMN_TIME] = len;
-			len = file_string_width(file->entry->size);
+			len = file_string_width(file->entry->size_str);
 			if (len > layout->column_widths[COLUMN_SIZE]) layout->column_widths[COLUMN_SIZE] = len;
+#if 0
 			len = file_string_width(file->entry->mode1);
 			if (len > layout->column_widths[COLUMN_MODE1]) layout->column_widths[COLUMN_MODE1] = len;
 			len = file_string_width(file->entry->mode2);
@@ -509,6 +510,7 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 			if (len > layout->column_widths[COLUMN_MODE3]) layout->column_widths[COLUMN_MODE3] = len;
 			len = file_string_width(file->entry->owner);
 			if (len > layout->column_widths[COLUMN_OWNER]) layout->column_widths[COLUMN_OWNER] = len;
+#endif
 		}
 	}
 }

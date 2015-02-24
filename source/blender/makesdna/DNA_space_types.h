@@ -758,16 +758,18 @@ typedef struct FileDirEntryRevision {
 	char *relpath;
 	char *abspath;  /* XXX Get rid of this! */
 
+	uint64_t size;
+	int64_t time;
 	/* Those are direct copy from direntry. We may rework that later, but really not top priority. */
 	/* TODO: switch back to real values, no sense to keep this as string when it often not used at all! */
-	char    size[16];
-	char    mode1[4];
-	char    mode2[4];
-	char    mode3[4];
-	char    owner[16];
-	char    time[8];
-	char    date[16];
-	char    pad[4];
+	char    size_str[16];
+//	char    mode1[4];
+//	char    mode2[4];
+//	char    mode3[4];
+//	char    owner[16];
+	char    time_str[8];
+	char    date_str[16];
+//	char    pad[4];
 
 	void *poin;
 	struct ImBuf *image;

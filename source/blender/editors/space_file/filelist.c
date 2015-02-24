@@ -377,10 +377,8 @@ static int compare_date(const void *a1, const void *a2)
 		return ret;
 	}
 	
-#if 0  /* TODO: add back that stuff to FileDirEntryRevision */
-	if (entry1->entry->s.st_mtime < entry2->entry->s.st_mtime) return 1;
-	if (entry1->entry->s.st_mtime > entry2->entry->s.st_mtime) return -1;
-#endif
+	if (entry1->entry->time < entry2->entry->time) return 1;
+	if (entry1->entry->time > entry2->entry->time) return -1;
 
 	name1 = fileentry_uiname(entry1, dir1);
 	name2 = fileentry_uiname(entry2, dir2);
@@ -400,10 +398,8 @@ static int compare_size(const void *a1, const void *a2)
 		return ret;
 	}
 	
-#if 0  /* TODO: add back that stuff to FileDirEntryRevision */
-	if (entry1->entry->s.st_size < entry2->entry->s.st_size) return 1;
-	if (entry1->entry->s.st_size > entry2->entry->s.st_size) return -1;
-#endif
+	if (entry1->entry->size < entry2->entry->size) return 1;
+	if (entry1->entry->size > entry2->entry->size) return -1;
 
 	name1 = fileentry_uiname(entry1, dir1);
 	name2 = fileentry_uiname(entry2, dir2);
@@ -1585,14 +1581,16 @@ static int filelist_readjob_list_dir(
 			if (S_ISDIR(entries[i].s.st_mode)) {
 				entry->typeflag |= FILE_TYPE_DIR;
 			}
+			rev->size = (uint64_t)entries[i].s.st_size;
+			rev->time = (int64_t)entries[i].s.st_mtime;
 			/* TODO rather use real values from direntry.s!!! */
-			memcpy(rev->size, entries[i].size, sizeof(rev->size));
-			memcpy(rev->mode1, entries[i].mode1, sizeof(rev->mode1));
-			memcpy(rev->mode2, entries[i].mode2, sizeof(rev->mode2));
-			memcpy(rev->mode3, entries[i].mode3, sizeof(rev->mode3));
-			memcpy(rev->owner, entries[i].owner, sizeof(rev->owner));
-			memcpy(rev->time, entries[i].time, sizeof(rev->time));
-			memcpy(rev->date, entries[i].date, sizeof(rev->date));
+			memcpy(rev->size_str, entries[i].size, sizeof(rev->size_str));
+//			memcpy(rev->mode1, entries[i].mode1, sizeof(rev->mode1));
+//			memcpy(rev->mode2, entries[i].mode2, sizeof(rev->mode2));
+//			memcpy(rev->mode3, entries[i].mode3, sizeof(rev->mode3));
+//			memcpy(rev->owner, entries[i].owner, sizeof(rev->owner));
+			memcpy(rev->time_str, entries[i].time, sizeof(rev->time_str));
+			memcpy(rev->date_str, entries[i].date, sizeof(rev->date_str));
 
 			/* Set file type. */
 			/* If we are considering .blend files as libs, promote them to directory status! */
