@@ -491,7 +491,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		file = filelist_file(files, i);
 
-		BLI_join_dirfile(path, sizeof(path), filelist_dir(files), file->entry->relpath);
+		BLI_join_dirfile(path, sizeof(path), file->entry->root, file->entry->relpath);
 		name = fileentry_uiname(file, dir);
 
 		UI_ThemeColor4(TH_TEXT);

@@ -756,7 +756,7 @@ typedef struct FileDirEntryRevision {
 	 */
 	char uuid[1024];  /* ASSET_UUID_LENGTH */
 	char *relpath;
-	char *abspath;  /* XXX Get rid of this! */
+	const char *root;  /* Only a pointer to FileDirEntryArr.root, needed for things like sorting. */
 
 	uint64_t size;
 	int64_t time;

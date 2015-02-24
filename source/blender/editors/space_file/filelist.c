@@ -430,11 +430,14 @@ static int compare_extension(const void *a1, const void *a2)
 	if (!(entry1->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->typeflag & FILE_TYPE_BLENDERLIB)) return 1;
 	if ((entry1->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->typeflag & FILE_TYPE_BLENDERLIB)) {
 		char lib1[FILE_MAX_LIBEXTRA], lib2[FILE_MAX_LIBEXTRA];
+		char abspath[FILE_MAX_LIBEXTRA];
 		char *group1, *group2, *name1, *name2;
 		int grp_comp;
 
-		BLO_library_path_explode(entry1->entry->abspath, lib1, &group1, &name1);
-		BLO_library_path_explode(entry2->entry->abspath, lib2, &group2, &name2);
+		BLI_join_dirfile(abspath, sizeof(abspath), entry1->entry->root, entry1->entry->relpath);
+		BLO_library_path_explode(abspath, lib1, &group1, &name1);
+		BLI_join_dirfile(abspath, sizeof(abspath), entry2->entry->root, entry2->entry->relpath);
+		BLO_library_path_explode(abspath, lib2, &group2, &name2);
 
 		BLI_assert(group1);
 		BLI_assert(group2);
@@ -957,9 +960,6 @@ static void filelist_revision_dup(FileDirEntryRevision *dst, FileDirEntryRevisio
 	if (dst->relpath) {
 		dst->relpath = MEM_dupallocN(src->relpath);
 	}
-	if (dst->abspath) {
-		dst->abspath = MEM_dupallocN(src->abspath);
-	}
 	if (dst->image) {
 		dst->image = IMB_dupImBuf(src->image);
 	}
@@ -970,9 +970,6 @@ static void filelist_revision_free(FileDirEntryRevision *rev)
 {
 	if (rev->relpath) {
 		MEM_freeN(rev->relpath);
-	}
-	if (rev->abspath) {
-		MEM_freeN(rev->abspath);
 	}
 	if (rev->image) {
 		IMB_freeImBuf(rev->image);
@@ -1127,9 +1124,12 @@ char *fileentry_uiname(const FileDirEntry *entry, char *dir)
 	struct FileDirEntryRevision *rev = entry->entry;
 	char *name;
 
-	if (rev->abspath && (entry->typeflag & FILE_TYPE_BLENDERLIB)) {
+	if (entry->typeflag & FILE_TYPE_BLENDERLIB) {
+		char abspath[FILE_MAX_LIBEXTRA];
 		char *group;
-		BLO_library_path_explode(rev->abspath, dir, &group, &name);
+
+		BLI_join_dirfile(abspath, sizeof(abspath), rev->root, rev->relpath);
+		BLO_library_path_explode(abspath, dir, &group, &name);
 		if (!name) {
 			name = group;
 		}
@@ -1526,6 +1526,7 @@ static void filelist_readjob_merge_sublist(
 			/* Only thing we change in direntry here, so we need to free it first. */
 			MEM_freeN(f->entry->relpath);
 			f->entry->relpath = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
+			f->entry->root = root;
 			filelist_buff->entries[i] = *f;
 			(*done_files)++;
 
@@ -1576,7 +1577,6 @@ static int filelist_readjob_list_dir(
 			FileDirEntry *entry = &files->entries[i];
 			FileDirEntryRevision *rev = entry->entry = MEM_callocN(sizeof(*rev), __func__);
 			rev->relpath = entries[i].relname;
-			rev->abspath = entries[i].path;
 
 			if (S_ISDIR(entries[i].s.st_mode)) {
 				entry->typeflag |= FILE_TYPE_DIR;
@@ -1671,7 +1671,6 @@ static int filelist_readjob_list_lib(const char *root, DirEntriesBuffer *files)
 		FileDirEntryRevision *rev = entry->entry;
 
 		rev->relpath = BLI_strdup(blockname);
-		rev->abspath = BLI_strdupcat(root, blockname);
 		entry->typeflag |= FILE_TYPE_BLENDERLIB;
 		if (!(group && idcode)) {
 			entry->typeflag |= FILE_TYPE_DIR;
@@ -2213,17 +2212,15 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 	tj = MEM_callocN(sizeof(*tj), __func__);
 	tj->filelist = filelist;
 	for (idx = 0; idx < filelist->filelist.nbr_entries; idx++) {
-		if (!filelist->filelist.entries[idx].entry->abspath) {
-			continue;
-		}
 		if (!filelist->filelist.entries[idx].entry->image) {
 			if (filelist->filelist.entries[idx].typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE |
 			                                                       FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))
 			{
+				FileDirEntry *entry = &filelist->filelist.entries[idx];
 				FileImage *limg = MEM_callocN(sizeof(*limg), __func__);
-				BLI_strncpy(limg->path, filelist->filelist.entries[idx].entry->abspath, sizeof(limg->path));
+				BLI_join_dirfile(limg->path, sizeof(limg->path), entry->entry->root, entry->entry->relpath);
 				limg->index = idx;
-				limg->flags = filelist->filelist.entries[idx].typeflag;
+				limg->flags = entry->typeflag;
 				BLI_addtail(&tj->loadimages, limg);
 			}
 		}
