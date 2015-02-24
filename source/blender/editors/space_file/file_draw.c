@@ -491,7 +491,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		file = filelist_file(files, i);
 
-		BLI_join_dirfile(path, sizeof(path), file->entry->root, file->entry->relpath);
+		BLI_join_dirfile(path, sizeof(path), file->root, file->relpath);
 		name = fileentry_uiname(file, dir);
 
 		UI_ThemeColor4(TH_TEXT);
@@ -505,7 +505,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				int shade = (params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
 
 				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
-				if (FILENAME_IS_CURRPAR(file->entry->relpath)) {
+				if (FILENAME_IS_CURRPAR(file->relpath)) {
 					colorid = TH_BACK;
 				}
 				draw_tile(sx, sy - 1, layout->tile_w + 4, sfile->layout->tile_h + layout->tile_border_y, colorid, shade);
@@ -514,7 +514,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		UI_draw_roundbox_corner_set(UI_CNR_NONE);
 
 		/* don't drag parent or refresh items */
-		do_drag = !(FILENAME_IS_CURRPAR(file->entry->relpath));
+		do_drag = !(FILENAME_IS_CURRPAR(file->relpath));
 
 		if (FILE_IMGDISPLAY == params->display) {
 			const int icon = filelist_geticon(files, i, false);

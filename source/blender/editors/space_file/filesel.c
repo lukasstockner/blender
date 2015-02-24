@@ -493,7 +493,7 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 		FileDirEntry *file = filelist_file(files, i);
 		if (file) {
 			float len;
-			len = file_string_width(file->entry->relpath);
+			len = file_string_width(file->relpath);
 			if (len > layout->column_widths[COLUMN_NAME]) layout->column_widths[COLUMN_NAME] = len;
 			len = file_string_width(file->entry->date_str);
 			if (len > layout->column_widths[COLUMN_DATE]) layout->column_widths[COLUMN_DATE] = len;
@@ -653,10 +653,10 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 	 */
 	for (i = 0; i < n; i++) {
 		file = filelist_file(sfile->files, i);
-		if (!(file->typeflag & FILE_TYPE_DIR) && (fnmatch(pattern, file->entry->relpath, 0) == 0)) {
+		if (!(file->typeflag & FILE_TYPE_DIR) && (fnmatch(pattern, file->relpath, 0) == 0)) {
 			file->selflag |= FILE_SEL_SELECTED;
 			if (!match) {
-				BLI_strncpy(matched_file, file->entry->relpath, FILE_MAX);
+				BLI_strncpy(matched_file, file->relpath, FILE_MAX);
 			}
 			match++;
 		}
@@ -731,7 +731,7 @@ int autocomplete_file(struct bContext *C, char *str, void *UNUSED(arg_v))
 
 		for (i = 0; i < nentries; ++i) {
 			FileDirEntry *file = filelist_file(sfile->files, i);
-			UI_autocomplete_update_name(autocpl, file->entry->relpath);
+			UI_autocomplete_update_name(autocpl, file->relpath);
 		}
 		match = UI_autocomplete_end(autocpl, str);
 	}

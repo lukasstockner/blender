@@ -754,9 +754,7 @@ typedef struct FileDirEntryRevision {
 	 * asset/datablock/variant/version.
 	 * Handled as bytes (i.e. **not** NULL-terminated). <- not true because of RNA?
 	 */
-	char uuid[1024];  /* ASSET_UUID_LENGTH */
-	char *relpath;
-	const char *root;  /* Only a pointer to FileDirEntryArr.root, needed for things like sorting. */
+	char uuid[64];  /* ASSET_UUID_LENGTH */
 
 	uint64_t size;
 	int64_t time;
@@ -770,9 +768,6 @@ typedef struct FileDirEntryRevision {
 	char    time_str[8];
 	char    date_str[16];
 //	char    pad[4];
-
-	void *poin;
-	struct ImBuf *image;
 } FileDirEntryRevision;
 
 /* Container for a variant, only relevant in asset context.
@@ -794,6 +789,12 @@ typedef struct FileDirEntry {
 	int typeflag;  /* eFileSel_File_Types */
 	int blentype;  /* ID type, in case typeflag has FILE_TYPE_BLENDERLIB set. */
 
+	char *relpath;
+	const char *root;  /* Only a pointer to FileDirEntryArr.root, needed for things like sorting. */
+
+	void *poin;  /* TODO: make this a real ID pointer? */
+	struct ImBuf *image;
+
 	char **tags;
 	int nbr_tags;
 
@@ -814,7 +815,7 @@ typedef struct FileDirEntryArr {
 	char root[1024];	 /* FILE_MAX */
 } FileDirEntryArr;
 
-#define ASSET_UUID_LENGTH     1024
+#define ASSET_UUID_LENGTH     64
 
 enum {
 	ASSET_STATUS_LOCAL  = 1 << 0,  /* If active uuid is available localy/immediately. */

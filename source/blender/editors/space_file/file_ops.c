@@ -179,14 +179,14 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 		params->active_file = selected_idx;
 
 		if (file->typeflag & FILE_TYPE_DIR) {
-			const bool is_parent_dir = FILENAME_IS_PARENT(file->entry->relpath);
+			const bool is_parent_dir = FILENAME_IS_PARENT(file->relpath);
 
 			if (do_diropen == false) {
 				params->file[0] = '\0';
 				retval = FILE_SELECT_DIR;
 			}
 			/* the path is too long and we are not going up! */
-			else if (!is_parent_dir && strlen(params->dir) + strlen(file->entry->relpath) >= FILE_MAX) {
+			else if (!is_parent_dir && strlen(params->dir) + strlen(file->relpath) >= FILE_MAX) {
 				// XXX error("Path too long, cannot enter this directory");
 			}
 			else {
@@ -202,7 +202,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 				}
 				else {
 					BLI_cleanup_dir(G.main->name, params->dir);
-					strcat(params->dir, file->entry->relpath);
+					strcat(params->dir, file->relpath);
 					BLI_add_slash(params->dir);
 				}
 
@@ -211,8 +211,8 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 			}
 		}
 		else {
-			if (file->entry->relpath) {
-				BLI_strncpy(params->file, file->entry->relpath, FILE_MAXFILE);
+			if (file->relpath) {
+				BLI_strncpy(params->file, file->relpath, FILE_MAXFILE);
 			}
 			retval = FILE_SELECT_FILE;
 		}
@@ -278,7 +278,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 			for (idx = sel.last; idx >= 0; idx--) {
 				struct FileDirEntry *file = filelist_file(sfile->files, idx);
 
-				if (FILENAME_IS_CURRPAR(file->entry->relpath)) {
+				if (FILENAME_IS_CURRPAR(file->relpath)) {
 					file->selflag &= ~FILE_SEL_HIGHLIGHTED;
 				}
 
@@ -371,7 +371,7 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 		if (idx >= 0) {
 			struct FileDirEntry *file = filelist_file(sfile->files, idx);
-			if (FILENAME_IS_CURRPAR(file->entry->relpath)) {
+			if (FILENAME_IS_CURRPAR(file->relpath)) {
 				/* skip - If a readonly file (".." or ".") is selected, skip deselect all! */
 			}
 			else {
@@ -875,7 +875,7 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 				if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
 					FileDirEntry *file = filelist_file(sfile->files, i);
 					RNA_property_collection_add(op->ptr, prop, &itemptr);
-					RNA_string_set(&itemptr, "name", file->entry->relpath);
+					RNA_string_set(&itemptr, "name", file->relpath);
 					num_files++;
 				}
 			}
@@ -894,7 +894,7 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 				if (filelist_is_selected(sfile->files, i, CHECK_DIRS)) {
 					FileDirEntry *file = filelist_file(sfile->files, i);
 					RNA_property_collection_add(op->ptr, prop, &itemptr);
-					RNA_string_set(&itemptr, "name", file->entry->relpath);
+					RNA_string_set(&itemptr, "name", file->relpath);
 					num_dirs++;
 				}
 			}
@@ -1685,7 +1685,7 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 		if ( (0 <= idx) && (idx < numfiles) ) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
 			filelist_select_file(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
-			BLI_strncpy(sfile->params->renameedit, file->entry->relpath, FILE_MAXFILE);
+			BLI_strncpy(sfile->params->renameedit, file->relpath, FILE_MAXFILE);
 			sfile->params->renamefile[0] = '\0';
 		}
 		ED_area_tag_redraw(sa);
@@ -1705,7 +1705,7 @@ static int file_rename_poll(bContext *C)
 
 		if (idx >= 0) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
-			if (FILENAME_IS_CURRPAR(file->entry->relpath)) {
+			if (FILENAME_IS_CURRPAR(file->relpath)) {
 				poll = 0;
 			}
 		}
@@ -1775,7 +1775,7 @@ int file_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	for (i = 0; i < numfiles; i++) {
 		if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
 			file = filelist_file(sfile->files, i);
-			BLI_make_file_string(G.main->name, str, sfile->params->dir, file->entry->relpath);
+			BLI_make_file_string(G.main->name, str, sfile->params->dir, file->relpath);
 			BLI_delete(str, false, false);
 		}
 	}
