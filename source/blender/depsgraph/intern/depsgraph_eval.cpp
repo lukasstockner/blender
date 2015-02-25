@@ -175,7 +175,10 @@ static void calculate_pending_parents(Depsgraph *graph, int layers)
 				    (rel->flag & DEPSREL_FLAG_CYCLIC) == 0)
 				{
 					OperationDepsNode *from = (OperationDepsNode *)rel->from;
-					if (from->flag & DEPSOP_FLAG_NEEDS_UPDATE) {
+					IDDepsNode *id_from_node = from->owner->owner;
+					if ((id_from_node->layers & layers) != 0 &&
+					    (from->flag & DEPSOP_FLAG_NEEDS_UPDATE) != 0)
+					{
 						++node->num_links_pending;
 					}
 				}
