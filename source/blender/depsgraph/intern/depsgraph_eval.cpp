@@ -372,6 +372,8 @@ void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
 
 	tsrc->tag_update(graph);
 
+	DEG_graph_flush_updates(bmain, graph);
+
 	/* Perform recalculation updates. */
 	DEG_evaluate_on_refresh_ex(eval_ctx, bmain, graph, layers);
 }
