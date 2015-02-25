@@ -235,6 +235,22 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 	if (graph == NULL)
 		return;
 
+	/* Nothing to update, early out. */
+	if (graph->entry_tags.size() == 0) {
+		return;
+	}
+
+	/* TODO(sergey): With a bit of flag magic we can get rid of this
+	 * extra loop.
+	 */
+	for (Depsgraph::OperationNodes::const_iterator it = graph->operations.begin();
+	     it != graph->operations.end();
+	     ++it)
+	{
+		OperationDepsNode *node = *it;
+		node->scheduled = false;
+	}
+
 	FlushQueue queue;
 	/* Starting from the tagged "entry" nodes, flush outwards... */
 	// NOTE: Also need to ensure that for each of these, there is a path back to
@@ -249,6 +265,7 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 		IDDepsNode *id_node = node->owner->owner;
 		queue.push(node);
 		deg_editors_id_update(bmain, id_node->id);
+		node->scheduled = true;
 	}
 
 	while (!queue.empty()) {
@@ -268,7 +285,7 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 			DepsRelation *rel = *it;
 			OperationDepsNode *to_node = (OperationDepsNode *)rel->to;
 			IDDepsNode *id_node = to_node->owner->owner;
-			if ((to_node->flag & DEPSOP_FLAG_NEEDS_UPDATE) == 0) {
+			if (to_node->scheduled == false) {
 				ID *id = id_node->id;
 				/* This code is used to preserve those areas which does direct
 				 * object update,
@@ -291,8 +308,22 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 				}
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
+				to_node->scheduled = true;
 				deg_editors_id_update(bmain, id_node->id);
 			}
+		}
+
+		/* TODO(sergey): For until incremental updates are possible
+		 * witin a component at least we tag the whole component
+		 * for update.
+		 */
+		for (ComponentDepsNode::OperationMap::iterator it = node->owner->operations.begin();
+		     it != node->owner->operations.end();
+		     ++it)
+		{
+			OperationDepsNode *op = it->second;
+			op->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
+			graph->entry_tags.insert(op);
 		}
 	}
 }
