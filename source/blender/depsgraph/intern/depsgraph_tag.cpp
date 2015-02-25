@@ -229,9 +229,7 @@ void DEG_id_type_tag(Main *bmain, short idtype)
 typedef std::queue<OperationDepsNode*> FlushQueue;
 
 /* Flush updates from tagged nodes outwards until all affected nodes are tagged. */
-void DEG_graph_flush_updates(Main *bmain,
-                             EvaluationContext *eval_ctx,
-                             Depsgraph *graph)
+void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 {
 	/* sanity check */
 	if (graph == NULL)
@@ -297,9 +295,22 @@ void DEG_graph_flush_updates(Main *bmain,
 			}
 		}
 	}
+}
 
-	/* Clear entry tags, since all tagged nodes should now be reachable from root. */
-	graph->entry_tags.clear();
+/* Recursively push updates out to all nodes dependent on this,
+ * until all affected are tagged and/or scheduled up for eval
+ */
+void DEG_ids_flush_tagged(Main *bmain)
+{
+	for (Scene *scene = (Scene*)bmain->scene.first;
+	     scene != NULL;
+	     scene = (Scene*)scene->id.next)
+	{
+		/* TODO(sergey): Only visible scenes? */
+		if (scene->depsgraph != NULL) {
+			DEG_graph_flush_updates(bmain, scene->depsgraph);
+		}
+	}
 }
 
 /* Clear tags from all operation nodes. */

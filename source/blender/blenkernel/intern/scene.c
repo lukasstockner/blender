@@ -1696,12 +1696,8 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	/* flush editing data if needed */
 	prepare_mesh_for_viewport_render(bmain, scene);
 
-#ifdef WITH_LEGACY_DEPSGRAPH
 	/* flush recalc flags to dependencies */
-	if (!use_new_eval) {
-		DAG_ids_flush_tagged(bmain);
-	}
-#endif
+	DAG_ids_flush_tagged(bmain);
 
 	/* removed calls to quick_cache, see pointcache.c */
 	
@@ -1829,13 +1825,13 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	for (sce_iter = sce; sce_iter; sce_iter = sce_iter->set)
 		DAG_scene_relations_update(bmain, sce_iter);
 
+	/* flush recalc flags to dependencies, if we were only changing a frame
+	 * this would not be necessary, but if a user or a script has modified
+	 * some datablock before BKE_scene_update_tagged was called, we need the flush */
+	DAG_ids_flush_tagged(bmain);
+
 #ifdef WITH_LEGACY_DEPSGRAPH
 	if (!use_new_eval) {
-		/* flush recalc flags to dependencies, if we were only changing a frame
-		 * this would not be necessary, but if a user or a script has modified
-		 * some datablock before BKE_scene_update_tagged was called, we need the flush */
-		DAG_ids_flush_tagged(bmain);
-
 		/* Following 2 functions are recursive
 		 * so don't call within 'scene_update_tagged_recursive' */
 		DAG_scene_update_flags(bmain, sce, lay, true, do_invisible_flush);   // only stuff that moves or needs display still

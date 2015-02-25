@@ -2664,7 +2664,12 @@ void DAG_ids_flush_tagged(Main *bmain)
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
 	bool do_flush = false;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_ids_flush_tagged(bmain);
+		return;
+	}
+
 	/* get list of visible scenes and layers */
 	dag_current_scene_layers(bmain, &listbase);
 
@@ -3399,11 +3404,6 @@ void DAG_scene_update_flags(Main *UNUSED(bmain),
 	BLI_assert(!"Should not be used with new dependnecy graph");
 }
 
-void DAG_ids_flush_tagged(Main *UNUSED(bmain))
-{
-	BLI_assert(!"Should not be used with new dependnecy graph");
-}
-
 /* ******************* DAG FOR ARMATURE POSE ***************** */
 
 void DAG_pose_sort(Object *UNUSED(ob))
@@ -3538,6 +3538,11 @@ void DAG_ids_clear_recalc(Main *bmain)
 short DAG_get_eval_flags_for_object(Scene *scene, void *object)
 {
 	return DEG_get_eval_flags_for_id(scene->depsgraph, (ID*)object);
+}
+
+void DAG_ids_flush_tagged(Main *bmain)
+{
+	DEG_ids_flush_tagged(bmain);
 }
 
 /* ************************ DAG DEBUGGING ********************* */

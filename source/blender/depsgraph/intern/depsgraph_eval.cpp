@@ -313,11 +313,6 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
 	TaskPool *task_pool = BLI_task_pool_create(task_scheduler, &state);
 
-	/* Recursively push updates out to all nodes dependent on this,
-	 * until all affected are tagged and/or scheduled up for eval
-	 */
-	DEG_graph_flush_updates(bmain, eval_ctx, graph);
-
 	calculate_pending_parents(graph, layers);
 
 	/* Clear tags. */
