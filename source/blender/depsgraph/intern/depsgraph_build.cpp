@@ -336,7 +336,7 @@ ComponentDepsNode *DepsgraphRelationBuilder::find_node(const ComponentKey &key) 
 {
 	IDDepsNode *id_node = m_graph->find_id_node(key.id);
 	if (!id_node) {
-		fprintf(stderr, "find_node component: Could not find ID\n");
+		fprintf(stderr, "find_node component: Could not find ID %s\n", key.id->name);
 		return NULL;
 	}
 
