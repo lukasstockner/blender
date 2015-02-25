@@ -70,38 +70,43 @@ void BKE_object_eval_local_transform(EvaluationContext *UNUSED(eval_ctx),
                                      Object *ob)
 {
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
-	
+
 	/* calculate local matrix */
 	BKE_object_to_mat4(ob, ob->obmat);
 }
 
 /* XXX: expose this in a proper header, or shuffle the code around to get it working */
-extern void ob_get_parent_matrix(Scene *scene, Object *ob, Object *par, float parentmat[4][4]);
+extern void ob_get_parent_matrix(Scene *scene,
+                                 Object *ob,
+                                 Object *par,
+                                 float parentmat[4][4]);
 
 /* Evaluate parent */
 /* NOTE: based on solve_parenting(), but with the cruft stripped out */
-void BKE_object_eval_parent(EvaluationContext *UNUSED(eval_ctx), Scene *scene, Object *ob)
+void BKE_object_eval_parent(EvaluationContext *UNUSED(eval_ctx),
+                            Scene *scene,
+                            Object *ob)
 {
 	Object *par = ob->parent;
-	
+
 	float totmat[4][4];
 	float tmat[4][4];
 	float locmat[4][4];
-	
+
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
-	
+
 	/* get local matrix (but don't calculate it, as that was done already!) */
 	// XXX: redundant?
 	copy_m4_m4(locmat, ob->obmat);
-	
+
 	/* get parent effect matrix */
 	ob_get_parent_matrix(scene, ob, par, totmat);
-	
+
 	/* total */
 	mul_m4_m4m4(tmat, totmat, ob->parentinv);
 	mul_m4_m4m4(ob->obmat, tmat, locmat);
-	
-	/* origin, for help line */	
+
+	/* origin, for help line */
 	if ((ob->partype & PARTYPE) == PARSKEL) {
 		copy_v3_v3(ob->orig, par->obmat[3]);
 	}
@@ -116,11 +121,18 @@ void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
 {
 	bConstraintOb *cob;
 	float ctime = BKE_scene_frame_get(scene);
-	
+
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
-	
+
 	/* evaluate constraints stack */
-	// TODO: split this into pre (i.e. BKE_constraints_make_evalob, per-constraint (i.e. inner body of BKE_constraints_solve), post (i.e. BKE_constraints_clear_evalob)
+	/* TODO: split this into:
+	 * - pre (i.e. BKE_constraints_make_evalob, per-constraint (i.e.
+	 * - inner body of BKE_constraints_solve),
+	 * - post (i.e. BKE_constraints_clear_evalob)
+	 *
+	 * Not sure why, this is from Joshua - sergey
+	 *
+	 */
 	cob = BKE_constraints_make_evalob(scene, ob, NULL, CONSTRAINT_OBTYPE_OBJECT);
 	BKE_constraints_solve(&ob->constraints, cob, ctime);
 	BKE_constraints_clear_evalob(cob);
@@ -129,8 +141,8 @@ void BKE_object_eval_constraints(EvaluationContext *UNUSED(eval_ctx),
 void BKE_object_eval_done(EvaluationContext *UNUSED(eval_ctx), Object *ob)
 {
 	DEBUG_PRINT("%s on %s\n", __func__, ob->id.name);
-	
-	/* set negative scale flag in object */
+
+	/* Set negative scale flag in object. */
 	if (is_negative_m4(ob->obmat)) ob->transflag |= OB_NEG_SCALE;
 	else ob->transflag &= ~OB_NEG_SCALE;
 }
@@ -165,7 +177,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 		/* XXX: for mesh types, should we push this to derivedmesh instead? */
 		BKE_animsys_evaluate_animdata(scene, data_id, adt, ctime, ADT_RECALC_DRIVERS);
 	}
-	
+
 	// XXX: legacy depsgraph only!!!
 	key = BKE_key_from_object(ob);
 	if (key && key->block.first) {
