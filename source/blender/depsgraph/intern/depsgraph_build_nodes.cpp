@@ -848,6 +848,15 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 void DepsgraphNodeBuilder::build_camera(Object *ob)
 {
 	/* TODO: Link scene-camera links in somehow... */
+	Camera *cam = (Camera *)ob->data;
+
+	if (cam->dof_ob != NULL) {
+		/* TODO(sergey): For now parametrs are on object level. */
+		add_operation_node(&ob->id, DEPSNODE_TYPE_PARAMETERS,
+		                   DEPSOP_TYPE_EXEC, NULL,
+		                   DEG_OPCODE_PLACEHOLDER,
+		                   "Camera DOF");
+	}
 }
 
 /* Lamps */

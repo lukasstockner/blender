@@ -1557,7 +1557,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 void DepsgraphRelationBuilder::build_camera(Object *ob)
 {
 	Camera *cam = (Camera *)ob->data;
-	ComponentKey param_key(&cam->id, DEPSNODE_TYPE_PARAMETERS);
+	ComponentKey param_key(&ob->id, DEPSNODE_TYPE_PARAMETERS);
 
 	/* DOF */
 	if (cam->dof_ob) {
