@@ -253,10 +253,11 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 
 	FlushQueue queue;
 	/* Starting from the tagged "entry" nodes, flush outwards... */
-	// NOTE: Also need to ensure that for each of these, there is a path back to
-	//       root, or else they won't be done.
-	// NOTE: Count how many nodes we need to handle - entry nodes may be
-	//       component nodes which don't count for this purpose!
+	/* NOTE: Also need to ensure that for each of these, there is a path back to
+	 *       root, or else they won't be done.
+	 * NOTE: Count how many nodes we need to handle - entry nodes may be
+	 *       component nodes which don't count for this purpose!
+	 */
 	for (Depsgraph::EntryTags::const_iterator it = graph->entry_tags.begin();
 	     it != graph->entry_tags.end();
 	     ++it)
