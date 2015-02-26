@@ -241,9 +241,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* standard components */
 	build_object_transform(scene, ob);
 
-	/* AnimData */
-	build_animdata(&ob->id);
-
 	/* object data */
 	if (ob->data) {
 		ID *obdata = (ID *)ob->data;
@@ -290,6 +287,14 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 				break;
 		}
 	}
+
+	/* Build animation data,
+	 *
+	 * Do it now because it's possible object data will affect
+	 * on object's level animation, for example in case of rebuilding
+	 * pose for proxy.
+	 */
+	build_animdata(&ob->id);
 
 	/* particle systems */
 	if (ob->particlesystem.first) {
