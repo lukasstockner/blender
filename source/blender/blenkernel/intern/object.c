@@ -3016,7 +3016,8 @@ bool BKE_object_parent_loop_check(const Object *par, const Object *ob)
 void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
                                  Scene *scene, Object *ob,
                                  RigidBodyWorld *rbw,
-                                 const bool do_proxy_update)
+                                 const bool do_proxy_update,
+                                 float ctime)
 {
 	if (ob->recalc & OB_RECALC_ALL) {
 		/* speed optimization for animation lookups */
@@ -3057,7 +3058,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 					copy_m4_m4(ob->obmat, ob->proxy_from->obmat);
 			}
 			else
-				BKE_object_where_is_calc_ex(scene, rbw, ob, NULL);
+				BKE_object_where_is_calc_time_ex(scene, ob, ctime, rbw, NULL);
 		}
 		
 		if (ob->recalc & OB_RECALC_DATA) {
@@ -3065,7 +3066,6 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 			AnimData *adt = BKE_animdata_from_id(data_id);
 			Key *key;
 			ParticleSystem *psys;
-			float ctime = BKE_scene_frame_get(scene);
 			
 			if (G.debug & G_DEBUG_DEPSGRAPH)
 				printf("recalcdata %s\n", ob->id.name + 2);
@@ -3236,7 +3236,7 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
  */
 void BKE_object_handle_update(EvaluationContext *eval_ctx, Scene *scene, Object *ob)
 {
-	BKE_object_handle_update_ex(eval_ctx, scene, ob, NULL, true);
+	BKE_object_handle_update_ex(eval_ctx, scene, ob, NULL, true, BKE_scene_frame_get(scene));
 }
 
 void BKE_object_sculpt_modifiers_changed(Object *ob)

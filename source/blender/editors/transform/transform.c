@@ -65,6 +65,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "ED_armature.h"
 #include "ED_image.h"
 #include "ED_keyframing.h"
 #include "ED_screen.h"
@@ -2354,6 +2355,20 @@ void transformApply(bContext *C, TransInfo *t)
 	}
 	else if (t->redraw & TREDRAW_SOFT) {
 		viewRedrawForce(C, t);
+	}
+
+	if ((t->flag & T_POSE) && (t->poseobj) && (t->mode != TFM_DUMMY) && t->scene->toolsettings->realtime_motion_path) {
+		if ((t->poseobj->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
+			//ED_pose_clear_paths(C, ob); // XXX for now, don't need to clear
+			ED_pose_recalculate_paths(t->scene, t->poseobj);
+		}
+	}
+	else {
+		int i;
+		for (i = 0; i < t->total; i++) {
+			TransData *td = t->data + i;
+			autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, td->ob, t->mode);
+		}
 	}
 
 	/* If auto confirm is on, break after one pass */

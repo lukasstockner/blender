@@ -1881,6 +1881,12 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	RNA_def_property_ui_text(prop, "Relaxation Method", "Algorithm used for UV relaxation");
 
 	/* Transform */
+	prop = RNA_def_property(srna, "realtime_motion_path", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "realtime_motion_path", 1);
+	RNA_def_property_ui_text(prop, "Real-Time Motion Path",
+	                         "Update motion paths in real time while tranfrorming");
+	RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, NULL); /* header redraw */
+
 	prop = RNA_def_property(srna, "proportional_edit", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "proportional");
 	RNA_def_property_enum_items(prop, proportional_editing_items);

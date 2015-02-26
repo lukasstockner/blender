@@ -176,7 +176,7 @@ void BKE_object_handle_update(struct EvaluationContext *eval_ctx, struct Scene *
 void BKE_object_handle_update_ex(struct EvaluationContext *eval_ctx,
                                  struct Scene *scene, struct Object *ob,
                                  struct RigidBodyWorld *rbw,
-                                 const bool do_proxy_update);
+                                 const bool do_proxy_update, float ctime);
 void BKE_object_sculpt_modifiers_changed(struct Object *ob);
 
 int BKE_object_obdata_texspace_get(struct Object *ob, short **r_texflag, float **r_loc, float **r_size, float **r_rot);

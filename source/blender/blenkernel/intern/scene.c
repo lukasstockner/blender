@@ -1360,7 +1360,7 @@ static void scene_update_all_bases(EvaluationContext *eval_ctx, Scene *scene, Sc
 	for (base = scene->base.first; base; base = base->next) {
 		Object *object = base->object;
 
-		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world, true);
+		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world, true, BKE_scene_frame_get(scene_parent));
 
 		if (object->dup_group && (object->transflag & OB_DUPLIGROUP))
 			BKE_group_handle_recalc_and_update(eval_ctx, scene_parent, object, object->dup_group);
@@ -1411,7 +1411,7 @@ static void scene_update_object_func(TaskPool *pool, void *taskdata, int threadi
 		 * separately from main thread because of we've got no idea about
 		 * dependencies inside the group.
 		 */
-		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world, false);
+		BKE_object_handle_update_ex(eval_ctx, scene_parent, object, scene->rigidbody_world, false, BKE_scene_frame_get(scene_parent));
 
 		/* Calculate statistics. */
 		if (add_to_stats) {

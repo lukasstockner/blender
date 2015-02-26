@@ -111,12 +111,15 @@ class VIEW3D_HT_header(Header):
 
         # Pose
         if obj and mode == 'POSE':
+
             row = layout.row(align=True)
             row.operator("pose.copy", text="", icon='COPYDOWN')
             row.operator("pose.paste", text="", icon='PASTEDOWN').flipped = False
             row.operator("pose.paste", text="", icon='PASTEFLIPDOWN').flipped = True
 
-
+        if mode in {'OBJECT', 'POSE'}:
+            row.prop(toolsettings, "realtime_motion_path")
+ 
 class VIEW3D_MT_editor_menus(Menu):
     bl_space_type = 'VIEW3D_MT_editor_menus'
     bl_label = ""

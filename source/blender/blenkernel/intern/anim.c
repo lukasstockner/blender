@@ -48,6 +48,7 @@
 #include "BKE_global.h"
 #include "BKE_key.h"
 #include "BKE_main.h"
+#include "BKE_library.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
@@ -221,6 +222,7 @@ typedef struct MPathTarget {
 	bMotionPath *mpath;         /* motion path in question */
 	
 	Object *ob;                 /* source object */
+	Base *base_copy;            /* copy object, to be used for position calculations */
 	bPoseChannel *pchan;        /* source posechannel (if applicable) */
 } MPathTarget;
 
@@ -288,11 +290,19 @@ static void motionpaths_calc_optimise_depsgraph(Scene *scene, ListBase *targets)
 			baseNext = base->next;
 			
 			if ((base->object == mpt->ob) && !(mpt->ob->flag & BA_TEMP_TAG)) {
-				BLI_remlink(&scene->base, base);
-				BLI_addhead(&scene->base, base);
-				
+				Object *ob = BKE_object_copy(mpt->ob);
+				Base *basen = MEM_mallocN(sizeof(Base), "duplibase");
+				*basen = *base;
+				basen->object = ob;
+				mpt->base_copy = basen;
+				ob->flag |= BA_TEMP_TAG;
+
+				//BLI_remlink(&scene->base, base);
+				//BLI_addhead(&scene->base, base);
+				BLI_addhead(&scene->base, basen);   /* addhead: prevent eternal loop */
+
 				mpt->ob->flag |= BA_TEMP_TAG;
-				
+
 				/* we really don't need to continue anymore once this happens, but this line might really 'break' */
 				break;
 			}
@@ -304,7 +314,7 @@ static void motionpaths_calc_optimise_depsgraph(Scene *scene, ListBase *targets)
 }
 
 /* update scene for current frame */
-static void motionpaths_calc_update_scene(Scene *scene)
+static void motionpaths_calc_update_scene(Scene *scene, float cframe)
 {
 #if 1 // 'production' optimizations always on
 	/* rigid body simulation needs complete update to work correctly for now */
@@ -332,7 +342,8 @@ static void motionpaths_calc_update_scene(Scene *scene)
 		 * is animated but not attached to/updatable from objects */
 		for (base = scene->base.first; base; base = base->next) {
 			/* update this object */
-			BKE_object_handle_update(G.main->eval_ctx, scene, base->object);
+			BKE_object_handle_update_ex(G.main->eval_ctx, scene, base->object, NULL, true, cframe);
+
 			
 			/* if this is the last one we need to update, let's stop to save some time */
 			if (base == last)
@@ -352,7 +363,7 @@ static void motionpaths_calc_update_scene(Scene *scene)
 /* ........ */
 
 /* perform baking for the targets on the current frame */
-static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
+static void motionpaths_calc_bake_targets(ListBase *targets, int cframe)
 {
 	MPathTarget *mpt;
 	
@@ -364,11 +375,11 @@ static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
 		/* current frame must be within the range the cache works for 
 		 *	- is inclusive of the first frame, but not the last otherwise we get buffer overruns
 		 */
-		if ((CFRA < mpath->start_frame) || (CFRA >= mpath->end_frame))
+		if ((cframe < mpath->start_frame) || (cframe >= mpath->end_frame))
 			continue;
 		
 		/* get the relevant cache vert to write to */
-		mpv = mpath->points + (CFRA - mpath->start_frame);
+		mpv = mpath->points + (cframe - mpath->start_frame);
 		
 		/* pose-channel or object path baking? */
 		if (mpt->pchan) {
@@ -385,7 +396,7 @@ static void motionpaths_calc_bake_targets(Scene *scene, ListBase *targets)
 		}
 		else {
 			/* worldspace object location */
-			copy_v3_v3(mpv->co, mpt->ob->obmat[3]);
+			copy_v3_v3(mpv->co, mpt->base_copy->object->obmat[3]);
 		}
 	}
 }
@@ -425,17 +436,16 @@ void animviz_calc_motionpaths(Scene *scene, ListBase *targets)
 	motionpaths_calc_optimise_depsgraph(scene, targets);
 	
 	/* calculate path over requested range */
-	for (CFRA = sfra; CFRA <= efra; CFRA++) {
+	for (cfra = sfra; cfra <= efra; cfra++) {
 		/* update relevant data for new frame */
-		motionpaths_calc_update_scene(scene);
+		motionpaths_calc_update_scene(scene, cfra);
 		
 		/* perform baking for targets */
-		motionpaths_calc_bake_targets(scene, targets);
+		motionpaths_calc_bake_targets(targets, cfra);
 	}
 	
 	/* reset original environment */
-	CFRA = cfra;
-	motionpaths_calc_update_scene(scene);
+	motionpaths_calc_update_scene(scene, CFRA);
 	
 	/* clear recalc flags from targets */
 	for (mpt = targets->first; mpt; mpt = mpt->next) {
@@ -449,6 +459,15 @@ void animviz_calc_motionpaths(Scene *scene, ListBase *targets)
 		
 		/* clear the flag requesting recalculation of targets */
 		avs->recalc &= ~ANIMVIZ_RECALC_PATHS;
+
+		if (mpt->base_copy) {
+			DAG_id_type_tag(G.main, ID_OB);
+			DAG_relations_tag_update(G.main);
+			BKE_scene_base_unlink(scene, mpt->base_copy);
+			BKE_libblock_free_us(G.main, mpt->base_copy->object);
+			if (scene->basact == mpt->base_copy) scene->basact = NULL;
+			MEM_freeN(mpt->base_copy);
+		}
 	}
 }
 

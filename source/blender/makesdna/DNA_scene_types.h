@@ -1124,7 +1124,9 @@ typedef struct ToolSettings {
 
 	/* Multires */
 	char multires_subdiv_type;
-	char pad3[1];
+
+	/* Motion Paths update in real time */
+	char realtime_motion_path;
 
 	/* Skeleton generation */
 	short skgen_resolution;
