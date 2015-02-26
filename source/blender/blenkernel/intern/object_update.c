@@ -187,7 +187,7 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 
 	/* includes all keys and modifiers */
 	switch (ob->type) {
-	case OB_MESH:
+		case OB_MESH:
 		{
 			BMEditMesh *em = (ob == scene->obedit) ? BKE_editmesh_from_object(ob) : NULL;
 			uint64_t data_mask = scene->customdata_mask | CD_MASK_BAREMESH;
@@ -205,37 +205,37 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 			}
 			break;
 		}
-	case OB_ARMATURE:
-		if (ob->id.lib && ob->proxy_from) {
-			if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
-				printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
-				       ob->id.name + 2, ob->proxy_from->id.name + 2);
+		case OB_ARMATURE:
+			if (ob->id.lib && ob->proxy_from) {
+				if (BKE_pose_copy_result(ob->pose, ob->proxy_from->pose) == false) {
+					printf("Proxy copy error, lib Object: %s proxy Object: %s\n",
+					       ob->id.name + 2, ob->proxy_from->id.name + 2);
+				}
 			}
-		}
-		else {
-			BKE_pose_where_is(scene, ob);
-		}
-		break;
+			else {
+				BKE_pose_where_is(scene, ob);
+			}
+			break;
 
-	case OB_MBALL:
-		BKE_displist_make_mball(eval_ctx, scene, ob);
-		break;
+		case OB_MBALL:
+			BKE_displist_make_mball(eval_ctx, scene, ob);
+			break;
 
-	case OB_CURVE:
-	case OB_SURF:
-	case OB_FONT:
-		BKE_displist_make_curveTypes(scene, ob, 0);
-		break;
+		case OB_CURVE:
+		case OB_SURF:
+		case OB_FONT:
+			BKE_displist_make_curveTypes(scene, ob, 0);
+			break;
 
-	case OB_LATTICE:
-		BKE_lattice_modifiers_calc(scene, ob);
-		break;
+		case OB_LATTICE:
+			BKE_lattice_modifiers_calc(scene, ob);
+			break;
 
-	case OB_EMPTY:
-		if (ob->empty_drawtype == OB_EMPTY_IMAGE && ob->data)
-			if (BKE_image_is_animated(ob->data))
-				BKE_image_user_check_frame_calc(ob->iuser, (int)ctime, 0);
-		break;
+		case OB_EMPTY:
+			if (ob->empty_drawtype == OB_EMPTY_IMAGE && ob->data)
+				if (BKE_image_is_animated(ob->data))
+					BKE_image_user_check_frame_calc(ob->iuser, (int)ctime, 0);
+			break;
 	}
 
 	/* related materials */
@@ -273,9 +273,9 @@ void BKE_object_handle_data_update(EvaluationContext *eval_ctx,
 				if (psys->part && (psys->part->draw_as == PART_DRAW_REND || eval_ctx->mode == DAG_EVAL_RENDER) &&
 				    ((psys->part->ren_as == PART_DRAW_OB && psys->part->dup_ob) ||
 				     (psys->part->ren_as == PART_DRAW_GR && psys->part->dup_group)))
-					{
-						ob->transflag |= OB_DUPLIPARTS;
-					}
+				{
+					ob->transflag |= OB_DUPLIPARTS;
+				}
 
 				particle_system_update(scene, ob, psys);
 				psys = psys->next;
