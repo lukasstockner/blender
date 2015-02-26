@@ -113,6 +113,7 @@ struct GPUFX {
 	bool restore_stencil;
 };
 
+#if 0
 /* concentric mapping, see "A Low Distortion Map Between Disk and Square" and
  * http://psgraphics.blogspot.nl/2011/01/improved-code-for-concentric-map.html */
 static GPUTexture * create_concentric_sample_texture(int side)
@@ -142,6 +143,27 @@ static GPUTexture * create_concentric_sample_texture(int side)
 	}
 
 	tex = GPU_texture_create_1D_procedural(side * side, texels, NULL);
+	MEM_freeN(texels);
+	return tex;
+}
+#endif
+
+static GPUTexture * create_spiral_sample_texture(int numsaples)
+{
+	GPUTexture *tex;
+	float *texels = (float *)MEM_mallocN(sizeof(float) * 2 * numsaples, "concentric_tex");
+	int i;
+	/* random number to ensure we don't get conciding samples every circle */
+	const float spirals = 7.357;
+
+	for (i = 0; i < numsaples; i++) {
+		float r = (i + 0.5f) / (float) numsaples;
+		float phi = 2.0f * M_PI * r * spirals;
+		texels[i * 2] = r * cos(phi);
+		texels[i * 2 + 1] = r * sin(phi);
+	}
+
+	tex = GPU_texture_create_1D_procedural(numsaples, texels, NULL);
 	MEM_freeN(texels);
 	return tex;
 }
@@ -343,7 +365,7 @@ bool GPU_fx_compositor_initialize_passes(
 				GPU_texture_free(fx->ssao_concentric_samples_tex);
 			}
 
-			fx->ssao_concentric_samples_tex = create_concentric_sample_texture(fx_settings->ssao->samples);
+			fx->ssao_concentric_samples_tex = create_spiral_sample_texture(fx_settings->ssao->samples);
 		}
 	}
 	else {
@@ -620,7 +642,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			float ssao_params[4] = {fx_ssao->distance_max, fx_ssao->factor, fx_ssao->attenuation, 0.0f};
 			float sample_params[4];
 
-			sample_params[0] = fx->ssao_sample_count * fx->ssao_sample_count;
+			sample_params[0] = fx->ssao_sample_count;
 			/* multiplier so we tile the random texture on screen */
 			sample_params[2] = fx->gbuffer_dim[0] / 64.0;
 			sample_params[3] = fx->gbuffer_dim[1] / 64.0;
@@ -956,5 +978,5 @@ void GPU_fx_compositor_init_ssao_settings(GPUSSAOSettings *fx_ssao)
 	fx_ssao->factor = 1.0f;
 	fx_ssao->distance_max = 0.2f;
 	fx_ssao->attenuation = 1.0f;
-	fx_ssao->samples = 4;
+	fx_ssao->samples = 20;
 }
