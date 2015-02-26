@@ -707,6 +707,8 @@ void BKE_pose_eval_flush(EvaluationContext *UNUSED(eval_ctx),
 
 	/* 6. release the IK tree */
 	BIK_release_tree(scene, ob, ctime);
+
+	ob->recalc &= ~OB_RECALC_ALL;
 }
 
 void BKE_pose_eval_proxy_copy(EvaluationContext *UNUSED(eval_ctx), Object *ob)
