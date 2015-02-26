@@ -471,7 +471,7 @@ static void test_constraints(Object *owner, bPoseChannel *pchan)
 								/* TODO: clear subtarget? */
 								curcon->flag |= CONSTRAINT_DISABLE;
 							}
-							else if (strcmp(pchan->name, ct->subtarget) == 0) {
+							else if (STREQ(pchan->name, ct->subtarget)) {
 								/* cannot target self */
 								ct->subtarget[0] = '\0';
 								curcon->flag |= CONSTRAINT_DISABLE;
@@ -1182,19 +1182,12 @@ static int constraint_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	Object *ob = ptr.id.data;
 	bConstraint *con = ptr.data;
 	ListBase *lb = get_constraint_lb(ob, con, NULL);
-	const bool is_ik = ELEM(con->type, CONSTRAINT_TYPE_KINEMATIC, CONSTRAINT_TYPE_SPLINEIK);
 
 	/* free the constraint */
-	if (BKE_constraint_remove(lb, con)) {
+	if (BKE_constraint_remove_ex(lb, ob, con, true)) {
 		/* there's no active constraint now, so make sure this is the case */
-		BKE_constraints_active_set(lb, NULL);
-		
+		BKE_constraints_active_set(&ob->constraints, NULL);
 		ED_object_constraint_update(ob); /* needed to set the flags on posebones correctly */
-		
-		/* ITASC needs to be rebuilt once a constraint is removed [#26920] */
-		if (is_ik) {
-			BIK_clear_data(ob->pose);
-		}
 		
 		/* notifiers */
 		WM_event_add_notifier(C, NC_OBJECT | ND_CONSTRAINT | NA_REMOVED, ob);

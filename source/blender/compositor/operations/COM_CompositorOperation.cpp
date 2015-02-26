@@ -138,7 +138,7 @@ void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber)
 	int y2 = rect->ymax;
 	int offset = (y1 * this->getWidth() + x1);
 	int add = (this->getWidth() - (x2 - x1));
-	int offset4 = offset * COM_NUMBER_OF_CHANNELS;
+	int offset4 = offset * COM_NUM_CHANNELS_COLOR;
 	int x;
 	int y;
 	bool breaked = false;
@@ -185,7 +185,7 @@ void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber)
 
 	for (y = y1; y < y2 && (!breaked); y++) {
 		for (x = x1; x < x2 && (!breaked); x++) {
-			int input_x = x + dx, input_y = y + dy;
+			float input_x = (float)x + dx + 0.5f, input_y = (float)y + dy + 0.5f;
 
 			this->m_imageInput->readSampled(color, input_x, input_y, COM_PS_NEAREST);
 			if (this->m_useAlphaInput) {
@@ -196,14 +196,14 @@ void CompositorOperation::executeRegion(rcti *rect, unsigned int tileNumber)
 
 			this->m_depthInput->readSampled(color, input_x, input_y, COM_PS_NEAREST);
 			zbuffer[offset] = color[0];
-			offset4 += COM_NUMBER_OF_CHANNELS;
+			offset4 += COM_NUM_CHANNELS_COLOR;
 			offset++;
 			if (isBreaked()) {
 				breaked = true;
 			}
 		}
 		offset += add;
-		offset4 += add * COM_NUMBER_OF_CHANNELS;
+		offset4 += add * COM_NUM_CHANNELS_COLOR;
 	}
 }
 

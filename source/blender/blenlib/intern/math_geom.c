@@ -109,58 +109,44 @@ float normal_quad_v3(float n[3], const float v1[3], const float v2[3], const flo
  */
 float normal_poly_v3(float n[3], const float verts[][3], unsigned int nr)
 {
-	const float *v_prev = verts[nr - 1];
-	const float *v_curr = verts[0];
-	unsigned int i;
-
-	zero_v3(n);
-
-	/* Newell's Method */
-	for (i = 0; i < nr; v_prev = v_curr, v_curr = verts[++i]) {
-		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
-	}
-
+	cross_poly_v3(n, verts, nr);
 	return normalize_v3(n);
 }
 
-/* only convex Quadrilaterals */
 float area_quad_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
 {
-	float len, vec1[3], vec2[3], n[3];
+	const float verts[4][3] = {{UNPACK3(v1)}, {UNPACK3(v2)}, {UNPACK3(v3)}, {UNPACK3(v4)}};
+	return area_poly_v3(verts, 4);
+}
 
-	sub_v3_v3v3(vec1, v2, v1);
-	sub_v3_v3v3(vec2, v4, v1);
-	cross_v3_v3v3(n, vec1, vec2);
-	len = len_v3(n);
-
-	sub_v3_v3v3(vec1, v4, v3);
-	sub_v3_v3v3(vec2, v2, v3);
-	cross_v3_v3v3(n, vec1, vec2);
-	len += len_v3(n);
-
-	return (len / 2.0f);
+float area_squared_quad_v3(const float v1[3], const float v2[3], const float v3[3], const float v4[3])
+{
+	const float verts[4][3] = {{UNPACK3(v1)}, {UNPACK3(v2)}, {UNPACK3(v3)}, {UNPACK3(v4)}};
+	return area_squared_poly_v3(verts, 4);
 }
 
 /* Triangles */
 float area_tri_v3(const float v1[3], const float v2[3], const float v3[3])
 {
-	float vec1[3], vec2[3], n[3];
+	float n[3];
+	cross_tri_v3(n, v1, v2, v3);
+	return len_v3(n) * 0.5f;
+}
 
-	sub_v3_v3v3(vec1, v3, v2);
-	sub_v3_v3v3(vec2, v1, v2);
-	cross_v3_v3v3(n, vec1, vec2);
-
-	return len_v3(n) / 2.0f;
+float area_squared_tri_v3(const float v1[3], const float v2[3], const float v3[3])
+{
+	float n[3];
+	cross_tri_v3(n, v1, v2, v3);
+	mul_v3_fl(n, 0.5f);
+	return len_squared_v3(n);
 }
 
 float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3], const float normal[3])
 {
-	float area, vec1[3], vec2[3], n[3];
+	float area, n[3];
 
-	sub_v3_v3v3(vec1, v3, v2);
-	sub_v3_v3v3(vec2, v1, v2);
-	cross_v3_v3v3(n, vec1, vec2);
-	area = len_v3(n) / 2.0f;
+	cross_tri_v3(n, v1, v2, v3);
+	area = len_v3(n) * 0.5f;
 
 	/* negate area for flipped triangles */
 	if (dot_v3v3(n, normal) < 0.0f)
@@ -172,7 +158,17 @@ float area_tri_signed_v3(const float v1[3], const float v2[3], const float v3[3]
 float area_poly_v3(const float verts[][3], unsigned int nr)
 {
 	float n[3];
-	return normal_poly_v3(n, verts, nr) * 0.5f;
+	cross_poly_v3(n, verts, nr);
+	return len_v3(n) * 0.5f;
+}
+
+float area_squared_poly_v3(const float verts[][3], unsigned int nr)
+{
+	float n[3];
+
+	cross_poly_v3(n, verts, nr);
+	mul_v3_fl(n, 0.5f);
+	return len_squared_v3(n);
 }
 
 /**
@@ -200,9 +196,34 @@ float cross_poly_v2(const float verts[][2], unsigned int nr)
 	return cross;
 }
 
+void cross_poly_v3(float n[3], const float verts[][3], unsigned int nr)
+{
+	const float *v_prev = verts[nr - 1];
+	const float *v_curr = verts[0];
+	unsigned int i;
+
+	zero_v3(n);
+
+	/* Newell's Method */
+	for (i = 0; i < nr; v_prev = v_curr, v_curr = verts[++i]) {
+		add_newell_cross_v3_v3v3(n, v_prev, v_curr);
+	}
+}
+
 float area_poly_v2(const float verts[][2], unsigned int nr)
 {
 	return fabsf(0.5f * cross_poly_v2(verts, nr));
+}
+
+float area_poly_signed_v2(const float verts[][2], unsigned int nr)
+{
+	return (0.5f * cross_poly_v2(verts, nr));
+}
+
+float area_squared_poly_v2(const float verts[][2], unsigned int nr)
+{
+	float area = area_poly_signed_v2(verts, nr);
+	return area * area;
 }
 
 float cotangent_tri_weight_v3(const float v1[3], const float v2[3], const float v3[3])
@@ -454,6 +475,63 @@ float dist_squared_to_line_v3(const float v1[3], const float l1[3], const float 
 float dist_to_line_v3(const float v1[3], const float l1[3], const float l2[3])
 {
 	return sqrtf(dist_squared_to_line_v3(v1, l1, l2));
+}
+
+/**
+ * Check if \a p is inside the 2x planes defined by ``(v1, v2, v3)``
+ * where the 3x points define 2x planes.
+ *
+ * \param axis_fallback used when v1,v2,v3 form a line.
+ *
+ * \note the distance from \a v1 & \a v3 to \a v2 doesnt matter
+ * (it just defines the planes).
+ *
+ * \return the lowest squared distance to eithe of the planes.
+ * where ``(return < 0.0)`` is outside.
+ *
+ * <pre>
+ *            v1
+ *            +
+ *           /
+ * x - out  /  x - inside
+ *         /
+ *        +----+
+ *        v2   v3
+ *           x - also outside
+ * </pre>
+ */
+float dist_signed_squared_to_corner_v3v3v3(
+        const float p[3],
+        const float v1[3], const float v2[3], const float v3[3],
+        const float axis_fallback[3])
+{
+	float dir_a[3], dir_b[3];
+	float plane_a[4], plane_b[4];
+	float axis[3];
+
+	sub_v3_v3v3(dir_a, v1, v2);
+	sub_v3_v3v3(dir_b, v3, v2);
+
+	cross_v3_v3v3(axis, dir_a, dir_b);
+
+	if ((len_squared_v3(axis) < FLT_EPSILON) && axis_fallback) {
+		copy_v3_v3(axis, axis_fallback);
+	}
+
+	cross_v3_v3v3(plane_a, axis, dir_a);
+	cross_v3_v3v3(plane_b, dir_b, axis);
+
+#if 0
+	plane_from_point_normal_v3(plane_a, center, l1);
+	plane_from_point_normal_v3(plane_b, center, l2);
+#else
+	/* do inline */
+	plane_a[3] = -dot_v3v3(plane_a, v2);
+	plane_b[3] = -dot_v3v3(plane_b, v2);
+#endif
+
+	return min_ff(dist_signed_squared_to_plane_v3(p, plane_a),
+	              dist_signed_squared_to_plane_v3(p, plane_b));
 }
 
 /* Adapted from "Real-Time Collision Detection" by Christer Ericson,
@@ -3101,6 +3179,59 @@ void window_translate_m4(float winmat[4][4], float perspmat[4][4], const float x
 	else {
 		winmat[3][0] += x;
 		winmat[3][1] += y;
+	}
+}
+
+/**
+ * Frustum planes extraction from a projection matrix (homogeneous 4d vector representations of planes).
+ *
+ * plane parameters can be NULL if you do not need them.
+ */
+void planes_from_projmat(float mat[4][4], float left[4], float right[4], float top[4], float bottom[4],
+                         float near[4], float far[4])
+{
+	/* References:
+	 *
+	 * https://fgiesen.wordpress.com/2012/08/31/frustum-planes-from-the-projection-matrix/
+	 * http://www8.cs.umu.se/kurser/5DV051/HT12/lab/plane_extraction.pdf
+	 */
+
+	int i;
+
+	if (left) {
+		for (i = 4; i--; ) {
+			left[i] = mat[i][3] + mat[i][0];
+		}
+	}
+
+	if (right) {
+		for (i = 4; i--; ) {
+			right[i] = mat[i][3] - mat[i][0];
+		}
+	}
+
+	if (bottom) {
+		for (i = 4; i--; ) {
+			bottom[i] = mat[i][3] + mat[i][1];
+		}
+	}
+
+	if (top) {
+		for (i = 4; i--; ) {
+			top[i] = mat[i][3] - mat[i][1];
+		}
+	}
+
+	if (near) {
+		for (i = 4; i--; ) {
+			near[i] = mat[i][3] + mat[i][2];
+		}
+	}
+
+	if (far) {
+		for (i = 4; i--; ) {
+			far[i] = mat[i][3] - mat[i][2];
+		}
 	}
 }
 

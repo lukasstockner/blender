@@ -21,12 +21,13 @@
 from mathutils import Vector
 import bpy
 from bpy.types import Operator
-from bpy.props import (BoolProperty,
-                       EnumProperty,
-                       IntProperty,
-                       FloatProperty,
-                       FloatVectorProperty,
-                       )
+from bpy.props import (
+        BoolProperty,
+        EnumProperty,
+        IntProperty,
+        FloatProperty,
+        FloatVectorProperty,
+        )
 
 
 def object_ensure_material(obj, mat_name):
@@ -387,7 +388,7 @@ class QuickSmoke(Operator):
             links.new(node_add_shader_1.outputs["Shader"],
                     node_out.inputs["Volume"])
 
-            if self.style in {'SMOKE', 'BOTH'}:
+            if self.style in {'SMOKE', 'FIRE', 'BOTH'}:
                 # Smoke
 
                 # Add shader 2

@@ -402,7 +402,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 						sc->data2 = 0.0f;
 					}
 					else
-						sc->T = sd->dPdu;
+						sc->T = normalize(sd->dPdu);
 
 					if(type == CLOSURE_BSDF_HAIR_REFLECTION_ID) {
 						sd->flag |= bsdf_hair_reflection_setup(sc);
@@ -528,8 +528,7 @@ ccl_device void svm_node_closure_volume(KernelGlobals *kg, ShaderData *sd, float
 			ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight * density);
 
 			if(sc) {
-				float g = param2;
-				sc->data0 = g;
+				sc->data0 = param2; /* g */
 				sd->flag |= volume_henyey_greenstein_setup(sc);
 			}
 			break;

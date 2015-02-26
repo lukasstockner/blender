@@ -71,6 +71,13 @@ CCL_NAMESPACE_BEGIN
 #define M_SQRT2_F	((float)1.41421356237309504880) 					/* sqrt(2) */
 #endif
 
+#ifndef M_LN2_F
+#define M_LN2_F      ((float)0.6931471805599453)        /* ln(2) */
+#endif
+
+#ifndef M_LN10_F
+#define M_LN10_F     ((float)2.3025850929940457)        /* ln(10) */
+#endif
 
 /* Scalar */
 
@@ -1450,24 +1457,37 @@ ccl_device bool ray_quad_intersect(
 }
 
 /* projections */
-ccl_device bool map_to_sphere(float *r_u, float *r_v,
-                              const float x, const float y, const float z)
+ccl_device_inline float2 map_to_tube(const float3 co)
 {
-	float len = sqrtf(x * x + y * y + z * z);
-	if(len > 0.0f) {
-		if(UNLIKELY(x == 0.0f && y == 0.0f)) {
-			*r_u = 0.0f;  /* othwise domain error */
-		}
-		else {
-			*r_u = (1.0f - atan2f(x, y) / M_PI_F) / 2.0f;
-		}
-		*r_v = 1.0f - safe_acosf(z / len) / M_PI_F;
-		return true;
+	float len, u, v;
+	len = sqrtf(co.x * co.x + co.y * co.y);
+	if (len > 0.0f) {
+		u = (1.0f - (atan2f(co.x / len, co.y / len) / M_PI_F)) * 0.5f;
+		v = (co.x + 1.0f) * 0.5f;
 	}
 	else {
-		*r_v = *r_u = 0.0f; /* to avoid un-initialized variables */
-		return false;
+		u = v = 0.0f;
 	}
+	return make_float2(u, v);
+}
+
+ccl_device_inline float2 map_to_sphere(const float3 co)
+{
+	float l = len(co);
+	float u, v;
+	if(l > 0.0f) {
+		if(UNLIKELY(co.x == 0.0f && co.y == 0.0f)) {
+			u = 0.0f;  /* othwise domain error */
+		}
+		else {
+			u = (1.0f - atan2f(co.x, co.y) / M_PI_F) / 2.0f;
+		}
+		v = 1.0f - safe_acosf(co.z / l) / M_PI_F;
+	}
+	else {
+		u = v = 0.0f;
+	}
+	return make_float2(u, v);
 }
 
 ccl_device_inline int util_max_axis(float3 vec)
@@ -1484,25 +1504,6 @@ ccl_device_inline int util_max_axis(float3 vec)
 		else
 			return 2;
 	}
-}
-
-/* NOTE: We don't use std::swap here because of number of reasons:
- *
- * - We don't want current context to be polluted with all the templated
- *   functions from stl which might cause some interference about which
- *   function is used.
- *
- * - Different devices in theory might want to use intrinsics to optimize
- *   this function for specific type.
- *
- * - We don't want ot use references because of OpenCL state at this moment.
- */
-template <typename T>
-ccl_device_inline void util_swap(T *__restrict a, T *__restrict b)
-{
-	T c = *a;
-	*a = *b;
-	*b = c;
 }
 
 CCL_NAMESPACE_END

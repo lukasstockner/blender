@@ -100,7 +100,8 @@ bGPdata **ED_gpencil_data_get_pointers_direct(ID *screen_id, Scene *scene, ScrAr
 		
 		switch (sa->spacetype) {
 			case SPACE_VIEW3D: /* 3D-View */
-			case SPACE_TIME: /* Timeline - XXX: this is a hack to get it to show GP keyframes for 3D view */
+			case SPACE_TIME:   /* Timeline - XXX: this is a hack to get it to show GP keyframes for 3D view */
+			case SPACE_ACTION: /* DepeSheet - XXX: this is a hack to get the keyframe jump operator to take GP Keyframes into account */
 			{
 				BLI_assert(scene && ELEM(scene->toolsettings->gpencil_src,
 				                         GP_TOOL_SOURCE_SCENE, GP_TOOL_SOURCE_OBJECT));
@@ -219,6 +220,7 @@ bGPdata *ED_gpencil_data_get_active(const bContext *C)
 
 /* -------------------------------------------------------- */
 
+// XXX: this should be removed... We really shouldn't duplicate logic like this!
 bGPdata *ED_gpencil_data_get_active_v3d(Scene *scene, View3D *v3d)
 {
 	Base *base = scene->basact;
@@ -483,6 +485,47 @@ void GPENCIL_OT_layer_move(wmOperatorType *ot)
 	ot->prop = RNA_def_enum(ot->srna, "type", slot_move, 0, "Type", "");
 }
 
+/* ********************* Duplicate Layer ************************** */
+
+static int gp_layer_copy_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = gpencil_layer_getactive(gpd);
+	bGPDlayer *new_layer;
+	
+	/* sanity checks */
+	if (ELEM(NULL, gpd, gpl))
+		return OPERATOR_CANCELLED;
+	
+	/* make copy of layer, and add it immediately after the existing layer */
+	new_layer = gpencil_layer_duplicate(gpl);
+	BLI_insertlinkafter(&gpd->layers, gpl, new_layer);
+	
+	/* ensure new layer has a unique name, and is now the active layer */
+	BLI_uniquename(&gpd->layers, new_layer, DATA_("GP_Layer"), '.', offsetof(bGPDlayer, info), sizeof(new_layer->info));
+	gpencil_layer_setactive(gpd, new_layer);
+	
+	/* notifiers */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_layer_duplicate(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Duplicate Layer";
+	ot->idname = "GPENCIL_OT_layer_duplicate";
+	ot->description = "Make a copy of the active Grease Pencil layer";
+	
+	/* callbacks */
+	ot->exec = gp_layer_copy_exec;
+	ot->poll = gp_active_layer_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* ************************************************ */
 /* Stroke Editing Operators */
 
@@ -578,6 +621,10 @@ static int gp_duplicate_exec(bContext *C, wmOperator *op)
 		
 		/* make copies of selected strokes, and deselect these once we're done */
 		for (gps = gpf->strokes.first; gps; gps = gps->next) {
+			/* skip strokes that are invalid for current view */
+			if (ED_gpencil_stroke_can_use(C, gps) == false)
+				continue;
+			
 			if (gps->flag & GP_STROKE_SELECT) {
 				if (gps->totpoints == 1) {
 					/* Special Case: If there's just a single point in this stroke... */
@@ -624,6 +671,217 @@ void GPENCIL_OT_duplicate(wmOperatorType *ot)
 	
 	/* callbacks */
 	ot->exec = gp_duplicate_exec;
+	ot->poll = gp_stroke_edit_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ******************* Copy/Paste Strokes ************************* */
+/* Grease Pencil stroke data copy/paste buffer:
+ * - The copy operation collects all segments of selected strokes,
+ *   dumping "ready to be copied" copies of the strokes into the buffer.
+ * - The paste operation makes a copy of those elements, and adds them
+ *   to the active layer. This effectively flattens down the strokes
+ *   from several different layers into a single layer.
+ */
+
+/* list of bGPDstroke instances */
+static ListBase gp_strokes_copypastebuf = {NULL, NULL};
+
+/* Free copy/paste buffer data */
+void ED_gpencil_strokes_copybuf_free(void)
+{
+	bGPDstroke *gps, *gpsn;
+	
+	for (gps = gp_strokes_copypastebuf.first; gps; gps = gpsn) {
+		gpsn = gps->next;
+		
+		MEM_freeN(gps->points);
+		BLI_freelinkN(&gp_strokes_copypastebuf, gps);
+	}
+	
+	gp_strokes_copypastebuf.first = gp_strokes_copypastebuf.last = NULL;
+}
+
+/* --------------------- */
+/* Copy selected strokes */
+
+static int gp_strokes_copy_exec(bContext *C, wmOperator *op)
+{
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	
+	if (gpd == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+		return OPERATOR_CANCELLED;
+	}
+	
+	/* clear the buffer first */
+	ED_gpencil_strokes_copybuf_free();
+	
+	/* for each visible (and editable) layer's selected strokes,
+	 * copy the strokes into a temporary buffer, then append
+	 * once all done
+	 */
+	CTX_DATA_BEGIN(C, bGPDlayer *, gpl, editable_gpencil_layers)
+	{
+		bGPDframe *gpf = gpl->actframe;
+		bGPDstroke *gps;
+		
+		if (gpf == NULL)
+			continue;
+		
+		/* make copies of selected strokes, and deselect these once we're done */
+		for (gps = gpf->strokes.first; gps; gps = gps->next) {
+			/* skip strokes that are invalid for current view */
+			if (ED_gpencil_stroke_can_use(C, gps) == false)
+				continue;
+			
+			if (gps->flag & GP_STROKE_SELECT) {
+				if (gps->totpoints == 1) {
+					/* Special Case: If there's just a single point in this stroke... */
+					bGPDstroke *gpsd;
+					
+					/* make direct copies of the stroke and its points */
+					gpsd = MEM_dupallocN(gps);
+					gpsd->points = MEM_dupallocN(gps->points);
+					
+					/* add to temp buffer */
+					gpsd->next = gpsd->prev = NULL;
+					BLI_addtail(&gp_strokes_copypastebuf, gpsd);
+				}
+				else {
+					/* delegate to a helper, as there's too much to fit in here (for copying subsets)... */
+					gp_duplicate_points(gps, &gp_strokes_copypastebuf);
+				}
+			}
+		}
+	}
+	CTX_DATA_END;
+	
+	/* done - no updates needed */
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_copy(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Copy Strokes";
+	ot->idname = "GPENCIL_OT_copy";
+	ot->description = "Copy selected Grease Pencil points and strokes";
+	
+	/* callbacks */
+	ot->exec = gp_strokes_copy_exec;
+	ot->poll = gp_stroke_edit_poll;
+	
+	/* flags */
+	//ot->flag = OPTYPE_REGISTER;
+}
+
+/* --------------------- */
+/* Paste selected strokes */
+
+static int gp_strokes_paste_exec(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	bGPdata *gpd = ED_gpencil_data_get_active(C);
+	bGPDlayer *gpl = CTX_data_active_gpencil_layer(C);
+	bGPDframe *gpf;
+	
+	/* check for various error conditions */
+	if (gpd == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No Grease Pencil data");
+		return OPERATOR_CANCELLED;
+	}
+	else if (gp_strokes_copypastebuf.first == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "No strokes to paste, select and copy some points before trying again");
+		return OPERATOR_CANCELLED;
+	}
+	else if (gpl == NULL) {
+		/* no active layer - let's just create one */
+		gpl = gpencil_layer_addnew(gpd, DATA_("GP_Layer"), 1);
+	}
+	else if (gpl->flag & (GP_LAYER_HIDE | GP_LAYER_LOCKED)) {
+		BKE_report(op->reports, RPT_ERROR, "Can not paste strokes when active layer is hidden or locked");
+		return OPERATOR_CANCELLED;
+	}
+	else {
+		/* Check that some of the strokes in the buffer can be used */
+		bGPDstroke *gps;
+		bool ok = false;
+		
+		for (gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
+			if (ED_gpencil_stroke_can_use(C, gps)) {
+				ok = true;
+				break;
+			}
+		}
+		
+		if (ok == false) {
+			/* XXX: this check is not 100% accurate (i.e. image editor is incompatible with normal 2D strokes),
+			 * but should be enough to give users a good idea of what's going on
+			 */
+			if (CTX_wm_area(C)->spacetype == SPACE_VIEW3D)
+				BKE_report(op->reports, RPT_ERROR, "Cannot paste 2D strokes in 3D View");
+			else
+				BKE_report(op->reports, RPT_ERROR, "Cannot paste 3D strokes in 2D editors");
+				
+			return OPERATOR_CANCELLED;
+		}
+	}
+	
+	/* Deselect all strokes first */
+	CTX_DATA_BEGIN(C, bGPDstroke *, gps, editable_gpencil_strokes)
+	{
+		bGPDspoint *pt;
+		int i;
+		
+		for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
+			pt->flag &= ~GP_SPOINT_SELECT;
+		}
+		
+		gps->flag &= ~GP_STROKE_SELECT;
+	}
+	CTX_DATA_END;
+	
+	/* Ensure we have a frame to draw into
+	 * NOTE: Since this is an op which creates strokes,
+	 *       we are obliged to add a new frame if one
+	 *       doesn't exist already
+	 */
+	gpf = gpencil_layer_getframe(gpl, CFRA, true);
+	
+	if (gpf) {
+		bGPDstroke *gps;
+		
+		/* Copy each stroke into the layer */
+		for (gps = gp_strokes_copypastebuf.first; gps; gps = gps->next) {
+			if (ED_gpencil_stroke_can_use(C, gps)) {
+				bGPDstroke *new_stroke = MEM_dupallocN(gps);
+				
+				new_stroke->points = MEM_dupallocN(gps->points);
+				new_stroke->next = new_stroke->prev = NULL;
+				
+				BLI_addtail(&gpf->strokes, new_stroke);
+			}
+		}
+	}
+	
+	/* updates */
+	WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, NULL);
+	
+	return OPERATOR_FINISHED;
+}
+
+void GPENCIL_OT_paste(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Paste Strokes";
+	ot->idname = "GPENCIL_OT_paste";
+	ot->description = "Paste previously copied strokes into active layer";
+	
+	/* callbacks */
+	ot->exec = gp_strokes_paste_exec;
 	ot->poll = gp_stroke_edit_poll;
 	
 	/* flags */
@@ -713,6 +971,11 @@ static int gp_delete_selected_strokes(bContext *C)
 		for (gps = gpf->strokes.first; gps; gps = gpsn) {
 			gpsn = gps->next;
 			
+			/* skip strokes that are invalid for current view */
+			if (ED_gpencil_stroke_can_use(C, gps) == false)
+				continue;
+			
+			/* free stroke if selected */
 			if (gps->flag & GP_STROKE_SELECT) {
 				/* free stroke memory arrays, then stroke itself */
 				if (gps->points) MEM_freeN(gps->points);
@@ -751,6 +1014,10 @@ static int gp_dissolve_selected_points(bContext *C)
 		 */
 		for (gps = gpf->strokes.first; gps; gps = gpsn) {
 			gpsn = gps->next;
+			
+			/* skip strokes that are invalid for current view */
+			if (ED_gpencil_stroke_can_use(C, gps) == false)
+				continue;
 			
 			if (gps->flag & GP_STROKE_SELECT) {
 				bGPDspoint *pt;
@@ -826,6 +1093,11 @@ static int gp_delete_selected_points(bContext *C)
 		/* simply delete strokes which are selected */
 		for (gps = gpf->strokes.first; gps; gps = gpsn) {
 			gpsn = gps->next;
+			
+			/* skip strokes that are invalid for current view */
+			if (ED_gpencil_stroke_can_use(C, gps) == false)
+				continue;
+			
 			
 			if (gps->flag & GP_STROKE_SELECT) {
 				bGPDspoint *pt;
@@ -2257,50 +2529,50 @@ static bool gp_convert_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop)
 	const bool valid_timing = RNA_boolean_get(ptr, "use_timing_data");
 	
 	/* Always show those props */
-	if (strcmp(prop_id, "type") == 0 ||
-	    strcmp(prop_id, "use_normalize_weights") == 0 ||
-	    strcmp(prop_id, "radius_multiplier") == 0 ||
-	    strcmp(prop_id, "use_link_strokes") == 0)
+	if (STREQ(prop_id, "type") ||
+	    STREQ(prop_id, "use_normalize_weights") ||
+	    STREQ(prop_id, "radius_multiplier") ||
+	    STREQ(prop_id, "use_link_strokes"))
 	{
 		return true;
 	}
 	
 	/* Never show this prop */
-	if (strcmp(prop_id, "use_timing_data") == 0)
+	if (STREQ(prop_id, "use_timing_data"))
 		return false;
 	
 	if (link_strokes) {
 		/* Only show when link_stroke is true */
-		if (strcmp(prop_id, "timing_mode") == 0)
+		if (STREQ(prop_id, "timing_mode"))
 			return true;
 		
 		if (timing_mode != GP_STROKECONVERT_TIMING_NONE) {
 			/* Only show when link_stroke is true and stroke timing is enabled */
-			if (strcmp(prop_id, "frame_range") == 0 ||
-			    strcmp(prop_id, "start_frame") == 0)
+			if (STREQ(prop_id, "frame_range") ||
+			    STREQ(prop_id, "start_frame"))
 			{
 				return true;
 			}
 			
 			/* Only show if we have valid timing data! */
-			if (valid_timing && strcmp(prop_id, "use_realtime") == 0)
+			if (valid_timing && STREQ(prop_id, "use_realtime"))
 				return true;
 			
 			/* Only show if realtime or valid_timing is false! */
-			if ((!realtime || !valid_timing) && strcmp(prop_id, "end_frame") == 0)
+			if ((!realtime || !valid_timing) && STREQ(prop_id, "end_frame"))
 				return true;
 			
 			if (valid_timing && timing_mode == GP_STROKECONVERT_TIMING_CUSTOMGAP) {
 				/* Only show for custom gaps! */
-				if (strcmp(prop_id, "gap_duration") == 0)
+				if (STREQ(prop_id, "gap_duration"))
 					return true;
 				
 				/* Only show randomness for non-null custom gaps! */
-				if (strcmp(prop_id, "gap_randomness") == 0 && (gap_duration > 0.0f))
+				if (STREQ(prop_id, "gap_randomness") && (gap_duration > 0.0f))
 					return true;
 				
 				/* Only show seed for randomize action! */
-				if (strcmp(prop_id, "seed") == 0 && (gap_duration > 0.0f) && (gap_randomness > 0.0f))
+				if (STREQ(prop_id, "seed") && (gap_duration > 0.0f) && (gap_randomness > 0.0f))
 					return true;
 			}
 		}

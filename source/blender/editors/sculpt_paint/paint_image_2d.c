@@ -359,7 +359,7 @@ static unsigned short *brush_painter_curve_mask_new(BrushPainter *painter, int d
 			float xy[2] = {x + xoff, y + yoff};
 			float len = len_v2(xy);
 
-			*m = (unsigned short)(65535.0f * BKE_brush_curve_strength_clamp(brush, len, radius));
+			*m = (unsigned short)(65535.0f * BKE_brush_curve_strength(brush, len, radius));
 		}
 	}
 
@@ -408,11 +408,11 @@ static ImBuf *brush_painter_imbuf_new(BrushPainter *painter, int size, float pre
 			if (is_texbrush) {
 				brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 				BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
-				mul_v3_v3(rgba, brush_rgb);
 				/* TODO(sergey): Support texture paint color space. */
 				if (!use_float) {
 					IMB_colormanagement_scene_linear_to_display_v3(rgba, display);
 				}
+				mul_v3_v3(rgba, brush_rgb);
 			}
 			else {
 				copy_v3_v3(rgba, brush_rgb);
@@ -482,11 +482,11 @@ static void brush_painter_imbuf_update(BrushPainter *painter, ImBuf *oldtexibuf,
 				if (is_texbrush) {
 					brush_imbuf_tex_co(&tex_mapping, x, y, texco);
 					BKE_brush_sample_tex_3D(scene, brush, texco, rgba, thread, pool);
-					mul_v3_v3(rgba, brush_rgb);
 					/* TODO(sergey): Support texture paint color space. */
 					if (!use_float) {
 						IMB_colormanagement_scene_linear_to_display_v3(rgba, display);
 					}
+					mul_v3_v3(rgba, brush_rgb);
 				}
 				else {
 					copy_v3_v3(rgba, brush_rgb);

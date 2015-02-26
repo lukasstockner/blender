@@ -1034,7 +1034,7 @@ static void viewrotate_apply(ViewOpsData *vod, int x, int y)
 		 * - of rotation is linearly proportional
 		 * - to the distance that the mouse is
 		 * - dragged. */
-		phi = si * (float)(M_PI / 2.0);
+		phi = si * (float)M_PI_2;
 
 		q1[0] = cosf(phi);
 		mul_v3_fl(q1 + 1, sinf(phi));
@@ -3373,7 +3373,8 @@ void VIEW3D_OT_render_border(wmOperatorType *ot)
 	/* rna */
 	WM_operator_properties_border(ot);
 
-	prop = RNA_def_boolean(ot->srna, "camera_only", 0, "Camera Only", "Set render border for camera view and final render only");
+	prop = RNA_def_boolean(ot->srna, "camera_only", false, "Camera Only",
+	                       "Set render border for camera view and final render only");
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
@@ -4376,7 +4377,7 @@ void VIEW3D_OT_background_image_add(wmOperatorType *ot)
 	
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Image", MAX_ID_NAME - 2, "Name", "Image name to assign");
-	WM_operator_properties_filesel(ot, FOLDERFILE | IMAGEFILE | MOVIEFILE, FILE_SPECIAL, FILE_OPENFILE,
+	WM_operator_properties_filesel(ot, FILE_TYPE_FOLDER | FILE_TYPE_IMAGE | FILE_TYPE_MOVIE, FILE_SPECIAL, FILE_OPENFILE,
 	                               WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH, FILE_DEFAULTDISPLAY);
 }
 
@@ -5003,8 +5004,9 @@ BGpic *ED_view3D_background_image_new(View3D *v3d)
 {
 	BGpic *bgpic = MEM_callocN(sizeof(BGpic), "Background Image");
 
-	bgpic->size = 5.0;
-	bgpic->blend = 0.5;
+	bgpic->rotation = 0.0f;
+	bgpic->size = 5.0f;
+	bgpic->blend = 0.5f;
 	bgpic->iuser.fie_ima = 2;
 	bgpic->iuser.ok = 1;
 	bgpic->view = 0; /* 0 for all */
