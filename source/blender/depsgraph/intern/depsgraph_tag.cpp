@@ -324,7 +324,6 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 		{
 			OperationDepsNode *op = it->second;
 			op->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
-			graph->entry_tags.insert(op);
 		}
 	}
 }
