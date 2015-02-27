@@ -1576,6 +1576,13 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 	}
 	lamp_id->flag |= LIB_DOIT;
 
+	if (BKE_animdata_from_id(lamp_id) != NULL) {
+		ComponentKey animation_key(lamp_id, DEPSNODE_TYPE_ANIMATION);
+		ComponentKey parameters_key(lamp_id, DEPSNODE_TYPE_PARAMETERS);
+		add_relation(animation_key, parameters_key,
+		             DEPSREL_TYPE_COMPONENT_ORDER, "Lamp Parameters");
+	}
+
 	/* lamp's nodetree */
 	if (la->nodetree) {
 		build_nodetree(lamp_id, la->nodetree);
