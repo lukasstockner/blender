@@ -114,7 +114,7 @@ struct BlendHandle *filelist_lib(struct FileList *filelist);
 bool                filelist_islibrary(struct FileList *filelist, char *dir, char **group);
 void                filelist_freelib(struct FileList *filelist);
 
-char               *fileentry_uiname(const struct FileDirEntry *entry, char *dir);
+char               *fileentry_uiname(const char *root, const struct FileDirEntry *entry, char *dir);
 
 void                filelist_readjob_start(struct FileList *filelist, const struct bContext *C);
 void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);

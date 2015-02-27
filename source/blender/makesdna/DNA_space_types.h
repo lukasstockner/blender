@@ -749,6 +749,7 @@ typedef enum eDirEntry_SelectFlag {
 
 /* Container for a revision, only relevant in asset context. */
 typedef struct FileDirEntryRevision {
+	struct FileDirEntryRevision *next, *prev;
 	/* Unique identifier. Stored in a CustomProps once imported.
 	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
 	 * asset/datablock/variant/version.
@@ -773,16 +774,20 @@ typedef struct FileDirEntryRevision {
 /* Container for a variant, only relevant in asset context.
  * In case there are no variants, a single one shall exist, with NULL name/description. */
 typedef struct FileDirEntryVariant {
+	struct FileDirEntryVariant *next, *prev;
+
 	char *name;
 	char *description;
 
-	FileDirEntryRevision *revisions;
+	ListBase revisions;
 	int nbr_revisions;
 	int act_revision;
 } FileDirEntryVariant;
 
 /* Container for mere direntry, with additional asset-related data. */
 typedef struct FileDirEntry {
+	struct FileDirEntry *next, *prev;
+
 	/* Either point to active variant/revision if available, or own entry (in mere filebrowser case). */
 	FileDirEntryRevision *entry;
 
@@ -790,7 +795,6 @@ typedef struct FileDirEntry {
 	int blentype;  /* ID type, in case typeflag has FILE_TYPE_BLENDERLIB set. */
 
 	char *relpath;
-	const char *root;  /* Only a pointer to FileDirEntryArr.root, needed for things like sorting. */
 
 	void *poin;  /* TODO: make this a real ID pointer? */
 	struct ImBuf *image;
@@ -801,14 +805,14 @@ typedef struct FileDirEntry {
 	short status;
 	short selflag; /* eDirEntry_SelectFlag */
 
-	FileDirEntryVariant *variants;
+	ListBase variants;
 	int nbr_variants;
 	int act_variant;
 } FileDirEntry;
 
 /* Array of direntries. */
 typedef struct FileDirEntryArr {
-	FileDirEntry *entries;
+	ListBase entries;
 	int nbr_entries;
 	int pad;
 

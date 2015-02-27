@@ -443,6 +443,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	View2D *v2d = &ar->v2d;
 	struct FileList *files = sfile->files;
 	struct FileDirEntry *file;
+	const char *root = filelist_dir(files);
 	ImBuf *imb;
 	uiBlock *block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	int numfiles;
@@ -491,8 +492,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		file = filelist_file(files, i);
 
-		BLI_join_dirfile(path, sizeof(path), file->root, file->relpath);
-		name = fileentry_uiname(file, dir);
+		BLI_join_dirfile(path, sizeof(path), root, file->relpath);
+		name = fileentry_uiname(root, file, dir);
 
 		UI_ThemeColor4(TH_TEXT);
 
