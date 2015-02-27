@@ -148,22 +148,23 @@ static GPUTexture * create_concentric_sample_texture(int side)
 }
 #endif
 
-static GPUTexture * create_spiral_sample_texture(int numsaples)
+static GPUTexture *create_spiral_sample_texture(int numsaples)
 {
 	GPUTexture *tex;
-	float *texels = (float *)MEM_mallocN(sizeof(float) * 2 * numsaples, "concentric_tex");
+	float (*texels)[2] = MEM_mallocN(sizeof(float[2]) * numsaples, "concentric_tex");
+	const float numsaples_inv = 1.0f / numsaples;
 	int i;
-	/* random number to ensure we don't get conciding samples every circle */
+	/* arbitrary number to ensure we don't get conciding samples every circle */
 	const float spirals = 7.357;
 
 	for (i = 0; i < numsaples; i++) {
-		float r = (i + 0.5f) / (float) numsaples;
-		float phi = 2.0f * M_PI * r * spirals;
-		texels[i * 2] = r * cos(phi);
-		texels[i * 2 + 1] = r * sin(phi);
+		float r = (i + 0.5f) * numsaples_inv;
+		float phi = r * spirals * (float)(2.0 * M_PI);
+		texels[i][0] = r * cosf(phi);
+		texels[i][1] = r * sinf(phi);
 	}
 
-	tex = GPU_texture_create_1D_procedural(numsaples, texels, NULL);
+	tex = GPU_texture_create_1D_procedural(numsaples, (float *)texels, NULL);
 	MEM_freeN(texels);
 	return tex;
 }
@@ -273,8 +274,8 @@ static GPUTexture * create_jitter_texture(void)
 	int i;
 
 	for (i = 0; i < 64 * 64; i++) {
-		jitter[i][0] = 2.0f * BLI_frand() - 1.0;
-		jitter[i][1] = 2.0f * BLI_frand() - 1.0;
+		jitter[i][0] = 2.0f * BLI_frand() - 1.0f;
+		jitter[i][1] = 2.0f * BLI_frand() - 1.0f;
 		normalize_v2(jitter[i]);
 	}
 
@@ -711,11 +712,15 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 		GPUShader *dof_shader_pass1, *dof_shader_pass2, *dof_shader_pass3, *dof_shader_pass4, *dof_shader_pass5;
 		float dof_params[4];
 		float scale = scene->unit.system ? scene->unit.scale_length : 1.0f;
+		/* this is factor that converts to the scene scale. focal length and sensor are expressed in mm
+		 * unit.scale_length is how many meters per blender unit we have. We want to convert to blender units though
+		 * because the shader reads coordinates in world space, which is in blender units. */
 		float scale_camera = 0.001f / scale;
-		float aperture = 2.0f * scale_camera * fx_dof->focal_length / fx_dof->fstop;
+		/* we want radius here for the aperture number  */
+		float aperture = 0.5f * scale_camera * fx_dof->focal_length / fx_dof->fstop;
 
-		dof_params[0] = aperture * fabs(scale_camera * fx_dof->focal_length / (fx_dof->focus_distance - scale_camera * fx_dof->focal_length));
-		dof_params[1] = fx_dof->focus_distance;
+		dof_params[0] = aperture * fabs(scale_camera * fx_dof->focal_length / ((fx_dof->focus_distance / scale) - scale_camera * fx_dof->focal_length));
+		dof_params[1] = fx_dof->focus_distance / scale;
 		dof_params[2] = fx->gbuffer_dim[0] / (scale_camera * fx_dof->sensor);
 		dof_params[3] = 0.0f;
 
