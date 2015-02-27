@@ -244,9 +244,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* object data */
 	if (ob->data) {
 		ID *obdata = (ID *)ob->data;
-		/* ob data animation */
-		build_animdata(obdata);
-
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -286,6 +283,9 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 				build_camera(ob);
 				break;
 		}
+
+		/* ob data animation */
+		build_animdata(obdata);
 	}
 
 	/* Build animation data,
