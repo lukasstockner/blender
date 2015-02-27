@@ -584,11 +584,15 @@ void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
 /* *************** */
 /* Cycle detection */
 
-static void deg_graph_print_cycle_rel(const OperationDepsNode *to, const OperationDepsNode *from, const DepsRelation *rel)
+static void deg_graph_print_cycle_rel(const OperationDepsNode *to,
+                                      const OperationDepsNode *from,
+                                      const DepsRelation *rel)
 {
 	string to_owner = "", from_owner = "";
 
-	/* NOTE: subdata name only matters for bones; all other components currently should just use the ID instead */
+	/* NOTE: subdata name only matters for bones; all other components currently
+	 * should just use the ID instead/
+	 **/
 	if (to->owner->type == DEPSNODE_TYPE_BONE) {
 		to_owner = to->owner->owner->name + "." + to->owner->name + ".";
 	}
@@ -602,7 +606,6 @@ static void deg_graph_print_cycle_rel(const OperationDepsNode *to, const Operati
 	else {
 		from_owner = from->owner->owner->name + ".";
 	}
-
 
 	printf("  '%s%s' depends on '%s%s' through '%s'\n",
 	       to_owner.c_str(),
