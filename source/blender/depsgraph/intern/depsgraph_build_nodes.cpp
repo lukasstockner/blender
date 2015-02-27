@@ -876,6 +876,10 @@ void DepsgraphNodeBuilder::build_lamp(Object *ob)
 	/* node for obdata */
 	ComponentDepsNode *param_node = add_component_node(lamp_id, DEPSNODE_TYPE_PARAMETERS);
 
+	/* TODO(sergey): Is it really how we're supposed to work with drivers? */
+	add_operation_node(lamp_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_EXEC, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
+
 	/* lamp's nodetree */
 	if (la->nodetree) {
 		build_nodetree(param_node, la->nodetree);
