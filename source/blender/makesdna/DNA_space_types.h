@@ -752,10 +752,10 @@ typedef struct FileDirEntryRevision {
 	struct FileDirEntryRevision *next, *prev;
 	/* Unique identifier. Stored in a CustomProps once imported.
 	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
-	 * asset/datablock/variant/version.
-	 * Handled as bytes (i.e. **not** NULL-terminated). <- not true because of RNA?
+	 * asset/variant/version (concatenating the three into a single 72 bytes one).
+	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[64];  /* ASSET_UUID_LENGTH */
+	char uuid[24];  /* ASSET_UUID_LENGTH */
 
 	uint64_t size;
 	int64_t time;
@@ -775,6 +775,12 @@ typedef struct FileDirEntryRevision {
  * In case there are no variants, a single one shall exist, with NULL name/description. */
 typedef struct FileDirEntryVariant {
 	struct FileDirEntryVariant *next, *prev;
+	/* Unique identifier. Stored in a CustomProps once imported.
+	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
+	 * asset/variant/version (concatenating the three into a single 72 bytes one).
+	 * Handled as bytes, **but** NULL-terminated (because of RNA).
+	 */
+	char uuid[24];  /* ASSET_UUID_LENGTH */
 
 	char *name;
 	char *description;
@@ -787,6 +793,12 @@ typedef struct FileDirEntryVariant {
 /* Container for mere direntry, with additional asset-related data. */
 typedef struct FileDirEntry {
 	struct FileDirEntry *next, *prev;
+	/* Unique identifier. Stored in a CustomProps once imported.
+	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
+	 * asset/variant/version (concatenating the three into a single 72 bytes one).
+	 * Handled as bytes, **but** NULL-terminated (because of RNA).
+	 */
+	char uuid[24];  /* ASSET_UUID_LENGTH */
 
 	/* Either point to active variant/revision if available, or own entry (in mere filebrowser case). */
 	FileDirEntryRevision *entry;
@@ -819,7 +831,7 @@ typedef struct FileDirEntryArr {
 	char root[1024];	 /* FILE_MAX */
 } FileDirEntryArr;
 
-#define ASSET_UUID_LENGTH     64
+#define ASSET_UUID_LENGTH     24
 
 enum {
 	ASSET_STATUS_LOCAL  = 1 << 0,  /* If active uuid is available localy/immediately. */
