@@ -94,7 +94,7 @@ BLI_INLINE void  *BLI_ghashIterator_getValue(GHashIterator *ghi) ATTR_WARN_UNUSE
 BLI_INLINE void **BLI_ghashIterator_getValue_p(GHashIterator *ghi) ATTR_WARN_UNUSED_RESULT;
 BLI_INLINE bool   BLI_ghashIterator_done(GHashIterator *ghi) ATTR_WARN_UNUSED_RESULT;
 
-struct _gh_Entry { void *next, *key, *val; };
+struct _gh_Entry { void *next; unsigned int hash; void *key, *val; };
 BLI_INLINE void  *BLI_ghashIterator_getKey(GHashIterator *ghi)     { return  ((struct _gh_Entry *)ghi->curEntry)->key; }
 BLI_INLINE void  *BLI_ghashIterator_getValue(GHashIterator *ghi)   { return  ((struct _gh_Entry *)ghi->curEntry)->val; }
 BLI_INLINE void **BLI_ghashIterator_getValue_p(GHashIterator *ghi) { return &((struct _gh_Entry *)ghi->curEntry)->val; }

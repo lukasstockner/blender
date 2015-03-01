@@ -47,7 +47,7 @@
 #include "BLI_ghash.h"
 #include "BLI_strict_flags.h"
 
-//#define GHASH_USE_MODULO_BUCKETS
+#define GHASH_USE_MODULO_BUCKETS
 
 /* Also used by smallhash! */
 const unsigned int hashsizes[] = {
@@ -79,6 +79,7 @@ const unsigned int hashsizes[] = {
 
 /***/
 
+/* WARNING! Keep in sync with ugly _gh_Entry in header!!! */
 typedef struct Entry {
 	struct Entry *next;
 
@@ -1196,12 +1197,12 @@ GSet *BLI_gset_pair_new(const char *info)
 int BLI_ghash_buckets_size(GHash *gh)
 {
 #ifdef GHASH_USE_MODULO_BUCKETS
-	return hashsizes[gh->cursize];
+	return (int)hashsizes[gh->cursize];
 #else
 	return 1 << gh->bucket_bit;
 #endif
 }
-int BLI_set_buckets_size(GSet *gs)
+int BLI_gset_buckets_size(GSet *gs)
 {
 	return BLI_ghash_buckets_size((GHash *)gs);
 }
