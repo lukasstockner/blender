@@ -1191,6 +1191,22 @@ GSet *BLI_gset_pair_new(const char *info)
 #include "BLI_math.h"
 
 /**
+ * \return number of buckets in the GHash.
+ */
+int BLI_ghash_buckets_size(GHash *gh)
+{
+#ifdef GHASH_USE_MODULO_BUCKETS
+	return hashsizes[gh->cursize];
+#else
+	return 1 << gh->bucket_bit;
+#endif
+}
+int BLI_set_buckets_size(GSet *gs)
+{
+	return BLI_ghash_buckets_size((GHash *)gs);
+}
+
+/**
  * Measure how well the hash function performs (1.0 is approx as good as random distribution),
  * and return a few other stats like load, variance of the distribution of the entries in the buckets, etc.
  *

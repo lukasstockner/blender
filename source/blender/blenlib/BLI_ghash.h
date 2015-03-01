@@ -246,6 +246,9 @@ BLI_INLINE bool BLI_gsetIterator_done(GSetIterator *gsi) { return BLI_ghashItera
 	     BLI_gsetIterator_done(&gs_iter_) == false;                           \
 	     BLI_gsetIterator_step(&gs_iter_), i_++)
 
+int BLI_ghash_buckets_size(GHash *gh);
+int BLI_gset_buckets_size(GSet *gs);
+
 double BLI_ghash_calc_quality(
         GHash *gh, double *r_load, double *r_variance,
         double *r_prop_empty_buckets, double *r_prop_overloaded_buckets, int *r_biggest_bucket);
