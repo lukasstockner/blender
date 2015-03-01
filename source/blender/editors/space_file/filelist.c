@@ -1913,6 +1913,10 @@ static void filelist_readjob_update(void *flrjv)
 		for (entry = flrj->filelist->filelist.entries.first; entry; entry = entry->next) {
 			BLI_assert(!BLI_listbase_is_empty(&entry->variants) && entry->nbr_variants);
 			BLI_assert(entry->act_variant < entry->nbr_variants);
+			if (!entry->name) {
+				char buff[FILE_MAX_LIBEXTRA];
+				entry->name = BLI_strdup(fileentry_uiname(flrj->filelist->filelist.root, entry, buff));
+			}
 			if (!entry->entry) {
 				FileDirEntryVariant *variant = BLI_findlink(&entry->variants, entry->act_variant);
 				BLI_assert(!BLI_listbase_is_empty(&variant->revisions) && variant->nbr_revisions);
