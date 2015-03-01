@@ -44,6 +44,8 @@ typedef unsigned int  (*GHashHashFP)     (const void *key);
 typedef bool          (*GHashCmpFP)      (const void *a, const void *b);
 typedef void          (*GHashKeyFreeFP)  (void *key);
 typedef void          (*GHashValFreeFP)  (void *val);
+typedef void         *(*GHashKeyCopyFP)  (void *key);
+typedef void         *(*GHashValCopyFP)  (void *val);
 
 typedef struct GHash GHash;
 
@@ -63,6 +65,8 @@ enum {
 GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
                         const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+GHash *BLI_ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp,
+                      GHashValCopyFP valcopyfp) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 void   BLI_ghash_free(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp);
 void   BLI_ghash_reserve(GHash *gh, const unsigned int nentries_reserve);
 void   BLI_ghash_insert(GHash *gh, void *key, void *val);
@@ -80,6 +84,11 @@ bool   BLI_ghash_haskey(GHash *gh, const void *key) ATTR_WARN_UNUSED_RESULT;
 int    BLI_ghash_size(GHash *gh) ATTR_WARN_UNUSED_RESULT;
 void   BLI_ghash_flag_set(GHash *gh, unsigned int flag);
 void   BLI_ghash_flag_clear(GHash *gh, unsigned int flag);
+
+bool   BLI_ghash_isdisjoint(GHash *gh1, GHash *gh2);
+bool   BLI_ghash_isequal(GHash *gh1, GHash *gh2);
+bool   BLI_ghash_issubset(GHash *gh1, GHash *gh2);
+bool   BLI_ghash_issuperset(GHash *gh1, GHash *gh2);
 
 /* *** */
 
@@ -195,6 +204,7 @@ typedef struct GSet GSet;
 typedef GHashHashFP GSetHashFP;
 typedef GHashCmpFP GSetCmpFP;
 typedef GHashKeyFreeFP GSetKeyFreeFP;
+typedef GHashKeyCopyFP GSetKeyCopyFP;
 
 /* so we can cast but compiler sees as different */
 typedef struct GSetIterator {
@@ -208,6 +218,7 @@ typedef struct GSetIterator {
 GSet  *BLI_gset_new_ex(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info,
                        const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GSet  *BLI_gset_new(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+GSet  *BLI_gset_copy(GSet *gs, GSetKeyCopyFP keycopyfp) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 int    BLI_gset_size(GSet *gs) ATTR_WARN_UNUSED_RESULT;
 void   BLI_gset_flag_set(GSet *gs, unsigned int flag);
 void   BLI_gset_flag_clear(GSet *gs, unsigned int flag);
@@ -219,7 +230,12 @@ bool   BLI_gset_haskey(GSet *gs, const void *key) ATTR_WARN_UNUSED_RESULT;
 bool   BLI_gset_remove(GSet *gs, void *key, GSetKeyFreeFP keyfreefp);
 void   BLI_gset_clear_ex(GSet *gs, GSetKeyFreeFP keyfreefp,
                          const unsigned int nentries_reserve);
-void  BLI_gset_clear(GSet *gs, GSetKeyFreeFP keyfreefp);
+void   BLI_gset_clear(GSet *gs, GSetKeyFreeFP keyfreefp);
+
+bool   BLI_gset_isdisjoint(GSet *gs1, GSet *gs2);
+bool   BLI_gset_isequal(GSet *gs1, GSet *gs2);
+bool   BLI_gset_issubset(GSet *gs1, GSet *gs2);
+bool   BLI_gset_issuperset(GSet *gs1, GSet *gs2);
 
 GSet *BLI_gset_ptr_new_ex(const char *info,
                           const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;

@@ -429,6 +429,41 @@ static void ghash_free_cb(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP va
 		}
 	}
 }
+
+/**
+ * Copy the GHash.
+ */
+static GHash *ghash_copy(GHash *gh, const unsigned int entry_size, GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp)
+{
+	GHash *gh_new;
+	unsigned int i;
+
+	gh_new = ghash_new(gh->hashfp, gh->cmpfp, __func__, gh->nentries, entry_size);
+
+	for (i = 0; i < gh->nbuckets; i++) {
+		Entry *e;
+
+		for (e = gh->buckets[i]; e; e = e->next) {
+			Entry *e_new = BLI_mempool_alloc(gh_new->entrypool);
+			const unsigned int gh_new_bucket_hash = ghash_bucket_hash(gh_new, e->hash);
+
+			*e_new = *e;
+			if (keycopyfp) e_new->key = keycopyfp(e->key);
+			if (valcopyfp) e_new->val = valcopyfp(e->val);
+
+			/* Warning! This means entries in buckets in new copy will be in reversed order!
+			 *          This shall not be an issue though, since order should never be assumed in ghash. */
+			/* Note: We cannot use i here, since there is no guaranty that gh and gh_new
+			 *       have the same number of buckets! */
+			e_new->next = gh_new->buckets[gh_new_bucket_hash];
+			gh_new->buckets[gh_new_bucket_hash] = e_new;
+		}
+	}
+	gh_new->nentries = gh->nentries;
+
+	return gh_new;
+}
+
 /** \} */
 
 
@@ -459,6 +494,14 @@ GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
 GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
 {
 	return BLI_ghash_new_ex(hashfp, cmpfp, info, 0);
+}
+
+/**
+ * Copy given GHash. Keys and values are also copied if relevant callback is provided, else pointers remain the same.
+ */
+GHash *BLI_ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp)
+{
+	return ghash_copy(gh, sizeof(Entry), keycopyfp, valcopyfp);
 }
 
 /**
@@ -690,6 +733,97 @@ void BLI_ghash_flag_set(GHash *gh, unsigned int flag)
 void BLI_ghash_flag_clear(GHash *gh, unsigned int flag)
 {
 	gh->flag &= ~flag;
+}
+
+/**
+ * Check whether no key from \a gh1 exists in \a gh2.
+ */
+bool BLI_ghash_isdisjoint(GHash *gh1, GHash *gh2)
+{
+	/* Note: For now, take a basic, brute force approach.
+	 *       If we switch from modulo to masking, we may have ways to optimize this, though. */
+	unsigned int i;
+
+	if (gh1->nentries > gh2->nentries) {
+		SWAP(GHash *, gh1, gh2);
+	}
+
+	for (i = 0; i < gh1->nbuckets; i++) {
+		Entry *e;
+
+		for (e = gh1->buckets[i]; e; e = e->next) {
+			const unsigned int gh2_bucket_hash = ghash_bucket_hash(gh2, e->hash);
+			if (ghash_lookup_entry_ex(gh2, e->key, e->hash, gh2_bucket_hash)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check whether \a gh1 and \a gh2 contain exactly the same keys.
+ */
+bool BLI_ghash_isequal(GHash *gh1, GHash *gh2)
+{
+	unsigned int i;
+
+	if (gh1->nentries != gh2->nentries) {
+		return false;
+	}
+
+	for (i = 0; i < gh1->nbuckets; i++) {
+		Entry *e;
+
+		for (e = gh1->buckets[i]; e; e = e->next) {
+			unsigned int gh2_bucket_hash = ghash_bucket_hash(gh2, e->hash);
+			if (!ghash_lookup_entry_ex(gh2, e->key, e->hash, gh2_bucket_hash)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check whether \a gh2 keys are a subset of \a gh1 keys.
+ *     gh1 >= gh2
+ *
+ * Note: Strict subset is (gh1 >= gh2) && (gh1->nentries != gh2->nentries).
+ */
+bool BLI_ghash_issubset(GHash *gh1, GHash *gh2)
+{
+	unsigned int i;
+
+	if (gh1->nentries < gh2->nentries) {
+		return false;
+	}
+
+	for (i = 0; i < gh2->nbuckets; i++) {
+		Entry *e;
+
+		for (e = gh2->buckets[i]; e; e = e->next) {
+			const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
+			if (!ghash_lookup_entry_ex(gh1, e->key, e->hash, gh1_bucket_hash)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check whether \a gh2 keys are a superset of \a gh1 keys.
+ *     gh1 <= gh2
+ *
+ * Note: Strict superset is (gh1 <= gh2) && (gh1->nentries != gh2->nentries).
+ */
+bool BLI_ghash_issuperset(GHash *gh1, GHash *gh2)
+{
+	return BLI_ghash_issubset(gh2, gh1);
 }
 
 /** \} */
@@ -1038,7 +1172,9 @@ GHash *BLI_ghash_pair_new(const char *info)
 /* Use ghash API to give 'set' functionality */
 
 /* TODO: typical set functions
- * isdisjoint/issubset/issuperset/union/intersection/difference etc */
+ * union/intersection/difference etc */
+
+#define GSET_ENTRY_SIZE sizeof(Entry) - sizeof(void *)
 
 /** \name GSet Functions
  * \{ */
@@ -1047,7 +1183,7 @@ GSet *BLI_gset_new_ex(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info,
 {
 	GSet *gs = (GSet *)ghash_new(hashfp, cmpfp, info,
 	                             nentries_reserve,
-	                             sizeof(Entry) - sizeof(void *));
+	                             GSET_ENTRY_SIZE);
 #ifndef NDEBUG
 	((GHash *)gs)->flag |= GHASH_FLAG_IS_SET;
 #endif
@@ -1057,6 +1193,14 @@ GSet *BLI_gset_new_ex(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info,
 GSet *BLI_gset_new(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info)
 {
 	return BLI_gset_new_ex(hashfp, cmpfp, info, 0);
+}
+
+/**
+ * Copy given GSet. Keys are also copied if callback is provided, else pointers remain the same.
+ */
+GSet *BLI_gset_copy(GSet *gs, GHashKeyCopyFP keycopyfp)
+{
+	return (GSet *)ghash_copy((GHash *)gs, GSET_ENTRY_SIZE, keycopyfp, NULL);
 }
 
 int BLI_gset_size(GSet *gs)
@@ -1153,6 +1297,26 @@ void BLI_gset_flag_set(GSet *gs, unsigned int flag)
 void BLI_gset_flag_clear(GSet *gs, unsigned int flag)
 {
 	((GHash *)gs)->flag &= ~flag;
+}
+
+bool BLI_gset_isdisjoint(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_isdisjoint((GHash *)gs1, (GHash *)gs2);
+}
+
+bool BLI_gset_isequal(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_isequal((GHash *)gs1, (GHash *)gs2);
+}
+
+bool BLI_gset_issubset(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_issubset((GHash *)gs1, (GHash *)gs2);
+}
+
+bool BLI_gset_issuperset(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_issubset((GHash *)gs2, (GHash *)gs1);
 }
 
 /** \} */
