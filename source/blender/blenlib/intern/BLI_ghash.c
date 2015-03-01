@@ -1081,7 +1081,7 @@ unsigned int BLI_ghashutil_strhash_p_murmur(const void *ptr)
 }
 bool BLI_ghashutil_strcmp(const void *a, const void *b)
 {
-	return (!STREQ(a, b));
+	return (a == b) ? false : !STREQ(a, b);
 }
 
 GHashPair *BLI_ghashutil_pairalloc(const void *first, const void *second)
