@@ -757,6 +757,9 @@ typedef struct FileDirEntryRevision {
 	 */
 	char uuid[24];  /* ASSET_UUID_LENGTH */
 
+	/* Shall we also add a description to revisions? Could contain commit messages e.g.
+	 * But would also likely make explode memory usage? */
+
 	uint64_t size;
 	int64_t time;
 	/* Those are direct copy from direntry. We may rework that later, but really not top priority. */
@@ -799,6 +802,9 @@ typedef struct FileDirEntry {
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
 	char uuid[24];  /* ASSET_UUID_LENGTH */
+
+	char *name;
+	char *description;
 
 	/* Either point to active variant/revision if available, or own entry (in mere filebrowser case). */
 	FileDirEntryRevision *entry;

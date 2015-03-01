@@ -336,12 +336,10 @@ static int compare_direntry_generic(const FileDirEntry *entry1, const FileDirEnt
 	return 0;
 }
 
-static int compare_name(void *user_data, const void *a1, const void *a2)
+static int compare_name(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const char *root = user_data;
 	const FileDirEntry *entry1 = a1;
 	const FileDirEntry *entry2 = a2;
-	char dir1[FILE_MAX_LIBEXTRA], dir2[FILE_MAX_LIBEXTRA];
 	char *name1, *name2;
 	int ret;
 
@@ -349,18 +347,16 @@ static int compare_name(void *user_data, const void *a1, const void *a2)
 		return ret;
 	}
 
-	name1 = fileentry_uiname(root, entry1, dir1);
-	name2 = fileentry_uiname(root, entry2, dir2);
+	name1 = entry1->name;
+	name2 = entry2->name;
 
 	return BLI_natstrcmp(name1, name2);
 }
 
-static int compare_date(void *user_data, const void *a1, const void *a2)
+static int compare_date(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const char *root = user_data;
 	const FileDirEntry *entry1 = a1;
 	const FileDirEntry *entry2 = a2;
-	char dir1[FILE_MAX_LIBEXTRA], dir2[FILE_MAX_LIBEXTRA];
 	char *name1, *name2;
 	int ret;
 
@@ -371,18 +367,16 @@ static int compare_date(void *user_data, const void *a1, const void *a2)
 	if (entry1->entry->time < entry2->entry->time) return 1;
 	if (entry1->entry->time > entry2->entry->time) return -1;
 
-	name1 = fileentry_uiname(root, entry1, dir1);
-	name2 = fileentry_uiname(root, entry2, dir2);
+	name1 = entry1->name;
+	name2 = entry2->name;
 
 	return BLI_natstrcmp(name1, name2);
 }
 
-static int compare_size(void *user_data, const void *a1, const void *a2)
+static int compare_size(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const char *root = user_data;
 	const FileDirEntry *entry1 = a1;
 	const FileDirEntry *entry2 = a2;
-	char dir1[FILE_MAX_LIBEXTRA], dir2[FILE_MAX_LIBEXTRA];
 	char *name1, *name2;
 	int ret;
 
@@ -393,8 +387,8 @@ static int compare_size(void *user_data, const void *a1, const void *a2)
 	if (entry1->entry->size < entry2->entry->size) return 1;
 	if (entry1->entry->size > entry2->entry->size) return -1;
 
-	name1 = fileentry_uiname(root, entry1, dir1);
-	name2 = fileentry_uiname(root, entry2, dir2);
+	name1 = entry1->name;
+	name2 = entry2->name;
 
 	return BLI_natstrcmp(name1, name2);
 }
@@ -947,6 +941,12 @@ static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
 
 static void filelist_entry_free(FileDirEntry *entry, const bool clear)
 {
+	if (entry->name) {
+		MEM_freeN(entry->name);
+	}
+	if (entry->description) {
+		MEM_freeN(entry->description);
+	}
 	if (entry->relpath) {
 		MEM_freeN(entry->relpath);
 	}
@@ -959,6 +959,12 @@ static void filelist_entry_free(FileDirEntry *entry, const bool clear)
 		FileDirEntryVariant *var;
 
 		for (var = entry->variants.first; var; var = var->next) {
+			if (var->name) {
+				MEM_freeN(var->name);
+			}
+			if (var->description) {
+				MEM_freeN(var->description);
+			}
 			BLI_freelistN(&var->revisions);
 		}
 
@@ -1055,7 +1061,7 @@ int filelist_numfiles(struct FileList *filelist)
 	return filelist->numfiltered;
 }
 
-char *fileentry_uiname(const char *root, const FileDirEntry *entry, char *dir)
+static const char *fileentry_uiname(const char *root, const FileDirEntry *entry, char *buff)
 {
 	char *name;
 
@@ -1064,7 +1070,7 @@ char *fileentry_uiname(const char *root, const FileDirEntry *entry, char *dir)
 		char *group;
 
 		BLI_join_dirfile(abspath, sizeof(abspath), root, entry->relpath);
-		BLO_library_path_explode(abspath, dir, &group, &name);
+		BLO_library_path_explode(abspath, buff, &group, &name);
 		if (!name) {
 			name = group;
 		}
@@ -1742,6 +1748,7 @@ static void filelist_readjob_do(
 			/* Only thing we change in direntry here, so we need to free it first. */
 			MEM_freeN(entry->relpath);
 			entry->relpath = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
+			entry->name = BLI_strdup(fileentry_uiname(root, entry, dir));
 
 			/* Here we decide whether current filedirentry is to be listed too, or not. */
 			if (max_recursion && (is_lib || (recursion_level <= max_recursion))) {
@@ -1763,7 +1770,6 @@ static void filelist_readjob_do(
 					nbr_todo_dirs++;
 				}
 			}
-
 		}
 
 		if (nbr_entries) {

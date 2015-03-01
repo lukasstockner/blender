@@ -485,7 +485,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	align = (FILE_IMGDISPLAY == params->display) ? UI_STYLE_TEXT_CENTER : UI_STYLE_TEXT_LEFT;
 
 	for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
-		char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *name;
+		char path[FILE_MAX_LIBEXTRA];
 		ED_fileselect_layout_tilepos(layout, i, &sx, &sy);
 		sx += (int)(v2d->tot.xmin + 0.1f * UI_UNIT_X);
 		sy = (int)(v2d->tot.ymax - sy);
@@ -493,7 +493,6 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		file = filelist_file(files, i);
 
 		BLI_join_dirfile(path, sizeof(path), root, file->relpath);
-		name = fileentry_uiname(root, file, dir);
 
 		UI_ThemeColor4(TH_TEXT);
 
@@ -566,7 +565,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		if (!(file->selflag & FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
-			file_draw_string(sx + 1, tpos, name, (float)textwidth, textheight, align);
+			file_draw_string(sx + 1, tpos, file->name, (float)textwidth, textheight, align);
 		}
 
 		if (params->display == FILE_SHORTDISPLAY) {
