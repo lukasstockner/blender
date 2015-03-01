@@ -382,7 +382,7 @@ static void randint_ghash_tests(GHash *ghash, const char *id, const unsigned int
 	printf("========== ENDED %s ==========\n\n", id);
 }
 
-TEST(ghash, IntGHash)
+TEST(ghash, IntRandGHash)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 
@@ -393,7 +393,7 @@ TEST(ghash, IntGHash)
 	randint_ghash_tests(ghash, "RandIntGHash - GHash - 50000000", 50000000);
 }
 
-TEST(ghash, IntMurmur2a)
+TEST(ghash, IntRandMurmur2a)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
 
