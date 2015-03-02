@@ -36,6 +36,7 @@
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdarg.h>
 #include <limits.h>
 
 #include "MEM_guardedalloc.h"
@@ -447,9 +448,9 @@ static GHash *ghash_copy(GHash *gh, const unsigned int entry_size, GHashKeyCopyF
 			Entry *e_new = BLI_mempool_alloc(gh_new->entrypool);
 			const unsigned int gh_new_bucket_hash = ghash_bucket_hash(gh_new, e->hash);
 
-			*e_new = *e;
-			if (keycopyfp) e_new->key = keycopyfp(e->key);
-			if (valcopyfp) e_new->val = valcopyfp(e->val);
+			e_new->hash = e->hash;
+			e_new->key = (keycopyfp) ? keycopyfp(e->key) : e->key;
+			e_new->val = (valcopyfp) ? valcopyfp(e->val) : e->val;
 
 			/* Warning! This means entries in buckets in new copy will be in reversed order!
 			 *          This shall not be an issue though, since order should never be assumed in ghash. */
@@ -463,6 +464,64 @@ static GHash *ghash_copy(GHash *gh, const unsigned int entry_size, GHashKeyCopyF
 
 	return gh_new;
 }
+
+/**
+ * Merge \a gh2 into \a gh1 (keeping entries already in \a gh1 unchanged), and then each subsequent given GHash.
+ * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
+ * If \a reverse is True, entries present in latest GHash will override those in former GHash.
+ */
+static GHash *ghash_union(
+        const bool reverse, const unsigned int entry_size,
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, va_list arg)
+{
+	GHash *ghn = gh2;
+
+	BLI_assert(ghn);
+
+	if (!gh1) {
+		gh1 = ghash_copy(ghn, entry_size, keycopyfp, valcopyfp);
+		ghn = (GHash *)va_arg(arg, void *);
+	}
+
+	for ( ; ghn; ghn = (GHash *)va_arg(arg, void *)) {
+		unsigned int i;
+
+		for (i = 0; i < ghn->nbuckets; i++) {
+			Entry *e;
+
+			for (e = ghn->buckets[i]; e; e = e->next) {
+				Entry *e_gh1;
+				const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
+
+				if ((e_gh1 = ghash_lookup_entry_ex(gh1, e->key, e->hash, gh1_bucket_hash)) == NULL) {
+					Entry *e_new = BLI_mempool_alloc(gh1->entrypool);
+
+					memcpy(e_new, e, (size_t)entry_size);
+					if (keycopyfp) e_new->key = keycopyfp(e->key);
+					if (valcopyfp) e_new->val = valcopyfp(e->val);
+
+					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+					e_new->next = gh1->buckets[gh1_bucket_hash];
+					gh1->buckets[gh1_bucket_hash] = e_new;
+					ghash_expand_buckets(gh1, ++gh1->nentries, false);
+				}
+				else if (reverse) {
+					if (keyfreefp) keyfreefp(e_gh1->key);
+					if (valfreefp) valfreefp(e_gh1->val);
+
+					e_gh1->hash = e->hash;
+					e_gh1->key = (keycopyfp) ? keycopyfp(e->key) : e->key;
+					e_gh1->val = (valcopyfp) ? valcopyfp(e->val) : e->val;
+				}
+			}
+		}
+	}
+
+	return gh1;
+}
+
 
 /** \} */
 
@@ -824,6 +883,41 @@ bool BLI_ghash_issubset(GHash *gh1, GHash *gh2)
 bool BLI_ghash_issuperset(GHash *gh1, GHash *gh2)
 {
 	return BLI_ghash_issubset(gh2, gh1);
+}
+
+/**
+ * Union, from left to right.
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place.
+ */
+GHash *BLI_ghash_union(GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp, GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_union(false, sizeof(Entry), keycopyfp, valcopyfp, NULL, NULL, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
+}
+
+/**
+ * Union, from right to left (less efficient, since it may have to allocate and then free key/val pairs).
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place.
+ */
+GHash *BLI_ghash_union_reversed(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_union(true, sizeof(Entry), keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
 }
 
 /** \} */
@@ -1317,6 +1411,22 @@ bool BLI_gset_issubset(GSet *gs1, GSet *gs2)
 bool BLI_gset_issuperset(GSet *gs1, GSet *gs2)
 {
 	return BLI_ghash_issubset((GHash *)gs2, (GHash *)gs1);
+}
+
+/**
+ * Union (no left to right/right to left here, this makes no sense in set context (i.e. no value)).
+ * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
+ */
+GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...)
+{
+	GSet *gs_ret;
+	va_list arg;
+
+	va_start(arg, gs2);
+	gs_ret = (GSet *)ghash_union(false, GSET_ENTRY_SIZE, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	va_end(arg);
+
+	return gs_ret;
 }
 
 /** \} */

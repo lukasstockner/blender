@@ -90,6 +90,12 @@ bool   BLI_ghash_isequal(GHash *gh1, GHash *gh2);
 bool   BLI_ghash_issubset(GHash *gh1, GHash *gh2);
 bool   BLI_ghash_issuperset(GHash *gh1, GHash *gh2);
 
+GHash *BLI_ghash_union(GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp, GHash *gh1, GHash *gh2, ...);
+GHash *BLI_ghash_union_reversed(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...);
+
 /* *** */
 
 GHashIterator *BLI_ghashIterator_new(GHash *gh) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
@@ -236,6 +242,8 @@ bool   BLI_gset_isdisjoint(GSet *gs1, GSet *gs2);
 bool   BLI_gset_isequal(GSet *gs1, GSet *gs2);
 bool   BLI_gset_issubset(GSet *gs1, GSet *gs2);
 bool   BLI_gset_issuperset(GSet *gs1, GSet *gs2);
+
+GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...);
 
 GSet *BLI_gset_ptr_new_ex(const char *info,
                           const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
