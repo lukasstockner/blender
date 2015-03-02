@@ -482,10 +482,10 @@ static GHash *ghash_union(
 
 	if (!gh1) {
 		gh1 = ghash_copy(ghn, entry_size, keycopyfp, valcopyfp);
-		ghn = (GHash *)va_arg(arg, void *);
+		ghn = va_arg(arg, GHash *);
 	}
 
-	for ( ; ghn; ghn = (GHash *)va_arg(arg, void *)) {
+	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
 		unsigned int i;
 
 		for (i = 0; i < ghn->nbuckets; i++) {
@@ -522,6 +522,51 @@ static GHash *ghash_union(
 	return gh1;
 }
 
+/**
+ * Remove all entries in \a gh1 which keys are not present in \a gh2 and all subsequent given GHash.
+ * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
+ */
+static GHash *ghash_intersection(
+        const unsigned int entry_size,
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, va_list arg)
+{
+	GHash *ghn = gh2;
+
+	BLI_assert(ghn);
+
+	if (!gh1) {
+		gh1 = ghash_copy(ghn, entry_size, keycopyfp, valcopyfp);
+		ghn = va_arg(arg, GHash *);
+	}
+
+	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+		unsigned int i;
+
+		for (i = 0; i < gh1->nbuckets; i++) {
+			Entry *e, *e_prev = NULL;
+
+			for (e = gh1->buckets[i]; e; e_prev = e, e = e->next) {
+				const unsigned int ghn_bucket_hash = ghash_bucket_hash(ghn, e->hash);
+
+				if (ghash_lookup_entry_ex(ghn, e->key, e->hash, ghn_bucket_hash) == NULL) {
+					Entry *e_next = e->next;
+
+					if (keyfreefp) keyfreefp(e->key);
+					if (valfreefp) valfreefp(e->val);
+
+					if (e_prev) e_prev->next = e_next;
+					else        gh1->buckets[i] = e_next;
+
+					ghash_expand_buckets(gh1, --gh1->nentries, false);
+				}
+			}
+		}
+	}
+
+	return gh1;
+}
 
 /** \} */
 
@@ -887,6 +932,7 @@ bool BLI_ghash_issuperset(GHash *gh1, GHash *gh2)
 
 /**
  * Union, from left to right.
+ * Similar to python's \a PyDict_Merge(a, b, false).
  * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place.
  */
 GHash *BLI_ghash_union(GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp, GHash *gh1, GHash *gh2, ...)
@@ -903,7 +949,8 @@ GHash *BLI_ghash_union(GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp, GHash
 
 /**
  * Union, from right to left (less efficient, since it may have to allocate and then free key/val pairs).
- * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place.
+ * Similar to python's \a PyDict_Merge(a, b, true).
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place and returned.
  */
 GHash *BLI_ghash_union_reversed(
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
@@ -915,6 +962,25 @@ GHash *BLI_ghash_union_reversed(
 
 	va_start(arg, gh2);
 	gh_ret = ghash_union(true, sizeof(Entry), keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
+}
+
+/**
+ * Intersection (i.e. entries which keys exist in all gh1, gh2, ...).
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place and returned.
+ */
+GHash *BLI_ghash_intersection(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_intersection(sizeof(Entry), keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
 	va_end(arg);
 
 	return gh_ret;
@@ -1424,6 +1490,22 @@ GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...)
 
 	va_start(arg, gs2);
 	gs_ret = (GSet *)ghash_union(false, GSET_ENTRY_SIZE, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	va_end(arg);
+
+	return gs_ret;
+}
+
+/**
+ * Intersection (i.e. entries which keys exist in all gs1, gs2, ...).
+ * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
+ */
+GSet *BLI_gset_intersection(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...)
+{
+	GSet *gs_ret;
+	va_list arg;
+
+	va_start(arg, gs2);
+	gs_ret = (GSet *)ghash_intersection(GSET_ENTRY_SIZE, keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
 	va_end(arg);
 
 	return gs_ret;
