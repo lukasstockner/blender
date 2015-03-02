@@ -95,8 +95,15 @@ GHash *BLI_ghash_union_reversed(
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         GHash *gh1, GHash *gh2, ...);
-
 GHash *BLI_ghash_intersection(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...);
+GHash *BLI_ghash_difference(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...);
+GHash *BLI_ghash_symmetric_difference(
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         GHash *gh1, GHash *gh2, ...);
@@ -250,6 +257,8 @@ bool   BLI_gset_issuperset(GSet *gs1, GSet *gs2);
 
 GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...);
 GSet *BLI_gset_intersection(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...);
+GSet *BLI_gset_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...);
+GSet *BLI_gset_symmetric_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...);
 
 GSet *BLI_gset_ptr_new_ex(const char *info,
                           const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
