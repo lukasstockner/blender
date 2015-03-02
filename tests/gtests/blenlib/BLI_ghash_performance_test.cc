@@ -133,7 +133,7 @@ Praesent luctus vitae nunc vitae pellentesque. Praesent faucibus sed urna ut lac
 #define TEXT_CORPUS_PATH "/home/i74700deb64/Téléchargements/eng_wikipedia_2010_1M-text/eng_wikipedia_2010_1M-sentences.txt"
 
 /* Resizing the hash has a huge cost over global filling operation! */
-#define GHASH_RESERVE
+//#define GHASH_RESERVE
 
 #define PRINTF_GHASH_STATS(_gh) \
 { \
