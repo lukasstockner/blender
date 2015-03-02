@@ -2360,7 +2360,9 @@ void transformApply(bContext *C, TransInfo *t)
 	if ((t->flag & T_POSE) && (t->poseobj) && (t->mode != TFM_DUMMY) && t->scene->toolsettings->realtime_motion_path) {
 		if ((t->poseobj->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
 			//ED_pose_clear_paths(C, ob); // XXX for now, don't need to clear
-			ED_pose_recalculate_paths(t->scene, t->poseobj);
+			int targetless_ik = (t->flag & T_AUTOIK); // XXX this currently doesn't work, since flags aren't set yet!
+
+			autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, t->poseobj, t->mode, targetless_ik);
 		}
 	}
 	else {

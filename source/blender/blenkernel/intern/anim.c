@@ -290,16 +290,16 @@ static void motionpaths_calc_optimise_depsgraph(Scene *scene, ListBase *targets)
 			baseNext = base->next;
 			
 			if ((base->object == mpt->ob) && !(mpt->ob->flag & BA_TEMP_TAG)) {
-				Object *ob = BKE_object_copy(mpt->ob);
-				Base *basen = MEM_mallocN(sizeof(Base), "duplibase");
-				*basen = *base;
-				basen->object = ob;
-				mpt->base_copy = basen;
-				ob->flag |= BA_TEMP_TAG;
+//				Object *ob = BKE_object_copy(mpt->ob);
+//				Base *basen = MEM_mallocN(sizeof(Base), "duplibase");
+//				*basen = *base;
+//				basen->object = ob;
+//				mpt->base_copy = basen;
+//				ob->flag |= BA_TEMP_TAG;
 
-				//BLI_remlink(&scene->base, base);
-				//BLI_addhead(&scene->base, base);
-				BLI_addhead(&scene->base, basen);   /* addhead: prevent eternal loop */
+				BLI_remlink(&scene->base, base);
+				BLI_addhead(&scene->base, base);
+				//BLI_addhead(&scene->base, basen);
 
 				mpt->ob->flag |= BA_TEMP_TAG;
 
@@ -396,7 +396,8 @@ static void motionpaths_calc_bake_targets(ListBase *targets, int cframe)
 		}
 		else {
 			/* worldspace object location */
-			copy_v3_v3(mpv->co, mpt->base_copy->object->obmat[3]);
+			copy_v3_v3(mpv->co, mpt->ob->obmat[3]);
+			//copy_v3_v3(mpv->co, mpt->base_copy->object->obmat[3]);
 		}
 	}
 }
@@ -460,6 +461,7 @@ void animviz_calc_motionpaths(Scene *scene, ListBase *targets)
 		/* clear the flag requesting recalculation of targets */
 		avs->recalc &= ~ANIMVIZ_RECALC_PATHS;
 
+		/*
 		if (mpt->base_copy) {
 			DAG_id_type_tag(G.main, ID_OB);
 			DAG_relations_tag_update(G.main);
@@ -468,6 +470,7 @@ void animviz_calc_motionpaths(Scene *scene, ListBase *targets)
 			if (scene->basact == mpt->base_copy) scene->basact = NULL;
 			MEM_freeN(mpt->base_copy);
 		}
+		*/
 	}
 }
 
