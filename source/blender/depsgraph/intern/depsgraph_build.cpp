@@ -291,8 +291,18 @@ bool DepsgraphNodeBuilder::has_operation_node(ID *id,
                                               eDepsOperation_Code opcode,
                                               const string &description)
 {
+	return find_operation_node(id, comp_type, comp_name, optype, opcode, description) != NULL;
+}
+
+OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(ID *id,
+                                                             eDepsNode_Type comp_type,
+                                                             const string &comp_name,
+                                                             eDepsOperation_Type optype,
+                                                             eDepsOperation_Code opcode,
+                                                             const string &description)
+{
 	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
-	return comp_node->has_operation(opcode, description) != NULL;
+	return comp_node->has_operation(opcode, description);
 }
 
 /* ************************************************* */
@@ -336,7 +346,8 @@ ComponentDepsNode *DepsgraphRelationBuilder::find_node(const ComponentKey &key) 
 {
 	IDDepsNode *id_node = m_graph->find_id_node(key.id);
 	if (!id_node) {
-		fprintf(stderr, "find_node component: Could not find ID %s\n", key.id->name);
+		fprintf(stderr, "find_node component: Could not find ID %s\n",
+		        (key.id != NULL) ? key.id->name : "<null>");
 		return NULL;
 	}
 

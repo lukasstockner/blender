@@ -78,6 +78,22 @@ struct DepsgraphNodeBuilder {
 	bool has_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name, eDepsOperation_Type optype,
 	                        eDepsOperation_Code opcode, const string &description = "");
 
+	OperationDepsNode *find_operation_node(ID *id,
+	                                       eDepsNode_Type comp_type,
+	                                       const string &comp_name,
+	                                       eDepsOperation_Type optype,
+	                                       eDepsOperation_Code opcode,
+	                                       const string &description = "");
+
+	OperationDepsNode *find_operation_node(ID *id,
+	                                       eDepsNode_Type comp_type,
+	                                       eDepsOperation_Type optype,
+	                                       eDepsOperation_Code opcode,
+	                                       const string &description = "")
+	{
+		return find_operation_node(id, comp_type, "", optype, opcode, description);
+	}
+
 	void build_scene(Main *bmain, Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
 	void build_group(Scene *scene, Base *base, Object *object, Group *group);

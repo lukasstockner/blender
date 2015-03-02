@@ -416,10 +416,22 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 {
 	ChannelDriver *driver = fcu->driver;
 
-	/* create data node for this driver ..................................... */
-	OperationDepsNode *driver_op = add_operation_node(id, DEPSNODE_TYPE_PARAMETERS,
-	                                                  DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_driver, _1, id, fcu),
-	                                                  DEG_OPCODE_DRIVER, deg_fcurve_id_name(fcu));
+	/* Create data node for this driver */
+	/* TODO(sergey): Avoid creating same operation multiple times,
+	 * in the future we need to avoid lookup of the operaiton as well
+	 * and use some tagging magic instead.
+	 */
+	OperationDepsNode *driver_op = find_operation_node(id,
+	                                                   DEPSNODE_TYPE_PARAMETERS,
+	                                                   DEPSOP_TYPE_EXEC,
+	                                                   DEG_OPCODE_DRIVER,
+	                                                   deg_fcurve_id_name(fcu));
+
+	if (driver_op == NULL) {
+		driver_op = add_operation_node(id, DEPSNODE_TYPE_PARAMETERS,
+		                               DEPSOP_TYPE_EXEC, function_bind(BKE_animsys_eval_driver, _1, id, fcu),
+		                               DEG_OPCODE_DRIVER, deg_fcurve_id_name(fcu));
+	}
 
 	/* tag "scripted expression" drivers as needing Python (due to GIL issues, etc.) */
 	if (driver->type == DRIVER_TYPE_PYTHON) {
@@ -538,7 +550,8 @@ void DepsgraphNodeBuilder::build_particles(Object *ob)
 		// TODO: for now, this will just be a placeholder "ubereval" node
 		add_operation_node(psys_comp,
 		                   DEPSOP_TYPE_EXEC, function_bind(BKE_particle_system_eval, _1, ob, psys),
-		                   DEG_OPCODE_PSYS_EVAL);
+		                   DEG_OPCODE_PSYS_EVAL,
+		                   psys->name);
 	}
 
 	/* pointcache */
