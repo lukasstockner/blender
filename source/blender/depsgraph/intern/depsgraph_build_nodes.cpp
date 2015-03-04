@@ -911,6 +911,10 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 	ID *ntree_id = &ntree->id;
 	build_animdata(ntree_id);
 
+	/* Parameters for drivers. */
+	add_operation_node(ntree_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_EXEC, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
+
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
 		if (bnode->id) {

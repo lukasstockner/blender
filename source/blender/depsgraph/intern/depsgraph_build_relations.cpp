@@ -1576,9 +1576,10 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 	}
 	lamp_id->flag |= LIB_DOIT;
 
+	ComponentKey parameters_key(lamp_id, DEPSNODE_TYPE_PARAMETERS);
+
 	if (BKE_animdata_from_id(lamp_id) != NULL) {
 		ComponentKey animation_key(lamp_id, DEPSNODE_TYPE_ANIMATION);
-		ComponentKey parameters_key(lamp_id, DEPSNODE_TYPE_PARAMETERS);
 		add_relation(animation_key, parameters_key,
 		             DEPSREL_TYPE_COMPONENT_ORDER, "Lamp Parameters");
 	}
@@ -1586,6 +1587,9 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 	/* lamp's nodetree */
 	if (la->nodetree) {
 		build_nodetree(lamp_id, la->nodetree);
+		ComponentKey nodetree_key(&la->nodetree->id, DEPSNODE_TYPE_PARAMETERS);
+		add_relation(nodetree_key, parameters_key,
+		             DEPSREL_TYPE_COMPONENT_ORDER, "Lamp Parameters");
 	}
 
 	/* textures */
@@ -1597,7 +1601,8 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 	if (!ntree)
 		return;
 
-	build_animdata(&ntree->id);
+	ID *ntree_id = &ntree->id;
+	build_animdata(ntree_id);
 
 	/* nodetree's nodes... */
 	for (bNode *bnode = (bNode *)ntree->nodes.first; bnode; bnode = bnode->next) {
@@ -1612,6 +1617,13 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 				build_nodetree(owner, (bNodeTree *)bnode->id);
 			}
 		}
+	}
+
+	if (BKE_animdata_from_id(ntree_id) != NULL) {
+		ComponentKey parameters_key(ntree_id, DEPSNODE_TYPE_PARAMETERS);
+		ComponentKey animation_key(ntree_id, DEPSNODE_TYPE_ANIMATION);
+		add_relation(animation_key, parameters_key,
+		             DEPSREL_TYPE_COMPONENT_ORDER, "Lamp Parameters");
 	}
 
 	// TODO: link from nodetree to owner_component?
