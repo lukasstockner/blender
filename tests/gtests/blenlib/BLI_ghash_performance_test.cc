@@ -309,24 +309,30 @@ static void int_ghash_tests(GHash *ghash, const char *id, const unsigned int nbr
 	printf("========== ENDED %s ==========\n\n", id);
 }
 
-TEST(ghash, IntGHash)
+TEST(ghash, IntGHash12000)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 
 	int_ghash_tests(ghash, "IntGHash - GHash - 12000", 12000);
+}
 
-	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+TEST(ghash, IntGHash100000000)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 
 	int_ghash_tests(ghash, "IntGHash - GHash - 100000000", 100000000);
 }
 
-TEST(ghash, IntMurmur2a)
+TEST(ghash, IntMurmur2a12000)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
 
 	int_ghash_tests(ghash, "IntGHash - Murmur - 12000", 12000);
+}
 
-	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
+TEST(ghash, IntMurmur2a100000000)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
 
 	int_ghash_tests(ghash, "IntGHash - Murmur - 100000000", 100000000);
 }
@@ -382,24 +388,30 @@ static void randint_ghash_tests(GHash *ghash, const char *id, const unsigned int
 	printf("========== ENDED %s ==========\n\n", id);
 }
 
-TEST(ghash, IntRandGHash)
+TEST(ghash, IntRandGHash12000)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 
 	randint_ghash_tests(ghash, "RandIntGHash - GHash - 12000", 12000);
+}
 
-	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+TEST(ghash, IntRandGHash50000000)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 
 	randint_ghash_tests(ghash, "RandIntGHash - GHash - 50000000", 50000000);
 }
 
-TEST(ghash, IntRandMurmur2a)
+TEST(ghash, IntRandMurmur2a12000)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
 
 	randint_ghash_tests(ghash, "RandIntGHash - Murmur - 12000", 12000);
+}
 
-	ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
+TEST(ghash, IntRandMurmur2a50000000)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_inthash_p_murmur, BLI_ghashutil_intcmp, __func__);
 
 	randint_ghash_tests(ghash, "RandIntGHash - Murmur - 50000000", 50000000);
 }
@@ -414,13 +426,16 @@ static bool ghashutil_tests_cmp_p(const void *a, const void *b)
 	return a != b;
 }
 
-TEST(ghash, Int4NoHash)
+TEST(ghash, Int4NoHash12000)
 {
 	GHash *ghash = BLI_ghash_new(ghashutil_tests_nohash_p, ghashutil_tests_cmp_p, __func__);
 
 	randint_ghash_tests(ghash, "RandIntGHash - No Hash - 12000", 12000);
+}
 
-	ghash = BLI_ghash_new(ghashutil_tests_nohash_p, ghashutil_tests_cmp_p, __func__);
+TEST(ghash, Int4NoHash50000000)
+{
+	GHash *ghash = BLI_ghash_new(ghashutil_tests_nohash_p, ghashutil_tests_cmp_p, __func__);
 
 	randint_ghash_tests(ghash, "RandIntGHash - No Hash - 50000000", 50000000);
 }
@@ -479,24 +494,30 @@ static void int4_ghash_tests(GHash *ghash, const char *id, const unsigned int nb
 	printf("========== ENDED %s ==========\n\n", id);
 }
 
-TEST(ghash, Int4GHash)
+TEST(ghash, Int4GHash2000)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
 
 	int4_ghash_tests(ghash, "Int4GHash - GHash - 2000", 2000);
+}
 
-	ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
+TEST(ghash, Int4GHash20000000)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
 
 	int4_ghash_tests(ghash, "Int4GHash - GHash - 20000000", 20000000);
 }
 
-TEST(ghash, Int4Murmur2a)
+TEST(ghash, Int4Murmur2a2000)
 {
 	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p_murmur, BLI_ghashutil_uinthash_v4_cmp, __func__);
 
 	int4_ghash_tests(ghash, "Int4GHash - Murmur - 2000", 2000);
+}
 
-	ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p_murmur, BLI_ghashutil_uinthash_v4_cmp, __func__);
+TEST(ghash, Int4Murmur2a20000000)
+{
+	GHash *ghash = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p_murmur, BLI_ghashutil_uinthash_v4_cmp, __func__);
 
 	int4_ghash_tests(ghash, "Int4GHash - Murmur - 20000000", 20000000);
 }
