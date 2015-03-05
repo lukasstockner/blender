@@ -392,6 +392,47 @@ BLI_INLINE void ghash_insert(GHash *gh, void *key, void *val)
 	ghash_insert_ex(gh, key, val, hash, bucket_hash);
 }
 
+BLI_INLINE bool ghash_insert_safe(
+        GHash *gh, void *key, void *val, const bool override, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	const unsigned int bucket_hash = ghash_bucket_hash(gh, hash);
+	Entry *e = ghash_lookup_entry_ex(gh, key, hash, bucket_hash);
+
+	if (e) {
+		if (override) {
+			if (keyfreefp) keyfreefp(e->key);
+			if (valfreefp) valfreefp(e->val);
+			e->key = key;
+			e->val = val;
+		}
+		return false;
+	}
+	else {
+		ghash_insert_ex(gh, key, val, hash, bucket_hash);
+		return true;
+	}
+}
+
+BLI_INLINE bool ghash_insert_safe_keyonly(GHash *gh, void *key, const bool override, GHashKeyFreeFP keyfreefp)
+{
+	const unsigned int hash = ghash_keyhash(gh, key);
+	const unsigned int bucket_hash = ghash_bucket_hash(gh, hash);
+	Entry *e = ghash_lookup_entry_ex(gh, key, hash, bucket_hash);
+
+	if (e) {
+		if (override) {
+			if (keyfreefp) keyfreefp(e->key);
+			e->key = key;
+		}
+		return false;
+	}
+	else {
+		ghash_insert_ex_keyonly(gh, key, hash, bucket_hash);
+		return true;
+	}
+}
+
 /**
  * Remove the entry and return it, caller must free from gh->entrypool.
  */
@@ -871,16 +912,7 @@ void BLI_ghash_insert(GHash *gh, void *key, void *val)
  */
 bool BLI_ghash_add(GHash *gh, void *key, void *val)
 {
-	const unsigned int hash = ghash_keyhash(gh, key);
-	const unsigned int bucket_hash = ghash_bucket_hash(gh, hash);
-	Entry *e = ghash_lookup_entry_ex(gh, key, hash, bucket_hash);
-	if (e) {
-		return false;
-	}
-	else {
-		ghash_insert_ex(gh, key, val, hash, bucket_hash);
-		return true;
-	}
+	return ghash_insert_safe(gh, key, val, false, NULL, NULL);
 }
 
 /**
@@ -892,20 +924,7 @@ bool BLI_ghash_add(GHash *gh, void *key, void *val)
  */
 bool BLI_ghash_reinsert(GHash *gh, void *key, void *val, GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp)
 {
-	const unsigned int hash = ghash_keyhash(gh, key);
-	const unsigned int bucket_hash = ghash_bucket_hash(gh, hash);
-	Entry *e = ghash_lookup_entry_ex(gh, key, hash, bucket_hash);
-	if (e) {
-		if (keyfreefp) keyfreefp(e->key);
-		if (valfreefp) valfreefp(e->val);
-		e->key = key;
-		e->val = val;
-		return false;
-	}
-	else {
-		ghash_insert_ex(gh, key, val, hash, bucket_hash);
-		return true;
-	}
+	return ghash_insert_safe(gh, key, val, true, keyfreefp, valfreefp);
 }
 
 /**
@@ -1667,16 +1686,7 @@ void BLI_gset_insert(GSet *gs, void *key)
  */
 bool BLI_gset_add(GSet *gs, void *key)
 {
-	const unsigned int hash = ghash_keyhash((GHash *)gs, key);
-	const unsigned int bucket_hash = ghash_bucket_hash((GHash *)gs, hash);
-	Entry *e = ghash_lookup_entry_ex((GHash *)gs, key, hash, bucket_hash);
-	if (e) {
-		return false;
-	}
-	else {
-		ghash_insert_ex_keyonly((GHash *)gs, key, hash, bucket_hash);
-		return true;
-	}
+	return ghash_insert_safe_keyonly((GHash *)gs, key, false, NULL);
 }
 
 /**
@@ -1687,18 +1697,7 @@ bool BLI_gset_add(GSet *gs, void *key)
  */
 bool BLI_gset_reinsert(GSet *gs, void *key, GSetKeyFreeFP keyfreefp)
 {
-	const unsigned int hash = ghash_keyhash((GHash *)gs, key);
-	const unsigned int bucket_hash = ghash_bucket_hash((GHash *)gs, hash);
-	Entry *e = ghash_lookup_entry_ex((GHash *)gs, key, hash, bucket_hash);
-	if (e) {
-		if (keyfreefp) keyfreefp(e->key);
-		e->key = key;
-		return false;
-	}
-	else {
-		ghash_insert_ex_keyonly((GHash *)gs, key, hash, bucket_hash);
-		return true;
-	}
+	return ghash_insert_safe_keyonly((GHash *)gs, key, true, keyfreefp);
 }
 
 bool BLI_gset_remove(GSet *gs, void *key, GSetKeyFreeFP keyfreefp)
