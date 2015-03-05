@@ -119,6 +119,9 @@ struct GHash {
 
 	unsigned int nentries;
 	unsigned int flag;
+
+	/* Entries metadata */
+	size_t entry_size;
 };
 
 /* -------------------------------------------------------------------- */
@@ -343,6 +346,7 @@ static GHash *ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
 	gh->buckets = NULL;
 	ghash_buckets_reset(gh, nentries_reserve);
 	gh->entrypool = BLI_mempool_create((unsigned int)entry_size, 64, 64, BLI_MEMPOOL_NOP);
+	gh->entry_size = entry_size;
 
 	return gh;
 }
@@ -490,10 +494,11 @@ static void ghash_free_cb(GHash *gh, GHashKeyFreeFP keyfreefp, GHashValFreeFP va
 /**
  * Copy the GHash.
  */
-static GHash *ghash_copy(GHash *gh, const size_t entry_size, GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp)
+static GHash *ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp)
 {
 	GHash *gh_new;
 	unsigned int i;
+	const size_t entry_size = gh->entry_size;
 
 	gh_new = ghash_new(gh->hashfp, gh->cmpfp, __func__, 0, entry_size);
 	ghash_expand_buckets(gh_new, gh->nentries, false, false);
@@ -526,7 +531,7 @@ static GHash *ghash_copy(GHash *gh, const size_t entry_size, GHashKeyCopyFP keyc
  * If \a reverse is True, entries present in latest GHash will override those in former GHash.
  */
 static GHash *ghash_union(
-        const bool reverse, const size_t entry_size,
+        const bool reverse,
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         GHash *gh1, GHash *gh2, va_list arg)
@@ -536,38 +541,43 @@ static GHash *ghash_union(
 	BLI_assert(ghn);
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, entry_size, keycopyfp, valcopyfp);
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
 		ghn = va_arg(arg, GHash *);
 	}
 
-	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
-		unsigned int i;
+	{
+		const size_t entry_size = gh1->entry_size;
 
-		BLI_assert(gh1->cmpfp == ghn->cmpfp);
-		BLI_assert(gh1->hashfp == ghn->hashfp);
+		for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+			unsigned int i;
 
-		for (i = 0; i < ghn->nbuckets; i++) {
-			Entry *e;
+			BLI_assert(gh1->cmpfp == ghn->cmpfp);
+			BLI_assert(gh1->hashfp == ghn->hashfp);
+			BLI_assert(entry_size == ghn->entry_size);
 
-			for (e = ghn->buckets[i]; e; e = e->next) {
-				Entry *e_gh1;
-				const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
+			for (i = 0; i < ghn->nbuckets; i++) {
+				Entry *e;
 
-				if ((e_gh1 = ghash_lookup_entry_ex(gh1, e->key, e->hash, gh1_bucket_hash)) == NULL) {
-					Entry *e_new = BLI_mempool_alloc(gh1->entrypool);
+				for (e = ghn->buckets[i]; e; e = e->next) {
+					Entry *e_gh1;
+					const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
 
-					entry_copy(e_new, e, entry_size, keycopyfp, valcopyfp);
+					if ((e_gh1 = ghash_lookup_entry_ex(gh1, e->key, e->hash, gh1_bucket_hash)) == NULL) {
+						Entry *e_new = BLI_mempool_alloc(gh1->entrypool);
 
-					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
-					e_new->next = gh1->buckets[gh1_bucket_hash];
-					gh1->buckets[gh1_bucket_hash] = e_new;
-					ghash_expand_buckets(gh1, ++gh1->nentries, false, false);
-				}
-				else if (reverse) {
-					if (keyfreefp) keyfreefp(e_gh1->key);
-					if (valfreefp) valfreefp(e_gh1->val);
+						entry_copy(e_new, e, entry_size, keycopyfp, valcopyfp);
 
-					entry_copy(e_gh1, e, entry_size, keycopyfp, valcopyfp);
+						/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+						e_new->next = gh1->buckets[gh1_bucket_hash];
+						gh1->buckets[gh1_bucket_hash] = e_new;
+						ghash_expand_buckets(gh1, ++gh1->nentries, false, false);
+					}
+					else if (reverse) {
+						if (keyfreefp) keyfreefp(e_gh1->key);
+						if (valfreefp) valfreefp(e_gh1->val);
+
+						entry_copy(e_gh1, e, entry_size, keycopyfp, valcopyfp);
+					}
 				}
 			}
 		}
@@ -581,7 +591,6 @@ static GHash *ghash_union(
  * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
  */
 static GHash *ghash_intersection(
-        const size_t entry_size,
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         GHash *gh1, GHash *gh2, va_list arg)
@@ -591,7 +600,7 @@ static GHash *ghash_intersection(
 	BLI_assert(ghn);
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, entry_size, keycopyfp, valcopyfp);
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
 		ghn = va_arg(arg, GHash *);
 	}
 
@@ -640,7 +649,6 @@ static GHash *ghash_intersection(
  * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
  */
 static GHash *ghash_difference(
-        const size_t entry_size,
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         GHash *gh1, GHash *gh2, va_list arg)
@@ -650,7 +658,7 @@ static GHash *ghash_difference(
 	BLI_assert(ghn);
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, entry_size, keycopyfp, valcopyfp);
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
 		ghn = va_arg(arg, GHash *);
 	}
 
@@ -699,7 +707,6 @@ static GHash *ghash_difference(
  * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
  */
 static GHash *ghash_symmetric_difference(
-        const size_t entry_size,
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
         GHash *gh1, GHash *gh2, va_list arg)
@@ -714,123 +721,128 @@ static GHash *ghash_symmetric_difference(
 	BLI_assert(ghn);
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, entry_size, keycopyfp, valcopyfp);
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
 		ghn = va_arg(arg, GHash *);
 	}
 
-	keys = ghash_copy(gh1, entry_size, NULL, NULL);
+	keys = ghash_copy(gh1, NULL, NULL);
 	rem_keys = ghash_new(gh1->hashfp, gh1->cmpfp, __func__, 64, GSET_ENTRY_SIZE);
 
-	/* First pass: all key found at least once is in keys, all key found at least twice is in rem_keys. */
-	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
-		BLI_assert(gh1->cmpfp == ghn->cmpfp);
-		BLI_assert(gh1->hashfp == ghn->hashfp);
+	{
+		const size_t entry_size = gh1->entry_size;
 
-		for (i = 0; i < ghn->nbuckets; i++) {
+		/* First pass: all key found at least once is in keys, all key found at least twice is in rem_keys. */
+		for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+			BLI_assert(gh1->cmpfp == ghn->cmpfp);
+			BLI_assert(gh1->hashfp == ghn->hashfp);
+			BLI_assert(entry_size = ghn->entry_size);
+
+			for (i = 0; i < ghn->nbuckets; i++) {
+				Entry *e;
+
+				for (e = ghn->buckets[i]; e; e = e->next) {
+					const unsigned int keys_bucket_hash = ghash_bucket_hash(keys, e->hash);
+
+					if (ghash_lookup_entry_ex(keys, e->key, e->hash, keys_bucket_hash) != NULL) {
+						const unsigned int rem_keys_bucket_hash = ghash_bucket_hash(rem_keys, e->hash);
+						Entry *e_new = BLI_mempool_alloc(rem_keys->entrypool);
+
+						entry_copy(e_new, e, GSET_ENTRY_SIZE, NULL, NULL);
+
+						/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+						e_new->next = rem_keys->buckets[rem_keys_bucket_hash];
+						rem_keys->buckets[rem_keys_bucket_hash] = e_new;
+						ghash_expand_buckets(rem_keys, ++rem_keys->nentries, false, false);
+					}
+					else {
+						Entry *e_new = BLI_mempool_alloc(keys->entrypool);
+
+						entry_copy(e_new, e, entry_size, NULL, NULL);
+
+						/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+						e_new->next = keys->buckets[keys_bucket_hash];
+						keys->buckets[keys_bucket_hash] = e_new;
+						ghash_expand_buckets(keys, ++keys->nentries, false, false);
+					}
+				}
+			}
+		}
+
+		/* Now, keys we actually want are (keys - rem_keys) */
+		for (i = 0; i < rem_keys->nbuckets; i++) {
 			Entry *e;
 
-			for (e = ghn->buckets[i]; e; e = e->next) {
+			for (e = rem_keys->buckets[i]; e; e = e->next) {
+				Entry *e_prev = NULL, *e_curr;
 				const unsigned int keys_bucket_hash = ghash_bucket_hash(keys, e->hash);
+				const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
 
-				if (ghash_lookup_entry_ex(keys, e->key, e->hash, keys_bucket_hash) != NULL) {
-					const unsigned int rem_keys_bucket_hash = ghash_bucket_hash(rem_keys, e->hash);
-					Entry *e_new = BLI_mempool_alloc(rem_keys->entrypool);
+				for (e_curr = keys->buckets[keys_bucket_hash]; e_curr; e_prev = e_curr, e_curr = e_curr->next) {
+					if (UNLIKELY(e_curr->hash == e->hash)) {
+						if (LIKELY(keys->cmpfp(e_curr->key, e->key) == false)) {
+							if (e_prev) e_prev->next = e_curr->next;
+							else        keys->buckets[keys_bucket_hash] = e_curr->next;
 
-					entry_copy(e_new, e, GSET_ENTRY_SIZE, NULL, NULL);
-
-					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
-					e_new->next = rem_keys->buckets[rem_keys_bucket_hash];
-					rem_keys->buckets[rem_keys_bucket_hash] = e_new;
-					ghash_expand_buckets(rem_keys, ++rem_keys->nentries, false, false);
-				}
-				else {
-					Entry *e_new = BLI_mempool_alloc(keys->entrypool);
-
-					entry_copy(e_new, e, entry_size, NULL, NULL);
-
-					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
-					e_new->next = keys->buckets[keys_bucket_hash];
-					keys->buckets[keys_bucket_hash] = e_new;
-					ghash_expand_buckets(keys, ++keys->nentries, false, false);
-				}
-			}
-		}
-	}
-
-	/* Now, keys we actually want are (keys - rem_keys) */
-	for (i = 0; i < rem_keys->nbuckets; i++) {
-		Entry *e;
-
-		for (e = rem_keys->buckets[i]; e; e = e->next) {
-			Entry *e_prev = NULL, *e_curr;
-			const unsigned int keys_bucket_hash = ghash_bucket_hash(keys, e->hash);
-			const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
-
-			for (e_curr = keys->buckets[keys_bucket_hash]; e_curr; e_prev = e_curr, e_curr = e_curr->next) {
-				if (UNLIKELY(e_curr->hash == e->hash)) {
-					if (LIKELY(keys->cmpfp(e_curr->key, e->key) == false)) {
-						if (e_prev) e_prev->next = e_curr->next;
-						else        keys->buckets[keys_bucket_hash] = e_curr->next;
-
-						/* We do not care about shrinking keys' buckets here! */
-						keys->nentries--;
-						BLI_mempool_free(keys->entrypool, e_curr);
-						break;
+							/* We do not care about shrinking keys' buckets here! */
+							keys->nentries--;
+							BLI_mempool_free(keys->entrypool, e_curr);
+							break;
+						}
 					}
 				}
-			}
 
-			BLI_assert(e_curr != NULL);  /* All keys in rem_keys must exist in keys! */
+				BLI_assert(e_curr != NULL);  /* All keys in rem_keys must exist in keys! */
 
-			/* Also remove keys from gh1 if possible, since we are at it... */
-			e_prev = NULL;
-			for (e_curr = gh1->buckets[gh1_bucket_hash]; e_curr; e_prev = e_curr, e_curr = e_curr->next) {
-				if (UNLIKELY(e_curr->hash == e->hash)) {
-					if (LIKELY(keys->cmpfp(e_curr->key, e->key) == false)) {
-						if (e_prev) e_prev->next = e_curr->next;
-						else        gh1->buckets[gh1_bucket_hash] = e_curr->next;
+				/* Also remove keys from gh1 if possible, since we are at it... */
+				e_prev = NULL;
+				for (e_curr = gh1->buckets[gh1_bucket_hash]; e_curr; e_prev = e_curr, e_curr = e_curr->next) {
+					if (UNLIKELY(e_curr->hash == e->hash)) {
+						if (LIKELY(keys->cmpfp(e_curr->key, e->key) == false)) {
+							if (e_prev) e_prev->next = e_curr->next;
+							else        gh1->buckets[gh1_bucket_hash] = e_curr->next;
 
-						/* Note: We can free key/value here, because we won't use them again (have been removed
-						 *       from keys already, and we won't use matching entry from rem_key again either. */
-						if (keyfreefp) keyfreefp(e_curr->key);
-						if (valfreefp) valfreefp(e_curr->val);
+							/* Note: We can free key/value here, because we won't use them again (have been removed
+							 *       from keys already, and we won't use matching entry from rem_key again either. */
+							if (keyfreefp) keyfreefp(e_curr->key);
+							if (valfreefp) valfreefp(e_curr->val);
 
-						/* We do not care about shrinking gh1's buckets here for now! */
-						gh1->nentries--;
-						BLI_mempool_free(gh1->entrypool, e_curr);
-						break;
+							/* We do not care about shrinking gh1's buckets here for now! */
+							gh1->nentries--;
+							BLI_mempool_free(gh1->entrypool, e_curr);
+							break;
+						}
 					}
 				}
 			}
 		}
-	}
 
-	BLI_ghash_free(rem_keys, NULL, NULL);
+		BLI_ghash_free(rem_keys, NULL, NULL);
 
-	/* Final step: add (copy) all entries from keys which are not already in gh1. */
-	for (i = 0; i < keys->nbuckets; i++) {
-		Entry *e;
+		/* Final step: add (copy) all entries from keys which are not already in gh1. */
+		for (i = 0; i < keys->nbuckets; i++) {
+			Entry *e;
 
-		for (e = keys->buckets[i]; e; e = e->next) {
-			const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
+			for (e = keys->buckets[i]; e; e = e->next) {
+				const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, e->hash);
 
-			if (ghash_lookup_entry_ex(gh1, e->key, e->hash, gh1_bucket_hash) == NULL) {
-				Entry *e_new = BLI_mempool_alloc(gh1->entrypool);
+				if (ghash_lookup_entry_ex(gh1, e->key, e->hash, gh1_bucket_hash) == NULL) {
+					Entry *e_new = BLI_mempool_alloc(gh1->entrypool);
 
-				entry_copy(e_new, e, entry_size, keycopyfp, valcopyfp);
+					entry_copy(e_new, e, entry_size, keycopyfp, valcopyfp);
 
-				/* As with copy, this does not preserve order (but this would be even less meaningful here). */
-				e_new->next = gh1->buckets[gh1_bucket_hash];
-				gh1->buckets[gh1_bucket_hash] = e_new;
-				ghash_expand_buckets(gh1, ++gh1->nentries, false, false);
+					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+					e_new->next = gh1->buckets[gh1_bucket_hash];
+					gh1->buckets[gh1_bucket_hash] = e_new;
+					ghash_expand_buckets(gh1, ++gh1->nentries, false, false);
+				}
 			}
 		}
+
+		BLI_ghash_free(keys, NULL, NULL);
+
+		/* We force shrinking here (if needed). */
+		ghash_expand_buckets(gh1, gh1->nentries, false, true);
 	}
-
-	BLI_ghash_free(keys, NULL, NULL);
-
-	/* We force shrinking here (if needed). */
-	ghash_expand_buckets(gh1, gh1->nentries, false, true);
 
 	return gh1;
 }
@@ -872,7 +884,7 @@ GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info)
  */
 GHash *BLI_ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp)
 {
-	return ghash_copy(gh, GHASH_ENTRY_SIZE, keycopyfp, valcopyfp);
+	return ghash_copy(gh, keycopyfp, valcopyfp);
 }
 
 /**
@@ -1190,7 +1202,7 @@ GHash *BLI_ghash_union(GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp, GHash
 	va_list arg;
 
 	va_start(arg, gh2);
-	gh_ret = ghash_union(false, GHASH_ENTRY_SIZE, keycopyfp, valcopyfp, NULL, NULL, gh1, gh2, arg);
+	gh_ret = ghash_union(false, keycopyfp, valcopyfp, NULL, NULL, gh1, gh2, arg);
 	va_end(arg);
 
 	return gh_ret;
@@ -1214,7 +1226,7 @@ GHash *BLI_ghash_union_reversed(
 	va_list arg;
 
 	va_start(arg, gh2);
-	gh_ret = ghash_union(true, GHASH_ENTRY_SIZE, keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	gh_ret = ghash_union(true, keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
 	va_end(arg);
 
 	return gh_ret;
@@ -1237,7 +1249,7 @@ GHash *BLI_ghash_intersection(
 	va_list arg;
 
 	va_start(arg, gh2);
-	gh_ret = ghash_intersection(GHASH_ENTRY_SIZE, keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	gh_ret = ghash_intersection(keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
 	va_end(arg);
 
 	return gh_ret;
@@ -1260,7 +1272,7 @@ GHash *BLI_ghash_difference(
 	va_list arg;
 
 	va_start(arg, gh2);
-	gh_ret = ghash_difference(GHASH_ENTRY_SIZE, keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	gh_ret = ghash_difference(keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
 	va_end(arg);
 
 	return gh_ret;
@@ -1284,7 +1296,7 @@ GHash *BLI_ghash_symmetric_difference(
 	va_list arg;
 
 	va_start(arg, gh2);
-	gh_ret = ghash_symmetric_difference(GHASH_ENTRY_SIZE, keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	gh_ret = ghash_symmetric_difference(keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
 	va_end(arg);
 
 	return gh_ret;
@@ -1659,7 +1671,7 @@ GSet *BLI_gset_new(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info)
  */
 GSet *BLI_gset_copy(GSet *gs, GHashKeyCopyFP keycopyfp)
 {
-	return (GSet *)ghash_copy((GHash *)gs, GSET_ENTRY_SIZE, keycopyfp, NULL);
+	return (GSet *)ghash_copy((GHash *)gs, keycopyfp, NULL);
 }
 
 int BLI_gset_size(GSet *gs)
@@ -1768,7 +1780,7 @@ GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...)
 	va_list arg;
 
 	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_union(false, GSET_ENTRY_SIZE, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	gs_ret = (GSet *)ghash_union(false, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
 	va_end(arg);
 
 	return gs_ret;
@@ -1784,7 +1796,7 @@ GSet *BLI_gset_intersection(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GS
 	va_list arg;
 
 	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_intersection(GSET_ENTRY_SIZE, keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	gs_ret = (GSet *)ghash_intersection(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
 	va_end(arg);
 
 	return gs_ret;
@@ -1800,7 +1812,7 @@ GSet *BLI_gset_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet
 	va_list arg;
 
 	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_difference(GSET_ENTRY_SIZE, keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	gs_ret = (GSet *)ghash_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
 	va_end(arg);
 
 	return gs_ret;
@@ -1817,7 +1829,7 @@ GSet *BLI_gset_symmetric_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfr
 	va_list arg;
 
 	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_symmetric_difference(GSET_ENTRY_SIZE, keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	gs_ret = (GSet *)ghash_symmetric_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
 	va_end(arg);
 
 	return gs_ret;
