@@ -2568,7 +2568,7 @@ DerivedMesh *CDDM_merge_verts(DerivedMesh *dm, const int *vtargetmap, const int 
 		/* This poly equality check is rather complex.   We use a BLI_ghash to speed it up with a first level check */
 		PolyKey *mpgh;
 		poly_keys = MEM_mallocN(sizeof(PolyKey) * totpoly, __func__);
-		poly_gset = BLI_gset_new_ex(poly_gset_hash_fn, poly_gset_compare_fn, __func__, totpoly);
+		poly_gset = BLI_gset_new_ex(poly_gset_hash_fn, poly_gset_compare_fn, __func__, totpoly, false);
 		/* Duplicates allowed because our compare function is not pure equality */
 		BLI_gset_flag_set(poly_gset, GHASH_FLAG_ALLOW_DUPES);
 

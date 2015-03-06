@@ -63,7 +63,7 @@ enum {
 /* *** */
 
 GHash *BLI_ghash_new_ex(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info,
-                        const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+                        const unsigned int nentries_reserve, const bool store_hash) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GHash *BLI_ghash_new(GHashHashFP hashfp, GHashCmpFP cmpfp, const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GHash *BLI_ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp,
                       GHashValCopyFP valcopyfp) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
@@ -121,7 +121,7 @@ BLI_INLINE void  *BLI_ghashIterator_getValue(GHashIterator *ghi) ATTR_WARN_UNUSE
 BLI_INLINE void **BLI_ghashIterator_getValue_p(GHashIterator *ghi) ATTR_WARN_UNUSED_RESULT;
 BLI_INLINE bool   BLI_ghashIterator_done(GHashIterator *ghi) ATTR_WARN_UNUSED_RESULT;
 
-struct _gh_Entry { void *next; unsigned int hash; void *key, *val; };
+struct _gh_Entry { void *next, *key, *val; };
 BLI_INLINE void  *BLI_ghashIterator_getKey(GHashIterator *ghi)     { return  ((struct _gh_Entry *)ghi->curEntry)->key; }
 BLI_INLINE void  *BLI_ghashIterator_getValue(GHashIterator *ghi)   { return  ((struct _gh_Entry *)ghi->curEntry)->val; }
 BLI_INLINE void **BLI_ghashIterator_getValue_p(GHashIterator *ghi) { return &((struct _gh_Entry *)ghi->curEntry)->val; }
@@ -234,7 +234,7 @@ typedef struct GSetIterator {
 } GSetIterator;
 
 GSet  *BLI_gset_new_ex(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info,
-                       const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
+                       const unsigned int nentries_reserve, const bool store_hash) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GSet  *BLI_gset_new(GSetHashFP hashfp, GSetCmpFP cmpfp, const char *info) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 GSet  *BLI_gset_copy(GSet *gs, GSetKeyCopyFP keycopyfp) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
 int    BLI_gset_size(GSet *gs) ATTR_WARN_UNUSED_RESULT;

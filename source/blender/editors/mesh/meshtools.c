@@ -1025,7 +1025,7 @@ int *mesh_get_x_mirror_faces(Object *ob, BMEditMesh *em)
 
 	ED_mesh_mirror_spatial_table(ob, em, NULL, 'e');
 
-	fhash = BLI_ghash_new_ex(mirror_facehash, mirror_facecmp, "mirror_facehash gh", me->totface);
+	fhash = BLI_ghash_new_ex(mirror_facehash, mirror_facecmp, "mirror_facehash gh", me->totface, false);
 	for (a = 0, mf = mface; a < me->totface; a++, mf++)
 		BLI_ghash_insert(fhash, mf, mf);
 
