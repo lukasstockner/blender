@@ -335,6 +335,9 @@ static void motionpaths_calc_update_scene(Scene *scene, float cframe)
 		for (base = scene->base.first; base; base = base->next) {
 			if (base->object->flag & BA_TEMP_TAG)
 				last = base;
+			else
+				/* no need to stay here, we got the last already */
+				break;
 		}
 		
 		/* perform updates for tagged objects */
