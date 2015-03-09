@@ -870,7 +870,7 @@ static void recalcData_objects(TransInfo *t)
 			int targetless_ik = (t->flag & T_AUTOIK); // XXX this currently doesn't work, since flags aren't set yet!
 			
 			animrecord_check_state(t->scene, &ob->id, t->animtimer);
-			autokeyframe_pose_cb_func(t->context, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
+			autokeyframe_pose_cb_func(t->context, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik, true);
 		}
 		
 		/* old optimize trick... this enforces to bypass the depgraph */
@@ -912,7 +912,7 @@ static void recalcData_objects(TransInfo *t)
 			// TODO: autokeyframe calls need some setting to specify to add samples (FPoints) instead of keyframes?
 			if ((t->animtimer) && IS_AUTOKEY_ON(t->scene)) {
 				animrecord_check_state(t->scene, &ob->id, t->animtimer);
-				autokeyframe_ob_cb_func(t->context, t->scene, (View3D *)t->view, ob, t->mode);
+				autokeyframe_ob_cb_func(t->context, t->scene, (View3D *)t->view, ob, t->mode, true);
 			}
 			
 			/* sets recalc flags fully, instead of flushing existing ones 
