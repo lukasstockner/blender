@@ -117,6 +117,7 @@ typedef struct AssetEngine {
 	void *py_instance;
 
 	int flag;
+	int refcount;
 
 	struct ReportList *reports;
 } AssetEngine;
@@ -129,6 +130,7 @@ AssetEngineType *BKE_asset_engines_find(const char *idname);
 
 /* Engine Instances */
 AssetEngine *BKE_asset_engine_create(AssetEngineType *type);
+AssetEngine *BKE_asset_engine_copy(AssetEngine *engine);
 void BKE_asset_engine_free(AssetEngine *engine);
 
 #ifdef __cplusplus

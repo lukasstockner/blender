@@ -106,17 +106,27 @@ AssetEngine *BKE_asset_engine_create(AssetEngineType *type)
 
 	engine = MEM_callocN(sizeof(AssetEngine), __func__);
 	engine->type = type;
+	engine->refcount = 1;
 
+	return engine;
+}
+
+/** Shalow copy only (i.e. memory is 100% shared, just increases refcount). */
+AssetEngine *BKE_asset_engine_copy(AssetEngine *engine)
+{
+	engine->refcount++;
 	return engine;
 }
 
 void BKE_asset_engine_free(AssetEngine *engine)
 {
+	if (engine->refcount-- == 1) {
 #ifdef WITH_PYTHON
-	if (engine->py_instance) {
-		BPY_DECREF_RNA_INVALIDATE(engine->py_instance);
-	}
+		if (engine->py_instance) {
+			BPY_DECREF_RNA_INVALIDATE(engine->py_instance);
+		}
 #endif
 
-	MEM_freeN(engine);
+		MEM_freeN(engine);
+	}
 }
