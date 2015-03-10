@@ -165,6 +165,8 @@ static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 	fsmenu_refresh_bookmarks_status(ED_fsmenu_get());
 
 	if (sfile->layout) sfile->layout->dirty = true;
+
+	BLI_strncpy(sfile->asset_engine, ((AssetEngineType *)asset_engines.first)->idname, sizeof(sfile->asset_engine));
 }
 
 static void file_exit(wmWindowManager *wm, ScrArea *sa)
