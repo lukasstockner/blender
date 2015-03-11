@@ -943,58 +943,6 @@ static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
 	filelist_checkdir_lib(filelist, r_dir);
 }
 
-static void filelist_entry_free(FileDirEntry *entry, const bool clear)
-{
-	if (entry->name) {
-		MEM_freeN(entry->name);
-	}
-	if (entry->description) {
-		MEM_freeN(entry->description);
-	}
-	if (entry->relpath) {
-		MEM_freeN(entry->relpath);
-	}
-	if (entry->image) {
-		IMB_freeImBuf(entry->image);
-	}
-	/* For now, consider FileDirEntryRevision::poin as not owned here, so no need to do anything about it */
-
-	if (!BLI_listbase_is_empty(&entry->variants)) {
-		FileDirEntryVariant *var;
-
-		for (var = entry->variants.first; var; var = var->next) {
-			if (var->name) {
-				MEM_freeN(var->name);
-			}
-			if (var->description) {
-				MEM_freeN(var->description);
-			}
-			BLI_freelistN(&var->revisions);
-		}
-
-		/* TODO: tags! */
-
-		BLI_freelistN(&entry->variants);
-	}
-	else if (entry->entry){
-		MEM_freeN(entry->entry);
-	}
-	if (clear) {
-		memset(entry, 0, sizeof(*entry));
-	}
-}
-
-static void filedirentryarr_free(FileDirEntryArr *array)
-{
-	FileDirEntry *entry;
-
-	for (entry = array->entries.first; entry; entry = entry->next) {
-		filelist_entry_free(entry, false);
-	}
-	BLI_freelistN(&array->entries);
-    array->nbr_entries = 0;
-}
-
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(*p), __func__);
@@ -1028,7 +976,7 @@ void filelist_clear(struct FileList *filelist)
     MEM_SAFE_FREE(filelist->filtered);
     filelist->numfiltered = 0;
 
-	filedirentryarr_free(&filelist->filelist);
+	BKE_filedir_entryarr_clear(&filelist->filelist);
 }
 
 void filelist_free(struct FileList *filelist)
@@ -1058,6 +1006,11 @@ void filelist_freelib(struct FileList *filelist)
 	if (filelist->libfiledata)
 		BLO_blendhandle_close(filelist->libfiledata);
 	filelist->libfiledata = NULL;
+}
+
+AssetEngine *filelist_assetengine_get(struct FileList *filelist)
+{
+	return filelist->ae;
 }
 
 BlendHandle *filelist_lib(struct FileList *filelist)
@@ -1359,20 +1312,53 @@ bool filelist_is_selected(FileList *filelist, int index, FileCheckType check)
 {
 	FileDirEntry *entry = filelist_file(filelist, index);
 	if (entry) {
-		switch (check) {
-			case CHECK_DIRS:
-				return ((entry->typeflag & FILE_TYPE_DIR) != 0) && (entry->selflag & FILE_SEL_SELECTED);
-			case CHECK_FILES:
-				return ((entry->typeflag & FILE_TYPE_DIR) == 0) && (entry->selflag & FILE_SEL_SELECTED);
-			case CHECK_ALL:
-			default:
-				return (entry->selflag & FILE_SEL_SELECTED) != 0;
-		}
+		return BKE_filedir_entry_is_selected(entry, check);
 	}
 
 	return false;
 }
 
+/**
+ * Returns a list of selected entries, if is_virtual is false also calls asset engine's load_pre callback.
+ * Note first item of returned list shall be used as 'active' file.
+ */
+FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check, const char *name, const bool use_ae)
+{
+	FileDirEntryArr *selection;
+	int i, totfiles = filelist->numfiltered;
+	bool done_name = false;
+
+	selection = MEM_mallocN(sizeof(*selection), __func__);
+	*selection = filelist->filelist;
+	selection->nbr_entries = 0;
+	BLI_listbase_clear(&selection->entries);
+
+	for (i = 0; i < totfiles; i++) {
+		FileDirEntry *entry_org = filelist->filtered[i];
+
+		/* Always include 'name' (i.e. given relpath) */
+		if (!done_name && STREQ(entry_org->relpath, name)) {
+			FileDirEntry *entry_new = BKE_filedir_entry_copy(entry_org);
+
+			/* We add it in head - first entry in this list is always considered 'active' one. */
+			BLI_addhead(&selection->entries, entry_new);
+			selection->nbr_entries++;
+			done_name = true;
+		}
+		else if (BKE_filedir_entry_is_selected(entry_org, check)) {
+			FileDirEntry *entry_new = BKE_filedir_entry_copy(entry_org);
+			BLI_addtail(&selection->entries, entry_new);
+			selection->nbr_entries++;
+		}
+	}
+
+	if (use_ae && filelist->ae) {
+		/* This will 'rewrite' selection list, returned paths are expected to be valid! */
+		BKE_asset_engine_load_pre(filelist->ae, selection);
+	}
+
+	return selection;
+}
 
 bool filelist_islibrary(struct FileList *filelist, char *dir, char **group)
 {
@@ -1502,7 +1488,7 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 		return nbr_entries;
 	}
 
-	/* memory for strings is passed into filelist[i].entry->relpath and freed in filelist_entry_free. */
+	/* memory for strings is passed into filelist[i].entry->relpath and freed in BKE_filedir_entry_free. */
 	if (group) {
 		idcode = groupname_to_code(group);
 		previews = BLO_blendhandle_get_previews(libfiledata, idcode, &nprevs);

@@ -37,8 +37,13 @@
 extern "C" {
 #endif
 
+#include "BKE_asset.h"
+
 struct AssetEngineType;
+struct AssetEngine;
 struct BlendHandle;
+struct FileDirEntry;
+struct FileDirEntryArr;
 struct FileList;
 struct FileSelection;
 struct FolderList;
@@ -55,12 +60,6 @@ typedef enum FileSelType {
 	FILE_SEL_ADD    = 1,
 	FILE_SEL_TOGGLE = 2
 } FileSelType;
-
-typedef enum FileCheckType {
-	CHECK_DIRS = 1,
-	CHECK_FILES = 2,
-	CHECK_ALL = 3
-} FileCheckType;
 
 struct ListBase *   folderlist_new(void);
 void                folderlist_free(struct ListBase *folderlist);
@@ -98,7 +97,7 @@ void                filelist_setdir(struct FileList *filelist, char *r_dir);
 
 int                 filelist_empty(struct FileList *filelist);
 int                 filelist_numfiles(struct FileList *filelist);
-FileDirEntry *      filelist_file(struct FileList *filelist, int index);
+struct FileDirEntry *filelist_file(struct FileList *filelist, int index);
 int                 filelist_find(struct FileList *filelist, const char *file);
 
 bool                filelist_force_reset(struct FileList *filelist);
@@ -110,12 +109,15 @@ void                filelist_clear_refresh(struct FileList *filelist);
 void                filelist_select(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check);
 void                filelist_select_file(struct FileList *filelist, int index, FileSelType select, unsigned int flag, FileCheckType check);
 bool                filelist_is_selected(struct FileList *filelist, int index, FileCheckType check);
+struct FileDirEntryArr *filelist_selection_get(struct FileList *filelist, FileCheckType check, const char *name, const bool use_ae);
 
 void                filelist_setrecursion(struct FileList *filelist, const int recursion_level);
 
 struct BlendHandle *filelist_lib(struct FileList *filelist);
 bool                filelist_islibrary(struct FileList *filelist, char *dir, char **group);
 void                filelist_freelib(struct FileList *filelist);
+
+struct AssetEngine *filelist_assetengine_get(struct FileList *filelist);
 
 void                filelist_readjob_start(struct FileList *filelist, const struct bContext *C);
 void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);

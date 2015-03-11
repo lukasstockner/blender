@@ -836,7 +836,7 @@ typedef struct FileDirEntryArr {
 	int nbr_entries;
 	int pad;
 
-	char root[1024];	 /* FILE_MAX */
+	char root[768];	 /* FILE_MAXDIR */
 } FileDirEntryArr;
 
 #define ASSET_UUID_LENGTH     24

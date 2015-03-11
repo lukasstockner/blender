@@ -49,6 +49,10 @@
 #include "BKE_report.h"
 #include "BKE_asset.h"
 
+#include "IMB_imbuf.h"
+
+#include "DNA_space_types.h"
+
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
 #endif
@@ -128,5 +132,209 @@ void BKE_asset_engine_free(AssetEngine *engine)
 #endif
 
 		MEM_freeN(engine);
+	}
+}
+
+
+/* API helpers. */
+
+void BKE_asset_engine_load_pre(AssetEngine *engine, FileDirEntryArr *r_entries)
+{
+	if (engine->type->load_pre) {
+		FileDirEntry *en;
+		char (*uuids)[3][ASSET_UUID_LENGTH] = MEM_mallocN(sizeof(*uuids) * r_entries->nbr_entries, __func__);
+		int nbr_entries = r_entries->nbr_entries;
+		int i;
+
+		for (i = 0, en = r_entries->entries.first; en; i++, en = en->next) {
+			FileDirEntryVariant *var = BLI_findlink(&en->variants, en->act_variant);
+			char (*uuid)[3][ASSET_UUID_LENGTH] = &uuids[i];
+
+			memcpy(uuid[0], en->uuid, sizeof(*uuid[0]));
+
+			BLI_assert(var);
+			memcpy(uuid[1], var, sizeof(*uuid[1]));
+
+			memcpy(uuid[2], en->entry, sizeof(*uuid[2]));
+		}
+
+		BKE_filedir_entryarr_clear(r_entries);
+
+		engine->type->load_pre(engine, uuids, nbr_entries, r_entries);
+
+		MEM_freeN(uuids);
+	}
+}
+
+
+/* FileDirxxx handling. */
+
+#if 0 /* Unused */
+void BKE_filedir_entry_free(FileDirEntry *entry)
+{
+	if (entry->name) {
+		MEM_freeN(entry->name);
+	}
+	if (entry->description) {
+		MEM_freeN(entry->description);
+	}
+	if (entry->relpath) {
+		MEM_freeN(entry->relpath);
+	}
+	if (entry->image) {
+		IMB_freeImBuf(entry->image);
+	}
+	/* For now, consider FileDirEntryRevision::poin as not owned here, so no need to do anything about it */
+
+	if (!BLI_listbase_is_empty(&entry->variants)) {
+		FileDirEntryVariant *var;
+
+		for (var = entry->variants.first; var; var = var->next) {
+			if (var->name) {
+				MEM_freeN(var->name);
+			}
+			if (var->description) {
+				MEM_freeN(var->description);
+			}
+			BLI_freelistN(&var->revisions);
+		}
+
+		BLI_freelistN(&entry->variants);
+	}
+	else if (entry->entry){
+		MEM_freeN(entry->entry);
+	}
+
+	/* TODO: tags! */
+}
+
+void BKE_filedir_entry_clear(FileDirEntry *entry)
+{
+	BKE_filedir_entry_free(entry);
+	memset(entry, 0, sizeof(*entry));
+}
+#else
+static void BKE_filedir_entry_free(FileDirEntry *entry)
+{
+	if (entry->name) {
+		MEM_freeN(entry->name);
+	}
+	if (entry->description) {
+		MEM_freeN(entry->description);
+	}
+	if (entry->relpath) {
+		MEM_freeN(entry->relpath);
+	}
+	if (entry->image) {
+		IMB_freeImBuf(entry->image);
+	}
+	/* For now, consider FileDirEntryRevision::poin as not owned here, so no need to do anything about it */
+
+	if (!BLI_listbase_is_empty(&entry->variants)) {
+		FileDirEntryVariant *var;
+
+		for (var = entry->variants.first; var; var = var->next) {
+			if (var->name) {
+				MEM_freeN(var->name);
+			}
+			if (var->description) {
+				MEM_freeN(var->description);
+			}
+			BLI_freelistN(&var->revisions);
+		}
+
+		BLI_freelistN(&entry->variants);
+	}
+	else if (entry->entry){
+		MEM_freeN(entry->entry);
+	}
+
+	/* TODO: tags! */
+}
+#endif
+
+/** Perform and return a full (deep) duplicate of given entry. */
+FileDirEntry *BKE_filedir_entry_copy(FileDirEntry *entry)
+{
+	FileDirEntry *entry_new = MEM_dupallocN(entry);
+
+	if (entry->name) {
+		entry_new->name = MEM_dupallocN(entry->name);
+	}
+	if (entry->description) {
+		entry_new->description = MEM_dupallocN(entry->description);
+	}
+	if (entry->relpath) {
+		entry_new->relpath = MEM_dupallocN(entry->relpath);
+	}
+	if (entry->image) {
+		entry_new->image = IMB_dupImBuf(entry->image);
+	}
+	/* For now, consider FileDirEntryRevision::poin as not owned here, so no need to do anything about it */
+
+	if (!BLI_listbase_is_empty(&entry->variants)) {
+		FileDirEntryVariant *var;
+		int act_var;
+
+		BLI_listbase_clear(&entry_new->variants);
+		for (act_var = 0, var = entry->variants.first; var; act_var++, var = var->next) {
+			FileDirEntryVariant *var_new = MEM_dupallocN(var);
+			FileDirEntryRevision *rev;
+			const bool is_act_var = (act_var == entry->act_variant);
+			int act_rev;
+
+			if (var->name) {
+				var_new->name = MEM_dupallocN(var->name);
+			}
+			if (var->description) {
+				var_new->description = MEM_dupallocN(var->description);
+			}
+
+			BLI_listbase_clear(&var_new->revisions);
+			for (act_rev = 0, rev = var->revisions.first; rev; act_rev++, rev = rev->next) {
+				FileDirEntryRevision *rev_new = MEM_dupallocN(rev);
+				const bool is_act_rev = (act_rev == var->act_revision);
+
+				BLI_addtail(&var_new->revisions, rev_new);
+
+				if (is_act_var && is_act_rev) {
+					entry->entry = rev_new;
+				}
+			}
+
+			BLI_addtail(&entry_new->variants, var_new);
+		}
+
+	}
+	else if (entry->entry){
+		entry_new->entry = MEM_dupallocN(entry->entry);
+	}
+
+	/* TODO: tags! */
+
+	return entry_new;
+}
+
+void BKE_filedir_entryarr_clear(FileDirEntryArr *array)
+{
+	FileDirEntry *entry;
+
+	for (entry = array->entries.first; entry; entry = entry->next) {
+		BKE_filedir_entry_free(entry);
+	}
+	BLI_freelistN(&array->entries);
+    array->nbr_entries = 0;
+}
+
+bool BKE_filedir_entry_is_selected(FileDirEntry *entry, FileCheckType check)
+{
+	switch (check) {
+		case CHECK_DIRS:
+			return ((entry->typeflag & FILE_TYPE_DIR) != 0) && (entry->selflag & FILE_SEL_SELECTED);
+		case CHECK_FILES:
+			return ((entry->typeflag & FILE_TYPE_DIR) == 0) && (entry->selflag & FILE_SEL_SELECTED);
+		case CHECK_ALL:
+		default:
+			return (entry->selflag & FILE_SEL_SELECTED) != 0;
 	}
 }
