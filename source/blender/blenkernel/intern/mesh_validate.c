@@ -308,6 +308,7 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 
 	for (i = 0, me = medges; i < totedge; i++, me++) {
 		bool remove = false;
+
 		if (me->v1 == me->v2) {
 			PRINT_ERR("\tEdge %u: has matching verts, both %u\n", i, me->v1);
 			remove = do_fixes;
@@ -321,14 +322,16 @@ bool BKE_mesh_validate_arrays(Mesh *mesh,
 			remove = do_fixes;
 		}
 
-		if (BLI_edgehash_haskey(edge_hash, me->v1, me->v2)) {
+		if ((me->v1 != me->v2) && BLI_edgehash_haskey(edge_hash, me->v1, me->v2)) {
 			PRINT_ERR("\tEdge %u: is a duplicate of %d\n", i,
 			          GET_INT_FROM_POINTER(BLI_edgehash_lookup(edge_hash, me->v1, me->v2)));
 			remove = do_fixes;
 		}
 
 		if (remove == false) {
-			BLI_edgehash_insert(edge_hash, me->v1, me->v2, SET_INT_IN_POINTER(i));
+			if (me->v1 != me->v2) {
+				BLI_edgehash_insert(edge_hash, me->v1, me->v2, SET_INT_IN_POINTER(i));
+			}
 		}
 		else {
 			REMOVE_EDGE_TAG(me);
@@ -1469,12 +1472,14 @@ void BKE_mesh_calc_edges(Mesh *mesh, bool update, const bool select)
 	/* mesh loops (bmesh only) */
 	for (mp = mesh->mpoly, i = 0; i < totpoly; mp++, i++) {
 		MLoop *l = &mesh->mloop[mp->loopstart];
-		int j, l_prev = (l + (mp->totloop - 1))->v;
+		int j, v_prev = (l + (mp->totloop - 1))->v;
 		for (j = 0; j < mp->totloop; j++, l++) {
-			if (!BLI_edgehash_haskey(eh, l_prev, l->v)) {
-				BLI_edgehash_insert(eh, l_prev, l->v, NULL);
+			if (v_prev != l->v) {
+				if (!BLI_edgehash_haskey(eh, v_prev, l->v)) {
+					BLI_edgehash_insert(eh, v_prev, l->v, NULL);
+				}
 			}
-			l_prev = l->v;
+			v_prev = l->v;
 		}
 	}
 

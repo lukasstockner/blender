@@ -263,6 +263,11 @@ int GPU_non_power_of_two_support(void)
 	return GLEW_ARB_texture_non_power_of_two;
 }
 
+int GPU_vertex_buffer_support(void)
+{
+	return GLEW_ARB_vertex_buffer_object || GLEW_VERSION_1_5;
+}
+
 int GPU_display_list_support(void)
 {
 	return !GG.dlistsdisabled;
@@ -1340,7 +1345,7 @@ void GPU_offscreen_bind(GPUOffScreen *ofs, bool save)
 {
 	glDisable(GL_SCISSOR_TEST);
 	if (save)
-		GPU_framebuffer_slots_bind(ofs->fb, 0);
+		GPU_texture_bind_as_framebuffer(ofs->color);
 	else {
 		GPU_framebuffer_bind_no_save(ofs->fb, 0);
 	}
