@@ -3902,6 +3902,10 @@ static void lib_link_particlesystems(FileData *fd, Object *ob, ID *id, ListBase 
 			psys->target_ob = newlibadr(fd, id->lib, psys->target_ob);
 			
 			if (psys->clmd) {
+				/* XXX - from reading existing code this seems correct but intended usage of
+				 * pointcache should /w cloth should be added in 'ParticleSystem' - campbell */
+				psys->clmd->point_cache = psys->pointcache;
+				psys->clmd->ptcaches.first = psys->clmd->ptcaches.last= NULL;
 				psys->clmd->coll_parms->group = newlibadr(fd, id->lib, psys->clmd->coll_parms->group);
 				psys->clmd->modifier.error = NULL;
 			}
@@ -3985,6 +3989,8 @@ static void direct_link_particlesystems(FileData *fd, ListBase *particles)
 			
 			psys->hair_in_dm = psys->hair_out_dm = NULL;
 			psys->clmd->solver_result = NULL;
+			
+			psys->clmd->point_cache = psys->pointcache;
 		}
 		
 		psys->tree = NULL;
@@ -4701,6 +4707,8 @@ static void direct_link_modifiers(FileData *fd, ListBase *lb)
 			
 			clmd->sim_parms= newdataadr(fd, clmd->sim_parms);
 			clmd->coll_parms= newdataadr(fd, clmd->coll_parms);
+			
+			direct_link_pointcache_list(fd, &clmd->ptcaches, &clmd->point_cache, 0);
 			
 			if (clmd->sim_parms) {
 				if (clmd->sim_parms->presets > 10)
