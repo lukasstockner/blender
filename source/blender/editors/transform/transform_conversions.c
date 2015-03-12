@@ -5195,7 +5195,7 @@ static void clear_trans_object_base_flags(TransInfo *t)
  *  tmode: should be a transform mode
  */
 // NOTE: context may not always be available, so must check before using it as it's a luxury for a few cases
-void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode, bool insert)
+void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode)
 {
 	ID *id = &ob->id;
 	FCurve *fcu;
@@ -5218,10 +5218,7 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 			/* only insert into active keyingset 
 			 * NOTE: we assume here that the active Keying Set does not need to have its iterator overridden spe
 			 */
-			if (insert)
-				ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_INSERT, cfra);
-			else
-				ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_DELETE, cfra);
+			ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_INSERT, cfra);
 		}
 		else if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL)) {
 			AnimData *adt = ob->adt;
@@ -5229,17 +5226,10 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 			/* only key on available channels */
 			if (adt && adt->action) {
 				for (fcu = adt->action->curves.first; fcu; fcu = fcu->next) {
-					fcu->flag &= ~FCURVE_SELECTED;
-					if (insert) {
-						insert_keyframe(reports, id, adt->action,
-						                (fcu->grp ? fcu->grp->name : NULL),
-						                fcu->rna_path, fcu->array_index, cfra, flag);
-					}
-					else {
-						delete_keyframe(reports, id, adt->action,
-						                (fcu->grp ? fcu->grp->name : NULL),
-						                fcu->rna_path, fcu->array_index, cfra, flag);
-					}
+				fcu->flag &= ~FCURVE_SELECTED;
+					insert_keyframe(reports, id, adt->action,
+					                (fcu->grp ? fcu->grp->name : NULL),
+					                fcu->rna_path, fcu->array_index, cfra, flag);
 				}
 			}
 		}
@@ -5276,33 +5266,21 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 			/* insert keyframes for the affected sets of channels using the builtin KeyingSets found */
 			if (do_loc) {
 				KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_LOCATION_ID);
-				if (insert)
-					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-				else
-					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+				ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 			}
 			if (do_rot) {
 				KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_ROTATION_ID);
-				if (insert)
-					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-				else
-					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+				ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 			}
 			if (do_scale) {
 				KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_SCALING_ID);
-				if (insert)
-					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-				else
-					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+				ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 			}
 		}
 		/* insert keyframe in all (transform) channels */
 		else {
 			KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_LOC_ROT_SCALE_ID);
-			if (insert)
-				ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-			else
-				ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+			ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 		}
 		
 		/* only calculate paths if there are paths to be recalculated,
@@ -5326,12 +5304,96 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 	}
 }
 
+/* auto keyframing: we need to tag the existing fcurves before attempting to insert keyframes
+ * to avoid deleting them by mistake. Algorithm here is that if keyframe existed before,
+ * we insert old value on cancel, else we completely delete it */
+void autokeyframe_pose_tag_existing (bContext *C, Scene *scene, Object *ob, bool targetless_ik) {
+	AnimData *adt = ob->adt;
+	bAction *act = (adt) ? adt->action : NULL;
+	bPose   *pose = ob->pose;
+	bPoseChannel *pchan;
+	FCurve *fcu;
+	float cfra = (float)CFRA;
+
+	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+		if (pchan->bone->flag & BONE_TRANSFORM) {
+			if (act) {
+				for (fcu = act->curves.first; fcu; fcu = fcu->next) {
+					/* only insert keyframes for this F-Curve if it affects the current bone */
+					if (strstr(fcu->rna_path, "bones")) {
+						char *pchanName = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
+
+						/* only if bone name matches too...
+						 * NOTE: this will do constraints too, but those are ok to do here too?
+						 */
+						if (pchanName && STREQ(pchanName, pchan->name)) {
+							bool replace;
+							binarysearch_bezt_index(fcu->bezt, cfra, fcu->totvert, &replace);
+							if (replace) {
+								fcu->flag |= FCURVE_TAGGED;
+							}
+						}
+						if (pchanName) MEM_freeN(pchanName);
+					}
+				}
+			}
+		}
+	}
+}
+
+
+void autokeyframe_cleanup_untagged (bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode, bool targetless_ik) {
+	ID *id = &ob->id;
+	AnimData *adt = ob->adt;
+	bAction *act = (adt) ? adt->action : NULL;
+	bPose   *pose = ob->pose;
+	bPoseChannel *pchan;
+	FCurve *fcu;
+	ReportList *reports = CTX_wm_reports(C);
+	float cfra = (float)CFRA;
+	short flag = 0;
+
+	/* flag is initialized from UserPref keyframing settings
+	 *	- special exception for targetless IK - INSERTKEY_MATRIX keyframes should get
+	 *    visual keyframes even if flag not set, as it's not that useful otherwise
+	 *	  (for quick animation recording)
+	 */
+	flag = ANIM_get_keyframing_flags(scene, 1);
+
+	if (targetless_ik)
+		flag |= INSERTKEY_MATRIX;
+
+	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+		if (pchan->bone->flag & BONE_TRANSFORM) {
+			if (act) {
+				for (fcu = act->curves.first; fcu; fcu = fcu->next) {
+					/* only insert keyframes for this F-Curve if it affects the current bone */
+					if (strstr(fcu->rna_path, "bones")) {
+						char *pchanName = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
+
+						/* only if bone name matches too...
+							 * NOTE: this will do constraints too, but those are ok to do here too?
+							 */
+						if (pchanName && STREQ(pchanName, pchan->name)) {
+							if (fcu->flag & FCURVE_TAGGED)
+								insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+							else
+								delete_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+						}
+						if (pchanName) MEM_freeN(pchanName);
+					}
+				}
+			}
+		}
+	}
+}
+
 /* auto-keyframing feature - for poses/pose-channels
  *  tmode: should be a transform mode
  *	targetless_ik: has targetless ik been done on any channels?
  */
 // NOTE: context may not always be available, so must check before using it as it's a luxury for a few cases
-void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode, bool targetless_ik, bool insert)
+void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode, bool targetless_ik)
 {
 	ID *id = &ob->id;
 	AnimData *adt = ob->adt;
@@ -5370,10 +5432,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 				/* only insert into active keyingset? */
 				if (IS_AUTOKEY_FLAG(scene, ONLYKEYINGSET) && (active_ks)) {
 					/* run the active Keying Set on the current datasource */
-					if (insert)
-						ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_INSERT, cfra);
-					else
-						ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_DELETE, cfra);
+					ANIM_apply_keyingset(C, &dsources, NULL, active_ks, MODIFYKEY_MODE_INSERT, cfra);
 				}
 				/* only insert into available channels? */
 				else if (IS_AUTOKEY_FLAG(scene, INSERTAVAIL)) {
@@ -5387,10 +5446,7 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 								 * NOTE: this will do constraints too, but those are ok to do here too?
 								 */
 								if (pchanName && STREQ(pchanName, pchan->name)) {
-									if (insert)
-										insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
-									else
-										delete_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+									insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 								}
 								if (pchanName) MEM_freeN(pchanName);
 							}
@@ -5425,33 +5481,21 @@ void autokeyframe_pose_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *o
 					
 					if (do_loc) {
 						KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_LOCATION_ID);
-						if (insert)
-							ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-						else
-							ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+						ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 					}
 					if (do_rot) {
 						KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_ROTATION_ID);
-						if (insert)
-							ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-						else
-							ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+						ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 					}
 					if (do_scale) {
 						KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_SCALING_ID);
-						if (insert)
-							ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-						else
-							ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+						ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 					}
 				}
 				/* insert keyframe in all (transform) channels */
 				else {
 					KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_LOC_ROT_SCALE_ID);
-					if (insert)
-						ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
-					else
-						ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_DELETE, cfra);
+					ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 				}
 				
 				/* free temp info */
@@ -5983,9 +6027,9 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 		/* automatic inserting of keys and unkeyed tagging - only if transform wasn't canceled (or TFM_DUMMY) */
 		if (t->mode != TFM_DUMMY) {
 			if (t->scene->toolsettings->realtime_motion_path)
-				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik, !canceled);
+				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
 			else if (!canceled)
-				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik, true);
+				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 		else if (arm->flag & ARM_DELAYDEFORM) {
@@ -6044,9 +6088,9 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 
 			/* Set autokey if necessary */
 			if (t->scene->toolsettings->realtime_motion_path)
-				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, !canceled);
+				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode);
 			else if (!canceled)
-				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, true);
+				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode);
 			
 			/* restore rigid body transform */
 			if (ob->rigidbody_object && canceled) {
