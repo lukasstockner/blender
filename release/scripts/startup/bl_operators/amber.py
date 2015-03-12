@@ -32,8 +32,8 @@ from bpy.props import (
         CollectionProperty,
         )
 
-class AssetEngineFlame(AssetEngine):
-    bl_label = "Flame"
+class AssetEngineAmber(AssetEngine):
+    bl_label = "Amber"
 
     def __init__(self):
         self.jobs = {}

@@ -48,7 +48,7 @@ _modules = [
     "wm",
 ]
 
-_modules.append("flame")
+_modules.append("amber")
 
 import bpy
 
