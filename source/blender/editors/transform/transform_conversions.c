@@ -5982,7 +5982,10 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 
 		/* automatic inserting of keys and unkeyed tagging - only if transform wasn't canceled (or TFM_DUMMY) */
 		if (t->mode != TFM_DUMMY) {
-			autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik, !canceled);
+			if (t->scene->toolsettings->realtime_motion_path)
+				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik, !canceled);
+			else if (!canceled)
+				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik, true);
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 		else if (arm->flag & ARM_DELAYDEFORM) {
@@ -6040,7 +6043,10 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 			/* Set autokey if necessary */
-			autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, !canceled);
+			if (t->scene->toolsettings->realtime_motion_path)
+				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, !canceled);
+			else if (!canceled)
+				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, true);
 			
 			/* restore rigid body transform */
 			if (ob->rigidbody_object && canceled) {
