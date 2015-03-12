@@ -48,6 +48,8 @@ _modules = [
     "wm",
 ]
 
+_modules.append("flame")
+
 import bpy
 
 if bpy.app.build_options.freestyle:
