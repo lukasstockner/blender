@@ -153,16 +153,6 @@ static void rna_AssetVariant_description_set(struct PointerRNA *ptr, const char 
 }
 
 /* Entries. */
-static FileDirEntryVariant *rna_AssetEntry_variants_add(FileDirEntry *entry/*, ReportList *reports,*/)
-{
-	FileDirEntryVariant *variant = MEM_callocN(sizeof(*variant), __func__);
-
-	BLI_addtail(&entry->variants, variant);
-	entry->nbr_variants++;
-
-	return variant;
-}
-
 static PointerRNA rna_AssetEntry_active_variant_get(PointerRNA *ptr)
 {
 	FileDirEntry *entry = ptr->data;
@@ -175,6 +165,16 @@ static void rna_AssetEntry_active_variant_set(PointerRNA *ptr, PointerRNA value)
 	FileDirEntryVariant *variant = value.data;
 
 	entry->act_variant = BLI_findindex(&entry->variants, variant);
+}
+
+static FileDirEntryVariant *rna_AssetEntry_variants_add(FileDirEntry *entry/*, ReportList *reports,*/)
+{
+	FileDirEntryVariant *variant = MEM_callocN(sizeof(*variant), __func__);
+
+	BLI_addtail(&entry->variants, variant);
+	entry->nbr_variants++;
+
+	return variant;
 }
 
 static void rna_AssetEntry_relpath_get(struct PointerRNA *ptr, char *value)
@@ -256,7 +256,27 @@ static void rna_AssetEntry_description_set(struct PointerRNA *ptr, const char *v
 }
 
 /* Entries Array. */
-static FileDirEntry *rna_AssetList_entries_add(FileDirEntryArr *dirlist/*, ReportList *reports,*/)
+static PointerRNA rna_AssetList_active_entry_get(PointerRNA *ptr)
+{
+	FileDirEntryArr *arr = ptr->data;
+	return rna_pointer_inherit_refine(ptr, &RNA_AssetEntry, BLI_findlink(&arr->entries, 0));
+}
+
+static void rna_AssetList_active_entry_set(PointerRNA *ptr, PointerRNA value)
+{
+	FileDirEntryArr *arr = ptr->data;
+	FileDirEntry *entry = value.data;
+
+	BLI_remlink_safe(&arr->entries, entry);
+	BLI_addhead(&arr->entries, entry);
+}
+
+static int rna_AssetList_active_entry_index_get(PointerRNA *UNUSED(ptr))
+{
+	return 0;
+}
+
+static FileDirEntry *rna_AssetList_entries_add(FileDirEntryArr *dirlist)
 {
 	FileDirEntry *entry = MEM_callocN(sizeof(*entry), __func__);
 
@@ -266,6 +286,23 @@ static FileDirEntry *rna_AssetList_entries_add(FileDirEntryArr *dirlist/*, Repor
 	return entry;
 }
 
+static void rna_AssetList_entries_remove(FileDirEntryArr *dirlist, ReportList *reports, PointerRNA *ptr)
+{
+	FileDirEntry *entry = ptr->data;
+
+	if (!BLI_remlink_safe(&dirlist->entries, entry)) {
+		BKE_report(reports, RPT_ERROR, "Trying to remove an entry for a list which does not contain it!");
+		return;
+	}
+
+	BKE_filedir_entry_free(entry);
+	MEM_freeN(entry);
+}
+
+static void rna_AssetList_entries_clear(FileDirEntryArr *dirlist)
+{
+	BKE_filedir_entryarr_clear(dirlist);
+}
 
 /* AssetEngine callbacks. */
 
@@ -549,14 +586,6 @@ static void rna_def_asset_variants(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_struct_sdna(srna, "FileDirEntry");
 	RNA_def_struct_ui_text(srna, "Asset Entry Variants", "Collection of asset entry's variants");
 
-	/* Add Variant */
-	func = RNA_def_function(srna, "add", "rna_AssetEntry_variants_add");
-	RNA_def_function_ui_description(func, "Add a new variant to the entry");
-//	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	/* return arg */
-	parm = RNA_def_pointer(func, "variant", "AssetVariant", "New Variant", "New asset entry variant");
-	RNA_def_function_return(func, parm);
-
 	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "AssetVariant");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
@@ -567,6 +596,14 @@ static void rna_def_asset_variants(BlenderRNA *brna, PropertyRNA *cprop)
 	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "act_variant");
 	RNA_def_property_ui_text(prop, "Active Index", "Index of asset's variant curently active (selected)");
+
+	/* Add Variant */
+	func = RNA_def_function(srna, "add", "rna_AssetEntry_variants_add");
+	RNA_def_function_ui_description(func, "Add a new variant to the entry");
+//	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	/* return arg */
+	parm = RNA_def_pointer(func, "variant", "AssetVariant", "New Variant", "New asset entry variant");
+	RNA_def_function_return(func, parm);
 }
 
 static void rna_def_asset_entry(BlenderRNA *brna)
@@ -644,51 +681,45 @@ static void rna_def_asset_entries(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
 	FunctionRNA *func;
-	PropertyRNA *parm;
+	PropertyRNA *parm, *prop;
 
 	RNA_def_property_srna(cprop, "AssetEntries");
 	srna = RNA_def_struct(brna, "AssetEntries", NULL);
 	RNA_def_struct_sdna(srna, "FileDirEntryArr");
 	RNA_def_struct_ui_text(srna, "Asset List entries", "Collection of asset entries");
 
+	/* Currently, 'active' entry (i.e. the one passed to single-file arg of operators) is always the
+	 * first of the list... */
+	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "AssetEntry");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, "rna_AssetList_active_entry_get",
+	                               "rna_AssetList_active_entry_set", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Active Entry", "Active (selected) entry of the list");
+
+	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_int_funcs(prop, "rna_AssetList_active_entry_index_get", NULL, NULL);
+	RNA_def_property_ui_text(prop, "Active Index", "Index of entry curently active (selected)");
+
 	/* Add Entry */
 	func = RNA_def_function(srna, "add", "rna_AssetList_entries_add");
 	RNA_def_function_ui_description(func, "Add a new asset entry to the list");
-//	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	/* return arg */
 	parm = RNA_def_pointer(func, "entry", "AssetEntry", "New Entry", "New asset entry");
 	RNA_def_function_return(func, parm);
 
-#if 0
-	/* Remove Path */
-	func = RNA_def_function(srna, "remove", "rna_KeyingSet_paths_remove");
-	RNA_def_function_ui_description(func, "Remove the given path from the Keying Set");
+	/* Remove Entry */
+	func = RNA_def_function(srna, "remove", "rna_AssetList_entries_remove");
+	RNA_def_function_ui_description(func, "Remove the given entry from the list (entry is freeded)");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	/* path to remove */
-	parm = RNA_def_pointer(func, "path", "KeyingSetPath", "Path", "");
+	parm = RNA_def_pointer(func, "entry", "AssetEntry", "Entry", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
 	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 
-
-	/* Remove All Paths */
-	func = RNA_def_function(srna, "clear", "rna_KeyingSet_paths_clear");
-	RNA_def_function_ui_description(func, "Remove all the paths from the Keying Set");
-	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-
-	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
-	RNA_def_property_struct_type(prop, "KeyingSetPath");
-	RNA_def_property_flag(prop, PROP_EDITABLE);
-	RNA_def_property_editable_func(prop, "rna_KeyingSet_active_ksPath_editable");
-	RNA_def_property_pointer_funcs(prop, "rna_KeyingSet_active_ksPath_get",
-	                               "rna_KeyingSet_active_ksPath_set", NULL, NULL);
-	RNA_def_property_ui_text(prop, "Active Keying Set", "Active Keying Set used to insert/delete keyframes");
-
-	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_NONE);
-	RNA_def_property_int_sdna(prop, NULL, "active_path");
-	RNA_def_property_int_funcs(prop, "rna_KeyingSet_active_ksPath_index_get", "rna_KeyingSet_active_ksPath_index_set",
-	                           "rna_KeyingSet_active_ksPath_index_range");
-	RNA_def_property_ui_text(prop, "Active Path Index", "Current Keying Set index");
-#endif
+	/* Remove All Entries */
+	func = RNA_def_function(srna, "clear", "rna_AssetList_entries_clear");
+	RNA_def_function_ui_description(func, "Remove all entries from the list");
 }
 
 static void rna_def_asset_list(BlenderRNA *brna)

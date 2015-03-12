@@ -169,7 +169,17 @@ void BKE_asset_engine_load_pre(AssetEngine *engine, FileDirEntryArr *r_entries)
 
 /* FileDirxxx handling. */
 
-#if 0 /* Unused */
+void BKE_filedir_variant_free(FileDirEntryVariant *var)
+{
+	if (var->name) {
+		MEM_freeN(var->name);
+	}
+	if (var->description) {
+		MEM_freeN(var->description);
+	}
+	BLI_freelistN(&var->revisions);
+}
+
 void BKE_filedir_entry_free(FileDirEntry *entry)
 {
 	if (entry->name) {
@@ -190,13 +200,7 @@ void BKE_filedir_entry_free(FileDirEntry *entry)
 		FileDirEntryVariant *var;
 
 		for (var = entry->variants.first; var; var = var->next) {
-			if (var->name) {
-				MEM_freeN(var->name);
-			}
-			if (var->description) {
-				MEM_freeN(var->description);
-			}
-			BLI_freelistN(&var->revisions);
+			BKE_filedir_variant_free(var);
 		}
 
 		BLI_freelistN(&entry->variants);
@@ -213,45 +217,6 @@ void BKE_filedir_entry_clear(FileDirEntry *entry)
 	BKE_filedir_entry_free(entry);
 	memset(entry, 0, sizeof(*entry));
 }
-#else
-static void BKE_filedir_entry_free(FileDirEntry *entry)
-{
-	if (entry->name) {
-		MEM_freeN(entry->name);
-	}
-	if (entry->description) {
-		MEM_freeN(entry->description);
-	}
-	if (entry->relpath) {
-		MEM_freeN(entry->relpath);
-	}
-	if (entry->image) {
-		IMB_freeImBuf(entry->image);
-	}
-	/* For now, consider FileDirEntryRevision::poin as not owned here, so no need to do anything about it */
-
-	if (!BLI_listbase_is_empty(&entry->variants)) {
-		FileDirEntryVariant *var;
-
-		for (var = entry->variants.first; var; var = var->next) {
-			if (var->name) {
-				MEM_freeN(var->name);
-			}
-			if (var->description) {
-				MEM_freeN(var->description);
-			}
-			BLI_freelistN(&var->revisions);
-		}
-
-		BLI_freelistN(&entry->variants);
-	}
-	else if (entry->entry){
-		MEM_freeN(entry->entry);
-	}
-
-	/* TODO: tags! */
-}
-#endif
 
 /** Perform and return a full (deep) duplicate of given entry. */
 FileDirEntry *BKE_filedir_entry_copy(FileDirEntry *entry)

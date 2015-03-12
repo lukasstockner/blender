@@ -42,6 +42,8 @@ struct AssetEngine;
 struct AssetEngineType;
 struct FileDirEntryArr;
 struct FileDirEntry;
+struct FileDirEntryVariant;
+struct FileDirEntryRevision;
 struct ExtensionRNA;
 struct ID;
 struct ListBase;
@@ -149,10 +151,10 @@ typedef enum FileCheckType {
 	CHECK_ALL   = CHECK_DIRS | CHECK_FILES,
 } FileCheckType;
 
-#if 0  /* Unused */
+void BKE_filedir_variant_free(struct FileDirEntryVariant *var);
+
 void BKE_filedir_entry_free(struct FileDirEntry *entry);
 void BKE_filedir_entry_clear(struct FileDirEntry *entry);
-#endif
 struct FileDirEntry *BKE_filedir_entry_copy(struct FileDirEntry *entry);
 
 void BKE_filedir_entryarr_clear(struct FileDirEntryArr *array);
