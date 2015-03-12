@@ -882,8 +882,6 @@ static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepa
 			RNA_property_string_set(op->ptr, prop, filepath);
 		}
 
-		printf("%s, %s, %s, %lu\n", selection->root, filename, filepath, sizeof(filepath));
-
 		/* some ops have multiple files to select */
 		/* this is called on operators check() so clear collections first since
 		 * they may be already set. */

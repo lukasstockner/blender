@@ -141,26 +141,33 @@ void BKE_asset_engine_free(AssetEngine *engine)
 void BKE_asset_engine_load_pre(AssetEngine *engine, FileDirEntryArr *r_entries)
 {
 	if (engine->type->load_pre) {
+		AssetUUIDList *uuids = MEM_mallocN(sizeof(*uuids), __func__);
 		FileDirEntry *en;
-		char (*uuids)[3][ASSET_UUID_LENGTH] = MEM_mallocN(sizeof(*uuids) * r_entries->nbr_entries, __func__);
-		int nbr_entries = r_entries->nbr_entries;
+		const int nbr_entries = r_entries->nbr_entries;
 		int i;
+
+		uuids->uuids = MEM_mallocN(sizeof(*uuids->uuids) * nbr_entries, __func__);
+		uuids->nbr_uuids = nbr_entries;
 
 		for (i = 0, en = r_entries->entries.first; en; i++, en = en->next) {
 			FileDirEntryVariant *var = BLI_findlink(&en->variants, en->act_variant);
-			char (*uuid)[3][ASSET_UUID_LENGTH] = &uuids[i];
+			AssetUUID *uuid = &uuids->uuids[i];
 
-			memcpy(uuid[0], en->uuid, sizeof(*uuid[0]));
+			memcpy(uuid->uuid_asset, en->uuid, sizeof(uuid->uuid_asset));
 
 			BLI_assert(var);
-			memcpy(uuid[1], var, sizeof(*uuid[1]));
+			memcpy(uuid->uuid_variant, var->uuid, sizeof(uuid->uuid_variant));
 
-			memcpy(uuid[2], en->entry, sizeof(*uuid[2]));
+			memcpy(uuid->uuid_revision, en->entry->uuid, sizeof(uuid->uuid_revision));
 		}
 
 		BKE_filedir_entryarr_clear(r_entries);
 
-		engine->type->load_pre(engine, uuids, nbr_entries, r_entries);
+		if (!engine->type->load_pre(engine, uuids, r_entries)) {
+			/* If load_pre returns false (i.e. fails), clear all paths! */
+			/* TODO: report!!! */
+			BKE_filedir_entryarr_clear(r_entries);
+		}
 
 		MEM_freeN(uuids);
 	}
@@ -237,6 +244,7 @@ FileDirEntry *BKE_filedir_entry_copy(FileDirEntry *entry)
 	}
 	/* For now, consider FileDirEntryRevision::poin as not owned here, so no need to do anything about it */
 
+	entry_new->entry = NULL;
 	if (!BLI_listbase_is_empty(&entry->variants)) {
 		FileDirEntryVariant *var;
 		int act_var;
@@ -263,7 +271,7 @@ FileDirEntry *BKE_filedir_entry_copy(FileDirEntry *entry)
 				BLI_addtail(&var_new->revisions, rev_new);
 
 				if (is_act_var && is_act_rev) {
-					entry->entry = rev_new;
+					entry_new->entry = rev_new;
 				}
 			}
 
@@ -274,6 +282,8 @@ FileDirEntry *BKE_filedir_entry_copy(FileDirEntry *entry)
 	else if (entry->entry){
 		entry_new->entry = MEM_dupallocN(entry->entry);
 	}
+
+	BLI_assert(entry_new->entry != NULL);
 
 	/* TODO: tags! */
 

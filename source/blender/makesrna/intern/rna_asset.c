@@ -405,6 +405,34 @@ static int rna_ae_list_dir(AssetEngine *engine, const int id, FileDirEntryArr *e
 	return ret_job_id;
 }
 
+static bool rna_ae_load_pre(AssetEngine *engine, AssetUUIDList *uuids, struct FileDirEntryArr *entries_r)
+{
+	extern FunctionRNA rna_AssetEngine_load_pre_func;
+	PointerRNA ptr;
+	PropertyRNA *parm;
+	ParameterList list;
+	FunctionRNA *func;
+
+	void *ret;
+	bool ret_success;
+
+	RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+	func = &rna_AssetEngine_load_pre_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "uuids", &uuids);
+	RNA_parameter_set_lookup(&list, "entries", &entries_r);
+	engine->type->ext.call(NULL, &ptr, func, &list);
+
+	parm = RNA_function_find_parameter(NULL, func, "success_return");
+	RNA_parameter_get(&list, parm, &ret);
+	ret_success = (bool)*(int *)ret;
+
+	RNA_parameter_list_free(&list);
+
+	return ret_success;
+}
+
 /* AssetEngine registration */
 
 static void rna_AssetEngine_unregister(Main *UNUSED(bmain), StructRNA *type)
@@ -426,7 +454,7 @@ static StructRNA *rna_AssetEngine_register(Main *bmain, ReportList *reports, voi
 	AssetEngineType *aet, dummyaet = {NULL};
 	AssetEngine dummyengine = {NULL};
 	PointerRNA dummyptr;
-	int have_function[4];
+	int have_function[5];
 
 	/* setup dummy engine & engine type to store static properties in */
 	dummyengine.type = &dummyaet;
@@ -465,6 +493,8 @@ static StructRNA *rna_AssetEngine_register(Main *bmain, ReportList *reports, voi
 
 	aet->list_dir = (have_function[3]) ? rna_ae_list_dir : NULL;
 
+	aet->load_pre = (have_function[4]) ? rna_ae_load_pre : NULL;
+
 	BLI_addtail(&asset_engines, aet);
 
 	return aet->ext.srna;
@@ -483,6 +513,43 @@ static StructRNA *rna_AssetEngine_refine(PointerRNA *ptr)
 }
 
 #else /* RNA_RUNTIME */
+
+/* Much lighter version of asset/variant/revision identifier. */
+static void rna_def_asset_uuid(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "AssetUUID", NULL);
+	RNA_def_struct_sdna(srna, "AssetUUID");
+	RNA_def_struct_ui_text(srna, "Asset UUID", "A unique identifier of an asset (asset engine dependent!)");
+
+	prop = RNA_def_property(srna, "uuid_asset", PROP_STRING, PROP_BYTESTRING);
+	RNA_def_property_ui_text(prop, "Asset UUID", "Unique identifier of this asset");
+
+	prop = RNA_def_property(srna, "uuid_variant", PROP_STRING, PROP_BYTESTRING);
+	RNA_def_property_ui_text(prop, "Variant UUID", "Unique identifier of this asset's variant");
+
+	prop = RNA_def_property(srna, "uuid_revision", PROP_STRING, PROP_BYTESTRING);
+	RNA_def_property_ui_text(prop, "Revision UUID", "Unique identifier of this asset's revision");
+}
+
+static void rna_def_asset_uuid_list(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "AssetUUIDList", NULL);
+	RNA_def_struct_sdna(srna, "AssetUUIDList");
+	RNA_def_struct_ui_text(srna, "Asset UUIDs List", "Collection of assets uuids");
+
+	prop = RNA_def_property(srna, "uuids", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "uuids", "nbr_uuids");
+	RNA_def_property_struct_type(prop, "AssetUUID");
+	RNA_def_property_ui_text(prop, "UUIDs", "Collection of asset UUIDs");
+
+	rna_def_asset_uuid(brna);
+}
 
 static void rna_def_asset_revision(BlenderRNA *brna)
 {
@@ -520,14 +587,6 @@ static void rna_def_asset_revisions(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_struct_sdna(srna, "FileDirEntryVariant");
 	RNA_def_struct_ui_text(srna, "Asset Entry Revisions", "Collection of asset entry's revisions");
 
-	/* Add Revision */
-	func = RNA_def_function(srna, "add", "rna_AssetVariant_revisions_add");
-	RNA_def_function_ui_description(func, "Add a new revision to the entry's variant");
-//	RNA_def_function_flag(func, FUNC_USE_REPORTS);
-	/* return arg */
-	parm = RNA_def_pointer(func, "revision", "AssetRevision", "New Revision", "New asset entry variant revision");
-	RNA_def_function_return(func, parm);
-
 	prop = RNA_def_property(srna, "active", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "AssetRevision");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
@@ -538,6 +597,14 @@ static void rna_def_asset_revisions(BlenderRNA *brna, PropertyRNA *cprop)
 	prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_NONE);
 	RNA_def_property_int_sdna(prop, NULL, "act_revision");
 	RNA_def_property_ui_text(prop, "Active Index", "Index of asset's revision curently active (selected)");
+
+	/* Add Revision */
+	func = RNA_def_function(srna, "add", "rna_AssetVariant_revisions_add");
+	RNA_def_function_ui_description(func, "Add a new revision to the entry's variant");
+//	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	/* return arg */
+	parm = RNA_def_pointer(func, "revision", "AssetRevision", "New Revision", "New asset entry variant revision");
+	RNA_def_function_return(func, parm);
 }
 
 static void rna_def_asset_variant(BlenderRNA *brna)
@@ -792,10 +859,18 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 	RNA_def_function_ui_description(func, "Start/update the list of available entries (assets)");
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
 	RNA_def_int(func, "job_id", 0, 0, INT_MAX, "", "Job ID (zero to start a new one)", 0, INT_MAX);
-	RNA_def_pointer(func, "entries", "AssetList", "", "");
+	RNA_def_pointer(func, "entries", "AssetList", "", "List of asset entries proposed to user by the asset engine");
 	parm = RNA_def_int(func, "job_id_return", 0, 0, INT_MAX, "", "Job ID", 0, INT_MAX);
 	RNA_def_function_output(func, parm);
 
+	/* Pre-load callback */
+	func = RNA_def_function(srna, "load_pre", NULL);
+	RNA_def_function_ui_description(func, "Pre-process given assets to make them loadable by Blender");
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+	RNA_def_pointer(func, "uuids", "AssetUUIDList", "", "Identifiers of assets to 'make real'");
+	RNA_def_pointer(func, "entries", "AssetList", "", "List of actual, existing paths that Blender can load");
+	parm = RNA_def_boolean(func, "success_return", 0, "", "Success");
+	RNA_def_function_output(func, parm);
 
 	RNA_define_verify_sdna(false);
 
@@ -815,6 +890,7 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 void RNA_def_asset(BlenderRNA *brna)
 {
 	rna_def_asset_engine(brna);
+	rna_def_asset_uuid_list(brna);
 	rna_def_asset_list(brna);
 }
 

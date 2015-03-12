@@ -749,6 +749,18 @@ typedef enum eDirEntry_SelectFlag {
 
 /* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
 
+/* For RNA only, used to communicate with asset engines outside of 'import' context. */
+typedef struct AssetUUID {
+	char uuid_asset[24];     /* ASSET_UUID_LENGTH */
+	char uuid_variant[24];   /* ASSET_UUID_LENGTH */
+	char uuid_revision[24];  /* ASSET_UUID_LENGTH */
+} AssetUUID;
+
+typedef struct AssetUUIDList {
+	AssetUUID *uuids;
+	int nbr_uuids, pad;
+} AssetUUIDList;
+
 /* Container for a revision, only relevant in asset context. */
 typedef struct FileDirEntryRevision {
 	struct FileDirEntryRevision *next, *prev;

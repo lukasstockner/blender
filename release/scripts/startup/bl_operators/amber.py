@@ -37,6 +37,7 @@ class AssetEngineAmber(AssetEngine):
 
     def __init__(self):
         self.jobs = {}
+        self.uuids = {}
 
     def status(self, job_id):
         if job_id:
@@ -57,12 +58,25 @@ class AssetEngineAmber(AssetEngine):
         if len(entries.entries) == 0:
             entry = entries.entries.add()
             entry.type = {'BLENDER'}
-            entry.relpath="foobar"
+            entry.relpath = "foobar.blend"
+            entry.name = "MyLittleTest"
+            entry.uuid = entry.relpath.encode()[:8] + b"|0000000001"
+            self.uuids[entry.uuid] = "/home/i74700deb64/Téléchargements/wall_UE_D_01.blend"
             variant = entry.variants.add()
             entry.variants.active = variant
             rev = variant.revisions.add()
             variant.revisions.active = rev
         return 1
+
+    def load_pre(self, uuids, entries):
+        # Not quite sure this engine will need it in the end, but for sake of testing...
+        entries.root_path = "/"
+        for uuid in uuids.uuids[:1]:
+            entry = entries.entries.add()
+            entry.type = {'BLENDER'}
+            entry.relpath = self.uuids[uuid.uuid_asset]
+        return True
+
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

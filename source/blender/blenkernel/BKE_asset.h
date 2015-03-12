@@ -40,6 +40,7 @@ extern "C" {
 
 struct AssetEngine;
 struct AssetEngineType;
+struct AssetUUIDList;
 struct FileDirEntryArr;
 struct FileDirEntry;
 struct FileDirEntryVariant;
@@ -75,8 +76,7 @@ typedef void (*ae_kill)(struct AssetEngine *engine, const int job_id);
 /* Return (list) everything available at given root path. */
 typedef int (*ae_list_dir)(struct AssetEngine *engine, const int job_id, struct FileDirEntryArr *entries_r);
 /* Ensure given direntries are really available for append/link (some kind of 'anticipated loading'...). */
-typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int job_id,
-                                 char (*uuids)[3][ASSET_UUID_LENGTH], const int nbr_uuids);
+typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int job_id, struct AssetUUIDList *uuids);
 
 /* ***** All callbacks below are blocking. They shall be completed upon return. ***** */
 
@@ -88,7 +88,7 @@ typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int job_id,
  * active revision is used, no need to bother with variants, previews, etc.
  * This allows to present 'fake' entries to user, and then import actual data.
  */
-typedef bool (*ae_load_pre)(struct AssetEngine *engine, char (*uuids)[3][ASSET_UUID_LENGTH], const int nbr_uuids,
+typedef bool (*ae_load_pre)(struct AssetEngine *engine, struct AssetUUIDList *uuids,
                             struct FileDirEntryArr *entries_r);
 
 /* 'post-loading' hook, called after opening/appending/linking given entries.
