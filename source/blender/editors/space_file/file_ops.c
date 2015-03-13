@@ -33,9 +33,14 @@
 #include "BLI_fileops_types.h"
 #include "BLI_linklist.h"
 
+#include "RNA_access.h"
+#include "RNA_define.h"
+#include "RNA_types.h"
+
 #include "BLO_readfile.h"
 
 #include "BKE_appdir.h"
+#include "BKE_asset.h"
 #include "BKE_context.h"
 #include "BKE_screen.h"
 #include "BKE_global.h"
@@ -52,9 +57,6 @@
 #include "UI_interface.h"
 
 #include "MEM_guardedalloc.h"
-
-#include "RNA_access.h"
-#include "RNA_define.h"
 
 #include "UI_view2d.h"
 
@@ -839,78 +841,100 @@ void FILE_OT_cancel(struct wmOperatorType *ot)
 }
 
 
-void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
+static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepath[FILE_MAX_LIBEXTRA], const bool is_fake)
 {
-	PropertyRNA *prop;
+	PropertyRNA *prop, *prop_files, *prop_dirs;
+	AssetEngine *ae = filelist_assetengine_get(sfile->files);
+	FileDirEntryArr *selection;
+	FileCheckType check = CHECK_NONE;
 
-	BLI_join_dirfile(filepath, FILE_MAX, sfile->params->dir, sfile->params->file); /* XXX, not real length */
-
-	if ((prop = RNA_struct_find_property(op->ptr, "relative_path"))) {
-		if (RNA_property_boolean_get(op->ptr, prop)) {
-			BLI_path_rel(filepath, G.main->name);
-		}
+	if ((prop_files = RNA_struct_find_property(op->ptr, "files"))) {
+	    check |= CHECK_FILES;
+	}
+	if ((prop_dirs = RNA_struct_find_property(op->ptr, "dirs"))) {
+		check |= CHECK_DIRS;
 	}
 
-	if ((prop = RNA_struct_find_property(op->ptr, "filename"))) {
-		RNA_property_string_set(op->ptr, prop, sfile->params->file);
-	}
+	BLI_assert(STREQ(sfile->params->dir, filelist_dir(sfile->files)));
+
+	selection = filelist_selection_get(sfile->files, check, sfile->params->file, !is_fake);
+
 	if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
-		RNA_property_string_set(op->ptr, prop, sfile->params->dir);
+		RNA_property_string_set(op->ptr, prop, selection->root);
 	}
-	if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
-		RNA_property_string_set(op->ptr, prop, filepath);
-	}
-	
-	/* some ops have multiple files to select */
-	/* this is called on operators check() so clear collections first since
-	 * they may be already set. */
-	{
-		int i, numfiles = filelist_numfiles(sfile->files);
 
-		if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
-			PointerRNA itemptr;
-			int num_files = 0;
-			RNA_property_collection_clear(op->ptr, prop);
-			for (i = 0; i < numfiles; i++) {
-				if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
-					FileDirEntry *file = filelist_file(sfile->files, i);
-					RNA_property_collection_add(op->ptr, prop, &itemptr);
-					RNA_string_set(&itemptr, "name", file->relpath);
-					num_files++;
-				}
-			}
-			/* make sure the file specified in the filename button is added even if no files selected */
-			if (0 == num_files) {
-				RNA_property_collection_add(op->ptr, prop, &itemptr);
-				RNA_string_set(&itemptr, "name", sfile->params->file);
+	if (selection->nbr_entries != 0) {
+		const char *filename;
+
+		filename = ((FileDirEntry *)selection->entries.first)->relpath;
+		BLI_join_dirfile(filepath, FILE_MAX_LIBEXTRA /* XXX sizeof(filepath) */, selection->root, filename);
+
+		if ((prop = RNA_struct_find_property(op->ptr, "relative_path"))) {
+			if (RNA_property_boolean_get(op->ptr, prop)) {
+				BLI_path_rel(filepath, G.main->name);
 			}
 		}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "dirs"))) {
-			PointerRNA itemptr;
-			int num_dirs = 0;
-			RNA_property_collection_clear(op->ptr, prop);
-			for (i = 0; i < numfiles; i++) {
-				if (filelist_is_selected(sfile->files, i, CHECK_DIRS)) {
-					FileDirEntry *file = filelist_file(sfile->files, i);
-					RNA_property_collection_add(op->ptr, prop, &itemptr);
-					RNA_string_set(&itemptr, "name", file->relpath);
-					num_dirs++;
-				}
-			}
-			
-			/* make sure the directory specified in the button is added even if no directory selected */
-			if (0 == num_dirs) {
-				RNA_property_collection_add(op->ptr, prop, &itemptr);
-				RNA_string_set(&itemptr, "name", sfile->params->dir);
-			}
+		if ((prop = RNA_struct_find_property(op->ptr, "filename"))) {
+			RNA_property_string_set(op->ptr, prop, filename);
+		}
+		if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
+			RNA_property_string_set(op->ptr, prop, filepath);
 		}
 
+		/* some ops have multiple files to select */
+		/* this is called on operators check() so clear collections first since
+		 * they may be already set. */
+		{
+			if (prop_files) {
+				FileDirEntry *entry;
+				PointerRNA itemptr;
 
+				RNA_property_collection_clear(op->ptr, prop_files);
+				for (entry = selection->entries.first; entry; entry = entry->next) {
+					if (!(entry->typeflag & FILE_TYPE_DIR)) {
+						RNA_property_collection_add(op->ptr, prop_files, &itemptr);
+						RNA_string_set(&itemptr, "name", entry->relpath);
+					}
+				}
+			}
+
+			if (prop_dirs) {
+				FileDirEntry *entry;
+				PointerRNA itemptr;
+				int num_dirs = 0;
+
+				RNA_property_collection_clear(op->ptr, prop);
+				for (entry = selection->entries.first; entry; entry = entry->next) {
+					if (entry->typeflag & FILE_TYPE_DIR) {
+						RNA_property_collection_add(op->ptr, prop_dirs, &itemptr);
+						RNA_string_set(&itemptr, "name", entry->relpath);
+						num_dirs++;
+					}
+				}
+
+				/* make sure the directory specified in the button is added even if no directory selected */
+				if (!num_dirs) {
+					RNA_property_collection_add(op->ptr, prop_dirs, &itemptr);
+					RNA_string_set(&itemptr, "name", sfile->params->dir);
+				}
+			}
+		}
 	}
+
+	if (!is_fake && ae && (prop = RNA_struct_find_property(op->ptr, "asset_engine"))) {
+		PointerRNA ptr;
+
+		ae = BKE_asset_engine_copy(ae);  /* Operator is responsible to free/release that! */
+		RNA_pointer_create(NULL, &RNA_AssetEngine, ae, &ptr);
+		RNA_property_pointer_set(op->ptr, prop, ptr);
+	}
+
+	BKE_filedir_entryarr_clear(selection);
+	MEM_freeN(selection);
 }
 
-void file_operator_to_sfile(SpaceFile *sfile, wmOperator *op)
+static void file_operator_to_sfile(SpaceFile *sfile, wmOperator *op)
 {
 	PropertyRNA *prop;
 
@@ -942,8 +966,8 @@ void file_draw_check(bContext *C)
 	wmOperator *op = sfile->op;
 	if (op) { /* fail on reload */
 		if (op->type->check) {
-			char filepath[FILE_MAX];
-			file_sfile_to_operator(op, sfile, filepath);
+			char filepath[FILE_MAX_LIBEXTRA];
+			file_sfile_to_operator(op, sfile, filepath, true);
 			
 			/* redraw */
 			if (op->type->check(C, op)) {
@@ -985,7 +1009,7 @@ int file_exec(bContext *C, wmOperator *exec_op)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	char filepath[FILE_MAX];
+	char filepath[FILE_MAX_LIBEXTRA];
 	
 	if (sfile->op) {
 		wmOperator *op = sfile->op;
@@ -1007,7 +1031,7 @@ int file_exec(bContext *C, wmOperator *exec_op)
 		
 		sfile->op = NULL;
 
-		file_sfile_to_operator(op, sfile, filepath);
+		file_sfile_to_operator(op, sfile, filepath, false);
 
 		if (BLI_exists(sfile->params->dir)) {
 			fsmenu_insert_entry(ED_fsmenu_get(), FS_CATEGORY_RECENT, sfile->params->dir, NULL,

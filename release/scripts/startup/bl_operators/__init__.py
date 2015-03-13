@@ -48,6 +48,8 @@ _modules = [
     "wm",
 ]
 
+_modules.append("amber")
+
 import bpy
 
 if bpy.app.build_options.freestyle:

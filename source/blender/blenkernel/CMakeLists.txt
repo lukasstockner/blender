@@ -67,6 +67,7 @@ set(SRC
 	intern/anim_sys.c
 	intern/appdir.c
 	intern/armature.c
+	intern/asset.c
 	intern/autoexec.c
 	intern/blender.c
 	intern/bmfont.c
@@ -184,6 +185,7 @@ set(SRC
 	BKE_animsys.h
 	BKE_appdir.h
 	BKE_armature.h
+	BKE_asset.h
 	BKE_autoexec.h
 	BKE_blender.h
 	BKE_bmfont.h
