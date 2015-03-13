@@ -591,6 +591,9 @@ int count_set_pose_transflags(int *out_mode, short around, struct Object *ob);
 
 /* auto-keying stuff used by special_aftertrans_update */
 void autokeyframe_ob_cb_func(struct bContext *C, struct Scene *scene, struct View3D *v3d, struct Object *ob, int tmode);
+
+void autokeyframe_pose_tag_existing(struct Scene *scene, struct Object *ob);
+void autokeyframe_pose_revert(struct bContext *C, struct Scene *scene, struct Object *ob, bool targetless_ik);
 void autokeyframe_pose_cb_func(struct bContext *C, struct Scene *scene, struct View3D *v3d, struct Object *ob, int tmode, bool targetless_ik);
 
 /*********************** Constraints *****************************/

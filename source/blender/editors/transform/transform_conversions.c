@@ -1063,6 +1063,8 @@ static void createTransPose(TransInfo *t, Object *ob)
 
 	/* initialize initial auto=ik chainlen's? */
 	if (ik_on) transform_autoik_update(t, 0);
+
+	autokeyframe_pose_tag_existing(t->scene, ob);
 }
 
 void restoreBones(TransInfo *t)
@@ -5307,7 +5309,8 @@ void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob,
 /* auto keyframing: we need to tag the existing fcurves before attempting to insert keyframes
  * to avoid deleting them by mistake. Algorithm here is that if keyframe existed before,
  * we insert old value on cancel, else we completely delete it */
-void autokeyframe_pose_tag_existing (bContext *C, Scene *scene, Object *ob, bool targetless_ik) {
+void autokeyframe_pose_tag_existing(Scene *scene, Object *ob) {
+	ID *id = &ob->id;
 	AnimData *adt = ob->adt;
 	bAction *act = (adt) ? adt->action : NULL;
 	bPose   *pose = ob->pose;
@@ -5315,25 +5318,27 @@ void autokeyframe_pose_tag_existing (bContext *C, Scene *scene, Object *ob, bool
 	FCurve *fcu;
 	float cfra = (float)CFRA;
 
-	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-		if (pchan->bone->flag & BONE_TRANSFORM) {
-			if (act) {
-				for (fcu = act->curves.first; fcu; fcu = fcu->next) {
-					/* only insert keyframes for this F-Curve if it affects the current bone */
-					if (strstr(fcu->rna_path, "bones")) {
-						char *pchanName = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
+	if (autokeyframe_cfra_can_key(scene, id)) {
+		if (act) {
+			for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+				if (pchan->bone->flag & BONE_TRANSFORM) {
+					for (fcu = act->curves.first; fcu; fcu = fcu->next) {
+						/* only insert keyframes for this F-Curve if it affects the current bone */
+						if (strstr(fcu->rna_path, "bones")) {
+							char *pchanName = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
 
-						/* only if bone name matches too...
+							/* only if bone name matches too...
 						 * NOTE: this will do constraints too, but those are ok to do here too?
 						 */
-						if (pchanName && STREQ(pchanName, pchan->name)) {
-							bool replace;
-							binarysearch_bezt_index(fcu->bezt, cfra, fcu->totvert, &replace);
-							if (replace) {
-								fcu->flag |= FCURVE_TAGGED;
+							if (pchanName && STREQ(pchanName, pchan->name)) {
+								bool replace;
+								binarysearch_bezt_index(fcu->bezt, cfra, fcu->totvert, &replace);
+								if (replace) {
+									fcu->flag |= FCURVE_TAGGED;
+								}
 							}
+							if (pchanName) MEM_freeN(pchanName);
 						}
-						if (pchanName) MEM_freeN(pchanName);
 					}
 				}
 			}
@@ -5342,13 +5347,13 @@ void autokeyframe_pose_tag_existing (bContext *C, Scene *scene, Object *ob, bool
 }
 
 
-void autokeyframe_cleanup_untagged (bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode, bool targetless_ik) {
+void autokeyframe_pose_revert(bContext *C, Scene *scene, Object *ob, bool targetless_ik) {
 	ID *id = &ob->id;
 	AnimData *adt = ob->adt;
 	bAction *act = (adt) ? adt->action : NULL;
 	bPose   *pose = ob->pose;
 	bPoseChannel *pchan;
-	FCurve *fcu;
+	FCurve *fcu, *fcu_next;
 	ReportList *reports = CTX_wm_reports(C);
 	float cfra = (float)CFRA;
 	short flag = 0;
@@ -5363,27 +5368,36 @@ void autokeyframe_cleanup_untagged (bContext *C, Scene *scene, View3D *v3d, Obje
 	if (targetless_ik)
 		flag |= INSERTKEY_MATRIX;
 
-	for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
-		if (pchan->bone->flag & BONE_TRANSFORM) {
-			if (act) {
-				for (fcu = act->curves.first; fcu; fcu = fcu->next) {
-					/* only insert keyframes for this F-Curve if it affects the current bone */
-					if (strstr(fcu->rna_path, "bones")) {
-						char *pchanName = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
+	if (autokeyframe_cfra_can_key(scene, id)) {
+		for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
+			if (pchan->bone->flag & BONE_TRANSFORM) {
+				if (act) {
+					for (fcu = act->curves.first; fcu; fcu = fcu_next) {
+						fcu_next = fcu->next;
 
-						/* only if bone name matches too...
+						/* only insert keyframes for this F-Curve if it affects the current bone */
+						if (strstr(fcu->rna_path, "bones")) {
+							char *pchanName = BLI_str_quoted_substrN(fcu->rna_path, "bones[");
+
+							/* only if bone name matches too...
 							 * NOTE: this will do constraints too, but those are ok to do here too?
 							 */
-						if (pchanName && STREQ(pchanName, pchan->name)) {
-							if (fcu->flag & FCURVE_TAGGED)
-								insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
-							else
-								delete_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+							if (pchanName && STREQ(pchanName, pchan->name)) {
+								if (fcu->flag & FCURVE_TAGGED)
+									insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+								else
+									delete_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+							}
+							if (pchanName) MEM_freeN(pchanName);
 						}
-						if (pchanName) MEM_freeN(pchanName);
 					}
 				}
 			}
+		}
+
+		if (C && (ob->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
+			//ED_pose_clear_paths(C, ob); // XXX for now, don't need to clear
+			ED_pose_recalculate_paths(scene, ob);
 		}
 	}
 }
@@ -6026,10 +6040,11 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 
 		/* automatic inserting of keys and unkeyed tagging - only if transform wasn't canceled (or TFM_DUMMY) */
 		if (t->mode != TFM_DUMMY) {
-			if (t->scene->toolsettings->realtime_motion_path)
+			if (t->scene->toolsettings->realtime_motion_path && canceled)
+				autokeyframe_pose_revert(C, t->scene, ob, targetless_ik);
+			else {
 				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
-			else if (!canceled)
-				autokeyframe_pose_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode, targetless_ik);
+			}
 			DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
 		}
 		else if (arm->flag & ARM_DELAYDEFORM) {
