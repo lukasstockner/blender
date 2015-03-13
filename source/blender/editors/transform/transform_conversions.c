@@ -5217,6 +5217,8 @@ void autokeyframe_ob_tag_existing(Scene *scene, Object *ob) {
 			for (fcu = act->curves.first; fcu; fcu = fcu->next) {
 				bool replace;
 				binarysearch_bezt_index(fcu->bezt, cfra, fcu->totvert, &replace);
+
+				fcu->flag &= ~FCURVE_TAGGED;
 				if (replace) {
 					fcu->flag |= FCURVE_TAGGED;
 				}
@@ -5246,8 +5248,10 @@ void autokeyframe_ob_revert(bContext *C, Scene *scene, Object *ob) {
 			for (fcu = act->curves.first; fcu; fcu = fcu_next) {
 				fcu_next = fcu->next;
 
-				if (fcu->flag & FCURVE_TAGGED)
+				if (fcu->flag & FCURVE_TAGGED) {
+					fcu->flag &= ~FCURVE_TAGGED;
 					insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+				}
 				else
 					delete_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 			}
@@ -5397,6 +5401,8 @@ void autokeyframe_pose_tag_existing(Scene *scene, Object *ob) {
 							if (pchanName && STREQ(pchanName, pchan->name)) {
 								bool replace;
 								binarysearch_bezt_index(fcu->bezt, cfra, fcu->totvert, &replace);
+
+								fcu->flag &= ~FCURVE_TAGGED;
 								if (replace) {
 									fcu->flag |= FCURVE_TAGGED;
 								}
@@ -5447,8 +5453,10 @@ void autokeyframe_pose_revert(bContext *C, Scene *scene, Object *ob, bool target
 							 * NOTE: this will do constraints too, but those are ok to do here too?
 							 */
 							if (pchanName && STREQ(pchanName, pchan->name)) {
-								if (fcu->flag & FCURVE_TAGGED)
+								if (fcu->flag & FCURVE_TAGGED) {
+									fcu->flag &= ~FCURVE_TAGGED;
 									insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+								}
 								else
 									delete_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 							}
