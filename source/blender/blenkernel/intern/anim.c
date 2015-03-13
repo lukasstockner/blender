@@ -35,6 +35,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math.h"
+#include "BLI_threads.h"
 
 #include "BLF_translation.h"
 
@@ -42,8 +43,10 @@
 #include "DNA_armature_types.h"
 #include "DNA_key_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 #include "BKE_curve.h"
+#include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_key.h"
@@ -54,6 +57,9 @@
 #include "BKE_scene.h"
 #include "BKE_anim.h"
 #include "BKE_report.h"
+
+#include "WM_types.h"
+#include "WM_api.h"
 
 // XXX bad level call...
 
@@ -476,6 +482,126 @@ void animviz_calc_motionpaths(Scene *scene, ListBase *targets)
 		*/
 	}
 }
+
+typedef struct MotionPathJob {
+	ListBase motionpaths;
+	ThreadMutex *mutex;
+	Scene *scene;
+	int total; /* total keyframes needed for processing */
+	int processed; /* number of processed keyframes */
+} MotionPathJob;
+
+typedef struct MotionPathJobElement {
+	struct MotionPathJobElement *next, *prev;
+} MotionPathJobElement;
+
+static void free_motionpath_job(void *data)
+{
+	MotionPathJob *mpj = (MotionPathJob *)data;
+
+	BLI_mutex_free(mpj->mutex);
+	BLI_freelistN(&mpj->motionpaths);
+	MEM_freeN(mpj);
+}
+
+/* only this runs inside thread */
+static void motionpath_startjob(void *data, short *stop, short *do_update, float *progress)
+{
+	MotionPathJob *mpj = data;
+	MotionPathJobElement *mpe;
+
+	BLI_mutex_lock(mpj->mutex);
+	mpe = mpj->motionpaths.first;
+	BLI_mutex_unlock(mpj->mutex);
+
+	while (mpe) {
+		MotionPathJobElement *mpe_next;
+
+		if (*stop || G.is_break) {
+			BLI_mutex_lock(mpj->mutex);
+			mpe = mpe->next;
+			BLI_mutex_unlock(mpj->mutex);
+			while (mpe) {
+				/*
+				sound = previewjb->sound;
+
+				BLI_spin_lock(sound->spinlock);
+				sound->flags &= ~SOUND_FLAGS_WAVEFORM_LOADING;
+				BLI_spin_unlock(sound->spinlock);
+
+				BLI_mutex_lock(pj->mutex);
+				previewjb = previewjb->next;
+				BLI_mutex_unlock(pj->mutex);
+				*/
+			}
+
+			BLI_mutex_lock(mpj->mutex);
+			BLI_freelistN(&mpj->motionpaths);
+			mpj->total = 0;
+			mpj->processed = 0;
+			BLI_mutex_unlock(mpj->mutex);
+			break;
+		}
+
+		BLI_mutex_lock(mpj->mutex);
+		mpe_next = mpe->next;
+		BLI_freelinkN(&mpj->motionpaths, mpe);
+		mpe = mpe_next;
+		mpj->processed++;
+		*progress = (mpj->total > 0) ? (float)mpj->processed / (float)mpj->total : 1.0f;
+		*do_update = true;
+		BLI_mutex_unlock(mpj->mutex);
+	}
+}
+
+static void motionpath_endjob(void *data)
+{
+	MotionPathJob *mpj = data;
+
+	WM_main_add_notifier(NC_SCENE | ND_ANIMPLAY, mpj->scene);
+}
+
+
+/* add an object ot the thread calculating motionpaths */
+void animviz_add_object(const bContext *C, struct Object *ob)
+{
+	/* first, get the preview job, if it exists */
+	wmJob *wm_job;
+	MotionPathJob *mpj;
+	ScrArea *sa = CTX_wm_area(C);
+	MotionPathJobElement *mpe = MEM_callocN(sizeof(MotionPathJobElement), "motionpath_element");
+	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), sa, "Motion Paths",
+	                     WM_JOB_PROGRESS, WM_JOB_TYPE_MOTIONPATHS);
+
+	mpj = WM_jobs_customdata_get(wm_job);
+
+	if (!mpj) {
+		mpj = MEM_callocN(sizeof(MotionPathJob), "motion path job");
+
+		mpj->mutex = BLI_mutex_alloc();
+		mpj->scene = CTX_data_scene(C);
+
+		WM_jobs_customdata_set(wm_job, mpj, free_motionpath_job);
+		WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_SEQUENCER, NC_SCENE | ND_SEQUENCER);
+		WM_jobs_callbacks(wm_job, motionpath_startjob, NULL, NULL, motionpath_endjob);
+	}
+
+	/* attempt to lock mutex of job here */
+
+	//mpe-> = ;
+
+	BLI_mutex_lock(mpj->mutex);
+	BLI_addtail(&mpj->motionpaths, mpe);
+	mpj->total++;
+	BLI_mutex_unlock(mpj->mutex);
+
+	if (!WM_jobs_is_running(wm_job)) {
+		G.is_break = false;
+		WM_jobs_start(CTX_wm_manager(C), wm_job);
+	}
+}
+
+
 
 /* ******************************************************************** */
 /* Curve Paths - for curve deforms and/or curve following */
