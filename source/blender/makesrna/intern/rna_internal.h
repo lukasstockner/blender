@@ -35,7 +35,6 @@
 
 #define RNA_MAGIC ((int)~0)
 
-struct AssetEngine;
 struct ColorBand;
 struct ID;
 struct IDProperty;
@@ -134,7 +133,6 @@ void RNA_def_action(struct BlenderRNA *brna);
 void RNA_def_animation(struct BlenderRNA *brna);
 void RNA_def_animviz(struct BlenderRNA *brna);
 void RNA_def_armature(struct BlenderRNA *brna);
-void RNA_def_asset(struct BlenderRNA *brna);
 void RNA_def_actuator(struct BlenderRNA *brna);
 void RNA_def_boid(struct BlenderRNA *brna);
 void RNA_def_brush(struct BlenderRNA *brna);

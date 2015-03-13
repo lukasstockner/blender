@@ -34,7 +34,6 @@ class FILEBROWSER_HT_header(Header):
         layout.template_header()
 
         row = layout.row()
-        row.prop(st, "asset_engine", text="")
         row.separator()
 
         row = layout.row(align=True)

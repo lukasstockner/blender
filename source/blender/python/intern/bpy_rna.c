@@ -7525,7 +7525,7 @@ PyDoc_STRVAR(pyrna_register_class_doc,
 "   Register a subclass of a blender type in (:class:`bpy.types.Panel`,\n"
 "   :class:`bpy.types.UIList`, :class:`bpy.types.Menu`, :class:`bpy.types.Header`,\n"
 "   :class:`bpy.types.Operator`, :class:`bpy.types.KeyingSetInfo`,\n"
-"   :class:`bpy.types.RenderEngine`, :class:`bpy.types.AssetEngine`).\n"
+"   :class:`bpy.types.RenderEngine`).\n"
 "\n"
 "   If the class has a *register* class method it will be called\n"
 "   before registration.\n"

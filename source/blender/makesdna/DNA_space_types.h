@@ -622,8 +622,6 @@ typedef struct SpaceFile {
 	
 	int scroll_offset;
 
-	char asset_engine[64];  /* BKE_ST_MAXNAME */
-
 	struct FileSelectParams *params; /* config and input for file select */
 	
 	struct FileList *files; /* holds the list of files to show */
@@ -733,7 +731,7 @@ typedef enum eFileSel_File_Types {
 	FILE_TYPE_OPERATOR          = (1 << 14), /* from filter_glob operator property */
 	FILE_TYPE_APPLICATIONBUNDLE = (1 << 15),
 
-	FILE_TYPE_DIR               = (1 << 30),  /* A directory. */
+	FILE_TYPE_DIR               = (1 << 30),  /* An FS directory (i.e. S_ISDIR on its path is true). */
 	FILE_TYPE_BLENDERLIB        = (1 << 31),
 } eFileSel_File_Types;
 
@@ -848,7 +846,7 @@ typedef struct FileDirEntryArr {
 	int nbr_entries;
 	int pad;
 
-	char root[768];	 /* FILE_MAXDIR */
+	char root[1024];	 /* FILE_MAX */
 } FileDirEntryArr;
 
 #define ASSET_UUID_LENGTH     24

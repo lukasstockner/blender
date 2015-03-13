@@ -583,9 +583,6 @@ void uiTemplateComponentMenu(struct uiLayout *layout, struct PointerRNA *ptr, co
 void uiTemplateNodeSocket(struct uiLayout *layout, struct bContext *C, float *color) RET_NONE
 void uiTemplatePalette(struct uiLayout *layout, struct PointerRNA *ptr, const char *propname, int color) RET_NONE
 
-/* rna asset */
-void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr) RET_NONE
-
 /* rna render */
 struct RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername) RET_NULL
 struct RenderResult *RE_AcquireResultRead(struct Render *re) RET_NULL
