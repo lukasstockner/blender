@@ -598,6 +598,321 @@ static GHash *ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp, GHashValCopyFP val
 	return gh_new;
 }
 
+/**
+ * Merge \a gh2 into \a gh1 (keeping entries already in \a gh1 unchanged), and then each subsequent given GHash.
+ * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
+ * If \a reverse is True, entries present in latest GHash will override those in former GHash.
+ */
+static GHash *ghash_union(
+        const bool reverse,
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, va_list arg)
+{
+	GHash *ghn = gh2;
+
+	BLI_assert(ghn);
+
+	if (!gh1) {
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
+		ghn = va_arg(arg, GHash *);
+	}
+
+	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+		unsigned int i;
+
+		BLI_assert(gh1->cmpfp == ghn->cmpfp);
+		BLI_assert(gh1->hashfp == ghn->hashfp);
+		BLI_assert(gh1->is_gset == ghn->is_gset);
+
+		for (i = 0; i < ghn->nbuckets; i++) {
+			Entry *e;
+
+			for (e = ghn->buckets[i]; e; e = e->next) {
+				Entry *e_gh1;
+				const unsigned int hash = ghash_entryhash(gh1, e);
+				const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, hash);
+
+				if ((e_gh1 = ghash_lookup_entry_ex(gh1, e->key, hash, gh1_bucket_hash)) == NULL) {
+					Entry *e_new = BLI_mempool_alloc(gh1->entrypool);
+
+					entry_copy(gh1, e_new, ghn, e, hash, keycopyfp, valcopyfp);
+
+					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+					e_new->next = gh1->buckets[gh1_bucket_hash];
+					gh1->buckets[gh1_bucket_hash] = e_new;
+					ghash_expand_buckets(gh1, ++gh1->nentries, false, false);
+				}
+				else if (reverse) {
+					if (keyfreefp) keyfreefp(e_gh1->key);
+					if (valfreefp) valfreefp(((GHashEntry *)e_gh1)->val);
+
+					entry_copy(gh1, e_gh1, ghn, e, hash, keycopyfp, valcopyfp);
+				}
+			}
+		}
+	}
+
+	return gh1;
+}
+
+/**
+ * Remove all entries in \a gh1 which keys are not present in \a gh2 and all subsequent given GHash.
+ * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
+ */
+static GHash *ghash_intersection(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, va_list arg)
+{
+	GHash *ghn = gh2;
+
+	BLI_assert(ghn);
+
+	if (!gh1) {
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
+		ghn = va_arg(arg, GHash *);
+	}
+
+	BLI_assert(!valfreefp || !gh1->is_gset);
+
+	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+		unsigned int new_gh1_nentries = gh1->nentries;
+		unsigned int i;
+
+		BLI_assert(gh1->cmpfp == ghn->cmpfp);
+		BLI_assert(gh1->hashfp == ghn->hashfp);
+
+		for (i = 0; i < gh1->nbuckets; i++) {
+			Entry *e, *e_prev = NULL, *e_next;
+
+			for (e = gh1->buckets[i]; e; e = e_next) {
+				const unsigned int hash = ghash_entryhash(gh1, e);
+				const unsigned int ghn_bucket_hash = ghash_bucket_hash(ghn, hash);
+
+				e_next = e->next;
+
+				if (ghash_lookup_entry_ex(ghn, e->key, hash, ghn_bucket_hash) == NULL) {
+					if (keyfreefp) keyfreefp(e->key);
+					if (valfreefp) valfreefp(((GHashEntry *)e)->val);
+
+					if (e_prev) e_prev->next = e_next;
+					else        gh1->buckets[i] = e_next;
+
+					/* We cannot resize gh1 while we are looping on it!!! */
+					new_gh1_nentries--;
+					BLI_mempool_free(gh1->entrypool, e);
+				}
+				else {
+					e_prev = e;
+				}
+			}
+		}
+
+		gh1->nentries = new_gh1_nentries;
+		/* We force shrinking here (if needed). */
+		ghash_expand_buckets(gh1, gh1->nentries, false, true);
+	}
+
+	return gh1;
+}
+
+/**
+ * Remove all entries in \a gh1 which keys are present in \a gh2 or any subsequent given GHash.
+ * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
+ */
+static GHash *ghash_difference(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, va_list arg)
+{
+	GHash *ghn = gh2;
+
+	BLI_assert(ghn);
+
+	if (!gh1) {
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
+		ghn = va_arg(arg, GHash *);
+	}
+
+	BLI_assert(!valfreefp || !gh1->is_gset);
+
+	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+		unsigned int new_gh1_nentries = gh1->nentries;
+		unsigned int i;
+
+		BLI_assert(gh1->cmpfp == ghn->cmpfp);
+		BLI_assert(gh1->hashfp == ghn->hashfp);
+
+		for (i = 0; i < gh1->nbuckets; i++) {
+			Entry *e, *e_prev = NULL, *e_next;
+
+			for (e = gh1->buckets[i]; e; e = e_next) {
+				const unsigned int hash = ghash_entryhash(gh1, e);
+				const unsigned int ghn_bucket_hash = ghash_bucket_hash(ghn, hash);
+
+				e_next = e->next;
+
+				if (ghash_lookup_entry_ex(ghn, e->key, hash, ghn_bucket_hash) != NULL) {
+					if (keyfreefp) keyfreefp(e->key);
+					if (valfreefp) valfreefp(((GHashEntry *)e)->val);
+
+					if (e_prev) e_prev->next = e_next;
+					else        gh1->buckets[i] = e_next;
+
+					/* We cannot resize gh1 while we are looping on it!!! */
+					new_gh1_nentries--;
+					BLI_mempool_free(gh1->entrypool, e);
+				}
+				else {
+					e_prev = e;
+				}
+			}
+		}
+
+		gh1->nentries = new_gh1_nentries;
+		/* We force shrinking here (if needed). */
+		ghash_expand_buckets(gh1, gh1->nentries, false, true);
+	}
+
+	return gh1;
+}
+
+/**
+ * Set \a gh1 to only contain entries which keys are present in one and only one of all given ghash.
+ * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
+ */
+static GHash *ghash_symmetric_difference(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, va_list arg)
+{
+	GHash *ghn = gh2;
+	unsigned int i;
+
+	/* Temp storage, we never copy key/values here, just borrow them from real ghash. */
+	/* Warning! rem_keys is used as gset (i.e. no val memory reserved). */
+	GHash *keys, *rem_keys;
+
+	BLI_assert(ghn);
+
+	if (!gh1) {
+		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
+		ghn = va_arg(arg, GHash *);
+	}
+
+	BLI_assert(!valfreefp || !gh1->is_gset);
+
+	keys = ghash_copy(gh1, NULL, NULL);
+	rem_keys = ghash_new(gh1->hashfp, gh1->cmpfp, __func__, 64, true);
+
+	/* First pass: all key found at least once is in keys, all key found at least twice is in rem_keys. */
+	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+		BLI_assert(gh1->cmpfp == ghn->cmpfp);
+		BLI_assert(gh1->hashfp == ghn->hashfp);
+		BLI_assert(gh1->is_gset == ghn->is_gset);
+
+		for (i = 0; i < ghn->nbuckets; i++) {
+			Entry *e;
+
+			for (e = ghn->buckets[i]; e; e = e->next) {
+				const unsigned int hash = ghash_entryhash(ghn, e);
+				const unsigned int keys_bucket_hash = ghash_bucket_hash(keys, hash);
+
+				if (ghash_lookup_entry_ex(keys, e->key, hash, keys_bucket_hash) != NULL) {
+					const unsigned int rem_keys_bucket_hash = ghash_bucket_hash(rem_keys, hash);
+					Entry *e_new = BLI_mempool_alloc(rem_keys->entrypool);
+
+					entry_copy(rem_keys, e_new, ghn, e, hash, NULL, NULL);
+
+					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+					e_new->next = rem_keys->buckets[rem_keys_bucket_hash];
+					rem_keys->buckets[rem_keys_bucket_hash] = e_new;
+					ghash_expand_buckets(rem_keys, ++rem_keys->nentries, false, false);
+				}
+				else {
+					Entry *e_new = BLI_mempool_alloc(keys->entrypool);
+
+					entry_copy(keys, e_new, ghn, e, hash, NULL, NULL);
+
+					/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+					e_new->next = keys->buckets[keys_bucket_hash];
+					keys->buckets[keys_bucket_hash] = e_new;
+					ghash_expand_buckets(keys, ++keys->nentries, false, false);
+				}
+			}
+		}
+	}
+
+	/* Now, keys we actually want are (keys - rem_keys) */
+	for (i = 0; i < rem_keys->nbuckets; i++) {
+		Entry *e;
+
+		for (e = rem_keys->buckets[i]; e; e = e->next) {
+			Entry *e_prev, *e_curr;
+			const unsigned int hash = ghash_entryhash(rem_keys, e);
+			const unsigned int keys_bucket_hash = ghash_bucket_hash(keys, hash);
+			const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, hash);
+
+			e_curr = ghash_lookup_entry_prev_ex(keys, e->key, &e_prev, hash, keys_bucket_hash);
+			BLI_assert(e_curr != NULL);  /* All keys in rem_keys must exist in keys! */
+
+			if (e_prev) e_prev->next = e_curr->next;
+			else        keys->buckets[keys_bucket_hash] = e_curr->next;
+
+			/* We do not care about shrinking keys' buckets here! */
+			keys->nentries--;
+			BLI_mempool_free(keys->entrypool, e_curr);
+
+			/* Also remove keys from gh1 if possible, since we are at it... */
+			e_curr = ghash_lookup_entry_prev_ex(gh1, e->key, &e_prev, hash, gh1_bucket_hash);
+			if (e_curr) {
+				if (e_prev) e_prev->next = e_curr->next;
+				else        gh1->buckets[gh1_bucket_hash] = e_curr->next;
+
+				/* Note: We can free key/value here, because we won't use them again (have been removed
+				 *       from keys already, and we won't use matching entry from rem_key again either. */
+				if (keyfreefp) keyfreefp(e_curr->key);
+				if (valfreefp) valfreefp(((GHashEntry *)e_curr)->val);
+
+				/* We do not care about shrinking gh1's buckets here for now! */
+				gh1->nentries--;
+				BLI_mempool_free(gh1->entrypool, e_curr);
+			}
+		}
+	}
+
+	BLI_ghash_free(rem_keys, NULL, NULL);
+
+	/* Final step: add (copy) all entries from keys which are not already in gh1. */
+	for (i = 0; i < keys->nbuckets; i++) {
+		Entry *e;
+
+		for (e = keys->buckets[i]; e; e = e->next) {
+			const unsigned int hash = ghash_entryhash(keys, e);
+			const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, hash);
+
+			if (ghash_lookup_entry_ex(gh1, e->key, hash, gh1_bucket_hash) == NULL) {
+				Entry *e_new = BLI_mempool_alloc(gh1->entrypool);
+
+				entry_copy(gh1, e_new, keys, e, hash, keycopyfp, valcopyfp);
+
+				/* As with copy, this does not preserve order (but this would be even less meaningful here). */
+				e_new->next = gh1->buckets[gh1_bucket_hash];
+				gh1->buckets[gh1_bucket_hash] = e_new;
+				ghash_expand_buckets(gh1, ++gh1->nentries, false, false);
+			}
+		}
+	}
+
+	BLI_ghash_free(keys, NULL, NULL);
+
+	/* We force shrinking here (if needed). */
+	ghash_expand_buckets(gh1, gh1->nentries, false, true);
+
+	return gh1;
+}
+
 /** \} */
 
 
@@ -832,6 +1147,225 @@ void BLI_ghash_flag_set(GHash *gh, unsigned int flag)
 void BLI_ghash_flag_clear(GHash *gh, unsigned int flag)
 {
 	gh->flag &= ~flag;
+}
+
+/**
+ * Check whether no key from \a gh1 exists in \a gh2.
+ */
+bool BLI_ghash_isdisjoint(GHash *gh1, GHash *gh2)
+{
+	/* Note: For now, take a basic, brute force approach.
+	 *       If we switch from modulo to masking, we may have ways to optimize this, though. */
+	unsigned int i;
+
+	BLI_assert(gh1->cmpfp == gh2->cmpfp);
+	BLI_assert(gh1->hashfp == gh2->hashfp);
+
+	if (gh1->nentries > gh2->nentries)
+	{
+		SWAP(GHash *, gh1, gh2);
+	}
+
+	for (i = 0; i < gh1->nbuckets; i++) {
+		Entry *e;
+
+		for (e = gh1->buckets[i]; e; e = e->next) {
+			const unsigned int hash = ghash_entryhash(gh1, e);
+			const unsigned int gh2_bucket_hash = ghash_bucket_hash(gh2, hash);
+			if (ghash_lookup_entry_ex(gh2, e->key, hash, gh2_bucket_hash)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check whether \a gh1 and \a gh2 contain exactly the same keys.
+ */
+bool BLI_ghash_isequal(GHash *gh1, GHash *gh2)
+{
+	unsigned int i;
+
+	BLI_assert(gh1->cmpfp == gh2->cmpfp);
+	BLI_assert(gh1->hashfp == gh2->hashfp);
+
+	if (gh1->nentries != gh2->nentries) {
+		return false;
+	}
+
+	for (i = 0; i < gh1->nbuckets; i++) {
+		Entry *e;
+
+		for (e = gh1->buckets[i]; e; e = e->next) {
+			const unsigned int hash = ghash_entryhash(gh1, e);
+			unsigned int gh2_bucket_hash = ghash_bucket_hash(gh2, hash);
+			if (!ghash_lookup_entry_ex(gh2, e->key, hash, gh2_bucket_hash)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check whether \a gh2 keys are a subset of \a gh1 keys.
+ *     gh1 >= gh2
+ *
+ * Note: Strict subset is (gh1 >= gh2) && (gh1->nentries != gh2->nentries).
+ */
+bool BLI_ghash_issubset(GHash *gh1, GHash *gh2)
+{
+	unsigned int i;
+
+	BLI_assert(gh1->cmpfp == gh2->cmpfp);
+	BLI_assert(gh1->hashfp == gh2->hashfp);
+
+	if (gh1->nentries < gh2->nentries) {
+		return false;
+	}
+
+	for (i = 0; i < gh2->nbuckets; i++) {
+		Entry *e;
+
+		for (e = gh2->buckets[i]; e; e = e->next) {
+			const unsigned int hash = ghash_entryhash(gh2, e);
+			const unsigned int gh1_bucket_hash = ghash_bucket_hash(gh1, hash);
+			if (!ghash_lookup_entry_ex(gh1, e->key, hash, gh1_bucket_hash)) {
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+/**
+ * Check whether \a gh2 keys are a superset of \a gh1 keys.
+ *     gh1 <= gh2
+ *
+ * Note: Strict superset is (gh1 <= gh2) && (gh1->nentries != gh2->nentries).
+ */
+bool BLI_ghash_issuperset(GHash *gh1, GHash *gh2)
+{
+	return BLI_ghash_issubset(gh2, gh1);
+}
+
+/**
+ * Union, from left to right.
+ * Similar to python's \a PyDict_Merge(a, b, false).
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place.
+ *
+ * Notes:
+ *     * All given GHash shall share the same comparison and hashing functions!
+ *     * All given GHash **must** be valid GHash (no GSet allowed here).
+ */
+GHash *BLI_ghash_union(GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp, GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_union(false, keycopyfp, valcopyfp, NULL, NULL, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
+}
+
+/**
+ * Union, from right to left (less efficient, since it may have to allocate and then free key/val pairs).
+ * Similar to python's \a PyDict_Merge(a, b, true).
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place and returned.
+ *
+ * Notes:
+ *     * All given GHash shall share the same comparison and hashing functions!
+ *     * All given GHash **must** be valid GHash (no GSet allowed here).
+ */
+GHash *BLI_ghash_union_reversed(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_union(true, keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
+}
+
+/**
+ * Intersection (i.e. entries which keys exist in all gh1, gh2, ...).
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place and returned.
+ *
+ * Notes:
+ *     * All given GHash shall share the same comparison and hashing functions!
+ *     * First given GHash **must** be a valid GHash, subsequent ones may be GSet.
+ */
+GHash *BLI_ghash_intersection(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_intersection(keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
+}
+
+/**
+ * Difference, i.e. remove all entries in \a gh1 which keys are present in \a gh2 or any subsequent given GHash.
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place and returned.
+ *
+ * Notes:
+ *     * All given GHash shall share the same comparison and hashing functions!
+ *     * First given GHash **must** be a valid GHash, subsequent ones may be GSet.
+ */
+GHash *BLI_ghash_difference(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_difference(keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
+}
+
+/**
+ * Symmetric difference,
+ * i.e. such as \a gh1 to only contain entries which keys are present in one and only one of all given ghash.
+ * If \a gh1 is NULL, a new GHash is returned, otherwise \a gh1 is modified in place and returned.
+ *
+ * Notes:
+ *     * All given GHash shall share the same comparison and hashing functions!
+ *     * All given GHash **must** be valid GHash (no GSet allowed here).
+ */
+GHash *BLI_ghash_symmetric_difference(
+        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
+        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
+        GHash *gh1, GHash *gh2, ...)
+{
+	GHash *gh_ret;
+	va_list arg;
+
+	va_start(arg, gh2);
+	gh_ret = ghash_symmetric_difference(keycopyfp, valcopyfp, keyfreefp, valfreefp, gh1, gh2, arg);
+	va_end(arg);
+
+	return gh_ret;
 }
 
 /** \} */
@@ -1266,6 +1800,91 @@ void BLI_gset_flag_set(GSet *gs, unsigned int flag)
 void BLI_gset_flag_clear(GSet *gs, unsigned int flag)
 {
 	((GHash *)gs)->flag &= ~flag;
+}
+
+bool BLI_gset_isdisjoint(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_isdisjoint((GHash *)gs1, (GHash *)gs2);
+}
+
+bool BLI_gset_isequal(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_isequal((GHash *)gs1, (GHash *)gs2);
+}
+
+bool BLI_gset_issubset(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_issubset((GHash *)gs1, (GHash *)gs2);
+}
+
+bool BLI_gset_issuperset(GSet *gs1, GSet *gs2)
+{
+	return BLI_ghash_issubset((GHash *)gs2, (GHash *)gs1);
+}
+
+/**
+ * Union (no left to right/right to left here, this makes no sense in set context (i.e. no value)).
+ * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
+ */
+GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...)
+{
+	GSet *gs_ret;
+	va_list arg;
+
+	va_start(arg, gs2);
+	gs_ret = (GSet *)ghash_union(false, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	va_end(arg);
+
+	return gs_ret;
+}
+
+/**
+ * Intersection (i.e. entries which keys exist in all gs1, gs2, ...).
+ * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
+ */
+GSet *BLI_gset_intersection(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...)
+{
+	GSet *gs_ret;
+	va_list arg;
+
+	va_start(arg, gs2);
+	gs_ret = (GSet *)ghash_intersection(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	va_end(arg);
+
+	return gs_ret;
+}
+
+/**
+ * Difference, i.e. remove all entries in \a gs1 which keys are present in \a gs2 or any subsequent given GSet.
+ * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
+ */
+GSet *BLI_gset_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...)
+{
+	GSet *gs_ret;
+	va_list arg;
+
+	va_start(arg, gs2);
+	gs_ret = (GSet *)ghash_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	va_end(arg);
+
+	return gs_ret;
+}
+
+/**
+ * Symmetric difference,
+ * i.e. such as \a gs1 to only contain entries which keys are present in one and only one of all given gset.
+ * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
+ */
+GSet *BLI_gset_symmetric_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...)
+{
+	GSet *gs_ret;
+	va_list arg;
+
+	va_start(arg, gs2);
+	gs_ret = (GSet *)ghash_symmetric_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	va_end(arg);
+
+	return gs_ret;
 }
 
 /** \} */
