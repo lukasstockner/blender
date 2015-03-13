@@ -1064,7 +1064,8 @@ static void createTransPose(TransInfo *t, Object *ob)
 	/* initialize initial auto=ik chainlen's? */
 	if (ik_on) transform_autoik_update(t, 0);
 
-	autokeyframe_pose_tag_existing(t->scene, ob);
+	if (t->scene->toolsettings->realtime_motion_path)
+		autokeyframe_pose_tag_existing(t->scene, ob);
 }
 
 void restoreBones(TransInfo *t)
@@ -5020,6 +5021,10 @@ static void ObjectToTransData(TransInfo *t, TransData *td, Object *ob)
 		unit_m3(td->smtx);
 		unit_m3(td->mtx);
 	}
+
+	if (t->scene->toolsettings->realtime_motion_path) {
+		autokeyframe_ob_tag_existing(scene, ob);
+	}
 }
 
 
@@ -5196,6 +5201,65 @@ static void clear_trans_object_base_flags(TransInfo *t)
 /* auto-keyframing feature - for objects
  *  tmode: should be a transform mode
  */
+
+/* auto keyframing: we need to tag the existing fcurves before attempting to insert keyframes
+ * to avoid deleting them by mistake. Algorithm here is that if keyframe existed before,
+ * we insert old value on cancel, else we completely delete it */
+void autokeyframe_ob_tag_existing(Scene *scene, Object *ob) {
+	ID *id = &ob->id;
+	AnimData *adt = ob->adt;
+	bAction *act = (adt) ? adt->action : NULL;
+	FCurve *fcu;
+	float cfra = (float)CFRA;
+
+	if (act) {
+		if (autokeyframe_cfra_can_key(scene, id)) {
+			for (fcu = act->curves.first; fcu; fcu = fcu->next) {
+				bool replace;
+				binarysearch_bezt_index(fcu->bezt, cfra, fcu->totvert, &replace);
+				if (replace) {
+					fcu->flag |= FCURVE_TAGGED;
+				}
+			}
+		}
+	}
+}
+
+void autokeyframe_ob_revert(bContext *C, Scene *scene, Object *ob) {
+	ID *id = &ob->id;
+	AnimData *adt = ob->adt;
+	bAction *act = (adt) ? adt->action : NULL;
+	FCurve *fcu, *fcu_next;
+	ReportList *reports = CTX_wm_reports(C);
+	float cfra = (float)CFRA;
+	short flag = 0;
+
+	/* flag is initialized from UserPref keyframing settings
+	 *	- special exception for targetless IK - INSERTKEY_MATRIX keyframes should get
+	 *    visual keyframes even if flag not set, as it's not that useful otherwise
+	 *	  (for quick animation recording)
+	 */
+	flag = ANIM_get_keyframing_flags(scene, 1);
+
+	if (autokeyframe_cfra_can_key(scene, id)) {
+		if (act) {
+			for (fcu = act->curves.first; fcu; fcu = fcu_next) {
+				fcu_next = fcu->next;
+
+				if (fcu->flag & FCURVE_TAGGED)
+					insert_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+				else
+					delete_keyframe(reports, id, act, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
+			}
+		}
+
+		if (C && (ob->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS)) {
+			//ED_objects_clear_paths(C); // XXX for now, don't need to clear
+			ED_objects_recalculate_paths(C, scene);
+		}
+	}
+}
+
 // NOTE: context may not always be available, so must check before using it as it's a luxury for a few cases
 void autokeyframe_ob_cb_func(bContext *C, Scene *scene, View3D *v3d, Object *ob, int tmode)
 {
@@ -5318,8 +5382,8 @@ void autokeyframe_pose_tag_existing(Scene *scene, Object *ob) {
 	FCurve *fcu;
 	float cfra = (float)CFRA;
 
-	if (autokeyframe_cfra_can_key(scene, id)) {
-		if (act) {
+	if (act) {
+		if (autokeyframe_cfra_can_key(scene, id)) {
 			for (pchan = pose->chanbase.first; pchan; pchan = pchan->next) {
 				if (pchan->bone->flag & BONE_TRANSFORM) {
 					for (fcu = act->curves.first; fcu; fcu = fcu->next) {
@@ -6102,9 +6166,9 @@ void special_aftertrans_update(bContext *C, TransInfo *t)
 			DAG_id_tag_update(&ob->id, OB_RECALC_OB);
 
 			/* Set autokey if necessary */
-			if (t->scene->toolsettings->realtime_motion_path)
-				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode);
-			else if (!canceled)
+			if (t->scene->toolsettings->realtime_motion_path && canceled)
+				autokeyframe_ob_revert(C, t->scene, ob);
+			else
 				autokeyframe_ob_cb_func(C, t->scene, (View3D *)t->view, ob, t->mode);
 			
 			/* restore rigid body transform */
