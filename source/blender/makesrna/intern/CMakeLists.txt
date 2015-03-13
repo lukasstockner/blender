@@ -125,6 +125,9 @@ set(APISRC
 )
 
 string(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
+list(APPEND GENSRC
+	"${CMAKE_CURRENT_BINARY_DIR}/rna_prototypes_gen.h"
+)
 set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
 
 # --------------------------
