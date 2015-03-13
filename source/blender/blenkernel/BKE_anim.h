@@ -32,6 +32,7 @@
  *  \author nzc
  *  \since March 2001
  */
+struct bContext;
 struct EvaluationContext;
 struct Path;
 struct Object;
@@ -55,6 +56,7 @@ struct bMotionPath *animviz_verify_motionpaths(struct ReportList *reports, struc
 
 void animviz_get_object_motionpaths(struct Object *ob, ListBase *targets);
 void animviz_calc_motionpaths(struct Scene *scene, ListBase *targets);
+void animviz_queue_object(const struct bContext *C, struct Object *ob);
 
 /* ---------------------------------------------------- */
 /* Curve Paths */

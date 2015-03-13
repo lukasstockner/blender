@@ -91,6 +91,12 @@ void animviz_settings_init(bAnimVizSettings *avs)
 	avs->path_sf = 1; /* xxx - take from scene instead? */
 	avs->path_ef = 250; /* xxx - take from scene instead? */
 
+	avs->inv_start = avs->path_sf;
+	avs->inv_end = avs->path_ef;
+
+	/* max value shows invalid data */
+	avs->calc_end = avs->calc_start = INT32_MAX;
+
 	avs->path_viewflag = (MOTIONPATH_VIEW_KFRAS | MOTIONPATH_VIEW_KFNOS);
 
 	avs->path_step = 1;
@@ -189,6 +195,11 @@ bMotionPath *animviz_verify_motionpaths(ReportList *reports, Scene *scene, Objec
 			else {
 				/* clear the existing path (as the range has changed), and reallocate below */
 				animviz_free_motionpath_cache(mpath);
+				avs->inv_start = avs->path_sf;
+				avs->inv_end = avs->path_ef;
+
+				/* max value shows invalid data */
+				avs->calc_end = avs->calc_start = INT32_MAX;
 			}
 		}
 	}
@@ -563,7 +574,7 @@ static void motionpath_endjob(void *data)
 
 
 /* add an object ot the thread calculating motionpaths */
-void animviz_add_object(const bContext *C, struct Object *ob)
+void animviz_queue_object(const bContext *C, struct Object *ob)
 {
 	/* first, get the preview job, if it exists */
 	wmJob *wm_job;

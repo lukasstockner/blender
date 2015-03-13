@@ -113,6 +113,9 @@ typedef struct bAnimVizSettings {
 	
 	int path_sf, path_ef;           /* start and end frames of path-calculation range */
 	int path_bc, path_ac;           /* number of frames before/after current frame to show */
+
+	int calc_start, calc_end;       /* frames around which we have calculated motionpaths already */
+	int inv_start, inv_end;         /* start of invalid frames in the motionpath */
 } bAnimVizSettings;
 
 
