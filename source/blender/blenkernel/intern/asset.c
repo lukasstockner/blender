@@ -169,6 +169,7 @@ void BKE_asset_engine_load_pre(AssetEngine *engine, FileDirEntryArr *r_entries)
 			BKE_filedir_entryarr_clear(r_entries);
 		}
 
+		MEM_freeN(uuids->uuids);
 		MEM_freeN(uuids);
 	}
 }

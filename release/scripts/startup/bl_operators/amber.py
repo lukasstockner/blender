@@ -49,13 +49,13 @@ class AmberJobList(AmberJob):
     @staticmethod
     def ls(path):
         ret = [".."] + os.listdir(path)
-        time.sleep(0.1)  # 100% Artificial Lag (c)
+        #~ time.sleep(0.1)  # 100% Artificial Lag (c)
         return ret
 
     @staticmethod
-    def stat(path):
-        st = os.lstat(path)
-        time.sleep(0.1)  # 100% Artificial Lag (c)
+    def stat(root, path):
+        st = os.lstat(root + path)
+        #~ time.sleep(0.1)  # 100% Artificial Lag (c)
         return path, (stat.S_ISDIR(st.st_mode), st.st_size, st.st_mtime)
 
     def start(self):
@@ -72,7 +72,7 @@ class AmberJobList(AmberJob):
             self.ls_task = None
             self.tot = len(paths)
             for p in paths:
-                self.stat_tasks.add(self.executor.submit(self.stat, self.root + p))
+                self.stat_tasks.add(self.executor.submit(self.stat, self.root, p))
         else:
             done = set()
             for tsk in self.stat_tasks:
@@ -80,17 +80,19 @@ class AmberJobList(AmberJob):
                     path, (is_dir, size, timestamp) = tsk.result()
                     self.nbr += 1
 
-                    entry = entries.entries.add()
-                    entry.type = {'DIR'} if is_dir else {'BLENDER'}  # TODO stupid!
-                    entry.relpath = path
-                    entry.uuid = entry.relpath.encode()[:8] + b"|" + bytes(self.nbr)
-                    uuids[entry.uuid] = self.root + path
-                    variant = entry.variants.add()
-                    entry.variants.active = variant
-                    rev = variant.revisions.add()
-                    rev.size = size
-                    rev.timestamp = timestamp
-                    variant.revisions.active = rev
+                    if is_dir:
+                        # We only list dirs from real file system.
+                        entry = entries.entries.add()
+                        entry.type = {'DIR'}
+                        entry.relpath = path
+                        entry.uuid = entry.relpath.encode()[:8] + b"|" + bytes(self.nbr)
+                        uuids[entry.uuid] = self.root + path
+                        variant = entry.variants.add()
+                        entry.variants.active = variant
+                        rev = variant.revisions.add()
+                        rev.size = size
+                        rev.timestamp = timestamp
+                        variant.revisions.active = rev
 
                     done.add(tsk)
             self.stat_tasks -= done
@@ -155,8 +157,8 @@ class AssetEngineAmber(AssetEngine):
 
     def list_dir(self, job_id, entries):
         job = self.jobs.get(job_id, None)
+        print(entries.root_path, job_id, job)
         if job is not None and isinstance(job, AmberJobList):
-            print(job.root, entries.root_path)
             if job.root != entries.root_path:
                 self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
             else:
