@@ -1884,7 +1884,10 @@ static void filelist_readjob_update(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
 
-	if (flrj->filelist->ae) {
+	if (flrj->filelist->force_reset) {
+		*flrj->stop = true;
+	}
+	else if (flrj->filelist->ae) {
 		/* We only communicate with asset engine from main thread! */
 		AssetEngine *ae = flrj->filelist->ae;
 		FileDirEntry *entry;

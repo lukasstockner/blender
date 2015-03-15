@@ -921,6 +921,21 @@ static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepa
 			}
 		}
 	}
+	else {
+		/* We have to ensure those are properly reset!!! */
+		if ((prop = RNA_struct_find_property(op->ptr, "filename"))) {
+			RNA_property_reset(op->ptr, prop, 0);
+		}
+		if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
+			RNA_property_reset(op->ptr, prop, 0);
+		}
+		if (prop_files) {
+			RNA_property_reset(op->ptr, prop, 0);
+		}
+		if (prop_dirs) {
+			RNA_property_reset(op->ptr, prop, 0);
+		}
+	}
 
 	if (!is_fake && ae && (prop = RNA_struct_find_property(op->ptr, "asset_engine"))) {
 		PointerRNA ptr;

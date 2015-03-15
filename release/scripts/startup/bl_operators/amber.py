@@ -128,7 +128,9 @@ class AssetEngineAmber(AssetEngine):
         self.job_uuid = 1
 
     def __del__(self):
-        self.executor.shutdown(wait=False)
+        pass
+        # XXX This errors, saying self has no executor attribute... :/
+        #~ self.executor.shutdown(wait=False)
 
     def status(self, job_id):
         if job_id:
@@ -157,7 +159,7 @@ class AssetEngineAmber(AssetEngine):
 
     def list_dir(self, job_id, entries):
         job = self.jobs.get(job_id, None)
-        print(entries.root_path, job_id, job)
+        #~ print(entries.root_path, job_id, job)
         if job is not None and isinstance(job, AmberJobList):
             if job.root != entries.root_path:
                 self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
