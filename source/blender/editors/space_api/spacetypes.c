@@ -306,7 +306,7 @@ void ED_spacetype_xxx(void)
 	
 	st.spaceid = SPACE_VIEW3D;
 	
-	st.new = xxx_new;
+	st.alloc = xxx_new;
 	st.free = xxx_free;
 	st.init = xxx_init;
 	st.duplicate = xxx_duplicate;

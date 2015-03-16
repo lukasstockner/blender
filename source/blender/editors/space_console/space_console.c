@@ -395,7 +395,7 @@ void ED_spacetype_console(void)
 	st->spaceid = SPACE_CONSOLE;
 	strncpy(st->name, "Console", BKE_ST_MAXNAME);
 	
-	st->new = console_new;
+	st->alloc = console_new;
 	st->free = console_free;
 	st->init = console_init;
 	st->duplicate = console_duplicate;

@@ -495,7 +495,7 @@ void ED_spacetype_outliner(void)
 	st->spaceid = SPACE_OUTLINER;
 	strncpy(st->name, "Outliner", BKE_ST_MAXNAME);
 	
-	st->new = outliner_new;
+	st->alloc = outliner_new;
 	st->free = outliner_free;
 	st->init = outliner_init;
 	st->duplicate = outliner_duplicate;

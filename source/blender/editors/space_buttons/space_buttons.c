@@ -396,7 +396,7 @@ void ED_spacetype_buttons(void)
 	st->spaceid = SPACE_BUTS;
 	strncpy(st->name, "Buttons", BKE_ST_MAXNAME);
 	
-	st->new = buttons_new;
+	st->alloc = buttons_new;
 	st->free = buttons_free;
 	st->init = buttons_init;
 	st->duplicate = buttons_duplicate;

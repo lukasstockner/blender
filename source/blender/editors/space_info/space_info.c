@@ -405,7 +405,7 @@ void ED_spacetype_info(void)
 	st->spaceid = SPACE_INFO;
 	strncpy(st->name, "Info", BKE_ST_MAXNAME);
 	
-	st->new = info_new;
+	st->alloc = info_new;
 	st->free = info_free;
 	st->init = info_init;
 	st->duplicate = info_duplicate;

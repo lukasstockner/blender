@@ -832,7 +832,7 @@ void ED_spacetype_node(void)
 	st->spaceid = SPACE_NODE;
 	strncpy(st->name, "Node", BKE_ST_MAXNAME);
 
-	st->new = node_new;
+	st->alloc = node_new;
 	st->free = node_free;
 	st->init = node_init;
 	st->duplicate = node_duplicate;

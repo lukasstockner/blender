@@ -41,11 +41,9 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+#include "BKE_screen.h"
 
 #include "DEG_depsgraph.h"
-
-/* TODO(sergey): because of bloody "new" in the BKE_screen.h. */
-unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 } /* extern "C" */
 
 #include "depsgraph_debug.h"

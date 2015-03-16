@@ -719,7 +719,7 @@ void ED_spacetype_time(void)
 	st->spaceid = SPACE_TIME;
 	strncpy(st->name, "Timeline", BKE_ST_MAXNAME);
 	
-	st->new = time_new;
+	st->alloc = time_new;
 	st->free = time_free;
 	st->init = time_init;
 	st->duplicate = time_duplicate;

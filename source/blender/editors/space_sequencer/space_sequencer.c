@@ -695,7 +695,7 @@ void ED_spacetype_sequencer(void)
 	st->spaceid = SPACE_SEQ;
 	strncpy(st->name, "Sequencer", BKE_ST_MAXNAME);
 
-	st->new = sequencer_new;
+	st->alloc = sequencer_new;
 	st->free = sequencer_free;
 	st->init = sequencer_init;
 	st->duplicate = sequencer_duplicate;

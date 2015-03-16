@@ -565,7 +565,7 @@ void ED_spacetype_text(void)
 	st->spaceid = SPACE_TEXT;
 	strncpy(st->name, "Text", BKE_ST_MAXNAME);
 	
-	st->new = text_new;
+	st->alloc = text_new;
 	st->free = text_free;
 	st->init = text_init;
 	st->duplicate = text_duplicate;

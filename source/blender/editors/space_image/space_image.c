@@ -988,7 +988,7 @@ void ED_spacetype_image(void)
 	st->spaceid = SPACE_IMAGE;
 	strncpy(st->name, "Image", BKE_ST_MAXNAME);
 	
-	st->new = image_new;
+	st->alloc = image_new;
 	st->free = image_free;
 	st->init = image_init;
 	st->duplicate = image_duplicate;

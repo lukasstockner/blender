@@ -161,7 +161,7 @@ void ED_spacetype_userpref(void)
 	st->spaceid = SPACE_USERPREF;
 	strncpy(st->name, "Userpref", BKE_ST_MAXNAME);
 
-	st->new = userpref_new;
+	st->alloc = userpref_new;
 	st->free = userpref_free;
 	st->init = userpref_init;
 	st->duplicate = userpref_duplicate;

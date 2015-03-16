@@ -1521,7 +1521,7 @@ void ED_spacetype_clip(void)
 	st->spaceid = SPACE_CLIP;
 	strncpy(st->name, "Clip", BKE_ST_MAXNAME);
 
-	st->new = clip_new;
+	st->alloc = clip_new;
 	st->free = clip_free;
 	st->init = clip_init;
 	st->duplicate = clip_duplicate;

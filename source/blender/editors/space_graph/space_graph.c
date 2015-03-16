@@ -620,7 +620,7 @@ void ED_spacetype_ipo(void)
 	st->spaceid = SPACE_IPO;
 	strncpy(st->name, "Graph", BKE_ST_MAXNAME);
 	
-	st->new = graph_new;
+	st->alloc = graph_new;
 	st->free = graph_free;
 	st->init = graph_init;
 	st->duplicate = graph_duplicate;

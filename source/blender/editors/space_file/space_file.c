@@ -605,7 +605,7 @@ void ED_spacetype_file(void)
 	st->spaceid = SPACE_FILE;
 	strncpy(st->name, "File", BKE_ST_MAXNAME);
 	
-	st->new = file_new;
+	st->alloc = file_new;
 	st->free = file_free;
 	st->init = file_init;
 	st->exit = file_exit;

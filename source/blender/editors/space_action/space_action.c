@@ -531,7 +531,7 @@ void ED_spacetype_action(void)
 	st->spaceid = SPACE_ACTION;
 	strncpy(st->name, "Action", BKE_ST_MAXNAME);
 	
-	st->new = action_new;
+	st->alloc = action_new;
 	st->free = action_free;
 	st->init = action_init;
 	st->duplicate = action_duplicate;
