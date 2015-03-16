@@ -32,11 +32,68 @@ from bpy.props import (
         CollectionProperty,
         )
 
+import binascii
 import concurrent.futures as futures
+import hashlib
+import json
 import os
 import stat
 import time
 
+AMBER_DB_NAME = "__amber_db.json"
+AMBER_DBK_VERSION = "version"
+
+
+##########
+# Helpers.
+
+# Notes about UUIDs:
+#    * UUID of an asset/variant/revision is computed once at its creation! Later changes to data do not affect it.
+#    * Collision, for unlikely it is, may happen across different repositories...
+#      Doubt this will be practical issue though.
+#    * We keep eight first bytes of 'clear' identifier, to (try to) keep some readable uuid.
+
+def _uuid_gen_single(used_uuids, uuid_root, h, str_arg):
+    h.update(str_arg.encode())
+    uuid = uuid_root + h.digest()
+    uuid = uuid[:23].replace(b'\0', b'\1')  # No null chars, RNA 'bytes' use them as in regular strings... :/
+    if uuid not in used_uuids:  # *Very* likely, but...
+        used_uuids.add(uuid)
+        return uuid
+    return None
+
+
+def _uuid_gen(used_uuids, uuid_root, bytes_seed, *str_args):
+    h = hashlib.md5(bytes_seed)
+    for arg in str_args:
+        uuid = _uuid_gen_single(used_uuids, uuid_root, h, arg)
+        if uuid is not None:
+            return uuid
+    # This is a fallback in case we'd get a collision... Should never be needed in real life!
+    for i in range(100000):
+        uuid = _uuid_gen_single(used_uuids, uuid_root, h, i.to_bytes(4, 'little'))
+        if uuid is not None:
+            return uuid
+    return None  # If this happens...
+
+
+def uuid_asset_gen(used_uuids, path_db, name, tags):
+    uuid_root = name.encode()[:8] + b'|'
+    return _uuid_gen_single(used_uuids, uuid_root, path_db.encode(), name, *tags)
+
+
+def uuid_variant_gen(used_uuids, asset_uuid, name):
+    uuid_root = name.encode()[:8] + b'|'
+    return _uuid_gen_single(used_uuids, uuid_root, asset_uuid, name)
+
+
+def uuid_revision_gen(used_uuids, variant_uuid, number, size, time):
+    uuid_root = str(number).encode() + b'|'
+    return _uuid_gen_single(used_uuids, uuid_root, variant_uuid, str(number), str(size), str(timestamp))
+
+
+#############
+# Amber Jobs.
 class AmberJob:
     def __init__(self, executor, job_id):
         self.executor = executor
@@ -47,10 +104,34 @@ class AmberJob:
 
 class AmberJobList(AmberJob):
     @staticmethod
+    def ls_repo(db_path):
+        repo = None
+        with open(db_path, 'r') as db_f:
+            repo = json.load(db_f)
+        if isinstance(repo, dict):
+            repo_ver = repo.get(AMBER_DBK_VERSION, "")
+            if repo_ver != "1.0.0":
+                # Unsupported...
+                printf("WARNING: unsupported Amber repository version '%s'." % repo_ver)
+                repo = None
+        else:
+            repo = None
+        return repo
+
+    @staticmethod
     def ls(path):
-        ret = [".."] + os.listdir(path)
+        print(path)
+        repo = None
+        ret = [".."]
+        tmp = os.listdir(path)
+        print(tmp)
+        if AMBER_DB_NAME in tmp:
+            # That dir is an Amber repo, we only list content define by our amber 'db'.
+            repo = AmberJobList.ls_repo(os.path.join(path, AMBER_DB_NAME))
+        if repo is None:
+            ret += tmp
         #~ time.sleep(0.1)  # 100% Artificial Lag (c)
-        return ret
+        return ret, repo
 
     @staticmethod
     def stat(root, path):
@@ -65,37 +146,75 @@ class AmberJobList(AmberJob):
         self.status = {'VALID', 'RUNNING'}
 
     def update(self, entries, uuids):
+        self.status = {'VALID', 'RUNNING'}
         if self.ls_task is not None:
             if not self.ls_task.done():
+                print("ls not done")
                 return
-            paths = self.ls_task.result()
+            paths, repo = self.ls_task.result()
             self.ls_task = None
             self.tot = len(paths)
+            if repo is not None:
+                self.repo = repo
             for p in paths:
                 self.stat_tasks.add(self.executor.submit(self.stat, self.root, p))
-        else:
-            done = set()
-            for tsk in self.stat_tasks:
-                if tsk.done():
-                    path, (is_dir, size, timestamp) = tsk.result()
-                    self.nbr += 1
 
-                    if is_dir:
-                        # We only list dirs from real file system.
-                        entry = entries.entries.add()
-                        entry.type = {'DIR'}
-                        entry.relpath = path
-                        entry.uuid = entry.relpath.encode()[:8] + b"|" + bytes(self.nbr)
-                        uuids[entry.uuid] = self.root + path
-                        variant = entry.variants.add()
+        done = set()
+        for tsk in self.stat_tasks:
+            print("some stat tasks...")
+            if tsk.done():
+                path, (is_dir, size, timestamp) = tsk.result()
+                self.nbr += 1
+                if is_dir:
+                    # We only list dirs from real file system.
+                    entry = entries.entries.add()
+                    entry.type = {'DIR'}
+                    entry.relpath = path
+                    entry.uuid = entry.relpath.encode()[:8] + b"|" + bytes(self.nbr)
+                    uuids[entry.uuid] = self.root + path
+                    variant = entry.variants.add()
+                    entry.variants.active = variant
+                    rev = variant.revisions.add()
+                    rev.size = size
+                    rev.timestamp = timestamp
+                    variant.revisions.active = rev
+                done.add(tsk)
+        self.stat_tasks -= done
+
+        if self.repo is not None:
+            print("has repo...")
+            for euuid, e in self.repo["entries"].items():
+                entry = entries.entries.add()
+                entry.uuid = binascii.unhexlify(euuid)
+                entry.name = e["name"]
+                entry.description = e["description"]
+                entry.type = {e["file_type"]}
+                entry.blender_type = e["blen_type"]
+                vuuids = {}
+                uuids[entry.uuid] = (self.root, entry.type, entry.blender_type, vuuids)
+                act_rev = None
+                for vuuid, v in e["variants"].items():
+                    variant = entry.variants.add()
+                    variant.uuid = binascii.unhexlify(vuuid)
+                    variant.name = v["name"]
+                    variant.description = v["description"]
+                    ruuids = vuuids[variant.uuid] = {}
+                    if vuuid == e["variant_default"]:
                         entry.variants.active = variant
-                        rev = variant.revisions.add()
-                        rev.size = size
-                        rev.timestamp = timestamp
-                        variant.revisions.active = rev
+                    for ruuid, r in v["revisions"].items():
+                        revision = variant.revisions.add()
+                        revision.uuid = binascii.unhexlify(ruuid)
+                        #~ revision.comment = r["comment"]
+                        revision.size = r["size"]
+                        revision.timestamp = r["timestamp"]
+                        ruuids[revision.uuid] = (r["path_archive"], r["path"])
+                        if ruuid == v["revision_default"]:
+                            variant.revisions.active = revision
+                            if vuuid == e["variant_default"]:
+                                act_rev = r
+                if act_rev:
+                    entry.relpath = act_rev["path"]
 
-                    done.add(tsk)
-            self.stat_tasks -= done
         self.progress = self.nbr / self.tot
         if not self.stat_tasks and self.ls_task is None:
             self.status = {'VALID'}
@@ -103,7 +222,8 @@ class AmberJobList(AmberJob):
     def __init__(self, executor, job_id, root):
         super().__init__(executor, job_id)
         self.root = root
-        self.entries = {}
+        self.repo = None
+
         self.ls_task = None
         self.stat_tasks = set()
 
@@ -117,6 +237,8 @@ class AmberJobList(AmberJob):
             tsk.cancel()
 
 
+###########################
+# Mains Asset Engine class.
 class AssetEngineAmber(AssetEngine):
     bl_label = "Amber"
 
@@ -129,7 +251,8 @@ class AssetEngineAmber(AssetEngine):
 
     def __del__(self):
         pass
-        # XXX This errors, saying self has no executor attribute... :/
+        # XXX This errors, saying self has no executor attribute... Suspect some py/RNA funky game. :/
+        #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
         #~ self.executor.shutdown(wait=False)
 
     def status(self, job_id):
@@ -154,12 +277,11 @@ class AssetEngineAmber(AssetEngine):
         if job_id:
             self.jobs.pop(job_id, None)
             return
-        for job in self.jobs.values():
-            job.kill()
+        self.jobs.clear()
 
     def list_dir(self, job_id, entries):
         job = self.jobs.get(job_id, None)
-        #~ print(entries.root_path, job_id, job)
+        print(entries.root_path, job_id, job)
         if job is not None and isinstance(job, AmberJobList):
             if job.root != entries.root_path:
                 self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
@@ -173,11 +295,21 @@ class AssetEngineAmber(AssetEngine):
 
     def load_pre(self, uuids, entries):
         # Not quite sure this engine will need it in the end, but for sake of testing...
-        entries.root_path = "/"
-        for uuid in uuids.uuids[:1]:
+        root_path = None
+        for uuid in uuids.uuids:
+            root, file_type, blen_type, vuuids = self.uuids[uuid.uuid_asset]
+            ruuids = vuuids[uuid.uuid_variant]
+            path_archive, path = ruuids[uuid.uuid_revision]
+            if root_path is None:
+                root_path = root
+            elif root_path != root:
+                print("ERROR!!! mismatch in root paths for a same set of data, shall *never* happen (%s vs %s)" % (root_path, root))
             entry = entries.entries.add()
-            entry.type = {'BLENDER'}
-            entry.relpath = self.uuids[uuid.uuid_asset]
+            entry.type = file_type
+            entry.blender_type = blen_type
+            # archive part not yet implemented!
+            entry.relpath = path
+        entries.root_path = root_path
         return True
 
 
