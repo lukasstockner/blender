@@ -1557,12 +1557,25 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 void DepsgraphRelationBuilder::build_camera(Object *ob)
 {
 	Camera *cam = (Camera *)ob->data;
-	ComponentKey param_key(&ob->id, DEPSNODE_TYPE_PARAMETERS);
+	ID *camera_id = &cam->id;
+	if (camera_id->flag & LIB_DOIT) {
+		return;
+	}
+	camera_id->flag |= LIB_DOIT;
+
+	ComponentKey parameters_key(camera_id, DEPSNODE_TYPE_PARAMETERS);
+
+	if (BKE_animdata_from_id(camera_id) != NULL) {
+		ComponentKey animation_key(camera_id, DEPSNODE_TYPE_ANIMATION);
+		add_relation(animation_key, parameters_key,
+		             DEPSREL_TYPE_COMPONENT_ORDER, "Camera Parameters");
+	}
 
 	/* DOF */
 	if (cam->dof_ob) {
+		ComponentKey ob_param_key(&ob->id, DEPSNODE_TYPE_PARAMETERS);
 		ComponentKey dof_ob_key(&cam->dof_ob->id, DEPSNODE_TYPE_TRANSFORM);
-		add_relation(dof_ob_key, param_key, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
+		add_relation(dof_ob_key, ob_param_key, DEPSREL_TYPE_TRANSFORM, "Camera DOF");
 	}
 }
 

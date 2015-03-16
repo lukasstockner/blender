@@ -867,6 +867,13 @@ void DepsgraphNodeBuilder::build_camera(Object *ob)
 {
 	/* TODO: Link scene-camera links in somehow... */
 	Camera *cam = (Camera *)ob->data;
+	ID *camera_id = &cam->id;
+	if (camera_id->flag & LIB_DOIT) {
+		return;
+	}
+
+	add_operation_node(camera_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_EXEC, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 
 	if (cam->dof_ob != NULL) {
 		/* TODO(sergey): For now parametrs are on object level. */
