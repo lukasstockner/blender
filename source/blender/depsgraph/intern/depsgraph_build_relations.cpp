@@ -1672,7 +1672,7 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 		build_nodetree(lamp_id, la->nodetree);
 		ComponentKey nodetree_key(&la->nodetree->id, DEPSNODE_TYPE_PARAMETERS);
 		add_relation(nodetree_key, parameters_key,
-		             DEPSREL_TYPE_COMPONENT_ORDER, "Lamp Parameters");
+		             DEPSREL_TYPE_COMPONENT_ORDER, "NTree->Lamp Parameters");
 	}
 
 	/* textures */
@@ -1706,7 +1706,7 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 		ComponentKey parameters_key(ntree_id, DEPSNODE_TYPE_PARAMETERS);
 		ComponentKey animation_key(ntree_id, DEPSNODE_TYPE_ANIMATION);
 		add_relation(animation_key, parameters_key,
-		             DEPSREL_TYPE_COMPONENT_ORDER, "Lamp Parameters");
+		             DEPSREL_TYPE_COMPONENT_ORDER, "NTree Parameters");
 	}
 
 	// TODO: link from nodetree to owner_component?
