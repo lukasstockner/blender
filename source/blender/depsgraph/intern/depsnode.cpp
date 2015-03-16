@@ -39,7 +39,7 @@ extern "C" {
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
 
-/* ************************************************** */
+/* *************** */
 /* Node Management */
 
 /* Add ------------------------------------------------ */
@@ -90,7 +90,7 @@ string DepsNode::identifier() const
 	return string(typebuf) + " : " + name;
 }
 
-/* ******************************************************** */
+/* ************* */
 /* Generic Nodes */
 
 /* Time Source Node ============================================== */

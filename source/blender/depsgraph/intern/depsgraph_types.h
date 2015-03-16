@@ -166,4 +166,4 @@ typedef enum eDepsRelation_Type {
 	DEPSREL_TYPE_UPDATE_UI,
 } eDepsRelation_Type;
 
-#endif // __DEPSGRAPH_TYPES_H__
+#endif  /* __DEPSGRAPH_TYPES_H__ */

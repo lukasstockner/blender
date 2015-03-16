@@ -41,7 +41,7 @@ struct OperationDepsNode;
  * effectively prohibits parallelism and is quite clumsy
  */
 #if 0
-/* ****************************************** */
+/* ****************** */
 /* Operation Contexts */
 
 /* Generic Operations Context

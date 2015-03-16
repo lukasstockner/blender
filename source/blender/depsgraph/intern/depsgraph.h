@@ -51,7 +51,7 @@ struct SubgraphDepsNode;
 struct ComponentDepsNode;
 struct OperationDepsNode;
 
-/* ************************************* */
+/* *************************** */
 /* Relationships Between Nodes */
 
 /* Settings/Tags on Relationship */
@@ -85,7 +85,7 @@ struct DepsRelation {
 	~DepsRelation();
 };
 
-/* ************************************* */
+/* ********* */
 /* Depsgraph */
 
 /* Dependency Graph object */
@@ -213,6 +213,4 @@ struct Depsgraph {
 		}                                                                      \
 	}
 
-/* ************************************* */
-
-#endif // __DEPSGRAPH_H__
+#endif  /* __DEPSGRAPH_H__ */

@@ -68,7 +68,7 @@ extern "C" {
 #include "depsgraph_types.h"
 #include "depsgraph_intern.h"
 
-/* ****************** */
+/* ************** */
 /* OGDF Debugging */
 
 /* Typedef for mapping from Depsgraph Nodes to OGDF Nodes */
@@ -517,6 +517,3 @@ void DEG_debug_ogdf(const Depsgraph *graph, const char *filename)
 	printf("Exporting GML to '%s'...\n", filename);
 	GA.writeGML(filename);
 }
-
-/* ****************** */
-

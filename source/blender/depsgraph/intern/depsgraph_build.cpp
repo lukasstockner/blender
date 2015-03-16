@@ -99,7 +99,7 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
 
-/* ************************************************* */
+/* ****************** */
 /* External Build API */
 
 static eDepsNode_Type deg_build_scene_component_type(eDepsSceneComponentType component)
@@ -165,7 +165,7 @@ void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)
 	id_node->eval_flags |= flag;
 }
 
-/* ************************************************* */
+/* ********************** */
 /* Utilities for Builders */
 
 /* Get unique identifier for FCurves and Drivers */
@@ -455,7 +455,7 @@ static void deg_graph_detect_cycles(Depsgraph *graph)
 	}
 }
 
-/* ************************************************* */
+/* ******************** */
 /* Graph Building API's */
 
 /* Build depsgraph for the given scene, and dump results in given graph container */

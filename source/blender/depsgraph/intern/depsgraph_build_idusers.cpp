@@ -216,5 +216,3 @@ void DepsgraphIDUsersBuilder::build_object(Scene *scene, Object *ob)
 
 	/* dupligroups? */
 }
-
-/* ******************************************** */

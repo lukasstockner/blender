@@ -54,7 +54,7 @@ unsigned int BKE_screen_visible_layers(bScreen *screen, Scene *scene);
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
 
-/* ************************************************** */
+/* *********************** */
 /* Update Tagging/Flushing */
 
 /* Data-Based Tagging ------------------------------- */

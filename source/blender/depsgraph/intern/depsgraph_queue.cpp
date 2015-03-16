@@ -38,7 +38,7 @@ extern "C" {
 
 #include "depsgraph_queue.h"
 
-/* ********************************************************* */
+/* ****************************** */
 /* Depsgraph Queue implementation */
 
 /* Data Management ----------------------------------------- */
@@ -171,6 +171,3 @@ void *DEG_queue_pop(DepsgraphQueue *q)
 		return BLI_heap_popmin(q->ready_heap);
 	}
 }
-
-/* ********************************************************* */
-

@@ -359,7 +359,7 @@ DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to,
 	return rel;
 }
 
-/* ************************************************** */
+/* ************************ */
 /* Relationships Management */
 
 DepsRelation::DepsRelation(DepsNode *from,
@@ -431,7 +431,7 @@ void Depsgraph::clear_all_nodes()
 	}
 }
 
-/* ************************************************** */
+/* **************** */
 /* Public Graph API */
 
 /* Initialise a new Depsgraph */

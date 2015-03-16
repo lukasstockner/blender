@@ -82,4 +82,4 @@ struct OperationDepsNode : public DepsNode {
 
 void DEG_register_operation_depsnodes();
 
-#endif // __DEPSNODE_OPERATION_H__
+#endif  /* __DEPSNODE_OPERATION_H__ */

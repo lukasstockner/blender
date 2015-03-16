@@ -35,7 +35,7 @@ extern "C" {
 #include "depsgraph.h"
 #include "depsgraph_intern.h"
 
-/* ******************************************************** */
+/* ******************************************************************* */
 /* OpNode Identifiers Array - Exported to other depsgraph files too... */
 
 /* identifiers for operations */
@@ -47,7 +47,7 @@ const char *DEG_OPNAMES[] = {
 	"<Invalid>"
 };
 
-/* ******************************************************** */
+/* *********** */
 /* Inner Nodes */
 
 OperationDepsNode::OperationDepsNode() :

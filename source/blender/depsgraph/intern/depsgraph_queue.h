@@ -66,7 +66,7 @@ typedef struct DepsgraphQueue {
 	size_t tot;                        /* total number of nodes which have passed through queue; mainly for debug */
 } DepsgraphQueue;
 
-/* *********************************************** */
+/* ************************** */
 /* Depsgraph Queue Operations */
 
 /* Data management */
@@ -84,7 +84,4 @@ bool DEG_queue_is_empty(DepsgraphQueue *q);
 void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost = 0.0f);
 void *DEG_queue_pop(DepsgraphQueue *q);
 
-/* *********************************************** */
-
-#endif // DEPSGRAPH_QUEUE_H
-
+#endif  /* DEPSGRAPH_QUEUE_H */

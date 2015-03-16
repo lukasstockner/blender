@@ -193,4 +193,4 @@ struct ShadingComponentDepsNode : public ComponentDepsNode {
 
 void DEG_register_component_depsnodes();
 
-#endif // __DEPSNODE_COMPONENT_H__
+#endif  /* __DEPSNODE_COMPONENT_H__ */

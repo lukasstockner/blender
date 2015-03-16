@@ -38,7 +38,7 @@ extern "C" {
 #include "depsnode_component.h"
 #include "depsnode_operation.h"
 
-/* ******************************************************** */
+/* ************ */
 /* External API */
 
 /* Global type registry */
@@ -95,5 +95,3 @@ DepsNodeFactory *DEG_node_get_factory(const DepsNode *node)
 
 	return DEG_get_node_factory(node->type);
 }
-
-/* ******************************************************** */

@@ -39,7 +39,7 @@ extern "C" {
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
 
-/* ******************************************************** */
+/* *********** */
 /* Outer Nodes */
 
 /* Standard Component Methods ============================= */

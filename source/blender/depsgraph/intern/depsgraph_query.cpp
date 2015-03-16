@@ -42,7 +42,7 @@ extern "C" {
 #include "depsnode_operation.h"
 #include "depsgraph_intern.h"
 
-/* ************************************************ */
+/* ************************* */
 /* Low-Level Graph Traversal */
 
 /* Prepare for graph traversal, by tagging nodes, etc. */
@@ -102,7 +102,7 @@ static void DEG_graph_traverse_from_node(Depsgraph *graph, OperationDepsNode *st
 	DEG_queue_free(q);
 }
 
-/* ************************************************ */
+/* ************************************************************** */
 /* Filtering API - Basically, making a copy of the existing graph */
 
 /* Create filtering context */
