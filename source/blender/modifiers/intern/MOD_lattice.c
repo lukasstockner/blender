@@ -108,6 +108,7 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 }
 
 static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
                             struct Scene *UNUSED(scene),
                             Object *UNUSED(ob),
                             struct DepsNodeHandle *node)

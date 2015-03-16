@@ -235,11 +235,11 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 		Object *ob = base->object;
 
 		/* object itself */
-		build_object(scene, ob);
+		build_object(bmain, scene, ob);
 
 		/* object that this is a proxy for */
 		if (ob->proxy) {
-			build_object(scene, ob->proxy);
+			build_object(bmain, scene, ob->proxy);
 			/* TODO(sergey): This is an inverted relation, matches old depsgraph
 			 * behavior and need to be investigated if it still need to be inverted.
 			 */
@@ -250,7 +250,7 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 
 		/* Object dupligroup. */
 		if (ob->dup_group) {
-			build_group(scene, ob, ob->dup_group);
+			build_group(bmain, scene, ob, ob->dup_group);
 		}
 	}
 
@@ -280,7 +280,8 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 	}
 }
 
-void DepsgraphRelationBuilder::build_group(Scene *scene,
+void DepsgraphRelationBuilder::build_group(Main *bmain,
+                                           Scene *scene,
                                            Object *object,
                                            Group *group)
 {
@@ -294,7 +295,7 @@ void DepsgraphRelationBuilder::build_group(Scene *scene,
 	     go = go->next)
 	{
 		if (!group_done) {
-			build_object(scene, go->ob);
+			build_object(bmain, scene, go->ob);
 		}
 		ComponentKey dupli_transform_key(&go->ob->id, DEPSNODE_TYPE_TRANSFORM);
 		add_relation(dupli_transform_key,
@@ -305,7 +306,7 @@ void DepsgraphRelationBuilder::build_group(Scene *scene,
 	group_id->flag |= LIB_DOIT;
 }
 
-void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
+void DepsgraphRelationBuilder::build_object(Main *bmain, Scene *scene, Object *ob)
 {
 	if (ob->id.flag & LIB_DOIT) {
 		return;
@@ -383,7 +384,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 			case OB_MBALL:
 			case OB_LATTICE:
 			{
-				build_obdata_geom(scene, ob);
+				build_obdata_geom(bmain, scene, ob);
 			}
 			break;
 
@@ -1465,7 +1466,7 @@ void DepsgraphRelationBuilder::build_shapekeys(ID *obdata, Key *key)
  *   re-evaluation of the individual instances of this geometry.
  */
 // TODO: Materials and lighting should probably get their own component, instead of being lumped under geometry?
-void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
+void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Object *ob)
 {
 	ID *obdata = (ID *)ob->data;
 
@@ -1499,7 +1500,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 
 			if (mti->updateDepsgraph) {
 				DepsNodeHandle handle = create_node_handle(mod_key);
-				mti->updateDepsgraph(md, scene, ob, &handle);
+				mti->updateDepsgraph(md, bmain, scene, ob, &handle);
 			}
 
 			if (BKE_object_modifier_use_time(ob, md)) {

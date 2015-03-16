@@ -159,7 +159,10 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 		                 DAG_RL_OB_DATA | DAG_RL_DATA_DATA, "Shrinkwrap Modifier");
 }
 
-static void updateDepsgraph(ModifierData *md, struct Scene *UNUSED(scene), Object *UNUSED(ob),
+static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
                             struct DepsNodeHandle *node)
 {
 	ShrinkwrapModifierData *smd = (ShrinkwrapModifierData *)md;

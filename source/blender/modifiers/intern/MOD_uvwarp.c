@@ -242,6 +242,7 @@ static void uv_warp_deps_object_bone_new(struct DepsNodeHandle *node,
 }
 
 static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
                             struct Scene *UNUSED(scene),
                             Object *UNUSED(ob),
                             struct DepsNodeHandle *node)

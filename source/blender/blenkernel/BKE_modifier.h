@@ -267,7 +267,11 @@ typedef struct ModifierTypeInfo {
 	 * This function is optional.
 	 */
 	/* XXX DEPSGRAPH PORTING: remove the old callback above once porting is complete! */
-	void (*updateDepsgraph)(struct ModifierData *md, struct Scene *scene, struct Object *ob, struct DepsNodeHandle *node);
+	void (*updateDepsgraph)(struct ModifierData *md,
+	                        struct Main *bmain,
+	                        struct Scene *scene,
+	                        struct Object *ob,
+	                        struct DepsNodeHandle *node);
 
 	/* Should return true if the modifier needs to be recalculated on time
 	 * changes.
