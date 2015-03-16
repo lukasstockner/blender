@@ -1550,6 +1550,13 @@ void DepsgraphRelationBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	if (key) {
 		build_shapekeys(obdata, key);
 	}
+
+	if (BKE_animdata_from_id(obdata) != NULL) {
+		ComponentKey animation_key(obdata, DEPSNODE_TYPE_ANIMATION);
+		ComponentKey parameters_key(obdata, DEPSNODE_TYPE_PARAMETERS);
+		add_relation(animation_key, parameters_key,
+		             DEPSREL_TYPE_COMPONENT_ORDER, "Geom Parameters");
+	}
 }
 
 /* Cameras */

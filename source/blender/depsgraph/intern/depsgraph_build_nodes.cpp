@@ -860,6 +860,10 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 	add_operation_node(obdata, DEPSNODE_TYPE_GEOMETRY,
 	                   DEPSOP_TYPE_POST, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Eval Done");
+
+	/* Parameters for driver sources. */
+	add_operation_node(obdata, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_EXEC, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 }
 
 /* Cameras */
