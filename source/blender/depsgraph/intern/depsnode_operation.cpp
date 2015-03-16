@@ -66,6 +66,21 @@ string OperationDepsNode::identifier() const
 	return string(DEG_OPNAMES[opcode]) + "(" + name + ")";
 }
 
+/* Full node identifier, including owner name.
+ * used for logging and debug prints.
+ */
+string OperationDepsNode::full_identifier() const
+{
+	string owner_str = "";
+	if (owner->type == DEPSNODE_TYPE_BONE) {
+		owner_str = owner->owner->name + "." + owner->name;
+	}
+	else {
+		owner_str = owner->owner->name;
+	}
+	return owner_str + "." + identifier();
+}
+
 void OperationDepsNode::tag_update(Depsgraph *graph)
 {
 	if (flag & DEPSOP_FLAG_NEEDS_UPDATE) {

@@ -45,37 +45,6 @@ struct StackEntry {
 	DepsRelation *via_relation;
 };
 
-static void deg_graph_print_cycle_rel(const OperationDepsNode *to,
-                                      const OperationDepsNode *from,
-                                      const DepsRelation *rel)
-{
-	string to_owner = "", from_owner = "";
-
-	/* NOTE: subdata name only matters for bones; all other components currently
-	 * should just use the ID instead.
-	 */
-	if (to->owner->type == DEPSNODE_TYPE_BONE) {
-		to_owner = to->owner->owner->name + "." + to->owner->name + ".";
-	}
-	else {
-		to_owner = to->owner->owner->name + ".";
-	}
-
-	if (from->owner->type == DEPSNODE_TYPE_BONE) {
-		from_owner = from->owner->owner->name + "." + from->owner->name + ".";
-	}
-	else {
-		from_owner = from->owner->owner->name + ".";
-	}
-
-	printf("  '%s%s' depends on '%s%s' through '%s'\n",
-	       to_owner.c_str(),
-	       to->identifier().c_str(),
-	       from_owner.c_str(),
-	       from->identifier().c_str(),
-	       rel->name.c_str());
-}
-
 void deg_graph_detect_cycles(Depsgraph *graph)
 {
 	/* Not is not visited at all during traversal. */
@@ -127,14 +96,18 @@ void deg_graph_detect_cycles(Depsgraph *graph)
 				OperationDepsNode *to = (OperationDepsNode *)rel->to;
 				if (to->done == NODE_IN_STACK) {
 					printf("Dependency cycle detected:\n");
-					deg_graph_print_cycle_rel(to, node, rel);
+					printf("  '%s' depends on '%s' through '%s'\n",
+					       to->full_identifier().c_str(),
+					       node->full_identifier().c_str(),
+					       rel->name.c_str());
 
 					StackEntry *current = &entry;
 					while (current->node != to) {
 						BLI_assert(current != NULL);
-						deg_graph_print_cycle_rel(current->node,
-						                          current->from->node,
-						                          current->via_relation);
+						printf("  '%s' depends on '%s' through '%s'\n",
+						       current->node->full_identifier().c_str(),
+						       current->from->node->full_identifier().c_str(),
+						       current->via_relation->name.c_str());
 						current = current->from;
 					}
 					/* TODO(sergey): So called roussian rlette cycle solver. */

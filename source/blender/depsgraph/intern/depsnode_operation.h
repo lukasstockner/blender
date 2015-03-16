@@ -55,6 +55,7 @@ struct OperationDepsNode : public DepsNode {
 	~OperationDepsNode();
 
 	string identifier() const;
+	string full_identifier() const;
 
 	void tag_update(Depsgraph *graph);
 
