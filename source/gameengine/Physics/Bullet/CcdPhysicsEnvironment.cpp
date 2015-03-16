@@ -752,8 +752,8 @@ public:
 void	CcdPhysicsEnvironment::ProcessFhSprings(double curTime,float interval)
 {
 	std::set<CcdPhysicsController*>::iterator it;
-	// dynamic of Fh spring is based on a timestep of 1/60
-	int numIter = (int)(interval*60.0001f);
+	// Add epsilon to the tick rate for numerical stability
+	int numIter = (int)(interval*(KX_KetsjiEngine::GetTicRate() + 0.001f));
 	
 	for (it=m_controllers.begin(); it!=m_controllers.end(); it++)
 	{
@@ -2644,7 +2644,9 @@ int			CcdPhysicsEnvironment::CreateConstraint(class PHY_IPhysicsController* ctrl
 	if (!rb0)
 		return 0;
 
-	
+	// If either of the controllers is missing, we can't do anything.
+	if (!c0 || !c1) return 0;
+
 	btVector3 pivotInB = rb1 ? rb1->getCenterOfMassTransform().inverse()(rb0->getCenterOfMassTransform()(pivotInA)) : 
 		rb0->getCenterOfMassTransform() * pivotInA;
 	btVector3 axisInA(axisX,axisY,axisZ);

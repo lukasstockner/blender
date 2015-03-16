@@ -41,6 +41,7 @@ struct Scene;
 struct ListBase;
 struct LinkNode;
 struct bArmature;
+struct Main;
 struct ModifierData;
 struct BMEditMesh;
 struct DepsNodeHandle;
@@ -257,7 +258,8 @@ typedef struct ModifierTypeInfo {
 	 *
 	 * This function is optional.
 	 */
-	void (*updateDepgraph)(struct ModifierData *md, struct DagForest *forest, struct Scene *scene,
+	void (*updateDepgraph)(struct ModifierData *md, struct DagForest *forest,
+	                       struct Main *bmain, struct Scene *scene,
 	                       struct Object *ob, struct DagNode *obNode);
 
 	/* Add the appropriate relations to the dependency graph.
