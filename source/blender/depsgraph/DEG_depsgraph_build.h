@@ -114,4 +114,4 @@ void DEG_add_special_eval_flag(struct Depsgraph *graph, struct ID *id, short fla
 } /* extern "C" */
 #endif
 
-#endif // __DEG_DEPSGRAPH_BUILD_H__
+#endif  /* __DEG_DEPSGRAPH_BUILD_H__ */

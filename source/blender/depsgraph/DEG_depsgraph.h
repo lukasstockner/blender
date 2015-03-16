@@ -206,4 +206,4 @@ void DEG_editors_set_update_cb(DEG_EditorUpdateIDCb id_func,
 } /* extern "C" */
 #endif
 
-#endif // __DEG_DEPSGRAPH_H__
+#endif  /* __DEG_DEPSGRAPH_H__ */

@@ -105,4 +105,4 @@ bool DEG_debug_consistency_check(struct Depsgraph *graph);
 } /* extern "C" */
 #endif
 
-#endif // __DEG_DEPSGRAPH_DEBUG_H__
+#endif  /* __DEG_DEPSGRAPH_DEBUG_H__ */

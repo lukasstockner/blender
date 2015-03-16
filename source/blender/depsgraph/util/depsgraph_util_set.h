@@ -57,4 +57,4 @@ using std::tr1::unordered_set;
  DEG_STD_UNORDERED_MAP, DEG_STD_UNORDERED_MAP_IN_TR1_NAMESPACE must be defined!  // NOLINT
 #endif
 
-#endif /* __DEPSGRAPH_UTIL_SET_H__ */
+#endif  /* __DEPSGRAPH_UTIL_SET_H__ */

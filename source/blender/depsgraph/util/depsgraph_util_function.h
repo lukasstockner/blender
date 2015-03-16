@@ -43,4 +43,4 @@ using boost::function;
 
 #endif
 
-#endif /* __DEPSGRAPH_UTIL_SET_H__ */
+#endif  /* __DEPSGRAPH_UTIL_SET_H__ */

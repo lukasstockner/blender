@@ -188,4 +188,4 @@ short DEG_get_eval_flags_for_id(struct Depsgraph *graph, struct ID *id);
 } /* extern "C" */
 #endif
 
-#endif // __DEG_DEPSGRAPH_QUERY_H__
+#endif  /* __DEG_DEPSGRAPH_QUERY_H__ */

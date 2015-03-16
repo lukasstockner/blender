@@ -63,4 +63,4 @@ inline size_t hash_combine(size_t hash_a, size_t hash_b)
 	return hash_a ^ (hash_b + 0x9e3779b9 + (hash_a << 6) + (hash_a >> 2));
 }
 
-#endif /* __DEPSGRAPH_UTIL_HASH_H__ */
+#endif  /* __DEPSGRAPH_UTIL_HASH_H__ */
