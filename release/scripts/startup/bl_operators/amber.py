@@ -112,7 +112,7 @@ class AmberJobList(AmberJob):
             repo_ver = repo.get(AMBER_DBK_VERSION, "")
             if repo_ver != "1.0.0":
                 # Unsupported...
-                printf("WARNING: unsupported Amber repository version '%s'." % repo_ver)
+                print("WARNING: unsupported Amber repository version '%s'." % repo_ver)
                 repo = None
         else:
             repo = None
@@ -120,11 +120,9 @@ class AmberJobList(AmberJob):
 
     @staticmethod
     def ls(path):
-        print(path)
         repo = None
         ret = [".."]
         tmp = os.listdir(path)
-        print(tmp)
         if AMBER_DB_NAME in tmp:
             # That dir is an Amber repo, we only list content define by our amber 'db'.
             repo = AmberJobList.ls_repo(os.path.join(path, AMBER_DB_NAME))
@@ -149,7 +147,6 @@ class AmberJobList(AmberJob):
         self.status = {'VALID', 'RUNNING'}
         if self.ls_task is not None:
             if not self.ls_task.done():
-                print("ls not done")
                 return
             paths, repo = self.ls_task.result()
             self.ls_task = None
@@ -161,7 +158,6 @@ class AmberJobList(AmberJob):
 
         done = set()
         for tsk in self.stat_tasks:
-            print("some stat tasks...")
             if tsk.done():
                 path, (is_dir, size, timestamp) = tsk.result()
                 self.nbr += 1
@@ -182,32 +178,51 @@ class AmberJobList(AmberJob):
         self.stat_tasks -= done
 
         if self.repo is not None:
-            print("has repo...")
+            existing = {}
+            for e in entries.entries:
+                vd = {}
+                existing[e.uuid] = (e, vd)
+                for v in e.variants:
+                    rd = {}
+                    vd[v.uuid] = (v, rd)
+                    for r in v.revisions:
+                        rd[r.uuid] = r
             for euuid, e in self.repo["entries"].items():
-                entry = entries.entries.add()
-                entry.uuid = binascii.unhexlify(euuid)
-                entry.name = e["name"]
-                entry.description = e["description"]
-                entry.type = {e["file_type"]}
-                entry.blender_type = e["blen_type"]
-                vuuids = {}
-                uuids[entry.uuid] = (self.root, entry.type, entry.blender_type, vuuids)
+                entry_uuid = binascii.unhexlify(euuid)
+                entry, existing_vuuids = existing.get(entry_uuid, (None, {}))
+                if entry is None:
+                    entry = entries.entries.add()
+                    entry.uuid = entry_uuid
+                    entry.name = e["name"]
+                    entry.description = e["description"]
+                    entry.type = {e["file_type"]}
+                    entry.blender_type = e["blen_type"]
+                    existing[entry_uuid] = (entry, existing_vuuids)  # Not really needed, but for sake of consistency...
+                    vuuids = {}
+                    uuids[entry.uuid] = (self.root, entry.type, entry.blender_type, vuuids)
                 act_rev = None
                 for vuuid, v in e["variants"].items():
-                    variant = entry.variants.add()
-                    variant.uuid = binascii.unhexlify(vuuid)
-                    variant.name = v["name"]
-                    variant.description = v["description"]
-                    ruuids = vuuids[variant.uuid] = {}
+                    variant_uuid = binascii.unhexlify(vuuid)
+                    variant, existing_ruuids = existing_vuuids.get(variant_uuid, (None, {}))
+                    if variant is None:
+                        variant = entry.variants.add()
+                        variant.uuid = variant_uuid
+                        variant.name = v["name"]
+                        variant.description = v["description"]
+                        existing_vuuids[variant_uuid] = (variant, existing_ruuids)  # Not really needed, but for sake of consistency...
+                        ruuids = vuuids[variant_uuid] = {}
                     if vuuid == e["variant_default"]:
                         entry.variants.active = variant
                     for ruuid, r in v["revisions"].items():
-                        revision = variant.revisions.add()
-                        revision.uuid = binascii.unhexlify(ruuid)
-                        #~ revision.comment = r["comment"]
-                        revision.size = r["size"]
-                        revision.timestamp = r["timestamp"]
-                        ruuids[revision.uuid] = (r["path_archive"], r["path"])
+                        revision_uuid = binascii.unhexlify(ruuid)
+                        revision = existing_ruuids.get(revision_uuid, None)
+                        if revision is None:
+                            revision = variant.revisions.add()
+                            revision.uuid = revision_uuid
+                            #~ revision.comment = r["comment"]
+                            revision.size = r["size"]
+                            revision.timestamp = r["timestamp"]
+                            ruuids[revision_uuid] = (r["path_archive"], r["path"])
                         if ruuid == v["revision_default"]:
                             variant.revisions.active = revision
                             if vuuid == e["variant_default"]:
