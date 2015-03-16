@@ -197,6 +197,8 @@ public:
 	GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
 
 	/**
+
+	/**
 	 * Invalidates the contents of this window.
 	 */
 	GHOST_TSuccess invalidate();

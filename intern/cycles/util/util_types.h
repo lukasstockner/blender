@@ -498,21 +498,15 @@ template<typename T> static inline T decltype_helper(T x) { return x; }
 /* Causes warning:
  * incompatible types when assigning to type 'Foo' from type 'Bar'
  * ... the compiler optimizes away the temp var */
-#if defined(__GNUC__)
-#  if __cplusplus > 199711L
-#    define DECLTYPE(x) decltype(x)
-#  else
-#    define DECLTYPE(x) typeof(x)
-#  endif
-
+#ifdef __GNUC__
 #define CHECK_TYPE(var, type)  {  \
-	DECLTYPE(var) *__tmp;         \
+	TYPEOF(var) *__tmp;          \
 	__tmp = (type *)NULL;         \
 	(void)__tmp;                  \
 } (void)0
 
 #define CHECK_TYPE_PAIR(var_a, var_b)  {  \
-	DECLTYPE(var_a) *__tmp;               \
+	TYPEOF(var_a) *__tmp;                 \
 	__tmp = (typeof(var_b) *)NULL;        \
 	(void)__tmp;                          \
 } (void)0

@@ -235,7 +235,7 @@ CXXFLAGS = []
 
 CPPFLAGS = []
 # g++ 4.6, only needed for bullet
-CXXFLAGS += ['-fpermissive', '-std=c++11', '-U__STRICT_ANSI__']
+CXXFLAGS += ['-fpermissive']
 if WITH_BF_FFMPEG:
     # libavutil needs UINT64_C()
     CXXFLAGS += ['-D__STDC_CONSTANT_MACROS', ]

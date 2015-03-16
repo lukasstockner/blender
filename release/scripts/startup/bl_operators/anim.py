@@ -104,10 +104,10 @@ class ANIM_OT_keying_set_export(Operator):
 
             """
             - idtype_list is used to get the list of id-datablocks from
-            bpy.data.* since this info isn't available elsewhere
+              bpy.data.* since this info isn't available elsewhere
             - id.bl_rna.name gives a name suitable for UI,
-            with a capitalised first letter, but we need
-            the plural form that's all lower case
+              with a capitalised first letter, but we need
+              the plural form that's all lower case
             """
 
             idtype_list = ksp.id.bl_rna.name.lower() + "s"
@@ -215,8 +215,8 @@ class BakeAction(Operator):
             description="Which data's transformations to bake",
             options={'ENUM_FLAG'},
             items=(('POSE', "Pose", "Bake bones transformations"),
-                ('OBJECT', "Object", "Bake object transformations"),
-                ),
+                   ('OBJECT', "Object", "Bake object transformations"),
+                   ),
             default={'POSE'},
             )
 
@@ -284,7 +284,7 @@ class ClearUselessActions(Operator):
                     removed += 1
 
         self.report({'INFO'}, "Removed %d empty and/or fake-user only Actions"
-                            % removed)
+                              % removed)
         return {'FINISHED'}
 
 

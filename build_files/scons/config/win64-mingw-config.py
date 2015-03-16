@@ -181,7 +181,7 @@ CC = 'gcc'
 CXX = 'g++'
 
 CCFLAGS = [ '-pipe', '-funsigned-char', '-fno-strict-aliasing' ]
-CXXFLAGS = [ '-fpermissive', '-std=c++11' ]
+CXXFLAGS = [ '-fpermissive' ]
 
 CPPFLAGS = ['-DWIN32', '-DMS_WIN64', '-DFREE_WINDOWS', '-DFREE_WINDOWS64', '-D_LARGEFILE_SOURCE', '-D_FILE_OFFSET_BITS=64', '-D_LARGEFILE64_SOURCE', '-DBOOST_ALL_NO_LIB', '-DBOOST_THREAD_USE_LIB', '-DGLEW_STATIC', '-DOPJ_STATIC']
 REL_CFLAGS = []

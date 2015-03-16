@@ -80,8 +80,6 @@
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
 
-#include "DEG_depsgraph.h"
-
 #include "RE_pipeline.h"
 #include "RE_render_ext.h"
 

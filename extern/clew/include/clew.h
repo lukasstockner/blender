@@ -505,14 +505,14 @@ typedef unsigned int cl_GLenum;
 #endif
 
 /* Indicate whether .xyzw, .s0123 and .hi.lo are supported */
-//#if (defined( __GNUC__) && ! defined( __STRICT_ANSI__ )) || (defined( _MSC_VER ) && ! defined( __STDC__ ))
+#if (defined( __GNUC__) && ! defined( __STRICT_ANSI__ )) || (defined( _MSC_VER ) && ! defined( __STDC__ ))
     /* .xyzw and .s0123...{f|F} are supported */
     #define CL_HAS_NAMED_VECTOR_FIELDS 1
     /* .hi and .lo are supported */
     #define CL_HAS_HI_LO_VECTOR_FIELDS 1
 
     #define CL_NAMED_STRUCT_SUPPORTED
-//#endif
+#endif
 
 #if defined( CL_NAMED_STRUCT_SUPPORTED) && defined( _MSC_VER )
 #define __extension__ __pragma(warning(suppress:4201))
