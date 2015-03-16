@@ -107,6 +107,31 @@ extern "C" {
  *       For example, "ob.data" becomes "obdata -> object"
  */
 
+DepsgraphIDUsersBuilder::DepsgraphIDUsersBuilder(Depsgraph *graph) :
+    m_graph(graph)
+{
+}
+
+
+void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
+	                                       eDepsRelation_Type type, const string &description)
+{
+	IDDepsNode *node_from = m_graph->find_id_node(from_id);
+	IDDepsNode *node_to = m_graph->find_id_node(to_id);
+
+	if (node_from && node_to) {
+		m_graph->add_new_relation(node_from, node_to, type, description);
+	}
+	else {
+		fprintf(stderr, "ID Builder add_relation(%s => %s, %s => %s, %d, %s) Failed\n",
+		        (from_id) ? from_id->name : "<No ID>",
+		        (node_from) ? node_from->identifier().c_str() : "<None>",
+		        (to_id) ? to_id->name : "<No ID>",
+		        (node_to)   ? node_to->identifier().c_str() : "<None>",
+		        type, description.c_str());
+	}
+}
+
 void DepsgraphIDUsersBuilder::build_scene(Main *bmain, Scene *scene)
 {
 	/* scene set - do links to other scenes */

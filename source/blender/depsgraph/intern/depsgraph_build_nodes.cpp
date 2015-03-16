@@ -67,6 +67,7 @@ extern "C" {
 #include "BKE_depsgraph.h"
 #include "BKE_effect.h"
 #include "BKE_fcurve.h"
+#include "BKE_idcode.h"
 #include "BKE_group.h"
 #include "BKE_key.h"
 #include "BKE_lattice.h"
@@ -100,8 +101,143 @@ extern "C" {
 #include "depsgraph_eval.h"
 #include "depsgraph_intern.h"
 
-/* ************************************************* */
+/* ************ */
 /* Node Builder */
+
+/* **** General purpose functions **** */
+
+DepsgraphNodeBuilder::DepsgraphNodeBuilder(Main *bmain, Depsgraph *graph) :
+    m_bmain(bmain),
+    m_graph(graph)
+{
+}
+
+DepsgraphNodeBuilder::~DepsgraphNodeBuilder()
+{
+}
+
+RootDepsNode *DepsgraphNodeBuilder::add_root_node()
+{
+	return m_graph->add_root_node();
+}
+
+IDDepsNode *DepsgraphNodeBuilder::add_id_node(ID *id)
+{
+	const char *idtype_name = BKE_idcode_to_name(GS(id->name));
+	return m_graph->add_id_node(id, string(id->name+2) + "[" + idtype_name + "]");
+}
+
+TimeSourceDepsNode *DepsgraphNodeBuilder::add_time_source(ID *id)
+{
+	/* determine which node to attach timesource to */
+	if (id) {
+#if 0 /* XXX TODO */
+		/* get ID node */
+		IDDepsNode id_node = m_graph->find_id_node(id);
+
+		/* depends on what this is... */
+		switch (GS(id->name)) {
+			case ID_SCE: /* Scene - Usually sequencer strip causing time remapping... */
+			{
+				// TODO...
+			}
+			break;
+
+			case ID_GR: /* Group */
+			{
+				// TODO...
+			}
+			break;
+
+			// XXX: time source...
+
+			default:     /* Unhandled */
+				printf("%s(): Unhandled ID - %s \n", __func__, id->name);
+				break;
+		}
+#endif
+	}
+	else {
+		/* root-node */
+		RootDepsNode *root_node = m_graph->root_node;
+		if (root_node) {
+			return root_node->add_time_source("Time Source");
+		}
+	}
+
+	return NULL;
+}
+
+ComponentDepsNode *DepsgraphNodeBuilder::add_component_node(
+        ID *id,
+        eDepsNode_Type comp_type,
+        const string &comp_name)
+{
+	IDDepsNode *id_node = add_id_node(id);
+	ComponentDepsNode *comp_node = id_node->add_component(comp_type, comp_name);
+	comp_node->owner = id_node;
+	return comp_node;
+}
+
+OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
+        ComponentDepsNode *comp_node,
+        eDepsOperation_Type optype,
+        DepsEvalOperationCb op,
+        eDepsOperation_Code opcode,
+        const string &description)
+{
+	OperationDepsNode *op_node = comp_node->has_operation(opcode, description);
+	if (op_node == NULL) {
+		op_node = comp_node->add_operation(optype, op, opcode, description);
+		m_graph->operations.push_back(op_node);
+	}
+	else {
+		fprintf(stderr, "add_operation: Operation already exists - %s has %s at %p\n",
+		        comp_node->identifier().c_str(),
+		        op_node->identifier().c_str(),
+		        op_node);
+		BLI_assert(!"Should not happen!");
+	}
+	return op_node;
+}
+
+OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
+        ID *id,
+        eDepsNode_Type comp_type,
+        const string &comp_name,
+        eDepsOperation_Type optype,
+        DepsEvalOperationCb op,
+        eDepsOperation_Code opcode,
+        const string &description)
+{
+	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
+	return add_operation_node(comp_node, optype, op, opcode, description);
+}
+
+bool DepsgraphNodeBuilder::has_operation_node(ID *id,
+                                              eDepsNode_Type comp_type,
+                                              const string &comp_name,
+                                              eDepsOperation_Type optype,
+                                              eDepsOperation_Code opcode,
+                                              const string &description)
+{
+	return find_operation_node(id, comp_type, comp_name, optype, opcode, description) != NULL;
+}
+
+OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(
+        ID *id,
+        eDepsNode_Type comp_type,
+        const string &comp_name,
+        eDepsOperation_Type optype,
+        eDepsOperation_Code opcode,
+        const string &description)
+{
+	ComponentDepsNode *comp_node = add_component_node(id, comp_type, comp_name);
+	return comp_node->has_operation(opcode, description);
+}
+
+
+/* **** Build functions for entity nodes **** */
 
 void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 {

@@ -103,6 +103,120 @@ extern "C" {
 /* ***************** */
 /* Relations Builder */
 
+/* **** General purpose functions ****  */
+
+RNAPathKey::RNAPathKey(ID *id, const string &path) :
+    id(id)
+{
+	/* create ID pointer for root of path lookup */
+	PointerRNA id_ptr;
+	RNA_id_pointer_create(id, &id_ptr);
+	/* try to resolve path... */
+	if (!RNA_path_resolve(&id_ptr, path.c_str(), &this->ptr, &this->prop)) {
+		this->ptr = PointerRNA_NULL;
+		this->prop = NULL;
+	}
+}
+
+DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
+    m_graph(graph)
+{
+}
+
+RootDepsNode *DepsgraphRelationBuilder::find_node(const RootKey &key) const
+{
+	return m_graph->root_node;
+}
+
+TimeSourceDepsNode *DepsgraphRelationBuilder::find_node(
+        const TimeSourceKey &key) const
+{
+	if (key.id) {
+		/* XXX TODO */
+		return NULL;
+	}
+	else {
+		return m_graph->root_node->time_source;
+	}
+}
+
+ComponentDepsNode *DepsgraphRelationBuilder::find_node(
+        const ComponentKey &key) const
+{
+	IDDepsNode *id_node = m_graph->find_id_node(key.id);
+	if (!id_node) {
+		fprintf(stderr, "find_node component: Could not find ID %s\n",
+		        (key.id != NULL) ? key.id->name : "<null>");
+		return NULL;
+	}
+
+	ComponentDepsNode *node = id_node->find_component(key.type, key.name);
+	return node;
+}
+
+OperationDepsNode *DepsgraphRelationBuilder::find_node(
+        const OperationKey &key) const
+{
+	IDDepsNode *id_node = m_graph->find_id_node(key.id);
+	if (!id_node) {
+		fprintf(stderr, "find_node operation: Could not find ID\n");
+		return NULL;
+	}
+
+	ComponentDepsNode *comp_node = id_node->find_component(key.component_type,
+	                                                       key.component_name);
+	if (!comp_node) {
+		fprintf(stderr, "find_node operation: Could not find component\n");
+		return NULL;
+	}
+
+	OperationDepsNode *op_node = comp_node->find_operation(key.opcode, key.name);
+	if (!op_node) {
+		fprintf(stderr, "find_node_operation: Failed for (%s, '%s')\n",
+		        DEG_OPNAMES[key.opcode], key.name.c_str());
+	}
+	return op_node;
+}
+
+DepsNode *DepsgraphRelationBuilder::find_node(const RNAPathKey &key) const
+{
+	return m_graph->find_node_from_pointer(&key.ptr, key.prop);
+}
+
+void DepsgraphRelationBuilder::add_time_relation(TimeSourceDepsNode *timesrc,
+                                                 DepsNode *node_to,
+                                                 const string &description)
+{
+	if (timesrc && node_to) {
+		m_graph->add_new_relation(timesrc, node_to, DEPSREL_TYPE_TIME, description);
+	}
+	else {
+		DEG_DEBUG_PRINTF("add_time_relation(%p = %s, %p = %s, %s) Failed\n",
+		                 timesrc,   (timesrc) ? timesrc->identifier().c_str() : "<None>",
+		                 node_to,   (node_to) ? node_to->identifier().c_str() : "<None>",
+		                 description.c_str());
+	}
+}
+
+void DepsgraphRelationBuilder::add_operation_relation(
+        OperationDepsNode *node_from,
+        OperationDepsNode *node_to,
+        eDepsRelation_Type type,
+        const string &description)
+{
+	if (node_from && node_to) {
+		m_graph->add_new_relation(node_from, node_to, type, description);
+	}
+	else {
+		DEG_DEBUG_PRINTF("add_operation_relation(%p = %s, %p = %s, %d, %s) Failed\n",
+		                 node_from, (node_from) ? node_from->identifier().c_str() : "<None>",
+		                 node_to,   (node_to)   ? node_to->identifier().c_str() : "<None>",
+		                 type, description.c_str());
+	}
+}
+
+/* **** Functions to build relations between entities  **** */
+
 void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 {
 	/* LIB_DOIT is used to indicate whether node for given ID was already
