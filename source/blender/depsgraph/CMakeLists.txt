@@ -59,6 +59,7 @@ set(SRC
 	intern/depsgraph_type_defines.cpp
 	util/depsgraph_util_cycle.cpp
 	util/depsgraph_util_pchanmap.cpp
+	util/depsgraph_util_transitive.cpp
 
 	DEG_depsgraph.h
 	DEG_depsgraph_build.h
@@ -76,11 +77,13 @@ set(SRC
 	intern/depsgraph_queue.h
 	intern/depsgraph_types.h
 
+	util/depsgraph_util_cycle.h
 	util/depsgraph_util_function.h
 	util/depsgraph_util_hash.h
 	util/depsgraph_util_map.h
 	util/depsgraph_util_pchanmap.h
 	util/depsgraph_util_set.h
+	util/depsgraph_util_transitive.h
 )
 
 TEST_UNORDERED_MAP_SUPPORT()
