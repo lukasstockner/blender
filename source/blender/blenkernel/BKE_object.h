@@ -249,6 +249,8 @@ void             BKE_object_groups_clear(struct Scene *scene, struct Base *base,
 
 struct KDTree *BKE_object_as_kdtree(struct Object *ob, int *r_tot);
 
+bool BKE_object_modifier_use_time(struct Object *ob, struct ModifierData *md);
+
 #ifdef __cplusplus
 }
 #endif
