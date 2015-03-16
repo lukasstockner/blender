@@ -112,12 +112,11 @@ struct IDDepsNode;
 
 /* Time Source Node. */
 struct TimeSourceDepsNode : public DepsNode {
-	/* TODO(sergey): Time in blender is float, not double. */
 	/* New "current time". */
-	double cfra;
+	float cfra;
 
 	/* time-offset relative to the "official" time source that this one has. */
-	double offset;
+	float offset;
 
 	// TODO: evaluate() operation needed
 

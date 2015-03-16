@@ -169,7 +169,7 @@ void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);
 void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
                                  struct Main *bmain,
                                  Depsgraph *graph,
-                                 double ctime,
+                                 float ctime,
                                  const int layer);
 
 /* Data changed recalculation entrypoint.

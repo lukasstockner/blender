@@ -53,7 +53,7 @@ typedef struct DEG_OperationsContext {
 	struct Main *bmain;   /* scene database to query data from (if needed) */
 	struct Scene *scene;  /* current scene we're working with */
 
-	double cfra;          /* current frame (including subframe offset stuff) */
+	float cfra;           /* current frame (including subframe offset stuff) */
 
 	int type;             /* (eDepsNode_Type.OuterNodes) component type <-> context type (for debug purposes) */
 	short utype;          /* (eDEG_OperationContext_UserType) evaluation user type */

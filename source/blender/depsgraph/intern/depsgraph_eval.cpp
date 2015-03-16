@@ -358,7 +358,7 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx,
 void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
                                  Main *bmain,
                                  Depsgraph *graph,
-                                 double ctime,
+                                 float ctime,
                                  const int layers)
 {
 	/* Update time on primary timesource. */
