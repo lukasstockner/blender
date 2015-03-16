@@ -57,6 +57,7 @@ set(SRC
 	intern/depsgraph_queue.cpp
 	intern/depsgraph_tag.cpp
 	intern/depsgraph_type_defines.cpp
+	util/depsgraph_util_cycle.cpp
 	util/depsgraph_util_pchanmap.cpp
 
 	DEG_depsgraph.h

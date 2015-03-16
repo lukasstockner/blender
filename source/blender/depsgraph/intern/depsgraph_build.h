@@ -27,6 +27,8 @@
 #ifndef __DEPSGRAPH_BUILD_H__
 #define __DEPSGRAPH_BUILD_H__
 
+struct Base;
+struct bGPdata;
 struct ListBase;
 struct GHash;
 struct ID;
@@ -43,6 +45,8 @@ struct bConstraint;
 struct Scene;
 struct Tex;
 struct World;
+
+struct PropertyRNA;
 
 struct Depsgraph;
 struct DepsNode;
