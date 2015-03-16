@@ -1052,6 +1052,10 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 
 	/* nodetree itself */
 	ID *ntree_id = &ntree->id;
+	if (ntree_id->flag & LIB_DOIT) {
+		return;
+	}
+
 	build_animdata(ntree_id);
 
 	/* Parameters for drivers. */

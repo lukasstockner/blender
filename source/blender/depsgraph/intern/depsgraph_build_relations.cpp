@@ -1685,6 +1685,11 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 		return;
 
 	ID *ntree_id = &ntree->id;
+	if (ntree_id->flag & LIB_DOIT) {
+		return;
+	}
+	ntree_id->flag |= LIB_DOIT;
+
 	build_animdata(ntree_id);
 
 	/* nodetree's nodes... */
