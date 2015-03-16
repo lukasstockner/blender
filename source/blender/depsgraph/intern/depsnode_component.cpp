@@ -51,14 +51,16 @@ ComponentDepsNode::ComponentDepsNode() :
 }
 
 /* Initialise 'component' node - from pointer data given */
-void ComponentDepsNode::init(const ID *id, const string &subdata)
+void ComponentDepsNode::init(const ID * /*id*/,
+                             const string & /*subdata*/)
 {
 	/* hook up eval context? */
 	// XXX: maybe this needs a special API?
 }
 
 /* Copy 'component' node */
-void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode *src)
+void ComponentDepsNode::copy(DepsgraphCopyContext * /*dcc*/,
+                             const ComponentDepsNode * /*src*/)
 {
 #if 0 // XXX: remove all this
 	/* duplicate list of operation nodes */
@@ -80,6 +82,7 @@ void ComponentDepsNode::copy(DepsgraphCopyContext *dcc, const ComponentDepsNode 
 	/* copy evaluation contexts */
 	//
 #endif
+	BLI_assert(!"Not expected to be called");
 }
 
 /* Free 'component' node */

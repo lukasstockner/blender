@@ -427,7 +427,7 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 	scene->lay_updated |= graph->layers;
 }
 
-void DEG_on_visible_update(Main *bmain, const bool do_time)
+void DEG_on_visible_update(Main *bmain, const bool UNUSED(do_time))
 {
 	for (Scene *scene = (Scene*)bmain->scene.first;
 	     scene != NULL;

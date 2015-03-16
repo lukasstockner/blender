@@ -770,23 +770,25 @@ static void times_add(DepsgraphStatsTimes &times, float time)
 	times.duration_last += time;
 }
 
-void DepsgraphDebug::eval_begin(const EvaluationContext *eval_ctx)
+void DepsgraphDebug::eval_begin(const EvaluationContext *UNUSED(eval_ctx))
 {
 	verify_stats(&U.depsgraph_settings);
 	reset_stats();
 }
 
-void DepsgraphDebug::eval_end(const EvaluationContext *eval_ctx)
+void DepsgraphDebug::eval_end(const EvaluationContext *UNUSED(eval_ctx))
 {
 	WM_main_add_notifier(NC_SPACE | ND_SPACE_INFO_REPORT, NULL);
 }
 
-void DepsgraphDebug::eval_step(const EvaluationContext *eval_ctx,
+void DepsgraphDebug::eval_step(const EvaluationContext *UNUSED(eval_ctx),
                                const char *message)
 {
 #ifdef DEG_DEBUG_BUILD
 	if (deg_debug_eval_cb)
 		deg_debug_eval_cb(deg_debug_eval_userdata, message);
+#else
+	(void)message;  /* Ignored. */
 #endif
 }
 

@@ -105,7 +105,6 @@ void DEG_evaluation_context_free(EvaluationContext *eval_ctx)
 
 /* Forward declarations. */
 static void schedule_children(TaskPool *pool,
-                              EvaluationContext *eval_ctx,
                               Depsgraph *graph,
                               OperationDepsNode *node,
                               const int layers);
@@ -147,7 +146,7 @@ static void deg_task_run_func(TaskPool *pool,
 		                               end_time - start_time);
 	}
 
-	schedule_children(pool, state->eval_ctx, state->graph, node, state->layers);
+	schedule_children(pool, state->graph, node, state->layers);
 }
 
 static void calculate_pending_parents(Depsgraph *graph, int layers)
@@ -217,7 +216,6 @@ static void calculate_eval_priority(OperationDepsNode *node)
 }
 
 static void schedule_graph(TaskPool *pool,
-                           EvaluationContext *eval_ctx,
                            Depsgraph *graph,
                            const int layers)
 {
@@ -240,7 +238,6 @@ static void schedule_graph(TaskPool *pool,
 }
 
 static void schedule_children(TaskPool *pool,
-                              EvaluationContext *eval_ctx,
                               Depsgraph *graph,
                               OperationDepsNode *node,
                               const int layers)
@@ -288,7 +285,6 @@ static void schedule_children(TaskPool *pool,
  * NOTE: Time sources should be all valid!
  */
 void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
-                                Main *bmain,
                                 Depsgraph *graph,
                                 const int layers)
 {
@@ -335,7 +331,7 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 
 	DepsgraphDebug::eval_begin(eval_ctx);
 
-	schedule_graph(task_pool, eval_ctx, graph, layers);
+	schedule_graph(task_pool, graph, layers);
 
 	BLI_task_pool_work_and_wait(task_pool);
 	BLI_task_pool_free(task_pool);
@@ -348,7 +344,6 @@ void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
 
 /* Evaluate all nodes tagged for updating. */
 void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx,
-                             Main *bmain,
                              Depsgraph *graph,
                              Scene *scene)
 {
@@ -356,7 +351,7 @@ void DEG_evaluate_on_refresh(EvaluationContext *eval_ctx,
 	TimeSourceDepsNode *tsrc = graph->find_time_source();
 	tsrc->cfra = BKE_scene_frame_get(scene);;
 
-	DEG_evaluate_on_refresh_ex(eval_ctx, bmain, graph, graph->layers);
+	DEG_evaluate_on_refresh_ex(eval_ctx, graph, graph->layers);
 }
 
 /* Frame-change happened for root scene that graph belongs to. */
@@ -375,5 +370,5 @@ void DEG_evaluate_on_framechange(EvaluationContext *eval_ctx,
 	DEG_graph_flush_updates(bmain, graph);
 
 	/* Perform recalculation updates. */
-	DEG_evaluate_on_refresh_ex(eval_ctx, bmain, graph, layers);
+	DEG_evaluate_on_refresh_ex(eval_ctx, graph, layers);
 }

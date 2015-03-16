@@ -46,7 +46,7 @@ extern "C" {
 /* Low-Level Graph Traversal */
 
 /* Prepare for graph traversal, by tagging nodes, etc. */
-static void DEG_graph_traverse_begin(Depsgraph *graph)
+static void DEG_graph_traverse_begin(Depsgraph * /*graph*/)
 {
 	/* go over all nodes, initialising the valence counts */
 	// XXX: this will end up being O(|V|), which is bad when we're just updating a few nodes...

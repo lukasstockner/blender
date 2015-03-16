@@ -217,18 +217,16 @@ OperationDepsNode *DepsgraphNodeBuilder::add_operation_node(
 bool DepsgraphNodeBuilder::has_operation_node(ID *id,
                                               eDepsNode_Type comp_type,
                                               const string &comp_name,
-                                              eDepsOperation_Type optype,
                                               eDepsOperation_Code opcode,
                                               const string &description)
 {
-	return find_operation_node(id, comp_type, comp_name, optype, opcode, description) != NULL;
+	return find_operation_node(id, comp_type, comp_name, opcode, description) != NULL;
 }
 
 OperationDepsNode *DepsgraphNodeBuilder::find_operation_node(
         ID *id,
         eDepsNode_Type comp_type,
         const string &comp_name,
-        eDepsOperation_Type optype,
         eDepsOperation_Code opcode,
         const string &description)
 {
@@ -276,7 +274,7 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 
 		/* Object dupligroup. */
 		if (ob->dup_group) {
-			build_group(scene, base, ob, ob->dup_group);
+			build_group(scene, base, ob->dup_group);
 		}
 	}
 
@@ -311,7 +309,6 @@ void DepsgraphNodeBuilder::build_scene(Main *bmain, Scene *scene)
 
 void DepsgraphNodeBuilder::build_group(Scene *scene,
                                        Base *base,
-                                       Object *object,
                                        Group *group)
 {
 	ID *group_id = &group->id;
@@ -404,7 +401,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 
 			case OB_ARMATURE: /* Pose */
 				if (ob->id.lib != NULL && ob->proxy_from != NULL) {
-					build_proxy_rig(scene, ob);
+					build_proxy_rig(ob);
 				}
 				else {
 					build_rig(scene, ob);
@@ -559,7 +556,6 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 	 */
 	OperationDepsNode *driver_op = find_operation_node(id,
 	                                                   DEPSNODE_TYPE_PARAMETERS,
-	                                                   DEPSOP_TYPE_EXEC,
 	                                                   DEG_OPCODE_DRIVER,
 	                                                   deg_fcurve_id_name(fcu));
 
@@ -703,7 +699,7 @@ void DepsgraphNodeBuilder::build_ik_pose(Scene *scene, Object *ob, bPoseChannel 
 	bPoseChannel *rootchan = BKE_armature_ik_solver_find_root(pchan, data);
 
 	if (has_operation_node(&ob->id, DEPSNODE_TYPE_EVAL_POSE, rootchan->name,
-	                       DEPSOP_TYPE_SIM, DEG_OPCODE_POSE_IK_SOLVER))
+	                       DEG_OPCODE_POSE_IK_SOLVER))
 	{
 		return;
 	}
@@ -829,7 +825,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	}
 }
 
-void DepsgraphNodeBuilder::build_proxy_rig(Scene *scene, Object *ob)
+void DepsgraphNodeBuilder::build_proxy_rig(Object *ob)
 {
 	add_operation_node(&ob->id,
 	                   DEPSNODE_TYPE_EVAL_POSE,

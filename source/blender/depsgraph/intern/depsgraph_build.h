@@ -75,28 +75,26 @@ struct DepsgraphNodeBuilder {
 		return add_operation_node(id, comp_type, "", optype, op, opcode, description);
 	}
 
-	bool has_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name, eDepsOperation_Type optype,
+	bool has_operation_node(ID *id, eDepsNode_Type comp_type, const string &comp_name,
 	                        eDepsOperation_Code opcode, const string &description = "");
 
 	OperationDepsNode *find_operation_node(ID *id,
 	                                       eDepsNode_Type comp_type,
 	                                       const string &comp_name,
-	                                       eDepsOperation_Type optype,
 	                                       eDepsOperation_Code opcode,
 	                                       const string &description = "");
 
 	OperationDepsNode *find_operation_node(ID *id,
 	                                       eDepsNode_Type comp_type,
-	                                       eDepsOperation_Type optype,
 	                                       eDepsOperation_Code opcode,
 	                                       const string &description = "")
 	{
-		return find_operation_node(id, comp_type, "", optype, opcode, description);
+		return find_operation_node(id, comp_type, "", opcode, description);
 	}
 
 	void build_scene(Main *bmain, Scene *scene);
 	SubgraphDepsNode *build_subgraph(Group *group);
-	void build_group(Scene *scene, Base *base, Object *object, Group *group);
+	void build_group(Scene *scene, Base *base, Group *group);
 	void build_object(Scene *scene, Base *base, Object *ob);
 	void build_object_transform(Scene *scene, Object *ob);
 	void build_object_constraints(Scene *scene, Object *ob);
@@ -108,7 +106,7 @@ struct DepsgraphNodeBuilder {
 	void build_ik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_splineik_pose(Scene *scene, Object *ob, bPoseChannel *pchan, bConstraint *con);
 	void build_rig(Scene *scene, Object *ob);
-	void build_proxy_rig(Scene *scene, Object *ob);
+	void build_proxy_rig(Object *ob);
 	void build_shapekeys(Key *key);
 	void build_obdata_geom(Scene *scene, Object *ob);
 	void build_camera(Object *ob);
@@ -258,13 +256,13 @@ struct DepsgraphRelationBuilder
 	                       ListBase *constraints, RootPChanMap *root_map);
 	void build_animdata(ID *id);
 	void build_driver(ID *id, FCurve *fcurve);
-	void build_world(Scene *scene, World *world);
+	void build_world(World *world);
 	void build_rigidbody(Scene *scene);
 	void build_particles(Scene *scene, Object *ob);
 	void build_ik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
 	void build_splineik_pose(Object *ob, bPoseChannel *pchan, bConstraint *con, RootPChanMap *root_map);
 	void build_rig(Scene *scene, Object *ob);
-	void build_proxy_rig(Scene *scene, Object *ob);
+	void build_proxy_rig(Object *ob);
 	void build_shapekeys(ID *obdata, Key *key);
 	void build_obdata_geom(Scene *scene, Object *ob);
 	void build_camera(Object *ob);

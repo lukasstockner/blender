@@ -159,6 +159,7 @@ IDDepsNode::~IDDepsNode()
 /* Copy 'id' node. */
 void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 {
+	(void)src;  /* Ignored. */
 	/* Iterate over items in original hash, adding them to new hash. */
 	for (IDDepsNode::ComponentMap::const_iterator it = this->components.begin();
 	     it != this->components.end();
@@ -176,6 +177,7 @@ void IDDepsNode::copy(DepsgraphCopyContext *dcc, const IDDepsNode *src)
 	}
 
 	// TODO: perform a second loop to fix up links?
+	BLI_assert(!"Not expected to be used");
 }
 
 ComponentDepsNode *IDDepsNode::find_component(eDepsNode_Type type,
@@ -272,13 +274,14 @@ SubgraphDepsNode::~SubgraphDepsNode()
 }
 
 /* Copy 'subgraph' node - Assume that the subgraph doesn't get copied for now... */
-void SubgraphDepsNode::copy(DepsgraphCopyContext *dcc,
-                            const SubgraphDepsNode *src)
+void SubgraphDepsNode::copy(DepsgraphCopyContext * /*dcc*/,
+                            const SubgraphDepsNode * /*src*/)
 {
 	//const SubgraphDepsNode *src_node = (const SubgraphDepsNode *)src;
 	//SubgraphDepsNode *dst_node       = (SubgraphDepsNode *)dst;
 
 	/* for now, subgraph itself isn't copied... */
+	BLI_assert(!"Not expected to be used");
 }
 
 DEG_DEPSNODE_DEFINE(SubgraphDepsNode, DEPSNODE_TYPE_SUBGRAPH, "Subgraph Node");

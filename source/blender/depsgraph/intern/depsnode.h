@@ -87,10 +87,12 @@ struct DepsNode {
 
 	virtual string identifier() const;
 
-	virtual void init(const ID *id, const string &subdata) {}
-	virtual void copy(DepsgraphCopyContext *dcc, const DepsNode *src) {}
+	virtual void init(const ID * /*id*/,
+	                  const string &/*subdata*/) {}
+	virtual void copy(DepsgraphCopyContext * /*dcc*/,
+	                  const DepsNode * /*src*/) {}
 
-	virtual void tag_update(Depsgraph *graph) {}
+	virtual void tag_update(Depsgraph * /*graph*/) {}
 
 	virtual OperationDepsNode *get_entry_operation() { return NULL; }
 	virtual OperationDepsNode *get_exit_operation() { return NULL; }

@@ -125,6 +125,8 @@ DepsgraphRelationBuilder::DepsgraphRelationBuilder(Depsgraph *graph) :
 
 RootDepsNode *DepsgraphRelationBuilder::find_node(const RootKey &key) const
 {
+	(void)key;
+	BLI_assert(!"Doesn't seem to be correct");
 	return m_graph->root_node;
 }
 
@@ -264,7 +266,7 @@ void DepsgraphRelationBuilder::build_scene(Main *bmain, Scene *scene)
 
 	/* world */
 	if (scene->world) {
-		build_world(scene, scene->world);
+		build_world(scene->world);
 	}
 
 	/* compo nodes */
@@ -388,7 +390,7 @@ void DepsgraphRelationBuilder::build_object(Scene *scene, Object *ob)
 
 			case OB_ARMATURE: /* Pose */
 				if (ob->id.lib != NULL && ob->proxy_from != NULL) {
-					build_proxy_rig(scene, ob);
+					build_proxy_rig(ob);
 				}
 				else {
 					build_rig(scene, ob);
@@ -853,7 +855,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 	}
 }
 
-void DepsgraphRelationBuilder::build_world(Scene *scene, World *world)
+void DepsgraphRelationBuilder::build_world(World *world)
 {
 	ID *world_id = &world->id;
 	if (world_id->flag & LIB_DOIT) {
@@ -1403,7 +1405,7 @@ void DepsgraphRelationBuilder::build_rig(Scene *scene, Object *ob)
 	}
 }
 
-void DepsgraphRelationBuilder::build_proxy_rig(Scene *scene, Object *ob)
+void DepsgraphRelationBuilder::build_proxy_rig(Object *ob)
 {
 	OperationKey pose_init_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_INIT);
 	OperationKey pose_done_key(&ob->id, DEPSNODE_TYPE_EVAL_POSE, DEG_OPCODE_POSE_DONE);

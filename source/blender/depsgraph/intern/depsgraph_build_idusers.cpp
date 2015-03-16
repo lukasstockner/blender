@@ -132,7 +132,7 @@ void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
 	}
 }
 
-void DepsgraphIDUsersBuilder::build_scene(Main *bmain, Scene *scene)
+void DepsgraphIDUsersBuilder::build_scene(Main *UNUSED(bmain), Scene *scene)
 {
 	/* scene set - do links to other scenes */
 	if (scene->set) {
