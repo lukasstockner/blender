@@ -143,7 +143,7 @@ class AmberJobList(AmberJob):
         self.ls_task = self.executor.submit(self.ls, self.root)
         self.status = {'VALID', 'RUNNING'}
 
-    def update(self, entries, uuids):
+    def update(self, repository, dirs, uuids):
         self.status = {'VALID', 'RUNNING'}
         if self.ls_task is not None:
             if not self.ls_task.done():
@@ -151,8 +151,10 @@ class AmberJobList(AmberJob):
             paths, repo = self.ls_task.result()
             self.ls_task = None
             self.tot = len(paths)
+            repository.clear()
+            dirs.clear()
             if repo is not None:
-                self.repo = repo
+                repository.update(repo)
             for p in paths:
                 self.stat_tasks.add(self.executor.submit(self.stat, self.root, p))
 
@@ -163,30 +165,100 @@ class AmberJobList(AmberJob):
                 self.nbr += 1
                 if is_dir:
                     # We only list dirs from real file system.
-                    entry = entries.entries.add()
-                    entry.type = {'DIR'}
-                    entry.relpath = path
-                    entry.uuid = entry.relpath.encode()[:8] + b"|" + bytes(self.nbr)
-                    uuids[entry.uuid] = self.root + path
-                    variant = entry.variants.add()
-                    entry.variants.active = variant
-                    rev = variant.revisions.add()
-                    rev.size = size
-                    rev.timestamp = timestamp
-                    variant.revisions.active = rev
+                    dirs.append((path, size, timestamp, path.encode()[:8] + b"|" + bytes(self.nbr)))
                 done.add(tsk)
         self.stat_tasks -= done
 
-        if self.repo is not None:
-            existing = {}
-            for e in entries.entries:
-                vd = {}
-                existing[e.uuid] = (e, vd)
-                for v in e.variants:
-                    rd = {}
-                    vd[v.uuid] = (v, rd)
-                    for r in v.revisions:
-                        rd[r.uuid] = r
+        self.progress = self.nbr / self.tot
+        if not self.stat_tasks and self.ls_task is None:
+            self.status = {'VALID'}
+
+    def __init__(self, executor, job_id, root):
+        super().__init__(executor, job_id)
+        self.root = root
+
+        self.ls_task = None
+        self.stat_tasks = set()
+
+        self.start()
+
+    def __del__(self):
+        # Avoid useless work!
+        if self.ls_task is not None:
+            self.ls_task.cancel()
+        for tsk in self.stat_tasks:
+            tsk.cancel()
+
+
+###########################
+# Main Asset Engine class.
+class AssetEngineAmber(AssetEngine):
+    bl_label = "Amber"
+
+    max_entries = IntProperty(
+            name="Max Entries",
+            description="Max number of entries to return as a 'list' request (avoids risks of 'explosion' on big repos)",
+            min=10, max=10000, default=1000,
+    )
+
+    # *Very* primitive! Only 32 tags allowed...
+    def _tags_gen(self, context):
+        tags = getattr(self, "tags_source", [])
+        return [(tag, tag, str(prio)) for tag, prio in tags[:32]]
+    tags = EnumProperty(
+            items=_tags_gen,
+            name="Tags",
+            description="Active tags",
+            options={'ENUM_FLAG'},
+    )
+
+    def __init__(self):
+        self.executor = futures.ThreadPoolExecutor(8)  # Using threads for now, if issues arise we'll switch to process.
+        self.jobs = {}
+        self.root = ""
+        self.uuids = {}
+        self.repo = {}
+        self.dirs = []
+        self.tags_source = []
+
+        self.job_uuid = 1
+
+    def __del__(self):
+        pass
+        # XXX This errors, saying self has no executor attribute... Suspect some py/RNA funky game. :/
+        #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
+        #~ self.executor.shutdown(wait=False)
+
+    def fill_entries(self, entries):
+        if entries.root_path != self.root:
+            entries.entries.clear()
+            self.root = entries.root_path
+
+        existing = {}
+        for e in entries.entries:
+            vd = {}
+            existing[e.uuid] = (e, vd)
+            for v in e.variants:
+                rd = {}
+                vd[v.uuid] = (v, rd)
+                for r in v.revisions:
+                    rd[r.uuid] = r
+
+        for path, size, timestamp, entry_uuid in self.dirs:
+            if entry_uuid in existing:
+                continue
+            entry = entries.entries.add()
+            entry.type = {'DIR'}
+            entry.relpath = path
+            entry.uuid = entry_uuid
+            variant = entry.variants.add()
+            entry.variants.active = variant
+            rev = variant.revisions.add()
+            rev.size = size
+            rev.timestamp = timestamp
+            variant.revisions.active = rev
+
+        if self.repo:
             for euuid, e in self.repo["entries"].items():
                 entry_uuid = binascii.unhexlify(euuid)
                 entry, existing_vuuids = existing.get(entry_uuid, (None, {}))
@@ -199,7 +271,7 @@ class AmberJobList(AmberJob):
                     entry.blender_type = e["blen_type"]
                     existing[entry_uuid] = (entry, existing_vuuids)  # Not really needed, but for sake of consistency...
                     vuuids = {}
-                    uuids[entry.uuid] = (self.root, entry.type, entry.blender_type, vuuids)
+                    self.uuids[entry.uuid] = (self.root, entry.type, entry.blender_type, vuuids)
                 act_rev = None
                 for vuuid, v in e["variants"].items():
                     variant_uuid = binascii.unhexlify(vuuid)
@@ -229,52 +301,8 @@ class AmberJobList(AmberJob):
                                 act_rev = r
                 if act_rev:
                     entry.relpath = act_rev["path"]
+            self.tags_source = sorted(self.repo["tags"].items(), key=lambda i: i[1], reverse=True)
 
-        self.progress = self.nbr / self.tot
-        if not self.stat_tasks and self.ls_task is None:
-            self.status = {'VALID'}
-
-    def __init__(self, executor, job_id, root):
-        super().__init__(executor, job_id)
-        self.root = root
-        self.repo = None
-
-        self.ls_task = None
-        self.stat_tasks = set()
-
-        self.start()
-
-    def __del__(self):
-        # Avoid useless work!
-        if self.ls_task is not None:
-            self.ls_task.cancel()
-        for tsk in self.stat_tasks:
-            tsk.cancel()
-
-
-###########################
-# Main Asset Engine class.
-class AssetEngineAmber(AssetEngine):
-    bl_label = "Amber"
-
-    max_entries = IntProperty(
-            name="Max Entries",
-            description="Max number of entries to return as a 'list' request (avoids risks of 'explosion' on big repos)",
-            min=10, max=10000, default=1000,
-    )
-
-    def __init__(self):
-        self.executor = futures.ThreadPoolExecutor(8)  # Using threads for now, if issues arise we'll switch to process.
-        self.jobs = {}
-        self.uuids = {}
-
-        self.job_uuid = 1
-
-    def __del__(self):
-        pass
-        # XXX This errors, saying self has no executor attribute... Suspect some py/RNA funky game. :/
-        #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
-        #~ self.executor.shutdown(wait=False)
 
     def status(self, job_id):
         if job_id:
@@ -307,11 +335,12 @@ class AssetEngineAmber(AssetEngine):
             if job.root != entries.root_path:
                 self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
             else:
-                job.update(entries, self.uuids)
-        else:
-            self.job_uuid += 1
+                job.update(self.repo, self.dirs, self.uuids)
+        elif self.root != entries.root_path:
             job_id = self.job_uuid
+            self.job_uuid += 1
             self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
+        self.fill_entries(entries)
         return job_id
 
     def load_pre(self, uuids, entries):
@@ -336,7 +365,6 @@ class AssetEngineAmber(AssetEngine):
 
 ##########
 # UI stuff
-
 class AmberPanel():
     @classmethod
     def poll(cls, context):
@@ -346,6 +374,7 @@ class AmberPanel():
             if ae and space.asset_engine_type == "AssetEngineAmber":
                 return True
         return False
+
 
 class AMBER_PT_options(Panel, AmberPanel):
     bl_space_type = 'FILE_BROWSER'
@@ -360,6 +389,20 @@ class AMBER_PT_options(Panel, AmberPanel):
 
         row = layout.row()
         row.prop(ae, "max_entries")
+
+
+class AMBER_PT_tags(Panel, AmberPanel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOLS'
+    bl_category = "Asset Engine"
+    bl_label = "Tags"
+
+    def draw(self, context):
+        ae = context.space_data.asset_engine
+
+        # Note: This is *ultra-primitive*!
+        #       A good UI will most likely need new widget option anyway (template). Or maybe just some UIList...
+        self.layout.props_enum(ae, "tags")
 
 
 if __name__ == "__main__":  # only for live edit.
