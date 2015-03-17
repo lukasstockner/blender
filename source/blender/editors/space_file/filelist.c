@@ -965,7 +965,18 @@ static void filelist_entry_free(FileDirEntry *entry, const bool clear)
 			if (var->description) {
 				MEM_freeN(var->description);
 			}
-			BLI_freelistN(&var->revisions);
+
+			if (!BLI_listbase_is_empty(&var->revisions)) {
+				FileDirEntryRevision *rev;
+
+				for (rev = var->revisions.first; rev; rev = rev->next) {
+					if (rev->comment) {
+						MEM_freeN(rev->comment);
+					}
+				}
+
+				BLI_freelistN(&var->revisions);
+			}
 		}
 
 		/* TODO: tags! */

@@ -769,8 +769,7 @@ typedef struct FileDirEntryRevision {
 	 */
 	char uuid[24];  /* ASSET_UUID_LENGTH */
 
-	/* Shall we also add a description to revisions? Could contain commit messages e.g.
-	 * But would also likely make explode memory usage? */
+	char *comment;
 
 	uint64_t size;
 	int64_t time;
@@ -829,6 +828,7 @@ typedef struct FileDirEntry {
 	void *poin;  /* TODO: make this a real ID pointer? */
 	struct ImBuf *image;
 
+	/* Tags are for info only, most of filtering is done in asset engine. */
 	char **tags;
 	int nbr_tags;
 
