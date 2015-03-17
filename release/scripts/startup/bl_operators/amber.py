@@ -22,7 +22,7 @@
 #       as a startup module!
 
 import bpy
-from bpy.types import AssetEngine
+from bpy.types import AssetEngine, Panel
 from bpy.props import (
         StringProperty,
         BoolProperty,
@@ -253,9 +253,15 @@ class AmberJobList(AmberJob):
 
 
 ###########################
-# Mains Asset Engine class.
+# Main Asset Engine class.
 class AssetEngineAmber(AssetEngine):
     bl_label = "Amber"
+
+    max_entries = IntProperty(
+            name="Max Entries",
+            description="Max number of entries to return as a 'list' request (avoids risks of 'explosion' on big repos)",
+            min=10, max=10000, default=1000,
+    )
 
     def __init__(self):
         self.executor = futures.ThreadPoolExecutor(8)  # Using threads for now, if issues arise we'll switch to process.
@@ -326,6 +332,34 @@ class AssetEngineAmber(AssetEngine):
             entry.relpath = path
         entries.root_path = root_path
         return True
+
+
+##########
+# UI stuff
+
+class AmberPanel():
+    @classmethod
+    def poll(cls, context):
+        space = context.space_data
+        if space and space.type == 'FILE_BROWSER':
+            ae = space.asset_engine
+            if ae and space.asset_engine_type == "AssetEngineAmber":
+                return True
+        return False
+
+class AMBER_PT_options(Panel, AmberPanel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOLS'
+    bl_category = "Asset Engine"
+    bl_label = "Amber Options"
+
+    def draw(self, context):
+        layout = self.layout
+        space = context.space_data
+        ae = space.asset_engine
+
+        row = layout.row()
+        row.prop(ae, "max_entries")
 
 
 if __name__ == "__main__":  # only for live edit.

@@ -36,6 +36,7 @@
 #include "rna_internal.h"
 
 #include "BKE_asset.h"
+#include "BKE_idprop.h"
 
 #ifdef RNA_RUNTIME
 
@@ -512,6 +513,17 @@ static StructRNA *rna_AssetEngine_refine(PointerRNA *ptr)
 	return (engine->type && engine->type->ext.srna) ? engine->type->ext.srna : &RNA_AssetEngine;
 }
 
+static IDProperty *rna_AssetEngine_idprops(PointerRNA *ptr, bool create)
+{
+	AssetEngine *ae = (AssetEngine *)ptr->data;
+	if (create && !ae->properties) {
+		IDPropertyTemplate val = {0};
+		ae->properties = IDP_New(IDP_GROUP, &val, "RNA_AssetEngine IDproperties group");
+	}
+
+	return ae->properties;
+}
+
 #else /* RNA_RUNTIME */
 
 /* Much lighter version of asset/variant/revision identifier. */
@@ -829,6 +841,7 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 	RNA_def_struct_refine_func(srna, "rna_AssetEngine_refine");
 	RNA_def_struct_register_funcs(srna, "rna_AssetEngine_register", "rna_AssetEngine_unregister",
 	                              "rna_AssetEngine_instance");
+	RNA_def_struct_idprops_func(srna, "rna_AssetEngine_idprops");
 
 	/* Status callback */
 	func = RNA_def_function(srna, "status", NULL);

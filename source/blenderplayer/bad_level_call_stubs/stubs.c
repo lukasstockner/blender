@@ -43,6 +43,7 @@
 
 struct ARegion;
 struct ARegionType;
+struct AssetEngine;
 struct BMEditMesh;
 struct Base;
 struct BoundBox;
@@ -353,6 +354,8 @@ void ED_space_image_set_mask(struct bContext *C, struct SpaceImage *sima, struct
 
 void ED_area_tag_redraw_regiontype(struct ScrArea *sa, int regiontype) RET_NONE
 void ED_render_engine_changed(struct Main *bmain) RET_NONE
+
+struct AssetEngine *ED_filelist_assetengine_get(struct SpaceFile *sfile) RET_NULL
 
 void ED_file_read_bookmarks(void) RET_NONE
 void ED_file_change_dir(struct bContext *C, const bool checkdir) RET_NONE

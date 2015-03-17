@@ -1054,6 +1054,11 @@ void filelist_assetengine_set(struct FileList *filelist, struct AssetEngineType 
 	filelist->force_reset = true;
 }
 
+AssetEngine *ED_filelist_assetengine_get(SpaceFile *sfile)
+{
+	return sfile->files->ae;
+}
+
 const char *filelist_dir(struct FileList *filelist)
 {
 	return filelist->filelist.root;

@@ -47,6 +47,7 @@ struct FileDirEntryVariant;
 struct FileDirEntryRevision;
 struct ExtensionRNA;
 struct ID;
+struct IDProperty;
 struct ListBase;
 struct uiLayout;
 
@@ -122,6 +123,9 @@ typedef struct AssetEngineType {
 typedef struct AssetEngine {
 	AssetEngineType *type;
 	void *py_instance;
+
+	/* Custom sub-classes properties. */
+	IDProperty *properties;
 
 	int flag;
 	int refcount;

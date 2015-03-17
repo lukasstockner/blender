@@ -46,6 +46,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_global.h"
+#include "BKE_idprop.h"
 #include "BKE_report.h"
 #include "BKE_asset.h"
 
@@ -130,6 +131,11 @@ void BKE_asset_engine_free(AssetEngine *engine)
 			BPY_DECREF_RNA_INVALIDATE(engine->py_instance);
 		}
 #endif
+
+		if (engine->properties) {
+			IDP_FreeProperty(engine->properties);
+			MEM_freeN(engine->properties);
+		}
 
 		MEM_freeN(engine);
 	}

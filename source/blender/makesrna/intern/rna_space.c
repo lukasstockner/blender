@@ -1383,13 +1383,13 @@ static int rna_SpaceFileBrowser_use_lib_get(PointerRNA *ptr)
 	return sf->params && (sf->params->type == FILE_LOADLIB);
 }
 
-static int rna_FileBrowser_AE_enum_get(PointerRNA *ptr)
+static int rna_FileBrowser_AE_type_enum_get(PointerRNA *ptr)
 {
 	SpaceFile *sf = ptr->data;
 	return BLI_findstringindex(&asset_engines, sf->asset_engine, offsetof(AssetEngineType, idname));
 }
 
-static void rna_FileBrowser_AE_enum_set(PointerRNA *ptr, const int value)
+static void rna_FileBrowser_AE_type_enum_set(PointerRNA *ptr, const int value)
 {
 	SpaceFile *sf = ptr->data;
 	AssetEngineType *aet = BLI_findlink(&asset_engines, value);
@@ -1399,7 +1399,7 @@ static void rna_FileBrowser_AE_enum_set(PointerRNA *ptr, const int value)
 	}
 }
 
-static EnumPropertyItem *rna_FileBrowser_AE_enum_itemf(
+static EnumPropertyItem *rna_FileBrowser_AE_type_enum_itemf(
         bContext *UNUSED(C), PointerRNA *UNUSED(ptr), PropertyRNA *UNUSED(prop), bool *r_free)
 {
 	EnumPropertyItem *items = NULL;
@@ -1415,6 +1415,13 @@ static EnumPropertyItem *rna_FileBrowser_AE_enum_itemf(
 	*r_free = true;
 
 	return items;
+}
+
+static PointerRNA rna_FileBrowser_AE_ptr_get(PointerRNA *ptr)
+{
+	SpaceFile *sfile = ptr->data;
+	AssetEngine *ae = ED_filelist_assetengine_get(sfile);
+	return rna_pointer_inherit_refine(ptr, &RNA_AssetEngine, ae);
 }
 
 static void rna_FileBrowser_FSMenuEntry_path_get(PointerRNA *ptr, char *value)
@@ -3747,12 +3754,18 @@ static void rna_def_space_filebrowser(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "SpaceFile");
 	RNA_def_struct_ui_text(srna, "Space File Browser", "File browser space data");
 
-	prop = RNA_def_property(srna, "asset_engine", PROP_ENUM, PROP_NONE);
-	RNA_def_property_ui_text(prop, "Asset Engine", "Active asset engine");
+	prop = RNA_def_property(srna, "asset_engine_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Asset Engine Type", "Active asset engine type");
 	RNA_def_property_enum_items(prop, asset_engine_items);
-	RNA_def_property_enum_funcs(prop, "rna_FileBrowser_AE_enum_get", "rna_FileBrowser_AE_enum_set",
-	                            "rna_FileBrowser_AE_enum_itemf");
+	RNA_def_property_enum_funcs(prop, "rna_FileBrowser_AE_type_enum_get", "rna_FileBrowser_AE_type_enum_set",
+	                            "rna_FileBrowser_AE_type_enum_itemf");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_property(srna, "asset_engine", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Asset Engine", "Active asset engine");
+	RNA_def_property_struct_type(prop, "AssetEngine");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_pointer_funcs(prop, "rna_FileBrowser_AE_ptr_get", NULL, NULL, NULL);
 
 	prop = RNA_def_property(srna, "params", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "params");
