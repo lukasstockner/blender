@@ -397,57 +397,44 @@ static int compare_size(void *UNUSED(user_data), const void *a1, const void *a2)
 	return BLI_natstrcmp(name1, name2);
 }
 
-static int compare_extension(void *user_data, const void *a1, const void *a2)
+static int compare_extension(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const char *root = user_data;
 	const FileDirEntry *entry1 = a1;
 	const FileDirEntry *entry2 = a2;
-	const char *sufix1, *sufix2;
-	const char *nil = "";
+	char *name1, *name2;
 	int ret;
 
 	if ((ret = compare_direntry_generic(entry1, entry2))) {
 		return ret;
 	}
 
-	if (!(sufix1 = strstr(entry1->relpath, ".blend.gz")))
-		sufix1 = strrchr(entry1->relpath, '.');
-	if (!(sufix2 = strstr(entry2->relpath, ".blend.gz")))
-		sufix2 = strrchr(entry2->relpath, '.');
-	if (!sufix1) sufix1 = nil;
-	if (!sufix2) sufix2 = nil;
-
 	if ((entry1->typeflag & FILE_TYPE_BLENDERLIB) && !(entry2->typeflag & FILE_TYPE_BLENDERLIB)) return -1;
 	if (!(entry1->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->typeflag & FILE_TYPE_BLENDERLIB)) return 1;
 	if ((entry1->typeflag & FILE_TYPE_BLENDERLIB) && (entry2->typeflag & FILE_TYPE_BLENDERLIB)) {
-		char lib1[FILE_MAX_LIBEXTRA], lib2[FILE_MAX_LIBEXTRA];
-		char abspath[FILE_MAX_LIBEXTRA];
-		char *group1, *group2, *name1, *name2;
-		int grp_comp;
+		if ((entry1->typeflag & FILE_TYPE_DIR) && !(entry2->typeflag & FILE_TYPE_DIR)) return 1;
+		if (!(entry1->typeflag & FILE_TYPE_DIR) && (entry2->typeflag & FILE_TYPE_DIR)) return -1;
+		if (entry1->blentype < entry2->blentype) return -1;
+		if (entry1->blentype > entry2->blentype) return 1;
+	}
+	else {
+		const char *sufix1, *sufix2;
 
-		BLI_join_dirfile(abspath, sizeof(abspath), root, entry1->relpath);
-		BLO_library_path_explode(abspath, lib1, &group1, &name1);
-		BLI_join_dirfile(abspath, sizeof(abspath), root, entry2->relpath);
-		BLO_library_path_explode(abspath, lib2, &group2, &name2);
+		if (!(sufix1 = strstr(entry1->relpath, ".blend.gz")))
+			sufix1 = strrchr(entry1->relpath, '.');
+		if (!(sufix2 = strstr(entry2->relpath, ".blend.gz")))
+			sufix2 = strrchr(entry2->relpath, '.');
+		if (!sufix1) sufix1 = "";
+		if (!sufix2) sufix2 = "";
 
-		BLI_assert(group1);
-		BLI_assert(group2);
-
-		grp_comp = strcmp(group1, group2);
-		if (grp_comp != 0 || (!name1 && !name2)) {
-			return grp_comp;
+		if ((ret = BLI_strcasecmp(sufix1, sufix2))) {
+			return ret;
 		}
-
-		if (!name1) {
-			return -1;
-		}
-		if (!name2) {
-			return 1;
-		}
-		return BLI_strcasecmp(name1, name2);
 	}
 
-	return BLI_strcasecmp(sufix1, sufix2);
+	name1 = entry1->name;
+	name2 = entry2->name;
+
+	return BLI_natstrcmp(name1, name2);
 }
 
 bool filelist_need_sorting(struct FileList *filelist)

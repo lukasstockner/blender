@@ -151,6 +151,8 @@ typedef enum FileCheckType {
 	CHECK_ALL   = CHECK_DIRS | CHECK_FILES,
 } FileCheckType;
 
+void BKE_filedir_revision_free(struct FileDirEntryRevision *rev);
+
 void BKE_filedir_variant_free(struct FileDirEntryVariant *var);
 
 void BKE_filedir_entry_free(struct FileDirEntry *entry);

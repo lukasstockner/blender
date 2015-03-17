@@ -177,6 +177,13 @@ void BKE_asset_engine_load_pre(AssetEngine *engine, FileDirEntryArr *r_entries)
 
 /* FileDirxxx handling. */
 
+void BKE_filedir_revision_free(FileDirEntryRevision *rev)
+{
+	if (rev->comment) {
+		MEM_freeN(rev->comment);
+	}
+}
+
 void BKE_filedir_variant_free(FileDirEntryVariant *var)
 {
 	if (var->name) {
@@ -185,7 +192,16 @@ void BKE_filedir_variant_free(FileDirEntryVariant *var)
 	if (var->description) {
 		MEM_freeN(var->description);
 	}
-	BLI_freelistN(&var->revisions);
+
+	if (!BLI_listbase_is_empty(&var->revisions)) {
+		FileDirEntryRevision *rev;
+
+		for (rev = var->revisions.first; rev; rev = rev->next) {
+			BKE_filedir_revision_free(rev);
+		}
+
+		BLI_freelistN(&var->revisions);
+	}
 }
 
 void BKE_filedir_entry_free(FileDirEntry *entry)
@@ -268,6 +284,10 @@ FileDirEntry *BKE_filedir_entry_copy(FileDirEntry *entry)
 			for (act_rev = 0, rev = var->revisions.first; rev; act_rev++, rev = rev->next) {
 				FileDirEntryRevision *rev_new = MEM_dupallocN(rev);
 				const bool is_act_rev = (act_rev == var->act_revision);
+
+				if (rev->comment) {
+					rev_new->comment = MEM_dupallocN(rev->comment);
+				}
 
 				BLI_addtail(&var_new->revisions, rev_new);
 
