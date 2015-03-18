@@ -709,7 +709,7 @@ void gpu_index_shutdown_buffer_gl(GPUindex *index)
 
 
 
-void gpu_shutdown_buffer_gl(GPUimmediate *immediate)
+void gpu_shutdown_buffer_gl(GPUImmediate *immediate)
 {
 	if (immediate->vertex_stream) {
 		GPUVertexStream* stream = (GPUVertexStream*)(immediate->vertex_stream);
@@ -921,7 +921,7 @@ void gpu_commit_samplers(void)
 
 
 /* global symbol needed because the immediate drawing functons are inline */
-GPUimmediate *GPU_IMMEDIATE = NULL;
+GPUImmediate *GPU_IMMEDIATE = NULL;
 
 void gpuBegin(GLenum mode)
 {
@@ -1025,10 +1025,10 @@ static void gpu_copy_vertex(void);
 
 
 
-GPUimmediate* gpuNewImmediate(void)
+GPUImmediate* gpuNewImmediate(void)
 {
-	GPUimmediate* immediate =
-		(GPUimmediate*)MEM_callocN(sizeof(GPUimmediate), "GPUimmediate");
+	GPUImmediate* immediate =
+		(GPUImmediate*)MEM_callocN(sizeof(GPUImmediate), "GPUimmediate");
 
 	immediate->copyVertex = gpu_copy_vertex;
 
@@ -1041,14 +1041,14 @@ GPUimmediate* gpuNewImmediate(void)
 
 
 
-void gpuImmediateMakeCurrent(GPUimmediate *immediate)
+void gpuImmediateMakeCurrent(GPUImmediate *immediate)
 {
 	GPU_IMMEDIATE = immediate;
 }
 
 
 
-void gpuDeleteImmediate(GPUimmediate *immediate)
+void gpuDeleteImmediate(GPUImmediate *immediate)
 {
 	if (!immediate)
 		return;
@@ -1615,11 +1615,11 @@ void gpuImmediateUnformat(void)
 	gpuImmediateUnlock();
 }
 
-static GPUimmediate* immediateStack = NULL; /* stack size of one */
+static GPUImmediate* immediateStack = NULL; /* stack size of one */
 
 void gpuPushImmediate(void)
 {
-	GPUimmediate* newImmediate;
+	GPUImmediate* newImmediate;
 
 	GPU_CHECK_CAN_PUSH();
 
@@ -1628,9 +1628,9 @@ void gpuPushImmediate(void)
 	GPU_IMMEDIATE  = newImmediate;
 }
 
-GPUimmediate* gpuPopImmediate(void)
+GPUImmediate* gpuPopImmediate(void)
 {
-	GPUimmediate* newImmediate;
+	GPUImmediate* newImmediate;
 
 	GPU_CHECK_CAN_POP();
 
@@ -2275,7 +2275,7 @@ GPUindex* gpuNewIndex(void)
 void gpuDeleteIndex(GPUindex *index)
 {
 	if (index) {
-		GPUimmediate* immediate = index->immediate;
+		GPUImmediate* immediate = index->immediate;
 
 		gpu_index_shutdown_buffer_gl(index);
 		immediate->index = NULL;

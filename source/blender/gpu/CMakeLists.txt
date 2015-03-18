@@ -55,6 +55,7 @@ set(SRC
 	intern/gpu_clipping.c
 	intern/gpu_draw.c
 	intern/gpu_extensions.c
+	intern/gpu_font.c
 	intern/gpu_immediate.c
 	intern/gpu_init_exit.c
 	intern/gpu_material.c
@@ -64,6 +65,7 @@ set(SRC
 	intern/gpu_raster.c
 	intern/gpu_simple_shader.c
 	intern/gpu_select.c
+	intern/gpu_sprite.c
 	intern/gpu_compositing.c
 	intern/gpu_debug.c
 
@@ -84,6 +86,14 @@ set(SRC
 	shaders/gpu_shader_common_uniforms.glsl
 	shaders/gpu_shader_common_constants.glsl
 	shaders/gpu_shader_common_attribs.glsl
+	shaders/gpu_shader_pixels_uniforms.glsl
+	shaders/gpu_shader_pixels_vert.glsl
+	shaders/gpu_shader_pixels_frag.glsl
+	shaders/gpu_shader_raster_uniforms.glsl
+	shaders/gpu_shader_raster_vert.glsl
+	shaders/gpu_shader_raster_frag.glsl
+	shaders/gpu_shader_font_vert.glsl
+	shaders/gpu_shader_font_frag.glsl
 
 	GPU_aspect.h
 	GPU_buffers.h
@@ -92,6 +102,7 @@ set(SRC
 	GPU_draw.h
 	GPU_debug.h
 	GPU_extensions.h
+	GPU_font.h
 	GPU_glew.h
 	GPU_init_exit.h
 	GPU_material.h
@@ -128,6 +139,14 @@ data_to_c_simple(shaders/gpu_shader_fx_lib.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_common_uniforms.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_common_constants.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_common_attribs.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_pixels_uniforms.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_pixels_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_pixels_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_raster_uniforms.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_raster_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_raster_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_font_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_font_frag.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)

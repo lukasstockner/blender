@@ -31,6 +31,8 @@
 
 #include "BLI_sys_types.h"
 #include "GPU_init_exit.h"  /* interface */
+#include "GPU_immediate.h"
+#include "GPU_aspect.h"
 
 #include "intern/gpu_codegen.h"
 #include "intern/gpu_private.h"
@@ -41,6 +43,9 @@
  */
 
 static bool initialized = false;
+static GPUImmediate* gpu_immediate;
+static GPUindex*     gpu_index;
+
 
 void GPU_init(void)
 {
@@ -51,10 +56,31 @@ void GPU_init(void)
 	initialized = true;
 
 	gpu_extensions_init(); /* must come first */
-	gpu_matrix_init();
-
+	gpu_aspect_init();
+	gpu_basic_init();
+	gpu_blender_aspect_init();
+	gpu_clipping_init();
 	gpu_codegen_init();
+	gpu_common_init();
+	gpu_font_init();
+	gpu_immediate_init();
+//	gpu_lighting_init();
+	gpu_matrix_init();
+	gpu_pixels_init();
+	gpu_raster_init();
+//	gpu_select_init();
+//	gpu_sprite_init();
+//	gpu_state_latch_init();
 
+	gpu_immediate = gpuNewImmediate();
+	gpuImmediateMakeCurrent(gpu_immediate);
+	gpuImmediateMaxVertexCount(500000); // XXX jwilkins: temporary!
+
+	gpu_index = gpuNewIndex();
+	gpuImmediateIndex(gpu_index);
+	gpuImmediateMaxIndexCount(50000, GL_UNSIGNED_SHORT); // XXX jwilkins: temporary!
+
+	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 	GPU_DEBUG_INIT();
 }
 

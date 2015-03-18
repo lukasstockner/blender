@@ -178,9 +178,9 @@ void gpuSingleArc(
 }
 
 
-void gpuImmediateSingleDraw(GLenum mode, GPUimmediate *immediate)
+void gpuImmediateSingleDraw(GLenum mode, GPUImmediate *immediate)
 {
-	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -189,9 +189,9 @@ void gpuImmediateSingleDraw(GLenum mode, GPUimmediate *immediate)
 	GPU_IMMEDIATE = oldImmediate;
 }
 
-void gpuImmediateSingleRepeat(GPUimmediate *immediate)
+void gpuImmediateSingleRepeat(GPUImmediate *immediate)
 {
-	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -200,9 +200,9 @@ void gpuImmediateSingleRepeat(GPUimmediate *immediate)
 	GPU_IMMEDIATE = oldImmediate;
 }
 
-void gpuImmediateSingleDrawElements(GLenum mode, GPUimmediate *immediate)
+void gpuImmediateSingleDrawElements(GLenum mode, GPUImmediate *immediate)
 {
-	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -211,9 +211,9 @@ void gpuImmediateSingleDrawElements(GLenum mode, GPUimmediate *immediate)
 	GPU_IMMEDIATE = oldImmediate;
 }
 
-void gpuImmediateSingleRepeatElements(GPUimmediate *immediate)
+void gpuImmediateSingleRepeatElements(GPUImmediate *immediate)
 {
-	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -222,9 +222,9 @@ void gpuImmediateSingleRepeatElements(GPUimmediate *immediate)
 	GPU_IMMEDIATE = oldImmediate;
 }
 
-void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUimmediate *immediate)
+void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUImmediate *immediate)
 {
-	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -233,9 +233,9 @@ void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUimmediate *immediate)
 	GPU_IMMEDIATE = oldImmediate;
 }
 
-void gpuImmediateSingleRepeatRangeElements(GPUimmediate *immediate)
+void gpuImmediateSingleRepeatRangeElements(GPUImmediate *immediate)
 {
-	GPUimmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();

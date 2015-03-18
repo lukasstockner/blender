@@ -29,17 +29,14 @@
  *  \ingroup gpu
  */
 
-/* my interface */
+#include "BLI_sys_types.h"
+
 #include "intern/gpu_private.h"
 
-/* my library */
-#include "GPU_blender_aspect.h"
+#include "GPU_aspect.h"
 #include "GPU_extensions.h"
-#include "GPU_safety.h"
-
-/* internal */
-#include "intern/gpu_common_intern.h"
-#include "intern/gpu_matrix_intern.h"
+#include "GPU_debug.h"
+#include "GPU_font.h"
 
 /* external */
 
@@ -54,11 +51,7 @@ static struct GPUShader*  FONT_SHADER = NULL;
 static struct GPUcommon   FONT_COMMON = {0};
 static bool               FONT_FAILED = false;
 
-#if GPU_SAFETY
 static bool FONT_BEGUN = false;
-#endif
-
-
 
 void gpu_font_init(void)
 {
@@ -71,7 +64,7 @@ void gpu_font_exit(void)
 {
 	GPU_shader_free(FONT_SHADER);
 
-#if GPU_SAFETY
+#ifdef GPU_SAFETY
 	FONT_BEGUN = false;
 #endif
 }
@@ -112,7 +105,7 @@ static void gpu_font_shader(void)
 		defs_cstring = BLI_dynstr_get_cstring(defs);
 
 		FONT_SHADER =
-			GPU_shader_create("Font", vert_cstring, frag_cstring, NULL, defs_cstring);
+			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
 
 		MEM_freeN(vert_cstring);
 		MEM_freeN(frag_cstring);
@@ -148,14 +141,14 @@ void gpu_font_bind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
-	GPU_ASSERT(FONT_BEGUN);
+	BLI_assert(FONT_BEGUN);
 
 	if (glsl_support)
 		gpu_font_shader();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (!glsl_support)
-		GPU_CHECK(glEnable(GL_TEXTURE_2D));
+		GPU_CHECK_ERRORS_AROUND(glEnable(GL_TEXTURE_2D));
 #endif
 
 	gpu_commit_matrix();
@@ -167,14 +160,14 @@ void gpu_font_unbind(void)
 {
 	bool glsl_support = GPU_glsl_support();
 
-	GPU_ASSERT(FONT_BEGUN);
+	BLI_assert(FONT_BEGUN);
 
 	if (glsl_support)
 		GPU_shader_unbind();
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (!glsl_support)
-		GPU_CHECK(glDisable(GL_TEXTURE_2D));
+		GPU_CHECK_ERRORS_AROUND(glDisable(GL_TEXTURE_2D));
 #endif
 }
 
@@ -182,8 +175,8 @@ void gpu_font_unbind(void)
 
 void GPU_font_begin(void)
 {
-#if GPU_SAFETY
-	GPU_ASSERT(!FONT_BEGUN);
+#ifdef GPU_SAFETY
+	BLI_assert(!FONT_BEGUN);
 	FONT_BEGUN = true;
 #endif
 
@@ -196,13 +189,13 @@ void GPU_font_begin(void)
 
 void GPU_font_end(void)
 {
-#if GPU_SAFETY
-	GPU_ASSERT(FONT_BEGUN);
+#ifdef GPU_SAFETY
+	BLI_assert(FONT_BEGUN);
 #endif
 
 	GPU_aspect_end();
 
-#if GPU_SAFETY
+#ifdef GPU_SAFETY
 	FONT_BEGUN = false;
 #endif
 

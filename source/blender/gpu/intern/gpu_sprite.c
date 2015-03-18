@@ -31,28 +31,22 @@
 
 #define GPU_MANGLE_DEPRECATED 0
 
-/* my interface */
-#include "intern/gpu_private.h"
+#include "BLI_sys_types.h"
 
-/* my library */
 #include "GPU_aspect.h"
-#include "GPU_blender_aspect.h"
+#include "GPU_aspect.h"
 #include "GPU_immediate.h"
-#include "GPU_safety.h"
+#include "GPU_debug.h"
+#include "GPU_sprite.h"
 
-/* internal */
-#include "intern/gpu_matrix_intern.h"
-#include "intern/gpu_profile.h"
-
+#include "intern/gpu_private.h"
 
 static float point_size = 1;
 
 static float    SPRITE_SIZE    = 1;
 static uint32_t SPRITE_OPTIONS = 0;
 
-#if GPU_SAFETY
 static bool SPRITE_BEGUN = false;
-#endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 
@@ -85,7 +79,7 @@ void gpu_sprite_init(void)
 
 void gpu_sprite_exit(void)
 {
-#if GPU_SAFETY
+#ifdef GPU_SAFETY
 	SPRITE_BEGUN = false;
 #endif
 }
@@ -108,13 +102,13 @@ void gpu_sprite_disable(uint32_t options)
 
 void gpu_sprite_bind(void)
 {
-	GPU_ASSERT(SPRITE_BEGUN);
+	BLI_assert(SPRITE_BEGUN);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack)
 		return;
 
-	GPU_CHECK_NO_ERROR();
+	GPU_ASSERT_NO_GL_ERRORS("gpu_sprite_bind start");
 
 	if (SPRITE_SIZE != point_size)
 		glPointSize(SPRITE_SIZE);
@@ -125,7 +119,7 @@ void gpu_sprite_bind(void)
 	if (SPRITE_OPTIONS & GPU_SPRITE_TEXTURE_2D)
 		glEnable(GL_POINT_SPRITE);
 
-	GPU_CHECK_NO_ERROR();
+	GPU_ASSERT_NO_GL_ERRORS("gpu_sprite_bind end");
 #endif
 
 	gpu_commit_matrix();
@@ -135,19 +129,19 @@ void gpu_sprite_bind(void)
 
 void gpu_sprite_unbind(void)
 {
-	GPU_ASSERT(SPRITE_BEGUN);
+	BLI_assert(SPRITE_BEGUN);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack)
 		return;
 
-	GPU_CHECK_NO_ERROR();
+	GPU_ASSERT_NO_GL_ERRORS("gpu_sprite_unbind start");
 
 	glPointSize(point_size);
 	glDisable(GL_POINT_SMOOTH);
 	glDisable(GL_POINT_SPRITE);
 
-	GPU_CHECK_NO_ERROR();
+	GPU_ASSERT_NO_GL_ERRORS("gpu_sprite_unbind end");
 #endif
 }
 
@@ -170,8 +164,8 @@ void GPU_sprite_size(float size)
 
 void GPU_sprite_begin(void)
 {
-#if GPU_SAFETY
-	GPU_ASSERT(!SPRITE_BEGUN);
+#ifdef GPU_SAFETY
+	BLI_assert(!SPRITE_BEGUN);
 	SPRITE_BEGUN = true;
 #endif
 
@@ -183,7 +177,7 @@ void GPU_sprite_begin(void)
 	if (GPU_PROFILE_COMPAT) {
 		GLfloat range[4];
 
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_begin start");
 
 		glGetFloatv(GL_ALIASED_POINT_SIZE_RANGE, range);
 
@@ -198,7 +192,7 @@ void GPU_sprite_begin(void)
 			}
 		}
 
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_begin end");
 	}
 	else
 #endif
@@ -211,11 +205,11 @@ void GPU_sprite_begin(void)
 
 void GPU_sprite_3fv(const float vec[3])
 {
-	GPU_ASSERT(SPRITE_BEGUN);
+	BLI_assert(SPRITE_BEGUN);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_3fv start");
 
 		glRasterPos3fv(vec);
 		glBitmap(
@@ -226,7 +220,7 @@ void GPU_sprite_3fv(const float vec[3])
 			0,
 			square_dot);
 
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_3fv end");
 	}
 	else
 #endif
@@ -239,11 +233,9 @@ void GPU_sprite_3fv(const float vec[3])
 
 void GPU_sprite_3f(float x, float y, float z)
 {
-	GPU_ASSERT(SPRITE_BEGUN);
-
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_3f start");
 
 		glRasterPos3f(x, y, z);
 		glBitmap(
@@ -255,7 +247,7 @@ void GPU_sprite_3f(float x, float y, float z)
 			0,
 			square_dot);
 
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_3f end");
 	}
 	else
 #endif
@@ -268,11 +260,11 @@ void GPU_sprite_3f(float x, float y, float z)
 
 void GPU_sprite_2f(float x, float y)
 {
-	GPU_ASSERT(SPRITE_BEGUN);
+	BLI_assert(SPRITE_BEGUN);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_2f start");
 
 		glRasterPos2f(x, y);
 		glBitmap(
@@ -284,7 +276,7 @@ void GPU_sprite_2f(float x, float y)
 			0,
 			square_dot);
 
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_2f end");
 	}
 	else
 #endif
@@ -297,11 +289,11 @@ void GPU_sprite_2f(float x, float y)
 
 void GPU_sprite_2fv(const float v[2])
 {
-	GPU_ASSERT(SPRITE_BEGUN);
+	BLI_assert(SPRITE_BEGUN);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	if (pointhack) {
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_2fv start");
 
 		glRasterPos2fv(v);
 		glBitmap(
@@ -313,7 +305,7 @@ void GPU_sprite_2fv(const float v[2])
 			0,
 			square_dot);
 
-		GPU_CHECK_NO_ERROR();
+		GPU_ASSERT_NO_GL_ERRORS("GPU_sprite_2f end");
 	}
 	else
 #endif
@@ -326,8 +318,8 @@ void GPU_sprite_2fv(const float v[2])
 
 void GPU_sprite_end(void)
 {
-#if GPU_SAFETY
-	GPU_ASSERT(SPRITE_BEGUN);
+#ifdef GPU_SAFETY
+	BLI_assert(SPRITE_BEGUN);
 #endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -342,7 +334,7 @@ void GPU_sprite_end(void)
 
 	GPU_aspect_end();
 
-#if GPU_SAFETY
+#ifdef GPU_SAFETY
 	SPRITE_BEGUN = false;
 #endif
 

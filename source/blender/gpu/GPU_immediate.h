@@ -48,14 +48,14 @@
 extern "C" {
 #endif
 
-struct GPUimmediate;
+struct GPUImmediate;
 struct GPUindex;
 
 void gpu_lock_buffer_gl(void);
 void gpu_unlock_buffer_gl(void);
 void gpu_begin_buffer_gl(void);
 void gpu_end_buffer_gl(void);
-void gpu_shutdown_buffer_gl(struct GPUimmediate *immediate);
+void gpu_shutdown_buffer_gl(struct GPUImmediate *immediate);
 void gpu_current_normal_gl(void);
 void gpu_index_begin_buffer_gl(void);
 void gpu_index_end_buffer_gl(void);
@@ -193,7 +193,7 @@ typedef struct GPUImmediateFormat {
 	size_t    attribCount_ub;
 } GPUImmediateFormat;
 
-typedef struct GPUimmediate {
+typedef struct GPUImmediate {
 	GLenum mode;
 
 	GPUImmediateFormat format;
@@ -221,26 +221,26 @@ typedef struct GPUimmediate {
 
 	GLint     lastTexture;
 	GLboolean hasOverflowed;
-} GPUimmediate;
+} GPUImmediate;
 
-extern GPUimmediate *GPU_IMMEDIATE;
+extern GPUImmediate *GPU_IMMEDIATE;
 
 
 
-GPUimmediate* gpuNewImmediate(void);
-void gpuImmediateMakeCurrent(GPUimmediate *immediate);
-void gpuDeleteImmediate(GPUimmediate *immediate);
+GPUImmediate* gpuNewImmediate(void);
+void gpuImmediateMakeCurrent(GPUImmediate *immediate);
+void gpuDeleteImmediate(GPUImmediate *immediate);
 
 void gpuPushImmediate(void);
-GPUimmediate* gpuPopImmediate(void);
-void gpuImmediateSingleDraw(GLenum mode, GPUimmediate *immediate);
-void gpuImmediateSingleRepeat(GPUimmediate *immediate);
+GPUImmediate* gpuPopImmediate(void);
+void gpuImmediateSingleDraw(GLenum mode, GPUImmediate *immediate);
+void gpuImmediateSingleRepeat(GPUImmediate *immediate);
 
-void gpuImmediateSingleDrawElements(GLenum mode, GPUimmediate *immediate);
-void gpuImmediateSingleRepeatElements(GPUimmediate *immediate);
+void gpuImmediateSingleDrawElements(GLenum mode, GPUImmediate *immediate);
+void gpuImmediateSingleRepeatElements(GPUImmediate *immediate);
 
-void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUimmediate *immediate);
-void gpuImmediateSingleRepeatRangeElements(GPUimmediate *immediate);
+void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUImmediate *immediate);
+void gpuImmediateSingleRepeatRangeElements(GPUImmediate *immediate);
 
 
 
@@ -304,7 +304,7 @@ extern const GPUarrays GPU_ARRAYS_C3F_N3F_V3F;
 
 
 typedef struct GPUindex {
-	struct GPUimmediate *immediate;
+	struct GPUImmediate *immediate;
 
 	void   *element_stream;
 	void   *mappedBuffer;
