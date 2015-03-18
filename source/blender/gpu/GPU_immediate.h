@@ -171,7 +171,7 @@ typedef struct GPUarrays {
 #define GPU_MAX_FLOAT_ATTRIBS 32
 #define GPU_MAX_UBYTE_ATTRIBS 32
 
-typedef struct GPUimmediateformat {
+typedef struct GPUImmediateFormat {
 	GLint     vertexSize;
 	GLint     normalSize;
 	GLint     colorSize;
@@ -191,12 +191,12 @@ typedef struct GPUimmediateformat {
 	GLuint    attribIndexMap_ub  [GPU_MAX_UBYTE_ATTRIBS];
 	GLboolean attribNormalized_ub[GPU_MAX_UBYTE_ATTRIBS];
 	size_t    attribCount_ub;
-} GPUimmediateformat;
+} GPUImmediateFormat;
 
 typedef struct GPUimmediate {
 	GLenum mode;
 
-	GPUimmediateformat format;
+	GPUImmediateFormat format;
 
 	GLfloat vertex[4];
 	GLfloat normal[3];
@@ -206,7 +206,7 @@ typedef struct GPUimmediate {
 	GLubyte attrib_ub[GPU_MAX_UBYTE_ATTRIBS][4];
 
 	GLubyte *mappedBuffer;
-	void *bufferData;
+	void *vertex_stream;
 	GLsizei stride;
 	size_t  offset;
 	GLsizei maxVertexCount;
@@ -230,8 +230,6 @@ extern GPUimmediate *GPU_IMMEDIATE;
 GPUimmediate* gpuNewImmediate(void);
 void gpuImmediateMakeCurrent(GPUimmediate *immediate);
 void gpuDeleteImmediate(GPUimmediate *immediate);
-
-
 
 void gpuPushImmediate(void);
 GPUimmediate* gpuPopImmediate(void);

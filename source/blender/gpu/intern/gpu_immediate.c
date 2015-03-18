@@ -42,7 +42,51 @@
 /* standard */
 #include <string.h>
 
-#define ALIGN64(p) (((p) + 63) & ~63)
+#define ALIGN64(p) ((((uintptr_t)p) + 63) & ~63)
+
+typedef struct GPUVertexStream {
+	/* type of stream (array buffer/element array buffer) */
+	int type;
+
+	/* size of buffer */
+	size_t size;
+
+	/* bind buffers to their attribute slots */
+	void (*bind)(struct GPUVertexStream *);
+	/* unbind the buffers from their attribute slots */
+	void (*unbind)(struct GPUVertexStream *);
+
+	/* map the buffer - will give pointer to user that can be used to
+	 * fill the buffer. Pointer will be placed in mappedBuffer */
+	GLubyte * (*map) (struct GPUVertexStream *);
+	void (*unmap) (struct GPUVertexStream *);
+
+	void (*realloc)(struct GPUVertexStream *stream, size_t newsize);
+	void (*free) (struct GPUVertexStream *stream);
+} GPUVertexStream;
+
+typedef struct GPUVertexBufferStream {
+	GPUVertexStream stream;
+	GLuint vbo;
+} GPUVertexBufferStream;
+
+typedef struct GPUVertexArrayStream {
+	GPUVertexBufferStream vstream;
+	GLuint vao;
+} GPUVertexArrayStream;
+
+typedef struct GPURAMArrayStream {
+	GPUVertexStream stream;
+	void *unalignedPtr;
+	GLubyte* unmappedBuffer;
+} GPURAMArrayStream;
+
+enum StreamTypes {
+	eStreamTypeVertexArray = 0,
+	eStreamTypeRAM,
+	eStreamTypeVertexBuffer,
+};
+
 
 typedef struct bufferDataGLSL {
 	size_t   size;
@@ -53,10 +97,135 @@ typedef struct bufferDataGLSL {
 	GLubyte* unmappedBuffer;
 } bufferDataGLSL;
 
+static void realloc_stream_ram(GPUVertexStream *stream, size_t newsize)
+{
+	if (newsize > stream->size) {
+		GPURAMArrayStream *ram_stream = (GPURAMArrayStream *)stream;
+		if (ram_stream->unalignedPtr != 0) {
+			ram_stream->unalignedPtr   = MEM_reallocN((GLubyte*)(ram_stream->unalignedPtr), newsize+63);
+			ram_stream->unmappedBuffer = (GLubyte*)ALIGN64(ram_stream->unalignedPtr);
+			stream->size = newsize;
+		}
+	}
+}
+
+static void realloc_stream_vbuffer(GPUVertexStream *stream, size_t newsize)
+{
+	if (newsize > stream->size) {
+		GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+		glBindBuffer(stream->type, va_stream->vbo);
+		glBufferData(stream->type, newsize, NULL, GL_STREAM_DRAW);
+		stream->size = newsize;
+	}
+}
+
+static GLubyte *map_stream_ram(GPUVertexStream *stream)
+{
+	GPURAMArrayStream *ram_stream = (GPURAMArrayStream *)stream;
+	return ram_stream->unmappedBuffer;
+}
+
+static GLubyte *map_stream_vbuffer(GPUVertexStream *stream)
+{
+	GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+	glBindBuffer(stream->type, va_stream->vbo);
+	return glMapBufferARB(stream->type, GL_WRITE_ONLY);
+}
+
+static void unmap_stream_ram(GPUVertexStream *UNUSED(stream))
+{
+}
+
+static void unmap_stream_vbuffer(GPUVertexStream *stream)
+{
+	GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+	glBindBuffer(stream->type, va_stream->vbo);
+	glUnmapBufferARB(stream->type);
+}
+
+static void free_stream_ram(GPUVertexStream *stream)
+{
+	GPURAMArrayStream *ram_stream = (GPURAMArrayStream *)stream;
+	if (ram_stream->unalignedPtr)
+		MEM_freeN(ram_stream->unalignedPtr);
+	MEM_freeN(stream);
+}
+
+static void free_stream_varray(GPUVertexStream *stream)
+{
+	GPUVertexArrayStream * va_stream = (GPUVertexArrayStream *)stream;
+	if (va_stream->vao != 0)
+		glDeleteVertexArrays(1, &va_stream->vao);
+
+	if (va_stream->vstream.vbo != 0)
+		glDeleteBuffers(1, &va_stream->vstream.vbo);
+
+	MEM_freeN(stream);
+}
+
+static void free_stream_vbuffer(GPUVertexStream *stream)
+{
+	GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+
+	if (va_stream->vbo != 0)
+		glDeleteBuffers(1, &va_stream->vbo);
+
+	MEM_freeN(stream);
+}
+
+
+static GPUVertexStream * gpu_new_vertex_stream(enum StreamTypes type, int array_type)
+{
+	GPUVertexStream *ret;
+	switch (type) {
+		case eStreamTypeVertexArray:
+		{
+			GPUVertexArrayStream *stream = MEM_callocN(sizeof(GPUVertexArrayStream), "GPUVertexArrayStream");
+			ret = &stream->vstream.stream;
+			ret->realloc = realloc_stream_vbuffer;
+			ret->map = map_stream_vbuffer;
+			ret->unmap = unmap_stream_vbuffer;
+			ret->free = free_stream_varray;
+			break;
+		}
+
+		case eStreamTypeRAM:
+		{
+			GPURAMArrayStream *stream = MEM_callocN(sizeof(GPURAMArrayStream), "GPURAMArrayStream");
+			ret = &stream->stream;
+			ret->realloc = realloc_stream_ram;
+			ret->map = map_stream_ram;
+			ret->unmap = unmap_stream_ram;
+			ret->free = free_stream_ram;
+			break;
+		}
+
+		case eStreamTypeVertexBuffer:
+		{
+			GPUVertexBufferStream *stream = MEM_callocN(sizeof(GPUVertexBufferStream), "GPUVertexBufferStream");
+			ret = &stream->stream;
+			ret->realloc = realloc_stream_vbuffer;
+			ret->map = map_stream_vbuffer;
+			ret->unmap = unmap_stream_vbuffer;
+			ret->free = free_stream_vbuffer;
+			break;
+		}
+
+		default:
+			return NULL;
+	}
+
+	if (ret) {
+		ret->type = array_type;
+	}
+
+	return NULL;
+}
+
 static GLsizei calc_stride(void)
 {
 	size_t              stride = 0;
-	GPUimmediateformat* format = &(GPU_IMMEDIATE->format);
+	GPUImmediateFormat* format = &(GPU_IMMEDIATE->format);
 	size_t i;
 
 	/* vertex */
@@ -96,23 +265,10 @@ static void allocate(void)
 
 	newSize = (size_t)(GPU_IMMEDIATE->stride * GPU_IMMEDIATE->maxVertexCount);
 
-	if (GPU_IMMEDIATE->bufferData) {
-		bufferDataGLSL* bufferData = (bufferDataGLSL*)GPU_IMMEDIATE->bufferData;
+	if (GPU_IMMEDIATE->vertex_stream) {
+		GPUVertexStream* vertex_stream = (GPUVertexStream*)GPU_IMMEDIATE->vertex_stream;
 
-		if (bufferData->vbo != 0)
-			glBindBuffer(GL_ARRAY_BUFFER, bufferData->vbo);
-
-		if (newSize > bufferData->size) {
-			if (bufferData->vbo != 0)
-				glBufferData(GL_ARRAY_BUFFER, newSize, NULL, GL_STREAM_DRAW);
-
-			if (bufferData->unalignedPtr != 0) {
-				bufferData->unalignedPtr   = (GLintptr)MEM_reallocN((GLubyte*)(bufferData->unalignedPtr), newSize+63);
-				bufferData->unmappedBuffer = (GLubyte*)ALIGN64(bufferData->unalignedPtr);
-			}
-
-			bufferData->size = newSize;
-		}
+		vertex_stream->realloc(vertex_stream, newSize);
 	}
 	else {
 		bufferDataGLSL* bufferData = (bufferDataGLSL*)MEM_callocN(sizeof(bufferDataGLSL), "bufferDataGLSL");
@@ -133,7 +289,7 @@ static void allocate(void)
 
 		bufferData->size = newSize;
 
-		GPU_IMMEDIATE->bufferData = bufferData;
+		GPU_IMMEDIATE->vertex_stream = bufferData;
 	}
 
 	GPU_ASSERT_NO_GL_ERRORS("allocate end");
@@ -143,9 +299,9 @@ static void allocate(void)
 
 static void setup(void)
 {
-	GPUimmediateformat* format     = &(GPU_IMMEDIATE->format);
+	GPUImmediateFormat* format     = &(GPU_IMMEDIATE->format);
 	const GLsizei       stride     = GPU_IMMEDIATE->stride;
-	bufferDataGLSL*     bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	bufferDataGLSL*     bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
 	const GLubyte*      base       = bufferData->vbo != 0 ? NULL : (GLubyte*)(bufferData->unmappedBuffer);
 
 	size_t offset = 0;
@@ -449,7 +605,7 @@ void gpu_lock_buffer_gl(void)
 	allocateIndex();
 
 	if (GLEW_ARB_vertex_buffer_object) {
-		bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+		bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
 		bool do_init = (bufferData->vao == 0);
 
 		if (do_init)
@@ -469,28 +625,21 @@ void gpu_lock_buffer_gl(void)
 
 void gpu_begin_buffer_gl(void)
 {
-	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	GPUVertexStream* stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
 
-	bufferData->mappedBuffer =
-		(GLubyte*)gpu_buffer_start_update(GL_ARRAY_BUFFER, bufferData->unmappedBuffer);
-
-	GPU_IMMEDIATE->mappedBuffer = bufferData->mappedBuffer;
+	GPU_IMMEDIATE->mappedBuffer = stream->map(stream);
 }
 
 
 
 void gpu_end_buffer_gl(void)
 {
-	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	GPUVertexStream* stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl start");
 
-	if (bufferData->mappedBuffer != NULL) {
-		gpu_buffer_finish_update(GL_ARRAY_BUFFER, GPU_IMMEDIATE->offset, bufferData->mappedBuffer);
-
-		bufferData->mappedBuffer = NULL;
-		GPU_IMMEDIATE->mappedBuffer = NULL;
-	}
+	stream->unmap(stream);
+	GPU_IMMEDIATE->mappedBuffer = NULL;
 
 	if (!(GPU_IMMEDIATE->mode == GL_NOOP || GPU_IMMEDIATE->count == 0)) {
 		if (!GPU_commit_aspect())
@@ -539,7 +688,7 @@ void gpu_end_buffer_gl(void)
 
 void gpu_unlock_buffer_gl(void)
 {
-	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->bufferData);
+	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
 
 	if (bufferData->vao != 0)
 		glBindVertexArray(0);
@@ -568,21 +717,12 @@ void gpu_index_shutdown_buffer_gl(GPUindex *index)
 
 void gpu_shutdown_buffer_gl(GPUimmediate *immediate)
 {
-	if (immediate->bufferData) {
-		bufferDataGLSL* bufferData = (bufferDataGLSL*)(immediate->bufferData);
+	if (immediate->vertex_stream) {
+		GPUVertexStream* stream = (GPUVertexStream*)(immediate->vertex_stream);
 
-		if (bufferData->unalignedPtr != 0) {
-			MEM_freeN((GLubyte*)(bufferData->unalignedPtr));
-		}
+		stream->free(stream);
 
-		if (bufferData->vao != 0)
-			glDeleteVertexArrays(1, &(bufferData->vao));
-
-		if (bufferData->vbo != 0)
-			glDeleteBuffers(1, &(bufferData->vbo));
-
-		MEM_freeN(immediate->bufferData);
-		immediate->bufferData = NULL;
+		immediate->vertex_stream = NULL;
 
 		gpu_index_shutdown_buffer_gl(immediate->index);
 	}
@@ -841,8 +981,6 @@ void gpuBegin(GLenum mode)
 	gpu_begin_buffer_gl();
 }
 
-
-
 void gpuEnd(void)
 {
 	GPU_CHECK_CAN_END();
@@ -853,16 +991,12 @@ void gpuEnd(void)
 	GPU_IMMEDIATE->mappedBuffer = NULL;
 }
 
-
-
 void gpuImmediateFormatReset(void)
 {
 	/* reset vertex format */
 	memset(&(GPU_IMMEDIATE->format), 0, sizeof(GPU_IMMEDIATE->format));
 	GPU_IMMEDIATE->format.vertexSize = 3;
 }
-
-
 
 void gpuImmediateLock(void)
 {
@@ -883,8 +1017,6 @@ void gpuImmediateUnlock(void)
 	if (GPU_IMMEDIATE->lockCount == 0)
 		gpu_unlock_buffer_gl();
 }
-
-
 
 GLint gpuImmediateLockCount(void)
 {
@@ -1014,8 +1146,6 @@ void gpuImmediateTexCoordSizes(const GLint *sizes)
 	}
 }
 
-
-
 void gpuImmediateSamplerCount(size_t count)
 {
 	GLboolean countOK;
@@ -1027,8 +1157,6 @@ void gpuImmediateSamplerCount(size_t count)
 		count <= GPU_MAX_COMMON_SAMPLERS,
 		GPU_IMMEDIATE->format.samplerCount = count);
 }
-
-
 
 void gpuImmediateSamplerMap(const GLint *map)
 {
@@ -1046,8 +1174,6 @@ void gpuImmediateSamplerMap(const GLint *map)
 	}
 }
 
-
-
 void gpuImmediateFloatAttribCount(size_t count)
 {
 	GLboolean countOK;
@@ -1059,8 +1185,6 @@ void gpuImmediateFloatAttribCount(size_t count)
 		count <= GPU_MAX_FLOAT_ATTRIBS,
 		GPU_IMMEDIATE->format.attribCount_f = count);
 }
-
-
 
 void gpuImmediateFloatAttribSizes(const GLint *sizes)
 {
@@ -1078,8 +1202,6 @@ void gpuImmediateFloatAttribSizes(const GLint *sizes)
 	}
 }
 
-
-
 void gpuImmediateFloatAttribIndexMap(const GLuint *map)
 {
 	size_t i;
@@ -1090,8 +1212,6 @@ void gpuImmediateFloatAttribIndexMap(const GLuint *map)
 		GPU_IMMEDIATE->format.attribIndexMap_f[i] = map[i];
 	}
 }
-
-
 
 void gpuImmediateUbyteAttribCount(size_t count)
 {
@@ -1121,8 +1241,6 @@ void gpuImmediateUbyteAttribSizes(const GLint *sizes)
 	}
 }
 
-
-
 void gpuImmediateUbyteAttribIndexMap(const GLuint *map)
 {
 	size_t i;
@@ -1133,8 +1251,6 @@ void gpuImmediateUbyteAttribIndexMap(const GLuint *map)
 		GPU_IMMEDIATE->format.attribIndexMap_ub[i] = map[i];
 	}
 }
-
-
 
 static GLboolean end_begin(void)
 {
@@ -1165,8 +1281,6 @@ static GLboolean end_begin(void)
 		return GL_FALSE;
 	}
 }
-
-
 
 static void gpu_copy_vertex(void)
 {
@@ -1241,8 +1355,6 @@ static void gpu_copy_vertex(void)
 
 	GPU_IMMEDIATE->offset = offset;
 }
-
-
 
 /* vertex formats */
 
@@ -1513,11 +1625,7 @@ void gpuImmediateUnformat(void)
 	gpuImmediateUnlock();
 }
 
-
-
 static GPUimmediate* immediateStack = NULL; /* stack size of one */
-
-
 
 void gpuPushImmediate(void)
 {
@@ -1542,8 +1650,6 @@ GPUimmediate* gpuPopImmediate(void)
 
 	return newImmediate;
 }
-
-
 
 static void gpu_append_client_arrays(
 	const GPUarrays *arrays,
@@ -1616,8 +1722,6 @@ static void gpu_append_client_arrays(
 	GPU_IMMEDIATE->offset = offset;
 	GPU_IMMEDIATE->count  += count;
 }
-
-
 
 const GPUarrays GPU_ARRAYS_V2F = {
 	0,    /* GLenum colorType;    */
@@ -1747,8 +1851,6 @@ const GPUarrays GPU_ARRAYS_C3F_N3F_V3F = {
 	NULL,                /* void*  vertexPointer; */
 };
 
-
-
 void gpuAppendClientArrays(
 	const GPUarrays* arrays,
 	GLint first,
@@ -1756,8 +1858,6 @@ void gpuAppendClientArrays(
 {
 	gpu_append_client_arrays(arrays, first, count);
 }
-
-
 
 void gpuDrawClientArrays(
 	GLenum mode,
@@ -1769,8 +1869,6 @@ void gpuDrawClientArrays(
 	gpu_append_client_arrays(arrays, first, count);
 	gpuEnd();
 }
-
-
 
 void gpuSingleClientArrays_V2F(
 	GLenum mode,
