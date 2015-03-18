@@ -447,8 +447,8 @@ static void allocateIndex(void)
 				return;
 		}
 
-		if (index->bufferData) {
-			indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
+		if (index->element_stream) {
+			indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->element_stream);
 
 			if (bufferData->vbo != 0)
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferData->vbo);
@@ -482,7 +482,7 @@ static void allocateIndex(void)
 
 			bufferData->size = newSize;
 
-			index->bufferData = bufferData;
+			index->element_stream = bufferData;
 		}
 
 		GPU_ASSERT_NO_GL_ERRORS("allocateIndex end");
@@ -674,7 +674,7 @@ void gpu_end_buffer_gl(void)
 			}
 
 			if (vqeoc_buf != 0 || vqeos_buf != 0)
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ((indexBufferDataGLSL*)(GPU_IMMEDIATE->index->bufferData))->vbo);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ((indexBufferDataGLSL*)(GPU_IMMEDIATE->index->element_stream))->vbo);
 
 			GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl end");
 		}
@@ -700,16 +700,10 @@ void gpu_unlock_buffer_gl(void)
 
 void gpu_index_shutdown_buffer_gl(GPUindex *index)
 {
-	if (index && index->bufferData) {
-		indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
+	if (index && index->element_stream) {
+		GPUVertexStream* stream = (GPUVertexStream*)(index->element_stream);
 
-		if (bufferData->vbo != 0)
-			glDeleteBuffers(1, &(bufferData->vbo));
-
-		if (bufferData->unalignedPtr != 0)
-			MEM_freeN((GLubyte*)(bufferData->unalignedPtr));
-
-		MEM_freeN(index->bufferData);
+		stream->free(stream);
 	}
 }
 
@@ -733,12 +727,9 @@ void gpu_shutdown_buffer_gl(GPUimmediate *immediate)
 void gpu_index_begin_buffer_gl(void)
 {
 	GPUindex *  index      = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
+	GPUVertexStream* stream = (GPUVertexStream *)(index->element_stream);
 
-	bufferData->mappedBuffer =
-		(GLubyte*)gpu_buffer_start_update(GL_ELEMENT_ARRAY_BUFFER, bufferData->unmappedBuffer);
-
-	index->mappedBuffer = bufferData->mappedBuffer;
+	index->mappedBuffer = stream->map(stream);
 }
 
 
@@ -746,11 +737,10 @@ void gpu_index_begin_buffer_gl(void)
 void gpu_index_end_buffer_gl(void)
 {
 	GPUindex *index = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
+	GPUVertexStream* stream = (GPUVertexStream*)(index->element_stream);
 
-	gpu_buffer_finish_update(GL_ELEMENT_ARRAY_BUFFER, index->offset, bufferData->mappedBuffer);
+	stream->unmap(stream);
 
-	bufferData->mappedBuffer = NULL;
 	index->mappedBuffer = NULL;
 }
 
@@ -759,7 +749,7 @@ void gpu_index_end_buffer_gl(void)
 void gpu_draw_elements_gl(void)
 {
 	GPUindex* index = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
+	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_elements_gl start");;
 
@@ -785,7 +775,7 @@ void gpu_draw_elements_gl(void)
 void gpu_draw_range_elements_gl(void)
 {
 	GPUindex* index = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->bufferData);
+	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_range_elements_gl start");;
 

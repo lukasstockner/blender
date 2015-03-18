@@ -306,7 +306,7 @@ extern const GPUarrays GPU_ARRAYS_C3F_N3F_V3F;
 typedef struct GPUindex {
 	struct GPUimmediate *immediate;
 
-	void   *bufferData;
+	void   *element_stream;
 	void   *mappedBuffer;
 	GLsizei maxIndexCount;
 	GLsizei count;

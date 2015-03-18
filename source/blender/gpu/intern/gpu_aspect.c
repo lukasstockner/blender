@@ -194,7 +194,7 @@ bool GPU_aspect_end(void)
 	void*          param;
 
 	BLI_assert(gpu_aspect_active());
-	BLI_assert(in_select_mode == gpu_is_select_mode()); /* not allowed to change select/render mode while an aspect is active */
+//	BLI_assert(in_select_mode == gpu_is_select_mode()); /* not allowed to change select/render mode while an aspect is active */
 
 	aspectImpl = GPU_ASPECT_FUNCS[current_aspect];
 
