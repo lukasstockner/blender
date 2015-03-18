@@ -33,15 +33,17 @@
 #define GPU_MANGLE_DEPRECATED 0 /* Allow use of deprecated OpenGL functions in this file */
 #endif
 
-#include "BLI_sys_types.h"
+/* my interface */
+#include "intern/gpu_lighting_intern.h"
 
-#include "intern/gpu_private.h"
-
+/* my library */
 #include "GPU_extensions.h"
 #include "GPU_matrix.h"
-#include "GPU_debug.h"
+#include "GPU_safety.h"
 #include "GPU_common.h"
-#include "GPU_lighting.h"
+
+/* internal */
+#include "intern/gpu_common_intern.h"
 
 /* external */
 #include "BLI_math_vector.h"
@@ -162,19 +164,19 @@ void gpu_commit_material(void)
 	const struct GPUcommon*         common   = gpu_get_common();
 	const struct GPUbasicmaterial* material = &(LIGHTING.material);
 
-GPU_ASSERT_NO_GL_ERRORS("");
+GPU_CHECK_NO_ERROR();
 	if (common) {
 		glUniform4fv(common->material_specular,  1, material->specular);
-GPU_ASSERT_NO_GL_ERRORS("");
+GPU_CHECK_NO_ERROR();
 		glUniform1f (common->material_shininess,    (float)(material->shininess));
-GPU_ASSERT_NO_GL_ERRORS("");
+GPU_CHECK_NO_ERROR();
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material->specular); // deprecated
 	glMateriali (GL_FRONT_AND_BACK, GL_SHININESS, material->shininess); // deprecated
 #endif
-GPU_ASSERT_NO_GL_ERRORS("");
+GPU_CHECK_NO_ERROR();
 }
 
 
@@ -201,8 +203,8 @@ void GPU_set_basic_material_specular(const float specular[4])
 
 void GPU_restore_basic_lights(int light_count, const GPUbasiclight lights[])
 {
-	BLI_assert(light_count >= 0);
-	BLI_assert(light_count < GPU_MAX_COMMON_LIGHTS);
+	GPU_ASSERT(light_count >= 0);
+	GPU_ASSERT(light_count < GPU_MAX_COMMON_LIGHTS);
 
 	memcpy(LIGHTING.light, lights, light_count*sizeof(GPUbasiclight));
 

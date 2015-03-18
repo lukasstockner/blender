@@ -58,6 +58,7 @@ set(SRC
 	intern/gpu_font.c
 	intern/gpu_immediate.c
 	intern/gpu_init_exit.c
+	intern/gpu_lighting.c
 	intern/gpu_material.c
 	intern/gpu_matrix.c
 	intern/gpu_pixels.c

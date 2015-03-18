@@ -82,9 +82,9 @@ static void checkmat(GLfloat *m)
 
 	for(i = 0; i < 16; i++) {
 #if _MSC_VER
-		GPU_ASSERT(_finite(m[i]));
+		BLI_assert(_finite(m[i]));
 #else
-		GPU_ASSERT(!isinf(m[i]));
+		BLI_assert(!isinf(m[i]));
 #endif
 	}
 }
