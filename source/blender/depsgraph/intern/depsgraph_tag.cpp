@@ -101,17 +101,6 @@ static void lib_id_recalc_tag_flag(Main *bmain, ID *id, int flag)
 	}
 }
 
-static void anim_data_tag_update(Depsgraph *graph, ID *id)
-{
-	IDDepsNode *id_node = graph->find_id_node(id);
-	if (id_node != NULL) {
-		ComponentDepsNode *anim_comp = id_node->find_component(DEPSNODE_TYPE_ANIMATION);
-		if (anim_comp != NULL) {
-			anim_comp->tag_update(graph);
-		}
-	}
-}
-
 /* Tag all nodes in ID-block for update.
  * This is a crude measure, but is most convenient for old code.
  */
@@ -187,15 +176,9 @@ void DEG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 					                        graph,
 					                        (ID*)object->data);
 				}
-				if (flag & OB_RECALC_TIME) {
-					anim_data_tag_update(graph, (ID*)object->data);
-				}
 			}
 			if (flag & (OB_RECALC_OB|OB_RECALC_DATA)) {
 				DEG_graph_id_tag_update(bmain, graph, id);
-			}
-			if (flag & OB_RECALC_TIME) {
-				anim_data_tag_update(graph, id);
 			}
 		}
 	}
@@ -276,6 +259,27 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 		/* TODO(sergey): For until we've got proper data nodes in the graph. */
 		lib_id_recalc_data_tag(bmain, id_node->id);
 
+		ID *id = id_node->id;
+		/* This code is used to preserve those areas which does direct
+		 * object update,
+		 *
+		 * Plus it ensures visibility changes and relations and layers
+		 * visibility update has proper flags to work with.
+		 */
+		if (GS(id->name) == ID_OB) {
+			Object *object = (Object *)id;
+			ComponentDepsNode *comp_node = node->owner;
+			if (comp_node->type == DEPSNODE_TYPE_ANIMATION) {
+				object->recalc |= OB_RECALC_TIME;
+			}
+			else if (comp_node->type == DEPSNODE_TYPE_TRANSFORM) {
+				object->recalc |= OB_RECALC_OB;
+			}
+			else {
+				object->recalc |= OB_RECALC_DATA;
+			}
+		}
+
 		/* Flush to nodes along links... */
 		for (OperationDepsNode::Relations::const_iterator it = node->outlinks.begin();
 		     it != node->outlinks.end();
@@ -283,28 +287,7 @@ void DEG_graph_flush_updates(Main *bmain, Depsgraph *graph)
 		{
 			DepsRelation *rel = *it;
 			OperationDepsNode *to_node = (OperationDepsNode *)rel->to;
-			IDDepsNode *id_node = to_node->owner->owner;
 			if (to_node->scheduled == false) {
-				ID *id = id_node->id;
-				/* This code is used to preserve those areas which does direct
-				 * object update,
-				 *
-				 * Plus it ensures visibility changes and relations and layers
-				 * visibility update has proper flags to work with.
-				 */
-				if (GS(id->name) == ID_OB) {
-					Object *object = (Object *)id;
-					ComponentDepsNode *comp_node = to_node->owner;
-					if (comp_node->type == DEPSNODE_TYPE_ANIMATION) {
-						object->recalc |= OB_RECALC_TIME;
-					}
-					else if (comp_node->type == DEPSNODE_TYPE_TRANSFORM) {
-						object->recalc |= OB_RECALC_OB;
-					}
-					else {
-						object->recalc |= OB_RECALC_DATA;
-					}
-				}
 				to_node->flag |= DEPSOP_FLAG_NEEDS_UPDATE;
 				queue.push(to_node);
 				to_node->scheduled = true;
@@ -416,8 +399,12 @@ void DEG_graph_on_visible_update(Main *bmain, Scene *scene)
 				if ((id->flag & LIB_ID_RECALC_ALL) == 0 &&
 				    (object->recalc & OB_RECALC_ALL) != 0)
 				{
-					id_node->tag_update(graph,
-					                    (object->recalc & OB_RECALC_TIME) != 0);
+					id_node->tag_update(graph);
+					ComponentDepsNode *anim_comp =
+					        id_node->find_component(DEPSNODE_TYPE_ANIMATION);
+					if (anim_comp != NULL && object->recalc & OB_RECALC_TIME) {
+						anim_comp->tag_update(graph);
+					}
 				}
 			}
 		}

@@ -248,14 +248,10 @@ static void deg_graph_build_finalize(Depsgraph *graph)
 			if (id->flag & LIB_ID_RECALC_ALL &&
 			    id->flag & LIB_DOIT)
 			{
-				bool do_time = false;
 				if (GS(id->name) == ID_OB) {
 					Object *object = (Object *)id;
-					if (object->recalc & OB_RECALC_TIME) {
-						do_time = true;
-					}
 				}
-				id_node->tag_update(graph, do_time);
+				id_node->tag_update(graph);
 				id->flag &= ~LIB_DOIT;
 			}
 		}

@@ -31,6 +31,10 @@
 
 extern "C" {
 #include "DNA_ID.h"
+#include "DNA_anim_types.h"
+
+#include "BKE_animsys.h"
+
 #include "DEG_depsgraph.h"
 }
 
@@ -227,17 +231,23 @@ void IDDepsNode::clear_components()
 	components.clear();
 }
 
-void IDDepsNode::tag_update(Depsgraph *graph, bool do_time)
+void IDDepsNode::tag_update(Depsgraph *graph)
 {
 	for (ComponentMap::const_iterator it = components.begin();
 	     it != components.end();
 	     ++it)
 	{
 		ComponentDepsNode *comp_node = it->second;
-		/* Animation component should only be tagged for update by the time
-		 * updates or by tagging the animation itself.
-		 */
-		if (do_time || comp_node->type != DEPSNODE_TYPE_ANIMATION) {
+		/* TODO(sergey): What about drievrs? */
+		bool do_component_tag = comp_node->type != DEPSNODE_TYPE_ANIMATION;
+		if (comp_node->type == DEPSNODE_TYPE_ANIMATION) {
+			AnimData *adt = BKE_animdata_from_id(id);
+			BLI_assert(adt != NULL);
+			if (adt->recalc & ADT_RECALC_ANIM) {
+				do_component_tag = true;
+			}
+		}
+		if (do_component_tag) {
 			comp_node->tag_update(graph);
 		}
 	}
