@@ -64,13 +64,13 @@ void GPU_init(void)
 	gpu_common_init();
 	gpu_font_init();
 	gpu_immediate_init();
-//	gpu_lighting_init();
+	gpu_lighting_init();
 	gpu_matrix_init();
 	gpu_pixels_init();
 	gpu_raster_init();
 //	gpu_select_init();
-//	gpu_sprite_init();
-//	gpu_state_latch_init();
+	gpu_sprite_init();
+	gpu_state_latch_init();
 
 	gpu_immediate = gpuNewImmediate();
 	gpuImmediateMakeCurrent(gpu_immediate);

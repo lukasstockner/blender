@@ -744,13 +744,13 @@ BLI_INLINE void shape3(
 	uIndex = 0;
 
 	if (uFracAngle != 0) {
-		copy_v2_flfl(uArc[uIndex++], cosf(prim->thetaMin), sinf(prim->thetaMin));
+		copy_v2_fl2(uArc[uIndex++], cosf(prim->thetaMin), sinf(prim->thetaMin));
 	}
 
 	for (i = 0; i <= uWholeSegs; i++) {
 		GLfloat a = prim->thetaMin + uFracAngle + i*sweepAngle/(prim->usegs);
 
-		copy_v2_flfl(uArc[uIndex++], cosf(a), sinf(a));
+		copy_v2_fl2(uArc[uIndex++], cosf(a), sinf(a));
 	}
 
 	if (uFracSegs == 0) {
@@ -758,7 +758,7 @@ BLI_INLINE void shape3(
 	}
 	else {
 		usegs = uIndex;
-		copy_v2_flfl(uArc[usegs], cosf(prim->thetaMax), sinf(prim->thetaMax));
+		copy_v2_fl2(uArc[usegs], cosf(prim->thetaMax), sinf(prim->thetaMax));
 	}
 
 	uCycle =

@@ -32,6 +32,8 @@
 #include "GPU_select.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
+
+#include "intern/gpu_private.h"
  
 #include "MEM_guardedalloc.h"
 
@@ -245,4 +247,47 @@ bool GPU_select_query_check_active(void)
 	return GLEW_ARB_occlusion_query &&
 	       ((U.gpu_select_method == USER_SELECT_USE_OCCLUSION_QUERY) ||
 	        ((U.gpu_select_method == USER_SELECT_AUTO) && GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)));
+}
+
+static bool IS_SELECT_MODE = false;
+
+void gpu_select_init(void)
+{
+	IS_SELECT_MODE = false;
+}
+
+void gpu_select_exit(void)
+{
+}
+
+bool gpu_default_select_begin(const void* UNUSED(object), void* UNUSED(param))
+{
+#if defined(WITH_GPU_PROFILE_COMPAT)
+	return true; /* nothing to do, allow this pass to start */
+#else
+	return false; /* not implemented, so cancel this pass before it starts if possible */
+#endif
+}
+
+bool gpu_default_select_end(const void* UNUSED(object), void* UNUSED(param))
+{
+	return true; /* only one pass, 'true' means 'done' */
+}
+
+bool gpu_default_select_commit(const void* UNUSED(object))
+{
+#if defined(WITH_GPU_PROFILE_COMPAT)
+	gpu_set_common(NULL);
+	gpu_glUseProgram(0);
+	gpu_commit_matrix();
+
+	return true;
+#else
+	return false; /* cancel drawing, since select mode isn't implemented */
+#endif
+}
+
+bool gpu_is_select_mode(void)
+{
+	return IS_SELECT_MODE;
 }

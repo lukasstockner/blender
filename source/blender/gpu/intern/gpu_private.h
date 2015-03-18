@@ -135,6 +135,9 @@ void gpu_sprite_unbind(void);
 void gpu_immediate_init(void);
 void gpu_immediate_exit(void);
 
+void gpu_state_latch_init(void);
+void gpu_state_latch_exit(void);
+
 typedef enum GPUBasicOption {
 	GPU_BASIC_LIGHTING       = (1<<0), /* do lighting computations                */
 	GPU_BASIC_TWO_SIDE       = (1<<1), /* flip back-facing normals towards viewer */

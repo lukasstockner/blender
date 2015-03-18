@@ -257,6 +257,13 @@ MINLINE void copy_v4_fl4(float v[4], float x, float y, float z, float w)
 	v[3] = w;
 }
 
+/* double args -> vec */
+MINLINE void copy_v2_db2(double v[2], double x, double y)
+{
+	v[0] = x;
+	v[1] = y;
+}
+
 /********************************* Arithmetic ********************************/
 
 MINLINE void add_v2_fl(float r[2], float f)
@@ -359,12 +366,6 @@ MINLINE void sub_v3_v3v3(float r[3], const float a[3], const float b[3])
 	r[0] = a[0] - b[0];
 	r[1] = a[1] - b[1];
 	r[2] = a[2] - b[2];
-}
-
-MINLINE void copy_v2_flfl(float r[2], float f0, float f1)
-{
-	r[0] = f0;
-	r[1] = f1;
 }
 
 MINLINE void copy_v3_flflfl(float r[3], float f0, float f1, float f2)

@@ -67,6 +67,7 @@ set(SRC
 	intern/gpu_simple_shader.c
 	intern/gpu_select.c
 	intern/gpu_sprite.c
+	intern/gpu_state_latch.c
 	intern/gpu_compositing.c
 	intern/gpu_debug.c
 
@@ -95,6 +96,8 @@ set(SRC
 	shaders/gpu_shader_raster_frag.glsl
 	shaders/gpu_shader_font_vert.glsl
 	shaders/gpu_shader_font_frag.glsl
+	shaders/gpu_shader_basic_vert.glsl
+	shaders/gpu_shader_basic_frag.glsl
 
 	GPU_aspect.h
 	GPU_buffers.h
@@ -148,6 +151,8 @@ data_to_c_simple(shaders/gpu_shader_raster_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_raster_frag.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_font_vert.glsl SRC)
 data_to_c_simple(shaders/gpu_shader_font_frag.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_basic_vert.glsl SRC)
+data_to_c_simple(shaders/gpu_shader_basic_frag.glsl SRC)
 
 if(WITH_GAMEENGINE)
 	add_definitions(-DWITH_GAMEENGINE)
