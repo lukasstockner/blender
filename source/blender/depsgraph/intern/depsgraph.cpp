@@ -183,7 +183,7 @@ static bool pointer_to_component_node_criteria(const PointerRNA *ptr,
 
 		/* ShapeKeys are currently handled as geometry on the geometry that owns it */
 		*id = key->from; // XXX
-		*type = DEPSNODE_TYPE_GEOMETRY;
+		*type = DEPSNODE_TYPE_PARAMETERS;
 
 		return true;
 	}
