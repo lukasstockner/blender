@@ -847,6 +847,9 @@ typedef struct FileDirEntryArr {
 	int pad;
 
 	char root[1024];	 /* FILE_MAX */
+
+	/* Internal only, used by filebrowser listing code. */
+	void *data;
 } FileDirEntryArr;
 
 #define ASSET_UUID_LENGTH     24
