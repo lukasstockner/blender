@@ -387,7 +387,7 @@ bool id_copy(ID *id, ID **newid, bool test)
 			if (!test) *newid = (ID *)BKE_mask_copy((Mask *)id);
 			return true;
 		case ID_LS:
-			if (!test) *newid = (ID *)BKE_linestyle_copy((FreestyleLineStyle *)id);
+			if (!test) *newid = (ID *)BKE_linestyle_copy(G.main, (FreestyleLineStyle *)id);
 			return true;
 	}
 	
@@ -619,6 +619,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->speaker);
 
 	lb[a++] = &(main->world);
+	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->screen);
 	lb[a++] = &(main->object);
 	lb[a++] = &(main->linestyle); /* referenced by scenes */
@@ -626,7 +627,6 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->library);
 	lb[a++] = &(main->cache_library);
 	lb[a++] = &(main->wm);
-	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->mask);
 	
 	lb[a] = NULL;
