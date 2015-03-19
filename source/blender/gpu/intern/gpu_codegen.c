@@ -719,11 +719,6 @@ static char *code_generate_vertex(ListBase *nodes, const GPUMatType type)
 	return code;
 }
 
-int GPU_bicubic_bump_support(void)
-{
-	return GLEW_ARB_texture_query_lod && GLEW_VERSION_3_0;
-}
-
 void GPU_code_generate_glsl_lib(void)
 {
 	DynStr *ds;
@@ -1424,7 +1419,7 @@ GPUPass *GPU_generate_pass(ListBase *nodes, GPUNodeLink *outlink,
 	/* generate code and compile with opengl */
 	fragmentcode = code_generate_fragment(nodes, outlink->output);
 	vertexcode = code_generate_vertex(nodes, type);
-	shader = GPU_shader_create(vertexcode, fragmentcode, glsl_material_library, NULL);
+	shader = GPU_shader_create(vertexcode, fragmentcode, NULL, glsl_material_library, NULL);
 
 	/* failed? */
 	if (!shader) {

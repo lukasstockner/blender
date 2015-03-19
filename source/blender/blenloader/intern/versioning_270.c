@@ -439,7 +439,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
-	
+
 	if (!MAIN_VERSION_ATLEAST(main, 273, 1)) {
 #define	BRUSH_RAKE (1 << 7)
 #define BRUSH_RANDOM_ROTATION (1 << 25)
@@ -655,7 +655,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	if (!MAIN_VERSION_ATLEAST(main, 274, 0)) {
+	if (!MAIN_VERSION_ATLEAST(main, 274, 1)) {
+		/* particle systems need to be forced to redistribute for jitter mode fix */
+		{
+			Object *ob;
+			ParticleSystem *psys;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+					psys->recalc |= PSYS_RECALC_RESET;
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 275, 0)) {
 		if (!DNA_struct_elem_find(fd->filesdna, "SpaceNode", "float", "backdrop_zoom")) {
 			bScreen *sc;
 			for (sc = main->screen.first; sc; sc = sc->id.next) {
