@@ -418,6 +418,18 @@ static PointerRNA rna_BakePixel_next_get(PointerRNA *ptr)
 	return rna_pointer_inherit_refine(ptr, &RNA_BakePixel, bp + 1);
 }
 
+static RenderPass *rna_RenderPass_find_by_type(RenderLayer *rl, int passtype, const char *view)
+{
+	RenderPass *rp;
+	for (rp = rl->passes.first; rp; rp = rp->next) {
+		if (rp->passtype == passtype) {
+			if (STREQ(rp->view, view))
+				return rp;
+		}
+	}
+	return NULL;
+}
+
 #else /* RNA_RUNTIME */
 
 static void rna_def_render_engine(BlenderRNA *brna)
@@ -725,6 +737,29 @@ static void rna_def_render_view(BlenderRNA *brna)
 	RNA_define_verify_sdna(1);
 }
 
+static void rna_def_render_passes(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	RNA_def_property_srna(cprop, "RenderPasses");
+	srna = RNA_def_struct(brna, "RenderPasses", NULL);
+	RNA_def_struct_sdna(srna, "RenderLayer");
+	RNA_def_struct_ui_text(srna, "Render Passes", "Collection of render passes");
+
+	func = RNA_def_function(srna, "find_by_type", "rna_RenderPass_find_by_type");
+	RNA_def_function_ui_description(func, "Get the render pass for a given type and view");
+	parm = RNA_def_enum(func, "pass_type", render_pass_type_items, SCE_PASS_COMBINED, "Pass", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_string(func, "view", NULL, 0, "View", "Render view to get pass from");  /* NULL ok here */
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_pointer(func, "render_pass", "RenderPass", "", "The matching render pass");
+	RNA_def_function_return(func, parm);
+
+}
+
 static void rna_def_render_layer(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -754,6 +789,7 @@ static void rna_def_render_layer(BlenderRNA *brna)
 	RNA_def_property_collection_funcs(prop, "rna_RenderLayer_passes_begin", "rna_iterator_listbase_next",
 	                                  "rna_iterator_listbase_end", "rna_iterator_listbase_get",
 	                                  NULL, NULL, NULL, NULL);
+	rna_def_render_passes(brna, prop);
 
 #if 0
 	/* XXX MV store active in RL or pass as argument
