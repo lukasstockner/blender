@@ -467,7 +467,7 @@ void BlenderSession::render()
 			b_rview_name = b_view_iter->name();
 
 			/* set the current view */
-			b_engine.active_view_set(b_view_iter->name().c_str());
+			b_engine.active_view_set(b_rview_name.c_str());
 
 			/* update scene */
 			sync->sync_camera(b_render, b_engine.camera_override(), width, height);
