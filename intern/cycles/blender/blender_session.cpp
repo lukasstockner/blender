@@ -416,7 +416,7 @@ void BlenderSession::render()
 	/* render each layer */
 	BL::RenderSettings r = b_scene.render();
 	BL::RenderSettings::layers_iterator b_layer_iter;
-	BL::RenderSettings::views_iterator b_view_iter;
+	BL::RenderResult::views_iterator b_view_iter;
 	
 	for(r.layers.begin(b_layer_iter); b_layer_iter != r.layers.end(); ++b_layer_iter) {
 		b_rlay_name = b_layer_iter->name();
@@ -463,7 +463,7 @@ void BlenderSession::render()
 		scene->film->tag_update(scene);
 		scene->integrator->tag_update(scene);
 
-		for(r.views.begin(b_view_iter); b_view_iter != r.views.end(); ++b_view_iter) {
+		for(b_rr.views.begin(b_view_iter); b_view_iter != b_rr.views.end(); ++b_view_iter) {
 			b_rview_name = b_view_iter->name();
 
 			/* set the current view */
