@@ -3439,7 +3439,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 		 */
 		BLI_assert(totvideos < 2);
 
-		/* MV MOV need to adapt this for multiview */
+		/* XXX MV MOV need to adapt this for multiview */
 
 		while (!(G.is_break == 1)) {
 			int nf = mh->get_next_frame(re->movie_ctx_arr[0], &re->r, re->reports);

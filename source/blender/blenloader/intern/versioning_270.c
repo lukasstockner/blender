@@ -468,7 +468,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 #undef BRUSH_RAKE
 #undef BRUSH_RANDOM_ROTATION
 
-	/* MV before merge: add a MAIN_VERSION_ATLEAST check */
+	/* XXX MV before merge: add a MAIN_VERSION_ATLEAST check */
 	{
 		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "ListBase", "views")) {
 			Scene *scene;
