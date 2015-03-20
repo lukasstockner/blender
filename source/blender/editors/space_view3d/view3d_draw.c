@@ -3549,6 +3549,58 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 		UI_ThemeClearColor(TH_HIGH_GRAD);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	}
+
+	/* setup view matrices */
+	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
+
+	drawfloor(scene, v3d, grid_unit);
+
+#if 1
+	/* yanked verbatim from view3d_draw_objects
+	 * not perfect but it does let us see objects positioned in space
+	 * TODO: draw objects prettier/better/faster/stronger
+	 */
+	unsigned int lay_used = 0;
+
+	/* then draw not selected and the duplis, but skip editmode object */
+	for (Base* base = scene->base.first; base; base = base->next) {
+		lay_used |= base->lay;
+
+		if (v3d->lay & base->lay) {
+
+			/* dupli drawing */
+			if (base->object->transflag & OB_DUPLI) {
+				draw_dupli_objects(scene, ar, v3d, base);
+			}
+			if ((base->flag & SELECT) == 0) {
+				if (base->object != scene->obedit)
+					draw_object(scene, ar, v3d, base, 0);
+			}
+		}
+	}
+
+	/* mask out localview */
+	v3d->lay_used = lay_used & ((1 << 20) - 1);
+
+	/* draw selected and editmode */
+	for (Base *base = scene->base.first; base; base = base->next) {
+		if (v3d->lay & base->lay) {
+			if (base->object == scene->obedit || (base->flag & SELECT)) {
+				draw_object(scene, ar, v3d, base, 0);
+			}
+		}
+	}
+#else
+	glLineWidth(3.0f);
+	glColor3f(1.0f, 1.0f, 0.0f);
+	glBegin(GL_LINES);
+		glVertex2f(-1.0f, -1.0f);
+		glVertex2f(1.0f, 1.0f);
+		glVertex2f(1.0f, -1.0f);
+		glVertex2f(-1.0f, 1.0f);
+	glEnd();
+	glLineWidth(1.0f);
+#endif
 }
 
 
