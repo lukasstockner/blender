@@ -142,32 +142,26 @@ class DATA_PT_camera_stereoscopy(CameraButtonsPanel, Panel):
     @classmethod
     def poll(cls, context):
         render = context.scene.render
-        return (super().poll(context) and render.use_multiview)
+        return (super().poll(context) and render.use_multiview \
+                and render.views_format == 'STEREO_3D')
 
     def draw(self, context):
         layout = self.layout
         render = context.scene.render
-
-        layout.active = (render.views_format == 'STEREO_3D')
+        st = context.camera.stereo
 
         col = layout.column()
-
-        st = context.camera.stereo
-        row = col.row(align=True)
-        row.prop(st, "interocular_distance")
+        col.row().prop(st, "convergence_mode", expand=True)
 
         if st.convergence_mode == 'PARALLEL':
-            row.prop(st, "viewport_convergence")
+            col.prop(st, "viewport_convergence")
         else:
-            row.prop(st, "convergence_distance")
+            col.prop(st, "convergence_distance")
 
-        row = col.row()
-        row.prop(st, "convergence_mode", expand=True)
+        col.prop(st, "interocular_distance")
 
-        col.separator()
         col.label(text="Pivot:")
-        row = col.row()
-        row.prop(st, "pivot", expand=True)
+        col.row().prop(st, "pivot", expand=True)
 
 
 class DATA_PT_camera(CameraButtonsPanel, Panel):
