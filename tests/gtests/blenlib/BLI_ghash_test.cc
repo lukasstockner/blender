@@ -255,7 +255,7 @@ TEST(ghash, Subset)
 }
 
 /* Check Union (straight only since no ghash ops here). */
-TEST(ghash, Union)
+TEST(gset, Union)
 {
 	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
@@ -308,7 +308,7 @@ TEST(ghash, Union)
 }
 
 /* Check Intersection. */
-TEST(ghash, Intersection)
+TEST(gset, Intersection)
 {
 	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
@@ -350,7 +350,7 @@ TEST(ghash, Intersection)
 }
 
 /* Check Difference. */
-TEST(ghash, Difference)
+TEST(gset, Difference)
 {
 	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
@@ -392,7 +392,7 @@ TEST(ghash, Difference)
 }
 
 /* Check Symmetric Difference. */
-TEST(ghash, SymmDiff)
+TEST(gset, SymmDiff)
 {
 	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);

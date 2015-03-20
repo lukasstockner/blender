@@ -603,7 +603,7 @@ static GHash *ghash_copy(GHash *gh, GHashKeyCopyFP keycopyfp, GHashValCopyFP val
  * If \a gh1 is NULL, a new GHash will be created first (avoids modifying \a gh1 in place).
  * If \a reverse is True, entries present in latest GHash will override those in former GHash.
  */
-static GHash *ghash_union(
+static GHash *ghash_merge(
         const bool reverse,
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
@@ -1159,6 +1159,7 @@ bool BLI_ghash_isdisjoint(GHash *gh1, GHash *gh2)
 	/* Note: For now, take a basic, brute force approach.
 	 *       If we switch from modulo to masking, we may have ways to optimize this, though. */
 	unsigned int i;
+	const bool need_hashing = (gh1->nbuckets != gh2->nbuckets);
 
 	BLI_assert(gh1->cmpfp == gh2->cmpfp);
 	BLI_assert(gh1->hashfp == gh2->hashfp);
@@ -1172,8 +1173,7 @@ bool BLI_ghash_isdisjoint(GHash *gh1, GHash *gh2)
 		Entry *e;
 
 		for (e = gh1->buckets[i]; e; e = e->next) {
-			const unsigned int hash = ghash_entryhash(gh1, e);
-			const unsigned int gh2_bucket_index = ghash_bucket_index(gh2, hash);
+			const unsigned int gh2_bucket_index = need_hashing ? ghash_bucket_index(gh2, ghash_entryhash(gh2, e)) : i;
 			if (ghash_lookup_entry_ex(gh2, e->key, gh2_bucket_index)) {
 				return false;
 			}
@@ -1189,6 +1189,7 @@ bool BLI_ghash_isdisjoint(GHash *gh1, GHash *gh2)
 bool BLI_ghash_isequal(GHash *gh1, GHash *gh2)
 {
 	unsigned int i;
+	const bool need_hashing = (gh1->nbuckets != gh2->nbuckets);
 
 	BLI_assert(gh1->cmpfp == gh2->cmpfp);
 	BLI_assert(gh1->hashfp == gh2->hashfp);
@@ -1201,8 +1202,7 @@ bool BLI_ghash_isequal(GHash *gh1, GHash *gh2)
 		Entry *e;
 
 		for (e = gh1->buckets[i]; e; e = e->next) {
-			const unsigned int hash = ghash_entryhash(gh1, e);
-			unsigned int gh2_bucket_index = ghash_bucket_index(gh2, hash);
+			const unsigned int gh2_bucket_index = need_hashing ? ghash_bucket_index(gh2, ghash_entryhash(gh2, e)) : i;
 			if (!ghash_lookup_entry_ex(gh2, e->key, gh2_bucket_index)) {
 				return false;
 			}
@@ -1221,6 +1221,7 @@ bool BLI_ghash_isequal(GHash *gh1, GHash *gh2)
 bool BLI_ghash_issubset(GHash *gh1, GHash *gh2)
 {
 	unsigned int i;
+	const bool need_hashing = (gh1->nbuckets != gh2->nbuckets);
 
 	BLI_assert(gh1->cmpfp == gh2->cmpfp);
 	BLI_assert(gh1->hashfp == gh2->hashfp);
@@ -1233,8 +1234,7 @@ bool BLI_ghash_issubset(GHash *gh1, GHash *gh2)
 		Entry *e;
 
 		for (e = gh2->buckets[i]; e; e = e->next) {
-			const unsigned int hash = ghash_entryhash(gh2, e);
-			const unsigned int gh1_bucket_index = ghash_bucket_index(gh1, hash);
+			const unsigned int gh1_bucket_index = need_hashing ? ghash_bucket_index(gh1, ghash_entryhash(gh1, e)) : i;
 			if (!ghash_lookup_entry_ex(gh1, e->key, gh1_bucket_index)) {
 				return false;
 			}
@@ -1719,7 +1719,7 @@ GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...)
 	va_list arg;
 
 	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_union(false, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
+	gs_ret = (GSet *)ghash_merge(false, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
 	va_end(arg);
 
 	return gs_ret;
