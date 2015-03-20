@@ -209,7 +209,6 @@ static Sequence *rna_Sequences_new_movie(ID *id, Editing *ed, ReportList *report
 
 	seq = alloc_generic_sequence(ed, name, frame_start, channel, SEQ_TYPE_MOVIE, file);
 
-	/* multiview todo: allow for opening multiview strip XXX MV */
 	sanim = MEM_mallocN(sizeof(StripAnim), "Strip Anim");
 	BLI_addtail(&seq->anims, sanim);
 	sanim->anim = an;
