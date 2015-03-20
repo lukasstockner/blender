@@ -108,7 +108,6 @@ void ImageNode::convertToOperations(NodeConverter &converter, const CompositorCo
 					int passindex = storage->pass_index;*/
 					RenderPass *rpass = (RenderPass *)BLI_findlink(&rl->passes, passindex);
 #endif
-					int passindex;
 
 					/* returns the image view to use for the current active view */
 					if (BLI_listbase_count_ex(&image->rr->views, 2) > 1) {
@@ -137,21 +136,21 @@ void ImageNode::convertToOperations(NodeConverter &converter, const CompositorCo
 						operation = separate_operation;
 					}
 					else {
-						for (rpass = (RenderPass *)rl->passes.first, passindex = 0; rpass; rpass = rpass->next, ++passindex)
-							if (STREQ(rpass->name, bnodeSocket->identifier))
-								break;
 						if (rpass) {
 							switch (rpass->channels) {
 								case 1:
-									operation = doMultilayerCheck(converter, rl, image, imageuser, framenumber, index, passindex, view, COM_DT_VALUE);
+									operation = doMultilayerCheck(converter, rl, image, imageuser, framenumber, index,
+									                              rpass->passtype, view, COM_DT_VALUE);
 									break;
 									/* using image operations for both 3 and 4 channels (RGB and RGBA respectively) */
 									/* XXX any way to detect actual vector images? */
 								case 3:
-									operation = doMultilayerCheck(converter, rl, image, imageuser, framenumber, index, passindex, view, COM_DT_VECTOR);
+									operation = doMultilayerCheck(converter, rl, image, imageuser, framenumber, index,
+									                              rpass->passtype, view, COM_DT_VECTOR);
 									break;
 								case 4:
-									operation = doMultilayerCheck(converter, rl, image, imageuser, framenumber, index, passindex, view, COM_DT_COLOR);
+									operation = doMultilayerCheck(converter, rl, image, imageuser, framenumber, index,
+									                              rpass->passtype, view, COM_DT_COLOR);
 									break;
 								default:
 									/* dummy operation is added below */
