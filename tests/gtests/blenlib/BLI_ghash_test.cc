@@ -15,13 +15,14 @@ extern "C" {
 /* Only keeping this in case here, for now. */
 #define PRINTF_GHASH_STATS(_gh) \
 { \
+	GHash *__gh = (GHash *)(_gh); \
 	double q, lf, var, pempty, poverloaded; \
 	int bigb; \
-	q = BLI_ghash_calc_quality_ex((_gh), &lf, &var, &pempty, &poverloaded, &bigb); \
+	q = BLI_ghash_calc_quality_ex(__gh, &lf, &var, &pempty, &poverloaded, &bigb); \
 	printf("GHash stats (%d entries):\n\t" \
 	       "Quality (the lower the better): %f\n\tVariance (the lower the better): %f\n\tLoad: %f\n\t" \
 	       "Empty buckets: %.2f%%\n\tOverloaded buckets: %.2f%% (biggest bucket: %d)\n", \
-	       BLI_ghash_size(_gh), q, var, lf, pempty * 100.0, poverloaded * 100.0, bigb); \
+	       BLI_ghash_size(__gh), q, var, lf, pempty * 100.0, poverloaded * 100.0, bigb); \
 } void (0)
 
 /* Note: for pure-ghash testing, nature of the keys and data have absolutely no importance! So here we just use mere
@@ -253,33 +254,31 @@ TEST(ghash, Subset)
 	BLI_ghash_free(ghash_2, NULL, NULL);
 }
 
-/* Check Union (straight and reversed). */
+/* Check Union (straight only since no ghash ops here). */
 TEST(ghash, Union)
 {
-	GHash *ghash_1 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_U, *ghash_U_rev;
+	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_U;
 	unsigned int keys[TESTCASE_SIZE], *k;
 	int i;
 
 	init_keys(keys, 70);
 
 	for (i = TESTCASE_SIZE / 2, k = keys; i--; k++) {
-		BLI_ghash_insert(ghash_1, SET_UINT_IN_POINTER(*k), SET_UINT_IN_POINTER(*k));
+		BLI_gset_insert(gset_1, SET_UINT_IN_POINTER(*k));
 	}
 	for (i = 0, k = keys; i < TESTCASE_SIZE / 2; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	ghash_U = BLI_ghash_union(NULL, NULL, NULL, ghash_1, ghash_2, NULL);
-	ghash_U_rev = BLI_ghash_union_reversed(NULL, NULL, NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_U = BLI_gset_union(NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_U, ghash_1));
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_U_rev, ghash_1));
+	EXPECT_TRUE(BLI_gset_isequal(gset_U, gset_1));
 
+#if 0  /* Checking validity of values handling, not applicable to gset :/ */
 	for (i = 0, k = keys; i < TESTCASE_SIZE / 2; i++, k++) {
 		void *v = BLI_ghash_lookup(ghash_U, SET_UINT_IN_POINTER(*k));
 		EXPECT_EQ(*k, GET_UINT_FROM_POINTER(v));
@@ -287,164 +286,157 @@ TEST(ghash, Union)
 		v = BLI_ghash_lookup(ghash_U_rev, SET_UINT_IN_POINTER(*k));
 		EXPECT_EQ(i, GET_INT_FROM_POINTER(v));
 	}
+#endif
 
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_U, NULL, NULL);
-	ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_U, NULL);
+	gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	for (i = TESTCASE_SIZE / 2, k = &keys[i]; i < TESTCASE_SIZE; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isdisjoint(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	ghash_U = BLI_ghash_union(NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_U = BLI_gset_union(NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_TRUE(BLI_ghash_issubset(ghash_U, ghash_1));
-	EXPECT_TRUE(BLI_ghash_issubset(ghash_U, ghash_2));
+	EXPECT_TRUE(BLI_gset_issubset(gset_U, gset_1));
+	EXPECT_TRUE(BLI_gset_issubset(gset_U, gset_2));
 
-	BLI_ghash_free(ghash_1, NULL, NULL);
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_U, NULL, NULL);
-	BLI_ghash_free(ghash_U_rev, NULL, NULL);
+	BLI_gset_free(gset_1, NULL);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_U, NULL);
 }
 
 /* Check Intersection. */
 TEST(ghash, Intersection)
 {
-	GHash *ghash_1 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_I;
+	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_I;
 	unsigned int keys[TESTCASE_SIZE], *k;
 	int i;
 
 	init_keys(keys, 80);
 
 	for (i = TESTCASE_SIZE / 2, k = keys; i--; k++) {
-		BLI_ghash_insert(ghash_1, SET_UINT_IN_POINTER(*k), SET_UINT_IN_POINTER(*k));
+		BLI_gset_insert(gset_1, SET_UINT_IN_POINTER(*k));
 	}
 	for (i = 0, k = keys; i < TESTCASE_SIZE / 2; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	ghash_I = BLI_ghash_intersection(NULL, NULL, NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_I = BLI_gset_intersection(NULL, NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_I, ghash_1));
+	EXPECT_TRUE(BLI_gset_isequal(gset_I, gset_1));
 
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_I, NULL, NULL);
-	ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_I, NULL);
+	gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	for (i = TESTCASE_SIZE / 2, k = &keys[i]; i < TESTCASE_SIZE; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isdisjoint(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	ghash_I = BLI_ghash_intersection(NULL, NULL, NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_I = BLI_gset_intersection(NULL, NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_EQ(0, BLI_ghash_size(ghash_I));
+	EXPECT_EQ(0, BLI_gset_size(gset_I));
 
-	BLI_ghash_free(ghash_1, NULL, NULL);
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_I, NULL, NULL);
+	BLI_gset_free(gset_1, NULL);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_I, NULL);
 }
 
 /* Check Difference. */
 TEST(ghash, Difference)
 {
-	GHash *ghash_1 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_D;
+	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_D;
 	unsigned int keys[TESTCASE_SIZE], *k;
 	int i;
 
 	init_keys(keys, 90);
 
 	for (i = TESTCASE_SIZE / 2, k = keys; i--; k++) {
-		BLI_ghash_insert(ghash_1, SET_UINT_IN_POINTER(*k), SET_UINT_IN_POINTER(*k));
+		BLI_gset_insert(gset_1, SET_UINT_IN_POINTER(*k));
 	}
 	for (i = 0, k = keys; i < TESTCASE_SIZE / 2; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	ghash_D = BLI_ghash_difference(NULL, NULL, NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_D = BLI_gset_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_EQ(0, BLI_ghash_size(ghash_D));
+	EXPECT_EQ(0, BLI_gset_size(gset_D));
 
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_D, NULL, NULL);
-	ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_D, NULL);
+	gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	for (i = TESTCASE_SIZE / 2, k = &keys[i]; i < TESTCASE_SIZE; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isdisjoint(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	ghash_D = BLI_ghash_difference(NULL, NULL, NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_D = BLI_gset_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_D, ghash_1));
+	EXPECT_TRUE(BLI_gset_isequal(gset_D, gset_1));
 
-	BLI_ghash_free(ghash_1, NULL, NULL);
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_D, NULL, NULL);
+	BLI_gset_free(gset_1, NULL);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_D, NULL);
 }
 
 /* Check Symmetric Difference. */
 TEST(ghash, SymmDiff)
 {
-	GHash *ghash_1 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GHash *ghash_SD;
+	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	GSet *gset_SD;
 	unsigned int keys[TESTCASE_SIZE], *k;
 	int i;
 
 	init_keys(keys, 100);
 
 	for (i = TESTCASE_SIZE / 2, k = keys; i--; k++) {
-		BLI_ghash_insert(ghash_1, SET_UINT_IN_POINTER(*k), SET_UINT_IN_POINTER(*k));
+		BLI_gset_insert(gset_1, SET_UINT_IN_POINTER(*k));
 	}
 	for (i = 0, k = keys; i < TESTCASE_SIZE / 2; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	ghash_SD = BLI_ghash_symmetric_difference(NULL, NULL, NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_EQ(0, BLI_ghash_size(ghash_SD));
+	EXPECT_EQ(0, BLI_gset_size(gset_SD));
 
-	ghash_SD = BLI_ghash_symmetric_difference(NULL, NULL, NULL, NULL, ghash_SD, ghash_1, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, gset_SD, gset_1, NULL);
 
-	EXPECT_TRUE(BLI_ghash_isequal(ghash_SD, ghash_1));
+	EXPECT_TRUE(BLI_gset_isequal(gset_SD, gset_1));
 
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_SD, NULL, NULL);
-	ghash_2 = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_SD, NULL);
+	gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	for (i = TESTCASE_SIZE / 2, k = &keys[i]; i < TESTCASE_SIZE; i++, k++) {
-		/* Because values should have no effect at all here. */
-		BLI_ghash_insert(ghash_2, SET_UINT_IN_POINTER(*k), SET_INT_IN_POINTER(i));
+		BLI_gset_insert(gset_2, SET_UINT_IN_POINTER(*k));
 	}
 
-	EXPECT_TRUE(BLI_ghash_isdisjoint(ghash_1, ghash_2));
+	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	ghash_SD = BLI_ghash_symmetric_difference(NULL, NULL, NULL, NULL, NULL, ghash_1, ghash_2, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
 
-	EXPECT_EQ(TESTCASE_SIZE, BLI_ghash_size(ghash_SD));
+	EXPECT_EQ(TESTCASE_SIZE, BLI_gset_size(gset_SD));
 
-	ghash_SD = BLI_ghash_symmetric_difference(NULL, NULL, NULL, NULL, ghash_SD, ghash_1, ghash_2, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, gset_SD, gset_1, gset_2, NULL);
 
-	EXPECT_EQ(0, BLI_ghash_size(ghash_SD));
+	EXPECT_EQ(0, BLI_gset_size(gset_SD));
 
-	BLI_ghash_free(ghash_1, NULL, NULL);
-	BLI_ghash_free(ghash_2, NULL, NULL);
-	BLI_ghash_free(ghash_SD, NULL, NULL);
+	BLI_gset_free(gset_1, NULL);
+	BLI_gset_free(gset_2, NULL);
+	BLI_gset_free(gset_SD, NULL);
 }

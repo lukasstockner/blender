@@ -94,24 +94,6 @@ bool   BLI_ghash_isequal(GHash *gh1, GHash *gh2);
 bool   BLI_ghash_issubset(GHash *gh1, GHash *gh2);
 bool   BLI_ghash_issuperset(GHash *gh1, GHash *gh2);
 
-GHash *BLI_ghash_union(GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp, GHash *gh1, GHash *gh2, ...);
-GHash *BLI_ghash_union_reversed(
-        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
-        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, ...);
-GHash *BLI_ghash_intersection(
-        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
-        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, ...);
-GHash *BLI_ghash_difference(
-        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
-        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, ...);
-GHash *BLI_ghash_symmetric_difference(
-        GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
-        GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, ...);
-
 /* *** */
 
 GHashIterator *BLI_ghashIterator_new(GHash *gh) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;
