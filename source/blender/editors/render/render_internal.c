@@ -1489,7 +1489,7 @@ void render_view3d_draw(RenderEngine *engine, const bContext *C)
 		if (re == NULL) return;
 	}
 	
-	/* XXX MV to investigate when this is called */
+	/* Viewport render preview doesn't support multiview, view hardcoded to 0 */
 	RE_AcquireResultImage(re, &rres, 0);
 	
 	if (rres.rectf) {
