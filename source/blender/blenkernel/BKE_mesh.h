@@ -133,7 +133,7 @@ float (*BKE_mesh_vertexCos_get(struct Mesh *me, int *r_numVerts))[3];
 
 struct Mesh *BKE_mesh_new_from_object(struct Main *bmain, struct Scene *sce, struct Object *ob,
                                       int apply_modifiers, int settings, int calc_tessface, int calc_undeformed);
-struct Mesh *BKE_mesh_new_from_dupli_cache(struct Main *bmain, struct DupliObjectData *data, bool calc_tessface, bool calc_undeformed);
+struct Mesh *BKE_mesh_new_from_dupli_data(struct Main *bmain, struct DupliObjectData *data, bool calc_tessface, bool calc_undeformed);
 
 /* vertex level transformations & checks (no derived mesh) */
 
