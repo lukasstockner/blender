@@ -3422,6 +3422,7 @@ static ImBuf *image_load_image_file(Image *ima, ImageUser *iuser, int cfra)
 		size_t i;
 		struct ImBuf **ibuf_arr;
 		const size_t totviews = BLI_listbase_count(&ima->views);
+		BLI_assert(totviews > 0);
 
 		ibuf_arr = MEM_mallocN(sizeof(ImBuf *) * totviews, "Image Views Imbufs");
 
