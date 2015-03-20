@@ -354,42 +354,6 @@ static void rna_RenderLayer_passes_begin(CollectionPropertyIterator *iter, Point
 	rna_iterator_listbase_begin(iter, &rl->passes, NULL);
 }
 
-#if 0
-static int rna_RenderLayer_rect_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
-{
-	RenderLayer *rl = (RenderLayer *)ptr->data;
-
-	length[0] = rl->rectx * rl->recty;
-	length[1] = 4;
-
-	return length[0] * length[1];
-}
-
-static void rna_RenderLayer_rect_get(PointerRNA *ptr, float *values)
-{
-	RenderLayer *rl = (RenderLayer *)ptr->data;
-
-	/* Sergey's suggestion:
-	 * so either check on ptr.id and see if it'll help you figuring Render out
-	 * or iterate via all Render and see which one contains given RenderLayer
-	 */
-
-	//XXX MV 0 = actview
-	float *rect = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, 0);
-	memcpy(values, rect, sizeof(float) * rl->rectx * rl->recty * 4);
-}
-#endif
-
-void rna_RenderLayer_rect_set(PointerRNA *ptr, const float *values)
-{
-	RenderLayer *rl = (RenderLayer *)ptr->data;
-
-	//XXX MV 0 = actview
-	float *rect = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, 0);
-
-	memcpy(rect, values, sizeof(float) * rl->rectx * rl->recty * 4);
-}
-
 static int rna_RenderPass_rect_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
 {
 	RenderPass *rpass = (RenderPass *)ptr->data;
@@ -790,18 +754,6 @@ static void rna_def_render_layer(BlenderRNA *brna)
 	                                  "rna_iterator_listbase_end", "rna_iterator_listbase_get",
 	                                  NULL, NULL, NULL, NULL);
 	rna_def_render_passes(brna, prop);
-
-#if 0
-	/* XXX MV store active in RL or pass as argument
-	 * Actually, as suggested by Brecht we should use string and not the int in the API
-	 * (same as we do for renderlayer)
-	 * */
-	prop = RNA_def_property(srna, "rect", PROP_FLOAT, PROP_NONE);
-	RNA_def_property_flag(prop, PROP_DYNAMIC);
-	RNA_def_property_multi_array(prop, 2, NULL);
-	RNA_def_property_dynamic_array_funcs(prop, "rna_RenderLayer_rect_get_length");
-	RNA_def_property_float_funcs(prop, "rna_RenderLayer_rect_get", "rna_RenderLayer_rect_set", NULL);
-#endif
 
 	RNA_define_verify_sdna(1);
 }
