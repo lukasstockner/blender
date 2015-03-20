@@ -130,6 +130,11 @@ void ViewerOperation::initImage()
 	void *lock;
 	ImBuf *ibuf;
 
+	/* make sure the image has the correct number of views */
+	if (ima && BKE_scene_multiview_is_render_view_first(this->m_rd, this->m_viewName)) {
+		BKE_image_verify_viewer_views(this->m_rd, ima, this->m_imageUser);
+	}
+
 	/* local changes to the original ImageUser */
 	iuser.multi_index = BKE_scene_multiview_view_id_get(this->m_rd, this->m_viewName);
 	ibuf = BKE_image_acquire_ibuf(ima, &iuser, &lock);

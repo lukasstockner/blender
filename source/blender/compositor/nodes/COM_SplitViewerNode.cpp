@@ -73,8 +73,4 @@ void SplitViewerNode::convertToOperations(NodeConverter &converter, const Compos
 
 	if (do_output)
 		converter.registerViewer(viewerOperation);
-
-	if (image && BKE_scene_multiview_is_render_view_first(context.getRenderData(), context.getViewName())) {
-		BKE_image_verify_viewer_views(context.getRenderData(), image, imageUser);
-	}
 }
