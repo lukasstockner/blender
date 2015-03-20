@@ -34,6 +34,7 @@
 
 #include "BLI_sys_types.h" /* for bool */
 #include "BLI_compiler_attrs.h"
+#include "BLI_utildefines.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -241,10 +242,37 @@ bool   BLI_gset_isequal(GSet *gs1, GSet *gs2);
 bool   BLI_gset_issubset(GSet *gs1, GSet *gs2);
 bool   BLI_gset_issuperset(GSet *gs1, GSet *gs2);
 
-GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...);
-GSet *BLI_gset_intersection(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...);
-GSet *BLI_gset_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...);
-GSet *BLI_gset_symmetric_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...);
+
+GSet *_bli_gset_union(GSetKeyCopyFP keycopyfp, GSet **gset_arr, const size_t nbr_gset_arr);
+#define BLI_gset_union(keycopyfp, ...) ( \
+{ \
+    GSet *gset_arr[] = {__VA_ARGS__}; \
+    _bli_gset_union((keycopyfp), gset_arr, ARRAY_SIZE(gset_arr)); \
+})
+
+GSet *_bli_gset_intersection(
+        GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet **gset_arr, const size_t nbr_gset_arr);
+#define BLI_gset_intersection(keycopyfp, keyfree, ...) ( \
+{ \
+    GSet *gset_arr[] = {__VA_ARGS__}; \
+    _bli_gset_intersection((keycopyfp), (keyfree), gset_arr, ARRAY_SIZE(gset_arr)); \
+})
+
+GSet *_bli_gset_difference(
+        GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet **gset_arr, const size_t nbr_gset_arr);
+#define BLI_gset_difference(keycopyfp, keyfree, ...) ( \
+{ \
+    GSet *gset_arr[] = {__VA_ARGS__}; \
+	_bli_gset_difference((keycopyfp), (keyfree), gset_arr, ARRAY_SIZE(gset_arr)); \
+})
+
+GSet *_bli_gset_symmetric_difference(
+        GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet **gset_arr, const size_t nbr_gset_arr);
+#define BLI_gset_symmetric_difference(keycopyfp, keyfree, ...) ( \
+{ \
+    GSet *gset_arr[] = {__VA_ARGS__}; \
+	_bli_gset_symmetric_difference((keycopyfp), (keyfree), gset_arr, ARRAY_SIZE(gset_arr)); \
+})
 
 GSet *BLI_gset_ptr_new_ex(const char *info,
                           const unsigned int nentries_reserve) ATTR_MALLOC ATTR_WARN_UNUSED_RESULT;

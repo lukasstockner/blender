@@ -259,7 +259,7 @@ TEST(gset, Union)
 {
 	GSet *gset_1 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
 	GSet *gset_2 = BLI_gset_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
-	GSet *gset_U;
+	GSet *gset_U = NULL;
 	unsigned int keys[TESTCASE_SIZE], *k;
 	int i;
 
@@ -274,7 +274,7 @@ TEST(gset, Union)
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	gset_U = BLI_gset_union(NULL, NULL, gset_1, gset_2, NULL);
+	gset_U = BLI_gset_union(NULL, NULL, gset_1, gset_2);
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_U, gset_1));
 
@@ -297,7 +297,7 @@ TEST(gset, Union)
 
 	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	gset_U = BLI_gset_union(NULL, NULL, gset_1, gset_2, NULL);
+	gset_U = BLI_gset_union(NULL, NULL, gset_1, gset_2);
 
 	EXPECT_TRUE(BLI_gset_issubset(gset_U, gset_1));
 	EXPECT_TRUE(BLI_gset_issubset(gset_U, gset_2));
@@ -327,7 +327,7 @@ TEST(gset, Intersection)
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	gset_I = BLI_gset_intersection(NULL, NULL, NULL, gset_1, gset_2, NULL);
+	gset_I = BLI_gset_intersection(NULL, NULL, NULL, gset_1, gset_2);
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_I, gset_1));
 
@@ -340,7 +340,7 @@ TEST(gset, Intersection)
 
 	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	gset_I = BLI_gset_intersection(NULL, NULL, NULL, gset_1, gset_2, NULL);
+	gset_I = BLI_gset_intersection(NULL, NULL, NULL, gset_1, gset_2);
 
 	EXPECT_EQ(0, BLI_gset_size(gset_I));
 
@@ -369,7 +369,7 @@ TEST(gset, Difference)
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	gset_D = BLI_gset_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
+	gset_D = BLI_gset_difference(NULL, NULL, NULL, gset_1, gset_2);
 
 	EXPECT_EQ(0, BLI_gset_size(gset_D));
 
@@ -382,7 +382,7 @@ TEST(gset, Difference)
 
 	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	gset_D = BLI_gset_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
+	gset_D = BLI_gset_difference(NULL, NULL, NULL, gset_1, gset_2);
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_D, gset_1));
 
@@ -411,11 +411,11 @@ TEST(gset, SymmDiff)
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_1, gset_2));
 
-	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, NULL, gset_1, gset_2);
 
 	EXPECT_EQ(0, BLI_gset_size(gset_SD));
 
-	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, gset_SD, gset_1, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, gset_SD, gset_1);
 
 	EXPECT_TRUE(BLI_gset_isequal(gset_SD, gset_1));
 
@@ -428,11 +428,11 @@ TEST(gset, SymmDiff)
 
 	EXPECT_TRUE(BLI_gset_isdisjoint(gset_1, gset_2));
 
-	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, NULL, gset_1, gset_2, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, NULL, gset_1, gset_2);
 
 	EXPECT_EQ(TESTCASE_SIZE, BLI_gset_size(gset_SD));
 
-	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, gset_SD, gset_1, gset_2, NULL);
+	gset_SD = BLI_gset_symmetric_difference(NULL, NULL, gset_SD, gset_1, gset_2);
 
 	EXPECT_EQ(0, BLI_gset_size(gset_SD));
 

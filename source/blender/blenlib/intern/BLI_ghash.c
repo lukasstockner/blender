@@ -607,18 +607,26 @@ static GHash *ghash_merge(
         const bool reverse,
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, va_list arg)
+        GHash **ghash_arr, const size_t nbr_ghash_arr)
 {
-	GHash *ghn = gh2;
+	GHash *gh1;
+	GHash **gh_iter = ghash_arr;
+	size_t gh_count = nbr_ghash_arr;
 
-	BLI_assert(ghn);
+	BLI_assert(nbr_ghash_arr > (*ghash_arr ? 1 : 2));
+
+	gh1 = *gh_iter++;
+	gh_count--;
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
-		ghn = va_arg(arg, GHash *);
+		gh1 = ghash_copy(*gh_iter++, keycopyfp, valcopyfp);
+		gh_count--;
 	}
 
-	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+	BLI_assert(!(valfreefp || valcopyfp) || !(gh1->flag & GHASH_FLAG_IS_GSET));
+
+	while (gh_count--) {
+		GHash *ghn = *gh_iter++;
 		unsigned int i;
 
 		BLI_assert(gh1->cmpfp == ghn->cmpfp);
@@ -663,20 +671,26 @@ static GHash *ghash_merge(
 static GHash *ghash_intersection(
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, va_list arg)
+        GHash **ghash_arr, const size_t nbr_ghash_arr)
 {
-	GHash *ghn = gh2;
+	GHash *gh1;
+	GHash **gh_iter = ghash_arr;
+	size_t gh_count = nbr_ghash_arr;
 
-	BLI_assert(ghn);
+	BLI_assert(nbr_ghash_arr > (*ghash_arr ? 1 : 2));
+
+	gh1 = *gh_iter++;
+	gh_count--;
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
-		ghn = va_arg(arg, GHash *);
+		gh1 = ghash_copy(*gh_iter++, keycopyfp, valcopyfp);
+		gh_count--;
 	}
 
-	BLI_assert(!valfreefp || !(gh1->flag & GHASH_FLAG_IS_GSET));
+	BLI_assert(!(valfreefp || valcopyfp) || !(gh1->flag & GHASH_FLAG_IS_GSET));
 
-	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+	while (gh_count--) {
+		GHash *ghn = *gh_iter++;
 		unsigned int new_gh1_nentries = gh1->nentries;
 		unsigned int i;
 
@@ -725,20 +739,26 @@ static GHash *ghash_intersection(
 static GHash *ghash_difference(
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, va_list arg)
+        GHash **ghash_arr, const size_t nbr_ghash_arr)
 {
-	GHash *ghn = gh2;
+	GHash *gh1;
+	GHash **gh_iter = ghash_arr;
+	size_t gh_count = nbr_ghash_arr;
 
-	BLI_assert(ghn);
+	BLI_assert(nbr_ghash_arr > (*ghash_arr ? 1 : 2));
+
+	gh1 = *gh_iter++;
+	gh_count--;
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
-		ghn = va_arg(arg, GHash *);
+		gh1 = ghash_copy(*gh_iter++, keycopyfp, valcopyfp);
+		gh_count--;
 	}
 
-	BLI_assert(!valfreefp || !(gh1->flag & GHASH_FLAG_IS_GSET));
+	BLI_assert(!(valfreefp || valcopyfp) || !(gh1->flag & GHASH_FLAG_IS_GSET));
 
-	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+	while (gh_count--) {
+		GHash *ghn = *gh_iter++;
 		unsigned int new_gh1_nentries = gh1->nentries;
 		unsigned int i;
 
@@ -787,29 +807,36 @@ static GHash *ghash_difference(
 static GHash *ghash_symmetric_difference(
         GHashKeyCopyFP keycopyfp, GHashValCopyFP valcopyfp,
         GHashKeyFreeFP keyfreefp, GHashValFreeFP valfreefp,
-        GHash *gh1, GHash *gh2, va_list arg)
+        GHash **ghash_arr, const size_t nbr_ghash_arr)
 {
-	GHash *ghn = gh2;
-	unsigned int i;
+	GHash *gh1;
+	GHash **gh_iter = ghash_arr;
+	size_t gh_count = nbr_ghash_arr;
 
 	/* Temp storage, we never copy key/values here, just borrow them from real ghash. */
 	/* Warning! rem_keys is used as gset (i.e. no val memory reserved). */
 	GHash *keys, *rem_keys;
+	unsigned int i;
 
-	BLI_assert(ghn);
+	BLI_assert(nbr_ghash_arr > (*ghash_arr ? 1 : 2));
+
+	gh1 = *gh_iter++;
+	gh_count--;
 
 	if (!gh1) {
-		gh1 = ghash_copy(ghn, keycopyfp, valcopyfp);
-		ghn = va_arg(arg, GHash *);
+		gh1 = ghash_copy(*gh_iter++, keycopyfp, valcopyfp);
+		gh_count--;
 	}
 
-	BLI_assert(!valfreefp || !(gh1->flag & GHASH_FLAG_IS_GSET));
+	BLI_assert(!(valfreefp || valcopyfp) || !(gh1->flag & GHASH_FLAG_IS_GSET));
 
 	keys = ghash_copy(gh1, NULL, NULL);
 	rem_keys = ghash_new(gh1->hashfp, gh1->cmpfp, __func__, 64, GHASH_FLAG_IS_GSET);
 
 	/* First pass: all key found at least once is in keys, all key found at least twice is in rem_keys. */
-	for ( ; ghn; ghn = va_arg(arg, GHash *)) {
+	while (gh_count--) {
+		GHash *ghn = *gh_iter++;
+
 		BLI_assert(gh1->cmpfp == ghn->cmpfp);
 		BLI_assert(gh1->hashfp == ghn->hashfp);
 		BLI_assert((gh1->flag & GHASH_FLAG_IS_GSET) == (ghn->flag & GHASH_FLAG_IS_GSET));
@@ -1713,48 +1740,29 @@ bool BLI_gset_issuperset(GSet *gs1, GSet *gs2)
  * Union (no left to right/right to left here, this makes no sense in set context (i.e. no value)).
  * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
  */
-GSet *BLI_gset_union(GSetKeyCopyFP keycopyfp, GSet *gs1, GSet *gs2, ...)
+GSet *_bli_gset_union(GSetKeyCopyFP keycopyfp, GSet **gset_arr, const size_t nbr_gset_arr)
 {
-	GSet *gs_ret;
-	va_list arg;
-
-	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_merge(false, keycopyfp, NULL, NULL, NULL, (GHash *)gs1, (GHash *)gs2, arg);
-	va_end(arg);
-
-	return gs_ret;
+	return (GSet *)ghash_merge(false, keycopyfp, NULL, NULL, NULL, (GHash **)gset_arr, nbr_gset_arr);
 }
 
 /**
  * Intersection (i.e. entries which keys exist in all gs1, gs2, ...).
  * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
  */
-GSet *BLI_gset_intersection(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...)
+GSet *_bli_gset_intersection(
+        GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet **gset_arr, const size_t nbr_gset_arr)
 {
-	GSet *gs_ret;
-	va_list arg;
-
-	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_intersection(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
-	va_end(arg);
-
-	return gs_ret;
+	return (GSet *)ghash_intersection(keycopyfp, NULL, keyfreefp, NULL, (GHash **)gset_arr, nbr_gset_arr);
 }
 
 /**
  * Difference, i.e. remove all entries in \a gs1 which keys are present in \a gs2 or any subsequent given GSet.
  * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
  */
-GSet *BLI_gset_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...)
+GSet *_bli_gset_difference(
+        GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet **gset_arr, const size_t nbr_gset_arr)
 {
-	GSet *gs_ret;
-	va_list arg;
-
-	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
-	va_end(arg);
-
-	return gs_ret;
+	return (GSet *)ghash_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash **)gset_arr, nbr_gset_arr);
 }
 
 /**
@@ -1762,16 +1770,10 @@ GSet *BLI_gset_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet
  * i.e. such as \a gs1 to only contain entries which keys are present in one and only one of all given gset.
  * If \a gs1 is NULL, a new GSet is returned, otherwise \a gs1 is modified in place.
  */
-GSet *BLI_gset_symmetric_difference(GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet *gs1, GSet *gs2, ...)
+GSet *_bli_gset_symmetric_difference(
+        GSetKeyCopyFP keycopyfp, GSetKeyFreeFP keyfreefp, GSet **gset_arr, const size_t nbr_gset_arr)
 {
-	GSet *gs_ret;
-	va_list arg;
-
-	va_start(arg, gs2);
-	gs_ret = (GSet *)ghash_symmetric_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash *)gs1, (GHash *)gs2, arg);
-	va_end(arg);
-
-	return gs_ret;
+	return (GSet *)ghash_symmetric_difference(keycopyfp, NULL, keyfreefp, NULL, (GHash **)gset_arr, nbr_gset_arr);
 }
 
 /** \} */
