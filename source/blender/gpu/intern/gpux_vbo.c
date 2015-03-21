@@ -30,6 +30,8 @@
   #include <stdio.h>
 #endif // PRINT
 
+typedef unsigned char byte;
+
 typedef struct
 	{
 	GLenum comp_type;
@@ -114,12 +116,12 @@ void attrib_print(const VertexBuffer* buff, unsigned attrib_num)
 	unsigned comp_size = comp_sz(a->comp_type);
 	for (unsigned v = 0; v < buff->vertex_ct; ++v)
 		{
-		const void* data = a->data + v * a->stride;
+		const void* data = (byte*)a->data + v * a->stride;
 		for (unsigned offset = 0; offset < a->sz; ++offset)
 			{
 			if (offset % comp_size == 0)
 				putchar(' ');
-			printf("%02X", *(const unsigned char*)data + offset);
+			printf("%02X", *(const byte*)data + offset);
 			}
 		putchar('\n');
 		}
@@ -203,7 +205,7 @@ void set_attrib(VertexBuffer* buff, unsigned attrib_num, unsigned vertex_num, co
 	assert(vertex_num < buff->vertex_ct);
 	assert(attrib->data != NULL); // attribute must be specified
 #endif // TRUST_NO_ONE
-	memcpy(attrib->data + vertex_num * attrib->stride, data, attrib->sz);
+	memcpy((byte*)attrib->data + vertex_num * attrib->stride, data, attrib->sz);
 	}
 
 void set_attrib_3f(VertexBuffer* buff, unsigned attrib_num, unsigned vertex_num, float x, float y, float z)
@@ -236,7 +238,7 @@ void fill_attrib(VertexBuffer* buff, unsigned attrib_num, const void* data)
 		// not tightly packed, so we must copy it per vertex
 		// (this is begging for vector (SSE) coding)
 		for (unsigned v = 0; v < buff->vertex_ct; ++v)
-			memcpy(attrib->data + v * attrib->stride, data + v * attrib->sz, attrib->sz);
+			memcpy((byte*)attrib->data + v * attrib->stride, (byte*)data + v * attrib->sz, attrib->sz);
 		}
 	}
 
@@ -257,7 +259,7 @@ void fill_attrib_stride(VertexBuffer* buff, unsigned attrib_num, const void* dat
 		{
 		// we must copy it per vertex
 		for (unsigned v = 0; v < buff->vertex_ct; ++v)
-			memcpy(attrib->data + v * attrib->stride, data + v * stride, attrib->sz);
+			memcpy((byte*)attrib->data + v * attrib->stride, (byte*)data + v * stride, attrib->sz);
 		}
 	}
 

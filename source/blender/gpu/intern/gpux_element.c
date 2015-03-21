@@ -1,5 +1,6 @@
 
 #include "GPUx_element_private.h"
+#include <stdlib.h>
 
 #if TRACK_INDEX_RANGE
 void track_index_range(ElementList* el, unsigned v)
