@@ -4,28 +4,27 @@
 
 #if TRUST_NO_ONE
   #include <assert.h>
-#endif // TRUST_NO_ONE
+#endif /* TRUST_NO_ONE */
 
 #define REALLY_DRAW true
 
-// generally useful utility function
+/* generally useful utility function */
 static unsigned chop_to_multiple(unsigned x, unsigned m)
-	{
+{
 	return x - x % m;
-	}
+}
 
-void draw_points(const CommonDrawState* common_state, const PointDrawState* point_state, const VertexBuffer* vbo, const ElementList* el)
-	{
+void draw_points(const CommonDrawState *common_state, const PointDrawState *point_state, const VertexBuffer *vbo, const ElementList *el)
+{
 	set_common_state(common_state);
 	set_point_state(point_state);
 
 #if TRUST_NO_ONE
-	if (el)
-		{
+	if (el) {
 		assert(el->prim_type == GL_POINTS);
 		assert(el->max_allowed_index < vertex_ct(vbo));
-		}
-#endif // TRUST_NO_ONE
+	}
+#endif /* TRUST_NO_ONE */
 
 #if REALLY_DRAW
 	vertex_buffer_use_primed(vbo);
@@ -36,21 +35,20 @@ void draw_points(const CommonDrawState* common_state, const PointDrawState* poin
 		glDrawArrays(GL_POINTS, 0, vertex_ct(vbo));
 
 	vertex_buffer_done_using(vbo);
-#endif // REALLY_DRAW
-	}
+#endif /* REALLY_DRAW */
+}
 
-void draw_lines(const CommonDrawState* common_state, const LineDrawState* line_state, const VertexBuffer* vbo, const ElementList* el)
-	{
+void draw_lines(const CommonDrawState *common_state, const LineDrawState *line_state, const VertexBuffer *vbo, const ElementList *el)
+{
 	set_common_state(common_state);
 	set_line_state(line_state);
 
 #if TRUST_NO_ONE
-	if (el)
-		{
+	if (el) {
 		assert(el->prim_type == GL_LINES);
 		assert(el->max_allowed_index < vertex_ct(vbo));
-		}
-#endif // TRUST_NO_ONE
+	}
+#endif /* TRUST_NO_ONE */
 
 #if REALLY_DRAW
 	vertex_buffer_use_primed(vbo);
@@ -61,21 +59,20 @@ void draw_lines(const CommonDrawState* common_state, const LineDrawState* line_s
 		glDrawArrays(GL_LINES, 0, chop_to_multiple(vertex_ct(vbo), 2));
 
 	vertex_buffer_done_using(vbo);
-#endif // REALLY_DRAW
-	}
+#endif /* REALLY_DRAW */
+}
 
-void draw_triangles(const CommonDrawState* common_state, const PolygonDrawState* polygon_state, const VertexBuffer* vbo, const ElementList* el)
-	{
+void draw_triangles(const CommonDrawState *common_state, const PolygonDrawState *polygon_state, const VertexBuffer *vbo, const ElementList *el)
+{
 	set_common_state(common_state);
 	set_polygon_state(polygon_state);
 
 #if TRUST_NO_ONE
-	if (el)
-		{
+	if (el) {
 		assert(el->prim_type == GL_TRIANGLES);
 		assert(el->max_allowed_index < vertex_ct(vbo));
-		}
-#endif // TRUST_NO_ONE
+	}
+#endif /* TRUST_NO_ONE */
 
 #if REALLY_DRAW
 	vertex_buffer_use_primed(vbo);
@@ -86,19 +83,18 @@ void draw_triangles(const CommonDrawState* common_state, const PolygonDrawState*
 		glDrawArrays(GL_TRIANGLES, 0, chop_to_multiple(vertex_ct(vbo), 3));
 
 	vertex_buffer_done_using(vbo);
-#endif // REALLY_DRAW
-	}
+#endif /* REALLY_DRAW */
+}
 
-void draw_primitives(const CommonDrawState* common_state, const void* primitive_state, const VertexBuffer* vbo, const ElementList* el)
-	{
+void draw_primitives(const CommonDrawState *common_state, const void *primitive_state, const VertexBuffer *vbo, const ElementList *el)
+{
 #if TRUST_NO_ONE
 	assert(el->max_allowed_index < vertex_ct(vbo));
-#endif // TRUST_NO_ONE
+#endif /* TRUST_NO_ONE */
 
 	int vert_per_prim = 0;
 
-	switch (el->prim_type)
-		{
+	switch (el->prim_type) {
 		case GL_POINTS:
 			set_point_state((const PointDrawState*)primitive_state);
 			vert_per_prim = 1;
@@ -116,8 +112,8 @@ void draw_primitives(const CommonDrawState* common_state, const void* primitive_
 			assert(false);
 #else
 			return;
-#endif // TRUST_NO_ONE
-		}
+#endif /* TRUST_NO_ONE */
+	}
 
 	set_common_state(common_state);
 
@@ -127,5 +123,5 @@ void draw_primitives(const CommonDrawState* common_state, const void* primitive_
 	glDrawRangeElements(el->prim_type, min_index(el), max_index(el), el->prim_ct * vert_per_prim, el->index_type, el->indices);
 
 	vertex_buffer_done_using(vbo);
-#endif // REALLY_DRAW
-	}
+#endif /* REALLY_DRAW */
+}
