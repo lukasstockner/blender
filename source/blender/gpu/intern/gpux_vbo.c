@@ -13,15 +13,6 @@
  * so we should follow that restriction on all platforms. */
 #define USE_VAO (USE_VBO && true)
 
-#if USE_VAO
-  #ifndef glGenVertexArrays
-    #include <OpenGL/glext.h>
-    #define glGenVertexArrays glGenVertexArraysAPPLE
-    #define glDeleteVertexArrays glDeleteVertexArraysAPPLE
-    #define glBindVertexArray glBindVertexArrayAPPLE
-  #endif
-#endif /* USE_VAO */
-
 #if TRUST_NO_ONE
   #include <assert.h>
 #endif /* TRUST_NO_ONE */
@@ -114,7 +105,7 @@ void attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 
 	unsigned comp_size = comp_sz(a->comp_type);
 	for (unsigned v = 0; v < buff->vertex_ct; ++v) {
-		const void* data = (byte*)a->data + v * a->stride;
+		const void *data = (byte*)a->data + v * a->stride;
 		for (unsigned offset = 0; offset < a->sz; ++offset) {
 			if (offset % comp_size == 0)
 				putchar(' ');
@@ -144,7 +135,7 @@ void vertex_buffer_discard(VertexBuffer *buff)
 	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx)
 	{
 		/* whatever needs doing */
-		Attrib* a = buff->attribs + a_idx;
+		Attrib *a = buff->attribs + a_idx;
 #if USE_VBO
 		if (a->vbo_id)
 			glDeleteBuffers(1, &a->vbo_id);
@@ -170,7 +161,7 @@ static unsigned attrib_total_size(const VertexBuffer *buff, unsigned attrib_num)
 	return (buff->vertex_ct - 1) * attrib->stride + attrib->sz;
 }
 
-void specify_attrib(VertexBuffer *buff, unsigned attrib_num, const char* name, GLenum comp_type, unsigned comp_ct, VertexFetchMode fetch_mode)
+void specify_attrib(VertexBuffer *buff, unsigned attrib_num, const char *name, GLenum comp_type, unsigned comp_ct, VertexFetchMode fetch_mode)
 {
 #if TRUST_NO_ONE
 	assert(attrib_num < buff->attrib_ct);
