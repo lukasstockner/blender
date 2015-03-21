@@ -90,7 +90,7 @@ EditBone *ED_armature_edit_bone_add_primitive(Object *obedit_arm, float length, 
 	bArmature *arm = obedit_arm->data;
 	EditBone *bone;
 
-	ED_armature_deselect_all(obedit_arm, 0);
+	ED_armature_deselect_all(obedit_arm);
 	
 	/* Create a bone */
 	bone = ED_armature_edit_bone_add(arm, "Bone");
@@ -145,7 +145,7 @@ static int armature_click_extrude_exec(bContext *C, wmOperator *UNUSED(op))
 		to_root = 1;
 	}
 	
-	ED_armature_deselect_all(obedit, 0);
+	ED_armature_deselect_all(obedit);
 	
 	/* we re-use code for mirror editing... */
 	flipbone = NULL;
@@ -639,6 +639,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 				 * Set the duplicate->parent to NULL
 				 */
 				ebone->parent = NULL;
+				ebone->flag &= ~BONE_CONNECTED;
 			}
 			else {
 				/* the parent may have been duplicated, if not lookup the mirror parent */
@@ -652,6 +653,7 @@ static int armature_symmetrize_exec(bContext *C, wmOperator *op)
 					 * So just use the same parent for both.
 					 */
 					ebone_parent = ebone_iter->parent;
+					ebone->flag &= ~BONE_CONNECTED;
 				}
 
 				ebone->parent = ebone_parent;
@@ -912,7 +914,7 @@ static int armature_bone_primitive_add_exec(bContext *C, wmOperator *op)
 	mul_m3_m3m3(totmat, obmat, viewmat);
 	invert_m3_m3(imat, totmat);
 	
-	ED_armature_deselect_all(obedit, 0);
+	ED_armature_deselect_all(obedit);
 	
 	/*	Create a bone	*/
 	bone = ED_armature_edit_bone_add(obedit->data, name);
