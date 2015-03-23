@@ -365,7 +365,7 @@ static unsigned char *GPU_texture_convert_pixels(int length, const float *fpixel
 	p = pixels = MEM_callocN(sizeof(unsigned char)*len, "GPUTexturePixels");
 
 	for (a=0; a<len; a++, p++, fp++)
-		*p = FTOCHAR((*fp));
+		*p = FTOCHAR(*fp);
 
 	return pixels;
 }
@@ -1407,12 +1407,12 @@ struct GPUShader {
 static void shader_print_errors(const char *task, char *log, const char **code, int totcode)
 {
 	int i;
+	int line = 1;
 
 	fprintf(stderr, "GPUShader: %s error:\n", task);
 
 	for (i = 0; i < totcode; i++) {
 		const char *c, *pos, *end = code[i] + strlen(code[i]);
-		int line = 1;
 
 		if ((G.debug & G_DEBUG)) {
 			fprintf(stderr, "===== shader string %d ====\n", i + 1);
