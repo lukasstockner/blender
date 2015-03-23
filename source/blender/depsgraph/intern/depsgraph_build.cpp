@@ -248,9 +248,6 @@ static void deg_graph_build_finalize(Depsgraph *graph)
 			if (id->flag & LIB_ID_RECALC_ALL &&
 			    id->flag & LIB_DOIT)
 			{
-				if (GS(id->name) == ID_OB) {
-					Object *object = (Object *)id;
-				}
 				id_node->tag_update(graph);
 				id->flag &= ~LIB_DOIT;
 			}
