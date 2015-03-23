@@ -369,7 +369,7 @@ void RE_engine_set_error_message(RenderEngine *engine, const char *msg)
 	}
 }
 
-void RE_engine_actview_set(RenderEngine *engine, const char *viewname)
+void RE_engine_active_view_set(RenderEngine *engine, const char *viewname)
 {
 	Render *re = engine->re;
 	RE_SetActiveRenderView(re, viewname);
