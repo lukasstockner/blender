@@ -387,6 +387,7 @@ Render *RE_NewRender(const char *name)
 		BLI_addtail(&RenderGlobal.renderlist, re);
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
+		BLI_rw_mutex_init(&re->partsmutex);
 		re->eval_ctx = DEG_evaluation_context_new(DAG_EVAL_RENDER);
 	}
 	
@@ -424,6 +425,7 @@ void RE_FreeRender(Render *re)
 		RE_engine_free(re->engine);
 
 	BLI_rw_mutex_end(&re->resultmutex);
+	BLI_rw_mutex_end(&re->partsmutex);
 
 	BLI_freelistN(&re->r.layers);
 	
@@ -1269,8 +1271,9 @@ static void threaded_tile_processor(Render *re)
 
 	/* unset threadsafety */
 	g_break = 0;
-	
+	BLI_rw_mutex_lock(&re->partsmutex, THREAD_LOCK_WRITE);
 	RE_parts_free(re);
+	BLI_rw_mutex_unlock(&re->partsmutex);
 	re->viewplane = viewplane; /* restore viewplane, modified by pano render */
 }
 
