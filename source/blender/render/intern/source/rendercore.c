@@ -570,20 +570,14 @@ static void add_passes(RenderLayer *rl, int offset, ShadeInput *shi, ShadeResult
 	RenderPass *rpass;
 	float *fp;
 
-#if 0
-	/* copy combined to rl->rectf to use for preview */
-	fp = rl->rectf + 4 * offset;
-	copy_v4_v4(fp, shr->combined);
-#endif
-
 	for (rpass= rl->passes.first; rpass; rpass= rpass->next) {
 		float *col= NULL, uvcol[3];
 		int a, pixsize= 3;
 		
 		switch (rpass->passtype) {
 			case SCE_PASS_COMBINED:
-				col= shr->combined;
-				pixsize= 4;
+				/* copy combined to use for preview */
+				copy_v4_v4(rpass->rect + 4*offset, shr->combined);
 				break;
 			case SCE_PASS_Z:
 				fp= rpass->rect + offset;
