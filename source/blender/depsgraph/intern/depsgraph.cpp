@@ -55,6 +55,7 @@ static DEG_EditorUpdateSceneCb deg_editor_update_scene_cb = NULL;
 
 Depsgraph::Depsgraph()
   : root_node(NULL),
+    need_update(false),
     layers((1 << 20) - 1)
 {
 	BLI_spin_init(&lock);
