@@ -5160,7 +5160,6 @@ void RE_Database_FromScene(Render *re, Main *bmain, Scene *scene, unsigned int l
 		 * following calls don't depend on 'RE_SetCamera' */
 		RE_SetCamera(re, camera);
 		RE_GetCameraModelMatrix(re, camera, mat);
-		normalize_m4(mat);
 		invert_m4(mat);
 		RE_SetView(re, mat);
 

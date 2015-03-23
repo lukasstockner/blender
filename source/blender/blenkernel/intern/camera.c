@@ -810,7 +810,6 @@ static void camera_stereo3d_model_matrix(Object *camera, const bool is_left, flo
 void BKE_camera_multiview_view_matrix(RenderData *rd, Object *camera, const bool is_left, float r_viewmat[4][4])
 {
 	BKE_camera_multiview_model_matrix(rd, camera, is_left ? STEREO_LEFT_NAME : STEREO_RIGHT_NAME, r_viewmat);
-	normalize_m4(r_viewmat);
 	invert_m4(r_viewmat);
 }
 
@@ -828,15 +827,16 @@ void BKE_camera_multiview_model_matrix(RenderData *rd, Object *camera, const cha
 	const bool is_multiview = (rd && rd->scemode & R_MULTIVIEW) != 0;
 
 	if (!is_multiview) {
-		return camera_model_matrix(camera, r_modelmat);
+		camera_model_matrix(camera, r_modelmat);
 	}
 	else if (rd->views_format == SCE_VIEWS_FORMAT_MULTIVIEW) {
-		return camera_model_matrix(camera, r_modelmat);
+		camera_model_matrix(camera, r_modelmat);
 	}
 	else { /* SCE_VIEWS_SETUP_BASIC */
 		const bool is_left = camera_is_left(viewname);
-		return camera_stereo3d_model_matrix(camera, is_left, r_modelmat);
+		camera_stereo3d_model_matrix(camera, is_left, r_modelmat);
 	}
+	normalize_m4(r_modelmat);
 }
 
 static Object *camera_multiview_advanced(Scene *scene, Object *camera, const char *suffix)

@@ -511,7 +511,7 @@ static void rna_def_render_engine(BlenderRNA *brna)
 	func = RNA_def_function(srna, "camera_model_matrix", "RE_engine_get_camera_model_matrix");
 	prop = RNA_def_pointer(func, "camera", "Object", "", "");
 	RNA_def_property_flag(prop, PROP_REQUIRED);
-	prop = RNA_def_float_matrix(func, "r_model_matrix", 4, 4, NULL, 0.0f, 0.0f, "", "Model Matrix", 0.0f, 0.0f);
+	prop = RNA_def_float_matrix(func, "r_model_matrix", 4, 4, NULL, 0.0f, 0.0f, "Model Matrix", "Normalized camera model matrix", 0.0f, 0.0f);
 	RNA_def_property_flag(prop, PROP_REQUIRED);
 
 	func = RNA_def_function(srna, "update_stats", "RE_engine_update_stats");

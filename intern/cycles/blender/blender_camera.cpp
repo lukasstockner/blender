@@ -105,7 +105,7 @@ static float blender_camera_focal_distance(BL::RenderEngine b_engine, BL::Object
 	/* for dof object, return distance along camera Z direction */
 	BL::Array<float, 16> b_ob_matrix;
 	b_engine.camera_model_matrix(b_ob, b_ob_matrix);
-	Transform obmat = transform_clear_scale(get_transform(b_ob_matrix));
+	Transform obmat = get_transform(b_ob_matrix);
 	Transform dofmat = get_transform(b_dof_object.matrix_world());
 	Transform mat = transform_inverse(obmat) * dofmat;
 
