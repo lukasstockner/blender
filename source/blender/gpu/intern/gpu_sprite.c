@@ -43,7 +43,7 @@
 
 static float point_size = 1;
 
-static float    SPRITE_SIZE    = 1;
+static float SPRITE_SIZE = 1;
 static uint32_t SPRITE_OPTIONS = 0;
 
 static bool SPRITE_BEGUN = false;
@@ -71,7 +71,7 @@ void gpu_sprite_init(void)
 	point_size = 1;
 #endif
 
-	SPRITE_SIZE    = 1;
+	SPRITE_SIZE = 1;
 	SPRITE_OPTIONS = 0;
 }
 

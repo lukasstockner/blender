@@ -48,17 +48,17 @@
 
 
 extern const char datatoc_gpu_shader_common_constants_glsl[];
-extern const char datatoc_gpu_shader_common_uniforms_glsl [];
-extern const char datatoc_gpu_shader_common_attribs_glsl  [];
+extern const char datatoc_gpu_shader_common_uniforms_glsl[];
+extern const char datatoc_gpu_shader_common_attribs_glsl[];
 
 
 
-static GPUcommon* current_common = NULL;
-static GLint      active_texture_num = 0;
+static GPUcommon *current_common = NULL;
+static GLint active_texture_num = 0;
 
 
 
-void gpu_include_common_vert(DynStr* vert)
+void gpu_include_common_vert(DynStr *vert)
 {
 	BLI_dynstr_append(vert, datatoc_gpu_shader_common_constants_glsl);
 	BLI_dynstr_append(vert, datatoc_gpu_shader_common_uniforms_glsl);
@@ -67,7 +67,7 @@ void gpu_include_common_vert(DynStr* vert)
 
 
 
-void gpu_include_common_frag(DynStr* frag)
+void gpu_include_common_frag(DynStr *frag)
 {
 	BLI_dynstr_append(frag, datatoc_gpu_shader_common_constants_glsl);
 	BLI_dynstr_append(frag, datatoc_gpu_shader_common_uniforms_glsl);
@@ -75,7 +75,7 @@ void gpu_include_common_frag(DynStr* frag)
 
 
 
-void gpu_include_common_defs(DynStr* defs)
+void gpu_include_common_defs(DynStr *defs)
 {
 	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_TEXCOORDS   " STRINGIFY(GPU_MAX_COMMON_TEXCOORDS  ) "\n");
 	BLI_dynstr_append(defs, "#define GPU_MAX_COMMON_SAMPLERS    " STRINGIFY(GPU_MAX_COMMON_SAMPLERS   ) "\n");
@@ -94,7 +94,7 @@ void gpu_include_common_defs(DynStr* defs)
 
 
 
-static void get_struct_uniform(GLint* out, GPUShader* gpushader, char symbol[], size_t len, const char* field)
+static void get_struct_uniform(GLint *out, GPUShader *gpushader, char symbol[], size_t len, const char *field)
 {
 	symbol[len] = '\0';
 	strcat(symbol, field);
@@ -103,7 +103,7 @@ static void get_struct_uniform(GLint* out, GPUShader* gpushader, char symbol[], 
 
 
 
-void gpu_common_get_symbols(GPUcommon* common, GPUShader* gpushader)
+void gpu_common_get_symbols(GPUcommon *common, GPUShader *gpushader)
 {
 	int i;
 
@@ -194,14 +194,14 @@ void gpu_common_exit(void)
 
 
 
-void gpu_set_common(GPUcommon* common)
+void gpu_set_common(GPUcommon *common)
 {
 	current_common = common;
 }
 
 
 
-GPUcommon* gpu_get_common(void)
+GPUcommon *gpu_get_common(void)
 {
 	return current_common;
 }
@@ -240,7 +240,7 @@ void GPU_common_enable_normal_array(void)
 
 
 
-void GPU_common_enable_color_array    (void)
+void GPU_common_enable_color_array(void)
 {
 	if (current_common != NULL) {
 		if (current_common->color != -1)
@@ -256,7 +256,7 @@ void GPU_common_enable_color_array    (void)
 
 
 
-void GPU_common_enable_texcoord_array (void)
+void GPU_common_enable_texcoord_array(void)
 {
 	BLI_assert(active_texture_num >= 0);
 	BLI_assert(active_texture_num < GPU_MAX_COMMON_TEXCOORDS);
@@ -276,7 +276,7 @@ void GPU_common_enable_texcoord_array (void)
 
 
 
-void GPU_common_disable_vertex_array  (void)
+void GPU_common_disable_vertex_array(void)
 {
 	if (current_common != NULL) {
 		if (current_common->vertex != -1)
@@ -292,7 +292,7 @@ void GPU_common_disable_vertex_array  (void)
 
 
 
-void GPU_common_disable_normal_array  (void)
+void GPU_common_disable_normal_array(void)
 {
 	if (current_common != NULL) {
 		if (current_common->normal != -1)
@@ -308,7 +308,7 @@ void GPU_common_disable_normal_array  (void)
 
 
 
-void GPU_common_disable_color_array   (void)
+void GPU_common_disable_color_array(void)
 {
 	if (current_common != NULL) {
 		if (current_common->color != -1)
@@ -343,7 +343,7 @@ void GPU_common_disable_texcoord_array(void)
 
 
 
-void GPU_common_vertex_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer)
+void GPU_common_vertex_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
 {
 	if (current_common != NULL) {
 		if (current_common->vertex != -1)
@@ -359,7 +359,7 @@ void GPU_common_vertex_pointer(GLint size, GLenum type, GLsizei stride, const GL
 
 
 
-void GPU_common_normal_pointer(GLenum type, GLsizei stride, GLboolean normalized, const GLvoid* pointer)
+void GPU_common_normal_pointer(GLenum type, GLsizei stride, GLboolean normalized, const GLvoid *pointer)
 {
 	if (current_common != NULL) {
 		if (current_common->normal != -1)
@@ -375,9 +375,9 @@ void GPU_common_normal_pointer(GLenum type, GLsizei stride, GLboolean normalized
 
 
 
-void GPU_common_color_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer)
+void GPU_common_color_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
 {
-	BLI_assert(type == GL_UNSIGNED_BYTE); // making assumptions about the type being a fixed point type
+	BLI_assert(type == GL_UNSIGNED_BYTE); /* making assumptions about the type being a fixed point type */
 
 	if (current_common != NULL) {
 		if (current_common->color != -1)
@@ -393,7 +393,7 @@ void GPU_common_color_pointer(GLint size, GLenum type, GLsizei stride, const GLv
 
 
 
-void GPU_common_texcoord_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid* pointer)
+void GPU_common_texcoord_pointer(GLint size, GLenum type, GLsizei stride, const GLvoid *pointer)
 {
 	BLI_assert(active_texture_num >= 0);
 	BLI_assert(active_texture_num < GPU_MAX_COMMON_TEXCOORDS);
@@ -448,7 +448,7 @@ void GPU_common_normal_3fv(GLfloat n[3])
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_ERRORS_AROUND(glNormal3fv(GPU_IMMEDIATE->normal)); // deprecated
+	GPU_CHECK_ERRORS_AROUND(glNormal3fv(GPU_IMMEDIATE->normal)); /* deprecated */
 #endif
 }
 
@@ -461,17 +461,17 @@ void GPU_common_color_4ubv(GLubyte c[4])
 			GPU_CHECK_ERRORS_AROUND(
 				glVertexAttrib4f(
 					current_common->color,
-					((float)(c[0]))/255.0f,
-					((float)(c[1]))/255.0f,
-					((float)(c[2]))/255.0f,
-					((float)(c[3]))/255.0f));
+					(float)c[0] / 255.0f,
+					(float)c[1] / 255.0f,
+					(float)c[2] / 255.0f,
+					(float)c[3] / 255.0f));
 		}
 
 		return;
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_ERRORS_AROUND(glColor4ubv(c)); // deprecated
+	GPU_CHECK_ERRORS_AROUND(glColor4ubv(c)); /* deprecated */
 #endif
 }
 
@@ -487,6 +487,6 @@ void GPU_common_color_4fv(GLfloat c[4])
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	GPU_CHECK_ERRORS_AROUND(glColor4fv(c)); // deprecated
+	GPU_CHECK_ERRORS_AROUND(glColor4fv(c)); /* deprecated */
 #endif
 }

@@ -50,11 +50,11 @@
 
 typedef struct GPUbasicmaterial {
 	float specular[4];
-	int   shininess;
+	int shininess;
 } GPUbasicmaterial;
 
 static struct LIGHTING {
-	GPUbasiclight    light[GPU_MAX_COMMON_LIGHTS];
+	GPUbasiclight light[GPU_MAX_COMMON_LIGHTS];
 	GPUbasicmaterial material;
 
 	uint32_t light_count;
@@ -66,7 +66,7 @@ static struct LIGHTING {
 const GPUbasiclight GPU_DEFAULT_LIGHT =
 {
 	{ 0, 0, 1, 0 }, /* position: directional light that is straight above (in eye coordinates) */
-	{ 1, 1, 1, 1 }, /* diffuse : white                                                         */
+	{ 1, 1, 1, 1 }, /* diffuse: white                                                          */
 	{ 1, 1, 1, 1 }, /* specular: white                                                         */
 	1, 0, 0,        /* attenuation polynomal coefficients: no attenuation                      */
 	{ 0, 0, 1 },    /* spotlight direction: straight ahead (in eye coordinates)                */
@@ -103,8 +103,8 @@ bool gpu_lighting_is_fast(void)
 
 void gpu_commit_lighting(void)
 {
-	const struct GPUcommon*     common = gpu_get_common();
-	const struct GPUbasiclight* light  = LIGHTING.light;
+	const struct GPUcommon *common = gpu_get_common();
+	const struct GPUbasiclight *light = LIGHTING.light;
 
 	int i;
 
@@ -125,20 +125,21 @@ void gpu_commit_lighting(void)
 		}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
+		/* use deprecated lighting functions */
 		if (i < 8) {
 			glEnable (GL_LIGHT0+i);
 
-			glLightfv(GL_LIGHT0+i, GL_POSITION,              light->position);              // deprecated
-			glLightfv(GL_LIGHT0+i, GL_DIFFUSE,               light->diffuse);               // deprecated
-			glLightfv(GL_LIGHT0+i, GL_SPECULAR,              light->specular);              // deprecated
+			glLightfv(GL_LIGHT0+i, GL_POSITION,              light->position);
+			glLightfv(GL_LIGHT0+i, GL_DIFFUSE,               light->diffuse);
+			glLightfv(GL_LIGHT0+i, GL_SPECULAR,              light->specular);
 
-			glLightf (GL_LIGHT0+i, GL_CONSTANT_ATTENUATION,  light->constant_attenuation);  // deprecated
-			glLightf (GL_LIGHT0+i, GL_LINEAR_ATTENUATION,    light->linear_attenuation);    // deprecated
-			glLightf (GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation); // deprecated
+			glLightf (GL_LIGHT0+i, GL_CONSTANT_ATTENUATION,  light->constant_attenuation);
+			glLightf (GL_LIGHT0+i, GL_LINEAR_ATTENUATION,    light->linear_attenuation);
+			glLightf (GL_LIGHT0+i, GL_QUADRATIC_ATTENUATION, light->quadratic_attenuation);
 
-			glLightfv(GL_LIGHT0+i, GL_SPOT_DIRECTION,        light->spot_direction);        // deprecated
-			glLightf (GL_LIGHT0+i, GL_SPOT_CUTOFF,           light->spot_cutoff);           // deprecated
-			glLightf (GL_LIGHT0+i, GL_SPOT_EXPONENT,         light->spot_exponent);         // deprecated
+			glLightfv(GL_LIGHT0+i, GL_SPOT_DIRECTION,        light->spot_direction);
+			glLightf (GL_LIGHT0+i, GL_SPOT_CUTOFF,           light->spot_cutoff);
+			glLightf (GL_LIGHT0+i, GL_SPOT_EXPONENT,         light->spot_exponent);
 		}
 #endif
 
@@ -147,7 +148,7 @@ void gpu_commit_lighting(void)
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	for (; i < 8; i++) {
-		glDisable(GL_LIGHT0+i); // deprecated
+		glDisable(GL_LIGHT0+i);
 	}
 #endif
 
@@ -159,20 +160,21 @@ void gpu_commit_lighting(void)
 
 void gpu_commit_material(void)
 {
-	const struct GPUcommon*         common   = gpu_get_common();
-	const struct GPUbasicmaterial* material = &(LIGHTING.material);
+	const struct GPUcommon *common = gpu_get_common();
+	const struct GPUbasicmaterial *material = &LIGHTING.material;
 
 GPU_ASSERT_NO_GL_ERRORS("");
 	if (common) {
-		glUniform4fv(common->material_specular,  1, material->specular);
+		glUniform4fv(common->material_specular, 1, material->specular);
 GPU_ASSERT_NO_GL_ERRORS("");
-		glUniform1f (common->material_shininess,    (float)(material->shininess));
+		glUniform1f(common->material_shininess, (float)material->shininess);
 GPU_ASSERT_NO_GL_ERRORS("");
 	}
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR,  material->specular); // deprecated
-	glMateriali (GL_FRONT_AND_BACK, GL_SHININESS, material->shininess); // deprecated
+	/* use deprecated material functions */
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, material->specular);
+	glMateriali(GL_FRONT_AND_BACK, GL_SHININESS, material->shininess);
 #endif
 GPU_ASSERT_NO_GL_ERRORS("");
 }
@@ -204,7 +206,7 @@ void GPU_restore_basic_lights(int light_count, const GPUbasiclight lights[])
 	BLI_assert(light_count >= 0);
 	BLI_assert(light_count < GPU_MAX_COMMON_LIGHTS);
 
-	memcpy(LIGHTING.light, lights, light_count*sizeof(GPUbasiclight));
+	memcpy(LIGHTING.light, lights, light_count * sizeof(GPUbasiclight));
 
 	LIGHTING.light_count = light_count;
 }
@@ -244,7 +246,7 @@ void GPU_set_basic_lights(int light_count, const GPUbasiclight lights[])
 
 int GPU_get_basic_lights(GPUbasiclight lights_out[])
 {
-	memcpy(lights_out, LIGHTING.light, LIGHTING.light_count*sizeof(GPUbasiclight));
+	memcpy(lights_out, LIGHTING.light, LIGHTING.light_count * sizeof(GPUbasiclight));
 
 	return LIGHTING.light_count;
 }

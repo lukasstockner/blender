@@ -81,7 +81,7 @@ void gpu_draw_range_elements_gl(void);
     GPU_SAFE_RETURN(GPU_IMMEDIATE->lockCount == 0, var,);
 
 /* Each block contains variables that can be inspected by a
-   debugger in the event that an assert is triggered. */
+ * debugger in the event that an assert is triggered. */
 
 #define GPU_CHECK_CAN_BEGIN()             \
     {                                     \
@@ -130,18 +130,18 @@ void gpuImmediateElementSizes(
 void gpuImmediateMaxVertexCount(GLsizei maxVertexCount);
 
 void gpuImmediateSamplerCount(size_t count);
-void gpuImmediateSamplerMap(const int * map);
+void gpuImmediateSamplerMap(const int *map);
 
 void gpuImmediateTexCoordCount(size_t count);
-void gpuImmediateTexCoordSizes(const int * sizes);
+void gpuImmediateTexCoordSizes(const int *sizes);
 
 void gpuImmediateFloatAttribCount(size_t count);
-void gpuImmediateFloatAttribSizes(const int * sizes);
-void gpuImmediateFloatAttribIndexMap(const unsigned int * map);
+void gpuImmediateFloatAttribSizes(const int *sizes);
+void gpuImmediateFloatAttribIndexMap(const unsigned int *map);
 
 void gpuImmediateUbyteAttribCount(size_t count);
-void gpuImmediateUbyteAttribSizes(const int * sizes);
-void gpuImmediateUbyteAttribIndexMap(const unsigned int * map);
+void gpuImmediateUbyteAttribSizes(const int *sizes);
+void gpuImmediateUbyteAttribIndexMap(const unsigned int *map);
 
 void  gpuImmediateFormatReset(void);
 void  gpuImmediateLock(void);
@@ -156,7 +156,7 @@ typedef struct GPUarrays {
 	GLenum colorType;
 	GLint  colorSize;
 	GLint  colorStride;
-	const void * colorPointer;
+	const void *colorPointer;
 
 	GLenum normalType;
 	GLint  normalStride;
@@ -247,18 +247,18 @@ void gpuImmediateSingleRepeatRangeElements(GPUImmediate *immediate);
 /* utility functions to setup vertex format and lock */
 #ifdef GPU_SAFETY
 
-void gpuSafetyImmediateFormat_V2          (const char* file, int line);
-void gpuSafetyImmediateFormat_C4_V2       (const char* file, int line);
-void gpuSafetyImmediateFormat_T2_V2       (const char* file, int line);
-void gpuSafetyImmediateFormat_T2_V3       (const char* file, int line);
-void gpuSafetyImmediateFormat_T2_C4_V2    (const char* file, int line);
-void gpuSafetyImmediateFormat_V3          (const char* file, int line);
-void gpuSafetyImmediateFormat_N3_V3       (const char* file, int line);
-void gpuSafetyImmediateFormat_C4_V3       (const char* file, int line);
-void gpuSafetyImmediateFormat_C4_N3_V3    (const char* file, int line);
-void gpuSafetyImmediateFormat_T2_C4_N3_V3 (const char* file, int line);
-void gpuSafetyImmediateFormat_T3_C4_V3    (const char* file, int line);
-void gpuSafetyImmediateUnformat           (const char* file, int line);
+void gpuSafetyImmediateFormat_V2          (const char *file, int line);
+void gpuSafetyImmediateFormat_C4_V2       (const char *file, int line);
+void gpuSafetyImmediateFormat_T2_V2       (const char *file, int line);
+void gpuSafetyImmediateFormat_T2_V3       (const char *file, int line);
+void gpuSafetyImmediateFormat_T2_C4_V2    (const char *file, int line);
+void gpuSafetyImmediateFormat_V3          (const char *file, int line);
+void gpuSafetyImmediateFormat_N3_V3       (const char *file, int line);
+void gpuSafetyImmediateFormat_C4_V3       (const char *file, int line);
+void gpuSafetyImmediateFormat_C4_N3_V3    (const char *file, int line);
+void gpuSafetyImmediateFormat_T2_C4_N3_V3 (const char *file, int line);
+void gpuSafetyImmediateFormat_T3_C4_V3    (const char *file, int line);
+void gpuSafetyImmediateUnformat           (const char *file, int line);
 
 #define gpuImmediateFormat_V2()          gpuSafetyImmediateFormat_V2          (__FILE__, __LINE__)
 #define gpuImmediateFormat_C4_V2()       gpuSafetyImmediateFormat_C4_V2       (__FILE__, __LINE__)
@@ -323,7 +323,7 @@ typedef struct GPUindex {
 GPUindex* gpuNewIndex(void);
 void gpuDeleteIndex(GPUindex *index);
 
-void gpuImmediateIndex(GPUindex * index);
+void gpuImmediateIndex(GPUindex *index);
 GPUindex* gpuGetImmediateIndex(void);
 void gpuImmediateMaxIndexCount(GLsizei maxIndexCount, GLenum type);
 void gpuImmediateIndexRange(GLuint indexMin, GLuint indexMax);
@@ -347,7 +347,7 @@ void gpuIndexEnd(void);
 
 
 void gpuAppendClientArrays(
-	const GPUarrays* arrays,
+	const GPUarrays *arrays,
 	GLint first,
 	GLsizei count);
 
@@ -497,15 +497,15 @@ void gpuSingleClientRangeElements_C4UB_V3F(
 
 
 
-void gpu_commit_current (void);
+void gpu_commit_current(void);
 void gpu_commit_samplers(void);
 
 
 
 #if defined(GLEW_ES_ONLY)
 
-/* ES 2.0 doesn't define QUADS, but the immediate mode replacement library emulates QUADS */
-/* (GL core has deprecated QUADS, but it should still be in the header) */
+/* ES 2.0 doesn't define QUADS, but the immediate mode replacement library emulates QUADS
+ * (GL core has deprecated QUADS, but it should still be in the header) */
 
 #ifndef GL_QUADS
 #define GL_QUADS 0x0007
@@ -598,8 +598,8 @@ BLI_INLINE void gpuColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
 
 
 /* This function converts a numerical value to the equivalent 24-bit
-   color, while not being endian-sensitive. On little-endians, this
-   is the same as doing a 'naive' indexing, on big-endian, it is not! */
+ * color, while not being endian-sensitive. On little-endians, this
+ * is the same as doing a 'naive' indexing, on big-endian, it is not! */
 
 BLI_INLINE void gpuColor3P(GLuint rgb)
 {
@@ -621,7 +621,7 @@ BLI_INLINE void gpuColor4P(GLuint rgb, GLfloat a)
 
 BLI_INLINE void gpuGray3f(GLfloat luminance)
 {
-	GLubyte c = (GLubyte)(255.0 * luminance);
+	GLubyte c = (GLubyte)(255.0f * luminance);
 
 	GPU_IMMEDIATE->color[0] = c;
 	GPU_IMMEDIATE->color[1] = c;
@@ -631,7 +631,7 @@ BLI_INLINE void gpuGray3f(GLfloat luminance)
 
 BLI_INLINE void gpuGray4f(GLfloat luminance, GLfloat alpha)
 {
-	GLubyte c = (GLubyte)(255.0 * luminance);
+	GLubyte c = (GLubyte)(255.0f * luminance);
 
 	GPU_IMMEDIATE->color[0] = c;
 	GPU_IMMEDIATE->color[1] = c;
@@ -726,7 +726,7 @@ BLI_INLINE void gpuTexCoord3f(const GLfloat s, const GLfloat t, const GLfloat u)
 	GPU_IMMEDIATE->texCoord[0][3] = 1;
 }
 
-BLI_INLINE void gpuTexCoord3fv (const GLfloat *v)
+BLI_INLINE void gpuTexCoord3fv(const GLfloat *v)
 {
 	GPU_IMMEDIATE->texCoord[0][0] = v[0];
 	GPU_IMMEDIATE->texCoord[0][1] = v[1];

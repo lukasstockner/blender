@@ -53,21 +53,21 @@ void gpu_assert_no_gl_errors(const char *file, int line, const char *str);
 
 #  define GPU_ASSERT_NO_GL_ERRORS(str) gpu_assert_no_gl_errors(__FILE__, __LINE__, (str))
 
-#  define GPU_CHECK_ERRORS_AROUND(glProcCall)                      \
-       (                                             \
-       GPU_ASSERT_NO_GL_ERRORS("Pre: "  #glProcCall), \
-       (glProcCall),                                 \
+#  define GPU_CHECK_ERRORS_AROUND(glProcCall)         \
+       (                                              \
+       GPU_ASSERT_NO_GL_ERRORS("Pre: " #glProcCall),  \
+       (glProcCall),                                  \
        GPU_ASSERT_NO_GL_ERRORS("Post: " #glProcCall)  \
        )
 
 
 #ifdef WITH_GPU_DEBUG
 /* inserts a debug marker message for the debug context messaging system */
-void gpu_string_marker     (size_t size, const char *str);
+void gpu_string_marker(size_t size, const char *str);
 
 #  define GPU_STRING_MARKER(size, str) gpu_string_marker((size), (str))
-#else /* WITH_GPU_DEBUG */
-#  define GPU_STRING_MARKER(len, str)  ((void)(size),(void)(str))
+#else
+#  define GPU_STRING_MARKER(len, str) ((void)(size),(void)(str))
 #endif /* WITH_GPU_DEBUG */
 
 #ifdef __cplusplus

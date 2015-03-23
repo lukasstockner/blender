@@ -41,9 +41,8 @@
 #include "GPU_common.h"
 #include "GPU_clipping.h"
 
-#include "intern/gpu_private.h"
-
 /* internal */
+#include "intern/gpu_private.h"
 
 /* external */
 #include "BLI_math_vector.h"
@@ -72,7 +71,7 @@ void gpu_clipping_exit(void)
 
 void gpu_commit_clipping(void)
 {
-	const struct GPUcommon* common = gpu_get_common();
+	const struct GPUcommon *common = gpu_get_common();
 
 	int i;
 
@@ -83,7 +82,7 @@ void gpu_commit_clipping(void)
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 		if (i < 6) {
-			glClipPlane(GL_CLIP_PLANE0+i, CLIPPING.clip_plane[i]); // deprecated
+			glClipPlane(GL_CLIP_PLANE0 + i, CLIPPING.clip_plane[i]); /* deprecated */
 		}
 #endif
 	}
@@ -108,7 +107,7 @@ void GPU_restore_clip_planes(int clip_plane_count, const GPUplane clip_planes[])
 
 static void feedback_clip_plane_position(double position[4] /* in-out */)
 {
-	GPU_feedback_vertex_4dv(GL_MODELVIEW_MATRIX,  position[0], position[1], position[2], position[3], position);
+	GPU_feedback_vertex_4dv(GL_MODELVIEW_MATRIX, position[0], position[1], position[2], position[3], position);
 }
 
 
@@ -128,7 +127,7 @@ void GPU_set_clip_planes(int clip_plane_count, const GPUplane clip_planes[])
 
 int GPU_get_clip_planes(GPUplane clip_planes_out[])
 {
-	memcpy(clip_planes_out, CLIPPING.clip_plane, CLIPPING.clip_plane_count*sizeof(GPUplane));
+	memcpy(clip_planes_out, CLIPPING.clip_plane, CLIPPING.clip_plane_count * sizeof(GPUplane));
 
 	return CLIPPING.clip_plane_count;
 }
@@ -142,9 +141,9 @@ void gpu_toggle_clipping(bool enable)
 
 	for (i = 0; i < CLIPPING.clip_plane_count; i++) {
 		if (enable)
-			glEnable (GL_CLIP_PLANE0 + i); // deprecated
+			glEnable(GL_CLIP_PLANE0 + i); /* deprecated */
 		else
-			glDisable(GL_CLIP_PLANE0 + i); // deprecated
+			glDisable(GL_CLIP_PLANE0 + i); /* deprecated */
 	}
 }
 #endif

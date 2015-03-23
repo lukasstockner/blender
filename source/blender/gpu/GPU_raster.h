@@ -63,26 +63,26 @@ typedef enum GPURasterShaderOption {
 
 
 void GPU_raster_begin(void);
-void GPU_raster_end  (void);
+void GPU_raster_end(void);
 
 void GPU_raster_set_line_style(int factor);
 
-void gpuPolygonStipple(const GLubyte* mask);
+void gpuPolygonStipple(const GLubyte *mask);
 
 void gpuLineStipple(GLint factor, GLushort pattern);
 
-void    gpuLineWidth(GLfloat width);
+void gpuLineWidth(GLfloat width);
 GLfloat gpuGetLineWidth(void);
 
-void   gpuPolygonMode(GLenum mode);
+void gpuPolygonMode(GLenum mode);
 GLenum gpuGetPolygonMode(void);
 
 
 
 #if defined(GLEW_ES_ONLY)
 
-/* ES 2.0 doesn't define LINE and FILL, but the immediate mode replacement library emulates PolygonMode */
-/* (GL core has deprecated PolygonMode, but it should still be in the header) */
+/* ES 2.0 doesn't define LINE and FILL, but the immediate mode replacement library emulates PolygonMode
+ * (GL core has deprecated PolygonMode, but it should still be in the header) */
 
 #ifndef GL_LINE
 #define GL_LINE 0x1B01

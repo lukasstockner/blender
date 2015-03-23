@@ -29,7 +29,7 @@
  */
 
 /** \file blender/gpu/GPU_clipping.h
- *   \ingroup gpu
+ *  \ingroup gpu
  */
 
 #ifdef __cplusplus
@@ -46,8 +46,8 @@ void GPU_set_clip_planes(int clip_plane_count, const GPUplane clip_planes[]);
 int GPU_get_clip_planes(GPUplane clip_planes_out[]);
 
 /* Set clip planes without transforming them.
-   Suitable for restoring a backup copy of previous clip plane state.
-   Keeps clip planes from getting transformed twice. */
+ * Suitable for restoring a backup copy of previous clip plane state.
+ * Keeps clip planes from getting transformed twice. */
 void GPU_restore_clip_planes(int clip_plane_count, const GPUplane clip_planes[]);
 
 #ifdef __cplusplus

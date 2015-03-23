@@ -47,9 +47,9 @@
 #include "MEM_guardedalloc.h"
 
 
-static struct GPUShader*  PIXELS_SHADER = NULL;
-static struct GPUcommon   PIXELS_COMMON = {0};
-static bool               PIXELS_FAILED = false;
+static struct GPUShader *PIXELS_SHADER = NULL;
+static struct GPUcommon  PIXELS_COMMON = {0};
+static bool              PIXELS_FAILED = false;
 
 static GLfloat PIXELS_POS[3] = { 0, 0, 0 };
 
@@ -65,19 +65,19 @@ void gpu_pixels_exit(void)
 	GPU_shader_free(PIXELS_SHADER);
 }
 
-void GPU_bitmap_cache(GPUbitmap* bitmap)
+void GPU_bitmap_cache(GPUbitmap *bitmap)
 {
 }
 
-void GPU_pixels_cache(GPUpixels* pixels)
+void GPU_pixels_cache(GPUpixels *pixels)
 {
 }
 
-void GPU_bitmap_uncache(GPUbitmap* bitmap)
+void GPU_bitmap_uncache(GPUbitmap *bitmap)
 {
 }
 
-void GPU_pixels_uncache(GPUpixels* pixels)
+void GPU_pixels_uncache(GPUpixels *pixels)
 {
 }
 
@@ -104,33 +104,33 @@ static GLint     format_unpack_alignment  = 4;
 
 void GPU_pixels_format(GLenum pname, GLint param)
 {
-	switch(pname) {
-	case GL_UNPACK_ROW_LENGTH:
-		format_unpack_row_length = param;
-		if (param == 0)
-			non_default_flags ^= NON_DEFAULT_UNPACK_ROW_LENGTH;
-		else
-			non_default_flags |= NON_DEFAULT_UNPACK_ROW_LENGTH;
+	switch (pname) {
+		case GL_UNPACK_ROW_LENGTH:
+			format_unpack_row_length = param;
+			if (param == 0)
+				non_default_flags ^= NON_DEFAULT_UNPACK_ROW_LENGTH;
+			else
+				non_default_flags |= NON_DEFAULT_UNPACK_ROW_LENGTH;
 
-		break;
+			break;
 
-	case GL_UNPACK_SWAP_BYTES:
-		format_unpack_swap_bytes = param;
-		if (param == 0)
-			non_default_flags ^= NON_DEFAULT_UNPACK_SWAP_BYTES;
-		else
-			non_default_flags |= NON_DEFAULT_UNPACK_SWAP_BYTES;
+		case GL_UNPACK_SWAP_BYTES:
+			format_unpack_swap_bytes = param;
+			if (param == 0)
+				non_default_flags ^= NON_DEFAULT_UNPACK_SWAP_BYTES;
+			else
+				non_default_flags |= NON_DEFAULT_UNPACK_SWAP_BYTES;
 
-		break;
+			break;
 
-	case GL_UNPACK_ALIGNMENT:
-		format_unpack_alignment = param;
-		if (param == 0)
-			non_default_flags ^= NON_DEFAULT_UNPACK_ALIGNMENT;
-		else
-			non_default_flags |= NON_DEFAULT_UNPACK_ALIGNMENT;
+		case GL_UNPACK_ALIGNMENT:
+			format_unpack_alignment = param;
+			if (param == 0)
+				non_default_flags ^= NON_DEFAULT_UNPACK_ALIGNMENT;
+			else
+				non_default_flags |= NON_DEFAULT_UNPACK_ALIGNMENT;
 
-		break;
+			break;
 
 		default:
 			GPU_print_error_debug("GPU_pixels_format: unknown parameter");
@@ -156,7 +156,7 @@ void GPU_pixels_zoom(GLfloat xfactor, GLfloat yfactor)
 
 
 
-void GPU_get_pixels_zoom(GLfloat* xfactor_out, GLfloat *yfactor_out)
+void GPU_get_pixels_zoom(GLfloat *xfactor_out, GLfloat *yfactor_out)
 {
 	*xfactor_out = pixels_zoom_xfactor;
 	*yfactor_out = pixels_zoom_yfactor;
@@ -174,11 +174,11 @@ static GLfloat pixels_bias_green  = 0;
 static GLfloat pixels_bias_blue   = 0;
 static GLfloat pixels_bias_alpha  = 0;
 
-// XXX jwilkins: this would be a lot shorter if you made a table
+/* XXX jwilkins: this would be a lot shorter if you made a table */
 
 void GPU_pixels_uniform_1f(GLenum pname, GLfloat param)
 {
-	switch(pname) {
+	switch (pname) {
 		case GL_RED_SCALE:
 			pixels_scale_red = param;
 
@@ -282,7 +282,7 @@ static void commit_pixels(void)
 {
 	GPU_ASSERT_NO_GL_ERRORS("commit_pixels start");
 	glUniform4f(location_scale, pixels_scale_red, pixels_scale_green, pixels_scale_blue, pixels_scale_alpha);
-	glUniform4f(location_bias , pixels_bias_red,  pixels_bias_green,  pixels_bias_blue,  pixels_bias_alpha );
+	glUniform4f(location_bias,  pixels_bias_red,  pixels_bias_green,  pixels_bias_blue,  pixels_bias_alpha);
 	GPU_ASSERT_NO_GL_ERRORS("commit_pixels end");
 }
 
@@ -301,13 +301,13 @@ static void gpu_pixels_shader(void)
 		gpu_set_common(&PIXELS_COMMON);
 	}
 	else if (!PIXELS_FAILED) {
-		DynStr* vert = BLI_dynstr_new();
-		DynStr* frag = BLI_dynstr_new();
-		DynStr* defs = BLI_dynstr_new();
+		DynStr *vert = BLI_dynstr_new();
+		DynStr *frag = BLI_dynstr_new();
+		DynStr *defs = BLI_dynstr_new();
 
-		char* vert_cstring;
-		char* frag_cstring;
-		char* defs_cstring;
+		char *vert_cstring;
+		char *frag_cstring;
+		char *defs_cstring;
 
 		gpu_include_common_vert(vert);
 		BLI_dynstr_append(vert, datatoc_gpu_shader_pixels_uniforms_glsl);
@@ -413,10 +413,10 @@ void GPU_pixels_begin()
 	}
 #endif
 
-	// SSS End (Assuming the basic aspect is ending)
+	/* SSS End (Assuming the basic aspect is ending) */
 	GPU_aspect_end();
 
-	// SSS Begin Pixels
+	/* SSS Begin Pixels */
 	GPU_aspect_begin(GPU_ASPECT_PIXELS, NULL);
 }
 
@@ -470,12 +470,12 @@ void GPU_pixels_end()
 	}
 #endif
 
-	// SSS End Pixels
+	/* SSS End Pixels */
 	GPU_aspect_end();
 
 	PIXELS_BEGUN = false;
 
-	// SSS Begin Basic
+	/* SSS Begin Basic */
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 }
 
@@ -547,7 +547,7 @@ void GPU_pixels_pos_3f(GLfloat x, GLfloat y, GLfloat z)
 
 
 
-void GPU_bitmap(GPUbitmap* bitmap)
+void GPU_bitmap(GPUbitmap *bitmap)
 {
 	BLI_assert(PIXELS_BEGUN);
 
@@ -569,7 +569,7 @@ void GPU_bitmap(GPUbitmap* bitmap)
 
 extern void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, const void *rect, float scaleX, float scaleY);
 
-void GPU_pixels(GPUpixels* pixels)
+void GPU_pixels(GPUpixels *pixels)
 {
 	BLI_assert(PIXELS_BEGUN);
 

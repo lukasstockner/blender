@@ -137,7 +137,7 @@ void gpuAppendArc(
 	GLfloat angle,
 	GLfloat xradius,
 	GLfloat yradius,
-	GLint   nsegments);
+	GLint nsegments);
 
 void gpuDrawArc(
 	GLfloat x,

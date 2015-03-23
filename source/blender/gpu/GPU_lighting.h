@@ -40,7 +40,7 @@ extern "C" {
 
 typedef struct GPUbasiclight {
 	float position[4];
-	float diffuse [4];
+	float diffuse[4];
 	float specular[4];
 
 	float constant_attenuation;
@@ -56,18 +56,18 @@ void GPU_set_basic_material_shininess(int shininess);
 void GPU_set_basic_material_specular(const float specular[4]);
 
 /* Set lights and also applies appropriate transformations on
-   the positions and spot directions */
+ * the positions and spot directions */
 void GPU_set_basic_lights(int light_count, const GPUbasiclight lights[]);
 
 int GPU_get_basic_lights(GPUbasiclight lights_out[]); /* Lights out! Get it? :-) */
 
 /* Set lights without transforming position or spot_direction.
-   Suitable for restoring a backup copy of previous light state.
-   Keeps position and spot position from getting transformed twice. */
+ * Suitable for restoring a backup copy of previous light state.
+ * Keeps position and spot position from getting transformed twice. */
 void GPU_restore_basic_lights(int light_count, const GPUbasiclight lights[]);
 
 /* A white directional light shining straight down with no attenuation or spot effects.
-   Same as the default legacy OpenGL light #0. */
+ * Same as the default legacy OpenGL light #0. */
 extern const GPUbasiclight GPU_DEFAULT_LIGHT;
 
 #ifdef __cplusplus

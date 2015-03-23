@@ -72,7 +72,7 @@
 static struct BASIC_SHADER {
 	uint32_t options;
 
-	GPUShader*   gpushader[GPU_BASIC_OPTION_COMBINATIONS];
+	GPUShader   *gpushader[GPU_BASIC_OPTION_COMBINATIONS];
 	bool         failed   [GPU_BASIC_OPTION_COMBINATIONS];
 	GPUcommon    common   [GPU_BASIC_OPTION_COMBINATIONS];
 
@@ -87,7 +87,7 @@ void gpu_basic_init(void)
 	memset(&BASIC_SHADER, 0, sizeof(BASIC_SHADER));
 
 #if 0
-	{ 	/* for testing purposes, mark all shaders as failed*/
+	{ 	/* for testing purposes, mark all shaders as failed */
 		int i;
 		for (i = 0; i < GPU_BASIC_OPTION_COMBINATIONS; i++)
 			BASIC_SHADER.failed[i] = true;
@@ -164,13 +164,13 @@ static void basic_shader_bind(void)
 		gpu_set_common(BASIC_SHADER.common + tweaked_options);
 	}
 	else if (!BASIC_SHADER.failed[tweaked_options]) {
-		DynStr* vert = BLI_dynstr_new();
-		DynStr* frag = BLI_dynstr_new();
-		DynStr* defs = BLI_dynstr_new();
+		DynStr *vert = BLI_dynstr_new();
+		DynStr *frag = BLI_dynstr_new();
+		DynStr *defs = BLI_dynstr_new();
 
-		char* vert_cstring;
-		char* frag_cstring;
-		char* defs_cstring;
+		char *vert_cstring;
+		char *frag_cstring;
+		char *defs_cstring;
 
 		gpu_include_common_vert(vert);
 		BLI_dynstr_append(vert, datatoc_gpu_shader_basic_vert_glsl);
@@ -315,5 +315,5 @@ void gpu_basic_unbind(void)
 
 bool GPU_basic_needs_normals(void)
 {
-	return BASIC_SHADER.options & GPU_BASIC_LIGHTING; // Temporary hack. Should be solved outside of this file.
+	return BASIC_SHADER.options & GPU_BASIC_LIGHTING; /* Temporary hack. Should be solved outside of this file. */
 }

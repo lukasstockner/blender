@@ -43,9 +43,9 @@
 
 #define CASE_CODE_RETURN_STR(code) case code: return #code;
 
-static const char* gpu_gl_error_symbol(GLenum err)
+static const char *gpu_gl_error_symbol(GLenum err)
 {
-	switch(err) {
+	switch (err) {
 		CASE_CODE_RETURN_STR(GL_NO_ERROR)
 		CASE_CODE_RETURN_STR(GL_INVALID_ENUM)
 		CASE_CODE_RETURN_STR(GL_INVALID_VALUE)
@@ -81,9 +81,8 @@ static bool gpu_report_gl_errors(const char *file, int line, const char *str)
 	}
 	else {
 		/* glGetError should have cleared the error flag, so if we get the
-		   same flag twice that means glGetError itself probably triggered
-		   the error. This happens on Windows if the GL context is invalid.
-		 */
+		 * same flag twice that means glGetError itself probably triggered
+		 * the error. This happens on Windows if the GL context is invalid. */
 		{
 			GLenum new_error = glGetError();
 			if (gl_error == new_error) {
@@ -107,9 +106,9 @@ static bool gpu_report_gl_errors(const char *file, int line, const char *str)
 }
 
 
-const char* gpuErrorString(GLenum err)
+const char *gpuErrorString(GLenum err)
 {
-	switch(err) {
+	switch (err) {
 		case GL_NO_ERROR:
 			return "No Error";
 
@@ -155,8 +154,7 @@ const char* gpuErrorString(GLenum err)
 
 #ifdef WITH_GPU_DEBUG
 
-/* Debug callbacks need the same calling convention as OpenGL functions.
- */
+/* Debug callbacks need the same calling convention as OpenGL functions. */
 #if defined(_WIN32) && !defined(_WIN32_WCE) && !defined(__SCITECH_SNAP__)
     /* Win32 but not WinCE */
 #   define APIENTRY __stdcall
@@ -350,7 +348,7 @@ void GPU_print_error_debug(const char *str)
 }
 
 
-void gpu_assert_no_gl_errors(const char* file, int line, const char* str)
+void gpu_assert_no_gl_errors(const char *file, int line, const char *str)
 {
 	if (G.debug) {
 		GLboolean gl_ok = gpu_report_gl_errors(file, line, str);

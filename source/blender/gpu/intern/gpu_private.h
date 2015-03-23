@@ -30,21 +30,21 @@
 
 
 #if defined(WITH_GL_PROFILE_ES20)
-#define GPU_PROFILE_ES20 1
+#  define GPU_PROFILE_ES20 1
 #else
-#define GPU_PROFILE_ES20 0
+#  define GPU_PROFILE_ES20 0
 #endif
 
 #if defined(WITH_GL_PROFILE_CORE)
-#define GPU_PROFILE_CORE 1
+#  define GPU_PROFILE_CORE 1
 #else
-#define GPU_PROFILE_CORE 0
+#  define GPU_PROFILE_CORE 0
 #endif
 
 #if defined(WITH_GL_PROFILE_COMPAT)
-#define GPU_PROFILE_COMPAT 1
+#  define GPU_PROFILE_COMPAT 1
 #else
-#define GPU_PROFILE_COMPAT 0
+#  define GPU_PROFILE_COMPAT 0
 #endif
 
 struct GPUShader;
@@ -63,7 +63,7 @@ void gpu_basic_exit(void);
 void gpu_basic_enable (uint32_t options);
 void gpu_basic_disable(uint32_t options);
 
-void gpu_basic_bind  (void);
+void gpu_basic_bind(void);
 void gpu_basic_unbind(void);
 
 void gpu_blender_aspect_init(void);
@@ -77,9 +77,9 @@ void gpu_commit_clipping(void);
 void gpu_select_init(void);
 void gpu_select_exit(void);
 
-bool gpu_default_select_begin (const void* object, void* param);
-bool gpu_default_select_end   (const void* object, void* param);
-bool gpu_default_select_commit(const void* object);
+bool gpu_default_select_begin (const void *object, void *param);
+bool gpu_default_select_end   (const void *object, void *param);
+bool gpu_default_select_commit(const void *object);
 
 bool gpu_is_select_mode(void);
 
@@ -91,7 +91,7 @@ void gpu_commit_matrix(void);
 void gpu_font_init(void);
 void gpu_font_exit(void);
 
-void gpu_font_bind  (void);
+void gpu_font_bind(void);
 void gpu_font_unbind(void);
 
 void gpu_lighting_init(void);
@@ -105,7 +105,7 @@ bool gpu_lighting_is_fast(void);
 void gpu_pixels_init(void);
 void gpu_pixels_exit(void);
 
-void gpu_pixels_bind  (void);
+void gpu_pixels_bind(void);
 void gpu_pixels_unbind(void);
 
 #if defined(WITH_GL_PROFILE_COMPAT)
@@ -118,7 +118,7 @@ void gpu_raster_exit(void);
 void gpu_raster_enable (uint32_t options);
 void gpu_raster_disable(uint32_t options);
 
-void gpu_raster_bind  (void);
+void gpu_raster_bind(void);
 void gpu_raster_unbind(void);
 
 void gpu_raster_reset_stipple(void);
@@ -129,7 +129,7 @@ void gpu_sprite_exit(void);
 void gpu_sprite_enable (uint32_t options);
 void gpu_sprite_disable(uint32_t options);
 
-void gpu_sprite_bind  (void);
+void gpu_sprite_bind(void);
 void gpu_sprite_unbind(void);
 
 void gpu_immediate_init(void);
@@ -196,16 +196,16 @@ void gpu_common_init(void);
 void gpu_common_exit(void);
 
 /* given a GPUShader, initialize a GPUcommon */
-void gpu_common_get_symbols(GPUcommon* common, struct GPUShader* gpushader);
+void gpu_common_get_symbols(GPUcommon *common, struct GPUShader *gpushader);
 
 /* set/get the global GPUcommon currently in use */
-void       gpu_set_common(GPUcommon* common);
-GPUcommon* gpu_get_common(void);
+void       gpu_set_common(GPUcommon *common);
+GPUcommon *gpu_get_common(void);
 
 /* for appending GLSL code that defines the common interface */
-void gpu_include_common_vert(struct DynStr* vert);
-void gpu_include_common_frag(struct DynStr* frag);
-void gpu_include_common_defs(struct DynStr* defs);
+void gpu_include_common_vert(struct DynStr *vert);
+void gpu_include_common_frag(struct DynStr *frag);
+void gpu_include_common_defs(struct DynStr *defs);
 
 bool gpu_aspect_active(void);
 

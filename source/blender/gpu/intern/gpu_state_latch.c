@@ -45,7 +45,7 @@
 
 
 
-// XXX jwilkins: this needs to be made to save these values from different contexts
+/* XXX jwilkins: this needs to be made to save these values from different contexts */
 
 static bool      depth_range_valid = false;
 static GLdouble  depth_range[2];
@@ -74,16 +74,16 @@ void gpu_state_latch_init(void)
 
 	value = 0;
 	glGetIntegerv(GL_TEXTURE_BINDING_2D, &value);
-	texture_binding_2D       = (GLuint)value;
+	texture_binding_2D = (GLuint)value;
 	texture_binding_2D_valid = true;
 
 	glGetBooleanv(GL_DEPTH_WRITEMASK, &depth_writemask);
-	depth_writemask_valid    = true;
+	depth_writemask_valid = true;
 #else
-	depth_range_valid        = false;
-	viewport_valid           = false;
+	depth_range_valid = false;
+	viewport_valid = false;
 	texture_binding_2D_valid = false;
-	depth_writemask_valid    = false;
+	depth_writemask_valid = false;
 #endif
 }
 
@@ -150,10 +150,9 @@ GLfloat GPU_feedback_depth_range(GLfloat z)
 
 void gpuBindTexture(GLenum target, GLuint name)
 {
-	switch(target)
-	{
+	switch (target) {
 		case GL_TEXTURE_2D:
-			texture_binding_2D       = name;
+			texture_binding_2D = name;
 			texture_binding_2D_valid = true;
 			break;
 
@@ -178,7 +177,7 @@ GLuint gpuGetTextureBinding2D(void)
 
 void gpuDepthMask(GLboolean flag)
 {
-	depth_writemask       = flag;
+	depth_writemask = flag;
 	depth_writemask_valid = true;
 
 	GPU_CHECK_ERRORS_AROUND(glDepthMask(flag));

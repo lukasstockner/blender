@@ -140,15 +140,14 @@ int GPU_max_texture_size(void)
 	return GG.maxtexsize;
 }
 
-/*
-Computes the maximum number of textures 'n' that
-can be referenced by ActiveTexture(TEXTURE0+n-1)
-
-This is for any use of ActiveTexture.
-
-Individual limits, such as for the multitexture extension, gl_TexCoord,
-vertex shaders, fragment shader, etc. will each have different limits.
-*/
+/* Computes the maximum number of textures 'n' that
+ * can be referenced by ActiveTexture(TEXTURE0+n-1)
+ *
+ * This is for any use of ActiveTexture.
+ *
+ * Individual limits, such as for the multitexture extension, gl_TexCoord,
+ * vertex shaders, fragment shader, etc. will each have different limits.
+ */
 static GLint get_max_textures(void)
  {
 	GLint maxTextureUnits;
@@ -166,7 +165,7 @@ static GLint get_max_textures(void)
 #endif
 
 	/* Set to zero here in case they do not get set later */
-	maxTextureCoords             = 0;
+	maxTextureCoords = 0;
 	maxCombinedTextureImageUnits = 0;
 
 	if (GLEW_VERSION_2_0 || GLEW_ES_VERSION_2_0 || GLEW_ARB_fragment_program) {
@@ -177,8 +176,8 @@ static GLint get_max_textures(void)
 		}
 #endif
 
-		/* Number of textures accessible by vertex, fragment, and geometry shaders combined. */
-		/* Individually the limits for each of those programmable units may be smaller. */
+		/* Number of textures accessible by vertex, fragment, and geometry shaders combined.
+		 * Individually the limits for each of those programmable units may be smaller. */
 		glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &maxCombinedTextureImageUnits);
 	}
 

@@ -81,49 +81,49 @@ void gpuSingleWireRecti(GLint x1, GLint y1, GLint x2, GLint y2)
 }
 
 
+#if 0 /* unused */
+void gpuAppendLitSweep(
+	GLfloat x,
+	GLfloat y,
+	GLfloat z,
+	GLfloat height,
+	GLfloat radiusBot,
+	GLfloat radiusTop,
+	GLfloat startAngle,
+	GLfloat sweepAngle,
+	GLint sectors)
+{
+	int i;
 
-//void gpuAppendLitSweep(
-//	GLfloat x,
-//	GLfloat y,
-//	GLfloat z,
-//	GLfloat height,
-//	GLfloat radiusBot,
-//	GLfloat radiusTop,
-//	GLfloat startAngle,
-//	GLfloat sweepAngle,
-//	GLint sectors)
-//{
-//	int i;
-//
-//	const GLfloat dr = radiusTop - radiusBot;
-//	const GLfloat zheight = z+height;
-//	GLfloat nz = cosf(atan2(height, dr));
-//	GLfloat ns = 1.0f / sqrtf(nz*nz + 1);
-//
-//	BLI_assert(sectors > 0);
-//
-//	for (i = 0; i <= sectors; i++) {
-//		GLfloat a = startAngle  +  i * sweepAngle / sectors;
-//		GLfloat c = cosf(a);
-//		GLfloat s = sinf(a);
-//		GLfloat n[3] = { c, s, nz };
-//
-//		mul_v3_fl(n, ns);
-//
-//		if (normals) {
-//			glNormal3fv(n);
-//		}
-//
-//		glVertex3f(radiusBot * c + x, radiusBot * s + y, z);
-//
-//		if (normals) {
-//			glNormal3fv(n);
-//		}
-//
-//		glVertex3f(radiusTop * c + x, radiusTop * s + y, zheight);
-//	}
-//}
+	const GLfloat dr = radiusTop - radiusBot;
+	const GLfloat zheight = z + height;
+	GLfloat nz = cosf(atan2(height, dr));
+	GLfloat ns = 1.0f / sqrtf(nz * nz + 1);
 
+	BLI_assert(sectors > 0);
+
+	for (i = 0; i <= sectors; i++) {
+		GLfloat a = startAngle + i * sweepAngle / sectors;
+		GLfloat c = cosf(a);
+		GLfloat s = sinf(a);
+		GLfloat n[3] = { c, s, nz };
+
+		mul_v3_fl(n, ns);
+
+		if (normals) {
+			glNormal3fv(n);
+		}
+
+		glVertex3f(radiusBot * c + x, radiusBot * s + y, z);
+
+		if (normals) {
+			glNormal3fv(n);
+		}
+
+		glVertex3f(radiusTop * c + x, radiusTop * s + y, zheight);
+	}
+}
+#endif /* unused */
 
 
 void gpuAppendArc(
@@ -133,7 +133,7 @@ void gpuAppendArc(
 	GLfloat angle,
 	GLfloat xradius,
 	GLfloat yradius,
-	GLint   nsegments)
+	GLint nsegments)
 {
 	int i;
 
@@ -143,9 +143,9 @@ void gpuAppendArc(
 
 	for (i = 0; i <= nsegments; i++) {
 		const GLfloat t = (GLfloat)i / (GLfloat)nsegments;
-		GLfloat cur = t*angle + start;
+		GLfloat cur = t * angle + start;
 
-		gpuVertex2f(cosf(cur)*xradius + x, sinf(cur)*yradius + y);
+		gpuVertex2f(cosf(cur) * xradius + x, sinf(cur) * yradius + y);
 	}
 }
 
@@ -180,7 +180,7 @@ void gpuSingleArc(
 
 void gpuImmediateSingleDraw(GLenum mode, GPUImmediate *immediate)
 {
-	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate *oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -191,7 +191,7 @@ void gpuImmediateSingleDraw(GLenum mode, GPUImmediate *immediate)
 
 void gpuImmediateSingleRepeat(GPUImmediate *immediate)
 {
-	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate *oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -202,7 +202,7 @@ void gpuImmediateSingleRepeat(GPUImmediate *immediate)
 
 void gpuImmediateSingleDrawElements(GLenum mode, GPUImmediate *immediate)
 {
-	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate *oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -213,7 +213,7 @@ void gpuImmediateSingleDrawElements(GLenum mode, GPUImmediate *immediate)
 
 void gpuImmediateSingleRepeatElements(GPUImmediate *immediate)
 {
-	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate *oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -224,7 +224,7 @@ void gpuImmediateSingleRepeatElements(GPUImmediate *immediate)
 
 void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUImmediate *immediate)
 {
-	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate *oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -235,7 +235,7 @@ void gpuImmediateSingleDrawRangeElements(GLenum mode, GPUImmediate *immediate)
 
 void gpuImmediateSingleRepeatRangeElements(GPUImmediate *immediate)
 {
-	GPUImmediate* oldImmediate = GPU_IMMEDIATE;
+	GPUImmediate *oldImmediate = GPU_IMMEDIATE;
 
 	GPU_IMMEDIATE = immediate;
 	gpuImmediateLock();
@@ -320,8 +320,7 @@ static const GLfloat cosval[CIRCLE_RESOL] = {
 };
 
 /* draws a circle on x-z plane given the scaling of the circle, assuming that
- * all required matrices have been set (used for drawing empties)
- */
+ * all required matrices have been set (used for drawing empties) */
 void gpuAppendFastCircleXZ(GLfloat radius)
 {
 	int i;
@@ -421,7 +420,7 @@ void gpuAppendSpiral(
 	int start)
 {
 	GLfloat vec[3], vx[3], vy[3];
-	const GLfloat tot_inv = (1.0f / (GLfloat)CIRCLE_RESOL);
+	const GLfloat tot_inv = 1.0f / (GLfloat)CIRCLE_RESOL;
 	int a;
 	char inverse = false;
 	GLfloat x, y, fac;
@@ -506,7 +505,7 @@ void gpuAppendDisk(
 	GLfloat x,
 	GLfloat y,
 	GLfloat radius,
-	GLint   nsectors)
+	GLint nsectors)
 {
 	int i;
 	GLfloat x0 = 0, y0 = 0;
@@ -516,10 +515,10 @@ void gpuAppendDisk(
 	BLI_assert(nsectors > 0);
 
 	for (i = 0; i <= nsectors; i++) {
-		GLfloat angle = (GLfloat)(2.0*i*M_PI / nsectors);
+		GLfloat angle = (GLfloat)(2.0 * i * M_PI / nsectors);
 
-		GLfloat c = cosf(angle)*radius + x;
-		GLfloat s = sinf(angle)*radius + y;
+		GLfloat c = cosf(angle) * radius + x;
+		GLfloat s = sinf(angle) * radius + y;
 
 		if (i == 0) {
 			x0 = c;
@@ -543,7 +542,7 @@ void gpuDrawDisk(
 	GLfloat x,
 	GLfloat y,
 	GLfloat radius,
-	GLint   nsectors)
+	GLint nsectors)
 {
 	gpuBegin(GL_TRIANGLES);
 	gpuAppendDisk(x, y, radius, nsectors);
@@ -554,7 +553,7 @@ void gpuSingleDisk(
 	GLfloat x,
 	GLfloat y,
 	GLfloat radius,
-	GLint   nsectors)
+	GLint nsectors)
 {
 	gpuImmediateFormat_V3();
 	gpuDrawDisk(x, y, radius, nsectors);
@@ -562,44 +561,45 @@ void gpuSingleDisk(
 }
 
 
-// lit, solid, wire, solid w/ base, solid w/ end caps
-//void gpuAppendCone(GLfloat radiusBase, GLfloat height, GLint )
-//{
-//	int i;
-//
-//	GPU_CHECK_MODE(GL_TRIANGLES);
-//	BLI_assert(nsectors > 0);
-//
-//	for (i = 0; i <= nsectors; i++) {
-//		GLfloat x0, y0;
-//		GLfloat x1, y1;
-//		GLfloat angle = (GLfloat)(2.0*i*M_PI / nsectors);
-//
-//		GLfloat c = cosf(angle)*radius + x;
-//		GLfloat s = sinf(angle)*radius + y;
-//
-//		if (i == 0) {
-//			x0 = c;
-//			y0 = s;
-//		}
-//		else {
-//			x1 = c;
-//			y1 = s;
-//
-//			gpuVertex2f(x, y);
-//			gpuVertex2f(x0, y0);
-//			gpuVertex2f(x1, y1);
-//
-//			x0 = x1;
-//			y0 = y1;
-//		}
-//	}
-//}
-//
-//void gpuAppendCylinder()
-//{
-//}
+#if 0 /* unused */
+/* lit, solid, wire, solid w/ base, solid w/ end caps */
+void gpuAppendCone(GLfloat radiusBase, GLfloat height, GLint)
+{
+	int i;
 
+	GPU_CHECK_MODE(GL_TRIANGLES);
+	BLI_assert(nsectors > 0);
+
+	for (i = 0; i <= nsectors; i++) {
+		GLfloat x0, y0;
+		GLfloat x1, y1;
+		GLfloat angle = (GLfloat)(2.0 * i * M_PI / nsectors);
+
+		GLfloat c = cosf(angle)*radius + x;
+		GLfloat s = sinf(angle)*radius + y;
+
+		if (i == 0) {
+			x0 = c;
+			y0 = s;
+		}
+		else {
+			x1 = c;
+			y1 = s;
+
+			gpuVertex2f(x, y);
+			gpuVertex2f(x0, y0);
+			gpuVertex2f(x1, y1);
+
+			x0 = x1;
+			y0 = y1;
+		}
+	}
+}
+
+void gpuAppendCylinder()
+{
+}
+#endif /* unused */
 
 
 BLI_INLINE void primFormat(GPUprim3 *prim)
@@ -651,7 +651,7 @@ BLI_INLINE void primDraw(GPUprim3 *prim)
 	}
 }
 
-static GLfloat sweep(GPUprim3* prim, GLfloat z)
+static GLfloat sweep(GPUprim3 *prim, GLfloat z)
 {
 	float l[3];
 	float l0[3];
@@ -671,7 +671,7 @@ static GLfloat sweep(GPUprim3* prim, GLfloat z)
 	return len_v3(r);
 }
 
-static GLfloat sphere(GPUprim3* prim, GLfloat z)
+static GLfloat sphere(GPUprim3 *prim, GLfloat z)
 {
 	float a = z / prim->params.sphere.radius;
 	float b = asinf(a);
@@ -708,8 +708,8 @@ typedef void (*calc_normals_func)(
 	int vsegs);
 
 BLI_INLINE void shape3(
-	GPUprim3* prim,
-	GLfloat (*radius)(GPUprim3* prim, GLfloat z),
+	GPUprim3 *prim,
+	GLfloat (*radius)(GPUprim3 *prim, GLfloat z),
 	calc_normals_func calc_normals,
 	GLfloat zMin,
 	GLfloat zMax,
@@ -739,7 +739,7 @@ BLI_INLINE void shape3(
 
 	sweepAngle = prim->thetaMax - prim->thetaMin;
 
-	uFracAngle = (uFracSegs/2) * (sweepAngle/(prim->usegs));
+	uFracAngle = (uFracSegs / 2) * (sweepAngle / prim->usegs);
 
 	uIndex = 0;
 
@@ -748,7 +748,7 @@ BLI_INLINE void shape3(
 	}
 
 	for (i = 0; i <= uWholeSegs; i++) {
-		GLfloat a = prim->thetaMin + uFracAngle + i*sweepAngle/(prim->usegs);
+		GLfloat a = prim->thetaMin + uFracAngle + i * sweepAngle / prim->usegs;
 
 		copy_v2_fl2(uArc[uIndex++], cosf(a), sinf(a));
 	}
@@ -777,7 +777,7 @@ BLI_INLINE void shape3(
 
 		sweepHeight = zMax - zMin;
 
-		vFracHeight = (vFracSegs/2) * (sweepHeight/(prim->vsegs));
+		vFracHeight = (vFracSegs / 2) * (sweepHeight / prim->vsegs);
 
 		vIndex = 0;
 
@@ -786,7 +786,7 @@ BLI_INLINE void shape3(
 		}
 
 		for (j = 0; j <= vWholeSegs; j++) {
-			vArc[vIndex++] = zMin + vFracHeight + j*sweepHeight/(prim->vsegs);
+			vArc[vIndex++] = zMin + vFracHeight + j * sweepHeight / prim->vsegs;
 		}
 	}
 	else {
@@ -806,7 +806,7 @@ BLI_INLINE void shape3(
 
 		vSweepAngle = angleMax - angleMin;
 
-		vFracAngle = (vFracSegs/2) * (vSweepAngle/(prim->vsegs));
+		vFracAngle = (vFracSegs / 2) * (vSweepAngle / prim->vsegs);
 
 		zDiff = (zMax - zMin) / 2;
 
@@ -817,8 +817,8 @@ BLI_INLINE void shape3(
 		}
 
 		for (j = 0; j <= vWholeSegs; j++) {
-			GLfloat a = angleMin + vFracAngle + j*vSweepAngle/(prim->vsegs);
-			vArc[vIndex++] = zDiff*sinf(a);
+			GLfloat a = angleMin + vFracAngle + j * vSweepAngle / prim->vsegs;
+			vArc[vIndex++] = zDiff * sinf(a);
 		}
 	}
 
@@ -835,7 +835,7 @@ BLI_INLINE void shape3(
 		r = radius(prim, z);
 
 		for (i = 0; i <= usegs; i++) {
-			copy_v3_flflfl(co[j][i], r*uArc[i][0], r*uArc[i][1], z);
+			copy_v3_flflfl(co[j][i], r * uArc[i][0], r * uArc[i][1], z);
 		}
 	}
 
@@ -860,25 +860,25 @@ BLI_INLINE void shape3(
 	switch (prim->drawStyle) {
 		case GPU_DRAW_STYLE_FILL:
 			for (j = 0; j < vsegs; j++) {
-				base = (usegs+1) * j;
+				base = (usegs + 1) * j;
 				for (i = 0; i < usegs; i++) {
-					if (prim->normals == GPU_NORMALS_FLAT || (i+j) % 2 == 0) {
-						gpuIndexus(base+1);
-						gpuIndexus(base+usegs+2);
+					if (prim->normals == GPU_NORMALS_FLAT || (i + j) % 2 == 0) {
+						gpuIndexus(base + 1);
+						gpuIndexus(base + usegs + 2);
 						gpuIndexus(base);
 
-						gpuIndexus(base+usegs+2);
-						gpuIndexus(base+usegs+1);
+						gpuIndexus(base + usegs + 2);
+						gpuIndexus(base + usegs + 1);
 						gpuIndexus(base);
 					}
 					else {
-						gpuIndexus(base+1);
-						gpuIndexus(base+usegs+1);
+						gpuIndexus(base + 1);
+						gpuIndexus(base + usegs + 1);
 						gpuIndexus(base);
 
-						gpuIndexus(base+usegs+2);
-						gpuIndexus(base+usegs+1);
-						gpuIndexus(base+1);
+						gpuIndexus(base + usegs + 2);
+						gpuIndexus(base + usegs + 1);
+						gpuIndexus(base + 1);
 					}
 
 					base++;
@@ -889,26 +889,26 @@ BLI_INLINE void shape3(
 				base = usegs;
 
 				for (j = 0; j < vsegs; j++) {
-					if (prim->normals == GPU_NORMALS_FLAT || (usegs+j) % 2 == 0) {
-						gpuIndexus(base-usegs);
-						gpuIndexus(base+1);
+					if (prim->normals == GPU_NORMALS_FLAT || (usegs + j) % 2 == 0) {
+						gpuIndexus(base - usegs);
+						gpuIndexus(base + 1);
 						gpuIndexus(base);
 
-						gpuIndexus(base+1);
-						gpuIndexus(base+usegs+1);
+						gpuIndexus(base + 1);
+						gpuIndexus(base + usegs + 1);
 						gpuIndexus(base);
 					}
 					else {
 						gpuIndexus(base);
-						gpuIndexus(base-usegs);
-						gpuIndexus(base+usegs+1);
+						gpuIndexus(base - usegs);
+						gpuIndexus(base + usegs + 1);
 
-						gpuIndexus(base+usegs+1);
-						gpuIndexus(base-usegs);
-						gpuIndexus(base+1);
+						gpuIndexus(base + usegs + 1);
+						gpuIndexus(base - usegs);
+						gpuIndexus(base + 1);
 					}
 
-					base += usegs+1;
+					base += usegs + 1;
 				}
 			}
 
@@ -916,22 +916,22 @@ BLI_INLINE void shape3(
 
 		case GPU_DRAW_STYLE_SILHOUETTE:
 			for (j = 0; j < vsegs; j++) {
-				base = (usegs+1) * j;
+				base = (usegs + 1) * j;
 				for (i = 0; i < usegs; i++) {
-					gpuIndexus(base+usegs+1);
+					gpuIndexus(base + usegs + 1);
 					gpuIndexus(base);
 
-					gpuIndexus(base+1);
+					gpuIndexus(base + 1);
 					gpuIndexus(base);
 
 					base++;
 				}
 			}
 
-			base = (usegs+1) * vsegs;
+			base = (usegs + 1) * vsegs;
 
 			for (i = 0; i < usegs; i++) {
-				gpuIndexus(base+1);
+				gpuIndexus(base + 1);
 				gpuIndexus(base);
 
 				base++;
@@ -940,19 +940,19 @@ BLI_INLINE void shape3(
 			base = usegs;
 
 			for (j = 0; j < vsegs; j++) {
-				gpuIndexus(base+usegs+1);
+				gpuIndexus(base + usegs + 1);
 				gpuIndexus(base);
 
 				if (uCycle) {
-					gpuIndexus(base-usegs);
+					gpuIndexus(base - usegs);
 					gpuIndexus(base);
 				}
 
-				base += usegs+1;
+				base += usegs + 1;
 			}
 
 			if (uCycle) {
-				gpuIndexus(base-usegs);
+				gpuIndexus(base - usegs);
 				gpuIndexus(base);
 			}
 
@@ -960,15 +960,15 @@ BLI_INLINE void shape3(
 
 		case GPU_DRAW_STYLE_LINES:
 			for (j = 0; j < vsegs; j++) {
-				base = (usegs+1) * j;
+				base = (usegs + 1) * j;
 				for (i = 0; i < usegs; i++) {
-					gpuIndexus(base+usegs+1);
+					gpuIndexus(base + usegs + 1);
 					gpuIndexus(base);
 
-					gpuIndexus(base+1);
+					gpuIndexus(base + 1);
 					gpuIndexus(base);
 
-					gpuIndexus(base+usegs+2);
+					gpuIndexus(base + usegs + 2);
 					gpuIndexus(base);
 
 					base++;
@@ -987,22 +987,22 @@ BLI_INLINE void shape3(
 			base = usegs;
 
 			for (j = 0; j < vsegs; j++) {
-				gpuIndexus(base+usegs+1);
+				gpuIndexus(base + usegs + 1);
 				gpuIndexus(base);
 
 				if (uCycle) {
-					gpuIndexus(base-usegs);
+					gpuIndexus(base - usegs);
 					gpuIndexus(base);
 
-					gpuIndexus(base+1);
+					gpuIndexus(base + 1);
 					gpuIndexus(base);
 				}
 
-				base += usegs+1;
+				base += usegs + 1;
 			}
 
 			if (uCycle) {
-				gpuIndexus(base-usegs);
+				gpuIndexus(base - usegs);
 				gpuIndexus(base);
 			}
 
@@ -1022,9 +1022,9 @@ BLI_INLINE void shape3(
 
 
 void gpuAppendCone(
-	GPUprim3* prim,
-	GLfloat   radiusBase,
-	GLfloat   height)
+	GPUprim3 *prim,
+	GLfloat radiusBase,
+	GLfloat height)
 {
 	copy_v3_flflfl(prim->params.sweep.point1, radiusBase, 0, 0);
 	copy_v3_flflfl(prim->params.sweep.point2, 0, 0, height);
@@ -1035,9 +1035,9 @@ void gpuAppendCone(
 
 
 void gpuDrawCone(
-	GPUprim3* prim,
-	GLfloat   radiusBase,
-	GLfloat   height)
+	GPUprim3 *prim,
+	GLfloat radiusBase,
+	GLfloat height)
 {
 	gpuBegin(GL_NOOP);
 	gpuAppendCone(prim, radiusBase, height);
@@ -1049,9 +1049,9 @@ void gpuDrawCone(
 
 
 void gpuSingleCone(
-	GPUprim3* prim,
-	GLfloat   radiusBase,
-	GLfloat   height)
+	GPUprim3 *prim,
+	GLfloat radiusBase,
+	GLfloat height)
 {
 	primFormat(prim);
 	gpuDrawCone(prim, radiusBase, height);
@@ -1061,10 +1061,10 @@ void gpuSingleCone(
 
 
 void gpuAppendCylinder(
-	GPUprim3* prim,
-	GLfloat   radiusBase,
-	GLfloat   radiusTop,
-	GLfloat   height)
+	GPUprim3 *prim,
+	GLfloat radiusBase,
+	GLfloat radiusTop,
+	GLfloat height)
 {
 	copy_v3_flflfl(prim->params.sweep.point1, radiusBase, 0, 0);
 	copy_v3_flflfl(prim->params.sweep.point2, radiusTop, 0, height);
@@ -1075,10 +1075,10 @@ void gpuAppendCylinder(
 
 
 void gpuDrawCylinder(
-	GPUprim3* prim,
-	GLfloat   radiusBase,
-	GLfloat   radiusTop,
-	GLfloat   height)
+	GPUprim3 *prim,
+	GLfloat radiusBase,
+	GLfloat radiusTop,
+	GLfloat height)
 {
 	gpuBegin(GL_NOOP);
 	gpuAppendCylinder(prim, radiusBase, radiusTop, height);
@@ -1090,10 +1090,10 @@ void gpuDrawCylinder(
 
 
 void gpuSingleCylinder(
-	GPUprim3* prim,
-	GLfloat   radiusBase,
-	GLfloat   radiusTop,
-	GLfloat   height)
+	GPUprim3 *prim,
+	GLfloat radiusBase,
+	GLfloat radiusTop,
+	GLfloat height)
 {
 	primFormat(prim);
 	gpuDrawCylinder(prim, radiusBase, radiusTop, height);
@@ -1103,8 +1103,8 @@ void gpuSingleCylinder(
 
 
 void gpuAppendSphere(
-	GPUprim3* prim,
-	GLfloat   radius)
+	GPUprim3 *prim,
+	GLfloat radius)
 {
 	prim->params.sphere.radius =  radius;
 	prim->params.sphere.zMin   = -radius;
@@ -1122,8 +1122,8 @@ void gpuAppendSphere(
 
 
 void gpuDrawSphere(
-	GPUprim3* prim,
-	GLfloat   radius)
+	GPUprim3 *prim,
+	GLfloat radius)
 {
 	gpuBegin(GL_NOOP);
 	gpuAppendSphere(prim, radius);
@@ -1135,8 +1135,8 @@ void gpuDrawSphere(
 
 
 void gpuSingleSphere(
-	GPUprim3* prim,
-	GLfloat   radius)
+	GPUprim3 *prim,
+	GLfloat radius)
 {
 	primFormat(prim);
 	gpuDrawSphere(prim, radius);
@@ -1147,72 +1147,72 @@ void gpuSingleSphere(
 
 const GPUprim3 GPU_PRIM_LOFI_SOLID = {
 	GPU_LOD_LO,          /* GLfloat usegs;     */
-	GPU_LOD_LO/2.0f,     /* GLfloat vsegs;     */
+	GPU_LOD_LO / 2.0f,   /* GLfloat vsegs;     */
 	GPU_NORMALS_SMOOTH,  /* GLenum  normals;   */
 	GPU_DRAW_STYLE_FILL, /* GLenum  drawStyle; */
 	GL_FALSE,            /* GLboolean flipNormals */
 	GL_FALSE,            /* GLboolean texCoords */
 	0,                   /* GLfloat thetaMin   */
-	(float)(2*M_PI),     /* GLfloat thetaMax   */
+	(float)(2.0 * M_PI), /* GLfloat thetaMax   */
 };
 
 const GPUprim3 GPU_PRIM_LOFI_SHADELESS = {
 	GPU_LOD_LO,          /* GLfloat usegs;     */
-	GPU_LOD_LO/2.0f,     /* GLfloat vsegs;     */
+	GPU_LOD_LO / 2.0f,   /* GLfloat vsegs;     */
 	GPU_NORMALS_NONE,    /* GLenum  normals;   */
 	GPU_DRAW_STYLE_FILL, /* GLenum  drawStyle; */
 	GL_FALSE,            /* GLboolean flipNormals */
 	GL_FALSE,            /* GLboolean texCoords */
 	0,                   /* GLfloat thetaMin   */
-	(float)(2*M_PI),     /* GLfloat thetaMax   */
+	(float)(2.0 * M_PI), /* GLfloat thetaMax   */
 };
 
 const GPUprim3 GPU_PRIM_LOFI_WIRE = {
 	GPU_LOD_LO,                /* GLfloat usegs;     */
-	GPU_LOD_LO/2.0f,           /* GLfloat vsegs;     */
+	GPU_LOD_LO / 2.0f,         /* GLfloat vsegs;     */
 	GPU_NORMALS_NONE,          /* GLenum  normals;   */
 	GPU_DRAW_STYLE_SILHOUETTE, /* GLenum  drawStyle; */
 	GL_FALSE,                  /* GLboolean flipNormals */
 	GL_FALSE,                  /* GLboolean texCoords */
 	0,                         /* GLfloat thetaMin   */
-	(float)(2*M_PI),           /* GLfloat thetaMax   */
+	(float)(2.0 * M_PI)        /* GLfloat thetaMax   */
 };
 
 const GPUprim3 GPU_PRIM_MIDFI_SOLID = {
 	GPU_LOD_MID,          /* GLfloat usegs;     */
-	GPU_LOD_MID/2.0f,     /* GLfloat vsegs;     */
+	GPU_LOD_MID / 2.0f,   /* GLfloat vsegs;     */
 	GPU_NORMALS_SMOOTH,   /* GLenum  normals;   */
 	GPU_DRAW_STYLE_FILL,  /* GLenum  drawStyle; */
 	GL_FALSE,             /* GLboolean flipNormals */
 	GL_FALSE,             /* GLboolean texCoords */
 	0,                    /* GLfloat thetaMin   */
-	(float)(2*M_PI),      /* GLfloat thetaMax   */
+	(float)(2.0 * M_PI),  /* GLfloat thetaMax   */
 };
 
 const GPUprim3 GPU_PRIM_MIDFI_WIRE = {
 	GPU_LOD_MID,               /* GLfloat usegs;     */
-	GPU_LOD_MID/2.0f,          /* GLfloat vsegs;     */
+	GPU_LOD_MID / 2.0f,        /* GLfloat vsegs;     */
 	GPU_NORMALS_NONE,          /* GLenum  normals;   */
 	GPU_DRAW_STYLE_SILHOUETTE, /* GLenum  drawStyle; */
 	GL_FALSE,                  /* GLboolean flipNormals */
 	GL_FALSE,                  /* GLboolean texCoords */
 	0,                         /* GLfloat thetaMin   */
-	(float)(2*M_PI),           /* GLfloat thetaMax   */
+	(float)(2.0 * M_PI),       /* GLfloat thetaMax   */
 };
 
 const GPUprim3 GPU_PRIM_HIFI_SOLID = {
 	GPU_LOD_HI,          /* GLfloat usegs;     */
-	GPU_LOD_HI/2.0f,     /* GLfloat vsegs;     */
+	GPU_LOD_HI / 2.0f,   /* GLfloat vsegs;     */
 	GPU_NORMALS_SMOOTH,  /* GLenum  normals;   */
 	GPU_DRAW_STYLE_FILL, /* GLenum  drawStyle; */
 	GL_FALSE,            /* GLboolean flipNormals */
 	GL_FALSE,            /* GLboolean texCoords */
 	0,                   /* GLfloat thetaMin   */
-	(float)(2*M_PI),     /* GLfloat thetaMax   */
+	(float)(2.0 * M_PI), /* GLfloat thetaMax   */
 };
 
 
-static float cube[8][3] = {
+static const float cube[8][3] = {
 	{-1.0, -1.0, -1.0},
 	{-1.0, -1.0,  1.0},
 	{-1.0,  1.0,  1.0},
@@ -1242,9 +1242,8 @@ void gpuSingleWireUnitCube(void)
 	gpuImmediateUnformat();
 }
 
-/* draws a cube on given the scaling of the cube, assuming that
- * all required matrices have been set (used for drawing empties)
- */
+/* draws a cube given the scaling of the cube, assuming that
+ * all required matrices have been set (used for drawing empties) */
 void gpuSingleWireCube(GLfloat size)
 {
 	gpuImmediateFormat_V3();
@@ -1269,7 +1268,7 @@ void gpuSingleWireCube(GLfloat size)
 }
 
 /* half the cube, in Y */
-static float half_cube[8][3] = {
+static const float half_cube[8][3] = {
 	{-1.0,  0.0, -1.0},
 	{-1.0,  0.0,  1.0},
 	{-1.0,  1.0,  1.0},

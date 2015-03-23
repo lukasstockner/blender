@@ -40,23 +40,20 @@
 extern "C" {
 #endif
 
-/*
-OpenGL ES does not have state query functions for some state.
-
-These functions latch the value passed to them,
-so that the current value can be queried later by a distance piece of code.
-
-Of course, this requires disciplined use of the correct function, so
-these functions these replace should be include the gpu_deprecated.h header,
-even if they aren't officially deprecated.
-
-If it makes sense to move one of these functions to another module, then do so,
-they have nothing else in common besides the need for state query.
-
-*/
+/* OpenGL ES does not have state query functions for some state.
+ *
+ * These functions latch the value passed to them,
+ * so that the current value can be queried later by a distant piece of code.
+ *
+ * Of course, this requires disciplined use of the correct function, so
+ * the functions these replace should be included in the gpu_deprecated.h header,
+ * even if they aren't officially deprecated.
+ *
+ * If it makes sense to move one of these functions to another module, then do so;
+ * they have nothing else in common besides the need for state query. */
 
 /* the DepthRange state latch also covers the fact the ES 2.0 doesn't accept
-   GLdouble for depth range by doing a conversion. */
+ * GLdouble for depth range by doing a conversion. */
 void gpuDepthRange(GLdouble near, GLdouble far);
 void gpuGetDepthRange(GLdouble range[2]);
 
@@ -70,7 +67,7 @@ void gpuViewport(int x, int y, int width, int height);
 void gpuGetViewport(int out[4]);
 
 /* feedback functions use the latched state to transform coordinates in the
-   same way as the legacy fixed function pipeline */
+ * same way as the legacy fixed function pipeline */
 GLfloat GPU_feedback_depth_range(GLfloat z);
 void GPU_feedback_viewport_2fv(GLfloat x, GLfloat y, GLfloat out[2]);
 

@@ -81,8 +81,8 @@ void GPU_feedback_vertex_4dv(GLenum type, GLdouble x, GLdouble y, GLdouble z, GL
 
 #if defined(GLEW_ES_ONLY)
 
-/* ES 2.0 doesn't define these symbolic constants, but the matrix stack replacement library emulates them */
-/* (GL core has deprecated matrix stacks, but it should still be in the header) */
+/* ES 2.0 doesn't define these symbolic constants, but the matrix stack replacement library emulates them
+ * (GL core has deprecated matrix stacks, but it should still be in the header) */
 
 #ifndef GL_MODELVIEW_MATRIX
 #define GL_MODELVIEW_MATRIX 0x0BA6

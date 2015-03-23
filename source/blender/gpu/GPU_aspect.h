@@ -29,7 +29,7 @@
  */
 
 /** \file blender/gpu/GPU_aspect.h
-  *  \ingroup gpu
+  * \ingroup gpu
   */
 
 #include "BLI_sys_types.h"
@@ -40,28 +40,28 @@
 extern "C" {
 #endif
 
-void GPU_gen_aspects   (size_t count,       uint32_t* aspects);
-void GPU_delete_aspects(size_t count, const uint32_t* aspects);
+void GPU_gen_aspects   (size_t count,       uint32_t *aspects);
+void GPU_delete_aspects(size_t count, const uint32_t *aspects);
 
 typedef struct GPUaspectimpl {
-	bool  (*render_begin )(const void* object, void* param);
-	bool  (*render_end   )(const void* object, void* param);
-	bool  (*render_commit)(const void* object);
-	bool  (*select_begin )(const void* object, void* param);
-	bool  (*select_end   )(const void* object, void* param);
-	bool  (*select_commit)(const void* object);
-	void  (*enable       )(const void* object, uint32_t options);
-	void  (*disable      )(const void* object, uint32_t options);
-	void* object;
-	void* current_param; /* not a part of the interface */
+	bool (*render_begin )(const void *object, void *param);
+	bool (*render_end   )(const void *object, void *param);
+	bool (*render_commit)(const void *object);
+	bool (*select_begin )(const void *object, void *param);
+	bool (*select_end   )(const void *object, void *param);
+	bool (*select_commit)(const void *object);
+	void (*enable       )(const void *object, uint32_t options);
+	void (*disable      )(const void *object, uint32_t options);
+	void *object;
+	void *current_param; /* not a part of the interface */
 } GPUaspectimpl;
 
-void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl* aspectImpl);
+void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl *aspectImpl);
 
-bool GPU_aspect_begin(uint32_t aspect, void* param);
-bool GPU_aspect_end  (void);
+bool GPU_aspect_begin(uint32_t aspect, void *param);
+bool GPU_aspect_end(void);
 
-void GPU_aspect_enable (uint32_t aspect, uint32_t options);
+void GPU_aspect_enable(uint32_t aspect, uint32_t options);
 void GPU_aspect_disable(uint32_t aspect, uint32_t options);
 
 bool GPU_commit_aspect(void);

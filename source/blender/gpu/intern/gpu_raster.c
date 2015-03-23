@@ -137,7 +137,7 @@ const GLubyte GPU_stipple_diag_stripes_neg[128] = {
 
 const GLubyte stipple_checker_8px[128] = {
 	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
-	255,  0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
+	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
 	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
 	0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255,
 	255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0, 255, 0,
@@ -153,11 +153,11 @@ const GLubyte stipple_checker_8px[128] = {
 static struct RASTER {
 	uint32_t options;
 
-	struct GPUShader* gpushader[GPU_RASTER_OPTION_COMBINATIONS];
+	struct GPUShader *gpushader[GPU_RASTER_OPTION_COMBINATIONS];
 	bool              failed   [GPU_RASTER_OPTION_COMBINATIONS];
 	struct GPUcommon  common   [GPU_RASTER_OPTION_COMBINATIONS];
 
-	GLubyte  polygon_stipple[32*32];
+	GLubyte  polygon_stipple[32 * 32];
 
 	GLint    line_stipple_factor;
 	GLushort line_stipple_pattern;
@@ -204,15 +204,15 @@ void gpu_raster_exit(void)
 void gpu_raster_reset_stipple(void)
 {
 	int a, x, y;
-	GLubyte mask[32*32];
+	GLubyte mask[32 * 32];
 
 	a = 0;
-	for (x = 0; x<32; x++) {
-		for (y = 0; y<4; y++) {
+	for (x = 0; x < 32; x++) {
+		for (y = 0; y < 4; y++) {
 			if (x & 1)
-				mask[a++]= 0x88;
+				mask[a++] = 0x88;
 			else
-				mask[a++]= 0x22;
+				mask[a++] = 0x22;
 		}
 	}
 
@@ -244,7 +244,7 @@ static void raster_shader_bind(void)
 	extern const char datatoc_gpu_shader_raster_vert_glsl[];
 	extern const char datatoc_gpu_shader_raster_uniforms_glsl[];
 
-	const uint32_t tweaked_options = RASTER.options;//tweak_options();
+	const uint32_t tweaked_options = RASTER.options; /* tweak_options(); */
 
 	/* create shader if it doesn't exist yet */
 	if (RASTER.gpushader[tweaked_options] != NULL) {
@@ -252,13 +252,13 @@ static void raster_shader_bind(void)
 		gpu_set_common(RASTER.common + tweaked_options);
 	}
 	else if (!RASTER.failed[tweaked_options]) {
-		DynStr* vert = BLI_dynstr_new();
-		DynStr* frag = BLI_dynstr_new();
-		DynStr* defs = BLI_dynstr_new();
+		DynStr *vert = BLI_dynstr_new();
+		DynStr *frag = BLI_dynstr_new();
+		DynStr *defs = BLI_dynstr_new();
 
-		char* vert_cstring;
-		char* frag_cstring;
-		char* defs_cstring;
+		char *vert_cstring;
+		char *frag_cstring;
+		char *defs_cstring;
 
 		gpu_include_common_vert(vert);
 		BLI_dynstr_append(vert, datatoc_gpu_shader_raster_uniforms_glsl);
@@ -397,7 +397,7 @@ void gpuPolygonStipple(const GLubyte* mask)
 
 void gpuLineStipple(GLint factor, GLushort pattern)
 {
-	RASTER.line_stipple_factor  = factor;
+	RASTER.line_stipple_factor = factor;
 	RASTER.line_stipple_pattern = pattern;
 }
 
@@ -453,10 +453,10 @@ void GPU_raster_begin()
 	BLI_assert(!RASTER_BEGUN);
 	RASTER_BEGUN = true;
 
-	// SSS End (Assuming the basic aspect is ending)
+	/* SSS End (Assuming the basic aspect is ending) */
 	GPU_aspect_end();
 
-	// SSS Begin Raster
+	/* SSS Begin Raster */
 	GPU_aspect_begin(GPU_ASPECT_RASTER, NULL);
 }
 
@@ -466,12 +466,12 @@ void GPU_raster_end()
 {
 	BLI_assert(RASTER_BEGUN);
 
-	// SSS End Raster
+	/* SSS End Raster */
 	GPU_aspect_end();
 
 	RASTER_BEGUN = false;
 
-	// SSS Begin Basic
+	/* SSS Begin Basic */
 	GPU_aspect_begin(GPU_ASPECT_BASIC, NULL);
 }
 
@@ -489,13 +489,14 @@ static GLboolean end_begin(void)
 			GL_POLYGON,
 			GL_QUAD_STRIP,
 			GL_LINE_STRIP,
-			GL_TRIANGLE_STRIP)) // XXX jwilkins: can restart some of these, but need to put in the logic (could be problematic with mapped VBOs?)
+			GL_TRIANGLE_STRIP))
+/* XXX jwilkins: can restart some of these, but need to put in the logic (could be problematic with mapped VBOs?) */
 	{
 		gpu_end_buffer_gl();
 
 		GPU_IMMEDIATE->mappedBuffer = NULL;
-		GPU_IMMEDIATE->offset       = 0;
-		GPU_IMMEDIATE->count        = 1; /* count the vertex that triggered this */
+		GPU_IMMEDIATE->offset = 0;
+		GPU_IMMEDIATE->count = 1; /* count the vertex that triggered this */
 
 		gpu_begin_buffer_gl();
 
@@ -515,10 +516,8 @@ static void gpu_copy_vertex_thick_line(void)
 	size_t offset;
 	GLubyte *mappedBuffer;
 
-	{
-		if (GPU_IMMEDIATE->maxVertexCount == 0)
-			return;
-	}
+	if (GPU_IMMEDIATE->maxVertexCount == 0)
+		return;
 
 	if (GPU_IMMEDIATE->count == GPU_IMMEDIATE->lastPrimVertex) {
 		GLboolean restarted;
@@ -546,17 +545,17 @@ static void gpu_copy_vertex_thick_line(void)
 	/* normal */
 
 	if (GPU_IMMEDIATE->format.normalSize != 0) {
-		/* normals are always have 3 components */
-		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->normal, 3*sizeof(GLfloat));
-		offset += 3*sizeof(GLfloat);
+		/* normals always have 3 components */
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->normal, 3 * sizeof(GLfloat));
+		offset += 3 * sizeof(GLfloat);
 	}
 
 	/* color */
 
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		/* 4 bytes are always reserved for color, for efficient memory alignment */
-		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->color, 4*sizeof(GLubyte));
-		offset += 4*sizeof(GLubyte);
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->color, 4 * sizeof(GLubyte));
+		offset += 4 * sizeof(GLubyte);
 	}
 
 	/* texture coordinate(s) */
@@ -579,8 +578,8 @@ static void gpu_copy_vertex_thick_line(void)
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		/* 4 bytes are always reserved for byte attributes, for efficient memory alignment */
-		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->attrib_ub[i], 4*sizeof(GLubyte));
-		offset += 4*sizeof(GLubyte);
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->attrib_ub[i], 4 * sizeof(GLubyte));
+		offset += 4 * sizeof(GLubyte);
 	}
 
 	GPU_IMMEDIATE->offset = offset;
@@ -625,17 +624,17 @@ static void gpu_copy_vertex_wire_polygon(void)
 	/* normal */
 
 	if (GPU_IMMEDIATE->format.normalSize != 0) {
-		/* normals are always have 3 components */
-		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->normal, 3*sizeof(GLfloat));
-		offset += 3*sizeof(GLfloat);
+		/* normals always have 3 components */
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->normal, 3 * sizeof(GLfloat));
+		offset += 3 * sizeof(GLfloat);
 	}
 
 	/* color */
 
 	if (GPU_IMMEDIATE->format.colorSize != 0) {
 		/* 4 bytes are always reserved for color, for efficient memory alignment */
-		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->color, 4*sizeof(GLubyte));
-		offset += 4*sizeof(GLubyte);
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->color, 4 * sizeof(GLubyte));
+		offset += 4 * sizeof(GLubyte);
 	}
 
 	/* texture coordinate(s) */
@@ -658,8 +657,8 @@ static void gpu_copy_vertex_wire_polygon(void)
 
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++) {
 		/* 4 bytes are always reserved for byte attributes, for efficient memory alignment */
-		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->attrib_ub[i], 4*sizeof(GLubyte));
-		offset += 4*sizeof(GLubyte);
+		memcpy(mappedBuffer + offset, GPU_IMMEDIATE->attrib_ub[i], 4 * sizeof(GLubyte));
+		offset += 4 * sizeof(GLubyte);
 	}
 
 	GPU_IMMEDIATE->offset = offset;

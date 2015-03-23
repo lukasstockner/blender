@@ -43,28 +43,28 @@ extern "C" {
 
 
 typedef struct GPUbitmap {
-	GLsizei        width, height;
-	GLsizei        xorig, yorig;
-	const GLubyte* bitmap;
+	GLsizei width, height;
+	GLsizei xorig, yorig;
+	const GLubyte *bitmap;
 } GPUbitmap;
 
 typedef struct GPUpixels {
-	GLsizei       width, height;
-	GLenum        format;
-	GLenum        type;
-	const GLvoid* pixels;
+	GLsizei width, height;
+	GLenum format;
+	GLenum type;
+	const GLvoid *pixels;
 } GPUpixels;
 
 
 
-void GPU_bitmap_cache(GPUbitmap* bitmap);
-void GPU_pixels_cache(GPUpixels* pixels);
+void GPU_bitmap_cache(GPUbitmap *bitmap);
+void GPU_pixels_cache(GPUpixels *pixels);
 
-void GPU_bitmap_uncache(GPUbitmap* bitmap);
-void GPU_pixels_uncache(GPUpixels* pixels);
+void GPU_bitmap_uncache(GPUbitmap *bitmap);
+void GPU_pixels_uncache(GPUpixels *pixels);
 
 void GPU_pixels_zoom(GLfloat xfactor, GLfloat yfactor);
-void GPU_get_pixels_zoom(GLfloat* xfactor_out, GLfloat *yfactor_out);
+void GPU_get_pixels_zoom(GLfloat *xfactor_out, GLfloat *yfactor_out);
 
 void GPU_pixels_format(GLenum pname, GLint param);
 
@@ -73,11 +73,11 @@ void GPU_pixels_uniform_1f(GLenum pname, GLfloat param);
 void GPU_pixels_pos_2f(GLfloat x, GLfloat y);
 void GPU_pixels_pos_3f(GLfloat x, GLfloat y, GLfloat z);
 
-void GPU_bitmap(GPUbitmap* bitmap);
-void GPU_pixels(GPUpixels* pixels);
+void GPU_bitmap(GPUbitmap *bitmap);
+void GPU_pixels(GPUpixels *pixels);
 
 void GPU_pixels_begin(void);
-void GPU_pixels_end  (void);
+void GPU_pixels_end(void);
 
 
 

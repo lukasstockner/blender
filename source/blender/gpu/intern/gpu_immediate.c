@@ -58,11 +58,11 @@ typedef struct GPUVertexStream {
 
 	/* map the buffer - will give pointer to user that can be used to
 	 * fill the buffer. Pointer will be placed in mappedBuffer */
-	GLubyte * (*map) (struct GPUVertexStream *);
-	void (*unmap) (struct GPUVertexStream *);
+	GLubyte *(*map)(struct GPUVertexStream *);
+	void (*unmap)(struct GPUVertexStream *);
 
 	void (*realloc)(struct GPUVertexStream *stream, size_t newsize);
-	void (*free) (struct GPUVertexStream *stream);
+	void (*free)(struct GPUVertexStream *stream);
 } GPUVertexStream;
 
 typedef struct GPUVertexBufferStream {
@@ -78,7 +78,7 @@ typedef struct GPUVertexArrayStream {
 typedef struct GPURAMArrayStream {
 	GPUVertexStream stream;
 	void *unalignedPtr;
-	GLubyte* unmappedBuffer;
+	GLubyte *unmappedBuffer;
 } GPURAMArrayStream;
 
 enum StreamTypes {
@@ -93,8 +93,8 @@ typedef struct bufferDataGLSL {
 	GLuint   vao;
 	GLuint   vbo;
 	GLintptr unalignedPtr;
-	GLubyte* mappedBuffer;
-	GLubyte* unmappedBuffer;
+	GLubyte *mappedBuffer;
+	GLubyte *unmappedBuffer;
 } bufferDataGLSL;
 
 static void realloc_stream_ram(GPUVertexStream *stream, size_t newsize)
@@ -112,7 +112,7 @@ static void realloc_stream_ram(GPUVertexStream *stream, size_t newsize)
 static void realloc_stream_vbuffer(GPUVertexStream *stream, size_t newsize)
 {
 	if (newsize > stream->size) {
-		GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+		GPUVertexBufferStream *va_stream = (GPUVertexBufferStream *)stream;
 		glBindBuffer(stream->type, va_stream->vbo);
 		glBufferData(stream->type, newsize, NULL, GL_STREAM_DRAW);
 		stream->size = newsize;
@@ -127,7 +127,7 @@ static GLubyte *map_stream_ram(GPUVertexStream *stream)
 
 static GLubyte *map_stream_vbuffer(GPUVertexStream *stream)
 {
-	GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+	GPUVertexBufferStream *va_stream = (GPUVertexBufferStream *)stream;
 	glBindBuffer(stream->type, va_stream->vbo);
 	return glMapBufferARB(stream->type, GL_WRITE_ONLY);
 }
@@ -138,7 +138,7 @@ static void unmap_stream_ram(GPUVertexStream *UNUSED(stream))
 
 static void unmap_stream_vbuffer(GPUVertexStream *stream)
 {
-	GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+	GPUVertexBufferStream *va_stream = (GPUVertexBufferStream *)stream;
 	glBindBuffer(stream->type, va_stream->vbo);
 	glUnmapBufferARB(stream->type);
 }
@@ -153,7 +153,7 @@ static void free_stream_ram(GPUVertexStream *stream)
 
 static void free_stream_varray(GPUVertexStream *stream)
 {
-	GPUVertexArrayStream * va_stream = (GPUVertexArrayStream *)stream;
+	GPUVertexArrayStream *va_stream = (GPUVertexArrayStream *)stream;
 	if (va_stream->vao != 0)
 		glDeleteVertexArrays(1, &va_stream->vao);
 
@@ -165,7 +165,7 @@ static void free_stream_varray(GPUVertexStream *stream)
 
 static void free_stream_vbuffer(GPUVertexStream *stream)
 {
-	GPUVertexBufferStream * va_stream = (GPUVertexBufferStream *)stream;
+	GPUVertexBufferStream *va_stream = (GPUVertexBufferStream *)stream;
 
 	if (va_stream->vbo != 0)
 		glDeleteBuffers(1, &va_stream->vbo);
@@ -174,7 +174,7 @@ static void free_stream_vbuffer(GPUVertexStream *stream)
 }
 
 
-static GPUVertexStream * gpu_new_vertex_stream(enum StreamTypes type, int array_type)
+static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_type)
 {
 	GPUVertexStream *ret;
 	switch (type) {
@@ -224,8 +224,8 @@ static GPUVertexStream * gpu_new_vertex_stream(enum StreamTypes type, int array_
 
 static GLsizei calc_stride(void)
 {
-	size_t              stride = 0;
-	GPUImmediateFormat* format = &(GPU_IMMEDIATE->format);
+	size_t stride = 0;
+	GPUImmediateFormat *format = &(GPU_IMMEDIATE->format);
 	size_t i;
 
 	/* vertex */
@@ -266,12 +266,12 @@ static void allocate(void)
 	newSize = (size_t)(GPU_IMMEDIATE->stride * GPU_IMMEDIATE->maxVertexCount);
 
 	if (GPU_IMMEDIATE->vertex_stream) {
-		GPUVertexStream* vertex_stream = (GPUVertexStream*)GPU_IMMEDIATE->vertex_stream;
+		GPUVertexStream *vertex_stream = (GPUVertexStream*)GPU_IMMEDIATE->vertex_stream;
 
 		vertex_stream->realloc(vertex_stream, newSize);
 	}
 	else {
-		bufferDataGLSL* bufferData = (bufferDataGLSL*)MEM_callocN(sizeof(bufferDataGLSL), "bufferDataGLSL");
+		bufferDataGLSL *bufferData = (bufferDataGLSL*)MEM_callocN(sizeof(bufferDataGLSL), "bufferDataGLSL");
 
 		if (GLEW_ARB_vertex_buffer_object) {
 			glGenBuffers(1, &(bufferData->vbo));
@@ -299,10 +299,10 @@ static void allocate(void)
 
 static void setup(void)
 {
-	GPUImmediateFormat* format     = &(GPU_IMMEDIATE->format);
+	GPUImmediateFormat *format     = &(GPU_IMMEDIATE->format);
 	const GLsizei       stride     = GPU_IMMEDIATE->stride;
-	bufferDataGLSL*     bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
-	const GLubyte*      base       = bufferData->vbo != 0 ? NULL : (GLubyte*)(bufferData->unmappedBuffer);
+	bufferDataGLSL     *bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
+	const GLubyte      *base       = bufferData->vbo != 0 ? NULL : (GLubyte*)(bufferData->unmappedBuffer);
 
 	size_t offset = 0;
 
@@ -417,22 +417,22 @@ static void unsetup(void)
 typedef struct indexBufferDataGLSL {
 	GLuint   vbo;
 	GLintptr unalignedPtr;
-	GLubyte* unmappedBuffer;
-	GLubyte* mappedBuffer;
+	GLubyte *unmappedBuffer;
+	GLubyte *mappedBuffer;
 	size_t   size;
 } indexBufferDataGLSL;
 
 static void allocateIndex(void)
 {
 	if (GPU_IMMEDIATE->index) {
-		GPUindex* index;
+		GPUindex *index;
 		size_t newSize;
 
 		GPU_ASSERT_NO_GL_ERRORS("allocateIndex start");
 
 		index = GPU_IMMEDIATE->index;
 
-		switch(index->type) {
+		switch (index->type) {
 			case GL_UNSIGNED_BYTE:
 				newSize = index->maxIndexCount * sizeof(GLubyte);
 				break;
@@ -448,7 +448,7 @@ static void allocateIndex(void)
 		}
 
 		if (index->element_stream) {
-			indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->element_stream);
+			indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)(index->element_stream);
 
 			if (bufferData->vbo != 0)
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferData->vbo);
@@ -466,7 +466,7 @@ static void allocateIndex(void)
 			}
 		}
 		else {
-			indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)MEM_callocN(sizeof(indexBufferDataGLSL), "indexBufferDataGLSL");
+			indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)MEM_callocN(sizeof(indexBufferDataGLSL), "indexBufferDataGLSL");
 
 			if (GLEW_ARB_vertex_buffer_object) {
 				glGenBuffers(1, &(bufferData->vbo));
@@ -491,7 +491,7 @@ static void allocateIndex(void)
 
 
 
-static void static_element_array(GLuint* idOut, GLsizeiptr size, const GLvoid* indexes)
+static void static_element_array(GLuint *idOut, GLsizeiptr size, const GLvoid *indexes)
 {
 	glGenBuffers(1, idOut);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *idOut);
@@ -500,16 +500,16 @@ static void static_element_array(GLuint* idOut, GLsizeiptr size, const GLvoid* i
 
 
 
-/* quad emulation*/
+/* quad emulation */
 
 static bool quad_init = false;
 
 
-static const GLsizeiptr VQEOS_SIZE =  sizeof(GLushort) * 3 * 65536 / 2;
-static const GLsizeiptr VQEOC_SIZE =  sizeof(GLubyte)  * 3 *   256 / 2;
+static const GLsizeiptr VQEOS_SIZE = sizeof(GLushort) * 3 * 65536 / 2;
+static const GLsizeiptr VQEOC_SIZE = sizeof(GLubyte)  * 3 *   256 / 2;
 
-static GLushort* vqeos;
-static GLubyte*  vqeoc;
+static GLushort *vqeos;
+static GLubyte  *vqeoc;
 
 static GLuint vqeos_buf;
 static GLuint vqeoc_buf;
@@ -533,7 +533,6 @@ static void quad_free_heap(void)
 
 static void quad_elements_init(void)
 {
-
 	int i, j;
 
 	BLI_assert(!quad_init);
@@ -550,7 +549,7 @@ static void quad_elements_init(void)
 		}
 	}
 
-	vqeoc = (GLubyte* )MEM_mallocN(VQEOC_SIZE, "vqeoc");
+	vqeoc = (GLubyte*)MEM_mallocN(VQEOC_SIZE, "vqeoc");
 
 	for (i = 0; i < 255; i++)
 		vqeoc[i] = (GLubyte)(vqeos[i]);
@@ -605,7 +604,7 @@ void gpu_lock_buffer_gl(void)
 	allocateIndex();
 
 	if (GLEW_ARB_vertex_buffer_object) {
-		bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
+		bufferDataGLSL *bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
 		bool do_init = (bufferData->vao == 0);
 
 		if (do_init)
@@ -625,7 +624,7 @@ void gpu_lock_buffer_gl(void)
 
 void gpu_begin_buffer_gl(void)
 {
-	GPUVertexStream* stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
+	GPUVertexStream *stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
 
 	GPU_IMMEDIATE->mappedBuffer = stream->map(stream);
 }
@@ -634,7 +633,7 @@ void gpu_begin_buffer_gl(void)
 
 void gpu_end_buffer_gl(void)
 {
-	GPUVertexStream* stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
+	GPUVertexStream *stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl start");
 
@@ -647,7 +646,7 @@ void gpu_end_buffer_gl(void)
 
 		unsetup();
 		setup();
-		gpu_commit_current ();
+		gpu_commit_current();
 		gpu_commit_samplers();
 
 		if (GPU_IMMEDIATE->mode != GL_QUADS) {
@@ -655,14 +654,14 @@ void gpu_end_buffer_gl(void)
 			GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl afterdraw");
 		}
 		else {
-			if (GPU_IMMEDIATE->count <= 255){
+			if (GPU_IMMEDIATE->count <= 255) {
 				if (vqeoc_buf != 0)
 					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeoc_buf);
 
 				glDrawElements(GL_TRIANGLES, 3 * GPU_IMMEDIATE->count / 2, GL_UNSIGNED_BYTE, vqeoc);
 				GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl afterdraw");
 			}
-			else if(GPU_IMMEDIATE->count <= 65535) {
+			else if (GPU_IMMEDIATE->count <= 65535) {
 				if (vqeos_buf != 0)
 					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, vqeos_buf);
 
@@ -688,7 +687,7 @@ void gpu_end_buffer_gl(void)
 
 void gpu_unlock_buffer_gl(void)
 {
-	bufferDataGLSL* bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
+	bufferDataGLSL *bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
 
 	if (bufferData->vao != 0)
 		glBindVertexArray(0);
@@ -701,7 +700,7 @@ void gpu_unlock_buffer_gl(void)
 void gpu_index_shutdown_buffer_gl(GPUindex *index)
 {
 	if (index && index->element_stream) {
-		GPUVertexStream* stream = (GPUVertexStream*)(index->element_stream);
+		GPUVertexStream *stream = (GPUVertexStream*)(index->element_stream);
 
 		stream->free(stream);
 	}
@@ -712,7 +711,7 @@ void gpu_index_shutdown_buffer_gl(GPUindex *index)
 void gpu_shutdown_buffer_gl(GPUImmediate *immediate)
 {
 	if (immediate->vertex_stream) {
-		GPUVertexStream* stream = (GPUVertexStream*)(immediate->vertex_stream);
+		GPUVertexStream *stream = (GPUVertexStream*)(immediate->vertex_stream);
 
 		stream->free(stream);
 
@@ -726,8 +725,8 @@ void gpu_shutdown_buffer_gl(GPUImmediate *immediate)
 
 void gpu_index_begin_buffer_gl(void)
 {
-	GPUindex *  index      = GPU_IMMEDIATE->index;
-	GPUVertexStream* stream = (GPUVertexStream *)(index->element_stream);
+	GPUindex *index = GPU_IMMEDIATE->index;
+	GPUVertexStream *stream = (GPUVertexStream*)(index->element_stream);
 
 	index->mappedBuffer = stream->map(stream);
 }
@@ -737,7 +736,7 @@ void gpu_index_begin_buffer_gl(void)
 void gpu_index_end_buffer_gl(void)
 {
 	GPUindex *index = GPU_IMMEDIATE->index;
-	GPUVertexStream* stream = (GPUVertexStream*)(index->element_stream);
+	GPUVertexStream *stream = (GPUVertexStream*)(index->element_stream);
 
 	stream->unmap(stream);
 
@@ -748,8 +747,8 @@ void gpu_index_end_buffer_gl(void)
 
 void gpu_draw_elements_gl(void)
 {
-	GPUindex* index = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->element_stream);
+	GPUindex *index = GPU_IMMEDIATE->index;
+	indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)(index->element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_elements_gl start");;
 
@@ -758,7 +757,7 @@ void gpu_draw_elements_gl(void)
 
 	unsetup();
 	setup();
-	gpu_commit_current ();
+	gpu_commit_current();
 	gpu_commit_samplers();
 
 	glDrawElements(
@@ -774,8 +773,8 @@ void gpu_draw_elements_gl(void)
 
 void gpu_draw_range_elements_gl(void)
 {
-	GPUindex* index = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL* bufferData = (indexBufferDataGLSL*)(index->element_stream);
+	GPUindex *index = GPU_IMMEDIATE->index;
+	indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)(index->element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_range_elements_gl start");;
 
@@ -784,7 +783,7 @@ void gpu_draw_range_elements_gl(void)
 
 	unsetup();
 	setup();
-	gpu_commit_current ();
+	gpu_commit_current();
 	gpu_commit_samplers();
 
 #if defined(WITH_GL_PROFILE_CORE) || defined(WITH_GL_PROFILE_COMPAT)
@@ -823,7 +822,7 @@ void gpu_commit_current(void)
 
 void gpu_commit_samplers(void)
 {
-	const struct GPUcommon* common = gpu_get_common();
+	const struct GPUcommon *common = gpu_get_common();
 
 	if (common) {
 		GPU_ASSERT_NO_GL_ERRORS("gpu_commit_samplers start");
@@ -842,7 +841,7 @@ void gpu_commit_samplers(void)
 /* Define some useful, but potentially slow, checks for correct API usage. */
 
 /* Each block contains variables that can be inspected by a
-   debugger in the event that a break point is triggered. */
+ * debugger in the event that a break point is triggered. */
 
 #define GPU_CHECK_CAN_SETUP()     \
     {                             \
@@ -894,7 +893,7 @@ void gpu_commit_samplers(void)
     GPU_CHECK_NO_BEGIN(noBeginOK)   \
     }
 
-// XXX jwilkins: make this assert prettier
+/* XXX jwilkins: make this assert prettier */
 #define GPU_SAFE_STMT(var, test, stmt) \
     var = (GLboolean)(test);           \
     BLI_assert(((void)#test, var));    \
@@ -1025,9 +1024,9 @@ static void gpu_copy_vertex(void);
 
 
 
-GPUImmediate* gpuNewImmediate(void)
+GPUImmediate *gpuNewImmediate(void)
 {
-	GPUImmediate* immediate =
+	GPUImmediate *immediate =
 		(GPUImmediate*)MEM_callocN(sizeof(GPUImmediate), "GPUimmediate");
 
 	immediate->copyVertex = gpu_copy_vertex;
@@ -1255,7 +1254,7 @@ static GLboolean end_begin(void)
 			GL_POLYGON,
 			GL_QUAD_STRIP,
 			GL_LINE_STRIP,
-			GL_TRIANGLE_STRIP)) // XXX jwilkins: can restart some of these, but need to put in the logic (could be problematic with mapped VBOs?)
+			GL_TRIANGLE_STRIP)) /* XXX jwilkins: can restart some of these, but need to put in the logic (could be problematic with mapped VBOs?) */
 	{
 		gpu_end_buffer_gl();
 
@@ -1349,7 +1348,7 @@ static void gpu_copy_vertex(void)
 /* vertex formats */
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_V2(const char *file, int line)
 #else
 void gpuImmediateFormat_V2(void)
 #endif
@@ -1368,7 +1367,7 @@ void gpuImmediateFormat_V2(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_C4_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_C4_V2(const char *file, int line)
 #else
 void gpuImmediateFormat_C4_V2(void)
 #endif
@@ -1387,7 +1386,7 @@ void gpuImmediateFormat_C4_V2(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_T2_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_T2_V2(const char *file, int line)
 #else
 void gpuImmediateFormat_T2_V2(void)
 #endif
@@ -1415,7 +1414,7 @@ void gpuImmediateFormat_T2_V2(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_T2_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_T2_V3(const char *file, int line)
 #else
 void gpuImmediateFormat_T2_V3(void)
 #endif
@@ -1443,7 +1442,7 @@ void gpuImmediateFormat_T2_V3(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_T2_C4_V2(const char* file, int line)
+void gpuSafetyImmediateFormat_T2_C4_V2(const char *file, int line)
 #else
 void gpuImmediateFormat_T2_C4_V2(void)
 #endif
@@ -1471,7 +1470,7 @@ void gpuImmediateFormat_T2_C4_V2(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_V3(const char *file, int line)
 #else
 void gpuImmediateFormat_V3(void)
 #endif
@@ -1490,7 +1489,7 @@ void gpuImmediateFormat_V3(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_N3_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_N3_V3(const char *file, int line)
 #else
 void gpuImmediateFormat_N3_V3(void)
 #endif
@@ -1509,7 +1508,7 @@ void gpuImmediateFormat_N3_V3(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_C4_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_C4_V3(const char *file, int line)
 #else
 void gpuImmediateFormat_C4_V3(void)
 #endif
@@ -1528,7 +1527,7 @@ void gpuImmediateFormat_C4_V3(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_C4_N3_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_C4_N3_V3(const char *file, int line)
 #else
 void gpuImmediateFormat_C4_N3_V3(void)
 #endif
@@ -1547,7 +1546,7 @@ void gpuImmediateFormat_C4_N3_V3(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_T2_C4_N3_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_T2_C4_N3_V3(const char *file, int line)
 #else
 void gpuImmediateFormat_T2_C4_N3_V3(void)
 #endif
@@ -1575,7 +1574,7 @@ void gpuImmediateFormat_T2_C4_N3_V3(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateFormat_T3_C4_V3(const char* file, int line)
+void gpuSafetyImmediateFormat_T3_C4_V3(const char *file, int line)
 #else
 void gpuImmediateFormat_T3_C4_V3(void)
 #endif
@@ -1603,7 +1602,7 @@ void gpuImmediateFormat_T3_C4_V3(void)
 }
 
 #ifdef GPU_SAFETY
-void gpuSafetyImmediateUnformat(const char* file, int line)
+void gpuSafetyImmediateUnformat(const char *file, int line)
 #else
 void gpuImmediateUnformat(void)
 #endif
@@ -1615,11 +1614,11 @@ void gpuImmediateUnformat(void)
 	gpuImmediateUnlock();
 }
 
-static GPUImmediate* immediateStack = NULL; /* stack size of one */
+static GPUImmediate *immediateStack = NULL; /* stack size of one */
 
 void gpuPushImmediate(void)
 {
-	GPUImmediate* newImmediate;
+	GPUImmediate *newImmediate;
 
 	GPU_CHECK_CAN_PUSH();
 
@@ -1628,9 +1627,9 @@ void gpuPushImmediate(void)
 	GPU_IMMEDIATE  = newImmediate;
 }
 
-GPUImmediate* gpuPopImmediate(void)
+GPUImmediate *gpuPopImmediate(void)
 {
-	GPUImmediate* newImmediate;
+	GPUImmediate *newImmediate;
 
 	GPU_CHECK_CAN_POP();
 
@@ -1678,8 +1677,8 @@ static void gpu_append_client_arrays(
 		vertexPointer += arrays->vertexStride;
 
 		if (normalPointer) {
-			memcpy(mappedBuffer + offset, normalPointer, 3*sizeof(GLfloat));
-			offset += 3*sizeof(GLfloat);
+			memcpy(mappedBuffer + offset, normalPointer, 3 * sizeof(GLfloat));
+			offset += 3 * sizeof(GLfloat);
 			normalPointer += arrays->normalStride;
 		}
 
@@ -1842,7 +1841,7 @@ const GPUarrays GPU_ARRAYS_C3F_N3F_V3F = {
 };
 
 void gpuAppendClientArrays(
-	const GPUarrays* arrays,
+	const GPUarrays *arrays,
 	GLint first,
 	GLsizei count)
 {
@@ -1870,7 +1869,7 @@ void gpuSingleClientArrays_V2F(
 	GPUarrays arrays = GPU_ARRAYS_V2F;
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 2*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 2 * sizeof(GLfloat);
 
 	gpuImmediateFormat_V2();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -1887,7 +1886,7 @@ void gpuSingleClientArrays_V3F(
 	GPUarrays arrays = GPU_ARRAYS_V3F;
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_V3();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -1906,10 +1905,10 @@ void gpuSingleClientArrays_C3F_V3F(
 	GPUarrays arrays = GPU_ARRAYS_C3F_V3F;
 
 	arrays.colorPointer = colorPointer;
-	arrays.colorStride  = colorStride != 0 ? colorStride : 3*sizeof(GLfloat);
+	arrays.colorStride  = colorStride != 0 ? colorStride : 3 * sizeof(GLfloat);
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_C4_V3();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -1928,10 +1927,10 @@ void gpuSingleClientArrays_C4F_V3F(
 	GPUarrays arrays = GPU_ARRAYS_C4F_V3F;
 
 	arrays.colorPointer = colorPointer;
-	arrays.colorStride  = colorStride != 0 ? colorStride : 4*sizeof(GLfloat);
+	arrays.colorStride  = colorStride != 0 ? colorStride : 4 * sizeof(GLfloat);
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_C4_V3();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -1950,10 +1949,10 @@ void gpuSingleClientArrays_N3F_V3F(
 	GPUarrays arrays = GPU_ARRAYS_N3F_V3F;
 
 	arrays.normalPointer = normalPointer;
-	arrays.normalStride  = normalStride != 0 ? normalStride : 3*sizeof(GLfloat);
+	arrays.normalStride  = normalStride != 0 ? normalStride : 3 * sizeof(GLfloat);
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_N3_V3();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -1974,13 +1973,13 @@ void gpuSingleClientArrays_C3F_N3F_V3F(
 	GPUarrays arrays = GPU_ARRAYS_C3F_N3F_V3F;
 
 	arrays.colorPointer = colorPointer;
-	arrays.colorStride  = colorStride != 0 ? colorStride : 3*sizeof(GLfloat);
+	arrays.colorStride  = colorStride != 0 ? colorStride : 3 * sizeof(GLfloat);
 
 	arrays.normalPointer = normalPointer;
-	arrays.normalStride  = normalStride != 0 ? normalStride : 3*sizeof(GLfloat);
+	arrays.normalStride  = normalStride != 0 ? normalStride : 3 * sizeof(GLfloat);
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_C4_N3_V3();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -2002,7 +2001,7 @@ void gpuSingleClientArrays_C4UB_V2F(
 	arrays.colorStride  = colorStride != 0 ? colorStride : 4;
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 2*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 2 * sizeof(GLfloat);
 
 	gpuImmediateFormat_C4_V2();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -2026,7 +2025,7 @@ void gpuSingleClientArrays_C4UB_V3F(
 	arrays.colorStride  = colorStride != 0 ? colorStride : 4;
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_C4_V3();
 	gpuDrawClientArrays(mode, &arrays, first, count);
@@ -2064,9 +2063,9 @@ void gpuImmediateIndexRange(GLuint indexMin, GLuint indexMax)
     } \
 }
 
-FIND_RANGE(ub, GLubyte )
+FIND_RANGE(ub, GLubyte)
 FIND_RANGE(us, GLushort)
-FIND_RANGE(ui, GLuint  )
+FIND_RANGE(ui, GLuint)
 
 
 
@@ -2074,11 +2073,11 @@ void gpuImmediateIndexComputeRange(void)
 {
 	GLuint indexMin, indexMax;
 
-	GPUindex* index = GPU_IMMEDIATE->index;
+	GPUindex *index = GPU_IMMEDIATE->index;
 
 	switch (index->type) {
 		case GL_UNSIGNED_BYTE:
-			find_range_ub(&indexMin, &indexMax, index->count, (GLubyte* )(index->mappedBuffer));
+			find_range_ub(&indexMin, &indexMax, index->count, (GLubyte*)(index->mappedBuffer));
 			break;
 
 		case GL_UNSIGNED_SHORT:
@@ -2086,7 +2085,7 @@ void gpuImmediateIndexComputeRange(void)
 			break;
 
 		case GL_UNSIGNED_INT:
-			find_range_ui(&indexMin, &indexMax, index->count, (GLuint*  )(index->mappedBuffer));
+			find_range_ui(&indexMin, &indexMax, index->count, (GLuint*)(index->mappedBuffer));
 			break;
 
 		default:
@@ -2208,7 +2207,7 @@ void gpuSingleClientRangeElements_V3F(
 	GPUarrays arrays = GPU_ARRAYS_V3F;
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_V3();
 	gpuDrawClientRangeElements(mode, &arrays, indexMin, indexMax, count, indexes);
@@ -2229,10 +2228,10 @@ void gpuSingleClientRangeElements_N3F_V3F(
 	GPUarrays arrays = GPU_ARRAYS_N3F_V3F;
 
 	arrays.normalPointer = normalPointer;
-	arrays.normalStride  = normalStride != 0 ? normalStride : 3*sizeof(GLfloat);
+	arrays.normalStride  = normalStride != 0 ? normalStride : 3 * sizeof(GLfloat);
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_N3_V3();
 	gpuDrawClientRangeElements(mode, &arrays, indexMin, indexMax, count, indexes);
@@ -2253,10 +2252,10 @@ void gpuSingleClientRangeElements_C4UB_V3F(
 	GPUarrays arrays = GPU_ARRAYS_C4UB_V3F;
 
 	arrays.normalPointer = colorPointer;
-	arrays.normalStride  = colorStride != 0 ? colorStride : 4*sizeof(GLubyte);
+	arrays.normalStride  = colorStride != 0 ? colorStride : 4 * sizeof(GLubyte);
 
 	arrays.vertexPointer = vertexPointer;
-	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3*sizeof(GLfloat);
+	arrays.vertexStride  = vertexStride != 0 ? vertexStride : 3 * sizeof(GLfloat);
 
 	gpuImmediateFormat_C4_V3();
 	gpuDrawClientRangeElements(mode, &arrays, indexMin, indexMax, count, indexes);
@@ -2265,7 +2264,7 @@ void gpuSingleClientRangeElements_C4UB_V3F(
 
 
 
-GPUindex* gpuNewIndex(void)
+GPUindex *gpuNewIndex(void)
 {
 	return (GPUindex*)MEM_callocN(sizeof(GPUindex), "GPUindex");
 }
@@ -2275,7 +2274,7 @@ GPUindex* gpuNewIndex(void)
 void gpuDeleteIndex(GPUindex *index)
 {
 	if (index) {
-		GPUImmediate* immediate = index->immediate;
+		GPUImmediate *immediate = index->immediate;
 
 		gpu_index_shutdown_buffer_gl(index);
 		immediate->index = NULL;
@@ -2286,7 +2285,7 @@ void gpuDeleteIndex(GPUindex *index)
 
 
 
-void gpuImmediateIndex(GPUindex * index)
+void gpuImmediateIndex(GPUindex *index)
 {
 	//BLI_assert(GPU_IMMEDIATE->index == NULL);
 
@@ -2298,7 +2297,7 @@ void gpuImmediateIndex(GPUindex * index)
 
 
 
-GPUindex* gpuGetImmediateIndex()
+GPUindex *gpuGetImmediateIndex()
 {
 	return GPU_IMMEDIATE->index;
 }
@@ -2318,7 +2317,7 @@ void gpuImmediateMaxIndexCount(GLsizei maxIndexCount, GLenum type)
 
 void gpuIndexBegin(GLenum type)
 {
-	GPUindex* index;
+	GPUindex *index;
 
 	BLI_assert(ELEM(type, GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT, GL_UNSIGNED_INT));
 
@@ -2340,7 +2339,7 @@ void gpuIndexRelative##suffix(GLint offset, GLsizei count, const ctype *indexes)
     int i; \
     int start; \
     int indexStart; \
-    GPUindex* index; \
+    GPUindex *index; \
     BLI_assert(GPU_IMMEDIATE);  \
     BLI_assert(GPU_IMMEDIATE->index); \
     BLI_assert(GPU_IMMEDIATE->index->type == glsymbol); \
@@ -2359,16 +2358,16 @@ void gpuIndexRelative##suffix(GLint offset, GLsizei count, const ctype *indexes)
     index->offset = count*sizeof(ctype); \
 }
 
-INDEX_RELATIVE(ubv, GLubyte,  GL_UNSIGNED_BYTE )
+INDEX_RELATIVE(ubv, GLubyte,  GL_UNSIGNED_BYTE)
 INDEX_RELATIVE(usv, GLushort, GL_UNSIGNED_SHORT)
-INDEX_RELATIVE(uiv, GLuint,   GL_UNSIGNED_INT  )
+INDEX_RELATIVE(uiv, GLuint,   GL_UNSIGNED_INT)
 
 
 
 #define INDEX(suffix, ctype, glsymbol)                                                                     \
 void gpuIndex##suffix(ctype nextIndex)                                                                     \
 {                                                                                                          \
-    GPUindex* index;                                                                                       \
+    GPUindex *index;                                                                                       \
                                                                                                            \
     BLI_assert(GPU_IMMEDIATE);                                                                             \
     BLI_assert(GPU_IMMEDIATE->index);                                                                      \
@@ -2385,9 +2384,9 @@ void gpuIndex##suffix(ctype nextIndex)                                          
     index->offset += sizeof(ctype);                                                                        \
 }
 
-INDEX(ub, GLubyte,  GL_UNSIGNED_BYTE )
+INDEX(ub, GLubyte,  GL_UNSIGNED_BYTE)
 INDEX(us, GLushort, GL_UNSIGNED_SHORT)
-INDEX(ui, GLuint,   GL_UNSIGNED_INT  )
+INDEX(ui, GLuint,   GL_UNSIGNED_INT)
 
 
 

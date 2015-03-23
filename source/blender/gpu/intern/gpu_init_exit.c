@@ -43,8 +43,8 @@
  */
 
 static bool initialized = false;
-static GPUImmediate* gpu_immediate;
-static GPUindex*     gpu_index;
+static GPUImmediate *gpu_immediate;
+static GPUindex *gpu_index;
 
 
 void GPU_init(void)

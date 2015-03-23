@@ -40,9 +40,9 @@
 #include "gpu_private.h"
 
 
-static GPUaspectimpl** GPU_ASPECT_FUNCS = NULL;
+static GPUaspectimpl **GPU_ASPECT_FUNCS = NULL;
 
-static size_t aspect_max  = 0;
+static size_t aspect_max = 0;
 static size_t aspect_free = 0;
 static size_t aspect_fill = 0;
 
@@ -63,7 +63,7 @@ void gpu_aspect_init(void)
 
 	GPU_ASPECT_FUNCS = (GPUaspectimpl**)MEM_callocN(count * sizeof(GPUaspectimpl*), "GPU aspect function array");
 
-	aspect_max  = count;
+	aspect_max = count;
 	aspect_free = count;
 	aspect_fill = 0;
 }
@@ -75,9 +75,9 @@ void gpu_aspect_exit(void)
 	MEM_freeN(GPU_ASPECT_FUNCS);
 	GPU_ASPECT_FUNCS = NULL;
 
-	aspect_max   = 0;
-	aspect_fill  = 0;
-	aspect_free  = 0;
+	aspect_max = 0;
+	aspect_fill = 0;
+	aspect_free = 0;
 
 	current_aspect = -1;
 }
@@ -86,10 +86,12 @@ void gpu_aspect_exit(void)
 
 bool GPU_commit_aspect(void)
 {
-	GPUaspectimpl* aspectImpl;
+	GPUaspectimpl *aspectImpl;
 
 	BLI_assert(current_aspect != -1);
-//	BLI_assert(in_select_mode == gpu_is_select_mode()); /* not allowed to change select/render mode while an aspect is active */
+#if 0
+	BLI_assert(in_select_mode == gpu_is_select_mode()); /* not allowed to change select/render mode while an aspect is active */
+#endif
 
 	aspectImpl = GPU_ASPECT_FUNCS[current_aspect];
 
@@ -105,7 +107,7 @@ bool GPU_commit_aspect(void)
 
 
 
-void GPU_gen_aspects(size_t count, uint32_t* aspects)
+void GPU_gen_aspects(size_t count, uint32_t *aspects)
 {
 	uint32_t src, dst;
 
@@ -114,9 +116,9 @@ void GPU_gen_aspects(size_t count, uint32_t* aspects)
 	}
 
 	if (count > aspect_free) {
-		aspect_max       = aspect_max + count - aspect_free;
+		aspect_max = aspect_max + count - aspect_free;
 		GPU_ASPECT_FUNCS = (GPUaspectimpl**)MEM_reallocN(GPU_ASPECT_FUNCS, aspect_max * sizeof(GPUaspectimpl*));
-		aspect_free      = count;
+		aspect_free = count;
 	}
 
 	src = aspect_fill;
@@ -137,7 +139,7 @@ void GPU_gen_aspects(size_t count, uint32_t* aspects)
 
 
 
-void GPU_delete_aspects(size_t count, const uint32_t* aspects)
+void GPU_delete_aspects(size_t count, const uint32_t *aspects)
 {
 	uint32_t i;
 
@@ -152,7 +154,7 @@ void GPU_delete_aspects(size_t count, const uint32_t* aspects)
 
 
 
-void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl* aspectImpl)
+void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl *aspectImpl)
 {
 	if (aspectImpl != NULL)
 		GPU_ASPECT_FUNCS[aspect] = aspectImpl;
@@ -162,16 +164,16 @@ void GPU_aspect_impl(uint32_t aspect, GPUaspectimpl* aspectImpl)
 
 
 
-bool GPU_aspect_begin(uint32_t aspect, void* param)
+bool GPU_aspect_begin(uint32_t aspect, void *param)
 {
-	GPUaspectimpl* aspectImpl;
+	GPUaspectimpl *aspectImpl;
 
 	BLI_assert(!gpu_aspect_active());
 
 	current_aspect = aspect;
 
 	/* fix this! XXX psy-fi */
-	in_select_mode = false; //gpu_is_select_mode();
+	in_select_mode = false; /* gpu_is_select_mode(); */
 
 	aspectImpl = GPU_ASPECT_FUNCS[aspect];
 
@@ -191,11 +193,13 @@ bool GPU_aspect_begin(uint32_t aspect, void* param)
 
 bool GPU_aspect_end(void)
 {
-	GPUaspectimpl* aspectImpl;
-	void*          param;
+	GPUaspectimpl *aspectImpl;
+	void *param;
 
 	BLI_assert(gpu_aspect_active());
-//	BLI_assert(in_select_mode == gpu_is_select_mode()); /* not allowed to change select/render mode while an aspect is active */
+#if 0
+	BLI_assert(in_select_mode == gpu_is_select_mode()); /* not allowed to change select/render mode while an aspect is active */
+#endif
 
 	aspectImpl = GPU_ASPECT_FUNCS[current_aspect];
 
@@ -218,7 +222,7 @@ bool GPU_aspect_end(void)
 
 void GPU_aspect_enable(uint32_t aspect, uint32_t options)
 {
-	GPUaspectimpl* aspectImpl;
+	GPUaspectimpl *aspectImpl;
 
 	BLI_assert(aspect < aspect_max);
 
@@ -232,7 +236,7 @@ void GPU_aspect_enable(uint32_t aspect, uint32_t options)
 
 void GPU_aspect_disable(uint32_t aspect, uint32_t options)
 {
-	GPUaspectimpl* aspectImpl;
+	GPUaspectimpl *aspectImpl;
 
 	BLI_assert(aspect < aspect_max);
 
