@@ -456,8 +456,13 @@ class CyclesCamera_PT_dof(CyclesButtonsPanel, Panel):
         sub = col.row()
         sub.active = cam.dof_object is None
         sub.prop(cam, "dof_distance", text="Distance")
-        col.prop(dof_options, "fstop")
-
+        sub = col.column(align=True)
+        sub.label("Viewport:")
+        sub.prop(dof_options, "use_high_quality")
+        sub.prop(dof_options, "fstop")
+        if dof_options.use_high_quality:
+            sub.prop(dof_options, "blades")
+ 
         col = split.column()
 
         col.label("Aperture:")

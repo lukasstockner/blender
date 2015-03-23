@@ -56,14 +56,18 @@ typedef struct GPUShader GPUShader;
 
 void GPU_extensions_disable(void);
 
-int GPU_glsl_support(void);
-int GPU_non_power_of_two_support(void);
-int GPU_display_list_support(void);
-int GPU_color_depth(void);
-void GPU_code_generate_glsl_lib(void);
-int GPU_bicubic_bump_support(void);
-int GPU_max_texture_size (void);
+bool GPU_glsl_support(void);
+bool GPU_non_power_of_two_support(void);
+bool GPU_vertex_buffer_support(void);
+bool GPU_display_list_support(void);
+bool GPU_bicubic_bump_support(void);
+bool GPU_geometry_shader_support(void);
+bool GPU_instanced_drawing_support(void);
 
+int GPU_max_texture_size(void);
+int GPU_color_depth(void);
+
+void GPU_code_generate_glsl_lib(void);
 
 /* GPU Types */
 
@@ -90,7 +94,7 @@ typedef enum GPUDriverType {
 	GPU_DRIVER_ANY =		(0xff0000)
 } GPUDriverType;
 
-int GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver);
+bool GPU_type_matches(GPUDeviceType device, GPUOSType os, GPUDriverType driver);
 
 /* GPU Texture
  * - always returns unsigned char RGBA textures
@@ -112,13 +116,13 @@ typedef enum GPUHDRType {
 	GPU_HDR_FULL_FLOAT = (1 << 1),
 } GPUHDRType;
 
-GPUTexture *GPU_texture_create_1D(int w, float *pixels, char err_out[256]);
-GPUTexture *GPU_texture_create_2D(int w, int h, float *pixels, GPUHDRType hdr, char err_out[256]);
-GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, float *fpixels);
+GPUTexture *GPU_texture_create_1D(int w, const float *pixels, char err_out[256]);
+GPUTexture *GPU_texture_create_2D(int w, int h, const float *pixels, GPUHDRType hdr, char err_out[256]);
+GPUTexture *GPU_texture_create_3D(int w, int h, int depth, int channels, const float *fpixels);
 GPUTexture *GPU_texture_create_depth(int w, int h, char err_out[256]);
 GPUTexture *GPU_texture_create_vsm_shadow_map(int size, char err_out[256]);
-GPUTexture *GPU_texture_create_2D_procedural(int w, int h, float *pixels, char err_out[256]);
-GPUTexture *GPU_texture_create_1D_procedural(int w, float *pixels, char err_out[256]);
+GPUTexture *GPU_texture_create_2D_procedural(int w, int h, const float *pixels, bool repeat, char err_out[256]);
+GPUTexture *GPU_texture_create_1D_procedural(int w, const float *pixels, char err_out[256]);
 GPUTexture *GPU_texture_from_blender(struct Image *ima,
 	struct ImageUser *iuser, bool is_data, double time, int mipmap);
 GPUTexture *GPU_texture_from_preview(struct PreviewImage *prv, int mipmap);
@@ -133,14 +137,14 @@ void GPU_texture_ref(GPUTexture *tex);
 void GPU_texture_bind(GPUTexture *tex, int number);
 void GPU_texture_unbind(GPUTexture *tex);
 
-void GPU_depth_texture_mode(GPUTexture *tex, bool compare, bool use_filter);
+void GPU_texture_filter_mode(GPUTexture *tex, bool compare, bool use_filter);
 
 GPUFrameBuffer *GPU_texture_framebuffer(GPUTexture *tex);
 
-int GPU_texture_target(GPUTexture *tex);
-int GPU_texture_opengl_width(GPUTexture *tex);
-int GPU_texture_opengl_height(GPUTexture *tex);
-int GPU_texture_opengl_bindcode(GPUTexture *tex);
+int GPU_texture_target(const GPUTexture *tex);
+int GPU_texture_opengl_width(const GPUTexture *tex);
+int GPU_texture_opengl_height(const GPUTexture *tex);
+int GPU_texture_opengl_bindcode(const GPUTexture *tex);
 
 /* GPU Framebuffer
  * - this is a wrapper for an OpenGL framebuffer object (FBO). in practice
@@ -173,14 +177,14 @@ void GPU_offscreen_free(GPUOffScreen *ofs);
 void GPU_offscreen_bind(GPUOffScreen *ofs, bool save);
 void GPU_offscreen_unbind(GPUOffScreen *ofs, bool restore);
 void GPU_offscreen_read_pixels(GPUOffScreen *ofs, int type, void *pixels);
-int GPU_offscreen_width(GPUOffScreen *ofs);
-int GPU_offscreen_height(GPUOffScreen *ofs);
+int GPU_offscreen_width(const GPUOffScreen *ofs);
+int GPU_offscreen_height(const GPUOffScreen *ofs);
 
 /* GPU Shader
  * - only for fragment shaders now
  * - must call texture bind before setting a texture as uniform! */
 
-GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *libcode, const char *defines);
+GPUShader *GPU_shader_create(const char *vertexcode, const char *fragcode, const char *geocode, const char *libcode, const char *defines, int input, int output, int number);
 void GPU_shader_free(GPUShader *shader);
 
 void GPU_shader_bind(GPUShader *shader);
@@ -189,8 +193,12 @@ void GPU_shader_unbind(void);
 int GPU_shader_get_uniform(GPUShader *shader, const char *name);
 void GPU_shader_uniform_vector(GPUShader *shader, int location, int length,
 	int arraysize, const float *value);
+void GPU_shader_uniform_vector_int(GPUShader *shader, int location, int length,
+	int arraysize, const int *value);
+
 void GPU_shader_uniform_texture(GPUShader *shader, int location, GPUTexture *tex);
 void GPU_shader_uniform_int(GPUShader *shader, int location, int value);
+void GPU_shader_geometry_stage_primitive_io(GPUShader *shader, int input, int output, int number);
 
 int GPU_shader_get_attribute(GPUShader *shader, const char *name);
 

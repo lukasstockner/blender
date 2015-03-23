@@ -2493,6 +2493,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
 	wmWindow *win = CTX_wm_window(C);
 	int len;
+	const bool is_num_but = ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER);
 
 	if (data->str) {
 		MEM_freeN(data->str);
@@ -2520,7 +2521,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 		BLI_str_rstrip_float_zero(data->str, '\0');
 	}
 
-	if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER)) {
+	if (is_num_but) {
 		ui_but_convert_to_unit_alt_name(but, data->str, data->maxlen);
 	}
 
@@ -2551,7 +2552,9 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 	WM_cursor_modal_set(win, BC_TEXTEDITCURSOR);
 
 #ifdef WITH_INPUT_IME
-	ui_textedit_ime_begin(win, but);
+	if (is_num_but == false) {
+		ui_textedit_ime_begin(win, but);
+	}
 #endif
 }
 
@@ -4491,6 +4494,12 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
 			BKE_palette_color_remove(palette, color);
 
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
+
+			/* this is risky. it works OK for now,
+			 * but if it gives trouble we should delay execution */
+			but->rnapoin = PointerRNA_NULL;
+			but->rnaprop = NULL;
+
 			return WM_UI_HANDLER_BREAK;
 		}
 	}
@@ -4696,8 +4705,8 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 
 	switch ((int)but->a1) {
 		case UI_GRAD_SV:
-			hsv[2] = x;
-			hsv[1] = y;
+			hsv[1] = x;
+			hsv[2] = y;
 			break;
 		case UI_GRAD_HV:
 			hsv[0] = x;
@@ -4774,8 +4783,8 @@ static void ui_ndofedit_but_HSVCUBE(uiBut *but, uiHandleButtonData *data,
 
 	switch ((int)but->a1) {
 		case UI_GRAD_SV:
-			hsv[2] += ndof->rvec[2] * sensitivity;
-			hsv[1] += ndof->rvec[0] * sensitivity;
+			hsv[1] += ndof->rvec[2] * sensitivity;
+			hsv[2] += ndof->rvec[0] * sensitivity;
 			break;
 		case UI_GRAD_HV:
 			hsv[0] += ndof->rvec[2] * sensitivity;

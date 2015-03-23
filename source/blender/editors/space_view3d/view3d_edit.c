@@ -83,7 +83,7 @@
 
 #include "view3d_intern.h"  /* own include */
 
-bool ED_view3d_offset_lock_check(struct View3D *v3d, struct RegionView3D *rv3d)
+bool ED_view3d_offset_lock_check(const  View3D *v3d, const  RegionView3D *rv3d)
 {
 	return (rv3d->persp != RV3D_CAMOB) && (v3d->ob_centre_cursor || v3d->ob_centre);
 }
@@ -103,7 +103,7 @@ static bool view3d_operator_offset_lock_check(bContext *C, wmOperator *op)
 
 /* ********************** view3d_edit: view manipulations ********************* */
 
-bool ED_view3d_camera_lock_check(View3D *v3d, RegionView3D *rv3d)
+bool ED_view3d_camera_lock_check(const View3D *v3d, const RegionView3D *rv3d)
 {
 	return ((v3d->camera) &&
 	        (v3d->camera->id.lib == NULL) &&
@@ -189,6 +189,7 @@ bool ED_view3d_camera_autokey(
         struct bContext *C, const bool do_rotate, const bool do_translate)
 {
 	if (autokeyframe_cfra_can_key(scene, id_key)) {
+		const float cfra = (float)CFRA;
 		ListBase dsources = {NULL, NULL};
 
 		/* add data-source override for the camera object */
@@ -200,12 +201,12 @@ bool ED_view3d_camera_autokey(
 		 *    TODO: need to check in future that frame changed before doing this
 		 */
 		if (do_rotate) {
-			struct KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_ROTATION_ID);
-			ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
+			struct KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_ROTATION_ID);
+			ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 		}
 		if (do_translate) {
-			struct KeyingSet *ks = ANIM_builtin_keyingset_get_named(NULL, ANIM_KS_LOCATION_ID);
-			ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, (float)CFRA);
+			struct KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
+			ANIM_apply_keyingset(C, &dsources, NULL, ks, MODIFYKEY_MODE_INSERT, cfra);
 		}
 
 		/* free temp data */
@@ -1926,7 +1927,7 @@ static void viewmove_apply(ViewOpsData *vod, int x, int y)
 		vod->rv3d->ofs_lock[1] -= ((vod->oldy - y) * 2.0f) / (float)vod->ar->winy;
 	}
 	else if ((vod->rv3d->persp == RV3D_CAMOB) && !ED_view3d_camera_lock_check(vod->v3d, vod->rv3d)) {
-		const float zoomfac = BKE_screen_view3d_zoom_to_fac((float)vod->rv3d->camzoom) * 2.0f;
+		const float zoomfac = BKE_screen_view3d_zoom_to_fac(vod->rv3d->camzoom) * 2.0f;
 		vod->rv3d->camdx += (vod->oldx - x) / (vod->ar->winx * zoomfac);
 		vod->rv3d->camdy += (vod->oldy - y) / (vod->ar->winy * zoomfac);
 		CLAMP(vod->rv3d->camdx, -1.0f, 1.0f);
@@ -2747,29 +2748,15 @@ static void view3d_from_minmax(bContext *C, View3D *v3d, ARegion *ar,
 	size = max_fff(afm[0], afm[1], afm[2]);
 
 	if (ok_dist) {
-		/* fix up zoom distance if needed */
+		char persp;
 
 		if (rv3d->is_persp) {
-			float lens, sensor_size;
-			/* offset the view based on the lens */
 			if (rv3d->persp == RV3D_CAMOB && ED_view3d_camera_lock_check(v3d, rv3d)) {
-				CameraParams params;
-				BKE_camera_params_init(&params);
-				params.clipsta = v3d->near;
-				params.clipend = v3d->far;
-				BKE_camera_params_from_object(&params, v3d->camera);
-
-				lens = params.lens;
-				sensor_size = BKE_camera_sensor_size(params.sensor_fit, params.sensor_x, params.sensor_y);
+				persp = RV3D_CAMOB;
 			}
 			else {
-				lens = v3d->lens;
-				sensor_size = DEFAULT_SENSOR_WIDTH;
+				persp = RV3D_PERSP;
 			}
-			size = ED_view3d_radius_to_persp_dist(focallength_to_fov(lens, sensor_size), size / 2.0f) * VIEW3D_MARGIN;
-
-			/* do not zoom closer than the near clipping plane */
-			size = max_ff(size, v3d->near * 1.5f);
 		}
 		else { /* ortho */
 			if (size < 0.0001f) {
@@ -2778,22 +2765,21 @@ static void view3d_from_minmax(bContext *C, View3D *v3d, ARegion *ar,
 			}
 			else {
 				/* adjust zoom so it looks nicer */
-				size = ED_view3d_radius_to_ortho_dist(v3d->lens, size / 2.0f) * VIEW3D_MARGIN;
+				persp = RV3D_ORTHO;
+			}
+		}
+
+		if (ok_dist) {
+			new_dist = ED_view3d_radius_to_dist(v3d, ar, persp, true, (size / 2) * VIEW3D_MARGIN);
+			if (rv3d->is_persp) {
+				/* don't zoom closer than the near clipping plane */
+				new_dist = max_ff(new_dist, v3d->near * 1.5f);
 			}
 		}
 	}
 
 	mid_v3_v3v3(new_ofs, min, max);
 	negate_v3(new_ofs);
-
-	new_dist = size;
-
-	/* correction for window aspect ratio */
-	if (ar->winy > 2 && ar->winx > 2) {
-		size = (float)ar->winx / (float)ar->winy;
-		if (size < 1.0f) size = 1.0f / size;
-		new_dist *= size;
-	}
 
 	if (rv3d->persp == RV3D_CAMOB && !ED_view3d_camera_lock_check(v3d, rv3d)) {
 		rv3d->persp = RV3D_PERSP;
@@ -3702,22 +3688,6 @@ static void axis_set_view(bContext *C, View3D *v3d, ARegion *ar,
 	}
 
 	if (align_active == false) {
-		/* normal operation */
-		if (rv3d->viewlock & RV3D_LOCKED) {
-			/* only pass on if */
-
-			/* nice confusing if-block */
-			if (!((rv3d->view == RV3D_VIEW_FRONT  && view == RV3D_VIEW_BACK)  ||
-			      (rv3d->view == RV3D_VIEW_BACK   && view == RV3D_VIEW_FRONT) ||
-			      (rv3d->view == RV3D_VIEW_RIGHT  && view == RV3D_VIEW_LEFT)  ||
-			      (rv3d->view == RV3D_VIEW_LEFT   && view == RV3D_VIEW_RIGHT) ||
-			      (rv3d->view == RV3D_VIEW_BOTTOM && view == RV3D_VIEW_TOP)   ||
-			      (rv3d->view == RV3D_VIEW_TOP    && view == RV3D_VIEW_BOTTOM)))
-			{
-				return;
-			}
-		}
-
 		rv3d->view = view;
 	}
 
@@ -3763,10 +3733,6 @@ static int viewnumpad_exec(bContext *C, wmOperator *op)
 
 	viewnum = RNA_enum_get(op->ptr, "type");
 	align_active = RNA_boolean_get(op->ptr, "align_active");
-
-	/* set this to zero, gets handled in axis_set_view */
-	if (rv3d->viewlock & RV3D_LOCKED)
-		align_active = false;
 
 	/* Use this to test if we started out with a camera */
 
@@ -3893,23 +3859,37 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 	ARegion *ar;
 	RegionView3D *rv3d;
 	int orbitdir;
+	char view_opposite;
+	PropertyRNA *prop_angle = RNA_struct_find_property(op->ptr, "angle");
+	float angle = RNA_property_is_set(op->ptr, prop_angle) ?
+	              RNA_property_float_get(op->ptr, prop_angle) : DEG2RADF((float)U.pad_rot_angle);
 
 	/* no NULL check is needed, poll checks */
-	ED_view3d_context_user_region(C, &v3d, &ar);
+	v3d = CTX_wm_view3d(C);
+	ar = CTX_wm_region(C);
 	rv3d = ar->regiondata;
 
+	/* support for switching to the opposite view (even when in locked views) */
+	view_opposite = (fabsf(angle) == (float)M_PI) ? ED_view3d_axis_view_opposite(rv3d->view) : RV3D_VIEW_USER;
 	orbitdir = RNA_enum_get(op->ptr, "type");
 
-	if ((rv3d->viewlock & RV3D_LOCKED) == 0) {
+	if ((rv3d->viewlock & RV3D_LOCKED) && (view_opposite == RV3D_VIEW_USER)) {
+		/* no NULL check is needed, poll checks */
+		ED_view3d_context_user_region(C, &v3d, &ar);
+		rv3d = ar->regiondata;
+	}
+
+	if ((rv3d->viewlock & RV3D_LOCKED) == 0 || (view_opposite != RV3D_VIEW_USER)) {
 		if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
 			int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-			float angle = DEG2RADF((float)U.pad_rot_angle);
 			float quat_mul[4];
 			float quat_new[4];
 			float ofs_new[3];
 			float *ofs_new_pt = NULL;
 
-			view3d_ensure_persp(v3d, ar);
+			if (view_opposite == RV3D_VIEW_USER) {
+				view3d_ensure_persp(v3d, ar);
+			}
 
 			if (ELEM(orbitdir, V3D_VIEW_STEPLEFT, V3D_VIEW_STEPRIGHT)) {
 				const float zvec[3] = {0.0f, 0.0f, 1.0f};
@@ -3932,7 +3912,15 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 			}
 
 			mul_qt_qtqt(quat_new, rv3d->viewquat, quat_mul);
-			rv3d->view = RV3D_VIEW_USER;
+
+			if (view_opposite != RV3D_VIEW_USER) {
+				rv3d->view = view_opposite;
+				/* avoid float in-precision, just get a new orientation */
+				ED_view3d_quat_from_axis_view(view_opposite, quat_new);
+			}
+			else {
+				rv3d->view = RV3D_VIEW_USER;
+			}
 
 			if (U.uiflag & USER_ORBIT_SELECTION) {
 				float dyn_ofs[3];
@@ -3963,6 +3951,8 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 
 void VIEW3D_OT_view_orbit(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+
 	/* identifiers */
 	ot->name = "View Orbit";
 	ot->description = "Orbit the view";
@@ -3976,7 +3966,11 @@ void VIEW3D_OT_view_orbit(wmOperatorType *ot)
 	ot->flag = 0;
 	
 	/* properties */
+	prop = RNA_def_float(ot->srna, "angle", 0, -FLT_MAX, FLT_MAX, "Roll", "", -FLT_MAX, FLT_MAX);
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
 	ot->prop = RNA_def_enum(ot->srna, "type", prop_view_orbit_items, 0, "Orbit", "Direction of View Orbit");
+
 }
 
 
@@ -4428,20 +4422,6 @@ void VIEW3D_OT_background_image_remove(wmOperatorType *ot)
 
 /* ********************* set clipping operator ****************** */
 
-static void calc_clipping_plane(float clip[6][4], const BoundBox *clipbb, const bool is_flip)
-{
-	int val;
-
-	for (val = 0; val < 4; val++) {
-		normal_tri_v3(clip[val], clipbb->vec[val], clipbb->vec[val == 3 ? 0 : val + 1], clipbb->vec[val + 4]);
-		if (UNLIKELY(is_flip)) {
-			negate_v3(clip[val]);
-		}
-
-		clip[val][3] = -dot_v3v3(clip[val], clipbb->vec[val]);
-	}
-}
-
 static void calc_local_clipping(float clip_local[6][4], BoundBox *clipbb, float mat[4][4])
 {
 	BoundBox clipbb_local;
@@ -4454,7 +4434,7 @@ static void calc_local_clipping(float clip_local[6][4], BoundBox *clipbb, float 
 		mul_v3_m4v3(clipbb_local.vec[i], imat, clipbb->vec[i]);
 	}
 
-	calc_clipping_plane(clip_local, &clipbb_local, is_negative_m4(mat));
+	ED_view3d_clipping_calc_from_boundbox(clip_local, &clipbb_local, is_negative_m4(mat));
 }
 
 void ED_view3d_clipping_local(RegionView3D *rv3d, float mat[4][4])

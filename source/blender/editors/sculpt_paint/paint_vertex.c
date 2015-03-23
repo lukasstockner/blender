@@ -37,6 +37,7 @@
 
 #include "IMB_imbuf.h"
 #include "IMB_imbuf_types.h"
+#include "IMB_colormanagement.h"
 
 #include "DNA_armature_types.h"
 #include "DNA_mesh_types.h"
@@ -768,7 +769,7 @@ BLI_INLINE unsigned int mcol_lighten(unsigned int col1, unsigned int col2, int f
 
 	/* See if are lighter, if so mix, else don't do anything.
 	 * if the paint col is darker then the original, then ignore */
-	if (rgb_to_grayscale_byte(cp1) > rgb_to_grayscale_byte(cp2)) {
+	if (IMB_colormanagement_get_luminance_byte(cp1) > IMB_colormanagement_get_luminance_byte(cp2)) {
 		return col1;
 	}
 
@@ -801,7 +802,7 @@ BLI_INLINE unsigned int mcol_darken(unsigned int col1, unsigned int col2, int fa
 
 	/* See if were darker, if so mix, else don't do anything.
 	 * if the paint col is brighter then the original, then ignore */
-	if (rgb_to_grayscale_byte(cp1) < rgb_to_grayscale_byte(cp2)) {
+	if (IMB_colormanagement_get_luminance_byte(cp1) < IMB_colormanagement_get_luminance_byte(cp2)) {
 		return col1;
 	}
 
@@ -1575,8 +1576,8 @@ static void enforce_locks(MDeformVert *odv, MDeformVert *ndv,
 			change_status[i] = 1; /* can be altered while redistributing */
 		}
 	}
-	/* if there was any change, redistribute it */
-	if (total_changed) {
+	/* if there was any change, and somewhere to redistribute it, do it */
+	if (total_changed && total_valid) {
 		/* auto normalize will allow weights to temporarily go above 1 in redistribution */
 		if (vgroup_validmap && total_changed < 0 && total_valid) {
 			totchange_allowed = total_valid;
@@ -1740,7 +1741,8 @@ static int apply_mp_locks_normalize(Mesh *me, const WeightPaintInfo *wpi,
 	}
 	clamp_weights(dv);
 
-	enforce_locks(&dv_test, dv, wpi->defbase_tot, wpi->defbase_sel, wpi->lock_flags, wpi->vgroup_validmap, wpi->do_auto_normalize, wpi->do_multipaint);
+	enforce_locks(&dv_test, dv, wpi->defbase_tot, wpi->defbase_sel, wpi->lock_flags, wpi->vgroup_validmap,
+	              wpi->do_auto_normalize, wpi->do_multipaint);
 
 	if (wpi->do_auto_normalize) {
 		/* XXX - should we pass the active group? - currently '-1' */

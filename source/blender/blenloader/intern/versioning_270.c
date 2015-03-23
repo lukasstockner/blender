@@ -616,18 +616,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "bSteeringActuator", "float", "acceleration")) {
-			for (ob = main->object.first; ob; ob = ob->id.next) {
-				bActuator *act;
-				for (act = ob->actuators.first; act; act = act->next) {
-					if (act->type == ACT_STEERING) {
-						bSteeringActuator *sact = act->data;
-						sact->acceleration = 1000.f;
-					}
-				}
-			}
-		}
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 273, 9)) {
@@ -644,6 +632,8 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 						for (ar = sl->regionbase.first; ar; ar = ar->next) {
 							if (ar->regiontype == RGN_TYPE_PREVIEW) {
 								ar->v2d.keepzoom |= V2D_LIMITZOOM;
+								ar->v2d.minzoom = 0.001f;
+								ar->v2d.maxzoom = 1000.0f;
 								break;
 							}
 						}
@@ -653,4 +643,34 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
+	if (!MAIN_VERSION_ATLEAST(main, 274, 1)) {
+		/* particle systems need to be forced to redistribute for jitter mode fix */
+		{
+			Object *ob;
+			ParticleSystem *psys;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+					psys->recalc |= PSYS_RECALC_RESET;
+				}
+			}
+		}
+
+		/* hysteresis setted to 10% but not actived */
+		if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				LodLevel *level;
+				for (level = ob->lodlevels.first; level; level = level->next) {
+					level->obhysteresis = 10;
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "int", "scehysteresis")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.scehysteresis = 10;
+			}
+		}
+	}
 }

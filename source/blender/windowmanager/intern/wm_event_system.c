@@ -1678,9 +1678,14 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 				sa = handler->op_area;
 			}
 
-			/* we already had a fullscreen here -> mark new space as a stacked fullscreen */
 			if (sa->full) {
+				/* ensure the first area becomes the file browser, because the second one is the small
+				 * top (info-)area which might be too small (in fullscreens we have max two areas) */
+				if (sa->prev) {
+					sa = sa->prev;
+				}
 				ED_area_newspace(C, sa, SPACE_FILE);     /* 'sa' is modified in-place */
+				/* we already had a fullscreen here -> mark new space as a stacked fullscreen */
 				sa->flag |= AREA_FLAG_STACKED_FULLSCREEN;
 			}
 			else {
@@ -3407,7 +3412,9 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		case GHOST_kEventImeCompositionEnd:
 		{
 			event.val = KM_PRESS;
-			win->ime_data->is_ime_composing = false;
+			if (win->ime_data) {
+				win->ime_data->is_ime_composing = false;
+			}
 			event.type = WM_IME_COMPOSITE_END;
 			wm_event_add(win, &event);
 			break;

@@ -1320,7 +1320,7 @@ static float project_paint_uvpixel_mask(
 
 		ca_mask = w[0] * ca1 + w[1] * ca2 + w[2] * ca3;
 		ca_mask = curvemapping_evaluateF(ps->cavity_curve, 0, ca_mask);
-		CLAMP(ca_mask, 0.0, 1.0);
+		CLAMP(ca_mask, 0.0f, 1.0f);
 		mask *= ca_mask;
 	}
 
@@ -2060,8 +2060,10 @@ static void project_bucket_clip_face(
 	/* detect pathological case where face the three vertices are almost colinear in screen space.
 	 * mostly those will be culled but when flood filling or with smooth shading it's a possibility */
 	if (dist_squared_to_line_v2(v1coSS, v2coSS, v3coSS) < 0.5f ||
-		dist_squared_to_line_v2(v2coSS, v3coSS, v1coSS) < 0.5f)
+	    dist_squared_to_line_v2(v2coSS, v3coSS, v1coSS) < 0.5f)
+	{
 		colinear = true;
+	}
 	
 	/* get the UV space bounding box */
 	inside_bucket_flag |= BLI_rctf_isect_pt_v(bucket_bounds, v1coSS);
@@ -3271,7 +3273,7 @@ static void proj_paint_state_cavity_init(ProjPaintState *ps)
 				mul_v3_fl(edges[a], 1.0f / counter[a]);
 				normal_short_to_float_v3(no, mv->no);
 				/* augment the diffe*/
-				cavities[a] = saacos(10.0f * dot_v3v3(no, edges[a])) * M_1_PI;
+				cavities[a] = saacos(10.0f * dot_v3v3(no, edges[a])) * (float)M_1_PI;
 			}
 			else
 				cavities[a] = 0.0;
@@ -4205,7 +4207,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshold */
-			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
+			rgba[0] = rgba[1] = rgba[2] = IMB_colormanagement_get_luminance(rgba);
 			if (fabsf(rgba[0]) > ps->brush->sharp_threshold) {
 				float alpha = projPixel->pixel.f_pt[3];
 				projPixel->pixel.f_pt[3] = rgba[3] = mask;
@@ -4266,7 +4268,7 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 			sub_v3_v3v3(rgba, rgba_pixel, rgba);
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshold */
-			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
+			rgba[0] = rgba[1] = rgba[2] = IMB_colormanagement_get_luminance(rgba);
 			if (fabsf(rgba[0]) > ps->brush->sharp_threshold) {
 				float alpha = rgba_pixel[3];
 				rgba[3] = rgba_pixel[3] = mask;
