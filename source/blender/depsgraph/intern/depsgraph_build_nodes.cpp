@@ -1052,9 +1052,6 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 
 	/* nodetree itself */
 	ID *ntree_id = &ntree->id;
-	if (ntree_id->flag & LIB_DOIT) {
-		return;
-	}
 
 	build_animdata(ntree_id);
 
@@ -1072,7 +1069,10 @@ void DepsgraphNodeBuilder::build_nodetree(DepsNode *owner_node, bNodeTree *ntree
 				build_texture(owner_node, (Tex *)bnode->id);
 			}
 			else if (bnode->type == NODE_GROUP) {
-				build_nodetree(owner_node, (bNodeTree *)bnode->id);
+				bNodeTree *ntree = (bNodeTree *)bnode->id;
+				if ((ntree_id->flag & LIB_DOIT) == 0) {
+					build_nodetree(owner_node, ntree);
+				}
 			}
 		}
 	}

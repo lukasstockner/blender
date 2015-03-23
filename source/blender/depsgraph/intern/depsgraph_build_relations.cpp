@@ -1686,10 +1686,6 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 		return;
 
 	ID *ntree_id = &ntree->id;
-	if (ntree_id->flag & LIB_DOIT) {
-		return;
-	}
-	ntree_id->flag |= LIB_DOIT;
 
 	build_animdata(ntree_id);
 
@@ -1703,7 +1699,11 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 				build_texture(owner, (Tex *)bnode->id);
 			}
 			else if (bnode->type == NODE_GROUP) {
-				build_nodetree(owner, (bNodeTree *)bnode->id);
+				bNodeTree *ntree = (bNodeTree *)bnode->id;
+				if ((ntree_id->flag & LIB_DOIT) == 0) {
+					build_nodetree(owner, ntree);
+					ntree_id->flag |= LIB_DOIT;
+				}
 			}
 		}
 	}
