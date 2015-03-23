@@ -157,6 +157,7 @@ static int vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 //	op->customdata = paint_stroke_new(C, op, NULL, vpaint_stroke_test_start,
 //	                                  vpaint_stroke_update_step, NULL,
 //	                                  vpaint_stroke_done, event->type);
+	(void)vpaint_stroke_test_start;
 	
 	if ((retval = op->type->modal(C, op, event)) == OPERATOR_FINISHED) {
 		paint_stroke_data_free(op);
