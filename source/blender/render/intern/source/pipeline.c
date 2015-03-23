@@ -520,7 +520,6 @@ void RE_FreeRender(Render *re)
 	
 	BLI_remlink(&RenderGlobal.renderlist, re);
 	MEM_freeN(re->eval_ctx);
-
 	MEM_freeN(re);
 }
 
