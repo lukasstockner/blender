@@ -749,9 +749,9 @@ typedef enum eDirEntry_SelectFlag {
 
 /* For RNA only, used to communicate with asset engines outside of 'import' context. */
 typedef struct AssetUUID {
-	char uuid_asset[24];     /* ASSET_UUID_LENGTH */
-	char uuid_variant[24];   /* ASSET_UUID_LENGTH */
-	char uuid_revision[24];  /* ASSET_UUID_LENGTH */
+	char uuid_asset[16];     /* ASSET_UUID_LENGTH */
+	char uuid_variant[16];   /* ASSET_UUID_LENGTH */
+	char uuid_revision[16];  /* ASSET_UUID_LENGTH */
 } AssetUUID;
 
 typedef struct AssetUUIDList {
@@ -767,7 +767,7 @@ typedef struct FileDirEntryRevision {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[24];  /* ASSET_UUID_LENGTH */
+	char uuid[16];  /* ASSET_UUID_LENGTH */
 
 	char *comment;
 
@@ -794,7 +794,7 @@ typedef struct FileDirEntryVariant {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[24];  /* ASSET_UUID_LENGTH */
+	char uuid[16];  /* ASSET_UUID_LENGTH */
 
 	char *name;
 	char *description;
@@ -812,7 +812,7 @@ typedef struct FileDirEntry {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[24];  /* ASSET_UUID_LENGTH */
+	char uuid[16];  /* ASSET_UUID_LENGTH */
 
 	char *name;
 	char *description;
@@ -852,7 +852,7 @@ typedef struct FileDirEntryArr {
 	void *data;
 } FileDirEntryArr;
 
-#define ASSET_UUID_LENGTH     24
+#define ASSET_UUID_LENGTH     16
 
 enum {
 	ASSET_STATUS_LOCAL  = 1 << 0,  /* If active uuid is available localy/immediately. */
