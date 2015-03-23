@@ -70,7 +70,7 @@ typedef struct Render Render;
 
 typedef struct RenderView {
 	struct RenderView *next, *prev;
-	char name[64];		/* amount defined in openexr_multi.h */
+	char name[64];		/* EXR_VIEW_MAXNAME */
 
 	/* if this exists, result of composited layers */
 	float *rectf;
@@ -89,8 +89,8 @@ typedef struct RenderPass {
 	float *rect;
 	int rectx, recty;
 
-	char internal_name[64]; /* pass name without view */
-	char view[64];		/* amount defined in openexr_multi.h */
+	char internal_name[64]; /* EXR_PASS_MAXNAME */
+	char view[64];		/* EXR_VIEW_MAXNAME */
 	int view_id;	/* quick lookup */
 
 	int debug_type;

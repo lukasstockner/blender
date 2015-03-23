@@ -3579,8 +3579,6 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 	G.is_rendering = false;
 }
 
-/* **************************************** */
-
 void RE_PreviewRender(Render *re, Main *bmain, Scene *sce)
 {
 	Object *camera;
