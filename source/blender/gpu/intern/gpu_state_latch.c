@@ -111,10 +111,10 @@ void gpuDepthRange(GLdouble near, GLdouble far)
 #endif
 
 #if !defined(GLEW_NO_ES)
-	if (GPU_PROFILE_ES20) {
-		GPU_CHECK(glDepthRangef((GLfloat)near, (GLfloat)far));
+//	if (GPU_PROFILE_ES20) {
+		GPU_CHECK_ERRORS_AROUND(glDepthRangef((GLfloat)near, (GLfloat)far));
 		return;
-	}
+//	}
 #endif
 }
 

@@ -257,9 +257,8 @@ void GPU_set_gpu_mipmapping(int gpu_mipmap)
 	/* only actually enable if it's supported */
 	GTS.gpu_mipmap = gpu_mipmap && (GLEW_VERSION_3_0            ||
 	                                GLEW_ARB_framebuffer_object ||
-	                                GLEW_EXT_framebuffer_object ||
-	                                GLEW_ES_VERSION_2_0         ||
-	                                GLEW_OES_framebuffer_object );
+	                                GLEW_EXT_framebuffer_object
+	                                );
 
 	if (old_value != GTS.gpu_mipmap) {
 		GPU_free_images();

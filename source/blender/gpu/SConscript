@@ -78,6 +78,20 @@ sources.extend((
     os.path.join(env['DATA_SOURCES'], "gpu_shader_vertex_world.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_vsm_store_frag.glsl.c"),
     os.path.join(env['DATA_SOURCES'], "gpu_shader_vsm_store_vert.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_common_uniforms.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_common_constants.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_common_attribs.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_pixels_uniforms.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_pixels_vert.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_pixels_frag.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_raster_uniforms.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_raster_vert.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_raster_frag.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_font_vert.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_font_frag.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_basic_vert.glsl.c"),
+    os.path.join(env['DATA_SOURCES'], "gpu_shader_basic_frag.glsl.c")
+
     ))
 
 env.BlenderLib('bf_gpu', sources, incs, defines=defs, libtype=['core', 'player'], priority=[160, 110])
