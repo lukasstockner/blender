@@ -200,6 +200,12 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 
 /* ------------------FILELIST------------------------ */
 
+typedef struct FileListIntern {
+	/* XXX This must be reworked to keep 'all entries' storage to a minimum memory space! */
+	ListBase entries;
+	FileDirEntry **filtered;
+} FileListIntern;
+
 typedef struct FileListFilter {
 	bool hide_dot;
 	bool hide_parent;
@@ -225,8 +231,11 @@ typedef struct FileList {
 	bool need_sorting;
 
 	FileListFilter filter_data;
-	FileDirEntry **filtered;
-	int numfiltered;
+//	FileDirEntry **filtered;
+//	int numfiltered;
+	bool need_filtering;
+
+	struct FileListIntern filelist_intern;
 
 	bool need_thumbnails;
 
@@ -445,21 +454,20 @@ void filelist_sort(struct FileList *filelist)
 
 		switch (filelist->sort) {
 			case FILE_SORT_ALPHA:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_name);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_name);
 				break;
 			case FILE_SORT_TIME:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_date);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_date);
 				break;
 			case FILE_SORT_SIZE:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_size);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_size);
 				break;
 			case FILE_SORT_EXTENSION:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_extension);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_extension);
 				break;
 			case FILE_SORT_NONE:  /* Should never reach this point! */
 			default:
 				BLI_assert(0);
-				return;
 		}
 
 		filelist_filter_clear(filelist);
@@ -605,8 +613,9 @@ static bool is_filtered_main(FileDirEntry *file, const char *UNUSED(dir), FileLi
 
 static void filelist_filter_clear(FileList *filelist)
 {
-	MEM_SAFE_FREE(filelist->filtered);
-	filelist->numfiltered = 0;
+	filelist->need_filtering = true;
+//	MEM_SAFE_FREE(filelist->filtered);
+//	filelist->numfiltered = 0;
 }
 
 void filelist_filter(FileList *filelist)
@@ -615,11 +624,11 @@ void filelist_filter(FileList *filelist)
 	const int num_files = filelist->filelist.nbr_entries;
 	FileDirEntry **filtered_tmp, *file;
 
-	if (BLI_listbase_is_empty(&filelist->filelist.entries)) {
+	if (filelist->filelist.nbr_entries == 0) {
 		return;
 	}
 
-	if (filelist->filtered) {
+	if (!filelist->need_filtering) {
 		/* Assume it has already been filtered, nothing else to do! */
 		return;
 	}
@@ -637,16 +646,21 @@ void filelist_filter(FileList *filelist)
 	filtered_tmp = MEM_mallocN(sizeof(*filtered_tmp) * (size_t)num_files, __func__);
 
 	/* Filter remap & count how many files are left after filter in a single loop. */
-	for (file = filelist->filelist.entries.first; file; file = file->next) {
+	for (file = filelist->filelist_intern.entries.first; file; file = file->next) {
 		if (filelist->filterf(file, filelist->filelist.root, &filelist->filter_data)) {
 			filtered_tmp[num_filtered++] = file;
 		}
 	}
 
-	/* Note: maybe we could even accept filelist->fidx to be filelist->numfiles -len allocated? */
-	filelist->filtered = MEM_mallocN(sizeof(*filelist->filtered) * (size_t)num_filtered, __func__);
-	memcpy(filelist->filtered, filtered_tmp, sizeof(*filelist->filtered) * (size_t)num_filtered);
-	filelist->numfiltered = num_filtered;
+	if (filelist->filelist_intern.filtered) {
+		MEM_freeN(filelist->filelist_intern.filtered);
+	}
+	filelist->filelist_intern.filtered = MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered,
+	                                                 __func__);
+	memcpy(filelist->filelist_intern.filtered, filtered_tmp,
+	       sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered);
+	filelist->filelist.nbr_entries_filtered = num_filtered;
+	printf("%d/%d\n", num_filtered, filelist->filelist.nbr_entries);
 
 	MEM_freeN(filtered_tmp);
 }
@@ -986,7 +1000,22 @@ static void filedirentryarr_free(FileDirEntryArr *array)
 		filelist_entry_free(entry, false);
 	}
 	BLI_freelistN(&array->entries);
-    array->nbr_entries = 0;
+	array->nbr_entries = 0;
+	array->nbr_entries_filtered = -1;
+	array->entry_idx_start = -1;
+	array->entry_idx_end = -1;
+}
+
+static void filelist_intern_free(FileListIntern *filelist_intern)
+{
+	FileDirEntry *entry;
+
+	for (entry = filelist_intern->entries.first; entry; entry = entry->next) {
+		filelist_entry_free(entry, false);
+	}
+	BLI_freelistN(&filelist_intern->entries);
+
+	MEM_SAFE_FREE(filelist_intern->filtered);
 }
 
 FileList *filelist_new(short type)
@@ -1019,10 +1048,11 @@ void filelist_clear(struct FileList *filelist)
 		return;
 	}
 
-    MEM_SAFE_FREE(filelist->filtered);
-    filelist->numfiltered = 0;
+	filelist_filter_clear(filelist);
 
 	filedirentryarr_free(&filelist->filelist);
+
+	filelist_intern_free(&filelist->filelist_intern);
 }
 
 void filelist_free(struct FileList *filelist)
@@ -1038,6 +1068,7 @@ void filelist_free(struct FileList *filelist)
 
 	filelist->need_sorting = false;
 	filelist->sort = FILE_SORT_NONE;
+	filelist->need_filtering = false;
 
 	filelist->need_thumbnails = false;
 }
@@ -1056,7 +1087,7 @@ BlendHandle *filelist_lib(struct FileList *filelist)
 
 int filelist_numfiles(struct FileList *filelist)
 {
-	return filelist->numfiltered;
+	return filelist->filelist.nbr_entries_filtered;
 }
 
 static const char *fileentry_uiname(const char *root, const FileDirEntry *entry, char *buff)
@@ -1134,7 +1165,7 @@ bool filelist_pending(struct FileList *filelist)
 
 bool filelist_need_refresh(struct FileList *filelist)
 {
-	return (BLI_listbase_is_empty(&filelist->filelist.entries) || !filelist->filtered ||
+	return (BLI_listbase_is_empty(&filelist->filelist.entries) || filelist->need_filtering ||
 	        filelist->force_reset || filelist->force_refresh || filelist->need_sorting);
 }
 
@@ -1145,21 +1176,21 @@ void filelist_clear_refresh(struct FileList *filelist)
 
 FileDirEntry *filelist_file(struct FileList *filelist, int index)
 {
-	if ((index < 0) || (index >= filelist->numfiltered)) {
+	if ((index < 0) || (index >= filelist->filelist.nbr_entries_filtered)) {
 		return NULL;
 	}
-	return filelist->filtered[index];
+	return filelist->filelist_intern.filtered[index];
 }
 
 int filelist_find(struct FileList *filelist, const char *filename)
 {
 	int fidx = -1;
 	
-	if (!filelist->filtered)
+	if (filelist->filelist.nbr_entries_filtered < 0)
 		return fidx;
 
-	for (fidx = 0; fidx < filelist->numfiltered; fidx++) {
-		if (STREQ(filelist->filtered[fidx]->relpath, filename)) {
+	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
+		if (STREQ(filelist->filelist_intern.filtered[fidx]->relpath, filename)) {
 			return fidx;
 		}
 	}
@@ -1278,7 +1309,7 @@ int ED_file_extension_icon(const char *path)
 
 int filelist_empty(struct FileList *filelist)
 {
-	return BLI_listbase_is_empty(&filelist->filelist.entries);
+	return (filelist->filelist.nbr_entries == 0);
 }
 
 void filelist_select_file(FileList *filelist, int index, FileSelType select, unsigned int flag, FileCheckType check)
@@ -1317,7 +1348,9 @@ void filelist_select_file(FileList *filelist, int index, FileSelType select, uns
 void filelist_select(FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check)
 {
 	/* select all valid files between first and last indicated */
-	if ((sel->first >= 0) && (sel->first < filelist->numfiltered) && (sel->last >= 0) && (sel->last < filelist->numfiltered)) {
+	if ((sel->first >= 0) && (sel->first < filelist->filelist.nbr_entries_filtered) &&
+	    (sel->last >= 0) && (sel->last < filelist->filelist.nbr_entries_filtered))
+	{
 		int current_file;
 		for (current_file = sel->first; current_file <= sel->last; current_file++) {
 			filelist_select_file(filelist, current_file, select, flag, check);
@@ -1702,7 +1735,7 @@ static void filelist_readjob_do(
 	const int max_recursion = filelist->max_recursion;
 	int nbr_done_dirs = 0, nbr_todo_dirs = 1;
 
-	BLI_assert(filelist->filtered == NULL);
+//	BLI_assert(filelist->filtered == NULL);
 	BLI_assert(BLI_listbase_is_empty(&filelist->filelist.entries) && (filelist->filelist.nbr_entries == 0));
 
 	todo_dirs = BLI_stack_new(sizeof(*td_dir), __func__);
@@ -1839,23 +1872,21 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 
 	BLI_listbase_clear(&flrj->tmp_filelist->filelist.entries);
 	flrj->tmp_filelist->filelist.nbr_entries = 0;
-	flrj->tmp_filelist->filtered = NULL;
-	flrj->tmp_filelist->numfiltered = 0;
+//	flrj->tmp_filelist->filtered = NULL;
+//	flrj->tmp_filelist->numfiltered = 0;
 	flrj->tmp_filelist->libfiledata = NULL;
 
 	flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
-
-	printf("END filelist reading (%d files, STOPPED: %d, DO_UPDATE: %d)\n",
-	       flrj->filelist->filelist.nbr_entries, *stop, *do_update);
 }
 
 static void filelist_readjob_update(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
+	FileListIntern *fl_intern = &flrj->filelist->filelist_intern;
 	ListBase new_entries = {NULL};
 	int nbr_entries, new_nbr_entries = 0;
 
-	BLI_movelisttolist(&new_entries, &flrj->filelist->filelist.entries);
+	BLI_movelisttolist(&new_entries, &fl_intern->entries);
 	nbr_entries = flrj->filelist->filelist.nbr_entries;
 
 	BLI_mutex_lock(&flrj->lock);
@@ -1873,6 +1904,7 @@ static void filelist_readjob_update(void *flrjv)
 		filelist_clear(flrj->filelist);
 
 		flrj->filelist->need_sorting = true;
+		flrj->filelist->need_filtering = true;
 		flrj->filelist->force_refresh = true;
 		/* Better be explicit here, since we overwrite filelist->filelist on each run of this update func,
 		 * it would be stupid to start thumbnail job! */
@@ -1880,7 +1912,7 @@ static void filelist_readjob_update(void *flrjv)
 	}
 
 	/* if no new_nbr_entries, this is NOP */
-	BLI_movelisttolist(&flrj->filelist->filelist.entries, &new_entries);
+	BLI_movelisttolist(&fl_intern->entries, &new_entries);
 	flrj->filelist->filelist.nbr_entries = nbr_entries + new_nbr_entries;
 }
 
@@ -1898,9 +1930,11 @@ static void filelist_readjob_free(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
 
+	printf("END filelist reading (%d files)\n", flrj->filelist->filelist.nbr_entries);
+
 	if (flrj->tmp_filelist) {
 		/* tmp_filelist shall never ever be filtered! */
-		BLI_assert(flrj->tmp_filelist->filtered == NULL);
+//		BLI_assert(flrj->tmp_filelist->filtered == NULL);
 		BLI_assert(flrj->tmp_filelist->filelist.nbr_entries == 0);
 		BLI_assert(BLI_listbase_is_empty(&flrj->tmp_filelist->filelist.entries));
 
@@ -1918,6 +1952,8 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 {
 	wmJob *wm_job;
 	FileListReadJob *flrj;
+
+	BLI_assert(filelist->filelist.data == NULL);
 
 	/* prepare job data */
 	flrj = MEM_callocN(sizeof(*flrj), __func__);

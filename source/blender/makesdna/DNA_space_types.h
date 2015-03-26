@@ -841,15 +841,19 @@ typedef struct FileDirEntry {
 } FileDirEntry;
 
 /* Array of direntries. */
+/* This struct is used in various, different contexts.
+ * In Filebrowser UI, it stores the total number of available entries, the number of visible (filtered) entries,
+ *                    and a subset of those in 'entries' ListBase, from idx_start (included) to idx_end (excluded).
+ * In AssetEngine context (i.e. outside of 'browsing' context), entries contain all needed data, there is no filtering,
+ *                        so nbr_entries_filtered, entry_idx_start and entry_idx_end should all be set to -1.
+ */
 typedef struct FileDirEntryArr {
 	ListBase entries;
 	int nbr_entries;
-	int pad;
+	int nbr_entries_filtered;
+	int entry_idx_start, entry_idx_end;
 
 	char root[1024];	 /* FILE_MAX */
-
-	/* Internal only, used by filebrowser listing code. */
-	void *data;
 } FileDirEntryArr;
 
 #define ASSET_UUID_LENGTH     16

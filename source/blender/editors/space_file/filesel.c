@@ -489,6 +489,7 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 		layout->column_widths[i] = 0;
 	}
 
+#if 0
 	for (i = 0; (i < numfiles); ++i) {
 		FileDirEntry *file = filelist_file(files, i);
 		if (file) {
@@ -501,7 +502,6 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 			if (len > layout->column_widths[COLUMN_TIME]) layout->column_widths[COLUMN_TIME] = len;
 			len = file_string_width(file->entry->size_str);
 			if (len > layout->column_widths[COLUMN_SIZE]) layout->column_widths[COLUMN_SIZE] = len;
-#if 0
 			len = file_string_width(file->entry->mode1);
 			if (len > layout->column_widths[COLUMN_MODE1]) layout->column_widths[COLUMN_MODE1] = len;
 			len = file_string_width(file->entry->mode2);
@@ -510,9 +510,18 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 			if (len > layout->column_widths[COLUMN_MODE3]) layout->column_widths[COLUMN_MODE3] = len;
 			len = file_string_width(file->entry->owner);
 			if (len > layout->column_widths[COLUMN_OWNER]) layout->column_widths[COLUMN_OWNER] = len;
-#endif
 		}
 	}
+#else
+	{
+		/* Biggest possible reasonable values...
+		 * TODO: better ways to get those! */
+		layout->column_widths[COLUMN_NAME] = file_string_width("WMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWM");
+		layout->column_widths[COLUMN_DATE] = file_string_width("23-Mar-89");
+		layout->column_widths[COLUMN_TIME] = file_string_width("23:59");
+		layout->column_widths[COLUMN_SIZE] = file_string_width("987.6 MiB");
+	}
+#endif
 }
 
 void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
