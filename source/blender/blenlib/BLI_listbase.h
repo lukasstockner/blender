@@ -60,6 +60,7 @@ void *BLI_rfindptr(const struct ListBase *listbase, const void *ptr, const int o
 void BLI_freelistN(struct ListBase *listbase) ATTR_NONNULL(1);
 void BLI_addtail(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
 void BLI_remlink(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
+void BLI_listbase_remlink_range(struct ListBase *listbase, void *vlink_start, void *vlink_end) ATTR_NONNULL(1);
 bool BLI_remlink_safe(struct ListBase *listbase, void *vlink) ATTR_NONNULL(1);
 void *BLI_pophead(ListBase *listbase) ATTR_NONNULL(1);
 void *BLI_poptail(ListBase *listbase) ATTR_NONNULL(1);
