@@ -390,7 +390,12 @@ bool GPU_fx_compositor_initialize_passes(
 
 	/* create textures for dof effect */
 	if (fx_flag & GPU_FX_FLAG_DOF) {
-		bool dof_high_quality = (fx_settings->dof->high_quality != 0);
+		bool dof_high_quality = (fx_settings->dof->high_quality != 0) &&
+								GPU_geometry_shader_support() && GPU_instanced_drawing_support();
+
+		/* cleanup buffers if quality setting has changed (no need to keep more buffers around than necessary ) */
+		if (dof_high_quality != fx->dof_high_quality)
+			cleanup_fx_dof_buffers(fx);
 
 		if (dof_high_quality) {
 			fx->dof_downsampled_w = w / 2;
@@ -478,7 +483,7 @@ bool GPU_fx_compositor_initialize_passes(
 
 	/* we need to pass data between shader stages, allocate an extra color buffer */
 	if (num_passes > 1) {
-		if(!fx->color_buffer_sec) {
+		if (!fx->color_buffer_sec) {
 			if (!(fx->color_buffer_sec = GPU_texture_create_2D(w, h, NULL, GPU_HDR_NONE, err_out))) {
 				printf(".256%s\n", err_out);
 				cleanup_fx_gl_data(fx, true);
@@ -497,13 +502,13 @@ bool GPU_fx_compositor_initialize_passes(
 	/* bind the buffers */
 
 	/* first depth buffer, because system assumes read/write buffers */
-	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->depth_buffer, 0, err_out))
+	if (!GPU_framebuffer_texture_attach(fx->gbuffer, fx->depth_buffer, 0, err_out))
 		printf("%.256s\n", err_out);
 
-	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->color_buffer, 0, err_out))
+	if (!GPU_framebuffer_texture_attach(fx->gbuffer, fx->color_buffer, 0, err_out))
 		printf("%.256s\n", err_out);
 
-	if(!GPU_framebuffer_check_valid(fx->gbuffer, err_out))
+	if (!GPU_framebuffer_check_valid(fx->gbuffer, err_out))
 		printf("%.256s\n", err_out);
 
 	GPU_texture_bind_as_framebuffer(fx->color_buffer);
@@ -573,7 +578,7 @@ void GPU_fx_compositor_setup_XRay_pass(GPUFX *fx, bool do_xray)
 	GPU_framebuffer_texture_detach(fx->depth_buffer);
 
 	/* first depth buffer, because system assumes read/write buffers */
-	if(!GPU_framebuffer_texture_attach(fx->gbuffer, fx->depth_buffer_xray, 0, err_out))
+	if (!GPU_framebuffer_texture_attach(fx->gbuffer, fx->depth_buffer_xray, 0, err_out))
 		printf("%.256s\n", err_out);
 }
 
@@ -851,6 +856,8 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				/* binding takes care of setting the viewport to the downsampled size */
 				GPU_framebuffer_slots_bind(fx->gbuffer, 0);
 
+				GPU_framebuffer_check_valid(fx->gbuffer, NULL);
+
 				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
 				GPU_texture_filter_mode(src, false, true);
@@ -960,11 +967,11 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 				GPU_texture_bind(fx->dof_near_blur, numslots++);
 				GPU_shader_uniform_texture(dof_shader_pass3, near_uniform, fx->dof_near_blur);
-				GPU_texture_filter_mode(fx->dof_near_blur, false, false);
+				GPU_texture_filter_mode(fx->dof_near_blur, false, true);
 
 				GPU_texture_bind(fx->dof_far_blur, numslots++);
 				GPU_shader_uniform_texture(dof_shader_pass3, far_uniform, fx->dof_far_blur);
-				GPU_texture_filter_mode(fx->dof_far_blur, false, false);
+				GPU_texture_filter_mode(fx->dof_far_blur, false, true);
 
 				GPU_texture_bind(fx->depth_buffer, numslots++);
 				GPU_texture_filter_mode(fx->depth_buffer, false, false);
