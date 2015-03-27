@@ -258,7 +258,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	filelist_filter(sfile->files);
 
 	if (params->renamefile[0] != '\0') {
-		int idx = filelist_find(sfile->files, params->renamefile);
+		int idx = filelist_file_findpath(sfile->files, params->renamefile);
 		if (idx >= 0) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
 			if (file) {

@@ -96,7 +96,8 @@ void                filelist_setdir(struct FileList *filelist, char *r_dir);
 int                 filelist_empty(struct FileList *filelist);
 int                 filelist_numfiles(struct FileList *filelist);
 FileDirEntry *      filelist_file(struct FileList *filelist, int index);
-int                 filelist_find(struct FileList *filelist, const char *file);
+int                 filelist_file_findpath(struct FileList *filelist, const char *file);
+bool                filelist_file_cache_block(struct FileList *filelist, const int index);
 
 bool                filelist_force_reset(struct FileList *filelist);
 bool                filelist_pending(struct FileList *filelist);

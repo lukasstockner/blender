@@ -47,6 +47,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_fileops_types.h"
 #include "BLI_fnmatch.h"
+#include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_stack.h"
@@ -201,10 +202,23 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 /* ------------------FILELIST------------------------ */
 
 typedef struct FileListIntern {
-	/* XXX This must be reworked to keep 'all entries' storage to a minimum memory space! */
+	/* XXX This will be reworked to keep 'all entries' storage to a minimum memory space! */
 	ListBase entries;
 	FileDirEntry **filtered;
 } FileListIntern;
+
+#define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
+typedef struct FileListEntryCache {
+	/* Block cache: all entries between start and end index. used for part of the list on diplay. */
+	FileDirEntry (*block_entries)[FILELIST_ENTRYCACHESIZE];
+	int block_start_index, block_end_index, block_cursor;
+
+	/* Misc cache: random indices, FIFO behavior.
+	 * Note: Not 100% sure we actually need that, time will say. */
+	int misc_cursor;
+	int misc_entries_indices[FILELIST_ENTRYCACHESIZE];
+	GHash *misc_entries;
+} FileListEntryCache;
 
 typedef struct FileListFilter {
 	bool hide_dot;
@@ -236,6 +250,8 @@ typedef struct FileList {
 	bool need_filtering;
 
 	struct FileListIntern filelist_intern;
+
+	struct FileListEntryCache filelist_cache;
 
 	bool need_thumbnails;
 
@@ -940,7 +956,7 @@ static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
 	filelist_checkdir_lib(filelist, r_dir);
 }
 
-static void filelist_entry_free(FileDirEntry *entry, const bool clear)
+static void filelist_entry_free(FileDirEntry *entry)
 {
 	if (entry->name) {
 		MEM_freeN(entry->name);
@@ -987,17 +1003,22 @@ static void filelist_entry_free(FileDirEntry *entry, const bool clear)
 	else if (entry->entry){
 		MEM_freeN(entry->entry);
 	}
-	if (clear) {
-		memset(entry, 0, sizeof(*entry));
-	}
 }
 
-static void filedirentryarr_free(FileDirEntryArr *array)
+#if 0  /* UNUSED */
+static void filelist_entry_clear(FileDirEntry *entry)
+{
+	filelist_entry_free(entry);
+	memset(entry, 0, sizeof(*entry));
+}
+#endif
+
+static void filelist_direntryarr_free(FileDirEntryArr *array)
 {
 	FileDirEntry *entry;
 
 	for (entry = array->entries.first; entry; entry = entry->next) {
-		filelist_entry_free(entry, false);
+		filelist_entry_free(entry);
 	}
 	BLI_freelistN(&array->entries);
 	array->nbr_entries = 0;
@@ -1011,16 +1032,59 @@ static void filelist_intern_free(FileListIntern *filelist_intern)
 	FileDirEntry *entry;
 
 	for (entry = filelist_intern->entries.first; entry; entry = entry->next) {
-		filelist_entry_free(entry, false);
+		filelist_entry_free(entry);
 	}
 	BLI_freelistN(&filelist_intern->entries);
 
 	MEM_SAFE_FREE(filelist_intern->filtered);
 }
 
+static FileDirEntry *filelist_intern_create_entry(FileList *filelist, const int index)
+{
+	/* Stupid code for now, later we will actually generate a new entry (from mempool)... */
+	return filelist->filelist_intern.filtered[index];
+}
+
+static void filelist_intern_release_entry(FileList *UNUSED(filelist), FileDirEntry *UNUSED(old))
+{
+	/* We do nothing here actually, later we'll give back the mem to the mempool... */
+}
+
+static void filelist_cache_init(FileListEntryCache *cache)
+{
+	cache->block_cursor = cache->block_start_index = cache->block_end_index = 0;
+
+	cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
+	cache->misc_cursor = 0;
+}
+
+static void filelist_cache_free(FileListEntryCache *cache)
+{
+	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
+	if (cache->misc_entries) {
+		BLI_ghash_free(cache->misc_entries, NULL, NULL);
+	}
+}
+
+static void filelist_cache_clear(FileListEntryCache *cache)
+{
+	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
+	cache->block_cursor = cache->block_start_index = cache->block_end_index = 0;
+
+	if (cache->misc_entries) {
+		BLI_ghash_clear_ex(cache->misc_entries, NULL, NULL, FILELIST_ENTRYCACHESIZE);
+	}
+	else {
+		cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
+		cache->misc_cursor = 0;
+	}
+}
+
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(*p), __func__);
+
+	filelist_cache_init(&p->filelist_cache);
 
 	switch (type) {
 		case FILE_MAIN:
@@ -1050,7 +1114,9 @@ void filelist_clear(struct FileList *filelist)
 
 	filelist_filter_clear(filelist);
 
-	filedirentryarr_free(&filelist->filelist);
+	filelist_direntryarr_free(&filelist->filelist);
+
+	filelist_cache_clear(&filelist->filelist_cache);
 
 	filelist_intern_free(&filelist->filelist_intern);
 }
@@ -1063,6 +1129,7 @@ void filelist_free(struct FileList *filelist)
 	}
 	
 	filelist_clear(filelist);
+	filelist_cache_free(&filelist->filelist_cache);  /* XXX TODO stupid! */
 
 	memset(&filelist->filter_data, 0, sizeof(filelist->filter_data));
 
@@ -1176,18 +1243,48 @@ void filelist_clear_refresh(struct FileList *filelist)
 
 FileDirEntry *filelist_file(struct FileList *filelist, int index)
 {
+	FileDirEntry *ret = NULL, *old;
+	FileListEntryCache *cache = &filelist->filelist_cache;
+	int old_index;
+
 	if ((index < 0) || (index >= filelist->filelist.nbr_entries_filtered)) {
-		return NULL;
+		return ret;
 	}
-	return filelist->filelist_intern.filtered[index];
+
+	if (index >= cache->block_start_index && index < cache->block_end_index) {
+		const int idx = (index - cache->block_start_index + cache->block_cursor) % FILELIST_ENTRYCACHESIZE;
+		return cache->block_entries[idx];
+	}
+
+	if ((ret = BLI_ghash_lookup(cache->misc_entries, SET_INT_IN_POINTER(index)))) {
+		return ret;
+	}
+
+//	printf("requesting file %d (not yet cached)\n", index);
+
+	/* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
+	ret = filelist_intern_create_entry(filelist, index);
+	old_index = cache->misc_entries_indices[cache->misc_cursor];
+	if ((old = BLI_ghash_popkey(cache->misc_entries, SET_INT_IN_POINTER(old_index), NULL))) {
+		filelist_intern_release_entry(filelist, old);
+	}
+	BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
+	cache->misc_entries_indices[cache->misc_cursor] = index;
+	cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
+
+	return ret;
 }
 
-int filelist_find(struct FileList *filelist, const char *filename)
+int filelist_file_findpath(struct FileList *filelist, const char *filename)
 {
 	int fidx = -1;
 	
-	if (filelist->filelist.nbr_entries_filtered < 0)
+	if (filelist->filelist.nbr_entries_filtered < 0) {
 		return fidx;
+	}
+
+	/* XXX TODO Cache could probably use a ghash on paths too? Not really urgent though.
+     *          In fact, we may get rid of this func in the end (only used to find again renamed entry afaik). */
 
 	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
 		if (STREQ(filelist->filelist_intern.filtered[fidx]->relpath, filename)) {
@@ -1196,6 +1293,108 @@ int filelist_find(struct FileList *filelist, const char *filename)
 	}
 
 	return -1;
+}
+
+/* Load in cache all entries "around" given index (as much as block cache may hold). */
+bool filelist_file_cache_block(struct FileList *filelist, const int index)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+
+	const int nbr_entries = filelist->filelist.nbr_entries_filtered;
+	int start_index = max_ii(0, index - (FILELIST_ENTRYCACHESIZE / 2));
+	int end_index = min_ii(nbr_entries, index + (FILELIST_ENTRYCACHESIZE / 2));
+	const int curr_block_size = cache->block_end_index - cache->block_start_index;
+
+	if ((index < 0) || (index >= nbr_entries)) {
+		return false;
+	}
+
+	/* Maximize cached range! */
+	if ((end_index - start_index) < FILELIST_ENTRYCACHESIZE) {
+		if (start_index == 0) {
+			end_index = min_ii(nbr_entries, start_index + FILELIST_ENTRYCACHESIZE);
+		}
+		else if (end_index == nbr_entries) {
+			start_index = max_ii(0, end_index - FILELIST_ENTRYCACHESIZE);
+		}
+	}
+
+	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
+
+	if ((start_index == cache->block_end_index) && (end_index == cache->block_start_index)) {
+		/* Nothing to do! */
+		return true;
+	}
+
+	if ((start_index >= cache->block_end_index) || (end_index <= cache->block_start_index)) {
+		/* New cached block does not overlap existing one, simple. */
+		memcpy(cache->block_entries, &filelist->filelist_intern.filtered[start_index],
+		       sizeof(*cache->block_entries) * (end_index - start_index));
+		cache->block_start_index = start_index;
+		cache->block_end_index = end_index;
+		cache->block_cursor = 0;
+		return true;
+	}
+
+	if (end_index > cache->block_end_index) {
+		/* Add (request) needed entries after already cached ones. */
+		/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+		int size1 = end_index - cache->block_end_index;
+		int size2 = 0;
+		int idx1, idx2;
+
+		idx1 = (cache->block_cursor + curr_block_size) % FILELIST_ENTRYCACHESIZE;
+		if ((idx1 + size1) > FILELIST_ENTRYCACHESIZE) {
+			size2 = size1;
+			size1 = FILELIST_ENTRYCACHESIZE - idx1;
+			size2 -= size1;
+			idx2 = 0;
+		}
+
+		if (size2) {
+			memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[end_index - size2],
+			       sizeof(*cache->block_entries) * size2);
+		}
+		memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[end_index - size1 - size2],
+		       sizeof(*cache->block_entries) * size1);
+	}
+	cache->block_end_index = end_index;
+
+	if (start_index < cache->block_start_index) {
+		/* Add (request) needed entries before already cached ones. */
+		/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+		int size1 = cache->block_start_index - start_index;
+		int size2 = 0;
+		int idx1, idx2;
+
+		if (size1 > cache->block_cursor) {
+			size2 = size1;
+			size1 -= cache->block_cursor;
+			size2 -= size1;
+			idx2 = 0;
+			idx1 = FILELIST_ENTRYCACHESIZE - size1;
+
+		}
+		else {
+			idx1 = cache->block_cursor - size1;
+		}
+
+		if (size2) {
+			memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[start_index + size1],
+			       sizeof(*cache->block_entries) * size2);
+		}
+		memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[start_index],
+		       sizeof(*cache->block_entries) * size1);
+
+		cache->block_cursor = idx1;
+	}
+	else if (start_index > cache->block_start_index) {
+		/* We do not free anything, just update start index and cursor. */
+		cache->block_cursor = (cache->block_cursor + start_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
+	}
+	cache->block_start_index = start_index;
+
+	return true;
 }
 
 /* would recognize .blend as well */
@@ -1872,6 +2071,9 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 
 	BLI_listbase_clear(&flrj->tmp_filelist->filelist.entries);
 	flrj->tmp_filelist->filelist.nbr_entries = 0;
+	flrj->tmp_filelist->filelist_cache.misc_entries = NULL;
+	flrj->tmp_filelist->filelist_intern.filtered = NULL;
+	BLI_listbase_clear(&flrj->tmp_filelist->filelist_intern.entries);
 //	flrj->tmp_filelist->filtered = NULL;
 //	flrj->tmp_filelist->numfiltered = 0;
 	flrj->tmp_filelist->libfiledata = NULL;
@@ -1952,8 +2154,6 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 {
 	wmJob *wm_job;
 	FileListReadJob *flrj;
-
-	BLI_assert(filelist->filelist.data == NULL);
 
 	/* prepare job data */
 	flrj = MEM_callocN(sizeof(*flrj), __func__);
