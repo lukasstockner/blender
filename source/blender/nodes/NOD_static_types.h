@@ -105,6 +105,7 @@ DefNode( ShaderNode,     SH_NODE_BUMP,               def_sh_bump,            "BU
 DefNode( ShaderNode,     SH_NODE_NORMAL_MAP,         def_sh_normal_map,      "NORMAL_MAP",         NormalMap,        "Normal Map",        ""       )
 DefNode( ShaderNode,     SH_NODE_TANGENT,            def_sh_tangent,         "TANGENT",            Tangent,          "Tangent",           ""       )
 DefNode( ShaderNode,     SH_NODE_SCRIPT,             def_sh_script,          "SCRIPT",             Script,           "Script",            ""       )
+DefNode( ShaderNode,     SH_NODE_SCRIPT_GLSL,        def_sh_script_glsl,     "SCRIPT_GLSL",        ScriptGLSL,       "ScriptGLSL",        ""       )
 DefNode( ShaderNode,     SH_NODE_TEX_IMAGE,          def_sh_tex_image,       "TEX_IMAGE",          TexImage,         "Image Texture",     ""       )
 DefNode( ShaderNode,     SH_NODE_TEX_ENVIRONMENT,    def_sh_tex_environment, "TEX_ENVIRONMENT",    TexEnvironment,   "Environment Texture",""      )
 DefNode( ShaderNode,     SH_NODE_TEX_SKY,            def_sh_tex_sky,         "TEX_SKY",            TexSky,           "Sky Texture",       ""       )

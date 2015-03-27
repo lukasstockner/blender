@@ -267,7 +267,8 @@ shader_node_categories = [
         NodeItem("ShaderNodeBlackbody"),
         ]),
     ShaderNewNodeCategory("SH_NEW_SCRIPT", "Script", items=[
-        NodeItem("ShaderNodeScript"),
+        NodeItem("ShaderNodeScript"), # OSL
+        NodeItem("ShaderNodeScriptGLSL"),
         ]),
     ShaderNewNodeCategory("SH_NEW_GROUP", "Group", items=node_group_items),
     ShaderNewNodeCategory("SH_NEW_LAYOUT", "Layout", items=[

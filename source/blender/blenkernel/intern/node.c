@@ -3574,7 +3574,6 @@ static void registerTextureNodes(void)
 {
 	register_node_type_tex_group();
 
-	
 	register_node_type_tex_math();
 	register_node_type_tex_mix_rgb();
 	register_node_type_tex_valtorgb();
@@ -3592,6 +3591,7 @@ static void registerTextureNodes(void)
 	register_node_type_tex_output();
 	register_node_type_tex_viewer();
 	register_node_type_sh_script();
+	register_node_type_sh_script_glsl();
 	register_node_type_sh_tangent();
 	register_node_type_sh_normal_map();
 	register_node_type_sh_hair_info();

@@ -841,6 +841,18 @@ typedef struct NodeShaderScript {
 	char *bytecode;
 } NodeShaderScript;
 
+typedef struct NodeShaderScriptGLSL {
+	/* XXX merwin: what is needed here? */
+	int mode; /* ok, use same values */
+	int flag; /* ok, use same flag */
+
+	char filepath[1024]; /* 1024 = FILE_MAX */
+
+	/* v-- don't need these though */
+/*	char bytecode_hash[64]; */
+/*	char *bytecode; */
+} NodeShaderScriptGLSL;
+
 typedef struct NodeShaderTangent {
 	int direction_type;
 	int axis;

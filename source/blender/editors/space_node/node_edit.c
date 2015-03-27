@@ -2298,6 +2298,8 @@ void NODE_OT_tree_socket_move(wmOperatorType *ot)
 
 /* ********************** Shader Script Update ******************/
 
+/* TODO: similar for GLSL node --merwin */
+
 static int node_shader_script_update_poll(bContext *C)
 {
 	Scene *scene = CTX_data_scene(C);

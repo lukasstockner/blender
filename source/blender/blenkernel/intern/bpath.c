@@ -544,6 +544,10 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 						NodeShaderScript *nss = (NodeShaderScript *)node->storage;
 						rewrite_path_fixed(nss->filepath, visit_cb, absbase, bpath_user_data);
 					}
+					else if (node->type == SH_NODE_SCRIPT_GLSL) {
+						NodeShaderScriptGLSL *nss = (NodeShaderScriptGLSL *)node->storage;
+						rewrite_path_fixed(nss->filepath, visit_cb, absbase, bpath_user_data);
+					}
 				}
 			}
 			break;

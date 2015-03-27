@@ -90,6 +90,7 @@ void register_node_type_sh_tex_coord(void);
 void register_node_type_sh_particle_info(void);
 void register_node_type_sh_hair_info(void);
 void register_node_type_sh_script(void);
+void register_node_type_sh_script_glsl(void);
 void register_node_type_sh_normal_map(void);
 void register_node_type_sh_tangent(void);
 void register_node_type_sh_vect_transform(void);

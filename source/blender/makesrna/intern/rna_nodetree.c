@@ -2882,6 +2882,50 @@ static void rna_ShaderNodeScript_update(Main *bmain, Scene *scene, PointerRNA *p
 	ED_node_tag_update_nodetree(bmain, ntree);
 }
 
+static void rna_ShaderNodeScriptGLSL_mode_set(PointerRNA *ptr, int value)
+{
+	bNode *node = (bNode *)ptr->data;
+	NodeShaderScriptGLSL *nss = node->storage;
+
+	if (nss->mode != value) {
+		nss->mode = value;
+		nss->filepath[0] = '\0';
+		nss->flag &= ~NODE_SCRIPT_AUTO_UPDATE;
+
+		/* replace text datablock by filepath */
+		if (node->id) {
+			Text *text = (Text *)node->id;
+
+			if (value == NODE_SCRIPT_EXTERNAL && text->name) {
+				BLI_strncpy(nss->filepath, text->name, sizeof(nss->filepath));
+				BLI_path_rel(nss->filepath, G.main->name);
+			}
+
+			id_us_min(node->id);
+			node->id = NULL;
+		}
+	}
+}
+
+static void rna_ShaderNodeScriptGLSL_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	/* TODO: the right thing --merwin */
+#if 0
+	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node = (bNode *)ptr->data;
+	RenderEngineType *engine_type = RE_engines_find(scene->r.engine);
+
+	if (engine_type && engine_type->update_script_node) {
+		/* auto update node */
+		RenderEngine *engine = RE_engine_create(engine_type);
+		engine_type->update_script_node(engine, ntree, node);
+		RE_engine_free(engine);
+	}
+
+	ED_node_tag_update_nodetree(bmain, ntree);
+#endif
+}
+
 static void rna_ShaderNodeSubsurface_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
@@ -3958,6 +4002,40 @@ static void def_sh_script(StructRNA *srna)
 	parm = RNA_def_pointer(func, "sock", "NodeSocket", "Socket", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
 #endif
+}
+
+static void def_sh_script_glsl(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	prop = RNA_def_property(srna, "script_glsl", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "id");
+	RNA_def_property_struct_type(prop, "Text");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+	RNA_def_property_ui_text(prop, "Script", "Internal shader script to define the shader");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNodeScriptGLSL_update");
+
+	RNA_def_struct_sdna_from(srna, "NodeShaderScriptGLSL", "storage");
+
+	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_ui_text(prop, "File Path", "Shader script path");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNodeScriptGLSL_update");
+
+	prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_funcs(prop, NULL, "rna_ShaderNodeScriptGLSL_mode_set", NULL);
+	RNA_def_property_enum_items(prop, node_script_mode_items);
+	RNA_def_property_ui_text(prop, "Script Source", "");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "use_auto_update", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", NODE_SCRIPT_AUTO_UPDATE);
+	RNA_def_property_ui_text(prop, "Auto Update",
+	                         "Automatically update the shader when the .glsl file changes (external scripts only)");
+
+	/* needs to be reset to avoid bad pointer type in API functions below */
+	RNA_def_struct_sdna_from(srna, "bNode", NULL);
+
+	/* API functions */
 }
 
 /* -- Compositor Nodes ------------------------------------------------------ */

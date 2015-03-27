@@ -873,6 +873,7 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 				write_curvemapping(wd, node->storage);
 			else if (ntree->type==NTREE_SHADER && node->type==SH_NODE_SCRIPT) {
 				NodeShaderScript *nss = (NodeShaderScript *)node->storage;
+				/* XXX merwin: empty GLSL shader node can use the 'else' clause below */
 				if (nss->bytecode)
 					writedata(wd, DATA, strlen(nss->bytecode)+1, nss->bytecode);
 				writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
