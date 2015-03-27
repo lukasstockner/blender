@@ -1956,7 +1956,7 @@ static void ntree_render_scenes(Render *re)
 }
 
 /* bad call... need to think over proper method still */
-static void render_composit_stats(void *UNUSED(arg), char *str)
+static void render_composit_stats(void *UNUSED(arg), const char *str)
 {
 	R.i.infostr = str;
 	R.stats_draw(R.sdh, &R.i);
@@ -3025,7 +3025,8 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 			height = re->recty;
 		}
 
-		if (!mh->start_movie(scene, &re->r, width, height, re->reports))
+		/* last argument here depends on users really, but no users using preview have been found so far */
+		if (!mh->start_movie(scene, &re->r, width, height, re->reports, false))
 			G.is_break = true;
 	}
 
