@@ -3515,6 +3515,10 @@ static void view3d_update_view_dependent_uniforms()
 static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, View3D *v3d,
                                                ARegion *ar, const char **grid_unit)
 {
+#if MCE_TRACE
+	printf("> %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
 	if (UI_GetThemeValue(TH_SHOW_BACK_GRAD)) {
 		glMatrixMode(GL_PROJECTION);
 		glPushMatrix();
@@ -3562,19 +3566,41 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	 */
 	unsigned int lay_used = 0;
 
-	/* then draw not selected and the duplis, but skip editmode object */
+	/* XXX merwin
+	 *
+	 * Instead of drawing all objects in list order, draw all meshes together
+	 * using new methods, then other types using new methods, then remaining
+	 * types using existing methods.
+	 *
+	 * Hand-crafted logic here is tricky; will simplify later.
+	 */
+
+	Base* base_edit = NULL; /* object being edited, if any */
+
+	/* draw meshes (and cameras) not being edited (selected or not) */
 	for (Base* base = scene->base.first; base; base = base->next) {
 		lay_used |= base->lay;
 
-		if (v3d->lay & base->lay) {
+		if (base->object == scene->obedit) {
+			base_edit = base;
+			continue;
+		}
 
-			/* dupli drawing */
-			if (base->object->transflag & OB_DUPLI) {
-				draw_dupli_objects(scene, ar, v3d, base);
+		if (v3d->lay & base->lay) {
+			if (base->object->type == OB_MESH || base->object->type == OB_CAMERA) {
+				draw_object_new(scene, ar, v3d, base, 0);
 			}
-			if ((base->flag & SELECT) == 0) {
-				if (base->object != scene->obedit)
-					draw_object(scene, ar, v3d, base, 0);
+		}
+	}
+
+	/* draw non-meshes not being edited nor selected */
+	for (Base* base = scene->base.first; base; base = base->next) {
+		if (base == base_edit)
+			continue;
+
+		if (v3d->lay & base->lay) {
+			if (base->object->type != OB_MESH && base->object->type != OB_CAMERA && (base->flag & SELECT) == 0) {
+				draw_object(scene, ar, v3d, base, 0);
 			}
 		}
 	}
@@ -3582,13 +3608,22 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	/* mask out localview */
 	v3d->lay_used = lay_used & ((1 << 20) - 1);
 
-	/* draw selected and editmode */
+	/* draw selected non-meshes */
 	for (Base *base = scene->base.first; base; base = base->next) {
+		if (base == base_edit)
+			continue;
+
 		if (v3d->lay & base->lay) {
-			if (base->object == scene->obedit || (base->flag & SELECT)) {
+			if (base->object->type != OB_MESH && base->object->type != OB_CAMERA && (base->flag & SELECT)) {
 				draw_object(scene, ar, v3d, base, 0);
 			}
 		}
+	}
+
+	/* draw editmode */
+	/* TODO: verify scene->obedit is always 1) selected and 2) in a visible layer */
+	if (base_edit && (v3d->lay & base_edit->lay)) {
+		draw_object(scene, ar, v3d, base_edit, 0);
 	}
 #else
 	glLineWidth(3.0f);
@@ -3601,12 +3636,20 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	glEnd();
 	glLineWidth(1.0f);
 #endif
+
+#if MCE_TRACE
+	printf("< %s\n\n", __FUNCTION__);
+#endif /* MCE_TRACE */
 }
 
 
 static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3D *v3d,
                                           ARegion *ar, const char **grid_unit)
 {
+#if MCE_TRACE
+	printf("> %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
 	RegionView3D *rv3d = ar->regiondata;
 	unsigned int lay_used = v3d->lay_used;
 	
@@ -3688,6 +3731,9 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		/* TODO: draw something else (but not this) during fly mode */
 		draw_rotation_guide(rv3d);
 
+#if MCE_TRACE
+	printf("< %s\n\n", __FUNCTION__);
+#endif /* MCE_TRACE */
 }
 
 static bool is_cursor_visible(Scene *scene)

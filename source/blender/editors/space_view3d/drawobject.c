@@ -1750,6 +1750,10 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
                        const short dflag, const unsigned char ob_wire_col[4])
 {
+#if MCE_TRACE
+	printf("- %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
 	/* a standing up pyramid with (0,0,0) as top */
 	Camera *cam;
 	Object *ob = base->object;
@@ -1873,6 +1877,162 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 		}
 	}
 }
+
+/* flag similar to draw_object() */
+static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
+                           const short dflag, const unsigned char ob_wire_col[4])
+{
+#if MCE_TRACE
+	printf("- %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
+	/* 4 vertices for a camera we are looking THROUGH
+	 * 8 vertices for a camera we are looking AT */
+
+	/* a standing up pyramid with (0,0,0) as top */
+	Object *ob = base->object;
+	Camera *cam = ob->data;
+	float vec[4][3], asp[2], shift[2], scale[3];
+	float drawsize;
+	const bool is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
+
+	{ /* scope */
+		MovieClip *clip = BKE_object_movieclip_get(scene, base->object, false);
+
+		/* draw data for movie clip set as active for scene */
+		if (clip) {
+			draw_viewport_reconstruction(scene, base, v3d, clip, dflag, ob_wire_col, false);
+			draw_viewport_reconstruction(scene, base, v3d, clip, dflag, ob_wire_col, true);
+		}
+	}
+
+#ifdef VIEW3D_CAMERA_BORDER_HACK
+	if (is_view && !(G.f & G_PICKSEL)) {
+		if ((dflag & DRAW_CONSTCOLOR) == 0) {
+#  if MCE_TRACE
+			printf("view3d_camera_border_hack wire color\n");
+#  endif
+			view3d_camera_border_hack_col[0] = ob_wire_col[0];
+			view3d_camera_border_hack_col[1] = ob_wire_col[1];
+			view3d_camera_border_hack_col[2] = ob_wire_col[2];
+		}
+		else {
+#  if MCE_TRACE
+			printf("view3d_camera_border_hack const color\n");
+#  endif
+			float col[4];
+			glGetFloatv(GL_CURRENT_COLOR, col);
+			rgb_float_to_uchar(view3d_camera_border_hack_col, col);
+		}
+		view3d_camera_border_hack_test = true;
+		return;
+	}
+#endif
+
+	scale[0] = 1.0f / len_v3(ob->obmat[0]);
+	scale[1] = 1.0f / len_v3(ob->obmat[1]);
+	scale[2] = 1.0f / len_v3(ob->obmat[2]);
+
+	BKE_camera_view_frame_ex(scene, cam, cam->drawsize, is_view, scale,
+	                         asp, shift, &drawsize, vec);
+
+	glDisable(GL_LIGHTING); /* use new state tracking instead */
+
+	if (is_view) {
+		/* camera frame */
+		glBegin(GL_LINE_LOOP);
+		glVertex3fv(vec[0]);
+		glVertex3fv(vec[1]);
+		glVertex3fv(vec[2]);
+		glVertex3fv(vec[3]);
+		glEnd();
+
+		return;
+	}
+	else {
+		int i;
+		float tvec[3];
+
+		zero_v3(tvec);
+
+		/* camera frame (minus top segment) */
+		glBegin(GL_LINE_STRIP);
+		glVertex3fv(vec[0]);
+		glVertex3fv(vec[1]);
+		glVertex3fv(vec[2]);
+		glVertex3fv(vec[3]);
+		glEnd();
+
+		/* center point to camera frame */
+		glBegin(GL_LINE_STRIP);
+		glVertex3fv(vec[1]);
+		glVertex3fv(tvec);
+		glVertex3fv(vec[0]);
+		glVertex3fv(vec[3]);
+		glVertex3fv(tvec);
+		glVertex3fv(vec[2]);
+		glEnd();
+
+		/* arrow on top */
+		tvec[2] = vec[1][2]; /* copy the depth */
+
+		/* draw an outline arrow for inactive cameras and filled
+		 * for active cameras. We actually draw both outline+filled
+		 * for active cameras so the wire can be seen side-on */
+		for (i = 0; i < 2; i++) {
+			if (i == 0) glBegin(GL_LINE_LOOP);
+			else if (i == 1 && (ob == v3d->camera)) {
+				glDisable(GL_CULL_FACE); /* use new state tracking instead (draw front AND back) */
+				glBegin(GL_TRIANGLES);
+			}
+			else break;
+
+			tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
+			tvec[1] = shift[1] + ((drawsize * (asp[1] + 0.1f)) * scale[1]);
+			glVertex3fv(tvec); /* left */
+			
+			tvec[0] = shift[0] + ((0.7f * drawsize) * scale[0]);
+			glVertex3fv(tvec); /* right */
+			
+			tvec[0] = shift[0];
+			tvec[1] = shift[1] + ((1.1f * drawsize * (asp[1] + 0.7f)) * scale[1]);
+			glVertex3fv(tvec); /* top */
+
+			glEnd();
+		}
+
+#if 0 /* TODO: revisit later */
+		if ((dflag & DRAW_SCENESET) == 0) {
+			if (cam->flag & (CAM_SHOWLIMITS | CAM_SHOWMIST)) {
+				float nobmat[4][4];
+
+				/* draw in normalized object matrix space */
+				copy_m4_m4(nobmat, ob->obmat);
+				normalize_m4(nobmat);
+
+				glPushMatrix();
+				glLoadMatrixf(rv3d->viewmat);
+				glMultMatrixf(nobmat);
+
+				if (cam->flag & CAM_SHOWLIMITS) {
+					draw_limit_line(cam->clipsta, cam->clipend, dflag, 0x77FFFF);
+					/* qdn: was yafray only, now also enabled for Blender to be used with defocus composite node */
+					draw_focus_cross(BKE_camera_object_dof_distance(ob), cam->drawsize);
+				}
+
+				if (cam->flag & CAM_SHOWMIST) {
+					World *world = scene->world;
+					if (world) {
+						draw_limit_line(world->miststa, world->miststa + world->mistdist, dflag, 0xFFFFFF);
+					}
+				}
+				glPopMatrix();
+			}
+		}
+#endif
+	}
+}
+
 
 /* flag similar to draw_object() */
 static void drawspeaker(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *UNUSED(rv3d),
@@ -3952,6 +4112,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                              const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
+#if MCE_TRACE
+	printf("> %s dt=%d dflag=%d\n", __FUNCTION__, (int)dt, (int)dflag);
+#endif /* MCE_TRACE */
 	Object *ob = base->object;
 	Object *obedit = scene->obedit;
 	Mesh *me = ob->data;
@@ -4048,7 +4211,130 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 
 	if (v3d->flag2 & V3D_BACKFACE_CULLING)
 		glDisable(GL_CULL_FACE);
+
+#if MCE_TRACE
+	printf("< %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
+	return retval;
+}
+
+/* returns true if nothing was drawn, for detecting to draw an object center */
+static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
+                             const char dt, const unsigned char ob_wire_col[4], const short dflag)
+{
+#if MCE_TRACE
+	printf("> %s dt=%d dflag=%d\n", __FUNCTION__, (int)dt, (int)dflag);
+#endif /* MCE_TRACE */
+
+	Object *ob = base->object;
+	Object *obedit = scene->obedit;
+	Mesh *me = ob->data;
+	BMEditMesh *em = me->edit_btmesh;
+	int i;
+	bool do_alpha_after = false, drawlinked = false, retval = false;
+
+	BLI_assert(ob != obedit); /* should be caught by draw_object_new() before here */
+
+	/* If we are drawing shadows and any of the materials don't cast a shadow,
+	 * then don't draw the object */
+	if (v3d->flag2 & V3D_RENDER_SHADOW) {
+		for (i = 0; i < ob->totcol; ++i) {
+			Material *ma = give_current_material(ob, i);
+			if (ma && !(ma->mode2 & MA_CASTSHADOW)) {
+				return true;
+			}
+		}
+	}
+
+	/* same mesh data as edit object? if so draw editmesh here */
+	if (obedit && ob->data == obedit->data) {
+		if (BKE_key_from_object(ob) || BKE_key_from_object(obedit)) {}
+		else if (ob->modifiers.first || obedit->modifiers.first) {}
+		else drawlinked = true;
+	}
+
+	/* backface culling */
+	if ((v3d->flag2 & V3D_BACKFACE_CULLING) && dt > OB_WIRE) {
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_BACK);
+	}
+
+	if (drawlinked) {
+		DerivedMesh *finalDM, *cageDM;
+		
+		finalDM = cageDM = editbmesh_get_derived_base(ob, em);
+
+		DM_update_materials(finalDM, ob);
+
+		/* TODO: adjust original draw_mesh_object() if this tells us anything */
+		if (finalDM == cageDM)
+			printf("finalDM == cageDM");
+		else {
+			printf("finalDM != cageDM");
+			DM_update_materials(cageDM, ob);
+		}
+
+		if (dt > OB_WIRE) {
+			const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
+
+			GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl, NULL);
+		}
+
+		draw_em_fancy(scene, ar, v3d, ob, em, cageDM, finalDM, dt);
+
+		GPU_end_object_materials();
+
+		if (obedit != ob && finalDM)
+			finalDM->release(finalDM);
+	}
+	else {
+		/* ob->bb was set by derived mesh system, do NULL check just to be sure */
+		if (me->totpoly <= 4 || (!ob->bb || ED_view3d_boundbox_clip(rv3d, ob->bb))) {
+			if (dt > OB_WIRE) {
+				const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
+
+				if (dt == OB_SOLID || glsl) {
+					const bool check_alpha = check_alpha_pass(base);
+					GPU_begin_object_materials(v3d, rv3d, scene, ob, glsl,
+					                           (check_alpha) ? &do_alpha_after : NULL);
+				}
+			}
+
+			draw_mesh_fancy(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
+
+			GPU_end_object_materials();
+			
+			if (me->totvert == 0) retval = true;
+		}
+	}
 	
+	if ((dflag & DRAW_PICKING) == 0 && (base->flag & OB_FROMDUPLI) == 0 && (v3d->flag2 & V3D_RENDER_SHADOW) == 0) {
+		/* GPU_begin_object_materials checked if this is needed */
+		if (do_alpha_after) {
+			if (ob->dtx & OB_DRAWXRAY) {
+				ED_view3d_after_add(&v3d->afterdraw_xraytransp, base, dflag);
+			}
+			else {
+				ED_view3d_after_add(&v3d->afterdraw_transp, base, dflag);
+			}
+		}
+		else if (ob->dtx & OB_DRAWXRAY && ob->dtx & OB_DRAWTRANSP) {
+			/* special case xray+transp when alpha is 1.0, without this the object vanishes */
+			if (v3d->xray == 0 && v3d->transp == 0) {
+				ED_view3d_after_add(&v3d->afterdraw_xray, base, dflag);
+			}
+		}
+	}
+
+	if ((v3d->flag2 & V3D_BACKFACE_CULLING) && dt > OB_WIRE) {
+		glDisable(GL_CULL_FACE);
+	}
+
+#if MCE_TRACE
+	printf("< %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
 	return retval;
 }
 
@@ -7272,11 +7558,7 @@ static void draw_rigidbody_shape(Object *ob)
 	}
 }
 
-/**
- * main object drawing function, draws in selection
- * \param dflag (draw flag) can be DRAW_PICKING and/or DRAW_CONSTCOLOR, DRAW_SCENESET
- */
-void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short dflag)
+static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short dflag, const bool new_style_drawing)
 {
 	ModifierData *md = NULL;
 	Object *ob = base->object;
@@ -7443,7 +7725,11 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 		switch (ob->type) {
 			case OB_MESH:
-				empty_object = draw_mesh_object(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
+				if (new_style_drawing)
+					empty_object = draw_mesh_object_new(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
+				else
+					empty_object = draw_mesh_object(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
+
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
 					/* mesh draws wire itself */
 					dtx &= ~OB_DRAWWIRE;
@@ -7528,7 +7814,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				if (!render_override ||
 				    (rv3d->persp == RV3D_CAMOB && v3d->camera == ob)) /* special exception for active camera */
 				{
-					drawcamera(scene, v3d, rv3d, base, dflag, ob_wire_col);
+					if (new_style_drawing)
+						drawcamera_new(scene, v3d, rv3d, base, dflag, ob_wire_col);
+					else
+						drawcamera(scene, v3d, rv3d, base, dflag, ob_wire_col);
 				}
 				break;
 			case OB_SPEAKER:
@@ -8000,6 +8289,83 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	}
 
 	ED_view3d_clear_mats_rv3d(rv3d);
+}
+
+#if MCE_TRACE
+static const char* ob_type_name(int type)
+{
+	static const char* names[] = {
+		"OB_EMPTY",
+		"OB_MESH",
+		"OB_CURVE",
+		"OB_SURF",
+		"OB_FONT",
+		"OB_MBALL",
+		"6",
+		"7",
+		"8",
+		"9",
+		"OB_LAMP",
+		"OB_CAMERA",
+		"OB_SPEAKER",
+		"13",
+		"14",
+		"15",
+		"16",
+		"17",
+		"18",
+		"19",
+		"20",
+		"21",
+		"OB_LATTICE",
+		"23",
+		"24",
+		"OB_ARMATURE"
+	};
+	if (type >= OB_EMPTY && type <= OB_ARMATURE)
+		return names[type];
+	else
+		return "???";
+}
+#endif /* MCE_TRACE */
+
+/**
+ * main object drawing function, draws in selection
+ * \param dflag (draw flag) can be DRAW_PICKING and/or DRAW_CONSTCOLOR, DRAW_SCENESET
+ */
+void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short dflag)
+{
+#if MCE_TRACE
+	printf("> %s type=%s name=%s\n", __FUNCTION__, ob_type_name(base->object->type), base->object->id.name + 2);
+#endif /* MCE_TRACE */
+
+	/* pass through without changes */
+	draw_object_intern(scene, ar, v3d, base, dflag, false);
+
+#if MCE_TRACE
+	printf("< %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+}
+
+/**
+ * NEW main object drawing function, for trying out new GL methods
+ * \param dflag (draw flag) can be DRAW_PICKING and/or DRAW_CONSTCOLOR, DRAW_SCENESET
+ */
+void draw_object_new(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short dflag)
+{
+#if MCE_TRACE
+	printf("> %s type=%s name=%s\n", __FUNCTION__, ob_type_name(base->object->type), base->object->id.name + 2);
+#endif /* MCE_TRACE */
+
+	/* make sure object is supported by a new draw method */
+	BLI_assert(base->object->type == OB_MESH || base->object->type == OB_CAMERA);
+	BLI_assert(base->object != scene->obedit);
+
+	draw_object_intern(scene, ar, v3d, base, dflag, true);
+
+#if MCE_TRACE
+	printf("< %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
 }
 
 /* ***************** BACKBUF SEL (BBS) ********* */
