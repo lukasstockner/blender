@@ -3559,7 +3559,6 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 
 	drawfloor(scene, v3d, grid_unit);
 
-#if 1
 	/* yanked verbatim from view3d_draw_objects
 	 * not perfect but it does let us see objects positioned in space
 	 * TODO: draw objects prettier/better/faster/stronger
@@ -3625,17 +3624,6 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	if (base_edit && (v3d->lay & base_edit->lay)) {
 		draw_object(scene, ar, v3d, base_edit, 0);
 	}
-#else
-	glLineWidth(3.0f);
-	glColor3f(1.0f, 1.0f, 0.0f);
-	glBegin(GL_LINES);
-		glVertex2f(-1.0f, -1.0f);
-		glVertex2f(1.0f, 1.0f);
-		glVertex2f(1.0f, -1.0f);
-		glVertex2f(-1.0f, 1.0f);
-	glEnd();
-	glLineWidth(1.0f);
-#endif
 
 #if MCE_TRACE
 	printf("< %s\n\n", __FUNCTION__);
