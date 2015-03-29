@@ -1943,35 +1943,18 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 
 	if (is_view) {
 		/* camera frame */
-		glBegin(GL_LINE_LOOP);
-		glArrayElement(0);
-		glArrayElement(1);
-		glArrayElement(2);
-		glArrayElement(3);
-		glEnd();
+		glDrawArrays(GL_LINE_LOOP, 0, 4);
 	}
 	else {
 		int i;
 
-		/* camera frame (minus top segment) */
-		glBegin(GL_LINE_STRIP);
-		glArrayElement(0);
-		glArrayElement(1);
-		glArrayElement(2);
-		glArrayElement(3);
-		glEnd();
+		const GLubyte line_indices[] = {
+			0,1, 1,2, 2,3, 3,0, /* camera frame */
+			0,4, 1,4, 2,4, 3,4, /* center point to camera frame */
+			5,6, 6,7, 7,5       /* arrow on top */
+		};
 
-		/* center point to camera frame */
-		zero_v3(vec[4]);
-
-		glBegin(GL_LINE_STRIP);
-		glArrayElement(1);
-		glArrayElement(4);
-		glArrayElement(0);
-		glArrayElement(3);
-		glArrayElement(4);
-		glArrayElement(2);
-		glEnd();
+		zero_v3(vec[4]); /* center point */
 
 		/* arrow on top */
 		{
@@ -1991,22 +1974,14 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 			copy_v3_v3(vec[7], tvec); /* left */
 		}
 
+		glDrawElements(GL_LINES, 22, GL_UNSIGNED_BYTE, line_indices);
+
 		/* draw an outline arrow for inactive cameras and filled
 		 * for active cameras. We actually draw both outline+filled
 		 * for active cameras so the wire can be seen side-on */
-		for (i = 0; i < 2; i++) {
-			if (i == 0) glBegin(GL_LINE_LOOP);
-			else if (i == 1 && (ob == v3d->camera)) {
-				glDisable(GL_CULL_FACE); /* TODO: use new state tracking instead (draw front AND back) */
-				glBegin(GL_TRIANGLES);
-			}
-			else break;
-
-			glArrayElement(5);
-			glArrayElement(6);
-			glArrayElement(7);
-
-			glEnd();
+		if (ob == v3d->camera) {
+			glDisable(GL_CULL_FACE); /* TODO: use new state tracking instead (draw front AND back) */
+			glDrawArrays(GL_TRIANGLES, 5, 3);
 		}
 
 #if 0 /* TODO: revisit later */
