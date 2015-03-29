@@ -1936,15 +1936,18 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 	BKE_camera_view_frame_ex(scene, cam, cam->drawsize, is_view, scale,
 	                         asp, shift, &drawsize, vec);
 
-	glDisable(GL_LIGHTING); /* use new state tracking instead */
+	glDisable(GL_LIGHTING); /* TODO: use new state tracking instead */
+
+	glEnableClientState(GL_VERTEX_ARRAY); /* vertex here means vertex position */
+	glVertexPointer(3, GL_FLOAT, 3 * sizeof(float), vec);
 
 	if (is_view) {
 		/* camera frame */
 		glBegin(GL_LINE_LOOP);
-		glVertex3fv(vec[0]);
-		glVertex3fv(vec[1]);
-		glVertex3fv(vec[2]);
-		glVertex3fv(vec[3]);
+		glArrayElement(0);
+		glArrayElement(1);
+		glArrayElement(2);
+		glArrayElement(3);
 		glEnd();
 	}
 	else {
@@ -1952,22 +1955,22 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 
 		/* camera frame (minus top segment) */
 		glBegin(GL_LINE_STRIP);
-		glVertex3fv(vec[0]);
-		glVertex3fv(vec[1]);
-		glVertex3fv(vec[2]);
-		glVertex3fv(vec[3]);
+		glArrayElement(0);
+		glArrayElement(1);
+		glArrayElement(2);
+		glArrayElement(3);
 		glEnd();
 
 		/* center point to camera frame */
 		zero_v3(vec[4]);
 
 		glBegin(GL_LINE_STRIP);
-		glVertex3fv(vec[1]);
-		glVertex3fv(vec[4]);
-		glVertex3fv(vec[0]);
-		glVertex3fv(vec[3]);
-		glVertex3fv(vec[4]);
-		glVertex3fv(vec[2]);
+		glArrayElement(1);
+		glArrayElement(4);
+		glArrayElement(0);
+		glArrayElement(3);
+		glArrayElement(4);
+		glArrayElement(2);
 		glEnd();
 
 		/* arrow on top */
@@ -1994,14 +1997,14 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 		for (i = 0; i < 2; i++) {
 			if (i == 0) glBegin(GL_LINE_LOOP);
 			else if (i == 1 && (ob == v3d->camera)) {
-				glDisable(GL_CULL_FACE); /* use new state tracking instead (draw front AND back) */
+				glDisable(GL_CULL_FACE); /* TODO: use new state tracking instead (draw front AND back) */
 				glBegin(GL_TRIANGLES);
 			}
 			else break;
 
-			glVertex3fv(vec[5]);
-			glVertex3fv(vec[6]);
-			glVertex3fv(vec[7]);
+			glArrayElement(5);
+			glArrayElement(6);
+			glArrayElement(7);
 
 			glEnd();
 		}
@@ -2036,6 +2039,7 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 		}
 #endif
 	}
+	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
 
