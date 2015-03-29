@@ -1974,7 +1974,7 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 			copy_v3_v3(vec[7], tvec); /* left */
 		}
 
-		glDrawElements(GL_LINES, 22, GL_UNSIGNED_BYTE, line_indices);
+		glDrawRangeElements(GL_LINES, 0, 7, 22, GL_UNSIGNED_BYTE, line_indices);
 
 		/* draw an outline arrow for inactive cameras and filled
 		 * for active cameras. We actually draw both outline+filled
