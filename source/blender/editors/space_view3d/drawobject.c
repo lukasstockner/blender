@@ -1892,7 +1892,7 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 	/* a standing up pyramid with (0,0,0) as top */
 	Object *ob = base->object;
 	Camera *cam = ob->data;
-	float vec[4][3], asp[2], shift[2], scale[3];
+	float vec[8][3], asp[2], shift[2], scale[3];
 	float drawsize;
 	const bool is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
 
@@ -1906,7 +1906,7 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 		}
 	}
 
-#ifdef VIEW3D_CAMERA_BORDER_HACK
+#ifdef VIEW3D_CAMERA_BORDER_HACK && 0 /* disable this hack for now */
 	if (is_view && !(G.f & G_PICKSEL)) {
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
 #  if MCE_TRACE
@@ -1946,14 +1946,9 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 		glVertex3fv(vec[2]);
 		glVertex3fv(vec[3]);
 		glEnd();
-
-		return;
 	}
 	else {
 		int i;
-		float tvec[3];
-
-		zero_v3(tvec);
 
 		/* camera frame (minus top segment) */
 		glBegin(GL_LINE_STRIP);
@@ -1964,17 +1959,34 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 		glEnd();
 
 		/* center point to camera frame */
+		zero_v3(vec[4]);
+
 		glBegin(GL_LINE_STRIP);
 		glVertex3fv(vec[1]);
-		glVertex3fv(tvec);
+		glVertex3fv(vec[4]);
 		glVertex3fv(vec[0]);
 		glVertex3fv(vec[3]);
-		glVertex3fv(tvec);
+		glVertex3fv(vec[4]);
 		glVertex3fv(vec[2]);
 		glEnd();
 
 		/* arrow on top */
-		tvec[2] = vec[1][2]; /* copy the depth */
+		{
+			float tvec[3];
+
+			tvec[2] = vec[1][2]; /* copy the depth */
+
+			tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
+			tvec[1] = shift[1] + ((drawsize * (asp[1] + 0.1f)) * scale[1]);
+			copy_v3_v3(vec[5], tvec); /* left */
+			
+			tvec[0] = shift[0] + ((0.7f * drawsize) * scale[0]);
+			copy_v3_v3(vec[6], tvec); /* left */
+			
+			tvec[0] = shift[0];
+			tvec[1] = shift[1] + ((1.1f * drawsize * (asp[1] + 0.7f)) * scale[1]);
+			copy_v3_v3(vec[7], tvec); /* left */
+		}
 
 		/* draw an outline arrow for inactive cameras and filled
 		 * for active cameras. We actually draw both outline+filled
@@ -1987,16 +1999,9 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 			}
 			else break;
 
-			tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
-			tvec[1] = shift[1] + ((drawsize * (asp[1] + 0.1f)) * scale[1]);
-			glVertex3fv(tvec); /* left */
-			
-			tvec[0] = shift[0] + ((0.7f * drawsize) * scale[0]);
-			glVertex3fv(tvec); /* right */
-			
-			tvec[0] = shift[0];
-			tvec[1] = shift[1] + ((1.1f * drawsize * (asp[1] + 0.7f)) * scale[1]);
-			glVertex3fv(tvec); /* top */
+			glVertex3fv(vec[5]);
+			glVertex3fv(vec[6]);
+			glVertex3fv(vec[7]);
 
 			glEnd();
 		}
