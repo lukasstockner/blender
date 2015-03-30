@@ -220,6 +220,13 @@ typedef struct FileListEntryCache {
 	GHash *misc_entries;
 } FileListEntryCache;
 
+typedef struct FileListEntryCacheIter {
+	FileListEntryCache *cache;
+
+	int block_iter;
+	GHashIterator *misc_iter;
+} FileListEntryCacheIter;
+
 typedef struct FileListFilter {
 	bool hide_dot;
 	bool hide_parent;
@@ -1241,7 +1248,7 @@ void filelist_clear_refresh(struct FileList *filelist)
 	filelist->force_refresh = false;
 }
 
-FileDirEntry *filelist_file(struct FileList *filelist, int index)
+static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index, const bool use_request)
 {
 	FileDirEntry *ret = NULL, *old;
 	FileListEntryCache *cache = &filelist->filelist_cache;
@@ -1260,6 +1267,9 @@ FileDirEntry *filelist_file(struct FileList *filelist, int index)
 		return ret;
 	}
 
+	if (!use_request) {
+		return NULL;
+	}
 //	printf("requesting file %d (not yet cached)\n", index);
 
 	/* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
@@ -1272,7 +1282,14 @@ FileDirEntry *filelist_file(struct FileList *filelist, int index)
 	cache->misc_entries_indices[cache->misc_cursor] = index;
 	cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
 
+	filelist->need_thumbnails = true;
+
 	return ret;
+}
+
+FileDirEntry *filelist_file(struct FileList *filelist, int index)
+{
+	return filelist_file_ex(filelist, index, true);
 }
 
 int filelist_file_findpath(struct FileList *filelist, const char *filename)
@@ -1327,6 +1344,8 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 		/* Nothing to do! */
 		return true;
 	}
+
+	filelist->need_thumbnails = true;
 
 	if ((start_index >= cache->block_end_index) || (end_index <= cache->block_start_index)) {
 		/* New cached block does not overlap existing one, simple. */
@@ -1397,6 +1416,54 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	cache->block_start_index = start_index;
 
 	return true;
+}
+
+/* Note: Iterating over a cache is only valid as long as cache is not modified! */
+static void *filelist_file_cache_iter_start(struct FileList *filelist)
+{
+	FileListEntryCacheIter *iter = MEM_callocN(sizeof(*iter), __func__);
+	iter->block_iter = filelist->filelist_cache.block_start_index;
+	iter->cache = &filelist->filelist_cache;
+	return iter;
+}
+
+static FileDirEntry *filelist_file_cache_iter_next(void *_iter, int *r_index)
+{
+	FileListEntryCacheIter *iter = _iter;
+	FileListEntryCache *cache = iter->cache;
+
+	if (iter->block_iter < cache->block_end_index) {
+		int idx;
+		BLI_assert(iter->block_iter >= cache->block_start_index);
+		*r_index = iter->block_iter++;
+		idx = (*r_index - cache->block_start_index + cache->block_cursor) % FILELIST_ENTRYCACHESIZE;
+		return cache->block_entries[idx];
+	}
+
+	if (iter->misc_iter) {
+		BLI_ghashIterator_step(iter->misc_iter);
+	}
+	else {
+		iter->misc_iter = BLI_ghashIterator_new(cache->misc_entries);
+	}
+
+	if (BLI_ghashIterator_done(iter->misc_iter)) {
+		*r_index = -1;
+		return NULL;
+	}
+	*r_index = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(iter->misc_iter));
+	return BLI_ghashIterator_getValue(iter->misc_iter);
+}
+
+static void filelist_file_cache_iter_end(void *_iter)
+{
+	FileListEntryCacheIter *iter = _iter;
+
+	if (iter->misc_iter) {
+		BLI_ghashIterator_free(iter->misc_iter);
+	}
+
+	MEM_freeN(iter);
 }
 
 /* would recognize .blend as well */
@@ -2264,12 +2331,15 @@ static void thumbnails_update(void *tjv)
 		FileImage *limg = tj->loadimages.first;
 		while (limg) {
 			if (!limg->done && limg->img) {
-				FileDirEntry *entry = BLI_findlink(&tj->filelist->filelist.entries, limg->index);
-				entry->image = IMB_dupImBuf(limg->img);
-				/* update flag for movie files where thumbnail can't be created */
-				if (limg->flags & FILE_TYPE_MOVIE_ICON) {
-					entry->typeflag &= ~FILE_TYPE_MOVIE;
-					entry->typeflag |= FILE_TYPE_MOVIE_ICON;
+				/* entry might have been removed from cache in the mean while, we do not want to cache it again here. */
+				FileDirEntry *entry = filelist_file_ex(tj->filelist, limg->index, false);
+				if (entry) {
+					entry->image = IMB_dupImBuf(limg->img);
+					/* update flag for movie files where thumbnail can't be created */
+					if (limg->flags & FILE_TYPE_MOVIE_ICON) {
+						entry->typeflag &= ~FILE_TYPE_MOVIE;
+						entry->typeflag |= FILE_TYPE_MOVIE_ICON;
+					}
 				}
 				limg->done = true;
 				IMB_freeImBuf(limg->img);
@@ -2302,12 +2372,13 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 	wmJob *wm_job;
 	ThumbnailJob *tj;
 	FileDirEntry *entry;
+	void *iter = filelist_file_cache_iter_start(filelist);
 	int idx;
 
 	/* prepare job data */
 	tj = MEM_callocN(sizeof(*tj), __func__);
 	tj->filelist = filelist;
-	for (idx = 0, entry = filelist->filelist.entries.first; entry; idx++, entry = entry->next) {
+	while ((entry = filelist_file_cache_iter_next(iter, &idx))) {
 		if (!entry->image) {
 			if (entry->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
 				FileImage *limg = MEM_callocN(sizeof(*limg), __func__);
@@ -2318,6 +2389,8 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 			}
 		}
 	}
+
+	filelist_file_cache_iter_end(iter);
 
 	BKE_reports_init(&tj->reports, RPT_PRINT);
 
