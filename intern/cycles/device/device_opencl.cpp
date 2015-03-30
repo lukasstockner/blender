@@ -1560,15 +1560,18 @@ public:
 		/* Enable only the macros related to the scene */
 		for(int node_iter = NODE_END; node_iter <= NODE_UVMAP; node_iter++) {
 			if(node_iter == NODE_GEOMETRY_DUPLI || node_iter == NODE_UVMAP) { continue;  }
+			if(node_iter != NODE_END)
+				svm_build_options += " ";
 			if(closure_nodes.find(node_iter) == closure_nodes.end()) {
-				svm_build_options += " -D" + get_node_type_as_string((NodeType)node_iter) + "=0 ";
+				svm_build_options += "-D" + get_node_type_as_string((NodeType)node_iter) + "=0";
 			}
 			else {
-				svm_build_options += " -D" + get_node_type_as_string((NodeType)node_iter) + "=1 ";
+				svm_build_options += "-D" + get_node_type_as_string((NodeType)node_iter) + "=1";
 			}
 		}
+		svm_build_options += " ";
 #ifdef __MULTI_CLOSURE__
-		opt += string_printf(" -DMAX_CLOSURE=%d ", clos_max);
+		opt += string_printf("-DMAX_CLOSURE=%d ", clos_max);
 #endif
 
 		compute_device_type_build_option = "";
@@ -1576,7 +1579,7 @@ public:
 		ciErr = clGetDeviceInfo(cdDevice, CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type, NULL);
 		assert(ciErr == CL_SUCCESS);
 		if(device_type == CL_DEVICE_TYPE_GPU) {
-			compute_device_type_build_option = " -D__COMPUTE_DEVICE_GPU__ ";
+			compute_device_type_build_option = "-D__COMPUTE_DEVICE_GPU__ ";
 		}
 
 		string kernel_path = path_get("kernel");
