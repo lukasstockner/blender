@@ -193,7 +193,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	int queuesize,                               /* size (capacity) of the queue */
 	ccl_global char *use_queues_flag,            /* flag to decide if scene-intersect kernel should use queues to fetch ray index */
 	ccl_global unsigned int *work_array,         /* work array to store which work each ray belongs to */
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 	ccl_global unsigned int *work_pool_wgs,      /* Work pool for each work group */
 	unsigned int num_samples,                    /* Total number of samples per pixel */
 #endif
@@ -323,7 +323,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 
 	int thread_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 	int lid = get_local_id(1) * get_local_size(0) + get_local_id(0);
 	/* Initialize work_pool_wgs */
 	if(lid == 0) {
@@ -373,7 +373,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 		unsigned int tile_y;
 		unsigned int my_sample_tile;
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		unsigned int my_work = 0;
 		/* get work */
 		get_next_work(work_pool_wgs, &my_work, sw, sh, num_samples, parallel_samples, ray_index);

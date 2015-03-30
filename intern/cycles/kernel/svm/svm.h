@@ -181,7 +181,7 @@ CCL_NAMESPACE_END
 
 CCL_NAMESPACE_BEGIN
 
-#if !__SPLIT_KERNEL__
+#ifndef __SPLIT_KERNEL__
 /* If __SPLIT_KERNEL__ is not enabled, we enable all closures */
 #define __NODE_SHADER_JUMP__ 1
 #define __NODE_END__ 1

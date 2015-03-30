@@ -16,7 +16,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+#if defined(__SPLIT_KERNEL__) && defined(__WORK_STEALING__)
 /* Utility functions for float atomics */
 /* float atomics impl credits : http://suhorukov.blogspot.in/2011/12/opencl-11-atomic-operations-on-floating.html */
 inline void atomic_add_float(volatile __global float *source, const float operand) {
@@ -41,7 +41,7 @@ inline void atomic_add_float(volatile __global float *source, const float operan
 ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sample, float value)
 {
 	ccl_global float *buf = buffer;
-#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+#if defined(__SPLIT_KERNEL__) && defined(__WORK_STEALING__)
 	atomic_add_float(buf, value);
 #else
 	*buf = (sample == 0)? value: *buf + value;
@@ -50,7 +50,7 @@ ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sam
 
 ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sample, float3 value)
 {
-#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+#if defined(__SPLIT_KERNEL__) && defined(__WORK_STEALING__)
 	ccl_global float *buf_x = buffer + 0;
 	ccl_global float *buf_y = buffer + 1;
 	ccl_global float *buf_z = buffer + 2;
@@ -66,7 +66,7 @@ ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sa
 
 ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)
 {
-#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+#if defined(__SPLIT_KERNEL__) && defined(__WORK_STEALING__)
 	ccl_global float *buf_x = buffer + 0;
 	ccl_global float *buf_y = buffer + 1;
 	ccl_global float *buf_z = buffer + 2;

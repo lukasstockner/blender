@@ -351,7 +351,7 @@ ccl_device void shader_setup_from_displace(__ADDR_SPACE__ KernelGlobals *kg, __A
 	shader_setup_from_sample(kg, sd, P, Ng, I, shader, object, prim, u, v, 0.0f, TIME_INVALID, 0, 0);
 }
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 /* ShaderData setup from ray into background */
 ccl_device_inline void shader_setup_from_background_privateRay(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, Ray *ray, int bounce, int transparent_bounce)
 {
@@ -1046,7 +1046,7 @@ ccl_device void shader_eval_volume(__ADDR_SPACE__ KernelGlobals *kg, ShaderData 
 
 /* Displacement Evaluation */
 /// XXX not used by split kernel
-#if !__SPLIT_KERNEL__
+#ifndef __SPLIT_KERNEL__
 ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderContext ctx)
 {
 	sd->num_closure = 0;

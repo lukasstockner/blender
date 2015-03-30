@@ -161,7 +161,7 @@ ccl_device_inline void object_normal_transform(__ADDR_SPACE__ KernelGlobals *kg,
 #endif
 }
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 ccl_device_inline void object_normal_transform_private_N(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, float3 *N)
 {
 #ifdef __OBJECT_MOTION__
@@ -184,7 +184,7 @@ ccl_device_inline void object_dir_transform(__ADDR_SPACE__ KernelGlobals *kg, co
 #endif
 }
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 ccl_device_inline void object_dir_transform_private_D(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, float3 *D)
 {
 #ifdef __OBJECT_MOTION__

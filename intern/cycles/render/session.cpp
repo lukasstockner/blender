@@ -624,17 +624,14 @@ void Session::load_kernels()
 	}
 }
 
-int getClosureCount(Scene *scene)
+static int getClosureCount(Scene *scene)
 {
 	int max_clos = 0;
 	for(int i = 0; i < scene->shaders.size(); i++) {
-		Shader *shader = scene->shaders[i];
-		std::list<ccl::ShaderNode*, std::allocator<ccl::ShaderNode*>>::iterator iter;
 		int num_closures = 0;
-		for(iter = scene->shaders[i]->graph->nodes.begin(); iter != scene->shaders[i]->graph->nodes.end(); iter++) {
-			ClosureType type = (*(&(iter)._Ptr->_Myval))->clos;
-			if(type > 0)
-			{
+		foreach(ShaderNode *node, scene->shaders[i]->graph->nodes) {
+			ClosureType type = node->clos;
+			if(type > 0) {
 				if(CLOSURE_IS_BSSRDF(type))
 					num_closures = num_closures + 3;
 				else if(type >= CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID && type <= CLOSURE_BSDF_SHARP_GLASS_ID)

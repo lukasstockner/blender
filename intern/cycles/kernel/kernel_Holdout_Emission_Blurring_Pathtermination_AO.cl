@@ -76,7 +76,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 	ccl_global int *Queue_data,                /* Queue memory */
 	ccl_global int *Queue_index,               /* Tracks the number of elements in each queue */
 	int queuesize,                             /* Size (capacity) of each queue */
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 	unsigned int start_sample,
 #endif
 	int parallel_samples                       /* Number of samples to be processed in parallel */
@@ -112,7 +112,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 		ccl_global KernelGlobals *kg = (ccl_global KernelGlobals *)globals;
 		ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		unsigned int my_work;
 		unsigned int pixel_x;
 		unsigned int pixel_y;
@@ -131,7 +131,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 			throughput = throughput_coop[ray_index];
 			state = &PathState_coop[ray_index];
 			rng = &rng_coop[ray_index];
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 			my_work = work_array[ray_index];
 			sample = get_my_sample(my_work, sw, sh, parallel_samples, ray_index) + start_sample;
 			get_pixel_tile_position(&pixel_x, &pixel_y, &tile_x, &tile_y, my_work, sw, sh, sx, sy, parallel_samples, ray_index);

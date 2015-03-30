@@ -99,7 +99,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 	int queuesize,                               /* Size (capacity) of each queue */
 	int end_sample,
 	int start_sample,
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 	ccl_global unsigned int *work_pool_wgs,
 	unsigned int num_samples,
 #endif
@@ -144,7 +144,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 		ccl_global float *L_transparent = &L_transparent_coop[ray_index];
 		ccl_global uint *rng = &rng_coop[ray_index];
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		unsigned int my_work;
 		ccl_global float *initial_per_sample_output_buffers;
 		ccl_global uint *initial_rng;
@@ -156,7 +156,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 		unsigned int pixel_y;
 		unsigned int my_sample_tile;
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		my_work = work_array[ray_index];
 		sample = get_my_sample(my_work, sw, sh, parallel_samples, ray_index) + start_sample;
 		get_pixel_tile_position(&pixel_x, &pixel_y, &tile_x, &tile_y, my_work, sw, sh, sx, sy, parallel_samples, ray_index);
@@ -211,7 +211,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 		}
 
 		if(IS_STATE(ray_state, ray_index, RAY_TO_REGENERATE)) {
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 			/* We have completed current work; So get next work */
 			int valid_work = get_next_work(work_pool_wgs, &my_work, sw, sh, num_samples, parallel_samples, ray_index);
 			if(!valid_work) {
@@ -224,7 +224,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 			}
 #endif
 			if(IS_STATE(ray_state, ray_index, RAY_TO_REGENERATE)) {
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 				work_array[ray_index] = my_work;
 				/* Get the sample associated with the current work */
 				sample = get_my_sample(my_work, sw, sh, parallel_samples, ray_index) + start_sample;

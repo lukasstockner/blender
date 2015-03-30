@@ -29,8 +29,8 @@
  * now we have only one opencl feature set shared by nvidia and amd
  */
 
-#define __KERNEL_OPENCL__ 1
-#define __SPLIT_KERNEL__ 1
+#define __KERNEL_OPENCL__
+#define __SPLIT_KERNEL__
 
 #include "buffers.h"
 
@@ -46,7 +46,7 @@ CCL_NAMESPACE_BEGIN
 
 #define CL_MEM_PTR(p) ((cl_mem)(uintptr_t)(p))
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 /* This value may be tuned according to the scene we are rendering */
 #define PATH_ITER_INC_FACTOR 8
 
@@ -119,12 +119,12 @@ static bool opencl_kernel_use_advanced_shading(const string& platform)
 
 static string opencl_kernel_build_options(const string& platform, const string *debug_src = NULL)
 {
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	string build_options = " -cl-fast-relaxed-math -D__SPLIT_KERNEL__=1 ";
 	build_options.append(opt);
 	build_options.append(compute_device_type_build_option);
 #else
-	string build_options = " -cl-fast-relaxed-math -D__SPLIT_KERNEL__=0 ";
+	string build_options = " -cl-fast-relaxed-math ";
 #endif
 
 	if(platform == "NVIDIA CUDA")
@@ -144,7 +144,7 @@ static string opencl_kernel_build_options(const string& platform, const string *
 			build_options += "-g -s \"" + *debug_src + "\"";
 	}
 
-#if !__SPLIT_KERNEL__
+#ifndef __SPLIT_KERNEL__
 	/* kernel debug currently not supported in __SPLIT_KERNEL__ */
 	if(opencl_kernel_use_debug())
 		build_options += "-D__KERNEL_OPENCL_DEBUG__ ";
@@ -370,7 +370,7 @@ public:
 	cl_device_id cdDevice;
 	cl_int ciErr;
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	/* Kernel declaration */
 	cl_kernel ckPathTraceKernel_DataInit_SPLIT_KERNEL;
 	cl_kernel ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL;
@@ -525,37 +525,37 @@ public:
 	cl_program sumAllRadiance_program;
 
 	/* Required memory size */
-	size_t rng_size = sizeof(RNG);
-	size_t throughput_size = sizeof(float3);
-	size_t L_transparent_size = sizeof(float);
-	size_t rayState_size = sizeof(char);
-	size_t hostRayState_size = sizeof(char);
-	size_t work_element_size = sizeof(unsigned int);
-	size_t ISLamp_size = sizeof(int);
+	size_t rng_size;
+	size_t throughput_size;
+	size_t L_transparent_size;
+	size_t rayState_size;
+	size_t hostRayState_size;
+	size_t work_element_size;
+	size_t ISLamp_size;
 
 	/* size of structures declared in kernel_types.h */
-	size_t PathRadiance_size = sizeof(PathRadiance);
-	size_t Ray_size = sizeof(Ray);
-	size_t PathState_size = sizeof(PathState);
-	size_t Intersection_size = sizeof(Intersection);
+	size_t PathRadiance_size;
+	size_t Ray_size;
+	size_t PathState_size;
+	size_t Intersection_size;
 
 	/* Volume of ShaderData; ShaderData (in split_kernel) is a
 	 * Structure-Of-Arrays implementation; We need to calculate memory
 	 * required for a single thread
 	 */
-	size_t ShaderData_volume = 0;
+	size_t ShaderData_volume;
 
 	/* This is total ShaderClosure size required for one thread */
-	size_t ShaderClosure_size = 0;
+	size_t ShaderClosure_size;
 
 	/* Sizes of memory required for shadow blocked function */
-	size_t AOAlpha_size = sizeof(float3);
-	size_t AOBSDF_size = sizeof(float3);
-	size_t AOLightRay_size = sizeof(Ray);
-	size_t LightRay_size = sizeof(Ray);
-	size_t BSDFEval_size = sizeof(BsdfEval);
-	size_t Intersection_coop_AO_size = sizeof(Intersection);
-	size_t Intersection_coop_DL_size = sizeof(Intersection);
+	size_t AOAlpha_size;
+	size_t AOBSDF_size;
+	size_t AOLightRay_size;
+	size_t LightRay_size;
+	size_t BSDFEval_size;
+	size_t Intersection_coop_AO_size;
+	size_t Intersection_coop_DL_size;
 
 	/* This is sizeof_output_buffer / tile_size */
 	size_t per_thread_output_buffer_size;
@@ -582,7 +582,7 @@ public:
 	/* Number of path-iterations to be done in one shot */
 	unsigned int PathIteration_times;
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 	/* Work pool with respect to each work group */
 	cl_mem work_pool_wgs;
 
@@ -671,7 +671,7 @@ public:
 		null_mem = 0;
 		device_initialized = false;
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 		/* Initialize kernels */
 		ckPathTraceKernel_DataInit_SPLIT_KERNEL = NULL;
 		ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL = NULL;
@@ -840,12 +840,21 @@ public:
 		Intersection_coop_AO_size = sizeof(Intersection);
 		Intersection_coop_DL_size = sizeof(Intersection);
 
+		/* initialize sizes of memory required for shadow blocked function */
+		AOAlpha_size = sizeof(float3);
+		AOBSDF_size = sizeof(float3);
+		AOLightRay_size = sizeof(Ray);
+		LightRay_size = sizeof(Ray);
+		BSDFEval_size = sizeof(BsdfEval);
+		Intersection_coop_AO_size = sizeof(Intersection);
+		Intersection_coop_DL_size = sizeof(Intersection);
+
 		per_thread_output_buffer_size = 0;
 		per_thread_memory = 0;
 		render_scene_input_data_size = 0;
 		hostRayStateArray = NULL;
 		PathIteration_times = PATH_ITER_INC_FACTOR;
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		work_pool_wgs = NULL;
 		max_work_groups = 0;
 #endif
@@ -954,7 +963,7 @@ public:
 			}
 		}
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 		ciErr = clGetDeviceInfo(cdDevice, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(size_t), &total_allocatable_memory, NULL);
 		assert(ciErr == CL_SUCCESS);
 		if(platform_name == "AMD Accelerated Parallel Processing") {
@@ -1020,7 +1029,7 @@ public:
 		return true;
 	}
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	bool load_binary_SPLIT_KERNEL(cl_program *program, const string& kernel_path, const string& clbin, string custom_kernel_build_options, const string *debug_src = NULL)
 	{
 		/* read binary into memory */
@@ -1080,7 +1089,7 @@ public:
 	}
 #endif
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	bool save_binary_SPLIT_KERNEL(cl_program *program, const string& clbin) {
 		size_t size = 0;
 		clGetProgramInfo(*program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &size, NULL);
@@ -1124,8 +1133,11 @@ public:
 	}
 #endif
 
-#if __SPLIT_KERNEL__
-	bool build_kernel_SPLIT_KERNEL(const string& kernel_path, cl_program *kernel_program, string custom_kernel_build_options, const string *debug_src = NULL)
+#ifdef __SPLIT_KERNEL__
+	bool build_kernel_SPLIT_KERNEL(const string& /*kernel_path*/,
+	                               cl_program *kernel_program,
+	                               string custom_kernel_build_options,
+	                               const string *debug_src = NULL)
 	{
 		string build_options;
 		build_options = opencl_kernel_build_options(platform_name, debug_src) + custom_kernel_build_options;
@@ -1183,8 +1195,13 @@ public:
 	}
 #endif
 
-#if __SPLIT_KERNEL__
-	bool compile_kernel_SPLIT_KERNEL(const string& kernel_path, const string& kernel_name, string source, cl_program *kernel_program, string custom_kernel_build_options, const string *debug_src = NULL)
+#ifdef __SPLIT_KERNEL__
+	bool compile_kernel_SPLIT_KERNEL(const string& kernel_path,
+	                                 const string& /*kernel_name*/,
+	                                 string source,
+	                                 cl_program *kernel_program,
+	                                 string custom_kernel_build_options,
+	                                 const string *debug_src = NULL)
 	{
 		/* we compile kernels consisting of many files. unfortunately opencl
 		 * kernel caches do not seem to recognize changes in included files.
@@ -1266,8 +1283,14 @@ public:
 		return md5.get_hex();
 	}
 
-#if __SPLIT_KERNEL__
-	bool load_split_kernel_SPLIT_KERNEL(cl_program *program, string kernel_path, string kernel_name, string device_md5, string kernel_init_source, string clbin, string custom_kernel_build_options) {
+#ifdef __SPLIT_KERNEL__
+	bool load_split_kernel_SPLIT_KERNEL(cl_program *program,
+	                                    string kernel_path,
+	                                    string kernel_name,
+	                                    string /*device_md5*/,
+	                                    string kernel_init_source,
+	                                    string clbin,
+	                                    string custom_kernel_build_options) {
 
 		if(!opencl_version_check())
 			return false;
@@ -1295,7 +1318,7 @@ public:
 	}
 #endif
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	/* Get enum type names */
 	string get_node_type_as_string(NodeType node) {
 		switch (node) {
@@ -1530,7 +1553,7 @@ public:
 			return false;
 		}
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 		string svm_build_options = "";
 		opt = "";
 		/* Enable only the macros related to the scene */
@@ -1561,7 +1584,6 @@ public:
 		string custom_kernel_build_options;
 		string kernel_init_source;
 		string clbin;
-		bool retval = false;
 
 		kernel_init_source = "#include \"kernel_DataInit.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
@@ -1683,7 +1705,7 @@ public:
 #endif
 
 		/* find kernels */
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 
 		ckPathTraceKernel_DataInit_SPLIT_KERNEL = clCreateKernel(dataInit_program, "kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
@@ -1770,7 +1792,7 @@ public:
 			delete mt->second;
 		}
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 		/* Release kernels */
 		if(ckPathTraceKernel_DataInit_SPLIT_KERNEL)
 			clReleaseKernel(ckPathTraceKernel_DataInit_SPLIT_KERNEL);
@@ -2127,7 +2149,7 @@ public:
 		if(work_array != NULL)
 			clReleaseMemObject(work_array);
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		if(work_pool_wgs != NULL)
 			clReleaseMemObject(work_pool_wgs);
 
@@ -2321,7 +2343,7 @@ public:
 		opencl_assert(clFlush(cqCommandQueue));
 	}
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	size_t get_tex_size(const char *tex_name) {
 		cl_mem ptr;
 		size_t ret_size;
@@ -2340,7 +2362,7 @@ public:
 	}
 #endif
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	size_t get_shader_closure_size(int max_closure) {
 		return (sizeof(ShaderClosure)* max_closure);
 	}
@@ -2373,10 +2395,10 @@ public:
 		cl_int d_y = rtile.y;
 		cl_int d_w = rtile.w;
 		cl_int d_h = rtile.h;
-		cl_int d_sample = sample;
 		cl_int d_offset = rtile.offset;
 		cl_int d_stride = rtile.stride;
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
+		(void)sample;
 
 		if(cannot_render_scene) {
 			return;
@@ -2403,7 +2425,7 @@ public:
 			render_scene_input_data_size += get_tex_size(#name);
 #include "kernel_textures.h"
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 			/* Calculate max groups */
 			size_t max_global_size[2];
 			size_t tile_x = rtile.tile_size.x;
@@ -2453,7 +2475,7 @@ public:
 			-render_scene_input_data_size                                            /* size for textures, bvh etc */
 			- (user_set_tile_w * user_set_tile_h) * per_thread_output_buffer_size    /* max d_buffer size possible */
 			- (user_set_tile_w * user_set_tile_h) * sizeof(RNG)                      /* max d_rng_state size possible */
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 			- max_work_groups * sizeof(unsigned int)
 #endif
 			- DATA_ALLOCATION_MEM_FACTOR;
@@ -2464,7 +2486,7 @@ public:
 		cl_int end_sample = rtile.start_sample + rtile.num_samples;
 		cl_int num_samples = rtile.num_samples;
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		/* TODO : support dynamic num_parallel_samples in work_stealing
 		 * Do not change the values of num_parallel_samples/num_parallel_threads
 		 */
@@ -2503,14 +2525,14 @@ public:
 			bool max_rect_tile_reached = false;
 			while(!max_rect_tile_reached) {
 				unsigned int num_parallel_samples_possible = 0;
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 				unsigned int current_max_global_size[2];
 				current_max_global_size[0] = (((tile_max_x - 1) / local_size[0]) + 1) * local_size[0];
 				current_max_global_size[1] = (((tile_max_y - 1) / local_size[1]) + 1) * local_size[1];
 				unsigned int current_max_work_groups = (current_max_global_size[0] * current_max_global_size[1]) / (local_size[0] * local_size[1]);
 #endif
 				size_t memory_for_parallel_sample_processing = scene_alloc_memory
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 					- current_max_work_groups * sizeof(unsigned int)
 #endif
 					- (tile_max_x * tile_max_y) * per_thread_output_buffer_size
@@ -2526,12 +2548,12 @@ public:
 			}
 
 			fprintf(stdout, "Not enough device memory, reduce tile size. \n \
-One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - local_size[1]);
+One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y - local_size[1]);
 			cannot_render_scene = true;
 			return;
 		}
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		global_size[0] = (((d_w - 1) / local_size[0]) + 1) * local_size[0];
 		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
 #else
@@ -2547,7 +2569,7 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 		if(first_tile) {
 
 			/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
-#if __KERNEL_OPENCL__
+#ifdef __KERNEL_OPENCL__
 			typedef struct KernelGlobals {
 				ccl_constant KernelData *data;
 
@@ -3021,7 +3043,7 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(use_queues_flag), (void*)&use_queues_flag));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(work_array), (void*)&work_array));
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(work_pool_wgs), (void*)&work_pool_wgs));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_samples), (void*)&num_samples));
 #endif
@@ -3098,7 +3120,7 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(end_sample), (void*)&end_sample));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(work_pool_wgs), (void*)&work_pool_wgs));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(num_samples), (void*)&num_samples));
 #endif
@@ -3145,7 +3167,7 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
 #endif
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
@@ -3315,6 +3337,7 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 		first_tile = false;
 #else
 		/* sample arguments */
+		cl_int d_sample = sample;
 		cl_uint narg = 0;
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_data), (void*)&d_data));
@@ -3355,7 +3378,12 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 
 	void film_convert(DeviceTask& task, device_ptr buffer, device_ptr rgba_byte, device_ptr rgba_half)
 	{
-#if !__SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
+		(void)task;
+		(void)buffer;
+		(void)rgba_byte;
+		(void)rgba_half;
+#else
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_rgba = (rgba_byte)? CL_MEM_PTR(rgba_byte): CL_MEM_PTR(rgba_half);
@@ -3397,7 +3425,9 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 
 	void shader(DeviceTask& task)
 	{
-#if !__SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
+		(void)task;
+#else
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_input = CL_MEM_PTR(task.shader_input);
@@ -3459,7 +3489,7 @@ One possible tile size is %dx%d \n", tile_max_x - local_size[0] , tile_max_y - l
 			/* keep rendering tiles until done */
 			while(task->acquire_tile(this, tile)) {
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 				/* The second argument is dummy */
 				path_trace(tile, 0);
 				tile.sample = tile.start_sample + tile.num_samples;

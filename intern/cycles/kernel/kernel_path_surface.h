@@ -181,7 +181,7 @@ ccl_device bool kernel_branched_path_surface_bounce(__ADDR_SPACE__ KernelGlobals
 
 #endif
 
-#if !__SPLIT_KERNEL__
+#ifndef __SPLIT_KERNEL__
 /* path tracing: connect path directly to position on a light and add it to L */
 ccl_device_inline void kernel_path_surface_connect_light(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ RNG *rng,
 	__ADDR_SPACE__ ShaderData *sd, float3 throughput, __ADDR_SPACE__ PathState *state, __ADDR_SPACE__ PathRadiance *L)

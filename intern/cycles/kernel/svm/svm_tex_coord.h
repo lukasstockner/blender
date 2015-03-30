@@ -315,7 +315,7 @@ ccl_device void svm_node_normal_map(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPA
 		N = normalize(color.x * tangent + color.y * B + color.z * normal);
 
 		/* transform to world space */
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 		object_normal_transform_private_N(kg, sd, &N);
 #else
 		object_normal_transform(kg, sd, &N);
@@ -332,7 +332,7 @@ ccl_device void svm_node_normal_map(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPA
 		N = color;
 
 		if(space == NODE_NORMAL_MAP_OBJECT || space == NODE_NORMAL_MAP_BLENDER_OBJECT)
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 			object_normal_transform_private_N(kg, sd, &N);
 #else
 			object_normal_transform(kg, sd, &N);
@@ -387,7 +387,7 @@ ccl_device void svm_node_tangent(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE_
 			tangent = make_float3(-(generated.y - 0.5f), (generated.x - 0.5f), 0.0f);
 	}
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	object_normal_transform_private_N(kg, sd, &tangent);
 #else
 	object_normal_transform(kg, sd, &tangent);

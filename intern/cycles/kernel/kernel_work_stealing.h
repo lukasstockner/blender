@@ -5,7 +5,7 @@
  * Utility functions for work stealing
  */
 
-#if __WORK_STEALING__
+#ifdef __WORK_STEALING__
 
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
 

@@ -17,7 +17,7 @@
 #ifndef __KERNEL_TYPES_H__
 #define __KERNEL_TYPES_H__
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 #define __ADDR_SPACE__ __global
 #else
 #define __ADDR_SPACE__
@@ -674,7 +674,7 @@ enum ShaderDataFlag {
 
 struct KernelGlobals;
 
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 #define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
 #define sd_fetch(t) (sd->t[TIDX])
 #define sc_fetch(index) (&sd->closure[TIDX * MAX_CLOSURE + index])
@@ -684,7 +684,7 @@ struct KernelGlobals;
 #endif
 
 typedef struct ShaderData {
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 	/* ShaderData Strutcure of arrays */
 	/* position */
 	ccl_global float3 *P;
@@ -1130,7 +1130,7 @@ typedef struct DebugData {
 #define QUEUE_EMPTY_SLOT -1
 
 /* Macro to enable/disable work-stealing */
-#define __WORK_STEALING__ 1
+#define __WORK_STEALING__
 
 /*
 * Queue 1 - Active rays

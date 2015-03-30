@@ -121,7 +121,7 @@ ccl_device float3 primitive_tangent(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPA
 	if(attr_offset != ATTR_STD_NOT_FOUND) {
 		float3 data = primitive_attribute_float3(kg, sd, attr_elem, attr_offset, NULL, NULL);
 		data = make_float3(-(data.y - 0.5f), (data.x - 0.5f), 0.0f);
-#if __SPLIT_KERNEL__
+#ifdef __SPLIT_KERNEL__
 		object_normal_transform_private_N(kg, sd, &data);
 #else
 		object_normal_transform(kg, sd, &data);
