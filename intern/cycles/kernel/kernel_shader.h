@@ -509,9 +509,9 @@ ccl_device void shader_merge_closures(ShaderData *sd)
 				continue;
 
 			if(CLOSURE_IS_BSDF_OR_BSSRDF(sci->type)) {
-				if (sci->N != scj->N)
+				if(sci->N != scj->N)
 					continue;
-				else if (CLOSURE_IS_BSDF_ANISOTROPIC(sci->type) && sci->T != scj->T)
+				else if(CLOSURE_IS_BSDF_ANISOTROPIC(sci->type) && sci->T != scj->T)
 					continue;
 			}
 
@@ -862,7 +862,7 @@ ccl_device float3 shader_eval_background(__ADDR_SPACE__ KernelGlobals *kg, __ADD
 	sd_fetch(randb_closure) = 0.0f;
 
 #ifdef __OSL__
-	if (kg->osl) {
+	if(kg->osl) {
 		return OSLShader::eval_background(kg, sd, path_flag, ctx);
 	}
 	else
@@ -874,10 +874,10 @@ ccl_device float3 shader_eval_background(__ADDR_SPACE__ KernelGlobals *kg, __ADD
 
 		float3 eval = make_float3(0.0f, 0.0f, 0.0f);
 
-		for (int i = 0; i< sd_fetch(num_closure); i++) {
+		for(int i = 0; i< sd_fetch(num_closure); i++) {
 			__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(i);
 
-			if (CLOSURE_IS_BACKGROUND(sc->type))
+			if(CLOSURE_IS_BACKGROUND(sc->type))
 				eval += sc->weight;
 		}
 

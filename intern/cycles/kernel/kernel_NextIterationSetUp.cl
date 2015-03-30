@@ -126,7 +126,7 @@ __kernel void kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL(
 				REMOVE_RAY_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_AO);
 			}
 
-			if (IS_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_DL)) {
+			if(IS_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_DL)) {
 				float3 shadow = LightRay_dl_coop[ray_index].P;
 				char update_path_radiance = LightRay_dl_coop[ray_index].t;
 				if(update_path_radiance) {

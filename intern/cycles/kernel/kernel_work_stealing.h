@@ -15,11 +15,11 @@ unsigned int get_group_id_with_ray_index(unsigned int ray_index,
                                          unsigned int parallel_samples,
                                          int dim) {
 	unsigned int retval;
-	if (dim == 0) {
+	if(dim == 0) {
 		unsigned int x_span = ray_index % (tile_dim_x * parallel_samples);
 		retval = x_span / get_local_size(0);
 	}
-	else if (dim == 1) {
+	else if(dim == 1) {
 		unsigned int y_span = ray_index / (tile_dim_x * parallel_samples);
 		retval = y_span / get_local_size(1);
 	}

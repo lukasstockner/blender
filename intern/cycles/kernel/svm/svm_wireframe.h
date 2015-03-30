@@ -133,7 +133,7 @@ ccl_device float wireframe(__ADDR_SPACE__ KernelGlobals *kg,
 		// other half. And take the square for fast comparison
 		pixelwidth *= 0.5f * size;
 		pixelwidth *= pixelwidth;
-		for (int i = 0; i < np; i++) {
+		for(int i = 0; i < np; i++) {
 			int i2 = i ? i - 1 : np - 1;
 			float3 dir = *P - Co[i];
 			float3 edge = Co[i] - Co[i2];

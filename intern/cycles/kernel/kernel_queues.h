@@ -41,7 +41,7 @@ ccl_device int get_ray_index (
 {
 	int ray_index = queues[queue_number * queuesize + thread_index];
 
-	if (empty_queue && ray_index != QUEUE_EMPTY_SLOT) {
+	if(empty_queue && ray_index != QUEUE_EMPTY_SLOT) {
 		queues[queue_number * queuesize + thread_index] = QUEUE_EMPTY_SLOT;
 	}
 
@@ -65,19 +65,19 @@ ccl_device void enqueue_ray_index_local(
 
 	/* Get local queue id */
 	unsigned int lqidx;
-	if (enqueue_flag) {
+	if(enqueue_flag) {
 		lqidx = atomic_inc(local_queue_atomics);
 	}
 	barrier(CLK_LOCAL_MEM_FENCE);
 
 	/* Get global queue offset */
-	if (lidx == 0) {
+	if(lidx == 0) {
 		*local_queue_atomics = atomic_add(&Queue_index[queue_number], *local_queue_atomics);
 	}
 	barrier(CLK_LOCAL_MEM_FENCE);
 
 	/* Get global queue index and enqueue ray */
-	if (enqueue_flag) {
+	if(enqueue_flag) {
 		unsigned int my_gqidx = queue_number * queuesize + (*local_queue_atomics) + lqidx;
 		Queue_data[my_gqidx] = ray_index;
 	}

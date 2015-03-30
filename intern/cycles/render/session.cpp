@@ -631,8 +631,7 @@ int getClosureCount(Scene *scene)
 		Shader *shader = scene->shaders[i];
 		std::list<ccl::ShaderNode*, std::allocator<ccl::ShaderNode*>>::iterator iter;
 		int num_closures = 0;
-		for(iter = scene->shaders[i]->graph->nodes.begin(); iter != scene->shaders[i]->graph->nodes.end(); iter++)
-		{
+		for(iter = scene->shaders[i]->graph->nodes.begin(); iter != scene->shaders[i]->graph->nodes.end(); iter++) {
 			ClosureType type = (*(&(iter)._Ptr->_Myval))->clos;
 			if(type > 0)
 			{
@@ -648,8 +647,7 @@ int getClosureCount(Scene *scene)
 			max_clos = num_closures;
 	}
 
-	if(max_clos > maxclosure)
-	{
+	if(max_clos > maxclosure) {
 		maxclosure = max_clos;
 	}
 	return maxclosure;

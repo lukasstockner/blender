@@ -283,7 +283,7 @@ ccl_device_inline bool kernel_path_surface_bounce(__ADDR_SPACE__ KernelGlobals *
 		/* update path state, count as transparent */
 		path_state_next(kg, state, LABEL_TRANSPARENT);
 
-		if (state->bounce == 0)
+		if(state->bounce == 0)
 			ray->t -= sd_fetch(ray_length); /* clipping works through transparent */
 		else
 			ray->t = FLT_MAX;

@@ -116,7 +116,7 @@ ccl_device_inline void triangle_dPdudv(__ADDR_SPACE__ KernelGlobals *kg, int pri
 
 ccl_device float triangle_attribute_float(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
-	if (elem == ATTR_ELEMENT_FACE) {
+	if(elem == ATTR_ELEMENT_FACE) {
 		if(dx) *dx = 0.0f;
 		if(dy) *dy = 0.0f;
 

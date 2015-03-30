@@ -82,21 +82,16 @@ static cl_device_type opencl_device_type()
 	char *device = getenv("CYCLES_OPENCL_TEST");
 
 	if(device) {
-		if (strcmp(device, "ALL") == 0) {
+		if(strcmp(device, "ALL") == 0)
 			return CL_DEVICE_TYPE_ALL;
-		}
-		else if (strcmp(device, "DEFAULT") == 0) {
+		else if(strcmp(device, "DEFAULT") == 0)
 			return CL_DEVICE_TYPE_DEFAULT;
-		}
-		else if (strcmp(device, "CPU") == 0) {
+		else if(strcmp(device, "CPU") == 0)
 			return CL_DEVICE_TYPE_CPU;
-		}
-		else if (strcmp(device, "GPU") == 0) {
+		else if(strcmp(device, "GPU") == 0)
 			return CL_DEVICE_TYPE_GPU;
-		}
-		else if (strcmp(device, "ACCELERATOR") == 0) {
+		else if(strcmp(device, "ACCELERATOR") == 0)
 			return CL_DEVICE_TYPE_ACCELERATOR;
-		}
 	}
 
 	return CL_DEVICE_TYPE_ALL;
@@ -1539,9 +1534,9 @@ public:
 		string svm_build_options = "";
 		opt = "";
 		/* Enable only the macros related to the scene */
-		for (int node_iter = NODE_END; node_iter <= NODE_UVMAP; node_iter++) {
-			if (node_iter == NODE_GEOMETRY_DUPLI || node_iter == NODE_UVMAP) { continue;  }
-			if (closure_nodes.find(node_iter) == closure_nodes.end()) {
+		for(int node_iter = NODE_END; node_iter <= NODE_UVMAP; node_iter++) {
+			if(node_iter == NODE_GEOMETRY_DUPLI || node_iter == NODE_UVMAP) { continue;  }
+			if(closure_nodes.find(node_iter) == closure_nodes.end()) {
 				svm_build_options += " -D" + get_node_type_as_string((NodeType)node_iter) + "=0 ";
 			}
 			else {
@@ -1556,7 +1551,7 @@ public:
 		cl_device_type device_type;
 		ciErr = clGetDeviceInfo(cdDevice, CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type, NULL);
 		assert(ciErr == CL_SUCCESS);
-		if (device_type == CL_DEVICE_TYPE_GPU) {
+		if(device_type == CL_DEVICE_TYPE_GPU) {
 			compute_device_type_build_option = " -D__COMPUTE_DEVICE_GPU__ ";
 		}
 
@@ -1583,7 +1578,7 @@ public:
 		kernel_init_source = "#include \"kernel_LampEmission.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_LampEmission.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if (!load_split_kernel_SPLIT_KERNEL(&lampEmission_program, kernel_path, "LampEmission", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&lampEmission_program, kernel_path, "LampEmission", device_md5, kernel_init_source, clbin, svm_build_options))
 			return false;
 
 		kernel_init_source = "#include \"kernel_QueueEnqueue.cl\" // " + kernel_md5 + "\n";
@@ -1595,13 +1590,13 @@ public:
 		kernel_init_source = "#include \"kernel_Background_BufferUpdate.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_Background_BufferUpdate.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if (!load_split_kernel_SPLIT_KERNEL(&background_BufferUpdate_program, kernel_path, "Background", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&background_BufferUpdate_program, kernel_path, "Background", device_md5, kernel_init_source, clbin, svm_build_options))
 			return false;
 
 		kernel_init_source = "#include \"kernel_ShaderEval.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShaderEval.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if (!load_split_kernel_SPLIT_KERNEL(&shaderEval_program, kernel_path, "shaderEval", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&shaderEval_program, kernel_path, "shaderEval", device_md5, kernel_init_source, clbin, svm_build_options))
 			return false;
 
 		kernel_init_source = "#include \"kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl\" // "+ kernel_md5 + "\n";
@@ -1619,13 +1614,13 @@ public:
 		kernel_init_source = "#include \"kernel_DirectLighting.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_DirectLighting.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if (!load_split_kernel_SPLIT_KERNEL(&directLighting_program, kernel_path, "directLighting", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&directLighting_program, kernel_path, "directLighting", device_md5, kernel_init_source, clbin, svm_build_options))
 			return false;
 
 		kernel_init_source = "#include \"kernel_ShadowBlocked.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShadowBlocked.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if (!load_split_kernel_SPLIT_KERNEL(&shadowBlocked_program, kernel_path, "shadow", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&shadowBlocked_program, kernel_path, "shadow", device_md5, kernel_init_source, clbin, svm_build_options))
 			return false;
 
 		kernel_init_source = "#include \"kernel_NextIterationSetUp.cl\" // " + kernel_md5 + "\n";
@@ -1814,241 +1809,241 @@ public:
 			clReleaseKernel(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL);
 
 		/* Release global memory */
-		if (P_sd != NULL)
+		if(P_sd != NULL)
 			clReleaseMemObject(P_sd);
 
-		if (P_sd_dl != NULL)
+		if(P_sd_dl != NULL)
 			clReleaseMemObject(P_sd_dl);
 
-		if (P_sd_shadow != NULL)
+		if(P_sd_shadow != NULL)
 			clReleaseMemObject(P_sd_shadow);
 
-		if (N_sd != NULL)
+		if(N_sd != NULL)
 			clReleaseMemObject(N_sd);
 
-		if (N_sd_dl != NULL)
+		if(N_sd_dl != NULL)
 			clReleaseMemObject(N_sd_dl);
 
-		if (N_sd_shadow != NULL)
+		if(N_sd_shadow != NULL)
 			clReleaseMemObject(N_sd_shadow);
 
-		if (Ng_sd != NULL)
+		if(Ng_sd != NULL)
 			clReleaseMemObject(Ng_sd);
 
-		if (Ng_sd_dl != NULL)
+		if(Ng_sd_dl != NULL)
 			clReleaseMemObject(Ng_sd_dl);
 
-		if (Ng_sd_shadow != NULL)
+		if(Ng_sd_shadow != NULL)
 			clReleaseMemObject(Ng_sd_shadow);
 
-		if (I_sd != NULL)
+		if(I_sd != NULL)
 			clReleaseMemObject(I_sd);
 
-		if (I_sd_dl != NULL)
+		if(I_sd_dl != NULL)
 			clReleaseMemObject(I_sd_dl);
 
-		if (I_sd_shadow != NULL)
+		if(I_sd_shadow != NULL)
 			clReleaseMemObject(I_sd_shadow);
 
-		if (shader_sd != NULL)
+		if(shader_sd != NULL)
 			clReleaseMemObject(shader_sd);
 
-		if (shader_sd_dl != NULL)
+		if(shader_sd_dl != NULL)
 			clReleaseMemObject(shader_sd_dl);
 
-		if (shader_sd_shadow != NULL)
+		if(shader_sd_shadow != NULL)
 			clReleaseMemObject(shader_sd_shadow);
 
-		if (flag_sd != NULL)
+		if(flag_sd != NULL)
 			clReleaseMemObject(flag_sd);
 
-		if (flag_sd_dl != NULL)
+		if(flag_sd_dl != NULL)
 			clReleaseMemObject(flag_sd_dl);
 
-		if (flag_sd_shadow != NULL)
+		if(flag_sd_shadow != NULL)
 			clReleaseMemObject(flag_sd_shadow);
 
-		if (prim_sd != NULL)
+		if(prim_sd != NULL)
 			clReleaseMemObject(prim_sd);
 
-		if (prim_sd_dl != NULL)
+		if(prim_sd_dl != NULL)
 			clReleaseMemObject(prim_sd_dl);
 
-		if (prim_sd_shadow != NULL)
+		if(prim_sd_shadow != NULL)
 			clReleaseMemObject(prim_sd_shadow);
 
-		if (type_sd != NULL)
+		if(type_sd != NULL)
 			clReleaseMemObject(type_sd);
 
-		if (type_sd_dl != NULL)
+		if(type_sd_dl != NULL)
 			clReleaseMemObject(type_sd_dl);
 
-		if (type_sd_shadow != NULL)
+		if(type_sd_shadow != NULL)
 			clReleaseMemObject(type_sd_shadow);
 
-		if (u_sd != NULL)
+		if(u_sd != NULL)
 			clReleaseMemObject(u_sd);
 
-		if (u_sd_dl != NULL)
+		if(u_sd_dl != NULL)
 			clReleaseMemObject(u_sd_dl);
 
-		if (u_sd_shadow != NULL)
+		if(u_sd_shadow != NULL)
 			clReleaseMemObject(u_sd_shadow);
 
-		if (v_sd != NULL)
+		if(v_sd != NULL)
 			clReleaseMemObject(v_sd);
 
-		if (v_sd_dl != NULL)
+		if(v_sd_dl != NULL)
 			clReleaseMemObject(v_sd_dl);
 
-		if (v_sd_shadow != NULL)
+		if(v_sd_shadow != NULL)
 			clReleaseMemObject(v_sd_shadow);
 
-		if (object_sd != NULL)
+		if(object_sd != NULL)
 			clReleaseMemObject(object_sd);
 
-		if (object_sd_dl != NULL)
+		if(object_sd_dl != NULL)
 			clReleaseMemObject(object_sd_dl);
 
-		if (object_sd_shadow != NULL)
+		if(object_sd_shadow != NULL)
 			clReleaseMemObject(object_sd_shadow);
 
-		if (time_sd != NULL)
+		if(time_sd != NULL)
 			clReleaseMemObject(time_sd);
 
-		if (time_sd_dl != NULL)
+		if(time_sd_dl != NULL)
 			clReleaseMemObject(time_sd_dl);
 
-		if (time_sd_shadow != NULL)
+		if(time_sd_shadow != NULL)
 			clReleaseMemObject(time_sd_shadow);
 
-		if (ray_length_sd != NULL)
+		if(ray_length_sd != NULL)
 			clReleaseMemObject(ray_length_sd);
 
-		if (ray_length_sd_dl != NULL)
+		if(ray_length_sd_dl != NULL)
 			clReleaseMemObject(ray_length_sd_dl);
 
-		if (ray_length_sd_shadow != NULL)
+		if(ray_length_sd_shadow != NULL)
 			clReleaseMemObject(ray_length_sd_shadow);
 
-		if (ray_depth_sd != NULL)
+		if(ray_depth_sd != NULL)
 			clReleaseMemObject(ray_depth_sd);
 
-		if (ray_depth_sd_dl != NULL)
+		if(ray_depth_sd_dl != NULL)
 			clReleaseMemObject(ray_depth_sd_dl);
 
-		if (ray_depth_sd_shadow != NULL)
+		if(ray_depth_sd_shadow != NULL)
 			clReleaseMemObject(ray_depth_sd_shadow);
 
-		if (transparent_depth_sd != NULL)
+		if(transparent_depth_sd != NULL)
 			clReleaseMemObject(transparent_depth_sd);
 
-		if (transparent_depth_sd_dl != NULL)
+		if(transparent_depth_sd_dl != NULL)
 			clReleaseMemObject(transparent_depth_sd_dl);
 
-		if (transparent_depth_sd_shadow != NULL)
+		if(transparent_depth_sd_shadow != NULL)
 			clReleaseMemObject(transparent_depth_sd_shadow);
 
 #ifdef __RAY_DIFFERENTIALS__
-		if (dP_sd != NULL)
+		if(dP_sd != NULL)
 			clReleaseMemObject(dP_sd);
 
-		if (dP_sd_dl != NULL)
+		if(dP_sd_dl != NULL)
 			clReleaseMemObject(dP_sd_dl);
 
-		if (dP_sd_shadow != NULL)
+		if(dP_sd_shadow != NULL)
 			clReleaseMemObject(dP_sd_shadow);
 
-		if (dI_sd != NULL)
+		if(dI_sd != NULL)
 			clReleaseMemObject(dI_sd);
 
-		if (dI_sd_dl != NULL)
+		if(dI_sd_dl != NULL)
 			clReleaseMemObject(dI_sd_dl);
 
-		if (dI_sd_shadow != NULL)
+		if(dI_sd_shadow != NULL)
 			clReleaseMemObject(dI_sd_shadow);
 
-		if (du_sd != NULL)
+		if(du_sd != NULL)
 			clReleaseMemObject(du_sd);
 
-		if (du_sd_dl != NULL)
+		if(du_sd_dl != NULL)
 			clReleaseMemObject(du_sd_dl);
 
-		if (du_sd_shadow != NULL)
+		if(du_sd_shadow != NULL)
 			clReleaseMemObject(du_sd_shadow);
 
-		if (dv_sd != NULL)
+		if(dv_sd != NULL)
 			clReleaseMemObject(dv_sd);
 
-		if (dv_sd_dl != NULL)
+		if(dv_sd_dl != NULL)
 			clReleaseMemObject(dv_sd_dl);
 
-		if (dv_sd_shadow != NULL)
+		if(dv_sd_shadow != NULL)
 			clReleaseMemObject(dv_sd_shadow);
 #endif
 #ifdef __DPDU__
-		if (dPdu_sd != NULL)
+		if(dPdu_sd != NULL)
 			clReleaseMemObject(dPdu_sd);
 
-		if (dPdu_sd_dl != NULL)
+		if(dPdu_sd_dl != NULL)
 			clReleaseMemObject(dPdu_sd_dl);
 
-		if (dPdu_sd_shadow != NULL)
+		if(dPdu_sd_shadow != NULL)
 			clReleaseMemObject(dPdu_sd_shadow);
 
-		if (dPdv_sd != NULL)
+		if(dPdv_sd != NULL)
 			clReleaseMemObject(dPdv_sd);
 
-		if (dPdv_sd_dl != NULL)
+		if(dPdv_sd_dl != NULL)
 			clReleaseMemObject(dPdv_sd_dl);
 
-		if (dPdv_sd_shadow != NULL)
+		if(dPdv_sd_shadow != NULL)
 			clReleaseMemObject(dPdv_sd_shadow);
 #endif
 
-		if (closure_sd != NULL)
+		if(closure_sd != NULL)
 			clReleaseMemObject(closure_sd);
 
-		if (closure_sd_dl != NULL)
+		if(closure_sd_dl != NULL)
 			clReleaseMemObject(closure_sd_dl);
 
-		if (closure_sd_shadow != NULL)
+		if(closure_sd_shadow != NULL)
 			clReleaseMemObject(closure_sd_shadow);
 
-		if (num_closure_sd != NULL)
+		if(num_closure_sd != NULL)
 			clReleaseMemObject(num_closure_sd);
 
-		if (num_closure_sd_dl != NULL)
+		if(num_closure_sd_dl != NULL)
 			clReleaseMemObject(num_closure_sd_dl);
 
-		if (num_closure_sd_shadow != NULL)
+		if(num_closure_sd_shadow != NULL)
 			clReleaseMemObject(num_closure_sd_shadow);
 
-		if (randb_closure_sd != NULL)
+		if(randb_closure_sd != NULL)
 			clReleaseMemObject(randb_closure_sd);
 
-		if (randb_closure_sd_dl != NULL)
+		if(randb_closure_sd_dl != NULL)
 			clReleaseMemObject(randb_closure_sd_dl);
 
-		if (randb_closure_sd_shadow != NULL)
+		if(randb_closure_sd_shadow != NULL)
 			clReleaseMemObject(randb_closure_sd_shadow);
 
-		if (ray_P_sd != NULL)
+		if(ray_P_sd != NULL)
 			clReleaseMemObject(ray_P_sd);
 
-		if (ray_P_sd_dl != NULL)
+		if(ray_P_sd_dl != NULL)
 			clReleaseMemObject(ray_P_sd_dl);
 
-		if (ray_P_sd_shadow != NULL)
+		if(ray_P_sd_shadow != NULL)
 			clReleaseMemObject(ray_P_sd_shadow);
 
-		if (ray_dP_sd != NULL)
+		if(ray_dP_sd != NULL)
 			clReleaseMemObject(ray_dP_sd);
 
-		if (ray_dP_sd_dl != NULL)
+		if(ray_dP_sd_dl != NULL)
 			clReleaseMemObject(ray_dP_sd_dl);
 
-		if (ray_dP_sd_shadow != NULL)
+		if(ray_dP_sd_shadow != NULL)
 			clReleaseMemObject(ray_dP_sd_shadow);
 
 		if(rng_coop != NULL)
@@ -2075,22 +2070,22 @@ public:
 		if(ShaderData_coop != NULL)
 			clReleaseMemObject(ShaderData_coop);
 
-		if (ShaderData_coop_DL != NULL)
+		if(ShaderData_coop_DL != NULL)
 			clReleaseMemObject(ShaderData_coop_DL);
 
-		if (ShaderData_coop_shadow != NULL)
+		if(ShaderData_coop_shadow != NULL)
 			clReleaseMemObject(ShaderData_coop_shadow);
 
-		if (kgbuffer != NULL)
+		if(kgbuffer != NULL)
 			clReleaseMemObject(kgbuffer);
 
-		if (sd != NULL)
+		if(sd != NULL)
 			clReleaseMemObject(sd);
 
-		if (sd_dl != NULL)
+		if(sd_dl != NULL)
 			clReleaseMemObject(sd_dl);
 
-		if (sd_shadow != NULL)
+		if(sd_shadow != NULL)
 			clReleaseMemObject(sd_shadow);
 
 		if(ray_state != NULL)
@@ -2114,10 +2109,10 @@ public:
 		if(LightRay_coop != NULL)
 			clReleaseMemObject(LightRay_coop);
 
-		if (Intersection_coop_AO != NULL)
+		if(Intersection_coop_AO != NULL)
 			clReleaseMemObject(Intersection_coop_AO);
 
-		if (Intersection_coop_DL != NULL)
+		if(Intersection_coop_DL != NULL)
 			clReleaseMemObject(Intersection_coop_DL);
 
 		if(use_queues_flag != NULL)
