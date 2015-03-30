@@ -32,7 +32,15 @@
 #include "util_task.h"
 #include "util_time.h"
 
+#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+#include "nodes.h"
+#include "mesh.h"
+#define OPTIMAL_CLOSURE_COUNT 4
+#endif
+
 CCL_NAMESPACE_BEGIN
+
+static int maxclosure = OPTIMAL_CLOSURE_COUNT;
 
 /* Note about  preserve_tile_device option for tile manager:
  * progressive refine and viewport rendering does requires tiles to
@@ -370,6 +378,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.start_sample = tile_manager.state.sample;
 	rtile.num_samples = tile_manager.state.num_samples;
 	rtile.resolution = tile_manager.state.resolution_divider;
+	rtile.tile_size = tile_manager.get_tile_size();
 
 	tile_lock.unlock();
 
@@ -615,8 +624,46 @@ void Session::load_kernels()
 	}
 }
 
+int getClosureCount(Scene *scene)
+{
+	int max_clos = 0;
+	for(int i = 0; i < scene->shaders.size(); i++) {
+		Shader *shader = scene->shaders[i];
+		std::list<ccl::ShaderNode*, std::allocator<ccl::ShaderNode*>>::iterator iter;
+		int num_closures = 0;
+		for(iter = scene->shaders[i]->graph->nodes.begin(); iter != scene->shaders[i]->graph->nodes.end(); iter++)
+		{
+			ClosureType type = (*(&(iter)._Ptr->_Myval))->clos;
+			if(type > 0)
+			{
+				if(CLOSURE_IS_BSSRDF(type))
+					num_closures = num_closures + 3;
+				else if(type >= CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID && type <= CLOSURE_BSDF_SHARP_GLASS_ID)
+					num_closures = num_closures + 2;
+				else
+					num_closures = num_closures + 1;
+			}
+		}
+		if(num_closures > max_clos)
+			max_clos = num_closures;
+	}
+
+	if(max_clos > maxclosure)
+	{
+		maxclosure = max_clos;
+	}
+	return maxclosure;
+}
+
 void Session::run()
 {
+#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	device->clos_max = getClosureCount(scene);
+#endif
+
+	/* Need to update scene before we load kernels in order to get associated closures */
+	update_scene();
+
 	/* load kernels */
 	load_kernels();
 

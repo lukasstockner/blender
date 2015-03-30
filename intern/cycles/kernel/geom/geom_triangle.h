@@ -23,25 +23,29 @@
 
 CCL_NAMESPACE_BEGIN
 
+
+
+
+
 /* normal on triangle  */
-ccl_device_inline float3 triangle_normal(KernelGlobals *kg, ShaderData *sd)
+ccl_device_inline float3 triangle_normal(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd)
 {
 	/* load triangle vertices */
-	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
+	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd_fetch(prim));
 
 	float3 v0 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.x)));
 	float3 v1 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.y)));
 	float3 v2 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.z)));
-	
+
 	/* return normal */
-	if(sd->flag & SD_NEGATIVE_SCALE_APPLIED)
+	if(sd_fetch(flag) & SD_NEGATIVE_SCALE_APPLIED)
 		return normalize(cross(v2 - v0, v1 - v0));
 	else
 		return normalize(cross(v1 - v0, v2 - v0));
 }
 
 /* point and normal on triangle  */
-ccl_device_inline void triangle_point_normal(KernelGlobals *kg, int object, int prim, float u, float v, float3 *P, float3 *Ng, int *shader)
+ccl_device_inline void triangle_point_normal(__ADDR_SPACE__ KernelGlobals *kg, int object, int prim, float u, float v, float3 *P, float3 *Ng, int *shader)
 {
 	/* load triangle vertices */
 	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, prim);
@@ -69,7 +73,7 @@ ccl_device_inline void triangle_point_normal(KernelGlobals *kg, int object, int 
 
 /* Triangle vertex locations */
 
-ccl_device_inline void triangle_vertices(KernelGlobals *kg, int prim, float3 P[3])
+ccl_device_inline void triangle_vertices(__ADDR_SPACE__ KernelGlobals *kg, int prim, float3 P[3])
 {
 	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, prim);
 
@@ -80,7 +84,7 @@ ccl_device_inline void triangle_vertices(KernelGlobals *kg, int prim, float3 P[3
 
 /* Interpolate smooth vertex normal from vertices */
 
-ccl_device_inline float3 triangle_smooth_normal(KernelGlobals *kg, int prim, float u, float v)
+ccl_device_inline float3 triangle_smooth_normal(__ADDR_SPACE__ KernelGlobals *kg, int prim, float u, float v)
 {
 	/* load triangle vertices */
 	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, prim);
@@ -94,7 +98,7 @@ ccl_device_inline float3 triangle_smooth_normal(KernelGlobals *kg, int prim, flo
 
 /* Ray differentials on triangle */
 
-ccl_device_inline void triangle_dPdudv(KernelGlobals *kg, int prim, float3 *dPdu, float3 *dPdv)
+ccl_device_inline void triangle_dPdudv(__ADDR_SPACE__ KernelGlobals *kg, int prim, __ADDR_SPACE__ float3 *dPdu, __ADDR_SPACE__ float3 *dPdv)
 {
 	/* fetch triangle vertex coordinates */
 	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, prim);
@@ -110,40 +114,40 @@ ccl_device_inline void triangle_dPdudv(KernelGlobals *kg, int prim, float3 *dPdu
 
 /* Reading attributes on various triangle elements */
 
-ccl_device float triangle_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
+ccl_device float triangle_attribute_float(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
-	if(elem == ATTR_ELEMENT_FACE) {
+	if (elem == ATTR_ELEMENT_FACE) {
 		if(dx) *dx = 0.0f;
 		if(dy) *dy = 0.0f;
 
-		return kernel_tex_fetch(__attributes_float, offset + sd->prim);
+		return kernel_tex_fetch(__attributes_float, offset + sd_fetch(prim));
 	}
 	else if(elem == ATTR_ELEMENT_VERTEX || elem == ATTR_ELEMENT_VERTEX_MOTION) {
-		float4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
+		float4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd_fetch(prim));
 
 		float f0 = kernel_tex_fetch(__attributes_float, offset + __float_as_int(tri_vindex.x));
 		float f1 = kernel_tex_fetch(__attributes_float, offset + __float_as_int(tri_vindex.y));
 		float f2 = kernel_tex_fetch(__attributes_float, offset + __float_as_int(tri_vindex.z));
 
 #ifdef __RAY_DIFFERENTIALS__
-		if(dx) *dx = sd->du.dx*f0 + sd->dv.dx*f1 - (sd->du.dx + sd->dv.dx)*f2;
-		if(dy) *dy = sd->du.dy*f0 + sd->dv.dy*f1 - (sd->du.dy + sd->dv.dy)*f2;
+		if(dx) *dx = sd_fetch(du).dx*f0 + sd_fetch(dv).dx*f1 - (sd_fetch(du).dx + sd_fetch(dv).dx)*f2;
+		if(dy) *dy = sd_fetch(du).dy*f0 + sd_fetch(dv).dy*f1 - (sd_fetch(du).dy + sd_fetch(dv).dy)*f2;
 #endif
 
-		return sd->u*f0 + sd->v*f1 + (1.0f - sd->u - sd->v)*f2;
+		return sd_fetch(u)*f0 + sd_fetch(v)*f1 + (1.0f - sd_fetch(u) - sd_fetch(v))*f2;
 	}
 	else if(elem == ATTR_ELEMENT_CORNER) {
-		int tri = offset + sd->prim*3;
+		int tri = offset + sd_fetch(prim)*3;
 		float f0 = kernel_tex_fetch(__attributes_float, tri + 0);
 		float f1 = kernel_tex_fetch(__attributes_float, tri + 1);
 		float f2 = kernel_tex_fetch(__attributes_float, tri + 2);
 
 #ifdef __RAY_DIFFERENTIALS__
-		if(dx) *dx = sd->du.dx*f0 + sd->dv.dx*f1 - (sd->du.dx + sd->dv.dx)*f2;
-		if(dy) *dy = sd->du.dy*f0 + sd->dv.dy*f1 - (sd->du.dy + sd->dv.dy)*f2;
+		if(dx) *dx = sd_fetch(du).dx*f0 + sd_fetch(dv).dx*f1 - (sd_fetch(du).dx + sd_fetch(dv).dx)*f2;
+		if(dy) *dy = sd_fetch(du).dy*f0 + sd_fetch(dv).dy*f1 - (sd_fetch(du).dy + sd_fetch(dv).dy)*f2;
 #endif
 
-		return sd->u*f0 + sd->v*f1 + (1.0f - sd->u - sd->v)*f2;
+		return sd_fetch(u)*f0 + sd_fetch(v)*f1 + (1.0f - sd_fetch(u) - sd_fetch(v))*f2;
 	}
 	else {
 		if(dx) *dx = 0.0f;
@@ -153,30 +157,30 @@ ccl_device float triangle_attribute_float(KernelGlobals *kg, const ShaderData *s
 	}
 }
 
-ccl_device float3 triangle_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
+ccl_device float3 triangle_attribute_float3(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
 {
 	if(elem == ATTR_ELEMENT_FACE) {
 		if(dx) *dx = make_float3(0.0f, 0.0f, 0.0f);
 		if(dy) *dy = make_float3(0.0f, 0.0f, 0.0f);
 
-		return float4_to_float3(kernel_tex_fetch(__attributes_float3, offset + sd->prim));
+		return float4_to_float3(kernel_tex_fetch(__attributes_float3, offset + sd_fetch(prim)));
 	}
 	else if(elem == ATTR_ELEMENT_VERTEX || elem == ATTR_ELEMENT_VERTEX_MOTION) {
-		float4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd->prim);
+		float4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd_fetch(prim));
 
 		float3 f0 = float4_to_float3(kernel_tex_fetch(__attributes_float3, offset + __float_as_int(tri_vindex.x)));
 		float3 f1 = float4_to_float3(kernel_tex_fetch(__attributes_float3, offset + __float_as_int(tri_vindex.y)));
 		float3 f2 = float4_to_float3(kernel_tex_fetch(__attributes_float3, offset + __float_as_int(tri_vindex.z)));
 
 #ifdef __RAY_DIFFERENTIALS__
-		if(dx) *dx = sd->du.dx*f0 + sd->dv.dx*f1 - (sd->du.dx + sd->dv.dx)*f2;
-		if(dy) *dy = sd->du.dy*f0 + sd->dv.dy*f1 - (sd->du.dy + sd->dv.dy)*f2;
+		if(dx) *dx = sd_fetch(du).dx*f0 + sd_fetch(dv).dx*f1 - (sd_fetch(du).dx + sd_fetch(dv).dx)*f2;
+		if(dy) *dy = sd_fetch(du).dy*f0 + sd_fetch(dv).dy*f1 - (sd_fetch(du).dy + sd_fetch(dv).dy)*f2;
 #endif
 
-		return sd->u*f0 + sd->v*f1 + (1.0f - sd->u - sd->v)*f2;
+		return sd_fetch(u)*f0 + sd_fetch(v)*f1 + (1.0f - sd_fetch(u) - sd_fetch(v))*f2;
 	}
 	else if(elem == ATTR_ELEMENT_CORNER || elem == ATTR_ELEMENT_CORNER_BYTE) {
-		int tri = offset + sd->prim*3;
+		int tri = offset + sd_fetch(prim)*3;
 		float3 f0, f1, f2;
 
 		if(elem == ATTR_ELEMENT_CORNER) {
@@ -191,11 +195,11 @@ ccl_device float3 triangle_attribute_float3(KernelGlobals *kg, const ShaderData 
 		}
 
 #ifdef __RAY_DIFFERENTIALS__
-		if(dx) *dx = sd->du.dx*f0 + sd->dv.dx*f1 - (sd->du.dx + sd->dv.dx)*f2;
-		if(dy) *dy = sd->du.dy*f0 + sd->dv.dy*f1 - (sd->du.dy + sd->dv.dy)*f2;
+		if(dx) *dx = sd_fetch(du).dx*f0 + sd_fetch(dv).dx*f1 - (sd_fetch(du).dx + sd_fetch(dv).dx)*f2;
+		if(dy) *dy = sd_fetch(du).dy*f0 + sd_fetch(dv).dy*f1 - (sd_fetch(du).dy + sd_fetch(dv).dy)*f2;
 #endif
 
-		return sd->u*f0 + sd->v*f1 + (1.0f - sd->u - sd->v)*f2;
+		return sd_fetch(u)*f0 + sd_fetch(v)*f1 + (1.0f - sd_fetch(u) - sd_fetch(v))*f2;
 	}
 	else {
 		if(dx) *dx = make_float3(0.0f, 0.0f, 0.0f);

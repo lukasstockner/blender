@@ -51,7 +51,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
+ccl_device void kernel_path_indirect(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng, Ray ray,
 	float3 throughput, int num_samples, PathState state, PathRadiance *L)
 {
 	/* path iteration */
@@ -77,7 +77,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 			/* intersect with lamp */
 			float3 emission;
 
-			if(indirect_lamp_emission(kg, &state, &light_ray, &emission))
+			if(indirect_lamp_emission(kg, &state, &light_ray, &emission, NULL))
 				path_radiance_accum_emission(L, throughput, emission, state.bounce);
 		}
 #endif
@@ -170,7 +170,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 		if(!hit) {
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &state, &ray);
+			float3 L_background = indirect_background(kg, &state, &ray, NULL);
 			path_radiance_accum_background(L, throughput, L_background, state.bounce);
 #endif
 
@@ -291,7 +291,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 	}
 }
 
-ccl_device void kernel_path_ao(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, float3 throughput)
+ccl_device void kernel_path_ao(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, float3 throughput)
 {
 	/* todo: solve correlation */
 	float bsdf_u, bsdf_v;
@@ -325,7 +325,8 @@ ccl_device void kernel_path_ao(KernelGlobals *kg, ShaderData *sd, PathRadiance *
 	}
 }
 
-ccl_device void kernel_branched_path_ao(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, float3 throughput)
+
+ccl_device void kernel_branched_path_ao(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, float3 throughput)
 {
 	int num_samples = kernel_data.integrator.ao_samples;
 	float num_samples_inv = 1.0f/num_samples;
@@ -365,7 +366,7 @@ ccl_device void kernel_branched_path_ao(KernelGlobals *kg, ShaderData *sd, PathR
 #ifdef __SUBSURFACE__
 
 #ifdef __VOLUME__
-ccl_device void kernel_path_subsurface_update_volume_stack(KernelGlobals *kg,
+ccl_device void kernel_path_subsurface_update_volume_stack(__ADDR_SPACE__ KernelGlobals *kg,
                                                            Ray *ray,
                                                            VolumeStack *stack)
 {
@@ -389,7 +390,7 @@ ccl_device void kernel_path_subsurface_update_volume_stack(KernelGlobals *kg,
 }
 #endif
 
-ccl_device bool kernel_path_subsurface_scatter(KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, Ray *ray, float3 *throughput)
+ccl_device bool kernel_path_subsurface_scatter(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, Ray *ray, float3 *throughput)
 {
 	float bssrdf_probability;
 	ShaderClosure *sc = subsurface_scatter_pick_closure(kg, sd, &bssrdf_probability);
@@ -457,7 +458,7 @@ ccl_device bool kernel_path_subsurface_scatter(KernelGlobals *kg, ShaderData *sd
 }
 #endif
 
-ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer)
+ccl_device float4 kernel_path_integrate(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer)
 {
 	/* initialize */
 	PathRadiance L;
@@ -522,7 +523,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 			/* intersect with lamp */
 			float3 emission;
 
-			if(indirect_lamp_emission(kg, &state, &light_ray, &emission))
+			if(indirect_lamp_emission(kg, &state, &light_ray, &emission, NULL))
 				path_radiance_accum_emission(&L, throughput, emission, state.bounce);
 		}
 #endif
@@ -625,7 +626,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &state, &ray);
+			float3 L_background = indirect_background(kg, &state, &ray, NULL);
 			path_radiance_accum_background(&L, throughput, L_background, state.bounce);
 #endif
 
@@ -736,7 +737,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 #ifdef __BRANCHED_PATH__
 
 /* branched path tracing: bounce off surface and integrate indirect light */
-ccl_device_noinline void kernel_branched_path_surface_indirect_light(KernelGlobals *kg,
+ccl_device_noinline void kernel_branched_path_surface_indirect_light(__ADDR_SPACE__ KernelGlobals *kg,
 	RNG *rng, ShaderData *sd, float3 throughput, float num_samples_adjust,
 	PathState *state, PathRadiance *L)
 {
@@ -784,7 +785,7 @@ ccl_device_noinline void kernel_branched_path_surface_indirect_light(KernelGloba
 }
 
 #ifdef __SUBSURFACE__
-ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
+ccl_device void kernel_branched_path_subsurface_scatter(__ADDR_SPACE__ KernelGlobals *kg,
                                                         ShaderData *sd,
                                                         PathRadiance *L,
                                                         PathState *state,
@@ -863,7 +864,8 @@ ccl_device void kernel_branched_path_subsurface_scatter(KernelGlobals *kg,
 }
 #endif
 
-ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer)
+
+ccl_device float4 kernel_branched_path_integrate(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer)
 {
 	/* initialize */
 	PathRadiance L;
@@ -1043,7 +1045,7 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &state, &ray);
+			float3 L_background = indirect_background(kg, &state, &ray, NULL);
 			path_radiance_accum_background(&L, throughput, L_background, state.bounce);
 #endif
 
@@ -1175,7 +1177,7 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 
 #endif
 
-ccl_device_inline void kernel_path_trace_setup(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, RNG *rng, Ray *ray)
+ccl_device_inline void kernel_path_trace_setup(__ADDR_SPACE__ KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, RNG *rng, Ray *ray)
 {
 	float filter_u;
 	float filter_v;
@@ -1201,7 +1203,7 @@ ccl_device_inline void kernel_path_trace_setup(KernelGlobals *kg, ccl_global uin
 	camera_sample(kg, x, y, filter_u, filter_v, lens_u, lens_v, time, ray);
 }
 
-ccl_device void kernel_path_trace(KernelGlobals *kg,
+ccl_device void kernel_path_trace(__ADDR_SPACE__ KernelGlobals *kg,
 	ccl_global float *buffer, ccl_global uint *rng_state,
 	int sample, int x, int y, int offset, int stride)
 {
@@ -1233,7 +1235,7 @@ ccl_device void kernel_path_trace(KernelGlobals *kg,
 }
 
 #ifdef __BRANCHED_PATH__
-ccl_device void kernel_branched_path_trace(KernelGlobals *kg,
+ccl_device void kernel_branched_path_trace(__ADDR_SPACE__ KernelGlobals *kg,
 	ccl_global float *buffer, ccl_global uint *rng_state,
 	int sample, int x, int y, int offset, int stride)
 {

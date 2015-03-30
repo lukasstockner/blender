@@ -16,19 +16,19 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void svm_node_gamma(ShaderData *sd, float *stack, uint in_gamma, uint in_color, uint out_color)
+ccl_device void svm_node_gamma(__ADDR_SPACE__ ShaderData *sd, float *stack, uint in_gamma, uint in_color, uint out_color)
 {
 	float3 color = stack_load_float3(stack, in_color);
 	float gamma = stack_load_float(stack, in_gamma);
 
-	if (color.x > 0.0f)
+	if(color.x > 0.0f)
 		color.x = powf(color.x, gamma);
-	if (color.y > 0.0f)
+	if(color.y > 0.0f)
 		color.y = powf(color.y, gamma);
-	if (color.z > 0.0f)
+	if(color.z > 0.0f)
 		color.z = powf(color.z, gamma);
 
-	if (stack_valid(out_color))
+	if(stack_valid(out_color))
 		stack_store_float3(stack, out_color, color);
 }
 

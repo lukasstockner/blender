@@ -51,7 +51,7 @@ ccl_device_inline void qbvh_stack_sort(QBVHStackItem *__restrict s1,
 	if(s3->dist < s2->dist) { qbvh_item_swap(s3, s2); }
 }
 
-ccl_device_inline int qbvh_node_intersect(KernelGlobals *__restrict kg,
+ccl_device_inline int qbvh_node_intersect(__ADDR_SPACE__ KernelGlobals *__restrict kg,
                                           const ssef& tnear,
                                           const ssef& tfar,
 #ifdef __KERNEL_AVX2__
@@ -101,7 +101,7 @@ ccl_device_inline int qbvh_node_intersect(KernelGlobals *__restrict kg,
 	return mask;
 }
 
-ccl_device_inline int qbvh_node_intersect_robust(KernelGlobals *__restrict kg,
+ccl_device_inline int qbvh_node_intersect_robust(__ADDR_SPACE__ KernelGlobals *__restrict kg,
                                                  const ssef& tnear,
                                                  const ssef& tfar,
 #ifdef __KERNEL_AVX2__

@@ -19,7 +19,7 @@ CCL_NAMESPACE_BEGIN
 #if defined(__BRANCHED_PATH__) || defined(__SUBSURFACE__)
 
 /* branched path tracing: connect path directly to position on one or more lights and add it to L */
-ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RNG *rng,
+ccl_device void kernel_branched_path_surface_connect_light(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, PathState *state, float3 throughput, float num_samples_adjust, PathRadiance *L, bool sample_all_lights)
 {
 #ifdef __EMISSION__
@@ -55,7 +55,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 				LightSample ls;
 				lamp_light_sample(kg, i, light_u, light_v, sd->P, &ls);
 
-				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 					/* trace shadow ray */
 					float3 shadow;
 
@@ -87,7 +87,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 				LightSample ls;
 				light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, state->bounce, &ls);
 
-				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 					/* trace shadow ray */
 					float3 shadow;
 
@@ -109,7 +109,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 		light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, state->bounce, &ls);
 
 		/* sample random light */
-		if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+		if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 			/* trace shadow ray */
 			float3 shadow;
 
@@ -123,7 +123,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 }
 
 /* branched path tracing: bounce off or through surface to with new direction stored in ray */
-ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg, RNG *rng,
+ccl_device bool kernel_branched_path_surface_bounce(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, const ShaderClosure *sc, int sample, int num_samples,
 	float3 *throughput, PathState *state, PathRadiance *L, Ray *ray)
 {
@@ -181,12 +181,13 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg, RNG *rng,
 
 #endif
 
+#if !__SPLIT_KERNEL__
 /* path tracing: connect path directly to position on a light and add it to L */
-ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, RNG *rng,
-	ShaderData *sd, float3 throughput, PathState *state, PathRadiance *L)
+ccl_device_inline void kernel_path_surface_connect_light(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ RNG *rng,
+	__ADDR_SPACE__ ShaderData *sd, float3 throughput, __ADDR_SPACE__ PathState *state, __ADDR_SPACE__ PathRadiance *L)
 {
 #ifdef __EMISSION__
-	if(!(kernel_data.integrator.use_direct_light && (sd->flag & SD_BSDF_HAS_EVAL)))
+	if(!(kernel_data.integrator.use_direct_light && (sd_fetch(flag) & SD_BSDF_HAS_EVAL)))
 		return;
 
 	/* sample illumination from lights to find path contribution */
@@ -203,9 +204,9 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, RNG 
 #endif
 
 	LightSample ls;
-	light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, state->bounce, &ls);
+	light_sample(kg, light_t, light_u, light_v, sd_fetch(time), sd_fetch(P), state->bounce, &ls);
 
-	if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+	if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 		/* trace shadow ray */
 		float3 shadow;
 
@@ -216,13 +217,14 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, RNG 
 	}
 #endif
 }
+#endif
 
 /* path tracing: bounce off or through surface to with new direction stored in ray */
-ccl_device_inline bool kernel_path_surface_bounce(KernelGlobals *kg, RNG *rng,
-	ShaderData *sd, float3 *throughput, PathState *state, PathRadiance *L, Ray *ray)
+ccl_device_inline bool kernel_path_surface_bounce(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ RNG *rng,
+	__ADDR_SPACE__ ShaderData *sd, __ADDR_SPACE__ float3 *throughput, __ADDR_SPACE__ PathState *state, __ADDR_SPACE__ PathRadiance *L, __ADDR_SPACE__ Ray *ray)
 {
 	/* no BSDF? we can stop here */
-	if(sd->flag & SD_BSDF) {
+	if(sd_fetch(flag) & SD_BSDF) {
 		/* sample BSDF */
 		float bsdf_pdf;
 		BsdfEval bsdf_eval;
@@ -254,16 +256,16 @@ ccl_device_inline bool kernel_path_surface_bounce(KernelGlobals *kg, RNG *rng,
 		path_state_next(kg, state, label);
 
 		/* setup ray */
-		ray->P = ray_offset(sd->P, (label & LABEL_TRANSMIT)? -sd->Ng: sd->Ng);
+		ray->P = ray_offset(sd_fetch(P), (label & LABEL_TRANSMIT)? -sd_fetch(Ng): sd_fetch(Ng));
 		ray->D = bsdf_omega_in;
 
 		if(state->bounce == 0)
-			ray->t -= sd->ray_length; /* clipping works through transparent */
+			ray->t -= sd_fetch(ray_length); /* clipping works through transparent */
 		else
 			ray->t = FLT_MAX;
 
 #ifdef __RAY_DIFFERENTIALS__
-		ray->dP = sd->dP;
+		ray->dP = sd_fetch(dP);
 		ray->dD = bsdf_domega_in;
 #endif
 
@@ -275,21 +277,21 @@ ccl_device_inline bool kernel_path_surface_bounce(KernelGlobals *kg, RNG *rng,
 		return true;
 	}
 #ifdef __VOLUME__
-	else if(sd->flag & SD_HAS_ONLY_VOLUME) {
+	else if(sd_fetch(flag) & SD_HAS_ONLY_VOLUME) {
 		/* no surface shader but have a volume shader? act transparent */
 
 		/* update path state, count as transparent */
 		path_state_next(kg, state, LABEL_TRANSPARENT);
 
-		if(state->bounce == 0)
-			ray->t -= sd->ray_length; /* clipping works through transparent */
+		if (state->bounce == 0)
+			ray->t -= sd_fetch(ray_length); /* clipping works through transparent */
 		else
 			ray->t = FLT_MAX;
 
 		/* setup ray position, direction stays unchanged */
-		ray->P = ray_offset(sd->P, -sd->Ng);
+		ray->P = ray_offset(sd_fetch(P), -sd_fetch(Ng));
 #ifdef __RAY_DIFFERENTIALS__
-		ray->dP = sd->dP;
+		ray->dP = sd_fetch(dP);
 #endif
 
 		/* enter/exit volume */

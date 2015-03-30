@@ -36,7 +36,7 @@ typedef struct VolumeShaderCoefficients {
 } VolumeShaderCoefficients;
 
 /* evaluate shader to get extinction coefficient at P */
-ccl_device bool volume_shader_extinction_sample(KernelGlobals *kg, ShaderData *sd, PathState *state, float3 P, float3 *extinction)
+ccl_device bool volume_shader_extinction_sample(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, PathState *state, float3 P, float3 *extinction)
 {
 	sd->P = P;
 	shader_eval_volume(kg, sd, state->volume_stack, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
@@ -58,7 +58,7 @@ ccl_device bool volume_shader_extinction_sample(KernelGlobals *kg, ShaderData *s
 }
 
 /* evaluate shader to get absorption, scattering and emission at P */
-ccl_device bool volume_shader_sample(KernelGlobals *kg, ShaderData *sd, PathState *state, float3 P, VolumeShaderCoefficients *coeff)
+ccl_device bool volume_shader_sample(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, PathState *state, float3 P, VolumeShaderCoefficients *coeff)
 {
 	sd->P = P;
 	shader_eval_volume(kg, sd, state->volume_stack, state->flag, SHADER_CONTEXT_VOLUME);
@@ -104,7 +104,7 @@ ccl_device float kernel_volume_channel_get(float3 value, int channel)
 	return (channel == 0)? value.x: ((channel == 1)? value.y: value.z);
 }
 
-ccl_device bool volume_stack_is_heterogeneous(KernelGlobals *kg, VolumeStack *stack)
+ccl_device bool volume_stack_is_heterogeneous(__ADDR_SPACE__ KernelGlobals *kg, VolumeStack *stack)
 {
 	for(int i = 0; stack[i].shader != SHADER_NONE; i++) {
 		int shader_flag = kernel_tex_fetch(__shader_flag, (stack[i].shader & SHADER_MASK)*2);
@@ -116,7 +116,7 @@ ccl_device bool volume_stack_is_heterogeneous(KernelGlobals *kg, VolumeStack *st
 	return false;
 }
 
-ccl_device int volume_stack_sampling_method(KernelGlobals *kg, VolumeStack *stack)
+ccl_device int volume_stack_sampling_method(__ADDR_SPACE__ KernelGlobals *kg, VolumeStack *stack)
 {
 	if(kernel_data.integrator.num_all_lights == 0)
 		return 0;
@@ -153,7 +153,7 @@ ccl_device int volume_stack_sampling_method(KernelGlobals *kg, VolumeStack *stac
 
 /* homogeneous volume: assume shader evaluation at the starts gives
  * the extinction coefficient for the entire line segment */
-ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd, float3 *throughput)
+ccl_device void kernel_volume_shadow_homogeneous(__ADDR_SPACE__ KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd, float3 *throughput)
 {
 	float3 sigma_t;
 
@@ -163,7 +163,7 @@ ccl_device void kernel_volume_shadow_homogeneous(KernelGlobals *kg, PathState *s
 
 /* heterogeneous volume: integrate stepping through the volume until we
  * reach the end, get absorbed entirely, or run out of iterations */
-ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd, float3 *throughput)
+ccl_device void kernel_volume_shadow_heterogeneous(__ADDR_SPACE__ KernelGlobals *kg, PathState *state, Ray *ray, ShaderData *sd, float3 *throughput)
 {
 	float3 tp = *throughput;
 	const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
@@ -219,7 +219,7 @@ ccl_device void kernel_volume_shadow_heterogeneous(KernelGlobals *kg, PathState 
 
 /* get the volume attenuation over line segment defined by ray, with the
  * assumption that there are no surfaces blocking light between the endpoints */
-ccl_device_noinline void kernel_volume_shadow(KernelGlobals *kg, PathState *state, Ray *ray, float3 *throughput)
+ccl_device_noinline void kernel_volume_shadow(__ADDR_SPACE__ KernelGlobals *kg, PathState *state, Ray *ray, float3 *throughput)
 {
 	ShaderData sd;
 	shader_setup_from_volume(kg, &sd, ray, state->bounce, state->transparent_bounce);
@@ -321,7 +321,7 @@ ccl_device float3 kernel_volume_emission_integrate(VolumeShaderCoefficients *coe
 
 /* homogeneous volume: assume shader evaluation at the start gives
  * the volume shading coefficient for the entire line segment */
-ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGlobals *kg,
+ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(__ADDR_SPACE__ KernelGlobals *kg,
 	PathState *state, Ray *ray, ShaderData *sd, PathRadiance *L, float3 *throughput,
 	RNG *rng, bool probalistic_scatter)
 {
@@ -424,7 +424,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_homogeneous(KernelGloba
  * volume until we reach the end, get absorbed entirely, or run out of
  * iterations. this does probalistically scatter or get transmitted through
  * for path tracing where we don't want to branch. */
-ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(KernelGlobals *kg,
+ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(__ADDR_SPACE__ KernelGlobals *kg,
 	PathState *state, Ray *ray, ShaderData *sd, PathRadiance *L, float3 *throughput, RNG *rng)
 {
 	float3 tp = *throughput;
@@ -559,7 +559,7 @@ ccl_device VolumeIntegrateResult kernel_volume_integrate_heterogeneous_distance(
  * ray, with the assumption that there are no surfaces blocking light
  * between the endpoints. distance sampling is used to decide if we will
  * scatter or not. */
-ccl_device_noinline VolumeIntegrateResult kernel_volume_integrate(KernelGlobals *kg,
+ccl_device_noinline VolumeIntegrateResult kernel_volume_integrate(__ADDR_SPACE__ KernelGlobals *kg,
 	PathState *state, ShaderData *sd, Ray *ray, PathRadiance *L, float3 *throughput, RNG *rng, bool heterogeneous)
 {
 	/* workaround to fix correlation bug in T38710, can find better solution
@@ -613,7 +613,7 @@ typedef struct VolumeSegment {
  * but the entire segment is needed to do always scattering, rather than probalistically
  * hitting or missing the volume. if we don't know the transmittance at the end of the
  * volume we can't generate stratified distance samples up to that transmittance */
-ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *state,
+ccl_device void kernel_volume_decoupled_record(__ADDR_SPACE__ KernelGlobals *kg, PathState *state,
 	Ray *ray, ShaderData *sd, VolumeSegment *segment, bool heterogeneous)
 {
 	const float tp_eps = 1e-6f; /* todo: this is likely not the right value */
@@ -743,7 +743,7 @@ ccl_device void kernel_volume_decoupled_record(KernelGlobals *kg, PathState *sta
 	}
 }
 
-ccl_device void kernel_volume_decoupled_free(KernelGlobals *kg, VolumeSegment *segment)
+ccl_device void kernel_volume_decoupled_free(__ADDR_SPACE__ KernelGlobals *kg, VolumeSegment *segment)
 {
 	if(segment->steps != &segment->stack_step)
 		free(segment->steps);
@@ -940,7 +940,7 @@ ccl_device VolumeIntegrateResult kernel_volume_decoupled_scatter(
 }
 
 /* decide if we need to use decoupled or not */
-ccl_device bool kernel_volume_use_decoupled(KernelGlobals *kg, bool heterogeneous, bool direct, int sampling_method)
+ccl_device bool kernel_volume_use_decoupled(__ADDR_SPACE__ KernelGlobals *kg, bool heterogeneous, bool direct, int sampling_method)
 {
 	/* decoupled ray marching for heterogenous volumes not supported on the GPU,
 	 * which also means equiangular and multiple importance sampling is not
@@ -967,7 +967,7 @@ ccl_device bool kernel_volume_use_decoupled(KernelGlobals *kg, bool heterogeneou
  * This is an array of object/shared ID's that the current segment of the path
  * is inside of. */
 
-ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
+ccl_device void kernel_volume_stack_init(__ADDR_SPACE__ KernelGlobals *kg,
                                          Ray *ray,
                                          VolumeStack *stack)
 {
@@ -1052,7 +1052,7 @@ ccl_device void kernel_volume_stack_init(KernelGlobals *kg,
 	}
 }
 
-ccl_device void kernel_volume_stack_enter_exit(KernelGlobals *kg, ShaderData *sd, VolumeStack *stack)
+ccl_device void kernel_volume_stack_enter_exit(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, VolumeStack *stack)
 {
 	/* todo: we should have some way for objects to indicate if they want the
 	 * world shader to work inside them. excluding it by default is problematic

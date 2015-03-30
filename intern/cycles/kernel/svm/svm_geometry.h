@@ -18,34 +18,34 @@ CCL_NAMESPACE_BEGIN
 
 /* Geometry Node */
 
-ccl_device void svm_node_geometry(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_geometry(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float3 data;
 
 	switch(type) {
-		case NODE_GEOM_P: data = sd->P; break;
-		case NODE_GEOM_N: data = sd->N; break;
+		case NODE_GEOM_P: data = sd_fetch(P); break;
+		case NODE_GEOM_N: data = sd_fetch(N); break;
 #ifdef __DPDU__
 		case NODE_GEOM_T: data = primitive_tangent(kg, sd); break;
 #endif
-		case NODE_GEOM_I: data = sd->I; break;
-		case NODE_GEOM_Ng: data = sd->Ng; break;
+		case NODE_GEOM_I: data = sd_fetch(I); break;
+		case NODE_GEOM_Ng: data = sd_fetch(Ng); break;
 #ifdef __UV__
-		case NODE_GEOM_uv: data = make_float3(sd->u, sd->v, 0.0f); break;
+		case NODE_GEOM_uv: data = make_float3(sd_fetch(u), sd_fetch(v), 0.0f); break;
 #endif
 	}
 
 	stack_store_float3(stack, out_offset, data);
 }
 
-ccl_device void svm_node_geometry_bump_dx(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_geometry_bump_dx(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	float3 data;
 
 	switch(type) {
-		case NODE_GEOM_P: data = sd->P + sd->dP.dx; break;
-		case NODE_GEOM_uv: data = make_float3(sd->u + sd->du.dx, sd->v + sd->dv.dx, 0.0f); break;
+		case NODE_GEOM_P: data = sd_fetch(P) + sd_fetch(dP).dx; break;
+		case NODE_GEOM_uv: data = make_float3(sd_fetch(u) + sd_fetch(du).dx, sd_fetch(v) + sd_fetch(dv).dx, 0.0f); break;
 		default: svm_node_geometry(kg, sd, stack, type, out_offset); return;
 	}
 
@@ -55,14 +55,14 @@ ccl_device void svm_node_geometry_bump_dx(KernelGlobals *kg, ShaderData *sd, flo
 #endif
 }
 
-ccl_device void svm_node_geometry_bump_dy(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_geometry_bump_dy(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	float3 data;
 
 	switch(type) {
-		case NODE_GEOM_P: data = sd->P + sd->dP.dy; break;
-		case NODE_GEOM_uv: data = make_float3(sd->u + sd->du.dy, sd->v + sd->dv.dy, 0.0f); break;
+		case NODE_GEOM_P: data = sd_fetch(P) + sd_fetch(dP).dy; break;
+		case NODE_GEOM_uv: data = make_float3(sd_fetch(u) + sd_fetch(du).dy, sd_fetch(v) + sd_fetch(dv).dy, 0.0f); break;
 		default: svm_node_geometry(kg, sd, stack, type, out_offset); return;
 	}
 
@@ -73,8 +73,7 @@ ccl_device void svm_node_geometry_bump_dy(KernelGlobals *kg, ShaderData *sd, flo
 }
 
 /* Object Info */
-
-ccl_device void svm_node_object_info(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_object_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float data;
 
@@ -83,9 +82,9 @@ ccl_device void svm_node_object_info(KernelGlobals *kg, ShaderData *sd, float *s
 			stack_store_float3(stack, out_offset, object_location(kg, sd));
 			return;
 		}
-		case NODE_INFO_OB_INDEX: data = object_pass_id(kg, sd->object); break;
+		case NODE_INFO_OB_INDEX: data = object_pass_id(kg, sd_fetch(object)); break;
 		case NODE_INFO_MAT_INDEX: data = shader_pass_id(kg, sd); break;
-		case NODE_INFO_OB_RANDOM: data = object_random_number(kg, sd->object); break;
+		case NODE_INFO_OB_RANDOM: data = object_random_number(kg, sd_fetch(object)); break;
 		default: data = 0.0f; break;
 	}
 
@@ -94,48 +93,48 @@ ccl_device void svm_node_object_info(KernelGlobals *kg, ShaderData *sd, float *s
 
 /* Particle Info */
 
-ccl_device void svm_node_particle_info(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_particle_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	switch(type) {
 		case NODE_INFO_PAR_INDEX: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float(stack, out_offset, particle_index(kg, particle_id));
 			break;
 		}
 		case NODE_INFO_PAR_AGE: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float(stack, out_offset, particle_age(kg, particle_id));
 			break;
 		}
 		case NODE_INFO_PAR_LIFETIME: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float(stack, out_offset, particle_lifetime(kg, particle_id));
 			break;
 		}
 		case NODE_INFO_PAR_LOCATION: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float3(stack, out_offset, particle_location(kg, particle_id));
 			break;
 		}
 #if 0	/* XXX float4 currently not supported in SVM stack */
 		case NODE_INFO_PAR_ROTATION: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float4(stack, out_offset, particle_rotation(kg, particle_id));
 			break;
 		}
 #endif
 		case NODE_INFO_PAR_SIZE: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float(stack, out_offset, particle_size(kg, particle_id));
 			break;
 		}
 		case NODE_INFO_PAR_VELOCITY: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float3(stack, out_offset, particle_velocity(kg, particle_id));
 			break;
 		}
 		case NODE_INFO_PAR_ANGULAR_VELOCITY: {
-			int particle_id = object_particle_id(kg, sd->object);
+			int particle_id = object_particle_id(kg, sd_fetch(object));
 			stack_store_float3(stack, out_offset, particle_angular_velocity(kg, particle_id));
 			break;
 		}
@@ -145,15 +144,14 @@ ccl_device void svm_node_particle_info(KernelGlobals *kg, ShaderData *sd, float 
 #ifdef __HAIR__
 
 /* Hair Info */
-
-ccl_device void svm_node_hair_info(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_hair_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float data;
 	float3 data3;
 
 	switch(type) {
 		case NODE_INFO_CURVE_IS_STRAND: {
-			data = (sd->type & PRIMITIVE_ALL_CURVE) != 0;
+			data = (sd_fetch(type) & PRIMITIVE_ALL_CURVE) != 0;
 			stack_store_float(stack, out_offset, data);
 			break;
 		}
@@ -165,7 +163,7 @@ ccl_device void svm_node_hair_info(KernelGlobals *kg, ShaderData *sd, float *sta
 			break;
 		}
 		/*case NODE_INFO_CURVE_FADE: {
-			data = sd->curve_transparency;
+			data = sd_fetch(curve_transparency);
 			stack_store_float(stack, out_offset, data);
 			break;
 		}*/
@@ -176,6 +174,7 @@ ccl_device void svm_node_hair_info(KernelGlobals *kg, ShaderData *sd, float *sta
 		}
 	}
 }
+
 #endif
 
 CCL_NAMESPACE_END

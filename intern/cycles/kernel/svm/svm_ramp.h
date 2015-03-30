@@ -19,7 +19,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device float4 rgb_ramp_lookup(KernelGlobals *kg, int offset, float f, bool interpolate)
+ccl_device float4 rgb_ramp_lookup(__ADDR_SPACE__ KernelGlobals *kg, int offset, float f, bool interpolate)
 {
 	f = clamp(f, 0.0f, 1.0f)*(RAMP_TABLE_SIZE-1);
 
@@ -35,7 +35,7 @@ ccl_device float4 rgb_ramp_lookup(KernelGlobals *kg, int offset, float f, bool i
 	return a;
 }
 
-ccl_device void svm_node_rgb_ramp(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_rgb_ramp(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint fac_offset, color_offset, alpha_offset;
 	uint interpolate = node.z;
@@ -53,7 +53,7 @@ ccl_device void svm_node_rgb_ramp(KernelGlobals *kg, ShaderData *sd, float *stac
 	*offset += RAMP_TABLE_SIZE;
 }
 
-ccl_device void svm_node_rgb_curves(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_rgb_curves(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint fac_offset = node.y;
 	uint color_offset = node.z;
@@ -72,7 +72,7 @@ ccl_device void svm_node_rgb_curves(KernelGlobals *kg, ShaderData *sd, float *st
 	*offset += RAMP_TABLE_SIZE;
 }
 
-ccl_device void svm_node_vector_curves(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_vector_curves(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint fac_offset = node.y;
 	uint color_offset = node.z;

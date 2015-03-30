@@ -29,7 +29,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Return position normalized to 0..1 in mesh bounds */
 
-ccl_device float3 volume_normalized_position(KernelGlobals *kg, const ShaderData *sd, float3 P)
+ccl_device float3 volume_normalized_position(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ const ShaderData *sd, float3 P)
 {
 	/* todo: optimize this so it's just a single matrix multiplication when
 	 * possible (not motion blur), or perhaps even just translation + scale */
@@ -46,7 +46,7 @@ ccl_device float3 volume_normalized_position(KernelGlobals *kg, const ShaderData
 	return P;
 }
 
-ccl_device float volume_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int id, float *dx, float *dy)
+ccl_device float volume_attribute_float(__ADDR_SPACE__ KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int id, float *dx, float *dy)
 {
 	float3 P = volume_normalized_position(kg, sd, sd->P);
 #ifdef __KERNEL_GPU__
@@ -66,7 +66,7 @@ ccl_device float volume_attribute_float(KernelGlobals *kg, const ShaderData *sd,
 	return average(float4_to_float3(r));
 }
 
-ccl_device float3 volume_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int id, float3 *dx, float3 *dy)
+ccl_device float3 volume_attribute_float3(__ADDR_SPACE__ KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int id, float3 *dx, float3 *dy)
 {
 	float3 P = volume_normalized_position(kg, sd, sd->P);
 #ifdef __KERNEL_GPU__

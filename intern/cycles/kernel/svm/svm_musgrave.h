@@ -199,7 +199,7 @@ ccl_device float svm_musgrave(NodeMusgraveType type, float dimension, float lacu
 	return 0.0f;
 }
 
-ccl_device void svm_node_tex_musgrave(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_musgrave(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint4 node2 = read_node(kg, offset);
 	uint4 node3 = read_node(kg, offset);

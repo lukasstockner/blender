@@ -78,6 +78,7 @@ public:
 	bool next();
 	bool next_tile(Tile& tile, int device = 0);
 	bool done();
+  int2 get_tile_size() { return tile_size; }
 	
 	void set_tile_order(TileOrder tile_order_) { tile_order = tile_order_; }
 protected:

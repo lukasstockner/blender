@@ -139,6 +139,9 @@ public:
 	int offset;
 	int stride;
 
+	/* user set tile-size */
+	int2 tile_size;
+
 	device_ptr buffer;
 	device_ptr rng_state;
 

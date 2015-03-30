@@ -33,7 +33,7 @@ ccl_device_noinline float svm_wave(NodeWaveType type, float3 p, float detail, fl
 	return 0.5f + 0.5f * sinf(n);
 }
 
-ccl_device void svm_node_tex_wave(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_wave(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint4 node2 = read_node(kg, offset);
 

@@ -94,9 +94,9 @@ ccl_device_inline float xor_signmast(float x, int y)
 	return __int_as_float(__float_as_int(x) ^ y);
 }
 
-ccl_device_inline bool triangle_intersect(KernelGlobals *kg,
+ccl_device_inline bool triangle_intersect(__ADDR_SPACE__ KernelGlobals *kg,
                                           const IsectPrecalc *isect_precalc,
-                                          Intersection *isect,
+                                          __ADDR_SPACE__ Intersection *isect,
                                           float3 P,
                                           float3 dir,
                                           uint visibility,
@@ -300,9 +300,9 @@ ccl_device_inline void triangle_intersect_subsurface(
  * http://www.cs.virginia.edu/~gfx/Courses/2003/ImageSynthesis/papers/Acceleration/Fast%20MinimumStorage%20RayTriangle%20Intersection.pdf
  */
 
-ccl_device_inline float3 triangle_refine(KernelGlobals *kg,
-                                         ShaderData *sd,
-                                         const Intersection *isect,
+ccl_device_inline float3 triangle_refine(__ADDR_SPACE__ KernelGlobals *kg,
+                                         __ADDR_SPACE__ ShaderData *sd,
+                                         __ADDR_SPACE__ const Intersection *isect,
                                          const Ray *ray)
 {
 	float3 P = ray->P;
@@ -360,7 +360,7 @@ ccl_device_inline float3 triangle_refine(KernelGlobals *kg,
 /* Same as above, except that isect->t is assumed to be in object space for
  * instancing.
  */
-ccl_device_inline float3 triangle_refine_subsurface(KernelGlobals *kg,
+ccl_device_inline float3 triangle_refine_subsurface(__ADDR_SPACE__ KernelGlobals *kg,
                                                     ShaderData *sd,
                                                     const Intersection *isect,
                                                     const Ray *ray)

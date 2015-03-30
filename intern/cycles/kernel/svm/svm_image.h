@@ -21,7 +21,7 @@ CCL_NAMESPACE_BEGIN
 /* For OpenCL all images are packed in a single array, and we do manual lookup
  * and interpolation. */
 
-ccl_device_inline float4 svm_image_texture_read(KernelGlobals *kg, int offset)
+ccl_device_inline float4 svm_image_texture_read(__ADDR_SPACE__ KernelGlobals *kg, int offset)
 {
 	uchar4 r = kernel_tex_fetch(__tex_image_packed, offset);
 	float f = 1.0f/255.0f;
@@ -48,7 +48,7 @@ ccl_device_inline float svm_image_texture_frac(float x, int *ix)
 	return x - (float)i;
 }
 
-ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
+ccl_device float4 svm_image_texture(__ADDR_SPACE__ KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
 	/* first slots are used by float textures, which are not supported here */
 	if(id < TEX_NUM_FLOAT_IMAGES)
@@ -130,7 +130,7 @@ ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y,
 
 #else
 
-ccl_device float4 svm_image_texture(KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
+ccl_device float4 svm_image_texture(__ADDR_SPACE__ KernelGlobals *kg, int id, float x, float y, uint srgb, uint use_alpha)
 {
 #ifdef __KERNEL_CPU__
 #ifdef __KERNEL_SSE2__
@@ -360,7 +360,7 @@ ccl_device_inline float3 texco_remap_square(float3 co)
 	return (co - make_float3(0.5f, 0.5f, 0.5f)) * 2.0f;
 }
 
-ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;
@@ -389,13 +389,13 @@ ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *sta
 		stack_store_float(stack, alpha_offset, f.w);
 }
 
-ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image_box(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
 {
 	/* get object space normal */
-	float3 N = sd->N;
+	float3 N = sd_fetch(N);
 
-	N = sd->N;
-	if(sd->object != OBJECT_NONE)
+	N = sd_fetch(N);
+	if(sd_fetch(object) != OBJECT_NONE)
 		object_inverse_normal_transform(kg, sd, &N);
 
 	/* project from direction vector to barycentric coordinates in triangles */
@@ -481,7 +481,7 @@ ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float 
 		stack_store_float(stack, alpha_offset, f.w);
 }
 
-ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_environment(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;
@@ -493,7 +493,7 @@ ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, floa
 	float2 uv;
 
 	co = normalize(co);
-	
+
 	if(projection == 0)
 		uv = direction_to_equirectangular(co);
 	else

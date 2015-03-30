@@ -35,7 +35,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
+ccl_device int bsdf_sample(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, const __ADDR_SPACE__ ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
 
@@ -47,79 +47,79 @@ ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const Shader
 	switch(sc->type) {
 		case CLOSURE_BSDF_DIFFUSE_ID:
 		case CLOSURE_BSDF_BSSRDF_ID:
-			label = bsdf_diffuse_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_diffuse_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 #ifdef __SVM__
 		case CLOSURE_BSDF_OREN_NAYAR_ID:
-			label = bsdf_oren_nayar_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_oren_nayar_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		/*case CLOSURE_BSDF_PHONG_RAMP_ID:
-			label = bsdf_phong_ramp_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_phong_ramp_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_DIFFUSE_RAMP_ID:
-			label = bsdf_diffuse_ramp_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_diffuse_ramp_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;*/
 		case CLOSURE_BSDF_TRANSLUCENT_ID:
-			label = bsdf_translucent_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_translucent_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_REFLECTION_ID:
-			label = bsdf_reflection_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_reflection_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_REFRACTION_ID:
-			label = bsdf_refraction_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_refraction_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_TRANSPARENT_ID:
-			label = bsdf_transparent_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_transparent_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_MICROFACET_GGX_ID:
 		case CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID:
 		case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
-			label = bsdf_microfacet_ggx_sample(kg, sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_microfacet_ggx_sample(kg, sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_ID:
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID:
 		case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
-			label = bsdf_microfacet_beckmann_sample(kg, sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_microfacet_beckmann_sample(kg, sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID:
 		case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID:
-			label = bsdf_ashikhmin_shirley_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_ashikhmin_shirley_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID:
-			label = bsdf_ashikhmin_velvet_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_ashikhmin_velvet_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_DIFFUSE_TOON_ID:
-			label = bsdf_diffuse_toon_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_diffuse_toon_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_GLOSSY_TOON_ID:
-			label = bsdf_glossy_toon_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_glossy_toon_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
-			label = bsdf_hair_reflection_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_hair_reflection_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:
-			label = bsdf_hair_transmission_sample(sc, sd->Ng, sd->I, sd->dI.dx, sd->dI.dy, randu, randv,
+			label = bsdf_hair_transmission_sample(sc, sd_fetch(Ng), sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv,
 				eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 #endif
 #ifdef __VOLUME__
 		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
-			label = volume_henyey_greenstein_sample(sc, sd->I, sd->dI.dx, sd->dI.dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
+			label = volume_henyey_greenstein_sample(sc, sd_fetch(I), sd_fetch(dI).dx, sd_fetch(dI).dy, randu, randv, eval, omega_in, &domega_in->dx, &domega_in->dy, pdf);
 			break;
 #endif
 		default:
@@ -130,7 +130,7 @@ ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const Shader
 	return label;
 }
 
-ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_eval(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, const __ADDR_SPACE__ ShaderClosure *sc, const float3 omega_in, float *pdf)
 {
 	float3 eval;
 
@@ -139,67 +139,67 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 		return OSLShader::bsdf_eval(sd, sc, omega_in, *pdf);
 #endif
 
-	if(dot(sd->Ng, omega_in) >= 0.0f) {
+	if(dot(sd_fetch(Ng), omega_in) >= 0.0f) {
 		switch(sc->type) {
 			case CLOSURE_BSDF_DIFFUSE_ID:
 			case CLOSURE_BSDF_BSSRDF_ID:
-				eval = bsdf_diffuse_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_diffuse_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 #ifdef __SVM__
 			case CLOSURE_BSDF_OREN_NAYAR_ID:
-				eval = bsdf_oren_nayar_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_oren_nayar_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			/*case CLOSURE_BSDF_PHONG_RAMP_ID:
-				eval = bsdf_phong_ramp_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_phong_ramp_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_DIFFUSE_RAMP_ID:
-				eval = bsdf_diffuse_ramp_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_diffuse_ramp_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;*/
 			case CLOSURE_BSDF_TRANSLUCENT_ID:
-				eval = bsdf_translucent_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_translucent_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_REFLECTION_ID:
-				eval = bsdf_reflection_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_reflection_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_REFRACTION_ID:
-				eval = bsdf_refraction_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_refraction_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_TRANSPARENT_ID:
-				eval = bsdf_transparent_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_transparent_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_MICROFACET_GGX_ID:
 			case CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID:
 			case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
-				eval = bsdf_microfacet_ggx_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_microfacet_ggx_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ID:
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID:
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
-				eval = bsdf_microfacet_beckmann_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_microfacet_beckmann_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID:
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID:
-				eval = bsdf_ashikhmin_shirley_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_ashikhmin_shirley_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID:
-				eval = bsdf_ashikhmin_velvet_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_ashikhmin_velvet_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_DIFFUSE_TOON_ID:
-				eval = bsdf_diffuse_toon_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_diffuse_toon_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_GLOSSY_TOON_ID:
-				eval = bsdf_glossy_toon_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_glossy_toon_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_HAIR_REFLECTION_ID:
-				eval = bsdf_hair_reflection_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_hair_reflection_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:
-				eval = bsdf_hair_transmission_eval_reflect(sc, sd->I, omega_in, pdf);
+				eval = bsdf_hair_transmission_eval_reflect(sc, sd_fetch(I), omega_in, pdf);
 				break;
 #endif
 #ifdef __VOLUME__
 			case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
-				eval = volume_henyey_greenstein_eval_phase(sc, sd->I, omega_in, pdf);
+				eval = volume_henyey_greenstein_eval_phase(sc, sd_fetch(I), omega_in, pdf);
 				break;
 #endif
 			default:
@@ -211,57 +211,57 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 		switch(sc->type) {
 			case CLOSURE_BSDF_DIFFUSE_ID:
 			case CLOSURE_BSDF_BSSRDF_ID:
-				eval = bsdf_diffuse_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_diffuse_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 #ifdef __SVM__
 			case CLOSURE_BSDF_OREN_NAYAR_ID:
-				eval = bsdf_oren_nayar_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_oren_nayar_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_TRANSLUCENT_ID:
-				eval = bsdf_translucent_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_translucent_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_REFLECTION_ID:
-				eval = bsdf_reflection_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_reflection_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_REFRACTION_ID:
-				eval = bsdf_refraction_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_refraction_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_TRANSPARENT_ID:
-				eval = bsdf_transparent_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_transparent_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_MICROFACET_GGX_ID:
 			case CLOSURE_BSDF_MICROFACET_GGX_ANISO_ID:
 			case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
-				eval = bsdf_microfacet_ggx_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_microfacet_ggx_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ID:
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_ANISO_ID:
 			case CLOSURE_BSDF_MICROFACET_BECKMANN_REFRACTION_ID:
-				eval = bsdf_microfacet_beckmann_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_microfacet_beckmann_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ID:
 			case CLOSURE_BSDF_ASHIKHMIN_SHIRLEY_ANISO_ID:
-				eval = bsdf_ashikhmin_shirley_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_ashikhmin_shirley_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID:
-				eval = bsdf_ashikhmin_velvet_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_ashikhmin_velvet_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_DIFFUSE_TOON_ID:
-				eval = bsdf_diffuse_toon_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_diffuse_toon_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_GLOSSY_TOON_ID:
-				eval = bsdf_glossy_toon_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_glossy_toon_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_HAIR_REFLECTION_ID:
-				eval = bsdf_hair_reflection_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_hair_reflection_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 			case CLOSURE_BSDF_HAIR_TRANSMISSION_ID:
-				eval = bsdf_hair_transmission_eval_transmit(sc, sd->I, omega_in, pdf);
+				eval = bsdf_hair_transmission_eval_transmit(sc, sd_fetch(I), omega_in, pdf);
 				break;
 #endif
 #ifdef __VOLUME__
 			case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
-				eval = volume_henyey_greenstein_eval_phase(sc, sd->I, omega_in, pdf);
+				eval = volume_henyey_greenstein_eval_phase(sc, sd_fetch(I), omega_in, pdf);
 				break;
 #endif
 			default:
@@ -273,7 +273,7 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const Shade
 	return eval;
 }
 
-ccl_device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
+ccl_device void bsdf_blur(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderClosure *sc, float roughness)
 {
 /* ToDo: do we want to blur volume closures? */
 

@@ -32,7 +32,7 @@ ccl_device_noinline float4 svm_voronoi(NodeVoronoiColoring coloring, float3 p)
 	}
 }
 
-ccl_device void svm_node_tex_voronoi(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_voronoi(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint coloring = node.y;
 	uint scale_offset, co_offset, fac_offset, color_offset;

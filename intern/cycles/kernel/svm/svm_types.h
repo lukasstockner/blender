@@ -24,7 +24,7 @@ CCL_NAMESPACE_BEGIN
 /* SVM stack has a fixed size */
 #define SVM_STACK_SIZE 255
 /* SVM stack offsets with this value indicate that it's not on the stack */
-#define SVM_STACK_INVALID 255 
+#define SVM_STACK_INVALID 255
 
 /* Nodes */
 
@@ -102,6 +102,11 @@ typedef enum NodeType {
 	NODE_TANGENT,
 	NODE_NORMAL_MAP,
 	NODE_HAIR_INFO,
+	/* This enum type should be the last in the list;
+	 * This enum type is used to check the number of
+	 * types in the NodeType enum and is hard-coded in
+	 * svm.cpp and device_opencl.cpp.
+	 */
 	NODE_UVMAP
 } NodeType;
 

@@ -16,26 +16,74 @@
 
 CCL_NAMESPACE_BEGIN
 
+#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+/* Utility functions for float atomics */
+/* float atomics impl credits : http://suhorukov.blogspot.in/2011/12/opencl-11-atomic-operations-on-floating.html */
+inline void atomic_add_float(volatile __global float *source, const float operand) {
+	union {
+		unsigned int intVal;
+		float floatVal;
+
+	} newVal;
+	union {
+		unsigned int intVal;
+		float floatVal;
+
+	} prevVal;
+	do {
+		prevVal.floatVal = *source;
+		newVal.floatVal = prevVal.floatVal + operand;
+
+	} while (atomic_cmpxchg((volatile __global unsigned int *)source, prevVal.intVal, newVal.intVal) != prevVal.intVal);
+}
+#endif // __SPLIT_KERNEL__ && __WORK_STEALING__
+
 ccl_device_inline void kernel_write_pass_float(ccl_global float *buffer, int sample, float value)
 {
 	ccl_global float *buf = buffer;
+#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+	atomic_add_float(buf, value);
+#else
 	*buf = (sample == 0)? value: *buf + value;
+#endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 }
 
 ccl_device_inline void kernel_write_pass_float3(ccl_global float *buffer, int sample, float3 value)
 {
+#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+	ccl_global float *buf_x = buffer + 0;
+	ccl_global float *buf_y = buffer + 1;
+	ccl_global float *buf_z = buffer + 2;
+
+	atomic_add_float(buf_x, value.x);
+	atomic_add_float(buf_y, value.y);
+	atomic_add_float(buf_z, value.z);
+#else
 	ccl_global float3 *buf = (ccl_global float3*)buffer;
 	*buf = (sample == 0)? value: *buf + value;
+#endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 }
 
 ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sample, float4 value)
 {
+#if (__SPLIT_KERNEL__ && __WORK_STEALING__)
+	ccl_global float *buf_x = buffer + 0;
+	ccl_global float *buf_y = buffer + 1;
+	ccl_global float *buf_z = buffer + 2;
+	ccl_global float *buf_w = buffer + 3;
+
+	atomic_add_float(buf_x, value.x);
+	atomic_add_float(buf_y, value.y);
+	atomic_add_float(buf_z, value.z);
+	atomic_add_float(buf_w, value.w);
+#else
 	ccl_global float4 *buf = (ccl_global float4*)buffer;
 	*buf = (sample == 0)? value: *buf + value;
+#endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 }
 
-ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,
-	ShaderData *sd, int sample, PathState *state, float3 throughput)
+ccl_device_inline void kernel_write_data_passes(__ADDR_SPACE__ KernelGlobals *kg, ccl_global float *buffer, __ADDR_SPACE__ PathRadiance *L,
+	__ADDR_SPACE__ ShaderData *sd, int sample, __ADDR_SPACE__ PathState *state, float3 throughput)
 {
 #ifdef __PASSES__
 	int path_flag = state->flag;
@@ -47,20 +95,20 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 
 	if(!(flag & PASS_ALL))
 		return;
-	
+
 	if(!(path_flag & PATH_RAY_SINGLE_PASS_DONE)) {
-		if(!(sd->flag & SD_TRANSPARENT) ||
+		if(!(sd_fetch(flag) & SD_TRANSPARENT) ||
 		   kernel_data.film.pass_alpha_threshold == 0.0f ||
 		   average(shader_bsdf_alpha(kg, sd)) >= kernel_data.film.pass_alpha_threshold)
 		{
 
 			if(sample == 0) {
 				if(flag & PASS_DEPTH) {
-					float depth = camera_distance(kg, sd->P);
+					float depth = camera_distance(kg, sd_fetch(P));
 					kernel_write_pass_float(buffer + kernel_data.film.pass_depth, sample, depth);
 				}
 				if(flag & PASS_OBJECT_ID) {
-					float id = object_pass_id(kg, sd->object);
+					float id = object_pass_id(kg, sd_fetch(object));
 					kernel_write_pass_float(buffer + kernel_data.film.pass_object_id, sample, id);
 				}
 				if(flag & PASS_MATERIAL_ID) {
@@ -70,7 +118,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 			}
 
 			if(flag & PASS_NORMAL) {
-				float3 normal = sd->N;
+				float3 normal = sd_fetch(N);
 				kernel_write_pass_float3(buffer + kernel_data.film.pass_normal, sample, normal);
 			}
 			if(flag & PASS_UV) {
@@ -101,7 +149,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 		float mist_start = kernel_data.film.mist_start;
 		float mist_inv_depth = kernel_data.film.mist_inv_depth;
 
-		float depth = camera_distance(kg, sd->P);
+		float depth = camera_distance(kg, sd_fetch(P));
 		float mist = clamp((depth - mist_start)*mist_inv_depth, 0.0f, 1.0f);
 
 		/* falloff */
@@ -123,14 +171,14 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 #endif
 }
 
-ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L, int sample)
+ccl_device_inline void kernel_write_light_passes(__ADDR_SPACE__ KernelGlobals *kg, ccl_global float *buffer, __ADDR_SPACE__ PathRadiance *L, int sample)
 {
 #ifdef __PASSES__
 	int flag = kernel_data.film.pass_flag;
 
 	if(!kernel_data.film.use_light_pass)
 		return;
-	
+
 	if(flag & PASS_DIFFUSE_INDIRECT)
 		kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_indirect, sample, L->indirect_diffuse);
 	if(flag & PASS_GLOSSY_INDIRECT)

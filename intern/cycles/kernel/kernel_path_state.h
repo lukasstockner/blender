@@ -16,7 +16,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void path_state_init(KernelGlobals *kg, PathState *state, RNG *rng, int sample, Ray *ray)
+ccl_device_inline void path_state_init(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ PathState *state, __ADDR_SPACE__ RNG *rng, int sample, __ADDR_SPACE__ Ray *ray)
 {
 	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP;
 
@@ -51,7 +51,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg, PathState *state, RNG 
 #endif
 }
 
-ccl_device_inline void path_state_next(KernelGlobals *kg, PathState *state, int label)
+ccl_device_inline void path_state_next(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ PathState *state, int label)
 {
 	/* ray through transparent keeps same flags from previous ray and is
 	 * not counted as a regular bounce, transparent has separate max */
@@ -121,7 +121,7 @@ ccl_device_inline void path_state_next(KernelGlobals *kg, PathState *state, int 
 	state->rng_offset += PRNG_BOUNCE_NUM;
 }
 
-ccl_device_inline uint path_state_ray_visibility(KernelGlobals *kg, PathState *state)
+ccl_device_inline uint path_state_ray_visibility(__ADDR_SPACE__ KernelGlobals *kg, PathState *state)
 {
 	uint flag = state->flag & PATH_RAY_ALL_VISIBILITY;
 
@@ -138,7 +138,7 @@ ccl_device_inline uint path_state_ray_visibility(KernelGlobals *kg, PathState *s
 	return flag;
 }
 
-ccl_device_inline float path_state_terminate_probability(KernelGlobals *kg, PathState *state, const float3 throughput)
+ccl_device_inline float path_state_terminate_probability(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ PathState *state, const float3 throughput)
 {
 	if(state->flag & PATH_RAY_TRANSPARENT) {
 		/* transparent rays treated separately */

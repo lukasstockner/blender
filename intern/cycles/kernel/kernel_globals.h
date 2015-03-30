@@ -86,13 +86,14 @@ typedef struct KernelGlobals {
 #define KERNEL_TEX(type, ttype, name) \
 	ccl_global type *name;
 #include "kernel_textures.h"
+
 } KernelGlobals;
 
 #endif
 
 /* Interpolated lookup table access */
 
-ccl_device float lookup_table_read(KernelGlobals *kg, float x, int offset, int size)
+ccl_device float lookup_table_read(__ADDR_SPACE__ KernelGlobals *kg, float x, int offset, int size)
 {
 	x = clamp(x, 0.0f, 1.0f)*(size-1);
 
@@ -108,7 +109,7 @@ ccl_device float lookup_table_read(KernelGlobals *kg, float x, int offset, int s
 	return (1.0f - t)*data0 + t*data1;
 }
 
-ccl_device float lookup_table_read_2D(KernelGlobals *kg, float x, float y, int offset, int xsize, int ysize)
+ccl_device float lookup_table_read_2D(__ADDR_SPACE__ KernelGlobals *kg, float x, float y, int offset, int xsize, int ysize)
 {
 	y = clamp(y, 0.0f, 1.0f)*(ysize-1);
 

@@ -17,6 +17,12 @@
 #ifndef __KERNEL_TYPES_H__
 #define __KERNEL_TYPES_H__
 
+#if __SPLIT_KERNEL__
+#define __ADDR_SPACE__ __global
+#else
+#define __ADDR_SPACE__
+#endif
+
 #include "kernel_math.h"
 #include "svm/svm_types.h"
 
@@ -91,41 +97,69 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __KERNEL_OPENCL__
 
-/* keep __KERNEL_ADV_SHADING__ in sync with opencl_kernel_use_advanced_shading! */
-
-#ifdef __KERNEL_OPENCL_NVIDIA__
-#define __KERNEL_SHADING__
-#define __KERNEL_ADV_SHADING__
+/// hack: device_opencl.cpp needs to retrieve GPU capabilities
+#ifdef __OBJECT_MOTION__
+#undef __OBJECT_MOTION__
+#endif
+#ifdef __OSL__
+#undef __OSL__
+#endif
+#ifdef __SUBSURFACE__
+#undef __SUBSURFACE__
+#endif
+#ifdef __CMJ__
+#undef __CMJ__
+#endif
+#ifdef __VOLUME__
+#undef __VOLUME__
+#endif
+#ifdef __VOLUME_DECOUPLED__
+#undef __VOLUME_DECOUPLED__
+#endif
+#ifdef __VOLUME_SCATTER__
+#undef __VOLUME_SCATTER__
+#endif
+#ifdef __SHADOW_RECORD_ALL__
+#undef __SHADOW_RECORD_ALL__
+#endif
+#ifdef __KERNEL_DEBUG__
+#undef __KERNEL_DEBUG__
+#endif
+#ifdef __KERNEL_ADV_SHADING__
+#undef __KERNEL_ADV_SHADING__
 #endif
 
-#ifdef __KERNEL_OPENCL_APPLE__
-#define __KERNEL_SHADING__
-//#define __KERNEL_ADV_SHADING__
-#endif
-
-#ifdef __KERNEL_OPENCL_AMD__
+/// let NVIDIA & AMD OPENCL share the same features
+//#if defined(__KERNEL_OPENCL_SPLIT_KERNEL__) || defined(__KERNEL_OPENCL_NVIDIA__)
 #define __CL_USE_NATIVE__
 #define __KERNEL_SHADING__
 //__KERNEL_ADV_SHADING__
 #define __MULTI_CLOSURE__
-#define __TRANSPARENT_SHADOWS__
 #define __PASSES__
 #define __BACKGROUND_MIS__
 #define __LAMP_MIS__
 #define __AO__
+//#define __TRANSPARENT_SHADOWS__
 //#define __CAMERA_MOTION__
-//#define __OBJECT_MOTION__
 //#define __HAIR__
+//#define __OBJECT_MOTION__
 //end __KERNEL_ADV_SHADING__
-#endif
+//#define __BRANCHED_PATH__
+//#endif
 
+/*
+#ifdef __KERNEL_OPENCL_APPLE__
+#define __KERNEL_SHADING__
+//#define __KERNEL_ADV_SHADING__
+#endif
 #ifdef __KERNEL_OPENCL_INTEL_CPU__
 #define __CL_USE_NATIVE__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
 #endif
+*/
 
-#endif
+#endif /// OPENCL
 
 /* kernel features */
 #define __SOBOL__
@@ -445,11 +479,10 @@ typedef struct differential {
 /* Ray */
 
 typedef struct Ray {
-	float3 P;		/* origin */
-	float3 D;		/* direction */
 	float t;		/* length of the ray */
 	float time;		/* time (for motion blur) */
-
+	float3 P;		/* origin */
+	float3 D;		/* direction */
 #ifdef __RAY_DIFFERENTIALS__
 	differential3 dP;
 	differential3 dD;
@@ -543,7 +576,9 @@ typedef enum AttributeStandard {
 /* Closure data */
 
 #ifdef __MULTI_CLOSURE__
+#ifndef MAX_CLOSURE
 #define MAX_CLOSURE 64
+#endif
 #else
 #define MAX_CLOSURE 1
 #endif
@@ -563,6 +598,7 @@ typedef struct ShaderClosure {
 	float data0;
 	float data1;
 	float data2;
+
 	int pad1, pad2, pad3;
 
 #ifdef __OSL__
@@ -638,7 +674,92 @@ enum ShaderDataFlag {
 
 struct KernelGlobals;
 
+#if __SPLIT_KERNEL__
+#define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
+#define sd_fetch(t) (sd->t[TIDX])
+#define sc_fetch(index) (&sd->closure[TIDX * MAX_CLOSURE + index])
+#else
+#define sd_fetch(t) (sd->t)
+#define sc_fetch(index) (&sd->closure[index])
+#endif
+
 typedef struct ShaderData {
+#if __SPLIT_KERNEL__
+	/* ShaderData Strutcure of arrays */
+	/* position */
+	ccl_global float3 *P;
+	/* smooth normal for shading */
+	ccl_global float3 *N;
+	/* true geometric normal */
+	ccl_global float3 *Ng;
+	/* view/incoming direction */
+	ccl_global float3 *I;
+	/* shader id */
+	ccl_global int *shader;
+	/* booleans describing shader, see ShaderDataFlag */
+	ccl_global int *flag;
+
+	/* primitive id if there is one, ~0 otherwise */
+	ccl_global int *prim;
+
+	/* combined type and curve segment for hair */
+	ccl_global int *type;
+
+	/* parametric coordinates
+	* - barycentric weights for triangles */
+	ccl_global float *u, *v;
+	/* object id if there is one, ~0 otherwise */
+	ccl_global int *object;
+
+	/* motion blur sample time */
+	ccl_global float *time;
+
+	/* length of the ray being shaded */
+	ccl_global float *ray_length;
+
+	/* ray bounce depth */
+	ccl_global  int *ray_depth;
+
+	/* ray transparent depth */
+	ccl_global int *transparent_depth;
+
+#ifdef __RAY_DIFFERENTIALS__
+	/* differential of P. these are orthogonal to Ng, not N */
+	ccl_global differential3 *dP;
+	/* differential of I */
+	ccl_global differential3 *dI;
+	/* differential of u, v */
+	ccl_global differential *du;
+	ccl_global differential *dv;
+#endif
+#ifdef __DPDU__
+	/* differential of P w.r.t. parametric coordinates. note that dPdu is
+	* not readily suitable as a tangent for shading on triangles. */
+	ccl_global float3 *dPdu, *dPdv;
+#endif
+
+#ifdef __OBJECT_MOTION__
+	/* object <-> world space transformations, cached to avoid
+	* re-interpolating them constantly for shading */
+	Transform ob_tfm;
+	Transform ob_itfm;
+#endif
+
+	/* Closure data, we store a fixed array of closures */
+	ccl_global ShaderClosure *closure;
+	ccl_global int *num_closure;
+	ccl_global float *randb_closure;
+
+	/* ray start position, only set for backgrounds */
+	ccl_global float3 *ray_P;
+	ccl_global differential3 *ray_dP;
+
+#ifdef __OSL__
+	struct KernelGlobals *osl_globals;
+#endif
+
+#else // __SPLIT_KERNEL__
+
 	/* position */
 	float3 P;
 	/* smooth normal for shading */
@@ -710,6 +831,7 @@ typedef struct ShaderData {
 #ifdef __OSL__
 	struct KernelGlobals *osl_globals;
 #endif
+#endif // __SPLIT_KERNEL__
 } ShaderData;
 
 /* Path State */
@@ -1002,6 +1124,56 @@ typedef struct DebugData {
 	int num_bvh_traversal_steps;
 } DebugData;
 #endif
+
+/* Macro for queues */
+/* Value marking queue's empty slot */
+#define QUEUE_EMPTY_SLOT -1
+
+/* Macro to enable/disable work-stealing */
+#define __WORK_STEALING__ 1
+
+/*
+* Queue 1 - Active rays
+* Queue 2 - Background queue
+* Queue 3 - Shadow ray cast kernel - AO
+* Queeu 4 - Shadow ray cast kernel - direct lighting
+*/
+#define NUM_QUEUES 4
+
+/* Queue names */
+enum QUEUE_NUMBER {
+	QUEUE_ACTIVE_AND_REGENERATED_RAYS,         /* All active rays and regenerated rays are enqueued here */
+	QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,      /* All
+										        * 1.Background-hit rays,
+										        * 2.Rays that has exited path-iteration but needs to update output buffer
+										        * 3.Rays to be regenerated
+										        * are enqueued here */
+	QUEUE_SHADOW_RAY_CAST_AO_RAYS,		   /* All rays for which a shadow ray should be cast to determine radiance
+						      contribution for AO are enqueued here */
+	QUEUE_SHADOW_RAY_CAST_DL_RAYS,             /* All rays for which a shadow ray should be cast to determine radiance
+						      contributuin for direct lighting are enqueued here */
+};
+
+/* We use RAY_STATE_MASK to get ray_state (enums 1 to 5) */
+#define RAY_STATE_MASK 0x007
+#define RAY_FLAG_MASK 0x0F8
+enum RAY_STATE {
+	RAY_ACTIVE = 0,             // Denotes ray is actively involved in path-iteration
+	RAY_INACTIVE = 1,           // Denotes ray has completed processing all samples and is inactive
+	RAY_UPDATE_BUFFER = 2,      // Denoted ray has exited path-iteration and needs to update output buffer
+	RAY_HIT_BACKGROUND = 3,     // Donotes ray has hit background
+	RAY_TO_REGENERATE = 4,      // Denotes ray has to be regenerated
+	RAY_REGENERATED = 5,        // Denotes ray has been regenerated
+	RAY_SKIP_DL = 6,            // Denotes ray should skip direct lighting
+	RAY_SHADOW_RAY_CAST_AO = 16, // Flag's ray has to execute shadow blocked function in AO part
+	RAY_SHADOW_RAY_CAST_DL = 32 // Flag's ray has to execute shadow blocked function in direct lighting part
+};
+
+#define ASSIGN_RAY_STATE(ray_state, ray_index, state) (ray_state[ray_index] = ((ray_state[ray_index] & RAY_FLAG_MASK) | state))
+#define IS_STATE(ray_state, ray_index, state) ((ray_state[ray_index] & RAY_STATE_MASK) == state)
+#define ADD_RAY_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] = (ray_state[ray_index] | flag))
+#define REMOVE_RAY_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] = (ray_state[ray_index] & (~flag)))
+#define IS_FLAG(ray_state, ray_index, flag) (ray_state[ray_index] & flag)
 
 CCL_NAMESPACE_END
 

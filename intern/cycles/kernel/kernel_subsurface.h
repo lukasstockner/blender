@@ -25,7 +25,7 @@ CCL_NAMESPACE_BEGIN
 
 #define BSSRDF_MULTI_EVAL
 
-ccl_device ShaderClosure *subsurface_scatter_pick_closure(KernelGlobals *kg, ShaderData *sd, float *probability)
+ccl_device ShaderClosure *subsurface_scatter_pick_closure(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, float *probability)
 {
 	/* sum sample weights of bssrdf and bsdf */
 	float bsdf_sum = 0.0f;
@@ -179,7 +179,7 @@ ccl_device float3 subsurface_color_pow(float3 color, float exponent)
 	return color;
 }
 
-ccl_device void subsurface_color_bump_blur(KernelGlobals *kg, ShaderData *out_sd, ShaderData *in_sd, int state_flag, float3 *eval, float3 *N)
+ccl_device void subsurface_color_bump_blur(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *out_sd, ShaderData *in_sd, int state_flag, float3 *eval, float3 *N)
 {
 	/* average color and texture blur at outgoing point */
 	float texture_blur;
@@ -207,7 +207,7 @@ ccl_device void subsurface_color_bump_blur(KernelGlobals *kg, ShaderData *out_sd
 }
 
 /* subsurface scattering step, from a point on the surface to other nearby points on the same object */
-ccl_device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, ShaderData bssrdf_sd[BSSRDF_MAX_HITS],
+ccl_device int subsurface_scatter_multi_step(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, ShaderData bssrdf_sd[BSSRDF_MAX_HITS],
 	int state_flag, ShaderClosure *sc, uint *lcg_state, float disk_u, float disk_v, bool all)
 {
 	/* pick random axis in local frame and point on disk */
@@ -313,7 +313,7 @@ ccl_device int subsurface_scatter_multi_step(KernelGlobals *kg, ShaderData *sd, 
 }
 
 /* subsurface scattering step, from a point on the surface to another nearby point on the same object */
-ccl_device void subsurface_scatter_step(KernelGlobals *kg, ShaderData *sd,
+ccl_device void subsurface_scatter_step(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd,
 	int state_flag, ShaderClosure *sc, uint *lcg_state, float disk_u, float disk_v, bool all)
 {
 	float3 eval = make_float3(0.0f, 0.0f, 0.0f);

@@ -16,24 +16,24 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void svm_node_camera(KernelGlobals *kg, ShaderData *sd, float *stack, uint out_vector, uint out_zdepth, uint out_distance)
+ccl_device void svm_node_camera(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint out_vector, uint out_zdepth, uint out_distance)
 {
 	float distance;
 	float zdepth;
 	float3 vector;
 
 	Transform tfm = kernel_data.cam.worldtocamera;
-	vector = transform_point(&tfm, sd->P);
+	vector = transform_point(&tfm, sd_fetch(P));
 	zdepth = vector.z;
 	distance = len(vector);
 
-	if (stack_valid(out_vector))
+	if(stack_valid(out_vector))
 		stack_store_float3(stack, out_vector, normalize(vector));
 
-	if (stack_valid(out_zdepth))
+	if(stack_valid(out_zdepth))
 		stack_store_float(stack, out_zdepth, zdepth);
 
-	if (stack_valid(out_distance))
+	if(stack_valid(out_distance))
 		stack_store_float(stack, out_distance, distance);
 }
 

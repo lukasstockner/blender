@@ -155,4 +155,3 @@ __kernel void kernel_ocl_bake(
 	if(x < sx + sw)
 		kernel_bake_evaluate(kg, input, output, (ShaderEvalType)type, x, offset, sample);
 }
-

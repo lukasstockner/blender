@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Light Path Node */
 
-ccl_device void svm_node_light_path(ShaderData *sd, float *stack, uint type, uint out_offset, int path_flag)
+ccl_device void svm_node_light_path(__ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset, int path_flag)
 {
 	float info = 0.0f;
 
@@ -31,10 +31,10 @@ ccl_device void svm_node_light_path(ShaderData *sd, float *stack, uint type, uin
 		case NODE_LP_reflection: info = (path_flag & PATH_RAY_REFLECT)? 1.0f: 0.0f; break;
 		case NODE_LP_transmission: info = (path_flag & PATH_RAY_TRANSMIT)? 1.0f: 0.0f; break;
 		case NODE_LP_volume_scatter: info = (path_flag & PATH_RAY_VOLUME_SCATTER)? 1.0f: 0.0f; break;
-		case NODE_LP_backfacing: info = (sd->flag & SD_BACKFACING)? 1.0f: 0.0f; break;
-		case NODE_LP_ray_length: info = sd->ray_length; break;
-		case NODE_LP_ray_depth: info = (float)sd->ray_depth; break;
-		case NODE_LP_ray_transparent: info = sd->transparent_depth; break;
+		case NODE_LP_backfacing: info = (sd_fetch(flag) & SD_BACKFACING)? 1.0f: 0.0f; break;
+		case NODE_LP_ray_length: info = sd_fetch(ray_length); break;
+		case NODE_LP_ray_depth: info = (float)sd_fetch(ray_depth); break;
+		case NODE_LP_ray_transparent: info = sd_fetch(transparent_depth); break;
 	}
 
 	stack_store_float(stack, out_offset, info);
@@ -42,7 +42,7 @@ ccl_device void svm_node_light_path(ShaderData *sd, float *stack, uint type, uin
 
 /* Light Falloff Node */
 
-ccl_device void svm_node_light_falloff(ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_light_falloff(__ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
 {
 	uint strength_offset, out_offset, smooth_offset;
 
@@ -53,14 +53,14 @@ ccl_device void svm_node_light_falloff(ShaderData *sd, float *stack, uint4 node)
 
 	switch(type) {
 		case NODE_LIGHT_FALLOFF_QUADRATIC: break;
-		case NODE_LIGHT_FALLOFF_LINEAR: strength *= sd->ray_length; break;
-		case NODE_LIGHT_FALLOFF_CONSTANT: strength *= sd->ray_length*sd->ray_length; break;
+		case NODE_LIGHT_FALLOFF_LINEAR: strength *= sd_fetch(ray_length); break;
+		case NODE_LIGHT_FALLOFF_CONSTANT: strength *= sd_fetch(ray_length)*sd_fetch(ray_length); break;
 	}
 
 	float smooth = stack_load_float(stack, smooth_offset);
 
 	if(smooth > 0.0f) {
-		float squared = sd->ray_length*sd->ray_length;
+		float squared = sd_fetch(ray_length)*sd_fetch(ray_length);
 		strength *= squared/(smooth + squared);
 	}
 

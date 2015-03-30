@@ -292,7 +292,7 @@ ccl_device float3 svm_mix(NodeMix type, float fac, float3 c1, float3 c2)
 
 /* Node */
 
-ccl_device void svm_node_mix(KernelGlobals *kg, ShaderData *sd, float *stack, uint fac_offset, uint c1_offset, uint c2_offset, int *offset)
+ccl_device void svm_node_mix(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint fac_offset, uint c1_offset, uint c2_offset, int *offset)
 {
 	/* read extra data */
 	uint4 node1 = read_node(kg, offset);

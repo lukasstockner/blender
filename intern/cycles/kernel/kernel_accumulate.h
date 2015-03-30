@@ -128,7 +128,7 @@ ccl_device_inline void bsdf_eval_mul(BsdfEval *eval, float3 value)
  * visible as the first non-transparent hit, while indirectly visible are the
  * bounces after that. */
 
-ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass)
+ccl_device_inline void path_radiance_init(__ADDR_SPACE__ PathRadiance *L, int use_light_pass)
 {
 	/* clear all */
 #ifdef __PASSES__
@@ -176,7 +176,8 @@ ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass)
 #endif
 }
 
-ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, float3 *throughput,
+
+ccl_device_inline void path_radiance_bsdf_bounce(__ADDR_SPACE__ PathRadiance *L, __ADDR_SPACE__ float3 *throughput,
 	BsdfEval *bsdf_eval, float bsdf_pdf, int bounce, int bsdf_label)
 {
 	float inverse_pdf = 1.0f/bsdf_pdf;
@@ -194,7 +195,7 @@ ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, float3 *throug
 			L->path_scatter = bsdf_eval->scatter*value;
 
 			*throughput = L->path_diffuse + L->path_glossy + L->path_transmission + L->path_subsurface + L->path_scatter;
-			
+
 			L->direct_throughput = *throughput;
 		}
 		else {
@@ -211,7 +212,8 @@ ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, float3 *throug
 #endif
 }
 
-ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 throughput, float3 value, int bounce)
+
+ccl_device_inline void path_radiance_accum_emission(__ADDR_SPACE__ PathRadiance *L, float3 throughput, float3 value, int bounce)
 {
 #ifdef __PASSES__
 	if(L->use_light_pass) {
@@ -229,7 +231,8 @@ ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 thro
 #endif
 }
 
-ccl_device_inline void path_radiance_accum_ao(PathRadiance *L, float3 throughput, float3 alpha, float3 bsdf, float3 ao, int bounce)
+
+ccl_device_inline void path_radiance_accum_ao(__ADDR_SPACE__ PathRadiance *L, float3 throughput, float3 alpha, float3 bsdf, float3 ao, int bounce)
 {
 #ifdef __PASSES__
 	if(L->use_light_pass) {
@@ -250,7 +253,8 @@ ccl_device_inline void path_radiance_accum_ao(PathRadiance *L, float3 throughput
 #endif
 }
 
-ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 throughput, BsdfEval *bsdf_eval, float3 shadow, float shadow_fac, int bounce, bool is_lamp)
+
+ccl_device_inline void path_radiance_accum_light(__ADDR_SPACE__ PathRadiance *L, float3 throughput, BsdfEval *bsdf_eval, float3 shadow, float shadow_fac, int bounce, bool is_lamp)
 {
 #ifdef __PASSES__
 	if(L->use_light_pass) {
@@ -281,7 +285,8 @@ ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 through
 #endif
 }
 
-ccl_device_inline void path_radiance_accum_background(PathRadiance *L, float3 throughput, float3 value, int bounce)
+
+ccl_device_inline void path_radiance_accum_background(__ADDR_SPACE__ PathRadiance *L, float3 throughput, float3 value, int bounce)
 {
 #ifdef __PASSES__
 	if(L->use_light_pass) {
@@ -299,7 +304,8 @@ ccl_device_inline void path_radiance_accum_background(PathRadiance *L, float3 th
 #endif
 }
 
-ccl_device_inline void path_radiance_sum_indirect(PathRadiance *L)
+
+ccl_device_inline void path_radiance_sum_indirect(__ADDR_SPACE__ PathRadiance *L)
 {
 #ifdef __PASSES__
 	/* this division is a bit ugly, but means we only have to keep track of
@@ -339,7 +345,8 @@ ccl_device_inline void path_radiance_reset_indirect(PathRadiance *L)
 #endif
 }
 
-ccl_device_inline float3 path_radiance_clamp_and_sum(KernelGlobals *kg, PathRadiance *L)
+
+ccl_device_inline float3 path_radiance_clamp_and_sum(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ PathRadiance *L)
 {
 	float3 L_sum, L_direct, L_indirect;
 	float clamp_direct = kernel_data.integrator.sample_clamp_direct;

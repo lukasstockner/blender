@@ -106,14 +106,14 @@ ccl_device_inline bool stack_valid(uint a)
 
 /* Reading Nodes */
 
-ccl_device_inline uint4 read_node(KernelGlobals *kg, int *offset)
+ccl_device_inline uint4 read_node(__ADDR_SPACE__ KernelGlobals *kg, int *offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, *offset);
 	(*offset)++;
 	return node;
 }
 
-ccl_device_inline float4 read_node_float(KernelGlobals *kg, int *offset)
+ccl_device_inline float4 read_node_float(__ADDR_SPACE__ KernelGlobals *kg, int *offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, *offset);
 	float4 f = make_float4(__uint_as_float(node.x), __uint_as_float(node.y), __uint_as_float(node.z), __uint_as_float(node.w));
@@ -121,7 +121,7 @@ ccl_device_inline float4 read_node_float(KernelGlobals *kg, int *offset)
 	return f;
 }
 
-ccl_device_inline float4 fetch_node_float(KernelGlobals *kg, int offset)
+ccl_device_inline float4 fetch_node_float(__ADDR_SPACE__ KernelGlobals *kg, int offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, offset);
 	return make_float4(__uint_as_float(node.x), __uint_as_float(node.y), __uint_as_float(node.z), __uint_as_float(node.w));
@@ -181,17 +181,93 @@ CCL_NAMESPACE_END
 
 CCL_NAMESPACE_BEGIN
 
-/* Main Interpreter Loop */
+#if !__SPLIT_KERNEL__
+/* If __SPLIT_KERNEL__ is not enabled, we enable all closures */
+#define __NODE_SHADER_JUMP__ 1
+#define __NODE_END__ 1
+#define __NODE_ATTR_BUMP_DX__ 1
+#define __NODE_ATTR_BUMP_DY__ 1
+#define __NODE_ATTR__ 1
+#define __NODE_BLACKBODY__ 1
+#define __NODE_BRIGHTCONTRAST__ 1
+#define __NODE_CAMERA__ 1
+#define __NODE_CLOSURE_AMBIENT_OCCLUSION__ 1
+#define __NODE_CLOSURE_BACKGROUND__ 1
+#define __NODE_CLOSURE_BSDF__ 1
+#define __NODE_CLOSURE_EMISSION__ 1
+#define __NODE_CLOSURE_HOLDOUT__ 1
+#define __NODE_CLOSURE_SET_NORMAL__ 1
+#define __NODE_CLOSURE_SET_WEIGHT__ 1
+#define __NODE_CLOSURE_VOLUME__ 1
+#define __NODE_CLOSURE_WEIGHT__ 1
+#define __NODE_COMBINE_HSV__ 1
+#define __NODE_COMBINE_VECTOR__ 1
+#define __NODE_CONVERT__ 1
+#define __NODE_EMISSION_WEIGHT__ 1
+#define __NODE_FRESNEL__ 1
+#define __NODE_GAMMA__ 1
+#define __NODE_GEOMETRY_BUMP_DX__ 1
+#define __NODE_GEOMETRY_BUMP_DY__ 1
+#define __NODE_GEOMETRY__ 1
+#define __NODE_HAIR_INFO__ 1
+#define __NODE_HSV__ 1
+#define __NODE_INVERT__ 1
+#define __NODE_JUMP_IF_ONE__ 1
+#define __NODE_JUMP_IF_ZERO__ 1
+#define __NODE_LAYER_WEIGHT__ 1
+#define __NODE_LIGHT_FALLOFF__ 1
+#define __NODE_LIGHT_PATH__ 1
+#define __NODE_MAPPING__ 1
+#define __NODE_MATH__ 1
+#define __NODE_MIN_MAX__ 1
+#define __NODE_MIX_CLOSURE__ 1
+#define __NODE_MIX__ 1
+#define __NODE_NORMAL_MAP__ 1
+#define __NODE_NORMAL__ 1
+#define __NODE_OBJECT_INFO__ 1
+#define __NODE_PARTICLE_INFO__ 1
+#define __NODE_RGB_CURVES__ 1
+#define __NODE_RGB_RAMP__ 1
+#define __NODE_SEPARATE_HSV__ 1
+#define __NODE_SEPARATE_VECTOR__ 1
+#define __NODE_SET_BUMP__ 1
+#define __NODE_SET_DISPLACEMENT__ 1
+#define __NODE_TANGENT__ 1
+#define __NODE_TEX_BRICK__ 1
+#define __NODE_TEX_CHECKER__ 1
+#define __NODE_TEX_COORD_BUMP_DX__ 1
+#define __NODE_TEX_COORD_BUMP_DY__ 1
+#define __NODE_TEX_COORD__ 1
+#define __NODE_TEX_ENVIRONMENT__ 1
+#define __NODE_TEX_GRADIENT__ 1
+#define __NODE_TEX_IMAGE_BOX__ 1
+#define __NODE_TEX_IMAGE__ 1
+#define __NODE_TEX_MAGIC__ 1
+#define __NODE_TEX_MUSGRAVE__ 1
+#define __NODE_TEX_NOISE__ 1
+#define __NODE_TEX_SKY__ 1
+#define __NODE_TEX_VORONOI__ 1
+#define __NODE_TEX_WAVE__ 1
+#define __NODE_VALUE_F__ 1
+#define __NODE_VALUE_V__ 1
+#define __NODE_VECTOR_CURVES__ 1
+#define __NODE_VECTOR_MATH__ 1
+#define __NODE_VECTOR_TRANSFORM__ 1
+#define __NODE_WAVELENGTH__ 1
+#define __NODE_WIREFRAME__ 1
+#endif
 
-ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, ShaderType type, int path_flag)
+/* Main Interpreter Loop */
+ccl_device_noinline void svm_eval_nodes(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, ShaderType type, int path_flag)
 {
 	float stack[SVM_STACK_SIZE];
-	int offset = sd->shader & SHADER_MASK;
+	int offset = sd_fetch(shader) & SHADER_MASK;
 
 	while(1) {
 		uint4 node = read_node(kg, &offset);
 
 		switch(node.x) {
+#if __NODE_SHADER_JUMP__
 			case NODE_SHADER_JUMP: {
 				if(type == SHADER_TYPE_SURFACE) offset = node.y;
 				else if(type == SHADER_TYPE_VOLUME) offset = node.z;
@@ -199,240 +275,382 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				else return;
 				break;
 			}
+#endif
+#if __NODE_CLOSURE_BSDF__
 			case NODE_CLOSURE_BSDF:
 				svm_node_closure_bsdf(kg, sd, stack, node, path_flag, &offset);
 				break;
+#endif
+#if __NODE_CLOSURE_EMISSION__
 			case NODE_CLOSURE_EMISSION:
 				svm_node_closure_emission(sd, stack, node);
 				break;
+#endif
+#if __NODE_CLOSURE_BACKGROUND__
 			case NODE_CLOSURE_BACKGROUND:
 				svm_node_closure_background(sd, stack, node);
 				break;
+#endif
+#if __NODE_CLOSURE_HOLDOUT__
 			case NODE_CLOSURE_HOLDOUT:
 				svm_node_closure_holdout(sd, stack, node);
 				break;
+#endif
+#if __NODE_CLOSURE_AMBIENT_OCCLUSION__
 			case NODE_CLOSURE_AMBIENT_OCCLUSION:
 				svm_node_closure_ambient_occlusion(sd, stack, node);
 				break;
+#endif
+#if __NODE_CLOSURE_VOLUME__
 			case NODE_CLOSURE_VOLUME:
 				svm_node_closure_volume(kg, sd, stack, node, path_flag);
 				break;
+#endif
+#if __NODE_CLOSURE_SET_WEIGHT__
 			case NODE_CLOSURE_SET_WEIGHT:
 				svm_node_closure_set_weight(sd, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_CLOSURE_WEIGHT__
 			case NODE_CLOSURE_WEIGHT:
 				svm_node_closure_weight(sd, stack, node.y);
 				break;
+#endif
+#if __NODE_EMISSION_WEIGHT__
 			case NODE_EMISSION_WEIGHT:
 				svm_node_emission_weight(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_MIX_CLOSURE__
 			case NODE_MIX_CLOSURE:
 				svm_node_mix_closure(sd, stack, node);
 				break;
+#endif
+#if __NODE_JUMP_IF_ZERO__
 			case NODE_JUMP_IF_ZERO:
 				if(stack_load_float(stack, node.z) == 0.0f)
 					offset += node.y;
 				break;
+#endif
+#if __NODE_JUMP_IF_ONE__
 			case NODE_JUMP_IF_ONE:
 				if(stack_load_float(stack, node.z) == 1.0f)
 					offset += node.y;
 				break;
+#endif
 #ifdef __TEXTURES__
+#if __NODE_TEX_IMAGE__
 			case NODE_TEX_IMAGE:
 				svm_node_tex_image(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_TEX_IMAGE_BOX__
 			case NODE_TEX_IMAGE_BOX:
 				svm_node_tex_image_box(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_TEX_ENVIRONMENT__
 			case NODE_TEX_ENVIRONMENT:
 				svm_node_tex_environment(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_TEX_SKY__
 			case NODE_TEX_SKY:
 				svm_node_tex_sky(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_TEX_GRADIENT__
 			case NODE_TEX_GRADIENT:
 				svm_node_tex_gradient(sd, stack, node);
 				break;
+#endif
+#if __NODE_TEX_NOISE__
 			case NODE_TEX_NOISE:
 				svm_node_tex_noise(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_TEX_VORONOI__
 			case NODE_TEX_VORONOI:
 				svm_node_tex_voronoi(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_TEX_MUSGRAVE__
 			case NODE_TEX_MUSGRAVE:
 				svm_node_tex_musgrave(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_TEX_WAVE__
 			case NODE_TEX_WAVE:
 				svm_node_tex_wave(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_TEX_MAGIC__
 			case NODE_TEX_MAGIC:
 				svm_node_tex_magic(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_TEX_CHECKER__
 			case NODE_TEX_CHECKER:
 				svm_node_tex_checker(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_TEX_BRICK__
 			case NODE_TEX_BRICK:
 				svm_node_tex_brick(kg, sd, stack, node, &offset);
 				break;
 #endif
+#endif
+#if __NODE_CAMERA__
 			case NODE_CAMERA:
 				svm_node_camera(kg, sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_GEOMETRY__
 			case NODE_GEOMETRY:
 				svm_node_geometry(kg, sd, stack, node.y, node.z);
 				break;
+#endif
 #ifdef __EXTRA_NODES__
+#if __NODE_GEOMETRY_BUMP_DX__
 			case NODE_GEOMETRY_BUMP_DX:
 				svm_node_geometry_bump_dx(kg, sd, stack, node.y, node.z);
 				break;
+#endif
+#if __NODE_GEOMETRY_BUMP_DY__
 			case NODE_GEOMETRY_BUMP_DY:
 				svm_node_geometry_bump_dy(kg, sd, stack, node.y, node.z);
 				break;
+#endif
+#if __NODE_LIGHT_PATH__
 			case NODE_LIGHT_PATH:
 				svm_node_light_path(sd, stack, node.y, node.z, path_flag);
 				break;
+#endif
+#if __NODE_OBJECT_INFO__
 			case NODE_OBJECT_INFO:
 				svm_node_object_info(kg, sd, stack, node.y, node.z);
 				break;
+#endif
+#if __NODE_PARTICLE_INFO__
 			case NODE_PARTICLE_INFO:
 				svm_node_particle_info(kg, sd, stack, node.y, node.z);
 				break;
+#endif
 #ifdef __HAIR__
+#if __NODE_HAIR_INFO__
 			case NODE_HAIR_INFO:
 				svm_node_hair_info(kg, sd, stack, node.y, node.z);
 				break;
 #endif
+#endif
 
 #endif
+#if __NODE_CONVERT__
 			case NODE_CONVERT:
 				svm_node_convert(sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_VALUE_F__
 			case NODE_VALUE_F:
 				svm_node_value_f(kg, sd, stack, node.y, node.z);
 				break;
+#endif
+#if __NODE_VALUE_V__
 			case NODE_VALUE_V:
 				svm_node_value_v(kg, sd, stack, node.y, &offset);
 				break;
+#endif
 #ifdef __EXTRA_NODES__
+#if __NODE_INVERT__
 			case NODE_INVERT:
 				svm_node_invert(sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_GAMMA__
 			case NODE_GAMMA:
 				svm_node_gamma(sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_BRIGHTCONTRAST__
 			case NODE_BRIGHTCONTRAST:
 				svm_node_brightness(sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_MIX__
 			case NODE_MIX:
 				svm_node_mix(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
+#endif
+#if __NODE_SEPARATE_VECTOR__
 			case NODE_SEPARATE_VECTOR:
 				svm_node_separate_vector(sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_COMBINE_VECTOR__
 			case NODE_COMBINE_VECTOR:
 				svm_node_combine_vector(sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_SEPARATE_HSV__
 			case NODE_SEPARATE_HSV:
 				svm_node_separate_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
+#endif
+#if __NODE_COMBINE_HSV__
 			case NODE_COMBINE_HSV:
 				svm_node_combine_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
+#endif
+#if __NODE_HSV__
 			case NODE_HSV:
 				svm_node_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
+#endif
+#if __NODE_ATTR__
 			case NODE_ATTR:
 				svm_node_attr(kg, sd, stack, node);
 				break;
+#endif
 #ifdef __EXTRA_NODES__
+#if __NODE_ATTR_BUMP_DX__
 			case NODE_ATTR_BUMP_DX:
 				svm_node_attr_bump_dx(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_ATTR_BUMP_DY__
 			case NODE_ATTR_BUMP_DY:
 				svm_node_attr_bump_dy(kg, sd, stack, node);
 				break;
 #endif
+#endif
+#if __NODE_FRESNEL__
 			case NODE_FRESNEL:
 				svm_node_fresnel(sd, stack, node.y, node.z, node.w);
 				break;
+#endif
+#if __NODE_LAYER_WEIGHT__
 			case NODE_LAYER_WEIGHT:
 				svm_node_layer_weight(sd, stack, node);
 				break;
+#endif
 #ifdef __EXTRA_NODES__
+#if __NODE_WIREFRAME__
 			case NODE_WIREFRAME:
 				svm_node_wireframe(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_WAVELENGTH__
 			case NODE_WAVELENGTH:
 				svm_node_wavelength(sd, stack, node.y, node.z);
 				break;
+#endif
+#if __NODE_BLACKBODY__
 			case NODE_BLACKBODY:
 				svm_node_blackbody(kg, sd, stack, node.y, node.z);
 				break;
+#endif
+#if __NODE_SET_DISPLACEMENT__
 			case NODE_SET_DISPLACEMENT:
 				svm_node_set_displacement(sd, stack, node.y);
 				break;
+#endif
+#if __NODE_SET_BUMP__
 			case NODE_SET_BUMP:
 				svm_node_set_bump(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_MATH__
 			case NODE_MATH:
 				svm_node_math(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
+#endif
+#if __NODE_VECTOR_MATH__
 			case NODE_VECTOR_MATH:
 				svm_node_vector_math(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
+#endif
+#if __NODE_VECTOR_TRANSFORM__
 			case NODE_VECTOR_TRANSFORM:
 				svm_node_vector_transform(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_NORMAL__
 			case NODE_NORMAL:
 				svm_node_normal(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
+#endif
+#if __NODE_MAPPING__
 			case NODE_MAPPING:
 				svm_node_mapping(kg, sd, stack, node.y, node.z, &offset);
 				break;
+#endif
+#if __NODE_MIN_MAX__
 			case NODE_MIN_MAX:
 				svm_node_min_max(kg, sd, stack, node.y, node.z, &offset);
 				break;
+#endif
+#if __NODE_TEX_COORD__
 			case NODE_TEX_COORD:
 				svm_node_tex_coord(kg, sd, path_flag, stack, node, &offset);
 				break;
+#endif
 #ifdef __EXTRA_NODES__
+#if __NODE_TEX_COORD_BUMP_DX__
 			case NODE_TEX_COORD_BUMP_DX:
 				svm_node_tex_coord_bump_dx(kg, sd, path_flag, stack, node, &offset);
 				break;
+#endif
+#if __NODE_TEX_COORD_BUMP_DY__
 			case NODE_TEX_COORD_BUMP_DY:
 				svm_node_tex_coord_bump_dy(kg, sd, path_flag, stack, node, &offset);
 				break;
+#endif
+#if __NODE_CLOSURE_SET_NORMAL__
 			case NODE_CLOSURE_SET_NORMAL:
 				svm_node_set_normal(kg, sd, stack, node.y, node.z );
 				break;
+#endif
+#if __NODE_RGB_RAMP__
 			case NODE_RGB_RAMP:
 				svm_node_rgb_ramp(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_RGB_CURVES__
 			case NODE_RGB_CURVES:
 				svm_node_rgb_curves(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_VECTOR_CURVES__
 			case NODE_VECTOR_CURVES:
 				svm_node_vector_curves(kg, sd, stack, node, &offset);
 				break;
+#endif
+#if __NODE_LIGHT_FALLOFF__
 			case NODE_LIGHT_FALLOFF:
 				svm_node_light_falloff(sd, stack, node);
 				break;
 #endif
+#endif
+#if __NODE_TANGENT__
 			case NODE_TANGENT:
 				svm_node_tangent(kg, sd, stack, node);
 				break;
+#endif
+#if __NODE_NORMAL_MAP__
 			case NODE_NORMAL_MAP:
 				svm_node_normal_map(kg, sd, stack, node);
-				break;	
+				break;
+#endif
+#if __NODE_END__
 			case NODE_END:
+#endif
 			default:
 				return;
 		}
 	}
 }
-
 CCL_NAMESPACE_END
 
 #endif /* __SVM_H__ */

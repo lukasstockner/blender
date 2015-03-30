@@ -13,6 +13,18 @@ set(INC_SYS
 set(SRC
 	kernel.cpp
 	kernel.cl
+	kernel_DataInit.cl
+	kernel_QueueEnqueue.cl
+	kernel_SceneIntersect.cl
+	kernel_LampEmission.cl
+	kernel_Background_BufferUpdate.cl
+	kernel_ShaderEval.cl
+	kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl
+	kernel_Subsurface.cl
+	kernel_DirectLighting.cl
+	kernel_ShadowBlocked.cl
+	kernel_NextIterationSetUp.cl
+	kernel_SumAllRadiance.cl
 	kernel.cu
 )
 
@@ -39,13 +51,16 @@ set(SRC_HEADERS
 	kernel_path_surface.h
 	kernel_path_volume.h
 	kernel_projection.h
+	kernel_queues.h
 	kernel_random.h
 	kernel_shader.h
 	kernel_shadow.h
+	kernel_split.h
 	kernel_subsurface.h
 	kernel_textures.h
 	kernel_types.h
 	kernel_volume.h
+	kernel_work_stealing.h
 )
 
 set(SRC_CLOSURE_HEADERS
@@ -67,6 +82,7 @@ set(SRC_CLOSURE_HEADERS
 	closure/emissive.h
 	closure/volume.h
 )
+
 set(SRC_SVM_HEADERS
 	svm/svm.h
 	svm/svm_attribute.h
@@ -281,6 +297,18 @@ endif()
 #delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${KERNEL_PREPROCESSED}" ${CYCLES_INSTALL_PATH}/kernel)
 
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_DataInit.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_QueueEnqueue.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_SceneIntersect.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_LampEmission.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_Background_BufferUpdate.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_ShaderEval.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_Subsurface.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_DirectLighting.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_ShadowBlocked.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_NextIterationSetUp.cl" ${CYCLES_INSTALL_PATH}/kernel)
+delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_SumAllRadiance.cl" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel.cu" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "${SRC_CLOSURE_HEADERS}" ${CYCLES_INSTALL_PATH}/kernel/closure)

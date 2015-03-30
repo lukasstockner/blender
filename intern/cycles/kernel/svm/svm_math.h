@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Nodes */
 
-ccl_device void svm_node_math(KernelGlobals *kg, ShaderData *sd, float *stack, uint itype, uint f1_offset, uint f2_offset, int *offset)
+ccl_device void svm_node_math(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint itype, uint f1_offset, uint f2_offset, int *offset)
 {
 	NodeMath type = (NodeMath)itype;
 	float f1 = stack_load_float(stack, f1_offset);
@@ -30,7 +30,7 @@ ccl_device void svm_node_math(KernelGlobals *kg, ShaderData *sd, float *stack, u
 	stack_store_float(stack, node1.y, f);
 }
 
-ccl_device void svm_node_vector_math(KernelGlobals *kg, ShaderData *sd, float *stack, uint itype, uint v1_offset, uint v2_offset, int *offset)
+ccl_device void svm_node_vector_math(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint itype, uint v1_offset, uint v2_offset, int *offset)
 {
 	NodeVectorMath type = (NodeVectorMath)itype;
 	float3 v1 = stack_load_float3(stack, v1_offset);

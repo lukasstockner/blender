@@ -30,7 +30,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Time interpolation of vertex positions and normals */
 
-ccl_device_inline int find_attribute_motion(KernelGlobals *kg, int object, uint id, AttributeElement *elem)
+ccl_device_inline int find_attribute_motion(__ADDR_SPACE__ KernelGlobals *kg, int object, uint id, AttributeElement *elem)
 {
 	/* todo: find a better (faster) solution for this, maybe store offset per object */
 	uint attr_offset = object*kernel_data.bvh.attributes_map_stride;
@@ -47,7 +47,7 @@ ccl_device_inline int find_attribute_motion(KernelGlobals *kg, int object, uint 
 	return (attr_map.y == ATTR_ELEMENT_NONE) ? (int)ATTR_STD_NOT_FOUND : (int)attr_map.z;
 }
 
-ccl_device_inline void motion_triangle_verts_for_step(KernelGlobals *kg, float3 tri_vindex, int offset, int numverts, int numsteps, int step, float3 verts[3])
+ccl_device_inline void motion_triangle_verts_for_step(__ADDR_SPACE__ KernelGlobals *kg, float3 tri_vindex, int offset, int numverts, int numsteps, int step, float3 verts[3])
 {
 	if(step == numsteps) {
 		/* center step: regular vertex location */
@@ -68,7 +68,7 @@ ccl_device_inline void motion_triangle_verts_for_step(KernelGlobals *kg, float3 
 	}
 }
 
-ccl_device_inline void motion_triangle_normals_for_step(KernelGlobals *kg, float3 tri_vindex, int offset, int numverts, int numsteps, int step, float3 normals[3])
+ccl_device_inline void motion_triangle_normals_for_step(__ADDR_SPACE__ KernelGlobals *kg, float3 tri_vindex, int offset, int numverts, int numsteps, int step, float3 normals[3])
 {
 	if(step == numsteps) {
 		/* center step: regular vertex location */
@@ -89,7 +89,7 @@ ccl_device_inline void motion_triangle_normals_for_step(KernelGlobals *kg, float
 	}
 }
 
-ccl_device_inline void motion_triangle_vertices(KernelGlobals *kg, int object, int prim, float time, float3 verts[3])
+ccl_device_inline void motion_triangle_vertices(__ADDR_SPACE__ KernelGlobals *kg, int object, int prim, float time, float3 verts[3])
 {
 	/* get motion info */
 	int numsteps, numverts;
@@ -122,7 +122,7 @@ ccl_device_inline void motion_triangle_vertices(KernelGlobals *kg, int object, i
  * far the precision is often not so good, this reintersects the primitive from
  * a closer distance. */
 
-ccl_device_inline float3 motion_triangle_refine(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray, float3 verts[3])
+ccl_device_inline float3 motion_triangle_refine(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, const __ADDR_SPACE__ Intersection *isect, const Ray *ray, float3 verts[3])
 {
 	float3 P = ray->P;
 	float3 D = ray->D;
@@ -178,7 +178,7 @@ ccl_device_inline float3 motion_triangle_refine(KernelGlobals *kg, ShaderData *s
 /* Same as above, except that isect->t is assumed to be in object space for instancing */
 
 #ifdef __SUBSURFACE__
-ccl_device_inline float3 motion_triangle_refine_subsurface(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray, float3 verts[3])
+ccl_device_inline float3 motion_triangle_refine_subsurface(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray, float3 verts[3])
 {
 	float3 P = ray->P;
 	float3 D = ray->D;
@@ -233,28 +233,28 @@ ccl_device_inline float3 motion_triangle_refine_subsurface(KernelGlobals *kg, Sh
  * normals */
 
 /* return 3 triangle vertex normals */
-ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals *kg, ShaderData *sd, const Intersection *isect, const Ray *ray, bool subsurface)
+ccl_device_noinline void motion_triangle_shader_setup(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, const __ADDR_SPACE__ Intersection *isect, const Ray *ray, bool subsurface)
 {
 	/* get shader */
-	sd->shader =  kernel_tex_fetch(__tri_shader, sd->prim);
+	sd_fetch(shader) =  kernel_tex_fetch(__tri_shader, sd_fetch(prim));
 
 	/* get motion info */
 	int numsteps, numverts;
-	object_motion_info(kg, sd->object, &numsteps, &numverts, NULL);
+	object_motion_info(kg, sd_fetch(object), &numsteps, &numverts, NULL);
 
 	/* figure out which steps we need to fetch and their interpolation factor */
 	int maxstep = numsteps*2;
-	int step = min((int)(sd->time*maxstep), maxstep-1);
-	float t = sd->time*maxstep - step;
+	int step = min((int)(sd_fetch(time)*maxstep), maxstep-1);
+	float t = sd_fetch(time)*maxstep - step;
 
 	/* find attribute */
 	AttributeElement elem;
-	int offset = find_attribute_motion(kg, sd->object, ATTR_STD_MOTION_VERTEX_POSITION, &elem);
+	int offset = find_attribute_motion(kg, sd_fetch(object), ATTR_STD_MOTION_VERTEX_POSITION, &elem);
 	kernel_assert(offset != ATTR_STD_NOT_FOUND);
 
 	/* fetch vertex coordinates */
 	float3 verts[3], next_verts[3];
-	float3 tri_vindex = float4_to_float3(kernel_tex_fetch(__tri_vindex, sd->prim));
+	float3 tri_vindex = float4_to_float3(kernel_tex_fetch(__tri_vindex, sd_fetch(prim)));
 
 	motion_triangle_verts_for_step(kg, tri_vindex, offset, numverts, numsteps, step, verts);
 	motion_triangle_verts_for_step(kg, tri_vindex, offset, numverts, numsteps, step+1, next_verts);
@@ -268,33 +268,33 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals *kg, ShaderD
 #ifdef __SUBSURFACE__
 	if(!subsurface)
 #endif
-		sd->P = motion_triangle_refine(kg, sd, isect, ray, verts);
+		sd_fetch(P) = motion_triangle_refine(kg, sd, isect, ray, verts);
 #ifdef __SUBSURFACE__
 	else
-		sd->P = motion_triangle_refine_subsurface(kg, sd, isect, ray, verts);
+		sd_fetch(P) = motion_triangle_refine_subsurface(kg, sd, isect, ray, verts);
 #endif
 
 	/* compute face normal */
 	float3 Ng;
-	if(sd->flag & SD_NEGATIVE_SCALE_APPLIED)
+	if(sd_fetch(flag) & SD_NEGATIVE_SCALE_APPLIED)
 		Ng = normalize(cross(verts[2] - verts[0], verts[1] - verts[0]));
 	else
 		Ng = normalize(cross(verts[1] - verts[0], verts[2] - verts[0]));
 
-	sd->Ng = Ng;
-	sd->N = Ng;
+	sd_fetch(Ng) = Ng;
+	sd_fetch(N) = Ng;
 
 	/* compute derivatives of P w.r.t. uv */
 #ifdef __DPDU__
-	sd->dPdu = (verts[0] - verts[2]);
-	sd->dPdv = (verts[1] - verts[2]);
+	sd_fetch(dPdu) = (verts[0] - verts[2]);
+	sd_fetch(dPdv) = (verts[1] - verts[2]);
 #endif
 
 	/* compute smooth normal */
-	if(sd->shader & SHADER_SMOOTH_NORMAL) {
+	if(sd_fetch(shader) & SHADER_SMOOTH_NORMAL) {
 		/* find attribute */
 		AttributeElement elem;
-		int offset = find_attribute_motion(kg, sd->object, ATTR_STD_MOTION_VERTEX_NORMAL, &elem);
+		int offset = find_attribute_motion(kg, sd_fetch(object), ATTR_STD_MOTION_VERTEX_NORMAL, &elem);
 		kernel_assert(offset != ATTR_STD_NOT_FOUND);
 
 		/* fetch vertex coordinates */
@@ -308,17 +308,17 @@ ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals *kg, ShaderD
 		normals[2] = (1.0f - t)*normals[2] + t*next_normals[2];
 
 		/* interpolate between vertices */
-		float u = sd->u;
-		float v = sd->v;
+		float u = sd_fetch(u);
+		float v = sd_fetch(v);
 		float w = 1.0f - u - v;
-		sd->N = (u*normals[0] + v*normals[1] + w*normals[2]);
+		sd_fetch(N) = (u*normals[0] + v*normals[1] + w*normals[2]);
 	}
 }
 
 /* Ray intersection. We simply compute the vertex positions at the given ray
  * time and do a ray intersection with the resulting triangle */
 
-ccl_device_inline bool motion_triangle_intersect(KernelGlobals *kg, Intersection *isect,
+ccl_device_inline bool motion_triangle_intersect(__ADDR_SPACE__ KernelGlobals *kg, Intersection *isect,
 	float3 P, float3 dir, float time, uint visibility, int object, int triAddr)
 {
 	/* primitive index for vertex location lookup */
@@ -358,7 +358,7 @@ ccl_device_inline bool motion_triangle_intersect(KernelGlobals *kg, Intersection
  * multiple hits we pick a single random primitive as the intersection point. */
 
 #ifdef __SUBSURFACE__
-ccl_device_inline void motion_triangle_intersect_subsurface(KernelGlobals *kg, Intersection *isect_array,
+ccl_device_inline void motion_triangle_intersect_subsurface(__ADDR_SPACE__ KernelGlobals *kg, Intersection *isect_array,
 	float3 P, float3 dir, float time, int object, int triAddr, float tmax, uint *num_hits, uint *lcg_state, int max_hits)
 {
 	/* primitive index for vertex location lookup */

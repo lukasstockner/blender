@@ -78,6 +78,17 @@ void SVMShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 		compiler.compile(shader, svm_nodes, i);
 	}
 
+	/* Populate set of closure nodes associated with the scene */
+	/* Check if NODE_END is indeed the start of NodeType enum */
+	assert(NODE_END == 0);
+	for (int node_iter = 0; node_iter < svm_nodes.size(); node_iter++) {
+		int4 node = svm_nodes[node_iter];
+		if (node.x >= NODE_END && node.x <= NODE_UVMAP) {
+			/* if node.x is within start and end of NodeType insert node type into device->associated_closure_nodes */
+			device->closure_nodes.insert(node.x);
+		}
+	}
+
 	dscene->svm_nodes.copy((uint4*)&svm_nodes[0], svm_nodes.size());
 	device->tex_alloc("__svm_nodes", dscene->svm_nodes);
 

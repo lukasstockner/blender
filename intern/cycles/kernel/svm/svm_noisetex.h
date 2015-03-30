@@ -39,7 +39,7 @@ ccl_device_inline void svm_noise(float3 p, float detail, float distortion, float
 		noise_turbulence(make_float3(p.y, p.z, p.x), basis, detail, hard));
 }
 
-ccl_device void svm_node_tex_noise(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_noise(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	uint co_offset, scale_offset, detail_offset, distortion_offset, fac_offset, color_offset;
 

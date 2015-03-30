@@ -29,6 +29,10 @@
 #include "util_types.h"
 #include "util_vector.h"
 
+#include <set>
+
+#define SPLIT_KERNEL_CLOSURE_COUNT 1
+
 CCL_NAMESPACE_BEGIN
 
 class Progress;
@@ -93,6 +97,12 @@ public:
 
 	/* statistics */
 	Stats &stats;
+
+	/* Maximum closure count */
+	int clos_max;
+
+	/* Get all closure nodes associated with the scene */
+	std::set<int> closure_nodes;
 
 	/* regular memory */
 	virtual void mem_alloc(device_memory& mem, MemoryType type) = 0;

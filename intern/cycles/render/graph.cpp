@@ -55,6 +55,7 @@ ShaderNode::ShaderNode(const char *name_)
 	id = -1;
 	bump = SHADER_BUMP_NONE;
 	special_type = SHADER_SPECIAL_TYPE_NONE;
+	clos = (ClosureType)-1;
 }
 
 ShaderNode::~ShaderNode()

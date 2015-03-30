@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __VOLUME_SCATTER__
 
-ccl_device void kernel_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
+ccl_device void kernel_path_volume_connect_light(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, float3 throughput, PathState *state, PathRadiance *L)
 {
 #ifdef __EMISSION__
@@ -44,7 +44,7 @@ ccl_device void kernel_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	if(ls.pdf == 0.0f)
 		return;
 	
-	if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+	if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 		/* trace shadow ray */
 		float3 shadow;
 
@@ -61,7 +61,7 @@ ccl_device_noinline
 #else
 ccl_device
 #endif
-bool kernel_path_volume_bounce(KernelGlobals *kg, RNG *rng,
+bool kernel_path_volume_bounce(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, float3 *throughput, PathState *state, PathRadiance *L, Ray *ray)
 {
 	/* sample phase function */
@@ -105,7 +105,7 @@ bool kernel_path_volume_bounce(KernelGlobals *kg, RNG *rng,
 	return true;
 }
 
-ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
+ccl_device void kernel_branched_path_volume_connect_light(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, float3 throughput, PathState *state, PathRadiance *L,
 	bool sample_all_lights, Ray *ray, const VolumeSegment *segment)
 {
@@ -160,7 +160,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				if(ls.pdf == 0.0f)
 					continue;
 
-				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 					/* trace shadow ray */
 					float3 shadow;
 
@@ -211,7 +211,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 				if(ls.pdf == 0.0f)
 					continue;
 
-				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 					/* trace shadow ray */
 					float3 shadow;
 
@@ -251,7 +251,7 @@ ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG
 			return;
 
 		/* sample random light */
-		if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
+		if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce, NULL)) {
 			/* trace shadow ray */
 			float3 shadow;
 

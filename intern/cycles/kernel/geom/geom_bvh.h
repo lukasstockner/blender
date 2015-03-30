@@ -184,7 +184,7 @@ CCL_NAMESPACE_BEGIN
 #undef BVH_NAME_EVAL
 #undef BVH_FUNCTION_FULL_NAME
 
-ccl_device_intersect bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect,
+ccl_device_intersect bool scene_intersect(__ADDR_SPACE__ KernelGlobals *kg, const Ray *ray, const uint visibility, __ADDR_SPACE__ Intersection *isect,
 					 uint *lcg_state, float difl, float extmax)
 {
 #ifdef __OBJECT_MOTION__
@@ -223,7 +223,7 @@ ccl_device_intersect bool scene_intersect(KernelGlobals *kg, const Ray *ray, con
 }
 
 #ifdef __SUBSURFACE__
-ccl_device_intersect uint scene_intersect_subsurface(KernelGlobals *kg, const Ray *ray, Intersection *isect, int subsurface_object, uint *lcg_state, int max_hits)
+ccl_device_intersect uint scene_intersect_subsurface(__ADDR_SPACE__ KernelGlobals *kg, const Ray *ray, Intersection *isect, int subsurface_object, uint *lcg_state, int max_hits)
 {
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
@@ -262,7 +262,7 @@ ccl_device_intersect uint scene_intersect_subsurface(KernelGlobals *kg, const Ra
 #endif
 
 #ifdef __SHADOW_RECORD_ALL__
-ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals *kg, const Ray *ray, Intersection *isect, uint max_hits, uint *num_hits)
+ccl_device_intersect bool scene_intersect_shadow_all(__ADDR_SPACE__ KernelGlobals *kg, const Ray *ray, Intersection *isect, uint max_hits, uint *num_hits)
 {
 #ifdef __OBJECT_MOTION__
 	if(kernel_data.bvh.have_motion) {
@@ -290,7 +290,7 @@ ccl_device_intersect bool scene_intersect_shadow_all(KernelGlobals *kg, const Ra
 #endif
 
 #ifdef __VOLUME__
-ccl_device_intersect bool scene_intersect_volume(KernelGlobals *kg,
+ccl_device_intersect bool scene_intersect_volume(__ADDR_SPACE__ KernelGlobals *kg,
                             const Ray *ray,
                             Intersection *isect)
 {

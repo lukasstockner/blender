@@ -36,7 +36,7 @@ ccl_device float sky_perez_function(float *lam, float theta, float gamma)
 	return (1.0f + lam[0]*expf(lam[1]/ctheta)) * (1.0f + lam[2]*expf(lam[3]*gamma)  + lam[4]*cgamma*cgamma);
 }
 
-ccl_device float3 sky_radiance_old(KernelGlobals *kg, float3 dir,
+ccl_device float3 sky_radiance_old(__ADDR_SPACE__ KernelGlobals *kg, float3 dir,
                                  float sunphi, float suntheta,
                                  float radiance_x, float radiance_y, float radiance_z,
                                  float *config_x, float *config_y, float *config_z)
@@ -80,7 +80,7 @@ ccl_device float sky_radiance_internal(float *configuration, float theta, float 
 		(configuration[2] + configuration[3] * expM + configuration[5] * rayM + configuration[6] * mieM + configuration[7] * zenith);
 }
 
-ccl_device float3 sky_radiance_new(KernelGlobals *kg, float3 dir,
+ccl_device float3 sky_radiance_new(__ADDR_SPACE__ KernelGlobals *kg, float3 dir,
                                  float sunphi, float suntheta,
                                  float radiance_x, float radiance_y, float radiance_z,
                                  float *config_x, float *config_y, float *config_z)
@@ -105,12 +105,12 @@ ccl_device float3 sky_radiance_new(KernelGlobals *kg, float3 dir,
 	return xyz_to_rgb(x, y, z) * (M_2PI_F/683);
 }
 
-ccl_device void svm_node_tex_sky(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_sky(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	/* Define variables */
 	float sunphi, suntheta, radiance_x, radiance_y, radiance_z;
 	float config_x[9], config_y[9], config_z[9];
-	
+
 	/* Load data */
 	uint dir_offset = node.y;
 	uint out_offset = node.z;
@@ -121,49 +121,49 @@ ccl_device void svm_node_tex_sky(KernelGlobals *kg, ShaderData *sd, float *stack
 	suntheta = data.y;
 	radiance_x = data.z;
 	radiance_y = data.w;
-	
+
 	data = read_node_float(kg, offset);
 	radiance_z = data.x;
 	config_x[0] = data.y;
 	config_x[1] = data.z;
 	config_x[2] = data.w;
-	
+
 	data = read_node_float(kg, offset);
 	config_x[3] = data.x;
 	config_x[4] = data.y;
 	config_x[5] = data.z;
 	config_x[6] = data.w;
-	
+
 	data = read_node_float(kg, offset);
 	config_x[7] = data.x;
 	config_x[8] = data.y;
 	config_y[0] = data.z;
 	config_y[1] = data.w;
-	
+
 	data = read_node_float(kg, offset);
 	config_y[2] = data.x;
 	config_y[3] = data.y;
 	config_y[4] = data.z;
 	config_y[5] = data.w;
-	
+
 	data = read_node_float(kg, offset);
 	config_y[6] = data.x;
 	config_y[7] = data.y;
 	config_y[8] = data.z;
 	config_z[0] = data.w;
-	
+
 	data = read_node_float(kg, offset);
 	config_z[1] = data.x;
 	config_z[2] = data.y;
 	config_z[3] = data.z;
 	config_z[4] = data.w;
-	
+
 	data = read_node_float(kg, offset);
 	config_z[5] = data.x;
 	config_z[6] = data.y;
 	config_z[7] = data.z;
 	config_z[8] = data.w;
-	
+
 	float3 dir = stack_load_float3(stack, dir_offset);
 	float3 f;
 
