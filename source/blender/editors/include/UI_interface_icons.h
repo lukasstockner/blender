@@ -35,12 +35,6 @@
 struct bContext;
 struct ID;
 struct Scene;
-struct Image;
-struct ImBuf;
-struct World;
-struct Tex;
-struct Lamp;
-struct Material;
 struct PreviewImage;
 struct PointerRNA;
 

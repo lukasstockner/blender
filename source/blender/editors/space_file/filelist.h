@@ -40,11 +40,6 @@ extern "C" {
 struct BlendHandle;
 struct FileList;
 struct FileSelection;
-struct FolderList;
-struct Main;
-struct ReportList;
-struct Scene;
-struct rcti;
 struct wmWindowManager;
 
 struct FileDirEntry;
