@@ -54,10 +54,10 @@ void MultilayerColorOperation::executePixelSampled(float output[4], float x, flo
 					nearest_interpolation_color(this->m_buffer, NULL, output, x, y);
 					break;
 				case COM_PS_BILINEAR:
-					bilinear_interpolation_color(this->m_buffer, NULL, output, x - 0.5f, y - 0.5f);
+					bilinear_interpolation_color(this->m_buffer, NULL, output, x, y);
 					break;
 				case COM_PS_BICUBIC:
-					bicubic_interpolation_color(this->m_buffer, NULL, output, x - 0.5f, y - 0.5f);
+					bicubic_interpolation_color(this->m_buffer, NULL, output, x, y);
 					break;
 			}
 		}
@@ -74,7 +74,7 @@ void MultilayerColorOperation::executePixelSampled(float output[4], float x, flo
 	}
 }
 
-void MultilayerValueOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
+void MultilayerValueOperation::executePixelSampled(float output[4], float x, float y, PixelSampler /*sampler*/)
 {
 	if (this->m_imageFloatBuffer == NULL) {
 		output[0] = 0.0f;
@@ -91,7 +91,7 @@ void MultilayerValueOperation::executePixelSampled(float output[4], float x, flo
 	}
 }
 
-void MultilayerVectorOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
+void MultilayerVectorOperation::executePixelSampled(float output[4], float x, float y, PixelSampler /*sampler*/)
 {
 	if (this->m_imageFloatBuffer == NULL) {
 		output[0] = 0.0f;

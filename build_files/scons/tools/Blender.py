@@ -441,7 +441,7 @@ def buildinfo(lenv, build_type):
             no_upstream = False
 
             try :
-                build_hash = btools.get_command_output(['git', 'rev-parse', '--short', '@{u}']).strip()
+                build_hash = btools.get_command_output(['git', 'rev-parse', '--short', '@{u}'], stderr=subprocess.STDOUT).strip()
             except subprocess.CalledProcessError:
                 # assume branch has no upstream configured
                 build_hash = btools.get_command_output(['git', 'rev-parse', '--short', 'HEAD']).strip()
@@ -762,7 +762,7 @@ def AppIt(target=None, source=None, env=None):
             commands.getoutput(cmd)
             cmd = 'cp -R %s/kernel/*.h %s/kernel/*.cl %s/kernel/*.cu %s/kernel/' % (croot, croot, croot, cinstalldir)
             commands.getoutput(cmd)
-            cmd = 'cp -R %s/kernel/svm %s/kernel/closure %s/kernel/geom %s/util/util_color.h %s/util/util_half.h %s/util/util_math.h %s/util/util_transform.h %s/util/util_types.h %s/kernel/' % (croot, croot, croot, croot, croot, croot, croot, croot, cinstalldir)
+            cmd = 'cp -R %s/kernel/svm %s/kernel/closure %s/kernel/geom %s/util/util_color.h %s/util/util_half.h %s/util/util_math.h %s/util/util_math_fast.h %s/util/util_transform.h %s/util/util_types.h %s/kernel/' % (croot, croot, croot, croot, croot, croot, croot, croot, croot, cinstalldir)
             commands.getoutput(cmd)
             cmd = 'cp -R %s/../intern/cycles/kernel/*.cubin %s/lib/' % (builddir, cinstalldir)
             commands.getoutput(cmd)

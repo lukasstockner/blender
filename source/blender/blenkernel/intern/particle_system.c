@@ -448,24 +448,24 @@ BLI_INLINE int ceil_ii(int a, int b)
 	return (a + b - 1) / b;
 }
 
-void psys_tasks_create(ParticleThreadContext *ctx, int totpart, ParticleTask **r_tasks, int *r_numtasks)
+void psys_tasks_create(ParticleThreadContext *ctx, int startpart, int endpart, ParticleTask **r_tasks, int *r_numtasks)
 {
 	ParticleTask *tasks;
-	int numtasks = ceil_ii(totpart, MAX_PARTICLES_PER_TASK);
-	float particles_per_task = (float)totpart / (float)numtasks, p, pnext;
+	int numtasks = ceil_ii((endpart - startpart), MAX_PARTICLES_PER_TASK);
+	float particles_per_task = (float)(endpart - startpart) / (float)numtasks, p, pnext;
 	int i;
 	
 	tasks = MEM_callocN(sizeof(ParticleTask) * numtasks, "ParticleThread");
 	*r_numtasks = numtasks;
 	*r_tasks = tasks;
 	
-	p = 0.0f;
+	p = (float)startpart;
 	for (i = 0; i < numtasks; i++, p = pnext) {
 		pnext = p + particles_per_task;
 		
 		tasks[i].ctx = ctx;
 		tasks[i].begin = (int)p;
-		tasks[i].end = min_ii((int)pnext, totpart);
+		tasks[i].end = min_ii((int)pnext, endpart);
 	}
 }
 
@@ -1191,7 +1191,7 @@ void psys_get_pointcache_start_end(Scene *scene, ParticleSystem *psys, int *sfra
 	ParticleSettings *part = psys->part;
 
 	*sfra = MAX2(1, (int)part->sta);
-	*efra = MIN2((int)(part->end + part->lifetime + 1.0f), scene->r.efra);
+	*efra = MIN2((int)(part->end + part->lifetime + 1.0f), MAX2(scene->r.pefra, scene->r.efra));
 }
 
 /************************************************/
@@ -3128,7 +3128,6 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
 		psys->clmd->sim_parms->vel_damping = 1.0f;
 		psys->clmd->sim_parms->flags |= CLOTH_SIMSETTINGS_FLAG_GOAL|CLOTH_SIMSETTINGS_FLAG_NO_SPRING_COMPRESS;
 		psys->clmd->coll_parms->flags &= ~CLOTH_COLLSETTINGS_FLAG_SELF;
-		psys->clmd->coll_parms->flags |= CLOTH_COLLSETTINGS_FLAG_POINTS;
 	}
 	
 	/* count simulated points */

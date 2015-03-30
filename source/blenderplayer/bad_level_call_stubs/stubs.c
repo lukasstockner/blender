@@ -476,7 +476,9 @@ int ED_mesh_uv_texture_add(struct Mesh *me, const char *name, const bool active_
 bool ED_mesh_color_remove_named(struct Mesh *me, const char *name) RET_ZERO
 bool ED_mesh_uv_texture_remove_named(struct Mesh *me, const char *name) RET_ZERO
 void ED_object_constraint_dependency_update(struct Main *bmain, struct Object *ob) RET_NONE
+void ED_object_constraint_dependency_tag_update(struct Main *bmain, struct Object *ob, struct bConstraint *con) RET_NONE
 void ED_object_constraint_update(struct Object *ob) RET_NONE
+void ED_object_constraint_tag_update(struct Object *ob, struct bConstraint *con) RET_NONE
 void ED_vgroup_vert_add(struct Object *ob, struct bDeformGroup *dg, int vertnum, float weight, int assignmode) RET_NONE
 void ED_vgroup_vert_remove(struct Object *ob, struct bDeformGroup *dg, int vertnum) RET_NONE
 float ED_vgroup_vert_weight(struct Object *ob, struct bDeformGroup *dg, int vertnum) RET_ZERO
@@ -673,7 +675,7 @@ int collada_export(struct Scene *sce,
                    BC_export_transformation_type export_transformation_type,
                    int open_sim) RET_ZERO
 
-void ED_mesh_calc_tessface(struct Mesh *mesh) RET_NONE
+void ED_mesh_calc_tessface(struct Mesh *mesh, bool free_mpoly) RET_NONE
 
 /* bpy/python internal api */
 void operator_wrapper(struct wmOperatorType *ot, void *userdata) RET_NONE

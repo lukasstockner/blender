@@ -66,6 +66,7 @@
 #include "BKE_bvhutils.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_collision.h"
+#include "BKE_colortools.h"
 #include "BKE_constraint.h"
 #include "BKE_customdata.h"
 #include "BKE_deform.h"
@@ -730,7 +731,8 @@ static void obstacles_from_derivedmesh(Object *coll_ob, SmokeDomainSettings *sds
 		BVHTreeFromMesh treeData = {NULL};
 		int numverts, i, z;
 
-		float surface_distance = 0.6;
+		/* slightly rounded-up sqrt(3 * (0.5)^2) == max. distance of cell boundary along the diagonal */
+		const float surface_distance = 0.867f;
 
 		float *vert_vel = NULL;
 		int has_velocity = 0;
@@ -970,7 +972,7 @@ static bool subframe_updateObject(Scene *scene, Object *ob, int update_mesh, int
 
 		/* also update constraint targets */
 		for (con = ob->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+			const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 
 			if (cti && cti->get_constraint_targets) {
@@ -1237,6 +1239,12 @@ static void emit_from_particles(Object *flow_ob, SmokeDomainSettings *sds, Smoke
 		sim.scene = scene;
 		sim.ob = flow_ob;
 		sim.psys = psys;
+
+		/* prepare curvemapping tables */
+		if ((psys->part->child_flag & PART_CHILD_USE_CLUMP_CURVE) && psys->part->clumpcurve)
+			curvemapping_changed_all(psys->part->clumpcurve);
+		if ((psys->part->child_flag & PART_CHILD_USE_ROUGH_CURVE) && psys->part->roughcurve)
+			curvemapping_changed_all(psys->part->roughcurve);
 
 		/* initialize particle cache */
 		if (psys->part->type == PART_HAIR) {

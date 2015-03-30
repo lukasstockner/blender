@@ -62,24 +62,20 @@ struct bNodeTreeExec;
 struct bNodeExecContext;
 struct bNodeExecData;
 struct GPUMaterial;
-struct GPUNode;
 struct GPUNodeStack;
 struct ID;
 struct ImBuf;
 struct ImageFormatData;
 struct ListBase;
 struct Main;
-struct uiBlock;
 struct uiLayout;
 struct MTex;
 struct PointerRNA;
-struct rctf;
 struct RenderData;
 struct Scene;
 struct Tex;
 struct SpaceNode;
 struct ARegion;
-struct Object;
 struct ColorManagedViewSettings;
 struct ColorManagedDisplaySettings;
 struct bNodeInstanceHash;
@@ -468,7 +464,7 @@ struct bNode	*nodeCopyNode(struct bNodeTree *ntree, struct bNode *node);
 struct bNodeLink *nodeAddLink(struct bNodeTree *ntree, struct bNode *fromnode, struct bNodeSocket *fromsock, struct bNode *tonode, struct bNodeSocket *tosock);
 void            nodeRemLink(struct bNodeTree *ntree, struct bNodeLink *link);
 void            nodeRemSocketLinks(struct bNodeTree *ntree, struct bNodeSocket *sock);
-int             nodeLinkIsHidden(struct bNodeLink *link);
+bool            nodeLinkIsHidden(struct bNodeLink *link);
 void            nodeInternalRelink(struct bNodeTree *ntree, struct bNode *node);
 
 void            nodeToView(struct bNode *node, float x, float y, float *rx, float *ry);
@@ -979,7 +975,6 @@ void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMateria
 #define CMP_TRACKPOS_ABSOLUTE_FRAME	3
 
 /* API */
-struct CompBuf;
 void ntreeCompositExecTree(struct Scene *scene, struct bNodeTree *ntree, struct RenderData *rd, int rendering, int do_previews,
                            const struct ColorManagedViewSettings *view_settings, const struct ColorManagedDisplaySettings *display_settings);
 void ntreeCompositTagRender(struct Scene *sce);

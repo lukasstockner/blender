@@ -24,8 +24,6 @@
 #include "AnimationExporter.h"
 #include "MaterialExporter.h"
 
-Global G;
-
 template<class Functor>
 void forEachObjectInExportSet(Scene *sce, Functor &f, LinkNode *export_set)
 {
@@ -187,7 +185,7 @@ void AnimationExporter::make_anim_frames_from_targets(Object *ob, std::vector<fl
 	for (con = (bConstraint *)conlist->first; con; con = con->next) {
 		ListBase targets = {NULL, NULL};
 		
-		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+		const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 		
 		if (!validateConstraints(con)) continue;
 
@@ -1528,7 +1526,7 @@ void AnimationExporter::sample_animation(float *v, std::vector<float> &frames, i
 bool AnimationExporter::validateConstraints(bConstraint *con)
 {
 	bool valid = true;
-	bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+	const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 	/* these we can skip completely (invalid constraints...) */
 	if (cti == NULL) valid = false;
 	if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) valid = false;
@@ -1547,7 +1545,7 @@ void AnimationExporter::calc_ob_mat_at_time(Object *ob, float ctime , float mat[
 	for (con = (bConstraint *)conlist->first; con; con = con->next) {
 		ListBase targets = {NULL, NULL};
 		
-		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+		const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 		
 		if (cti && cti->get_constraint_targets) {
 			bConstraintTarget *ct;

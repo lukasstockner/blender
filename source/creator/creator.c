@@ -597,6 +597,88 @@ static void blender_crash_handler(int signum)
 #endif
 }
 
+#ifdef WIN32
+LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
+{
+	switch (ExceptionInfo->ExceptionRecord->ExceptionCode) {
+		case EXCEPTION_ACCESS_VIOLATION:
+			fputs("Error: EXCEPTION_ACCESS_VIOLATION\n", stderr);
+			break;
+		case EXCEPTION_ARRAY_BOUNDS_EXCEEDED:
+			fputs("Error: EXCEPTION_ARRAY_BOUNDS_EXCEEDED\n", stderr);
+			break;
+		case EXCEPTION_BREAKPOINT:
+			fputs("Error: EXCEPTION_BREAKPOINT\n", stderr);
+			break;
+		case EXCEPTION_DATATYPE_MISALIGNMENT:
+			fputs("Error: EXCEPTION_DATATYPE_MISALIGNMENT\n", stderr);
+			break;
+		case EXCEPTION_FLT_DENORMAL_OPERAND:
+			fputs("Error: EXCEPTION_FLT_DENORMAL_OPERAND\n", stderr);
+			break;
+		case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+			fputs("Error: EXCEPTION_FLT_DIVIDE_BY_ZERO\n", stderr);
+			break;
+		case EXCEPTION_FLT_INEXACT_RESULT:
+			fputs("Error: EXCEPTION_FLT_INEXACT_RESULT\n", stderr);
+			break;
+		case EXCEPTION_FLT_INVALID_OPERATION:
+			fputs("Error: EXCEPTION_FLT_INVALID_OPERATION\n", stderr);
+			break;
+		case EXCEPTION_FLT_OVERFLOW:
+			fputs("Error: EXCEPTION_FLT_OVERFLOW\n", stderr);
+			break;
+		case EXCEPTION_FLT_STACK_CHECK:
+			fputs("Error: EXCEPTION_FLT_STACK_CHECK\n", stderr);
+			break;
+		case EXCEPTION_FLT_UNDERFLOW:
+			fputs("Error: EXCEPTION_FLT_UNDERFLOW\n", stderr);
+			break;
+		case EXCEPTION_ILLEGAL_INSTRUCTION:
+			fputs("Error: EXCEPTION_ILLEGAL_INSTRUCTION\n", stderr);
+			break;
+		case EXCEPTION_IN_PAGE_ERROR:
+			fputs("Error: EXCEPTION_IN_PAGE_ERROR\n", stderr);
+			break;
+		case EXCEPTION_INT_DIVIDE_BY_ZERO:
+			fputs("Error: EXCEPTION_INT_DIVIDE_BY_ZERO\n", stderr);
+			break;
+		case EXCEPTION_INT_OVERFLOW:
+			fputs("Error: EXCEPTION_INT_OVERFLOW\n", stderr);
+			break;
+		case EXCEPTION_INVALID_DISPOSITION:
+			fputs("Error: EXCEPTION_INVALID_DISPOSITION\n", stderr);
+			break;
+		case EXCEPTION_NONCONTINUABLE_EXCEPTION:
+			fputs("Error: EXCEPTION_NONCONTINUABLE_EXCEPTION\n", stderr);
+			break;
+		case EXCEPTION_PRIV_INSTRUCTION:
+			fputs("Error: EXCEPTION_PRIV_INSTRUCTION\n", stderr);
+			break;
+		case EXCEPTION_SINGLE_STEP:
+			fputs("Error: EXCEPTION_SINGLE_STEP\n", stderr);
+			break;
+		case EXCEPTION_STACK_OVERFLOW:
+			fputs("Error: EXCEPTION_STACK_OVERFLOW\n", stderr);
+			break;
+		default:
+			fputs("Error: Unrecognized Exception\n", stderr);
+			break;
+	}
+
+	fflush(stderr);
+
+	/* If this is a stack overflow then we can't walk the stack, so just show
+	 * where the error happened */
+	if (EXCEPTION_STACK_OVERFLOW != ExceptionInfo->ExceptionRecord->ExceptionCode) {
+		blender_crash_handler(SIGSEGV);
+	}
+
+	return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
+
+
 static void blender_abort_handler(int UNUSED(signum))
 {
 	/* Delete content of temp dir! */
@@ -729,7 +811,7 @@ static int no_glsl(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(dat
 
 static int no_audio(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-	sound_force_device(0);
+	BKE_sound_force_device(0);
 	return 0;
 }
 
@@ -740,7 +822,7 @@ static int set_audio(int argc, const char **argv, void *UNUSED(data))
 		exit(1);
 	}
 
-	sound_force_device(sound_define_from_str(argv[1]));
+	BKE_sound_force_device(BKE_sound_define_from_str(argv[1]));
 	return 1;
 }
 
@@ -1103,19 +1185,24 @@ static int set_skip_frame(int argc, const char **argv, void *data)
 #define BPY_CTX_SETUP(_cmd)                                                   \
 	{                                                                         \
 		wmWindowManager *wm = CTX_wm_manager(C);                              \
-		wmWindow *prevwin = CTX_wm_window(C);                                 \
-		Scene *prevscene = CTX_data_scene(C);                                 \
-		if (wm->windows.first) {                                              \
+		Scene *scene_prev = CTX_data_scene(C);                                \
+		wmWindow *win_prev;                                                   \
+		const bool has_win = !BLI_listbase_is_empty(&wm->windows);            \
+		if (has_win) {                                                        \
+			win_prev = CTX_wm_window(C);                                      \
 			CTX_wm_window_set(C, wm->windows.first);                          \
-			_cmd;                                                             \
-			CTX_wm_window_set(C, prevwin);                                    \
 		}                                                                     \
 		else {                                                                \
 			fprintf(stderr, "Python script \"%s\" "                           \
 			        "running with missing context data.\n", argv[1]);         \
+		}                                                                     \
+		{                                                                     \
 			_cmd;                                                             \
 		}                                                                     \
-		CTX_data_scene_set(C, prevscene);                                     \
+		if (has_win) {                                                        \
+			CTX_wm_window_set(C, win_prev);                                   \
+		}                                                                     \
+		CTX_data_scene_set(C, scene_prev);                                    \
 	} (void)0                                                                 \
 
 #endif /* WITH_PYTHON */
@@ -1472,13 +1559,13 @@ char **environ = NULL;
  *   or exit when running in background mode.
  */
 int main(
-       int argc,
+        int argc,
 #ifdef WIN32
         const char **UNUSED(argv_c)
 #else
         const char **argv
 #endif
-         )
+        )
 {
 	bContext *C;
 	SYS_SystemHandle syshandle;
@@ -1486,6 +1573,14 @@ int main(
 #ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
 #endif
+
+#ifdef WIN32
+	char **argv;
+	int argv_num;
+#endif
+
+	/* --- end declarations --- */
+
 
 #ifdef WIN32
 	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
@@ -1497,16 +1592,15 @@ int main(
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
 	 *       (it depends on the args passed in, which is what we're getting here!)
 	 */
-	wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
-	char **argv = malloc(argc * sizeof(char *));
-	int argci = 0;
-	
-	for (argci = 0; argci < argc; argci++) {
-		argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
+	{
+		wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
+		argv = malloc(argc * sizeof(char *));
+		for (argv_num = 0; argv_num < argc; argv_num++) {
+			argv[argv_num] = alloc_utf_8_from_16(argv_16[argv_num], 0);
+		}
+		LocalFree(argv_16);
 	}
-	
-	LocalFree(argv_16);
-#endif
+#endif  /* WIN32 */
 
 	/* NOTE: Special exception for guarded allocator type switch:
 	 *       we need to perform switch from lock-free to fully
@@ -1574,7 +1668,7 @@ int main(
 	setCallbacks();
 	
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE)
-/* patch to ignore argument finder gives us (pid?) */
+	/* patch to ignore argument finder gives us (pid?) */
 	if (argc == 2 && STREQLEN(argv[1], "-psn_", 5)) {
 		extern int GHOST_HACK_getFirstFile(char buf[]);
 		static char firstfilebuf[512];
@@ -1624,13 +1718,18 @@ int main(
 	BLI_argsParse(ba, 1, NULL, NULL);
 
 	if (use_crash_handler) {
+#ifdef WIN32
+		SetUnhandledExceptionFilter(windows_exception_handler);
+#else
 		/* after parsing args */
 		signal(SIGSEGV, blender_crash_handler);
+#endif
 	}
 
 	if (use_abort_handler) {
 		signal(SIGABRT, blender_abort_handler);
 	}
+
 #else
 	G.factory_startup = true;  /* using preferences or user startup makes no sense for py-as-module */
 	(void)syshandle;
@@ -1663,7 +1762,7 @@ int main(
 
 	/* Initialize ffmpeg if built in, also needed for bg mode if videos are
 	 * rendered via ffmpeg */
-	sound_init_once();
+	BKE_sound_init_once();
 	
 	init_def_material();
 
@@ -1727,8 +1826,8 @@ int main(
 #endif
 
 #ifdef WIN32
-	while (argci) {
-		free(argv[--argci]);
+	while (argv_num) {
+		free(argv[--argv_num]);
 	}
 	free(argv);
 	argv = NULL;

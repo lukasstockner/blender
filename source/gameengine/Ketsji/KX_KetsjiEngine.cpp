@@ -80,9 +80,6 @@
 
 #include "KX_NavMeshObject.h"
 
-// If define: little test for Nzc: guarded drawing. If the canvas is
-// not valid, skip rendering this frame.
-//#define NZC_GUARDED_OUTPUT
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 //#define DEFAULT_PHYSICS_TIC_RATE 60.0
 
@@ -318,7 +315,7 @@ void KX_KetsjiEngine::RenderDome()
 			KX_Camera* cam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
-			SetWorldSettings(scene->GetWorldInfo());
+			scene->GetWorldInfo()->UpdateWorldSettings();
 
 			// shadow buffers
 			if (i == 0) {
@@ -478,7 +475,7 @@ void KX_KetsjiEngine::ClearFrame()
 
 	if (doclear) {
 		KX_Scene* firstscene = *m_scenes.begin();
-		SetBackGround(firstscene->GetWorldInfo());
+		firstscene->GetWorldInfo()->UpdateBackGround();
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(),
 			clearvp.GetRight(), clearvp.GetTop());
@@ -741,65 +738,6 @@ bool KX_KetsjiEngine::NextFrame()
 		frames--;
 	}
 
-	bool bUseAsyncLogicBricks= false;//true;
-
-	if (bUseAsyncLogicBricks)
-	{
-		// Logic update sub frame: this will let some logic bricks run at the
-		// full frame rate.
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
-		// for each scene, call the proceed functions
-		{
-			KX_Scene* scene = *sceneit;
-
-			if (!scene->IsSuspended())
-			{
-				// if the scene was suspended recalcutlate the delta tu "curtime"
-				m_suspendedtime = scene->getSuspendedTime();
-				if (scene->getSuspendedTime()!=0.0)
-					scene->setSuspendedDelta(scene->getSuspendedDelta()+m_clockTime-scene->getSuspendedTime());
-				m_suspendeddelta = scene->getSuspendedDelta();
-				
-				// set Python hooks for each scene
-#ifdef WITH_PYTHON
-				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
-#endif
-				KX_SetActiveScene(scene);
-				
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_PHYSICS1);
-				scene->UpdateParents(m_clockTime);
-
-				// Perform physics calculations on the scene. This can involve 
-				// many iterations of the physics solver.
-				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
-				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_clockTime,timestep,timestep);
-				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_PHYSICS2);
-				scene->UpdateParents(m_clockTime);
-				
-				// Do some cleanup work for this logic frame
-				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
-				scene->LogicUpdateFrame(m_clockTime, false);
-
-				// Actuators can affect the scenegraph
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_ACTUATOR);
-				scene->UpdateParents(m_clockTime);
-
-				scene->setSuspendedTime(0.0);
-			} // suspended
-			else
-				if (scene->getSuspendedTime()==0.0)
-					scene->setSuspendedTime(m_clockTime);
-
-			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
-		}
-	}
-
-		
 	// Handle the animations independently of the logic time step
 	if (GetRestrictAnimationFPS())
 	{
@@ -887,7 +825,7 @@ void KX_KetsjiEngine::Render()
 		KX_Scene* scene = *sceneit;
 		KX_Camera* cam = scene->GetActiveCamera();
 		// pass the scene's worldsettings to the rasterizer
-		SetWorldSettings(scene->GetWorldInfo());
+		scene->GetWorldInfo()->UpdateWorldSettings();
 
 		// this is now done incrementatlly in KX_Scene::CalculateVisibleMeshes
 		//scene->UpdateMeshTransformations();
@@ -944,7 +882,7 @@ void KX_KetsjiEngine::Render()
 			KX_Camera* cam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
-			SetWorldSettings(scene->GetWorldInfo());
+			scene->GetWorldInfo()->UpdateWorldSettings();
 		
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
@@ -1024,54 +962,6 @@ const STR_String& KX_KetsjiEngine::GetExitString()
 	return m_exitstring;
 }
 
-
-void KX_KetsjiEngine::SetBackGround(KX_WorldInfo* wi)
-{
-	if (wi->hasWorld())
-	{
-		if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-		{
-			m_rasterizer->SetBackColor(
-				wi->getBackColorRed(),
-				wi->getBackColorGreen(),
-				wi->getBackColorBlue(),
-				0.0
-			);
-		}
-	}
-}
-
-
-
-void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
-{
-	if (wi->hasWorld())
-	{
-		// ...
-		m_rasterizer->SetAmbientColor(
-			wi->getAmbientColorRed(),
-			wi->getAmbientColorGreen(),
-			wi->getAmbientColorBlue()
-		);
-
-		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
-		{
-			if (wi->hasMist())
-			{
-				m_rasterizer->SetFog(
-					wi->getMistStart(),
-					wi->getMistDistance(),
-					wi->getMistColorRed(),
-					wi->getMistColorGreen(),
-					wi->getMistColorBlue()
-				);
-			}
-		}
-	}
-}
-
-
-	
 void KX_KetsjiEngine::EnableCameraOverride(const STR_String& forscene)
 {
 	m_overrideCam = true;

@@ -467,10 +467,9 @@ static void distribute_from_faces_exec(ParticleTask *thread, ParticleData *pa, i
 					psys_uv_to_w(1.0f / 3.0f, 1.0f / 3.0f, mface->v4, pa->fuv);
 			}
 			else {
-				ctx->jitoff[i] = fmod(ctx->jitoff[i],(float)ctx->jitlevel);
-				if (!isnan(ctx->jitoff[i])) {
-					psys_uv_to_w(ctx->jit[2*(int)ctx->jitoff[i]], ctx->jit[2*(int)ctx->jitoff[i]+1], mface->v4, pa->fuv);
-					ctx->jitoff[i]++;
+				float offset = fmod(ctx->jitoff[i] + (float)p, (float)ctx->jitlevel);
+				if (!isnan(offset)) {
+					psys_uv_to_w(ctx->jit[2*(int)offset], ctx->jit[2*(int)offset+1], mface->v4, pa->fuv);
 				}
 			}
 			break;
@@ -512,10 +511,9 @@ static void distribute_from_volume_exec(ParticleTask *thread, ParticleData *pa, 
 					psys_uv_to_w(1.0f / 3.0f, 1.0f / 3.0f, mface->v4, pa->fuv);
 			}
 			else {
-				ctx->jitoff[i] = fmod(ctx->jitoff[i],(float)ctx->jitlevel);
-				if (!isnan(ctx->jitoff[i])) {
-					psys_uv_to_w(ctx->jit[2*(int)ctx->jitoff[i]], ctx->jit[2*(int)ctx->jitoff[i]+1], mface->v4, pa->fuv);
-					ctx->jitoff[i]++;
+				float offset = fmod(ctx->jitoff[i] + (float)p, (float)ctx->jitlevel);
+				if (!isnan(offset)) {
+					psys_uv_to_w(ctx->jit[2*(int)offset], ctx->jit[2*(int)offset+1], mface->v4, pa->fuv);
 				}
 			}
 			break;
@@ -1123,7 +1121,7 @@ static void distribute_particles_on_dm(ParticleSimulationData *sim, int from)
 	task_pool = BLI_task_pool_create(task_scheduler, &ctx);
 	
 	totpart = (from == PART_FROM_CHILD ? sim->psys->totchild : sim->psys->totpart);
-	psys_tasks_create(&ctx, totpart, &tasks, &numtasks);
+	psys_tasks_create(&ctx, 0, totpart, &tasks, &numtasks);
 	for (i = 0; i < numtasks; ++i) {
 		ParticleTask *task = &tasks[i];
 		

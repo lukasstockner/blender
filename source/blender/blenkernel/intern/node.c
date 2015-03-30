@@ -955,7 +955,7 @@ void nodeRemSocketLinks(bNodeTree *ntree, bNodeSocket *sock)
 	ntree->update |= NTREE_UPDATE_LINKS;
 }
 
-int nodeLinkIsHidden(bNodeLink *link)
+bool nodeLinkIsHidden(bNodeLink *link)
 {
 	return nodeSocketIsHidden(link->fromsock) || nodeSocketIsHidden(link->tosock);
 }
@@ -1418,7 +1418,7 @@ static void node_preview_sync(bNodePreview *to, bNodePreview *from)
 	if (to->rect && from->rect) {
 		int xsize = to->xsize;
 		int ysize = to->ysize;
-		memcpy(to->rect, from->rect, 4 * xsize + xsize * ysize * sizeof(char) * 4);
+		memcpy(to->rect, from->rect, xsize * ysize * sizeof(char) * 4);
 	}
 }
 

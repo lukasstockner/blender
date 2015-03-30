@@ -263,6 +263,19 @@ Bone *BKE_armature_find_bone_name(bArmature *arm, const char *name)
 	return bone;
 }
 
+bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag)
+{
+	if (bone->flag & flag) {
+		return true;
+	}
+	else if (bone->parent) {
+		return BKE_armature_bone_flag_test_recursive(bone->parent, flag);
+	}
+	else {
+		return false;
+	}
+}
+
 /* Finds the best possible extension to the name on a particular axis. (For renaming, check for
  * unique names afterwards) strip_number: removes number extensions  (TODO: not used)
  * axis: the axis to name on
@@ -1687,7 +1700,7 @@ static void pose_proxy_synchronize(Object *ob, Object *from, int layer_protected
 			
 			/* constraints - set target ob pointer to own object */
 			for (con = pchanw.constraints.first; con; con = con->next) {
-				bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+				const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 				ListBase targets = {NULL, NULL};
 				bConstraintTarget *ct;
 				

@@ -23,6 +23,14 @@ uniform vec4 ssao_color;
  * see http://www.derschmale.com/2014/01/26/reconstructing-positions-from-the-depth-buffer */
 uniform vec4 viewvecs[3];
 
+vec3 calculate_view_space_normal(in vec3 viewposition)
+{
+	vec3 normal = cross(normalize(dFdx(viewposition)),
+	                    ssao_params.w * normalize(dFdy(viewposition)));
+	normalize(normal);
+	return normal;
+}
+
 float calculate_ssao_factor(float depth)
 {
 	/* take the normalized ray direction here */
@@ -55,6 +63,9 @@ float calculate_ssao_factor(float depth)
 		vec2 dir_jittered = vec2(dot(dir_sample, rotX), dot(dir_sample, rotY));
 
 		vec2 uvcoords = uvcoordsvar.xy + dir_jittered * offset;
+
+		if (uvcoords.x > 1.0 || uvcoords.x < 0.0 || uvcoords.y > 1.0 || uvcoords.y < 0.0)
+			continue;
 
 		float depth_new = texture2D(depthbuffer, uvcoords).r;
 		if (depth_new != 1.0) {

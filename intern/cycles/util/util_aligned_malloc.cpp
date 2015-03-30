@@ -15,6 +15,7 @@
  */
 
 #include "util_aligned_malloc.h"
+#include "util_guarded_allocator.h"
 
 #include <cassert>
 
@@ -39,8 +40,11 @@
 
 CCL_NAMESPACE_BEGIN
 
-void *util_aligned_malloc(int size, int alignment)
+void *util_aligned_malloc(size_t size, int alignment)
 {
+#ifdef WITH_BLENDER_GUARDEDALLOC
+	return MEM_mallocN_aligned(size, alignment, "Cycles Aligned Alloc");
+#endif
 #ifdef _WIN32
 	return _aligned_malloc(size, alignment);
 #elif defined(__APPLE__)
@@ -51,7 +55,7 @@ void *util_aligned_malloc(int size, int alignment)
 	return malloc(size);
 #elif defined(__FreeBSD__) || defined(__NetBSD__)
 	void *result;
-	if (posix_memalign(&result, alignment, size)) {
+	if(posix_memalign(&result, alignment, size)) {
 		/* Non-zero means allocation error
 		 * either no allocation or bad alignment value.
 		 */
@@ -65,7 +69,11 @@ void *util_aligned_malloc(int size, int alignment)
 
 void util_aligned_free(void *ptr)
 {
-#ifdef _WIN32
+#if defined(WITH_BLENDER_GUARDEDALLOC)
+	if(ptr != NULL) {
+		MEM_freeN(ptr);
+	}
+#elif defined(_WIN32)
 	_aligned_free(ptr);
 #else
 	free(ptr);

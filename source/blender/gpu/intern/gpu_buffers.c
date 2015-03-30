@@ -902,6 +902,7 @@ void GPU_buffer_unbind(void)
 		else
 			break;
 	}
+	attribData[0].index = -1;
 
 	/* not guaranteed we used VBOs but in that case it's just a no-op */
 	if (GLEW_ARB_vertex_buffer_object)
@@ -1035,6 +1036,7 @@ struct GPU_PBVH_Buffers {
 	bool use_matcaps;
 	float diffuse_color[4];
 };
+
 typedef enum {
 	VBO_ENABLED,
 	VBO_DISABLED
@@ -1114,8 +1116,8 @@ static void gpu_color_from_mask_quad_set(const CCGKey *key,
 }
 
 void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
-                             int *vert_indices, int totvert, const float *vmask,
-                             int (*face_vert_indices)[4], bool show_diffuse_color)
+                                  int *vert_indices, int totvert, const float *vmask,
+                                  int (*face_vert_indices)[4], bool show_diffuse_color)
 {
 	VertexBufferFormat *vert_data;
 	int i, j, k;
@@ -1252,9 +1254,9 @@ void GPU_update_mesh_pbvh_buffers(GPU_PBVH_Buffers *buffers, MVert *mvert,
 }
 
 GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(int (*face_vert_indices)[4],
-                                    MFace *mface, MVert *mvert,
-                                    int *face_indices,
-                                    int totface)
+                                              MFace *mface, MVert *mvert,
+                                              int *face_indices,
+                                              int totface)
 {
 	GPU_PBVH_Buffers *buffers;
 	unsigned short *tri_data;
@@ -1344,8 +1346,8 @@ GPU_PBVH_Buffers *GPU_build_mesh_pbvh_buffers(int (*face_vert_indices)[4],
 }
 
 void GPU_update_grid_pbvh_buffers(GPU_PBVH_Buffers *buffers, CCGElem **grids,
-                             const DMFlagMat *grid_flag_mats, int *grid_indices,
-                             int totgrid, const CCGKey *key, bool show_diffuse_color)
+                                  const DMFlagMat *grid_flag_mats, int *grid_indices,
+                                  int totgrid, const CCGKey *key, bool show_diffuse_color)
 {
 	VertexBufferFormat *vert_data;
 	int i, j, k, x, y;
@@ -1458,51 +1460,51 @@ void GPU_update_grid_pbvh_buffers(GPU_PBVH_Buffers *buffers, CCGElem **grids,
 /* Build the element array buffer of grid indices using either
  * unsigned shorts or unsigned ints. */
 #define FILL_QUAD_BUFFER(type_, tot_quad_, buffer_)                     \
-	{                                                                   \
-		type_ *tri_data;                                               \
-		int offset = 0;                                                 \
-		int i, j, k;                                                    \
-		                                                                \
-		glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB,                    \
-						sizeof(type_) * (tot_quad_) * 6, NULL,          \
-		                GL_STATIC_DRAW_ARB);                            \
-		                                                                \
-		/* Fill the buffer */                                      \
-		tri_data = glMapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB,         \
-		                           GL_WRITE_ONLY_ARB);                  \
-		if (tri_data) {                                                \
-			for (i = 0; i < totgrid; ++i) {                             \
-				BLI_bitmap *gh = NULL;                                  \
-				if (grid_hidden)                                        \
-					gh = grid_hidden[(grid_indices)[i]];                \
-																		\
-				for (j = 0; j < gridsize - 1; ++j) {                    \
-					for (k = 0; k < gridsize - 1; ++k) {                \
-						/* Skip hidden grid face */                     \
-						if (gh &&                                       \
-						    paint_is_grid_face_hidden(gh,               \
-						                              gridsize, k, j))  \
-							continue;                                   \
-																		\
-						*(tri_data++) = offset + j * gridsize + k + 1; \
-						*(tri_data++) = offset + j * gridsize + k;     \
-						*(tri_data++) = offset + (j + 1) * gridsize + k; \
-																		\
-						*(tri_data++) = offset + (j + 1) * gridsize + k + 1; \
-						*(tri_data++) = offset + j * gridsize + k + 1; \
-						*(tri_data++) = offset + (j + 1) * gridsize + k; \
-					}                                                   \
-				}                                                       \
-																		\
-				offset += gridsize * gridsize;                          \
-			}                                                           \
-			glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);              \
-		}                                                               \
-		else {                                                          \
-			glDeleteBuffersARB(1, &(buffer_));                          \
-			(buffer_) = 0;                                              \
-		}                                                               \
-	} (void)0
+    {                                                                   \
+        type_ *tri_data;                                                \
+        int offset = 0;                                                 \
+        int i, j, k;                                                    \
+                                                                        \
+        glBufferDataARB(GL_ELEMENT_ARRAY_BUFFER_ARB,                    \
+                        sizeof(type_) * (tot_quad_) * 6, NULL,          \
+                        GL_STATIC_DRAW_ARB);                            \
+                                                                        \
+        /* Fill the buffer */                                           \
+        tri_data = glMapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB,          \
+                                   GL_WRITE_ONLY_ARB);                  \
+        if (tri_data) {                                                 \
+            for (i = 0; i < totgrid; ++i) {                             \
+                BLI_bitmap *gh = NULL;                                  \
+                if (grid_hidden)                                        \
+                    gh = grid_hidden[(grid_indices)[i]];                \
+                                                                        \
+                for (j = 0; j < gridsize - 1; ++j) {                    \
+                    for (k = 0; k < gridsize - 1; ++k) {                \
+                        /* Skip hidden grid face */                     \
+                        if (gh &&                                       \
+                            paint_is_grid_face_hidden(gh,               \
+                                                      gridsize, k, j))  \
+                            continue;                                    \
+                                                                          \
+                        *(tri_data++) = offset + j * gridsize + k + 1;     \
+                        *(tri_data++) = offset + j * gridsize + k;          \
+                        *(tri_data++) = offset + (j + 1) * gridsize + k;     \
+                                                                             \
+                        *(tri_data++) = offset + (j + 1) * gridsize + k + 1; \
+                        *(tri_data++) = offset + j * gridsize + k + 1;       \
+                        *(tri_data++) = offset + (j + 1) * gridsize + k;    \
+                    }                                                      \
+                }                                                         \
+                                                                         \
+                offset += gridsize * gridsize;                          \
+            }                                                           \
+            glUnmapBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB);              \
+        }                                                               \
+        else {                                                          \
+            glDeleteBuffersARB(1, &(buffer_));                          \
+            (buffer_) = 0;                                              \
+        }                                                               \
+    } (void)0
 /* end FILL_QUAD_BUFFER */
 
 static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *totquad)
@@ -1558,7 +1560,7 @@ static GLuint gpu_get_grid_buffer(int gridsize, GLenum *index_type, unsigned *to
 }
 
 GPU_PBVH_Buffers *GPU_build_grid_pbvh_buffers(int *grid_indices, int totgrid,
-											  BLI_bitmap **grid_hidden, int gridsize)
+                                              BLI_bitmap **grid_hidden, int gridsize)
 {
 	GPU_PBVH_Buffers *buffers;
 	int totquad;
@@ -1640,7 +1642,6 @@ static void gpu_bmesh_vert_to_buffer_copy(BMVert *v,
 		                BM_ELEM_CD_GET_FLOAT(v, cd_vert_mask_offset),
 		        diffuse_color,
 		        vd->color);
-		
 
 		/* Assign index for use in the triangle index buffer */
 		/* note: caller must set:  bm->elem_index_dirty |= BM_VERT; */
@@ -1690,11 +1691,11 @@ static int gpu_bmesh_face_visible_count(GSet *bm_faces)
 /* Creates a vertex buffer (coordinate, normal, color) and, if smooth
  * shading, an element index buffer. */
 void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
-                              BMesh *bm,
-                              GSet *bm_faces,
-                              GSet *bm_unique_verts,
-                              GSet *bm_other_verts,
-                              bool show_diffuse_color)
+                                   BMesh *bm,
+                                   GSet *bm_faces,
+                                   GSet *bm_unique_verts,
+                                   GSet *bm_other_verts,
+                                   bool show_diffuse_color)
 {
 	VertexBufferFormat *vert_data;
 	void *tri_data;
@@ -1741,8 +1742,8 @@ void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
 	/* Initialize vertex buffer */
 	glBindBufferARB(GL_ARRAY_BUFFER_ARB, buffers->vert_buf);
 	glBufferDataARB(GL_ARRAY_BUFFER_ARB,
-					sizeof(VertexBufferFormat) * totvert,
-					NULL, GL_STATIC_DRAW_ARB);
+	                sizeof(VertexBufferFormat) * totvert,
+	                NULL, GL_STATIC_DRAW_ARB);
 
 	/* Fill vertex buffer */
 	vert_data = glMapBufferARB(GL_ARRAY_BUFFER_ARB, GL_WRITE_ONLY_ARB);
@@ -1783,7 +1784,9 @@ void GPU_update_bmesh_pbvh_buffers(GPU_PBVH_Buffers *buffers,
 					float fmask = 0;
 					int i;
 
-					// BM_iter_as_array(bm, BM_VERTS_OF_FACE, f, (void**)v, 3);
+#if 0
+					BM_iter_as_array(bm, BM_VERTS_OF_FACE, f, (void**)v, 3);
+#endif
 					BM_face_as_array_vert_tri(f, v);
 
 					/* Average mask value */
@@ -2203,7 +2206,7 @@ bool GPU_pbvh_buffers_diffuse_changed(GPU_PBVH_Buffers *buffers, GSet *bm_faces,
 		GPU_material_diffuse_get(f->mat_nr + 1, diffuse_color);
 	}
 	else if (buffers->use_bmesh) {
-		/* due to dynamc nature of dyntopo, only get first material */
+		/* due to dynamic nature of dyntopo, only get first material */
 		if (BLI_gset_size(bm_faces) > 0) {
 			GSetIterator gs_iter;
 			BMFace *f;
@@ -2254,7 +2257,7 @@ static void gpu_pbvh_buffer_free_intern(GLuint id)
 	if (pool->maxpbvhsize == pool->totpbvhbufids) {
 		pool->maxpbvhsize += MAX_FREE_GPU_BUFF_IDS;
 		pool->pbvhbufids = MEM_reallocN(pool->pbvhbufids,
-										sizeof(*pool->pbvhbufids) * pool->maxpbvhsize);
+		                                sizeof(*pool->pbvhbufids) * pool->maxpbvhsize);
 	}
 
 	/* insert the buffer into the beginning of the pool */
@@ -2279,33 +2282,33 @@ void GPU_free_pbvh_buffers(GPU_PBVH_Buffers *buffers)
 void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf)
 {
 	const float quads[4][4][3] = {
-	    {
-	        {min[0], min[1], min[2]},
-	        {max[0], min[1], min[2]},
-	        {max[0], min[1], max[2]},
-	        {min[0], min[1], max[2]}
-	    },
+		{
+			{min[0], min[1], min[2]},
+			{max[0], min[1], min[2]},
+			{max[0], min[1], max[2]},
+			{min[0], min[1], max[2]}
+		},
 
-	    {
-	        {min[0], min[1], min[2]},
-	        {min[0], max[1], min[2]},
-	        {min[0], max[1], max[2]},
-	        {min[0], min[1], max[2]}
-	    },
+		{
+			{min[0], min[1], min[2]},
+			{min[0], max[1], min[2]},
+			{min[0], max[1], max[2]},
+			{min[0], min[1], max[2]}
+		},
 
-	    {
-	        {max[0], max[1], min[2]},
-	        {max[0], min[1], min[2]},
-	        {max[0], min[1], max[2]},
-	        {max[0], max[1], max[2]}
-	    },
+		{
+			{max[0], max[1], min[2]},
+			{max[0], min[1], min[2]},
+			{max[0], min[1], max[2]},
+			{max[0], max[1], max[2]}
+		},
 
-	    {
-	        {max[0], max[1], min[2]},
-	        {min[0], max[1], min[2]},
-	        {min[0], max[1], max[2]},
-	        {max[0], max[1], max[2]}
-	    },
+		{
+			{max[0], max[1], min[2]},
+			{min[0], max[1], min[2]},
+			{min[0], max[1], max[2]},
+			{max[0], max[1], max[2]}
+		},
 	};
 
 	if (leaf)

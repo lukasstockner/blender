@@ -387,10 +387,8 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderDat
 	/* differentials */
 	sd->dP = ray->dD;
 	differential_incoming(&sd->dI, sd->dP);
-	sd->du.dx = 0.0f;
-	sd->du.dy = 0.0f;
-	sd->dv.dx = 0.0f;
-	sd->dv.dy = 0.0f;
+	sd->du = differential_zero();
+	sd->dv = differential_zero();
 #endif
 }
 
@@ -800,6 +798,8 @@ ccl_device void shader_eval_surface(KernelGlobals *kg, ShaderData *sd,
 #else
 		sd->closure->weight = make_float3(0.8f, 0.8f, 0.8f);
 		sd->closure->N = sd->N;
+		sd->closure->data0 = 0.0f;
+		sd->closure->data1 = 0.0f;
 		sd->flag |= bsdf_diffuse_setup(&sd->closure);
 #endif
 	}

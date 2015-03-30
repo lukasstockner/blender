@@ -90,6 +90,7 @@ public:
 	    GHOST_TWindowState state,
 	    GHOST_TDrawingContextType type = GHOST_kDrawingContextTypeNone,
 	    bool wantStereoVisual = false,
+	    bool warnOld = false,
 	    GHOST_TUns16 wantNumOfAASamples = 0,
 	    GHOST_TEmbedderWindowID parentWindowHwnd = 0
 	    );
@@ -194,8 +195,6 @@ public:
 	 * \return Indication of success.
 	 */
 	GHOST_TSuccess setOrder(GHOST_TWindowOrder order);
-
-	/**
 
 	/**
 	 * Invalidates the contents of this window.

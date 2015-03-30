@@ -585,7 +585,7 @@ void IMAGE_OT_view_zoom(wmOperatorType *ot)
 	ot->poll = space_image_main_area_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_LOCK_BYPASS;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER | OPTYPE_LOCK_BYPASS;
 	
 	/* properties */
 	prop = RNA_def_float(ot->srna, "factor", 0.0f, -FLT_MAX, FLT_MAX, "Factor",
@@ -2982,7 +2982,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 	SUBFRA = 0.0f;
 
 	/* do updates */
-	sound_seek_scene(CTX_data_main(C), scene);
+	BKE_sound_seek_scene(CTX_data_main(C), scene);
 	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 }
 

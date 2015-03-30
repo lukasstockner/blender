@@ -126,6 +126,13 @@ struct ImBuf *IMB_allocImBuf(unsigned int x, unsigned int y,
                              unsigned char d, unsigned int flags);
 
 /**
+ * Create a copy of a pixel buffer and wrap it to a new ImBuf
+ * \attention Defined in allocimbuf.c
+ */
+struct ImBuf *IMB_allocFromBuffer(const unsigned int *rect, const float *rectf,
+                                  unsigned int w, unsigned int h);
+
+/**
  *
  * Increase reference count to imbuf
  * (to delete an imbuf you have to call freeImBuf as many times as it
@@ -233,6 +240,7 @@ typedef enum IMB_Proxy_Size {
 
 /* defaults to BL_proxy within the directory of the animation */
 void IMB_anim_set_index_dir(struct anim *anim, const char *dir);
+void IMB_anim_get_fname(struct anim *anim, char *file, int size);
 
 int IMB_anim_index_get_frame_index(struct anim *anim, IMB_Timecode_Type tc,
                                    int position);

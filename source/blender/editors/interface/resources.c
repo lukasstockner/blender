@@ -1098,7 +1098,7 @@ void ui_theme_init_default(void)
 	rgba_char_args_set(btheme->text.syntaxd,    50, 0, 140, 255);   /* Decorator/Preprocessor Dir.  Blue-purple */
 	rgba_char_args_set(btheme->text.syntaxr,    140, 60, 0, 255);   /* Reserved  Orange*/
 	rgba_char_args_set(btheme->text.syntaxb,    128, 0, 80, 255);   /* Builtin  Red-purple */
-	rgba_char_args_set(btheme->text.syntaxs,    76, 76, 76, 255);   /* Grey (mix between fg/bg) */
+	rgba_char_args_set(btheme->text.syntaxs,    76, 76, 76, 255);   /* Gray (mix between fg/bg) */
 	
 	/* space oops */
 	btheme->toops = btheme->tv3d;
@@ -1528,8 +1528,16 @@ void UI_ThemeClearColor(int colorid)
 	float col[3];
 	
 	UI_GetThemeColor3fv(colorid, col);
-	glClearColor(col[0], col[1], col[2], 0.0);
+	glClearColor(col[0], col[1], col[2], 0.0f);
 }
+
+void UI_ThemeClearColorAlpha(int colorid, float alpha)
+{
+	float col[3];
+	UI_GetThemeColor3fv(colorid, col);
+	glClearColor(col[0], col[1], col[2], alpha);
+}
+
 
 int UI_ThemeMenuShadowWidth(void)
 {
@@ -2343,7 +2351,7 @@ void init_userdef_do_versions(void)
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set(btheme->text.syntaxd,    50, 0, 140, 255);   /* Decorator/Preprocessor Dir.  Blue-purple */
 			rgba_char_args_set(btheme->text.syntaxr,    140, 60, 0, 255);   /* Reserved  Orange */
-			rgba_char_args_set(btheme->text.syntaxs,    76, 76, 76, 255);   /* Grey (mix between fg/bg) */
+			rgba_char_args_set(btheme->text.syntaxs,    76, 76, 76, 255);   /* Gray (mix between fg/bg) */
 		}
 	}
 

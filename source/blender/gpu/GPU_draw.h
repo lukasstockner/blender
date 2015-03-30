@@ -36,6 +36,7 @@
 extern "C" {
 #endif
 
+struct ImBuf;
 struct Image;
 struct ImageUser;
 struct MTFace;
@@ -56,10 +57,6 @@ struct SmokeModifierData;
  *   and for switching back from the game engine for example. */
 
 void GPU_state_init(void);
-
-/* Debugging */
-
-void GPU_state_print(void);
 
 /* Material drawing
  * - first the state is initialized by a particular object and
@@ -88,6 +85,7 @@ int GPU_get_material_alpha_blend(void);
 
 int GPU_set_tpage(struct MTFace *tface, int mipmap, int transp);
 void GPU_clear_tpage(bool force);
+
 /* Lights
  * - returns how many lights were enabled
  * - this affects fixed functions materials and texface, not glsl */
@@ -127,7 +125,7 @@ void GPU_paint_update_image(struct Image *ima, int x, int y, int w, int h);
 void GPU_update_images_framechange(void);
 int GPU_update_image_time(struct Image *ima, double time);
 int GPU_verify_image(struct Image *ima, struct ImageUser *iuser, int tftile, bool compare, bool mipmap, bool is_data);
-void GPU_create_gl_tex(unsigned int *bind, unsigned int *pix, float *frect, int rectw, int recth,
+void GPU_create_gl_tex(unsigned int *bind, unsigned int *rect, float *frect, int rectw, int recth,
                        bool mipmap, bool use_hight_bit_depth, struct Image *ima);
 void GPU_create_gl_tex_compressed(unsigned int *bind, unsigned int *pix, int x, int y, int mipmap, struct Image *ima, struct ImBuf *ibuf);
 bool GPU_upload_dxt_texture(struct ImBuf *ibuf);

@@ -179,17 +179,24 @@ class DATA_PT_camera_dof(CameraButtonsPanel, Panel):
         cam = context.camera
         dof_options = cam.gpu_dof
 
-        layout.label(text="Focus:")
-
         split = layout.split()
-        split.prop(cam, "dof_object", text="")
 
         col = split.column()
-
+        col.label(text="Focus:")
+        col.prop(cam, "dof_object", text="")
         sub = col.column()
-        sub.active = cam.dof_object is None
+        sub.active = (cam.dof_object is None)
         sub.prop(cam, "dof_distance", text="Distance")
+
+        hq_support = dof_options.is_hq_supported
+        col = split.column(align=True)
+        col.label("Viewport:")
+        sub = col.column()
+        sub.active = hq_support
+        sub.prop(dof_options, "use_high_quality")
         col.prop(dof_options, "fstop")
+        if dof_options.use_high_quality and hq_support:
+            col.prop(dof_options, "blades")
 
 
 class DATA_PT_camera_display(CameraButtonsPanel, Panel):

@@ -446,6 +446,9 @@ class VIEW3D_MT_view_navigation(Menu):
         layout = self.layout
 
         layout.operator_enum("view3d.view_orbit", "type")
+        props = layout.operator("view3d.view_orbit", "Orbit Opposite")
+        props.type = 'ORBITRIGHT'
+        props.angle = pi
 
         layout.separator()
 
@@ -910,6 +913,41 @@ class VIEW3D_MT_select_paint_mask_vertex(Menu):
         layout.separator()
 
         layout.operator("paint.vert_select_ungrouped", text="Ungrouped Verts")
+
+
+class VIEW3D_MT_angle_control(Menu):
+    bl_label = "Angle Control"
+
+    @classmethod
+    def poll(cls, context):
+        settings = UnifiedPaintPanel.paint_settings(context)
+        if not settings:
+            return False
+
+        brush = settings.brush
+        tex_slot = brush.texture_slot
+
+        return tex_slot.has_texture_angle and tex_slot.has_texture_angle_source
+
+    def draw(self, context):
+        layout = self.layout
+
+        settings = UnifiedPaintPanel.paint_settings(context)
+        brush = settings.brush
+
+        sculpt = (context.sculpt_object != None)
+
+        tex_slot = brush.texture_slot
+
+        layout.prop(tex_slot, "use_rake", text="Rake")
+
+        if brush.brush_capabilities.has_random_texture_angle and tex_slot.has_random_texture_angle:
+            if sculpt:
+                if brush.sculpt_capabilities.has_random_texture_angle:
+                    layout.prop(tex_slot, "use_random", text="Random")
+            else:
+                layout.prop(tex_slot, "use_random", text="Random")
+
 
 # ********** Add menu **********
 
@@ -2530,10 +2568,6 @@ class VIEW3D_MT_edit_font(Menu):
         layout.operator("font.style_toggle", text="Toggle Underline").style = 'UNDERLINE'
         layout.operator("font.style_toggle", text="Toggle Small Caps").style = 'SMALL_CAPS'
 
-        layout.separator()
-
-        layout.operator("font.insert_lorem")
-
 
 class VIEW3D_MT_edit_text_chars(Menu):
     bl_label = "Special Characters"
@@ -2672,6 +2706,7 @@ class VIEW3D_MT_edit_armature(Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_AREA'
+        layout.operator("armature.symmetrize")
         layout.operator("armature.autoside_names", text="AutoName Left/Right").type = 'XAXIS'
         layout.operator("armature.autoside_names", text="AutoName Front/Back").type = 'YAXIS'
         layout.operator("armature.autoside_names", text="AutoName Top/Bottom").type = 'ZAXIS'
@@ -2710,6 +2745,7 @@ class VIEW3D_MT_armature_specials(Menu):
         layout.operator("armature.autoside_names", text="AutoName Front/Back").type = 'YAXIS'
         layout.operator("armature.autoside_names", text="AutoName Top/Bottom").type = 'ZAXIS'
         layout.operator("armature.flip_names", text="Flip Names")
+        layout.operator("armature.symmetrize")
 
 
 class VIEW3D_MT_edit_armature_parent(Menu):
@@ -2935,12 +2971,14 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
-            fx_settings = view.fx_settings
 
-            sub = col.column()
-            sub.active = view.region_3d.view_perspective == 'CAMERA'
-            sub.prop(fx_settings, "use_dof")
+        fx_settings = view.fx_settings
 
+        sub = col.column()
+        sub.active = view.region_3d.view_perspective == 'CAMERA'
+        sub.prop(fx_settings, "use_dof")
+
+        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
             col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
             if fx_settings.use_ssao:
                 ssao_settings = fx_settings.ssao

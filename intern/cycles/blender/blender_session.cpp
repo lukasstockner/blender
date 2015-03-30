@@ -41,8 +41,10 @@
 
 CCL_NAMESPACE_BEGIN
 
+bool BlenderSession::headless = false;
+
 BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b_userpref_,
-	BL::BlendData b_data_, BL::Scene b_scene_, bool headless_)
+	BL::BlendData b_data_, BL::Scene b_scene_)
 : b_engine(b_engine_), b_userpref(b_userpref_), b_data(b_data_), b_render(b_engine_.render()), b_scene(b_scene_),
   b_v3d(PointerRNA_NULL), b_rv3d(PointerRNA_NULL), python_thread_state(NULL)
 {
@@ -52,7 +54,6 @@ BlenderSession::BlenderSession(BL::RenderEngine b_engine_, BL::UserPreferences b
 	height = render_resolution_y(b_render);
 
 	background = true;
-	headless = headless_;
 	last_redraw_time = 0.0;
 	start_resize_time = 0.0;
 }
@@ -87,7 +88,7 @@ void BlenderSession::create()
 
 void BlenderSession::create_session()
 {
-	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background, headless);
+	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
 	bool is_cpu = session_params.device.type == DEVICE_CPU;
 	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background, is_cpu);
 	bool session_pause = BlenderSync::get_session_pause(b_scene, background);
@@ -132,7 +133,7 @@ void BlenderSession::create_session()
 	}
 
 	/* set buffer parameters */
-	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
+	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 	session->reset(buffer_params, session_params.samples);
 
 	b_engine.use_highlight_tiles(session_params.progressive_refine == false);
@@ -144,7 +145,7 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_)
 	b_render = b_engine.render();
 	b_scene = b_scene_;
 
-	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background, headless);
+	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
 	const bool is_cpu = session_params.device.type == DEVICE_CPU;
 	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background, is_cpu);
 
@@ -185,7 +186,7 @@ void BlenderSession::reset_session(BL::BlendData b_data_, BL::Scene b_scene_)
 	sync->sync_integrator();
 	sync->sync_camera(b_render, b_engine.camera_override(), width, height);
 
-	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, PointerRNA_NULL, PointerRNA_NULL, scene->camera, width, height);
+	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, PointerRNA_NULL, PointerRNA_NULL, scene->camera, width, height);
 	session->reset(buffer_params, session_params.samples);
 
 	b_engine.use_highlight_tiles(session_params.progressive_refine == false);
@@ -352,7 +353,7 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 	BL::RenderResult b_rr = begin_render_result(b_engine, x, y, w, h, b_rlay_name.c_str());
 
 	/* can happen if the intersected rectangle gives 0 width or height */
-	if (b_rr.ptr.data == NULL) {
+	if(b_rr.ptr.data == NULL) {
 		return;
 	}
 
@@ -365,10 +366,10 @@ void BlenderSession::do_write_update_render_tile(RenderTile& rtile, bool do_upda
 
 	BL::RenderLayer b_rlay = *b_single_rlay;
 
-	if (do_update_only) {
+	if(do_update_only) {
 		/* update only needed */
 
-		if (rtile.sample != 0) {
+		if(rtile.sample != 0) {
 			/* sample would be zero at initial tile update, which is only needed
 			 * to tag tile form blender side as IN PROGRESS for proper highlight
 			 * no buffers should be sent to blender yet
@@ -396,7 +397,7 @@ void BlenderSession::update_render_tile(RenderTile& rtile)
 	 * be updated in blender side
 	 * would need to be investigated a bit further, but for now shall be fine
 	 */
-	if (!b_engine.is_preview())
+	if(!b_engine.is_preview())
 		do_write_update_render_tile(rtile, true);
 	else
 		do_write_update_render_tile(rtile, false);
@@ -409,8 +410,8 @@ void BlenderSession::render()
 	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1);
 
 	/* get buffer parameters */
-	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background, headless);
-	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
+	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
+	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 
 	/* render each layer */
 	BL::RenderSettings r = b_scene.render();
@@ -486,8 +487,8 @@ void BlenderSession::render()
 	}
 
 	/* clear callback */
-	session->write_render_tile_cb = NULL;
-	session->update_render_tile_cb = NULL;
+	session->write_render_tile_cb = function_null;
+	session->update_render_tile_cb = function_null;
 
 	/* free all memory used (host and device), so we wouldn't leave render
 	 * engine with extra memory allocated
@@ -510,7 +511,7 @@ static void populate_bake_data(BakeData *data, BL::BakePixel pixel_array, const 
 	}
 }
 
-void BlenderSession::bake(BL::Object b_object, const string& pass_type, BL::BakePixel pixel_array, const size_t num_pixels, const int depth, float result[])
+void BlenderSession::bake(BL::Object b_object, const string& pass_type, BL::BakePixel pixel_array, const size_t num_pixels, const int /*depth*/, float result[])
 {
 	ShaderEvalType shader_type = get_shader_type(pass_type);
 	size_t object_index = OBJECT_NONE;
@@ -541,8 +542,8 @@ void BlenderSession::bake(BL::Object b_object, const string& pass_type, BL::Bake
 	sync->sync_data(b_v3d, b_engine.camera_override(), &python_thread_state);
 
 	/* get buffer parameters */
-	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background, headless);
-	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
+	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
+	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 
 	scene->bake_manager->set_shader_limit((size_t)b_engine.tile_x(), (size_t)b_engine.tile_y());
 	scene->bake_manager->set_baking(true);
@@ -600,7 +601,7 @@ void BlenderSession::do_write_update_render_result(BL::RenderResult b_rr, BL::Re
 
 	vector<float> pixels(params.width*params.height*4);
 
-	if (!do_update_only) {
+	if(!do_update_only) {
 		/* copy each pass */
 		BL::RenderLayer::passes_iterator b_iter;
 
@@ -644,7 +645,7 @@ void BlenderSession::synchronize()
 		return;
 
 	/* on session/scene parameter changes, we recreate session entirely */
-	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background, headless);
+	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
 	const bool is_cpu = session_params.device.type == DEVICE_CPU;
 	SceneParams scene_params = BlenderSync::get_scene_params(b_scene, background, is_cpu);
 	bool session_pause = BlenderSync::get_session_pause(b_scene, background);
@@ -691,7 +692,7 @@ void BlenderSession::synchronize()
 
 	/* reset if needed */
 	if(scene->need_reset()) {
-		BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
+		BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 		session->reset(buffer_params, session_params.samples);
 
 		/* reset time */
@@ -745,8 +746,8 @@ bool BlenderSession::draw(int w, int h)
 
 		/* reset if requested */
 		if(reset) {
-			SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background, headless);
-			BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
+			SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
+			BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 			bool session_pause = BlenderSync::get_session_pause(b_scene, background);
 
 			if(session_pause == false) {
@@ -763,7 +764,7 @@ bool BlenderSession::draw(int w, int h)
 	update_status_progress();
 
 	/* draw */
-	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_scene, b_v3d, b_rv3d, scene->camera, width, height);
+	BufferParams buffer_params = BlenderSync::get_buffer_params(b_render, b_v3d, b_rv3d, scene->camera, width, height);
 	DeviceDrawParams draw_params;
 
 	if(session->params.display_buffer_linear) {
@@ -868,7 +869,7 @@ void BlenderSession::update_status_progress()
 		last_progress = progress;
 	}
 
-	if (session->progress.get_error()) {
+	if(session->progress.get_error()) {
 		string error = session->progress.get_error_message();
 		if(error != last_error) {
 			/* TODO(sergey): Currently C++ RNA API doesn't let us to

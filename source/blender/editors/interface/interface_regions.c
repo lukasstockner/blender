@@ -110,7 +110,7 @@ int ui_but_menu_step(uiBut *but, int direction)
 {
 	/* currenly only RNA buttons */
 	if ((but->rnaprop == NULL) || (RNA_property_type(but->rnaprop) != PROP_ENUM)) {
-		printf("%s: cannot cycle button '%s'", __func__, but->str);
+		printf("%s: cannot cycle button '%s'\n", __func__, but->str);
 		return 0;
 	}
 
@@ -241,10 +241,10 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 	/* tone_fg = rgb_to_grayscale(main_color); */
 
 	/* mix the colors */
-	rgb_tint(value_color,  0.0f, 0.0f, tone_bg, 0.2f);  /* light grey */
+	rgb_tint(value_color,  0.0f, 0.0f, tone_bg, 0.2f);  /* light gray */
 	rgb_tint(active_color, 0.6f, 0.2f, tone_bg, 0.2f);  /* light blue */
-	rgb_tint(normal_color, 0.0f, 0.0f, tone_bg, 0.4f);  /* grey       */
-	rgb_tint(python_color, 0.0f, 0.0f, tone_bg, 0.5f);  /* dark grey  */
+	rgb_tint(normal_color, 0.0f, 0.0f, tone_bg, 0.4f);  /* gray       */
+	rgb_tint(python_color, 0.0f, 0.0f, tone_bg, 0.5f);  /* dark gray  */
 	rgb_tint(alert_color,  0.0f, 0.8f, tone_bg, 0.1f);  /* red        */
 
 	/* draw text */
@@ -261,7 +261,7 @@ static void ui_tooltip_region_draw_cb(const bContext *UNUSED(C), ARegion *ar)
 
 			/* override text-style */
 			fstyle_header.shadow = 1;
-			fstyle_header.shadowcolor = rgb_to_luma(tip_colors[UI_TIP_LC_MAIN]);
+			fstyle_header.shadowcolor = rgb_to_grayscale(tip_colors[UI_TIP_LC_MAIN]);
 			fstyle_header.shadx = fstyle_header.shady = 0;
 			fstyle_header.shadowalpha = 1.0f;
 
@@ -394,7 +394,7 @@ ARegion *ui_tooltip_create(bContext *C, ARegion *butregion, uiBut *but)
 		data->totline++;
 	}
 
-	if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU, UI_BTYPE_SEARCH_MENU_UNLINK)) {
+	if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
 		/* better not show the value of a password */
 		if ((but->rnaprop && (RNA_property_subtype(but->rnaprop) == PROP_PASSWORD)) == 0) {
 			/* full string */
@@ -815,7 +815,7 @@ static void ui_searchbox_select(bContext *C, ARegion *ar, uiBut *but, int step)
 		}
 		else {
 			/* only let users step into an 'unset' state for unlink buttons */
-			data->active = (but->type == UI_BTYPE_SEARCH_MENU_UNLINK) ? -1 : 0;
+			data->active = (but->flag & UI_BUT_SEARCH_UNLINK) ? -1 : 0;
 		}
 	}
 	
@@ -886,7 +886,7 @@ bool ui_searchbox_apply(uiBut *but, ARegion *ar)
 
 		return true;
 	}
-	else if (but->type == UI_BTYPE_SEARCH_MENU_UNLINK) {
+	else if (but->flag & UI_BUT_SEARCH_UNLINK) {
 		/* It is valid for _UNLINK flavor to have no active element (it's a valid way to unlink). */
 		but->editstr[0] = '\0';
 

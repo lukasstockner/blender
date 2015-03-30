@@ -36,15 +36,11 @@
 #include "BLI_math_inline.h"
 
 struct Object;
-struct ListBase;
 struct Scene;
 struct MFace;
 struct DerivedMesh;
 struct ClothModifierData;
 struct CollisionModifierData;
-struct CollisionTree;
-struct VoxelData;
-struct PartDeflect;
 
 #define DO_INLINE MALWAYS_INLINE
 
@@ -181,7 +177,6 @@ typedef enum {
 typedef enum {
 	CLOTH_COLLSETTINGS_FLAG_ENABLED = ( 1 << 1 ), /* enables cloth - object collisions */
 	CLOTH_COLLSETTINGS_FLAG_SELF = ( 1 << 2 ), /* enables selfcollisions */
-	CLOTH_COLLSETTINGS_FLAG_POINTS = ( 1 << 3 ), /* enables point collisions (hair) */
 } CLOTH_COLLISIONSETTINGS_FLAGS;
 
 /* Spring types as defined in the paper.*/

@@ -20,6 +20,7 @@
 #include "scene.h"
 
 #include "blender_sync.h"
+#include "blender_session.h"
 #include "blender_util.h"
 
 #include "subd_mesh.h"
@@ -106,7 +107,9 @@ static void mikk_get_texture_coordinate(const SMikkTSpaceContext *context, float
 		int vert_idx = userdata->mesh.tessfaces[face_num].vertices()[vert_num];
 		float3 orco =
 			get_float3(userdata->mesh.vertices[vert_idx].undeformed_co());
-		map_to_sphere(&uv[0], &uv[1], orco[0], orco[1], orco[2]);
+		float2 tmp = map_to_sphere(make_float3(orco[0], orco[1], orco[2]));
+		uv[0] = tmp.x;
+		uv[1] = tmp.y;
 	}
 }
 
@@ -299,7 +302,7 @@ static void attr_create_uv_map(Scene *scene,
                                BL::Mesh b_mesh,
                                const vector<int>& nverts)
 {
-	if (b_mesh.tessface_uv_textures.length() != 0) {
+	if(b_mesh.tessface_uv_textures.length() != 0) {
 		BL::Mesh::tessface_uv_textures_iterator l;
 
 		for(b_mesh.tessface_uv_textures.begin(l); l != b_mesh.tessface_uv_textures.end(); ++l) {
@@ -586,6 +589,14 @@ static void create_subd_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, PointerR
 
 Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris)
 {
+	/* When viewport display is not needed during render we can force some
+	 * caches to be releases from blender side in order to reduce peak memory
+	 * footprint during synchronization process.
+	 */
+	const bool is_interface_locked = b_engine.render() &&
+	                                 b_engine.render().use_lock_interface();
+	const bool can_free_caches = BlenderSession::headless || is_interface_locked;
+
 	/* test if we can instance or if the object is modified */
 	BL::ID b_ob_data = b_ob.data();
 	BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob_data;
@@ -678,6 +689,10 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 
 			if(render_layer.use_hair)
 				sync_curves(mesh, b_mesh, b_ob, false);
+
+			if(can_free_caches) {
+				b_ob.cache_release();
+			}
 
 			/* free derived mesh */
 			b_data.meshes.remove(b_mesh);
@@ -846,13 +861,13 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 		if(new_attribute) {
 			if(i != numverts || memcmp(mP, &mesh->verts[0], sizeof(float3)*numverts) == 0) {
 				/* no motion, remove attributes again */
-				VLOG(1) << "No actual motion for mesh " << b_mesh.name();
+				VLOG(1) << "No actual deformation motion for object " << b_ob.name();
 				mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
 				if(attr_mN)
 					mesh->attributes.remove(ATTR_STD_MOTION_VERTEX_NORMAL);
 			}
 			else if(time_index > 0) {
-				VLOG(1) << "Filling motion for mesh " << b_mesh.name();
+				VLOG(1) << "Filling deformation motion for object " << b_ob.name();
 				/* motion, fill up previous steps that we might have skipped because
 				 * they had no motion, but we need them anyway now */
 				float3 *P = &mesh->verts[0];

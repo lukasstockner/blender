@@ -200,7 +200,8 @@ mark_as_advanced(WITH_PYTHON_SECURITY)  # some distributions see this as a secur
 set(WITH_PYTHON_SECURITY ON CACHE BOOL "ON" FORCE) # temp force on. 
 
 option(WITH_PYTHON_SAFETY "Enable internal API error checking to track invalid data to prevent crash on access (at the expense of some effeciency, only enable for development)." OFF)
-option(WITH_PYTHON_MODULE "Enable building as a python module which runs without a user interface, like running regular blender in background mode (experimental, only enable for development)" OFF)
+mark_as_advanced(WITH_PYTHON_SAFETY)
+option(WITH_PYTHON_MODULE "Enable building as a python module which runs without a user interface, like running regular blender in background mode (experimental, only enable for development), installs to PYTHON_SITE_PACKAGES (or CMAKE_INSTALL_PREFIX if WITH_INSTALL_PORTABLE is enabled)." OFF)
 if(APPLE)
 	option(WITH_PYTHON_FRAMEWORK "Enable building using the Python available in the framework (OSX only)" OFF)
 endif()
@@ -260,6 +261,10 @@ endif()
 # (unix defaults to System OpenJPEG On)
 option(WITH_SYSTEM_OPENJPEG "Use the operating systems OpenJPEG library" OFF)
 
+if(UNIX AND NOT APPLE)
+	option(WITH_SYSTEM_EIGEN3 "Use the systems Eigen3 library" OFF)
+endif()
+
 
 # Modifiers
 option(WITH_MOD_FLUID           "Enable Elbeem Modifier (Fluid Simulation)" ON)
@@ -308,6 +313,9 @@ endif()
 # Compression
 option(WITH_LZO           "Enable fast LZO compression (used for pointcache)" ON)
 option(WITH_LZMA          "Enable best LZMA compression, (used for pointcache)" ON)
+if(UNIX AND NOT APPLE)
+	option(WITH_SYSTEM_LZO    "Use the system LZO library" OFF)
+endif()
 
 # Camera/motion tracking
 option(WITH_LIBMV         "Enable libmv structure from motion library" ON)
@@ -403,6 +411,7 @@ option(WITH_GL_EGL              "Use the EGL OpenGL system library instead of th
 option(WITH_GL_PROFILE_COMPAT   "Support using the OpenGL 'compatibility' profile. (deprecated)"                                                    ON )
 option(WITH_GL_PROFILE_CORE     "Support using the OpenGL 3.2+ 'core' profile."                                                                     OFF)
 option(WITH_GL_PROFILE_ES20     "Support using OpenGL ES 2.0. (thru either EGL or the AGL/WGL/XGL 'es20' profile)"                                  OFF)
+option(WITH_GPU_DEBUG           "Create a debug OpenGL context (allows inserting custom messages and getting notifications for bad GL use)"         OFF)
 
 mark_as_advanced(
 	WITH_GLEW_MX
@@ -411,6 +420,7 @@ mark_as_advanced(
 	WITH_GL_PROFILE_COMPAT
 	WITH_GL_PROFILE_CORE
 	WITH_GL_PROFILE_ES20
+	WITH_GPU_DEBUG
 )
 
 if(WITH_GL_PROFILE_COMPAT)
@@ -433,6 +443,10 @@ if(MSVC)
 	getDefaultWindowsPrefixBase(CMAKE_GENERIC_PROGRAM_FILES)
 	set(CPACK_INSTALL_PREFIX ${CMAKE_GENERIC_PROGRAM_FILES}/${})
 endif()
+
+# Experimental support of C++11
+option(WITH_CPP11 "Build with C++11 standard enabled, for development use only!" OFF)
+mark_as_advanced(WITH_CPP11)
 
 # avoid using again
 option_defaults_clear()
@@ -660,6 +674,7 @@ if(WITH_GHOST_SDL OR WITH_HEADLESS)
 	set(WITH_X11_XINPUT    OFF)
 	set(WITH_X11_XF86VMODE OFF)
 	set(WITH_GHOST_XDND    OFF)
+	set(WITH_INPUT_IME     OFF)
 endif()
 
 if(WITH_CPU_SSE)
@@ -793,6 +808,21 @@ if(UNIX AND NOT APPLE)
 	find_package_wrapper(PNG REQUIRED)
 	find_package_wrapper(ZLIB REQUIRED)
 	find_package_wrapper(Freetype REQUIRED)
+
+	if(WITH_LZO AND WITH_SYSTEM_LZO)
+		find_package_wrapper(LZO)
+		if(NOT LZO_FOUND)
+			message(FATAL_ERROR "Failed finding system LZO version!")
+		endif()
+	endif()
+
+	if(WITH_SYSTEM_EIGEN3)
+		find_package_wrapper(Eigen3)
+		if(NOT EIGEN3_FOUND)
+			message(FATAL_ERROR "Failed finding system Eigen3 version!")
+		endif()
+	endif()
+	# else values are set below for all platforms
 
 	if(WITH_PYTHON)
 		# No way to set py34. remove for now.
@@ -1030,18 +1060,18 @@ if(UNIX AND NOT APPLE)
 
 	# XXX Maybe most of this section should go into an llvm module?
 	if(WITH_LLVM)
-		# Set llvm version if not specified
-		if(NOT LLVM_VERSION)
-			set(LLVM_VERSION "3.0")
-		endif()
 
-		if(LLVM_DIRECTORY)
-			find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION} HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
+		if(LLVM_ROOT_DIR)
+			if(NOT DEFINED LLVM_VERSION)
+				find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION} HINTS ${LLVM_ROOT_DIR}/bin NO_CMAKE_PATH)
+			endif()
 			if(NOT LLVM_CONFIG)
-				find_program(LLVM_CONFIG llvm-config HINTS ${LLVM_DIRECTORY}/bin NO_CMAKE_PATH)
+				find_program(LLVM_CONFIG llvm-config HINTS ${LLVM_ROOT_DIR}/bin NO_CMAKE_PATH)
 			endif()
 		else()
-			find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION})
+			if(NOT DEFINED LLVM_VERSION)
+				find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION})
+			endif()
 			if(NOT LLVM_CONFIG)
 				find_program(LLVM_CONFIG llvm-config)
 			endif()
@@ -1053,11 +1083,11 @@ if(UNIX AND NOT APPLE)
 							OUTPUT_STRIP_TRAILING_WHITESPACE)
 			set(LLVM_VERSION ${LLVM_VERSION} CACHE STRING "Version of LLVM to use")
 		endif()
-		if(NOT DEFINED LLVM_DIRECTORY)
+		if(NOT DEFINED LLVM_ROOT_DIR)
 			execute_process(COMMAND ${LLVM_CONFIG} --prefix
-							OUTPUT_VARIABLE LLVM_DIRECTORY
+							OUTPUT_VARIABLE LLVM_ROOT_DIR
 							OUTPUT_STRIP_TRAILING_WHITESPACE)
-			set(LLVM_DIRECTORY ${LLVM_DIRECTORY} CACHE PATH "Path to the LLVM installation")
+			set(LLVM_ROOT_DIR ${LLVM_ROOT_DIR} CACHE PATH "Path to the LLVM installation")
 		endif()
 		if(NOT DEFINED LLVM_LIBPATH)
 			execute_process(COMMAND ${LLVM_CONFIG} --libdir
@@ -1078,7 +1108,7 @@ if(UNIX AND NOT APPLE)
 		endif()
 
 
-		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIBPATH)
+		if(LLVM_LIBRARY AND LLVM_ROOT_DIR AND LLVM_LIBPATH)
 			if(LLVM_STATIC)
 				# if static LLVM libraries were requested, use llvm-config to generate
 				# the list of what libraries we need, and substitute that in the right
@@ -1166,7 +1196,7 @@ elseif(WIN32)
 		set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /SAFESEH:NO")
 		set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} /SAFESEH:NO")
 
-		list(APPEND PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi)
+		list(APPEND PLATFORM_LINKLIBS ws2_32 vfw32 winmm kernel32 user32 gdi32 comdlg32 advapi32 shfolder shell32 ole32 oleaut32 uuid psapi Dbghelp)
 
 		if(WITH_INPUT_IME)
 			list(APPEND PLATFORM_LINKLIBS imm32)
@@ -1255,8 +1285,8 @@ elseif(WIN32)
 
 		find_package(png)
 		if(NOT PNG_FOUND)
-			set(PNG_PNG_INCLUDE_DIR ${LIBDIR}/png/include)
 			message(WARNING "Using HARDCODED libpng locations")
+			set(PNG_PNG_INCLUDE_DIR ${LIBDIR}/png/include)
 			set(PNG_LIBRARIES libpng)
 			set(PNG "${LIBDIR}/png")
 			set(PNG_INCLUDE_DIRS "${PNG}/include")
@@ -1343,19 +1373,19 @@ elseif(WIN32)
 			set(OPENEXR_VERSION "2.1")
 			find_package(OPENEXR REQUIRED)
 			if(NOT OPENEXR_FOUND)
-			message(WARNING "Using HARDCODED OpenEXR locations")
-			set(OPENEXR ${LIBDIR}/openexr)
-			set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
-			set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
-			set(OPENEXR_LIBPATH ${OPENEXR}/lib)
-			set(OPENEXR_LIBRARIES
-				${OPENEXR_LIBPATH}/Iex-2_2.lib
-				${OPENEXR_LIBPATH}/Half.lib
-				${OPENEXR_LIBPATH}/IlmImf-2_2.lib
-				${OPENEXR_LIBPATH}/Imath-2_2.lib
-				${OPENEXR_LIBPATH}/IlmThread-2_2.lib
-			)
-			endif(NOT OPENEXR_FOUND)
+				message(WARNING "Using HARDCODED OpenEXR locations")
+				set(OPENEXR ${LIBDIR}/openexr)
+				set(OPENEXR_INCLUDE_DIR ${OPENEXR}/include)
+				set(OPENEXR_INCLUDE_DIRS ${OPENEXR}/include/OpenEXR)
+				set(OPENEXR_LIBPATH ${OPENEXR}/lib)
+				set(OPENEXR_LIBRARIES
+					${OPENEXR_LIBPATH}/Iex-2_2.lib
+					${OPENEXR_LIBPATH}/Half.lib
+					${OPENEXR_LIBPATH}/IlmImf-2_2.lib
+					${OPENEXR_LIBPATH}/Imath-2_2.lib
+					${OPENEXR_LIBPATH}/IlmThread-2_2.lib
+				)
+			endif()
 		endif()
 
 		if(WITH_IMAGE_TIFF)
@@ -1395,10 +1425,10 @@ elseif(WIN32)
 		if(WITH_BOOST)
 			if(WITH_CYCLES_OSL)
 				set(boost_extra_libs wave)
-			endif(WITH_CYCLES_OSL)
+			endif()
 			if(WITH_INTERNATIONAL)
 				list(APPEND boost_extra_libs locale)
-			endif(WITH_INTERNATIONAL)
+			endif()
 			set(Boost_USE_STATIC_RUNTIME ON) # prefix lib
 			set(Boost_USE_MULTITHREADED ON) # suffix -mt
 			set(Boost_USE_STATIC_LIBS ON) # suffix -s
@@ -1456,16 +1486,16 @@ elseif(WIN32)
 		endif()
 
 		if(WITH_LLVM)
-			set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-			file(GLOB LLVM_LIBRARY_OPTIMIZED ${LLVM_DIRECTORY}/lib/*.lib)
+			set(LLVM_ROOT_DIR ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
+			file(GLOB LLVM_LIBRARY_OPTIMIZED ${LLVM_ROOT_DIR}/lib/*.lib)
 
-			if(EXISTS ${LLVM_DIRECTORY}/debug/lib)
+			if(EXISTS ${LLVM_ROOT_DIR}/debug/lib)
 				foreach(LLVM_OPTIMIZED_LIB ${LLVM_LIBRARY_OPTIMIZED})
 					get_filename_component(LIBNAME ${LLVM_OPTIMIZED_LIB} ABSOLUTE)
 					list(APPEND LLVM_LIBS optimized ${LIBNAME})
 				endforeach(LLVM_OPTIMIZED_LIB)
 			
-				file(GLOB LLVM_LIBRARY_DEBUG ${LLVM_DIRECTORY}/debug/lib/*.lib)
+				file(GLOB LLVM_LIBRARY_DEBUG ${LLVM_ROOT_DIR}/debug/lib/*.lib)
 
 				foreach(LLVM_DEBUG_LIB ${LLVM_LIBRARY_DEBUG})
 					get_filename_component(LIBNAME ${LLVM_DEBUG_LIB} ABSOLUTE)
@@ -1525,7 +1555,7 @@ elseif(WIN32)
 		if(WITH_MINGW64)
 			message(STATUS "Compiling for 64 bit with MinGW-w64.")
 			execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-			if (GCC_VERSION VERSION_GREATER 4.9 OR GCC_VERSION VERSION_EQUAL 4.9)
+			if(GCC_VERSION VERSION_GREATER 4.9 OR GCC_VERSION VERSION_EQUAL 4.9)
 				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64_gcc49)
 			else()
 				set(LIBDIR ${CMAKE_SOURCE_DIR}/../lib/mingw64)
@@ -1539,7 +1569,7 @@ elseif(WIN32)
 			endif()
 		endif()
 		
-		list(APPEND PLATFORM_LINKLIBS -lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi)
+		list(APPEND PLATFORM_LINKLIBS -lshell32 -lshfolder -lgdi32 -lmsvcrt -lwinmm -lmingw32 -lm -lws2_32 -lz -lstdc++ -lole32 -luuid -lwsock32 -lpsapi -ldbghelp)
 
 		if(WITH_INPUT_IME)
 			list(APPEND PLATFORM_LINKLIBS -limm32)
@@ -1702,8 +1732,8 @@ elseif(WIN32)
 		endif()
 		
 		if(WITH_LLVM)
-			set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
-			set(LLVM_LIBPATH ${LLVM_DIRECTORY}/lib)
+			set(LLVM_ROOT_DIR ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
+			set(LLVM_LIBPATH ${LLVM_ROOT_DIR}/lib)
 			# Explicitly set llvm lib order.
 			#---- WARNING ON GCC ORDER OF LIBS IS IMPORTANT, DO NOT CHANGE! ---------
 			set(LLVM_LIBRARY LLVMSelectionDAG LLVMCodeGen LLVMScalarOpts LLVMAnalysis LLVMArchive
@@ -2038,10 +2068,10 @@ elseif(APPLE)
 	endif()
 
 	if(WITH_LLVM)
-		set(LLVM_DIRECTORY ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
+		set(LLVM_ROOT_DIR ${LIBDIR}/llvm CACHE PATH	"Path to the LLVM installation")
 		set(LLVM_VERSION "3.4" CACHE STRING	"Version of LLVM to use")
-		if(EXISTS "${LLVM_DIRECTORY}/bin/llvm-config")
-			set(LLVM_CONFIG "${LLVM_DIRECTORY}/bin/llvm-config")
+		if(EXISTS "${LLVM_ROOT_DIR}/bin/llvm-config")
+			set(LLVM_CONFIG "${LLVM_ROOT_DIR}/bin/llvm-config")
 		else()
 			set(LLVM_CONFIG llvm-config)
 		endif()
@@ -2049,7 +2079,7 @@ elseif(APPLE)
 		                OUTPUT_VARIABLE LLVM_VERSION
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		execute_process(COMMAND ${LLVM_CONFIG} --prefix
-		                OUTPUT_VARIABLE LLVM_DIRECTORY
+		                OUTPUT_VARIABLE LLVM_ROOT_DIR
 		                OUTPUT_STRIP_TRAILING_WHITESPACE)
 		execute_process(COMMAND ${LLVM_CONFIG} --libdir
 		                OUTPUT_VARIABLE LLVM_LIBPATH
@@ -2058,7 +2088,7 @@ elseif(APPLE)
 		             NAMES LLVMAnalysis # first of a whole bunch of libs to get
 		             PATHS ${LLVM_LIBPATH})
 
-		if(LLVM_LIBRARY AND LLVM_DIRECTORY AND LLVM_LIBPATH)
+		if(LLVM_LIBRARY AND LLVM_ROOT_DIR AND LLVM_LIBPATH)
 			if(LLVM_STATIC)
 				# if static LLVM libraries were requested, use llvm-config to generate
 				# the list of what libraries we need, and substitute that in the right
@@ -2229,6 +2259,9 @@ if(WITH_IMAGE_REDCODE)
 	set(REDCODE_INC ${REDCODE})
 endif()
 
+if(NOT WITH_SYSTEM_EIGEN3)
+	set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
+endif()
 
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
@@ -2348,6 +2381,10 @@ endif()
 
 if(WITH_GL_EGL)
 	list(APPEND GL_DEFINITIONS -DWITH_EGL)
+endif()
+
+if(WITH_GPU_DEBUG)
+	list(APPEND GL_DEFINITIONS -DWITH_GPU_DEBUG)
 endif()
 
 #-----------------------------------------------------------------------------
@@ -2513,6 +2550,15 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_MISSING_INCLUDE_DIRS -Wmissing-include-dirs)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_DIV_BY_ZERO -Wno-div-by-zero)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_TYPE_LIMITS -Wtype-limits)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ERROR_RETURN_TYPE  -Werror=return-type)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ERROR_DECLARATION_AFTER_STATEMENT -Werror=declaration-after-statement)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ERROR_IMPLICIT_FUNCTION_DECLARATION -Werror=implicit-function-declaration)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_CHAR_SUBSCRIPTS -Wno-char-subscripts)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_POINTER_ARITH -Wpointer-arith)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNUSED_PARAMETER -Wunused-parameter)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_WRITE_STRINGS -Wwrite-strings)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNDEF -Wundef)
 
 	# gcc 4.2 gives annoying warnings on every file with this
 	if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.3")
@@ -2646,6 +2692,16 @@ if(WITH_PYTHON)
 	endif()
 endif()
 
+if(WITH_CPP11)
+	if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+	elseif(MSVC12)
+		# Nothing special is needed, C++11 features are available by default.
+	else()
+		message(FATAL_ERROR "Compiler ${CMAKE_C_COMPILER_ID} is not supported for C++11 build yet")
+	endif()
+endif()
+
 # Include warnings first, so its possible to disable them with user defined flags
 # eg: -Wno-uninitialized
 set(CMAKE_C_FLAGS "${C_WARNINGS} ${CMAKE_C_FLAGS} ${PLATFORM_CFLAGS}")
@@ -2663,7 +2719,7 @@ mark_as_advanced(
 
 mark_as_advanced(
 	LLVM_CONFIG
-	LLVM_DIRECTORY
+	LLVM_ROOT_DIR
 	LLVM_LIBRARY
 	LLVM_VERSION
 )
@@ -2832,6 +2888,7 @@ if(FIRST_RUN)
 	info_cfg_option(WITH_GL_PROFILE_COMPAT)
 	info_cfg_option(WITH_GL_PROFILE_CORE)
 	info_cfg_option(WITH_GL_PROFILE_ES20)
+	info_cfg_option(WITH_GPU_DEBUG)
 	if(WIN32)
 		info_cfg_option(WITH_GL_ANGLE)
 	endif()

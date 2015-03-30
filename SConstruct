@@ -480,6 +480,13 @@ if env['WITH_BF_OPENMP'] == 1:
             else:
                 env.Append(CCFLAGS=['-fopenmp'])
 
+if env['WITH_BF_CPP11']:
+    if env['OURPLATFORM'] in ('win32-vc', 'win64-vc'):
+        # Nothing special is needed, C++11 features are available by default.
+        pass
+    else:
+        env['CXXFLAGS'].append('-std=c++11')
+
 #check for additional debug libnames
 
 if env.has_key('BF_DEBUG_LIBS'):
@@ -764,6 +771,9 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_ssao_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_hq_frag.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_hq_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_hq_geo.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_lib.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_depth_resolve.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_vert.glsl")
@@ -861,19 +871,21 @@ B.init_lib_dict()
 
 ##### END SETUP ##########
 
-if B.targets != ['cudakernels']:
-    # Put all auto configuration run-time tests here
+## Auto-configuration run-time tests
 
-    from FindSharedPtr import FindSharedPtr
-    from FindUnorderedMap import FindUnorderedMap
+from FindSharedPtr import FindSharedPtr
+from FindUnorderedMap import FindUnorderedMap
 
-    conf = Configure(env)
-    old_linkflags = conf.env['LINKFLAGS']
-    conf.env.Append(LINKFLAGS=env['PLATFORM_LINKFLAGS'])
-    FindSharedPtr(conf)
-    FindUnorderedMap(conf)
-    conf.env['LINKFLAGS'] = old_linkflags
-    env = conf.Finish()
+conf = Configure(env)
+old_linkflags = conf.env['LINKFLAGS']
+conf.env.Append(LINKFLAGS=env['PLATFORM_LINKFLAGS'])
+
+# Put all tests here
+FindSharedPtr(conf)
+FindUnorderedMap(conf)
+
+conf.env['LINKFLAGS'] = old_linkflags
+env = conf.Finish()
 
 # End of auto configuration
 
@@ -1167,8 +1179,36 @@ if env['OURPLATFORM']=='linuxcross':
 textlist = []
 texttargetlist = []
 for tp, tn, tf in os.walk('release/text'):
+    tf.remove("readme.html")
     for f in tf:
         textlist.append(tp+os.sep+f)
+
+def readme_version_patch():
+    readme_src = "release/text/readme.html"
+    readme_dst = os.path.abspath(os.path.normpath(os.path.join(env['BF_BUILDDIR'], "readme.html")))
+
+    if not os.path.exists(readme_dst) or (os.path.getmtime(readme_dst) < os.path.getmtime(readme_src)):
+        f = open(readme_src, "r")
+        data = f.read()
+        f.close()
+
+        data = data.replace("BLENDER_VERSION", VERSION)
+        f = open(readme_dst, "w")
+        f.write(data)
+        f.close()
+
+    textlist.append(readme_dst)
+
+readme_version_patch()
+del readme_version_patch
+
+
+'''Command(
+    "release/text/readme.html"
+
+    )
+Command("file.out", "file.in", Copy(env['BF_INSTALLDIR'], "release/text/readme.html"))
+'''
 
 # Font licenses
 textlist.append('release/datafiles/LICENSE-bfont.ttf.txt')

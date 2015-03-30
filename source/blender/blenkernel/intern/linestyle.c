@@ -107,14 +107,11 @@ static void default_linestyle_settings(FreestyleLineStyle *linestyle)
 	linestyle->caps = LS_CAPS_BUTT;
 }
 
-FreestyleLineStyle *BKE_linestyle_new(const char *name, struct Main *main)
+FreestyleLineStyle *BKE_linestyle_new(struct Main *bmain, const char *name)
 {
 	FreestyleLineStyle *linestyle;
 
-	if (!main)
-		main = G.main;
-
-	linestyle = (FreestyleLineStyle *)BKE_libblock_alloc(main, ID_LS, name);
+	linestyle = (FreestyleLineStyle *)BKE_libblock_alloc(bmain, ID_LS, name);
 
 	default_linestyle_settings(linestyle);
 
@@ -149,13 +146,13 @@ void BKE_linestyle_free(FreestyleLineStyle *linestyle)
 		BKE_linestyle_geometry_modifier_remove(linestyle, m);
 }
 
-FreestyleLineStyle *BKE_linestyle_copy(FreestyleLineStyle *linestyle)
+FreestyleLineStyle *BKE_linestyle_copy(struct Main *bmain, FreestyleLineStyle *linestyle)
 {
 	FreestyleLineStyle *new_linestyle;
 	LineStyleModifier *m;
 	int a;
 
-	new_linestyle = BKE_linestyle_new(linestyle->id.name + 2, NULL);
+	new_linestyle = BKE_linestyle_new(bmain, linestyle->id.name + 2);
 	BKE_linestyle_free(new_linestyle);
 
 	for (a = 0; a < MAX_MTEX; a++) {
@@ -199,8 +196,11 @@ FreestyleLineStyle *BKE_linestyle_copy(FreestyleLineStyle *linestyle)
 	new_linestyle->dash3 = linestyle->dash3;
 	new_linestyle->gap3 = linestyle->gap3;
 	new_linestyle->panel = linestyle->panel;
+	new_linestyle->sort_key = linestyle->sort_key;
+	new_linestyle->integration_type = linestyle->integration_type;
 	new_linestyle->texstep = linestyle->texstep;
 	new_linestyle->pr_texture = linestyle->pr_texture;
+	new_linestyle->use_nodes = linestyle->use_nodes;
 	for (m = (LineStyleModifier *)linestyle->color_modifiers.first; m; m = m->next)
 		BKE_linestyle_color_modifier_copy(new_linestyle, m);
 	for (m = (LineStyleModifier *)linestyle->alpha_modifiers.first; m; m = m->next)
@@ -280,6 +280,9 @@ LineStyleModifier *BKE_linestyle_color_modifier_add(FreestyleLineStyle *linestyl
 	LineStyleModifier *m;
 
 	m = alloc_color_modifier(name, type);
+	if (UNLIKELY(m == NULL)) {
+		return NULL;
+	}
 	m->blend = MA_RAMP_BLEND;
 
 	switch (type) {
@@ -314,6 +317,9 @@ LineStyleModifier *BKE_linestyle_color_modifier_copy(FreestyleLineStyle *linesty
 	LineStyleModifier *new_m;
 
 	new_m = alloc_color_modifier(m->name, m->type);
+	if (UNLIKELY(new_m == NULL)) {
+		return NULL;
+	}
 	new_m->influence = m->influence;
 	new_m->flags = m->flags;
 	new_m->blend = m->blend;

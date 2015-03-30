@@ -446,7 +446,7 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 				rasterizer->SetEyeSeparation(scene->gm.eyeseparation);
 			}
 
-			rasterizer->SetBackColor(scene->gm.framing.col[0], scene->gm.framing.col[1], scene->gm.framing.col[2], 0.0f);
+			rasterizer->SetBackColor(scene->gm.framing.col);
 		}
 		
 		if (exitrequested != KX_EXIT_REQUEST_QUIT_GAME)
@@ -464,7 +464,6 @@ extern "C" void StartKetsjiShell(struct bContext *C, struct ARegion *ar, rcti *c
 			// create a scene converter, create and convert the startingscene
 			KX_ISceneConverter* sceneconverter = new KX_BlenderSceneConverter(blenderdata, ketsjiengine);
 			ketsjiengine->SetSceneConverter(sceneconverter);
-			sceneconverter->addInitFromFrame=false;
 			if (always_use_expand_framing)
 				sceneconverter->SetAlwaysUseExpandFraming(true);
 

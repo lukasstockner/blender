@@ -119,6 +119,7 @@ set(SRC
 	intern/mask_rasterize.c
 	intern/material.c
 	intern/mball.c
+	intern/mball_tessellate.c
 	intern/mesh.c
 	intern/mesh_evaluate.c
 	intern/mesh_mapping.c
@@ -233,6 +234,7 @@ set(SRC
 	BKE_mask.h
 	BKE_material.h
 	BKE_mball.h
+	BKE_mball_tessellate.h
 	BKE_mesh.h
 	BKE_mesh_mapping.h
 	BKE_mesh_remap.h
@@ -422,9 +424,16 @@ if(WITH_JACK)
 endif()
 
 if(WITH_LZO)
-	list(APPEND INC_SYS
-		../../../extern/lzo/minilzo
-	)
+	if(WITH_SYSTEM_LZO)
+		list(APPEND INC_SYS
+			${LZO_INCLUDE_DIR}
+		)
+		add_definitions(-DWITH_SYSTEM_LZO)
+	else()
+		list(APPEND INC_SYS
+			../../../extern/lzo/minilzo
+		)
+	endif()
 	add_definitions(-DWITH_LZO)
 endif()
 

@@ -1642,7 +1642,7 @@ static void gpencil_draw_apply_event(wmOperator *op, const wmEvent *event)
 	mousef[1] = p->mval[1];
 	RNA_float_set_array(&itemptr, "mouse", mousef);
 	RNA_float_set(&itemptr, "pressure", p->pressure);
-	RNA_boolean_set(&itemptr, "is_start", (p->flags & GP_PAINTFLAG_FIRSTRUN));
+	RNA_boolean_set(&itemptr, "is_start", (p->flags & GP_PAINTFLAG_FIRSTRUN) != 0);
 	
 	RNA_float_set(&itemptr, "time", p->curtime - p->inittime);
 	
@@ -1942,18 +1942,15 @@ static int gpencil_draw_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			 */
 			if (event->type == LEFTMOUSE) {
 				/* restore drawmode to default */
-				// XXX: no need for this... this should just revert by itself
-				if (p->paintmode == GP_PAINTMODE_ERASER)
-					gpencil_draw_toggle_eraser_cursor(C, p, false);
-					
 				p->paintmode = RNA_enum_get(op->ptr, "mode");
 			}
 			else if (event->type == RIGHTMOUSE) {
 				/* turn on eraser */
 				p->paintmode = GP_PAINTMODE_ERASER;
-				gpencil_draw_toggle_eraser_cursor(C, p, true);
 			}
-			
+
+			gpencil_draw_toggle_eraser_cursor(C, p, p->paintmode == GP_PAINTMODE_ERASER);
+
 			/* not painting, so start stroke (this should be mouse-button down) */
 			p = gpencil_stroke_begin(C, op);
 			

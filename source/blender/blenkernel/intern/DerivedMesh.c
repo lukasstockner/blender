@@ -531,13 +531,26 @@ MTFace *DM_paint_uvlayer_active_get(DerivedMesh *dm, int mat_nr)
 	return tf_base;
 }
 
-void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
+void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask, bool take_ownership)
 {
 	/* dm might depend on me, so we need to do everything with a local copy */
 	Mesh tmp = *me;
 	int totvert, totedge /*, totface */ /* UNUSED */, totloop, totpoly;
 	int did_shapekeys = 0;
-	
+	int alloctype = CD_DUPLICATE;
+
+	if (take_ownership && dm->type == DM_TYPE_CDDM && dm->needsFree) {
+		bool has_any_referenced_layers =
+		        CustomData_has_referenced(&dm->vertData) ||
+		        CustomData_has_referenced(&dm->edgeData) ||
+		        CustomData_has_referenced(&dm->loopData) ||
+		        CustomData_has_referenced(&dm->faceData) ||
+		        CustomData_has_referenced(&dm->polyData);
+		if (!has_any_referenced_layers) {
+			alloctype = CD_ASSIGN;
+		}
+	}
+
 	CustomData_reset(&tmp.vdata);
 	CustomData_reset(&tmp.edata);
 	CustomData_reset(&tmp.fdata);
@@ -552,10 +565,10 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	totpoly = tmp.totpoly = dm->getNumPolys(dm);
 	tmp.totface = 0;
 
-	CustomData_copy(&dm->vertData, &tmp.vdata, mask, CD_DUPLICATE, totvert);
-	CustomData_copy(&dm->edgeData, &tmp.edata, mask, CD_DUPLICATE, totedge);
-	CustomData_copy(&dm->loopData, &tmp.ldata, mask, CD_DUPLICATE, totloop);
-	CustomData_copy(&dm->polyData, &tmp.pdata, mask, CD_DUPLICATE, totpoly);
+	CustomData_copy(&dm->vertData, &tmp.vdata, mask, alloctype, totvert);
+	CustomData_copy(&dm->edgeData, &tmp.edata, mask, alloctype, totedge);
+	CustomData_copy(&dm->loopData, &tmp.ldata, mask, alloctype, totloop);
+	CustomData_copy(&dm->polyData, &tmp.pdata, mask, alloctype, totpoly);
 	tmp.cd_flag = dm->cd_flag;
 
 	if (CustomData_has_layer(&dm->vertData, CD_SHAPEKEY)) {
@@ -590,13 +603,19 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	
 	/* not all DerivedMeshes store their verts/edges/faces in CustomData, so
 	 * we set them here in case they are missing */
-	if (!CustomData_has_layer(&tmp.vdata, CD_MVERT))
-		CustomData_add_layer(&tmp.vdata, CD_MVERT, CD_ASSIGN, dm->dupVertArray(dm), totvert);
-	if (!CustomData_has_layer(&tmp.edata, CD_MEDGE))
-		CustomData_add_layer(&tmp.edata, CD_MEDGE, CD_ASSIGN, dm->dupEdgeArray(dm), totedge);
+	if (!CustomData_has_layer(&tmp.vdata, CD_MVERT)) {
+		CustomData_add_layer(&tmp.vdata, CD_MVERT, CD_ASSIGN,
+		                     (alloctype == CD_ASSIGN) ? dm->getVertArray(dm) : dm->dupVertArray(dm),
+		                     totvert);
+	}
+	if (!CustomData_has_layer(&tmp.edata, CD_MEDGE)) {
+		CustomData_add_layer(&tmp.edata, CD_MEDGE, CD_ASSIGN,
+		                     (alloctype == CD_ASSIGN) ? dm->getEdgeArray(dm) : dm->dupEdgeArray(dm),
+		                     totedge);
+	}
 	if (!CustomData_has_layer(&tmp.pdata, CD_MPOLY)) {
-		tmp.mloop = dm->dupLoopArray(dm);
-		tmp.mpoly = dm->dupPolyArray(dm);
+		tmp.mloop = (alloctype == CD_ASSIGN) ? dm->getLoopArray(dm) : dm->dupLoopArray(dm);
+		tmp.mpoly = (alloctype == CD_ASSIGN) ? dm->getPolyArray(dm) : dm->dupPolyArray(dm);
 
 		CustomData_add_layer(&tmp.ldata, CD_MLOOP, CD_ASSIGN, tmp.mloop, tmp.totloop);
 		CustomData_add_layer(&tmp.pdata, CD_MPOLY, CD_ASSIGN, tmp.mpoly, tmp.totpoly);
@@ -607,7 +626,7 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 	if (CustomData_has_layer(&me->ldata, CD_MDISPS)) {
 		if (totloop == me->totloop) {
 			MDisps *mdisps = CustomData_get_layer(&me->ldata, CD_MDISPS);
-			CustomData_add_layer(&tmp.ldata, CD_MDISPS, CD_DUPLICATE, mdisps, totloop);
+			CustomData_add_layer(&tmp.ldata, CD_MDISPS, alloctype, mdisps, totloop);
 		}
 	}
 
@@ -641,6 +660,16 @@ void DM_to_mesh(DerivedMesh *dm, Mesh *me, Object *ob, CustomDataMask mask)
 
 	/* skip the listbase */
 	MEMCPY_STRUCT_OFS(me, &tmp, id.prev);
+
+	if (take_ownership) {
+		if (alloctype == CD_ASSIGN) {
+			CustomData_free_typemask(&dm->vertData, dm->numVertData, ~mask);
+			CustomData_free_typemask(&dm->edgeData, dm->numEdgeData, ~mask);
+			CustomData_free_typemask(&dm->loopData, dm->numLoopData, ~mask);
+			CustomData_free_typemask(&dm->polyData, dm->numPolyData, ~mask);
+		}
+		dm->release(dm);
+	}
 }
 
 void DM_to_meshkey(DerivedMesh *dm, Mesh *me, KeyBlock *kb)
@@ -902,7 +931,7 @@ DerivedMesh *mesh_create_derived_for_modifier(Scene *scene, Object *ob,
                                               ModifierData *md, int build_shapekey_layers)
 {
 	Mesh *me = ob->data;
-	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	DerivedMesh *dm;
 	KeyBlock *kb;
 
@@ -1102,7 +1131,7 @@ typedef struct DMWeightColorInfo {
 } DMWeightColorInfo;
 
 
-static int dm_drawflag_calc(ToolSettings *ts)
+static int dm_drawflag_calc(const ToolSettings *ts)
 {
 	return ((ts->multipaint ? CALC_WP_MULTIPAINT :
 	                          /* CALC_WP_GROUP_USER_ACTIVE or CALC_WP_GROUP_USER_ALL*/
@@ -1339,7 +1368,7 @@ void DM_update_weight_mcol(Object *ob, DerivedMesh *dm, int const draw_flag,
 	}
 }
 
-static void DM_update_statvis_color(Scene *scene, Object *ob, DerivedMesh *dm)
+static void DM_update_statvis_color(const Scene *scene, Object *ob, DerivedMesh *dm)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
 
@@ -1556,7 +1585,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		
 		/* Apply all leading deforming modifiers */
 		for (; md; md = md->next, curr = curr->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 			md->scene = scene;
 			
@@ -1610,7 +1639,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	clothorcodm = NULL;
 
 	for (; md; md = md->next, curr = curr->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
 
@@ -1971,7 +2000,7 @@ float (*editbmesh_get_vertex_cos(BMEditMesh *em, int *r_numVerts))[3]
 
 bool editbmesh_modifier_is_enabled(Scene *scene, ModifierData *md, DerivedMesh *dm)
 {
-	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
 
 	if (!modifier_isEnabled(scene, md, required_mode)) return 0;
@@ -2030,7 +2059,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 
 	curr = datamasks;
 	for (i = 0; md; i++, md = md->next, curr = curr->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
 		
@@ -2311,7 +2340,7 @@ static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, C
 	BLI_assert(!(em->derivedFinal->dirty & DM_DIRTY_NORMALS));
 }
 
-static CustomDataMask object_get_datamask(Scene *scene, Object *ob)
+static CustomDataMask object_get_datamask(const Scene *scene, Object *ob)
 {
 	Object *actob = scene->basact ? scene->basact->object : NULL;
 	CustomDataMask mask = ob->customdata_mask;
@@ -3206,7 +3235,8 @@ static void navmesh_drawColored(DerivedMesh *dm)
 #endif
 
 	glDisable(GL_LIGHTING);
-	/* if (GPU_buffer_legacy(dm) ) */ { /* TODO - VBO draw code, not high priority - campbell */
+	/* if (GPU_buffer_legacy(dm) ) */ /* TODO - VBO draw code, not high priority - campbell */
+	{
 		DEBUG_VBO("Using legacy code. drawNavMeshColored\n");
 		//glShadeModel(GL_SMOOTH);
 		glBegin(glmode = GL_QUADS);

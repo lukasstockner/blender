@@ -39,8 +39,8 @@ struct DagNode;
 struct Object;
 struct Scene;
 struct ListBase;
-struct LinkNode;
 struct bArmature;
+struct Main;
 struct ModifierData;
 struct BMEditMesh;
 
@@ -256,7 +256,8 @@ typedef struct ModifierTypeInfo {
 	 *
 	 * This function is optional.
 	 */
-	void (*updateDepgraph)(struct ModifierData *md, struct DagForest *forest, struct Scene *scene,
+	void (*updateDepgraph)(struct ModifierData *md, struct DagForest *forest,
+	                       struct Main *bmain, struct Scene *scene,
 	                       struct Object *ob, struct DagNode *obNode);
 
 	/* Should return true if the modifier needs to be recalculated on time
@@ -311,7 +312,7 @@ typedef struct ModifierTypeInfo {
 /* Initialize modifier's global data (type info and some common global storages). */
 void BKE_modifier_init(void);
 
-ModifierTypeInfo *modifierType_getInfo(ModifierType type);
+const ModifierTypeInfo *modifierType_getInfo(ModifierType type);
 
 /* Modifier utility calls, do call through type pointer and return
  * default values if pointer is optional.

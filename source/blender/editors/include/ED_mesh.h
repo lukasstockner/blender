@@ -40,39 +40,27 @@ struct View3D;
 struct ARegion;
 struct bContext;
 struct wmOperator;
-struct wmWindowManager;
 struct wmKeyConfig;
 struct ReportList;
-struct EditSelection;
 struct ViewContext;
 struct bDeformGroup;
-struct MDeformWeight;
 struct MDeformVert;
 struct Scene;
 struct Mesh;
-struct MFace;
-struct MEdge;
-struct MVert;
-struct MCol;
 struct UvVertMap;
 struct UvMapVert;
-struct CustomData;
 struct BMEditMesh;
-struct BMEditSelection;
 struct BMesh;
 struct BMVert;
 struct BMLoop;
 struct BMBVHTree;
-struct MLoopCol;
 struct BMEdge;
 struct BMFace;
 struct UvVertMap;
 struct UvMapVert;
 struct ToolSettings;
-struct Material;
 struct Object;
 struct rcti;
-struct MeshStatVis;
 
 /* editmesh_utils.c */
 void           EDBM_verts_mirror_cache_begin_ex(struct BMEditMesh *em, const int axis,
@@ -256,7 +244,7 @@ void ED_mesh_faces_remove(struct Mesh *mesh, struct ReportList *reports, int cou
 void ED_mesh_edges_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 void ED_mesh_vertices_remove(struct Mesh *mesh, struct ReportList *reports, int count);
 
-void ED_mesh_calc_tessface(struct Mesh *mesh);
+void ED_mesh_calc_tessface(struct Mesh *mesh, bool free_mpoly);
 void ED_mesh_update(struct Mesh *mesh, struct bContext *C, int calc_edges, int calc_tessface);
 
 void ED_mesh_uv_texture_ensure(struct Mesh *me, const char *name);

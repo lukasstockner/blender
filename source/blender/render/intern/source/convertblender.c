@@ -577,6 +577,17 @@ static void autosmooth(Render *UNUSED(re), ObjectRen *obr, float mat[4][4], shor
 	VlakRen *vlr;
 	int a, totvert;
 
+	float rot[3][3];
+
+	/* Note: For normals, we only want rotation, not scaling component.
+	 *       Negative scales (aka mirroring) give wrong results, see T44102. */
+	if (lnors) {
+		float mat3[3][3], size[3];
+
+		copy_m3_m4(mat3, mat);
+		mat3_to_rot_size(rot, size, mat3);
+	}
+
 	if (obr->totvert == 0)
 		return;
 
@@ -611,9 +622,8 @@ static void autosmooth(Render *UNUSED(re), ObjectRen *obr, float mat[4][4], shor
 		ver = RE_findOrAddVert(obr, a);
 		mul_m4_v3(mat, ver->co);
 		if (lnors) {
-			mul_mat3_m4_v3(mat, ver->n);
+			mul_m3_v3(rot, ver->n);
 			negate_v3(ver->n);
-			normalize_v3(ver->n);
 		}
 	}
 	for (a = 0; a < obr->totvlak; a++) {
@@ -1258,7 +1268,7 @@ static void get_particle_uvco_mcol(short from, DerivedMesh *dm, float *fuv, int 
 	/* get mcol */
 	if (sd->mcol && ELEM(from, PART_FROM_FACE, PART_FROM_VOLUME)) {
 		for (i=0; i<sd->totcol; i++) {
-			if (num != DMCACHE_NOTFOUND) {
+			if (!ELEM(num, DMCACHE_NOTFOUND, DMCACHE_ISCHILD)) {
 				MFace *mface = dm->getTessFaceData(dm, num, CD_MFACE);
 				MCol *mc = (MCol*)CustomData_get_layer_n(&dm->faceData, CD_MCOL, i);
 				mc += num * 4;
@@ -1319,6 +1329,9 @@ static int render_new_particle_system(Render *re, ObjectRen *obr, ParticleSystem
 		return 1;
 
 	if ((re->r.scemode & R_VIEWPORT_PREVIEW) && (ob->mode & OB_MODE_PARTICLE_EDIT))
+		return 0;
+
+	if (part->ren_as == PART_DRAW_BB && part->bb_ob == NULL && RE_GetCamera(re) == NULL)
 		return 0;
 
 /* 2. start initializing things */

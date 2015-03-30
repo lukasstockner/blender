@@ -75,7 +75,7 @@ class QuickFur(Operator):
     def execute(self, context):
         fake_context = context.copy()
         mesh_objects = [obj for obj in context.selected_objects
-                        if obj.type == 'MESH']
+                        if obj.type == 'MESH' and obj.mode == 'OBJECT']
 
         if not mesh_objects:
             self.report({'ERROR'}, "Select at least one mesh object")
@@ -388,7 +388,7 @@ class QuickSmoke(Operator):
             links.new(node_add_shader_1.outputs["Shader"],
                     node_out.inputs["Volume"])
 
-            if self.style in {'SMOKE', 'BOTH'}:
+            if self.style in {'SMOKE', 'FIRE', 'BOTH'}:
                 # Smoke
 
                 # Add shader 2

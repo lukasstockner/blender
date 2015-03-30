@@ -1320,7 +1320,7 @@ static float project_paint_uvpixel_mask(
 
 		ca_mask = w[0] * ca1 + w[1] * ca2 + w[2] * ca3;
 		ca_mask = curvemapping_evaluateF(ps->cavity_curve, 0, ca_mask);
-		CLAMP(ca_mask, 0.0, 1.0);
+		CLAMP(ca_mask, 0.0f, 1.0f);
 		mask *= ca_mask;
 	}
 
@@ -1997,34 +1997,48 @@ static int float_z_sort(const void *p1, const void *p2)
 }
 
 /* assumes one point is within the rectangle */
-static void line_rect_clip(
+static bool line_rect_clip(
         const rctf *rect,
         const float l1[4], const float l2[4],
         const float uv1[2], const float uv2[2],
         float uv[2], bool is_ortho)
 {
 	float min = FLT_MAX, tmp;
-	if ((l1[0] - rect->xmin) * (l2[0] - rect->xmin) < 0) {
-		tmp = rect->xmin;
-		min = min_ff((tmp - l1[0]) / (l2[0] - l1[0]), min);
+	float xlen = l2[0] - l1[0];
+	float ylen = l2[1] - l1[1];
+
+	/* 0.1 might seem too much, but remember, this is pixels! */
+	if (xlen > 0.1f) {
+		if ((l1[0] - rect->xmin) * (l2[0] - rect->xmin) <= 0) {
+			tmp = rect->xmin;
+			min = min_ff((tmp - l1[0]) / xlen, min);
+		}
+		else if ((l1[0] - rect->xmax) * (l2[0] - rect->xmax) < 0) {
+			tmp = rect->xmax;
+			min = min_ff((tmp - l1[0]) / xlen, min);
+		}
 	}
-	else if ((l1[0] - rect->xmax) * (l2[0] - rect->xmax) < 0) {
-		tmp = rect->xmax;
-		min = min_ff((tmp - l1[0]) / (l2[0] - l1[0]), min);
+
+	if (ylen > 0.1f) {
+		if ((l1[1] - rect->ymin) * (l2[1] - rect->ymin) <= 0) {
+			tmp = rect->ymin;
+			min = min_ff((tmp - l1[1]) / ylen, min);
+		}
+		else if ((l1[1] - rect->ymax) * (l2[1] - rect->ymax) < 0) {
+			tmp = rect->ymax;
+			min = min_ff((tmp - l1[1]) / ylen, min);
+		}
 	}
-	if ((l1[1] - rect->ymin) * (l2[1] - rect->ymin) < 0) {
-		tmp = rect->ymin;
-		min = min_ff((tmp - l1[1]) / (l2[1] - l1[1]), min);
-	}
-	else if ((l1[1] - rect->ymax) * (l2[1] - rect->ymax) < 0) {
-		tmp = rect->ymax;
-		min = min_ff((tmp - l1[1]) / (l2[1] - l1[1]), min);
-	}
-	
+
+	if (min == FLT_MAX)
+		return false;
+
 	tmp = (is_ortho) ? 1.0f : (l1[3] + min * (l2[3] - l1[3]));
-	
+
 	uv[0] = (uv1[0] + min / tmp * (uv2[0] - uv1[0]));
 	uv[1] = (uv1[1] + min / tmp * (uv2[1] - uv1[1]));
+
+	return true;
 }
 
 
@@ -2038,16 +2052,18 @@ static void project_bucket_clip_face(
 {
 	int inside_bucket_flag = 0;
 	int inside_face_flag = 0;
-	const int flip = ((line_point_side_v2(v1coSS, v2coSS, v3coSS) > 0.0f) !=
-	                  (line_point_side_v2(uv1co, uv2co, uv3co) > 0.0f));
+	int flip;
 	bool colinear = false;
 	
 	float bucket_bounds_ss[4][2];
 
 	/* detect pathological case where face the three vertices are almost colinear in screen space.
-	 * mostly those will be culled but when flood filling or with smooth shading */
-	if (dist_squared_to_line_v2(v1coSS, v2coSS, v3coSS) < PROJ_PIXEL_TOLERANCE)
+	 * mostly those will be culled but when flood filling or with smooth shading it's a possibility */
+	if (dist_squared_to_line_v2(v1coSS, v2coSS, v3coSS) < 0.5f ||
+	    dist_squared_to_line_v2(v2coSS, v3coSS, v1coSS) < 0.5f)
+	{
 		colinear = true;
+	}
 	
 	/* get the UV space bounding box */
 	inside_bucket_flag |= BLI_rctf_isect_pt_v(bucket_bounds, v1coSS);
@@ -2055,6 +2071,9 @@ static void project_bucket_clip_face(
 	inside_bucket_flag |= BLI_rctf_isect_pt_v(bucket_bounds, v3coSS) << 2;
 	
 	if (inside_bucket_flag == ISECT_ALL3) {
+		flip = ((line_point_side_v2(v1coSS, v2coSS, v3coSS) > 0.0f) !=
+		        (line_point_side_v2(uv1co, uv2co, uv3co) > 0.0f));
+
 		/* all screenspace points are inside the bucket bounding box,
 		 * this means we don't need to clip and can simply return the UVs */
 		if (flip) { /* facing the back? */
@@ -2076,7 +2095,7 @@ static void project_bucket_clip_face(
 		int flag;
 		
 		(*tot) = 0;
-		
+
 		if (cull)
 			return;
 		
@@ -2084,41 +2103,37 @@ static void project_bucket_clip_face(
 
 		flag = inside_bucket_flag & (ISECT_1 | ISECT_2);
 		if (flag && flag != (ISECT_1 | ISECT_2)) {
-			line_rect_clip(bucket_bounds, v1coSS, v2coSS, uv1co, uv2co, bucket_bounds_uv[*tot], is_ortho);
-			(*tot)++;
+			if (line_rect_clip(bucket_bounds, v1coSS, v2coSS, uv1co, uv2co, bucket_bounds_uv[*tot], is_ortho))
+				(*tot)++;
 		}
 		
 		if (inside_bucket_flag & ISECT_2) { copy_v2_v2(bucket_bounds_uv[*tot], uv2co); (*tot)++; }
 		
 		flag = inside_bucket_flag & (ISECT_2 | ISECT_3);
 		if (flag && flag != (ISECT_2 | ISECT_3)) {
-			line_rect_clip(bucket_bounds, v2coSS, v3coSS, uv2co, uv3co, bucket_bounds_uv[*tot], is_ortho);
-			(*tot)++;
+			if (line_rect_clip(bucket_bounds, v2coSS, v3coSS, uv2co, uv3co, bucket_bounds_uv[*tot], is_ortho))
+				(*tot)++;
 		}
 
 		if (inside_bucket_flag & ISECT_3) { copy_v2_v2(bucket_bounds_uv[*tot], uv3co); (*tot)++; }
 
 		flag = inside_bucket_flag & (ISECT_3 | ISECT_1);
 		if (flag && flag != (ISECT_3 | ISECT_1)) {
-			line_rect_clip(bucket_bounds, v3coSS, v1coSS, uv3co, uv1co, bucket_bounds_uv[*tot], is_ortho);
-			(*tot)++;
+			if (line_rect_clip(bucket_bounds, v3coSS, v1coSS, uv3co, uv1co, bucket_bounds_uv[*tot], is_ortho))
+				(*tot)++;
 		}
 		
-		if ((*tot) < 3) { /* no intersections to speak of */
+		if ((*tot) < 3) {
+			/* no intersections to speak of, but more probable is that all face is just outside the
+			 * rectangle and culled due to float precision issues. Since above teste have failed,
+			 * just dump triangle as is for painting */
 			*tot = 0;
+			copy_v2_v2(bucket_bounds_uv[*tot], uv1co); (*tot)++;
+			copy_v2_v2(bucket_bounds_uv[*tot], uv2co); (*tot)++;
+			copy_v2_v2(bucket_bounds_uv[*tot], uv3co); (*tot)++;
 			return;
 		}
 
-		/* at this point we have all uv points needed in a row. all that's needed is to invert them if necessary */
-		if (flip) {
-			/* flip only to the middle of the array */
-			int i, max = *tot - 1, mid = *tot / 2;
-			for (i = 0; i < mid; i++) {
-				SWAP(float, bucket_bounds_uv[i][0], bucket_bounds_uv[max - i][0]);
-				SWAP(float, bucket_bounds_uv[i][1], bucket_bounds_uv[max - i][1]);
-			}
-		}
-		
 		return;
 	}
 
@@ -2139,6 +2154,9 @@ static void project_bucket_clip_face(
 	bucket_bounds_ss[3][0] = bucket_bounds->xmin;
 	bucket_bounds_ss[3][1] = bucket_bounds->ymin;
 	inside_face_flag |= (IsectPT2Df_limit(bucket_bounds_ss[3], v1coSS, v2coSS, v3coSS, 1 + PROJ_GEOM_TOLERANCE) ? ISECT_4 : 0);
+
+	flip = ((line_point_side_v2(v1coSS, v2coSS, v3coSS) > 0.0f) !=
+	        (line_point_side_v2(uv1co, uv2co, uv3co) > 0.0f));
 
 	if (inside_face_flag == ISECT_ALL4) {
 		/* bucket is totally inside the screenspace face, we can safely use weights */
@@ -3255,7 +3273,7 @@ static void proj_paint_state_cavity_init(ProjPaintState *ps)
 				mul_v3_fl(edges[a], 1.0f / counter[a]);
 				normal_short_to_float_v3(no, mv->no);
 				/* augment the diffe*/
-				cavities[a] = saacos(10.0f * dot_v3v3(no, edges[a])) * M_1_PI;
+				cavities[a] = saacos(10.0f * dot_v3v3(no, edges[a])) * (float)M_1_PI;
 			}
 			else
 				cavities[a] = 0.0;
@@ -4189,7 +4207,7 @@ static void do_projectpaint_soften_f(ProjPaintState *ps, ProjPixel *projPixel, f
 
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshold */
-			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
+			rgba[0] = rgba[1] = rgba[2] = IMB_colormanagement_get_luminance(rgba);
 			if (fabsf(rgba[0]) > ps->brush->sharp_threshold) {
 				float alpha = projPixel->pixel.f_pt[3];
 				projPixel->pixel.f_pt[3] = rgba[3] = mask;
@@ -4250,7 +4268,7 @@ static void do_projectpaint_soften(ProjPaintState *ps, ProjPixel *projPixel, flo
 			sub_v3_v3v3(rgba, rgba_pixel, rgba);
 			/* now rgba_ub contains the edge result, but this should be converted to luminance to avoid
 			 * colored speckles appearing in final image, and also to check for threshold */
-			rgba[0] = rgba[1] = rgba[2] = rgb_to_grayscale(rgba);
+			rgba[0] = rgba[1] = rgba[2] = IMB_colormanagement_get_luminance(rgba);
 			if (fabsf(rgba[0]) > ps->brush->sharp_threshold) {
 				float alpha = rgba_pixel[3];
 				rgba[3] = rgba_pixel[3] = mask;
@@ -4286,7 +4304,12 @@ static void do_projectpaint_draw(ProjPaintState *ps, ProjPixel *projPixel, const
 		copy_v3_v3(rgb, ps->paint_color);
 	}
 
-	float_to_byte_dither_v3(rgba_ub, rgb, dither, u, v);
+	if (dither > 0.0f) {
+		float_to_byte_dither_v3(rgba_ub, rgb, dither, u, v);
+	}
+	else {
+		F3TOCHAR3(rgb, rgba_ub);
+	}
 	rgba_ub[3] = f_to_char(mask);
 
 	if (ps->do_masking) {
@@ -4476,7 +4499,13 @@ static void *do_projectpaint_thread(void *ph_v)
 						}
 						else {
 							linearrgb_to_srgb_v3_v3(color_f, color_f);
-							float_to_byte_dither_v3(projPixel->newColor.ch, color_f, ps->dither, projPixel->x_px, projPixel->y_px);
+
+							if (ps->dither > 0.0f) {
+								float_to_byte_dither_v3(projPixel->newColor.ch, color_f, ps->dither, projPixel->x_px, projPixel->y_px);
+							}
+							else {
+								F3TOCHAR3(color_f, projPixel->newColor.ch);
+							}
 							projPixel->newColor.ch[3] = FTOCHAR(color_f[3]);
 							IMB_blend_color_byte(projPixel->pixel.ch_pt,  projPixel->origColor.ch_pt,
 							                     projPixel->newColor.ch, ps->blend);
@@ -5458,7 +5487,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 			ntreeUpdateTree(CTX_data_main(C), ntree);
 		}
 		else {
-			MTex *mtex = add_mtex_id(&ma->id, -1);
+			MTex *mtex = BKE_texture_mtex_add_id(&ma->id, -1);
 
 			/* successful creation of mtex layer, now create set */
 			if (mtex) {
@@ -5477,7 +5506,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 					}
 				}
 
-				mtex->tex = add_texture(bmain, DATA_(layer_type_items[type_id].name));
+				mtex->tex = BKE_texture_add(bmain, DATA_(layer_type_items[type_id].name));
 				mtex->mapto = type;
 
 				if (mtex->tex) {

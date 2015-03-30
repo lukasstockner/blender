@@ -219,6 +219,22 @@ void ED_fsmenu_entry_set_name(struct FSMenuEntry *fsentry, const char *name)
 void fsmenu_entry_refresh_valid(struct FSMenuEntry *fsentry)
 {
 	if (fsentry->path && fsentry->path[0]) {
+#ifdef WIN32
+		/* XXX Special case, always consider those as valid.
+		 *     Thanks to Windows, which can spend five seconds to perform a mere stat() call on those paths...
+		 *     See T43684.
+		 */
+		const char *exceptions[] = {"A:\\", "B:\\", NULL};
+		const size_t exceptions_len[] = {strlen(exceptions[0]), strlen(exceptions[1]), 0};
+		int i;
+
+		for (i = 0; exceptions[i]; i++) {
+			if (STRCASEEQLEN(fsentry->path, exceptions[i], exceptions_len[i])) {
+				fsentry->valid = true;
+				return;
+			}
+		}
+#endif
 		fsentry->valid = BLI_is_dir(fsentry->path);
 	}
 	else {
@@ -421,6 +437,7 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 #ifdef WIN32
 	/* Add the drive names to the listing */
 	{
+		wchar_t wline[FILE_MAXDIR];
 		__int64 tmp;
 		char tmps[4];
 		int i;
@@ -440,9 +457,11 @@ void fsmenu_read_system(struct FSMenu *fsmenu, int read_bookmarks)
 
 		/* Adding Desktop and My Documents */
 		if (read_bookmarks) {
-			SHGetSpecialFolderPath(0, line, CSIDL_PERSONAL, 0);
+			SHGetSpecialFolderPathW(0, wline, CSIDL_PERSONAL, 0);
+			BLI_strncpy_wchar_as_utf8(line, wline, FILE_MAXDIR);
 			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
-			SHGetSpecialFolderPath(0, line, CSIDL_DESKTOPDIRECTORY, 0);
+			SHGetSpecialFolderPathW(0, wline, CSIDL_DESKTOPDIRECTORY, 0);
+			BLI_strncpy_wchar_as_utf8(line, wline, FILE_MAXDIR);
 			fsmenu_insert_entry(fsmenu, FS_CATEGORY_SYSTEM_BOOKMARKS, line, NULL, FS_INSERT_SORTED);
 		}
 	}

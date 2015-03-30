@@ -35,10 +35,7 @@ struct bContext;
 struct bAnimContext;
 struct SpaceAction;
 struct ARegion;
-struct wmWindowManager;
 struct wmOperatorType;
-struct ActKeysInc;
-struct bAnimListElem;
 
 /* internal exports only */
 
@@ -101,6 +98,9 @@ void ACTION_OT_snap(struct wmOperatorType *ot);
 void ACTION_OT_mirror(struct wmOperatorType *ot);
 
 void ACTION_OT_new(struct wmOperatorType *ot);
+void ACTION_OT_push_down(struct wmOperatorType *ot);
+void ACTION_OT_stash(struct wmOperatorType *ot);
+void ACTION_OT_stash_and_create(struct wmOperatorType *ot);
 
 void ACTION_OT_markers_make_local(struct wmOperatorType *ot);
 

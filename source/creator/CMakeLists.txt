@@ -239,13 +239,13 @@ if(WITH_BUILDINFO)
 	add_dependencies(blender buildinfo)
 endif()
 
-# Post build steps for bundling/packaging.
 
 set(BLENDER_TEXT_FILES
 	${CMAKE_SOURCE_DIR}/release/text/GPL-license.txt
 	${CMAKE_SOURCE_DIR}/release/text/Python-license.txt
 	${CMAKE_SOURCE_DIR}/release/text/copyright.txt
-	${CMAKE_SOURCE_DIR}/release/text/readme.html
+	# generate this file
+	# ${CMAKE_SOURCE_DIR}/release/text/readme.html
 	${CMAKE_SOURCE_DIR}/release/datafiles/LICENSE-bfont.ttf.txt
 )
 
@@ -261,11 +261,15 @@ endif()
 # Platform Specific Var: TARGETDIR_VER
 
 if(UNIX AND NOT APPLE)
-	if(WITH_INSTALL_PORTABLE)
-		set(TARGETDIR_VER ${BLENDER_VERSION})
+	if(WITH_PYTHON_MODULE)
+		if(WITH_INSTALL_PORTABLE)
+			set(TARGETDIR_VER ${BLENDER_VERSION})
+		else()
+			set(TARGETDIR_VER ${PYTHON_SITE_PACKAGES}/${BLENDER_VERSION})
+		endif()
 	else()
-		if(WITH_PYTHON_MODULE)
-			set(TARGETDIR_VER ${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages/${BLENDER_VERSION})
+		if(WITH_INSTALL_PORTABLE)
+			set(TARGETDIR_VER ${BLENDER_VERSION})
 		else()
 			set(TARGETDIR_VER share/blender/${BLENDER_VERSION})
 		endif()
@@ -407,22 +411,31 @@ if(UNIX AND NOT APPLE)
 	endif()
 
 	# there are a few differences between portable and system install
-	if(WITH_INSTALL_PORTABLE)
-		if(WITH_PYTHON_MODULE)
-			# pass
+	if(WITH_PYTHON_MODULE)
+		if(WITH_INSTALL_PORTABLE)
+			install(
+				TARGETS blender
+				DESTINATION "."
+			)
 		else()
-			if(WITH_DOC_MANPAGE)
-				install(
-					FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
-					DESTINATION "."
-				)
-			endif()
+			install(
+				TARGETS blender
+				LIBRARY DESTINATION ${PYTHON_SITE_PACKAGES}
+			)
 		endif()
+		# none of the other files are needed currently
+	elseif(WITH_INSTALL_PORTABLE)
 		install(
 			TARGETS blender
 			DESTINATION "."
 		)
 
+		if(WITH_DOC_MANPAGE)
+			install(
+				FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
+				DESTINATION "."
+			)
+		endif()
 		install(
 			FILES
 				${CMAKE_SOURCE_DIR}/release/freedesktop/blender.desktop
@@ -436,30 +449,19 @@ if(UNIX AND NOT APPLE)
 			DESTINATION "."
 		)
 
-		install(
-			FILES ${BLENDER_TEXT_FILES}
-			DESTINATION "."
-		)
-
+		set(BLENDER_TEXT_FILES_DESTINATION ".")
 	else()
 		# main blender binary
-		if(WITH_PYTHON_MODULE)
+		install(
+			TARGETS blender
+			DESTINATION bin
+		)
+		if(WITH_DOC_MANPAGE)
+			# manpage only with 'blender' binary
 			install(
-				TARGETS blender
-				LIBRARY	DESTINATION ${PYTHON_LIBPATH}/python${PYTHON_VERSION}/site-packages
+				FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
+				DESTINATION share/man/man1
 			)
-		else()
-			install(
-				TARGETS blender
-				DESTINATION bin
-			)
-			if(WITH_DOC_MANPAGE)
-				# manpage only with 'blender' binary
-				install(
-					FILES ${CMAKE_CURRENT_BINARY_DIR}/blender.1
-					DESTINATION share/man/man1
-				)
-			endif()
 		endif()
 
 		# misc files
@@ -486,10 +488,7 @@ if(UNIX AND NOT APPLE)
 			PROGRAMS ${CMAKE_SOURCE_DIR}/release/bin/blender-thumbnailer.py
 			DESTINATION bin
 		)
-		install(
-			FILES ${BLENDER_TEXT_FILES}
-			DESTINATION share/doc/blender
-		)
+		set(BLENDER_TEXT_FILES_DESTINATION share/doc/blender)
 	endif()
 
 	if(WITH_PYTHON)
@@ -602,10 +601,7 @@ if(UNIX AND NOT APPLE)
 	endif()
 elseif(WIN32)
 
-	install(
-		FILES ${BLENDER_TEXT_FILES}
-		DESTINATION "."
-	)
+	set(BLENDER_TEXT_FILES_DESTINATION ".")
 
 	if(WITH_PYTHON)
 		string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${PYTHON_VERSION})
@@ -847,10 +843,7 @@ elseif(APPLE)
 	)
 
 	# install release and app files
-	install(
-		FILES ${BLENDER_TEXT_FILES}
-		DESTINATION blender.app/Contents
-	)
+	set(BLENDER_TEXT_FILES_DESTINATION blender.app/Contents)
 
 	install(
 		FILES ${OSX_APP_SOURCEDIR}/Contents/PkgInfo
@@ -968,12 +961,33 @@ endif()
 # -----------------------------------------------------------------------------
 # Generic Install, for all targets
 
+if(DEFINED BLENDER_TEXT_FILES_DESTINATION)
 
+	install(
+		CODE
+		"
+		file(READ \"${CMAKE_SOURCE_DIR}/release/text/readme.html\" DATA_SRC)
+		string(REGEX REPLACE \"BLENDER_VERSION\" \"${BLENDER_VERSION}\" DATA_DST \"\${DATA_SRC}\")
+		file(WRITE \"\${CMAKE_BINARY_DIR}/release/text/readme.html\" \"\${DATA_DST}\")
+		unset(DATA_SRC)
+		unset(DATA_DST)
+		"
+	)
+	list(APPEND BLENDER_TEXT_FILES
+		${CMAKE_BINARY_DIR}/release/text/readme.html
+	)
+
+	install(
+		FILES ${BLENDER_TEXT_FILES}
+		DESTINATION "${BLENDER_TEXT_FILES_DESTINATION}"
+	)
+endif()
 
 # install more files specified elsewhere
 delayed_do_install(${TARGETDIR_VER})
 
 unset(BLENDER_TEXT_FILES)
+unset(BLENDER_TEXT_FILES_DESTINATION)
 
 
 # -----------------------------------------------------------------------------

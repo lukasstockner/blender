@@ -37,9 +37,6 @@ struct MTex;
 struct Render;
 struct Scene;
 struct ScrArea;
-struct RegionView3D;
-struct RenderEngine;
-struct View3D;
 struct wmWindowManager;
 
 /* render_ops.c */
@@ -50,11 +47,12 @@ void ED_operatortypes_render(void);
 
 void ED_render_id_flush_update(struct Main *bmain, struct ID *id);
 void ED_render_engine_changed(struct Main *bmain);
-void ED_render_engine_area_exit(struct ScrArea *sa);
+void ED_render_engine_area_exit(struct Main *bmain, struct ScrArea *sa);
 void ED_render_scene_update(struct Main *bmain, struct Scene *scene, int updated);
 
 void ED_viewport_render_kill_jobs(struct wmWindowManager *wm, struct Main *bmain, bool free_database);
 struct Scene *ED_render_job_get_scene(const struct bContext *C);
+struct Scene *ED_render_job_get_current_scene(const struct bContext *C);
 
 /* Render the preview
  *

@@ -154,6 +154,28 @@ CcdPhysicsController::CcdPhysicsController (const CcdConstructionInfo& ci)
 	CreateRigidbody();
 }
 
+void CcdPhysicsController::addCcdConstraintRef(btTypedConstraint* c)
+{
+	int index = m_ccdConstraintRefs.findLinearSearch(c);
+	if (index == m_ccdConstraintRefs.size())
+		m_ccdConstraintRefs.push_back(c);
+}
+
+void CcdPhysicsController::removeCcdConstraintRef(btTypedConstraint* c)
+{
+	m_ccdConstraintRefs.remove(c);
+}
+
+btTypedConstraint* CcdPhysicsController::getCcdConstraintRef(int index)
+{
+	return m_ccdConstraintRefs[index];
+}
+
+int CcdPhysicsController::getNumCcdConstraintRefs() const
+{
+	return m_ccdConstraintRefs.size();
+}
+
 btTransform&	CcdPhysicsController::GetTransformFromMotionState(PHY_IMotionState* motionState)
 {
 	static btTransform trans;
@@ -1716,6 +1738,31 @@ bool CcdPhysicsController::ReinstancePhysicsShape(KX_GameObject *from_gameobj, R
 
 	this->ReplaceControllerShape(bm);
 	return true;
+}
+
+void CcdPhysicsController::ReplicateConstraints(KX_GameObject *replica, std::vector<KX_GameObject*> constobj)
+{
+	if (replica->GetConstraints().size() == 0 || !replica->GetPhysicsController())
+		return;
+		
+	PHY_IPhysicsEnvironment *physEnv = GetPhysicsEnvironment();
+
+	vector<bRigidBodyJointConstraint*> constraints = replica->GetConstraints();
+	vector<bRigidBodyJointConstraint*>::iterator consit;
+
+	/* Object could have some constraints, iterate over all of theme to ensure that every constraint is recreated. */
+	for (consit = constraints.begin(); consit != constraints.end(); ++consit) {
+		/* Try to find the constraint targets in the list of group objects. */
+		bRigidBodyJointConstraint *dat = (*consit);
+		vector<KX_GameObject*>::iterator memit; 
+		for (memit = constobj.begin(); memit != constobj.end(); ++memit) {
+			KX_GameObject *member = (*memit);
+			/* If the group member is the actual target for the constraint. */
+			if (dat->tar->id.name + 2 == member->GetName() && member->GetPhysicsController())
+				physEnv->SetupObjectConstraints(replica, member, dat);
+		}
+	}
+
 }
 
 ///////////////////////////////////////////////////////////

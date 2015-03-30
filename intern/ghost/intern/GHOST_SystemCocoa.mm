@@ -530,9 +530,8 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 	GHOST_TUns32 height,
 	GHOST_TWindowState state,
 	GHOST_TDrawingContextType type,
-	bool stereoVisual,
+	GHOST_GLSettings glSettings,
 	const bool exclusive,
-	const GHOST_TUns16 numOfAASamples,
 	const GHOST_TEmbedderWindowID parentWindow
 )
 {
@@ -551,7 +550,7 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 	// Add contentRect.origin.y to respect docksize
 	bottom = bottom > contentRect.origin.y ? bottom + contentRect.origin.y : contentRect.origin.y;
 
-	window = new GHOST_WindowCocoa (this, title, left, bottom, width, height, state, type, stereoVisual, numOfAASamples);
+	window = new GHOST_WindowCocoa (this, title, left, bottom, width, height, state, type, ((glSettings.flags & GHOST_glStereoVisual) != 0), glSettings.numOfAASamples);
 
 	if (window->getValid()) {
 		// Store the pointer to the window
@@ -883,7 +882,10 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 					if (!strArray) return GHOST_kFailure;
 					
 					strArray->count = [droppedArray count];
-					if (strArray->count == 0) return GHOST_kFailure;
+					if (strArray->count == 0) {
+						free(strArray);
+						return GHOST_kFailure;
+					}
 					
 					strArray->strings = (GHOST_TUns8**) malloc(strArray->count*sizeof(GHOST_TUns8*));
 					

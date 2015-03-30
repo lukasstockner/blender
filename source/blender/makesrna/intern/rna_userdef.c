@@ -331,7 +331,7 @@ static PointerRNA rna_UserDef_system_get(PointerRNA *ptr)
 
 static void rna_UserDef_audio_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
 {
-	sound_init(bmain);
+	BKE_sound_init(bmain);
 }
 
 static void rna_Userdef_memcache_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *UNUSED(ptr))
@@ -548,7 +548,7 @@ static EnumPropertyItem *rna_userdef_audio_device_itemf(bContext *UNUSED(C), Poi
 #endif
 
 #ifdef WITH_JACK
-	if (sound_is_jack_supported()) {
+	if (BKE_sound_is_jack_supported()) {
 		RNA_enum_item_add(&item, &totitem, &audio_device_items[index]);
 	}
 	index++;
@@ -3336,7 +3336,12 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_quit_dialog", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "uiflag", USER_QUIT_PROMPT);
 	RNA_def_property_ui_text(prop, "Prompt Quit",
-	                         "Asks for confirmation when quitting through the window close button");
+	                         "Ask for confirmation when quitting through the window close button");
+
+	prop = RNA_def_property(srna, "use_gl_warn_support", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_negative_sdna(prop, NULL, "uiflag2", USER_OPENGL_NO_WARN_SUPPORT);
+	RNA_def_property_ui_text(prop, "Warn On Deprecated OpenGL",
+	                         "Pop up a warning when an old OpenGL version is detected");
 
 	/* Toolbox click-hold delay */
 	prop = RNA_def_property(srna, "open_left_mouse_delay", PROP_INT, PROP_NONE);

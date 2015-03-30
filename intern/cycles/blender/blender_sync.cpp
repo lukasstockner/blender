@@ -30,6 +30,7 @@
 #include "device.h"
 
 #include "blender_sync.h"
+#include "blender_session.h"
 #include "blender_util.h"
 
 #include "util_debug.h"
@@ -110,7 +111,7 @@ bool BlenderSync::sync_recalc()
 		
 		if(b_ob->is_updated_data()) {
 			BL::Object::particle_systems_iterator b_psys;
-			for (b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
+			for(b_ob->particle_systems.begin(b_psys); b_psys != b_ob->particle_systems.end(); ++b_psys)
 				particle_system_map.set_recalc(*b_ob);
 		}
 	}
@@ -410,8 +411,7 @@ bool BlenderSync::get_session_pause(BL::Scene b_scene, bool background)
 SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine,
                                               BL::UserPreferences b_userpref,
                                               BL::Scene b_scene,
-                                              bool background,
-                                              bool headless)
+                                              bool background)
 {
 	SessionParams params;
 	PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
@@ -501,7 +501,7 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine,
 		params.tile_size = make_int2(tile_x, tile_y);
 	}
 
-	if(headless == false) {
+	if(BlenderSession::headless == false) {
 		params.tile_order = (TileOrder)RNA_enum_get(&cscene, "tile_order");
 	}
 	else {
@@ -552,6 +552,13 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine b_engine,
 	{
 		params.display_buffer_linear = GLEW_ARB_half_float_pixel &&
 		                               b_engine.support_display_space_shader(b_scene);
+	}
+
+	if(b_engine.is_preview()) {
+		/* For preview rendering we're using same timeout as
+		 * blender's job update.
+		 */
+		params.progressive_update_timeout = 0.1;
 	}
 
 	return params;

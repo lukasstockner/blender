@@ -350,6 +350,12 @@ typedef struct ImageFormatData {
 #define R_IMF_EXR_CODEC_ZIP   2
 #define R_IMF_EXR_CODEC_PIZ   3
 #define R_IMF_EXR_CODEC_RLE   4
+#define R_IMF_EXR_CODEC_ZIPS  5
+#define R_IMF_EXR_CODEC_B44   6
+#define R_IMF_EXR_CODEC_B44A  7
+#define R_IMF_EXR_CODEC_DWAA  8
+#define R_IMF_EXR_CODEC_DWAB  9
+#define R_IMF_EXR_CODEC_MAX  10
 
 /* ImageFormatData.jp2_flag */
 #define R_IMF_JP2_FLAG_YCC          (1<<0)  /* when disabled use RGB */ /* was R_JPEG2K_YCC */
@@ -712,7 +718,12 @@ typedef struct GameData {
 	short obstacleSimulation;
 	short raster_storage;
 	float levelHeight;
-	float deactivationtime, lineardeactthreshold, angulardeactthreshold, pad2;
+	float deactivationtime, lineardeactthreshold, angulardeactthreshold;
+
+	/* Scene LoD */
+	short lodflag, pad2;
+	int scehysteresis, pad5;
+
 } GameData;
 
 #define STEREO_NOSTEREO		1
@@ -784,6 +795,9 @@ enum {
 #if (DNA_DEPRECATED_GCC_POISON == 1)
 #pragma GCC poison GAME_MAT_TEXFACE
 #endif
+
+/* GameData.lodflag */
+#define SCE_LOD_USE_HYST		(1 << 0)
 
 /* UV Paint */
 #define UV_SCULPT_LOCK_BORDERS				1

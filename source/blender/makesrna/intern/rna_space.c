@@ -413,8 +413,8 @@ static void rna_SpaceView3D_lock_camera_and_layers_set(PointerRNA *ptr, int valu
 		/* seek for layact */
 		bit = 0;
 		while (bit < 32) {
-			if (v3d->lay & (1 << bit)) {
-				v3d->layact = 1 << bit;
+			if (v3d->lay & (1u << bit)) {
+				v3d->layact = (1u << bit);
 				break;
 			}
 			bit++;
@@ -493,8 +493,11 @@ static void rna_SpaceView3D_matcap_enable(Main *UNUSED(bmain), Scene *UNUSED(sce
 {
 	View3D *v3d = (View3D *)(ptr->data);
 	
-	if (v3d->matcap_icon == 0)
+	if (v3d->matcap_icon < ICON_MATCAP_01 ||
+	    v3d->matcap_icon > ICON_MATCAP_24)
+	{
 		v3d->matcap_icon = ICON_MATCAP_01;
+	}
 }
 
 static void rna_SpaceView3D_pivot_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *ptr)
@@ -1127,7 +1130,7 @@ static void rna_SpaceDopeSheetEditor_action_update(Main *UNUSED(bmain), Scene *s
 			/* fix id-count of action we're replacing */
 			id_us_min(&adt->action->id);
 			
-			/* show new id-count of action we're replacing */
+			/* assign new action, and adjust the usercounts accordingly */
 			adt->action = saction->action;
 			id_us_plus(&adt->action->id);
 			
@@ -1834,7 +1837,7 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 		{SO_LIBRARIES, "LIBRARIES", 0, "Blender File", "Display data of current file and linked libraries"},
 		{SO_DATABLOCKS, "DATABLOCKS", 0, "Datablocks", "Display all raw datablocks"},
 		{SO_USERDEF, "USER_PREFERENCES", 0, "User Preferences", "Display the user preference datablocks"},
-		{SO_ID_ORPHANS, "ORPHANED_DATABLOCKS", 0, "Orphaned Datablocks", 
+		{SO_ID_ORPHANS, "ORPHAN_DATA", 0, "Orphan Data",
 		                "Display datablocks which are unused and/or will be lost when the file is reloaded"},
 		{0, NULL, 0, NULL, NULL}
 	};

@@ -274,7 +274,7 @@ static int open_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event)
 		return open_exec(C, op);
 
 	if (!RNA_struct_property_is_set(op->ptr, "relative_path"))
-		RNA_boolean_set(op->ptr, "relative_path", U.flag & USER_RELPATHS);
+		RNA_boolean_set(op->ptr, "relative_path", (U.flag & USER_RELPATHS) != 0);
 
 	open_init(C, op);
 
@@ -912,7 +912,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 	SUBFRA = 0.0f;
 
 	/* do updates */
-	sound_seek_scene(CTX_data_main(C), scene);
+	BKE_sound_seek_scene(CTX_data_main(C), scene);
 	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 }
 
