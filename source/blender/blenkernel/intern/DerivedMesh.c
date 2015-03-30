@@ -931,7 +931,7 @@ DerivedMesh *mesh_create_derived_for_modifier(Scene *scene, Object *ob,
                                               ModifierData *md, int build_shapekey_layers)
 {
 	Mesh *me = ob->data;
-	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	DerivedMesh *dm;
 	KeyBlock *kb;
 
@@ -1131,7 +1131,7 @@ typedef struct DMWeightColorInfo {
 } DMWeightColorInfo;
 
 
-static int dm_drawflag_calc(ToolSettings *ts)
+static int dm_drawflag_calc(const ToolSettings *ts)
 {
 	return ((ts->multipaint ? CALC_WP_MULTIPAINT :
 	                          /* CALC_WP_GROUP_USER_ACTIVE or CALC_WP_GROUP_USER_ALL*/
@@ -1368,7 +1368,7 @@ void DM_update_weight_mcol(Object *ob, DerivedMesh *dm, int const draw_flag,
 	}
 }
 
-static void DM_update_statvis_color(Scene *scene, Object *ob, DerivedMesh *dm)
+static void DM_update_statvis_color(const Scene *scene, Object *ob, DerivedMesh *dm)
 {
 	BMEditMesh *em = BKE_editmesh_from_object(ob);
 
@@ -1585,7 +1585,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		
 		/* Apply all leading deforming modifiers */
 		for (; md; md = md->next, curr = curr->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 			md->scene = scene;
 			
@@ -1639,7 +1639,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 	clothorcodm = NULL;
 
 	for (; md; md = md->next, curr = curr->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
 
@@ -2000,7 +2000,7 @@ float (*editbmesh_get_vertex_cos(BMEditMesh *em, int *r_numVerts))[3]
 
 bool editbmesh_modifier_is_enabled(Scene *scene, ModifierData *md, DerivedMesh *dm)
 {
-	ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	int required_mode = eModifierMode_Realtime | eModifierMode_Editmode;
 
 	if (!modifier_isEnabled(scene, md, required_mode)) return 0;
@@ -2059,7 +2059,7 @@ static void editbmesh_calc_modifiers(Scene *scene, Object *ob, BMEditMesh *em, D
 
 	curr = datamasks;
 	for (i = 0; md; i++, md = md->next, curr = curr->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
 		
@@ -2340,7 +2340,7 @@ static void editbmesh_build_data(Scene *scene, Object *obedit, BMEditMesh *em, C
 	BLI_assert(!(em->derivedFinal->dirty & DM_DIRTY_NORMALS));
 }
 
-static CustomDataMask object_get_datamask(Scene *scene, Object *ob)
+static CustomDataMask object_get_datamask(const Scene *scene, Object *ob)
 {
 	Object *actob = scene->basact ? scene->basact->object : NULL;
 	CustomDataMask mask = ob->customdata_mask;

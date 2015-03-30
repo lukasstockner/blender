@@ -725,8 +725,9 @@ static bool calc_curve_deform(Scene *scene, Object *par, float co[3],
 	return false;
 }
 
-void curve_deform_verts(Scene *scene, Object *cuOb, Object *target, DerivedMesh *dm, float (*vertexCos)[3],
-                        int numVerts, const char *vgroup, short defaxis)
+void curve_deform_verts(
+        Scene *scene, Object *cuOb, Object *target, DerivedMesh *dm, float (*vertexCos)[3],
+        int numVerts, const char *vgroup, short defaxis)
 {
 	Curve *cu;
 	int a;
@@ -1068,7 +1069,7 @@ void BKE_lattice_modifiers_calc(Scene *scene, Object *ob)
 	}
 
 	for (; md; md = md->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
 		

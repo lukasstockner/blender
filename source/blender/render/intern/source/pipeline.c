@@ -385,6 +385,7 @@ Render *RE_NewRender(const char *name)
 		BLI_addtail(&RenderGlobal.renderlist, re);
 		BLI_strncpy(re->name, name, RE_MAXNAME);
 		BLI_rw_mutex_init(&re->resultmutex);
+		BLI_rw_mutex_init(&re->partsmutex);
 		re->eval_ctx = MEM_callocN(sizeof(EvaluationContext), "re->eval_ctx");
 		re->eval_ctx->mode = DAG_EVAL_RENDER;
 	}
@@ -423,6 +424,7 @@ void RE_FreeRender(Render *re)
 		RE_engine_free(re->engine);
 
 	BLI_rw_mutex_end(&re->resultmutex);
+	BLI_rw_mutex_end(&re->partsmutex);
 
 	BLI_freelistN(&re->r.layers);
 	
@@ -1268,8 +1270,9 @@ static void threaded_tile_processor(Render *re)
 
 	/* unset threadsafety */
 	g_break = 0;
-	
+	BLI_rw_mutex_lock(&re->partsmutex, THREAD_LOCK_WRITE);
 	RE_parts_free(re);
+	BLI_rw_mutex_unlock(&re->partsmutex);
 	re->viewplane = viewplane; /* restore viewplane, modified by pano render */
 }
 
@@ -1953,7 +1956,7 @@ static void ntree_render_scenes(Render *re)
 }
 
 /* bad call... need to think over proper method still */
-static void render_composit_stats(void *UNUSED(arg), char *str)
+static void render_composit_stats(void *UNUSED(arg), const char *str)
 {
 	R.i.infostr = str;
 	R.stats_draw(R.sdh, &R.i);
@@ -3022,7 +3025,8 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 			height = re->recty;
 		}
 
-		if (!mh->start_movie(scene, &re->r, width, height, re->reports))
+		/* last argument here depends on users really, but no users using preview have been found so far */
+		if (!mh->start_movie(scene, &re->r, width, height, re->reports, false))
 			G.is_break = true;
 	}
 

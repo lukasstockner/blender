@@ -38,11 +38,9 @@ struct GSet;
 struct ImBuf;
 struct Main;
 struct Mask;
-struct MovieClip;
 struct Scene;
 struct Sequence;
 struct SequenceModifierData;
-struct Strip;
 struct StripElem;
 struct bSound;
 
@@ -435,7 +433,7 @@ typedef struct SequenceModifierTypeInfo {
 	void (*apply) (struct SequenceModifierData *smd, struct ImBuf *ibuf, struct ImBuf *mask);
 } SequenceModifierTypeInfo;
 
-struct SequenceModifierTypeInfo *BKE_sequence_modifier_type_info_get(int type);
+const struct SequenceModifierTypeInfo *BKE_sequence_modifier_type_info_get(int type);
 
 struct SequenceModifierData *BKE_sequence_modifier_new(struct Sequence *seq, const char *name, int type);
 bool BKE_sequence_modifier_remove(struct Sequence *seq, struct SequenceModifierData *smd);
@@ -449,7 +447,9 @@ void BKE_sequence_modifier_list_copy(struct Sequence *seqn, struct Sequence *seq
 int BKE_sequence_supports_modifiers(struct Sequence *seq);
 
 /* internal filters */
-struct ImBuf *BKE_sequencer_render_mask_input(const SeqRenderData *context, int mask_input_type, struct Sequence *mask_sequence, struct Mask *mask_id, int cfra, bool make_float);
+struct ImBuf *BKE_sequencer_render_mask_input(
+        const SeqRenderData *context, int mask_input_type, struct Sequence *mask_sequence, struct Mask *mask_id,
+        int cfra, int fra_offset, bool make_float);
 void BKE_sequencer_color_balance_apply(struct StripColorBalance *cb, struct ImBuf *ibuf, float mul, bool make_float, struct ImBuf *mask_input);
 
 #endif  /* __BKE_SEQUENCER_H__ */

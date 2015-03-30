@@ -771,6 +771,9 @@ if B.targets != ['cudakernels']:
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_ssao_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_frag.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_hq_frag.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_hq_vert.glsl")
+    data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_dof_hq_geo.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_lib.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_depth_resolve.glsl")
     data_to_c_simple("source/blender/gpu/shaders/gpu_shader_fx_vert.glsl")
@@ -868,19 +871,21 @@ B.init_lib_dict()
 
 ##### END SETUP ##########
 
-if B.targets != ['cudakernels']:
-    # Put all auto configuration run-time tests here
+## Auto-configuration run-time tests
 
-    from FindSharedPtr import FindSharedPtr
-    from FindUnorderedMap import FindUnorderedMap
+from FindSharedPtr import FindSharedPtr
+from FindUnorderedMap import FindUnorderedMap
 
-    conf = Configure(env)
-    old_linkflags = conf.env['LINKFLAGS']
-    conf.env.Append(LINKFLAGS=env['PLATFORM_LINKFLAGS'])
-    FindSharedPtr(conf)
-    FindUnorderedMap(conf)
-    conf.env['LINKFLAGS'] = old_linkflags
-    env = conf.Finish()
+conf = Configure(env)
+old_linkflags = conf.env['LINKFLAGS']
+conf.env.Append(LINKFLAGS=env['PLATFORM_LINKFLAGS'])
+
+# Put all tests here
+FindSharedPtr(conf)
+FindUnorderedMap(conf)
+
+conf.env['LINKFLAGS'] = old_linkflags
+env = conf.Finish()
 
 # End of auto configuration
 
