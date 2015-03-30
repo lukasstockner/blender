@@ -484,6 +484,12 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 	align = (FILE_IMGDISPLAY == params->display) ? UI_STYLE_TEXT_CENTER : UI_STYLE_TEXT_LEFT;
 
+	{
+		const bool success = filelist_file_cache_block(files, offset + (numfiles_layout / 2));
+		BLI_assert(success);
+		UNUSED_VARS_NDEBUG(success);
+	}
+
 	for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
 		char path[FILE_MAX_LIBEXTRA];
 		ED_fileselect_layout_tilepos(layout, i, &sx, &sy);

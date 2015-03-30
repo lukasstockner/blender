@@ -210,7 +210,7 @@ typedef struct FileListIntern {
 #define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
 typedef struct FileListEntryCache {
 	/* Block cache: all entries between start and end index. used for part of the list on diplay. */
-	FileDirEntry (*block_entries)[FILELIST_ENTRYCACHESIZE];
+	FileDirEntry *block_entries[FILELIST_ENTRYCACHESIZE];
 	int block_start_index, block_end_index, block_cursor;
 
 	/* Misc cache: random indices, FIFO behavior.
@@ -1321,7 +1321,9 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
 
-	if ((start_index == cache->block_end_index) && (end_index == cache->block_start_index)) {
+//	printf("Caching block [%d:%d] (current cache: [%d:%d])\n", start_index, end_index, cache->block_start_index, cache->block_end_index);
+
+	if ((start_index == cache->block_start_index) && (end_index == cache->block_end_index)) {
 		/* Nothing to do! */
 		return true;
 	}
@@ -1329,7 +1331,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	if ((start_index >= cache->block_end_index) || (end_index <= cache->block_start_index)) {
 		/* New cached block does not overlap existing one, simple. */
 		memcpy(cache->block_entries, &filelist->filelist_intern.filtered[start_index],
-		       sizeof(*cache->block_entries) * (end_index - start_index));
+		       sizeof(cache->block_entries[0]) * (end_index - start_index));
 		cache->block_start_index = start_index;
 		cache->block_end_index = end_index;
 		cache->block_cursor = 0;
@@ -1353,10 +1355,10 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 		if (size2) {
 			memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[end_index - size2],
-			       sizeof(*cache->block_entries) * size2);
+			       sizeof(cache->block_entries[0]) * size2);
 		}
 		memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[end_index - size1 - size2],
-		       sizeof(*cache->block_entries) * size1);
+		       sizeof(cache->block_entries[0]) * size1);
 	}
 	cache->block_end_index = end_index;
 
@@ -1381,10 +1383,10 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 		if (size2) {
 			memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[start_index + size1],
-			       sizeof(*cache->block_entries) * size2);
+			       sizeof(cache->block_entries[0]) * size2);
 		}
 		memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[start_index],
-		       sizeof(*cache->block_entries) * size1);
+		       sizeof(cache->block_entries[0]) * size1);
 
 		cache->block_cursor = idx1;
 	}
