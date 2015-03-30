@@ -23,13 +23,12 @@
 #include "device_task.h"
 
 #include "util_list.h"
+#include "util_set.h"
 #include "util_stats.h"
 #include "util_string.h"
 #include "util_thread.h"
 #include "util_types.h"
 #include "util_vector.h"
-
-#include <set>
 
 #define SPLIT_KERNEL_CLOSURE_COUNT 1
 
@@ -102,7 +101,7 @@ public:
 	int clos_max;
 
 	/* Get all closure nodes associated with the scene */
-	std::set<int> closure_nodes;
+	set<int> closure_nodes;
 
 	/* regular memory */
 	virtual void mem_alloc(device_memory& mem, MemoryType type) = 0;
