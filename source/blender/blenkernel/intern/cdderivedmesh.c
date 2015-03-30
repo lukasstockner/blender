@@ -1669,7 +1669,7 @@ static void cdDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *in
  * vertex */
 #ifdef USE_GPU_POINT_LINK
 
-static void gpu_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
+static void cdDM_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
 {
 	GPUVertPointLink *lnk;
 
