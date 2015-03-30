@@ -53,6 +53,7 @@
 #include "BKE_cdderivedmesh.h"
 #include "BKE_object.h"
 #include "BKE_mball.h"
+#include "BKE_mball_tessellate.h"
 #include "BKE_curve.h"
 #include "BKE_key.h"
 #include "BKE_anim.h"
@@ -1434,9 +1435,8 @@ static void calc_bevfac_mapping(Curve *cu, BevList *bl, Nurb *nu,
 		return;
 	}
 
-	if (ELEM(cu->bevfac1_mapping,
-	         CU_BEVFAC_MAP_SEGMENT,
-	         CU_BEVFAC_MAP_SPLINE))
+	if (ELEM(cu->bevfac1_mapping, CU_BEVFAC_MAP_SEGMENT, CU_BEVFAC_MAP_SPLINE) ||
+	    ELEM(cu->bevfac2_mapping, CU_BEVFAC_MAP_SEGMENT, CU_BEVFAC_MAP_SPLINE))
 	{
 		for (i = 0; i < SEGMENTSU(nu); i++) {
 			total_length += bl->seglen[i];

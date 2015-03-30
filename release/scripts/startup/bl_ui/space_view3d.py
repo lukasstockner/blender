@@ -2568,10 +2568,6 @@ class VIEW3D_MT_edit_font(Menu):
         layout.operator("font.style_toggle", text="Toggle Underline").style = 'UNDERLINE'
         layout.operator("font.style_toggle", text="Toggle Small Caps").style = 'SMALL_CAPS'
 
-        layout.separator()
-
-        layout.operator("font.insert_lorem")
-
 
 class VIEW3D_MT_edit_text_chars(Menu):
     bl_label = "Special Characters"
@@ -2710,6 +2706,7 @@ class VIEW3D_MT_edit_armature(Menu):
         layout.separator()
 
         layout.operator_context = 'EXEC_AREA'
+        layout.operator("armature.symmetrize")
         layout.operator("armature.autoside_names", text="AutoName Left/Right").type = 'XAXIS'
         layout.operator("armature.autoside_names", text="AutoName Front/Back").type = 'YAXIS'
         layout.operator("armature.autoside_names", text="AutoName Top/Bottom").type = 'ZAXIS'
@@ -2748,6 +2745,7 @@ class VIEW3D_MT_armature_specials(Menu):
         layout.operator("armature.autoside_names", text="AutoName Front/Back").type = 'YAXIS'
         layout.operator("armature.autoside_names", text="AutoName Top/Bottom").type = 'ZAXIS'
         layout.operator("armature.flip_names", text="Flip Names")
+        layout.operator("armature.symmetrize")
 
 
 class VIEW3D_MT_edit_armature_parent(Menu):
@@ -2973,12 +2971,14 @@ class VIEW3D_PT_view3d_shading(Panel):
             if obj and obj.mode == 'EDIT':
                 col.prop(view, "show_occlude_wire")
 
-            fx_settings = view.fx_settings
 
-            sub = col.column()
-            sub.active = view.region_3d.view_perspective == 'CAMERA'
-            sub.prop(fx_settings, "use_dof")
+        fx_settings = view.fx_settings
 
+        sub = col.column()
+        sub.active = view.region_3d.view_perspective == 'CAMERA'
+        sub.prop(fx_settings, "use_dof")
+
+        if view.viewport_shade not in {'BOUNDBOX', 'WIREFRAME'}:
             col.prop(fx_settings, "use_ssao", text="Ambient Occlusion")
             if fx_settings.use_ssao:
                 ssao_settings = fx_settings.ssao

@@ -41,9 +41,9 @@ int pixel_size,
 __ADDR_SPACE__ float3 *P)
 {
 #ifdef __HAIR__
-	if (sd_fetch(prim) != PRIM_NONE && sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE)
+	if(sd_fetch(prim) != PRIM_NONE && sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE)
 #else
-	if (sd_fetch(prim) != PRIM_NONE)
+	if(sd_fetch(prim) != PRIM_NONE)
 #endif
 	{
 		float3 Co[3];
@@ -52,18 +52,18 @@ __ADDR_SPACE__ float3 *P)
 		/* Triangles */
 		int np = 3;
 
-		if (sd_fetch(type) & PRIMITIVE_TRIANGLE)
+		if(sd_fetch(type) & PRIMITIVE_TRIANGLE)
 			triangle_vertices(kg, sd_fetch(prim), Co);
 		else
 			motion_triangle_vertices(kg, sd_fetch(object), sd_fetch(prim), sd_fetch(time), Co);
 
-		if (!(sd_fetch(flag) & SD_TRANSFORM_APPLIED)) {
+		if(!(sd_fetch(flag) & SD_TRANSFORM_APPLIED)) {
 			object_position_transform(kg, sd, &Co[0]);
 			object_position_transform(kg, sd, &Co[1]);
 			object_position_transform(kg, sd, &Co[2]);
 		}
 
-		if (pixel_size) {
+		if(pixel_size) {
 			// Project the derivatives of P to the viewing plane defined
 			// by I so we have a measure of how big is a pixel at this point
 			float pixelwidth_x = len(sd_fetch(dP).dx - dot(sd_fetch(dP).dx, sd_fetch(I)) * sd_fetch(I));
@@ -76,7 +76,7 @@ __ADDR_SPACE__ float3 *P)
 		// other half. And take the square for fast comparison
 		pixelwidth *= 0.5f * size;
 		pixelwidth *= pixelwidth;
-		for (int i = 0; i < np; i++) {
+		for(int i = 0; i < np; i++) {
 			int i2 = i ? i - 1 : np - 1;
 			float3 dir = *P - Co[i];
 			float3 edge = Co[i] - Co[i2];
@@ -84,7 +84,7 @@ __ADDR_SPACE__ float3 *P)
 			// At this point dot(crs, crs) / dot(edge, edge) is
 			// the square of area / length(edge) == square of the
 			// distance to the edge.
-			if (dot(crs, crs) < (dot(edge, edge) * pixelwidth))
+			if(dot(crs, crs) < (dot(edge, edge) * pixelwidth))
 				return 1.0f;
 		}
 	}
@@ -98,9 +98,9 @@ ccl_device float wireframe(__ADDR_SPACE__ KernelGlobals *kg,
 	float3 *P)
 {
 #ifdef __HAIR__
-	if (sd_fetch(prim) != PRIM_NONE && sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE)
+	if(sd_fetch(prim) != PRIM_NONE && sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE)
 #else
-	if (sd_fetch(prim) != PRIM_NONE)
+	if(sd_fetch(prim) != PRIM_NONE)
 #endif
 	{
 		float3 Co[3];
@@ -109,18 +109,18 @@ ccl_device float wireframe(__ADDR_SPACE__ KernelGlobals *kg,
 		/* Triangles */
 		int np = 3;
 
-		if (sd_fetch(type) & PRIMITIVE_TRIANGLE)
+		if(sd_fetch(type) & PRIMITIVE_TRIANGLE)
 			triangle_vertices(kg, sd_fetch(prim), Co);
 		else
 			motion_triangle_vertices(kg, sd_fetch(object), sd_fetch(prim), sd_fetch(time), Co);
 
-		if (!(sd_fetch(flag) & SD_TRANSFORM_APPLIED)) {
+		if(!(sd_fetch(flag) & SD_TRANSFORM_APPLIED)) {
 			object_position_transform(kg, sd, &Co[0]);
 			object_position_transform(kg, sd, &Co[1]);
 			object_position_transform(kg, sd, &Co[2]);
 		}
 
-		if (pixel_size) {
+		if(pixel_size) {
 			// Project the derivatives of P to the viewing plane defined
 			// by I so we have a measure of how big is a pixel at this point
 			float pixelwidth_x = len(sd_fetch(dP).dx - dot(sd_fetch(dP).dx, sd_fetch(I)) * sd_fetch(I));
@@ -141,7 +141,7 @@ ccl_device float wireframe(__ADDR_SPACE__ KernelGlobals *kg,
 			// At this point dot(crs, crs) / dot(edge, edge) is
 			// the square of area / length(edge) == square of the
 			// distance to the edge.
-			if (dot(crs, crs) < (dot(edge, edge) * pixelwidth))
+			if(dot(crs, crs) < (dot(edge, edge) * pixelwidth))
 				return 1.0f;
 		}
 	}
@@ -166,16 +166,16 @@ ccl_device void svm_node_wireframe(__ADDR_SPACE__ KernelGlobals *kg,
 	float f = wireframe_SPLIT(kg, sd, size, pixel_size, &sd_fetch(P));
 
 	/* TODO(sergey): Think of faster way to calculate derivatives. */
-	if (bump_offset == NODE_BUMP_OFFSET_DX) {
+	if(bump_offset == NODE_BUMP_OFFSET_DX) {
 		float3 Px = sd_fetch(P) - sd_fetch(dP).dx;
 		f += (f - wireframe(kg, sd, size, pixel_size, &Px)) / len(sd_fetch(dP).dx);
 	}
-	else if (bump_offset == NODE_BUMP_OFFSET_DY) {
+	else if(bump_offset == NODE_BUMP_OFFSET_DY) {
 		float3 Py = sd_fetch(P) - sd_fetch(dP).dy;
 		f += (f - wireframe(kg, sd, size, pixel_size, &Py)) / len(sd_fetch(dP).dy);
 	}
 
-	if (stack_valid(out_fac))
+	if(stack_valid(out_fac))
 		stack_store_float(stack, out_fac, f);
 }
 

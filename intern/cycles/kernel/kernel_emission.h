@@ -239,7 +239,8 @@ ccl_device_noinline bool indirect_lamp_emission(__ADDR_SPACE__ KernelGlobals *kg
 		/* use visibility flag to skip lights */
 		if(ls.shader & SHADER_EXCLUDE_ANY) {
 			if(((ls.shader & SHADER_EXCLUDE_DIFFUSE) && (state->flag & PATH_RAY_DIFFUSE)) ||
-			   ((ls.shader & SHADER_EXCLUDE_GLOSSY) && (state->flag & PATH_RAY_REFLECT)) ||
+			   ((ls.shader & SHADER_EXCLUDE_GLOSSY) &&
+			    ((state->flag & (PATH_RAY_GLOSSY|PATH_RAY_REFLECT)) == (PATH_RAY_GLOSSY|PATH_RAY_REFLECT))) ||
 			   ((ls.shader & SHADER_EXCLUDE_TRANSMIT) && (state->flag & PATH_RAY_TRANSMIT)) ||
 			   ((ls.shader & SHADER_EXCLUDE_SCATTER) && (state->flag & PATH_RAY_VOLUME_SCATTER)))
 				continue;
@@ -287,7 +288,8 @@ ccl_device_noinline float3 indirect_background(__ADDR_SPACE__ KernelGlobals *kg,
 	/* use visibility flag to skip lights */
 	if(shader & SHADER_EXCLUDE_ANY) {
 		if(((shader & SHADER_EXCLUDE_DIFFUSE) && (state->flag & PATH_RAY_DIFFUSE)) ||
-		   ((shader & SHADER_EXCLUDE_GLOSSY) && (state->flag & PATH_RAY_REFLECT)) ||
+		   ((shader & SHADER_EXCLUDE_GLOSSY) &&
+		    ((state->flag & (PATH_RAY_GLOSSY|PATH_RAY_REFLECT)) == (PATH_RAY_GLOSSY|PATH_RAY_REFLECT))) ||
 		   ((shader & SHADER_EXCLUDE_TRANSMIT) && (state->flag & PATH_RAY_TRANSMIT)) ||
 		   ((shader & SHADER_EXCLUDE_CAMERA) && (state->flag & PATH_RAY_CAMERA)) ||
 		   ((shader & SHADER_EXCLUDE_SCATTER) && (state->flag & PATH_RAY_VOLUME_SCATTER)))

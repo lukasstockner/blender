@@ -52,6 +52,8 @@ ccl_device float3 bsdf_diffuse_ramp_get_color(__ADDR_SPACE__ const ShaderClosure
 ccl_device int bsdf_diffuse_ramp_setup(__ADDR_SPACE__ ShaderClosure *sc)
 {
 	sc->type = CLOSURE_BSDF_DIFFUSE_RAMP_ID;
+	sc->data0 = 0.0f;
+	sc->data1 = 0.0f;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 

@@ -134,6 +134,14 @@ static void rna_SequenceEditor_sequences_all_begin(CollectionPropertyIterator *i
 	rna_iterator_listbase_begin(iter, &ed->seqbase, NULL);
 }
 
+static void rna_SequenceEditor_update_cache(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+{
+	Editing *ed = (Editing *) ptr->id.data;
+
+	BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
+}
+
+
 static void rna_SequenceEditor_sequences_all_next(CollectionPropertyIterator *iter)
 {
 	ListBaseIterator *internal = &iter->internal.listbase;
@@ -577,8 +585,8 @@ static void rna_Sequence_filepath_set(PointerRNA *ptr, const char *value)
 		PointerRNA id_ptr;
 		RNA_id_pointer_create((ID *)seq->sound, &id_ptr);
 		RNA_string_set(&id_ptr, "filepath", value);
-		sound_load(G.main, seq->sound);
-		sound_update_scene_sound(seq->scene_sound, seq->sound);
+		BKE_sound_load(G.main, seq->sound);
+		BKE_sound_update_scene_sound(seq->scene_sound, seq->sound);
 	}
 
 	BLI_split_dirfile(value, seq->strip->dir, seq->strip->stripdata->name, sizeof(seq->strip->dir),
@@ -633,7 +641,7 @@ static void rna_Sequence_volume_set(PointerRNA *ptr, float value)
 
 	seq->volume = value;
 	if (seq->scene_sound)
-		sound_set_scene_sound_volume(seq->scene_sound, value, (seq->flag & SEQ_AUDIO_VOLUME_ANIMATED) != 0);
+		BKE_sound_set_scene_sound_volume(seq->scene_sound, value, (seq->flag & SEQ_AUDIO_VOLUME_ANIMATED) != 0);
 }
 
 static void rna_Sequence_pitch_set(PointerRNA *ptr, float value)
@@ -642,7 +650,7 @@ static void rna_Sequence_pitch_set(PointerRNA *ptr, float value)
 
 	seq->pitch = value;
 	if (seq->scene_sound)
-		sound_set_scene_sound_pitch(seq->scene_sound, value, (seq->flag & SEQ_AUDIO_PITCH_ANIMATED) != 0);
+		BKE_sound_set_scene_sound_pitch(seq->scene_sound, value, (seq->flag & SEQ_AUDIO_PITCH_ANIMATED) != 0);
 }
 
 static void rna_Sequence_pan_set(PointerRNA *ptr, float value)
@@ -651,7 +659,7 @@ static void rna_Sequence_pan_set(PointerRNA *ptr, float value)
 
 	seq->pan = value;
 	if (seq->scene_sound)
-		sound_set_scene_sound_pan(seq->scene_sound, value, (seq->flag & SEQ_AUDIO_PAN_ANIMATED) != 0);
+		BKE_sound_set_scene_sound_pan(seq->scene_sound, value, (seq->flag & SEQ_AUDIO_PAN_ANIMATED) != 0);
 }
 
 
@@ -1222,6 +1230,15 @@ static void rna_def_strip_proxy(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Timecode", "");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_tcindex_update");
 
+	prop = RNA_def_property(srna, "use_proxy_custom_directory", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "storage", SEQ_STORAGE_PROXY_CUSTOM_DIR);
+	RNA_def_property_ui_text(prop, "Proxy Custom Directory", "Use a custom directory to store data");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
+
+	prop = RNA_def_property(srna, "use_proxy_custom_file", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "storage", SEQ_STORAGE_PROXY_CUSTOM_FILE);
+	RNA_def_property_ui_text(prop, "Proxy Custom File", "Use a custom file to read proxy data from");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 }
 
 static void rna_def_color_balance(BlenderRNA *brna)
@@ -1559,7 +1576,12 @@ static void rna_def_editor(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
-	
+
+	static const EnumPropertyItem editing_storage_items[] = {
+		{0, "PER_STRIP", 0, "Per Strip", "Store proxies using per strip settings"},
+		{SEQ_EDIT_PROXY_DIR_STORAGE, "PROJECT", 0, "Project", "Store proxies using project directory"},
+		{0, NULL, 0, NULL, NULL}
+	};
 	srna = RNA_def_struct(brna, "SequenceEditor", NULL);
 	RNA_def_struct_ui_text(srna, "Sequence Editor", "Sequence editing data for a Scene datablock");
 	RNA_def_struct_ui_icon(srna, ICON_SEQUENCE);
@@ -1607,6 +1629,16 @@ static void rna_def_editor(BlenderRNA *brna)
 	RNA_def_property_int_funcs(prop, "rna_SequenceEditor_overlay_frame_get",
 	                           "rna_SequenceEditor_overlay_frame_set", NULL);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
+
+	prop = RNA_def_property(srna, "proxy_storage", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, editing_storage_items);
+	RNA_def_property_ui_text(prop, "Proxy Storage", "How to store proxies for this project");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
+
+	prop = RNA_def_property(srna, "proxy_dir", PROP_STRING, PROP_DIRPATH);
+	RNA_def_property_string_sdna(prop, NULL, "proxy_dir");
+	RNA_def_property_ui_text(prop, "Proxy Directory", "");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
 }
 
 static void rna_def_filter_video(StructRNA *srna)
@@ -1702,16 +1734,6 @@ static void rna_def_proxy(StructRNA *srna)
 	prop = RNA_def_property(srna, "proxy", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "strip->proxy");
 	RNA_def_property_ui_text(prop, "Proxy", "");
-
-	prop = RNA_def_property(srna, "use_proxy_custom_directory", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_PROXY_CUSTOM_DIR);
-	RNA_def_property_ui_text(prop, "Proxy Custom Directory", "Use a custom directory to store data");
-	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
-
-	prop = RNA_def_property(srna, "use_proxy_custom_file", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_PROXY_CUSTOM_FILE);
-	RNA_def_property_ui_text(prop, "Proxy Custom File", "Use a custom file to read proxy data from");
-	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_update");
 }
 
 static void rna_def_input(StructRNA *srna)

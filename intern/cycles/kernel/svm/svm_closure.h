@@ -28,8 +28,11 @@ ccl_device void svm_node_glass_setup(__ADDR_SPACE__ ShaderData *sd, __ADDR_SPACE
 			sc->data2 = 0.0f;
 			sd_fetch(flag) |= bsdf_refraction_setup(sc);
 		}
-		else
+		else {
+			sc->data0 = 0.0f;
+			sc->data1 = 0.0f;
 			sd_fetch(flag) |= bsdf_reflection_setup(sc);
+		}
 	}
 	else if(type == CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID) {
 		sc->data0 = roughness;
@@ -388,6 +391,8 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 					 * spawned by transmission from the front */
 					sc->weight = make_float3(1.0f, 1.0f, 1.0f);
 					sc->N = N;
+					sc->data0 = 0.0f;
+					sc->data1 = 0.0f;
 					sd_fetch(flag) |= bsdf_transparent_setup(sc);
 				}
 			}
@@ -536,6 +541,7 @@ ccl_device void svm_node_closure_volume(__ADDR_SPACE__ KernelGlobals *kg, __ADDR
 
 			if(sc) {
 				sc->data0 = param2; /* g */
+				sc->data1 = 0.0f;
 				sd_fetch(flag) |= volume_henyey_greenstein_setup(sc);
 			}
 			break;

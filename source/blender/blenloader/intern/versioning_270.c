@@ -39,6 +39,7 @@
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_sdna_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_object_types.h"
@@ -53,6 +54,7 @@
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
+#include "BKE_sequencer.h"
 #include "BKE_screen.h"
 
 #include "BLI_math.h"
@@ -616,18 +618,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "bSteeringActuator", "float", "acceleration")) {
-			for (ob = main->object.first; ob; ob = ob->id.next) {
-				bActuator *act;
-				for (act = ob->actuators.first; act; act = act->next) {
-					if (act->type == ACT_STEERING) {
-						bSteeringActuator *sact = act->data;
-						sact->acceleration = 1000.f;
-					}
-				}
-			}
-		}
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 273, 9)) {
@@ -666,5 +656,72 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 		}
+
+		/* hysteresis setted to 10% but not actived */
+		if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				LodLevel *level;
+				for (level = ob->lodlevels.first; level; level = level->next) {
+					level->obhysteresis = 10;
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "int", "scehysteresis")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.scehysteresis = 10;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 2)) {
+		FOREACH_NODETREE(main, ntree, id) {
+			bNode *node;
+			bNodeSocket *sock;
+
+			for (node = ntree->nodes.first; node; node = node->next) {
+				if (node->type == SH_NODE_MATERIAL) {
+					for (sock = node->inputs.first; sock; sock = sock->next) {
+						if (STREQ(sock->name, "Refl")) {
+							BLI_strncpy(sock->name, "DiffuseIntensity", sizeof(sock->name));
+						}
+					}
+				}
+				else if (node->type == SH_NODE_MATERIAL_EXT) {
+					for (sock = node->outputs.first; sock; sock = sock->next) {
+						if (STREQ(sock->name, "Refl")) {
+							BLI_strncpy(sock->name, "DiffuseIntensity", sizeof(sock->name));
+						}
+						else if (STREQ(sock->name, "Ray Mirror")) {
+							BLI_strncpy(sock->name, "Reflectivity", sizeof(sock->name));
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "Sequence", "char", "storage")) {
+		Scene *scene;
+		Sequence *seq;
+
+#define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
+#define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
+
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			SEQ_BEGIN (scene->ed, seq) {
+				if (seq->strip && seq->strip->proxy) {
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
+				}
+			}
+			SEQ_END
+		}
+#undef SEQ_USE_PROXY_CUSTOM_DIR
+#undef SEQ_USE_PROXY_CUSTOM_FILE
 	}
 }

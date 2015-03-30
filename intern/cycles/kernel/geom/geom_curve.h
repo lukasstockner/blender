@@ -445,12 +445,12 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(__ADDR_SPACE__ KernelGlobals
 		float r_ext = mw_extension + r_curr;
 		float coverage = 1.0f;
 
-		if (bminz - r_curr > isect->t || bmaxz + r_curr < epsilon || bminx > r_ext|| bmaxx < -r_ext|| bminy > r_ext|| bmaxy < -r_ext) {
+		if(bminz - r_curr > isect->t || bmaxz + r_curr < epsilon || bminx > r_ext|| bmaxx < -r_ext|| bminy > r_ext|| bmaxy < -r_ext) {
 			/* the bounding box does not overlap the square centered at O */
 			tree += level;
 			level = tree & -tree;
 		}
-		else if (level == 1) {
+		else if(level == 1) {
 
 			/* the maximum recursion depth is reached.
 			* check if dP0.(Q-P0)>=0 and dPn.(Pn-Q)>=0.
@@ -462,7 +462,7 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(__ADDR_SPACE__ KernelGlobals
 			if(flags & CURVE_KN_RIBBONS) {
 				float3 tg = (p_en - p_st);
 				float w = tg.x * tg.x + tg.y * tg.y;
-				if (w == 0) {
+				if(w == 0) {
 					tree++;
 					level = tree & -tree;
 					continue;
@@ -477,17 +477,17 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(__ADDR_SPACE__ KernelGlobals
 				float3 p_curr = ((curve_coef[3] * u + curve_coef[2]) * u + curve_coef[1]) * u + curve_coef[0];
 
 				float3 dp_st = (3 * curve_coef[3] * i_st + 2 * curve_coef[2]) * i_st + curve_coef[1];
-				if (dot(tg, dp_st)< 0)
+				if(dot(tg, dp_st)< 0)
 					dp_st *= -1;
-				if (dot(dp_st, -p_st) + p_curr.z * dp_st.z < 0) {
+				if(dot(dp_st, -p_st) + p_curr.z * dp_st.z < 0) {
 					tree++;
 					level = tree & -tree;
 					continue;
 				}
 				float3 dp_en = (3 * curve_coef[3] * i_en + 2 * curve_coef[2]) * i_en + curve_coef[1];
-				if (dot(tg, dp_en) < 0)
+				if(dot(tg, dp_en) < 0)
 					dp_en *= -1;
-				if (dot(dp_en, p_en) - p_curr.z * dp_en.z < 0) {
+				if(dot(dp_en, p_en) - p_curr.z * dp_en.z < 0) {
 					tree++;
 					level = tree & -tree;
 					continue;
@@ -503,13 +503,13 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(__ADDR_SPACE__ KernelGlobals
 					float d0 = d - r_curr;
 					float d1 = d + r_curr;
 					float inv_mw_extension = 1.0f/mw_extension;
-					if (d0 >= 0)
+					if(d0 >= 0)
 						coverage = (min(d1 * inv_mw_extension, 1.0f) - min(d0 * inv_mw_extension, 1.0f)) * 0.5f;
 					else // inside
 						coverage = (min(d1 * inv_mw_extension, 1.0f) + min(-d0 * inv_mw_extension, 1.0f)) * 0.5f;
 				}
 				
-				if (p_curr.x * p_curr.x + p_curr.y * p_curr.y >= r_ext * r_ext || p_curr.z <= epsilon || isect->t < p_curr.z) {
+				if(p_curr.x * p_curr.x + p_curr.y * p_curr.y >= r_ext * r_ext || p_curr.z <= epsilon || isect->t < p_curr.z) {
 					tree++;
 					level = tree & -tree;
 					continue;
@@ -551,7 +551,7 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(__ADDR_SPACE__ KernelGlobals
 				float tb = 2*(tdif.z - tg.z*(tdifz + gd*(tdifz*gd + or1)));
 				float tc = dot(tdif,tdif) - tdifz * tdifz * (1 + gd*gd) - or1*or1 - 2*or1*tdifz*gd;
 				float td = tb*tb - 4*cyla*tc;
-				if (td < 0.0f) {
+				if(td < 0.0f) {
 					tree++;
 					level = tree & -tree;
 					continue;
@@ -562,10 +562,10 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(__ADDR_SPACE__ KernelGlobals
 				t = tcentre + correction;
 
 				float3 dp_st = (3 * curve_coef[3] * i_st + 2 * curve_coef[2]) * i_st + curve_coef[1];
-				if (dot(tg, dp_st)< 0)
+				if(dot(tg, dp_st)< 0)
 					dp_st *= -1;
 				float3 dp_en = (3 * curve_coef[3] * i_en + 2 * curve_coef[2]) * i_en + curve_coef[1];
-				if (dot(tg, dp_en) < 0)
+				if(dot(tg, dp_en) < 0)
 					dp_en *= -1;
 
 				if(flags & CURVE_KN_BACKFACING && (dot(dp_st, -p_st) + t * dp_st.z < 0 || dot(dp_en, p_en) - t * dp_en.z < 0 || isect->t < t || t <= 0.0f)) {
@@ -573,7 +573,7 @@ ccl_device_inline bool bvh_cardinal_curve_intersect(__ADDR_SPACE__ KernelGlobals
 					t = tcentre + correction;
 				}			
 
-				if (dot(dp_st, -p_st) + t * dp_st.z < 0 || dot(dp_en, p_en) - t * dp_en.z < 0 || isect->t < t || t <= 0.0f) {
+				if(dot(dp_st, -p_st) + t * dp_st.z < 0 || dot(dp_en, p_en) - t * dp_en.z < 0 || isect->t < t || t <= 0.0f) {
 					tree++;
 					level = tree & -tree;
 					continue;
@@ -780,7 +780,7 @@ ccl_device_inline bool bvh_curve_intersect(__ADDR_SPACE__ KernelGlobals *kg, Int
 	float tc = dot3(tdif, tdif) - tdifz*tdifz - tdifma*tdifma;
 	float td = tb*tb - 4*a*tc;
 
-	if (td < 0.0f)
+	if(td < 0.0f)
 		return false;
 
 	float rootd = 0.0f;
@@ -821,7 +821,7 @@ ccl_device_inline bool bvh_curve_intersect(__ADDR_SPACE__ KernelGlobals *kg, Int
 
 		if(t > 0.0f && t < isect->t && z >= 0 && z <= l) {
 
-			if (flags & CURVE_KN_ENCLOSEFILTER) {
+			if(flags & CURVE_KN_ENCLOSEFILTER) {
 				float enc_ratio = 1.01f;
 				if((difz > -r1 * enc_ratio) && (dot3(dif_second, tg) < r2 * enc_ratio)) {
 					float a2 = 1.0f - (dirz*dirz*(1 + gd*gd*enc_ratio*enc_ratio));
@@ -987,7 +987,7 @@ ccl_device_inline float3 bvh_curve_refine(__ADDR_SPACE__ KernelGlobals *kg, Shad
 		sd->v = 0.0f;
 #endif
 
-		if (flag & CURVE_KN_TRUETANGENTGNORMAL) {
+		if(flag & CURVE_KN_TRUETANGENTGNORMAL) {
 			sd->Ng = -(D - tg * dot(tg, D));
 			sd->Ng = normalize(sd->Ng);
 		}
@@ -998,7 +998,7 @@ ccl_device_inline float3 bvh_curve_refine(__ADDR_SPACE__ KernelGlobals *kg, Shad
 			sd->Ng = (dif - tg * sd->u * l) / (P_curve[0].w + sd->u * l * gd);
 
 			/* adjustment for changing radius */
-			if (gd != 0.0f) {
+			if(gd != 0.0f) {
 				sd->Ng = sd->Ng - gd * tg;
 				sd->Ng = normalize(sd->Ng);
 			}

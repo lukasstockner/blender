@@ -293,7 +293,7 @@ Scene *BKE_scene_copy(Scene *sce, int type)
 	}
 	
 	/* before scene copy */
-	sound_create_scene(scen);
+	BKE_sound_create_scene(scen);
 
 	/* world */
 	if (type == SCE_COPY_FULL) {
@@ -426,7 +426,7 @@ void BKE_scene_free(Scene *sce)
 	if (sce->fps_info)
 		MEM_freeN(sce->fps_info);
 
-	sound_destroy_scene(sce);
+	BKE_sound_destroy_scene(sce);
 
 	BKE_color_managed_view_settings_free(&sce->view_settings);
 }
@@ -677,9 +677,12 @@ Scene *BKE_scene_add(Main *bmain, const char *name)
 	sce->gm.recastData.detailsampledist = 6.0f;
 	sce->gm.recastData.detailsamplemaxerror = 1.0f;
 
+	sce->gm.lodflag = SCE_LOD_USE_HYST;
+	sce->gm.scehysteresis = 10;
+
 	sce->gm.exitkey = 218; // Blender key code for ESC
 
-	sound_create_scene(sce);
+	BKE_sound_create_scene(sce);
 
 	/* color management */
 	colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_SEQUENCER);
@@ -1140,13 +1143,13 @@ bool BKE_scene_validate_setscene(Main *bmain, Scene *sce)
 /* This function is needed to cope with fractional frames - including two Blender rendering features
  * mblur (motion blur that renders 'subframes' and blurs them together), and fields rendering. 
  */
-float BKE_scene_frame_get(Scene *scene)
+float BKE_scene_frame_get(const Scene *scene)
 {
 	return BKE_scene_frame_get_from_ctime(scene, scene->r.cfra);
 }
 
 /* This function is used to obtain arbitrary fractional frames */
-float BKE_scene_frame_get_from_ctime(Scene *scene, const float frame)
+float BKE_scene_frame_get_from_ctime(const Scene *scene, const float frame)
 {
 	float ctime = frame;
 	ctime += scene->r.subframe;
@@ -1687,7 +1690,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 	 * only objects and scenes. - brecht */
 	scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
 	/* update sound system animation (TODO, move to depsgraph) */
-	sound_update_scene(bmain, scene);
+	BKE_sound_update_scene(bmain, scene);
 
 	/* extra call here to recalc scene animation (for sequencer) */
 	{
@@ -1766,7 +1769,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	 */
 	scene_rebuild_rbw_recursive(sce, ctime);
 
-	sound_set_cfra(sce->r.cfra);
+	BKE_sound_set_cfra(sce->r.cfra);
 	
 	/* clear animation overrides */
 	/* XXX TODO... */
@@ -1811,7 +1814,7 @@ void BKE_scene_update_for_newframe_ex(EvaluationContext *eval_ctx, Main *bmain, 
 	/* BKE_object_handle_update() on all objects, groups and sets */
 	scene_update_tagged_recursive(eval_ctx, bmain, sce, sce);
 	/* update sound system animation (TODO, move to depsgraph) */
-	sound_update_scene(bmain, sce);
+	BKE_sound_update_scene(bmain, sce);
 
 	scene_depsgraph_hack(eval_ctx, sce, sce);
 
@@ -1891,7 +1894,7 @@ bool BKE_scene_remove_render_layer(Main *bmain, Scene *scene, SceneRenderLayer *
 
 /* render simplification */
 
-int get_render_subsurf_level(RenderData *r, int lvl)
+int get_render_subsurf_level(const RenderData *r, int lvl)
 {
 	if (r->mode & R_SIMPLIFY)
 		return min_ii(r->simplify_subsurf, lvl);
@@ -1899,7 +1902,7 @@ int get_render_subsurf_level(RenderData *r, int lvl)
 		return lvl;
 }
 
-int get_render_child_particle_number(RenderData *r, int num)
+int get_render_child_particle_number(const RenderData *r, int num)
 {
 	if (r->mode & R_SIMPLIFY)
 		return (int)(r->simplify_particles * num);
@@ -1907,7 +1910,7 @@ int get_render_child_particle_number(RenderData *r, int num)
 		return num;
 }
 
-int get_render_shadow_samples(RenderData *r, int samples)
+int get_render_shadow_samples(const RenderData *r, int samples)
 {
 	if ((r->mode & R_SIMPLIFY) && samples > 0)
 		return min_ii(r->simplify_shadowsamples, samples);
@@ -1915,7 +1918,7 @@ int get_render_shadow_samples(RenderData *r, int samples)
 		return samples;
 }
 
-float get_render_aosss_error(RenderData *r, float error)
+float get_render_aosss_error(const RenderData *r, float error)
 {
 	if (r->mode & R_SIMPLIFY)
 		return ((1.0f - r->simplify_aosss) * 10.0f + 1.0f) * error;
@@ -1947,18 +1950,18 @@ Base *_setlooper_base_step(Scene **sce_iter, Base *base)
 	return NULL;
 }
 
-bool BKE_scene_use_new_shading_nodes(Scene *scene)
+bool BKE_scene_use_new_shading_nodes(const Scene *scene)
 {
-	RenderEngineType *type = RE_engines_find(scene->r.engine);
+	const RenderEngineType *type = RE_engines_find(scene->r.engine);
 	return (type && type->flag & RE_USE_SHADING_NODES);
 }
 
-bool BKE_scene_uses_blender_internal(struct Scene *scene)
+bool BKE_scene_uses_blender_internal(const  Scene *scene)
 {
 	return STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER);
 }
 
-bool BKE_scene_uses_blender_game(struct Scene *scene)
+bool BKE_scene_uses_blender_game(const Scene *scene)
 {
 	return STREQ(scene->r.engine, RE_engine_id_BLENDER_GAME);
 }

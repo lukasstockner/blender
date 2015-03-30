@@ -51,9 +51,9 @@ ccl_device float3 bsdf_phong_ramp_get_color(__ADDR_SPACE__ const ShaderClosure *
 
 ccl_device int bsdf_phong_ramp_setup(__ADDR_SPACE__ ShaderClosure *sc)
 {
-	sc->data0 = max(sc->data0, 0.0f);
-	
 	sc->type = CLOSURE_BSDF_PHONG_RAMP_ID;
+	sc->data0 = max(sc->data0, 0.0f);
+	sc->data1 = 0.0f;
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 

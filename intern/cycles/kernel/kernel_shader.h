@@ -847,6 +847,8 @@ ccl_device void shader_eval_surface(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPA
 #else
 		sc_fetch(0)->weight = make_float3(0.8f, 0.8f, 0.8f);
 		sc_fetch(0)->N = sd_fetch(N);
+		sc_fetch(0)->data0 = 0.0f;
+		sc_fetch(0)->data1 = 0.0f;
 		sd_fetch(flag) |= bsdf_diffuse_setup(sc_fetch(0));
 #endif
 	}

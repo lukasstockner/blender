@@ -76,8 +76,8 @@ public:
 /* Device */
 
 struct DeviceDrawParams {
-	boost::function<void(void)> bind_display_space_shader_cb;
-	boost::function<void(void)> unbind_display_space_shader_cb;
+	function<void(void)> bind_display_space_shader_cb;
+	function<void(void)> unbind_display_space_shader_cb;
 };
 
 class Device {
@@ -116,9 +116,15 @@ public:
 	virtual void const_copy_to(const char *name, void *host, size_t size) = 0;
 
 	/* texture memory */
-	virtual void tex_alloc(const char *name, device_memory& mem,
-		InterpolationType interpolation = INTERPOLATION_NONE, bool periodic = false) {};
-	virtual void tex_free(device_memory& mem) {};
+	virtual void tex_alloc(const char * /*name*/,
+	                       device_memory& /*mem*/,
+	                       InterpolationType interpolation = INTERPOLATION_NONE,
+	                       bool periodic = false)
+	{
+		(void)interpolation;  /* Ignored. */
+		(void)periodic;  /* Ignored. */
+	};
+	virtual void tex_free(device_memory& /*mem*/) {};
 
 	/* pixel memory */
 	virtual void pixels_alloc(device_memory& mem);
@@ -129,7 +135,7 @@ public:
 	virtual void *osl_memory() { return NULL; }
 
 	/* load/compile kernels, must be called before adding tasks */ 
-	virtual bool load_kernels(bool experimental) { return true; }
+	virtual bool load_kernels(bool /*experimental*/) { return true; }
 
 	/* tasks */
 	virtual int get_split_task_count(DeviceTask& task) = 0;
@@ -148,8 +154,8 @@ public:
 #endif
 
 	/* multi device */
-	virtual void map_tile(Device *sub_device, RenderTile& tile) {}
-	virtual int device_number(Device *sub_device) { return 0; }
+	virtual void map_tile(Device * /*sub_device*/, RenderTile& /*tile*/) {}
+	virtual int device_number(Device * /*sub_device*/) { return 0; }
 
 	/* static */
 	static Device *create(DeviceInfo& info, Stats &stats, bool background = true);
