@@ -1541,6 +1541,7 @@ public:
 			default:
 				assert(0);
 		}
+		return "";
 	}
 #endif
 
