@@ -3559,13 +3559,7 @@ bool device_opencl_init(void) {
 
 	initialized = true;
 
-	// OpenCL disabled for now, only works with this environment variable set
-	if(!getenv("CYCLES_OPENCL_TEST")) {
-		result = false;
-	}
-	else {
-		result = clewInit() == CLEW_SUCCESS;
-	}
+	result = clewInit() == CLEW_SUCCESS;
 
 	return result;
 }
