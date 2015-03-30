@@ -775,6 +775,7 @@ void ED_fileselect_exit(struct wmWindowManager *wm, struct SpaceFile *sfile)
 	
 	if (sfile->files) {
 		ED_fileselect_clear(wm, sfile);
+		filelist_free(sfile->files);
 		MEM_freeN(sfile->files);
 		sfile->files = NULL;
 	}

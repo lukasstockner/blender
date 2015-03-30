@@ -694,7 +694,7 @@ void filelist_filter(FileList *filelist)
 	memcpy(filelist->filelist_intern.filtered, filtered_tmp,
 	       sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered);
 	filelist->filelist.nbr_entries_filtered = num_filtered;
-	printf("%d/%d\n", num_filtered, filelist->filelist.nbr_entries);
+//	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
 
 	MEM_freeN(filtered_tmp);
 }
@@ -1153,6 +1153,7 @@ static void filelist_cache_free(FileListEntryCache *cache)
 	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
 	if (cache->misc_entries) {
 		BLI_ghash_free(cache->misc_entries, NULL, NULL);
+		cache->misc_entries = NULL;
 	}
 }
 
@@ -1165,10 +1166,6 @@ static void filelist_cache_clear(FileListEntryCache *cache)
 
 	if (cache->misc_entries) {
 		BLI_ghash_clear_ex(cache->misc_entries, NULL, NULL, FILELIST_ENTRYCACHESIZE);
-	}
-	else {
-		cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
-		cache->misc_cursor = 0;
 	}
 }
 
@@ -1353,7 +1350,8 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 	if (!use_request) {
 		return NULL;
 	}
-//	printf("requesting file %d (not yet cached)\n", index);
+
+	printf("requesting file %d (not yet cached)\n", index);
 
 	/* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
 	ret = filelist_intern_create_entry(filelist, index);
@@ -1365,9 +1363,11 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 	cache->misc_entries_indices[cache->misc_cursor] = index;
 	cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
 
+#if 0  /* Actually no, only block cached entries should have preview imho. */
 	if (cache->previews_pool) {
 		filelist_cache_previews_push(filelist, ret, index);
 	}
+#endif
 
 	return ret;
 }
@@ -1409,6 +1409,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	int i;
 
 	if ((index < 0) || (index >= nbr_entries)) {
+		printf("Wrong index %d ([%d:%d])", index, 0, nbr_entries);
 		return false;
 	}
 
@@ -1545,7 +1546,7 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 		int num_tasks = 4;
 		int i;
 
-		BLI_assert((cache->previews_pool == NULL) && (cache->previews_todo = NULL) && (cache->previews_done == NULL));
+		BLI_assert((cache->previews_pool == NULL) && (cache->previews_todo == NULL) && (cache->previews_done == NULL));
 
 		pool = cache->previews_pool = BLI_task_pool_create(scheduler, NULL);
 		cache->previews_todo = BLI_thread_queue_init();

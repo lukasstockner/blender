@@ -35,6 +35,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
+#include "BLI_math.h"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -484,8 +485,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 	align = (FILE_IMGDISPLAY == params->display) ? UI_STYLE_TEXT_CENTER : UI_STYLE_TEXT_LEFT;
 
-	{
-		const bool success = filelist_file_cache_block(files, offset + (numfiles_layout / 2));
+	if (numfiles > 0) {
+		const bool success = filelist_file_cache_block(files, min_ii(offset + (numfiles_layout / 2), numfiles - 1));
 		BLI_assert(success);
 		UNUSED_VARS_NDEBUG(success);
 	}
