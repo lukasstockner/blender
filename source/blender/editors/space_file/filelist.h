@@ -114,6 +114,9 @@ void                filelist_readjob_start(struct FileList *filelist, const stru
 void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);
 int                 filelist_readjob_running(struct wmWindowManager *wm, struct FileList *filelist);
 
+void                filelist_cache_previews_update(struct FileList *filelist);
+void                filelist_cache_previews_set(struct FileList *filelist, const bool use_previews);
+
 bool                filelist_need_thumbnails(struct FileList *filelist);
 void                thumbnails_start(struct FileList *filelist, const struct bContext *C);
 void                thumbnails_stop(struct wmWindowManager *wm, struct FileList *filelist);

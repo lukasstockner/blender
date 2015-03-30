@@ -235,27 +235,23 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	}
 
 	if (filelist_empty(sfile->files)) {
-		thumbnails_stop(wm, sfile->files);
 		if (!filelist_pending(sfile->files)) {
 			filelist_readjob_start(sfile->files, C);
 		}
 	}
 	else if (filelist_need_sorting(sfile->files)) {
-		thumbnails_stop(wm, sfile->files);
 		filelist_sort(sfile->files);
 	}
 
-	if ((params->display == FILE_IMGDISPLAY) && filelist_need_thumbnails(sfile->files)) {
-		if (!thumbnails_running(wm, sfile->files)) {
-			thumbnails_start(sfile->files, C);
-		}
+	filelist_filter(sfile->files);
+
+	if (params->display == FILE_IMGDISPLAY) {
+		filelist_cache_previews_set(sfile->files, true);
+		filelist_cache_previews_update(sfile->files);
 	}
 	else {
-		/* stop any running thumbnail jobs if we're not displaying them - speedup for NFS */
-		thumbnails_stop(wm, sfile->files);
+		filelist_cache_previews_set(sfile->files, false);
 	}
-
-	filelist_filter(sfile->files);
 
 	if (params->renamefile[0] != '\0') {
 		int idx = filelist_file_findpath(sfile->files, params->renamefile);
