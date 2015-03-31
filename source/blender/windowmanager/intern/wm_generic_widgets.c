@@ -1042,6 +1042,13 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	return (wmWidget *)cage;
 }
 
+void WIDGET_rect_transform_set_offset(struct wmWidget *widget, float offset[2])
+{
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
+
+	copy_v2_v2(cage->offset, offset);
+}
+
 /********* Facemap widget ************/
 
 typedef struct FacemapWidget {
