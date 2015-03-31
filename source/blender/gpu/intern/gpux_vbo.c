@@ -145,9 +145,7 @@ VertexBuffer *vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 
 void vertex_buffer_discard(VertexBuffer *buff)
 {
-	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx)
-	{
-		/* whatever needs doing */
+	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
 #if USE_VBO
 		if (a->vbo_id)
@@ -264,8 +262,6 @@ void set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num,
 {
 	Attrib *attrib = buff->attribs + attrib_num;
 #if TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
-	assert(attrib->data != NULL); /* attribute must be specified */
 	assert(attrib->comp_type == GL_FLOAT);
 	assert(attrib->comp_ct == 3);
 #endif /* TRUST_NO_ONE */
@@ -327,9 +323,14 @@ void vertex_buffer_use(VertexBuffer *buff)
 
 	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
+
 #if GENERIC_ATTRIB
 		glEnableVertexAttribArray(a_idx);
-  #if USE_VBO
+#else
+		glEnableClientState(a->array);
+#endif /* GENERIC_ATTRIB */
+
+#if USE_VBO
 		if (a->vbo_id)
 			glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
 		else {
@@ -339,45 +340,24 @@ void vertex_buffer_use(VertexBuffer *buff)
 			glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
 		}
 
-		switch (a->fetch_mode) {
-			case KEEP_FLOAT:
-			case CONVERT_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_FALSE, a->stride, 0);
-				break;
-			case NORMALIZE_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_TRUE, a->stride, 0);
-				break;
-			case KEEP_INT:
-				glVertexAttribIPointerEXT(a_idx, a->comp_ct, a->comp_type, a->stride, 0);
-		}
-  #else /* client vertex array */
-		switch (a->fetch_mode) {
-			case KEEP_FLOAT:
-			case CONVERT_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_FALSE, a->stride, a->data);
-				break;
-			case NORMALIZE_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_TRUE, a->stride, a->data);
-				break;
-			case KEEP_INT:
-				glVertexAttribIPointerEXT(a_idx, a->comp_ct, a->comp_type, a->stride, a->data);
-		}
-  #endif /* USE_VBO */
-#else /* classic (non-generic) attributes */
-		glEnableClientState(a->array);
-  #if USE_VBO
-		if (a->vbo_id)
-			glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
-		else {
-			glGenBuffers(1, &a->vbo_id);
-			glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
-			/* fill with delicious data & send to GPU the first time only */
-			glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
-		}
 		const void *data = 0;
-  #else /* client vertex array */
+#else /* client vertex array */
 		const void *data = a->data;
-  #endif /* USE_VBO */
+#endif /* USE_VBO */
+
+#if GENERIC_ATTRIB
+		switch (a->fetch_mode) {
+			case KEEP_FLOAT:
+			case CONVERT_INT_TO_FLOAT:
+				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_FALSE, a->stride, data);
+				break;
+			case NORMALIZE_INT_TO_FLOAT:
+				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_TRUE, a->stride, data);
+				break;
+			case KEEP_INT:
+				glVertexAttribIPointerEXT(a_idx, a->comp_ct, a->comp_type, a->stride, data);
+		}
+#else /* classic (non-generic) attributes */
 		switch (a->array) {
 			case GL_VERTEX_ARRAY:
 				glVertexPointer(a->comp_ct, a->comp_type, a->stride, data);
@@ -481,46 +461,37 @@ void vertex_buffer_use_primed(const VertexBuffer *buff)
 #else
 	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
-  #if TRUST_NO_ONE
-		assert(a->vbo_id);
-  #endif /* TRUST_NO_ONE */
+
   #if GENERIC_ATTRIB
 		glEnableVertexAttribArray(a_idx);
-    #if USE_VBO
+  #else
+		glEnableClientState(a->array);
+  #endif /* GENERIC_ATTRIB */
+
+  #if USE_VBO
+    #if TRUST_NO_ONE
+		assert(a->vbo_id);
+    #endif /* TRUST_NO_ONE */
 		glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
 
-		switch (a->fetch_mode) {
-			case KEEP_FLOAT:
-			case CONVERT_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_FALSE, a->stride, 0);
-				break;
-			case NORMALIZE_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_TRUE, a->stride, 0);
-				break;
-			case KEEP_INT:
-				glVertexAttribIPointerEXT(a_idx, a->comp_ct, a->comp_type, a->stride, 0);
-		}
-    #else /* client vertex array */
-		switch (a->fetch_mode) {
-			case KEEP_FLOAT:
-			case CONVERT_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_FALSE, a->stride, a->data);
-				break;
-			case NORMALIZE_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_TRUE, a->stride, a->data);
-				break;
-			case KEEP_INT:
-				glVertexAttribIPointerEXT(a_idx, a->comp_ct, a->comp_type, a->stride, a->data);
-		}
-    #endif /* USE_VBO */
-  #else /* classic (non-generic) attributes */
-		glEnableClientState(a->array);
-    #if USE_VBO
-		glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
 		const void *data = 0;
-    #else /* client vertex array */
+  #else /* client vertex array */
 		const void *data = a->data;
-    #endif /* USE_VBO */
+  #endif /* USE_VBO */
+
+  #if GENERIC_ATTRIB
+		switch (a->fetch_mode) {
+			case KEEP_FLOAT:
+			case CONVERT_INT_TO_FLOAT:
+				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_FALSE, a->stride, data);
+				break;
+			case NORMALIZE_INT_TO_FLOAT:
+				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_TRUE, a->stride, data);
+				break;
+			case KEEP_INT:
+				glVertexAttribIPointerEXT(a_idx, a->comp_ct, a->comp_type, a->stride, data);
+		}
+  #else /* classic (non-generic) attributes */
 		switch (a->array) {
 			case GL_VERTEX_ARRAY:
 				glVertexPointer(a->comp_ct, a->comp_type, a->stride, data);
@@ -551,12 +522,13 @@ void vertex_buffer_done_using(const VertexBuffer *buff)
 #if USE_VAO
 	glBindVertexArray(0);
 #else
-	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx)
+	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
   #if GENERIC_ATTRIB
 		glDisableVertexAttribArray(a_idx);
   #else
-		glDisableClientState(buff->attrib[a_idx].array);
+		glDisableClientState(buff->attribs[a_idx].array);
   #endif /* GENERIC_ATTRIB */
+	}
 #endif /* USE_VAO */
 }
 
