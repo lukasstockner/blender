@@ -58,7 +58,6 @@ struct MemArena;
 struct VertTableNode;
 struct VlakTableNode;
 struct GHash;
-struct RenderBuckets;
 struct ObjectInstanceRen;
 struct RayObject;
 struct RayFace;
@@ -392,7 +391,6 @@ struct halosort {
 
 /* ------------------------------------------------------------------------- */
 struct Material;
-struct MTFace;
 struct ImagePool;
 
 typedef struct RadFace {

@@ -54,7 +54,7 @@ public:
 	                           const ColorManagedViewSettings *viewSettings, const ColorManagedDisplaySettings *displaySettings, const char *viewName);
 	
 	void executeRegion(rcti *rect, unsigned int tileNumber);
-	bool isOutputOperation(bool rendering) const { return true; }
+	bool isOutputOperation(bool /*rendering*/) const { return true; }
 	void initExecution();
 	void deinitExecution();
 	const CompositorPriority getRenderPriority() const { return COM_PRIORITY_LOW; }
@@ -94,7 +94,7 @@ public:
 	void add_layer(const char *name, DataType datatype, bool use_layer);
 	
 	void executeRegion(rcti *rect, unsigned int tileNumber);
-	bool isOutputOperation(bool rendering) const { return true; }
+	bool isOutputOperation(bool /*rendering*/) const { return true; }
 	void initExecution();
 	void deinitExecution();
 	const CompositorPriority getRenderPriority() const { return COM_PRIORITY_LOW; }

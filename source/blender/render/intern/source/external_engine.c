@@ -387,8 +387,7 @@ void RE_engine_get_camera_model_matrix(RenderEngine *engine, Object *camera, flo
 	BKE_camera_multiview_model_matrix(re ? &re->r : NULL, camera, re->viewname, (float (*)[4])r_modelmat);
 }
 
-
-rcti* RE_engine_get_current_tiles(Render *re, int *total_tiles_r, bool *r_needs_free)
+rcti* RE_engine_get_current_tiles(Render *re, int *r_total_tiles, bool *r_needs_free)
 {
 	static rcti tiles_static[BLENDER_MAX_THREADS];
 	const int allocation_step = BLENDER_MAX_THREADS;
@@ -402,7 +401,7 @@ rcti* RE_engine_get_current_tiles(Render *re, int *total_tiles_r, bool *r_needs_
 	*r_needs_free = false;
 
 	if (re->engine && (re->engine->flag & RE_ENGINE_HIGHLIGHT_TILES) == 0) {
-		*total_tiles_r = 0;
+		*r_total_tiles = 0;
 		BLI_rw_mutex_unlock(&re->partsmutex);
 		return NULL;
 	}
@@ -435,7 +434,7 @@ rcti* RE_engine_get_current_tiles(Render *re, int *total_tiles_r, bool *r_needs_
 		}
 	}
 	BLI_rw_mutex_unlock(&re->partsmutex);
-	*total_tiles_r = total_tiles;
+	*r_total_tiles = total_tiles;
 	return tiles;
 }
 

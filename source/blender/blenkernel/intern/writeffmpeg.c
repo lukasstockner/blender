@@ -70,6 +70,7 @@ typedef struct FFMpegContext {
 	int ffmpeg_gop_size;
 	int ffmpeg_autosplit;
 	int ffmpeg_autosplit_count;
+	bool ffmpeg_preview;
 
 	AVFormatContext *outfile;
 	AVStream *video_stream;
@@ -100,7 +101,7 @@ typedef struct FFMpegContext {
 static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value);
 static void ffmpeg_dict_set_float(AVDictionary **dict, const char *key, float value);
 static void ffmpeg_set_expert_options(RenderData *rd);
-static void ffmpeg_filepath_get(FFMpegContext *context, char *string, struct RenderData *rd, const char *suffix);
+static void ffmpeg_filepath_get(FFMpegContext *context, char *string, struct RenderData *rd, bool preview, const char *suffix);
 
 /* Delete a picture buffer */
 
@@ -819,7 +820,7 @@ static int start_ffmpeg_impl(FFMpegContext *context, struct RenderData *rd, int 
 	context->ffmpeg_autosplit = rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT;
 
 	/* Determine the correct filename */
-	ffmpeg_filepath_get(context, name, rd, suffix);
+	ffmpeg_filepath_get(context, name, rd, context->ffmpeg_preview, suffix);
 	PRINT("Starting output to %s(ffmpeg)...\n"
 	        "  Using type=%d, codec=%d, audio_codec=%d,\n"
 	        "  video_bitrate=%d, audio_bitrate=%d,\n"
@@ -1031,15 +1032,24 @@ static void flush_ffmpeg(FFMpegContext *context)
  * ********************************************************************** */
 
 /* Get the output filename-- similar to the other output formats */
-
-static void ffmpeg_filepath_get(FFMpegContext *context, char *string, RenderData *rd, const char *suffix)
+static void ffmpeg_filepath_get(FFMpegContext *context, char *string, RenderData *rd, bool preview, const char *suffix)
 {
 	char autosplit[20];
 
 	const char **exts = get_file_extensions(rd->ffcodecdata.type);
 	const char **fe = exts;
+	int sfra, efra;
 
 	if (!string || !exts) return;
+
+	if (preview) {
+		sfra = rd->psfra;
+		efra = rd->pefra;
+	}
+	else {
+		sfra = rd->sfra;
+		efra = rd->efra;
+	}
 
 	strcpy(string, rd->pic);
 	BLI_path_abs(string, G.main->name);
@@ -1065,7 +1075,7 @@ static void ffmpeg_filepath_get(FFMpegContext *context, char *string, RenderData
 		if (*fe == NULL) {
 			strcat(string, autosplit);
 
-			BLI_path_frame_range(string, rd->sfra, rd->efra, 4);
+			BLI_path_frame_range(string, sfra, efra, 4);
 			strcat(string, *exts);
 		}
 		else {
@@ -1076,7 +1086,7 @@ static void ffmpeg_filepath_get(FFMpegContext *context, char *string, RenderData
 	}
 	else {
 		if (BLI_path_frame_check_chars(string)) {
-			BLI_path_frame_range(string, rd->sfra, rd->efra, 4);
+			BLI_path_frame_range(string, sfra, efra, 4);
 		}
 
 		strcat(string, autosplit);
@@ -1085,17 +1095,19 @@ static void ffmpeg_filepath_get(FFMpegContext *context, char *string, RenderData
 	BLI_path_suffix(string, FILE_MAX, suffix, "");
 }
 
-void BKE_ffmpeg_filepath_get(char *string, RenderData *rd, const char *suffix)
+void BKE_ffmpeg_filepath_get(char *string, RenderData *rd, bool preview, const char *suffix)
 {
-	ffmpeg_filepath_get(NULL, string, rd, suffix);
+	ffmpeg_filepath_get(NULL, string, rd, preview, suffix);
 }
 
-int BKE_ffmpeg_start(void *context_v, struct Scene *scene, RenderData *rd, int rectx, int recty, const char *suffix, ReportList *reports)
+int BKE_ffmpeg_start(void *context_v, struct Scene *scene, RenderData *rd, int rectx, int recty,
+                     ReportList *reports, bool preview, const char *suffix)
 {
 	int success;
 	FFMpegContext *context = context_v;
 
 	context->ffmpeg_autosplit_count = 0;
+	context->ffmpeg_preview = preview;
 
 	success = start_ffmpeg_impl(context, rd, rectx, recty, suffix, reports);
 #ifdef WITH_AUDASPACE
@@ -1125,7 +1137,7 @@ int BKE_ffmpeg_start(void *context_v, struct Scene *scene, RenderData *rd, int r
 		}
 
 		specs.rate = rd->ffcodecdata.audio_mixrate;
-		context->audio_mixdown_device = sound_mixdown(scene, specs, rd->sfra, rd->ffcodecdata.audio_volume);
+		context->audio_mixdown_device = BKE_sound_mixdown(scene, specs, preview ? rd->psfra : rd->sfra, rd->ffcodecdata.audio_volume);
 #ifdef FFMPEG_CODEC_TIME_BASE
 		c->time_base.den = specs.rate;
 		c->time_base.num = 1;
@@ -1178,7 +1190,7 @@ int BKE_ffmpeg_append(void *context_v, RenderData *rd, int start_frame, int fram
 	}
 
 #ifdef WITH_AUDASPACE
-	write_audio_frames(context, (frame - rd->sfra) / (((double)rd->frs_sec) / (double)rd->frs_sec_base));
+	write_audio_frames(context, (frame - start_frame) / (((double)rd->frs_sec) / (double)rd->frs_sec_base));
 #endif
 	return success;
 }
@@ -1677,6 +1689,7 @@ void *BKE_ffmpeg_context_create(void)
 	context->ffmpeg_gop_size = 12;
 	context->ffmpeg_autosplit = 0;
 	context->ffmpeg_autosplit_count = 0;
+	context->ffmpeg_preview = false;
 
 	return context;
 }

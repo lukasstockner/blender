@@ -113,7 +113,7 @@ static int closesocket(int fd)
 }
 #endif
 
-int BKE_frameserver_start(void *context_v, struct Scene *scene, RenderData *UNUSED(rd), int rectx, int recty, const char *UNUSED(suffix), ReportList *reports)
+int BKE_frameserver_start(void *context_v, struct Scene *scene, RenderData *UNUSED(rd), int rectx, int recty, ReportList *reports, bool UNUSED(preview), const char *UNUSED(suffix))
 {
 	struct sockaddr_in addr;
 	int arg = 1;

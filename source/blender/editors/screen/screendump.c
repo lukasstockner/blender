@@ -351,7 +351,7 @@ static void screenshot_startjob(void *sjv, short *stop, short *do_update, float 
 		mh = BKE_movie_handle_get(sj->scene->r.im_format.imtype);
 		sj->movie_ctx = mh->context_create();
 
-		if (!mh->start_movie(sj->movie_ctx, sj->scene, &rd, sj->dumpsx, sj->dumpsy, "", &sj->reports)) {
+		if (!mh->start_movie(sj->movie_ctx, sj->scene, &rd, sj->dumpsx, sj->dumpsy, &sj->reports, false, "")) {
 			printf("screencast job stopped\n");
 			return;
 		}

@@ -2048,7 +2048,7 @@ static void ntree_render_scenes(Render *re)
 }
 
 /* bad call... need to think over proper method still */
-static void render_composit_stats(void *UNUSED(arg), char *str)
+static void render_composit_stats(void *UNUSED(arg), const char *str)
 {
 	R.i.infostr = str;
 	R.stats_draw(R.sdh, &R.i);
@@ -3430,7 +3430,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 
 			re->movie_ctx_arr[i] = mh->context_create();
 
-			if (!mh->start_movie(re->movie_ctx_arr[i], scene, &re->r, width, height, suffix, re->reports))
+			if (!mh->start_movie(re->movie_ctx_arr[i], scene, &re->r, width, height, re->reports, false, suffix))
 				G.is_break = true;
 		}
 	}

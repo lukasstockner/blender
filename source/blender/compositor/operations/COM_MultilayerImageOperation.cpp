@@ -83,7 +83,7 @@ void MultilayerColorOperation::executePixelSampled(float output[4], float x, flo
 	}
 }
 
-void MultilayerValueOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
+void MultilayerValueOperation::executePixelSampled(float output[4], float x, float y, PixelSampler /*sampler*/)
 {
 	if (this->m_imageFloatBuffer == NULL) {
 		output[0] = 0.0f;
@@ -100,7 +100,7 @@ void MultilayerValueOperation::executePixelSampled(float output[4], float x, flo
 	}
 }
 
-void MultilayerVectorOperation::executePixelSampled(float output[4], float x, float y, PixelSampler sampler)
+void MultilayerVectorOperation::executePixelSampled(float output[4], float x, float y, PixelSampler /*sampler*/)
 {
 	if (this->m_imageFloatBuffer == NULL) {
 		output[0] = 0.0f;

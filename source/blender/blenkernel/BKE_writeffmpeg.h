@@ -64,16 +64,15 @@ enum {
 	FFMPEG_PRESET_XVID      = 7,
 };
 
-struct IDProperty;
 struct RenderData;
 struct ReportList;
 struct Scene;
 
-int BKE_ffmpeg_start(void *context_v, struct Scene *scene, struct RenderData *rd, int rectx, int recty, const char *suffix, struct ReportList *reports);
+int BKE_ffmpeg_start(void *context_v, struct Scene *scene, struct RenderData *rd, int rectx, int recty, struct ReportList *reports, bool preview, const char *suffix);
 void BKE_ffmpeg_end(void *context_v);
 int BKE_ffmpeg_append(void *context_v, struct RenderData *rd, int start_frame, int frame, int *pixels,
                       int rectx, int recty, const char *suffix, struct ReportList *reports);
-void BKE_ffmpeg_filepath_get(char *string, struct RenderData *rd, const char *suffix);
+void BKE_ffmpeg_filepath_get(char *string, struct RenderData *rd, bool preview, const char *suffix);
 
 void BKE_ffmpeg_preset_set(struct RenderData *rd, int preset);
 void BKE_ffmpeg_image_type_verify(struct RenderData *rd, struct ImageFormatData *imf);
