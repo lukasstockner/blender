@@ -400,6 +400,13 @@ void SEQUENCER_OT_overdrop_transform(struct wmOperatorType *ot)
 
 /******** transform widget (preview area) *******/
 
+typedef struct ImageTransformData {
+	ImBuf *ibuf; /* image to be transformed (preview image transformation widget) */
+	int init_size[2];
+	int event_type;
+	wmWidgetGroupType *cagetype;
+} ImageTransformData;
+
 static int sequencer_image_transform_widget_poll(bContext *C)
 {
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -434,14 +441,13 @@ static void widgetgroup_image_transform_draw(const struct bContext *C, struct wm
 static int sequencer_image_transform_widget_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	Scene *scene = CTX_data_scene(C);
 	/* no poll, lives always for the duration of the operator */
 	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_image_transform_draw, CTX_data_main(C),
 	                                                     "Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
-	OverDropTransformData *data = MEM_mallocN(sizeof(OverDropTransformData), "overdrop transform data");
+	ImageTransformData *data = MEM_mallocN(sizeof(ImageTransformData), "overdrop transform data");
 	ImBuf *ibuf = sequencer_ibuf_get(CTX_data_main(C), scene, sseq, CFRA, 0);
 
 	if (!ibuf || !ED_space_sequencer_check_show_imbuf(sseq)) {
@@ -451,7 +457,6 @@ static int sequencer_image_transform_widget_invoke(bContext *C, wmOperator *op, 
 	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
 
 	copy_v2_v2_int(data->init_size, &ibuf->x);
-	data->init_zoom = 0.0f;
 	data->cagetype = cagetype;
 	data->event_type = event->type;
 	data->ibuf = ibuf;
@@ -463,7 +468,7 @@ static int sequencer_image_transform_widget_invoke(bContext *C, wmOperator *op, 
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static void sequencer_image_transform_widget_finish(bContext *C, OverDropTransformData *data)
+static void sequencer_image_transform_widget_finish(bContext *C, ImageTransformData *data)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ED_area_headerprint(sa, NULL);
@@ -473,13 +478,13 @@ static void sequencer_image_transform_widget_finish(bContext *C, OverDropTransfo
 
 static void sequencer_image_transform_widget_cancel(struct bContext *C, struct wmOperator *op)
 {
-	OverDropTransformData *data = op->customdata;
+	ImageTransformData *data = op->customdata;
 	sequencer_image_transform_widget_finish(C, data);
 }
 
 static int sequencer_image_transform_widget_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
-	OverDropTransformData *data = op->customdata;
+	ImageTransformData *data = op->customdata;
 
 	if (event->type == data->event_type && event->val == KM_PRESS) {
 		sequencer_image_transform_widget_finish(C, data);
@@ -509,7 +514,6 @@ static int sequencer_image_transform_widget_modal(bContext *C, wmOperator *op, c
 			/* no offset needed in this case */
 			offset[0] = offset[1] = 0;
 			WIDGET_rect_transform_set_offset(wmap->active_widget, offset);
-
 			break;
 		}
 
