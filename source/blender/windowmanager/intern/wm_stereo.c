@@ -165,19 +165,28 @@ static void wm_method_draw_stereo_anaglyph(wmWindow *win)
 		bit = view + 1;
 		switch (win->stereo3d_format->anaglyph_type) {
 			case S3D_ANAGLYPH_REDCYAN:
-				glColorMask(1&bit, 2&bit, 2&bit, false);
+				glColorMask((1&bit) ? GL_TRUE : GL_FALSE,
+				            (2&bit) ? GL_TRUE : GL_FALSE,
+				            (2&bit) ? GL_TRUE : GL_FALSE,
+				            GL_FALSE);
 				break;
 			case S3D_ANAGLYPH_GREENMAGENTA:
-				glColorMask(2&bit, 1&bit, 2&bit, false);
+				glColorMask((2&bit) ? GL_TRUE : GL_FALSE,
+				            (1&bit) ? GL_TRUE : GL_FALSE,
+				            (2&bit) ? GL_TRUE : GL_FALSE,
+				            GL_FALSE);
 				break;
 			case S3D_ANAGLYPH_YELLOWBLUE:
-				glColorMask(1&bit, 1&bit, 2&bit, false);
+				glColorMask((1&bit) ? GL_TRUE : GL_FALSE,
+				            (1&bit) ? GL_TRUE : GL_FALSE,
+				            (2&bit) ? GL_TRUE : GL_FALSE,
+				            GL_FALSE);
 				break;
 		}
 
 		wm_triple_draw_textures(win, drawdata->triple, 1.0f);
 
-		glColorMask(true, true, true, true);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	}
 }
 
@@ -248,7 +257,7 @@ static void wm_method_draw_stereo_sidebyside(wmWindow *win)
 
 		glBindTexture(triple->target, 0);
 		glDisable(triple->target);
-		glColorMask(true, true, true, true);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	}
 }
 
@@ -315,7 +324,7 @@ static void wm_method_draw_stereo_topbottom(wmWindow *win)
 
 		glBindTexture(triple->target, 0);
 		glDisable(triple->target);
-		glColorMask(true, true, true, true);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 	}
 }
 
