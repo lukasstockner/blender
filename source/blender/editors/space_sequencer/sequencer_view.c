@@ -405,24 +405,17 @@ static int sequencer_image_transform_widget_poll(bContext *C)
 	return (sseq && ar && ar->type->regionid == RGN_TYPE_PREVIEW);
 }
 
-#include "BIF_glutil.h"
 static void widgetgroup_image_transform_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
 {
 	ARegion *ar = CTX_wm_region(C);
 //	wmOperator *op = wgroup->type->op;
-	Scene *scene = CTX_data_scene(C);
-	SpaceSeq *sseq = CTX_wm_space_seq(C);
-	ImBuf *imbuf = sequencer_ibuf_get(CTX_data_main(C), scene, sseq, CFRA, 0);
 	View2D *v2d = &ar->v2d;
 	wmWidget *cage;
 	float origin[3];
 	float viewrect[2];
 	float scale[2];
 
-	if (!imbuf)
-		return;
-
-	sequencer_display_size(scene, sseq, viewrect);
+	sequencer_display_size(CTX_data_scene(C), CTX_wm_space_seq(C), viewrect);
 
 	UI_view2d_scale_get(v2d, &scale[0], &scale[1]);
 
@@ -442,7 +435,8 @@ static int sequencer_image_transform_widget_invoke(bContext *C, wmOperator *op, 
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceSeq *sseq = CTX_wm_space_seq(C);
 	/* no poll, lives always for the duration of the operator */
-	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_image_transform_draw, CTX_data_main(C), "Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false);
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_image_transform_draw, CTX_data_main(C),
+	                                                     "Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
 	OverDropTransformData *data = MEM_mallocN(sizeof(OverDropTransformData), "overdrop transform data");
 	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
