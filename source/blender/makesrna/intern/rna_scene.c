@@ -4393,7 +4393,6 @@ static void rna_def_image_format_stereo3d_format(BlenderRNA *brna)
 		{S3D_DISPLAY_INTERLACE, "INTERLACE", 0, "Interlace", "Render two images for each eye into one interlaced image. 3D-ready monitor is requiered"},
 		{S3D_DISPLAY_SIDEBYSIDE, "SIDEBYSIDE", 0, "Side-by-Side", "Render images for left and right eye side-by-side"},
 		{S3D_DISPLAY_TOPBOTTOM, "TOPBOTTOM", 0, "Top-Bottom", "Render images for left and right eye one above another"},
-		{S3D_DISPLAY_BLURAY, "BLURAY", 0, "Blu-ray", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 

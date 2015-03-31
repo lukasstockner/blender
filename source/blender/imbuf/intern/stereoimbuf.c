@@ -524,11 +524,6 @@ void IMB_stereo_write_dimensions(
         size_t *r_width, size_t *r_height)
 {
 	switch (mode) {
-		case S3D_DISPLAY_BLURAY:
-		{
-			//TODO need to find the dimensions, forgot how big the black bar has to be
-			break;
-		}
 		case S3D_DISPLAY_SIDEBYSIDE:
 		{
 			*r_width = is_squeezed ? width : width * 2;
@@ -557,11 +552,6 @@ void IMB_stereo_read_dimensions(
         size_t *r_width, size_t *r_height)
 {
 	switch (mode) {
-		case S3D_DISPLAY_BLURAY:
-		{
-			//TODO need to find the dimensions, forgot how big the black bar has to be
-			break;
-		}
 		case S3D_DISPLAY_SIDEBYSIDE:
 		{
 			*r_width = is_squeezed ? width / 2 : width;
@@ -748,8 +738,6 @@ static void imb_stereo_write_doit(Stereo3DData *s3d_data, Stereo3dFormat *s3d)
 	switch (s3d->display_mode) {
 		case S3D_DISPLAY_ANAGLYPH:
 			imb_stereo_write_anaglyph(s3d_data, s3d->anaglyph_type);
-			break;
-		case S3D_DISPLAY_BLURAY:
 			break;
 		case S3D_DISPLAY_INTERLACE:
 			imb_stereo_write_interlace(s3d_data, s3d->interlace_type, (s3d->flag & S3D_INTERLACE_SWAP) != 0);
@@ -1288,8 +1276,6 @@ static void imb_stereo_read_doit(Stereo3DData *s3d_data, Stereo3dFormat *s3d)
 	switch (s3d->display_mode) {
 		case S3D_DISPLAY_ANAGLYPH:
 			imb_stereo_read_anaglyph(s3d_data, s3d->anaglyph_type);
-			break;
-		case S3D_DISPLAY_BLURAY:
 			break;
 		case S3D_DISPLAY_INTERLACE:
 			imb_stereo_read_interlace(s3d_data, s3d->interlace_type, (s3d->flag & S3D_INTERLACE_SWAP) != 0);

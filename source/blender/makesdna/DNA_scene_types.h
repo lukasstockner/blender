@@ -290,11 +290,10 @@ typedef struct Stereo3dFormat {
 /* Stereo3dFormat.display_mode */
 typedef enum eStereoDisplayMode {
 	S3D_DISPLAY_ANAGLYPH    = 0,
-	S3D_DISPLAY_BLURAY      = 1,
-	S3D_DISPLAY_INTERLACE   = 2,
-	S3D_DISPLAY_PAGEFLIP    = 3,
-	S3D_DISPLAY_SIDEBYSIDE  = 4,
-	S3D_DISPLAY_TOPBOTTOM   = 5,
+	S3D_DISPLAY_INTERLACE   = 1,
+	S3D_DISPLAY_PAGEFLIP    = 2,
+	S3D_DISPLAY_SIDEBYSIDE  = 3,
+	S3D_DISPLAY_TOPBOTTOM   = 4,
 } eStereoDisplayMode;
 
 /* Stereo3dFormat.flag */
