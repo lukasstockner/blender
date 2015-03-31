@@ -429,6 +429,11 @@ static bool wm_stereo3d_required(bScreen *screen)
 				if (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
 					return true;
 				}
+
+				if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
+					return true;
+				}
+
 				break;
 			}
 		}
