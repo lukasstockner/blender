@@ -8,6 +8,7 @@
 /* ^-- for GLenum (and if you're including this file, you're probably calling OpenGL anyway) */
 #include <stdbool.h>
 
+#define GENERIC_ATTRIB false
 #define TRUST_NO_ONE true
 #define PRINT false
 
@@ -30,7 +31,13 @@ unsigned vertex_ct(const VertexBuffer*);
 void attrib_print(const VertexBuffer*, unsigned attrib_num);
 #endif /* PRINT */
 
-void specify_attrib(VertexBuffer*, unsigned attrib_num, const char *name, GLenum comp_type, unsigned comp_ct, VertexFetchMode);
+void specify_attrib(VertexBuffer*, unsigned attrib_num,
+#if GENERIC_ATTRIB
+                    const char *name, /* use any legal GLSL identifier */
+#else
+                    GLenum attrib_array, /* use GL_VERTEX_ARRAY, GL_NORMAL_ARRAY, etc. */
+#endif
+                    GLenum comp_type, unsigned comp_ct, VertexFetchMode);
 
 /* set value of single attribute of single vertex
  * incoming data must be of same type & size for this attribute */
