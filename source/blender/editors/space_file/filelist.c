@@ -1064,13 +1064,16 @@ static void filelist_intern_release_entry(FileList *UNUSED(filelist), FileDirEnt
 	/* We do nothing here actually, later we'll give back the mem to the mempool... */
 }
 
-static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int UNUSED(threadid))
+static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid)
 {
 	FileListEntryCache *cache = taskdata;
 	FileListEntryPreview *preview;
 
+	printf("%s: Start (%d)...\n", __func__, threadid);
+
 	/* Note we wait on queue here. */
 	while (!BLI_task_pool_canceled(pool) && (preview = BLI_thread_queue_pop(cache->previews_todo))) {
+		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 		if (preview->flags & FILE_TYPE_IMAGE) {
 			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_IMAGE);
 		}
@@ -1087,6 +1090,8 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int UNUSED(t
 		}
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
+
+	printf("%s: End (%d)...\n", __func__, threadid);
 }
 
 static void filelist_cache_previews_clear(FileListEntryCache *cache)
@@ -1094,14 +1099,16 @@ static void filelist_cache_previews_clear(FileListEntryCache *cache)
 	FileListEntryPreview *preview;
 
 	if (cache->previews_pool) {
+		BLI_thread_queue_nowait(cache->previews_todo);
+		BLI_thread_queue_nowait(cache->previews_done);
 		BLI_task_pool_cancel(cache->previews_pool);
 
-		while (BLI_thread_queue_size(cache->previews_todo) > 0) {
-			preview = BLI_thread_queue_pop(cache->previews_todo);
+		while ((preview = BLI_thread_queue_pop(cache->previews_todo))) {
+			printf("%s: TODO %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 			MEM_freeN(preview);
 		}
-		while (BLI_thread_queue_size(cache->previews_done) > 0) {
-			preview = BLI_thread_queue_pop(cache->previews_done);
+		while ((preview = BLI_thread_queue_pop(cache->previews_done))) {
+			printf("%s: DONE %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 			if (preview->img) {
 				IMB_freeImBuf(preview->img);
 			}
@@ -1129,6 +1136,7 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
 		preview->index = index;
 		preview->flags = entry->typeflag;
 		preview->img = NULL;
+		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 		BLI_thread_queue_push(cache->previews_todo, preview);
 	}
 
@@ -1544,6 +1552,8 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 
 		BLI_assert((cache->previews_pool == NULL) && (cache->previews_todo == NULL) && (cache->previews_done == NULL));
 
+		printf("%s: Init Previews...\n", __func__);
+
 		pool = cache->previews_pool = BLI_task_pool_create(scheduler, NULL);
 		cache->previews_todo = BLI_thread_queue_init();
 		cache->previews_done = BLI_thread_queue_init();
@@ -1555,13 +1565,14 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 		i = -(cache->block_end_index - cache->block_start_index);
 		while (i++) {
 			const int idx = (cache->block_cursor - i) % FILELIST_ENTRYCACHESIZE;
-			FileListEntryPreview *preview = MEM_mallocN(sizeof(*preview), __func__);
 			FileDirEntry *entry = cache->block_entries[idx];
 
 			filelist_cache_previews_push(filelist, entry, cache->block_start_index - i);
 		}
 	}
 	else {
+		printf("%s: Clear Previews...\n", __func__);
+
 		filelist_cache_previews_clear(cache);
 	}
 }
@@ -1575,8 +1586,12 @@ void filelist_cache_previews_update(FileList *filelist)
 		return;
 	}
 
-	while (!(BLI_task_pool_canceled(pool) || (BLI_thread_queue_size(cache->previews_done) > 0))) {
+	printf("%s: Update Previews...\n", __func__);
+
+	while (BLI_thread_queue_size(cache->previews_done) > 0) {
 		FileListEntryPreview *preview = BLI_thread_queue_pop(cache->previews_done);
+		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+
 		if (preview->img) {
 			/* entry might have been removed from cache in the mean while, we do not want to cache it again here. */
 			FileDirEntry *entry = filelist_file_ex(filelist, preview->index, false);
