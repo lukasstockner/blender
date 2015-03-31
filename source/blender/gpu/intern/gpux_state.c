@@ -8,93 +8,91 @@
   #include <assert.h>
 #endif /* TRUST_NO_ONE */
 
-static const CommonDrawState default_common = { false, true, true, false };
-static const PointDrawState default_point = { false, 1.0f };
-static const LineDrawState default_line = { false, 1.0f, 0 };
-static const PolygonDrawState default_polygon = { true, false, MATERIAL_NONE, 0 };
+static const DrawState default_state = {
+	.common = { false, true, true, false },
+	.point = { false, 1.0f },
+	.line = { false, 1.0f, 0 },
+	.polygon = { true, false, MATERIAL_NONE, 0 }
+};
 
+static DrawState current;
+static bool polygon_stipple_pattern_set = false;
 /* TODO: these should be replicated once per GL context
  * ^-- more of a MUSTDO */
-static CommonDrawState current_common;
-static PointDrawState current_point;
-static LineDrawState current_line;
-static PolygonDrawState current_polygon;
 
-void init_draw_state()
+void reset_draw_state()
 {
-	current_common = default_common;
-	current_point = default_point;
-	current_line = default_line;
-	current_polygon = default_polygon;
+	current = default_state;
+	force_state_update();
 }
 
 void set_common_state(const CommonDrawState *state)
 {
-	if (state->blend != current_common.blend) {
+	if (state->blend != current.common.blend) {
 		if (state->blend)
 			glEnable(GL_BLEND);
 		else
 			glDisable(GL_BLEND);
-		current_common.blend = state->blend;
+		current.common.blend = state->blend;
 	}
 
-	if (state->depth_test != current_common.depth_test) {
+	if (state->depth_test != current.common.depth_test) {
 		if (state->depth_test)
 			glEnable(GL_DEPTH_TEST);
 		else
 			glDisable(GL_DEPTH_TEST);
-		current_common.depth_test = state->depth_test;
+		current.common.depth_test = state->depth_test;
 	}
 
-	if (state->depth_write != current_common.depth_write) {
+	if (state->depth_write != current.common.depth_write) {
 		if (state->depth_write)
 			glDepthMask(1);
 		else
 			glDepthMask(0);
-		current_common.depth_write = state->depth_write;
+		current.common.depth_write = state->depth_write;
 	}
 
-	if (state->lighting != current_common.lighting) {
+	if (state->lighting != current.common.lighting) {
 		if (state->lighting)
 			glEnable(GL_LIGHTING);
 		else
 			glDisable(GL_LIGHTING);
-		current_common.lighting = state->lighting;
+		current.common.lighting = state->lighting;
 	}
 }
 
 void set_point_state(const PointDrawState *state)
 {
-	if (state->smooth != current_point.smooth) {
+	if (state->smooth != current.point.smooth) {
 		if (state->smooth)
 			glEnable(GL_POINT_SMOOTH);
 		else
 			glDisable(GL_POINT_SMOOTH);
-		current_point.smooth = state->smooth;
+		current.point.smooth = state->smooth;
 	}
 
-	if (state->size != current_point.size) {
+	if (state->size != current.point.size) {
 		glPointSize(state->size);
-		current_point.size = state->size;
+		current.point.size = state->size;
 	}
 }
 
 void set_line_state(const LineDrawState *state)
 {
-	if (state->smooth != current_line.smooth) {
+	if (state->smooth != current.line.smooth) {
 		if (state->smooth)
 			glEnable(GL_LINE_SMOOTH);
 		else
 			glDisable(GL_LINE_SMOOTH);
-		current_line.smooth = state->smooth;
+		current.line.smooth = state->smooth;
 	}
 
-	if (state->width != current_line.width) {
+	if (state->width != current.line.width) {
 		glLineWidth(state->width);
-		current_line.width = state->width;
+		current.line.width = state->width;
 	}
 
-	if (state->stipple != current_line.stipple) {
+	if (state->stipple != current.line.stipple) {
 		if (state->stipple) {
 			glEnable(GL_LINE_STIPPLE);
 			/* line stipple is 16-bit pattern */
@@ -103,7 +101,7 @@ void set_line_state(const LineDrawState *state)
 		}
 		else
 			glDisable(GL_LINE_STIPPLE);
-		current_line.stipple = state->stipple;
+		current.line.stipple = state->stipple;
 	}
 }
 
@@ -124,7 +122,7 @@ static GLenum faces_to_cull(const PolygonDrawState *state)
 void set_polygon_state(const PolygonDrawState *state)
 {
 	const GLenum cull = faces_to_cull(state);
-	const GLenum curr_cull = faces_to_cull(&current_polygon);
+	const GLenum curr_cull = faces_to_cull(&current.polygon);
 	if (cull != curr_cull) {
 		if (cull == GL_NONE)
 			glDisable(GL_CULL_FACE);
@@ -133,29 +131,101 @@ void set_polygon_state(const PolygonDrawState *state)
 				glEnable(GL_CULL_FACE);
 			glCullFace(cull);
 		}
-		current_polygon.draw_front = state->draw_front;
-		current_polygon.draw_back = state->draw_back;
+		current.polygon.draw_front = state->draw_front;
+		current.polygon.draw_back = state->draw_back;
 	}
 
-	if (state->material_id != current_polygon.material_id) {
+	if (state->material_id != current.polygon.material_id) {
 		/* TODO: whatever needed to make material active */
-		current_polygon.material_id = state->material_id;
+		current.polygon.material_id = state->material_id;
 	}
 
-	if (state->stipple != current_polygon.stipple) {
+	if (state->stipple != current.polygon.stipple) {
 		if (state->stipple) {
 			glEnable(GL_POLYGON_STIPPLE);
-			static bool pattern_set = false;
-			if (!pattern_set) {
+			if (!polygon_stipple_pattern_set) {
 				/* polygon stipple is 32x32-bit pattern */
 				GLubyte pattern[128];
 				memset(pattern, 0xAA, sizeof(pattern));
 				glPolygonStipple(pattern);
-				pattern_set = true;
+				polygon_stipple_pattern_set = true;
 			}
 		}
 		else
 			glDisable(GL_LINE_STIPPLE);
-		current_polygon.stipple = state->stipple;
+		current.polygon.stipple = state->stipple;
 	}
+}
+
+void force_state_update()
+{
+	/* TODO: factor some of this stuff out, share with set_*_state functions? */
+
+	/* common state */
+	if (current.common.blend)
+		glEnable(GL_BLEND);
+	else
+		glDisable(GL_BLEND);
+
+	if (current.common.depth_test)
+		glEnable(GL_DEPTH_TEST);
+	else
+		glDisable(GL_DEPTH_TEST);
+
+	if (current.common.depth_write)
+		glDepthMask(1);
+	else
+		glDepthMask(0);
+
+	if (current.common.lighting)
+		glEnable(GL_LIGHTING);
+	else
+		glDisable(GL_LIGHTING);
+
+	/* point state */
+	if (current.point.smooth)
+		glEnable(GL_POINT_SMOOTH);
+	else
+		glDisable(GL_POINT_SMOOTH);
+
+	glPointSize(current.point.size);
+
+	/* line state */
+	if (current.line.smooth)
+		glEnable(GL_LINE_SMOOTH);
+	else
+		glDisable(GL_LINE_SMOOTH);
+
+	glLineWidth(current.line.width);
+
+	if (current.line.stipple) {
+		glEnable(GL_LINE_STIPPLE);
+		/* line stipple is 16-bit pattern */
+		const GLushort pattern = 0x4E72; /* or 0xAAAA */
+		glLineStipple(current.line.stipple, pattern);
+	}
+	else
+		glDisable(GL_LINE_STIPPLE);
+
+	/* polygon state */
+	const GLenum cull = faces_to_cull(&current.polygon);
+	if (cull == GL_NONE)
+		glDisable(GL_CULL_FACE);
+	else {
+		glEnable(GL_CULL_FACE);
+		glCullFace(cull);
+	}
+
+	/* TODO: whatever needed to make material active */
+
+	if (current.polygon.stipple) {
+		glEnable(GL_POLYGON_STIPPLE);
+		/* polygon stipple is 32x32-bit pattern */
+		GLubyte pattern[128];
+		memset(pattern, 0xAA, sizeof(pattern));
+		glPolygonStipple(pattern);
+		polygon_stipple_pattern_set = true;
+	}
+	else
+		glDisable(GL_LINE_STIPPLE);
 }

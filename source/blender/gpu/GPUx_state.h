@@ -26,7 +26,7 @@ typedef struct {
 	int stipple; /* = 0 for don't */
 } LineDrawState;
 
-typedef struct PolygonDrawState {
+typedef struct {
 	bool draw_front;
 	bool draw_back;
 	int material_id;
@@ -35,11 +35,24 @@ typedef struct PolygonDrawState {
 
 #define MATERIAL_NONE -1
 
-void init_draw_state();
+typedef struct {
+	CommonDrawState common;
+	PointDrawState point;
+	LineDrawState line;
+	PolygonDrawState polygon;
+} DrawState;
 
+
+void reset_draw_state(); /* to defaults */
+/* ^-- call this before using set_*_state functions below */
+
+/* incrementally update current GL state */
 void set_common_state(const CommonDrawState*);
 void set_point_state(const PointDrawState*);
 void set_line_state(const LineDrawState*);
 void set_polygon_state(const PolygonDrawState*);
+
+/* update everything regardless of current GL state */
+void force_state_update();
 
 #endif /* BLENDER_GL_STATE */
