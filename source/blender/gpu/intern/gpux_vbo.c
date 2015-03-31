@@ -78,17 +78,6 @@ struct VertexBuffer
 };
 
 #if PRINT
-static void attrib_name_print(const Attrib *a)
-{
-#if TRUST_NO_ONE
-	assert(a->comp_type >= GL_BYTE && a->comp_type <= GL_FLOAT);
-#endif /* TRUST_NO_ONE */
-}
-
-static void attrib_data_print(const VertexBuffer *buff, unsigned attrib_num)
-{
-}
-
 void attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 {
 	Attrib *a = buff->attribs + attrib_num;
