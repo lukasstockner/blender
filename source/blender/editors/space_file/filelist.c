@@ -265,8 +265,6 @@ typedef struct FileList {
 	bool need_sorting;
 
 	FileListFilter filter_data;
-//	FileDirEntry **filtered;
-//	int numfiltered;
 	bool need_filtering;
 
 	struct FileListIntern filelist_intern;
@@ -648,8 +646,6 @@ static bool is_filtered_main(FileDirEntry *file, const char *UNUSED(dir), FileLi
 static void filelist_filter_clear(FileList *filelist)
 {
 	filelist->need_filtering = true;
-//	MEM_SAFE_FREE(filelist->filtered);
-//	filelist->numfiltered = 0;
 }
 
 void filelist_filter(FileList *filelist)
@@ -2325,8 +2321,6 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 	flrj->tmp_filelist->filelist_cache.misc_entries = NULL;
 	flrj->tmp_filelist->filelist_intern.filtered = NULL;
 	BLI_listbase_clear(&flrj->tmp_filelist->filelist_intern.entries);
-//	flrj->tmp_filelist->filtered = NULL;
-//	flrj->tmp_filelist->numfiltered = 0;
 	flrj->tmp_filelist->libfiledata = NULL;
 
 	flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
@@ -2382,7 +2376,6 @@ static void filelist_readjob_free(void *flrjv)
 
 	if (flrj->tmp_filelist) {
 		/* tmp_filelist shall never ever be filtered! */
-//		BLI_assert(flrj->tmp_filelist->filtered == NULL);
 		BLI_assert(flrj->tmp_filelist->filelist.nbr_entries == 0);
 		BLI_assert(BLI_listbase_is_empty(&flrj->tmp_filelist->filelist.entries));
 
