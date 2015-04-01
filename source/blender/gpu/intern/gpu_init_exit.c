@@ -88,10 +88,32 @@ void GPU_init(void)
 
 void GPU_exit(void)
 {
+	BLI_assert(initialized);
 	GPU_DEBUG_EXIT();
 
+	GPU_aspect_end();
+
+	gpuDeleteIndex(gpu_index);
+	gpuImmediateIndex(NULL);
+
+	gpuImmediateMakeCurrent(NULL);
+	gpuDeleteImmediate(gpu_immediate);
+
+	gpu_state_latch_exit();
+	gpu_sprite_exit();
+	gpu_select_exit();
+	gpu_raster_exit();
+	gpu_pixels_exit();
 	gpu_matrix_exit();
+	gpu_lighting_exit();
+	gpu_immediate_exit();
+	gpu_font_exit();
+	gpu_common_exit();
 	gpu_codegen_exit();
+	gpu_clipping_exit();
+	gpu_blender_aspect_exit();
+	gpu_basic_exit();
+	gpu_aspect_exit();
 
 	gpu_extensions_exit(); /* must come last */
 

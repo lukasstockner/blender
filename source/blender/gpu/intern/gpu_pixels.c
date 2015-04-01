@@ -62,7 +62,8 @@ void gpu_pixels_init(void)
 
 void gpu_pixels_exit(void)
 {
-	GPU_shader_free(PIXELS_SHADER);
+	if (PIXELS_SHADER)
+		GPU_shader_free(PIXELS_SHADER);
 }
 
 void GPU_bitmap_cache(GPUbitmap *bitmap)

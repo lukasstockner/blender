@@ -62,7 +62,8 @@ void gpu_font_init(void)
 
 void gpu_font_exit(void)
 {
-	GPU_shader_free(FONT_SHADER);
+	if (FONT_SHADER)
+		GPU_shader_free(FONT_SHADER);
 
 #ifdef GPU_SAFETY
 	FONT_BEGUN = false;
