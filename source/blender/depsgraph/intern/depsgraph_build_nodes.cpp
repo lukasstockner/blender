@@ -374,13 +374,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* standard components */
 	build_object_transform(scene, ob);
 
-	/* TODO(sergey): This way using this object's
-	 * proeprties as driver target works fine.
-	 *
-	 * Does this depend on other nodes?
-	 */
-	add_operation_node(&ob->id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
-	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 
 	/* object data */
 	if (ob->data) {
@@ -393,6 +386,14 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 			case OB_MBALL:
 			case OB_LATTICE:
 			{
+				/* TODO(sergey): This way using this object's
+				 * proeprties as driver target works fine.
+				 *
+				 * Does this depend on other nodes?
+				 */
+				add_operation_node(&ob->id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
+				                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
+
 				build_obdata_geom(scene, ob);
 				/* TODO(sergey): Only for until we support granular
 				 * update of curves.
