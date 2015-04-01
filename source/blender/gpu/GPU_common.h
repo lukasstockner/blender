@@ -57,10 +57,10 @@ void GPU_common_disable_normal_array  (void);
 void GPU_common_disable_color_array   (void);
 void GPU_common_disable_texcoord_array(void);
 
-void GPU_common_vertex_pointer  (GLint size, GLenum type, GLsizei stride,                       const GLvoid* pointer);
-void GPU_common_normal_pointer  (            GLenum type, GLsizei stride, GLboolean normalized, const GLvoid* pointer);
-void GPU_common_color_pointer   (GLint size, GLenum type, GLsizei stride,                       const GLvoid* pointer);
-void GPU_common_texcoord_pointer(GLint size, GLenum type, GLsizei stride,                       const GLvoid* pointer);
+void GPU_common_vertex_pointer  (GLint size, GLenum type, GLsizei stride,                       const GLvoid *pointer);
+void GPU_common_normal_pointer  (            GLenum type, GLsizei stride, GLboolean normalized, const GLvoid *pointer);
+void GPU_common_color_pointer   (GLint size, GLenum type, GLsizei stride,                       const GLvoid *pointer);
+void GPU_common_texcoord_pointer(GLint size, GLenum type, GLsizei stride,                       const GLvoid *pointer);
 
 void  GPU_set_common_active_texture(GLint texture);
 GLint GPU_get_common_active_texture(void);

@@ -61,7 +61,7 @@ typedef struct GPUQueryState {
 	bool use_gpu_select;
 	/* cache on initialization */
 	unsigned int *buffer;
-	/* buffer size (stores number of integers, for actual size multiply by sizeof integer)*/
+	/* buffer size (stores number of integers, for actual size multiply by sizeof integer) */
 	unsigned int bufsize;
 	/* mode of operation */
 	char mode;

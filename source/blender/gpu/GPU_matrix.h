@@ -49,7 +49,7 @@ void   gpuMatrixMode(GLenum mode);
 GLenum gpuGetMatrixMode(void);
 
 void gpuLoadMatrix(const GLfloat m[16]);
-const GLfloat* gpuGetMatrix(GLenum type, GLfloat m[16]);
+const GLfloat *gpuGetMatrix(GLenum type, GLfloat m[16]);
 
 void gpuLoadIdentity(void);
 

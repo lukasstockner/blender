@@ -27,7 +27,7 @@
 
 
 /* Vertex stream implementation - this will abstract the various methods that will be used
- * to stream vertex data on the GPU. Depending on the undelying implementation,
+ * to stream vertex data on the GPU. Depending on the underlying implementation,
  * vertex array objects, vertex arrays or vertex buffer objects will be used.
  * A Vertex stream only makes sense for one specific material, since it references
  * attribute bind positions for that material */
@@ -35,7 +35,7 @@
 /* set one */
 typedef struct GPUAttributeSlot {
 	int shader_location; /* location of attribute for the */
-	int data_type; /* data type, INT, FLOAT, SHORT etc */
+	int data_type; /* INT, FLOAT, SHORT etc */
 } GPUAttributeSlot;
 
 typedef struct GPUVertexStream {
@@ -53,8 +53,7 @@ typedef struct GPUMaterialN {
 	void (*updateGLstate)(void);
 } GPUMaterialN;
 
-void GPU_create_new_stream (GPUMaterialN *mat)
+void GPU_create_new_stream(GPUMaterialN *mat)
 {
 
 }
-
