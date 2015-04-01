@@ -52,7 +52,7 @@ typedef struct GPUVertexStream {
 	size_t size;
 
 	/* bind buffers to their attribute slots */
-	void (*bind)(struct GPUVertexStream *);
+	void *(*bind)(struct GPUVertexStream *);
 	/* unbind the buffers from their attribute slots */
 	void (*unbind)(struct GPUVertexStream *);
 
@@ -61,7 +61,7 @@ typedef struct GPUVertexStream {
 	GLubyte *(*map)(struct GPUVertexStream *);
 	void (*unmap)(struct GPUVertexStream *);
 
-	void (*realloc)(struct GPUVertexStream *stream, size_t newsize);
+	void (*alloc)(struct GPUVertexStream *stream, size_t newsize);
 	void (*free)(struct GPUVertexStream *stream);
 } GPUVertexStream;
 
@@ -97,27 +97,52 @@ typedef struct bufferDataGLSL {
 	GLubyte *unmappedBuffer;
 } bufferDataGLSL;
 
-static void realloc_stream_ram(GPUVertexStream *stream, size_t newsize)
+static void alloc_stream_ram(GPUVertexStream *stream, size_t newsize)
 {
 	if (newsize > stream->size) {
 		GPURAMArrayStream *ram_stream = (GPURAMArrayStream *)stream;
 		if (ram_stream->unalignedPtr != 0) {
 			ram_stream->unalignedPtr   = MEM_reallocN((GLubyte*)(ram_stream->unalignedPtr), newsize+63);
-			ram_stream->unmappedBuffer = (GLubyte*)ALIGN64(ram_stream->unalignedPtr);
-			stream->size = newsize;
 		}
+		else {
+			ram_stream->unalignedPtr   = MEM_mallocN(newsize + 63, "vertex_stream_ram");
+		}
+		ram_stream->unmappedBuffer = (GLubyte*)ALIGN64(ram_stream->unalignedPtr);
+		stream->size = newsize;
 	}
 }
 
-static void realloc_stream_vbuffer(GPUVertexStream *stream, size_t newsize)
+static void alloc_stream_vbuffer(GPUVertexStream *stream, size_t newsize)
 {
 	if (newsize > stream->size) {
 		GPUVertexBufferStream *va_stream = (GPUVertexBufferStream *)stream;
-		glBindBuffer(stream->type, va_stream->vbo);
+
+		if (va_stream->vbo)
+			glBindBuffer(stream->type, va_stream->vbo);
+		else
+			glGenBuffers(1, &va_stream->vbo);
 		glBufferData(stream->type, newsize, NULL, GL_STREAM_DRAW);
 		stream->size = newsize;
 	}
 }
+
+static void alloc_stream_vabuffer(GPUVertexStream *stream, size_t newsize)
+{
+	if (newsize > stream->size) {
+		GPUVertexArrayStream *va_stream = (GPUVertexArrayStream *)stream;
+
+		if (!va_stream->vao)
+			glGenVertexArrays(1, &va_stream->vao);
+
+		if (va_stream->vstream.vbo)
+			glBindBuffer(stream->type, va_stream->vstream.vbo);
+		else
+			glGenBuffers(1, &va_stream->vstream.vbo);
+		glBufferData(stream->type, newsize, NULL, GL_STREAM_DRAW);
+		stream->size = newsize;
+	}
+}
+
 
 static GLubyte *map_stream_ram(GPUVertexStream *stream)
 {
@@ -182,7 +207,7 @@ static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_t
 		{
 			GPUVertexArrayStream *stream = MEM_callocN(sizeof(GPUVertexArrayStream), "GPUVertexArrayStream");
 			ret = &stream->vstream.stream;
-			ret->realloc = realloc_stream_vbuffer;
+			ret->alloc = alloc_stream_vabuffer;
 			ret->map = map_stream_vbuffer;
 			ret->unmap = unmap_stream_vbuffer;
 			ret->free = free_stream_varray;
@@ -193,7 +218,7 @@ static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_t
 		{
 			GPURAMArrayStream *stream = MEM_callocN(sizeof(GPURAMArrayStream), "GPURAMArrayStream");
 			ret = &stream->stream;
-			ret->realloc = realloc_stream_ram;
+			ret->alloc = alloc_stream_ram;
 			ret->map = map_stream_ram;
 			ret->unmap = unmap_stream_ram;
 			ret->free = free_stream_ram;
@@ -204,7 +229,7 @@ static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_t
 		{
 			GPUVertexBufferStream *stream = MEM_callocN(sizeof(GPUVertexBufferStream), "GPUVertexBufferStream");
 			ret = &stream->stream;
-			ret->realloc = realloc_stream_vbuffer;
+			ret->alloc = alloc_stream_vbuffer;
 			ret->map = map_stream_vbuffer;
 			ret->unmap = unmap_stream_vbuffer;
 			ret->free = free_stream_vbuffer;
@@ -212,14 +237,15 @@ static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_t
 		}
 
 		default:
-			return NULL;
+			ret = NULL;
+			break;
 	}
 
 	if (ret) {
 		ret->type = array_type;
 	}
 
-	return NULL;
+	return ret;
 }
 
 static GLsizei calc_stride(void)
@@ -258,6 +284,7 @@ static GLsizei calc_stride(void)
 static void allocate(void)
 {
 	size_t newSize;
+	GPUVertexStream *vertex_stream;
 
 	GPU_ASSERT_NO_GL_ERRORS("allocate start");
 
@@ -265,32 +292,12 @@ static void allocate(void)
 
 	newSize = (size_t)(GPU_IMMEDIATE->stride * GPU_IMMEDIATE->maxVertexCount);
 
-	if (GPU_IMMEDIATE->vertex_stream) {
-		GPUVertexStream *vertex_stream = (GPUVertexStream*)GPU_IMMEDIATE->vertex_stream;
-
-		vertex_stream->realloc(vertex_stream, newSize);
+	if (!GPU_IMMEDIATE->vertex_stream) {
+		GPU_IMMEDIATE->vertex_stream = gpu_new_vertex_stream(eStreamTypeVertexArray, GL_ARRAY_BUFFER);
 	}
-	else {
-		bufferDataGLSL *bufferData = (bufferDataGLSL*)MEM_callocN(sizeof(bufferDataGLSL), "bufferDataGLSL");
 
-		if (GLEW_ARB_vertex_buffer_object) {
-			glGenBuffers(1, &(bufferData->vbo));
-			BLI_assert(bufferData->vbo != 0);
-			glBindBuffer(GL_ARRAY_BUFFER, bufferData->vbo);
-			glBufferData(GL_ARRAY_BUFFER, newSize, NULL, GL_STREAM_DRAW);
-
-			bufferData->unalignedPtr   = 0;
-			bufferData->unmappedBuffer = NULL;
-		}
-		else {
-			bufferData->unalignedPtr   = (GLintptr)MEM_mallocN(newSize+63, "bufferDataGLSL->unalignedPtr");
-			bufferData->unmappedBuffer = (void*)ALIGN64(bufferData->unalignedPtr);
-		}
-
-		bufferData->size = newSize;
-
-		GPU_IMMEDIATE->vertex_stream = bufferData;
-	}
+	vertex_stream = (GPUVertexStream*)GPU_IMMEDIATE->vertex_stream;
+	vertex_stream->alloc(vertex_stream, newSize);
 
 	GPU_ASSERT_NO_GL_ERRORS("allocate end");
 }
@@ -299,10 +306,10 @@ static void allocate(void)
 
 static void setup(void)
 {
-	GPUImmediateFormat *format     = &(GPU_IMMEDIATE->format);
-	const GLsizei       stride     = GPU_IMMEDIATE->stride;
-	bufferDataGLSL     *bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
-	const GLubyte      *base       = bufferData->vbo != 0 ? NULL : (GLubyte*)(bufferData->unmappedBuffer);
+	GPUImmediateFormat *format         = &(GPU_IMMEDIATE->format);
+	const GLsizei      stride         = GPU_IMMEDIATE->stride;
+	GPUVertexStream    *vertex_stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
+	const GLubyte      *base          = vertex_stream->bind(vertex_stream);
 
 	size_t offset = 0;
 
@@ -427,6 +434,7 @@ static void allocateIndex(void)
 	if (GPU_IMMEDIATE->index) {
 		GPUindex *index;
 		size_t newSize;
+		GPUVertexStream *element_stream;
 
 		GPU_ASSERT_NO_GL_ERRORS("allocateIndex start");
 
@@ -447,43 +455,12 @@ static void allocateIndex(void)
 				return;
 		}
 
-		if (index->element_stream) {
-			indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)(index->element_stream);
-
-			if (bufferData->vbo != 0)
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferData->vbo);
-
-			if (newSize > bufferData->size) {
-				if (bufferData->vbo)
-					glBufferData(GL_ELEMENT_ARRAY_BUFFER, newSize, NULL, GL_STREAM_DRAW);
-
-				if (bufferData->unalignedPtr != 0) {
-					bufferData->unalignedPtr   = (GLintptr)MEM_reallocN((GLubyte*)(bufferData->unalignedPtr), newSize+63);
-					bufferData->unmappedBuffer = (GLubyte*)ALIGN64(bufferData->unalignedPtr);
-				}
-
-				bufferData->size = newSize;
-			}
+		if (!index->element_stream) {
+			index->element_stream = gpu_new_vertex_stream(eStreamTypeVertexBuffer, GL_ELEMENT_ARRAY_BUFFER);
 		}
-		else {
-			indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)MEM_callocN(sizeof(indexBufferDataGLSL), "indexBufferDataGLSL");
 
-			if (GLEW_ARB_vertex_buffer_object) {
-				glGenBuffers(1, &(bufferData->vbo));
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, bufferData->vbo);
-				glBufferData(GL_ELEMENT_ARRAY_BUFFER, newSize, NULL, GL_STREAM_DRAW);
-				bufferData->unalignedPtr   = 0;
-				bufferData->unmappedBuffer = NULL;
-			}
-			else {
-				bufferData->unalignedPtr   = (GLintptr)MEM_mallocN(newSize+63, "indexBufferDataGLSL->unalignedPtr");
-				bufferData->unmappedBuffer = (GLubyte*)ALIGN64(bufferData->unalignedPtr);
-			}
-
-			bufferData->size = newSize;
-
-			index->element_stream = bufferData;
-		}
+		element_stream = index->element_stream;
+		element_stream->alloc(element_stream, newSize);
 
 		GPU_ASSERT_NO_GL_ERRORS("allocateIndex end");
 	}
@@ -603,6 +580,7 @@ void gpu_lock_buffer_gl(void)
 	allocate();
 	allocateIndex();
 
+	/*
 	if (GLEW_ARB_vertex_buffer_object) {
 		bufferDataGLSL *bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
 		bool do_init = (bufferData->vao == 0);
@@ -614,10 +592,12 @@ void gpu_lock_buffer_gl(void)
 
 		if (do_init)
 			setup();
+
 	}
 	else {
+	*/
 		setup();
-	}
+	//}
 }
 
 
@@ -625,6 +605,11 @@ void gpu_lock_buffer_gl(void)
 void gpu_begin_buffer_gl(void)
 {
 	GPUVertexStream *stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
+
+	if (stream == NULL) {
+		allocate();
+		stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
+	}
 
 	GPU_IMMEDIATE->mappedBuffer = stream->map(stream);
 }
@@ -727,6 +712,11 @@ void gpu_index_begin_buffer_gl(void)
 {
 	GPUindex *index = GPU_IMMEDIATE->index;
 	GPUVertexStream *stream = (GPUVertexStream*)(index->element_stream);
+
+	if (!stream) {
+		allocateIndex();
+		stream = (GPUVertexStream*)(index->element_stream);
+	}
 
 	index->mappedBuffer = stream->map(stream);
 }
