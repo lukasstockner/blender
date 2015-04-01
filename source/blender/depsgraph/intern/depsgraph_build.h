@@ -284,6 +284,7 @@ protected:
 	ComponentDepsNode *find_node(const ComponentKey &key) const;
 	OperationDepsNode *find_node(const OperationKey &key) const;
 	DepsNode *find_node(const RNAPathKey &key) const;
+	OperationDepsNode *has_node(const OperationKey &key) const;
 
 	void add_time_relation(TimeSourceDepsNode *timesrc, DepsNode *node_to, const string &description);
 	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,

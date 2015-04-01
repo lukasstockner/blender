@@ -185,6 +185,21 @@ DepsNode *DepsgraphRelationBuilder::find_node(const RNAPathKey &key) const
 	return m_graph->find_node_from_pointer(&key.ptr, key.prop);
 }
 
+OperationDepsNode *DepsgraphRelationBuilder::has_node(
+        const OperationKey &key) const
+{
+	IDDepsNode *id_node = m_graph->find_id_node(key.id);
+	if (!id_node) {
+		return NULL;
+	}
+	ComponentDepsNode *comp_node = id_node->find_component(key.component_type,
+	                                                       key.component_name);
+	if (!comp_node) {
+		return NULL;
+	}
+	return comp_node->has_operation(key.opcode, key.name);
+}
+
 void DepsgraphRelationBuilder::add_time_relation(TimeSourceDepsNode *timesrc,
                                                  DepsNode *node_to,
                                                  const string &description)
@@ -764,8 +779,16 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 		/* modifier driver - connect directly to the modifier */
 		char *modifier_name = BLI_str_quoted_substrN(fcu->rna_path, "modifiers[");
 		if (modifier_name) {
-			OperationKey modifier_key(id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_MODIFIER, modifier_name);
-			add_relation(driver_key, modifier_key, DEPSREL_TYPE_DRIVER, "[Driver -> Modifier]");
+			OperationKey modifier_key(id,
+			                          DEPSNODE_TYPE_GEOMETRY,
+			                          DEG_OPCODE_GEOMETRY_MODIFIER,
+			                          modifier_name);
+			if (has_node(modifier_key)) {
+				add_relation(driver_key, modifier_key, DEPSREL_TYPE_DRIVER, "[Driver -> Modifier]");
+			}
+			else {
+				printf("Unexisting driver RNA path: %s\n", fcu->rna_path);
+			}
 
 			MEM_freeN(modifier_name);
 		}
