@@ -2691,6 +2691,125 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context, Sequenc
 	return out;
 }
 
+static ImBuf *seq_render_movie_strip(const SeqRenderData *context, Sequence *seq, float nr, float cfra)
+{
+	ImBuf *ibuf = NULL;
+	StripAnim *sanim;
+	bool is_multiview = (seq->flag & SEQ_USE_VIEWS) != 0 &&
+	                    (context->scene->r.scemode & R_MULTIVIEW) != 0;
+
+	/* load all the videos */
+	seq_open_anim_file(context->scene, seq, false);
+
+	if (is_multiview) {
+		ImBuf **ibuf_arr;
+		size_t totviews;
+		size_t totfiles = seq_num_files(context->scene, seq->views_format, true);
+		int i;
+
+		if (totfiles != BLI_listbase_count_ex(&seq->anims, totfiles + 1))
+			goto monoview_movie;
+
+		totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
+		ibuf_arr = MEM_callocN(sizeof(ImBuf *) * totviews, "Sequence Image Views Imbufs");
+
+		for (i = 0, sanim = seq->anims.first; sanim; sanim = sanim->next, i++) {
+			if (sanim->anim) {
+				IMB_Proxy_Size proxy_size = seq_rendersize_to_proxysize(context->preview_render_size);
+				IMB_anim_set_preseek(sanim->anim, seq->anim_preseek);
+
+				ibuf_arr[i] = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
+				                                seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
+				                                proxy_size);
+
+			/* fetching for requested proxy size failed, try fetching the original instead */
+			if (!ibuf_arr[i] && proxy_size != IMB_PROXY_NONE) {
+				ibuf_arr[i] = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
+				                                seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
+				                                IMB_PROXY_NONE);
+			}
+				if (ibuf_arr[i]) {
+					/* we don't need both (speed reasons)! */
+					if (ibuf_arr[i]->rect_float && ibuf_arr[i]->rect)
+						imb_freerectImBuf(ibuf_arr[i]);
+				}
+			}
+		}
+
+		if (seq->views_format == R_IMF_VIEWS_STEREO_3D) {
+			if (ibuf_arr[0]) {
+				IMB_ImBufFromStereo(seq->stereo3d_format, ibuf_arr[0], &ibuf_arr[0], &ibuf_arr[1]);
+			}
+			else {
+				/* probably proxy hasn't been created yet */
+				MEM_freeN(ibuf_arr);
+				return NULL;
+			}
+		}
+
+		for (i = 0; i < totviews; i++) {
+			SeqRenderData localcontext = *context;
+			localcontext.view_id = i;
+
+			if (ibuf_arr[i]) {
+				/* all sequencer color is done in SRGB space, linear gives odd crossfades */
+				BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf_arr[i], false);
+			}
+			if (i != context->view_id) {
+				copy_to_ibuf_still(&localcontext, seq, nr, ibuf_arr[i]);
+				BKE_sequencer_cache_put(&localcontext, seq, cfra, SEQ_STRIPELEM_IBUF, ibuf_arr[i]);
+			}
+		}
+
+		/* return the original requested ImBuf */
+		ibuf = ibuf_arr[context->view_id];
+		if (ibuf) {
+			seq->strip->stripdata->orig_width = ibuf->x;
+			seq->strip->stripdata->orig_height = ibuf->y;
+		}
+
+		/* "remove" the others (decrease their refcount) */
+		for (i = 0; i < totviews; i++) {
+			if (ibuf_arr[i] != ibuf) {
+				IMB_freeImBuf(ibuf_arr[i]);
+			}
+		}
+
+		MEM_freeN(ibuf_arr);
+	}
+	else {
+monoview_movie:
+		sanim = seq->anims.first;
+		if (sanim && sanim->anim) {
+			IMB_Proxy_Size proxy_size = seq_rendersize_to_proxysize(context->preview_render_size);
+			IMB_anim_set_preseek(sanim->anim, seq->anim_preseek);
+
+			ibuf = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
+			                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
+			                         proxy_size);
+
+			/* fetching for requested proxy size failed, try fetching the original instead */
+			if (!ibuf && proxy_size != IMB_PROXY_NONE) {
+				ibuf = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
+				                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
+				                         IMB_PROXY_NONE);
+			}
+			if (ibuf) {
+				BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
+
+				/* we don't need both (speed reasons)! */
+				if (ibuf->rect_float && ibuf->rect) {
+					imb_freerectImBuf(ibuf);
+				}
+
+				seq->strip->stripdata->orig_width = ibuf->x;
+				seq->strip->stripdata->orig_height = ibuf->y;
+			}
+		}
+	}
+	return ibuf;
+}
+
 static ImBuf *seq_render_movieclip_strip(const SeqRenderData *context, Sequence *seq, float nr)
 {
 	ImBuf *ibuf = NULL;
@@ -3200,119 +3319,7 @@ monoview_image:
 
 		case SEQ_TYPE_MOVIE:
 		{
-			StripAnim *sanim;
-			bool is_multiview = (seq->flag & SEQ_USE_VIEWS) != 0 &&
-			                    (context->scene->r.scemode & R_MULTIVIEW) != 0;
-
-			/* load all the videos */
-			seq_open_anim_file(context->scene, seq, false);
-
-			if (is_multiview) {
-				ImBuf **ibuf_arr;
-				size_t totviews;
-				size_t totfiles = seq_num_files(context->scene, seq->views_format, true);
-				int i;
-
-				if (totfiles != BLI_listbase_count_ex(&seq->anims, totfiles + 1))
-					goto monoview_movie;
-
-				totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-				ibuf_arr = MEM_callocN(sizeof(ImBuf *) * totviews, "Sequence Image Views Imbufs");
-
-				for (i = 0, sanim = seq->anims.first; sanim; sanim = sanim->next, i++) {
-					if (sanim->anim) {
-						IMB_Proxy_Size proxy_size = seq_rendersize_to_proxysize(context->preview_render_size);
-						IMB_anim_set_preseek(sanim->anim, seq->anim_preseek);
-
-						ibuf_arr[i] = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
-						                             seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
-						                             proxy_size);
-
-					/* fetching for requested proxy size failed, try fetching the original instead */
-					if (!ibuf_arr[i] && proxy_size != IMB_PROXY_NONE) {
-						ibuf_arr[i] = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
-						                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
-						                         IMB_PROXY_NONE);
-					}
-						if (ibuf_arr[i]) {
-							/* we don't need both (speed reasons)! */
-							if (ibuf_arr[i]->rect_float && ibuf_arr[i]->rect)
-								imb_freerectImBuf(ibuf_arr[i]);
-						}
-					}
-				}
-
-				if (seq->views_format == R_IMF_VIEWS_STEREO_3D) {
-					if (ibuf_arr[0]) {
-						IMB_ImBufFromStereo(seq->stereo3d_format, ibuf_arr[0], &ibuf_arr[0], &ibuf_arr[1]);
-					}
-					else {
-						/* probably proxy hasn't been created yet */
-						MEM_freeN(ibuf_arr);
-						break;
-					}
-				}
-
-				for (i = 0; i < totviews; i++) {
-					SeqRenderData localcontext = *context;
-					localcontext.view_id = i;
-
-					if (ibuf_arr[i]) {
-						/* all sequencer color is done in SRGB space, linear gives odd crossfades */
-						BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf_arr[i], false);
-					}
-					if (i != context->view_id) {
-						copy_to_ibuf_still(&localcontext, seq, nr, ibuf_arr[i]);
-						BKE_sequencer_cache_put(&localcontext, seq, cfra, SEQ_STRIPELEM_IBUF, ibuf_arr[i]);
-					}
-				}
-
-				/* return the original requested ImBuf */
-				ibuf = ibuf_arr[context->view_id];
-				if (ibuf) {
-					seq->strip->stripdata->orig_width = ibuf->x;
-					seq->strip->stripdata->orig_height = ibuf->y;
-				}
-
-				/* "remove" the others (decrease their refcount) */
-				for (i = 0; i < totviews; i++) {
-					if (ibuf_arr[i] != ibuf) {
-						IMB_freeImBuf(ibuf_arr[i]);
-					}
-				}
-
-				MEM_freeN(ibuf_arr);
-			}
-			else {
-monoview_movie:
-				sanim = seq->anims.first;
-				if (sanim && sanim->anim) {
-					IMB_Proxy_Size proxy_size = seq_rendersize_to_proxysize(context->preview_render_size);
-					IMB_anim_set_preseek(sanim->anim, seq->anim_preseek);
-
-					ibuf = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
-					                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
-					                         proxy_size);
-
-					/* fetching for requested proxy size failed, try fetching the original instead */
-					if (!ibuf && proxy_size != IMB_PROXY_NONE) {
-						ibuf = IMB_anim_absolute(sanim->anim, nr + seq->anim_startofs,
-						                         seq->strip->proxy ? seq->strip->proxy->tc : IMB_TC_RECORD_RUN,
-						                         IMB_PROXY_NONE);
-					}
-					if (ibuf) {
-						BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
-
-						/* we don't need both (speed reasons)! */
-						if (ibuf->rect_float && ibuf->rect) {
-							imb_freerectImBuf(ibuf);
-						}
-
-						seq->strip->stripdata->orig_width = ibuf->x;
-						seq->strip->stripdata->orig_height = ibuf->y;
-					}
-				}
-			}
+			ibuf = seq_render_movie_strip(context, seq, nr, cfra);
 			copy_to_ibuf_still(context, seq, nr, ibuf);
 			break;
 		}
