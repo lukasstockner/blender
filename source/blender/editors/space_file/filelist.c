@@ -1099,21 +1099,28 @@ static void filelist_cache_previews_clear(FileListEntryCache *cache)
 	FileListEntryPreview *preview;
 
 	if (cache->previews_pool) {
-		BLI_thread_queue_nowait(cache->previews_todo);
-		BLI_thread_queue_nowait(cache->previews_done);
-		BLI_task_pool_cancel(cache->previews_pool);
-
-		while ((preview = BLI_thread_queue_pop(cache->previews_todo))) {
-			printf("%s: TODO %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+		while ((preview = BLI_thread_queue_pop_timeout(cache->previews_todo, 0))) {
+//			printf("%s: TODO %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 			MEM_freeN(preview);
 		}
-		while ((preview = BLI_thread_queue_pop(cache->previews_done))) {
-			printf("%s: DONE %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+		while ((preview = BLI_thread_queue_pop_timeout(cache->previews_done, 0))) {
+//			printf("%s: DONE %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 			if (preview->img) {
 				IMB_freeImBuf(preview->img);
 			}
 			MEM_freeN(preview);
 		}
+	}
+}
+
+static void filelist_cache_previews_free(FileListEntryCache *cache)
+{
+	if (cache->previews_pool) {
+		BLI_thread_queue_nowait(cache->previews_todo);
+		BLI_thread_queue_nowait(cache->previews_done);
+		BLI_task_pool_cancel(cache->previews_pool);
+
+		filelist_cache_previews_clear(cache);
 
 		BLI_thread_queue_free(cache->previews_done);
 		BLI_thread_queue_free(cache->previews_todo);
@@ -1139,7 +1146,6 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
 		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 		BLI_thread_queue_push(cache->previews_todo, preview);
 	}
-
 }
 
 static void filelist_cache_init(FileListEntryCache *cache)
@@ -1152,7 +1158,7 @@ static void filelist_cache_init(FileListEntryCache *cache)
 
 static void filelist_cache_free(FileListEntryCache *cache)
 {
-	filelist_cache_previews_clear(cache);
+	filelist_cache_previews_free(cache);
 
 	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
 	if (cache->misc_entries) {
@@ -1163,7 +1169,7 @@ static void filelist_cache_free(FileListEntryCache *cache)
 
 static void filelist_cache_clear(FileListEntryCache *cache)
 {
-	filelist_cache_previews_clear(cache);
+	filelist_cache_previews_free(cache);
 
 	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
 	cache->block_cursor = cache->block_start_index = cache->block_end_index = 0;
@@ -1429,7 +1435,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
 
-//	printf("Caching block [%d:%d] (current cache: [%d:%d])\n", start_index, end_index, cache->block_start_index, cache->block_end_index);
+	printf("Caching block [%d:%d] (current cache: [%d:%d])\n", start_index, end_index, cache->block_start_index, cache->block_end_index);
 
 	if ((start_index == cache->block_start_index) && (end_index == cache->block_end_index)) {
 		/* Nothing to do! */
@@ -1437,103 +1443,130 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	}
 
 	if ((start_index >= cache->block_end_index) || (end_index <= cache->block_start_index)) {
+		printf("Full Recaching!\n");
+
 		/* New cached block does not overlap existing one, simple. */
 		memcpy(cache->block_entries, &filelist->filelist_intern.filtered[start_index],
 		       sizeof(cache->block_entries[0]) * (end_index - start_index));
+
+		if (cache->previews_pool) {
+			filelist_cache_previews_clear(cache);
+		}
+
 		cache->block_start_index = start_index;
 		cache->block_end_index = end_index;
 		cache->block_cursor = 0;
+	}
+	else {
+		printf("Partial Recaching!\n");
 
+		/* At this point, we know we keep part of currently cached entries, so update previews if needed,
+		 * and remove everything from working queue - we'll add all newly needed entries at the end. */
 		if (cache->previews_pool) {
-			i = -(cache->block_end_index - cache->block_start_index);
-			while (i++) {
-				const int idx = (cache->block_cursor - i) % FILELIST_ENTRYCACHESIZE;
-				FileDirEntry *entry = cache->block_entries[idx];
+			filelist_cache_previews_update(filelist);
+			filelist_cache_previews_clear(cache);
+		}
 
-				filelist_cache_previews_push(filelist, entry, start_index - i);
+		printf("\tpreview cleaned up...\n");
+
+		if (end_index > cache->block_end_index) {
+			/* Add (request) needed entries after already cached ones. */
+			/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+			int size1 = end_index - cache->block_end_index;
+			int size2 = 0;
+			int idx1, idx2;
+
+			idx1 = (cache->block_cursor + curr_block_size) % FILELIST_ENTRYCACHESIZE;
+			if ((idx1 + size1) > FILELIST_ENTRYCACHESIZE) {
+				size2 = size1;
+				size1 = FILELIST_ENTRYCACHESIZE - idx1;
+				size2 -= size1;
+				idx2 = 0;
+			}
+
+			if (size2) {
+				memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[end_index - size2],
+					   sizeof(cache->block_entries[0]) * size2);
+			}
+			memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[end_index - size1 - size2],
+				   sizeof(cache->block_entries[0]) * size1);
+
+			if (cache->previews_pool) {
+				i = size1 + size2;
+				while (i--) {
+					const int idx = (cache->block_cursor + end_index - start_index - i - 1) % FILELIST_ENTRYCACHESIZE;
+					FileDirEntry *entry = cache->block_entries[idx];
+
+					filelist_cache_previews_push(filelist, entry, end_index - i);
+				}
 			}
 		}
+		cache->block_end_index = end_index;
 
-		return true;
+		printf("\tend-extended...\n");
+
+		if (start_index < cache->block_start_index) {
+			/* Add (request) needed entries before already cached ones. */
+			/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+			int size1 = cache->block_start_index - start_index;
+			int size2 = 0;
+			int idx1, idx2;
+
+			if (size1 > cache->block_cursor) {
+				size2 = size1;
+				size1 -= cache->block_cursor;
+				size2 -= size1;
+				idx2 = 0;
+				idx1 = FILELIST_ENTRYCACHESIZE - size1;
+
+			}
+			else {
+				idx1 = cache->block_cursor - size1;
+			}
+
+			if (size2) {
+				memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[start_index + size1],
+					   sizeof(cache->block_entries[0]) * size2);
+			}
+			memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[start_index],
+				   sizeof(cache->block_entries[0]) * size1);
+
+			cache->block_cursor = idx1;
+
+			if (cache->previews_pool) {
+				i = -(size1 + size2);
+				while (i++) {
+					const int idx = (cache->block_cursor - i) % FILELIST_ENTRYCACHESIZE;
+					FileDirEntry *entry = cache->block_entries[idx];
+
+					filelist_cache_previews_push(filelist, entry, start_index - i);
+				}
+			}
+		}
+		else if (start_index > cache->block_start_index) {
+			/* We do not free anything, just update start index and cursor. */
+			cache->block_cursor = (cache->block_cursor + start_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
+		}
+		cache->block_start_index = start_index;
+		printf("\tstart-extended...\n");
 	}
 
-	if (end_index > cache->block_end_index) {
-		/* Add (request) needed entries after already cached ones. */
-		/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
-		int size1 = end_index - cache->block_end_index;
-		int size2 = 0;
-		int idx1, idx2;
+	printf("Re-queueing previews...\n");
 
-		idx1 = (cache->block_cursor + curr_block_size) % FILELIST_ENTRYCACHESIZE;
-		if ((idx1 + size1) > FILELIST_ENTRYCACHESIZE) {
-			size2 = size1;
-			size1 = FILELIST_ENTRYCACHESIZE - idx1;
-			size2 -= size1;
-			idx2 = 0;
-		}
-
-		if (size2) {
-			memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[end_index - size2],
-			       sizeof(cache->block_entries[0]) * size2);
-		}
-		memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[end_index - size1 - size2],
-		       sizeof(cache->block_entries[0]) * size1);
-
-		if (cache->previews_pool) {
-			i = size1 + size2;
-			while (i--) {
-				const int idx = (cache->block_cursor + end_index - start_index - i - 1) % FILELIST_ENTRYCACHESIZE;
-				FileDirEntry *entry = cache->block_entries[idx];
-
-				filelist_cache_previews_push(filelist, entry, end_index - i);
+	if (cache->previews_pool) {
+		for (i = 0; ((index + i) < end_index) || ((index - i) >= start_index); i++) {
+			if ((index - i) >= start_index) {
+				const int idx = (cache->block_cursor + (index - start_index) - i) % FILELIST_ENTRYCACHESIZE;
+				filelist_cache_previews_push(filelist, cache->block_entries[idx], index - i);
+			}
+			if ((index + i) < end_index) {
+				const int idx = (cache->block_cursor + (index - start_index) + i) % FILELIST_ENTRYCACHESIZE;
+				filelist_cache_previews_push(filelist, cache->block_entries[idx], index + i);
 			}
 		}
 	}
-	cache->block_end_index = end_index;
 
-	if (start_index < cache->block_start_index) {
-		/* Add (request) needed entries before already cached ones. */
-		/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
-		int size1 = cache->block_start_index - start_index;
-		int size2 = 0;
-		int idx1, idx2;
-
-		if (size1 > cache->block_cursor) {
-			size2 = size1;
-			size1 -= cache->block_cursor;
-			size2 -= size1;
-			idx2 = 0;
-			idx1 = FILELIST_ENTRYCACHESIZE - size1;
-
-		}
-		else {
-			idx1 = cache->block_cursor - size1;
-		}
-
-		if (size2) {
-			memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[start_index + size1],
-			       sizeof(cache->block_entries[0]) * size2);
-		}
-		memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[start_index],
-		       sizeof(cache->block_entries[0]) * size1);
-
-		cache->block_cursor = idx1;
-
-		if (cache->previews_pool) {
-			i = -(size1 + size2);
-			while (i++) {
-				const int idx = (cache->block_cursor - i) % FILELIST_ENTRYCACHESIZE;
-				FileDirEntry *entry = cache->block_entries[idx];
-
-				filelist_cache_previews_push(filelist, entry, start_index - i);
-			}
-		}
-	}
-	else if (start_index > cache->block_start_index) {
-		/* We do not free anything, just update start index and cursor. */
-		cache->block_cursor = (cache->block_cursor + start_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
-	}
-	cache->block_start_index = start_index;
+	printf("Finished!\n");
 
 	return true;
 }
@@ -1552,7 +1585,7 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 
 		BLI_assert((cache->previews_pool == NULL) && (cache->previews_todo == NULL) && (cache->previews_done == NULL));
 
-		printf("%s: Init Previews...\n", __func__);
+//		printf("%s: Init Previews...\n", __func__);
 
 		pool = cache->previews_pool = BLI_task_pool_create(scheduler, NULL);
 		cache->previews_todo = BLI_thread_queue_init();
@@ -1571,26 +1604,27 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 		}
 	}
 	else {
-		printf("%s: Clear Previews...\n", __func__);
+//		printf("%s: Clear Previews...\n", __func__);
 
-		filelist_cache_previews_clear(cache);
+		filelist_cache_previews_free(cache);
 	}
 }
 
-void filelist_cache_previews_update(FileList *filelist)
+bool filelist_cache_previews_update(FileList *filelist)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
 	TaskPool *pool = cache->previews_pool;
+	bool changed = false;
 
 	if (!pool) {
-		return;
+		return changed;
 	}
 
-	printf("%s: Update Previews...\n", __func__);
+//	printf("%s: Update Previews...\n", __func__);
 
 	while (BLI_thread_queue_size(cache->previews_done) > 0) {
 		FileListEntryPreview *preview = BLI_thread_queue_pop(cache->previews_done);
-		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+//		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 
 		if (preview->img) {
 			/* entry might have been removed from cache in the mean while, we do not want to cache it again here. */
@@ -1602,6 +1636,7 @@ void filelist_cache_previews_update(FileList *filelist)
 					entry->typeflag &= ~FILE_TYPE_MOVIE;
 					entry->typeflag |= FILE_TYPE_MOVIE_ICON;
 				}
+				changed = true;
 			}
 			else {
 				IMB_freeImBuf(preview->img);
@@ -1609,6 +1644,8 @@ void filelist_cache_previews_update(FileList *filelist)
 		}
 		MEM_freeN(preview);
 	}
+
+	return changed;
 }
 
 /* Note: Iterating over a cache is only valid as long as cache is not modified! */
@@ -2333,10 +2370,10 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 
 	BLI_listbase_clear(&flrj->tmp_filelist->filelist.entries);
 	flrj->tmp_filelist->filelist.nbr_entries = 0;
-	flrj->tmp_filelist->filelist_cache.misc_entries = NULL;
 	flrj->tmp_filelist->filelist_intern.filtered = NULL;
 	BLI_listbase_clear(&flrj->tmp_filelist->filelist_intern.entries);
 	flrj->tmp_filelist->libfiledata = NULL;
+	memset(&flrj->tmp_filelist->filelist_cache, 0, sizeof(FileListEntryCache));
 
 	flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
 }

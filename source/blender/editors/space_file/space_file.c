@@ -117,6 +117,8 @@ static void file_free(SpaceLink *sl)
 {	
 	SpaceFile *sfile = (SpaceFile *) sl;
 	
+	BLI_assert(sfile->previews_timer == NULL);
+
 	if (sfile->files) {
 		// XXXXX would need to do thumbnails_stop here, but no context available
 		filelist_freelib(sfile->files);
@@ -169,6 +171,11 @@ static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 static void file_exit(wmWindowManager *wm, ScrArea *sa)
 {
 	SpaceFile *sfile = (SpaceFile *)sa->spacedata.first;
+
+	if (sfile->previews_timer) {
+		WM_event_remove_timer(wm, NULL, sfile->previews_timer);
+		sfile->previews_timer = NULL;
+	}
 
 	ED_fileselect_exit(wm, sfile);
 }
@@ -248,9 +255,17 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	if (params->display == FILE_IMGDISPLAY) {
 		filelist_cache_previews_set(sfile->files, true);
 		filelist_cache_previews_update(sfile->files);
+		if (!sfile->previews_timer) {
+			sfile->previews_timer = WM_event_add_timer_notifier(wm, CTX_wm_window(C),
+			                                                    NC_SPACE | ND_SPACE_FILE_PREVIEW, 0.01);
+		}
 	}
 	else {
 		filelist_cache_previews_set(sfile->files, false);
+		if (sfile->previews_timer) {
+			WM_event_remove_timer(wm, CTX_wm_window(C), sfile->previews_timer);
+			sfile->previews_timer = NULL;
+		}
 	}
 
 	if (params->renamefile[0] != '\0') {
@@ -283,7 +298,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 
 static void file_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 {
-	/* SpaceFile *sfile = (SpaceFile *)sa->spacedata.first; */
+	SpaceFile *sfile = (SpaceFile *)sa->spacedata.first;
 
 	/* context changes */
 	switch (wmn->category) {
@@ -296,6 +311,12 @@ static void file_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 				case ND_SPACE_FILE_PARAMS:
 					ED_area_tag_refresh(sa);
 					ED_area_tag_redraw(sa);
+					break;
+				case ND_SPACE_FILE_PREVIEW:
+					if (filelist_cache_previews_update(sfile->files)) {
+						ED_area_tag_refresh(sa);
+						ED_area_tag_redraw(sa);
+					}
 					break;
 			}
 			break;
