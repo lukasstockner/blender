@@ -979,7 +979,7 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 		build_animdata(&part->id);
 
 		/* this particle system */
-		OperationKey psys_key(&ob->id, DEPSNODE_TYPE_EVAL_PARTICLES, DEG_OPCODE_PSYS_EVAL);
+		OperationKey psys_key(&ob->id, DEPSNODE_TYPE_EVAL_PARTICLES, DEG_OPCODE_PSYS_EVAL, psys->name);
 
 		/* XXX: if particle system is later re-enabled, we must do full rebuild? */
 		if (!psys_check_enabled(ob, psys))

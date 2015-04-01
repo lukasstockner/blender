@@ -376,7 +376,6 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 
 	/* object data */
 	if (ob->data) {
-		ID *obdata = (ID *)ob->data;
 		/* type-specific data... */
 		switch (ob->type) {
 			case OB_MESH:     /* Geometry */
@@ -415,10 +414,16 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 			case OB_CAMERA: /* Camera */
 				build_camera(ob);
 				break;
-		}
 
-		/* ob data animation */
-		build_animdata(obdata);
+			default:
+			{
+				ID *obdata = (ID *)ob->data;
+				if ((obdata->flag & LIB_DOIT) == 0) {
+					build_animdata(obdata);
+				}
+				break;
+			}
+		}
 	}
 
 	/* Build animation data,
@@ -736,18 +741,13 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	 *       which ideally should be able to be unique across different instances.
 	 *       Eventually, we need some type of proxy/isolation mechanism inbetween here
 	 *       to ensure that we can use same rig multiple times in same scene...
-	 *
-	 *       However, since the armature is obdata, it's drivers have already been added
-	 *       before this function was called, so nothing needs to happen here...
 	 */
-	/* build_animdata(&arm->id); */
-
+	build_animdata(&arm->id);
 
 	/* Rebuild pose if not up to date. */
 	if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC)) {
 		BKE_pose_rebuild(ob, arm);
 	}
-
 
 	/* == Pose Rig Graph ==
 	 * Pose Component:
@@ -827,6 +827,9 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 
 void DepsgraphNodeBuilder::build_proxy_rig(Object *ob)
 {
+	ID *obdata = (ID *)ob->data;
+	build_animdata(obdata);
+
 	add_operation_node(&ob->id,
 	                   DEPSNODE_TYPE_EVAL_POSE,
 	                   DEPSOP_TYPE_INIT,
@@ -926,6 +929,8 @@ void DepsgraphNodeBuilder::build_obdata_geom(Scene *scene, Object *ob)
 		return;
 	}
 
+	build_animdata(obdata);
+
 	/* nodes for result of obdata's evaluation, and geometry evaluation on object */
 	switch (ob->type) {
 		case OB_MESH:
@@ -1008,6 +1013,8 @@ void DepsgraphNodeBuilder::build_camera(Object *ob)
 		return;
 	}
 
+	build_animdata(&cam->id);
+
 	add_operation_node(camera_id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_EXEC, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
 
@@ -1028,6 +1035,8 @@ void DepsgraphNodeBuilder::build_lamp(Object *ob)
 	if (lamp_id->flag & LIB_DOIT) {
 		return;
 	}
+
+	build_animdata(&la->id);
 
 	/* node for obdata */
 	ComponentDepsNode *param_node = add_component_node(lamp_id, DEPSNODE_TYPE_PARAMETERS);
@@ -1125,10 +1134,9 @@ void DepsgraphNodeBuilder::build_texture(DepsNode *owner_node, Tex *tex)
 	if (tex_id->flag & LIB_DOIT) {
 		return;
 	}
-
+	tex_id->flag |= LIB_DOIT;
 	/* texture itself */
 	build_animdata(tex_id);
-
 	/* texture's nodetree */
 	build_nodetree(owner_node, tex->nodetree);
 }
