@@ -50,7 +50,7 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-
+#include "GPU_matrix.h"
 #include "GPU_primitives.h"
 
 #include "clip_intern.h"    // own include
@@ -69,13 +69,13 @@ static void draw_curve_knot(float x, float y, float xscale, float yscale, float 
 		glEndList();
 	}
 
-	glPushMatrix();
+	gpuPushMatrix();
 
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 	glCallList(displist);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void tracking_segment_point_cb(void *UNUSED(userdata), MovieTrackingTrack *UNUSED(track),

@@ -56,6 +56,8 @@
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
+#include "GPU_matrix.h"
+
 /* Max number of font in memory.
  * Take care that now every font have a glyph cache per size/dpi,
  * so we don't need load the same font with different size, just
@@ -505,23 +507,23 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	/* Save the current matrix mode. */
 	glGetIntegerv(GL_MATRIX_MODE, mode);
 
-	glMatrixMode(GL_TEXTURE);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuPushMatrix();
+	gpuLoadIdentity();
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
 
 	if (font->flags & BLF_MATRIX)
-		glMultMatrixd((GLdouble *)&font->m);
+		gpuMultMatrixd((GLdouble *)&font->m);
 
-	glTranslatef(font->pos[0], font->pos[1], font->pos[2]);
+	gpuTranslate(font->pos[0], font->pos[1], font->pos[2]);
 
 	if (font->flags & BLF_ASPECT)
-		glScalef(font->aspect[0], font->aspect[1], font->aspect[2]);
+		gpuScale(font->aspect[0], font->aspect[1], font->aspect[2]);
 
 	if (font->flags & BLF_ROTATION)  /* radians -> degrees */
-		glRotatef(font->angle * (float)(180.0 / M_PI), 0.0f, 0.0f, 1.0f);
+		gpuRotateAxis(font->angle * (float)(180.0 / M_PI), 'Z');
 
 	if (font->shadow || font->blur)
 		glGetFloatv(GL_CURRENT_COLOR, font->orig_col);
@@ -541,14 +543,14 @@ static void blf_draw__end(GLint mode, GLint param)
 	if (param != GL_MODULATE)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
 
-	glMatrixMode(GL_TEXTURE);
-	glPopMatrix();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuPopMatrix();
 
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 
 	if (mode != GL_MODELVIEW)
-		glMatrixMode(mode);
+		gpuMatrixMode(mode);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);

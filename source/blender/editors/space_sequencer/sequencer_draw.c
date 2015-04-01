@@ -75,6 +75,8 @@
 /* own include */
 #include "sequencer_intern.h"
 
+#include "GPU_matrix.h"
+
 
 #define SEQ_LEFTHANDLE   1
 #define SEQ_RIGHTHANDLE  2
@@ -1204,12 +1206,12 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
 	if (draw_backdrop) {
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPushMatrix();
+		gpuLoadIdentity();
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuPushMatrix();
+		gpuLoadIdentity();
 	}
 	glBegin(GL_QUADS);
 
@@ -1261,10 +1263,10 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glEnd();
 	
 	if (draw_backdrop) {
-		glPopMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
+		gpuPopMatrix();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPopMatrix();
+		gpuMatrixMode(GL_MODELVIEW);
 		
 	}
 	

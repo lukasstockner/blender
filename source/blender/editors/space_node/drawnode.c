@@ -71,6 +71,7 @@
 #include "NOD_shader.h"
 #include "NOD_texture.h"
 
+#include "GPU_matrix.h"
 
 /* ****************** SOCKET BUTTON DRAW FUNCTIONS ***************** */
 
@@ -3129,10 +3130,10 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 	if (ibuf) {
 		float x, y; 
 		
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPushMatrix();
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuPushMatrix();
 		
 		/* somehow the offset has to be calculated inverse */
 		
@@ -3234,10 +3235,10 @@ void draw_nodespace_back_pix(const bContext *C, ARegion *ar, SpaceNode *snode, b
 			}
 		}
 		
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPopMatrix();
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuPopMatrix();
 	}
 	
 	BKE_image_release_ibuf(ima, ibuf, lock);

@@ -58,6 +58,7 @@
 #include "UI_interface.h"
 
 #include "GPU_primitives.h"
+#include "GPU_matrix.h"
 
 /* own include */
 #include "interface_intern.h"
@@ -730,16 +731,16 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 			glBlendFunc(GL_ONE, GL_ONE);
 			
-			glPushMatrix();
+			gpuPushMatrix();
 			glEnableClientState(GL_VERTEX_ARRAY);
 			
-			glTranslatef(rect.xmin, yofs, 0.f);
-			glScalef(w, h, 0.f);
+			gpuTranslate(rect.xmin, yofs, 0.f);
+			gpuScale(w, h, 0.f);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_1);
 			glDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 
 			glDisableClientState(GL_VERTEX_ARRAY);
-			glPopMatrix();
+			gpuPopMatrix();
 
 			/* min max */
 			glColor3f(0.5f, 0.5f, 0.5f);
@@ -761,28 +762,28 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			
 			glBlendFunc(GL_ONE, GL_ONE);
 			
-			glPushMatrix();
+			gpuPushMatrix();
 			glEnableClientState(GL_VERTEX_ARRAY);
 			
-			glTranslatef(rect.xmin, yofs, 0.f);
-			glScalef(w3, h, 0.f);
+			gpuTranslate(rect.xmin, yofs, 0.f);
+			gpuScale(w3, h, 0.f);
 			
 			glColor3fv((rgb) ? colors_alpha[0] : colorsycc_alpha[0]);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_1);
 			glDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 
-			glTranslatef(1.f, 0.f, 0.f);
+			gpuTranslate(1.f, 0.f, 0.f);
 			glColor3fv((rgb) ? colors_alpha[1] : colorsycc_alpha[1]);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_2);
 			glDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 			
-			glTranslatef(1.f, 0.f, 0.f);
+			gpuTranslate(1.f, 0.f, 0.f);
 			glColor3fv((rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_3);
 			glDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 			
 			glDisableClientState(GL_VERTEX_ARRAY);
-			glPopMatrix();
+			gpuPopMatrix();
 
 			
 			/* min max */
@@ -935,17 +936,17 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 		glBlendFunc(GL_ONE, GL_ONE);
 		glColor3f(alpha, alpha, alpha);
 
-		glPushMatrix();
+		gpuPushMatrix();
 		glEnableClientState(GL_VERTEX_ARRAY);
 
-		glTranslatef(centerx, centery, 0.f);
-		glScalef(diam, diam, 0.f);
+		gpuTranslate(centerx, centery, 0.f);
+		gpuScale(diam, diam, 0.f);
 
 		glVertexPointer(2, GL_FLOAT, 0, scopes->vecscope);
 		glDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 		
 		glDisableClientState(GL_VERTEX_ARRAY);
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 
 	/* outline */
@@ -1255,15 +1256,15 @@ void ui_draw_but_UNITVEC(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 	glLightf(GL_LIGHT7, GL_LINEAR_ATTENUATION, 0.0f);
 	
 	/* transform to button */
-	glPushMatrix();
-	glTranslatef(rect->xmin + 0.5f * BLI_rcti_size_x(rect), rect->ymin + 0.5f * BLI_rcti_size_y(rect), 0.0f);
+	gpuPushMatrix();
+	gpuTranslate(rect->xmin + 0.5f * BLI_rcti_size_x(rect), rect->ymin + 0.5f * BLI_rcti_size_y(rect), 0.0f);
 	
 	if (BLI_rcti_size_x(rect) < BLI_rcti_size_y(rect))
 		size = BLI_rcti_size_x(rect) / 200.f;
 	else
 		size = BLI_rcti_size_y(rect) / 200.f;
 	
-	glScalef(size, size, size);
+	gpuScale(size, size, size);
 
 	if (displist == 0) {
 		GPUprim3 prim = GPU_PRIM_HIFI_SOLID;
@@ -1295,7 +1296,7 @@ void ui_draw_but_UNITVEC(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 	glDisable(GL_LINE_SMOOTH);
 
 	/* matrix after circle */
-	glPopMatrix();
+	gpuPopMatrix();
 
 	/* enable blender light */
 	for (a = 0; a < 8; a++) {
@@ -1599,7 +1600,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		int a;
 		ImBuf *drawibuf;
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		track_pos[0] = scopes->track_pos[0];
 		track_pos[1] = scopes->track_pos[1];
@@ -1620,7 +1621,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			                  drawibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, drawibuf->rect);
 
 			/* draw cross for pizel position */
-			glTranslatef(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
+			gpuTranslate(rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
 			glScissor(ar->winrct.xmin + rect.xmin,
 			          ar->winrct.ymin + rect.ymin,
 			          BLI_rctf_size_x(&rect),
@@ -1646,7 +1647,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		}
 
 		glDisable(GL_LINE_STIPPLE);
-		glPopMatrix();
+		gpuPopMatrix();
 
 		ok = 1;
 	}

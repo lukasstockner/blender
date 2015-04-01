@@ -55,6 +55,8 @@
 
 #include "BLF_translation.h"
 
+#include "GPU_matrix.h"
+
 #include "UI_resources.h"
 
 #include "transform.h"
@@ -743,7 +745,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			unit_m4(imat);
 		}
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		copy_v3_v3(center, t->center);
 
@@ -763,7 +765,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			else {
 				ED_space_image_get_uv_aspect(t->sa->spacedata.first, &aspx, &aspy);
 			}
-			glScalef(1.0f / aspx, 1.0f / aspy, 1.0f);
+			gpuScale(1.0f / aspx, 1.0f / aspy, 1.0f);
 		}
 		else if (t->spacetype == SPACE_IPO) {
 			/* only scale y */
@@ -773,7 +775,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			float ysize = BLI_rctf_size_y(datamask);
 			float xmask = BLI_rcti_size_x(mask);
 			float ymask = BLI_rcti_size_y(mask);
-			glScalef(1.0f, (ysize / xsize) * (xmask / ymask), 1.0f);
+			gpuScale(1.0f, (ysize / xsize) * (xmask / ymask), 1.0f);
 		}
 
 		depth_test_enabled = glIsEnabled(GL_DEPTH_TEST);
@@ -787,7 +789,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 		if (depth_test_enabled)
 			glEnable(GL_DEPTH_TEST);
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 }
 

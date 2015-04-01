@@ -28,6 +28,7 @@ set(INC
 	../Expressions
 	../Ketsji
 	../SceneGraph
+	../../blender/gpu/
 	../../blender/makesdna
 	../../blender/blenlib
 	../../blender/blenkernel

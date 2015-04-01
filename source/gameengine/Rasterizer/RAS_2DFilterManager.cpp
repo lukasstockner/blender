@@ -44,6 +44,7 @@
 #include <iostream>
 
 #include "glew-mx.h"
+#include "GPU_matrix.h"
 
 #include <stdio.h>
 
@@ -441,13 +442,13 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	// fix for [#34523] alpha buffer is now available for all OSs
 	glDisable(GL_ALPHA_TEST);
 
-	glPushMatrix();		//GL_MODELVIEW
-	glLoadIdentity();	// GL_MODELVIEW
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuPushMatrix();		//GL_MODELVIEW
+	gpuLoadIdentity();	// GL_MODELVIEW
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPushMatrix();
+	gpuLoadIdentity();
 
 	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
 	{
@@ -472,9 +473,9 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 
 	glEnable(GL_DEPTH_TEST);
 	EndShaderProgram();
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 }
 
 void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text)

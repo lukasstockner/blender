@@ -87,6 +87,8 @@
 #include "BLF_api.h"
 #include "BLF_translation.h"
 
+#include "GPU_matrix.h"
+
 #include "transform.h"
 
 /* Disabling, since when you type you know what you are doing, and being able to set it to zero is handy. */
@@ -1710,7 +1712,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 		projectFloatViewEx(t, vecrot, cent, V3D_PROJ_TEST_CLIP_ZERO);
 
-		glPushMatrix();
+		gpuPushMatrix();
 
 		switch (t->helpline) {
 			case HLP_SPRING:
@@ -1722,8 +1724,8 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				glVertex2fv(cent);
 				glEnd();
 
-				glTranslatef(mval[0], mval[1], 0);
-				glRotatef(-RAD2DEGF(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 0, 0, 1);
+				gpuTranslate(mval[0], mval[1], 0);
+				gpuRotateAxis(-RAD2DEGF(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 'Z');
 
 				setlinestyle(0);
 				glLineWidth(3.0);
@@ -1734,7 +1736,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			case HLP_HARROW:
 				UI_ThemeColor(TH_VIEW_OVERLAY);
 
-				glTranslatef(mval[0], mval[1], 0);
+				gpuTranslate(mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 				drawArrow(RIGHT, 5, 10, 5);
@@ -1744,7 +1746,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			case HLP_VARROW:
 				UI_ThemeColor(TH_VIEW_OVERLAY);
 
-				glTranslatef(mval[0], mval[1], 0);
+				gpuTranslate(mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 				drawArrow(UP, 5, 10, 5);
@@ -1766,24 +1768,24 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				glVertex2fv(cent);
 				glEnd();
 
-				glTranslatef(cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
+				gpuTranslate(cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
 
 				setlinestyle(0);
 				glLineWidth(3.0);
 				drawArc(dist, angle - delta_angle, angle - spacing_angle, 10);
 				drawArc(dist, angle + spacing_angle, angle + delta_angle, 10);
 
-				glPushMatrix();
+				gpuPushMatrix();
 
-				glTranslatef(cosf(angle - delta_angle) * dist, sinf(angle - delta_angle) * dist, 0);
-				glRotatef(RAD2DEGF(angle - delta_angle), 0, 0, 1);
+				gpuTranslate(cosf(angle - delta_angle) * dist, sinf(angle - delta_angle) * dist, 0);
+				gpuRotateAxis(RAD2DEGF(angle - delta_angle), 'Z');
 
 				drawArrowHead(DOWN, 5);
 
-				glPopMatrix();
+				gpuPopMatrix();
 
-				glTranslatef(cosf(angle + delta_angle) * dist, sinf(angle + delta_angle) * dist, 0);
-				glRotatef(RAD2DEGF(angle + delta_angle), 0, 0, 1);
+				gpuTranslate(cosf(angle + delta_angle) * dist, sinf(angle + delta_angle) * dist, 0);
+				gpuRotateAxis(RAD2DEGF(angle + delta_angle), 'Z');
 
 				drawArrowHead(UP, 5);
 
@@ -1795,7 +1797,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				unsigned char col[3], col2[3];
 				UI_GetThemeColor3ubv(TH_GRID, col);
 
-				glTranslatef(mval[0], mval[1], 0);
+				gpuTranslate(mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 
@@ -1815,7 +1817,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			}
 		}
 
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 }
 
@@ -6267,9 +6269,9 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
-			glPushMatrix();
+			gpuPushMatrix();
 
-			glMultMatrixf(t->obedit->obmat);
+			gpuMultMatrix(t->obedit->obmat);
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -6308,7 +6310,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			bglEnd();
 
 
-			glPopMatrix();
+			gpuPopMatrix();
 			glPopAttrib();
 
 			glDisable(GL_BLEND);
@@ -6829,9 +6831,9 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
-			glPushMatrix();
+			gpuPushMatrix();
 
-			glMultMatrixf(t->obedit->obmat);
+			gpuMultMatrix(t->obedit->obmat);
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -6867,7 +6869,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 			             curr_sv->co_orig_3d);
 			bglEnd();
 
-			glPopMatrix();
+			gpuPopMatrix();
 			glPopAttrib();
 
 			glDisable(GL_BLEND);

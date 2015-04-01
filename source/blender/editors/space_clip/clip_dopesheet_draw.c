@@ -44,6 +44,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_matrix.h"
+
 #include "WM_types.h"
 
 #include "UI_interface.h"
@@ -111,11 +113,11 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, bo
 		glEndList();
 	}
 
-	glPushMatrix();
+	gpuPushMatrix();
 
 	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
 	/* anti-aliased lines for more consistent appearance */
 	glEnable(GL_LINE_SMOOTH);
@@ -134,7 +136,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, bo
 	glDisable(GL_LINE_SMOOTH);
 
 	/* restore view transform */
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)

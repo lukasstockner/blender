@@ -52,6 +52,7 @@
 #include "ED_screen.h"
 #include "ED_clip.h"
 
+#include "GPU_matrix.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -313,12 +314,12 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 
 	/* because the frame number text is subject to the same scaling as the contents of the view */
 	UI_view2d_scale_get(v2d, &xscale, &yscale);
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
+	gpuScale(1.0f / xscale, 1.0f, 1.0f);
 
 	ED_region_cache_draw_curfra_label(sc->user.framenr, (float)sc->user.framenr * xscale, 18);
 
 	/* restore view transform */
-	glScalef(xscale, 1.0, 1.0);
+	gpuScale(xscale, 1.0, 1.0);
 }
 
 void clip_draw_sfra_efra(View2D *v2d, Scene *scene)

@@ -56,6 +56,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_matrix.h"
+
 
 /* context checked on having screen, window and area */
 wmGesture *WM_gesture_new(bContext *C, const wmEvent *event, int type)
@@ -211,7 +213,7 @@ static void wm_gesture_draw_circle(wmGesture *gt)
 {
 	rcti *rect = (rcti *)gt->customdata;
 
-	glTranslatef((float)rect->xmin, (float)rect->ymin, 0.0f);
+	gpuTranslate((float)rect->xmin, (float)rect->ymin, 0.0f);
 
 	glEnable(GL_BLEND);
 	glColor4f(1.0, 1.0, 1.0, 0.05);
@@ -227,7 +229,7 @@ static void wm_gesture_draw_circle(wmGesture *gt)
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, rect->xmax, 40);
 	
 	glDisable(GL_LINE_STIPPLE);
-	glTranslatef(-rect->xmin, -rect->ymin, 0.0f);
+	gpuTranslate(-rect->xmin, -rect->ymin, 0.0f);
 	
 }
 

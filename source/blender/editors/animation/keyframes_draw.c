@@ -58,6 +58,8 @@
 #include "ED_anim_api.h"
 #include "ED_keyframes_draw.h"
 
+#include "GPU_matrix.h"
+
 /* *************************** Keyframe Processing *************************** */
 
 /* ActKeyColumns (Keyframe Columns) ------------------------------------------ */
@@ -488,8 +490,8 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 	hsize -= 0.5f * key_type;
 	
 	/* adjust view transform before starting */
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * hsize, hsize, 1.0f);
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * hsize, hsize, 1.0f);
 	
 	/* anti-aliased lines for more consistent appearance */
 	glEnable(GL_LINE_SMOOTH);
@@ -553,8 +555,8 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 	glDisable(GL_LINE_SMOOTH);
 	
 	/* restore view transform */
-	glScalef(xscale / hsize, 1.0f / hsize, 1.0f);
-	glTranslatef(-x, -y, 0.0f);
+	gpuScale(xscale / hsize, 1.0f / hsize, 1.0f);
+	gpuTranslate(-x, -y, 0.0f);
 }
 
 static void draw_keylist(View2D *v2d, DLRBT_Tree *keys, DLRBT_Tree *blocks, float ypos, short channelLocked)

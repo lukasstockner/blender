@@ -76,6 +76,8 @@
 
 #include "interface_intern.h"
 
+#include "GPU_matrix.h"
+
 /* avoid unneeded calls to ui_but_value_get */
 #define UI_BUT_VALUE_UNSET DBL_MAX
 #define UI_GET_BUT_VALUE_INIT(_but, _value) if (_value == DBL_MAX) {  (_value) = ui_but_value_get(_but); } (void)0
@@ -1354,11 +1356,11 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	ui_but_to_pixelrect(&rect, ar, block, NULL);
 	
 	/* pixel space for AA widgets */
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPushMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
+	gpuLoadIdentity();
 
 	wmOrtho2_region_ui(ar);
 	
@@ -1383,10 +1385,10 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	}
 	
 	/* restore matrix */
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE_ARB);

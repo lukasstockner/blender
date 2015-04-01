@@ -60,6 +60,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "GPU_matrix.h"
+
 #include "mesh_intern.h"  /* own include */
 
 #define SUBD_SMOOTH_MAX 4.0f
@@ -99,8 +101,8 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		if (v3d && v3d->zbuf)
 			glDisable(GL_DEPTH_TEST);
 
-		glPushMatrix();
-		glMultMatrixf(lcd->ob->obmat);
+		gpuPushMatrix();
+		gpuMultMatrix(lcd->ob->obmat);
 
 		glColor3ub(255, 0, 255);
 		if (lcd->totedge > 0) {
@@ -121,7 +123,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 			glPointSize(1.0f);
 		}
 
-		glPopMatrix();
+		gpuPopMatrix();
 		if (v3d && v3d->zbuf)
 			glEnable(GL_DEPTH_TEST);
 	}

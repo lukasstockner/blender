@@ -50,6 +50,7 @@
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
 #include "GPU_simple_shader.h"
+#include "GPU_matrix.h"
 
 #include "intern/gpu_private.h"
 
@@ -1177,10 +1178,10 @@ void GPU_texture_bind_as_framebuffer(GPUTexture *tex)
 	glViewport(0, 0, tex->w, tex->h);
 	GG.currentfb = tex->fb->object;
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPushMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
 }
 
 void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
@@ -1215,20 +1216,20 @@ void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
 	glViewport(0, 0, fb->colortex[slot]->w, fb->colortex[slot]->h);
 	GG.currentfb = fb->object;
 
-	glMatrixMode(GL_PROJECTION);
-	glPushMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPushMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
 }
 
 
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUSED(tex))
 {
 	/* restore matrix */
-	glMatrixMode(GL_PROJECTION);
-	glPopMatrix();
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 
 	/* restore attributes */
 	glPopAttrib();
@@ -1330,12 +1331,12 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	glViewport(0, 0, GPU_texture_opengl_width(blurtex), GPU_texture_opengl_height(blurtex));
 
 	/* Peparing to draw quad */
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 
 	glDisable(GL_DEPTH_TEST);
 

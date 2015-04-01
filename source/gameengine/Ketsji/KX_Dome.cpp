@@ -1446,8 +1446,8 @@ void KX_Dome::CalculateFrustum(KX_Camera *cam)
 	right = aspect * top
 
 	// the equivalent GLU call is:
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 	gluPerspective(90.0,1.0,cam->GetCameraNear(),cam->GetCameraFar());
 #endif
 
@@ -1657,8 +1657,8 @@ void KX_Dome::Draw(void)
 void KX_Dome::DrawEnvMap(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 
 	// Making the viewport always square 
 
@@ -1683,10 +1683,10 @@ void KX_Dome::DrawEnvMap(void)
 		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
 	}
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuLookAt(0.0,0.0,1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);
 
 	glPolygonMode(GL_FRONT, GL_FILL);
@@ -1787,8 +1787,8 @@ void KX_Dome::DrawDomeFisheye(void)
 	int i;
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 
 	// Making the viewport always square 
 
@@ -1828,10 +1828,10 @@ void KX_Dome::DrawDomeFisheye(void)
 		glOrtho((-ortho_width), ortho_width, (-ortho_width), ortho_height, -20.0, 10.0);
 	}
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuLookAt(0.0,-1.0,0.0, 0.0,0.0,0.0, 0.0,0.0,1.0);
 
 	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
@@ -1883,8 +1883,8 @@ void KX_Dome::DrawPanorama(void)
 {
 	int i;
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 
 	// Making the viewport always square 
 
@@ -1911,10 +1911,10 @@ void KX_Dome::DrawPanorama(void)
 		glOrtho((-ortho_width), ortho_width, (-ortho_height), ortho_height, -20.0, 10.0);
 	}
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuLookAt(0.0,-1.0,0.0, 0.0,0.0,0.0, 0.0,0.0,1.0);
 
 	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)
@@ -1967,8 +1967,8 @@ void KX_Dome::DrawPanorama(void)
 void KX_Dome::DrawDomeWarped(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 
 	// Making the viewport always square 
 	int can_width = m_viewport.GetRight();
@@ -1979,10 +1979,10 @@ void KX_Dome::DrawDomeWarped(void)
 	glOrtho(-screen_ratio,screen_ratio,-1.0,1.0,-20.0,10.0);
 
 
-	glMatrixMode(GL_TEXTURE);
-	glLoadIdentity();
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gpuMatrixMode(GL_TEXTURE);
+	gpuLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 	gpuLookAt(0.0, 0.0, 1.0, 0.0,0.0,0.0, 0.0,1.0,0.0);
 
 	if (m_drawingmode == RAS_IRasterizer::KX_WIREFRAME)

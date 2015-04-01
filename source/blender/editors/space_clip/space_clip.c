@@ -70,6 +70,7 @@
 
 #include "RNA_access.h"
 
+#include "GPU_matrix.h"
 
 #include "clip_intern.h"  /* own include */
 
@@ -1216,13 +1217,13 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	show_cursor |= sc->around == V3D_CURSOR;
 
 	if (show_cursor) {
-		glPushMatrix();
-		glTranslatef(x, y, 0);
-		glScalef(zoomx, zoomy, 0);
-		glMultMatrixf(sc->stabmat);
-		glScalef(width, height, 0);
+		gpuPushMatrix();
+		gpuTranslate(x, y, 0);
+		gpuScale(zoomx, zoomy, 0);
+		gpuMultMatrix(sc->stabmat);
+		gpuScale(width, height, 0);
 		ED_image_draw_cursor(ar, sc->cursor);
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 
 	clip_draw_cache_and_notes(C, sc, ar);

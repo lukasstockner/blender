@@ -50,6 +50,8 @@
 
 #include "UI_interface.h"
 
+#include "GPU_matrix.h"
+
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE                        0x812F
 #endif
@@ -373,11 +375,11 @@ void fdrawXORellipse(float xofs, float yofs, float hw, float hh)
 
 	set_inverted_drawing(1);
 
-	glPushMatrix();
-	glTranslatef(xofs, yofs, 0.0f);
-	glScalef(1.0f, hh / hw, 1.0f);
+	gpuPushMatrix();
+	gpuTranslate(xofs, yofs, 0.0f);
+	gpuScale(1.0f, hh / hw, 1.0f);
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, hw, 20);
-	glPopMatrix();
+	gpuPopMatrix();
 
 	set_inverted_drawing(0);
 }
@@ -388,10 +390,10 @@ void fdrawXORcirc(float xofs, float yofs, float rad)
 {
 	set_inverted_drawing(1);
 
-	glPushMatrix();
-	glTranslatef(xofs, yofs, 0.0);
+	gpuPushMatrix();
+	gpuTranslate(xofs, yofs, 0.0);
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, rad, 20);
-	glPopMatrix();
+	gpuPopMatrix();
 
 	set_inverted_drawing(0);
 }
@@ -729,13 +731,13 @@ void glaDefine2DArea(rcti *screen_rect)
 	 * Programming Guide, Appendix H, Correctness Tips.
 	 */
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 	glOrtho(0.0, sc_w, 0.0, sc_h, -1, 1);
-	glTranslatef(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
+	gpuTranslate(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity();
 }
 
 #if 0 /* UNUSED */
@@ -843,10 +845,10 @@ void glaEnd2DDraw(gla2DDrawInfo *di)
 {
 	glViewport(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
 	glScissor(di->orig_vp[0], di->orig_vp[1], di->orig_vp[2], di->orig_vp[3]);
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(di->orig_projmat);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(di->orig_viewmat);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadMatrix(di->orig_projmat);
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadMatrix(di->orig_viewmat);
 
 	MEM_freeN(di);
 }
@@ -991,7 +993,7 @@ void bglPolygonOffset(float viewdist, float dist)
 		// glPolygonOffset(-1.0, -1.0);
 
 		/* hack below is to mimic polygon offset */
-		glMatrixMode(GL_PROJECTION);
+		gpuMatrixMode(GL_PROJECTION);
 		glGetFloatv(GL_PROJECTION_MATRIX, (float *)winmat);
 		
 		/* dist is from camera to center point */
@@ -1002,16 +1004,16 @@ void bglPolygonOffset(float viewdist, float dist)
 		winmat[14] -= offs;
 		offset += offs;
 		
-		glLoadMatrixf(winmat);
-		glMatrixMode(GL_MODELVIEW);
+		gpuLoadMatrix(winmat);
+		gpuMatrixMode(GL_MODELVIEW);
 	}
 	else {
 
-		glMatrixMode(GL_PROJECTION);
+		gpuMatrixMode(GL_PROJECTION);
 		winmat[14] += offset;
 		offset = 0.0;
-		glLoadMatrixf(winmat);
-		glMatrixMode(GL_MODELVIEW);
+		gpuLoadMatrix(winmat);
+		gpuMatrixMode(GL_MODELVIEW);
 	}
 }
 

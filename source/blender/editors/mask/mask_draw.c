@@ -55,6 +55,7 @@
 #include "UI_view2d.h"
 
 #include "GPU_primitives.h"
+#include "GPU_matrix.h"
 
 #include "mask_intern.h"  /* own include */
 
@@ -160,11 +161,11 @@ static void draw_circle(const float x, const float y,
 		}
 	}
 
-	glPushMatrix();
-	glTranslatef(x, y, 0.0f);
-	glScalef(1.0f / xscale * size, 1.0f / yscale * size, 1.0f);
+	gpuPushMatrix();
+	gpuTranslate(x, y, 0.0f);
+	gpuScale(1.0f / xscale * size, 1.0f / yscale * size, 1.0f);
 	glCallList(displist);
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void draw_single_handle(const MaskLayer *mask_layer, const MaskSplinePoint *point,
@@ -814,14 +815,14 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 			format = GL_ALPHA;
 		}
 
-		glPushMatrix();
-		glTranslatef(x, y, 0);
-		glScalef(zoomx, zoomy, 0);
+		gpuPushMatrix();
+		gpuTranslate(x, y, 0);
+		gpuScale(zoomx, zoomy, 0);
 		if (stabmat) {
-			glMultMatrixf(stabmat);
+			gpuMultMatrix(stabmat);
 		}
 		glaDrawPixelsTex(0.0f, 0.0f, width, height, format, GL_FLOAT, GL_NEAREST, buffer);
-		glPopMatrix();
+		gpuPopMatrix();
 
 		if (overlay_mode != MASK_OVERLAY_ALPHACHANNEL) {
 			glDisable(GL_BLEND);
@@ -831,14 +832,14 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 	}
 
 	/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-	glPushMatrix();
+	gpuPushMatrix();
 
 	if (stabmat) {
-		glMultMatrixf(stabmat);
+		gpuMultMatrix(stabmat);
 	}
 
-	glTranslatef(x + xofs, y + yofs, 0);
-	glScalef(maxdim * zoomx, maxdim * zoomy, 0);
+	gpuTranslate(x + xofs, y + yofs, 0);
+	gpuScale(maxdim * zoomx, maxdim * zoomy, 0);
 
 	if (do_draw_cb) {
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
@@ -851,7 +852,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 void ED_mask_draw_frames(Mask *mask, ARegion *ar, const int cfra, const int sfra, const int efra)

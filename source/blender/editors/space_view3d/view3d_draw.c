@@ -97,6 +97,7 @@
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
 #include "GPU_primitives.h"
+#include "GPU_matrix.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -114,24 +115,24 @@ extern void bl_debug_color_set(const unsigned int col);
 
 void circf(float x, float y, float rad)
 {
-	glPushMatrix(); 
+	gpuPushMatrix();
 	
-	glTranslatef(x, y, 0.0);
+	gpuTranslate(x, y, 0.0);
 
 	gpuDrawDisk(0.0, 0.0, rad, 32);
 	
-	glPopMatrix(); 
+	gpuPopMatrix();
 }
 
 void circ(float x, float y, float rad)
 {
-	glPushMatrix(); 
+	gpuPushMatrix();
 	
-	glTranslatef(x, y, 0.0);
+	gpuTranslate(x, y, 0.0);
 	
 	gpuDrawDisk(0.0, 0.0, rad, 32);
 
-	glPopMatrix(); 
+	gpuPopMatrix();
 }
 
 
@@ -1821,14 +1822,14 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			glEnable(GL_BLEND);
 			glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
 			ED_region_pixelspace(ar);
 
-			glTranslatef(centx, centy, 0.0);
-			glRotatef(RAD2DEGF(-bgpic->rotation), 0.0f, 0.0f, 1.0f);
+			gpuTranslate(centx, centy, 0.0);
+			gpuRotateAxis(RAD2DEGF(-bgpic->rotation), 'Z');
 
 			if (bgpic->flag & V3D_BGPIC_FLIP_X) {
 				zoomx *= -1.0f;
@@ -1850,10 +1851,10 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 			glPixelZoom(1.0, 1.0);
 			glPixelTransferf(GL_ALPHA_SCALE, 1.0f);
 
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 
 			glDisable(GL_BLEND);
 
@@ -2137,10 +2138,10 @@ static void draw_dupli_objects_color(
 			}
 			
 			if (use_displist) {
-				glPushMatrix();
-				glMultMatrixf(dob->mat);
+				gpuPushMatrix();
+				gpuMultMatrix(dob->mat);
 				glCallList(displist);
-				glPopMatrix();
+				gpuPopMatrix();
 			}	
 			else {
 				copy_m4_m4(dob->ob->obmat, dob->mat);
@@ -2303,7 +2304,7 @@ void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	glLoadMatrixf(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat);
 
 	v3d->zbuf = true;
 	glEnable(GL_DEPTH_TEST);
@@ -2342,7 +2343,7 @@ void ED_view3d_draw_depth(Scene *scene, ARegion *ar, View3D *v3d, bool alphaover
 	
 	glClear(GL_DEPTH_BUFFER_BIT);
 	
-	glLoadMatrixf(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat);
 //	persp(PERSP_STORE);  /* store correct view for persp(PERSP_VIEW) calls */
 	
 	if (rv3d->rflag & RV3D_CLIPPING) {
@@ -2723,10 +2724,10 @@ static void view3d_draw_objects(
 			*grid_unit = NULL;  /* drawgrid need this to detect/affect smallest valid unit... */
 			drawgrid(&scene->unit, ar, v3d, grid_unit);
 			/* XXX make function? replaces persp(1) */
-			glMatrixMode(GL_PROJECTION);
-			glLoadMatrixf(rv3d->winmat);
-			glMatrixMode(GL_MODELVIEW);
-			glLoadMatrixf(rv3d->viewmat);
+			gpuMatrixMode(GL_PROJECTION);
+			gpuLoadMatrix(rv3d->winmat);
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuLoadMatrix(rv3d->viewmat);
 		}
 		else {
 			drawfloor(scene, v3d, grid_unit);
@@ -2868,10 +2869,10 @@ static void view3d_main_area_setup_view(Scene *scene, View3D *v3d, ARegion *ar, 
 	ED_view3d_update_viewmat(scene, v3d, ar, viewmat, winmat);
 
 	/* set for opengl */
-	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(rv3d->winmat);
-	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(rv3d->viewmat);
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadMatrix(rv3d->winmat);
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadMatrix(rv3d->viewmat);
 }
 
 void ED_view3d_draw_offscreen_init(Scene *scene, View3D *v3d)
@@ -2930,12 +2931,12 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			IMB_colormanagement_pixel_to_display_space_v3(col_zen, &scene->world->zenr, &scene->view_settings,
 			                                              &scene->display_settings);
 
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glLoadIdentity();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
-			glLoadIdentity();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuLoadIdentity();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
+			gpuLoadIdentity();
 
 			glShadeModel(GL_SMOOTH);
 
@@ -3019,10 +3020,10 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glDepthFunc(GL_LEQUAL);
 			glDisable(GL_DEPTH_TEST);
 
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 
 			glShadeModel(GL_FLAT);
 
@@ -3040,12 +3041,12 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 	}
 	else {
 		if (UI_GetThemeValue(TH_SHOW_BACK_GRAD)) {
-			glMatrixMode(GL_PROJECTION);
-			glPushMatrix();
-			glLoadIdentity();
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
-			glLoadIdentity();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPushMatrix();
+			gpuLoadIdentity();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
+			gpuLoadIdentity();
 
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
@@ -3063,11 +3064,11 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glDepthFunc(GL_LEQUAL);
 			glDisable(GL_DEPTH_TEST);
 
-			glMatrixMode(GL_PROJECTION);
-			glPopMatrix();
+			gpuMatrixMode(GL_PROJECTION);
+			gpuPopMatrix();
 
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 		}
 		else {
 			UI_ThemeClearColorAlpha(TH_HIGH_GRAD, 1.0f);
@@ -3092,7 +3093,7 @@ void ED_view3d_draw_offscreen(
 	bool do_compositing = false;
 	RegionView3D *rv3d = ar->regiondata;
 
-	glPushMatrix();
+	gpuPushMatrix();
 
 	/* set temporary new size */
 	bwinx = ar->winx;
@@ -3174,7 +3175,7 @@ void ED_view3d_draw_offscreen(
 	ar->winy = bwiny;
 	ar->winrct = brect;
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	UI_Theme_Restore(&theme_state);
 

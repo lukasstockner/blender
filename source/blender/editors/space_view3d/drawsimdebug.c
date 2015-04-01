@@ -43,6 +43,7 @@
 #include "view3d_intern.h"
 
 #include "BIF_gl.h"
+#include "GPU_matrix.h"
 
 
 static void draw_sim_debug_elements(SimDebugData *debug_data, float imat[4][4])
@@ -154,12 +155,12 @@ void draw_sim_debug_data(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar)
 //	glDepthMask(GL_FALSE);
 //	glEnable(GL_BLEND);
 	
-	glPushMatrix();
+	gpuPushMatrix();
 	
-	glLoadMatrixf(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat);
 	draw_sim_debug_elements(_sim_debug_data, imat);
 	
-	glPopMatrix();
+	gpuPopMatrix();
 	
 //	glDepthMask(GL_TRUE);
 //	glDisable(GL_BLEND);

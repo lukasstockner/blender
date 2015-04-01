@@ -49,7 +49,6 @@
 #include "BKE_screen.h"
 #include "BKE_global.h"
 
-
 #include "WM_api.h"
 
 #include "BIF_gl.h"
@@ -60,6 +59,8 @@
 
 #include "UI_interface.h"
 #include "UI_view2d.h"
+
+#include "GPU_matrix.h"
 
 #include "interface_intern.h"
 
@@ -1095,7 +1096,7 @@ void UI_view2d_view_ortho(View2D *v2d)
 	wmOrtho2(curmasked.xmin, curmasked.xmax, curmasked.ymin, curmasked.ymax);
 
 	/* XXX is this necessary? */
-	glLoadIdentity();
+	gpuLoadIdentity();
 }
 
 /* Set view matrices to only use one axis of 'cur' only
@@ -1123,7 +1124,7 @@ void UI_view2d_view_orthoSpecial(ARegion *ar, View2D *v2d, const bool xaxis)
 		wmOrtho2(-xofs, ar->winx - xofs, curmasked.ymin - yofs, curmasked.ymax - yofs);
 		
 	/* XXX is this necessary? */
-	glLoadIdentity();
+	gpuLoadIdentity();
 } 
 
 
@@ -1135,7 +1136,7 @@ void UI_view2d_view_restore(const bContext *C)
 	int height = BLI_rcti_size_y(&ar->winrct) + 1;
 	
 	wmOrtho2(0.0f, (float)width, 0.0f, (float)height);
-	glLoadIdentity();
+	gpuLoadIdentity();
 	
 	//	ED_region_pixelspace(CTX_wm_region(C));
 }
@@ -2389,10 +2390,10 @@ void UI_view2d_text_cache_draw(ARegion *ar)
 		g_v2d_strings_arena = NULL;
 	}
 
-	// glMatrixMode(GL_PROJECTION);
-	// glPopMatrix();
-	// glMatrixMode(GL_MODELVIEW);
-	// glPopMatrix();
+	// gpuMatrixMode(GL_PROJECTION);
+	// gpuPopMatrix();
+	// gpuMatrixMode(GL_MODELVIEW);
+	// gpuPopMatrix();
 }
 
 

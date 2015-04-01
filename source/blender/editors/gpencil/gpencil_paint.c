@@ -71,6 +71,8 @@
 #include "WM_api.h"
 #include "WM_types.h"
 
+#include "GPU_matrix.h"
+
 #include "gpencil_intern.h"
 
 /* ******************************************* */
@@ -1379,9 +1381,9 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 	tGPsdata *p = (tGPsdata *)p_ptr;
 	
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
-		glPushMatrix();
+		gpuPushMatrix();
 		
-		glTranslatef((float)x, (float)y, 0.0f);
+		gpuTranslate((float)x, (float)y, 0.0f);
 		
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
@@ -1398,7 +1400,7 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 		
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 }
 

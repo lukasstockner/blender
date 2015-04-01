@@ -63,6 +63,7 @@
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
+#include "GPU_matrix.h"
 
 #include "BIK_api.h"
 
@@ -1003,9 +1004,9 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = t->view;
 		
-		glPushMatrix();
+		gpuPushMatrix();
 		
-		//if (t->obedit) glLoadMatrixf(t->obedit->obmat);	// sets opengl viewing
+		//if (t->obedit) gpuLoadMatrix(t->obedit->obmat);	// sets opengl viewing
 		
 		
 		copy_v3_v3(v3, dir);
@@ -1029,7 +1030,7 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 		glVertex3fv(v2);
 		glEnd();
 		
-		glPopMatrix();
+		gpuPopMatrix();
 	}
 }
 

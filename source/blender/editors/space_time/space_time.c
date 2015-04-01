@@ -56,6 +56,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_matrix.h"
+
 #include "UI_resources.h"
 #include "UI_view2d.h"
 #include "UI_interface.h"
@@ -170,9 +172,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 			}
 		}
 		
-		glPushMatrix();
-		glTranslatef(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
-		glScalef(1.0, cache_draw_height, 0.0);
+		gpuPushMatrix();
+		gpuTranslate(0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
+		gpuScale(1.0, cache_draw_height, 0.0);
 		
 		switch (pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
@@ -228,7 +230,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		
 		glDisable(GL_BLEND);
 		
-		glPopMatrix();
+		gpuPopMatrix();
 		
 		yoffs += cache_draw_height;
 

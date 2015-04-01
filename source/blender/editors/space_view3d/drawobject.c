@@ -89,6 +89,7 @@
 #include "GPU_extensions.h"
 #include "GPU_select.h"
 #include "GPU_primitives.h"
+#include "GPU_matrix.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -646,14 +647,14 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 	ofs_x = ob->ima_ofs[0] * ima_x;
 	ofs_y = ob->ima_ofs[1] * ima_y;
 
-	glMatrixMode(GL_MODELVIEW);
-	glPushMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPushMatrix();
 
 	/* Calculate Image scale */
 	scale = (ob->empty_drawsize / max_ff((float)ima_x * sca_x, (float)ima_y * sca_y));
 
 	/* Set the object scale */
-	glScalef(scale * sca_x, scale * sca_y, 1.0f);
+	gpuScale(scale * sca_x, scale * sca_y, 1.0f);
 
 	if (ibuf && ibuf->rect) {
 		const bool use_clip = (U.glalphaclip != 1.0f);
@@ -696,8 +697,8 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 
 	/* Reset GL settings */
-	glMatrixMode(GL_MODELVIEW);
-	glPopMatrix();
+	gpuMatrixMode(GL_MODELVIEW);
+	gpuPopMatrix();
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
 }
@@ -879,12 +880,12 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 			ED_view3d_clipping_disable();
 		}
 
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPushMatrix();
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuPushMatrix();
 		wmOrtho2_region_ui(ar);
-		glLoadIdentity();
+		gpuLoadIdentity();
 		
 		if (depth_write) {
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
@@ -918,10 +919,10 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 			glDepthMask(1);
 		}
 		
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
+		gpuMatrixMode(GL_PROJECTION);
+		gpuPopMatrix();
+		gpuMatrixMode(GL_MODELVIEW);
+		gpuPopMatrix();
 
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			ED_view3d_clipping_enable();
@@ -975,8 +976,8 @@ static void drawcube_size(float size)
 static void drawcube_size(const float size[3])
 {
 
-	glPushMatrix();
-	glScalef(size[0],  size[1],  size[2]);
+	gpuPushMatrix();
+	gpuScale(size[0],  size[1],  size[2]);
 	
 
 	glBegin(GL_LINE_STRIP);
@@ -997,7 +998,7 @@ static void drawcube_size(const float size[3])
 	glVertex3fv(cube[3]); glVertex3fv(cube[7]);
 	glEnd();
 	
-	glPopMatrix();
+	gpuPopMatrix();
 }
 #endif
 
@@ -1175,8 +1176,8 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 	
 	/* we first draw only the screen aligned & fixed scale stuff */
-	glPushMatrix();
-	glLoadMatrixf(rv3d->viewmat);
+	gpuPushMatrix();
+	gpuLoadMatrix(rv3d->viewmat);
 
 	/* lets calculate the scale: */
 	lampsize = pixsize * ((float)U.obcenter_dia * 0.5f);
@@ -1254,7 +1255,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		mul_v3_v3fl(v2, imat[0], circrad * 2.5f);
 		
 		/* center */
-		glTranslatef(vec[0], vec[1], vec[2]);
+		gpuTranslate(vec[0], vec[1], vec[2]);
 		
 		setlinestyle(3);
 		
@@ -1267,7 +1268,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		}
 		glEnd();
 		
-		glTranslatef(-vec[0], -vec[1], -vec[2]);
+		gpuTranslate(-vec[0], -vec[1], -vec[2]);
 
 	}
 	
@@ -1277,7 +1278,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		}
 	}
 	
-	glPopMatrix();  /* back in object space */
+	gpuPopMatrix();  /* back in object space */
 	zero_v3(vec);
 	
 	if (is_view) {
@@ -1307,7 +1308,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		x *= y;
 
 		/* draw the circle/square at the end of the cone */
-		glTranslatef(0.0, 0.0, x);
+		gpuTranslate(0.0, 0.0, x);
 		if (la->mode & LA_SQUARE) {
 			float tvec[3];
 			float z_abs = fabsf(z);
@@ -1343,7 +1344,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 			draw_transp_spot_volume(la, x, z);
 
 		/* draw clip start, useful for wide cones where its not obvious where the start is */
-		glTranslatef(0.0, 0.0, -x);  /* reverse translation above */
+		gpuTranslate(0.0, 0.0, -x);  /* reverse translation above */
 		if (la->type == LA_SPOT && (la->mode & LA_SHAD_BUF)) {
 			float lvec_clip[3];
 			float vvec_clip[3];
@@ -1428,8 +1429,8 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 	
 	/* and back to viewspace */
-	glPushMatrix();
-	glLoadMatrixf(rv3d->viewmat);
+	gpuPushMatrix();
+	gpuLoadMatrix(rv3d->viewmat);
 	copy_v3_v3(vec, ob->obmat[3]);
 
 	setlinestyle(0);
@@ -1467,7 +1468,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		glColor3ubv(ob_wire_col);
 	}
 	/* and finally back to org object space! */
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void draw_limit_line(float sta, float end, const short dflag, unsigned int col)
@@ -1555,7 +1556,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 	if ((tracking_object->flag & TRACKING_OBJECT_CAMERA) == 0)
 		mul_v3_fl(camera_size, tracking_object->scale);
 
-	glPushMatrix();
+	gpuPushMatrix();
 
 	if (tracking_object->flag & TRACKING_OBJECT_CAMERA) {
 		/* current ogl matrix is translated in camera space, bundles should
@@ -1563,8 +1564,8 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		 * from current ogl matrix */
 		invert_m4_m4(imat, base->object->obmat);
 
-		glMultMatrixf(imat);
-		glMultMatrixf(mat);
+		gpuMultMatrix(imat);
+		gpuMultMatrix(mat);
 	}
 	else {
 		float obmat[4][4];
@@ -1573,7 +1574,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		BKE_tracking_camera_get_reconstructed_interpolate(tracking, tracking_object, framenr, obmat);
 
 		invert_m4_m4(imat, obmat);
-		glMultMatrixf(imat);
+		gpuMultMatrix(imat);
 	}
 
 	for (track = tracksbase->first; track; track = track->next) {
@@ -1588,9 +1589,9 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		if (dflag & DRAW_PICKING)
 			GPU_select_load_id(base->selcol + (tracknr << 16));
 
-		glPushMatrix();
-		glTranslatef(track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
-		glScalef(v3d->bundle_size / 0.05f / camera_size[0],
+		gpuPushMatrix();
+		gpuTranslate(track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
+		gpuScale(v3d->bundle_size / 0.05f / camera_size[0],
 		         v3d->bundle_size / 0.05f / camera_size[1],
 		         v3d->bundle_size / 0.05f / camera_size[2]);
 
@@ -1655,7 +1656,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 			}
 		}
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		if ((dflag & DRAW_PICKING) == 0 && (v3d->flag2 & V3D_SHOW_BUNDLENAME)) {
 			float pos[3];
@@ -1695,7 +1696,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		}
 	}
 
-	glPopMatrix();
+	gpuPopMatrix();
 
 	*global_track_index = tracknr;
 }
@@ -1847,9 +1848,9 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			copy_m4_m4(nobmat, ob->obmat);
 			normalize_m4(nobmat);
 
-			glPushMatrix();
-			glLoadMatrixf(rv3d->viewmat);
-			glMultMatrixf(nobmat);
+			gpuPushMatrix();
+			gpuLoadMatrix(rv3d->viewmat);
+			gpuMultMatrix(nobmat);
 
 			if (cam->flag & CAM_SHOWLIMITS) {
 				draw_limit_line(cam->clipsta, cam->clipend, dflag, 0x77FFFF);
@@ -1863,7 +1864,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 					draw_limit_line(world->miststa, world->miststa + world->mistdist, dflag, 0xFFFFFF);
 				}
 			}
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 }
@@ -4805,7 +4806,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
 		float mat[4][4];
 		mul_m4_m4m4(mat, ob->obmat, psys->imat);
-		glMultMatrixf(mat);
+		gpuMultMatrix(mat);
 	}
 
 	/* needed for text display */
@@ -5454,7 +5455,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	}
 
 	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
-		glLoadMatrixf(rv3d->viewmat);
+		gpuLoadMatrix(rv3d->viewmat);
 	}
 }
 
@@ -6399,38 +6400,38 @@ static void draw_empty_sphere(float size)
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
-		glPushMatrix();
+		gpuPushMatrix();
 		
 		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
 
-		glRotatef(90, 0, 1, 0);
+		gpuRotateAxis(90, 'Y');
 		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
 		
-		glRotatef(90, 1, 0, 0);
+		gpuRotateAxis(90, 'X');
 		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
 
-		glPopMatrix();
+		gpuPopMatrix();
 		glEndList();
 	}
 	
-	glScalef(size, size, size);
+	gpuScale(size, size, size);
 	glCallList(displist);
-	glScalef(1.0f / size, 1.0f / size, 1.0f / size);
+	gpuScale(1.0f / size, 1.0f / size, 1.0f / size);
 }
 
 /* draw a cone for use as an empty drawtype */
 static void draw_empty_cone(float size)
 {
 	struct GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
-	float radius;
+	float radius = size;
 
-	glPushMatrix();
+	gpuPushMatrix();
 	
-	glScalef(radius, size * 2.0f, radius);
-	glRotatef(-90.0, 1.0, 0.0, 0.0);
+	gpuScale(radius, size * 2.0f, radius);
+	gpuRotateAxis(-90.0, 'X');
 	gpuDrawCylinder(&prim, 1.0f, 0.0f, 1.0f);
 
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void drawspiral(const float cent[3], float rad, float tmat[4][4], int start)
@@ -6824,35 +6825,35 @@ static void draw_bb_quadric(BoundBox *bb, char type, bool around_origin)
 		BKE_boundbox_calc_center_aabb(bb, cent);
 	}
 	
-	glPushMatrix();
+	gpuPushMatrix();
 	if (type == OB_BOUND_SPHERE) {
 		float scale = MAX3(size[0], size[1], size[2]);
-		glTranslatef(cent[0], cent[1], cent[2]);
-		glScalef(scale, scale, scale);
+		gpuTranslate(cent[0], cent[1], cent[2]);
+		gpuScale(scale, scale, scale);
 		gpuDrawSphere(&prim, 1.0f);
 	}
 	else if (type == OB_BOUND_CYLINDER) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
-		glTranslatef(cent[0], cent[1], cent[2] - size[2]);
-		glScalef(radius, radius, 2.0f * size[2]);
+		gpuTranslate(cent[0], cent[1], cent[2] - size[2]);
+		gpuScale(radius, radius, 2.0f * size[2]);
 		gpuDrawCylinder(&prim, 1.0f, 1.0f, 1.0f);
 	}
 	else if (type == OB_BOUND_CONE) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
-		glTranslatef(cent[0], cent[1], cent[2] - size[2]);
-		glScalef(radius, radius, 2.0f * size[2]);
+		gpuTranslate(cent[0], cent[1], cent[2] - size[2]);
+		gpuScale(radius, radius, 2.0f * size[2]);
 		gpuDrawCylinder(&prim, 1.0f, 0.0f, 1.0f);
 	}
 	else if (type == OB_BOUND_CAPSULE) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		float length = size[2] > radius ? 2.0f * (size[2] - radius) : 0.0f;
-		glTranslatef(cent[0], cent[1], cent[2] - length * 0.5f);
+		gpuTranslate(cent[0], cent[1], cent[2] - length * 0.5f);
 		gpuDrawCylinder(&prim, radius, radius, length);
 		gpuDrawSphere(&prim, radius);
-		glTranslatef(0.0, 0.0, length);
+		gpuTranslate(0.0, 0.0, length);
 		gpuDrawSphere(&prim, radius);
 	}
-	glPopMatrix();
+	gpuPopMatrix();
 }
 
 static void draw_bounding_volume(Object *ob, char type)
@@ -7542,12 +7543,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				if ((sb = ob->soft)) {
 					if (sb->solverflags & SBSO_ESTIMATEIPO) {
 
-						glLoadMatrixf(rv3d->viewmat);
+						gpuLoadMatrix(rv3d->viewmat);
 						copy_m3_m3(msc, sb->lscale);
 						copy_m3_m3(mrt, sb->lrot);
 						mul_m3_m3m3(mtr, mrt, msc);
 						ob_draw_RE_motion(sb->lcom, mtr, tipw, tiph, drawsize);
-						glMultMatrixf(ob->obmat);
+						gpuMultMatrix(ob->obmat);
 					}
 				}
 			}
@@ -7572,7 +7573,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		}
 		//glDepthMask(GL_FALSE);
 
-		glLoadMatrixf(rv3d->viewmat);
+		gpuLoadMatrix(rv3d->viewmat);
 		
 		view3d_cached_text_draw_begin();
 
@@ -7589,7 +7590,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		invert_m4_m4(ob->imat, ob->obmat);
 		view3d_cached_text_draw_end(v3d, ar, 0, NULL);
 
-		glMultMatrixf(ob->obmat);
+		gpuMultMatrix(ob->obmat);
 		
 		//glDepthMask(GL_TRUE);
 		if (col) cpack(col);
@@ -7603,10 +7604,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->mode & OB_MODE_PARTICLE_EDIT && is_obact) {
 			PTCacheEdit *edit = PE_create_current(scene, ob);
 			if (edit) {
-				glLoadMatrixf(rv3d->viewmat);
+				gpuLoadMatrix(rv3d->viewmat);
 				draw_update_ptcache_edit(scene, ob, edit);
 				draw_ptcache_edit(scene, v3d, edit);
-				glMultMatrixf(ob->obmat);
+				gpuMultMatrix(ob->obmat);
 			}
 		}
 	}
@@ -7622,7 +7623,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			if (scs->points) {
 				size_t i;
 
-				glLoadMatrixf(rv3d->viewmat);
+				gpuLoadMatrix(rv3d->viewmat);
 
 				if (col || (ob->flag & SELECT)) cpack(0xFFFFFF);
 				glDepthMask(GL_FALSE);
@@ -7640,7 +7641,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				bglEnd();
 				glPointSize(1.0);
 
-				glMultMatrixf(ob->obmat);
+				gpuMultMatrix(ob->obmat);
 				glDisable(GL_BLEND);
 				glDepthMask(GL_TRUE);
 				if (col) cpack(col);
@@ -7654,8 +7655,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			float p0[3], p1[3], viewnormal[3];
 			BoundBox bb;
 
-			glLoadMatrixf(rv3d->viewmat);
-			glMultMatrixf(ob->obmat);
+			gpuLoadMatrix(rv3d->viewmat);
+			gpuMultMatrix(ob->obmat);
 
 			/* draw adaptive domain bounds */
 			if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
@@ -7803,7 +7804,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	/* return warning, clear temp flag */
 	v3d->flag2 &= ~V3D_SHOW_SOLID_MATCAP;
 	
-	glLoadMatrixf(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat);
 
 	if (zbufoff) {
 		glDisable(GL_DEPTH_TEST);
@@ -8157,7 +8158,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 {
 	ToolSettings *ts = scene->toolsettings;
 
-	glMultMatrixf(ob->obmat);
+	gpuMultMatrix(ob->obmat);
 
 	glClearDepth(1.0); glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
@@ -8217,7 +8218,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 			break;
 	}
 
-	glLoadMatrixf(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat);
 }
 
 

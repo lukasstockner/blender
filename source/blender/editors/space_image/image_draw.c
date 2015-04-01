@@ -78,6 +78,8 @@
 #include "RE_pipeline.h"
 #include "RE_engine.h"
 
+#include "GPU_matrix.h"
+
 #include "image_intern.h"
 
 static void draw_render_info(const bContext *C,
@@ -118,12 +120,12 @@ static void draw_render_info(const bContext *C,
 			/* find window pixel coordinates of origin */
 			UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-			glPushMatrix();
-			glTranslatef(x, y, 0.0f);
-			glScalef(zoomx, zoomy, 1.0f);
+			gpuPushMatrix();
+			gpuTranslate(x, y, 0.0f);
+			gpuScale(zoomx, zoomy, 1.0f);
 
 			if (rd->mode & R_BORDER) {
-				glTranslatef((int)(-rd->border.xmin * rd->xsch * rd->size / 100.0f),
+				gpuTranslate((int)(-rd->border.xmin * rd->xsch * rd->size / 100.0f),
 				             (int)(-rd->border.ymin * rd->ysch * rd->size / 100.0f),
 				             0.0f);
 			}
@@ -138,7 +140,7 @@ static void draw_render_info(const bContext *C,
 				MEM_freeN(tiles);
 			}
 
-			glPopMatrix();
+			gpuPopMatrix();
 		}
 	}
 }
@@ -851,7 +853,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 			calc_image_view(sima, 'f');
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
 			glRectf(0.0f, 0.0f, 1.0f, 1.0f);
-			glLoadIdentity();
+			gpuLoadIdentity();
 		}
 	}
 #endif

@@ -212,7 +212,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			
 			calc_image_view(G.sima, 'f');   // float
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
-			glLoadIdentity();
+			gpuLoadIdentity();
 			
 			ED_space_image_get_aspect(t->sa->spacedata.first, &xuser_aspx, &yuser_asp);
 			ED_space_image_width(t->sa->spacedata.first, &wi, &hi);
@@ -220,7 +220,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			h = (((float)hi) / IMG_SIZE_FALLBACK) * G.sima->zoom * yuser_asp;
 			
 			cpack(0xFFFFFF);
-			glTranslatef(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
+			gpuTranslate(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
 			
 			//glRectf(0, 0, 1, 1);
 			
@@ -231,7 +231,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			fdrawline(0, -0.020 / h, 0, -0.1 / h);
 			fdrawline(0, 0.1 / h, 0, 0.020 / h);
 			
-			glTranslatef(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
+			gpuTranslate(-t->tsnap.snapPoint[0], -t->tsnap.snapPoint[1], 0.0f);
 			setlinestyle(0);
 #endif
 		}

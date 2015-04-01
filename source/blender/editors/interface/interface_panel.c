@@ -388,15 +388,15 @@ static void ui_offset_panel_block(uiBlock *block)
 #if 0 /*UNUSED 2.5*/
 static void uiPanelPush(uiBlock *block)
 {
-	glPushMatrix(); 
+	gpuPushMatrix(); 
 
 	if (block->panel)
-		glTranslatef((float)block->panel->ofsx, (float)block->panel->ofsy, 0.0);
+		gpuTranslate((float)block->panel->ofsx, (float)block->panel->ofsy, 0.0);
 }
 
 static void uiPanelPop(uiBlock *UNUSED(block))
 {
-	glPopMatrix();
+	gpuPopMatrix();
 }
 #endif
 

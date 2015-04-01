@@ -69,6 +69,8 @@
 #include "GHOST_C-api.h"
 #include "BLF_api.h"
 
+#include "GPU_matrix.h"
+
 #include "WM_api.h"  /* only for WM_main_playanim */
 
 struct PlayState;
@@ -171,10 +173,10 @@ static void playanim_window_get_size(int *width_r, int *height_r)
 static void playanim_gl_matrix(void)
 {
 	/* unified matrix, note it affects offset for drawing */
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
+	gpuMatrixMode(GL_PROJECTION);
+	gpuLoadIdentity();
 	glOrtho(0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
-	glMatrixMode(GL_MODELVIEW);
+	gpuMatrixMode(GL_MODELVIEW);
 }
 
 /* implementation */

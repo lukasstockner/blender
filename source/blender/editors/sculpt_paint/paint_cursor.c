@@ -59,6 +59,8 @@
 
 #include "ED_view3d.h"
 
+#include "GPU_matrix.h"
+
 #include "UI_resources.h"
 
 #include "paint_intern.h"
@@ -588,22 +590,21 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glDepthMask(GL_FALSE);
 		glDepthFunc(GL_ALWAYS);
 
-		glMatrixMode(GL_TEXTURE);
-		glPushMatrix();
-		glLoadIdentity();
+		gpuMatrixMode(GL_TEXTURE);
+		gpuPushMatrix();
+		gpuLoadIdentity();
 
 		if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
 			/* brush rotation */
-			glTranslatef(0.5, 0.5, 0);
-			glRotatef((double)RAD2DEGF((primary) ? ups->brush_rotation : ups->brush_rotation_sec),
-			          0.0, 0.0, 1.0);
-			glTranslatef(-0.5f, -0.5f, 0);
+			gpuTranslate(0.5, 0.5, 0);
+			gpuRotateAxis((double)RAD2DEGF((primary) ? ups->brush_rotation : ups->brush_rotation_sec), 'Z');
+			gpuTranslate(-0.5f, -0.5f, 0);
 
 			/* scale based on tablet pressure */
 			if (primary && ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush)) {
-				glTranslatef(0.5f, 0.5f, 0);
-				glScalef(1.0f / ups->size_pressure_value, 1.0f / ups->size_pressure_value, 1);
-				glTranslatef(-0.5f, -0.5f, 0);
+				gpuTranslate(0.5f, 0.5f, 0);
+				gpuScale(1.0f / ups->size_pressure_value, 1.0f / ups->size_pressure_value, 1);
+				gpuTranslate(-0.5f, -0.5f, 0);
 			}
 
 			if (ups->draw_anchored) {
@@ -641,14 +642,14 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 				quad.xmax = brush->mask_stencil_dimension[0];
 				quad.ymax = brush->mask_stencil_dimension[1];
 			}
-			glMatrixMode(GL_MODELVIEW);
-			glPushMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPushMatrix();
 			if (primary)
-				glTranslatef(brush->stencil_pos[0], brush->stencil_pos[1], 0);
+				gpuTranslate(brush->stencil_pos[0], brush->stencil_pos[1], 0);
 			else
-				glTranslatef(brush->mask_stencil_pos[0], brush->mask_stencil_pos[1], 0);
-			glRotatef(RAD2DEGF(mtex->rot), 0, 0, 1);
-			glMatrixMode(GL_TEXTURE);
+				gpuTranslate(brush->mask_stencil_pos[0], brush->mask_stencil_pos[1], 0);
+			gpuRotateAxis(RAD2DEGF(mtex->rot), 'Z');
+			gpuMatrixMode(GL_TEXTURE);
 		}
 
 		/* set quad color. Colored overlay does not get blending */
@@ -671,11 +672,11 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glVertex2f(quad.xmin, quad.ymax);
 		glEnd();
 
-		glPopMatrix();
+		gpuPopMatrix();
 
 		if (mtex->brush_map_mode == MTEX_MAP_MODE_STENCIL) {
-			glMatrixMode(GL_MODELVIEW);
-			glPopMatrix();
+			gpuMatrixMode(GL_MODELVIEW);
+			gpuPopMatrix();
 		}
 	}
 }
@@ -723,11 +724,11 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		/* scale based on tablet pressure */
 		if (ups->stroke_active && BKE_brush_use_size_pressure(vc->scene, brush)) {
 			do_pop = true;
-			glPushMatrix();
-			glLoadIdentity();
-			glTranslatef(center[0], center[1], 0);
-			glScalef(ups->size_pressure_value, ups->size_pressure_value, 1);
-			glTranslatef(-center[0], -center[1], 0);
+			gpuPushMatrix();
+			gpuLoadIdentity();
+			gpuTranslate(center[0], center[1], 0);
+			gpuScale(ups->size_pressure_value, ups->size_pressure_value, 1);
+			gpuTranslate(-center[0], -center[1], 0);
 		}
 
 		glColor4f(U.sculpt_paint_overlay_col[0],
@@ -748,7 +749,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		glEnd();
 
 		if (do_pop)
-			glPopMatrix();
+			gpuPopMatrix();
 	}
 }
 
@@ -1046,7 +1047,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 	glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha);
 
 	/* draw brush outline */
-	glTranslatef(translation[0], translation[1], 0);
+	gpuTranslate(translation[0], translation[1], 0);
 
 	/* draw an inner brush */
 	if (ups->stroke_active && BKE_brush_use_size_pressure(scene, brush)) {
@@ -1056,7 +1057,7 @@ static void paint_draw_cursor(bContext *C, int x, int y, void *UNUSED(unused))
 		glColor4f(outline_col[0], outline_col[1], outline_col[2], outline_alpha * 0.5f);
 	}
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, final_radius, 40);
-	glTranslatef(-translation[0], -translation[1], 0);
+	gpuTranslate(-translation[0], -translation[1], 0);
 
 	/* restore GL state */
 	glDisable(GL_BLEND);
