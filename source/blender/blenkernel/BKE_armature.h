@@ -36,13 +36,10 @@
 struct Bone;
 struct Main;
 struct bArmature;
-struct bPose;
 struct bPoseChannel;
 struct bConstraint;
 struct Scene;
 struct Object;
-struct MDeformVert;
-struct Mesh;
 struct PoseTree;
 struct ListBase;
 
@@ -147,6 +144,7 @@ void b_bone_spline_setup(struct bPoseChannel *pchan, int rest, Mat4 result_array
 
 /* Evaluation helpers */
 struct bKinematicConstraint;
+struct bPose;
 struct bSplineIKConstraint;
 struct EvaluationContext;
 

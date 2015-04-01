@@ -205,7 +205,7 @@ static void BKE_sequence_free_ex(Scene *scene, Sequence *seq, const bool do_cach
 			ed->act_seq = NULL;
 
 		if (seq->scene_sound && ELEM(seq->type, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SCENE))
-			sound_remove_scene_sound(scene, seq->scene_sound);
+			BKE_sound_remove_scene_sound(scene, seq->scene_sound);
 
 		seq_free_animdata(scene, seq);
 	}
@@ -316,7 +316,7 @@ static void seqclipboard_ptr_restore(Main *bmain, ID **id_pt)
 				{
 					id_restore = BLI_findstring(lb, ((bSound *)ID_PT)->name, offsetof(bSound, name));
 					if (id_restore == NULL) {
-						id_restore = sound_new_file(bmain, ((bSound *)ID_PT)->name);
+						id_restore = BKE_sound_new_file(bmain, ((bSound *)ID_PT)->name);
 						(ID_PT)->newid = id_restore;  /* reuse next time */
 					}
 					break;
@@ -652,7 +652,7 @@ static void seq_update_sound_bounds_recursive_rec(Scene *scene, Sequence *metase
 				if (seq->start + seq->len - seq->endofs > end)
 					endofs = seq->start + seq->len - end;
 
-				sound_move_scene_sound(scene, seq->scene_sound, seq->start + startofs,
+				BKE_sound_move_scene_sound(scene, seq->scene_sound, seq->start + startofs,
 				                       seq->start + seq->len - endofs, startofs + seq->anim_startofs);
 			}
 		}
@@ -1330,7 +1330,7 @@ static double seq_rendersize_to_scale_factor(int size)
 	return 0.25;
 }
 
-static void seq_open_anim_file(Sequence *seq, bool openfile)
+static void seq_open_anim_file(Editing *ed, Sequence *seq, bool openfile)
 {
 	char name[FILE_MAX];
 	StripProxy *proxy;
@@ -1362,9 +1362,25 @@ static void seq_open_anim_file(Sequence *seq, bool openfile)
 		return;
 	}
 
-	if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR) {
+	if ((proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_DIR) ||
+	    (ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE))
+	{
 		char dir[FILE_MAX];
-		BLI_strncpy(dir, seq->strip->proxy->dir, sizeof(dir));
+		char fname[FILE_MAXFILE];
+
+		if (ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE) {
+			if (ed->proxy_dir[0] == 0)
+				BLI_strncpy(dir, "//BL_proxy", sizeof(dir));
+			else
+				BLI_strncpy(dir, ed->proxy_dir, sizeof(dir));
+		}
+		else {
+			BLI_strncpy(dir, seq->strip->proxy->dir, sizeof(dir));
+		}
+
+		IMB_anim_get_fname(seq->anim, fname, FILE_MAXFILE);
+		BLI_path_append(dir, sizeof(dir), fname);
+
 		BLI_path_abs(dir, G.main->name);
 
 		IMB_anim_set_index_dir(seq->anim, dir);
@@ -1372,12 +1388,13 @@ static void seq_open_anim_file(Sequence *seq, bool openfile)
 }
 
 
-static bool seq_proxy_get_fname(Sequence *seq, int cfra, int render_size, char *name)
+static bool seq_proxy_get_fname(Editing *ed, Sequence *seq, int cfra, int render_size, char *name)
 {
 	int frameno;
 	char dir[PROXY_MAXFILE];
 
-	if (!seq->strip->proxy) {
+	StripProxy *proxy = seq->strip->proxy;
+	if (!proxy) {
 		return false;
 	}
 
@@ -1389,8 +1406,24 @@ static bool seq_proxy_get_fname(Sequence *seq, int cfra, int render_size, char *
 	 * have both, a directory full of jpeg files and proxy avis, so
 	 * sorry folks, please rebuild your proxies... */
 
-	if (seq->flag & (SEQ_USE_PROXY_CUSTOM_DIR | SEQ_USE_PROXY_CUSTOM_FILE)) {
+	if (seq->anim && ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE) {
+		char fname[FILE_MAXFILE];
+		if (ed->proxy_dir[0] == 0)
+			BLI_strncpy(dir, "//BL_proxy", sizeof(dir));
+		else
+			BLI_strncpy(dir, ed->proxy_dir, sizeof(dir));
+		IMB_anim_get_fname(seq->anim, fname, FILE_MAXFILE);
+		BLI_path_append(dir, sizeof(dir), fname);
+		BLI_path_abs(name, G.main->name);
+	}
+	else if ((proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_DIR) && (proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE)) {
 		BLI_strncpy(dir, seq->strip->proxy->dir, sizeof(dir));
+	}
+	else if (seq->anim && (proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_DIR)) {
+		char fname[FILE_MAXFILE];
+		BLI_strncpy(dir, seq->strip->proxy->dir, sizeof(dir));
+		IMB_anim_get_fname(seq->anim, fname, FILE_MAXFILE);
+		BLI_path_append(dir, sizeof(dir), fname);
 	}
 	else if (seq->type == SEQ_TYPE_IMAGE) {
 		BLI_snprintf(dir, PROXY_MAXFILE, "%s/BL_proxy", seq->strip->dir);
@@ -1399,9 +1432,11 @@ static bool seq_proxy_get_fname(Sequence *seq, int cfra, int render_size, char *
 		return false;
 	}
 
-	if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE) {
+	if (proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE && seq->anim &&
+	    ed->proxy_storage != SEQ_EDIT_PROXY_DIR_STORAGE)
+	{
 		BLI_join_dirfile(name, PROXY_MAXFILE,
-		                 dir, seq->strip->proxy->file);
+		                 dir, proxy->file);
 		BLI_path_abs(name, G.main->name);
 
 		return true;
@@ -1433,45 +1468,46 @@ static ImBuf *seq_proxy_fetch(const SeqRenderData *context, Sequence *seq, int c
 	IMB_Proxy_Size psize = seq_rendersize_to_proxysize(context->preview_render_size);
 	int size_flags;
 	int render_size = context->preview_render_size;
+	StripProxy *proxy = seq->strip->proxy;
+	Editing *ed = context->scene->ed;
+
+	if (!(seq->flag & SEQ_USE_PROXY)) {
+		return NULL;
+	}
 
 	/* dirty hack to distinguish 100% render size from PROXY_100 */
 	if (render_size == 99) {
 		render_size = 100;
 	}
 
-	if (!(seq->flag & SEQ_USE_PROXY)) {
-		return NULL;
-	}
-
-	size_flags = seq->strip->proxy->build_size_flags;
+	size_flags = proxy->build_size_flags;
 
 	/* only use proxies, if they are enabled (even if present!) */
 	if (psize == IMB_PROXY_NONE || ((size_flags & psize) != psize)) {
 		return NULL;
 	}
 
-	if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE) {
+	if (proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE) {
 		int frameno = (int)give_stripelem_index(seq, cfra) + seq->anim_startofs;
-		if (seq->strip->proxy->anim == NULL) {
-			if (seq_proxy_get_fname(seq, cfra, render_size, name) == 0) {
+		if (proxy->anim == NULL) {
+			if (seq_proxy_get_fname(ed, seq, cfra, render_size, name) == 0) {
 				return NULL;
 			}
 
-			seq->strip->proxy->anim = openanim(name, IB_rect, 0,
-			        seq->strip->colorspace_settings.name);
+			proxy->anim = openanim(name, IB_rect, 0, seq->strip->colorspace_settings.name);
 		}
-		if (seq->strip->proxy->anim == NULL) {
+		if (proxy->anim == NULL) {
 			return NULL;
 		}
  
-		seq_open_anim_file(seq, true);
+		seq_open_anim_file(context->scene->ed, seq, true);
 
-		frameno = IMB_anim_index_get_frame_index(seq->anim, seq->strip->proxy->tc, frameno);
+		frameno = IMB_anim_index_get_frame_index(seq->anim, proxy->tc, frameno);
 
-		return IMB_anim_absolute(seq->strip->proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
+		return IMB_anim_absolute(proxy->anim, frameno, IMB_TC_NONE, IMB_PROXY_NONE);
 	}
  
-	if (seq_proxy_get_fname(seq, cfra, render_size, name) == 0) {
+	if (seq_proxy_get_fname(ed, seq, cfra, render_size, name) == 0) {
 		return NULL;
 	}
 
@@ -1496,8 +1532,9 @@ static void seq_proxy_build_frame(const SeqRenderData *context, Sequence *seq, i
 	int rectx, recty;
 	int ok;
 	ImBuf *ibuf_tmp, *ibuf;
+	Editing *ed = context->scene->ed;
 
-	if (!seq_proxy_get_fname(seq, cfra, proxy_render_size, name)) {
+	if (!seq_proxy_get_fname(ed, seq, cfra, proxy_render_size, name)) {
 		return;
 	}
 
@@ -1566,7 +1603,7 @@ SeqIndexBuildContext *BKE_sequencer_proxy_rebuild_context(Main *bmain, Scene *sc
 	context->seq = nseq;
 
 	if (nseq->type == SEQ_TYPE_MOVIE) {
-		seq_open_anim_file(nseq, true);
+		seq_open_anim_file(scene->ed, nseq, true);
 
 		if (nseq->anim) {
 			context->index_context = IMB_anim_index_rebuild_context(nseq->anim,
@@ -1600,7 +1637,7 @@ void BKE_sequencer_proxy_rebuild(SeqIndexBuildContext *context, short *stop, sho
 	}
 
 	/* that's why it is called custom... */
-	if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE) {
+	if (seq->strip->proxy && seq->strip->proxy->storage & SEQ_STORAGE_PROXY_CUSTOM_FILE) {
 		return;
 	}
 
@@ -2789,7 +2826,7 @@ static ImBuf *do_render_strip_uncached(const SeqRenderData *context, Sequence *s
 
 		case SEQ_TYPE_MOVIE:
 		{
-			seq_open_anim_file(seq, false);
+			seq_open_anim_file(context->scene->ed, seq, false);
 
 			if (seq->anim) {
 				IMB_Proxy_Size proxy_size = seq_rendersize_to_proxysize(context->preview_render_size);
@@ -3736,10 +3773,10 @@ void BKE_sequence_sound_init(Scene *scene, Sequence *seq)
 	}
 	else {
 		if (seq->sound) {
-			seq->scene_sound = sound_add_scene_sound_defaults(scene, seq);
+			seq->scene_sound = BKE_sound_add_scene_sound_defaults(scene, seq);
 		}
 		if (seq->scene) {
-			seq->scene_sound = sound_scene_add_scene_sound_defaults(scene, seq);
+			seq->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene, seq);
 		}
 	}
 }
@@ -3951,11 +3988,11 @@ void BKE_sequencer_update_sound_bounds(Scene *scene, Sequence *seq)
 			/* We have to take into account start frame of the sequence's scene! */
 			int startofs = seq->startofs + seq->anim_startofs + seq->scene->r.sfra;
 
-			sound_move_scene_sound(scene, seq->scene_sound, seq->startdisp, seq->enddisp, startofs);
+			BKE_sound_move_scene_sound(scene, seq->scene_sound, seq->startdisp, seq->enddisp, startofs);
 		}
 	}
 	else {
-		sound_move_scene_sound_defaults(scene, seq);
+		BKE_sound_move_scene_sound_defaults(scene, seq);
 	}
 	/* mute is set in seq_update_muting_recursive */
 }
@@ -3980,7 +4017,7 @@ static void seq_update_muting_recursive(ListBase *seqbasep, Sequence *metaseq, i
 		}
 		else if (ELEM(seq->type, SEQ_TYPE_SOUND_RAM, SEQ_TYPE_SCENE)) {
 			if (seq->scene_sound) {
-				sound_mute_scene_sound(seq->scene_sound, seqmute);
+				BKE_sound_mute_scene_sound(seq->scene_sound, seqmute);
 			}
 		}
 	}
@@ -4009,7 +4046,7 @@ static void seq_update_sound_recursive(Scene *scene, ListBase *seqbasep, bSound 
 		}
 		else if (seq->type == SEQ_TYPE_SOUND_RAM) {
 			if (seq->scene_sound && sound == seq->sound) {
-				sound_update_scene_sound(seq->scene_sound, sound);
+				BKE_sound_update_scene_sound(seq->scene_sound, sound);
 			}
 		}
 	}
@@ -4342,7 +4379,7 @@ static void seq_load_apply(Scene *scene, Sequence *seq, SeqLoadInfo *seq_load)
 
 		if (seq_load->flag & SEQ_LOAD_SOUND_CACHE) {
 			if (seq->sound)
-				sound_cache(seq->sound);
+				BKE_sound_cache(seq->sound);
 		}
 
 		seq_load->tot_success++;
@@ -4448,7 +4485,7 @@ Sequence *BKE_sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoad
 
 	AUD_SoundInfo info;
 
-	sound = sound_new_file(bmain, seq_load->path); /* handles relative paths */
+	sound = BKE_sound_new_file(bmain, seq_load->path); /* handles relative paths */
 
 	if (sound == NULL || sound->playback_handle == NULL) {
 #if 0
@@ -4462,7 +4499,7 @@ Sequence *BKE_sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoad
 	info = AUD_getInfo(sound->playback_handle);
 
 	if (info.specs.channels == AUD_CHANNELS_INVALID) {
-		sound_delete(bmain, sound);
+		BKE_sound_delete(bmain, sound);
 #if 0
 		if (op)
 			BKE_report(op->reports, RPT_ERROR, "Unsupported audio format");
@@ -4487,7 +4524,7 @@ Sequence *BKE_sequencer_add_sound_strip(bContext *C, ListBase *seqbasep, SeqLoad
 
 	BLI_split_dirfile(seq_load->path, strip->dir, se->name, sizeof(strip->dir), sizeof(se->name));
 
-	seq->scene_sound = sound_add_scene_sound(scene, seq, seq_load->start_frame, seq_load->start_frame + seq->len, 0);
+	seq->scene_sound = BKE_sound_add_scene_sound(scene, seq, seq_load->start_frame, seq_load->start_frame + seq->len, 0);
 
 	BKE_sequence_calc_disp(scene, seq);
 
@@ -4609,7 +4646,7 @@ static Sequence *seq_dupli(Scene *scene, Scene *scene_to, Sequence *seq, int dup
 	else if (seq->type == SEQ_TYPE_SCENE) {
 		seqn->strip->stripdata = NULL;
 		if (seq->scene_sound)
-			seqn->scene_sound = sound_scene_add_scene_sound_defaults(sce_audio, seqn);
+			seqn->scene_sound = BKE_sound_scene_add_scene_sound_defaults(sce_audio, seqn);
 	}
 	else if (seq->type == SEQ_TYPE_MOVIECLIP) {
 		/* avoid assert */
@@ -4626,7 +4663,7 @@ static Sequence *seq_dupli(Scene *scene, Scene *scene_to, Sequence *seq, int dup
 		seqn->strip->stripdata =
 		        MEM_dupallocN(seq->strip->stripdata);
 		if (seq->scene_sound)
-			seqn->scene_sound = sound_add_scene_sound_defaults(sce_audio, seqn);
+			seqn->scene_sound = BKE_sound_add_scene_sound_defaults(sce_audio, seqn);
 
 		id_us_plus((ID *)seqn->sound);
 	}

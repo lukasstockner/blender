@@ -93,10 +93,8 @@ KX_GameObject::KX_GameObject(
       m_layer(0),
       m_currentLodLevel(0),
       m_previousLodLevel(0),
-      m_lodHysteresis(0),
       m_pBlenderObject(NULL),
       m_pBlenderGroupObject(NULL),
-      m_bSuspendDynamics(false),
       m_bUseObjectColor(false),
       m_bIsNegativeScaling(false),
       m_objectColor(1.0, 1.0, 1.0, 1.0),
@@ -587,6 +585,13 @@ CValue* KX_GameObject::GetReplica()
 	return replica;
 }
 
+bool KX_GameObject::IsDynamicsSuspended() const
+{
+	if (m_pPhysicsController)
+		return m_pPhysicsController->IsSuspended();
+	return false;
+}
+
 float KX_GameObject::getLinearDamping() const
 {
 	if (m_pPhysicsController)
@@ -786,11 +791,6 @@ void KX_GameObject::AddLodMesh(RAS_MeshObject* mesh)
 	m_lodmeshes.push_back(mesh);
 }
 
-void KX_GameObject::SetLodHysteresisValue(int hysteresis)
-{
-	m_lodHysteresis = hysteresis;
-}
-
 void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 {
 	// Handle dupligroups
@@ -811,20 +811,20 @@ void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 	int level = 0;
 	Object *bob = this->GetBlenderObject();
 	LodLevel *lod = (LodLevel*) bob->lodlevels.first;
-	KX_Scene *sce = this->GetScene();
+	KX_Scene *kxscene = this->GetScene();
 
 	for (; lod; lod = lod->next, level++) {
 		if (!lod->source || lod->source->type != OB_MESH) level--;
 		if (!lod->next) break;
 		if (level == (this->m_previousLodLevel) || (level == (this->m_previousLodLevel + 1))) {
 			short hysteresis = 0;
-			if (sce->IsActivedLodHysteresis()) {
+			if (kxscene->IsActivedLodHysteresis()) {
 				// if exists, LoD level hysteresis will override scene hysteresis
 				if (lod->next->flags & OB_LOD_USE_HYST) {
 					hysteresis = lod->next->obhysteresis;
 				}
-				else if (this->m_lodHysteresis != 0) {
-					hysteresis = m_lodHysteresis;
+				else {
+					hysteresis = kxscene->GetLodHysteresisValue();
 				}
 			}
 			float hystvariance = MT_abs(lod->next->distance - lod->distance) * hysteresis / 100;
@@ -833,13 +833,13 @@ void KX_GameObject::UpdateLod(MT_Vector3 &cam_pos)
 		}
 		else if (level == (this->m_previousLodLevel - 1)) {
 			short hysteresis = 0;
-			if (sce->IsActivedLodHysteresis()) {
+			if (kxscene->IsActivedLodHysteresis()) {
 				// if exists, LoD level hysteresis will override scene hysteresis
 				if (lod->next->flags & OB_LOD_USE_HYST) {
 					hysteresis = lod->next->obhysteresis;
 				}
-				else if (this->m_lodHysteresis != 0) {
-					hysteresis = m_lodHysteresis;
+				else {
+					hysteresis = kxscene->GetLodHysteresisValue();
 				}
 			}
 			float hystvariance = MT_abs(lod->next->distance - lod->distance) * hysteresis / 100;
@@ -1991,6 +1991,7 @@ PyAttributeDef KX_GameObject::Attributes[] = {
 	KX_PYATTRIBUTE_RO_FUNCTION("scene",		KX_GameObject, pyattr_get_scene),
 	KX_PYATTRIBUTE_RO_FUNCTION("life",		KX_GameObject, pyattr_get_life),
 	KX_PYATTRIBUTE_RW_FUNCTION("mass",		KX_GameObject, pyattr_get_mass,		pyattr_set_mass),
+	KX_PYATTRIBUTE_RO_FUNCTION("isSuspendDynamics",		KX_GameObject, pyattr_get_is_suspend_dynamics),
 	KX_PYATTRIBUTE_RW_FUNCTION("linVelocityMin",		KX_GameObject, pyattr_get_lin_vel_min, pyattr_set_lin_vel_min),
 	KX_PYATTRIBUTE_RW_FUNCTION("linVelocityMax",		KX_GameObject, pyattr_get_lin_vel_max, pyattr_set_lin_vel_max),
 	KX_PYATTRIBUTE_RW_FUNCTION("visible",	KX_GameObject, pyattr_get_visible,	pyattr_set_visible),
@@ -2402,6 +2403,19 @@ int KX_GameObject::pyattr_set_mass(void *self_v, const KX_PYATTRIBUTE_DEF *attrd
 		spc->SetMass(val);
 
 	return PY_SET_ATTR_SUCCESS;
+}
+
+PyObject *KX_GameObject::pyattr_get_is_suspend_dynamics(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
+{
+	KX_GameObject* self = static_cast<KX_GameObject*>(self_v);
+
+	// Only objects with a physics controller can be suspended
+	if (!self->GetPhysicsController()) {
+		PyErr_SetString(PyExc_AttributeError, "This object has not Physics Controller");
+		return NULL;
+	}
+
+	return PyBool_FromLong(self->IsDynamicsSuspended());
 }
 
 PyObject *KX_GameObject::pyattr_get_lin_vel_min(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)

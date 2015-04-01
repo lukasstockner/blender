@@ -1070,7 +1070,7 @@ void BKE_lattice_modifiers_calc(Scene *scene, Object *ob)
 	}
 
 	for (; md; md = md->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		md->scene = scene;
 		

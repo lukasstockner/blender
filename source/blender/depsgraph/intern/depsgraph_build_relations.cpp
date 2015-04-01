@@ -506,7 +506,7 @@ void DepsgraphRelationBuilder::build_constraints(Scene *scene, ID *id, eDepsNode
 
 	/* add dependencies for each constraint in turn */
 	for (bConstraint *con = (bConstraint *)constraints->first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+		const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 
 		/* invalid constraint type... */
 		if (cti == NULL)
@@ -1486,7 +1486,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		OperationKey prev_mod_key;
 
 		for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
+			const ModifierTypeInfo *mti = modifierType_getInfo((ModifierType)md->type);
 			OperationKey mod_key(&ob->id, DEPSNODE_TYPE_GEOMETRY, DEG_OPCODE_GEOMETRY_MODIFIER, md->name);
 
 			if (md->prev) {

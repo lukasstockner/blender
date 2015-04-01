@@ -816,7 +816,7 @@ static int no_glsl(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(dat
 
 static int no_audio(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-	sound_force_device(0);
+	BKE_sound_force_device(0);
 	return 0;
 }
 
@@ -827,7 +827,7 @@ static int set_audio(int argc, const char **argv, void *UNUSED(data))
 		exit(1);
 	}
 
-	sound_force_device(sound_define_from_str(argv[1]));
+	BKE_sound_force_device(BKE_sound_define_from_str(argv[1]));
 	return 1;
 }
 
@@ -1572,13 +1572,13 @@ char **environ = NULL;
  *   or exit when running in background mode.
  */
 int main(
-       int argc,
+        int argc,
 #ifdef WIN32
         const char **UNUSED(argv_c)
 #else
         const char **argv
 #endif
-         )
+        )
 {
 	bContext *C;
 	SYS_SystemHandle syshandle;
@@ -1586,6 +1586,14 @@ int main(
 #ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
 #endif
+
+#ifdef WIN32
+	char **argv;
+	int argv_num;
+#endif
+
+	/* --- end declarations --- */
+
 
 #ifdef WIN32
 	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
@@ -1597,16 +1605,15 @@ int main(
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
 	 *       (it depends on the args passed in, which is what we're getting here!)
 	 */
-	wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
-	char **argv = malloc(argc * sizeof(char *));
-	int argci = 0;
-	
-	for (argci = 0; argci < argc; argci++) {
-		argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
+	{
+		wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
+		argv = malloc(argc * sizeof(char *));
+		for (argv_num = 0; argv_num < argc; argv_num++) {
+			argv[argv_num] = alloc_utf_8_from_16(argv_16[argv_num], 0);
+		}
+		LocalFree(argv_16);
 	}
-	
-	LocalFree(argv_16);
-#endif
+#endif  /* WIN32 */
 
 	/* NOTE: Special exception for guarded allocator type switch:
 	 *       we need to perform switch from lock-free to fully
@@ -1674,7 +1681,7 @@ int main(
 	setCallbacks();
 	
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE)
-/* patch to ignore argument finder gives us (pid?) */
+	/* patch to ignore argument finder gives us (pid?) */
 	if (argc == 2 && STREQLEN(argv[1], "-psn_", 5)) {
 		extern int GHOST_HACK_getFirstFile(char buf[]);
 		static char firstfilebuf[512];
@@ -1768,7 +1775,7 @@ int main(
 
 	/* Initialize ffmpeg if built in, also needed for bg mode if videos are
 	 * rendered via ffmpeg */
-	sound_init_once();
+	BKE_sound_init_once();
 	
 	init_def_material();
 
@@ -1832,8 +1839,8 @@ int main(
 #endif
 
 #ifdef WIN32
-	while (argci) {
-		free(argv[--argci]);
+	while (argv_num) {
+		free(argv[--argv_num]);
 	}
 	free(argv);
 	argv = NULL;

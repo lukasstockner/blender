@@ -934,7 +934,7 @@ void Controller::InsertStyleModule(unsigned index, const char *iName, struct Tex
 	_Canvas->InsertStyleModule(index, sm);
 }
 
-void Controller::AddStyleModule(const char *iFileName)
+void Controller::AddStyleModule(const char * /*iFileName*/)
 {
 	//_pStyleWindow->Add(iFileName);
 }
@@ -1004,7 +1004,7 @@ void Controller::toggleEdgeTesselationNature(Nature::EdgeNature iNature)
 	ComputeViewMap();
 }
 
-void Controller::setModelsDir(const string& dir)
+void Controller::setModelsDir(const string& /*dir*/)
 {
 	//_current_dirs->setValue("models/dir", dir);
 }
@@ -1016,7 +1016,7 @@ string Controller::getModelsDir() const
 	return dir;
 }
 
-void Controller::setModulesDir(const string& dir)
+void Controller::setModulesDir(const string& /*dir*/)
 {
 	//_current_dirs->setValue("modules/dir", dir);
 }
