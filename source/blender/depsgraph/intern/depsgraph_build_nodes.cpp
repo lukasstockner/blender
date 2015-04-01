@@ -374,6 +374,12 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 	/* standard components */
 	build_object_transform(scene, ob);
 
+	/* TODO(sergey): This way using this object's
+	 * proeprties as driver target works fine.
+	 */
+	add_operation_node(&ob->id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
+	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");
+
 	/* object data */
 	if (ob->data) {
 		/* type-specific data... */
