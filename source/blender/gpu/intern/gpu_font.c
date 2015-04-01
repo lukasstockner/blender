@@ -105,7 +105,7 @@ static void gpu_font_shader(void)
 		defs_cstring = BLI_dynstr_get_cstring(defs);
 
 		FONT_SHADER =
-			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
+			GPU_shader_create(vert_cstring, frag_cstring, NULL, NULL, defs_cstring, 0, 0, 0);
 
 		MEM_freeN(vert_cstring);
 		MEM_freeN(frag_cstring);

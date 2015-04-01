@@ -80,7 +80,6 @@
 
 #include "view3d_intern.h"  /* own include */
 
-<<<<<<< HEAD
 #include "GPU_matrix.h"
 
 bool ED_view3d_offset_lock_check(const  View3D *v3d, const  RegionView3D *rv3d)

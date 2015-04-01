@@ -284,7 +284,7 @@ static void raster_shader_bind(void)
 		defs_cstring = BLI_dynstr_get_cstring(defs);
 
 		RASTER.gpushader[tweaked_options] =
-			GPU_shader_create(vert_cstring, frag_cstring, NULL, defs_cstring);
+			GPU_shader_create(vert_cstring, frag_cstring, NULL, NULL, defs_cstring, 0, 0, 0);
 
 		MEM_freeN(vert_cstring);
 		MEM_freeN(frag_cstring);
