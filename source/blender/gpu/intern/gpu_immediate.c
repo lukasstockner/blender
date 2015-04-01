@@ -116,10 +116,9 @@ static void alloc_stream_vbuffer(GPUVertexStream *stream, size_t newsize)
 	if (newsize > stream->size) {
 		GPUVertexBufferStream *va_stream = (GPUVertexBufferStream *)stream;
 
-		if (va_stream->vbo)
-			glBindBuffer(stream->type, va_stream->vbo);
-		else
+		if (!va_stream->vbo)
 			glGenBuffers(1, &va_stream->vbo);
+		glBindBuffer(stream->type, va_stream->vbo);
 		glBufferData(stream->type, newsize, NULL, GL_STREAM_DRAW);
 		stream->size = newsize;
 	}
@@ -695,6 +694,7 @@ void gpu_end_buffer_gl(void)
 		}
 
 		unsetup();
+		stream->unbind(stream);
 		GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl end");
 	}
 }
