@@ -458,16 +458,6 @@ static void unsetup(void)
 			glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
 }
 
-
-
-typedef struct indexBufferDataGLSL {
-	GLuint   vbo;
-	GLintptr unalignedPtr;
-	GLubyte *unmappedBuffer;
-	GLubyte *mappedBuffer;
-	size_t   size;
-} indexBufferDataGLSL;
-
 static void allocateIndex(void)
 {
 	if (GPU_IMMEDIATE->index) {
@@ -696,8 +686,10 @@ void gpu_end_buffer_gl(void)
 				printf("Too big GL_QUAD object to draw. Vertices: %i", GPU_IMMEDIATE->count);
 			}
 
-			if (vqeoc_buf != 0 || vqeos_buf != 0)
-				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ((indexBufferDataGLSL*)(GPU_IMMEDIATE->index->element_stream))->vbo);
+			if (vqeoc_buf != 0 || vqeos_buf != 0) {
+				GPUVertexStream *element_stream = (GPUVertexStream*)(GPU_IMMEDIATE->index->element_stream);
+				element_stream->bind(element_stream);
+			}
 
 			GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl end");
 		}
@@ -777,7 +769,8 @@ void gpu_index_end_buffer_gl(void)
 void gpu_draw_elements_gl(void)
 {
 	GPUindex *index = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)(index->element_stream);
+	GPUVertexStream *element_stream = (GPUVertexStream*)index->element_stream;
+	void *base = element_stream->bind(element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_elements_gl start");;
 
@@ -793,9 +786,10 @@ void gpu_draw_elements_gl(void)
 		GPU_IMMEDIATE->mode,
 		index->count,
 		index->type,
-		bufferData->vbo != 0 ? NULL : bufferData->unmappedBuffer);
+		base);
 
 	unsetup();
+	element_stream->unbind(element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_elements_gl end");
 }
@@ -803,7 +797,8 @@ void gpu_draw_elements_gl(void)
 void gpu_draw_range_elements_gl(void)
 {
 	GPUindex *index = GPU_IMMEDIATE->index;
-	indexBufferDataGLSL *bufferData = (indexBufferDataGLSL*)(index->element_stream);
+	GPUVertexStream *element_stream = (GPUVertexStream*)index->element_stream;
+	void *base = element_stream->bind(element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_range_elements_gl start");;
 
@@ -822,7 +817,7 @@ void gpu_draw_range_elements_gl(void)
 		index->indexMax,
 		index->count,
 		index->type,
-		bufferData->vbo != 0 ? NULL : bufferData->unmappedBuffer);
+		base);
 #else
 	glDrawElements(
 		GPU_IMMEDIATE->mode,
@@ -832,6 +827,7 @@ void gpu_draw_range_elements_gl(void)
 #endif
 
 	unsetup();
+	element_stream->unbind(element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_range_elements_gl end");;
 }
