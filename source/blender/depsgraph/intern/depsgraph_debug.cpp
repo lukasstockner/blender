@@ -587,7 +587,7 @@ static void deg_debug_graphviz_node_relations(const DebugContext &ctx,
 		deg_debug_fprintf(ctx, "\"node_%p\"", tail);
 
 		deg_debug_fprintf(ctx, "[");
-		deg_debug_fprintf(ctx, "label=\"%s\"", rel->name.c_str());
+		deg_debug_fprintf(ctx, "label=\"%s\"", rel->name);
 		deg_debug_fprintf(ctx, ",fontname=\"%s\"", deg_debug_graphviz_fontname);
 		deg_debug_fprintf(ctx, ",color="); deg_debug_graphviz_relation_color(ctx, rel);
 		/* NOTE: edge from node to own cluster is not possible and gives graphviz

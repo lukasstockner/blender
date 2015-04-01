@@ -343,7 +343,7 @@ void Depsgraph::clear_id_nodes()
 DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from,
                                           OperationDepsNode *to,
                                           eDepsRelation_Type type,
-                                          const string &description)
+                                          const char *description)
 {
 	/* Create new relation, and add it to the graph. */
 	DepsRelation *rel = OBJECT_GUARDED_NEW(DepsRelation, from, to, type, description);
@@ -353,7 +353,7 @@ DepsRelation *Depsgraph::add_new_relation(OperationDepsNode *from,
 /* Add new relation between two nodes */
 DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to,
                                           eDepsRelation_Type type,
-                                          const string &description)
+                                          const char *description)
 {
 	/* Create new relation, and add it to the graph. */
 	DepsRelation *rel = OBJECT_GUARDED_NEW(DepsRelation, from, to, type, description);
@@ -366,14 +366,13 @@ DepsRelation *Depsgraph::add_new_relation(DepsNode *from, DepsNode *to,
 DepsRelation::DepsRelation(DepsNode *from,
                            DepsNode *to,
                            eDepsRelation_Type type,
-                           const string &description)
+                           const char *description)
+  : from(from),
+    to(to),
+    name(description),
+    type(type),
+    flag(0)
 {
-	this->from = from;
-	this->to = to;
-	this->type = type;
-	this->name = description;
-	this->flag = 0;
-
 #ifndef NDEBUG
 /*
 	for (OperationDepsNode::Relations::const_iterator it = from->outlinks.begin();

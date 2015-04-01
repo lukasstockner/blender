@@ -99,7 +99,7 @@ void deg_graph_detect_cycles(Depsgraph *graph)
 					printf("  '%s' depends on '%s' through '%s'\n",
 					       to->full_identifier().c_str(),
 					       node->full_identifier().c_str(),
-					       rel->name.c_str());
+					       rel->name);
 
 					StackEntry *current = &entry;
 					while (current->node != to) {
@@ -107,7 +107,7 @@ void deg_graph_detect_cycles(Depsgraph *graph)
 						printf("  '%s' depends on '%s' through '%s'\n",
 						       current->node->full_identifier().c_str(),
 						       current->from->node->full_identifier().c_str(),
-						       current->via_relation->name.c_str());
+						       current->via_relation->name);
 						current = current->from;
 					}
 					/* TODO(sergey): So called roussian rlette cycle solver. */

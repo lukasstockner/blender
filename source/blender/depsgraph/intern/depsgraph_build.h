@@ -242,15 +242,15 @@ struct DepsgraphRelationBuilder
 
 	template <typename KeyFrom, typename KeyTo>
 	void add_relation(const KeyFrom &key_from, const KeyTo &key_to,
-	                  eDepsRelation_Type type, const string &description);
+	                  eDepsRelation_Type type, const char *description);
 
 	template <typename KeyTo>
 	void add_relation(const TimeSourceKey &key_from, const KeyTo &key_to,
-	                  eDepsRelation_Type type, const string &description);
+	                  eDepsRelation_Type type, const char *description);
 
 	template <typename KeyType>
 	void add_node_handle_relation(const KeyType &key_from, const DepsNodeHandle *handle,
-	                              eDepsRelation_Type type, const string &description);
+	                              eDepsRelation_Type type, const char *description);
 
 	void build_scene(Main *bmain, Scene *scene);
 	void build_group(Main *bmain, Scene *scene, Object *object, Group *group);
@@ -286,9 +286,9 @@ protected:
 	DepsNode *find_node(const RNAPathKey &key) const;
 	OperationDepsNode *has_node(const OperationKey &key) const;
 
-	void add_time_relation(TimeSourceDepsNode *timesrc, DepsNode *node_to, const string &description);
+	void add_time_relation(TimeSourceDepsNode *timesrc, DepsNode *node_to, const char *description);
 	void add_operation_relation(OperationDepsNode *node_from, OperationDepsNode *node_to,
-	                            eDepsRelation_Type type, const string &description);
+	                            eDepsRelation_Type type, const char *description);
 
 	template <typename KeyType>
 	DepsNodeHandle create_node_handle(const KeyType &key, const string &default_name = "");
@@ -303,7 +303,7 @@ struct DepsgraphIDUsersBuilder {
 	DepsgraphIDUsersBuilder(Depsgraph *graph);
 
 	void add_relation(const ID *from_id, const ID *to_id,
-	                  eDepsRelation_Type type, const string &description);
+	                  eDepsRelation_Type type, const char *description);
 
 	void build_scene(Main *bmain, Scene *scene);
 	void build_object(Scene *scene, Object *ob);
@@ -337,7 +337,7 @@ template <typename KeyFrom, typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from,
                                             const KeyTo &key_to,
                                             eDepsRelation_Type type,
-                                            const string &description)
+                                            const char *description)
 {
 	DepsNode *node_from = find_node(key_from);
 	DepsNode *node_to = find_node(key_to);
@@ -350,20 +350,20 @@ void DepsgraphRelationBuilder::add_relation(const KeyFrom &key_from,
 		if (!op_from) {
 			/* XXX TODO handle as error or report if needed */
 			fprintf(stderr, "add_relation(%d, %s) - Could not find op_from (%s)\n",
-			        type, description.c_str(), key_from.identifier().c_str());
+			        type, description, key_from.identifier().c_str());
 		}
 		else {
 			fprintf(stderr, "add_relation(%d, %s) - Failed, but op_from (%s) was ok\n",
-			        type, description.c_str(), key_from.identifier().c_str());
+			        type, description, key_from.identifier().c_str());
 		}
 		if (!op_to) {
 			/* XXX TODO handle as error or report if needed */
 			fprintf(stderr, "add_relation(%d, %s) - Could not find op_to (%s)\n",
-			        type, description.c_str(), key_to.identifier().c_str());
+			        type, description, key_to.identifier().c_str());
 		}
 		else {
 			fprintf(stderr, "add_relation(%d, %s) - Failed, but op_to (%s) was ok\n",
-			        type, description.c_str(), key_to.identifier().c_str());
+			        type, description, key_to.identifier().c_str());
 		}
 	}
 }
@@ -372,7 +372,7 @@ template <typename KeyTo>
 void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from,
                                             const KeyTo &key_to,
                                             eDepsRelation_Type type,
-                                            const string &description)
+                                            const char *description)
 {
 	BLI_assert(type == DEPSREL_TYPE_TIME);
 	TimeSourceDepsNode *time_from = find_node(key_from);
@@ -389,7 +389,7 @@ template <typename KeyType>
 void DepsgraphRelationBuilder::add_node_handle_relation(const KeyType &key_from,
                                                         const DepsNodeHandle *handle,
                                                         eDepsRelation_Type type,
-                                                        const string &description)
+                                                        const char *description)
 {
 	DepsNode *node_from = find_node(key_from);
 	OperationDepsNode *op_from = node_from ? node_from->get_exit_operation() : NULL;

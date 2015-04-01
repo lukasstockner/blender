@@ -72,7 +72,7 @@ struct DepsRelation {
 	DepsNode *to;                 /* B */
 
 	/* relationship attributes */
-	string name;                  /* label for debugging */
+	const char* name;             /* label for debugging */
 
 	eDepsRelation_Type type;      /* type */
 	int flag;                     /* (eDepsRelation_Flag) */
@@ -80,7 +80,7 @@ struct DepsRelation {
 	DepsRelation(DepsNode *from,
 	             DepsNode *to,
 	             eDepsRelation_Type type,
-	             const string &description);
+	             const char *description);
 
 	~DepsRelation();
 };
@@ -139,12 +139,12 @@ struct Depsgraph {
 	DepsRelation *add_new_relation(OperationDepsNode *from,
 	                               OperationDepsNode *to,
 	                               eDepsRelation_Type type,
-	                               const string &description);
+	                               const char *description);
 
 	DepsRelation *add_new_relation(DepsNode *from,
 	                               DepsNode *to,
 	                               eDepsRelation_Type type,
-	                               const string &description);
+	                               const char *description);
 
 	/* Tag a specific node as needing updates. */
 	void add_entry_tag(OperationDepsNode *node);

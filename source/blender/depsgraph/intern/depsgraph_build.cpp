@@ -132,14 +132,14 @@ void DEG_add_scene_relation(DepsNodeHandle *handle, struct Scene *scene, eDepsSc
 {
 	eDepsNode_Type type = deg_build_scene_component_type(component);
 	ComponentKey comp_key(&scene->id, type);
-	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
+	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 }
 
 void DEG_add_object_relation(DepsNodeHandle *handle, struct Object *ob, eDepsObjectComponentType component, const char *description)
 {
 	eDepsNode_Type type = deg_build_object_component_type(component);
 	ComponentKey comp_key(&ob->id, type);
-	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
+	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 }
 
 void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char *bone_name, eDepsObjectComponentType component, const char *description)
@@ -148,7 +148,7 @@ void DEG_add_bone_relation(DepsNodeHandle *handle, struct Object *ob, const char
 	ComponentKey comp_key(&ob->id, type, bone_name);
 
 	// XXX: "Geometry Eval" might not always be true, but this only gets called from modifier building now
-	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, string(description));
+	handle->builder->add_node_handle_relation(comp_key, handle, DEPSREL_TYPE_GEOMETRY_EVAL, description);
 }
 
 void DEG_add_special_eval_flag(Depsgraph *graph, ID *id, short flag)

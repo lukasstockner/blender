@@ -114,7 +114,7 @@ DepsgraphIDUsersBuilder::DepsgraphIDUsersBuilder(Depsgraph *graph) :
 
 
 void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
-	                                       eDepsRelation_Type type, const string &description)
+                                           eDepsRelation_Type type, const char *description)
 {
 	IDDepsNode *node_from = m_graph->find_id_node(from_id);
 	IDDepsNode *node_to = m_graph->find_id_node(to_id);
@@ -128,7 +128,7 @@ void DepsgraphIDUsersBuilder::add_relation(const ID *from_id, const ID *to_id,
 		        (node_from) ? node_from->identifier().c_str() : "<None>",
 		        (to_id) ? to_id->name : "<No ID>",
 		        (node_to)   ? node_to->identifier().c_str() : "<None>",
-		        type, description.c_str());
+		        type, description);
 	}
 }
 

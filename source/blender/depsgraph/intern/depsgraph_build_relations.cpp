@@ -202,7 +202,7 @@ OperationDepsNode *DepsgraphRelationBuilder::has_node(
 
 void DepsgraphRelationBuilder::add_time_relation(TimeSourceDepsNode *timesrc,
                                                  DepsNode *node_to,
-                                                 const string &description)
+                                                 const char *description)
 {
 	if (timesrc && node_to) {
 		m_graph->add_new_relation(timesrc, node_to, DEPSREL_TYPE_TIME, description);
@@ -211,7 +211,7 @@ void DepsgraphRelationBuilder::add_time_relation(TimeSourceDepsNode *timesrc,
 		DEG_DEBUG_PRINTF("add_time_relation(%p = %s, %p = %s, %s) Failed\n",
 		                 timesrc,   (timesrc) ? timesrc->identifier().c_str() : "<None>",
 		                 node_to,   (node_to) ? node_to->identifier().c_str() : "<None>",
-		                 description.c_str());
+		                 description);
 	}
 }
 
@@ -219,7 +219,7 @@ void DepsgraphRelationBuilder::add_operation_relation(
         OperationDepsNode *node_from,
         OperationDepsNode *node_to,
         eDepsRelation_Type type,
-        const string &description)
+        const char *description)
 {
 	if (node_from && node_to) {
 		m_graph->add_new_relation(node_from, node_to, type, description);
@@ -228,7 +228,7 @@ void DepsgraphRelationBuilder::add_operation_relation(
 		DEG_DEBUG_PRINTF("add_operation_relation(%p = %s, %p = %s, %d, %s) Failed\n",
 		                 node_from, (node_from) ? node_from->identifier().c_str() : "<None>",
 		                 node_to,   (node_to)   ? node_to->identifier().c_str() : "<None>",
-		                 type, description.c_str());
+		                 type, description);
 	}
 }
 
