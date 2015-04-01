@@ -1615,7 +1615,7 @@ void DepsgraphRelationBuilder::build_obdata_geom(Main *bmain, Scene *scene, Obje
 		build_shapekeys(obdata, key);
 	}
 
-	if (BKE_animdata_from_id(obdata) != NULL) {
+	if (needs_animdata_node(obdata)) {
 		ComponentKey animation_key(obdata, DEPSNODE_TYPE_ANIMATION);
 		ComponentKey parameters_key(obdata, DEPSNODE_TYPE_PARAMETERS);
 		add_relation(animation_key, parameters_key,
@@ -1636,7 +1636,7 @@ void DepsgraphRelationBuilder::build_camera(Object *ob)
 
 	ComponentKey parameters_key(camera_id, DEPSNODE_TYPE_PARAMETERS);
 
-	if (BKE_animdata_from_id(camera_id) != NULL) {
+	if (needs_animdata_node(camera_id)) {
 		ComponentKey animation_key(camera_id, DEPSNODE_TYPE_ANIMATION);
 		add_relation(animation_key, parameters_key,
 		             DEPSREL_TYPE_COMPONENT_ORDER, "Camera Parameters");
@@ -1662,7 +1662,7 @@ void DepsgraphRelationBuilder::build_lamp(Object *ob)
 
 	ComponentKey parameters_key(lamp_id, DEPSNODE_TYPE_PARAMETERS);
 
-	if (BKE_animdata_from_id(lamp_id) != NULL) {
+	if (needs_animdata_node(lamp_id)) {
 		ComponentKey animation_key(lamp_id, DEPSNODE_TYPE_ANIMATION);
 		add_relation(animation_key, parameters_key,
 		             DEPSREL_TYPE_COMPONENT_ORDER, "Lamp Parameters");
@@ -1708,7 +1708,7 @@ void DepsgraphRelationBuilder::build_nodetree(ID *owner, bNodeTree *ntree)
 		}
 	}
 
-	if (BKE_animdata_from_id(ntree_id) != NULL) {
+	if (needs_animdata_node(ntree_id)) {
 		ComponentKey parameters_key(ntree_id, DEPSNODE_TYPE_PARAMETERS);
 		ComponentKey animation_key(ntree_id, DEPSNODE_TYPE_ANIMATION);
 		add_relation(animation_key, parameters_key,
@@ -1779,3 +1779,15 @@ void DepsgraphRelationBuilder::build_gpencil(ID *UNUSED(owner), bGPdata *gpd)
 
 	// TODO: parent object (when that feature is implemented)
 }
+
+bool DepsgraphRelationBuilder::needs_animdata_node(ID *id)
+{
+	AnimData *adt = BKE_animdata_from_id(id);
+	if (adt != NULL) {
+		return adt->action != NULL ||
+		       adt->nla_tracks.first != NULL ||
+		       adt->drivers.first != NULL;
+	}
+	return false;
+}
+

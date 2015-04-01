@@ -292,6 +292,8 @@ protected:
 	template <typename KeyType>
 	DepsNodeHandle create_node_handle(const KeyType &key, const string &default_name = "");
 
+	bool needs_animdata_node(ID *id);
+
 private:
 	Depsgraph *m_graph;
 };
