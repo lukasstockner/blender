@@ -48,7 +48,7 @@ extern "C" {
 
 /* Add ------------------------------------------------ */
 
-DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type, const string &tname)
+DepsNode::TypeInfo::TypeInfo(eDepsNode_Type type, const char *tname)
 {
 	this->type = type;
 	if (type == DEPSNODE_TYPE_OPERATION)

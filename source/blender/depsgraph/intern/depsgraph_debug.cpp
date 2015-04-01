@@ -756,7 +756,7 @@ static string get_component_name(eDepsNode_Type type, const string &name = "")
 		return string(factory->tname());
 	}
 	else {
-		return factory->tname() + " | " + name;
+		return string(factory->tname()) + " | " + name;
 	}
 }
 

@@ -90,7 +90,7 @@ DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src);
 struct DepsNodeFactory {
 	virtual eDepsNode_Type type() const = 0;
 	virtual eDepsNode_Class tclass() const = 0;
-	virtual const string &tname() const = 0;
+	virtual const char *tname() const = 0;
 
 	virtual DepsNode *create_node(const ID *id, const string &subdata, const string &name) const = 0;
 	virtual DepsNode *copy_node(DepsgraphCopyContext *dcc, const DepsNode *copy) const = 0;
@@ -100,7 +100,7 @@ template <class NodeType>
 struct DepsNodeFactoryImpl : public DepsNodeFactory {
 	eDepsNode_Type type() const { return NodeType::typeinfo.type; }
 	eDepsNode_Class tclass() const { return NodeType::typeinfo.tclass; }
-	const string &tname() const { return NodeType::typeinfo.tname; }
+	const char *tname() const { return NodeType::typeinfo.tname; }
 
 	DepsNode *create_node(const ID *id, const string &subdata, const string &name) const
 	{
