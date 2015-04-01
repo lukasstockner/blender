@@ -82,9 +82,9 @@ typedef struct GPURAMArrayStream {
 } GPURAMArrayStream;
 
 enum StreamTypes {
-	eStreamTypeVertexArray = 0,
-	eStreamTypeRAM,
-	eStreamTypeVertexBuffer,
+	eStreamTypeVertexArray  = 0,
+	eStreamTypeRAM          = 1,
+	eStreamTypeVertexBuffer = 2,
 };
 
 static void alloc_stream_ram(GPUVertexStream *stream, size_t newsize)
@@ -322,7 +322,7 @@ static void allocate(void)
 	newSize = (size_t)(GPU_IMMEDIATE->stride * GPU_IMMEDIATE->maxVertexCount);
 
 	if (!GPU_IMMEDIATE->vertex_stream) {
-		GPU_IMMEDIATE->vertex_stream = gpu_new_vertex_stream(eStreamTypeVertexArray, GL_ARRAY_BUFFER);
+		GPU_IMMEDIATE->vertex_stream = gpu_new_vertex_stream(eStreamTypeRAM, GL_ARRAY_BUFFER);
 	}
 
 	vertex_stream = (GPUVertexStream*)GPU_IMMEDIATE->vertex_stream;
@@ -414,7 +414,7 @@ static void setup(void)
 static void unsetup(void)
 {
 	size_t i;
-	GPUVertexStream    *vertex_stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
+	GPUVertexStream *vertex_stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
 
 	/* vertex */
 	GPU_common_disable_vertex_array();
@@ -478,7 +478,7 @@ static void allocateIndex(void)
 		}
 
 		if (!index->element_stream) {
-			index->element_stream = gpu_new_vertex_stream(eStreamTypeVertexBuffer, GL_ELEMENT_ARRAY_BUFFER);
+			index->element_stream = gpu_new_vertex_stream(eStreamTypeRAM, GL_ELEMENT_ARRAY_BUFFER);
 		}
 
 		element_stream = index->element_stream;
@@ -495,6 +495,7 @@ static void static_element_array(GLuint *idOut, GLsizeiptr size, const GLvoid *i
 	glGenBuffers(1, idOut);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, *idOut);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indexes, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
 
@@ -512,8 +513,6 @@ static GLubyte  *vqeoc;
 
 static GLuint vqeos_buf;
 static GLuint vqeoc_buf;
-
-
 
 static void quad_free_heap(void)
 {
@@ -680,8 +679,7 @@ void gpu_end_buffer_gl(void)
 			}
 
 			if (vqeoc_buf != 0 || vqeos_buf != 0) {
-				GPUVertexStream *element_stream = (GPUVertexStream*)(GPU_IMMEDIATE->index->element_stream);
-				element_stream->bind(element_stream);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 			}
 
 			GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl end");
@@ -941,7 +939,6 @@ GPUImmediate *GPU_IMMEDIATE = NULL;
 void gpuBegin(GLenum mode)
 {
 	int primMod;
-	int primOff;
 
 	GPU_CHECK_CAN_BEGIN();
 
@@ -956,28 +953,23 @@ void gpuBegin(GLenum mode)
 	switch (mode) {
 		case GL_LINES:
 			primMod = 2;
-			primOff = 0;
 			break;
 
 		case GL_QUAD_STRIP:
 		case GL_TRIANGLE_STRIP:
 			primMod = 2;
-			primOff = 2;
 			break;
 
 		case GL_TRIANGLES:
 			primMod = 3;
-			primOff = 0;
 			break;
 
 		case GL_QUADS:
 			primMod = 4;
-			primOff = 2;
 			break;
 
 		default:
 			primMod = 1;
-			primOff = 0;
 			break;
 	}
 

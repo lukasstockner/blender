@@ -548,8 +548,8 @@ static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 		const float f5 = 0.25f * U.widget_unit;
 		const float f10 = 0.5f * U.widget_unit;
 		const float f20 = U.widget_unit;
-		
-		setlinestyle(0); 
+
+		setlinestyle(0);
 		cpack(0xFF);
 		circ((float)co[0], (float)co[1], f10);
 		setlinestyle(4);

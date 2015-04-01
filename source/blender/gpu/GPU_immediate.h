@@ -596,6 +596,16 @@ BLI_INLINE void gpuColor4d(GLdouble r, GLdouble g, GLdouble b, GLdouble a)
 }
 
 
+#define CPACK_BLACK   0x000000
+#define CPACK_WHITE   0xFFFFFF
+
+#define CPACK_RED     0xFF0000
+#define CPACK_GREEN   0x00FF00
+#define CPACK_BLUE    0x0000FF
+
+#define CPACK_YELLOW  0xFFFF00
+#define CPACK_CYAN    0x00FFFF
+#define CPACK_MAGENTA 0xFF00FF
 
 /* This function converts a numerical value to the equivalent 24-bit
  * color, while not being endian-sensitive. On little-endians, this
@@ -769,8 +779,6 @@ BLI_INLINE void gpuMultiTexCoord4fv(GLint index, const GLfloat *v)
 	GPU_IMMEDIATE->texCoord[index][2] = v[2];
 	GPU_IMMEDIATE->texCoord[index][3] = v[3];
 }
-
-
 
 
 BLI_INLINE void gpuVertexAttrib2fv(GLsizei index, const GLfloat *v)
