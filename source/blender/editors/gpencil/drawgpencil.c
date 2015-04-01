@@ -63,8 +63,6 @@
 
 #include "UI_resources.h"
 
-#include "gpencil_intern.h"
-
 /* ************************************************** */
 /* GREASE PENCIL DRAWING */
 

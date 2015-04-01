@@ -234,7 +234,7 @@ void BKE_object_modifier_hook_reset(Object *ob, HookModifierData *hmd)
 
 bool BKE_object_support_modifier_type_check(Object *ob, int modifier_type)
 {
-	ModifierTypeInfo *mti;
+	const ModifierTypeInfo *mti;
 
 	mti = modifierType_getInfo(modifier_type);
 
@@ -531,7 +531,7 @@ void BKE_object_unlink(Object *ob)
 			bPoseChannel *pchan;
 			for (pchan = obt->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -562,7 +562,7 @@ void BKE_object_unlink(Object *ob)
 		sca_remove_ob_poin(obt, ob);
 		
 		for (con = obt->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+			const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -1098,10 +1098,12 @@ void BKE_object_lod_add(Object *ob)
 		BLI_addtail(&ob->lodlevels, base);
 		base->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
 		base->source = ob;
+		base->obhysteresis = 10;
 		last = ob->currentlod = base;
 	}
 	
 	lod->distance = last->distance + 25.0f;
+	lod->obhysteresis = 10;
 	lod->flags = OB_LOD_USE_MESH | OB_LOD_USE_MAT;
 
 	BLI_addtail(&ob->lodlevels, lod);
@@ -1406,7 +1408,7 @@ static void copy_object_pose(Object *obn, Object *ob)
 		chan->flag &= ~(POSE_LOC | POSE_ROT | POSE_SIZE);
 		
 		for (con = chan->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+			const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -2219,7 +2221,7 @@ static void give_parvert(Object *par, int nr, float vec[3])
 					     md != NULL;
 					     md = md->next)
 					{
-						ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+						const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 						/* TODO(sergey): Check for disabled modifiers. */
 						if (mti->type != eModifierTypeType_OnlyDeform && md->next != NULL) {
 							use_special_ss_case = false;
@@ -3012,8 +3014,12 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 {
 	if (ob->recalc & OB_RECALC_ALL) {
 		/* speed optimization for animation lookups */
-		if (ob->pose)
+		if (ob->pose) {
 			BKE_pose_channels_hash_make(ob->pose);
+			if (ob->pose->flag & POSE_CONSTRAINTS_NEED_UPDATE_FLAGS) {
+				BKE_pose_update_constraint_flags(ob->pose);
+			}
+		}
 
 		if (ob->recalc & OB_RECALC_DATA) {
 			if (ob->type == OB_ARMATURE) {
@@ -3668,7 +3674,7 @@ int BKE_object_is_deform_modified(Scene *scene, Object *ob)
 	     md && (flag != (eModifierMode_Render | eModifierMode_Realtime));
 	     md = md->next)
 	{
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 		bool can_deform = mti->type == eModifierTypeType_OnlyDeform ||
 		                  is_modifier_animated;
 

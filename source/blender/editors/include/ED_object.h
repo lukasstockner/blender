@@ -35,33 +35,17 @@
 extern "C" {
 #endif
 
-struct BMEdge;
-struct BMFace;
-struct BMVert;
-struct BPoint;
 struct Base;
-struct BezTriple;
-struct Curve;
-struct EditBone;
 struct EnumPropertyItem;
 struct ID;
-struct KeyBlock;
-struct Lattice;
 struct Main;
-struct Mesh;
-struct MetaElem;
 struct ModifierData;
-struct HookModifierData;
-struct Nurb;
 struct Object;
 struct ReportList;
 struct Scene;
-struct View3D;
-struct ViewContext;
 struct bConstraint;
 struct bContext;
 struct bPoseChannel;
-struct wmEvent;
 struct wmKeyConfig;
 struct wmKeyMap;
 struct wmOperator;
@@ -174,6 +158,9 @@ void object_test_constraints(struct Object *ob);
 void ED_object_constraint_set_active(struct Object *ob, struct bConstraint *con);
 void ED_object_constraint_update(struct Object *ob);
 void ED_object_constraint_dependency_update(struct Main *bmain, struct Object *ob);
+
+void ED_object_constraint_tag_update(struct Object *ob, struct bConstraint *con);
+void ED_object_constraint_dependency_tag_update(struct Main *bmain, struct Object *ob, struct bConstraint *con);
 
 /* object_lattice.c */
 bool mouse_lattice(struct bContext *C, const int mval[2], bool extend, bool deselect, bool toggle);

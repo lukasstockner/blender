@@ -37,12 +37,10 @@ struct BMesh;
 struct BMFace;
 struct Brush;
 struct CurveMapping;
-struct MDisps;
 struct MeshElemMap;
 struct GridPaintMask;
 struct Main;
 struct MFace;
-struct MultireModifierData;
 struct MVert;
 struct Object;
 struct Paint;
@@ -57,7 +55,6 @@ struct StrokeCache;
 struct Tex;
 struct ImagePool;
 struct UnifiedPaintSettings;
-struct wmOperator;
 
 enum OverlayFlags;
 
@@ -102,9 +99,7 @@ void                 BKE_palette_free(struct Palette *palette);
 struct Palette      *BKE_palette_add(struct Main *bmain, const char *name);
 struct PaletteColor *BKE_palette_color_add(struct Palette *palette);
 bool                 BKE_palette_is_empty(const struct Palette *palette);
-void                 BKE_palette_color_remove_ex(struct Palette *palette, struct PaletteColor *color, bool use_free);
 void                 BKE_palette_color_remove(struct Palette *palette, struct PaletteColor *color);
-void                 BKE_palette_cleanup(struct Palette *palette);
 void                 BKE_palette_clear(struct Palette *palette);
 
 /* paint curves */

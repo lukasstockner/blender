@@ -201,7 +201,7 @@ set(WITH_PYTHON_SECURITY ON CACHE BOOL "ON" FORCE) # temp force on.
 
 option(WITH_PYTHON_SAFETY "Enable internal API error checking to track invalid data to prevent crash on access (at the expense of some effeciency, only enable for development)." OFF)
 mark_as_advanced(WITH_PYTHON_SAFETY)
-option(WITH_PYTHON_MODULE "Enable building as a python module which runs without a user interface, like running regular blender in background mode (experimental, only enable for development)" OFF)
+option(WITH_PYTHON_MODULE "Enable building as a python module which runs without a user interface, like running regular blender in background mode (experimental, only enable for development), installs to PYTHON_SITE_PACKAGES (or CMAKE_INSTALL_PREFIX if WITH_INSTALL_PORTABLE is enabled)." OFF)
 if(APPLE)
 	option(WITH_PYTHON_FRAMEWORK "Enable building using the Python available in the framework (OSX only)" OFF)
 endif()
@@ -260,6 +260,10 @@ endif()
 
 # (unix defaults to System OpenJPEG On)
 option(WITH_SYSTEM_OPENJPEG "Use the operating systems OpenJPEG library" OFF)
+
+if(UNIX AND NOT APPLE)
+	option(WITH_SYSTEM_EIGEN3 "Use the systems Eigen3 library" OFF)
+endif()
 
 
 # Modifiers
@@ -664,6 +668,7 @@ if(WITH_GHOST_SDL OR WITH_HEADLESS)
 	set(WITH_X11_XINPUT    OFF)
 	set(WITH_X11_XF86VMODE OFF)
 	set(WITH_GHOST_XDND    OFF)
+	set(WITH_INPUT_IME     OFF)
 endif()
 
 if(WITH_CPU_SSE)
@@ -804,6 +809,14 @@ if(UNIX AND NOT APPLE)
 			message(FATAL_ERROR "Failed finding system LZO version!")
 		endif()
 	endif()
+
+	if(WITH_SYSTEM_EIGEN3)
+		find_package_wrapper(Eigen3)
+		if(NOT EIGEN3_FOUND)
+			message(FATAL_ERROR "Failed finding system Eigen3 version!")
+		endif()
+	endif()
+	# else values are set below for all platforms
 
 	if(WITH_PYTHON)
 		# No way to set py34. remove for now.
@@ -2240,6 +2253,9 @@ if(WITH_IMAGE_REDCODE)
 	set(REDCODE_INC ${REDCODE})
 endif()
 
+if(NOT WITH_SYSTEM_EIGEN3)
+	set(EIGEN3_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extern/Eigen3)
+endif()
 
 #-----------------------------------------------------------------------------
 # Configure OpenGL.
@@ -2521,6 +2537,15 @@ if(CMAKE_COMPILER_IS_GNUCC)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_MISSING_INCLUDE_DIRS -Wmissing-include-dirs)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_DIV_BY_ZERO -Wno-div-by-zero)
 	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_TYPE_LIMITS -Wtype-limits)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ERROR_RETURN_TYPE  -Werror=return-type)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ERROR_DECLARATION_AFTER_STATEMENT -Werror=declaration-after-statement)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_ERROR_IMPLICIT_FUNCTION_DECLARATION -Werror=implicit-function-declaration)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_CHAR_SUBSCRIPTS -Wno-char-subscripts)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_NO_UNKNOWN_PRAGMAS -Wno-unknown-pragmas)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_POINTER_ARITH -Wpointer-arith)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNUSED_PARAMETER -Wunused-parameter)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_WRITE_STRINGS -Wwrite-strings)
+	ADD_CHECK_CXX_COMPILER_FLAG(CXX_WARNINGS CXX_WARN_UNDEF -Wundef)
 
 	# gcc 4.2 gives annoying warnings on every file with this
 	if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "4.3")

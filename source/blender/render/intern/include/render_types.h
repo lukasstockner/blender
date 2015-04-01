@@ -58,7 +58,6 @@ struct MemArena;
 struct VertTableNode;
 struct VlakTableNode;
 struct GHash;
-struct RenderBuckets;
 struct ObjectInstanceRen;
 struct RayObject;
 struct RayFace;
@@ -194,6 +193,7 @@ struct Render
 	struct Object *camera_override;
 	unsigned int lay, layer_override;
 	
+	ThreadRWMutex partsmutex;
 	ListBase parts;
 	
 	/* render engine */
@@ -388,7 +388,6 @@ struct halosort {
 
 /* ------------------------------------------------------------------------- */
 struct Material;
-struct MTFace;
 struct ImagePool;
 
 typedef struct RadFace {

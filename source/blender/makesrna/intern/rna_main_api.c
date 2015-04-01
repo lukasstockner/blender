@@ -461,8 +461,8 @@ static void rna_Main_fonts_remove(Main *bmain, ReportList *reports, PointerRNA *
 
 static Tex *rna_Main_textures_new(Main *bmain, const char *name, int type)
 {
-	Tex *tex = add_texture(bmain, name);
-	tex_set_type(tex, type);
+	Tex *tex = BKE_texture_add(bmain, name);
+	BKE_texture_type_set(tex, type);
 	id_us_min(&tex->id);
 	return tex;
 }
@@ -705,7 +705,7 @@ static void rna_Main_grease_pencil_remove(Main *bmain, ReportList *reports, Poin
 
 static FreestyleLineStyle *rna_Main_linestyles_new(Main *bmain, const char *name)
 {
-	FreestyleLineStyle *linestyle = BKE_linestyle_new(name, bmain);
+	FreestyleLineStyle *linestyle = BKE_linestyle_new(bmain, name);
 	id_us_min(&linestyle->id);
 	return linestyle;
 }

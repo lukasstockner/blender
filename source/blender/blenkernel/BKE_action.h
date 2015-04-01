@@ -46,8 +46,6 @@ struct bItasc;
 struct bPoseChannel;
 struct Main;
 struct Object;
-struct Scene;
-struct ID;
 
 /* Kernel prototypes */
 #ifdef __cplusplus
@@ -160,6 +158,9 @@ void extract_pose_from_pose(struct bPose *pose, const struct bPose *src);
 
 /* sets constraint flags */
 void BKE_pose_update_constraint_flags(struct bPose *pose);
+
+/* tag constraint flags for update */
+void BKE_pose_tag_update_constraint_flags(struct bPose *pose);
 
 /* return the name of structure pointed by pose->ikparam */
 const char *BKE_pose_ikparam_get_name(struct bPose *pose);
