@@ -376,6 +376,8 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 
 	/* TODO(sergey): This way using this object's
 	 * proeprties as driver target works fine.
+	 *
+	 * Does this depend on other nodes?
 	 */
 	add_operation_node(&ob->id, DEPSNODE_TYPE_PARAMETERS, DEPSOP_TYPE_POST, NULL,
 	                   DEG_OPCODE_PLACEHOLDER, "Parameters Eval");

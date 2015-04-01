@@ -1807,9 +1807,7 @@ bool DepsgraphRelationBuilder::needs_animdata_node(ID *id)
 {
 	AnimData *adt = BKE_animdata_from_id(id);
 	if (adt != NULL) {
-		return adt->action != NULL ||
-		       adt->nla_tracks.first != NULL ||
-		       adt->drivers.first != NULL;
+		return adt->action != NULL;
 	}
 	return false;
 }
