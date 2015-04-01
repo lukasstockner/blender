@@ -655,10 +655,11 @@ BLI_INLINE void gpuMultAlpha(GLfloat factor)
 
 BLI_INLINE void gpuGetColor4fv(GLfloat *color)
 {
-	color[0] = (GLfloat)(GPU_IMMEDIATE->color[0]) / 255.0f;
-	color[1] = (GLfloat)(GPU_IMMEDIATE->color[1]) / 255.0f;
-	color[2] = (GLfloat)(GPU_IMMEDIATE->color[2]) / 255.0f;
-	color[3] = (GLfloat)(GPU_IMMEDIATE->color[3]) / 255.0f;
+	const float recip = 1.0f / 255.0f;
+	color[0] = (GLfloat)(GPU_IMMEDIATE->color[0]) * recip;
+	color[1] = (GLfloat)(GPU_IMMEDIATE->color[1]) * recip;
+	color[2] = (GLfloat)(GPU_IMMEDIATE->color[2]) * recip;
+	color[3] = (GLfloat)(GPU_IMMEDIATE->color[3]) * recip;
 }
 
 BLI_INLINE void gpuGetColor4ubv(GLubyte *color)
@@ -687,9 +688,10 @@ BLI_INLINE void gpuNormal3fv(const GLfloat *v)
 
 BLI_INLINE void gpuNormal3sv(const GLshort *v)
 {
-	GPU_IMMEDIATE->normal[0] = v[0] / (float)SHRT_MAX;
-	GPU_IMMEDIATE->normal[1] = v[1] / (float)SHRT_MAX;
-	GPU_IMMEDIATE->normal[2] = v[2] / (float)SHRT_MAX;
+	const float recip = 1.0f / (float)SHRT_MAX;
+	GPU_IMMEDIATE->normal[0] = v[0] * recip;
+	GPU_IMMEDIATE->normal[1] = v[1] * recip;
+	GPU_IMMEDIATE->normal[2] = v[2] * recip;
 }
 
 
