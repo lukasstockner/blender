@@ -2691,6 +2691,115 @@ static ImBuf *seq_render_effect_strip_impl(const SeqRenderData *context, Sequenc
 	return out;
 }
 
+static ImBuf *seq_render_image_strip(const SeqRenderData *context, Sequence *seq, float nr, float cfra)
+{
+	ImBuf *ibuf = NULL;
+	char name[FILE_MAX];
+	bool is_multiview = (seq->flag & SEQ_USE_VIEWS) != 0 &&
+	                    (context->scene->r.scemode & R_MULTIVIEW) != 0;
+	StripElem *s_elem = BKE_sequencer_give_stripelem(seq, cfra);
+	int flag;
+
+	if (s_elem) {
+		BLI_join_dirfile(name, sizeof(name), seq->strip->dir, s_elem->name);
+		BLI_path_abs(name, G.main->name);
+	}
+
+	flag = IB_rect;
+	if (seq->alpha_mode == SEQ_ALPHA_PREMUL)
+		flag |= IB_alphamode_premul;
+
+	if (!s_elem) {
+		/* don't do anything */
+	}
+	else if (is_multiview) {
+		size_t totfiles = seq_num_files(context->scene, seq->views_format, true);
+		size_t totviews;
+		struct ImBuf **ibufs_arr;
+		char prefix[FILE_MAX];
+		char *ext = NULL;
+		int i;
+
+		if (totfiles > 1) {
+			BKE_scene_multiview_view_prefix_get(context->scene, name, prefix, &ext);
+			if (prefix[0] == '\0') {
+				goto monoview_image;
+			}
+		}
+
+		totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
+		ibufs_arr = MEM_callocN(sizeof(ImBuf *) * totviews, "Sequence Image Views Imbufs");
+
+		for (i = 0; i < totfiles; i++) {
+
+			if (prefix[0] == '\0') {
+				ibufs_arr[i] = IMB_loadiffname(name, flag, seq->strip->colorspace_settings.name);
+			}
+			else {
+				char str[FILE_MAX];
+				seq_multiview_name(context->scene, i, prefix, ext, str, FILE_MAX);
+				ibufs_arr[i] = IMB_loadiffname(str, flag, seq->strip->colorspace_settings.name);
+			}
+
+			if (ibufs_arr[i]) {
+				/* we don't need both (speed reasons)! */
+				if (ibufs_arr[i]->rect_float && ibufs_arr[i]->rect)
+					imb_freerectImBuf(ibufs_arr[i]);
+			}
+		}
+
+		if (seq->views_format == R_IMF_VIEWS_STEREO_3D && ibufs_arr[0])
+			IMB_ImBufFromStereo(seq->stereo3d_format, ibufs_arr[0], &ibufs_arr[0], &ibufs_arr[1]);
+
+		for (i = 0; i < totviews; i++) {
+			if (ibufs_arr[i]) {
+				SeqRenderData localcontext = *context;
+				localcontext.view_id = i;
+
+				/* all sequencer color is done in SRGB space, linear gives odd crossfades */
+				BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibufs_arr[i], false);
+
+				if (i != context->view_id) {
+					copy_to_ibuf_still(&localcontext, seq, nr, ibufs_arr[i]);
+					BKE_sequencer_cache_put(&localcontext, seq, cfra, SEQ_STRIPELEM_IBUF, ibufs_arr[i]);
+				}
+			}
+		}
+
+		/* return the original requested ImBuf */
+		ibuf = ibufs_arr[context->view_id];
+		if (ibuf) {
+			s_elem->orig_width  = ibufs_arr[0]->x;
+			s_elem->orig_height = ibufs_arr[0]->y;
+		}
+
+		/* "remove" the others (decrease their refcount) */
+		for (i = 0; i < totviews; i++) {
+			if (ibufs_arr[i] != ibuf) {
+				IMB_freeImBuf(ibufs_arr[i]);
+			}
+		}
+
+		MEM_freeN(ibufs_arr);
+	}
+	else {
+monoview_image:
+		if ((ibuf = IMB_loadiffname(name, flag, seq->strip->colorspace_settings.name))) {
+			/* we don't need both (speed reasons)! */
+			if (ibuf->rect_float && ibuf->rect)
+				imb_freerectImBuf(ibuf);
+
+			/* all sequencer color is done in SRGB space, linear gives odd crossfades */
+			BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
+
+			s_elem->orig_width  = ibuf->x;
+			s_elem->orig_height = ibuf->y;
+		}
+	}
+
+	return ibuf;
+}
+
 static ImBuf *seq_render_movie_strip(const SeqRenderData *context, Sequence *seq, float nr, float cfra)
 {
 	ImBuf *ibuf = NULL;
@@ -3152,7 +3261,6 @@ static ImBuf *do_render_strip_uncached(const SeqRenderData *context, Sequence *s
 	float nr = give_stripelem_index(seq, cfra);
 	int type = (seq->type & SEQ_TYPE_EFFECT && seq->type != SEQ_TYPE_SPEED) ? SEQ_TYPE_EFFECT : seq->type;
 	bool use_preprocess = BKE_sequencer_input_have_to_preprocess(context, seq, cfra);
-	char name[FILE_MAX];
 
 	switch (type) {
 		case SEQ_TYPE_META:
@@ -3211,108 +3319,7 @@ static ImBuf *do_render_strip_uncached(const SeqRenderData *context, Sequence *s
 
 		case SEQ_TYPE_IMAGE:
 		{
-			bool is_multiview = (seq->flag & SEQ_USE_VIEWS) != 0 &&
-			                    (context->scene->r.scemode & R_MULTIVIEW) != 0;
-			StripElem *s_elem = BKE_sequencer_give_stripelem(seq, cfra);
-			int flag;
-
-			if (s_elem) {
-				BLI_join_dirfile(name, sizeof(name), seq->strip->dir, s_elem->name);
-				BLI_path_abs(name, G.main->name);
-			}
-
-			flag = IB_rect;
-			if (seq->alpha_mode == SEQ_ALPHA_PREMUL)
-				flag |= IB_alphamode_premul;
-
-			if (!s_elem) {
-				/* don't do anything */
-			}
-			else if (is_multiview) {
-				size_t totfiles = seq_num_files(context->scene, seq->views_format, true);
-				size_t totviews;
-				struct ImBuf **ibufs_arr;
-				char prefix[FILE_MAX];
-				char *ext = NULL;
-				int i;
-
-				if (totfiles > 1) {
-					BKE_scene_multiview_view_prefix_get(context->scene, name, prefix, &ext);
-					if (prefix[0] == '\0') {
-						goto monoview_image;
-					}
-				}
-
-				totviews = BKE_scene_multiview_num_views_get(&context->scene->r);
-				ibufs_arr = MEM_callocN(sizeof(ImBuf *) * totviews, "Sequence Image Views Imbufs");
-
-				for (i = 0; i < totfiles; i++) {
-
-					if (prefix[0] == '\0') {
-						ibufs_arr[i] = IMB_loadiffname(name, flag, seq->strip->colorspace_settings.name);
-					}
-					else {
-						char str[FILE_MAX];
-						seq_multiview_name(context->scene, i, prefix, ext, str, FILE_MAX);
-						ibufs_arr[i] = IMB_loadiffname(str, flag, seq->strip->colorspace_settings.name);
-					}
-
-					if (ibufs_arr[i]) {
-						/* we don't need both (speed reasons)! */
-						if (ibufs_arr[i]->rect_float && ibufs_arr[i]->rect)
-							imb_freerectImBuf(ibufs_arr[i]);
-					}
-				}
-
-				if (seq->views_format == R_IMF_VIEWS_STEREO_3D && ibufs_arr[0])
-					IMB_ImBufFromStereo(seq->stereo3d_format, ibufs_arr[0], &ibufs_arr[0], &ibufs_arr[1]);
-
-				for (i = 0; i < totviews; i++) {
-					if (ibufs_arr[i]) {
-						SeqRenderData localcontext = *context;
-						localcontext.view_id = i;
-
-						/* all sequencer color is done in SRGB space, linear gives odd crossfades */
-						BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibufs_arr[i], false);
-
-						if (i != context->view_id) {
-							copy_to_ibuf_still(&localcontext, seq, nr, ibufs_arr[i]);
-							BKE_sequencer_cache_put(&localcontext, seq, cfra, SEQ_STRIPELEM_IBUF, ibufs_arr[i]);
-						}
-					}
-				}
-
-				/* return the original requested ImBuf */
-				ibuf = ibufs_arr[context->view_id];
-				if (ibuf) {
-					s_elem->orig_width  = ibufs_arr[0]->x;
-					s_elem->orig_height = ibufs_arr[0]->y;
-				}
-
-				/* "remove" the others (decrease their refcount) */
-				for (i = 0; i < totviews; i++) {
-					if (ibufs_arr[i] != ibuf) {
-						IMB_freeImBuf(ibufs_arr[i]);
-					}
-				}
-
-				MEM_freeN(ibufs_arr);
-			}
-			else {
-monoview_image:
-				if ((ibuf = IMB_loadiffname(name, flag, seq->strip->colorspace_settings.name))) {
-					/* we don't need both (speed reasons)! */
-					if (ibuf->rect_float && ibuf->rect)
-						imb_freerectImBuf(ibuf);
-
-					/* all sequencer color is done in SRGB space, linear gives odd crossfades */
-					BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
-
-					s_elem->orig_width  = ibuf->x;
-					s_elem->orig_height = ibuf->y;
-				}
-			}
-
+			ibuf = seq_render_image_strip(context, seq, nr, cfra);
 			copy_to_ibuf_still(context, seq, nr, ibuf);
 			break;
 		}
