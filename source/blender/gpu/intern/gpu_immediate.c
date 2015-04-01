@@ -2378,24 +2378,22 @@ INDEX_RELATIVE(uiv, GLuint,   GL_UNSIGNED_INT)
 
 
 
-#define INDEX(suffix, ctype, glsymbol)                                                                     \
-void gpuIndex##suffix(ctype nextIndex)                                                                     \
-{                                                                                                          \
-    GPUindex *index;                                                                                       \
-                                                                                                           \
-    BLI_assert(GPU_IMMEDIATE);                                                                             \
-    BLI_assert(GPU_IMMEDIATE->index);                                                                      \
-    BLI_assert(GPU_IMMEDIATE->index->type == glsymbol);                                                    \
-                                                                                                           \
-    {                                                                                                      \
-        if (GPU_IMMEDIATE->index->count < GPU_IMMEDIATE->index->maxIndexCount) \
-            return; \
-    }                                                                                                      \
-                                                                                                           \
-    index = GPU_IMMEDIATE->index;                                                                          \
-    ((ctype*)(index->mappedBuffer))[index->count] = nextIndex;                                             \
-    index->count++;                                                                                        \
-    index->offset += sizeof(ctype);                                                                        \
+#define INDEX(suffix, ctype, glsymbol)                                     \
+void gpuIndex##suffix(ctype nextIndex)                                     \
+{                                                                          \
+    GPUindex *index;                                                       \
+                                                                           \
+    BLI_assert(GPU_IMMEDIATE);                                             \
+    BLI_assert(GPU_IMMEDIATE->index);                                      \
+    BLI_assert(GPU_IMMEDIATE->index->type == glsymbol);                    \
+                                                                           \
+    if (GPU_IMMEDIATE->index->count < GPU_IMMEDIATE->index->maxIndexCount) \
+        return;                                                            \
+                                                                           \
+    index = GPU_IMMEDIATE->index;                                          \
+    ((ctype*)(index->mappedBuffer))[index->count] = nextIndex;             \
+    index->count++;                                                        \
+    index->offset += sizeof(ctype);                                        \
 }
 
 INDEX(ub, GLubyte,  GL_UNSIGNED_BYTE)
