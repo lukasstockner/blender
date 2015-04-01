@@ -2388,7 +2388,7 @@ void gpuIndex##suffix(ctype nextIndex)                                          
     BLI_assert(GPU_IMMEDIATE->index->type == glsymbol);                                                    \
                                                                                                            \
     {                                                                                                      \
-        if (GPU_IMMEDIATE->index->count < GPU_IMMEDIATE->index->maxIndexCount); \
+        if (GPU_IMMEDIATE->index->count < GPU_IMMEDIATE->index->maxIndexCount) \
             return; \
     }                                                                                                      \
                                                                                                            \
