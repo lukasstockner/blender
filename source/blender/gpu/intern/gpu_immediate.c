@@ -87,15 +87,6 @@ enum StreamTypes {
 	eStreamTypeVertexBuffer,
 };
 
-typedef struct bufferDataGLSL {
-	size_t   size;
-	GLuint   vao;
-	GLuint   vbo;
-	GLintptr unalignedPtr;
-	GLubyte *mappedBuffer;
-	GLubyte *unmappedBuffer;
-} bufferDataGLSL;
-
 static void alloc_stream_ram(GPUVertexStream *stream, size_t newsize)
 {
 	if (newsize > stream->size) {
@@ -423,6 +414,7 @@ static void setup(void)
 static void unsetup(void)
 {
 	size_t i;
+	GPUVertexStream    *vertex_stream = (GPUVertexStream*)(GPU_IMMEDIATE->vertex_stream);
 
 	/* vertex */
 	GPU_common_disable_vertex_array();
@@ -455,6 +447,8 @@ static void unsetup(void)
 	for (i = 0; i < GPU_IMMEDIATE->format.attribCount_ub; i++)
 //		if (GPU_IMMEDIATE->format.attribSize_ub[i] > 0)
 			glDisableVertexAttribArray(GPU_IMMEDIATE->format.attribIndexMap_ub[i]);
+
+	vertex_stream->unbind(vertex_stream);
 }
 
 static void allocateIndex(void)
@@ -694,7 +688,7 @@ void gpu_end_buffer_gl(void)
 		}
 
 		unsetup();
-		stream->unbind(stream);
+		GPU_shader_unbind();
 		GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl end");
 	}
 }
@@ -703,12 +697,7 @@ void gpu_end_buffer_gl(void)
 
 void gpu_unlock_buffer_gl(void)
 {
-	bufferDataGLSL *bufferData = (bufferDataGLSL*)(GPU_IMMEDIATE->vertex_stream);
-
-	if (bufferData->vao != 0)
-		glBindVertexArray(0);
-	else
-		unsetup();
+	unsetup();
 }
 
 
@@ -789,6 +778,7 @@ void gpu_draw_elements_gl(void)
 		base);
 
 	unsetup();
+	GPU_shader_unbind();
 	element_stream->unbind(element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_elements_gl end");
@@ -827,6 +817,7 @@ void gpu_draw_range_elements_gl(void)
 #endif
 
 	unsetup();
+	GPU_shader_unbind();
 	element_stream->unbind(element_stream);
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_draw_range_elements_gl end");;
