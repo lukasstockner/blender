@@ -2822,7 +2822,7 @@ static ImBuf *seq_render_mask_strip(const SeqRenderData *context, Sequence *seq,
 	return seq_render_mask(context, seq->mask, nr, make_float);
 }
 
-static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq, float nr)
+static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq, float nr, float cfra)
 {
 	ImBuf *ibuf = NULL;
 	float frame;
@@ -2939,7 +2939,11 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 	}
 	else {
 		Render *re = RE_GetRender(scene->id.name);
-		RenderResult rres;
+		size_t totviews = BKE_scene_multiview_num_views_get(&scene->r);
+		int i;
+		ImBuf **ibufs_arr;
+
+		ibufs_arr = MEM_callocN(sizeof(ImBuf *) * totviews, "Sequence Image Views Imbufs");
 
 		/* XXX: this if can be removed when sequence preview rendering uses the job system
 		 *
@@ -2953,34 +2957,56 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 			if (re == NULL)
 				re = RE_NewRender(scene->id.name);
 
-			RE_SetActiveRenderView(re, BKE_scene_multiview_render_view_name_get(&scene->r, context->view_id));
 			BKE_scene_update_for_newframe(context->eval_ctx, context->bmain, scene, scene->lay);
 			RE_BlenderFrame(re, context->bmain, scene, NULL, camera, scene->lay, frame, false);
 
 			/* restore previous state after it was toggled on & off by RE_BlenderFrame */
 			G.is_rendering = is_rendering;
 		}
-		
-		RE_AcquireResultImage(re, &rres, context->view_id);
-		
-		if (rres.rectf) {
-			ibuf = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rectfloat);
-			memcpy(ibuf->rect_float, rres.rectf, 4 * sizeof(float) * rres.rectx * rres.recty);
-			if (rres.rectz) {
-				addzbuffloatImBuf(ibuf);
-				memcpy(ibuf->zbuf_float, rres.rectz, sizeof(float) * rres.rectx * rres.recty);
+
+		for (i = 0; i < totviews; i++) {
+			SeqRenderData localcontext = *context;
+			localcontext.view_id = i;
+			RenderResult rres;
+
+			RE_AcquireResultImage(re, &rres, i);
+
+			if (rres.rectf) {
+				ibufs_arr[i] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rectfloat);
+				memcpy(ibufs_arr[i]->rect_float, rres.rectf, 4 * sizeof(float) * rres.rectx * rres.recty);
+
+				if (rres.rectz) {
+					addzbuffloatImBuf(ibufs_arr[i]);
+					memcpy(ibufs_arr[i]->zbuf_float, rres.rectz, sizeof(float) * rres.rectx * rres.recty);
+				}
+
+				/* float buffers in the sequencer are not linear */
+				BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibufs_arr[i], false);
+			}
+			else if (rres.rect32) {
+				ibufs_arr[i] = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rect);
+				memcpy(ibufs_arr[i]->rect, rres.rect32, 4 * rres.rectx * rres.recty);
 			}
 
-			/* float buffers in the sequencer are not linear */
-			BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
+			if (i != context->view_id) {
+				copy_to_ibuf_still(&localcontext, seq, nr, ibufs_arr[i]);
+				BKE_sequencer_cache_put(&localcontext, seq, cfra, SEQ_STRIPELEM_IBUF, ibufs_arr[i]);
+			}
+
+			RE_ReleaseResultImage(re);
 		}
-		else if (rres.rect32) {
-			ibuf = IMB_allocImBuf(rres.rectx, rres.recty, 32, IB_rect);
-			memcpy(ibuf->rect, rres.rect32, 4 * rres.rectx * rres.recty);
+
+		/* return the original requested ImBuf */
+		ibuf = ibufs_arr[context->view_id];
+
+		/* "remove" the others (decrease their refcount) */
+		for (i = 0; i < totviews; i++) {
+			if (ibufs_arr[i] != ibuf) {
+				IMB_freeImBuf(ibufs_arr[i]);
+			}
 		}
-		
-		RE_ReleaseResultImage(re);
-		
+		MEM_freeN(ibufs_arr);
+
 		// BIF_end_render_callbacks();
 	}
 	
@@ -3129,7 +3155,11 @@ static ImBuf *do_render_strip_uncached(const SeqRenderData *context, Sequence *s
 
 						/* all sequencer color is done in SRGB space, linear gives odd crossfades */
 						BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibufs_arr[i], false);
-						copy_to_ibuf_still(&localcontext, seq, nr, ibufs_arr[i]);
+
+						if (i != context->view_id) {
+							copy_to_ibuf_still(&localcontext, seq, nr, ibufs_arr[i]);
+							BKE_sequencer_cache_put(&localcontext, seq, cfra, SEQ_STRIPELEM_IBUF, ibufs_arr[i]);
+						}
 					}
 				}
 
@@ -3159,12 +3189,12 @@ monoview_image:
 					/* all sequencer color is done in SRGB space, linear gives odd crossfades */
 					BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf, false);
 
-					copy_to_ibuf_still(context, seq, nr, ibuf);
-
 					s_elem->orig_width  = ibuf->x;
 					s_elem->orig_height = ibuf->y;
 				}
 			}
+
+			copy_to_ibuf_still(context, seq, nr, ibuf);
 			break;
 		}
 
@@ -3231,7 +3261,10 @@ monoview_image:
 						/* all sequencer color is done in SRGB space, linear gives odd crossfades */
 						BKE_sequencer_imbuf_to_sequencer_space(context->scene, ibuf_arr[i], false);
 					}
-					copy_to_ibuf_still(&localcontext, seq, nr, ibuf_arr[i]);
+					if (i != context->view_id) {
+						copy_to_ibuf_still(&localcontext, seq, nr, ibuf_arr[i]);
+						BKE_sequencer_cache_put(&localcontext, seq, cfra, SEQ_STRIPELEM_IBUF, ibuf_arr[i]);
+					}
 				}
 
 				/* return the original requested ImBuf */
@@ -3279,15 +3312,15 @@ monoview_movie:
 						seq->strip->stripdata->orig_height = ibuf->y;
 					}
 				}
-				copy_to_ibuf_still(context, seq, nr, ibuf);
 			}
+			copy_to_ibuf_still(context, seq, nr, ibuf);
 			break;
 		}
 
 		case SEQ_TYPE_SCENE:
 		{
 			/* scene can be NULL after deletions */
-			ibuf = seq_render_scene_strip(context, seq, nr);
+			ibuf = seq_render_scene_strip(context, seq, nr, cfra);
 
 			/* Scene strips update all animation, so we need to restore original state.*/
 			BKE_animsys_evaluate_all_animation(context->bmain, context->scene, cfra);
