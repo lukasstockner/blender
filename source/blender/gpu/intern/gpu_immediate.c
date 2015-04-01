@@ -87,7 +87,6 @@ enum StreamTypes {
 	eStreamTypeVertexBuffer,
 };
 
-
 typedef struct bufferDataGLSL {
 	size_t   size;
 	GLuint   vao;
@@ -134,10 +133,9 @@ static void alloc_stream_vabuffer(GPUVertexStream *stream, size_t newsize)
 		if (!va_stream->vao)
 			glGenVertexArrays(1, &va_stream->vao);
 
-		if (va_stream->vstream.vbo)
-			glBindBuffer(stream->type, va_stream->vstream.vbo);
-		else
+		if (!va_stream->vstream.vbo)
 			glGenBuffers(1, &va_stream->vstream.vbo);
+		glBindBuffer(stream->type, va_stream->vstream.vbo);
 		glBufferData(stream->type, newsize, NULL, GL_STREAM_DRAW);
 		stream->size = newsize;
 	}
@@ -198,6 +196,41 @@ static void free_stream_vbuffer(GPUVertexStream *stream)
 	MEM_freeN(stream);
 }
 
+static void *bind_stream_ram(GPUVertexStream *stream)
+{
+	GPURAMArrayStream *ram_stream = (GPURAMArrayStream *)stream;
+	return ram_stream->unmappedBuffer;
+}
+
+static void unbind_stream_ram(GPUVertexStream *UNUSED(stream))
+{
+}
+
+static void *bind_stream_vbuffer(GPUVertexStream *stream)
+{
+	GPUVertexBufferStream *va_stream = (GPUVertexBufferStream *)stream;
+	glBindBuffer(stream->type, va_stream->vbo);
+	return NULL;
+}
+
+static void unbind_stream_vbuffer(GPUVertexStream *stream)
+{
+	glBindBuffer(stream->type, 0);
+}
+
+static void *bind_stream_varray(GPUVertexStream *stream)
+{
+	GPUVertexArrayStream *va_stream = (GPUVertexArrayStream *)stream;
+	glBindVertexArray(va_stream->vao);
+	glBindBuffer(stream->type, va_stream->vstream.vbo);
+	return NULL;
+}
+
+static void unbind_stream_varray(GPUVertexStream *stream)
+{
+	glBindVertexArray(0);
+	glBindBuffer(stream->type, 0);
+}
 
 static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_type)
 {
@@ -211,6 +244,8 @@ static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_t
 			ret->map = map_stream_vbuffer;
 			ret->unmap = unmap_stream_vbuffer;
 			ret->free = free_stream_varray;
+			ret->bind = bind_stream_varray;
+			ret->unbind = unbind_stream_varray;
 			break;
 		}
 
@@ -222,6 +257,8 @@ static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_t
 			ret->map = map_stream_ram;
 			ret->unmap = unmap_stream_ram;
 			ret->free = free_stream_ram;
+			ret->bind = bind_stream_ram;
+			ret->unbind = unbind_stream_ram;
 			break;
 		}
 
@@ -233,6 +270,8 @@ static GPUVertexStream *gpu_new_vertex_stream(enum StreamTypes type, int array_t
 			ret->map = map_stream_vbuffer;
 			ret->unmap = unmap_stream_vbuffer;
 			ret->free = free_stream_vbuffer;
+			ret->bind = bind_stream_vbuffer;
+			ret->unbind = unbind_stream_vbuffer;
 			break;
 		}
 
@@ -966,8 +1005,6 @@ void gpuEnd(void)
 	BLI_assert(GPU_IMMEDIATE->mode != GL_NOOP || !(GPU_IMMEDIATE->hasOverflowed));
 
 	gpu_end_buffer_gl();
-
-	GPU_IMMEDIATE->mappedBuffer = NULL;
 }
 
 void gpuImmediateFormatReset(void)

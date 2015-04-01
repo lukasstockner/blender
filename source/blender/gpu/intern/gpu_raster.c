@@ -494,7 +494,6 @@ static GLboolean end_begin(void)
 	{
 		gpu_end_buffer_gl();
 
-		GPU_IMMEDIATE->mappedBuffer = NULL;
 		GPU_IMMEDIATE->offset = 0;
 		GPU_IMMEDIATE->count = 1; /* count the vertex that triggered this */
 

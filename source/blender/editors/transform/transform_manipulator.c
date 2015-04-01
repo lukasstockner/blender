@@ -1392,7 +1392,7 @@ static void draw_manipulator_translate(
 					glTranslatef(0.0, 0.0, dz);
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_Z);
 					else manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]));
-					gpuDrawCone(&prim, cywid, cylen);
+					gpuSingleCone(&prim, cywid, cylen);
 					glTranslatef(0.0, 0.0, -dz);
 				}
 				break;
@@ -1402,7 +1402,7 @@ static void draw_manipulator_translate(
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_X);
 					else manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]));
 					glRotatef(90.0, 0.0, 1.0, 0.0);
-					gpuDrawCone(&prim, cywid, cylen);
+					gpuSingleCone(&prim, cywid, cylen);
 					glRotatef(-90.0, 0.0, 1.0, 0.0);
 					glTranslatef(-dz, 0.0, 0.0);
 				}
@@ -1413,7 +1413,7 @@ static void draw_manipulator_translate(
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_Y);
 					else manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->tw_idot[1]));
 					glRotatef(-90.0, 1.0, 0.0, 0.0);
-					gpuDrawCone(&prim, cywid, cylen);
+					gpuSingleCone(&prim, cywid, cylen);
 					glRotatef(90.0, 1.0, 0.0, 0.0);
 					glTranslatef(0.0, -dz, 0.0);
 				}
