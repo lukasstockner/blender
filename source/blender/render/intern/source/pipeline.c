@@ -763,6 +763,8 @@ void RE_InitState(Render *re, Render *source, RenderData *rd,
 	RE_init_threadcount(re);
 }
 
+/* This function is only called by view3d rendering, which doesn't support
+ * multiview at the moment. so handle only one view here */
 static void render_result_rescale(Render *re)
 {
 	RenderResult *result = re->result;
@@ -774,7 +776,7 @@ static void render_result_rescale(Render *re)
 	if (src_rectf == NULL) {
 		RenderLayer *rl = render_get_active_layer(re, re->result);
 		if (rl != NULL) {
-			src_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, 0);
+			src_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, "");
 		}
 	}
 
@@ -785,7 +787,7 @@ static void render_result_rescale(Render *re)
 		                               0,
 		                               RR_USE_MEM,
 		                               RR_ALL_LAYERS,
-		                               RR_ALL_VIEWS);
+		                               "");
 
 		if (re->result != NULL) {
 			dst_rectf = re->result->rectf;
@@ -793,7 +795,7 @@ static void render_result_rescale(Render *re)
 				RenderLayer *rl;
 				rl = render_get_active_layer(re, re->result);
 				if (rl != NULL) {
-					dst_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, 0);
+					dst_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, "");
 				}
 			}
 
