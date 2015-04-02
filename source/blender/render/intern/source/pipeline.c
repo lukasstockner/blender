@@ -3435,12 +3435,11 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 	}
 
 	if (mh && mh->get_next_frame) {
-		/* in case a new video format is added that implements get_next_frame multiview has to be addressed
+		/* TODO (dfelinto):
+		 * in case a new video format is added that implements get_next_frame multiview has to be addressed
 		 * or the error throwing for R_IMF_IMTYPE_FRAMESERVER has to be extended for those cases as well
 		 */
 		BLI_assert(totvideos < 2);
-
-		/* XXX MV MOV need to adapt this for multiview */
 
 		while (!(G.is_break == 1)) {
 			int nf = mh->get_next_frame(re->movie_ctx_arr[0], &re->r, re->reports);
