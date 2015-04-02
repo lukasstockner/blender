@@ -1618,7 +1618,6 @@ static void merge_renderresult_fields(RenderResult *rr, RenderResult *rr1, Rende
 		     rpass && rpass1 && rpass2;
 		     rpass = rpass->next, rpass1 = rpass1->next, rpass2 = rpass2->next)
 		{
-			//XXX MV - it may work, I haven't tried though
 			interleave_rect(rr, rpass->rect, rpass1->rect, rpass2->rect, rpass->channels);
 		}
 	}
@@ -2008,6 +2007,7 @@ static void tag_scenes_for_render(Render *re)
 			}
 		}
 	}
+	
 }
 
 static void ntree_render_scenes(Render *re)
