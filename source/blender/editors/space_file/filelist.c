@@ -208,7 +208,7 @@ typedef struct FileListIntern {
 	FileDirEntry **filtered;
 } FileListIntern;
 
-#define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
+#define FILELIST_ENTRYCACHESIZE 256  /* Keep it a power of two! */
 typedef struct FileListEntryCache {
 	/* Block cache: all entries between start and end index. used for part of the list on diplay. */
 	FileDirEntry *block_entries[FILELIST_ENTRYCACHESIZE];
@@ -694,6 +694,7 @@ void filelist_filter(FileList *filelist)
 //	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
 
 	filelist_cache_clear(&filelist->filelist_cache);
+	filelist->need_filtering = false;
 
 	MEM_freeN(filtered_tmp);
 }
@@ -1438,7 +1439,8 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
 
-	printf("Caching block [%d:%d] (current cache: [%d:%d])\n", start_index, end_index, cache->block_start_index, cache->block_end_index);
+	printf("Caching block [%d:%d] around index %d (current cache: [%d:%d])\n",
+	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
 
 	if ((start_index == cache->block_start_index) && (end_index == cache->block_end_index)) {
 		/* Nothing to do! */
