@@ -318,6 +318,7 @@ static int groupname_to_code(const char *group);
 static unsigned int groupname_to_filter_id(const char *group);
 
 static void filelist_filter_clear(FileList *filelist);
+static void filelist_cache_clear(FileListEntryCache *cache);
 
 /* ********** Sort helpers ********** */
 
@@ -691,6 +692,8 @@ void filelist_filter(FileList *filelist)
 	       sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered);
 	filelist->filelist.nbr_entries_filtered = num_filtered;
 //	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
+
+	filelist_cache_clear(&filelist->filelist_cache);
 
 	MEM_freeN(filtered_tmp);
 }
