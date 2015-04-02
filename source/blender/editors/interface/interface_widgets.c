@@ -539,10 +539,18 @@ static void widget_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float tr
 
 static void widget_trias_draw(uiWidgetTrias *tria)
 {
+#if 0 /* no idea why this crashes on Mac, everything seems to check out ok --merwin */
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, tria->vec);
 	glDrawElements(GL_TRIANGLES, tria->tot * 3, GL_UNSIGNED_INT, tria->index);
 	glDisableClientState(GL_VERTEX_ARRAY);
+#else
+	const unsigned *idx = (const unsigned *)tria->index;
+	glBegin(GL_TRIANGLES);
+	for (unsigned i = 0; i < tria->tot * 3; ++i)
+		glVertex3fv((float *)&tria->vec[idx[i]]);
+	glEnd();
+#endif
 }
 
 static void widget_menu_trias(uiWidgetTrias *tria, const rcti *rect)
