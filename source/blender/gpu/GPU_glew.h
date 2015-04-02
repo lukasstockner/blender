@@ -34,4 +34,39 @@
 
 #include "glew-mx.h"
 
+#ifdef __APPLE__
+/* Vertex Array Objects are part of OpenGL 3.0, or these extensions:
+ *
+ * GL_APPLE_vertex_array_object
+ *  ^-- universally supported on Mac, widely supported on Linux (Mesa)
+ * GL_ARB_vertex_array_object
+ *  ^-- widely supported on Windows & vendors' Linux drivers
+ *
+ * The ARB extension differs from the APPLE one in that client
+ * memory cannot be accessed through a non-zero vertex array object. It also
+ * differs in that vertex array objects are explicitly not sharable between
+ * contexts.
+ * (in other words, the ARB version of VAOs *must* use VBOs for vertex data)
+ *
+ * Called and used the exact same way, so alias to unify our VAO code.
+ *
+ * Not needed for GL >= 3.0
+ */
+
+#  undef  glIsVertexArray
+#  define glIsVertexArray glIsVertexArrayAPPLE
+
+#  undef  glBindVertexArray
+#  define glBindVertexArray glBindVertexArrayAPPLE
+
+#  undef  glGenVertexArrays
+#  define glGenVertexArrays glGenVertexArraysAPPLE
+
+#  undef  glDeleteVertexArrays
+#  define glDeleteVertexArrays glDeleteVertexArraysAPPLE
+
+/* TODO: a better workaround? */
+
+#endif /* __APPLE__ */
+
 #endif /* __GPU_GLEW_H__ */
