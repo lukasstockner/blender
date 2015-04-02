@@ -198,19 +198,19 @@ void specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 			assert(comp_type == GL_FLOAT || comp_type == GL_SHORT || comp_type == GL_INT);
 			if (comp_type != GL_FLOAT)
 				assert(fetch_mode == CONVERT_INT_TO_FLOAT);
-			assert(comp_count >= 2);
+			assert(comp_ct >= 2);
 			break;
 		case GL_NORMAL_ARRAY:
 			assert(comp_type == GL_FLOAT || comp_type == GL_BYTE || comp_type == GL_SHORT || comp_type == GL_INT);
 			if (comp_type != GL_FLOAT)
 				assert(fetch_mode == NORMALIZE_INT_TO_FLOAT);
-			assert(comp_count == 3);
+			assert(comp_ct == 3);
 			break;
 		case GL_COLOR_ARRAY:
 			/* any comp_type allowed */
 			if (comp_type != GL_FLOAT)
 				assert(fetch_mode == NORMALIZE_INT_TO_FLOAT);
-			assert(comp_count >= 3);
+			assert(comp_ct >= 3);
 			break;
 		case GL_TEXTURE_COORD_ARRAY:
 			assert(comp_type == GL_FLOAT || comp_type == GL_SHORT || comp_type == GL_INT);
@@ -260,8 +260,8 @@ void set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, co
 
 void set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, float x, float y, float z)
 {
-	Attrib *attrib = buff->attribs + attrib_num;
 #if TRUST_NO_ONE
+	Attrib *attrib = buff->attribs + attrib_num;
 	assert(attrib->comp_type == GL_FLOAT);
 	assert(attrib->comp_ct == 3);
 #endif /* TRUST_NO_ONE */
