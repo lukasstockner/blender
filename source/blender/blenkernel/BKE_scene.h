@@ -155,6 +155,7 @@ size_t      BKE_scene_multiview_num_views_get(const struct RenderData *rd);
 struct SceneRenderView *BKE_scene_multiview_render_view_findindex(const struct RenderData *rd, const int view_id);
 const char *BKE_scene_multiview_render_view_name_get(const struct RenderData *rd, const int view_id);
 size_t      BKE_scene_multiview_view_id_get(const struct RenderData *rd, const char *viewname);
+void        BKE_scene_multiview_filepath_get(struct SceneRenderView *srv, const char *filepath, char *r_filepath);
 void        BKE_scene_multiview_view_filepath_get(const struct RenderData *rd, const char *filepath, const char *view, char *r_filepath);
 const char *BKE_scene_multiview_view_suffix_get(const struct RenderData *rd, const char *viewname);
 const char *BKE_scene_multiview_view_id_suffix_get(const struct RenderData *rd, const size_t view_id);

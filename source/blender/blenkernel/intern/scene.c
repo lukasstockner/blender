@@ -2289,6 +2289,14 @@ size_t BKE_scene_multiview_view_id_get(const RenderData *rd, const char *viewnam
 	return 0;
 }
 
+void BKE_scene_multiview_filepath_get(
+        SceneRenderView *srv, const char *filepath,
+        char *r_filepath)
+{
+	BLI_strncpy(r_filepath, filepath, FILE_MAX);
+	BLI_path_suffix(r_filepath, FILE_MAX, srv->suffix, "");
+}
+
 /**
  * When multiview is not used the filepath is as usual (e.g., ``Image.jpg``).
  * When multiview is on, even if only one view is enabled the view is incorporated

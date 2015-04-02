@@ -3395,6 +3395,8 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 	int nfra, totrendered = 0, totskipped = 0;
 	const size_t totvideos = BKE_scene_multiview_num_videos_get(&rd);
 	const bool is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
+	const bool is_multiview_name = ((scene->r.scemode & R_MULTIVIEW) != 0 &&
+	                                (scene->r.im_format.views_format == R_IMF_VIEWS_INDIVIDUAL));
 
 	BLI_callback_exec(re->main, (ID *)scene, BLI_CB_EVT_RENDER_INIT);
 
@@ -3500,17 +3502,61 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 					        name, scene->r.pic, bmain->name, scene->r.cfra,
 					        &scene->r.im_format, (scene->r.scemode & R_EXTENSION) != 0, true, NULL);
 
-				if (scene->r.mode & R_NO_OVERWRITE && BLI_exists(name)) {
-					printf("skipping existing frame \"%s\"\n", name);
-					totskipped++;
-					continue;
+				if (scene->r.mode & R_NO_OVERWRITE) {
+					if (!is_multiview_name) {
+						if (BLI_exists(name)) {
+							printf("skipping existing frame \"%s\"\n", name);
+							totskipped++;
+							continue;
+						}
+					}
+					else {
+						SceneRenderView *srv;
+						bool is_skip = false;
+						char filepath[FILE_MAX];
+
+						for (srv = scene->r.views.first; srv; srv = srv->next) {
+							if (!BKE_scene_multiview_is_render_view_active(&scene->r, srv))
+								continue;
+
+							BKE_scene_multiview_filepath_get(srv, name, filepath);
+
+							if (BLI_exists(filepath)) {
+								is_skip = true;
+								printf("skipping existing frame \"%s\" for view \"%s\"\n", filepath, srv->name);
+							}
+						}
+
+						if (is_skip) {
+							totskipped++;
+							continue;
+						}
+					}
 				}
 
-				/* XXX MV MOV we should create/touch the multiview file or at least remove
-				 * this dummy touched file after we are done creating the stereo pairs */
-				if (scene->r.mode & R_TOUCH && !BLI_exists(name)) {
-					BLI_make_existing_file(name); /* makes the dir if its not there */
-					BLI_file_touch(name);
+				if (scene->r.mode & R_TOUCH) {
+					if (!is_multiview_name) {
+						if (!BLI_exists(name)) {
+							BLI_make_existing_file(name); /* makes the dir if its not there */
+							BLI_file_touch(name);
+						}
+					}
+					else {
+						SceneRenderView *srv;
+						char filepath[FILE_MAX];
+
+						for (srv = scene->r.views.first; srv; srv = srv->next) {
+							if (!BKE_scene_multiview_is_render_view_active(&scene->r, srv))
+								continue;
+
+							BKE_scene_multiview_filepath_get(srv, name, filepath);
+
+							if (!BLI_exists(filepath)) {
+								BLI_make_existing_file(filepath); /* makes the dir if its not there */
+								BLI_file_touch(filepath);
+							}
+						}
+					}
 				}
 			}
 
@@ -3534,9 +3580,29 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 			if (G.is_break == true) {
 				/* remove touched file */
 				if (is_movie == false) {
-					if ((scene->r.mode & R_TOUCH) && (BLI_file_size(name) == 0)) {
-						/* BLI_exists(name) is implicit */
-						BLI_delete(name, false, false);
+					if ((scene->r.mode & R_TOUCH)) {
+						if (!is_multiview_name) {
+							if ((BLI_file_size(name) == 0)) {
+								/* BLI_exists(name) is implicit */
+								BLI_delete(name, false, false);
+							}
+						}
+						else {
+							SceneRenderView *srv;
+							char filepath[FILE_MAX];
+
+							for (srv = scene->r.views.first; srv; srv = srv->next) {
+								if (!BKE_scene_multiview_is_render_view_active(&scene->r, srv))
+									continue;
+
+								BKE_scene_multiview_filepath_get(srv, name, filepath);
+
+								if ((BLI_file_size(filepath) == 0)) {
+									/* BLI_exists(filepath) is implicit */
+									BLI_delete(filepath, false, false);
+								}
+							}
+						}
 					}
 				}
 				
