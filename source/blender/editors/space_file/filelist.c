@@ -977,7 +977,7 @@ static void filelist_intern_free(FileListIntern *filelist_intern)
 	FileDirEntry *entry;
 
 	for (entry = filelist_intern->entries.first; entry; entry = entry->next) {
-		filelist_entry_free(entry);
+		BKE_filedir_entry_free(entry);
 	}
 	BLI_freelistN(&filelist_intern->entries);
 
@@ -1792,7 +1792,7 @@ bool filelist_is_selected(FileList *filelist, int index, FileCheckType check)
 FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check, const char *name, const bool use_ae)
 {
 	FileDirEntryArr *selection;
-	int i, totfiles = filelist->numfiltered;
+	int i, totfiles = filelist->filelist.nbr_entries_filtered;
 	bool done_name = false;
 
 	selection = MEM_mallocN(sizeof(*selection), __func__);
@@ -1800,6 +1800,7 @@ FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check,
 	selection->nbr_entries = 0;
 	BLI_listbase_clear(&selection->entries);
 
+#if 0  /* XXX Needs changes in how selection is handled! */
 	for (i = 0; i < totfiles; i++) {
 		FileDirEntry *entry_org = filelist->filtered[i];
 
@@ -1823,7 +1824,7 @@ FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check,
 		/* This will 'rewrite' selection list, returned paths are expected to be valid! */
 		BKE_asset_engine_load_pre(filelist->ae, selection);
 	}
-
+#endif
 	return selection;
 }
 
@@ -2342,6 +2343,7 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 		memset(&flrj->tmp_filelist->filelist_cache, 0, sizeof(FileListEntryCache));
 
 		flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
+	}
 }
 
 static void filelist_readjob_update(void *flrjv)
@@ -2358,10 +2360,8 @@ static void filelist_readjob_update(void *flrjv)
 
 		flrj->ae_job_id = ae->type->list_dir(ae, flrj->ae_job_id, &flrj->filelist->filelist);
 		flrj->filelist->need_sorting = true;
+		flrj->filelist->need_filtering = true;
 		flrj->filelist->force_refresh = true;
-		/* Better be explicit here, since we overwrite filelist->filelist on each run of this update func,
-		 * it would be stupid to start thumbnail job! */
-		flrj->filelist->need_thumbnails = false;
 
 		for (entry = flrj->filelist->filelist.entries.first; entry; entry = entry->next) {
 			BLI_assert(!BLI_listbase_is_empty(&entry->variants) && entry->nbr_variants);
