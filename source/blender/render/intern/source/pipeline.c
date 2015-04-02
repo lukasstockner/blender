@@ -3692,18 +3692,18 @@ void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char
 					IMB_freeImBuf(ibuf_clip);
 				}
 				else {
-					BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: failed to allocate clip buffer '%s'", filename);
+					BKE_reportf(reports, RPT_ERROR, "RE_layer_load_from_file: failed to allocate clip buffer '%s'", filename);
 				}
 			}
 			else {
-				BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: incorrect dimensions for partial copy '%s'", filename);
+				BKE_reportf(reports, RPT_ERROR, "RE_layer_load_from_file: incorrect dimensions for partial copy '%s'", filename);
 			}
 		}
 
 		IMB_freeImBuf(ibuf);
 	}
 	else {
-		BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: failed to load '%s'", filename);
+		BKE_reportf(reports, RPT_ERROR, "RE_layer_load_from_file: failed to load '%s'", filename);
 	}
 }
 #endif
@@ -3711,7 +3711,7 @@ void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char
 void RE_result_load_from_file(RenderResult *result, ReportList *reports, const char *filename)
 {
 	if (!render_result_exr_file_read_path(result, NULL, filename)) {
-		BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: failed to load '%s'", filename);
+		BKE_reportf(reports, RPT_ERROR, "RE_result_load_from_file: failed to load '%s'", filename);
 		return;
 	}
 }

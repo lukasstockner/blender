@@ -197,6 +197,8 @@ typedef struct Sequence {
 	char views_format;
 	struct Stereo3dFormat *stereo3d_format;
 
+	struct IDProperty *prop;
+
 	/* modifiers */
 	ListBase modifiers;
 } Sequence;

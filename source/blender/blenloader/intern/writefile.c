@@ -1620,6 +1620,13 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 			writedata(wd, DATA, sizeof(float)*lmd->total_verts * 3, lmd->vertexco);
 		}
+		else if (md->type == eModifierType_CorrectiveSmooth) {
+			CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)md;
+
+			if (csmd->bind_coords) {
+				writedata(wd, DATA, sizeof(float[3]) * csmd->bind_coords_num, csmd->bind_coords);
+			}
+		}
 	}
 }
 
@@ -2443,6 +2450,10 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 						writestruct(wd, DATA, "StripElem", 1, strip->stripdata);
 					
 					strip->done = true;
+				}
+
+				if (seq->prop) {
+					IDP_WriteProperty(seq->prop, wd);
 				}
 
 				write_sequence_modifiers(wd, &seq->modifiers);
