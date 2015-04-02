@@ -3435,7 +3435,7 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 	}
 
 	if (mh && mh->get_next_frame) {
-		/* TODO (dfelinto):
+		/* MULTIVIEW_TODO:
 		 * in case a new video format is added that implements get_next_frame multiview has to be addressed
 		 * or the error throwing for R_IMF_IMTYPE_FRAMESERVER has to be extended for those cases as well
 		 */

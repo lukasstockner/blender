@@ -114,7 +114,7 @@ typedef struct RenderLayer {
 	struct Material *mat_override;
 	struct Group *light_override;
 
-	/* TODO (dfelinto): acolrect and scolrect are not supported by multiview at the moment.
+	/* MULTIVIEW_TODO: acolrect and scolrect are not supported by multiview at the moment.
 	 * If they are really required they should be in RenderView instead */
 
 	float *acolrect;	/* 4 float, optional transparent buffer, needs storage for display updates */
