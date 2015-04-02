@@ -4846,11 +4846,11 @@ static void WM_OT_stereo3d_set(wmOperatorType *ot)
 	ot->idname = "WM_OT_set_stereo_3d";
 	ot->description = "Toggle 3D stereo support for current window (or change the display mode)";
 
-	ot->exec = wm_set_stereo3d_exec;
-	ot->invoke = wm_set_stereo3d_invoke;
+	ot->exec = wm_stereo3d_set_exec;
+	ot->invoke = wm_stereo3d_set_invoke;
 	ot->poll = WM_operator_winactive;
-	ot->ui = wm_set_stereo3d_draw;
-	ot->cancel = wm_set_stereo3d_cancel;
+	ot->ui = wm_stereo3d_set_draw;
+	ot->cancel = wm_stereo3d_set_cancel;
 
 	prop = RNA_def_enum(ot->srna, "display_mode", stereo3d_display_items, S3D_DISPLAY_ANAGLYPH, "Display Mode", "");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);

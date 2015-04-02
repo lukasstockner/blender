@@ -575,22 +575,22 @@ const char *IMB_ffmpeg_last_error(void);
  *
  * \attention defined in stereoimbuf.c
  */
-void IMB_stereo_write_dimensions(
+void IMB_stereo3d_write_dimensions(
         const char mode, const bool is_squeezed, const size_t width, const size_t height,
         size_t *r_width, size_t *r_height);
-void IMB_stereo_read_dimensions(
+void IMB_stereo3d_read_dimensions(
         const char mode, const bool is_squeezed, const size_t width, const size_t height,
         size_t *r_width, size_t *r_height);
-int *IMB_stereo_from_rect(
+int *IMB_stereo3d_from_rect(
         struct ImageFormatData *im_format, const size_t x, const size_t y, const size_t channels,
         int *rect_left, int *rect_right);
-float *IMB_stereo_from_rectf(
+float *IMB_stereo3d_from_rectf(
         struct ImageFormatData *im_format, const size_t x, const size_t y, const size_t channels,
         float *rectf_left, float *rectf_right);
-struct ImBuf *IMB_stereoImBuf(
+struct ImBuf *IMB_stereo3d_ImBuf(
         struct ImageFormatData *im_format,
         struct ImBuf *ibuf_left, struct ImBuf *ibuf_right);
-void IMB_ImBufFromStereo(
+void IMB_ImBufFromStereo3d(
         struct Stereo3dFormat *s3d, struct ImBuf *ibuf_stereo,
         struct ImBuf **r_ibuf_left, struct ImBuf **r_ibuf_right);
 

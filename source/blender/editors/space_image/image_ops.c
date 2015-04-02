@@ -1843,7 +1843,7 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 					BKE_image_release_ibuf(sima->image, ibuf, lock);
 				}
 
-				ibuf = IMB_stereoImBuf(imf, ibuf_stereo[0], ibuf_stereo[1]);
+				ibuf = IMB_stereo3d_ImBuf(imf, ibuf_stereo[0], ibuf_stereo[1]);
 
 				/* save via traditional path */
 				ok = BKE_imbuf_write_as(ibuf, simopts->filepath, imf, save_copy);

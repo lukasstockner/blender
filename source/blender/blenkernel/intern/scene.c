@@ -2376,7 +2376,7 @@ void BKE_scene_multiview_videos_dimensions_get(
 	if ((rd->scemode & R_MULTIVIEW) &&
 	    rd->im_format.views_format == R_IMF_VIEWS_STEREO_3D)
 	{
-		IMB_stereo_write_dimensions(
+		IMB_stereo3d_write_dimensions(
 		        rd->im_format.stereo3d_format.display_mode,
 		        (rd->im_format.stereo3d_format.flag & S3D_SQUEEZED_FRAME) != 0,
 		        width, height,

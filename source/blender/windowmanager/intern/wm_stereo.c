@@ -64,7 +64,7 @@
 #include "UI_interface.h"
 #include "UI_resources.h"
 
-static void wm_method_draw_stereo_pageflip(wmWindow *win)
+static void wm_method_draw_stereo3d_pageflip(wmWindow *win)
 {
 	wmDrawData *drawdata;
 	int view;
@@ -135,7 +135,7 @@ static void wm_interlace_masks_create(wmWindow *win)
 	interlace_prev_swap = swap;
 }
 
-static void wm_method_draw_stereo_interlace(wmWindow *win)
+static void wm_method_draw_stereo3d_interlace(wmWindow *win)
 {
 	wmDrawData *drawdata;
 	int view;
@@ -153,7 +153,7 @@ static void wm_method_draw_stereo_interlace(wmWindow *win)
 	}
 }
 
-static void wm_method_draw_stereo_anaglyph(wmWindow *win)
+static void wm_method_draw_stereo3d_anaglyph(wmWindow *win)
 {
 	wmDrawData *drawdata;
 	int view, bit;
@@ -189,7 +189,7 @@ static void wm_method_draw_stereo_anaglyph(wmWindow *win)
 	}
 }
 
-static void wm_method_draw_stereo_sidebyside(wmWindow *win)
+static void wm_method_draw_stereo3d_sidebyside(wmWindow *win)
 {
 	wmDrawData *drawdata;
 	wmDrawTriple *triple;
@@ -260,7 +260,7 @@ static void wm_method_draw_stereo_sidebyside(wmWindow *win)
 	}
 }
 
-static void wm_method_draw_stereo_topbottom(wmWindow *win)
+static void wm_method_draw_stereo3d_topbottom(wmWindow *win)
 {
 	wmDrawData *drawdata;
 	wmDrawTriple *triple;
@@ -277,7 +277,7 @@ static void wm_method_draw_stereo_topbottom(wmWindow *win)
 		if (view == STEREO_LEFT_ID) {
 			soffy = WM_window_pixels_y(win) * 0.5f;
 		}
-		else { //STEREO_RIGHT_ID
+		else { /* STEREO_RIGHT_ID */
 			soffy = 0;
 		}
 
@@ -327,30 +327,30 @@ static void wm_method_draw_stereo_topbottom(wmWindow *win)
 	}
 }
 
-void wm_method_draw_stereo(const bContext *UNUSED(C), wmWindow *win)
+void wm_method_draw_stereo3d(const bContext *UNUSED(C), wmWindow *win)
 {
 	switch (win->stereo3d_format->display_mode) {
 		case S3D_DISPLAY_ANAGLYPH:
-			wm_method_draw_stereo_anaglyph(win);
+			wm_method_draw_stereo3d_anaglyph(win);
 			break;
 		case S3D_DISPLAY_INTERLACE:
-			wm_method_draw_stereo_interlace(win);
+			wm_method_draw_stereo3d_interlace(win);
 			break;
 		case S3D_DISPLAY_PAGEFLIP:
-			wm_method_draw_stereo_pageflip(win);
+			wm_method_draw_stereo3d_pageflip(win);
 			break;
 		case S3D_DISPLAY_SIDEBYSIDE:
-			wm_method_draw_stereo_sidebyside(win);
+			wm_method_draw_stereo3d_sidebyside(win);
 			break;
 		case S3D_DISPLAY_TOPBOTTOM:
-			wm_method_draw_stereo_topbottom(win);
+			wm_method_draw_stereo3d_topbottom(win);
 			break;
 		default:
 			break;
 	}
 }
 
-static bool wm_stereo_is_fullscreen_required(eStereoDisplayMode stereo_display)
+static bool wm_stereo3d_is_fullscreen_required(eStereoDisplayMode stereo_display)
 {
 	return ELEM(stereo_display,
 	            S3D_DISPLAY_SIDEBYSIDE,
@@ -358,14 +358,14 @@ static bool wm_stereo_is_fullscreen_required(eStereoDisplayMode stereo_display)
 	            S3D_DISPLAY_PAGEFLIP);
 }
 
-bool WM_stereo_enabled(wmWindow *win, bool skip_stereo_check)
+bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check)
 {
 	bScreen *screen = win->screen;
 
-	if ((skip_stereo_check == false) && (ED_screen_stereo3d_required(screen) == false))
+	if ((skip_stereo3d_check == false) && (ED_screen_stereo3d_required(screen) == false))
 		return false;
 
-	if (wm_stereo_is_fullscreen_required(win->stereo3d_format->display_mode))
+	if (wm_stereo3d_is_fullscreen_required(win->stereo3d_format->display_mode))
 		return WM_window_is_fullscreen(win);
 
 	return true;
@@ -422,7 +422,7 @@ static bool wm_stereo3d_set_properties(bContext *C, wmOperator *op)
 	return is_set;
 }
 
-static void wm_set_stereo3d_init(bContext *C, wmOperator *op)
+static void wm_stereo3d_set_init(bContext *C, wmOperator *op)
 {
 	Stereo3dData *s3dd;
 	wmWindow *win = CTX_wm_window(C);
@@ -433,7 +433,7 @@ static void wm_set_stereo3d_init(bContext *C, wmOperator *op)
 	s3dd->stereo3d_format = *win->stereo3d_format;
 }
 
-int wm_set_stereo3d_exec(bContext *C, wmOperator *op)
+int wm_stereo3d_set_exec(bContext *C, wmOperator *op)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
@@ -455,7 +455,7 @@ int wm_set_stereo3d_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	if (wm_stereo_is_fullscreen_required(win->stereo3d_format->display_mode)) {
+	if (wm_stereo3d_is_fullscreen_required(win->stereo3d_format->display_mode)) {
 		if (!is_fullscreen) {
 			wm_window_fullscreen_toggle_exec(C, op);
 		}
@@ -469,17 +469,17 @@ int wm_set_stereo3d_exec(bContext *C, wmOperator *op)
 	return OPERATOR_FINISHED;
 }
 
-int wm_set_stereo3d_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
+int wm_stereo3d_set_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
-	wm_set_stereo3d_init(C, op);
+	wm_stereo3d_set_init(C, op);
 
 	if (wm_stereo3d_set_properties(C, op))
-		return wm_set_stereo3d_exec(C, op);
+		return wm_stereo3d_set_exec(C, op);
 	else
 		return WM_operator_props_dialog_popup(C, op, 250, 100);
 }
 
-void wm_set_stereo3d_draw(bContext *C, wmOperator *op)
+void wm_stereo3d_set_draw(bContext *C, wmOperator *op)
 {
 	wmWindow *win = CTX_wm_window(C);
 	Stereo3dFormat *stereo3d_format;
@@ -519,7 +519,7 @@ void wm_set_stereo3d_draw(bContext *C, wmOperator *op)
 	}
 }
 
-void wm_set_stereo3d_cancel(bContext *C, wmOperator *op)
+void wm_stereo3d_set_cancel(bContext *C, wmOperator *op)
 {
 	Stereo3dData *s3dd = op->customdata;
 	wmWindow *win = CTX_wm_window(C);

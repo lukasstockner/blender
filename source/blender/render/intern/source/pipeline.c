@@ -3186,7 +3186,7 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 				IMB_prepare_write_ImBuf(IMB_isfloat(ibuf_arr[i]), ibuf_arr[i]);
 			}
 
-			ibuf_arr[2] = IMB_stereoImBuf(&scene->r.im_format, ibuf_arr[0], ibuf_arr[1]);
+			ibuf_arr[2] = IMB_stereo3d_ImBuf(&scene->r.im_format, ibuf_arr[0], ibuf_arr[1]);
 
 			if (stamp)
 				ok = BKE_imbuf_write_stamp(scene, camera, ibuf_arr[2], name, &rd->im_format);
@@ -3299,7 +3299,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports, RenderResult *rr, Scene *scen
 			                                    &scene->display_settings, &scene->r.im_format);
 		}
 
-		ibuf_arr[2] = IMB_stereoImBuf(&scene->r.im_format, ibuf_arr[0], ibuf_arr[1]);
+		ibuf_arr[2] = IMB_stereo3d_ImBuf(&scene->r.im_format, ibuf_arr[0], ibuf_arr[1]);
 
 		ok = mh->append_movie(movie_ctx_arr[0], rd, scene->r.sfra, scene->r.cfra, (int *) ibuf_arr[2]->rect,
 		                      ibuf_arr[2]->x, ibuf_arr[2]->y, "", reports);

@@ -2755,7 +2755,7 @@ static ImBuf *seq_render_image_strip(const SeqRenderData *context, Sequence *seq
 		}
 
 		if (seq->views_format == R_IMF_VIEWS_STEREO_3D && ibufs_arr[0])
-			IMB_ImBufFromStereo(seq->stereo3d_format, ibufs_arr[0], &ibufs_arr[0], &ibufs_arr[1]);
+			IMB_ImBufFromStereo3d(seq->stereo3d_format, ibufs_arr[0], &ibufs_arr[0], &ibufs_arr[1]);
 
 		for (i = 0; i < totviews; i++) {
 			if (ibufs_arr[i]) {
@@ -2853,7 +2853,7 @@ static ImBuf *seq_render_movie_strip(const SeqRenderData *context, Sequence *seq
 
 		if (seq->views_format == R_IMF_VIEWS_STEREO_3D) {
 			if (ibuf_arr[0]) {
-				IMB_ImBufFromStereo(seq->stereo3d_format, ibuf_arr[0], &ibuf_arr[0], &ibuf_arr[1]);
+				IMB_ImBufFromStereo3d(seq->stereo3d_format, ibuf_arr[0], &ibuf_arr[0], &ibuf_arr[1]);
 			}
 			else {
 				/* probably proxy hasn't been created yet */

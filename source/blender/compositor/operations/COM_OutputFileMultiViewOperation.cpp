@@ -299,7 +299,7 @@ void OutputStereoOperation::deinitExecution()
 			}
 
 			/* create stereo buffer */
-			ibuf[2] = IMB_stereoImBuf(this->m_format, ibuf[0], ibuf[1]);
+			ibuf[2] = IMB_stereo3d_ImBuf(this->m_format, ibuf[0], ibuf[1]);
 
 			BKE_image_path_from_imformat(
 			        filename, this->m_path, bmain->name, this->m_rd->cfra, this->m_format,
