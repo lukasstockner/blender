@@ -753,7 +753,6 @@ void ED_fileselect_clear(struct wmWindowManager *wm, struct SpaceFile *sfile)
 	/* only NULL in rare cases - [#29734] */
 	if (sfile->files) {
 		filelist_readjob_stop(wm, sfile->files);
-		thumbnails_stop(wm, sfile->files);
 		filelist_freelib(sfile->files);
 		filelist_clear(sfile->files);
 	}
