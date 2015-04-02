@@ -3200,8 +3200,9 @@ static ImBuf *seq_render_scene_strip(const SeqRenderData *context, Sequence *seq
 
 		for (i = 0; i < totviews; i++) {
 			SeqRenderData localcontext = *context;
-			localcontext.view_id = i;
 			RenderResult rres;
+
+			localcontext.view_id = i;
 
 			RE_AcquireResultImage(re, &rres, i);
 
