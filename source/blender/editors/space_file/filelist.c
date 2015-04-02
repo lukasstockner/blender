@@ -208,7 +208,7 @@ typedef struct FileListIntern {
 	FileDirEntry **filtered;
 } FileListIntern;
 
-#define FILELIST_ENTRYCACHESIZE 256  /* Keep it a power of two! */
+#define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
 typedef struct FileListEntryCache {
 	/* Block cache: all entries between start and end index. used for part of the list on diplay. */
 	FileDirEntry *block_entries[FILELIST_ENTRYCACHESIZE];
@@ -225,13 +225,6 @@ typedef struct FileListEntryCache {
 	ThreadQueue *previews_todo;
 	ThreadQueue *previews_done;
 } FileListEntryCache;
-
-typedef struct FileListEntryCacheIter {
-	FileListEntryCache *cache;
-
-	int block_iter;
-	GHashIterator *misc_iter;
-} FileListEntryCacheIter;
 
 typedef struct FileListEntryPreview {
 	char path[FILE_MAX];
@@ -1077,7 +1070,7 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 
 	/* Note we wait on queue here. */
 	while (!BLI_task_pool_canceled(pool) && (preview = BLI_thread_queue_pop(cache->previews_todo))) {
-		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+//		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 		if (preview->flags & FILE_TYPE_IMAGE) {
 			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_IMAGE);
 		}
@@ -1147,7 +1140,7 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
 		preview->index = index;
 		preview->flags = entry->typeflag;
 		preview->img = NULL;
-		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+//		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 		BLI_thread_queue_push(cache->previews_todo, preview);
 	}
 }
@@ -1439,7 +1432,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
 
-	printf("Caching block [%d:%d] around index %d (current cache: [%d:%d])\n",
+	printf("%s: [%d:%d] around index %d (current cache: [%d:%d])\n", __func__,
 	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
 
 	if ((start_index == cache->block_start_index) && (end_index == cache->block_end_index)) {
@@ -1448,7 +1441,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	}
 
 	if ((start_index >= cache->block_end_index) || (end_index <= cache->block_start_index)) {
-		printf("Full Recaching!\n");
+//		printf("Full Recaching!\n");
 
 		/* New cached block does not overlap existing one, simple. */
 		memcpy(cache->block_entries, &filelist->filelist_intern.filtered[start_index],
@@ -1463,7 +1456,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 		cache->block_cursor = 0;
 	}
 	else {
-		printf("Partial Recaching!\n");
+//		printf("Partial Recaching!\n");
 
 		/* At this point, we know we keep part of currently cached entries, so update previews if needed,
 		 * and remove everything from working queue - we'll add all newly needed entries at the end. */
@@ -1472,7 +1465,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 			filelist_cache_previews_clear(cache);
 		}
 
-		printf("\tpreview cleaned up...\n");
+//		printf("\tpreview cleaned up...\n");
 
 		if (end_index > cache->block_end_index) {
 			/* Add (request) needed entries after already cached ones. */
@@ -1508,7 +1501,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 		}
 		cache->block_end_index = end_index;
 
-		printf("\tend-extended...\n");
+//		printf("\tend-extended...\n");
 
 		if (start_index < cache->block_start_index) {
 			/* Add (request) needed entries before already cached ones. */
@@ -1553,11 +1546,12 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 			cache->block_cursor = (cache->block_cursor + start_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
 		}
 		cache->block_start_index = start_index;
-		printf("\tstart-extended...\n");
+//		printf("\tstart-extended...\n");
 	}
 
-	printf("Re-queueing previews...\n");
+//	printf("Re-queueing previews...\n");
 
+	/* Note we try to preview first images around given index - i.e. assumed visible ones. */
 	if (cache->previews_pool) {
 		for (i = 0; ((index + i) < end_index) || ((index - i) >= start_index); i++) {
 			if ((index - i) >= start_index) {
@@ -1571,7 +1565,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 		}
 	}
 
-	printf("Finished!\n");
+	printf("%s Finished!\n", __func__);
 
 	return true;
 }
@@ -1651,54 +1645,6 @@ bool filelist_cache_previews_update(FileList *filelist)
 	}
 
 	return changed;
-}
-
-/* Note: Iterating over a cache is only valid as long as cache is not modified! */
-static void *filelist_file_cache_iter_start(struct FileList *filelist)
-{
-	FileListEntryCacheIter *iter = MEM_callocN(sizeof(*iter), __func__);
-	iter->block_iter = filelist->filelist_cache.block_start_index;
-	iter->cache = &filelist->filelist_cache;
-	return iter;
-}
-
-static FileDirEntry *filelist_file_cache_iter_next(void *_iter, int *r_index)
-{
-	FileListEntryCacheIter *iter = _iter;
-	FileListEntryCache *cache = iter->cache;
-
-	if (iter->block_iter < cache->block_end_index) {
-		int idx;
-		BLI_assert(iter->block_iter >= cache->block_start_index);
-		*r_index = iter->block_iter++;
-		idx = (*r_index - cache->block_start_index + cache->block_cursor) % FILELIST_ENTRYCACHESIZE;
-		return cache->block_entries[idx];
-	}
-
-	if (iter->misc_iter) {
-		BLI_ghashIterator_step(iter->misc_iter);
-	}
-	else {
-		iter->misc_iter = BLI_ghashIterator_new(cache->misc_entries);
-	}
-
-	if (BLI_ghashIterator_done(iter->misc_iter)) {
-		*r_index = -1;
-		return NULL;
-	}
-	*r_index = GET_INT_FROM_POINTER(BLI_ghashIterator_getKey(iter->misc_iter));
-	return BLI_ghashIterator_getValue(iter->misc_iter);
-}
-
-static void filelist_file_cache_iter_end(void *_iter)
-{
-	FileListEntryCacheIter *iter = _iter;
-
-	if (iter->misc_iter) {
-		BLI_ghashIterator_free(iter->misc_iter);
-	}
-
-	MEM_freeN(iter);
 }
 
 /* would recognize .blend as well */
