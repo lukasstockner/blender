@@ -782,19 +782,17 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 		                               wcol->item[1],
 		                               wcol->item[2],
 		                               (unsigned char)((float)wcol->item[3] / WIDGET_AA_JITTER)};
+		glColor4ubv(tcol);
 
 		/* for each AA step */
 		for (j = 0; j < WIDGET_AA_JITTER; j++) {
 			gpuTranslate(jit[j][0], jit[j][1], 0.0f);
 
-			if (wtb->tria1.tot) {
-				glColor4ubv(tcol);
+			if (wtb->tria1.tot)
 				widget_trias_draw(&wtb->tria1);
-			}
-			if (wtb->tria2.tot) {
-				glColor4ubv(tcol);
+
+			if (wtb->tria2.tot)
 				widget_trias_draw(&wtb->tria2);
-			}
 		
 			gpuTranslate(-jit[j][0], -jit[j][1], 0.0f);
 		}
