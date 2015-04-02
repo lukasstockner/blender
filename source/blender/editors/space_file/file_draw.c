@@ -73,6 +73,13 @@
 
 #include "file_intern.h"    // own include
 
+/* Dummy helper - we need dynamic tooltips here. */
+static char *file_draw_tooltip_func(bContext *UNUSED(C), void *argN, const char *UNUSED(tip))
+{
+	char *dyn_tooltip = argN;
+	return BLI_strdup(dyn_tooltip);
+}
+
 /* Note: This function uses pixelspace (0, 0, winx, winy), not view2d. 
  * The controls are laid out as follows:
  *
@@ -250,10 +257,11 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 	
 	/*if (icon == ICON_FILE_BLANK) alpha = 0.375f;*/
 
-	but = uiDefIconBut(block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, NULL, 0.0f, 0.0f, 0.0f, 0.0f, path);
+	but = uiDefIconBut(block, UI_BTYPE_LABEL, 0, icon, x, y, width, height, NULL, 0.0f, 0.0f, 0.0f, 0.0f, NULL);
+	UI_but_func_tooltip_set(but, file_draw_tooltip_func, BLI_strdup(path));
 
 	if (drag) {
-		UI_but_drag_set_path(but, path);
+		UI_but_drag_set_path(but, "" /* path */);  /* XXX TODO FIXME broken, dragpath expects a static string too... :( */
 	}
 }
 
@@ -352,10 +360,12 @@ static void file_draw_preview(uiBlock *block, const char *path,
 		fdrawbox((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
 	}
 
-	but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, path);
+	but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, NULL);
+	UI_but_func_tooltip_set(but, file_draw_tooltip_func, BLI_strdup(path));
+
 	/* dragregion */
 	if (drag) {
-		UI_but_drag_set_image(but, path, icon, imb, scale);
+		UI_but_drag_set_image(but, "" /* path */, icon, imb, scale);  /* XXX TODO FIXME broken, dragpath expects a static string too... :( */
 	}
 
 	glDisable(GL_BLEND);

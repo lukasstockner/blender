@@ -1297,6 +1297,12 @@ void WM_event_remove_timer(wmWindowManager *wm, wmWindow *UNUSED(win), wmTimer *
 	}
 }
 
+void WM_event_remove_timer_notifier(wmWindowManager *wm, wmWindow *win, wmTimer *timer)
+{
+	timer->customdata = NULL;
+	WM_event_remove_timer(wm, win, timer);
+}
+
 /* ******************* clipboard **************** */
 
 static char *wm_clipboard_text_get_ex(bool selection, int *r_len,

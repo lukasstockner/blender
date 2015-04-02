@@ -173,7 +173,7 @@ static void file_exit(wmWindowManager *wm, ScrArea *sa)
 	SpaceFile *sfile = (SpaceFile *)sa->spacedata.first;
 
 	if (sfile->previews_timer) {
-		WM_event_remove_timer(wm, NULL, sfile->previews_timer);
+		WM_event_remove_timer_notifier(wm, NULL, sfile->previews_timer);
 		sfile->previews_timer = NULL;
 	}
 
@@ -263,7 +263,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	else {
 		filelist_cache_previews_set(sfile->files, false);
 		if (sfile->previews_timer) {
-			WM_event_remove_timer(wm, CTX_wm_window(C), sfile->previews_timer);
+			WM_event_remove_timer_notifier(wm, CTX_wm_window(C), sfile->previews_timer);
 			sfile->previews_timer = NULL;
 		}
 	}
