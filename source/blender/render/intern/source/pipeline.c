@@ -1373,7 +1373,7 @@ static void free_all_freestyle_renders(void);
 void RE_TileProcessor(Render *re)
 {
 	main_render_result_new(re);
-	threaded_tile_processor(re); //XXX MV envmap could use multiview too, not implemented though
+	threaded_tile_processor(re);
 	
 	re->i.lastframetime = PIL_check_seconds_timer() - re->i.starttime;
 	re->stats_draw(re->sdh, &re->i);
