@@ -765,11 +765,6 @@ void RE_InitState(Render *re, Render *source, RenderData *rd,
 
 static void render_result_rescale(Render *re)
 {
-	/* XXX MV we shouldn't get viewid 0, but instead
-	 * rescale all the views.
-	 * I'll leave this for when I get rid of result->rectf
-	 */
-
 	RenderResult *result = re->result;
 	int x, y;
 	float scale_x, scale_y;
