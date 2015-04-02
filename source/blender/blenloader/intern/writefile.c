@@ -2445,6 +2445,10 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 					strip->done = true;
 				}
 
+				if (seq->prop) {
+					IDP_WriteProperty(seq->prop, wd);
+				}
+
 				write_sequence_modifiers(wd, &seq->modifiers);
 			}
 			SEQ_END
