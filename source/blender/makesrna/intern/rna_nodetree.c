@@ -2636,20 +2636,6 @@ static int rna_Node_image_has_views_get(PointerRNA *ptr)
 	return BLI_listbase_count_ex(&ima->rr->views, 2) > 1;
 }
 
-#if 0 //XXX MV we may not need that, I don't know yet
-static void rna_Node_image_view_update(Main *bmain, Scene *scene, PointerRNA *ptr)
-{
-	bNode *node = (bNode *)ptr->data;
-	Image *ima = (Image *)node->id;
-	ImageUser *iuser = node->storage;
-
-	BKE_image_multilayer_index(ima->rr, iuser);
-	BKE_image_signal(ima, iuser, IMA_SIGNAL_SRC_CHANGE);
-
-	rna_Node_update(bmain, scene, ptr);
-}
-#endif
-
 static EnumPropertyItem *renderresult_views_add_enum(RenderView *rv)
 {
 	EnumPropertyItem *item = NULL;
