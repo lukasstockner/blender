@@ -4,7 +4,7 @@
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version. 
+ * of the License, or (at your option) any later version.
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -51,7 +51,6 @@
 
 #include "GHOST_C-api.h"
 
-#include "ED_node.h"
 #include "ED_screen.h"
 
 #include "GPU_glew.h"
@@ -87,7 +86,7 @@ static GLuint right_interlace_mask[32];
 static enum eStereo3dInterlaceType interlace_prev_type = -1;
 static char interlace_prev_swap = -1;
 
-static void wm_interlace_create_masks(wmWindow *win)
+static void wm_interlace_masks_create(wmWindow *win)
 {
 	GLuint pattern;
 	char i;
@@ -141,7 +140,7 @@ static void wm_method_draw_stereo_interlace(wmWindow *win)
 	wmDrawData *drawdata;
 	int view;
 
-	wm_interlace_create_masks(win);
+	wm_interlace_masks_create(win);
 
 	for (view = 0; view < 2; view ++) {
 		drawdata = BLI_findlink(&win->drawdata, (view * 2) + 1);
@@ -351,7 +350,7 @@ void wm_method_draw_stereo(const bContext *UNUSED(C), wmWindow *win)
 	}
 }
 
-static bool wm_stereo_need_fullscreen(eStereoDisplayMode stereo_display)
+static bool wm_stereo_is_fullscreen_required(eStereoDisplayMode stereo_display)
 {
 	return ELEM(stereo_display,
 	            S3D_DISPLAY_SIDEBYSIDE,
@@ -359,98 +358,15 @@ static bool wm_stereo_need_fullscreen(eStereoDisplayMode stereo_display)
 	            S3D_DISPLAY_PAGEFLIP);
 }
 
-/*
- * return true if any active area requires to see in 3D
- */
-static bool wm_stereo3d_required(bScreen *screen)
-{
-	ScrArea *sa;
-	Scene *sce = screen->scene;
-	const bool is_multiview = (sce->r.scemode & R_MULTIVIEW) != 0;
-
-	for (sa = screen->areabase.first; sa; sa = sa->next) {
-		switch (sa->spacetype) {
-			case SPACE_VIEW3D:
-			{
-				View3D *v3d;
-
-				if (!is_multiview)
-					continue;
-
-				v3d = sa->spacedata.first;
-				if (v3d->camera && v3d->stereo3d_camera == STEREO_3D_ID) {
-					ARegion *ar;
-					for (ar = sa->regionbase.first; ar; ar = ar->next) {
-						if (ar->regiondata && ar->regiontype == RGN_TYPE_WINDOW) {
-							RegionView3D *rv3d = ar->regiondata;
-							if (rv3d->persp == RV3D_CAMOB) {
-								return true;
-							}
-						}
-					}
-				}
-				break;
-			}
-			case SPACE_IMAGE:
-			{
-				SpaceImage *sima;
-
-				/* images should always show in stereo, even if
-				 * the file doesn't have views enabled */
-				sima = sa->spacedata.first;
-				if (sima->image && (sima->image->flag & IMA_IS_STEREO) &&
-				    (sima->iuser.flag & IMA_SHOW_STEREO))
-				{
-					return true;
-				}
-				break;
-			}
-			case SPACE_NODE:
-			{
-				SpaceNode *snode;
-
-				if (!is_multiview)
-					continue;
-
-				snode = sa->spacedata.first;
-				if ((snode->flag & SNODE_BACKDRAW) && ED_node_is_compositor(snode)) {
-					return true;
-				}
-				break;
-			}
-			case SPACE_SEQ:
-			{
-				SpaceSeq *sseq;
-
-				if (!is_multiview)
-					continue;
-
-				sseq = sa->spacedata.first;
-				if (ELEM(sseq->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
-					return true;
-				}
-
-				if (sseq->draw_flag & SEQ_DRAW_BACKDROP) {
-					return true;
-				}
-
-				break;
-			}
-		}
-	}
-
-	return false;
-}
-
-bool WM_stereo_enabled(wmWindow *win, bool only_fullscreen_test)
+bool WM_stereo_enabled(wmWindow *win, bool skip_stereo_check)
 {
 	bScreen *screen = win->screen;
 
-	if ((only_fullscreen_test == false) && (wm_stereo3d_required(screen) == false))
+	if ((skip_stereo_check == false) && (ED_screen_stereo3d_required(screen) == false))
 		return false;
 
-	if (wm_stereo_need_fullscreen(win->stereo3d_format->display_mode))
-		return (GHOST_GetWindowState(win->ghostwin) == GHOST_kWindowStateFullScreen);
+	if (wm_stereo_is_fullscreen_required(win->stereo3d_format->display_mode))
+		return WM_window_is_fullscreen(win);
 
 	return true;
 }
@@ -521,13 +437,10 @@ int wm_set_stereo3d_exec(bContext *C, wmOperator *op)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);
-	GHOST_TWindowState state;
+	const bool is_fullscreen = WM_window_is_fullscreen(win);
 
 	if (G.background)
 		return OPERATOR_CANCELLED;
-
-	/* FullScreen or Normal */
-	state = GHOST_GetWindowState(win->ghostwin);
 
 	/* pagelfip requires a new window to be created with the proper OS flags */
 	if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP) {
@@ -542,9 +455,10 @@ int wm_set_stereo3d_exec(bContext *C, wmOperator *op)
 		}
 	}
 
-	if (wm_stereo_need_fullscreen(win->stereo3d_format->display_mode)) {
-		if (state != GHOST_kWindowStateFullScreen)
-			GHOST_SetWindowState(win->ghostwin, GHOST_kWindowStateFullScreen);
+	if (wm_stereo_is_fullscreen_required(win->stereo3d_format->display_mode)) {
+		if (!is_fullscreen) {
+			wm_window_fullscreen_toggle_exec(C, op);
+		}
 	}
 
 	if (op->customdata) {
@@ -603,11 +517,6 @@ void wm_set_stereo3d_draw(bContext *C, wmOperator *op)
 			break;
 		}
 	}
-}
-
-bool wm_set_stereo3d_check(bContext *UNUSED(C), wmOperator *UNUSED(op))
-{
-	return true;
 }
 
 void wm_set_stereo3d_cancel(bContext *C, wmOperator *op)

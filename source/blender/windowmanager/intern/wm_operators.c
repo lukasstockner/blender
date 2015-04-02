@@ -4838,7 +4838,7 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
 
 /* ******************************************************* */
 /* toggle 3D for current window, turning it fullscreen if needed */
-static void WM_OT_set_stereo3d(wmOperatorType *ot)
+static void WM_OT_stereo3d_set(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 
@@ -4850,7 +4850,6 @@ static void WM_OT_set_stereo3d(wmOperatorType *ot)
 	ot->invoke = wm_set_stereo3d_invoke;
 	ot->poll = WM_operator_winactive;
 	ot->ui = wm_set_stereo3d_draw;
-	ot->check = wm_set_stereo3d_check;
 	ot->cancel = wm_set_stereo3d_cancel;
 
 	prop = RNA_def_enum(ot->srna, "display_mode", stereo3d_display_items, S3D_DISPLAY_ANAGLYPH, "Display Mode", "");
@@ -4909,7 +4908,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_call_menu);
 	WM_operatortype_append(WM_OT_call_menu_pie);
 	WM_operatortype_append(WM_OT_radial_control);
-	WM_operatortype_append(WM_OT_set_stereo3d);
+	WM_operatortype_append(WM_OT_stereo3d_set);
 #if defined(WIN32)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif

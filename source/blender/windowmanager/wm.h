@@ -81,7 +81,6 @@ void wm_method_draw_stereo(const bContext *C, wmWindow *win);
 int wm_set_stereo3d_exec(bContext *C, wmOperator *op);
 int wm_set_stereo3d_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 void wm_set_stereo3d_draw(bContext *C, wmOperator *op);
-bool wm_set_stereo3d_check(bContext *C, wmOperator *op);
 void wm_set_stereo3d_cancel(bContext *C, wmOperator *op);
 
 /* init operator properties */
