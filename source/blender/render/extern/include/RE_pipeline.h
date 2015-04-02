@@ -138,14 +138,10 @@ typedef struct RenderResult {
 	short crop, sample_nr;
 	
 	/* optional, 32 bits version of picture, used for ogl render and image curves */
-	/* it is used for temporary storage only */
 	int *rect32;
-
 	/* if this exists, a copy of one of layers, or result of composited layers */
-	/* it is used for temporary storage only */
 	float *rectf;
 	/* if this exists, a copy of one of layers, or result of composited layers */
-	/* it is used for temporary storage only */
 	float *rectz;
 	
 	/* coordinates within final image (after cropping) */
