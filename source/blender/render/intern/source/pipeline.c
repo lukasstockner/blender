@@ -3658,24 +3658,26 @@ void RE_init_threadcount(Render *re)
 
 /* loads in image into a result, size must match
  * x/y offsets are only used on a partial copy when dimensions don't match */
-#if 1
-void RE_layer_load_from_file(RenderLayer *UNUSED(layer), ReportList *UNUSED(reports), const char *UNUSED(filename), int UNUSED(x), int UNUSED(y))
-{
-	/* XXX MV - not sure who is using this, I'll address later */
-	printf("%s\n", __func__);
-}
-#else
 void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char *filename, int x, int y)
 {
 	/* OCIO_TODO: assume layer was saved in defaule color space */
 	ImBuf *ibuf = IMB_loadiffname(filename, IB_rect, NULL);
+	RenderPass *rpass = NULL;
+
+	/* multiview: since the API takes no 'view', we use the first combined pass found */
+	for (rpass = layer->passes.first; rpass; rpass = rpass->next)
+		if (rpass->passtype == SCE_PASS_COMBINED)
+			break;
+
+	if (rpass == NULL)
+		BKE_reportf(reports, RPT_ERROR, "RE_layer_load_from_file: no Combined pass found in the render layer '%s'", filename);
 
 	if (ibuf && (ibuf->rect || ibuf->rect_float)) {
 		if (ibuf->x == layer->rectx && ibuf->y == layer->recty) {
 			if (ibuf->rect_float == NULL)
 				IMB_float_from_rect(ibuf);
 
-			memcpy(layer->rectf, ibuf->rect_float, sizeof(float) * 4 * layer->rectx * layer->recty);
+			memcpy(rpass->rect, ibuf->rect_float, sizeof(float) * 4 * layer->rectx * layer->recty);
 		}
 		else {
 			if ((ibuf->x - x >= layer->rectx) && (ibuf->y - y >= layer->recty)) {
@@ -3688,7 +3690,7 @@ void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char
 				if (ibuf_clip) {
 					IMB_rectcpy(ibuf_clip, ibuf, 0, 0, x, y, layer->rectx, layer->recty);
 
-					memcpy(layer->rectf, ibuf_clip->rect_float, sizeof(float) * 4 * layer->rectx * layer->recty);
+					memcpy(rpass->rect, ibuf_clip->rect_float, sizeof(float) * 4 * layer->rectx * layer->recty);
 					IMB_freeImBuf(ibuf_clip);
 				}
 				else {
@@ -3706,7 +3708,6 @@ void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char
 		BKE_reportf(reports, RPT_ERROR, "RE_layer_load_from_file: failed to load '%s'", filename);
 	}
 }
-#endif
 
 void RE_result_load_from_file(RenderResult *result, ReportList *reports, const char *filename)
 {
