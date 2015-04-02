@@ -48,6 +48,7 @@
 #include "BLI_fileops_types.h"
 #include "BLI_fnmatch.h"
 #include "BLI_ghash.h"
+#include "BLI_hash_md5.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_stack.h"
@@ -2209,6 +2210,11 @@ static void filelist_readjob_do(
 		for (entry = entries.first; entry; entry = entry->next) {
 			BLI_join_dirfile(dir, sizeof(dir), subdir, entry->relpath);
 			BLI_cleanup_file(root, dir);
+
+			/* We use the mere md5sum of path as entry UUID here.
+			 * entry->uuid is 16 bytes len, so we can use it directly! */
+			BLI_hash_md5_buffer(dir, strlen(dir), entry->uuid);
+
 			BLI_path_rel(dir, root);
 			/* Only thing we change in direntry here, so we need to free it first. */
 			MEM_freeN(entry->relpath);
