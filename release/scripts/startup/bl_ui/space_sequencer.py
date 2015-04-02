@@ -19,6 +19,7 @@
 # <pep8 compliant>
 import bpy
 from bpy.types import Header, Menu, Panel
+from rna_prop_ui import PropertyPanel
 from bl_ui.properties_grease_pencil_common import GreasePencilDataPanel, GreasePencilToolsPanel
 from bpy.app.translations import pgettext_iface as iface_
 
@@ -913,44 +914,53 @@ class SEQUENCER_PT_proxy(SequencerButtonsPanel, Panel):
     def draw(self, context):
         layout = self.layout
 
+        sequencer = context.scene.sequence_editor
+
         strip = act_strip(context)
 
-        flow = layout.column_flow()
-        flow.prop(strip, "use_proxy_custom_directory")
-        flow.prop(strip, "use_proxy_custom_file")
         if strip.proxy:
-            if strip.use_proxy_custom_directory and not strip.use_proxy_custom_file:
-                flow.prop(strip.proxy, "directory")
-            if strip.use_proxy_custom_file:
-                flow.prop(strip.proxy, "filepath")
+            proxy = strip.proxy
+
+            flow = layout.column_flow()
+            flow.prop(sequencer, "proxy_storage")
+            if sequencer.proxy_storage == 'PROJECT':
+                flow.prop(sequencer, "proxy_dir")
+            else:
+                flow.prop(proxy, "use_proxy_custom_directory")
+                flow.prop(proxy, "use_proxy_custom_file")
+
+                if proxy.use_proxy_custom_directory and not proxy.use_proxy_custom_file:
+                    flow.prop(proxy, "directory")
+                if proxy.use_proxy_custom_file:
+                    flow.prop(proxy, "filepath")
 
             layout.label("Enabled Proxies:")
             enabled = ""
             row = layout.row()
-            if (strip.proxy.build_25):
+            if (proxy.build_25):
                 enabled += "25% "
-            if (strip.proxy.build_50):
+            if (proxy.build_50):
                 enabled += "50% "
-            if (strip.proxy.build_75):
+            if (proxy.build_75):
                 enabled += "75% "
-            if (strip.proxy.build_100):
+            if (proxy.build_100):
                 enabled += "100% "
 
             row.label(enabled)
-            if (strip.proxy.use_overwrite):
+            if (proxy.use_overwrite):
                 layout.label("Overwrite On")
             else:
                 layout.label("Overwrite Off")
 
             col = layout.column()
             col.label(text="Build JPEG quality")
-            col.prop(strip.proxy, "quality")
+            col.prop(proxy, "quality")
 
             if strip.type == 'MOVIE':
                 col = layout.column()
                 col.label(text="Use timecode index:")
 
-                col.prop(strip.proxy, "timecode")
+                col.prop(proxy, "timecode")
 
         col = layout.column()
         col.operator("sequencer.enable_proxies")
@@ -1096,6 +1106,12 @@ class SEQUENCER_PT_grease_pencil_tools(GreasePencilToolsPanel, SequencerButtonsP
     # NOTE: this is just a wrapper around the generic GP tools panel
     # It contains access to some essential tools usually found only in
     # toolbar, which doesn't exist here...
+
+
+class SEQUENCER_PT_custom_props(SequencerButtonsPanel, PropertyPanel, Panel):
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    _context_path = "scene.sequence_editor.active_strip"
+    _property_type = (bpy.types.Sequence,)
 
 
 if __name__ == "__main__":  # only for live edit.

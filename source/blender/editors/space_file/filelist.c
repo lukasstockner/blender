@@ -47,9 +47,11 @@
 #include "BLI_blenlib.h"
 #include "BLI_fileops_types.h"
 #include "BLI_fnmatch.h"
+#include "BLI_ghash.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_stack.h"
+#include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 #include "BLI_fileops_types.h"
@@ -89,6 +91,7 @@
 #include "UI_interface_icons.h"
 
 #include "filelist.h"
+
 
 /* ----------------- FOLDERLIST (previous/next) -------------- */
 
@@ -202,6 +205,37 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 
 /* ------------------FILELIST------------------------ */
 
+typedef struct FileListIntern {
+	/* XXX This will be reworked to keep 'all entries' storage to a minimum memory space! */
+	ListBase entries;
+	FileDirEntry **filtered;
+} FileListIntern;
+
+#define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
+typedef struct FileListEntryCache {
+	/* Block cache: all entries between start and end index. used for part of the list on diplay. */
+	FileDirEntry *block_entries[FILELIST_ENTRYCACHESIZE];
+	int block_start_index, block_end_index, block_cursor;
+
+	/* Misc cache: random indices, FIFO behavior.
+	 * Note: Not 100% sure we actually need that, time will say. */
+	int misc_cursor;
+	int misc_entries_indices[FILELIST_ENTRYCACHESIZE];
+	GHash *misc_entries;
+
+	/* Previews handling. */
+	TaskPool *previews_pool;
+	ThreadQueue *previews_todo;
+	ThreadQueue *previews_done;
+} FileListEntryCache;
+
+typedef struct FileListEntryPreview {
+	char path[FILE_MAX];
+	unsigned int flags;
+	int index;
+	ImBuf *img;
+} FileListEntryPreview;
+
 typedef struct FileListFilter {
 	bool hide_dot;
 	bool hide_parent;
@@ -229,10 +263,11 @@ typedef struct FileList {
 	bool need_sorting;
 
 	FileListFilter filter_data;
-	FileDirEntry **filtered;
-	int numfiltered;
+	bool need_filtering;
 
-	bool need_thumbnails;
+	struct FileListIntern filelist_intern;
+
+	struct FileListEntryCache filelist_cache;
 
 	short max_recursion;
 	short recursion_level;
@@ -281,6 +316,7 @@ static int groupname_to_code(const char *group);
 static unsigned int groupname_to_filter_id(const char *group);
 
 static void filelist_filter_clear(FileList *filelist);
+static void filelist_cache_clear(FileListEntryCache *cache);
 
 /* ********** Sort helpers ********** */
 
@@ -449,21 +485,20 @@ void filelist_sort(struct FileList *filelist)
 
 		switch (filelist->sort) {
 			case FILE_SORT_ALPHA:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_name);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_name);
 				break;
 			case FILE_SORT_TIME:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_date);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_date);
 				break;
 			case FILE_SORT_SIZE:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_size);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_size);
 				break;
 			case FILE_SORT_EXTENSION:
-				BLI_listbase_sort_r(&filelist->filelist.entries, filelist->filelist.root, compare_extension);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_extension);
 				break;
 			case FILE_SORT_NONE:  /* Should never reach this point! */
 			default:
 				BLI_assert(0);
-				return;
 		}
 
 		filelist_filter_clear(filelist);
@@ -609,8 +644,7 @@ static bool is_filtered_main(FileDirEntry *file, const char *UNUSED(dir), FileLi
 
 static void filelist_filter_clear(FileList *filelist)
 {
-	MEM_SAFE_FREE(filelist->filtered);
-	filelist->numfiltered = 0;
+	filelist->need_filtering = true;
 }
 
 void filelist_filter(FileList *filelist)
@@ -619,11 +653,11 @@ void filelist_filter(FileList *filelist)
 	const int num_files = filelist->filelist.nbr_entries;
 	FileDirEntry **filtered_tmp, *file;
 
-	if (BLI_listbase_is_empty(&filelist->filelist.entries)) {
+	if (filelist->filelist.nbr_entries == 0) {
 		return;
 	}
 
-	if (filelist->filtered) {
+	if (!filelist->need_filtering) {
 		/* Assume it has already been filtered, nothing else to do! */
 		return;
 	}
@@ -641,16 +675,24 @@ void filelist_filter(FileList *filelist)
 	filtered_tmp = MEM_mallocN(sizeof(*filtered_tmp) * (size_t)num_files, __func__);
 
 	/* Filter remap & count how many files are left after filter in a single loop. */
-	for (file = filelist->filelist.entries.first; file; file = file->next) {
+	for (file = filelist->filelist_intern.entries.first; file; file = file->next) {
 		if (filelist->filterf(file, filelist->filelist.root, &filelist->filter_data)) {
 			filtered_tmp[num_filtered++] = file;
 		}
 	}
 
-	/* Note: maybe we could even accept filelist->fidx to be filelist->numfiles -len allocated? */
-	filelist->filtered = MEM_mallocN(sizeof(*filelist->filtered) * (size_t)num_filtered, __func__);
-	memcpy(filelist->filtered, filtered_tmp, sizeof(*filelist->filtered) * (size_t)num_filtered);
-	filelist->numfiltered = num_filtered;
+	if (filelist->filelist_intern.filtered) {
+		MEM_freeN(filelist->filelist_intern.filtered);
+	}
+	filelist->filelist_intern.filtered = MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered,
+	                                                 __func__);
+	memcpy(filelist->filelist_intern.filtered, filtered_tmp,
+	       sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered);
+	filelist->filelist.nbr_entries_filtered = num_filtered;
+//	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
+
+	filelist_cache_clear(&filelist->filelist_cache);
+	filelist->need_filtering = false;
 
 	MEM_freeN(filtered_tmp);
 }
@@ -930,9 +972,149 @@ static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
 	filelist_checkdir_lib(filelist, r_dir);
 }
 
+static void filelist_intern_free(FileListIntern *filelist_intern)
+{
+	FileDirEntry *entry;
+
+	for (entry = filelist_intern->entries.first; entry; entry = entry->next) {
+		filelist_entry_free(entry);
+	}
+	BLI_freelistN(&filelist_intern->entries);
+
+	MEM_SAFE_FREE(filelist_intern->filtered);
+}
+
+static FileDirEntry *filelist_intern_create_entry(FileList *filelist, const int index)
+{
+	/* Stupid code for now, later we will actually generate a new entry (from mempool)... */
+	return filelist->filelist_intern.filtered[index];
+}
+
+static void filelist_intern_release_entry(FileList *UNUSED(filelist), FileDirEntry *UNUSED(old))
+{
+	/* We do nothing here actually, later we'll give back the mem to the mempool... */
+}
+
+static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid)
+{
+	FileListEntryCache *cache = taskdata;
+	FileListEntryPreview *preview;
+
+	printf("%s: Start (%d)...\n", __func__, threadid);
+
+	/* Note we wait on queue here. */
+	while (!BLI_task_pool_canceled(pool) && (preview = BLI_thread_queue_pop(cache->previews_todo))) {
+//		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+		if (preview->flags & FILE_TYPE_IMAGE) {
+			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_IMAGE);
+		}
+		else if (preview->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_BLEND);
+		}
+		else if (preview->flags & FILE_TYPE_MOVIE) {
+			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_MOVIE);
+			if (!preview->img) {
+				/* remember that file can't be loaded via IMB_open_anim */
+				preview->flags &= ~FILE_TYPE_MOVIE;
+				preview->flags |= FILE_TYPE_MOVIE_ICON;
+			}
+		}
+		BLI_thread_queue_push(cache->previews_done, preview);
+	}
+
+	printf("%s: End (%d)...\n", __func__, threadid);
+}
+
+static void filelist_cache_previews_clear(FileListEntryCache *cache)
+{
+	FileListEntryPreview *preview;
+
+	if (cache->previews_pool) {
+		while ((preview = BLI_thread_queue_pop_timeout(cache->previews_todo, 0))) {
+//			printf("%s: TODO %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+			MEM_freeN(preview);
+		}
+		while ((preview = BLI_thread_queue_pop_timeout(cache->previews_done, 0))) {
+//			printf("%s: DONE %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+			if (preview->img) {
+				IMB_freeImBuf(preview->img);
+			}
+			MEM_freeN(preview);
+		}
+	}
+}
+
+static void filelist_cache_previews_free(FileListEntryCache *cache)
+{
+	if (cache->previews_pool) {
+		BLI_thread_queue_nowait(cache->previews_todo);
+		BLI_thread_queue_nowait(cache->previews_done);
+		BLI_task_pool_cancel(cache->previews_pool);
+
+		filelist_cache_previews_clear(cache);
+
+		BLI_thread_queue_free(cache->previews_done);
+		BLI_thread_queue_free(cache->previews_todo);
+		BLI_task_pool_free(cache->previews_pool);
+		cache->previews_pool = NULL;
+		cache->previews_todo = NULL;
+		cache->previews_done = NULL;
+	}
+}
+
+static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry, const int index)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+
+	if (!entry->image &&
+		(entry->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)))
+	{
+		FileListEntryPreview *preview = MEM_mallocN(sizeof(*preview), __func__);
+		BLI_join_dirfile(preview->path, sizeof(preview->path), filelist->filelist.root, entry->relpath);
+		preview->index = index;
+		preview->flags = entry->typeflag;
+		preview->img = NULL;
+//		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+		BLI_thread_queue_push(cache->previews_todo, preview);
+	}
+}
+
+static void filelist_cache_init(FileListEntryCache *cache)
+{
+	cache->block_cursor = cache->block_start_index = cache->block_end_index = 0;
+
+	cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
+	cache->misc_cursor = 0;
+}
+
+static void filelist_cache_free(FileListEntryCache *cache)
+{
+	filelist_cache_previews_free(cache);
+
+	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
+	if (cache->misc_entries) {
+		BLI_ghash_free(cache->misc_entries, NULL, NULL);
+		cache->misc_entries = NULL;
+	}
+}
+
+static void filelist_cache_clear(FileListEntryCache *cache)
+{
+	filelist_cache_previews_free(cache);
+
+	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
+	cache->block_cursor = cache->block_start_index = cache->block_end_index = 0;
+
+	if (cache->misc_entries) {
+		BLI_ghash_clear_ex(cache->misc_entries, NULL, NULL, FILELIST_ENTRYCACHESIZE);
+	}
+}
+
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(*p), __func__);
+
+	filelist_cache_init(&p->filelist_cache);
 
 	switch (type) {
 		case FILE_MAIN:
@@ -960,10 +1142,13 @@ void filelist_clear(struct FileList *filelist)
 		return;
 	}
 
-    MEM_SAFE_FREE(filelist->filtered);
-    filelist->numfiltered = 0;
+	filelist_filter_clear(filelist);
 
 	BKE_filedir_entryarr_clear(&filelist->filelist);
+
+	filelist_cache_clear(&filelist->filelist_cache);
+
+	filelist_intern_free(&filelist->filelist_intern);
 }
 
 void filelist_free(struct FileList *filelist)
@@ -974,6 +1159,7 @@ void filelist_free(struct FileList *filelist)
 	}
 	
 	filelist_clear(filelist);
+	filelist_cache_free(&filelist->filelist_cache);  /* XXX TODO stupid! */
 
 	if (filelist->ae) {
 		BKE_asset_engine_free(filelist->ae);
@@ -984,8 +1170,7 @@ void filelist_free(struct FileList *filelist)
 
 	filelist->need_sorting = false;
 	filelist->sort = FILE_SORT_NONE;
-
-	filelist->need_thumbnails = false;
+	filelist->need_filtering = false;
 }
 
 void filelist_freelib(struct FileList *filelist)
@@ -1007,7 +1192,7 @@ BlendHandle *filelist_lib(struct FileList *filelist)
 
 int filelist_numfiles(struct FileList *filelist)
 {
-	return filelist->numfiltered;
+	return filelist->filelist.nbr_entries_filtered;
 }
 
 static const char *fileentry_uiname(const char *root, const FileDirEntry *entry, char *buff)
@@ -1109,7 +1294,7 @@ bool filelist_pending(struct FileList *filelist)
 
 bool filelist_need_refresh(struct FileList *filelist)
 {
-	return (BLI_listbase_is_empty(&filelist->filelist.entries) || !filelist->filtered ||
+	return (BLI_listbase_is_empty(&filelist->filelist.entries) || filelist->need_filtering ||
 	        filelist->force_reset || filelist->force_refresh || filelist->need_sorting);
 }
 
@@ -1118,28 +1303,316 @@ void filelist_clear_refresh(struct FileList *filelist)
 	filelist->force_refresh = false;
 }
 
-FileDirEntry *filelist_file(struct FileList *filelist, int index)
+static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index, const bool use_request)
 {
-	if ((index < 0) || (index >= filelist->numfiltered)) {
+	FileDirEntry *ret = NULL, *old;
+	FileListEntryCache *cache = &filelist->filelist_cache;
+	int old_index;
+
+	if ((index < 0) || (index >= filelist->filelist.nbr_entries_filtered)) {
+		return ret;
+	}
+
+	if (index >= cache->block_start_index && index < cache->block_end_index) {
+		const int idx = (index - cache->block_start_index + cache->block_cursor) % FILELIST_ENTRYCACHESIZE;
+		return cache->block_entries[idx];
+	}
+
+	if ((ret = BLI_ghash_lookup(cache->misc_entries, SET_INT_IN_POINTER(index)))) {
+		return ret;
+	}
+
+	if (!use_request) {
 		return NULL;
 	}
-	return filelist->filtered[index];
+
+	printf("requesting file %d (not yet cached)\n", index);
+
+	/* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
+	ret = filelist_intern_create_entry(filelist, index);
+	old_index = cache->misc_entries_indices[cache->misc_cursor];
+	if ((old = BLI_ghash_popkey(cache->misc_entries, SET_INT_IN_POINTER(old_index), NULL))) {
+		filelist_intern_release_entry(filelist, old);
+	}
+	BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
+	cache->misc_entries_indices[cache->misc_cursor] = index;
+	cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
+
+#if 0  /* Actually no, only block cached entries should have preview imho. */
+	if (cache->previews_pool) {
+		filelist_cache_previews_push(filelist, ret, index);
+	}
+#endif
+
+	return ret;
 }
 
-int filelist_find(struct FileList *filelist, const char *filename)
+FileDirEntry *filelist_file(struct FileList *filelist, int index)
+{
+	return filelist_file_ex(filelist, index, true);
+}
+
+int filelist_file_findpath(struct FileList *filelist, const char *filename)
 {
 	int fidx = -1;
 	
-	if (!filelist->filtered)
+	if (filelist->filelist.nbr_entries_filtered < 0) {
 		return fidx;
+	}
 
-	for (fidx = 0; fidx < filelist->numfiltered; fidx++) {
-		if (STREQ(filelist->filtered[fidx]->relpath, filename)) {
+	/* XXX TODO Cache could probably use a ghash on paths too? Not really urgent though.
+     *          In fact, we may get rid of this func in the end (only used to find again renamed entry afaik). */
+
+	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
+		if (STREQ(filelist->filelist_intern.filtered[fidx]->relpath, filename)) {
 			return fidx;
 		}
 	}
 
 	return -1;
+}
+
+/* Load in cache all entries "around" given index (as much as block cache may hold). */
+bool filelist_file_cache_block(struct FileList *filelist, const int index)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+
+	const int nbr_entries = filelist->filelist.nbr_entries_filtered;
+	int start_index = max_ii(0, index - (FILELIST_ENTRYCACHESIZE / 2));
+	int end_index = min_ii(nbr_entries, index + (FILELIST_ENTRYCACHESIZE / 2));
+	const int curr_block_size = cache->block_end_index - cache->block_start_index;
+	int i;
+
+	if ((index < 0) || (index >= nbr_entries)) {
+		printf("Wrong index %d ([%d:%d])", index, 0, nbr_entries);
+		return false;
+	}
+
+	/* Maximize cached range! */
+	if ((end_index - start_index) < FILELIST_ENTRYCACHESIZE) {
+		if (start_index == 0) {
+			end_index = min_ii(nbr_entries, start_index + FILELIST_ENTRYCACHESIZE);
+		}
+		else if (end_index == nbr_entries) {
+			start_index = max_ii(0, end_index - FILELIST_ENTRYCACHESIZE);
+		}
+	}
+
+	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
+
+	printf("%s: [%d:%d] around index %d (current cache: [%d:%d])\n", __func__,
+	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
+
+	if ((start_index == cache->block_start_index) && (end_index == cache->block_end_index)) {
+		/* Nothing to do! */
+		return true;
+	}
+
+	if ((start_index >= cache->block_end_index) || (end_index <= cache->block_start_index)) {
+//		printf("Full Recaching!\n");
+
+		/* New cached block does not overlap existing one, simple. */
+		memcpy(cache->block_entries, &filelist->filelist_intern.filtered[start_index],
+		       sizeof(cache->block_entries[0]) * (end_index - start_index));
+
+		if (cache->previews_pool) {
+			filelist_cache_previews_clear(cache);
+		}
+
+		cache->block_start_index = start_index;
+		cache->block_end_index = end_index;
+		cache->block_cursor = 0;
+	}
+	else {
+//		printf("Partial Recaching!\n");
+
+		/* At this point, we know we keep part of currently cached entries, so update previews if needed,
+		 * and remove everything from working queue - we'll add all newly needed entries at the end. */
+		if (cache->previews_pool) {
+			filelist_cache_previews_update(filelist);
+			filelist_cache_previews_clear(cache);
+		}
+
+//		printf("\tpreview cleaned up...\n");
+
+		if (end_index > cache->block_end_index) {
+			/* Add (request) needed entries after already cached ones. */
+			/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+			int size1 = end_index - cache->block_end_index;
+			int size2 = 0;
+			int idx1, idx2;
+
+			idx1 = (cache->block_cursor + curr_block_size) % FILELIST_ENTRYCACHESIZE;
+			if ((idx1 + size1) > FILELIST_ENTRYCACHESIZE) {
+				size2 = size1;
+				size1 = FILELIST_ENTRYCACHESIZE - idx1;
+				size2 -= size1;
+				idx2 = 0;
+			}
+
+			if (size2) {
+				memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[end_index - size2],
+					   sizeof(cache->block_entries[0]) * size2);
+			}
+			memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[end_index - size1 - size2],
+				   sizeof(cache->block_entries[0]) * size1);
+
+			if (cache->previews_pool) {
+				i = size1 + size2;
+				while (i--) {
+					const int idx = (cache->block_cursor + end_index - start_index - i - 1) % FILELIST_ENTRYCACHESIZE;
+					FileDirEntry *entry = cache->block_entries[idx];
+
+					filelist_cache_previews_push(filelist, entry, end_index - i);
+				}
+			}
+		}
+		cache->block_end_index = end_index;
+
+//		printf("\tend-extended...\n");
+
+		if (start_index < cache->block_start_index) {
+			/* Add (request) needed entries before already cached ones. */
+			/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+			int size1 = cache->block_start_index - start_index;
+			int size2 = 0;
+			int idx1, idx2;
+
+			if (size1 > cache->block_cursor) {
+				size2 = size1;
+				size1 -= cache->block_cursor;
+				size2 -= size1;
+				idx2 = 0;
+				idx1 = FILELIST_ENTRYCACHESIZE - size1;
+
+			}
+			else {
+				idx1 = cache->block_cursor - size1;
+			}
+
+			if (size2) {
+				memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[start_index + size1],
+					   sizeof(cache->block_entries[0]) * size2);
+			}
+			memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[start_index],
+				   sizeof(cache->block_entries[0]) * size1);
+
+			cache->block_cursor = idx1;
+
+			if (cache->previews_pool) {
+				i = -(size1 + size2);
+				while (i++) {
+					const int idx = (cache->block_cursor - i) % FILELIST_ENTRYCACHESIZE;
+					FileDirEntry *entry = cache->block_entries[idx];
+
+					filelist_cache_previews_push(filelist, entry, start_index - i);
+				}
+			}
+		}
+		else if (start_index > cache->block_start_index) {
+			/* We do not free anything, just update start index and cursor. */
+			cache->block_cursor = (cache->block_cursor + start_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
+		}
+		cache->block_start_index = start_index;
+//		printf("\tstart-extended...\n");
+	}
+
+//	printf("Re-queueing previews...\n");
+
+	/* Note we try to preview first images around given index - i.e. assumed visible ones. */
+	if (cache->previews_pool) {
+		for (i = 0; ((index + i) < end_index) || ((index - i) >= start_index); i++) {
+			if ((index - i) >= start_index) {
+				const int idx = (cache->block_cursor + (index - start_index) - i) % FILELIST_ENTRYCACHESIZE;
+				filelist_cache_previews_push(filelist, cache->block_entries[idx], index - i);
+			}
+			if ((index + i) < end_index) {
+				const int idx = (cache->block_cursor + (index - start_index) + i) % FILELIST_ENTRYCACHESIZE;
+				filelist_cache_previews_push(filelist, cache->block_entries[idx], index + i);
+			}
+		}
+	}
+
+	printf("%s Finished!\n", __func__);
+
+	return true;
+}
+
+void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+	if (use_previews == (cache->previews_pool != NULL)) {
+		return;
+	}
+	else if (use_previews) {
+		TaskScheduler *scheduler = BLI_task_scheduler_get();
+		TaskPool *pool;
+		int num_tasks = 4;
+		int i;
+
+		BLI_assert((cache->previews_pool == NULL) && (cache->previews_todo == NULL) && (cache->previews_done == NULL));
+
+//		printf("%s: Init Previews...\n", __func__);
+
+		pool = cache->previews_pool = BLI_task_pool_create(scheduler, NULL);
+		cache->previews_todo = BLI_thread_queue_init();
+		cache->previews_done = BLI_thread_queue_init();
+
+		while (num_tasks--) {
+			BLI_task_pool_push(pool, filelist_cache_previewf, cache, false, TASK_PRIORITY_HIGH);
+		}
+
+		i = -(cache->block_end_index - cache->block_start_index);
+		while (i++) {
+			const int idx = (cache->block_cursor - i) % FILELIST_ENTRYCACHESIZE;
+			FileDirEntry *entry = cache->block_entries[idx];
+
+			filelist_cache_previews_push(filelist, entry, cache->block_start_index - i);
+		}
+	}
+	else {
+//		printf("%s: Clear Previews...\n", __func__);
+
+		filelist_cache_previews_free(cache);
+	}
+}
+
+bool filelist_cache_previews_update(FileList *filelist)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+	TaskPool *pool = cache->previews_pool;
+	bool changed = false;
+
+	if (!pool) {
+		return changed;
+	}
+
+//	printf("%s: Update Previews...\n", __func__);
+
+	while (BLI_thread_queue_size(cache->previews_done) > 0) {
+		FileListEntryPreview *preview = BLI_thread_queue_pop(cache->previews_done);
+//		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+
+		if (preview->img) {
+			/* entry might have been removed from cache in the mean while, we do not want to cache it again here. */
+			FileDirEntry *entry = filelist_file_ex(filelist, preview->index, false);
+			if (entry) {
+				entry->image = preview->img;
+				/* update flag for movie files where thumbnail can't be created */
+				if (preview->flags & FILE_TYPE_MOVIE_ICON) {
+					entry->typeflag &= ~FILE_TYPE_MOVIE;
+					entry->typeflag |= FILE_TYPE_MOVIE_ICON;
+				}
+				changed = true;
+			}
+			else {
+				IMB_freeImBuf(preview->img);
+			}
+		}
+		MEM_freeN(preview);
+	}
+
+	return changed;
 }
 
 /* would recognize .blend as well */
@@ -1253,7 +1726,7 @@ int ED_file_extension_icon(const char *path)
 
 int filelist_empty(struct FileList *filelist)
 {
-	return BLI_listbase_is_empty(&filelist->filelist.entries);
+	return (filelist->filelist.nbr_entries == 0);
 }
 
 void filelist_select_file(FileList *filelist, int index, FileSelType select, unsigned int flag, FileCheckType check)
@@ -1292,7 +1765,9 @@ void filelist_select_file(FileList *filelist, int index, FileSelType select, uns
 void filelist_select(FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check)
 {
 	/* select all valid files between first and last indicated */
-	if ((sel->first >= 0) && (sel->first < filelist->numfiltered) && (sel->last >= 0) && (sel->last < filelist->numfiltered)) {
+	if ((sel->first >= 0) && (sel->first < filelist->filelist.nbr_entries_filtered) &&
+	    (sel->last >= 0) && (sel->last < filelist->filelist.nbr_entries_filtered))
+	{
 		int current_file;
 		for (current_file = sel->first; current_file <= sel->last; current_file++) {
 			filelist_select_file(filelist, current_file, select, flag, check);
@@ -1710,7 +2185,7 @@ static void filelist_readjob_do(
 	const int max_recursion = filelist->max_recursion;
 	int nbr_done_dirs = 0, nbr_todo_dirs = 1;
 
-	BLI_assert(filelist->filtered == NULL);
+//	BLI_assert(filelist->filtered == NULL);
 	BLI_assert(BLI_listbase_is_empty(&filelist->filelist.entries) && (filelist->filelist.nbr_entries == 0));
 
 	todo_dirs = BLI_stack_new(sizeof(*td_dir), __func__);
@@ -1848,8 +2323,8 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 		}
 	}
 	else {
-		printf("START filelist reading (%d files, main thread: %d)\n",
-			   flrj->filelist->filelist.nbr_entries, BLI_thread_is_main());
+	    printf("START filelist reading (%d files, main thread: %d)\n",
+	           flrj->filelist->filelist.nbr_entries, BLI_thread_is_main());
 
 		BLI_mutex_lock(&flrj->lock);
 
@@ -1861,15 +2336,12 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 
 		BLI_listbase_clear(&flrj->tmp_filelist->filelist.entries);
 		flrj->tmp_filelist->filelist.nbr_entries = 0;
-		flrj->tmp_filelist->filtered = NULL;
-		flrj->tmp_filelist->numfiltered = 0;
+		flrj->tmp_filelist->filelist_intern.filtered = NULL;
+		BLI_listbase_clear(&flrj->tmp_filelist->filelist_intern.entries);
 		flrj->tmp_filelist->libfiledata = NULL;
+		memset(&flrj->tmp_filelist->filelist_cache, 0, sizeof(FileListEntryCache));
 
 		flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
-
-		printf("END filelist reading (%d files, STOPPED: %d, DO_UPDATE: %d)\n",
-			   flrj->filelist->filelist.nbr_entries, *stop, *do_update);
-	}
 }
 
 static void filelist_readjob_update(void *flrjv)
@@ -1913,10 +2385,11 @@ static void filelist_readjob_update(void *flrjv)
 		}
 	}
 	else {
+		FileListIntern *fl_intern = &flrj->filelist->filelist_intern;
 		ListBase new_entries = {NULL};
 		int nbr_entries, new_nbr_entries = 0;
 
-		BLI_movelisttolist(&new_entries, &flrj->filelist->filelist.entries);
+		BLI_movelisttolist(&new_entries, &fl_intern->entries);
 		nbr_entries = flrj->filelist->filelist.nbr_entries;
 
 		BLI_mutex_lock(&flrj->lock);
@@ -1934,14 +2407,12 @@ static void filelist_readjob_update(void *flrjv)
 			filelist_clear(flrj->filelist);
 
 			flrj->filelist->need_sorting = true;
+			flrj->filelist->need_filtering = true;
 			flrj->filelist->force_refresh = true;
-			/* Better be explicit here, since we overwrite filelist->filelist on each run of this update func,
-			 * it would be stupid to start thumbnail job! */
-			flrj->filelist->need_thumbnails = false;
 		}
 
 		/* if no new_nbr_entries, this is NOP */
-		BLI_movelisttolist(&flrj->filelist->filelist.entries, &new_entries);
+		BLI_movelisttolist(&fl_intern->entries, &new_entries);
 		flrj->filelist->filelist.nbr_entries = nbr_entries + new_nbr_entries;
 	}
 }
@@ -1952,8 +2423,6 @@ static void filelist_readjob_endjob(void *flrjv)
 
 	flrj->filelist->filelist_pending = false;
 	flrj->filelist->filelist_ready = true;
-	/* Now we can update thumbnails! */
-	flrj->filelist->need_thumbnails = true;
 
 	if (flrj->filelist->ae) {
 		AssetEngine *ae = flrj->filelist->ae;
@@ -1965,9 +2434,10 @@ static void filelist_readjob_free(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
 
+	printf("END filelist reading (%d files)\n", flrj->filelist->filelist.nbr_entries);
+
 	if (flrj->tmp_filelist) {
 		/* tmp_filelist shall never ever be filtered! */
-		BLI_assert(flrj->tmp_filelist->filtered == NULL);
 		BLI_assert(flrj->tmp_filelist->filelist.nbr_entries == 0);
 		BLI_assert(BLI_listbase_is_empty(&flrj->tmp_filelist->filelist.entries));
 
@@ -2018,155 +2488,4 @@ void filelist_readjob_stop(wmWindowManager *wm, FileList *filelist)
 int filelist_readjob_running(wmWindowManager *wm, FileList *filelist)
 {
 	return WM_jobs_test(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
-}
-
-/* ********** Thumbnails job ********** */
-
-typedef struct FileImage {
-	struct FileImage *next, *prev;
-	char path[FILE_MAX];
-	unsigned int flags;
-	int index;
-	short done;
-	ImBuf *img;
-} FileImage;
-
-typedef struct ThumbnailJob {
-	ListBase loadimages;
-	const short *stop;
-	const short *do_update;
-	struct FileList *filelist;
-	ReportList reports;
-} ThumbnailJob;
-
-bool filelist_need_thumbnails(FileList *filelist)
-{
-	return filelist->need_thumbnails;
-}
-
-static void thumbnail_joblist_free(ThumbnailJob *tj)
-{
-	FileImage *limg = tj->loadimages.first;
-	
-	/* free the images not yet copied to the filelist -> these will get freed with the filelist */
-	for (; limg; limg = limg->next) {
-		if ((limg->img) && (!limg->done)) {
-			IMB_freeImBuf(limg->img);
-		}
-	}
-	BLI_freelistN(&tj->loadimages);
-}
-
-static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float *UNUSED(progress))
-{
-	ThumbnailJob *tj = tjv;
-	FileImage *limg = tj->loadimages.first;
-
-	tj->stop = stop;
-	tj->do_update = do_update;
-
-	while ((*stop == 0) && (limg)) {
-		if (limg->flags & FILE_TYPE_IMAGE) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
-		}
-		else if (limg->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
-		}
-		else if (limg->flags & FILE_TYPE_MOVIE) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
-			if (!limg->img) {
-				/* remember that file can't be loaded via IMB_open_anim */
-				limg->flags &= ~FILE_TYPE_MOVIE;
-				limg->flags |= FILE_TYPE_MOVIE_ICON;
-			}
-		}
-		*do_update = true;
-		limg = limg->next;
-	}
-}
-
-static void thumbnails_update(void *tjv)
-{
-	ThumbnailJob *tj = tjv;
-
-	if (tj->filelist) {
-		FileImage *limg = tj->loadimages.first;
-		while (limg) {
-			if (!limg->done && limg->img) {
-				FileDirEntry *entry = BLI_findlink(&tj->filelist->filelist.entries, limg->index);
-				entry->image = IMB_dupImBuf(limg->img);
-				/* update flag for movie files where thumbnail can't be created */
-				if (limg->flags & FILE_TYPE_MOVIE_ICON) {
-					entry->typeflag &= ~FILE_TYPE_MOVIE;
-					entry->typeflag |= FILE_TYPE_MOVIE_ICON;
-				}
-				limg->done = true;
-				IMB_freeImBuf(limg->img);
-				limg->img = NULL;
-			}
-			limg = limg->next;
-		}
-	}
-}
-
-static void thumbnails_endjob(void *tjv)
-{
-	ThumbnailJob *tj = tjv;
-
-	if (!*tj->stop) {
-		tj->filelist->need_thumbnails = false;
-	}
-}
-
-static void thumbnails_free(void *tjv)
-{
-	ThumbnailJob *tj = tjv;
-	thumbnail_joblist_free(tj);
-	MEM_freeN(tj);
-}
-
-
-void thumbnails_start(FileList *filelist, const bContext *C)
-{
-	wmJob *wm_job;
-	ThumbnailJob *tj;
-	FileDirEntry *entry;
-	int idx;
-
-	/* prepare job data */
-	tj = MEM_callocN(sizeof(*tj), __func__);
-	tj->filelist = filelist;
-	for (idx = 0, entry = filelist->filelist.entries.first; entry; idx++, entry = entry->next) {
-		if (!entry->image) {
-			if (entry->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
-				FileImage *limg = MEM_callocN(sizeof(*limg), __func__);
-				BLI_join_dirfile(limg->path, sizeof(limg->path), filelist->filelist.root, entry->relpath);
-				limg->index = idx;
-				limg->flags = entry->typeflag;
-				BLI_addtail(&tj->loadimages, limg);
-			}
-		}
-	}
-
-	BKE_reports_init(&tj->reports, RPT_PRINT);
-
-	/* setup job */
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), filelist, "Thumbnails",
-	                     0, WM_JOB_TYPE_FILESEL_THUMBNAIL);
-	WM_jobs_customdata_set(wm_job, tj, thumbnails_free);
-	WM_jobs_timer(wm_job, 0.5, NC_WINDOW, NC_WINDOW);
-	WM_jobs_callbacks(wm_job, thumbnails_startjob, NULL, thumbnails_update, thumbnails_endjob);
-
-	/* start the job */
-	WM_jobs_start(CTX_wm_manager(C), wm_job);
-}
-
-void thumbnails_stop(wmWindowManager *wm, FileList *filelist)
-{
-	WM_jobs_kill_type(wm, filelist, WM_JOB_TYPE_FILESEL_THUMBNAIL);
-}
-
-int thumbnails_running(wmWindowManager *wm, FileList *filelist)
-{
-	return WM_jobs_test(wm, filelist, WM_JOB_TYPE_FILESEL_THUMBNAIL);
 }

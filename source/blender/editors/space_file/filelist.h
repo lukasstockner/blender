@@ -46,11 +46,6 @@ struct FileDirEntry;
 struct FileDirEntryArr;
 struct FileList;
 struct FileSelection;
-struct FolderList;
-struct Main;
-struct ReportList;
-struct Scene;
-struct rcti;
 struct wmWindowManager;
 
 struct FileDirEntry;
@@ -98,7 +93,8 @@ void                filelist_setdir(struct FileList *filelist, char *r_dir);
 int                 filelist_empty(struct FileList *filelist);
 int                 filelist_numfiles(struct FileList *filelist);
 struct FileDirEntry *filelist_file(struct FileList *filelist, int index);
-int                 filelist_find(struct FileList *filelist, const char *file);
+int                 filelist_file_findpath(struct FileList *filelist, const char *file);
+bool                filelist_file_cache_block(struct FileList *filelist, const int index);
 
 bool                filelist_force_reset(struct FileList *filelist);
 bool                filelist_pending(struct FileList *filelist);
@@ -123,10 +119,8 @@ void                filelist_readjob_start(struct FileList *filelist, const stru
 void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);
 int                 filelist_readjob_running(struct wmWindowManager *wm, struct FileList *filelist);
 
-bool                filelist_need_thumbnails(struct FileList *filelist);
-void                thumbnails_start(struct FileList *filelist, const struct bContext *C);
-void                thumbnails_stop(struct wmWindowManager *wm, struct FileList *filelist);
-int                 thumbnails_running(struct wmWindowManager *wm, struct FileList *filelist);
+bool                filelist_cache_previews_update(struct FileList *filelist);
+void                filelist_cache_previews_set(struct FileList *filelist, const bool use_previews);
 
 #ifdef __cplusplus
 }

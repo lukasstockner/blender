@@ -1956,7 +1956,7 @@ static void ntree_render_scenes(Render *re)
 }
 
 /* bad call... need to think over proper method still */
-static void render_composit_stats(void *UNUSED(arg), char *str)
+static void render_composit_stats(void *UNUSED(arg), const char *str)
 {
 	R.i.infostr = str;
 	R.stats_draw(R.sdh, &R.i);
@@ -3025,7 +3025,8 @@ void RE_BlenderAnim(Render *re, Main *bmain, Scene *scene, Object *camera_overri
 			height = re->recty;
 		}
 
-		if (!mh->start_movie(scene, &re->r, width, height, re->reports))
+		/* last argument here depends on users really, but no users using preview have been found so far */
+		if (!mh->start_movie(scene, &re->r, width, height, re->reports, false))
 			G.is_break = true;
 	}
 
@@ -3260,25 +3261,25 @@ void RE_layer_load_from_file(RenderLayer *layer, ReportList *reports, const char
 					IMB_freeImBuf(ibuf_clip);
 				}
 				else {
-					BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: failed to allocate clip buffer '%s'", filename);
+					BKE_reportf(reports, RPT_ERROR, "%s: failed to allocate clip buffer '%s'", __func__, filename);
 				}
 			}
 			else {
-				BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: incorrect dimensions for partial copy '%s'", filename);
+				BKE_reportf(reports, RPT_ERROR, "%s: incorrect dimensions for partial copy '%s'", __func__, filename);
 			}
 		}
 
 		IMB_freeImBuf(ibuf);
 	}
 	else {
-		BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: failed to load '%s'", filename);
+		BKE_reportf(reports, RPT_ERROR, "%s: failed to load '%s'", __func__, filename);
 	}
 }
 
 void RE_result_load_from_file(RenderResult *result, ReportList *reports, const char *filename)
 {
 	if (!render_result_exr_file_read_path(result, NULL, filename)) {
-		BKE_reportf(reports, RPT_ERROR, "RE_result_rect_from_file: failed to load '%s'", filename);
+		BKE_reportf(reports, RPT_ERROR, "%s: failed to load '%s'", __func__, filename);
 		return;
 	}
 }

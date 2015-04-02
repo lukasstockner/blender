@@ -109,7 +109,6 @@ extern "C" {
 struct bContext;
 struct wmEvent;
 struct wmWindowManager;
-struct uiLayout;
 struct wmOperator;
 struct ImBuf;
 
@@ -357,6 +356,7 @@ typedef struct wmNotifier {
 #define ND_SPACE_NODE_VIEW		(17<<16)
 #define ND_SPACE_CHANGED		(18<<16) /*sent to a new editor type after it's replaced an old one*/
 #define ND_SPACE_CLIP			(19<<16)
+#define ND_SPACE_FILE_PREVIEW   (20<<16)
 
 /* subtype, 256 entries too */
 #define NOTE_SUBTYPE		0x0000FF00

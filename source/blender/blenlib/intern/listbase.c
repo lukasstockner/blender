@@ -116,6 +116,22 @@ void BLI_remlink(ListBase *listbase, void *vlink)
 }
 
 /**
+ * Removes all links between \a vlink_start and \a vlink_end (included) from \a listbase.
+ * Assumes it is linked into there, and vlink_start is before vlink_end!
+ */
+void BLI_listbase_remlink_range(struct ListBase *listbase, void *vlink_start, void *vlink_end)
+{
+	Link *link_start = vlink_start;
+	Link *link_end = vlink_end;
+
+	if (link_end->next) link_end->next->prev = link_start->prev;
+	if (link_start->prev) link_start->prev->next = link_end->next;
+
+	if (listbase->last == link_end) listbase->last = link_start->prev;
+	if (listbase->first == link_start) listbase->first = link_end->next;
+}
+
+/**
  * Checks that \a vlink is linked into listbase, removing it from there if so.
  */
 bool BLI_remlink_safe(ListBase *listbase, void *vlink)

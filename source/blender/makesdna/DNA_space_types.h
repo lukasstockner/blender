@@ -50,28 +50,21 @@
 struct ID;
 struct Text;
 struct Script;
-struct bSound;
-struct ImBuf;
 struct Image;
 struct Scopes;
 struct Histogram;
 struct SpaceIpo;
-struct BlendHandle;
 struct bNodeTree;
-struct uiBlock;
 struct FileList;
 struct bGPdata;
 struct bDopeSheet;
 struct FileSelectParams;
 struct FileLayout;
-struct bScreen;
-struct Scene;
 struct wmOperator;
 struct wmTimer;
 struct MovieClip;
 struct MovieClipScopes;
 struct Mask;
-struct GHash;
 struct BLI_mempool;
 
 struct direntry;
@@ -639,6 +632,7 @@ typedef struct SpaceFile {
 	struct wmOperator *op; 
 
 	struct wmTimer *smoothscroll_timer;
+	struct wmTimer *previews_timer;
 
 	struct FileLayout *layout;
 	
@@ -751,9 +745,9 @@ typedef enum eDirEntry_SelectFlag {
 
 /* For RNA only, used to communicate with asset engines outside of 'import' context. */
 typedef struct AssetUUID {
-	char uuid_asset[24];     /* ASSET_UUID_LENGTH */
-	char uuid_variant[24];   /* ASSET_UUID_LENGTH */
-	char uuid_revision[24];  /* ASSET_UUID_LENGTH */
+	char uuid_asset[16];     /* ASSET_UUID_LENGTH */
+	char uuid_variant[16];   /* ASSET_UUID_LENGTH */
+	char uuid_revision[16];  /* ASSET_UUID_LENGTH */
 } AssetUUID;
 
 typedef struct AssetUUIDList {
@@ -769,7 +763,7 @@ typedef struct FileDirEntryRevision {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[24];  /* ASSET_UUID_LENGTH */
+	char uuid[16];  /* ASSET_UUID_LENGTH */
 
 	char *comment;
 
@@ -796,7 +790,7 @@ typedef struct FileDirEntryVariant {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[24];  /* ASSET_UUID_LENGTH */
+	char uuid[16];  /* ASSET_UUID_LENGTH */
 
 	char *name;
 	char *description;
@@ -814,7 +808,7 @@ typedef struct FileDirEntry {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[24];  /* ASSET_UUID_LENGTH */
+	char uuid[16];  /* ASSET_UUID_LENGTH */
 
 	char *name;
 	char *description;
@@ -843,18 +837,22 @@ typedef struct FileDirEntry {
 } FileDirEntry;
 
 /* Array of direntries. */
+/* This struct is used in various, different contexts.
+ * In Filebrowser UI, it stores the total number of available entries, the number of visible (filtered) entries,
+ *                    and a subset of those in 'entries' ListBase, from idx_start (included) to idx_end (excluded).
+ * In AssetEngine context (i.e. outside of 'browsing' context), entries contain all needed data, there is no filtering,
+ *                        so nbr_entries_filtered, entry_idx_start and entry_idx_end should all be set to -1.
+ */
 typedef struct FileDirEntryArr {
 	ListBase entries;
 	int nbr_entries;
-	int pad;
+	int nbr_entries_filtered;
+	int entry_idx_start, entry_idx_end;
 
 	char root[1024];	 /* FILE_MAX */
-
-	/* Internal only, used by filebrowser listing code. */
-	void *data;
 } FileDirEntryArr;
 
-#define ASSET_UUID_LENGTH     24
+#define ASSET_UUID_LENGTH     16
 
 enum {
 	ASSET_STATUS_LOCAL  = 1 << 0,  /* If active uuid is available localy/immediately. */
