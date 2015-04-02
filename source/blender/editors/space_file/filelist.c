@@ -1372,6 +1372,41 @@ int filelist_file_findpath(struct FileList *filelist, const char *filename)
 	return -1;
 }
 
+/* Helper, low-level, it assumes cursor + size <= FILELIST_ENTRYCACHESIZE */
+static bool filelist_file_cache_block_do(struct FileList *filelist, const int start_index, const int size, int cursor)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+
+	if (filelist->ae) {
+		FileDirEntryArr tmp_arr;
+		FileDirEntry *tmp_entry;
+		int i;
+
+		if (!filelist->ae->type->entries_block_get) {
+			printf("%s: Asset Engine %s does not implement 'entries_block_get'...\n", __func__, filelist->ae->type->name);
+			return false;
+		}
+
+		tmp_arr = filelist->filelist;
+		BLI_listbase_clear(&tmp_arr.entries);
+		if (!filelist->ae->type->entries_block_get(filelist->ae, start_index, start_index + size, &tmp_arr)) {
+			BKE_filedir_entryarr_clear(&tmp_arr);
+			return false;
+		}
+
+		for (i = 0, tmp_entry = tmp_arr.entries.first; i < size; i++, cursor++, tmp_entry = tmp_entry->next) {
+			cache->block_entries[cursor] = tmp_entry;
+		}
+	}
+	else {
+		FileListIntern *intern = &filelist->filelist_intern;
+		memcpy(&cache->block_entries[cursor], &intern->filtered[start_index],
+		       sizeof(cache->block_entries[cursor]) * size);
+	}
+
+	return false;
+}
+
 /* Load in cache all entries "around" given index (as much as block cache may hold). */
 bool filelist_file_cache_block(struct FileList *filelist, const int index)
 {
@@ -1412,8 +1447,9 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 //		printf("Full Recaching!\n");
 
 		/* New cached block does not overlap existing one, simple. */
-		memcpy(cache->block_entries, &filelist->filelist_intern.filtered[start_index],
-		       sizeof(cache->block_entries[0]) * (end_index - start_index));
+		if (!filelist_file_cache_block_do(filelist, start_index, end_index - start_index, 0)) {
+			return false;
+		}
 
 		if (cache->previews_pool) {
 			filelist_cache_previews_clear(cache);
@@ -1451,11 +1487,13 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 			}
 
 			if (size2) {
-				memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[end_index - size2],
-					   sizeof(cache->block_entries[0]) * size2);
+				if (!filelist_file_cache_block_do(filelist, end_index - size2, size2, idx2)) {
+					return false;
+				}
 			}
-			memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[end_index - size1 - size2],
-				   sizeof(cache->block_entries[0]) * size1);
+			if (!filelist_file_cache_block_do(filelist, end_index - size1 - size2, size1, idx1)) {
+				return false;
+			}
 
 			if (cache->previews_pool) {
 				i = size1 + size2;
@@ -1491,11 +1529,13 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 			}
 
 			if (size2) {
-				memcpy(&cache->block_entries[idx2], &filelist->filelist_intern.filtered[start_index + size1],
-					   sizeof(cache->block_entries[0]) * size2);
+				if (!filelist_file_cache_block_do(filelist, start_index + size1, size2, idx2)) {
+					return false;
+				}
 			}
-			memcpy(&cache->block_entries[idx1], &filelist->filelist_intern.filtered[start_index],
-				   sizeof(cache->block_entries[0]) * size1);
+			if (!filelist_file_cache_block_do(filelist, start_index, size1, idx1)) {
+				return false;
+			}
 
 			cache->block_cursor = idx1;
 

@@ -326,6 +326,7 @@ void BKE_filedir_entryarr_clear(FileDirEntryArr *array)
 	}
 	BLI_freelistN(&array->entries);
     array->nbr_entries = 0;
+	array->nbr_entries_filtered = 0;
 }
 
 bool BKE_filedir_entry_is_selected(FileDirEntry *entry, FileCheckType check)

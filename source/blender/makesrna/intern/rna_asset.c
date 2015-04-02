@@ -434,6 +434,66 @@ static bool rna_ae_load_pre(AssetEngine *engine, AssetUUIDList *uuids, struct Fi
 	return ret_success;
 }
 
+static bool rna_ae_sort_filter(AssetEngine *engine, const bool use_sort, const bool use_filter, FileDirEntryArr *entries_r)
+{
+	extern FunctionRNA rna_AssetEngine_sort_filter_func;
+	PointerRNA ptr;
+	PropertyRNA *parm;
+	ParameterList list;
+	FunctionRNA *func;
+
+	void *ret;
+	bool ret_changed;
+
+	RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+	func = &rna_AssetEngine_sort_filter_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "use_sort", &use_sort);
+	RNA_parameter_set_lookup(&list, "use_filter", &use_filter);
+	RNA_parameter_set_lookup(&list, "entries", &entries_r);
+	engine->type->ext.call(NULL, &ptr, func, &list);
+
+	parm = RNA_function_find_parameter(NULL, func, "changed_return");
+	RNA_parameter_get(&list, parm, &ret);
+	ret_changed= *(bool *)ret;
+
+	RNA_parameter_list_free(&list);
+
+	return ret_changed;
+}
+
+static bool rna_ae_entries_block_get(
+        AssetEngine *engine, const int start_index, const int end_index, FileDirEntryArr *entries_r)
+{
+	extern FunctionRNA rna_AssetEngine_entries_block_get_func;
+	PointerRNA ptr;
+	PropertyRNA *parm;
+	ParameterList list;
+	FunctionRNA *func;
+
+	void *ret;
+	bool ret_success;
+
+	RNA_pointer_create(NULL, engine->type->ext.srna, engine, &ptr);
+	func = &rna_AssetEngine_entries_block_get_func;
+
+	RNA_parameter_list_create(&list, &ptr, func);
+	RNA_parameter_set_lookup(&list, "start_index", &start_index);
+	RNA_parameter_set_lookup(&list, "end_index", &end_index);
+	RNA_parameter_set_lookup(&list, "entries", &entries_r);
+	engine->type->ext.call(NULL, &ptr, func, &list);
+
+	parm = RNA_function_find_parameter(NULL, func, "success_return");
+	RNA_parameter_get(&list, parm, &ret);
+	ret_success= *(bool *)ret;
+
+	RNA_parameter_list_free(&list);
+
+	return ret_success;
+}
+
+
 /* AssetEngine registration */
 
 static void rna_AssetEngine_unregister(Main *UNUSED(bmain), StructRNA *type)
@@ -455,7 +515,7 @@ static StructRNA *rna_AssetEngine_register(Main *bmain, ReportList *reports, voi
 	AssetEngineType *aet, dummyaet = {NULL};
 	AssetEngine dummyengine = {NULL};
 	PointerRNA dummyptr;
-	int have_function[5];
+	int have_function[7];
 
 	/* setup dummy engine & engine type to store static properties in */
 	dummyengine.type = &dummyaet;
@@ -495,6 +555,9 @@ static StructRNA *rna_AssetEngine_register(Main *bmain, ReportList *reports, voi
 	aet->list_dir = (have_function[3]) ? rna_ae_list_dir : NULL;
 
 	aet->load_pre = (have_function[4]) ? rna_ae_load_pre : NULL;
+
+	aet->sort_filter = (have_function[5]) ? rna_ae_sort_filter : NULL;
+	aet->entries_block_get = (have_function[6]) ? rna_ae_entries_block_get : NULL;
 
 	BLI_addtail(&asset_engines, aet);
 
@@ -882,6 +945,26 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
 	RNA_def_pointer(func, "uuids", "AssetUUIDList", "", "Identifiers of assets to 'make real'");
 	RNA_def_pointer(func, "entries", "AssetList", "", "List of actual, existing paths that Blender can load");
+	parm = RNA_def_boolean(func, "success_return", 0, "", "Success");
+	RNA_def_function_output(func, parm);
+
+	/* Sorting/filtering callback */
+	func = RNA_def_function(srna, "sort_filter", NULL);
+	RNA_def_function_ui_description(func, "Sort and/or filter the assets (on engine's side)");
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+	RNA_def_boolean(func, "use_sort", 0, "", "Whether to (re-)sort assets");
+	RNA_def_boolean(func, "use_filter", 0, "", "Whether to (re-)filter assets");
+	RNA_def_pointer(func, "entries", "AssetList", "", "List of asset entries proposed to user by the asset engine");
+	parm = RNA_def_boolean(func, "changed_return", 0, "", "Whether list of available entries was changed");
+	RNA_def_function_output(func, parm);
+
+	/* Block of entries by-index getter callback */
+	func = RNA_def_function(srna, "entries_block_get", NULL);
+	RNA_def_function_ui_description(func, "Get a block of entries/assets by its (sorted/filtered) start/end index");
+	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
+	RNA_def_int(func, "start_index", 0, 0, INT_MAX, "", "Index of first entry (asset) to get (included)", 0, INT_MAX);
+	RNA_def_int(func, "end_index", 0, 0, INT_MAX, "", "Index of last entry (asset) to get (excluded)", 0, INT_MAX);
+	RNA_def_pointer(func, "entries", "AssetList", "", "List of asset entries proposed to user by the asset engine");
 	parm = RNA_def_boolean(func, "success_return", 0, "", "Success");
 	RNA_def_function_output(func, parm);
 

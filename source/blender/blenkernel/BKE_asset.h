@@ -74,12 +74,22 @@ typedef void (*ae_kill)(struct AssetEngine *engine, const int job_id);
  * It is the responsability of the engine to start/stop background processes to actually perform tasks as/if needed.
  */
 
-/* Return (list) everything available at given root path. */
+/* List everything available at given root path - only returns numbers of entries! */
 typedef int (*ae_list_dir)(struct AssetEngine *engine, const int job_id, struct FileDirEntryArr *entries_r);
 /* Ensure given direntries are really available for append/link (some kind of 'anticipated loading'...). */
 typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int job_id, struct AssetUUIDList *uuids);
 
 /* ***** All callbacks below are blocking. They shall be completed upon return. ***** */
+
+/* Perform sorting and/or filtering on engines' side.
+ * Note that engine is assumed to feature its own sorting/filtering settings!
+ * Number of available filtered entries is to be set in entries_r.
+ */
+typedef bool (*ae_sort_filter)(struct AssetEngine *engine, const bool sort, const bool filter, struct FileDirEntryArr *entries_r);
+
+/* Return specified block of entries in entries_r. */
+typedef bool (*ae_entries_block_get)(struct AssetEngine *engine, const int start_index, const int end_index,
+                                     struct FileDirEntryArr *entries_r);
 
 /* 'pre-loading' hook, called before opening/appending/linking given entries.
  * Note first given uuid is the one of 'active' entry, and first entry in returned list will be considered as such too.
@@ -111,6 +121,8 @@ typedef struct AssetEngineType {
 	ae_kill kill;
 
 	ae_list_dir list_dir;
+	ae_sort_filter sort_filter;
+	ae_entries_block_get entries_block_get;
 	ae_ensure_entries ensure_entries;
 
 	ae_load_pre load_pre;
