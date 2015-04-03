@@ -647,14 +647,13 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 	ofs_x = ob->ima_ofs[0] * ima_x;
 	ofs_y = ob->ima_ofs[1] * ima_y;
 
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPushMatrix();
+	gpuPushMatrix(GPU_MODELVIEW);
 
 	/* Calculate Image scale */
 	scale = (ob->empty_drawsize / max_ff((float)ima_x * sca_x, (float)ima_y * sca_y));
 
 	/* Set the object scale */
-	gpuScale(scale * sca_x, scale * sca_y, 1.0f);
+	gpuScale(GPU_MODELVIEW, scale * sca_x, scale * sca_y, 1.0f);
 
 	if (ibuf && ibuf->rect) {
 		const bool use_clip = (U.glalphaclip != 1.0f);
@@ -697,8 +696,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 
 
 	/* Reset GL settings */
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	BKE_image_release_ibuf(ima, ibuf, NULL);
 }
@@ -880,12 +878,10 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 			ED_view3d_clipping_disable();
 		}
 
-		gpuMatrixMode(GL_PROJECTION);
-		gpuPushMatrix();
-		gpuMatrixMode(GL_MODELVIEW);
-		gpuPushMatrix();
+		gpuPushMatrix(GPU_PROJECTION);
+		gpuPushMatrix(GPU_MODELVIEW);
 		wmOrtho2_region_ui(ar);
-		gpuLoadIdentity();
+		gpuLoadIdentity(GPU_MODELVIEW);
 		
 		if (depth_write) {
 			if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
@@ -919,10 +915,8 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
 			glDepthMask(1);
 		}
 		
-		gpuMatrixMode(GL_PROJECTION);
-		gpuPopMatrix();
-		gpuMatrixMode(GL_MODELVIEW);
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_PROJECTION);
+		gpuPopMatrix(GPU_MODELVIEW);
 
 		if (rv3d->rflag & RV3D_CLIPPING) {
 			ED_view3d_clipping_enable();
@@ -1176,8 +1170,8 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 	
 	/* we first draw only the screen aligned & fixed scale stuff */
-	gpuPushMatrix();
-	gpuLoadMatrix(rv3d->viewmat[0]);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 
 	/* lets calculate the scale: */
 	lampsize = pixsize * ((float)U.obcenter_dia * 0.5f);
@@ -1255,7 +1249,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		mul_v3_v3fl(v2, imat[0], circrad * 2.5f);
 		
 		/* center */
-		gpuTranslate(vec[0], vec[1], vec[2]);
+		gpuTranslate(GPU_MODELVIEW, vec[0], vec[1], vec[2]);
 		
 		setlinestyle(3);
 		
@@ -1268,7 +1262,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		}
 		glEnd();
 		
-		gpuTranslate(-vec[0], -vec[1], -vec[2]);
+		gpuTranslate(GPU_MODELVIEW, -vec[0], -vec[1], -vec[2]);
 
 	}
 	
@@ -1278,7 +1272,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		}
 	}
 	
-	gpuPopMatrix();  /* back in object space */
+	gpuPopMatrix(GPU_MODELVIEW);  /* back in object space */
 	zero_v3(vec);
 	
 	if (is_view) {
@@ -1308,7 +1302,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		x *= y;
 
 		/* draw the circle/square at the end of the cone */
-		gpuTranslate(0.0, 0.0, x);
+		gpuTranslate(GPU_MODELVIEW, 0.0, 0.0, x);
 		if (la->mode & LA_SQUARE) {
 			float tvec[3];
 			float z_abs = fabsf(z);
@@ -1344,7 +1338,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 			draw_transp_spot_volume(la, x, z);
 
 		/* draw clip start, useful for wide cones where its not obvious where the start is */
-		gpuTranslate(0.0, 0.0, -x);  /* reverse translation above */
+		gpuTranslate(GPU_MODELVIEW, 0.0, 0.0, -x);  /* reverse translation above */
 		if (la->type == LA_SPOT && (la->mode & LA_SHAD_BUF)) {
 			float lvec_clip[3];
 			float vvec_clip[3];
@@ -1429,8 +1423,8 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	}
 	
 	/* and back to viewspace */
-	gpuPushMatrix();
-	gpuLoadMatrix(rv3d->viewmat[0]);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 	copy_v3_v3(vec, ob->obmat[3]);
 
 	setlinestyle(0);
@@ -1468,7 +1462,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		glColor3ubv(ob_wire_col);
 	}
 	/* and finally back to org object space! */
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 static void draw_limit_line(float sta, float end, const short dflag, unsigned int col)
@@ -1556,7 +1550,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 	if ((tracking_object->flag & TRACKING_OBJECT_CAMERA) == 0)
 		mul_v3_fl(camera_size, tracking_object->scale);
 
-	gpuPushMatrix();
+	gpuPushMatrix(GPU_MODELVIEW);
 
 	if (tracking_object->flag & TRACKING_OBJECT_CAMERA) {
 		/* current ogl matrix is translated in camera space, bundles should
@@ -1564,8 +1558,8 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		 * from current ogl matrix */
 		invert_m4_m4(imat, base->object->obmat);
 
-		gpuMultMatrix(imat[0]);
-		gpuMultMatrix(mat[0]);
+		gpuMultMatrix(GPU_MODELVIEW, imat[0]);
+		gpuMultMatrix(GPU_MODELVIEW, mat[0]);
 	}
 	else {
 		float obmat[4][4];
@@ -1574,7 +1568,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		BKE_tracking_camera_get_reconstructed_interpolate(tracking, tracking_object, framenr, obmat);
 
 		invert_m4_m4(imat, obmat);
-		gpuMultMatrix(imat[0]);
+		gpuMultMatrix(GPU_MODELVIEW, imat[0]);
 	}
 
 	for (track = tracksbase->first; track; track = track->next) {
@@ -1589,9 +1583,10 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		if (dflag & DRAW_PICKING)
 			GPU_select_load_id(base->selcol + (tracknr << 16));
 
-		gpuPushMatrix();
-		gpuTranslate(track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
-		gpuScale(v3d->bundle_size / 0.05f / camera_size[0],
+		gpuPushMatrix(GPU_MODELVIEW);
+		gpuTranslate(GPU_MODELVIEW, track->bundle_pos[0], track->bundle_pos[1], track->bundle_pos[2]);
+		gpuScale(GPU_MODELVIEW,
+		         v3d->bundle_size / 0.05f / camera_size[0],
 		         v3d->bundle_size / 0.05f / camera_size[1],
 		         v3d->bundle_size / 0.05f / camera_size[2]);
 
@@ -1656,7 +1651,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 			}
 		}
 
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 
 		if ((dflag & DRAW_PICKING) == 0 && (v3d->flag2 & V3D_SHOW_BUNDLENAME)) {
 			float pos[3];
@@ -1696,7 +1691,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 		}
 	}
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	*global_track_index = tracknr;
 }
@@ -1848,9 +1843,9 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			copy_m4_m4(nobmat, ob->obmat);
 			normalize_m4(nobmat);
 
-			gpuPushMatrix();
-			gpuLoadMatrix(rv3d->viewmat[0]);
-			gpuMultMatrix(nobmat[0]);
+			gpuPushMatrix(GPU_MODELVIEW);
+			gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
+			gpuMultMatrix(GPU_MODELVIEW, nobmat[0]);
 
 			if (cam->flag & CAM_SHOWLIMITS) {
 				draw_limit_line(cam->clipsta, cam->clipend, dflag, 0x77FFFF);
@@ -1864,7 +1859,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 					draw_limit_line(world->miststa, world->miststa + world->mistdist, dflag, 0xFFFFFF);
 				}
 			}
-			gpuPopMatrix();
+			gpuPopMatrix(GPU_MODELVIEW);
 		}
 	}
 }
@@ -4806,7 +4801,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
 		float mat[4][4];
 		mul_m4_m4m4(mat, ob->obmat, psys->imat);
-		gpuMultMatrix(mat[0]);
+		gpuMultMatrix(GPU_MODELVIEW, mat[0]);
 	}
 
 	/* needed for text display */
@@ -5455,7 +5450,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 	}
 
 	if ((base->flag & OB_FROMDUPLI) && (ob->flag & OB_FROMGROUP)) {
-		gpuLoadMatrix(rv3d->viewmat[0]);
+		gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 	}
 }
 
@@ -6400,23 +6395,23 @@ static void draw_empty_sphere(float size)
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
-		gpuPushMatrix();
+		gpuPushMatrix(GPU_MODELVIEW);
 		
 		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
 
-		gpuRotateAxis(90, 'Y');
+		gpuRotateAxis(GPU_MODELVIEW, 90, 'Y');
 		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
 		
-		gpuRotateAxis(90, 'X');
+		gpuRotateAxis(GPU_MODELVIEW, 90, 'X');
 		gpuDrawCircle(0.0f,  0.0f, 1.0f, 16);
 
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 		glEndList();
 	}
 	
-	gpuScale(size, size, size);
+	gpuScale(GPU_MODELVIEW, size, size, size);
 	glCallList(displist);
-	gpuScale(1.0f / size, 1.0f / size, 1.0f / size);
+	gpuScale(GPU_MODELVIEW, 1.0f / size, 1.0f / size, 1.0f / size);
 }
 
 /* draw a cone for use as an empty drawtype */
@@ -6425,13 +6420,13 @@ static void draw_empty_cone(float size)
 	struct GPUprim3 prim = GPU_PRIM_LOFI_WIRE;
 	float radius = size;
 
-	gpuPushMatrix();
+	gpuPushMatrix(GPU_MODELVIEW);
 	
-	gpuScale(radius, size * 2.0f, radius);
-	gpuRotateAxis(-90.0, 'X');
+	gpuScale(GPU_MODELVIEW, radius, size * 2.0f, radius);
+	gpuRotateAxis(GPU_MODELVIEW, -90.0, 'X');
 	gpuDrawCylinder(&prim, 1.0f, 0.0f, 1.0f);
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 static void drawspiral(const float cent[3], float rad, float tmat[4][4], int start)
@@ -6825,35 +6820,35 @@ static void draw_bb_quadric(BoundBox *bb, char type, bool around_origin)
 		BKE_boundbox_calc_center_aabb(bb, cent);
 	}
 	
-	gpuPushMatrix();
+	gpuPushMatrix(GPU_MODELVIEW);
 	if (type == OB_BOUND_SPHERE) {
 		float scale = MAX3(size[0], size[1], size[2]);
-		gpuTranslate(cent[0], cent[1], cent[2]);
-		gpuScale(scale, scale, scale);
+		gpuTranslate(GPU_MODELVIEW, cent[0], cent[1], cent[2]);
+		gpuScale(GPU_MODELVIEW, scale, scale, scale);
 		gpuDrawSphere(&prim, 1.0f);
 	}
 	else if (type == OB_BOUND_CYLINDER) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
-		gpuTranslate(cent[0], cent[1], cent[2] - size[2]);
-		gpuScale(radius, radius, 2.0f * size[2]);
+		gpuTranslate(GPU_MODELVIEW, cent[0], cent[1], cent[2] - size[2]);
+		gpuScale(GPU_MODELVIEW, radius, radius, 2.0f * size[2]);
 		gpuDrawCylinder(&prim, 1.0f, 1.0f, 1.0f);
 	}
 	else if (type == OB_BOUND_CONE) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
-		gpuTranslate(cent[0], cent[1], cent[2] - size[2]);
-		gpuScale(radius, radius, 2.0f * size[2]);
+		gpuTranslate(GPU_MODELVIEW, cent[0], cent[1], cent[2] - size[2]);
+		gpuScale(GPU_MODELVIEW, radius, radius, 2.0f * size[2]);
 		gpuDrawCylinder(&prim, 1.0f, 0.0f, 1.0f);
 	}
 	else if (type == OB_BOUND_CAPSULE) {
 		float radius = size[0] > size[1] ? size[0] : size[1];
 		float length = size[2] > radius ? 2.0f * (size[2] - radius) : 0.0f;
-		gpuTranslate(cent[0], cent[1], cent[2] - length * 0.5f);
+		gpuTranslate(GPU_MODELVIEW, cent[0], cent[1], cent[2] - length * 0.5f);
 		gpuDrawCylinder(&prim, radius, radius, length);
 		gpuDrawSphere(&prim, radius);
-		gpuTranslate(0.0, 0.0, length);
+		gpuTranslate(GPU_MODELVIEW, 0.0, 0.0, length);
 		gpuDrawSphere(&prim, radius);
 	}
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 static void draw_bounding_volume(Object *ob, char type)
@@ -7543,12 +7538,12 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 				if ((sb = ob->soft)) {
 					if (sb->solverflags & SBSO_ESTIMATEIPO) {
 
-						gpuLoadMatrix(rv3d->viewmat[0]);
+						gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 						copy_m3_m3(msc, sb->lscale);
 						copy_m3_m3(mrt, sb->lrot);
 						mul_m3_m3m3(mtr, mrt, msc);
 						ob_draw_RE_motion(sb->lcom, mtr, tipw, tiph, drawsize);
-						gpuMultMatrix(ob->obmat[0]);
+						gpuMultMatrix(GPU_MODELVIEW, ob->obmat[0]);
 					}
 				}
 			}
@@ -7573,7 +7568,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		}
 		//glDepthMask(GL_FALSE);
 
-		gpuLoadMatrix(rv3d->viewmat[0]);
+		gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 		
 		view3d_cached_text_draw_begin();
 
@@ -7590,7 +7585,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		invert_m4_m4(ob->imat, ob->obmat);
 		view3d_cached_text_draw_end(v3d, ar, 0, NULL);
 
-		gpuMultMatrix(ob->obmat[0]);
+		gpuMultMatrix(GPU_MODELVIEW, ob->obmat[0]);
 		
 		//glDepthMask(GL_TRUE);
 		if (col) cpack(col);
@@ -7604,10 +7599,10 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (ob->mode & OB_MODE_PARTICLE_EDIT && is_obact) {
 			PTCacheEdit *edit = PE_create_current(scene, ob);
 			if (edit) {
-				gpuLoadMatrix(rv3d->viewmat[0]);
+				gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 				draw_update_ptcache_edit(scene, ob, edit);
 				draw_ptcache_edit(scene, v3d, edit);
-				gpuMultMatrix(ob->obmat[0]);
+				gpuMultMatrix(GPU_MODELVIEW, ob->obmat[0]);
 			}
 		}
 	}
@@ -7655,8 +7650,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 			float p0[3], p1[3], viewnormal[3];
 			BoundBox bb;
 
-			gpuLoadMatrix(rv3d->viewmat[0]);
-			gpuMultMatrix(ob->obmat[0]);
+			gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
+			gpuMultMatrix(GPU_MODELVIEW, ob->obmat[0]);
 
 			/* draw adaptive domain bounds */
 			if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
@@ -7804,7 +7799,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 	/* return warning, clear temp flag */
 	v3d->flag2 &= ~V3D_SHOW_SOLID_MATCAP;
 	
-	gpuLoadMatrix(rv3d->viewmat[0]);
+	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 
 	if (zbufoff) {
 		glDisable(GL_DEPTH_TEST);
@@ -8158,7 +8153,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 {
 	ToolSettings *ts = scene->toolsettings;
 
-	gpuMultMatrix(ob->obmat[0]);
+	gpuMultMatrix(GPU_MODELVIEW, ob->obmat[0]);
 
 	glClearDepth(1.0); glClear(GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
@@ -8218,7 +8213,7 @@ void draw_object_backbufsel(Scene *scene, View3D *v3d, RegionView3D *rv3d, Objec
 			break;
 	}
 
-	gpuLoadMatrix(rv3d->viewmat[0]);
+	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 }
 
 

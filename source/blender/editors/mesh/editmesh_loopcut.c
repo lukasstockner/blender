@@ -101,8 +101,8 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		if (v3d && v3d->zbuf)
 			glDisable(GL_DEPTH_TEST);
 
-		gpuPushMatrix();
-		gpuMultMatrix(lcd->ob->obmat[0]);
+		gpuPushMatrix(GPU_MODELVIEW);
+		gpuMultMatrix(GPU_MODELVIEW, lcd->ob->obmat[0]);
 
 		glColor3ub(255, 0, 255);
 		if (lcd->totedge > 0) {
@@ -123,7 +123,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 			glPointSize(1.0f);
 		}
 
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 		if (v3d && v3d->zbuf)
 			glEnable(GL_DEPTH_TEST);
 	}

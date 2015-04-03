@@ -390,10 +390,10 @@ void fdrawXORcirc(float xofs, float yofs, float rad)
 {
 	set_inverted_drawing(1);
 
-	gpuPushMatrix();
-	gpuTranslate(xofs, yofs, 0.0);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, xofs, yofs, 0.0);
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, rad, 20);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	set_inverted_drawing(0);
 }
@@ -731,13 +731,11 @@ void glaDefine2DArea(rcti *screen_rect)
 	 * Programming Guide, Appendix H, Correctness Tips.
 	 */
 
-	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity();
-	glOrtho(0.0, sc_w, 0.0, sc_h, -1, 1);
-	gpuTranslate(GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
+	gpuLoadIdentity(GPU_PROJECTION);
+	gpuOrtho(GPU_PROJECTION, 0.0, sc_w, 0.0, sc_h, -1, 1);
+	gpuTranslate(GPU_PROJECTION, GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
 
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_MODELVIEW);
 }
 
 #if 0 /* UNUSED */
@@ -993,8 +991,7 @@ void bglPolygonOffset(float viewdist, float dist)
 		// glPolygonOffset(-1.0, -1.0);
 
 		/* hack below is to mimic polygon offset */
-		gpuMatrixMode(GL_PROJECTION);
-		glGetFloatv(GL_PROJECTION_MATRIX, (float *)winmat);
+		gpuGetMatrix(GPU_PROJECTION, winmat);
 		
 		/* dist is from camera to center point */
 		
@@ -1004,16 +1001,13 @@ void bglPolygonOffset(float viewdist, float dist)
 		winmat[14] -= offs;
 		offset += offs;
 		
-		gpuLoadMatrix(winmat);
-		gpuMatrixMode(GL_MODELVIEW);
+		gpuLoadMatrix(GPU_PROJECTION, winmat);
 	}
 	else {
 
-		gpuMatrixMode(GL_PROJECTION);
 		winmat[14] += offset;
 		offset = 0.0;
-		gpuLoadMatrix(winmat);
-		gpuMatrixMode(GL_MODELVIEW);
+		gpuLoadMatrix(GPU_PROJECTION, winmat);
 	}
 }
 

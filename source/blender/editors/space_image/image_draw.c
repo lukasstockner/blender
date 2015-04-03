@@ -120,12 +120,13 @@ static void draw_render_info(const bContext *C,
 			/* find window pixel coordinates of origin */
 			UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-			gpuPushMatrix();
-			gpuTranslate(x, y, 0.0f);
-			gpuScale(zoomx, zoomy, 1.0f);
+			gpuPushMatrix(GPU_MODELVIEW);
+			gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
+			gpuScale(GPU_MODELVIEW, zoomx, zoomy, 1.0f);
 
 			if (rd->mode & R_BORDER) {
-				gpuTranslate((int)(-rd->border.xmin * rd->xsch * rd->size / 100.0f),
+				gpuTranslate(GPU_MODELVIEW,
+				             (int)(-rd->border.xmin * rd->xsch * rd->size / 100.0f),
 				             (int)(-rd->border.ymin * rd->ysch * rd->size / 100.0f),
 				             0.0f);
 			}
@@ -140,7 +141,7 @@ static void draw_render_info(const bContext *C,
 				MEM_freeN(tiles);
 			}
 
-			gpuPopMatrix();
+			gpuPopMatrix(GPU_MODELVIEW);
 		}
 	}
 }

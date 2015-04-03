@@ -692,13 +692,13 @@ void KX_BlenderMaterial::ActivateTexGen(RAS_IRasterizer *ras) const
 
 void KX_BlenderMaterial::setTexMatrixData(int i)
 {
-	gpuMatrixMode(GL_TEXTURE);
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_TEXTURE);
 
 	if ( GLEW_ARB_texture_cube_map && 
 		mTextures[i].GetTextureType() == GL_TEXTURE_CUBE_MAP_ARB && 
 		mMaterial->mapping[i].mapping & USEREFL) {
 		gpuScale(
+			GPU_TEXTURE,
 			mMaterial->mapping[i].scale[0], 
 			-mMaterial->mapping[i].scale[1], 
 			-mMaterial->mapping[i].scale[2]
@@ -707,19 +707,18 @@ void KX_BlenderMaterial::setTexMatrixData(int i)
 	else
 	{
 		gpuScale(
+			GPU_TEXTURE,
 			mMaterial->mapping[i].scale[0], 
 			mMaterial->mapping[i].scale[1], 
 			mMaterial->mapping[i].scale[2]
 		);
 	}
 	gpuTranslate(
+		GPU_TEXTURE,
 		mMaterial->mapping[i].offsets[0],
 		mMaterial->mapping[i].offsets[1], 
 		mMaterial->mapping[i].offsets[2]
 	);
-
-	gpuMatrixMode(GL_MODELVIEW);
-
 }
 
 static void GetProjPlane(BL_Material *mat, int index,int num, float*param)
@@ -764,9 +763,9 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 
 	const MT_Matrix4x4& mvmat = ras->GetViewMatrix();
 
-	gpuMatrixMode(GL_TEXTURE);
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_TEXTURE);
 	gpuScale(
+		GPU_TEXTURE,
 		mMaterial->mapping[i].scale[0], 
 		mMaterial->mapping[i].scale[1], 
 		mMaterial->mapping[i].scale[2]
@@ -776,9 +775,7 @@ void KX_BlenderMaterial::setObjectMatrixData(int i, RAS_IRasterizer *ras)
 	MT_Vector4 matmul = MT_Vector4(pos[0], pos[1], pos[2], 1.f);
 	MT_Vector4 t = mvmat*matmul;
 
-	gpuTranslate( (float)(-t[0]), (float)(-t[1]), (float)(-t[2]) );
-
-	gpuMatrixMode(GL_MODELVIEW);
+	gpuTranslate(GPU_TEXTURE, (float)(-t[0]), (float)(-t[1]), (float)(-t[2]) );
 
 }
 

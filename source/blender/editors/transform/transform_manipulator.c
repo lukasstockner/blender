@@ -645,10 +645,10 @@ static void test_manipulator_axis(const bContext *C)
 
 static float screen_aligned(RegionView3D *rv3d, float mat[4][4])
 {
-	gpuTranslate(mat[3][0], mat[3][1], mat[3][2]);
+	gpuTranslate(GPU_MODELVIEW, mat[3][0], mat[3][1], mat[3][2]);
 
 	/* sets view screen aligned */
-	gpuRotateVector(-360.0f * saacos(rv3d->viewquat[0]) / (float)M_PI, rv3d->viewquat);
+	gpuRotateVector(GPU_MODELVIEW, -360.0f * saacos(rv3d->viewquat[0]) / (float)M_PI, rv3d->viewquat);
 
 	return len_v3(mat[0]); /* draw scale */
 }
@@ -884,8 +884,8 @@ static void preOrthoFront(const bool ortho, float twmat[4][4], int axis)
 		float omat[4][4];
 		copy_m4_m4(omat, twmat);
 		orthogonalize_m4(omat, axis);
-		gpuPushMatrix();
-		gpuMultMatrix(omat[0]);
+		gpuPushMatrix(GPU_MODELVIEW);
+		gpuMultMatrix(GPU_MODELVIEW, omat[0]);
 		glFrontFace(is_negative_m4(omat) ? GL_CW : GL_CCW);
 	}
 }
@@ -893,7 +893,7 @@ static void preOrthoFront(const bool ortho, float twmat[4][4], int axis)
 static void postOrtho(const bool ortho)
 {
 	if (ortho == false) {
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 	}
 }
 
@@ -919,8 +919,8 @@ static void draw_manipulator_rotate(
 
 	/* prepare for screen aligned draw */
 	size = len_v3(rv3d->twmat[0]);
-	gpuPushMatrix();
-	gpuTranslate(rv3d->twmat[3][0], rv3d->twmat[3][1], rv3d->twmat[3][2]);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, rv3d->twmat[3][0], rv3d->twmat[3][1], rv3d->twmat[3][2]);
 
 	if (arcs) {
 		/* clipplane makes nice handles, calc here because of multmatrix but with translate! */
@@ -929,7 +929,7 @@ static void draw_manipulator_rotate(
 		glClipPlane(GL_CLIP_PLANE0, plane);
 	}
 	/* sets view screen aligned */
-	gpuRotateVector(-360.0f * saacos(rv3d->viewquat[0]) / (float)M_PI, rv3d->viewquat);
+	gpuRotateVector(GPU_MODELVIEW, -360.0f * saacos(rv3d->viewquat[0]) / (float)M_PI, rv3d->viewquat);
 
 	/* Screen aligned help circle */
 	if (arcs) {
@@ -966,7 +966,7 @@ static void draw_manipulator_rotate(
 			glEnd();
 		}
 	}
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 
 	ortho = is_orthogonal_m4(rv3d->twmat);
@@ -976,14 +976,14 @@ static void draw_manipulator_rotate(
 		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]
 		// XXX mul_m4_m3m4(matt, t->mat, rv3d->twmat);
 		if (ortho) {
-			gpuMultMatrix(matt[0]);
+			gpuMultMatrix(GPU_MODELVIEW, matt[0]);
 			glFrontFace(is_negative_m4(matt) ? GL_CW : GL_CCW);
 		}
 	}
 	else {
 		if (ortho) {
 			glFrontFace(is_negative_m4(rv3d->twmat) ? GL_CW : GL_CCW);
-			gpuMultMatrix(rv3d->twmat[0]);
+			gpuMultMatrix(GPU_MODELVIEW, rv3d->twmat[0]);
 		}
 	}
 
@@ -1038,9 +1038,9 @@ static void draw_manipulator_rotate(
 			preOrthoFront(ortho, matt, 0);
 			if (is_picksel) GPU_select_load_id(MAN_ROT_X);
 			else manipulator_setcolor(v3d, 'X', colcode, 255);
-			gpuRotateAxis(90.0, 'Y');
+			gpuRotateAxis(GPU_MODELVIEW, 90.0, 'Y');
 			drawcircball(GL_LINE_LOOP, unitmat[3], 1.0, unitmat);
-			gpuRotateAxis(-90.0, 'Y');
+			gpuRotateAxis(GPU_MODELVIEW, -90.0, 'Y');
 			postOrtho(ortho);
 		}
 		/* Y circle */
@@ -1048,9 +1048,9 @@ static void draw_manipulator_rotate(
 			preOrthoFront(ortho, matt, 1);
 			if (is_picksel) GPU_select_load_id(MAN_ROT_Y);
 			else manipulator_setcolor(v3d, 'Y', colcode, 255);
-			gpuRotateAxis(-90.0, 'X');
+			gpuRotateAxis(GPU_MODELVIEW, -90.0, 'X');
 			drawcircball(GL_LINE_LOOP, unitmat[3], 1.0, unitmat);
-			gpuRotateAxis(90.0, 'X');
+			gpuRotateAxis(GPU_MODELVIEW, 90.0, 'X');
 			postOrtho(ortho);
 		}
 
@@ -1073,9 +1073,9 @@ static void draw_manipulator_rotate(
 			preOrthoFront(ortho, rv3d->twmat, 0);
 			if (is_picksel) GPU_select_load_id(MAN_ROT_X);
 			else manipulator_setcolor(v3d, 'X', colcode, 255);
-			gpuRotateAxis(90.0, 'Y');
+			gpuRotateAxis(GPU_MODELVIEW, 90.0, 'Y');
 			partial_doughnut(cusize / 4.0f, 1.0f, 0, 48, 8, 48);
-			gpuRotateAxis(-90.0, 'Y');
+			gpuRotateAxis(GPU_MODELVIEW, -90.0, 'Y');
 			postOrtho(ortho);
 		}
 		/* Y circle */
@@ -1083,9 +1083,9 @@ static void draw_manipulator_rotate(
 			preOrthoFront(ortho, rv3d->twmat, 1);
 			if (is_picksel) GPU_select_load_id(MAN_ROT_Y);
 			else manipulator_setcolor(v3d, 'Y', colcode, 255);
-			gpuRotateAxis(-90.0, 'X');
+			gpuRotateAxis(GPU_MODELVIEW, -90.0, 'X');
 			partial_doughnut(cusize / 4.0f, 1.0f, 0, 48, 8, 48);
-			gpuRotateAxis(90.0, 'X');
+			gpuRotateAxis(GPU_MODELVIEW, 90.0, 'X');
 			postOrtho(ortho);
 		}
 
@@ -1097,50 +1097,50 @@ static void draw_manipulator_rotate(
 		/* Z handle on X axis */
 		if (drawflags & MAN_ROT_Z) {
 			preOrthoFront(ortho, rv3d->twmat, 2);
-			gpuPushMatrix();
+			gpuPushMatrix(GPU_MODELVIEW);
 			if (is_picksel) GPU_select_load_id(MAN_ROT_Z);
 			else manipulator_setcolor(v3d, 'Z', colcode, 255);
 
 			partial_doughnut(0.7f * cusize, 1.0f, 31, 33, 8, 64);
 
-			gpuPopMatrix();
+			gpuPopMatrix(GPU_MODELVIEW);
 			postOrtho(ortho);
 		}
 
 		/* Y handle on X axis */
 		if (drawflags & MAN_ROT_Y) {
 			preOrthoFront(ortho, rv3d->twmat, 1);
-			gpuPushMatrix();
+			gpuPushMatrix(GPU_MODELVIEW);
 			if (is_picksel) GPU_select_load_id(MAN_ROT_Y);
 			else manipulator_setcolor(v3d, 'Y', colcode, 255);
 
-			gpuRotateAxis(90.0, 'X');
-			gpuRotateAxis(90.0, 'Z');
+			gpuRotateAxis(GPU_MODELVIEW, 90.0, 'X');
+			gpuRotateAxis(GPU_MODELVIEW, 90.0, 'Z');
 			partial_doughnut(0.7f * cusize, 1.0f, 31, 33, 8, 64);
 
-			gpuPopMatrix();
+			gpuPopMatrix(GPU_MODELVIEW);
 			postOrtho(ortho);
 		}
 
 		/* X handle on Z axis */
 		if (drawflags & MAN_ROT_X) {
 			preOrthoFront(ortho, rv3d->twmat, 0);
-			gpuPushMatrix();
+			gpuPushMatrix(GPU_MODELVIEW);
 			if (is_picksel) GPU_select_load_id(MAN_ROT_X);
 			else manipulator_setcolor(v3d, 'X', colcode, 255);
 
-			gpuRotateAxis(-90.0, 'Z');
-			gpuRotateAxis(90.0, 'Z');
+			gpuRotateAxis(GPU_MODELVIEW, -90.0, 'Z');
+			gpuRotateAxis(GPU_MODELVIEW, 90.0, 'Z');
 			partial_doughnut(0.7f * cusize, 1.0f, 31, 33, 8, 64);
 
-			gpuPopMatrix();
+			gpuPopMatrix(GPU_MODELVIEW);
 			postOrtho(ortho);
 		}
 
 	}
 
 	/* restore */
-	gpuLoadMatrix(rv3d->viewmat[0]);
+	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
 }
@@ -1159,8 +1159,8 @@ static void drawsolidcube(float size)
 	};
 	float n[3] = {0.0f};
 
-	gpuPushMatrix();
-	gpuScale(size, size, size);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuScale(GPU_MODELVIEW, size, size, size);
 
 	glBegin(GL_QUADS);
 	n[0] = -1.0;
@@ -1203,7 +1203,7 @@ static void drawsolidcube(float size)
 	glVertex3fv(cube[7]); glVertex3fv(cube[4]); glVertex3fv(cube[0]); glVertex3fv(cube[3]);
 	glEnd();
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 
@@ -1232,11 +1232,11 @@ static void draw_manipulator_scale(
 		if (is_picksel && shift == 0) GPU_select_load_id(MAN_SCALE_C);
 		else manipulator_setcolor(v3d, 'C', colcode, 255);
 
-		gpuPushMatrix();
+		gpuPushMatrix(GPU_MODELVIEW);
 		size = screen_aligned(rv3d, rv3d->twmat);
 		unit_m4(unitmat);
 		drawcircball(GL_LINE_LOOP, unitmat[3], 0.2f * size, unitmat);
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 
 		dz = 1.0;
 	}
@@ -1249,11 +1249,11 @@ static void draw_manipulator_scale(
 
 		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]
 		// XXX mul_m4_m3m4(matt, t->mat, rv3d->twmat);
-		gpuMultMatrix(matt[0]);
+		gpuMultMatrix(GPU_MODELVIEW, matt[0]);
 		glFrontFace(is_negative_m4(matt) ? GL_CW : GL_CCW);
 	}
 	else {
-		gpuMultMatrix(rv3d->twmat[0]);
+		gpuMultMatrix(GPU_MODELVIEW, rv3d->twmat[0]);
 		glFrontFace(is_negative_m4(rv3d->twmat) ? GL_CW : GL_CCW);
 	}
 
@@ -1269,29 +1269,29 @@ static void draw_manipulator_scale(
 		switch (axis_order[i]) {
 			case 0: /* X cube */
 				if (drawflags & MAN_SCALE_X) {
-					gpuTranslate(dz, 0.0, 0.0);
+					gpuTranslate(GPU_MODELVIEW, dz, 0.0, 0.0);
 					if (is_picksel) GPU_select_load_id(MAN_SCALE_X);
 					else manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]));
 					drawsolidcube(cusize);
-					gpuTranslate(-dz, 0.0, 0.0);
+					gpuTranslate(GPU_MODELVIEW, -dz, 0.0, 0.0);
 				}
 				break;
 			case 1: /* Y cube */
 				if (drawflags & MAN_SCALE_Y) {
-					gpuTranslate(0.0, dz, 0.0);
+					gpuTranslate(GPU_MODELVIEW, 0.0, dz, 0.0);
 					if (is_picksel) GPU_select_load_id(MAN_SCALE_Y);
 					else manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->tw_idot[1]));
 					drawsolidcube(cusize);
-					gpuTranslate(0.0, -dz, 0.0);
+					gpuTranslate(GPU_MODELVIEW, 0.0, -dz, 0.0);
 				}
 				break;
 			case 2: /* Z cube */
 				if (drawflags & MAN_SCALE_Z) {
-					gpuTranslate(0.0, 0.0, dz);
+					gpuTranslate(GPU_MODELVIEW, 0.0, 0.0, dz);
 					if (is_picksel) GPU_select_load_id(MAN_SCALE_Z);
 					else manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]));
 					drawsolidcube(cusize);
-					gpuTranslate(0.0, 0.0, -dz);
+					gpuTranslate(GPU_MODELVIEW, 0.0, 0.0, -dz);
 				}
 				break;
 		}
@@ -1302,7 +1302,7 @@ static void draw_manipulator_scale(
 		int shift = 0; // XXX
 
 		if (shift) {
-			gpuTranslate(0.0, -dz, 0.0);
+			gpuTranslate(GPU_MODELVIEW, 0.0, -dz, 0.0);
 			GPU_select_load_id(MAN_SCALE_C);
 			glBegin(GL_POINTS);
 			glVertex3f(0.0, 0.0, 0.0);
@@ -1311,7 +1311,7 @@ static void draw_manipulator_scale(
 	}
 
 	/* restore */
-	gpuLoadMatrix(rv3d->viewmat[0]);
+	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	glFrontFace(GL_CCW);
@@ -1359,14 +1359,14 @@ static void draw_manipulator_translate(
 	if (is_picksel && shift == 0) GPU_select_load_id(MAN_TRANS_C);
 	else manipulator_setcolor(v3d, 'C', colcode, 255);
 
-	gpuPushMatrix();
+	gpuPushMatrix(GPU_MODELVIEW);
 	size = screen_aligned(rv3d, rv3d->twmat);
 	unit_m4(unitmat);
 	drawcircball(GL_LINE_LOOP, unitmat[3], 0.2f * size, unitmat);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	/* and now apply matrix, we move to local matrix drawing */
-	gpuMultMatrix(rv3d->twmat[0]);
+	gpuMultMatrix(GPU_MODELVIEW, rv3d->twmat[0]);
 
 	/* axis */
 	GPU_select_load_id(-1);
@@ -1390,39 +1390,39 @@ static void draw_manipulator_translate(
 		switch (axis_order[i]) {
 			case 0: /* Z Cone */
 				if (drawflags & MAN_TRANS_Z) {
-					gpuTranslate(0.0, 0.0, dz);
+					gpuTranslate(GPU_MODELVIEW, 0.0, 0.0, dz);
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_Z);
 					else manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]));
 					gpuSingleCone(&prim, cywid, cylen);
-					gpuTranslate(0.0, 0.0, -dz);
+					gpuTranslate(GPU_MODELVIEW, 0.0, 0.0, -dz);
 				}
 				break;
 			case 1: /* X Cone */
 				if (drawflags & MAN_TRANS_X) {
-					gpuTranslate(dz, 0.0, 0.0);
+					gpuTranslate(GPU_MODELVIEW, dz, 0.0, 0.0);
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_X);
 					else manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]));
-					gpuRotateAxis(90.0, 'Y');
+					gpuRotateAxis(GPU_MODELVIEW, 90.0, 'Y');
 					gpuSingleCone(&prim, cywid, cylen);
-					gpuRotateAxis(-90.0, 'Y');
-					gpuTranslate(-dz, 0.0, 0.0);
+					gpuRotateAxis(GPU_MODELVIEW, -90.0, 'Y');
+					gpuTranslate(GPU_MODELVIEW, -dz, 0.0, 0.0);
 				}
 				break;
 			case 2: /* Y Cone */
 				if (drawflags & MAN_TRANS_Y) {
-					gpuTranslate(0.0, dz, 0.0);
+					gpuTranslate(GPU_MODELVIEW, 0.0, dz, 0.0);
 					if (is_picksel) GPU_select_load_id(MAN_TRANS_Y);
 					else manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->tw_idot[1]));
-					gpuRotateAxis(-90.0, 'X');
+					gpuRotateAxis(GPU_MODELVIEW, -90.0, 'X');
 					gpuSingleCone(&prim, cywid, cylen);
-					gpuRotateAxis(90.0, 'X');
-					gpuTranslate(0.0, -dz, 0.0);
+					gpuRotateAxis(GPU_MODELVIEW, 90.0, 'X');
+					gpuTranslate(GPU_MODELVIEW, 0.0, -dz, 0.0);
 				}
 				break;
 		}
 	}
 
-	gpuLoadMatrix(rv3d->viewmat[0]);
+	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 

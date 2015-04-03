@@ -38,33 +38,38 @@
 extern "C" {
 #endif
 
-void gpuPushMatrix(void);
-void gpuPopMatrix(void);
+typedef enum eGPUMatrixMode {
+	GPU_MODELVIEW = 0,
+	GPU_PROJECTION = 1,
+	GPU_TEXTURE = 2
+} eGPUMatrixMode;
 
-void   gpuMatrixMode(GLenum mode);
-GLenum gpuGetMatrixMode(void);
+void gpuPushMatrix(eGPUMatrixMode stack);
+void gpuPopMatrix(eGPUMatrixMode stack);
 
-void gpuLoadMatrix(const GLfloat m[16]);
-const GLfloat *gpuGetMatrix(GLenum type, GLfloat m[16]);
+void gpuLoadMatrix(eGPUMatrixMode stack, const float m[16]);
+void gpuLoadMatrixd(eGPUMatrixMode stack, const double m[16]);
+const float *gpuGetMatrix(eGPUMatrixMode stack, float m[16]);
+void gpuGetMatrixd(eGPUMatrixMode stack, double m[16]);
 
-void gpuLoadIdentity(void);
+void gpuLoadIdentity(eGPUMatrixMode stack);
 
-void gpuMultMatrix(const GLfloat m[16]);
-void gpuMultMatrixd(const GLdouble m[16]);
+void gpuMultMatrix(eGPUMatrixMode stack, const float m[16]);
+void gpuMultMatrixd(eGPUMatrixMode stack, const double m[16]);
 
-void gpuTranslate(GLfloat x, GLfloat y, GLfloat z);
-void gpuScale(GLfloat x, GLfloat y, GLfloat z);
-void gpuRotateVector(GLfloat deg, GLfloat vector[3]);
-void gpuRotateAxis(GLfloat deg, char axis);
-void gpuRotateRight(char type);
+void gpuTranslate(eGPUMatrixMode stack, float x, float y, float z);
+void gpuScale(eGPUMatrixMode stack, GLfloat x, GLfloat y, GLfloat z);
+void gpuRotateVector(eGPUMatrixMode stack, GLfloat deg, GLfloat vector[3]);
+void gpuRotateAxis(eGPUMatrixMode stack, GLfloat deg, char axis);
+void gpuRotateRight(eGPUMatrixMode stack, char type);
 
-void gpuOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
-void gpuFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
+void gpuOrtho(eGPUMatrixMode stack, GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
+void gpuFrustum(eGPUMatrixMode stack, GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
 
-void gpuLoadOrtho(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
-void gpuLoadFrustum(GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
+void gpuLoadOrtho(eGPUMatrixMode stack, GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
+void gpuLoadFrustum(eGPUMatrixMode stack, GLfloat left, GLfloat right, GLfloat bottom, GLfloat top, GLfloat nearVal, GLfloat farVal);
 
-void gpuLookAt(GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloat centerY, GLfloat centerZ, GLfloat upX, GLfloat upY, GLfloat upZ);
+void gpuLookAt(eGPUMatrixMode stack, GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, GLfloat centerX, GLfloat centerY, GLfloat centerZ, GLfloat upX, GLfloat upY, GLfloat upZ);
 
 void gpuProject(const GLfloat obj[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat win[3]);
 GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat obj[3]);

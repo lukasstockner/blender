@@ -1096,7 +1096,7 @@ void UI_view2d_view_ortho(View2D *v2d)
 	wmOrtho2(curmasked.xmin, curmasked.xmax, curmasked.ymin, curmasked.ymax);
 
 	/* XXX is this necessary? */
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_MODELVIEW);
 }
 
 /* Set view matrices to only use one axis of 'cur' only
@@ -1124,7 +1124,7 @@ void UI_view2d_view_orthoSpecial(ARegion *ar, View2D *v2d, const bool xaxis)
 		wmOrtho2(-xofs, ar->winx - xofs, curmasked.ymin - yofs, curmasked.ymax - yofs);
 		
 	/* XXX is this necessary? */
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_MODELVIEW);
 } 
 
 
@@ -1136,7 +1136,7 @@ void UI_view2d_view_restore(const bContext *C)
 	int height = BLI_rcti_size_y(&ar->winrct) + 1;
 	
 	wmOrtho2(0.0f, (float)width, 0.0f, (float)height);
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_MODELVIEW);
 	
 	//	ED_region_pixelspace(CTX_wm_region(C));
 }

@@ -1356,11 +1356,9 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	ui_but_to_pixelrect(&rect, ar, block, NULL);
 	
 	/* pixel space for AA widgets */
-	gpuMatrixMode(GL_PROJECTION);
-	gpuPushMatrix();
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPushMatrix();
-	gpuLoadIdentity();
+	gpuPushMatrix(GPU_PROJECTION);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuLoadIdentity(GPU_MODELVIEW);
 
 	wmOrtho2_region_ui(ar);
 	
@@ -1385,10 +1383,8 @@ void UI_block_draw(const bContext *C, uiBlock *block)
 	}
 	
 	/* restore matrix */
-	gpuMatrixMode(GL_PROJECTION);
-	gpuPopMatrix();
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_PROJECTION);
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	if (multisample_enabled)
 		glEnable(GL_MULTISAMPLE_ARB);

@@ -216,7 +216,7 @@ int wm_subwindow_open(wmWindow *win, const rcti *winrct)
 	/* extra service */
 	wm_swin_size_get(swin, &width, &height);
 	wmOrtho2_pixelspace(width, height);
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_MODELVIEW);
 
 	return swin->swinid;
 }
@@ -320,7 +320,7 @@ void wmSubWindowScissorSet(wmWindow *win, int swinid, const rcti *srct, bool src
 		glScissor(_curswin->winrct.xmin, _curswin->winrct.ymin, width, height);
 	
 	wmOrtho2_pixelspace(width, height);
-	gpuLoadIdentity();
+	gpuLoadIdentity(GPU_MODELVIEW);
 	
 	glFlush();
 }
@@ -333,20 +333,14 @@ void wmSubWindowSet(wmWindow *win, int swinid)
 
 void wmFrustum(float x1, float x2, float y1, float y2, float n, float f)
 {
-	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity();
-	glFrustum(x1, x2, y1, y2, n, f);
-	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity(GPU_PROJECTION); /* probably unneeded */
+	gpuFrustum(GPU_PROJECTION, x1, x2, y1, y2, n, f);
 }
 
 void wmOrtho(float x1, float x2, float y1, float y2, float n, float f)
 {
-	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity();
-
-	gpuOrtho(x1, x2, y1, y2, n, f);
-
-	gpuMatrixMode(GL_MODELVIEW);
+	gpuLoadIdentity(GPU_PROJECTION); /* probably unneeded */
+	gpuOrtho(GPU_PROJECTION, x1, x2, y1, y2, n, f);
 }
 
 void wmOrtho2(float x1, float x2, float y1, float y2)

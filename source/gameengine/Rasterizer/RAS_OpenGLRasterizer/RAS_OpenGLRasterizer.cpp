@@ -747,21 +747,19 @@ void RAS_OpenGLRasterizer::IndexPrimitivesMulti(RAS_MeshSlot& ms)
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(MT_CmMatrix4x4 &mat)
 {
-	gpuMatrixMode(GL_PROJECTION);
 	double* matrix = &mat(0, 0);
-	glLoadMatrixd(matrix);
+	gpuLoadMatrixd(GPU_PROJECTION, matrix);
 
 	m_camortho = (mat(3, 3) != 0.0);
 }
 
 void RAS_OpenGLRasterizer::SetProjectionMatrix(const MT_Matrix4x4 & mat)
 {
-	gpuMatrixMode(GL_PROJECTION);
 	double matrix[16];
 	/* Get into argument. Looks a bit dodgy, but it's ok. */
 	mat.getValue(matrix);
 	/* Internally, MT_Matrix4x4 uses doubles (MT_Scalar). */
-	glLoadMatrixd(matrix);
+	gpuLoadMatrixd(GPU_PROJECTION, matrix);
 
 	m_camortho= (mat[3][3] != 0.0);
 }
@@ -812,11 +810,10 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetFrustumMatrix(
 			}
 	}
 	
-	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity();
-	glFrustum(left, right, bottom, top, frustnear, frustfar);
+	gpuLoadIdentity(GPU_PROJECTION);
+	gpuFrustum(GPU_PROJECTION, left, right, bottom, top, frustnear, frustfar);
 		
-	glGetDoublev(GL_PROJECTION_MATRIX, mat);
+	gpuGetMatrixd(GPU_PROJECTION, mat);
 	result.setValue(mat);
 
 	return result;
@@ -834,11 +831,10 @@ MT_Matrix4x4 RAS_OpenGLRasterizer::GetOrthoMatrix(
 	double mat[16];
 
 	// stereo is meaning less for orthographic, disable it
-	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity();
-	glOrtho(left, right, bottom, top, frustnear, frustfar);
+	gpuLoadIdentity(GPU_PROJECTION);
+	gpuOrtho(GPU_PROJECTION, left, right, bottom, top, frustnear, frustfar);
 		
-	glGetDoublev(GL_PROJECTION_MATRIX, mat);
+	gpuGetMatrixd(GPU_PROJECTION, mat);
 	result.setValue(mat);
 
 	return result;
@@ -898,8 +894,7 @@ void RAS_OpenGLRasterizer::SetViewMatrix(const MT_Matrix4x4 &mat,
 	MT_Scalar glviewmat[16];
 	m_viewmatrix.getValue(glviewmat);
 
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuLoadMatrix(glviewmat);
+	gpuLoadMatrix(GPU_MODELVIEW, glviewmat);
 	m_campos = pos;
 }
 
@@ -1135,8 +1130,8 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 
 		viewmat.getValue(glviewmat);
 
-		gpuPushMatrix();
-		gpuLoadMatrix(glviewmat);
+		gpuPushMatrix(GPU_MODELVIEW);
+		gpuLoadMatrix(GPU_MODELVIEW, glviewmat);
 		for (lit = m_lights.begin(), count = 0; !(lit==m_lights.end()) && count < m_numgllights; ++lit)
 		{
 			RAS_OpenGLLight* light = (*lit);
@@ -1144,7 +1139,7 @@ void RAS_OpenGLRasterizer::ProcessLighting(bool uselights, const MT_Transform& v
 			if (light->ApplyFixedFunctionLighting(kxscene, layer, count))
 				count++;
 		}
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 
 		enable = count > 0;
 	}
@@ -1227,9 +1222,9 @@ bool RAS_OpenGLRasterizer::RayHit(struct KX_ClientObjectInfo *client, KX_RayCast
 				           resultnormal[0], resultnormal[1], resultnormal[2], 0,
 					       0,               0,               0,               1};
 
-		gpuTranslate(oglmatrix[12],oglmatrix[13],oglmatrix[14]);
+		gpuTranslate(GPU_MODELVIEW, oglmatrix[12],oglmatrix[13],oglmatrix[14]);
 		//gpuMultMatrixd(oglmatrix);
-		gpuMultMatrixd(maat);
+		gpuMultMatrixd(GPU_MODELVIEW, maat);
 		return true;
 	}
 	else {
@@ -1295,8 +1290,8 @@ void RAS_OpenGLRasterizer::applyTransform(double* oglmatrix,int objectdrawmode )
 		                   up[0],   up[1],   up[2],   0,
 		                   0,       0,       0,       1};
 
-		gpuTranslate(objpos[0],objpos[1],objpos[2]);
-		gpuMultMatrixd(maat);
+		gpuTranslate(GPU_MODELVIEW, objpos[0],objpos[1],objpos[2]);
+		gpuMultMatrixd(GPU_MODELVIEW, maat);
 
 	}
 	else {
@@ -1324,19 +1319,19 @@ void RAS_OpenGLRasterizer::applyTransform(double* oglmatrix,int objectdrawmode )
 			if (!KX_RayCast::RayTest(physics_environment, frompoint, topoint, callback))
 			{
 				// couldn't find something to cast the shadow on...
-				gpuMultMatrixd(oglmatrix);
+				gpuMultMatrixd(GPU_MODELVIEW, oglmatrix);
 			}
 			else
 			{ // we found the "ground", but the cast matrix doesn't take
 			  // scaling in consideration, so we must apply the object scale
 				MT_Vector3  size = gameobj->GetSGNode()->GetLocalScale();
-				gpuScale(size[0], size[1], size[2]);
+				gpuScale(GPU_MODELVIEW, size[0], size[1], size[2]);
 			}
 		} else
 		{
 
 			// 'normal' object
-			gpuMultMatrixd(oglmatrix);
+			gpuMultMatrixd(GPU_MODELVIEW, oglmatrix);
 		}
 	}
 }
@@ -1382,15 +1377,13 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	 * what cause it, though :/ .*/
 	glDisable(GL_DEPTH_TEST);
 
-	gpuMatrixMode(GL_PROJECTION);
-	gpuPushMatrix();
-	gpuLoadIdentity();
+	gpuPushMatrix(GPU_PROJECTION);
+	gpuLoadIdentity(GPU_PROJECTION);
 
 	glOrtho(0, width, 0, height, -100, 100);
 
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPushMatrix();
-	gpuLoadIdentity();
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuLoadIdentity(GPU_MODELVIEW);
 
 	yco = height - yco;
 	int barsize = 50;
@@ -1412,10 +1405,8 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	glVertex2f(xco + 1 + barsize * percentage, yco);
 	glEnd();
 
-	gpuMatrixMode(GL_PROJECTION);
-	gpuPopMatrix();
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_PROJECTION);
+	gpuPopMatrix(GPU_MODELVIEW);
 	glEnable(GL_DEPTH_TEST);
 }
 
@@ -1457,15 +1448,13 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	DisableForText();
 	glDisable(GL_DEPTH_TEST);
 
-	gpuMatrixMode(GL_PROJECTION);
-	gpuPushMatrix();
-	gpuLoadIdentity();
+	gpuPushMatrix(GPU_PROJECTION);
+	gpuLoadIdentity(GPU_PROJECTION);
 
 	glOrtho(0, width, 0, height, -100, 100);
 
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPushMatrix();
-	gpuLoadIdentity();
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuLoadIdentity(GPU_MODELVIEW);
 
 	if (mode == RAS_TEXT_PADDED) {
 		/* draw in black first*/
@@ -1481,21 +1470,19 @@ void RAS_OpenGLRasterizer::RenderText2D(
 	BLF_position(blf_mono_font, (float)xco, (float)(height-yco), 0.0f);
 	BLF_draw(blf_mono_font, text, 65535); /* XXX, use real len */
 
-	gpuMatrixMode(GL_PROJECTION);
-	gpuPopMatrix();
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_PROJECTION);
+	gpuPopMatrix(GPU_MODELVIEW);
 	glEnable(GL_DEPTH_TEST);
 }
 
 void RAS_OpenGLRasterizer::PushMatrix()
 {
-	gpuPushMatrix();
+	gpuPushMatrix(GPU_MODELVIEW);
 }
 
 void RAS_OpenGLRasterizer::PopMatrix()
 {
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 void RAS_OpenGLRasterizer::MotionBlur()

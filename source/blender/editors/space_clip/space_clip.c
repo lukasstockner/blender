@@ -1217,13 +1217,13 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 	show_cursor |= sc->around == V3D_CURSOR;
 
 	if (show_cursor) {
-		gpuPushMatrix();
-		gpuTranslate(x, y, 0);
-		gpuScale(zoomx, zoomy, 0);
-		gpuMultMatrix(sc->stabmat[0]);
-		gpuScale(width, height, 0);
+		gpuPushMatrix(GPU_MODELVIEW);
+		gpuTranslate(GPU_MODELVIEW, x, y, 0);
+		gpuScale(GPU_MODELVIEW, zoomx, zoomy, 0);
+		gpuMultMatrix(GPU_MODELVIEW, sc->stabmat[0]);
+		gpuScale(GPU_MODELVIEW, width, height, 0);
 		ED_image_draw_cursor(ar, sc->cursor);
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 	}
 
 	clip_draw_cache_and_notes(C, sc, ar);

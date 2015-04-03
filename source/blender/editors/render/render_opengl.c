@@ -191,7 +191,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
 			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 			wmOrtho2(0, sizex, 0, sizey);
-			gpuTranslate(sizex / 2, sizey / 2, 0.0f);
+			gpuTranslate(GPU_MODELVIEW, sizex / 2, sizey / 2, 0.0f);
 
 			G.f |= G_RENDER_OGL;
 			ED_gpencil_draw_ex(scene, gpd, sizex, sizey, scene->r.cfra, SPACE_SEQ);

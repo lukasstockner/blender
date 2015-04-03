@@ -333,11 +333,11 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 		glEnable(GL_COLOR_LOGIC_OP);
 		glLogicOp(GL_NOR);
 
-		gpuPushMatrix();
-		gpuTranslate(x, y, 0.0f);
+		gpuPushMatrix(GPU_MODELVIEW);
+		gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
 
-		gpuScale(zoomx, zoomy, 1.0f);
-		gpuMultMatrix(sc->stabmat[0]);
+		gpuScale(GPU_MODELVIEW, zoomx, zoomy, 1.0f);
+		gpuMultMatrix(GPU_MODELVIEW, sc->stabmat[0]);
 
 		glBegin(GL_LINE_LOOP);
 		glVertex2f(0.0f, 0.0f);
@@ -346,7 +346,7 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 		glVertex2f(0.0f, height);
 		glEnd();
 
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 
 		glDisable(GL_COLOR_LOGIC_OP);
 		glDisable(GL_LINE_STIPPLE);
@@ -514,8 +514,8 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 	}
 
 	/* pattern and search outline */
-	gpuPushMatrix();
-	gpuTranslate(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, marker_pos[0], marker_pos[1], 0);
 
 	if (!tiny)
 		glLineWidth(3.0f);
@@ -539,7 +539,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		glVertex2f(marker->search_min[0], marker->search_max[1]);
 		glEnd();
 	}
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	if (!tiny)
 		glLineWidth(1.0f);
@@ -646,8 +646,8 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	}
 
 	/* pattern */
-	gpuPushMatrix();
-	gpuTranslate(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, marker_pos[0], marker_pos[1], 0);
 
 	if (tiny) {
 		glLineStipple(3, 0xaaaa);
@@ -719,7 +719,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 	if (tiny)
 		glDisable(GL_LINE_STIPPLE);
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 static float get_shortest_pattern_side(MovieTrackingMarker *marker)
@@ -799,8 +799,8 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		UI_ThemeColor(TH_MARKER_OUTLINE);
 	}
 
-	gpuPushMatrix();
-	gpuTranslate(marker_pos[0], marker_pos[1], 0);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, marker_pos[0], marker_pos[1], 0);
 
 	dx = 6.0f / width / sc->zoom;
 	dy = 6.0f / height / sc->zoom;
@@ -886,7 +886,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		draw_marker_slide_square(tilt_ctrl[0], tilt_ctrl[1], patdx, patdy, outline, px);
 	}
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	if (outline)
 		glLineWidth(1.0f);
@@ -1092,8 +1092,8 @@ static void draw_plane_marker_image(Scene *scene,
 			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, GL_RGBA,
 			             GL_UNSIGNED_BYTE, display_buffer);
 
-			gpuPushMatrix();
-			gpuMultMatrix(gl_matrix[0]);
+			gpuPushMatrix(GPU_MODELVIEW);
+			gpuMultMatrix(GPU_MODELVIEW, gl_matrix[0]);
 
 			glBegin(GL_QUADS);
 			glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
@@ -1102,7 +1102,7 @@ static void draw_plane_marker_image(Scene *scene,
 			glTexCoord2f(0.0f, 1.0f); glVertex2f(0.0f, 1.0f);
 			glEnd();
 
-			gpuPopMatrix();
+			gpuPopMatrix(GPU_MODELVIEW);
 
 			glBindTexture(GL_TEXTURE_2D, last_texid);
 			glDisable(GL_TEXTURE_2D);
@@ -1258,13 +1258,13 @@ static void draw_tracking_tracks(SpaceClip *sc, Scene *scene, ARegion *ar, Movie
 
 	UI_view2d_view_to_region_fl(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-	gpuPushMatrix();
-	gpuTranslate(x, y, 0);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, x, y, 0);
 
-	gpuPushMatrix();
-	gpuScale(zoomx, zoomy, 0);
-	gpuMultMatrix(sc->stabmat[0]);
-	gpuScale(width, height, 0);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuScale(GPU_MODELVIEW, zoomx, zoomy, 0);
+	gpuMultMatrix(GPU_MODELVIEW, sc->stabmat[0]);
+	gpuScale(GPU_MODELVIEW, width, height, 0);
 
 	act_track = BKE_tracking_track_get_active(tracking);
 
@@ -1447,7 +1447,7 @@ static void draw_tracking_tracks(SpaceClip *sc, Scene *scene, ARegion *ar, Movie
 		glDisable(GL_POINT_SMOOTH);
 	}
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	if (sc->flag & SC_SHOW_NAMES) {
 		/* scaling should be cleared before drawing texts, otherwise font would also be scaled */
@@ -1473,7 +1473,7 @@ static void draw_tracking_tracks(SpaceClip *sc, Scene *scene, ARegion *ar, Movie
 		}
 	}
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	if (marker_pos)
 		MEM_freeN(marker_pos);
@@ -1500,11 +1500,11 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 
 	UI_view2d_view_to_region_fl(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
-	gpuPushMatrix();
-	gpuTranslate(x, y, 0);
-	gpuScale(zoomx, zoomy, 0);
-	gpuMultMatrix(sc->stabmat[0]);
-	gpuScale(width, height, 0);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, x, y, 0);
+	gpuScale(GPU_MODELVIEW, zoomx, zoomy, 0);
+	gpuMultMatrix(GPU_MODELVIEW, sc->stabmat[0]);
+	gpuScale(GPU_MODELVIEW, width, height, 0);
 
 	/* grid */
 	if (sc->flag & SC_SHOW_GRID) {
@@ -1672,7 +1672,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		glPointSize(1.0f);
 	}
 
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *ar)
@@ -1769,8 +1769,8 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 		 * associated with the clip is already drawn in draw_distortion
 		 */
 		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0 || is_track_source) {
-			gpuPushMatrix();
-			gpuMultMatrix(sc->unistabmat[0]);
+			gpuPushMatrix(GPU_MODELVIEW);
+			gpuMultMatrix(GPU_MODELVIEW, sc->unistabmat[0]);
 
 			if (is_track_source) {
 				MovieTrackingTrack *track = BKE_tracking_track_get_active(&sc->clip->tracking);
@@ -1779,13 +1779,13 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 					int framenr = ED_space_clip_get_clip_frame_number(sc);
 					MovieTrackingMarker *marker = BKE_tracking_marker_get(track, framenr);
 
-					gpuTranslate(marker->pos[0], marker->pos[1], 0.0f);
+					gpuTranslate(GPU_MODELVIEW, marker->pos[0], marker->pos[1], 0.0f);
 				}
 			}
 
 			ED_gpencil_draw_2dimage(C);
 
-			gpuPopMatrix();
+			gpuPopMatrix(GPU_MODELVIEW);
 		}
 	}
 	else {

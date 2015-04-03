@@ -202,9 +202,9 @@ void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y
 
 	/* for each AA step */
 	for (j = 0; j < WIDGET_AA_JITTER; j++) {
-		gpuTranslate(jit[j][0], jit[j][1], 0.0f);
+		gpuTranslate(GPU_MODELVIEW, jit[j][0], jit[j][1], 0.0f);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
-		gpuTranslate(-jit[j][0], -jit[j][1], 0.0f);
+		gpuTranslate(GPU_MODELVIEW, -jit[j][0], -jit[j][1], 0.0f);
 	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -225,9 +225,9 @@ void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float m
 	glColor4fv(color);
 	
 	for (j = 0; j < WIDGET_AA_JITTER; j++) {
-		gpuTranslate(jit[j][0], jit[j][1], 0.0f);
+		gpuTranslate(GPU_MODELVIEW, jit[j][0], jit[j][1], 0.0f);
 		UI_draw_roundbox_gl_mode(mode, minx, miny, maxx, maxy, rad);
-		gpuTranslate(-jit[j][0], -jit[j][1], 0.0f);
+		gpuTranslate(GPU_MODELVIEW, -jit[j][0], -jit[j][1], 0.0f);
 	}
 
 	glDisable(GL_BLEND);
@@ -760,7 +760,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 		for (j = 0; j < WIDGET_AA_JITTER; j++) {
 			unsigned char emboss[4];
 
-			gpuTranslate(jit[j][0], jit[j][1], 0.0f);
+			gpuTranslate(GPU_MODELVIEW, jit[j][0], jit[j][1], 0.0f);
 			
 			/* outline */
 			glColor4ubv(tcol);
@@ -779,7 +779,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				}
 			}
 			
-			gpuTranslate(-jit[j][0], -jit[j][1], 0.0f);
+			gpuTranslate(GPU_MODELVIEW, -jit[j][0], -jit[j][1], 0.0f);
 		}
 
 		glDisableClientState(GL_VERTEX_ARRAY);
@@ -795,7 +795,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 		/* for each AA step */
 		for (j = 0; j < WIDGET_AA_JITTER; j++) {
-			gpuTranslate(jit[j][0], jit[j][1], 0.0f);
+			gpuTranslate(GPU_MODELVIEW, jit[j][0], jit[j][1], 0.0f);
 
 			if (wtb->tria1.tot)
 				widget_trias_draw(&wtb->tria1);
@@ -803,7 +803,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			if (wtb->tria2.tot)
 				widget_trias_draw(&wtb->tria2);
 		
-			gpuTranslate(-jit[j][0], -jit[j][1], 0.0f);
+			gpuTranslate(GPU_MODELVIEW, -jit[j][0], -jit[j][1], 0.0f);
 		}
 	}
 
@@ -2195,8 +2195,8 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 
 static void ui_hsv_cursor(float x, float y)
 {
-	gpuPushMatrix();
-	gpuTranslate(x, y, 0.0f);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
 	
 	glColor3f(1.0f, 1.0f, 1.0f);
 	glutil_draw_filled_arc(0.0f, M_PI * 2.0, 3.0f * U.pixelsize, 8);
@@ -2208,7 +2208,7 @@ static void ui_hsv_cursor(float x, float y)
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
 	
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rect,
@@ -2312,15 +2312,15 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 	glShadeModel(GL_FLAT);
 	
 	/* fully rounded outline */
-	gpuPushMatrix();
-	gpuTranslate(centx, centy, 0.0f);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, centx, centy, 0.0f);
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
 	glColor3ubv((unsigned char *)wcol->outline);
 	glutil_draw_lined_arc(0.0f, M_PI * 2.0, radius, tot + 1);
 	glDisable(GL_BLEND);
 	glDisable(GL_LINE_SMOOTH);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	/* cursor */
 	ui_hsvcircle_pos_from_vals(but, rect, hsvo, &xpos, &ypos);
@@ -3942,8 +3942,8 @@ void ui_draw_pie_center(uiBlock *block)
 	float angle = atan2f(pie_dir[1], pie_dir[0]);
 	float range = (block->pie_data.flags & UI_PIE_DEGREES_RANGE_LARGE) ? M_PI_2 : M_PI_4;
 
-	gpuPushMatrix();
-	gpuTranslate(cx, cy, 0.0f);
+	gpuPushMatrix(GPU_MODELVIEW);
+	gpuTranslate(GPU_MODELVIEW, cx, cy, 0.0f);
 
 	glEnable(GL_BLEND);
 	if (btheme->tui.wcol_pie_menu.shaded) {
@@ -3981,7 +3981,7 @@ void ui_draw_pie_center(uiBlock *block)
 	}
 
 	glDisable(GL_BLEND);
-	gpuPopMatrix();
+	gpuPopMatrix(GPU_MODELVIEW);
 }
 
 

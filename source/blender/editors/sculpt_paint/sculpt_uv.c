@@ -208,9 +208,9 @@ static void brush_drawcursor_uvsculpt(bContext *C, int x, int y, void *UNUSED(cu
 			alpha *= (size - PX_SIZE_FADE_MIN) / (PX_SIZE_FADE_MAX - PX_SIZE_FADE_MIN);
 		}
 
-		gpuPushMatrix();
+		gpuPushMatrix(GPU_MODELVIEW);
 
-		gpuTranslate((float)x, (float)y, 0.0f);
+		gpuTranslate(GPU_MODELVIEW, (float)x, (float)y, 0.0f);
 
 		glColor4f(brush->add_col[0], brush->add_col[1], brush->add_col[2], alpha);
 		glEnable(GL_LINE_SMOOTH);
@@ -219,7 +219,7 @@ static void brush_drawcursor_uvsculpt(bContext *C, int x, int y, void *UNUSED(cu
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 
-		gpuPopMatrix();
+		gpuPopMatrix(GPU_MODELVIEW);
 	}
 #undef PX_SIZE_FADE_MAX
 #undef PX_SIZE_FADE_MIN

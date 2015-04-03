@@ -493,7 +493,7 @@ void BLF_rotation_default(float angle)
 	}
 }
 
-static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
+static void blf_draw__start(FontBLF *font, GLint *param)
 {
 	/*
 	 * The pixmap alignment hack is handle
@@ -504,26 +504,21 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 	glEnable(GL_TEXTURE_2D);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	/* Save the current matrix mode. */
-	glGetIntegerv(GL_MATRIX_MODE, mode);
+	gpuPushMatrix(GPU_TEXTURE);
+	gpuLoadIdentity(GPU_TEXTURE);
 
-	gpuMatrixMode(GL_TEXTURE);
-	gpuPushMatrix();
-	gpuLoadIdentity();
-
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPushMatrix();
+	gpuPushMatrix(GPU_MODELVIEW);
 
 	if (font->flags & BLF_MATRIX)
-		gpuMultMatrixd((GLdouble *)&font->m);
+		gpuMultMatrixd(GPU_MODELVIEW, font->m);
 
-	gpuTranslate(font->pos[0], font->pos[1], font->pos[2]);
+	gpuTranslate(GPU_MODELVIEW, font->pos[0], font->pos[1], font->pos[2]);
 
 	if (font->flags & BLF_ASPECT)
-		gpuScale(font->aspect[0], font->aspect[1], font->aspect[2]);
+		gpuScale(GPU_MODELVIEW, font->aspect[0], font->aspect[1], font->aspect[2]);
 
 	if (font->flags & BLF_ROTATION)  /* radians -> degrees */
-		gpuRotateAxis(font->angle * (float)(180.0 / M_PI), 'Z');
+		gpuRotateAxis(GPU_MODELVIEW, font->angle * (float)(180.0 / M_PI), 'Z');
 
 	if (font->shadow || font->blur)
 		glGetFloatv(GL_CURRENT_COLOR, font->orig_col);
@@ -537,20 +532,14 @@ static void blf_draw__start(FontBLF *font, GLint *mode, GLint *param)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 }
 
-static void blf_draw__end(GLint mode, GLint param)
+static void blf_draw__end(GLint param)
 {
 	/* and restore the original value. */
 	if (param != GL_MODULATE)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
 
-	gpuMatrixMode(GL_TEXTURE);
-	gpuPopMatrix();
-
-	gpuMatrixMode(GL_MODELVIEW);
-	gpuPopMatrix();
-
-	if (mode != GL_MODELVIEW)
-		gpuMatrixMode(mode);
+	gpuPopMatrix(GPU_TEXTURE);
+	gpuPopMatrix(GPU_MODELVIEW);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);
@@ -559,37 +548,37 @@ static void blf_draw__end(GLint mode, GLint param)
 void BLF_draw(int fontid, const char *str, size_t len)
 {
 	FontBLF *font = blf_get(fontid);
-	GLint mode, param;
+	GLint param;
 
 	if (font && font->glyph_cache) {
-		blf_draw__start(font, &mode, &param);
+		blf_draw__start(font, &param);
 		blf_font_draw(font, str, len);
-		blf_draw__end(mode, param);
+		blf_draw__end(param);
 	}
 }
 
 void BLF_draw_ascii(int fontid, const char *str, size_t len)
 {
 	FontBLF *font = blf_get(fontid);
-	GLint mode, param;
+	GLint param;
 
 	if (font && font->glyph_cache) {
-		blf_draw__start(font, &mode, &param);
+		blf_draw__start(font, &param);
 		blf_font_draw_ascii(font, str, len);
-		blf_draw__end(mode, param);
+		blf_draw__end(param);
 	}
 }
 
 int BLF_draw_mono(int fontid, const char *str, size_t len, int cwidth)
 {
 	FontBLF *font = blf_get(fontid);
-	GLint mode, param;
+	GLint param;
 	int columns = 0;
 
 	if (font && font->glyph_cache) {
-		blf_draw__start(font, &mode, &param);
+		blf_draw__start(font, &param);
 		columns = blf_font_draw_mono(font, str, len, cwidth);
-		blf_draw__end(mode, param);
+		blf_draw__end(param);
 	}
 
 	return columns;
