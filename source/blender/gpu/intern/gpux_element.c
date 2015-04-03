@@ -30,7 +30,7 @@ unsigned max_index(const ElementList *el)
 #endif /* TRACK_INDEX_RANGE */
 }
 
-ElementList *create_element_list(GLenum prim_type, unsigned prim_ct, unsigned max_index)
+ElementList *element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index)
 {
 	ElementList *el;
 	unsigned index_size, prim_vertex_ct;
@@ -68,8 +68,7 @@ ElementList *create_element_list(GLenum prim_type, unsigned prim_ct, unsigned ma
 	}
 
 #if TRACK_INDEX_RANGE
-	el->min_observed_index = 0xFFFFFFFF;
-/*	el->min_observed_index = (unsigned) -1; */
+	el->min_observed_index = max_index + 1; /* any valid index will be < this */
 	el->max_observed_index = 0;
 #endif /* TRACK_INDEX_RANGE */
 
@@ -79,7 +78,7 @@ ElementList *create_element_list(GLenum prim_type, unsigned prim_ct, unsigned ma
 	return el;
 }
 
-void discard_element_list(ElementList *el)
+void element_list_discard(ElementList *el)
 {
 	free(el->indices);
 	free(el);

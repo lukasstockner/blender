@@ -60,11 +60,12 @@ static unsigned attrib_sz(const Attrib *a)
 
 static unsigned attrib_align(const Attrib *a)
 {
-	/* I know AMD HW can't fetch these well, so pad it out */
-	if (a->comp_ct == 3 && a->sz <= 2)
-		return 4 * a->sz;
+	const unsigned c = comp_sz(a->comp_type);
+	/* AMD HW can't fetch these well, so pad it out (other vendors too?) */
+	if (a->comp_ct == 3 && c <= 2)
+		return 4 * c;
 	else
-		return a->comp_ct * a->sz;
+		return a->comp_ct * c;
 }
 
 struct VertexBuffer
@@ -332,10 +333,10 @@ void vertex_buffer_use(VertexBuffer *buff)
 
 #if USE_VBO
 		if (a->vbo_id)
-			glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
+			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 		else {
 			glGenBuffers(1, &a->vbo_id);
-			glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
+			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 			/* fill with delicious data & send to GPU the first time only */
 			glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
 		}
@@ -379,7 +380,7 @@ void vertex_buffer_use(VertexBuffer *buff)
 	}
 
 #if USE_VBO
-	glBindBuffer(0, GL_ARRAY_BUFFER);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 #endif /* USE_VBO */
 }
 
@@ -398,12 +399,20 @@ void vertex_buffer_prime(VertexBuffer *buff)
 	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
 
+  #if USE_VAO
+    #if GENERIC_ATTRIB
+		glEnableVertexAttribArray(a_idx);
+    #else
+		glEnableClientState(a->array);
+    #endif /* GENERIC_ATTRIB */
+  #endif /* USE_VAO */
+
   #if TRUST_NO_ONE
 		assert(a->vbo_id == 0);
   #endif /* TRUST_NO_ONE */
 
 		glGenBuffers(1, &a->vbo_id);
-		glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
+		glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 		/* fill with delicious data & send to GPU the first time only */
 		glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
 
@@ -441,7 +450,7 @@ void vertex_buffer_prime(VertexBuffer *buff)
   #endif /* USE_VAO */
 	}
 
-	glBindBuffer(0, GL_ARRAY_BUFFER);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 #endif /* USE_VBO */
 
 #if USE_VAO
@@ -472,7 +481,7 @@ void vertex_buffer_use_primed(const VertexBuffer *buff)
     #if TRUST_NO_ONE
 		assert(a->vbo_id);
     #endif /* TRUST_NO_ONE */
-		glBindBuffer(a->vbo_id, GL_ARRAY_BUFFER);
+		glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 
 		const void *data = 0;
   #else /* client vertex array */
@@ -512,7 +521,7 @@ void vertex_buffer_use_primed(const VertexBuffer *buff)
 	}
 
   #if USE_VBO
-	glBindBuffer(0, GL_ARRAY_BUFFER);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
   #endif /* USE_VBO */
 #endif /* USE_VAO */
 }

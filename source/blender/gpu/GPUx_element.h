@@ -12,8 +12,8 @@
 struct ElementList; /* forward declaration */
 typedef struct ElementList ElementList;
 
-ElementList *create_element_list(GLenum prim_type, unsigned prim_ct, unsigned max_index);
-void discard_element_list(ElementList*);
+ElementList *element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index);
+void element_list_discard(ElementList*);
 
 void set_point_vertex(ElementList*, unsigned prim_idx, unsigned v1);
 void set_line_vertices(ElementList*, unsigned prim_idx, unsigned v1, unsigned v2);

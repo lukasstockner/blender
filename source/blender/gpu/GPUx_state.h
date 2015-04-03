@@ -42,6 +42,8 @@ typedef struct {
 	PolygonDrawState polygon;
 } DrawState;
 
+extern const DrawState default_state;
+
 
 void reset_draw_state(); /* to defaults */
 /* ^-- call this before using set_*_state functions below */

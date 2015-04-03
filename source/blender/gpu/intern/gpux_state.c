@@ -8,7 +8,7 @@
   #include <assert.h>
 #endif /* TRUST_NO_ONE */
 
-static const DrawState default_state = {
+const DrawState default_state = {
 	.common = { false, true, true, false },
 	.point = { false, 1.0f },
 	.line = { false, 1.0f, 0 },
@@ -23,7 +23,9 @@ static bool polygon_stipple_pattern_set = false;
 void reset_draw_state()
 {
 	current = default_state;
+#if 0 /* TODO: make default state play nice with UI drawing code */
 	force_state_update();
+#endif
 }
 
 void set_common_state(const CommonDrawState *state)

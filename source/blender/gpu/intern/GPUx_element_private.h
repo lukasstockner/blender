@@ -2,6 +2,7 @@
 #define BLENDER_GL_ELEMENT_LIST_PRIVATE
 
 #include "GPUx_element.h"
+#include <stdbool.h>
 
 /* track min & max observed index (for glDrawRangeElements) */
 #define TRACK_INDEX_RANGE true
@@ -18,9 +19,7 @@ struct ElementList {
 	void *indices; /* array of index_type */
 };
 
-#if TRACK_INDEX_RANGE
 unsigned min_index(const ElementList*);
 unsigned max_index(const ElementList*);
-#endif /* TRACK_INDEX_RANGE */
 
 #endif /* BLENDER_GL_ELEMENT_LIST_PRIVATE */
