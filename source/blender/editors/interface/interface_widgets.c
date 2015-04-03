@@ -546,8 +546,9 @@ static void widget_trias_draw(uiWidgetTrias *tria)
 	glDisableClientState(GL_VERTEX_ARRAY);
 #else
 	const unsigned *idx = (const unsigned *)tria->index;
+	unsigned int i;
 	glBegin(GL_TRIANGLES);
-	for (unsigned i = 0; i < tria->tot * 3; ++i)
+	for (i = 0; i < tria->tot * 3; ++i)
 		glVertex3fv((float *)&tria->vec[idx[i]]);
 	glEnd();
 #endif

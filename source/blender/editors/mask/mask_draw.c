@@ -819,7 +819,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 		gpuTranslate(x, y, 0);
 		gpuScale(zoomx, zoomy, 0);
 		if (stabmat) {
-			gpuMultMatrix(stabmat);
+			gpuMultMatrix(stabmat[0]);
 		}
 		glaDrawPixelsTex(0.0f, 0.0f, width, height, format, GL_FLOAT, GL_NEAREST, buffer);
 		gpuPopMatrix();
@@ -835,7 +835,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 	gpuPushMatrix();
 
 	if (stabmat) {
-		gpuMultMatrix(stabmat);
+		gpuMultMatrix(stabmat[0]);
 	}
 
 	gpuTranslate(x + xofs, y + yofs, 0);

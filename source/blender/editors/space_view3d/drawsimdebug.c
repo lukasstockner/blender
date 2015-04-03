@@ -157,7 +157,7 @@ void draw_sim_debug_data(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar)
 	
 	gpuPushMatrix();
 	
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 	draw_sim_debug_elements(_sim_debug_data, imat);
 	
 	gpuPopMatrix();

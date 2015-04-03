@@ -885,7 +885,7 @@ static void preOrthoFront(const bool ortho, float twmat[4][4], int axis)
 		copy_m4_m4(omat, twmat);
 		orthogonalize_m4(omat, axis);
 		gpuPushMatrix();
-		gpuMultMatrix(omat);
+		gpuMultMatrix(omat[0]);
 		glFrontFace(is_negative_m4(omat) ? GL_CW : GL_CCW);
 	}
 }
@@ -976,14 +976,14 @@ static void draw_manipulator_rotate(
 		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]
 		// XXX mul_m4_m3m4(matt, t->mat, rv3d->twmat);
 		if (ortho) {
-			gpuMultMatrix(matt);
+			gpuMultMatrix(matt[0]);
 			glFrontFace(is_negative_m4(matt) ? GL_CW : GL_CCW);
 		}
 	}
 	else {
 		if (ortho) {
 			glFrontFace(is_negative_m4(rv3d->twmat) ? GL_CW : GL_CCW);
-			gpuMultMatrix(rv3d->twmat);
+			gpuMultMatrix(rv3d->twmat[0]);
 		}
 	}
 
@@ -1140,7 +1140,7 @@ static void draw_manipulator_rotate(
 	}
 
 	/* restore */
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 
 }
@@ -1249,11 +1249,11 @@ static void draw_manipulator_scale(
 
 		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]
 		// XXX mul_m4_m3m4(matt, t->mat, rv3d->twmat);
-		gpuMultMatrix(matt);
+		gpuMultMatrix(matt[0]);
 		glFrontFace(is_negative_m4(matt) ? GL_CW : GL_CCW);
 	}
 	else {
-		gpuMultMatrix(rv3d->twmat);
+		gpuMultMatrix(rv3d->twmat[0]);
 		glFrontFace(is_negative_m4(rv3d->twmat) ? GL_CW : GL_CCW);
 	}
 
@@ -1311,7 +1311,7 @@ static void draw_manipulator_scale(
 	}
 
 	/* restore */
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 	glFrontFace(GL_CCW);
@@ -1366,7 +1366,7 @@ static void draw_manipulator_translate(
 	gpuPopMatrix();
 
 	/* and now apply matrix, we move to local matrix drawing */
-	gpuMultMatrix(rv3d->twmat);
+	gpuMultMatrix(rv3d->twmat[0]);
 
 	/* axis */
 	GPU_select_load_id(-1);
@@ -1422,7 +1422,7 @@ static void draw_manipulator_translate(
 		}
 	}
 
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 

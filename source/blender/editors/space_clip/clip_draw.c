@@ -337,7 +337,7 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 		gpuTranslate(x, y, 0.0f);
 
 		gpuScale(zoomx, zoomy, 1.0f);
-		gpuMultMatrix(sc->stabmat);
+		gpuMultMatrix(sc->stabmat[0]);
 
 		glBegin(GL_LINE_LOOP);
 		glVertex2f(0.0f, 0.0f);
@@ -1093,7 +1093,7 @@ static void draw_plane_marker_image(Scene *scene,
 			             GL_UNSIGNED_BYTE, display_buffer);
 
 			gpuPushMatrix();
-			gpuMultMatrix(gl_matrix);
+			gpuMultMatrix(gl_matrix[0]);
 
 			glBegin(GL_QUADS);
 			glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
@@ -1263,7 +1263,7 @@ static void draw_tracking_tracks(SpaceClip *sc, Scene *scene, ARegion *ar, Movie
 
 	gpuPushMatrix();
 	gpuScale(zoomx, zoomy, 0);
-	gpuMultMatrix(sc->stabmat);
+	gpuMultMatrix(sc->stabmat[0]);
 	gpuScale(width, height, 0);
 
 	act_track = BKE_tracking_track_get_active(tracking);
@@ -1503,7 +1503,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 	gpuPushMatrix();
 	gpuTranslate(x, y, 0);
 	gpuScale(zoomx, zoomy, 0);
-	gpuMultMatrix(sc->stabmat);
+	gpuMultMatrix(sc->stabmat[0]);
 	gpuScale(width, height, 0);
 
 	/* grid */
@@ -1770,7 +1770,7 @@ void clip_draw_grease_pencil(bContext *C, int onlyv2d)
 		 */
 		if ((sc->flag & SC_MANUAL_CALIBRATION) == 0 || is_track_source) {
 			gpuPushMatrix();
-			gpuMultMatrix(sc->unistabmat);
+			gpuMultMatrix(sc->unistabmat[0]);
 
 			if (is_track_source) {
 				MovieTrackingTrack *track = BKE_tracking_track_get_active(&sc->clip->tracking);

@@ -2139,7 +2139,7 @@ static void draw_dupli_objects_color(
 			
 			if (use_displist) {
 				gpuPushMatrix();
-				gpuMultMatrix(dob->mat);
+				gpuMultMatrix(dob->mat[0]);
 				glCallList(displist);
 				gpuPopMatrix();
 			}	
@@ -2304,7 +2304,7 @@ void ED_view3d_draw_depth_gpencil(Scene *scene, ARegion *ar, View3D *v3d)
 
 	glClear(GL_DEPTH_BUFFER_BIT);
 
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 
 	v3d->zbuf = true;
 	glEnable(GL_DEPTH_TEST);
@@ -2343,7 +2343,7 @@ void ED_view3d_draw_depth(Scene *scene, ARegion *ar, View3D *v3d, bool alphaover
 	
 	glClear(GL_DEPTH_BUFFER_BIT);
 	
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 //	persp(PERSP_STORE);  /* store correct view for persp(PERSP_VIEW) calls */
 	
 	if (rv3d->rflag & RV3D_CLIPPING) {
@@ -2725,9 +2725,9 @@ static void view3d_draw_objects(
 			drawgrid(&scene->unit, ar, v3d, grid_unit);
 			/* XXX make function? replaces persp(1) */
 			gpuMatrixMode(GL_PROJECTION);
-			gpuLoadMatrix(rv3d->winmat);
+			gpuLoadMatrix(rv3d->winmat[0]);
 			gpuMatrixMode(GL_MODELVIEW);
-			gpuLoadMatrix(rv3d->viewmat);
+			gpuLoadMatrix(rv3d->viewmat[0]);
 		}
 		else {
 			drawfloor(scene, v3d, grid_unit);
@@ -2870,9 +2870,9 @@ static void view3d_main_area_setup_view(Scene *scene, View3D *v3d, ARegion *ar, 
 
 	/* set for opengl */
 	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadMatrix(rv3d->winmat);
+	gpuLoadMatrix(rv3d->winmat[0]);
 	gpuMatrixMode(GL_MODELVIEW);
-	gpuLoadMatrix(rv3d->viewmat);
+	gpuLoadMatrix(rv3d->viewmat[0]);
 }
 
 void ED_view3d_draw_offscreen_init(Scene *scene, View3D *v3d)

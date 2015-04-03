@@ -34,13 +34,9 @@
 
 #include "GPU_glew.h"
 
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-
 
 void gpuPushMatrix(void);
 void gpuPopMatrix(void);
@@ -77,8 +73,6 @@ void GPU_feedback_vertex_3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z,      
 void GPU_feedback_vertex_4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat out[4]);
 void GPU_feedback_vertex_4dv(GLenum type, GLdouble x, GLdouble y, GLdouble z, GLdouble w, GLdouble out[4]);
 
-
-
 #if defined(GLEW_ES_ONLY)
 
 /* ES 2.0 doesn't define these symbolic constants, but the matrix stack replacement library emulates them
@@ -97,8 +91,6 @@ void GPU_feedback_vertex_4dv(GLenum type, GLdouble x, GLdouble y, GLdouble z, GL
 #endif
 
 #endif
-
-
 
 #ifdef __cplusplus
 }

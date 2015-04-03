@@ -6271,7 +6271,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
 			gpuPushMatrix();
 
-			gpuMultMatrix(t->obedit->obmat);
+			gpuMultMatrix(t->obedit->obmat[0]);
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -6833,7 +6833,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
 			gpuPushMatrix();
 
-			gpuMultMatrix(t->obedit->obmat);
+			gpuMultMatrix(t->obedit->obmat[0]);
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);

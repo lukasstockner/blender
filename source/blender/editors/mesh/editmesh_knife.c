@@ -1028,7 +1028,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 	glPolygonOffset(1.0f, 1.0f);
 
 	gpuPushMatrix();
-	gpuMultMatrix(kcd->ob->obmat);
+	gpuMultMatrix(kcd->ob->obmat[0]);
 
 	if (kcd->mode == MODE_DRAGGING) {
 		if (kcd->angle_snapping != ANGLE_FREE)

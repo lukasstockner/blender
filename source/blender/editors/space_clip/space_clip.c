@@ -1220,7 +1220,7 @@ static void clip_main_area_draw(const bContext *C, ARegion *ar)
 		gpuPushMatrix();
 		gpuTranslate(x, y, 0);
 		gpuScale(zoomx, zoomy, 0);
-		gpuMultMatrix(sc->stabmat);
+		gpuMultMatrix(sc->stabmat[0]);
 		gpuScale(width, height, 0);
 		ED_image_draw_cursor(ar, sc->cursor);
 		gpuPopMatrix();

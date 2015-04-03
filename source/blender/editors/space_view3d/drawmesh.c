@@ -1019,7 +1019,7 @@ static void tex_mat_set_texture_cb(void *userData, int mat_nr, void *attribs)
 			glColor3f(1.0f, 1.0f, 1.0f);
 
 			gpuMatrixMode(GL_TEXTURE);
-			gpuLoadMatrix(texbase->tex_mapping.mat);
+			gpuLoadMatrix(texbase->tex_mapping.mat[0]);
 			gpuMatrixMode(GL_MODELVIEW);
 
 			/* use active UV texture layer */

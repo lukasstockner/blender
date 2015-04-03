@@ -102,7 +102,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 			glDisable(GL_DEPTH_TEST);
 
 		gpuPushMatrix();
-		gpuMultMatrix(lcd->ob->obmat);
+		gpuMultMatrix(lcd->ob->obmat[0]);
 
 		glColor3ub(255, 0, 255);
 		if (lcd->totedge > 0) {
