@@ -52,7 +52,7 @@ struct wmWindowManager;
 struct wmKeyConfig;
 
 /* temporary function call tracing */
-#define MCE_TRACE true
+#define MCE_TRACE false
 /* TODO: remove --^ */
 
 /* drawing flags: */

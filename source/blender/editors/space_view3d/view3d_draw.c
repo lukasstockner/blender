@@ -96,6 +96,7 @@
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
+#include "GPUx_state.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -3600,12 +3601,14 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 
 	Base* base_edit = NULL; /* object being edited, if any */
 
+	reset_draw_state(); /* for code below which uses GPUx_state */
+
 	/* draw meshes (and cameras) not being edited (selected or not) */
 	for (Base* base = scene->base.first; base; base = base->next) {
 		lay_used |= base->lay;
 
 		if (base->object == scene->obedit) {
-			base_edit = base;
+			base_edit = base; /* remember for later */
 			continue;
 		}
 
@@ -3615,6 +3618,8 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 			}
 		}
 	}
+
+	reset_draw_state(); /* for code below which does NOT use GPUx_state */
 
 	/* draw non-meshes not being edited nor selected */
 	for (Base* base = scene->base.first; base; base = base->next) {

@@ -88,6 +88,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_select.h"
+#include "GPUx_draw.h"
 
 #include "ED_mesh.h"
 #include "ED_particle.h"
@@ -1901,7 +1902,7 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 		}
 	}
 
-#ifdef VIEW3D_CAMERA_BORDER_HACK && 0 /* disable this hack for now */
+#if defined(VIEW3D_CAMERA_BORDER_HACK) && 0 /* disable this hack for now */
 	if (is_view && !(G.f & G_PICKSEL)) {
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
 #  if MCE_TRACE
@@ -1941,8 +1942,6 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 		glDrawArrays(GL_LINE_LOOP, 0, 4);
 	}
 	else {
-		int i;
-
 		const GLubyte line_indices[] = {
 			0,1, 1,2, 2,3, 3,0, /* camera frame */
 			0,4, 1,4, 2,4, 3,4, /* center point to camera frame */
@@ -1957,16 +1956,16 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 
 			tvec[2] = vec[1][2]; /* copy the depth */
 
-			tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
-			tvec[1] = shift[1] + ((drawsize * (asp[1] + 0.1f)) * scale[1]);
+			tvec[0] = shift[0] + -0.7f * drawsize * scale[0];
+			tvec[1] = shift[1] + drawsize * (asp[1] + 0.1f) * scale[1];
 			copy_v3_v3(vec[5], tvec); /* left */
 			
-			tvec[0] = shift[0] + ((0.7f * drawsize) * scale[0]);
-			copy_v3_v3(vec[6], tvec); /* left */
+			tvec[0] = shift[0] + 0.7f * drawsize * scale[0];
+			copy_v3_v3(vec[6], tvec); /* right */
 			
 			tvec[0] = shift[0];
-			tvec[1] = shift[1] + ((1.1f * drawsize * (asp[1] + 0.7f)) * scale[1]);
-			copy_v3_v3(vec[7], tvec); /* left */
+			tvec[1] = shift[1] + 1.1f * drawsize * (asp[1] + 0.7f) * scale[1];
+			copy_v3_v3(vec[7], tvec); /* top */
 		}
 
 		glDrawRangeElements(GL_LINES, 0, 7, 22, GL_UNSIGNED_BYTE, line_indices);
@@ -2012,6 +2011,113 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
+static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
+                               const short dflag, const unsigned char ob_wire_col[4])
+{
+#if MCE_TRACE
+	printf("- %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
+	Object *ob = base->object;
+	Camera *cam = ob->data;
+	/* 4 vertices for a camera we are looking THROUGH
+	 * 8 vertices for a camera we are looking AT */
+	float vec[8][3], asp[2], shift[2], scale[3];
+	float drawsize;
+	const bool is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
+
+	scale[0] = 1.0f / len_v3(ob->obmat[0]);
+	scale[1] = 1.0f / len_v3(ob->obmat[1]);
+	scale[2] = 1.0f / len_v3(ob->obmat[2]);
+
+	BKE_camera_view_frame_ex(scene, cam, cam->drawsize, is_view, scale,
+	                         asp, shift, &drawsize, vec);
+
+	/* use default GL state for lines */
+
+	if (is_view) {
+		VertexBuffer *verts = vertex_buffer_create(1, 4);
+		specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+		fill_attrib(verts, 0, vec);
+		vertex_buffer_prime(verts);
+
+		ElementList *elem = element_list_create(GL_LINES, 4, 3);
+		/* camera frame */
+		set_line_vertices(elem, 0,  0,1);
+		set_line_vertices(elem, 1,  1,2);
+		set_line_vertices(elem, 2,  2,3);
+		set_line_vertices(elem, 3,  3,0);
+
+		draw_lines(&default_state.common, &default_state.line, verts, elem);
+
+		element_list_discard(elem);
+		vertex_buffer_discard(verts);
+	}
+	else {
+		zero_v3(vec[4]); /* center point */
+
+		/* arrow on top */
+		{
+			float tvec[3];
+
+			tvec[2] = vec[1][2]; /* copy the depth */
+
+			tvec[0] = shift[0] + -0.7f * drawsize * scale[0];
+			tvec[1] = shift[1] + drawsize * (asp[1] + 0.1f) * scale[1];
+			copy_v3_v3(vec[5], tvec); /* left */
+			
+			tvec[0] = shift[0] + 0.7f * drawsize * scale[0];
+			copy_v3_v3(vec[6], tvec); /* right */
+			
+			tvec[0] = shift[0];
+			tvec[1] = shift[1] + 1.1f * drawsize * (asp[1] + 0.7f) * scale[1];
+			copy_v3_v3(vec[7], tvec); /* top */
+		}
+
+		VertexBuffer *verts = vertex_buffer_create(1, 8);
+		specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+		fill_attrib(verts, 0, vec);
+		vertex_buffer_prime(verts);
+
+		ElementList *elem = element_list_create(GL_LINES, 11, 7);
+		/* camera frame */
+		set_line_vertices(elem, 0,  0,1);
+		set_line_vertices(elem, 1,  1,2);
+		set_line_vertices(elem, 2,  2,3);
+		set_line_vertices(elem, 3,  3,0);
+		/* center point to camera frame */
+		set_line_vertices(elem, 4,  0,4);
+		set_line_vertices(elem, 5,  1,4);
+		set_line_vertices(elem, 6,  2,4);
+		set_line_vertices(elem, 7,  3,4);
+		/* arrow on top */
+		set_line_vertices(elem, 8,  5,6);
+		set_line_vertices(elem, 9,  6,7);
+		set_line_vertices(elem, 10, 7,5);
+
+		draw_lines(&default_state.common, &default_state.line, verts, elem);
+
+		element_list_discard(elem);
+
+		/* draw an outline arrow for inactive cameras and filled
+		 * for active cameras. We actually draw both outline+filled
+		 * for active cameras so the wire can be seen side-on */
+		if (ob == v3d->camera) {
+			PolygonDrawState polygon_state = default_state.polygon;
+			polygon_state.draw_front = true;
+			polygon_state.draw_back = true;
+
+			elem = element_list_create(GL_TRIANGLES, 1, 7);
+			set_triangle_vertices(elem, 0,  5,6,7);
+
+			draw_triangles(&default_state.common, &polygon_state, verts, elem);
+
+			element_list_discard(elem);
+		}
+
+		vertex_buffer_discard(verts);
+	}
+}
 
 /* flag similar to draw_object() */
 static void drawspeaker(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D *UNUSED(rv3d),
@@ -4197,7 +4303,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 
 /* returns true if nothing was drawn, for detecting to draw an object center */
 static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
-                             const char dt, const unsigned char ob_wire_col[4], const short dflag)
+                                 const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
 #if MCE_TRACE
 	printf("> %s dt=%d dflag=%d\n", __FUNCTION__, (int)dt, (int)dflag);
@@ -4206,8 +4312,6 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	Object *ob = base->object;
 	Object *obedit = scene->obedit;
 	Mesh *me = ob->data;
-	BMEditMesh *em = me->edit_btmesh;
-	int i;
 	bool do_alpha_after = false, drawlinked = false, retval = false;
 
 	BLI_assert(ob != obedit); /* should be caught by draw_object_new() before here */
@@ -4215,7 +4319,7 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	/* If we are drawing shadows and any of the materials don't cast a shadow,
 	 * then don't draw the object */
 	if (v3d->flag2 & V3D_RENDER_SHADOW) {
-		for (i = 0; i < ob->totcol; ++i) {
+		for (int i = 0; i < ob->totcol; ++i) {
 			Material *ma = give_current_material(ob, i);
 			if (ma && !(ma->mode2 & MA_CASTSHADOW)) {
 				return true;
@@ -4237,6 +4341,7 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	}
 
 	if (drawlinked) {
+		BMEditMesh *em = me->edit_btmesh;
 		DerivedMesh *finalDM, *cageDM;
 		
 		finalDM = cageDM = editbmesh_get_derived_base(ob, em);
@@ -7773,7 +7878,7 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 				    (rv3d->persp == RV3D_CAMOB && v3d->camera == ob)) /* special exception for active camera */
 				{
 					if (new_style_drawing)
-						drawcamera_new(scene, v3d, rv3d, base, dflag, ob_wire_col);
+						drawcamera_new_new(scene, v3d, rv3d, base, dflag, ob_wire_col);
 					else
 						drawcamera(scene, v3d, rv3d, base, dflag, ob_wire_col);
 				}
