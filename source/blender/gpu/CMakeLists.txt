@@ -89,6 +89,10 @@ set(SRC
 	GPU_simple_shader.h
 	GPU_select.h
 	GPU_compositing.h
+	GPUx_vbo.h
+	GPUx_draw.h
+	GPUx_element.h
+	GPUx_state.h
 	intern/gpu_codegen.h
 	intern/gpu_private.h
 	intern/gpux_element_private.h

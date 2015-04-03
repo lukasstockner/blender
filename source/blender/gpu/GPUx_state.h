@@ -45,16 +45,16 @@ typedef struct {
 extern const DrawState default_state;
 
 
-void reset_draw_state(void); /* to defaults */
+void GPUx_reset_draw_state(void); /* to defaults */
 /* ^-- call this before using set_*_state functions below */
 
 /* incrementally update current GL state */
-void set_common_state(const CommonDrawState*);
-void set_point_state(const PointDrawState*);
-void set_line_state(const LineDrawState*);
-void set_polygon_state(const PolygonDrawState*);
+void GPUx_set_common_state(const CommonDrawState*);
+void GPUx_set_point_state(const PointDrawState*);
+void GPUx_set_line_state(const LineDrawState*);
+void GPUx_set_polygon_state(const PolygonDrawState*);
 
 /* update everything regardless of current GL state */
-void force_state_update(void);
+void GPUx_force_state_update(void);
 
 #endif /* BLENDER_GL_STATE */

@@ -22,16 +22,16 @@ typedef enum {
 	CONVERT_INT_TO_FLOAT /* 127 (any int type) -> 127.0 */
 } VertexFetchMode;
 
-VertexBuffer* vertex_buffer_create(unsigned attrib_ct, unsigned vertex_ct);
-void vertex_buffer_discard(VertexBuffer*);
+VertexBuffer* GPUx_vertex_buffer_create(unsigned attrib_ct, unsigned GPUx_vertex_ct);
+void GPUx_vertex_buffer_discard(VertexBuffer*);
 
-unsigned vertex_ct(const VertexBuffer*);
+unsigned GPUx_vertex_ct(const VertexBuffer*);
 
 #ifdef PRINT
-void attrib_print(const VertexBuffer*, unsigned attrib_num);
+void GPUx_attrib_print(const VertexBuffer*, unsigned attrib_num);
 #endif /* PRINT */
 
-void specify_attrib(VertexBuffer*, unsigned attrib_num,
+void GPUx_specify_attrib(VertexBuffer*, unsigned attrib_num,
 #ifdef GENERIC_ATTRIB
                     const char *name, /* use any legal GLSL identifier */
 #else
@@ -41,27 +41,27 @@ void specify_attrib(VertexBuffer*, unsigned attrib_num,
 
 /* set value of single attribute of single vertex
  * incoming data must be of same type & size for this attribute */
-void set_attrib(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, const void *data);
+void GPUx_set_attrib(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, const void *data);
 /* convenience function for specific type and size
  * can add more like this if it's useful */
-void set_attrib_3f(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, float x, float y, float z);
+void GPUx_set_attrib_3f(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, float x, float y, float z);
 
 /* bulk attribute filling routines (all vertices)
  * incoming data must be of same type & size for this attribute
  * must be tightly packed in memory, no padding */
-void fill_attrib(VertexBuffer*, unsigned attrib_num, const void *data);
+void GPUx_fill_attrib(VertexBuffer*, unsigned attrib_num, const void *data);
 /* this version can have padding between attributes */
-void fill_attrib_stride(VertexBuffer*, unsigned attrib_num, const void *data, unsigned stride);
+void GPUx_fill_attrib_stride(VertexBuffer*, unsigned attrib_num, const void *data, unsigned stride);
 
 /* call before drawing to make this vertex buffer part of current OpenGL state */
-void vertex_buffer_use(VertexBuffer*);
+void GPUx_vertex_buffer_use(VertexBuffer*);
 /* call after drawing */
-void vertex_buffer_done_using(const VertexBuffer*);
+void GPUx_vertex_buffer_done_using(const VertexBuffer*);
 
 /* alternative to vertex_buffer_use:
  * prime does all the setup (create VBOs, send to GPU, etc.) so use_primed doesn't have to */
-void vertex_buffer_prime(VertexBuffer*);
-void vertex_buffer_use_primed(const VertexBuffer*);
+void GPUx_vertex_buffer_prime(VertexBuffer*);
+void GPUx_vertex_buffer_use_primed(const VertexBuffer*);
 /* prime, use_primed, done_using, use_primed, done_using ...
  * use, done_using, use, done_using ... (first use auto-primes)
  * 'use' modifies VAO and VBO IDs on first run, so is non-const (no 'mutable' in C)

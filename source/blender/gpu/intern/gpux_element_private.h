@@ -5,14 +5,14 @@
 #include <stdbool.h>
 
 /* track min & max observed index (for glDrawRangeElements) */
-#define TRACK_INDEX_RANGE true
+#define TRACK_INDEX_RANGE
 
 struct ElementList {
 	unsigned prim_ct; 
 	GLenum prim_type; /* GL_POINTS, GL_LINES, GL_TRIANGLES */
 	GLenum index_type; /* GL_UNSIGNED_BYTE, _SHORT (ES), also _INT (full GL) */
 	unsigned max_allowed_index;
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 	unsigned min_observed_index;
 	unsigned max_observed_index;
 #endif /* TRACK_INDEX_RANGE */

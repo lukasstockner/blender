@@ -3601,7 +3601,7 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 	 * Hand-crafted logic here is tricky; will simplify later.
 	 */
 
-	reset_draw_state(); /* for code below which uses GPUx_state */
+	GPUx_reset_draw_state(); /* for code below which uses GPUx_state */
 
 	/* draw meshes (and cameras) not being edited (selected or not) */
 	for (base = scene->base.first; base; base = base->next) {
@@ -3619,7 +3619,7 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 		}
 	}
 
-	reset_draw_state(); /* for code below which does NOT use GPUx_state */
+	GPUx_reset_draw_state(); /* for code below which does NOT use GPUx_state */
 
 	/* draw non-meshes not being edited nor selected */
 	for (base = scene->base.first; base; base = base->next) {

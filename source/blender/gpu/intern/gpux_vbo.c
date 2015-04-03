@@ -81,7 +81,7 @@ struct VertexBuffer
 };
 
 #ifdef PRINT
-void attrib_print(const VertexBuffer *buff, unsigned attrib_num)
+void GPUx_attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 {
 	unsigned int comp_size, v;
 	Attrib *a = buff->attribs + attrib_num;
@@ -135,7 +135,7 @@ void attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 }
 #endif /* PRINT */
 
-VertexBuffer *vertex_buffer_create(unsigned a_ct, unsigned v_ct)
+VertexBuffer *GPUx_vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 {
 	VertexBuffer *buff = calloc(1, sizeof(VertexBuffer));
 #ifdef TRUST_NO_ONE
@@ -148,7 +148,7 @@ VertexBuffer *vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 	return buff;
 }
 
-void vertex_buffer_discard(VertexBuffer *buff)
+void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 {
 	unsigned a_idx;
 	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
@@ -180,7 +180,7 @@ static unsigned attrib_total_size(const VertexBuffer *buff, unsigned attrib_num)
 	return (buff->vertex_ct - 1) * attrib->stride + attrib->sz;
 }
 
-void specify_attrib(VertexBuffer *buff, unsigned attrib_num,
+void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 #ifdef GENERIC_ATTRIB
                     const char *name,
 #else
@@ -252,11 +252,11 @@ void specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 	attrib->fetch_mode = fetch_mode;
 	attrib->data = malloc(attrib_total_size(buff, attrib_num));
 #ifdef PRINT
-	attrib_print(buff, attrib_num);
+	GPUx_attrib_print(buff, attrib_num);
 #endif /* PRINT */
 }
 
-void set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, const void *data)
+void GPUx_set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, const void *data)
 {
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
@@ -267,7 +267,7 @@ void set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, co
 	memcpy((byte*)attrib->data + vertex_num * attrib->stride, data, attrib->sz);
 }
 
-void set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, float x, float y, float z)
+void GPUx_set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, float x, float y, float z)
 {
 #ifdef TRUST_NO_ONE
 	Attrib *attrib = buff->attribs + attrib_num;
@@ -275,10 +275,10 @@ void set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num,
 	assert(attrib->comp_type == GL_FLOAT);
 	assert(attrib->comp_ct == 3);
 #endif /* TRUST_NO_ONE */
-	set_attrib(buff, attrib_num, vertex_num, data);
+	GPUx_set_attrib(buff, attrib_num, vertex_num, data);
 }
 
-void fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
+void GPUx_fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
 	{
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
@@ -298,7 +298,7 @@ void fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
 	}
 }
 
-void fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void *data, unsigned stride)
+void GPUx_fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void *data, unsigned stride)
 {
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
@@ -318,7 +318,7 @@ void fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void *dat
 	}
 }
 
-void vertex_buffer_use(VertexBuffer *buff)
+void GPUx_vertex_buffer_use(VertexBuffer *buff)
 {
 	unsigned a_idx;
 	const void *data;
@@ -396,7 +396,7 @@ void vertex_buffer_use(VertexBuffer *buff)
 #endif /* USE_VBO */
 }
 
-void vertex_buffer_prime(VertexBuffer *buff)
+void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 {
 	unsigned a_idx;
 #ifdef USE_VAO
@@ -474,7 +474,7 @@ void vertex_buffer_prime(VertexBuffer *buff)
 #endif /* USE_VAO */
 }
 
-void vertex_buffer_use_primed(const VertexBuffer *buff)
+void GPUx_vertex_buffer_use_primed(const VertexBuffer *buff)
 {
 #ifdef USE_VAO
   #ifdef TRUST_NO_ONE
@@ -545,7 +545,7 @@ void vertex_buffer_use_primed(const VertexBuffer *buff)
 #endif /* USE_VAO */
 }
 
-void vertex_buffer_done_using(const VertexBuffer *buff)
+void GPUx_vertex_buffer_done_using(const VertexBuffer *buff)
 {
 #ifdef USE_VAO
 	(void)buff;
@@ -563,7 +563,7 @@ void vertex_buffer_done_using(const VertexBuffer *buff)
 #endif /* USE_VAO */
 }
 
-unsigned vertex_ct(const VertexBuffer *buff)
+unsigned GPUx_vertex_ct(const VertexBuffer *buff)
 {
 	return buff->vertex_ct;
 }

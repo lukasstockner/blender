@@ -20,7 +20,7 @@ static bool polygon_stipple_pattern_set = false;
 /* TODO: these should be replicated once per GL context
  * ^-- more of a MUSTDO */
 
-void reset_draw_state()
+void GPUx_reset_draw_state()
 {
 	current = default_state;
 #if 0 /* TODO: make default state play nice with UI drawing code */
@@ -28,7 +28,7 @@ void reset_draw_state()
 #endif
 }
 
-void set_common_state(const CommonDrawState *state)
+void GPUx_set_common_state(const CommonDrawState *state)
 {
 	if (state->blend != current.common.blend) {
 		if (state->blend)
@@ -63,7 +63,7 @@ void set_common_state(const CommonDrawState *state)
 	}
 }
 
-void set_point_state(const PointDrawState *state)
+void GPUx_set_point_state(const PointDrawState *state)
 {
 	if (state->smooth != current.point.smooth) {
 		if (state->smooth)
@@ -79,7 +79,7 @@ void set_point_state(const PointDrawState *state)
 	}
 }
 
-void set_line_state(const LineDrawState *state)
+void GPUx_set_line_state(const LineDrawState *state)
 {
 	if (state->smooth != current.line.smooth) {
 		if (state->smooth)
@@ -121,7 +121,7 @@ static GLenum faces_to_cull(const PolygonDrawState *state)
 		return GL_NONE; /* no culling */
 }
 
-void set_polygon_state(const PolygonDrawState *state)
+void GPUx_set_polygon_state(const PolygonDrawState *state)
 {
 	const GLenum cull = faces_to_cull(state);
 	const GLenum curr_cull = faces_to_cull(&current.polygon);
@@ -159,7 +159,7 @@ void set_polygon_state(const PolygonDrawState *state)
 	}
 }
 
-void force_state_update()
+void GPUx_force_state_update()
 {
 	const GLenum cull = faces_to_cull(&current.polygon);
 	/* TODO: factor some of this stuff out, share with set_*_state functions? */

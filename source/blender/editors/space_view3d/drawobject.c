@@ -2036,26 +2036,26 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 	/* use default GL state for lines */
 
 	if (is_view) {
-		VertexBuffer *verts = vertex_buffer_create(1, 4);
-		ElementList *elem = element_list_create(GL_LINES, 4, 3);
-		specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
-		fill_attrib(verts, 0, vec);
-		vertex_buffer_prime(verts);
+		VertexBuffer *verts = GPUx_vertex_buffer_create(1, 4);
+		ElementList *elem = GPUx_element_list_create(GL_LINES, 4, 3);
+		GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+		GPUx_fill_attrib(verts, 0, vec);
+		GPUx_vertex_buffer_prime(verts);
 
 		/* camera frame */
-		set_line_vertices(elem, 0,  0,1);
-		set_line_vertices(elem, 1,  1,2);
-		set_line_vertices(elem, 2,  2,3);
-		set_line_vertices(elem, 3,  3,0);
+		GPUx_set_line_vertices(elem, 0,  0,1);
+		GPUx_set_line_vertices(elem, 1,  1,2);
+		GPUx_set_line_vertices(elem, 2,  2,3);
+		GPUx_set_line_vertices(elem, 3,  3,0);
 
-		draw_lines(&default_state.common, &default_state.line, verts, elem);
+		GPUx_draw_lines(&default_state.common, &default_state.line, verts, elem);
 
-		element_list_discard(elem);
-		vertex_buffer_discard(verts);
+		GPUx_element_list_discard(elem);
+		GPUx_vertex_buffer_discard(verts);
 	}
 	else {
-		VertexBuffer *verts = vertex_buffer_create(1, 8);
-		ElementList *elem = element_list_create(GL_LINES, 11, 7);
+		VertexBuffer *verts = GPUx_vertex_buffer_create(1, 8);
+		ElementList *elem = GPUx_element_list_create(GL_LINES, 11, 7);
 
 		zero_v3(vec[4]); /* center point */
 
@@ -2077,28 +2077,28 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 			copy_v3_v3(vec[7], tvec); /* top */
 		}
 
-		specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
-		fill_attrib(verts, 0, vec);
-		vertex_buffer_prime(verts);
+		GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+		GPUx_fill_attrib(verts, 0, vec);
+		GPUx_vertex_buffer_prime(verts);
 
 		/* camera frame */
-		set_line_vertices(elem, 0,  0,1);
-		set_line_vertices(elem, 1,  1,2);
-		set_line_vertices(elem, 2,  2,3);
-		set_line_vertices(elem, 3,  3,0);
+		GPUx_set_line_vertices(elem, 0,  0,1);
+		GPUx_set_line_vertices(elem, 1,  1,2);
+		GPUx_set_line_vertices(elem, 2,  2,3);
+		GPUx_set_line_vertices(elem, 3,  3,0);
 		/* center point to camera frame */
-		set_line_vertices(elem, 4,  0,4);
-		set_line_vertices(elem, 5,  1,4);
-		set_line_vertices(elem, 6,  2,4);
-		set_line_vertices(elem, 7,  3,4);
+		GPUx_set_line_vertices(elem, 4,  0,4);
+		GPUx_set_line_vertices(elem, 5,  1,4);
+		GPUx_set_line_vertices(elem, 6,  2,4);
+		GPUx_set_line_vertices(elem, 7,  3,4);
 		/* arrow on top */
-		set_line_vertices(elem, 8,  5,6);
-		set_line_vertices(elem, 9,  6,7);
-		set_line_vertices(elem, 10, 7,5);
+		GPUx_set_line_vertices(elem, 8,  5,6);
+		GPUx_set_line_vertices(elem, 9,  6,7);
+		GPUx_set_line_vertices(elem, 10, 7,5);
 
-		draw_lines(&default_state.common, &default_state.line, verts, elem);
+		GPUx_draw_lines(&default_state.common, &default_state.line, verts, elem);
 
-		element_list_discard(elem);
+		GPUx_element_list_discard(elem);
 
 		/* draw an outline arrow for inactive cameras and filled
 		 * for active cameras. We actually draw both outline+filled
@@ -2108,15 +2108,15 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 			polygon_state.draw_front = true;
 			polygon_state.draw_back = true;
 
-			elem = element_list_create(GL_TRIANGLES, 1, 7);
-			set_triangle_vertices(elem, 0,  5,6,7);
+			elem = GPUx_element_list_create(GL_TRIANGLES, 1, 7);
+			GPUx_set_triangle_vertices(elem, 0,  5,6,7);
 
-			draw_triangles(&default_state.common, &polygon_state, verts, elem);
+			GPUx_draw_triangles(&default_state.common, &polygon_state, verts, elem);
 
-			element_list_discard(elem);
+			GPUx_element_list_discard(elem);
 		}
 
-		vertex_buffer_discard(verts);
+		GPUx_vertex_buffer_discard(verts);
 	}
 }
 

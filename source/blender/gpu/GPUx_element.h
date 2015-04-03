@@ -12,13 +12,13 @@
 struct ElementList; /* forward declaration */
 typedef struct ElementList ElementList;
 
-ElementList *element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index);
-void element_list_discard(ElementList*);
+ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index);
+void GPUx_element_list_discard(ElementList*);
 
-void set_point_vertex(ElementList*, unsigned prim_idx, unsigned v1);
-void set_line_vertices(ElementList*, unsigned prim_idx, unsigned v1, unsigned v2);
-void set_triangle_vertices(ElementList*, unsigned prim_idx, unsigned v1, unsigned v2, unsigned v3);
+void GPUx_set_point_vertex(ElementList*, unsigned prim_idx, unsigned v1);
+void GPUx_set_line_vertices(ElementList*, unsigned prim_idx, unsigned v1, unsigned v2);
+void GPUx_set_triangle_vertices(ElementList*, unsigned prim_idx, unsigned v1, unsigned v2, unsigned v3);
 
-void optimize(ElementList*); /* optionally call this after setting all vertex indices */
+void GPUx_optimize(ElementList*); /* optionally call this after setting all vertex indices */
 
 #endif /* BLENDER_GL_ELEMENT_LIST */

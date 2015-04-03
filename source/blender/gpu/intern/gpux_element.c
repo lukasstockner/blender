@@ -2,7 +2,7 @@
 #include "gpux_element_private.h"
 #include <stdlib.h>
 
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 static void track_index_range(ElementList *el, unsigned v)
 {
 	if (v < el->min_observed_index)
@@ -14,7 +14,7 @@ static void track_index_range(ElementList *el, unsigned v)
 
 unsigned min_index(const ElementList *el)
 {
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 	return el->min_observed_index;
 #else
 	return 0;
@@ -23,14 +23,14 @@ unsigned min_index(const ElementList *el)
 
 unsigned max_index(const ElementList *el)
 {
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 	return el->max_observed_index;
 #else
 	return el->max_allowed_index;
 #endif /* TRACK_INDEX_RANGE */
 }
 
-ElementList *element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index)
+ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index)
 {
 	ElementList *el;
 	unsigned index_size, prim_vertex_ct;
@@ -67,7 +67,7 @@ ElementList *element_list_create(GLenum prim_type, unsigned prim_ct, unsigned ma
 		index_size = sizeof(GLuint);
 	}
 
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 	el->min_observed_index = max_index + 1; /* any valid index will be < this */
 	el->max_observed_index = 0;
 #endif /* TRACK_INDEX_RANGE */
@@ -78,21 +78,21 @@ ElementList *element_list_create(GLenum prim_type, unsigned prim_ct, unsigned ma
 	return el;
 }
 
-void element_list_discard(ElementList *el)
+void GPUx_element_list_discard(ElementList *el)
 {
 	free(el->indices);
 	free(el);
 }
 
-void set_point_vertex(ElementList *el, unsigned prim_idx, unsigned v1)
+void GPUx_set_point_vertex(ElementList *el, unsigned prim_idx, unsigned v1)
 {
 	const unsigned offset = prim_idx;
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	assert(el->prim_type == GL_POINTS);
 	assert(prim_idx < el->prim_ct); /* prim out of range */
 	assert(v1 <= el->max_allowed_index); /* index out of range */
 #endif /* TRUST_NO_ONE */
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 	track_index_range(el, v1);
 #endif /* TRACK_INDEX_RANGE */
 	switch (el->index_type) {
@@ -117,16 +117,16 @@ void set_point_vertex(ElementList *el, unsigned prim_idx, unsigned v1)
 	}
 }
 
-void set_line_vertices(ElementList *el, unsigned prim_idx, unsigned v1, unsigned v2)
+void GPUx_set_line_vertices(ElementList *el, unsigned prim_idx, unsigned v1, unsigned v2)
 {
 	const unsigned offset = prim_idx * 2;
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	assert(el->prim_type == GL_LINES);
 	assert(prim_idx < el->prim_ct); /* prim out of range */
 	assert(v1 <= el->max_allowed_index && v2 <= el->max_allowed_index); /* index out of range */
 	assert(v1 != v2); /* degenerate line */
 #endif /* TRUST_NO_ONE */
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 	track_index_range(el, v1);
 	track_index_range(el, v2);
 #endif /* TRACK_INDEX_RANGE */
@@ -155,16 +155,16 @@ void set_line_vertices(ElementList *el, unsigned prim_idx, unsigned v1, unsigned
 	}
 }
 
-void set_triangle_vertices(ElementList *el, unsigned prim_idx, unsigned v1, unsigned v2, unsigned v3)
+void GPUx_set_triangle_vertices(ElementList *el, unsigned prim_idx, unsigned v1, unsigned v2, unsigned v3)
 {
 	const unsigned offset = prim_idx * 3;
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	assert(el->prim_type == GL_TRIANGLES);
 	assert(prim_idx < el->prim_ct); /* prim out of range */
 	assert(v1 <= el->max_allowed_index && v2 <= el->max_allowed_index && v3 <= el->max_allowed_index); /* index out of range */
 	assert(v1 != v2 && v2 != v3 && v3 != v1); /* degenerate triangle */
 #endif /* TRUST_NO_ONE */
-#if TRACK_INDEX_RANGE
+#ifdef TRACK_INDEX_RANGE
 	track_index_range(el, v1);
 	track_index_range(el, v2);
 	track_index_range(el, v3);
@@ -197,7 +197,7 @@ void set_triangle_vertices(ElementList *el, unsigned prim_idx, unsigned v1, unsi
 	}
 }
 
-void optimize(ElementList *el)
+void GPUx_optimize(ElementList *el)
 {
 	/* TODO: apply Forsyth's vertex cache algorithm */
 	
