@@ -4,7 +4,7 @@
 
 #include <string.h> /* memset */
 
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
   #include <assert.h>
 #endif /* TRUST_NO_ONE */
 
@@ -96,9 +96,9 @@ void set_line_state(const LineDrawState *state)
 
 	if (state->stipple != current.line.stipple) {
 		if (state->stipple) {
+			const GLushort pattern = 0x4E72; /* or 0xAAAA */
 			glEnable(GL_LINE_STIPPLE);
 			/* line stipple is 16-bit pattern */
-			const GLushort pattern = 0x4E72; /* or 0xAAAA */
 			glLineStipple(state->stipple, pattern);
 		}
 		else
@@ -161,6 +161,7 @@ void set_polygon_state(const PolygonDrawState *state)
 
 void force_state_update()
 {
+	const GLenum cull = faces_to_cull(&current.polygon);
 	/* TODO: factor some of this stuff out, share with set_*_state functions? */
 
 	/* common state */
@@ -201,16 +202,15 @@ void force_state_update()
 	glLineWidth(current.line.width);
 
 	if (current.line.stipple) {
+		const GLushort pattern = 0x4E72; /* or 0xAAAA */
 		glEnable(GL_LINE_STIPPLE);
 		/* line stipple is 16-bit pattern */
-		const GLushort pattern = 0x4E72; /* or 0xAAAA */
 		glLineStipple(current.line.stipple, pattern);
 	}
 	else
 		glDisable(GL_LINE_STIPPLE);
 
 	/* polygon state */
-	const GLenum cull = faces_to_cull(&current.polygon);
 	if (cull == GL_NONE)
 		glDisable(GL_CULL_FACE);
 	else {
@@ -221,9 +221,9 @@ void force_state_update()
 	/* TODO: whatever needed to make material active */
 
 	if (current.polygon.stipple) {
+		GLubyte pattern[128];
 		glEnable(GL_POLYGON_STIPPLE);
 		/* polygon stipple is 32x32-bit pattern */
-		GLubyte pattern[128];
 		memset(pattern, 0xAA, sizeof(pattern));
 		glPolygonStipple(pattern);
 		polygon_stipple_pattern_set = true;

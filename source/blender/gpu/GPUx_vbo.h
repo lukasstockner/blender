@@ -8,9 +8,9 @@
 /* ^-- for GLenum (and if you're including this file, you're probably calling OpenGL anyway) */
 #include <stdbool.h>
 
-#define GENERIC_ATTRIB false
-#define TRUST_NO_ONE true
-#define PRINT false
+//#define GENERIC_ATTRIB
+#define TRUST_NO_ONE
+//#define PRINT
 
 struct VertexBuffer; /* forward declaration */
 typedef struct VertexBuffer VertexBuffer;
@@ -27,12 +27,12 @@ void vertex_buffer_discard(VertexBuffer*);
 
 unsigned vertex_ct(const VertexBuffer*);
 
-#if PRINT
+#ifdef PRINT
 void attrib_print(const VertexBuffer*, unsigned attrib_num);
 #endif /* PRINT */
 
 void specify_attrib(VertexBuffer*, unsigned attrib_num,
-#if GENERIC_ATTRIB
+#ifdef GENERIC_ATTRIB
                     const char *name, /* use any legal GLSL identifier */
 #else
                     GLenum attrib_array, /* use GL_VERTEX_ARRAY, GL_NORMAL_ARRAY, etc. */

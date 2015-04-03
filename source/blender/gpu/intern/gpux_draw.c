@@ -1,12 +1,12 @@
 
 #include "GPUx_draw.h"
-#include "GPUx_element_private.h"
+#include "gpux_element_private.h"
 
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
   #include <assert.h>
 #endif /* TRUST_NO_ONE */
 
-#define REALLY_DRAW true
+#define REALLY_DRAW
 
 /* generally useful utility function */
 static unsigned chop_to_multiple(unsigned x, unsigned m)
@@ -19,14 +19,14 @@ void draw_points(const CommonDrawState *common_state, const PointDrawState *poin
 	set_common_state(common_state);
 	set_point_state(point_state);
 
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	if (el) {
 		assert(el->prim_type == GL_POINTS);
 		assert(el->max_allowed_index < vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
-#if REALLY_DRAW
+#ifdef REALLY_DRAW
 	vertex_buffer_use_primed(vbo);
 
 	if (el)
@@ -43,14 +43,14 @@ void draw_lines(const CommonDrawState *common_state, const LineDrawState *line_s
 	set_common_state(common_state);
 	set_line_state(line_state);
 
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	if (el) {
 		assert(el->prim_type == GL_LINES);
 		assert(el->max_allowed_index < vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
-#if REALLY_DRAW
+#ifdef REALLY_DRAW
 	vertex_buffer_use_primed(vbo);
 
 	if (el)
@@ -67,14 +67,14 @@ void draw_triangles(const CommonDrawState *common_state, const PolygonDrawState 
 	set_common_state(common_state);
 	set_polygon_state(polygon_state);
 
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	if (el) {
 		assert(el->prim_type == GL_TRIANGLES);
 		assert(el->max_allowed_index < vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
-#if REALLY_DRAW
+#ifdef REALLY_DRAW
 	vertex_buffer_use_primed(vbo);
 
 	if (el)
@@ -88,11 +88,11 @@ void draw_triangles(const CommonDrawState *common_state, const PolygonDrawState 
 
 void draw_primitives(const CommonDrawState *common_state, const void *primitive_state, const VertexBuffer *vbo, const ElementList *el)
 {
-#if TRUST_NO_ONE
+	int vert_per_prim = 0;
+
+#ifdef TRUST_NO_ONE
 	assert(el->max_allowed_index < vertex_ct(vbo));
 #endif /* TRUST_NO_ONE */
-
-	int vert_per_prim = 0;
 
 	switch (el->prim_type) {
 		case GL_POINTS:
@@ -108,7 +108,7 @@ void draw_primitives(const CommonDrawState *common_state, const void *primitive_
 			vert_per_prim = 3;
 			break;
 		default:
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 			assert(false);
 #else
 			return;
@@ -117,7 +117,7 @@ void draw_primitives(const CommonDrawState *common_state, const void *primitive_
 
 	set_common_state(common_state);
 
-#if REALLY_DRAW
+#ifdef REALLY_DRAW
 	vertex_buffer_use_primed(vbo);
 
 	glDrawRangeElements(el->prim_type, min_index(el), max_index(el), el->prim_ct * vert_per_prim, el->index_type, el->indices);

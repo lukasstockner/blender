@@ -5,19 +5,21 @@
 
 /* VBOs are guaranteed for any GL >= 1.5
  * They can be turned off here (mostly for comparison). */
-#define USE_VBO true
+#define USE_VBO
 
 /* VAOs are part of GL 3.0, and optionally available in 2.1 as an extension:
  * APPLE_vertex_array_object or ARB_vertex_array_object
  * the ARB version of VAOs *must* use VBOs for vertex data
  * so we should follow that restriction on all platforms. */
-#define USE_VAO (USE_VBO && true)
+#ifdef USE_VBO
+#define USE_VAO
+#endif
 
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
   #include <assert.h>
 #endif /* TRUST_NO_ONE */
 
-#if PRINT
+#ifdef PRINT
   #include <stdio.h>
 #endif /* PRINT */
 
@@ -29,7 +31,7 @@ typedef struct {
 	unsigned sz; /* size in bytes, 1 to 16 */
 	unsigned stride; /* natural stride in bytes, 1 to 16 */
 	VertexFetchMode fetch_mode;
-#if GENERIC_ATTRIB
+#ifdef GENERIC_ATTRIB
 	char *name;
 #else
 	GLenum array;
@@ -39,7 +41,7 @@ typedef struct {
 	 * - single VBO for all attribs (sequential)
 	 * - single VBO, attribs interleaved
 	 * - distinguish between static & dynamic attribs, w/ separate storage */
-#if USE_VBO
+#ifdef USE_VBO
 	GLuint vbo_id;
 #endif /* USE_VBO */
 } Attrib;
@@ -47,7 +49,7 @@ typedef struct {
 static unsigned comp_sz(GLenum type)
 {
 	const GLubyte sizes[] = {1,1,2,2,4,4,4}; /* uint32 might result in smaller code? */
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	assert(type >= GL_BYTE && type <= GL_FLOAT);
 #endif /* TRUST_NO_ONE */
 	return sizes[type - GL_BYTE];
@@ -73,24 +75,21 @@ struct VertexBuffer
 	unsigned attrib_ct; /* 1 to 16 */
 	unsigned vertex_ct;
 	Attrib *attribs;
-#if USE_VAO
+#ifdef USE_VAO
 	GLuint vao_id;
 #endif /* USE_VAO */
 };
 
-#if PRINT
+#ifdef PRINT
 void attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 {
+	unsigned int comp_size, v;
 	Attrib *a = buff->attribs + attrib_num;
-#if TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
-	assert(a->comp_type >= GL_BYTE && a->comp_type <= GL_FLOAT);
-	assert(a->data != NULL); /* attribute must be specified */
-#endif /* TRUST_NO_ONE */
+	unsigned type_idx = a->comp_type - GL_BYTE;
 	/* use GLSL names when they exist, or type_count for the others */
 	const char *singular[] = {"byte","ubyte","short","ushort","int","uint","float"};
 	const char *plural[] = {"byte_","ubyte_","short_","ushort_","ivec","uint_","vec"};
-#if GENERIC_ATTRIB
+#ifdef GENERIC_ATTRIB
 	const char *var_name = a->name ? a->name : "foo";
 #else
 	const char* var_name = "foo";
@@ -111,16 +110,21 @@ void attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 			;
 	}
 #endif
-	unsigned type_idx = a->comp_type - GL_BYTE;
+#ifdef TRUST_NO_ONE
+	assert(attrib_num < buff->attrib_ct);
+	assert(a->comp_type >= GL_BYTE && a->comp_type <= GL_FLOAT);
+	assert(a->data != NULL); /* attribute must be specified */
+#endif /* TRUST_NO_ONE */
 	if (a->comp_ct == 1)
 		printf("attrib %s %s = {\n", singular[type_idx], var_name);
 	else
 		printf("attrib %s%d %s = {\n", plural[type_idx], a->comp_ct, var_name);
 
-	unsigned comp_size = comp_sz(a->comp_type);
-	for (unsigned v = 0; v < buff->vertex_ct; ++v) {
+	comp_size = comp_sz(a->comp_type);
+	for (v = 0; v < buff->vertex_ct; ++v) {
+		unsigned int offset;
 		const void *data = (byte*)a->data + v * a->stride;
-		for (unsigned offset = 0; offset < a->sz; ++offset) {
+		for (offset = 0; offset < a->sz; ++offset) {
 			if (offset % comp_size == 0)
 				putchar(' ');
 			printf("%02X", *(const byte*)data + offset);
@@ -133,10 +137,10 @@ void attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 
 VertexBuffer *vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 {
-#if TRUST_NO_ONE
+	VertexBuffer *buff = calloc(1, sizeof(VertexBuffer));
+#ifdef TRUST_NO_ONE
 	assert(a_ct >= 1 && a_ct <= 16);
 #endif /* TRUST_NO_ONE */
-	VertexBuffer *buff = calloc(1, sizeof(VertexBuffer));
 	buff->attrib_ct = a_ct;
 	buff->vertex_ct = v_ct;
 	buff->attribs = calloc(a_ct, sizeof(Attrib));
@@ -146,18 +150,19 @@ VertexBuffer *vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 
 void vertex_buffer_discard(VertexBuffer *buff)
 {
-	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
+	unsigned a_idx;
+	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
-#if USE_VBO
+#ifdef USE_VBO
 		if (a->vbo_id)
 			glDeleteBuffers(1, &a->vbo_id);
 #endif /* USE_VBO */
-#if GENERIC_ATTRIB
+#ifdef GENERIC_ATTRIB
 		free(a->name);
 #endif /* GENERIC_ATTRIB */
 		free(a->data);
 	}
-#if USE_VAO
+#ifdef USE_VAO
 	if (buff->vao_id)
 		glDeleteVertexArrays(1, &buff->vao_id);
 #endif /* USE_VAO */
@@ -167,31 +172,34 @@ void vertex_buffer_discard(VertexBuffer *buff)
 
 static unsigned attrib_total_size(const VertexBuffer *buff, unsigned attrib_num)
 {
-#if TRUST_NO_ONE
+	const Attrib *attrib = buff->attribs + attrib_num;
+#ifdef TRUST_NO_ONE
 	assert(attrib_num < buff->attrib_ct);
 #endif /* TRUST_NO_ONE */
-	const Attrib *attrib = buff->attribs + attrib_num;
 	/* just enough space for every vertex, with padding between but not after the last */
 	return (buff->vertex_ct - 1) * attrib->stride + attrib->sz;
 }
 
 void specify_attrib(VertexBuffer *buff, unsigned attrib_num,
-#if GENERIC_ATTRIB
+#ifdef GENERIC_ATTRIB
                     const char *name,
 #else
                     GLenum attrib_array,
 #endif
                     GLenum comp_type, unsigned comp_ct, VertexFetchMode fetch_mode)
 {
-#if TRUST_NO_ONE
+	Attrib *attrib;
+#ifdef TRUST_NO_ONE
 	assert(attrib_num < buff->attrib_ct);
 	assert(comp_type >= GL_BYTE && comp_type <= GL_FLOAT);
 	assert(comp_ct >= 1 && comp_ct <= 4);
+
 	if (comp_type == GL_FLOAT)
 		assert(fetch_mode == KEEP_FLOAT);
 	else
 		assert(fetch_mode != KEEP_FLOAT);
-  #if !GENERIC_ATTRIB
+
+  #ifndef GENERIC_ATTRIB
 	/* classic (non-generic) attributes each have their quirks
 	 * handle below */
 	switch (attrib_array) {
@@ -231,8 +239,8 @@ void specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 	/* TODO: allow only one of each type of array (scan other attribs) */
   #endif
 #endif /* TRUST_NO_ONE */
-	Attrib *attrib = buff->attribs + attrib_num;
-#if GENERIC_ATTRIB
+	attrib = buff->attribs + attrib_num;
+#ifdef GENERIC_ATTRIB
 	attrib->name = strdup(name);
 #else
 	attrib->array = attrib_array;
@@ -243,7 +251,7 @@ void specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 	attrib->stride = attrib_align(attrib);
 	attrib->fetch_mode = fetch_mode;
 	attrib->data = malloc(attrib_total_size(buff, attrib_num));
-#if PRINT
+#ifdef PRINT
 	attrib_print(buff, attrib_num);
 #endif /* PRINT */
 }
@@ -251,7 +259,7 @@ void specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 void set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, const void *data)
 {
 	Attrib *attrib = buff->attribs + attrib_num;
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	assert(attrib_num < buff->attrib_ct);
 	assert(vertex_num < buff->vertex_ct);
 	assert(attrib->data != NULL); /* attribute must be specified */
@@ -261,19 +269,19 @@ void set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, co
 
 void set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, float x, float y, float z)
 {
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	Attrib *attrib = buff->attribs + attrib_num;
+	const GLfloat data[] = { x, y, z };
 	assert(attrib->comp_type == GL_FLOAT);
 	assert(attrib->comp_ct == 3);
 #endif /* TRUST_NO_ONE */
-	const GLfloat data[] = { x, y, z };
 	set_attrib(buff, attrib_num, vertex_num, data);
 }
 
 void fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
 	{
 	Attrib *attrib = buff->attribs + attrib_num;
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	assert(attrib_num < buff->attrib_ct);
 	assert(attrib->data != NULL); /* attribute must be specified */
 #endif /* TRUST_NO_ONE */
@@ -282,9 +290,10 @@ void fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
 		memcpy(attrib->data, data, buff->vertex_ct * attrib->sz);
 	}
 	else {
+		unsigned v;
 		/* not tightly packed, so we must copy it per vertex
 		 * (this is begging for vector (SSE) coding) */
-		for (unsigned v = 0; v < buff->vertex_ct; ++v)
+		for (v = 0; v < buff->vertex_ct; ++v)
 			memcpy((byte*)attrib->data + v * attrib->stride, (byte*)data + v * attrib->sz, attrib->sz);
 	}
 }
@@ -292,7 +301,7 @@ void fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
 void fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void *data, unsigned stride)
 {
 	Attrib *attrib = buff->attribs + attrib_num;
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 	assert(attrib_num < buff->attrib_ct);
 	assert(attrib->data != NULL); /* attribute must be specified */
 	assert(stride >= attrib->sz); /* no overlapping attributes (legal but weird) */
@@ -302,15 +311,18 @@ void fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void *dat
 		memcpy(attrib->data, data, buff->vertex_ct * attrib->sz);
 	}
 	else {
+		unsigned v;
 		/* we must copy it per vertex */
-		for (unsigned v = 0; v < buff->vertex_ct; ++v)
+		for (v = 0; v < buff->vertex_ct; ++v)
 			memcpy((byte*)attrib->data + v * attrib->stride, (byte*)data + v * stride, attrib->sz);
 	}
 }
 
 void vertex_buffer_use(VertexBuffer *buff)
 {
-#if USE_VAO
+	unsigned a_idx;
+	const void *data;
+#ifdef USE_VAO
 	if (buff->vao_id) {
 		/* simply bind & exit */
 		glBindVertexArray(buff->vao_id);
@@ -322,16 +334,16 @@ void vertex_buffer_use(VertexBuffer *buff)
 	}
 #endif /* USE_VAO */
 
-	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
+	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
 
-#if GENERIC_ATTRIB
+#ifdef GENERIC_ATTRIB
 		glEnableVertexAttribArray(a_idx);
 #else
 		glEnableClientState(a->array);
 #endif /* GENERIC_ATTRIB */
 
-#if USE_VBO
+#ifdef USE_VBO
 		if (a->vbo_id)
 			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 		else {
@@ -341,12 +353,12 @@ void vertex_buffer_use(VertexBuffer *buff)
 			glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
 		}
 
-		const void *data = 0;
+		data = 0;
 #else /* client vertex array */
-		const void *data = a->data;
+		data = a->data;
 #endif /* USE_VBO */
 
-#if GENERIC_ATTRIB
+#ifdef GENERIC_ATTRIB
 		switch (a->fetch_mode) {
 			case KEEP_FLOAT:
 			case CONVERT_INT_TO_FLOAT:
@@ -379,15 +391,16 @@ void vertex_buffer_use(VertexBuffer *buff)
 #endif /* GENERIC_ATTRIB */
 	}
 
-#if USE_VBO
+#ifdef USE_VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 #endif /* USE_VBO */
 }
 
 void vertex_buffer_prime(VertexBuffer *buff)
 {
-#if USE_VAO
-  #if TRUST_NO_ONE
+	unsigned a_idx;
+#ifdef USE_VAO
+  #ifdef TRUST_NO_ONE
 	assert(buff->vao_id == 0);
   #endif /* TRUST_NO_ONE */
 
@@ -395,19 +408,22 @@ void vertex_buffer_prime(VertexBuffer *buff)
 	glBindVertexArray(buff->vao_id);
 #endif /* USE_VAO */
 
-#if USE_VBO
-	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
+	(void)a_idx; /* avoid unused warnings */
+	(void)buff;
+
+#ifdef USE_VBO
+	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
 
-  #if USE_VAO
-    #if GENERIC_ATTRIB
+  #ifdef USE_VAO
+    #ifdef GENERIC_ATTRIB
 		glEnableVertexAttribArray(a_idx);
     #else
 		glEnableClientState(a->array);
     #endif /* GENERIC_ATTRIB */
   #endif /* USE_VAO */
 
-  #if TRUST_NO_ONE
+  #ifdef TRUST_NO_ONE
 		assert(a->vbo_id == 0);
   #endif /* TRUST_NO_ONE */
 
@@ -416,8 +432,8 @@ void vertex_buffer_prime(VertexBuffer *buff)
 		/* fill with delicious data & send to GPU the first time only */
 		glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
 
-  #if USE_VAO
-    #if GENERIC_ATTRIB
+  #ifdef USE_VAO
+    #ifdef GENERIC_ATTRIB
 		switch (a->fetch_mode) {
 			case KEEP_FLOAT:
 			case CONVERT_INT_TO_FLOAT:
@@ -453,42 +469,45 @@ void vertex_buffer_prime(VertexBuffer *buff)
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 #endif /* USE_VBO */
 
-#if USE_VAO
+#ifdef USE_VAO
 	glBindVertexArray(0);
 #endif /* USE_VAO */
 }
 
 void vertex_buffer_use_primed(const VertexBuffer *buff)
 {
-#if USE_VAO
-  #if TRUST_NO_ONE
+#ifdef USE_VAO
+  #ifdef TRUST_NO_ONE
 	assert(buff->vao_id);
   #endif /* TRUST_NO_ONE */
 
 	/* simply bind & exit */
 	glBindVertexArray(buff->vao_id);
 #else
-	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
-		Attrib *a = buff->attribs + a_idx;
+	unsigned int a_idx;
 
-  #if GENERIC_ATTRIB
+	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
+		Attrib *a = buff->attribs + a_idx;
+		const void *data;
+
+  #ifdef GENERIC_ATTRIB
 		glEnableVertexAttribArray(a_idx);
   #else
 		glEnableClientState(a->array);
   #endif /* GENERIC_ATTRIB */
 
-  #if USE_VBO
-    #if TRUST_NO_ONE
+  #ifdef USE_VBO
+    #ifdef TRUST_NO_ONE
 		assert(a->vbo_id);
     #endif /* TRUST_NO_ONE */
 		glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 
-		const void *data = 0;
+		data = 0;
   #else /* client vertex array */
-		const void *data = a->data;
+		data = a->data;
   #endif /* USE_VBO */
 
-  #if GENERIC_ATTRIB
+  #ifdef GENERIC_ATTRIB
 		switch (a->fetch_mode) {
 			case KEEP_FLOAT:
 			case CONVERT_INT_TO_FLOAT:
@@ -520,7 +539,7 @@ void vertex_buffer_use_primed(const VertexBuffer *buff)
   #endif /* GENERIC_ATTRIB */
 	}
 
-  #if USE_VBO
+  #ifdef USE_VBO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
   #endif /* USE_VBO */
 #endif /* USE_VAO */
@@ -528,11 +547,14 @@ void vertex_buffer_use_primed(const VertexBuffer *buff)
 
 void vertex_buffer_done_using(const VertexBuffer *buff)
 {
-#if USE_VAO
+#ifdef USE_VAO
+	(void)buff;
 	glBindVertexArray(0);
 #else
-	for (unsigned a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
-  #if GENERIC_ATTRIB
+	unsigned int a_idx;
+
+	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
+  #ifdef GENERIC_ATTRIB
 		glDisableVertexAttribArray(a_idx);
   #else
 		glDisableClientState(buff->attribs[a_idx].array);

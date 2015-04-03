@@ -173,6 +173,7 @@ set(SRC
 	shader/nodes/node_shader_bump.c
 	shader/nodes/node_shader_emission.c
 	shader/nodes/node_shader_fresnel.c
+	shader/nodes/node_shader_script_glsl.c
 	shader/nodes/node_shader_geometry.c
 	shader/nodes/node_shader_holdout.c
 	shader/nodes/node_shader_layer_weight.c

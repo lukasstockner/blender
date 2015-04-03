@@ -1,9 +1,9 @@
 
-#include "GPUx_element_private.h"
+#include "gpux_element_private.h"
 #include <stdlib.h>
 
 #if TRACK_INDEX_RANGE
-void track_index_range(ElementList *el, unsigned v)
+static void track_index_range(ElementList *el, unsigned v)
 {
 	if (v < el->min_observed_index)
 		el->min_observed_index = v;
@@ -42,7 +42,7 @@ ElementList *element_list_create(GLenum prim_type, unsigned prim_ct, unsigned ma
 	else if (prim_type == GL_TRIANGLES)
 		prim_vertex_ct = 3;
 	else {
-#if TRUST_NO_ONE
+#ifdef TRUST_NO_ONE
 		assert(false);
 #endif /* TRUST_NO_ONE */
 		return NULL;
