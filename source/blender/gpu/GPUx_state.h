@@ -45,7 +45,7 @@ typedef struct {
 extern const DrawState default_state;
 
 
-void reset_draw_state(); /* to defaults */
+void reset_draw_state(void); /* to defaults */
 /* ^-- call this before using set_*_state functions below */
 
 /* incrementally update current GL state */
@@ -55,6 +55,6 @@ void set_line_state(const LineDrawState*);
 void set_polygon_state(const PolygonDrawState*);
 
 /* update everything regardless of current GL state */
-void force_state_update();
+void force_state_update(void);
 
 #endif /* BLENDER_GL_STATE */

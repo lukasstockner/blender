@@ -3532,14 +3532,17 @@ static void update_lods(Scene *scene, float camera_pos[3])
 #endif
 
 /* uploads and caches view dependent state such as view/projection matrix */
-static void view3d_update_view_dependent_uniforms()
+static void view3d_update_view_dependent_uniforms(void)
 {
 
 }
 
-static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, View3D *v3d,
+static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene *scene, View3D *v3d,
                                                ARegion *ar, const char **grid_unit)
 {
+	unsigned int lay_used = 0;
+	Base *base, *base_edit = NULL; /* object being edited, if any */
+
 #if MCE_TRACE
 	printf("> %s\n", __FUNCTION__);
 #endif /* MCE_TRACE */
@@ -3588,7 +3591,6 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	 * not perfect but it does let us see objects positioned in space
 	 * TODO: draw objects prettier/better/faster/stronger
 	 */
-	unsigned int lay_used = 0;
 
 	/* XXX merwin
 	 *
@@ -3599,12 +3601,10 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	 * Hand-crafted logic here is tricky; will simplify later.
 	 */
 
-	Base* base_edit = NULL; /* object being edited, if any */
-
 	reset_draw_state(); /* for code below which uses GPUx_state */
 
 	/* draw meshes (and cameras) not being edited (selected or not) */
-	for (Base* base = scene->base.first; base; base = base->next) {
+	for (base = scene->base.first; base; base = base->next) {
 		lay_used |= base->lay;
 
 		if (base->object == scene->obedit) {
@@ -3622,7 +3622,7 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	reset_draw_state(); /* for code below which does NOT use GPUx_state */
 
 	/* draw non-meshes not being edited nor selected */
-	for (Base* base = scene->base.first; base; base = base->next) {
+	for (base = scene->base.first; base; base = base->next) {
 		if (base == base_edit)
 			continue;
 
@@ -3637,7 +3637,7 @@ static void view3d_main_area_draw_viewport_new(const bContext *C, Scene *scene, 
 	v3d->lay_used = lay_used & ((1 << 20) - 1);
 
 	/* draw selected non-meshes */
-	for (Base *base = scene->base.first; base; base = base->next) {
+	for (base = scene->base.first; base; base = base->next) {
 		if (base == base_edit)
 			continue;
 

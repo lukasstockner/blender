@@ -2012,7 +2012,7 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 }
 
 static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
-                               const short dflag, const unsigned char ob_wire_col[4])
+                               const short UNUSED(dflag), const unsigned char UNUSED(ob_wire_col[4]))
 {
 #if MCE_TRACE
 	printf("- %s\n", __FUNCTION__);
@@ -2037,11 +2037,11 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 
 	if (is_view) {
 		VertexBuffer *verts = vertex_buffer_create(1, 4);
+		ElementList *elem = element_list_create(GL_LINES, 4, 3);
 		specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
 		fill_attrib(verts, 0, vec);
 		vertex_buffer_prime(verts);
 
-		ElementList *elem = element_list_create(GL_LINES, 4, 3);
 		/* camera frame */
 		set_line_vertices(elem, 0,  0,1);
 		set_line_vertices(elem, 1,  1,2);
@@ -2054,6 +2054,9 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 		vertex_buffer_discard(verts);
 	}
 	else {
+		VertexBuffer *verts = vertex_buffer_create(1, 8);
+		ElementList *elem = element_list_create(GL_LINES, 11, 7);
+
 		zero_v3(vec[4]); /* center point */
 
 		/* arrow on top */
@@ -2074,12 +2077,10 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 			copy_v3_v3(vec[7], tvec); /* top */
 		}
 
-		VertexBuffer *verts = vertex_buffer_create(1, 8);
 		specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
 		fill_attrib(verts, 0, vec);
 		vertex_buffer_prime(verts);
 
-		ElementList *elem = element_list_create(GL_LINES, 11, 7);
 		/* camera frame */
 		set_line_vertices(elem, 0,  0,1);
 		set_line_vertices(elem, 1,  1,2);
@@ -4313,13 +4314,14 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	Object *obedit = scene->obedit;
 	Mesh *me = ob->data;
 	bool do_alpha_after = false, drawlinked = false, retval = false;
+	int i;
 
 	BLI_assert(ob != obedit); /* should be caught by draw_object_new() before here */
 
 	/* If we are drawing shadows and any of the materials don't cast a shadow,
 	 * then don't draw the object */
 	if (v3d->flag2 & V3D_RENDER_SHADOW) {
-		for (int i = 0; i < ob->totcol; ++i) {
+		for (i = 0; i < ob->totcol; ++i) {
 			Material *ma = give_current_material(ob, i);
 			if (ma && !(ma->mode2 & MA_CASTSHADOW)) {
 				return true;
