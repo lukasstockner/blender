@@ -48,6 +48,7 @@
 #include "BLI_fileops_types.h"
 #include "BLI_fnmatch.h"
 #include "BLI_ghash.h"
+#include "BLI_hash_md5.h"
 #include "BLI_linklist.h"
 #include "BLI_math.h"
 #include "BLI_stack.h"
@@ -268,6 +269,8 @@ typedef struct FileList {
 	struct FileListIntern filelist_intern;
 
 	struct FileListEntryCache filelist_cache;
+
+	GHash *selection_state;
 
 	short max_recursion;
 	short recursion_level;
@@ -1116,6 +1119,8 @@ FileList *filelist_new(short type)
 
 	filelist_cache_init(&p->filelist_cache);
 
+	p->selection_state = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
+
 	switch (type) {
 		case FILE_MAIN:
 			p->checkdirf = filelist_checkdir_main;
@@ -1149,6 +1154,10 @@ void filelist_clear(struct FileList *filelist)
 	filelist_cache_clear(&filelist->filelist_cache);
 
 	filelist_intern_free(&filelist->filelist_intern);
+
+	if (filelist->selection_state) {
+		BLI_ghash_clear(filelist->selection_state, MEM_freeN, NULL);
+	}
 }
 
 void filelist_free(struct FileList *filelist)
@@ -1164,6 +1173,11 @@ void filelist_free(struct FileList *filelist)
 	if (filelist->ae) {
 		BKE_asset_engine_free(filelist->ae);
 		filelist->ae = NULL;
+	}
+
+	if (filelist->selection_state) {
+		BLI_ghash_free(filelist->selection_state, MEM_freeN, NULL);
+		filelist->selection_state = NULL;
 	}
 
 	memset(&filelist->filter_data, 0, sizeof(filelist->filter_data));
@@ -1753,40 +1767,58 @@ int filelist_empty(struct FileList *filelist)
 	return (filelist->filelist.nbr_entries == 0);
 }
 
-void filelist_select_file(FileList *filelist, int index, FileSelType select, unsigned int flag, FileCheckType check)
+unsigned int filelist_entry_select_set(
+        FileList *filelist, FileDirEntry *entry, FileSelType select, unsigned int flag, FileCheckType check)
+{
+	/* Default NULL pointer if not found is fine here! */
+	unsigned int entry_flag = GET_UINT_FROM_POINTER(BLI_ghash_lookup(filelist->selection_state, entry->uuid));
+	const unsigned int org_entry_flag = entry_flag;
+
+	BLI_assert(entry);
+	BLI_assert(ELEM(check, CHECK_DIRS, CHECK_FILES, CHECK_ALL));
+
+	if (((check == CHECK_ALL)) ||
+	    ((check == CHECK_DIRS) && (entry->typeflag & FILE_TYPE_DIR)) ||
+	    ((check == CHECK_FILES) && !(entry->typeflag & FILE_TYPE_DIR)))
+	{
+		switch (select) {
+			case FILE_SEL_REMOVE:
+				entry_flag &= ~flag;
+				break;
+			case FILE_SEL_ADD:
+				entry_flag |= flag;
+				break;
+			case FILE_SEL_TOGGLE:
+				entry_flag ^= flag;
+				break;
+		}
+	}
+
+	if (entry_flag != org_entry_flag) {
+		if (entry_flag) {
+			void *key = MEM_mallocN(sizeof(entry->uuid), __func__);
+			memcpy(key, entry->uuid, sizeof(entry->uuid));
+			BLI_ghash_reinsert(filelist->selection_state, key, SET_UINT_IN_POINTER(entry_flag), MEM_freeN, NULL);
+		}
+		else {
+			BLI_ghash_remove(filelist->selection_state, entry->uuid, MEM_freeN, NULL);
+		}
+	}
+
+	return entry_flag;
+}
+
+void filelist_entry_select_index_set(FileList *filelist, const int index, FileSelType select, unsigned int flag, FileCheckType check)
 {
 	FileDirEntry *entry = filelist_file(filelist, index);
+
 	if (entry) {
-		bool check_ok = false;
-		switch (check) {
-			case CHECK_DIRS:
-				check_ok = ((entry->typeflag & FILE_TYPE_DIR) != 0);
-				break;
-			case CHECK_ALL:
-				check_ok = true;
-				break;
-			case CHECK_FILES:
-			default:
-				check_ok = ((entry->typeflag & FILE_TYPE_DIR) == 0);
-				break;
-		}
-		if (check_ok) {
-			switch (select) {
-				case FILE_SEL_REMOVE:
-					entry->selflag &= ~flag;
-					break;
-				case FILE_SEL_ADD:
-					entry->selflag |= flag;
-					break;
-				case FILE_SEL_TOGGLE:
-					entry->selflag ^= flag;
-					break;
-			}
-		}
+		filelist_entry_select_set(filelist, entry, select, flag, check);
 	}
 }
 
-void filelist_select(FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check)
+void filelist_entries_select_index_range_set(
+        FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check)
 {
 	/* select all valid files between first and last indicated */
 	if ((sel->first >= 0) && (sel->first < filelist->filelist.nbr_entries_filtered) &&
@@ -1794,19 +1826,36 @@ void filelist_select(FileList *filelist, FileSelection *sel, FileSelType select,
 	{
 		int current_file;
 		for (current_file = sel->first; current_file <= sel->last; current_file++) {
-			filelist_select_file(filelist, current_file, select, flag, check);
+			filelist_entry_select_index_set(filelist, current_file, select, flag, check);
 		}
 	}
 }
 
-bool filelist_is_selected(FileList *filelist, int index, FileCheckType check)
+unsigned int filelist_entry_select_get(FileList *filelist, FileDirEntry *entry, FileCheckType check)
 {
-	FileDirEntry *entry = filelist_file(filelist, index);
-	if (entry) {
-		return BKE_filedir_entry_is_selected(entry, check);
+	BLI_assert(entry);
+	BLI_assert(ELEM(check, CHECK_DIRS, CHECK_FILES, CHECK_ALL));
+
+	if (((check == CHECK_ALL)) ||
+	    ((check == CHECK_DIRS) && (entry->typeflag & FILE_TYPE_DIR)) ||
+	    ((check == CHECK_FILES) && !(entry->typeflag & FILE_TYPE_DIR)))
+	{
+		/* Default NULL pointer if not found is fine here! */
+		return GET_UINT_FROM_POINTER(BLI_ghash_lookup(filelist->selection_state, entry->uuid));
 	}
 
-	return false;
+	return 0;
+}
+
+unsigned int filelist_entry_select_index_get(FileList *filelist, const int index, FileCheckType check)
+{
+	FileDirEntry *entry = filelist_file(filelist, index);
+
+	if (entry) {
+		return filelist_entry_select_get(filelist, entry, check);
+	}
+
+	return 0;
 }
 
 /**
@@ -2250,6 +2299,11 @@ static void filelist_readjob_do(
 		for (entry = entries.first; entry; entry = entry->next) {
 			BLI_join_dirfile(dir, sizeof(dir), subdir, entry->relpath);
 			BLI_cleanup_file(root, dir);
+
+			/* We use the mere md5sum of path as entry UUID here.
+			 * entry->uuid is 16 bytes len, so we can use it directly! */
+			BLI_hash_md5_buffer(dir, strlen(dir), entry->uuid);
+
 			BLI_path_rel(dir, root);
 			/* Only thing we change in direntry here, so we need to free it first. */
 			MEM_freeN(entry->relpath);
@@ -2365,6 +2419,7 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 		BLI_listbase_clear(&flrj->tmp_filelist->filelist_intern.entries);
 		flrj->tmp_filelist->libfiledata = NULL;
 		memset(&flrj->tmp_filelist->filelist_cache, 0, sizeof(FileListEntryCache));
+		flrj->tmp_filelist->selection_state = NULL;
 
 		flrj->tmp_filelist->read_jobf(flrj->tmp_filelist, flrj->main_name, stop, do_update, progress, &flrj->lock);
 	}

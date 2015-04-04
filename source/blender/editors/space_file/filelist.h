@@ -42,13 +42,12 @@ extern "C" {
 struct AssetEngineType;
 struct AssetEngine;
 struct BlendHandle;
-struct FileDirEntry;
-struct FileDirEntryArr;
 struct FileList;
 struct FileSelection;
 struct wmWindowManager;
 
 struct FileDirEntry;
+struct FileDirEntryArr;
 
 typedef enum FileSelType {
 	FILE_SEL_REMOVE = 0,
@@ -102,9 +101,11 @@ bool                filelist_is_ready(struct FileList *filelist);
 bool                filelist_need_refresh(struct FileList *filelist);
 void                filelist_clear_refresh(struct FileList *filelist);
 
-void                filelist_select(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check);
-void                filelist_select_file(struct FileList *filelist, int index, FileSelType select, unsigned int flag, FileCheckType check);
-bool                filelist_is_selected(struct FileList *filelist, int index, FileCheckType check);
+unsigned int        filelist_entry_select_set(struct FileList *filelist, struct FileDirEntry *entry, FileSelType select, unsigned int flag, FileCheckType check);
+void                filelist_entry_select_index_set(struct FileList *filelist, const int index, FileSelType select, unsigned int flag, FileCheckType check);
+void                filelist_entries_select_index_range_set(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check);
+unsigned int        filelist_entry_select_get(struct FileList *filelist, struct FileDirEntry *entry, FileCheckType check);
+unsigned int        filelist_entry_select_index_get(struct FileList *filelist, const int index, FileCheckType check);
 struct FileDirEntryArr *filelist_selection_get(struct FileList *filelist, FileCheckType check, const char *name, const bool use_ae);
 
 void                filelist_setrecursion(struct FileList *filelist, const int recursion_level);

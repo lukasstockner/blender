@@ -328,16 +328,3 @@ void BKE_filedir_entryarr_clear(FileDirEntryArr *array)
     array->nbr_entries = 0;
 	array->nbr_entries_filtered = 0;
 }
-
-bool BKE_filedir_entry_is_selected(FileDirEntry *entry, FileCheckType check)
-{
-	switch (check) {
-		case CHECK_DIRS:
-			return ((entry->typeflag & FILE_TYPE_DIR) != 0) && (entry->selflag & FILE_SEL_SELECTED);
-		case CHECK_FILES:
-			return ((entry->typeflag & FILE_TYPE_DIR) == 0) && (entry->selflag & FILE_SEL_SELECTED);
-		case CHECK_ALL:
-		default:
-			return (entry->selflag & FILE_SEL_SELECTED) != 0;
-	}
-}

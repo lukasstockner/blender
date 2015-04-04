@@ -829,7 +829,7 @@ typedef struct FileDirEntry {
 	int nbr_tags;
 
 	short status;
-	short selflag; /* eDirEntry_SelectFlag */
+	short pad_s1;
 
 	ListBase variants;
 	int nbr_variants;

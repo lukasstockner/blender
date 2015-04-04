@@ -177,8 +177,6 @@ struct FileDirEntry *BKE_filedir_entry_copy(struct FileDirEntry *entry);
 
 void BKE_filedir_entryarr_clear(struct FileDirEntryArr *array);
 
-bool BKE_filedir_entry_is_selected(struct FileDirEntry *entry, FileCheckType check);
-
 #ifdef __cplusplus
 }
 #endif
