@@ -258,7 +258,7 @@ ccl_device_inline float object_random_number(__ADDR_SPACE__ KernelGlobals *kg, i
 ccl_device_inline int object_particle_id(__ADDR_SPACE__ KernelGlobals *kg, int object)
 {
 	if(object == OBJECT_NONE)
-		return 0.0f;
+		return 0;
 
 	int offset = object*OBJECT_SIZE + OBJECT_PROPERTIES;
 	float4 f = kernel_tex_fetch(__objects, offset);

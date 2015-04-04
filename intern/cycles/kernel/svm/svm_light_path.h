@@ -34,7 +34,7 @@ ccl_device void svm_node_light_path(__ADDR_SPACE__ ShaderData *sd, float *stack,
 		case NODE_LP_backfacing: info = (sd_fetch(flag) & SD_BACKFACING)? 1.0f: 0.0f; break;
 		case NODE_LP_ray_length: info = sd_fetch(ray_length); break;
 		case NODE_LP_ray_depth: info = (float)sd_fetch(ray_depth); break;
-		case NODE_LP_ray_transparent: info = sd_fetch(transparent_depth); break;
+		case NODE_LP_ray_transparent: info = (float)sd_fetch(transparent_depth); break;
 	}
 
 	stack_store_float(stack, out_offset, info);
