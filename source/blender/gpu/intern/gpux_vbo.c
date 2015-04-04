@@ -12,7 +12,7 @@
  * the ARB version of VAOs *must* use VBOs for vertex data
  * so we should follow that restriction on all platforms. */
 #ifdef USE_VBO
-#define USE_VAO
+  #define USE_VAO
 #endif
 
 #ifdef TRUST_NO_ONE
@@ -269,9 +269,9 @@ void GPUx_set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_nu
 
 void GPUx_set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, float x, float y, float z)
 {
+	const GLfloat data[] = { x, y, z };
 #ifdef TRUST_NO_ONE
 	Attrib *attrib = buff->attribs + attrib_num;
-	const GLfloat data[] = { x, y, z };
 	assert(attrib->comp_type == GL_FLOAT);
 	assert(attrib->comp_ct == 3);
 #endif /* TRUST_NO_ONE */
