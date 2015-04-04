@@ -374,6 +374,7 @@ void DepsgraphRelationBuilder::add_relation(const TimeSourceKey &key_from,
                                             eDepsRelation_Type type,
                                             const char *description)
 {
+	(void)type;  /* Ignored in release builds. */
 	BLI_assert(type == DEPSREL_TYPE_TIME);
 	TimeSourceDepsNode *time_from = find_node(key_from);
 	DepsNode *node_to = find_node(key_to);
