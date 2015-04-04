@@ -3259,6 +3259,7 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_w), (void *)&d_w));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_h), (void *)&d_h));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_stride), (void *)&d_stride));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
 
 		/* Enqueue ckPathTraceKernel_DataInit_SPLIT_KERNEL kernel */
 		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_DataInit_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));

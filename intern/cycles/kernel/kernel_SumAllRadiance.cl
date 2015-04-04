@@ -29,7 +29,8 @@ __kernel void kernel_ocl_path_trace_SumAllRadiance_SPLIT_KERNEL(
 	ccl_constant KernelData *data,               /* To get pass_stride to offet into buffer */
 	ccl_global float *buffer,                    /* Output buffer of RenderTile */
 	ccl_global float *per_sample_output_buffer,  /* Radiance contributed by all samples */
-	int parallel_samples, int sw, int sh, int stride)
+	int parallel_samples, int sw, int sh, int stride,
+	int start_sample)
 {
 	int x = get_global_id(0);
 	int y = get_global_id(1);
@@ -46,11 +47,10 @@ __kernel void kernel_ocl_path_trace_SumAllRadiance_SPLIT_KERNEL(
 
 		for(sample_iterator = 0; sample_iterator < parallel_samples; sample_iterator++) {
 			for(pass_stride_iterator = 0; pass_stride_iterator < num_floats; pass_stride_iterator++) {
-				*(buffer + pass_stride_iterator) = (sample_iterator == 0) ? *(per_sample_output_buffer + pass_stride_iterator)
+				*(buffer + pass_stride_iterator) = (start_sample == 0 && sample_iterator == 0) ? *(per_sample_output_buffer + pass_stride_iterator)
 				: *(buffer + pass_stride_iterator) + *(per_sample_output_buffer + pass_stride_iterator);
 			}
 			per_sample_output_buffer += sample_stride;
 		}
-
 	}
 }
