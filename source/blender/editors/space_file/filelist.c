@@ -1386,6 +1386,26 @@ int filelist_file_findpath(struct FileList *filelist, const char *filename)
 	return -1;
 }
 
+FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const char uuid[ASSET_UUID_LENGTH])
+{
+	int fidx;
+
+	if (filelist->filelist.nbr_entries_filtered < 0) {
+		return NULL;
+	}
+
+	/* XXX TODO Cache could probably use a ghash on uuids too? Not really urgent though. */
+
+	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
+		FileDirEntry *entry = filelist->filelist_intern.filtered[fidx];
+		if (memcmp(entry->uuid, uuid, sizeof(entry->uuid)) == 0) {
+			return entry;
+		}
+	}
+
+	return NULL;
+}
+
 /* Helper, low-level, it assumes cursor + size <= FILELIST_ENTRYCACHESIZE */
 static bool filelist_file_cache_block_do(struct FileList *filelist, const int start_index, const int size, int cursor)
 {
