@@ -130,7 +130,7 @@ bAction *verify_adt_action(ID *id, short add)
 	/* init animdata if none available yet */
 	adt = BKE_animdata_from_id(id);
 	if ((adt == NULL) && (add))
-		adt = BKE_id_add_animdata(id);
+		adt = BKE_animdata_add_id(id);
 	if (adt == NULL) {
 		/* if still none (as not allowed to add, or ID doesn't have animdata for some reason) */
 		printf("ERROR: Couldn't add AnimData (ID = %s)\n", (id) ? (id->name) : "<None>");
@@ -1742,7 +1742,8 @@ static int insert_key_button_exec(bContext *C, wmOperator *op)
 			}
 			else {
 				BKE_report(op->reports, RPT_WARNING, 
-						   "Failed to resolve path to property, try manually specifying this using a Keying Set instead");
+				           "Failed to resolve path to property, "
+				           "try manually specifying this using a Keying Set instead");
 			}
 		}
 	}
