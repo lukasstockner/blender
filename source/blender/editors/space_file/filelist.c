@@ -1879,45 +1879,52 @@ unsigned int filelist_entry_select_index_get(FileList *filelist, const int index
 }
 
 /**
- * Returns a list of selected entries, if is_virtual is false also calls asset engine's load_pre callback.
+ * Returns a list of selected entries, if use_ae is set also calls asset engine's load_pre callback.
  * Note first item of returned list shall be used as 'active' file.
  */
 FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check, const char *name, const bool use_ae)
 {
 	FileDirEntryArr *selection;
-	int i, totfiles = filelist->filelist.nbr_entries_filtered;
+	GHashIterator *iter = BLI_ghashIterator_new(filelist->selection_state);
 	bool done_name = false;
 
-	selection = MEM_mallocN(sizeof(*selection), __func__);
-	*selection = filelist->filelist;
-	selection->nbr_entries = 0;
-	BLI_listbase_clear(&selection->entries);
+	selection = MEM_callocN(sizeof(*selection), __func__);
+	strcpy(selection->root, filelist->filelist.root);
 
-#if 0  /* XXX Needs changes in how selection is handled! */
-	for (i = 0; i < totfiles; i++) {
-		FileDirEntry *entry_org = filelist->filtered[i];
+	for (; iter; BLI_ghashIterator_step(iter)) {
+		const char *uuid = BLI_ghashIterator_getKey(iter);
+		FileDirEntry *entry_org = filelist_entry_find_uuid(filelist, uuid);
 
-		/* Always include 'name' (i.e. given relpath) */
-		if (!done_name && STREQ(entry_org->relpath, name)) {
-			FileDirEntry *entry_new = BKE_filedir_entry_copy(entry_org);
+		BLI_assert(BLI_ghashIterator_getValue(iter));
 
-			/* We add it in head - first entry in this list is always considered 'active' one. */
-			BLI_addhead(&selection->entries, entry_new);
-			selection->nbr_entries++;
-			done_name = true;
-		}
-		else if (BKE_filedir_entry_is_selected(entry_org, check)) {
-			FileDirEntry *entry_new = BKE_filedir_entry_copy(entry_org);
-			BLI_addtail(&selection->entries, entry_new);
-			selection->nbr_entries++;
+		if (entry_org &&
+		    (((check == CHECK_ALL)) ||
+		     ((check == CHECK_DIRS) && (entry_org->typeflag & FILE_TYPE_DIR)) ||
+		     ((check == CHECK_FILES) && !(entry_org->typeflag & FILE_TYPE_DIR)))) {
+			/* Always include 'name' (i.e. given relpath) */
+			if (!done_name && STREQ(entry_org->relpath, name)) {
+				FileDirEntry *entry_new = BKE_filedir_entry_copy(entry_org);
+
+				/* We add it in head - first entry in this list is always considered 'active' one. */
+				BLI_addhead(&selection->entries, entry_new);
+				selection->nbr_entries++;
+				done_name = true;
+			}
+			else {
+				FileDirEntry *entry_new = BKE_filedir_entry_copy(entry_org);
+				BLI_addtail(&selection->entries, entry_new);
+				selection->nbr_entries++;
+			}
 		}
 	}
+
+	BLI_ghashIterator_free(iter);
 
 	if (use_ae && filelist->ae) {
 		/* This will 'rewrite' selection list, returned paths are expected to be valid! */
 		BKE_asset_engine_load_pre(filelist->ae, selection);
 	}
-#endif
+
 	return selection;
 }
 
