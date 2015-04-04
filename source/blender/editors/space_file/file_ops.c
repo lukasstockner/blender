@@ -101,7 +101,7 @@ static void file_deselect_all(SpaceFile *sfile, unsigned int flag)
 	sel.first = 0;
 	sel.last = filelist_numfiles(sfile->files) - 1;
 	
-	filelist_select(sfile->files, &sel, FILE_SEL_REMOVE, flag, CHECK_ALL);
+	filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_REMOVE, flag, CHECK_ALL);
 }
 
 typedef enum FileSelect { 
@@ -152,7 +152,7 @@ static FileSelection file_selection_get(bContext *C, const rcti *rect, bool fill
 	if (fill && (sel.last >= 0) && (sel.last < numfiles) ) {
 		int f = sel.last;
 		while (f >= 0) {
-			if (filelist_is_selected(sfile->files, f, CHECK_ALL) )
+			if (filelist_entry_select_index_get(sfile->files, f, CHECK_ALL) )
 				break;
 			f--;
 		}
@@ -229,7 +229,7 @@ static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select,
 	const FileCheckType check_type = (sfile->params->flag & FILE_DIRSEL_ONLY) ? CHECK_DIRS : CHECK_ALL;
 	
 	/* flag the files as selected in the filelist */
-	filelist_select(sfile->files, &sel, select, FILE_SEL_SELECTED, check_type);
+	filelist_entries_select_index_range_set(sfile->files, &sel, select, FILE_SEL_SELECTED, check_type);
 	
 	/* Don't act on multiple selected files */
 	if (sel.first != sel.last) select = 0;
@@ -237,7 +237,7 @@ static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select,
 	/* Do we have a valid selection and are we actually selecting */
 	if ((sel.last >= 0) && ((select == FILE_SEL_ADD) || (select == FILE_SEL_TOGGLE))) {
 		/* Check last selection, if selected, act on the file or dir */
-		if (filelist_is_selected(sfile->files, sel.last, check_type)) {
+		if (filelist_entry_select_index_get(sfile->files, sel.last, check_type)) {
 			retval = file_select_do(C, sel.last, do_diropen);
 		}
 	}
@@ -271,7 +271,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 			int idx;
 
 			file_deselect_all(sfile, FILE_SEL_HIGHLIGHTED);
-			filelist_select(sfile->files, &sel, FILE_SEL_ADD, FILE_SEL_HIGHLIGHTED, CHECK_ALL);
+			filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_ADD, FILE_SEL_HIGHLIGHTED, CHECK_ALL);
 			WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 
 			/* dont highlight readonly file (".." or ".") on border select */
@@ -279,7 +279,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 				struct FileDirEntry *file = filelist_file(sfile->files, idx);
 
 				if (FILENAME_IS_CURRPAR(file->relpath)) {
-					file->selflag &= ~FILE_SEL_HIGHLIGHTED;
+					filelist_entry_select_set(sfile->files, file, FILE_SEL_REMOVE, FILE_SEL_HIGHLIGHTED, CHECK_ALL);
 				}
 
 				/* active_file gets highlighted as well - make sure it is no readonly file */
@@ -429,18 +429,18 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 
 	/* Is any file selected ? */
 	for (i = 0; i < numfiles; ++i) {
-		if (filelist_is_selected(sfile->files, i, CHECK_ALL)) {
+		if (filelist_entry_select_index_get(sfile->files, i, CHECK_ALL)) {
 			is_selected = true;
 			break;
 		}
 	}
 	/* select all only if previously no file was selected */
 	if (is_selected) {
-		filelist_select(sfile->files, &sel, FILE_SEL_REMOVE, FILE_SEL_SELECTED, CHECK_ALL);
+		filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_REMOVE, FILE_SEL_SELECTED, CHECK_ALL);
 	}
 	else {
 		const FileCheckType check_type = (sfile->params->flag & FILE_DIRSEL_ONLY) ? CHECK_DIRS : CHECK_FILES;
-		filelist_select(sfile->files, &sel, FILE_SEL_ADD, FILE_SEL_SELECTED, check_type);
+		filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_ADD, FILE_SEL_SELECTED, check_type);
 	}
 	file_draw_check(C);
 	ED_area_tag_redraw(sa);
@@ -872,7 +872,7 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 			int num_files = 0;
 			RNA_property_collection_clear(op->ptr, prop);
 			for (i = 0; i < numfiles; i++) {
-				if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
+				if (filelist_entry_select_index_get(sfile->files, i, CHECK_FILES)) {
 					FileDirEntry *file = filelist_file(sfile->files, i);
 					RNA_property_collection_add(op->ptr, prop, &itemptr);
 					RNA_string_set(&itemptr, "name", file->relpath);
@@ -891,7 +891,7 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 			int num_dirs = 0;
 			RNA_property_collection_clear(op->ptr, prop);
 			for (i = 0; i < numfiles; i++) {
-				if (filelist_is_selected(sfile->files, i, CHECK_DIRS)) {
+				if (filelist_entry_select_index_get(sfile->files, i, CHECK_DIRS)) {
 					FileDirEntry *file = filelist_file(sfile->files, i);
 					RNA_property_collection_add(op->ptr, prop, &itemptr);
 					RNA_string_set(&itemptr, "name", file->relpath);
@@ -996,7 +996,7 @@ int file_exec(bContext *C, wmOperator *exec_op)
 			int i, active = 0;
 			
 			for (i = 0; i < filelist_numfiles(sfile->files); i++) {
-				if (filelist_is_selected(sfile->files, i, CHECK_ALL)) {
+				if (filelist_entry_select_index_get(sfile->files, i, CHECK_ALL)) {
 					active = 1;
 					break;
 				}
@@ -1191,7 +1191,7 @@ static int file_smoothscroll_invoke(bContext *C, wmOperator *UNUSED(op), const w
 
 	/* check if we are editing a name */
 	for (i = 0; i < numfiles; ++i) {
-		if (filelist_is_selected(sfile->files, i, CHECK_ALL) ) {
+		if (filelist_entry_select_index_get(sfile->files, i, CHECK_ALL) ) {
 			edit_idx = i;
 			break;
 		}
@@ -1684,7 +1684,7 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 		int numfiles = filelist_numfiles(sfile->files);
 		if ( (0 <= idx) && (idx < numfiles) ) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
-			filelist_select_file(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
+			filelist_entry_select_index_set(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
 			BLI_strncpy(sfile->params->renameedit, file->relpath, FILE_MAXFILE);
 			sfile->params->renamefile[0] = '\0';
 		}
@@ -1749,7 +1749,7 @@ static int file_delete_poll(bContext *C)
 
 		if (filelist_islibrary(sfile->files, dir, NULL)) poll = 0;
 		for (i = 0; i < numfiles; i++) {
-			if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
+			if (filelist_entry_select_index_get(sfile->files, i, CHECK_FILES)) {
 				num_selected++;
 			}
 		}
@@ -1773,7 +1773,7 @@ int file_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	int i;
 
 	for (i = 0; i < numfiles; i++) {
-		if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
+		if (filelist_entry_select_index_get(sfile->files, i, CHECK_FILES)) {
 			file = filelist_file(sfile->files, i);
 			BLI_make_file_string(G.main->name, str, sfile->params->dir, file->relpath);
 			BLI_delete(str, false, false);

@@ -502,24 +502,26 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	}
 
 	for (i = offset; (i < numfiles) && (i < offset + numfiles_layout); i++) {
+		unsigned int file_selflag;
 		char path[FILE_MAX_LIBEXTRA];
 		ED_fileselect_layout_tilepos(layout, i, &sx, &sy);
 		sx += (int)(v2d->tot.xmin + 0.1f * UI_UNIT_X);
 		sy = (int)(v2d->tot.ymax - sy);
 
 		file = filelist_file(files, i);
+		file_selflag = filelist_entry_select_get(sfile->files, file, CHECK_ALL);
 
 		BLI_join_dirfile(path, sizeof(path), root, file->relpath);
 
 		UI_ThemeColor4(TH_TEXT);
 
 
-		if (!(file->selflag & FILE_SEL_EDITING)) {
-			if ((params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ||
-			    (file->selflag & FILE_SEL_SELECTED))
+		if (!(file_selflag & FILE_SEL_EDITING)) {
+			if ((params->active_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ||
+			    (file_selflag & FILE_SEL_SELECTED))
 			{
-				int colorid = (file->selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
-				int shade = (params->active_file == i) || (file->selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
+				int colorid = (file_selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
+				int shade = (params->active_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
 
 				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
 				if (FILENAME_IS_CURRPAR(file->relpath)) {
@@ -553,7 +555,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		UI_ThemeColor4(TH_TEXT);
 
-		if (file->selflag & FILE_SEL_EDITING) {
+		if (file_selflag & FILE_SEL_EDITING) {
 			uiBut *but;
 			short width;
 
@@ -576,11 +578,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
 			UI_but_flag_disable(but, UI_BUT_UNDO);
 			if (false == UI_but_active_only(C, ar, block, but)) {
-				file->selflag &= ~FILE_SEL_EDITING;
+				file_selflag = filelist_entry_select_set(sfile->files, file, FILE_SEL_REMOVE, FILE_SEL_EDITING, CHECK_ALL);
 			}
 		}
 
-		if (!(file->selflag & FILE_SEL_EDITING)) {
+		if (!(file_selflag& FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
 			file_draw_string(sx + 1, tpos, file->name, (float)textwidth, textheight, align);
 		}

@@ -664,7 +664,7 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 		file = filelist_file(sfile->files, i);
 		/* Do not check wether file is a file or dir here! Causes T44243 (we do accept dirs at this stage). */
 		if (fnmatch(pattern, file->relpath, 0) == 0) {
-			file->selflag |= FILE_SEL_SELECTED;
+			filelist_entry_select_set(sfile->files, file, FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
 			if (!match) {
 				BLI_strncpy(matched_file, file->relpath, FILE_MAX);
 			}
