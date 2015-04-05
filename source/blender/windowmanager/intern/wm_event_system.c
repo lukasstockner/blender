@@ -1460,8 +1460,8 @@ static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
 	if (kmitype != KM_ANY)
 		if (winevent->type != kmitype) return 0;
 
-	/* KM_ANY excludes click_type events - filter them out */
-	if (kmi->val == KM_ANY && winevent->click_type) return 0;
+	/* KM_ANY excludes KM_HOLD since it's time based and not a real input - filter it out */
+	if (kmi->val == KM_ANY && winevent->click_type == KM_HOLD) return 0;
 
 	if (kmi->val != KM_ANY)
 		if (!ELEM(kmi->val, winevent->val, winevent->click_type)) return 0;
@@ -3116,7 +3116,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 
 			event.x = evt->x = pd->x;
 			event.y = evt->y = pd->y;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			
 			/* Use prevx/prevy so we can calculate the delta later */
 			event.prevx = event.x - pd->deltaX;
@@ -3323,7 +3323,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			event.type = TIMER;
 			event.custom = EVT_DATA_TIMER;
 			event.customdata = customdata;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			event.keymodifier = 0;
 			wm_event_add(win, &event);
 
@@ -3333,7 +3333,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		case GHOST_kEventNDOFMotion:
 		{
 			event.type = NDOF_MOTION;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			attach_ndof_data(&event, customdata);
 			wm_event_add(win, &event);
 
