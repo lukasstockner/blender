@@ -103,6 +103,8 @@ static SpaceLink *graph_new(const bContext *C)
 	
 	sipo->autosnap = SACTSNAP_FRAME;
 	
+	sipo->backdrop_camera = scene->camera;
+	
 	/* allocate DopeSheet data for Graph Editor */
 	sipo->ads = MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet");
 	sipo->ads->source = (ID *)scene;
@@ -225,12 +227,17 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 {
 	/* draw entirely, view changes should be handled here */
 	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	Scene *scene = CTX_data_scene(C);
 	bAnimContext ac;
 	View2D *v2d = &ar->v2d;
 	View2DGrid *grid;
 	View2DScrollers *scrollers;
 	float col[3];
 	short unitx = 0, unity = V2D_UNIT_VALUES, flag = 0;
+	const bool draw_backdrop = ((sipo->flag & SIPO_DRAW_BACKDROP) && (sipo->backdrop_camera != NULL));
+	rctf rect_mask_orig;
+	
+	BLI_rctf_init(&rect_mask_orig, v2d->mask.xmin, v2d->mask.xmax, v2d->mask.ymin, v2d->mask.ymax);
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
@@ -241,11 +248,25 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	
 	/* grid */
 	unitx = (sipo->flag & SIPO_DRAWTIME) ? V2D_UNIT_SECONDS : V2D_UNIT_FRAMESCALE;
-	grid = UI_view2d_grid_calc(CTX_data_scene(C), v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP, ar->winx, ar->winy);
+	grid = UI_view2d_grid_calc(scene, v2d, unitx, V2D_GRID_NOCLAMP, unity, V2D_GRID_NOCLAMP, ar->winx, ar->winy);
 	UI_view2d_grid_draw(v2d, grid, V2D_GRIDLINES_ALL);
 	
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
-
+	
+	if (draw_backdrop) {
+		int width = (scene->r.xsch * scene->r.size) / 100;
+		int height = (scene->r.ysch * scene->r.size) / 100;
+		float x = (rect_mask_orig.xmax - width) / 2; /* center of the screen */
+		float y = (rect_mask_orig.ymax - height - U.widget_unit); /* below upper edge with small offset */
+		
+		/* reset view matrix */
+		UI_view2d_view_restore(C);
+		
+		ED_region_draw_backdrop_view3d(C, sipo->backdrop_camera, width, height, x, y, 1.0f, 1.0f, true, true);
+		
+		UI_view2d_view_ortho(v2d);
+	}
+	
 	/* draw data */
 	if (ANIM_animdata_get_context(C, &ac)) {
 		/* draw ghost curves */

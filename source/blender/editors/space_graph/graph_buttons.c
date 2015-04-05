@@ -139,6 +139,12 @@ static void graph_panel_view(const bContext *C, Panel *pa)
 	row = uiLayoutSplit(sub, 0.7f, true);
 	uiItemR(row, &spaceptr, "cursor_position_y", 0, IFACE_("Cursor Y"), ICON_NONE);
 	uiItemEnumO(row, "GRAPH_OT_snap", IFACE_("To Keys"), 0, "type", GRAPHKEYS_SNAP_VALUE);
+
+	col = uiLayoutColumn(pa->layout, false);
+	uiItemR(col, &spaceptr, "show_backdrop", 0, NULL, ICON_NONE);
+	col = uiLayoutColumn(pa->layout, true);
+	uiLayoutSetActive(col, RNA_boolean_get(&spaceptr, "show_backdrop"));
+	uiItemR(col, &spaceptr, "backdrop_camera", 0, "Camera", ICON_NONE);
 }
 
 /* ******************* active F-Curve ************** */
