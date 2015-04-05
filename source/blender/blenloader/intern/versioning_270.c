@@ -730,103 +730,83 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 #undef SEQ_USE_PROXY_CUSTOM_FILE
 	}
 
-	/* XXX MV before merge: add a MAIN_VERSION_ATLEAST check */
-	/*if (!MAIN_VERSION_ATLEAST(main, 274, ???)) {*/
+	if (!MAIN_VERSION_ATLEAST(main, 274, 3))
 	{
-		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "ListBase", "views")) {
-			Scene *scene;
-			SceneRenderView *srv;
-			for (scene = main->scene.first; scene; scene = scene->id.next) {
-				BKE_scene_add_render_view(scene, STEREO_LEFT_NAME);
-				srv = scene->r.views.first;
-				BLI_strncpy(srv->suffix, STEREO_LEFT_SUFFIX, sizeof(srv->suffix));
+		SceneRenderView *srv;
+		wmWindowManager *wm;
+		bScreen *screen;
+		wmWindow *win;
+		Scene *scene;
+		Camera *cam;
+		Image *ima;
 
-				BKE_scene_add_render_view(scene, STEREO_RIGHT_NAME);
-				srv = scene->r.views.last;
-				BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			Sequence *seq;
+
+			BKE_scene_add_render_view(scene, STEREO_LEFT_NAME);
+			srv = scene->r.views.first;
+			BLI_strncpy(srv->suffix, STEREO_LEFT_SUFFIX, sizeof(srv->suffix));
+
+			BKE_scene_add_render_view(scene, STEREO_RIGHT_NAME);
+			srv = scene->r.views.last;
+			BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
+
+			SEQ_BEGIN (scene->ed, seq)
+			{
+				seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
 			}
+			SEQ_END
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "View3D", "char", "stereo_camera")) {
-			bScreen *screen;
-			for (screen = main->screen.first; screen; screen = screen->id.next) {
-				ScrArea *sa;
-				for (sa = screen->areabase.first; sa; sa = sa->next) {
-					SpaceLink *sl;
+		for (screen = main->screen.first; screen; screen = screen->id.next) {
+			ScrArea *sa;
+			for (sa = screen->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
 
-					for (sl = sa->spacedata.first; sl; sl = sl->next) {
-						switch (sl->spacetype) {
-							case SPACE_VIEW3D:
-							{
-								View3D *v3d = (View3D *)sl;
-								v3d->stereo3d_camera = STEREO_3D_ID;
-								v3d->stereo3d_flag |= V3D_S3D_DISPPLANE;
-								v3d->stereo3d_convergence_alpha = 0.15f;
-								v3d->stereo3d_volume_alpha = 0.05f;
-								break;
-							}
-							case SPACE_IMAGE:
-							{
-								SpaceImage *sima = (SpaceImage *) sl;
-								sima->iuser.flag |= IMA_SHOW_STEREO;
-								sima->iuser.passtype = SCE_PASS_COMBINED;
-								break;
-							}
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					switch (sl->spacetype) {
+						case SPACE_VIEW3D:
+						{
+							View3D *v3d = (View3D *)sl;
+							v3d->stereo3d_camera = STEREO_3D_ID;
+							v3d->stereo3d_flag |= V3D_S3D_DISPPLANE;
+							v3d->stereo3d_convergence_alpha = 0.15f;
+							v3d->stereo3d_volume_alpha = 0.05f;
+							break;
+						}
+						case SPACE_IMAGE:
+						{
+							SpaceImage *sima = (SpaceImage *) sl;
+							sima->iuser.flag |= IMA_SHOW_STEREO;
+							sima->iuser.passtype = SCE_PASS_COMBINED;
+							break;
 						}
 					}
 				}
 			}
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "CameraStereoSettings", "stereo")) {
-			Camera *cam;
-			for (cam = main->camera.first; cam; cam = cam->id.next) {
-				cam->stereo.interocular_distance = 0.065;
-				cam->stereo.convergence_distance = 30.f * 0.065;
+		for (cam = main->camera.first; cam; cam = cam->id.next) {
+			cam->stereo.interocular_distance = 0.065;
+			cam->stereo.convergence_distance = 30.f * 0.065;
+		}
+
+		for (ima = main->image.first; ima; ima = ima->id.next) {
+			ima->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Image Stereo 3d Format");
+
+			if (ima->packedfile) {
+				ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image Packed File");
+				BLI_addtail(&ima->packedfiles, imapf);
+
+				imapf->packedfile = ima->packedfile;
+				BLI_strncpy(imapf->filepath, ima->name, FILE_MAX);
+				ima->packedfile = NULL;
 			}
 		}
 
-		if (!DNA_struct_elem_find(fd->filesdna, "Image", "Stereo3dFormat", "*stereo3d_format")) {
-			Image *ima;
-			for (ima = main->image.first; ima; ima = ima->id.next) {
-				ima->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Image Stereo 3d Format");
-			}
-		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "Image", "ListBase", "packedfiles")) {
-			Image *ima;
-			for (ima = main->image.first; ima; ima = ima->id.next) {
-				if (ima->packedfile) {
-					ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image Packed File");
-					BLI_addtail(&ima->packedfiles, imapf);
-
-					imapf->packedfile = ima->packedfile;
-					BLI_strncpy(imapf->filepath, ima->name, FILE_MAX);
-					ima->packedfile = NULL;
-				}
-			}
-		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "wmWindow", "Stereo3dFormat", "*stereo3d_format")) {
-			wmWindowManager *wm;
-			wmWindow *win;
-
-			for (wm = main->wm.first; wm; wm = wm->id.next) {
-				for (win = wm->windows.first; win; win = win->next) {
-					win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
-				}
-			}
-		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "Sequence", "Stereo3dFormat", "*stereo3d_format")) {
-			Scene *scene;
-			for (scene = main->scene.first; scene; scene = scene->id.next) {
-				Sequence *seq;
-				SEQ_BEGIN (scene->ed, seq)
-				{
-					seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
-				}
-				SEQ_END
+		for (wm = main->wm.first; wm; wm = wm->id.next) {
+			for (win = wm->windows.first; win; win = win->next) {
+				win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
 			}
 		}
 	}
