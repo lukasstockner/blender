@@ -23,7 +23,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/space_action/action_edit.c
+/** \file blender/editors/space_action/action_data.c
  *  \ingroup spaction
  */
 
@@ -51,6 +51,7 @@
 #include "RNA_define.h"
 #include "RNA_enum_types.h"
 
+#include "BKE_animsys.h"
 #include "BKE_action.h"
 #include "BKE_fcurve.h"
 #include "BKE_global.h"
@@ -58,6 +59,7 @@
 #include "BKE_key.h"
 #include "BKE_main.h"
 #include "BKE_nla.h"
+#include "BKE_scene.h"
 #include "BKE_context.h"
 #include "BKE_report.h"
 
@@ -79,10 +81,10 @@
 #include "action_intern.h"
 
 /* ************************************************************************** */
-/* ACTION MANAGEMENT */
+/* ACTION CREATION */
 
 /* Helper function to find the active AnimData block from the Action Editor context */
-static AnimData *actedit_animdata_from_context(bContext *C)
+AnimData *ED_actedit_animdata_from_context(bContext *C)
 {
 	SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
 	Object *ob = CTX_data_active_object(C);
@@ -180,25 +182,29 @@ static int action_new_poll(bContext *C)
 	Scene *scene = CTX_data_scene(C);
 	
 	/* Check tweakmode is off (as you don't want to be tampering with the action in that case) */
-	/* NOTE: unlike for pushdown, this operator needs to be run when creating an action from nothing... */
-	if (!(scene->flag & SCE_NLA_EDIT_ON)) {
-		if (ED_operator_action_active(C)) {
-			SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-			Object *ob = CTX_data_active_object(C);
-			
-			/* For now, actions are only for the active object, and on object and shapekey levels... */
-			if (saction->mode == SACTCONT_ACTION) {
-				/* XXX: This assumes that actions are assigned to the active object */
-				if (ob)
-					return true;
-			}
-			else if (saction->mode == SACTCONT_SHAPEKEY) {
-				Key *key = BKE_key_from_object(ob);
-				if (key)
+	/* NOTE: unlike for pushdown, this operator needs to be run when creating an action from nothing... */	
+	if (ED_operator_action_active(C)) {
+		SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
+		Object *ob = CTX_data_active_object(C);
+		
+		/* For now, actions are only for the active object, and on object and shapekey levels... */
+		if (saction->mode == SACTCONT_ACTION) {
+			/* XXX: This assumes that actions are assigned to the active object in this mode */
+			if (ob) {
+				if ((ob->adt == NULL) || (ob->adt->flag & ADT_NLA_EDIT_ON) == 0)
 					return true;
 			}
 		}
-		else if (ED_operator_nla_active(C)) {
+		else if (saction->mode == SACTCONT_SHAPEKEY) {
+			Key *key = BKE_key_from_object(ob);
+			if (key) {
+				if ((key->adt == NULL) || (key->adt->flag & ADT_NLA_EDIT_ON) == 0)
+					return true;
+			}
+		}
+	}
+	else if (ED_operator_nla_active(C)) {
+		if (!(scene->flag & SCE_NLA_EDIT_ON)) {
 			return true;
 		}
 	}
@@ -228,7 +234,7 @@ static int action_new_exec(bContext *C, wmOperator *UNUSED(op))
 			adt = ptr.data;
 		}
 		else if (ptr.type == &RNA_SpaceDopeSheetEditor) {
-			adt = actedit_animdata_from_context(C);
+			adt = ED_actedit_animdata_from_context(C);
 		}
 		
 		/* Perform stashing operation - But only if there is an action */
@@ -295,21 +301,16 @@ static int action_pushdown_poll(bContext *C)
 {
 	if (ED_operator_action_active(C)) {
 		SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-		Scene *scene = CTX_data_scene(C);
-		Object *ob = CTX_data_active_object(C);
+		AnimData *adt = ED_actedit_animdata_from_context(C);
 		
-		/* Check for actions and that tweakmode is off */
-		if ((saction->action) && !(scene->flag & SCE_NLA_EDIT_ON)) {
-			/* For now, actions are only for the active object, and on object and shapekey levels... */
-			if (saction->mode == SACTCONT_ACTION) {
-				return (ob->adt != NULL);
-			}
-			else if (saction->mode == SACTCONT_SHAPEKEY) {
-				Key *key = BKE_key_from_object(ob);
-				
-				return (key && key->adt);
-			}
-		}	
+		/* Check for AnimData, Actions, and that tweakmode is off */
+		if (adt && saction->action) {
+			/* NOTE: We check this for the AnimData block in question and not the global flag,
+			 *       as the global flag may be left dirty by some of the browsing ops here.
+			 */
+			if (!(adt->flag & ADT_NLA_EDIT_ON))
+				return true;
+		}
 	}
 	
 	/* something failed... */
@@ -319,7 +320,7 @@ static int action_pushdown_poll(bContext *C)
 static int action_pushdown_exec(bContext *C, wmOperator *op)
 {
 	SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-	AnimData *adt = actedit_animdata_from_context(C);
+	AnimData *adt = ED_actedit_animdata_from_context(C);
 	
 	/* Do the deed... */
 	if (adt) {
@@ -367,7 +368,7 @@ void ACTION_OT_push_down(wmOperatorType *ot)
 static int action_stash_exec(bContext *C, wmOperator *op)
 {
 	SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-	AnimData *adt = actedit_animdata_from_context(C);
+	AnimData *adt = ED_actedit_animdata_from_context(C);
 	
 	/* Perform stashing operation */
 	if (adt) {
@@ -430,14 +431,26 @@ void ACTION_OT_stash(wmOperatorType *ot)
 static int action_stash_create_poll(bContext *C)
 {
 	if (ED_operator_action_active(C)) {
-		SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-		Scene *scene = CTX_data_scene(C);
+		AnimData *adt = ED_actedit_animdata_from_context(C);
 		
 		/* Check tweakmode is off (as you don't want to be tampering with the action in that case) */
 		/* NOTE: unlike for pushdown, this operator needs to be run when creating an action from nothing... */
-		if (!(scene->flag & SCE_NLA_EDIT_ON)) {
-			/* For now, actions are only for the active object, and on object and shapekey levels... */
-			return ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY);
+		if (adt) {
+			if (!(adt->flag & ADT_NLA_EDIT_ON))
+				return true;
+		}
+		else {
+			/* There may not be any action/animdata yet, so, just fallback to the global setting
+			 * (which may not be totally valid yet if the action editor was used and things are 
+			 * now in an inconsistent state)
+			 */
+			SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
+			Scene *scene = CTX_data_scene(C);
+			
+			if (!(scene->flag & SCE_NLA_EDIT_ON)) {
+				/* For now, actions are only for the active object, and on object and shapekey levels... */
+				return ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY);
+			}
 		}
 	}
 	
@@ -448,7 +461,7 @@ static int action_stash_create_poll(bContext *C)
 static int action_stash_create_exec(bContext *C, wmOperator *op)
 {
 	SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
-	AnimData *adt = actedit_animdata_from_context(C);
+	AnimData *adt = ED_actedit_animdata_from_context(C);
 	
 	/* Check for no action... */
 	if (saction->action == NULL) {
@@ -507,3 +520,419 @@ void ACTION_OT_stash_and_create(wmOperatorType *ot)
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
+/* ************************************************************************** */
+/* ACTION UNLINK */
+
+/* ******************* Action Unlink Operator ******************** */
+/* We use a custom unlink operator here, as there are some technicalities which need special care:
+ * 1) When in Tweak Mode, it shouldn't be possible to unlink the active action,
+ *    or else, everything turns to custard.
+ * 2) If the Action doesn't have any other users, the user should at least get
+ *    a warning that it is going to get lost.
+ * 3) We need a convenient way to exit Tweak Mode from the Action Editor
+ */
+
+void ED_animedit_unlink_action(bContext *C, ID *id, AnimData *adt, bAction *act, ReportList *reports)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	
+	/* If the old action only has a single user (that it's about to lose),
+	 * warn user about it
+	 *
+	 * TODO: Maybe we should just save it for them? But then, there's the problem of
+	 *       trying to get rid of stuff that's actually unwanted!
+	 */
+	if (act->id.us == 1) {
+		BKE_reportf(reports, RPT_ERROR,
+		            "Action '%s' will not be saved, create Fake User or Stash in NLA Stack to retain",
+		            act->id.name + 2);
+	}
+	
+	/* If in Tweak Mode, don't unlink. Instead, this 
+	 * becomes a shortcut to exit Tweak Mode instead
+	 */
+	if ((adt) && (adt->flag & ADT_NLA_EDIT_ON)) {
+		/* Exit Tweak Mode */
+		BKE_nla_tweakmode_exit(adt);
+		
+		/* Flush this to the Action Editor (if that's where this change was initiated) */
+		if (sa->spacetype == SPACE_ACTION) {
+			actedit_change_action(C, NULL);
+		}
+	}
+	else {
+		/* Unlink normally - Setting it to NULL should be enough to get the old one unlinked */
+		if (sa->spacetype == SPACE_ACTION) {
+			/* clear action editor -> action */
+			actedit_change_action(C, NULL);
+		}
+		else {
+			/* clear AnimData -> action */
+			PointerRNA ptr;
+			PropertyRNA *prop;
+			
+			/* create AnimData RNA pointers */
+			RNA_pointer_create(id, &RNA_AnimData, adt, &ptr);
+			prop = RNA_struct_find_property(&ptr, "action");
+			
+			/* clear... */
+			RNA_property_pointer_set(&ptr, prop, PointerRNA_NULL);
+			RNA_property_update(C, &ptr, prop);
+		}
+	}
+}
+
+/* -------------------------- */
+
+static int action_unlink_poll(bContext *C)
+{
+	if (ED_operator_action_active(C)) {
+		SpaceAction *saction = (SpaceAction *)CTX_wm_space_data(C);
+		AnimData *adt = ED_actedit_animdata_from_context(C);
+		
+		/* Only when there's an active action, in the right modes... */
+		if (saction->action && adt)
+			return true;
+	}
+	
+	/* something failed... */
+	return false;
+}
+
+static int action_unlink_exec(bContext *C, wmOperator *op)
+{
+	AnimData *adt = ED_actedit_animdata_from_context(C);
+	
+	if (adt && adt->action) {
+		ED_animedit_unlink_action(C, NULL, adt, adt->action, op->reports);
+	}
+	
+	return OPERATOR_FINISHED;
+}
+
+void ACTION_OT_unlink(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Unlink Action";
+	ot->idname = "ACTION_OT_unlink";
+	ot->description = "Unlink this action from the active action slot (and/or exit Tweak Mode)";
+	
+	/* callbacks */
+	ot->exec = action_unlink_exec;
+	ot->poll = action_unlink_poll;
+}
+
+/* ************************************************************************** */
+/* ACTION BROWSING */
+
+/* Get the NLA Track that the active action comes from, since this is not stored in AnimData */
+/* TODO: Move this to blenkernel/nla.c */
+static NlaTrack *nla_tweak_track_get(AnimData *adt)
+{
+	NlaTrack *nlt;
+	
+	/* sanity check */
+	if (adt == NULL)
+		return NULL;
+	
+	/* Since the track itself gets disabled, we want the first disabled... */
+	for (nlt = adt->nla_tracks.first; nlt; nlt = nlt->next) {
+		if (nlt->flag & (NLATRACK_ACTIVE | NLATRACK_DISABLED)) {
+			/* For good measure, make sure that strip actually exists there */
+			if (BLI_findindex(&nlt->strips, adt->actstrip) != -1) {
+				return nlt;
+			}
+			else if (G.debug & G_DEBUG) {
+				printf("%s: Active strip (%p, %s) not in NLA track found (%p, %s)\n",
+				       __func__, 
+				       adt->actstrip, (adt->actstrip) ? adt->actstrip->name : "<None>",
+					   nlt,           (nlt) ? nlt->name : "<None>");
+			}
+		}
+	}
+	
+	/* Not found! */
+	return NULL;
+}
+
+/* Try to find NLA Strip to use for action layer up/down tool */
+static NlaStrip *action_layer_get_nlastrip(ListBase *strips, float ctime)
+{
+	NlaStrip *strip;
+	
+	for (strip = strips->first; strip; strip = strip->next) {
+		/* Can we use this? */
+		if (IN_RANGE_INCL(ctime, strip->start, strip->end)) {
+			/* in range - use this one */
+			return strip;
+		}
+		else if ((ctime < strip->start) && (strip->prev == NULL)) {
+			/* before first - use this one */
+			return strip;
+		}
+		else if ((ctime > strip->end) && (strip->next == NULL)) {
+			/* after last - use this one */
+			return strip;
+		}
+	}
+	
+	/* nothing suitable found... */
+	return NULL;
+}
+
+/* Switch NLA Strips/Actions  */
+static void action_layer_switch_strip(AnimData *adt,
+                                      NlaTrack *old_track, NlaStrip *old_strip,
+                                      NlaTrack *nlt, NlaStrip *strip)
+{
+	/* Exit tweakmode on old strip
+	 * NOTE: We need to manually clear this stuff ourselves, as tweakmode exit doesn't do it
+	 */
+	BKE_nla_tweakmode_exit(adt);
+	
+	if (old_strip) {
+		old_strip->flag &= ~(NLASTRIP_FLAG_ACTIVE | NLASTRIP_FLAG_SELECT);
+	}
+	if (old_track) {
+		old_track->flag &= ~(NLATRACK_ACTIVE | NLATRACK_SELECTED);
+	}
+	
+	/* Make this one the active one instead */
+	strip->flag |= (NLASTRIP_FLAG_ACTIVE | NLASTRIP_FLAG_SELECT);
+	nlt->flag |= NLATRACK_ACTIVE;
+	
+	/* Copy over "solo" flag - This is useful for stashed actions... */
+	if (old_track) {
+		if (old_track->flag & NLATRACK_SOLO) {
+			old_track->flag &= ~NLATRACK_SOLO;
+			nlt->flag |= NLATRACK_SOLO;
+		}
+	}
+	else {
+		/* NLA muting <==> Solo Tracks */
+		if (adt->flag & ADT_NLA_EVAL_OFF) {
+			/* disable NLA muting */
+			adt->flag &= ~ADT_NLA_EVAL_OFF;
+			
+			/* mark this track as being solo */
+			adt->flag |= ADT_NLA_SOLO_TRACK;
+			nlt->flag |= NLATRACK_SOLO;
+			
+			// TODO: Needs restpose flushing (when we get reference track)
+		}
+	}
+	
+	/* Enter tweakmode again - hopefully we're now "it" */
+	BKE_nla_tweakmode_enter(adt);
+	BLI_assert(adt->actstrip == strip);
+}
+
+/* ********************** One Layer Up Operator ************************** */
+
+static int action_layer_next_poll(bContext *C)
+{
+	/* Action Editor's action editing modes only */
+	if (ED_operator_action_active(C)) {
+		AnimData *adt = ED_actedit_animdata_from_context(C);
+		if (adt) {
+			/* only allow if we're in tweakmode, and there's something above us... */
+			if (adt->flag & ADT_NLA_EDIT_ON) {
+				/* We need to check if there are any tracks above the active one
+				 * since the track the action comes from is not stored in AnimData
+				 */
+				if (adt->nla_tracks.last) {
+					NlaTrack *nlt = (NlaTrack *)adt->nla_tracks.last;
+					
+					if (nlt->flag & NLATRACK_DISABLED) {
+						/* A disabled track will either be the track itself,
+						 * or one of the ones above it.
+						 *
+						 * If this is the top-most one, there is the possibility
+						 * that there is no active action. For now, we let this
+						 * case return true too, so that there is a natural way
+						 * to "move to an empty layer", even though this means
+						 * that we won't actually have an action.
+						 */
+						// return (adt->tmpact != NULL);
+						return true;
+					}
+				}
+			}
+		}
+	}
+	
+	/* something failed... */
+	return false;
+}
+
+static int action_layer_next_exec(bContext *C, wmOperator *op)
+{
+	AnimData *adt = ED_actedit_animdata_from_context(C);
+	NlaTrack *act_track;
+	
+	Scene *scene = CTX_data_scene(C);
+	float ctime = BKE_scene_frame_get(scene);
+	
+	/* Get active track */
+	act_track = nla_tweak_track_get(adt);
+	
+	if (act_track == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Could not find current NLA Track");
+		return OPERATOR_CANCELLED;
+	}
+	
+	/* Find next action, and hook it up */
+	if (act_track->next) {
+		NlaTrack *nlt;
+		
+		/* Find next action to use */
+		for (nlt = act_track->next; nlt; nlt = nlt->next) {
+			NlaStrip *strip = action_layer_get_nlastrip(&nlt->strips, ctime);
+			
+			if (strip) {
+				action_layer_switch_strip(adt, act_track, adt->actstrip, nlt, strip);
+				break;
+			}
+		}
+	}
+	else {
+		/* No more actions (strips) - Go back to editing the original active action
+		 * NOTE: This will mean exiting tweakmode...
+		 */
+		BKE_nla_tweakmode_exit(adt);
+		
+		/* Deal with solo flags...
+		 * Assume: Solo Track == NLA Muting
+		 */
+		if (adt->flag & ADT_NLA_SOLO_TRACK) {
+			/* turn off solo flags on tracks */
+			act_track->flag &= ~NLATRACK_SOLO;
+			adt->flag &= ~ADT_NLA_SOLO_TRACK;
+			
+			/* turn on NLA muting (to keep same effect) */
+			adt->flag |= ADT_NLA_EVAL_OFF;
+			
+			// TODO: Needs restpose flushing (when we get reference track)
+		}
+	}
+	
+	/* Update the action that this editor now uses
+	 * NOTE: The calls above have already handled the usercount/animdata side of things
+	 */
+	actedit_change_action(C, adt->action);
+	return OPERATOR_FINISHED;
+}
+
+void ACTION_OT_layer_next(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Next Layer";
+	ot->idname = "ACTION_OT_layer_next";
+	ot->description = "Switch to editing action in animation layer above the current action in the NLA Stack";
+	
+	/* callbacks */
+	ot->exec = action_layer_next_exec;
+	ot->poll = action_layer_next_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ********************* One Layer Down Operator ************************* */
+
+static int action_layer_prev_poll(bContext *C)
+{
+	/* Action Editor's action editing modes only */
+	if (ED_operator_action_active(C)) {
+		AnimData *adt = ED_actedit_animdata_from_context(C);
+		if (adt) {
+			if (adt->flag & ADT_NLA_EDIT_ON) {
+				/* Tweak Mode: We need to check if there are any tracks below the active one that we can move to */
+				if (adt->nla_tracks.first) {
+					NlaTrack *nlt = (NlaTrack *)adt->nla_tracks.first;
+					
+					/* Since the first disabled track is the track being tweaked/edited,
+					 * we can simplify things by only checking the first track:
+					 *    - If it is disabled, this is the track being tweaked,
+					 *      so there can't be anything below it
+					 *    - Otherwise, there is at least 1 track below the tweaking
+					 *      track that we can descend to
+					 */
+					if ((nlt->flag & NLATRACK_DISABLED) == 0) {
+						/* not disabled = there are actions below the one being tweaked */
+						return true;
+					}
+				}
+			}
+			else {
+				/* Normal Mode: If there are any tracks, we can try moving to those */
+				return (adt->nla_tracks.first != NULL);
+			}
+		}
+	}
+	
+	/* something failed... */
+	return false;
+}
+
+static int action_layer_prev_exec(bContext *C, wmOperator *op)
+{
+	AnimData *adt = ED_actedit_animdata_from_context(C);
+	NlaTrack *act_track;
+	NlaTrack *nlt;
+	
+	Scene *scene = CTX_data_scene(C);
+	float ctime = BKE_scene_frame_get(scene);
+	
+	/* Sanity Check */
+	if (adt == NULL) {
+		BKE_report(op->reports, RPT_ERROR, "Internal Error: Could not find Animation Data/NLA Stack to use");
+		return OPERATOR_CANCELLED;
+	}
+	
+	/* Get active track */
+	act_track = nla_tweak_track_get(adt);
+	
+	/* If there is no active track, that means we are using the active action... */
+	if (act_track) {
+		/* Active Track - Start from the one below it */
+		nlt = act_track->prev;
+	}
+	else {
+		/* Active Action - Use the top-most track */
+		nlt = adt->nla_tracks.last;
+	}
+	
+	/* Find previous action and hook it up */
+	for (; nlt; nlt = nlt->prev) {
+		NlaStrip *strip = action_layer_get_nlastrip(&nlt->strips, ctime);
+		
+		if (strip) {
+			action_layer_switch_strip(adt, act_track, adt->actstrip, nlt, strip);
+			break;
+		}
+	}
+	
+	/* Update the action that this editor now uses
+	 * NOTE: The calls above have already handled the usercount/animdata side of things
+	 */
+	actedit_change_action(C, adt->action);
+	return OPERATOR_FINISHED;
+}
+
+void ACTION_OT_layer_prev(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Previous Layer";
+	ot->idname = "ACTION_OT_layer_prev";
+	ot->description = "Switch to editing action in animation layer below the current action in the NLA Stack";
+	
+	/* callbacks */
+	ot->exec = action_layer_prev_exec;
+	ot->poll = action_layer_prev_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* ************************************************************************** */
