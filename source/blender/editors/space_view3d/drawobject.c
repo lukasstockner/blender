@@ -5231,9 +5231,13 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 						switch (part->draw_col) {
 							case PART_DRAW_COL_VEL:
 								intensity = len_v3(pa->state.vel) / part->color_vec_max;
+								CLAMP(intensity, 0.f, 1.f);
+								weight_to_rgb(ma_col, intensity);
 								break;
 							case PART_DRAW_COL_ACC:
 								intensity = len_v3v3(pa->state.vel, pa->prev_state.vel) / ((pa->state.time - pa->prev_state.time) * part->color_vec_max);
+								CLAMP(intensity, 0.f, 1.f);
+								weight_to_rgb(ma_col, intensity);
 								break;
 							case PART_DRAW_COL_TEX: {
 								ParticleTexture ptex;
@@ -5242,12 +5246,10 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 								break;
 							}
 							default:
-								intensity = 1.0f; /* should never happen */
+								weight_to_rgb(ma_col, 1.0f); /* should never happen */
 								BLI_assert(0);
 								break;
 						}
-						CLAMP(intensity, 0.f, 1.f);
-						weight_to_rgb(ma_col, intensity);
 					}
 				}
 				else {
