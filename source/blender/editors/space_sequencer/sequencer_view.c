@@ -450,7 +450,7 @@ static int sequencer_image_transform_widget_invoke(bContext *C, wmOperator *op, 
 	                                                     "Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false);
 	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
 	ImageTransformData *data = MEM_mallocN(sizeof(ImageTransformData), "overdrop transform data");
-	ImBuf *ibuf = sequencer_ibuf_get(CTX_data_main(C), scene, sseq, CFRA, 0);
+	ImBuf *ibuf = sequencer_ibuf_get(CTX_data_main(C), scene, sseq, CFRA, 0, NULL);
 
 	if (!ibuf || !ED_space_sequencer_check_show_imbuf(sseq)) {
 		return OPERATOR_CANCELLED;
