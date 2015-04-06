@@ -67,6 +67,7 @@
 extern struct Render R;
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
+static ThreadMutex sample_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static int point_data_used(PointDensity *pd)
 {
@@ -720,7 +721,10 @@ void RE_sample_point_density(Scene *scene, PointDensity *pd,
 
 	/* Same matricies/resolution as dupli_render_particle_set(). */
 	unit_m4(mat);
+
+	BLI_mutex_lock(&sample_mutex);
 	cache_pointdensity_ex(scene, pd, mat, mat, 1, 1);
+	BLI_mutex_unlock(&sample_mutex);
 
 	for (z = 0; z < resolution; ++z) {
 		for (y = 0; y < resolution; ++y) {
