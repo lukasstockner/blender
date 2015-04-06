@@ -980,13 +980,6 @@ static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
 	filelist_checkdir_lib(filelist, r_dir);
 }
 
-static void filelist_entry_revision_clear(FileDirEntryRevision *rev)
-{
-	if (rev->comment) {
-		MEM_freeN(rev->comment);
-	}
-}
-
 static void filelist_entry_clear(FileDirEntry *entry)
 {
 	if (entry->name) {
@@ -1018,7 +1011,9 @@ static void filelist_entry_clear(FileDirEntry *entry)
 				FileDirEntryRevision *rev;
 
 				for (rev = var->revisions.first; rev; rev = rev->next) {
-					filelist_entry_revision_clear(rev);
+					if (rev->comment) {
+						MEM_freeN(rev->comment);
+					}
 				}
 
 				BLI_freelistN(&var->revisions);
@@ -1323,25 +1318,25 @@ int filelist_numfiles(struct FileList *filelist)
 	return filelist->filelist.nbr_entries_filtered;
 }
 
-static const char *fileentry_uiname(const char *root, const FileListInternEntry *entry, char *buff)
+static const char *fileentry_uiname(const char *root, const char *relpath, const int typeflag, char *buff)
 {
 	char *name;
 
-	if (entry->typeflag & FILE_TYPE_BLENDERLIB) {
+	if (typeflag & FILE_TYPE_BLENDERLIB) {
 		char abspath[FILE_MAX_LIBEXTRA];
 		char *group;
 
-		BLI_join_dirfile(abspath, sizeof(abspath), root, entry->relpath);
+		BLI_join_dirfile(abspath, sizeof(abspath), root, relpath);
 		BLO_library_path_explode(abspath, buff, &group, &name);
 		if (!name) {
 			name = group;
 		}
 	}
-	else if (entry->typeflag & FILE_TYPE_DIR) {
-		name = entry->relpath;
+	else if (typeflag & FILE_TYPE_DIR) {
+		name = relpath;
 	}
 	else {
-		name = (char *)BLI_path_basename(entry->relpath);
+		name = (char *)BLI_path_basename(relpath);
 	}
 	BLI_assert(name);
 
@@ -2405,7 +2400,7 @@ static void filelist_readjob_do(
 			/* Only thing we change in direntry here, so we need to free it first. */
 			MEM_freeN(entry->relpath);
 			entry->relpath = BLI_strdup(dir + 2);  /* + 2 to remove '//' added by BLI_path_rel */
-			entry->name = BLI_strdup(fileentry_uiname(root, entry, dir));
+			entry->name = BLI_strdup(fileentry_uiname(root, entry->relpath, entry->typeflag, dir));
 
 			/* Here we decide whether current filedirentry is to be listed too, or not. */
 			if (max_recursion && (is_lib || (recursion_level <= max_recursion))) {
