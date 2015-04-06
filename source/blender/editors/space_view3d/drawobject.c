@@ -4421,6 +4421,108 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	return retval;
 }
 
+static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
+                                     const char dt, const unsigned char ob_wire_col[4], const short dflag)
+{
+#if MCE_TRACE
+	printf("> %s dt=%d dflag=%d\n", __FUNCTION__, (int)dt, (int)dflag);
+#endif /* MCE_TRACE */
+
+	Object *ob = base->object;
+	Object *obedit = scene->obedit;
+	Mesh *me = ob->data;
+	bool drawlinked = false, retval = false;
+
+	BLI_assert(ob != obedit); /* should be caught by draw_object_new() before here */
+
+	/* same mesh data as edit object? if so draw editmesh here */
+	if (obedit && ob->data == obedit->data) {
+		if (BKE_key_from_object(ob) || BKE_key_from_object(obedit)) {}
+		else if (ob->modifiers.first || obedit->modifiers.first) {}
+		else drawlinked = true;
+	}
+
+	if (drawlinked) {
+		/* fall back to previous function */
+		retval = draw_mesh_object_new(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
+	}
+	else {
+		VertexBuffer *verts = GPUx_vertex_buffer_create(1, me->totvert);
+		ElementList *elem = NULL;
+
+#if MCE_TRACE
+		printf("%d verts, %d edges, %d faces\n", me->totvert, me->totedge, me->totface);
+#endif /* MCE_TRACE */
+
+		GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+		GPUx_fill_attrib_stride(verts, 0, me->mvert, sizeof(MVert));
+
+		GPUx_vertex_buffer_prime(verts);
+
+		/* draw smooth surface (as a test) */
+		if (false) {
+//			int /* totvert,*/ totedge, totface;
+//			DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
+			int i;
+			PolygonDrawState polygon_state = default_state.polygon;
+			polygon_state.draw_front = true;
+			polygon_state.draw_back = true;
+
+			if (elem)
+				GPUx_element_list_discard(elem);
+			elem = GPUx_element_list_create(GL_TRIANGLES, me->totface, me->totvert - 1);
+
+			for (i = 0; i < me->totface; ++i)
+				GPUx_set_triangle_vertices(elem, i, me->mface[i].v1, me->mface[i].v2, me->mface[i].v3);
+
+			glEnable(GL_BLEND);
+			glColor4f(0.0f, 0.3f, 0.9f, 0.5f);
+
+			GPUx_draw_triangles(&default_state.common, &polygon_state, verts, elem);
+
+			glDisable(GL_BLEND);
+		}
+
+		/* draw wireframe (as a test) */
+		if (true) {
+			int i;
+			LineDrawState line_state = default_state.line;
+			line_state.smooth = true;
+
+			if (elem)
+				GPUx_element_list_discard(elem);
+			elem = GPUx_element_list_create(GL_LINES, me->totedge, me->totvert - 1);
+
+			for (i = 0; i < me->totedge; ++i)
+				GPUx_set_line_vertices(elem, i, me->medge[i].v1, me->medge[i].v2);
+
+			glEnable(GL_BLEND);
+
+			GPUx_draw_lines(&default_state.common, &line_state, verts, elem);
+
+			glDisable(GL_BLEND);
+		}
+
+		/* draw points (as a test) */
+		if (false) {
+			PointDrawState point_state = default_state.point;
+			point_state.size = 3.0f;
+
+			GPUx_draw_points(&default_state.common, &point_state, verts, NULL);
+		}
+
+		if (elem)
+			GPUx_element_list_discard(elem);
+		GPUx_vertex_buffer_discard(verts);
+	}
+
+#if MCE_TRACE
+	printf("< %s\n", __FUNCTION__);
+#endif /* MCE_TRACE */
+
+	return retval;
+}
+
 /* ************** DRAW DISPLIST ****************** */
 
 
@@ -7794,7 +7896,7 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 		switch (ob->type) {
 			case OB_MESH:
 				if (new_style_drawing)
-					empty_object = draw_mesh_object_new(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
+					empty_object = draw_mesh_object_new_new(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
 				else
 					empty_object = draw_mesh_object(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
 
