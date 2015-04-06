@@ -22,7 +22,7 @@ void GPUx_draw_points(const CommonDrawState *common_state, const PointDrawState 
 #ifdef TRUST_NO_ONE
 	if (el) {
 		assert(el->prim_type == GL_POINTS);
-		assert(el->max_allowed_index < GPUx_vertex_ct(vbo));
+		assert(max_index(el) < GPUx_vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
@@ -46,7 +46,7 @@ void GPUx_draw_lines(const CommonDrawState *common_state, const LineDrawState *l
 #ifdef TRUST_NO_ONE
 	if (el) {
 		assert(el->prim_type == GL_LINES);
-		assert(el->max_allowed_index < GPUx_vertex_ct(vbo));
+		assert(max_index(el) < GPUx_vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
@@ -70,7 +70,7 @@ void GPUx_draw_triangles(const CommonDrawState *common_state, const PolygonDrawS
 #ifdef TRUST_NO_ONE
 	if (el) {
 		assert(el->prim_type == GL_TRIANGLES);
-		assert(el->max_allowed_index < GPUx_vertex_ct(vbo));
+		assert(max_index(el) < GPUx_vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
@@ -91,7 +91,7 @@ void GPUx_draw_primitives(const CommonDrawState *common_state, const void *primi
 	int vert_per_prim = 0;
 
 #ifdef TRUST_NO_ONE
-	assert(el->max_allowed_index < GPUx_vertex_ct(vbo));
+	assert(max_index(el) < GPUx_vertex_ct(vbo));
 #endif /* TRUST_NO_ONE */
 
 	switch (el->prim_type) {
