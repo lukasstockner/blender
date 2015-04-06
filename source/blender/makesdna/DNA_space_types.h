@@ -322,6 +322,9 @@ typedef struct SpaceIpo {
 	ListBase ghostCurves;   /* sampled snapshots of F-Curves used as in-session guides */
 	
 	struct Object *backdrop_camera; /* the view from this camera is used to draw the backdrop */
+	float backdrop_offset[2];       /* offset of the backdrop */
+	float backdrop_zoom;            /* zoom factor of the backdrop */
+	int pad;
 	
 	short mode;             /* mode for the Graph editor (eGraphEdit_Mode) */
 	short autosnap;         /* time-transform autosnapping settings for Graph editor (eAnimEdit_AutoSnap in DNA_action_types.h) */

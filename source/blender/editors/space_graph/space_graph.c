@@ -221,6 +221,11 @@ static void graph_main_area_init(wmWindowManager *wm, ARegion *ar)
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
 	keymap = WM_keymap_find(wm->defaultconf, "Graph Editor Generic", SPACE_IPO, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
+	
+	/* widgets */
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Graph_Canvas", SPACE_IPO, RGN_TYPE_WINDOW, false));
+	}
 }
 
 static void graph_main_area_draw(const bContext *C, ARegion *ar)
@@ -256,13 +261,19 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	if (draw_backdrop) {
 		int width = (scene->r.xsch * scene->r.size) / 100;
 		int height = (scene->r.ysch * scene->r.size) / 100;
-		float x = (rect_mask_orig.xmax - width) / 2; /* center of the screen */
-		float y = (rect_mask_orig.ymax - height - U.widget_unit); /* below upper edge with small offset */
+		float x = (BLI_rcti_size_x(&ar->winrct) - width) / 2.0f; /* center of the screen */
+		float y = (BLI_rcti_size_y(&ar->winrct) - height) / 2.0f; /* below upper edge with small offset */
+		
+		width *= sipo->backdrop_zoom;
+		height *= sipo->backdrop_zoom;
+		x += sipo->backdrop_offset[0];
+		y += sipo->backdrop_offset[1];
 		
 		/* reset view matrix */
 		UI_view2d_view_restore(C);
 		
-		ED_region_draw_backdrop_view3d(C, sipo->backdrop_camera, width, height, x, y, 1.0f, 1.0f, true, true);
+		ED_region_draw_backdrop_view3d(C, sipo->backdrop_camera, width, height, x, y,
+		                               1.0f, 1.0f, false, true);
 		
 		UI_view2d_view_ortho(v2d);
 	}
@@ -326,6 +337,10 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 
 	/* reset view matrix */
 	UI_view2d_view_restore(C);
+	
+	/* finally draw any widgets here */
+	WM_widgets_update(C, ar->widgetmaps.first);
+	WM_widgets_draw(C, ar->widgetmaps.first, false);
 	
 	/* scrollers */
 	// FIXME: args for scrollers depend on the type of data being shown...
@@ -632,6 +647,14 @@ static void graph_refresh(const bContext *C, ScrArea *sa)
 	}
 }
 
+/* ************************************* */
+
+static void graph_widgets(void)
+{
+	/* create the widgetmap for the area here */
+	WM_widgetmaptype_find("Graph_Canvas", SPACE_IPO, RGN_TYPE_WINDOW, false, true);
+}
+
 /* only called once, from space/spacetypes.c */
 void ED_spacetype_ipo(void)
 {
@@ -649,6 +672,7 @@ void ED_spacetype_ipo(void)
 	st->keymap = graphedit_keymap;
 	st->listener = graph_listener;
 	st->refresh = graph_refresh;
+	st->widgets = graph_widgets;
 	
 	/* regions: main window */
 	art = MEM_callocN(sizeof(ARegionType), "spacetype graphedit region");
