@@ -81,7 +81,7 @@ struct DeviceDrawParams {
 
 class Device {
 protected:
-	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), info(info_), stats(stats_) {}
+	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), info(info_), stats(stats_) { use_split_kernel = false; }
 
 	bool background;
 	string error_msg;
@@ -99,6 +99,9 @@ public:
 
 	/* Maximum closure count */
 	int clos_max;
+
+	/* Denotes if the device is going to run cycles using split-kernel */
+	bool use_split_kernel;
 
 	/* Get all closure nodes associated with the scene */
 	set<int> closure_nodes;

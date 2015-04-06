@@ -57,7 +57,7 @@ CCL_NAMESPACE_BEGIN
  * Since some bytes may be needed for aligning chunks of memory;
  * This is the amount of memory that we dedicate for that purpose.
  */
-#define DATA_ALLOCATION_MEM_FACTOR 5000000; //5MB
+#define DATA_ALLOCATION_MEM_FACTOR 5000000 //5MB
 
 /* Additional kernel build options regarding optimization */
 string opt;
@@ -673,6 +673,8 @@ public:
 		device_initialized = false;
 
 #ifdef __SPLIT_KERNEL__
+		use_split_kernel = true;
+
 		/* Initialize kernels */
 		ckPathTraceKernel_DataInit_SPLIT_KERNEL = NULL;
 		ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL = NULL;

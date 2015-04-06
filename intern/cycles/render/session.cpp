@@ -558,6 +558,11 @@ void Session::run_cpu()
 			/* update status and timing */
 			update_status_time();
 
+			if (device->use_split_kernel) {
+				/* OpenCL split - load kernels */
+				load_kernels();
+			}
+
 			/* path trace */
 			path_trace();
 
@@ -656,11 +661,14 @@ void Session::run()
 	device->clos_max = getClosureCount(scene);
 #endif
 
-	/* Need to update scene before we load kernels in order to get associated closures */
-	update_scene();
-
 	/* load kernels */
-	load_kernels();
+	/* Note : OpenCL split kernel does not load kernels here. OpenCL split kernel needs to know
+	 * closures that will be used in rendering, which is not known at this point; Hence we
+	 * defer OpenCL split kernel load_kernels() to after device_update
+	 */
+	if (!device->use_split_kernel) {
+		load_kernels();
+	}
 
 	/* session thread loop */
 	progress.set_status("Waiting for render to start");
