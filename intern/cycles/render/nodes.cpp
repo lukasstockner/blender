@@ -1357,8 +1357,8 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 	ShaderOutput *density_out = output("Density");
 	ShaderOutput *color_out = output("Color");
 
-	bool use_density = !density_out->links.empty();
-	bool use_color = !color_out->links.empty();
+	const bool use_density = !density_out->links.empty();
+	const bool use_color = !color_out->links.empty();
 
 	image_manager = compiler.image_manager;
 
@@ -1404,9 +1404,49 @@ void PointDensityTextureNode::compile(SVMCompiler& compiler)
 	}
 }
 
-void PointDensityTextureNode::compile(OSLCompiler& /*compiler*/)
+void PointDensityTextureNode::compile(OSLCompiler& compiler)
 {
-	/* TODO(sergey): To be supported. */
+	ShaderInput *vector_in = input("Vector");
+	ShaderOutput *density_out = output("Density");
+	ShaderOutput *color_out = output("Color");
+
+	const bool use_density = !density_out->links.empty();
+	const bool use_color = !color_out->links.empty();
+
+	image_manager = compiler.image_manager;
+
+	if (use_density || use_color) {
+		if(slot == -1) {
+			bool is_float, is_linear;
+			slot = image_manager->add_image(filename, builtin_data,
+			                                false, 0,
+			                                is_float, is_linear,
+			                                interpolation,
+			                                true);
+		}
+
+		if(slot != -1) {
+			compiler.parameter("filename", string_printf("@%d", slot).c_str());
+		}
+		if(space == "World") {
+			compiler.parameter("mapping", transform_transpose(tfm));
+			compiler.parameter("use_mapping", 1);
+		}
+		switch (interpolation) {
+			case INTERPOLATION_CLOSEST:
+				compiler.parameter("interpolation", "closest");
+				break;
+			case INTERPOLATION_CUBIC:
+				compiler.parameter("interpolation", "cubic");
+				break;
+			case INTERPOLATION_LINEAR:
+			default:
+				compiler.parameter("interpolation", "linear");
+				break;
+		}
+
+		compiler.add(this, "node_voxel_texture");
+	}
 }
 
 /* Normal */
