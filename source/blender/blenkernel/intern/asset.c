@@ -210,7 +210,7 @@ void BKE_filedir_variant_free(FileDirEntryVariant *var)
 	}
 }
 
-void BKE_filedir_entry_free(FileDirEntry *entry)
+void BKE_filedir_entry_clear(FileDirEntry *entry)
 {
 	if (entry->name) {
 		MEM_freeN(entry->name);
@@ -239,13 +239,13 @@ void BKE_filedir_entry_free(FileDirEntry *entry)
 		MEM_freeN(entry->entry);
 	}
 
-	/* TODO: tags! */
+	memset(entry, 0, sizeof(*entry));
 }
 
-void BKE_filedir_entry_clear(FileDirEntry *entry)
+void BKE_filedir_entry_free(FileDirEntry *entry)
 {
-	BKE_filedir_entry_free(entry);
-	memset(entry, 0, sizeof(*entry));
+	BKE_filedir_entry_clear(entry);
+	MEM_freeN(entry);
 }
 
 /** Perform and return a full (deep) duplicate of given entry. */

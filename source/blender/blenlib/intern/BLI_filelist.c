@@ -175,105 +175,6 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
 }
 
 /**
- * Fills in the "mode[123]", "size" and "string" fields in the elements of the files
- * array with descriptive details about each item. "string" will have a format similar to "ls -l".
- */
-static void bli_adddirstrings(struct BuildDirCtx *dir_ctx)
-{
-	const char *types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
-	/* symbolic display, indexed by mode field value */
-	int num;
-#ifdef WIN32
-	__int64 st_size;
-#else
-	off_t st_size;
-	int mode;
-#endif
-
-	struct direntry *file;
-	struct tm *tm;
-	time_t zero = 0;
-
-	for (num = 0, file = dir_ctx->files; num < dir_ctx->nrfiles; num++, file++) {
-
-
-		/* Mode */
-#ifdef WIN32
-		BLI_strncpy(file->mode1, types[0], sizeof(file->mode1));
-		BLI_strncpy(file->mode2, types[0], sizeof(file->mode2));
-		BLI_strncpy(file->mode3, types[0], sizeof(file->mode3));
-#else
-		mode = file->s.st_mode;
-
-		BLI_strncpy(file->mode1, types[(mode & 0700) >> 6], sizeof(file->mode1));
-		BLI_strncpy(file->mode2, types[(mode & 0070) >> 3], sizeof(file->mode2));
-		BLI_strncpy(file->mode3, types[(mode & 0007)],      sizeof(file->mode3));
-
-		if (((mode & S_ISGID) == S_ISGID) && (file->mode2[2] == '-')) file->mode2[2] = 'l';
-
-		if (mode & (S_ISUID | S_ISGID)) {
-			if (file->mode1[2] == 'x') file->mode1[2] = 's';
-			else file->mode1[2] = 'S';
-
-			if (file->mode2[2] == 'x') file->mode2[2] = 's';
-		}
-
-		if (mode & S_ISVTX) {
-			if (file->mode3[2] == 'x') file->mode3[2] = 't';
-			else file->mode3[2] = 'T';
-		}
-#endif
-
-
-		/* User */
-#ifdef WIN32
-		strcpy(file->owner, "user");
-#else
-		{
-			struct passwd *pwuser;
-			pwuser = getpwuid(file->s.st_uid);
-			if (pwuser) {
-				BLI_strncpy(file->owner, pwuser->pw_name, sizeof(file->owner));
-			}
-			else {
-				BLI_snprintf(file->owner, sizeof(file->owner), "%u", file->s.st_uid);
-			}
-		}
-#endif
-
-
-		/* Time */
-		tm = localtime(&file->s.st_mtime);
-		// prevent impossible dates in windows
-		if (tm == NULL) tm = localtime(&zero);
-		strftime(file->time, sizeof(file->time), "%H:%M", tm);
-		strftime(file->date, sizeof(file->date), "%d-%b-%y", tm);
-
-
-		/* Size */
-		/*
-		 * Seems st_size is signed 32-bit value in *nix and Windows.  This
-		 * will buy us some time until files get bigger than 4GB or until
-		 * everyone starts using __USE_FILE_OFFSET64 or equivalent.
-		 */
-		st_size = file->s.st_size;
-
-		if (st_size > 1024 * 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.2f GiB", ((double)st_size) / (1024 * 1024 * 1024));
-		}
-		else if (st_size > 1024 * 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%.1f MiB", ((double)st_size) / (1024 * 1024));
-		}
-		else if (st_size > 1024) {
-			BLI_snprintf(file->size, sizeof(file->size), "%d KiB", (int)(st_size / 1024));
-		}
-		else {
-			BLI_snprintf(file->size, sizeof(file->size), "%d B", (int)st_size);
-		}
-	}
-}
-
-/**
  * Scans the contents of the directory named *dirname, and allocates and fills in an
  * array of entries describing them in *filelist.
  *
@@ -287,7 +188,6 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
 	dir_ctx.files = NULL;
 
 	bli_builddir(&dir_ctx, dirname);
-	bli_adddirstrings(&dir_ctx);
 
 	if (dir_ctx.files) {
 		*filelist = dir_ctx.files;
@@ -299,6 +199,120 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
 	}
 
 	return dir_ctx.nrfiles;
+}
+
+/**
+ * Convert given entry's size into human-readable strings.
+ *
+ */
+void BLI_filelist_entry_size_to_string(struct stat *st, char r_size[FILELIST_DIRENTRY_SIZE_LEN])
+{
+	double size;
+	const char *fmt;
+
+	/*
+	 * Seems st_size is signed 32-bit value in *nix and Windows.  This
+	 * will buy us some time until files get bigger than 4GB or until
+	 * everyone starts using __USE_FILE_OFFSET64 or equivalent.
+	 */
+	size = (double)st->st_size;
+
+	if (size > 1024.0 * 1024.0 * 1024.0) {
+		size /= (1024.0 * 1024.0 * 1024.0);
+		fmt = "%.2f GiB";
+	}
+	else if (size > 1024.0 * 1024.0) {
+		size /= (1024.0 * 1024.0);
+		fmt = "%.2f MiB";
+	}
+	else if (size > 1024.0) {
+		size /= 1024.0;
+		fmt = "%.2f KiB";
+	}
+	else {
+		fmt = "%.0f B";
+	}
+
+	BLI_snprintf(r_size, sizeof(*r_size) * FILELIST_DIRENTRY_SIZE_LEN, fmt, size);
+}
+
+/**
+ * Convert given entry's modes into human-readable strings.
+ *
+ */
+void BLI_filelist_entry_mode_to_string(
+        struct stat *st, char r_mode1[FILELIST_DIRENTRY_MODE_LEN],
+        char r_mode2[FILELIST_DIRENTRY_MODE_LEN], char r_mode3[FILELIST_DIRENTRY_MODE_LEN])
+{
+	const char *types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
+
+#ifdef WIN32
+	BLI_strncpy(r_mode1, types[0], sizeof(*r_mode1) * FILELIST_DIRENTRY_MODE_LEN);
+	BLI_strncpy(r_mode2, types[0], sizeof(*r_mode2) * FILELIST_DIRENTRY_MODE_LEN);
+	BLI_strncpy(r_mode3, types[0], sizeof(*r_mode3) * FILELIST_DIRENTRY_MODE_LEN);
+#else
+	const int mode = st->st_mode;
+
+	BLI_strncpy(r_mode1, types[(mode & 0700) >> 6], sizeof(*r_mode1) * FILELIST_DIRENTRY_MODE_LEN);
+	BLI_strncpy(r_mode2, types[(mode & 0070) >> 3], sizeof(*r_mode2) * FILELIST_DIRENTRY_MODE_LEN);
+	BLI_strncpy(r_mode3, types[(mode & 0007)],      sizeof(*r_mode3) * FILELIST_DIRENTRY_MODE_LEN);
+
+	if (((mode & S_ISGID) == S_ISGID) && (r_mode2[2] == '-')) r_mode2[2] = 'l';
+
+	if (mode & (S_ISUID | S_ISGID)) {
+		if (r_mode1[2] == 'x') r_mode1[2] = 's';
+		else r_mode1[2] = 'S';
+
+		if (r_mode2[2] == 'x') r_mode2[2] = 's';
+	}
+
+	if (mode & S_ISVTX) {
+		if (r_mode3[2] == 'x') r_mode3[2] = 't';
+		else r_mode3[2] = 'T';
+	}
+#endif
+}
+
+/**
+ * Convert given entry's owner into human-readable strings.
+ *
+ */
+void BLI_filelist_entry_owner_to_string(struct stat *st, char r_owner[FILELIST_DIRENTRY_OWNER_LEN])
+{
+#ifdef WIN32
+	strcpy(r_owner, "unknown");
+#else
+	struct passwd *pwuser = getpwuid(st->st_uid);
+
+	if (pwuser) {
+		BLI_strncpy(r_owner, pwuser->pw_name, sizeof(*r_owner) * FILELIST_DIRENTRY_OWNER_LEN);
+	}
+	else {
+		BLI_snprintf(r_owner, sizeof(*r_owner) * FILELIST_DIRENTRY_OWNER_LEN, "%u", st->st_uid);
+	}
+#endif
+}
+
+/**
+ * Convert given entry's time into human-readable strings.
+ */
+void BLI_filelist_entry_datetime_to_string(
+        struct stat *st, char r_time[FILELIST_DIRENTRY_TIME_LEN], char r_date[FILELIST_DIRENTRY_DATE_LEN])
+{
+	const struct tm *tm = localtime(&st->st_mtime);
+	const time_t zero = 0;
+
+	/* Prevent impossible dates in windows. */
+	if (tm == NULL) {
+		tm = localtime(&zero);
+	}
+
+	if (r_time) {
+		strftime(r_time, sizeof(*r_time) * FILELIST_DIRENTRY_TIME_LEN, "%H:%M", tm);
+	}
+	if (r_date) {
+		strftime(r_date, sizeof(*r_date) * FILELIST_DIRENTRY_DATE_LEN, "%d-%b-%y", tm);
+	}
 }
 
 /**

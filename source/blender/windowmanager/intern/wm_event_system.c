@@ -1460,8 +1460,8 @@ static int wm_eventmatch(wmEvent *winevent, wmKeyMapItem *kmi)
 	if (kmitype != KM_ANY)
 		if (winevent->type != kmitype) return 0;
 
-	/* KM_ANY excludes click_type events - filter them out */
-	if (kmi->val == KM_ANY && winevent->click_type) return 0;
+	/* KM_ANY excludes KM_HOLD since it's time based and not a real input - filter it out */
+	if (kmi->val == KM_ANY && winevent->click_type == KM_HOLD) return 0;
 
 	if (kmi->val != KM_ANY)
 		if (!ELEM(kmi->val, winevent->val, winevent->click_type)) return 0;
@@ -2994,7 +2994,7 @@ static wmWindow *wm_event_cursor_other_windows(wmWindowManager *wm, wmWindow *wi
  * - #KM_PRESS && time since first #KM_PRESS > U.click_timeout --> send #KM_HOLD
  * - #KM_PRESS after a #KM_RELEASE && time since previous #KM_PRESS < U.dbl_click_time --> send #KM_DBL_CLICK
  *
- * \note: only #KM_DBL_CLICK is handled here, rest in #wm_window_event_clicktype_init (wm_window.c)
+ * \note: only #KM_DBL_CLICK and #KM_CLICK are handled here, #KM_HOLD in #wm_window_event_clicktype_init (wm_window.c)
  */
 static void wm_event_clicktype_init(wmWindow *win, wmEvent *event, wmEvent *event_state)
 {
@@ -3021,6 +3021,16 @@ static void wm_event_clicktype_init(wmWindow *win, wmEvent *event, wmEvent *even
 				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS)) {
 					printf("%s Send double click event\n", __func__);
 				}
+			}
+		}
+	}
+
+	/* click */
+	if ((PIL_check_seconds_timer() - event->click_time) * 1000 <= U.click_timeout) {
+		if (event->val == KM_RELEASE) {
+			click_type = KM_CLICK;
+			if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS)) {
+				printf("%s Send click event\n", __func__);
 			}
 		}
 	}
@@ -3116,7 +3126,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 
 			event.x = evt->x = pd->x;
 			event.y = evt->y = pd->y;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			
 			/* Use prevx/prevy so we can calculate the delta later */
 			event.prevx = event.x - pd->deltaX;
@@ -3323,7 +3333,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			event.type = TIMER;
 			event.custom = EVT_DATA_TIMER;
 			event.customdata = customdata;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			event.keymodifier = 0;
 			wm_event_add(win, &event);
 
@@ -3333,7 +3343,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		case GHOST_kEventNDOFMotion:
 		{
 			event.type = NDOF_MOTION;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			attach_ndof_data(&event, customdata);
 			wm_event_add(win, &event);
 

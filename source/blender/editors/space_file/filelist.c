@@ -35,6 +35,8 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <time.h>
 
 #ifndef WIN32
 #  include <unistd.h>
@@ -206,10 +208,26 @@ ListBase *folderlist_duplicate(ListBase *folderlist)
 
 /* ------------------FILELIST------------------------ */
 
+typedef struct FileListInternEntry {
+	struct FileListInternEntry *next, *prev;
+
+	char uuid[16];  /* ASSET_UUID_LENGTH */
+
+	int typeflag;  /* eFileSel_File_Types */
+	int blentype;  /* ID type, in case typeflag has FILE_TYPE_BLENDERLIB set. */
+
+	char *relpath;
+	char *name;  /* not striclty needed, but used during sorting, avoids to have to recompute it there... */
+
+	struct stat st;
+} FileListInternEntry;
+
 typedef struct FileListIntern {
 	/* XXX This will be reworked to keep 'all entries' storage to a minimum memory space! */
-	ListBase entries;
-	FileDirEntry **filtered;
+	ListBase entries;  /* FileListInternEntry items. */
+	FileListInternEntry **filtered;
+
+	ListBase tmp_entries;  /* FileDirEntry items. */
 } FileListIntern;
 
 #define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
@@ -284,7 +302,7 @@ typedef struct FileList {
 	void (*read_jobf)(struct FileList *, const char *, short *, short *, float *, ThreadMutex *);
 
 	/* Filter an entry of current filelist. */
-	bool (*filterf)(struct FileDirEntry *, const char *, FileListFilter *);
+	bool (*filterf)(struct FileListInternEntry *, const char *, FileListFilter *);
 } FileList;
 
 #define SPECIAL_IMG_SIZE 48
@@ -323,7 +341,7 @@ static void filelist_cache_clear(FileListEntryCache *cache);
 
 /* ********** Sort helpers ********** */
 
-static int compare_direntry_generic(const FileDirEntry *entry1, const FileDirEntry *entry2)
+static int compare_direntry_generic(const FileListInternEntry *entry1, const FileListInternEntry *entry2)
 {
 	/* type is equal to stat.st_mode */
 
@@ -356,20 +374,6 @@ static int compare_direntry_generic(const FileDirEntry *entry1, const FileDirEnt
 	    return 1;
 	}
 
-	/* We get rid of this, this is OS-specific description of file types, not really useful at our level! */
-#if 0
-	if (S_ISREG(entry1->entry->type)) {
-		if (!S_ISREG(entry2->entry->type)) {
-			return -1;
-		}
-	}
-	else if (S_ISREG(entry2->entry->type)) {
-		return 1;
-	}
-	if ((entry1->entry->type & S_IFMT) < (entry2->entry->type & S_IFMT)) return -1;
-	if ((entry1->entry->type & S_IFMT) > (entry2->entry->type & S_IFMT)) return 1;
-#endif
-
 	/* make sure "." and ".." are always first */
 	if (FILENAME_IS_CURRENT(entry1->relpath)) return -1;
 	if (FILENAME_IS_CURRENT(entry2->relpath)) return 1;
@@ -381,8 +385,8 @@ static int compare_direntry_generic(const FileDirEntry *entry1, const FileDirEnt
 
 static int compare_name(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const FileDirEntry *entry1 = a1;
-	const FileDirEntry *entry2 = a2;
+	const FileListInternEntry *entry1 = a1;
+	const FileListInternEntry *entry2 = a2;
 	char *name1, *name2;
 	int ret;
 
@@ -398,17 +402,20 @@ static int compare_name(void *UNUSED(user_data), const void *a1, const void *a2)
 
 static int compare_date(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const FileDirEntry *entry1 = a1;
-	const FileDirEntry *entry2 = a2;
+	const FileListInternEntry *entry1 = a1;
+	const FileListInternEntry *entry2 = a2;
 	char *name1, *name2;
+	int64_t time1, time2;
 	int ret;
 
 	if ((ret = compare_direntry_generic(entry1, entry2))) {
 		return ret;
 	}
 	
-	if (entry1->entry->time < entry2->entry->time) return 1;
-	if (entry1->entry->time > entry2->entry->time) return -1;
+	time1 = (int64_t)entry1->st.st_mtime;
+	time2 = (int64_t)entry2->st.st_mtime;
+	if (time1 < time2) return 1;
+	if (time1 > time2) return -1;
 
 	name1 = entry1->name;
 	name2 = entry2->name;
@@ -418,17 +425,20 @@ static int compare_date(void *UNUSED(user_data), const void *a1, const void *a2)
 
 static int compare_size(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const FileDirEntry *entry1 = a1;
-	const FileDirEntry *entry2 = a2;
+	const FileListInternEntry *entry1 = a1;
+	const FileListInternEntry *entry2 = a2;
 	char *name1, *name2;
+	uint64_t size1, size2;
 	int ret;
 
 	if ((ret = compare_direntry_generic(entry1, entry2))) {
 		return ret;
 	}
 	
-	if (entry1->entry->size < entry2->entry->size) return 1;
-	if (entry1->entry->size > entry2->entry->size) return -1;
+	size1 = entry1->st.st_size;
+	size2 = entry2->st.st_size;
+	if (size1 < size2) return 1;
+	if (size1 > size2) return -1;
 
 	name1 = entry1->name;
 	name2 = entry2->name;
@@ -438,8 +448,8 @@ static int compare_size(void *UNUSED(user_data), const void *a1, const void *a2)
 
 static int compare_extension(void *UNUSED(user_data), const void *a1, const void *a2)
 {
-	const FileDirEntry *entry1 = a1;
-	const FileDirEntry *entry2 = a2;
+	const FileListInternEntry *entry1 = a1;
+	const FileListInternEntry *entry2 = a2;
 	char *name1, *name2;
 	int ret;
 
@@ -561,7 +571,7 @@ static bool is_hidden_file(const char *filename, FileListFilter *filter)
 	return is_hidden;
 }
 
-static bool is_filtered_file(FileDirEntry *file, const char *UNUSED(root), FileListFilter *filter)
+static bool is_filtered_file(FileListInternEntry *file, const char *UNUSED(root), FileListFilter *filter)
 {
 	bool is_filtered = !is_hidden_file(file->relpath, filter);
 
@@ -593,7 +603,7 @@ static bool is_filtered_file(FileDirEntry *file, const char *UNUSED(root), FileL
 	return is_filtered;
 }
 
-static bool is_filtered_lib(FileDirEntry *file, const char *root, FileListFilter *filter)
+static bool is_filtered_lib(FileListInternEntry *file, const char *root, FileListFilter *filter)
 {
 	bool is_filtered;
 	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], *group, *name;
@@ -640,7 +650,7 @@ static bool is_filtered_lib(FileDirEntry *file, const char *root, FileListFilter
 	return is_filtered;
 }
 
-static bool is_filtered_main(FileDirEntry *file, const char *UNUSED(dir), FileListFilter *filter)
+static bool is_filtered_main(FileListInternEntry *file, const char *UNUSED(dir), FileListFilter *filter)
 {
 	return !is_hidden_file(file->relpath, filter);
 }
@@ -654,7 +664,7 @@ void filelist_filter(FileList *filelist)
 {
 	int num_filtered = 0;
 	const int num_files = filelist->filelist.nbr_entries;
-	FileDirEntry **filtered_tmp, *file;
+	FileListInternEntry **filtered_tmp, *file;
 
 	if (filelist->filelist.nbr_entries == 0) {
 		return;
@@ -975,27 +985,71 @@ static void filelist_checkdir_main(struct FileList *filelist, char *r_dir)
 	filelist_checkdir_lib(filelist, r_dir);
 }
 
+static void filelist_intern_entry_free(FileListInternEntry *entry)
+{
+	if (entry->relpath) {
+		MEM_freeN(entry->relpath);
+	}
+	if (entry->name) {
+		MEM_freeN(entry->name);
+	}
+	MEM_freeN(entry);
+}
+
 static void filelist_intern_free(FileListIntern *filelist_intern)
 {
-	FileDirEntry *entry;
+	FileListInternEntry *entry, *entry_next;
+	FileDirEntry *tmp_entry, *tmp_entry_next;
 
-	for (entry = filelist_intern->entries.first; entry; entry = entry->next) {
-		BKE_filedir_entry_free(entry);
+	for (entry = filelist_intern->entries.first; entry; entry = entry_next) {
+		entry_next = entry->next;
+		filelist_intern_entry_free(entry);
 	}
-	BLI_freelistN(&filelist_intern->entries);
+	BLI_listbase_clear(&filelist_intern->entries);
 
 	MEM_SAFE_FREE(filelist_intern->filtered);
+
+	for (tmp_entry = filelist_intern->tmp_entries.first; tmp_entry; tmp_entry = tmp_entry_next) {
+		tmp_entry_next = tmp_entry->next;
+		BKE_filedir_entry_free(tmp_entry);
+	}
+	BLI_listbase_clear(&filelist_intern->tmp_entries);
 }
 
 static FileDirEntry *filelist_intern_create_entry(FileList *filelist, const int index)
 {
-	/* Stupid code for now, later we will actually generate a new entry (from mempool)... */
-	return filelist->filelist_intern.filtered[index];
+	FileListInternEntry *entry = filelist->filelist_intern.filtered[index];
+	FileListIntern *intern = &filelist->filelist_intern;
+	FileDirEntry *ret;
+	FileDirEntryRevision *rev;
+
+	ret = MEM_callocN(sizeof(*ret), __func__);
+	rev = MEM_callocN(sizeof(*rev), __func__);
+
+	rev->size = (uint64_t)entry->st.st_size;
+	BLI_filelist_entry_size_to_string(&entry->st, rev->size_str);
+
+	rev->time = (int64_t)entry->st.st_mtime;
+	BLI_filelist_entry_datetime_to_string(&entry->st, rev->time_str, rev->date_str);
+
+	ret->entry = rev;
+	ret->relpath = BLI_strdup(entry->relpath);
+	ret->name = BLI_strdup(entry->name);
+	ret->description = BLI_strdupcat(filelist->filelist.root, entry->relpath);
+	memcpy(ret->uuid, entry->uuid, sizeof(ret->uuid));
+	ret->blentype = entry->blentype;
+	ret->typeflag = entry->typeflag;
+
+	BLI_addtail(&intern->tmp_entries, ret);
+	return ret;
 }
 
-static void filelist_intern_release_entry(FileList *UNUSED(filelist), FileDirEntry *UNUSED(old))
+static void filelist_intern_release_entry(FileList *filelist, FileDirEntry *entry)
 {
-	/* We do nothing here actually, later we'll give back the mem to the mempool... */
+	FileListIntern *intern = &filelist->filelist_intern;
+
+	BLI_remlink(&intern->tmp_entries, entry);
+	BKE_filedir_entry_free(entry);
 }
 
 static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid)
@@ -1087,6 +1141,7 @@ static void filelist_cache_init(FileListEntryCache *cache)
 	cache->block_cursor = cache->block_start_index = cache->block_center_index = cache->block_end_index = 0;
 
 	cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
+	fill_vn_i(cache->misc_entries_indices, ARRAY_SIZE(cache->misc_entries_indices), -1);
 	cache->misc_cursor = 0;
 }
 
@@ -1209,7 +1264,7 @@ int filelist_numfiles(struct FileList *filelist)
 	return filelist->filelist.nbr_entries_filtered;
 }
 
-static const char *fileentry_uiname(const char *root, const FileDirEntry *entry, char *buff)
+static const char *fileentry_uiname(const char *root, const FileListInternEntry *entry, char *buff)
 {
 	char *name;
 
@@ -1375,10 +1430,11 @@ int filelist_file_findpath(struct FileList *filelist, const char *filename)
 	}
 
 	/* XXX TODO Cache could probably use a ghash on paths too? Not really urgent though.
-     *          In fact, we may get rid of this func in the end (only used to find again renamed entry afaik). */
+	 *          In fact, we may get rid of this func in the end (only used to find again renamed entry afaik). */
 
 	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
-		if (STREQ(filelist->filelist_intern.filtered[fidx]->relpath, filename)) {
+		FileListInternEntry *entry = filelist->filelist_intern.filtered[fidx];
+		if (STREQ(entry->relpath, filename)) {
 			return fidx;
 		}
 	}
@@ -1397,17 +1453,17 @@ FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const char uui
 	/* XXX TODO Cache could probably use a ghash on uuids too? Not really urgent though. */
 
 	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
-		FileDirEntry *entry = filelist->filelist_intern.filtered[fidx];
+		FileListInternEntry *entry = filelist->filelist_intern.filtered[fidx];
 		if (memcmp(entry->uuid, uuid, sizeof(entry->uuid)) == 0) {
-			return entry;
+			return filelist_file(filelist, fidx);
 		}
 	}
 
 	return NULL;
 }
 
-/* Helper, low-level, it assumes cursor + size <= FILELIST_ENTRYCACHESIZE */
-static bool filelist_file_cache_block_do(struct FileList *filelist, const int start_index, const int size, int cursor)
+/* Helpers, low-level, they assume cursor + size <= FILELIST_ENTRYCACHESIZE */
+static bool filelist_file_cache_block_create(struct FileList *filelist, const int start_index, const int size, int cursor)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
 
@@ -1431,14 +1487,35 @@ static bool filelist_file_cache_block_do(struct FileList *filelist, const int st
 		for (i = 0, tmp_entry = tmp_arr.entries.first; i < size; i++, cursor++, tmp_entry = tmp_entry->next) {
 			cache->block_entries[cursor] = tmp_entry;
 		}
+		return true;
 	}
 	else {
-		FileListIntern *intern = &filelist->filelist_intern;
-		memcpy(&cache->block_entries[cursor], &intern->filtered[start_index],
-		       sizeof(cache->block_entries[cursor]) * size);
+		int i, idx;
+
+		for (i = 0, idx = start_index; i < size; i++, idx++, cursor++) {
+			cache->block_entries[cursor] = filelist_intern_create_entry(filelist, idx);
+		}
+		return true;
 	}
 
 	return false;
+}
+
+static void filelist_file_cache_block_release(struct FileList *filelist, const int size, int cursor)
+{
+	FileListEntryCache *cache = &filelist->filelist_cache;
+
+	{
+		int i;
+
+		for (i = 0; i < size; i++, cursor++) {
+//			printf("%s: release cacheidx %d (%%p %%s)\n", __func__, cursor/*, cache->block_entries[cursor], cache->block_entries[cursor]->relpath*/);
+			filelist_intern_release_entry(filelist, cache->block_entries[cursor]);
+#ifndef NDEBUG
+			cache->block_entries[cursor] = NULL;
+#endif
+		}
+	}
 }
 
 /* Load in cache all entries "around" given index (as much as block cache may hold). */
@@ -1449,7 +1526,6 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	const int nbr_entries = filelist->filelist.nbr_entries_filtered;
 	int start_index = max_ii(0, index - (FILELIST_ENTRYCACHESIZE / 2));
 	int end_index = min_ii(nbr_entries, index + (FILELIST_ENTRYCACHESIZE / 2));
-	const int curr_block_size = cache->block_end_index - cache->block_start_index;
 	int i;
 
 	if ((index < 0) || (index >= nbr_entries)) {
@@ -1475,10 +1551,21 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	/* If we have something to (re)cache... */
 	if ((start_index != cache->block_start_index) || (end_index != cache->block_end_index)) {
 		if ((start_index >= cache->block_end_index) || (end_index <= cache->block_start_index)) {
-	//		printf("Full Recaching!\n");
+			int size1 = cache->block_end_index - cache->block_start_index;
+			int size2 = 0;
+			int idx1 = cache->block_cursor, idx2 = 0;
+
+//			printf("Full Recaching!\n");
+
+			if (idx1 + size1 > FILELIST_ENTRYCACHESIZE) {
+				size2 = idx1 + size1 - FILELIST_ENTRYCACHESIZE;
+				size1 -= size2;
+				filelist_file_cache_block_release(filelist, size2, idx2);
+			}
+			filelist_file_cache_block_release(filelist, size1, idx1);
 
 			/* New cached block does not overlap existing one, simple. */
-			if (!filelist_file_cache_block_do(filelist, start_index, end_index - start_index, 0)) {
+			if (!filelist_file_cache_block_create(filelist, start_index, end_index - start_index, 0)) {
 				return false;
 			}
 
@@ -1491,7 +1578,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 			cache->block_cursor = 0;
 		}
 		else {
-	//		printf("Partial Recaching!\n");
+			printf("Partial Recaching!\n");
 
 			/* At this point, we know we keep part of currently cached entries, so update previews if needed,
 			 * and remove everything from working queue - we'll add all newly needed entries at the end. */
@@ -1500,35 +1587,44 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 				filelist_cache_previews_clear(cache);
 			}
 
-	//		printf("\tpreview cleaned up...\n");
+//			printf("\tpreview cleaned up...\n");
 
-			if (end_index > cache->block_end_index) {
-				/* Add (request) needed entries after already cached ones. */
-				/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
-				int size1 = end_index - cache->block_end_index;
+			if (start_index > cache->block_start_index) {
+				int size1 = start_index - cache->block_start_index;
 				int size2 = 0;
-				int idx1, idx2;
+				int idx1 = cache->block_cursor, idx2 = 0;
 
-				idx1 = (cache->block_cursor + curr_block_size) % FILELIST_ENTRYCACHESIZE;
-				if ((idx1 + size1) > FILELIST_ENTRYCACHESIZE) {
-					size2 = size1;
-					size1 = FILELIST_ENTRYCACHESIZE - idx1;
-					size2 -= size1;
-					idx2 = 0;
-				}
+//				printf("\tcache releasing: [%d:%d] (%d, %d)\n", cache->block_start_index, cache->block_start_index + size1, cache->block_cursor, size1);
 
-				if (size2) {
-					if (!filelist_file_cache_block_do(filelist, end_index - size2, size2, idx2)) {
-						return false;
-					}
+				if (idx1 + size1 > FILELIST_ENTRYCACHESIZE) {
+					size2 = idx1 + size1 - FILELIST_ENTRYCACHESIZE;
+					size1 -= size2;
+					filelist_file_cache_block_release(filelist, size2, idx2);
 				}
-				if (!filelist_file_cache_block_do(filelist, end_index - size1 - size2, size1, idx1)) {
-					return false;
-				}
+				filelist_file_cache_block_release(filelist, size1, idx1);
+
+				cache->block_cursor = (idx1 + size1 + size2) % FILELIST_ENTRYCACHESIZE;
+				cache->block_start_index = start_index;
 			}
-			cache->block_end_index = end_index;
+			if (end_index < cache->block_end_index) {
+				int size1 = cache->block_end_index - end_index;
+				int size2 = 0;
+				int idx1, idx2 = 0;
 
-	//		printf("\tend-extended...\n");
+//				printf("\tcache releasing: [%d:%d] (%d)\n", cache->block_end_index - size1, cache->block_end_index, cache->block_cursor);
+
+				idx1 = (cache->block_cursor + end_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
+				if (idx1 + size1 > FILELIST_ENTRYCACHESIZE) {
+					size2 = idx1 + size1 - FILELIST_ENTRYCACHESIZE;
+					size1 -= size2;
+					filelist_file_cache_block_release(filelist, size2, idx2);
+				}
+				filelist_file_cache_block_release(filelist, size1, idx1);
+
+				cache->block_end_index = end_index;
+			}
+
+//			printf("\tcache cleaned up...\n");
 
 			if (start_index < cache->block_start_index) {
 				/* Add (request) needed entries before already cached ones. */
@@ -1549,22 +1645,46 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 				}
 
 				if (size2) {
-					if (!filelist_file_cache_block_do(filelist, start_index + size1, size2, idx2)) {
+					if (!filelist_file_cache_block_create(filelist, start_index + size1, size2, idx2)) {
 						return false;
 					}
 				}
-				if (!filelist_file_cache_block_do(filelist, start_index, size1, idx1)) {
+				if (!filelist_file_cache_block_create(filelist, start_index, size1, idx1)) {
 					return false;
 				}
 
 				cache->block_cursor = idx1;
+				cache->block_start_index = start_index;
 			}
-			else if (start_index > cache->block_start_index) {
-				/* We do not free anything, just update start index and cursor. */
-				cache->block_cursor = (cache->block_cursor + start_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
+			printf("\tstart-extended...\n");
+			if (end_index > cache->block_end_index) {
+				/* Add (request) needed entries after already cached ones. */
+				/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+				int size1 = end_index - cache->block_end_index;
+				int size2 = 0;
+				int idx1, idx2;
+
+				idx1 = (cache->block_cursor + end_index - cache->block_start_index - size1) % FILELIST_ENTRYCACHESIZE;
+				if ((idx1 + size1) > FILELIST_ENTRYCACHESIZE) {
+					size2 = size1;
+					size1 = FILELIST_ENTRYCACHESIZE - idx1;
+					size2 -= size1;
+					idx2 = 0;
+				}
+
+				if (size2) {
+					if (!filelist_file_cache_block_create(filelist, end_index - size2, size2, idx2)) {
+						return false;
+					}
+				}
+				if (!filelist_file_cache_block_create(filelist, end_index - size1 - size2, size1, idx1)) {
+					return false;
+				}
+
+				cache->block_end_index = end_index;
 			}
-			cache->block_start_index = start_index;
-	//		printf("\tstart-extended...\n");
+
+//			printf("\tend-extended...\n");
 		}
 	}
 	else if (cache->block_center_index != index && cache->previews_pool) {
@@ -1976,29 +2096,18 @@ static int filelist_readjob_list_dir(
 	if (files) {
 		int i = nbr_files;
 		while (i--) {
-			FileDirEntry *entry;
-			FileDirEntryRevision *rev;
+			FileListInternEntry *entry;
 
 			if (skip_currpar && FILENAME_IS_CURRPAR(files[i].relname)) {
 				continue;
 			}
 
 			entry = MEM_callocN(sizeof(*entry), __func__);
-			rev = entry->entry = MEM_callocN(sizeof(*rev), __func__);
 			entry->relpath = MEM_dupallocN(files[i].relname);
 			if (S_ISDIR(files[i].s.st_mode)) {
 				entry->typeflag |= FILE_TYPE_DIR;
 			}
-			rev->size = (uint64_t)files[i].s.st_size;
-			rev->time = (int64_t)files[i].s.st_mtime;
-			/* TODO rather use real values from direntry.s!!! */
-			memcpy(rev->size_str, files[i].size, sizeof(rev->size_str));
-//			memcpy(rev->mode1, files[i].mode1, sizeof(rev->mode1));
-//			memcpy(rev->mode2, files[i].mode2, sizeof(rev->mode2));
-//			memcpy(rev->mode3, files[i].mode3, sizeof(rev->mode3));
-//			memcpy(rev->owner, files[i].owner, sizeof(rev->owner));
-			memcpy(rev->time_str, files[i].time, sizeof(rev->time_str));
-			memcpy(rev->date_str, files[i].date, sizeof(rev->date_str));
+			entry->st = files[i].s;
 
 			/* Set file type. */
 			/* If we are considering .blend files as libs, promote them to directory status! */
@@ -2034,11 +2143,10 @@ static int filelist_readjob_list_dir(
 
 static int filelist_readjob_list_lib(const char *root, ListBase *entries, const bool skip_currpar)
 {
-	FileDirEntry *entry;
-	FileDirEntryRevision *rev;
-	LinkNode *ln, *names, *lp, *previews;
+	FileListInternEntry *entry;
+	LinkNode *ln, *names, *lp, *previews = NULL;
 	struct ImBuf *ima;
-	int i, nprevs, nnames, idcode = 0, nbr_entries = 0;
+	int i, nprevs = 0, nnames, idcode = 0, nbr_entries = 0;
 	char dir[FILE_MAX], *group;
 	bool ok;
 
@@ -2059,7 +2167,7 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 	/* memory for strings is passed into filelist[i].entry->relpath and freed in BKE_filedir_entry_free. */
 	if (group) {
 		idcode = groupname_to_code(group);
-		previews = BLO_blendhandle_get_previews(libfiledata, idcode, &nprevs);
+//		previews = BLO_blendhandle_get_previews(libfiledata, idcode, &nprevs);
 		names = BLO_blendhandle_get_datablock_names(libfiledata, idcode, &nnames);
 	}
 	else {
@@ -2073,7 +2181,6 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 
 	if (!skip_currpar) {
 		entry = MEM_callocN(sizeof(*entry), __func__);
-		/*rev = */entry->entry = MEM_callocN(sizeof(*rev), __func__);
 		entry->relpath = BLI_strdup(FILENAME_PARENT);
 		entry->typeflag |= (FILE_TYPE_BLENDERLIB | FILE_TYPE_DIR);
 		BLI_addtail(entries, entry);
@@ -2090,7 +2197,6 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 		const char *blockname = ln->link;
 
 		entry = MEM_callocN(sizeof(*entry), __func__);
-		/*rev = */entry->entry = MEM_callocN(sizeof(*rev), __func__);  /* Todo: set date/time from blend file one? */
 		entry->relpath = BLI_strdup(blockname);
 		entry->typeflag |= FILE_TYPE_BLENDERLIB;
 		if (!(group && idcode)) {
@@ -2100,6 +2206,7 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 		else {
 			entry->blentype = idcode;
 		}
+#if 0
 		if (lp) {
 			PreviewImage *img = lp->link;
 			if (img) {
@@ -2116,7 +2223,7 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 			}
 			lp = lp->next;
 		}
-
+#endif
 		BLI_addtail(entries, entry);
 		nbr_entries++;
 	}
@@ -2300,7 +2407,7 @@ static void filelist_readjob_do(
 	td_dir->dir = BLI_strdup(dir);
 
 	while (!BLI_stack_is_empty(todo_dirs) && !(*stop)) {
-		FileDirEntry *entry;
+		FileListInternEntry *entry;
 		int nbr_entries = 0;
 		bool is_lib = do_lib;
 
@@ -2407,7 +2514,7 @@ typedef struct FileListReadJob {
 	ThreadMutex lock;
 	char main_name[FILE_MAX];
 	struct FileList *filelist;
-	struct FileList *tmp_filelist;
+	struct FileList *tmp_filelist;  /* XXX We may use a simpler struct here... just a linked list and root path? */
 
 	int ae_job_id;
 	float *progress;
