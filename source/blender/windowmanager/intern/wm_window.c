@@ -206,12 +206,13 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 	
 	wm_event_free_all(win);
 	wm_subwindows_free(win);
-	
-	if (win->drawdata)
-		MEM_freeN(win->drawdata);
-	
+
+	wm_draw_data_free(win);
+
 	wm_ghostwindow_destroy(win);
-	
+
+	MEM_freeN(win->stereo3d_format);
+
 	MEM_freeN(win);
 }
 
@@ -236,6 +237,8 @@ wmWindow *wm_window_new(bContext *C)
 	BLI_addtail(&wm->windows, win);
 	win->winid = find_free_winid(wm);
 
+	win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo 3D Format (window)");
+
 	return win;
 }
 
@@ -259,8 +262,11 @@ wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
 	win->screen->do_draw = true;
 
 	win->drawmethod = U.wmdrawmethod;
-	win->drawdata = NULL;
-	
+
+	BLI_listbase_clear(&win->drawdata);
+
+	*win->stereo3d_format = *winorig->stereo3d_format;
+
 	return win;
 }
 
@@ -366,6 +372,10 @@ static void wm_window_add_ghostwindow(wmWindowManager *wm, const char *title, wm
 		multisamples = U.ogl_multisamples;
 
 	glSettings.numOfAASamples = multisamples;
+
+	/* a new window is created when pageflip mode is required for a window */
+	if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP)
+		glSettings.flags |= GHOST_glStereoVisual;
 
 	if (!(U.uiflag2 & USER_OPENGL_NO_WARN_SUPPORT))
 		glSettings.flags |= GHOST_glWarnSupport;
@@ -519,8 +529,7 @@ wmWindow *WM_window_open(bContext *C, const rcti *rect)
 	win->sizey = BLI_rcti_size_y(rect);
 
 	win->drawmethod = U.wmdrawmethod;
-	win->drawdata = NULL;
-	
+
 	WM_check(C);
 	
 	return win;
@@ -1098,9 +1107,9 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 }
 
 /**
- * #KM_DBL_CLICK is set in wm_event_clicktype_init (wm_event_system.c)
- * Normally, this should be there too, but for #KM_CLICK/#KM_HOLD, we need a
- * time precision of a few milliseconds, which we can't get from there
+ * #KM_DBL_CLICK and #KM_CLICK are set in wm_event_clicktype_init (wm_event_system.c)
+ * Normally, #KM_HOLD should be there too, but we need a time precision of a few
+ * milliseconds for it, which we can't get from there
  */
 static void wm_window_event_clicktype_init(const bContext *C)
 {
@@ -1141,14 +1150,7 @@ static void wm_window_event_clicktype_init(const bContext *C)
 
 		/* the actual test */
 		if ((PIL_check_seconds_timer() - event->click_time) * 1000 <= U.click_timeout) {
-			/* for any reason some X11 systems send two release events triggering two KM_CLICK
-			 * events - making the rules more strict by checking for prevval resolves this */
-			if (event->val == KM_RELEASE && event->prevval != KM_RELEASE) {
-				click_type = KM_CLICK;
-				if (G.debug & (G_DEBUG_HANDLERS | G_DEBUG_EVENTS)) {
-					printf("%s Send click event\n", __func__);
-				}
-			}
+			/* sending of KM_CLICK is handled in wm_event_clicktype_init (wm_event_system.c) */
 		}
 		else if (event->is_key_pressed) {
 			click_type = KM_HOLD;
