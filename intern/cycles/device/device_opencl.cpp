@@ -48,6 +48,7 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __SPLIT_KERNEL__
 /* This value may be tuned according to the scene we are rendering */
+/* modifying PATH_ITER_INC_FACTOR value proportional to number of expected ray-bounces will improve performance */
 #define PATH_ITER_INC_FACTOR 8
 
 /*
