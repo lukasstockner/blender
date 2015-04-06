@@ -55,6 +55,7 @@
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_customdata.h"
+#include "BKE_DerivedMesh.h"
 #include "BKE_image.h"
 #include "BKE_key.h"
 #include "BKE_main.h"
@@ -1481,14 +1482,15 @@ ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, 
 	short xminc, yminc, xmaxc, ymaxc, xs, ys;
 	
 	/* clip */
-	if (xmin < 0) xminc = 0; else xminc = xmin;
-	if (xmax >= vc->ar->winx) xmaxc = vc->ar->winx - 1; else xmaxc = xmax;
-	if (xminc > xmaxc) return NULL;
+	xminc = max_ii(xmin, 0);
+	yminc = max_ii(ymin, 0);
+	xmaxc = min_ii(xmax, vc->ar->winx - 1);
+	ymaxc = min_ii(ymax, vc->ar->winy - 1);
 
-	if (ymin < 0) yminc = 0; else yminc = ymin;
-	if (ymax >= vc->ar->winy) ymaxc = vc->ar->winy - 1; else ymaxc = ymax;
-	if (yminc > ymaxc) return NULL;
-	
+	if (UNLIKELY((xminc > xmaxc) || (yminc > ymaxc))) {
+		return NULL;
+	}
+
 	ibuf = IMB_allocImBuf((xmaxc - xminc + 1), (ymaxc - yminc + 1), 32, IB_rect);
 
 	view3d_validate_backbuf(vc);
@@ -2051,7 +2053,7 @@ static void draw_dupli_objects_color(
 	lb = object_duplilist(G.main->eval_ctx, scene, base->object);
 	// BLI_listbase_sort(lb, dupli_ob_sort); /* might be nice to have if we have a dupli list with mixed objects. */
 
-	apply_data = duplilist_apply(base->object, lb);
+	apply_data = duplilist_apply(base->object, scene, lb);
 
 	dob = dupli_step(lb->first);
 	if (dob) dob_next = dupli_step(dob->next);

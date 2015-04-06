@@ -330,8 +330,8 @@ static void zbuffillAc4(ZSpan *zspan, int obi, int zvlnr,
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 	
 	if (my2<my0) return;
 	
@@ -1073,8 +1073,8 @@ static void zbuffillGLinv4(ZSpan *zspan, int obi, int zvlnr,
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 
 	//	printf("my %d %d\n", my0, my2);
 	if (my2<my0) return;
@@ -1196,8 +1196,8 @@ static void zbuffillGL4(ZSpan *zspan, int obi, int zvlnr,
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 
 	//	printf("my %d %d\n", my0, my2);
 	if (my2<my0) return;
@@ -1324,8 +1324,8 @@ static void zbuffillGL_onlyZ(ZSpan *zspan, int UNUSED(obi), int UNUSED(zvlnr),
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 	
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 	
 	//	printf("my %d %d\n", my0, my2);
 	if (my2<my0) return;
@@ -1426,8 +1426,8 @@ void zspan_scanconvert_strand(ZSpan *zspan, void *handle, float *v1, float *v2, 
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 	
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 	
 	//	printf("my %d %d\n", my0, my2);
 	if (my2<my0) return;
@@ -1513,7 +1513,7 @@ void zspan_scanconvert(ZSpan *zspan, void *handle, float *v1, float *v2, float *
 	float x0, y0, x1, y1, x2, y2, z0, z1, z2;
 	float u, v, uxd, uyd, vxd, vyd, uy0, vy0, xx1;
 	const float *span1, *span2;
-	int x, y, sn1, sn2, rectx= zspan->rectx, my0, my2;
+	int i, j, x, y, sn1, sn2, rectx = zspan->rectx, my0, my2;
 	
 	/* init */
 	zbuf_init_span(zspan);
@@ -1526,8 +1526,8 @@ void zspan_scanconvert(ZSpan *zspan, void *handle, float *v1, float *v2, float *
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 	
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 	
 	//	printf("my %d %d\n", my0, my2);
 	if (my2<my0) return;
@@ -1574,7 +1574,7 @@ void zspan_scanconvert(ZSpan *zspan, void *handle, float *v1, float *v2, float *
 		span2= zspan->span1+my2;
 	}
 	
-	for (y=my2; y>=my0; y--, span1--, span2--) {
+	for (i = 0, y = my2; y >= my0; i++, y--, span1--, span2--) {
 		
 		sn1= floor(*span1);
 		sn2= floor(*span2);
@@ -1583,14 +1583,12 @@ void zspan_scanconvert(ZSpan *zspan, void *handle, float *v1, float *v2, float *
 		if (sn2>=rectx) sn2= rectx-1;
 		if (sn1<0) sn1= 0;
 		
-		u= (double)sn1*uxd + uy0;
-		v= (double)sn1*vxd + vy0;
+		u = (((double)sn1 * uxd) + uy0) - (i * uyd);
+		v = (((double)sn1 * vxd) + vy0) - (i * vyd);
 		
-		for (x= sn1; x<=sn2; x++, u+=uxd, v+=vxd)
-			func(handle, x, y, u, v);
-		
-		uy0 -= uyd;
-		vy0 -= vyd;
+		for (j = 0, x = sn1; x <= sn2; j++, x++) {
+			func(handle, x, y, u + (j * uxd), v + (j * vxd));
+		}
 	}
 }
 
@@ -2482,8 +2480,8 @@ static void zbuffill_sss(ZSpan *zspan, int obi, int zvlnr,
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 	
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 	
 	if (my2<my0) return;
 	
@@ -2683,8 +2681,8 @@ static void zbuf_fill_in_rgba(ZSpan *zspan, DrawBufPixel *col, float *v1, float 
 	/* clipped */
 	if (zspan->minp2==NULL || zspan->maxp2==NULL) return;
 	
-	if (zspan->miny1 < zspan->miny2) my0= zspan->miny2; else my0= zspan->miny1;
-	if (zspan->maxy1 > zspan->maxy2) my2= zspan->maxy2; else my2= zspan->maxy1;
+	my0 = max_ii(zspan->miny1, zspan->miny2);
+	my2 = min_ii(zspan->maxy1, zspan->maxy2);
 	
 	//	printf("my %d %d\n", my0, my2);
 	if (my2<my0) return;
