@@ -9,7 +9,7 @@
 #endif /* TRUST_NO_ONE */
 
 const DrawState default_state = {
-	.common = { false, true, true, false },
+	.common = { false, false, false, false },
 	.point = { false, 1.0f },
 	.line = { false, 1.0f, 0 },
 	.polygon = { true, false, MATERIAL_NONE, 0 }
@@ -24,7 +24,7 @@ void GPUx_reset_draw_state()
 {
 	current = default_state;
 #if 0 /* TODO: make default state play nice with UI drawing code */
-	force_state_update();
+	GPUx_force_state_update();
 #endif
 }
 
