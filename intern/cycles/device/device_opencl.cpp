@@ -3049,6 +3049,8 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_h), (void*)&d_h));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_offset), (void*)&d_offset));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_stride), (void*)&d_stride));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_x), (void*)&(rtile.rng_state_offset_x)));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_y), (void*)&(rtile.rng_state_offset_y)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
@@ -3125,6 +3127,8 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_x), (void*)&d_x));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_y), (void*)&d_y));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_stride), (void*)&d_stride));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_x), (void*)&(rtile.rng_state_offset_x)));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_y), (void*)&(rtile.rng_state_offset_y)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(work_array), (void*)&work_array));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
@@ -3266,6 +3270,8 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_w), (void *)&d_w));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_h), (void *)&d_h));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_stride), (void *)&d_stride));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_offset_x), (void *)&(rtile.buffer_offset_x)));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_offset_y), (void *)&(rtile.buffer_offset_y)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
 
 		/* Enqueue ckPathTraceKernel_DataInit_SPLIT_KERNEL kernel */
@@ -3684,6 +3690,10 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 			for (int tile_iter_x = 0; tile_iter_x < num_tiles_x; tile_iter_x++) {
 				int rtile_index = tile_iter_y * num_tiles_x + tile_iter_x;
 
+				to_path_trace_rtile[rtile_index].rng_state_offset_x = tile_iter_x * render_feasible_tile_size.x;
+				to_path_trace_rtile[rtile_index].rng_state_offset_y = tile_iter_y * render_feasible_tile_size.y;
+				to_path_trace_rtile[rtile_index].buffer_offset_x = tile_iter_x * render_feasible_tile_size.x;
+				to_path_trace_rtile[rtile_index].buffer_offset_y = tile_iter_y * render_feasible_tile_size.y;
 				to_path_trace_rtile[rtile_index].start_sample = rtile.start_sample;
 				to_path_trace_rtile[rtile_index].num_samples = rtile.num_samples;
 				to_path_trace_rtile[rtile_index].sample = rtile.sample;
@@ -3723,6 +3733,11 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 			while(task->acquire_tile(this, tile)) {
 
 #ifdef __SPLIT_KERNEL__
+				tile.buffer_offset_x = 0;
+				tile.buffer_offset_y = 0;
+				tile.rng_state_offset_x = 0;
+				tile.rng_state_offset_y = 0;
+
 				/* The second argument is dummy */
 				path_trace(tile, 0);
 				tile.sample = tile.start_sample + tile.num_samples;

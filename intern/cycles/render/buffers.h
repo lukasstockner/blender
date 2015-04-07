@@ -141,6 +141,11 @@ public:
 
 	/* user set tile-size */
 	int2 tile_size;
+	/* Used in split kernel */
+	int buffer_offset_x;
+	int buffer_offset_y;
+	int rng_state_offset_x;
+	int rng_state_offset_y;
 
 	device_ptr buffer;
 	device_ptr rng_state;

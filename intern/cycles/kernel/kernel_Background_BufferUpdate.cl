@@ -109,6 +109,8 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 	ccl_global float *L_transparent_coop,        /* Required for background hit processing and buffer Update */
 	ccl_global char *ray_state,                  /* Stores information on the current state of a ray */
 	int sw, int sh, int sx, int sy, int stride,
+	int rng_state_offset_x,
+	int rng_state_offset_y,
 	ccl_global unsigned int *work_array,         /* Denotes work of each ray */
 	ccl_global int *Queue_data,                  /* Queues memory */
 	ccl_global int *Queue_index,                 /* Tracks the number of elements in each queue */
@@ -187,7 +189,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 		tile_y = tile_index / sw;
 		my_sample_tile = ray_index - (tile_index * parallel_samples);
 #endif
-		rng_state += tile_x + tile_y * stride;
+		rng_state += (rng_state_offset_x + tile_x) + (rng_state_offset_y + tile_y) * stride;
 		per_sample_output_buffers += (((tile_x + (tile_y * stride)) * parallel_samples) + my_sample_tile) * kernel_data.film.pass_stride;
 
 		if(IS_STATE(ray_state, ray_index, RAY_HIT_BACKGROUND)) {
@@ -249,7 +251,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 				my_sample_tile = 0;
 
 				/* Remap rng_state according to the current work */
-				rng_state = initial_rng + (tile_x + tile_y * stride);
+				rng_state = initial_rng + ((rng_state_offset_x + tile_x) + (rng_state_offset_y + tile_y) * stride);
 				/* Remap per_sample_output_buffers according to the current work */
 				per_sample_output_buffers = initial_per_sample_output_buffers
 											+ (((tile_x + (tile_y * stride)) * parallel_samples) + my_sample_tile) * kernel_data.film.pass_stride;

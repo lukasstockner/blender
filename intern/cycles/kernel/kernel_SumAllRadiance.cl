@@ -30,13 +30,15 @@ __kernel void kernel_ocl_path_trace_SumAllRadiance_SPLIT_KERNEL(
 	ccl_global float *buffer,                    /* Output buffer of RenderTile */
 	ccl_global float *per_sample_output_buffer,  /* Radiance contributed by all samples */
 	int parallel_samples, int sw, int sh, int stride,
+	int buffer_offset_x,
+	int buffer_offset_y,
 	int start_sample)
 {
 	int x = get_global_id(0);
 	int y = get_global_id(1);
 
 	if(x < sw && y < sh) {
-		buffer += (x + y * stride) * (data->film.pass_stride);
+		buffer += ((buffer_offset_x + x) + (buffer_offset_y + y) * stride) * (data->film.pass_stride);
 		per_sample_output_buffer += ((x + y * stride) * parallel_samples) * (data->film.pass_stride);
 
 		int sample_stride = (data->film.pass_stride);
