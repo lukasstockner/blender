@@ -34,6 +34,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_object_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
@@ -70,6 +71,7 @@
 #include "UI_view2d.h"
 
 #include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #include "screen_intern.h"
 
@@ -2094,36 +2096,39 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 }
 
 /* uses the viewplane from the given camera and draws it as a backdrop */
-void ED_region_draw_backdrop_view3d(const bContext *C, struct Object *camera, const float width, const float height,
-                                    const float x, const float y, const float zoomx, const float zoomy,
-                                    const bool draw_alpha, const bool draw_border)
+void ED_region_draw_backdrop_view3d(const bContext *C, struct Object *camera, const float alpha,
+                                    const float width, const float height, const float x, const float y,
+                                    const float zoomx, const float zoomy, const bool draw_background)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	char err_out[256] = "unknown";
 	struct ImBuf *ibuf;
-	int filter = GL_LINEAR;
 
 	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
-	ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, camera, width, height, (1 << 0),
-	                                             3, false, false, false, R_ADDSKY, NULL, err_out);
+	ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, camera, width, height, IB_rect,
+	                                             OB_SOLID, false, false, false,
+	                                             R_ADDSKY, NULL, err_out);
 
 	if (ibuf == NULL)
 		return;
 
 	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glPushMatrix();
 	glScalef(zoomx, zoomy, 0.0f);
 	glTranslatef(x, y, 0.0f);
 
-	if (draw_alpha == true) {
-		fdrawcheckerboard(0.0f, 0.0f, width, height);
+	/* draw background */
+	if (draw_background) {
+		char col[4];
+
+		UI_GetThemeColorType4ubv(TH_HIGH_GRAD, SPACE_VIEW3D, col);
+		glColor4ub(UNPACK3(col), alpha * 255);
+		glRectf(0, 0, width, height);
 	}
-	if (draw_border == true) {
-		glColor3f(0.1f, 0.1f, 0.1f);
-		fdrawbox(0.0f, 0.0f, width + 0.5f, height + 0.5f);
-	}
-	glaDrawImBuf_glsl_ctx(C, ibuf, 0.0f, 0.0f, filter);
+	/* draw the imbuf itself */
+	glaDrawImBuf_glsl_ctx(C, ibuf, 0.0f, 0.0f, GL_NEAREST, alpha);
 
 	glPopMatrix();
 	glDisable(GL_BLEND);

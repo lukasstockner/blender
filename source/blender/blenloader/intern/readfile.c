@@ -5965,6 +5965,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 							ads->source = newlibadr(fd, sc->id.lib, ads->source);
 							ads->filter_grp = newlibadr(fd, sc->id.lib, ads->filter_grp);
 						}
+						sipo->backdrop_camera = newlibadr(fd, sc->id.lib, sipo->backdrop_camera);
 					}
 					else if (sl->spacetype == SPACE_BUTS) {
 						SpaceButs *sbuts = (SpaceButs *)sl;

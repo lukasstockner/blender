@@ -840,6 +840,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 						if (sl->spacetype == SPACE_IPO) {
 							SpaceIpo *sipo = (SpaceIpo *)sl;
 							sipo->backdrop_zoom = 1.0f;
+							sipo->backdrop_opacity = 0.6f;
 						}
 					}
 				}

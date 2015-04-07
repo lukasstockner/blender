@@ -139,12 +139,6 @@ static void graph_panel_view(const bContext *C, Panel *pa)
 	row = uiLayoutSplit(sub, 0.7f, true);
 	uiItemR(row, &spaceptr, "cursor_position_y", 0, IFACE_("Cursor Y"), ICON_NONE);
 	uiItemEnumO(row, "GRAPH_OT_snap", IFACE_("To Keys"), 0, "type", GRAPHKEYS_SNAP_VALUE);
-
-	col = uiLayoutColumn(pa->layout, false);
-	uiItemR(col, &spaceptr, "show_backdrop", 0, NULL, ICON_NONE);
-	col = uiLayoutColumn(pa->layout, true);
-	uiLayoutSetActive(col, RNA_boolean_get(&spaceptr, "show_backdrop"));
-	uiItemR(col, &spaceptr, "backdrop_camera", 0, "Camera", ICON_NONE);
 }
 
 /* ******************* active F-Curve ************** */
@@ -923,6 +917,27 @@ static void graph_panel_modifiers(const bContext *C, Panel *pa)
 	MEM_freeN(ale);
 }
 
+/* ******************* Others ************************ */
+
+/* Graph Editor Backdrop Settings */
+static void graph_panel_backdrop(const bContext *C, Panel *pa)
+{
+	bScreen *sc = CTX_wm_screen(C);
+	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	PointerRNA spaceptr;
+	uiLayout *col;
+
+	/* get RNA pointers for use when creating the UI elements */
+	RNA_pointer_create(&sc->id, &RNA_SpaceGraphEditor, sipo, &spaceptr);
+
+	col = uiLayoutColumn(pa->layout, false);
+	uiItemR(col, &spaceptr, "show_backdrop", 0, NULL, ICON_NONE);
+	col = uiLayoutColumn(pa->layout, false);
+	uiLayoutSetActive(col, RNA_boolean_get(&spaceptr, "show_backdrop"));
+	uiItemR(col, &spaceptr, "backdrop_camera", 0, "Camera", ICON_NONE);
+	uiItemR(col, &spaceptr, "backdrop_opacity", 0, "Opacity", ICON_NONE);
+}
+
 /* ******************* general ******************************** */
 
 void graph_buttons_register(ARegionType *art)
@@ -968,6 +983,14 @@ void graph_buttons_register(ARegionType *art)
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = graph_panel_modifiers;
 	pt->poll = graph_panel_poll;
+	BLI_addtail(&art->paneltypes, pt);
+
+
+	pt = MEM_callocN(sizeof(PanelType), "spacetype graph panel backdrop");
+	strcpy(pt->idname, "GRAPH_PT_backdrop");
+	strcpy(pt->label, N_("Backdrop"));
+	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
+	pt->draw = graph_panel_backdrop;
 	BLI_addtail(&art->paneltypes, pt);
 }
 

@@ -240,9 +240,6 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	float col[3];
 	short unitx = 0, unity = V2D_UNIT_VALUES, flag = 0;
 	const bool draw_backdrop = ((sipo->flag & SIPO_DRAW_BACKDROP) && (sipo->backdrop_camera != NULL));
-	rctf rect_mask_orig;
-	
-	BLI_rctf_init(&rect_mask_orig, v2d->mask.xmin, v2d->mask.xmax, v2d->mask.ymin, v2d->mask.ymax);
 	
 	/* clear and setup matrix */
 	UI_GetThemeColor3fv(TH_BACK, col);
@@ -272,8 +269,8 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 		/* reset view matrix */
 		UI_view2d_view_restore(C);
 		
-		ED_region_draw_backdrop_view3d(C, sipo->backdrop_camera, width, height, x, y,
-		                               1.0f, 1.0f, false, true);
+		ED_region_draw_backdrop_view3d(C, sipo->backdrop_camera, sipo->backdrop_opacity,
+		                               width, height, x, y, 1.0f, 1.0f, true);
 		
 		UI_view2d_view_ortho(v2d);
 	}
