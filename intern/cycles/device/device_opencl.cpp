@@ -3668,6 +3668,46 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		return floor_render_feasible_tile_size;
 	}
 
+	/* Splits existing tile into multiple tiles of tile size render_feasible_tile_size */
+	vector<RenderTile> split_tiles(RenderTile rtile, int2 render_feasible_tile_size) {
+		vector<RenderTile> to_path_trace_rtile;
+
+		int d_w = rtile.w;
+		int d_h = rtile.h;
+		int num_tiles_x = (((d_w - 1) / render_feasible_tile_size.x) + 1);
+		int num_tiles_y = (((d_h - 1) / render_feasible_tile_size.y) + 1);
+
+		/* Resize to_path_trace_rtile */
+		to_path_trace_rtile.resize(num_tiles_x * num_tiles_y);
+
+		for (int tile_iter_y = 0; tile_iter_y < num_tiles_y; tile_iter_y++) {
+			for (int tile_iter_x = 0; tile_iter_x < num_tiles_x; tile_iter_x++) {
+				int rtile_index = tile_iter_y * num_tiles_x + tile_iter_x;
+
+				to_path_trace_rtile[rtile_index].start_sample = rtile.start_sample;
+				to_path_trace_rtile[rtile_index].num_samples = rtile.num_samples;
+				to_path_trace_rtile[rtile_index].sample = rtile.sample;
+				to_path_trace_rtile[rtile_index].resolution = rtile.resolution;
+				to_path_trace_rtile[rtile_index].offset = rtile.offset;
+				to_path_trace_rtile[rtile_index].stride = rtile.stride;
+				to_path_trace_rtile[rtile_index].tile_size = rtile.tile_size;
+				to_path_trace_rtile[rtile_index].buffers = rtile.buffers;
+				to_path_trace_rtile[rtile_index].buffer = rtile.buffer;
+				to_path_trace_rtile[rtile_index].rng_state = rtile.rng_state;
+				to_path_trace_rtile[rtile_index].x = rtile.x + (tile_iter_x * render_feasible_tile_size.x);
+				to_path_trace_rtile[rtile_index].y = rtile.y + (tile_iter_y * render_feasible_tile_size.y);
+
+				/* Fill width and height of the new render tile */
+				to_path_trace_rtile[rtile_index].w = (tile_iter_x == num_tiles_x - 1) ?
+					(d_w - (tile_iter_x * render_feasible_tile_size.x)) /* Border tile */
+					: render_feasible_tile_size.x;
+				to_path_trace_rtile[rtile_index].h = (tile_iter_y == num_tiles_y - 1) ?
+					(d_h - (tile_iter_y * render_feasible_tile_size.y)) /* Border tile */
+					: render_feasible_tile_size.y;
+			}
+		}
+	}
+
 	void thread_run(DeviceTask *task)
 	{
 		if(task->type == DeviceTask::FILM_CONVERT) {
