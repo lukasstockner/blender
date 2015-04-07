@@ -1129,7 +1129,7 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 		if (preview->flags & FILE_TYPE_IMAGE) {
 			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_IMAGE);
 		}
-		else if (preview->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
+		else if (preview->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB)) {
 			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_BLEND);
 		}
 		else if (preview->flags & FILE_TYPE_MOVIE) {
@@ -1139,9 +1139,6 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 				preview->flags &= ~FILE_TYPE_MOVIE;
 				preview->flags |= FILE_TYPE_MOVIE_ICON;
 			}
-		}
-		else if (preview->flags & FILE_TYPE_BLENDERLIB) {
-			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_BLEND);
 		}
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
@@ -1590,7 +1587,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 			cache->block_cursor = 0;
 		}
 		else {
-			printf("Partial Recaching!\n");
+//			printf("Partial Recaching!\n");
 
 			/* At this point, we know we keep part of currently cached entries, so update previews if needed,
 			 * and remove everything from working queue - we'll add all newly needed entries at the end. */
@@ -1668,7 +1665,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 				cache->block_cursor = idx1;
 				cache->block_start_index = start_index;
 			}
-			printf("\tstart-extended...\n");
+//			printf("\tstart-extended...\n");
 			if (end_index > cache->block_end_index) {
 				/* Add (request) needed entries after already cached ones. */
 				/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
@@ -1786,7 +1783,9 @@ bool filelist_cache_previews_update(FileList *filelist)
 		if (preview->img) {
 			/* entry might have been removed from cache in the mean while, we do not want to cache it again here. */
 			FileDirEntry *entry = filelist_file_ex(filelist, preview->index, false);
-			if (entry) {
+			/* Due to asynchronous process, a preview for a given image may be generated several times, i.e.
+			 * entry->image may already be set at this point. */
+			if (entry && !entry->image) {
 				entry->image = preview->img;
 				/* update flag for movie files where thumbnail can't be created */
 				if (preview->flags & FILE_TYPE_MOVIE_ICON) {
