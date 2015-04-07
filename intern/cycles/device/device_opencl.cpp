@@ -47,6 +47,10 @@ CCL_NAMESPACE_BEGIN
 #define CL_MEM_PTR(p) ((cl_mem)(uintptr_t)(p))
 
 #ifdef __SPLIT_KERNEL__
+
+#define SPLIT_KERNEL_LOCAL_SIZE_X 64
+#define SPLIT_KERNEL_LOCAL_SIZE_Y 1
+
 /* This value may be tuned according to the scene we are rendering */
 /* modifying PATH_ITER_INC_FACTOR value proportional to number of expected ray-bounces will improve performance */
 #define PATH_ITER_INC_FACTOR 8
@@ -2416,7 +2420,7 @@ public:
 		assert(rayState_size == 1);
 
 		size_t global_size[2];
-		size_t local_size[2] = { 64, 1 };
+		size_t local_size[2] = { SPLIT_KERNEL_LOCAL_SIZE_X, SPLIT_KERNEL_LOCAL_SIZE_Y };
 
 		if(first_tile) {
 
@@ -3481,6 +3485,161 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 			task.update_progress(NULL);
 		}
 #endif
+	}
+
+	/* Calculates the amount of memory that has to be always
+	 * allocated in order for the split kernel to function.
+	 * This memory is tile/scene-property invariant (meaning,
+	 * the value returned by this function does not depend
+	 * on the user set tile size or scene properties
+	 */
+	size_t get_invariable_mem_allocated() {
+		size_t total_invariable_mem_allocated = 0;
+		size_t KernelGlobals_size = 0;
+		size_t ShaderData_SOA_size = 0;
+
+		/* Find KernelGlobals size */
+		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
+		typedef struct KernelGlobals {
+			ccl_constant KernelData *data;
+#define KERNEL_TEX(type, ttype, name) \
+			ccl_global type *name;
+#include "kernel_textures.h"
+		} KernelGlobals;
+		KernelGlobals_size = sizeof(KernelGlobals);
+
+		/* Calculate ShaderData_SOA_size */
+		size_t num_shader_soa_ptr = SD_NUM_FLOAT3 + SD_NUM_INT + SD_NUM_FLOAT
+#ifdef __DPDU__
+			+ SD_NUM_DPDU_FLOAT3
+#endif
+#ifdef __RAY_DIFFERENTIAL__
+			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
+			+ SD_NUM_DIFFERENTIAL
+#endif
+			+ SD_NUM_RAY_DP_DIFFERENTIAL3;
+		ShaderData_SOA_size = num_shader_soa_ptr * sizeof(void *);
+
+		total_invariable_mem_allocated += KernelGlobals_size; /* KernelGlobals size */
+		total_invariable_mem_allocated += NUM_QUEUES * sizeof(unsigned int); /* Queue index size */
+		total_invariable_mem_allocated += sizeof(char); /* use_queues_flag size */
+		total_invariable_mem_allocated += ShaderData_SOA_size; /* sd size */
+		total_invariable_mem_allocated += ShaderData_SOA_size; /* sd_dl size */
+		total_invariable_mem_allocated += ShaderData_SOA_size; /* sd_shadow size */
+
+		return total_invariable_mem_allocated;
+	}
+
+	/* Calculate the memory that has-to-be/has-been allocated for the split kernel to function */
+	size_t get_tile_specific_mem_allocated(RenderTile rtile) {
+		size_t tile_specific_mem_allocated = 0;
+
+		/* Get required tile info */
+		cl_int d_w = rtile.w;
+		cl_int d_h = rtile.h;
+		cl_mem d_buffer = CL_MEM_PTR(rtile.buffer);
+		cl_mem d_rng_state = CL_MEM_PTR(rtile.rng_state);
+		unsigned int user_set_tile_w = rtile.tile_size.x;
+		unsigned int user_set_tile_h = rtile.tile_size.y;
+
+#ifdef __WORK_STEALING__
+		/* Calculate memory to be allocated for work_pools in case of work_stealing */
+		size_t max_global_size[2];
+		size_t max_num_work_pools = 0;
+		max_global_size[0] = (((user_set_tile_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+		max_global_size[1] = (((user_set_tile_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+		max_num_work_pools = (max_global_size[0] * max_global_size[1]) / (SPLIT_KERNEL_LOCAL_SIZE_X * SPLIT_KERNEL_LOCAL_SIZE_Y);
+		tile_specific_mem_allocated += max_num_work_pools * sizeof(unsigned int);
+#endif
+
+		/* Calculate per thread memory output buffer size */
+		size_t output_buffer_size = 0;
+		ciErr = clGetMemObjectInfo(d_buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
+		assert(ciErr == CL_SUCCESS && "Can't get d_buffer mem object info");
+		/* This value is different when running on AMD and NV */
+		size_t per_pixel_output_buffer_size = output_buffer_size / (d_w * d_h);
+
+		tile_specific_mem_allocated = user_set_tile_w * user_set_tile_h * per_pixel_output_buffer_size;
+		tile_specific_mem_allocated = user_set_tile_w * user_set_tile_h * sizeof(RNG);
+
+		return tile_specific_mem_allocated;
+	}
+
+	/* Calculates the texture memories that has been allocated */
+	size_t get_scene_specific_mem_allocated(cl_mem d_data) {
+		size_t scene_specific_mem_allocated = 0;
+		/* Calculate texture memories */
+#define KERNEL_TEX(type, ttype, name) \
+		scene_specific_mem_allocated += get_tex_size(#name);
+#include "kernel_textures.h"
+
+		return scene_specific_mem_allocated;
+	}
+
+	/* Calculate the memory required for one thread in split kernel */
+	size_t get_per_thread_memory() {
+
+		size_t shader_closure_size = 0;
+		size_t shaderdata_volume = 0;
+#ifdef __MULTI_CLOSURE__
+		shader_closure_size = get_shader_closure_size(clos_max);
+#else
+		shader_closure_size = get_shader_closure_size(MAX_CLOSURE);
+#endif
+		shaderdata_volume = get_shader_data_size(shader_closure_size);
+
+		size_t retval = rng_size + throughput_size + L_transparent_size + rayState_size + work_element_size
+			+ ISLamp_size + PathRadiance_size + Ray_size + PathState_size
+			+ Intersection_size                  /* Overall isect */
+			+ Intersection_coop_AO_size          /* Instersection_coop_AO */
+			+ Intersection_coop_DL_size          /* Intersection coop DL */
+			+ shaderdata_volume       /* Overall ShaderData */
+			+ shaderdata_volume       /* ShaderData_coop_DL */
+			+ (shaderdata_volume * 2) /* ShaderData coop shadow */
+			+ LightRay_size + BSDFEval_size + AOAlpha_size + AOBSDF_size + AOLightRay_size
+			+ (sizeof(int)* NUM_QUEUES)
+			+ per_thread_output_buffer_size;
+
+		return retval;
+	}
+
+	/* Considers the total memory available in the device and
+	 * and returns the maximum global work size possible
+	 */
+	size_t get_feasible_global_work_size(RenderTile rtile, cl_mem d_data) {
+
+		/* Calculate invariably allocated memory */
+		size_t invariable_mem_allocated = get_invariable_mem_allocated();
+		/* Calculate tile specific allocated memory */
+		size_t tile_specific_mem_allocated = get_tile_specific_mem_allocated(rtile);
+		/* Calculate scene specific allocated memory */
+		size_t scene_specific_mem_allocated = get_scene_specific_mem_allocated(d_data);
+
+		/* Calculate total memory available for the threads in global work size */
+		size_t available_memory = total_allocatable_memory
+			- invariable_mem_allocated
+			- tile_specific_mem_allocated
+			- scene_specific_mem_allocated
+			- DATA_ALLOCATION_MEM_FACTOR;
+
+		size_t per_thread_memory_required = get_per_thread_memory();
+
+		return (available_memory / per_thread_memory_required);
+	}
+
+	/* Checks if the device has enough memory to render the whole tile;
+	 * If not, we should split single tile into multiple tiles of small size
+	 * and process them all
+	 */
+	bool need_to_split_tile(unsigned int d_w, unsigned int d_h, unsigned int feasible_global_work_size) {
+		size_t global_size_estimate[2] = {0, 0};
+		global_size_estimate[0] = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+		global_size_estimate[1] = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+		if (global_size_estimate[0] * global_size_estimate[1] > feasible_global_work_size) {
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	void thread_run(DeviceTask *task)
