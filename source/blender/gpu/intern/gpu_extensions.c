@@ -299,6 +299,11 @@ bool GPU_vertex_buffer_support(void)
 	return GLEW_ARB_vertex_buffer_object || GLEW_VERSION_1_5;
 }
 
+bool GPU_vertex_array_object_support(void)
+{
+	return GLEW_VERSION_3_0 || GLEW_ARB_vertex_array_object || GLEW_APPLE_vertex_array_object;
+}
+
 bool GPU_display_list_support(void)
 {
 	return !GG.dlistsdisabled;

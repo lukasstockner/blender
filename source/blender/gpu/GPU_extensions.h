@@ -59,6 +59,7 @@ void GPU_extensions_disable(void);
 bool GPU_glsl_support(void);
 bool GPU_non_power_of_two_support(void);
 bool GPU_vertex_buffer_support(void);
+bool GPU_vertex_array_object_support(void);
 bool GPU_display_list_support(void);
 bool GPU_bicubic_bump_support(void);
 bool GPU_geometry_shader_support(void);
