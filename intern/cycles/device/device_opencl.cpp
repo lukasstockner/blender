@@ -3642,6 +3642,32 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		}
 	}
 
+	/* Considers the scene properties, global memory available in the device
+	 * and returns a rectanglular tile dimension that should render on split kernel
+	 */
+	int2 get_render_feasible_tile_size(size_t feasible_global_work_size) {
+		int2 render_feasible_tile_size;
+		int square_root_val = sqrt(feasible_global_work_size);
+		render_feasible_tile_size.x = square_root_val;
+		render_feasible_tile_size.y = square_root_val;
+
+		/* ciel round-off render_feasible_tile_size */
+		int2 ceil_render_feasible_tile_size;
+		ceil_render_feasible_tile_size.x = (((render_feasible_tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+		ceil_render_feasible_tile_size.y = (((render_feasible_tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+
+		if (ceil_render_feasible_tile_size.x * ceil_render_feasible_tile_size.y <= feasible_global_work_size) {
+			return ceil_render_feasible_tile_size;
+		}
+
+		/* floor round-off render_feasible_tile_size */
+		int2 floor_render_feasible_tile_size;
+		floor_render_feasible_tile_size.x = (render_feasible_tile_size.x / SPLIT_KERNEL_LOCAL_SIZE_X) * SPLIT_KERNEL_LOCAL_SIZE_X;
+		floor_render_feasible_tile_size.y = (render_feasible_tile_size.y / SPLIT_KERNEL_LOCAL_SIZE_Y) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+
+		return floor_render_feasible_tile_size;
+	}
+
 	void thread_run(DeviceTask *task)
 	{
 		if(task->type == DeviceTask::FILM_CONVERT) {
