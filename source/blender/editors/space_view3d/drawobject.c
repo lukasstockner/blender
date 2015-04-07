@@ -4447,33 +4447,46 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 		retval = draw_mesh_object_new(scene, ar, v3d, rv3d, base, dt, ob_wire_col, dflag);
 	}
 	else {
-		VertexBuffer *verts = GPUx_vertex_buffer_create(1, me->totvert);
+		DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
+		const int vert_ct = dm->getNumVerts(dm);
+		const int edge_ct = dm->getNumEdges(dm);
+		const int face_ct = dm->getNumTessFaces(dm);
+
+		VertexBuffer *verts = GPUx_vertex_buffer_create(1, vert_ct);
 		ElementList *elem = NULL;
 
 #if MCE_TRACE
-		printf("%d verts, %d edges, %d faces\n", me->totvert, me->totedge, me->totface);
+		printf("%d verts, %d edges, %d faces\n", vert_ct, edge_ct, face_ct);
 #endif /* MCE_TRACE */
 
 		GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
-		GPUx_fill_attrib_stride(verts, 0, me->mvert, sizeof(MVert));
+		GPUx_fill_attrib_stride(verts, 0, dm->getVertArray(dm), sizeof(MVert));
 
 		GPUx_vertex_buffer_prime(verts);
 
 		/* draw smooth surface (as a test) */
-		if (false) {
-//			int /* totvert,*/ totedge, totface;
-//			DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
-			int i;
+		if (true) {
+			int i, t, tri_ct = 0;
+			MFace *faces = dm->getTessFaceDataArray(dm, CD_MFACE);
 			PolygonDrawState polygon_state = default_state.polygon;
 			polygon_state.draw_front = true;
 			polygon_state.draw_back = true;
 
+			/* some tess faces are quads, some triangles
+			 * we draw just triangles, so count quads twice */
+			for (i = 0; i < face_ct; ++i)
+				tri_ct += faces[i].v4 ? 2 : 1;
+
 			if (elem)
 				GPUx_element_list_discard(elem);
-			elem = GPUx_element_list_create(GL_TRIANGLES, me->totface, me->totvert - 1);
+			elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, vert_ct - 1);
 
-			for (i = 0; i < me->totface; ++i)
-				GPUx_set_triangle_vertices(elem, i, me->mface[i].v1, me->mface[i].v2, me->mface[i].v3);
+			for (i = 0, t = 0; i < face_ct; ++i) {
+				const MFace *face = faces + i;
+				GPUx_set_triangle_vertices(elem, t++, face->v1, face->v2, face->v3);
+				if (face->v4)
+					GPUx_set_triangle_vertices(elem, t++, face->v4, face->v1, face->v3);
+			}
 
 			glEnable(GL_BLEND);
 			glColor4f(0.0f, 0.3f, 0.9f, 0.5f);
@@ -4484,17 +4497,20 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 		}
 
 		/* draw wireframe (as a test) */
-		if (true) {
+		else if (false) {
 			int i;
+			MEdge *edges = dm->getEdgeArray(dm);
 			LineDrawState line_state = default_state.line;
 			line_state.smooth = true;
 
 			if (elem)
 				GPUx_element_list_discard(elem);
-			elem = GPUx_element_list_create(GL_LINES, me->totedge, me->totvert - 1);
+			elem = GPUx_element_list_create(GL_LINES, edge_ct, vert_ct - 1);
 
-			for (i = 0; i < me->totedge; ++i)
-				GPUx_set_line_vertices(elem, i, me->medge[i].v1, me->medge[i].v2);
+			for (i = 0; i < edge_ct; ++i) {
+				const MEdge *edge = edges + i;
+				GPUx_set_line_vertices(elem, i, edge->v1, edge->v2);
+			}
 
 			glEnable(GL_BLEND);
 
@@ -4504,10 +4520,10 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 		}
 
 		/* draw points (as a test) */
-		if (false) {
+		else if (false) {
 			PointDrawState point_state = default_state.point;
 			point_state.size = 3.0f;
-
+			glColor3f(1,0.5,0);
 			GPUx_draw_points(&default_state.common, &point_state, verts, NULL);
 		}
 
