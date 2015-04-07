@@ -2106,9 +2106,8 @@ static int filelist_readjob_list_dir(
 static int filelist_readjob_list_lib(const char *root, ListBase *entries, const bool skip_currpar)
 {
 	FileListInternEntry *entry;
-	LinkNode *ln, *names, *lp, *previews = NULL;
-	struct ImBuf *ima;
-	int i, nprevs = 0, nnames, idcode = 0, nbr_entries = 0;
+	LinkNode *ln, *names;
+	int i, nnames, idcode = 0, nbr_entries = 0;
 	char dir[FILE_MAX], *group;
 	bool ok;
 
@@ -2129,12 +2128,9 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 	/* memory for strings is passed into filelist[i].entry->relpath and freed in filelist_entry_free. */
 	if (group) {
 		idcode = groupname_to_code(group);
-//		previews = BLO_blendhandle_get_previews(libfiledata, idcode, &nprevs);
 		names = BLO_blendhandle_get_datablock_names(libfiledata, idcode, &nnames);
 	}
 	else {
-		previews = NULL;
-		nprevs = 0;
 		names = BLO_blendhandle_get_linkable_groups(libfiledata);
 		nnames = BLI_linklist_length(names);
 	}
@@ -2149,13 +2145,7 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 		nbr_entries++;
 	}
 
-	if (previews && (nnames != nprevs)) {
-		printf("filelist_from_library: error, found %d items, %d previews\n", nnames, nprevs);
-		BLI_linklist_free(previews, BKE_previewimg_freefunc);
-		previews = NULL;
-	}
-
-	for (i = 0, ln = names, lp = previews; i < nnames; i++, ln = ln->next) {
+	for (i = 0, ln = names; i < nnames; i++, ln = ln->next) {
 		const char *blockname = ln->link;
 
 		entry = MEM_callocN(sizeof(*entry), __func__);
@@ -2168,32 +2158,11 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 		else {
 			entry->blentype = idcode;
 		}
-#if 0
-		if (lp) {
-			PreviewImage *img = lp->link;
-			if (img) {
-				unsigned int w = img->w[ICON_SIZE_PREVIEW];
-				unsigned int h = img->h[ICON_SIZE_PREVIEW];
-				unsigned int *rect = img->rect[ICON_SIZE_PREVIEW];
-
-				if (w > 0 && h > 0 && rect) {
-					/* first allocate imbuf for copying preview into it */
-					ima = IMB_allocImBuf(w, h, 32, IB_rect);
-					memcpy(ima->rect, rect, w * h * sizeof(unsigned int));
-					entry->image = ima;
-				}
-			}
-			lp = lp->next;
-		}
-#endif
 		BLI_addtail(entries, entry);
 		nbr_entries++;
 	}
 
 	BLI_linklist_free(names, free);
-	if (previews) {
-		BLI_linklist_free(previews, BKE_previewimg_freefunc);
-	}
 
 	return nbr_entries;
 }
