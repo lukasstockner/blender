@@ -799,7 +799,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
-	if (!MAIN_VERSION_ATLEAST(main, 275, 0)) {
+	{
 		if (!DNA_struct_elem_find(fd->filesdna, "SpaceNode", "float", "backdrop_zoom")) {
 			bScreen *sc;
 			for (sc = main->screen.first; sc; sc = sc->id.next) {
