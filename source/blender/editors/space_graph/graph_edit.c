@@ -2488,8 +2488,8 @@ static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetG
 	ARegion *ar = CTX_wm_region(C);
 	wmOperator *op = wgroup->type->op;
 	Scene *scene = CTX_data_scene(C);
-	int width = (scene->r.xsch * scene->r.size) / 100;
-	int height = (scene->r.ysch * scene->r.size) / 100;
+	int width = (scene->r.size * scene->r.xsch) / 150.0f;
+	int height = (scene->r.size * scene->r.ysch) / 150.0f;
 	float origin[3];
 
 	wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM |

@@ -256,21 +256,16 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 	ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
 	
 	if (draw_backdrop) {
-		int width = (scene->r.xsch * scene->r.size) / 100;
-		int height = (scene->r.ysch * scene->r.size) / 100;
-		float x = (BLI_rcti_size_x(&ar->winrct) - width) / 2.0f; /* center of the screen */
-		float y = (BLI_rcti_size_y(&ar->winrct) - height) / 2.0f; /* below upper edge with small offset */
-		
-		width *= sipo->backdrop_zoom;
-		height *= sipo->backdrop_zoom;
-		x += sipo->backdrop_offset[0];
-		y += sipo->backdrop_offset[1];
+		int width = (scene->r.size * scene->r.xsch) / 150 * sipo->backdrop_zoom;
+		int height = (scene->r.size * scene->r.ysch) / 150 * sipo->backdrop_zoom;
+		float xofs = (BLI_rcti_size_x(&ar->winrct) - width) / 2.0f + sipo->backdrop_offset[0];
+		float yofs = (BLI_rcti_size_y(&ar->winrct) - height) / 2.0f + sipo->backdrop_offset[1];
 		
 		/* reset view matrix */
 		UI_view2d_view_restore(C);
 		
 		ED_region_draw_backdrop_view3d(C, sipo->backdrop_camera, sipo->backdrop_opacity,
-		                               width, height, x, y, 1.0f, 1.0f, true);
+		                               width, height, xofs, yofs, 1.0f, 1.0f, true);
 		
 		UI_view2d_view_ortho(v2d);
 	}
