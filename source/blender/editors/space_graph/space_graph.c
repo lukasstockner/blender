@@ -104,6 +104,8 @@ static SpaceLink *graph_new(const bContext *C)
 	sipo->autosnap = SACTSNAP_FRAME;
 	
 	sipo->backdrop_camera = scene->camera;
+	sipo->backdrop_zoom = 1.0f;
+	sipo->backdrop_opacity = 0.7f;
 	
 	/* allocate DopeSheet data for Graph Editor */
 	sipo->ads = MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet");
