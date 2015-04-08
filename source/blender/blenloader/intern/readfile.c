@@ -6290,6 +6290,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 						if (ads->filter_grp)
 							ads->filter_grp = restore_pointer_by_name(newmain, (ID *)ads->filter_grp, USER_IGNORE);
 					}
+					sipo->backdrop_camera = restore_pointer_by_name(newmain, (ID *)sipo->backdrop_camera, USER_IGNORE);
 					
 					/* force recalc of list of channels (i.e. includes calculating F-Curve colors)
 					 * thus preventing the "black curves" problem post-undo
