@@ -1161,30 +1161,25 @@ static void make_black_ibuf(ImBuf *ibuf)
 	}
 }
 
-static void multibuf(ImBuf *ibuf, float fmul)
+static void multibuf(ImBuf *ibuf, const float fmul)
 {
 	char *rt;
 	float *rt_float;
 
-	int a, mul, icol;
+	int a;
 
-	mul = (int)(256.0f * fmul);
 	rt = (char *)ibuf->rect;
 	rt_float = ibuf->rect_float;
 
 	if (rt) {
+		const int imul = (int)(256.0f * fmul);
 		a = ibuf->x * ibuf->y;
 		while (a--) {
+			rt[0] = min_ii((imul * rt[0]) >> 8, 255);
+			rt[1] = min_ii((imul * rt[1]) >> 8, 255);
+			rt[2] = min_ii((imul * rt[2]) >> 8, 255);
+			rt[3] = min_ii((imul * rt[3]) >> 8, 255);
 
-			icol = (mul * rt[0]) >> 8;
-			if (icol > 254) rt[0] = 255; else rt[0] = icol;
-			icol = (mul * rt[1]) >> 8;
-			if (icol > 254) rt[1] = 255; else rt[1] = icol;
-			icol = (mul * rt[2]) >> 8;
-			if (icol > 254) rt[2] = 255; else rt[2] = icol;
-			icol = (mul * rt[3]) >> 8;
-			if (icol > 254) rt[3] = 255; else rt[3] = icol;
-			
 			rt += 4;
 		}
 	}
@@ -1581,13 +1576,19 @@ static bool seq_proxy_get_fname(Editing *ed, Sequence *seq, int cfra, int render
 
 	sanim = BLI_findlink(&seq->anims, view_id);
 
-	if (sanim && sanim->anim && ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE) {
+	if (ed->proxy_storage == SEQ_EDIT_PROXY_DIR_STORAGE) {
 		char fname[FILE_MAXFILE];
 		if (ed->proxy_dir[0] == 0)
 			BLI_strncpy(dir, "//BL_proxy", sizeof(dir));
 		else
 			BLI_strncpy(dir, ed->proxy_dir, sizeof(dir));
-		IMB_anim_get_fname(sanim->anim, fname, FILE_MAXFILE);
+
+		if (sanim && sanim->anim) {
+			IMB_anim_get_fname(sanim->anim, fname, FILE_MAXFILE);
+		}
+		else if (seq->type == SEQ_TYPE_IMAGE) {
+			fname[0] = 0;
+		}
 		BLI_path_append(dir, sizeof(dir), fname);
 		BLI_path_abs(name, G.main->name);
 	}

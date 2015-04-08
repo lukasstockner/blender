@@ -128,7 +128,7 @@ static ImBuf *loadblend_thumb(gzFile gzfile)
 	return NULL;
 }
 
-ImBuf *IMB_loadblend_thumb(const char *blen_path, const char *blen_group, const char *blen_id)
+ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const char *blen_id)
 {
 	if (blen_group && blen_id) {
 		LinkNode *ln, *names, *lp, *previews = NULL;
@@ -201,7 +201,7 @@ ImBuf *IMB_loadblend_thumb(const char *blen_path, const char *blen_group, const 
 /* add a fake passepartout overlay to a byte buffer, use for blend file thumbnails */
 #define MARGIN 2
 
-void IMB_overlayblend_thumb(unsigned int *thumb, int width, int height, float aspect)
+void IMB_thumb_overlay_blend(unsigned int *thumb, int width, int height, float aspect)
 {
 	unsigned char *px = (unsigned char *)thumb;
 	int margin_l = MARGIN;

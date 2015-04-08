@@ -348,14 +348,21 @@ static ImBuf *thumb_create_ex(
 			if (!img) return NULL;
 		}
 		else {
-			if (ELEM(source, THB_SOURCE_IMAGE, THB_SOURCE_BLEND)) {
+			if (ELEM(source, THB_SOURCE_IMAGE, THB_SOURCE_BLEND, THB_SOURCE_FONT)) {
 				/* only load if we didnt give an image */
 				if (img == NULL) {
-					if (source == THB_SOURCE_BLEND) {
-						img = IMB_loadblend_thumb(file_path, blen_group, blen_id);
-					}
-					else {
-						img = IMB_loadiffname(path, IB_rect | IB_metadata | IB_thumbnail, NULL);
+					switch (source) {
+						case THB_SOURCE_IMAGE:
+							img = IMB_loadiffname(path, IB_rect | IB_metadata, NULL);
+							break;
+						case THB_SOURCE_BLEND:
+							img = IMB_thumb_load_blend(file_path, blen_group, blen_id);
+							break;
+						case THB_SOURCE_FONT:
+							img = IMB_thumb_load_font(path, tsize, tsize);
+							break;
+						default:
+							BLI_assert(0); /* This should never happen */
 					}
 				}
 

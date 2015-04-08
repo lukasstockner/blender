@@ -1076,6 +1076,9 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 				preview->flags |= FILE_TYPE_MOVIE_ICON;
 			}
 		}
+		else if (preview->flags & FILE_TYPE_FTFONT) {
+			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_FONT);
+		}
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
 
@@ -1124,7 +1127,7 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
 	FileListEntryCache *cache = &filelist->filelist_cache;
 
 	if (!entry->image &&
-		(entry->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE |
+		(entry->typeflag & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_FTFONT |
 	                        FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB)))
 	{
 		FileListEntryPreview *preview = MEM_mallocN(sizeof(*preview), __func__);

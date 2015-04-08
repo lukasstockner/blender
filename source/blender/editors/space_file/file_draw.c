@@ -296,8 +296,9 @@ void file_calc_previews(const bContext *C, ARegion *ar)
 	UI_view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
 }
 
-static void file_draw_preview(uiBlock *block, const char *path,
-                              int sx, int sy, ImBuf *imb, int icon, FileLayout *layout, bool dropshadow, bool drag)
+static void file_draw_preview(
+        uiBlock *block, const char *path, int sx, int sy,
+        ImBuf *imb, const int icon, FileLayout *layout, const bool is_icon, const int typeflags, const bool drag)
 {
 	uiBut *but;
 	float fx, fy;
@@ -306,6 +307,7 @@ static void file_draw_preview(uiBlock *block, const char *path,
 	float scaledx, scaledy;
 	float scale;
 	int ex, ey;
+	bool use_dropshadow = !is_icon && (typeflags & FILE_TYPE_IMAGE);
 
 	BLI_assert(imb != NULL);
 
@@ -341,13 +343,19 @@ static void file_draw_preview(uiBlock *block, const char *path,
 	glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 
 	/* shadow */
-	if (dropshadow)
+	if (use_dropshadow) {
 		UI_draw_box_shadow(220, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
+	}
 
 	glEnable(GL_BLEND);
 
 	/* the image */
-	glColor4f(1.0, 1.0, 1.0, 1.0);
+	if (!is_icon && typeflags & FILE_TYPE_FTFONT) {
+		UI_ThemeColor(TH_TEXT);
+	}
+	else {
+		glColor4f(1.0, 1.0, 1.0, 1.0);
+	}
 	glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
 
 	if (icon) {
@@ -355,7 +363,7 @@ static void file_draw_preview(uiBlock *block, const char *path,
 	}
 
 	/* border */
-	if (dropshadow) {
+	if (use_dropshadow) {
 		glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 		fdrawbox((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
 	}
@@ -544,8 +552,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				is_icon = 1;
 			}
 
-			file_draw_preview(block, path, sx, sy, imb, icon, layout,
-			                  !is_icon && (file->typeflag & FILE_TYPE_IMAGE), do_drag);
+			file_draw_preview(block, path, sx, sy, imb, icon, layout, is_icon, file->typeflag, do_drag);
 		}
 		else {
 			file_draw_icon(block, path, sx, sy - (UI_UNIT_Y / 6), filelist_geticon(files, i, true),
