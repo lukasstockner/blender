@@ -3716,6 +3716,7 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 					: render_feasible_tile_size.y;
 			}
 		}
+		return to_path_trace_rtile;
 	}
 
 	void thread_run(DeviceTask *task)
@@ -3738,8 +3739,21 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 				tile.rng_state_offset_x = 0;
 				tile.rng_state_offset_y = 0;
 
-				/* The second argument is dummy */
-				path_trace(tile, 0);
+				size_t feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
+				if (need_to_split_tile(tile.w, tile.h, feasible_global_work_size)) {
+					int2 render_feasible_tile_size = get_render_feasible_tile_size(feasible_global_work_size);
+					vector<RenderTile> to_path_trace_render_tiles = split_tiles(tile, render_feasible_tile_size);
+
+					/* Process all split tiles */
+					for (int tile_iter = 0; tile_iter < to_path_trace_render_tiles.size(); tile_iter++) {
+						path_trace(to_path_trace_render_tiles[tile_iter], 0);
+					}
+				}
+				else {
+					/* No splitting required; process the entire tile at once */
+					/* The second argument is dummy */
+					path_trace(tile, 0);
+				}
 				tile.sample = tile.start_sample + tile.num_samples;
 #else
 				int start_sample = tile.start_sample;
