@@ -820,7 +820,7 @@ static ImBuf *filelist_geticon_image_ex(const unsigned int typeflag, const char 
 	else if (typeflag & FILE_TYPE_BLENDERLIB) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_UNKNOWNFILE];
 	}
-	else if (typeflag & (FILE_TYPE_MOVIE | FILE_TYPE_MOVIE_ICON)) {
+	else if (typeflag & (FILE_TYPE_MOVIE)) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
 	}
 	else if (typeflag & FILE_TYPE_SOUND) {
@@ -1061,24 +1061,24 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 
 	/* Note we wait on queue here. */
 	while (!BLI_task_pool_canceled(pool) && (preview = BLI_thread_queue_pop(cache->previews_todo))) {
+		ThumbSource source = 0;
+
 //		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
+		BLI_assert(preview->flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_FTFONT |
+		                             FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB));
 		if (preview->flags & FILE_TYPE_IMAGE) {
-			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_IMAGE);
+			source = THB_SOURCE_IMAGE;
 		}
 		else if (preview->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP | FILE_TYPE_BLENDERLIB)) {
-			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_BLEND);
+			source = THB_SOURCE_BLEND;
 		}
 		else if (preview->flags & FILE_TYPE_MOVIE) {
-			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_MOVIE);
-			if (!preview->img) {
-				/* remember that file can't be loaded via IMB_open_anim */
-				preview->flags &= ~FILE_TYPE_MOVIE;
-				preview->flags |= FILE_TYPE_MOVIE_ICON;
-			}
+			source = THB_SOURCE_MOVIE;
 		}
 		else if (preview->flags & FILE_TYPE_FTFONT) {
-			preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, THB_SOURCE_FONT);
+			source = THB_SOURCE_FONT;
 		}
+		preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, source);
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
 
@@ -1782,11 +1782,6 @@ bool filelist_cache_previews_update(FileList *filelist)
 			 * entry->image may already be set at this point. */
 			if (entry && !entry->image) {
 				entry->image = preview->img;
-				/* update flag for movie files where thumbnail can't be created */
-				if (preview->flags & FILE_TYPE_MOVIE_ICON) {
-					entry->typeflag &= ~FILE_TYPE_MOVIE;
-					entry->typeflag |= FILE_TYPE_MOVIE_ICON;
-				}
 				changed = true;
 			}
 			else {
