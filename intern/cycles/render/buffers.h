@@ -141,11 +141,24 @@ public:
 
 	/* user set tile-size */
 	int2 tile_size;
-	/* Used in split kernel */
+
+	/* Split kernel is device global memory constained;
+	 * hence split kernel cant render big tile size's in
+	 * one go. If the user sets a big tile size (big tile size
+	 * is a term relative to the available device global memory),
+	 * we split the tile further and then call path_trace on
+	 * each of those split tiles. The following variables declared,
+	 * assist in achieving that purpose
+	 */
 	int buffer_offset_x;
 	int buffer_offset_y;
 	int rng_state_offset_x;
 	int rng_state_offset_y;
+	int buffer_rng_state_stride;
+	/* Record the maximum of render-feasible tile size
+	 * to allocate enough memory for split kernel
+	 */
+	int2 max_render_feasible_tile_size;
 
 	device_ptr buffer;
 	device_ptr rng_state;

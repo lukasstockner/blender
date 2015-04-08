@@ -544,15 +544,6 @@ public:
 	size_t PathState_size;
 	size_t Intersection_size;
 
-	/* Volume of ShaderData; ShaderData (in split_kernel) is a
-	 * Structure-Of-Arrays implementation; We need to calculate memory
-	 * required for a single thread
-	 */
-	size_t ShaderData_volume;
-
-	/* This is total ShaderClosure size required for one thread */
-	size_t ShaderClosure_size;
-
 	/* Sizes of memory required for shadow blocked function */
 	size_t AOAlpha_size;
 	size_t AOBSDF_size;
@@ -562,7 +553,7 @@ public:
 	size_t Intersection_coop_AO_size;
 	size_t Intersection_coop_DL_size;
 
-	/* This is sizeof_output_buffer / tile_size */
+	/* Amount of memory in output buffer associated with one pixel */
 	size_t per_thread_output_buffer_size;
 
 	/* Total allocatable available device memory */
@@ -594,9 +585,6 @@ public:
 	/* Denotes the maximum work groups possible w.r.t. current tile size */
 	unsigned int max_work_groups;
 #endif
-
-	/* Flag denoting if rendering the scene with current tile size is possible */
-	bool cannot_render_scene;
 
 	/* Marked True in constructor and marked false at the end of path_trace() */
 	bool first_tile;
@@ -857,6 +845,7 @@ public:
 		Intersection_coop_DL_size = sizeof(Intersection);
 
 		per_thread_output_buffer_size = 0;
+
 		per_thread_memory = 0;
 		render_scene_input_data_size = 0;
 		hostRayStateArray = NULL;
@@ -865,7 +854,6 @@ public:
 		work_pool_wgs = NULL;
 		max_work_groups = 0;
 #endif
-		cannot_render_scene = false;
 		first_tile = true;
 
 #else
@@ -2396,6 +2384,37 @@ public:
 	}
 #endif
 
+#ifdef __SPLIT_KERNEL__
+	/* Returns size of KernelGlobals structure associated with OpenCL */
+	size_t get_KernelGlobals_size() {
+		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
+		typedef struct KernelGlobals {
+			ccl_constant KernelData *data;
+#define KERNEL_TEX(type, ttype, name) \
+			ccl_global type *name;
+#include "kernel_textures.h"
+		} KernelGlobals;
+
+		return sizeof(KernelGlobals);
+	}
+
+	/* Returns size of Structure of arrays implementation of */
+	size_t get_shaderdata_soa_size() {
+		size_t num_shader_soa_ptr = SD_NUM_FLOAT3 + SD_NUM_INT + SD_NUM_FLOAT
+#ifdef __DPDU__
+			+ SD_NUM_DPDU_FLOAT3
+#endif
+#ifdef __RAY_DIFFERENTIAL__
+			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
+			+ SD_NUM_DIFFERENTIAL
+#endif
+			+ SD_NUM_RAY_DP_DIFFERENTIAL3;
+
+		return (num_shader_soa_ptr * sizeof(void *));
+	}
+
+#endif
+
 	void path_trace(RenderTile& rtile, int sample)
 	{
 		/* cast arguments to cl types */
@@ -2409,11 +2428,6 @@ public:
 		cl_int d_offset = rtile.offset;
 		cl_int d_stride = rtile.stride;
 #ifdef __SPLIT_KERNEL__
-		(void)sample;
-
-		if(cannot_render_scene) {
-			return;
-		}
 
 		/* ray_state and hostRayStateArray should be of same size */
 		assert(hostRayState_size == rayState_size);
@@ -2422,25 +2436,39 @@ public:
 		size_t global_size[2];
 		size_t local_size[2] = { SPLIT_KERNEL_LOCAL_SIZE_X, SPLIT_KERNEL_LOCAL_SIZE_Y };
 
+		/* Set the range of samples to be processed for every ray in path-regeneration logic */
+		cl_int start_sample = rtile.start_sample;
+		cl_int end_sample = rtile.start_sample + rtile.num_samples;
+		cl_int num_samples = rtile.num_samples;
+
+#ifdef __WORK_STEALING__
+		global_size[0] = (((d_w - 1) / local_size[0]) + 1) * local_size[0];
+		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
+		unsigned int num_parallel_samples = 1;
+#else
+		/* We may not need all global_size[0] threads; We only need as much as num_parallel_samples * d_w */
+		global_size[0] = num_parallel_samples * d_w;
+		global_size[0] = (((global_size[0] - 1) / local_size[0]) + 1) * local_size[0];
+
+		assert(global_size[0] * global_size[1] <= num_parallel_threads);
+		assert(global_size[0] * global_size[1] >= d_w * d_h);
+#endif // __WORK_STEALING__
+
+		/* Allocate all required global memory once */
 		if(first_tile) {
+			size_t num_global_elements = rtile.max_render_feasible_tile_size.x * rtile.max_render_feasible_tile_size.y;
 
 #ifdef __MULTI_CLOSURE__
-			ShaderClosure_size = get_shader_closure_size(clos_max);
+			size_t ShaderClosure_size = get_shader_closure_size(clos_max);
 #else
-			ShaderClosure_size = get_shader_closure_size(MAX_CLOSURE);
+			size_t ShaderClosure_size = get_shader_closure_size(MAX_CLOSURE);
 #endif
-			ShaderData_volume = get_shader_data_size(ShaderClosure_size);
-
-			/* Determine texture memories once */
-#define KERNEL_TEX(type, ttype, name) \
-			render_scene_input_data_size += get_tex_size(#name);
-#include "kernel_textures.h"
 
 #ifdef __WORK_STEALING__
 			/* Calculate max groups */
 			size_t max_global_size[2];
-			size_t tile_x = rtile.tile_size.x;
-			size_t tile_y = rtile.tile_size.y;
+			size_t tile_x = rtile.max_render_feasible_tile_size.x;
+			size_t tile_y = rtile.max_render_feasible_tile_size.y;
 			max_global_size[0] = (((tile_x - 1) / local_size[0]) + 1) * local_size[0];
 			max_global_size[1] = (((tile_y - 1) / local_size[1]) + 1) * local_size[1];
 			max_work_groups = (max_global_size[0] * max_global_size[1]) / (local_size[0] * local_size[1]);
@@ -2457,457 +2485,314 @@ public:
 			use_queues_flag = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, sizeof(char), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create use_queues_flag memory");
 
-			/* Calculate per thread memory */
-			size_t output_buffer_size = 0;
-			ciErr = clGetMemObjectInfo(d_buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
-			assert(ciErr == CL_SUCCESS && "Can't get d_buffer mem object info");
-
-			/* This value is different when running on AMD and NV */
-			per_thread_output_buffer_size = output_buffer_size / (d_w * d_h);
-
-			per_thread_memory = rng_size + throughput_size + L_transparent_size + rayState_size + work_element_size
-				 + ISLamp_size + PathRadiance_size + Ray_size + PathState_size
-				 + Intersection_size                  /* Overall isect */
-				 + Intersection_coop_AO_size          /* Instersection_coop_AO */
-				 + Intersection_coop_DL_size          /* Intersection coop DL */
-				 + ShaderData_volume       /* Overall ShaderData */
-				 + ShaderData_volume       /* ShaderData_coop_DL */
-				 + (ShaderData_volume * 2) /* ShaderData coop shadow */
-				 + LightRay_size + BSDFEval_size + AOAlpha_size + AOBSDF_size + AOLightRay_size
-				 + (sizeof(int) * NUM_QUEUES)
-				 + per_thread_output_buffer_size;
-
-			int user_set_tile_w = rtile.tile_size.x;
-			int user_set_tile_h = rtile.tile_size.y;
-
-			total_allocatable_parallel_sample_processing_memory = total_allocatable_memory
-			- sizeof(int)* NUM_QUEUES                                                /* Queue index size */
-			- sizeof(char)                                                           /* use_queues */
-			-render_scene_input_data_size                                            /* size for textures, bvh etc */
-			- (user_set_tile_w * user_set_tile_h) * per_thread_output_buffer_size    /* max d_buffer size possible */
-			- (user_set_tile_w * user_set_tile_h) * sizeof(RNG)                      /* max d_rng_state size possible */
-#ifdef __WORK_STEALING__
-			- max_work_groups * sizeof(unsigned int)
-#endif
-			- DATA_ALLOCATION_MEM_FACTOR;
-		}
-
-		/* Set the range of samples to be processed for every ray in path-regeneration logic */
-		cl_int start_sample = rtile.start_sample;
-		cl_int end_sample = rtile.start_sample + rtile.num_samples;
-		cl_int num_samples = rtile.num_samples;
-
-#ifdef __WORK_STEALING__
-		/* TODO : support dynamic num_parallel_samples in work_stealing
-		 * Do not change the values of num_parallel_samples/num_parallel_threads
-		 */
-		unsigned int num_parallel_samples = 0;
-		global_size[0] = (((rtile.tile_size.x - 1) / local_size[0]) + 1) * local_size[0];
-		global_size[1] = (((rtile.tile_size.y - 1) / local_size[1]) + 1) * local_size[1];
-		unsigned int num_parallel_threads = global_size[0] * global_size[1];
-
-		/* Check if we can process atleast one sample */
-		num_parallel_samples = (total_allocatable_parallel_sample_processing_memory / (per_thread_memory * num_parallel_threads));
-		num_parallel_samples = (num_parallel_samples > 0) ? 1 : 0;
-#else
-		unsigned int num_parallel_threads = total_allocatable_parallel_sample_processing_memory / per_thread_memory;
-
-		/* Estimate maximum global work size that can be launched */
-		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
-		global_size[0] = num_parallel_threads / global_size[1];
-		global_size[0] = (global_size[0] / local_size[0]) * local_size[0];
-
-		/* Estimate number of parallel samples that can be processed in parallel */
-		unsigned int num_parallel_samples = (global_size[0] / d_w) <= rtile.num_samples ? (global_size[0] / d_w) : rtile.num_samples;
-		/* Wavefront size in AMD is 64 */
-		num_parallel_samples = ((num_parallel_samples / 64) == 0) ?
-			num_parallel_samples :
-			(num_parallel_samples / 64) * 64;
-#endif
-
-		if(num_parallel_samples == 0) {
-			/* Rough estimate maximum rectangular tile size for this scene, to report to the user */
-			size_t scene_alloc_memory = total_allocatable_memory
-				- sizeof(int)* NUM_QUEUES
-				- sizeof(char)
-				-render_scene_input_data_size
-				- DATA_ALLOCATION_MEM_FACTOR;
-			unsigned int tile_max_x = 8, tile_max_y = 8;
-			bool max_rect_tile_reached = false;
-			while(!max_rect_tile_reached) {
-				unsigned int num_parallel_samples_possible = 0;
-#ifdef __WORK_STEALING__
-				unsigned int current_max_global_size[2];
-				current_max_global_size[0] = (((tile_max_x - 1) / local_size[0]) + 1) * local_size[0];
-				current_max_global_size[1] = (((tile_max_y - 1) / local_size[1]) + 1) * local_size[1];
-				unsigned int current_max_work_groups = (current_max_global_size[0] * current_max_global_size[1]) / (local_size[0] * local_size[1]);
-#endif
-				size_t memory_for_parallel_sample_processing = scene_alloc_memory
-#ifdef __WORK_STEALING__
-					- current_max_work_groups * sizeof(unsigned int)
-#endif
-					- (tile_max_x * tile_max_y) * per_thread_output_buffer_size
-					- (tile_max_x * tile_max_y) * sizeof(RNG);
-				num_parallel_samples_possible = memory_for_parallel_sample_processing / (per_thread_memory * tile_max_x * tile_max_y);
-				if(num_parallel_samples_possible == 0) {
-					max_rect_tile_reached = true;
-				}
-				else {
-					tile_max_x += local_size[0];
-					tile_max_y += local_size[1];
-				}
-			}
-
-			fprintf(stdout, "Not enough device memory, reduce tile size. \n \
-One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y - local_size[1]);
-			cannot_render_scene = true;
-			return;
-		}
-
-#ifdef __WORK_STEALING__
-		global_size[0] = (((d_w - 1) / local_size[0]) + 1) * local_size[0];
-		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
-#else
-		/* We may not need all global_size[0] threads; We only need as much as num_parallel_samples * d_w */
-		global_size[0] = num_parallel_samples * d_w;
-		global_size[0] = (((global_size[0] - 1) / local_size[0]) + 1) * local_size[0];
-
-		assert(global_size[0] * global_size[1] <= num_parallel_threads);
-		assert(global_size[0] * global_size[1] >= d_w * d_h);
-#endif // __WORK_STEALING__
-
-		/* Allocate all required global memory once */
-		if(first_tile) {
-
-			/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
-#ifdef __KERNEL_OPENCL__
-			typedef struct KernelGlobals {
-				ccl_constant KernelData *data;
-
-#define KERNEL_TEX(type, ttype, name) \
-	ccl_global type *name;
-#include "kernel_textures.h"
-			} KernelGlobals;
-
-			kgbuffer = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, sizeof(KernelGlobals), NULL, &ciErr);
+			kgbuffer = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_KernelGlobals_size(), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create kgbuffer memory");
-#endif
-			size_t num_shader_soa_ptr = SD_NUM_FLOAT3 + SD_NUM_INT + SD_NUM_FLOAT
-#ifdef __DPDU__
-				+ SD_NUM_DPDU_FLOAT3
-#endif
-#ifdef __RAY_DIFFERENTIAL__
-				+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
-				+ SD_NUM_DIFFERENTIAL
-#endif
-				+ SD_NUM_RAY_DP_DIFFERENTIAL3;
-			size_t ShaderData_SOA_size = num_shader_soa_ptr * sizeof(void *);
 
 				/* Create global buffers for ShaderData */
-			sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, ShaderData_SOA_size, NULL, &ciErr);
+			sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Shaderdata memory");
 
-			sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, ShaderData_SOA_size, NULL, &ciErr);
+			sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create sd_dl memory");
 
-			sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, ShaderData_SOA_size, NULL, &ciErr);
+			sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create sd_shadow memory");
 
-			P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads*sizeof(float3), NULL, &ciErr);
+			P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create P_sd memory");
 
-			P_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads*sizeof(float3), NULL, &ciErr);
+			P_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements *sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create P_sd_dl memory");
 
-			P_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float3), NULL, &ciErr);
+			P_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create P_sd_shadow memory");
 
-			N_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			N_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create N_sd memory");
 
-			N_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			N_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create N_sd_dl memory");
 
-			N_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float3), NULL, &ciErr);
+			N_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create N_sd_shadow memory");
 
-			Ng_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			Ng_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd memory");
 
-			Ng_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			Ng_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd_dl memory");
 
-			Ng_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float3), NULL, &ciErr);
+			Ng_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd_shadow memory");
 
-			I_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			I_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create I_sd memory");
 
-			I_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			I_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create I_sd_dl memory");
 
-			I_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float3), NULL, &ciErr);
+			I_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create I_sd_shadow memory");
 
-			shader_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			shader_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create shader_sd memory");
 
-			shader_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			shader_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create shader_sd_dl memory");
 
-			shader_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			shader_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create shader_sd_shadow memory");
 
-			flag_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			flag_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create flag_sd memory");
 
-			flag_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			flag_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create flag_sd_dl memory");
 
-			flag_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			flag_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create flag_sd_shadow memory");
 
-			prim_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			prim_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create prim_sd memory");
 
-			prim_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			prim_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create prim_sd_dl memory");
 
-			prim_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			prim_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create prim_sd_shadow memory");
 
-			type_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			type_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create type_sd memory");
 
-			type_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			type_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create type_sd_dl memory");
 
-			type_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			type_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create type_sd_shadow memory");
 
-			u_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			u_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create u_sd memory");
 
-			u_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			u_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create u_sd_dl memory");
 
-			u_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float), NULL, &ciErr);
+			u_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create u_sd_shadow memory");
 
-			v_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			v_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create v_sd memory");
 
-			v_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			v_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create v_sd_dl memory");
 
-			v_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float), NULL, &ciErr);
+			v_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create v_sd_shadow memory");
 
-			object_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			object_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create object_sd memory");
 
-			object_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			object_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create object_sd_dl memory");
 
-			object_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			object_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create object_sd_shadow memory");
 
-			time_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			time_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create time_sd memory");
 
-			time_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			time_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create time_sd_dl memory");
 
-			time_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float), NULL, &ciErr);
+			time_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create time_sd_shadow memory");
 
-			ray_length_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			ray_length_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd memory");
 
-			ray_length_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			ray_length_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd_dl memory");
 
-			ray_length_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float), NULL, &ciErr);
+			ray_length_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd_shadow memory");
 
-			ray_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			ray_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd memory");
 
-			ray_depth_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			ray_depth_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd_dl memory");
 
-			ray_depth_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			ray_depth_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd_shadow memory");
 
-			transparent_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			transparent_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd memory");
 
-			transparent_depth_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			transparent_depth_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd_dl memory");
 
-			transparent_depth_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			transparent_depth_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd_shadow memory");
 
 #ifdef __RAY_DIFFERENTIALS__
-			dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential3), NULL, &ciErr);
+			dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dP_sd memory");
 
-			dP_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential3), NULL, &ciErr);
+			dP_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dP_sd_dl memory");
 
-			dP_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(differential3), NULL, &ciErr);
+			dP_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dP_sd_shadow memory");
 
-			dI_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential3), NULL, &ciErr);
+			dI_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dI_sd memory");
 
-			dI_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential3), NULL, &ciErr);
+			dI_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dI_sd_dl memory");
 
-			dI_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(differential3), NULL, &ciErr);
+			dI_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dI_sd_shadow memory");
 
-			du_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential), NULL, &ciErr);
+			du_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd memory");
 
-			du_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential), NULL, &ciErr);
+			du_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd_dl memory");
 
-			du_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(differential), NULL, &ciErr);
+			du_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd_shadow memory");
 
-			dv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential), NULL, &ciErr);
+			dv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd memory");
 
-			dv_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential), NULL, &ciErr);
+			dv_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd_dl memory");
 
-			dv_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(differential), NULL, &ciErr);
+			dv_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd_shadow memory");
 #endif
 #ifdef __DPDU__
-			dPdu_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			dPdu_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd memory");
 
-			dPdu_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			dPdu_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd_dl memory");
 
-			dPdu_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float3), NULL, &ciErr);
+			dPdu_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd_shadow memory");
 
-			dPdv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			dPdv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd memory");
 
-			dPdv_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			dPdv_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd_dl memory");
 
-			dPdv_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float3), NULL, &ciErr);
+			dPdv_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd_shadow memory");
 #endif
-			closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * ShaderClosure_size, NULL, &ciErr);
+			closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * ShaderClosure_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create closure_sd memory");
 
-			closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * ShaderClosure_size, NULL, &ciErr);
+			closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * ShaderClosure_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create closure_sd_dl memory");
 
-			closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * ShaderClosure_size, NULL, &ciErr);
+			closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * ShaderClosure_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create closure_sd_shadow memory");
 
-			num_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			num_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd memory");
 
-			num_closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(int), NULL, &ciErr);
+			num_closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd_dl memory");
 
-			num_closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(int), NULL, &ciErr);
+			num_closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd_shadow memory");
 
-			randb_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			randb_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd memory");
 
-			randb_closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float), NULL, &ciErr);
+			randb_closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd_dl memory");
 
-			randb_closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float), NULL, &ciErr);
+			randb_closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd_shadow memory");
 
-			ray_P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			ray_P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd memory");
 
-			ray_P_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(float3), NULL, &ciErr);
+			ray_P_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd_dl memory");
 
-			ray_P_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(float3), NULL, &ciErr);
+			ray_P_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd_shadow memory");
 
-			ray_dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential3), NULL, &ciErr);
+			ray_dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd memory");
 
-			ray_dP_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * sizeof(differential3), NULL, &ciErr);
+			ray_dP_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd_dl memory");
 
-			ray_dP_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * 2 * sizeof(differential3), NULL, &ciErr);
+			ray_dP_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd_shadow memory");
 
 			/* creation of global memory buffers which are shared among the kernels */
-			rng_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * rng_size, NULL, &ciErr);
+			rng_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * rng_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create rng_coop memory");
 
-			throughput_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * throughput_size, NULL, &ciErr);
+			throughput_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * throughput_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create throughput_coop memory");
 
-			L_transparent_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * L_transparent_size, NULL, &ciErr);
+			L_transparent_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * L_transparent_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create L_transparent_coop memory");
 
-			PathRadiance_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * PathRadiance_size, NULL, &ciErr);
+			PathRadiance_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * PathRadiance_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create PathRadiance_coop memory");
 
-			Ray_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * Ray_size, NULL, &ciErr);
+			Ray_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Ray_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Ray_coop memory");
 
-			PathState_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * PathState_size, NULL, &ciErr);
+			PathState_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * PathState_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create PathState_coop memory");
 
-			Intersection_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * Intersection_size, NULL, &ciErr);
+			Intersection_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Intersection_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Intersection_coop memory");
 
-			AOAlpha_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * AOAlpha_size, NULL, &ciErr);
+			AOAlpha_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * AOAlpha_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create AOAlpha_coop memory");
 
-			AOBSDF_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * AOBSDF_size, NULL, &ciErr);
+			AOBSDF_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * AOBSDF_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create AOBSDF_coop memory");
 
-			AOLightRay_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * AOLightRay_size, NULL, &ciErr);
+			AOLightRay_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * AOLightRay_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create AOLightRay_coop memory");
 
-			BSDFEval_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * BSDFEval_size, NULL, &ciErr);
+			BSDFEval_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * BSDFEval_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create BSDFEval_coop memory");
 
-			ISLamp_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * ISLamp_size, NULL, &ciErr);
+			ISLamp_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * ISLamp_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ISLamp_coop memory");
 
-			LightRay_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * LightRay_size, NULL, &ciErr);
+			LightRay_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * LightRay_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create LightRay_coop memory");
 
-			Intersection_coop_AO = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * Intersection_coop_AO_size, NULL, &ciErr);
+			Intersection_coop_AO = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Intersection_coop_AO_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Intersection_coop_AO_memory");
 
-			Intersection_coop_DL = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * Intersection_coop_DL_size, NULL, &ciErr);
+			Intersection_coop_DL = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Intersection_coop_DL_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Intersection_coop_DL_memory");
 
-			ray_state = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * rayState_size, NULL, &ciErr);
+			ray_state = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * rayState_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_state memory");
 
-			hostRayStateArray = (char *)calloc(num_parallel_threads, hostRayState_size);
+			hostRayStateArray = (char *)calloc(num_global_elements, hostRayState_size);
 			assert(hostRayStateArray != NULL && "Can't create hostRayStateArray memory");
 
-			Queue_data = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * (NUM_QUEUES * sizeof(int) + sizeof(int)), NULL, &ciErr);
+			Queue_data = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * (NUM_QUEUES * sizeof(int)+sizeof(int)), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Queue data memory");
 
-			work_array = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * work_element_size, NULL, &ciErr);
+			work_array = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * work_element_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create work_array memory");
 
-			per_sample_output_buffers = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_parallel_threads * per_thread_output_buffer_size, NULL, &ciErr);
+			per_sample_output_buffers = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * per_thread_output_buffer_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create per_sample_output_buffers memory");
 		}
 
@@ -3051,6 +2936,7 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_stride), (void*)&d_stride));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_x), (void*)&(rtile.rng_state_offset_x)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_y), (void*)&(rtile.rng_state_offset_y)));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_rng_state_stride), (void*)&(rtile.buffer_rng_state_stride)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
@@ -3129,6 +3015,7 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_stride), (void*)&d_stride));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_x), (void*)&(rtile.rng_state_offset_x)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_y), (void*)&(rtile.rng_state_offset_y)));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_rng_state_stride), (void*)&(rtile.buffer_rng_state_stride)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(work_array), (void*)&work_array));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
@@ -3272,6 +3159,7 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_stride), (void *)&d_stride));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_offset_x), (void *)&(rtile.buffer_offset_x)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_offset_y), (void *)&(rtile.buffer_offset_y)));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_rng_state_stride), (void*)&(rtile.buffer_rng_state_stride)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
 
 		/* Enqueue ckPathTraceKernel_DataInit_SPLIT_KERNEL kernel */
@@ -3504,27 +3392,8 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		size_t KernelGlobals_size = 0;
 		size_t ShaderData_SOA_size = 0;
 
-		/* Find KernelGlobals size */
-		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
-		typedef struct KernelGlobals {
-			ccl_constant KernelData *data;
-#define KERNEL_TEX(type, ttype, name) \
-			ccl_global type *name;
-#include "kernel_textures.h"
-		} KernelGlobals;
-		KernelGlobals_size = sizeof(KernelGlobals);
-
-		/* Calculate ShaderData_SOA_size */
-		size_t num_shader_soa_ptr = SD_NUM_FLOAT3 + SD_NUM_INT + SD_NUM_FLOAT
-#ifdef __DPDU__
-			+ SD_NUM_DPDU_FLOAT3
-#endif
-#ifdef __RAY_DIFFERENTIAL__
-			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
-			+ SD_NUM_DIFFERENTIAL
-#endif
-			+ SD_NUM_RAY_DP_DIFFERENTIAL3;
-		ShaderData_SOA_size = num_shader_soa_ptr * sizeof(void *);
+		KernelGlobals_size = get_KernelGlobals_size();
+		ShaderData_SOA_size = get_shaderdata_soa_size();
 
 		total_invariable_mem_allocated += KernelGlobals_size; /* KernelGlobals size */
 		total_invariable_mem_allocated += NUM_QUEUES * sizeof(unsigned int); /* Queue index size */
@@ -3558,15 +3427,8 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 		tile_specific_mem_allocated += max_num_work_pools * sizeof(unsigned int);
 #endif
 
-		/* Calculate per thread memory output buffer size */
-		size_t output_buffer_size = 0;
-		ciErr = clGetMemObjectInfo(d_buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
-		assert(ciErr == CL_SUCCESS && "Can't get d_buffer mem object info");
-		/* This value is different when running on AMD and NV */
-		size_t per_pixel_output_buffer_size = output_buffer_size / (d_w * d_h);
-
-		tile_specific_mem_allocated = user_set_tile_w * user_set_tile_h * per_pixel_output_buffer_size;
-		tile_specific_mem_allocated = user_set_tile_w * user_set_tile_h * sizeof(RNG);
+		tile_specific_mem_allocated += user_set_tile_w * user_set_tile_h * per_thread_output_buffer_size;
+		tile_specific_mem_allocated += user_set_tile_w * user_set_tile_h * sizeof(RNG);
 
 		return tile_specific_mem_allocated;
 	}
@@ -3587,6 +3449,7 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 
 		size_t shader_closure_size = 0;
 		size_t shaderdata_volume = 0;
+
 #ifdef __MULTI_CLOSURE__
 		shader_closure_size = get_shader_closure_size(clos_max);
 #else
@@ -3699,21 +3562,26 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 				to_path_trace_rtile[rtile_index].sample = rtile.sample;
 				to_path_trace_rtile[rtile_index].resolution = rtile.resolution;
 				to_path_trace_rtile[rtile_index].offset = rtile.offset;
-				to_path_trace_rtile[rtile_index].stride = rtile.stride;
 				to_path_trace_rtile[rtile_index].tile_size = rtile.tile_size;
 				to_path_trace_rtile[rtile_index].buffers = rtile.buffers;
 				to_path_trace_rtile[rtile_index].buffer = rtile.buffer;
 				to_path_trace_rtile[rtile_index].rng_state = rtile.rng_state;
 				to_path_trace_rtile[rtile_index].x = rtile.x + (tile_iter_x * render_feasible_tile_size.x);
 				to_path_trace_rtile[rtile_index].y = rtile.y + (tile_iter_y * render_feasible_tile_size.y);
+				to_path_trace_rtile[rtile_index].buffer_rng_state_stride = rtile.stride;
+
+				/* Set max render feasible tile size */
+				to_path_trace_rtile[rtile_index].max_render_feasible_tile_size = render_feasible_tile_size;
 
 				/* Fill width and height of the new render tile */
-				to_path_trace_rtile[rtile_index].w = (tile_iter_x == num_tiles_x - 1) ?
+				to_path_trace_rtile[rtile_index].w = (tile_iter_x == (num_tiles_x - 1)) ?
 					(d_w - (tile_iter_x * render_feasible_tile_size.x)) /* Border tile */
 					: render_feasible_tile_size.x;
-				to_path_trace_rtile[rtile_index].h = (tile_iter_y == num_tiles_y - 1) ?
+				to_path_trace_rtile[rtile_index].h = (tile_iter_y == (num_tiles_y - 1)) ?
 					(d_h - (tile_iter_y * render_feasible_tile_size.y)) /* Border tile */
 					: render_feasible_tile_size.y;
+
+				to_path_trace_rtile[rtile_index].stride = to_path_trace_rtile[rtile_index].w;
 			}
 		}
 		return to_path_trace_rtile;
@@ -3739,8 +3607,16 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 				tile.rng_state_offset_x = 0;
 				tile.rng_state_offset_y = 0;
 
+
+				/* Calculate per_thread_output_buffer_size */
+				size_t output_buffer_size = 0;
+				ciErr = clGetMemObjectInfo((cl_mem)tile.buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
+				assert(ciErr == CL_SUCCESS && "Can't get tile.buffer mem object info");
+				/* This value is different when running on AMD and NV */
+				per_thread_output_buffer_size = output_buffer_size / (tile.w * tile.h);
+
 				size_t feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
-				if (need_to_split_tile(tile.w, tile.h, feasible_global_work_size)) {
+				if (need_to_split_tile(tile.tile_size.x, tile.tile_size.y, feasible_global_work_size)) {
 					int2 render_feasible_tile_size = get_render_feasible_tile_size(feasible_global_work_size);
 					vector<RenderTile> to_path_trace_render_tiles = split_tiles(tile, render_feasible_tile_size);
 
@@ -3751,6 +3627,10 @@ One possible tile size is %zux%zu \n", tile_max_x - local_size[0] , tile_max_y -
 				}
 				else {
 					/* No splitting required; process the entire tile at once */
+					/* Render feasible tile size is user-set-tile-size itself */
+					tile.max_render_feasible_tile_size = tile.tile_size;
+					/* buffer_rng_state_stride is stride itself */
+					tile.buffer_rng_state_stride = tile.stride;
 					/* The second argument is dummy */
 					path_trace(tile, 0);
 				}

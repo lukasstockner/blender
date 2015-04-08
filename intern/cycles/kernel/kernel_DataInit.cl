@@ -206,6 +206,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	int start_sample, int sx, int sy, int sw, int sh, int offset, int stride,
 	int rng_state_offset_x,
 	int rng_state_offset_y,
+	int rng_state_stride,
 	ccl_global int *Queue_data,                  /* Memory for queues */
 	ccl_global int *Queue_index,                 /* Tracks the number of elements in queues */
 	int queuesize,                               /* size (capacity) of the queue */
@@ -419,7 +420,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 		pixel_y = sy + tile_y;
 #endif // __WORK_STEALING__
 
-		rng_state += (rng_state_offset_x + tile_x) + (rng_state_offset_y + tile_y) * stride;
+		rng_state += (rng_state_offset_x + tile_x) + (rng_state_offset_y + tile_y) * rng_state_stride;
 
 		/* Initialise per_sample_output_buffers to all zeros */
 		per_sample_output_buffers += (((tile_x + (tile_y * stride)) * parallel_samples) + (my_sample_tile)) * kernel_data.film.pass_stride;
