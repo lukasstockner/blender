@@ -2446,12 +2446,18 @@ public:
 		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
 		unsigned int num_parallel_samples = 1;
 #else
-		/* We may not need all global_size[0] threads; We only need as much as num_parallel_samples * d_w */
-		global_size[0] = num_parallel_samples * d_w;
-		global_size[0] = (((global_size[0] - 1) / local_size[0]) + 1) * local_size[0];
+		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
+		unsigned int num_threads = rtile.max_render_feasible_tile_size.x * rtile.max_render_feasible_tile_size.y;
+		unsigned int num_tile_columns_possible = num_threads / global_size[1];
+		/* Estimate number of parallel samples that can be processed in parallel */
+		unsigned int num_parallel_samples = (num_tile_columns_possible / d_w) <= rtile.num_samples ? (num_tile_columns_possible / d_w) : rtile.num_samples;
+		/* Wavefront size in AMD is 64 */
+		num_parallel_samples = ((num_parallel_samples / 64) == 0) ?
+		num_parallel_samples :
+							 (num_parallel_samples / 64) * 64;
+		assert(num_parallel_samples != 0);
 
-		assert(global_size[0] * global_size[1] <= num_parallel_threads);
-		assert(global_size[0] * global_size[1] >= d_w * d_h);
+		global_size[0] = d_w * num_parallel_samples;
 #endif // __WORK_STEALING__
 
 		/* Allocate all required global memory once */
