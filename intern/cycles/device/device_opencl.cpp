@@ -1298,6 +1298,74 @@ public:
 #endif
 
 #ifdef __SPLIT_KERNEL__
+	/* Split kernel utility functions */
+
+	size_t get_tex_size(const char *tex_name) {
+		cl_mem ptr;
+		size_t ret_size;
+
+		MemMap::iterator i = mem_map.find(tex_name);
+		if (i != mem_map.end()) {
+			ptr = CL_MEM_PTR(i->second);
+			ciErr = clGetMemObjectInfo(ptr, CL_MEM_SIZE, sizeof(ret_size), &ret_size, NULL);
+			assert(ciErr == CL_SUCCESS);
+		}
+		else {
+			ret_size = 0;
+		}
+
+		return ret_size;
+	}
+
+	size_t get_shader_closure_size(int max_closure) {
+		return (sizeof(ShaderClosure)* max_closure);
+	}
+
+	size_t get_shader_data_size(size_t shader_closure_size) {
+		size_t shader_data_size = 0;
+		shader_data_size = SD_NUM_FLOAT3 * sizeof(float3)
+#ifdef __DPDU__
+			+ SD_NUM_DPDU_FLOAT3 * sizeof(float3)
+#endif
+#ifdef __RAY_DIFFERENTIALS__
+			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3 * sizeof(differential3)
+			+SD_NUM_DIFFERENTIAL * sizeof(differential)
+#endif
+			+ SD_NUM_RAY_DP_DIFFERENTIAL3 * sizeof(differential3)
+			+SD_NUM_INT * sizeof(int)
+			+SD_NUM_FLOAT * sizeof(float);
+
+		return (shader_data_size + shader_closure_size);
+	}
+
+	/* Returns size of KernelGlobals structure associated with OpenCL */
+	size_t get_KernelGlobals_size() {
+		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
+		typedef struct KernelGlobals {
+			ccl_constant KernelData *data;
+#define KERNEL_TEX(type, ttype, name) \
+	ccl_global type *name;
+#include "kernel_textures.h"
+		} KernelGlobals;
+
+		return sizeof(KernelGlobals);
+	}
+
+	/* Returns size of Structure of arrays implementation of */
+	size_t get_shaderdata_soa_size() {
+		size_t num_shader_soa_ptr = SD_NUM_FLOAT3 + SD_NUM_INT + SD_NUM_FLOAT
+#ifdef __DPDU__
+			+ SD_NUM_DPDU_FLOAT3
+#endif
+#ifdef __RAY_DIFFERENTIAL__
+			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
+			+ SD_NUM_DIFFERENTIAL
+#endif
+			+ SD_NUM_RAY_DP_DIFFERENTIAL3;
+
+		return (num_shader_soa_ptr * sizeof(void *));
+	}
+
 	/* Get enum type names */
 	string get_node_type_as_string(NodeType node) {
 		switch (node) {
@@ -2325,79 +2393,6 @@ public:
 		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_size, NULL, 0, NULL, NULL));
 		opencl_assert(clFlush(cqCommandQueue));
 	}
-
-#ifdef __SPLIT_KERNEL__
-	size_t get_tex_size(const char *tex_name) {
-		cl_mem ptr;
-		size_t ret_size;
-
-		MemMap::iterator i = mem_map.find(tex_name);
-		if(i != mem_map.end()) {
-			ptr = CL_MEM_PTR(i->second);
-			ciErr = clGetMemObjectInfo(ptr, CL_MEM_SIZE, sizeof(ret_size), &ret_size, NULL);
-			assert(ciErr == CL_SUCCESS);
-		}
-		else {
-			ret_size = 0;
-		}
-
-		return ret_size;
-	}
-#endif
-
-#ifdef __SPLIT_KERNEL__
-	size_t get_shader_closure_size(int max_closure) {
-		return (sizeof(ShaderClosure)* max_closure);
-	}
-
-	size_t get_shader_data_size(size_t shader_closure_size) {
-		size_t shader_data_size = 0;
-		shader_data_size = SD_NUM_FLOAT3 * sizeof(float3)
-#ifdef __DPDU__
-			+ SD_NUM_DPDU_FLOAT3 * sizeof(float3)
-#endif
-#ifdef __RAY_DIFFERENTIALS__
-			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3 * sizeof(differential3)
-			+SD_NUM_DIFFERENTIAL * sizeof(differential)
-#endif
-			+ SD_NUM_RAY_DP_DIFFERENTIAL3 * sizeof(differential3)
-			+SD_NUM_INT * sizeof(int)
-			+SD_NUM_FLOAT * sizeof(float);
-
-		return (shader_data_size + shader_closure_size);
-	}
-#endif
-
-#ifdef __SPLIT_KERNEL__
-	/* Returns size of KernelGlobals structure associated with OpenCL */
-	size_t get_KernelGlobals_size() {
-		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
-		typedef struct KernelGlobals {
-			ccl_constant KernelData *data;
-#define KERNEL_TEX(type, ttype, name) \
-			ccl_global type *name;
-#include "kernel_textures.h"
-		} KernelGlobals;
-
-		return sizeof(KernelGlobals);
-	}
-
-	/* Returns size of Structure of arrays implementation of */
-	size_t get_shaderdata_soa_size() {
-		size_t num_shader_soa_ptr = SD_NUM_FLOAT3 + SD_NUM_INT + SD_NUM_FLOAT
-#ifdef __DPDU__
-			+ SD_NUM_DPDU_FLOAT3
-#endif
-#ifdef __RAY_DIFFERENTIAL__
-			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
-			+ SD_NUM_DIFFERENTIAL
-#endif
-			+ SD_NUM_RAY_DP_DIFFERENTIAL3;
-
-		return (num_shader_soa_ptr * sizeof(void *));
-	}
-
-#endif
 
 	void path_trace(RenderTile& rtile, int sample)
 	{
