@@ -76,6 +76,7 @@ typedef void (*ae_kill)(struct AssetEngine *engine, const int job_id);
 
 /* List everything available at given root path - only returns numbers of entries! */
 typedef int (*ae_list_dir)(struct AssetEngine *engine, const int job_id, struct FileDirEntryArr *entries_r);
+
 /* Ensure given direntries are really available for append/link (some kind of 'anticipated loading'...). */
 typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int job_id, struct AssetUUIDList *uuids);
 
@@ -85,7 +86,8 @@ typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int job_id, s
  * Note that engine is assumed to feature its own sorting/filtering settings!
  * Number of available filtered entries is to be set in entries_r.
  */
-typedef bool (*ae_sort_filter)(struct AssetEngine *engine, const bool sort, const bool filter, struct FileDirEntryArr *entries_r);
+typedef bool (*ae_sort_filter)(struct AssetEngine *engine, const bool sort, const bool filter,
+                               const char *filter_glob, const char *filter_search, struct FileDirEntryArr *entries_r);
 
 /* Return specified block of entries in entries_r. */
 typedef bool (*ae_entries_block_get)(struct AssetEngine *engine, const int start_index, const int end_index,

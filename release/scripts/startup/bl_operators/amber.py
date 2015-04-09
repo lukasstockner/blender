@@ -221,6 +221,8 @@ class AssetEngineAmber(AssetEngine):
         self.dirs = []
         self.tags_source = []
 
+        self.sortedfiltered = []
+
         self.job_uuid = 1
 
     def __del__(self):
@@ -229,49 +231,102 @@ class AssetEngineAmber(AssetEngine):
         #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
         #~ self.executor.shutdown(wait=False)
 
-    def fill_entries(self, entries):
-        if entries.root_path != self.root:
-            entries.entries.clear()
-            self.root = entries.root_path
 
-        existing = {}
-        for e in entries.entries:
-            vd = {}
-            existing[e.uuid] = (e, vd)
-            for v in e.variants:
-                rd = {}
-                vd[v.uuid] = (v, rd)
-                for r in v.revisions:
-                    rd[r.uuid] = r
+    def status(self, job_id):
+        if job_id:
+            job = self.jobs.get(job_id, None)
+            return job.status if job is not None else set()
+        return {'VALID'}
 
-        for path, size, timestamp, entry_uuid in self.dirs:
-            if entry_uuid in existing:
-                continue
-            entry = entries.entries.add()
-            entry.type = {'DIR'}
-            entry.relpath = path
-            entry.uuid = entry_uuid
-            variant = entry.variants.add()
-            entry.variants.active = variant
-            rev = variant.revisions.add()
-            rev.size = size
-            rev.timestamp = timestamp
-            variant.revisions.active = rev
+    def progress(self, job_id):
+        if job_id:
+            job = self.jobs.get(job_id, None)
+            return job.progress if job is not None else 0.0
+        progress = 0.0
+        nbr_jobs = 0
+        for job in self.jobs.values():
+            if 'RUNNING' in job.status:
+                nbr_jobs += 1
+                progress += job.progress
+        return progress / nbr_jobs if nbr_jobs else 0.0
 
+    def kill(self, job_id):
+        if job_id:
+            self.jobs.pop(job_id, None)
+            return
+        self.jobs.clear()
+
+    def list_dir(self, job_id, entries):
+        job = self.jobs.get(job_id, None)
+        #~ print(entries.root_path, job_id, job)
+        if job is not None and isinstance(job, AmberJobList):
+            if job.root != entries.root_path:
+                self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
+            else:
+                job.update(self.repo, self.dirs, self.uuids)
+        elif self.root != entries.root_path:
+            job_id = self.job_uuid
+            self.job_uuid += 1
+            self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
         if self.repo:
-            for euuid, e in self.repo["entries"].items():
-                entry_uuid = binascii.unhexlify(euuid)
-                entry, existing_vuuids = existing.get(entry_uuid, (None, {}))
-                if entry is None:
-                    entry = entries.entries.add()
-                    entry.uuid = entry_uuid
-                    entry.name = e["name"]
-                    entry.description = e["description"]
-                    entry.type = {e["file_type"]}
-                    entry.blender_type = e["blen_type"]
-                    existing[entry_uuid] = (entry, existing_vuuids)  # Not really needed, but for sake of consistency...
-                    vuuids = {}
-                    self.uuids[entry.uuid] = (self.root, entry.type, entry.blender_type, vuuids)
+            entries.nbr_entries = len(self.repo["entries"])
+            self.tags_source[:] = sorted(self.repo["tags"].items(), key=lambda i: i[1], reverse=True)
+        else:
+            entries.nbr_entries = len(self.dirs)
+            self.tags_source.clear()
+        return job_id
+
+    def load_pre(self, uuids, entries):
+        # Not quite sure this engine will need it in the end, but for sake of testing...
+        root_path = None
+        for uuid in uuids.uuids:
+            root, file_type, blen_type, vuuids = self.uuids[uuid.uuid_asset]
+            ruuids = vuuids[uuid.uuid_variant]
+            path_archive, path = ruuids[uuid.uuid_revision]
+            if root_path is None:
+                root_path = root
+            elif root_path != root:
+                print("ERROR!!! mismatch in root paths for a same set of data, shall *never* happen (%s vs %s)" % (root_path, root))
+            entry = entries.entries.add()
+            entry.type = file_type
+            entry.blender_type = blen_type
+            # archive part not yet implemented!
+            entry.relpath = path
+        entries.root_path = root_path
+        return True
+
+    def sort_filter(self, use_sort, use_filter, filter_glob, filter_search, entries):
+        if use_filter:
+            self.sortedfiltered.clear()
+            if self.repo:
+                for key, val in self.repo["entries"].items():
+                    if filter_search and filter_search not in (val["name"] + val["description"]):
+                        continue
+                    self.sortedfiltered.append((val["name"], key, val))
+            elif self.dirs:
+                for path, size, timestamp, uuid in self.dirs:
+                    if filter_search and filter_search not in path:
+                        continue
+                    self.sortedfiltered.append((path, size, timestamp, uuid))
+            use_sort = True
+        entries.nbr_entries_filtered = len(self.sortedfiltered)
+        if use_sort:
+            self.sortedfiltered.sort(key=lambda e: e[0])
+            return True
+        return False
+
+    def entries_block_get(self, start_index, end_index, entries):
+        if self.repo:
+            for _n, euuid, e in self.sortedfiltered[start_index:end_index]:
+                uuid = binascii.unhexlify(euuid)
+                entry = entries.entries.add()
+                entry.uuid = uuid
+                entry.name = e["name"]
+                entry.description = e["description"]
+                entry.type = {e["file_type"]}
+                entry.blender_type = e["blen_type"]
+                vuuids = {}
+                self.uuids[entry.uuid] = (self.root, entry.type, entry.blender_type, vuuids)
                 act_rev = None
                 for vuuid, v in e["variants"].items():
                     variant_uuid = binascii.unhexlify(vuuid)
@@ -301,65 +356,18 @@ class AssetEngineAmber(AssetEngine):
                                 act_rev = r
                 if act_rev:
                     entry.relpath = act_rev["path"]
-            self.tags_source = sorted(self.repo["tags"].items(), key=lambda i: i[1], reverse=True)
-
-
-    def status(self, job_id):
-        if job_id:
-            job = self.jobs.get(job_id, None)
-            return job.status if job is not None else set()
-        return {'VALID'}
-
-    def progress(self, job_id):
-        if job_id:
-            job = self.jobs.get(job_id, None)
-            return job.progress if job is not None else 0.0
-        progress = 0.0
-        nbr_jobs = 0
-        for job in self.jobs.values():
-            if 'RUNNING' in job.status:
-                nbr_jobs += 1
-                progress += job.progress
-        return progress / nbr_jobs if nbr_jobs else 0.0
-
-    def kill(self, job_id):
-        if job_id:
-            self.jobs.pop(job_id, None)
-            return
-        self.jobs.clear()
-
-    def list_dir(self, job_id, entries):
-        job = self.jobs.get(job_id, None)
-        print(entries.root_path, job_id, job)
-        if job is not None and isinstance(job, AmberJobList):
-            if job.root != entries.root_path:
-                self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
-            else:
-                job.update(self.repo, self.dirs, self.uuids)
-        elif self.root != entries.root_path:
-            job_id = self.job_uuid
-            self.job_uuid += 1
-            self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
-        self.fill_entries(entries)
-        return job_id
-
-    def load_pre(self, uuids, entries):
-        # Not quite sure this engine will need it in the end, but for sake of testing...
-        root_path = None
-        for uuid in uuids.uuids:
-            root, file_type, blen_type, vuuids = self.uuids[uuid.uuid_asset]
-            ruuids = vuuids[uuid.uuid_variant]
-            path_archive, path = ruuids[uuid.uuid_revision]
-            if root_path is None:
-                root_path = root
-            elif root_path != root:
-                print("ERROR!!! mismatch in root paths for a same set of data, shall *never* happen (%s vs %s)" % (root_path, root))
-            entry = entries.entries.add()
-            entry.type = file_type
-            entry.blender_type = blen_type
-            # archive part not yet implemented!
-            entry.relpath = path
-        entries.root_path = root_path
+        else:
+            for path, size, timestamp, uuid in self.sortedfiltered[start_index:end_index]:
+                entry = entries.entries.add()
+                entry.type = {'DIR'}
+                entry.relpath = path
+                entry.uuid = uuid
+                variant = entry.variants.add()
+                entry.variants.active = variant
+                rev = variant.revisions.add()
+                rev.size = size
+                rev.timestamp = timestamp
+                variant.revisions.active = rev
         return True
 
 

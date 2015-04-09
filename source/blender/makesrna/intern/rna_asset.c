@@ -260,7 +260,7 @@ static void rna_AssetEntry_description_set(struct PointerRNA *ptr, const char *v
 static PointerRNA rna_AssetList_active_entry_get(PointerRNA *ptr)
 {
 	FileDirEntryArr *arr = ptr->data;
-	return rna_pointer_inherit_refine(ptr, &RNA_AssetEntry, BLI_findlink(&arr->entries, 0));
+	return rna_pointer_inherit_refine(ptr, &RNA_AssetEntry, arr->entries.first /* BLI_findlink(&arr->entries, 0) */);
 }
 
 static void rna_AssetList_active_entry_set(PointerRNA *ptr, PointerRNA value)
@@ -282,7 +282,6 @@ static FileDirEntry *rna_AssetList_entries_add(FileDirEntryArr *dirlist)
 	FileDirEntry *entry = MEM_callocN(sizeof(*entry), __func__);
 
 	BLI_addtail(&dirlist->entries, entry);
-	dirlist->nbr_entries++;
 
 	return entry;
 }
@@ -297,7 +296,6 @@ static void rna_AssetList_entries_remove(FileDirEntryArr *dirlist, ReportList *r
 	}
 
 	BKE_filedir_entry_free(entry);
-	MEM_freeN(entry);
 }
 
 static void rna_AssetList_entries_clear(FileDirEntryArr *dirlist)
@@ -434,7 +432,9 @@ static bool rna_ae_load_pre(AssetEngine *engine, AssetUUIDList *uuids, struct Fi
 	return ret_success;
 }
 
-static bool rna_ae_sort_filter(AssetEngine *engine, const bool use_sort, const bool use_filter, FileDirEntryArr *entries_r)
+static bool rna_ae_sort_filter(
+        AssetEngine *engine, const bool use_sort, const bool use_filter,
+        const char *filter_glob, const char *filter_search, FileDirEntryArr *entries_r)
 {
 	extern FunctionRNA rna_AssetEngine_sort_filter_func;
 	PointerRNA ptr;
@@ -451,6 +451,8 @@ static bool rna_ae_sort_filter(AssetEngine *engine, const bool use_sort, const b
 	RNA_parameter_list_create(&list, &ptr, func);
 	RNA_parameter_set_lookup(&list, "use_sort", &use_sort);
 	RNA_parameter_set_lookup(&list, "use_filter", &use_filter);
+	RNA_parameter_set_lookup(&list, "filter_glob", filter_glob);
+	RNA_parameter_set_lookup(&list, "filter_search", filter_search);
 	RNA_parameter_set_lookup(&list, "entries", &entries_r);
 	engine->type->ext.call(NULL, &ptr, func, &list);
 
@@ -881,6 +883,14 @@ static void rna_def_asset_list(BlenderRNA *brna)
 	rna_def_asset_entry(brna);
 	rna_def_asset_entries(brna, prop);
 
+	prop = RNA_def_int(srna, "nbr_entries", 0, 0, INT_MAX, "Entries Number",
+	                   "Total number of available entries/assets, *not the length of 'entries'!*", 0, INT_MAX);
+	RNA_def_property_int_sdna(prop, NULL, "nbr_entries");
+
+	prop = RNA_def_int(srna, "nbr_entries_filtered", 0, 0, INT_MAX, "Filtered Entries Number",
+	                   "Total number of visible entries/assets, *not the length of 'entries'!*", 0, INT_MAX);
+	RNA_def_property_int_sdna(prop, NULL, "nbr_entries_filtered");
+
 	prop = RNA_def_property(srna, "root_path", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "root");
 	RNA_def_property_ui_text(prop, "Root Path", "Root directory from which all asset entries come from");
@@ -954,6 +964,10 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
 	RNA_def_boolean(func, "use_sort", 0, "", "Whether to (re-)sort assets");
 	RNA_def_boolean(func, "use_filter", 0, "", "Whether to (re-)filter assets");
+	parm = RNA_def_string(func, "filter_glob", NULL, 64, "", "Glob-like string specifying expected file types");
+	RNA_def_property_flag(parm, PROP_THICK_WRAP);
+	parm = RNA_def_string(func, "filter_search", NULL, 64, "", "Search string");
+	RNA_def_property_flag(parm, PROP_THICK_WRAP);
 	RNA_def_pointer(func, "entries", "AssetList", "", "List of asset entries proposed to user by the asset engine");
 	parm = RNA_def_boolean(func, "changed_return", 0, "", "Whether list of available entries was changed");
 	RNA_def_function_output(func, parm);

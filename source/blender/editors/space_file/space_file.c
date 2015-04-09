@@ -255,11 +255,8 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 			filelist_readjob_start(sfile->files, C);
 		}
 	}
-	else if (filelist_need_sorting(sfile->files)) {
-		filelist_sort(sfile->files);
-	}
 
-	filelist_filter(sfile->files);
+	filelist_sort_filter(sfile->files);
 
 	if (params->display == FILE_IMGDISPLAY) {
 		filelist_cache_previews_set(sfile->files, true);

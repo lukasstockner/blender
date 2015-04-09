@@ -324,7 +324,7 @@ void BKE_filedir_entryarr_clear(FileDirEntryArr *array)
 	for (entry = array->entries.first; entry; entry = entry->next) {
 		BKE_filedir_entry_free(entry);
 	}
-	BLI_freelistN(&array->entries);
+	BLI_listbase_clear(&array->entries);
     array->nbr_entries = 0;
 	array->nbr_entries_filtered = 0;
 }

@@ -491,33 +491,6 @@ bool filelist_need_sorting(struct FileList *filelist)
 	return filelist->need_sorting && (filelist->sort != FILE_SORT_NONE);
 }
 
-void filelist_sort(struct FileList *filelist)
-{
-	if (filelist_need_sorting(filelist)) {
-		filelist->need_sorting = false;
-
-		switch (filelist->sort) {
-			case FILE_SORT_ALPHA:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_name);
-				break;
-			case FILE_SORT_TIME:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_date);
-				break;
-			case FILE_SORT_SIZE:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_size);
-				break;
-			case FILE_SORT_EXTENSION:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_extension);
-				break;
-			case FILE_SORT_NONE:  /* Should never reach this point! */
-			default:
-				BLI_assert(0);
-		}
-
-		filelist_filter_clear(filelist);
-	}
-}
-
 void filelist_setsorting(struct FileList *filelist, const short sort)
 {
 	if (filelist->sort != sort) {
@@ -660,56 +633,6 @@ static void filelist_filter_clear(FileList *filelist)
 	filelist->need_filtering = true;
 }
 
-void filelist_filter(FileList *filelist)
-{
-	int num_filtered = 0;
-	const int num_files = filelist->filelist.nbr_entries;
-	FileListInternEntry **filtered_tmp, *file;
-
-	if (filelist->filelist.nbr_entries == 0) {
-		return;
-	}
-
-	if (!filelist->need_filtering) {
-		/* Assume it has already been filtered, nothing else to do! */
-		return;
-	}
-
-	filelist->filter_data.hide_lib_dir = false;
-	if (filelist->max_recursion) {
-		/* Never show lib ID 'categories' directories when we are in 'flat' mode, unless
-		 * root path is a blend file. */
-		char dir[FILE_MAXDIR];
-		if (!filelist_islibrary(filelist, dir, NULL)) {
-			filelist->filter_data.hide_lib_dir = true;
-		}
-	}
-
-	filtered_tmp = MEM_mallocN(sizeof(*filtered_tmp) * (size_t)num_files, __func__);
-
-	/* Filter remap & count how many files are left after filter in a single loop. */
-	for (file = filelist->filelist_intern.entries.first; file; file = file->next) {
-		if (filelist->filterf(file, filelist->filelist.root, &filelist->filter_data)) {
-			filtered_tmp[num_filtered++] = file;
-		}
-	}
-
-	if (filelist->filelist_intern.filtered) {
-		MEM_freeN(filelist->filelist_intern.filtered);
-	}
-	filelist->filelist_intern.filtered = MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered,
-	                                                 __func__);
-	memcpy(filelist->filelist_intern.filtered, filtered_tmp,
-	       sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered);
-	filelist->filelist.nbr_entries_filtered = num_filtered;
-//	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
-
-	filelist_cache_clear(&filelist->filelist_cache);
-	filelist->need_filtering = false;
-
-	MEM_freeN(filtered_tmp);
-}
-
 void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const bool hide_parent,
                                 const unsigned int filter, const unsigned int filter_id,
                                 const char *filter_glob, const char *filter_search)
@@ -734,6 +657,94 @@ void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const b
 		filelist_filter_clear(filelist);
 	}
 }
+
+
+void filelist_sort_filter(struct FileList *filelist)
+{
+	if (filelist->ae) {
+		if (filelist->ae->type->sort_filter) {
+			const bool changed = filelist->ae->type->sort_filter(filelist->ae, true, true,
+			                                                     filelist->filter_data.filter_glob,
+			                                                     filelist->filter_data.filter_search,
+			                                                     &filelist->filelist);
+		}
+	}
+	else {
+		if (filelist_need_sorting(filelist)) {
+			filelist->need_sorting = false;
+
+			switch (filelist->sort) {
+				case FILE_SORT_ALPHA:
+					BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_name);
+					break;
+				case FILE_SORT_TIME:
+					BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_date);
+					break;
+				case FILE_SORT_SIZE:
+					BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_size);
+					break;
+				case FILE_SORT_EXTENSION:
+					BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_extension);
+					break;
+				case FILE_SORT_NONE:  /* Should never reach this point! */
+				default:
+					BLI_assert(0);
+			}
+
+			filelist_filter_clear(filelist);
+		}
+
+		{
+			int num_filtered = 0;
+			const int num_files = filelist->filelist.nbr_entries;
+			FileListInternEntry **filtered_tmp, *file;
+
+			if (filelist->filelist.nbr_entries == 0) {
+				return;
+			}
+
+			if (!filelist->need_filtering) {
+				/* Assume it has already been filtered, nothing else to do! */
+				return;
+			}
+
+			filelist->filter_data.hide_lib_dir = false;
+			if (filelist->max_recursion) {
+				/* Never show lib ID 'categories' directories when we are in 'flat' mode, unless
+				 * root path is a blend file. */
+				char dir[FILE_MAXDIR];
+				if (!filelist_islibrary(filelist, dir, NULL)) {
+					filelist->filter_data.hide_lib_dir = true;
+				}
+			}
+
+			filtered_tmp = MEM_mallocN(sizeof(*filtered_tmp) * (size_t)num_files, __func__);
+
+			/* Filter remap & count how many files are left after filter in a single loop. */
+			for (file = filelist->filelist_intern.entries.first; file; file = file->next) {
+				if (filelist->filterf(file, filelist->filelist.root, &filelist->filter_data)) {
+					filtered_tmp[num_filtered++] = file;
+				}
+			}
+
+			if (filelist->filelist_intern.filtered) {
+				MEM_freeN(filelist->filelist_intern.filtered);
+			}
+			filelist->filelist_intern.filtered = MEM_mallocN(sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered,
+															 __func__);
+			memcpy(filelist->filelist_intern.filtered, filtered_tmp,
+				   sizeof(*filelist->filelist_intern.filtered) * (size_t)num_filtered);
+			filelist->filelist.nbr_entries_filtered = num_filtered;
+		//	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
+
+			filelist_cache_clear(&filelist->filelist_cache);
+			filelist->need_filtering = false;
+
+			MEM_freeN(filtered_tmp);
+		}
+	}
+}
+
 
 /* ********** Icon/image helpers ********** */
 
@@ -1040,6 +1051,7 @@ static FileDirEntry *filelist_intern_create_entry(FileList *filelist, const int 
 	ret->blentype = entry->blentype;
 	ret->typeflag = entry->typeflag;
 
+	/* XXX Maybe rather use filelist->filelist.entries??? */
 	BLI_addtail(&intern->tmp_entries, ret);
 	return ret;
 }
@@ -1484,13 +1496,32 @@ static bool filelist_file_cache_block_create(struct FileList *filelist, const in
 		tmp_arr = filelist->filelist;
 		BLI_listbase_clear(&tmp_arr.entries);
 		if (!filelist->ae->type->entries_block_get(filelist->ae, start_index, start_index + size, &tmp_arr)) {
+			printf("%s: Failed to get [%d:%d] from AE %s\n", __func__, start_index, start_index + size, filelist->ae->type->name);
 			BKE_filedir_entryarr_clear(&tmp_arr);
 			return false;
 		}
 
 		for (i = 0, tmp_entry = tmp_arr.entries.first; i < size; i++, cursor++, tmp_entry = tmp_entry->next) {
+			BLI_assert(!BLI_listbase_is_empty(&tmp_entry->variants) && tmp_entry->nbr_variants);
+			BLI_assert(tmp_entry->act_variant < tmp_entry->nbr_variants);
+			if (!tmp_entry->name) {
+				char buff[FILE_MAX_LIBEXTRA];
+				tmp_entry->name = BLI_strdup(fileentry_uiname(filelist->filelist.root,
+				                                              tmp_entry->relpath, tmp_entry->typeflag, buff));
+			}
+			if (!tmp_entry->entry) {
+				FileDirEntryVariant *variant = BLI_findlink(&tmp_entry->variants, tmp_entry->act_variant);
+				BLI_assert(!BLI_listbase_is_empty(&variant->revisions) && variant->nbr_revisions);
+				BLI_assert(variant->act_revision < variant->nbr_revisions);
+				tmp_entry->entry = BLI_findlink(&variant->revisions, variant->act_revision);
+				BLI_assert(tmp_entry->entry);
+			}
+
 			cache->block_entries[cursor] = tmp_entry;
 		}
+
+		/* Using filelist->filelist.entries as owner of that mem! */
+		BLI_movelisttolist(&filelist->filelist.entries, &tmp_arr.entries);
 		return true;
 	}
 	else {
@@ -1508,17 +1539,21 @@ static bool filelist_file_cache_block_create(struct FileList *filelist, const in
 static void filelist_file_cache_block_release(struct FileList *filelist, const int size, int cursor)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
+	int i;
 
-	{
-		int i;
-
-		for (i = 0; i < size; i++, cursor++) {
-//			printf("%s: release cacheidx %d (%%p %%s)\n", __func__, cursor/*, cache->block_entries[cursor], cache->block_entries[cursor]->relpath*/);
-			filelist_intern_release_entry(filelist, cache->block_entries[cursor]);
-#ifndef NDEBUG
-			cache->block_entries[cursor] = NULL;
-#endif
+	for (i = 0; i < size; i++, cursor++) {
+//		printf("%s: release cacheidx %d (%%p %%s)\n", __func__, cursor/*, cache->block_entries[cursor], cache->block_entries[cursor]->relpath*/);
+		if (filelist->ae) {
+			BLI_remlink(&filelist->filelist.entries, cache->block_entries[cursor]);
+			BKE_filedir_entry_free(cache->block_entries[cursor]);
 		}
+		else {
+			filelist_intern_release_entry(filelist, cache->block_entries[cursor]);
+		}
+
+#ifndef NDEBUG
+		cache->block_entries[cursor] = NULL;
+#endif
 	}
 }
 
@@ -2012,7 +2047,7 @@ FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check,
 	selection = MEM_callocN(sizeof(*selection), __func__);
 	strcpy(selection->root, filelist->filelist.root);
 
-	for (; iter; BLI_ghashIterator_step(iter)) {
+	for (; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
 		const char *uuid = BLI_ghashIterator_getKey(iter);
 		FileDirEntry *entry_org = filelist_entry_find_uuid(filelist, uuid);
 
@@ -2496,6 +2531,9 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 {
 	FileListReadJob *flrj = flrjv;
 
+	printf("START filelist reading (%d files, main thread: %d)\n",
+           flrj->filelist->filelist.nbr_entries, BLI_thread_is_main());
+
 	if (flrj->filelist->ae) {
 		flrj->progress = progress;
 		flrj->stop = stop;
@@ -2506,9 +2544,6 @@ static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update
 		}
 	}
 	else {
-	    printf("START filelist reading (%d files, main thread: %d)\n",
-	           flrj->filelist->filelist.nbr_entries, BLI_thread_is_main());
-
 		BLI_mutex_lock(&flrj->lock);
 
 		BLI_assert((flrj->tmp_filelist == NULL) && flrj->filelist);
@@ -2539,29 +2574,11 @@ static void filelist_readjob_update(void *flrjv)
 	else if (flrj->filelist->ae) {
 		/* We only communicate with asset engine from main thread! */
 		AssetEngine *ae = flrj->filelist->ae;
-		FileDirEntry *entry;
 
 		flrj->ae_job_id = ae->type->list_dir(ae, flrj->ae_job_id, &flrj->filelist->filelist);
 		flrj->filelist->need_sorting = true;
 		flrj->filelist->need_filtering = true;
 		flrj->filelist->force_refresh = true;
-
-		for (entry = flrj->filelist->filelist.entries.first; entry; entry = entry->next) {
-			BLI_assert(!BLI_listbase_is_empty(&entry->variants) && entry->nbr_variants);
-			BLI_assert(entry->act_variant < entry->nbr_variants);
-			if (!entry->name) {
-				char buff[FILE_MAX_LIBEXTRA];
-				entry->name = BLI_strdup(fileentry_uiname(flrj->filelist->filelist.root,
-				                                          entry->relpath, entry->typeflag, buff));
-			}
-			if (!entry->entry) {
-				FileDirEntryVariant *variant = BLI_findlink(&entry->variants, entry->act_variant);
-				BLI_assert(!BLI_listbase_is_empty(&variant->revisions) && variant->nbr_revisions);
-				BLI_assert(variant->act_revision < variant->nbr_revisions);
-				entry->entry = BLI_findlink(&variant->revisions, variant->act_revision);
-				BLI_assert(entry->entry);
-			}
-		}
 
 		*flrj->progress = ae->type->progress(ae, flrj->ae_job_id);
 		if ((ae->type->status(ae, flrj->ae_job_id) & (AE_STATUS_RUNNING | AE_STATUS_VALID)) != (AE_STATUS_RUNNING | AE_STATUS_VALID)) {
