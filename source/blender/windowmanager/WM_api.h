@@ -470,9 +470,9 @@ float       WM_event_tablet_data(const struct wmEvent *event, int *pen_flip, flo
 bool        WM_event_is_tablet(const struct wmEvent *event);
 
 /* widget API */
-struct wmWidget *WM_widget_new(void (*draw)(struct wmWidget *, const struct bContext *),
+struct wmWidget *WM_widget_new(void (*draw)(const struct bContext *, struct wmWidget *),
                                void (*render_3d_intersection)(const struct bContext *, struct wmWidget *, int),
-                               int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *customdata),
+                               int  (*intersect)(struct bContext *, const struct wmEvent *, struct wmWidget *),
                                int  (*handler)(struct bContext *, const struct wmEvent *, struct wmWidget *));
 
 void WM_widget_property(struct wmWidget *, int slot, struct PointerRNA *ptr, const char *propname);

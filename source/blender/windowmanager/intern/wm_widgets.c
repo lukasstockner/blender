@@ -157,7 +157,7 @@ struct wmWidgetGroupType *WM_widgetgrouptype_new(
 	return wgrouptype;
 }
 
-wmWidget *WM_widget_new(void (*draw)(struct wmWidget *customdata, const struct bContext *C),
+wmWidget *WM_widget_new(void (*draw)(const struct bContext *C, struct wmWidget *customdata),
                         void (*render_3d_intersection)(const struct bContext *C, struct wmWidget *customdata, int selectionbase),
                         int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget),
                         int  (*handler)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget))
@@ -366,7 +366,7 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 	if (widget && in_scene == ((widget->flag & WM_WIDGET_SCENE_DEPTH)!= 0)) {
 		/* notice that we don't update the widgetgroup, widget is now on its own, it should have all
 		 * relevant data to update itself */
-		widget->draw(widget, C);
+		widget->draw(C, widget);
 	}
 	else if (wmap->widgetgroups.first) {
 		wmWidgetGroup *wgroup;
@@ -379,7 +379,7 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 					    (!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
 					    ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0) == in_scene)
 					{
-						widget->draw(widget, C);
+						widget->draw(C, widget);
 					}
 				}
 			}

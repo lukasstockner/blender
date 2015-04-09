@@ -56,7 +56,7 @@ typedef struct wmWidget {
 	char idname[64];
 
 	/* draw widget */
-	void (*draw)(struct wmWidget *widget, const struct bContext *C);
+	void (*draw)(const struct bContext *C, struct wmWidget *widget);
 	/* determine if the mouse intersects with the widget. The calculation should be done in the callback itself */
 	int  (*intersect)(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 

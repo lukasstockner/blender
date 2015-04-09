@@ -1711,7 +1711,7 @@ static int manipulator_flags_from_active(const int active)
 	return val;
 }
 
-static void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
+static void WIDGET_manipulator_draw(const bContext *C, wmWidget *UNUSED(widget))
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1976,9 +1976,9 @@ static void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), str
 	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
 	wmWidget *widget, *axis;
 
-	float color_green[4] = {0.0f, 1.0f, 0.0f, 1.0f};
-	float color_red[4] = {1.0f, 0.0f, 0.0f, 1.0f};
-	float color_blue[4] = {0.0f, 0.0f, 1.0f, 1.0f};
+	float color_green[4] = {0.25f, 1.0f, 0.25f, 1.0f};
+	float color_red[4] = {1.0f, 0.25f, 0.25f, 1.0f};
+	float color_blue[4] = {0.25f, 0.25f, 1.0f, 1.0f};
 	short i;
 
 	widget = WM_widget_new(WIDGET_manipulator_draw,
@@ -2017,7 +2017,7 @@ static void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), str
 				WIDGET_dial_set_color(axis, color_blue);
 				break;
 		}
-		axis->render_3d_intersection = widget->render_3d_intersection;
+		axis->render_3d_intersection = widget->render_3d_intersection; /* XXX overides arrow/dial intersection */
 	}
 	MAN_ITER_AXES_END
 

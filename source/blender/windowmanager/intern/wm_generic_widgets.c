@@ -248,7 +248,7 @@ static void widget_arrow_render_3d_intersect(const struct bContext *UNUSED(C), s
 	arrow_draw_intern((ArrowWidget *)widget, true, false);
 }
 
-static void widget_arrow_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
+static void widget_arrow_draw(const struct bContext *UNUSED(C), struct wmWidget *widget)
 {
 	arrow_draw_intern((ArrowWidget *)widget, false, (widget->flag & WM_WIDGET_HIGHLIGHT) != 0);
 }
@@ -544,7 +544,7 @@ static void widget_dial_render_3d_intersect(const struct bContext *C, struct wmW
 	}
 }
 
-static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C)
+static void widget_dial_draw(const struct bContext *C, struct wmWidget *widget)
 {
 	DialWidget *dial = (DialWidget *)widget;
 	ARegion *ar = CTX_wm_region(C);
@@ -718,9 +718,11 @@ static void rect_transform_draw_interaction(int highlighted, float half_w, float
 	glLineWidth(1.0);
 	glColor3f(1.0, 1.0, 1.0);
 	glDrawArrays(GL_LINE_STRIP, 0, 3);
+
+	(void)elems;
 }
 
-static void widget_rect_transform_draw(struct wmWidget *widget, const struct bContext *UNUSED(C))
+static void widget_rect_transform_draw(const struct bContext *UNUSED(C), struct wmWidget *widget)
 {
 	RectTransformWidget *cage = (RectTransformWidget *)widget;
 	rctf r;
@@ -1062,7 +1064,7 @@ typedef struct FacemapWidget {
 } FacemapWidget;
 
 
-static void widget_facemap_draw(struct wmWidget *widget, const struct bContext *C)
+static void widget_facemap_draw(const struct bContext *C, struct wmWidget *widget)
 {
 	FacemapWidget *fmap_widget = (FacemapWidget *)widget;
 	glPushMatrix();
@@ -1074,7 +1076,7 @@ static void widget_facemap_draw(struct wmWidget *widget, const struct bContext *
 static void widget_facemap_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase)
 {
 	GPU_select_load_id(selectionbase);
-	widget_facemap_draw(widget, C);
+	widget_facemap_draw(C, widget);
 }
 
 
