@@ -45,6 +45,9 @@ void GPUx_reset_draw_state()
 
 void GPUx_set_common_state(const CommonDrawState *state)
 {
+	if (state == NULL)
+		state = &default_state.common;
+
 	if (state->blend != current.common.blend) {
 		if (state->blend)
 			glEnable(GL_BLEND);
@@ -80,6 +83,9 @@ void GPUx_set_common_state(const CommonDrawState *state)
 
 void GPUx_set_point_state(const PointDrawState *state)
 {
+	if (state == NULL)
+		state = &default_state.point;
+
 	if (state->smooth != current.point.smooth) {
 		if (state->smooth)
 			glEnable(GL_POINT_SMOOTH);
@@ -96,6 +102,9 @@ void GPUx_set_point_state(const PointDrawState *state)
 
 void GPUx_set_line_state(const LineDrawState *state)
 {
+	if (state == NULL)
+		state = &default_state.line;
+
 	if (state->smooth != current.line.smooth) {
 		if (state->smooth)
 			glEnable(GL_LINE_SMOOTH);
@@ -138,12 +147,18 @@ static GLenum faces_to_cull(const PolygonDrawState *state)
 
 void GPUx_set_polygon_state(const PolygonDrawState *state)
 {
-	const GLenum cull = faces_to_cull(state);
-	const GLenum curr_cull = faces_to_cull(&current.polygon);
-	if (cull != curr_cull) {
+	if (state == NULL)
+		state = &default_state.polygon;
+
+	if (state->draw_front != current.polygon.draw_front ||
+	    state->draw_back != current.polygon.draw_back) {
+
+		const GLenum cull = faces_to_cull(state);
+
 		if (cull == GL_NONE)
 			glDisable(GL_CULL_FACE);
 		else {
+			const GLenum curr_cull = faces_to_cull(&current.polygon);
 			if (curr_cull == GL_NONE)
 				glEnable(GL_CULL_FACE);
 			glCullFace(cull);
