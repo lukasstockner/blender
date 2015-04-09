@@ -122,6 +122,24 @@ enum {
 	MAN_SEL_MAX
 };
 
+/* axes as index - XXX combine with return codes for select */
+enum {
+	MAN_AXIS_TRANS_X = 0,
+	MAN_AXIS_TRANS_Y,
+	MAN_AXIS_TRANS_Z,
+
+	MAN_AXIS_ROT_X,
+	MAN_AXIS_ROT_Y,
+	MAN_AXIS_ROT_Z,
+};
+
+/* axis types */
+enum {
+	MAN_AXES_ALL = 0,
+	MAN_AXES_TRANSLATE,
+	MAN_AXES_ROTATE,
+};
+
 /* color codes */
 
 #define MAN_RGB     0
@@ -131,6 +149,45 @@ enum {
 /* threshold for testing view aligned manipulator axis */
 #define TW_AXIS_DOT_MIN 0.02f
 #define TW_AXIS_DOT_MAX 0.1f
+
+/* loop over all axes */
+#define MAN_ITER_AXES_BEGIN(axis_type) \
+	for (i = (axis_type == MAN_AXES_ROTATE ? 3 : 0); \
+	     i < (axis_type == MAN_AXES_TRANSLATE ? 3 : 6 ); \
+	     i++) { \
+		axis = manipulator_get_axis_from_index(manipulator, i);
+
+#define MAN_ITER_AXES_END }
+
+static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *manipulator, const short index)
+{
+	wmWidget *axis;
+
+	BLI_assert(IN_RANGE_INCL(index, 0.0f, 5.0f));
+
+	switch (index) {
+		case MAN_AXIS_TRANS_X:
+			axis = manipulator->translate_x;
+			break;
+		case MAN_AXIS_TRANS_Y:
+			axis = manipulator->translate_y;
+			break;
+		case MAN_AXIS_TRANS_Z:
+			axis = manipulator->translate_z;
+			break;
+		case MAN_AXIS_ROT_X:
+			axis = manipulator->rotate_x;
+			break;
+		case MAN_AXIS_ROT_Y:
+			axis = manipulator->rotate_y;
+			break;
+		case MAN_AXIS_ROT_Z:
+			axis = manipulator->rotate_z;
+			break;
+	}
+
+	return axis;
+}
 
 /* transform widget center calc helper for below */
 static void calc_tw_center(Scene *scene, const float co[3])
@@ -1698,8 +1755,10 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 	View3D *v3d = sa->spacedata.first;
 	RegionView3D *rv3d = ar->regiondata;
 	ManipulatorGroup *manipulator;
+	wmWidget *axis;
 
 	int totsel;
+	short i;
 
 	WIDGETGROUP_manipulator_create(C, wgroup);
 	manipulator = WM_widgetgroup_customdata(wgroup);
@@ -1708,13 +1767,11 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 
 	totsel = calc_manipulator_stats(C);
 	if (totsel == 0) {
-		WM_widget_flag_enable(manipulator->translate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->translate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->translate_z, WM_WIDGET_HIDDEN);
-
-		WM_widget_flag_enable(manipulator->rotate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->rotate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->rotate_z, WM_WIDGET_HIDDEN);
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
 		return;
 	}
 	v3d->twflag |= V3D_DRAW_MANIPULATOR;
@@ -1749,13 +1806,11 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 	/* when looking through a selected camera, the manipulator can be at the
 	 * exact same position as the view, skip so we don't break selection */
 	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
-		WM_widget_flag_enable(manipulator->translate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->translate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->translate_z, WM_WIDGET_HIDDEN);
-
-		WM_widget_flag_enable(manipulator->rotate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->rotate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->rotate_z, WM_WIDGET_HIDDEN);
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
 
 		return;
 	}
@@ -1763,54 +1818,53 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 	test_manipulator_axis(C);
 	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
 
-	WM_widget_operator(manipulator->translate_x, "TRANSFORM_OT_translate");
-	WM_widget_operator(manipulator->translate_y, "TRANSFORM_OT_translate");
-	WM_widget_operator(manipulator->translate_z, "TRANSFORM_OT_translate");
-	WM_widget_operator(manipulator->rotate_x, "TRANSFORM_OT_rotate");
-	WM_widget_operator(manipulator->rotate_y, "TRANSFORM_OT_rotate");
-	WM_widget_operator(manipulator->rotate_z, "TRANSFORM_OT_rotate");
+	MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+	{
+		WM_widget_operator(axis, "TRANSFORM_OT_translate");
+	}
+	MAN_ITER_AXES_END
+	MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
+	{
+		WM_widget_operator(axis, "TRANSFORM_OT_rotate");
+	}
+	MAN_ITER_AXES_END
 
 	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
-		/* should be added according to the order of axis */
-		WM_widget_set_origin(manipulator->translate_x, rv3d->twmat[3]);
-		WIDGET_arrow_set_direction(manipulator->translate_x, rv3d->twmat[0]);
+		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+		{
+			/* should be added according to the order of axis */
+			WM_widget_set_origin(axis, rv3d->twmat[3]);
+			WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
 
-		WM_widget_set_origin(manipulator->translate_y, rv3d->twmat[3]);
-		WIDGET_arrow_set_direction(manipulator->translate_y, rv3d->twmat[1]);
-
-		WM_widget_set_origin(manipulator->translate_z, rv3d->twmat[3]);
-		WIDGET_arrow_set_direction(manipulator->translate_z, rv3d->twmat[2]);
-
-		WM_widget_flag_disable(manipulator->translate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_disable(manipulator->translate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_disable(manipulator->translate_z, WM_WIDGET_HIDDEN);
+			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
 	}
 	else {
-		WM_widget_flag_enable(manipulator->translate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->translate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->translate_z, WM_WIDGET_HIDDEN);
+		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
 	}
 
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
 		/* should be added according to the order of axis */
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
+		{
+			WM_widget_set_origin(axis, rv3d->twmat[3]);
+			WIDGET_dial_set_direction(axis, rv3d->twmat[i - 3]);
 
-		WM_widget_set_origin(manipulator->rotate_x, rv3d->twmat[3]);
-		WIDGET_dial_set_direction(manipulator->rotate_x, rv3d->twmat[0]);
-
-		WM_widget_set_origin(manipulator->rotate_y, rv3d->twmat[3]);
-		WIDGET_dial_set_direction(manipulator->rotate_y, rv3d->twmat[1]);
-
-		WM_widget_set_origin(manipulator->rotate_z, rv3d->twmat[3]);
-		WIDGET_dial_set_direction(manipulator->rotate_z, rv3d->twmat[2]);
-
-		WM_widget_flag_disable(manipulator->rotate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_disable(manipulator->rotate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_disable(manipulator->rotate_z, WM_WIDGET_HIDDEN);
+			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
 	}
 	else {
-		WM_widget_flag_enable(manipulator->rotate_x, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->rotate_y, WM_WIDGET_HIDDEN);
-		WM_widget_flag_enable(manipulator->rotate_z, WM_WIDGET_HIDDEN);
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
 	}
 }
 
@@ -2042,15 +2096,15 @@ void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
 	MEM_freeN(manipulator);
 }
 
-void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup)
+void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), struct wmWidgetGroup *wgroup)
 {
+	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
+	wmWidget *widget, *axis;
+
 	float color_green[4] = {0.0f, 1.0f, 0.0f, 1.0f};
 	float color_red[4] = {1.0f, 0.0f, 0.0f, 1.0f};
 	float color_blue[4] = {0.0f, 0.0f, 1.0f, 1.0f};
-
-	wmWidget *widget = NULL;
-
-	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
+	short i;
 
 	widget = WM_widget_new(WIDGET_manipulator_draw,
 	                       WIDGET_manipulator_render_3d_intersect,
@@ -2060,34 +2114,32 @@ void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGro
 	wm_widget_register(wgroup, widget);
 
 	manipulator->translate_x = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	WIDGET_arrow_set_color(manipulator->translate_x, color_red);
-	manipulator->translate_x->render_3d_intersection = widget->render_3d_intersection;
-	wm_widget_register(wgroup, manipulator->translate_x);
-
 	manipulator->translate_y = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
-	manipulator->translate_y->render_3d_intersection = widget->render_3d_intersection;
-	wm_widget_register(wgroup, manipulator->translate_y);
-
 	manipulator->translate_z = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	WIDGET_arrow_set_color(manipulator->translate_z, color_blue);
-	manipulator->translate_z->render_3d_intersection = widget->render_3d_intersection;
-	wm_widget_register(wgroup, manipulator->translate_z);
-
 	manipulator->rotate_x = WIDGET_dial_new(WIDGET_DIAL_STYLE_RING_CLIPPED);
-	WIDGET_dial_set_color(manipulator->rotate_x, color_red);
-	manipulator->rotate_x->render_3d_intersection = widget->render_3d_intersection;
-	wm_widget_register(wgroup, manipulator->rotate_x);
-
 	manipulator->rotate_y = WIDGET_dial_new(WIDGET_DIAL_STYLE_RING_CLIPPED);
-	WIDGET_dial_set_color(manipulator->rotate_y, color_green);
-	manipulator->rotate_y->render_3d_intersection = widget->render_3d_intersection;
-	wm_widget_register(wgroup, manipulator->rotate_y);
-
 	manipulator->rotate_z = WIDGET_dial_new(WIDGET_DIAL_STYLE_RING_CLIPPED);
-	WIDGET_dial_set_color(manipulator->rotate_z, color_blue);
-	manipulator->rotate_z->render_3d_intersection = widget->render_3d_intersection;
-	wm_widget_register(wgroup, manipulator->rotate_z);
+
+	MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
+	{
+		switch (i) {
+			case MAN_AXIS_TRANS_X:
+			case MAN_AXIS_ROT_X:
+				WIDGET_arrow_set_color(axis, color_red);
+				break;
+			case MAN_AXIS_TRANS_Y:
+			case MAN_AXIS_ROT_Y:
+				WIDGET_arrow_set_color(axis, color_green);
+				break;
+			case MAN_AXIS_TRANS_Z:
+			case MAN_AXIS_ROT_Z:
+				WIDGET_arrow_set_color(axis, color_blue);
+				break;
+		}
+		axis->render_3d_intersection = widget->render_3d_intersection;
+		wm_widget_register(wgroup, axis);
+	}
+	MAN_ITER_AXES_END
 
 	WM_widgetgroup_customdata_set(wgroup, manipulator);
 }
