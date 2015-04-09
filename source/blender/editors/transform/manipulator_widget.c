@@ -2116,28 +2116,33 @@ void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), struct wmW
 	manipulator->translate_x = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
 	manipulator->translate_y = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
 	manipulator->translate_z = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
-	manipulator->rotate_x = WIDGET_dial_new(WIDGET_DIAL_STYLE_RING_CLIPPED);
-	manipulator->rotate_y = WIDGET_dial_new(WIDGET_DIAL_STYLE_RING_CLIPPED);
-	manipulator->rotate_z = WIDGET_dial_new(WIDGET_DIAL_STYLE_RING_CLIPPED);
+	manipulator->rotate_x = WIDGET_dial_new(wgroup, WIDGET_DIAL_STYLE_RING_CLIPPED);
+	manipulator->rotate_y = WIDGET_dial_new(wgroup, WIDGET_DIAL_STYLE_RING_CLIPPED);
+	manipulator->rotate_z = WIDGET_dial_new(wgroup, WIDGET_DIAL_STYLE_RING_CLIPPED);
 
 	MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
 	{
 		switch (i) {
 			case MAN_AXIS_TRANS_X:
-			case MAN_AXIS_ROT_X:
 				WIDGET_arrow_set_color(axis, color_red);
 				break;
 			case MAN_AXIS_TRANS_Y:
-			case MAN_AXIS_ROT_Y:
 				WIDGET_arrow_set_color(axis, color_green);
 				break;
 			case MAN_AXIS_TRANS_Z:
-			case MAN_AXIS_ROT_Z:
 				WIDGET_arrow_set_color(axis, color_blue);
+				break;
+			case MAN_AXIS_ROT_X:
+				WIDGET_dial_set_color(axis, color_red);
+				break;
+			case MAN_AXIS_ROT_Y:
+				WIDGET_dial_set_color(axis, color_green);
+				break;
+			case MAN_AXIS_ROT_Z:
+				WIDGET_dial_set_color(axis, color_blue);
 				break;
 		}
 		axis->render_3d_intersection = widget->render_3d_intersection;
-		wm_widget_register(wgroup, axis);
 	}
 	MAN_ITER_AXES_END
 

@@ -566,7 +566,7 @@ static void widget_dial_draw(struct wmWidget *widget, const struct bContext *C)
 	}
 }
 
-wmWidget *WIDGET_dial_new(int style)
+wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, int style)
 {
 	float dir_default[3] = {0.0f, 0.0f, 1.0f};
 	DialWidget *dial;
@@ -588,6 +588,8 @@ wmWidget *WIDGET_dial_new(int style)
 
 	dial->style = style;
 	copy_v3_v3(dial->direction, dir_default);
+
+	wm_widget_register(wgroup, &dial->widget);
 
 	return (wmWidget *)dial;
 }

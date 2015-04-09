@@ -547,7 +547,7 @@ void WIDGET_arrow_set_direction(struct wmWidget *widget, float direction[3]);
 void WIDGET_arrow_set_up_vector(struct wmWidget *widget, float direction[3]);
 void WIDGET_arrow_set_scale(struct wmWidget *widget, float scale);
 
-struct wmWidget *WIDGET_dial_new(int style);
+struct wmWidget *WIDGET_dial_new(struct wmWidgetGroup *wgroup, int style);
 void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
