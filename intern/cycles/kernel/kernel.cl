@@ -52,6 +52,56 @@ __kernel void kernel_ocl_path_trace(
 		kernel_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
 }
 
+__kernel void kernel_ocl_shader(
+	ccl_constant KernelData *data,
+	ccl_global uint4 *input,
+	ccl_global float4 *output,
+
+#define KERNEL_TEX(type, ttype, name) \
+	ccl_global type *name,
+#include "kernel_textures.h"
+
+	int type, int sx, int sw, int offset, int sample)
+{
+	KernelGlobals kglobals, *kg = &kglobals;
+
+	kg->data = data;
+
+#define KERNEL_TEX(type, ttype, name) \
+	kg->name = name;
+#include "kernel_textures.h"
+
+	int x = sx + get_global_id(0);
+
+	if(x < sx + sw)
+		kernel_shader_evaluate(kg, input, output, (ShaderEvalType)type, x, sample);
+}
+
+__kernel void kernel_ocl_bake(
+	ccl_constant KernelData *data,
+	ccl_global uint4 *input,
+	ccl_global float4 *output,
+
+#define KERNEL_TEX(type, ttype, name) \
+	ccl_global type *name,
+#include "kernel_textures.h"
+
+	int type, int sx, int sw, int offset, int sample)
+{
+	KernelGlobals kglobals, *kg = &kglobals;
+
+	kg->data = data;
+
+#define KERNEL_TEX(type, ttype, name) \
+	kg->name = name;
+#include "kernel_textures.h"
+
+	int x = sx + get_global_id(0);
+
+	if(x < sx + sw)
+		kernel_bake_evaluate(kg, input, output, (ShaderEvalType)type, x, offset, sample);
+}
+
 __kernel void kernel_ocl_convert_to_byte(
 	ccl_constant KernelData *data,
 	ccl_global uchar4 *rgba,
@@ -104,54 +154,4 @@ __kernel void kernel_ocl_convert_to_half_float(
 
 	if(x < sx + sw && y < sy + sh)
 		kernel_film_convert_to_half_float(kg, rgba, buffer, sample_scale, x, y, offset, stride);
-}
-
-__kernel void kernel_ocl_shader(
-	ccl_constant KernelData *data,
-	ccl_global uint4 *input,
-	ccl_global float4 *output,
-
-#define KERNEL_TEX(type, ttype, name) \
-	ccl_global type *name,
-#include "kernel_textures.h"
-
-	int type, int sx, int sw, int offset, int sample)
-{
-	KernelGlobals kglobals, *kg = &kglobals;
-
-	kg->data = data;
-
-#define KERNEL_TEX(type, ttype, name) \
-	kg->name = name;
-#include "kernel_textures.h"
-
-	int x = sx + get_global_id(0);
-
-	if(x < sx + sw)
-		kernel_shader_evaluate(kg, input, output, (ShaderEvalType)type, x, sample);
-}
-
-__kernel void kernel_ocl_bake(
-	ccl_constant KernelData *data,
-	ccl_global uint4 *input,
-	ccl_global float4 *output,
-
-#define KERNEL_TEX(type, ttype, name) \
-	ccl_global type *name,
-#include "kernel_textures.h"
-
-	int type, int sx, int sw, int offset, int sample)
-{
-	KernelGlobals kglobals, *kg = &kglobals;
-
-	kg->data = data;
-
-#define KERNEL_TEX(type, ttype, name) \
-	kg->name = name;
-#include "kernel_textures.h"
-
-	int x = sx + get_global_id(0);
-
-	if(x < sx + sw)
-		kernel_bake_evaluate(kg, input, output, (ShaderEvalType)type, x, offset, sample);
 }

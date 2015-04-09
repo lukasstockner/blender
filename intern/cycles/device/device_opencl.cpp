@@ -125,7 +125,7 @@ static bool opencl_kernel_use_advanced_shading(const string& platform)
 static string opencl_kernel_build_options(const string& platform, const string *debug_src = NULL)
 {
 #ifdef __SPLIT_KERNEL__
-	string build_options = " -cl-fast-relaxed-math -D__SPLIT_KERNEL__=1 ";
+	string build_options = " -cl-fast-relaxed-math ";
 	build_options.append(opt);
 	build_options.append(compute_device_type_build_option);
 #else
@@ -580,13 +580,13 @@ public:
 
 #else
 	cl_kernel ckPathTraceKernel;
-	cl_kernel ckFilmConvertByteKernel;
-	cl_kernel ckFilmConvertHalfFloatKernel;
+#endif
+
 	cl_kernel ckShaderKernel;
 	cl_kernel ckBakeKernel;
-
+	cl_kernel ckFilmConvertByteKernel;
+	cl_kernel ckFilmConvertHalfFloatKernel;
 	cl_program cpProgram;
-#endif
 
 	typedef map<string, device_vector<uchar>*> ConstMemMap;
 	typedef map<string, device_ptr> MemMap;
@@ -845,13 +845,13 @@ public:
 
 #else
 		ckPathTraceKernel = NULL;
-		ckFilmConvertByteKernel = NULL;
-		ckFilmConvertHalfFloatKernel = NULL;
+#endif
+
 		ckShaderKernel = NULL;
 		ckBakeKernel = NULL;
-
+		ckFilmConvertByteKernel = NULL;
+		ckFilmConvertHalfFloatKernel = NULL;
 		cpProgram = NULL;
-#endif
 
 		/* setup platform */
 		cl_uint num_platforms;
@@ -1642,73 +1642,79 @@ public:
 		kernel_init_source = "#include \"kernel_DataInit.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
 		clbin = string_printf("cycles_kernel_%s_%s_DataInit.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&dataInit_program, kernel_path, "dataInit", device_md5, kernel_init_source, clbin, ""))
+		if(!load_split_kernel_SPLIT_KERNEL(&dataInit_program, kernel_path, "dataInit", device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_SceneIntersect.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
 		clbin = string_printf("cycles_kernel_%s_%s_SceneIntersect.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&sceneIntersect_program, kernel_path, "SceneIntersect", device_md5, kernel_init_source, clbin, ""))
+		if(!load_split_kernel_SPLIT_KERNEL(&sceneIntersect_program, kernel_path, "SceneIntersect", device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_LampEmission.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_LampEmission.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&lampEmission_program, kernel_path, "LampEmission", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&lampEmission_program, kernel_path, "LampEmission", device_md5, kernel_init_source, clbin, svm_build_options + " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_QueueEnqueue.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
 		clbin = string_printf("cycles_kernel_%s_%s_QueueEnqueue.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&QueueEnqueue_program, kernel_path, "Queue", device_md5, kernel_init_source, clbin, ""))
+		if(!load_split_kernel_SPLIT_KERNEL(&QueueEnqueue_program, kernel_path, "Queue", device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_Background_BufferUpdate.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_Background_BufferUpdate.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&background_BufferUpdate_program, kernel_path, "Background", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&background_BufferUpdate_program, kernel_path, "Background", device_md5, kernel_init_source, clbin, svm_build_options + " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_ShaderEval.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShaderEval.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&shaderEval_program, kernel_path, "shaderEval", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&shaderEval_program, kernel_path, "shaderEval", device_md5, kernel_init_source, clbin, svm_build_options + " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl\" // "+ kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
 		clbin = string_printf("cycles_kernel_%s_%s_Holdout_Emission_Blurring_Pathtermination_AO.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&holdout_emission_blurring_termination_ao_program, kernel_path, "ao", device_md5, kernel_init_source, clbin, ""))
+		if(!load_split_kernel_SPLIT_KERNEL(&holdout_emission_blurring_termination_ao_program, kernel_path, "ao", device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
 			return false;
 #ifdef __SUBSURFACE__
 		kernel_init_source = "#include \"kernel_Subsurface.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
 		clbin = string_printf("cycles_kernel_%s_%s_Subsurface.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&subsurface_program, kernel_path, kernel_md5, device_md5, kernel_init_source, clbin, ""))
+		if(!load_split_kernel_SPLIT_KERNEL(&subsurface_program, kernel_path, kernel_md5, device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
 			return false;
 #endif
 		kernel_init_source = "#include \"kernel_DirectLighting.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_DirectLighting.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&directLighting_program, kernel_path, "directLighting", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&directLighting_program, kernel_path, "directLighting", device_md5, kernel_init_source, clbin, svm_build_options + " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_ShadowBlocked.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash(svm_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShadowBlocked.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&shadowBlocked_program, kernel_path, "shadow", device_md5, kernel_init_source, clbin, svm_build_options))
+		if(!load_split_kernel_SPLIT_KERNEL(&shadowBlocked_program, kernel_path, "shadow", device_md5, kernel_init_source, clbin, svm_build_options + " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_NextIterationSetUp.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
 		clbin = string_printf("cycles_kernel_%s_%s_NextIterationSetUp.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&nextIterationSetUp_program, kernel_path, "nextIter", device_md5, kernel_init_source, clbin, ""))
+		if(!load_split_kernel_SPLIT_KERNEL(&nextIterationSetUp_program, kernel_path, "nextIter", device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
 			return false;
 
 		kernel_init_source = "#include \"kernel_SumAllRadiance.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");
 		clbin = string_printf("cycles_kernel_%s_%s_SumAllRadiance.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel_SPLIT_KERNEL(&sumAllRadiance_program, kernel_path, "sumAll", device_md5, kernel_init_source, clbin, ""))
+		if(!load_split_kernel_SPLIT_KERNEL(&sumAllRadiance_program, kernel_path, "sumAll", device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
+			return false;
+
+		kernel_init_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
+		device_md5 = device_md5_hash("");
+		clbin = string_printf("cycles_kernel_%s_%s.clbin", device_md5.c_str(), kernel_md5.c_str());
+		if(!load_split_kernel_SPLIT_KERNEL(&cpProgram, kernel_path, "", device_md5, kernel_init_source, clbin, ""))
 			return false;
 
 #else
@@ -1812,23 +1818,23 @@ public:
 		ckPathTraceKernel = clCreateKernel(cpProgram, "kernel_ocl_path_trace", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
-
-		ckFilmConvertByteKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_byte", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
-
-		ckFilmConvertHalfFloatKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_half_float", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
+#endif
 
 		ckShaderKernel = clCreateKernel(cpProgram, "kernel_ocl_shader", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
 		ckBakeKernel = clCreateKernel(cpProgram, "kernel_ocl_bake", &ciErr);
-		if(opencl_error(ciErr))
+		if (opencl_error(ciErr))
 			return false;
-#endif
+
+		ckFilmConvertByteKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_byte", &ciErr);
+		if (opencl_error(ciErr))
+			return false;
+
+		ckFilmConvertHalfFloatKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_half_float", &ciErr);
+		if (opencl_error(ciErr))
+			return false;
 
 		return true;
 	}
@@ -2251,13 +2257,22 @@ public:
 #else
 		if(ckPathTraceKernel)
 			clReleaseKernel(ckPathTraceKernel);
-		if(ckFilmConvertByteKernel)
-			clReleaseKernel(ckFilmConvertByteKernel);
-		if(ckFilmConvertHalfFloatKernel)
-			clReleaseKernel(ckFilmConvertHalfFloatKernel);
-		if(cpProgram)
-			clReleaseProgram(cpProgram);
 #endif
+
+		if (ckBakeKernel)
+			clReleaseKernel(ckBakeKernel);
+
+		if (ckShaderKernel)
+			clReleaseKernel(ckShaderKernel);
+
+		if (ckFilmConvertByteKernel)
+			clReleaseKernel(ckFilmConvertByteKernel);
+
+		if (ckFilmConvertHalfFloatKernel)
+			clReleaseKernel(ckFilmConvertHalfFloatKernel);
+
+		if (cpProgram)
+			clReleaseProgram(cpProgram);
 
 		if(cqCommandQueue)
 			clReleaseCommandQueue(cqCommandQueue);
@@ -3272,12 +3287,6 @@ public:
 
 	void film_convert(DeviceTask& task, device_ptr buffer, device_ptr rgba_byte, device_ptr rgba_half)
 	{
-#ifdef __SPLIT_KERNEL__
-		(void)task;
-		(void)buffer;
-		(void)rgba_byte;
-		(void)rgba_half;
-#else
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_rgba = (rgba_byte)? CL_MEM_PTR(rgba_byte): CL_MEM_PTR(rgba_half);
@@ -3311,17 +3320,11 @@ public:
 		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_offset), (void*)&d_offset));
 		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_stride), (void*)&d_stride));
 
-
-
 		enqueue_kernel(ckFilmConvertKernel, d_w, d_h);
-#endif
 	}
 
 	void shader(DeviceTask& task)
 	{
-#ifdef __SPLIT_KERNEL__
-		(void)task;
-#else
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_input = CL_MEM_PTR(task.shader_input);
@@ -3366,7 +3369,6 @@ public:
 
 			task.update_progress(NULL);
 		}
-#endif
 	}
 
 	/* Calculates the amount of memory that has to be always
