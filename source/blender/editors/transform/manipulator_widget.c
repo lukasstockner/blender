@@ -150,7 +150,7 @@ enum {
 #define TW_AXIS_DOT_MIN 0.02f
 #define TW_AXIS_DOT_MAX 0.1f
 
-/* loop over all axes */
+/* loop over axes of given type */
 #define MAN_ITER_AXES_BEGIN(axis_type) \
 	for (i = (axis_type == MAN_AXES_ROTATE ? 3 : 0); \
 	     i < (axis_type == MAN_AXES_TRANSLATE ? 3 : 6 ); \
@@ -236,7 +236,7 @@ static void stats_pose(Scene *scene, RegionView3D *rv3d, bPoseChannel *pchan)
 }
 
 /* for editmode*/
-static void stats_editbone(RegionView3D *rv3d, EditBone *ebo)
+static void stats_editbone(RegionView3D *rv3d, const EditBone *ebo)
 {
 	if (ebo->flag & BONE_EDITMODE_LOCKED)
 		protectflag_to_drawflags(OB_LOCK_LOC | OB_LOCK_ROT | OB_LOCK_SCALE, &rv3d->twdrawflag);
@@ -350,15 +350,15 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 /* returns total items selected */
 static int calc_manipulator_stats(const bContext *C)
 {
-	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
+	const ScrArea *sa = CTX_wm_area(C);
+	const ARegion *ar = CTX_wm_region(C);
+	const ToolSettings *ts = CTX_data_tool_settings(C);
+	const View3D *v3d = sa->spacedata.first;
+	RegionView3D *rv3d = ar->regiondata;
 	Scene *scene = CTX_data_scene(C);
 	Object *obedit = CTX_data_edit_object(C);
-	ToolSettings *ts = CTX_data_tool_settings(C);
-	View3D *v3d = sa->spacedata.first;
-	RegionView3D *rv3d = ar->regiondata;
-	Base *base;
 	Object *ob = OBACT;
+	Base *base;
 	int a, totsel = 0;
 
 	/* transform widget matrix */
@@ -439,7 +439,7 @@ static int calc_manipulator_stats(const bContext *C)
 			}
 		} /* end editmesh */
 		else if (obedit->type == OB_ARMATURE) {
-			bArmature *arm = obedit->data;
+			const bArmature *arm = obedit->data;
 			EditBone *ebo;
 
 			if ((v3d->around == V3D_ACTIVE) && (ebo = arm->act_edbone)) {
@@ -486,7 +486,7 @@ static int calc_manipulator_stats(const bContext *C)
 				Nurb *nu;
 				BezTriple *bezt;
 				BPoint *bp;
-				ListBase *nurbs = BKE_curve_editNurbs_get(cu);
+				const ListBase *nurbs = BKE_curve_editNurbs_get(cu);
 
 				nu = nurbs->first;
 				while (nu) {
@@ -584,7 +584,7 @@ static int calc_manipulator_stats(const bContext *C)
 	}
 	else if (ob && (ob->mode & OB_MODE_POSE)) {
 		bPoseChannel *pchan;
-		int mode = TFM_ROTATION; // mislead counting bones... bah. We don't know the manipulator mode, could be mixed
+		int mode = TFM_ROTATION; /* mislead counting bones... bah. We don't know the manipulator mode, could be mixed */
 		bool ok = false;
 
 		if ((ob->lay & v3d->lay) == 0) return 0;
@@ -624,7 +624,7 @@ static int calc_manipulator_stats(const bContext *C)
 		/* pass */
 	}
 	else if (ob && ob->mode & OB_MODE_PARTICLE_EDIT) {
-		PTCacheEdit *edit = PE_get_current(scene, ob);
+		const PTCacheEdit *edit = PE_get_current(scene, ob);
 		PTCacheEditPoint *point;
 		PTCacheEditKey *ek;
 		int k;
@@ -648,7 +648,6 @@ static int calc_manipulator_stats(const bContext *C)
 		}
 	}
 	else {
-
 		/* we need the one selected object, if its not active */
 		ob = OBACT;
 		if (ob && !(ob->flag & SELECT)) ob = NULL;
@@ -671,9 +670,7 @@ static int calc_manipulator_stats(const bContext *C)
 
 	/* global, local or normal orientation? */
 	if (ob && totsel) {
-
 		switch (v3d->twmode) {
-
 			case V3D_MANIP_GLOBAL:
 			{
 				break; /* nothing to do */
@@ -732,7 +729,6 @@ static int calc_manipulator_stats(const bContext *C)
 				break;
 			}
 		}
-
 	}
 
 	return totsel;
@@ -765,7 +761,7 @@ static void test_manipulator_axis(const bContext *C)
 
 /* ******************** DRAWING STUFFIES *********** */
 
-static float screen_aligned(RegionView3D *rv3d, float mat[4][4])
+static float screen_aligned(const RegionView3D *rv3d, float mat[4][4])
 {
 	glTranslatef(mat[3][0], mat[3][1], mat[3][2]);
 
@@ -783,7 +779,8 @@ static float screen_aligned(RegionView3D *rv3d, float mat[4][4])
  * nsides = amount of points in ring
  * nrigns = amount of rings
  */
-static void partial_doughnut(float radring, float radhole, int start, int end, int nsides, int nrings)
+static void partial_doughnut(const float radring, const float radhole, const int start,
+                             const int end, const int nsides, const int nrings)
 {
 	float theta, phi, theta1;
 	float cos_theta, sin_theta;
@@ -860,7 +857,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 	}
 }
 
-static char axisBlendAngle(float idot)
+static char axisBlendAngle(const float idot)
 {
 	if (idot > TW_AXIS_DOT_MAX) {
 		return 255;
@@ -878,10 +875,12 @@ static char axisBlendAngle(float idot)
  * moving: in transform theme color
  * else the red/green/blue
  */
-static void manipulator_setcolor(View3D *v3d, char axis, int colcode, unsigned char alpha, bool highlight)
+static void manipulator_setcolor(const View3D *v3d, const char axis, const int colcode,
+                                 const unsigned char alpha, const bool highlight)
 {
 	unsigned char col[4] = {0};
-	int offset = (highlight) ? 80 : 0;
+	const int offset = (highlight) ? 80 : 0;
+
 	col[3] = alpha;
 
 	if (colcode == MAN_GHOST) {
@@ -923,7 +922,7 @@ static void manipulator_setcolor(View3D *v3d, char axis, int colcode, unsigned c
 	glColor4ubv(col);
 }
 
-static void manipulator_axis_order(RegionView3D *rv3d, int r_axis_order[3])
+static void manipulator_axis_order(const RegionView3D *rv3d, int r_axis_order[3])
 {
 	float axis_values[3];
 	float vec[3];
@@ -938,9 +937,9 @@ static void manipulator_axis_order(RegionView3D *rv3d, int r_axis_order[3])
 }
 
 /* viewmatrix should have been set OK, also no shademode! */
-static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int colcode,
-                                         int flagx, int flagy, int flagz, int axis,
-                                         const int selectionbase, int highlight)
+static void draw_manipulator_axes_single(const View3D *v3d, const RegionView3D *rv3d, const int colcode,
+                                         const int flagx, const int flagy, const int flagz, const int axis,
+                                         const int selectionbase, const int highlight)
 {
 	switch (axis) {
 		case 0:
@@ -991,9 +990,9 @@ static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int co
 			break;
 	}
 }
-static void draw_manipulator_axes(View3D *v3d, RegionView3D *rv3d, int colcode,
-                                  int flagx, int flagy, int flagz,
-                                  const int axis_order[3], const int selectionbase, int highlight)
+static void draw_manipulator_axes(const View3D *v3d, const RegionView3D *rv3d, const int colcode, const int flagx,
+                                  const int flagy, const int flagz, const int axis_order[3],
+                                  const int selectionbase, const int highlight)
 {
 	int i;
 	for (i = 0; i < 3; i++) {
@@ -1020,17 +1019,16 @@ static void postOrtho(const bool ortho)
 	}
 }
 
-static void draw_manipulator_rotate(
-        View3D *v3d, RegionView3D *rv3d, const int drawflags, int highlight, const int combo,
-        const bool is_moving, const int selectionbase)
+static void draw_manipulator_rotate(View3D *v3d, RegionView3D *rv3d, const int drawflags, int highlight,
+                                    const int combo, const int selectionbase, const bool is_moving)
 {
+	const float cywid = 0.33f * 0.01f * (float)U.tw_handlesize;
+	const float cusize = cywid * 0.65f;
+	const int arcs = (G.debug_value != 2);
+	const int colcode = (is_moving) ? MAN_MOVECOL : MAN_RGB;
 	double plane[4];
 	float matt[4][4];
 	float size, unitmat[4][4];
-	float cywid = 0.33f * 0.01f * (float)U.tw_handlesize;
-	float cusize = cywid * 0.65f;
-	int arcs = (G.debug_value != 2);
-	const int colcode = (is_moving) ? MAN_MOVECOL : MAN_RGB;
 	bool ortho;
 
 	/* when called while moving in mixed mode, do not draw when... */
@@ -1048,7 +1046,7 @@ static void draw_manipulator_rotate(
 	if (arcs) {
 		/* clipplane makes nice handles, calc here because of multmatrix but with translate! */
 		copy_v3db_v3fl(plane, rv3d->viewinv[2]);
-		plane[3] = -0.02f * size; // clip just a bit more
+		plane[3] = -0.02f * size; /* clip just a bit more */
 		glClipPlane(GL_CLIP_PLANE0, plane);
 	}
 	/* sets view screen aligned */
@@ -1078,8 +1076,8 @@ static void draw_manipulator_rotate(
 
 		if (is_moving) {
 			float vec[3];
-			vec[0] = 0; // XXX (float)(t->imval[0] - t->center2d[0]);
-			vec[1] = 0; // XXX (float)(t->imval[1] - t->center2d[1]);
+			vec[0] = 0; /* XXX (float)(t->imval[0] - t->center2d[0]); */
+			vec[1] = 0; /* XXX (float)(t->imval[1] - t->center2d[1]); */
 			vec[2] = 0.0f;
 			normalize_v3(vec);
 			mul_v3_fl(vec, 1.2f * size);
@@ -1096,8 +1094,8 @@ static void draw_manipulator_rotate(
 
 	/* apply the transform delta */
 	if (is_moving) {
-		copy_m4_m4(matt, rv3d->twmat); // to copy the parts outside of [3][3]
-		// XXX mul_m4_m3m4(matt, t->mat, rv3d->twmat);
+		copy_m4_m4(matt, rv3d->twmat); /* to copy the parts outside of [3][3] */
+		/* XXX mul_m4_m3m4(matt, t->mat, rv3d->twmat); */
 		if (ortho) {
 			glMultMatrixf(matt);
 			glFrontFace(is_negative_m4(matt) ? GL_CW : GL_CCW);
@@ -1179,7 +1177,7 @@ static void draw_manipulator_rotate(
 
 		if (arcs) glDisable(GL_CLIP_PLANE0);
 	}
-	// donut arcs
+	/* donut arcs */
 	if (arcs) {
 		glEnable(GL_CLIP_PLANE0);
 
@@ -1265,10 +1263,9 @@ static void draw_manipulator_rotate(
 	/* restore */
 	glLoadMatrixf(rv3d->viewmat);
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
-
 }
 
-static void drawsolidcube(float size)
+static void drawsolidcube(const float size)
 {
 	const float cube[8][3] = {
 		{-1.0, -1.0, -1.0},
@@ -1330,13 +1327,13 @@ static void drawsolidcube(float size)
 }
 
 
-static void draw_manipulator_scale(
-        View3D *v3d, RegionView3D *rv3d, const int drawflags, int highlight, const int combo, const int colcode,
-        const bool is_moving, const int selectionbase)
+static void draw_manipulator_scale(const View3D *v3d, RegionView3D *rv3d, int drawflags, const int highlight,
+                                   const int combo, const int colcode, const int selectionbase, const bool is_moving)
 {
-	float cywid = 0.25f * 0.01f * (float)U.tw_handlesize;
-	float cusize = cywid * 0.75f, dz;
+	const float cywid = 0.25f * 0.01f * (float)U.tw_handlesize;
+	const float cusize = cywid * 0.75f;
 	int axis_order[3] = {2, 0, 1};
+	float dz;
 	int i;
 
 	/* when called while moving in mixed mode, do not draw when... */
@@ -1386,7 +1383,6 @@ static void draw_manipulator_scale(
 	draw_manipulator_axes(v3d, rv3d, colcode,
 	                      drawflags & MAN_SCALE_X, drawflags & MAN_SCALE_Y, drawflags & MAN_SCALE_Z,
 	                      axis_order, selectionbase, highlight);
-
 
 	for (i = 0; i < 3; i++) {
 		switch (axis_order[i]) {
@@ -1440,7 +1436,7 @@ static void draw_manipulator_scale(
 	glFrontFace(GL_CCW);
 }
 
-
+#if 0
 static void draw_cone(GLUquadricObj *qobj, float len, float width)
 {
 	glTranslatef(0.0, 0.0, -0.5f * len);
@@ -1450,10 +1446,10 @@ static void draw_cone(GLUquadricObj *qobj, float len, float width)
 	gluQuadricOrientation(qobj, GLU_OUTSIDE);
 	glTranslatef(0.0, 0.0, 0.5f * len);
 }
+#endif
 
-static void draw_cylinder(GLUquadricObj *qobj, float len, float width)
+static void draw_cylinder(GLUquadricObj *qobj, const float len, float width)
 {
-
 	width *= 0.8f;   // just for beauty
 
 	glTranslatef(0.0, 0.0, -0.5f * len);
@@ -1467,9 +1463,9 @@ static void draw_cylinder(GLUquadricObj *qobj, float len, float width)
 }
 
 
-static void draw_manipulator_translate(
-        View3D *v3d, RegionView3D *rv3d, int drawflags, int highlightflags, int combo, int colcode,
-        const bool UNUSED(is_moving), const int selectionbase)
+static void draw_manipulator_translate(const View3D *v3d, RegionView3D *rv3d, const int drawflags,
+                                       const int highlightflags, const int UNUSED(combo), const int colcode,
+                                       const int selectionbase, const bool UNUSED(is_moving))
 {
 	GLUquadricObj *qobj;
 	float cylen = 0.01f * (float)U.tw_handlesize;
@@ -1555,6 +1551,8 @@ static void draw_manipulator_translate(
 	}
 
 	gluDeleteQuadric(qobj);
+#else
+	(void)qobj, (void)cywid, (void)i, (void)dz;
 #endif
 
 	glPopMatrix();
@@ -1563,9 +1561,9 @@ static void draw_manipulator_translate(
 
 }
 
-static void draw_manipulator_rotate_cyl(
-        View3D *v3d, RegionView3D *rv3d, int drawflags, int highlight, const int combo, const int colcode,
-        const bool is_moving, const int selectionbase)
+static void draw_manipulator_rotate_cyl(const View3D *v3d, RegionView3D *rv3d, const int drawflags,
+                                        const int highlight, const int combo, const int colcode,
+                                        const int selectionbase, const bool is_moving)
 {
 	GLUquadricObj *qobj;
 	float size;
@@ -1690,9 +1688,9 @@ static void draw_manipulator_rotate_cyl(
 /* ********************************************* */
 
 /* main call, does calc centers & orientation too */
-static int drawflags = 0xFFFF;       // only for the calls below, belongs in scene...?
+static int drawflags = 0xFFFF;       /* only for the calls below, belongs in scene...? */
 
-static int manipulator_flags_from_active(int active)
+static int manipulator_flags_from_active(const int active)
 {
 	int val;
 
@@ -1713,7 +1711,7 @@ static int manipulator_flags_from_active(int active)
 	return val;
 }
 
-void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
+static void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	ARegion *ar = CTX_wm_region(C);
@@ -1747,128 +1745,6 @@ void WIDGET_manipulator_draw(wmWidget *UNUSED(widget), const bContext *C)
 	}
 }
 
-void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGroup *wgroup)
-{
-	ScrArea *sa = CTX_wm_area(C);
-	ARegion *ar = CTX_wm_region(C);
-	Scene *scene = CTX_data_scene(C);
-	View3D *v3d = sa->spacedata.first;
-	RegionView3D *rv3d = ar->regiondata;
-	ManipulatorGroup *manipulator;
-	wmWidget *axis;
-
-	int totsel;
-	short i;
-
-	WIDGETGROUP_manipulator_create(C, wgroup);
-	manipulator = WM_widgetgroup_customdata(wgroup);
-
-	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
-
-	totsel = calc_manipulator_stats(C);
-	if (totsel == 0) {
-		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
-		{
-			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
-		}
-		MAN_ITER_AXES_END
-		return;
-	}
-	v3d->twflag |= V3D_DRAW_MANIPULATOR;
-
-	/* now we can define center */
-	switch (v3d->around) {
-		case V3D_CENTER:
-		case V3D_ACTIVE:
-		{
-			Object *ob;
-			if (((v3d->around == V3D_ACTIVE) && (scene->obedit == NULL)) &&
-					((ob = OBACT) && !(ob->mode & OB_MODE_POSE)))
-			{
-				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
-			}
-			else {
-				mid_v3_v3v3(rv3d->twmat[3], scene->twmin, scene->twmax);
-			}
-			break;
-		}
-		case V3D_LOCAL:
-		case V3D_CENTROID:
-			copy_v3_v3(rv3d->twmat[3], scene->twcent);
-			break;
-		case V3D_CURSOR:
-			copy_v3_v3(rv3d->twmat[3], ED_view3d_cursor3d_get(scene, v3d));
-			break;
-	}
-
-	mul_mat3_m4_fl(rv3d->twmat, ED_view3d_pixel_size(rv3d, rv3d->twmat[3]) * U.tw_size);
-
-	/* when looking through a selected camera, the manipulator can be at the
-	 * exact same position as the view, skip so we don't break selection */
-	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
-		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
-		{
-			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
-		}
-		MAN_ITER_AXES_END
-
-		return;
-	}
-
-	test_manipulator_axis(C);
-	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
-
-	MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
-	{
-		WM_widget_operator(axis, "TRANSFORM_OT_translate");
-	}
-	MAN_ITER_AXES_END
-	MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
-	{
-		WM_widget_operator(axis, "TRANSFORM_OT_rotate");
-	}
-	MAN_ITER_AXES_END
-
-	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
-		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
-		{
-			/* should be added according to the order of axis */
-			WM_widget_set_origin(axis, rv3d->twmat[3]);
-			WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
-
-			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
-		}
-		MAN_ITER_AXES_END
-	}
-	else {
-		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
-		{
-			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
-		}
-		MAN_ITER_AXES_END
-	}
-
-	if (v3d->twtype & V3D_MANIP_ROTATE) {
-		/* should be added according to the order of axis */
-		MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
-		{
-			WM_widget_set_origin(axis, rv3d->twmat[3]);
-			WIDGET_dial_set_direction(axis, rv3d->twmat[i - 3]);
-
-			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
-		}
-		MAN_ITER_AXES_END
-	}
-	else {
-		MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
-		{
-			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
-		}
-		MAN_ITER_AXES_END
-	}
-}
-
-
 int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *UNUSED(wgrouptype))
 {
 	/* it's a given we only use this in 3D view */
@@ -1878,8 +1754,7 @@ int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupT
 	return ((v3d->twflag & V3D_USE_MANIPULATOR) != 0);
 }
 
-
-void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *UNUSED(widget), int selectionbase)
+static void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *UNUSED(widget), int selectionbase)
 {
 	ScrArea *sa = CTX_wm_area(C);
 	View3D *v3d = sa->spacedata.first;
@@ -1898,10 +1773,10 @@ void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmW
 }
 
 /* return 0; nothing happened */
-int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
+static int WIDGET_manipulator_handler(bContext *C, const struct wmEvent *event, wmWidget *UNUSED(widget))
 {
-	ScrArea *sa = CTX_wm_area(C);
-	View3D *v3d = sa->spacedata.first;
+	const ScrArea *sa = CTX_wm_area(C);
+	const View3D *v3d = sa->spacedata.first;
 	int constraint_axis[3] = {0, 0, 0};
 	int val;
 	int shift = event->shift;
@@ -2087,16 +1962,16 @@ int WIDGET_manipulator_handler_rot(bContext *C, const struct wmEvent *UNUSED(eve
 
 	return OPERATOR_FINISHED;
 }
-#endif
 
-void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
+static void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup)
 {
 	ManipulatorGroup *manipulator = WM_widgetgroup_customdata(wgroup);
 
 	MEM_freeN(manipulator);
 }
+#endif
 
-void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), struct wmWidgetGroup *wgroup)
+static void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), struct wmWidgetGroup *wgroup)
 {
 	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
 	wmWidget *widget, *axis;
@@ -2149,3 +2024,124 @@ void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), struct wmW
 	WM_widgetgroup_customdata_set(wgroup, manipulator);
 }
 
+void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar = CTX_wm_region(C);
+	Scene *scene = CTX_data_scene(C);
+	View3D *v3d = sa->spacedata.first;
+	RegionView3D *rv3d = ar->regiondata;
+	ManipulatorGroup *manipulator;
+	wmWidget *axis;
+
+	int totsel;
+	short i;
+
+	WIDGETGROUP_manipulator_create(C, wgroup);
+	manipulator = WM_widgetgroup_customdata(wgroup);
+
+	v3d->twflag &= ~V3D_DRAW_MANIPULATOR;
+
+	totsel = calc_manipulator_stats(C);
+	if (totsel == 0) {
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
+		return;
+	}
+
+	v3d->twflag |= V3D_DRAW_MANIPULATOR;
+
+	/* now we can define center */
+	switch (v3d->around) {
+		case V3D_CENTER:
+		case V3D_ACTIVE:
+		{
+			Object *ob;
+			if (((v3d->around == V3D_ACTIVE) && (scene->obedit == NULL)) &&
+					((ob = OBACT) && !(ob->mode & OB_MODE_POSE)))
+			{
+				copy_v3_v3(rv3d->twmat[3], ob->obmat[3]);
+			}
+			else {
+				mid_v3_v3v3(rv3d->twmat[3], scene->twmin, scene->twmax);
+			}
+			break;
+		}
+		case V3D_LOCAL:
+		case V3D_CENTROID:
+			copy_v3_v3(rv3d->twmat[3], scene->twcent);
+			break;
+		case V3D_CURSOR:
+			copy_v3_v3(rv3d->twmat[3], ED_view3d_cursor3d_get(scene, v3d));
+			break;
+	}
+
+	mul_mat3_m4_fl(rv3d->twmat, ED_view3d_pixel_size(rv3d, rv3d->twmat[3]) * U.tw_size);
+
+	/* when looking through a selected camera, the manipulator can be at the
+	 * exact same position as the view, skip so we don't break selection */
+	if (fabsf(mat4_to_scale(rv3d->twmat)) < 1e-7f) {
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ALL)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
+
+		return;
+	}
+
+	test_manipulator_axis(C);
+	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
+
+	MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+	{
+		WM_widget_operator(axis, "TRANSFORM_OT_translate");
+	}
+	MAN_ITER_AXES_END
+	MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
+	{
+		WM_widget_operator(axis, "TRANSFORM_OT_rotate");
+	}
+	MAN_ITER_AXES_END
+
+	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
+		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+		{
+			/* should be added according to the order of axis */
+			WM_widget_set_origin(axis, rv3d->twmat[3]);
+			WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
+
+			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
+	}
+	else {
+		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
+	}
+
+	if (v3d->twtype & V3D_MANIP_ROTATE) {
+		/* should be added according to the order of axis */
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
+		{
+			WM_widget_set_origin(axis, rv3d->twmat[3]);
+			WIDGET_dial_set_direction(axis, rv3d->twmat[i - 3]);
+
+			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
+	}
+	else {
+		MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
+		{
+			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
+		}
+		MAN_ITER_AXES_END
+	}
+}
