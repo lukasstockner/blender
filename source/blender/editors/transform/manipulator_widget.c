@@ -1766,9 +1766,9 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 	WM_widget_operator(manipulator->translate_x, "TRANSFORM_OT_translate");
 	WM_widget_operator(manipulator->translate_y, "TRANSFORM_OT_translate");
 	WM_widget_operator(manipulator->translate_z, "TRANSFORM_OT_translate");
-	WM_widget_operator(manipulator->rotate_x, "TRANSFORM_OT_translate");
-	WM_widget_operator(manipulator->rotate_y, "TRANSFORM_OT_translate");
-	WM_widget_operator(manipulator->rotate_z, "TRANSFORM_OT_translate");
+	WM_widget_operator(manipulator->rotate_x, "TRANSFORM_OT_rotate");
+	WM_widget_operator(manipulator->rotate_y, "TRANSFORM_OT_rotate");
+	WM_widget_operator(manipulator->rotate_z, "TRANSFORM_OT_rotate");
 
 	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
 		/* should be added according to the order of axis */
