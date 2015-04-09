@@ -550,6 +550,79 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 	glDepthMask(GL_TRUE);
 }
 
+static void drawfloor_new(Scene *scene, View3D *v3d, const char **grid_unit)
+{
+	unsigned char col_grid[3];
+	const int gridlines = v3d->gridlines / 2;
+	const float grid_scale = ED_view3d_grid_scale(scene, v3d, grid_unit);
+	const float grid = gridlines * grid_scale;
+
+	UI_GetThemeColor3ubv(TH_GRID, col_grid);
+
+	/* draw the Y axis and/or grid lines */
+	if ((v3d->gridflag & V3D_SHOW_FLOOR) && (v3d->gridlines >= 3)) {
+		const int sublines = v3d->gridsubdiv;
+		float vert[4][2] = {{0.0f}};
+		unsigned char col_bg[3];
+		unsigned char col_grid_emphasise[3], col_grid_light[3];
+		int a;
+		int prev_emphasise = -1;
+
+		UI_GetThemeColor3ubv(TH_BACK, col_bg);
+
+		/* emphasise division lines lighter instead of darker, if background is darker than grid */
+		UI_GetColorPtrShade3ubv(col_grid, col_grid_light, 10);
+		UI_GetColorPtrShade3ubv(col_grid, col_grid_emphasise,
+		                        (((col_grid[0] + col_grid[1] + col_grid[2]) + 30) >
+		                         (col_bg[0] + col_bg[1] + col_bg[2])) ? 20 : -10);
+
+		/* set fixed axis */
+		vert[0][0] = vert[2][1] = grid;
+		vert[1][0] = vert[3][1] = -grid;
+
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glVertexPointer(2, GL_FLOAT, 0, vert);
+
+		for (a = -gridlines; a <= gridlines; a++) {
+			const float line = a * grid_scale;
+			const int is_emphasise = (a % sublines) == 0;
+
+			if (is_emphasise != prev_emphasise) {
+				glColor3ubv(is_emphasise ? col_grid_emphasise : col_grid_light);
+				prev_emphasise = is_emphasise;
+			}
+
+			/* set variable axis */
+			vert[0][1] = vert[1][1] = vert[2][0] = vert[3][0] = line;
+
+			glDrawArrays(GL_LINES, 0, 4);
+		}
+
+		glDisableClientState(GL_VERTEX_ARRAY);
+	}
+
+	/* draw the axis lines */
+	if (v3d->gridflag & (V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
+		int axis;
+		glBegin(GL_LINES);
+		for (axis = 0; axis < 3; axis++) {
+			if (v3d->gridflag & (V3D_SHOW_X << axis)) {
+				float vert[3];
+				unsigned char tcol[3];
+
+				UI_make_axis_color(col_grid, tcol, 'X' + axis);
+				glColor3ubv(tcol);
+
+				zero_v3(vert);
+				vert[axis] = grid;
+				glVertex3fv(vert);
+				vert[axis] = -grid;
+				glVertex3fv(vert);
+			}
+		}
+		glEnd();
+	}
+}
 
 static void drawcursor(Scene *scene, ARegion *ar, View3D *v3d)
 {
@@ -3585,9 +3658,9 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 
-	drawfloor(scene, v3d, grid_unit);
-
 	GPUx_reset_draw_state(); /* for code below which uses GPUx_state */
+
+	drawfloor_new(scene, v3d, grid_unit);
 
 	/* yanked verbatim from view3d_draw_objects
 	 * not perfect but it does let us see objects positioned in space
