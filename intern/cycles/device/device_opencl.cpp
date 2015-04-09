@@ -559,19 +559,6 @@ public:
 	/* Total allocatable available device memory */
 	size_t total_allocatable_memory;
 
-	/*
-	* Total allocatable memory that is actually available to us for processing
-	* samples in parallel; This value determines how many threads can be launched
-	* in parallel
-	*/
-	size_t total_allocatable_parallel_sample_processing_memory;
-
-	/* Amount of memory required to process a single thread */
-	size_t per_thread_memory;
-
-	/* Sizes of cl_mem buffers fected using kernel_textures.h */
-	size_t render_scene_input_data_size;
-
 	/* host version of ray_state; Used in checking host path-iteration termination */
 	char *hostRayStateArray;
 
@@ -845,9 +832,6 @@ public:
 		Intersection_coop_DL_size = sizeof(Intersection);
 
 		per_thread_output_buffer_size = 0;
-
-		per_thread_memory = 0;
-		render_scene_input_data_size = 0;
 		hostRayStateArray = NULL;
 		PathIteration_times = PATH_ITER_INC_FACTOR;
 #ifdef __WORK_STEALING__
