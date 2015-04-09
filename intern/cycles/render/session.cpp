@@ -274,6 +274,11 @@ void Session::run_gpu()
 			/* update status and timing */
 			update_status_time();
 
+			if (device->use_split_kernel) {
+				/* OpenCL split - load kernels */
+				load_kernels();
+			}
+
 			/* path trace */
 			path_trace();
 

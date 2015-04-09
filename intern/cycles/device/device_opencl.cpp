@@ -565,6 +565,8 @@ public:
 	/* Number of path-iterations to be done in one shot */
 	unsigned int PathIteration_times;
 
+	/* Denotes if the render is background or foreground */
+	bool background;
 #ifdef __WORK_STEALING__
 	/* Work pool with respect to each work group */
 	cl_mem work_pool_wgs;
@@ -653,6 +655,7 @@ public:
 
 #ifdef __SPLIT_KERNEL__
 		use_split_kernel = true;
+		background = background_;
 
 		/* Initialize kernels */
 		ckPathTraceKernel_DataInit_SPLIT_KERNEL = NULL;
@@ -3605,7 +3608,18 @@ public:
 					ciErr = clGetMemObjectInfo((cl_mem)tile.buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
 					assert(ciErr == CL_SUCCESS && "Can't get tile.buffer mem object info");
 					/* This value is different when running on AMD and NV */
-					per_thread_output_buffer_size = output_buffer_size / (tile.w * tile.h);
+					if (background) {
+						/* In offline render the number of buffer elements
+						 * associated with tile.buffer is the current tile size
+						 */
+						per_thread_output_buffer_size = output_buffer_size / (tile.w * tile.h);
+					}
+					else {
+						/* interactive rendering, unlike offline render, the number of buffer elements
+						 * associated with tile.buffer is the entire viewport size.
+						 */
+						per_thread_output_buffer_size = output_buffer_size / (tile.buffers->params.width * tile.buffers->params.height);
+					}
 
 					/* Check render feasibility */
 					feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
