@@ -14,7 +14,7 @@ static unsigned chop_to_multiple(unsigned x, unsigned m)
 	return x - x % m;
 }
 
-void GPUx_draw_points(const CommonDrawState *common_state, const PointDrawState *point_state, const VertexBuffer *vbo, const ElementList *el)
+void GPUx_draw_points(const VertexBuffer *vbo, const ElementList *el, const PointDrawState *point_state, const CommonDrawState *common_state)
 {
 	GPUx_set_common_state(common_state);
 	GPUx_set_point_state(point_state);
@@ -38,7 +38,7 @@ void GPUx_draw_points(const CommonDrawState *common_state, const PointDrawState 
 #endif /* REALLY_DRAW */
 }
 
-void GPUx_draw_lines(const CommonDrawState *common_state, const LineDrawState *line_state, const VertexBuffer *vbo, const ElementList *el)
+void GPUx_draw_lines(const VertexBuffer *vbo, const ElementList *el, const LineDrawState *line_state, const CommonDrawState *common_state)
 {
 	GPUx_set_common_state(common_state);
 	GPUx_set_line_state(line_state);
@@ -62,7 +62,7 @@ void GPUx_draw_lines(const CommonDrawState *common_state, const LineDrawState *l
 #endif /* REALLY_DRAW */
 }
 
-void GPUx_draw_triangles(const CommonDrawState *common_state, const PolygonDrawState *polygon_state, const VertexBuffer *vbo, const ElementList *el)
+void GPUx_draw_triangles(const VertexBuffer *vbo, const ElementList *el, const PolygonDrawState *polygon_state, const CommonDrawState *common_state)
 {
 	GPUx_set_common_state(common_state);
 	GPUx_set_polygon_state(polygon_state);
@@ -86,7 +86,7 @@ void GPUx_draw_triangles(const CommonDrawState *common_state, const PolygonDrawS
 #endif /* REALLY_DRAW */
 }
 
-void GPUx_draw_primitives(const CommonDrawState *common_state, const void *primitive_state, const VertexBuffer *vbo, const ElementList *el)
+void GPUx_draw_primitives(const VertexBuffer *vbo, const ElementList *el, const void *primitive_state, const CommonDrawState *common_state)
 {
 	int vert_per_prim = 0;
 

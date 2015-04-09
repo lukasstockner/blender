@@ -8,12 +8,13 @@
 #include "GPUx_vbo.h"
 #include "GPUx_element.h"
 
-/* pass ElementList = NULL to draw all vertices from VertexBuffer in order */
-void GPUx_draw_points(const CommonDrawState*, const PointDrawState*, const VertexBuffer*, const ElementList*);
-void GPUx_draw_lines(const CommonDrawState*, const LineDrawState*, const VertexBuffer*, const ElementList*);
-void GPUx_draw_triangles(const CommonDrawState*, const PolygonDrawState*, const VertexBuffer*, const ElementList*);
+/* pass ElementList = NULL to draw all vertices from VertexBuffer in order
+ * pass NULL to either state arg to use defaults */
+void GPUx_draw_points(const VertexBuffer*, const ElementList*, const PointDrawState*, const CommonDrawState*);
+void GPUx_draw_lines(const VertexBuffer*, const ElementList*, const LineDrawState*, const CommonDrawState*);
+void GPUx_draw_triangles(const VertexBuffer*, const ElementList*, const PolygonDrawState*, const CommonDrawState*);
 
 /* generic version uses ElementList's primitive type */
-void GPUx_draw_primitives(const CommonDrawState*, const void *primitive_state, const VertexBuffer*, const ElementList*);
+void GPUx_draw_primitives(const VertexBuffer*, const ElementList*, const void *primitive_state, const CommonDrawState*);
 
 #endif /* BLENDER_GL_DRAW_PRIMITIVES */

@@ -2048,7 +2048,7 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 		GPUx_set_line_vertices(elem, 2,  2,3);
 		GPUx_set_line_vertices(elem, 3,  3,0);
 
-		GPUx_draw_lines(NULL, NULL, verts, elem);
+		GPUx_draw_lines(verts, elem, NULL, NULL);
 
 		GPUx_element_list_discard(elem);
 		GPUx_vertex_buffer_discard(verts);
@@ -2096,7 +2096,7 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 		GPUx_set_line_vertices(elem, 9,  6,7);
 		GPUx_set_line_vertices(elem, 10, 7,5);
 
-		GPUx_draw_lines(NULL, NULL, verts, elem);
+		GPUx_draw_lines(verts, elem, NULL, NULL);
 
 		GPUx_element_list_discard(elem);
 
@@ -2107,7 +2107,7 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 			elem = GPUx_element_list_create(GL_TRIANGLES, 1, 7);
 			GPUx_set_triangle_vertices(elem, 0,  5,6,7);
 
-			GPUx_draw_triangles(NULL, NULL, verts, elem);
+			GPUx_draw_triangles(verts, elem, NULL, NULL);
 
 			GPUx_element_list_discard(elem);
 		}
@@ -4491,7 +4491,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 			glShadeModel(GL_SMOOTH);
 
 			GPUx_vertex_buffer_prime(verts);
-			GPUx_draw_triangles(&common_state, &polygon_state, verts, elem);
+			GPUx_draw_triangles(verts, elem, &polygon_state, &common_state);
 
 			glShadeModel(GL_FLAT); /* restore default */
 		}
@@ -4508,7 +4508,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 			}
 
 			GPUx_vertex_buffer_prime(verts);
-			GPUx_draw_lines(NULL, NULL, verts, elem);
+			GPUx_draw_lines(verts, elem, NULL, NULL);
 		}
 
 		if (elem)
