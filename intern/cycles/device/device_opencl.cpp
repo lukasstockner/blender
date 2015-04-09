@@ -3604,6 +3604,12 @@ public:
 		else if(task->type == DeviceTask::PATH_TRACE) {
 			RenderTile tile;
 
+#ifdef __SPLIT_KERNEL__
+		bool initialize_data_and_check_render_feasibility = false;
+		bool need_to_split_tiles_further = false;
+		size_t feasible_global_work_size;
+#endif
+
 			/* keep rendering tiles until done */
 			while(task->acquire_tile(this, tile)) {
 
@@ -3613,21 +3619,29 @@ public:
 				tile.rng_state_offset_x = 0;
 				tile.rng_state_offset_y = 0;
 
+				if (!initialize_data_and_check_render_feasibility) {
+					/* Initialize data */
+					/* Calculate per_thread_output_buffer_size */
+					size_t output_buffer_size = 0;
+					ciErr = clGetMemObjectInfo((cl_mem)tile.buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
+					assert(ciErr == CL_SUCCESS && "Can't get tile.buffer mem object info");
+					/* This value is different when running on AMD and NV */
+					per_thread_output_buffer_size = output_buffer_size / (tile.w * tile.h);
 
-				/* Calculate per_thread_output_buffer_size */
-				size_t output_buffer_size = 0;
-				ciErr = clGetMemObjectInfo((cl_mem)tile.buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
-				assert(ciErr == CL_SUCCESS && "Can't get tile.buffer mem object info");
-				/* This value is different when running on AMD and NV */
-				per_thread_output_buffer_size = output_buffer_size / (tile.w * tile.h);
+					/* Check render feasibility */
+					feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
+					need_to_split_tiles_further = need_to_split_tile(tile.tile_size.x, tile.tile_size.y, feasible_global_work_size);
 
-				size_t feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
-				if (need_to_split_tile(tile.tile_size.x, tile.tile_size.y, feasible_global_work_size)) {
+					initialize_data_and_check_render_feasibility = true;
+				}
+
+				if (need_to_split_tiles_further) {
 					int2 render_feasible_tile_size = get_render_feasible_tile_size(feasible_global_work_size);
 					vector<RenderTile> to_path_trace_render_tiles = split_tiles(tile, render_feasible_tile_size);
 
 					/* Process all split tiles */
 					for (int tile_iter = 0; tile_iter < to_path_trace_render_tiles.size(); tile_iter++) {
+						/* The second argument is dummy */
 						path_trace(to_path_trace_render_tiles[tile_iter], 0);
 					}
 				}
