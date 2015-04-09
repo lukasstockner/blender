@@ -2104,14 +2104,10 @@ static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 		 * for active cameras. We actually draw both outline+filled
 		 * for active cameras so the wire can be seen side-on */
 		if (ob == v3d->camera) {
-			PolygonDrawState polygon_state = default_state.polygon;
-			polygon_state.draw_front = true;
-			polygon_state.draw_back = true;
-
 			elem = GPUx_element_list_create(GL_TRIANGLES, 1, 7);
 			GPUx_set_triangle_vertices(elem, 0,  5,6,7);
 
-			GPUx_draw_triangles(&default_state.common, &polygon_state, verts, elem);
+			GPUx_draw_triangles(&default_state.common, &default_state.polygon, verts, elem);
 
 			GPUx_element_list_discard(elem);
 		}
@@ -4468,14 +4464,11 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 			/* TODO: handle flat faces */
 			/* TODO: handle loop normals */
 			int i, t, tri_ct = 0;
-			MFace *faces = dm->getTessFaceDataArray(dm, CD_MFACE);
+			MFace *faces = dm->getTessFaceArray(dm);
 			CommonDrawState common_state = default_state.common;
 			PolygonDrawState polygon_state = default_state.polygon;
 			common_state.lighting = true;
-			common_state.depth_test = true;
-			common_state.depth_write = true;
-			polygon_state.draw_front = true;
-			polygon_state.draw_back = true;
+			polygon_state.draw_back = false;
 
 			GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
 			GPUx_fill_attrib_stride(verts, 1, &mverts[0].no, sizeof(MVert));
@@ -4496,20 +4489,16 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 
 			/* TODO: update state tracking to handle all these */
 			glShadeModel(GL_SMOOTH);
-//			glEnable(GL_DEPTH_TEST);
 
 			GPUx_vertex_buffer_prime(verts);
 			GPUx_draw_triangles(&common_state, &polygon_state, verts, elem);
 
-//			glDisable(GL_DEPTH_TEST);
 			glShadeModel(GL_FLAT); /* restore default */
 		}
 		else if (dt == OB_WIRE) {
 			/* draw wireframe */
 			int i;
 			MEdge *edges = dm->getEdgeArray(dm);
-			LineDrawState line_state = default_state.line;
-//			line_state.smooth = true;
 
 			elem = GPUx_element_list_create(GL_LINES, edge_ct, vert_ct - 1);
 
@@ -4519,7 +4508,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 			}
 
 			GPUx_vertex_buffer_prime(verts);
-			GPUx_draw_lines(&default_state.common, &line_state, verts, elem);
+			GPUx_draw_lines(&default_state.common, &default_state.line, verts, elem);
 		}
 
 		if (elem)

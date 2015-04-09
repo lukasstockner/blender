@@ -9,10 +9,27 @@
 #endif /* TRUST_NO_ONE */
 
 const DrawState default_state = {
-	.common = { false, false, false, false },
-	.point = { false, 1.0f },
-	.line = { false, 1.0f, 0 },
-	.polygon = { true, false, MATERIAL_NONE, 0 }
+	.common = {
+		.blend = false,
+		.depth_test = true,
+		.depth_write = true,
+		.lighting = false
+	},
+	.point = {
+		.smooth = false,
+		.size = 1.0f
+	},
+	.line = {
+		.smooth = false,
+		.width = 1.0f,
+		.stipple = 0
+	},
+	.polygon = {
+		.draw_front = true,
+		.draw_back = true,
+		.material_id = MATERIAL_NONE,
+		.stipple = 0
+	}
 };
 
 static DrawState current;
@@ -23,9 +40,7 @@ static bool polygon_stipple_pattern_set = false;
 void GPUx_reset_draw_state()
 {
 	current = default_state;
-#if 0 /* TODO: make default state play nice with UI drawing code */
 	GPUx_force_state_update();
-#endif
 }
 
 void GPUx_set_common_state(const CommonDrawState *state)
@@ -96,7 +111,7 @@ void GPUx_set_line_state(const LineDrawState *state)
 
 	if (state->stipple != current.line.stipple) {
 		if (state->stipple) {
-			const GLushort pattern = 0x4E72; /* or 0xAAAA */
+			const GLushort pattern = 0xAAAA;
 			glEnable(GL_LINE_STIPPLE);
 			/* line stipple is 16-bit pattern */
 			glLineStipple(state->stipple, pattern);
@@ -154,7 +169,7 @@ void GPUx_set_polygon_state(const PolygonDrawState *state)
 			}
 		}
 		else
-			glDisable(GL_LINE_STIPPLE);
+			glDisable(GL_POLYGON_STIPPLE);
 		current.polygon.stipple = state->stipple;
 	}
 }
@@ -202,7 +217,7 @@ void GPUx_force_state_update()
 	glLineWidth(current.line.width);
 
 	if (current.line.stipple) {
-		const GLushort pattern = 0x4E72; /* or 0xAAAA */
+		const GLushort pattern = 0xAAAA;
 		glEnable(GL_LINE_STIPPLE);
 		/* line stipple is 16-bit pattern */
 		glLineStipple(current.line.stipple, pattern);
@@ -229,5 +244,5 @@ void GPUx_force_state_update()
 		polygon_stipple_pattern_set = true;
 	}
 	else
-		glDisable(GL_LINE_STIPPLE);
+		glDisable(GL_POLYGON_STIPPLE);
 }

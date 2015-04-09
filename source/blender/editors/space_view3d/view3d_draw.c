@@ -3587,6 +3587,8 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 
 	drawfloor(scene, v3d, grid_unit);
 
+	GPUx_reset_draw_state(); /* for code below which uses GPUx_state */
+
 	/* yanked verbatim from view3d_draw_objects
 	 * not perfect but it does let us see objects positioned in space
 	 * TODO: draw objects prettier/better/faster/stronger
@@ -3601,7 +3603,7 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 	 * Hand-crafted logic here is tricky; will simplify later.
 	 */
 
-	GPUx_reset_draw_state(); /* for code below which uses GPUx_state */
+	v3d->zbuf = true;
 
 	/* draw meshes (and cameras) not being edited (selected or not) */
 	for (base = scene->base.first; base; base = base->next) {
@@ -3653,6 +3655,9 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 	if (base_edit && (v3d->lay & base_edit->lay)) {
 		draw_object(scene, ar, v3d, base_edit, 0);
 	}
+
+	/* play nice with UI drawing code outside view3d */
+	glDisable(GL_DEPTH_TEST);
 
 #if MCE_TRACE
 	printf("< %s\n\n", __FUNCTION__);
