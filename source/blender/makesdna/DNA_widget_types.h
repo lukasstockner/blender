@@ -45,6 +45,8 @@ struct wmWidgetGroup {
 
 	int flag;
 	int pad;
+
+	void *customdata;
 };
 
 #endif

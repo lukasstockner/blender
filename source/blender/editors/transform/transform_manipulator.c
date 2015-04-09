@@ -194,6 +194,7 @@ static int test_rotmode_euler(short rotmode)
 	return (ELEM(rotmode, ROT_MODE_AXISANGLE, ROT_MODE_QUAT)) ? 0 : 1;
 }
 
+#if 0
 bool gimbal_axis(Object *ob, float gmat[3][3])
 {
 	if (ob) {
@@ -259,6 +260,7 @@ bool gimbal_axis(Object *ob, float gmat[3][3])
 
 	return 0;
 }
+#endif
 
 
 /* centroid, boundbox, of selection */

@@ -116,6 +116,7 @@ struct Scene;
 struct Object;
 struct wmWidget;
 struct wmWidgetGroup;
+struct wmWidgetGroupType;
 
 /* UNUSED */
 // int BIF_snappingSupported(struct Object *obedit);
@@ -157,7 +158,6 @@ void Transform_Properties(struct wmOperatorType *ot, int flags);
 
 /* view3d manipulators */
 
-/*
 typedef struct ManipulatorGroup {
 	struct wmWidget *translate_x;
 	struct wmWidget *translate_y;
@@ -168,18 +168,17 @@ typedef struct ManipulatorGroup {
 	struct wmWidget *rotate_z;
 } ManipulatorGroup;
 
-int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct wmOperator *ptr);
+int WIDGET_manipulator_handler(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget);
 
 int WIDGET_manipulator_handler_trans(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
 int WIDGET_manipulator_handler_rot(struct bContext *C, const struct wmEvent *event, struct wmWidget *widget, struct PointerRNA *ptr);
 
 void WIDGET_manipulator_render_3d_intersect(const struct bContext *C, struct wmWidget *widget, int selectionbase);
 void WIDGET_manipulator_draw(struct wmWidget *widget, const struct bContext *C);
-bool WIDGETGROUP_manipulator_poll(struct wmWidgetGroup *wgroup, const struct bContext *C);
-void WIDGETGROUP_manipulator_update(struct wmWidgetGroup *wgroup, const struct bContext *C);
+int WIDGETGROUP_manipulator_poll(const struct bContext *C, struct wmWidgetGroupType *wgrouptype);
+void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGroup *wgroup);
 void WIDGETGROUP_manipulator_free(struct wmWidgetGroup *wgroup);
-void WIDGETGROUP_manipulator_create(struct wmWidgetGroup *wgroup);
-*/
+void WIDGETGROUP_manipulator_create(const struct bContext *C, struct wmWidgetGroup *wgroup);
 
 void BIF_draw_manipulator(const struct bContext *C);
 int BIF_do_manipulator(struct bContext *C, const struct wmEvent *event, struct wmOperator *op);

@@ -38,6 +38,7 @@ set(INC_SYS
 )
 
 set(SRC
+	manipulator_widget.c
 	transform.c
 	transform_constraints.c
 	transform_conversions.c

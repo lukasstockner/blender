@@ -208,6 +208,16 @@ PointerRNA *WM_widget_operator(struct wmWidget *widget, const char *opname)
 	return NULL;
 }
 
+void WM_widgetgroup_customdata_set(wmWidgetGroup *wgroup, void *data)
+{
+	wgroup->customdata = data;
+}
+
+void *WM_widgetgroup_customdata(const wmWidgetGroup *wgroup)
+{
+	return wgroup->customdata;
+}
+
 
 static void wm_widget_delete(ListBase *widgetlist, wmWidget *widget)
 {
@@ -365,7 +375,8 @@ void WM_widgets_draw(const bContext *C, wmWidgetMap *wmap, bool in_scene)
 			if (!wgroup->type->poll || wgroup->type->poll(C, wgroup->type))
 			{
 				for (widget = wgroup->widgets.first; widget; widget = widget->next) {
-					if ((!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
+					if ((widget->flag & WM_WIDGET_HIDDEN) == 0 &&
+					    (!(widget->flag & WM_WIDGET_DRAW_HOVER) || (widget->flag & WM_WIDGET_HIGHLIGHT)) &&
 					    ((widget->flag & WM_WIDGET_SCENE_DEPTH) != 0) == in_scene)
 					{
 						widget->draw(widget, C);
@@ -447,6 +458,15 @@ void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale)
 	}
 }
 
+void WM_widget_flag_enable(struct wmWidget *widget, int flag)
+{
+	widget->flag |= flag;
+}
+
+void WM_widget_flag_disable(struct wmWidget *widget, int flag)
+{
+	widget->flag &= ~flag;
+}
 
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw)
 {

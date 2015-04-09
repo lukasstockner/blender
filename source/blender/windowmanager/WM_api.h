@@ -481,9 +481,13 @@ void WM_widgets_update(const struct bContext *C, struct wmWidgetMap *wmap);
 void WM_widgets_draw(const struct bContext *C, struct wmWidgetMap *wmap, bool in_scene);
 void WM_event_add_area_widgetmap_handlers(struct ARegion *ar);
 void WM_modal_handler_attach_widgetgroup(struct bContext *C, struct wmEventHandler *handler, struct wmWidgetGroupType *wgrouptype, struct wmOperator *op);
+void WM_widgetgroup_customdata_set(struct wmWidgetGroup *wgroup, void *data);
+void *WM_widgetgroup_customdata(const struct wmWidgetGroup *wgroup);
 
 void WM_widget_set_origin(struct wmWidget *widget, float origin[3]);
 void WM_widget_set_3d_scale(struct wmWidget *widget, bool scale);
+void WM_widget_flag_enable(struct wmWidget *widget, int flag);
+void WM_widget_flag_disable(struct wmWidget *widget, int flag);
 void WM_widget_set_draw_on_hover_only(struct wmWidget *widget, bool draw);
 void WM_widget_set_scene_depth(struct wmWidget *widget, bool scene);
 void WM_widget_set_scale(struct wmWidget *widget, float scale);
