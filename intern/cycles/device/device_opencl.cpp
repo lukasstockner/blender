@@ -411,8 +411,7 @@ public:
 
 	/* global buffers for ShaderData */
 	cl_mem sd;                      /* ShaderData used in the main path-iteration loop */
-	cl_mem sd_dl;                   /* ShaderData used in DirectLighting kernel */
-	cl_mem sd_shadow;               /* ShaderData used in ShadowBlocked kernel */
+	cl_mem sd_DL_shadow;            /* ShaderData used in Direct Lighting and ShadowBlocked kernel */
 
 	/* global buffers of each member of ShaderData */
 	cl_mem P_sd;
@@ -674,8 +673,7 @@ public:
 		/* Initialize cl_mem variables */
 		kgbuffer = NULL;
 		sd = NULL;
-		sd_dl = NULL;
-		sd_shadow = NULL;
+		sd_DL_shadow = NULL;
 
 		P_sd = NULL;
 		P_sd_dl = NULL;;
@@ -2164,11 +2162,8 @@ public:
 		if(sd != NULL)
 			clReleaseMemObject(sd);
 
-		if(sd_dl != NULL)
-			clReleaseMemObject(sd_dl);
-
-		if(sd_shadow != NULL)
-			clReleaseMemObject(sd_shadow);
+		if(sd_DL_shadow != NULL)
+			clReleaseMemObject(sd_DL_shadow);
 
 		if(ray_state != NULL)
 			clReleaseMemObject(ray_state);
@@ -2499,11 +2494,8 @@ public:
 			sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Shaderdata memory");
 
-			sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create sd_dl memory");
-
-			sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create sd_shadow memory");
+			sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
+			assert(ciErr == CL_SUCCESS && "Can't create sd_DL_shadow memory");
 
 			P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create P_sd memory");
@@ -2811,8 +2803,7 @@ public:
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd), (void*)&sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd_dl), (void*)&sd_dl));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd_shadow), (void*)&sd_shadow));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd_DL_shadow), (void*)&sd_DL_shadow));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd), (void*)&P_sd));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd_dl), (void*)&P_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd_shadow), (void*)&P_sd_shadow));
@@ -3103,7 +3094,7 @@ public:
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(sd), (void*)&sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(sd_dl), (void*)&sd_dl));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(sd_DL_shadow), (void*)&sd_DL_shadow));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(rng_coop), (void*)&rng_coop));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(PathState_coop), (void*)&PathState_coop));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(ISLamp_coop), (void*)&ISLamp_coop));
@@ -3119,7 +3110,7 @@ public:
 		narg = 0;
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, narg++, sizeof(sd_shadow), (void*)&sd_shadow));
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, narg++, sizeof(sd_DL_shadow), (void*)&sd_DL_shadow));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, narg++, sizeof(PathState_coop), (void*)&PathState_coop));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, narg++, sizeof(LightRay_coop), (void*)&LightRay_coop));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, narg++, sizeof(AOLightRay_coop), (void*)&AOLightRay_coop));
@@ -3394,8 +3385,7 @@ public:
 		total_invariable_mem_allocated += NUM_QUEUES * sizeof(unsigned int); /* Queue index size */
 		total_invariable_mem_allocated += sizeof(char); /* use_queues_flag size */
 		total_invariable_mem_allocated += ShaderData_SOA_size; /* sd size */
-		total_invariable_mem_allocated += ShaderData_SOA_size; /* sd_dl size */
-		total_invariable_mem_allocated += ShaderData_SOA_size; /* sd_shadow size */
+		total_invariable_mem_allocated += ShaderData_SOA_size; /* sd_DL_shadow size */
 
 		return total_invariable_mem_allocated;
 	}
@@ -3458,7 +3448,6 @@ public:
 			+ Intersection_coop_AO_size          /* Instersection_coop_AO */
 			+ Intersection_coop_DL_size          /* Intersection coop DL */
 			+ shaderdata_volume       /* Overall ShaderData */
-			+ shaderdata_volume       /* ShaderData_coop_DL */
 			+ (shaderdata_volume * 2) /* ShaderData coop shadow */
 			+ LightRay_size + BSDFEval_size + AOAlpha_size + AOBSDF_size + AOLightRay_size
 			+ (sizeof(int)* NUM_QUEUES)

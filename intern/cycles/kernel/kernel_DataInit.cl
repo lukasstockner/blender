@@ -80,7 +80,6 @@ ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(__ADDR_SPACE__ Kerne
 __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	ccl_global char *globals,
 	ccl_global char *shader_data_sd,                  /* Arguments related to ShaderData */
-	ccl_global char *shader_data_sd_dl,             /* Arguments related to ShaderData */
 	ccl_global char *shader_data_sd_shadow,     /* Arguments related to ShaderData */
 
 	ccl_global float3 *P_sd,
@@ -230,114 +229,87 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 
 	/* Load ShaderData structure */
 	ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data_sd;
-	ccl_global ShaderData *sd_dl = (ccl_global ShaderData *)shader_data_sd_dl;
 	ccl_global ShaderData *sd_shadow = (ccl_global ShaderData *)shader_data_sd_shadow;
 
 	sd->P = P_sd;
-	sd_dl->P = P_sd_dl;
 	sd_shadow->P = P_sd_shadow;
 
 	sd->N = N_sd;
-	sd_dl->N = N_sd_dl;
 	sd_shadow->N = N_sd_shadow;
 
 	sd->Ng = Ng_sd;
-	sd_dl->Ng = Ng_sd_dl;
 	sd_shadow->Ng = Ng_sd_shadow;
 
 	sd->I = I_sd;
-	sd_dl->I = I_sd_dl;
 	sd_shadow->I = I_sd_shadow;
 
 	sd->shader = shader_sd;
-	sd_dl->shader = shader_sd_dl;
 	sd_shadow->shader = shader_sd_shadow;
 
 	sd->flag = flag_sd;
-	sd_dl->flag = flag_sd_dl;
 	sd_shadow->flag = flag_sd_shadow;
 
 	sd->prim = prim_sd;
-	sd_dl->prim = prim_sd_dl;
 	sd_shadow->prim = prim_sd_shadow;
 
 	sd->type = type_sd;
-	sd_dl->type = type_sd_dl;
 	sd_shadow->type = type_sd_shadow;
 
 	sd->u = u_sd;
-	sd_dl->u = u_sd_dl;
 	sd_shadow->u = u_sd_shadow;
 
 	sd->v = v_sd;
-	sd_dl->v = v_sd_dl;
 	sd_shadow->v = v_sd_shadow;
 
 	sd->object = object_sd;
-	sd_dl->object = object_sd_dl;
 	sd_shadow->object = object_sd_shadow;
 
 	sd->time = time_sd;
-	sd_dl->time = time_sd_dl;
 	sd_shadow->time = time_sd_shadow;
 
 	sd->ray_length = ray_length_sd;
-	sd_dl->ray_length = ray_length_sd_dl;
 	sd_shadow->ray_length = ray_length_sd_shadow;
 
 	sd->ray_depth = ray_depth_sd;
-	sd_dl->ray_depth = ray_depth_sd_dl;
 	sd_shadow->ray_depth = ray_depth_sd_shadow;
 
 	sd->transparent_depth = transparent_depth_sd;
-	sd_dl->transparent_depth = transparent_depth_sd_dl;
 	sd_shadow->transparent_depth = transparent_depth_sd_shadow;
 
 	#ifdef __RAY_DIFFERENTIALS__
 	sd->dP = dP_sd;
-	sd_dl->dP = dP_sd_dl;
 	sd_shadow->dP = dP_sd_shadow;
 
 	sd->dI = dI_sd;
-	sd_dl->dI = dI_sd_dl;
 	sd_shadow->dI = dI_sd_shadow;
 
 	sd->du = du_sd;
-	sd_dl->du = du_sd_dl;
 	sd_shadow->du = du_sd_shadow;
 
 	sd->dv = dv_sd;
-	sd_dl->dv = dv_sd_dl;
 	sd_shadow->dv = dv_sd_shadow;
 	#ifdef __DPDU__
 	sd->dPdu = dPdu_sd;
-	sd_dl->dPdu = dPdu_sd_dl;
 	sd_shadow->dPdu = dPdu_sd_shadow;
 
 	sd->dPdv = dPdv_sd;
-	sd_dl->dPdv = dPdv_sd_dl;
 	sd_shadow->dPdv = dPdv_sd_shadow;
 	#endif
 	#endif
 
 	sd->closure = closure_sd;
-	sd_dl->closure = closure_sd_dl;
 	sd_shadow->closure = closure_sd_shadow;
 
 	sd->num_closure = num_closure_sd;
-	sd_dl->num_closure = num_closure_sd_dl;
 	sd_shadow->num_closure = num_closure_sd_shadow;
 
 	sd->randb_closure = randb_closure_sd;
-	sd_dl->randb_closure = randb_closure_sd_dl;
 	sd_shadow->randb_closure = randb_closure_sd_shadow;
 
 	sd->ray_P = ray_P_sd;
-	sd_dl->ray_P = ray_P_sd_dl;
 	sd_shadow->ray_P = ray_P_sd_shadow;
 
 	sd->ray_dP = ray_dP_sd;
-	sd_dl->ray_dP = ray_dP_sd_dl;
 	sd_shadow->ray_dP = ray_dP_sd_shadow;
 
 	int thread_index = get_global_id(1) * get_global_size(0) + get_global_id(0);
