@@ -96,7 +96,7 @@
 #include "GPU_material.h"
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
-#include "GPUx_state.h"
+#include "GPUx_draw.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -570,32 +570,45 @@ static void drawfloor_new(Scene *scene, View3D *v3d, const char **grid_unit)
 		UI_GetThemeColor3ubv(TH_GRID, col_grid);
 
 		if (show_floor) {
+			const unsigned vertex_ct = 2 * (gridlines * 4 + 2);
+			unsigned v = 0; /* verts drawn so far */
+			VertexBuffer *verts = GPUx_vertex_buffer_create(2, vertex_ct);
 			const int sublines = v3d->gridsubdiv;
 			int a;
 
 			unsigned char col_bg[3], col_grid_emphasise[3], col_grid_light[3];
+			unsigned char *col_current = NULL;
+
+			GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 2, KEEP_FLOAT);
+			GPUx_specify_attrib(verts, 1, GL_COLOR_ARRAY, GL_UNSIGNED_BYTE, 3, NORMALIZE_INT_TO_FLOAT);
 
 			glDepthFunc(GL_ALWAYS); /* draw lines in order given */
-			glBegin(GL_LINES);
 
 			/* draw normal grid lines */
 			UI_GetColorPtrShade3ubv(col_grid, col_grid_light, 10);
-			glColor3ubv(col_grid_light);
+			col_current = col_grid_light;
 
 			for (a = 1; a <= gridlines; a++) {
 				/* skip emphasised divider lines */
 				if (a % sublines != 0) {
 					const float line = a * grid_scale;
+					int i;
+					/* same color at each vertex */
+					for (i = 0; i < 8; ++i)
+						GPUx_set_attrib(verts, 1, v + i, col_current);
 
-					glVertex2f(-grid, -line);
-					glVertex2f(+grid, -line);
-					glVertex2f(-grid, +line);
-					glVertex2f(+grid, +line);
+					/* set positions */
+					GPUx_set_attrib_2f(verts, 0, v + 0, -grid, -line);
+					GPUx_set_attrib_2f(verts, 0, v + 1, +grid, -line);
+					GPUx_set_attrib_2f(verts, 0, v + 2, -grid, +line);
+					GPUx_set_attrib_2f(verts, 0, v + 3, +grid, +line);
 
-					glVertex2f(-line, -grid);
-					glVertex2f(-line, +grid);
-					glVertex2f(+line, -grid);
-					glVertex2f(+line, +grid);
+					GPUx_set_attrib_2f(verts, 0, v + 4, -line, -grid);
+					GPUx_set_attrib_2f(verts, 0, v + 5, -line, +grid);
+					GPUx_set_attrib_2f(verts, 0, v + 6, +line, -grid);
+					GPUx_set_attrib_2f(verts, 0, v + 7, +line, +grid);
+
+					v += 8;
 				}
 			}
 
@@ -605,43 +618,67 @@ static void drawfloor_new(Scene *scene, View3D *v3d, const char **grid_unit)
 			UI_GetColorPtrShade3ubv(col_grid, col_grid_emphasise,
 			                        (col_grid[0] + col_grid[1] + col_grid[2] + 30 >
 			                         col_bg[0] + col_bg[1] + col_bg[2]) ? 20 : -10);
-			glColor3ubv(col_grid_emphasise);
+			col_current = col_grid_emphasise;
 
 			for (a = sublines; a <= gridlines; a += sublines) {
 				const float line = a * grid_scale;
+				int i;
+				/* same color at each vertex */
+				for (i = 0; i < 8; ++i)
+					GPUx_set_attrib(verts, 1, v + i, col_current);
 
-				glVertex2f(-grid, -line);
-				glVertex2f(+grid, -line);
-				glVertex2f(-grid, +line);
-				glVertex2f(+grid, +line);
+				/* set positions */
+				GPUx_set_attrib_2f(verts, 0, v + 0, -grid, -line);
+				GPUx_set_attrib_2f(verts, 0, v + 1, +grid, -line);
+				GPUx_set_attrib_2f(verts, 0, v + 2, -grid, +line);
+				GPUx_set_attrib_2f(verts, 0, v + 3, +grid, +line);
 
-				glVertex2f(-line, -grid);
-				glVertex2f(-line, +grid);
-				glVertex2f(+line, -grid);
-				glVertex2f(+line, +grid);
+				GPUx_set_attrib_2f(verts, 0, v + 4, -line, -grid);
+				GPUx_set_attrib_2f(verts, 0, v + 5, -line, +grid);
+				GPUx_set_attrib_2f(verts, 0, v + 6, +line, -grid);
+				GPUx_set_attrib_2f(verts, 0, v + 7, +line, +grid);
+
+				v += 8;
 			}
 
 			/* draw X axis */
 			if (v3d->gridflag & V3D_SHOW_X) {
 				UI_make_axis_color(col_grid, col_axis, 'X');
-				glColor3ubv(col_axis);
+				col_current = col_axis;
 			}
 			else
-				glColor3ubv(col_grid_emphasise);
-			glVertex2f(-grid, 0.0f);
-			glVertex2f(+grid, 0.0f);
+				col_current = col_grid_emphasise;
+
+			GPUx_set_attrib(verts, 1, v + 0, col_current);
+			GPUx_set_attrib(verts, 1, v + 1, col_current);
+
+			GPUx_set_attrib_2f(verts, 0, v + 0, -grid, 0.0f);
+			GPUx_set_attrib_2f(verts, 0, v + 1, +grid, 0.0f);
 
 			/* draw Y axis */
 			if (v3d->gridflag & V3D_SHOW_Y) {
 				UI_make_axis_color(col_grid, col_axis, 'Y');
-				glColor3ubv(col_axis);
+				col_current = col_axis;
 			}
 			else
-				glColor3ubv(col_grid_emphasise);
-			glVertex2f(0.0f, -grid);
-			glVertex2f(0.0f, +grid);
+				col_current = col_grid_emphasise;
 
-			glEnd(); /* done with XY plane */
+			GPUx_set_attrib(verts, 1, v + 2, col_current);
+			GPUx_set_attrib(verts, 1, v + 3, col_current);
+
+			GPUx_set_attrib_2f(verts, 0, v + 2, 0.0f, -grid);
+			GPUx_set_attrib_2f(verts, 0, v + 3, 0.0f, +grid);
+
+			v += 4;
+
+			BLI_assert(v == vertex_ct);
+
+			GPUx_vertex_buffer_prime(verts);
+			GPUx_draw_lines(verts, NULL, NULL, NULL);
+
+			GPUx_vertex_buffer_discard(verts);
+
+			/* done with XY plane */
 
 			glDepthFunc(GL_LESS); /* restore default */
 
