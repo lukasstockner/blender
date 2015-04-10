@@ -1952,6 +1952,23 @@ static void direct_link_palette(FileData *fd, Palette *palette)
 	link_list(fd, &palette->colors);
 }
 
+static void lib_link_workflow_shader(FileData *UNUSED(fd), Main *main)
+{
+	GPUWorkflowShader *wfshader;
+
+	/* only link ID pointers */
+	for (wfshader = main->gpuworkflows.first; wfshader; wfshader = wfshader->id.next) {
+		if (wfshader->id.flag & LIB_NEED_LINK) {
+			wfshader->id.flag -= LIB_NEED_LINK;
+		}
+	}
+}
+
+static void direct_link_workflow_shader(FileData *UNUSED(fd), GPUWorkflowShader *UNUSED(wfshader))
+{
+
+}
+
 static void lib_link_paint_curve(FileData *UNUSED(fd), Main *main)
 {
 	PaintCurve *pc;
@@ -7640,6 +7657,9 @@ static BHead *read_libblock(FileData *fd, Main *main, BHead *bhead, int flag, ID
 		case ID_PC:
 			direct_link_paint_curve(fd, (PaintCurve *)id);
 			break;
+		case ID_GPUWS:
+			direct_link_workflow_shader(fd, (GPUWorkflowShader *)id);
+			break;
 	}
 	
 	oldnewmap_free_unused(fd->datamap);
@@ -7828,6 +7848,7 @@ static void lib_link_all(FileData *fd, Main *main)
 	lib_link_nodetree(fd, main);	/* has to be done after scene/materials, this will verify group nodes */
 	lib_link_brush(fd, main);
 	lib_link_palette(fd, main);
+	lib_link_workflow_shader(fd, main);
 	lib_link_paint_curve(fd, main);
 	lib_link_particlesettings(fd, main);
 	lib_link_movieclip(fd, main);

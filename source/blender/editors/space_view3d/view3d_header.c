@@ -330,7 +330,11 @@ void uiTemplateHeader3D(uiLayout *layout, struct bContext *C)
 	}
 
 	/* Draw type */
-	uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+	if (U.gameflags & USER_VIEWPORT_2)
+		/* TODO add something for unlinking */
+		uiTemplateID(layout, C, &v3dptr, "activeworkflow", "VIEW3D_OT_workflow_new", NULL, NULL);
+	else
+		uiItemR(layout, &v3dptr, "viewport_shade", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
 	if (obedit == NULL && is_paint) {
 		if (ob->mode & OB_MODE_ALL_PAINT) {

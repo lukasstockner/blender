@@ -174,6 +174,7 @@ set(SRC
 	intern/tracking_util.c
 	intern/treehash.c
 	intern/unit.c
+	intern/workflow_shaders.c
 	intern/world.c
 	intern/writeavi.c
 	intern/writeframeserver.c
@@ -274,6 +275,7 @@ set(SRC
 	BKE_treehash.h
 	BKE_unit.h
 	BKE_utildefines.h
+	BKE_workflow_shaders.h
 	BKE_world.h
 	BKE_writeavi.h
 	BKE_writeframeserver.h

@@ -67,6 +67,7 @@
 #include "DNA_vfont_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
+#include "DNA_view3d_types.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -749,6 +750,9 @@ static ID *alloc_libblock_notest(short type)
 			break;
 		case ID_PC:
 			id = MEM_callocN(sizeof(PaintCurve), "Paint Curve");
+			break;
+		case ID_GPUWS:
+			id = MEM_callocN(sizeof(GPUWorkflowShader), "Workflow Shader");
 			break;
 	}
 	return id;

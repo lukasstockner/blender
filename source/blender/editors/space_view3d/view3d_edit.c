@@ -44,6 +44,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_main.h"
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_font.h"
@@ -55,7 +56,7 @@
 #include "BKE_screen.h"
 #include "BKE_action.h"
 #include "BKE_depsgraph.h" /* for ED_view3d_camera_lock_sync */
-
+#include "BKE_workflow_shaders.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
@@ -5021,3 +5022,31 @@ void ED_view3D_lock_clear(View3D *v3d)
 	v3d->ob_centre_cursor = false;
 	v3d->flag2 &= ~V3D_LOCK_CAMERA;
 }
+
+
+/**** Workflow Shaders ******************/
+
+static int view3d_workflow_new_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Main *bmain = CTX_data_main(C);
+	View3D *v3d = CTX_wm_view3d(C);
+	v3d->activeworkflow = 	BKE_workflow_shader_add(bmain, "Workflow Shader");
+	return OPERATOR_FINISHED;
+}
+
+
+void VIEW3D_OT_workflow_new(struct wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "New Workflow Shader";
+	ot->description = "Creates a new workflow shader";
+	ot->idname = "VIEW3D_OT_workflow_new";
+
+	/* api callbacks */
+	ot->exec = view3d_workflow_new_exec;
+	ot->poll = ED_operator_view3d_active;
+
+	/* flags */
+	ot->flag = 0;
+}
+

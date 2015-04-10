@@ -161,6 +161,7 @@ void view3d_operatortypes(void)
 	WM_operatortype_append(VIEW3D_OT_view_center_pick);
 	WM_operatortype_append(VIEW3D_OT_view_center_camera);
 	WM_operatortype_append(VIEW3D_OT_view_center_lock);
+	WM_operatortype_append(VIEW3D_OT_workflow_new);
 	WM_operatortype_append(VIEW3D_OT_select);
 	WM_operatortype_append(VIEW3D_OT_select_border);
 	WM_operatortype_append(VIEW3D_OT_clip_border);

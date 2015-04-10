@@ -159,7 +159,6 @@ typedef struct RegionView3D {
 	float rot_axis[3];
 
 	struct GPUFX *compositor;
-	struct GPUWorkflowShader *activeworkflow;
 } RegionView3D;
 
 /* 3D ViewPort Struct */
@@ -240,7 +239,7 @@ typedef struct View3D {
 
 	/* XXX deprecated? */
 	struct bGPdata *gpd  DNA_DEPRECATED;		/* Grease-Pencil Data (annotation layers) */
-
+	struct GPUWorkflowShader *activeworkflow;
 } View3D;
 
 

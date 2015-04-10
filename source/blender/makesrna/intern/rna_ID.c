@@ -159,6 +159,7 @@ short RNA_type_to_ID_code(StructRNA *type)
 	if (RNA_struct_is_a(type, &RNA_VectorFont)) return ID_VF;
 	if (RNA_struct_is_a(type, &RNA_World)) return ID_WO;
 	if (RNA_struct_is_a(type, &RNA_WindowManager)) return ID_WM;
+	if (RNA_struct_is_a(type, &RNA_GPUWorkflowShader)) return ID_GPUWS;
 
 	return 0;
 }

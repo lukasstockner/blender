@@ -83,6 +83,7 @@ static IDType idtypes[] = {
 	{ ID_TE,     "Texture",          "textures",        IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_TXT,    "Text",             "texts",           IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_VF,     "VFont",            "fonts",           IDTYPE_FLAGS_ISLINKABLE },
+    { ID_GPUWS,  "GPUWorkflowShader","workflowshaders", IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_WO,     "World",            "worlds",          IDTYPE_FLAGS_ISLINKABLE },
 	{ ID_WM,     "WindowManager",    "window_managers", 0                       },
 };

@@ -1879,6 +1879,16 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_OUTLINER, NULL);
 }
 
+static void rna_def_workflow_shader(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	//PropertyRNA *prop;
+
+	srna = RNA_def_struct(brna, "GPUWorkflowShader", "ID");
+	RNA_def_struct_sdna(srna, "GPUWorkflowShader");
+	RNA_def_struct_ui_text(srna, "Workflow Shader", "Drawing definition in the 3D viewport");
+}
+
 static void rna_def_background_image(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2192,6 +2202,11 @@ static void rna_def_space_view3d(BlenderRNA *brna)
 	RNA_def_property_enum_funcs(prop, "rna_SpaceView3D_viewport_shade_get", NULL,
 	                            "rna_SpaceView3D_viewport_shade_itemf");
 	RNA_def_property_ui_text(prop, "Viewport Shading", "Method to display/shade objects in the 3D View");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
+
+	prop = RNA_def_property(srna, "activeworkflow", PROP_POINTER, PROP_NONE);
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Shading Workflow", "Method to display/shade objects in the 3D View");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_SpaceView3D_viewport_shade_update");
 
 	prop = RNA_def_property(srna, "local_view", PROP_POINTER, PROP_NONE);
@@ -4328,6 +4343,7 @@ void RNA_def_space(BlenderRNA *brna)
 	rna_def_filemenu_entry(brna);
 	rna_def_space_filebrowser(brna);
 	rna_def_space_outliner(brna);
+	rna_def_workflow_shader(brna);
 	rna_def_background_image(brna);
 	rna_def_space_view3d(brna);
 	rna_def_space_buttons(brna);
