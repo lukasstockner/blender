@@ -2483,7 +2483,11 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_Object_parent_bone_set");
 	RNA_def_property_ui_text(prop, "Parent Bone", "Name of parent bone in case of a bone parenting relation");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
-	
+
+	prop = RNA_def_property(srna, "wgroup", PROP_POINTER, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Widget Group", "Group of widgets assigned to the object");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
 	/* Track and Up flags */
 	/* XXX: these have been saved here for a bit longer (after old track was removed),
 	 *      since some other tools still refer to this */

@@ -448,6 +448,14 @@ EnumPropertyItem wm_report_items[] = {
 	{0, NULL, 0, NULL, NULL}
 };
 
+EnumPropertyItem wm_widget_type_items[] = {
+	{WT_TRANSLATE, "TRANSLATE", ICON_MAN_TRANS, "Translate", "Add a widget for moving objects"},
+	{WT_ROTATE,    "ROTATE",    ICON_MAN_ROT,   "Rotate",    "Add a widget for rotating objects"},
+	{WT_SCALE,     "SCALE",     ICON_MAN_SCALE, "Scale",     "Add a widget for scaling objects"},
+	{WT_CUSTOM, "CUSTOM", ICON_OUTLINER_DATA_ARMATURE, "Custom", "Add a user defined widget that affects a specified property"},
+	{0, NULL, 0, NULL, NULL}
+};
+
 #ifdef RNA_RUNTIME
 
 #include <assert.h>
@@ -1765,6 +1773,16 @@ static void rna_def_operator_filelist_element(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Name", "Name of a file or directory within a file list");
 }
 
+static void rna_def_widget(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+
+	RNA_def_property_srna(cprop, "Widget");
+	srna = RNA_def_struct(brna, "Widget", NULL);
+	RNA_def_struct_sdna(srna, "WidgetGroup");
+	RNA_def_struct_ui_text(srna, "Widget", "Collection of widgets");
+}
+
 static void rna_def_widgetgroup(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -1816,6 +1834,12 @@ static void rna_def_widgetgroup(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Options",  "Options for this operator type");
 #endif
+
+	prop = RNA_def_property(srna, "widgets", PROP_COLLECTION, PROP_NONE);
+	RNA_def_property_collection_sdna(prop, NULL, "widgets", NULL);
+	RNA_def_property_struct_type(prop, "Widget");
+	RNA_def_property_ui_text(prop, "Widgets", "List of widgets in the Widget Map");
+	rna_def_widget(brna, prop);
 
 	RNA_api_widgetgroup(srna);
 }

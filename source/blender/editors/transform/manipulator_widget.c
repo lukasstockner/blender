@@ -66,6 +66,7 @@
 
 #include "ED_armature.h"
 #include "ED_curve.h"
+#include "ED_object.h"
 #include "ED_particle.h"
 #include "ED_view3d.h"
 #include "ED_screen.h"
@@ -2144,4 +2145,44 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 		}
 		MAN_ITER_AXES_END
 	}
+}
+
+void WIDGETGROUP_object_manipulator_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	Object *ob = ED_object_active_context((bContext *)C);
+	ManipulatorGroup *manipulator = MEM_callocN(sizeof(ManipulatorGroup), "manipulator_data");
+	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	Scene *scene = CTX_data_scene(C);
+	wmWidget *axis;
+	short i;
+
+	float color_green[4] = {0.25f, 1.0f, 0.25f, 1.0f};
+	float color_red[4] = {1.0f, 0.25f, 0.25f, 1.0f};
+	float color_blue[4] = {0.25f, 0.25f, 1.0f, 1.0f};
+
+	if (ob->wgroup == NULL) {
+		ob->wgroup = wgroup;
+	}
+
+	/* XXX - share this stuff between manipulator draw methods */
+
+	copy_v3_v3(rv3d->twmat[3], scene->twcent);
+
+	manipulator->translate_x = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	WIDGET_arrow_set_color(manipulator->translate_x, color_red);
+	manipulator->translate_y = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	WIDGET_arrow_set_color(manipulator->translate_y, color_green);
+	manipulator->translate_z = WIDGET_arrow_new(wgroup, WIDGET_ARROW_STYLE_NORMAL);
+	WIDGET_arrow_set_color(manipulator->translate_z, color_blue);
+
+	test_manipulator_axis(C);
+	drawflags = rv3d->twdrawflag;    /* set in calc_manipulator_stats */
+
+	MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
+	{
+		WM_widget_set_origin(axis, rv3d->twmat[3]);
+		WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
+		WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
+	}
+	MAN_ITER_AXES_END
 }

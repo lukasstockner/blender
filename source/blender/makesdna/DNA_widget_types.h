@@ -34,6 +34,16 @@
 
 #include "DNA_vec_types.h"
 
+struct bContext;
+struct wmEvent;
+
+typedef enum WidgetType {
+	WT_TRANSLATE = 0,
+	WT_ROTATE    = 1,
+	WT_SCALE     = 2,
+	WT_CUSTOM    = 3,
+} WidgetType;
+
 struct wmWidgetGroup {
 	struct wmWidgetGroup *next, *prev;
 
