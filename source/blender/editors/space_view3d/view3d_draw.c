@@ -3706,50 +3706,42 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 {
 	unsigned int lay_used = 0;
 	Base *base, *base_edit = NULL; /* object being edited, if any */
+	bool do_compositing = false;
+	RegionView3D *rv3d = ar->regiondata;
 
 #if MCE_TRACE
 	printf("> %s\n", __FUNCTION__);
 #endif /* MCE_TRACE */
 
-	if (UI_GetThemeValue(TH_SHOW_BACK_GRAD)) {
-		glMatrixMode(GL_PROJECTION);
-		glPushMatrix();
-		glLoadIdentity();
-		glMatrixMode(GL_MODELVIEW);
-		glPushMatrix();
-		glLoadIdentity();
-
-		glEnable(GL_DEPTH_TEST);
-		glDepthFunc(GL_ALWAYS);
-		glShadeModel(GL_SMOOTH);
-		glBegin(GL_QUADS);
-		UI_ThemeColor(TH_LOW_GRAD);
-		glVertex3f(-1.0, -1.0, 1.0);
-		glVertex3f(1.0, -1.0, 1.0);
-		UI_ThemeColor(TH_HIGH_GRAD);
-		glVertex3f(1.0, 1.0, 1.0);
-		glVertex3f(-1.0, 1.0, 1.0);
-		glEnd();
-		glShadeModel(GL_FLAT);
-
-		glDepthFunc(GL_LEQUAL);
-		glDisable(GL_DEPTH_TEST);
-
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-
-		glMatrixMode(GL_MODELVIEW);
-		glPopMatrix();
-	}
-	else {
-		UI_ThemeClearColor(TH_HIGH_GRAD);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	}
+	view3d_main_area_clear(scene, v3d, ar);
 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 
 	GPUx_reset_draw_state(); /* for code below which uses GPUx_state */
+
+	/* framebuffer fx needed, we need to draw offscreen first */
+	if (v3d->fx_settings.fx_flag) {
+		GPUFXSettings fx_settings;
+		BKE_screen_gpu_fx_validate(&v3d->fx_settings);
+		fx_settings = v3d->fx_settings;
+		if (!rv3d->compositor)
+			rv3d->compositor = GPU_fx_compositor_create();
+
+		if (rv3d->persp == RV3D_CAMOB && v3d->camera)
+			BKE_camera_to_gpu_dof(v3d->camera, &fx_settings);
+		else {
+			fx_settings.dof = NULL;
+		}
+
+		if (v3d->drawtype < OB_SOLID)
+			fx_settings.ssao = NULL;
+
+		do_compositing = GPU_fx_compositor_initialize_passes(rv3d->compositor, &ar->winrct, &ar->drawrct, &fx_settings);
+	}
+
+	/* clear the background */
+	view3d_main_area_clear(scene, v3d, ar);
 
 	drawfloor_new(scene, v3d, grid_unit);
 
@@ -3819,6 +3811,12 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 	if (base_edit && (v3d->lay & base_edit->lay)) {
 		draw_object(scene, ar, v3d, base_edit, 0);
 	}
+
+	/* post process */
+	if (do_compositing) {
+		GPU_fx_do_composite_pass(rv3d->compositor, rv3d->winmat, rv3d->is_persp, scene, NULL);
+	}
+
 
 	/* play nice with UI drawing code outside view3d */
 	glDisable(GL_DEPTH_TEST);
