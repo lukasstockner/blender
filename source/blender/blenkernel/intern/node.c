@@ -3698,6 +3698,7 @@ void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *b
 	ntreeiter->lamp = bmain->lamp.first;
 	ntreeiter->world = bmain->world.first;
 	ntreeiter->linestyle = bmain->linestyle.first;
+	ntreeiter->wfshader = bmain->gpuworkflows.first;
 }
 bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
                              bNodeTree **r_nodetree, struct ID **r_id)
@@ -3736,6 +3737,11 @@ bool BKE_node_tree_iter_step(struct NodeTreeIterStore *ntreeiter,
 		*r_nodetree =       ntreeiter->linestyle->nodetree;
 		*r_id       = (ID *)ntreeiter->linestyle;
 		ntreeiter->linestyle = ntreeiter->linestyle->id.next;
+	}
+	else if (ntreeiter->wfshader) {
+		*r_nodetree =       ntreeiter->wfshader->nodetree;
+		*r_id       = (ID *)ntreeiter->wfshader;
+		ntreeiter->wfshader = ntreeiter->wfshader->id.next;
 	}
 	else {
 		return false;

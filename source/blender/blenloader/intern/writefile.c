@@ -3131,6 +3131,10 @@ static void write_gpuworkflows(WriteData *wd, ListBase *idbase)
 	for (wfshader = idbase->first; wfshader; wfshader = wfshader->id.next) {
 		if (wfshader->id.us > 0 || wd->current) {
 			writestruct(wd, ID_GPUWS, "GPUWorkflowShader", 1, wfshader);
+			if (wfshader->nodetree) {
+				writestruct(wd, DATA, "bNodeTree", 1, wfshader->nodetree);
+				write_nodetree(wd, wfshader->nodetree);
+			}
 			if (wfshader->id.properties) IDP_WriteProperty(wfshader->id.properties, wd);
 		}
 	}

@@ -33,12 +33,21 @@
 #include "DNA_object_types.h"
 
 #include "BKE_library.h"
+#include "BKE_node.h"
 #include "BKE_workflow_shaders.h"
+
+#include "MEM_guardedalloc.h"
 
 
 void BKE_workflow_shader_free(GPUWorkflowShader *shader)
 {
-
+	/* is no lib link block, but world extension */
+	if (shader->nodetree) {
+		/* will be freed once this is handled properly, currently this resides in nodetree list */
+		//ntreeFreeTree_ex(shader->nodetree, true);
+		//MEM_freeN(shader->nodetree);
+		//shader->nodetree = NULL;
+	}
 }
 
 struct GPUWorkflowShader *BKE_workflow_shader_add(struct Main *bmain, const char *name)

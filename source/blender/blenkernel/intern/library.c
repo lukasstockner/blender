@@ -114,6 +114,7 @@
 #include "BKE_scene.h"
 #include "BKE_text.h"
 #include "BKE_texture.h"
+#include "BKE_workflow_shaders.h"
 #include "BKE_world.h"
 
 #include "RNA_access.h"
@@ -1035,6 +1036,9 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 			break;
 		case ID_PC:
 			BKE_paint_curve_free((PaintCurve *)id);
+			break;
+		case ID_GPUWS:
+			BKE_workflow_shader_free((GPUWorkflowShader *)id);
 			break;
 	}
 

@@ -45,6 +45,7 @@
 #include "DNA_texture_types.h"
 #include "DNA_world_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_view3d_types.h"
 
 #include "RNA_types.h"
 
@@ -665,6 +666,7 @@ struct NodeTreeIterStore {
 	Lamp *lamp;
 	World *world;
 	FreestyleLineStyle *linestyle;
+	GPUWorkflowShader *wfshader;
 };
 
 void BKE_node_tree_iter_init(struct NodeTreeIterStore *ntreeiter, struct Main *bmain);

@@ -1952,23 +1952,6 @@ static void direct_link_palette(FileData *fd, Palette *palette)
 	link_list(fd, &palette->colors);
 }
 
-static void lib_link_workflow_shader(FileData *UNUSED(fd), Main *main)
-{
-	GPUWorkflowShader *wfshader;
-
-	/* only link ID pointers */
-	for (wfshader = main->gpuworkflows.first; wfshader; wfshader = wfshader->id.next) {
-		if (wfshader->id.flag & LIB_NEED_LINK) {
-			wfshader->id.flag -= LIB_NEED_LINK;
-		}
-	}
-}
-
-static void direct_link_workflow_shader(FileData *UNUSED(fd), GPUWorkflowShader *UNUSED(wfshader))
-{
-
-}
-
 static void lib_link_paint_curve(FileData *UNUSED(fd), Main *main)
 {
 	PaintCurve *pc;
@@ -2525,6 +2508,7 @@ static bNodeTree *nodetree_from_id(ID *id)
 		case ID_LA: return ((Lamp *)id)->nodetree;
 		case ID_TE: return ((Tex *)id)->nodetree;
 		case ID_LS: return ((FreestyleLineStyle *)id)->nodetree;
+		case ID_GPUWS: return ((GPUWorkflowShader *)id)->nodetree;
 	}
 	return NULL;
 }
@@ -3094,6 +3078,30 @@ static void direct_link_camera(FileData *fd, Camera *ca)
 	direct_link_animdata(fd, ca->adt);
 }
 
+/*************** READ WORKFLOW SHADER *****************/
+
+static void lib_link_workflow_shader(FileData *fd, Main *main)
+{
+	GPUWorkflowShader *wfshader;
+
+	/* only link ID pointers */
+	for (wfshader = main->gpuworkflows.first; wfshader; wfshader = wfshader->id.next) {
+		if (wfshader->id.flag & LIB_NEED_LINK) {
+			wfshader->id.flag -= LIB_NEED_LINK;
+
+			if (wfshader->nodetree) {
+				lib_link_ntree(fd, &wfshader->id, wfshader->nodetree);
+				wfshader->nodetree->id.lib = wfshader->id.lib;
+				wfshader->nodetree->view_center[0] = 0.0;
+			}
+		}
+	}
+}
+
+static void direct_link_workflow_shader(FileData *fd, GPUWorkflowShader *wfshader)
+{
+	wfshader->nodetree = newdataadr(fd, wfshader->nodetree);
+}
 
 /* ************ READ LAMP ***************** */
 
@@ -6215,6 +6223,7 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 					if (v3d->camera == NULL)
 						v3d->camera = sc->scene->camera;
 					v3d->ob_centre = restore_pointer_by_name(newmain, (ID *)v3d->ob_centre, USER_ONE);
+					v3d->activeworkflow = restore_pointer_by_name(newmain, (ID *)v3d->activeworkflow, USER_ONE);
 					
 					for (bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next) {
 						if ((bgpic->ima = restore_pointer_by_name(newmain, (ID *)bgpic->ima, USER_IGNORE))) {
