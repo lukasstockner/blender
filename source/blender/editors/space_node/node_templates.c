@@ -423,6 +423,9 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 		else
 			compatibility = NODE_OLD_SHADING;
 	}
+	else if (ntree->type == NTREE_WORKFLOW) {
+		compatibility = NODE_WORKFLOW_SHADING;
+	}
 
 	NODE_TYPES_BEGIN(ntype) {
 		NodeLinkItem *items;

@@ -199,6 +199,7 @@ StructRNA *ID_code_to_RNA_type(short idcode)
 		case ID_VF: return &RNA_VectorFont;
 		case ID_WM: return &RNA_WindowManager;
 		case ID_WO: return &RNA_World;
+		case ID_GPUWS: return &RNA_GPUWorkflowShader;
 
 		default: return &RNA_ID;
 	}

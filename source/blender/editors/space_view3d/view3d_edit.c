@@ -5030,7 +5030,9 @@ static int view3d_workflow_new_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	Main *bmain = CTX_data_main(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	v3d->activeworkflow = 	BKE_workflow_shader_add(bmain, "Workflow Shader");
+	GPUWorkflowShader *wfshader = BKE_workflow_shader_add(bmain, "Workflow Shader");
+	if (v3d)
+		v3d->activeworkflow = wfshader;
 	return OPERATOR_FINISHED;
 }
 
@@ -5044,7 +5046,6 @@ void VIEW3D_OT_workflow_new(struct wmOperatorType *ot)
 
 	/* api callbacks */
 	ot->exec = view3d_workflow_new_exec;
-	ot->poll = ED_operator_view3d_active;
 
 	/* flags */
 	ot->flag = 0;

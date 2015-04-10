@@ -5918,6 +5918,7 @@ static void lib_link_screen(FileData *fd, Main *main)
 						View3D *v3d = (View3D*) sl;
 						BGpic *bgpic = NULL;
 						
+						v3d->activeworkflow = newlibadr(fd, sc->id.lib, v3d->activeworkflow);
 						v3d->camera= newlibadr(fd, sc->id.lib, v3d->camera);
 						v3d->ob_centre= newlibadr(fd, sc->id.lib, v3d->ob_centre);
 						

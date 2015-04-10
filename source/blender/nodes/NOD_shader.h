@@ -35,6 +35,7 @@
 #include "BKE_node.h"
 
 extern struct bNodeTreeType *ntreeType_Shader;
+extern struct bNodeTreeType *ntreeType_Workflow;
 
 
 /* the type definitions array */

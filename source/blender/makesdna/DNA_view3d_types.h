@@ -90,7 +90,7 @@ typedef struct GPUWorkflowShader {
 	int use_material; /* workflow shader is overlaid over materials of the meshes */
 	int	datamask; /* datamask of the data that will be required for this workflow shader */
 	int pad;
-	struct bNodeTree *ntree; /* node tree that describes the shader */
+	struct bNodeTree *nodetree; /* node tree that describes the shader */
 } GPUWorkflowShader;
 
 /* ********************************* */

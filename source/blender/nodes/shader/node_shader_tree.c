@@ -219,12 +219,12 @@ static void workflow_get_from_context(const bContext *C, bNodeTreeType *UNUSED(t
 
 	if (v3d && v3d->activeworkflow) {
 		*r_id = &v3d->activeworkflow->id;
-		*r_ntree = v3d->activeworkflow->ntree;
+		*r_ntree = v3d->activeworkflow->nodetree;
 	}
 	else if (bmain->gpuworkflows.first) {
 		GPUWorkflowShader *wfshader = bmain->gpuworkflows.first;
 		*r_id = &wfshader->id;
-		*r_ntree = wfshader->ntree;
+		*r_ntree = wfshader->nodetree;
 	}
 	else {
 		*r_id = NULL;
@@ -238,14 +238,15 @@ static int workflow_tree_poll(const bContext *UNUSED(C), bNodeTreeType *UNUSED(t
 	return (U.gameflags & USER_VIEWPORT_2) != 0;
 }
 
+bNodeTreeType *ntreeType_Workflow;
 
 void register_node_tree_type_workflow(void)
 {
-	bNodeTreeType *tt = ntreeType_Shader = MEM_callocN(sizeof(bNodeTreeType), "shader node tree type");
+	bNodeTreeType *tt = ntreeType_Workflow = MEM_callocN(sizeof(bNodeTreeType), "shader node tree type");
 
-	tt->type = NTREE_SHADER;
+	tt->type = NTREE_WORKFLOW;
 	strcpy(tt->idname, "WorkflowNodeTree");
-	strcpy(tt->ui_name, "Workflow Shader");
+	strcpy(tt->ui_name, "Workflow");
 	tt->ui_icon = 0;    /* defined in drawnode.c */
 	strcpy(tt->ui_description, "Workflow nodes");
 

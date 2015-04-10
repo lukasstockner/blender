@@ -1882,11 +1882,16 @@ static void rna_def_space_outliner(BlenderRNA *brna)
 static void rna_def_workflow_shader(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	//PropertyRNA *prop;
+	PropertyRNA *prop;
 
 	srna = RNA_def_struct(brna, "GPUWorkflowShader", "ID");
 	RNA_def_struct_sdna(srna, "GPUWorkflowShader");
 	RNA_def_struct_ui_text(srna, "Workflow Shader", "Drawing definition in the 3D viewport");
+
+	prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "nodetree");
+	RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
+	RNA_def_property_ui_text(prop, "Node Tree", "Node tree for node based worlds");
 }
 
 static void rna_def_background_image(BlenderRNA *brna)

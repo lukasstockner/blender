@@ -7984,6 +7984,7 @@ void RNA_def_nodetree(BlenderRNA *brna)
 	define_specific_node(brna, "ShaderNodeGroup", "ShaderNode", "Group", "", def_group);
 	define_specific_node(brna, "CompositorNodeGroup", "CompositorNode", "Group", "", def_group);
 	define_specific_node(brna, "TextureNodeGroup", "TextureNode", "Group", "", def_group);
+	define_specific_node(brna, "WorkflowNodeGroup", "TextureNode", "Group", "", def_group);
 	def_custom_group(brna);
 	
 	/* special socket types */

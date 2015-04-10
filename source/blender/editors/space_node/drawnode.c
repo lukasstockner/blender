@@ -2902,6 +2902,7 @@ void ED_node_init_butfuncs(void)
 	ntreeType_Composite->ui_icon = ICON_RENDERLAYERS;
 	ntreeType_Shader->ui_icon = ICON_MATERIAL;
 	ntreeType_Texture->ui_icon = ICON_TEXTURE;
+	ntreeType_Workflow->ui_icon = ICON_SMOOTH;
 }
 
 void ED_init_custom_node_type(bNodeType *ntype)
