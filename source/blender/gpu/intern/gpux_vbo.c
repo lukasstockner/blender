@@ -267,6 +267,17 @@ void GPUx_set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_nu
 	memcpy((byte*)attrib->data + vertex_num * attrib->stride, data, attrib->sz);
 }
 
+void GPUx_set_attrib_2f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, float x, float y)
+{
+	const GLfloat data[] = { x, y };
+#ifdef TRUST_NO_ONE
+	Attrib *attrib = buff->attribs + attrib_num;
+	assert(attrib->comp_type == GL_FLOAT);
+	assert(attrib->comp_ct == 2);
+#endif /* TRUST_NO_ONE */
+	GPUx_set_attrib(buff, attrib_num, vertex_num, data);
+}
+
 void GPUx_set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, float x, float y, float z)
 {
 	const GLfloat data[] = { x, y, z };

@@ -42,8 +42,9 @@ void GPUx_specify_attrib(VertexBuffer*, unsigned attrib_num,
 /* set value of single attribute of single vertex
  * incoming data must be of same type & size for this attribute */
 void GPUx_set_attrib(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, const void *data);
-/* convenience function for specific type and size
+/* convenience functions for specific type and size
  * can add more like this if it's useful */
+void GPUx_set_attrib_2f(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, float x, float y);
 void GPUx_set_attrib_3f(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, float x, float y, float z);
 
 /* bulk attribute filling routines (all vertices)
