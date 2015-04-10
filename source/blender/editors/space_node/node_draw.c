@@ -134,6 +134,9 @@ void ED_node_tag_update_id(ID *id)
 		else if (GS(id->name) == ID_WO)
 			WM_main_add_notifier(NC_WORLD | ND_WORLD, id);
 	}
+	else if (ntree->type == NTREE_WORKFLOW) {
+		WM_main_add_notifier(NC_SCENE | ND_NODES, id);
+	}
 	else if (ntree->type == NTREE_COMPOSIT) {
 		WM_main_add_notifier(NC_SCENE | ND_NODES, id);
 	}

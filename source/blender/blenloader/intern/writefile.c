@@ -869,7 +869,7 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 			writestruct(wd, DATA, "bNodeLink", 1, link);
 		if (node->storage) {
 			/* could be handlerized at some point, now only 1 exception still */
-			if (ntree->type==NTREE_SHADER && (node->type==SH_NODE_CURVE_VEC || node->type==SH_NODE_CURVE_RGB))
+			if (ELEM(ntree->type, NTREE_SHADER, NTREE_WORKFLOW) && (node->type==SH_NODE_CURVE_VEC || node->type==SH_NODE_CURVE_RGB))
 				write_curvemapping(wd, node->storage);
 			else if (ntree->type==NTREE_SHADER && node->type==SH_NODE_SCRIPT) {
 				NodeShaderScript *nss = (NodeShaderScript *)node->storage;

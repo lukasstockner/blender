@@ -1718,6 +1718,7 @@ void ntreeFreeTree_ex(bNodeTree *ntree, const bool do_id_user)
 	if (ntree->execdata) {
 		switch (ntree->type) {
 			case NTREE_SHADER:
+			case NTREE_WORKFLOW:
 				ntreeShaderEndExecTree(ntree->execdata);
 				break;
 			case NTREE_TEXTURE:
@@ -3632,6 +3633,7 @@ void init_nodesystem(void)
 
 	register_node_tree_type_cmp();
 	register_node_tree_type_sh();
+	register_node_tree_type_workflow();
 	register_node_tree_type_tex();
 
 	register_node_type_frame();

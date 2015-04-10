@@ -2798,7 +2798,7 @@ static void direct_link_nodetree(FileData *fd, bNodeTree *ntree)
 		
 		if (node->storage) {
 			/* could be handlerized at some point */
-			if (ntree->type==NTREE_SHADER) {
+			if (ELEM(ntree->type, NTREE_SHADER, NTREE_WORKFLOW)) {
 				if (node->type==SH_NODE_CURVE_VEC || node->type==SH_NODE_CURVE_RGB) {
 					direct_link_curvemapping(fd, node->storage);
 				}

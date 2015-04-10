@@ -36,7 +36,9 @@
 #include "DNA_material_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_view3d_types.h"
 #include "DNA_world_types.h"
 #include "DNA_linestyle_types.h"
 
@@ -50,6 +52,7 @@
 #include "BKE_linestyle.h"
 #include "BKE_node.h"
 #include "BKE_scene.h"
+#include "BKE_screen.h"
 
 #include "RNA_access.h"
 
@@ -195,6 +198,70 @@ void register_node_tree_type_sh(void)
 	
 	ntreeTypeAdd(tt);
 }
+
+static void workflow_get_from_context(const bContext *C, bNodeTreeType *UNUSED(treetype), bNodeTree **r_ntree, ID **r_id, ID **r_from)
+{
+	Main *bmain = CTX_data_main(C);
+	ScrArea *sa = NULL;
+	ARegion *ar = NULL;
+	View3D *v3d = NULL;
+	bScreen *screen = CTX_wm_screen(C);
+
+	*r_from = NULL;
+
+	if (screen) {
+		sa = BKE_screen_find_big_area(screen, SPACE_VIEW3D, 0);
+		ar = BKE_area_find_region_type(sa, RGN_TYPE_WINDOW);
+		if (ar) {
+			v3d = sa->spacedata.first;
+		}
+	}
+
+	if (v3d && v3d->activeworkflow) {
+		*r_id = &v3d->activeworkflow->id;
+		*r_ntree = v3d->activeworkflow->ntree;
+	}
+	else if (bmain->gpuworkflows.first) {
+		GPUWorkflowShader *wfshader = bmain->gpuworkflows.first;
+		*r_id = &wfshader->id;
+		*r_ntree = wfshader->ntree;
+	}
+	else {
+		*r_id = NULL;
+		*r_ntree = NULL;
+	}
+}
+
+
+static int workflow_tree_poll(const bContext *UNUSED(C), bNodeTreeType *UNUSED(treetype))
+{
+	return (U.gameflags & USER_VIEWPORT_2) != 0;
+}
+
+
+void register_node_tree_type_workflow(void)
+{
+	bNodeTreeType *tt = ntreeType_Shader = MEM_callocN(sizeof(bNodeTreeType), "shader node tree type");
+
+	tt->type = NTREE_SHADER;
+	strcpy(tt->idname, "WorkflowNodeTree");
+	strcpy(tt->ui_name, "Workflow Shader");
+	tt->ui_icon = 0;    /* defined in drawnode.c */
+	strcpy(tt->ui_description, "Workflow nodes");
+
+	tt->foreach_nodeclass = foreach_nodeclass;
+	tt->localize = localize;
+	tt->local_sync = local_sync;
+	tt->local_merge = local_merge;
+	tt->update = update;
+	tt->poll = workflow_tree_poll;
+	tt->get_from_context = workflow_get_from_context;
+
+	tt->ext.srna = &RNA_WorkflowNodeTree;
+
+	ntreeTypeAdd(tt);
+}
+
 
 /* GPU material from shader nodes */
 

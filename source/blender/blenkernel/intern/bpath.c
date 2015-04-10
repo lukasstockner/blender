@@ -557,7 +557,7 @@ void BKE_bpath_traverse_id(Main *bmain, ID *id, BPathVisitor visit_cb, const int
 			bNodeTree *ntree = (bNodeTree *)id;
 			bNode *node;
 
-			if (ntree->type == NTREE_SHADER) {
+			if (ELEM(ntree->type, NTREE_SHADER, NTREE_WORKFLOW)) {
 				/* same as lines above */
 				for (node = ntree->nodes.first; node; node = node->next) {
 					if (node->type == SH_NODE_SCRIPT) {

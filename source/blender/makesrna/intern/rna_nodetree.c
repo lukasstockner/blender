@@ -7669,6 +7669,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
 
 	static EnumPropertyItem static_type_items[] = {
 		{NTREE_SHADER,      "SHADER",       ICON_MATERIAL,      "Shader",       "Shader nodes"},
+	    {NTREE_WORKFLOW,    "WORKFLOW",     ICON_SMOOTH,    "Workflow",     "Workflow nodes"},
 		{NTREE_TEXTURE,     "TEXTURE",      ICON_TEXTURE,       "Texture",      "Texture nodes"},
 		{NTREE_COMPOSIT,    "COMPOSITING",  ICON_RENDERLAYERS,  "Compositing",  "Compositing nodes"},
 		{0, NULL, 0, NULL, NULL}
@@ -7852,6 +7853,18 @@ static void rna_def_shader_nodetree(BlenderRNA *brna)
 	RNA_def_struct_ui_icon(srna, ICON_MATERIAL);
 }
 
+
+static void rna_def_workflow_nodetree(BlenderRNA *brna)
+{
+	StructRNA *srna;
+
+	srna = RNA_def_struct(brna, "WorkflowNodeTree", "NodeTree");
+	RNA_def_struct_ui_text(srna, "Workflow Node Tree",
+	                       "Node tree consisting of linked nodes used for shader workflows");
+	RNA_def_struct_sdna(srna, "bNodeTree");
+	RNA_def_struct_ui_icon(srna, ICON_SMOOTH);
+}
+
 static void rna_def_texture_nodetree(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -7948,6 +7961,7 @@ void RNA_def_nodetree(BlenderRNA *brna)
 	
 	rna_def_composite_nodetree(brna);
 	rna_def_shader_nodetree(brna);
+	rna_def_workflow_nodetree(brna);
 	rna_def_texture_nodetree(brna);
 	
 #define DefNode(Category, ID, DefFunc, EnumName, StructName, UIName, UIDesc) \
