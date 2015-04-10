@@ -3371,6 +3371,7 @@ public:
 		}
 	}
 
+#ifdef __SPLIT_KERNEL__
 	/* Calculates the amount of memory that has to be always
 	 * allocated in order for the split kernel to function.
 	 * This memory is tile/scene-property invariant (meaning,
@@ -3536,6 +3537,11 @@ public:
 		int num_tiles_x = (((d_w - 1) / render_feasible_tile_size.x) + 1);
 		int num_tiles_y = (((d_h - 1) / render_feasible_tile_size.y) + 1);
 
+		/* buffer and rng_state offset calc */
+		size_t offset_index = rtile.offset + (rtile.x + rtile.y * rtile.stride);
+		size_t offset_x = offset_index % rtile.stride;
+		size_t offset_y = offset_index / rtile.stride;
+
 		/* Resize to_path_trace_rtile */
 		to_path_trace_rtile.resize(num_tiles_x * num_tiles_y);
 
@@ -3543,10 +3549,10 @@ public:
 			for (int tile_iter_x = 0; tile_iter_x < num_tiles_x; tile_iter_x++) {
 				int rtile_index = tile_iter_y * num_tiles_x + tile_iter_x;
 
-				to_path_trace_rtile[rtile_index].rng_state_offset_x = tile_iter_x * render_feasible_tile_size.x;
-				to_path_trace_rtile[rtile_index].rng_state_offset_y = tile_iter_y * render_feasible_tile_size.y;
-				to_path_trace_rtile[rtile_index].buffer_offset_x = tile_iter_x * render_feasible_tile_size.x;
-				to_path_trace_rtile[rtile_index].buffer_offset_y = tile_iter_y * render_feasible_tile_size.y;
+				to_path_trace_rtile[rtile_index].rng_state_offset_x = offset_x + tile_iter_x * render_feasible_tile_size.x;
+				to_path_trace_rtile[rtile_index].rng_state_offset_y = offset_y + tile_iter_y * render_feasible_tile_size.y;
+				to_path_trace_rtile[rtile_index].buffer_offset_x = offset_x + tile_iter_x * render_feasible_tile_size.x;
+				to_path_trace_rtile[rtile_index].buffer_offset_y = offset_y + tile_iter_y * render_feasible_tile_size.y;
 				to_path_trace_rtile[rtile_index].start_sample = rtile.start_sample;
 				to_path_trace_rtile[rtile_index].num_samples = rtile.num_samples;
 				to_path_trace_rtile[rtile_index].sample = rtile.sample;
@@ -3576,6 +3582,7 @@ public:
 		}
 		return to_path_trace_rtile;
 	}
+#endif
 
 	void thread_run(DeviceTask *task)
 	{
@@ -3589,9 +3596,9 @@ public:
 			RenderTile tile;
 
 #ifdef __SPLIT_KERNEL__
-		bool initialize_data_and_check_render_feasibility = false;
-		bool need_to_split_tiles_further = false;
-		size_t feasible_global_work_size;
+			bool initialize_data_and_check_render_feasibility = false;
+			bool need_to_split_tiles_further = false;
+			size_t feasible_global_work_size;
 #endif
 
 			/* keep rendering tiles until done */
