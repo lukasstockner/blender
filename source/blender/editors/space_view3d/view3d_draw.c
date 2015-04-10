@@ -552,75 +552,129 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 
 static void drawfloor_new(Scene *scene, View3D *v3d, const char **grid_unit)
 {
-	unsigned char col_grid[3];
-	const int gridlines = v3d->gridlines / 2;
-	const float grid_scale = ED_view3d_grid_scale(scene, v3d, grid_unit);
-	const float grid = gridlines * grid_scale;
+	/* draw only if there is something to draw */
+	if (v3d->gridflag & (V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
+		/* draw how many lines?
+		 * trunc(v3d->gridlines / 2) * 4
+		 * + 2 for xy axes (possibly with special colors)
+		 * + 1 for z axis (the only line not in xy plane)
+		 * even v3d->gridlines are honored, odd rounded down */
+		const int gridlines = v3d->gridlines / 2;
+		const float grid_scale = ED_view3d_grid_scale(scene, v3d, grid_unit);
+		const float grid = gridlines * grid_scale;
 
-	UI_GetThemeColor3ubv(TH_GRID, col_grid);
+		const bool show_floor = (v3d->gridflag & V3D_SHOW_FLOOR) && gridlines >= 1;
 
-	/* draw the Y axis and/or grid lines */
-	if ((v3d->gridflag & V3D_SHOW_FLOOR) && (v3d->gridlines >= 3)) {
-		const int sublines = v3d->gridsubdiv;
-		float vert[4][2] = {{0.0f}};
-		unsigned char col_bg[3];
-		unsigned char col_grid_emphasise[3], col_grid_light[3];
-		int a;
-		int prev_emphasise = -1;
+		unsigned char col_grid[3], col_axis[3];
 
-		UI_GetThemeColor3ubv(TH_BACK, col_bg);
+		UI_GetThemeColor3ubv(TH_GRID, col_grid);
 
-		/* emphasise division lines lighter instead of darker, if background is darker than grid */
-		UI_GetColorPtrShade3ubv(col_grid, col_grid_light, 10);
-		UI_GetColorPtrShade3ubv(col_grid, col_grid_emphasise,
-		                        (((col_grid[0] + col_grid[1] + col_grid[2]) + 30) >
-		                         (col_bg[0] + col_bg[1] + col_bg[2])) ? 20 : -10);
+		if (show_floor) {
+			const int sublines = v3d->gridsubdiv;
+			int a;
 
-		/* set fixed axis */
-		vert[0][0] = vert[2][1] = grid;
-		vert[1][0] = vert[3][1] = -grid;
+			unsigned char col_bg[3], col_grid_emphasise[3], col_grid_light[3];
 
-		glEnableClientState(GL_VERTEX_ARRAY);
-		glVertexPointer(2, GL_FLOAT, 0, vert);
+			glDepthFunc(GL_ALWAYS); /* draw lines in order given */
+			glBegin(GL_LINES);
 
-		for (a = -gridlines; a <= gridlines; a++) {
-			const float line = a * grid_scale;
-			const int is_emphasise = (a % sublines) == 0;
+			/* draw normal grid lines */
+			UI_GetColorPtrShade3ubv(col_grid, col_grid_light, 10);
+			glColor3ubv(col_grid_light);
 
-			if (is_emphasise != prev_emphasise) {
-				glColor3ubv(is_emphasise ? col_grid_emphasise : col_grid_light);
-				prev_emphasise = is_emphasise;
+			for (a = 1; a <= gridlines; a++) {
+				/* skip emphasised divider lines */
+				if (a % sublines != 0) {
+					const float line = a * grid_scale;
+
+					glVertex2f(-grid, -line);
+					glVertex2f(+grid, -line);
+					glVertex2f(-grid, +line);
+					glVertex2f(+grid, +line);
+
+					glVertex2f(-line, -grid);
+					glVertex2f(-line, +grid);
+					glVertex2f(+line, -grid);
+					glVertex2f(+line, +grid);
+				}
 			}
 
-			/* set variable axis */
-			vert[0][1] = vert[1][1] = vert[2][0] = vert[3][0] = line;
+			/* draw emphasised grid lines */
+			UI_GetThemeColor3ubv(TH_BACK, col_bg);
+			/* emphasise division lines lighter instead of darker, if background is darker than grid */
+			UI_GetColorPtrShade3ubv(col_grid, col_grid_emphasise,
+			                        (col_grid[0] + col_grid[1] + col_grid[2] + 30 >
+			                         col_bg[0] + col_bg[1] + col_bg[2]) ? 20 : -10);
+			glColor3ubv(col_grid_emphasise);
 
-			glDrawArrays(GL_LINES, 0, 4);
-		}
+			for (a = sublines; a <= gridlines; a += sublines) {
+				const float line = a * grid_scale;
 
-		glDisableClientState(GL_VERTEX_ARRAY);
-	}
+				glVertex2f(-grid, -line);
+				glVertex2f(+grid, -line);
+				glVertex2f(-grid, +line);
+				glVertex2f(+grid, +line);
 
-	/* draw the axis lines */
-	if (v3d->gridflag & (V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
-		int axis;
-		glBegin(GL_LINES);
-		for (axis = 0; axis < 3; axis++) {
-			if (v3d->gridflag & (V3D_SHOW_X << axis)) {
-				float vert[3];
-				unsigned char tcol[3];
+				glVertex2f(-line, -grid);
+				glVertex2f(-line, +grid);
+				glVertex2f(+line, -grid);
+				glVertex2f(+line, +grid);
+			}
 
-				UI_make_axis_color(col_grid, tcol, 'X' + axis);
-				glColor3ubv(tcol);
+			/* draw X axis */
+			if (v3d->gridflag & V3D_SHOW_X) {
+				UI_make_axis_color(col_grid, col_axis, 'X');
+				glColor3ubv(col_axis);
+			}
+			else
+				glColor3ubv(col_grid_emphasise);
+			glVertex2f(-grid, 0.0f);
+			glVertex2f(+grid, 0.0f);
 
-				zero_v3(vert);
-				vert[axis] = grid;
-				glVertex3fv(vert);
-				vert[axis] = -grid;
-				glVertex3fv(vert);
+			/* draw Y axis */
+			if (v3d->gridflag & V3D_SHOW_Y) {
+				UI_make_axis_color(col_grid, col_axis, 'Y');
+				glColor3ubv(col_axis);
+			}
+			else
+				glColor3ubv(col_grid_emphasise);
+			glVertex2f(0.0f, -grid);
+			glVertex2f(0.0f, +grid);
+
+			glEnd(); /* done with XY plane */
+
+			glDepthFunc(GL_LESS); /* restore default */
+
+			/* maybe draw Z axis */
+			if (v3d->gridflag & V3D_SHOW_Z) {
+				UI_make_axis_color(col_grid, col_axis, 'Z');
+				glColor3ubv(col_axis);
+
+				glBegin(GL_LINES);
+				glVertex3f(0.0f, 0.0f, -grid);
+				glVertex3f(0.0f, 0.0f, +grid);
+				glEnd();
 			}
 		}
-		glEnd();
+		else {
+			/* draw just the axis lines */
+			int axis;
+			glBegin(GL_LINES);
+			for (axis = 0; axis < 3; axis++) {
+				if (v3d->gridflag & (V3D_SHOW_X << axis)) {
+					float vert[3] = {0.0f};
+
+					UI_make_axis_color(col_grid, col_axis, 'X' + axis);
+					glColor3ubv(col_axis);
+
+					vert[axis] = grid;
+					glVertex3fv(vert);
+					vert[axis] = -grid;
+					glVertex3fv(vert);
+				}
+			}
+			glEnd();
+		}
 	}
 }
 
