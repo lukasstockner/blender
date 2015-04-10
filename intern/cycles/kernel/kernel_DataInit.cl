@@ -83,108 +83,82 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	ccl_global char *shader_data_sd_shadow,     /* Arguments related to ShaderData */
 
 	ccl_global float3 *P_sd,
-	ccl_global float3 *P_sd_dl,
 	ccl_global float3 *P_sd_shadow,
 
 	ccl_global float3 *N_sd,
-	ccl_global float3 *N_sd_dl,
 	ccl_global float3 *N_sd_shadow,
 
 	ccl_global float3 *Ng_sd,
-	ccl_global float3 *Ng_sd_dl,
 	ccl_global float3 *Ng_sd_shadow,
 
 	ccl_global float3 *I_sd,
-	ccl_global float3 *I_sd_dl,
 	ccl_global float3 *I_sd_shadow,
 
 	ccl_global int *shader_sd,
-	ccl_global int *shader_sd_dl,
 	ccl_global int *shader_sd_shadow,
 
 	ccl_global int *flag_sd,
-	ccl_global int *flag_sd_dl,
 	ccl_global int *flag_sd_shadow,
 
 	ccl_global int *prim_sd,
-	ccl_global int *prim_sd_dl,
 	ccl_global int *prim_sd_shadow,
 
 	ccl_global int *type_sd,
-	ccl_global int *type_sd_dl,
 	ccl_global int *type_sd_shadow,
 
 	ccl_global float *u_sd,
-	ccl_global float *u_sd_dl,
 	ccl_global float *u_sd_shadow,
 
 	ccl_global float *v_sd,
-	ccl_global float *v_sd_dl,
 	ccl_global float *v_sd_shadow,
 
 	ccl_global int *object_sd,
-	ccl_global int *object_sd_dl,
 	ccl_global int *object_sd_shadow,
 
 	ccl_global float *time_sd,
-	ccl_global float *time_sd_dl,
 	ccl_global float *time_sd_shadow,
 
 	ccl_global float *ray_length_sd,
-	ccl_global float *ray_length_sd_dl,
 	ccl_global float *ray_length_sd_shadow,
 
 	ccl_global int *ray_depth_sd,
-	ccl_global int *ray_depth_sd_dl,
 	ccl_global int *ray_depth_sd_shadow,
 
 	ccl_global int *transparent_depth_sd,
-	ccl_global int *transparent_depth_sd_dl,
 	ccl_global int *transparent_depth_sd_shadow,
 	#ifdef __RAY_DIFFERENTIALS__
 	ccl_global differential3 *dP_sd,
-	ccl_global differential3 *dP_sd_dl,
 	ccl_global differential3 *dP_sd_shadow,
 
 	ccl_global differential3 *dI_sd,
-	ccl_global differential3 *dI_sd_dl,
 	ccl_global differential3 *dI_sd_shadow,
 
 	ccl_global differential *du_sd,
-	ccl_global differential *du_sd_dl,
 	ccl_global differential *du_sd_shadow,
 
 	ccl_global differential *dv_sd,
-	ccl_global differential *dv_sd_dl,
 	ccl_global differential *dv_sd_shadow,
 	#endif
 	#ifdef __DPDU__
 	ccl_global float3 *dPdu_sd,
-	ccl_global float3 *dPdu_sd_dl,
 	ccl_global float3 *dPdu_sd_shadow,
 
 	ccl_global float3 *dPdv_sd,
-	ccl_global float3 *dPdv_sd_dl,
 	ccl_global float3 *dPdv_sd_shadow,
 	#endif
 	ccl_global ShaderClosure *closure_sd,
-	ccl_global ShaderClosure *closure_sd_dl,
 	ccl_global ShaderClosure *closure_sd_shadow,
 
 	ccl_global int *num_closure_sd,
-	ccl_global int *num_closure_sd_dl,
 	ccl_global int *num_closure_sd_shadow,
 
 	ccl_global float *randb_closure_sd,
-	ccl_global float *randb_closure_sd_dl,
 	ccl_global float *randb_closure_sd_shadow,
 
 	ccl_global float3 *ray_P_sd,
-	ccl_global float3 *ray_P_sd_dl,
 	ccl_global float3 *ray_P_sd_shadow,
 
 	ccl_global differential3 *ray_dP_sd,
-	ccl_global differential3 *ray_dP_sd_dl,
 	ccl_global differential3 *ray_dP_sd_shadow,
 
 	ccl_constant KernelData *data,

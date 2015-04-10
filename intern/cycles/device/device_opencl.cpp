@@ -415,77 +415,54 @@ public:
 
 	/* global buffers of each member of ShaderData */
 	cl_mem P_sd;
-	cl_mem P_sd_dl;
 	cl_mem P_sd_shadow;
 	cl_mem N_sd;
-	cl_mem N_sd_dl;
 	cl_mem N_sd_shadow;
 	cl_mem Ng_sd;
-	cl_mem Ng_sd_dl;
 	cl_mem Ng_sd_shadow;
 	cl_mem I_sd;
-	cl_mem I_sd_dl;
 	cl_mem I_sd_shadow;
 	cl_mem shader_sd;
-	cl_mem shader_sd_dl;
 	cl_mem shader_sd_shadow;
 	cl_mem flag_sd;
-	cl_mem flag_sd_dl;
 	cl_mem flag_sd_shadow;
 	cl_mem prim_sd;
-	cl_mem prim_sd_dl;
 	cl_mem prim_sd_shadow;
 	cl_mem type_sd;
-	cl_mem type_sd_dl;
 	cl_mem type_sd_shadow;
 	cl_mem u_sd;
-	cl_mem u_sd_dl;
 	cl_mem u_sd_shadow;
 	cl_mem v_sd;
-	cl_mem v_sd_dl;
 	cl_mem v_sd_shadow;
 	cl_mem object_sd;
-	cl_mem object_sd_dl;
 	cl_mem object_sd_shadow;
 	cl_mem time_sd;
-	cl_mem time_sd_dl;
 	cl_mem time_sd_shadow;
 	cl_mem ray_length_sd;
-	cl_mem ray_length_sd_dl;
 	cl_mem ray_length_sd_shadow;
 	cl_mem ray_depth_sd;
-	cl_mem ray_depth_sd_dl;
 	cl_mem ray_depth_sd_shadow;
 	cl_mem transparent_depth_sd;
-	cl_mem transparent_depth_sd_dl;
 	cl_mem transparent_depth_sd_shadow;
 #ifdef __RAY_DIFFERENTIALS__
 	cl_mem dP_sd,dI_sd;
-	cl_mem dP_sd_dl, dI_sd_dl;
 	cl_mem dP_sd_shadow, dI_sd_shadow;
 	cl_mem du_sd, dv_sd;
-	cl_mem du_sd_dl, dv_sd_dl;
 	cl_mem du_sd_shadow, dv_sd_shadow;
 #endif
 #ifdef __DPDU__
 	cl_mem dPdu_sd, dPdv_sd;
-	cl_mem dPdu_sd_dl, dPdv_sd_dl;
 	cl_mem dPdu_sd_shadow, dPdv_sd_shadow;
 #endif
 	cl_mem closure_sd;
-	cl_mem closure_sd_dl;
 	cl_mem closure_sd_shadow;
 	cl_mem num_closure_sd;
-	cl_mem num_closure_sd_dl;
 	cl_mem num_closure_sd_shadow;
 	cl_mem randb_closure_sd;
-	cl_mem randb_closure_sd_dl;
 	cl_mem randb_closure_sd_shadow;
 	cl_mem ray_P_sd;
-	cl_mem ray_P_sd_dl;
 	cl_mem ray_P_sd_shadow;
 	cl_mem ray_dP_sd;
-	cl_mem ray_dP_sd_dl;
 	cl_mem ray_dP_sd_shadow;
 
 	/* Global memory required for shadow blocked and accum_radiance */
@@ -676,86 +653,60 @@ public:
 		sd_DL_shadow = NULL;
 
 		P_sd = NULL;
-		P_sd_dl = NULL;;
 		P_sd_shadow = NULL;
 		N_sd = NULL;
-		N_sd_dl = NULL;
 		N_sd_shadow = NULL;
 		Ng_sd = NULL;
-		Ng_sd_dl = NULL;
 		Ng_sd_shadow = NULL;
 		I_sd = NULL;
-		I_sd_dl = NULL;
 		I_sd_shadow = NULL;
 		shader_sd = NULL;
-		shader_sd_dl = NULL;
 		shader_sd_shadow = NULL;
 		flag_sd = NULL;
-		flag_sd_dl = NULL;
 		flag_sd_shadow = NULL;
 		prim_sd = NULL;
-		prim_sd_dl = NULL;
 		prim_sd_shadow = NULL;
 		type_sd = NULL;
-		type_sd_dl = NULL;
 		type_sd_shadow = NULL;
 		u_sd = NULL;
-		u_sd_dl = NULL;
 		u_sd_shadow = NULL;
 		v_sd = NULL;
-		v_sd_dl = NULL;
 		v_sd_shadow = NULL;
 		object_sd = NULL;
-		object_sd_dl = NULL;
 		object_sd_shadow = NULL;
 		time_sd = NULL;
-		time_sd_dl = NULL;
 		time_sd_shadow = NULL;
 		ray_length_sd = NULL;
-		ray_length_sd_dl = NULL;
 		ray_length_sd_shadow = NULL;
 		ray_depth_sd = NULL;
-		ray_depth_sd_dl = NULL;
 		ray_depth_sd_shadow = NULL;
 		transparent_depth_sd = NULL;
-		transparent_depth_sd_dl = NULL;
 		transparent_depth_sd_shadow = NULL;
 #ifdef __RAY_DIFFERENTIALS__
 		dP_sd = NULL;
 		dI_sd = NULL;
-		dP_sd_dl = NULL;
-		dI_sd_dl = NULL;
 		dP_sd_shadow = NULL;
 		dI_sd_shadow = NULL;
 		du_sd = NULL;
 		dv_sd = NULL;
-		du_sd_dl = NULL;
-		dv_sd_dl = NULL;
 		du_sd_shadow = NULL;
 		dv_sd_shadow = NULL;
 #endif
 #ifdef __DPDU__
 		dPdu_sd = NULL;
 		dPdv_sd = NULL;
-		dPdu_sd_dl = NULL;
-		dPdv_sd_dl = NULL;
 		dPdu_sd_shadow = NULL;
 		dPdv_sd_shadow = NULL;
 #endif
 		closure_sd = NULL;
-		closure_sd_dl = NULL;
 		closure_sd_shadow = NULL;
 		num_closure_sd = NULL;
-		num_closure_sd_dl = NULL;
 		num_closure_sd_shadow = NULL;
 		randb_closure_sd = NULL;
-		randb_closure_sd_dl = NULL;
 		randb_closure_sd_shadow = NULL;
 		ray_P_sd = NULL;
-		ray_P_sd_dl = NULL;
 		ray_P_sd_shadow = NULL;
 		ray_dP_sd = NULL;
-		ray_dP_sd_dl = NULL;
 		ray_dP_sd_shadow = NULL;
 
 		rng_coop = NULL;
@@ -1892,17 +1843,11 @@ public:
 		if(P_sd != NULL)
 			clReleaseMemObject(P_sd);
 
-		if(P_sd_dl != NULL)
-			clReleaseMemObject(P_sd_dl);
-
 		if(P_sd_shadow != NULL)
 			clReleaseMemObject(P_sd_shadow);
 
 		if(N_sd != NULL)
 			clReleaseMemObject(N_sd);
-
-		if(N_sd_dl != NULL)
-			clReleaseMemObject(N_sd_dl);
 
 		if(N_sd_shadow != NULL)
 			clReleaseMemObject(N_sd_shadow);
@@ -1910,17 +1855,11 @@ public:
 		if(Ng_sd != NULL)
 			clReleaseMemObject(Ng_sd);
 
-		if(Ng_sd_dl != NULL)
-			clReleaseMemObject(Ng_sd_dl);
-
 		if(Ng_sd_shadow != NULL)
 			clReleaseMemObject(Ng_sd_shadow);
 
 		if(I_sd != NULL)
 			clReleaseMemObject(I_sd);
-
-		if(I_sd_dl != NULL)
-			clReleaseMemObject(I_sd_dl);
 
 		if(I_sd_shadow != NULL)
 			clReleaseMemObject(I_sd_shadow);
@@ -1928,17 +1867,11 @@ public:
 		if(shader_sd != NULL)
 			clReleaseMemObject(shader_sd);
 
-		if(shader_sd_dl != NULL)
-			clReleaseMemObject(shader_sd_dl);
-
 		if(shader_sd_shadow != NULL)
 			clReleaseMemObject(shader_sd_shadow);
 
 		if(flag_sd != NULL)
 			clReleaseMemObject(flag_sd);
-
-		if(flag_sd_dl != NULL)
-			clReleaseMemObject(flag_sd_dl);
 
 		if(flag_sd_shadow != NULL)
 			clReleaseMemObject(flag_sd_shadow);
@@ -1946,17 +1879,11 @@ public:
 		if(prim_sd != NULL)
 			clReleaseMemObject(prim_sd);
 
-		if(prim_sd_dl != NULL)
-			clReleaseMemObject(prim_sd_dl);
-
 		if(prim_sd_shadow != NULL)
 			clReleaseMemObject(prim_sd_shadow);
 
 		if(type_sd != NULL)
 			clReleaseMemObject(type_sd);
-
-		if(type_sd_dl != NULL)
-			clReleaseMemObject(type_sd_dl);
 
 		if(type_sd_shadow != NULL)
 			clReleaseMemObject(type_sd_shadow);
@@ -1964,17 +1891,11 @@ public:
 		if(u_sd != NULL)
 			clReleaseMemObject(u_sd);
 
-		if(u_sd_dl != NULL)
-			clReleaseMemObject(u_sd_dl);
-
 		if(u_sd_shadow != NULL)
 			clReleaseMemObject(u_sd_shadow);
 
 		if(v_sd != NULL)
 			clReleaseMemObject(v_sd);
-
-		if(v_sd_dl != NULL)
-			clReleaseMemObject(v_sd_dl);
 
 		if(v_sd_shadow != NULL)
 			clReleaseMemObject(v_sd_shadow);
@@ -1982,17 +1903,11 @@ public:
 		if(object_sd != NULL)
 			clReleaseMemObject(object_sd);
 
-		if(object_sd_dl != NULL)
-			clReleaseMemObject(object_sd_dl);
-
 		if(object_sd_shadow != NULL)
 			clReleaseMemObject(object_sd_shadow);
 
 		if(time_sd != NULL)
 			clReleaseMemObject(time_sd);
-
-		if(time_sd_dl != NULL)
-			clReleaseMemObject(time_sd_dl);
 
 		if(time_sd_shadow != NULL)
 			clReleaseMemObject(time_sd_shadow);
@@ -2000,26 +1915,17 @@ public:
 		if(ray_length_sd != NULL)
 			clReleaseMemObject(ray_length_sd);
 
-		if(ray_length_sd_dl != NULL)
-			clReleaseMemObject(ray_length_sd_dl);
-
 		if(ray_length_sd_shadow != NULL)
 			clReleaseMemObject(ray_length_sd_shadow);
 
 		if(ray_depth_sd != NULL)
 			clReleaseMemObject(ray_depth_sd);
 
-		if(ray_depth_sd_dl != NULL)
-			clReleaseMemObject(ray_depth_sd_dl);
-
 		if(ray_depth_sd_shadow != NULL)
 			clReleaseMemObject(ray_depth_sd_shadow);
 
 		if(transparent_depth_sd != NULL)
 			clReleaseMemObject(transparent_depth_sd);
-
-		if(transparent_depth_sd_dl != NULL)
-			clReleaseMemObject(transparent_depth_sd_dl);
 
 		if(transparent_depth_sd_shadow != NULL)
 			clReleaseMemObject(transparent_depth_sd_shadow);
@@ -2028,17 +1934,11 @@ public:
 		if(dP_sd != NULL)
 			clReleaseMemObject(dP_sd);
 
-		if(dP_sd_dl != NULL)
-			clReleaseMemObject(dP_sd_dl);
-
 		if(dP_sd_shadow != NULL)
 			clReleaseMemObject(dP_sd_shadow);
 
 		if(dI_sd != NULL)
 			clReleaseMemObject(dI_sd);
-
-		if(dI_sd_dl != NULL)
-			clReleaseMemObject(dI_sd_dl);
 
 		if(dI_sd_shadow != NULL)
 			clReleaseMemObject(dI_sd_shadow);
@@ -2046,17 +1946,11 @@ public:
 		if(du_sd != NULL)
 			clReleaseMemObject(du_sd);
 
-		if(du_sd_dl != NULL)
-			clReleaseMemObject(du_sd_dl);
-
 		if(du_sd_shadow != NULL)
 			clReleaseMemObject(du_sd_shadow);
 
 		if(dv_sd != NULL)
 			clReleaseMemObject(dv_sd);
-
-		if(dv_sd_dl != NULL)
-			clReleaseMemObject(dv_sd_dl);
 
 		if(dv_sd_shadow != NULL)
 			clReleaseMemObject(dv_sd_shadow);
@@ -2065,17 +1959,11 @@ public:
 		if(dPdu_sd != NULL)
 			clReleaseMemObject(dPdu_sd);
 
-		if(dPdu_sd_dl != NULL)
-			clReleaseMemObject(dPdu_sd_dl);
-
 		if(dPdu_sd_shadow != NULL)
 			clReleaseMemObject(dPdu_sd_shadow);
 
 		if(dPdv_sd != NULL)
 			clReleaseMemObject(dPdv_sd);
-
-		if(dPdv_sd_dl != NULL)
-			clReleaseMemObject(dPdv_sd_dl);
 
 		if(dPdv_sd_shadow != NULL)
 			clReleaseMemObject(dPdv_sd_shadow);
@@ -2084,17 +1972,11 @@ public:
 		if(closure_sd != NULL)
 			clReleaseMemObject(closure_sd);
 
-		if(closure_sd_dl != NULL)
-			clReleaseMemObject(closure_sd_dl);
-
 		if(closure_sd_shadow != NULL)
 			clReleaseMemObject(closure_sd_shadow);
 
 		if(num_closure_sd != NULL)
 			clReleaseMemObject(num_closure_sd);
-
-		if(num_closure_sd_dl != NULL)
-			clReleaseMemObject(num_closure_sd_dl);
 
 		if(num_closure_sd_shadow != NULL)
 			clReleaseMemObject(num_closure_sd_shadow);
@@ -2102,26 +1984,17 @@ public:
 		if(randb_closure_sd != NULL)
 			clReleaseMemObject(randb_closure_sd);
 
-		if(randb_closure_sd_dl != NULL)
-			clReleaseMemObject(randb_closure_sd_dl);
-
 		if(randb_closure_sd_shadow != NULL)
 			clReleaseMemObject(randb_closure_sd_shadow);
 
 		if(ray_P_sd != NULL)
 			clReleaseMemObject(ray_P_sd);
 
-		if(ray_P_sd_dl != NULL)
-			clReleaseMemObject(ray_P_sd_dl);
-
 		if(ray_P_sd_shadow != NULL)
 			clReleaseMemObject(ray_P_sd_shadow);
 
 		if(ray_dP_sd != NULL)
 			clReleaseMemObject(ray_dP_sd);
-
-		if(ray_dP_sd_dl != NULL)
-			clReleaseMemObject(ray_dP_sd_dl);
 
 		if(ray_dP_sd_shadow != NULL)
 			clReleaseMemObject(ray_dP_sd_shadow);
@@ -2500,17 +2373,11 @@ public:
 			P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create P_sd memory");
 
-			P_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements *sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create P_sd_dl memory");
-
 			P_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create P_sd_shadow memory");
 
 			N_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create N_sd memory");
-
-			N_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create N_sd_dl memory");
 
 			N_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create N_sd_shadow memory");
@@ -2518,17 +2385,11 @@ public:
 			Ng_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd memory");
 
-			Ng_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd_dl memory");
-
 			Ng_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd_shadow memory");
 
 			I_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create I_sd memory");
-
-			I_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create I_sd_dl memory");
 
 			I_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create I_sd_shadow memory");
@@ -2536,17 +2397,11 @@ public:
 			shader_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create shader_sd memory");
 
-			shader_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create shader_sd_dl memory");
-
 			shader_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create shader_sd_shadow memory");
 
 			flag_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create flag_sd memory");
-
-			flag_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create flag_sd_dl memory");
 
 			flag_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create flag_sd_shadow memory");
@@ -2554,17 +2409,11 @@ public:
 			prim_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create prim_sd memory");
 
-			prim_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create prim_sd_dl memory");
-
 			prim_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create prim_sd_shadow memory");
 
 			type_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create type_sd memory");
-
-			type_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create type_sd_dl memory");
 
 			type_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create type_sd_shadow memory");
@@ -2572,17 +2421,11 @@ public:
 			u_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create u_sd memory");
 
-			u_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create u_sd_dl memory");
-
 			u_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create u_sd_shadow memory");
 
 			v_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create v_sd memory");
-
-			v_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create v_sd_dl memory");
 
 			v_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create v_sd_shadow memory");
@@ -2590,17 +2433,11 @@ public:
 			object_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create object_sd memory");
 
-			object_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create object_sd_dl memory");
-
 			object_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create object_sd_shadow memory");
 
 			time_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create time_sd memory");
-
-			time_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create time_sd_dl memory");
 
 			time_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create time_sd_shadow memory");
@@ -2608,26 +2445,17 @@ public:
 			ray_length_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd memory");
 
-			ray_length_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd_dl memory");
-
 			ray_length_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd_shadow memory");
 
 			ray_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd memory");
 
-			ray_depth_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd_dl memory");
-
 			ray_depth_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd_shadow memory");
 
 			transparent_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd memory");
-
-			transparent_depth_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd_dl memory");
 
 			transparent_depth_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd_shadow memory");
@@ -2636,17 +2464,11 @@ public:
 			dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dP_sd memory");
 
-			dP_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dP_sd_dl memory");
-
 			dP_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dP_sd_shadow memory");
 
 			dI_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dI_sd memory");
-
-			dI_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dI_sd_dl memory");
 
 			dI_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dI_sd_shadow memory");
@@ -2654,17 +2476,11 @@ public:
 			du_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd memory");
 
-			du_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create du_sd_dl memory");
-
 			du_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd_shadow memory");
 
 			dv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd memory");
-
-			dv_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create du_sd_dl memory");
 
 			dv_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create du_sd_shadow memory");
@@ -2673,17 +2489,11 @@ public:
 			dPdu_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd memory");
 
-			dPdu_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd_dl memory");
-
 			dPdu_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd_shadow memory");
 
 			dPdv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd memory");
-
-			dPdv_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd_dl memory");
 
 			dPdv_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd_shadow memory");
@@ -2691,17 +2501,11 @@ public:
 			closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * ShaderClosure_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create closure_sd memory");
 
-			closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * ShaderClosure_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create closure_sd_dl memory");
-
 			closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * ShaderClosure_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create closure_sd_shadow memory");
 
 			num_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd memory");
-
-			num_closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd_dl memory");
 
 			num_closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd_shadow memory");
@@ -2709,26 +2513,17 @@ public:
 			randb_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd memory");
 
-			randb_closure_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd_dl memory");
-
 			randb_closure_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd_shadow memory");
 
 			ray_P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd memory");
 
-			ray_P_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd_dl memory");
-
 			ray_P_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd_shadow memory");
 
 			ray_dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd memory");
-
-			ray_dP_sd_dl = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd_dl memory");
 
 			ray_dP_sd_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd_shadow memory");
@@ -2805,109 +2600,83 @@ public:
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd), (void*)&sd));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd_DL_shadow), (void*)&sd_DL_shadow));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd), (void*)&P_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd_dl), (void*)&P_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd_shadow), (void*)&P_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(N_sd), (void*)&N_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(N_sd_dl), (void*)&N_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(N_sd_shadow), (void*)&N_sd_shadow));
 
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ng_sd), (void*)&Ng_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ng_sd_dl), (void*)&Ng_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ng_sd_shadow), (void*)&Ng_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(I_sd), (void*)&I_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(I_sd_dl), (void*)&I_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(I_sd_shadow), (void*)&I_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(shader_sd), (void*)&shader_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(shader_sd_dl), (void*)&shader_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(shader_sd_shadow), (void*)&shader_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(flag_sd), (void*)&flag_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(flag_sd_dl), (void*)&flag_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(flag_sd_shadow), (void*)&flag_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(prim_sd), (void*)&prim_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(prim_sd_dl), (void*)&prim_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(prim_sd_shadow), (void*)&prim_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(type_sd), (void*)&type_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(type_sd_dl), (void*)&type_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(type_sd_shadow), (void*)&type_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(u_sd), (void*)&u_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(u_sd_dl), (void*)&u_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(u_sd_shadow), (void*)&u_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(v_sd), (void*)&v_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(v_sd_dl), (void*)&v_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(v_sd_shadow), (void*)&v_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(object_sd), (void*)&object_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(object_sd_dl), (void*)&object_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(object_sd_shadow), (void*)&object_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(time_sd), (void*)&time_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(time_sd_dl), (void*)&time_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(time_sd_shadow), (void*)&time_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_length_sd), (void*)&ray_length_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_length_sd_dl), (void*)&ray_length_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_length_sd_shadow), (void*)&ray_length_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_depth_sd), (void*)&ray_depth_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_depth_sd_dl), (void*)&ray_depth_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_depth_sd_shadow), (void*)&ray_depth_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(transparent_depth_sd), (void*)&transparent_depth_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(transparent_depth_sd_dl), (void*)&transparent_depth_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(transparent_depth_sd_shadow), (void*)&transparent_depth_sd_shadow));
 #ifdef __RAY_DIFFERENTIALS__
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dP_sd), (void*)&dP_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dP_sd_dl), (void*)&dP_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dP_sd_shadow), (void*)&dP_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dI_sd), (void*)&dI_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dI_sd_dl), (void*)&dI_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dI_sd_shadow), (void*)&dI_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(du_sd), (void*)&du_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(du_sd_dl), (void*)&du_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(du_sd_shadow), (void*)&du_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dv_sd), (void*)&dv_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dv_sd_dl), (void*)&dv_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dv_sd_shadow), (void*)&dv_sd_shadow));
 #endif
 #ifdef __DPDU__
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdu_sd), (void*)&dPdu_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdu_sd_dl), (void*)&dPdu_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdu_sd_shadow), (void*)&dPdu_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdv_sd), (void*)&dPdv_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdv_sd_dl), (void*)&dPdv_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdv_sd_shadow), (void*)&dPdv_sd_shadow));
 #endif
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(closure_sd), (void*)&closure_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(closure_sd_dl), (void*)&closure_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(closure_sd_shadow), (void*)&closure_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_closure_sd), (void*)&num_closure_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_closure_sd_dl), (void*)&num_closure_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_closure_sd_shadow), (void*)&num_closure_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(randb_closure_sd), (void*)&randb_closure_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(randb_closure_sd_dl), (void*)&randb_closure_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(randb_closure_sd_shadow), (void*)&randb_closure_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_P_sd), (void*)&ray_P_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_P_sd_dl), (void*)&ray_P_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_P_sd_shadow), (void*)&ray_P_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_dP_sd), (void*)&ray_dP_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_dP_sd_dl), (void*)&ray_dP_sd_dl));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_dP_sd_shadow), (void*)&ray_dP_sd_shadow));
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
