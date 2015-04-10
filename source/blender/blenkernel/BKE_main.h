@@ -94,6 +94,7 @@ typedef struct Main {
 	ListBase movieclip;
 	ListBase mask;
 	ListBase linestyle;
+	ListBase gpuworkflows;
 
 	char id_tag_update[256];
 

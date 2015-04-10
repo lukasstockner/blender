@@ -61,6 +61,8 @@ struct GPUFX;
 #include "DNA_movieclip_types.h"
 #include "DNA_gpu_types.h"
 
+struct bNodeTree;
+
 /* ******************************** */
 
 /* The near/far thing is a Win EXCEPTION. Thus, leave near/far in the
@@ -80,6 +82,16 @@ typedef struct BGpic {
 	short source;
 	char pad[6];
 } BGpic;
+
+
+typedef struct GPUWorkflowShader {
+	ID id;
+	int objectmode; /* object modes for which this workflow applies */
+	int use_material; /* workflow shader is overlaid over materials of the meshes */
+	int	datamask; /* datamask of the data that will be required for this workflow shader */
+	int pad;
+	struct bNodeTree *ntree; /* node tree that describes the shader */
+} GPUWorkflowShader;
 
 /* ********************************* */
 
@@ -147,6 +159,7 @@ typedef struct RegionView3D {
 	float rot_axis[3];
 
 	struct GPUFX *compositor;
+	struct GPUWorkflowShader *activeworkflow;
 } RegionView3D;
 
 /* 3D ViewPort Struct */

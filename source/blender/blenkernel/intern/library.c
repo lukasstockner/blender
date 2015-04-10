@@ -521,6 +521,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->palettes);
 		case ID_PC:
 			return &(mainlib->paintcurves);
+		case ID_GPUWS:
+			return &(mainlib->gpuworkflows);
 	}
 	return NULL;
 }
@@ -618,6 +620,7 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->library);
 	lb[a++] = &(main->wm);
 	lb[a++] = &(main->mask);
+	lb[a++] = &(main->gpuworkflows);
 	
 	lb[a] = NULL;
 

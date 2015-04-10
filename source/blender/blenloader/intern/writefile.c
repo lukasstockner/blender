@@ -3124,6 +3124,19 @@ static void write_paintcurves(WriteData *wd, ListBase *idbase)
 	}
 }
 
+static void write_gpuworkflows(WriteData *wd, ListBase *idbase)
+{
+	GPUWorkflowShader *wfshader;
+
+	for (wfshader = idbase->first; wfshader; wfshader = wfshader->id.next) {
+		if (wfshader->id.us > 0 || wd->current) {
+			writestruct(wd, ID_GPUWS, "GPUWorkflowShader", 1, wfshader);
+			if (wfshader->id.properties) IDP_WriteProperty(wfshader->id.properties, wd);
+		}
+	}
+}
+
+
 static void write_scripts(WriteData *wd, ListBase *idbase)
 {
 	Script *script;
@@ -3599,6 +3612,7 @@ static int write_file_handle(
 	write_brushes  (wd, &mainvar->brush);
 	write_palettes (wd, &mainvar->palettes);
 	write_paintcurves (wd, &mainvar->paintcurves);
+	write_gpuworkflows (wd, &mainvar->gpuworkflows);
 	write_scripts  (wd, &mainvar->script);
 	write_gpencils (wd, &mainvar->gpencil);
 	write_linestyles(wd, &mainvar->linestyle);

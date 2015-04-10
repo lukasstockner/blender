@@ -222,6 +222,7 @@ typedef struct PreviewImage {
 #define ID_LS		MAKE_ID2('L', 'S') /* FreestyleLineStyle */
 #define ID_PAL		MAKE_ID2('P', 'L') /* Palette */
 #define ID_PC		MAKE_ID2('P', 'C') /* PaintCurve  */
+#define ID_GPUWS	MAKE_ID2('G', 'W') /* GPUWorkflowShader */
 
 	/* NOTE! Fake IDs, needed for g.sipo->blocktype or outliner */
 #define ID_SEQ		MAKE_ID2('S', 'Q')
