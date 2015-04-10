@@ -135,7 +135,7 @@ void Mesh::clear()
 	transform_applied = false;
 	transform_negative_scaled = false;
 	transform_normal = transform_identity();
-	geometry_synced = false;
+	geometry_flags = GEOMETRY_NONE;
 }
 
 int Mesh::split_vertex(int vertex)
@@ -1215,7 +1215,9 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 			                        &progress,
 			                        i,
 			                        num_bvh));
-			i++;
+			if(!mesh->transform_applied) {
+				i++;
+			}
 		}
 	}
 

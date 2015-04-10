@@ -43,8 +43,10 @@ extern "C" {
 #endif
 
 ExecutionSystem::ExecutionSystem(RenderData *rd, Scene *scene, bNodeTree *editingtree, bool rendering, bool fastcalculation,
-                                 const ColorManagedViewSettings *viewSettings, const ColorManagedDisplaySettings *displaySettings)
+                                 const ColorManagedViewSettings *viewSettings, const ColorManagedDisplaySettings *displaySettings,
+                                 const char *viewName)
 {
+	this->m_context.setViewName(viewName);
 	this->m_context.setScene(scene);
 	this->m_context.setbNodeTree(editingtree);
 	this->m_context.setPreviewHash(editingtree->previews);
@@ -127,7 +129,7 @@ void ExecutionSystem::set_operations(const Operations &operations, const Groups 
 void ExecutionSystem::execute()
 {
 	const bNodeTree *editingtree = this->m_context.getbNodeTree();
-	editingtree->stats_draw(editingtree->sdh, (char*)"Compositing | Initializing execution");
+	editingtree->stats_draw(editingtree->sdh, (char *)"Compositing | Initializing execution");
 
 	DebugInfo::execute_started(this);
 	
@@ -183,7 +185,7 @@ void ExecutionSystem::execute()
 	WorkScheduler::finish();
 	WorkScheduler::stop();
 
-	editingtree->stats_draw(editingtree->sdh, (char*)"Compositing | Deinitializing execution");
+	editingtree->stats_draw(editingtree->sdh, (char *)"Compositing | Deinitializing execution");
 	for (index = 0; index < this->m_operations.size(); index++) {
 		NodeOperation *operation = this->m_operations[index];
 		operation->deinitExecution();

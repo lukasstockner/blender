@@ -4704,17 +4704,26 @@ bool ED_view3d_autodist(Scene *scene, ARegion *ar, View3D *v3d,
                         const bool alphaoverride, const float fallback_depth_pt[3])
 {
 	bglMats mats; /* ZBuffer depth vars */
+	float depth_close;
 	float cent[3];
+	int margin_arr[] = {0, 2, 4};
+	int i;
+	bool depth_ok = false;
 
 	/* Get Z Depths, needed for perspective, nice for ortho */
 	bgl_get_mats(&mats);
 	ED_view3d_draw_depth(scene, ar, v3d, alphaoverride);
 
-	cent[2] = view_autodist_depth_margin(ar, mval, 4);
+	/* Attempt with low margin's first */
+	i = 0;
+	do {
+		depth_close = view_autodist_depth_margin(ar, mval, margin_arr[i++] * U.pixelsize);
+		depth_ok = (depth_close != FLT_MAX);
+	} while ((depth_ok == false) && (i < ARRAY_SIZE(margin_arr)));
 
-	if (cent[2] != FLT_MAX) {
-		cent[0] = mval[0];
-		cent[1] = mval[1];
+	if (depth_ok) {
+		cent[0] = mval[0] + 0.5;
+		cent[1] = mval[1] + 0.5;
 
 		if (gpuUnProject(cent, mats.modelview, mats.projection, (GLint *)mats.viewport, mouse_worldloc) != 0) {
 			return true;
@@ -4759,8 +4768,8 @@ bool ED_view3d_autodist_simple(ARegion *ar, const int mval[2], float mouse_world
 	if (cent[2] == FLT_MAX)
 		return false;
 
-	cent[0] = (float)mval[0];
-	cent[1] = (float)mval[1];
+	cent[0] = (float)mval[0] + 0.5;
+	cent[1] = (float)mval[1] + 0.5;
 
 	bgl_get_mats(&mats);
 

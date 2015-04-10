@@ -105,6 +105,7 @@ class DOPESHEET_HT_header(Header):
         layout = self.layout
 
         st = context.space_data
+        toolsettings = context.tool_settings
 
         row = layout.row(align=True)
         row.template_header()
@@ -112,6 +113,18 @@ class DOPESHEET_HT_header(Header):
         DOPESHEET_MT_editor_menus.draw_collapsible(context, layout)
 
         layout.prop(st, "mode", text="")
+
+        if st.mode in {'ACTION', 'SHAPEKEY'}:
+            row = layout.row(align=True)
+            row.operator("action.layer_prev", text="", icon='TRIA_DOWN')
+            row.operator("action.layer_next", text="", icon='TRIA_UP')
+
+            layout.template_ID(st, "action", new="action.new", unlink="action.unlink")
+
+            row = layout.row(align=True)
+            row.operator("action.push_down", text="Push Down", icon='NLA_PUSHDOWN')
+            row.operator("action.stash", text="Stash", icon='FREEZE')
+
         layout.prop(st.dopesheet, "show_summary", text="Summary")
 
         if st.mode == 'DOPESHEET':
@@ -121,12 +134,12 @@ class DOPESHEET_HT_header(Header):
             # filters which will work here and are useful (especially for character animation)
             dopesheet_filter(layout, context, genericFiltersOnly=True)
 
-        if st.mode in {'ACTION', 'SHAPEKEY'}:
-            layout.template_ID(st, "action", new="action.new")
-
-            row = layout.row(align=True)
-            row.operator("action.push_down", text="Push Down", icon='NLA_PUSHDOWN')
-            row.operator("action.stash", text="Stash", icon='FREEZE')
+        row = layout.row(align=True)
+        row.prop(toolsettings, "use_proportional_action",
+                 text="", icon_only=True)
+        if toolsettings.use_proportional_action:
+            row.prop(toolsettings, "proportional_edit_falloff",
+                     text="", icon_only=True)
 
         # Grease Pencil mode doesn't need snapping, as it's frame-aligned only
         if st.mode != 'GPENCIL':

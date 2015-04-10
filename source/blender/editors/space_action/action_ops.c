@@ -79,9 +79,14 @@ void action_operatortypes(void)
 	WM_operatortype_append(ACTION_OT_paste);
 	
 	WM_operatortype_append(ACTION_OT_new);
+	WM_operatortype_append(ACTION_OT_unlink);
+	
 	WM_operatortype_append(ACTION_OT_push_down);
 	WM_operatortype_append(ACTION_OT_stash);
 	WM_operatortype_append(ACTION_OT_stash_and_create);
+	
+	WM_operatortype_append(ACTION_OT_layer_next);
+	WM_operatortype_append(ACTION_OT_layer_prev);
 	
 	WM_operatortype_append(ACTION_OT_previewrange_set);
 	WM_operatortype_append(ACTION_OT_view_all);
@@ -101,6 +106,7 @@ void ED_operatormacros_action(void)
 	WM_operatortype_macro_define(ot, "ACTION_OT_duplicate");
 	otmacro = WM_operatortype_macro_define(ot, "TRANSFORM_OT_transform");
 	RNA_enum_set(otmacro->ptr, "mode", TFM_TIME_DUPLICATE);
+	RNA_enum_set(otmacro->ptr, "proportional", PROP_EDIT_OFF);
 }
 
 /* ************************** registration - keymaps **********************************/
@@ -197,7 +203,6 @@ static void action_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "ACTION_OT_keyframe_type", RKEY, KM_PRESS, 0, 0); 
 	
 	/* destructive */
-	WM_keymap_add_item(keymap, "ACTION_OT_clean", OKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "ACTION_OT_sample", OKEY, KM_PRESS, KM_SHIFT, 0);
 	
 	WM_keymap_add_item(keymap, "ACTION_OT_delete", XKEY, KM_PRESS, 0, 0);
@@ -236,6 +241,9 @@ static void action_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	/* transform system */
 	transform_keymap_for_space(keyconf, keymap, SPACE_ACTION);
 	
+	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", OKEY, KM_PRESS, 0, 0);
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.use_proportional_action");
+
 	/* special markers hotkeys for anim editors: see note in definition of this function */
 	ED_marker_keymap_animedit_conflictfree(keymap);
 }

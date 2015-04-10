@@ -767,7 +767,7 @@ void drawPropCircle(const struct bContext *C, TransInfo *t)
 			}
 			gpuScale(GPU_MODELVIEW, 1.0f / aspx, 1.0f / aspy, 1.0f);
 		}
-		else if (t->spacetype == SPACE_IPO) {
+		else if (ELEM(t->spacetype, SPACE_IPO, SPACE_ACTION)) {
 			/* only scale y */
 			rcti *mask = &t->ar->v2d.mask;
 			rctf *datamask = &t->ar->v2d.cur;
