@@ -2426,6 +2426,10 @@ public:
 		cl_int d_stride = rtile.stride;
 #ifdef __SPLIT_KERNEL__
 
+		/* Make sure that set render feasible tile size is a multiple of local work size dimensions */
+		assert(rtile.max_render_feasible_tile_size.x % SPLIT_KERNEL_LOCAL_SIZE_X == 0);
+		assert(rtile.max_render_feasible_tile_size.y % SPLIT_KERNEL_LOCAL_SIZE_Y == 0);
+
 		/* ray_state and hostRayStateArray should be of same size */
 		assert(hostRayState_size == rayState_size);
 		assert(rayState_size == 1);
@@ -3650,7 +3654,8 @@ public:
 				else {
 					/* No splitting required; process the entire tile at once */
 					/* Render feasible tile size is user-set-tile-size itself */
-					tile.max_render_feasible_tile_size = tile.tile_size;
+					tile.max_render_feasible_tile_size.x = (((tile.tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+					tile.max_render_feasible_tile_size.y = (((tile.tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
 					/* buffer_rng_state_stride is stride itself */
 					tile.buffer_rng_state_stride = tile.stride;
 					/* The second argument is dummy */
