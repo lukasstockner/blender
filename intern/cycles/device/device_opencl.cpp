@@ -3638,6 +3638,11 @@ public:
 					feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
 					need_to_split_tiles_further = need_to_split_tile(tile.tile_size.x, tile.tile_size.y, feasible_global_work_size);
 
+					/* Print message to console */
+					if (need_to_split_tiles_further && background) {
+						fprintf(stderr, "Message : Tiles need to be split further inside path trace (due to in-sufficient device-global-memory for split kernel to function)");
+					}
+
 					initialize_data_and_check_render_feasibility = true;
 				}
 
