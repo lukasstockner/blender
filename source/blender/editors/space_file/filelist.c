@@ -1072,39 +1072,6 @@ static void filelist_intern_free(FileListIntern *filelist_intern)
 	MEM_SAFE_FREE(filelist_intern->filtered);
 }
 
-static FileDirEntry *filelist_intern_create_entry(FileList *filelist, const int index)
-{
-	FileListInternEntry *entry = filelist->filelist_intern.filtered[index];
-	FileDirEntry *ret;
-	FileDirEntryRevision *rev;
-
-	ret = MEM_callocN(sizeof(*ret), __func__);
-	rev = MEM_callocN(sizeof(*rev), __func__);
-
-	rev->size = (uint64_t)entry->st.st_size;
-	BLI_filelist_entry_size_to_string(&entry->st, rev->size_str);
-
-	rev->time = (int64_t)entry->st.st_mtime;
-	BLI_filelist_entry_datetime_to_string(&entry->st, rev->time_str, rev->date_str);
-
-	ret->entry = rev;
-	ret->relpath = BLI_strdup(entry->relpath);
-	ret->name = BLI_strdup(entry->name);
-	ret->description = BLI_strdupcat(filelist->filelist.root, entry->relpath);
-	memcpy(ret->uuid, entry->uuid, sizeof(ret->uuid));
-	ret->blentype = entry->blentype;
-	ret->typeflag = entry->typeflag;
-
-	BLI_addtail(&filelist->filelist.entries, ret);
-	return ret;
-}
-
-static void filelist_intern_release_entry(FileList *filelist, FileDirEntry *entry)
-{
-	BLI_remlink(&filelist->filelist.entries, entry);
-	filelist_entry_free(entry);
-}
-
 static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid)
 {
 	FileListEntryCache *cache = taskdata;
@@ -1395,6 +1362,39 @@ void filelist_clear_refresh(struct FileList *filelist)
 	filelist->force_refresh = false;
 }
 
+static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int index)
+{
+	FileListInternEntry *entry = filelist->filelist_intern.filtered[index];
+	FileDirEntry *ret;
+	FileDirEntryRevision *rev;
+
+	ret = MEM_callocN(sizeof(*ret), __func__);
+	rev = MEM_callocN(sizeof(*rev), __func__);
+
+	rev->size = (uint64_t)entry->st.st_size;
+	BLI_filelist_entry_size_to_string(&entry->st, rev->size_str);
+
+	rev->time = (int64_t)entry->st.st_mtime;
+	BLI_filelist_entry_datetime_to_string(&entry->st, rev->time_str, rev->date_str);
+
+	ret->entry = rev;
+	ret->relpath = BLI_strdup(entry->relpath);
+	ret->name = BLI_strdup(entry->name);
+	ret->description = BLI_strdupcat(filelist->filelist.root, entry->relpath);
+	memcpy(ret->uuid, entry->uuid, sizeof(ret->uuid));
+	ret->blentype = entry->blentype;
+	ret->typeflag = entry->typeflag;
+
+	BLI_addtail(&filelist->filelist.entries, ret);
+	return ret;
+}
+
+static void filelist_file_release_entry(FileList *filelist, FileDirEntry *entry)
+{
+	BLI_remlink(&filelist->filelist.entries, entry);
+	filelist_entry_free(entry);
+}
+
 static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index, const bool use_request)
 {
 	FileDirEntry *ret = NULL, *old;
@@ -1421,10 +1421,10 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 	printf("requesting file %d (not yet cached)\n", index);
 
 	/* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
-	ret = filelist_intern_create_entry(filelist, index);
+	ret = filelist_file_create_entry(filelist, index);
 	old_index = cache->misc_entries_indices[cache->misc_cursor];
 	if ((old = BLI_ghash_popkey(cache->misc_entries, SET_INT_IN_POINTER(old_index), NULL))) {
-		filelist_intern_release_entry(filelist, old);
+		filelist_file_release_entry(filelist, old);
 	}
 	BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
 	cache->misc_entries_indices[cache->misc_cursor] = index;
@@ -1494,7 +1494,7 @@ static bool filelist_file_cache_block_create(struct FileList *filelist, const in
 		int i, idx;
 
 		for (i = 0, idx = start_index; i < size; i++, idx++, cursor++) {
-			cache->block_entries[cursor] = filelist_intern_create_entry(filelist, idx);
+			cache->block_entries[cursor] = filelist_file_create_entry(filelist, idx);
 		}
 		return true;
 	}
@@ -1511,7 +1511,7 @@ static void filelist_file_cache_block_release(struct FileList *filelist, const i
 
 		for (i = 0; i < size; i++, cursor++) {
 //			printf("%s: release cacheidx %d (%%p %%s)\n", __func__, cursor/*, cache->block_entries[cursor], cache->block_entries[cursor]->relpath*/);
-			filelist_intern_release_entry(filelist, cache->block_entries[cursor]);
+			filelist_file_release_entry(filelist, cache->block_entries[cursor]);
 #ifndef NDEBUG
 			cache->block_entries[cursor] = NULL;
 #endif
