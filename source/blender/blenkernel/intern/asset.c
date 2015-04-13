@@ -188,6 +188,7 @@ void BKE_filedir_revision_free(FileDirEntryRevision *rev)
 	if (rev->comment) {
 		MEM_freeN(rev->comment);
 	}
+	MEM_freeN(rev);
 }
 
 void BKE_filedir_variant_free(FileDirEntryVariant *var)
@@ -200,14 +201,16 @@ void BKE_filedir_variant_free(FileDirEntryVariant *var)
 	}
 
 	if (!BLI_listbase_is_empty(&var->revisions)) {
-		FileDirEntryRevision *rev;
+		FileDirEntryRevision *rev, *rev_next;
 
-		for (rev = var->revisions.first; rev; rev = rev->next) {
+		for (rev = var->revisions.first; rev; rev = rev_next) {
+			rev_next = rev->next;
 			BKE_filedir_revision_free(rev);
 		}
 
-		BLI_freelistN(&var->revisions);
+		BLI_listbase_clear(&var->revisions);
 	}
+	MEM_freeN(var);
 }
 
 void BKE_filedir_entry_clear(FileDirEntry *entry)
@@ -227,13 +230,14 @@ void BKE_filedir_entry_clear(FileDirEntry *entry)
 	/* For now, consider FileDirEntryRevision::poin as not owned here, so no need to do anything about it */
 
 	if (!BLI_listbase_is_empty(&entry->variants)) {
-		FileDirEntryVariant *var;
+		FileDirEntryVariant *var, *var_next;
 
-		for (var = entry->variants.first; var; var = var->next) {
+		for (var = entry->variants.first; var; var = var_next) {
+			var_next = var->next;
 			BKE_filedir_variant_free(var);
 		}
 
-		BLI_freelistN(&entry->variants);
+		BLI_listbase_clear(&entry->variants);
 	}
 	else if (entry->entry){
 		MEM_freeN(entry->entry);
@@ -319,9 +323,10 @@ FileDirEntry *BKE_filedir_entry_copy(FileDirEntry *entry)
 
 void BKE_filedir_entryarr_clear(FileDirEntryArr *array)
 {
-	FileDirEntry *entry;
+	FileDirEntry *entry, *entry_next;
 
-	for (entry = array->entries.first; entry; entry = entry->next) {
+	for (entry = array->entries.first; entry; entry = entry_next) {
+		entry_next = entry->next;
 		BKE_filedir_entry_free(entry);
 	}
 	BLI_listbase_clear(&array->entries);
