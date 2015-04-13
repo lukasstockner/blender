@@ -240,6 +240,9 @@ typedef struct FileListEntryCache {
 	int misc_entries_indices[FILELIST_ENTRYCACHESIZE];
 	GHash *misc_entries;
 
+	/* Allows to quickly get a cached entry from its UUID. */
+	GHash *uuids;
+
 	/* Previews handling. */
 	TaskPool *previews_pool;
 	ThreadQueue *previews_todo;
@@ -1117,6 +1120,10 @@ static void filelist_cache_init(FileListEntryCache *cache)
 	cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
 	fill_vn_i(cache->misc_entries_indices, ARRAY_SIZE(cache->misc_entries_indices), -1);
 	cache->misc_cursor = 0;
+
+	/* XXX This assumes uint is 32 bits and uuid is 128 bits (char[16]), be careful! */
+	cache->uuids = BLI_ghash_new_ex(BLI_ghashutil_uinthash_v4, BLI_ghashutil_uinthash_v4_cmp,
+	                                __func__, FILELIST_ENTRYCACHESIZE * 2);
 }
 
 static void filelist_cache_free(FileListEntryCache *cache)
@@ -1127,6 +1134,11 @@ static void filelist_cache_free(FileListEntryCache *cache)
 	if (cache->misc_entries) {
 		BLI_ghash_free(cache->misc_entries, NULL, NULL);
 		cache->misc_entries = NULL;
+	}
+
+	if (cache->uuids) {
+		BLI_ghash_free(cache->uuids, NULL, NULL);
+		cache->uuids = NULL;
 	}
 }
 
@@ -1139,6 +1151,10 @@ static void filelist_cache_clear(FileListEntryCache *cache)
 
 	if (cache->misc_entries) {
 		BLI_ghash_clear_ex(cache->misc_entries, NULL, NULL, FILELIST_ENTRYCACHESIZE);
+	}
+
+	if (cache->uuids) {
+		BLI_ghash_clear_ex(cache->uuids, NULL, NULL, FILELIST_ENTRYCACHESIZE * 2);
 	}
 }
 
@@ -1476,9 +1492,11 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 	if (ret) {
 		old_index = cache->misc_entries_indices[cache->misc_cursor];
 		if ((old = BLI_ghash_popkey(cache->misc_entries, SET_INT_IN_POINTER(old_index), NULL))) {
+			BLI_ghash_remove(cache->uuids, old->uuid, NULL, NULL);
 			filelist_file_release_entry(filelist, old);
 		}
 		BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
+		BLI_ghash_insert(cache->uuids, ret->uuid, ret);
 		cache->misc_entries_indices[cache->misc_cursor] = index;
 		cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
 
@@ -1506,7 +1524,7 @@ int filelist_file_findpath(struct FileList *filelist, const char *filename)
 	}
 
 	/* XXX TODO Cache could probably use a ghash on paths too? Not really urgent though.
-	 *          In fact, we may get rid of this func in the end (only used to find again renamed entry afaik). */
+     *          This is only used to find again renamed entry, annoying but looks hairy to get rid of it currently. */
 
 	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
 		FileListInternEntry *entry = filelist->filelist_intern.filtered[fidx];
@@ -1520,18 +1538,28 @@ int filelist_file_findpath(struct FileList *filelist, const char *filename)
 
 FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const char uuid[ASSET_UUID_LENGTH])
 {
-	int fidx;
-
 	if (filelist->filelist.nbr_entries_filtered < 0) {
 		return NULL;
 	}
 
-	/* XXX TODO Cache could probably use a ghash on uuids too? Not really urgent though. */
+	if (filelist->filelist_cache.uuids) {
+		FileDirEntry *entry = BLI_ghash_lookup(filelist->filelist_cache.uuids, uuid);
+		if (entry) {
+			return entry;
+		}
+	}
 
-	for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
-		FileListInternEntry *entry = filelist->filelist_intern.filtered[fidx];
-		if (memcmp(entry->uuid, uuid, sizeof(entry->uuid)) == 0) {
-			return filelist_file(filelist, fidx);
+	if (filelist->ae) {
+		/* TODO! */
+	}
+	else {
+		int fidx;
+
+		for (fidx = 0; fidx < filelist->filelist.nbr_entries_filtered; fidx++) {
+			FileListInternEntry *entry = filelist->filelist_intern.filtered[fidx];
+			if (memcmp(entry->uuid, uuid, sizeof(entry->uuid)) == 0) {
+				return filelist_file(filelist, fidx);
+			}
 		}
 	}
 
@@ -1559,7 +1587,9 @@ static bool filelist_file_cache_block_create(struct FileList *filelist, const in
 		int i, idx;
 
 		for (i = 0, idx = start_index; i < size; i++, idx++, cursor++) {
-			cache->block_entries[cursor] = filelist_file_create_entry(filelist, idx);
+			FileDirEntry *entry = filelist_file_create_entry(filelist, idx);
+			cache->block_entries[cursor] = entry;
+			BLI_ghash_insert(cache->uuids, entry->uuid, entry);
 		}
 		return true;
 	}
@@ -1573,14 +1603,10 @@ static void filelist_file_cache_block_release(struct FileList *filelist, const i
 	int i;
 
 	for (i = 0; i < size; i++, cursor++) {
+		FileDirEntry *entry = cache->block_entries[cursor];
 //		printf("%s: release cacheidx %d (%%p %%s)\n", __func__, cursor/*, cache->block_entries[cursor], cache->block_entries[cursor]->relpath*/);
-		if (filelist->ae) {
-			BLI_remlink(&filelist->filelist.entries, cache->block_entries[cursor]);
-			BKE_filedir_entry_free(cache->block_entries[cursor]);
-		}
-		else {
-			filelist_file_release_entry(filelist, cache->block_entries[cursor]);
-		}
+		BLI_ghash_remove(cache->uuids, entry->uuid, NULL, NULL);
+		filelist_file_release_entry(filelist, cache->block_entries[cursor]);
 
 #ifndef NDEBUG
 		cache->block_entries[cursor] = NULL;

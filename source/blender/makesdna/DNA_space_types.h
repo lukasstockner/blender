@@ -745,7 +745,10 @@ typedef enum eDirEntry_SelectFlag {
 
 /* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
 
-/* For RNA only, used to communicate with asset engines outside of 'import' context. */
+/* Be careful, we assume uuid is 128 bits (char[16]) in a few places, like uuids ghash in filecache of filebrowser. */
+#define ASSET_UUID_LENGTH     16
+
+/* Used to communicate with asset engines outside of 'import' context. */
 typedef struct AssetUUID {
 	char uuid_asset[16];     /* ASSET_UUID_LENGTH */
 	char uuid_variant[16];   /* ASSET_UUID_LENGTH */
@@ -853,8 +856,6 @@ typedef struct FileDirEntryArr {
 
 	char root[1024];	 /* FILE_MAX */
 } FileDirEntryArr;
-
-#define ASSET_UUID_LENGTH     16
 
 enum {
 	ASSET_STATUS_LOCAL  = 1 << 0,  /* If active uuid is available localy/immediately. */
