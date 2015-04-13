@@ -13,6 +13,13 @@
  * so we should follow that restriction on all platforms. */
 #ifdef USE_VBO
   #define USE_VAO
+
+  #ifdef __linux__
+    #define MESA_WORKAROUND
+    /* For padded attributes (stride > size) Mesa likes the VBO to have some extra
+     * space at the end, else it drops those attributes of our final vertex.
+     * noticed this on Mesa 10.4.3 */
+  #endif
 #endif
 
 #ifdef TRUST_NO_ONE
@@ -176,8 +183,14 @@ static unsigned attrib_total_size(const VertexBuffer *buff, unsigned attrib_num)
 #ifdef TRUST_NO_ONE
 	assert(attrib_num < buff->attrib_ct);
 #endif /* TRUST_NO_ONE */
+
+#ifdef MESA_WORKAROUND
+	/* an over-estimate, with padding after each vertex */
+	return buff->vertex_ct * attrib->stride;
+#else
 	/* just enough space for every vertex, with padding between but not after the last */
 	return (buff->vertex_ct - 1) * attrib->stride + attrib->sz;
+#endif /*  MESA_WORKAROUND */
 }
 
 void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
