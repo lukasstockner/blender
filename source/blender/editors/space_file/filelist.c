@@ -223,8 +223,6 @@ typedef struct FileListIntern {
 	/* XXX This will be reworked to keep 'all entries' storage to a minimum memory space! */
 	ListBase entries;  /* FileListInternEntry items. */
 	FileListInternEntry **filtered;
-
-	ListBase tmp_entries;  /* FileDirEntry items. */
 } FileListIntern;
 
 #define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
@@ -1037,9 +1035,10 @@ static void filelist_entry_free(FileDirEntry *entry)
 
 static void filelist_direntryarr_free(FileDirEntryArr *array)
 {
-	FileDirEntry *entry;
+	FileDirEntry *entry, *entry_next;
 
-	for (entry = array->entries.first; entry; entry = entry->next) {
+	for (entry = array->entries.first; entry; entry = entry_next) {
+		entry_next = entry->next;
 		filelist_entry_free(entry);
 	}
 	BLI_listbase_clear(&array->entries);
@@ -1063,7 +1062,6 @@ static void filelist_intern_entry_free(FileListInternEntry *entry)
 static void filelist_intern_free(FileListIntern *filelist_intern)
 {
 	FileListInternEntry *entry, *entry_next;
-	FileDirEntry *tmp_entry, *tmp_entry_next;
 
 	for (entry = filelist_intern->entries.first; entry; entry = entry_next) {
 		entry_next = entry->next;
@@ -1072,18 +1070,11 @@ static void filelist_intern_free(FileListIntern *filelist_intern)
 	BLI_listbase_clear(&filelist_intern->entries);
 
 	MEM_SAFE_FREE(filelist_intern->filtered);
-
-	for (tmp_entry = filelist_intern->tmp_entries.first; tmp_entry; tmp_entry = tmp_entry_next) {
-		tmp_entry_next = tmp_entry->next;
-		filelist_entry_free(tmp_entry);
-	}
-	BLI_listbase_clear(&filelist_intern->tmp_entries);
 }
 
 static FileDirEntry *filelist_intern_create_entry(FileList *filelist, const int index)
 {
 	FileListInternEntry *entry = filelist->filelist_intern.filtered[index];
-	FileListIntern *intern = &filelist->filelist_intern;
 	FileDirEntry *ret;
 	FileDirEntryRevision *rev;
 
@@ -1104,15 +1095,13 @@ static FileDirEntry *filelist_intern_create_entry(FileList *filelist, const int 
 	ret->blentype = entry->blentype;
 	ret->typeflag = entry->typeflag;
 
-	BLI_addtail(&intern->tmp_entries, ret);
+	BLI_addtail(&filelist->filelist.entries, ret);
 	return ret;
 }
 
 static void filelist_intern_release_entry(FileList *filelist, FileDirEntry *entry)
 {
-	FileListIntern *intern = &filelist->filelist_intern;
-
-	BLI_remlink(&intern->tmp_entries, entry);
+	BLI_remlink(&filelist->filelist.entries, entry);
 	filelist_entry_free(entry);
 }
 
@@ -1272,11 +1261,11 @@ void filelist_clear(struct FileList *filelist)
 
 	filelist_filter_clear(filelist);
 
-	filelist_direntryarr_free(&filelist->filelist);
-
 	filelist_cache_clear(&filelist->filelist_cache);
 
 	filelist_intern_free(&filelist->filelist_intern);
+
+	filelist_direntryarr_free(&filelist->filelist);
 
 	if (filelist->selection_state) {
 		BLI_ghash_clear(filelist->selection_state, MEM_freeN, NULL);
