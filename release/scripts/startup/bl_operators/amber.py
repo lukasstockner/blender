@@ -215,13 +215,8 @@ class AssetEngineAmber(AssetEngine):
     def __init__(self):
         self.executor = futures.ThreadPoolExecutor(8)  # Using threads for now, if issues arise we'll switch to process.
         self.jobs = {}
-        self.root = ""
-        self.uuids = {}
-        self.repo = {}
-        self.dirs = []
-        self.tags_source = []
 
-        self.sortedfiltered = []
+        self.reset()
 
         self.job_uuid = 1
 
@@ -231,6 +226,15 @@ class AssetEngineAmber(AssetEngine):
         #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
         #~ self.executor.shutdown(wait=False)
 
+    def reset(self):
+        print("Amber Reset!")
+        self.root = ""
+        self.uuids = {}
+        self.repo = {}
+        self.dirs = []
+        self.tags_source = []
+
+        self.sortedfiltered = []
 
     def status(self, job_id):
         if job_id:
@@ -261,10 +265,12 @@ class AssetEngineAmber(AssetEngine):
         #~ print(entries.root_path, job_id, job)
         if job is not None and isinstance(job, AmberJobList):
             if job.root != entries.root_path:
+                self.reset()
                 self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
             else:
                 job.update(self.repo, self.dirs, self.uuids)
         elif self.root != entries.root_path:
+            self.reset()
             job_id = self.job_uuid
             self.job_uuid += 1
             self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
@@ -317,6 +323,7 @@ class AssetEngineAmber(AssetEngine):
 
     def entries_block_get(self, start_index, end_index, entries):
         if self.repo:
+            print("self repo", len(self.sortedfiltered), start_index, end_index)
             for _n, euuid, e in self.sortedfiltered[start_index:end_index]:
                 uuid = binascii.unhexlify(euuid)
                 entry = entries.entries.add()
@@ -330,26 +337,22 @@ class AssetEngineAmber(AssetEngine):
                 act_rev = None
                 for vuuid, v in e["variants"].items():
                     variant_uuid = binascii.unhexlify(vuuid)
-                    variant, existing_ruuids = existing_vuuids.get(variant_uuid, (None, {}))
-                    if variant is None:
-                        variant = entry.variants.add()
-                        variant.uuid = variant_uuid
-                        variant.name = v["name"]
-                        variant.description = v["description"]
-                        existing_vuuids[variant_uuid] = (variant, existing_ruuids)  # Not really needed, but for sake of consistency...
-                        ruuids = vuuids[variant_uuid] = {}
+                    variant = entry.variants.add()
+                    variant.uuid = variant_uuid
+                    variant.name = v["name"]
+                    variant.description = v["description"]
+                    ruuids = {}
+                    vuuids[variant_uuid] = (variant, ruuids)  # Not really needed, but for sake of consistency...
                     if vuuid == e["variant_default"]:
                         entry.variants.active = variant
                     for ruuid, r in v["revisions"].items():
                         revision_uuid = binascii.unhexlify(ruuid)
-                        revision = existing_ruuids.get(revision_uuid, None)
-                        if revision is None:
-                            revision = variant.revisions.add()
-                            revision.uuid = revision_uuid
-                            #~ revision.comment = r["comment"]
-                            revision.size = r["size"]
-                            revision.timestamp = r["timestamp"]
-                            ruuids[revision_uuid] = (r["path_archive"], r["path"])
+                        revision = variant.revisions.add()
+                        revision.uuid = revision_uuid
+                        #~ revision.comment = r["comment"]
+                        revision.size = r["size"]
+                        revision.timestamp = r["timestamp"]
+                        ruuids[revision_uuid] = (r["path_archive"], r["path"])
                         if ruuid == v["revision_default"]:
                             variant.revisions.active = revision
                             if vuuid == e["variant_default"]:
@@ -357,6 +360,7 @@ class AssetEngineAmber(AssetEngine):
                 if act_rev:
                     entry.relpath = act_rev["path"]
         else:
+            print("self dirs", len(self.sortedfiltered), start_index, end_index)
             for path, size, timestamp, uuid in self.sortedfiltered[start_index:end_index]:
                 entry = entries.entries.add()
                 entry.type = {'DIR'}

@@ -667,7 +667,11 @@ void filelist_sort_filter(struct FileList *filelist)
 			                                                     filelist->filter_data.filter_glob,
 			                                                     filelist->filter_data.filter_search,
 			                                                     &filelist->filelist);
+			printf("%s: changed: %d\n", __func__, changed);
 		}
+		filelist_cache_clear(&filelist->filelist_cache);
+		filelist->need_sorting = false;
+		filelist->need_filtering = false;
 	}
 	else {
 		if (filelist_need_sorting(filelist)) {
@@ -1350,6 +1354,7 @@ void filelist_setdir(struct FileList *filelist, char *r_dir)
 
 	if (!STREQ(filelist->filelist.root, r_dir)) {
 		BLI_strncpy(filelist->filelist.root, r_dir, sizeof(filelist->filelist.root));
+		printf("%s: Forcing Reset!!!\n", __func__);
 		filelist->force_reset = true;
 	}
 }
@@ -1414,14 +1419,60 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 	printf("requesting file %d (not yet cached)\n", index);
 
 	/* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
-	ret = filelist_intern_create_entry(filelist, index);
-	old_index = cache->misc_entries_indices[cache->misc_cursor];
-	if ((old = BLI_ghash_popkey(cache->misc_entries, SET_INT_IN_POINTER(old_index), NULL))) {
-		filelist_intern_release_entry(filelist, old);
+	if (filelist->ae) {
+		FileDirEntryArr tmp_arr;
+
+		if (!filelist->ae->type->entries_block_get) {
+			printf("%s: Asset Engine %s does not implement 'entries_block_get'...\n", __func__, filelist->ae->type->name);
+			return NULL;
+		}
+
+		tmp_arr = filelist->filelist;
+		BLI_listbase_clear(&tmp_arr.entries);
+		if (!filelist->ae->type->entries_block_get(filelist->ae, index, index + 1, &tmp_arr)) {
+			printf("%s: Failed to get [%d:%d] from AE %s\n", __func__, index, index + 1, filelist->ae->type->name);
+			BKE_filedir_entryarr_clear(&tmp_arr);
+			return NULL;
+		}
+
+		ret = tmp_arr.entries.first;
+		BLI_assert(!BLI_listbase_is_empty(&ret->variants) && ret->nbr_variants);
+		BLI_assert(ret->act_variant < ret->nbr_variants);
+		if (!ret->name) {
+			char buff[FILE_MAX_LIBEXTRA];
+			ret->name = BLI_strdup(fileentry_uiname(filelist->filelist.root,
+			                                        ret->relpath, ret->typeflag, buff));
+		}
+		if (!ret->entry) {
+			FileDirEntryVariant *variant = BLI_findlink(&ret->variants, ret->act_variant);
+			BLI_assert(!BLI_listbase_is_empty(&variant->revisions) && variant->nbr_revisions);
+			BLI_assert(variant->act_revision < variant->nbr_revisions);
+			ret->entry = BLI_findlink(&variant->revisions, variant->act_revision);
+			BLI_assert(ret->entry);
+		}
+
+		old_index = cache->misc_entries_indices[cache->misc_cursor];
+		if ((old = BLI_ghash_popkey(cache->misc_entries, SET_INT_IN_POINTER(old_index), NULL))) {
+			BLI_remlink(&filelist->filelist.entries, old);
+			BKE_filedir_entry_free(old);
+		}
+		BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
+		cache->misc_entries_indices[cache->misc_cursor] = index;
+		cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
+
+		/* Using filelist->filelist.entries as owner of that mem! */
+		BLI_movelisttolist(&filelist->filelist.entries, &tmp_arr.entries);
 	}
-	BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
-	cache->misc_entries_indices[cache->misc_cursor] = index;
-	cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
+	else {
+		ret = filelist_intern_create_entry(filelist, index);
+		old_index = cache->misc_entries_indices[cache->misc_cursor];
+		if ((old = BLI_ghash_popkey(cache->misc_entries, SET_INT_IN_POINTER(old_index), NULL))) {
+			filelist_intern_release_entry(filelist, old);
+		}
+		BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
+		cache->misc_entries_indices[cache->misc_cursor] = index;
+		cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
+	}
 
 #if 0  /* Actually no, only block cached entries should have preview imho. */
 	if (cache->previews_pool) {
