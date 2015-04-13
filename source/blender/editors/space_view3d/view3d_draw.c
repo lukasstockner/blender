@@ -3718,8 +3718,6 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 
-	GPUx_reset_draw_state(); /* for code below which uses GPUx_state */
-
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->fx_settings.fx_flag) {
 		GPUFXSettings fx_settings;
@@ -3742,6 +3740,8 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 
 	/* clear the background */
 	view3d_main_area_clear(scene, v3d, ar);
+
+	GPUx_reset_draw_state(); /* for code below which uses GPUx_state */
 
 	drawfloor_new(scene, v3d, grid_unit);
 
