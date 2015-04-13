@@ -1154,7 +1154,7 @@ enum QUEUE_NUMBER {
 						      contributuin for direct lighting are enqueued here */
 };
 
-/* We use RAY_STATE_MASK to get ray_state (enums 1 to 5) */
+/* We use RAY_STATE_MASK to get ray_state (enums 0 to 5) */
 #define RAY_STATE_MASK 0x007
 #define RAY_FLAG_MASK 0x0F8
 enum RAY_STATE {

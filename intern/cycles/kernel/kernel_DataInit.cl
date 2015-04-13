@@ -403,6 +403,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 
 	/* Mark rest of the ray-state indices as RAY_INACTIVE */
 	if(thread_index < (get_global_size(0) * get_global_size(1)) - (sh * (sw * parallel_samples))) {
-		ASSIGN_RAY_STATE(ray_state, (sw * parallel_samples) * sh + thread_index, RAY_INACTIVE);
+		/* First assignment, hence we dont use ASSIGN_RAY_STATE macro */
+		ray_state[((sw * parallel_samples) * sh) + thread_index] = RAY_INACTIVE;
 	}
 }
