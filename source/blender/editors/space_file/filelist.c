@@ -2111,7 +2111,7 @@ FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check,
 		BLI_assert(BLI_ghashIterator_getValue(iter));
 
 		if (entry_org &&
-		    (((check == CHECK_ALL)) ||
+		    (((ELEM(check, CHECK_ALL, CHECK_NONE))) ||
 		     ((check == CHECK_DIRS) && (entry_org->typeflag & FILE_TYPE_DIR)) ||
 		     ((check == CHECK_FILES) && !(entry_org->typeflag & FILE_TYPE_DIR)))) {
 			/* Always include 'name' (i.e. given relpath) */
