@@ -83,7 +83,7 @@ void ED_image_draw_cursor(ARegion *ar, const float cursor[2])
 	y_fac = zoom[1];
 	
 	cpack(0xFFFFFF);
-	gpuTranslate(GPU_MODELVIEW, cursor[0], cursor[1], 0.0);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, cursor[0], cursor[1], 0.0);
 	fdrawline(-0.05f * x_fac, 0, 0, 0.05f * y_fac);
 	fdrawline(0, 0.05f * y_fac, 0.05f * x_fac, 0.0f);
 	fdrawline(0.05f * x_fac, 0.0f, 0.0f, -0.05f * y_fac);
@@ -111,7 +111,7 @@ void ED_image_draw_cursor(ARegion *ar, const float cursor[2])
 	fdrawline(0.0f, -0.020f * y_fac, 0.0f, -0.1f * y_fac);
 	fdrawline(0.0f, 0.1f * y_fac, 0.0f, 0.020f * y_fac);
 
-	gpuTranslate(GPU_MODELVIEW, -cursor[0], -cursor[1], 0.0);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, -cursor[0], -cursor[1], 0.0);
 	setlinestyle(0);
 }
 

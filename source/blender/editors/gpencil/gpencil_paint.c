@@ -1381,9 +1381,9 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 	tGPsdata *p = (tGPsdata *)p_ptr;
 	
 	if (p->paintmode == GP_PAINTMODE_ERASER) {
-		gpuPushMatrix(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 		
-		gpuTranslate(GPU_MODELVIEW, (float)x, (float)y, 0.0f);
+		gpuTranslate(GPU_MODELVIEW_MATRIX, (float)x, (float)y, 0.0f);
 		
 		glEnable(GL_LINE_SMOOTH);
 		glEnable(GL_BLEND);
@@ -1400,7 +1400,7 @@ static void gpencil_draw_eraser(bContext *UNUSED(C), int x, int y, void *p_ptr)
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 		
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	}
 }
 

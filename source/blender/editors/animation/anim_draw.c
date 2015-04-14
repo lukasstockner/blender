@@ -70,7 +70,7 @@ static void draw_cfra_number(Scene *scene, View2D *v2d, const float cfra, const 
 	
 	/* because the frame number text is subject to the same scaling as the contents of the view */
 	UI_view2d_scale_get(v2d, &xscale, &yscale);
-	gpuScale(GPU_MODELVIEW, 1.0f / xscale, 1.0f, 1.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f / xscale, 1.0f, 1.0f);
 	
 	/* get timecode string 
 	 *	- padding on str-buf passed so that it doesn't sit on the frame indicator
@@ -99,7 +99,7 @@ static void draw_cfra_number(Scene *scene, View2D *v2d, const float cfra, const 
 	UI_fontstyle_draw_simple(fstyle, x - 0.25f * U.widget_unit, y + 0.15f * U.widget_unit, numstr);
 	
 	/* restore view transform */
-	gpuScale(GPU_MODELVIEW, xscale, 1.0, 1.0);
+	gpuScale(GPU_MODELVIEW_MATRIX, xscale, 1.0, 1.0);
 }
 
 /* General call for drawing current frame indicator in animation editor */

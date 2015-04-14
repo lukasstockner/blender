@@ -1713,7 +1713,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 
 		projectFloatViewEx(t, vecrot, cent, V3D_PROJ_TEST_CLIP_ZERO);
 
-		gpuPushMatrix(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
 		switch (t->helpline) {
 			case HLP_SPRING:
@@ -1725,8 +1725,8 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				glVertex2fv(cent);
 				glEnd();
 
-				gpuTranslate(GPU_MODELVIEW, mval[0], mval[1], 0);
-				gpuRotateAxis(GPU_MODELVIEW, -RAD2DEGF(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 'Z');
+				gpuTranslate(GPU_MODELVIEW_MATRIX, mval[0], mval[1], 0);
+				gpuRotateAxis(GPU_MODELVIEW_MATRIX, -RAD2DEGF(atan2f(cent[0] - t->mval[0], cent[1] - t->mval[1])), 'Z');
 
 				setlinestyle(0);
 				glLineWidth(3.0);
@@ -1737,7 +1737,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			case HLP_HARROW:
 				UI_ThemeColor(TH_VIEW_OVERLAY);
 
-				gpuTranslate(GPU_MODELVIEW, mval[0], mval[1], 0);
+				gpuTranslate(GPU_MODELVIEW_MATRIX, mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 				drawArrow(RIGHT, 5, 10, 5);
@@ -1747,7 +1747,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			case HLP_VARROW:
 				UI_ThemeColor(TH_VIEW_OVERLAY);
 
-				gpuTranslate(GPU_MODELVIEW, mval[0], mval[1], 0);
+				gpuTranslate(GPU_MODELVIEW_MATRIX, mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 				drawArrow(UP, 5, 10, 5);
@@ -1769,24 +1769,24 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				glVertex2fv(cent);
 				glEnd();
 
-				gpuTranslate(GPU_MODELVIEW, cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
+				gpuTranslate(GPU_MODELVIEW_MATRIX, cent[0] - t->mval[0] + mval[0], cent[1] - t->mval[1] + mval[1], 0);
 
 				setlinestyle(0);
 				glLineWidth(3.0);
 				drawArc(dist, angle - delta_angle, angle - spacing_angle, 10);
 				drawArc(dist, angle + spacing_angle, angle + delta_angle, 10);
 
-				gpuPushMatrix(GPU_MODELVIEW);
+				gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
-				gpuTranslate(GPU_MODELVIEW, cosf(angle - delta_angle) * dist, sinf(angle - delta_angle) * dist, 0);
-				gpuRotateAxis(GPU_MODELVIEW, RAD2DEGF(angle - delta_angle), 'Z');
+				gpuTranslate(GPU_MODELVIEW_MATRIX, cosf(angle - delta_angle) * dist, sinf(angle - delta_angle) * dist, 0);
+				gpuRotateAxis(GPU_MODELVIEW_MATRIX, RAD2DEGF(angle - delta_angle), 'Z');
 
 				drawArrowHead(DOWN, 5);
 
-				gpuPopMatrix(GPU_MODELVIEW);
+				gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
-				gpuTranslate(GPU_MODELVIEW, cosf(angle + delta_angle) * dist, sinf(angle + delta_angle) * dist, 0);
-				gpuRotateAxis(GPU_MODELVIEW, RAD2DEGF(angle + delta_angle), 'Z');
+				gpuTranslate(GPU_MODELVIEW_MATRIX, cosf(angle + delta_angle) * dist, sinf(angle + delta_angle) * dist, 0);
+				gpuRotateAxis(GPU_MODELVIEW_MATRIX, RAD2DEGF(angle + delta_angle), 'Z');
 
 				drawArrowHead(UP, 5);
 
@@ -1798,7 +1798,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				unsigned char col[3], col2[3];
 				UI_GetThemeColor3ubv(TH_GRID, col);
 
-				gpuTranslate(GPU_MODELVIEW, mval[0], mval[1], 0);
+				gpuTranslate(GPU_MODELVIEW_MATRIX, mval[0], mval[1], 0);
 
 				glLineWidth(3.0);
 
@@ -1818,7 +1818,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 			}
 		}
 
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	}
 }
 
@@ -6281,9 +6281,9 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
-			gpuPushMatrix(GPU_MODELVIEW);
+			gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
-			gpuMultMatrix(GPU_MODELVIEW, t->obedit->obmat[0]);
+			gpuMultMatrix(GPU_MODELVIEW_MATRIX, t->obedit->obmat[0]);
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -6322,7 +6322,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 			bglEnd();
 
 
-			gpuPopMatrix(GPU_MODELVIEW);
+			gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 			glPopAttrib();
 
 			glDisable(GL_BLEND);
@@ -6838,9 +6838,9 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			glPushAttrib(GL_CURRENT_BIT | GL_LINE_BIT | GL_POINT_BIT);
-			gpuPushMatrix(GPU_MODELVIEW);
+			gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
-			gpuMultMatrix(GPU_MODELVIEW, t->obedit->obmat[0]);
+			gpuMultMatrix(GPU_MODELVIEW_MATRIX, t->obedit->obmat[0]);
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
@@ -6903,7 +6903,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 				glEnd();
 			}
 
-			gpuPopMatrix(GPU_MODELVIEW);
+			gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 			glPopAttrib();
 
 			if (v3d && v3d->zbuf)

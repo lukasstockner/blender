@@ -1184,8 +1184,8 @@ void GPU_texture_bind_as_framebuffer(GPUTexture *tex)
 	glViewport(0, 0, tex->w, tex->h);
 	GG.currentfb = tex->fb->object;
 
-	gpuPushMatrix(GPU_PROJECTION);
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_PROJECTION_MATRIX);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
@@ -1220,16 +1220,16 @@ void GPU_framebuffer_slots_bind(GPUFrameBuffer *fb, int slot)
 	glViewport(0, 0, fb->colortex[slot]->w, fb->colortex[slot]->h);
 	GG.currentfb = fb->object;
 
-	gpuPushMatrix(GPU_PROJECTION);
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_PROJECTION_MATRIX);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 
 void GPU_framebuffer_texture_unbind(GPUFrameBuffer *UNUSED(fb), GPUTexture *UNUSED(tex))
 {
 	/* restore matrix */
-	gpuPopMatrix(GPU_PROJECTION);
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_PROJECTION_MATRIX);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 	/* restore attributes */
 	glPopAttrib();
@@ -1331,9 +1331,9 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	glViewport(0, 0, GPU_texture_opengl_width(blurtex), GPU_texture_opengl_height(blurtex));
 
 	/* Peparing to draw quad */
-	gpuLoadIdentity(GPU_MODELVIEW);
-	gpuLoadIdentity(GPU_TEXTURE);
-	gpuLoadIdentity(GPU_PROJECTION);
+	gpuLoadIdentity(GPU_MODELVIEW_MATRIX);
+	gpuLoadIdentity(GPU_TEXTURE_MATRIX);
+	gpuLoadIdentity(GPU_PROJECTION_MATRIX);
 
 	glDisable(GL_DEPTH_TEST);
 

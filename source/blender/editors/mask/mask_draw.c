@@ -161,11 +161,11 @@ static void draw_circle(const float x, const float y,
 		}
 	}
 
-	gpuPushMatrix(GPU_MODELVIEW);
-	gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
-	gpuScale(GPU_MODELVIEW, 1.0f / xscale * size, 1.0f / yscale * size, 1.0f);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f / xscale * size, 1.0f / yscale * size, 1.0f);
 	glCallList(displist);
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 static void draw_single_handle(const MaskLayer *mask_layer, const MaskSplinePoint *point,
@@ -815,14 +815,14 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 			format = GL_ALPHA;
 		}
 
-		gpuPushMatrix(GPU_MODELVIEW);
-		gpuTranslate(GPU_MODELVIEW, x, y, 0);
-		gpuScale(GPU_MODELVIEW, zoomx, zoomy, 0);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+		gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0);
+		gpuScale(GPU_MODELVIEW_MATRIX, zoomx, zoomy, 0);
 		if (stabmat) {
-			gpuMultMatrix(GPU_MODELVIEW, stabmat[0]);
+			gpuMultMatrix(GPU_MODELVIEW_MATRIX, stabmat[0]);
 		}
 		glaDrawPixelsTex(0.0f, 0.0f, width, height, format, GL_FLOAT, GL_NEAREST, buffer);
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 		if (overlay_mode != MASK_OVERLAY_ALPHACHANNEL) {
 			glDisable(GL_BLEND);
@@ -832,14 +832,14 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 	}
 
 	/* apply transformation so mask editing tools will assume drawing from the origin in normalized space */
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
 	if (stabmat) {
-		gpuMultMatrix(GPU_MODELVIEW, stabmat[0]);
+		gpuMultMatrix(GPU_MODELVIEW_MATRIX, stabmat[0]);
 	}
 
-	gpuTranslate(GPU_MODELVIEW, x + xofs, y + yofs, 0);
-	gpuScale(GPU_MODELVIEW, maxdim * zoomx, maxdim * zoomy, 0);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, x + xofs, y + yofs, 0);
+	gpuScale(GPU_MODELVIEW_MATRIX, maxdim * zoomx, maxdim * zoomy, 0);
 
 	if (do_draw_cb) {
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_PRE_VIEW);
@@ -852,7 +852,7 @@ void ED_mask_draw_region(Mask *mask, ARegion *ar,
 		ED_region_draw_cb_draw(C, ar, REGION_DRAW_POST_VIEW);
 	}
 
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 void ED_mask_draw_frames(Mask *mask, ARegion *ar, const int cfra, const int sfra, const int efra)

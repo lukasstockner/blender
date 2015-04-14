@@ -224,7 +224,7 @@ static void feedback_spot_direction(float spot_direction[3] /* in-out */)
 {
 	float n[3][3];
 
-	copy_m3_m4(n, (float (*)[4])gpuGetMatrix(GPU_MODELVIEW, NULL));
+	copy_m3_m4(n, (float (*)[4])gpuGetMatrix(GPU_MODELVIEW_MATRIX, NULL));
 	mul_m3_v3(n, spot_direction);
 }
 

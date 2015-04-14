@@ -443,11 +443,11 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 	// fix for [#34523] alpha buffer is now available for all OSs
 	glDisable(GL_ALPHA_TEST);
 
-	gpuPushMatrix(GPU_MODELVIEW);		//GL_MODELVIEW
-	gpuLoadIdentity(GPU_MODELVIEW);	// GL_MODELVIEW
-	gpuLoadIdentity(GPU_TEXTURE);
-	gpuPushMatrix(GPU_PROJECTION);
-	gpuLoadIdentity(GPU_PROJECTION);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);		//GL_MODELVIEW
+	gpuLoadIdentity(GPU_MODELVIEW_MATRIX);	// GL_MODELVIEW
+	gpuLoadIdentity(GPU_TEXTURE_MATRIX);
+	gpuPushMatrix(GPU_PROJECTION_MATRIX);
+	gpuLoadIdentity(GPU_PROJECTION_MATRIX);
 
 	for (passindex =0; passindex<MAX_RENDER_PASS; passindex++)
 	{
@@ -472,8 +472,8 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 
 	glEnable(GL_DEPTH_TEST);
 	EndShaderProgram();
-	gpuPopMatrix(GPU_PROJECTION);
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_PROJECTION_MATRIX);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 void RAS_2DFilterManager::EnableFilter(vector<STR_String>& propNames, void* gameObj, RAS_2DFILTER_MODE mode, int pass, STR_String& text)

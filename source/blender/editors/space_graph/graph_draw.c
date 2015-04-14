@@ -183,15 +183,15 @@ static void draw_fcurve_handle_control(float x, float y, float xscale, float ysc
 	}
 	
 	/* adjust view transform before starting */
-	gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
-	gpuScale(GPU_MODELVIEW, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 	
 	/* draw! */
 	glCallList(displist);
 	
 	/* restore view transform */
-	gpuScale(GPU_MODELVIEW, xscale / hsize, yscale / hsize, 1.0);
-	gpuTranslate(GPU_MODELVIEW, -x, -y, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, xscale / hsize, yscale / hsize, 1.0);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, -x, -y, 0.0f);
 }
 
 /* helper func - draw handle vertices only for an F-Curve (if it is not protected) */
@@ -426,15 +426,15 @@ static void draw_fcurve_sample_control(float x, float y, float xscale, float ysc
 	}
 	
 	/* adjust view transform before starting */
-	gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
-	gpuScale(GPU_MODELVIEW, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 	
 	/* draw! */
 	glCallList(displist);
 	
 	/* restore view transform */
-	gpuScale(GPU_MODELVIEW, xscale / hsize, yscale / hsize, 1.0);
-	gpuTranslate(GPU_MODELVIEW, -x, -y, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, xscale / hsize, yscale / hsize, 1.0);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, -x, -y, 0.0f);
 }
 
 /* helper func - draw keyframe vertices only for an F-Curve */
@@ -567,10 +567,10 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	short mapping_flag = ANIM_get_normalization_flags(ac);
 
 	/* apply unit mapping */
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 	unit_scale = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag, &offset);
-	gpuScale(GPU_MODELVIEW, 1.0f, unit_scale, 1.0f);
-	gpuTranslate(GPU_MODELVIEW, 0.0f, offset, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f, unit_scale, 1.0f);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, 0.0f, offset, 0.0f);
 
 	GPUBegin(GL_LINE_STRIP);
 	
@@ -633,7 +633,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	}
 	
 	glEnd();
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 /* helper func - check if the F-Curve only contains easily drawable segments 
@@ -667,10 +667,10 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	short mapping_flag = ANIM_get_normalization_flags(ac);
 	
 	/* apply unit mapping */
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 	unit_scale = ANIM_unit_mapping_get_factor(ac->scene, id, fcu, mapping_flag, &offset);
-	gpuScale(GPU_MODELVIEW, 1.0f, unit_scale, 1.0f);
-	gpuTranslate(GPU_MODELVIEW, 0.0f, offset, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f, unit_scale, 1.0f);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, 0.0f, offset, 0.0f);
 
 	GPUBegin(GL_LINE_STRIP);
 	
@@ -810,7 +810,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	}
 	
 	glEnd();
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 /* Debugging -------------------------------- */
@@ -1070,9 +1070,9 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 				float offset;
 				float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
 
-				gpuPushMatrix(GPU_MODELVIEW);
-				gpuScale(GPU_MODELVIEW, 1.0f, unit_scale, 1.0f);
-				gpuTranslate(GPU_MODELVIEW, 0.0f, offset, 0.0f);
+				gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+				gpuScale(GPU_MODELVIEW_MATRIX, 1.0f, unit_scale, 1.0f);
+				gpuTranslate(GPU_MODELVIEW_MATRIX, 0.0f, offset, 0.0f);
 
 				if (fcu->bezt) {
 					bool do_handles = draw_fcurve_handles_check(sipo, fcu);
@@ -1091,7 +1091,7 @@ void graph_draw_curves(bAnimContext *ac, SpaceIpo *sipo, ARegion *ar, View2DGrid
 					draw_fcurve_samples(sipo, ar, fcu);
 				}
 
-				gpuPopMatrix(GPU_MODELVIEW);
+				gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 			}
 		}
 		

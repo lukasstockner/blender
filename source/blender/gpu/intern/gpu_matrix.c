@@ -108,16 +108,16 @@ static void ms_free(GPU_matrix_stack *ms)
 
 void gpu_matrix_init(void)
 {
-	ms_init(&mstacks[GPU_TEXTURE], 16);
-	ms_init(&mstacks[GPU_PROJECTION], 16);
-	ms_init(&mstacks[GPU_MODELVIEW], 32);
+	ms_init(&mstacks[GPU_TEXTURE_MATRIX], 16);
+	ms_init(&mstacks[GPU_PROJECTION_MATRIX], 16);
+	ms_init(&mstacks[GPU_MODELVIEW_MATRIX], 32);
 }
 
 void gpu_matrix_exit(void)
 {
-	ms_free(&mstacks[GPU_TEXTURE]);
-	ms_free(&mstacks[GPU_PROJECTION]);
-	ms_free(&mstacks[GPU_MODELVIEW]);
+	ms_free(&mstacks[GPU_TEXTURE_MATRIX]);
+	ms_free(&mstacks[GPU_PROJECTION_MATRIX]);
+	ms_free(&mstacks[GPU_MODELVIEW_MATRIX]);
 }
 
 void gpu_commit_matrix(void)
@@ -129,8 +129,8 @@ void gpu_commit_matrix(void)
 	if (common) {
 		int i;
 
-		float (*m)[4] = (float (*)[4])gpuGetMatrix(GPU_MODELVIEW, NULL);
-		float (*p)[4] = (float (*)[4])gpuGetMatrix(GPU_PROJECTION, NULL);
+		float (*m)[4] = (float (*)[4])gpuGetMatrix(GPU_MODELVIEW_MATRIX, NULL);
+		float (*p)[4] = (float (*)[4])gpuGetMatrix(GPU_PROJECTION_MATRIX, NULL);
 
 		if (common->modelview_matrix != -1)
 			glUniformMatrix4fv(common->modelview_matrix, 1, GL_FALSE, m[0]);
@@ -161,7 +161,7 @@ void gpu_commit_matrix(void)
 		for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 			if (common->texture_matrix[i] != -1) {
 				GPU_set_common_active_texture(i);
-				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GPU_TEXTURE, NULL));
+				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GPU_TEXTURE_MATRIX, NULL));
 			}
 		}
 
@@ -174,13 +174,13 @@ void gpu_commit_matrix(void)
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glMatrixMode(GL_TEXTURE);
-	glLoadMatrixf(gpuGetMatrix(GPU_TEXTURE, NULL));
+	glLoadMatrixf(gpuGetMatrix(GPU_TEXTURE_MATRIX, NULL));
 
 	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(gpuGetMatrix(GPU_PROJECTION, NULL));
+	glLoadMatrixf(gpuGetMatrix(GPU_PROJECTION_MATRIX, NULL));
 
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(gpuGetMatrix(GPU_MODELVIEW, NULL));
+	glLoadMatrixf(gpuGetMatrix(GPU_MODELVIEW_MATRIX, NULL));
 #endif
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_commit_matrix end");

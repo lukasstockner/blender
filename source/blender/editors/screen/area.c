@@ -111,7 +111,7 @@ static void region_draw_emboss(ARegion *ar, rcti *scirct)
 void ED_region_pixelspace(ARegion *ar)
 {
 	wmOrtho2_region_pixelspace(ar);
-	gpuLoadIdentity(GPU_MODELVIEW);
+	gpuLoadIdentity(GPU_MODELVIEW_MATRIX);
 }
 
 /* only exported for WM */
@@ -227,8 +227,8 @@ static void region_draw_azone_icon(AZone *az)
 	short midx = az->x1 + (az->x2 - az->x1) / 2;
 	short midy = az->y1 + (az->y2 - az->y1) / 2;
 		
-	gpuPushMatrix(GPU_MODELVIEW);
-	gpuTranslate(GPU_MODELVIEW, midx, midy, 0.0);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, midx, midy, 0.0);
 	
 	/* outlined circle */
 	glEnable(GL_LINE_SMOOTH);
@@ -242,7 +242,7 @@ static void region_draw_azone_icon(AZone *az)
 	
 	glDisable(GL_LINE_SMOOTH);
 	
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	
 	/* + */
 	sdrawline(midx, midy - 2, midx, midy + 3);
@@ -372,8 +372,8 @@ static void region_draw_azones(ScrArea *sa, ARegion *ar)
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	gpuPushMatrix(GPU_MODELVIEW);
-	gpuTranslate(GPU_MODELVIEW, -ar->winrct.xmin, -ar->winrct.ymin, 0.0f);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, -ar->winrct.xmin, -ar->winrct.ymin, 0.0f);
 	
 	for (az = sa->actionzones.first; az; az = az->next) {
 		/* test if action zone is over this region */
@@ -406,7 +406,7 @@ static void region_draw_azones(ScrArea *sa, ARegion *ar)
 		}
 	}
 
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 	glDisable(GL_BLEND);
 }

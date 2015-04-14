@@ -731,16 +731,16 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 
 			glBlendFunc(GL_ONE, GL_ONE);
 			
-			gpuPushMatrix(GPU_MODELVIEW);
+			gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			
-			gpuTranslate(GPU_MODELVIEW, rect.xmin, yofs, 0.f);
-			gpuScale(GPU_MODELVIEW, w, h, 0.f);
+			gpuTranslate(GPU_MODELVIEW_MATRIX, rect.xmin, yofs, 0.f);
+			gpuScale(GPU_MODELVIEW_MATRIX, w, h, 0.f);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_1);
 			GPUDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 
 			glDisableClientState(GL_VERTEX_ARRAY);
-			gpuPopMatrix(GPU_MODELVIEW);
+			gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 			/* min max */
 			glColor3f(0.5f, 0.5f, 0.5f);
@@ -762,28 +762,28 @@ void ui_draw_but_WAVEFORM(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wcol),
 			
 			glBlendFunc(GL_ONE, GL_ONE);
 			
-			gpuPushMatrix(GPU_MODELVIEW);
+			gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			
-			gpuTranslate(GPU_MODELVIEW, rect.xmin, yofs, 0.f);
-			gpuScale(GPU_MODELVIEW, w3, h, 0.f);
+			gpuTranslate(GPU_MODELVIEW_MATRIX, rect.xmin, yofs, 0.f);
+			gpuScale(GPU_MODELVIEW_MATRIX, w3, h, 0.f);
 			
 			glColor3fv((rgb) ? colors_alpha[0] : colorsycc_alpha[0]);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_1);
 			GPUDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 
-			gpuTranslate(GPU_MODELVIEW, 1.f, 0.f, 0.f);
+			gpuTranslate(GPU_MODELVIEW_MATRIX, 1.f, 0.f, 0.f);
 			glColor3fv((rgb) ? colors_alpha[1] : colorsycc_alpha[1]);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_2);
 			GPUDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 			
-			gpuTranslate(GPU_MODELVIEW, 1.f, 0.f, 0.f);
+			gpuTranslate(GPU_MODELVIEW_MATRIX, 1.f, 0.f, 0.f);
 			glColor3fv((rgb) ? colors_alpha[2] : colorsycc_alpha[2]);
 			glVertexPointer(2, GL_FLOAT, 0, scopes->waveform_3);
 			GPUDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 			
 			glDisableClientState(GL_VERTEX_ARRAY);
-			gpuPopMatrix(GPU_MODELVIEW);
+			gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 			
 			/* min max */
@@ -936,17 +936,17 @@ void ui_draw_but_VECTORSCOPE(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wco
 		glBlendFunc(GL_ONE, GL_ONE);
 		glColor3f(alpha, alpha, alpha);
 
-		gpuPushMatrix(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 		glEnableClientState(GL_VERTEX_ARRAY);
 
-		gpuTranslate(GPU_MODELVIEW, centerx, centery, 0.f);
-		gpuScale(GPU_MODELVIEW, diam, diam, 0.f);
+		gpuTranslate(GPU_MODELVIEW_MATRIX, centerx, centery, 0.f);
+		gpuScale(GPU_MODELVIEW_MATRIX, diam, diam, 0.f);
 
 		glVertexPointer(2, GL_FLOAT, 0, scopes->vecscope);
 		GPUDrawArrays(GL_POINTS, 0, scopes->waveform_tot);
 		
 		glDisableClientState(GL_VERTEX_ARRAY);
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	}
 
 	/* outline */
@@ -1256,15 +1256,15 @@ void ui_draw_but_UNITVEC(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 	glLightf(GL_LIGHT7, GL_LINEAR_ATTENUATION, 0.0f);
 	
 	/* transform to button */
-	gpuPushMatrix(GPU_MODELVIEW);
-	gpuTranslate(GPU_MODELVIEW, rect->xmin + 0.5f * BLI_rcti_size_x(rect), rect->ymin + 0.5f * BLI_rcti_size_y(rect), 0.0f);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, rect->xmin + 0.5f * BLI_rcti_size_x(rect), rect->ymin + 0.5f * BLI_rcti_size_y(rect), 0.0f);
 	
 	if (BLI_rcti_size_x(rect) < BLI_rcti_size_y(rect))
 		size = BLI_rcti_size_x(rect) / 200.f;
 	else
 		size = BLI_rcti_size_y(rect) / 200.f;
 	
-	gpuScale(GPU_MODELVIEW, size, size, size);
+	gpuScale(GPU_MODELVIEW_MATRIX, size, size, size);
 
 	if (displist == 0) {
 		GPUprim3 prim = GPU_PRIM_HIFI_SOLID;
@@ -1296,7 +1296,7 @@ void ui_draw_but_UNITVEC(uiBut *but, uiWidgetColors *wcol, const rcti *rect)
 	glDisable(GL_LINE_SMOOTH);
 
 	/* matrix after circle */
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 	/* enable blender light */
 	for (a = 0; a < 8; a++) {
@@ -1600,7 +1600,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		int a;
 		ImBuf *drawibuf;
 
-		gpuPushMatrix(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
 		track_pos[0] = scopes->track_pos[0];
 		track_pos[1] = scopes->track_pos[1];
@@ -1621,7 +1621,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 			                  drawibuf->x, GL_RGBA, GL_UNSIGNED_BYTE, drawibuf->rect);
 
 			/* draw cross for pizel position */
-			gpuTranslate(GPU_MODELVIEW, rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
+			gpuTranslate(GPU_MODELVIEW_MATRIX, rect.xmin + track_pos[0], rect.ymin + track_pos[1], 0.f);
 			glScissor(ar->winrct.xmin + rect.xmin,
 			          ar->winrct.ymin + rect.ymin,
 			          BLI_rctf_size_x(&rect),
@@ -1647,7 +1647,7 @@ void ui_draw_but_TRACKPREVIEW(ARegion *ar, uiBut *but, uiWidgetColors *UNUSED(wc
 		}
 
 		glDisable(GL_LINE_STIPPLE);
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 		ok = 1;
 	}

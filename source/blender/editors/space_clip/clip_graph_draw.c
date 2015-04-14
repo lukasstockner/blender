@@ -69,13 +69,13 @@ static void draw_curve_knot(float x, float y, float xscale, float yscale, float 
 		glEndList();
 	}
 
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
-	gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
-	gpuScale(GPU_MODELVIEW, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 	glCallList(displist);
 
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 static void tracking_segment_point_cb(void *UNUSED(userdata), MovieTrackingTrack *UNUSED(track),

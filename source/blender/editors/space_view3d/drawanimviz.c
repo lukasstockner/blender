@@ -73,8 +73,8 @@ void draw_motion_paths_init(View3D *v3d, ARegion *ar)
 	
 	if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 	
-	gpuPushMatrix(GPU_MODELVIEW);
-	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+	gpuLoadMatrix(GPU_MODELVIEW_MATRIX, rv3d->viewmat[0]);
 }
 
 /* Draw the given motion path for an Object or a Bone 
@@ -335,5 +335,5 @@ void draw_motion_path_instance(Scene *scene,
 void draw_motion_paths_cleanup(View3D *v3d)
 {
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }

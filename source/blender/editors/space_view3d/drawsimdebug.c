@@ -156,12 +156,12 @@ void draw_sim_debug_data(Scene *UNUSED(scene), View3D *UNUSED(v3d), ARegion *ar)
 //	glDepthMask(GL_FALSE);
 //	glEnable(GL_BLEND);
 	
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 	
-	gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
+	gpuLoadMatrix(GPU_MODELVIEW_MATRIX, rv3d->viewmat[0]);
 	draw_sim_debug_elements(_sim_debug_data, imat);
 	
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	
 //	glDepthMask(GL_TRUE);
 //	glDisable(GL_BLEND);

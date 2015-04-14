@@ -452,7 +452,7 @@ void BL_Texture::DisableUnit()
 	if (GLEW_ARB_multitexture)
 		glActiveTextureARB(GL_TEXTURE0_ARB+mUnit);
 
-	gpuLoadIdentity(GPU_TEXTURE);
+	gpuLoadIdentity(GPU_TEXTURE_MATRIX);
 
 	if (GLEW_ARB_texture_cube_map && glIsEnabled(GL_TEXTURE_CUBE_MAP_ARB))
 		glDisable(GL_TEXTURE_CUBE_MAP_ARB);
@@ -476,7 +476,7 @@ void BL_Texture::DisableAllTextures()
 		if (GLEW_ARB_multitexture)
 			glActiveTextureARB(GL_TEXTURE0_ARB+i);
 
-		gpuLoadIdentity(GPU_TEXTURE);
+		gpuLoadIdentity(GPU_TEXTURE_MATRIX);
 		glDisable(GL_TEXTURE_2D);
 		glDisable(GL_TEXTURE_GEN_S);
 		glDisable(GL_TEXTURE_GEN_T);

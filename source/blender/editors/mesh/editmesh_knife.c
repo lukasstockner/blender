@@ -1028,8 +1028,8 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 	glPolygonOffset(1.0f, 1.0f);
 
-	gpuPushMatrix(GPU_MODELVIEW);
-	gpuMultMatrix(GPU_MODELVIEW, kcd->ob->obmat[0]);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+	gpuMultMatrix(GPU_MODELVIEW_MATRIX, kcd->ob->obmat[0]);
 
 	if (kcd->mode == MODE_DRAGGING) {
 		if (kcd->angle_snapping != ANGLE_FREE)
@@ -1167,7 +1167,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glEnd();
 	}
 
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 	if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 }

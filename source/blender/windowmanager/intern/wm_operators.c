@@ -3960,8 +3960,8 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 		/* set up rotation if available */
 		if (rc->rot_prop) {
 			rot = RNA_property_float_get(&rc->rot_ptr, rc->rot_prop);
-			gpuPushMatrix(GPU_MODELVIEW);
-			gpuRotateAxis(GPU_MODELVIEW, RAD2DEGF(rot), 'Z');
+			gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+			gpuRotateAxis(GPU_MODELVIEW_MATRIX, RAD2DEGF(rot), 'Z');
 		}
 
 		/* draw textured quad */
@@ -3980,7 +3980,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 
 		/* undo rotation */
 		if (rc->rot_prop)
-			gpuPopMatrix(GPU_MODELVIEW);
+			gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	}
 	else {
 		/* flat color if no texture available */
@@ -4036,7 +4036,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	/* Keep cursor in the original place */
 	x = rc->initial_mouse[0] - ar->winrct.xmin;
 	y = rc->initial_mouse[1] - ar->winrct.ymin;
-	gpuTranslate(GPU_MODELVIEW, (float)x, (float)y, 0.0f);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, (float)x, (float)y, 0.0f);
 
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
@@ -4044,7 +4044,7 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	/* apply zoom if available */
 	if (rc->zoom_prop) {
 		RNA_property_float_get_array(&rc->zoom_ptr, rc->zoom_prop, zoom);
-		gpuScale(GPU_MODELVIEW, zoom[0], zoom[1], 1);
+		gpuScale(GPU_MODELVIEW_MATRIX, zoom[0], zoom[1], 1);
 	}
 
 	/* draw rotated texture */
@@ -4056,14 +4056,14 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	glColor4f(col[0], col[1], col[2], 0.5);
 
 	if (rc->subtype == PROP_ANGLE) {
-		gpuPushMatrix(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 		/* draw original angle line */
-		gpuRotateAxis(GPU_MODELVIEW, RAD2DEGF(rc->initial_value), 'Z');
+		gpuRotateAxis(GPU_MODELVIEW_MATRIX, RAD2DEGF(rc->initial_value), 'Z');
 		fdrawline((float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
 		/* draw new angle line */
-		gpuRotateAxis(GPU_MODELVIEW, RAD2DEGF(rc->current_value - rc->initial_value), 'Z');
+		gpuRotateAxis(GPU_MODELVIEW_MATRIX, RAD2DEGF(rc->current_value - rc->initial_value), 'Z');
 		fdrawline((float)WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE, 0.0f, (float)WM_RADIAL_CONTROL_DISPLAY_SIZE, 0.0f);
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	}
 
 	/* draw circles on top */

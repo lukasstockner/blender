@@ -456,7 +456,7 @@ void ED_markers_draw(const bContext *C, int flag)
 	/* no time correction for framelen! space is drawn with old values */
 	ypixels = BLI_rcti_size_y(&v2d->mask);
 	UI_view2d_scale_get(v2d, &xscale, &yscale);
-	gpuScale(GPU_MODELVIEW, 1.0f / xscale, 1.0f, 1.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f / xscale, 1.0f, 1.0f);
 
 	/* x-bounds with offset for text (adjust for long string, avoid checking string width) */
 	font_width_max = (10 * UI_DPI_FAC) / xscale;
@@ -479,7 +479,7 @@ void ED_markers_draw(const bContext *C, int flag)
 		}
 	}
 
-	gpuScale(GPU_MODELVIEW, xscale, 1.0f, 1.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, xscale, 1.0f, 1.0f);
 }
 
 /* ************************ Marker Wrappers API ********************* */

@@ -173,8 +173,8 @@ static void playanim_window_get_size(int *width_r, int *height_r)
 static void playanim_gl_matrix(void)
 {
 	/* unified matrix, note it affects offset for drawing */
-	gpuLoadIdentity(GPU_PROJECTION); /* not needed? */
-	gpuOrtho(GPU_PROJECTION, 0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
+	gpuLoadIdentity(GPU_PROJECTION_MATRIX); /* not needed? */
+	gpuOrtho(GPU_PROJECTION_MATRIX, 0.0f, 1.0f, 0.0f, 1.0f, -1.0f, 1.0f);
 }
 
 /* implementation */

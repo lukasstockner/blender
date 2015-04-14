@@ -203,10 +203,10 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 		return;
 	
 	/* get basic matrix - should be camera space (i.e "identity") */
-	gpuGetMatrix(GPU_MODELVIEW, modelview[0]);
+	gpuGetMatrix(GPU_MODELVIEW_MATRIX, modelview[0]);
 	
 	/* draw points */
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 	
 	for (i = 0, pt = points; i < totpoints; i++, pt++) {
 		/* set the transformed position */
@@ -214,7 +214,7 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 		modelview[3][0] = pt->x;
 		modelview[3][1] = pt->y;
 		
-		gpuLoadMatrix(GPU_MODELVIEW, (float *)modelview);
+		gpuLoadMatrix(GPU_MODELVIEW_MATRIX, (float *)modelview);
 		
 		/* draw the disk using the current state... */
 		gpuDrawDisk(0.0f,  0.0f, pt->pressure * thickness, 32);
@@ -222,7 +222,7 @@ static void gp_draw_stroke_volumetric_buffer(tGPspoint *points, int totpoints, s
 		modelview[3][0] = modelview[3][1] = 0.0f;
 	}
 
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 /* draw a 2D strokes in "volumetric" style */
@@ -247,11 +247,11 @@ static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, shor
 	}
 	
 	/* get basic matrix */
-	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)modelview);
+	gpuGetMatrix(GPU_MODELVIEW_MATRIX, (float *)modelview);
 	copy_v3_v3(baseloc, modelview[3]);
 	
 	/* draw points */
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 	
 	for (i = 0, pt = points; i < totpoints; i++, pt++) {
 		/* set the transformed position */
@@ -260,7 +260,7 @@ static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, shor
 		gp_calc_2d_stroke_xy(pt, sflag, offsx, offsy, winx, winy, co);
 		translate_m4(modelview, co[0], co[1], 0.0f);
 		
-		gpuLoadMatrix(GPU_MODELVIEW, (float *)modelview);
+		gpuLoadMatrix(GPU_MODELVIEW_MATRIX, (float *)modelview);
 		
 		/* draw the disk using the current state... */
 		gpuDrawDisk(0.0f,  0.0f, pt->pressure * thickness * scalefac, 32);
@@ -269,7 +269,7 @@ static void gp_draw_stroke_volumetric_2d(bGPDspoint *points, int totpoints, shor
 		copy_v3_v3(modelview[3], baseloc);
 	}
 	
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 /* draw a 3D stroke in "volumetric" style */
@@ -284,7 +284,7 @@ static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, shor
 	
 	
 	/* Get the basic modelview matrix we use for performing calculations */
-	glGetFloatv(GL_MODELVIEW_MATRIX, (float *)base_modelview);
+	gpuGetMatrix(GPU_MODELVIEW_MATRIX, (float *)base_modelview);
 	copy_v3_v3(base_loc, base_modelview[3]);
 	
 	/* Create the basic view-aligned billboard matrix we're going to actually draw qobj with:
@@ -297,7 +297,7 @@ static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, shor
 	scale_m4_fl(modelview, 0.1f);
 	
 	/* draw each point as a disk... */
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 	
 	for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 		/* apply translation to base_modelview, so that the translated point is put in the right place */
@@ -311,13 +311,13 @@ static void gp_draw_stroke_volumetric_3d(bGPDspoint *points, int totpoints, shor
 		copy_v3_v3(base_modelview[3], base_loc);     /* restore */
 		
 		/* apply our billboard matrix for drawing... */
-		gpuLoadMatrix(GPU_MODELVIEW, modelview[0]);
+		gpuLoadMatrix(GPU_MODELVIEW_MATRIX, modelview[0]);
 		
 		/* draw the disk using the current state... */
 		gpuDrawDisk(0.0f,  0.0f, pt->pressure * thickness, 32);
 	}
 	
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 
@@ -390,9 +390,9 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 			/* draw filled circle as is done in circf (but without the matrix push/pops which screwed things up) */
 
 			/* need to translate drawing position, but must reset after too! */
-			gpuTranslate(GPU_MODELVIEW, co[0], co[1], 0.0);
+			gpuTranslate(GPU_MODELVIEW_MATRIX, co[0], co[1], 0.0);
 			gpuDrawDisk(co[0], co[1], thickness, 32);
-			gpuTranslate(GPU_MODELVIEW, -co[0], -co[1], 0.0);
+			gpuTranslate(GPU_MODELVIEW_MATRIX, -co[0], -co[1], 0.0);
 		}
 	}
 }

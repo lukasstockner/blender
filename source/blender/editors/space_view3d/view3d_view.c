@@ -96,8 +96,8 @@ void view3d_region_operator_needs_opengl(wmWindow *win, ARegion *ar)
 		RegionView3D *rv3d = ar->regiondata;
 		
 		wmSubWindowSet(win, ar->swinid);
-		gpuLoadMatrix(GPU_PROJECTION, rv3d->winmat[0]);
-		gpuLoadMatrix(GPU_MODELVIEW, rv3d->viewmat[0]);
+		gpuLoadMatrix(GPU_PROJECTION_MATRIX, rv3d->winmat[0]);
+		gpuLoadMatrix(GPU_MODELVIEW_MATRIX, rv3d->viewmat[0]);
 	}
 }
 
@@ -834,7 +834,7 @@ void view3d_winmatrix_set(ARegion *ar, const View3D *v3d, const rctf *rect)
 	}
 
 	/* update matrix in 3d view region */
-	glGetFloatv(GL_PROJECTION_MATRIX, (float *)rv3d->winmat);
+	gpuGetMatrix(GPU_PROJECTION_MATRIX, (float *)rv3d->winmat);
 }
 
 static void obmat_to_viewmat(RegionView3D *rv3d, Object *ob)

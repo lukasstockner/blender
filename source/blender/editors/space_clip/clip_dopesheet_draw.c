@@ -114,11 +114,11 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, bo
 		glEndList();
 	}
 
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
 	/* adjust view transform before starting */
-	gpuTranslate(GPU_MODELVIEW, x, y, 0.0f);
-	gpuScale(GPU_MODELVIEW, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0.0f);
+	gpuScale(GPU_MODELVIEW_MATRIX, 1.0f / xscale * hsize, 1.0f / yscale * hsize, 1.0f);
 
 	/* anti-aliased lines for more consistent appearance */
 	glEnable(GL_LINE_SMOOTH);
@@ -137,7 +137,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, bo
 	glDisable(GL_LINE_SMOOTH);
 
 	/* restore view transform */
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
 
 static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)

@@ -173,9 +173,9 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 			}
 		}
 		
-		gpuPushMatrix(GPU_MODELVIEW);
-		gpuTranslate(GPU_MODELVIEW, 0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
-		gpuScale(GPU_MODELVIEW, 1.0, cache_draw_height, 0.0);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+		gpuTranslate(GPU_MODELVIEW_MATRIX, 0.0, (float)V2D_SCROLL_HEIGHT + yoffs, 0.0);
+		gpuScale(GPU_MODELVIEW_MATRIX, 1.0, cache_draw_height, 0.0);
 		
 		switch (pid->type) {
 			case PTCACHE_TYPE_SOFTBODY:
@@ -231,7 +231,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		
 		glDisable(GL_BLEND);
 		
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 		
 		yoffs += cache_draw_height;
 

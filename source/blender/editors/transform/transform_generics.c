@@ -1005,7 +1005,7 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 	if (t->spacetype == SPACE_VIEW3D) {
 		View3D *v3d = t->view;
 		
-		gpuPushMatrix(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 		
 		//if (t->obedit) gpuLoadMatrix(t->obedit->obmat);	// sets opengl viewing
 		
@@ -1031,7 +1031,7 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 		glVertex3fv(v2);
 		glEnd();
 		
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	}
 }
 

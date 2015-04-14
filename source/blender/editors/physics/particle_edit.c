@@ -2693,9 +2693,9 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 	brush= &pset->brush[pset->brushtype];
 
 	if (brush) {
-		gpuPushMatrix(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
-		gpuTranslate(GPU_MODELVIEW, (float)x, (float)y, 0.0f);
+		gpuTranslate(GPU_MODELVIEW_MATRIX, (float)x, (float)y, 0.0f);
 
 		glColor4ub(255, 255, 255, 128);
 		glEnable(GL_LINE_SMOOTH);
@@ -2704,7 +2704,7 @@ static void brush_drawcursor(bContext *C, int x, int y, void *UNUSED(customdata)
 		glDisable(GL_BLEND);
 		glDisable(GL_LINE_SMOOTH);
 		
-		gpuPopMatrix(GPU_MODELVIEW);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 	}
 }
 

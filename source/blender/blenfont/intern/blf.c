@@ -504,21 +504,21 @@ static void blf_draw__start(FontBLF *font, GLint *param)
 	glEnable(GL_TEXTURE_2D);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-	gpuPushMatrix(GPU_TEXTURE);
-	gpuLoadIdentity(GPU_TEXTURE);
+	gpuPushMatrix(GPU_TEXTURE_MATRIX);
+	gpuLoadIdentity(GPU_TEXTURE_MATRIX);
 
-	gpuPushMatrix(GPU_MODELVIEW);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
 
 	if (font->flags & BLF_MATRIX)
-		gpuMultMatrixd(GPU_MODELVIEW, font->m);
+		gpuMultMatrixd(GPU_MODELVIEW_MATRIX, font->m);
 
-	gpuTranslate(GPU_MODELVIEW, font->pos[0], font->pos[1], font->pos[2]);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, font->pos[0], font->pos[1], font->pos[2]);
 
 	if (font->flags & BLF_ASPECT)
-		gpuScale(GPU_MODELVIEW, font->aspect[0], font->aspect[1], font->aspect[2]);
+		gpuScale(GPU_MODELVIEW_MATRIX, font->aspect[0], font->aspect[1], font->aspect[2]);
 
 	if (font->flags & BLF_ROTATION)  /* radians -> degrees */
-		gpuRotateAxis(GPU_MODELVIEW, font->angle * (float)(180.0 / M_PI), 'Z');
+		gpuRotateAxis(GPU_MODELVIEW_MATRIX, font->angle * (float)(180.0 / M_PI), 'Z');
 
 	if (font->shadow || font->blur)
 		glGetFloatv(GL_CURRENT_COLOR, font->orig_col);
@@ -540,8 +540,8 @@ static void blf_draw__end(GLint param)
 	if (param != GL_MODULATE)
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
 
-	gpuPopMatrix(GPU_TEXTURE);
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_TEXTURE_MATRIX);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 	glDisable(GL_BLEND);
 	glDisable(GL_TEXTURE_2D);

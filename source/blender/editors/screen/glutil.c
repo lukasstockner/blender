@@ -391,10 +391,10 @@ void fdrawXORcirc(float xofs, float yofs, float rad)
 {
 	set_inverted_drawing(1);
 
-	gpuPushMatrix(GPU_MODELVIEW);
-	gpuTranslate(GPU_MODELVIEW, xofs, yofs, 0.0);
+	gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+	gpuTranslate(GPU_MODELVIEW_MATRIX, xofs, yofs, 0.0);
 	glutil_draw_lined_arc(0.0, M_PI * 2.0, rad, 20);
-	gpuPopMatrix(GPU_MODELVIEW);
+	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 
 	set_inverted_drawing(0);
 }
@@ -732,11 +732,11 @@ void glaDefine2DArea(rcti *screen_rect)
 	 * Programming Guide, Appendix H, Correctness Tips.
 	 */
 
-	gpuLoadIdentity(GPU_PROJECTION);
-	gpuOrtho(GPU_PROJECTION, 0.0, sc_w, 0.0, sc_h, -1, 1);
-	gpuTranslate(GPU_PROJECTION, GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
+	gpuLoadIdentity(GPU_PROJECTION_MATRIX);
+	gpuOrtho(GPU_PROJECTION_MATRIX, 0.0, sc_w, 0.0, sc_h, -1, 1);
+	gpuTranslate(GPU_PROJECTION_MATRIX, GLA_PIXEL_OFS, GLA_PIXEL_OFS, 0.0);
 
-	gpuLoadIdentity(GPU_MODELVIEW);
+	gpuLoadIdentity(GPU_MODELVIEW_MATRIX);
 }
 
 #if 0 /* UNUSED */
@@ -792,8 +792,8 @@ gla2DDrawInfo *glaBegin2DDraw(rcti *screen_rect, rctf *world_rect)
 
 	glGetIntegerv(GL_VIEWPORT, (GLint *)di->orig_vp);
 	glGetIntegerv(GL_SCISSOR_BOX, (GLint *)di->orig_sc);
-	glGetFloatv(GL_PROJECTION_MATRIX, (GLfloat *)di->orig_projmat);
-	glGetFloatv(GL_MODELVIEW_MATRIX, (GLfloat *)di->orig_viewmat);
+	gpuGetMatrix(GPU_PROJECTION_MATRIX, (float *)di->orig_projmat);
+	gpuGetMatrix(GPU_MODELVIEW_MATRIX, (float *)di->orig_viewmat);
 
 	di->screen_rect = *screen_rect;
 	if (world_rect) {
@@ -954,8 +954,8 @@ void bgl_get_mats(bglMats *mats)
 {
 	const double badvalue = 1.0e-6;
 
-	glGetFloatv(GL_MODELVIEW_MATRIX, mats->modelview);
-	glGetFloatv(GL_PROJECTION_MATRIX, mats->projection);
+	gpuGetMatrix(GPU_MODELVIEW_MATRIX, mats->modelview);
+	gpuGetMatrix(GPU_PROJECTION_MATRIX, mats->projection);
 	glGetIntegerv(GL_VIEWPORT, (GLint *)mats->viewport);
 	
 	/* Very strange code here - it seems that certain bad values in the
@@ -992,7 +992,7 @@ void bglPolygonOffset(float viewdist, float dist)
 		// glPolygonOffset(-1.0, -1.0);
 
 		/* hack below is to mimic polygon offset */
-		gpuGetMatrix(GPU_PROJECTION, winmat);
+		gpuGetMatrix(GPU_PROJECTION_MATRIX, winmat);
 		
 		/* dist is from camera to center point */
 		
@@ -1002,13 +1002,13 @@ void bglPolygonOffset(float viewdist, float dist)
 		winmat[14] -= offs;
 		offset += offs;
 		
-		gpuLoadMatrix(GPU_PROJECTION, winmat);
+		gpuLoadMatrix(GPU_PROJECTION_MATRIX, winmat);
 	}
 	else {
 
 		winmat[14] += offset;
 		offset = 0.0;
-		gpuLoadMatrix(GPU_PROJECTION, winmat);
+		gpuLoadMatrix(GPU_PROJECTION_MATRIX, winmat);
 	}
 }
 

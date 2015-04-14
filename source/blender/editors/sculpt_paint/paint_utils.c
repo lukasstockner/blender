@@ -61,6 +61,7 @@
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
+#include "GPU_matrix.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf_types.h"
@@ -299,8 +300,8 @@ static void imapaint_pick_uv(Scene *scene, Object *ob, unsigned int faceindex, c
 
 	/* get the needed opengl matrices */
 	glGetIntegerv(GL_VIEWPORT, view);
-	glGetFloatv(GL_MODELVIEW_MATRIX,  (float *)matrix);
-	glGetFloatv(GL_PROJECTION_MATRIX, (float *)proj);
+	gpuGetMatrix(GPU_MODELVIEW_MATRIX,  (float *)matrix);
+	gpuGetMatrix(GPU_PROJECTION_MATRIX, (float *)proj);
 	view[0] = view[1] = 0;
 	mul_m4_m4m4(matrix, matrix, ob->obmat);
 	mul_m4_m4m4(matrix, proj, matrix);

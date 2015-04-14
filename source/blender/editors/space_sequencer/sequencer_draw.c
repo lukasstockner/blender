@@ -1211,10 +1211,10 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, ibuf->x, ibuf->y, 0, format, type, display_buffer);
 
 	if (draw_backdrop) {
-		gpuPushMatrix(GPU_PROJECTION);
-		gpuLoadIdentity(GPU_PROJECTION);
-		gpuPushMatrix(GPU_MODELVIEW);
-		gpuLoadIdentity(GPU_MODELVIEW);
+		gpuPushMatrix(GPU_PROJECTION_MATRIX);
+		gpuLoadIdentity(GPU_PROJECTION_MATRIX);
+		gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+		gpuLoadIdentity(GPU_MODELVIEW_MATRIX);
 	}
 	GPUBegin(GL_QUADS);
 
@@ -1266,8 +1266,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	glEnd();
 	
 	if (draw_backdrop) {
-		gpuPopMatrix(GPU_MODELVIEW);
-		gpuPopMatrix(GPU_PROJECTION);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
+		gpuPopMatrix(GPU_PROJECTION_MATRIX);
 		
 	}
 	

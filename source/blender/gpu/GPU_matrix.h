@@ -39,9 +39,9 @@ extern "C" {
 #endif
 
 typedef enum eGPUMatrixMode {
-	GPU_MODELVIEW = 0,
-	GPU_PROJECTION = 1,
-	GPU_TEXTURE = 2
+	GPU_MODELVIEW_MATRIX = 0,
+	GPU_PROJECTION_MATRIX = 1,
+	GPU_TEXTURE_MATRIX = 2
 } eGPUMatrixMode;
 
 void gpuPushMatrix(eGPUMatrixMode stack);
