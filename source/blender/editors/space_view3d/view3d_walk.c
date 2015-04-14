@@ -42,6 +42,7 @@
 
 #include "BLF_translation.h"
 
+#include "GPU_immediate.h"
 
 #include "BIF_gl.h"
 
@@ -315,7 +316,7 @@ static void drawWalkPixel(const struct bContext *UNUSED(C), ARegion *ar, void *a
 	}
 
 	UI_ThemeColor(TH_VIEW_OVERLAY);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	/* North */
 	glVertex2i(xoff, yoff + inner_length);
 	glVertex2i(xoff, yoff + outter_length);

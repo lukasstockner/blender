@@ -48,6 +48,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_immediate.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -946,18 +948,18 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 	UI_ThemeColor(TH_BACK);
 	glRecti(x, y, x + boxw, y - boxh);
 	UI_ThemeColor(TH_SHADE1);
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2i(x, y);
 	glVertex2i(x + boxw, y);
 	glVertex2i(x + boxw, y - boxh);
 	glVertex2i(x, y - boxh);
 	glEnd();
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2i(x + boxw - 10, y - 7);
 	glVertex2i(x + boxw - 4, y - 7);
 	glVertex2i(x + boxw - 7, y - 2);
 	glEnd();
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2i(x + boxw - 10, y - boxh + 7);
 	glVertex2i(x + boxw - 4, y - boxh + 7);
 	glVertex2i(x + boxw - 7, y - boxh + 2);
@@ -1438,7 +1440,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		margin_column_x = x + st->cwidth * (st->margin_column - st->left);
 		
 		if (margin_column_x >= x) {
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2i(margin_column_x, 0);
 			glVertex2i(margin_column_x, ar->winy - 2);
 			glEnd();

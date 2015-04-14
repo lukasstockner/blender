@@ -47,6 +47,7 @@
 #include "BIF_gl.h"
 
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
 
 #include "view3d_intern.h"  // own include
 
@@ -372,7 +373,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 					glBlendFunc(GL_SRC_ALPHA, GL_ONE);
 
 				GPU_program_parameter_4f(smoke_program, 2, 1.0, 0.0, 0.0, 0.0);
-				glBegin(GL_POLYGON);
+				GPUBegin(GL_POLYGON);
 				glColor3f(1.0, 1.0, 1.0);
 				for (i = 0; i < numpoints; i++) {
 					glTexCoord3d((points[i][0] - min[0]) * cor[0],
@@ -392,7 +393,7 @@ void draw_smoke_volume(SmokeDomainSettings *sds, Object *ob,
 				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 			GPU_program_parameter_4f(smoke_program, 2, -1.0, 0.0, 0.0, 0.0);
-			glBegin(GL_POLYGON);
+			GPUBegin(GL_POLYGON);
 			glColor3f(1.0, 1.0, 1.0);
 			for (i = 0; i < numpoints; i++) {
 				glTexCoord3d((points[i][0] - min[0]) * cor[0],
@@ -485,11 +486,11 @@ void draw_smoke_velocity(SmokeDomainSettings *domain, Object *ob)
 					glColor3f(1.0f, col_g, 0.0f);
 					glPointSize(10.0f * vel);
 
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					glVertex3f(pos[0], pos[1], pos[2]);
 					glVertex3f(pos[0] + vel_x[index] * vf, pos[1] + vel_y[index] * vf, pos[2] + vel_z[index] * vf);
 					glEnd();
-					glBegin(GL_POINTS);
+					GPUBegin(GL_POINTS);
 					glVertex3f(pos[0] + vel_x[index] * vf, pos[1] + vel_y[index] * vf, pos[2] + vel_z[index] * vf);
 					glEnd();
 				}
@@ -536,7 +537,7 @@ void draw_smoke_heat(SmokeDomainSettings *domain, Object *ob)
 					glColor3f(1.0f, col_gb, col_gb);
 					glPointSize(24.0f * heat[index]);
 
-					glBegin(GL_POINTS);
+					GPUBegin(GL_POINTS);
 					glVertex3f(pos[0], pos[1], pos[2]);
 					glEnd();
 				}

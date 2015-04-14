@@ -61,6 +61,7 @@
 #include "UI_view2d.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "interface_intern.h"
 
@@ -1299,7 +1300,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		UI_ThemeColor(TH_GRID);
 		
 		for (a = 0; a < step; a++) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex2fv(vec1);
 			glVertex2fv(vec2);
 			glEnd();
@@ -1313,7 +1314,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		
 		step++;
 		for (a = 0; a <= step; a++) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex2fv(vec1);
 			glVertex2fv(vec2);
 			glEnd();
@@ -1333,7 +1334,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		
 		UI_ThemeColor(TH_GRID);
 		for (a = 0; a <= step; a++) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex2fv(vec1);
 			glVertex2fv(vec2);
 			glEnd();
@@ -1348,7 +1349,7 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		if (flag & V2D_HORIZONTAL_FINELINES) {
 			UI_ThemeColorShade(TH_GRID, 16);
 			for (a = 0; a < step; a++) {
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				glVertex2fv(vec1);
 				glVertex2fv(vec2);
 				glEnd();
@@ -1366,8 +1367,8 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		vec1[0] = v2d->cur.xmin;
 		vec2[0] = v2d->cur.xmax;
 		vec1[1] = vec2[1] = 0.0f;
-		
-		glBegin(GL_LINE_STRIP);
+
+		GPUBegin(GL_LINE_STRIP);
 		glVertex2fv(vec1);
 		glVertex2fv(vec2);
 		glEnd();
@@ -1378,8 +1379,8 @@ void UI_view2d_grid_draw(View2D *v2d, View2DGrid *grid, int flag)
 		vec1[1] = v2d->cur.ymin;
 		vec2[1] = v2d->cur.ymax;
 		vec1[0] = vec2[0] = 0.0f;
-		
-		glBegin(GL_LINE_STRIP);
+
+		GPUBegin(GL_LINE_STRIP);
 		glVertex2fv(vec1);
 		glVertex2fv(vec2);
 		glEnd();
@@ -1394,8 +1395,8 @@ void UI_view2d_constant_grid_draw(View2D *v2d)
 	UI_ThemeColorShade(TH_BACK, -10);
 	
 	start = v2d->cur.xmin - (float)fmod(v2d->cur.xmin, step);
-	
-	glBegin(GL_LINES);
+
+	GPUBegin(GL_LINES);
 	for (; start < v2d->cur.xmax; start += step) {
 		glVertex2f(start, v2d->cur.ymin);
 		glVertex2f(start, v2d->cur.ymax);
@@ -1432,8 +1433,8 @@ void UI_view2d_multi_grid_draw(View2D *v2d, int colorid, float step, int level_s
 		
 		i = (v2d->cur.xmin >= 0.0f ? -(int)(-v2d->cur.xmin / lstep) : (int)(v2d->cur.xmin / lstep));
 		start = i * lstep;
-		
-		glBegin(GL_LINES);
+
+		GPUBegin(GL_LINES);
 		for (; start < v2d->cur.xmax; start += lstep, ++i) {
 			if (i == 0 || (level < totlevels - 1 && i % level_size == 0))
 				continue;

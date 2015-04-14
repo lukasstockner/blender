@@ -3340,7 +3340,7 @@ void REEB_draw()
 		
 		glLineWidth(BIF_GetThemeValuef(TH_VERTEX_SIZE) + 2);
 		glColor3f(0, 0, 0);
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		glVertex3fv(arc->head->p);
 			
 		if (arc->bcount)
@@ -3372,7 +3372,7 @@ void REEB_draw()
 		else {
 			glColor3f(1, 1, 0);
 		}
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		glVertex3fv(arc->head->p);
 			
 		if (arc->bcount)
@@ -3391,7 +3391,7 @@ void REEB_draw()
 		if (G.scene->toolsettings->skgen_options & SKGEN_DISP_EMBED)
 		{
 			glColor3f(1, 1, 1);
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex3fv(arc->head->p);
 			glVertex3fv(arc->tail->p);
 				

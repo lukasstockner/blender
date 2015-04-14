@@ -55,6 +55,8 @@
 
 #include "view3d_intern.h"  /* own include */
 
+#include "GPU_immediate.h"
+
 /* NOTE: these defines are saved in keymap files, do not change values but just add new ones */
 enum {
 	FLY_MODAL_CANCEL = 1,
@@ -252,7 +254,7 @@ static void drawFlyPixel(const struct bContext *UNUSED(C), ARegion *UNUSED(ar), 
 	y2 = yoff + 0.55f * fly->height;
 
 	UI_ThemeColor(TH_VIEW_OVERLAY);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	/* bottom left */
 	glVertex2f(x1, y1);
 	glVertex2f(x1, y1 + 5);

@@ -57,6 +57,7 @@
 #include "BIF_glutil.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -225,7 +226,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(2, GL_FLOAT, 0, stc->array);
-		glDrawArrays(GL_QUADS, 0, (fp - stc->array) / 2);
+		GPUDrawArrays(GL_QUADS, 0, (fp - stc->array) / 2);
 		glDisableClientState(GL_VERTEX_ARRAY);
 		
 		glDisable(GL_BLEND);
@@ -327,8 +328,7 @@ static void time_draw_idblock_keyframes(View2D *v2d, ID *id, short onlysel)
 	 *	- we use the binary-search capabilities of the tree to only start from 
 	 *	  the first visible keyframe (last one can then be easily checked)
 	 *	- draw within a single GL block to be faster
-	 */
-	glBegin(GL_LINES);
+	GPUBegirraysUBegin(GL_LINES);
 	for (ak = time_cfra_find_ak(keys.root, v2d->cur.xmin);
 	     (ak) && (ak->cfra <= v2d->cur.xmax);
 	     ak = ak->next)

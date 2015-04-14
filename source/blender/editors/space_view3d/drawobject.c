@@ -415,7 +415,7 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 
 	switch (axis) {
 		case 0:     /* x axis */
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			
 			/* bottom left to top right */
 			sub_v3_v3v3(v1, c, dx);
@@ -437,7 +437,7 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			glEnd();
 			break;
 		case 1:     /* y axis */
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			
 			/* bottom left to top right */
 			mul_v3_fl(dx, 0.75f);
@@ -460,7 +460,7 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			glEnd();
 			break;
 		case 2:     /* z axis */
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			
 			/* start at top left */
 			sub_v3_v3v3(v1, c, dx);
@@ -499,7 +499,7 @@ void drawaxes(float size, char drawtype)
 
 		case OB_PLAINAXES:
 			for (axis = 0; axis < 3; axis++) {
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 
 				v1[axis] = size;
 				v2[axis] = -size;
@@ -514,7 +514,7 @@ void drawaxes(float size, char drawtype)
 			break;
 		case OB_SINGLE_ARROW:
 
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			/* in positive z direction only */
 			v1[2] = size;
 			glVertex3fv(v1);
@@ -522,7 +522,7 @@ void drawaxes(float size, char drawtype)
 			glEnd();
 
 			/* square pyramid */
-			glBegin(GL_TRIANGLES);
+			GPUBegin(GL_TRIANGLES);
 
 			v2[0] = size * 0.035f; v2[1] = size * 0.035f;
 			v3[0] = size * -0.035f; v3[1] = size * 0.035f;
@@ -568,7 +568,7 @@ void drawaxes(float size, char drawtype)
 			for (axis = 0; axis < 3; axis++) {
 				const int arrow_axis = (axis == 0) ? 1 : 0;
 
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 
 				v2[axis] = size;
 				glVertex3fv(v1);
@@ -686,7 +686,7 @@ static void draw_empty_image(Object *ob, const short dflag, const unsigned char 
 	}
 
 	/* Calculate the outline vertex positions */
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2f(ofs_x, ofs_y);
 	glVertex2f(ofs_x + ima_x, ofs_y);
 	glVertex2f(ofs_x + ima_x, ofs_y + ima_y);
@@ -724,7 +724,7 @@ void drawcircball(int mode, const float cent[3], float rad, float tmat[4][4])
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(3, GL_FLOAT, 0, verts);
-	glDrawArrays(mode, 0, CIRCLE_RESOL);
+	GPUDrawArrays(mode, 0, CIRCLE_RESOL);
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
@@ -759,11 +759,11 @@ static void drawcentercircle(View3D *v3d, RegionView3D *rv3d, const float co[3],
 	glVertexPointer(3, GL_FLOAT, 0, verts);
 
 	/* 1. draw filled, blended polygon */
-	glDrawArrays(GL_POLYGON, 0, CIRCLE_RESOL);
+	GPUDrawArrays(GL_POLYGON, 0, CIRCLE_RESOL);
 
 	/* 2. draw outline */
 	UI_ThemeColorShadeAlpha(TH_WIRE, 0, -30);
-	glDrawArrays(GL_LINE_LOOP, 0, CIRCLE_RESOL);
+	GPUDrawArrays(GL_LINE_LOOP, 0, CIRCLE_RESOL);
 
 	/* finish up */
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -941,7 +941,7 @@ void view3d_cached_text_draw_end(View3D *v3d, ARegion *ar, bool depth_write, flo
  */
 static void drawcube_size(float size)
 {
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3f(-size, -size, -size); glVertex3f(-size, -size, size);
 	glVertex3f(-size, size, size); glVertex3f(-size, size, -size);
 
@@ -951,15 +951,15 @@ static void drawcube_size(float size)
 	glVertex3f(size, size, -size); glVertex3f(size, -size, -size);
 	glEnd();
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3f(-size, -size, size); glVertex3f(size, -size, size);
 	glEnd();
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3f(-size, size, size); glVertex3f(size, size, size);
 	glEnd();
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3f(-size, size, -size); glVertex3f(size, size, -size);
 	glEnd();
 }
@@ -973,21 +973,21 @@ static void drawcube_size(const float size[3])
 	gpuScale(size[0],  size[1],  size[2]);
 	
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
 	glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[6]);
 	glVertex3fv(cube[7]); glVertex3fv(cube[4]);
 	glEnd();
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(cube[1]); glVertex3fv(cube[5]);
 	glEnd();
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(cube[2]); glVertex3fv(cube[6]);
 	glEnd();
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(cube[3]); glVertex3fv(cube[7]);
 	glEnd();
 	
@@ -1005,7 +1005,7 @@ static void drawshadbuflimits(Lamp *la, float mat[4][4])
 	madd_v3_v3v3fl(sta, mat[3], lavec, la->clipsta);
 	madd_v3_v3v3fl(end, mat[3], lavec, la->clipend);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(sta);
 	glVertex3fv(end);
 	glEnd();
@@ -1087,7 +1087,7 @@ static void draw_spot_cone(Lamp *la, float x, float z)
 {
 	z = fabsf(z);
 
-	glBegin(GL_TRIANGLE_FAN);
+	GPUBegin(GL_TRIANGLE_FAN);
 	glVertex3f(0.0f, 0.0f, -x);
 
 	if (la->mode & LA_SQUARE) {
@@ -1252,7 +1252,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		
 		setlinestyle(3);
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		for (axis = 0; axis < 8; axis++) {
 			glVertex3fv(v1);
 			glVertex3fv(v2);
@@ -1292,7 +1292,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		mul_v3_fl(vvec, x);
 
 		/* draw the angled sides of the cone */
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		glVertex3fv(vvec);
 		glVertex3fv(vec);
 		glVertex3fv(lvec);
@@ -1309,7 +1309,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 			tvec[0] = tvec[1] = z_abs;
 			tvec[2] = 0.0;
 
-			glBegin(GL_LINE_LOOP);
+			GPUBegin(GL_LINE_LOOP);
 			glVertex3fv(tvec);
 			tvec[1] = -z_abs; /* neg */
 			glVertex3fv(tvec);
@@ -1346,14 +1346,14 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 			interp_v3_v3v3(lvec_clip, vec, lvec, clipsta_fac);
 			interp_v3_v3v3(vvec_clip, vec, vvec, clipsta_fac);
 
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex3fv(lvec_clip);
 			glVertex3fv(vvec_clip);
 			glEnd();
 		}
 		/* Else, draw spot direction (using distance as end limit, same as for Area lamp). */
 		else {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex3f(0.0, 0.0, -circrad);
 			glVertex3f(0.0, 0.0, -la->dist);
 			glEnd();
@@ -1362,7 +1362,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	else if (ELEM(la->type, LA_HEMI, LA_SUN)) {
 		
 		/* draw the line from the circle along the dist */
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		vec[2] = -circrad;
 		glVertex3fv(vec);
 		vec[2] = -la->dist;
@@ -1382,7 +1382,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 				float v[3] = {0.0, 0.0, 0.0};
 				zdist = 0.02;
 				
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				
 				for (steps = 0; steps < 6; steps++) {
 					if (axis == 0 || axis == 1) {       /* x axis up, x axis down */
@@ -1415,7 +1415,7 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 		else if (la->area_shape == LA_AREA_RECT)
 			fdrawbox(-la->area_size * 0.5f, -la->area_sizey * 0.5f, la->area_size * 0.5f, la->area_sizey * 0.5f);
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		glVertex3f(0.0, 0.0, -circrad);
 		glVertex3f(0.0, 0.0, -la->dist);
 		glEnd();
@@ -1442,14 +1442,14 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 	if (vec[2] > 0) vec[2] -= circrad;
 	else vec[2] += circrad;
 	
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(vec);
 	vec[2] = 0;
 	glVertex3fv(vec);
 	glEnd();
 	
 	glPointSize(2.0);
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	glVertex3fv(vec);
 	glEnd();
 	glPointSize(1.0);
@@ -1466,14 +1466,14 @@ static void drawlamp(View3D *v3d, RegionView3D *rv3d, Base *base,
 
 static void draw_limit_line(float sta, float end, const short dflag, unsigned int col)
 {
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex3f(0.0, 0.0, -sta);
 	glVertex3f(0.0, 0.0, -end);
 	glEnd();
 
 	if (!(dflag & DRAW_PICKING)) {
 		glPointSize(3.0);
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		if ((dflag & DRAW_CONSTCOLOR) == 0) {
 			cpack(col);
 		}
@@ -1489,7 +1489,7 @@ static void draw_limit_line(float sta, float end, const short dflag, unsigned in
 /* qdn: now also enabled for Blender to set focus point for defocus composite node */
 static void draw_focus_cross(float dist, float size)
 {
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex3f(-size, 0.0f, -dist);
 	glVertex3f(size, 0.0f, -dist);
 	glVertex3f(0.0f, -size, -dist);
@@ -1678,7 +1678,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 				UI_ThemeColor(TH_CAMERA_PATH);
 				glLineWidth(2.0f);
 
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				for (a = 0; a < reconstruction->camnr; a++, camera++) {
 					glVertex3fv(camera->mat[3]);
 				}
@@ -1737,28 +1737,28 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 
 static void drawcamera_volume(float near_plane[4][3], float far_plane[4][3], const GLenum mode)
 {
-	glBegin(mode);
+	GPUBegin(mode);
 	glVertex3fv(near_plane[0]);
 	glVertex3fv(far_plane[0]);
 	glVertex3fv(far_plane[1]);
 	glVertex3fv(near_plane[1]);
 	glEnd();
 
-	glBegin(mode);
+	GPUBegin(mode);
 	glVertex3fv(near_plane[1]);
 	glVertex3fv(far_plane[1]);
 	glVertex3fv(far_plane[2]);
 	glVertex3fv(near_plane[2]);
 	glEnd();
 
-	glBegin(mode);
+	GPUBegin(mode);
 	glVertex3fv(near_plane[2]);
 	glVertex3fv(near_plane[1]);
 	glVertex3fv(far_plane[1]);
 	glVertex3fv(far_plane[2]);
 	glEnd();
 
-	glBegin(mode);
+	GPUBegin(mode);
 	glVertex3fv(far_plane[0]);
 	glVertex3fv(near_plane[0]);
 	glVertex3fv(near_plane[3]);
@@ -1769,7 +1769,7 @@ static void drawcamera_volume(float near_plane[4][3], float far_plane[4][3], con
 /* camera frame */
 static void drawcamera_frame(float vec[4][3], const GLenum mode)
 {
-	glBegin(mode);
+	GPUBegin(mode);
 	glVertex3fv(vec[0]);
 	glVertex3fv(vec[1]);
 	glVertex3fv(vec[2]);
@@ -1780,7 +1780,7 @@ static void drawcamera_frame(float vec[4][3], const GLenum mode)
 /* center point to camera frame */
 static void drawcamera_framelines(float vec[4][3], float origin[3])
 {
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(vec[1]);
 	glVertex3fv(origin);
 	glVertex3fv(vec[0]);
@@ -1869,7 +1869,7 @@ static void drawcamera_stereo3d(
 		glLineStipple(2, 0xAAAA);
 		glEnable(GL_LINE_STIPPLE);
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex3fv(origin[0]);
 		glVertex3fv(origin[1]);
 		glEnd();
@@ -2042,8 +2042,8 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	 * for active cameras. We actually draw both outline+filled
 	 * for active cameras so the wire can be seen side-on */
 	for (i = 0; i < 2; i++) {
-		if (i == 0) glBegin(GL_LINE_LOOP);
-		else if (i == 1 && (ob == v3d->camera)) glBegin(GL_TRIANGLES);
+		if (i == 0) GPUBegin(GL_LINE_LOOP);
+		else if (i == 1 && (ob == v3d->camera)) GPUBegin(GL_TRIANGLES);
 		else break;
 
 		tvec[0] = shift[0] + ((-0.7f * drawsize) * scale[0]);
@@ -2106,7 +2106,7 @@ static void drawspeaker(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D 
 	for (j = 0; j < 3; j++) {
 		vec[2] = 0.25f * j - 0.125f;
 
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		for (i = 0; i < 16; i++) {
 			vec[0] = cosf((float)M_PI * i / 8.0f) * (j == 0 ? 0.5f : 0.25f);
 			vec[1] = sinf((float)M_PI * i / 8.0f) * (j == 0 ? 0.5f : 0.25f);
@@ -2118,7 +2118,7 @@ static void drawspeaker(Scene *UNUSED(scene), View3D *UNUSED(v3d), RegionView3D 
 	for (j = 0; j < 4; j++) {
 		vec[0] = (((j + 1) % 2) * (j - 1)) * 0.5f;
 		vec[1] = ((j % 2) * (j - 2)) * 0.5f;
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		for (i = 0; i < 3; i++) {
 			if (i == 1) {
 				vec[0] *= 0.5f;
@@ -2259,7 +2259,7 @@ static void drawlattice(View3D *v3d, Object *ob)
 		}
 	}
 	
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	for (w = 0; w < lt->pntsw; w++) {
 		int wxt = (w == 0 || w == lt->pntsw - 1);
 		for (v = 0; v < lt->pntsv; v++) {
@@ -2345,7 +2345,7 @@ static void drawSelectedVertices(DerivedMesh *dm, Mesh *me)
 	data.col[1] = sel_col;
 	data.col[2] = act_col;
 
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	dm->foreachMappedVert(dm, drawSelectedVertices__mapFunc, &data, DM_FOREACH_NOP);
 	glEnd();
 }
@@ -2410,7 +2410,7 @@ static void draw_dm_face_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	dm->foreachMappedFaceCenter(dm, draw_dm_face_normals__mapFunc, &data, DM_FOREACH_USE_NORMAL);
 	glEnd();
 }
@@ -2475,7 +2475,7 @@ static void draw_dm_vert_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	dm->foreachMappedVert(dm, draw_dm_vert_normals__mapFunc, &data, DM_FOREACH_USE_NORMAL);
 	glEnd();
 }
@@ -2867,7 +2867,7 @@ static void draw_dm_loop_normals(BMEditMesh *em, Scene *scene, Object *ob, Deriv
 
 	calcDrawDMNormalScale(ob, &data);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	dm->foreachMappedLoop(dm, draw_dm_loop_normals__mapFunc, &data, DM_FOREACH_USE_NORMAL);
 	glEnd();
 }
@@ -4304,7 +4304,7 @@ static bool drawDispListwire_ex(ListBase *dlbase, unsigned int dl_type_mask)
 				glVertexPointer(3, GL_FLOAT, 0, data);
 
 				for (parts = 0; parts < dl->parts; parts++)
-					glDrawArrays(GL_LINE_STRIP, parts * dl->nr, dl->nr);
+					GPUDrawArrays(GL_LINE_STRIP, parts * dl->nr, dl->nr);
 				
 				break;
 			case DL_POLY:
@@ -4312,7 +4312,7 @@ static bool drawDispListwire_ex(ListBase *dlbase, unsigned int dl_type_mask)
 				glVertexPointer(3, GL_FLOAT, 0, data);
 
 				for (parts = 0; parts < dl->parts; parts++)
-					glDrawArrays(GL_LINE_LOOP, parts * dl->nr, dl->nr);
+					GPUDrawArrays(GL_LINE_LOOP, parts * dl->nr, dl->nr);
 
 				break;
 			case DL_SURF:
@@ -4321,9 +4321,9 @@ static bool drawDispListwire_ex(ListBase *dlbase, unsigned int dl_type_mask)
 
 				for (parts = 0; parts < dl->parts; parts++) {
 					if (dl->flag & DL_CYCL_U)
-						glDrawArrays(GL_LINE_LOOP, parts * dl->nr, dl->nr);
+						GPUDrawArrays(GL_LINE_LOOP, parts * dl->nr, dl->nr);
 					else
-						glDrawArrays(GL_LINE_STRIP, parts * dl->nr, dl->nr);
+						GPUDrawArrays(GL_LINE_STRIP, parts * dl->nr, dl->nr);
 				}
 
 				for (nr = 0; nr < dl->nr; nr++) {
@@ -4332,8 +4332,8 @@ static bool drawDispListwire_ex(ListBase *dlbase, unsigned int dl_type_mask)
 					data = (dl->verts) + 3 * nr;
 					parts = dl->parts;
 
-					if (dl->flag & DL_CYCL_V) glBegin(GL_LINE_LOOP);
-					else glBegin(GL_LINE_STRIP);
+					if (dl->flag & DL_CYCL_V) GPUBegin(GL_LINE_LOOP);
+					else GPUBegin(GL_LINE_STRIP);
 
 					while (parts--) {
 						glVertex3fv(data);
@@ -4345,21 +4345,21 @@ static bool drawDispListwire_ex(ListBase *dlbase, unsigned int dl_type_mask)
 				/* (ton) this code crashes for me when resolv is 86 or higher... no clue */
 				glVertexPointer(3, GL_FLOAT, sizeof(float) * 3 * dl->nr, data + 3 * nr);
 				if (dl->flag & DL_CYCL_V)
-					glDrawArrays(GL_LINE_LOOP, 0, dl->parts);
+					GPUDrawArrays(GL_LINE_LOOP, 0, dl->parts);
 				else
-					glDrawArrays(GL_LINE_STRIP, 0, dl->parts);
+					GPUDrawArrays(GL_LINE_STRIP, 0, dl->parts);
 #endif
 				}
 				break;
 
 			case DL_INDEX3:
 				glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-				glDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
+				GPUDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
 				break;
 
 			case DL_INDEX4:
 				glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-				glDrawElements(GL_QUADS, 4 * dl->parts, GL_UNSIGNED_INT, dl->index);
+				GPUDrawElements(GL_QUADS, 4 * dl->parts, GL_UNSIGNED_INT, dl->index);
 				break;
 		}
 	}
@@ -4417,9 +4417,9 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 						glColor3ubv(ob_wire_col);
 
 					// glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-					// glDrawArrays(GL_LINE_STRIP, 0, dl->nr);
+					// GPUDrawArrays(GL_LINE_STRIP, 0, dl->nr);
 
-					glBegin(GL_LINE_STRIP);
+					GPUBegin(GL_LINE_STRIP);
 					for (nr = dl->nr; nr; nr--, data += 3)
 						glVertex3fv(data);
 					glEnd();
@@ -4433,11 +4433,11 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 
 					glDisable(GL_LIGHTING);
 
-					/* for some reason glDrawArrays crashes here in half of the platforms (not osx) */
+					/* for some reason GPUDrawArrays crashes here in half of the platforms (not osx) */
 					//glVertexPointer(3, GL_FLOAT, 0, dl->verts);
-					//glDrawArrays(GL_LINE_LOOP, 0, dl->nr);
+					//GPUDrawArrays(GL_LINE_LOOP, 0, dl->nr);
 
-					glBegin(GL_LINE_LOOP);
+					GPUBegin(GL_LINE_LOOP);
 					for (nr = dl->nr; nr; nr--, data += 3)
 						glVertex3fv(data);
 					glEnd();
@@ -4456,7 +4456,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 					glEnableClientState(GL_NORMAL_ARRAY);
 					glVertexPointer(3, GL_FLOAT, 0, dl->verts);
 					glNormalPointer(GL_FLOAT, 0, dl->nors);
-					glDrawElements(GL_QUADS, 4 * dl->totindex, GL_UNSIGNED_INT, dl->index);
+					GPUDrawElements(GL_QUADS, 4 * dl->totindex, GL_UNSIGNED_INT, dl->index);
 					glDisableClientState(GL_NORMAL_ARRAY);
 				}
 				break;
@@ -4474,7 +4474,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 				else
 					glNormal3fv(ndata);
 
-				glDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
+				GPUDrawElements(GL_TRIANGLES, 3 * dl->parts, GL_UNSIGNED_INT, dl->index);
 
 				if (index3_nors_incr)
 					glDisableClientState(GL_NORMAL_ARRAY);
@@ -4487,7 +4487,7 @@ static void drawDispListsolid(ListBase *lb, Object *ob, const short dflag,
 				glEnableClientState(GL_NORMAL_ARRAY);
 				glVertexPointer(3, GL_FLOAT, 0, dl->verts);
 				glNormalPointer(GL_FLOAT, 0, dl->nors);
-				glDrawElements(GL_QUADS, 4 * dl->parts, GL_UNSIGNED_INT, dl->index);
+				GPUDrawElements(GL_QUADS, 4 * dl->parts, GL_UNSIGNED_INT, dl->index);
 				glDisableClientState(GL_NORMAL_ARRAY);
 
 				break;
@@ -4721,10 +4721,10 @@ static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int selec
 	switch (draw_as) {
 		case PART_DRAW_AXIS:
 		case PART_DRAW_CROSS:
-			glDrawArrays(GL_LINES, 0, 6 * totpoint);
+			GPUDrawArrays(GL_LINES, 0, 6 * totpoint);
 			break;
 		case PART_DRAW_LINE:
-			glDrawArrays(GL_LINES, 0, 2 * totpoint);
+			GPUDrawArrays(GL_LINES, 0, 2 * totpoint);
 			break;
 		case PART_DRAW_BB:
 			if (ob_dt <= OB_WIRE || select)
@@ -4732,10 +4732,10 @@ static void draw_particle_arrays(int draw_as, int totpoint, int ob_dt, int selec
 			else
 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-			glDrawArrays(GL_QUADS, 0, 4 * totpoint);
+			GPUDrawArrays(GL_QUADS, 0, 4 * totpoint);
 			break;
 		default:
-			glDrawArrays(GL_POINTS, 0, totpoint);
+			GPUDrawArrays(GL_POINTS, 0, totpoint);
 			break;
 	}
 }
@@ -5399,7 +5399,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					}
 				}
 
-				glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+				GPUDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
 			}
 		}
 
@@ -5424,7 +5424,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 						glColor3f(0.58f, 0.67f, 1.0f);
 #endif
 
-						glDrawArrays(GL_LINE_STRIP, 0, pa->totkey);
+						GPUDrawArrays(GL_LINE_STRIP, 0, pa->totkey);
 					}
 				}
 				
@@ -5434,7 +5434,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					
 					glColor3f(0.9f, 0.4f, 0.4f);
 					
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
 						for (i = 1; i < pa->totkey; ++i) {
 							float v1[3], v2[3];
@@ -5477,7 +5477,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 						UI_ThemeColor(TH_ACTIVE);
 					else
 						UI_ThemeColor(TH_WIRE);
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					glVertex3f(a[0], a[1], a[2]); glVertex3f(b[0], a[1], a[2]);
 					glVertex3f(b[0], a[1], a[2]); glVertex3f(b[0], b[1], a[2]);
 					glVertex3f(b[0], b[1], a[2]); glVertex3f(a[0], b[1], a[2]);
@@ -5499,7 +5499,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 					else
 						UI_ThemeColorShadeAlpha(TH_WIRE, 0, -100);
 					glEnable(GL_BLEND);
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					for (i = 1; i < res[0]-1; ++i) {
 						float f = interpf(b[0], a[0], (float)i / (float)(res[0]-1));
 						glVertex3f(f, a[1], a[2]); glVertex3f(f, b[1], a[2]);
@@ -5549,7 +5549,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 				}
 			}
 
-			glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+			GPUDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
 		}
 
 		/* restore & clean up */
@@ -5645,7 +5645,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 		
 		glVertexPointer(3, GL_FLOAT, 0, pdd->vedata);
 		
-		glDrawArrays(GL_LINES, 0, 2 * totve);
+		GPUDrawArrays(GL_LINES, 0, 2 * totve);
 	}
 
 	glPolygonMode(GL_FRONT, polygonmode[0]);
@@ -5761,7 +5761,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 		else
 			glColorPointer(3, GL_FLOAT, sizeof(ParticleCacheKey), path->col);
 
-		glDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
+		GPUDrawArrays(GL_LINE_STRIP, 0, path->segments + 1);
 	}
 
 	if (pathcol) { MEM_freeN(pathcol); pathcol = pcol = NULL; }
@@ -5822,7 +5822,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 
 				glColorPointer((timed ? 4 : 3), GL_FLOAT, (timed ? 4 : 3) * sizeof(float), cd);
 
-				glDrawArrays(GL_POINTS, 0, point->totkey);
+				GPUDrawArrays(GL_POINTS, 0, point->totkey);
 
 				pd += pd ? 3 * point->totkey : 0;
 				cd += (timed ? 4 : 3) * point->totkey;
@@ -5839,7 +5839,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 					else
 						glColor3fv(nosel_col);
 					/* has to be like this.. otherwise selection won't work, have try glArrayElement later..*/
-					glBegin(GL_POINTS);
+					GPUBegin(GL_POINTS);
 					glVertex3fv(key->flag & PEK_USE_WCO ? key->world_co : key->co);
 					glEnd();
 				}
@@ -5870,7 +5870,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 	th = ith * drw_size;
 
 	glColor4ub(0x7F, 0x00, 0x00, 155);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	root[1] = root[2] = 0.0f;
 	root[0] = -drw_size;
 	mul_m3_v3(tr, root);
@@ -5885,7 +5885,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[1] = 0.0f; root[2] = tw;
 	root[0] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5894,7 +5894,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[1] = 0.0f; root[2] = -tw;
 	root[0] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5903,7 +5903,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[1] = tw; root[2] = 0.0f;
 	root[0] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5912,7 +5912,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[1] = -tw; root[2] = 0.0f;
 	root[0] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5921,7 +5921,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	glColor4ub(0x00, 0x7F, 0x00, 155);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	root[0] = root[2] = 0.0f;
 	root[1] = -drw_size;
 	mul_m3_v3(tr, root);
@@ -5936,7 +5936,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = 0.0f; root[2] = tw;
 	root[1] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5945,7 +5945,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = 0.0f; root[2] = -tw;
 	root[1] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5954,7 +5954,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = tw; root[2] = 0.0f;
 	root[1] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5963,7 +5963,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = -tw; root[2] = 0.0f;
 	root[1] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5971,7 +5971,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 	glEnd();
 
 	glColor4ub(0x00, 0x00, 0x7F, 155);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	root[0] = root[1] = 0.0f;
 	root[2] = -drw_size;
 	mul_m3_v3(tr, root);
@@ -5986,7 +5986,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = 0.0f; root[1] = tw;
 	root[2] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -5995,7 +5995,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = 0.0f; root[1] = -tw;
 	root[2] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -6004,7 +6004,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = tw; root[1] = 0.0f;
 	root[2] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -6013,7 +6013,7 @@ static void ob_draw_RE_motion(float com[3], float rotscale[3][3], float itw, flo
 
 	root[0] = -tw; root[1] = 0.0f;
 	root[2] = th;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	mul_m3_v3(tr, root);
 	add_v3_v3(root, com);
 	glVertex3fv(root);
@@ -6031,7 +6031,7 @@ static void drawhandlesN(Nurb *nu, const char sel, const bool hide_handles)
 
 	if (nu->hide || hide_handles) return;
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 
 	if (nu->type == CU_BEZIER) {
 
@@ -6094,7 +6094,7 @@ static void drawhandlesN_active(Nurb *nu)
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
 	glLineWidth(2);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 
 	if (nu->type == CU_BEZIER) {
 		bezt = nu->bezt;
@@ -6198,8 +6198,8 @@ static void editnurb_draw_active_poly(Nurb *nu)
 
 	bp = nu->bp;
 	for (b = 0; b < nu->pntsv; b++) {
-		if (nu->flagu & 1) glBegin(GL_LINE_LOOP);
-		else glBegin(GL_LINE_STRIP);
+		if (nu->flagu & 1) GPUBegin(GL_LINE_LOOP);
+		else GPUBegin(GL_LINE_STRIP);
 
 		for (a = 0; a < nu->pntsu; a++, bp++) {
 			glVertex3fv(bp->vec);
@@ -6220,7 +6220,7 @@ static void editnurb_draw_active_nurbs(Nurb *nu)
 	UI_ThemeColor(TH_ACTIVE_SPLINE);
 	glLineWidth(2);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	bp = nu->bp;
 	for (b = 0; b < nu->pntsv; b++) {
 		bp1 = bp;
@@ -6278,8 +6278,8 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 					UI_ThemeColor(TH_NURB_ULINE);
 					bp = nu->bp;
 					for (b = 0; b < nu->pntsv; b++) {
-						if (nu->flagu & 1) glBegin(GL_LINE_LOOP);
-						else glBegin(GL_LINE_STRIP);
+						if (nu->flagu & 1) GPUBegin(GL_LINE_LOOP);
+						else GPUBegin(GL_LINE_STRIP);
 
 						for (a = 0; a < nu->pntsu; a++, bp++) {
 							glVertex3fv(bp->vec);
@@ -6304,7 +6304,7 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 									if ((bp->f1 & SELECT) && (bp1->f1 & SELECT)) {
 										UI_ThemeColor(TH_NURB_SEL_ULINE);
 
-										glBegin(GL_LINE_STRIP);
+										GPUBegin(GL_LINE_STRIP);
 										glVertex3fv(bp->vec);
 										glVertex3fv(bp1->vec);
 										glEnd();
@@ -6317,7 +6317,7 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 									else {
 										UI_ThemeColor(TH_NURB_ULINE);
 
-										glBegin(GL_LINE_STRIP);
+										GPUBegin(GL_LINE_STRIP);
 										glVertex3fv(bp->vec);
 										glVertex3fv(bp1->vec);
 										glEnd();
@@ -6339,7 +6339,7 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 										if ((bp->f1 & SELECT) && (bp1->f1 & SELECT)) {
 											UI_ThemeColor(TH_NURB_SEL_VLINE);
 
-											glBegin(GL_LINE_STRIP);
+											GPUBegin(GL_LINE_STRIP);
 											glVertex3fv(bp->vec);
 											glVertex3fv(bp1->vec);
 											glEnd();
@@ -6352,7 +6352,7 @@ static void draw_editnurb_splines(Object *ob, Nurb *nurb, const bool sel)
 										else {
 											UI_ThemeColor(TH_NURB_VLINE);
 
-											glBegin(GL_LINE_STRIP);
+											GPUBegin(GL_LINE_STRIP);
 											glVertex3fv(bp->vec);
 											glVertex3fv(bp1->vec);
 											glEnd();
@@ -6452,7 +6452,7 @@ static void draw_editnurb(
 				madd_v3_v3fl(vec_a, bevp->dir, -fac);
 				madd_v3_v3fl(vec_b, bevp->dir, -fac);
 
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				glVertex3fv(vec_a);
 				glVertex3fv(bevp->vec);
 				glVertex3fv(vec_b);
@@ -6478,7 +6478,7 @@ static void draw_editfont_textcurs(RegionView3D *rv3d, float textcurs[4][2])
 	cpack(0);
 	ED_view3d_polygon_offset(rv3d, -1.0);
 	set_inverted_drawing(1);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glVertex2fv(textcurs[0]);
 	glVertex2fv(textcurs[1]);
 	glVertex2fv(textcurs[2]);
@@ -6518,7 +6518,7 @@ static void draw_editfont(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *b
 		vec1[1] += cu->linedist * cu->fsize;
 		vec2[1] -= cu->lines * cu->linedist * cu->fsize;
 		setlinestyle(3);
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		glVertex2fv(vec1);
 		glVertex2fv(vec2);
 		glEnd();
@@ -6532,7 +6532,7 @@ static void draw_editfont(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *b
 			vec1[0] = cu->xof + cu->tb[i].x;
 			vec1[1] = cu->yof + cu->tb[i].y + cu->fsize;
 			vec1[2] = 0.001;
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex3fv(vec1);
 			vec1[0] += cu->tb[i].w;
 			glVertex3fv(vec1);
@@ -6571,7 +6571,7 @@ static void draw_editfont(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *b
 			/* fill in xy below */
 			tvec[2] = 0.001;
 
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 
 			if (sb->rot == 0.0f) {
 				copy_v2_fl2(tvec, sb->x, sb->y);
@@ -6675,7 +6675,7 @@ static void drawspiral(const float cent[3], float rad, float tmat[4][4], int sta
 	mul_v3_v3fl(vx, tmat[0], rad);
 	mul_v3_v3fl(vy, tmat[1], rad);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 
 	if (inverse == 0) {
 		copy_v3_v3(vec, cent);
@@ -6732,7 +6732,7 @@ static void drawcircle_size(float size)
 	float x, y;
 	short degrees;
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 
 	/* coordinates are: cos(degrees * 11.25) = x, sin(degrees * 11.25) = y, 0.0f = z */
 	for (degrees = 0; degrees < CIRCLE_RESOL; degrees++) {
@@ -6757,7 +6757,7 @@ static void drawtube(const float vec[3], float radius, float height, float tmat[
 
 	drawcircball(GL_LINE_LOOP, cur, radius, tmat);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex3f(vec[0] + radius, vec[1], vec[2]);
 	glVertex3f(cur[0] + radius, cur[1], cur[2]);
 	glVertex3f(vec[0] - radius, vec[1], vec[2]);
@@ -6779,7 +6779,7 @@ static void drawcone(const float vec[3], float radius, float height, float tmat[
 
 	drawcircball(GL_LINE_LOOP, cur, radius, tmat);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex3f(vec[0], vec[1], vec[2]);
 	glVertex3f(cur[0] + radius, cur[1], cur[2]);
 	glVertex3f(vec[0], vec[1], vec[2]);
@@ -7023,13 +7023,13 @@ static void draw_forcefield(Object *ob, RegionView3D *rv3d,
 
 static void draw_box(float vec[8][3])
 {
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex3fv(vec[0]); glVertex3fv(vec[1]); glVertex3fv(vec[2]); glVertex3fv(vec[3]);
 	glVertex3fv(vec[0]); glVertex3fv(vec[4]); glVertex3fv(vec[5]); glVertex3fv(vec[6]);
 	glVertex3fv(vec[7]); glVertex3fv(vec[4]);
 	glEnd();
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex3fv(vec[1]); glVertex3fv(vec[5]);
 	glVertex3fv(vec[2]); glVertex3fv(vec[6]);
 	glVertex3fv(vec[3]); glVertex3fv(vec[7]);
@@ -7277,7 +7277,7 @@ static void draw_hooks(Object *ob)
 
 			if (hmd->object) {
 				setlinestyle(3);
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				glVertex3fv(hmd->object->obmat[3]);
 				glVertex3fv(vec);
 				glEnd();
@@ -7310,7 +7310,7 @@ static void draw_rigid_body_pivot(bRigidBodyJointConstraint *data,
 		copy_v3_v3(v, &data->pivX);
 
 		dir[axis] = 1.0f;
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		mul_m4_v3(mat, dir);
 		add_v3_v3(v, dir);
 		glVertex3fv(&data->pivX);
@@ -8057,7 +8057,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (do_draw_center != -1) {
 			if (dflag & DRAW_PICKING) {
 				/* draw a single point for opengl selection */
-				glBegin(GL_POINTS);
+				GPUBegin(GL_POINTS);
 				glVertex3fv(ob->obmat[3]);
 				glEnd();
 			}
@@ -8083,7 +8083,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		/* help lines and so */
 		if (ob != scene->obedit && ob->parent && (ob->parent->lay & v3d->lay)) {
 			setlinestyle(3);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex3fv(ob->obmat[3]);
 			glVertex3fv(ob->orig);
 			glEnd();
@@ -8125,7 +8125,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 					if (camob) {
 						setlinestyle(3);
-						glBegin(GL_LINES);
+						GPUBegin(GL_LINES);
 						glVertex3fv(camob->obmat[3]);
 						glVertex3fv(ob->obmat[3]);
 						glEnd();
@@ -8149,7 +8149,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 								unit_m4(ct->matrix);
 
 							setlinestyle(3);
-							glBegin(GL_LINES);
+							GPUBegin(GL_LINES);
 							glVertex3fv(ct->matrix[3]);
 							glVertex3fv(ob->obmat[3]);
 							glEnd();
@@ -8168,7 +8168,7 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		if (rbc) {
 			UI_ThemeColor(TH_WIRE);
 			setlinestyle(3);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			if (rbc->ob1) {
 				glVertex3fv(ob->obmat[3]);
 				glVertex3fv(rbc->ob1->obmat[3]);

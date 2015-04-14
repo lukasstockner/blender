@@ -51,6 +51,7 @@
 #include "UI_interface.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE                        0x812F
@@ -155,7 +156,7 @@ void fdrawbezier(float vec[4][3])
 	
 	cpack(0x0);
 	glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, vec[0]);
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	while (spline_step < 1.000001f) {
 #if 0
 		if (do_shaded)
@@ -171,8 +172,8 @@ void fdrawbezier(float vec[4][3])
 void fdrawline(float x1, float y1, float x2, float y2)
 {
 	float v[2];
-	
-	glBegin(GL_LINE_STRIP);
+
+	GPUBegin(GL_LINE_STRIP);
 	v[0] = x1; v[1] = y1;
 	glVertex2fv(v);
 	v[0] = x2; v[1] = y2;
@@ -183,9 +184,9 @@ void fdrawline(float x1, float y1, float x2, float y2)
 void fdrawbox(float x1, float y1, float x2, float y2)
 {
 	float v[2];
-	
-	glBegin(GL_LINE_STRIP);
-	
+
+	GPUBegin(GL_LINE_STRIP);
+
 	v[0] = x1; v[1] = y1;
 	glVertex2fv(v);
 	v[0] = x1; v[1] = y2;
@@ -217,8 +218,8 @@ void fdrawcheckerboard(float x1, float y1, float x2, float y2)
 void sdrawline(int x1, int y1, int x2, int y2)
 {
 	int v[2];
-	
-	glBegin(GL_LINE_STRIP);
+
+	GPUBegin(GL_LINE_STRIP);
 	v[0] = x1; v[1] = y1;
 	glVertex2iv(v);
 	v[0] = x2; v[1] = y2;
@@ -249,14 +250,14 @@ static void sdrawtripoints(int x1, int y1, int x2, int y2)
 
 void sdrawtri(int x1, int y1, int x2, int y2)
 {
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	sdrawtripoints(x1, y1, x2, y2);
 	glEnd();
 }
 
 void sdrawtrifill(int x1, int y1, int x2, int y2)
 {
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	sdrawtripoints(x1, y1, x2, y2);
 	glEnd();
 }
@@ -265,8 +266,8 @@ void sdrawtrifill(int x1, int y1, int x2, int y2)
 void sdrawbox(int x1, int y1, int x2, int y2)
 {
 	int v[2];
-	
-	glBegin(GL_LINE_STRIP);
+
+	GPUBegin(GL_LINE_STRIP);
 	
 	v[0] = x1; v[1] = y1;
 	glVertex2iv(v);
@@ -318,8 +319,8 @@ void sdrawXORline(int x0, int y0, int x1, int y1)
 	if (x0 == x1 && y0 == y1) return;
 
 	set_inverted_drawing(1);
-	
-	glBegin(GL_LINES);
+
+	GPUBegin(GL_LINES);
 	glVertex2i(x0, y0);
 	glVertex2i(x1, y1);
 	glEnd();
@@ -335,8 +336,8 @@ void sdrawXORline4(int nr, int x0, int y0, int x1, int y1)
 	/* with builtin memory, max 4 lines */
 
 	set_inverted_drawing(1);
-		
-	glBegin(GL_LINES);
+
+	GPUBegin(GL_LINES);
 	if (nr == -1) { /* flush */
 		for (nr = 0; nr < 4; nr++) {
 			if (flags[nr]) {
@@ -401,8 +402,8 @@ void fdrawXORcirc(float xofs, float yofs, float rad)
 void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments)
 {
 	int i;
-	
-	glBegin(GL_TRIANGLE_FAN);
+
+	GPUBegin(GL_TRIANGLE_FAN);
 	glVertex2f(0.0, 0.0);
 	for (i = 0; i < nsegments; i++) {
 		float t = (float) i / (nsegments - 1);
@@ -416,8 +417,8 @@ void glutil_draw_filled_arc(float start, float angle, float radius, int nsegment
 void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments)
 {
 	int i;
-	
-	glBegin(GL_LINE_STRIP);
+
+	GPUBegin(GL_LINE_STRIP);
 	for (i = 0; i < nsegments; i++) {
 		float t = (float) i / (nsegments - 1);
 		float cur = start + t * angle;
@@ -592,7 +593,7 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 			}
 
 			glEnable(GL_TEXTURE_2D);
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 			glTexCoord2f((float)(0 + offset_left) / tex_w, (float)(0 + offset_bot) / tex_h);
 			glVertex2f(rast_x + (float)offset_left * xzoom, rast_y + (float)offset_bot * yzoom);
 
@@ -874,7 +875,7 @@ void bglBegin(int mode)
 			if (pointhack > 4) pointhack = 4;
 		}
 		else {
-			glBegin(mode);
+			GPUBegin(mode);
 		}
 	}
 }
@@ -1135,28 +1136,28 @@ void glaDrawBorderCorners(const rcti *border, float zoomx, float zoomy)
 	delta_y = min_ff(delta_y, border->ymax - border->ymin);
 
 	/* left bottom corner */
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex2f(border->xmin, border->ymin + delta_y);
 	glVertex2f(border->xmin, border->ymin);
 	glVertex2f(border->xmin + delta_x, border->ymin);
 	glEnd();
 
 	/* left top corner */
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex2f(border->xmin, border->ymax - delta_y);
 	glVertex2f(border->xmin, border->ymax);
 	glVertex2f(border->xmin + delta_x, border->ymax);
 	glEnd();
 
 	/* right bottom corner */
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex2f(border->xmax - delta_x, border->ymin);
 	glVertex2f(border->xmax, border->ymin);
 	glVertex2f(border->xmax, border->ymin + delta_y);
 	glEnd();
 
 	/* right top corner */
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex2f(border->xmax - delta_x, border->ymax);
 	glVertex2f(border->xmax, border->ymax);
 	glVertex2f(border->xmax, border->ymax - delta_y);

@@ -71,7 +71,7 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
-#include "GPU_glew.h"
+#include "GPU_immediate.h"
 
 #include "CCGSubSurf.h"
 
@@ -1587,7 +1587,7 @@ static void ccgDM_drawVerts(DerivedMesh *dm)
 	CCGEdgeIterator ei;
 	CCGFaceIterator fi;
 
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	for (ccgSubSurf_initVertIterator(ss, &vi); !ccgVertIterator_isStopped(&vi); ccgVertIterator_next(&vi)) {
 		CCGVert *v = ccgVertIterator_getCurrent(&vi);
 		glVertex3fv(ccgSubSurf_getVertData(ss, v));
@@ -1662,7 +1662,7 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 			glColor3ub(0, ageCol > 0 ? ageCol : 0, 0);
 		}
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		for (i = 0; i < edgeSize - 1; i++) {
 			glVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
 			glVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
@@ -1684,18 +1684,18 @@ static void ccgDM_drawEdges(DerivedMesh *dm, bool drawLooseEdges, bool drawAllEd
 			for (S = 0; S < numVerts; S++) {
 				CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				for (x = 0; x < gridSize; x++)
 					glVertex3fv(CCG_elem_offset_co(&key, faceGridData, x));
 				glEnd();
 				for (y = 1; y < gridSize - 1; y++) {
-					glBegin(GL_LINE_STRIP);
+					GPUBegin(GL_LINE_STRIP);
 					for (x = 0; x < gridSize; x++)
 						glVertex3fv(CCG_grid_elem_co(&key, faceGridData, x, y));
 					glEnd();
 				}
 				for (x = 1; x < gridSize - 1; x++) {
-					glBegin(GL_LINE_STRIP);
+					GPUBegin(GL_LINE_STRIP);
 					for (y = 0; y < gridSize; y++)
 						glVertex3fv(CCG_grid_elem_co(&key, faceGridData, x, y));
 					glEnd();
@@ -1720,7 +1720,7 @@ static void ccgDM_drawLooseEdges(DerivedMesh *dm)
 		CCGElem *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
 
 		if (!ccgSubSurf_getEdgeNumFaces(e)) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (i = 0; i < edgeSize - 1; i++) {
 				glVertex3fv(CCG_elem_offset_co(&key, edgeData, i));
 				glVertex3fv(CCG_elem_offset_co(&key, edgeData, i + 1));
@@ -1812,7 +1812,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 
 			if (ln) {
 				/* Can't use quad strips here... */
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y += step) {
 					for (x = 0; x < gridFaces; x += step) {
 						float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -1835,7 +1835,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 			}
 			else if (shademodel == GL_SMOOTH) {
 				for (y = 0; y < gridFaces; y += step) {
-					glBegin(GL_QUAD_STRIP);
+					GPUBegin(GL_QUAD_STRIP);
 					for (x = 0; x < gridSize; x += step) {
 						CCGElem *a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 						CCGElem *b = CCG_grid_elem(&key, faceGridData, x, y + step);
@@ -1849,7 +1849,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 				}
 			}
 			else {
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y += step) {
 					for (x = 0; x < gridFaces; x += step) {
 						float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -1947,7 +1947,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			CCGElem *vda, *vdb;
 
 			if (ln) {
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y);
@@ -1976,7 +1976,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			}
 			else if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
-					glBegin(GL_QUAD_STRIP);
+					GPUBegin(GL_QUAD_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						vda = CCG_grid_elem(&key, faceGridData, x, y + 0);
 						vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
@@ -2010,7 +2010,7 @@ static void ccgDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				}
 			}
 			else {
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y);
@@ -2119,7 +2119,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 			CCGElem *vda, *vdb;
 
 			if (ln) {
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2148,7 +2148,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 			}
 			else if (drawSmooth) {
 				for (y = 0; y < gridFaces; y++) {
-					glBegin(GL_QUAD_STRIP);
+					GPUBegin(GL_QUAD_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						vda = CCG_grid_elem(&key, faceGridData, x, y);
 						vdb = CCG_grid_elem(&key, faceGridData, x, y + 1);
@@ -2182,7 +2182,7 @@ static void ccgDM_drawMappedFacesMat(DerivedMesh *dm,
 				}
 			}
 			else {
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *aco = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2314,7 +2314,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 
 			if (ln) {
 				glShadeModel(GL_SMOOTH);
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *a_co = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2357,7 +2357,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			else if (drawSmooth) {
 				glShadeModel(GL_SMOOTH);
 				for (y = 0; y < gridFaces; y++) {
-					glBegin(GL_QUAD_STRIP);
+					GPUBegin(GL_QUAD_STRIP);
 					for (x = 0; x < gridFaces; x++) {
 						a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 						b = CCG_grid_elem(&key, faceGridData, x, y + 1);
@@ -2405,7 +2405,7 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 			else {
 				glShadeModel((cp) ? GL_SMOOTH : GL_FLAT);
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				for (y = 0; y < gridFaces; y++) {
 					for (x = 0; x < gridFaces; x++) {
 						float *a_co = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2470,7 +2470,7 @@ static void ccgDM_drawUVEdges(DerivedMesh *dm)
 	int i;
 	
 	if (tf) {
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		for (i = 0; i < dm->numTessFaceData; i++, mf++, tf++) {
 			if (!(mf->flag & ME_HIDE)) {
 				glVertex2fv(tf->uv[0]);
@@ -2577,7 +2577,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 				for (S = 0; S < numVerts; S++) {
 					CCGElem *faceGridData = ccgSubSurf_getFaceGridDataArray(ss, f, S);
 					if (ln) {
-						glBegin(GL_QUADS);
+						GPUBegin(GL_QUADS);
 						for (y = 0; y < gridFaces; y++) {
 							for (x = 0; x < gridFaces; x++) {
 								float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2607,7 +2607,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 					else if (drawSmooth) {
 						for (y = 0; y < gridFaces; y++) {
 							CCGElem *a, *b;
-							glBegin(GL_QUAD_STRIP);
+							GPUBegin(GL_QUAD_STRIP);
 							for (x = 0; x < gridFaces; x++) {
 								a = CCG_grid_elem(&key, faceGridData, x, y + 0);
 								b = CCG_grid_elem(&key, faceGridData, x, y + 1);
@@ -2640,7 +2640,7 @@ static void ccgDM_drawMappedFaces(DerivedMesh *dm,
 						}
 					}
 					else {
-						glBegin(GL_QUADS);
+						GPUBegin(GL_QUADS);
 						for (y = 0; y < gridFaces; y++) {
 							for (x = 0; x < gridFaces; x++) {
 								float *a = CCG_grid_elem_co(&key, faceGridData, x, y + 0);
@@ -2690,7 +2690,7 @@ static void ccgDM_drawMappedEdges(DerivedMesh *dm,
 		CCGElem *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
 		int index = ccgDM_getEdgeMapIndex(ss, e);
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		if (index != -1 && (!setDrawOptions || (setDrawOptions(userData, index) != DM_DRAW_OPTION_SKIP))) {
 			if (useAging && !(G.f & G_BACKBUFSEL)) {
 				int ageCol = 255 - ccgSubSurf_getEdgeAge(ss, e) * 4;
@@ -2725,7 +2725,7 @@ static void ccgDM_drawMappedEdgesInterp(DerivedMesh *dm,
 		CCGElem *edgeData = ccgSubSurf_getEdgeDataArray(ss, e);
 		int index = ccgDM_getEdgeMapIndex(ss, e);
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		if (index != -1 && (!setDrawOptions || (setDrawOptions(userData, index) != DM_DRAW_OPTION_SKIP))) {
 			for (i = 0; i < edgeSize; i++) {
 				setDrawInterpOptions(userData, index, (float) i / (edgeSize - 1));

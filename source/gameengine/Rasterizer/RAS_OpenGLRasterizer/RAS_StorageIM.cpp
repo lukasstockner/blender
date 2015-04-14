@@ -33,6 +33,7 @@
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
 #include "GPU_material.h"
+#include "GPU_immediate.h"
 
 extern "C"{
 	#include "BKE_DerivedMesh.h"
@@ -260,7 +261,7 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 
 		if (it.array->m_type == RAS_DisplayArray::LINE) {
 			// line drawing
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 
 			for (i = 0; i < it.totindex; i += 2)
 			{
@@ -276,9 +277,9 @@ void RAS_StorageIM::IndexPrimitivesInternal(RAS_MeshSlot& ms, bool multi)
 		else {
 			// triangle and quad drawing
 			if (it.array->m_type == RAS_DisplayArray::TRIANGLE)
-				glBegin(GL_TRIANGLES);
+				GPUBegin(GL_TRIANGLES);
 			else
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 
 			for (i = 0; i < it.totindex; i += numvert)
 			{

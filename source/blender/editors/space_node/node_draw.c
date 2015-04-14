@@ -53,6 +53,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_immediate.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -616,9 +618,9 @@ static void node_circle_draw(float x, float y, float size, const float col[4], i
 	int a;
 	
 	glColor4fv(col);
-	
+
 	glEnable(GL_BLEND);
-	glBegin(GL_POLYGON);
+	GPUBegin(GL_POLYGON);
 	for (a = 0; a < 16; a++)
 		glVertex2f(x + size * si[a], y + size * co[a]);
 	glEnd();
@@ -633,7 +635,7 @@ static void node_circle_draw(float x, float y, float size, const float col[4], i
 	}
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	for (a = 0; a < 16; a++)
 		glVertex2f(x + size * si[a], y + size * co[a]);
 	glEnd();

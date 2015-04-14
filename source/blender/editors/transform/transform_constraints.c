@@ -56,6 +56,7 @@
 #include "BLF_translation.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "UI_resources.h"
 
@@ -703,7 +704,7 @@ void drawConstraint(TransInfo *t)
 				glDisable(GL_DEPTH_TEST);
 
 			setlinestyle(1);
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex3fv(tc->center);
 			glVertex3fv(vec);
 			glEnd();

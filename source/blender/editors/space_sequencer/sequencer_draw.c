@@ -77,6 +77,7 @@
 #include "sequencer_intern.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 
 #define SEQ_LEFTHANDLE   1
@@ -233,7 +234,7 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		if (length > floor((waveform->length - startsample) / samplestep))
 			length = floor((waveform->length - startsample) / samplestep);
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		for (i = 0; i < length; i++) {
 			pos = startsample + i * samplestep;
 
@@ -248,7 +249,7 @@ static void drawseqwave(const bContext *C, SpaceSeq *sseq, Scene *scene, Sequenc
 		}
 		glEnd();
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		for (i = 0; i < length; i++) {
 			pos = startsample + i * samplestep;
 
@@ -413,7 +414,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 		else glColor4ub(0, 0, 0, 50);
 		
 		glEnable(GL_POLYGON_SMOOTH);
-		glBegin(GL_TRIANGLES);
+		GPUBegin(GL_TRIANGLES);
 		glVertex2fv(v1); glVertex2fv(v2); glVertex2fv(v3);
 		glEnd();
 		
@@ -559,7 +560,7 @@ void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, f
 	ymid2 = (y2 - y1) * 0.65f + y1;
 	
 	glShadeModel(GL_SMOOTH);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	
 	if (seq->flag & SEQ_INVALID_EFFECT) { col[0] = 255; col[1] = 0; col[2] = 255; }
 	else if (seq->flag & SELECT) UI_GetColorPtrShade3ubv(col, col, -50);
@@ -582,8 +583,8 @@ void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, f
 	glEnd();
 	
 	glRectf(x1,  ymid1,  x2,  ymid2);
-	
-	glBegin(GL_QUADS);
+
+	GPUBegin(GL_QUADS);
 	
 	glVertex2f(x1, ymid2);
 	glVertex2f(x2, ymid2);
@@ -1215,7 +1216,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		gpuPushMatrix(GPU_MODELVIEW);
 		gpuLoadIdentity(GPU_MODELVIEW);
 	}
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 
 	if (draw_overlay) {
 		if (sseq->overlay_type == SEQ_DRAW_OVERLAY_RECT) {
@@ -1301,7 +1302,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 		UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 1.0, 0);
 
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2f(x1 - 0.5f, y1 - 0.5f);
 		glVertex2f(x1 - 0.5f, y2 + 0.5f);
 		glVertex2f(x2 + 0.5f, y2 + 0.5f);
@@ -1409,7 +1410,7 @@ static void draw_seq_backdrop(View2D *v2d)
 	/* Alternating horizontal stripes */
 	i = max_ii(1, ((int)v2d->cur.ymin) - 1);
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	while (i < v2d->cur.ymax) {
 		if (((int)i) & 1)
 			UI_ThemeColorShade(TH_BACK, -15);
@@ -1428,8 +1429,8 @@ static void draw_seq_backdrop(View2D *v2d)
 	/* Darker lines separating the horizontal bands */
 	i = max_ii(1, ((int)v2d->cur.ymin) - 1);
 	UI_ThemeColor(TH_GRID);
-	
-	glBegin(GL_LINES);
+
+	GPUBegin(GL_LINES);
 	while (i < v2d->cur.ymax) {
 		glVertex2f(v2d->cur.xmax, i);
 		glVertex2f(v2d->cur.xmin, i);
@@ -1599,7 +1600,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 		glColor3f(0.2, 0.2, 0.2);
 		// glRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2f(cfra_over, v2d->cur.ymin);
 		glVertex2f(cfra_over, v2d->cur.ymax);
 		glEnd();

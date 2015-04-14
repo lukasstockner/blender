@@ -51,6 +51,7 @@
 #include "GPU_compositing.h"
 #include "GPU_simple_shader.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "intern/gpu_private.h"
 
@@ -1339,7 +1340,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	GPU_texture_bind(tex, 0);
 
 	/* Drawing quad */
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glTexCoord2d(0, 0); glVertex2f(1, 1);
 	glTexCoord2d(1, 0); glVertex2f(-1, 1);
 	glTexCoord2d(1, 1); glVertex2f(-1, -1);
@@ -1358,7 +1359,7 @@ void GPU_framebuffer_blur(GPUFrameBuffer *fb, GPUTexture *tex, GPUFrameBuffer *b
 	GPU_shader_uniform_texture(blur_shader, texture_source_uniform, blurtex);
 	GPU_texture_bind(blurtex, 0);
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glTexCoord2d(0, 0); glVertex2f(1, 1);
 	glTexCoord2d(1, 0); glVertex2f(-1, 1);
 	glTexCoord2d(1, 1); glVertex2f(-1, -1);

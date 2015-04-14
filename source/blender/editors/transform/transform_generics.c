@@ -64,6 +64,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "BIK_api.h"
 
@@ -1025,7 +1026,7 @@ void drawLine(TransInfo *t, const float center[3], const float dir[3], char axis
 		glColor3ubv(col2);
 		
 		setlinestyle(0);
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		glVertex3fv(v1);
 		glVertex3fv(v2);
 		glEnd();

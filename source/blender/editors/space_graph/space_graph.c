@@ -54,6 +54,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_immediate.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -274,9 +276,9 @@ static void graph_main_area_draw(const bContext *C, ARegion *ar)
 		
 		UI_ThemeColorShadeAlpha(TH_CFRAME, -10, -50);
 		glLineWidth(2.0);
-		
+
 		glEnable(GL_BLEND);
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		vec[0] = v2d->cur.xmin;
 		glVertex2fv(vec);
 			

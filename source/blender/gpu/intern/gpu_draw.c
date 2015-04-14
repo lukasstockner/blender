@@ -40,6 +40,7 @@
 
 #include "GPU_glew.h"
 #include "GPU_debug.h"
+#include "GPU_immediate.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_linklist.h"
@@ -166,8 +167,8 @@ void GPU_render_text(MTFace *tface, int mode,
 			uv[1][1] = (tface->uv[1][1] - centery) * sizey + transy;
 			uv[2][0] = (tface->uv[2][0] - centerx) * sizex + transx;
 			uv[2][1] = (tface->uv[2][1] - centery) * sizey + transy;
-			
-			glBegin(GL_POLYGON);
+
+			GPUBegin(GL_POLYGON);
 			if (glattrib >= 0) glVertexAttrib2fvARB(glattrib, uv[0]);
 			else glTexCoord2fv(uv[0]);
 			if (col) gpu_mcol(col[0]);

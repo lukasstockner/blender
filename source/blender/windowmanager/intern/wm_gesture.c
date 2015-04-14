@@ -57,6 +57,7 @@
 #include "BIF_glutil.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 
 /* context checked on having screen, window and area */
@@ -175,7 +176,7 @@ static void wm_gesture_draw_rect(wmGesture *gt)
 	
 	glEnable(GL_BLEND);
 	glColor4f(1.0, 1.0, 1.0, 0.05);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glVertex2s(rect->xmax, rect->ymin);
 	glVertex2s(rect->xmax, rect->ymax);
 	glVertex2s(rect->xmin, rect->ymax);
@@ -306,7 +307,7 @@ static void wm_gesture_draw_lasso(wmWindow *win, wmGesture *gt, bool filled)
 	glEnable(GL_LINE_STIPPLE);
 	glColor3ub(96, 96, 96);
 	glLineStipple(1, 0xAAAA);
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	for (i = 0; i < gt->points; i++, lasso += 2)
 		glVertex2sv(lasso);
 	if (gt->type == WM_GESTURE_LASSO)
@@ -315,7 +316,7 @@ static void wm_gesture_draw_lasso(wmWindow *win, wmGesture *gt, bool filled)
 	
 	glColor3ub(255, 255, 255);
 	glLineStipple(1, 0x5555);
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	lasso = (short *)gt->customdata;
 	for (i = 0; i < gt->points; i++, lasso += 2)
 		glVertex2sv(lasso);

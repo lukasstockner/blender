@@ -70,6 +70,8 @@
 
 #include "uvedit_intern.h"
 
+#include "GPU_immediate.h"
+
 /* ********************** smart stitch operator *********************** */
 
 /* object that stores display data for previewing before confirming stitching */
@@ -1520,20 +1522,20 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 	UI_ThemeColor4(TH_STITCH_PREVIEW_ACTIVE);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	glVertexPointer(2, GL_FLOAT, 0, stitch_preview->static_tris);
-	glDrawArrays(GL_TRIANGLES, 0, stitch_preview->num_static_tris * 3);
+	GPUDrawArrays(GL_TRIANGLES, 0, stitch_preview->num_static_tris * 3);
 
 	glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_polys);
 	for (i = 0; i < stitch_preview->num_polys; i++) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 		UI_ThemeColor4(TH_STITCH_PREVIEW_FACE);
-		glDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
+		GPUDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 		UI_ThemeColor4(TH_STITCH_PREVIEW_EDGE);
-		glDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
+		GPUDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
 #if 0
 		glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
 		UI_ThemeColor4(TH_STITCH_PREVIEW_VERT);
-		glDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
+		GPUDrawArrays(GL_POLYGON, index, stitch_preview->uvs_per_polygon[i]);
 #endif
 
 		index += stitch_preview->uvs_per_polygon[i];
@@ -1544,20 +1546,20 @@ static void stitch_draw(const bContext *UNUSED(C), ARegion *UNUSED(ar), void *ar
 	if (state->mode == STITCH_VERT) {
 		UI_ThemeColor4(TH_STITCH_PREVIEW_STITCHABLE);
 		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
-		glDrawArrays(GL_POINTS, 0, stitch_preview->num_stitchable);
+		GPUDrawArrays(GL_POINTS, 0, stitch_preview->num_stitchable);
 
 		UI_ThemeColor4(TH_STITCH_PREVIEW_UNSTITCHABLE);
 		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
-		glDrawArrays(GL_POINTS, 0, stitch_preview->num_unstitchable);
+		GPUDrawArrays(GL_POINTS, 0, stitch_preview->num_unstitchable);
 	}
 	else {
 		UI_ThemeColor4(TH_STITCH_PREVIEW_STITCHABLE);
 		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_stitchable);
-		glDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_stitchable);
+		GPUDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_stitchable);
 
 		UI_ThemeColor4(TH_STITCH_PREVIEW_UNSTITCHABLE);
 		glVertexPointer(2, GL_FLOAT, 0, stitch_preview->preview_unstitchable);
-		glDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_unstitchable);
+		GPUDrawArrays(GL_LINES, 0, 2 * stitch_preview->num_unstitchable);
 	}
 
 	glPopClientAttrib();

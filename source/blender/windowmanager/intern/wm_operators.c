@@ -104,6 +104,7 @@
 
 #include "GPU_material.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "RNA_access.h"
 #include "RNA_define.h"
@@ -3965,7 +3966,7 @@ static void radial_control_paint_tex(RadialControl *rc, float radius, float alph
 
 		/* draw textured quad */
 		glEnable(GL_TEXTURE_2D);
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		glTexCoord2f(0, 0);
 		glVertex2f(-radius, -radius);
 		glTexCoord2f(1, 0);

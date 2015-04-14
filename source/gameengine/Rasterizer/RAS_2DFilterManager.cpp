@@ -45,6 +45,7 @@
 
 #include "glew-mx.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include <stdio.h>
 
@@ -459,7 +460,7 @@ void RAS_2DFilterManager::RenderFilters(RAS_ICanvas* canvas)
 			glCopyTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, viewport[0], viewport[1], viewport[2], viewport[3], 0); // Don't use texturewidth and textureheight in case we don't have NPOT support
 			glClear(GL_COLOR_BUFFER_BIT);
 
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 				glColor4f(1.f, 1.f, 1.f, 1.f);
 				glTexCoord2f(1.0, 1.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[1], canvascoord[3]); glVertex2f(1,1);
 				glTexCoord2f(0.0, 1.0);	glMultiTexCoord2fARB(GL_TEXTURE3_ARB, canvascoord[0], canvascoord[3]); glVertex2f(-1,1);

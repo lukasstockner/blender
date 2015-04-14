@@ -43,6 +43,7 @@
 
 #include "glew-mx.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 // constructor
 KX_Dome::KX_Dome (
@@ -375,7 +376,7 @@ bool KX_Dome::CreateFBO(void)
 void KX_Dome::GLDrawTriangles(vector <DomeFace>& face, int nfaces)
 {
 	int i,j;
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 		for (i=0;i<nfaces;i++) {
 			for (j=0;j<3;j++) {
 				glTexCoord2f(face[i].u[j],face[i].v[j]);
@@ -393,7 +394,7 @@ void KX_Dome::GLDrawWarpQuads(void)
 	float uv_height = (float)(warp.bufferheight) / warp.imagesize;
 
 	if (warp.mode ==2 ) {
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		for (i=0;i<warp.n_height-1;i++) {
 			for (j=0;j<warp.n_width-1;j++) {
 				if (warp.nodes[i][j].i < 0 || warp.nodes[i+1][j].i < 0 || warp.nodes[i+1][j+1].i < 0 || warp.nodes[i][j+1].i < 0)
@@ -419,7 +420,7 @@ void KX_Dome::GLDrawWarpQuads(void)
 		glEnd();
 	}
 	else if (warp.mode == 1) {
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		for (i=0;i<warp.n_height-1;i++) {
 			for (j=0;j<warp.n_width-1;j++) {
 				i2 = (i+1) % warp.n_width; // Wrap around, i = warp.n_width = 0
@@ -1699,7 +1700,7 @@ void KX_Dome::DrawEnvMap(void)
 
 	// domefacesId[0] =>  (top)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[0]);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 		glTexCoord2f(uv_ratio,uv_ratio);
 		glVertex3f( onebythree, 0.0f, 3.0f);
 		glTexCoord2f(0.0,uv_ratio);
@@ -1712,7 +1713,7 @@ void KX_Dome::DrawEnvMap(void)
 
 	// domefacesId[1] =>  (bottom)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[1]);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 		glTexCoord2f(uv_ratio,uv_ratio);
 		glVertex3f(-onebythree, 0.0f, 3.0f);
 		glTexCoord2f(0.0,uv_ratio);
@@ -1725,7 +1726,7 @@ void KX_Dome::DrawEnvMap(void)
 
 	// domefacesId[2] => -90deg (left)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[2]);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 		glTexCoord2f(uv_ratio,uv_ratio);
 		glVertex3f(-onebythree, 2 * onebythree, 3.0f);
 		glTexCoord2f(0.0,uv_ratio);
@@ -1738,7 +1739,7 @@ void KX_Dome::DrawEnvMap(void)
 
 	// domefacesId[3] => 90deg (right)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[3]);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 		glTexCoord2f(uv_ratio,uv_ratio);
 		glVertex3f( 1.0f, 2 * onebythree, 3.0f);
 		glTexCoord2f(0.0,uv_ratio);
@@ -1751,7 +1752,7 @@ void KX_Dome::DrawEnvMap(void)
 
 	// domefacesId[4] => 0deg (front)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[4]);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 		glTexCoord2f(uv_ratio,uv_ratio);
 		glVertex3f( 1.0f, 0.0f, 3.0f);
 		glTexCoord2f(0.0,uv_ratio);
@@ -1764,7 +1765,7 @@ void KX_Dome::DrawEnvMap(void)
 
 	// domefacesId[5] => 180deg (back)
 	glBindTexture(GL_TEXTURE_2D, domefacesId[5]);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 		glTexCoord2f(uv_ratio,uv_ratio);
 		glVertex3f( onebythree, 2 * onebythree, 3.0f);
 		glTexCoord2f(0.0,uv_ratio);

@@ -89,7 +89,7 @@ static void draw_fcurve_modifier_controls_envelope(FModifier *fcm, View2D *v2d)
 	glColor3f(0.0f, 0.0f, 0.0f);
 	setlinestyle(5);
 	
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex2f(v2d->cur.xmin, env->midval + env->min);
 	glVertex2f(v2d->cur.xmax, env->midval + env->min);
 		
@@ -326,7 +326,7 @@ static void draw_fcurve_handles(SpaceIpo *sipo, FCurve *fcu)
 	 * get separate line segments, but which aren't wrapped with GL_LINE_STRIP every time we
 	 * want a single line
 	 */
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	
 	/* slightly hacky, but we want to draw unselected points before selected ones 
 	 * so that selected points are clearly visible
@@ -414,7 +414,7 @@ static void draw_fcurve_sample_control(float x, float y, float xscale, float ysc
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2f(-0.7f, -0.7f);
 		glVertex2f(+0.7f, +0.7f);
 			
@@ -542,7 +542,7 @@ static void draw_fcurve_curve(bAnimContext *ac, ID *id, FCurve *fcu, View2D *v2d
 	 *	- apply the unit correction factor to the calculated values so that 
 	 *	  the displayed values appear correctly in the viewport
 	 */
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	
 	n = (etime - stime) / samplefreq + 0.5f;
 	for (i = 0; i <= n; i++) {
@@ -572,7 +572,7 @@ static void draw_fcurve_curve_samples(bAnimContext *ac, ID *id, FCurve *fcu, Vie
 	gpuScale(GPU_MODELVIEW, 1.0f, unit_scale, 1.0f);
 	gpuTranslate(GPU_MODELVIEW, 0.0f, offset, 0.0f);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	
 	/* extrapolate to left? - left-side of view comes before first keyframe? */
 	if (prevfpt->vec[0] > v2d->cur.xmin) {
@@ -672,7 +672,7 @@ static void draw_fcurve_curve_bezts(bAnimContext *ac, ID *id, FCurve *fcu, View2
 	gpuScale(GPU_MODELVIEW, 1.0f, unit_scale, 1.0f);
 	gpuTranslate(GPU_MODELVIEW, 0.0f, offset, 0.0f);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	
 	/* extrapolate to left? */
 	if (prevbezt->vec[1][0] > v2d->cur.xmin) {
@@ -847,7 +847,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 		/* draw 1-1 line, stretching just past the screen limits 
 		 * NOTE: we need to scale the y-values to be valid for the units
 		 */
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		{
 			t = v2d->cur.xmin;
 			glVertex2f(t, (t + offset) * unitfac);
@@ -876,7 +876,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			glColor3f(0.9f, 0.9f, 0.9f);
 			setlinestyle(5);
 			
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			{
 				/* x-axis lookup */
 				co[0] = x;
@@ -907,7 +907,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			glColor3f(0.9f, 0.9f, 0.9f);
 			glPointSize(7.0);
 			
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex2f(x, y);
 			glEnd();
 			
@@ -915,7 +915,7 @@ static void graph_draw_driver_debug(bAnimContext *ac, ID *id, FCurve *fcu)
 			glColor3f(0.9f, 0.0f, 0.0f);
 			glPointSize(3.0);
 			
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex2f(x, y);
 			glEnd();
 			

@@ -62,6 +62,9 @@
 
 #include "action_intern.h"
 
+#include "GPU_immediate.h"
+
+
 /* ************************************************************************* */
 /* Channel List */
 
@@ -355,7 +358,7 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 	if (saction->flag & SACTION_MOVING) {
 		glColor3f(0.0f, 0.0f, 0.0f);
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2f(saction->timeslide, v2d->cur.ymin - EXTRA_SCROLL_PAD);
 		glVertex2f(saction->timeslide, v2d->cur.ymax);
 		glEnd();

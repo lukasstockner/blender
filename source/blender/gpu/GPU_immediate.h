@@ -151,6 +151,10 @@ GLint gpuImmediateLockCount(void);
 void gpuBegin(GLenum mode);
 void gpuEnd(void);
 
+void GPUBegin(GLenum mode);
+void GPUDrawArrays(GLenum mode, int start, int count);
+void GPUDrawElements(GLenum mode, int count, int type, void *p);
+
 
 typedef struct GPUarrays {
 	GLenum colorType;

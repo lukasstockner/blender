@@ -52,6 +52,7 @@
 #include "BLI_utildefines.h"
 
 #include "BIF_gl.h"
+#include "GPU_immediate.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_global.h"
@@ -189,8 +190,8 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			/* draw normal if needed */
 			if (usingSnappingNormal(t) && validSnappingNormal(t)) {
 				glColor4ubv(activeCol);
-				
-				glBegin(GL_LINES);
+
+				GPUBegin(GL_LINES);
 				glVertex3f(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], t->tsnap.snapPoint[2]);
 				glVertex3f(t->tsnap.snapPoint[0] + t->tsnap.snapNormal[0],
 				           t->tsnap.snapPoint[1] + t->tsnap.snapNormal[1],

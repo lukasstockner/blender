@@ -34,6 +34,10 @@
 
 
 #include "BLI_utildefines.h"
+
+/* temp */
+#include "GPU_immediate.h"
+
 #include <math.h>
 
 
@@ -56,14 +60,14 @@ BLI_INLINE void gpuAppendLinei(GLint x1, GLint y1, GLint x2, GLint y2)
 
 BLI_INLINE void gpuDrawLinef(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	gpuAppendLinef(x1, y1, x2, y2);
 	glEnd();
 }
 
 BLI_INLINE void gpuDrawLinei(GLint x1, GLint y1, GLint x2, GLint y2)
 {
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	gpuAppendLinei(x1, y1, x2, y2);
 	glEnd();
 }
@@ -122,7 +126,7 @@ BLI_INLINE void gpuDrawFilledRectf(
 	GLfloat x2,
 	GLfloat y2)
 {
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	gpuAppendFilledRectf(x1, y1, x2, y2);
 	glEnd();
 }
@@ -133,7 +137,7 @@ BLI_INLINE void gpuDrawFilledRecti(
 	GLint x2,
 	GLint y2)
 {
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	gpuAppendFilledRecti(x1, y1, x2, y2);
 	glEnd();
 }
@@ -144,7 +148,7 @@ BLI_INLINE void gpuDrawWireRectf(
 	GLfloat x2,
 	GLfloat y2)
 {
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	gpuAppendWireRectf(x1, y1, x2, y2);
 	glEnd();
 }
@@ -155,7 +159,7 @@ BLI_INLINE void gpuDrawWireRecti(
 	GLint x2,
 	GLint y2)
 {
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	gpuAppendWireRecti(x1, y1, x2, y2);
 	glEnd();
 }

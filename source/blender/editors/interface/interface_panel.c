@@ -67,6 +67,8 @@
 
 #include "interface_intern.h"
 
+#include "GPU_immediate.h"
+
 /*********************** defines and structs ************************/
 
 #define ANIMATION_TIME      0.30
@@ -1353,7 +1355,7 @@ static void ui_panel_category_draw_tab(int mode, float minx, float miny, float m
 		mul_v2_fl(vec[a], rad);
 	}
 
-	glBegin(mode);
+	GPUBegin(mode);
 
 	/* start with corner right-top */
 	if (use_highlight) {

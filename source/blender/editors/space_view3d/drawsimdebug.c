@@ -44,6 +44,7 @@
 
 #include "BIF_gl.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 
 static void draw_sim_debug_elements(SimDebugData *debug_data, float imat[4][4])
@@ -53,7 +54,7 @@ static void draw_sim_debug_elements(SimDebugData *debug_data, float imat[4][4])
 	/**** dots ****/
 	
 	glPointSize(3.0f);
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
 		SimDebugElement *elem = BLI_ghashIterator_getValue(&iter);
 		if (elem->type != SIM_DEBUG_ELEM_DOT)
@@ -83,7 +84,7 @@ static void draw_sim_debug_elements(SimDebugData *debug_data, float imat[4][4])
 				continue;
 			
 			glColor3f(elem->color[0], elem->color[1], elem->color[2]);
-			glBegin(GL_LINE_LOOP);
+			GPUBegin(GL_LINE_LOOP);
 			for (i = 0; i < 16; ++i) {
 				co[0] = radius * circle[i][0];
 				co[1] = radius * circle[i][1];
@@ -98,8 +99,8 @@ static void draw_sim_debug_elements(SimDebugData *debug_data, float imat[4][4])
 	}
 	
 	/**** lines ****/
-	
-	glBegin(GL_LINES);
+
+	GPUBegin(GL_LINES);
 	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
 		SimDebugElement *elem = BLI_ghashIterator_getValue(&iter);
 		if (elem->type != SIM_DEBUG_ELEM_LINE)
@@ -114,7 +115,7 @@ static void draw_sim_debug_elements(SimDebugData *debug_data, float imat[4][4])
 	/**** vectors ****/
 	
 	glPointSize(2.0f);
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
 		SimDebugElement *elem = BLI_ghashIterator_getValue(&iter);
 		if (elem->type != SIM_DEBUG_ELEM_VECTOR)
@@ -125,8 +126,8 @@ static void draw_sim_debug_elements(SimDebugData *debug_data, float imat[4][4])
 	}
 	glEnd();
 	glPointSize(1.0f);
-	
-	glBegin(GL_LINES);
+
+	GPUBegin(GL_LINES);
 	for (BLI_ghashIterator_init(&iter, debug_data->gh); !BLI_ghashIterator_done(&iter); BLI_ghashIterator_step(&iter)) {
 		SimDebugElement *elem = BLI_ghashIterator_getValue(&iter);
 		float t[3];

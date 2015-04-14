@@ -54,6 +54,7 @@
 #include "ED_keyframes_draw.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "UI_resources.h"
 
@@ -132,8 +133,8 @@ void draw_motion_path_instance(Scene *scene,
 	
 	/* draw curve-line of path */
 	glShadeModel(GL_SMOOTH);
-	
-	glBegin(GL_LINE_STRIP);
+
+	GPUBegin(GL_LINE_STRIP);
 	for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
 		short sel = (pchan) ? (pchan->bone->flag & BONE_SELECTED) : (ob->flag & SELECT);
 		float intensity;  /* how faint */
@@ -195,14 +196,14 @@ void draw_motion_path_instance(Scene *scene,
 	/* draw little black point at each frame
 	 * NOTE: this is not really visible/noticeable
 	 */
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	for (i = 0, mpv = mpv_start; i < len; i++, mpv++)
 		glVertex3fv(mpv->co);
 	glEnd();
 	
 	/* Draw little white dots at each framestep value */
 	UI_ThemeColor(TH_TEXT_HI);
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	for (i = 0, mpv = mpv_start; i < len; i += stepsize, mpv += stepsize)
 		glVertex3fv(mpv->co);
 	glEnd();
@@ -215,8 +216,8 @@ void draw_motion_path_instance(Scene *scene,
 	{
 		UI_ThemeColor(TH_CFRAME);
 		glPointSize(6.0f);
-		
-		glBegin(GL_POINTS);
+
+		GPUBegin(GL_POINTS);
 		mpv = mpv_start + (CFRA - sfra);
 		glVertex3fv(mpv->co);
 		glEnd();
@@ -295,8 +296,8 @@ void draw_motion_path_instance(Scene *scene,
 		
 		glPointSize(4.0f);
 		glColor3ubv(col);
-		
-		glBegin(GL_POINTS);
+
+		GPUBegin(GL_POINTS);
 		for (i = 0, mpv = mpv_start; i < len; i++, mpv++) {
 			int    frame = sfra + i; 
 			float mframe = (float)(frame);

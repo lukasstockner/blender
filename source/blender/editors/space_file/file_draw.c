@@ -70,6 +70,9 @@
 
 #include "file_intern.h"    // own include
 
+#include "GPU_immediate.h"
+
+
 /* Note: This function uses pixelspace (0, 0, winx, winy), not view2d. 
  * The controls are laid out as follows:
  *
@@ -452,7 +455,7 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 	v1[1] = v2d->cur.ymax - layout->tile_border_y;
 	v2[1] = v2d->cur.ymin;
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 
 	/* vertical column dividers */
 	sx = (int)v2d->tot.xmin;

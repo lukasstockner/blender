@@ -45,6 +45,7 @@
 #include "BIF_gl.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "WM_types.h"
 
@@ -92,7 +93,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, bo
 		displist1 = glGenLists(1);
 		glNewList(displist1, GL_COMPILE);
 
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2fv(_unit_diamond_shape[0]);
 		glVertex2fv(_unit_diamond_shape[1]);
 		glVertex2fv(_unit_diamond_shape[2]);
@@ -104,7 +105,7 @@ static void draw_keyframe_shape(float x, float y, float xscale, float yscale, bo
 		displist2 = glGenLists(1);
 		glNewList(displist2, GL_COMPILE);
 
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		glVertex2fv(_unit_diamond_shape[0]);
 		glVertex2fv(_unit_diamond_shape[1]);
 		glVertex2fv(_unit_diamond_shape[2]);

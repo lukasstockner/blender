@@ -29,6 +29,7 @@
 #include "RAS_MeshObject.h"
 
 #include "glew-mx.h"
+#include "GPU_immediate.h"
 
 VBO::VBO(RAS_DisplayArray *data, unsigned int indices)
 {
@@ -164,7 +165,7 @@ void VBO::Draw(int texco_num, RAS_IRasterizer::TexCoGen* texco, int attrib_num, 
 		}
 	}
 	
-	glDrawElements(this->mode, this->indices, GL_UNSIGNED_SHORT, 0);
+	GPUDrawElements(this->mode, this->indices, GL_UNSIGNED_SHORT, 0);
 
 	glDisableClientState(GL_VERTEX_ARRAY);
 	glDisableClientState(GL_NORMAL_ARRAY);

@@ -107,7 +107,7 @@ static void draw_spline_parents(MaskLayer *UNUSED(masklay), MaskSpline *spline)
 	glEnable(GL_LINE_STIPPLE);
 	glLineStipple(1, 0xAAAA);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 
 	for (i = 0; i < spline->tot_point; i++) {
 		MaskSplinePoint *point = &points_array[i];
@@ -192,7 +192,7 @@ static void draw_single_handle(const MaskLayer *mask_layer, const MaskSplinePoin
 		const unsigned char rgb_gray[4] = {0x60, 0x60, 0x60, 0xff};
 		glLineWidth(3);
 		glColor4ubv(rgb_gray);
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2fv(point_pos);
 		glVertex2fv(handle_pos);
 		glEnd();
@@ -212,7 +212,7 @@ static void draw_single_handle(const MaskLayer *mask_layer, const MaskSplinePoin
 			break;
 	}
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex2fv(point_pos);
 	glVertex2fv(handle_pos);
 	glEnd();
@@ -296,7 +296,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 				UI_ThemeColor(TH_HANDLE_VERTEX);
 			}
 
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex2fv(feather_point);
 			glEnd();
 
@@ -362,7 +362,7 @@ static void draw_spline_points(const bContext *C, MaskLayer *masklay, MaskSpline
 		else
 			UI_ThemeColor(TH_HANDLE_VERTEX);
 
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		glVertex2fv(vert);
 		glEnd();
 
@@ -445,12 +445,12 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			mask_color_active_tint(rgb_tmp, rgb_black, is_active);
 			glColor4ubv(rgb_tmp);
 
-			glDrawArrays(draw_method, 0, tot_point);
+			GPUDrawArrays(draw_method, 0, tot_point);
 
 			glLineWidth(1);
 			mask_color_active_tint(rgb_tmp, rgb_spline, is_active);
 			glColor4ubv(rgb_tmp);
-			glDrawArrays(draw_method, 0, tot_point);
+			GPUDrawArrays(draw_method, 0, tot_point);
 
 			break;
 
@@ -467,7 +467,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			glLineStipple(3, 0xaaaa);
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(2, GL_FLOAT, 0, points);
-			glDrawArrays(draw_method, 0, tot_point);
+			GPUDrawArrays(draw_method, 0, tot_point);
 
 #ifdef USE_XOR
 			glDisable(GL_COLOR_LOGIC_OP);
@@ -475,7 +475,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 			mask_color_active_tint(rgb_tmp, rgb_black, is_active);
 			glColor4ubv(rgb_tmp);
 			glLineStipple(3, 0x5555);
-			glDrawArrays(draw_method, 0, tot_point);
+			GPUDrawArrays(draw_method, 0, tot_point);
 
 			glDisable(GL_LINE_STIPPLE);
 			break;
@@ -505,7 +505,7 @@ static void mask_draw_curve_type(const bContext *C, MaskSpline *spline, float (*
 
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(2, GL_FLOAT, 0, points);
-			glDrawArrays(draw_method, 0, tot_point);
+			GPUDrawArrays(draw_method, 0, tot_point);
 
 			if (is_smooth == false && is_feather) {
 				glDisable(GL_BLEND);
@@ -861,7 +861,7 @@ void ED_mask_draw_frames(Mask *mask, ARegion *ar, const int cfra, const int sfra
 
 	MaskLayer *masklay = BKE_mask_layer_active(mask);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glColor4ub(255, 175, 0, 255);
 
 	if (masklay) {

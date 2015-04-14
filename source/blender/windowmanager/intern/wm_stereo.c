@@ -54,6 +54,7 @@
 #include "ED_screen.h"
 
 #include "GPU_glew.h"
+#include "GPU_immediate.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -240,7 +241,7 @@ static void wm_method_draw_stereo3d_sidebyside(wmWindow *win)
 				glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 
 				glColor4f(1.0f, 1.0f, 1.0f, alpha);
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				glTexCoord2f(halfx, halfy);
 				glVertex2f(soffx + (offx * 0.5f), offy);
 
@@ -307,7 +308,7 @@ static void wm_method_draw_stereo3d_topbottom(wmWindow *win)
 				glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 
 				glColor4f(1.0f, 1.0f, 1.0f, alpha);
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 				glTexCoord2f(halfx, halfy);
 				glVertex2f(offx, soffy + (offy * 0.5f));
 

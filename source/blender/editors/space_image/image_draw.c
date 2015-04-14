@@ -79,6 +79,7 @@
 #include "RE_engine.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "image_intern.h"
 
@@ -645,14 +646,14 @@ void draw_image_sample_line(SpaceImage *sima)
 	if (sima->sample_line_hist.flag & HISTO_FLAG_SAMPLELINE) {
 		Histogram *hist = &sima->sample_line_hist;
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glColor3ub(0, 0, 0);
 		glVertex2fv(hist->co[0]);
 		glVertex2fv(hist->co[1]);
 		glEnd();
 
 		setlinestyle(1);
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glColor3ub(255, 255, 255);
 		glVertex2fv(hist->co[0]);
 		glVertex2fv(hist->co[1]);

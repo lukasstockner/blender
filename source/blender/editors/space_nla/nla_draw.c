@@ -55,6 +55,7 @@
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
+#include "GPU_immediate.h"
 
 #include "WM_types.h"
 
@@ -229,7 +230,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 		float cfra;
 		
 		/* plot the curve (over the strip's main region) */
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		/* sample at 1 frame intervals, and draw
 		 *	- min y-val is yminc, max is y-maxc, so clamp in those regions
 		 */
@@ -242,7 +243,7 @@ static void nla_draw_strip_curves(NlaStrip *strip, float yminc, float ymaxc)
 	else {
 		/* use blend in/out values only if both aren't zero */
 		if ((IS_EQF(strip->blendin, 0.0f) && IS_EQF(strip->blendout, 0.0f)) == 0) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			/* start of strip - if no blendin, start straight at 1, otherwise from 0 to 1 over blendin frames */
 			if (IS_EQF(strip->blendin, 0.0f) == 0) {
 				glVertex2f(strip->start,                    yminc);
@@ -298,7 +299,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 					glColor4f(color[0], color[1], color[2], 0.15f);
 					
 					/* draw the rect to the edge of the screen */
-					glBegin(GL_QUADS);
+					GPUBegin(GL_QUADS);
 					glVertex2f(v2d->cur.xmin, yminc);
 					glVertex2f(v2d->cur.xmin, ymaxc);
 					glVertex2f(strip->start, ymaxc);
@@ -315,7 +316,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 					glColor4f(color[0], color[1], color[2], 0.3f);
 					
 					/* draw the rect to the next strip or the edge of the screen */
-					glBegin(GL_QUADS);
+					GPUBegin(GL_QUADS);
 					glVertex2f(strip->end, yminc);
 					glVertex2f(strip->end, ymaxc);
 						

@@ -41,6 +41,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_immediate.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -477,14 +479,14 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 		cpack(is_act ? color_act : color_base);
 
 		if (ruler_item->flag & RULERITEM_USE_ANGLE) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j++) {
 				glVertex2fv(co_ss[j]);
 			}
 			glEnd();
 			cpack(0xaaaaaa);
 			setlinestyle(3);
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j++) {
 				glVertex2fv(co_ss[j]);
 			}
@@ -529,7 +531,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glVertexPointer(2, GL_FLOAT, 0, arc_ss_coords);
-				glDrawArrays(GL_LINE_STRIP, 0, arc_steps + 1);
+				GPUDrawArrays(GL_LINE_STRIP, 0, arc_steps + 1);
 				glDisableClientState(GL_VERTEX_ARRAY);
 			}
 
@@ -581,7 +583,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 
 				glColor3ubv(color_wire);
 
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 
 				madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec_a, cap_size);
 				glVertex2fv(cap);
@@ -604,14 +606,14 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 			}
 		}
 		else {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j += 2) {
 				glVertex2fv(co_ss[j]);
 			}
 			glEnd();
 			cpack(0xaaaaaa);
 			setlinestyle(3);
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (j = 0; j < 3; j += 2) {
 				glVertex2fv(co_ss[j]);
 			}
@@ -659,7 +661,7 @@ static void ruler_info_draw_pixel(const struct bContext *C, ARegion *ar, void *a
 				glEnable(GL_BLEND);
 				glColor3ubv(color_wire);
 
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, cap_size);
 				glVertex2fv(cap);
 				madd_v2_v2v2fl(cap, co_ss[0], rot_90_vec, -cap_size);

@@ -34,6 +34,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
 
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
@@ -211,7 +212,7 @@ static void viconutil_set_point(GLint pt[2], int x, int y)
 
 static void viconutil_draw_tri(GLint(*pts)[2])
 {
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	glVertex2iv(pts[0]);
 	glVertex2iv(pts[1]);
 	glVertex2iv(pts[2]);
@@ -222,7 +223,7 @@ static void viconutil_draw_lineloop(GLint(*pts)[2], int numPoints)
 {
 	int i;
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	for (i = 0; i < numPoints; i++) {
 		glVertex2iv(pts[i]);
 	}
@@ -240,7 +241,7 @@ static void viconutil_draw_points(GLint(*pts)[2], int numPoints, int pointSize)
 {
 	int i;
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	for (i = 0; i < numPoints; i++) {
 		int x = pts[i][0], y = pts[i][1];
 
@@ -266,7 +267,7 @@ static void vicon_x_draw(int x, int y, int w, int h, float alpha)
 	glLineWidth(2.5);
 	
 	glColor4f(0.0, 0.0, 0.0, alpha);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex2i(x, y);
 	glVertex2i(x + w, y + h);
 	glVertex2i(x + w, y);
@@ -285,7 +286,7 @@ static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
 	int d = MAX2(2, h / 3);
 
 	glColor4f(0.5, 0.5, 0.5, alpha);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex2i(x, cy - d);
 	glVertex2i(x + w, cy - d);
 	glVertex2i(x, cy + d);
@@ -298,7 +299,7 @@ static void vicon_view3d_draw(int x, int y, int w, int h, float alpha)
 	glEnd();
 	
 	glColor4f(0.0, 0.0, 0.0, alpha);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex2i(x, cy);
 	glVertex2i(x + w, cy);
 	glVertex2i(cx, y);
@@ -367,7 +368,7 @@ static void vicon_disclosure_tri_right_draw(int x, int y, int w, int UNUSED(h), 
 	viconutil_set_point(pts[2], cx + d2, cy);
 
 	glShadeModel(GL_SMOOTH);
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	glColor4f(0.8f, 0.8f, 0.8f, alpha);
 	glVertex2iv(pts[0]);
 	glVertex2iv(pts[1]);
@@ -394,7 +395,7 @@ static void vicon_small_tri_right_draw(int x, int y, int w, int UNUSED(h), float
 	glColor4f(0.2f, 0.2f, 0.2f, alpha);
 
 	glShadeModel(GL_SMOOTH);
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	glVertex2iv(pts[0]);
 	glVertex2iv(pts[1]);
 	glVertex2iv(pts[2]);
@@ -414,7 +415,7 @@ static void vicon_disclosure_tri_down_draw(int x, int y, int w, int UNUSED(h), f
 	viconutil_set_point(pts[2], cx, cy - d2);
 
 	glShadeModel(GL_SMOOTH);
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	glColor4f(0.8f, 0.8f, 0.8f, alpha);
 	glVertex2iv(pts[0]);
 	glVertex2iv(pts[1]);
@@ -435,7 +436,7 @@ static void vicon_move_up_draw(int x, int y, int w, int h, float UNUSED(alpha))
 	glLineWidth(1);
 	glColor3f(0.0, 0.0, 0.0);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex2i(x + w / 2 - d * 2, y + h / 2 + d);
 	glVertex2i(x + w / 2, y + h / 2 - d + 1);
 	glVertex2i(x + w / 2 + d * 2, y + h / 2 + d);
@@ -453,7 +454,7 @@ static void vicon_move_down_draw(int x, int y, int w, int h, float UNUSED(alpha)
 	glLineWidth(1);
 	glColor3f(0.0, 0.0, 0.0);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex2i(x + w / 2 - d * 2, y + h / 2 + d);
 	glVertex2i(x + w / 2, y + h / 2 - d - 1);
 	glVertex2i(x + w / 2 + d * 2, y + h / 2 + d);
@@ -1056,7 +1057,7 @@ static void icon_draw_texture(float x, float y, float w, float h, int ix, int iy
 	/* sharper downscaling, has no effect when scale matches with a mip level */
 	glTexEnvf(GL_TEXTURE_FILTER_CONTROL, GL_TEXTURE_LOD_BIAS, -0.5f);
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glTexCoord2f(x1, y1);
 	glVertex2f(x, y);
 

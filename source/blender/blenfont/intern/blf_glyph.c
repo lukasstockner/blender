@@ -55,6 +55,8 @@
 #include "BIF_gl.h"
 #include "BLF_api.h"
 
+#include "GPU_immediate.h"
+
 #include "blf_internal_types.h"
 #include "blf_internal.h"
 
@@ -310,7 +312,7 @@ void blf_glyph_free(GlyphBLF *g)
 
 static void blf_texture_draw(float uv[2][2], float dx, float y1, float dx1, float y2)
 {
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glTexCoord2f(uv[0][0], uv[0][1]);
 	glVertex2f(dx, y1);
 	

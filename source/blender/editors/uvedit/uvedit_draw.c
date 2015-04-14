@@ -55,6 +55,7 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "ED_image.h"
 #include "ED_mesh.h"
@@ -218,7 +219,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 				glColor3fv(col);
 				BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 					if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
-						glBegin(GL_POLYGON);
+						GPUBegin(GL_POLYGON);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 							glVertex2fv(luv->uv);
@@ -256,7 +257,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 						glColor3fv(col);
 						
 						/* TODO: USE_EDBM_LOOPTRIS */
-						glBegin(GL_POLYGON);
+						GPUBegin(GL_POLYGON);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 							glVertex2fv(luv->uv);
@@ -321,7 +322,7 @@ static void draw_uvs_stretch(SpaceImage *sima, Scene *scene, BMEditMesh *em, MTe
 					}
 
 					/* TODO: USE_EDBM_LOOPTRIS */
-					glBegin(GL_POLYGON);
+					GPUBegin(GL_POLYGON);
 					BM_ITER_ELEM_INDEX (l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 						luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 						a = fabsf(uvang[i] - ang[i]) / (float)M_PI;
@@ -359,7 +360,7 @@ static void draw_uvs_lineloop_bmface(BMFace *efa, const int cd_loop_uv_offset)
 	BMLoop *l;
 	MLoopUV *luv;
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 		luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 		glVertex2fv(luv->uv);
@@ -372,7 +373,7 @@ static void draw_uvs_lineloop_mpoly(Mesh *me, MPoly *mpoly)
 	MLoopUV *mloopuv;
 	int i;
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	mloopuv = &me->mloopuv[mpoly->loopstart];
 	for (i = mpoly->totloop; i != 0; i--, mloopuv++) {
 		glVertex2fv(mloopuv->uv);
@@ -508,7 +509,7 @@ static void draw_uvs_texpaint(SpaceImage *sima, Scene *scene, Object *ob)
 		for (a = me->totpoly; a > 0; a--, mpoly++) {
 			if ((scene->toolsettings->uv_flag & UV_SHOW_SAME_IMAGE) && mpoly->mat_nr != ob->actcol - 1)
 				continue;
-			glBegin(GL_LINE_LOOP);
+			GPUBegin(GL_LINE_LOOP);
 
 			mloopuv = mloopuv_base + mpoly->loopstart;
 			for (b = 0; b < mpoly->totloop; b++, mloopuv++) {
@@ -644,7 +645,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						glColor4ubv((GLubyte *)(is_select ? col2 : col1));
 					}
 
-					glBegin(GL_TRIANGLES);
+					GPUBegin(GL_TRIANGLES);
 					draw_uvs_looptri(em, &i, cd_loop_uv_offset);
 					glEnd();
 
@@ -668,8 +669,8 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 					glColor4ubv((GLubyte *)col2);
 				else
 					glColor4ubv((GLubyte *)col1);
-				
-				glBegin(GL_POLYGON);
+
+				GPUBegin(GL_POLYGON);
 				BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 					glVertex2fv(luv->uv);
@@ -715,7 +716,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 			glEnable(GL_POLYGON_STIPPLE);
 			glPolygonStipple(stipple_quarttone);
 
-			glBegin(GL_POLYGON);
+			GPUBegin(GL_POLYGON);
 			BM_ITER_ELEM (l, &liter, activef, BM_LOOPS_OF_FACE) {
 				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
 				glVertex2fv(luv->uv);
@@ -795,7 +796,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 							continue;
 
-						glBegin(GL_LINE_LOOP);
+						GPUBegin(GL_LINE_LOOP);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							sel = uvedit_uv_select_test(scene, l, cd_loop_uv_offset);
 							glColor4ubv(sel ? (GLubyte *)col1 : (GLubyte *)col2);
@@ -813,7 +814,7 @@ static void draw_uvs(SpaceImage *sima, Scene *scene, Object *obedit)
 						if (!BM_elem_flag_test(efa, BM_ELEM_TAG))
 							continue;
 
-						glBegin(GL_LINES);
+						GPUBegin(GL_LINES);
 						BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
 							sel = uvedit_edge_select_test(scene, l, cd_loop_uv_offset);
 							if (sel != lastsel) {

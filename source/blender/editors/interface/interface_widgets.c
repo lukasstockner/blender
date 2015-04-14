@@ -56,6 +56,7 @@
 #include "UI_interface_icons.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "interface_intern.h"
 
@@ -203,7 +204,7 @@ void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y
 	/* for each AA step */
 	for (j = 0; j < WIDGET_AA_JITTER; j++) {
 		gpuTranslate(GPU_MODELVIEW, jit[j][0], jit[j][1], 0.0f);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		GPUDrawArrays(GL_TRIANGLES, 0, 3);
 		gpuTranslate(GPU_MODELVIEW, -jit[j][0], -jit[j][1], 0.0f);
 	}
 
@@ -542,12 +543,12 @@ static void widget_trias_draw(uiWidgetTrias *tria)
 #if 0 /* no idea why this crashes on Mac, everything seems to check out ok --merwin */
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, tria->vec);
-	glDrawElements(GL_TRIANGLES, tria->tot * 3, GL_UNSIGNED_INT, tria->index);
+	GPUDrawElements(GL_TRIANGLES, tria->tot * 3, GL_UNSIGNED_INT, tria->index);
 	glDisableClientState(GL_VERTEX_ARRAY);
 #else
 	const unsigned *idx = (const unsigned *)tria->index;
 	unsigned int i;
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	for (i = 0; i < tria->tot * 3; ++i)
 		glVertex3fv((float *)&tria->vec[idx[i]]);
 	glEnd();
@@ -647,7 +648,7 @@ static void widgetbase_outline(uiWidgetBase *wtb)
 
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
+	GPUDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
@@ -668,7 +669,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				GPUDrawArrays(GL_POLYGON, 0, wtb->totvert);
 
 				/* light checkers */
 				glEnable(GL_POLYGON_STIPPLE);
@@ -676,7 +677,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				glPolygonStipple(stipple_checker_8px);
 
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				GPUDrawArrays(GL_POLYGON, 0, wtb->totvert);
 
 				glDisable(GL_POLYGON_STIPPLE);
 
@@ -691,7 +692,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				x_mid /= wtb->totvert;
 
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				GPUDrawArrays(GL_POLYGON, 0, wtb->totvert);
 
 				/* 1/2 solid color */
 				glColor4ub(wcol->inner[0], wcol->inner[1], wcol->inner[2], 255);
@@ -702,7 +703,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				}
 
 				glVertexPointer(2, GL_FLOAT, 0, inner_v_half);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				GPUDrawArrays(GL_POLYGON, 0, wtb->totvert);
 				glDisableClientState(GL_VERTEX_ARRAY);
 			}
 			else {
@@ -711,7 +712,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+				GPUDrawArrays(GL_POLYGON, 0, wtb->totvert);
 				glDisableClientState(GL_VERTEX_ARRAY);
 			}
 		}
@@ -731,7 +732,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			glEnableClientState(GL_COLOR_ARRAY);
 			glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
 			glColorPointer(4, GL_UNSIGNED_BYTE, 0, col_array);
-			glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+			GPUDrawArrays(GL_POLYGON, 0, wtb->totvert);
 			glDisableClientState(GL_VERTEX_ARRAY);
 			glDisableClientState(GL_COLOR_ARRAY);
 
@@ -766,7 +767,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			glColor4ubv(tcol);
 
 			glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
+			GPUDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->totvert * 2 + 2);
 
 			/* emboss bottom shadow */
 			if (wtb->emboss) {
@@ -775,7 +776,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 				if (emboss[3]) {
 					glColor4ubv(emboss);
 					glVertexPointer(2, GL_FLOAT, 0, triangle_strip_emboss);
-					glDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->halfwayvert * 2);
+					GPUDrawArrays(GL_TRIANGLE_STRIP, 0, wtb->halfwayvert * 2);
 				}
 			}
 			
@@ -2155,7 +2156,7 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 		widget_verts_to_triangle_strip(&wtb, totvert, triangle_strip);
 
 		glVertexPointer(2, GL_FLOAT, 0, triangle_strip);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, totvert * 2); /* add + 2 for getting a complete soft rect. Now it skips top edge to allow transparent menus */
+		GPUDrawArrays(GL_TRIANGLE_STRIP, 0, totvert * 2); /* add + 2 for getting a complete soft rect. Now it skips top edge to allow transparent menus */
 	}
 
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -2292,7 +2293,7 @@ static void ui_draw_but_HSVCIRCLE(uiBut *but, uiWidgetColors *wcol, const rcti *
 
 	glShadeModel(GL_SMOOTH);
 
-	glBegin(GL_TRIANGLE_FAN);
+	GPUBegin(GL_TRIANGLE_FAN);
 	glColor3fv(colcent);
 	glVertex2f(centx, centy);
 	
@@ -2448,8 +2449,8 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		sx2 = rect->xmin + dx_next * BLI_rcti_size_x(rect);
 		sy = rect->ymin;
 		dy = (float)BLI_rcti_size_y(rect) / 3.0f;
-		
-		glBegin(GL_QUADS);
+
+		GPUBegin(GL_QUADS);
 		for (a = 0; a < 3; a++, sy += dy) {
 			glColor4f(col0[a][0], col0[a][1], col0[a][2], alpha);
 			glVertex2f(sx1, sy);
@@ -2698,7 +2699,7 @@ void ui_draw_link_bezier(const rcti *rect)
 
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(2, GL_FLOAT, 0, coord_array);
-		glDrawArrays(GL_LINE_STRIP, 0, LINK_RESOL + 1);
+		GPUDrawArrays(GL_LINE_STRIP, 0, LINK_RESOL + 1);
 		glDisableClientState(GL_VERTEX_ARRAY);
 
 		glDisable(GL_BLEND);
@@ -3030,7 +3031,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 		bw += (bw < 0.5f) ? 0.5f : -0.5f;
 		
 		glColor4f(bw, bw, bw, 1.0);
-		glBegin(GL_TRIANGLES);
+		GPUBegin(GL_TRIANGLES);
 		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.9f * height);
 		glVertex2f(rect->xmin + 0.1f * width, rect->ymin + 0.5f * height);
 		glVertex2f(rect->xmin + 0.5f * width, rect->ymin + 0.9f * height);
@@ -3873,7 +3874,7 @@ static void draw_disk_shaded(
 	float fac;
 	unsigned char r_col[4];
 
-	glBegin(GL_TRIANGLE_STRIP);
+	GPUBegin(GL_TRIANGLE_STRIP);
 
 	s = sinf(start);
 	c = cosf(start);

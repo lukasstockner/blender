@@ -64,6 +64,7 @@
 #include "UI_view2d.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "BLF_api.h"
 
@@ -77,7 +78,7 @@ static void draw_keyframe(int frame, int cfra, int sfra, float framelen, int wid
 	int x = (frame - sfra) * framelen;
 
 	if (width == 1) {
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2i(x, 0);
 		glVertex2i(x, height * UI_DPI_FAC);
 		glEnd();
@@ -339,7 +340,7 @@ static void draw_stabilization_border(SpaceClip *sc, ARegion *ar, int width, int
 		gpuScale(GPU_MODELVIEW, zoomx, zoomy, 1.0f);
 		gpuMultMatrix(GPU_MODELVIEW, sc->stabmat[0]);
 
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2f(0.0f, 0.0f);
 		glVertex2f(width, 0.0f);
 		glVertex2f(width, height);
@@ -418,7 +419,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 
 		if (TRACK_VIEW_SELECTED(sc, track)) {
 			glPointSize(5.0f);
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			for (i = a; i < b; i++) {
 				if (i != curindex)
 					glVertex2f(path[i][0], path[i][1]);
@@ -427,7 +428,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 		}
 
 		glLineWidth(3.0f);
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		for (i = a; i < b; i++)
 			glVertex2f(path[i][0], path[i][1]);
 		glEnd();
@@ -438,7 +439,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 
 	if (TRACK_VIEW_SELECTED(sc, track)) {
 		glPointSize(3.0f);
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		for (i = a; i < b; i++) {
 			if (i == count + 1)
 				UI_ThemeColor(TH_PATH_AFTER);
@@ -451,7 +452,7 @@ static void draw_track_path(SpaceClip *sc, MovieClip *UNUSED(clip), MovieTrackin
 
 	UI_ThemeColor(TH_PATH_BEFORE);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	for (i = a; i < b; i++) {
 		if (i == count + 1)
 			UI_ThemeColor(TH_PATH_AFTER);
@@ -489,14 +490,14 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		{
 			if (tiny) glPointSize(3.0f);
 			else glPointSize(4.0f);
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex2f(pos[0], pos[1]);
 			glEnd();
 			glPointSize(1.0f);
 		}
 		else {
 			if (!tiny) glLineWidth(3.0f);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2f(pos[0] + px[0] * 2, pos[1]);
 			glVertex2f(pos[0] + px[0] * 8, pos[1]);
 
@@ -521,7 +522,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 		glLineWidth(3.0f);
 
 	if (sc->flag & SC_SHOW_MARKER_PATTERN) {
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2fv(marker->pattern_corners[0]);
 		glVertex2fv(marker->pattern_corners[1]);
 		glVertex2fv(marker->pattern_corners[2]);
@@ -532,7 +533,7 @@ static void draw_marker_outline(SpaceClip *sc, MovieTrackingTrack *track, MovieT
 	show_search = (TRACK_VIEW_SELECTED(sc, track) &&
 	               ((marker->flag & MARKER_DISABLED) == 0 || (sc->flag & SC_SHOW_MARKER_PATTERN) == 0)) != 0;
 	if (sc->flag & SC_SHOW_MARKER_SEARCH && show_search) {
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2f(marker->search_min[0], marker->search_min[1]);
 		glVertex2f(marker->search_max[0], marker->search_min[1]);
 		glVertex2f(marker->search_max[0], marker->search_max[1]);
@@ -607,7 +608,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			if (!tiny)
 				glPointSize(2.0f);
 
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex2f(pos[0], pos[1]);
 			glEnd();
 
@@ -615,7 +616,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 				glPointSize(1.0f);
 		}
 		else {
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2f(pos[0] + px[0] * 3, pos[1]);
 			glVertex2f(pos[0] + px[0] * 7, pos[1]);
 
@@ -635,7 +636,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			glEnable(GL_COLOR_LOGIC_OP);
 			glLogicOp(GL_NOR);
 
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2fv(pos);
 			glVertex2fv(marker_pos);
 			glEnd();
@@ -675,7 +676,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 			else glColor3fv(col);
 		}
 
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2fv(marker->pattern_corners[0]);
 		glVertex2fv(marker->pattern_corners[1]);
 		glVertex2fv(marker->pattern_corners[2]);
@@ -708,7 +709,7 @@ static void draw_marker_areas(SpaceClip *sc, MovieTrackingTrack *track, MovieTra
 				glColor3fv(col);
 		}
 
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2f(marker->search_min[0], marker->search_min[1]);
 		glVertex2f(marker->search_max[0], marker->search_min[1]);
 		glVertex2f(marker->search_max[0], marker->search_max[1]);
@@ -752,7 +753,7 @@ static void draw_marker_slide_square(float x, float y, float dx, float dy, int o
 		tdy += px[1];
 	}
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glVertex3f(x - tdx, y + tdy, 0.0f);
 	glVertex3f(x + tdx, y + tdy, 0.0f);
 	glVertex3f(x + tdx, y - tdy, 0.0f);
@@ -772,7 +773,7 @@ static void draw_marker_slide_triangle(float x, float y, float dx, float dy, int
 		tdy += px[1];
 	}
 
-	glBegin(GL_TRIANGLES);
+	GPUBegin(GL_TRIANGLES);
 	glVertex3f(x,       y,       0.0f);
 	glVertex3f(x - tdx, y,       0.0f);
 	glVertex3f(x,       y + tdy, 0.0f);
@@ -860,7 +861,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 #if 0
 		/* TODO: disable for now, needs better approach visualizing this */
 
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2f(pat_min[0] - dx, pat_min[1] - dy);
 		glVertex2f(pat_max[0] + dx, pat_min[1] - dy);
 		glVertex2f(pat_max[0] + dx, pat_max[1] + dy);
@@ -874,7 +875,7 @@ static void draw_marker_slide_zones(SpaceClip *sc, MovieTrackingTrack *track, Mo
 		draw_marker_slide_triangle(pat_max[0] + dx, pat_min[1] - dy, patdx, patdy, outline, px);
 #endif
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2f(0.0f, 0.0f);
 		glVertex2fv(tilt_ctrl);
 		glEnd();
@@ -1095,7 +1096,7 @@ static void draw_plane_marker_image(Scene *scene,
 			gpuPushMatrix(GPU_MODELVIEW);
 			gpuMultMatrix(GPU_MODELVIEW, gl_matrix[0]);
 
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 			glTexCoord2f(0.0f, 0.0f); glVertex2f(0.0f, 0.0f);
 			glTexCoord2f(1.0f, 0.0f); glVertex2f(1.0f, 0.0f);
 			glTexCoord2f(1.0f, 1.0f); glVertex2f(1.0f, 1.0f);
@@ -1161,7 +1162,7 @@ static void draw_plane_marker_ex(SpaceClip *sc, Scene *scene, MovieTrackingPlane
 
 	if (draw_plane_quad) {
 		/* Draw rectangle itself. */
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2fv(plane_marker->corners[0]);
 		glVertex2fv(plane_marker->corners[1]);
 		glVertex2fv(plane_marker->corners[2]);
@@ -1175,14 +1176,14 @@ static void draw_plane_marker_ex(SpaceClip *sc, Scene *scene, MovieTrackingPlane
 
 			getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[1], end_point);
 			glColor3f(1.0, 0.0, 0.0f);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2fv(plane_marker->corners[0]);
 			glVertex2fv(end_point);
 			glEnd();
 
 			getArrowEndPoint(width, height, sc->zoom, plane_marker->corners[0], plane_marker->corners[3], end_point);
 			glColor3f(0.0, 1.0, 0.0f);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2fv(plane_marker->corners[0]);
 			glVertex2fv(end_point);
 			glEnd();
@@ -1430,7 +1431,7 @@ static void draw_tracking_tracks(SpaceClip *sc, Scene *scene, ARegion *ar, Movie
 						else
 							glColor3f(1.0f, 0.0f, 0.0f);
 
-						glBegin(GL_POINTS);
+						GPUBegin(GL_POINTS);
 						if (undistort)
 							glVertex3f(pos[0] / width, pos[1] / (height * aspy), 0);
 						else
@@ -1579,7 +1580,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		glColor3f(1.0f, 0.0f, 0.0f);
 
 		for (i = 0; i <= n; i++) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (j = 0; j <= n; j++) {
 				glVertex2fv(grid[i][j]);
 			}
@@ -1587,7 +1588,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 		}
 
 		for (j = 0; j <= n; j++) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (i = 0; i <= n; i++) {
 				glVertex2fv(grid[i][j]);
 			}
@@ -1620,7 +1621,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 				while (stroke) {
 					if (stroke->flag & GP_STROKE_2DSPACE) {
 						if (stroke->totpoints > 1) {
-							glBegin(GL_LINE_STRIP);
+							GPUBegin(GL_LINE_STRIP);
 							for (i = 0; i < stroke->totpoints - 1; i++) {
 								float npos[2], dpos[2], len;
 								int steps;
@@ -1653,7 +1654,7 @@ static void draw_distortion(SpaceClip *sc, ARegion *ar, MovieClip *clip,
 							glEnd();
 						}
 						else if (stroke->totpoints == 1) {
-							glBegin(GL_POINTS);
+							GPUBegin(GL_POINTS);
 							glVertex2f(stroke->points[0].x + offsx, stroke->points[0].y + offsy);
 							glEnd();
 						}

@@ -58,7 +58,7 @@
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
-#include "GPU_glew.h"
+#include "GPU_immediate.h"
 
 #include <string.h>
 #include <limits.h>
@@ -342,9 +342,9 @@ static void cdDM_drawVerts(DerivedMesh *dm)
 {
 	GPU_vertex_setup(dm);
 	if (dm->drawObject->tot_triangle_point)
-		glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_triangle_point);
+		GPUDrawArrays(GL_POINTS, 0, dm->drawObject->tot_triangle_point);
 	else
-		glDrawArrays(GL_POINTS, 0, dm->drawObject->tot_loose_point);
+		GPUDrawArrays(GL_POINTS, 0, dm->drawObject->tot_loose_point);
 	GPU_buffer_unbind();
 }
 
@@ -370,7 +370,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 			}
 			if (prevdraw != draw) {
 				if (prevdraw > 0 && (curpos - prevstart) > 0) {
-					glDrawArrays(GL_LINES, prevstart, curpos - prevstart);
+					GPUDrawArrays(GL_LINES, prevstart, curpos - prevstart);
 				}
 				prevstart = curpos;
 			}
@@ -383,7 +383,7 @@ static void cdDM_drawUVEdges(DerivedMesh *dm)
 			prevdraw = draw;
 		}
 		if (prevdraw > 0 && (curpos - prevstart) > 0) {
-			glDrawArrays(GL_LINES, prevstart, curpos - prevstart);
+			GPUDrawArrays(GL_LINES, prevstart, curpos - prevstart);
 		}
 		GPU_buffer_unbind();
 	}
@@ -486,7 +486,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 	glShadeModel(GL_SMOOTH);
 	for (a = 0; a < dm->drawObject->totmaterial; a++) {
 		if (!setMaterial || setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
-			glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
+			GPUDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
 			             dm->drawObject->materials[a].totpoint);
 		}
 	}
@@ -612,7 +612,7 @@ static void cdDM_drawFacesTex_common(DerivedMesh *dm,
 				else
 					GPU_color_switch(0);
 				
-				glDrawArrays(GL_TRIANGLES, first, count);
+				GPUDrawArrays(GL_TRIANGLES, first, count);
 			}
 			
 			startFace = i + 1;
@@ -698,7 +698,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 				/* no need to set shading mode to flat because
 				 *  normals are already used to change shading */
 				glShadeModel(GL_SMOOTH);
-				glBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
+				GPUBegin(mf->v4 ? GL_QUADS : GL_TRIANGLES);
 
 				if (lnors) {
 					if (cp) glColor3ub(cp[3], cp[2], cp[1]);
@@ -788,7 +788,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 		}
 		else if (setDrawOptions == NULL) {
 			/* just draw the entire face array */
-			glDrawArrays(GL_TRIANGLES, 0, (tottri) * 3);
+			GPUDrawArrays(GL_TRIANGLES, 0, (tottri) * 3);
 		}
 		else {
 			/* we need to check if the next material changes */
@@ -843,7 +843,7 @@ static void cdDM_drawMappedFaces(DerivedMesh *dm,
 					int count = (i - prevstart + (draw_option != DM_DRAW_OPTION_SKIP ? 1 : 0)) * 3;
 					
 					if (count)
-						glDrawArrays(GL_TRIANGLES, first, count);
+						GPUDrawArrays(GL_TRIANGLES, first, count);
 					
 					prevstart = i + 1;
 					
@@ -934,7 +934,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 		DEBUG_VBO("Using legacy code. cdDM_drawMappedFacesGLSL\n");
 		memset(&attribs, 0, sizeof(attribs));
 
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
 			const bool smoothnormal = lnors || (mface->flag & ME_SMOOTH);
@@ -948,7 +948,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 				if (do_draw)
 					DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 			}
 
 			if (!do_draw) {
@@ -1035,7 +1035,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 							GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
 						}
 						
-						glDrawArrays(GL_TRIANGLES, start * 3, numfaces * 3);
+						GPUDrawArrays(GL_TRIANGLES, start * 3, numfaces * 3);
 						
 						if (numdata != 0) {
 							
@@ -1204,7 +1204,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 					GPU_buffer_unlock(buffer);
 					GPU_interleaved_attrib_setup(buffer, datatypes, numdata);
 				}
-				glDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
+				GPUDrawArrays(GL_TRIANGLES, start * 3, (curface - start) * 3);
 			}
 		}
 		GPU_buffer_unbind();
@@ -1262,7 +1262,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 
 	memset(&attribs, 0, sizeof(attribs));
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 
 	for (a = 0; a < dm->numTessFaceData; a++, mf++) {
 		const bool smoothnormal = lnors || (mf->flag & ME_SMOOTH);
@@ -1277,7 +1277,7 @@ static void cdDM_drawMappedFacesMat(DerivedMesh *dm,
 			setMaterial(userData, matnr = new_matnr, &gattribs);
 			DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 		}
 
 		/* skipping faces */
@@ -1334,7 +1334,7 @@ static void cdDM_drawMappedEdges(DerivedMesh *dm, DMSetDrawOptions setDrawOption
 	MEdge *edge = cddm->medge;
 	int i, orig, *index = DM_get_edge_data_layer(dm, CD_ORIGINDEX);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	for (i = 0; i < dm->numEdgeData; i++, edge++) {
 		if (index) {
 			orig = *index++;

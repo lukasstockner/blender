@@ -72,6 +72,7 @@
 #include "RNA_define.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "mesh_intern.h"  /* own include */
 
@@ -996,7 +997,7 @@ static void knifetool_draw_angle_snapping(const KnifeTool_OpData *kcd)
 
 	UI_ThemeColor(TH_TRANSFORM);
 	glLineWidth(2.0);
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex3fv(v1);
 	glVertex3fv(v2);
 	glEnd();
@@ -1038,7 +1039,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		
 		glLineWidth(2.0);
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex3fv(kcd->prev.cage);
 		glVertex3fv(kcd->curr.cage);
 		glEnd();
@@ -1050,7 +1051,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glColor3ubv(kcd->colors.point);
 		glPointSize(11);
 
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		glVertex3fv(kcd->prev.cage);
 		glEnd();
 	}
@@ -1059,7 +1060,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glColor3ubv(kcd->colors.curpoint);
 		glPointSize(9);
 
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		glVertex3fv(kcd->prev.cage);
 		glEnd();
 	}
@@ -1068,7 +1069,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glColor3ubv(kcd->colors.edge);
 		glLineWidth(2.0);
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex3fv(kcd->curr.edge->v1->cageco);
 		glVertex3fv(kcd->curr.edge->v2->cageco);
 		glEnd();
@@ -1079,7 +1080,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glColor3ubv(kcd->colors.point);
 		glPointSize(11);
 
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		glVertex3fv(kcd->curr.cage);
 		glEnd();
 	}
@@ -1088,7 +1089,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		glColor3ubv(kcd->colors.curpoint);
 		glPointSize(9);
 
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		glVertex3fv(kcd->curr.cage);
 		glEnd();
 	}
@@ -1103,7 +1104,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		/* draw any snapped verts first */
 		glColor4ubv(kcd->colors.point_a);
 		glPointSize(11);
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
 			if (lh->v)
@@ -1114,7 +1115,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		/* now draw the rest */
 		glColor4ubv(kcd->colors.curpoint_a);
 		glPointSize(7);
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		lh = kcd->linehits;
 		for (i = 0; i < kcd->totlinehit; i++, lh++) {
 			if (!lh->v)
@@ -1129,7 +1130,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		KnifeEdge *kfe;
 
 		glLineWidth(1.0);
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 
 		BLI_mempool_iternew(kcd->kedges, &iter);
 		for (kfe = BLI_mempool_iterstep(&iter); kfe; kfe = BLI_mempool_iterstep(&iter)) {
@@ -1152,7 +1153,7 @@ static void knifetool_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 		glPointSize(5.0);
 
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		BLI_mempool_iternew(kcd->kverts, &iter);
 		for (kfv = BLI_mempool_iterstep(&iter); kfv; kfv = BLI_mempool_iterstep(&iter)) {
 			if (!kfv->is_cut)

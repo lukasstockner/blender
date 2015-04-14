@@ -29,6 +29,8 @@
 
 #include "glew-mx.h"
 
+#include "GPU_immediate.h"
+
 RAS_StorageVA::RAS_StorageVA(int *texco_num, RAS_IRasterizer::TexCoGen *texco, int *attrib_num, RAS_IRasterizer::TexCoGen *attrib, int *attrib_layer) :
 	m_drawingmode(RAS_IRasterizer::KX_TEXTURED),
 	m_texco_num(texco_num),
@@ -68,7 +70,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 
-	// use glDrawElements to draw each vertexarray
+	// use GPUDrawElements to draw each vertexarray
 	for (ms.begin(it); !ms.end(it); ms.next(it)) {
 		if (it.totindex == 0)
 			continue;
@@ -106,7 +108,7 @@ void RAS_StorageVA::IndexPrimitives(RAS_MeshSlot& ms)
 		}
 
 		// here the actual drawing takes places
-		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
+		GPUDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
 	
 	glDisableClientState(GL_VERTEX_ARRAY);
@@ -129,7 +131,7 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 	glEnableClientState(GL_VERTEX_ARRAY);
 	glEnableClientState(GL_NORMAL_ARRAY);
 
-	// use glDrawElements to draw each vertexarray
+	// use GPUDrawElements to draw each vertexarray
 	for (ms.begin(it); !ms.end(it); ms.next(it)) {
 		if (it.totindex == 0)
 			continue;
@@ -170,7 +172,7 @@ void RAS_StorageVA::IndexPrimitivesMulti(class RAS_MeshSlot& ms)
 		}
 
 		// here the actual drawing takes places
-		glDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
+		GPUDrawElements(drawmode, it.totindex, GL_UNSIGNED_SHORT, it.index);
 	}
 	
 	glDisableClientState(GL_VERTEX_ARRAY);

@@ -72,6 +72,7 @@
 #include "NOD_texture.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 /* ****************** SOCKET BUTTON DRAW FUNCTIONS ***************** */
 
@@ -106,8 +107,8 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 	int a;
 	
 	glColor3ub(180, 180, 180);
-	
-	glBegin(GL_POLYGON);
+
+	GPUBegin(GL_POLYGON);
 	for (a = 0; a < 16; a++)
 		glVertex2f(x + size * si[a], y + size * co[a]);
 	glEnd();
@@ -115,7 +116,7 @@ static void node_draw_socket_new(bNodeSocket *sock, float size)
 	glColor4ub(0, 0, 0, 150);
 	glEnable(GL_BLEND);
 	glEnable(GL_LINE_SMOOTH);
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	for (a = 0; a < 16; a++)
 		glVertex2f(x + size * si[a], y + size * co[a]);
 	glEnd();
@@ -2178,7 +2179,7 @@ static void node_composit_backdrop_viewer(SpaceNode *snode, ImBuf *backdrop, bNo
 
 		glColor3f(1.0, 1.0, 1.0);
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2f(cx - 25, cy - 25);
 		glVertex2f(cx + 25, cy + 25);
 		glVertex2f(cx + 25, cy - 25);
@@ -2217,7 +2218,7 @@ static void node_composit_backdrop_boxmask(SpaceNode *snode, ImBuf *backdrop, bN
 	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2f(x1, y1);
 	glVertex2f(x2, y2);
 	glVertex2f(x3, y3);
@@ -2255,7 +2256,7 @@ static void node_composit_backdrop_ellipsemask(SpaceNode *snode, ImBuf *backdrop
 	y3 = cy - (-sine * -halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 	y4 = cy - (-sine * halveBoxWidth + cosine * -halveBoxHeight) * snode->zoom;
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 
 	glVertex2f(x1, y1);
 	glVertex2f(x2, y2);
@@ -3419,14 +3420,14 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		if (do_triple) {
 			UI_ThemeColorShadeAlpha(th_col3, -80, -120);
 			glLineWidth(4.0f);
-			
-			glBegin(GL_LINE_STRIP);
+
+			GPUBegin(GL_LINE_STRIP);
 			for (i = 0; i <= LINK_RESOL; i++) {
 				glVertex2fv(coord_array[i]);
 			}
 			glEnd();
 			if (drawarrow) {
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				glVertex2fv(arrow1);
 				glVertex2fv(arrow);
 				glVertex2fv(arrow);
@@ -3441,7 +3442,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		 */
 		glLineWidth(1.5f);
 		if (do_shaded) {
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			for (i = 0; i < LINK_RESOL; i++) {
 				UI_ThemeColorBlend(th_col1, th_col2, spline_step);
 				glVertex2fv(coord_array[i]);
@@ -3455,7 +3456,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		}
 		else {
 			UI_ThemeColor(th_col1);
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			for (i = 0; i <= LINK_RESOL; i++) {
 				glVertex2fv(coord_array[i]);
 			}
@@ -3463,7 +3464,7 @@ void node_draw_link_bezier(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		}
 		
 		if (drawarrow) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			glVertex2fv(arrow1);
 			glVertex2fv(arrow);
 			glVertex2fv(arrow);
@@ -3518,8 +3519,8 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 	if (do_triple) {
 		UI_ThemeColorShadeAlpha(th_col3, -80, -120);
 		glLineWidth(4.0f);
-		
-		glBegin(GL_LINES);
+
+		GPUBegin(GL_LINES);
 		glVertex2fv(coord_array[0]);
 		glVertex2fv(coord_array[1]);
 		glEnd();
@@ -3533,7 +3534,7 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 	 * changing color in begin/end blocks.
 	 */
 	if (do_shaded) {
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		for (i = 0; i < LINK_RESOL - 1; ++i) {
 			float t = (float)i / (float)(LINK_RESOL - 1);
 			UI_ThemeColorBlend(th_col1, th_col2, t);
@@ -3548,7 +3549,7 @@ void node_draw_link_straight(View2D *v2d, SpaceNode *snode, bNodeLink *link,
 		glEnd();
 	}
 	else {
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		for (i = 0; i < LINK_RESOL; ++i) {
 			float t = (float)i / (float)(LINK_RESOL - 1);
 			glVertex2f((1.0f - t) * coord_array[0][0] + t * coord_array[1][0],
@@ -3612,7 +3613,7 @@ void node_draw_link(View2D *v2d, SpaceNode *snode, bNodeLink *link)
 
 void ED_node_draw_snap(View2D *v2d, const float cent[2], float size, NodeBorder border)
 {
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	
 	if (border & (NODE_LEFT | NODE_RIGHT)) {
 		glVertex2f(cent[0], v2d->cur.ymin);

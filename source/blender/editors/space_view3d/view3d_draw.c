@@ -167,7 +167,7 @@ static void view3d_draw_clipping(RegionView3D *rv3d)
 		glEnable(GL_BLEND);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(3, GL_FLOAT, 0, bb->vec);
-		glDrawElements(GL_QUADS, sizeof(clipping_index) / sizeof(unsigned int), GL_UNSIGNED_INT, clipping_index);
+		GPUDrawElements(GL_QUADS, sizeof(clipping_index) / sizeof(unsigned int), GL_UNSIGNED_INT, clipping_index);
 		glDisableClientState(GL_VERTEX_ARRAY);
 		glDisable(GL_BLEND);
 	}
@@ -242,7 +242,7 @@ static void drawgrid_draw(ARegion *ar, double wx, double wy, double x, double y,
 	glVertexPointer(2, GL_DOUBLE, 0, verts);
 
 	while (verts[0][0] < ar->winx) {
-		glDrawArrays(GL_LINES, 0, 2);
+		GPUDrawArrays(GL_LINES, 0, 2);
 		verts[0][0] = verts[1][0] = verts[0][0] + dx;
 	}
 
@@ -253,7 +253,7 @@ static void drawgrid_draw(ARegion *ar, double wx, double wy, double x, double y,
 	/* iter over 'Y' */
 	verts[0][1] = verts[1][1] = y - dx * floor(y / dx);
 	while (verts[0][1] < ar->winy) {
-		glDrawArrays(GL_LINES, 0, 2);
+		GPUDrawArrays(GL_LINES, 0, 2);
 		verts[0][1] = verts[1][1] = verts[0][1] + dx;
 	}
 
@@ -514,7 +514,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 			/* set variable axis */
 			vert[0][1] = vert[1][1] = vert[2][0] = vert[3][0] = line;
 
-			glDrawArrays(GL_LINES, 0, 4);
+			GPUDrawArrays(GL_LINES, 0, 4);
 		}
 
 		glDisableClientState(GL_VERTEX_ARRAY);
@@ -532,7 +532,7 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 				UI_make_axis_color(col_grid, tcol, 'X' + axis);
 				glColor3ubv(tcol);
 
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				zero_v3(vert);
 				vert[axis] = grid;
 				glVertex3fv(vert);
@@ -611,7 +611,7 @@ static void draw_view_axis(RegionView3D *rv3d, rcti *rect)
 		dy = vec[1] * k;
 
 		UI_ThemeColorShadeAlpha(TH_AXIS_X + i, 0, bright);
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2f(startx, starty + ydisp);
 		glVertex2f(startx + dx, starty + dy + ydisp);
 		glEnd();
@@ -654,7 +654,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 		mul_v3_v3fl(scaled_axis, rv3d->rot_axis, scale);
 
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		color[3] = 0.0f;  /* more transparent toward the ends */
 		glColor4fv(color);
 		add_v3_v3v3(end, o, scaled_axis);
@@ -697,7 +697,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 
 			color[3] = 0.25f;  /* somewhat faint */
 			glColor4fv(color);
-			glBegin(GL_LINE_LOOP);
+			GPUBegin(GL_LINE_LOOP);
 			for (i = 0, angle = 0.0f; i < ROT_AXIS_DETAIL; ++i, angle += step) {
 				float p[3] = {s * cosf(angle), s * sinf(angle), 0.0f};
 
@@ -720,7 +720,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 
 	/* -- draw rotation center -- */
 	glColor4fv(color);
-	glBegin(GL_POINTS);
+	GPUBegin(GL_POINTS);
 	glVertex3fv(o);
 	glEnd();
 
@@ -1010,7 +1010,7 @@ static void drawviewborder_grid3(float x1, float x2, float y1, float y2, float f
 	x4 = x1 + (1.0f - fac) * (x2 - x1);
 	y4 = y1 + (1.0f - fac) * (y2 - y1);
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex2f(x1, y3);
 	glVertex2f(x2, y3);
 
@@ -1032,7 +1032,7 @@ static void drawviewborder_triangle(float x1, float x2, float y1, float y2, cons
 	float w = x2 - x1;
 	float h = y2 - y1;
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	if (w > h) {
 		if (golden) {
 			ofs = w * (1.0f - (1.0f / 1.61803399f));
@@ -1181,7 +1181,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			x3 = x1 + 0.5f * (x2 - x1);
 			y3 = y1 + 0.5f * (y2 - y1);
 
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2f(x1, y3);
 			glVertex2f(x2, y3);
 
@@ -1193,7 +1193,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		if (ca->dtx & CAM_DTX_CENTER_DIAG) {
 			UI_ThemeColorBlendShade(TH_VIEW_OVERLAY, TH_BACK, 0.25, 0);
 
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2f(x1, y1);
 			glVertex2f(x2, y2);
 
@@ -2921,7 +2921,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 			glShadeModel(GL_SMOOTH);
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 			glVertex3f(-1.0, -1.0, 1.0);
 			glVertex3f(1.0, -1.0, 1.0);
 			glVertex3f(1.0, 1.0, 1.0);
@@ -3031,7 +3031,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glVertexPointer(3, GL_FLOAT, 0, grid_pos);
 			glColorPointer(4, GL_UNSIGNED_BYTE, 0, grid_col);
 
-			glDrawElements(GL_QUADS, (VIEWGRAD_RES_X - 1) * (VIEWGRAD_RES_Y - 1) * 4, GL_UNSIGNED_SHORT, indices);
+			GPUDrawElements(GL_QUADS, (VIEWGRAD_RES_X - 1) * (VIEWGRAD_RES_Y - 1) * 4, GL_UNSIGNED_SHORT, indices);
 
 			glDisableClientState(GL_VERTEX_ARRAY);
 			glDisableClientState(GL_COLOR_ARRAY);
@@ -3066,7 +3066,7 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 			glShadeModel(GL_SMOOTH);
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 			UI_ThemeColor(TH_LOW_GRAD);
 			glVertex3f(-1.0, -1.0, 1.0);
 			glVertex3f(1.0, -1.0, 1.0);
@@ -3936,7 +3936,7 @@ static void bl_debug_draw(void)
 				color = _bl_debug_draw_quads_color[i];
 				cpack(color);
 			}
-			glBegin(GL_LINE_LOOP);
+			GPUBegin(GL_LINE_LOOP);
 			glVertex3fv(_bl_debug_draw_quads[i][0]);
 			glVertex3fv(_bl_debug_draw_quads[i][1]);
 			glVertex3fv(_bl_debug_draw_quads[i][2]);
@@ -3948,7 +3948,7 @@ static void bl_debug_draw(void)
 		int i;
 		color = _bl_debug_draw_edges_color[0];
 		cpack(color);
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		for (i = 0; i < _bl_debug_draw_edges_tot; i ++) {
 			if (_bl_debug_draw_edges_color[i] != color) {
 				color = _bl_debug_draw_edges_color[i];
@@ -3961,7 +3961,7 @@ static void bl_debug_draw(void)
 		color = _bl_debug_draw_edges_color[0];
 		cpack(color);
 		glPointSize(4.0);
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		for (i = 0; i < _bl_debug_draw_edges_tot; i ++) {
 			if (_bl_debug_draw_edges_color[i] != color) {
 				color = _bl_debug_draw_edges_color[i];

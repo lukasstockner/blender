@@ -111,7 +111,7 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 	/* if drawing a single point, draw it larger */
 	if (totpoints == 1) {
 		/* draw point */
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		glVertex2iv(&points->x);
 		glEnd();
 	}
@@ -125,7 +125,7 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 		if (G.debug & G_DEBUG) setlinestyle(2);
 		
 		glLineWidth(oldpressure * thickness);
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 			/* if there was a significant pressure change, stop the curve, change the thickness of the stroke,
@@ -134,7 +134,7 @@ static void gp_draw_stroke_buffer(tGPspoint *points, int totpoints, short thickn
 			if (fabsf(pt->pressure - oldpressure) > 0.2f) {
 				glEnd();
 				glLineWidth(pt->pressure * thickness);
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				
 				/* need to roll-back one point to ensure that there are no gaps in the stroke */
 				if (i != 0) glVertex2iv(&(pt - 1)->x);
@@ -338,7 +338,7 @@ static void gp_draw_stroke_fill(bGPDspoint *points, int totpoints, short UNUSED(
 	 * come with limitations (notably for concave shapes), though it shouldn't
 	 * be much of an issue in most cases.
 	 */
-	glBegin(GL_POLYGON);
+	GPUBegin(GL_POLYGON);
 	
 	for (i = 0, pt = points; i < totpoints; i++, pt++) {
 		if (sflag & GP_STROKE_3DSPACE) {
@@ -366,7 +366,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 	
 	/* draw point */
 	if (sflag & GP_STROKE_3DSPACE) {
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		glVertex3fv(&points->x);
 		glEnd();
 	}
@@ -382,7 +382,7 @@ static void gp_draw_stroke_point(bGPDspoint *points, short thickness, short dfla
 		if ((thickness < GP_DRAWTHICKNESS_SPECIAL) ||
 		    ((dflag & GP_DRAWDATA_IEDITHACK) && (sflag & GP_STROKE_2DSPACE)))
 		{
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex2fv(co);
 			glEnd();
 		}
@@ -406,7 +406,7 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 	
 	/* draw stroke curve */
 	glLineWidth(curpressure * thickness);
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 		/* if there was a significant pressure change, stop the curve, change the thickness of the stroke,
 		 * and continue drawing again (since line-width cannot change in middle of GL_LINE_STRIP)
@@ -416,7 +416,7 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 			glEnd();
 			curpressure = pt->pressure;
 			glLineWidth(curpressure * thickness);
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			
 			/* need to roll-back one point to ensure that there are no gaps in the stroke */
 			if (i != 0) glVertex3fv(&(pt - 1)->x);
@@ -433,7 +433,7 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 	/* draw debug points of curve on top? */
 	/* XXX: for now, we represent "selected" strokes in the same way as debug, which isn't used anymore */
 	if (debug) {
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++)
 			glVertex3fv(&pt->x);
 		glEnd();
@@ -464,7 +464,7 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 		int i;
 		
 		glShadeModel(GL_FLAT);
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		
 		for (i = 0, pt1 = points, pt2 = points + 1; i < (totpoints - 1); i++, pt1++, pt2++) {
 			float s0[2], s1[2];     /* segment 'center' points */
@@ -607,7 +607,7 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 		bGPDspoint *pt;
 		int i;
 		
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 			float co[2];
 			
@@ -810,7 +810,7 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 		}
 		glPointSize(bsize);
 		
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		for (i = 0, pt = gps->points; i < gps->totpoints && pt; i++, pt++) {
 			if (gps->flag & GP_STROKE_3DSPACE) {
 				glVertex3fv(&pt->x);
@@ -829,7 +829,7 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 		UI_ThemeColor(TH_GP_VERTEX_SELECT);
 		glPointSize(vsize);
 		
-		glBegin(GL_POINTS);
+		GPUBegin(GL_POINTS);
 		for (i = 0, pt = gps->points; i < gps->totpoints && pt; i++, pt++) {
 			if (pt->flag & GP_SPOINT_SELECT) {
 				if (gps->flag & GP_STROKE_3DSPACE) {

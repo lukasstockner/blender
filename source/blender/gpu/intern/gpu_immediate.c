@@ -2400,3 +2400,23 @@ void gpuIndexEnd(void)
 
 	GPU_IMMEDIATE->index->mappedBuffer = NULL;
 }
+
+void GPUBegin(GLenum mode)
+{
+	gpu_commit_matrix();
+	glBegin(mode);
+}
+
+void GPUDrawArrays(GLenum mode, int start, int count)
+{
+	gpu_commit_matrix();
+	glDrawArrays(mode, start, count);
+}
+
+void GPUDrawElements(GLenum mode, int count, int type, void *p)
+{
+	gpu_commit_matrix();
+	glDrawElements(mode, count, type, p);
+}
+
+

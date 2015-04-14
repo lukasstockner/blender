@@ -69,6 +69,8 @@
 
 #include "screen_intern.h"  /* own module include */
 
+#include "GPU_immediate.h"
+
 
 /* ******************* screen vert, edge, area managing *********************** */
 
@@ -893,11 +895,11 @@ static void draw_horizontal_join_shape(ScrArea *sa, char dir)
 		}
 	}
 
-	glBegin(GL_POLYGON);
+	GPUBegin(GL_POLYGON);
 	for (i = 0; i < 5; i++)
 		glVertex2f(points[i].x, points[i].y);
 	glEnd();
-	glBegin(GL_POLYGON);
+	GPUBegin(GL_POLYGON);
 	for (i = 4; i < 8; i++)
 		glVertex2f(points[i].x, points[i].y);
 	glVertex2f(points[0].x, points[0].y);
@@ -965,11 +967,11 @@ static void draw_vertical_join_shape(ScrArea *sa, char dir)
 		}
 	}
 
-	glBegin(GL_POLYGON);
+	GPUBegin(GL_POLYGON);
 	for (i = 0; i < 5; i++)
 		glVertex2f(points[i].x, points[i].y);
 	glEnd();
-	glBegin(GL_POLYGON);
+	GPUBegin(GL_POLYGON);
 	for (i = 4; i < 8; i++)
 		glVertex2f(points[i].x, points[i].y);
 	glVertex2f(points[0].x, points[0].y);

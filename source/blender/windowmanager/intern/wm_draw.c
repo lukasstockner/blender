@@ -58,6 +58,8 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_immediate.h"
+
 #include "GPU_glew.h"
 
 #include "RE_engine.h"
@@ -529,7 +531,7 @@ void wm_triple_draw_textures(wmWindow *win, wmDrawTriple *triple, float alpha)
 			glBindTexture(triple->target, triple->bind[x + y * triple->nx]);
 
 			glColor4f(1.0f, 1.0f, 1.0f, alpha);
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 			glTexCoord2f(halfx, halfy);
 			glVertex2f(offx, offy);
 

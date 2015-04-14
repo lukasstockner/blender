@@ -49,8 +49,7 @@
 
 #include "GPU_extensions.h"
 #include "GPU_compositing.h"
-
-#include "GPU_glew.h"
+#include "GPU_immediate.h"
 
 #include "MEM_guardedalloc.h"
 
@@ -620,7 +619,7 @@ void GPU_fx_compositor_XRay_resolve(GPUFX *fx)
 		GPU_shader_uniform_texture(depth_resolve_shader, depth_uniform, fx->depth_buffer_xray);
 
 		/* draw */
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 		/* disable bindings */
 		GPU_texture_filter_mode(fx->depth_buffer_xray, true, false);
@@ -758,7 +757,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 			/* draw */
 			gpu_fx_bind_render_target(&passes_left, fx, ofs, target);
 
-			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+			GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 			/* disable bindings */
 			GPU_texture_unbind(src);
@@ -862,7 +861,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 				GPU_framebuffer_check_valid(fx->gbuffer, NULL);
 
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
 				GPU_texture_filter_mode(src, false, true);
 				GPU_texture_unbind(src);
@@ -987,7 +986,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				/* if this is the last pass, prepare for rendering on the frambuffer */
 				gpu_fx_bind_render_target(&passes_left, fx, ofs, target);
 
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 				/* disable bindings */
 				GPU_texture_unbind(fx->dof_near_blur);
@@ -1065,7 +1064,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				/* binding takes care of setting the viewport to the downsampled size */
 				GPU_texture_bind_as_framebuffer(fx->dof_near_coc_buffer);
 
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
 				GPU_texture_unbind(src);
 				GPU_texture_filter_mode(fx->depth_buffer, true, false);
@@ -1110,7 +1109,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, 0, NULL);
 
 				/* Drawing quad */
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 				/* *unbind/detach */
 				GPU_texture_unbind(fx->dof_near_coc_buffer);
@@ -1125,7 +1124,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				GPU_shader_uniform_texture(dof_shader_pass2, color_uniform, fx->dof_near_coc_final_buffer);
 
 				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_blurred_buffer, 0, NULL);
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
 				/* *unbind/detach */
 				GPU_texture_filter_mode(fx->depth_buffer, true, false);
@@ -1156,7 +1155,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_final_buffer, 0, NULL);
 
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
 				GPU_texture_unbind(fx->dof_near_coc_buffer);
 				GPU_texture_unbind(fx->dof_near_coc_blurred_buffer);
@@ -1185,7 +1184,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 
 				GPU_framebuffer_texture_attach(fx->gbuffer, fx->dof_near_coc_buffer, 0, NULL);
 
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
 				GPU_texture_unbind(fx->dof_near_coc_final_buffer);
 
@@ -1232,7 +1231,7 @@ bool GPU_fx_do_composite_pass(GPUFX *fx, float projmat[4][4], bool is_persp, str
 				/* if this is the last pass, prepare for rendering on the frambuffer */
 				gpu_fx_bind_render_target(&passes_left, fx, ofs, target);
 
-				glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+				GPUDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 				/* disable bindings */
 				GPU_texture_unbind(fx->dof_near_coc_buffer);
 				GPU_texture_unbind(fx->dof_near_coc_blurred_buffer);

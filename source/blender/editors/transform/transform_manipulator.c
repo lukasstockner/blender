@@ -684,7 +684,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 		sin_theta1 = sinf(theta1);
 
 		if (do_caps && i == start) {  // cap
-			glBegin(GL_POLYGON);
+			GPUBegin(GL_POLYGON);
 			phi = 0.0;
 			for (j = nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -699,7 +699,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 			glEnd();
 		}
 		if (i >= start && i <= end) {
-			glBegin(GL_QUAD_STRIP);
+			GPUBegin(GL_QUAD_STRIP);
 			phi = 0.0;
 			for (j = nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -716,7 +716,7 @@ static void partial_doughnut(float radring, float radhole, int start, int end, i
 		}
 
 		if (do_caps && i == end) {    // cap
-			glBegin(GL_POLYGON);
+			GPUBegin(GL_POLYGON);
 			phi = 0.0;
 			for (j = nsides; j >= 0; j--) {
 				float cos_phi, sin_phi, dist;
@@ -830,7 +830,7 @@ static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int co
 				else {
 					manipulator_setcolor(v3d, 'X', colcode, axisBlendAngle(rv3d->tw_idot[0]));
 				}
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				glVertex3f(0.2f, 0.0f, 0.0f);
 				glVertex3f(1.0f, 0.0f, 0.0f);
 				glEnd();
@@ -845,7 +845,7 @@ static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int co
 				else {
 					manipulator_setcolor(v3d, 'Y', colcode, axisBlendAngle(rv3d->tw_idot[1]));
 				}
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				glVertex3f(0.0f, 0.2f, 0.0f);
 				glVertex3f(0.0f, 1.0f, 0.0f);
 				glEnd();
@@ -860,7 +860,7 @@ static void draw_manipulator_axes_single(View3D *v3d, RegionView3D *rv3d, int co
 				else {
 					manipulator_setcolor(v3d, 'Z', colcode, axisBlendAngle(rv3d->tw_idot[2]));
 				}
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				glVertex3f(0.0f, 0.0f, 0.2f);
 				glVertex3f(0.0f, 0.0f, 1.0f);
 				glEnd();
@@ -960,7 +960,7 @@ static void draw_manipulator_rotate(
 			vec[2] = 0.0f;
 			normalize_v3(vec);
 			mul_v3_fl(vec, 1.2f * size);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex3f(0.0f, 0.0f, 0.0f);
 			glVertex3fv(vec);
 			glEnd();
@@ -995,7 +995,7 @@ static void draw_manipulator_rotate(
 				if ((drawflags & MAN_ROT_X) || (is_moving && (drawflags & MAN_ROT_Z))) {
 					preOrthoFront(ortho, rv3d->twmat, 2);
 					manipulator_setcolor(v3d, 'X', colcode, 255);
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					glVertex3f(0.2f, 0.0f, 0.0f);
 					glVertex3f(1.0f, 0.0f, 0.0f);
 					glEnd();
@@ -1004,7 +1004,7 @@ static void draw_manipulator_rotate(
 				if ((drawflags & MAN_ROT_Y) || (is_moving && (drawflags & MAN_ROT_X))) {
 					preOrthoFront(ortho, rv3d->twmat, 0);
 					manipulator_setcolor(v3d, 'Y', colcode, 255);
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					glVertex3f(0.0f, 0.2f, 0.0f);
 					glVertex3f(0.0f, 1.0f, 0.0f);
 					glEnd();
@@ -1013,7 +1013,7 @@ static void draw_manipulator_rotate(
 				if ((drawflags & MAN_ROT_Z) || (is_moving && (drawflags & MAN_ROT_Y))) {
 					preOrthoFront(ortho, rv3d->twmat, 1);
 					manipulator_setcolor(v3d, 'Z', colcode, 255);
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					glVertex3f(0.0f, 0.0f, 0.2f);
 					glVertex3f(0.0f, 0.0f, 1.0f);
 					glEnd();
@@ -1162,42 +1162,42 @@ static void drawsolidcube(float size)
 	gpuPushMatrix(GPU_MODELVIEW);
 	gpuScale(GPU_MODELVIEW, size, size, size);
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	n[0] = -1.0;
 	glNormal3fv(n);
 	glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
 	n[0] = 0;
 	glEnd();
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	n[1] = -1.0;
 	glNormal3fv(n);
 	glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[1]);
 	n[1] = 0;
 	glEnd();
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	n[0] = 1.0;
 	glNormal3fv(n);
 	glVertex3fv(cube[4]); glVertex3fv(cube[7]); glVertex3fv(cube[6]); glVertex3fv(cube[5]);
 	n[0] = 0;
 	glEnd();
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	n[1] = 1.0;
 	glNormal3fv(n);
 	glVertex3fv(cube[7]); glVertex3fv(cube[3]); glVertex3fv(cube[2]); glVertex3fv(cube[6]);
 	n[1] = 0;
 	glEnd();
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	n[2] = 1.0;
 	glNormal3fv(n);
 	glVertex3fv(cube[1]); glVertex3fv(cube[5]); glVertex3fv(cube[6]); glVertex3fv(cube[2]);
 	n[2] = 0;
 	glEnd();
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	n[2] = -1.0;
 	glNormal3fv(n);
 	glVertex3fv(cube[7]); glVertex3fv(cube[4]); glVertex3fv(cube[0]); glVertex3fv(cube[3]);
@@ -1304,7 +1304,7 @@ static void draw_manipulator_scale(
 		if (shift) {
 			gpuTranslate(GPU_MODELVIEW, 0.0, -dz, 0.0);
 			GPU_select_load_id(MAN_SCALE_C);
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex3f(0.0, 0.0, 0.0);
 			glEnd();
 		}
@@ -1470,7 +1470,7 @@ static void draw_manipulator_rotate_cyl(
 			vec[2] = 0.0f;
 			normalize_v3(vec);
 			mul_v3_fl(vec, 1.2f * size);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex3f(0.0, 0.0, 0.0);
 			glVertex3fv(vec);
 			glEnd();

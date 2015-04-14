@@ -60,6 +60,7 @@
 #include "ED_view3d.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "UI_resources.h"
 
@@ -658,7 +659,7 @@ static void paint_draw_tex_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		}
 
 		/* draw textured quad */
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		glTexCoord2f(0, 0);
 		glVertex2f(quad.xmin, quad.ymin);
 		glTexCoord2f(1, 0);
@@ -733,7 +734,7 @@ static void paint_draw_cursor_overlay(UnifiedPaintSettings *ups, Brush *brush,
 		        brush->cursor_overlay_alpha / 100.0f);
 
 		/* draw textured quad */
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		glTexCoord2f(0, 0);
 		glVertex2f(quad.xmin, quad.ymin);
 		glTexCoord2f(1, 0);
@@ -799,7 +800,7 @@ BLI_INLINE void draw_tri_point(float *co, float width, bool selected)
 
 	glLineWidth(3.0);
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2f(co[0], co[1] + w);
 	glVertex2f(co[0] - w, co[1] - w);
 	glVertex2f(co[0] + w, co[1] - w);
@@ -808,7 +809,7 @@ BLI_INLINE void draw_tri_point(float *co, float width, bool selected)
 	glColor4f(1.0, 1.0, 1.0, 0.5);
 	glLineWidth(1.0);
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2f(co[0], co[1] + w);
 	glVertex2f(co[0] - w, co[1] - w);
 	glVertex2f(co[0] + w, co[1] - w);
@@ -824,7 +825,7 @@ BLI_INLINE void draw_rect_point(float *co, float width, bool selected)
 		UI_ThemeColor4(TH_PAINT_CURVE_HANDLE);
 	glLineWidth(3.0);
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2f(co[0] + w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] - w);
@@ -834,7 +835,7 @@ BLI_INLINE void draw_rect_point(float *co, float width, bool selected)
 	glColor4f(1.0, 1.0, 1.0, 0.5);
 	glLineWidth(1.0);
 
-	glBegin(GL_LINE_LOOP);
+	GPUBegin(GL_LINE_LOOP);
 	glVertex2f(co[0] + w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] + w);
 	glVertex2f(co[0] - w, co[1] - w);
@@ -851,19 +852,19 @@ BLI_INLINE void draw_bezier_handle_lines(BezTriple *bez)
 	glVertexPointer(2, GL_FLOAT, 3 * sizeof(float), bez->vec);
 	glColor4f(0.0, 0.0, 0.0, 0.5);
 	glLineWidth(3.0);
-	glDrawArrays(GL_LINE_STRIP, 0, 3);
+	GPUDrawArrays(GL_LINE_STRIP, 0, 3);
 
 	glLineWidth(1.0);
 	if (bez->f1 || bez->f2)
 		UI_ThemeColor4(TH_VERTEX_SELECT);
 	else
 		glColor4f(1.0, 1.0, 1.0, 0.5);
-	glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line1);
+	GPUDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line1);
 	if (bez->f3 || bez->f2)
 		UI_ThemeColor4(TH_VERTEX_SELECT);
 	else
 		glColor4f(1.0, 1.0, 1.0, 0.5);
-	glDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line2);
+	GPUDrawElements(GL_LINES, 2, GL_UNSIGNED_SHORT, line2);
 }
 
 static void paint_draw_curve_cursor(Brush *brush)
@@ -899,11 +900,11 @@ static void paint_draw_curve_cursor(Brush *brush)
 			glVertexPointer(2, GL_FLOAT, 0, data);
 			glLineWidth(3.0);
 			glColor4f(0.0, 0.0, 0.0, 0.5);
-			glDrawArrays(GL_LINE_STRIP, 0, PAINT_CURVE_NUM_SEGMENTS + 1);
+			GPUDrawArrays(GL_LINE_STRIP, 0, PAINT_CURVE_NUM_SEGMENTS + 1);
 
 			glLineWidth(1.0);
 			glColor4f(0.9, 0.9, 1.0, 0.5);
-			glDrawArrays(GL_LINE_STRIP, 0, PAINT_CURVE_NUM_SEGMENTS + 1);
+			GPUDrawArrays(GL_LINE_STRIP, 0, PAINT_CURVE_NUM_SEGMENTS + 1);
 		}
 
 		/* draw last line segment */

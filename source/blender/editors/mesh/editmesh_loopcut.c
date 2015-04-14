@@ -61,6 +61,7 @@
 #include "WM_types.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "mesh_intern.h"  /* own include */
 
@@ -108,7 +109,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 		if (lcd->totedge > 0) {
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, GL_FLOAT, 0, lcd->edges);
-			glDrawArrays(GL_LINES, 0, lcd->totedge * 2);
+			GPUDrawArrays(GL_LINES, 0, lcd->totedge * 2);
 			glDisableClientState(GL_VERTEX_ARRAY);
 		}
 
@@ -117,7 +118,7 @@ static void ringsel_draw(const bContext *C, ARegion *UNUSED(ar), void *arg)
 
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glVertexPointer(3, GL_FLOAT, 0, lcd->points);
-			glDrawArrays(GL_POINTS, 0, lcd->totpoint);
+			GPUDrawArrays(GL_POINTS, 0, lcd->totpoint);
 			glDisableClientState(GL_VERTEX_ARRAY);
 
 			glPointSize(1.0f);

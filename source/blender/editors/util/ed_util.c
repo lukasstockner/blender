@@ -72,7 +72,7 @@
 #include "WM_api.h"
 #include "RNA_access.h"
 
-
+#include "GPU_immediate.h"
 
 /* ********* general editor util funcs, not BKE stuff please! ********* */
 
@@ -312,7 +312,7 @@ void ED_region_draw_mouse_line_cb(const bContext *C, ARegion *ar, void *arg_info
 
 	UI_ThemeColor(TH_VIEW_OVERLAY);
 	setlinestyle(3);
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	glVertex2iv(mval_dst);
 	glVertex2fv(mval_src);
 	glEnd();

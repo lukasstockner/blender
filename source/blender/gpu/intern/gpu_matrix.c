@@ -129,8 +129,8 @@ void gpu_commit_matrix(void)
 	if (common) {
 		int i;
 
-		float (*m)[4] = (float (*)[4])gpuGetMatrix(GL_MODELVIEW_MATRIX, NULL);
-		float (*p)[4] = (float (*)[4])gpuGetMatrix(GL_PROJECTION_MATRIX, NULL);
+		float (*m)[4] = (float (*)[4])gpuGetMatrix(GPU_MODELVIEW, NULL);
+		float (*p)[4] = (float (*)[4])gpuGetMatrix(GPU_PROJECTION, NULL);
 
 		if (common->modelview_matrix != -1)
 			glUniformMatrix4fv(common->modelview_matrix, 1, GL_FALSE, m[0]);
@@ -161,7 +161,7 @@ void gpu_commit_matrix(void)
 		for (i = 0; i < GPU_MAX_COMMON_TEXCOORDS; i++) {
 			if (common->texture_matrix[i] != -1) {
 				GPU_set_common_active_texture(i);
-				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
+				glUniformMatrix4fv(common->texture_matrix[i], 1, GL_FALSE, gpuGetMatrix(GPU_TEXTURE, NULL));
 			}
 		}
 
@@ -174,13 +174,13 @@ void gpu_commit_matrix(void)
 
 #if defined(WITH_GL_PROFILE_COMPAT)
 	glMatrixMode(GL_TEXTURE);
-	glLoadMatrixf(gpuGetMatrix(GL_TEXTURE_MATRIX, NULL));
+	glLoadMatrixf(gpuGetMatrix(GPU_TEXTURE, NULL));
 
 	glMatrixMode(GL_PROJECTION);
-	glLoadMatrixf(gpuGetMatrix(GL_PROJECTION_MATRIX, NULL));
+	glLoadMatrixf(gpuGetMatrix(GPU_PROJECTION, NULL));
 
 	glMatrixMode(GL_MODELVIEW);
-	glLoadMatrixf(gpuGetMatrix(GL_MODELVIEW_MATRIX, NULL));
+	glLoadMatrixf(gpuGetMatrix(GPU_MODELVIEW, NULL));
 #endif
 
 	GPU_ASSERT_NO_GL_ERRORS("gpu_commit_matrix end");

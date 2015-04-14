@@ -106,7 +106,7 @@ static void tracking_segment_start_cb(void *userdata, MovieTrackingTrack *track,
 
 	glColor4fv(col);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 }
 
 static void tracking_segment_end_cb(void *UNUSED(userdata), int UNUSED(coord))
@@ -250,7 +250,7 @@ static void tracking_error_segment_start_cb(void *userdata, MovieTrackingTrack *
 
 		glColor4fv(col);
 
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 	}
 }
 
@@ -308,7 +308,7 @@ static void draw_frame_curves(SpaceClip *sc)
 		}
 
 		if (!lines) {
-			glBegin(GL_LINE_STRIP);
+			GPUBegin(GL_LINE_STRIP);
 			lines = 1;
 		}
 

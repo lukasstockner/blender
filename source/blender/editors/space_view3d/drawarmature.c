@@ -328,7 +328,7 @@ static void drawsolidcube_size(float xsize, float ysize, float zsize)
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		n[0] = -1.0;
 		glNormal3fv(n); 
 		glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
@@ -367,13 +367,13 @@ static void drawcube_size(float xsize, float ysize, float zsize)
 		displist = glGenLists(1);
 		glNewList(displist, GL_COMPILE);
 		
-		glBegin(GL_LINE_STRIP);
+		GPUBegin(GL_LINE_STRIP);
 		glVertex3fv(cube[0]); glVertex3fv(cube[1]); glVertex3fv(cube[2]); glVertex3fv(cube[3]);
 		glVertex3fv(cube[0]); glVertex3fv(cube[4]); glVertex3fv(cube[5]); glVertex3fv(cube[6]);
 		glVertex3fv(cube[7]); glVertex3fv(cube[4]);
 		glEnd();
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex3fv(cube[1]); glVertex3fv(cube[5]);
 		glVertex3fv(cube[2]); glVertex3fv(cube[6]);
 		glVertex3fv(cube[3]); glVertex3fv(cube[7]);
@@ -479,13 +479,13 @@ static void draw_bone_octahedral(void)
 		/*	Section 1, sides */
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glVertexPointer(3, GL_FLOAT, 0, bone_octahedral_verts);
-		glDrawElements(GL_LINE_LOOP,
+		GPUDrawElements(GL_LINE_LOOP,
 		               sizeof(bone_octahedral_wire_sides) / sizeof(*bone_octahedral_wire_sides),
 		               GL_UNSIGNED_INT,
 		               bone_octahedral_wire_sides);
 
 		/*	Section 1, square */
-		glDrawElements(GL_LINE_LOOP,
+		GPUDrawElements(GL_LINE_LOOP,
 		               sizeof(bone_octahedral_wire_square) / sizeof(*bone_octahedral_wire_square),
 		               GL_UNSIGNED_INT,
 		               bone_octahedral_wire_square);
@@ -508,7 +508,7 @@ static void draw_bone_solid_octahedral(void)
 		glNewList(displist, GL_COMPILE);
 
 #if 1
-		glBegin(GL_TRIANGLES);
+		GPUBegin(GL_TRIANGLES);
 		for (i = 0; i < 8; i++) {
 			glNormal3fv(bone_octahedral_solid_normals[i]);
 			glVertex3fv(bone_octahedral_verts[bone_octahedral_solid_tris[i][0]]);
@@ -523,7 +523,7 @@ static void draw_bone_solid_octahedral(void)
 		glEnableClientState(GL_VERTEX_ARRAY);
 		glNormalPointer(GL_FLOAT, 0, bone_octahedral_solid_normals);
 		glVertexPointer(3, GL_FLOAT, 0, bone_octahedral_verts);
-		glDrawElements(GL_TRIANGLES, sizeof(bone_octahedral_solid_tris) / sizeof(unsigned int),
+		GPUDrawElements(GL_TRIANGLES, sizeof(bone_octahedral_solid_tris) / sizeof(unsigned int),
 		               GL_UNSIGNED_INT, bone_octahedral_solid_tris);
 		glDisableClientState(GL_NORMAL_ARRAY);
 		glDisableClientState(GL_VERTEX_ARRAY);
@@ -687,7 +687,7 @@ static void draw_sphere_bone_dist(float smat[4][4], float imat[4][4], bPoseChann
 		//mul_v3_fl(dirvec, head);
 		cross_v3_v3v3(norvec, dirvec, imat[2]);
 		
-		glBegin(GL_QUAD_STRIP);
+		GPUBegin(GL_QUAD_STRIP);
 		
 		for (a = 0; a < 16; a++) {
 			vec[0] = -si[a] * dirvec[0] + co[a] * norvec[0];
@@ -824,7 +824,7 @@ static void draw_sphere_bone_wire(float smat[4][4], float imat[4][4],
 		if (id != -1)
 			GPU_select_load_id(id | BONESEL_BONE);
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 
 		add_v3_v3v3(vec, headvec, norvech);
 		glVertex3fv(vec);
@@ -1008,7 +1008,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		if ((boneflag & BONE_CONNECTED) == 0) {
 			if (G.f & G_PICKSEL) {  /* no bitmap in selection mode, crashes 3d cards... */
 				GPU_select_load_id(id | BONESEL_ROOT);
-				glBegin(GL_POINTS);
+				GPUBegin(GL_POINTS);
 				glVertex3f(0.0f, 0.0f, 0.0f);
 				glEnd();
 			}
@@ -1021,7 +1021,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		if (id != -1)
 			GPU_select_load_id((GLuint) id | BONESEL_BONE);
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex3f(0.0f, 0.0f, 0.0f);
 		glVertex3f(0.0f, 1.0f, 0.0f);
 		glEnd();
@@ -1030,7 +1030,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		if (G.f & G_PICKSEL) {
 			/* no bitmap in selection mode, crashes 3d cards... */
 			GPU_select_load_id(id | BONESEL_TIP);
-			glBegin(GL_POINTS);
+			GPUBegin(GL_POINTS);
 			glVertex3f(0.0f, 1.0f, 0.0f);
 			glEnd();
 		}
@@ -1066,7 +1066,7 @@ static void draw_line_bone(int armflag, int boneflag, short constflag, unsigned 
 		if (boneflag & BONE_SELECTED) UI_ThemeColor(TH_EDGE_SELECT);
 		else UI_ThemeColorShade(TH_BACK, -30);
 	}
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	glVertex3f(0.0f, 0.0f, 0.0f);
 	glVertex3f(0.0f, 1.0f, 0.0f);
 	glEnd();
@@ -1211,7 +1211,7 @@ static void draw_wire_bone_segments(bPoseChannel *pchan, Mat4 *bbones, float len
 			gpuPushMatrix(GPU_MODELVIEW);
 			gpuMultMatrix(GPU_MODELVIEW, bbone->mat[0]);
 			
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex3f(0.0f, 0.0f, 0.0f);
 			glVertex3f(0.0f, dlen, 0.0f);
 			glEnd();  /* GL_LINES */
@@ -1222,7 +1222,7 @@ static void draw_wire_bone_segments(bPoseChannel *pchan, Mat4 *bbones, float len
 	else {
 		gpuPushMatrix(GPU_MODELVIEW);
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex3f(0.0f, 0.0f, 0.0f);
 		glVertex3f(0.0f, length, 0.0f);
 		glEnd();
@@ -1395,7 +1395,7 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 					continue;
 				
 				setlinestyle(3);
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				
 				/* exclude tip from chain? */
 				if ((data->flag & CONSTRAINT_IK_TIP) == 0)
@@ -1426,7 +1426,7 @@ static void pchan_draw_IK_root_lines(bPoseChannel *pchan, short only_temp)
 				int segcount = 0;
 				
 				setlinestyle(3);
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				
 				parchan = pchan;
 				glVertex3fv(parchan->pose_tail);
@@ -1481,7 +1481,7 @@ static void draw_dof_ellipse(float ax, float az)
 
 	glColor4ub(70, 70, 70, 50);
 
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	pz = 0.0f;
 	for (i = 1; i < n; i++) {
 		z = staticSine[i];
@@ -1492,12 +1492,12 @@ static void draw_dof_ellipse(float ax, float az)
 			
 			if (j == n - i) {
 				glEnd();
-				glBegin(GL_TRIANGLES);
+				GPUBegin(GL_TRIANGLES);
 				bgl_sphere_project(ax * px, az * z);
 				bgl_sphere_project(ax * px, az * pz);
 				bgl_sphere_project(ax * x, az * pz);
 				glEnd();
-				glBegin(GL_QUADS);
+				GPUBegin(GL_QUADS);
 			}
 			else {
 				bgl_sphere_project(ax * x, az * z);
@@ -1517,7 +1517,7 @@ static void draw_dof_ellipse(float ax, float az)
 
 	glColor3ub(0, 0, 0);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	for (i = 0; i < n; i++)
 		bgl_sphere_project(staticSine[n - i - 1] * ax, staticSine[i] * az);
 	glEnd();
@@ -1589,7 +1589,7 @@ static void draw_pose_dofs(Object *ob)
 								gpuRotateAxis(GPU_MODELVIEW, theta, 'Z');
 								
 								glColor3ub(50, 50, 255);  /* blue, Z axis limit */
-								glBegin(GL_LINE_STRIP);
+								GPUBegin(GL_LINE_STRIP);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
 									float fac = ((float)a) / 16.0f * 0.5f;
@@ -1613,7 +1613,7 @@ static void draw_pose_dofs(Object *ob)
 								gpuRotateAxis(GPU_MODELVIEW, theta, 'X');
 								
 								glColor3ub(255, 50, 50);  /* Red, X axis limit */
-								glBegin(GL_LINE_STRIP);
+								GPUBegin(GL_LINE_STRIP);
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
 									float fac = ((float)a) / 16.0f * 0.5f;
@@ -1928,7 +1928,7 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 								UI_ThemeColor(TH_WIRE);
 							}
 							setlinestyle(3);
-							glBegin(GL_LINES);
+							GPUBegin(GL_LINES);
 							glVertex3fv(pchan->pose_head);
 							glVertex3fv(pchan->parent->pose_tail);
 							glEnd();
@@ -2228,7 +2228,7 @@ static void draw_ebones(View3D *v3d, ARegion *ar, Object *ob, const short dt)
 					GPU_select_load_id(-1);  /* -1 here is OK! */
 					setlinestyle(3);
 					
-					glBegin(GL_LINES);
+					GPUBegin(GL_LINES);
 					glVertex3fv(eBone->parent->tail);
 					glVertex3fv(eBone->head);
 					glEnd();

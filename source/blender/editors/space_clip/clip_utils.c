@@ -53,6 +53,7 @@
 #include "ED_clip.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "UI_interface.h"
 #include "UI_resources.h"
@@ -300,7 +301,7 @@ void clip_draw_cfra(SpaceClip *sc, ARegion *ar, Scene *scene)
 	UI_ThemeColor(TH_CFRAME);
 	glLineWidth(2.0);
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 	vec[1] = v2d->cur.ymin;
 	glVertex2fv(vec);
 

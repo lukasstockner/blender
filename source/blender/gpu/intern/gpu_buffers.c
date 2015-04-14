@@ -57,6 +57,7 @@
 
 #include "GPU_buffers.h"
 #include "GPU_draw.h"
+#include "GPU_immediate.h"
 
 #include "bmesh.h"
 
@@ -1435,7 +1436,7 @@ void GPU_buffer_unlock(GPUBuffer *buffer)
 /* used for drawing edges */
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count)
 {
-	glDrawElements(mode, count, GL_UNSIGNED_INT,
+	GPUDrawElements(mode, count, GL_UNSIGNED_INT,
 	               (elements->use_vbo ?
 	                (void *)(start * sizeof(unsigned int)) :
 	                ((int *)elements->pointer) + start));
@@ -2379,7 +2380,7 @@ static void gpu_draw_buffers_legacy_mesh(GPU_PBVH_Buffers *buffers)
 		if (paint_is_face_hidden(f, buffers->mvert))
 			continue;
 
-		glBegin((f->v4) ? GL_QUADS : GL_TRIANGLES);
+		GPUBegin((f->v4) ? GL_QUADS : GL_TRIANGLES);
 
 		if (buffers->smooth) {
 			for (j = 0; j < S; j++) {
@@ -2453,7 +2454,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_PBVH_Buffers *buffers)
 		/* TODO: could use strips with hiding as well */
 
 		if (gh) {
-			glBegin(GL_QUADS);
+			GPUBegin(GL_QUADS);
 			
 			for (y = 0; y < gridsize - 1; y++) {
 				for (x = 0; x < gridsize - 1; x++) {
@@ -2500,7 +2501,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_PBVH_Buffers *buffers)
 		}
 		else if (buffers->smooth) {
 			for (y = 0; y < gridsize - 1; y++) {
-				glBegin(GL_QUAD_STRIP);
+				GPUBegin(GL_QUAD_STRIP);
 				for (x = 0; x < gridsize; x++) {
 					CCGElem *a = CCG_grid_elem(key, grid, x, y);
 					CCGElem *b = CCG_grid_elem(key, grid, x, y + 1);
@@ -2521,7 +2522,7 @@ static void gpu_draw_buffers_legacy_grids(GPU_PBVH_Buffers *buffers)
 		}
 		else {
 			for (y = 0; y < gridsize - 1; y++) {
-				glBegin(GL_QUAD_STRIP);
+				GPUBegin(GL_QUAD_STRIP);
 				for (x = 0; x < gridsize; x++) {
 					CCGElem *a = CCG_grid_elem(key, grid, x, y);
 					CCGElem *b = CCG_grid_elem(key, grid, x, y + 1);
@@ -2606,7 +2607,7 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 				glColorPointer(3, GL_UNSIGNED_BYTE, sizeof(VertexBufferFormat),
 				               offset + offsetof(VertexBufferFormat, color));
 				
-				glDrawElements(GL_TRIANGLES, buffers->tot_quad * 6, buffers->index_type, 0);
+				GPUDrawElements(GL_TRIANGLES, buffers->tot_quad * 6, buffers->index_type, 0);
 
 				offset += buffers->gridkey.grid_area * sizeof(VertexBufferFormat);
 			}
@@ -2622,9 +2623,9 @@ void GPU_draw_pbvh_buffers(GPU_PBVH_Buffers *buffers, DMSetMaterial setMaterial,
 			               (void *)offsetof(VertexBufferFormat, color));
 
 			if (buffers->index_buf)
-				glDrawElements(GL_TRIANGLES, totelem, buffers->index_type, 0);
+				GPUDrawElements(GL_TRIANGLES, totelem, buffers->index_type, 0);
 			else
-				glDrawArrays(GL_TRIANGLES, 0, totelem);
+				GPUDrawArrays(GL_TRIANGLES, 0, totelem);
 		}
 
 		if (wireframe)
@@ -2780,7 +2781,7 @@ void GPU_draw_pbvh_BB(float min[3], float max[3], bool leaf)
 		glColor4f(1.0, 0.0, 0.0, 0.5);
 
 	glVertexPointer(3, GL_FLOAT, 0, &quads[0][0][0]);
-	glDrawArrays(GL_QUADS, 0, 16);
+	GPUDrawArrays(GL_QUADS, 0, 16);
 }
 
 void GPU_init_draw_pbvh_BB(void)

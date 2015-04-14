@@ -56,7 +56,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "GPU_extensions.h"
-#include "GPU_glew.h"
+#include "GPU_immediate.h"
 
 extern GLubyte stipple_quarttone[128]; /* glutil.c, bad level data */
 
@@ -319,7 +319,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm,
 
 		BM_mesh_elem_index_ensure(bm, BM_VERT);
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		BM_ITER_MESH_INDEX (eed, &iter, bm, BM_EDGES_OF_MESH, i) {
 			if (!setDrawOptions || (setDrawOptions(userData, i) != DM_DRAW_OPTION_SKIP)) {
 				glVertex3fv(bmdm->vertexCos[BM_elem_index_get(eed->v1)]);
@@ -329,7 +329,7 @@ static void emDM_drawMappedEdges(DerivedMesh *dm,
 		glEnd();
 	}
 	else {
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		BM_ITER_MESH_INDEX (eed, &iter, bm, BM_EDGES_OF_MESH, i) {
 			if (!setDrawOptions || (setDrawOptions(userData, i) != DM_DRAW_OPTION_SKIP)) {
 				glVertex3fv(eed->v1->co);
@@ -361,7 +361,7 @@ static void emDM_drawMappedEdgesInterp(DerivedMesh *dm,
 
 		BM_mesh_elem_index_ensure(bm, BM_VERT);
 
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		BM_ITER_MESH_INDEX (eed, &iter, bm, BM_EDGES_OF_MESH, i) {
 			if (!setDrawOptions || (setDrawOptions(userData, i) != DM_DRAW_OPTION_SKIP)) {
 				setDrawInterpOptions(userData, i, 0.0);
@@ -373,7 +373,7 @@ static void emDM_drawMappedEdgesInterp(DerivedMesh *dm,
 		glEnd();
 	}
 	else {
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		BM_ITER_MESH_INDEX (eed, &iter, bm, BM_EDGES_OF_MESH, i) {
 			if (!setDrawOptions || (setDrawOptions(userData, i) != DM_DRAW_OPTION_SKIP)) {
 				setDrawInterpOptions(userData, i, 0.0);
@@ -399,7 +399,7 @@ static void emDM_drawUVEdges(DerivedMesh *dm)
 		return;
 	}
 
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
 		BMLoop *l_iter, *l_first;
 		const float *uv, *uv_prev;
@@ -574,7 +574,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) { /* enabled with stipple */
 
 					if (poly_prev != GL_ZERO) glEnd();
-					poly_prev = GL_ZERO; /* force glBegin */
+					poly_prev = GL_ZERO; /* force GPUBegin */
 
 					glEnable(GL_POLYGON_STIPPLE);
 					glPolygonStipple(stipple_quarttone);
@@ -585,7 +585,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 				if (skip_normals) {
 					if (poly_type != poly_prev) {
 						if (poly_prev != GL_ZERO) glEnd();
-						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
+						GPUBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
 					glVertex3fv(vertexCos[BM_elem_index_get(ltri[0]->v)]);
@@ -599,11 +599,11 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 					if (shade_type != shade_prev) {
 						if (poly_prev != GL_ZERO) glEnd();
 						glShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
-						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
+						GPUBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 					if (poly_type != poly_prev) {
 						if (poly_prev != GL_ZERO) glEnd();
-						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
+						GPUBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 
 					if (!drawSmooth) {
@@ -637,7 +637,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 
 				if (flush) {
 					glEnd();
-					poly_prev = GL_ZERO; /* force glBegin */
+					poly_prev = GL_ZERO; /* force GPUBegin */
 
 					glDisable(GL_POLYGON_STIPPLE);
 				}
@@ -667,7 +667,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 				if (draw_option == DM_DRAW_OPTION_STIPPLE) { /* enabled with stipple */
 
 					if (poly_prev != GL_ZERO) glEnd();
-					poly_prev = GL_ZERO; /* force glBegin */
+					poly_prev = GL_ZERO; /* force GPUBegin */
 
 					glEnable(GL_POLYGON_STIPPLE);
 					glPolygonStipple(stipple_quarttone);
@@ -679,7 +679,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 				if (skip_normals) {
 					if (poly_type != poly_prev) {
 						if (poly_prev != GL_ZERO) glEnd();
-						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
+						GPUBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 					if (has_vcol_any) glColor3ubv((const GLubyte *)&(lcol[0]->r));
 					glVertex3fv(ltri[0]->v->co);
@@ -693,11 +693,11 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 					if (shade_type != shade_prev) {
 						if (poly_prev != GL_ZERO) glEnd();
 						glShadeModel((shade_prev = shade_type)); /* same as below but switch shading */
-						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
+						GPUBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 					if (poly_type != poly_prev) {
 						if (poly_prev != GL_ZERO) glEnd();
-						glBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
+						GPUBegin((poly_prev = poly_type)); /* BMesh: will always be GL_TRIANGLES */
 					}
 
 					if (!drawSmooth) {
@@ -732,7 +732,7 @@ static void emDM_drawMappedFaces(DerivedMesh *dm,
 
 				if (flush) {
 					glEnd();
-					poly_prev = GL_ZERO; /* force glBegin */
+					poly_prev = GL_ZERO; /* force GPUBegin */
 
 					glDisable(GL_POLYGON_STIPPLE);
 				}
@@ -845,7 +845,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 				if      (has_vcol)          bmdm_get_tri_col(ltri, lcol, cd_loop_color_offset);
 				else if (has_vcol_preview)  bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
 
-				glBegin(GL_TRIANGLES);
+				GPUBegin(GL_TRIANGLES);
 				if (!drawSmooth) {
 					glNormal3fv(polyNos[BM_elem_index_get(efa)]);
 
@@ -914,7 +914,7 @@ static void emDM_drawFacesTex_common(DerivedMesh *dm,
 				if      (has_vcol)          bmdm_get_tri_col(ltri, lcol, cd_loop_color_offset);
 				else if (has_vcol_preview)  bmdm_get_tri_colpreview(ltri, lcol, color_vert_array);
 
-				glBegin(GL_TRIANGLES);
+				GPUBegin(GL_TRIANGLES);
 				if (!drawSmooth) {
 					glNormal3fv(efa->no);
 
@@ -1088,7 +1088,7 @@ static void emDM_drawMappedFacesGLSL(DerivedMesh *dm,
 			if (do_draw)
 				DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
-			glBegin(GL_TRIANGLES);
+			GPUBegin(GL_TRIANGLES);
 		}
 
 		if (do_draw) {
@@ -1194,7 +1194,7 @@ static void emDM_drawMappedFacesMat(DerivedMesh *dm,
 			setMaterial(userData, matnr = new_matnr, &gattribs);
 			DM_vertex_attributes_from_gpu(dm, &gattribs, &attribs);
 
-			glBegin(GL_TRIANGLES);
+			GPUBegin(GL_TRIANGLES);
 		}
 
 		/* draw face */

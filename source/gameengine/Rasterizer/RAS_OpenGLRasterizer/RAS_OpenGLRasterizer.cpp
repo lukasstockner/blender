@@ -54,6 +54,7 @@
 #include "GPU_draw.h"
 #include "GPU_material.h"
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 extern "C"{
 	#include "BLF_api.h"
@@ -372,7 +373,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 	if (tex) glDisable(GL_TEXTURE_2D);
 
 	//draw lines
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	for (unsigned int i=0;i<m_debugShapes.size();i++)
 	{
 		if (m_debugShapes[i].m_type != OglDebugShape::LINE)
@@ -390,7 +391,7 @@ void RAS_OpenGLRasterizer::FlushDebugShapes()
 	{
 		if (m_debugShapes[i].m_type != OglDebugShape::CIRCLE)
 			continue;
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glColor4f(m_debugShapes[i].m_color[0],m_debugShapes[i].m_color[1],m_debugShapes[i].m_color[2],1.f);
 
 		static const MT_Vector3 worldUp(0.0, 0.0, 1.0);
@@ -654,7 +655,7 @@ void RAS_OpenGLRasterizer::IndexPrimitives_3DText(RAS_MeshSlot& ms,
 
 		if (it.array->m_type == RAS_DisplayArray::LINE) {
 			// line drawing, no text
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 
 			for (i=0; i<it.totindex; i+=2)
 			{
@@ -1390,7 +1391,7 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 
 	/* draw in black first*/
 	glColor3ub(0, 0, 0);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glVertex2f(xco + 1 + 1 + barsize * percentage, yco - 1 + 10);
 	glVertex2f(xco + 1, yco - 1 + 10);
 	glVertex2f(xco + 1, yco - 1);
@@ -1398,7 +1399,7 @@ void RAS_OpenGLRasterizer::RenderBox2D(int xco,
 	glEnd();
 
 	glColor3ub(255, 255, 255);
-	glBegin(GL_QUADS);
+	GPUBegin(GL_QUADS);
 	glVertex2f(xco + 1 + barsize * percentage, yco + 10);
 	glVertex2f(xco, yco + 10);
 	glVertex2f(xco, yco);

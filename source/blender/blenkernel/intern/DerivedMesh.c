@@ -74,7 +74,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
-#include "GPU_glew.h"
+#include "GPU_immediate.h"
 
 /* very slow! enable for testing only! */
 //#define USE_MODIFIER_VALIDATE
@@ -3240,7 +3240,7 @@ static void navmesh_drawColored(DerivedMesh *dm)
 	{
 		DEBUG_VBO("Using legacy code. drawNavMeshColored\n");
 		//glShadeModel(GL_SMOOTH);
-		glBegin(glmode = GL_QUADS);
+		GPUBegin(glmode = GL_QUADS);
 		for (a = 0; a < dm->numTessFaceData; a++, mface++) {
 			int new_glmode = mface->v4 ? GL_QUADS : GL_TRIANGLES;
 			int pi = polygonIdx[a];
@@ -3253,7 +3253,7 @@ static void navmesh_drawColored(DerivedMesh *dm)
 
 			if (new_glmode != glmode) {
 				glEnd();
-				glBegin(glmode = new_glmode);
+				GPUBegin(glmode = new_glmode);
 			}
 			glColor3fv(col);
 			glVertex3fv(mvert[mface->v1].co);

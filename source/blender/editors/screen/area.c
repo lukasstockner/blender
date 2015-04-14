@@ -2060,7 +2060,7 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 	UI_ThemeColorShade(TH_BACK, (int)(20.0f * (1.0f - blendfac)));
 
 	fac = 0.0f;
-	glBegin(GL_LINES);
+	GPUBegin(GL_LINES);
 	while (fac < 1.0f) {
 		glVertex2f(x1, y1 * (1.0f - fac) + y2 * fac);
 		glVertex2f(x2, y1 * (1.0f - fac) + y2 * fac);

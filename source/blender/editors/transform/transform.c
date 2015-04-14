@@ -88,6 +88,7 @@
 #include "BLF_translation.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
 
 #include "transform.h"
 
@@ -1607,7 +1608,7 @@ static void drawArrow(ArrowDirection d, short offset, short length, short size)
 			size = -size;
 			/* fall-through */
 		case RIGHT:
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2s(offset, 0);
 			glVertex2s(offset + length, 0);
 			glVertex2s(offset + length, 0);
@@ -1623,7 +1624,7 @@ static void drawArrow(ArrowDirection d, short offset, short length, short size)
 			size = -size;
 			/* fall-through */
 		case UP:
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2s(0, offset);
 			glVertex2s(0, offset + length);
 			glVertex2s(0, offset + length);
@@ -1642,7 +1643,7 @@ static void drawArrowHead(ArrowDirection d, short size)
 			size = -size;
 			/* fall-through */
 		case RIGHT:
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2s(0, 0);
 			glVertex2s(-size, -size);
 			glVertex2s(0, 0);
@@ -1654,7 +1655,7 @@ static void drawArrowHead(ArrowDirection d, short size)
 			size = -size;
 			/* fall-through */
 		case UP:
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			glVertex2s(0, 0);
 			glVertex2s(-size, -size);
 			glVertex2s(0, 0);
@@ -1670,7 +1671,7 @@ static void drawArc(float size, float angle_start, float angle_end, int segments
 	float angle;
 	int a;
 
-	glBegin(GL_LINE_STRIP);
+	GPUBegin(GL_LINE_STRIP);
 
 	for (angle = angle_start, a = 0; a < segments; angle += delta, a++) {
 		glVertex2f(cosf(angle) * size, sinf(angle) * size);
@@ -1719,7 +1720,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				UI_ThemeColor(TH_VIEW_OVERLAY);
 
 				setlinestyle(3);
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				glVertex2iv(t->mval);
 				glVertex2fv(cent);
 				glEnd();
@@ -1763,7 +1764,7 @@ static void drawHelpline(bContext *UNUSED(C), int x, int y, void *customdata)
 				UI_ThemeColor(TH_VIEW_OVERLAY);
 
 				setlinestyle(3);
-				glBegin(GL_LINE_STRIP);
+				GPUBegin(GL_LINE_STRIP);
 				glVertex2iv(t->mval);
 				glVertex2fv(cent);
 				glEnd();
@@ -6286,7 +6287,7 @@ static void drawEdgeSlide(const struct bContext *C, TransInfo *t)
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			if (curr_sv->v_a) {
 				glVertex3fv(curr_sv->v_a->co);
 				glVertex3fv(curr_sv->v_co_orig);
@@ -6843,7 +6844,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 
 			glLineWidth(line_size);
 			UI_ThemeColorShadeAlpha(TH_EDGE_SELECT, 80, alpha_shade);
-			glBegin(GL_LINES);
+			GPUBegin(GL_LINES);
 			if (is_clamp) {
 				sv = sld->sv;
 				for (i = 0; i < sld->totsv; i++, sv++) {
@@ -6895,7 +6896,7 @@ static void drawVertSlide(const struct bContext *C, TransInfo *t)
 				setlinestyle(1);
 
 				cpack(0xffffff);
-				glBegin(GL_LINES);
+				GPUBegin(GL_LINES);
 				glVertex3fv(curr_sv->co_orig_3d);
 				glVertex3fv(co_dest_3d);
 

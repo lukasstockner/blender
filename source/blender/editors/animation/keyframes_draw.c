@@ -59,6 +59,8 @@
 #include "ED_keyframes_draw.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
+
 
 /* *************************** Keyframe Processing *************************** */
 
@@ -461,7 +463,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		displist1 = glGenLists(1);
 		glNewList(displist1, GL_COMPILE);
 			
-		glBegin(GL_LINE_LOOP);
+		GPUBegin(GL_LINE_LOOP);
 		glVertex2fv(_unit_diamond_shape[0]);
 		glVertex2fv(_unit_diamond_shape[1]);
 		glVertex2fv(_unit_diamond_shape[2]);
@@ -474,7 +476,7 @@ void draw_keyframe_shape(float x, float y, float xscale, float hsize, short sel,
 		displist2 = glGenLists(1);
 		glNewList(displist2, GL_COMPILE);
 			
-		glBegin(GL_QUADS);
+		GPUBegin(GL_QUADS);
 		glVertex2fv(_unit_diamond_shape[0]);
 		glVertex2fv(_unit_diamond_shape[1]);
 		glVertex2fv(_unit_diamond_shape[2]);

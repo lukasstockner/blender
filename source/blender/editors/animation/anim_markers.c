@@ -72,6 +72,8 @@
 #include "ED_types.h"
 
 #include "GPU_matrix.h"
+#include "GPU_immediate.h"
+
 
 /* ************* Marker API **************** */
 
@@ -355,7 +357,7 @@ static void draw_marker(
 		else
 			glColor4ub(0, 0, 0, 96);
 		
-		glBegin(GL_LINES);
+		GPUBegin(GL_LINES);
 		glVertex2f(xpos + 0.5f, 12.0f);
 		glVertex2f(xpos + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
 		glEnd();
