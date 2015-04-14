@@ -36,6 +36,7 @@
 #include "GPU_debug.h"
 #include "GPU_raster.h"
 #include "GPU_immediate.h"
+#include "GPU_matrix.h"
 
 /* internal */
 #include "intern/gpu_private.h"

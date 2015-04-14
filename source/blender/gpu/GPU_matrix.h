@@ -74,6 +74,8 @@ void gpuLookAt(eGPUMatrixMode stack, GLfloat eyeX, GLfloat eyeY, GLfloat eyeZ, G
 void gpuProject(const GLfloat obj[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat win[3]);
 GLboolean gpuUnProject(const GLfloat win[3], const GLfloat model[16], const GLfloat proj[16], const GLint view[4], GLfloat obj[3]);
 
+void gpu_commit_matrix(void);
+
 void GPU_feedback_vertex_3fv(GLenum type, GLfloat x, GLfloat y, GLfloat z,            GLfloat out[3]);
 void GPU_feedback_vertex_4fv(GLenum type, GLfloat x, GLfloat y, GLfloat z, GLfloat w, GLfloat out[4]);
 void GPU_feedback_vertex_4dv(GLenum type, GLdouble x, GLdouble y, GLdouble z, GLdouble w, GLdouble out[4]);

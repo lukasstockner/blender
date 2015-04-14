@@ -52,6 +52,7 @@
 #include "GPU_extensions.h"
 #include "GPU_state_latch.h"
 #include "GPU_debug.h"
+#include "GPU_matrix.h"
 
 /* internal */
 #include "intern/gpu_private.h"

@@ -86,8 +86,6 @@ bool gpu_is_select_mode(void);
 void gpu_matrix_init(void);
 void gpu_matrix_exit(void);
 
-void gpu_commit_matrix(void);
-
 void gpu_font_init(void);
 void gpu_font_exit(void);
 

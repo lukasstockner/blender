@@ -37,6 +37,7 @@
 #include "GPU_extensions.h"
 #include "GPU_debug.h"
 #include "GPU_font.h"
+#include "GPU_matrix.h"
 
 /* external */
 

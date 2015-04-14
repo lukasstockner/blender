@@ -38,6 +38,7 @@
 #include "GPU_immediate.h"
 #include "GPU_debug.h"
 #include "GPU_sprite.h"
+#include "GPU_matrix.h"
 
 #include "intern/gpu_private.h"
 

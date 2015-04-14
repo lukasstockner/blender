@@ -526,6 +526,8 @@ static void blf_draw__start(FontBLF *font, GLint *param)
 	/* always bind the texture for the first glyph */
 	font->tex_bind_state = -1;
 
+	gpu_commit_matrix();
+
 	/* Save the current parameter to restore it later. */
 	glGetTexEnviv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, param);
 	if (*param != GL_MODULATE)

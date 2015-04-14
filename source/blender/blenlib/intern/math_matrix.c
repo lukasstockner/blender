@@ -2380,20 +2380,20 @@ void pseudoinverse_m3_m3(float Ainv[3][3], float A[3][3], float epsilon)
 
 void mat4_ortho_set(float m[][4], float left, float right, float bottom, float top, float nearVal, float farVal)
 {
-	m[0][0] = 2.0f/(right-left);
+	m[0][0] = 2.0f / (right - left);
 	m[1][0] = 0.0f;
 	m[2][0] =  0.0f;
-	m[3][0] = -(right+left)/(right-left);
+	m[3][0] = -(right + left) / (right - left);
 
 	m[0][1] = 0.0f;
-	m[1][1] = 2.0f/(top-bottom);
+	m[1][1] = 2.0f / (top - bottom);
 	m[2][1] =  0.0f;
-	m[3][1] = -(top+bottom)/(top-bottom);
+	m[3][1] = -(top + bottom) / (top - bottom);
 
 	m[0][2] = 0.0f;
 	m[1][2] = 0.0f;
-	m[2][2] = -2.0f/(farVal-nearVal);
-	m[3][2] = -(farVal+nearVal)/(farVal-nearVal);
+	m[2][2] = -2.0f / (farVal - nearVal);
+	m[3][2] = -(farVal + nearVal) / (farVal - nearVal);
 
 	m[0][3] = 0.0f;
 	m[1][3] = 0.0f;
