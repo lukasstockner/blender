@@ -49,10 +49,19 @@ public:
 	{
 		Device *device;
 
+		bool use_split_kernel_test = false;
+
 		foreach(DeviceInfo& subinfo, info.multi_devices) {
 			device = Device::create(subinfo, stats, background);
+			use_split_kernel_test |= device->use_split_kernel;
 			devices.push_back(SubDevice(device));
 		}
+
+		/* Set use_split_kernel of multi device to true, even
+		 * if one of the sub devices uses split kernel
+		 * todo: Enable it only for OpenCL multiple devices
+		 */
+		this->use_split_kernel = use_split_kernel_test;
 
 #ifdef WITH_NETWORK
 		/* try to add network devices */
@@ -90,10 +99,14 @@ public:
 
 	bool load_kernels(bool experimental)
 	{
-		foreach(SubDevice& sub, devices)
-			if(!sub.device->load_kernels(experimental))
+		foreach(SubDevice& sub, devices) {
+#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+			sub.device->clos_max = this->clos_max;
+#endif
+			sub.device->closure_nodes = this->closure_nodes;
+			if (!sub.device->load_kernels(experimental))
 				return false;
-
+		}
 		return true;
 	}
 
