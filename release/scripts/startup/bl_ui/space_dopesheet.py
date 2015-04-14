@@ -51,6 +51,11 @@ def dopesheet_filter(layout, context, genericFiltersOnly=False):
         row.prop(dopesheet, "show_only_matching_fcurves", text="")
         if dopesheet.show_only_matching_fcurves:
             row.prop(dopesheet, "filter_fcurve_name", text="")
+    else:
+        row = layout.row(align=True)
+        row.prop(dopesheet, "use_filter_text", text="")
+        if dopesheet.use_filter_text:
+            row.prop(dopesheet, "filter_text", text="")
 
     if not genericFiltersOnly:
         row = layout.row(align=True)
@@ -203,6 +208,7 @@ class DOPESHEET_MT_view(Menu):
         layout.separator()
         layout.operator("action.view_all")
         layout.operator("action.view_selected")
+        layout.operator("action.view_frame")
 
         layout.separator()
         layout.operator("screen.area_dupli")
@@ -402,6 +408,19 @@ class DOPESHEET_MT_gpencil_frame(Menu):
         #layout.separator()
         #layout.operator("action.copy")
         #layout.operator("action.paste")
+
+
+class DOPESHEET_MT_delete(Menu):
+    bl_label = "Delete"
+
+    def draw(self, context):
+        layout = self.layout
+
+        layout.operator("action.delete")
+
+        layout.separator()
+
+        layout.operator("action.clean")
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)

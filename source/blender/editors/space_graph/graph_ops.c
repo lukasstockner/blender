@@ -380,6 +380,7 @@ void graphedit_operatortypes(void)
 	WM_operatortype_append(GRAPH_OT_view_all);
 	WM_operatortype_append(GRAPH_OT_view_selected);
 	WM_operatortype_append(GRAPH_OT_properties);
+	WM_operatortype_append(GRAPH_OT_view_frame);
 	
 	WM_operatortype_append(GRAPH_OT_ghost_curves_create);
 	WM_operatortype_append(GRAPH_OT_ghost_curves_clear);
@@ -568,9 +569,9 @@ static void graphedit_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	
 	WM_keymap_add_item(keymap, "GRAPH_OT_bake", CKEY, KM_PRESS, KM_ALT, 0);
 	
-	WM_keymap_add_item(keymap, "GRAPH_OT_delete", XKEY, KM_PRESS, 0, 0);
-	WM_keymap_add_item(keymap, "GRAPH_OT_delete", DELKEY, KM_PRESS, 0, 0);
-	
+	WM_keymap_add_menu(keymap, "GRAPH_MT_delete", XKEY, KM_PRESS, 0, 0);
+	WM_keymap_add_menu(keymap, "GRAPH_MT_delete", DELKEY, KM_PRESS, 0, 0);
+
 	WM_keymap_add_item(keymap, "GRAPH_OT_duplicate_move", DKEY, KM_PRESS, KM_SHIFT, 0);
 	
 	/* insertkey */
@@ -594,7 +595,8 @@ static void graphedit_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	WM_keymap_add_item(keymap, "GRAPH_OT_view_all", HOMEKEY, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "GRAPH_OT_view_all", NDOF_BUTTON_FIT, KM_PRESS, 0, 0);
 	WM_keymap_add_item(keymap, "GRAPH_OT_view_selected", PADPERIOD, KM_PRESS, 0, 0);
-	
+	WM_keymap_add_item(keymap, "GRAPH_OT_view_frame", PAD0, KM_PRESS, 0, 0);
+
 	/* F-Modifiers */
 	kmi = WM_keymap_add_item(keymap, "GRAPH_OT_fmodifier_add", MKEY, KM_PRESS, KM_CTRL | KM_SHIFT, 0);
 	RNA_boolean_set(kmi->ptr, "only_active", false);
@@ -609,7 +611,7 @@ static void graphedit_keymap_keyframes(wmKeyConfig *keyconf, wmKeyMap *keymap)
 	transform_keymap_for_space(keyconf, keymap, SPACE_IPO);
 	
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_toggle", OKEY, KM_PRESS, 0, 0);
-	RNA_string_set(kmi->ptr, "data_path", "tool_settings.use_proportional_ipo");
+	RNA_string_set(kmi->ptr, "data_path", "tool_settings.use_proportional_fcurve");
 
 	/* pivot point settings */
 	kmi = WM_keymap_add_item(keymap, "WM_OT_context_set_enum", COMMAKEY, KM_PRESS, 0, 0);

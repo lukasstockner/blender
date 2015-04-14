@@ -202,7 +202,7 @@ float *RE_RenderLayerGetPass(volatile RenderLayer *rl, int passtype, const char 
 
 			if (viewname == NULL)
 				break;
-			else if (strcmp(rpass->view, viewname) == 0)
+			else if (STREQ(rpass->view, viewname))
 				break;
 		}
 	}
@@ -776,7 +776,7 @@ static void render_result_rescale(Render *re)
 	if (src_rectf == NULL) {
 		RenderLayer *rl = render_get_active_layer(re, re->result);
 		if (rl != NULL) {
-			src_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, "");
+			src_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, NULL);
 		}
 	}
 
@@ -795,7 +795,7 @@ static void render_result_rescale(Render *re)
 				RenderLayer *rl;
 				rl = render_get_active_layer(re, re->result);
 				if (rl != NULL) {
-					dst_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, "");
+					dst_rectf = RE_RenderLayerGetPass(rl, SCE_PASS_COMBINED, NULL);
 				}
 			}
 
@@ -812,9 +812,8 @@ static void render_result_rescale(Render *re)
 				}
 			}
 		}
+		render_result_free(result);
 	}
-
-	render_result_free(result);
 }
 
 void RE_ChangeResolution(Render *re, int winx, int winy, rcti *disprect)
@@ -2249,9 +2248,9 @@ static void do_merge_fullsample(Render *re, bNodeTree *ntree)
 				
 				for (x = 0; x < re->rectx; x++, rf += 4, col += 4) {
 					/* clamping to 1.0 is needed for correct AA */
-					CLAMP(col[0], 0.0, 1.0f);
-					CLAMP(col[1], 0.0, 1.0f);
-					CLAMP(col[2], 0.0, 1.0f);
+					CLAMP(col[0], 0.0f, 1.0f);
+					CLAMP(col[1], 0.0f, 1.0f);
+					CLAMP(col[2], 0.0f, 1.0f);
 					
 					add_filt_fmask_coord(filt, col, rf, re->rectx, re->recty, x, y);
 				}

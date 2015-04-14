@@ -2465,7 +2465,7 @@ void ui_draw_gradient(const rcti *rect, const float hsv[3], const int type, cons
 		}
 		glEnd();
 	}
-	
+
 	glShadeModel(GL_FLAT);
 }
 
@@ -2509,7 +2509,7 @@ void ui_hsvcube_pos_from_vals(uiBut *but, const rcti *rect, float *hsv, float *x
 			y = (hsv[2] - but->softmin) / (but->softmax - but->softmin);
 			break;
 	}
-	
+
 	/* cursor */
 	*xp = rect->xmin + x * BLI_rcti_size_x(rect);
 	*yp = rect->ymin + y * BLI_rcti_size_y(rect);

@@ -45,6 +45,7 @@
 #include "blf_internal_types.h"
 
 #include "BLF_api.h"
+#include "BLF_translation.h"
 
 #include "BLI_strict_flags.h"
 
@@ -65,7 +66,7 @@ void BLF_thumb_preview(
 	/* shrink 1/th each line */
 	int font_shrink = 4;
 
-	FontBLF* font;
+	FontBLF *font;
 	int i;
 
 	/* Create a new blender font obj and fill it with default values */
@@ -97,7 +98,7 @@ void BLF_thumb_preview(
 
 		font->pos[1] -= font->glyph_cache->ascender * 1.1f;
 
-		blf_font_buffer(font, draw_str[i]);
+		blf_font_buffer(font, BLF_translate_do(BLF_I18NCONTEXT_DEFAULT, draw_str[i]));
 	}
 
 	blf_font_free(font);
