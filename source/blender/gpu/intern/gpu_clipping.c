@@ -107,7 +107,7 @@ void GPU_restore_clip_planes(int clip_plane_count, const GPUplane clip_planes[])
 
 static void feedback_clip_plane_position(double position[4] /* in-out */)
 {
-	GPU_feedback_vertex_4dv(GL_MODELVIEW_MATRIX, position[0], position[1], position[2], position[3], position);
+	GPU_feedback_vertex_4dv(GPU_MODELVIEW_MATRIX, position[0], position[1], position[2], position[3], position);
 }
 
 

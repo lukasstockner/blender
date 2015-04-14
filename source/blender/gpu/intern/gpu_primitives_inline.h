@@ -48,52 +48,52 @@ extern "C" {
 
 BLI_INLINE void gpuAppendLinef(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y2);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y2);
 }
 
 BLI_INLINE void gpuAppendLinei(GLint x1, GLint y1, GLint x2, GLint y2)
 {
-	glVertex2i(x1, y1);
-	glVertex2i(x2, y2);
+	gpuVertex2i(x1, y1);
+	gpuVertex2i(x2, y2);
 }
 
 BLI_INLINE void gpuDrawLinef(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
-	GPUBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	gpuAppendLinef(x1, y1, x2, y2);
-	glEnd();
+	gpuEnd();
 }
 
 BLI_INLINE void gpuDrawLinei(GLint x1, GLint y1, GLint x2, GLint y2)
 {
-	GPUBegin(GL_LINES);
+	gpuBegin(GL_LINES);
 	gpuAppendLinei(x1, y1, x2, y2);
-	glEnd();
+	gpuEnd();
 }
 
 
 
 BLI_INLINE void gpuAppendFilledRectf(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2)
 {
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y1);
-	glVertex2f(x2, y2);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y1);
+	gpuVertex2f(x2, y2);
 
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y2);
-	glVertex2f(x1, y2);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x1, y2);
 }
 
 BLI_INLINE void gpuAppendFilledRecti(GLint x1, GLint y1, GLint x2, GLint y2)
 {
-	glVertex2i(x1, y1);
-	glVertex2i(x2, y1);
-	glVertex2i(x2, y2);
+	gpuVertex2i(x1, y1);
+	gpuVertex2i(x2, y1);
+	gpuVertex2i(x2, y2);
 
-	glVertex2i(x1, y1);
-	glVertex2i(x2, y2);
-	glVertex2i(x1, y2);
+	gpuVertex2i(x1, y1);
+	gpuVertex2i(x2, y2);
+	gpuVertex2i(x1, y2);
 }
 
 BLI_INLINE void gpuAppendWireRectf(
@@ -102,10 +102,10 @@ BLI_INLINE void gpuAppendWireRectf(
 	GLfloat x2,
 	GLfloat y2)
 {
-	glVertex2f(x1, y1);
-	glVertex2f(x2, y1);
-	glVertex2f(x2, y2);
-	glVertex2f(x1, y2);
+	gpuVertex2f(x1, y1);
+	gpuVertex2f(x2, y1);
+	gpuVertex2f(x2, y2);
+	gpuVertex2f(x1, y2);
 }
 
 BLI_INLINE void gpuAppendWireRecti(
@@ -114,10 +114,10 @@ BLI_INLINE void gpuAppendWireRecti(
 	GLint x2,
 	GLint y2)
 {
-	glVertex2i(x1, y1);
-	glVertex2i(x2, y1);
-	glVertex2i(x2, y2);
-	glVertex2i(x1, y2);
+	gpuVertex2i(x1, y1);
+	gpuVertex2i(x2, y1);
+	gpuVertex2i(x2, y2);
+	gpuVertex2i(x1, y2);
 }
 
 BLI_INLINE void gpuDrawFilledRectf(
@@ -126,9 +126,9 @@ BLI_INLINE void gpuDrawFilledRectf(
 	GLfloat x2,
 	GLfloat y2)
 {
-	GPUBegin(GL_TRIANGLES);
+	gpuBegin(GL_TRIANGLES);
 	gpuAppendFilledRectf(x1, y1, x2, y2);
-	glEnd();
+	gpuEnd();
 }
 
 BLI_INLINE void gpuDrawFilledRecti(
@@ -137,9 +137,9 @@ BLI_INLINE void gpuDrawFilledRecti(
 	GLint x2,
 	GLint y2)
 {
-	GPUBegin(GL_TRIANGLES);
+	gpuBegin(GL_TRIANGLES);
 	gpuAppendFilledRecti(x1, y1, x2, y2);
-	glEnd();
+	gpuEnd();
 }
 
 BLI_INLINE void gpuDrawWireRectf(
@@ -148,9 +148,9 @@ BLI_INLINE void gpuDrawWireRectf(
 	GLfloat x2,
 	GLfloat y2)
 {
-	GPUBegin(GL_LINE_LOOP);
+	gpuBegin(GL_LINE_LOOP);
 	gpuAppendWireRectf(x1, y1, x2, y2);
-	glEnd();
+	gpuEnd();
 }
 
 BLI_INLINE void gpuDrawWireRecti(
@@ -159,9 +159,9 @@ BLI_INLINE void gpuDrawWireRecti(
 	GLint x2,
 	GLint y2)
 {
-	GPUBegin(GL_LINE_LOOP);
+	gpuBegin(GL_LINE_LOOP);
 	gpuAppendWireRecti(x1, y1, x2, y2);
-	glEnd();
+	gpuEnd();
 }
 
 

@@ -688,6 +688,7 @@ void gpu_end_buffer_gl(void)
 
 		unsetup();
 		GPU_shader_unbind();
+		gpu_set_common(NULL);
 		GPU_ASSERT_NO_GL_ERRORS("gpu_end_buffer_gl end");
 	}
 }
@@ -2405,19 +2406,20 @@ void gpuIndexEnd(void)
 void GPUBegin(GLenum mode)
 {
 	gpu_commit_matrix();
+	GPU_ASSERT_NO_GL_ERRORS("GPUBegin");
 	glBegin(mode);
 }
 
 void GPUDrawArrays(GLenum mode, int start, int count)
 {
 	gpu_commit_matrix();
-	glDrawArrays(mode, start, count);
+	GPU_CHECK_ERRORS_AROUND(glDrawArrays(mode, start, count));
 }
 
-void GPUDrawElements(GLenum mode, int count, int type, void *p)
+void GPUDrawElements(GLenum mode, int count, int type, const void *p)
 {
 	gpu_commit_matrix();
-	glDrawElements(mode, count, type, p);
+	GPU_CHECK_ERRORS_AROUND(glDrawElements(mode, count, type, p));
 }
 
 

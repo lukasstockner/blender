@@ -100,6 +100,7 @@
 #include "GPU_compositing.h"
 #include "GPU_primitives.h"
 #include "GPU_matrix.h"
+#include "GPU_aspect.h"
 
 #include "view3d_intern.h"  /* own include */
 
@@ -126,7 +127,7 @@ void circf(float x, float y, float rad)
 	
 	gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0.0);
 
-	gpuDrawDisk(0.0, 0.0, rad, 32);
+	gpuSingleDisk(0.0, 0.0, rad, 32);
 	
 	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
@@ -137,7 +138,7 @@ void circ(float x, float y, float rad)
 	
 	gpuTranslate(GPU_MODELVIEW_MATRIX, x, y, 0.0);
 	
-	gpuDrawDisk(0.0, 0.0, rad, 32);
+	gpuSingleDisk(0.0, 0.0, rad, 32);
 
 	gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 }
@@ -2871,7 +2872,7 @@ static void view3d_draw_objects(
 	}
 
 	if (!draw_offscreen) {
-		BIF_draw_manipulator(C);
+		//BIF_draw_manipulator(C);
 	}
 
 	/* cleanup */
@@ -3702,7 +3703,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 	}
 
 	/* main drawing call */
-	view3d_draw_objects(C, scene, v3d, ar, grid_unit, true, false, do_compositing ? rv3d->compositor : NULL);
+	GPU_CHECK_ERRORS_AROUND(view3d_draw_objects(C, scene, v3d, ar, grid_unit, true, false, do_compositing ? rv3d->compositor : NULL));
 
 	/* post process */
 	if (do_compositing) {
@@ -3729,6 +3730,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		/* TODO: draw something else (but not this) during fly mode */
 		draw_rotation_guide(rv3d);
 
+	GPU_ASSERT_NO_GL_ERRORS("lala");
 }
 
 static bool is_cursor_visible(Scene *scene)
