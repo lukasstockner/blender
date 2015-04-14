@@ -267,6 +267,7 @@ class AssetEngineAmber(AssetEngine):
             if job.root != entries.root_path:
                 self.reset()
                 self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
+                self.root = entries.root_path
             else:
                 job.update(self.repo, self.dirs, self.uuids)
         elif self.root != entries.root_path:
@@ -274,6 +275,7 @@ class AssetEngineAmber(AssetEngine):
             job_id = self.job_uuid
             self.job_uuid += 1
             self.jobs[job_id] = AmberJobList(self.executor, job_id, entries.root_path)
+            self.root = entries.root_path
         if self.repo:
             entries.nbr_entries = len(self.repo["entries"])
             self.tags_source[:] = sorted(self.repo["tags"].items(), key=lambda i: i[1], reverse=True)
@@ -287,7 +289,7 @@ class AssetEngineAmber(AssetEngine):
         root_path = None
         for uuid in uuids.uuids:
             root, file_type, blen_type, vuuids = self.uuids[uuid.uuid_asset]
-            ruuids = vuuids[uuid.uuid_variant]
+            var, ruuids = vuuids[uuid.uuid_variant]
             path_archive, path = ruuids[uuid.uuid_revision]
             if root_path is None:
                 root_path = root
@@ -298,7 +300,8 @@ class AssetEngineAmber(AssetEngine):
             entry.blender_type = blen_type
             # archive part not yet implemented!
             entry.relpath = path
-        entries.root_path = root_path
+        if root_path is not None:
+            entries.root_path = root_path
         return True
 
     def sort_filter(self, use_sort, use_filter, filter_glob, filter_search, entries):
@@ -313,11 +316,13 @@ class AssetEngineAmber(AssetEngine):
                 for path, size, timestamp, uuid in self.dirs:
                     if filter_search and filter_search not in path:
                         continue
+                    if path.startswith(".") and not path.startswith(".."):
+                        continue
                     self.sortedfiltered.append((path, size, timestamp, uuid))
             use_sort = True
         entries.nbr_entries_filtered = len(self.sortedfiltered)
         if use_sort:
-            self.sortedfiltered.sort(key=lambda e: e[0])
+            self.sortedfiltered.sort(key=lambda e: e[0].lower())
             return True
         return False
 

@@ -167,8 +167,6 @@ void BKE_asset_engine_load_pre(AssetEngine *engine, FileDirEntryArr *r_entries)
 			memcpy(uuid->uuid_revision, en->entry->uuid, sizeof(uuid->uuid_revision));
 		}
 
-		BKE_filedir_entryarr_clear(r_entries);
-
 		if (!engine->type->load_pre(engine, uuids, r_entries)) {
 			/* If load_pre returns false (i.e. fails), clear all paths! */
 			/* TODO: report!!! */

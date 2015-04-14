@@ -1572,14 +1572,15 @@ static bool filelist_file_cache_block_create(struct FileList *filelist, const in
 	FileListEntryCache *cache = &filelist->filelist_cache;
 
 	if (filelist->ae) {
-		FileDirEntry *tmp_entry;
+		FileDirEntry *entry;
 		int i;
 
-		tmp_entry = filelist_file_create_entries_block(filelist, start_index, size);
+		entry = filelist_file_create_entries_block(filelist, start_index, size);
 
-		for (i = 0; i < size; i++, cursor++, tmp_entry = tmp_entry->next) {
-			printf("%d, %p\n", i, tmp_entry);
-			cache->block_entries[cursor] = tmp_entry;
+		for (i = 0; i < size; i++, cursor++, entry = entry->next) {
+			printf("%d, %p\n", i, entry);
+			cache->block_entries[cursor] = entry;
+			BLI_ghash_insert(cache->uuids, entry->uuid, entry);
 		}
 		return true;
 	}
