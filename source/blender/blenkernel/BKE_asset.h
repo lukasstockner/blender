@@ -93,6 +93,10 @@ typedef bool (*ae_sort_filter)(struct AssetEngine *engine, const bool sort, cons
 typedef bool (*ae_entries_block_get)(struct AssetEngine *engine, const int start_index, const int end_index,
                                      struct FileDirEntryArr *entries_r);
 
+/* Return specified entries from their uuids, in entries_r. */
+typedef bool (*ae_entries_uuid_get)(struct AssetEngine *engine, struct AssetUUIDList *uuids,
+                                    struct FileDirEntryArr *entries_r);
+
 /* 'pre-loading' hook, called before opening/appending/linking given entries.
  * Note first given uuid is the one of 'active' entry, and first entry in returned list will be considered as such too.
  * E.g. allows the engine to ensure entries' paths are actually valid by downloading requested data, etc.
@@ -125,6 +129,7 @@ typedef struct AssetEngineType {
 	ae_list_dir list_dir;
 	ae_sort_filter sort_filter;
 	ae_entries_block_get entries_block_get;
+	ae_entries_uuid_get entries_uuid_get;
 	ae_ensure_entries ensure_entries;
 
 	ae_load_pre load_pre;

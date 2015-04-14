@@ -1550,7 +1550,30 @@ FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const char uui
 	}
 
 	if (filelist->ae) {
-		/* TODO! */
+		AssetEngine *engine = filelist->ae;
+
+		if (engine->type->entries_uuid_get) {
+			FileDirEntryArr r_entries;
+			AssetUUIDList *uuids = MEM_mallocN(sizeof(*uuids), __func__);
+			AssetUUID *uuid;
+			FileDirEntry *en = NULL;
+
+			uuids->uuids = MEM_callocN(sizeof(*uuids->uuids), __func__);
+			uuids->nbr_uuids = 1;
+			uuid = &uuids->uuids[0];
+
+			memcpy(uuid->uuid_asset, uuid, sizeof(uuid->uuid_asset));
+			/* Variants and revision uuids remain NULL here. */
+
+			if (engine->type->entries_uuid_get(engine, uuids, &r_entries)) {
+				en = r_entries.entries.first;
+			}
+
+			MEM_freeN(uuids->uuids);
+			MEM_freeN(uuids);
+
+			return en;
+		}
 	}
 	else {
 		int fidx;

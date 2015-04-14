@@ -745,7 +745,8 @@ typedef enum eDirEntry_SelectFlag {
 
 /* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
 
-/* Be careful, we assume uuid is 128 bits (char[16]) in a few places, like uuids ghash in filecache of filebrowser. */
+/* Be careful, we assume uuid is 128 bits (char[16]) in a few places, like uuids ghash in filecache of filebrowser,
+ * or current int_32[4] representation in RNA... */
 #define ASSET_UUID_LENGTH     16
 
 /* Used to communicate with asset engines outside of 'import' context. */
