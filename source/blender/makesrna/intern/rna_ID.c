@@ -410,7 +410,7 @@ static void rna_Library_filepath_set(PointerRNA *ptr, const char *value)
 
 /* ***** ImagePreview ***** */
 
-static void rna_IDPreview_is_custom_set(PointerRNA *ptr, int value, enum eIconSizes size) {
+static void rna_Preview_is_custom_set(PointerRNA *ptr, int value, enum eIconSizes size) {
 	ID *id = (ID *)ptr->id.data;
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
 
@@ -423,7 +423,7 @@ static void rna_IDPreview_is_custom_set(PointerRNA *ptr, int value, enum eIconSi
 	BKE_previewimg_clear(prv_img, size);
 }
 
-static void rna_IDPreview_size_get(PointerRNA *ptr, int *values, enum eIconSizes size)
+static void rna_Preview_size_get(PointerRNA *ptr, int *values, enum eIconSizes size)
 {
 	ID *id = (ID *)ptr->id.data;
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
@@ -435,7 +435,7 @@ static void rna_IDPreview_size_get(PointerRNA *ptr, int *values, enum eIconSizes
 	values[1] = prv_img->h[size];
 }
 
-static void rna_IDPreview_size_set(PointerRNA *ptr, const int *values, enum eIconSizes size)
+static void rna_Preview_size_set(PointerRNA *ptr, const int *values, enum eIconSizes size)
 {
 	ID *id = (ID *)ptr->id.data;
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
@@ -456,7 +456,7 @@ static void rna_IDPreview_size_set(PointerRNA *ptr, const int *values, enum eIco
 	prv_img->changed[size] = true;
 }
 
-static int rna_IDPreview_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION], enum eIconSizes size)
+static int rna_Preview_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION], enum eIconSizes size)
 {
 	ID *id = (ID *)ptr->id.data;
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
@@ -469,7 +469,7 @@ static int rna_IDPreview_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_A
 	return length[0];
 }
 
-static void rna_IDPreview_pixels_get(PointerRNA *ptr, int *values, enum eIconSizes size)
+static void rna_Preview_pixels_get(PointerRNA *ptr, int *values, enum eIconSizes size)
 {
 	ID *id = (ID *)ptr->id.data;
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
@@ -480,7 +480,7 @@ static void rna_IDPreview_pixels_get(PointerRNA *ptr, int *values, enum eIconSiz
 	memcpy(values, prv_img->rect[size], prv_img->w[size] * prv_img->h[size] * sizeof(unsigned int));
 }
 
-static void rna_IDPreview_pixels_set(PointerRNA *ptr, const int *values, enum eIconSizes size)
+static void rna_Preview_pixels_set(PointerRNA *ptr, const int *values, enum eIconSizes size)
 {
 	ID *id = (ID *)ptr->id.data;
 	PreviewImage *prv_img = (PreviewImage *)ptr->data;
@@ -492,63 +492,63 @@ static void rna_IDPreview_pixels_set(PointerRNA *ptr, const int *values, enum eI
 	prv_img->user_edited[size] = true;
 }
 
-static void rna_IDPreview_image_is_custom_set(PointerRNA *ptr, int value) {
-	rna_IDPreview_is_custom_set(ptr, value, ICON_SIZE_PREVIEW);
+static void rna_Preview_image_is_custom_set(PointerRNA *ptr, int value) {
+	rna_Preview_is_custom_set(ptr, value, ICON_SIZE_PREVIEW);
 }
 
-static void rna_IDPreview_image_size_get(PointerRNA *ptr, int *values)
+static void rna_Preview_image_size_get(PointerRNA *ptr, int *values)
 {
-	rna_IDPreview_size_get(ptr, values, ICON_SIZE_PREVIEW);
+	rna_Preview_size_get(ptr, values, ICON_SIZE_PREVIEW);
 }
 
-static void rna_IDPreview_image_size_set(PointerRNA *ptr, const int *values)
+static void rna_Preview_image_size_set(PointerRNA *ptr, const int *values)
 {
-	rna_IDPreview_size_set(ptr, values, ICON_SIZE_PREVIEW);
+	rna_Preview_size_set(ptr, values, ICON_SIZE_PREVIEW);
 }
 
-static int rna_IDPreview_image_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
+static int rna_Preview_image_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
 {
-	return rna_IDPreview_pixels_get_length(ptr, length, ICON_SIZE_PREVIEW);
+	return rna_Preview_pixels_get_length(ptr, length, ICON_SIZE_PREVIEW);
 }
 
-static void rna_IDPreview_image_pixels_get(PointerRNA *ptr, int *values)
+static void rna_Preview_image_pixels_get(PointerRNA *ptr, int *values)
 {
-	rna_IDPreview_pixels_get(ptr, values, ICON_SIZE_PREVIEW);
+	rna_Preview_pixels_get(ptr, values, ICON_SIZE_PREVIEW);
 }
 
-static void rna_IDPreview_image_pixels_set(PointerRNA *ptr, const int *values)
+static void rna_Preview_image_pixels_set(PointerRNA *ptr, const int *values)
 {
-	rna_IDPreview_pixels_set(ptr, values, ICON_SIZE_PREVIEW);
+	rna_Preview_pixels_set(ptr, values, ICON_SIZE_PREVIEW);
 }
 
-static void rna_IDPreview_icon_is_custom_set(PointerRNA *ptr, int value)
+static void rna_Preview_icon_is_custom_set(PointerRNA *ptr, int value)
 {
-	rna_IDPreview_is_custom_set(ptr, value, ICON_SIZE_ICON);
+	rna_Preview_is_custom_set(ptr, value, ICON_SIZE_ICON);
 }
 
-static void rna_IDPreview_icon_size_get(PointerRNA *ptr, int *values)
+static void rna_Preview_icon_size_get(PointerRNA *ptr, int *values)
 {
-	rna_IDPreview_size_get(ptr, values, ICON_SIZE_ICON);
+	rna_Preview_size_get(ptr, values, ICON_SIZE_ICON);
 }
 
-static void rna_IDPreview_icon_size_set(PointerRNA *ptr, const int *values)
+static void rna_Preview_icon_size_set(PointerRNA *ptr, const int *values)
 {
-	rna_IDPreview_size_set(ptr, values, ICON_SIZE_ICON);
+	rna_Preview_size_set(ptr, values, ICON_SIZE_ICON);
 }
 
-static int rna_IDPreview_icon_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
+static int rna_Preview_icon_pixels_get_length(PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION])
 {
-	return rna_IDPreview_pixels_get_length(ptr, length, ICON_SIZE_ICON);
+	return rna_Preview_pixels_get_length(ptr, length, ICON_SIZE_ICON);
 }
 
-static void rna_IDPreview_icon_pixels_get(PointerRNA *ptr, int *values)
+static void rna_Preview_icon_pixels_get(PointerRNA *ptr, int *values)
 {
-	rna_IDPreview_pixels_get(ptr, values, ICON_SIZE_ICON);
+	rna_Preview_pixels_get(ptr, values, ICON_SIZE_ICON);
 }
 
-static void rna_IDPreview_icon_pixels_set(PointerRNA *ptr, const int *values)
+static void rna_Preview_icon_pixels_set(PointerRNA *ptr, const int *values)
 {
-	rna_IDPreview_pixels_set(ptr, values, ICON_SIZE_ICON);
+	rna_Preview_pixels_set(ptr, values, ICON_SIZE_ICON);
 }
 
 static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
@@ -556,7 +556,7 @@ static PointerRNA rna_IDPreview_get(PointerRNA *ptr)
 	ID *id = (ID *)ptr->data;
 	PreviewImage *prv_img = BKE_previewimg_get(id);
 
-	return rna_pointer_inherit_refine(ptr, &RNA_IDPreview, prv_img);
+	return rna_pointer_inherit_refine(ptr, &RNA_Preview, prv_img);
 }
 
 #else
@@ -677,49 +677,49 @@ static void rna_def_ID_materials(BlenderRNA *brna)
 	RNA_def_boolean(func, "update_data", 0, "", "Update data by re-adjusting the material slots assigned");
 }
 
-static void rna_def_ID_preview(BlenderRNA *brna)
+static void rna_def_preview(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
 
-	srna = RNA_def_struct(brna, "IDPreview", NULL);
+	srna = RNA_def_struct(brna, "Preview", NULL);
 	RNA_def_struct_sdna(srna, "PreviewImage");
-	RNA_def_struct_ui_text(srna, "ID Preview", "Preview image and icon of this ID, if available for that type");
+	RNA_def_struct_ui_text(srna, "Preview", "Preview image and icon");
 
 	prop = RNA_def_property(srna, "image_is_custom", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "user_edited[ICON_SIZE_PREVIEW]", 1);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_IDPreview_image_is_custom_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Preview_image_is_custom_set");
 	RNA_def_property_ui_text(prop, "Custom Image", "True if this preview image has been modified by py script, and is no more auto-generated by Blender");
 
 	prop = RNA_def_int_vector(srna, "image_size", 2, NULL, 0, 0, "Image Size",
 	                          "Width and height in pixels", 0, 0);
 	RNA_def_property_subtype(prop, PROP_PIXEL);
-	RNA_def_property_int_funcs(prop, "rna_IDPreview_image_size_get", "rna_IDPreview_image_size_set", NULL);
+	RNA_def_property_int_funcs(prop, "rna_Preview_image_size_get", "rna_Preview_image_size_set", NULL);
 
 	prop = RNA_def_property(srna, "image_pixels", PROP_INT, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_DYNAMIC);
 	RNA_def_property_multi_array(prop, 1, NULL);
 	RNA_def_property_ui_text(prop, "Image Pixels", "Image pixels, as bytes (always RGBA 32bits)");
-	RNA_def_property_dynamic_array_funcs(prop, "rna_IDPreview_image_pixels_get_length");
-	RNA_def_property_int_funcs(prop, "rna_IDPreview_image_pixels_get", "rna_IDPreview_image_pixels_set", NULL);
+	RNA_def_property_dynamic_array_funcs(prop, "rna_Preview_image_pixels_get_length");
+	RNA_def_property_int_funcs(prop, "rna_Preview_image_pixels_get", "rna_Preview_image_pixels_set", NULL);
 
 
 	prop = RNA_def_property(srna, "icon_is_custom", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "user_edited[ICON_SIZE_ICON]", 1);
-	RNA_def_property_boolean_funcs(prop, NULL, "rna_IDPreview_icon_is_custom_set");
+	RNA_def_property_boolean_funcs(prop, NULL, "rna_Preview_icon_is_custom_set");
 	RNA_def_property_ui_text(prop, "Custom Icon", "True if this preview icon has been modified by py script, and is no more auto-generated by Blender");
 
 	prop = RNA_def_int_vector(srna, "icon_size", 2, NULL, 0, 0, "Icon Size",
 	                          "Width and height in pixels", 0, 0);
 	RNA_def_property_subtype(prop, PROP_PIXEL);
-	RNA_def_property_int_funcs(prop, "rna_IDPreview_icon_size_get", "rna_IDPreview_icon_size_set", NULL);
+	RNA_def_property_int_funcs(prop, "rna_Preview_icon_size_get", "rna_Preview_icon_size_set", NULL);
 
 	prop = RNA_def_property(srna, "icon_pixels", PROP_INT, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_DYNAMIC);
 	RNA_def_property_multi_array(prop, 1, NULL);
 	RNA_def_property_ui_text(prop, "Icon Pixels", "Icon pixels, as bytes (always RGBA 32bits)");
-	RNA_def_property_dynamic_array_funcs(prop, "rna_IDPreview_icon_pixels_get_length");
-	RNA_def_property_int_funcs(prop, "rna_IDPreview_icon_pixels_get", "rna_IDPreview_icon_pixels_set", NULL);
+	RNA_def_property_dynamic_array_funcs(prop, "rna_Preview_icon_pixels_get_length");
+	RNA_def_property_int_funcs(prop, "rna_Preview_icon_pixels_get", "rna_Preview_icon_pixels_set", NULL);
 }
 
 static void rna_def_ID(BlenderRNA *brna)
@@ -788,7 +788,7 @@ static void rna_def_ID(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Library", "Library file the datablock is linked from");
 
-	prop = RNA_def_pointer(srna, "preview", "IDPreview", "Preview",
+	prop = RNA_def_pointer(srna, "preview", "Preview", "Preview",
 	                       "Preview image and icon of this datablock (None if not supported for this type of data)");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_pointer_funcs(prop, "rna_IDPreview_get", NULL, NULL, NULL);
@@ -854,7 +854,7 @@ void RNA_def_ID(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Any Type", "RNA type used for pointers to any possible data");
 
 	rna_def_ID(brna);
-	rna_def_ID_preview(brna);
+	rna_def_preview(brna);
 	rna_def_ID_properties(brna);
 	rna_def_ID_materials(brna);
 	rna_def_library(brna);
