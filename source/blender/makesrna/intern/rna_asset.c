@@ -434,7 +434,7 @@ static bool rna_ae_load_pre(AssetEngine *engine, AssetUUIDList *uuids, struct Fi
 
 static bool rna_ae_sort_filter(
         AssetEngine *engine, const bool use_sort, const bool use_filter,
-        const char *filter_glob, const char *filter_search, FileDirEntryArr *entries_r)
+        FileSelectParams *params, FileDirEntryArr *entries_r)
 {
 	extern FunctionRNA rna_AssetEngine_sort_filter_func;
 	PointerRNA ptr;
@@ -451,8 +451,7 @@ static bool rna_ae_sort_filter(
 	RNA_parameter_list_create(&list, &ptr, func);
 	RNA_parameter_set_lookup(&list, "use_sort", &use_sort);
 	RNA_parameter_set_lookup(&list, "use_filter", &use_filter);
-	RNA_parameter_set_lookup(&list, "filter_glob", filter_glob);
-	RNA_parameter_set_lookup(&list, "filter_search", filter_search);
+	RNA_parameter_set_lookup(&list, "params", &params);
 	RNA_parameter_set_lookup(&list, "entries", &entries_r);
 	engine->type->ext.call(NULL, &ptr, func, &list);
 
@@ -1017,10 +1016,8 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 	RNA_def_function_flag(func, FUNC_REGISTER_OPTIONAL | FUNC_ALLOW_WRITE);
 	RNA_def_boolean(func, "use_sort", 0, "", "Whether to (re-)sort assets");
 	RNA_def_boolean(func, "use_filter", 0, "", "Whether to (re-)filter assets");
-	parm = RNA_def_string(func, "filter_glob", NULL, 64, "", "Glob-like string specifying expected file types");
-	RNA_def_property_flag(parm, PROP_THICK_WRAP);
-	parm = RNA_def_string(func, "filter_search", NULL, 64, "", "Search string");
-	RNA_def_property_flag(parm, PROP_THICK_WRAP);
+	parm = RNA_def_pointer(func, "params", "FileSelectParams", "",
+	                       "Generic filtering/sorting parameters from FileBrowser");
 	RNA_def_pointer(func, "entries", "AssetList", "", "List of asset entries proposed to user by the asset engine");
 	parm = RNA_def_boolean(func, "changed_return", 0, "", "Whether list of available entries was changed");
 	RNA_def_function_output(func, parm);

@@ -660,14 +660,12 @@ void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const b
 }
 
 
-void filelist_sort_filter(struct FileList *filelist)
+void filelist_sort_filter(struct FileList *filelist, FileSelectParams *params)
 {
 	if (filelist->ae) {
 		if (filelist->ae->type->sort_filter) {
 			const bool changed = filelist->ae->type->sort_filter(filelist->ae, true, true,
-			                                                     filelist->filter_data.filter_glob,
-			                                                     filelist->filter_data.filter_search,
-			                                                     &filelist->filelist);
+			                                                     params, &filelist->filelist);
 			printf("%s: changed: %d\n", __func__, changed);
 		}
 		filelist_cache_clear(&filelist->filelist_cache);

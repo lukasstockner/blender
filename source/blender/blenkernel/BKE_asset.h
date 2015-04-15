@@ -56,7 +56,7 @@ enum {
 	AE_STATUS_RUNNING = 1 << 1,  /* Asset engine is performing some background tasks... */
 };
 
-#define AE_FAKE_ENGINE_ID "none"
+#define AE_FAKE_ENGINE_ID "NONE"
 
 extern ListBase asset_engines;
 
@@ -87,7 +87,7 @@ typedef int (*ae_ensure_entries)(struct AssetEngine *engine, const int job_id, s
  * Number of available filtered entries is to be set in entries_r.
  */
 typedef bool (*ae_sort_filter)(struct AssetEngine *engine, const bool sort, const bool filter,
-                               const char *filter_glob, const char *filter_search, struct FileDirEntryArr *entries_r);
+                               struct FileSelectParams *params, struct FileDirEntryArr *entries_r);
 
 /* Return specified block of entries in entries_r. */
 typedef bool (*ae_entries_block_get)(struct AssetEngine *engine, const int start_index, const int end_index,

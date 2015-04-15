@@ -26,10 +26,7 @@ class FILEBROWSER_HT_header(Header):
 
     def draw(self, context):
         layout = self.layout
-
         st = context.space_data
-
-        is_lib_browser = st.use_library_browsing
 
         layout.template_header()
 
@@ -46,52 +43,58 @@ class FILEBROWSER_HT_header(Header):
         row = layout.row()
         row.separator()
 
-        row = layout.row(align=True)
-        layout.operator_context = 'EXEC_DEFAULT'
-        row.operator("file.directory_new", icon='NEWFOLDER')
-
-        layout.operator_context = 'INVOKE_DEFAULT'
-        params = st.params
-
-        # can be None when save/reload with a file selector open
-        if params:
-            layout.prop(params, "display_type", expand=True, text="")
-            layout.prop(params, "sort_method", expand=True, text="")
-
-            layout.prop(params, "recursion_level")
-            layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
-            layout.prop(params, "use_filter", text="", icon='FILTER')
-
+        if st.asset_engine:
+            draw_header = getattr(st.asset_engine, "draw_header", None)
+            if draw_header:
+                draw_header(row, context)
+        else:
             row = layout.row(align=True)
-            row.active = params.use_filter
+            layout.operator_context = 'EXEC_DEFAULT'
+            row.operator("file.directory_new", icon='NEWFOLDER')
+            layout.operator_context = 'INVOKE_DEFAULT'
 
-            row.prop(params, "use_filter_folder", text="")
+            params = st.params
 
-            if params.filter_glob:
-                #if st.active_operator and hasattr(st.active_operator, "filter_glob"):
-                #    row.prop(params, "filter_glob", text="")
-                row.label(params.filter_glob)
-            else:
-                row.prop(params, "use_filter_blender", text="")
-                row.prop(params, "use_filter_backup", text="")
-                row.prop(params, "use_filter_image", text="")
-                row.prop(params, "use_filter_movie", text="")
-                row.prop(params, "use_filter_script", text="")
-                row.prop(params, "use_filter_font", text="")
-                row.prop(params, "use_filter_sound", text="")
-                row.prop(params, "use_filter_text", text="")
+            # can be None when save/reload with a file selector open
+            if params:
+                is_lib_browser = params.use_library_browsing
 
-            if is_lib_browser:
-                row.prop(params, "use_filter_blendid", text="")
-                if (params.use_filter_blendid) :
-                    row.separator()
-                    row.prop(params, "filter_id", text="")
+                layout.prop(params, "display_type", expand=True, text="")
+                layout.prop(params, "sort_method", expand=True, text="")
 
-            row.separator()
-            row.prop(params, "filter_search", text="", icon='VIEWZOOM')
+                layout.prop(params, "recursion_level")
+                layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
+                layout.prop(params, "use_filter", text="", icon='FILTER')
+
+                row = layout.row(align=True)
+                row.active = params.use_filter
+
+                row.prop(params, "use_filter_folder", text="")
+
+                if params.filter_glob:
+                    #if st.active_operator and hasattr(st.active_operator, "filter_glob"):
+                    #    row.prop(params, "filter_glob", text="")
+                    row.label(params.filter_glob)
+                else:
+                    row.prop(params, "use_filter_blender", text="")
+                    row.prop(params, "use_filter_backup", text="")
+                    row.prop(params, "use_filter_image", text="")
+                    row.prop(params, "use_filter_movie", text="")
+                    row.prop(params, "use_filter_script", text="")
+                    row.prop(params, "use_filter_font", text="")
+                    row.prop(params, "use_filter_sound", text="")
+                    row.prop(params, "use_filter_text", text="")
+
+                if is_lib_browser:
+                    row.prop(params, "use_filter_blendid", text="")
+                    if (params.use_filter_blendid) :
+                        row.separator()
+                        row.prop(params, "filter_id", text="")
+
+                row.separator()
+                row.prop(params, "filter_search", text="", icon='VIEWZOOM')
 
         layout.template_running_jobs()
-
 
 
 class FILEBROWSER_UL_dir(bpy.types.UIList):

@@ -97,6 +97,10 @@ def uuid_unpack(uuid_hexstr):
     return struct.unpack("!iiii", binascii.unhexlify(uuid_hexstr).ljust(16, b'\0'))
 
 
+def uuid_unpack_bytes(uuid_bytes):
+    return struct.unpack("!iiii", uuid_bytes.ljust(16, b'\0'))
+
+
 def uuid_pack(uuid_iv4):
     return binascii.hexlify(struct.pack("!iiii", uuid_iv4))
 
@@ -194,7 +198,7 @@ class AmberJobList(AmberJob):
                 self.nbr += 1
                 if is_dir:
                     # We only list dirs from real file system.
-                    uuid = (path.encode()[:8] + b"|" + bytes([self.nbr])).ljust(16, b'\0')
+                    uuid = uuid_unpack_bytes((path.encode()[:8] + b"|" + bytes([self.nbr])))
                     dirs.append((path, size, timestamp, uuid))
                 done.add(tsk)
         self.stat_tasks -= done
@@ -256,6 +260,7 @@ class AssetEngineAmber(AssetEngine):
         #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
         #~ self.executor.shutdown(wait=False)
 
+    ########## Various helpers ##########
     def reset(self):
         print("Amber Reset!")
         self.root = ""
@@ -265,6 +270,105 @@ class AssetEngineAmber(AssetEngine):
 
         self.sortedfiltered = []
 
+    def entry_from_uuid(self, entries, euuid, vuuid, ruuid):
+        e = self.repo["entries"][euuid]
+        entry = entries.entries.add()
+        entry.uuid = euuid
+        entry.name = e["name"]
+        entry.description = e["description"]
+        entry.type = {e["file_type"]}
+        entry.blender_type = e["blen_type"]
+        act_rev = None
+        if vuuid == (0, 0, 0, 0):
+            for vuuid, v in e["variants"].items():
+                variant = entry.variants.add()
+                variant.uuid = vuuid
+                variant.name = v["name"]
+                variant.description = v["description"]
+                if vuuid == e["variant_default"]:
+                    entry.variants.active = variant
+                for ruuid, r in v["revisions"].items():
+                    revision = variant.revisions.add()
+                    revision.uuid = ruuid
+                    #~ revision.comment = r["comment"]
+                    revision.size = r["size"]
+                    revision.timestamp = r["timestamp"]
+                    if ruuid == v["revision_default"]:
+                        variant.revisions.active = revision
+                        if vuuid == e["variant_default"]:
+                            act_rev = r
+        else:
+            v = e["variants"][vuuid]
+            variant = entry.variants.add()
+            variant.uuid = vuuid
+            variant.name = v["name"]
+            variant.description = v["description"]
+            entry.variants.active = variant
+            if ruuid == (0, 0, 0, 0):
+                for ruuid, r in v["revisions"].items():
+                    revision = variant.revisions.add()
+                    revision.uuid = ruuid
+                    #~ revision.comment = r["comment"]
+                    revision.size = r["size"]
+                    revision.timestamp = r["timestamp"]
+                    if ruuid == v["revision_default"]:
+                        variant.revisions.active = revision
+                        act_rev = r
+            else:
+                r = v["revisions"][ruuid]
+                revision = variant.revisions.add()
+                revision.uuid = ruuid
+                #~ revision.comment = r["comment"]
+                revision.size = r["size"]
+                revision.timestamp = r["timestamp"]
+                variant.revisions.active = revision
+                act_rev = r
+        if act_rev:
+            entry.relpath = act_rev["path"]
+
+    ########## PY-API only ##########
+    # UI header
+    def draw_header(self, layout, context):
+        st = context.space_data
+        params = st.params
+
+        # can be None when save/reload with a file selector open
+        if params:
+            is_lib_browser = params.use_library_browsing
+
+            layout.prop(params, "display_type", expand=True, text="")
+            layout.prop(params, "sort_method", expand=True, text="")
+
+            layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
+            layout.prop(params, "use_filter", text="", icon='FILTER')
+
+            row = layout.row(align=True)
+            row.active = params.use_filter
+
+            if params.filter_glob:
+                #if st.active_operator and hasattr(st.active_operator, "filter_glob"):
+                #    row.prop(params, "filter_glob", text="")
+                row.label(params.filter_glob)
+            else:
+                row.prop(params, "use_filter_blender", text="")
+                row.prop(params, "use_filter_backup", text="")
+                row.prop(params, "use_filter_image", text="")
+                row.prop(params, "use_filter_movie", text="")
+                row.prop(params, "use_filter_script", text="")
+                row.prop(params, "use_filter_font", text="")
+                row.prop(params, "use_filter_sound", text="")
+                row.prop(params, "use_filter_text", text="")
+
+            if is_lib_browser:
+                row.prop(params, "use_filter_blendid", text="")
+                if (params.use_filter_blendid) :
+                    row.separator()
+                    row.prop(params, "filter_id", text="")
+
+            row.separator()
+            row.prop(params, "filter_search", text="", icon='VIEWZOOM')
+
+    ########## C (RNA) API ##########
     def status(self, job_id):
         if job_id:
             job = self.jobs.get(job_id, None)
@@ -333,88 +437,77 @@ class AssetEngineAmber(AssetEngine):
             return True
         return False
 
-    def sort_filter(self, use_sort, use_filter, filter_glob, filter_search, entries):
+    def sort_filter(self, use_sort, use_filter, params, entries):
         if use_filter:
+            filter_search = params.filter_search
             self.sortedfiltered.clear()
             if self.repo:
                 for key, val in self.repo["entries"].items():
                     if filter_search and filter_search not in (val["name"] + val["description"]):
                         continue
-                    self.sortedfiltered.append((val["name"], key, val))
+                    if params.use_filter:
+                        file_type = set()
+                        blen_type = set()
+                        tags = set(self.tags)
+                        if params.use_filter_image:
+                            file_type.add('IMAGE')
+                        if params.use_filter_blender:
+                            file_type.add('BLENDER')
+                        if params.use_filter_backup:
+                            file_type.add('BACKUP')
+                        if params.use_filter_movie:
+                            file_type.add('MOVIE')
+                        if params.use_filter_script:
+                            file_type.add('SCRIPT')
+                        if params.use_filter_font:
+                            file_type.add('FONT')
+                        if params.use_filter_sound:
+                            file_type.add('SOUND')
+                        if params.use_filter_text:
+                            file_type.add('TEXT')
+                        if params.use_filter_blendid and params.use_library_browsing:
+                            file_type.add('BLENLIB')
+                            blen_type = params.filter_id
+                        if val["file_type"] not in file_type:
+                            continue
+                        if params.use_library_browsing and val["blen_type"] not in blen_type:
+                            continue
+                        if tags and not tags & set(val["tags"]):
+                            continue
+                    self.sortedfiltered.append((key, val))
             elif self.dirs:
                 for path, size, timestamp, uuid in self.dirs:
                     if filter_search and filter_search not in path:
                         continue
-                    if path.startswith(".") and not path.startswith(".."):
+                    if not params.show_hidden and path.startswith(".") and not path.startswith(".."):
                         continue
                     self.sortedfiltered.append((path, size, timestamp, uuid))
             use_sort = True
         entries.nbr_entries_filtered = len(self.sortedfiltered)
         if use_sort:
-            self.sortedfiltered.sort(key=lambda e: e[0].lower())
+            if self.repo:
+                if params.sort_method == 'FILE_SORT_TIME':
+                    self.sortedfiltered.sort(key=lambda e: e[1]["variants"][e[1]["variant_default"]]["revisions"][e[1]["variants"][e[1]["variant_default"]]["revision_default"]]["timestamp"])
+                elif params.sort_method == 'FILE_SORT_SIZE':
+                    self.sortedfiltered.sort(key=lambda e: e[1]["variants"][e[1]["variant_default"]]["revisions"][e[1]["variants"][e[1]["variant_default"]]["revision_default"]]["size"])
+                elif params.sort_method == 'FILE_SORT_EXTENSION':
+                    self.sortedfiltered.sort(key=lambda e: e[1]["blen_type"])
+                else:
+                    self.sortedfiltered.sort(key=lambda e: e[1]["name"].lower())
+            else:
+                if params.sort_method == 'FILE_SORT_TIME':
+                    self.sortedfiltered.sort(key=lambda e: e[2])
+                elif params.sort_method == 'FILE_SORT_SIZE':
+                    self.sortedfiltered.sort(key=lambda e: e[1])
+                else:
+                    self.sortedfiltered.sort(key=lambda e: e[0].lower())
             return True
         return False
-
-    def entry_from_uuid(self, entries, euuid, vuuid, ruuid):
-        e = self.repo["entries"][euuid]
-        entry = entries.entries.add()
-        entry.uuid = euuid
-        entry.name = e["name"]
-        entry.description = e["description"]
-        entry.type = {e["file_type"]}
-        entry.blender_type = e["blen_type"]
-        act_rev = None
-        if vuuid == (0, 0, 0, 0):
-            for vuuid, v in e["variants"].items():
-                variant = entry.variants.add()
-                variant.uuid = vuuid
-                variant.name = v["name"]
-                variant.description = v["description"]
-                if vuuid == e["variant_default"]:
-                    entry.variants.active = variant
-                for ruuid, r in v["revisions"].items():
-                    revision = variant.revisions.add()
-                    revision.uuid = ruuid
-                    #~ revision.comment = r["comment"]
-                    revision.size = r["size"]
-                    revision.timestamp = r["timestamp"]
-                    if ruuid == v["revision_default"]:
-                        variant.revisions.active = revision
-                        if vuuid == e["variant_default"]:
-                            act_rev = r
-        else:
-            v = e["variants"][vuuid]
-            variant = entry.variants.add()
-            variant.uuid = vuuid
-            variant.name = v["name"]
-            variant.description = v["description"]
-            entry.variants.active = variant
-            if ruuid == (0, 0, 0, 0):
-                for ruuid, r in v["revisions"].items():
-                    revision = variant.revisions.add()
-                    revision.uuid = ruuid
-                    #~ revision.comment = r["comment"]
-                    revision.size = r["size"]
-                    revision.timestamp = r["timestamp"]
-                    if ruuid == v["revision_default"]:
-                        variant.revisions.active = revision
-                        act_rev = r
-            else:
-                r = v["revisions"][ruuid]
-                revision = variant.revisions.add()
-                revision.uuid = ruuid
-                #~ revision.comment = r["comment"]
-                revision.size = r["size"]
-                revision.timestamp = r["timestamp"]
-                variant.revisions.active = revision
-                act_rev = r
-        if act_rev:
-            entry.relpath = act_rev["path"]
 
     def entries_block_get(self, start_index, end_index, entries):
         if self.repo:
             print("self repo", len(self.sortedfiltered), start_index, end_index)
-            for _n, euuid, e in self.sortedfiltered[start_index:end_index]:
+            for euuid, e in self.sortedfiltered[start_index:end_index]:
                 self.entry_from_uuid(entries, euuid, (0, 0, 0, 0), (0, 0, 0, 0))
         else:
             print("self dirs", len(self.sortedfiltered), start_index, end_index)
