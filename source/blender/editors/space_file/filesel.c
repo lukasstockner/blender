@@ -483,13 +483,14 @@ float file_font_pointsize(void)
 static void column_widths(struct FileList *files, struct FileLayout *layout)
 {
 	int i;
-	int numfiles = filelist_numfiles(files);
 
 	for (i = 0; i < MAX_FILE_COLUMN; ++i) {
 		layout->column_widths[i] = 0;
 	}
 
 #if 0
+	{
+	int numfiles = filelist_numfiles(files);
 	for (i = 0; (i < numfiles); ++i) {
 		FileDirEntry *file = filelist_file(files, i);
 		if (file) {
@@ -512,7 +513,9 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 			if (len > layout->column_widths[COLUMN_OWNER]) layout->column_widths[COLUMN_OWNER] = len;
 		}
 	}
+	}
 #else
+	UNUSED_VARS(files);
 	{
 		/* Biggest possible reasonable values...
 		 * TODO: better ways to get those! */
