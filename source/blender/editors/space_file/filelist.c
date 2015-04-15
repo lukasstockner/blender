@@ -1388,10 +1388,8 @@ static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int in
 	rev = MEM_callocN(sizeof(*rev), __func__);
 
 	rev->size = (uint64_t)entry->st.st_size;
-	BLI_filelist_entry_size_to_string(&entry->st, rev->size_str);
 
 	rev->time = (int64_t)entry->st.st_mtime;
-	BLI_filelist_entry_datetime_to_string(&entry->st, rev->time_str, rev->date_str);
 
 	ret->entry = rev;
 	ret->relpath = BLI_strdup(entry->relpath);

@@ -239,7 +239,7 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
  * Convert given entry's size into human-readable strings.
  *
  */
-void BLI_filelist_entry_size_to_string(struct stat *st, char r_size[FILELIST_DIRENTRY_SIZE_LEN])
+void BLI_filelist_entry_size_to_string(struct stat *st, const uint64_t sz, char r_size[FILELIST_DIRENTRY_SIZE_LEN])
 {
 	double size;
 	const char *fmt;
@@ -249,7 +249,7 @@ void BLI_filelist_entry_size_to_string(struct stat *st, char r_size[FILELIST_DIR
 	 * will buy us some time until files get bigger than 4GB or until
 	 * everyone starts using __USE_FILE_OFFSET64 or equivalent.
 	 */
-	size = (double)st->st_size;
+	size = (double)(st ? st->st_size : sz);
 
 	if (size > 1024.0 * 1024.0 * 1024.0) {
 		size /= (1024.0 * 1024.0 * 1024.0);
@@ -331,9 +331,9 @@ void BLI_filelist_entry_owner_to_string(struct stat *st, char r_owner[FILELIST_D
  * Convert given entry's time into human-readable strings.
  */
 void BLI_filelist_entry_datetime_to_string(
-        struct stat *st, char r_time[FILELIST_DIRENTRY_TIME_LEN], char r_date[FILELIST_DIRENTRY_DATE_LEN])
+        struct stat *st, const int64_t ts, char r_time[FILELIST_DIRENTRY_TIME_LEN], char r_date[FILELIST_DIRENTRY_DATE_LEN])
 {
-	const struct tm *tm = localtime(&st->st_mtime);
+	const struct tm *tm = localtime(st ? &st->st_mtime : &ts);
 	const time_t zero = 0;
 
 	/* Prevent impossible dates in windows. */

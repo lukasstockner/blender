@@ -743,8 +743,12 @@ typedef enum eDirEntry_SelectFlag {
 
 /* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
 
-/* Be careful, we assume uuid is 128 bits (char[16]) in a few places, like uuids ghash in filecache of filebrowser,
- * or current int_32[4] representation in RNA... */
+/* About Unique identifier.
+ * Stored in a CustomProps once imported.
+ * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
+ * asset/variant/version (concatenating the three into a single 48 bytes one).
+ * Assumed to be 128bits, handled as four integers due to lack of real bytes proptype in RNA :|.
+ */
 #define ASSET_UUID_LENGTH     16
 
 /* Used to communicate with asset engines outside of 'import' context. */
@@ -762,40 +766,24 @@ typedef struct AssetUUIDList {
 /* Container for a revision, only relevant in asset context. */
 typedef struct FileDirEntryRevision {
 	struct FileDirEntryRevision *next, *prev;
-	/* Unique identifier. Stored in a CustomProps once imported.
-	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
-	 * asset/variant/version (concatenating the three into a single 72 bytes one).
-	 * Handled as bytes, **but** NULL-terminated (because of RNA).
-	 */
-	int uuid[4];
 
+	int uuid[4];
 	char *comment;
 
 	uint64_t size;
 	int64_t time;
-	/* Those are direct copy from direntry. We may rework that later, but really not top priority. */
-	/* TODO: switch back to real values, no sense to keep this as string when it often not used at all! */
+	/* Temp caching of UI-generated strings... */
 	char    size_str[16];
-//	char    mode1[4];
-//	char    mode2[4];
-//	char    mode3[4];
-//	char    owner[16];
 	char    time_str[8];
 	char    date_str[16];
-//	char    pad[4];
 } FileDirEntryRevision;
 
 /* Container for a variant, only relevant in asset context.
  * In case there are no variants, a single one shall exist, with NULL name/description. */
 typedef struct FileDirEntryVariant {
 	struct FileDirEntryVariant *next, *prev;
-	/* Unique identifier. Stored in a CustomProps once imported.
-	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
-	 * asset/variant/version (concatenating the three into a single 72 bytes one).
-	 * Handled as bytes, **but** NULL-terminated (because of RNA).
-	 */
-	int uuid[4];
 
+	int uuid[4];
 	char *name;
 	char *description;
 
@@ -807,13 +795,8 @@ typedef struct FileDirEntryVariant {
 /* Container for mere direntry, with additional asset-related data. */
 typedef struct FileDirEntry {
 	struct FileDirEntry *next, *prev;
-	/* Unique identifier. Stored in a CustomProps once imported.
-	 * Each engine is free to use it as it likes - it will be the only thing passed to it by blender to identify
-	 * asset/variant/version (concatenating the three into a single 72 bytes one).
-	 * Handled as bytes, **but** NULL-terminated (because of RNA).
-	 */
-	int uuid[4];
 
+	int uuid[4];
 	char *name;
 	char *description;
 

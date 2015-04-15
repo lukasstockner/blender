@@ -570,9 +570,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				width = layout->tile_w - (ICON_DEFAULT_WIDTH_SCALE + 0.2f * UI_UNIT_X);
 			}
 			else if (params->display == FILE_LONGDISPLAY) {
-				width = layout->column_widths[COLUMN_NAME]  + layout->column_widths[COLUMN_MODE1] +
-				        layout->column_widths[COLUMN_MODE2] + layout->column_widths[COLUMN_MODE3] +
-				        (column_space * 3.5f);
+				width = layout->column_widths[COLUMN_NAME] + (column_space * 3.5f);
 			}
 			else {
 				BLI_assert(params->display == FILE_IMGDISPLAY);
@@ -604,29 +602,18 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		else if (params->display == FILE_LONGDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 
-#if 0
-#ifndef WIN32
-			/* rwx rwx rwx */
-			file_draw_string(sx, sy, file->entry->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_MODE1] + column_space;
-
-			file_draw_string(sx, sy, file->entry->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_MODE2] + column_space;
-
-			file_draw_string(sx, sy, file->entry->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_MODE3] + column_space;
-
-			file_draw_string(sx, sy, file->entry->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_OWNER] + column_space;
-#endif
-#endif
+			if (file->entry->date_str[0] == '\0') {
+				BLI_filelist_entry_datetime_to_string(NULL, file->entry->time, file->entry->time_str, file->entry->date_str);
+			}
 			file_draw_string(sx, sy, file->entry->date_str, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
-
 			file_draw_string(sx, sy, file->entry->time_str, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
 			if (!(file->typeflag & FILE_TYPE_DIR)) {
+				if (file->entry->size_str[0] == '\0') {
+					BLI_filelist_entry_size_to_string(NULL, file->entry->size, file->entry->size_str);
+				}
 				file_draw_string(sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
