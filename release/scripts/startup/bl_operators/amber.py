@@ -93,6 +93,14 @@ def uuid_revision_gen(used_uuids, variant_uuid, number, size, time):
     return _uuid_gen_single(used_uuids, uuid_root, variant_uuid, str(number), str(size), str(timestamp))
 
 
+def uuid_unpack(uuid_hexstr):
+    return struct.unpack("!iiii", binascii.unhexlify(uuid_hexstr).ljust(16, b'\0'))
+
+
+def uuid_pack(uuid_iv4):
+    return binascii.hexlify(struct.pack("!iiii", uuid_iv4))
+
+
 #############
 # Amber Jobs.
 class AmberJob:
@@ -126,15 +134,15 @@ class AmberJobList(AmberJob):
                 for vuuid, v in e["variants"].items():
                     new_revisions = {}
                     for ruuid, r in v["revisions"].items():
-                        new_revisions[struct.unpack("!iiii", binascii.unhexlify(ruuid).ljust(16, b'\0'))] = r
-                    new_variants[struct.unpack("!iiii", binascii.unhexlify(vuuid).ljust(16, b'\0'))] = v
+                        new_revisions[uuid_unpack(ruuid)] = r
+                    new_variants[uuid_unpack(vuuid)] = v
                     v["revisions"] = new_revisions
                     ruuid = v["revision_default"]
-                    v["revision_default"] = struct.unpack("!iiii", binascii.unhexlify(ruuid).ljust(16, b'\0'))
-                new_entries[struct.unpack("!iiii", binascii.unhexlify(euuid).ljust(16, b'\0'))] = e
+                    v["revision_default"] = uuid_unpack(ruuid)
+                new_entries[uuid_unpack(euuid)] = e
                 e["variants"] = new_variants
                 vuuid = e["variant_default"]
-                e["variant_default"] = struct.unpack("!iiii", binascii.unhexlify(vuuid).ljust(16, b'\0'))
+                e["variant_default"] = uuid_unpack(vuuid)
             repo["entries"] = new_entries
         print(repo)
         return repo

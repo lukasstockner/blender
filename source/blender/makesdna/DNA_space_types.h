@@ -751,9 +751,9 @@ typedef enum eDirEntry_SelectFlag {
 
 /* Used to communicate with asset engines outside of 'import' context. */
 typedef struct AssetUUID {
-	char uuid_asset[16];     /* ASSET_UUID_LENGTH */
-	char uuid_variant[16];   /* ASSET_UUID_LENGTH */
-	char uuid_revision[16];  /* ASSET_UUID_LENGTH */
+	int uuid_asset[4];
+	int uuid_variant[4];
+	int uuid_revision[4];
 } AssetUUID;
 
 typedef struct AssetUUIDList {
@@ -769,7 +769,7 @@ typedef struct FileDirEntryRevision {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[16];  /* ASSET_UUID_LENGTH */
+	int uuid[4];
 
 	char *comment;
 
@@ -796,7 +796,7 @@ typedef struct FileDirEntryVariant {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[16];  /* ASSET_UUID_LENGTH */
+	int uuid[4];
 
 	char *name;
 	char *description;
@@ -814,7 +814,7 @@ typedef struct FileDirEntry {
 	 * asset/variant/version (concatenating the three into a single 72 bytes one).
 	 * Handled as bytes, **but** NULL-terminated (because of RNA).
 	 */
-	char uuid[16];  /* ASSET_UUID_LENGTH */
+	int uuid[4];
 
 	char *name;
 	char *description;

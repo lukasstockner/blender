@@ -91,7 +91,7 @@ int                 filelist_empty(struct FileList *filelist);
 int                 filelist_numfiles(struct FileList *filelist);
 struct FileDirEntry *filelist_file(struct FileList *filelist, int index);
 int                 filelist_file_findpath(struct FileList *filelist, const char *file);
-FileDirEntry *      filelist_entry_find_uuid(struct FileList *filelist, const char uuid[ASSET_UUID_LENGTH]);
+FileDirEntry *      filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4]);
 bool                filelist_file_cache_block(struct FileList *filelist, const int index);
 
 bool                filelist_force_reset(struct FileList *filelist);

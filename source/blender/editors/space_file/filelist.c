@@ -1122,7 +1122,7 @@ static void filelist_cache_init(FileListEntryCache *cache)
 	cache->misc_cursor = 0;
 
 	/* XXX This assumes uint is 32 bits and uuid is 128 bits (char[16]), be careful! */
-	cache->uuids = BLI_ghash_new_ex(BLI_ghashutil_uinthash_v4, BLI_ghashutil_uinthash_v4_cmp,
+	cache->uuids = BLI_ghash_new_ex(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp,
 	                                __func__, FILELIST_ENTRYCACHESIZE * 2);
 }
 
@@ -1536,7 +1536,7 @@ int filelist_file_findpath(struct FileList *filelist, const char *filename)
 	return -1;
 }
 
-FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const char uuid[ASSET_UUID_LENGTH])
+FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4])
 {
 	if (filelist->filelist.nbr_entries_filtered < 0) {
 		return NULL;
@@ -2129,7 +2129,7 @@ FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check,
 	strcpy(selection->root, filelist->filelist.root);
 
 	for (; !BLI_ghashIterator_done(iter); BLI_ghashIterator_step(iter)) {
-		const char *uuid = BLI_ghashIterator_getKey(iter);
+		const int *uuid = BLI_ghashIterator_getKey(iter);
 		FileDirEntry *entry_org = filelist_entry_find_uuid(filelist, uuid);
 
 		BLI_assert(BLI_ghashIterator_getValue(iter));
