@@ -548,6 +548,9 @@ public:
 	unsigned int max_work_groups;
 #endif
 
+	/* clos_max value for which the kernels have been loaded currently */
+	int current_clos_max;
+
 	/* Marked True in constructor and marked false at the end of path_trace() */
 	bool first_tile;
 
@@ -784,6 +787,7 @@ public:
 		work_pool_wgs = NULL;
 		max_work_groups = 0;
 #endif
+		current_clos_max = -1;
 		first_tile = true;
 
 #else
@@ -1563,6 +1567,23 @@ public:
 			}
 		}
 		svm_build_options += " ";
+
+		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
+		 * to limit re-compilations
+		 */
+		if (!background) {
+			/* clos_max value can't be 0  */
+			clos_max = (clos_max == 0) ? 1 : clos_max;
+			clos_max = (((clos_max - 1) / 5) + 1) * 5;
+			/* clos_max value can't be greater than MAX_CLOSURE */
+			clos_max = (clos_max > MAX_CLOSURE) ? MAX_CLOSURE : clos_max;
+
+			if (current_clos_max == clos_max) {
+				/* present kernels have been created with the same closure count build option */
+				return true;
+			}
+		}
+
 #ifdef __MULTI_CLOSURE__
 		opt += string_printf("-DMAX_CLOSURE=%d ", clos_max);
 #endif
@@ -1653,6 +1674,8 @@ public:
 		clbin = string_printf("cycles_kernel_%s_%s_SumAllRadiance.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel_SPLIT_KERNEL(&sumAllRadiance_program, kernel_path, "sumAll", device_md5, kernel_init_source, clbin, " -D__SPLIT_KERNEL__ "))
 			return false;
+
+		current_clos_max = clos_max;
 
 		kernel_init_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
 		device_md5 = device_md5_hash("");

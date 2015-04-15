@@ -106,6 +106,9 @@ public:
 	/* Get all closure nodes associated with the scene */
 	set<int> closure_nodes;
 
+	/* Return background */
+	bool get_background() { return background; }
+
 	/* regular memory */
 	virtual void mem_alloc(device_memory& mem, MemoryType type) = 0;
 	virtual void mem_copy_to(device_memory& mem) = 0;

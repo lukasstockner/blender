@@ -616,7 +616,10 @@ void Session::load_kernels()
 {
 	thread_scoped_lock scene_lock(scene->mutex);
 
-	if(!kernels_loaded) {
+	if (!kernels_loaded || !device->get_background()) {
+		/* for split kernel, in case if interactive rendering, we
+		 * we need to check kernel-reload before doing path trace
+		 */
 		progress.set_status("Loading render kernels (may take a few minutes the first time)");
 
 		if(!device->load_kernels(params.experimental)) {
