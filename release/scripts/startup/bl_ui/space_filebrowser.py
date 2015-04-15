@@ -26,10 +26,7 @@ class FILEBROWSER_HT_header(Header):
 
     def draw(self, context):
         layout = self.layout
-
         st = context.space_data
-
-        is_lib_browser = st.use_library_browsing
 
         layout.template_header()
 
@@ -54,6 +51,8 @@ class FILEBROWSER_HT_header(Header):
 
         # can be None when save/reload with a file selector open
         if params:
+            is_lib_browser = params.use_library_browsing
+
             layout.prop(params, "display_type", expand=True, text="")
             layout.prop(params, "sort_method", expand=True, text="")
 
