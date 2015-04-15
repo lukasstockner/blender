@@ -480,7 +480,7 @@ float file_font_pointsize(void)
 #endif
 }
 
-static void column_widths(struct FileList *files, struct FileLayout *layout)
+static void column_widths(struct FileList *UNUSED(files), struct FileLayout *layout)
 {
 	int i;
 
@@ -488,43 +488,12 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 		layout->column_widths[i] = 0;
 	}
 
-#if 0
-	{
-	int numfiles = filelist_numfiles(files);
-	for (i = 0; (i < numfiles); ++i) {
-		FileDirEntry *file = filelist_file(files, i);
-		if (file) {
-			float len;
-			len = file_string_width(file->relpath);
-			if (len > layout->column_widths[COLUMN_NAME]) layout->column_widths[COLUMN_NAME] = len;
-			len = file_string_width(file->entry->date_str);
-			if (len > layout->column_widths[COLUMN_DATE]) layout->column_widths[COLUMN_DATE] = len;
-			len = file_string_width(file->entry->time_str);
-			if (len > layout->column_widths[COLUMN_TIME]) layout->column_widths[COLUMN_TIME] = len;
-			len = file_string_width(file->entry->size_str);
-			if (len > layout->column_widths[COLUMN_SIZE]) layout->column_widths[COLUMN_SIZE] = len;
-			len = file_string_width(file->entry->mode1);
-			if (len > layout->column_widths[COLUMN_MODE1]) layout->column_widths[COLUMN_MODE1] = len;
-			len = file_string_width(file->entry->mode2);
-			if (len > layout->column_widths[COLUMN_MODE2]) layout->column_widths[COLUMN_MODE2] = len;
-			len = file_string_width(file->entry->mode3);
-			if (len > layout->column_widths[COLUMN_MODE3]) layout->column_widths[COLUMN_MODE3] = len;
-			len = file_string_width(file->entry->owner);
-			if (len > layout->column_widths[COLUMN_OWNER]) layout->column_widths[COLUMN_OWNER] = len;
-		}
-	}
-	}
-#else
-	UNUSED_VARS(files);
-	{
-		/* Biggest possible reasonable values...
-		 * TODO: better ways to get those! */
-		layout->column_widths[COLUMN_NAME] = file_string_width("WMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWM");
-		layout->column_widths[COLUMN_DATE] = file_string_width("23-Mar-89");
-		layout->column_widths[COLUMN_TIME] = file_string_width("23:59");
-		layout->column_widths[COLUMN_SIZE] = file_string_width("987.6 MiB");
-	}
-#endif
+	/* Biggest possible reasonable values...
+	 * TODO: better ways to get those! */
+	layout->column_widths[COLUMN_NAME] = file_string_width("WMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWM");
+	layout->column_widths[COLUMN_DATE] = file_string_width("23-Dec-89");
+	layout->column_widths[COLUMN_TIME] = file_string_width("23:59");
+	layout->column_widths[COLUMN_SIZE] = file_string_width("987.64 MiB");
 }
 
 void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
@@ -593,12 +562,6 @@ void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
 		else {
 			maxlen = ICON_DEFAULT_WIDTH_SCALE + column_icon_space +
 			         (int)layout->column_widths[COLUMN_NAME] + column_space +
-#ifndef WIN32
-			         (int)layout->column_widths[COLUMN_MODE1] + column_space +
-			         (int)layout->column_widths[COLUMN_MODE2] + column_space +
-			         (int)layout->column_widths[COLUMN_MODE3] + column_space +
-			         (int)layout->column_widths[COLUMN_OWNER] + column_space +
-#endif
 			         (int)layout->column_widths[COLUMN_DATE] + column_space +
 			         (int)layout->column_widths[COLUMN_TIME] + column_space +
 			         (int)layout->column_widths[COLUMN_SIZE] + column_space;

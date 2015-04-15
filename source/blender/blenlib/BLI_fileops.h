@@ -97,10 +97,10 @@ void BLI_filelist_duplicate(struct direntry **dest_filelist, struct direntry *sr
 void BLI_filelist_entry_free(struct direntry *entry);
 void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries);
 
-void BLI_filelist_entry_size_to_string(struct stat *st, char r_size[]);
+void BLI_filelist_entry_size_to_string(struct stat *st, const uint64_t sz, char r_size[]);
 void BLI_filelist_entry_mode_to_string(struct stat *st, char r_mode1[], char r_mode2[], char r_mode3[]);
 void BLI_filelist_entry_owner_to_string(struct stat *st, char r_owner[]);
-void BLI_filelist_entry_datetime_to_string(struct stat *st, char r_time[], char r_date[]);
+void BLI_filelist_entry_datetime_to_string(struct stat *st, const int64_t ts, char r_time[], char r_date[]);
 
 /* Files */
 
