@@ -3406,7 +3406,9 @@ public:
 
 					/* Print message to console */
 					if (need_to_split_tiles_further && background) {
-						fprintf(stderr, "Message : Tiles need to be split further inside path trace (due to in-sufficient device-global-memory for split kernel to function)");
+						int2 render_feasible_tile_size = get_render_feasible_tile_size(feasible_global_work_size);
+						fprintf(stderr, "Message : Tiles need to be split further inside path trace (due to in-sufficient device-global-memory for split kernel to function) \n\
+The user set tile size %dx%d will be split into tiles of dimension %dx%d to render \n", tile.tile_size.x, tile.tile_size.y, render_feasible_tile_size.x, render_feasible_tile_size.y);
 					}
 
 					initialize_data_and_check_render_feasibility = true;
