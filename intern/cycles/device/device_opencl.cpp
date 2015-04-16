@@ -3275,39 +3275,67 @@ public:
 	}
 
 	/* Considers the scene properties, global memory available in the device
-	 * and returns a rectanglular tile dimension that should render on split kernel
+	 * and returns a rectanglular tile dimension (approx the maximum)
+	 * that should render on split kernel
 	 */
-	int2 get_render_feasible_tile_size(size_t feasible_global_work_size) {
-		int2 render_feasible_tile_size;
+	int2 get_max_render_feasible_tile_size(size_t feasible_global_work_size) {
+		int2 max_render_feasible_tile_size;
 		int square_root_val = sqrt(feasible_global_work_size);
-		render_feasible_tile_size.x = square_root_val;
-		render_feasible_tile_size.y = square_root_val;
+		max_render_feasible_tile_size.x = square_root_val;
+		max_render_feasible_tile_size.y = square_root_val;
 
-		/* ciel round-off render_feasible_tile_size */
+		/* ciel round-off max_render_feasible_tile_size */
 		int2 ceil_render_feasible_tile_size;
-		ceil_render_feasible_tile_size.x = (((render_feasible_tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
-		ceil_render_feasible_tile_size.y = (((render_feasible_tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+		ceil_render_feasible_tile_size.x = (((max_render_feasible_tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+		ceil_render_feasible_tile_size.y = (((max_render_feasible_tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
 
 		if (ceil_render_feasible_tile_size.x * ceil_render_feasible_tile_size.y <= feasible_global_work_size) {
 			return ceil_render_feasible_tile_size;
 		}
 
-		/* floor round-off render_feasible_tile_size */
+		/* floor round-off max_render_feasible_tile_size */
 		int2 floor_render_feasible_tile_size;
-		floor_render_feasible_tile_size.x = (render_feasible_tile_size.x / SPLIT_KERNEL_LOCAL_SIZE_X) * SPLIT_KERNEL_LOCAL_SIZE_X;
-		floor_render_feasible_tile_size.y = (render_feasible_tile_size.y / SPLIT_KERNEL_LOCAL_SIZE_Y) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+		floor_render_feasible_tile_size.x = (max_render_feasible_tile_size.x / SPLIT_KERNEL_LOCAL_SIZE_X) * SPLIT_KERNEL_LOCAL_SIZE_X;
+		floor_render_feasible_tile_size.y = (max_render_feasible_tile_size.y / SPLIT_KERNEL_LOCAL_SIZE_Y) * SPLIT_KERNEL_LOCAL_SIZE_Y;
 
 		return floor_render_feasible_tile_size;
 	}
 
-	/* Splits existing tile into multiple tiles of tile size render_feasible_tile_size */
-	vector<RenderTile> split_tiles(RenderTile rtile, int2 render_feasible_tile_size) {
+	/* Try splitting the current tile into multiple smaller almost-square-tiles */
+	int2 get_split_tile_size(RenderTile rtile, int2 max_render_feasible_tile_size) {
+		int2 split_tile_size;
+		int num_global_threads = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
+		int d_w = rtile.w;
+		int d_h = rtile.h;
+
+		/* Ceil round off d_w and d_h */
+		d_w = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+		d_h = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+
+		while (d_w * d_h > num_global_threads) {
+			/* Halve the longer dimension */
+			if (d_w >= d_h) {
+				d_w = d_w / 2;
+				d_w = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+			}
+			else {
+				d_h = d_h / 2;
+				d_h = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+			}
+		}
+		split_tile_size.x = d_w;
+		split_tile_size.y = d_h;
+		return split_tile_size;
+	}
+
+	/* Splits existing tile into multiple tiles of tile size split_tile_size */
+	vector<RenderTile> split_tiles(RenderTile rtile, int2 split_tile_size) {
 		vector<RenderTile> to_path_trace_rtile;
 
 		int d_w = rtile.w;
 		int d_h = rtile.h;
-		int num_tiles_x = (((d_w - 1) / render_feasible_tile_size.x) + 1);
-		int num_tiles_y = (((d_h - 1) / render_feasible_tile_size.y) + 1);
+		int num_tiles_x = (((d_w - 1) / split_tile_size.x) + 1);
+		int num_tiles_y = (((d_h - 1) / split_tile_size.y) + 1);
 
 		/* buffer and rng_state offset calc */
 		size_t offset_index = rtile.offset + (rtile.x + rtile.y * rtile.stride);
@@ -3321,10 +3349,10 @@ public:
 			for (int tile_iter_x = 0; tile_iter_x < num_tiles_x; tile_iter_x++) {
 				int rtile_index = tile_iter_y * num_tiles_x + tile_iter_x;
 
-				to_path_trace_rtile[rtile_index].rng_state_offset_x = offset_x + tile_iter_x * render_feasible_tile_size.x;
-				to_path_trace_rtile[rtile_index].rng_state_offset_y = offset_y + tile_iter_y * render_feasible_tile_size.y;
-				to_path_trace_rtile[rtile_index].buffer_offset_x = offset_x + tile_iter_x * render_feasible_tile_size.x;
-				to_path_trace_rtile[rtile_index].buffer_offset_y = offset_y + tile_iter_y * render_feasible_tile_size.y;
+				to_path_trace_rtile[rtile_index].rng_state_offset_x = offset_x + tile_iter_x * split_tile_size.x;
+				to_path_trace_rtile[rtile_index].rng_state_offset_y = offset_y + tile_iter_y * split_tile_size.y;
+				to_path_trace_rtile[rtile_index].buffer_offset_x = offset_x + tile_iter_x * split_tile_size.x;
+				to_path_trace_rtile[rtile_index].buffer_offset_y = offset_y + tile_iter_y * split_tile_size.y;
 				to_path_trace_rtile[rtile_index].start_sample = rtile.start_sample;
 				to_path_trace_rtile[rtile_index].num_samples = rtile.num_samples;
 				to_path_trace_rtile[rtile_index].sample = rtile.sample;
@@ -3334,20 +3362,17 @@ public:
 				to_path_trace_rtile[rtile_index].buffers = rtile.buffers;
 				to_path_trace_rtile[rtile_index].buffer = rtile.buffer;
 				to_path_trace_rtile[rtile_index].rng_state = rtile.rng_state;
-				to_path_trace_rtile[rtile_index].x = rtile.x + (tile_iter_x * render_feasible_tile_size.x);
-				to_path_trace_rtile[rtile_index].y = rtile.y + (tile_iter_y * render_feasible_tile_size.y);
+				to_path_trace_rtile[rtile_index].x = rtile.x + (tile_iter_x * split_tile_size.x);
+				to_path_trace_rtile[rtile_index].y = rtile.y + (tile_iter_y * split_tile_size.y);
 				to_path_trace_rtile[rtile_index].buffer_rng_state_stride = rtile.stride;
-
-				/* Set max render feasible tile size */
-				to_path_trace_rtile[rtile_index].max_render_feasible_tile_size = render_feasible_tile_size;
 
 				/* Fill width and height of the new render tile */
 				to_path_trace_rtile[rtile_index].w = (tile_iter_x == (num_tiles_x - 1)) ?
-					(d_w - (tile_iter_x * render_feasible_tile_size.x)) /* Border tile */
-					: render_feasible_tile_size.x;
+					(d_w - (tile_iter_x * split_tile_size.x)) /* Border tile */
+					: split_tile_size.x;
 				to_path_trace_rtile[rtile_index].h = (tile_iter_y == (num_tiles_y - 1)) ?
-					(d_h - (tile_iter_y * render_feasible_tile_size.y)) /* Border tile */
-					: render_feasible_tile_size.y;
+					(d_h - (tile_iter_y * split_tile_size.y)) /* Border tile */
+					: split_tile_size.y;
 
 				to_path_trace_rtile[rtile_index].stride = to_path_trace_rtile[rtile_index].w;
 			}
@@ -3370,6 +3395,7 @@ public:
 #ifdef __SPLIT_KERNEL__
 			bool initialize_data_and_check_render_feasibility = false;
 			bool need_to_split_tiles_further = false;
+			int2 max_render_feasible_tile_size;
 			size_t feasible_global_work_size;
 #endif
 
@@ -3404,24 +3430,27 @@ public:
 
 					/* Check render feasibility */
 					feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
+					max_render_feasible_tile_size = get_max_render_feasible_tile_size(feasible_global_work_size);
 					need_to_split_tiles_further = need_to_split_tile(tile.tile_size.x, tile.tile_size.y, feasible_global_work_size);
-
-					/* Print message to console */
-					if (need_to_split_tiles_further && background) {
-						int2 render_feasible_tile_size = get_render_feasible_tile_size(feasible_global_work_size);
-						fprintf(stderr, "Message : Tiles need to be split further inside path trace (due to in-sufficient device-global-memory for split kernel to function) \n\
-The user set tile size %dx%d will be split into tiles of dimension %dx%d to render \n", tile.tile_size.x, tile.tile_size.y, render_feasible_tile_size.x, render_feasible_tile_size.y);
-					}
 
 					initialize_data_and_check_render_feasibility = true;
 				}
 
 				if (need_to_split_tiles_further) {
-					int2 render_feasible_tile_size = get_render_feasible_tile_size(feasible_global_work_size);
-					vector<RenderTile> to_path_trace_render_tiles = split_tiles(tile, render_feasible_tile_size);
+
+					int2 split_tile_size = get_split_tile_size(tile, max_render_feasible_tile_size);
+					vector<RenderTile> to_path_trace_render_tiles = split_tiles(tile, split_tile_size);
+
+					/* Print message to console */
+					if (background && (to_path_trace_render_tiles.size() > 1)) {
+						fprintf(stderr, "Message : Tiles need to be split further inside path trace (due to insufficient device-global-memory for split kernel to function) \n\
+The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for render \n", tile.w, tile.h, split_tile_size.x, split_tile_size.y);
+					}
 
 					/* Process all split tiles */
 					for (int tile_iter = 0; tile_iter < to_path_trace_render_tiles.size(); tile_iter++) {
+						/* Set max_render_feasible_render_tile_size for all tiles */
+						to_path_trace_render_tiles[tile_iter].max_render_feasible_tile_size = max_render_feasible_tile_size;
 						/* The second argument is dummy */
 						path_trace(to_path_trace_render_tiles[tile_iter], 0);
 					}
