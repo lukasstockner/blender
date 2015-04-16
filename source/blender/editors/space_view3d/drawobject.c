@@ -1874,9 +1874,9 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	}
 }
 
-/* flag similar to draw_object() */
-static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
-                           const short dflag, const unsigned char ob_wire_col[4])
+#if 0 /* unused */
+static void drawcamera_new_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
+                               const short dflag, const unsigned char ob_wire_col[4])
 {
 #if MCE_TRACE
 	printf("- %s\n", __FUNCTION__);
@@ -2010,9 +2010,10 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 	}
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
+#endif /* unused */
 
-static void drawcamera_new_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
-                               const short UNUSED(dflag), const unsigned char UNUSED(ob_wire_col[4]))
+static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
+                           const short UNUSED(dflag), const unsigned char UNUSED(ob_wire_col[4]))
 {
 #if MCE_TRACE
 	printf("- %s\n", __FUNCTION__);
@@ -4461,11 +4462,11 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 			const int face_ct = dm->getNumTessFaces(dm);
 			const int attrib_ct = (dt > OB_WIRE) ? 2 : 1;
 
-			dm->gpux_batch->draw_type = dt;
-
 			VertexBuffer *verts = GPUx_vertex_buffer_create(attrib_ct, vert_ct);
 			ElementList *elem = NULL;
 			MVert *mverts = dm->getVertArray(dm);
+
+			dm->gpux_batch->draw_type = dt;
 
 #if MCE_TRACE
 			printf("%d verts, %d edges, %d faces\n", vert_ct, edge_ct, face_ct);
@@ -8013,7 +8014,7 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 				    (rv3d->persp == RV3D_CAMOB && v3d->camera == ob)) /* special exception for active camera */
 				{
 					if (new_style_drawing)
-						drawcamera_new_new(scene, v3d, rv3d, base, dflag, ob_wire_col);
+						drawcamera_new(scene, v3d, rv3d, base, dflag, ob_wire_col);
 					else
 						drawcamera(scene, v3d, rv3d, base, dflag, ob_wire_col);
 				}

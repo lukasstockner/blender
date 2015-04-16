@@ -220,6 +220,8 @@ void GPUx_set_triangle_vertices(ElementList *el, unsigned prim_idx, unsigned v1,
 
 void GPUx_optimize(ElementList *el)
 {
+	(void)el;
+
 	/* TODO: apply Forsyth's vertex cache algorithm */
 	
 	/* http://hacksoflife.blogspot.com/2010/01/to-strip-or-not-to-strip.html

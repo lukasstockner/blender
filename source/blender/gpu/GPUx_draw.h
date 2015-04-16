@@ -25,7 +25,7 @@ typedef struct GPUxBatch {
 	ElementList *elem;
 } GPUxBatch;
 
-GPUxBatch *GPUx_batch_create();
+GPUxBatch *GPUx_batch_create(void);
 void GPUx_batch_discard(GPUxBatch*);
 
 void GPUx_draw_batch(const GPUxBatch*);

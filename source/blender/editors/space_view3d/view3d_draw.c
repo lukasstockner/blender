@@ -3718,6 +3718,8 @@ static void view3d_main_area_draw_viewport_new(const bContext *UNUSED(C), Scene 
 	/* setup view matrices */
 	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 
+	view3d_update_view_dependent_uniforms();
+
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->fx_settings.fx_flag) {
 		GPUFXSettings fx_settings;
