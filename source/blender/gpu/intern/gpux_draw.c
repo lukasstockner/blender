@@ -32,8 +32,11 @@ void GPUx_draw_points(const VertexBuffer *vbo, const ElementList *el, const Poin
 #ifdef REALLY_DRAW
 	GPUx_vertex_buffer_use_primed(vbo);
 
-	if (el)
-		glDrawRangeElements(GL_POINTS, min_index(el), max_index(el), el->prim_ct, el->index_type, el->indices);
+	if (el) {
+		GPUx_element_list_use_primed(el);
+		glDrawRangeElements(GL_POINTS, min_index(el), max_index(el), el->prim_ct, el->index_type, index_ptr(el));
+		GPUx_element_list_done_using(el);
+	}
 	else
 		glDrawArrays(GL_POINTS, 0, GPUx_vertex_ct(vbo));
 
@@ -56,8 +59,11 @@ void GPUx_draw_lines(const VertexBuffer *vbo, const ElementList *el, const LineD
 #ifdef REALLY_DRAW
 	GPUx_vertex_buffer_use_primed(vbo);
 
-	if (el)
-		glDrawRangeElements(GL_LINES, min_index(el), max_index(el), el->prim_ct * 2, el->index_type, el->indices);
+	if (el) {
+		GPUx_element_list_use_primed(el);
+		glDrawRangeElements(GL_LINES, min_index(el), max_index(el), el->prim_ct * 2, el->index_type, index_ptr(el));
+		GPUx_element_list_done_using(el);
+	}
 	else
 		glDrawArrays(GL_LINES, 0, chop_to_multiple(GPUx_vertex_ct(vbo), 2));
 
@@ -80,8 +86,11 @@ void GPUx_draw_triangles(const VertexBuffer *vbo, const ElementList *el, const P
 #ifdef REALLY_DRAW
 	GPUx_vertex_buffer_use_primed(vbo);
 
-	if (el)
-		glDrawRangeElements(GL_TRIANGLES, min_index(el), max_index(el), el->prim_ct * 3, el->index_type, el->indices);
+	if (el) {
+		GPUx_element_list_use_primed(el);
+		glDrawRangeElements(GL_TRIANGLES, min_index(el), max_index(el), el->prim_ct * 3, el->index_type, index_ptr(el));
+		GPUx_element_list_done_using(el);
+	}
 	else
 		glDrawArrays(GL_TRIANGLES, 0, chop_to_multiple(GPUx_vertex_ct(vbo), 3));
 
@@ -122,9 +131,11 @@ void GPUx_draw_primitives(const VertexBuffer *vbo, const ElementList *el, const 
 
 #ifdef REALLY_DRAW
 	GPUx_vertex_buffer_use_primed(vbo);
+	GPUx_element_list_use_primed(el);
 
-	glDrawRangeElements(el->prim_type, min_index(el), max_index(el), el->prim_ct * vert_per_prim, el->index_type, el->indices);
+	glDrawRangeElements(el->prim_type, min_index(el), max_index(el), el->prim_ct * vert_per_prim, el->index_type, index_ptr(el));
 
+	GPUx_element_list_done_using(el);
 	GPUx_vertex_buffer_done_using(vbo);
 #endif /* REALLY_DRAW */
 }
@@ -185,9 +196,12 @@ void GPUx_draw_batch(const GPUxBatch *batch)
 #ifdef REALLY_DRAW
 	GPUx_vertex_buffer_use_primed(batch->buff);
 
-	if (batch->elem)
+	if (batch->elem) {
+		GPUx_element_list_use_primed(batch->elem);
 		glDrawRangeElements(batch->prim_type, min_index(batch->elem), max_index(batch->elem),
-		                    batch->elem->prim_ct * vert_per_prim, batch->elem->index_type, batch->elem->indices);
+		                    batch->elem->prim_ct * vert_per_prim, batch->elem->index_type, index_ptr(batch->elem));
+		GPUx_element_list_done_using(batch->elem);
+	}
 	else
 		glDrawArrays(batch->prim_type, 0, chop_to_multiple(GPUx_vertex_ct(batch->buff), vert_per_prim));
 

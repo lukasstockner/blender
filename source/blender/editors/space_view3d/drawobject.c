@@ -4515,6 +4515,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 //				glShadeModel(GL_SMOOTH);
 
 				GPUx_vertex_buffer_prime(verts);
+				GPUx_element_list_prime(elem);
 
 				dm->gpux_batch->prim_type = GL_TRIANGLES;
 				dm->gpux_batch->buff = verts;
@@ -4535,6 +4536,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 				}
 
 				GPUx_vertex_buffer_prime(verts);
+				GPUx_element_list_prime(elem);
 
 				dm->gpux_batch->prim_type = GL_LINES;
 				dm->gpux_batch->buff = verts;

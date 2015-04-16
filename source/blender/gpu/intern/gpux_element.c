@@ -2,6 +2,8 @@
 #include "gpux_element_private.h"
 #include <stdlib.h>
 
+/* private functions */
+
 #ifdef TRACK_INDEX_RANGE
 static void track_index_range(ElementList *el, unsigned v)
 {
@@ -29,6 +31,20 @@ unsigned max_index(const ElementList *el)
 	return el->max_allowed_index;
 #endif /* TRACK_INDEX_RANGE */
 }
+
+const void *index_ptr(const ElementList *el)
+{
+#ifdef USE_ELEM_VBO
+	if (el->vbo_id) /* primed, data lives in buffer object */
+		return (const void*)0;
+	else /* data lives in client memory */
+		return el->indices;
+#else
+	return el->indices;
+#endif /* USE_ELEM_VBO */
+}
+
+/* public functions */
 
 ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index)
 {
@@ -80,6 +96,11 @@ ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsign
 
 void GPUx_element_list_discard(ElementList *el)
 {
+#ifdef USE_ELEM_VBO
+	if (el->vbo_id)
+		glDeleteBuffers(1, &el->vbo_id);
+#endif /* USE_ELEM_VBO */
+
 	free(el->indices);
 	free(el);
 }
@@ -211,4 +232,59 @@ void GPUx_optimize(ElementList *el)
 	 * triangle abc = bca = cab */
 
 	/* TODO: (optional) rearrange vertex attrib buffer to improve mem locality */
+}
+
+void GPUx_element_list_prime(ElementList *el)
+{
+#ifdef USE_ELEM_VBO
+	int prim_vertex_ct = 0, index_size = 0, total_size;
+
+#ifdef TRUST_NO_ONE
+	assert(el->vbo_id == 0);
+  #endif /* TRUST_NO_ONE */
+
+	if (el->prim_type == GL_POINTS)
+		prim_vertex_ct = 1;
+	else if (el->prim_type == GL_LINES)
+		prim_vertex_ct = 2;
+	else if (el->prim_type == GL_TRIANGLES)
+		prim_vertex_ct = 3;
+
+	if (el->index_type == GL_UNSIGNED_BYTE)
+		index_size = sizeof(GLubyte);
+	else if (el->index_type == GL_UNSIGNED_SHORT)
+		index_size = sizeof(GLushort);
+	else if (el->index_type == GL_UNSIGNED_INT)
+		index_size = sizeof(GLuint);
+
+	total_size = prim_vertex_ct * el->prim_ct * index_size;
+
+	glGenBuffers(1, &el->vbo_id);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
+	/* fill with delicious data & send to GPU the first time only */
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, total_size, el->indices, GL_STATIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#else
+	(void)el;
+#endif /* USE_ELEM_VBO */
+}
+
+void GPUx_element_list_use_primed(const ElementList *el)
+{
+#ifdef USE_ELEM_VBO
+  #ifdef TRUST_NO_ONE
+	assert(el->vbo_id);
+  #endif /* TRUST_NO_ONE */
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
+#else
+	(void)el;
+#endif /* USE_ELEM_VBO */
+}
+
+void GPUx_element_list_done_using(const ElementList *el)
+{
+	(void)el;
+#ifdef USE_ELEM_VBO
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+#endif /* USE_ELEM_VBO */
 }

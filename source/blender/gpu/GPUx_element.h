@@ -21,4 +21,9 @@ void GPUx_set_triangle_vertices(ElementList*, unsigned prim_idx, unsigned v1, un
 
 void GPUx_optimize(ElementList*); /* optionally call this after setting all vertex indices */
 
+/* prime does all the setup(create VBO, send to GPU, etc.) so use_primed doesn't have to */
+void GPUx_element_list_prime(ElementList*);
+void GPUx_element_list_use_primed(const ElementList*);
+void GPUx_element_list_done_using(const ElementList*);
+
 #endif /* BLENDER_GL_ELEMENT_LIST */
