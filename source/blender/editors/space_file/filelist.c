@@ -2115,7 +2115,8 @@ unsigned int filelist_entry_select_index_get(FileList *filelist, const int index
  * Returns a list of selected entries, if use_ae is set also calls asset engine's load_pre callback.
  * Note first item of returned list shall be used as 'active' file.
  */
-FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check, const char *name, const bool use_ae)
+FileDirEntryArr *filelist_selection_get(
+        FileList *filelist, FileCheckType check, const char *name, AssetUUIDList **r_uuids, const bool use_ae)
 {
 	FileDirEntryArr *selection;
 	GHashIterator *iter = BLI_ghashIterator_new(filelist->selection_state);
@@ -2155,7 +2156,10 @@ FileDirEntryArr *filelist_selection_get(FileList *filelist, FileCheckType check,
 
 	if (use_ae && filelist->ae) {
 		/* This will 'rewrite' selection list, returned paths are expected to be valid! */
-		BKE_asset_engine_load_pre(filelist->ae, selection);
+		*r_uuids = BKE_asset_engine_load_pre(filelist->ae, selection);
+	}
+	else {
+		*r_uuids = NULL;
 	}
 
 	return selection;

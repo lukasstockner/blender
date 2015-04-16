@@ -50,6 +50,7 @@
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_windowmanager_types.h"
 #include "DNA_mesh_types.h" /* only for USE_BMESH_SAVE_AS_COMPAT */
@@ -1220,7 +1221,8 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 	if (flag & WM_FILESEL_FILEPATH)
 		RNA_def_string_file_path(ot->srna, "filepath", NULL, FILE_MAX, "File Path", "Path to file");
 
-	if (flag & WM_FILESEL_DIRECTORY)
+	/* Enforce directory in file cases, needed with asset engines. */
+	if (flag & (WM_FILESEL_DIRECTORY | WM_FILESEL_FILEPATH | WM_FILESEL_FILENAME | WM_FILESEL_FILES))
 		RNA_def_string_dir_path(ot->srna, "directory", NULL, FILE_MAX, "Directory", "Directory of the file");
 
 	if (flag & WM_FILESEL_FILENAME)
@@ -1228,6 +1230,23 @@ void WM_operator_properties_filesel(wmOperatorType *ot, int filter, short type, 
 
 	if (flag & WM_FILESEL_FILES)
 		RNA_def_collection_runtime(ot->srna, "files", &RNA_OperatorFileListElement, "Files", "");
+
+	if (flag & (WM_FILESEL_FILEPATH | WM_FILESEL_DIRECTORY | WM_FILESEL_FILENAME | WM_FILESEL_FILES)) {
+		prop = RNA_def_string(ot->srna, "asset_engine", NULL, BKE_ST_MAXNAME, "Asset Engine",
+		                      "Identifier of relevant asset engine (if any)");
+		RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+		if (flag & (WM_FILESEL_FILEPATH | WM_FILESEL_FILENAME)) {
+			prop = RNA_def_int_vector(ot->srna, "asset_uuid", 4, NULL, INT_MIN, INT_MAX,
+			                          "Asset UUID", "Identifier of this item in current asset engine", INT_MIN, INT_MAX);
+			RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+			prop = RNA_def_int_vector(ot->srna, "variant_uuid", 4, NULL, INT_MIN, INT_MAX,
+			                          "Variant UUID", "Identifier of this item's variant in current asset engine", INT_MIN, INT_MAX);
+			RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+			prop = RNA_def_int_vector(ot->srna, "revision_uuid", 4, NULL, INT_MIN, INT_MAX,
+			                          "Revision UUID", "Identifier of this item's revision in current asset engine", INT_MIN, INT_MAX);
+			RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+		}
+	}
 
 	if (action == FILE_SAVE) {
 		/* note, this is only used to check if we should highlight the filename area red when the
@@ -2688,10 +2707,14 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
+			int asset_uuid[4];
 			char curr_libname[FILE_MAX];
 			int curr_idcode;
 
 			RNA_string_get(&itemptr, "name", relname);
+			RNA_int_get_array(&itemptr, "asset_uuid", asset_uuid);
+
+			printf("asset uuid %s: %d, %d, %d, %d\n", relname, asset_uuid[0], asset_uuid[1], asset_uuid[2], asset_uuid[3]);
 
 			BLI_join_dirfile(path, sizeof(path), dir, relname);
 

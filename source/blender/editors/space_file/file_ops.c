@@ -841,10 +841,12 @@ void FILE_OT_cancel(struct wmOperatorType *ot)
 }
 
 
-static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepath[FILE_MAX_LIBEXTRA], const bool is_fake)
+static void file_sfile_to_operator(
+        wmOperator *op, SpaceFile *sfile, char filepath[FILE_MAX_LIBEXTRA], const bool is_fake)
 {
 	PropertyRNA *prop, *prop_files, *prop_dirs;
 	AssetEngine *ae = filelist_assetengine_get(sfile->files);
+	AssetUUIDList *uuids;
 	FileDirEntryArr *selection;
 	FileCheckType check = CHECK_NONE;
 
@@ -857,7 +859,11 @@ static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepa
 
 	BLI_assert(STREQ(sfile->params->dir, filelist_dir(sfile->files)));
 
-	selection = filelist_selection_get(sfile->files, check, sfile->params->file, !is_fake);
+	selection = filelist_selection_get(sfile->files, check, sfile->params->file, &uuids, !is_fake);
+
+	if (ae && selection->nbr_entries) {
+		BLI_assert(uuids);
+	}
 
 	if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
 		RNA_property_string_set(op->ptr, prop, selection->root);
@@ -881,6 +887,17 @@ static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepa
 		if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
 			RNA_property_string_set(op->ptr, prop, filepath);
 		}
+		if (ae) {
+			if ((prop = RNA_struct_find_property(op->ptr, "asset_uuid"))) {
+				RNA_property_int_set_array(op->ptr, prop, uuids->uuids[0].uuid_asset);
+			}
+			if ((prop = RNA_struct_find_property(op->ptr, "variant_uuid"))) {
+				RNA_property_int_set_array(op->ptr, prop, uuids->uuids[0].uuid_variant);
+			}
+			if ((prop = RNA_struct_find_property(op->ptr, "revision_uuid"))) {
+				RNA_property_int_set_array(op->ptr, prop, uuids->uuids[0].uuid_revision);
+			}
+		}
 
 		/* some ops have multiple files to select */
 		/* this is called on operators check() so clear collections first since
@@ -889,12 +906,19 @@ static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepa
 			if (prop_files) {
 				FileDirEntry *entry;
 				PointerRNA itemptr;
+				int i;
 
 				RNA_property_collection_clear(op->ptr, prop_files);
-				for (entry = selection->entries.first; entry; entry = entry->next) {
+				for (i = 0, entry = selection->entries.first; entry; entry = entry->next, i++) {
 					if (!(entry->typeflag & FILE_TYPE_DIR)) {
 						RNA_property_collection_add(op->ptr, prop_files, &itemptr);
 						RNA_string_set(&itemptr, "name", entry->relpath);
+						if (ae) {
+							BLI_assert(i < uuids->nbr_uuids);
+							RNA_int_set_array(&itemptr, "asset_uuid", uuids->uuids[i].uuid_asset);
+							RNA_int_set_array(&itemptr, "variant_uuid", uuids->uuids[i].uuid_variant);
+							RNA_int_set_array(&itemptr, "revision_uuid", uuids->uuids[i].uuid_revision);
+						}
 					}
 				}
 			}
@@ -938,11 +962,12 @@ static void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char filepa
 	}
 
 	if (!is_fake && ae && (prop = RNA_struct_find_property(op->ptr, "asset_engine"))) {
-		PointerRNA ptr;
+		RNA_property_string_set(op->ptr, prop, ae->type->idname);
+	}
 
-		ae = BKE_asset_engine_copy(ae);  /* Operator is responsible to free/release that! */
-		RNA_pointer_create(NULL, &RNA_AssetEngine, ae, &ptr);
-		RNA_property_pointer_set(op->ptr, prop, ptr);
+	if (uuids) {
+		MEM_freeN(uuids->uuids);
+		MEM_freeN(uuids);
 	}
 
 	BKE_filedir_entryarr_clear(selection);

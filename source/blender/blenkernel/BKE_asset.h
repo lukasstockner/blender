@@ -163,7 +163,7 @@ AssetEngine *BKE_asset_engine_create(AssetEngineType *type);
 AssetEngine *BKE_asset_engine_copy(AssetEngine *engine);
 void BKE_asset_engine_free(AssetEngine *engine);
 
-void BKE_asset_engine_load_pre(AssetEngine *engine, struct FileDirEntryArr *r_entries);
+AssetUUIDList *BKE_asset_engine_load_pre(AssetEngine *engine, struct FileDirEntryArr *r_entries);
 
 /* File listing utils... */
 

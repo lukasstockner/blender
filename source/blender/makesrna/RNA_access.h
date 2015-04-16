@@ -75,6 +75,7 @@ extern StructRNA RNA_AssetEngine;
 extern StructRNA RNA_AssetEntry;
 extern StructRNA RNA_AssetList;
 extern StructRNA RNA_AssetRevision;
+extern StructRNA RNA_AssetUUID;
 extern StructRNA RNA_AssetVariant;
 extern StructRNA RNA_BackgroundImage;
 extern StructRNA RNA_BevelModifier;

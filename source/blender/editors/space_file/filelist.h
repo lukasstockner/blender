@@ -105,7 +105,8 @@ void                filelist_entry_select_index_set(struct FileList *filelist, c
 void                filelist_entries_select_index_range_set(struct FileList *filelist, FileSelection *sel, FileSelType select, unsigned int flag, FileCheckType check);
 unsigned int        filelist_entry_select_get(struct FileList *filelist, struct FileDirEntry *entry, FileCheckType check);
 unsigned int        filelist_entry_select_index_get(struct FileList *filelist, const int index, FileCheckType check);
-struct FileDirEntryArr *filelist_selection_get(struct FileList *filelist, FileCheckType check, const char *name, const bool use_ae);
+struct FileDirEntryArr *filelist_selection_get(
+        struct FileList *filelist, FileCheckType check, const char *name, AssetUUIDList **r_uuids, const bool use_ae);
 
 void                filelist_setrecursion(struct FileList *filelist, const int recursion_level);
 

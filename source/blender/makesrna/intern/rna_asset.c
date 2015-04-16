@@ -624,7 +624,6 @@ static IDProperty *rna_AssetEngine_idprops(PointerRNA *ptr, bool create)
 static void rna_def_asset_uuid(BlenderRNA *brna)
 {
 	StructRNA *srna;
-	PropertyRNA *prop;
 
 	int null_uuid[4] = {0};
 
@@ -632,20 +631,14 @@ static void rna_def_asset_uuid(BlenderRNA *brna)
 	RNA_def_struct_sdna(srna, "AssetUUID");
 	RNA_def_struct_ui_text(srna, "Asset UUID", "A unique identifier of an asset (asset engine dependent!)");
 
-	prop = RNA_def_int_vector(srna, "uuid_asset", 4, null_uuid, INT_MIN, INT_MAX,
-	                          "Asset UUID", "Unique identifier of this asset", INT_MIN, INT_MAX);
-//	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-//	RNA_def_property_int_funcs(prop, "rna_AssetUUID_uuid_asset_get", NULL, NULL);
+	RNA_def_int_vector(srna, "uuid_asset", 4, null_uuid, INT_MIN, INT_MAX,
+	                   "Asset UUID", "Unique identifier of this asset", INT_MIN, INT_MAX);
 
-	prop = RNA_def_int_vector(srna, "uuid_variant", 4, null_uuid, INT_MIN, INT_MAX,
-	                          "Variant UUID", "Unique identifier of this asset's variant", INT_MIN, INT_MAX);
-//	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-//	RNA_def_property_int_funcs(prop, "rna_AssetUUID_uuid_variant_get", NULL, NULL);
+	RNA_def_int_vector(srna, "uuid_variant", 4, null_uuid, INT_MIN, INT_MAX,
+	                   "Variant UUID", "Unique identifier of this asset's variant", INT_MIN, INT_MAX);
 
-	prop = RNA_def_int_vector(srna, "uuid_revision", 4, null_uuid, INT_MIN, INT_MAX,
-	                          "Revision UUID", "Unique identifier of this asset's revision", INT_MIN, INT_MAX);
-//	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-//	RNA_def_property_int_funcs(prop, "rna_AssetUUID_uuid_revision_get", NULL, NULL);
+	RNA_def_int_vector(srna, "uuid_revision", 4, null_uuid, INT_MIN, INT_MAX,
+	                   "Revision UUID", "Unique identifier of this asset's revision", INT_MIN, INT_MAX);
 }
 
 static void rna_def_asset_uuid_list(BlenderRNA *brna)
@@ -681,9 +674,6 @@ static void rna_def_asset_revision(BlenderRNA *brna)
 	prop = RNA_def_int_vector(srna, "uuid", 4, null_uuid, INT_MIN, INT_MAX, "Revision UUID",
 	                          "Unique identifier of this revision (actual content depends on asset engine)",
 	                          INT_MIN, INT_MAX);
-//	prop = RNA_def_property(srna, "uuid", PROP_STRING, PROP_BYTESTRING);
-//	RNA_def_property_ui_text(prop, "Revision UUID",
-//	                         "Unique identifier of this revision (actual content depends on asset engine)");
 
 	prop = RNA_def_int(srna, "size", 0, -1, INT_MAX, "Size",
 	                   "Size (in bytes, special value '-1' means 'no size')", -1, INT_MAX);
@@ -743,9 +733,6 @@ static void rna_def_asset_variant(BlenderRNA *brna)
 	prop = RNA_def_int_vector(srna, "uuid", 4, null_uuid, INT_MIN, INT_MAX, "Variant UUID",
 	                          "Unique identifier of this revision (actual content depends on asset engine)",
 	                          INT_MIN, INT_MAX);
-//	prop = RNA_def_property(srna, "uuid", PROP_STRING, PROP_BYTESTRING);
-//	RNA_def_property_ui_text(prop, "Variant UUID",
-//	                         "Unique identifier of this variant (actual content depends on asset engine)");
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_funcs(prop, "rna_AssetVariant_name_get", "rna_AssetVariant_name_length",
@@ -833,9 +820,6 @@ static void rna_def_asset_entry(BlenderRNA *brna)
 	prop = RNA_def_int_vector(srna, "uuid", 4, null_uuid, INT_MIN, INT_MAX, "Variant UUID",
 	                          "Unique identifier of this entry (actual content depends on asset engine)",
 	                          INT_MIN, INT_MAX);
-//	prop = RNA_def_property(srna, "uuid", PROP_STRING, PROP_BYTESTRING);
-//	RNA_def_property_ui_text(prop, "Entry UUID",
-//	                         "Unique identifier of this revision (actual content depends on asset engine)");
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_funcs(prop, "rna_AssetEntry_name_get", "rna_AssetEntry_name_length",
@@ -850,7 +834,7 @@ static void rna_def_asset_entry(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "relpath", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_funcs(prop, "rna_AssetEntry_relpath_get", "rna_AssetEntry_relpath_length",
 	                              "rna_AssetEntry_relpath_set");
-	RNA_def_property_ui_text(prop, "Relative Path", "Relative AssetList's root_path");
+	RNA_def_property_ui_text(prop, "Relative Path", "Relative to AssetList's root_path");
 
 	prop = RNA_def_property(srna, "type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_ENUM_FLAG);

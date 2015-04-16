@@ -433,6 +433,13 @@ class AssetEngineAmber(AssetEngine):
                 entry.blender_type = e["blen_type"]
                 # archive part not yet implemented!
                 entry.relpath = r["path"]
+                entry.uuid = euuid
+                var = entry.variants.add()
+                var.uuid = vuuid
+                rev = var.revisions.add()
+                rev.uuid = ruuid
+                var.revisions.active = rev
+                entry.variants.active = var
             entries.root_path = self.root
             return True
         return False
