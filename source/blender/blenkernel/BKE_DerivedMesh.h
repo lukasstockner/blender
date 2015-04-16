@@ -96,6 +96,7 @@ struct MCol;
 struct ColorBand;
 struct GPUVertexAttribs;
 struct GPUDrawObject;
+struct GPUxBatch;
 struct BMEditMesh;
 struct PBVH;
 
@@ -184,6 +185,7 @@ struct DerivedMesh {
 	int deformedOnly; /* set by modifier stack if only deformed from original */
 	BVHCache bvhCache;
 	struct GPUDrawObject *drawObject;
+	struct GPUxBatch *gpux_batch; /* TODO: replace with list of batches */
 	DerivedMeshType type;
 	float auto_bump_scale;
 	DMDirtyFlag dirty;

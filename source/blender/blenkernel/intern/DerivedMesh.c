@@ -75,6 +75,7 @@ static DerivedMesh *navmesh_dm_createNavMeshForVisualization(DerivedMesh *dm);
 #include "GPU_buffers.h"
 #include "GPU_extensions.h"
 #include "GPU_glew.h"
+#include "GPUx_draw.h"
 
 /* very slow! enable for testing only! */
 //#define USE_MODIFIER_VALIDATE
@@ -337,6 +338,12 @@ int DM_release(DerivedMesh *dm)
 	if (dm->needsFree) {
 		bvhcache_free(&dm->bvhCache);
 		GPU_drawobject_free(dm);
+
+		if (dm->gpux_batch) {
+			GPUx_batch_discard(dm->gpux_batch);
+			dm->gpux_batch = NULL;
+		}
+
 		CustomData_free(&dm->vertData, dm->numVertData);
 		CustomData_free(&dm->edgeData, dm->numEdgeData);
 		CustomData_free(&dm->faceData, dm->numTessFaceData);

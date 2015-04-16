@@ -17,4 +17,17 @@ void GPUx_draw_triangles(const VertexBuffer*, const ElementList*, const PolygonD
 /* generic version uses ElementList's primitive type */
 void GPUx_draw_primitives(const VertexBuffer*, const ElementList*, const void *primitive_state, const CommonDrawState*);
 
+typedef struct GPUxBatch {
+	GLenum prim_type; /* GL_POINTS, GL_LINES, GL_TRIANGLES (must match elem->prim_type) */
+	int draw_type; /* OB_WIRE, OB_SOLID, OB_MATERIAL */
+	DrawState state;
+	VertexBuffer *buff; /* TODO: rename "verts" */
+	ElementList *elem;
+} GPUxBatch;
+
+GPUxBatch *GPUx_batch_create();
+void GPUx_batch_discard(GPUxBatch*);
+
+void GPUx_draw_batch(const GPUxBatch*);
+
 #endif /* BLENDER_GL_DRAW_PRIMITIVES */
