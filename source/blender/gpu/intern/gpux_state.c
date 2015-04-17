@@ -5,7 +5,7 @@
 #include <string.h> /* memset */
 
 #ifdef TRUST_NO_ONE
-  #include <assert.h>
+  #include "BLI_utildefines.h"
 #endif /* TRUST_NO_ONE */
 
 const DrawState default_state = {

@@ -3,11 +3,10 @@
 #include "gpux_element_private.h"
 #include "MEM_guardedalloc.h"
 
-#include <stdlib.h>
 //#include <stdio.h> /* TODO: remove */
 
 #ifdef TRUST_NO_ONE
-  #include <assert.h>
+  #include "BLI_utildefines.h"
 #endif /* TRUST_NO_ONE */
 
 #define REALLY_DRAW
@@ -25,8 +24,8 @@ void GPUx_draw_points(const VertexBuffer *vbo, const ElementList *el, const Poin
 
 #ifdef TRUST_NO_ONE
 	if (el) {
-		assert(el->prim_type == GL_POINTS);
-		assert(max_index(el) < GPUx_vertex_ct(vbo));
+		BLI_assert(el->prim_type == GL_POINTS);
+		BLI_assert(max_index(el) < GPUx_vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
@@ -52,8 +51,8 @@ void GPUx_draw_lines(const VertexBuffer *vbo, const ElementList *el, const LineD
 
 #ifdef TRUST_NO_ONE
 	if (el) {
-		assert(el->prim_type == GL_LINES);
-		assert(max_index(el) < GPUx_vertex_ct(vbo));
+		BLI_assert(el->prim_type == GL_LINES);
+		BLI_assert(max_index(el) < GPUx_vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
@@ -79,8 +78,8 @@ void GPUx_draw_triangles(const VertexBuffer *vbo, const ElementList *el, const P
 
 #ifdef TRUST_NO_ONE
 	if (el) {
-		assert(el->prim_type == GL_TRIANGLES);
-		assert(max_index(el) < GPUx_vertex_ct(vbo));
+		BLI_assert(el->prim_type == GL_TRIANGLES);
+		BLI_assert(max_index(el) < GPUx_vertex_ct(vbo));
 	}
 #endif /* TRUST_NO_ONE */
 
@@ -104,7 +103,7 @@ void GPUx_draw_primitives(const VertexBuffer *vbo, const ElementList *el, const 
 	int vert_per_prim = 0;
 
 #ifdef TRUST_NO_ONE
-	assert(max_index(el) < GPUx_vertex_ct(vbo));
+	BLI_assert(max_index(el) < GPUx_vertex_ct(vbo));
 #endif /* TRUST_NO_ONE */
 
 	switch (el->prim_type) {
@@ -122,7 +121,7 @@ void GPUx_draw_primitives(const VertexBuffer *vbo, const ElementList *el, const 
 			break;
 		default:
 #ifdef TRUST_NO_ONE
-			assert(false);
+			BLI_assert(false);
 #else
 			return;
 #endif /* TRUST_NO_ONE */
@@ -165,8 +164,8 @@ void GPUx_draw_batch(const GPUxBatch *batch)
 
 #ifdef TRUST_NO_ONE
 	if (batch->elem) {
-		assert(batch->elem->prim_type == batch->prim_type);
-		assert(max_index(batch->elem) < GPUx_vertex_ct(batch->buff));
+		BLI_assert(batch->elem->prim_type == batch->prim_type);
+		BLI_assert(max_index(batch->elem) < GPUx_vertex_ct(batch->buff));
 	}
 #endif /* TRUST_NO_ONE */
 
@@ -185,7 +184,7 @@ void GPUx_draw_batch(const GPUxBatch *batch)
 			break;
 		default:
 #ifdef TRUST_NO_ONE
-			assert(false);
+			BLI_assert(false);
 #else
 			return;
 #endif /* TRUST_NO_ONE */
