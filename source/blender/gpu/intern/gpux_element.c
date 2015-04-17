@@ -1,5 +1,6 @@
 
 #include "gpux_element_private.h"
+#include "MEM_guardedalloc.h"
 #include <stdlib.h>
 
 /* private functions */
@@ -64,7 +65,7 @@ ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsign
 		return NULL;
 	}
 
-	el = calloc(1, sizeof(ElementList));
+	el = MEM_callocN(sizeof(ElementList), "ElementList");
 
 	el->prim_type = prim_type;
 	el->prim_ct = prim_ct;
@@ -88,7 +89,7 @@ ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsign
 	el->max_observed_index = 0;
 #endif /* TRACK_INDEX_RANGE */
 
-	el->indices = calloc(prim_ct * prim_vertex_ct, index_size);
+	el->indices = MEM_callocN(prim_ct * prim_vertex_ct * index_size, "ElementList.indices");
 	/* TODO: use only one calloc, not two */
 
 	return el;
@@ -101,8 +102,8 @@ void GPUx_element_list_discard(ElementList *el)
 		glDeleteBuffers(1, &el->vbo_id);
 #endif /* USE_ELEM_VBO */
 
-	free(el->indices);
-	free(el);
+	MEM_freeN(el->indices);
+	MEM_freeN(el);
 }
 
 void GPUx_set_point_vertex(ElementList *el, unsigned prim_idx, unsigned v1)

@@ -1,6 +1,7 @@
 
 #include "GPUx_draw.h"
 #include "gpux_element_private.h"
+#include "MEM_guardedalloc.h"
 
 #include <stdlib.h>
 //#include <stdio.h> /* TODO: remove */
@@ -143,7 +144,7 @@ void GPUx_draw_primitives(const VertexBuffer *vbo, const ElementList *el, const 
 GPUxBatch *GPUx_batch_create()
 {
 //	puts(__FUNCTION__);
-	GPUxBatch *batch = calloc(1, sizeof(GPUxBatch));
+	GPUxBatch *batch = MEM_callocN(sizeof(GPUxBatch), "GPUxBatch");
 	batch->prim_type = GL_NONE;
 	batch->state = default_state;
 	return batch;
@@ -155,7 +156,7 @@ void GPUx_batch_discard(GPUxBatch *batch)
 	GPUx_vertex_buffer_discard(batch->buff);
 	if (batch->elem)
 		GPUx_element_list_discard(batch->elem);
-	free(batch);
+	MEM_freeN(batch);
 }
 
 void GPUx_draw_batch(const GPUxBatch *batch)

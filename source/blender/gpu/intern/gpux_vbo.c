@@ -1,5 +1,6 @@
 
 #include "GPUx_vbo.h"
+#include "MEM_guardedalloc.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -144,13 +145,13 @@ void GPUx_attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 
 VertexBuffer *GPUx_vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 {
-	VertexBuffer *buff = calloc(1, sizeof(VertexBuffer));
+	VertexBuffer *buff = MEM_callocN(sizeof(VertexBuffer), "VertexBuffer");
 #ifdef TRUST_NO_ONE
 	assert(a_ct >= 1 && a_ct <= 16);
 #endif /* TRUST_NO_ONE */
 	buff->attrib_ct = a_ct;
 	buff->vertex_ct = v_ct;
-	buff->attribs = calloc(a_ct, sizeof(Attrib));
+	buff->attribs = MEM_callocN(a_ct * sizeof(Attrib), "VertexBuffer.attribs");
 	/* TODO: single allocation instead of 2 */
 	return buff;
 }
@@ -165,16 +166,16 @@ void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 			glDeleteBuffers(1, &a->vbo_id);
 #endif /* USE_VBO */
 #ifdef GENERIC_ATTRIB
-		free(a->name);
+		MEM_freeN(a->name);
 #endif /* GENERIC_ATTRIB */
-		free(a->data);
+		MEM_freeN(a->data);
 	}
 #ifdef USE_VAO
 	if (buff->vao_id)
 		glDeleteVertexArrays(1, &buff->vao_id);
 #endif /* USE_VAO */
-	free(buff->attribs);
-	free(buff);
+	MEM_freeN(buff->attribs);
+	MEM_freeN(buff);
 }
 
 static unsigned attrib_total_size(const VertexBuffer *buff, unsigned attrib_num)
@@ -263,7 +264,7 @@ void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 	attrib->sz = attrib_sz(attrib);
 	attrib->stride = attrib_align(attrib);
 	attrib->fetch_mode = fetch_mode;
-	attrib->data = malloc(attrib_total_size(buff, attrib_num));
+	attrib->data = MEM_mallocN(attrib_total_size(buff, attrib_num), "Attrib.data");
 #ifdef PRINT
 	GPUx_attrib_print(buff, attrib_num);
 #endif /* PRINT */
