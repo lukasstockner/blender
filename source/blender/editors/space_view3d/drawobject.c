@@ -4483,21 +4483,10 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 				MFace *faces = dm->getTessFaceArray(dm);
 				dm->gpux_batch->state.common.lighting = true;
 				dm->gpux_batch->state.polygon.draw_back = false;
-#if 1
+
 				GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
 				GPUx_fill_attrib_stride(verts, 1, &mverts[0].no, sizeof(MVert));
-#else
-				/* float normals (NOT our performance culprit) */
-				GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
-				for (i = 0; i < vert_ct; ++i) {
-					const float scale = 1.0f / 32768.0f;
-					GPUx_set_attrib_3f(verts, 1, i,
-						scale * mverts[i].no[0],
-						scale * mverts[i].no[1],
-						scale * mverts[i].no[2]
-						);
-				}
-#endif
+
 				/* some tess faces are quads, some triangles
 				 * we draw just triangles, so count quads twice */
 				for (i = 0; i < face_ct; ++i)
