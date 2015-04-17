@@ -72,6 +72,7 @@ EnumPropertyItem sequence_modifier_type_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "BKE_report.h"
+#include "BKE_idprop.h"
 
 #include "WM_api.h"
 #include "WM_types.h"
@@ -134,9 +135,9 @@ static void rna_SequenceEditor_sequences_all_begin(CollectionPropertyIterator *i
 	rna_iterator_listbase_begin(iter, &ed->seqbase, NULL);
 }
 
-static void rna_SequenceEditor_update_cache(Main *UNUSED(bmain), Scene *scene, PointerRNA *ptr)
+static void rna_SequenceEditor_update_cache(Main *UNUSED(bmain), Scene *scene, PointerRNA *UNUSED(ptr))
 {
-	Editing *ed = (Editing *) ptr->id.data;
+	Editing *ed = scene->ed;
 
 	BKE_sequencer_free_imbuf(scene, &ed->seqbase, false);
 }
@@ -183,6 +184,11 @@ static void rna_SequenceEditor_elements_begin(CollectionPropertyIterator *iter, 
 	Sequence *seq = (Sequence *)ptr->data;
 	rna_iterator_array_begin(iter, (void *)seq->strip->stripdata, sizeof(StripElem),
 	                         rna_SequenceEditor_elements_length(ptr), 0, NULL);
+}
+
+static void rna_Sequence_views_format_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	rna_Sequence_update(bmain, scene, ptr);
 }
 
 static void do_sequence_frame_change_update(Scene *scene, Sequence *seq)
@@ -484,7 +490,7 @@ static void rna_Sequence_name_set(PointerRNA *ptr, const char *value)
 	/* fix all the animation data which may link to this */
 
 	/* don't rename everywhere because these are per scene */
-	/* BKE_all_animdata_fix_paths_rename(NULL, "sequence_editor.sequences_all", oldname, seq->name + 2); */
+	/* BKE_animdata_fix_paths_rename_all(NULL, "sequence_editor.sequences_all", oldname, seq->name + 2); */
 	adt = BKE_animdata_from_id(&scene->id);
 	if (adt)
 		BKE_animdata_fix_paths_rename(&scene->id, adt, NULL, "sequence_editor.sequences_all", oldname, seq->name + 2, 0, 0, 1);
@@ -562,6 +568,18 @@ static char *rna_Sequence_path(PointerRNA *ptr)
 	else {
 		return BLI_strdup("");
 	}
+}
+
+static IDProperty *rna_Sequence_idprops(PointerRNA *ptr, bool create)
+{
+	Sequence *seq = ptr->data;
+
+	if (create && !seq->prop) {
+		IDPropertyTemplate val = {0};
+		seq->prop = IDP_New(IDP_GROUP, &val, "Sequence ID properties");
+	}
+
+	return seq->prop;
 }
 
 static PointerRNA rna_SequenceEditor_meta_stack_get(CollectionPropertyIterator *iter)
@@ -1397,6 +1415,7 @@ static void rna_def_sequence(BlenderRNA *brna)
 	RNA_def_struct_ui_text(srna, "Sequence", "Sequence strip in the sequence editor");
 	RNA_def_struct_refine_func(srna, "rna_Sequence_refine");
 	RNA_def_struct_path_func(srna, "rna_Sequence_path");
+	RNA_def_struct_idprops_func(srna, "rna_Sequence_idprops");
 
 	prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_funcs(prop, "rna_Sequence_name_get", "rna_Sequence_name_length", "rna_Sequence_name_set");
@@ -1820,6 +1839,24 @@ static void rna_def_image(BlenderRNA *brna)
 	                                  "rna_SequenceEditor_elements_length", NULL, NULL, NULL);
 	RNA_api_sequence_elements(brna, prop);
 
+	/* multiview */
+	prop = RNA_def_property(srna, "use_multiview", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_VIEWS);
+	RNA_def_property_ui_text(prop, "Use Multi-View", "Use Multiple Views (when available)");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_views_format_update");
+
+	prop = RNA_def_property(srna, "views_format", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "views_format");
+	RNA_def_property_enum_items(prop, views_format_items);
+	RNA_def_property_ui_text(prop, "Views Format", "Mode to load image views");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Sequence_views_format_update");
+
+	prop = RNA_def_property(srna, "stereo_3d_format", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "stereo3d_format");
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "Stereo3dFormat");
+	RNA_def_property_ui_text(prop, "Stereo 3D Format", "Settings for stereo 3d");
+
 	rna_def_filter_video(srna);
 	rna_def_proxy(srna);
 	rna_def_input(srna);
@@ -1910,6 +1947,24 @@ static void rna_def_movie(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, "rna_Sequence_filepath_get", "rna_Sequence_filepath_length",
 	                              "rna_Sequence_filepath_set");
 	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_filepath_update");
+
+	/* multiview */
+	prop = RNA_def_property(srna, "use_multiview", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", SEQ_USE_VIEWS);
+	RNA_def_property_ui_text(prop, "Use Multi-View", "Use Multiple Views (when available)");
+	RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Sequence_views_format_update");
+
+	prop = RNA_def_property(srna, "views_format", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "views_format");
+	RNA_def_property_enum_items(prop, views_format_items);
+	RNA_def_property_ui_text(prop, "Views Format", "Mode to load movie views");
+	RNA_def_property_update(prop, NC_IMAGE | ND_DISPLAY, "rna_Sequence_views_format_update");
+
+	prop = RNA_def_property(srna, "stereo_3d_format", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "stereo3d_format");
+	RNA_def_property_flag(prop, PROP_NEVER_NULL);
+	RNA_def_property_struct_type(prop, "Stereo3dFormat");
+	RNA_def_property_ui_text(prop, "Stereo 3D Format", "Settings for stereo 3d");
 
 	rna_def_filter_video(srna);
 	rna_def_proxy(srna);

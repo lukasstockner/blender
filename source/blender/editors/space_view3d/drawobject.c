@@ -404,13 +404,13 @@ static const float cosval[CIRCLE_RESOL] = {
 
 static void draw_xyz_wire(const float c[3], float size, int axis)
 {
-	float v1[3] = {0.f, 0.f, 0.f}, v2[3] = {0.f, 0.f, 0.f};
+	float v1[3] = {0.0f, 0.0f, 0.0f}, v2[3] = {0.0f, 0.0f, 0.0f};
 	float dim = size * 0.1f;
 	float dx[3], dy[3], dz[3];
 
-	dx[0] = dim; dx[1] = 0.f; dx[2] = 0.f;
-	dy[0] = 0.f; dy[1] = dim; dy[2] = 0.f;
-	dz[0] = 0.f; dz[1] = 0.f; dz[2] = dim;
+	dx[0] = dim;  dx[1] = 0.0f; dx[2] = 0.0f;
+	dy[0] = 0.0f; dy[1] = dim;  dy[2] = 0.0f;
+	dz[0] = 0.0f; dz[1] = 0.0f; dz[2] = dim;
 
 	switch (axis) {
 		case 0:     /* x axis */
@@ -426,7 +426,7 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			glVertex3fv(v2);
 			
 			/* top left to bottom right */
-			mul_v3_fl(dy, 2.f);
+			mul_v3_fl(dy, 2.0f);
 			add_v3_v3(v1, dy);
 			sub_v3_v3(v2, dy);
 			
@@ -449,7 +449,7 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			glVertex3fv(v2);
 			
 			/* top left to center */
-			mul_v3_fl(dy, 2.f);
+			mul_v3_fl(dy, 2.0f);
 			add_v3_v3(v1, dy);
 			copy_v3_v3(v2, c);
 			
@@ -467,12 +467,12 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			
 			glVertex3fv(v1);
 			
-			mul_v3_fl(dx, 2.f);
+			mul_v3_fl(dx, 2.0f);
 			add_v3_v3(v1, dx);
 
 			glVertex3fv(v1);
 			
-			mul_v3_fl(dz, 2.f);
+			mul_v3_fl(dz, 2.0f);
 			sub_v3_v3(v1, dx);
 			sub_v3_v3(v1, dz);
 			
@@ -485,7 +485,6 @@ static void draw_xyz_wire(const float c[3], float size, int axis)
 			glEnd();
 			break;
 	}
-	
 }
 
 void drawaxes(float size, char drawtype)
@@ -1620,7 +1619,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 						glColor3ubv(ob_wire_col);
 					}
 
-					glLineWidth(2.f);
+					glLineWidth(2.0f);
 					glDisable(GL_LIGHTING);
 					glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
@@ -1628,7 +1627,7 @@ static void draw_viewport_object_reconstruction(Scene *scene, Base *base, View3D
 
 					glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 					glEnable(GL_LIGHTING);
-					glLineWidth(1.f);
+					glLineWidth(1.0f);
 				}
 
 				if ((dflag & DRAW_CONSTCOLOR) == 0) {
@@ -1742,6 +1741,238 @@ static void draw_viewport_reconstruction(Scene *scene, Base *base, View3D *v3d, 
 		GPU_select_load_id(base->selcol);
 }
 
+static void drawcamera_volume(float near_plane[4][3], float far_plane[4][3], const GLenum mode)
+{
+	glBegin(mode);
+	glVertex3fv(near_plane[0]);
+	glVertex3fv(far_plane[0]);
+	glVertex3fv(far_plane[1]);
+	glVertex3fv(near_plane[1]);
+	glEnd();
+
+	glBegin(mode);
+	glVertex3fv(near_plane[1]);
+	glVertex3fv(far_plane[1]);
+	glVertex3fv(far_plane[2]);
+	glVertex3fv(near_plane[2]);
+	glEnd();
+
+	glBegin(mode);
+	glVertex3fv(near_plane[2]);
+	glVertex3fv(near_plane[1]);
+	glVertex3fv(far_plane[1]);
+	glVertex3fv(far_plane[2]);
+	glEnd();
+
+	glBegin(mode);
+	glVertex3fv(far_plane[0]);
+	glVertex3fv(near_plane[0]);
+	glVertex3fv(near_plane[3]);
+	glVertex3fv(far_plane[3]);
+	glEnd();
+}
+
+/* camera frame */
+static void drawcamera_frame(float vec[4][3], const GLenum mode)
+{
+	glBegin(mode);
+	glVertex3fv(vec[0]);
+	glVertex3fv(vec[1]);
+	glVertex3fv(vec[2]);
+	glVertex3fv(vec[3]);
+	glEnd();
+}
+
+/* center point to camera frame */
+static void drawcamera_framelines(float vec[4][3], float origin[3])
+{
+	glBegin(GL_LINE_STRIP);
+	glVertex3fv(vec[1]);
+	glVertex3fv(origin);
+	glVertex3fv(vec[0]);
+	glVertex3fv(vec[3]);
+	glVertex3fv(origin);
+	glVertex3fv(vec[2]);
+	glEnd();
+}
+
+static bool drawcamera_is_stereo3d(Scene *scene, View3D *v3d, Object *ob)
+{
+	return (ob == v3d->camera) &&
+	        (scene->r.scemode & R_MULTIVIEW) != 0 &&
+	        (v3d->stereo3d_flag);
+}
+
+static void drawcamera_stereo3d(
+        Scene *scene, View3D *v3d, RegionView3D *rv3d, Object *ob, const Camera *cam,
+        float vec[4][3], float drawsize, const float scale[3])
+{
+	int i, j;
+	float obmat[4][4];
+	float vec_lr[2][4][3];
+	const float fac = (cam->stereo.pivot == CAM_S3D_PIVOT_CENTER) ? 2.0f : 1.0f;
+	float origin[2][3] = {{0}};
+	float tvec[3];
+	const Camera *cam_lr[2];
+	const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
+
+	const bool is_stereo3d_cameras = (v3d->stereo3d_flag & V3D_S3D_DISPCAMERAS) && (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D);
+	const bool is_stereo3d_plane = (v3d->stereo3d_flag & V3D_S3D_DISPPLANE) && (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D);
+	const bool is_stereo3d_volume = (v3d->stereo3d_flag & V3D_S3D_DISPVOLUME);
+
+	zero_v3(tvec);
+
+	glPushMatrix();
+
+	for (i = 0; i < 2; i++) {
+		ob = BKE_camera_multiview_render(scene, ob, names[i]);
+		cam_lr[i] = ob->data;
+
+		glLoadMatrixf(rv3d->viewmat);
+		BKE_camera_multiview_model_matrix(&scene->r, ob, names[i], obmat);
+		glMultMatrixf(obmat);
+
+		copy_m3_m3(vec_lr[i], vec);
+		copy_v3_v3(vec_lr[i][3], vec[3]);
+
+		if (cam->stereo.convergence_mode == CAM_S3D_OFFAXIS) {
+			const float shift_x =
+			        ((BKE_camera_multiview_shift_x(&scene->r, ob, names[i]) - cam->shiftx) *
+			         (drawsize * scale[0] * fac));
+
+			for (j = 0; j < 4; j++) {
+				vec_lr[i][j][0] += shift_x;
+			}
+		}
+
+		if (is_stereo3d_cameras) {
+			/* camera frame */
+			drawcamera_frame(vec_lr[i], GL_LINE_LOOP);
+
+			/* center point to camera frame */
+			drawcamera_framelines(vec_lr[i], tvec);
+		}
+
+		/* connecting line */
+		mul_m4_v3(obmat, origin[i]);
+
+		/* convergence plane */
+		if (is_stereo3d_plane || is_stereo3d_volume) {
+			for (j = 0; j < 4; j++) {
+				mul_m4_v3(obmat, vec_lr[i][j]);
+			}
+		}
+	}
+
+
+	/* the remaining drawing takes place in the view space */
+	glLoadMatrixf(rv3d->viewmat);
+
+	if (is_stereo3d_cameras) {
+		/* draw connecting lines */
+		glPushAttrib(GL_ENABLE_BIT);
+
+		glLineStipple(2, 0xAAAA);
+		glEnable(GL_LINE_STIPPLE);
+
+		glBegin(GL_LINES);
+		glVertex3fv(origin[0]);
+		glVertex3fv(origin[1]);
+		glEnd();
+		glPopAttrib();
+	}
+
+	/* draw convergence plane*/
+	if (is_stereo3d_plane) {
+		float axis_center[3], screen_center[3];
+		float world_plane[4][3];
+		float local_plane[4][3];
+		float offset;
+
+		mid_v3_v3v3(axis_center, origin[0], origin[1]);
+
+		for (i = 0; i < 4; i++) {
+			mid_v3_v3v3(world_plane[i], vec_lr[0][i], vec_lr[1][i]);
+			sub_v3_v3v3(local_plane[i], world_plane[i], axis_center);
+		}
+
+		mid_v3_v3v3(screen_center, world_plane[0], world_plane[2]);
+		offset = cam->stereo.convergence_distance / len_v3v3(screen_center, axis_center);
+
+		for (i = 0; i < 4; i++) {
+			mul_v3_fl(local_plane[i], offset);
+			add_v3_v3(local_plane[i], axis_center);
+		}
+
+		glColor3f(0.0f, 0.0f, 0.0f);
+
+		/* camera frame */
+		drawcamera_frame(local_plane, GL_LINE_LOOP);
+
+		if (v3d->stereo3d_convergence_alpha > 0.0f) {
+			glEnable(GL_BLEND);
+			glDepthMask(0);  /* disable write in zbuffer, needed for nice transp */
+
+			glColor4f(0.0f, 0.0f, 0.0f, v3d->stereo3d_convergence_alpha);
+
+			drawcamera_frame(local_plane, GL_QUADS);
+
+			glDisable(GL_BLEND);
+			glDepthMask(1);  /* restore write in zbuffer */
+		}
+	}
+
+	/* draw convergence plane*/
+	if (is_stereo3d_volume) {
+		float screen_center[3];
+		float near_plane[4][3], far_plane[4][3];
+		float offset;
+		int j;
+
+		for (i = 0; i < 2; i++) {
+			mid_v3_v3v3(screen_center, vec_lr[i][0], vec_lr[i][2]);
+
+			offset = len_v3v3(screen_center, origin[i]);
+
+			for (j = 0; j < 4; j++) {
+				sub_v3_v3v3(near_plane[j], vec_lr[i][j], origin[i]);
+				mul_v3_fl(near_plane[j], cam_lr[i]->clipsta / offset);
+				add_v3_v3(near_plane[j], origin[i]);
+
+				sub_v3_v3v3(far_plane[j], vec_lr[i][j], origin[i]);
+				mul_v3_fl(far_plane[j], cam_lr[i]->clipend / offset);
+				add_v3_v3(far_plane[j], origin[i]);
+			}
+
+			/* camera frame */
+			glColor3f(0.0f, 0.0f, 0.0f);
+
+			drawcamera_frame(near_plane, GL_LINE_LOOP);
+			drawcamera_frame(far_plane, GL_LINE_LOOP);
+			drawcamera_volume(near_plane, far_plane, GL_LINE_LOOP);
+
+			if (v3d->stereo3d_volume_alpha > 0.0f) {
+				glEnable(GL_BLEND);
+				glDepthMask(0);  /* disable write in zbuffer, needed for nice transp */
+
+				if (i == 0)
+					glColor4f(0.0f, 1.0f, 1.0f, v3d->stereo3d_volume_alpha);
+				else
+					glColor4f(1.0f, 0.0f, 0.0f, v3d->stereo3d_volume_alpha);
+
+				drawcamera_frame(near_plane, GL_QUADS);
+				drawcamera_frame(far_plane, GL_QUADS);
+				drawcamera_volume(near_plane, far_plane, GL_QUADS);
+
+				glDisable(GL_BLEND);
+				glDepthMask(1);  /* restore write in zbuffer */
+			}
+		}
+	}
+
+	glPopMatrix();
+}
+
 /* flag similar to draw_object() */
 static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base,
                        const short dflag, const unsigned char ob_wire_col[4])
@@ -1759,6 +1990,12 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	float drawsize;
 	const bool is_view = (rv3d->persp == RV3D_CAMOB && ob == v3d->camera);
 	MovieClip *clip = BKE_object_movieclip_get(scene, base->object, false);
+
+	const bool is_stereo3d = drawcamera_is_stereo3d(scene, v3d, ob);
+	const bool is_stereo3d_cameras = (ob == scene->camera) &&
+	                                 (scene->r.scemode & R_MULTIVIEW) &&
+	                                 (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D) &&
+	                                 (v3d->stereo3d_flag & V3D_S3D_DISPCAMERAS);
 
 	/* draw data for movie clip set as active for scene */
 	if (clip) {
@@ -1796,12 +2033,8 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	glDisable(GL_CULL_FACE);
 
 	/* camera frame */
-	glBegin(GL_LINE_LOOP);
-	glVertex3fv(vec[0]);
-	glVertex3fv(vec[1]);
-	glVertex3fv(vec[2]);
-	glVertex3fv(vec[3]);
-	glEnd();
+	if (!is_stereo3d_cameras)
+		drawcamera_frame(vec, GL_LINE_LOOP);
 
 	if (is_view)
 		return;
@@ -1809,19 +2042,11 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	zero_v3(tvec);
 
 	/* center point to camera frame */
-	glBegin(GL_LINE_STRIP);
-	glVertex3fv(vec[1]);
-	glVertex3fv(tvec);
-	glVertex3fv(vec[0]);
-	glVertex3fv(vec[3]);
-	glVertex3fv(tvec);
-	glVertex3fv(vec[2]);
-	glEnd();
-
+	if (!is_stereo3d_cameras)
+		drawcamera_framelines(vec, tvec);
 
 	/* arrow on top */
 	tvec[2] = vec[1][2]; /* copy the depth */
-
 
 	/* draw an outline arrow for inactive cameras and filled
 	 * for active cameras. We actually draw both outline+filled
@@ -1871,6 +2096,11 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 			}
 			glPopMatrix();
 		}
+	}
+
+	/* stereo cameras drawing */
+	if (is_stereo3d) {
+		drawcamera_stereo3d(scene, v3d, rv3d, ob, cam, vec, drawsize, scale);
 	}
 }
 
@@ -3930,7 +4160,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 #endif
 	Mesh *me = ob->data;
 	eWireDrawMode draw_wire = OBDRAW_WIRE_OFF;
-	int /* totvert,*/ totedge, totface;
+	bool /* no_verts,*/ no_edges, no_faces;
 	DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 	const bool is_obact = (ob == OBACT);
 	int draw_flags = (is_obact && BKE_paint_select_face_test(ob)) ? DRAW_FACE_SELECT : 0;
@@ -3953,8 +4183,9 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		draw_wire = OBDRAW_WIRE_ON_DEPTH; /* draw wire after solid using zoffset and depth buffer adjusment */
 	}
 	
-	totedge = dm->getNumEdges(dm);
-	totface = dm->getNumTessFaces(dm);
+	/* check polys instead of tessfaces because of dyntopo where tessfaces don't exist */
+	no_edges = (dm->getNumEdges(dm) == 0);
+	no_faces = (dm->getNumPolys(dm) == 0);
 	
 	/* vertexpaint, faceselect wants this, but it doesnt work for shaded? */
 	glFrontFace((ob->transflag & OB_NEG_SCALE) ? GL_CW : GL_CCW);
@@ -3963,14 +4194,14 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 		if (((v3d->flag2 & V3D_RENDER_OVERRIDE) && v3d->drawtype >= OB_WIRE) == 0)
 			draw_bounding_volume(ob, ob->boundtype);
 	}
-	else if ((totface == 0 && totedge == 0) ||
+	else if ((no_faces && no_edges) ||
 	         ((!is_obact || (ob->mode == OB_MODE_OBJECT)) && object_is_halo(scene, ob)))
 	{
 		glPointSize(1.5);
 		dm->drawVerts(dm);
 		glPointSize(1.0);
 	}
-	else if (dt == OB_WIRE || totface == 0) {
+	else if ((dt == OB_WIRE) || no_faces) {
 		draw_wire = OBDRAW_WIRE_ON; /* draw wire only, no depth buffer stuff */
 	}
 	else if (((is_obact && ob->mode & OB_MODE_TEXTURE_PAINT)) ||
@@ -4164,7 +4395,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 			glDepthMask(0);  /* disable write in zbuffer, selected edge wires show better */
 		}
 		
-		dm->drawEdges(dm, (dt == OB_WIRE || totface == 0), (ob->dtx & OB_DRAW_ALL_EDGES) != 0);
+		dm->drawEdges(dm, ((dt == OB_WIRE) || no_faces), (ob->dtx & OB_DRAW_ALL_EDGES) != 0);
 
 		if (dt != OB_WIRE && (draw_wire == OBDRAW_WIRE_ON_DEPTH)) {
 			glDepthMask(1);
@@ -5505,7 +5736,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 								BLI_assert(0);
 								break;
 						}
-						CLAMP(intensity, 0.f, 1.f);
+						CLAMP(intensity, 0.0f, 1.0f);
 						weight_to_rgb(ma_col, intensity);
 					}
 				}
@@ -7762,7 +7993,8 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 	const bool render_override = (v3d->flag2 & V3D_RENDER_OVERRIDE) != 0;
 	const bool is_picking = (G.f & G_PICKSEL) != 0;
 	const bool has_particles = (ob->particlesystem.first != NULL);
-	bool particle_skip_object = false;  /* Draw particles but not their emitter object. */
+	bool skip_object = false;  /* Draw particles but not their emitter object. */
+	SmokeModifierData *smd = NULL;
 
 	if (ob != scene->obedit) {
 		if (ob->restrictflag & OB_RESTRICT_VIEW)
@@ -7786,16 +8018,36 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 		if (ob->mode == OB_MODE_OBJECT) {
 			ParticleSystem *psys;
 
-			particle_skip_object = render_override;
+			skip_object = render_override;
 			for (psys = ob->particlesystem.first; psys; psys = psys->next) {
 				/* Once we have found a psys which renders its emitter object, we are done. */
 				if (psys->part->draw & PART_DRAW_EMITTER) {
-					particle_skip_object = false;
+					skip_object = false;
 					break;
 				}
 			}
 		}
 	}
+
+	if ((md = modifiers_findByType(ob, eModifierType_Smoke)) && (modifier_isEnabled(scene, md, eModifierMode_Realtime))) {
+		smd = (SmokeModifierData *)md;
+
+		if (smd->domain) {
+			if (!v3d->transp && (dflag & DRAW_PICKING) == 0) {
+				if (!v3d->xray && !(ob->dtx & OB_DRAWXRAY)) {
+					/* object has already been drawn so skip drawing it */
+					ED_view3d_after_add(&v3d->afterdraw_transp, base, dflag);
+					return;
+				}
+				else if (v3d->xray) {
+					/* object has already been drawn so skip drawing it */
+					ED_view3d_after_add(&v3d->afterdraw_xraytransp, base, dflag);
+					return;
+				}
+			}
+		}
+	}
+
 
 	/* xray delay? */
 	if ((dflag & DRAW_PICKING) == 0 && (base->flag & OB_FROMDUPLI) == 0 && (v3d->flag2 & V3D_RENDER_SHADOW) == 0) {
@@ -7900,7 +8152,7 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 		}
 	}
 
-	if (!particle_skip_object) {
+	if (!skip_object) {
 		/* draw outline for selected objects, mesh does itself */
 		if ((v3d->flag & V3D_SELECT_OUTLINE) && !render_override && ob->type != OB_MESH) {
 			if (dt > OB_WIRE && (ob->mode & OB_MODE_EDIT) == 0 && (dflag & DRAW_SCENESET) == 0) {
@@ -8126,9 +8378,7 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 	}
 
 	/* draw code for smoke */
-	if ((md = modifiers_findByType(ob, eModifierType_Smoke)) && (modifier_isEnabled(scene, md, eModifierMode_Realtime))) {
-		SmokeModifierData *smd = (SmokeModifierData *)md;
-
+	if (smd) {
 #if 0
 		/* draw collision objects */
 		if ((smd->type & MOD_SMOKE_TYPE_COLL) && smd->coll) {
@@ -8188,7 +8438,6 @@ static void draw_object_intern(Scene *scene, ARegion *ar, View3D *v3d, Base *bas
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
 			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
-
 				/* get view vector */
 				copy_v3_v3(viewnormal, rv3d->viewinv[2]);
 				invert_m4_m4(ob->imat, ob->obmat);

@@ -88,7 +88,7 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3],
 	else {
 		zero_v3(v->co);
 	}
-	zero_v3(v->no);
+	/* 'v->no' set below */
 
 	v->e = NULL;
 	/* --- done --- */
@@ -107,6 +107,7 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3],
 		if (v_example) {
 			int *keyi;
 
+			/* handles 'v->no' too */
 			BM_elem_attrs_copy(bm, bm, v_example, v);
 
 			/* exception: don't copy the original shapekey index */
@@ -117,6 +118,15 @@ BMVert *BM_vert_create(BMesh *bm, const float co[3],
 		}
 		else {
 			CustomData_bmesh_set_default(&bm->vdata, &v->head.data);
+			zero_v3(v->no);
+		}
+	}
+	else {
+		if (v_example) {
+			copy_v3_v3(v->no, v_example->no);
+		}
+		else {
+			zero_v3(v->no);
 		}
 	}
 
@@ -213,8 +223,8 @@ static BMLoop *bm_loop_create(BMesh *bm, BMVert *v, BMEdge *e, BMFace *f,
 	BM_elem_index_set(l, -1); /* set_ok_invalid */
 #endif
 
-	l->head.hflag = 0;
 	l->head.htype = BM_LOOP;
+	l->head.hflag = 0;
 	l->head.api_flag = 0;
 
 	l->v = v;
@@ -362,7 +372,8 @@ BLI_INLINE BMFace *bm_face_create__internal(BMesh *bm)
 	f->l_first = NULL;
 #endif
 	f->len = 0;
-	zero_v3(f->no);
+	/* caller must initialize */
+	// zero_v3(f->no);
 	f->mat_nr = 0;
 	/* --- done --- */
 
@@ -443,6 +454,15 @@ BMFace *BM_face_create(BMesh *bm, BMVert **verts, BMEdge **edges, const int len,
 		}
 		else {
 			CustomData_bmesh_set_default(&bm->pdata, &f->head.data);
+			zero_v3(f->no);
+		}
+	}
+	else {
+		if (f_example) {
+			copy_v3_v3(f->no, f_example->no);
+		}
+		else {
+			zero_v3(f->no);
 		}
 	}
 
@@ -1111,7 +1131,7 @@ BMFace *BM_faces_join(BMesh *bm, BMFace **faces, int totface, const bool do_del)
 				if (!d1 && !d2 && !BM_ELEM_API_FLAG_TEST(l_iter->e, _FLAG_JF)) {
 					/* don't remove an edge it makes up the side of another face
 					 * else this will remove the face as well - campbell */
-					if (BM_edge_face_count(l_iter->e) <= 2) {
+					if (!BM_edge_face_count_is_over(l_iter->e, 3)) {
 						if (do_del) {
 							BLI_array_append(deledges, l_iter->e);
 						}

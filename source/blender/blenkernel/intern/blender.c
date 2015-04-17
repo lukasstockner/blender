@@ -263,7 +263,7 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 		/* but use new Scene pointer */
 		curscene = bfd->curscene;
 
-		track_undo_scene = (mode == LOAD_UNDO && curscreen && bfd->main->wm.first);
+		track_undo_scene = (mode == LOAD_UNDO && curscreen && curscene && bfd->main->wm.first);
 
 		if (curscene == NULL) curscene = bfd->main->scene.first;
 		/* empty file, we add a scene to make Blender work */
@@ -283,13 +283,17 @@ static void setup_app_data(bContext *C, BlendFileData *bfd, const char *filepath
 
 		/* clear_global will free G.main, here we can still restore pointers */
 		blo_lib_link_screen_restore(bfd->main, curscreen, curscene);
-		curscene = curscreen->scene;
+		/* curscreen might not be set when loading without ui (see T44217) so only re-assign if available */
+		if (curscreen) {
+			curscene = curscreen->scene;
+		}
 
 		if (track_undo_scene) {
 			wmWindowManager *wm = bfd->main->wm.first;
 			if (wm_scene_is_visible(wm, bfd->curscene) == false) {
 				curscene = bfd->curscene;
 				curscreen->scene = curscene;
+				BKE_screen_view3d_scene_sync(curscreen);
 			}
 		}
 	}

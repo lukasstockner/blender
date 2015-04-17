@@ -123,7 +123,7 @@ void wm_event_free(wmEvent *event)
 	}
 
 	if (event->tablet_data) {
-		MEM_freeN(event->tablet_data);
+		MEM_freeN((void *)event->tablet_data);
 	}
 
 	MEM_freeN(event);
@@ -3109,7 +3109,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 
 			event.x = evt->x = pd->x;
 			event.y = evt->y = pd->y;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			
 			/* Use prevx/prevy so we can calculate the delta later */
 			event.prevx = event.x - pd->deltaX;
@@ -3337,7 +3337,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 			event.type = TIMER;
 			event.custom = EVT_DATA_TIMER;
 			event.customdata = customdata;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			event.keymodifier = 0;
 			wm_event_add(win, &event);
 
@@ -3347,7 +3347,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm, wmWindow *win, int type, int U
 		case GHOST_kEventNDOFMotion:
 		{
 			event.type = NDOF_MOTION;
-			event.val = 0;
+			event.val = KM_NOTHING;
 			attach_ndof_data(&event, customdata);
 			wm_event_add(win, &event);
 
@@ -3504,7 +3504,7 @@ float WM_event_tablet_data(const wmEvent *event, int *pen_flip, float tilt[2])
 		zero_v2(tilt);
 
 	if (event->tablet_data) {
-		wmTabletData *wmtab = event->tablet_data;
+		const wmTabletData *wmtab = event->tablet_data;
 
 		erasor = (wmtab->Active == EVT_TABLET_ERASER);
 		if (wmtab->Active != EVT_TABLET_NONE) {

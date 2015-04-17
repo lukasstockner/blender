@@ -115,8 +115,8 @@ struct BMLog {
 typedef struct {
 	float co[3];
 	short no[3];
-	float mask;
 	char hflag;
+	float mask;
 } BMLogVert;
 
 typedef struct {
@@ -125,6 +125,10 @@ typedef struct {
 } BMLogFace;
 
 /************************* Get/set element IDs ************************/
+
+/* bypass actual hashing, the keys don't overlap */
+#define logkey_hash BLI_ghashutil_inthash_p_simple
+#define logkey_cmp BLI_ghashutil_intcmp
 
 /* Get the vertex's unique ID from the log */
 static unsigned int bm_log_vert_id_get(BMLog *log, BMVert *v)
@@ -386,12 +390,12 @@ static BMLogEntry *bm_log_entry_create(void)
 {
 	BMLogEntry *entry = MEM_callocN(sizeof(BMLogEntry), __func__);
 
-	entry->deleted_verts = BLI_ghash_ptr_new(__func__);
-	entry->deleted_faces = BLI_ghash_ptr_new(__func__);
-	entry->added_verts = BLI_ghash_ptr_new(__func__);
-	entry->added_faces = BLI_ghash_ptr_new(__func__);
-	entry->modified_verts = BLI_ghash_ptr_new(__func__);
-	entry->modified_faces = BLI_ghash_ptr_new(__func__);
+	entry->deleted_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->deleted_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->added_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->added_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->modified_verts = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
+	entry->modified_faces = BLI_ghash_new(logkey_hash, logkey_cmp, __func__);
 
 	entry->pool_verts = BLI_mempool_create(sizeof(BMLogVert), 0, 64, BLI_MEMPOOL_NOP);
 	entry->pool_faces = BLI_mempool_create(sizeof(BMLogFace), 0, 64, BLI_MEMPOOL_NOP);
@@ -476,10 +480,11 @@ static void bm_log_id_ghash_release(BMLog *log, GHash *id_ghash)
 BMLog *BM_log_create(BMesh *bm)
 {
 	BMLog *log = MEM_callocN(sizeof(*log), __func__);
+	const unsigned int reserve_num = (unsigned int)(bm->totvert + bm->totface);
 
 	log->unused_ids = range_tree_uint_alloc(0, (unsigned)-1);
-	log->id_to_elem = BLI_ghash_ptr_new_ex(__func__, (unsigned int)(bm->totvert + bm->totface));
-	log->elem_to_id = BLI_ghash_ptr_new_ex(__func__, (unsigned int)(bm->totvert + bm->totface));
+	log->id_to_elem = BLI_ghash_new_ex(logkey_hash, logkey_cmp, __func__, reserve_num);
+	log->elem_to_id = BLI_ghash_ptr_new_ex(__func__, reserve_num);
 
 	/* Assign IDs to all existing vertices and faces */
 	bm_log_assign_ids(bm, log);
@@ -836,14 +841,15 @@ void BM_log_vert_before_modified(BMLog *log, BMVert *v, const int cd_vert_mask_o
 	BMLogVert *lv;
 	unsigned int v_id = bm_log_vert_id_get(log, v);
 	void *key = SET_UINT_IN_POINTER(v_id);
+	void **val_p;
 
 	/* Find or create the BMLogVert entry */
 	if ((lv = BLI_ghash_lookup(entry->added_verts, key))) {
 		bm_log_vert_bmvert_copy(lv, v, cd_vert_mask_offset);
 	}
-	else if (!BLI_ghash_haskey(entry->modified_verts, key)) {
+	else if (!BLI_ghash_ensure_p(entry->modified_verts, key, &val_p)) {
 		lv = bm_log_vert_alloc(log, v, cd_vert_mask_offset);
-		BLI_ghash_insert(entry->modified_verts, key, lv);
+		*val_p = lv;
 	}
 }
 
@@ -987,6 +993,15 @@ void BM_log_all_added(BMesh *bm, BMLog *log)
 	BMVert *v;
 	BMFace *f;
 
+	/* avoid unnecessary resizing on initialization */
+	if (BLI_ghash_size(log->current_entry->added_verts) == 0) {
+		BLI_ghash_reserve(log->current_entry->added_verts, (unsigned int)bm->totvert);
+	}
+
+	if (BLI_ghash_size(log->current_entry->added_faces) == 0) {
+		BLI_ghash_reserve(log->current_entry->added_faces, (unsigned int)bm->totface);
+	}
+
 	/* Log all vertices as newly created */
 	BM_ITER_MESH (v, &bm_iter, bm, BM_VERTS_OF_MESH) {
 		BM_log_vert_added(log, v, cd_vert_mask_offset);
@@ -1069,6 +1084,24 @@ float BM_log_original_mask(BMLog *log, BMVert *v)
 
 	lv = BLI_ghash_lookup(entry->modified_verts, key);
 	return lv->mask;
+}
+
+void BM_log_original_vert_data(
+        BMLog *log, BMVert *v,
+        const float **r_co, const short **r_no)
+{
+	BMLogEntry *entry = log->current_entry;
+	const BMLogVert *lv;
+	unsigned v_id = bm_log_vert_id_get(log, v);
+	void *key = SET_UINT_IN_POINTER(v_id);
+
+	BLI_assert(entry);
+
+	BLI_assert(BLI_ghash_haskey(entry->modified_verts, key));
+
+	lv = BLI_ghash_lookup(entry->modified_verts, key);
+	*r_co = lv->co;
+	*r_no = lv->no;
 }
 
 /************************ Debugging and Testing ***********************/
