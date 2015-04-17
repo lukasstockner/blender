@@ -13,7 +13,8 @@ const DrawState default_state = {
 		.blend = false,
 		.depth_test = true,
 		.depth_write = true,
-		.lighting = false
+		.lighting = false,
+		.interpolate = false
 	},
 	.point = {
 		.smooth = false,
@@ -78,6 +79,14 @@ void GPUx_set_common_state(const CommonDrawState *state)
 		else
 			glDisable(GL_LIGHTING);
 		current.common.lighting = state->lighting;
+	}
+
+	if (state->interpolate != current.common.interpolate) {
+		if (state->interpolate)
+			glShadeModel(GL_SMOOTH);
+		else
+			glShadeModel(GL_FLAT);
+		current.common.interpolate = state->interpolate;
 	}
 }
 

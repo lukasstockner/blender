@@ -181,7 +181,6 @@ void GPUx_draw_batch(const GPUxBatch *batch)
 		case GL_TRIANGLES:
 			GPUx_set_polygon_state(&batch->state.polygon);
 			vert_per_prim = 3;
-			glShadeModel(GL_SMOOTH);
 			break;
 		default:
 #ifdef TRUST_NO_ONE
@@ -204,9 +203,6 @@ void GPUx_draw_batch(const GPUxBatch *batch)
 	}
 	else
 		glDrawArrays(batch->prim_type, 0, chop_to_multiple(GPUx_vertex_ct(batch->buff), vert_per_prim));
-
-	if (batch->prim_type == GL_TRIANGLES)
-		glShadeModel(GL_FLAT);
 
 	GPUx_vertex_buffer_done_using(batch->buff);
 #endif /* REALLY_DRAW */

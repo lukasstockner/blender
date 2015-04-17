@@ -13,6 +13,9 @@ typedef struct {
 	bool depth_test;
 	bool depth_write;
 	bool lighting;
+	bool interpolate; /* affects lines & polygons, not points */
+	/* TODO: interpolation qualifier per attrib (flat/smooth/noperspective) instead of here */
+	/*       requires GLSL 1.3 (OpenGL 3.0) or EXT_gpu_shader4 */
 } CommonDrawState;
 
 typedef struct {

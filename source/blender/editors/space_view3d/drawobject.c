@@ -4482,6 +4482,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 				int i, t, tri_ct = 0;
 				MFace *faces = dm->getTessFaceArray(dm);
 				dm->gpux_batch->state.common.lighting = true;
+				dm->gpux_batch->state.common.interpolate = true;
 				dm->gpux_batch->state.polygon.draw_back = false;
 
 				GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
@@ -4501,17 +4502,12 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 						GPUx_set_triangle_vertices(elem, t++, face->v4, face->v1, face->v3);
 				}
 
-				/* TODO: update state tracking to handle all these */
-//				glShadeModel(GL_SMOOTH);
-
 				GPUx_vertex_buffer_prime(verts);
 				GPUx_element_list_prime(elem);
 
 				dm->gpux_batch->prim_type = GL_TRIANGLES;
 				dm->gpux_batch->buff = verts;
 				dm->gpux_batch->elem = elem;
-
-//				glShadeModel(GL_FLAT); /* restore default */
 			}
 			else if (dt == OB_WIRE) {
 				/* draw wireframe */
