@@ -28,6 +28,8 @@ typedef struct GPUxBatch {
 GPUxBatch *GPUx_batch_create(void);
 void GPUx_batch_discard(GPUxBatch*);
 
+unsigned GPUx_batch_size(const GPUxBatch*); /* total, in bytes */
+
 void GPUx_draw_batch(const GPUxBatch*);
 
 #endif /* BLENDER_GL_DRAW_PRIMITIVES */

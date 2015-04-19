@@ -193,6 +193,15 @@ static unsigned attrib_total_size(const VertexBuffer *buff, unsigned attrib_num)
 #endif /*  MESA_WORKAROUND */
 }
 
+unsigned GPUx_vertex_buffer_size(const VertexBuffer *buff)
+{
+	unsigned sz = 0;
+	unsigned a_idx;
+	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx)
+		sz += attrib_total_size(buff, a_idx);
+	return sz;
+}
+
 void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 #ifdef GENERIC_ATTRIB
                     const char *name,

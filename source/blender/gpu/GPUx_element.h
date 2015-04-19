@@ -15,6 +15,8 @@ typedef struct ElementList ElementList;
 ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index);
 void GPUx_element_list_discard(ElementList*);
 
+unsigned GPUx_element_list_size(const ElementList*);
+
 void GPUx_set_point_vertex(ElementList*, unsigned prim_idx, unsigned v1);
 void GPUx_set_line_vertices(ElementList*, unsigned prim_idx, unsigned v1, unsigned v2);
 void GPUx_set_triangle_vertices(ElementList*, unsigned prim_idx, unsigned v1, unsigned v2, unsigned v3);

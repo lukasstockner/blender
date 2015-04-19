@@ -49,20 +49,10 @@ const void *index_ptr(const ElementList *el)
 ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsigned max_index)
 {
 	ElementList *el;
-	unsigned index_size, prim_vertex_ct;
 
-	if (prim_type == GL_POINTS)
-		prim_vertex_ct = 1;
-	else if (prim_type == GL_LINES)
-		prim_vertex_ct = 2;
-	else if (prim_type == GL_TRIANGLES)
-		prim_vertex_ct = 3;
-	else {
 #ifdef TRUST_NO_ONE
-		assert(false);
+	assert(prim_type == GL_POINTS || prim_type == GL_LINES || prim_type == GL_TRIANGLES);
 #endif /* TRUST_NO_ONE */
-		return NULL;
-	}
 
 	el = calloc(1, sizeof(ElementList));
 
@@ -70,25 +60,19 @@ ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsign
 	el->prim_ct = prim_ct;
 	el->max_allowed_index = max_index;
 
-	if (max_index <= 255) {
+	if (max_index <= 255)
 		el->index_type = GL_UNSIGNED_BYTE;
-		index_size = sizeof(GLubyte);
-	}
-	else if (max_index <= 65535) {
+	else if (max_index <= 65535)
 		el->index_type = GL_UNSIGNED_SHORT;
-		index_size = sizeof(GLushort);
-	}
-	else {
+	else
 		el->index_type = GL_UNSIGNED_INT;
-		index_size = sizeof(GLuint);
-	}
 
 #ifdef TRACK_INDEX_RANGE
 	el->min_observed_index = max_index + 1; /* any valid index will be < this */
 	el->max_observed_index = 0;
 #endif /* TRACK_INDEX_RANGE */
 
-	el->indices = calloc(prim_ct * prim_vertex_ct, index_size);
+	el->indices = calloc(1, GPUx_element_list_size(el));
 	/* TODO: use only one calloc, not two */
 
 	return el;
@@ -103,6 +87,27 @@ void GPUx_element_list_discard(ElementList *el)
 
 	free(el->indices);
 	free(el);
+}
+
+unsigned GPUx_element_list_size(const ElementList *el)
+{
+	unsigned prim_vertex_ct = 0, index_size = 0;
+
+	if (el->prim_type == GL_POINTS)
+		prim_vertex_ct = 1;
+	else if (el->prim_type == GL_LINES)
+		prim_vertex_ct = 2;
+	else if (el->prim_type == GL_TRIANGLES)
+		prim_vertex_ct = 3;
+
+	if (el->index_type == GL_UNSIGNED_BYTE)
+		index_size = sizeof(GLubyte);
+	else if (el->index_type == GL_UNSIGNED_SHORT)
+		index_size = sizeof(GLushort);
+	else if (el->index_type == GL_UNSIGNED_INT)
+		index_size = sizeof(GLuint);
+
+	return prim_vertex_ct * el->prim_ct * index_size;
 }
 
 void GPUx_set_point_vertex(ElementList *el, unsigned prim_idx, unsigned v1)
@@ -239,32 +244,13 @@ void GPUx_optimize(ElementList *el)
 void GPUx_element_list_prime(ElementList *el)
 {
 #ifdef USE_ELEM_VBO
-	int prim_vertex_ct = 0, index_size = 0, total_size;
-
-#ifdef TRUST_NO_ONE
+  #ifdef TRUST_NO_ONE
 	assert(el->vbo_id == 0);
   #endif /* TRUST_NO_ONE */
-
-	if (el->prim_type == GL_POINTS)
-		prim_vertex_ct = 1;
-	else if (el->prim_type == GL_LINES)
-		prim_vertex_ct = 2;
-	else if (el->prim_type == GL_TRIANGLES)
-		prim_vertex_ct = 3;
-
-	if (el->index_type == GL_UNSIGNED_BYTE)
-		index_size = sizeof(GLubyte);
-	else if (el->index_type == GL_UNSIGNED_SHORT)
-		index_size = sizeof(GLushort);
-	else if (el->index_type == GL_UNSIGNED_INT)
-		index_size = sizeof(GLuint);
-
-	total_size = prim_vertex_ct * el->prim_ct * index_size;
-
 	glGenBuffers(1, &el->vbo_id);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
 	/* fill with delicious data & send to GPU the first time only */
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, total_size, el->indices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, GPUx_element_list_size(el), el->indices, GL_STATIC_DRAW);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 #else
 	(void)el;

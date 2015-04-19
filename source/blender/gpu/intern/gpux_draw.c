@@ -158,6 +158,14 @@ void GPUx_batch_discard(GPUxBatch *batch)
 	free(batch);
 }
 
+unsigned GPUx_batch_size(const GPUxBatch *batch)
+{
+	unsigned sz = GPUx_vertex_buffer_size(batch->buff);
+	if (batch->elem)
+		sz += GPUx_element_list_size(batch->elem);
+	return sz;
+}
+
 void GPUx_draw_batch(const GPUxBatch *batch)
 {
 	int vert_per_prim = 0;

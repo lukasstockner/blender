@@ -26,6 +26,7 @@ VertexBuffer* GPUx_vertex_buffer_create(unsigned attrib_ct, unsigned GPUx_vertex
 void GPUx_vertex_buffer_discard(VertexBuffer*);
 
 unsigned GPUx_vertex_ct(const VertexBuffer*);
+unsigned GPUx_vertex_buffer_size(const VertexBuffer*); /* of all vertex attrib data, in bytes */
 
 #ifdef PRINT
 void GPUx_attrib_print(const VertexBuffer*, unsigned attrib_num);
