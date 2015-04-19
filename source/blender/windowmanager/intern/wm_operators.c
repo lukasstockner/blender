@@ -1404,7 +1404,7 @@ bool WM_operator_check_ui_enabled(const bContext *C, const char *idname)
 	wmWindowManager *wm = CTX_wm_manager(C);
 	Scene *scene = CTX_data_scene(C);
 
-	return !(ED_undo_valid(C, idname) == 0 || WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY));
+	return !((ED_undo_is_valid(C, idname) == false) || WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY));
 }
 
 wmOperator *WM_operator_last_redo(const bContext *C)
@@ -1997,8 +1997,10 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	split = uiLayoutSplit(layout, 0.0f, false);
 	col = uiLayoutColumn(split, false);
 	uiItemL(col, IFACE_("Links"), ICON_NONE);
+#if 0
 	uiItemStringO(col, IFACE_("Support an Open Animation Movie"), ICON_URL, "WM_OT_url_open", "url",
 	              "https://cloud.blender.org/join");
+#endif
 	uiItemStringO(col, IFACE_("Donations"), ICON_URL, "WM_OT_url_open", "url",
 	              "http://www.blender.org/foundation/donation-payment/");
 	uiItemStringO(col, IFACE_("Credits"), ICON_URL, "WM_OT_url_open", "url",
@@ -2452,18 +2454,18 @@ static void wm_open_mainfile_ui(bContext *UNUSED(C), wmOperator *op)
 	struct FileRuntime *file_info = (struct FileRuntime *)&op->customdata;
 	uiLayout *layout = op->layout;
 	uiLayout *col = op->layout;
-	const char *autoexec_text = NULL;
+	const char *autoexec_text;
 
 	uiItemR(layout, op->ptr, "load_ui", 0, NULL, ICON_NONE);
 
 	col = uiLayoutColumn(layout, false);
 	if (file_info->is_untrusted) {
-		autoexec_text = "Trusted Source [Untrusted Path]";
+		autoexec_text = IFACE_("Trusted Source [Untrusted Path]");
 		uiLayoutSetActive(col, false);
 		uiLayoutSetEnabled(col, false);
 	}
 	else {
-		autoexec_text = "Trusted Source";
+		autoexec_text = IFACE_("Trusted Source");
 	}
 
 	uiItemR(col, op->ptr, "use_scripts", 0, autoexec_text, ICON_NONE);
