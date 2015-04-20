@@ -285,26 +285,22 @@ static void sculpt_orig_vert_data_update(SculptOrigVertData *orig_data,
                                          PBVHVertexIter *iter)
 {
 	if (orig_data->unode->type == SCULPT_UNDO_COORDS) {
-		if (orig_data->coords) {
+		if (orig_data->bm_log) {
+			BM_log_original_vert_data(
+			        orig_data->bm_log, iter->bm_vert,
+			        &orig_data->co, &orig_data->no);
+		}
+		else {
 			orig_data->co = orig_data->coords[iter->i];
-		}
-		else {
-			orig_data->co = BM_log_original_vert_co(orig_data->bm_log, iter->bm_vert);
-		}
-
-		if (orig_data->normals) {
 			orig_data->no = orig_data->normals[iter->i];
-		}
-		else {
-			orig_data->no = BM_log_original_vert_no(orig_data->bm_log, iter->bm_vert);
 		}
 	}
 	else if (orig_data->unode->type == SCULPT_UNDO_MASK) {
-		if (orig_data->vmasks) {
-			orig_data->mask = orig_data->vmasks[iter->i];
+		if (orig_data->bm_log) {
+			orig_data->mask = BM_log_original_mask(orig_data->bm_log, iter->bm_vert);
 		}
 		else {
-			orig_data->mask = BM_log_original_mask(orig_data->bm_log, iter->bm_vert);
+			orig_data->mask = orig_data->vmasks[iter->i];
 		}
 	}
 }
@@ -328,7 +324,7 @@ static int sculpt_stroke_dynamic_topology(const SculptSession *ss,
 	         * dynamic-topology */
 	        !(brush->flag & BRUSH_ANCHORED) &&
 	        !(brush->flag & BRUSH_DRAG_DOT) &&
-        
+
 	        (!ELEM(brush->sculpt_tool,
 	               /* These brushes, as currently coded, cannot
 	                * support dynamic topology */
@@ -705,10 +701,10 @@ static float calc_symmetry_feather(Sculpt *sd, StrokeCache *cache)
 /* Return modified brush strength. Includes the direction of the brush, positive
  * values pull vertices, negative values push. Uses tablet pressure and a
  * special multiplier found experimentally to scale the strength factor. */
-static float brush_strength(Sculpt *sd, StrokeCache *cache, float feather, UnifiedPaintSettings *ups)
+static float brush_strength(const Sculpt *sd, const StrokeCache *cache, const float feather, const UnifiedPaintSettings *ups)
 {
 	const Scene *scene = cache->vc->scene;
-	Brush *brush = BKE_paint_brush(&sd->paint);
+	const Brush *brush = BKE_paint_brush((Paint *)&sd->paint);
 
 	/* Primary strength input; square it to make lower values more sensitive */
 	const float root_alpha = BKE_brush_alpha_get(scene, brush);
@@ -1699,6 +1695,16 @@ static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 	float brush_alpha;
 	int n;
 
+	/* vars for handling projection when calculating the pinch vector.
+	 * Use surface normal for 'pinch_proj', so the vertices are pinched towards a line instead of a single point.
+	 * Without this we get a 'flat' surface surrounding the pinch */
+	const float  *pinch_proj = ss->cache->sculpt_normal_symm;
+	const float   pinch_proj_len_sq = len_squared_v3(pinch_proj);
+	const bool do_pinch_proj = (pinch_proj_len_sq > FLT_EPSILON);
+	/* simplifies projection calc below */
+	const float pinch_proj_len_sq_inv_neg = do_pinch_proj ? -1.0f / pinch_proj_len_sq : 0.0f;
+
+
 	/* offset with as much as possible factored in already */
 	mul_v3_v3fl(offset, ss->cache->sculpt_normal_symm, ss->cache->radius);
 	mul_v3_v3(offset, ss->cache->scale);
@@ -1738,6 +1744,15 @@ static void do_crease_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnod
 				/* first we pinch */
 				sub_v3_v3v3(val1, test.location, vd.co);
 				mul_v3_fl(val1, fade * flippedbstrength);
+
+				if (do_pinch_proj) {
+#if 0
+					project_plane_v3_v3v3(val1, val1, v_proj);
+#else
+					/* inline the projection, cache `-1.0 / dot_v3_v3(v_proj, v_proj)` */
+					madd_v3_v3fl(val1, pinch_proj, dot_v3v3(val1, pinch_proj) * pinch_proj_len_sq_inv_neg);
+#endif
+				}
 
 				/* then we draw */
 				mul_v3_v3fl(val2, offset, fade);
@@ -2431,20 +2446,24 @@ static void calc_sculpt_plane(Sculpt *sd, Object *ob, PBVHNode **nodes, int totn
 }
 
 /* Projects a point onto a plane along the plane's normal */
-static void point_plane_project(float intr[3], float co[3], float plane_normal[3], float plane_center[3])
+static void point_plane_project(
+        float intr[3],
+        const float co[3], const float plane_normal[3], const float plane_center[3])
 {
 	sub_v3_v3v3(intr, co, plane_center);
 	mul_v3_v3fl(intr, plane_normal, dot_v3v3(plane_normal, intr));
 	sub_v3_v3v3(intr, co, intr);
 }
 
-static int plane_trim(StrokeCache *cache, Brush *brush, float val[3])
+static int plane_trim(const StrokeCache *cache, const Brush *brush, const float val[3])
 {
 	return (!(brush->flag & BRUSH_PLANE_TRIM) ||
 	        ((dot_v3v3(val, val) <= cache->radius_squared * cache->plane_trim_squared)));
 }
 
-static int plane_point_side_flip(float co[3], float plane_normal[3], float plane_center[3], int flip)
+static bool plane_point_side_flip(
+        const float co[3], const float plane_normal[3], const float plane_center[3],
+        const bool flip)
 {
 	float delta[3];
 	float d;
@@ -2457,7 +2476,7 @@ static int plane_point_side_flip(float co[3], float plane_normal[3], float plane
 	return d <= 0.0f;
 }
 
-static int plane_point_side(float co[3], float plane_normal[3], float plane_center[3])
+static int plane_point_side(const float co[3], const float plane_normal[3], const float plane_center[3])
 {
 	float delta[3];
 
@@ -2558,7 +2577,7 @@ static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 
 	float temp[3];
 
-	int flip;
+	bool flip;
 
 	calc_sculpt_plane(sd, ob, nodes, totnode, an, fc);
 
@@ -2636,7 +2655,7 @@ static void do_clay_strips_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int t
 	float scale[4][4];
 	float tmat[4][4];
 
-	int flip;
+	bool flip;
 
 	calc_sculpt_plane(sd, ob, nodes, totnode, sn, fc);
 
