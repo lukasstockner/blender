@@ -8,7 +8,7 @@
 #define TRACK_INDEX_RANGE
 
 /* VBOs are guaranteed for any GL >= 1.5
-* They can be turned off here (mostly for comparison). */
+ * They can be turned off here (mostly for comparison). */
 #define USE_ELEM_VBO
 
 struct ElementList {
