@@ -2,7 +2,7 @@
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#define ORPHAN_DEBUG
+//#define ORPHAN_DEBUG
 
 #ifdef ORPHAN_DEBUG
   #include <stdio.h>
