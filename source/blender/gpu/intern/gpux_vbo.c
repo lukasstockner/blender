@@ -1,5 +1,6 @@
 
 #include "GPUx_vbo.h"
+#include "gpux_buffer_id.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -162,7 +163,7 @@ void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 		Attrib *a = buff->attribs + a_idx;
 #ifdef USE_VBO
 		if (a->vbo_id)
-			glDeleteBuffers(1, &a->vbo_id);
+			buffer_id_free(a->vbo_id);
 #endif /* USE_VBO */
 #ifdef GENERIC_ATTRIB
 		free(a->name);
@@ -171,7 +172,7 @@ void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 	}
 #ifdef USE_VAO
 	if (buff->vao_id)
-		glDeleteVertexArrays(1, &buff->vao_id);
+		vao_id_free(buff->vao_id);
 #endif /* USE_VAO */
 	free(buff->attribs);
 	free(buff);
@@ -362,7 +363,7 @@ void GPUx_vertex_buffer_use(VertexBuffer *buff)
 		return;
 	}
 	else {
-		glGenVertexArrays(1, &buff->vao_id);
+		buff->vao_id = vao_id_alloc();
 		glBindVertexArray(buff->vao_id);
 	}
 #endif /* USE_VAO */
@@ -380,7 +381,7 @@ void GPUx_vertex_buffer_use(VertexBuffer *buff)
 		if (a->vbo_id)
 			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 		else {
-			glGenBuffers(1, &a->vbo_id);
+			a->vbo_id = buffer_id_alloc();
 			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 			/* fill with delicious data & send to GPU the first time only */
 			glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
@@ -437,7 +438,7 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 	assert(buff->vao_id == 0);
   #endif /* TRUST_NO_ONE */
 
-	glGenVertexArrays(1, &buff->vao_id);
+	buff->vao_id = vao_id_alloc();
 	glBindVertexArray(buff->vao_id);
 #endif /* USE_VAO */
 
@@ -460,7 +461,7 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 		assert(a->vbo_id == 0);
   #endif /* TRUST_NO_ONE */
 
-		glGenBuffers(1, &a->vbo_id);
+		a->vbo_id = buffer_id_alloc();
 		glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 		/* fill with delicious data & send to GPU the first time only */
 		glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);

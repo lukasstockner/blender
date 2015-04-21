@@ -1,5 +1,6 @@
 
 #include "gpux_element_private.h"
+#include "gpux_buffer_id.h"
 #include <stdlib.h>
 
 /* private functions */
@@ -82,7 +83,7 @@ void GPUx_element_list_discard(ElementList *el)
 {
 #ifdef USE_ELEM_VBO
 	if (el->vbo_id)
-		glDeleteBuffers(1, &el->vbo_id);
+		buffer_id_free(el->vbo_id);
 #endif /* USE_ELEM_VBO */
 
 	free(el->indices);
@@ -247,7 +248,7 @@ void GPUx_element_list_prime(ElementList *el)
   #ifdef TRUST_NO_ONE
 	assert(el->vbo_id == 0);
   #endif /* TRUST_NO_ONE */
-	glGenBuffers(1, &el->vbo_id);
+	el->vbo_id = buffer_id_alloc();
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
 	/* fill with delicious data & send to GPU the first time only */
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, GPUx_element_list_size(el), el->indices, GL_STATIC_DRAW);
