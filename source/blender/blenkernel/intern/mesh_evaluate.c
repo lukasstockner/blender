@@ -1621,8 +1621,8 @@ void BKE_mesh_loop_tangents(Mesh *mesh, const char *uvmap, float (*r_looptangent
  * computing newell normal.
  *
  */
-static void mesh_calc_ngon_normal(MPoly *mpoly, MLoop *loopstart,
-                                  MVert *mvert, float normal[3])
+static void mesh_calc_ngon_normal(const MPoly *mpoly, const MLoop *loopstart,
+                                  const MVert *mvert, float normal[3])
 {
 	const int nverts = mpoly->totloop;
 	const float *v_prev = mvert[loopstart[nverts - 1].v].co;
@@ -1643,8 +1643,8 @@ static void mesh_calc_ngon_normal(MPoly *mpoly, MLoop *loopstart,
 	}
 }
 
-void BKE_mesh_calc_poly_normal(MPoly *mpoly, MLoop *loopstart,
-                               MVert *mvarray, float no[3])
+void BKE_mesh_calc_poly_normal(const MPoly *mpoly, const MLoop *loopstart,
+                               const MVert *mvarray, float no[3])
 {
 	if (mpoly->totloop > 4) {
 		mesh_calc_ngon_normal(mpoly, loopstart, mvarray, no);
