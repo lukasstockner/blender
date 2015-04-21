@@ -4666,6 +4666,15 @@ static bool tessface_in_poly(const MFace *face, const MPoly *poly, const MLoop *
 	       (face->v4 == 0 || vertex_in_poly(face->v4, poly, loops));
 }
 
+static int vertex_index_in_ngon(int v, const MPoly *poly, const MLoop *loops)
+{
+	int i;
+	for (i = poly->loopstart; i < (poly->loopstart + poly->totloop); ++i)
+		if (loops[i].v == v)
+			return i;
+	return -1;
+}
+
 static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                                      const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
@@ -4715,6 +4724,8 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 		}
 
 		if (batch_needs_setup) {
+			Mesh *me = ob->data;
+
 			const int vert_ct = dm->getNumVerts(dm);
 			const int edge_ct = dm->getNumEdges(dm);
 			const int face_ct = dm->getNumTessFaces(dm);
@@ -4780,6 +4791,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 				puts("OB_SOLID+");
 #endif
 				const MFace *faces = dm->getTessFaceArray(dm);
+				const float (*lnor)[3] = dm->getLoopDataArray(dm, CD_NORMAL);
 				const int tri_ct = poly_to_tri_count(poly_ct, loop_ct);
 				int i, t;
 
@@ -4787,7 +4799,30 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 				dm->gpux_batch->normal_draw_mode =
 					(dflag & (DRAW_PICKING | DRAW_CONSTCOLOR)) ? NORMAL_DRAW_NONE :
 					(dflag & DM_DRAW_ALWAYS_SMOOTH) ? NORMAL_DRAW_SMOOTH :
+					(lnor != NULL) ? NORMAL_DRAW_LOOP :
 					NORMAL_DRAW_FLAT;
+
+				/* TODO: respect object smooth/flat buttons, auto-smooth
+				 *       whole-mesh smooth/flat simply sets smooth flag for each poly */
+
+//				if (me->flag & ME_AUTOSMOOTH) puts("ME_AUTOSMOOTH");
+
+				/* what about flat faces within a smooth mesh? also sharp edges
+				 * loop normals takes care of all cases, I just want to share GL verts
+				 * more often when possible.
+				 * edge.flag of interest
+				 *   ME_SEAM
+				 *   ME_SHARP
+				 * face.flag of interest
+				 *   ME_SMOOTH
+				 */
+
+				/* pretty sure the rest are for edit mode */
+//				if (me->drawflag & ME_DRAWEDGES) puts("ME_DRAWEDGES");
+//				if (me->drawflag & ME_DRAWFACES) puts("ME_DRAWFACES");
+//				if (me->drawflag & ME_DRAWNORMALS) puts("ME_DRAWNORMALS");     /* these are for visualizing */
+//				if (me->drawflag & ME_DRAW_VNORMALS) puts("ME_DRAW_VNORMALS"); /* normals using line segments */
+//				if (me->drawflag & ME_DRAW_LNORMALS) puts("ME_DRAW_LNORMALS"); /* they don't affect shading */
 
 				switch (dm->gpux_batch->normal_draw_mode) {
 					case NORMAL_DRAW_NONE:
@@ -4921,8 +4956,48 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 #if MCE_TRACE
 						puts("NORMAL_DRAW_LOOP");
 #endif
-						/* TODO: finish */
-						t = 0;
+						int new_vert_ct = 0;
+						int v;
+						const MLoop *loops = dm->getLoopArray(dm);
+						const MPoly *polys = dm->getPolyArray(dm);
+						const MPoly *poly = polys;
+
+						dm->gpux_batch->state.common.lighting = true;
+						dm->gpux_batch->state.common.interpolate = true;
+						dm->gpux_batch->state.polygon.draw_back = false;
+
+						new_vert_ct = loop_ct;
+#if MCE_TRACE
+						printf("tri_ct = %d, new_vert_ct = %d\n", tri_ct, new_vert_ct);
+#endif
+						verts = GPUx_vertex_buffer_create(2, new_vert_ct);
+						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+						for (v = 0; v < loop_ct; ++v)
+							GPUx_set_attrib(verts, 0, v, &mverts[loops[v].v].co);
+						GPUx_fill_attrib(verts, 1, lnor);
+
+						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, new_vert_ct - 1);
+
+						for (i = 0, t = 0; i < face_ct; ++i) {
+							const MFace *f = faces + i;
+
+							if (!tessface_in_poly(f, poly, loops))
+								poly++;
+
+							const int v1 = vertex_index_in_ngon(f->v1, poly, loops),
+							          v2 = vertex_index_in_ngon(f->v2, poly, loops),
+							          v3 = vertex_index_in_ngon(f->v3, poly, loops);
+
+							GPUx_set_triangle_vertices(elem, t++, v1, v2, v3);
+
+							if (f->v4) {
+								const int v4 = vertex_index_in_ngon(f->v4, poly, loops);
+								GPUx_set_triangle_vertices(elem, t++, v1, v3, v4);
+							}
+						}
+
+						break;
 					}
 				}
 
