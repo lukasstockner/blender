@@ -1,6 +1,6 @@
 #include "gpux_buffer_id.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#include "BLI_threads.h"
 
 //#define ORPHAN_DEBUG
 
