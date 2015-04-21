@@ -4418,6 +4418,23 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 	return retval;
 }
 
+static bool vertex_in_poly(int v, const MPoly *poly, const MLoop *loops)
+{
+	int i;
+	for (i = poly->loopstart; i < (poly->loopstart + poly->totloop); ++i)
+		if (loops[i].v == v)
+			return true;
+	return false;
+}
+
+static bool tessface_in_poly(const MFace *face, const MPoly *poly, const MLoop *loops)
+{
+	return vertex_in_poly(face->v1, poly, loops) &&
+	       vertex_in_poly(face->v2, poly, loops) &&
+	       vertex_in_poly(face->v3, poly, loops) &&
+	       (face->v4 == 0 || vertex_in_poly(face->v4, poly, loops));
+}
+
 static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                                      const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
@@ -4446,13 +4463,23 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 		DerivedMesh *dm = mesh_get_derived_final(scene, ob, scene->customdata_mask);
 		bool batch_needs_setup = false;
 
+		if (!dm) {
+#if MCE_TRACE
+			puts("NO DM -> BAIL!!!");
+#endif
+			return true;
+		}
+
 		if (dm->gpux_batch == 0) {
-			dm->gpux_batch = GPUx_batch_create();
+#if MCE_TRACE
+			puts("NO BATCH -> CREATE");
+#endif
 			batch_needs_setup = true;
 		}
 		else if (dm->gpux_batch->draw_type != dt) {
-			GPUx_batch_discard(dm->gpux_batch);
-			dm->gpux_batch = GPUx_batch_create();
+#if MCE_TRACE
+			puts("DIFF DRAW TYPE -> REPLACE");
+#endif
 			batch_needs_setup = true;
 		}
 
@@ -4460,59 +4487,229 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 			const int vert_ct = dm->getNumVerts(dm);
 			const int edge_ct = dm->getNumEdges(dm);
 			const int face_ct = dm->getNumTessFaces(dm);
-			const int attrib_ct = (dt > OB_WIRE) ? 2 : 1;
+			const int poly_ct = dm->getNumPolys(dm);
+			const int loop_ct = dm->getNumLoops(dm);
 
-			VertexBuffer *verts = GPUx_vertex_buffer_create(attrib_ct, vert_ct);
+			const MVert *mverts = dm->getVertArray(dm);
+
+			VertexBuffer *verts = NULL;
 			ElementList *elem = NULL;
-			MVert *mverts = dm->getVertArray(dm);
+
+			if (dm->gpux_batch) GPUx_batch_discard(dm->gpux_batch);
+			dm->gpux_batch = GPUx_batch_create();
 
 			dm->gpux_batch->draw_type = dt;
 
 #if MCE_TRACE
-			printf("%d verts, %d edges, %d faces\n", vert_ct, edge_ct, face_ct);
+			printf("%d verts, %d edges, %d polys, %d faces, %d loops\n",
+			       vert_ct, edge_ct, poly_ct, face_ct, loop_ct);
 #endif /* MCE_TRACE */
 
-			GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
-			GPUx_fill_attrib_stride(verts, 0, mverts, sizeof(MVert));
+#if 0 /* unused, just needed to answer some questions */
+			{
+				/* count some more stuff
+				 * triangle count is fixed; minimize GL vertex count
+				 * tesselating doesn't change values at vertices, so some sharing is easy to find.
+				 */
+				const MPoly *polys = dm->getPolyArray(dm);
+				const MLoop *loops = dm->getLoopArray(dm);
+				const MFace *faces = dm->getTessFaceArray(dm);
+				int i, j;
 
-			if (dt > OB_WIRE) {
-				/* draw smooth surface */
-				/* TODO: handle flat faces */
-				/* TODO: handle loop normals */
-				int i, t, tri_ct = 0;
-				MFace *faces = dm->getTessFaceArray(dm);
-				dm->gpux_batch->state.common.lighting = true;
-				dm->gpux_batch->state.common.interpolate = true;
-				dm->gpux_batch->state.polygon.draw_back = false;
-
-				GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
-				GPUx_fill_attrib_stride(verts, 1, &mverts[0].no, sizeof(MVert));
-
-				/* some tess faces are quads, some triangles
-				 * we draw just triangles, so count quads twice */
-				for (i = 0; i < face_ct; ++i)
-					tri_ct += faces[i].v4 ? 2 : 1;
-
-				elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, vert_ct - 1);
-
-				for (i = 0, t = 0; i < face_ct; ++i) {
-					const MFace *face = faces + i;
-					GPUx_set_triangle_vertices(elem, t++, face->v1, face->v2, face->v3);
-					if (face->v4)
-						GPUx_set_triangle_vertices(elem, t++, face->v4, face->v1, face->v3);
+				for (i = 0; i < poly_ct; ++i) {
+					const MPoly *poly = polys + i;
+					printf("poly %d: ", i);
+					for (j = poly->loopstart; j < (poly->loopstart + poly->totloop); ++j) {
+						printf(" v%d", loops[j].v);
+					}
+					putchar('\n');
+				}
+				for (i = 0; i < face_ct; ++i) {
+					const MFace *f = faces + i;
+					printf("tess face %d: ", i);
+					printf(" v%d v%d v%d", f->v1, f->v2, f->v3);
+					if (f->v4) printf(" v%d", f->v4);
+					putchar('\n');
 				}
 
-				GPUx_vertex_buffer_prime(verts);
-				GPUx_element_list_prime(elem);
+				/* interesting so far!
+				 * we only need loop_ct vertices to draw correctly, not tri_ct * 3
+				 * this is true for flat shaded and multi-attrib meshes
+				 * Still need tess triangles per poly...
+				 * Maybe tess faces are stored in same order as polys? That would be
+				 * great. Checking... BKE_mesh_recalc_tessellation has
+				 * 	int *mface_to_poly_map;
+				 * YES, MFaces follow same order as MPolys.
+				 */
+			}
+#endif /* unused */
+
+			if (dt > OB_WIRE) {
+#if MCE_TRACE
+				puts("OB_SOLID+");
+#endif
+				const MFace *faces = dm->getTessFaceArray(dm);
+				const int tri_ct = poly_to_tri_count(poly_ct, loop_ct);
+				int i, t;
 
 				dm->gpux_batch->prim_type = GL_TRIANGLES;
-				dm->gpux_batch->buff = verts;
-				dm->gpux_batch->elem = elem;
+				dm->gpux_batch->normal_draw_mode =
+					(dflag & (DRAW_PICKING | DRAW_CONSTCOLOR)) ? NORMAL_DRAW_NONE :
+					(dflag & DM_DRAW_ALWAYS_SMOOTH) ? NORMAL_DRAW_SMOOTH :
+					NORMAL_DRAW_FLAT;
+
+				switch (dm->gpux_batch->normal_draw_mode) {
+					case NORMAL_DRAW_NONE:
+					{
+#if MCE_TRACE
+						puts("NORMAL_DRAW_NONE");
+#endif
+						/* same situations as draw_mesh_fancy:
+						 * if (dflag & (DRAW_PICKING | DRAW_CONSTCOLOR)) ...
+						 * except we really don't want to discard the "display" GPUxBatch,
+						 * create a new one for const/no color, just to recreate the
+						 * display batch next time we draw */
+
+						/* TODO: color according to object ID */
+
+						/* keep state.polygon.draw_back = true for full coverage */
+
+						verts = GPUx_vertex_buffer_create(1, vert_ct);
+						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+						GPUx_fill_attrib_stride(verts, 0, mverts, sizeof(MVert));
+
+						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, vert_ct - 1);
+
+						for (i = 0, t = 0; i < face_ct; ++i) {
+							const MFace *face = faces + i;
+							GPUx_set_triangle_vertices(elem, t++, face->v1, face->v2, face->v3);
+							if (face->v4)
+								GPUx_set_triangle_vertices(elem, t++, face->v4, face->v1, face->v3);
+						}
+
+						break;
+					}
+					case NORMAL_DRAW_SMOOTH:
+					{
+#if MCE_TRACE
+						puts("NORMAL_DRAW_SMOOTH");
+#endif
+						dm->gpux_batch->state.common.lighting = true;
+						dm->gpux_batch->state.common.interpolate = true;
+						dm->gpux_batch->state.polygon.draw_back = false;
+
+						verts = GPUx_vertex_buffer_create(2, vert_ct);
+						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
+						GPUx_fill_attrib_stride(verts, 0, mverts, sizeof(MVert));
+						GPUx_fill_attrib_stride(verts, 1, &mverts[0].no, sizeof(MVert));
+
+						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, vert_ct - 1);
+
+						for (i = 0, t = 0; i < face_ct; ++i) {
+							const MFace *face = faces + i;
+							GPUx_set_triangle_vertices(elem, t++, face->v1, face->v2, face->v3);
+							if (face->v4)
+								GPUx_set_triangle_vertices(elem, t++, face->v4, face->v1, face->v3);
+						}
+
+						break;
+					}
+					case NORMAL_DRAW_FLAT:
+					{
+#if MCE_TRACE
+						puts("NORMAL_DRAW_FLAT");
+#endif
+						int new_vert_ct = 0;
+						const MLoop *loops = dm->getLoopArray(dm);
+						const MPoly *polys = dm->getPolyArray(dm);
+						const MPoly *poly = polys;
+						short poly_normal[3];
+						{
+							/* get first poly normal */
+							float f_no[3];
+							BKE_mesh_calc_poly_normal(poly, loops + poly->loopstart, mverts, f_no);
+							normal_float_to_short_v3(poly_normal, f_no);
+						}
+						dm->gpux_batch->state.common.lighting = true;
+						dm->gpux_batch->state.common.interpolate = false;
+						dm->gpux_batch->state.polygon.draw_back = false;
+
+						new_vert_ct = 3 * tri_ct;
+						/* TODO: use loop_ct GL verts, not 3 * tri_ct
+						 *       conserve VRAM! encourage reuse! */
+#if MCE_TRACE
+						printf("tri_ct = %d, new_vert_ct = %d, loop_ct = %d\n", tri_ct, new_vert_ct, loop_ct);
+#endif
+						verts = GPUx_vertex_buffer_create(2, new_vert_ct);
+						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
+
+						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, new_vert_ct - 1);
+
+						for (i = 0, t = 0; i < face_ct; ++i) {
+							const MFace *f = faces + i;
+
+							int v1 = 3 * t + 0,
+								v2 = 3 * t + 1,
+								v3 = 3 * t + 2;
+
+							if (!tessface_in_poly(f, poly, loops)) {
+								/* get next poly normal */
+								float f_no[3];
+								poly++;
+								assert(tessface_in_poly(f, poly, loops));
+								BKE_mesh_calc_poly_normal(poly, loops + poly->loopstart, mverts, f_no);
+								normal_float_to_short_v3(poly_normal, f_no);
+							}
+
+							GPUx_set_attrib(verts, 0, v1, &mverts[f->v1].co);
+							GPUx_set_attrib(verts, 0, v2, &mverts[f->v2].co);
+							GPUx_set_attrib(verts, 0, v3, &mverts[f->v3].co);
+							/* set only provoking vertex's normal */
+							GPUx_set_attrib(verts, 1, v3, poly_normal);
+
+							GPUx_set_triangle_vertices(elem, t++, v1, v2, v3);
+
+							if (f->v4) {
+								v1 += 3; v2 += 3; v3 += 3;
+								GPUx_set_attrib(verts, 0, v1, &mverts[f->v4].co);
+								GPUx_set_attrib(verts, 0, v2, &mverts[f->v1].co);
+								GPUx_set_attrib(verts, 0, v3, &mverts[f->v3].co);
+								/* set only provoking vertex's normal */
+								GPUx_set_attrib(verts, 1, v3, poly_normal);
+
+								GPUx_set_triangle_vertices(elem, t++, v1, v2, v3);
+							}
+						}
+
+						break;
+					}
+					case NORMAL_DRAW_LOOP:
+					{
+#if MCE_TRACE
+						puts("NORMAL_DRAW_LOOP");
+#endif
+						/* TODO: finish */
+						t = 0;
+					}
+				}
+
+				assert(t == tri_ct);
 			}
 			else if (dt == OB_WIRE) {
+#if MCE_TRACE
+				puts("OB_WIRE");
+#endif
 				/* draw wireframe */
 				int i;
-				MEdge *edges = dm->getEdgeArray(dm);
+				const MEdge *edges = dm->getEdgeArray(dm);
+
+				dm->gpux_batch->prim_type = GL_LINES;
+
+				verts = GPUx_vertex_buffer_create(1, vert_ct);
+				GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+				GPUx_fill_attrib_stride(verts, 0, mverts, sizeof(MVert));
 
 				elem = GPUx_element_list_create(GL_LINES, edge_ct, vert_ct - 1);
 
@@ -4520,17 +4717,25 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 					const MEdge *edge = edges + i;
 					GPUx_set_line_vertices(elem, i, edge->v1, edge->v2);
 				}
-
-				GPUx_vertex_buffer_prime(verts);
-				GPUx_element_list_prime(elem);
-
-				dm->gpux_batch->prim_type = GL_LINES;
-				dm->gpux_batch->buff = verts;
-				dm->gpux_batch->elem = elem;
 			}
+
+			GPUx_vertex_buffer_prime(verts);
+			GPUx_element_list_prime(elem);
+
+			dm->gpux_batch->buff = verts;
+			dm->gpux_batch->elem = elem;
+#if MCE_TRACE
+			puts("PRIME & STORE");
+			printf("GPUx batch size: %d bytes\n", GPUx_batch_size(dm->gpux_batch));
+#endif
 		}
 
+#if MCE_TRACE
+		puts("DRAW");
+#endif
 		GPUx_draw_batch(dm->gpux_batch);
+
+		dm->release(dm);
 	}
 
 #if MCE_TRACE
