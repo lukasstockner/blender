@@ -1018,8 +1018,9 @@ static float (*get_orco_coords_dm(Object *ob, BMEditMesh *em, int layer, int *fr
 			ClothModifierData *clmd = (ClothModifierData *)modifiers_findByType(ob, eModifierType_Cloth);
 			KeyBlock *kb = BKE_keyblock_from_key(BKE_key_from_object(ob), clmd->sim_parms->shapekey_rest);
 
-			if (kb->data)
+			if (kb && kb->data) {
 				return kb->data;
+			}
 		}
 
 		return NULL;
@@ -1945,7 +1946,7 @@ static void mesh_calc_modifiers(Scene *scene, Object *ob, float (*inputVertexCos
 		DM_calc_loop_normals(finaldm, do_loop_normals, loop_normals_split_angle);
 	}
 
-	{
+	if (sculpt_dyntopo == false) {
 		DM_ensure_tessface(finaldm);
 
 		/* without this, drawing ngon tri's faces will show ugly tessellated face
@@ -2354,7 +2355,7 @@ static CustomDataMask object_get_datamask(const Scene *scene, Object *ob)
 
 	if (ob == actob) {
 		/* check if we need tfaces & mcols due to face select or texture paint */
-		if (BKE_paint_select_face_test(ob) || (ob->mode & OB_MODE_TEXTURE_PAINT)) {
+		if ((ob->mode & OB_MODE_TEXTURE_PAINT) || BKE_paint_select_face_test(ob)) {
 			mask |= CD_MASK_MTFACE | CD_MASK_MCOL;
 		}
 

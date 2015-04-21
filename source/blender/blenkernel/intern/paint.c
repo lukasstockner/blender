@@ -313,6 +313,11 @@ void BKE_paint_curve_set(Brush *br, PaintCurve *pc)
 	}
 }
 
+void BKE_paint_curve_clamp_endpoint_add_index(PaintCurve *pc, const int add_index)
+{
+	pc->add_index = (add_index || pc->tot_points == 1) ? (add_index + 1) : 0;
+}
+
 /* remove colour from palette. Must be certain color is inside the palette! */
 void BKE_palette_color_remove(Palette *palette, PaletteColor *color)
 {
@@ -559,15 +564,11 @@ void paint_calculate_rake_rotation(UnifiedPaintSettings *ups, Brush *brush, cons
 	}
 }
 
-void BKE_free_sculptsession_deformMats(SculptSession *ss)
+void BKE_sculptsession_free_deformMats(SculptSession *ss)
 {
-	if (ss->orig_cos) MEM_freeN(ss->orig_cos);
-	if (ss->deform_cos) MEM_freeN(ss->deform_cos);
-	if (ss->deform_imats) MEM_freeN(ss->deform_imats);
-
-	ss->orig_cos = NULL;
-	ss->deform_cos = NULL;
-	ss->deform_imats = NULL;
+	MEM_SAFE_FREE(ss->orig_cos);
+	MEM_SAFE_FREE(ss->deform_cos);
+	MEM_SAFE_FREE(ss->deform_imats);
 }
 
 /* Write out the sculpt dynamic-topology BMesh to the Mesh */
@@ -626,7 +627,7 @@ void BKE_sculptsession_bm_to_me_for_render(Object *object)
 	}
 }
 
-void BKE_free_sculptsession(Object *ob)
+void BKE_sculptsession_free(Object *ob)
 {
 	if (ob && ob->sculpt) {
 		SculptSession *ss = ob->sculpt;
@@ -767,7 +768,12 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 	}
 
 	/* BMESH ONLY --- at some point we should move sculpt code to use polygons only - but for now it needs tessfaces */
-	BKE_mesh_tessface_ensure(me);
+	if (ss->bm) {
+		BKE_mesh_tessface_clear(me);
+	}
+	else {
+		BKE_mesh_tessface_ensure(me);
+	}
 
 	if (!mmd) ss->kb = BKE_keyblock_from_object(ob);
 	else ss->kb = NULL;
@@ -804,7 +810,7 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 		if (!ss->orig_cos) {
 			int a;
 
-			BKE_free_sculptsession_deformMats(ss);
+			BKE_sculptsession_free_deformMats(ss);
 
 			ss->orig_cos = (ss->kb) ? BKE_keyblock_convert_to_vertcos(ob, ss->kb) : BKE_mesh_vertexCos_get(me, NULL);
 
@@ -817,7 +823,7 @@ void BKE_sculpt_update_mesh_elements(Scene *scene, Sculpt *sd, Object *ob,
 		}
 	}
 	else {
-		BKE_free_sculptsession_deformMats(ss);
+		BKE_sculptsession_free_deformMats(ss);
 	}
 
 	if (ss->kb != NULL && ss->deform_cos == NULL) {

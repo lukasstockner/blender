@@ -1,7 +1,7 @@
 
 #include "gpux_element_private.h"
 #include "gpux_buffer_id.h"
-#include <stdlib.h>
+#include "MEM_guardedalloc.h"
 
 /* private functions */
 
@@ -52,10 +52,10 @@ ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsign
 	ElementList *el;
 
 #ifdef TRUST_NO_ONE
-	assert(prim_type == GL_POINTS || prim_type == GL_LINES || prim_type == GL_TRIANGLES);
+	BLI_assert(prim_type == GL_POINTS || prim_type == GL_LINES || prim_type == GL_TRIANGLES);
 #endif /* TRUST_NO_ONE */
 
-	el = calloc(1, sizeof(ElementList));
+	el = MEM_callocN(sizeof(ElementList), "ElementList");
 
 	el->prim_type = prim_type;
 	el->prim_ct = prim_ct;
@@ -73,7 +73,7 @@ ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsign
 	el->max_observed_index = 0;
 #endif /* TRACK_INDEX_RANGE */
 
-	el->indices = calloc(1, GPUx_element_list_size(el));
+	el->indices = MEM_callocN(GPUx_element_list_size(el), "ElementList.indices");
 	/* TODO: use only one calloc, not two */
 
 	return el;
@@ -86,8 +86,8 @@ void GPUx_element_list_discard(ElementList *el)
 		buffer_id_free(el->vbo_id);
 #endif /* USE_ELEM_VBO */
 
-	free(el->indices);
-	free(el);
+	MEM_freeN(el->indices);
+	MEM_freeN(el);
 }
 
 unsigned GPUx_element_list_size(const ElementList *el)
@@ -115,9 +115,9 @@ void GPUx_set_point_vertex(ElementList *el, unsigned prim_idx, unsigned v1)
 {
 	const unsigned offset = prim_idx;
 #ifdef TRUST_NO_ONE
-	assert(el->prim_type == GL_POINTS);
-	assert(prim_idx < el->prim_ct); /* prim out of range */
-	assert(v1 <= el->max_allowed_index); /* index out of range */
+	BLI_assert(el->prim_type == GL_POINTS);
+	BLI_assert(prim_idx < el->prim_ct); /* prim out of range */
+	BLI_assert(v1 <= el->max_allowed_index); /* index out of range */
 #endif /* TRUST_NO_ONE */
 #ifdef TRACK_INDEX_RANGE
 	track_index_range(el, v1);
@@ -148,10 +148,10 @@ void GPUx_set_line_vertices(ElementList *el, unsigned prim_idx, unsigned v1, uns
 {
 	const unsigned offset = prim_idx * 2;
 #ifdef TRUST_NO_ONE
-	assert(el->prim_type == GL_LINES);
-	assert(prim_idx < el->prim_ct); /* prim out of range */
-	assert(v1 <= el->max_allowed_index && v2 <= el->max_allowed_index); /* index out of range */
-	assert(v1 != v2); /* degenerate line */
+	BLI_assert(el->prim_type == GL_LINES);
+	BLI_assert(prim_idx < el->prim_ct); /* prim out of range */
+	BLI_assert(v1 <= el->max_allowed_index && v2 <= el->max_allowed_index); /* index out of range */
+	BLI_assert(v1 != v2); /* degenerate line */
 #endif /* TRUST_NO_ONE */
 #ifdef TRACK_INDEX_RANGE
 	track_index_range(el, v1);
@@ -186,10 +186,10 @@ void GPUx_set_triangle_vertices(ElementList *el, unsigned prim_idx, unsigned v1,
 {
 	const unsigned offset = prim_idx * 3;
 #ifdef TRUST_NO_ONE
-	assert(el->prim_type == GL_TRIANGLES);
-	assert(prim_idx < el->prim_ct); /* prim out of range */
-	assert(v1 <= el->max_allowed_index && v2 <= el->max_allowed_index && v3 <= el->max_allowed_index); /* index out of range */
-	assert(v1 != v2 && v2 != v3 && v3 != v1); /* degenerate triangle */
+	BLI_assert(el->prim_type == GL_TRIANGLES);
+	BLI_assert(prim_idx < el->prim_ct); /* prim out of range */
+	BLI_assert(v1 <= el->max_allowed_index && v2 <= el->max_allowed_index && v3 <= el->max_allowed_index); /* index out of range */
+	BLI_assert(v1 != v2 && v2 != v3 && v3 != v1); /* degenerate triangle */
 #endif /* TRUST_NO_ONE */
 #ifdef TRACK_INDEX_RANGE
 	track_index_range(el, v1);
@@ -246,7 +246,7 @@ void GPUx_element_list_prime(ElementList *el)
 {
 #ifdef USE_ELEM_VBO
   #ifdef TRUST_NO_ONE
-	assert(el->vbo_id == 0);
+	BLI_assert(el->vbo_id == 0);
   #endif /* TRUST_NO_ONE */
 	el->vbo_id = buffer_id_alloc();
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
@@ -262,7 +262,7 @@ void GPUx_element_list_use_primed(const ElementList *el)
 {
 #ifdef USE_ELEM_VBO
   #ifdef TRUST_NO_ONE
-	assert(el->vbo_id);
+	BLI_assert(el->vbo_id);
   #endif /* TRUST_NO_ONE */
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
 #else

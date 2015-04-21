@@ -1,7 +1,7 @@
 
 #include "GPUx_vbo.h"
 #include "gpux_buffer_id.h"
-#include <stdlib.h>
+#include "MEM_guardedalloc.h"
 #include <string.h>
 
 /* VBOs are guaranteed for any GL >= 1.5
@@ -24,7 +24,7 @@
 #endif
 
 #ifdef TRUST_NO_ONE
-  #include <assert.h>
+  #include "BLI_utildefines.h"
 #endif /* TRUST_NO_ONE */
 
 #ifdef PRINT
@@ -58,7 +58,7 @@ static unsigned comp_sz(GLenum type)
 {
 	const GLubyte sizes[] = {1,1,2,2,4,4,4}; /* uint32 might result in smaller code? */
 #ifdef TRUST_NO_ONE
-	assert(type >= GL_BYTE && type <= GL_FLOAT);
+	BLI_assert(type >= GL_BYTE && type <= GL_FLOAT);
 #endif /* TRUST_NO_ONE */
 	return sizes[type - GL_BYTE];
 }
@@ -119,9 +119,9 @@ void GPUx_attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 	}
 #endif
 #ifdef TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
-	assert(a->comp_type >= GL_BYTE && a->comp_type <= GL_FLOAT);
-	assert(a->data != NULL); /* attribute must be specified */
+	BLI_assert(attrib_num < buff->attrib_ct);
+	BLI_assert(a->comp_type >= GL_BYTE && a->comp_type <= GL_FLOAT);
+	BLI_assert(a->data != NULL); /* attribute must be specified */
 #endif /* TRUST_NO_ONE */
 	if (a->comp_ct == 1)
 		printf("attrib %s %s = {\n", singular[type_idx], var_name);
@@ -145,13 +145,13 @@ void GPUx_attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 
 VertexBuffer *GPUx_vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 {
-	VertexBuffer *buff = calloc(1, sizeof(VertexBuffer));
+	VertexBuffer *buff = MEM_callocN(sizeof(VertexBuffer), "VertexBuffer");
 #ifdef TRUST_NO_ONE
-	assert(a_ct >= 1 && a_ct <= 16);
+	BLI_assert(a_ct >= 1 && a_ct <= 16);
 #endif /* TRUST_NO_ONE */
 	buff->attrib_ct = a_ct;
 	buff->vertex_ct = v_ct;
-	buff->attribs = calloc(a_ct, sizeof(Attrib));
+	buff->attribs = MEM_callocN(a_ct * sizeof(Attrib), "VertexBuffer.attribs");
 	/* TODO: single allocation instead of 2 */
 	return buff;
 }
@@ -166,23 +166,23 @@ void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 			buffer_id_free(a->vbo_id);
 #endif /* USE_VBO */
 #ifdef GENERIC_ATTRIB
-		free(a->name);
+		MEM_freeN(a->name);
 #endif /* GENERIC_ATTRIB */
-		free(a->data);
+		MEM_freeN(a->data);
 	}
 #ifdef USE_VAO
 	if (buff->vao_id)
 		vao_id_free(buff->vao_id);
 #endif /* USE_VAO */
-	free(buff->attribs);
-	free(buff);
+	MEM_freeN(buff->attribs);
+	MEM_freeN(buff);
 }
 
 static unsigned attrib_total_size(const VertexBuffer *buff, unsigned attrib_num)
 {
 	const Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
+	BLI_assert(attrib_num < buff->attrib_ct);
 #endif /* TRUST_NO_ONE */
 
 #ifdef MESA_WORKAROUND
@@ -213,41 +213,41 @@ void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 {
 	Attrib *attrib;
 #ifdef TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
-	assert(comp_type >= GL_BYTE && comp_type <= GL_FLOAT);
-	assert(comp_ct >= 1 && comp_ct <= 4);
+	BLI_assert(attrib_num < buff->attrib_ct);
+	BLI_assert(comp_type >= GL_BYTE && comp_type <= GL_FLOAT);
+	BLI_assert(comp_ct >= 1 && comp_ct <= 4);
 
 	if (comp_type == GL_FLOAT)
-		assert(fetch_mode == KEEP_FLOAT);
+		BLI_assert(fetch_mode == KEEP_FLOAT);
 	else
-		assert(fetch_mode != KEEP_FLOAT);
+		BLI_assert(fetch_mode != KEEP_FLOAT);
 
   #ifndef GENERIC_ATTRIB
 	/* classic (non-generic) attributes each have their quirks
 	 * handle below */
 	switch (attrib_array) {
 		case GL_VERTEX_ARRAY:
-			assert(comp_type == GL_FLOAT || comp_type == GL_SHORT || comp_type == GL_INT);
+			BLI_assert(comp_type == GL_FLOAT || comp_type == GL_SHORT || comp_type == GL_INT);
 			if (comp_type != GL_FLOAT)
-				assert(fetch_mode == CONVERT_INT_TO_FLOAT);
-			assert(comp_ct >= 2);
+				BLI_assert(fetch_mode == CONVERT_INT_TO_FLOAT);
+			BLI_assert(comp_ct >= 2);
 			break;
 		case GL_NORMAL_ARRAY:
-			assert(comp_type == GL_FLOAT || comp_type == GL_BYTE || comp_type == GL_SHORT || comp_type == GL_INT);
+			BLI_assert(comp_type == GL_FLOAT || comp_type == GL_BYTE || comp_type == GL_SHORT || comp_type == GL_INT);
 			if (comp_type != GL_FLOAT)
-				assert(fetch_mode == NORMALIZE_INT_TO_FLOAT);
-			assert(comp_ct == 3);
+				BLI_assert(fetch_mode == NORMALIZE_INT_TO_FLOAT);
+			BLI_assert(comp_ct == 3);
 			break;
 		case GL_COLOR_ARRAY:
 			/* any comp_type allowed */
 			if (comp_type != GL_FLOAT)
-				assert(fetch_mode == NORMALIZE_INT_TO_FLOAT);
-			assert(comp_ct >= 3);
+				BLI_assert(fetch_mode == NORMALIZE_INT_TO_FLOAT);
+			BLI_assert(comp_ct >= 3);
 			break;
 		case GL_TEXTURE_COORD_ARRAY:
-			assert(comp_type == GL_FLOAT || comp_type == GL_SHORT || comp_type == GL_INT);
+			BLI_assert(comp_type == GL_FLOAT || comp_type == GL_SHORT || comp_type == GL_INT);
 			if (comp_type != GL_FLOAT)
-				assert(fetch_mode == CONVERT_INT_TO_FLOAT);
+				BLI_assert(fetch_mode == CONVERT_INT_TO_FLOAT);
 			break;
 		/* not supporting these:
 		 * GL_INDEX_ARRAY
@@ -256,9 +256,9 @@ void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 		 * GL_FOG_COORD_ARRAY
 		 */
 		default:
-			assert(false); /* bad or unsupported array */
+			BLI_assert(false); /* bad or unsupported array */
 	}
-	assert(fetch_mode != KEEP_INT); /* glVertexPointer and friends have no int variants */
+	BLI_assert(fetch_mode != KEEP_INT); /* glVertexPointer and friends have no int variants */
 	/* TODO: allow only one of each type of array (scan other attribs) */
   #endif
 #endif /* TRUST_NO_ONE */
@@ -273,7 +273,7 @@ void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 	attrib->sz = attrib_sz(attrib);
 	attrib->stride = attrib_align(attrib);
 	attrib->fetch_mode = fetch_mode;
-	attrib->data = malloc(attrib_total_size(buff, attrib_num));
+	attrib->data = MEM_mallocN(attrib_total_size(buff, attrib_num), "Attrib.data");
 #ifdef PRINT
 	GPUx_attrib_print(buff, attrib_num);
 #endif /* PRINT */
@@ -283,9 +283,9 @@ void GPUx_set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_nu
 {
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
-	assert(vertex_num < buff->vertex_ct);
-	assert(attrib->data != NULL); /* attribute must be specified */
+	BLI_assert(attrib_num < buff->attrib_ct);
+	BLI_assert(vertex_num < buff->vertex_ct);
+	BLI_assert(attrib->data != NULL); /* attribute must be specified */
 #endif /* TRUST_NO_ONE */
 	memcpy((byte*)attrib->data + vertex_num * attrib->stride, data, attrib->sz);
 }
@@ -295,8 +295,8 @@ void GPUx_set_attrib_2f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex
 	const GLfloat data[] = { x, y };
 #ifdef TRUST_NO_ONE
 	Attrib *attrib = buff->attribs + attrib_num;
-	assert(attrib->comp_type == GL_FLOAT);
-	assert(attrib->comp_ct == 2);
+	BLI_assert(attrib->comp_type == GL_FLOAT);
+	BLI_assert(attrib->comp_ct == 2);
 #endif /* TRUST_NO_ONE */
 	GPUx_set_attrib(buff, attrib_num, vertex_num, data);
 }
@@ -306,8 +306,8 @@ void GPUx_set_attrib_3f(VertexBuffer *buff, unsigned attrib_num, unsigned vertex
 	const GLfloat data[] = { x, y, z };
 #ifdef TRUST_NO_ONE
 	Attrib *attrib = buff->attribs + attrib_num;
-	assert(attrib->comp_type == GL_FLOAT);
-	assert(attrib->comp_ct == 3);
+	BLI_assert(attrib->comp_type == GL_FLOAT);
+	BLI_assert(attrib->comp_ct == 3);
 #endif /* TRUST_NO_ONE */
 	GPUx_set_attrib(buff, attrib_num, vertex_num, data);
 }
@@ -316,8 +316,8 @@ void GPUx_fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
 	{
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
-	assert(attrib->data != NULL); /* attribute must be specified */
+	BLI_assert(attrib_num < buff->attrib_ct);
+	BLI_assert(attrib->data != NULL); /* attribute must be specified */
 #endif /* TRUST_NO_ONE */
 	if (attrib->sz == attrib->stride) {
 		/* tightly packed, so we can copy it all at once */
@@ -336,9 +336,9 @@ void GPUx_fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void
 {
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
-	assert(attrib_num < buff->attrib_ct);
-	assert(attrib->data != NULL); /* attribute must be specified */
-	assert(stride >= attrib->sz); /* no overlapping attributes (legal but weird) */
+	BLI_assert(attrib_num < buff->attrib_ct);
+	BLI_assert(attrib->data != NULL); /* attribute must be specified */
+	BLI_assert(stride >= attrib->sz); /* no overlapping attributes (legal but weird) */
 #endif /* TRUST_NO_ONE */
 	if (stride == attrib->stride) {
 		/* natural stride used, so we can copy it all at once */
@@ -435,7 +435,7 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 	unsigned a_idx;
 #ifdef USE_VAO
   #ifdef TRUST_NO_ONE
-	assert(buff->vao_id == 0);
+	BLI_assert(buff->vao_id == 0);
   #endif /* TRUST_NO_ONE */
 
 	buff->vao_id = vao_id_alloc();
@@ -458,7 +458,7 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
   #endif /* USE_VAO */
 
   #ifdef TRUST_NO_ONE
-		assert(a->vbo_id == 0);
+		BLI_assert(a->vbo_id == 0);
   #endif /* TRUST_NO_ONE */
 
 		a->vbo_id = buffer_id_alloc();
@@ -512,7 +512,7 @@ void GPUx_vertex_buffer_use_primed(const VertexBuffer *buff)
 {
 #ifdef USE_VAO
   #ifdef TRUST_NO_ONE
-	assert(buff->vao_id);
+	BLI_assert(buff->vao_id);
   #endif /* TRUST_NO_ONE */
 
 	/* simply bind & exit */
@@ -532,7 +532,7 @@ void GPUx_vertex_buffer_use_primed(const VertexBuffer *buff)
 
   #ifdef USE_VBO
     #ifdef TRUST_NO_ONE
-		assert(a->vbo_id);
+		BLI_assert(a->vbo_id);
     #endif /* TRUST_NO_ONE */
 		glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 

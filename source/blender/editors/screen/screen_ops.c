@@ -717,7 +717,7 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
 	else
 		event.type = EVT_ACTIONZONE_REGION;
 
-	event.val = 0;
+	event.val = KM_NOTHING;
 	event.customdata = op->customdata;
 	event.customdatafree = true;
 	op->customdata = NULL;
@@ -990,6 +990,7 @@ static int area_dupli_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 	rect.ymax = rect.ymin + BLI_rcti_size_y(&rect) / U.pixelsize;
 
 	newwin = WM_window_open(C, &rect);
+	*newwin->stereo3d_format = *win->stereo3d_format;
 	
 	/* allocs new screen and adds to newly created window, using window size */
 	newsc = ED_screen_add(newwin, CTX_data_scene(C), sc->id.name + 2);
@@ -3531,9 +3532,9 @@ static int screen_animation_step(bContext *C, wmOperator *UNUSED(op), const wmEv
 		
 		if (sad->flag & ANIMPLAY_FLAG_JUMPED) {
 			BKE_sound_seek_scene(bmain, scene);
-			#ifdef PROFILE_AUDIO_SYNCH
+#ifdef PROFILE_AUDIO_SYNCH
 			old_frame = CFRA;
-			#endif
+#endif
 		}
 		
 		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
