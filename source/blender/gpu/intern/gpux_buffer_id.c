@@ -20,9 +20,9 @@ static ThreadMutex orphan_mutex = BLI_MUTEX_INITIALIZER;
 
 GLuint buffer_id_alloc()
 {
-	BLI_assert(BLI_thread_is_main());
-
 	GLuint new_buffer_id;
+
+	BLI_assert(BLI_thread_is_main());
 
 	/* delete orphaned IDs */
 	BLI_mutex_lock(&orphan_mutex);
@@ -58,9 +58,9 @@ void buffer_id_free(GLuint buffer_id)
 
 GLuint vao_id_alloc()
 {
-	BLI_assert(BLI_thread_is_main());
-
 	GLuint new_vao_id;
+
+	BLI_assert(BLI_thread_is_main());
 
 	/* delete orphaned IDs */
 	BLI_mutex_lock(&orphan_mutex);

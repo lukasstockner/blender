@@ -10,10 +10,10 @@
 
 #include "GPU_glew.h"
 
-GLuint buffer_id_alloc();
+GLuint buffer_id_alloc(void);
 void buffer_id_free(GLuint buffer_id);
 
-GLuint vao_id_alloc();
+GLuint vao_id_alloc(void);
 void vao_id_free(GLuint vao_id);
 
 #endif /* BLENDER_GL_BUFFER_ID */
