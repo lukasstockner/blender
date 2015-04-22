@@ -5007,10 +5007,13 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 #endif
 						verts = GPUx_vertex_buffer_create(2, new_vert_ct);
 						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
-						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
-						for (v = 0; v < loop_ct; ++v)
+						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
+						for (v = 0; v < loop_ct; ++v) {
+							short normal[3];
+							normal_float_to_short_v3(normal, lnor[v]);
 							GPUx_set_attrib(verts, 0, v, &mverts[loops[v].v].co);
-						GPUx_fill_attrib(verts, 1, lnor);
+							GPUx_set_attrib(verts, 1, v, normal);
+						}
 
 						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, new_vert_ct - 1);
 
