@@ -1979,8 +1979,7 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 {
 #if MCE_TRACE
 	printf("- %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
-
+#endif
 	/* a standing up pyramid with (0,0,0) as top */
 	Camera *cam;
 	Object *ob = base->object;
@@ -2110,8 +2109,7 @@ static void drawcamera_new_old(Scene *scene, View3D *v3d, RegionView3D *rv3d, Ba
 {
 #if MCE_TRACE
 	printf("- %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
-
+#endif
 	/* 4 vertices for a camera we are looking THROUGH
 	 * 8 vertices for a camera we are looking AT */
 
@@ -2247,8 +2245,7 @@ static void drawcamera_new(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *
 {
 #if MCE_TRACE
 	printf("- %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
-
+#endif
 	Object *ob = base->object;
 	Camera *cam = ob->data;
 	/* 4 vertices for a camera we are looking THROUGH
@@ -4425,7 +4422,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 {
 #if MCE_TRACE
 	printf("> %s dt=%d dflag=%d\n", __FUNCTION__, (int)dt, (int)dflag);
-#endif /* MCE_TRACE */
+#endif
 	Object *ob = base->object;
 	Object *obedit = scene->obedit;
 	Mesh *me = ob->data;
@@ -4525,8 +4522,7 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 
 #if MCE_TRACE
 	printf("< %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
-
+#endif
 	return retval;
 }
 
@@ -4536,8 +4532,7 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 {
 #if MCE_TRACE
 	printf("> %s dt=%d dflag=%d\n", __FUNCTION__, (int)dt, (int)dflag);
-#endif /* MCE_TRACE */
-
+#endif
 	Object *ob = base->object;
 	Object *obedit = scene->obedit;
 	Mesh *me = ob->data;
@@ -4644,8 +4639,7 @@ static bool draw_mesh_object_new(Scene *scene, ARegion *ar, View3D *v3d, RegionV
 
 #if MCE_TRACE
 	printf("< %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
-
+#endif
 	return retval;
 }
 
@@ -4666,7 +4660,7 @@ static bool tessface_in_poly(const MFace *face, const MPoly *poly, const MLoop *
 	       (face->v4 == 0 || vertex_in_poly(face->v4, poly, loops));
 }
 
-static int vertex_index_in_ngon(int v, const MPoly *poly, const MLoop *loops)
+static int loop_index_from_ngon(int v, const MPoly *poly, const MLoop *loops)
 {
 	int i;
 	for (i = poly->loopstart; i < (poly->loopstart + poly->totloop); ++i)
@@ -4691,7 +4685,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 {
 #if MCE_TRACE
 	printf("> %s dt=%d dflag=%d\n", __FUNCTION__, (int)dt, (int)dflag);
-#endif /* MCE_TRACE */
+#endif
 
 	Object *ob = base->object;
 	Object *obedit = scene->obedit;
@@ -4756,46 +4750,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 #if MCE_TRACE
 			printf("%d verts, %d edges, %d polys, %d faces, %d loops\n",
 			       vert_ct, edge_ct, poly_ct, face_ct, loop_ct);
-#endif /* MCE_TRACE */
-
-#if 0 /* unused, just needed to answer some questions */
-			{
-				/* count some more stuff
-				 * triangle count is fixed; minimize GL vertex count
-				 * tesselating doesn't change values at vertices, so some sharing is easy to find.
-				 */
-				const MPoly *polys = dm->getPolyArray(dm);
-				const MLoop *loops = dm->getLoopArray(dm);
-				const MFace *faces = dm->getTessFaceArray(dm);
-				int i, j;
-
-				for (i = 0; i < poly_ct; ++i) {
-					const MPoly *poly = polys + i;
-					printf("poly %d: ", i);
-					for (j = poly->loopstart; j < (poly->loopstart + poly->totloop); ++j) {
-						printf(" v%d", loops[j].v);
-					}
-					putchar('\n');
-				}
-				for (i = 0; i < face_ct; ++i) {
-					const MFace *f = faces + i;
-					printf("tess face %d: ", i);
-					printf(" v%d v%d v%d", f->v1, f->v2, f->v3);
-					if (f->v4) printf(" v%d", f->v4);
-					putchar('\n');
-				}
-
-				/* interesting so far!
-				 * we only need loop_ct vertices to draw correctly, not tri_ct * 3
-				 * this is true for flat shaded and multi-attrib meshes
-				 * Still need tess triangles per poly...
-				 * Maybe tess faces are stored in same order as polys? That would be
-				 * great. Checking... BKE_mesh_recalc_tessellation has
-				 * 	int *mface_to_poly_map;
-				 * YES, MFaces follow same order as MPolys.
-				 */
-			}
-#endif /* unused */
+#endif
 
 			if (dt > OB_WIRE) {
 				const MPoly *polys = dm->getPolyArray(dm);
@@ -4818,6 +4773,9 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 				else {
 					/* now look at mesh data itself */
 					const float angle_flat = M_PI;
+#if MCE_TRACE
+					if (me->flag & ME_AUTOSMOOTH) printf("ME_AUTOSMOOTH %f\n", me->smoothresh);
+#endif
 					if (smooth_ct == 0)
 						dm->gpux_batch->normal_draw_mode = NORMAL_DRAW_FLAT;
 					else if (smooth_ct == poly_ct) {
@@ -4837,38 +4795,14 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 					}
 				}
 
-				/* TODO: respect object smooth/flat buttons, auto-smooth
-				 *       whole-mesh smooth/flat simply sets smooth flag for each poly */
-
-//				if (me->flag & ME_AUTOSMOOTH) printf("ME_AUTOSMOOTH %f\n", me->smoothresh);
-
-				/* what about flat faces within a smooth mesh? also sharp edges
-				 * loop normals takes care of all cases, I just want to share GL verts
-				 * more often when possible.
-				 * edge.flag of interest
-				 *   ME_SEAM
-				 *   ME_SHARP
-				 * face.flag of interest
-				 *   ME_SMOOTH
-				 */
-
-				/* pretty sure the rest are for edit mode */
-//				if (me->drawflag & ME_DRAWEDGES) puts("ME_DRAWEDGES");
-//				if (me->drawflag & ME_DRAWFACES) puts("ME_DRAWFACES");
-//				if (me->drawflag & ME_DRAWNORMALS) puts("ME_DRAWNORMALS");     /* these are for visualizing */
-//				if (me->drawflag & ME_DRAW_VNORMALS) puts("ME_DRAW_VNORMALS"); /* normals using line segments */
-//				if (me->drawflag & ME_DRAW_LNORMALS) puts("ME_DRAW_LNORMALS"); /* they don't affect shading */
-
 				switch (dm->gpux_batch->normal_draw_mode) {
 					case NORMAL_DRAW_NONE:
 					{
 #if MCE_TRACE
 						puts("NORMAL_DRAW_NONE");
 #endif
-						/* same situations as draw_mesh_fancy:
-						 * if (dflag & (DRAW_PICKING | DRAW_CONSTCOLOR)) ...
-						 * except we really don't want to discard the "display" GPUxBatch,
-						 * create a new one for const/no color, just to recreate the
+						/* we really don't want to discard the "display" GPUxBatch,
+						 * create a new one for const/no shading, just to recreate the
 						 * display batch next time we draw */
 
 						/* TODO: color according to object ID */
@@ -4921,7 +4855,6 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 #if MCE_TRACE
 						puts("NORMAL_DRAW_FLAT");
 #endif
-						int new_vert_ct = 0;
 						int v;
 						const MLoop *loops = dm->getLoopArray(dm);
 						const MPoly *polys = dm->getPolyArray(dm);
@@ -4937,17 +4870,13 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 						dm->gpux_batch->state.common.interpolate = false;
 						dm->gpux_batch->state.polygon.draw_back = false;
 
-						new_vert_ct = loop_ct;
-#if MCE_TRACE
-						printf("tri_ct = %d, new_vert_ct = %d\n", tri_ct, new_vert_ct);
-#endif
-						verts = GPUx_vertex_buffer_create(2, new_vert_ct);
+						verts = GPUx_vertex_buffer_create(2, loop_ct);
 						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
 						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
 						for (v = 0; v < loop_ct; ++v)
 							GPUx_set_attrib(verts, 0, v, &mverts[loops[v].v].co);
 
-						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, new_vert_ct - 1);
+						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, loop_ct - 1);
 
 						for (i = 0, t = 0; i < face_ct; ++i) {
 							const MFace *f = faces + i;
@@ -4956,25 +4885,22 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 								/* get next poly normal */
 								float f_no[3];
 								poly++;
-								assert(tessface_in_poly(f, poly, loops));
 								BKE_mesh_calc_poly_normal(poly, loops + poly->loopstart, mverts, f_no);
 								normal_float_to_short_v3(poly_normal, f_no);
 							}
 
-							const int v1 = vertex_index_in_ngon(f->v1, poly, loops),
-							          v2 = vertex_index_in_ngon(f->v2, poly, loops),
-							          v3 = vertex_index_in_ngon(f->v3, poly, loops);
+							const int v1 = loop_index_from_ngon(f->v1, poly, loops),
+							          v2 = loop_index_from_ngon(f->v2, poly, loops),
+							          v3 = loop_index_from_ngon(f->v3, poly, loops);
 
 							/* set only provoking vertex's normal */
 							GPUx_set_attrib(verts, 1, v3, poly_normal);
-
 							GPUx_set_triangle_vertices(elem, t++, v1, v2, v3);
 
 							if (f->v4) {
-								const int v4 = vertex_index_in_ngon(f->v4, poly, loops);
+								const int v4 = loop_index_from_ngon(f->v4, poly, loops);
 								/* set only provoking vertex's normal */
 								GPUx_set_attrib(verts, 1, v4, poly_normal);
-
 								GPUx_set_triangle_vertices(elem, t++, v1, v3, v4);
 							}
 						}
@@ -4986,7 +4912,6 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 #if MCE_TRACE
 						puts("NORMAL_DRAW_LOOP");
 #endif
-						int new_vert_ct = 0;
 						int v;
 						const MLoop *loops = dm->getLoopArray(dm);
 						const float (*lnor)[3] = dm->getLoopDataArray(dm, CD_NORMAL);
@@ -4997,11 +4922,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 						dm->gpux_batch->state.common.interpolate = true;
 						dm->gpux_batch->state.polygon.draw_back = false;
 
-						new_vert_ct = loop_ct;
-#if MCE_TRACE
-						printf("tri_ct = %d, new_vert_ct = %d\n", tri_ct, new_vert_ct);
-#endif
-						verts = GPUx_vertex_buffer_create(2, new_vert_ct);
+						verts = GPUx_vertex_buffer_create(2, loop_ct);
 						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
 						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
 						for (v = 0; v < loop_ct; ++v) {
@@ -5011,7 +4932,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 							GPUx_set_attrib(verts, 1, v, normal);
 						}
 
-						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, new_vert_ct - 1);
+						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, loop_ct - 1);
 
 						for (i = 0, t = 0; i < face_ct; ++i) {
 							const MFace *f = faces + i;
@@ -5019,14 +4940,14 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 							if (!tessface_in_poly(f, poly, loops))
 								poly++;
 
-							const int v1 = vertex_index_in_ngon(f->v1, poly, loops),
-							          v2 = vertex_index_in_ngon(f->v2, poly, loops),
-							          v3 = vertex_index_in_ngon(f->v3, poly, loops);
+							const int v1 = loop_index_from_ngon(f->v1, poly, loops),
+							          v2 = loop_index_from_ngon(f->v2, poly, loops),
+							          v3 = loop_index_from_ngon(f->v3, poly, loops);
 
 							GPUx_set_triangle_vertices(elem, t++, v1, v2, v3);
 
 							if (f->v4) {
-								const int v4 = vertex_index_in_ngon(f->v4, poly, loops);
+								const int v4 = loop_index_from_ngon(f->v4, poly, loops);
 								GPUx_set_triangle_vertices(elem, t++, v1, v3, v4);
 							}
 						}
@@ -5035,7 +4956,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 					}
 				}
 
-				assert(t == tri_ct);
+				BLI_assert(t == tri_ct);
 			}
 			else if (dt == OB_WIRE) {
 #if MCE_TRACE
@@ -5080,8 +5001,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 
 #if MCE_TRACE
 	printf("< %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
-
+#endif
 	return retval;
 }
 
@@ -9082,14 +9002,14 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 {
 #if MCE_TRACE
 	printf("> %s type=%s name=%s\n", __FUNCTION__, ob_type_name(base->object->type), base->object->id.name + 2);
-#endif /* MCE_TRACE */
+#endif
 
 	/* pass through without changes */
 	draw_object_intern(scene, ar, v3d, base, dflag, false);
 
 #if MCE_TRACE
 	printf("< %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
+#endif
 }
 
 /**
@@ -9100,7 +9020,7 @@ void draw_object_new(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const s
 {
 #if MCE_TRACE
 	printf("> %s type=%s name=%s\n", __FUNCTION__, ob_type_name(base->object->type), base->object->id.name + 2);
-#endif /* MCE_TRACE */
+#endif
 
 	/* make sure object is supported by a new draw method */
 	BLI_assert(base->object->type == OB_MESH || base->object->type == OB_CAMERA);
@@ -9110,7 +9030,7 @@ void draw_object_new(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const s
 
 #if MCE_TRACE
 	printf("< %s\n", __FUNCTION__);
-#endif /* MCE_TRACE */
+#endif
 }
 
 /* ***************** BACKBUF SEL (BBS) ********* */
