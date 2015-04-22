@@ -4922,7 +4922,9 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 						puts("NORMAL_DRAW_FLAT");
 #endif
 						int new_vert_ct = 0;
+						int v;
 						const MLoop *loops = dm->getLoopArray(dm);
+						const MPoly *polys = dm->getPolyArray(dm);
 						const MPoly *poly = polys;
 						short poly_normal[3];
 						{
@@ -4935,24 +4937,20 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 						dm->gpux_batch->state.common.interpolate = false;
 						dm->gpux_batch->state.polygon.draw_back = false;
 
-						new_vert_ct = 3 * tri_ct;
-						/* TODO: use loop_ct GL verts, not 3 * tri_ct
-						 *       conserve VRAM! encourage reuse! */
+						new_vert_ct = loop_ct;
 #if MCE_TRACE
-						printf("tri_ct = %d, new_vert_ct = %d, loop_ct = %d\n", tri_ct, new_vert_ct, loop_ct);
+						printf("tri_ct = %d, new_vert_ct = %d\n", tri_ct, new_vert_ct);
 #endif
 						verts = GPUx_vertex_buffer_create(2, new_vert_ct);
 						GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
 						GPUx_specify_attrib(verts, 1, GL_NORMAL_ARRAY, GL_SHORT, 3, NORMALIZE_INT_TO_FLOAT);
+						for (v = 0; v < loop_ct; ++v)
+							GPUx_set_attrib(verts, 0, v, &mverts[loops[v].v].co);
 
 						elem = GPUx_element_list_create(GL_TRIANGLES, tri_ct, new_vert_ct - 1);
 
 						for (i = 0, t = 0; i < face_ct; ++i) {
 							const MFace *f = faces + i;
-
-							int v1 = 3 * t + 0,
-								v2 = 3 * t + 1,
-								v3 = 3 * t + 2;
 
 							if (!tessface_in_poly(f, poly, loops)) {
 								/* get next poly normal */
@@ -4963,23 +4961,21 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 								normal_float_to_short_v3(poly_normal, f_no);
 							}
 
-							GPUx_set_attrib(verts, 0, v1, &mverts[f->v1].co);
-							GPUx_set_attrib(verts, 0, v2, &mverts[f->v2].co);
-							GPUx_set_attrib(verts, 0, v3, &mverts[f->v3].co);
+							const int v1 = vertex_index_in_ngon(f->v1, poly, loops),
+							          v2 = vertex_index_in_ngon(f->v2, poly, loops),
+							          v3 = vertex_index_in_ngon(f->v3, poly, loops);
+
 							/* set only provoking vertex's normal */
 							GPUx_set_attrib(verts, 1, v3, poly_normal);
 
 							GPUx_set_triangle_vertices(elem, t++, v1, v2, v3);
 
 							if (f->v4) {
-								v1 += 3; v2 += 3; v3 += 3;
-								GPUx_set_attrib(verts, 0, v1, &mverts[f->v4].co);
-								GPUx_set_attrib(verts, 0, v2, &mverts[f->v1].co);
-								GPUx_set_attrib(verts, 0, v3, &mverts[f->v3].co);
+								const int v4 = vertex_index_in_ngon(f->v4, poly, loops);
 								/* set only provoking vertex's normal */
-								GPUx_set_attrib(verts, 1, v3, poly_normal);
+								GPUx_set_attrib(verts, 1, v4, poly_normal);
 
-								GPUx_set_triangle_vertices(elem, t++, v1, v2, v3);
+								GPUx_set_triangle_vertices(elem, t++, v1, v3, v4);
 							}
 						}
 
