@@ -4675,6 +4675,17 @@ static int vertex_index_in_ngon(int v, const MPoly *poly, const MLoop *loops)
 	return -1;
 }
 
+static int smooth_poly_count(const MPoly *poly, int poly_ct)
+{
+	int smooth_ct = 0;
+	while (poly_ct--) {
+		if (poly->flag & ME_SMOOTH)
+			++smooth_ct;
+		++poly;
+	}
+	return smooth_ct;
+}
+
 static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D *rv3d, Base *base,
                                      const char dt, const unsigned char ob_wire_col[4], const short dflag)
 {
@@ -4787,25 +4798,49 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 #endif /* unused */
 
 			if (dt > OB_WIRE) {
+				const MPoly *polys = dm->getPolyArray(dm);
+				const MFace *faces = dm->getTessFaceArray(dm);
+				const int tri_ct = poly_to_tri_count(poly_ct, loop_ct);
+				const int smooth_ct = smooth_poly_count(polys, poly_ct);
+				int i, t;
 #if MCE_TRACE
 				puts("OB_SOLID+");
+				printf("tri_ct = %d, smooth_ct = %d/%d\n", tri_ct, smooth_ct, poly_ct);
 #endif
-				const MFace *faces = dm->getTessFaceArray(dm);
-				const float (*lnor)[3] = dm->getLoopDataArray(dm, CD_NORMAL);
-				const int tri_ct = poly_to_tri_count(poly_ct, loop_ct);
-				int i, t;
 
 				dm->gpux_batch->prim_type = GL_TRIANGLES;
-				dm->gpux_batch->normal_draw_mode =
-					(dflag & (DRAW_PICKING | DRAW_CONSTCOLOR)) ? NORMAL_DRAW_NONE :
-					(dflag & DM_DRAW_ALWAYS_SMOOTH) ? NORMAL_DRAW_SMOOTH :
-					(lnor != NULL) ? NORMAL_DRAW_LOOP :
-					NORMAL_DRAW_FLAT;
+
+				/* how to draw normals? first look at draw mode overrides */
+				if (dflag & (DRAW_PICKING | DRAW_CONSTCOLOR))
+					dm->gpux_batch->normal_draw_mode = NORMAL_DRAW_NONE;
+				else if (dflag & DM_DRAW_ALWAYS_SMOOTH)
+					dm->gpux_batch->normal_draw_mode = NORMAL_DRAW_SMOOTH;
+				else {
+					/* now look at mesh data itself */
+					const float angle_flat = M_PI;
+					if (smooth_ct == 0)
+						dm->gpux_batch->normal_draw_mode = NORMAL_DRAW_FLAT;
+					else if (smooth_ct == poly_ct) {
+						if ((me->flag & ME_AUTOSMOOTH) && me->smoothresh < angle_flat)
+							dm->gpux_batch->normal_draw_mode = NORMAL_DRAW_LOOP;
+						else
+							dm->gpux_batch->normal_draw_mode = NORMAL_DRAW_SMOOTH;
+					}
+					else {
+						dm->gpux_batch->normal_draw_mode = NORMAL_DRAW_LOOP;
+						if (dm->getLoopDataArray(dm, CD_NORMAL) == NULL) {
+#if MCE_TRACE
+							puts("calculating loop normals");
+#endif
+							dm->calcLoopNormals(dm, true, (me->flag & ME_AUTOSMOOTH) ? me->smoothresh : angle_flat);
+						}
+					}
+				}
 
 				/* TODO: respect object smooth/flat buttons, auto-smooth
 				 *       whole-mesh smooth/flat simply sets smooth flag for each poly */
 
-//				if (me->flag & ME_AUTOSMOOTH) puts("ME_AUTOSMOOTH");
+//				if (me->flag & ME_AUTOSMOOTH) printf("ME_AUTOSMOOTH %f\n", me->smoothresh);
 
 				/* what about flat faces within a smooth mesh? also sharp edges
 				 * loop normals takes care of all cases, I just want to share GL verts
@@ -4888,7 +4923,6 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 #endif
 						int new_vert_ct = 0;
 						const MLoop *loops = dm->getLoopArray(dm);
-						const MPoly *polys = dm->getPolyArray(dm);
 						const MPoly *poly = polys;
 						short poly_normal[3];
 						{
@@ -4959,6 +4993,7 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 						int new_vert_ct = 0;
 						int v;
 						const MLoop *loops = dm->getLoopArray(dm);
+						const float (*lnor)[3] = dm->getLoopDataArray(dm, CD_NORMAL);
 						const MPoly *polys = dm->getPolyArray(dm);
 						const MPoly *poly = polys;
 
