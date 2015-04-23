@@ -2,7 +2,7 @@
 #define BLENDER_GL_ELEMENT_LIST
 
 /* Element lists specify which vertices to use when drawing point,
- * line, or triangle primiitives. They don't care how the per-vertex
+ * line, or triangle primitives. They don't care how the per-vertex
  * data (attributes) are laid out, only *which* vertices are used.
  * Mike Erwin, Dec 2014 */
 
@@ -23,7 +23,7 @@ void GPUx_set_triangle_vertices(ElementList*, unsigned prim_idx, unsigned v1, un
 
 void GPUx_optimize(ElementList*); /* optionally call this after setting all vertex indices */
 
-/* prime does all the setup(create VBO, send to GPU, etc.) so use_primed doesn't have to */
+/* prime does all the setup (create VBO, send to GPU, etc.) so use_primed doesn't have to */
 void GPUx_element_list_prime(ElementList*);
 void GPUx_element_list_use_primed(const ElementList*);
 void GPUx_element_list_done_using(const ElementList*);
