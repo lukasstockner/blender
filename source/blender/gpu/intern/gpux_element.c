@@ -3,6 +3,11 @@
 #include "gpux_buffer_id.h"
 #include "MEM_guardedalloc.h"
 
+#ifdef USE_ELEM_VBO
+  /* keep index data in main mem or VRAM (not both) */
+  #define KEEP_SINGLE_COPY
+#endif
+
 /* private functions */
 
 #ifdef TRACK_INDEX_RANGE
@@ -86,7 +91,8 @@ void GPUx_element_list_discard(ElementList *el)
 		buffer_id_free(el->vbo_id);
 #endif /* USE_ELEM_VBO */
 
-	MEM_freeN(el->indices);
+	if (el->indices)
+		MEM_freeN(el->indices);
 	MEM_freeN(el);
 }
 
@@ -252,6 +258,11 @@ void GPUx_element_list_prime(ElementList *el)
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
 	/* fill with delicious data & send to GPU the first time only */
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, GPUx_element_list_size(el), el->indices, GL_STATIC_DRAW);
+  #ifdef KEEP_SINGLE_COPY
+	/* now that GL has a copy, discard original */
+	MEM_freeN(el->indices);
+	el->indices = NULL;
+  #endif /* KEEP_SINGLE_COPY */
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 #else
 	(void)el;

@@ -15,6 +15,9 @@
 #ifdef USE_VBO
   #define USE_VAO
 
+  /* keep vertex data in main mem or VRAM (not both) */
+  #define KEEP_SINGLE_COPY
+
   #ifdef __linux__
     #define MESA_WORKAROUND
     /* For padded attributes (stride > size) Mesa likes the VBO to have some extra
@@ -121,7 +124,7 @@ void GPUx_attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 #ifdef TRUST_NO_ONE
 	BLI_assert(attrib_num < buff->attrib_ct);
 	BLI_assert(a->comp_type >= GL_BYTE && a->comp_type <= GL_FLOAT);
-	BLI_assert(a->data != NULL); /* attribute must be specified */
+	BLI_assert(a->data != NULL); /* attribute must be specified & in main mem */
 #endif /* TRUST_NO_ONE */
 	if (a->comp_ct == 1)
 		printf("attrib %s %s = {\n", singular[type_idx], var_name);
@@ -168,7 +171,8 @@ void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 #ifdef GENERIC_ATTRIB
 		MEM_freeN(a->name);
 #endif /* GENERIC_ATTRIB */
-		MEM_freeN(a->data);
+		if (a->data)
+			MEM_freeN(a->data);
 	}
 #ifdef USE_VAO
 	if (buff->vao_id)
@@ -285,7 +289,7 @@ void GPUx_set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_nu
 #ifdef TRUST_NO_ONE
 	BLI_assert(attrib_num < buff->attrib_ct);
 	BLI_assert(vertex_num < buff->vertex_ct);
-	BLI_assert(attrib->data != NULL); /* attribute must be specified */
+	BLI_assert(attrib->data != NULL); /* attribute must be specified & in main mem */
 #endif /* TRUST_NO_ONE */
 	memcpy((byte*)attrib->data + vertex_num * attrib->stride, data, attrib->sz);
 }
@@ -317,7 +321,7 @@ void GPUx_fill_attrib(VertexBuffer *buff, unsigned attrib_num, const void *data)
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
 	BLI_assert(attrib_num < buff->attrib_ct);
-	BLI_assert(attrib->data != NULL); /* attribute must be specified */
+	BLI_assert(attrib->data != NULL); /* attribute must be specified & in main mem */
 #endif /* TRUST_NO_ONE */
 	if (attrib->sz == attrib->stride) {
 		/* tightly packed, so we can copy it all at once */
@@ -337,7 +341,7 @@ void GPUx_fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void
 	Attrib *attrib = buff->attribs + attrib_num;
 #ifdef TRUST_NO_ONE
 	BLI_assert(attrib_num < buff->attrib_ct);
-	BLI_assert(attrib->data != NULL); /* attribute must be specified */
+	BLI_assert(attrib->data != NULL); /* attribute must be specified & in main mem */
 	BLI_assert(stride >= attrib->sz); /* no overlapping attributes (legal but weird) */
 #endif /* TRUST_NO_ONE */
 	if (stride == attrib->stride) {
@@ -385,6 +389,11 @@ void GPUx_vertex_buffer_use(VertexBuffer *buff)
 			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 			/* fill with delicious data & send to GPU the first time only */
 			glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
+  #ifdef KEEP_SINGLE_COPY
+			/* now that GL has a copy, discard original */
+			MEM_freeN(a->data);
+			a->data = NULL;
+  #endif /* KEEP_SINGLE_COPY */
 		}
 
 		data = 0;
@@ -465,6 +474,11 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 		glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
 		/* fill with delicious data & send to GPU the first time only */
 		glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
+  #ifdef KEEP_SINGLE_COPY
+		/* now that GL has a copy, discard original */
+		MEM_freeN(a->data);
+		a->data = NULL;
+  #endif /* KEEP_SINGLE_COPY */
 
   #ifdef USE_VAO
     #ifdef GENERIC_ATTRIB
