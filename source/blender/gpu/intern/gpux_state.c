@@ -224,6 +224,11 @@ void GPUx_force_state_update()
 	else
 		glDisable(GL_LIGHTING);
 
+	if (current.common.interpolate)
+		glShadeModel(GL_SMOOTH);
+	else
+		glShadeModel(GL_FLAT);
+
 	/* point state */
 	if (current.point.smooth)
 		glEnable(GL_POINT_SMOOTH);
