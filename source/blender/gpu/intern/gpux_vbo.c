@@ -1,18 +1,23 @@
 
 #include "GPUx_vbo.h"
 #include "gpux_buffer_id.h"
+#include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
 #include <string.h>
+
+#ifdef PRINT
+  #include <stdio.h>
+#endif
 
 /* VBOs are guaranteed for any GL >= 1.5
  * They can be turned off here (mostly for comparison). */
 #define USE_VBO
 
-/* VAOs are part of GL 3.0, and optionally available in 2.1 as an extension:
- * APPLE_vertex_array_object or ARB_vertex_array_object
- * the ARB version of VAOs *must* use VBOs for vertex data
- * so we should follow that restriction on all platforms. */
 #ifdef USE_VBO
+  /* VAOs are part of GL 3.0, and optionally available in 2.1 as an extension:
+   * APPLE_vertex_array_object or ARB_vertex_array_object
+   * the ARB version of VAOs *must* use VBOs for vertex data
+   * so we should follow that restriction on all platforms. */
   #define USE_VAO
 
   /* keep vertex data in main mem or VRAM (not both) */
@@ -25,14 +30,6 @@
      * noticed this on Mesa 10.4.3 */
   #endif
 #endif
-
-#ifdef TRUST_NO_ONE
-  #include "BLI_utildefines.h"
-#endif /* TRUST_NO_ONE */
-
-#ifdef PRINT
-  #include <stdio.h>
-#endif /* PRINT */
 
 typedef unsigned char byte;
 
@@ -451,9 +448,6 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 	glBindVertexArray(buff->vao_id);
 #endif /* USE_VAO */
 
-	(void)a_idx; /* avoid unused warnings */
-	(void)buff;
-
 #ifdef USE_VBO
 	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
 		Attrib *a = buff->attribs + a_idx;
@@ -515,6 +509,8 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 	}
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
+#else
+	UNUSED_VARS(a_idx, buff);
 #endif /* USE_VBO */
 
 #ifdef USE_VAO
@@ -596,7 +592,7 @@ void GPUx_vertex_buffer_use_primed(const VertexBuffer *buff)
 void GPUx_vertex_buffer_done_using(const VertexBuffer *buff)
 {
 #ifdef USE_VAO
-	(void)buff;
+	UNUSED_VARS(buff);
 	glBindVertexArray(0);
 #else
 	unsigned int a_idx;

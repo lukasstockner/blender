@@ -1,6 +1,7 @@
 
 #include "gpux_element_private.h"
 #include "gpux_buffer_id.h"
+#include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
 
 #ifdef USE_ELEM_VBO
@@ -79,7 +80,6 @@ ElementList *GPUx_element_list_create(GLenum prim_type, unsigned prim_ct, unsign
 #endif /* TRACK_INDEX_RANGE */
 
 	el->indices = MEM_callocN(GPUx_element_list_size(el), "ElementList.indices");
-	/* TODO: use only one calloc, not two */
 
 	return el;
 }
@@ -232,7 +232,7 @@ void GPUx_set_triangle_vertices(ElementList *el, unsigned prim_idx, unsigned v1,
 
 void GPUx_optimize(ElementList *el)
 {
-	(void)el;
+	UNUSED_VARS(el);
 
 	/* TODO: apply Forsyth's vertex cache algorithm */
 	
@@ -265,7 +265,7 @@ void GPUx_element_list_prime(ElementList *el)
   #endif /* KEEP_SINGLE_COPY */
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 #else
-	(void)el;
+	UNUSED_VARS(el);
 #endif /* USE_ELEM_VBO */
 }
 
@@ -277,13 +277,13 @@ void GPUx_element_list_use_primed(const ElementList *el)
   #endif /* TRUST_NO_ONE */
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, el->vbo_id);
 #else
-	(void)el;
+	UNUSED_VARS(el);
 #endif /* USE_ELEM_VBO */
 }
 
 void GPUx_element_list_done_using(const ElementList *el)
 {
-	(void)el;
+	UNUSED_VARS(el);
 #ifdef USE_ELEM_VBO
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 #endif /* USE_ELEM_VBO */
