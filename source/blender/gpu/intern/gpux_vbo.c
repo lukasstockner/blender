@@ -82,10 +82,10 @@ struct VertexBuffer
 {
 	unsigned attrib_ct; /* 1 to 16 */
 	unsigned vertex_ct;
-	Attrib *attribs;
 #ifdef USE_VAO
 	GLuint vao_id;
 #endif /* USE_VAO */
+	Attrib attribs[]; /* flexible array */
 };
 
 #ifdef PRINT
@@ -145,14 +145,12 @@ void GPUx_attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 
 VertexBuffer *GPUx_vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 {
-	VertexBuffer *buff = MEM_callocN(sizeof(VertexBuffer), "VertexBuffer");
+	VertexBuffer *buff = MEM_callocN(offsetof(VertexBuffer, attribs) + a_ct * sizeof(Attrib), "VertexBuffer");
 #ifdef TRUST_NO_ONE
 	BLI_assert(a_ct >= 1 && a_ct <= 16);
 #endif /* TRUST_NO_ONE */
 	buff->attrib_ct = a_ct;
 	buff->vertex_ct = v_ct;
-	buff->attribs = MEM_callocN(a_ct * sizeof(Attrib), "VertexBuffer.attribs");
-	/* TODO: single allocation instead of 2 */
 	return buff;
 }
 
@@ -175,7 +173,6 @@ void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 	if (buff->vao_id)
 		vao_id_free(buff->vao_id);
 #endif /* USE_VAO */
-	MEM_freeN(buff->attribs);
 	MEM_freeN(buff);
 }
 
