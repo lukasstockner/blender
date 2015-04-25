@@ -283,6 +283,7 @@ enum {
 	AREA_FLAG_STACKED_FULLSCREEN = (1 << 7),
 	/* update action zones (even if the mouse is not intersecting them) */
 	AREA_FLAG_ACTIONZONES_UPDATE = (1 << 8),
+	AREA_CONTAINS_TABS           = (1 << 9),
 };
 
 #define EDGEWIDTH	1
@@ -372,7 +373,8 @@ enum {
 	RGN_TYPE_UI = 4,
 	RGN_TYPE_TOOLS = 5,
 	RGN_TYPE_TOOL_PROPS = 6,
-	RGN_TYPE_PREVIEW = 7
+	RGN_TYPE_PREVIEW = 7,
+	RGN_TYPE_TABS = 8
 };
 
 /* region alignment */

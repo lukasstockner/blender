@@ -1442,6 +1442,45 @@ void uiItemsEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname
 	 * we don't know the context this is called in */
 }
 
+void uiItemTabsR(uiLayout *layout, PointerRNA *ptr, PropertyRNA *prop, const char *name,
+                 int icon, int alignment, int icon_only)
+{
+	uiBlock *block = layout->root->block;
+	uiBut *but;
+	EnumPropertyItem *item, *item_array;
+	int itemw, value, h = UI_UNIT_Y;
+	bool free;
+
+	RNA_property_enum_items_gettexted(block->evil_C, ptr, prop, &item_array, NULL, &free);
+
+	UI_block_layout_set_current(block, ui_item_local_sublayout(layout, layout, 1));
+
+	for (item = item_array; item->identifier; item++) {
+		if (!item->identifier[0])
+			continue;
+
+		name = (!name || name[0]) ? item->name : "";
+		icon = item->icon;
+		value = item->value;
+		itemw = ui_text_icon_width(block->curlayout, icon_only ? "" : name, icon, 0);
+
+		if (icon && name[0] && !icon_only)
+			but = uiDefIconTextButR_prop(block, UI_BTYPE_TAB, 0, icon, name, 0, 0, itemw, h, ptr, prop, -1, 0, value, -1, -1, NULL);
+		else if (icon)
+			but = uiDefIconButR_prop(block, UI_BTYPE_TAB, 0, icon, 0, 0, 1.3f * itemw, h, ptr, prop, -1, 0, value, -1, -1, NULL);
+		else
+			but = uiDefButR_prop(block, UI_BTYPE_TAB, 0, name, 0, 0, 0.9f * itemw, h, ptr, prop, -1, 0, value, -1, -1, NULL);
+
+		if (RNA_property_flag(prop) & PROP_ENUM_FLAG)
+			UI_but_func_set(but, ui_item_enum_expand_handle, but, SET_INT_IN_POINTER(value));
+
+		but->drawflag |= alignment;
+	}
+
+	if (free)
+		MEM_freeN(item_array);
+}
+
 /* Pointer RNA button with search */
 
 typedef struct CollItemSearch {

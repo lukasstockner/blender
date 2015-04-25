@@ -72,7 +72,7 @@ class USERPREF_HT_header(Header):
 class USERPREF_PT_tabs(Panel):
     bl_label = ""
     bl_space_type = 'USER_PREFERENCES'
-    bl_region_type = 'WINDOW'
+    bl_region_type = 'TABS'
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
@@ -80,7 +80,7 @@ class USERPREF_PT_tabs(Panel):
 
         userpref = context.user_preferences
 
-        layout.prop(userpref, "active_section", expand=True)
+        layout.prop_tabs(userpref, "active_section")
 
 
 class USERPREF_MT_interaction_presets(Menu):

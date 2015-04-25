@@ -141,6 +141,13 @@ typedef struct uiWidgetStateColors {
 	float blend, pad;
 } uiWidgetStateColors;
 
+typedef struct uiTabColors {
+	char tab_active[4];
+	char tab_inactive[4];
+	char tab_back[4];
+	char tab_outline[4];
+} uiTabColors;
+
 typedef struct uiPanelColors {
 	char header[4];
 	char back[4];
@@ -160,12 +167,13 @@ typedef struct ThemeUI {
 	/* Interface Elements (buttons, menus, icons) */
 	uiWidgetColors wcol_regular, wcol_tool, wcol_text;
 	uiWidgetColors wcol_radio, wcol_option, wcol_toggle;
-	uiWidgetColors wcol_num, wcol_numslider;
+	uiWidgetColors wcol_num, wcol_numslider, wcol_tab;
 	uiWidgetColors wcol_menu, wcol_pulldown, wcol_menu_back, wcol_menu_item, wcol_tooltip;
 	uiWidgetColors wcol_box, wcol_scroll, wcol_progress, wcol_list_item, wcol_pie_menu;
 	
 	uiWidgetStateColors wcol_state;
 
+	uiTabColors tab;
 	uiPanelColors panel; /* depricated, but we keep it for do_versions (2.66.1) */
 
 	char widget_emboss[4];
@@ -199,7 +207,7 @@ typedef struct ThemeSpace {
 	char header_text[4];
 	char header_text_hi[4];
 
-	/* region tabs */
+	/* region tabs - DEPRECATED, use ThemeUI->tab */
 	char tab_active[4];
 	char tab_inactive[4];
 	char tab_back[4];
@@ -222,7 +230,8 @@ typedef struct ThemeSpace {
 /*	char panel_title[4];	unused */
 /*	char panel_text[4];		unused */
 /*	char panel_text_hi[4];	unused */
-	
+
+	uiTabColors tabs;
 	/* note, cannot use name 'panel' because of DNA mapping old files */
 	uiPanelColors panelcolors;
 

@@ -403,6 +403,93 @@ void UI_draw_text_underline(int pos_x, int pos_y, int len, int height)
 
 /* ************** SPECIAL BUTTON DRAWING FUNCTIONS ************* */
 
+void ui_draw_but_TAB_outline(rcti *rect, float rad, int roundboxtype, unsigned char highlight[3],
+                             unsigned char highlight_fade[3])
+{
+	float vec[4][2] = {
+		{0.195, 0.02},
+		{0.55, 0.169},
+		{0.831, 0.45},
+		{0.98, 0.805},
+	};
+	int a;
+	/* the 1px offset makes sure its inside the button, because it doesn't draw nicely outside */
+	int minx = rect->xmin + 1, maxx = rect->xmax - 1;
+	int miny = rect->ymin + 1, maxy = rect->ymax - 1;
+
+	/* mult */
+	for (a = 0; a < 4; a++) {
+		mul_v2_fl(vec[a], rad);
+	}
+
+	glEnable(GL_LINE_SMOOTH);
+	glEnable(GL_BLEND);
+	glShadeModel(GL_SMOOTH);
+	glBegin(GL_LINE_STRIP);
+
+	glColor3ubv(highlight);
+
+	/*start with corner left-top*/
+	if (roundboxtype & UI_CNR_TOP_LEFT) {
+		glVertex2f(minx, maxy - rad);
+		for (a = 0; a < 4; a++) {
+			glVertex2f(minx + vec[a][1], maxy - rad + vec[a][0]);
+		}
+		glVertex2f(minx + rad, maxy);
+	}
+	else {
+		glVertex2f(minx, maxy);
+	}
+
+	/* corner right-top */
+	if (roundboxtype & UI_CNR_TOP_RIGHT) {
+		glVertex2f(maxx - rad, maxy);
+		for (a = 0; a < 4; a++) {
+			glVertex2f(maxx - rad + vec[a][0], maxy - vec[a][1]);
+		}
+		glVertex2f(maxx, maxy - rad);
+	}
+	else {
+		glVertex2f(maxx, maxy);
+	}
+
+	glColor3ubv(highlight_fade);
+
+	/* corner right-bottom */
+	if (roundboxtype & UI_CNR_BOTTOM_RIGHT) {
+		glVertex2f(maxx, miny + rad);
+		for (a = 0; a < 4; a++) {
+			glVertex2f(maxx - vec[a][1], miny + rad - vec[a][0]);
+		}
+		glVertex2f(maxx - rad, miny);
+	}
+	else {
+		glVertex2f(maxx, miny);
+	}
+
+	/* corner left-bottom */
+	if (roundboxtype & UI_CNR_BOTTOM_LEFT) {
+		glVertex2f(minx + rad, miny);
+		for (a = 0; a < 4; a++) {
+			glVertex2f(minx + rad - vec[a][0], miny + vec[a][1]);
+		}
+		glVertex2f(minx, miny + rad);
+	}
+	else {
+		glVertex2f(minx, miny);
+	}
+
+	glColor3ubv(highlight);
+
+	/* back to corner left-top */
+	glVertex2f(minx, roundboxtype & UI_CNR_TOP_LEFT ? maxy - rad : maxy);
+
+	glEnd();
+	glShadeModel(GL_FLAT);
+	glDisable(GL_BLEND);
+	glDisable(GL_LINE_SMOOTH);
+}
+
 void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti *rect)
 {
 #ifdef WITH_HEADLESS

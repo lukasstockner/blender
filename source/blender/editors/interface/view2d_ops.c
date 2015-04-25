@@ -165,9 +165,13 @@ static void view_pan_apply_ex(bContext *C, v2dViewPanData *vpd, float dx, float 
 	
 	/* validate that view is in valid configuration after this operation */
 	UI_view2d_curRect_validate(v2d);
-	
-	/* request updates to be done... */
-	ED_region_tag_redraw(vpd->ar);
+
+	/* request updates to be done (special case: tab region! we need to redraw the complete area here!) */
+	if (vpd->ar->regiontype == RGN_TYPE_TABS)
+		ED_area_tag_redraw(vpd->sa);
+	else
+		ED_region_tag_redraw(vpd->ar);
+
 	WM_event_add_mousemove(C);
 	
 	UI_view2d_sync(vpd->sc, vpd->sa, v2d, V2D_LOCK_COPY);

@@ -69,22 +69,46 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "screen_intern.h"
+#include "interface_intern.h"
 
-extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3); /* xxx temp */
+#include "screen_intern.h"
 
 /* general area and region code */
 
-static void region_draw_emboss(ARegion *ar, rcti *scirct)
+static void region_draw_emboss(ScrArea *sa, const ARegion *ar, const rcti *scirct)
 {
+	uiBut *but;
+	rctf trct;
 	rcti rect;
-	
+	float xofs = 0.0f; /* scrolling offset */
+	bool breakl = false;
+
 	/* translate scissor rect to region space */
 	rect.xmin = scirct->xmin - ar->winrct.xmin;
 	rect.ymin = scirct->ymin - ar->winrct.ymin;
 	rect.xmax = scirct->xmax - ar->winrct.xmin;
 	rect.ymax = scirct->ymax - ar->winrct.ymin;
-	
+
+	/* we want to have divided region seperators if a region contains tabs!
+	 * XXX currently only top aligned tabs are supported here */
+	if (ar->regiontype == RGN_TYPE_TABS) {}
+	/* find the region below the tabs */
+	else if (sa->flag & AREA_CONTAINS_TABS) {
+		ARegion *ar_tab;
+
+		ar_tab = BKE_area_find_region_type(sa, RGN_TYPE_TABS);
+
+		if (ar_tab->winrct.ymin == ar->winrct.ymax + 1) {
+			but = ui_but_find_activated_tab(ar_tab);
+			if (but) {
+				trct = but->rect;
+				xofs = ar_tab->v2d.tot.xmin - ar_tab->v2d.cur.xmin;
+
+				breakl = true;
+			}
+		}
+	}
+
 	/* set transp line */
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -95,11 +119,19 @@ static void region_draw_emboss(ARegion *ar, rcti *scirct)
 	
 	/* bottom  */
 	glColor4ub(0, 0, 0, 30);
-	sdrawline(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
+	if (!ar->type == RGN_TYPE_TABS) {
+		sdrawline(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
+	}
 	
 	/* top  */
 	glColor4ub(255, 255, 255, 30);
-	sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
+	if (breakl) {
+		sdrawline(rect.xmin, rect.ymax, trct.xmin + xofs, rect.ymax);
+		sdrawline(trct.xmax + xofs, rect.ymax, rect.xmax, rect.ymax);
+	}
+	else {
+		sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
+	}
 
 	/* left  */
 	glColor4ub(255, 255, 255, 30);
@@ -538,7 +570,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	UI_blocklist_free_inactive(C, &ar->uiblocks);
 
 	if (sa && (win->screen->state != SCREENFULL)) {
-		region_draw_emboss(ar, &ar->winrct);
+		region_draw_emboss(sa, ar, &ar->winrct);
 	}
 }
 
@@ -1105,6 +1137,9 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	if (ar->regiontype == RGN_TYPE_HEADER) {
 		prefsizey = ED_area_headersize();
 	}
+	else if (ar->regiontype == RGN_TYPE_TABS) {
+		prefsizey = UI_TAB_REGION_MARGIN_HEIGHT;
+	}
 	else if (ar->regiontype == RGN_TYPE_UI && sa->spacetype == SPACE_FILE) {
 		prefsizey = UI_UNIT_Y * 2 + (UI_UNIT_Y / 2);
 	}
@@ -1427,6 +1462,11 @@ void ED_area_initialize(wmWindowManager *wm, wmWindow *win, ScrArea *sa)
 	
 	for (ar = sa->regionbase.first; ar; ar = ar->next)
 		ar->type = BKE_regiontype_from_id(sa->type, ar->regiontype);
+
+	if (BKE_area_find_region_type(sa, RGN_TYPE_TABS))
+		sa->flag |= AREA_CONTAINS_TABS;
+	else
+		sa->flag &= ~AREA_CONTAINS_TABS;
 	
 	/* area sizes */
 	area_calc_totrct(sa, WM_window_pixels_x(win), WM_window_pixels_y(win));
@@ -1720,6 +1760,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
 	int x, y, xco, yco, w, em, triangle;
+	int theme_col_bg = TH_BACK;
 	bool is_context_new = 0;
 	int redo;
 	int scroll;
@@ -1741,7 +1782,6 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 		v2d->keepofs |= V2D_LOCKOFS_X | V2D_KEEPOFS_Y;
 		v2d->keepofs &= ~(V2D_LOCKOFS_Y | V2D_KEEPOFS_X);
 		v2d->scroll &= ~(V2D_SCROLL_BOTTOM);
-		v2d->scroll |= (V2D_SCROLL_RIGHT);
 	}
 	else {
 		/* for now, allow scrolling in both directions (since layouts are optimized for vertical,
@@ -1852,16 +1892,25 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 			}
 
 			if (open) {
+				short layout = UI_LAYOUT_VERTICAL;
 				short panelContext;
 
 				/* panel context can either be toolbar region or normal panels region */
-				if (ar->regiontype == RGN_TYPE_TOOLS)
+				if (ar->regiontype == RGN_TYPE_TOOLS) {
 					panelContext = UI_LAYOUT_TOOLBAR;
-				else
+				}
+				else if (ar->regiontype == RGN_TYPE_TABS) {
+					panelContext = UI_LAYOUT_HEADER;
+					if (sa->spacetype != SPACE_USERPREF) {
+						layout = UI_LAYOUT_HORIZONTAL;
+					}
+				}
+				else {
 					panelContext = UI_LAYOUT_PANEL;
+				}
 
 				panel->layout = UI_block_layout(
-				        block, UI_LAYOUT_VERTICAL, panelContext,
+				        block, layout, panelContext,
 				        style->panelspace, 0, w - 2 * style->panelspace, em, 0, style);
 
 				pt->draw(C, panel);
@@ -1917,16 +1966,21 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 	}
 
 	/* clear */
+	if (ar->regiontype == RGN_TYPE_PREVIEW)
+		theme_col_bg = TH_PREVIEW_BACK;
+	else if (ar->regiontype == RGN_TYPE_TABS)
+		theme_col_bg = TH_TAB_BACK;
+
 	if (ar->overlap) {
 		/* view should be in pixelspace */
 		UI_view2d_view_restore(C);
 		glEnable(GL_BLEND);
-		UI_ThemeColor4((ar->type->regionid == RGN_TYPE_PREVIEW) ? TH_PREVIEW_BACK : TH_BACK);
+		UI_ThemeColor4(theme_col_bg);
 		glRecti(0, 0, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
 		glDisable(GL_BLEND);
 	}
 	else {
-		UI_ThemeClearColor((ar->type->regionid == RGN_TYPE_PREVIEW) ? TH_PREVIEW_BACK : TH_BACK);
+		UI_ThemeClearColor(theme_col_bg);
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
 	

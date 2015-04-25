@@ -125,6 +125,22 @@ static void rna_uiItemR(uiLayout *layout, PointerRNA *ptr, const char *propname,
 	uiItemFullR(layout, ptr, prop, index, 0, flag, name, icon);
 }
 
+static void rna_uiItemTabsR(uiLayout *layout, PointerRNA *ptr, const char *propname, const char *name, const char *text_ctxt,
+                            int translate, int icon, int alignment, int icon_only)
+{
+	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+
+	if (!prop) {
+		RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
+		return;
+	}
+
+	/* Get translated name (label). */
+	name = rna_translate_ui_text(name, text_ctxt, NULL, prop, translate);
+
+	uiItemTabsR(layout, ptr, prop, name, icon, alignment, icon_only);
+}
+
 static void rna_uiItemMenuEnumR(uiLayout *layout, struct PointerRNA *ptr, const char *propname, const char *name,
                                 const char *text_ctxt, int translate, int icon)
 {
@@ -425,6 +441,14 @@ void RNA_api_ui_layout(StructRNA *srna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem tabs_alignment_items[] = {
+		{UI_BUT_ALIGN_TOP, "TOP", 0, "Top", ""},
+		{UI_BUT_ALIGN_DOWN, "DOWN", 0, "Down", ""},
+		{UI_BUT_ALIGN_LEFT, "LEFT", 0, "Left", ""},
+		{UI_BUT_ALIGN_RIGHT, "RIGHT", 0, "Right", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	static float node_socket_color_default[] = { 0.0f, 0.0f, 0.0f, 1.0f };
 
 	/* simple layout specifiers */
@@ -541,6 +565,14 @@ void RNA_api_ui_layout(StructRNA *srna)
 	parm = RNA_def_string(func, "value", NULL, 0, "", "Enum property value");
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	api_ui_item_common(func);
+
+	func = RNA_def_function(srna, "prop_tabs", "rna_uiItemTabsR");
+	RNA_def_function_ui_description(func, "Item. Exposes an RNA item and draws it as a tab into the layout");
+	api_ui_item_rna_common(func);
+	api_ui_item_common(func);
+	RNA_def_enum(func, "alignment", tabs_alignment_items, UI_BUT_ALIGN_DOWN, "Alignment",
+	             "The direction to which the tabs will be aligned to");
+	RNA_def_boolean(func, "icon_only", false, "", "Draw only icons in tabs, no text");
 
 	func = RNA_def_function(srna, "prop_search", "rna_uiItemPointerR");
 	api_ui_item_rna_common(func);

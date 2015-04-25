@@ -44,6 +44,8 @@
 #include "ED_screen.h"
 #include "ED_space_api.h"
 
+#include "UI_view2d.h"
+
 #include "WM_api.h"
 #include "WM_types.h"
 
@@ -65,6 +67,26 @@ static SpaceLink *userpref_new(const bContext *UNUSED(C))
 	BLI_addtail(&spref->regionbase, ar);
 	ar->regiontype = RGN_TYPE_HEADER;
 	ar->alignment = RGN_ALIGN_BOTTOM;
+
+	/* tab region */
+	ar = MEM_callocN(sizeof(ARegion), "tab region for userpref");
+
+	BLI_addtail(&spref->regionbase, ar);
+	ar->regiontype = RGN_TYPE_TABS;
+	ar->alignment = RGN_ALIGN_TOP;
+
+	{
+		View2D *v2d = &ar->v2d;
+
+		v2d->keepzoom = (V2D_KEEPASPECT | V2D_LIMITZOOM | V2D_KEEPZOOM);
+		v2d->minzoom = ar->v2d.maxzoom = 1.0f;
+
+		v2d->align = (V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_POS_Y);
+		v2d->keeptot = V2D_KEEPTOT_STRICT;
+
+		/* no scrollers! */
+		v2d->scroll = 0;
+	}
 
 	/* main area */
 	ar = MEM_callocN(sizeof(ARegion), "main area for userpref");
@@ -125,6 +147,23 @@ static void userpref_keymap(struct wmKeyConfig *UNUSED(keyconf))
 	
 }
 
+static void userpref_tab_area_init(wmWindowManager *wm, ARegion *ar)
+{
+	wmKeyMap *keymap;
+
+	UI_view2d_region_reinit(&ar->v2d, V2D_COMMONVIEW_CUSTOM, ar->winx, ar->winy);
+
+	keymap = WM_keymap_find(wm->defaultconf, "View2D Buttons List", 0, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+}
+
+static void userpref_tab_area_draw(const bContext *C, ARegion *ar)
+{
+	ED_region_panels(C, ar, 1, NULL, -1);
+
+	ar->v2d.keepofs = (V2D_LOCKOFS_Y);
+}
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void userpref_header_area_init(wmWindowManager *UNUSED(wm), ARegion *ar)
 {
@@ -174,6 +213,15 @@ void ED_spacetype_userpref(void)
 	art->init = userpref_main_area_init;
 	art->draw = userpref_main_area_draw;
 	art->listener = userpref_main_area_listener;
+	art->keymapflag = ED_KEYMAP_UI;
+
+	BLI_addhead(&st->regiontypes, art);
+
+	/* regions: tab region*/
+	art = MEM_callocN(sizeof(ARegionType), "spacetype userpref region");
+	art->regionid = RGN_TYPE_TABS;
+	art->init = userpref_tab_area_init;
+	art->draw = userpref_tab_area_draw;
 	art->keymapflag = ED_KEYMAP_UI;
 
 	BLI_addhead(&st->regiontypes, art);

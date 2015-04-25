@@ -172,7 +172,7 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 
 			switch (colorid) {
 				case TH_BACK:
-					if (theme_regionid == RGN_TYPE_WINDOW)
+					if (ELEM(theme_regionid, RGN_TYPE_WINDOW, RGN_TYPE_TABS))
 						cp = ts->back;
 					else if (theme_regionid == RGN_TYPE_CHANNELS)
 						cp = ts->list;
@@ -192,7 +192,7 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					setting = ts->gradients.show_grad;
 					break;
 				case TH_TEXT:
-					if (theme_regionid == RGN_TYPE_WINDOW)
+					if (ELEM(theme_regionid, RGN_TYPE_WINDOW, RGN_TYPE_TABS))
 						cp = ts->text;
 					else if (theme_regionid == RGN_TYPE_CHANNELS)
 						cp = ts->list_text;
@@ -258,13 +258,13 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->button_text_hi; break;
 
 				case TH_TAB_ACTIVE:
-					cp = ts->tab_active; break;
+					cp = ts->tabs.tab_active; break;
 				case TH_TAB_INACTIVE:
-					cp = ts->tab_inactive; break;
+					cp = ts->tabs.tab_inactive; break;
 				case TH_TAB_BACK:
-					cp = ts->tab_back; break;
+					cp = ts->tabs.tab_back; break;
 				case TH_TAB_OUTLINE:
-					cp = ts->tab_outline; break;
+					cp = ts->tabs.tab_outline; break;
 
 				case TH_SHADE1:
 					cp = ts->shade1; break;
@@ -794,10 +794,10 @@ static void ui_theme_init_new_do(ThemeSpace *ts)
 	rgba_char_args_set(ts->list_text,      0, 0, 0, 255);
 	rgba_char_args_set(ts->list_text_hi,   255, 255, 255, 255);
 
-	rgba_char_args_set(ts->tab_active,     114, 114, 114, 255);
-	rgba_char_args_set(ts->tab_inactive,   83, 83, 83, 255);
-	rgba_char_args_set(ts->tab_back,       64, 64, 64, 255);
-	rgba_char_args_set(ts->tab_outline,    60, 60, 60, 255);
+	rgba_char_args_set(ts->tabs.tab_active,     114, 114, 114, 255);
+	rgba_char_args_set(ts->tabs.tab_inactive,   83, 83, 83, 255);
+	rgba_char_args_set(ts->tabs.tab_back,       64, 64, 64, 255);
+	rgba_char_args_set(ts->tabs.tab_outline,    60, 60, 60, 255);
 }
 
 static void ui_theme_init_new(bTheme *btheme)
@@ -2492,16 +2492,17 @@ void init_userdef_do_versions(void)
 			ThemeSpace *ts;
 
 			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
-				rgba_char_args_set(ts->tab_active, 114, 114, 114, 255);
-				rgba_char_args_set(ts->tab_inactive, 83, 83, 83, 255);
-				rgba_char_args_set(ts->tab_back, 64, 64, 64, 255);
-				rgba_char_args_set(ts->tab_outline, 60, 60, 60, 255);
+				rgba_char_args_set(ts->tabs.tab_active, 114, 114, 114, 255);
+				rgba_char_args_set(ts->tabs.tab_inactive, 83, 83, 83, 255);
+				rgba_char_args_set(ts->tabs.tab_back, 64, 64, 64, 255);
+				rgba_char_args_set(ts->tabs.tab_outline, 60, 60, 60, 255);
 			}
 		}
 	}
 
 	if (U.versionfile < 271) {
 		bTheme *btheme;
+
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set(btheme->tui.wcol_tooltip.text, 255, 255, 255, 255);
 		}
@@ -2618,6 +2619,34 @@ void init_userdef_do_versions(void)
 		}
 	}
 
+	if (U.versionfile < 274 || (U.versionfile == 274 && U.subversionfile < 6)) {
+		bTheme *btheme;
+		ThemeSpace *ts;
+
+		/* interface_widgets.c */
+		struct uiWidgetColors wcol_tab = {
+			{255, 255, 255, 255},
+			{83, 83, 83, 255},    /* gets overwritten later */
+			{114, 114, 114, 255}, /* gets overwritten later */
+			{90, 90, 90, 255},
+
+			{0, 0, 0, 255},       /* gets overwritten later */
+			{0, 0, 0, 255},
+
+			0,
+			0, 0
+		};
+
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			btheme->tui.wcol_tab = wcol_tab;
+			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+				copy_v4_v4_char(ts->tabs.tab_active, ts->tab_active);
+				copy_v4_v4_char(ts->tabs.tab_inactive, ts->tab_inactive);
+				copy_v4_v4_char(ts->tabs.tab_back, ts->tab_back);
+				copy_v4_v4_char(ts->tabs.tab_outline, ts->tab_outline);
+			}
+		}
+	}
 		
 	if (U.pixelsize == 0.0f)
 		U.pixelsize = 1.0f;

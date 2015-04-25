@@ -45,6 +45,7 @@ EnumPropertyItem region_type_items[] = {
 	{RGN_TYPE_TOOLS, "TOOLS", 0, "Tools", ""},
 	{RGN_TYPE_TOOL_PROPS, "TOOL_PROPS", 0, "Tool Properties", ""},
 	{RGN_TYPE_PREVIEW, "PREVIEW", 0, "Preview", ""},
+	{RGN_TYPE_TABS, "TABS", 0, "Tabs", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 

@@ -44,6 +44,7 @@
 
 #include "BKE_context.h"
 #include "BKE_curve.h"
+#include "BKE_screen.h"
 
 #include "RNA_access.h"
 
@@ -1585,6 +1586,9 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	widget_draw_text(fstyle, wcol, but, rect);
 
 	ui_but_text_password_hide(password_str, but, true);
+
+	/* if a widget uses font shadow it has to be deactivated now */
+	BLF_disable(fstyle->uifont_id, BLF_SHADOW);
 }
 
 #undef UI_TEXT_CLIP_MARGIN
@@ -1866,6 +1870,19 @@ static struct uiWidgetColors wcol_list_item = {
 	0, 0
 };
 
+static struct uiWidgetColors wcol_tab = {
+	{255, 255, 255, 255},
+	{83, 83, 83, 255},
+	{114, 114, 114, 255},
+	{90, 90, 90, 255},
+
+	{0, 0, 0, 255},
+	{0, 0, 0, 255},
+
+	0,
+	0, 0
+};
+
 /* free wcol struct to play with */
 static struct uiWidgetColors wcol_tmp = {
 	{0, 0, 0, 255},
@@ -1888,6 +1905,7 @@ void ui_widget_color_init(ThemeUI *tui)
 	tui->wcol_tool = wcol_tool;
 	tui->wcol_text = wcol_text;
 	tui->wcol_radio = wcol_radio;
+	tui->wcol_tab = wcol_tab;
 	tui->wcol_option = wcol_option;
 	tui->wcol_toggle = wcol_toggle;
 	tui->wcol_num = wcol_num;
@@ -2115,6 +2133,27 @@ static void widget_state_menu_item(uiWidgetType *wt, int state)
 		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
 		copy_v3_v3_char(wt->wcol.text, wt->wcol.text_sel);
 	}
+}
+
+static void widget_state_tab(uiWidgetType *wt, int state)
+{
+	unsigned char col_tab_active[4], col_tab_inactive[4], col_tab_text[3];
+
+	/* tabs are using special theme colors */
+	UI_GetThemeColor4ubv(TH_TAB_ACTIVE, col_tab_active);
+	UI_GetThemeColor4ubv(TH_TAB_INACTIVE, col_tab_inactive);
+	UI_GetThemeColor3ubv(TH_TEXT, col_tab_text); /* updates the font color to always match the region color */
+
+	copy_v3_v3_char(wt->wcol_theme->inner, (char *)col_tab_inactive);
+	copy_v3_v3_char(wt->wcol_theme->inner_sel, (char *)col_tab_active);
+	copy_v3_v3_char(wt->wcol_theme->text, (char *)col_tab_text);
+
+	wt->wcol = *(wt->wcol_theme);
+
+	if (state & UI_SELECT)
+		copy_v4_v4_char(wt->wcol.inner, wt->wcol.inner_sel);
+	else if (state & UI_ACTIVE)
+		widget_state_blend(wt->wcol.inner, wt->wcol.inner_sel, 0.2f);
 }
 
 
@@ -3334,6 +3373,54 @@ static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 	widgetbase_draw(&wtb, wcol);
 }
 
+static void widget_tab(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+{
+	uiWidgetBase wtb;
+	uiStyle *style = UI_style_get();
+	const uiFontStyle *fstyle = &style->widget;
+	const int px = (max_ii(1, iroundf(U.pixelsize)));
+	const int fontid = fstyle->uifont_id;
+	const float aspect = but->block->aspect;
+	const float zoom = 1.0f / aspect;
+	const float rad = ((px * 3) * UI_DPI_FAC) * zoom;
+	bool is_active = but->flag & UI_SELECT;
+	unsigned char theme_col_tab_highlight[3];
+
+	/* create outline highlight colors */
+	if (is_active)
+		interp_v3_v3v3_uchar(theme_col_tab_highlight, (unsigned char *)wcol->inner_sel,
+		                     (unsigned char *)wcol->outline, 0.2f);
+	else
+		interp_v3_v3v3_uchar(theme_col_tab_highlight, (unsigned char *)wcol->inner,
+		                     (unsigned char *)wcol->outline, 0.12f);
+
+	widget_init(&wtb);
+
+	/* space between tabs */
+	BLI_rcti_resize(rect, BLI_rcti_size_x(rect) - 0.07f * U.dpi, BLI_rcti_size_y(rect));
+	BLI_rcti_translate(rect, -(0.3f * U.widget_unit), 0.2f * U.widget_unit);
+
+	/* copy the new rect to the button's rect */
+	BLI_rctf_resize(&but->rect, BLI_rcti_size_x(rect), BLI_rcti_size_y(rect));
+	BLI_rctf_translate(&but->rect, -(0.3f * U.widget_unit), 0.2f * U.widget_unit);
+
+	/* half rounded */
+	round_box_edges(&wtb, roundboxalign, rect, rad);
+
+	/* draw inner */
+	wtb.outline = 0;
+	widgetbase_draw(&wtb, wcol);
+
+	/* draw outline (3d look) */
+	ui_draw_but_TAB_outline(rect, rad, roundboxalign, theme_col_tab_highlight,
+	                        is_active ? (unsigned char *)wcol->inner_sel : (unsigned char *)wcol->inner);
+
+	/* text shadow */
+	BLF_enable(fontid, BLF_SHADOW);
+	BLF_shadow(fontid, 3, 1.0f, 1.0f, 1.0f, 0.25f);
+	BLF_shadow_offset(fontid, 0, -1);
+}
+
 static void widget_draw_extra_mask(const bContext *C, uiBut *but, uiWidgetType *wt, rcti *rect)
 {
 	uiWidgetBase wtb;
@@ -3414,6 +3501,12 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_EXEC:
 			wt.wcol_theme = &btheme->tui.wcol_tool;
 			wt.draw = widget_roundbut;
+			break;
+
+		case UI_WTYPE_TAB:
+			wt.custom = widget_tab;
+			wt.wcol_theme = &btheme->tui.wcol_tab;
+			wt.state = widget_state_tab;
 			break;
 
 		case UI_WTYPE_TOOLTIP:
@@ -3657,7 +3750,11 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				if (but->block->flag & UI_BLOCK_LOOP)
 					wt->wcol_theme = &btheme->tui.wcol_menu_back;
 				break;
-				
+
+			case UI_BTYPE_TAB:
+				wt = widget_type(UI_WTYPE_TAB);
+				break;
+
 			case UI_BTYPE_BUT_TOGGLE:
 			case UI_BTYPE_TOGGLE:
 			case UI_BTYPE_TOGGLE_N:

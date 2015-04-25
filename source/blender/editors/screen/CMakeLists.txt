@@ -20,6 +20,7 @@
 
 set(INC
 	../include
+	../interface
 	../../blenfont
 	../../blenkernel
 	../../blenlib
