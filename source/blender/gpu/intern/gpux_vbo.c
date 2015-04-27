@@ -1,6 +1,7 @@
 
 #include "GPUx_vbo.h"
 #include "gpux_buffer_id.h"
+#include "GPU_extensions.h"
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
 #include <string.h>
@@ -145,10 +146,14 @@ void GPUx_attrib_print(const VertexBuffer *buff, unsigned attrib_num)
 
 VertexBuffer *GPUx_vertex_buffer_create(unsigned a_ct, unsigned v_ct)
 {
-	VertexBuffer *buff = MEM_callocN(offsetof(VertexBuffer, attribs) + a_ct * sizeof(Attrib), "VertexBuffer");
+	VertexBuffer *buff;
 #ifdef TRUST_NO_ONE
 	BLI_assert(a_ct >= 1 && a_ct <= 16);
+  #ifdef USE_VAO
+	BLI_assert(GPU_vertex_array_object_support());
+  #endif /* USE_VBO */
 #endif /* TRUST_NO_ONE */
+	buff = MEM_callocN(offsetof(VertexBuffer, attribs) + a_ct * sizeof(Attrib), "VertexBuffer");
 	buff->attrib_ct = a_ct;
 	buff->vertex_ct = v_ct;
 	return buff;
@@ -217,8 +222,11 @@ void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 
 	if (comp_type == GL_FLOAT)
 		BLI_assert(fetch_mode == KEEP_FLOAT);
-	else
+	else {
 		BLI_assert(fetch_mode != KEEP_FLOAT);
+		if (fetch_mode == KEEP_INT)
+			BLI_assert(GPU_shader4_support());
+	}
 
   #ifndef GENERIC_ATTRIB
 	/* classic (non-generic) attributes each have their quirks
