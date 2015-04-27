@@ -307,6 +307,17 @@ bool GPU_vertex_array_object_support(void)
 	return GLEW_VERSION_3_0 || GLEW_ARB_vertex_array_object || GLEW_APPLE_vertex_array_object;
 }
 
+bool GPU_shader4_support(void)
+{
+	/* includes a number of GLSL enhancements:
+	 * - full integer support
+	 * - interpolation qualifiers (flat, smooth, noperspective)
+	 * - gl_VertexID, gl_PrimitiveID
+	 * - custom fragment shader outputs, for MRT
+	 */
+	return GLEW_VERSION_3_0 || GLEW_EXT_gpu_shader4;
+}
+
 bool GPU_display_list_support(void)
 {
 	return !GG.dlistsdisabled;
