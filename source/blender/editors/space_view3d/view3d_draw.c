@@ -1327,12 +1327,12 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 		/* do nothing */
 	}
 	else if ((base && (base->object->mode & OB_MODE_PARTICLE_EDIT)) &&
-	         v3d->drawtype > OB_WIRE && (v3d->flag & V3D_ZBUF_SELECT))
+	         V3D_IS_ZBUF(v3d))
 	{
 		/* do nothing */
 	}
-	else if (scene->obedit && v3d->drawtype > OB_WIRE &&
-	         (v3d->flag & V3D_ZBUF_SELECT))
+	else if (scene->obedit &&
+	         V3D_IS_ZBUF(v3d))
 	{
 		/* do nothing */
 	}
@@ -1454,14 +1454,23 @@ static void view3d_opengl_read_Z_pixels(ARegion *ar, int x, int y, int w, int h,
 	glReadPixels(ar->winrct.xmin + x, ar->winrct.ymin + y, w, h, format, type, data);
 }
 
-void view3d_validate_backbuf(ViewContext *vc)
+void ED_view3d_backbuf_validate(ViewContext *vc)
 {
 	if (vc->v3d->flag & V3D_INVALID_BACKBUF)
 		backdrawview3d(vc->scene, vc->ar, vc->v3d);
 }
 
+/**
+ * allow for small values [0.5 - 2.5],
+ * and large values, FLT_MAX by clamping by the area size
+ */
+int ED_view3d_backbuf_sample_size_clamp(ARegion *ar, const float dist)
+{
+	return (int)min_ff(ceilf(dist), (float)max_ii(ar->winx, ar->winx));
+}
+
 /* samples a single pixel (copied from vpaint) */
-unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
+unsigned int ED_view3d_backbuf_sample(ViewContext *vc, int x, int y)
 {
 	unsigned int col;
 	
@@ -1469,7 +1478,7 @@ unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
 		return 0;
 	}
 
-	view3d_validate_backbuf(vc);
+	ED_view3d_backbuf_validate(vc);
 
 	view3d_opengl_read_pixels(vc->ar, x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
 	glReadBuffer(GL_BACK);
@@ -1482,7 +1491,7 @@ unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
 }
 
 /* reads full rect, converts indices */
-ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, short ymax)
+ImBuf *ED_view3d_backbuf_read(ViewContext *vc, short xmin, short ymin, short xmax, short ymax)
 {
 	unsigned int *dr, *rd;
 	struct ImBuf *ibuf, *ibuf1;
@@ -1501,7 +1510,7 @@ ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, 
 
 	ibuf = IMB_allocImBuf((xmaxc - xminc + 1), (ymaxc - yminc + 1), 32, IB_rect);
 
-	view3d_validate_backbuf(vc);
+	ED_view3d_backbuf_validate(vc);
 
 	view3d_opengl_read_pixels(vc->ar,
 	             xminc, yminc,
@@ -1541,23 +1550,21 @@ ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, 
 }
 
 /* smart function to sample a rect spiralling outside, nice for backbuf selection */
-unsigned int view3d_sample_backbuf_rect(ViewContext *vc, const int mval[2], int size,
-                                        unsigned int min, unsigned int max, float *r_dist, short strict,
-                                        void *handle, bool (*indextest)(void *handle, unsigned int index))
+unsigned int ED_view3d_backbuf_sample_rect(
+        ViewContext *vc, const int mval[2], int size,
+        unsigned int min, unsigned int max, float *r_dist)
 {
 	struct ImBuf *buf;
-	unsigned int *bufmin, *bufmax, *tbuf;
+	const unsigned int *bufmin, *bufmax, *tbuf;
 	int minx, miny;
 	int a, b, rc, nr, amount, dirvec[4][2];
-	int distance = 0;
 	unsigned int index = 0;
-	bool indexok = false;
 
 	amount = (size - 1) / 2;
 
 	minx = mval[0] - (amount + 1);
 	miny = mval[1] - (amount + 1);
-	buf = view3d_read_backbuf(vc, minx, miny, minx + size - 1, miny + size - 1);
+	buf = ED_view3d_backbuf_read(vc, minx, miny, minx + size - 1, miny + size - 1);
 	if (!buf) return 0;
 
 	rc = 0;
@@ -1575,21 +1582,19 @@ unsigned int view3d_sample_backbuf_rect(ViewContext *vc, const int mval[2], int 
 	for (nr = 1; nr <= size; nr++) {
 		
 		for (a = 0; a < 2; a++) {
-			for (b = 0; b < nr; b++, distance++) {
-				if (*tbuf && *tbuf >= min && *tbuf < max) {  /* we got a hit */
-					if (strict) {
-						indexok =  indextest(handle, *tbuf - min + 1);
-						if (indexok) {
-							*r_dist = sqrtf((float)distance);
-							index = *tbuf - min + 1;
-							goto exit; 
-						}
-					}
-					else {
-						*r_dist = sqrtf((float)distance);  /* XXX, this distance is wrong - */
-						index = *tbuf - min + 1;  /* messy yah, but indices start at 1 */
-						goto exit;
-					}
+			for (b = 0; b < nr; b++) {
+				if (*tbuf && *tbuf >= min && *tbuf < max) {
+					/* we got a hit */
+
+					/* get x,y pixel coords from the offset
+					 * (manhatten distance in keeping with other screen-based selection) */
+					*r_dist = (float)(
+					        abs(((int)(tbuf - buf->rect) % size) - (size / 2)) +
+					        abs(((int)(tbuf - buf->rect) / size) - (size / 2)));
+
+					/* indices start at 1 here */
+					index = (*tbuf - min) + 1;
+					goto exit;
 				}
 				
 				tbuf += (dirvec[rc][0] + dirvec[rc][1]);
@@ -1616,17 +1621,19 @@ static void view3d_stereo_bgpic_setup(Scene *scene, View3D *v3d, Image *ima, Ima
 	if ((ima->flag & IMA_IS_STEREO)) {
 		iuser->flag |= IMA_SHOW_STEREO;
 
-		if ((scene->r.scemode & R_MULTIVIEW) == 0)
+		if ((scene->r.scemode & R_MULTIVIEW) == 0) {
 			iuser->multiview_eye = STEREO_LEFT_ID;
-
-		/* show only left or right camera */
-		else if (v3d->stereo3d_camera != STEREO_3D_ID)
+		}
+		else if (v3d->stereo3d_camera != STEREO_3D_ID) {
+			/* show only left or right camera */
 			iuser->multiview_eye = v3d->stereo3d_camera;
+		}
 
 		BKE_image_multiview_index(ima, iuser);
 	}
-	else
+	else {
 		iuser->flag &= ~IMA_SHOW_STEREO;
+	}
 }
 
 static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
@@ -3563,7 +3570,7 @@ static bool view3d_stereo3d_active(const bContext *C, Scene *scene, View3D *v3d,
 	if (WM_stereo3d_enabled(win, true) == false)
 		return false;
 
-	if ((v3d->camera == NULL) || rv3d->persp != RV3D_CAMOB)
+	if ((v3d->camera == NULL) || (v3d->camera->type != OB_CAMERA) || rv3d->persp != RV3D_CAMOB)
 		return false;
 
 	if (scene->r.views_format & SCE_VIEWS_FORMAT_MULTIVIEW) {

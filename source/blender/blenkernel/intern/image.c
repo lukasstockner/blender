@@ -960,8 +960,10 @@ void BKE_image_memorypack(Image *ima)
 {
 	ImBuf *ibuf;
 
-	if ((ima->flag & IMA_IS_MULTIVIEW))
-		return image_memorypack_multiview(ima);
+	if ((ima->flag & IMA_IS_MULTIVIEW)) {
+		image_memorypack_multiview(ima);
+		return;
+	}
 
 	ibuf = image_get_cached_ibuf_for_index_frame(ima, IMA_NO_INDEX, 0);
 
@@ -2026,26 +2028,45 @@ void BKE_image_stamp_buf(
 #undef BUFF_MARGIN_Y
 }
 
-void BKE_imbuf_stamp_info(Scene *scene, Object *camera, struct ImBuf *ibuf)
+void BKE_render_result_stamp_info(Scene *scene, Object *camera, struct RenderResult *rr)
 {
-	struct StampData stamp_data;
+	struct StampData *stamp_data;
 
-	if (!ibuf) return;
+	if (!(scene && scene->r.stamp & R_STAMP_ALL))
+		return;
 
-	/* fill all the data values, no prefix */
-	stampdata(scene, camera, &stamp_data, 0);
+	if (!rr->stamp_data) {
+		stamp_data = MEM_callocN(sizeof(StampData), "RenderResult.stamp_data");
+	}
+	else {
+		stamp_data = rr->stamp_data;
+	}
 
-	if (stamp_data.file[0]) IMB_metadata_change_field(ibuf, "File",        stamp_data.file);
-	if (stamp_data.note[0]) IMB_metadata_change_field(ibuf, "Note",        stamp_data.note);
-	if (stamp_data.date[0]) IMB_metadata_change_field(ibuf, "Date",        stamp_data.date);
-	if (stamp_data.marker[0]) IMB_metadata_change_field(ibuf, "Marker",    stamp_data.marker);
-	if (stamp_data.time[0]) IMB_metadata_change_field(ibuf, "Time",        stamp_data.time);
-	if (stamp_data.frame[0]) IMB_metadata_change_field(ibuf, "Frame",      stamp_data.frame);
-	if (stamp_data.camera[0]) IMB_metadata_change_field(ibuf, "Camera",    stamp_data.camera);
-	if (stamp_data.cameralens[0]) IMB_metadata_change_field(ibuf, "Lens",  stamp_data.cameralens);
-	if (stamp_data.scene[0]) IMB_metadata_change_field(ibuf, "Scene",      stamp_data.scene);
-	if (stamp_data.strip[0]) IMB_metadata_change_field(ibuf, "Strip",      stamp_data.strip);
-	if (stamp_data.rendertime[0]) IMB_metadata_change_field(ibuf, "RenderTime", stamp_data.rendertime);
+	stampdata(scene, camera, stamp_data, 0);
+
+	if (!rr->stamp_data) {
+		rr->stamp_data = stamp_data;
+	}
+}
+
+
+void BKE_imbuf_stamp_info(RenderResult *rr, struct ImBuf *ibuf)
+{
+	struct StampData *stamp_data = rr->stamp_data;
+
+	if (!ibuf || !stamp_data) return;
+
+	if (stamp_data->file[0]) IMB_metadata_change_field(ibuf, "File",        stamp_data->file);
+	if (stamp_data->note[0]) IMB_metadata_change_field(ibuf, "Note",        stamp_data->note);
+	if (stamp_data->date[0]) IMB_metadata_change_field(ibuf, "Date",        stamp_data->date);
+	if (stamp_data->marker[0]) IMB_metadata_change_field(ibuf, "Marker",    stamp_data->marker);
+	if (stamp_data->time[0]) IMB_metadata_change_field(ibuf, "Time",        stamp_data->time);
+	if (stamp_data->frame[0]) IMB_metadata_change_field(ibuf, "Frame",      stamp_data->frame);
+	if (stamp_data->camera[0]) IMB_metadata_change_field(ibuf, "Camera",    stamp_data->camera);
+	if (stamp_data->cameralens[0]) IMB_metadata_change_field(ibuf, "Lens",  stamp_data->cameralens);
+	if (stamp_data->scene[0]) IMB_metadata_change_field(ibuf, "Scene",      stamp_data->scene);
+	if (stamp_data->strip[0]) IMB_metadata_change_field(ibuf, "Strip",      stamp_data->strip);
+	if (stamp_data->rendertime[0]) IMB_metadata_change_field(ibuf, "RenderTime", stamp_data->rendertime);
 }
 
 bool BKE_imbuf_alpha_test(ImBuf *ibuf)
@@ -2240,14 +2261,13 @@ int BKE_imbuf_write_as(ImBuf *ibuf, const char *name, ImageFormatData *imf,
 	return ok;
 }
 
-int BKE_imbuf_write_stamp(Scene *scene, struct Object *camera, ImBuf *ibuf, const char *name, struct ImageFormatData *imf)
+int BKE_imbuf_write_stamp(Scene *scene, struct RenderResult *rr, ImBuf *ibuf, const char *name, struct ImageFormatData *imf)
 {
 	if (scene && scene->r.stamp & R_STAMP_ALL)
-		BKE_imbuf_stamp_info(scene, camera, ibuf);
+		BKE_imbuf_stamp_info(rr, ibuf);
 
 	return BKE_imbuf_write(ibuf, name, imf);
 }
-
 
 static void do_makepicstring(
         char *string, const char *base, const char *relbase, int frame, const char imtype,
@@ -2494,7 +2514,7 @@ static void image_init_imageuser(Image *ima, ImageUser *iuser)
 
 void BKE_image_init_imageuser(Image *ima, ImageUser *iuser)
 {
-	return image_init_imageuser(ima, iuser);
+	image_init_imageuser(ima, iuser);
 }
 
 void BKE_image_signal(Image *ima, ImageUser *iuser, int signal)
@@ -3502,6 +3522,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 {
 	Render *re;
 	RenderResult rres;
+	RenderView *rv;
 	float *rectf, *rectz;
 	unsigned int *rect;
 	float dither;
@@ -3548,12 +3569,26 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 	if (from_render) {
 		BLI_lock_thread(LOCK_VIEWER);
 		*lock_r = re;
+		rv = NULL;
+	}
+	else {
+		rv = BLI_findlink(&rres.views, actview);
+		if (rv == NULL)
+			rv = rres.views.first;
 	}
 
 	/* this gives active layer, composite or sequence result */
-	rect = (unsigned int *)rres.rect32;
-	rectf = rres.rectf;
-	rectz = rres.rectz;
+	if (rv == NULL) {
+		rect = (unsigned int *)rres.rect32;
+		rectf = rres.rectf;
+		rectz = rres.rectz;
+	}
+	else {
+		rect = (unsigned int *)rv->rect32;
+		rectf = rv->rectf;
+		rectz = rv->rectz;
+	}
+
 	dither = iuser->scene->r.dither_intensity;
 
 	/* combined layer gets added as first layer */
