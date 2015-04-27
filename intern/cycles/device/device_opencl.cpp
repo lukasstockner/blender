@@ -3518,9 +3518,112 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 	}
 };
 
+/* Returns true in case of successful detection of platform and device type,
+* else returns false
+*/
+bool get_platform_and_devicetype(const DeviceInfo info, string &platform_name, cl_device_type &device_type) {
+	cl_platform_id platform_id;
+	cl_device_id device_id;
+	cl_uint num_platforms;
+	cl_int ciErr;
+
+	ciErr = clGetPlatformIDs(0, NULL, &num_platforms);
+	if (ciErr != CL_SUCCESS) {
+		fprintf(stderr, "Can't getPlatformIds. file - %s, line - %d\n", __FILE__, __LINE__);
+		return false;
+	}
+
+	if (num_platforms == 0) {
+		fprintf(stderr, "No OpenCL platforms found. file - %s, line - %d\n", __FILE__, __LINE__);
+		return false;
+	}
+
+	vector<cl_platform_id> platforms(num_platforms, NULL);
+
+	ciErr = clGetPlatformIDs(num_platforms, &platforms[0], NULL);
+	if (ciErr != CL_SUCCESS) {
+		fprintf(stderr, "Can't getPlatformIds. file - %s, line - %d\n", __FILE__, __LINE__);
+		return false;
+	}
+
+	int num_base = 0;
+	int total_devices = 0;
+
+	for (int platform = 0; platform < num_platforms; platform++) {
+		cl_uint num_devices;
+
+		ciErr = clGetDeviceIDs(platforms[platform], opencl_device_type(), 0, NULL, &num_devices);
+		if (ciErr != CL_SUCCESS) {
+			fprintf(stderr, "Can't getDeviceIDs. file - %s, line - %d\n", __FILE__, __LINE__);
+			return false;
+		}
+
+		total_devices += num_devices;
+
+		if (info.num - num_base >= num_devices) {
+			/* num doesn't refer to a device in this platform */
+			num_base += num_devices;
+			continue;
+		}
+
+		/* device is in this platform */
+		platform_id = platforms[platform];
+
+		/* get devices */
+		vector<cl_device_id> device_ids(num_devices, NULL);
+
+		ciErr = clGetDeviceIDs(platform_id, opencl_device_type(), num_devices, &device_ids[0], NULL);
+		if (ciErr != CL_SUCCESS) {
+			fprintf(stderr, "Can't getDeviceIDs. file - %s, line - %d\n", __FILE__, __LINE__);
+			return false;
+		}
+
+		device_id = device_ids[info.num - num_base];
+
+		char name[256];
+		ciErr = clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, sizeof(name), &name, NULL);
+		if (ciErr != CL_SUCCESS) {
+			fprintf(stderr, "Can't getPlatformIDs. file - %s, line - %d \n", __FILE__, __LINE__);
+			return false;
+		}
+		platform_name = name;
+
+		ciErr = clGetDeviceInfo(device_id, CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type, NULL);
+		if (ciErr != CL_SUCCESS) {
+			fprintf(stderr, "Can't getDeviceInfo. file - %s, line - %d \n", __FILE__, __LINE__);
+			return false;
+		}
+
+		break;
+	}
+
+	if (total_devices == 0) {
+		fprintf(stderr, "No devices found. file - %s, line - %d \n", __FILE__, __LINE__);
+		return false;
+	}
+
+	return true;
+}
+
 Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 {
-	return new OpenCLDevice(info, stats, background);
+	string platform_name;
+	cl_device_type device_type;
+	if (get_platform_and_devicetype(info, platform_name, device_type)) {
+		if (platform_name == "AMD Accelerated Parallel Processing" && device_type == CL_DEVICE_TYPE_GPU) {
+			/* If the device is an AMD GPU, take split kernel path */
+			/* TO DO : Create a separate class for split kernel and return a pointer to that class */
+			return new OpenCLDevice(info, stats, background);
+		} else {
+			/* For any other device, take megakernel path */
+			return new OpenCLDevice(info, stats, background);
+		}
+	} else {
+		/* If we can't retrieve platform and device type information for some reason,
+		 * we default to megakernel path
+		 */
+		return new OpenCLDevice(info, stats, background);
+	}
 }
 
 bool device_opencl_init(void) {
