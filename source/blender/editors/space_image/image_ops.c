@@ -378,7 +378,7 @@ void IMAGE_OT_view_pan(wmOperatorType *ot)
 	ot->poll = space_image_main_area_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER | OPTYPE_LOCK_BYPASS;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR | OPTYPE_LOCK_BYPASS;
 	
 	/* properties */
 	RNA_def_float_vector(ot->srna, "offset", 2, NULL, -FLT_MAX, FLT_MAX,
@@ -594,7 +594,7 @@ void IMAGE_OT_view_zoom(wmOperatorType *ot)
 	ot->poll = space_image_main_area_poll;
 
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER | OPTYPE_LOCK_BYPASS;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR | OPTYPE_LOCK_BYPASS;
 	
 	/* properties */
 	prop = RNA_def_float(ot->srna, "factor", 0.0f, -FLT_MAX, FLT_MAX, "Factor",
@@ -1672,6 +1672,7 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 					goto cleanup;
 				}
 			}
+			BKE_imbuf_stamp_info(rr, ibuf);
 		}
 
 		/* fancy multiview OpenEXR */
@@ -1693,6 +1694,7 @@ static bool save_image_doit(bContext *C, SpaceImage *sima, wmOperator *op, SaveI
 			}
 			else {
 				colormanaged_ibuf = IMB_colormanagement_imbuf_for_write(ibuf, save_as_render, true, &imf->view_settings, &imf->display_settings, imf);
+				IMB_metadata_copy(colormanaged_ibuf, ibuf);
 				ok = BKE_imbuf_write_as(colormanaged_ibuf, simopts->filepath, imf, save_copy);
 				save_imbuf_post(ibuf, colormanaged_ibuf);
 			}
@@ -1931,7 +1933,7 @@ static void image_save_as_draw(bContext *UNUSED(C), wmOperator *op)
 	uiLayout *layout = op->layout;
 	ImageFormatData *imf = op->customdata;
 	PointerRNA imf_ptr, ptr;
-	const bool is_multiview = RNA_boolean_get(op->ptr, "use_multiview");
+	const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
 
 	/* image template */
 	RNA_pointer_create(NULL, &RNA_ImageFormatSettings, imf, &imf_ptr);
@@ -1943,7 +1945,7 @@ static void image_save_as_draw(bContext *UNUSED(C), wmOperator *op)
 
 	/* multiview template */
 	if (is_multiview)
-		uiTemplateImageFormatViews(layout, &imf_ptr, NULL);
+		uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
 }
 
 static int image_save_as_poll(bContext *C)
