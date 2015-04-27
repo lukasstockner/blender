@@ -1930,9 +1930,7 @@ public:
 		return true;
 	}
 
-#ifdef __SPLIT_KERNEL__
 	/* Split kernel utility functions */
-
 	size_t get_tex_size(const char *tex_name) {
 		cl_mem ptr;
 		size_t ret_size;
@@ -2223,8 +2221,6 @@ public:
 		}
 		return "";
 	}
-#endif
-
 
 	bool load_kernels(bool /*experimental*/)
 	{
@@ -3746,7 +3742,6 @@ public:
 		}
 	}
 
-#ifdef __SPLIT_KERNEL__
 	/* Calculates the amount of memory that has to be always
 	* allocated in order for the split kernel to function.
 	* This memory is tile/scene-property invariant (meaning,
@@ -3981,7 +3976,6 @@ public:
 		}
 		return to_path_trace_rtile;
 	}
-#endif
 
 	void thread_run(DeviceTask *task)
 	{
@@ -3994,12 +3988,10 @@ public:
 		else if (task->type == DeviceTask::PATH_TRACE) {
 			RenderTile tile;
 
-#ifdef __SPLIT_KERNEL__
 			bool initialize_data_and_check_render_feasibility = false;
 			bool need_to_split_tiles_further = false;
 			int2 max_render_feasible_tile_size;
 			size_t feasible_global_work_size;
-#endif
 
 			/* keep rendering tiles until done */
 			while (task->acquire_tile(this, tile)) {
