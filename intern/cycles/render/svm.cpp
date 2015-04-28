@@ -81,14 +81,24 @@ void SVMShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 		compiler.compile(shader, svm_nodes, i);
 	}
 
-	/* Populate set of closure nodes associated with the scene */
-	/* Check if NODE_END is indeed the start of NodeType enum */
-	assert(NODE_END == 0);
-	for(int node_iter = 0; node_iter < svm_nodes.size(); node_iter++) {
-		int4 node = svm_nodes[node_iter];
-		if (node.x >= NODE_END && node.x <= NODE_UVMAP) {
-			/* if node.x is within start and end of NodeType insert node type into device->associated_closure_nodes */
-			device->closure_nodes.insert(node.x);
+	if (!device->get_background()) {
+		/* In case of interactive render, we skip selective compilation of svm nodes optimization */
+		/* Check if NODE_END is indeed the start of NodeType enum */
+		assert(NODE_END == 0);
+		for (int node_type_iter = NODE_END; node_type_iter <= NODE_UVMAP; node_type_iter++) {
+			device->closure_nodes.insert(node_type_iter);
+		}
+	}
+	else {
+		/* Populate set of closure nodes associated with the scene */
+		/* Check if NODE_END is indeed the start of NodeType enum */
+		assert(NODE_END == 0);
+		for(int node_iter = 0; node_iter < svm_nodes.size(); node_iter++) {
+			int4 node = svm_nodes[node_iter];
+			if (node.x >= NODE_END && node.x <= NODE_UVMAP) {
+				/* if node.x is within start and end of NodeType insert node type into device->associated_closure_nodes */
+				device->closure_nodes.insert(node.x);
+			}
 		}
 	}
 

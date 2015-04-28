@@ -2206,6 +2206,22 @@ public:
 
 		/* TODO : Use OpenCLCahce with spit kernel */
 
+		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
+		* to limit re-compilations
+		*/
+		if (!background) {
+			/* clos_max value can't be 0  */
+			clos_max = (clos_max == 0) ? 1 : clos_max;
+			clos_max = (((clos_max - 1) / 5) + 1) * 5;
+			/* clos_max value can't be greater than MAX_CLOSURE */
+			clos_max = (clos_max > MAX_CLOSURE) ? MAX_CLOSURE : clos_max;
+
+			if (current_clos_max == clos_max) {
+				/* present kernels have been created with the same closure count build option */
+				return true;
+			}
+		}
+
 		string svm_build_options = "";
 		string max_closure_build_option = "";
 		string compute_device_type_build_option = "";
@@ -2224,22 +2240,6 @@ public:
 			}
 		}
 		svm_build_options += " ";
-
-		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
-		* to limit re-compilations
-		*/
-		if (!background) {
-			/* clos_max value can't be 0  */
-			clos_max = (clos_max == 0) ? 1 : clos_max;
-			clos_max = (((clos_max - 1) / 5) + 1) * 5;
-			/* clos_max value can't be greater than MAX_CLOSURE */
-			clos_max = (clos_max > MAX_CLOSURE) ? MAX_CLOSURE : clos_max;
-
-			if (current_clos_max == clos_max) {
-				/* present kernels have been created with the same closure count build option */
-				return true;
-			}
-		}
 
 		/* Set max closure build option */
 #ifdef __MULTI_CLOSURE__
