@@ -25,8 +25,6 @@
 #include "device.h"
 #include "device_intern.h"
 
-#define __SPLIT_KERNEL__
-
 #include "buffers.h"
 
 #include "util_foreach.h"
@@ -42,8 +40,7 @@ CCL_NAMESPACE_BEGIN
 
 #define CL_MEM_PTR(p) ((cl_mem)(uintptr_t)(p))
 
-#ifdef __SPLIT_KERNEL__
-
+/* Macro declarations used with split kernel */
 #define SPLIT_KERNEL_LOCAL_SIZE_X 64
 #define SPLIT_KERNEL_LOCAL_SIZE_Y 1
 
@@ -71,7 +68,6 @@ CCL_NAMESPACE_BEGIN
 #define SD_NUM_DIFFERENTIAL 2
 #endif
 #define SD_NUM_RAY_DP_DIFFERENTIAL3 1
-#endif
 
 static cl_device_type opencl_device_type()
 {
@@ -4186,7 +4182,6 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 	if (get_platform_and_devicetype(info, platform_name, device_type)) {
 		if (platform_name == "AMD Accelerated Parallel Processing" && device_type == CL_DEVICE_TYPE_GPU) {
 			/* If the device is an AMD GPU, take split kernel path */
-			/* TO DO : Create a separate class for split kernel and return a pointer to that class */
 			return new OpenCLDeviceSplitKernel(info, stats, background);
 		} else {
 			/* For any other device, take megakernel path */
