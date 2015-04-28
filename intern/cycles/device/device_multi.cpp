@@ -50,19 +50,18 @@ public:
 	{
 		Device *device;
 
-		bool use_split_kernel_test = false;
+		bool atleast_one_split_kernel_dev = false;
 
 		foreach(DeviceInfo& subinfo, info.multi_devices) {
 			device = Device::create(subinfo, stats, background);
-			use_split_kernel_test |= device->use_split_kernel;
+			atleast_one_split_kernel_dev |= device->use_split_kernel;
 			devices.push_back(SubDevice(device));
 		}
 
 		/* Set use_split_kernel of multi device to true, even
 		 * if one of the sub devices uses split kernel
-		 * todo: Enable it only for OpenCL multiple devices
 		 */
-		this->use_split_kernel = use_split_kernel_test;
+		this->use_split_kernel = atleast_one_split_kernel_dev;
 
 #ifdef WITH_NETWORK
 		/* try to add network devices */
