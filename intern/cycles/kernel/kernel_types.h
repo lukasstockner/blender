@@ -648,163 +648,95 @@ enum ShaderDataFlag {
 struct KernelGlobals;
 
 #ifdef __SPLIT_KERNEL__
+#define SD_DECLARE(type, what) ccl_global type *what
 #define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
 #define sd_fetch(t) (sd->t[TIDX])
 #define sc_fetch(index) (&sd->closure[TIDX * MAX_CLOSURE + index])
 #else
+#define SD_DECLARE(type, what) type what
 #define sd_fetch(t) (sd->t)
 #define sc_fetch(index) (&sd->closure[index])
 #endif
 
 typedef struct ShaderData {
-#ifdef __SPLIT_KERNEL__
-	/* ShaderData Strutcure of arrays */
 	/* position */
-	ccl_global float3 *P;
+	SD_DECLARE(float3, P);
 	/* smooth normal for shading */
-	ccl_global float3 *N;
+	SD_DECLARE(float3, N);
 	/* true geometric normal */
-	ccl_global float3 *Ng;
+	SD_DECLARE(float3, Ng);
 	/* view/incoming direction */
-	ccl_global float3 *I;
+	SD_DECLARE(float3, I);
 	/* shader id */
-	ccl_global int *shader;
+	SD_DECLARE(int, shader);
 	/* booleans describing shader, see ShaderDataFlag */
-	ccl_global int *flag;
+	SD_DECLARE(int, flag);
 
 	/* primitive id if there is one, ~0 otherwise */
-	ccl_global int *prim;
+	SD_DECLARE(int, prim);
 
 	/* combined type and curve segment for hair */
-	ccl_global int *type;
-
-	/* parametric coordinates
-	* - barycentric weights for triangles */
-	ccl_global float *u, *v;
-	/* object id if there is one, ~0 otherwise */
-	ccl_global int *object;
-
-	/* motion blur sample time */
-	ccl_global float *time;
-
-	/* length of the ray being shaded */
-	ccl_global float *ray_length;
-
-	/* ray bounce depth */
-	ccl_global  int *ray_depth;
-
-	/* ray transparent depth */
-	ccl_global int *transparent_depth;
-
-#ifdef __RAY_DIFFERENTIALS__
-	/* differential of P. these are orthogonal to Ng, not N */
-	ccl_global differential3 *dP;
-	/* differential of I */
-	ccl_global differential3 *dI;
-	/* differential of u, v */
-	ccl_global differential *du;
-	ccl_global differential *dv;
-#endif
-#ifdef __DPDU__
-	/* differential of P w.r.t. parametric coordinates. note that dPdu is
-	* not readily suitable as a tangent for shading on triangles. */
-	ccl_global float3 *dPdu, *dPdv;
-#endif
-
-#ifdef __OBJECT_MOTION__
-	/* object <-> world space transformations, cached to avoid
-	* re-interpolating them constantly for shading */
-	Transform ob_tfm;
-	Transform ob_itfm;
-#endif
-
-	/* Closure data, we store a fixed array of closures */
-	ccl_global ShaderClosure *closure;
-	ccl_global int *num_closure;
-	ccl_global float *randb_closure;
-
-	/* ray start position, only set for backgrounds */
-	ccl_global float3 *ray_P;
-	ccl_global differential3 *ray_dP;
-
-#ifdef __OSL__
-	struct KernelGlobals *osl_globals;
-#endif
-
-#else // __SPLIT_KERNEL__
-
-	/* position */
-	float3 P;
-	/* smooth normal for shading */
-	float3 N;
-	/* true geometric normal */
-	float3 Ng;
-	/* view/incoming direction */
-	float3 I;
-	/* shader id */
-	int shader;
-	/* booleans describing shader, see ShaderDataFlag */
-	int flag;
-
-	/* primitive id if there is one, ~0 otherwise */
-	int prim;
-
-	/* combined type and curve segment for hair */
-	int type;
+	SD_DECLARE(int, type);
 
 	/* parametric coordinates
 	 * - barycentric weights for triangles */
-	float u, v;
+	SD_DECLARE(float, u);
+	SD_DECLARE(float, v);
 	/* object id if there is one, ~0 otherwise */
-	int object;
+	SD_DECLARE(int, object);
 
 	/* motion blur sample time */
-	float time;
-	
+	SD_DECLARE(float, time);
+
 	/* length of the ray being shaded */
-	float ray_length;
-	
+	SD_DECLARE(float, ray_length);
+
 	/* ray bounce depth */
-	int ray_depth;
+	SD_DECLARE(int, ray_depth);
 
 	/* ray transparent depth */
-	int transparent_depth;
+	SD_DECLARE(int, transparent_depth);
 
 #ifdef __RAY_DIFFERENTIALS__
 	/* differential of P. these are orthogonal to Ng, not N */
-	differential3 dP;
+	SD_DECLARE(differential3, dP);
 	/* differential of I */
-	differential3 dI;
+	SD_DECLARE(differential3, dI);
 	/* differential of u, v */
-	differential du;
-	differential dv;
+	SD_DECLARE(differential, du);
+	SD_DECLARE(differential, dv);
 #endif
 #ifdef __DPDU__
 	/* differential of P w.r.t. parametric coordinates. note that dPdu is
 	 * not readily suitable as a tangent for shading on triangles. */
-	float3 dPdu, dPdv;
+	SD_DECLARE(float3, dPdu);
+	SD_DECLARE(float3, dPdv);
 #endif
 
 #ifdef __OBJECT_MOTION__
 	/* object <-> world space transformations, cached to avoid
 	 * re-interpolating them constantly for shading */
-	Transform ob_tfm;
-	Transform ob_itfm;
+	SD_DECLARE(Transform, ob_tfm);
+	SD_DECLARE(Transform, ob_itfm);
 #endif
 
 	/* Closure data, we store a fixed array of closures */
+#ifdef __SPLIT_KERNEL__
+	SD_DECLARE(ShaderClosure, closure);
+#else
 	ShaderClosure closure[MAX_CLOSURE];
-	int num_closure;
-	float randb_closure;
+#endif
+
+	SD_DECLARE(int, num_closure);
+	SD_DECLARE(float, randb_closure);
 
 	/* ray start position, only set for backgrounds */
-	float3 ray_P;
-	differential3 ray_dP;
+	SD_DECLARE(float3, ray_P);
+	SD_DECLARE(differential3, ray_dP);
 
 #ifdef __OSL__
 	struct KernelGlobals *osl_globals;
 #endif
-#endif // __SPLIT_KERNEL__
 } ShaderData;
 
 /* Path State */
