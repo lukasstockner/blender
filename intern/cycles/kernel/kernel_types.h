@@ -97,69 +97,41 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __KERNEL_OPENCL__
 
-/// hack: device_opencl.cpp needs to retrieve GPU capabilities
-#ifdef __OBJECT_MOTION__
-#undef __OBJECT_MOTION__
-#endif
-#ifdef __OSL__
-#undef __OSL__
-#endif
-#ifdef __SUBSURFACE__
-#undef __SUBSURFACE__
-#endif
-#ifdef __CMJ__
-#undef __CMJ__
-#endif
-#ifdef __VOLUME__
-#undef __VOLUME__
-#endif
-#ifdef __VOLUME_DECOUPLED__
-#undef __VOLUME_DECOUPLED__
-#endif
-#ifdef __VOLUME_SCATTER__
-#undef __VOLUME_SCATTER__
-#endif
-#ifdef __SHADOW_RECORD_ALL__
-#undef __SHADOW_RECORD_ALL__
-#endif
-#ifdef __KERNEL_DEBUG__
-#undef __KERNEL_DEBUG__
-#endif
-#ifdef __KERNEL_ADV_SHADING__
-#undef __KERNEL_ADV_SHADING__
-#endif
+/* keep __KERNEL_ADV_SHADING__ in sync with opencl_kernel_use_advanced_shading! */
 
-/// let NVIDIA & AMD OPENCL share the same features
-//#if defined(__KERNEL_OPENCL_SPLIT_KERNEL__) || defined(__KERNEL_OPENCL_NVIDIA__)
-#define __CL_USE_NATIVE__
+#ifdef __KERNEL_OPENCL_NVIDIA__
 #define __KERNEL_SHADING__
-//__KERNEL_ADV_SHADING__
-#define __MULTI_CLOSURE__
-#define __PASSES__
-#define __BACKGROUND_MIS__
-#define __LAMP_MIS__
-#define __AO__
-//#define __TRANSPARENT_SHADOWS__
-//#define __CAMERA_MOTION__
-//#define __HAIR__
-//#define __OBJECT_MOTION__
-//end __KERNEL_ADV_SHADING__
-//#define __BRANCHED_PATH__
-//#endif
+#define __KERNEL_ADV_SHADING__
+#endif
 
-/*
 #ifdef __KERNEL_OPENCL_APPLE__
 #define __KERNEL_SHADING__
 //#define __KERNEL_ADV_SHADING__
 #endif
+
+#ifdef __KERNEL_OPENCL_AMD__
+#define __CL_USE_NATIVE__
+#define __KERNEL_SHADING__
+//__KERNEL_ADV_SHADING__
+#define __MULTI_CLOSURE__
+#define __TRANSPARENT_SHADOWS__
+#define __PASSES__
+#define __BACKGROUND_MIS__
+#define __LAMP_MIS__
+#define __AO__
+//#define __CAMERA_MOTION__
+//#define __OBJECT_MOTION__
+//#define __HAIR__
+//end __KERNEL_ADV_SHADING__
+#endif
+
 #ifdef __KERNEL_OPENCL_INTEL_CPU__
 #define __CL_USE_NATIVE__
 #define __KERNEL_SHADING__
 #define __KERNEL_ADV_SHADING__
 #endif
-*/
 
-#endif /// OPENCL
+#endif // __KERNEL_OPENCL__
 
 /* kernel features */
 #define __SOBOL__
@@ -1132,6 +1104,8 @@ typedef struct DebugData {
 	int num_bvh_traversal_steps;
 } DebugData;
 #endif
+
+/* Declarations required for split kernel */
 
 /* Macro for queues */
 /* Value marking queue's empty slot */
