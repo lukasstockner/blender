@@ -47,6 +47,7 @@
 #include "BLI_link_utils.h"
 #include "BLI_string.h"
 #include "BLI_math.h"
+#include "BLI_math_color_blend.h" /* temporary, for fancy CPU-side wireframes */
 #include "BLI_memarena.h"
 
 #include "BKE_anim.h"  /* for the where_on_path function */
@@ -4968,6 +4969,8 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 
 				dm->gpux_batch->prim_type = GL_LINES;
 
+#if 0
+				/* draw plain wireframe (single color) */
 				verts = GPUx_vertex_buffer_create(1, vert_ct);
 				GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
 				GPUx_fill_attrib_stride(verts, 0, mverts, sizeof(MVert));
@@ -4978,10 +4981,131 @@ static bool draw_mesh_object_new_new(Scene *scene, ARegion *ar, View3D *v3d, Reg
 					const MEdge *edge = edges + i;
 					GPUx_set_line_vertices(elem, i, edge->v1, edge->v2);
 				}
+#else
+				/* draw wireframe with color based on angle */
+				const MPoly *polys = dm->getPolyArray(dm);
+				const MLoop *loops = dm->getLoopArray(dm);
+
+				float (*face_normal)[3] = MEM_mallocN(poly_ct * 3 * sizeof(float), "face_normal");
+
+				/* TODO: rename? FacesAdjacentToEdge, FacesJoinedByEdge, FacesMeetingAtEdge */
+				typedef struct {
+					int count;
+					int face_index[2];
+				} AdjacentFaces;
+
+				AdjacentFaces *adj_faces = MEM_callocN(edge_ct * sizeof(AdjacentFaces), "adj_faces");
+
+				for (i = 0; i < poly_ct; ++i) {
+					const MPoly *poly = polys + i;
+					int j;
+
+					BKE_mesh_calc_poly_normal(poly, loops + poly->loopstart, mverts, face_normal[i]);
+
+					for (j = poly->loopstart; j < (poly->loopstart + poly->totloop); ++j) {
+						AdjacentFaces *adj = adj_faces + loops[j].e;
+						if (adj->count < 2)
+							adj->face_index[adj->count] = i;
+						adj->count++;
+					}
+				}
+
+				/* color by how many faces join at this edge */
+				const float line_color[4][3] = {
+					{0.0f, 1.0f, 0.4f}, /* 0, loose edge */
+					{1.0f, 1.0f, 1.0f}, /* 1, perimeter edge */
+					{0.0f /*ignored*/}, /* 2, regular edge */
+					{1.0f, 0.0f, 0.0f}, /* 3 or more, overbooked (legal but weird) */
+				};
+
+				const float min_angle_color[3] = {0.2f, 0.2f, 0.2f};
+				const float max_angle_color[3] = {0.0f, 0.6f, 1.5f};
+				const float min_angle = 0.0f; /* don't draw lines with angle < this */
+  #if 1 /* CPU edition */
+				const float max_angle = M_PI;
+				const float nowhere[3] = {0.0f};
+
+				verts = GPUx_vertex_buffer_create(2, 2 * edge_ct);
+
+				GPUx_specify_attrib(verts, 0, GL_VERTEX_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+				GPUx_specify_attrib(verts, 1, GL_COLOR_ARRAY, GL_FLOAT, 3, KEEP_FLOAT);
+
+				for (i = 0; i < edge_ct; ++i) {
+					const MEdge *edge = edges + i;
+					const AdjacentFaces *adj = adj_faces + i;
+					const int v1 = 2 * i,
+					          v2 = 2 * i + 1;
+
+					GPUx_set_attrib(verts, 0, v1, &mverts[edge->v1].co);
+					GPUx_set_attrib(verts, 0, v2, &mverts[edge->v2].co);
+
+					if (adj->count == 2) {
+						const int f1 = adj->face_index[0],
+						          f2 = adj->face_index[1];
+//						float angle = acosf(dot_v3v3(face_normal[adj->f[0]], face_normal[adj->f[1]]));
+						const float angle = angle_normalized_v3v3(face_normal[f1], face_normal[f2]);
+						if (angle < min_angle) {
+							/* rasterize no fragments (essentially discards the line) */
+							GPUx_set_attrib(verts, 0, v1, nowhere);
+							GPUx_set_attrib(verts, 0, v2, nowhere);
+						}
+						else {
+							/* calculate color based on angle */
+							const float factor = (angle - min_angle) / (max_angle - min_angle);
+							float angle_color[3];
+							blend_color_interpolate_float(angle_color, min_angle_color, max_angle_color, factor);
+							GPUx_set_attrib(verts, 1, v2, angle_color);
+						}
+					}
+					else {
+						GPUx_set_attrib(verts, 1, v2, adj->count > 2 ? line_color[3] : line_color[adj->count]);
+					}
+				}
+  #else /* shader edition */
+				/* -- uniforms -- */
+
+				/* vec3 adj_0_color
+				 * vec3 adj_1_color
+				 * vec3 adj_many_color
+				 * vec3 min_angle_color
+				 * vec3 max_angle_color
+				 * float min_angle
+				 */
+
+				/* -- attributes -- */
+				verts = GPUx_vertex_buffer_create(3, 2 * edge_ct);
+
+				GPUx_specify_attrib(verts, 0, "pos",       GL_FLOAT, 3, KEEP_FLOAT);
+				GPUx_specify_attrib(verts, 1, "adj_count", GL_INT,   1, KEEP_INT);
+				GPUx_specify_attrib(verts, 2, "angle",     GL_FLOAT, 1, KEEP_FLOAT);
+
+				for (i = 0; i < edge_ct; ++i) {
+					const MEdge *edge = edges + i;
+					const AdjacentFaces *adj = adj_faces + i;
+					const int v1 = 2 * i,
+					          v2 = 2 * i + 1;
+
+					GPUx_set_attrib(verts, 0, v1, &mverts[edge->v1].co);
+					GPUx_set_attrib(verts, 0, v2, &mverts[edge->v2].co);
+
+					GPUx_set_attrib(verts, 1, v2, &adj->count);
+
+					if (adj->count == 2) {
+						const int f1 = adj->face_index[0],
+						          f2 = adj->face_index[1];
+						const float angle = angle_normalized_v3v3(face_normal[f1], face_normal[f2]);
+						GPUx_set_attrib(verts, 2, v2, &angle);
+					}
+				}
+  #endif /* CPU vs shader */
+
+				MEM_freeN(face_normal);
+				MEM_freeN(adj_faces);
+#endif
 			}
 
 			GPUx_vertex_buffer_prime(verts);
-			GPUx_element_list_prime(elem);
+			if (elem) GPUx_element_list_prime(elem);
 
 			dm->gpux_batch->buff = verts;
 			dm->gpux_batch->elem = elem;
