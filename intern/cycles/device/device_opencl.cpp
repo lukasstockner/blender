@@ -2361,7 +2361,7 @@ public:
 		current_clos_max = clos_max;
 
 		kernel_init_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
-		custom_kernel_build_options = "-D__SPLIT_KERNEL__ ";
+		custom_kernel_build_options = "";
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if (!load_split_kernel(&cpProgram, kernel_path, "", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
