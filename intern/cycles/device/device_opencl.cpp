@@ -25,11 +25,6 @@
 #include "device.h"
 #include "device_intern.h"
 
-/* hack: we need to get OpenCL features available for different vendors instead of default CPU
- * now we have only one opencl feature set shared by nvidia and amd
- */
-
-#define __KERNEL_OPENCL__
 #define __SPLIT_KERNEL__
 
 #include "buffers.h"
