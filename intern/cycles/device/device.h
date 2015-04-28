@@ -97,15 +97,13 @@ public:
 	/* statistics */
 	Stats &stats;
 
+	/* variables/functions used exclusively for split kernel */
 	/* Maximum closure count */
 	int clos_max;
-
 	/* Denotes if the device is going to run cycles using split-kernel */
 	bool use_split_kernel;
-
 	/* Get all closure nodes associated with the scene */
 	set<int> closure_nodes;
-
 	/* Return background */
 	bool get_background() { return background; }
 

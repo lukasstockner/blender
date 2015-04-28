@@ -3207,7 +3207,6 @@ public:
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(N_sd), (void*)&N_sd));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(N_sd_DL_shadow), (void*)&N_sd_DL_shadow));
 
-
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ng_sd), (void*)&Ng_sd));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ng_sd_DL_shadow), (void*)&Ng_sd_DL_shadow));
 
