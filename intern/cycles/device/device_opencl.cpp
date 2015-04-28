@@ -1177,7 +1177,6 @@ public:
 	cl_kernel ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL;
 	cl_kernel ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL;
 	cl_kernel ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_Subsurface_SPLIT_KERNEL;
 	cl_kernel ckPathTraceKernel_DirectLighting_SPLIT_KERNEL;
 	cl_kernel ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL;
 	cl_kernel ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL;
@@ -1195,7 +1194,6 @@ public:
 	cl_program background_BufferUpdate_program;
 	cl_program shaderEval_program;
 	cl_program holdout_emission_blurring_termination_ao_program;
-	cl_program subsurface_program;
 	cl_program directLighting_program;
 	cl_program shadowBlocked_program;
 	cl_program nextIterationSetUp_program;
@@ -1426,7 +1424,6 @@ public:
 		ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL = NULL;
 		ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL = NULL;
 		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_Subsurface_SPLIT_KERNEL = NULL;
 		ckPathTraceKernel_DirectLighting_SPLIT_KERNEL = NULL;
 		ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL = NULL;
 		ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL = NULL;
@@ -1445,7 +1442,6 @@ public:
 		background_BufferUpdate_program = NULL;
 		shaderEval_program = NULL;
 		holdout_emission_blurring_termination_ao_program = NULL;
-		subsurface_program = NULL;
 		directLighting_program = NULL;
 		shadowBlocked_program = NULL;
 		nextIterationSetUp_program = NULL;
@@ -2313,14 +2309,7 @@ public:
 		clbin = string_printf("cycles_kernel_%s_%s_Holdout_Emission_Blurring_Pathtermination_AO.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if (!load_split_kernel(&holdout_emission_blurring_termination_ao_program, kernel_path, "ao", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
 			return false;
-#ifdef __SUBSURFACE__
-		kernel_init_source = "#include \"kernel_Subsurface.cl\" // " + kernel_md5 + "\n";
-		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option;
-		device_md5 = device_md5_hash(custom_kernel_build_options);
-		clbin = string_printf("cycles_kernel_%s_%s_Subsurface.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if (!load_split_kernel(&subsurface_program, kernel_path, kernel_md5, device_md5, kernel_init_source, clbin, custom_kernel_build_options))
-			return false;
-#endif
+
 		kernel_init_source = "#include \"kernel_DirectLighting.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + compute_device_type_build_option + svm_build_options;
 		device_md5 = device_md5_hash(custom_kernel_build_options);
@@ -2386,12 +2375,6 @@ public:
 		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL = clCreateKernel(holdout_emission_blurring_termination_ao_program, "kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO_SPLIT_KERNEL", &ciErr);
 		if (opencl_error(ciErr))
 			return false;
-
-#ifdef __SUBSURFACE__
-		ckPathTraceKernel_Subsurface_SPLIT_KERNEL = clCreateKernel(subsurface_program, "kernel_ocl_path_trace_Subsurface_SPLIT_KERNEL", &ciErr);
-		if (opencl_error(ciErr))
-			return false;
-#endif
 
 		ckPathTraceKernel_DirectLighting_SPLIT_KERNEL = clCreateKernel(directLighting_program, "kernel_ocl_path_trace_DirectLighting_SPLIT_KERNEL", &ciErr);
 		if (opencl_error(ciErr))
@@ -2462,9 +2445,6 @@ public:
 
 		if (ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL)
 			clReleaseKernel(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL);
-
-		if (ckPathTraceKernel_Subsurface_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_Subsurface_SPLIT_KERNEL);
 
 		if (ckPathTraceKernel_DirectLighting_SPLIT_KERNEL)
 			clReleaseKernel(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL);
@@ -2749,9 +2729,6 @@ public:
 
 		if (holdout_emission_blurring_termination_ao_program)
 			clReleaseProgram(holdout_emission_blurring_termination_ao_program);
-
-		if (subsurface_program)
-			clReleaseProgram(subsurface_program);
 
 		if (directLighting_program)
 			clReleaseProgram(directLighting_program);
@@ -3466,23 +3443,6 @@ public:
 #endif
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
 
-		/* Set up arguments for ckPathTraceKernel_Subsurface_SPLIT_KERNEL */
-#ifdef __SUBSURFACE__
-		narg = 0;
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(sd), (void*)&sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(PathRadiance_coop), (void*)&PathRadiance_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(PathState_coop), (void*)&PathState_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(rng_coop), (void*)&rng_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(throughput_coop), (void*)&throughput_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(Ray_coop), (void*)&Ray_coop));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(ray_state), (void*)&ray_state));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_Subsurface_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
-#endif
-
 		/* Set up arguments for ckPathTraceKernel_DirectLighting_SPLIT_KERNEL kernel */
 		narg = 0;
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
@@ -3575,9 +3535,6 @@ public:
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
-#ifdef __SUBSURFACE__
-				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_Subsurface_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
-#endif
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, 2, NULL, global_size_shadow_blocked, local_size, 0, NULL, NULL));
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));

@@ -21,7 +21,6 @@ set(SRC
 	kernel_Background_BufferUpdate.cl
 	kernel_ShaderEval.cl
 	kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl
-	kernel_Subsurface.cl
 	kernel_DirectLighting.cl
 	kernel_ShadowBlocked.cl
 	kernel_NextIterationSetUp.cl
@@ -305,7 +304,6 @@ delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_LampEmission.cl" ${CYCLES_IN
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_Background_BufferUpdate.cl" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_ShaderEval.cl" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl" ${CYCLES_INSTALL_PATH}/kernel)
-delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_Subsurface.cl" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_DirectLighting.cl" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_ShadowBlocked.cl" ${CYCLES_INSTALL_PATH}/kernel)
 delayed_install(${CMAKE_CURRENT_SOURCE_DIR} "kernel_NextIterationSetUp.cl" ${CYCLES_INSTALL_PATH}/kernel)
