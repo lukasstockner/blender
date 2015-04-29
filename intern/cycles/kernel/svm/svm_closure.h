@@ -351,7 +351,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 				sc->N = N;
 
 				/* sigma */
-				sc->data0 = clamp(param1, 0.0f, 1.0f);
+				sc->data0 = saturate(param1);
 				sc->data1 = 0.0f;
 				sc->data2 = 0.0f;
 				sd_fetch(flag) |= bsdf_ashikhmin_velvet_setup(sc);
@@ -664,7 +664,7 @@ ccl_device void svm_node_mix_closure(__ADDR_SPACE__ ShaderData *sd, float *stack
 	decode_node_uchar4(node.y, &weight_offset, &in_weight_offset, &weight1_offset, &weight2_offset);
 
 	float weight = stack_load_float(stack, weight_offset);
-	weight = clamp(weight, 0.0f, 1.0f);
+	weight = saturate(weight);
 
 	float in_weight = (stack_valid(in_weight_offset))? stack_load_float(stack, in_weight_offset): 1.0f;
 

@@ -206,7 +206,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 
 			/* If node is leaf, fetch triangle list. */
 			if(nodeAddr < 0) {
-				float4 leaf = kernel_tex_fetch(__bvh_nodes, (-nodeAddr-1)*BVH_QNODE_SIZE+6);
+				float4 leaf = kernel_tex_fetch(__bvh_leaf_nodes, (-nodeAddr-1)*BVH_QNODE_LEAF_SIZE);
 #ifdef __VISIBILITY_FLAG__
 				if((__float_as_uint(leaf.z) & PATH_RAY_SHADOW) == 0) {
 					/* Pop. */
@@ -279,7 +279,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(KernelGlobals *kg,
 							if(kernel_tex_fetch(__prim_type, isect_array->prim) & PRIMITIVE_ALL_TRIANGLE)
 #endif
 							{
-								shader =  kernel_tex_fetch(__tri_shader, prim);
+								shader = kernel_tex_fetch(__tri_shader, prim);
 							}
 #ifdef __HAIR__
 							else {

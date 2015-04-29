@@ -60,7 +60,7 @@ ccl_device float volume_attribute_float(__ADDR_SPACE__ KernelGlobals *kg, const 
 #endif
 
 	if(dx) *dx = 0.0f;
-	if(dx) *dy = 0.0f;
+	if(dy) *dy = 0.0f;
 
 	/* todo: support float textures to lower memory usage for single floats */
 	return average(float4_to_float3(r));

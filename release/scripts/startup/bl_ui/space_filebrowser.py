@@ -84,7 +84,7 @@ class FILEBROWSER_HT_header(Header):
 class FILEBROWSER_UL_dir(bpy.types.UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         direntry = item
-        space = context.space_data
+        # space = context.space_data
         icon = 'NONE'
         if active_propname == "system_folders_active":
             icon = 'DISK_DRIVE'
@@ -99,12 +99,12 @@ class FILEBROWSER_UL_dir(bpy.types.UIList):
             row = layout.row(align=True)
             row.enabled = direntry.is_valid
             # Non-editable entries would show grayed-out, which is bad in this specific case, so switch to mere label.
-            if direntry.is_property_readonly('name'):
+            if direntry.is_property_readonly("name"):
                 row.label(text=direntry.name, icon=icon)
             else:
                 row.prop(direntry, "name", text="", emboss=False, icon=icon)
 
-        elif self.layout_type in {'GRID'}:
+        elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.prop(direntry, "path", text="")
 

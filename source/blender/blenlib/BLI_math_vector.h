@@ -271,6 +271,8 @@ void angle_poly_v3(float *angles, const float *verts[3], int len);
 
 void project_v2_v2v2(float c[2], const float v1[2], const float v2[2]);
 void project_v3_v3v3(float r[3], const float p[3], const float n[3]);
+void project_plane_v3_v3v3(float c[3], const float v[3], const float v_plane[3]);
+void project_plane_v2_v2v2(float c[2], const float v[2], const float v_plane[2]);
 void project_v3_plane(float v[3], const float n[3], const float p[3]);
 void reflect_v3_v3v3(float r[3], const float v[3], const float n[3]);
 void ortho_basis_v3v3_v3(float r_n1[3], float r_n2[3], const float n[3]);
@@ -312,6 +314,7 @@ double len_squared_vn(const float *array, const int size) ATTR_WARN_UNUSED_RESUL
 float normalize_vn_vn(float *array_tar, const float *array_src, const int size);
 float normalize_vn(float *array_tar, const int size);
 void range_vn_i(int *array_tar, const int size, const int start);
+void range_vn_u(unsigned int *array_tar, const int size, const unsigned int start);
 void range_vn_fl(float *array_tar, const int size, const float start, const float step);
 void negate_vn(float *array_tar, const int size);
 void negate_vn_vn(float *array_tar, const float *array_src, const int size);

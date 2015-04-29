@@ -236,7 +236,7 @@ ccl_device_inline float3 motion_triangle_refine_subsurface(__ADDR_SPACE__ Kernel
 ccl_device_noinline void motion_triangle_shader_setup(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, const __ADDR_SPACE__ Intersection *isect, const Ray *ray, bool subsurface)
 {
 	/* get shader */
-	sd_fetch(shader) =  kernel_tex_fetch(__tri_shader, sd_fetch(prim));
+	sd_fetch(shader) = kernel_tex_fetch(__tri_shader, sd_fetch(prim));
 
 	/* get motion info */
 	int numsteps, numverts;

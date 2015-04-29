@@ -150,7 +150,7 @@ ccl_device_inline void kernel_write_data_passes(__ADDR_SPACE__ KernelGlobals *kg
 		float mist_inv_depth = kernel_data.film.mist_inv_depth;
 
 		float depth = camera_distance(kg, sd_fetch(P));
-		float mist = clamp((depth - mist_start)*mist_inv_depth, 0.0f, 1.0f);
+		float mist = saturate((depth - mist_start)*mist_inv_depth);
 
 		/* falloff */
 		float mist_falloff = kernel_data.film.mist_falloff;

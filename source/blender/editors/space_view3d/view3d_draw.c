@@ -50,6 +50,7 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 #include "BLI_endian_switch.h"
+#include "BLI_threads.h"
 
 #include "BKE_anim.h"
 #include "BKE_camera.h"
@@ -99,6 +100,11 @@
 #include "GPU_compositing.h"
 
 #include "view3d_intern.h"  /* own include */
+
+/* prototypes */
+static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar);
+static void view3d_stereo3d_setup_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
+                                            float winmat[4][4], const char *viewname);
 
 /* handy utility for drawing shapes in the viewport for arbitrary code.
  * could add lines and points too */
@@ -466,7 +472,7 @@ float ED_view3d_grid_scale(Scene *scene, View3D *v3d, const char **grid_unit)
 	return v3d->grid * ED_scene_grid_scale(scene, grid_unit);
 }
 
-static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
+static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit, bool write_depth)
 {
 	float grid, grid_scale;
 	unsigned char col_grid[3];
@@ -478,7 +484,8 @@ static void drawfloor(Scene *scene, View3D *v3d, const char **grid_unit)
 	grid_scale = ED_view3d_grid_scale(scene, v3d, grid_unit);
 	grid = gridlines * grid_scale;
 
-	glDepthMask(GL_FALSE);
+	if (!write_depth)
+		glDepthMask(GL_FALSE);
 
 	UI_GetThemeColor3ubv(TH_GRID, col_grid);
 
@@ -651,7 +658,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	glEnable(GL_POINT_SMOOTH);
 	glDepthMask(0);  /* don't overwrite zbuf */
 
-	if (rv3d->rot_angle != 0.f) {
+	if (rv3d->rot_angle != 0.0f) {
 		/* -- draw rotation axis -- */
 		float scaled_axis[3];
 		const float scale = rv3d->dist;
@@ -659,19 +666,21 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 
 
 		glBegin(GL_LINE_STRIP);
-		color[3] = 0.f;  /* more transparent toward the ends */
+		color[3] = 0.0f;  /* more transparent toward the ends */
 		glColor4fv(color);
 		add_v3_v3v3(end, o, scaled_axis);
 		glVertex3fv(end);
 
-		// color[3] = 0.2f + fabsf(rv3d->rot_angle);  /* modulate opacity with angle */
-		// ^^ neat idea, but angle is frame-rate dependent, so it's usually close to 0.2
+#if 0
+		color[3] = 0.2f + fabsf(rv3d->rot_angle);  /* modulate opacity with angle */
+		/* ^^ neat idea, but angle is frame-rate dependent, so it's usually close to 0.2 */
+#endif
 
 		color[3] = 0.5f;  /* more opaque toward the center */
 		glColor4fv(color);
 		glVertex3fv(o);
 
-		color[3] = 0.f;
+		color[3] = 0.0f;
 		glColor4fv(color);
 		sub_v3_v3v3(end, o, scaled_axis);
 		glVertex3fv(end);
@@ -682,14 +691,14 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 #define     ROT_AXIS_DETAIL 13
 
 			const float s = 0.05f * scale;
-			const float step = 2.f * (float)(M_PI / ROT_AXIS_DETAIL);
+			const float step = 2.0f * (float)(M_PI / ROT_AXIS_DETAIL);
 			float angle;
 			int i;
 
 			float q[4];  /* rotate ring so it's perpendicular to axis */
 			const int upright = fabsf(rv3d->rot_axis[2]) >= 0.95f;
 			if (!upright) {
-				const float up[3] = {0.f, 0.f, 1.f};
+				const float up[3] = {0.0f, 0.0f, 1.0f};
 				float vis_angle, vis_axis[3];
 
 				cross_v3_v3v3(vis_axis, up, rv3d->rot_axis);
@@ -700,7 +709,7 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 			color[3] = 0.25f;  /* somewhat faint */
 			glColor4fv(color);
 			glBegin(GL_LINE_LOOP);
-			for (i = 0, angle = 0.f; i < ROT_AXIS_DETAIL; ++i, angle += step) {
+			for (i = 0, angle = 0.0f; i < ROT_AXIS_DETAIL; ++i, angle += step) {
 				float p[3] = {s * cosf(angle), s * sinf(angle), 0.0f};
 
 				if (!upright) {
@@ -726,12 +735,12 @@ static void draw_rotation_guide(RegionView3D *rv3d)
 	glVertex3fv(o);
 	glEnd();
 
-	/* find screen coordinates for rotation center, then draw pretty icon */
 #if 0
+	/* find screen coordinates for rotation center, then draw pretty icon */
 	mul_m4_v3(rv3d->persinv, rot_center);
 	UI_icon_draw(rot_center[0], rot_center[1], ICON_NDOF_TURN);
-#endif
 	/* ^^ just playing around, does not work */
+#endif
 
 	glDisable(GL_BLEND);
 	glDisable(GL_POINT_SMOOTH);
@@ -1319,12 +1328,12 @@ static void backdrawview3d(Scene *scene, ARegion *ar, View3D *v3d)
 		/* do nothing */
 	}
 	else if ((base && (base->object->mode & OB_MODE_PARTICLE_EDIT)) &&
-	         v3d->drawtype > OB_WIRE && (v3d->flag & V3D_ZBUF_SELECT))
+	         V3D_IS_ZBUF(v3d))
 	{
 		/* do nothing */
 	}
-	else if (scene->obedit && v3d->drawtype > OB_WIRE &&
-	         (v3d->flag & V3D_ZBUF_SELECT))
+	else if (scene->obedit &&
+	         V3D_IS_ZBUF(v3d))
 	{
 		/* do nothing */
 	}
@@ -1446,14 +1455,23 @@ static void view3d_opengl_read_Z_pixels(ARegion *ar, int x, int y, int w, int h,
 	glReadPixels(ar->winrct.xmin + x, ar->winrct.ymin + y, w, h, format, type, data);
 }
 
-void view3d_validate_backbuf(ViewContext *vc)
+void ED_view3d_backbuf_validate(ViewContext *vc)
 {
 	if (vc->v3d->flag & V3D_INVALID_BACKBUF)
 		backdrawview3d(vc->scene, vc->ar, vc->v3d);
 }
 
+/**
+ * allow for small values [0.5 - 2.5],
+ * and large values, FLT_MAX by clamping by the area size
+ */
+int ED_view3d_backbuf_sample_size_clamp(ARegion *ar, const float dist)
+{
+	return (int)min_ff(ceilf(dist), (float)max_ii(ar->winx, ar->winx));
+}
+
 /* samples a single pixel (copied from vpaint) */
-unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
+unsigned int ED_view3d_backbuf_sample(ViewContext *vc, int x, int y)
 {
 	unsigned int col;
 	
@@ -1461,7 +1479,7 @@ unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
 		return 0;
 	}
 
-	view3d_validate_backbuf(vc);
+	ED_view3d_backbuf_validate(vc);
 
 	view3d_opengl_read_pixels(vc->ar, x, y, 1, 1, GL_RGBA, GL_UNSIGNED_BYTE, &col);
 	glReadBuffer(GL_BACK);
@@ -1474,7 +1492,7 @@ unsigned int view3d_sample_backbuf(ViewContext *vc, int x, int y)
 }
 
 /* reads full rect, converts indices */
-ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, short ymax)
+ImBuf *ED_view3d_backbuf_read(ViewContext *vc, short xmin, short ymin, short xmax, short ymax)
 {
 	unsigned int *dr, *rd;
 	struct ImBuf *ibuf, *ibuf1;
@@ -1482,17 +1500,18 @@ ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, 
 	short xminc, yminc, xmaxc, ymaxc, xs, ys;
 	
 	/* clip */
-	if (xmin < 0) xminc = 0; else xminc = xmin;
-	if (xmax >= vc->ar->winx) xmaxc = vc->ar->winx - 1; else xmaxc = xmax;
-	if (xminc > xmaxc) return NULL;
+	xminc = max_ii(xmin, 0);
+	yminc = max_ii(ymin, 0);
+	xmaxc = min_ii(xmax, vc->ar->winx - 1);
+	ymaxc = min_ii(ymax, vc->ar->winy - 1);
 
-	if (ymin < 0) yminc = 0; else yminc = ymin;
-	if (ymax >= vc->ar->winy) ymaxc = vc->ar->winy - 1; else ymaxc = ymax;
-	if (yminc > ymaxc) return NULL;
-	
+	if (UNLIKELY((xminc > xmaxc) || (yminc > ymaxc))) {
+		return NULL;
+	}
+
 	ibuf = IMB_allocImBuf((xmaxc - xminc + 1), (ymaxc - yminc + 1), 32, IB_rect);
 
-	view3d_validate_backbuf(vc);
+	ED_view3d_backbuf_validate(vc);
 
 	view3d_opengl_read_pixels(vc->ar,
 	             xminc, yminc,
@@ -1532,23 +1551,21 @@ ImBuf *view3d_read_backbuf(ViewContext *vc, short xmin, short ymin, short xmax, 
 }
 
 /* smart function to sample a rect spiralling outside, nice for backbuf selection */
-unsigned int view3d_sample_backbuf_rect(ViewContext *vc, const int mval[2], int size,
-                                        unsigned int min, unsigned int max, float *r_dist, short strict,
-                                        void *handle, bool (*indextest)(void *handle, unsigned int index))
+unsigned int ED_view3d_backbuf_sample_rect(
+        ViewContext *vc, const int mval[2], int size,
+        unsigned int min, unsigned int max, float *r_dist)
 {
 	struct ImBuf *buf;
-	unsigned int *bufmin, *bufmax, *tbuf;
+	const unsigned int *bufmin, *bufmax, *tbuf;
 	int minx, miny;
 	int a, b, rc, nr, amount, dirvec[4][2];
-	int distance = 0;
 	unsigned int index = 0;
-	bool indexok = false;
 
 	amount = (size - 1) / 2;
 
 	minx = mval[0] - (amount + 1);
 	miny = mval[1] - (amount + 1);
-	buf = view3d_read_backbuf(vc, minx, miny, minx + size - 1, miny + size - 1);
+	buf = ED_view3d_backbuf_read(vc, minx, miny, minx + size - 1, miny + size - 1);
 	if (!buf) return 0;
 
 	rc = 0;
@@ -1566,21 +1583,19 @@ unsigned int view3d_sample_backbuf_rect(ViewContext *vc, const int mval[2], int 
 	for (nr = 1; nr <= size; nr++) {
 		
 		for (a = 0; a < 2; a++) {
-			for (b = 0; b < nr; b++, distance++) {
-				if (*tbuf && *tbuf >= min && *tbuf < max) {  /* we got a hit */
-					if (strict) {
-						indexok =  indextest(handle, *tbuf - min + 1);
-						if (indexok) {
-							*r_dist = sqrtf((float)distance);
-							index = *tbuf - min + 1;
-							goto exit; 
-						}
-					}
-					else {
-						*r_dist = sqrtf((float)distance);  /* XXX, this distance is wrong - */
-						index = *tbuf - min + 1;  /* messy yah, but indices start at 1 */
-						goto exit;
-					}
+			for (b = 0; b < nr; b++) {
+				if (*tbuf && *tbuf >= min && *tbuf < max) {
+					/* we got a hit */
+
+					/* get x,y pixel coords from the offset
+					 * (manhatten distance in keeping with other screen-based selection) */
+					*r_dist = (float)(
+					        abs(((int)(tbuf - buf->rect) % size) - (size / 2)) +
+					        abs(((int)(tbuf - buf->rect) / size) - (size / 2)));
+
+					/* indices start at 1 here */
+					index = (*tbuf - min) + 1;
+					goto exit;
 				}
 				
 				tbuf += (dirvec[rc][0] + dirvec[rc][1]);
@@ -1601,6 +1616,26 @@ exit:
 
 
 /* ************************************************************* */
+
+static void view3d_stereo_bgpic_setup(Scene *scene, View3D *v3d, Image *ima, ImageUser *iuser)
+{
+	if ((ima->flag & IMA_IS_STEREO)) {
+		iuser->flag |= IMA_SHOW_STEREO;
+
+		if ((scene->r.scemode & R_MULTIVIEW) == 0) {
+			iuser->multiview_eye = STEREO_LEFT_ID;
+		}
+		else if (v3d->stereo3d_camera != STEREO_3D_ID) {
+			/* show only left or right camera */
+			iuser->multiview_eye = v3d->stereo3d_camera;
+		}
+
+		BKE_image_multiview_index(ima, iuser);
+	}
+	else {
+		iuser->flag &= ~IMA_SHOW_STEREO;
+	}
+}
 
 static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
                               const bool do_foreground, const bool do_camera_frame)
@@ -1645,6 +1680,7 @@ static void view3d_draw_bgpic(Scene *scene, ARegion *ar, View3D *v3d,
 					ibuf = NULL; /* frame is out of range, dont show */
 				}
 				else {
+					view3d_stereo_bgpic_setup(scene, v3d, ima, &bgpic->iuser);
 					ibuf = BKE_image_acquire_ibuf(ima, &bgpic->iuser, &lock);
 					releaseibuf = ibuf;
 				}
@@ -2550,7 +2586,7 @@ static void gpu_update_lamps_shadows_world(Scene *scene, View3D *v3d)
 		ED_view3d_draw_offscreen(
 		            scene, v3d, &ar, winsize, winsize, viewmat, winmat,
 		            false, false, true,
-		            NULL, NULL, NULL);
+		            NULL, NULL, NULL, NULL);
 		GPU_lamp_shadow_buffer_unbind(shadow->lamp);
 		
 		v3d->drawtype = drawtype;
@@ -2691,7 +2727,7 @@ static void view3d_draw_objects(
 	const bool draw_grids = !draw_offscreen && (v3d->flag2 & V3D_RENDER_OVERRIDE) == 0;
 	const bool draw_floor = (rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO);
 	/* only draw grids after in solid modes, else it hovers over mesh wires */
-	const bool draw_grids_after = draw_grids && draw_floor && (v3d->drawtype > OB_WIRE);
+	const bool draw_grids_after = draw_grids && draw_floor && (v3d->drawtype > OB_WIRE) && fx;
 	bool do_composite_xray = false;
 	bool xrayclear = true;
 
@@ -2740,8 +2776,8 @@ static void view3d_draw_objects(
 			glMatrixMode(GL_MODELVIEW);
 			glLoadMatrixf(rv3d->viewmat);
 		}
-		else {
-			drawfloor(scene, v3d, grid_unit);
+		else if (!draw_grids_after){
+			drawfloor(scene, v3d, grid_unit, true);
 		}
 	}
 
@@ -2819,7 +2855,7 @@ static void view3d_draw_objects(
 
 	/* perspective floor goes last to use scene depth and avoid writing to depth buffer */
 	if (draw_grids_after) {
-		drawfloor(scene, v3d, grid_unit);
+		drawfloor(scene, v3d, grid_unit, false);
 	}
 
 	/* must be before xray draw which clears the depth buffer */
@@ -3096,7 +3132,8 @@ void ED_view3d_draw_offscreen(
         float viewmat[4][4], float winmat[4][4],
         bool do_bgpic, bool do_sky, bool is_persp,
         GPUOffScreen *ofs,
-        GPUFX *fx, GPUFXSettings *fx_settings)
+        GPUFX *fx, GPUFXSettings *fx_settings,
+        const char *viewname)
 {
 	struct bThemeState theme_state;
 	int bwinx, bwiny;
@@ -3131,7 +3168,10 @@ void ED_view3d_draw_offscreen(
 	}
 
 	/* setup view matrices before fx or unbinding the offscreen buffers will cause issues */
-	view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
+	if ((viewname != NULL && viewname[0] != '\0') && (viewmat == NULL))
+		view3d_stereo3d_setup_offscreen(scene, v3d, ar, winmat, viewname);
+	else
+		view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
 
 	/* framebuffer fx needed, we need to draw offscreen first */
 	if (v3d->fx_settings.fx_flag && fx) {
@@ -3195,7 +3235,7 @@ void ED_view3d_draw_offscreen(
 
 /* utility func for ED_view3d_draw_offscreen */
 ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, int sizex, int sizey, unsigned int flag,
-                                      bool draw_background, int alpha_mode, char err_out[256])
+                                      bool draw_background, int alpha_mode, const char *viewname, char err_out[256])
 {
 	RegionView3D *rv3d = ar->regiondata;
 	ImBuf *ibuf;
@@ -3220,13 +3260,14 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 	if (rv3d->persp == RV3D_CAMOB && v3d->camera) {
 		CameraParams params;
 		GPUFXSettings fx_settings = {NULL};
-		Object *camera = v3d->camera;
+		Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
 
 		BKE_camera_params_init(&params);
 		/* fallback for non camera objects */
 		params.clipsta = v3d->near;
 		params.clipend = v3d->far;
-		BKE_camera_params_from_object(&params, v3d->camera);
+		BKE_camera_params_from_object(&params, camera);
+		BKE_camera_multiview_params(&scene->r, &params, camera, viewname);
 		BKE_camera_params_compute_viewplane(&params, sizex, sizey, scene->r.xasp, scene->r.yasp);
 		BKE_camera_params_compute_matrix(&params);
 
@@ -3235,13 +3276,13 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 		ED_view3d_draw_offscreen(
 		        scene, v3d, ar, sizex, sizey, NULL, params.winmat,
 		        draw_background, draw_sky, !params.is_ortho,
-		        ofs, NULL, &fx_settings);
+		        ofs, NULL, &fx_settings, viewname);
 	}
 	else {
 		ED_view3d_draw_offscreen(
 		        scene, v3d, ar, sizex, sizey, NULL, NULL,
 		        draw_background, draw_sky, true,
-		        ofs, NULL, NULL);
+		        ofs, NULL, NULL, viewname);
 	}
 
 	/* read in pixels & stamp */
@@ -3266,7 +3307,8 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Scene *scene, View3D *v3d, ARegion *ar, in
 
 /* creates own 3d views, used by the sequencer */
 ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int width, int height, unsigned int flag, int drawtype,
-                                             bool use_solid_tex, bool use_gpencil, bool draw_background, int alpha_mode, char err_out[256])
+                                             bool use_solid_tex, bool use_gpencil, bool draw_background, int alpha_mode,
+                                             const char *viewname, char err_out[256])
 {
 	View3D v3d = {NULL};
 	ARegion ar = {NULL};
@@ -3296,9 +3338,11 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int w
 
 	{
 		CameraParams params;
+		Object *camera = BKE_camera_multiview_render(scene, v3d.camera, viewname);
 
 		BKE_camera_params_init(&params);
-		BKE_camera_params_from_object(&params, v3d.camera);
+		BKE_camera_params_from_object(&params, camera);
+		BKE_camera_multiview_params(&scene->r, &params, camera, viewname);
 		BKE_camera_params_compute_viewplane(&params, width, height, scene->r.xasp, scene->r.yasp);
 		BKE_camera_params_compute_matrix(&params);
 
@@ -3312,7 +3356,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Scene *scene, Object *camera, int w
 	invert_m4_m4(rv3d.persinv, rv3d.viewinv);
 
 	return ED_view3d_draw_offscreen_imbuf(scene, &v3d, &ar, width, height, flag,
-	                                      draw_background, alpha_mode, err_out);
+	                                      draw_background, alpha_mode, viewname, err_out);
 
 	// seq_view3d_cb(scene, cfra, render_size, seqrectx, seqrecty);
 }
@@ -3517,6 +3561,104 @@ static void view3d_main_area_draw_engine_info(View3D *v3d, RegionView3D *rv3d, A
 	ED_region_info_draw(ar, rv3d->render_engine->text, 1, fill_color);
 }
 
+static bool view3d_stereo3d_active(const bContext *C, Scene *scene, View3D *v3d, RegionView3D *rv3d)
+{
+	wmWindow *win = CTX_wm_window(C);
+
+	if ((scene->r.scemode & R_MULTIVIEW) == 0)
+		return false;
+
+	if (WM_stereo3d_enabled(win, true) == false)
+		return false;
+
+	if ((v3d->camera == NULL) || (v3d->camera->type != OB_CAMERA) || rv3d->persp != RV3D_CAMOB)
+		return false;
+
+	if (scene->r.views_format & SCE_VIEWS_FORMAT_MULTIVIEW) {
+		if (v3d->stereo3d_camera == STEREO_MONO_ID)
+			return false;
+
+		return BKE_scene_multiview_is_stereo3d(&scene->r);
+	}
+
+	return true;
+}
+
+/* setup the view and win matrices for the multiview cameras
+ *
+ * unlike view3d_stereo3d_setup_offscreen, when view3d_stereo3d_setup is called
+ * we have no winmatrix (i.e., projection matrix) defined at that time.
+ * Since the camera and the camera shift are needed for the winmat calculation
+ * we do a small hack to replace it temporarily so we don't need to change the
+ * view3d)main_area_setup_view() code to account for that.
+ */
+static void view3d_stereo3d_setup(Scene *scene, View3D *v3d, ARegion *ar)
+{
+	bool is_left;
+	const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
+	const char *viewname;
+
+	/* show only left or right camera */
+	if (v3d->stereo3d_camera != STEREO_3D_ID)
+		v3d->multiview_eye = v3d->stereo3d_camera;
+
+	is_left = v3d->multiview_eye == STEREO_LEFT_ID;
+	viewname = names[is_left ? STEREO_LEFT_ID : STEREO_RIGHT_ID];
+
+	/* update the viewport matrices with the new camera */
+	if (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D) {
+		Camera *data;
+		float viewmat[4][4];
+		float shiftx;
+
+		data = (Camera *)v3d->camera->data;
+		shiftx = data->shiftx;
+
+		BLI_lock_thread(LOCK_VIEW3D);
+		data->shiftx = BKE_camera_multiview_shift_x(&scene->r, v3d->camera, viewname);
+
+		BKE_camera_multiview_view_matrix(&scene->r, v3d->camera, is_left, viewmat);
+		view3d_main_area_setup_view(scene, v3d, ar, viewmat, NULL);
+
+		data->shiftx = shiftx;
+		BLI_unlock_thread(LOCK_VIEW3D);
+	}
+	else { /* SCE_VIEWS_FORMAT_MULTIVIEW */
+		float viewmat[4][4];
+		Object *view_ob = v3d->camera;
+		Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
+
+		BLI_lock_thread(LOCK_VIEW3D);
+		v3d->camera = camera;
+
+		BKE_camera_multiview_view_matrix(&scene->r, camera, false, viewmat);
+		view3d_main_area_setup_view(scene, v3d, ar, viewmat, NULL);
+
+		v3d->camera = view_ob;
+		BLI_unlock_thread(LOCK_VIEW3D);
+	}
+}
+
+static void view3d_stereo3d_setup_offscreen(Scene *scene, View3D *v3d, ARegion *ar,
+                                            float winmat[4][4], const char *viewname)
+{
+	/* update the viewport matrices with the new camera */
+	if (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D) {
+		float viewmat[4][4];
+		const bool is_left = STREQ(viewname, STEREO_LEFT_NAME);
+
+		BKE_camera_multiview_view_matrix(&scene->r, v3d->camera, is_left, viewmat);
+		view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
+	}
+	else { /* SCE_VIEWS_FORMAT_MULTIVIEW */
+		float viewmat[4][4];
+		Object *camera = BKE_camera_multiview_render(scene, v3d->camera, viewname);
+
+		BKE_camera_multiview_view_matrix(&scene->r, camera, false, viewmat);
+		view3d_main_area_setup_view(scene, v3d, ar, viewmat, winmat);
+	}
+}
+
 #ifdef WITH_GAMEENGINE
 static void update_lods(Scene *scene, float camera_pos[3])
 {
@@ -3550,8 +3692,11 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		GPU_default_lights();
 	}
 
-	/* setup view matrices */
-	view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
+	/* setup the view matrix */
+	if (view3d_stereo3d_active(C, scene, v3d, rv3d))
+		view3d_stereo3d_setup(scene, v3d, ar);
+	else
+		view3d_main_area_setup_view(scene, v3d, ar, NULL, NULL);
 
 	rv3d->rflag &= ~RV3D_IS_GAME_ENGINE;
 #ifdef WITH_GAMEENGINE

@@ -338,6 +338,9 @@ typedef struct ThemeSpace {
 
 	char paint_curve_pivot[4];
 	char paint_curve_handle[4];
+
+	char metadatabg[4];
+	char metadatatext[4];
 } ThemeSpace;
 
 
@@ -447,9 +450,7 @@ typedef struct UserDef {
 	
 	short versions;
 	short dbl_click_time;
-	short click_timeout;
-	short pad3;
-
+	
 	short gameflags;
 	short wheellinescroll;
 	int uiflag, uiflag2;
@@ -467,8 +468,7 @@ typedef struct UserDef {
 	char pad2[2];
 	short transopts;
 	short menuthreshold1, menuthreshold2;
-	int pad4;
-
+	
 	struct ListBase themes;
 	struct ListBase uifonts;
 	struct ListBase uistyles;

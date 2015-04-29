@@ -738,8 +738,8 @@ static void set_height_normalize_factor(struct Ocean *oc)
 
 	for (i = 0; i < oc->_M; ++i) {
 		for (j = 0; j < oc->_N; ++j) {
-			if (max_h < fabsf(oc->_disp_y[i * oc->_N + j])) {
-				max_h = fabsf(oc->_disp_y[i * oc->_N + j]);
+			if (max_h < fabs(oc->_disp_y[i * oc->_N + j])) {
+				max_h = fabs(oc->_disp_y[i * oc->_N + j]);
 			}
 		}
 	}
@@ -1002,7 +1002,7 @@ static void cache_filename(char *string, const char *path, const char *relbase, 
 
 	BLI_join_dirfile(cachepath, sizeof(cachepath), path, fname);
 
-	BKE_image_path_from_imtype(string, cachepath, relbase, frame, R_IMF_IMTYPE_OPENEXR, true, true);
+	BKE_image_path_from_imtype(string, cachepath, relbase, frame, R_IMF_IMTYPE_OPENEXR, true, true, "");
 }
 
 /* silly functions but useful to inline when the args do a lot of indirections */

@@ -59,7 +59,7 @@ ccl_device float3 bsdf_ashikhmin_velvet_eval_reflect(__ADDR_SPACE__ const Shader
 		float cosHO = fabsf(dot(I, H));
 
 		if(!(fabsf(cosNH) < 1.0f-1e-5f && cosHO > 1e-5f))
-			return make_float3(0, 0, 0);
+			return make_float3(0.0f, 0.0f, 0.0f);
 
 		float cosNHdivHO = cosNH / cosHO;
 		cosNHdivHO = fmaxf(cosNHdivHO, 1e-5f);
@@ -80,7 +80,7 @@ ccl_device float3 bsdf_ashikhmin_velvet_eval_reflect(__ADDR_SPACE__ const Shader
 		return make_float3(out, out, out);
 	}
 
-	return make_float3(0, 0, 0);
+	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
 ccl_device float3 bsdf_ashikhmin_velvet_eval_transmit(__ADDR_SPACE__ const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
@@ -114,7 +114,7 @@ ccl_device int bsdf_ashikhmin_velvet_sample(__ADDR_SPACE__ const ShaderClosure *
 
 			float sinNH2 = 1 - cosNH * cosNH;
 			float sinNH4 = sinNH2 * sinNH2;
-			float cotangent2 =  (cosNH * cosNH) / sinNH2;
+			float cotangent2 = (cosNH * cosNH) / sinNH2;
 
 			float D = expf(-cotangent2 * m_invsigma2) * m_invsigma2 * M_1_PI_F / sinNH4;
 			float G = min(1.0f, min(fac1, fac2)); // TODO: derive G from D analytically
