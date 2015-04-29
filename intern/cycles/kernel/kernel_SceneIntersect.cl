@@ -76,6 +76,9 @@ __kernel void kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL(
 	ccl_global int *Queue_index,                /* Tracks the number of elements in queues */
 	int queuesize,                              /* Size (capacity) of queues */
 	ccl_global char *use_queues_flag,           /* used to decide if this kernel should use queues to fetch ray index */
+#ifdef __KERNEL_DEBUG__
+	ccl_global DebugData *debugdata_coop,
+#endif
 	int parallel_samples                        /* Number of samples to be processed in parallel */
 	)
 {
@@ -115,6 +118,9 @@ __kernel void kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL(
 	/* Load kernel globals structure */
 	ccl_global KernelGlobals *kg = (ccl_global KernelGlobals *)globals;
 
+#ifdef __KERNEL_DEBUG__
+	ccl_global DebugData *debug_data = &debugdata_coop[ray_index];
+#endif
 	ccl_global Intersection *isect = &Intersection_coop[ray_index];
 	PathState state = PathState_coop[ray_index];
 	Ray ray = Ray_coop[ray_index];
@@ -145,7 +151,7 @@ __kernel void kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL(
 
 #ifdef __KERNEL_DEBUG__
 	if(state.flag & PATH_RAY_CAMERA) {
-		debug_data.num_bvh_traversal_steps += isect.num_traversal_steps;
+		debug_data->num_bvh_traversal_steps += isect->num_traversal_steps;
 	}
 #endif
 

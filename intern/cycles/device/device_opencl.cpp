@@ -130,7 +130,6 @@ static string opencl_kernel_build_options(const string& platform, const string *
 			build_options += "-g -s \"" + *debug_src + "\"";
 	}
 
-	/* TODO : support KERNEL_DEBUG for split kernel */
 	if(opencl_kernel_use_debug())
 		build_options += "-D__KERNEL_OPENCL_DEBUG__ ";
 
@@ -1280,6 +1279,11 @@ public:
 	cl_mem Intersection_coop_AO;
 	cl_mem Intersection_coop_DL;
 
+#ifdef WITH_CYCLES_DEBUG
+	/* DebugData memory */
+	cl_mem debugdata_coop;
+#endif
+
 	/* Global state array that tracks ray state */
 	cl_mem ray_state;
 
@@ -1319,6 +1323,10 @@ public:
 	size_t BSDFEval_size;
 	size_t Intersection_coop_AO_size;
 	size_t Intersection_coop_DL_size;
+
+#ifdef WITH_CYCLES_DEBUG
+	size_t debugdata_size;
+#endif
 
 	/* Amount of memory in output buffer associated with one pixel/thread */
 	size_t per_thread_output_buffer_size;
@@ -1528,6 +1536,10 @@ public:
 		Intersection_coop_AO = NULL;
 		Intersection_coop_DL = NULL;
 
+#ifdef WITH_CYCLES_DEBUG
+		debugdata_coop = NULL;
+#endif
+
 		work_array = NULL;
 
 		/* Queue */
@@ -1566,6 +1578,10 @@ public:
 		BSDFEval_size = sizeof(BsdfEval);
 		Intersection_coop_AO_size = sizeof(Intersection);
 		Intersection_coop_DL_size = sizeof(Intersection);
+
+#ifdef WITH_CYCLES_DEBUG
+		debugdata_size = sizeof(DebugData);
+#endif
 
 		per_thread_output_buffer_size = 0;
 		hostRayStateArray = NULL;
@@ -2685,6 +2701,11 @@ public:
 		if (Intersection_coop_DL != NULL)
 			clReleaseMemObject(Intersection_coop_DL);
 
+#ifdef WITH_CYCLES_DEBUG
+		if(debugdata_coop != NULL)
+			clReleaseMemObject(debugdata_coop);
+#endif
+
 		if (use_queues_flag != NULL)
 			clReleaseMemObject(use_queues_flag);
 
@@ -3174,6 +3195,11 @@ public:
 			Intersection_coop_DL = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Intersection_coop_DL_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create Intersection_coop_DL_memory");
 
+#ifdef WITH_CYCLES_DEBUG
+			debugdata_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * debugdata_size, NULL, &ciErr);
+			assert(ciErr == CL_SUCCESS && "Can't create debugdata_coop memory");
+#endif
+
 			ray_state = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * rayState_size, NULL, &ciErr);
 			assert(ciErr == CL_SUCCESS && "Can't create ray_state memory");
 
@@ -3312,6 +3338,9 @@ public:
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(work_pool_wgs), (void*)&work_pool_wgs));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_samples), (void*)&num_samples));
 #endif
+#ifdef WITH_CYCLES_DEBUG
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(debugdata_coop), (void*)&debugdata_coop));
+#endif
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
 
 		/* Set arguments for ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL */;
@@ -3330,6 +3359,9 @@ public:
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(use_queues_flag), (void*)&use_queues_flag));
+#ifdef WITH_CYCLES_DEBUG
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(debugdata_coop), (void*)&debugdata_coop));
+#endif
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
 
 		/* Set arguments for ckPathTracekernel_LampEmission_SPLIT_KERNEL kernel */
@@ -3391,6 +3423,9 @@ public:
 #ifdef __WORK_STEALING__
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(work_pool_wgs), (void*)&work_pool_wgs));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(num_samples), (void*)&num_samples));
+#endif
+#ifdef WITH_CYCLES_DEBUG
+		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(debugdata_coop), (void*)&debugdata_coop));
 #endif
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
 

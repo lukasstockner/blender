@@ -122,6 +122,9 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 	ccl_global unsigned int *work_pool_wgs,
 	unsigned int num_samples,
 #endif
+#ifdef __KERNEL_DEBUG__
+	ccl_global DebugData *debugdata_coop,
+#endif
 	int parallel_samples                         /* Number of samples to be processed in parallel */
 	)
 {
@@ -156,6 +159,9 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 		ccl_global KernelGlobals *kg = (ccl_global KernelGlobals *)globals;
 		ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
 
+#ifdef __KERNEL_DEBUG__
+		ccl_global DebugData *debug_data = &debugdata_coop[ray_index];
+#endif
 		ccl_global PathState *state = &PathState_coop[ray_index];
 		ccl_global PathRadiance *L = L = &PathRadiance_coop[ray_index];
 		ccl_global Ray *ray = &Ray_coop[ray_index];
@@ -218,7 +224,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 			float3 L_sum = path_radiance_clamp_and_sum(kg, L);
 			kernel_write_light_passes(kg, per_sample_output_buffers, L, sample);
 #ifdef __KERNEL_DEBUG__
-			kernel_write_debug_passes(kg, buffer, &state, &debug_data, sample);
+			kernel_write_debug_passes(kg, per_sample_output_buffers, state, debug_data, sample);
 #endif
 			float4 L_rad = make_float4(L_sum.x, L_sum.y, L_sum.z, 1.0f - (*L_transparent));
 
@@ -275,8 +281,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 					path_radiance_init(L, kernel_data.film.use_light_pass);
 					path_state_init(kg, state, rng, sample, ray);
 #ifdef __KERNEL_DEBUG__
-					DebugData debug_data;
-					debug_data_init(&debug_data);
+					debug_data_init(debug_data);
 #endif
 					ASSIGN_RAY_STATE(ray_state, ray_index, RAY_REGENERATED);
 					enqueue_flag = 1;

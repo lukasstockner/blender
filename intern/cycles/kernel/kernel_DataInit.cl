@@ -189,6 +189,9 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	ccl_global unsigned int *work_pool_wgs,      /* Work pool for each work group */
 	unsigned int num_samples,                    /* Total number of samples per pixel */
 #endif
+#ifdef __KERNEL_DEBUG__
+	ccl_global DebugData *debugdata_coop,
+#endif
 	int parallel_samples                         /* Number of samples to be processed in parallel */
 	)
 {
@@ -384,10 +387,8 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 			L_transparent_coop[ray_index] = 0.0f;
 			path_radiance_init(&PathRadiance_coop[ray_index], kernel_data.film.use_light_pass);
 			path_state_init(kg, &PathState_coop[ray_index], &rng_coop[ray_index], my_sample, &Ray_coop[ray_index]);
-			/* __KERNEL_DEBUG__ is disabled */
 #ifdef __KERNEL_DEBUG__
-			DebugData debug_data;
-			debug_data_init(&debug_data);
+			debug_data_init(&debugdata_coop[ray_index]);
 #endif
 		} else {
 			/*These rays do not participate in path-iteration */
