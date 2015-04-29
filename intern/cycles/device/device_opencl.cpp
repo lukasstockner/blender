@@ -2204,8 +2204,6 @@ public:
 			return false;
 		}
 
-		/* TODO : Use OpenCLCahce with spit kernel */
-
 		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
 		* to limit re-compilations
 		*/
