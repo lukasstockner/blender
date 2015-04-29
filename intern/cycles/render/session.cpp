@@ -32,14 +32,11 @@
 #include "util_task.h"
 #include "util_time.h"
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
-#include "nodes.h"
-#include "mesh.h"
-#define OPTIMAL_CLOSURE_COUNT 4
-#endif
+#include "graph.h"
 
 CCL_NAMESPACE_BEGIN
 
+#define OPTIMAL_CLOSURE_COUNT 1
 static int maxclosure = OPTIMAL_CLOSURE_COUNT;
 
 /* Note about  preserve_tile_device option for tile manager:
@@ -665,9 +662,9 @@ static int getClosureCount(Scene *scene)
 
 void Session::run()
 {
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
-	device->clos_max = getClosureCount(scene);
-#endif
+	if (device->use_split_kernel) {
+		device->clos_max = getClosureCount(scene);
+	}
 
 	/* load kernels */
 	/* Note : OpenCL split kernel does not load kernels here. OpenCL split kernel needs to know

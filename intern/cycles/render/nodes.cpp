@@ -1533,9 +1533,8 @@ BsdfNode::BsdfNode(bool scattering_)
 		add_output("BSDF", SHADER_SOCKET_CLOSURE);
 	}
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void BsdfNode::compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2, ShaderInput *param3, ShaderInput *param4)
@@ -1621,9 +1620,8 @@ AnisotropicBsdfNode::AnisotropicBsdfNode()
 	add_input("Anisotropy", SHADER_SOCKET_FLOAT, 0.5f);
 	add_input("Rotation", SHADER_SOCKET_FLOAT, 0.0f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = (ClosureType)distribution_enum[distribution];
-#endif
 }
 
 void AnisotropicBsdfNode::attributes(Shader *shader, AttributeRequestSet *attributes)
@@ -1673,9 +1671,8 @@ GlossyBsdfNode::GlossyBsdfNode()
 
 	add_input("Roughness", SHADER_SOCKET_FLOAT, 0.2f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = (ClosureType)distribution_enum[distribution];
-#endif
 }
 
 void GlossyBsdfNode::compile(SVMCompiler& compiler)
@@ -1716,9 +1713,8 @@ GlassBsdfNode::GlassBsdfNode()
 	add_input("Roughness", SHADER_SOCKET_FLOAT, 0.0f);
 	add_input("IOR", SHADER_SOCKET_FLOAT, 0.3f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = (ClosureType)distribution_enum[distribution];
-#endif
 }
 
 void GlassBsdfNode::compile(SVMCompiler& compiler)
@@ -1759,9 +1755,8 @@ RefractionBsdfNode::RefractionBsdfNode()
 	add_input("Roughness", SHADER_SOCKET_FLOAT, 0.0f);
 	add_input("IOR", SHADER_SOCKET_FLOAT, 0.3f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = (ClosureType)distribution_enum[distribution];
-#endif
 }
 
 void RefractionBsdfNode::compile(SVMCompiler& compiler)
@@ -1801,9 +1796,8 @@ ToonBsdfNode::ToonBsdfNode()
 	add_input("Size", SHADER_SOCKET_FLOAT, 0.5f);
 	add_input("Smooth", SHADER_SOCKET_FLOAT, 0.0f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = (ClosureType)component_enum[component];
-#endif
 }
 
 void ToonBsdfNode::compile(SVMCompiler& compiler)
@@ -1827,9 +1821,8 @@ VelvetBsdfNode::VelvetBsdfNode()
 
 	add_input("Sigma", SHADER_SOCKET_FLOAT, 1.0f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void VelvetBsdfNode::compile(SVMCompiler& compiler)
@@ -1849,9 +1842,8 @@ DiffuseBsdfNode::DiffuseBsdfNode()
 	closure = CLOSURE_BSDF_DIFFUSE_ID;
 	add_input("Roughness", SHADER_SOCKET_FLOAT, 0.0f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void DiffuseBsdfNode::compile(SVMCompiler& compiler)
@@ -1870,9 +1862,8 @@ TranslucentBsdfNode::TranslucentBsdfNode()
 {
 	closure = CLOSURE_BSDF_TRANSLUCENT_ID;
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void TranslucentBsdfNode::compile(SVMCompiler& compiler)
@@ -1892,9 +1883,8 @@ TransparentBsdfNode::TransparentBsdfNode()
 	name = "transparent";
 	closure = CLOSURE_BSDF_TRANSPARENT_ID;
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void TransparentBsdfNode::compile(SVMCompiler& compiler)
@@ -1932,9 +1922,8 @@ SubsurfaceScatteringNode::SubsurfaceScatteringNode()
 	add_input("Sharpness", SHADER_SOCKET_FLOAT, 0.0f);
 	add_input("Texture Blur", SHADER_SOCKET_FLOAT, 1.0f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void SubsurfaceScatteringNode::compile(SVMCompiler& compiler)
@@ -1966,9 +1955,8 @@ EmissionNode::EmissionNode()
 
 	add_output("Emission", SHADER_SOCKET_CLOSURE);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = CLOSURE_EMISSION_ID;
-#endif
 }
 
 void EmissionNode::compile(SVMCompiler& compiler)
@@ -2005,9 +1993,8 @@ BackgroundNode::BackgroundNode()
 
 	add_output("Background", SHADER_SOCKET_CLOSURE);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = CLOSURE_BACKGROUND_ID;
-#endif
 }
 
 void BackgroundNode::compile(SVMCompiler& compiler)
@@ -2041,9 +2028,8 @@ HoldoutNode::HoldoutNode()
 
 	add_output("Holdout", SHADER_SOCKET_CLOSURE);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = CLOSURE_HOLDOUT_ID;
-#endif
 }
 
 void HoldoutNode::compile(SVMCompiler& compiler)
@@ -2070,9 +2056,8 @@ AmbientOcclusionNode::AmbientOcclusionNode()
 
 	add_output("AO", SHADER_SOCKET_CLOSURE);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = CLOSURE_AMBIENT_OCCLUSION_ID;
-#endif
 }
 
 void AmbientOcclusionNode::compile(SVMCompiler& compiler)
@@ -2107,9 +2092,8 @@ VolumeNode::VolumeNode()
 
 	add_output("Volume", SHADER_SOCKET_CLOSURE);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void VolumeNode::compile(SVMCompiler& compiler, ShaderInput *param1, ShaderInput *param2)
@@ -2153,9 +2137,8 @@ AbsorptionVolumeNode::AbsorptionVolumeNode()
 {
 	closure = CLOSURE_VOLUME_ABSORPTION_ID;
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void AbsorptionVolumeNode::compile(SVMCompiler& compiler)
@@ -2176,9 +2159,8 @@ ScatterVolumeNode::ScatterVolumeNode()
 	
 	add_input("Anisotropy", SHADER_SOCKET_FLOAT, 0.0f);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = closure;
-#endif
 }
 
 void ScatterVolumeNode::compile(SVMCompiler& compiler)
@@ -2213,9 +2195,8 @@ HairBsdfNode::HairBsdfNode()
 	add_input("RoughnessU", SHADER_SOCKET_FLOAT);
 	add_input("RoughnessV", SHADER_SOCKET_FLOAT);
 
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+	/* Used for split kernel */
 	clos = (ClosureType)component_enum[component];
-#endif
 }
 
 void HairBsdfNode::compile(SVMCompiler& compiler)

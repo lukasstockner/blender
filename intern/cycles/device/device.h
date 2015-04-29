@@ -30,8 +30,6 @@
 #include "util_types.h"
 #include "util_vector.h"
 
-#define SPLIT_KERNEL_CLOSURE_COUNT 1
-
 CCL_NAMESPACE_BEGIN
 
 class Progress;

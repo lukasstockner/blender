@@ -100,9 +100,10 @@ public:
 	bool load_kernels(bool experimental)
 	{
 		foreach(SubDevice& sub, devices) {
-#ifdef SPLIT_KERNEL_CLOSURE_COUNT
+
+			/* Update devic's clos_max; used in split kernel */
 			sub.device->clos_max = this->clos_max;
-#endif
+
 			sub.device->closure_nodes = this->closure_nodes;
 			if (!sub.device->load_kernels(experimental))
 				return false;
