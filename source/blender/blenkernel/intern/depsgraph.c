@@ -1654,6 +1654,7 @@ void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 {
 	if (DEG_depsgraph_use_legacy()) {
 		dag_scene_free(sce);
+		DAG_scene_relations_update(bmain, sce);
 	}
 	else {
 		/* New dependency graph. */
