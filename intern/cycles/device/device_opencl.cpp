@@ -1987,11 +1987,6 @@ public:
 			return false;
 		}
 
-		/* Get Shader, bake and film_convert kernels */
-		if(!OpenCLDeviceBase::load_kernels(false)) {
-			return false;
-		}
-
 		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
 		* to limit re-compilations
 		*/
@@ -2006,6 +2001,11 @@ public:
 				/* present kernels have been created with the same closure count build option */
 				return true;
 			}
+		}
+
+		/* Get Shader, bake and film_convert kernels */
+		if(!OpenCLDeviceBase::load_kernels(false)) {
+			return false;
 		}
 
 		string svm_build_options = "";
