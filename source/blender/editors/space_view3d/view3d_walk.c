@@ -220,8 +220,7 @@ void walk_modal_keymap(wmKeyConfig *keyconf)
 }
 
 
-typedef struct WalkTeleport
-{
+typedef struct WalkTeleport {
 	eWalkTeleportState state;
 	float duration; /* from user preferences */
 	float origin[3];
@@ -345,7 +344,7 @@ static void walk_update_header(bContext *C, WalkInfo *walk)
 	char header[HEADER_LENGTH];
 
 	BLI_snprintf(header, HEADER_LENGTH, IFACE_("LMB/Return: confirm, Esc/RMB: cancel, "
-                                               "Tab: gravity (%s), "
+	                                           "Tab: gravity (%s), "
 	                                           "WASD: move around, "
 	                                           "Shift: fast, Alt: slow, "
 	                                           "QE: up and down, MMB/Space: teleport, V: jump, "

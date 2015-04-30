@@ -508,6 +508,9 @@ typedef struct SpaceSeq {
 	struct bGPdata *gpd;        /* grease-pencil data */
 
 	struct SequencerScopes scopes;  /* different scoped displayed in space */
+
+	char multiview_eye;				/* multiview current eye - for internal use */
+	char pad2[7];
 } SpaceSeq;
 
 
@@ -559,8 +562,7 @@ typedef enum eSpaceSeq_Proxy_RenderSize {
 	SEQ_PROXY_RENDER_SIZE_FULL      = 100
 } eSpaceSeq_Proxy_RenderSize;
 
-typedef struct MaskSpaceInfo
-{
+typedef struct MaskSpaceInfo {
 	/* **** mask editing **** */
 	struct Mask *mask;
 	/* draw options */
@@ -596,6 +598,7 @@ typedef struct FileSelectParams {
 	int active_file;
 	int sel_first;
 	int sel_last;
+	int thumbnails_size;
 
 	/* short */
 	short type; /* XXXXX for now store type here, should be moved to the operator */
@@ -718,7 +721,7 @@ typedef enum eFileSel_File_Types {
 	FILE_TYPE_FTFONT            = (1 << 7),
 	FILE_TYPE_SOUND             = (1 << 8),
 	FILE_TYPE_TEXT              = (1 << 9),
-	FILE_TYPE_MOVIE_ICON        = (1 << 10), /* movie file that preview can't load */
+	/* 1 << 10 was FILE_TYPE_MOVIE_ICON, got rid of this so free slot for future type... */
 	FILE_TYPE_FOLDER            = (1 << 11), /* represents folders for filtering */
 	FILE_TYPE_BTX               = (1 << 12),
 	FILE_TYPE_COLLADA           = (1 << 13),
@@ -840,6 +843,7 @@ typedef enum eSpaceImage_Flag {
 	SI_COLOR_CORRECTION   = (1 << 24),
 
 	SI_NO_DRAW_TEXPAINT   = (1 << 25),
+	SI_DRAW_METADATA      = (1 << 26)
 } eSpaceImage_Flag;
 
 /* Text Editor ============================================ */

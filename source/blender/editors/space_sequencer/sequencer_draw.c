@@ -50,6 +50,7 @@
 #include "BKE_main.h"
 #include "BKE_sequencer.h"
 #include "BKE_sound.h"
+#include "BKE_scene.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_imbuf.h"
@@ -424,12 +425,12 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 		size_t numstr_len;
 
 		if (direction == SEQ_LEFTHANDLE) {
-			numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%d", seq->startdisp);
+			numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%d", seq->startdisp);
 			x1 = rx1;
 			y1 -= 0.45f;
 		}
 		else {
-			numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%d", seq->enddisp - 1);
+			numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%d", seq->enddisp - 1);
 			x1 = x2 - handsize_clamped * 0.75f;
 			y1 = y2 + 0.05f;
 		}
@@ -860,7 +861,7 @@ void ED_sequencer_special_preview_clear(void)
 	sequencer_special_update_set(NULL);
 }
 
-ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int cfra, int frame_ofs)
+ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int cfra, int frame_ofs, const char *viewname)
 {
 	SeqRenderData context;
 	ImBuf *ibuf;
@@ -888,6 +889,7 @@ ImBuf *sequencer_ibuf_get(struct Main *bmain, Scene *scene, SpaceSeq *sseq, int 
 	        bmain->eval_ctx, bmain, scene,
 	        rectx, recty, proxy_size,
 	        &context);
+	context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
 
 	/* sequencer could start rendering, in this case we need to be sure it wouldn't be canceled
 	 * by Esc pressed somewhere in the past
@@ -978,6 +980,76 @@ static void sequencer_display_size(Scene *scene, SpaceSeq *sseq, float r_viewrec
 	}
 }
 
+static void sequencer_draw_gpencil(const bContext *C)
+{
+	/* draw grease-pencil (image aligned) */
+	ED_gpencil_draw_2dimage(C);
+
+	/* ortho at pixel level */
+	UI_view2d_view_restore(C);
+
+	/* draw grease-pencil (screen aligned) */
+	ED_gpencil_draw_view2d(C, 0);
+}
+
+/* draws content borders plus safety borders if needed */
+static void sequencer_draw_borders(const SpaceSeq *sseq, const View2D *v2d, const Scene *scene)
+{
+	float x1 = v2d->tot.xmin;
+	float y1 = v2d->tot.ymin;
+	float x2 = v2d->tot.xmax;
+	float y2 = v2d->tot.ymax;
+
+	/* border */
+	setlinestyle(3);
+
+	UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 1.0, 0);
+
+	glBegin(GL_LINE_LOOP);
+	glVertex2f(x1 - 0.5f, y1 - 0.5f);
+	glVertex2f(x1 - 0.5f, y2 + 0.5f);
+	glVertex2f(x2 + 0.5f, y2 + 0.5f);
+	glVertex2f(x2 + 0.5f, y1 - 0.5f);
+	glEnd();
+
+	/* safety border */
+	if (sseq->flag & SEQ_SHOW_SAFE_MARGINS) {
+		UI_draw_safe_areas(
+		        x1, x2, y1, y2,
+		        scene->safe_areas.title,
+		        scene->safe_areas.action);
+
+		if (sseq->flag & SEQ_SHOW_SAFE_CENTER) {
+			UI_draw_safe_areas(
+			        x1, x2, y1, y2,
+			        scene->safe_areas.title_center,
+			        scene->safe_areas.action_center);
+		}
+	}
+
+	setlinestyle(0);
+}
+
+/* draws checkerboard background for transparent content */
+static void sequencer_draw_background(const SpaceSeq *sseq, View2D *v2d, const float viewrect[2])
+{
+	/* setting up the view */
+	UI_view2d_totRect_set(v2d, viewrect[0] + 0.5f, viewrect[1] + 0.5f);
+	UI_view2d_curRect_validate(v2d);
+	UI_view2d_view_ortho(v2d);
+
+	/* only draw alpha for main buffer */
+	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
+		if (sseq->flag & SEQ_USE_ALPHA) {
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+			fdrawcheckerboard(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
+			glColor4f(1.0, 1.0, 1.0, 1.0);
+		}
+	}
+}
+
 void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq, int cfra, int frame_ofs, bool draw_overlay, bool draw_backdrop)
 {
 	struct Main *bmain = CTX_data_main(C);
@@ -994,6 +1066,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	const bool is_imbuf = ED_space_sequencer_check_show_imbuf(sseq);
 	int format, type;
 	bool glsl_used = false;
+	const bool draw_gpencil = ((sseq->flag & SEQ_SHOW_GPENCIL) && sseq->gpd);
+	const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
 
 	if (G.is_rendering == false && (scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
 		/* stop all running jobs, except screen one. currently previews frustrate Render
@@ -1015,6 +1089,9 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glClear(GL_COLOR_BUFFER_BIT);
 	}
 
+	/* without this colors can flicker from previous opengl state */
+	glColor4ub(255, 255, 255, 255);
+
 	/* only initialize the preview if a render is in progress */
 	if (G.is_rendering)
 		return;
@@ -1023,17 +1100,27 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		return;
 	}
 
-	ibuf = sequencer_ibuf_get(bmain, scene, sseq, cfra, frame_ofs);
-	
-	if (ibuf == NULL)
-		return;
+	/* for now we only support Left/Right */
+	ibuf = sequencer_ibuf_get(bmain, scene, sseq, cfra, frame_ofs, names[sseq->multiview_eye]);
 
-	if (ibuf->rect == NULL && ibuf->rect_float == NULL)
+	if ((ibuf == NULL) ||
+	    (ibuf->rect == NULL && ibuf->rect_float == NULL))
+	{
+		/* gpencil can also be drawn if no imbuf is invalid */
+		if (draw_gpencil && is_imbuf) {
+			sequencer_display_size(scene, sseq, viewrect);
+
+			sequencer_draw_background(sseq, v2d, viewrect);
+			sequencer_draw_borders(sseq, v2d, scene);
+
+			sequencer_draw_gpencil(C);
+		}
 		return;
+	}
 
 	sequencer_display_size(scene, sseq, viewrect);
 
-	if (sseq->mainb != SEQ_DRAW_IMG_IMBUF || sseq->zebra != 0) {
+	if (!draw_backdrop && (sseq->mainb != SEQ_DRAW_IMG_IMBUF || sseq->zebra != 0)) {
 		SequencerScopes *scopes = &sseq->scopes;
 
 		sequencer_check_scopes(scopes, ibuf);
@@ -1092,28 +1179,10 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		}
 	}
 
-	/* without this colors can flicker from previous opengl state */
-	glColor4ub(255, 255, 255, 255);
-
 	if (!draw_backdrop) {
-		UI_view2d_totRect_set(v2d, viewrect[0] + 0.5f, viewrect[1] + 0.5f);
-		UI_view2d_curRect_validate(v2d);
-		
-		/* setting up the view - actual drawing starts here */
-		UI_view2d_view_ortho(v2d);
-		
-		/* only draw alpha for main buffer */
-		if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
-			if (sseq->flag & SEQ_USE_ALPHA) {
-				glEnable(GL_BLEND);
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				
-				fdrawcheckerboard(v2d->tot.xmin, v2d->tot.ymin, v2d->tot.xmax, v2d->tot.ymax);
-				glColor4f(1.0, 1.0, 1.0, 1.0);
-			}
-		}
+		sequencer_draw_background(sseq, v2d, viewrect);
 	}
-	
+
 	if (scope) {
 		IMB_freeImBuf(ibuf);
 		ibuf = scope;
@@ -1282,63 +1351,21 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 
 	if (!scope)
 		IMB_freeImBuf(ibuf);
-	
+
 	if (draw_backdrop) {
 		return;
 	}
-	
+
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
-
-		float x1 = v2d->tot.xmin;
-		float y1 = v2d->tot.ymin;
-		float x2 = v2d->tot.xmax;
-		float y2 = v2d->tot.ymax;
-
-		/* border */
-		setlinestyle(3);
-
-		UI_ThemeColorBlendShade(TH_WIRE, TH_BACK, 1.0, 0);
-
-		glBegin(GL_LINE_LOOP);
-		glVertex2f(x1 - 0.5f, y1 - 0.5f);
-		glVertex2f(x1 - 0.5f, y2 + 0.5f);
-		glVertex2f(x2 + 0.5f, y2 + 0.5f);
-		glVertex2f(x2 + 0.5f, y1 - 0.5f);
-		glEnd();
-
-		/* safety border */
-		if (sseq->flag & SEQ_SHOW_SAFE_MARGINS) {
-			UI_draw_safe_areas(
-			        x1, x2, y1, y2,
-			        scene->safe_areas.title,
-			        scene->safe_areas.action);
-
-			if (sseq->flag & SEQ_SHOW_SAFE_CENTER) {
-				UI_draw_safe_areas(
-				        x1, x2, y1, y2,
-				        scene->safe_areas.title_center,
-				        scene->safe_areas.action_center);
-			}
-		}
-
-		setlinestyle(0);
+		sequencer_draw_borders(sseq, v2d, scene);
 	}
-	
-	if (sseq->flag & SEQ_SHOW_GPENCIL) {
-		if (is_imbuf) {
-			/* draw grease-pencil (image aligned) */
-			ED_gpencil_draw_2dimage(C);
-		}
+
+	if (draw_gpencil && is_imbuf) {
+		sequencer_draw_gpencil(C);
 	}
-	
-	/* ortho at pixel level */
-	UI_view2d_view_restore(C);
-	
-	if (sseq->flag & SEQ_SHOW_GPENCIL) {
-		if (is_imbuf) {
-			/* draw grease-pencil (screen aligned) */
-			ED_gpencil_draw_view2d(C, 0);
-		}
+	else {
+		/* ortho at pixel level */
+		UI_view2d_view_restore(C);
 	}
 
 

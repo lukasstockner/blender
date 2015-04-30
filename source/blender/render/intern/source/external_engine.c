@@ -42,6 +42,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_camera.h"
 #include "BKE_global.h"
 #include "BKE_report.h"
 #include "BKE_scene.h"
@@ -181,7 +182,7 @@ static RenderPart *get_part_from_result(Render *re, RenderResult *result)
 	return NULL;
 }
 
-RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername)
+RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, int h, const char *layername, const char *viewname)
 {
 	Render *re = engine->re;
 	RenderResult *result;
@@ -204,7 +205,7 @@ RenderResult *RE_engine_begin_result(RenderEngine *engine, int x, int y, int w, 
 	disprect.ymin = y;
 	disprect.ymax = y + h;
 
-	result = render_result_new(re, &disprect, 0, RR_USE_MEM, layername);
+	result = render_result_new(re, &disprect, 0, RR_USE_MEM, layername, viewname);
 
 	/* todo: make this thread safe */
 
@@ -269,7 +270,7 @@ void RE_engine_end_result(RenderEngine *engine, RenderResult *result, int cancel
 	if (!cancel || merge_results) {
 		if (re->result->do_exr_tile) {
 			if (!cancel) {
-				render_result_exr_file_merge(re->result, result);
+				render_result_exr_file_merge(re->result, result, re->viewname);
 			}
 		}
 		else if (!(re->test_break(re->tbh) && (re->r.scemode & R_BUTS_PREVIEW)))
@@ -368,6 +369,24 @@ void RE_engine_set_error_message(RenderEngine *engine, const char *msg)
 	}
 }
 
+void RE_engine_active_view_set(RenderEngine *engine, const char *viewname)
+{
+	Render *re = engine->re;
+	RE_SetActiveRenderView(re, viewname);
+}
+
+float RE_engine_get_camera_shift_x(RenderEngine *engine, Object *camera)
+{
+	Render *re = engine->re;
+	return BKE_camera_multiview_shift_x(re ? &re->r : NULL, camera, re->viewname);
+}
+
+void RE_engine_get_camera_model_matrix(RenderEngine *engine, Object *camera, float *r_modelmat)
+{
+	Render *re = engine->re;
+	BKE_camera_multiview_model_matrix(re ? &re->r : NULL, camera, re->viewname, (float (*)[4])r_modelmat);
+}
+
 rcti* RE_engine_get_current_tiles(Render *re, int *r_total_tiles, bool *r_needs_free)
 {
 	static rcti tiles_static[BLENDER_MAX_THREADS];
@@ -444,7 +463,8 @@ bool RE_bake_has_engine(Render *re)
 }
 
 bool RE_bake_engine(
-        Render *re, Object *object, const BakePixel pixel_array[],
+        Render *re, Object *object,
+        const int object_id, const BakePixel pixel_array[],
         const size_t num_pixels, const int depth,
         const ScenePassType pass_type, float result[])
 {
@@ -482,7 +502,7 @@ bool RE_bake_engine(
 		type->update(engine, re->main, re->scene);
 
 	if (type->bake)
-		type->bake(engine, re->scene, object, pass_type, pixel_array, num_pixels, depth, result);
+		type->bake(engine, re->scene, object, pass_type, object_id, pixel_array, num_pixels, depth, result);
 
 	engine->tile_x = 0;
 	engine->tile_y = 0;
@@ -612,7 +632,7 @@ int RE_engine_render(Render *re, int do_all)
 
 		if ((type->flag & RE_USE_SAVE_BUFFERS) && (re->r.scemode & R_EXR_TILE_FILE))
 			savebuffers = RR_USE_EXR;
-		re->result = render_result_new(re, &re->disprect, 0, savebuffers, RR_ALL_LAYERS);
+		re->result = render_result_new(re, &re->disprect, 0, savebuffers, RR_ALL_LAYERS, RR_ALL_VIEWS);
 	}
 	BLI_rw_mutex_unlock(&re->resultmutex);
 

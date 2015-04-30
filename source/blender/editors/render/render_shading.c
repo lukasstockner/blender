@@ -41,8 +41,9 @@
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
+#include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 
 #include "BLF_translation.h"
 
@@ -202,7 +203,7 @@ static int material_slot_assign_exec(bContext *C, wmOperator *UNUSED(op))
 			if (nurbs) {
 				for (nu = nurbs->first; nu; nu = nu->next)
 					if (isNurbsel(nu))
-						nu->mat_nr = nu->charidx = ob->actcol - 1;
+						nu->mat_nr = ob->actcol - 1;
 			}
 		}
 		else if (ob->type == OB_FONT) {
@@ -379,6 +380,74 @@ void OBJECT_OT_material_slot_copy(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+static int material_slot_move_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = ED_object_context(C);
+
+	unsigned int *slot_remap;
+	int index_pair[2];
+
+	int dir = RNA_enum_get(op->ptr, "direction");
+
+	if (!ob || ob->totcol < 2) {
+		return OPERATOR_CANCELLED;
+	}
+
+	/* up */
+	if (dir == 1 && ob->actcol > 1) {
+		index_pair[0] = ob->actcol - 2;
+		index_pair[1] = ob->actcol - 1;
+		ob->actcol--;
+	}
+	/* down */
+	else if (dir == -1 && ob->actcol < ob->totcol) {
+		index_pair[0] = ob->actcol - 1;
+		index_pair[1] = ob->actcol - 0;
+		ob->actcol++;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
+
+	slot_remap = MEM_mallocN(sizeof(unsigned int) * ob->totcol, __func__);
+
+	range_vn_u(slot_remap, ob->totcol, 0);
+
+	slot_remap[index_pair[0]] = index_pair[1];
+	slot_remap[index_pair[1]] = index_pair[0];
+
+	BKE_material_remap_object(ob, slot_remap);
+
+	MEM_freeN(slot_remap);
+
+	DAG_id_tag_update(&ob->id, OB_RECALC_DATA);
+	WM_event_add_notifier(C, NC_OBJECT | ND_DRAW | ND_DATA, ob);
+
+	return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_material_slot_move(wmOperatorType *ot)
+{
+	static EnumPropertyItem material_slot_move[] = {
+		{1, "UP", 0, "Up", ""},
+		{-1, "DOWN", 0, "Down", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	/* identifiers */
+	ot->name = "Move Material";
+	ot->idname = "OBJECT_OT_material_slot_move";
+	ot->description = "Move the active material up/down in the list";
+
+	/* api callbacks */
+	ot->exec = material_slot_move_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+	RNA_def_enum(ot->srna, "direction", material_slot_move, 0, "Direction", "Direction to move, UP or DOWN");
 }
 
 /********************** new material operator *********************/
@@ -603,6 +672,70 @@ void SCENE_OT_render_layer_remove(wmOperatorType *ot)
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/********************** render view operators *********************/
+
+static int render_view_remove_poll(bContext *C)
+{
+	Scene *scene = CTX_data_scene(C);
+
+	/* don't allow user to remove "left" and "right" views */
+	return scene->r.actview > 1;
+}
+
+static int render_view_add_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+
+	BKE_scene_add_render_view(scene, NULL);
+	scene->r.actview = BLI_listbase_count(&scene->r.views) - 1;
+
+	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+
+	return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_render_view_add(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Render View";
+	ot->idname = "SCENE_OT_render_view_add";
+	ot->description = "Add a render view";
+
+	/* api callbacks */
+	ot->exec = render_view_add_exec;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int render_view_remove_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Scene *scene = CTX_data_scene(C);
+	SceneRenderView *rv = BLI_findlink(&scene->r.views, scene->r.actview);
+
+	if (!BKE_scene_remove_render_view(scene, rv))
+		return OPERATOR_CANCELLED;
+
+	WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+
+	return OPERATOR_FINISHED;
+}
+
+void SCENE_OT_render_view_remove(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Remove Render View";
+	ot->idname = "SCENE_OT_render_view_remove";
+	ot->description = "Remove the selected render view";
+
+	/* api callbacks */
+	ot->exec = render_view_remove_exec;
+	ot->poll = render_view_remove_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 #ifdef WITH_FREESTYLE

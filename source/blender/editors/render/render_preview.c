@@ -525,12 +525,14 @@ static Scene *preview_prepare_scene(Scene *scene, ID *id, int id_type, ShaderPre
 static bool ed_preview_draw_rect(ScrArea *sa, int split, int first, rcti *rect, rcti *newrect)
 {
 	Render *re;
+	RenderView *rv;
 	RenderResult rres;
 	char name[32];
 	int offx = 0;
 	int newx = BLI_rcti_size_x(rect);
 	int newy = BLI_rcti_size_y(rect);
 	bool ok = false;
+	bool has_rectf = false;
 
 	if (!split || first) sprintf(name, "Preview %p", (void *)sa);
 	else sprintf(name, "SecondPreview %p", (void *)sa);
@@ -548,9 +550,16 @@ static bool ed_preview_draw_rect(ScrArea *sa, int split, int first, rcti *rect, 
 
 	/* test if something rendered ok */
 	re = RE_GetRender(name);
-	RE_AcquireResultImage(re, &rres);
 
-	if (rres.rectf) {
+	RE_AcquireResultImageViews(re, &rres);
+	/* TODO(sergey): Is there a cleaner way to do this? */
+	if (!BLI_listbase_is_empty(&rres.views)) {
+		/* material preview only needs monoscopy (view 0) */
+		rv = RE_RenderViewGetById(&rres, 0);
+		has_rectf = rv->rectf != NULL;
+	}
+
+	if (has_rectf) {
 		
 		if (ABS(rres.rectx - newx) < 2 && ABS(rres.recty - newy) < 2) {
 
@@ -561,9 +570,11 @@ static bool ed_preview_draw_rect(ScrArea *sa, int split, int first, rcti *rect, 
 				unsigned char *rect_byte = MEM_mallocN(rres.rectx * rres.recty * sizeof(int), "ed_preview_draw_rect");
 				float fx = rect->xmin + offx;
 				float fy = rect->ymin;
+
+				/* material preview only needs monoscopy (view 0) */
 				if (re)
-					RE_AcquiredResultGet32(re, &rres, (unsigned int *)rect_byte);
-				
+					RE_AcquiredResultGet32(re, &rres, (unsigned int *)rect_byte, 0);
+
 				glaDrawPixelsSafe(fx, fy, rres.rectx, rres.recty, rres.rectx, GL_RGBA, GL_UNSIGNED_BYTE, rect_byte);
 				
 				MEM_freeN(rect_byte);
@@ -573,7 +584,7 @@ static bool ed_preview_draw_rect(ScrArea *sa, int split, int first, rcti *rect, 
 		}
 	}
 
-	RE_ReleaseResultImage(re);
+	RE_ReleaseResultImageViews(re, &rres);
 
 	return ok;
 }

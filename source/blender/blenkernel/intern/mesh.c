@@ -1266,7 +1266,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 
 	dl = dispbase->first;
 	while (dl) {
-		int smooth = dl->rt & CU_SMOOTH ? 1 : 0;
+		const bool is_smooth = (dl->rt & CU_SMOOTH) != 0;
 
 		if (dl->type == DL_SEGM) {
 			startvert = vertcount;
@@ -1345,7 +1345,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 					}
 				}
 
-				if (smooth) mpoly->flag |= ME_SMOOTH;
+				if (is_smooth) mpoly->flag |= ME_SMOOTH;
 				mpoly++;
 				mloop += 3;
 				index += 3;
@@ -1424,7 +1424,7 @@ int BKE_mesh_nurbs_displist_to_mdata(Object *ob, ListBase *dispbase,
 						}
 					}
 
-					if (smooth) mpoly->flag |= ME_SMOOTH;
+					if (is_smooth) mpoly->flag |= ME_SMOOTH;
 					mpoly++;
 					mloop += 4;
 
@@ -1774,6 +1774,36 @@ void BKE_mesh_material_index_clear(Mesh *me)
 	}
 }
 
+void BKE_mesh_material_remap(Mesh *me, const unsigned int *remap, unsigned int remap_len)
+{
+	const short remap_len_short = (short)remap_len;
+
+#define MAT_NR_REMAP(n) \
+	if (n < remap_len_short) { \
+		BLI_assert(n >= 0 && remap[n] < remap_len_short); \
+		n = remap[n]; \
+	} ((void)0)
+
+	if (me->edit_btmesh) {
+		BMEditMesh *em = me->edit_btmesh;
+		BMIter iter;
+		BMFace *efa;
+
+		BM_ITER_MESH(efa, &iter, em->bm, BM_FACES_OF_MESH) {
+			MAT_NR_REMAP(efa->mat_nr);
+		}
+	}
+	else {
+		int i;
+		for (i = 0; i < me->totpoly; i++) {
+			MAT_NR_REMAP(me->mpoly[i].mat_nr);
+		}
+	}
+
+#undef MAT_NR_REMAP
+
+}
+
 void BKE_mesh_smooth_flag_set(Object *meshOb, int enableSmooth) 
 {
 	Mesh *me = meshOb->data;
@@ -1822,8 +1852,9 @@ float (*BKE_mesh_vertexCos_get(const Mesh *me, int *r_numVerts))[3]
  * Find the index of the loop in 'poly' which references vertex,
  * returns -1 if not found
  */
-int poly_find_loop_from_vert(const MPoly *poly, const MLoop *loopstart,
-                             unsigned vert)
+int poly_find_loop_from_vert(
+        const MPoly *poly, const MLoop *loopstart,
+        unsigned vert)
 {
 	int j;
 	for (j = 0; j < poly->totloop; j++, loopstart++) {
@@ -1839,20 +1870,22 @@ int poly_find_loop_from_vert(const MPoly *poly, const MLoop *loopstart,
  * vertex. Returns the index of the loop matching vertex, or -1 if the
  * vertex is not in \a poly
  */
-int poly_get_adj_loops_from_vert(unsigned r_adj[3], const MPoly *poly,
-                                 const MLoop *mloop, unsigned vert)
+int poly_get_adj_loops_from_vert(
+        unsigned r_adj[2], const MPoly *poly,
+        const MLoop *mloop, unsigned vert)
 {
 	int corner = poly_find_loop_from_vert(poly,
 	                                      &mloop[poly->loopstart],
 	                                      vert);
 		
 	if (corner != -1) {
+#if 0	/* unused - this loop */
 		const MLoop *ml = &mloop[poly->loopstart + corner];
+#endif
 
 		/* vertex was found */
 		r_adj[0] = ME_POLY_LOOP_PREV(mloop, poly, corner)->v;
-		r_adj[1] = ml->v;
-		r_adj[2] = ME_POLY_LOOP_NEXT(mloop, poly, corner)->v;
+		r_adj[1] = ME_POLY_LOOP_NEXT(mloop, poly, corner)->v;
 	}
 
 	return corner;

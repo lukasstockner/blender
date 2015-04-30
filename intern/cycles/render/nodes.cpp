@@ -186,7 +186,7 @@ ShaderEnum ImageTextureNode::color_space_enum = color_space_init();
 ShaderEnum ImageTextureNode::projection_enum = image_projection_init();
 
 ImageTextureNode::ImageTextureNode()
-: TextureNode("image_texture")
+: ImageSlotTextureNode("image_texture")
 {
 	image_manager = NULL;
 	slot = -1;
@@ -380,7 +380,7 @@ ShaderEnum EnvironmentTextureNode::color_space_enum = color_space_init();
 ShaderEnum EnvironmentTextureNode::projection_enum = env_projection_init();
 
 EnvironmentTextureNode::EnvironmentTextureNode()
-: TextureNode("environment_texture")
+: ImageSlotTextureNode("environment_texture")
 {
 	image_manager = NULL;
 	slot = -1;
@@ -2248,10 +2248,15 @@ void GeometryNode::compile(SVMCompiler& compiler)
 	out = output("Pointiness");
 	if(!out->links.empty()) {
 		compiler.stack_assign(out);
-		compiler.add_node(attr_node,
-		                  ATTR_STD_POINTINESS,
-		                  out->stack_offset,
-		                  NODE_ATTR_FLOAT);
+		if(compiler.output_type() != SHADER_TYPE_VOLUME) {
+			compiler.add_node(attr_node,
+			                  ATTR_STD_POINTINESS,
+			                  out->stack_offset,
+			                  NODE_ATTR_FLOAT);
+		}
+		else {
+			compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), out->stack_offset);
+		}
 	}
 }
 
@@ -3747,7 +3752,7 @@ void MathNode::compile(SVMCompiler& compiler)
 		                                 value1_in->value.x,
 		                                 value2_in->value.x);
 		if(use_clamp) {
-			optimized_value = clamp(optimized_value, 0.0f, 1.0f);
+			optimized_value = saturate(optimized_value);
 		}
 		compiler.add_node(NODE_VALUE_F,
 		                  __float_as_int(optimized_value),

@@ -670,6 +670,8 @@ def WinPyBundle(target=None, source=None, env=None):
     py_dir += '/release/site-packages'
     # grr, we have to do one by one because the dir exists
     for f in os.listdir(py_dir):
+        if f == '.svn':
+            continue
         fn_src = os.path.join(py_dir, f)
         fn_dst = os.path.join(py_target, f)
 
@@ -815,6 +817,8 @@ def AppIt(target=None, source=None, env=None):
             print "Bundling libiomp5"
             instname = env['LCGDIR'][1:] # made libiomp5 part of blender libs
             cmd = 'ditto --arch %s %s/openmp/lib/libiomp5.dylib %s/%s.app/Contents/Resources/lib/'%(osxarch, instname, installdir, binary) # copy libiomp5
+            commands.getoutput(cmd)
+            cmd = 'cp %s/openmp/LICENSE.txt %s/LICENSE-libiomp5.txt'%(instname, installdir) # copy libiomp5 license
             commands.getoutput(cmd)
 
 # extract copy system python, be sure to update other build systems
