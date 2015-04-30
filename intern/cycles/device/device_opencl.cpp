@@ -1251,6 +1251,16 @@ public:
 
 					task->update_progress(&tile);
 				}
+
+				/* Complete kernel execution before release tile */
+				/* This helps in multi-device render;
+				* The device that reaches the critical-section function release_tile
+				* waits (stalling other devices from entering release_tile) for all kernels
+				* to complete. If device1 (a slow-render device) reaches release_tile first then
+				* it would stall device2 (a fast-render device) from proceeding to render next tile
+				*/
+				clFinish(cqCommandQueue);
+
 				task->release_tile(tile);
 			}
 		}
@@ -3566,6 +3576,16 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 					path_trace(tile, 0);
 				}
 				tile.sample = tile.start_sample + tile.num_samples;
+
+				/* Complete kernel execution before release tile */
+				/* This helps in multi-device render;
+				 * The device that reaches the critical-section function release_tile
+				 * waits (stalling other devices from entering release_tile) for all kernels
+				 * to complete. If device1 (a slow-render device) reaches release_tile first then
+				 * it would stall device2 (a fast-render device) from proceeding to render next tile
+				 */
+				clFinish(cqCommandQueue);
+
 				task->release_tile(tile);
 			}
 		}
