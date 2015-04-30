@@ -1512,7 +1512,7 @@ BMVert *bmesh_semv(BMesh *bm, BMVert *tv, BMEdge *e, BMEdge **r_e)
 	bmesh_disk_edge_remove(e, tv);
 
 	/* swap out tv for v_new in e */
-	bmesh_edge_swapverts(e, tv, v_new);
+	bmesh_disk_vert_swap(e, v_new, tv);
 
 	/* add e to v_new's disk cycle */
 	bmesh_disk_edge_append(e, v_new);
@@ -1729,7 +1729,7 @@ BMEdge *bmesh_jekv(
 			/* remove e_old from v_kill's disk cycle */
 			bmesh_disk_edge_remove(e_old, v_kill);
 			/* relink e_old->v_kill to be e_old->tv */
-			bmesh_edge_swapverts(e_old, v_kill, tv);
+			bmesh_disk_vert_swap(e_old, tv, v_kill);
 			/* append e_old to tv's disk cycle */
 			bmesh_disk_edge_append(e_old, tv);
 			/* remove e_kill from tv's disk cycle */
@@ -2050,24 +2050,7 @@ bool BM_vert_splice(BMesh *bm, BMVert *v, BMVert *v_target)
 
 	/* move all the edges from v's disk to vtarget's disk */
 	while ((e = v->e)) {
-
-		/* loop  */
-		BMLoop *l_first;
-		if ((l_first = e->l)) {
-			BMLoop *l_iter = l_first;
-			do {
-				if (l_iter->v == v) {
-					l_iter->v = v_target;
-				}
-				/* else if (l_iter->prev->v == v) {...}
-				 * (this case will be handled by a different edge) */
-			} while ((l_iter = l_iter->radial_next) != l_first);
-		}
-
-		/* disk */
-		bmesh_disk_edge_remove(e, v);
-		bmesh_edge_swapverts(e, v, v_target);
-		bmesh_disk_edge_append(e, v_target);
+		bmesh_edge_vert_swap(e, v_target, v);
 		BLI_assert(e->v1 != e->v2);
 	}
 
@@ -2173,23 +2156,7 @@ void bmesh_vert_separate(
 			}
 
 			while ((e = BLI_SMALLSTACK_POP(edges))) {
-
-				/* swap out loops */
-				if (e->l) {
-					BMLoop *l_iter, *l_first;
-					l_iter = l_first = e->l;
-					do {
-						if (l_iter->v == v) {
-							l_iter->v = v_new;
-						}
-					} while ((l_iter = l_iter->radial_next) != l_first);
-				}
-
-				/* swap out edges */
-				BLI_assert(e->v1 == v || e->v2 == v);
-				bmesh_disk_edge_remove(e, v);
-				bmesh_edge_swapverts(e, v, v_new);
-				bmesh_disk_edge_append(e, v_new);
+				bmesh_edge_vert_swap(e, v_new, v);
 			}
 
 			if (r_vout) {
@@ -2336,11 +2303,11 @@ void bmesh_edge_separate(
  */
 BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
 {
-	BMVert **vtar;
-	int len, i;
 	BMVert *v_new = NULL;
 	BMVert *v_sep = l_sep->v;
 	BMEdge *e_iter;
+	BMEdge *edges[2];
+	int i;
 
 	/* peel the face from the edge radials on both sides of the
 	 * loop vert, disconnecting the face from its fan */
@@ -2368,52 +2335,174 @@ BMVert *bmesh_urmv_loop(BMesh *bm, BMLoop *l_sep)
 		}
 	}
 
-	/* Update the disk start, so that v->e points to an edge touching the split loop.
-	 * This is so that BM_vert_split will leave the original v_sep on some *other* fan
-	 * (not the one-face fan that holds the unglue face). */
-	v_sep->e = e_iter;
+	v_sep->e = l_sep->e;
 
-	/* Split all fans connected to the vert, duplicating it for
-	 * each fans. */
-	bmesh_vert_separate(bm, v_sep, &vtar, &len, false);
+	v_new = BM_vert_create(bm, v_sep->co, v_sep, BM_CREATE_NOP);
 
-	/* There should have been at least two fans cut apart here,
-	 * otherwise the early exit would have kicked in. */
-	BLI_assert(len >= 2);
+	edges[0] = l_sep->e;
+	edges[1] = l_sep->prev->e;
 
-	v_new = l_sep->v;
+	for (i = 0; i < ARRAY_SIZE(edges); i++) {
+		BMEdge *e = edges[i];
+		bmesh_edge_vert_swap(e, v_new, v_sep);
+	}
 
-	/* Desired result here is that a new vert should always be
-	 * created for the unglue face. This is so we can glue any
-	 * extras back into the original vert. */
-	BLI_assert(v_new != v_sep);
-	BLI_assert(v_sep == vtar[0]);
+	BLI_assert(v_sep != l_sep->v);
+	BLI_assert(v_sep->e != l_sep->v->e);
 
-	/* If there are more than two verts as a result, glue together
-	 * all the verts except the one this URMV intended to create */
-	if (len > 2) {
-		for (i = 0; i < len; i++) {
-			if (vtar[i] == v_new) {
-				break;
-			}
-		}
+	BM_CHECK_ELEMENT(l_sep);
+	BM_CHECK_ELEMENT(v_sep);
+	BM_CHECK_ELEMENT(edges[0]);
+	BM_CHECK_ELEMENT(edges[1]);
+	BM_CHECK_ELEMENT(v_new);
 
-		if (i != len) {
-			/* Swap the single vert that was needed for the
-			 * unglue into the last array slot */
-			SWAP(BMVert *, vtar[i], vtar[len - 1]);
+	return v_new;
+}
 
-			/* And then glue the rest back together */
-			for (i = 1; i < len - 1; i++) {
-				BM_vert_splice(bm, vtar[i], vtar[0]);
+/**
+ * A version of #bmesh_urmv_loop that disconnects multiple loops at once.
+ *
+ * Handles the task of finding fans boundaris.
+ */
+BMVert *bmesh_urmv_loop_multi(
+        BMesh *bm, BMLoop **larr, int larr_len)
+{
+	BMVert *v_sep = larr[0]->v;
+	BMVert *v_new;
+	int i;
+	bool is_mixed_any = false;
+
+	BLI_SMALLSTACK_DECLARE(edges, BMEdge *);
+
+#define LOOP_VISIT _FLAG_WALK
+#define EDGE_VISIT _FLAG_WALK
+
+	for (i = 0; i < larr_len; i++) {
+		BMLoop *l_sep = larr[i];
+
+		/* all must be from the same vert! */
+		BLI_assert(v_sep == l_sep->v);
+
+		BLI_assert(!BM_ELEM_API_FLAG_TEST(l_sep, LOOP_VISIT));
+		BM_ELEM_API_FLAG_ENABLE(l_sep, LOOP_VISIT);
+
+		/* weak! but it makes it simpler to check for edges to split
+		 * while doing a radial loop (where loops may be adjacent) */
+		BM_ELEM_API_FLAG_ENABLE(l_sep->next, LOOP_VISIT);
+		BM_ELEM_API_FLAG_ENABLE(l_sep->prev, LOOP_VISIT);
+	}
+
+	for (i = 0; i < larr_len; i++) {
+		BMLoop *l_sep = larr[i];
+
+		BMLoop *loop_pair[2] = {l_sep, l_sep->prev};
+		int j;
+		for (j = 0; j < ARRAY_SIZE(loop_pair); j++) {
+			BMEdge *e = loop_pair[j]->e;
+			if (!BM_ELEM_API_FLAG_TEST(e, EDGE_VISIT)) {
+				BMLoop *l_iter, *l_first;
+				bool is_mixed = false;
+
+				BM_ELEM_API_FLAG_ENABLE(e, EDGE_VISIT);
+
+				l_iter = l_first = e->l;
+				do {
+					if (!BM_ELEM_API_FLAG_TEST(l_iter, LOOP_VISIT)) {
+						is_mixed = true;
+						is_mixed_any = true;
+						break;
+					}
+				} while ((l_iter = l_iter->radial_next) != l_first);
+
+				if (is_mixed) {
+					/* ensure the first loop is one we don't own so we can do a quick check below
+					 * on the edge's loop-flag to see if the edge is mixed or not. */
+					e->l = l_iter;
+				}
+				BLI_SMALLSTACK_PUSH(edges, e);
 			}
 		}
 	}
 
-	MEM_freeN(vtar);
+	if (is_mixed_any == false) {
+		/* all loops in 'larr' are the soul owners of their edges.
+		 * nothing to split away from, this is a no-op */
+		v_new = v_sep;
+	}
+	else {
+		BMEdge *e;
+
+		BLI_assert(!BLI_SMALLSTACK_IS_EMPTY(edges));
+
+		v_new = BM_vert_create(bm, v_sep->co, v_sep, BM_CREATE_NOP);
+		while ((e = BLI_SMALLSTACK_POP(edges))) {
+			BMLoop *l_iter, *l_first, *l_next;
+			BMEdge *e_new;
+
+			/* disable so copied edge isn't left dirty (loop edges are cleared last too) */
+			BM_ELEM_API_FLAG_DISABLE(e, EDGE_VISIT);
+
+			if (!BM_ELEM_API_FLAG_TEST(e->l, LOOP_VISIT)) {
+				/* edge has some loops owned by us, some owned by other loops */
+				BMVert *e_new_v_pair[2];
+
+				if (e->v1 == v_sep) {
+					e_new_v_pair[0] = v_new;
+					e_new_v_pair[1] = e->v2;
+				}
+				else {
+					BLI_assert(v_sep == e->v2);
+					e_new_v_pair[0] = e->v1;
+					e_new_v_pair[1] = v_new;
+				}
+
+				e_new = BM_edge_create(bm, UNPACK2(e_new_v_pair), e, BM_CREATE_NOP);
+
+				/* now moved all loops from 'larr' to this newly created edge */
+				l_iter = l_first = e->l;
+				do {
+					l_next = l_iter->radial_next;
+					if (BM_ELEM_API_FLAG_TEST(l_iter, LOOP_VISIT)) {
+						bmesh_radial_loop_remove(l_iter, e);
+						bmesh_radial_append(e_new, l_iter);
+						l_iter->e = e_new;
+					}
+				} while ((l_iter = l_next) != l_first);
+			}
+			else {
+				/* we own the edge entirely, replace the vert */
+				bmesh_disk_edge_remove(e, v_sep);
+				bmesh_disk_vert_swap(e, v_new, v_sep);
+				bmesh_disk_edge_append(e, v_new);
+			}
+
+			/* loop vert is handled last! */
+		}
+	}
+
+	for (i = 0; i < larr_len; i++) {
+		BMLoop *l_sep = larr[i];
+
+		l_sep->v = v_new;
+
+		BLI_assert(BM_ELEM_API_FLAG_TEST(l_sep, LOOP_VISIT));
+		BLI_assert(BM_ELEM_API_FLAG_TEST(l_sep->prev, LOOP_VISIT));
+		BLI_assert(BM_ELEM_API_FLAG_TEST(l_sep->next, LOOP_VISIT));
+		BM_ELEM_API_FLAG_DISABLE(l_sep, LOOP_VISIT);
+		BM_ELEM_API_FLAG_DISABLE(l_sep->prev, LOOP_VISIT);
+		BM_ELEM_API_FLAG_DISABLE(l_sep->next, LOOP_VISIT);
+
+
+		BM_ELEM_API_FLAG_DISABLE(l_sep->prev->e, EDGE_VISIT);
+		BM_ELEM_API_FLAG_DISABLE(l_sep->e, EDGE_VISIT);
+	}
+
+#undef LOOP_VISIT
+#undef EDGE_VISIT
 
 	return v_new;
 }
+
 
 /**
  * \brief Unglue Region Make Vert (URMV)
