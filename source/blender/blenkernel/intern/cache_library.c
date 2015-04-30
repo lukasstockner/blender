@@ -780,6 +780,7 @@ static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *in
 	
 	{
 		float vec[3], dist;
+		bool inside = false;
 		float factor;
 		
 		sub_v3_v3v3(vec, point->x, nearest.co);
@@ -789,13 +790,17 @@ static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *in
 			/* dm normal also needed in world space */
 			mul_mat3_m4_v3(inst->mat, nearest.no);
 			
-			if (dot_v3v3(vec, nearest.no) < 0.0f)
+			if (dot_v3v3(vec, nearest.no) < 0.0f) {
 				dist = -dist;
+				inside = true;
+			}
 		}
 		
 		factor = cache_effector_falloff(eff, dist);
 		
 		mul_v3_v3fl(result->f, vec, eff->strength * factor);
+		if (inside)
+			negate_v3(result->f);
 	}
 	
 	return true;
@@ -825,7 +830,53 @@ int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoi
 	return applied;
 }
 
-/* ------------------------------------------------------------------------- */
+/* ========================================================================= */
+
+bool BKE_cache_modifier_find_object(DupliCache *dupcache, Object *ob, DupliObjectData **r_data)
+{
+	DupliObjectData *dobdata;
+	
+	if (!ob)
+		return false;
+	dobdata = BKE_dupli_cache_find_data(dupcache, ob);
+	if (!dobdata)
+		return false;
+	
+	if (r_data) *r_data = dobdata;
+	return true;
+}
+
+bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_system, DupliObjectData **r_data, Strands **r_strands)
+{
+	DupliObjectData *dobdata;
+	ParticleSystem *psys;
+	DupliObjectDataStrands *link;
+	Strands *strands;
+	
+	if (!ob)
+		return false;
+	dobdata = BKE_dupli_cache_find_data(dupcache, ob);
+	if (!dobdata)
+		return false;
+	
+	psys = BLI_findlink(&ob->particlesystem, hair_system);
+	if (!psys || !psys->part->type == PART_HAIR)
+		return false;
+	
+	strands = NULL;
+	for (link = dobdata->strands.first; link; link = link->next) {
+		if (link->strands && STREQ(link->name, psys->name)) {
+			strands = link->strands;
+			break;
+		}
+	}
+	if (!strands)
+		return false;
+	
+	if (r_data) *r_data = dobdata;
+	if (r_strands) *r_strands = strands;
+	return true;
+}
 
 static void hairsim_params_init(HairSimParams *params)
 {
@@ -882,43 +933,11 @@ static void hairsim_foreach_id_link(HairSimCacheModifier *hsmd, CacheLibrary *ca
 	walk(userdata, cachelib, &hsmd->modifier, (ID **)(&hsmd->object));
 }
 
-static bool hairsim_find_data(HairSimCacheModifier *hsmd, DupliCache *dupcache, Object **r_ob, Strands **r_strands)
-{
-	DupliObjectData *dobdata;
-	ParticleSystem *psys;
-	DupliObjectDataStrands *link;
-	Strands *strands;
-	
-	if (!hsmd->object)
-		return false;
-	dobdata = BKE_dupli_cache_find_data(dupcache, hsmd->object);
-	if (!dobdata)
-		return false;
-	
-	psys = BLI_findlink(&hsmd->object->particlesystem, hsmd->hair_system);
-	if (!psys || !psys->part->type == PART_HAIR)
-		return false;
-	
-	strands = NULL;
-	for (link = dobdata->strands.first; link; link = link->next) {
-		if (link->strands && STREQ(link->name, psys->name)) {
-			strands = link->strands;
-			break;
-		}
-	}
-	if (!strands)
-		return false;
-	
-	*r_ob = hsmd->object;
-	*r_strands = strands;
-	return true;
-}
-
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 #define MAX_CACHE_EFFECTORS 64
 	
-	Object *ob;
+	Object *ob = hsmd->object;
 	Strands *strands;
 	float mat[4][4];
 	ListBase *effectors;
@@ -934,7 +953,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	if (frame <= frame_prev)
 		return;
 	
-	if (!hairsim_find_data(hsmd, data->dupcache, &ob, &strands))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands))
 		return;
 	
 	if (hsmd->sim_params.flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
@@ -971,6 +990,8 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
     /* free */              (CacheModifier_FreeFunc)hairsim_free,
 };
 
+/* ------------------------------------------------------------------------- */
+
 static void forcefield_init(ForceFieldCacheModifier *ffmd)
 {
 	ffmd->object = NULL;
@@ -1006,10 +1027,202 @@ CacheModifierTypeInfo cacheModifierType_ForceField = {
     /* free */              (CacheModifier_FreeFunc)forcefield_free,
 };
 
+/* ------------------------------------------------------------------------- */
+
+static void shrinkwrap_init(ShrinkWrapCacheModifier *smd)
+{
+	smd->object = NULL;
+	smd->hair_system = -1;
+}
+
+static void shrinkwrap_copy(ShrinkWrapCacheModifier *UNUSED(smd), ShrinkWrapCacheModifier *UNUSED(tsmd))
+{
+}
+
+static void shrinkwrap_free(ShrinkWrapCacheModifier *UNUSED(smd))
+{
+}
+
+static void shrinkwrap_foreach_id_link(ShrinkWrapCacheModifier *smd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	walk(userdata, cachelib, &smd->modifier, (ID **)(&smd->object));
+	walk(userdata, cachelib, &smd->modifier, (ID **)(&smd->target));
+}
+
+typedef struct ShrinkWrapCacheData {
+	DerivedMesh *dm;
+	BVHTreeFromMesh treedata;
+	
+	ListBase instances;
+} ShrinkWrapCacheData;
+
+typedef struct ShrinkWrapCacheInstance {
+	struct ShrinkWrapCacheInstance *next, *prev;
+	
+	float mat[4][4];
+	float imat[4][4];
+} ShrinkWrapCacheInstance;
+
+static void shrinkwrap_data_get_bvhtree(ShrinkWrapCacheData *data, DerivedMesh *dm, bool create_bvhtree)
+{
+	data->dm = CDDM_copy(dm);
+	if (!data->dm)
+		return;
+	
+	DM_ensure_tessface(data->dm);
+	CDDM_calc_normals(data->dm);
+	
+	if (create_bvhtree) {
+		bvhtree_from_mesh_faces(&data->treedata, data->dm, 0.0, 2, 6);
+	}
+}
+
+static void shrinkwrap_data_get_instances(ShrinkWrapCacheData *data, Object *ob, float obmat[4][4], ListBase *duplilist)
+{
+	DupliObject *dob;
+	
+	for (dob = duplilist->first; dob; dob = dob->next) {
+		ShrinkWrapCacheInstance *inst;
+		
+		if (dob->ob != ob)
+			continue;
+		
+		inst = MEM_callocN(sizeof(ShrinkWrapCacheInstance), "shrink wrap instance");
+		mul_m4_m4m4(inst->mat, obmat, dob->mat);
+		invert_m4_m4(inst->imat, inst->mat);
+		
+		BLI_addtail(&data->instances, inst);
+	}
+}
+
+static void shrinkwrap_data_free(ShrinkWrapCacheData *data)
+{
+	BLI_freelistN(&data->instances);
+	
+	free_bvhtree_from_mesh(&data->treedata);
+	
+	if (data->dm) {
+		data->dm->release(data->dm);
+	}
+}
+
+static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *data, ShrinkWrapCacheInstance *inst, StrandsVertex *vertex, StrandsMotionState *UNUSED(state))
+{
+//	const float *point = state->co;
+//	float *npoint = state->co;
+	const float *point = vertex->co;
+	float *npoint = vertex->co;
+	
+	BVHTreeNearest nearest = {0, };
+	float co[3];
+	
+	if (!data->treedata.tree)
+		return;
+	
+	nearest.index = -1;
+	nearest.dist_sq = FLT_MAX;
+	
+	/* lookup in target space */
+	mul_v3_m4v3(co, inst->imat, point);
+	
+	BLI_bvhtree_find_nearest(data->treedata.tree, co, &nearest, data->treedata.nearest_callback, &data->treedata);
+	if (nearest.index < 0)
+		return;
+	
+	/* convert back to world space */
+	mul_m4_v3(inst->mat, nearest.co);
+	mul_mat3_m4_v3(inst->mat, nearest.no);
+	
+	{
+		float vec[3];
+		
+		sub_v3_v3v3(vec, point, nearest.co);
+		
+		/* project along the distance vector */
+		if (dot_v3v3(vec, nearest.no) < 0.0f) {
+			sub_v3_v3v3(npoint, point, vec);
+		}
+	}
+}
+
+static void shrinkwrap_apply(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *data, Strands *strands)
+{
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			ShrinkWrapCacheInstance *inst;
+			
+			/* XXX this is not great, the result depends on order of instances in the duplilist ...
+			 * but good enough for single instance use case.
+			 */
+			for (inst = data->instances.first; inst; inst = inst->next) {
+				shrinkwrap_apply_vertex(smd, data, inst, it_vert.vertex, it_vert.state);
+			}
+		}
+	}
+}
+
+static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode)
+{
+	Object *ob = smd->object;
+	DupliObject *dob;
+	Strands *strands;
+	DupliObjectData *target_data;
+	float mat[4][4];
+	
+	ShrinkWrapCacheData shrinkwrap;
+	
+	/* only perform hair sim once */
+	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
+		return;
+	
+	/* skip first step and potential backward steps */
+	if (frame <= frame_prev)
+		return;
+	
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands))
+		return;
+	if (!BKE_cache_modifier_find_object(data->dupcache, smd->target, &target_data))
+		return;
+	
+	for (dob = data->dupcache->duplilist.first; dob; dob = dob->next) {
+		if (dob->ob != ob)
+			continue;
+		
+		/* instances are calculated relative to the strands object */
+		invert_m4_m4(mat, dob->mat);
+		
+		memset(&shrinkwrap, 0, sizeof(shrinkwrap));
+		shrinkwrap_data_get_bvhtree(&shrinkwrap, target_data->dm, true);
+		shrinkwrap_data_get_instances(&shrinkwrap, smd->target, mat, &data->dupcache->duplilist);
+		
+		shrinkwrap_apply(smd, &shrinkwrap, strands);
+		
+		shrinkwrap_data_free(&shrinkwrap);
+		
+		/* XXX assume a single instance ... otherwise would just overwrite previous strands data */
+		break;
+	}
+}
+
+CacheModifierTypeInfo cacheModifierType_ShrinkWrap = {
+    /* name */              "ShrinkWrap",
+    /* structName */        "ShrinkWrapCacheModifier",
+    /* structSize */        sizeof(ShrinkWrapCacheModifier),
+
+    /* copy */              (CacheModifier_CopyFunc)shrinkwrap_copy,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)shrinkwrap_foreach_id_link,
+    /* process */           (CacheModifier_ProcessFunc)shrinkwrap_process,
+    /* init */              (CacheModifier_InitFunc)shrinkwrap_init,
+    /* free */              (CacheModifier_FreeFunc)shrinkwrap_free,
+};
+
 void BKE_cache_modifier_init(void)
 {
 	cache_modifier_type_set(eCacheModifierType_HairSimulation, &cacheModifierType_HairSimulation);
 	cache_modifier_type_set(eCacheModifierType_ForceField, &cacheModifierType_ForceField);
+	cache_modifier_type_set(eCacheModifierType_ShrinkWrap, &cacheModifierType_ShrinkWrap);
 }
 
 /* ========================================================================= */

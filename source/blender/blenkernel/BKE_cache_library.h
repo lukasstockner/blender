@@ -49,6 +49,7 @@ struct CacheModifier;
 struct ID;
 struct CacheProcessData;
 struct BVHTreeFromMesh;
+struct Strands;
 
 struct ClothModifierData;
 
@@ -170,6 +171,9 @@ struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, str
 
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
 
+bool BKE_cache_modifier_find_object(struct DupliCache *dupcache, struct Object *ob, struct DupliObjectData **r_data);
+bool BKE_cache_modifier_find_strands(struct DupliCache *dupcache, struct Object *ob, int hair_system, struct DupliObjectData **r_data, struct Strands **r_strands);
+
 /* ========================================================================= */
 
 typedef struct CacheEffectorInstance {
@@ -198,6 +202,7 @@ typedef enum eCacheEffector_Type {
 } eCacheEffector_Type;
 
 typedef struct CacheEffectorPoint {
+	int index;
 	float x[3], v[3];
 } CacheEffectorPoint;
 
