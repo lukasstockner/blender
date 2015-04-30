@@ -2500,6 +2500,9 @@ public:
 
 #endif
 
+		if(per_sample_output_buffers != NULL)
+			clReleaseMemObject(per_sample_output_buffers);
+
 		if(hostRayStateArray != NULL)
 			free(hostRayStateArray);
 
