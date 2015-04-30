@@ -59,28 +59,38 @@ static SpinLock lock;
 
 #define NL "\r\n"
 
-static const char *deg_debug_graphviz_fontname = "helvetica";
-static float deg_debug_graphviz_graph_label_size = 20.0f;
-static float deg_debug_graphviz_node_label_size = 14.0f;
-static const int deg_debug_max_colors = 12;
-static const char *deg_debug_colors_dark[] = {"#6e8997", "#144f77", "#76945b",
-                                              "#216a1d", "#a76665", "#971112",
-                                              "#a87f49", "#0a9540", "#86768e",
-                                              "#462866", "#a9a965", "#753b1a"};
-static const char *deg_debug_colors[] = {"#a6cee3", "#1f78b4", "#b2df8a",
-                                         "#33a02c", "#fb9a99", "#e31a1c",
-                                         "#fdbf6f", "#ff7f00", "#cab2d6",
-                                         "#6a3d9a", "#ffff99", "#b15928"};
-static const char *deg_debug_colors_light[] = {"#8dd3c7", "#ffffb3", "#bebada",
-                                               "#fb8072", "#80b1d3", "#fdb462",
-                                               "#b3de69", "#fccde5", "#d9d9d9",
-                                               "#bc80bd", "#ccebc5","#ffed6f"};
-
 /* Only one should be enabled, defines whether graphviz nodes
  * get colored by individual types or classes.
  */
 #define COLOR_SCHEME_NODE_CLASS 1
 //#define COLOR_SCHEME_NODE_TYPE  2
+
+static const char *deg_debug_graphviz_fontname = "helvetica";
+static float deg_debug_graphviz_graph_label_size = 20.0f;
+static float deg_debug_graphviz_node_label_size = 14.0f;
+static const int deg_debug_max_colors = 12;
+#if 0
+static const char *deg_debug_colors_dark[] = {
+    "#6e8997", "#144f77", "#76945b",
+    "#216a1d", "#a76665", "#971112",
+    "#a87f49", "#0a9540", "#86768e",
+    "#462866", "#a9a965", "#753b1a",
+};
+#endif
+#ifdef COLOR_SCHEME_NODE_TYPE
+static const char *deg_debug_colors[] = {
+    "#a6cee3", "#1f78b4", "#b2df8a",
+    "#33a02c", "#fb9a99", "#e31a1c",
+    "#fdbf6f", "#ff7f00", "#cab2d6",
+    "#6a3d9a", "#ffff99", "#b15928",
+};
+#endif
+static const char *deg_debug_colors_light[] = {
+    "#8dd3c7", "#ffffb3", "#bebada",
+    "#fb8072", "#80b1d3", "#fdb462",
+    "#b3de69", "#fccde5", "#d9d9d9",
+    "#bc80bd", "#ccebc5", "#ffed6f",
+};
 
 #ifdef COLOR_SCHEME_NODE_TYPE
 static const int deg_debug_node_type_color_map[][2] = {
@@ -164,6 +174,7 @@ struct DebugContext {
 	bool show_eval_priority;
 };
 
+static void deg_debug_fprintf(const DebugContext &ctx, const char *fmt, ...) ATTR_PRINTF_FORMAT(2, 3);
 static void deg_debug_fprintf(const DebugContext &ctx, const char *fmt, ...)
 {
 	va_list args;
@@ -1112,7 +1123,7 @@ bool DEG_debug_consistency_check(Depsgraph *graph)
 			}
 		}
 		if (node->num_links_pending != num_links_pending) {
-			printf("Valency mismatch: %s, %d != %d\n",
+			printf("Valency mismatch: %s, %u != %d\n",
 			       node->identifier().c_str(),
 			       node->num_links_pending, num_links_pending);
 			printf("Number of inlinks: %d\n", (int)node->inlinks.size());
