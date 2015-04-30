@@ -387,7 +387,7 @@ void DepsgraphNodeBuilder::build_object(Scene *scene, Base *base, Object *ob)
 			case OB_LATTICE:
 			{
 				/* TODO(sergey): This way using this object's
-				 * proeprties as driver target works fine.
+				 * properties as driver target works fine.
 				 *
 				 * Does this depend on other nodes?
 				 */
@@ -565,7 +565,7 @@ OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 
 	/* Create data node for this driver */
 	/* TODO(sergey): Avoid creating same operation multiple times,
-	 * in the future we need to avoid lookup of the operaiton as well
+	 * in the future we need to avoid lookup of the operation as well
 	 * and use some tagging magic instead.
 	 */
 	OperationDepsNode *driver_op = find_operation_node(id,
@@ -619,7 +619,7 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 
 	/* == Rigidbody Simulation Nodes ==
 	 * There are 3 nodes related to Rigidbody Simulation:
-	 * 1) "Initialise/Rebuild World" - this is called sparingly, only when the simulation
+	 * 1) "Initialize/Rebuild World" - this is called sparingly, only when the simulation
 	 *    needs to be rebuilt (mainly after file reload, or moving back to start frame)
 	 * 2) "Do Simulation" - perform a simulation step - interleaved between the evaluation
 	 *    steps for clusters of objects (i.e. between those affected and/or not affected by
@@ -748,7 +748,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	/* animation and/or drivers linking posebones to base-armature used to define them
 	 * NOTE: AnimData here is really used to control animated deform properties,
 	 *       which ideally should be able to be unique across different instances.
-	 *       Eventually, we need some type of proxy/isolation mechanism inbetween here
+	 *       Eventually, we need some type of proxy/isolation mechanism in-between here
 	 *       to ensure that we can use same rig multiple times in same scene...
 	 */
 	build_animdata(&arm->id);
@@ -756,7 +756,7 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 	/* Rebuild pose if not up to date. */
 	if (ob->pose == NULL || (ob->pose->flag & POSE_RECALC)) {
 		BKE_pose_rebuild(ob, arm);
-		/* XXX: Without this animaiton gets los incertain circumstances
+		/* XXX: Without this animation gets lost in certain circumstances
 		 * after loading file. Need to investigate further since it does
 		 * not happen with simple scenes..
 		 */

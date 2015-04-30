@@ -50,7 +50,7 @@ ComponentDepsNode::ComponentDepsNode() :
 {
 }
 
-/* Initialise 'component' node - from pointer data given */
+/* Initialize 'component' node - from pointer data given */
 void ComponentDepsNode::init(const ID * /*id*/,
                              const string & /*subdata*/)
 {
@@ -264,7 +264,7 @@ static DepsNodeFactoryImpl<PoseComponentDepsNode> DNTI_EVAL_POSE;
 
 /* Bone Component ========================================= */
 
-/* Initialise 'bone component' node - from pointer data given */
+/* Initialize 'bone component' node - from pointer data given */
 void BoneComponentDepsNode::init(const ID *id, const string &subdata)
 {
 	/* generic component-node... */

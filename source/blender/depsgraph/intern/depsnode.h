@@ -66,7 +66,7 @@ struct DepsNode {
 
 	/* Relationships between nodes
 	 * The reason why all depsgraph nodes are descended from this type (apart
-	 * from basic serialisation benefits - from the typeinfo) is that we can have
+	 * from basic serialization benefits - from the typeinfo) is that we can have
 	 * relationships between these nodes!
 	 */
 	typedef unordered_set<DepsRelation *> Relations;

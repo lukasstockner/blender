@@ -828,7 +828,7 @@ void DepsgraphRelationBuilder::build_driver(ID *id, FCurve *fcu)
 				if (target_pchan != NULL) {
 					/* get node associated with bone */
 					// XXX: watch the space!
-					/* Some casescan't use final bone transform, for example:
+					/* Some cases can't use final bone transform, for example:
 					 * - Driving the bone with itself (addressed here)
 					 * - Relations inside an IK chain (TODO?)
 					 */
@@ -1098,9 +1098,9 @@ void DepsgraphRelationBuilder::build_ik_pose(Object *ob,
 	// XXX: this should get handled as part of the constraint code
 	if (data->tar != NULL) {
 		/* TODO(sergey): For until we'll store partial matricies in the depsgraph,
-		 * we create dependency bewteen target object and pose eval component.
+		 * we create dependency between target object and pose eval component.
 		 *
-		 * This way we ensuring the whole subtree is updated from sctratch without
+		 * This way we ensuring the whole subtree is updated from scratch without
 		 * need of intermediate matricies. This is an overkill, but good enough for
 		 * testing IK solver.
 		 */
@@ -1244,7 +1244,7 @@ void DepsgraphRelationBuilder::build_splineik_pose(Object *ob,
 	/* attach path dependency to solver */
 	if (data->tar) {
 		/* TODO(sergey): For until we'll store partial matricies in the depsgraph,
-		 * we create dependency bewteen target object and pose eval component.
+		 * we create dependency between target object and pose eval component.
 		 * See IK pose for a bit more information.
 		 */
 		// TODO: the bigggest point here is that we need the curve PATH and not just the general geometry...

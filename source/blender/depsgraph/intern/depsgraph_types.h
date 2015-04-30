@@ -35,7 +35,7 @@
 
 #include "depsgraph_util_function.h"
 
-/* TODO(sergey): Ideally we'll just use char* and staticly allocated strings
+/* TODO(sergey): Ideally we'll just use char* and statically allocated strings
  * to avoid any possible overhead caused by string (re)allocation/formatting.
  */
 #include <string>

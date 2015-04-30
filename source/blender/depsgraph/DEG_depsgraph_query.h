@@ -141,12 +141,12 @@ void DEG_node_get_dependencies(struct ListBase *result, const struct DepsNode *n
 // XXX: allow supplying a filter predicate to provide further filtering/pruning?
 
 
-/* Get all descendents of a node
+/* Get all descendants of a node
  *
  * That is, get the subgraph / subset of nodes which are dependent
  * on the results of the given node.
  */
-Depsgraph *DEG_node_get_descendents(const struct Depsgraph *graph, const struct DepsNode *node);
+Depsgraph *DEG_node_get_descendants(const struct Depsgraph *graph, const struct DepsNode *node);
 
 
 /* Get all ancestors of a node 
@@ -171,7 +171,7 @@ size_t DEG_query_affected_ids(struct ListBase *result, const struct ID *id, cons
 /* Get ID-blocks which are needed to update/evaluate specified ID 
  * < only_direct: True = Only ID-blocks with direct relationships to ID-block will be returned
  *
- * > result: (LinkData : ID) a list of ID-blocks mathcing the specified criteria
+ * > result: (LinkData : ID) a list of ID-blocks matching the specified criteria
  * > returns: number of matching ID-blocks
  */
 size_t DEG_query_required_ids(struct ListBase *result, const struct ID *id, const bool only_direct);

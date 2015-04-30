@@ -2130,7 +2130,7 @@ void BL_ConvertBlenderObjects(struct Main* maggie,
 			delete pcit->m_gamechildnode;
 			// Now destroy the child object but also all its descendent that may already be linked
 			// Remove the child reference in the local list!
-			// Note: there may be descendents already if the children of the child were processed
+			// Note: there may be descendants already if the children of the child were processed
 			//       by this loop before the child. In that case, we must remove the children also
 			CListValue* childrenlist = childobj->GetChildrenRecursive();
 			childrenlist->Add(childobj->AddRef());

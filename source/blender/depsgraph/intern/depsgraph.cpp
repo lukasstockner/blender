@@ -434,7 +434,7 @@ void Depsgraph::clear_all_nodes()
 /* **************** */
 /* Public Graph API */
 
-/* Initialise a new Depsgraph */
+/* Initialize a new Depsgraph */
 Depsgraph *DEG_graph_new()
 {
 	return OBJECT_GUARDED_NEW(Depsgraph);

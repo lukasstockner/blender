@@ -241,7 +241,7 @@ static void deg_graph_build_finalize(Depsgraph *graph)
 				}
 			}
 
-			/* Re-tag ID for update if it was tagged befoee the relations
+			/* Re-tag ID for update if it was tagged before the relations
 			 * update tag.
 			 */
 			ID *id = id_node->id;

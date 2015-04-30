@@ -139,7 +139,7 @@ static DepsNodeFactoryImpl<TimeSourceDepsNode> DNTI_TIMESOURCE;
 
 /* ID Node ================================================ */
 
-/* Initialise 'id' node - from pointer data given. */
+/* Initialize 'id' node - from pointer data given. */
 void IDDepsNode::init(const ID *id, const string &UNUSED(subdata))
 {
 	/* Store ID-pointer. */
@@ -258,7 +258,7 @@ static DepsNodeFactoryImpl<IDDepsNode> DNTI_ID_REF;
 
 /* Subgraph Node ========================================== */
 
-/* Initialise 'subgraph' node - from pointer data given. */
+/* Initialize 'subgraph' node - from pointer data given. */
 void SubgraphDepsNode::init(const ID *id, const string &UNUSED(subdata))
 {
 	/* Store ID-ref if provided. */

@@ -76,7 +76,7 @@ void DEG_depsgraph_switch_to_legacy(void);
 // Get main depsgraph instance from context!
 
 /* Create new Depsgraph instance */
-// TODO: what args are needed here? What's the building-graph entrypoint?
+// TODO: what args are needed here? What's the building-graph entry point?
 Depsgraph *DEG_graph_new(void);
 
 /* Free Depsgraph itself and all its data */
@@ -116,7 +116,7 @@ void DEG_id_tag_update_ex(struct Main *bmain,
 
 /* Tag given ID type for update.
  *
- * Used by all sort of render engines to quicly check if
+ * Used by all sort of render engines to quickly check if
  * IDs of a given type need to be checked for update.
  */
 void DEG_id_type_tag(struct Main *bmain, short idtype);
@@ -162,7 +162,7 @@ void DEG_evaluation_context_free(struct EvaluationContext *eval_ctx);
 
 /* Graph Evaluation  ----------------------------- */
 
-/* Frame changed recalculation entrypoint 
+/* Frame changed recalculation entry point
  * < context_type: context to perform evaluation for
  * < ctime: (frame) new frame to evaluate values on
  */
@@ -172,7 +172,7 @@ void DEG_evaluate_on_framechange(struct EvaluationContext *eval_ctx,
                                  float ctime,
                                  const int layer);
 
-/* Data changed recalculation entrypoint.
+/* Data changed recalculation entry point.
  * < context_type: context to perform evaluation for
  * < layers: visible layers bitmask to update the graph for
  */
@@ -180,7 +180,7 @@ void DEG_evaluate_on_refresh_ex(struct EvaluationContext *eval_ctx,
                                 Depsgraph *graph,
                                 const int layers);
 
-/* Data changed recalculation entrypoint.
+/* Data changed recalculation entry point.
  * < context_type: context to perform evaluation for
  */
 void DEG_evaluate_on_refresh(struct EvaluationContext *eval_ctx,

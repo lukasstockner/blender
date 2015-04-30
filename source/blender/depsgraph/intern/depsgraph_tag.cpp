@@ -458,7 +458,7 @@ void DEG_ids_clear_recalc(Main *bmain)
 	int a;
 
 	/* TODO(sergey): Re-implement POST_UPDATE_HANDLER_WORKAROUND using entry_tags
-	 * and id_tags storage from the new depenency graph.
+	 * and id_tags storage from the new dependency graph.
 	 */
 
 	/* Loop over all ID types. */
