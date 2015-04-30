@@ -615,7 +615,7 @@ void BKE_sound_seek_scene(struct Main *bmain, struct Scene *scene)
 
 	animation_playing = 0;
 	for (screen = bmain->screen.first; screen; screen = screen->id.next) {
-		if (screen->animtimer || screen->scrubbing) {
+		if (screen->animtimer) {
 			animation_playing = 1;
 			break;
 		}
