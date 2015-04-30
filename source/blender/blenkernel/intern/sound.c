@@ -615,13 +615,13 @@ void BKE_sound_seek_scene(struct Main *bmain, struct Scene *scene)
 
 	animation_playing = 0;
 	for (screen = bmain->screen.first; screen; screen = screen->id.next) {
-		if (screen->animtimer) {
+		if (screen->animtimer || screen->scrubbing) {
 			animation_playing = 1;
 			break;
 		}
 	}
 
-	if (scene->audio.flag & AUDIO_SCRUB && !animation_playing) {
+	if ((scene->audio.flag & AUDIO_SCRUB) && !animation_playing) {
 		if (scene->audio.flag & AUDIO_SYNC) {
 			AUD_seek(scene->sound_scene_handle, cur_time);
 			AUD_seekSequencer(scene->sound_scene_handle, cur_time);

@@ -121,10 +121,8 @@ static void change_frame_apply(bContext *C, wmOperator *op, bool final)
 		wmWindowManager *wm = CTX_wm_manager(C);
 		wmWindow *window;
 		ScrArea *sa;
-		/* since we follow drawflags, we can't send notifier but tag regions ourselves */
-		/* only do audio if scrubbing */
-		if (scene->audio.flag & AUDIO_SCRUB)
-			BKE_sound_seek_scene(bmain, scene);
+
+		BKE_sound_seek_scene(bmain, scene);
 
 		ED_update_for_newframe(bmain, scene, 1);
 
@@ -218,6 +216,9 @@ static void change_frame_seq_preview_end(bContext *C, wmOperator *op)
 		WM_event_remove_timer(wm, win, data->timer);
 		MEM_freeN(data);
 		op->customdata = NULL;
+		/* add here too to take care of cancelling */
+		if (win->screen)
+			win->screen->scrubbing = false;
 	}
 
 }
@@ -241,6 +242,9 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	op->customdata = data;
 	change_frame_seq_preview_begin(C, event);
 
+	if (win->screen)
+		win->screen->scrubbing = true;
+
 	change_frame_apply(C, op, false);
 	
 	/* add temp handler */
@@ -260,12 +264,15 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
 	ChangeFrameData *data = op->customdata;
+	wmWindow *win = CTX_wm_window(C);
 
 	int ret = OPERATOR_RUNNING_MODAL;
 	/* execute the events */
 	switch (event->type) {
 		case ESCKEY:
 			WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+			if (win->screen)
+				win->screen->scrubbing = false;
 			BKE_sound_seek_scene(bmain, scene);
 			ret = OPERATOR_FINISHED;
 			break;
@@ -292,8 +299,11 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			 * the modal op) doesn't work for some reason
 			 */
 			if (event->val == KM_RELEASE) {
-				WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
-				BKE_sound_seek_scene(bmain, scene);
+				if (win->screen)
+					win->screen->scrubbing = false;
+				data->frame = frame_from_event(C, event);
+				RNA_int_set(op->ptr, "frame", data->frame);
+				change_frame_apply(C, op, true);
 				ret = OPERATOR_FINISHED;
 			}
 			break;
