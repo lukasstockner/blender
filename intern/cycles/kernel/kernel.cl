@@ -25,15 +25,8 @@
 #include "kernel_path.h"
 #include "kernel_bake.h"
 
-#ifndef __SPLIT_KERNEL_COMPILE__
-/* kernel_ocl_path_trace is megakernel path-trace invoked by OpenCLDevice class (Megakernel's host side);
- * OpenCLDeviceSplitKernel (Split-kernel's host side) has a set of split kernels in megakernel's place.
- * This .cl file also contains extra kernels kernel_ocl_shader, kernel_ocl_bake,
- * kernel_ocl_convert_to_byte, kernel_ocl_convert_to_half_float which are required
- * by both OpenCLDevice and OpenCLDeviceSplitKernel class.
- * The macro __SPLIT_KERNEL_COMPILE__ helps in preventing un-necessary kernel_ocl_path_trace
- * kernel (megakernel) compilation when using OpenCLDeviceSplitKernel.
- */
+#ifdef __COMPILE_ONLY_MEGAKERNEL__
+
 __kernel void kernel_ocl_path_trace(
 	ccl_constant KernelData *data,
 	ccl_global float *buffer,
@@ -60,7 +53,8 @@ __kernel void kernel_ocl_path_trace(
 	if(x < sx + sw && y < sy + sh)
 		kernel_path_trace(kg, buffer, rng_state, sample, x, y, offset, stride);
 }
-#endif // __SPLIT_KERNEL_COMPILE__
+
+#else // __COMPILE_ONLY_MEGAKERNEL__
 
 __kernel void kernel_ocl_shader(
 	ccl_constant KernelData *data,
@@ -165,3 +159,5 @@ __kernel void kernel_ocl_convert_to_half_float(
 	if(x < sx + sw && y < sy + sh)
 		kernel_film_convert_to_half_float(kg, rgba, buffer, sample_scale, x, y, offset, stride);
 }
+
+#endif // __COMPILE_ONLY_MEGAKERNEL__
