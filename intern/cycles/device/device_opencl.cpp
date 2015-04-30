@@ -1753,7 +1753,8 @@ public:
 			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
 			+ SD_NUM_DIFFERENTIAL
 #endif
-			+ SD_NUM_RAY_DP_DIFFERENTIAL3;
+			+ SD_NUM_RAY_DP_DIFFERENTIAL3
+			+ sizeof(ShaderClosure *);
 
 		return (num_shader_soa_ptr * sizeof(void *));
 	}
