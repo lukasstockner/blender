@@ -1471,8 +1471,10 @@ void DepsgraphRelationBuilder::build_shapekeys(ID *obdata, Key *key)
 	//add_relation(key_key, obdata_key, DEPSREL_TYPE_GEOMETRY_EVAL, "Shapekeys");
 }
 
-/* ObData Geometry Evaluation
+/**
+ * ObData Geometry Evaluation
  * ==========================
+ *
  * The evaluation of geometry on objects is as follows:
  * - The actual evaluated of the derived geometry (e.g. DerivedMesh, DispList, etc.)
  *   occurs in the Geometry component of the object which references this. This includes

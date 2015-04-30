@@ -97,14 +97,15 @@ extern "C" {
 #include "depsgraph_intern.h"
 
 /* ******************************************** */
-/* ID User Builder
+/**
+ * ID User Builder
  *
  * This builder creates links between ID datablocks to
  * say that datablock B "uses" datablock A.
  *
- * NOTE: This ordering is the *opposite* of the way
- *       we typically think of hierarchical relationships.
- *       For example, "ob.data" becomes "obdata -> object"
+ * \note This ordering is the *opposite* of the way
+ * we typically think of hierarchical relationships.
+ * For example, "ob.data" becomes "obdata -> object"
  */
 
 DepsgraphIDUsersBuilder::DepsgraphIDUsersBuilder(Depsgraph *graph) :

@@ -85,7 +85,8 @@ EvaluationContext *DEG_evaluation_context_new(int mode)
 	return eval_ctx;
 }
 
-/* Initialize evaluation context.
+/**
+ * Initialize evaluation context.
  * Used by the areas which currently overrides the context or doesn't have
  * access to a proper one.
  */
@@ -278,11 +279,12 @@ static void schedule_children(TaskPool *pool,
 	}
 }
 
-/* Evaluate all nodes tagged for updating,
- * ! This is usually done as part of main loop, but may also be
- *   called from frame-change update.
+/**
+ * Evaluate all nodes tagged for updating,
+ * \warning This is usually done as part of main loop, but may also be
+ * called from frame-change update.
  *
- * NOTE: Time sources should be all valid!
+ * \note Time sources should be all valid!
  */
 void DEG_evaluate_on_refresh_ex(EvaluationContext *eval_ctx,
                                 Depsgraph *graph,

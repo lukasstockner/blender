@@ -104,14 +104,14 @@ bool DEG_queue_is_empty(DepsgraphQueue *q)
 
 /* Queue Operations --------------------------------------- */
 
-/* Add DepsNode to the queue
- * < dnode: (DepsNode *) node to add to the queue
- *          Each node is only added once to the queue; Subsequent pushes
- *          merely update its status (e.g. moving it from "pending" to "ready")
- * < cost:  (float) new "num_links_pending" count for node *after* it has encountered
- *          via an outlink from the node currently being visited
- *          (i.e. we're one of the dependencies which may now be able
- *          to be processed)
+/**
+ * Add DepsNode to the queue
+ * \param dnode: ``(DepsNode *)`` node to add to the queue
+ * Each node is only added once to the queue; Subsequent pushes
+ * merely update its status (e.g. moving it from "pending" to "ready")
+ * \param cost: new "num_links_pending" count for node *after* it has encountered
+ * via an outlink from the node currently being visited
+ * (i.e. we're one of the dependencies which may now be able to be processed)
  */
 void DEG_queue_push(DepsgraphQueue *q, void *dnode, float cost)
 {

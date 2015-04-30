@@ -41,7 +41,8 @@ struct Scene;
 
 /* Graph Building ======================================================== */
 
-/* Build depsgraph for the given group, and dump results in given graph container
+/**
+ * Build depsgraph for the given group, and dump results in given graph container
  * This is usually used for building subgraphs for groups to use...
  */
 void DEG_graph_build_from_group(Depsgraph *graph, struct Main *bmain, struct Group *group);
@@ -52,7 +53,8 @@ DepsNode *DEG_graph_build_group_subgraph(Depsgraph *graph_main, struct Main *bma
 /* Graph Copying ========================================================= */
 /* (Part of the Filtering API) */
 
-/* Depsgraph Copying Context (dcc)
+/**
+ * Depsgraph Copying Context (dcc)
  *
  * Keeps track of node relationships/links/etc. during the copy
  * operation so that they can be safely remapped...
@@ -76,9 +78,10 @@ void DEG_filter_cleanup(DepsgraphCopyContext *dcc);
 
 /* Data Copy Operations ------------------------------------------------ */
 
-/* Make a (deep) copy of provided node and it's little subgraph
- * ! Newly created node is not added to the existing graph
- * < dcc: Context info for helping resolve links
+/**
+ * Make a (deep) copy of provided node and it's little subgraph
+ * \warning Newly created node is not added to the existing graph
+ * \param dcc: Context info for helping resolve links
  */
 DepsNode *DEG_copy_node(DepsgraphCopyContext *dcc, const DepsNode *src);
 

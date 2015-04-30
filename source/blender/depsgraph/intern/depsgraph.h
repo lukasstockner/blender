@@ -98,27 +98,30 @@ struct Depsgraph {
 	Depsgraph();
 	~Depsgraph();
 
-	/* Find node which matches the specified description.
+	/**
+	 * Find node which matches the specified description.
 	 *
-	 * < id: ID block that is associated with this
-	 * < (subdata): identifier used for sub-ID data (e.g. bone)
-	 * < type: type of node we're dealing with
-	 * < (name): custom identifier assigned to node
+	 * \param id: ID block that is associated with this
+	 * \param subdata: identifier used for sub-ID data (e.g. bone)
+	 * \param type: type of node we're dealing with
+	 * \param name: custom identifier assigned to node
 	 *
-	 * > returns: A node matching the required characteristics if it exists
-	 *            OR NULL if no such node exists in the graph
+	 * \return A node matching the required characteristics if it exists
+	 * or NULL if no such node exists in the graph.
 	 */
 	DepsNode *find_node(const ID *id,
 	                    eDepsNode_Type type,
 	                    const string &subdata,
 	                    const string &name);
 
-	/* Convenience wrapper to find node given just pointer + property.
-	 * < ptr: pointer to the data that node will represent
-	 * < (prop): optional property affected - providing this effectively results in inner nodes being returned
+	/**
+	 * Convenience wrapper to find node given just pointer + property.
 	 *
-	 * > returns: A node matching the required characteristics if it exists
-	 *            OR NULL if no such node exists in the graph
+	 * \param ptr: pointer to the data that node will represent
+	 * \param prop: optional property affected - providing this effectively results in inner nodes being returned
+	 *
+	 * \return A node matching the required characteristics if it exists
+	 * or NULL if no such node exists in the graph
 	 */
 	DepsNode *find_node_from_pointer(const PointerRNA *ptr, const PropertyRNA *prop) const;
 
@@ -191,26 +194,27 @@ struct Depsgraph {
 	// XXX: additional stuff like eval contexts, mempools for allocating nodes from, etc.
 };
 
-/* Helper macros for interating over set of relationship links
+/**
+ * Helper macros for interating over set of relationship links
  * incident on each node.
  *
- * NOTE: it is safe to perform removal operations here...
+ * \note it is safe to perform removal operations here...
  *
- * < relations_set: (DepsNode::Relations) set of relationships (in/out links)
- * > relation:  (DepsRelation *) identifier where DepsRelation that we're
+ * relations_set[in]: (DepsNode::Relations) set of relationships (in/out links)
+ * relation[out]:  (DepsRelation *) identifier where DepsRelation that we're
  *              currently accessing comes up
  */
-#define DEPSNODE_RELATIONS_ITER_BEGIN(relations_set_, relation_)               \
-	{                                                                          \
+#define DEPSNODE_RELATIONS_ITER_BEGIN(relations_set_, relation_) \
+	{ \
 		OperationDepsNode::Relations::const_iterator __rel_iter = relations_set_.begin();  \
-		while (__rel_iter != relations_set_.end()) {                           \
-			DepsRelation *relation_ = *__rel_iter;                             \
-			++__rel_iter;
+		while (__rel_iter != relations_set_.end()) { \
+			DepsRelation *relation_ = *__rel_iter; \
+			++__rel_iter; \
 
 			/* ... code for iterator body can be written here ... */
 
-#define DEPSNODE_RELATIONS_ITER_END                                            \
-		}                                                                      \
-	}
+#define DEPSNODE_RELATIONS_ITER_END \
+		} \
+	} ((void)0)
 
 #endif  /* __DEPSGRAPH_H__ */

@@ -26,6 +26,7 @@
  * Methods for constructing depsgraph's nodes
  */
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -490,7 +491,9 @@ void DepsgraphNodeBuilder::build_object_transform(Scene *scene, Object *ob)
 	                   DEG_OPCODE_TRANSFORM_FINAL);
 }
 
-/* == Constraints Graph Notes ==
+/**
+ * Constraints Graph Notes
+ *
  * For constraints, we currently only add a operation node to the Transform
  * or Bone components (depending on whichever type of owner we have).
  * This represents the entire constraints stack, which is for now just
@@ -521,9 +524,10 @@ void DepsgraphNodeBuilder::build_pose_constraints(Object *ob, bPoseChannel *pcha
 	                   DEG_OPCODE_BONE_CONSTRAINTS);
 }
 
-/* Build graph nodes for AnimData block
- * < scene_node: Scene that ID-block this lives on belongs to
- * < id: ID-Block which hosts the AnimData
+/**
+ * Build graph nodes for AnimData block
+ * \param scene_node: Scene that ID-block this lives on belongs to
+ * \param id: ID-Block which hosts the AnimData
  */
 void DepsgraphNodeBuilder::build_animdata(ID *id)
 {
@@ -555,9 +559,10 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
 	}
 }
 
-/* Build graph node(s) for Driver
- * < id: ID-Block that driver is attached to
- * < fcu: Driver-FCurve
+/**
+ * Build graph node(s) for Driver
+ * \param id: ID-Block that driver is attached to
+ * \param fcu: Driver-FCurve
  */
 OperationDepsNode *DepsgraphNodeBuilder::build_driver(ID *id, FCurve *fcu)
 {
@@ -617,7 +622,10 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 {
 	RigidBodyWorld *rbw = scene->rigidbody_world;
 
-	/* == Rigidbody Simulation Nodes ==
+	/**
+	 * Rigidbody Simulation Nodes
+	 * ==========================
+	 *
 	 * There are 3 nodes related to Rigidbody Simulation:
 	 * 1) "Initialize/Rebuild World" - this is called sparingly, only when the simulation
 	 *    needs to be rebuilt (mainly after file reload, or moving back to start frame)
@@ -669,7 +677,10 @@ void DepsgraphNodeBuilder::build_rigidbody(Scene *scene)
 
 void DepsgraphNodeBuilder::build_particles(Object *ob)
 {
-	/* == Particle Systems Nodes ==
+	/**
+	 * Particle Systems Nodes
+	 * ======================
+	 *
 	 * There are two types of nodes associated with representing
 	 * particle systems:
 	 *  1) Component (EVAL_PARTICLES) - This is the particle-system
@@ -765,7 +776,10 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 		}
 	}
 
-	/* == Pose Rig Graph ==
+	/**
+	 * Pose Rig Graph
+	 * ==============
+	 *
 	 * Pose Component:
 	 * - Mainly used for referencing Bone components.
 	 * - This is where the evaluation operations for init/exec/cleanup
@@ -815,7 +829,9 @@ void DepsgraphNodeBuilder::build_rig(Scene *scene, Object *ob)
 			build_pose_constraints(ob, pchan);
 		}
 
-		/* IK Solvers...
+		/**
+		 * IK Solvers...
+		 *
 		 * - These require separate processing steps are pose-level
 		 *   to be executed between chains of bones (i.e. once the
 		 *   base transforms of a bunch of bones is done)

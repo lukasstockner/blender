@@ -43,7 +43,8 @@ extern "C" {
 
 /* Global type registry */
 
-/* NOTE: For now, this is a hashtable not array, since the core node types
+/**
+ * \note For now, this is a hashtable not array, since the core node types
  * currently do not have contiguous ID values. Using a hash here gives us
  * more flexibility, albeit using more memory and also sacrificing a little
  * speed. Later on, when things stabilise we may turn this back to an array

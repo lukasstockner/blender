@@ -106,14 +106,15 @@ struct ComponentDepsNode : public DepsNode {
 	OperationDepsNode *has_operation(OperationIDKey key) const;
 	OperationDepsNode *has_operation(eDepsOperation_Code opcode, const string &name) const;
 
-	/* Create a new node for representing an operation and add this to graph
-	 * ! If an existing node is found, it will be modified. This helps when node may
-	 *   have been partially created earlier (e.g. parent ref before parent item is added)
+	/**
+	 * Create a new node for representing an operation and add this to graph
+	 * \warning If an existing node is found, it will be modified. This helps when node may
+	 * have been partially created earlier (e.g. parent ref before parent item is added)
 	 *
-	 * < type: Operation node type (corresponding to context/component that it operates in)
-	 * < optype: Role that operation plays within component (i.e. where in eval process)
-	 * < op: The operation to perform
-	 * < name: Identifier for operation - used to find/locate it again
+	 * \param type: Operation node type (corresponding to context/component that it operates in)
+	 * \param optype: Role that operation plays within component (i.e. where in eval process)
+	 * \param op: The operation to perform
+	 * \param name: Identifier for operation - used to find/locate it again
 	 */
 	OperationDepsNode *add_operation(eDepsOperation_Type optype, DepsEvalOperationCb op, eDepsOperation_Code opcode, const string &name);
 
