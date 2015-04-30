@@ -3506,7 +3506,7 @@ public:
 					/* Print message to console */
 					if(background && (to_path_trace_render_tiles.size() > 1)) {
 						fprintf(stderr, "Message : Tiles need to be split further inside path trace (due to insufficient device-global-memory for split kernel to function) \n\
-										The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for render \n", tile.w, tile.h, split_tile_size.x, split_tile_size.y);
+The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for render \n", tile.w, tile.h, split_tile_size.x, split_tile_size.y);
 					}
 
 					/* Process all split tiles */
