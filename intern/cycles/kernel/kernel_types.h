@@ -1043,9 +1043,6 @@ typedef struct DebugData {
 /* Value marking queue's empty slot */
 #define QUEUE_EMPTY_SLOT -1
 
-/* Macro to enable/disable work-stealing */
-#define __WORK_STEALING__
-
 /*
 * Queue 1 - Active rays
 * Queue 2 - Background queue

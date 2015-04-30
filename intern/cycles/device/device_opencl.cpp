@@ -41,6 +41,10 @@ CCL_NAMESPACE_BEGIN
 #define CL_MEM_PTR(p) ((cl_mem)(uintptr_t)(p))
 
 /* Macro declarations used with split kernel */
+
+/* Macro to enable/disable work-stealing */
+#define __WORK_STEALING__
+
 #define SPLIT_KERNEL_LOCAL_SIZE_X 64
 #define SPLIT_KERNEL_LOCAL_SIZE_Y 1
 
@@ -2049,6 +2053,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_DataInit.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_DataInit.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&dataInit_program, kernel_path, "dataInit", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2056,6 +2063,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_SceneIntersect.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_SceneIntersect.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&sceneIntersect_program, kernel_path, "SceneIntersect", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2063,6 +2073,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_LampEmission.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + svm_build_options;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_LampEmission.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&lampEmission_program, kernel_path, "LampEmission", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2070,6 +2083,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_QueueEnqueue.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_QueueEnqueue.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&QueueEnqueue_program, kernel_path, "Queue", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2077,6 +2093,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_Background_BufferUpdate.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + compute_device_type_build_option + svm_build_options;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_Background_BufferUpdate.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&background_BufferUpdate_program, kernel_path, "Background", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2084,6 +2103,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_ShaderEval.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + svm_build_options;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShaderEval.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&shaderEval_program, kernel_path, "shaderEval", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2091,6 +2113,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + compute_device_type_build_option;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_Holdout_Emission_Blurring_Pathtermination_AO.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&holdout_emission_blurring_termination_ao_program, kernel_path, "ao", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2098,6 +2123,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_DirectLighting.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + compute_device_type_build_option + svm_build_options;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_DirectLighting.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&directLighting_program, kernel_path, "directLighting", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2105,6 +2133,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_ShadowBlocked.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + svm_build_options;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShadowBlocked.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&shadowBlocked_program, kernel_path, "shadow", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2112,6 +2143,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_NextIterationSetUp.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option + compute_device_type_build_option;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_NextIterationSetUp.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&nextIterationSetUp_program, kernel_path, "nextIter", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
@@ -2119,6 +2153,9 @@ public:
 
 		kernel_init_source = "#include \"kernel_SumAllRadiance.cl\" // " + kernel_md5 + "\n";
 		custom_kernel_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option;
+#ifdef __WORK_STEALING__
+		custom_kernel_build_options += "-D__WORK_STEALING__ ";
+#endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_SumAllRadiance.clbin", device_md5.c_str(), kernel_md5.c_str());
 		if(!load_split_kernel(&sumAllRadiance_program, kernel_path, "sumAll", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
