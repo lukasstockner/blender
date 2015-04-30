@@ -780,6 +780,7 @@ static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *in
 	
 	{
 		float vec[3], dist;
+		bool inside = false;
 		float factor;
 		
 		sub_v3_v3v3(vec, point->x, nearest.co);
@@ -789,13 +790,17 @@ static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *in
 			/* dm normal also needed in world space */
 			mul_mat3_m4_v3(inst->mat, nearest.no);
 			
-			if (dot_v3v3(vec, nearest.no) < 0.0f)
+			if (dot_v3v3(vec, nearest.no) < 0.0f) {
 				dist = -dist;
+				inside = true;
+			}
 		}
 		
 		factor = cache_effector_falloff(eff, dist);
 		
 		mul_v3_v3fl(result->f, vec, eff->strength * factor);
+		if (inside)
+			negate_v3(result->f);
 	}
 	
 	return true;

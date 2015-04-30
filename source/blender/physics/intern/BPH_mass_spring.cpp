@@ -1449,6 +1449,7 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 		if (cache_effectors && tot_cache_effectors > 0) {
 			for (i = 0; i < numverts; ++i) {
 				CacheEffectorPoint point;
+				point.index = i;
 				BPH_mass_spring_get_motion_state(data, i, point.x, point.v);
 				
 				CacheEffectorResult result;

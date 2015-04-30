@@ -202,6 +202,7 @@ typedef enum eCacheEffector_Type {
 } eCacheEffector_Type;
 
 typedef struct CacheEffectorPoint {
+	int index;
 	float x[3], v[3];
 } CacheEffectorPoint;
 
