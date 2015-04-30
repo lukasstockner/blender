@@ -296,11 +296,11 @@ public:
 	{
 		cl_program program = NULL;
 
-		if (program_name == "ocl_dev_base_program") {
+		if(program_name == "ocl_dev_base_program") {
 			/* Get program related to OpenCLDeviceBase */
 			program = get_something<cl_program>(platform, device, &Slot::ocl_dev_base_program, slot_locker);
 		}
-		else if (program_name == "ocl_dev_megakernel_program") {
+		else if(program_name == "ocl_dev_megakernel_program") {
 			/* Get program related to megakernel */
 			program = get_something<cl_program>(platform, device, &Slot::ocl_dev_megakernel_program, slot_locker);
 		} else {
@@ -335,7 +335,7 @@ public:
 	static void store_program(cl_platform_id platform, cl_device_id device, cl_program program, string program_name,
 		thread_scoped_lock &slot_locker)
 	{
-		if (program_name == "ocl_dev_base_program") {
+		if(program_name == "ocl_dev_base_program") {
 			store_something<cl_program>(platform, device, program, &Slot::ocl_dev_base_program, slot_locker);
 		}
 		else if(program_name == "ocl_dev_megakernel_program") {
@@ -360,11 +360,11 @@ public:
 		thread_scoped_lock cache_lock(self.cache_lock);
 
 		foreach(CacheMap::value_type &item, self.cache) {
-			if (item.second.ocl_dev_base_program != NULL)
+			if(item.second.ocl_dev_base_program != NULL)
 				clReleaseProgram(item.second.ocl_dev_base_program);
-			if (item.second.ocl_dev_megakernel_program != NULL)
+			if(item.second.ocl_dev_megakernel_program != NULL)
 				clReleaseProgram(item.second.ocl_dev_megakernel_program);
-			if (item.second.context != NULL)
+			if(item.second.context != NULL)
 				clReleaseContext(item.second.context);
 		}
 
@@ -482,7 +482,7 @@ public:
 		int num_base = 0;
 		int total_devices = 0;
 
-		for (int platform = 0; platform < num_platforms; platform++) {
+		for(int platform = 0; platform < num_platforms; platform++) {
 			cl_uint num_devices;
 
 			if(opencl_error(clGetDeviceIDs(platforms[platform], opencl_device_type(), 0, NULL, &num_devices)))
@@ -635,7 +635,7 @@ public:
 			clReleaseMemObject(CL_MEM_PTR(null_mem));
 
 		ConstMemMap::iterator mt;
-		for (mt = const_mem_map.begin(); mt != const_mem_map.end(); mt++) {
+		for(mt = const_mem_map.begin(); mt != const_mem_map.end(); mt++) {
 			mem_free(*(mt->second));
 			delete mt->second;
 		}
@@ -767,7 +767,7 @@ public:
 		/* read binary into memory */
 		vector<uint8_t> binary;
 
-		if (!path_read_binary(clbin, binary)) {
+		if(!path_read_binary(clbin, binary)) {
 			opencl_error(string_printf("OpenCL failed to read cached binary %s.", clbin.c_str()));
 			return false;
 		}
@@ -780,12 +780,12 @@ public:
 		*program = clCreateProgramWithBinary(cxContext, 1, &cdDevice,
 			&size, &bytes, &status, &ciErr);
 
-		if (opencl_error(status) || opencl_error(ciErr)) {
+		if(opencl_error(status) || opencl_error(ciErr)) {
 			opencl_error(string_printf("OpenCL failed create program from cached binary %s.", clbin.c_str()));
 			return false;
 		}
 
-		if (!build_kernel(kernel_path, program, custom_kernel_build_options, debug_src))
+		if(!build_kernel(kernel_path, program, custom_kernel_build_options, debug_src))
 			return false;
 
 		return true;
@@ -795,7 +795,7 @@ public:
 		size_t size = 0;
 		clGetProgramInfo(*program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &size, NULL);
 
-		if (!size)
+		if(!size)
 			return false;
 
 		vector<uint8_t> binary(size);
@@ -803,7 +803,7 @@ public:
 
 		clGetProgramInfo(*program, CL_PROGRAM_BINARIES, sizeof(uint8_t*), &bytes, NULL);
 
-		if (!path_write_binary(clbin, binary)) {
+		if(!path_write_binary(clbin, binary)) {
 			opencl_error(string_printf("OpenCL failed to write cached binary %s.", clbin.c_str()));
 			return false;
 		}
@@ -826,7 +826,7 @@ public:
 
 		clGetProgramBuildInfo(*kernel_program, cdDevice, CL_PROGRAM_BUILD_LOG, 0, NULL, &ret_val_size);
 
-		if (ret_val_size > 1) {
+		if(ret_val_size > 1) {
 			vector<char> build_log(ret_val_size + 1);
 			clGetProgramBuildInfo(*kernel_program, cdDevice, CL_PROGRAM_BUILD_LOG, ret_val_size, &build_log[0], NULL);
 
@@ -835,7 +835,7 @@ public:
 			fprintf(stderr, "%s\n", &build_log[0]);
 		}
 
-		if (ciErr != CL_SUCCESS) {
+		if(ciErr != CL_SUCCESS) {
 			opencl_error("OpenCL build failed: errors in console");
 			return false;
 		}
@@ -856,20 +856,20 @@ public:
 		* so we force recompile on changes by adding the md5 hash of all files */
 		source = path_source_replace_includes(source, kernel_path);
 
-		if (debug_src)
+		if(debug_src)
 			path_write_text(*debug_src, source);
 		size_t source_len = source.size();
 		const char *source_str = source.c_str();
 
 		*kernel_program = clCreateProgramWithSource(cxContext, 1, &source_str, &source_len, &ciErr);
 
-		if (opencl_error(ciErr))
+		if(opencl_error(ciErr))
 			return false;
 
 		double starttime = time_dt();
 		printf("Compiling OpenCL kernel ...\n");
 
-		if (!build_kernel(kernel_path, kernel_program, custom_kernel_build_options, debug_src))
+		if(!build_kernel(kernel_path, kernel_program, custom_kernel_build_options, debug_src))
 			return false;
 
 		printf("Kernel compilation finished in %.2lfs.\n", time_dt() - starttime);
@@ -881,7 +881,7 @@ public:
 	bool load_kernels(bool /*experimental*/)
 	{
 		/* verify if device was initialized */
-		if (!device_initialized) {
+		if(!device_initialized) {
 			fprintf(stderr, "OpenCL: failed to initialize device.\n");
 			return false;
 		}
@@ -890,9 +890,9 @@ public:
 		thread_scoped_lock cache_locker;
 		cpProgram = OpenCLCache::get_program(cpPlatform, cdDevice, "ocl_dev_base_program", cache_locker);
 
-		if (!cpProgram) {
+		if(!cpProgram) {
 			/* verify we have right opencl version */
-			if (!opencl_version_check())
+			if(!opencl_version_check())
 				return false;
 
 			/* md5 hash to detect changes */
@@ -908,14 +908,14 @@ public:
 			/* path to preprocessed source for debugging */
 			string clsrc, *debug_src = NULL;
 
-			if (opencl_kernel_use_debug()) {
+			if(opencl_kernel_use_debug()) {
 				clsrc = string_printf("cycles_kernel_%s_%s.cl", device_md5.c_str(), kernel_md5.c_str());
 				clsrc = path_user_get(path_join("cache", clsrc));
 				debug_src = &clsrc;
 			}
 
 			/* if exists already, try use it */
-			if (path_exists(clbin) && load_binary(&cpProgram, kernel_path, clbin, custom_kernel_build_options, debug_src)) {
+			if(path_exists(clbin) && load_binary(&cpProgram, kernel_path, clbin, custom_kernel_build_options, debug_src)) {
 				/* kernel loaded from binary */
 			}
 			else {
@@ -923,11 +923,11 @@ public:
 				string init_kernel_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
 
 				/* if does not exist or loading binary failed, compile kernel */
-				if (!compile_kernel(kernel_path, "", init_kernel_source, &cpProgram, custom_kernel_build_options, debug_src))
+				if(!compile_kernel(kernel_path, "", init_kernel_source, &cpProgram, custom_kernel_build_options, debug_src))
 					return false;
 
 				/* save binary for reuse */
-				if (!save_binary(&cpProgram, clbin))
+				if(!save_binary(&cpProgram, clbin))
 					return false;
 			}
 
@@ -937,19 +937,19 @@ public:
 
 		/* find kernels */
 		ckShaderKernel = clCreateKernel(cpProgram, "kernel_ocl_shader", &ciErr);
-		if (opencl_error(ciErr))
+		if(opencl_error(ciErr))
 			return false;
 
 		ckBakeKernel = clCreateKernel(cpProgram, "kernel_ocl_bake", &ciErr);
-		if (opencl_error(ciErr))
+		if(opencl_error(ciErr))
 			return false;
 
 		ckFilmConvertByteKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_byte", &ciErr);
-		if (opencl_error(ciErr))
+		if(opencl_error(ciErr))
 			return false;
 
 		ckFilmConvertHalfFloatKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_half_float", &ciErr);
-		if (opencl_error(ciErr))
+		if(opencl_error(ciErr))
 			return false;
 
 		return true;
@@ -1062,7 +1062,7 @@ public:
 		else
 			kernel = ckShaderKernel;
 
-		for (int sample = 0; sample < task.num_samples; sample++) {
+		for(int sample = 0; sample < task.num_samples; sample++) {
 
 			if(task.get_cancel())
 				break;
@@ -1115,7 +1115,7 @@ public:
 		}
 
 		/* Get Shader, bake and film convert kernels */
-		if (!OpenCLDeviceBase::load_kernels(false)) {
+		if(!OpenCLDeviceBase::load_kernels(false)) {
 			return false;
 		}
 
@@ -2029,7 +2029,7 @@ public:
 
 		/* Set svm_build_options */
 		/* Enable only the macros related to the scene */
-		for (int node_iter = NODE_END; node_iter <= NODE_UVMAP; node_iter++) {
+		for(int node_iter = NODE_END; node_iter <= NODE_UVMAP; node_iter++) {
 			if(node_iter == NODE_GEOMETRY_DUPLI || node_iter == NODE_UVMAP) { continue; }
 			if(node_iter != NODE_END)
 				svm_build_options += " ";
@@ -3199,7 +3199,7 @@ public:
 			global_size_shadow_blocked[1] = global_size[1];
 
 			/* Do path-iteration in host [Enqueue Path-iteration kernels] */
-			for (int PathIter = 0; PathIter < PathIteration_times; PathIter++) {
+			for(int PathIter = 0; PathIter < PathIteration_times; PathIter++) {
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_LampEmission_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
 				opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, 2, NULL, global_size, local_size, 0, NULL, NULL));
@@ -3217,7 +3217,7 @@ public:
 
 			activeRaysAvailable = false;
 
-			for (int rayStateIter = 0; rayStateIter < global_size[0] * global_size[1]; rayStateIter++) {
+			for(int rayStateIter = 0; rayStateIter < global_size[0] * global_size[1]; rayStateIter++) {
 				if(int8_t(hostRayStateArray[rayStateIter]) != RAY_INACTIVE) {
 					/* Not all rays are RAY_INACTIVE */
 					activeRaysAvailable = true;
@@ -3463,8 +3463,8 @@ public:
 		/* Resize to_path_trace_rtile */
 		to_path_trace_rtile.resize(num_tiles_x * num_tiles_y);
 
-		for (int tile_iter_y = 0; tile_iter_y < num_tiles_y; tile_iter_y++) {
-			for (int tile_iter_x = 0; tile_iter_x < num_tiles_x; tile_iter_x++) {
+		for(int tile_iter_y = 0; tile_iter_y < num_tiles_y; tile_iter_y++) {
+			for(int tile_iter_x = 0; tile_iter_x < num_tiles_x; tile_iter_x++) {
 				int rtile_index = tile_iter_y * num_tiles_x + tile_iter_x;
 
 				to_path_trace_rtile[rtile_index].rng_state_offset_x = offset_x + tile_iter_x * split_tile_size.x;
@@ -3561,7 +3561,7 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 					}
 
 					/* Process all split tiles */
-					for (int tile_iter = 0; tile_iter < to_path_trace_render_tiles.size(); tile_iter++) {
+					for(int tile_iter = 0; tile_iter < to_path_trace_render_tiles.size(); tile_iter++) {
 						/* Set max_render_feasible_render_tile_size for all tiles */
 						to_path_trace_render_tiles[tile_iter].max_render_feasible_tile_size = max_render_feasible_tile_size;
 						/* The second argument is dummy */
@@ -3655,7 +3655,7 @@ bool get_platform_and_devicetype(const DeviceInfo info, string &platform_name, c
 	int num_base = 0;
 	int total_devices = 0;
 
-	for (int platform = 0; platform < num_platforms; platform++) {
+	for(int platform = 0; platform < num_platforms; platform++) {
 		cl_uint num_devices;
 
 		ciErr = clGetDeviceIDs(platforms[platform], opencl_device_type(), 0, NULL, &num_devices);
