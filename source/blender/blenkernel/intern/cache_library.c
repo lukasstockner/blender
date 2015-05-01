@@ -949,31 +949,35 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 //	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
 //		return;
 	
-	/* skip first step and potential backward steps */
-	if (frame <= frame_prev)
-		return;
-	
 	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands))
 		return;
 	
-	if (hsmd->sim_params.flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
-		curvemapping_changed_all(hsmd->sim_params.goal_stiffness_mapping);
-	
-	if (ob)
-		mul_m4_m4m4(mat, data->mat, ob->obmat);
-	else
-		copy_m4_m4(mat, data->mat);
-		
+	/* Note: motion state data should always be created regardless of actual sim.
+	 * This is necessary so the cache writer actually writes the first (empty) sample
+	 * and the samples get mapped correctly to frames when reading.
+	 */
 	BKE_strands_add_motion_state(strands);
-	solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
-	effectors = pdInitEffectors_ex(ctx->scene, ob, NULL, data->lay, hsmd->sim_params.effector_weights, true);
-	tot_cache_effectors = BKE_cache_effectors_get(cache_effectors, MAX_CACHE_EFFECTORS, ctx->cachelib, data->dupcache, data->mat);
 	
-	BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors, cache_effectors, tot_cache_effectors);
-	
-	pdEndEffectors(&effectors);
-	BKE_cache_effectors_free(cache_effectors, tot_cache_effectors);
-	BPH_mass_spring_solver_free(solver_data);
+	/* skip first step and potential backward steps */
+	if (frame > frame_prev) {
+		if (hsmd->sim_params.flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
+			curvemapping_changed_all(hsmd->sim_params.goal_stiffness_mapping);
+		
+		if (ob)
+			mul_m4_m4m4(mat, data->mat, ob->obmat);
+		else
+			copy_m4_m4(mat, data->mat);
+		
+		solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
+		effectors = pdInitEffectors_ex(ctx->scene, ob, NULL, data->lay, hsmd->sim_params.effector_weights, true);
+		tot_cache_effectors = BKE_cache_effectors_get(cache_effectors, MAX_CACHE_EFFECTORS, ctx->cachelib, data->dupcache, data->mat);
+		
+		BPH_strands_solve(strands, mat, solver_data, &hsmd->sim_params, (float)frame, (float)frame_prev, ctx->scene, effectors, cache_effectors, tot_cache_effectors);
+		
+		pdEndEffectors(&effectors);
+		BKE_cache_effectors_free(cache_effectors, tot_cache_effectors);
+		BPH_mass_spring_solver_free(solver_data);
+	}
 	
 #undef MAX_CACHE_EFFECTORS
 }
