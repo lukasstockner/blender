@@ -682,8 +682,12 @@ class DATA_PT_modifiers(ModifierButtonsPanel, Panel):
         col.prop(md, "use_preserve_shape")
 
         col = split.column()
-        col.prop(md, "position", slider=True)
-        col.prop(md, "random_position", text="Random", slider=True)
+        col2 = col.column(align=True)
+        col2.prop(md, "position", slider=True)
+        col2.prop(md, "random_position", text="Random", slider=True)
+        col2 = col.column(align=True)
+        col2.prop(md, "rotation", slider=True)
+        col2.prop(md, "random_rotation", text="Random", slider=True)
 
         col = layout.column(align=True)
         col.prop(md, "index_layer_name", text="Index Layer")

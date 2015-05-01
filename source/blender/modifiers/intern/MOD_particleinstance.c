@@ -400,6 +400,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 					/* to quaternion */
 					mat3_to_quat(frame, mat);
 					
+					if (pimd->rotation > 0.0f || pimd->random_rotation > 0.0f) {
+						float angle = 2.0f*M_PI * (pimd->rotation + pimd->random_rotation * (psys_frand(psys, 19957323 + p) - 0.5f));
+						float eul[3] = { 0.0f, 0.0f, angle };
+						float rot[4];
+						
+						eul_to_quat(rot, eul);
+						mul_qt_qtqt(frame, frame, rot);
+					}
+					
 					/* note: direction is same as normal vector currently,
 					 * but best to keep this separate so the frame can be
 					 * rotated later if necessary

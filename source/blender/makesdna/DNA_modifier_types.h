@@ -734,6 +734,7 @@ typedef struct ParticleInstanceModifierData {
 	struct Object *ob;
 	short psys, flag, axis, space;
 	float position, random_position;
+	float rotation, random_rotation;
 	float particle_amount, particle_offset;
 	char index_layer_name[64]; /* MAX_CUSTOMDATA_LAYER_NAME */
 	char value_layer_name[64]; /* MAX_CUSTOMDATA_LAYER_NAME */
