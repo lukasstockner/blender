@@ -216,14 +216,30 @@ void BKE_strands_children_free(StrandsChildren *strands)
 
 void BKE_strands_children_add_uvs(StrandsChildren *strands, int num_layers)
 {
-	strands->curve_uvs = MEM_callocN(sizeof(StrandsChildCurveUV) * strands->totcurves * num_layers, "strands children uv layers");
-	strands->numuv = num_layers;
+	if (strands->curve_uvs && strands->numuv != num_layers) {
+		MEM_freeN(strands->curve_uvs);
+		strands->curve_uvs = NULL;
+		strands->numuv = 0;
+	}
+	
+	if (!strands->curve_uvs) {
+		strands->curve_uvs = MEM_callocN(sizeof(StrandsChildCurveUV) * strands->totcurves * num_layers, "strands children uv layers");
+		strands->numuv = num_layers;
+	}
 }
 
 void BKE_strands_children_add_vcols(StrandsChildren *strands, int num_layers)
 {
-	strands->curve_vcols = MEM_callocN(sizeof(StrandsChildCurveVCol) * strands->totcurves * num_layers, "strands children vcol layers");
-	strands->numvcol = num_layers;
+	if (strands->curve_vcols && strands->numvcol != num_layers) {
+		MEM_freeN(strands->curve_vcols);
+		strands->curve_vcols = NULL;
+		strands->numvcol = 0;
+	}
+	
+	if (!strands->curve_vcols) {
+		strands->curve_vcols = MEM_callocN(sizeof(StrandsChildCurveVCol) * strands->totcurves * num_layers, "strands children vcol layers");
+		strands->numvcol = num_layers;
+	}
 }
 
 static int *strands_calc_vertex_start(Strands *strands)

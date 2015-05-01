@@ -1099,6 +1099,7 @@ struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct 
 	struct Implicit_Data *id;
 	int numverts = strands->totverts;
 	int numcurves = strands->totcurves;
+	int numgoalverts = numverts - numcurves; /* extra virtual vertices to act as goal spring targets */
 	int numedges = max_ii(numverts - numcurves, 0);
 	int numbends = max_ii(numverts - 2*numcurves, 0);
 	
@@ -1106,18 +1107,23 @@ struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct 
 	 * stretch springs: 1 per edge
 	 * bending sprints: 3 per bend // XXX outdated, 1 is enough
 	 */
-	int numsprings = (numverts-numcurves) + numedges + 3*numbends;
+	int numsprings = numgoalverts + numedges + 3*numbends;
 	int i;
 	
-	id = BPH_mass_spring_solver_create(numverts, numsprings);
+	id = BPH_mass_spring_solver_create(numverts + numgoalverts, numsprings);
 	
 	for (i = 0; i < numverts; i++) {
-		// TODO define mass
 		float mass = params->mass;
 		BPH_mass_spring_set_vertex_mass(id, i, mass);
 	}
+	for (i = numverts; i < numverts + numgoalverts; i++) {
+		BPH_mass_spring_set_vertex_mass(id, i, 1.0f);
+	}
 	
 	for (i = 0; i < numverts; i++) {
+		BPH_mass_spring_set_rest_transform(id, i, I3);
+	}
+	for (i = numverts; i < numverts + numgoalverts; i++) {
 		BPH_mass_spring_set_rest_transform(id, i, I3);
 	}
 	
@@ -1144,6 +1150,15 @@ static void strands_setup_constraints(Strands *strands, Implicit_Data *data, Col
 //		StrandVertexIterator it_vert;
 //		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
 //		}
+	}
+
+	/* pin virtual goal targets */
+	{
+		int goalstart = strands->totverts;
+		int goalend = goalstart + strands->totverts - strands->totcurves;
+		for (int i = goalstart; i < goalend; ++i) {
+			BPH_mass_spring_add_constraint_ndof0(data, i, ZERO); /* velocity is defined externally */
+		}
 	}
 
 #if 0
@@ -1342,8 +1357,33 @@ static float strands_goal_stiffness(Strands *UNUSED(strands), HairSimParams *par
 }
 
 /* goal forces pull vertices toward their rest position */
-static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+static void strands_calc_vertex_goal_forces(Strands *strands, float UNUSED(space[4][4]), HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
 {
+	const int goalstart = strands->totverts;
+	StrandEdgeIterator it_edge;
+	
+	float length = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge))
+		length += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+	float length_inv = length > 0.0f ? 1.0f / length : 0.0f;
+	
+	float t = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+		int vj = BKE_strand_edge_iter_vertex1_offset(strands, &it_edge);
+		int numroots = it_strand->index + 1; /* roots don't have goal verts, skip this many */
+		int goalj = goalstart + vj - numroots;
+		
+		float restlen = len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+		t += restlen;
+		
+		float stiffness = strands_goal_stiffness(strands, params, it_edge.vertex1, t * length_inv);
+		float damping = stiffness * params->goal_damping;
+		
+		float f[3];
+		BPH_mass_spring_force_spring_linear(data, vj, goalj, 0.0f, stiffness, damping, true, 0.0f, f, NULL, NULL);
+	}
+	
+#if 0
 	StrandEdgeIterator it_edge;
 	
 	float rootvel[3];
@@ -1368,6 +1408,7 @@ static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4],
 		float f[3];
 		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, f, NULL, NULL);
 	}
+#endif
 }
 
 /* calculates internal forces for a single strand curve */
@@ -1477,6 +1518,61 @@ static void strands_calc_root_location(Strands *strands, float mat[4][4], Implic
 	}
 }
 
+/* calculates the location of virtual goal vertices */
+static void strands_calc_goal_velocities(Strands *strands, float mat[4][4], Implicit_Data *data, float timestep)
+{
+	const int goalstart = strands->totverts;
+	int goalindex = goalstart;
+	
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			/* skip root */
+			if (it_vert.index == 0)
+				continue;
+			
+			int index = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert);
+			
+			float vel[3];
+			sub_v3_v3v3(vel, strands->verts[index].co, strands->state[index].co);
+			mul_v3_fl(vel, 1.0f/timestep);
+			mul_mat3_m4_v3(mat, vel);
+			
+			BPH_mass_spring_set_velocity(data, goalindex, vel);
+			
+			++goalindex;
+		}
+	}
+}
+
+/* calculates the location of virtual goal vertices */
+static void strands_calc_goal_locations(Strands *strands, float mat[4][4], Implicit_Data *data, float step)
+{
+	const int goalstart = strands->totverts;
+	int goalindex = goalstart;
+	
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			/* skip root */
+			if (it_vert.index == 0)
+				continue;
+			
+			int index = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert);
+			
+			float co[3];
+			interp_v3_v3v3(co, strands->state[index].co, strands->verts[index].co, step);
+			mul_m4_v3(mat, co);
+			
+			BPH_mass_spring_set_position(data, goalindex, co);
+			
+			++goalindex;
+		}
+	}
+}
+
 /* XXX Do we need to take fictitious forces from the moving and/or accelerated frame of reference into account?
  * This would mean we pass not only the basic world transform mat, but also linear/angular velocity and acceleration.
  */
@@ -1513,6 +1609,9 @@ bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, Hai
 	}
 	strands_calc_root_velocity(strands, mat, id, timestep);
 	
+	strands_calc_goal_locations(strands, mat, id, 0.0f);
+	strands_calc_goal_velocities(strands, mat, id, timestep);
+	
 	for (float step = 0.0f; step < 1.0f; step += dstep) {
 		ImplicitSolverResult result;
 		
@@ -1548,6 +1647,7 @@ bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, Hai
 		
 		/* move pinned verts to correct position */
 		strands_calc_root_location(strands, mat, id, step + dstep);
+		strands_calc_goal_locations(strands, mat, id, step + dstep);
 		
 #if 0
 		/* free contact points */
