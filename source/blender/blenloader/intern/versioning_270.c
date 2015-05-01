@@ -1006,7 +1006,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 	if (!MAIN_VERSION_ATLEAST(main, 274, 6)) {
 		bScreen *screen;
 
-		if (!DNA_struct_elem_find(fd->filesdna, "FileSelectParams", "int", "thumbnails_size")) {
+		if (!DNA_struct_elem_find(fd->filesdna, "FileSelectParams", "int", "thumbnail_size")) {
 			for (screen = main->screen.first; screen; screen = screen->id.next) {
 				ScrArea *sa;
 
@@ -1018,7 +1018,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 							SpaceFile *sfile = (SpaceFile *)sl;
 
 							if (sfile->params) {
-								sfile->params->thumbnails_size = 128;
+								sfile->params->thumbnail_size = 128;
 							}
 						}
 					}
