@@ -861,7 +861,7 @@ static void file_sfile_to_operator(
 
 	selection = filelist_selection_get(sfile->files, check, sfile->params->file, &uuids, !is_fake);
 
-	if (ae && selection->nbr_entries) {
+	if (ae && selection->nbr_entries && !is_fake) {  /* We only expect uuids when not is_fake... */
 		BLI_assert(uuids);
 	}
 
@@ -887,7 +887,7 @@ static void file_sfile_to_operator(
 		if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
 			RNA_property_string_set(op->ptr, prop, filepath);
 		}
-		if (ae) {
+		if (ae && uuids) {
 			if ((prop = RNA_struct_find_property(op->ptr, "asset_uuid"))) {
 				RNA_property_int_set_array(op->ptr, prop, uuids->uuids[0].uuid_asset);
 			}
