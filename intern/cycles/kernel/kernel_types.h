@@ -72,6 +72,7 @@ CCL_NAMESPACE_BEGIN
 #define __VOLUME_DECOUPLED__
 #define __VOLUME_SCATTER__
 #define __SHADOW_RECORD_ALL__
+#define __VOLUME_RECORD_ALL__
 #endif
 
 #ifdef __KERNEL_CUDA__
@@ -896,6 +897,11 @@ typedef struct KernelIntegrator {
 	float inv_pdf_lights;
 	int pdf_background_res;
 
+	/* light portals */
+	float portal_pdf;
+	int num_portals;
+	int portal_offset;
+
 	/* bounces */
 	int min_bounce;
 	int max_bounce;
@@ -948,6 +954,8 @@ typedef struct KernelIntegrator {
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
+
+	int pad;
 } KernelIntegrator;
 
 typedef struct KernelBVH {

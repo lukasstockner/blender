@@ -60,6 +60,10 @@ class FILEBROWSER_HT_header(Header):
                 is_lib_browser = params.use_library_browsing
 
                 layout.prop(params, "display_type", expand=True, text="")
+
+                if params.display_type == 'FILE_IMGDISPLAY':
+                    layout.prop(params, "thumbnail_size", text="")
+
                 layout.prop(params, "sort_method", expand=True, text="")
 
                 layout.prop(params, "recursion_level")

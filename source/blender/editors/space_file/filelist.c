@@ -1049,7 +1049,7 @@ static void filelist_cache_previewf(TaskPool *pool, void *taskdata, int threadid
 		else if (preview->flags & FILE_TYPE_FTFONT) {
 			source = THB_SOURCE_FONT;
 		}
-		preview->img = IMB_thumb_manage(preview->path, THB_NORMAL, source);
+		preview->img = IMB_thumb_manage(preview->path, THB_LARGE, source);
 		BLI_thread_queue_push(cache->previews_done, preview);
 	}
 
