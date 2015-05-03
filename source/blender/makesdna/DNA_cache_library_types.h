@@ -169,6 +169,7 @@ typedef enum eCacheModifier_Type {
 	eCacheModifierType_HairSimulation               = 1,
 	eCacheModifierType_ForceField                   = 2,
 	eCacheModifierType_ShrinkWrap                   = 3,
+	eCacheModifierType_StrandsKey                      = 4,
 	
 	NUM_CACHE_MODIFIER_TYPES
 } eCacheModifier_Type;
@@ -228,5 +229,15 @@ typedef struct ShrinkWrapCacheModifier {
 	
 	struct Object *target;
 } ShrinkWrapCacheModifier;
+
+typedef struct StrandsKeyCacheModifier {
+	CacheModifier modifier;
+	
+	struct Object *object;
+	int hair_system;
+	int pad;
+	
+	struct Key *key;
+} StrandsKeyCacheModifier;
 
 #endif

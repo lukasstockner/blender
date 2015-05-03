@@ -1218,11 +1218,58 @@ CacheModifierTypeInfo cacheModifierType_ShrinkWrap = {
     /* free */              (CacheModifier_FreeFunc)shrinkwrap_free,
 };
 
+/* ------------------------------------------------------------------------- */
+
+static void strandskey_init(StrandsKeyCacheModifier *skmd)
+{
+	skmd->object = NULL;
+	skmd->hair_system = -1;
+}
+
+static void strandskey_copy(StrandsKeyCacheModifier *UNUSED(skmd), StrandsKeyCacheModifier *UNUSED(tskmd))
+{
+}
+
+static void strandskey_free(StrandsKeyCacheModifier *UNUSED(skmd))
+{
+}
+
+static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	walk(userdata, cachelib, &skmd->modifier, (ID **)(&skmd->object));
+}
+
+static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode UNUSED(eval_mode))
+{
+	Object *ob = skmd->object;
+	Strands *strands;
+	
+	/* skip first step and potential backward steps */
+	if (frame <= frame_prev)
+		return;
+	
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands))
+		return;
+}
+
+CacheModifierTypeInfo cacheModifierType_StrandsKey = {
+    /* name */              "StrandsKey",
+    /* structName */        "StrandsKeyCacheModifier",
+    /* structSize */        sizeof(StrandsKeyCacheModifier),
+
+    /* copy */              (CacheModifier_CopyFunc)strandskey_copy,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)strandskey_foreach_id_link,
+    /* process */           (CacheModifier_ProcessFunc)strandskey_process,
+    /* init */              (CacheModifier_InitFunc)strandskey_init,
+    /* free */              (CacheModifier_FreeFunc)strandskey_free,
+};
+
 void BKE_cache_modifier_init(void)
 {
 	cache_modifier_type_set(eCacheModifierType_HairSimulation, &cacheModifierType_HairSimulation);
 	cache_modifier_type_set(eCacheModifierType_ForceField, &cacheModifierType_ForceField);
 	cache_modifier_type_set(eCacheModifierType_ShrinkWrap, &cacheModifierType_ShrinkWrap);
+	cache_modifier_type_set(eCacheModifierType_StrandsKey, &cacheModifierType_StrandsKey);
 }
 
 /* ========================================================================= */
