@@ -102,11 +102,13 @@ static void rna_CacheModifier_update(Main *UNUSED(bmain), Scene *UNUSED(scene), 
 {
 }
 
+#if 0 /* unused */
 static void rna_CacheModifier_dependency_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	rna_CacheModifier_update(bmain, scene, ptr);
 	DAG_relations_tag_update(bmain);
 }
+#endif
 
 
 static StructRNA *rna_CacheModifier_refine(struct PointerRNA *ptr)

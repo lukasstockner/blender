@@ -1110,7 +1110,7 @@ static void shrinkwrap_data_free(ShrinkWrapCacheData *data)
 	}
 }
 
-static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *data, ShrinkWrapCacheInstance *inst, StrandsVertex *vertex, StrandsMotionState *UNUSED(state))
+static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *UNUSED(smd), ShrinkWrapCacheData *data, ShrinkWrapCacheInstance *inst, StrandsVertex *vertex, StrandsMotionState *UNUSED(state))
 {
 //	const float *point = state->co;
 //	float *npoint = state->co;
@@ -1167,7 +1167,7 @@ static void shrinkwrap_apply(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *
 	}
 }
 
-static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode)
+static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 	Object *ob = smd->object;
 	DupliObject *dob;
@@ -1176,10 +1176,6 @@ static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext
 	float mat[4][4];
 	
 	ShrinkWrapCacheData shrinkwrap;
-	
-	/* only perform hair sim once */
-	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
-		return;
 	
 	/* skip first step and potential backward steps */
 	if (frame <= frame_prev)
