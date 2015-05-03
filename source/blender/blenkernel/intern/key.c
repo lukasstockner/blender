@@ -68,11 +68,6 @@
 #define KEY_MODE_BPOINT     1
 #define KEY_MODE_BEZTRIPLE  2
 
-/* old defines from DNA_ipo_types.h for data-type, stored in DNA - don't modify! */
-#define IPO_FLOAT       4
-#define IPO_BEZTRIPLE   100
-#define IPO_BPOINT      101
-
 void BKE_key_free(Key *key)
 {
 	KeyBlock *kb;
@@ -97,7 +92,7 @@ void BKE_key_free_nolib(Key *key)
 	}
 }
 
-Key *BKE_key_add(ID *id)    /* common function */
+Key *BKE_key_add_ex(ID *from, char elemtype, char numelem, int elemsize)    /* common function */
 {
 	Key *key;
 	char *el;
@@ -105,47 +100,49 @@ Key *BKE_key_add(ID *id)    /* common function */
 	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
 	
 	key->type = KEY_NORMAL;
-	key->from = id;
+	key->from = from;
 
 	key->uidgen = 1;
 	
+	el = key->elemstr;
+	
+	el[0] = numelem;
+	el[1] = elemtype;
+	el[2] = 0;
+	
+	key->elemsize = elemsize;
+	
+	return key;
+}
+
+Key *BKE_key_add(ID *id)
+{
+	/* XXX the code here uses some defines which will soon be deprecated... */
+	char elemtype = IPO_FLOAT;
+	char numelem = 0;
+	int elemsize = 0;
+	
 	if (id) {
-		/* XXX the code here uses some defines which will soon be deprecated... */
 		switch (GS(id->name)) {
 			case ID_ME:
-				el = key->elemstr;
-				
-				el[0] = 3;
-				el[1] = IPO_FLOAT;
-				el[2] = 0;
-				
-				key->elemsize = 12;
-				
+				numelem = 3;
+				elemtype = IPO_FLOAT;
+				elemsize = 12;
 				break;
 			case ID_LT:
-				el = key->elemstr;
-				
-				el[0] = 3;
-				el[1] = IPO_FLOAT;
-				el[2] = 0;
-				
-				key->elemsize = 12;
-				
+				numelem = 3;
+				elemtype = IPO_FLOAT;
+				elemsize = 12;
 				break;
 			case ID_CU:
-				el = key->elemstr;
-				
-				el[0] = 4;
-				el[1] = IPO_BPOINT;
-				el[2] = 0;
-				
-				key->elemsize = 16;
-				
+				numelem = 4;
+				elemtype = IPO_BPOINT;
+				elemsize = 16;
 				break;
 		}
 	}
 	
-	return key;
+	return BKE_key_add_ex(id, elemtype, numelem, elemsize);
 }
 
 Key *BKE_key_copy(Key *key)
