@@ -97,10 +97,12 @@ static bool ED_object_shape_key_remove_all(Main *bmain, Object *ob)
 	if (key == NULL)
 		return false;
 
-	switch (GS(key->from->name)) {
-		case ID_ME: ((Mesh *)key->from)->key    = NULL; break;
-		case ID_CU: ((Curve *)key->from)->key   = NULL; break;
-		case ID_LT: ((Lattice *)key->from)->key = NULL; break;
+	if (key->from) {
+		switch (GS(key->from->name)) {
+			case ID_ME: ((Mesh *)key->from)->key    = NULL; break;
+			case ID_CU: ((Curve *)key->from)->key   = NULL; break;
+			case ID_LT: ((Lattice *)key->from)->key = NULL; break;
+		}
 	}
 
 	BKE_libblock_free_us(bmain, key);
@@ -162,10 +164,12 @@ static bool ED_object_shape_key_remove(Main *bmain, Object *ob)
 	}
 	
 	if (key->totkey == 0) {
-		switch (GS(key->from->name)) {
-			case ID_ME: ((Mesh *)key->from)->key    = NULL; break;
-			case ID_CU: ((Curve *)key->from)->key   = NULL; break;
-			case ID_LT: ((Lattice *)key->from)->key = NULL; break;
+		if (key->from) {
+			switch (GS(key->from->name)) {
+				case ID_ME: ((Mesh *)key->from)->key    = NULL; break;
+				case ID_CU: ((Curve *)key->from)->key   = NULL; break;
+				case ID_LT: ((Lattice *)key->from)->key = NULL; break;
+			}
 		}
 
 		BKE_libblock_free_us(bmain, key);

@@ -303,7 +303,7 @@ static void rna_ShapeKey_data_begin(CollectionPropertyIterator *iter, PointerRNA
 	Nurb *nu;
 	int tot = kb->totelem, size = key->elemsize;
 	
-	if (GS(key->from->name) == ID_CU) {
+	if (key->from && GS(key->from->name) == ID_CU) {
 		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
@@ -324,7 +324,7 @@ static int rna_ShapeKey_data_length(PointerRNA *ptr)
 	Nurb *nu;
 	int tot = kb->totelem;
 	
-	if (GS(key->from->name) == ID_CU) {
+	if (key->from && GS(key->from->name) == ID_CU) {
 		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
@@ -342,7 +342,7 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
 	Curve *cu;
 	Nurb *nu;
 	
-	if (GS(key->from->name) == ID_CU) {
+	if (key->from && GS(key->from->name) == ID_CU) {
 		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		

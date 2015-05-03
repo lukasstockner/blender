@@ -109,38 +109,40 @@ Key *BKE_key_add(ID *id)    /* common function */
 
 	key->uidgen = 1;
 	
-	/* XXX the code here uses some defines which will soon be deprecated... */
-	switch (GS(id->name)) {
-		case ID_ME:
-			el = key->elemstr;
-
-			el[0] = 3;
-			el[1] = IPO_FLOAT;
-			el[2] = 0;
-
-			key->elemsize = 12;
-
-			break;
-		case ID_LT:
-			el = key->elemstr;
-
-			el[0] = 3;
-			el[1] = IPO_FLOAT;
-			el[2] = 0;
-
-			key->elemsize = 12;
-
-			break;
-		case ID_CU:
-			el = key->elemstr;
-
-			el[0] = 4;
-			el[1] = IPO_BPOINT;
-			el[2] = 0;
-
-			key->elemsize = 16;
-
-			break;
+	if (id) {
+		/* XXX the code here uses some defines which will soon be deprecated... */
+		switch (GS(id->name)) {
+			case ID_ME:
+				el = key->elemstr;
+				
+				el[0] = 3;
+				el[1] = IPO_FLOAT;
+				el[2] = 0;
+				
+				key->elemsize = 12;
+				
+				break;
+			case ID_LT:
+				el = key->elemstr;
+				
+				el[0] = 3;
+				el[1] = IPO_FLOAT;
+				el[2] = 0;
+				
+				key->elemsize = 12;
+				
+				break;
+			case ID_CU:
+				el = key->elemstr;
+				
+				el[0] = 4;
+				el[1] = IPO_BPOINT;
+				el[2] = 0;
+				
+				key->elemsize = 16;
+				
+				break;
+		}
 	}
 	
 	return key;
@@ -514,7 +516,7 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 	if (kb == actkb) {
 		/* this hack makes it possible to edit shape keys in
 		 * edit mode with shape keys blending applied */
-		if (GS(key->from->name) == ID_ME) {
+		if (key->from && GS(key->from->name) == ID_ME) {
 			Mesh *me;
 			BMVert *eve;
 			BMIter iter;
