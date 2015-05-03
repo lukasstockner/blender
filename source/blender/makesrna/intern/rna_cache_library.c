@@ -750,6 +750,7 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	
 	static EnumPropertyItem display_mode_items[] = {
 	    {CACHE_LIBRARY_DISPLAY_SOURCE,  "SOURCE",       0,      "Source",       "Display source data unmodified"},
+	    {CACHE_LIBRARY_DISPLAY_MODIFIERS, "MODIFIERS",  0,      "Modifiers",    "Display source data with modifiers applied"},
 	    {CACHE_LIBRARY_DISPLAY_RESULT,  "RESULT",       0,      "Result",       "Display resulting data"},
 	    {0, NULL, 0, NULL, NULL}
 	};

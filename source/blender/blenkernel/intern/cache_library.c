@@ -86,7 +86,7 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 	BLI_snprintf(cachelib->output_filepath, sizeof(cachelib->output_filepath), "//cache/%s.%s", basename, PTC_get_default_archive_extension());
 
 	cachelib->source_mode = CACHE_LIBRARY_SOURCE_SCENE;
-	cachelib->display_mode = CACHE_LIBRARY_DISPLAY_RESULT;
+	cachelib->display_mode = CACHE_LIBRARY_DISPLAY_MODIFIERS;
 	cachelib->display_flag = CACHE_LIBRARY_DISPLAY_MOTION | CACHE_LIBRARY_DISPLAY_CHILDREN;
 	cachelib->render_flag = CACHE_LIBRARY_RENDER_MOTION | CACHE_LIBRARY_RENDER_CHILDREN;
 	cachelib->eval_mode = CACHE_LIBRARY_EVAL_REALTIME | CACHE_LIBRARY_EVAL_RENDER;
@@ -321,7 +321,7 @@ static bool has_active_cache(CacheLibrary *cachelib)
 		}
 	}
 	
-	if (cachelib->source_mode == CACHE_LIBRARY_SOURCE_CACHE) {
+	if (ELEM(cachelib->source_mode, CACHE_LIBRARY_SOURCE_CACHE, CACHE_LIBRARY_DISPLAY_MODIFIERS)) {
 		return true;
 	}
 	
@@ -344,7 +344,7 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 		}
 	}
 	
-	if (!archive && cachelib->source_mode == CACHE_LIBRARY_SOURCE_CACHE) {
+	if (!archive && ELEM(cachelib->source_mode, CACHE_LIBRARY_SOURCE_CACHE, CACHE_LIBRARY_DISPLAY_MODIFIERS)) {
 		BKE_cache_archive_input_path(cachelib, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
 	}
@@ -1178,10 +1178,6 @@ static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext
 	float mat[4][4];
 	
 	ShrinkWrapCacheData shrinkwrap;
-	
-	/* skip first step and potential backward steps */
-	if (frame <= frame_prev)
-		return;
 	
 	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands))
 		return;

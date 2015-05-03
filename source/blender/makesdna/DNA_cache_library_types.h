@@ -46,6 +46,7 @@ typedef enum eCacheLibrary_SourceMode {
 typedef enum eCacheLibrary_DisplayMode {
 	CACHE_LIBRARY_DISPLAY_SOURCE    = 0, /* display source data */
 	CACHE_LIBRARY_DISPLAY_RESULT    = 1, /* display result data */
+	CACHE_LIBRARY_DISPLAY_MODIFIERS = 2, /* display input with modifiers */
 } eCacheLibrary_DisplayMode;
 
 typedef enum eCacheLibrary_EvalMode {
