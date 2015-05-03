@@ -45,4 +45,11 @@ void CACHELIBRARY_OT_archive_info(struct wmOperatorType *ot);
 void CACHELIBRARY_OT_add_modifier(struct wmOperatorType *ot);
 void CACHELIBRARY_OT_remove_modifier(struct wmOperatorType *ot);
 
+/* cache_shapekey.c */
+void CACHELIBRARY_OT_shape_key_add(struct wmOperatorType *ot);
+void CACHELIBRARY_OT_shape_key_remove(struct wmOperatorType *ot);
+void CACHELIBRARY_OT_shape_key_clear(struct wmOperatorType *ot);
+void CACHELIBRARY_OT_shape_key_retime(struct wmOperatorType *ot);
+void CACHELIBRARY_OT_shape_key_move(struct wmOperatorType *ot);
+
 #endif

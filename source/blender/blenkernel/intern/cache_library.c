@@ -42,6 +42,7 @@
 
 #include "DNA_cache_library_types.h"
 #include "DNA_group_types.h"
+#include "DNA_key_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
@@ -59,6 +60,7 @@
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
+#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
@@ -1224,14 +1226,18 @@ static void strandskey_init(StrandsKeyCacheModifier *skmd)
 {
 	skmd->object = NULL;
 	skmd->hair_system = -1;
+	
+	skmd->key = BKE_key_add_ex(NULL, IPO_FLOAT, 3, 12);
 }
 
-static void strandskey_copy(StrandsKeyCacheModifier *UNUSED(skmd), StrandsKeyCacheModifier *UNUSED(tskmd))
+static void strandskey_copy(StrandsKeyCacheModifier *skmd, StrandsKeyCacheModifier *tskmd)
 {
+	tskmd->key = BKE_key_copy(skmd->key);
 }
 
-static void strandskey_free(StrandsKeyCacheModifier *UNUSED(skmd))
+static void strandskey_free(StrandsKeyCacheModifier *skmd)
 {
+	BKE_key_free(skmd->key);
 }
 
 static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
@@ -1263,6 +1269,39 @@ CacheModifierTypeInfo cacheModifierType_StrandsKey = {
     /* init */              (CacheModifier_InitFunc)strandskey_init,
     /* free */              (CacheModifier_FreeFunc)strandskey_free,
 };
+
+KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skmd, Strands *strands, const char *name, const bool from_mix)
+{
+	Key *key = skmd->key;
+	KeyBlock *kb;
+	bool newkey = 0;
+	
+	if (key == NULL) {
+		key = skmd->key = BKE_key_add_ex(NULL, IPO_FLOAT, 3, 12);
+		key->type = KEY_RELATIVE;
+		newkey = true;
+	}
+	
+	if (newkey || from_mix == false) {
+		/* create from mesh */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		BKE_keyblock_convert_from_strands(strands, key, kb);
+	}
+	else {
+		/* copy from current values */
+		KeyBlock *actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
+		bool shape_lock = skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock;
+		int totelem;
+		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem);
+		
+		/* create new block with prepared data */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		kb->data = data;
+		kb->totelem = totelem;
+	}
+	
+	return kb;
+}
 
 void BKE_cache_modifier_init(void)
 {

@@ -18,7 +18,7 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel, Menu
+from bpy.types import Panel, Menu, UIList
 from rna_prop_ui import PropertyPanel
 from bl_ui.properties_physics_common import effector_weights_ui
 
@@ -346,6 +346,46 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
             layout.prop(ob, "dupli_group", text="Group")
 
 
+
+class CACHELIB_MT_shape_key_specials(Menu):
+    bl_label = "Shape Key Specials"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        #layout.operator("object.shape_key_transfer", icon='COPY_ID')  # icon is not ideal
+        #layout.operator("object.join_shapes", icon='COPY_ID')  # icon is not ideal
+        layout.operator("cachelibrary.shape_key_add", icon='ZOOMIN', text="New Shape From Mix").from_mix = True
+        layout.operator("cachelibrary.shape_key_remove", icon='X', text="Delete All Shapes").all = True
+        layout.operator("cachelibrary.shape_key_move", icon='TRIA_UP_BAR', text="Move To Top").type = 'TOP'
+        layout.operator("cachelibrary.shape_key_move", icon='TRIA_DOWN_BAR', text="Move To Bottom").type = 'BOTTOM'
+
+
+class CACHELIB_UL_shape_keys(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.ShapeKey))
+        md = active_data
+        # key = data
+        key_block = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            split = layout.split(0.66, False)
+            split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
+            row = split.row(align=True)
+            if key_block.mute:
+                row.active = False
+            if not item.id_data.use_relative:
+                row.prop(key_block, "frame", text="", emboss=False)
+            elif index > 0:
+                row.prop(key_block, "value", text="", emboss=False)
+            else:
+                row.label(text="")
+            row.prop(key_block, "mute", text="", emboss=False)
+        elif self.layout_type == 'GRID':
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
 class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
     bl_label = "Cache"
 
@@ -355,6 +395,7 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group)
 
     def draw_cache_modifier(self, context, layout, cachelib, md):
+        layout.context_pointer_set("cache_library", cachelib)
         layout.context_pointer_set("cache_modifier", md)
 
         row = layout.row(align=True)
@@ -522,6 +563,80 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         layout = layout.column()
         layout.active = md.hair_system is not None
 
+    def STRANDS_KEY(self, context, layout, cachelib, md):
+        col = layout.column(align=True)
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        sub = col.column()
+        if (md.object):
+            sub.prop_search(md, "hair_system", md.object, "particle_systems")
+        else:
+            sub.enabled = False
+            sub.prop(md, "hair_system")
+
+        key = md.shape_keys
+        kb = md.active_shape_key
+        kb_index = md.active_shape_key_index
+
+        row = layout.row()
+
+        rows = 2
+        if kb:
+            rows = 4
+        row.template_list("CACHELIB_UL_shape_keys", "", key, "key_blocks", md, "active_shape_key_index", rows=rows)
+
+        col = row.column()
+
+        sub = col.column(align=True)
+        #sub.operator("object.shape_key_add", icon='ZOOMIN', text="").from_mix = False
+        #sub.operator("object.shape_key_remove", icon='ZOOMOUT', text="").all = False
+        sub.menu("CACHELIB_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
+
+        if kb:
+            col.separator()
+
+            sub = col.column(align=True)
+            #sub.operator("object.shape_key_move", icon='TRIA_UP', text="").type = 'UP'
+            #sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").type = 'DOWN'
+
+            split = layout.split(percentage=0.4)
+            row = split.row()
+            row.prop(key, "use_relative")
+
+            row = split.row()
+            row.alignment = 'RIGHT'
+
+            sub = row.row(align=True)
+            sub.label()  # XXX, for alignment only
+            subsub = sub.row(align=True)
+            subsub.prop(md, "show_only_shape_key", text="")
+
+            sub = row.row()
+            #if key.use_relative:
+            #    sub.operator("object.shape_key_clear", icon='X', text="")
+            #else:
+            #    sub.operator("object.shape_key_retime", icon='RECOVER_LAST', text="")
+
+            if key.use_relative:
+                if kb_index != 0:
+                    row = layout.row()
+                    row.prop(kb, "value")
+
+                    split = layout.split()
+
+                    col = split.column(align=True)
+                    col.label(text="Range:")
+                    col.prop(kb, "slider_min", text="Min")
+                    col.prop(kb, "slider_max", text="Max")
+
+                    col = split.column(align=True)
+                    col.label(text="Blend:")
+                    #col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="")
+                    col.prop_search(kb, "relative_key", key, "key_blocks", text="")
+
+            else:
+                layout.prop(kb, "interpolation")
+                row = layout.column()
+                row.prop(key, "eval_time")
 
 
 # Simple human-readable size (based on http://stackoverflow.com/a/1094933)

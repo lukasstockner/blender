@@ -235,9 +235,15 @@ typedef struct StrandsKeyCacheModifier {
 	
 	struct Object *object;
 	int hair_system;
-	int pad;
+	int flag;
 	
 	struct Key *key;
+	int shapenr;
+	int pad;
 } StrandsKeyCacheModifier;
+
+typedef enum eStrandsKeyCacheModifier_Flag {
+	eStrandsKeyCacheModifier_Flag_ShapeLock             = (1 << 0),
+} eStrandsKeyCacheModifier_Flag;
 
 #endif

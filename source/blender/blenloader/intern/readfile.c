@@ -2005,6 +2005,16 @@ static void lib_link_cache_modifiers(FileData *fd, CacheLibrary *cachelib)
 	CacheModifier *md;
 	for (md = cachelib->modifiers.first; md; md = md->next) {
 		BKE_cache_modifier_foreachIDLink(cachelib, md, lib_link_cache_modifiers_cb, fd);
+		
+		/* special cases */
+		switch (md->type) {
+			case eCacheModifierType_StrandsKey: {
+				StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
+				/* Key is a local ID block, not handled by foreachIDLink */
+				skmd->key = newlibadr(fd, cachelib->id.lib, skmd->key);
+				break;
+			}
+		}
 	}
 }
 

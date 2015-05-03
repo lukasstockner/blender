@@ -3548,6 +3548,12 @@ static void write_cache_modifiers(WriteData *wd, CacheLibrary *cachelib)
 					write_curvemapping(wd, hsmd->sim_params.goal_stiffness_mapping);
 				break;
 			}
+			case eCacheModifierType_StrandsKey: {
+				StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
+				/* Key is a local ID block */
+				writestruct(wd, DATA, "Key", 1, skmd->key);
+				break;
+			}
 		}
 	}
 }

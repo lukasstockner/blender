@@ -50,6 +50,8 @@ struct ID;
 struct CacheProcessData;
 struct BVHTreeFromMesh;
 struct Strands;
+struct StrandsKeyCacheModifier;
+struct KeyBlock;
 
 struct ClothModifierData;
 
@@ -173,6 +175,8 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 
 bool BKE_cache_modifier_find_object(struct DupliCache *dupcache, struct Object *ob, struct DupliObjectData **r_data);
 bool BKE_cache_modifier_find_strands(struct DupliCache *dupcache, struct Object *ob, int hair_system, struct DupliObjectData **r_data, struct Strands **r_strands);
+
+struct KeyBlock *BKE_cache_modifier_strands_key_insert_key(struct StrandsKeyCacheModifier *md, struct Strands *strands, const char *name, const bool from_mix);
 
 /* ========================================================================= */
 

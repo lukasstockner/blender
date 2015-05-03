@@ -40,6 +40,7 @@ struct Curve;
 struct Object;
 struct Lattice;
 struct Mesh;
+struct Strands;
 struct WeightsArrayCache;
 
 /* Kernel prototypes */
@@ -70,6 +71,12 @@ float *BKE_key_evaluate_object_ex(
         float *arr, size_t arr_size);
 float *BKE_key_evaluate_object(
         struct Object *ob, int *r_totelem);
+float *BKE_key_evaluate_strands_ex(
+        struct Strands *strands, struct Key *key, struct KeyBlock *actkb, bool lock_shape,
+        int *r_totelem, float *arr, size_t arr_size);
+float *BKE_key_evaluate_strands(
+        struct Strands *strand, struct Key *key, struct KeyBlock *actkbs, bool lock_shape,
+        int *r_totelem);
 
 struct Key      *BKE_key_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
@@ -107,6 +114,10 @@ void    BKE_keyblock_update_from_mesh(struct Mesh *me, struct KeyBlock *kb);
 void    BKE_keyblock_convert_from_mesh(struct Mesh *me, struct KeyBlock *kb);
 void    BKE_keyblock_convert_to_mesh(struct KeyBlock *kb, struct Mesh *me);
 
+void    BKE_keyblock_update_from_strands(struct Strands *strands, struct KeyBlock *kb);
+void    BKE_keyblock_convert_from_strands(struct Strands *strands, struct Key *key, struct KeyBlock *kb);
+void    BKE_keyblock_convert_to_strands(struct KeyBlock *kb, struct Strands *strands);
+
 void    BKE_keyblock_update_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
 void    BKE_keyblock_convert_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
 float (*BKE_keyblock_convert_to_vertcos(struct Object *ob, struct KeyBlock *kb))[3];
@@ -115,6 +126,7 @@ void    BKE_keyblock_update_from_offset(struct Object *ob, struct KeyBlock *kb, 
 
 /* other management */
 bool    BKE_keyblock_move(struct Object *ob, int org_index, int new_index);
+bool    BKE_keyblock_move_ex(struct Key *key, int *shapenr, int org_index, int new_index);
 
 bool    BKE_keyblock_is_basis(struct Key *key, const int index);
 

@@ -68,8 +68,10 @@ EnumPropertyItem cache_modifier_type_items[] = {
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math.h"
 #include "BLI_string.h"
 
+#include "DNA_key_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
 
@@ -302,6 +304,80 @@ static int rna_StrandsKeyCacheModifier_hair_system_poll(PointerRNA *ptr, Pointer
 	if (!psys->part || psys->part->type != PART_HAIR)
 		return false;
 	return true;
+}
+
+static void rna_StrandsKeyCacheModifier_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	StrandsKeyCacheModifier *skmd = ptr->data;
+	
+#if 0 // TODO
+	if (scene->obedit == ob) {
+		/* exit/enter editmode to get new shape */
+		switch (ob->type) {
+			case OB_MESH:
+				EDBM_mesh_load(ob);
+				EDBM_mesh_make(scene->toolsettings, ob);
+				EDBM_mesh_normals_update(((Mesh *)ob->data)->edit_btmesh);
+				BKE_editmesh_tessface_calc(((Mesh *)ob->data)->edit_btmesh);
+				break;
+			case OB_CURVE:
+			case OB_SURF:
+				load_editNurb(ob);
+				make_editNurb(ob);
+				break;
+			case OB_LATTICE:
+				load_editLatt(ob);
+				make_editLatt(ob);
+				break;
+		}
+	}
+#endif
+	
+	rna_CacheModifier_update(bmain, scene, ptr);
+}
+
+static void rna_StrandsKeyCacheModifier_active_shape_key_index_range(PointerRNA *ptr, int *min, int *max, int *UNUSED(softmin), int *UNUSED(softmax))
+{
+	StrandsKeyCacheModifier *skmd = ptr->data;
+	Key *key = skmd->key;
+
+	*min = 0;
+	if (key) {
+		*max = BLI_listbase_count(&key->block) - 1;
+		if (*max < 0) *max = 0;
+	}
+	else {
+		*max = 0;
+	}
+}
+
+static int rna_StrandsKeyCacheModifier_active_shape_key_index_get(PointerRNA *ptr)
+{
+	StrandsKeyCacheModifier *skmd = ptr->data;
+
+	return max_ii(skmd->shapenr - 1, 0);
+}
+
+static void rna_StrandsKeyCacheModifier_active_shape_key_index_set(PointerRNA *ptr, int value)
+{
+	StrandsKeyCacheModifier *skmd = ptr->data;
+
+	skmd->shapenr = value + 1;
+}
+
+static PointerRNA rna_StrandsKeyCacheModifier_active_shape_key_get(PointerRNA *ptr)
+{
+	StrandsKeyCacheModifier *skmd = ptr->data;
+	Key *key = skmd->key;
+	KeyBlock *kb;
+	PointerRNA keyptr;
+
+	if (key == NULL)
+		return PointerRNA_NULL;
+	
+	kb = BLI_findlink(&key->block, skmd->shapenr - 1);
+	RNA_pointer_create((ID *)key, &RNA_ShapeKey, kb, &keyptr);
+	return keyptr;
 }
 
 static void rna_CacheArchiveInfoNode_bytes_size_get(PointerRNA *ptr, char *value)
@@ -566,6 +642,30 @@ static void rna_def_cache_modifier_strands_key(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Hair System", "Hair system cache to simulate");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	/* shape keys */
+	prop = RNA_def_property(srna, "shape_keys", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "key");
+	RNA_def_property_ui_text(prop, "Shape Keys", "");
+	
+	prop = RNA_def_property(srna, "show_only_shape_key", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eStrandsKeyCacheModifier_Flag_ShapeLock);
+	RNA_def_property_ui_text(prop, "Shape Key Lock", "Always show the current Shape for this Object");
+	RNA_def_property_ui_icon(prop, ICON_UNPINNED, 1);
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "active_shape_key", PROP_POINTER, PROP_NONE);
+	RNA_def_property_struct_type(prop, "ShapeKey");
+	RNA_def_property_pointer_funcs(prop, "rna_StrandsKeyCacheModifier_active_shape_key_get", NULL, NULL, NULL);
+	RNA_def_property_ui_text(prop, "Active Shape Key", "Current shape key");
+	
+	prop = RNA_def_property(srna, "active_shape_key_index", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "shapenr");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE); /* XXX this is really unpredictable... */
+	RNA_def_property_int_funcs(prop, "rna_StrandsKeyCacheModifier_active_shape_key_index_get", "rna_StrandsKeyCacheModifier_active_shape_key_index_set",
+	                           "rna_StrandsKeyCacheModifier_active_shape_key_index_range");
+	RNA_def_property_ui_text(prop, "Active Shape Key Index", "Current shape key index");
+	RNA_def_property_update(prop, 0, "rna_StrandsKeyCacheModifier_active_shape_update");
 }
 
 static void rna_def_cache_modifier(BlenderRNA *brna)
