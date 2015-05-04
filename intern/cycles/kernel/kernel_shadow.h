@@ -181,21 +181,27 @@ ccl_device_inline bool shadow_blocked(ccl_addr_space KernelGlobals *kg, PathStat
  * one extra ray cast for the cases were we do want transparency. */
 
 #ifdef __SPLIT_KERNEL__
-ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_global, float3 *shadow, ccl_addr_space ShaderData *sd, ccl_addr_space Intersection *isect_global)
+ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow, ccl_addr_space ShaderData *sd, ccl_addr_space Intersection *isect_global)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
-	if(ray_global->t == 0.0f)
+	if(ray_input->t == 0.0f)
 		return false;
-    Ray ray = *ray_global;
 
-	bool blocked = scene_intersect(kg, &ray, PATH_RAY_SHADOW_OPAQUE, isect_global, NULL, 0.0f, 0.0f);
+#ifdef __SPLIT_KERNEL__
+	Ray private_ray = *ray_input;
+	Ray *ray = &private_ray;
+#else
+	Ray *ray = ray_input;
+#endif
+
+	bool blocked = scene_intersect(kg, ray, PATH_RAY_SHADOW_OPAQUE, isect_global, NULL, 0.0f, 0.0f);
 
 #ifdef __TRANSPARENT_SHADOWS__
 	if(blocked && kernel_data.integrator.transparent_shadows) {
 		if(shader_transparent_shadow(kg, isect_global)) {
 			float3 throughput = make_float3(1.0f, 1.0f, 1.0f);
-			float3 Pend = ray.P + ray.D*ray.t;
+			float3 Pend = ray->P + ray->D*ray->t;
 			int bounce = state->transparent_bounce;
 #ifdef __VOLUME__
 			PathState ps = *state;
@@ -205,12 +211,12 @@ ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals 
 				if(bounce >= kernel_data.integrator.transparent_max_bounce)
 					return true;
 
-				if(!scene_intersect(kg, &ray, PATH_RAY_SHADOW_TRANSPARENT, isect_global, NULL, 0.0f, 0.0f))
+				if(!scene_intersect(kg, ray, PATH_RAY_SHADOW_TRANSPARENT, isect_global, NULL, 0.0f, 0.0f))
 				{
 #ifdef __VOLUME__
 					/* attenuation for last line segment towards light */
 					if(ps.volume_stack[0].shader != SHADER_NONE)
-						kernel_volume_shadow(kg, &ps, &ray, &throughput);
+						kernel_volume_shadow(kg, &ps, ray, &throughput);
 #endif
 
 					*shadow *= throughput;
@@ -231,7 +237,7 @@ ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals 
 #endif
 
 				/* setup shader data at surface */
-				shader_setup_from_ray(kg, sd, isect_global, &ray, state->bounce+1, bounce);
+				shader_setup_from_ray(kg, sd, isect_global, ray, state->bounce+1, bounce);
 
 				/* attenuation from transparent surface */
 				if(!(sd_fetch(flag) & SD_HAS_ONLY_VOLUME)) {
@@ -243,9 +249,9 @@ ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals 
 					return true;
 
 				/* move ray forward */
-				ray.P = ray_offset(sd_fetch(P), -sd_fetch(Ng));
-				if(ray.t != FLT_MAX)
-					ray.D = normalize_len(Pend - ray.P, &ray.t);
+				ray->P = ray_offset(sd_fetch(P), -sd_fetch(Ng));
+				if(ray->t != FLT_MAX)
+					ray->D = normalize_len(Pend - ray->P, &ray->t);
 
 #ifdef __VOLUME__
 				/* exit/enter volume */
