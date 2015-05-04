@@ -82,7 +82,6 @@ ccl_device float3 primitive_uv(ccl_addr_space KernelGlobals *kg, ccl_addr_space 
 }
 
 /* Ptex coordinates */
-/// XXX not used
 ccl_device bool primitive_ptex(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float2 *uv, int *face_id)
 {
 	/* storing ptex data as attributes is not memory efficient but simple for tests */

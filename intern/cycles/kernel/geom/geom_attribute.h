@@ -57,7 +57,6 @@ ccl_device_inline int find_attribute(ccl_addr_space KernelGlobals *kg, const ccl
 }
 
 /* Transform matrix attribute on meshes */
-///XXX not used
 ccl_device Transform primitive_attribute_matrix(ccl_addr_space KernelGlobals *kg, const ShaderData *sd, int offset)
 {
 	Transform tfm;
