@@ -17,12 +17,17 @@
 CCL_NAMESPACE_BEGIN
 
 /* Direction Emission */
-
-#ifdef __SPLIT_KERNEL__
-ccl_device_noinline float3 direct_emissive_eval_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg,
-	LightSample *ls, float3 I, differential3 dI, float t, float time, int bounce, int transparent_bounce, ccl_addr_space ShaderData *sd)
+/* The argument sd_input is meaningful only for split kernel. Other uses just pass NULL */
+ccl_device_noinline float3 direct_emissive_eval(ccl_addr_space KernelGlobals *kg,
+	LightSample *ls, float3 I, differential3 dI, float t, float time, int bounce, int transparent_bounce, ccl_addr_space ShaderData *sd_input)
 {
 	/* setup shading at emitter */
+#ifdef __SPLIT_KERNEL__
+	ccl_addr_space ShaderData *sd = sd_input;
+#else
+	ShaderData sd_object;
+	ShaderData *sd = &sd_object;
+#endif
 	float3 eval;
 
 #ifdef __BACKGROUND_MIS__
@@ -62,54 +67,8 @@ ccl_device_noinline float3 direct_emissive_eval_SPLIT_KERNEL(ccl_addr_space Kern
 
 	return eval;
 }
-#else
 
-ccl_device_noinline float3 direct_emissive_eval(ccl_addr_space KernelGlobals *kg,
-	LightSample *ls, float3 I, differential3 dI, float t, float time, int bounce, int transparent_bounce)
-{
-	/* setup shading at emitter */
-	ShaderData sd;
-	float3 eval;
-
-#ifdef __BACKGROUND_MIS__
-	if(ls->type == LIGHT_BACKGROUND) {
-		Ray ray;
-		ray.D = ls->D;
-		ray.P = ls->P;
-		ray.t = 1.0f;
-#ifdef __OBJECT_MOTION__
-		ray.time = time;
-#endif
-		ray.dP = differential3_zero();
-		ray.dD = dI;
-
-		shader_setup_from_background(kg, &sd, &ray, bounce+1, transparent_bounce);
-		eval = shader_eval_background(kg, &sd, 0, SHADER_CONTEXT_EMISSION);
-	}
-	else
-#endif
-	{
-		shader_setup_from_sample(kg, &sd, ls->P, ls->Ng, I, ls->shader, ls->object, ls->prim, ls->u, ls->v, t, time, bounce+1, transparent_bounce);
-
-		ls->Ng = sd.Ng;
-
-		/* no path flag, we're evaluating this for all closures. that's weak but
-		 * we'd have to do multiple evaluations otherwise */
-		shader_eval_surface(kg, &sd, 0.0f, 0, SHADER_CONTEXT_EMISSION);
-
-		/* evaluate emissive closure */
-		if(sd.flag & SD_EMISSION)
-			eval = shader_emissive_eval(kg, &sd);
-		else
-			eval = make_float3(0.0f, 0.0f, 0.0f);
-	}
-	
-	eval *= ls->eval_fac;
-
-	return eval;
-}
-#endif
-
+/* The argument sd_DL is meaningful only for split kernel. Other uses can just pass NULL */
 ccl_device_noinline bool direct_emission(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd,
 	LightSample *ls, Ray *ray, BsdfEval *eval, bool *is_lamp,
 	int bounce, int transparent_bounce, ccl_addr_space ShaderData *sd_DL)
@@ -123,9 +82,9 @@ ccl_device_noinline bool direct_emission(ccl_addr_space KernelGlobals *kg, ccl_a
 	/* evaluate closure */
 
 #ifdef __SPLIT_KERNEL__
-	float3 light_eval = direct_emissive_eval_SPLIT_KERNEL(kg, ls, -ls->D, dD, ls->t, sd_fetch(time), bounce, transparent_bounce, sd_DL);
+	float3 light_eval = direct_emissive_eval(kg, ls, -ls->D, dD, ls->t, sd_fetch(time), bounce, transparent_bounce, sd_DL);
 #else
-	float3 light_eval = direct_emissive_eval(kg, ls, -ls->D, dD, ls->t, sd_fetch(time), bounce, transparent_bounce);
+	float3 light_eval = direct_emissive_eval(kg, ls, -ls->D, dD, ls->t, sd_fetch(time), bounce, transparent_bounce, NULL);
 #endif
 
 	if(is_zero(light_eval))
@@ -223,6 +182,7 @@ ccl_device_noinline float3 indirect_primitive_emission(ccl_addr_space KernelGlob
 }
 
 /* Indirect Lamp Emission */
+/* The argument sd is meaningful only for split kernel. Other uses can just pass NULL */
 ccl_device_noinline bool indirect_lamp_emission(ccl_addr_space KernelGlobals *kg, PathState *state, Ray *ray, float3 *emission, ccl_addr_space ShaderData *sd)
 {
 	bool hit_lamp = false;
@@ -248,9 +208,9 @@ ccl_device_noinline bool indirect_lamp_emission(ccl_addr_space KernelGlobals *kg
 #endif
 
 #ifdef __SPLIT_KERNEL__
-		float3 L = direct_emissive_eval_SPLIT_KERNEL(kg, &ls, -ray->D, ray->dD, ls.t, ray->time, state->bounce, state->transparent_bounce, sd);
+		float3 L = direct_emissive_eval(kg, &ls, -ray->D, ray->dD, ls.t, ray->time, state->bounce, state->transparent_bounce, sd);
 #else
-		float3 L = direct_emissive_eval(kg, &ls, -ray->D, ray->dD, ls.t, ray->time, state->bounce, state->transparent_bounce);
+		float3 L = direct_emissive_eval(kg, &ls, -ray->D, ray->dD, ls.t, ray->time, state->bounce, state->transparent_bounce, NULL);
 #endif
 
 #ifdef __VOLUME__
