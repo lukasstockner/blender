@@ -46,7 +46,6 @@
 #include "BLI_math.h"
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
-#include "PIL_time.h"
 
 #include "BLO_readfile.h"
 

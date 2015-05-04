@@ -67,8 +67,6 @@ struct MovieClipScopes;
 struct Mask;
 struct BLI_mempool;
 
-struct direntry;
-
 /* SpaceLink (Base) ==================================== */
 
 /**
