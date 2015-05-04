@@ -53,15 +53,6 @@ SD_VAR(int, object)
 /* motion blur sample time */
 SD_VAR(float, time)
 
-/* length of the ray being shaded */
-SD_VAR(float, ray_length)
-
-/* ray bounce depth */
-SD_VAR(int, ray_depth)
-
-/* ray transparent depth */
-SD_VAR(int, transparent_depth)
-
 #ifdef __RAY_DIFFERENTIALS__
 /* differential of P. these are orthogonal to Ng, not N */
 SD_VAR(differential3, dP)
@@ -85,15 +76,28 @@ SD_VAR(Transform, ob_tfm)
 SD_VAR(Transform, ob_itfm)
 #endif
 
+/* ray start position, only set for backgrounds */
+SD_VAR(float3, ray_P)
+SD_VAR(differential3, ray_dP)
+
 /* Closure data, we store a fixed array of closures */
 SD_CLOSURE_VAR(ShaderClosure, closure, MAX_CLOSURE)
 
 SD_VAR(int, num_closure)
 SD_VAR(float, randb_closure)
 
-/* ray start position, only set for backgrounds */
-SD_VAR(float3, ray_P)
-SD_VAR(differential3, ray_dP)
+/* length of the ray being shaded */
+SD_VAR(float, ray_length)
+
+/* ray bounce depth */
+SD_VAR(int, ray_depth)
+
+/* ray transparent depth */
+SD_VAR(int, transparent_depth)
+
+SD_VAR(int, pad1)
+SD_VAR(int, pad2)
+SD_VAR(int, pad3)
 
 #ifdef __OSL__
 SD_VAR(struct KernelGlobals *, osl_globals)
