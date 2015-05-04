@@ -2546,7 +2546,7 @@ public:
 			clReleaseProgram(sumAllRadiance_program);
 	}
 
-	void path_trace(RenderTile& rtile, int sample)
+	void path_trace(RenderTile& rtile, int /*sample*/)
 	{
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
@@ -3297,10 +3297,6 @@ public:
 		size_t tile_specific_mem_allocated = 0;
 
 		/* Get required tile info */
-		cl_int d_w = rtile.w;
-		cl_int d_h = rtile.h;
-		cl_mem d_buffer = CL_MEM_PTR(rtile.buffer);
-		cl_mem d_rng_state = CL_MEM_PTR(rtile.rng_state);
 		unsigned int user_set_tile_w = rtile.tile_size.x;
 		unsigned int user_set_tile_h = rtile.tile_size.y;
 
@@ -3321,7 +3317,7 @@ public:
 	}
 
 	/* Calculates the texture memories that has been allocated */
-	size_t get_scene_specific_mem_allocated(cl_mem d_data) {
+	size_t get_scene_specific_mem_allocated(cl_mem /*d_data*/) {
 		size_t scene_specific_mem_allocated = 0;
 		/* Calculate texture memories */
 #define KERNEL_TEX(type, ttype, name) \
@@ -3634,7 +3630,9 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 /* Returns true in case of successful detection of platform and device type,
 * else returns false
 */
-bool get_platform_and_devicetype(const DeviceInfo info, string &platform_name, cl_device_type &device_type) {
+static bool get_platform_and_devicetype(const DeviceInfo info,
+                                        string &platform_name,
+                                        cl_device_type &device_type) {
 	cl_platform_id platform_id;
 	cl_device_id device_id;
 	cl_uint num_platforms;
