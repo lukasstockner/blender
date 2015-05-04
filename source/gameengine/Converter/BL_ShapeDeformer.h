@@ -40,6 +40,8 @@
 #include "BL_DeformableGameObject.h"
 #include <vector>
 
+struct Key;
+
 class BL_ShapeDeformer : public BL_SkinDeformer
 {
 public:
@@ -49,12 +51,12 @@ public:
 
 	/* this second constructor is needed for making a mesh deformable on the fly. */
 	BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
-	                 struct Object *bmeshobj_old,
-	                 struct Object *bmeshobj_new,
-					 class RAS_MeshObject *mesh,
-						 bool release_object,
-						 bool recalc_normal,
-						 BL_ArmatureObject *arma = NULL);
+					 Object *bmeshobj_old,
+					 Object *bmeshobj_new,
+					 RAS_MeshObject *mesh,
+					 bool release_object,
+					 bool recalc_normal,
+					 BL_ArmatureObject *arma = NULL);
 
 	virtual RAS_Deformer *GetReplica();
 	virtual void ProcessReplica();
@@ -64,7 +66,7 @@ public:
 	bool LoadShapeDrivers(KX_GameObject *parent);
 	bool ExecuteShapeDrivers(void);
 
-	struct Key *GetKey();
+	Key *GetKey();
 
 	void ForceUpdate()
 	{
@@ -74,8 +76,7 @@ public:
 protected:
 	bool m_useShapeDrivers;
 	double m_lastShapeUpdate;
-	struct Key *m_key;
-
+	Key *m_key;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ShapeDeformer")
@@ -83,4 +84,3 @@ protected:
 };
 
 #endif
-

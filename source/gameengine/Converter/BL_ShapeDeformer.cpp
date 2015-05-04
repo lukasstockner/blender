@@ -73,10 +73,10 @@ BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
 	:
 	BL_SkinDeformer(gameobj, bmeshobj, mesh),
 	m_useShapeDrivers(false),
-	m_lastShapeUpdate(-1)
+	m_lastShapeUpdate(-1.0)
 {
 	m_key = BKE_key_copy(m_bmesh->key);
-};
+}
 
 /* this second constructor is needed for making a mesh deformable on the fly. */
 BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
@@ -89,19 +89,18 @@ BL_ShapeDeformer::BL_ShapeDeformer(BL_DeformableGameObject *gameobj,
 	:
 	BL_SkinDeformer(gameobj, bmeshobj_old, bmeshobj_new, mesh, release_object, recalc_normal, arma),
 	m_useShapeDrivers(false),
-	m_lastShapeUpdate(-1)
+	m_lastShapeUpdate(-1.0)
 {
 	m_key = BKE_key_copy(m_bmesh->key);
-};
+}
 
 BL_ShapeDeformer::~BL_ShapeDeformer()
 {
-	if (m_key)
-	{
+	if (m_key) {
 		BKE_libblock_free(G.main, m_key);
 		m_key = NULL;
 	}
-};
+}
 
 RAS_Deformer *BL_ShapeDeformer::GetReplica()
 {
@@ -115,7 +114,7 @@ RAS_Deformer *BL_ShapeDeformer::GetReplica()
 void BL_ShapeDeformer::ProcessReplica()
 {
 	BL_SkinDeformer::ProcessReplica();
-	m_lastShapeUpdate = -1;
+	m_lastShapeUpdate = -1.0;
 
 	m_key = BKE_key_copy(m_key);
 }
@@ -134,11 +133,9 @@ bool BL_ShapeDeformer::LoadShapeDrivers(KX_GameObject *parent)
 		FCurve *fcu;
 
 		for (fcu = (FCurve *)GetKey()->adt->drivers.first; fcu; fcu = (FCurve *)fcu->next) {
-
 			DriverVar *dvar;
 			for (dvar = (DriverVar *)fcu->driver->variables.first; dvar; dvar = (DriverVar *)dvar->next) {
-				DRIVER_TARGETS_USED_LOOPER(dvar)
-				{
+				DRIVER_TARGETS_USED_LOOPER(dvar) {
 					if (dtar->id) {
 						if ((Object *)dtar->id == arma->GetOrigArmatureObject())
 							dtar->id = (ID *)arma->GetArmatureObject();
