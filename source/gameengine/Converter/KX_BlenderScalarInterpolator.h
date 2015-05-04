@@ -36,28 +36,31 @@
 
 #include "KX_IScalarInterpolator.h"
 
-typedef unsigned short BL_IpoChannel;
+struct FCurve;
+struct bAction;
 
-class BL_ScalarInterpolator : public KX_IScalarInterpolator {
+class BL_ScalarInterpolator : public KX_IScalarInterpolator
+{
 public:
 	BL_ScalarInterpolator() {
 	}                          // required for use in STL list
-	BL_ScalarInterpolator(struct FCurve *fcu) :
+	BL_ScalarInterpolator(FCurve *fcu) :
 		m_fcu(fcu)
 	{
 	}
 
-	virtual ~BL_ScalarInterpolator() {
+	virtual ~BL_ScalarInterpolator()
+	{
 	}
 
 	virtual float GetValue(float currentTime) const;
-	struct FCurve *GetFCurve() {
+	FCurve *GetFCurve()
+	{
 		return m_fcu;
 	}
 
 private:
-	struct FCurve *m_fcu;
-
+	FCurve *m_fcu;
 
 #ifdef WITH_CXX_GUARDEDALLOC
 	MEM_CXX_CLASS_ALLOC_FUNCS("GE:BL_ScalarInterpolator")
@@ -65,9 +68,10 @@ private:
 };
 
 
-class BL_InterpolatorList : public std::vector<KX_IScalarInterpolator *> {
+class BL_InterpolatorList : public std::vector<KX_IScalarInterpolator *>
+{
 public:
-	BL_InterpolatorList(struct bAction *action);
+	BL_InterpolatorList(bAction *action);
 	~BL_InterpolatorList();
 
 	KX_IScalarInterpolator *GetScalarInterpolator(const char *rna_path, int array_index);
