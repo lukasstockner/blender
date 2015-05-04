@@ -5992,6 +5992,9 @@ static void lib_link_screen(FileData *fd, Main *main)
 					else if (sl->spacetype == SPACE_BUTS) {
 						SpaceButs *sbuts = (SpaceButs *)sl;
 						sbuts->pinid = newlibadr(fd, sc->id.lib, sbuts->pinid);
+						if (sbuts->pinid == NULL) {
+							sbuts->flag &= ~SB_PIN_CONTEXT;
+						}
 					}
 					else if (sl->spacetype == SPACE_FILE) {
 						;
@@ -6321,6 +6324,9 @@ void blo_lib_link_screen_restore(Main *newmain, bScreen *curscreen, Scene *cursc
 				else if (sl->spacetype == SPACE_BUTS) {
 					SpaceButs *sbuts = (SpaceButs *)sl;
 					sbuts->pinid = restore_pointer_by_name(newmain, sbuts->pinid, USER_IGNORE);
+					if (sbuts->pinid == NULL) {
+						sbuts->flag &= ~SB_PIN_CONTEXT;
+					}
 
 					/* TODO: restore path pointers: T40046
 					 * (complicated because this contains data pointers too, not just ID)*/
@@ -9260,7 +9266,6 @@ static void give_base_to_groups(Main *mainvar, Scene *scene)
 			/* assign the group */
 			ob->dup_group = group;
 			ob->transflag |= OB_DUPLIGROUP;
-			rename_id(&ob->id, group->id.name + 2);
 			copy_v3_v3(ob->loc, scene->cursor);
 		}
 	}

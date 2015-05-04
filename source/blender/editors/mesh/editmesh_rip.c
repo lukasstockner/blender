@@ -559,9 +559,10 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 		}
 	}
 
-	/* this should be impossible, but sanity checks are a good thing */
-	if (!v)
+	/* (v == NULL) should be impossible */
+	if ((v == NULL) || (v->e == NULL)) {
 		return OPERATOR_CANCELLED;
+	}
 
 	is_wire = BM_vert_is_wire(v);
 
@@ -570,12 +571,11 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 	if (v->e) {
 		/* find closest edge to mouse cursor */
 		BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
-			const bool is_boundary = BM_edge_is_boundary(e);
 			/* consider wire as boundary for this purpose,
 			 * otherwise we can't a face away from a wire edge */
-			totboundary_edge += (is_boundary != 0 || BM_edge_is_wire(e));
+			totboundary_edge += (BM_edge_is_boundary(e) || BM_edge_is_wire(e));
 			if (!BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
-				if (is_boundary == false && BM_edge_is_manifold(e)) {
+				if (BM_edge_is_manifold(e)) {
 					d = edbm_rip_edgedist_squared(ar, projectMat, e->v1->co, e->v2->co, fmval, INSET_DEFAULT);
 					if ((e2 == NULL) || (d < dist_sq)) {
 						dist_sq = d;
@@ -619,6 +619,32 @@ static int edbm_rip_invoke__vert(bContext *C, wmOperator *op, const wmEvent *eve
 					BLI_assert(e2 != NULL);
 				}
 			}
+		}
+	}
+
+	if (e2) {
+		/* Try to split off a non-manifold fan (when we have multiple disconnected fans) */
+
+		/* note: we're lazy here and first split then check there are any faces remaining,
+		 * this isn't good practice, however its less hassle then checking for multiple-disconnected regions */
+		BMLoop *l_sep = e2->l->v == v ? e2->l : e2->l->next;
+		BMVert *v_new;
+		BLI_assert(l_sep->v == v);
+		v_new = bmesh_urmv_loop_region(bm, l_sep);
+		if (BM_vert_find_first_loop(v)) {
+			BM_vert_select_set(bm, v, false);
+			BM_select_history_remove(bm, v);
+
+			BM_vert_select_set(bm, v_new, true);
+			if (ese.ele) {
+				BM_select_history_store(bm, v_new);
+			}
+
+			return OPERATOR_FINISHED;
+		}
+		else {
+			/* rewind */
+			BM_vert_splice(bm, v, v_new);
 		}
 	}
 
