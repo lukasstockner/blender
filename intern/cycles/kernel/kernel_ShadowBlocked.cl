@@ -117,7 +117,7 @@ __kernel void kernel_ocl_path_trace_ShadowBlocked_DirectLighting_SPLIT_KERNEL(
         ccl_global Intersection *isect_global = RAY_SHADOW_RAY_CAST_AO ? isect_ao_global : isect_dl_global;
 
 	    float3 shadow;
-	    update_path_radiance = !(shadow_blocked_SPLIT_KERNEL(kg, state, light_ray_global, &shadow, sd_shadow, isect_global));
+	    update_path_radiance = !(shadow_blocked(kg, state, light_ray_global, &shadow, sd_shadow, isect_global));
 
 	    /* We use light_ray_global's P and t to store shadow and update_path_radiance */
 	    light_ray_global->P = shadow;

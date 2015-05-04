@@ -250,7 +250,7 @@ ccl_device void kernel_path_indirect(ccl_addr_space KernelGlobals *kg, RNG *rng,
 				light_ray.dP = sd.dP;
 				light_ray.dD = differential3_zero();
 
-				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow))
+				if(!shadow_blocked(kg, &state, &light_ray, &ao_shadow, NULL, NULL))
 					path_radiance_accum_ao(L, throughput, ao_alpha, ao_bsdf, ao_shadow, state.bounce);
 			}
 		}
@@ -320,7 +320,7 @@ ccl_device void kernel_path_ao(ccl_addr_space KernelGlobals *kg, ShaderData *sd,
 		light_ray.dP = sd->dP;
 		light_ray.dD = differential3_zero();
 
-		if(!shadow_blocked(kg, state, &light_ray, &ao_shadow))
+		if(!shadow_blocked(kg, state, &light_ray, &ao_shadow, NULL, NULL))
 			path_radiance_accum_ao(L, throughput, ao_alpha, ao_bsdf, ao_shadow, state->bounce);
 	}
 }
@@ -356,7 +356,7 @@ ccl_device void kernel_branched_path_ao(ccl_addr_space KernelGlobals *kg, Shader
 			light_ray.dP = sd->dP;
 			light_ray.dD = differential3_zero();
 
-			if(!shadow_blocked(kg, state, &light_ray, &ao_shadow))
+			if(!shadow_blocked(kg, state, &light_ray, &ao_shadow, NULL, NULL))
 				path_radiance_accum_ao(L, throughput*num_samples_inv, ao_alpha, ao_bsdf, ao_shadow, state->bounce);
 		}
 	}
