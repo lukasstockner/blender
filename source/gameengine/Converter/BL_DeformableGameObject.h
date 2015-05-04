@@ -45,29 +45,29 @@
 class BL_ShapeActionActuator;
 struct Key;
 
-class BL_DeformableGameObject : public KX_GameObject  
+class BL_DeformableGameObject : public KX_GameObject
 {
 public:
-	CValue*		GetReplica();
+	CValue *GetReplica();
 
-	double GetLastFrame ()
+	double GetLastFrame()
 	{
 		return m_lastframe;
 	}
-	Object* GetBlendObject()
+	Object *GetBlendObject()
 	{
 		return m_blendobj;
 	}
-	virtual void Relink(CTR_Map<CTR_HashedPtr, void*>*map)
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *map)
 	{
 		if (m_pDeformer)
-			m_pDeformer->Relink (map);
+			m_pDeformer->Relink(map);
 		KX_GameObject::Relink(map);
 	};
 	void ProcessReplica();
 
-	BL_DeformableGameObject(Object* blendobj, void* sgReplicationInfo, SG_Callbacks callbacks) :
-		KX_GameObject(sgReplicationInfo,callbacks),
+	BL_DeformableGameObject(Object *blendobj, void *sgReplicationInfo, SG_Callbacks callbacks) :
+		KX_GameObject(sgReplicationInfo, callbacks),
 		m_pDeformer(NULL),
 		m_activeAct(NULL),
 		m_lastframe(0.0),
@@ -80,23 +80,23 @@ public:
 	bool SetActiveAction(class BL_ShapeActionActuator *act, short priority, double curtime);
 
 	bool GetShape(vector<float> &shape);
-	
-	virtual void	SetDeformer(class RAS_Deformer* deformer);
-	virtual class RAS_Deformer* GetDeformer()
+
+	virtual void SetDeformer(class RAS_Deformer *deformer);
+	virtual class RAS_Deformer *GetDeformer()
 	{
 		return m_pDeformer;
 	}
 
 public:
-	
+
 protected:
-	
-	RAS_Deformer		*m_pDeformer;
+
+	RAS_Deformer        *m_pDeformer;
 
 	class BL_ShapeActionActuator *m_activeAct;
-	double		m_lastframe;
-	Object*		m_blendobj;
-	short		m_activePriority;
+	double m_lastframe;
+	Object *m_blendobj;
+	short m_activePriority;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

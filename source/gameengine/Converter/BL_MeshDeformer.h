@@ -49,44 +49,56 @@ class BL_MeshDeformer : public RAS_Deformer
 public:
 	void VerifyStorage();
 	void RecalcNormals();
-	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map);
+	virtual void Relink(CTR_Map<class CTR_HashedPtr, void *> *map);
 	BL_MeshDeformer(BL_DeformableGameObject *gameobj,
-					struct Object* obj,
-					class RAS_MeshObject *meshobj ):
+	                struct Object *obj,
+					class RAS_MeshObject *meshobj) :
 		m_pMeshObject(meshobj),
-		m_bmesh((struct Mesh*)(obj->data)),
+		m_bmesh((struct Mesh *)(obj->data)),
 		m_transverts(0),
 		m_transnors(0),
 		m_objMesh(obj),
 		m_tvtot(0),
 		m_gameobj(gameobj),
 		m_lastDeformUpdate(-1)
-	{};
+	{
+	};
 	virtual ~BL_MeshDeformer();
-	virtual void SetSimulatedTime(double time) {}
+	virtual void SetSimulatedTime(double time) {
+	}
 	virtual bool Apply(class RAS_IPolyMaterial *mat);
-	virtual bool Update(void) { return false; }
-	virtual bool UpdateBuckets(void) { return false; }
-	virtual	RAS_Deformer*	GetReplica() {return NULL;}
+	virtual bool Update(void) {
+		return false;
+	}
+	virtual bool UpdateBuckets(void) {
+		return false;
+	}
+	virtual RAS_Deformer *GetReplica() {
+		return NULL;
+	}
 	virtual void ProcessReplica();
-	struct Mesh* GetMesh() { return m_bmesh; }
-	virtual class RAS_MeshObject* GetRasMesh() { return m_pMeshObject; }
-	virtual float (* GetTransVerts(int *tot))[3]	{	*tot= m_tvtot; return m_transverts; }
+	struct Mesh *GetMesh() {
+		return m_bmesh;
+	}
+	virtual class RAS_MeshObject *GetRasMesh() {
+		return m_pMeshObject;
+	}
+	virtual float(*GetTransVerts(int *tot))[3]    {   *tot = m_tvtot; return m_transverts; }
 	//	virtual void InitDeform(double time) {}
 
 protected:
-	class RAS_MeshObject*		m_pMeshObject;
-	struct Mesh*				m_bmesh;
-	
+	class RAS_MeshObject *m_pMeshObject;
+	struct Mesh *m_bmesh;
+
 	// this is so m_transverts doesn't need to be converted
 	// before deformation
-	float						(*m_transverts)[3];
-	float 						(*m_transnors)[3];
-	struct Object*				m_objMesh; 
+	float(*m_transverts)[3];
+	float(*m_transnors)[3];
+	struct Object *m_objMesh;
 	// --
-	int							m_tvtot;
-	BL_DeformableGameObject*	m_gameobj;
-	double						m_lastDeformUpdate;
+	int m_tvtot;
+	BL_DeformableGameObject *m_gameobj;
+	double m_lastDeformUpdate;
 
 
 #ifdef WITH_CXX_GUARDEDALLOC

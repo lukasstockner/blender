@@ -40,15 +40,20 @@ typedef unsigned short BL_IpoChannel;
 
 class BL_ScalarInterpolator : public KX_IScalarInterpolator {
 public:
-	BL_ScalarInterpolator() {} // required for use in STL list
-	BL_ScalarInterpolator(struct FCurve* fcu) :
+	BL_ScalarInterpolator() {
+	}                          // required for use in STL list
+	BL_ScalarInterpolator(struct FCurve *fcu) :
 		m_fcu(fcu)
-		{}
+	{
+	}
 
-	virtual ~BL_ScalarInterpolator() {}
-	
+	virtual ~BL_ScalarInterpolator() {
+	}
+
 	virtual float GetValue(float currentTime) const;
-	struct FCurve *GetFCurve() { return m_fcu; }
+	struct FCurve *GetFCurve() {
+		return m_fcu;
+	}
 
 private:
 	struct FCurve *m_fcu;

@@ -38,18 +38,18 @@
 #include "KX_PhysicsEngineEnums.h"
 #include "SCA_IInputDevice.h"
 
-class RAS_MeshObject* BL_ConvertMesh(struct Mesh* mesh,struct Object* lightobj,class KX_Scene* scene, class KX_BlenderSceneConverter *converter, bool libloading);
+class RAS_MeshObject *BL_ConvertMesh(struct Mesh *mesh, struct Object *lightobj, class KX_Scene *scene, class KX_BlenderSceneConverter *converter, bool libloading);
 
-void BL_ConvertBlenderObjects(struct Main* maggie,
-							  class KX_Scene* kxscene,
-							  class KX_KetsjiEngine* ketsjiEngine,
-							  e_PhysicsEngine	physics_engine,
-							  class RAS_IRasterizer* rendertools,
-							  class RAS_ICanvas* canvas, 
-							  class KX_BlenderSceneConverter* sceneconverter, 
-							  bool alwaysUseExpandFraming,
-							  bool libloading=false
-							  );
+void BL_ConvertBlenderObjects(struct Main *maggie,
+							  class KX_Scene *kxscene,
+								  class KX_KetsjiEngine *ketsjiEngine,
+									  e_PhysicsEngine physics_engine,
+									  class RAS_IRasterizer *rendertools,
+										  class RAS_ICanvas *canvas,
+											  class KX_BlenderSceneConverter *sceneconverter,
+												  bool alwaysUseExpandFraming,
+												  bool libloading = false
+                              );
 
 SCA_IInputDevice::KX_EnumInputs ConvertKeyCode(int key_code);
 

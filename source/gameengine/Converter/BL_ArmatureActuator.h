@@ -38,38 +38,38 @@
 /**
  * This class is the conversion of the Pose channel constraint.
  * It makes a link between the pose constraint and the KX scene.
- * The main purpose is to give access to the constraint target 
- * to link it to a game object. 
+ * The main purpose is to give access to the constraint target
+ * to link it to a game object.
  * It also allows to activate/deactivate constraints during the game.
  * Later it will also be possible to create constraint on the fly
  */
 
-class	BL_ArmatureActuator : public SCA_IActuator
+class BL_ArmatureActuator : public SCA_IActuator
 {
 	Py_Header
 public:
-	BL_ArmatureActuator(SCA_IObject* gameobj,
+	BL_ArmatureActuator(SCA_IObject *gameobj,
 	                    int type,
 	                    const char *posechannel,
 	                    const char *constraintname,
-	                    KX_GameObject* targetobj,
-	                    KX_GameObject* subtargetobj,
+	                    KX_GameObject *targetobj,
+	                    KX_GameObject *subtargetobj,
 	                    float weight,
 	                    float influence);
 
 	virtual ~BL_ArmatureActuator();
 
-	virtual CValue* GetReplica() {
-		BL_ArmatureActuator* replica = new BL_ArmatureActuator(*this);
+	virtual CValue *GetReplica() {
+		BL_ArmatureActuator *replica = new BL_ArmatureActuator(*this);
 		replica->ProcessReplica();
 		return replica;
 	};
 	virtual void ProcessReplica();
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
-	virtual void Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
+	virtual bool UnlinkObject(SCA_IObject *clientobj);
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *obj_map);
 	virtual bool Update(double curtime, bool frame);
-	virtual void ReParent(SCA_IObject* parent);
-	
+	virtual void ReParent(SCA_IObject *parent);
+
 #ifdef WITH_PYTHON
 
 	/* These are used to get and set m_target */
@@ -83,14 +83,14 @@ private:
 	// identify the constraint that this actuator controls
 	void FindConstraint();
 
-	BL_ArmatureConstraint*	m_constraint;
-	KX_GameObject*	m_gametarget;
-	KX_GameObject*	m_gamesubtarget;
-	STR_String		m_posechannel;
-	STR_String		m_constraintname;
-	float			m_weight;
-	float			m_influence;
-	int				m_type;
+	BL_ArmatureConstraint *m_constraint;
+	KX_GameObject *m_gametarget;
+	KX_GameObject *m_gamesubtarget;
+	STR_String m_posechannel;
+	STR_String m_constraintname;
+	float m_weight;
+	float m_influence;
+	int m_type;
 };
 
 #endif  /* __BL_ARMATUREACTUATOR_H__ */

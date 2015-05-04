@@ -49,14 +49,15 @@
 
 #include "btBulletDynamicsCommon.h"
 
-void KX_SoftBodyDeformer::Relink(CTR_Map<class CTR_HashedPtr, void*>*map)
+void KX_SoftBodyDeformer::Relink(CTR_Map<class CTR_HashedPtr, void *> *map)
 {
 	void **h_obj = (*map)[m_gameobj];
 
 	if (h_obj) {
-		m_gameobj = (BL_DeformableGameObject*)(*h_obj);
+		m_gameobj = (BL_DeformableGameObject *)(*h_obj);
 		m_pMeshObject = m_gameobj->GetMesh(0);
-	} else {
+	}
+	else {
 		m_gameobj = NULL;
 		m_pMeshObject = NULL;
 	}
@@ -64,11 +65,11 @@ void KX_SoftBodyDeformer::Relink(CTR_Map<class CTR_HashedPtr, void*>*map)
 
 bool KX_SoftBodyDeformer::Apply(class RAS_IPolyMaterial *polymat)
 {
-	CcdPhysicsController* ctrl = (CcdPhysicsController*) m_gameobj->GetPhysicsController();
+	CcdPhysicsController *ctrl = (CcdPhysicsController *)m_gameobj->GetPhysicsController();
 	if (!ctrl)
 		return false;
 
-	btSoftBody* softBody= ctrl->GetSoftBody();
+	btSoftBody *softBody = ctrl->GetSoftBody();
 	if (!softBody)
 		return false;
 
@@ -86,31 +87,31 @@ bool KX_SoftBodyDeformer::Apply(class RAS_IPolyMaterial *polymat)
 	// share the same mesh (=the same cache). As the rendering is done per polymaterial
 	// cycling through the objects, the entire mesh cache cannot be updated in one shot.
 	mmat = m_pMeshObject->GetMeshMaterial(polymat);
-	if (!mmat->m_slots[(void*)m_gameobj])
+	if (!mmat->m_slots[(void *)m_gameobj])
 		return true;
 
-	slot = *mmat->m_slots[(void*)m_gameobj];
+	slot = *mmat->m_slots[(void *)m_gameobj];
 
 	// for each array
-	for (slot->begin(it); !slot->end(it); slot->next(it)) 
+	for (slot->begin(it); !slot->end(it); slot->next(it))
 	{
 		btSoftBody::tNodeArray&   nodes(softBody->m_nodes);
 
 		int index = 0;
-		for (i=it.startvertex; i<it.endvertex; i++,index++) {
+		for (i = it.startvertex; i < it.endvertex; i++, index++) {
 			RAS_TexVert& v = it.vertex[i];
 			btAssert(v.getSoftBodyIndex() >= 0);
 
-			MT_Point3 pt (
-				nodes[v.getSoftBodyIndex()].m_x.getX(),
-				nodes[v.getSoftBodyIndex()].m_x.getY(),
-				nodes[v.getSoftBodyIndex()].m_x.getZ());
+			MT_Point3 pt(
+			    nodes[v.getSoftBodyIndex()].m_x.getX(),
+			    nodes[v.getSoftBodyIndex()].m_x.getY(),
+			    nodes[v.getSoftBodyIndex()].m_x.getZ());
 			v.SetXYZ(pt);
 
-			MT_Vector3 normal (
-				nodes[v.getSoftBodyIndex()].m_n.getX(),
-				nodes[v.getSoftBodyIndex()].m_n.getY(),
-				nodes[v.getSoftBodyIndex()].m_n.getZ());
+			MT_Vector3 normal(
+			    nodes[v.getSoftBodyIndex()].m_n.getX(),
+			    nodes[v.getSoftBodyIndex()].m_n.getY(),
+			    nodes[v.getSoftBodyIndex()].m_n.getZ());
 			v.SetNormal(normal);
 
 		}

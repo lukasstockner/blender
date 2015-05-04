@@ -39,7 +39,7 @@
 BL_DeformableGameObject::~BL_DeformableGameObject()
 {
 	if (m_pDeformer)
-		delete m_pDeformer;		//	__NLA : Temporary until we decide where to put this
+		delete m_pDeformer;     //	__NLA : Temporary until we decide where to put this
 }
 
 void BL_DeformableGameObject::ProcessReplica()
@@ -47,13 +47,13 @@ void BL_DeformableGameObject::ProcessReplica()
 	KX_GameObject::ProcessReplica();
 
 	if (m_pDeformer)
-		m_pDeformer= (BL_MeshDeformer*)m_pDeformer->GetReplica();
+		m_pDeformer = (BL_MeshDeformer *)m_pDeformer->GetReplica();
 }
 
-CValue*		BL_DeformableGameObject::GetReplica()
+CValue *BL_DeformableGameObject::GetReplica()
 {
 
-	BL_DeformableGameObject* replica = new BL_DeformableGameObject(*this);//m_float,GetName());
+	BL_DeformableGameObject *replica = new BL_DeformableGameObject(*this);//m_float,GetName());
 	replica->ProcessReplica();
 	return replica;
 }
@@ -62,18 +62,18 @@ bool BL_DeformableGameObject::SetActiveAction(BL_ShapeActionActuator *act, short
 {
 	if (curtime != m_lastframe) {
 		m_activePriority = 9999;
-		m_lastframe= curtime;
+		m_lastframe = curtime;
 		m_activeAct = NULL;
 	}
 
-	if (priority<=m_activePriority)
+	if (priority <= m_activePriority)
 	{
-		if (m_activeAct && (m_activeAct!=act))
-			m_activeAct->SetBlendTime(0.0f);	/* Reset the blend timer */
+		if (m_activeAct && (m_activeAct != act))
+			m_activeAct->SetBlendTime(0.0f);    /* Reset the blend timer */
 		m_activeAct = act;
 		m_activePriority = priority;
 		m_lastframe = curtime;
-	
+
 		return true;
 	}
 	else {
@@ -85,13 +85,13 @@ bool BL_DeformableGameObject::SetActiveAction(BL_ShapeActionActuator *act, short
 bool BL_DeformableGameObject::GetShape(vector<float> &shape)
 {
 	shape.clear();
-	BL_ShapeDeformer* shape_deformer = dynamic_cast<BL_ShapeDeformer*>(m_pDeformer);
+	BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(m_pDeformer);
 	if (shape_deformer)
 	{
 		// this check is normally superfluous: a shape deformer can only be created if the mesh
 		// has relative keys
-		Key* key = shape_deformer->GetKey();
-		if (key && key->type==KEY_RELATIVE) 
+		Key *key = shape_deformer->GetKey();
+		if (key && key->type == KEY_RELATIVE)
 		{
 			KeyBlock *kb;
 			for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next)
@@ -103,7 +103,7 @@ bool BL_DeformableGameObject::GetShape(vector<float> &shape)
 	return !shape.empty();
 }
 
-void BL_DeformableGameObject::SetDeformer(class RAS_Deformer* deformer)
+void BL_DeformableGameObject::SetDeformer(class RAS_Deformer *deformer)
 {
 	m_pDeformer = deformer;
 

@@ -43,12 +43,12 @@
 
 class KX_SoftBodyDeformer : public RAS_Deformer
 {
-	class RAS_MeshObject*			m_pMeshObject;
-	class BL_DeformableGameObject*	m_gameobj;
+	class RAS_MeshObject *m_pMeshObject;
+	class BL_DeformableGameObject *m_gameobj;
 
 public:
-	KX_SoftBodyDeformer(RAS_MeshObject*	pMeshObject,BL_DeformableGameObject* gameobj)
-		:m_pMeshObject(pMeshObject),
+	KX_SoftBodyDeformer(RAS_MeshObject *pMeshObject, BL_DeformableGameObject *gameobj)
+		: m_pMeshObject(pMeshObject),
 		m_gameobj(gameobj)
 	{
 		//printf("KX_SoftBodyDeformer\n");
@@ -58,7 +58,7 @@ public:
 	{
 		//printf("~KX_SoftBodyDeformer\n");
 	};
-	virtual void Relink(CTR_Map<class CTR_HashedPtr, void*>*map);
+	virtual void Relink(CTR_Map<class CTR_HashedPtr, void *> *map);
 	virtual bool Apply(class RAS_IPolyMaterial *polymat);
 	virtual bool Update(void)
 	{
@@ -68,14 +68,14 @@ public:
 	}
 	virtual bool UpdateBuckets(void)
 	{
-		// this is to update the mesh slots outside the rasterizer, 
+		// this is to update the mesh slots outside the rasterizer,
 		// no need to do it for this deformer, it's done in any case in Apply()
 		return false;
 	}
 
 	virtual RAS_Deformer *GetReplica()
 	{
-		KX_SoftBodyDeformer* deformer = new KX_SoftBodyDeformer(*this);
+		KX_SoftBodyDeformer *deformer = new KX_SoftBodyDeformer(*this);
 		deformer->ProcessReplica();
 		return deformer;
 	}

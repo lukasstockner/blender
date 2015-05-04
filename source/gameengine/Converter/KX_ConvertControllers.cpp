@@ -66,20 +66,20 @@
 /* end of blender include block */
 
 
-	static void
+static void
 LinkControllerToActuators(
-	SCA_IController *game_controller,
-	bController* bcontr,
-	SCA_LogicManager* logicmgr,
-	KX_BlenderSceneConverter* converter
-) {
+    SCA_IController *game_controller,
+    bController *bcontr,
+    SCA_LogicManager *logicmgr,
+    KX_BlenderSceneConverter *converter
+    ) {
 	// Iterate through the actuators of the game blender
 	// controller and find the corresponding ketsji actuator.
 
 	game_controller->ReserveActuator(bcontr->totlinks);
-	for (int i=0;i<bcontr->totlinks;i++)
+	for (int i = 0; i < bcontr->totlinks; i++)
 	{
-		bActuator* bact = (bActuator*) bcontr->links[i];
+		bActuator *bact = (bActuator *)bcontr->links[i];
 		SCA_IActuator *game_actuator = converter->FindGameActuator(bact);
 		if (game_actuator) {
 			logicmgr->RegisterToActuator(game_controller, game_actuator);
@@ -89,28 +89,28 @@ LinkControllerToActuators(
 
 
 void BL_ConvertControllers(
-	struct Object* blenderobject,
-	class KX_GameObject* gameobj,
-	SCA_LogicManager* logicmgr,
-	int activeLayerBitInfo,
-	bool isInActiveLayer,
-	KX_BlenderSceneConverter* converter,
-	bool libloading
-) {
-	int uniqueint=0;
+    struct Object *blenderobject,
+	class KX_GameObject *gameobj,
+		SCA_LogicManager *logicmgr,
+		int activeLayerBitInfo,
+		bool isInActiveLayer,
+		KX_BlenderSceneConverter *converter,
+		bool libloading
+    ) {
+	int uniqueint = 0;
 	int count = 0;
-	int executePriority=0;
-	bController* bcontr = (bController*)blenderobject->controllers.first;
+	int executePriority = 0;
+	bController *bcontr = (bController *)blenderobject->controllers.first;
 	while (bcontr)
 	{
 		bcontr = bcontr->next;
 		count++;
 	}
 	gameobj->ReserveController(count);
-	bcontr = (bController*)blenderobject->controllers.first;
+	bcontr = (bController *)blenderobject->controllers.first;
 	while (bcontr)
 	{
-		SCA_IController* gamecontroller = NULL;
+		SCA_IController *gamecontroller = NULL;
 		switch (bcontr->type) {
 			case CONT_LOGIC_AND:
 			{
@@ -144,46 +144,46 @@ void BL_ConvertControllers(
 			}
 			case CONT_EXPRESSION:
 			{
-				bExpressionCont* bexpcont = (bExpressionCont*) bcontr->data;
+				bExpressionCont *bexpcont = (bExpressionCont *)bcontr->data;
 				STR_String expressiontext = STR_String(bexpcont->str);
 				if (expressiontext.Length() > 0)
 				{
-					gamecontroller = new SCA_ExpressionController(gameobj,expressiontext);
+					gamecontroller = new SCA_ExpressionController(gameobj, expressiontext);
 				}
 				break;
 			}
 			case CONT_PYTHON:
 			{
-				bPythonCont* pycont = (bPythonCont*) bcontr->data;
-				SCA_PythonController* pyctrl = new SCA_PythonController(gameobj, pycont->mode);
+				bPythonCont *pycont = (bPythonCont *)bcontr->data;
+				SCA_PythonController *pyctrl = new SCA_PythonController(gameobj, pycont->mode);
 				gamecontroller = pyctrl;
 #ifdef WITH_PYTHON
 				// When libloading, this is delayed to KX_Scene::MergeScene_LogicBrick to avoid GIL issues
 				if (!libloading)
 					pyctrl->SetNamespace(converter->GetPyNamespace());
-				
-				if (pycont->mode==SCA_PythonController::SCA_PYEXEC_SCRIPT) {
+
+				if (pycont->mode == SCA_PythonController::SCA_PYEXEC_SCRIPT) {
 					if (pycont->text)
 					{
 						char *buf;
 						// this is some blender specific code
-						buf= txt_to_buf(pycont->text);
+						buf = txt_to_buf(pycont->text);
 						if (buf)
 						{
 							pyctrl->SetScriptText(STR_String(buf));
-							pyctrl->SetScriptName(pycont->text->id.name+2);
+							pyctrl->SetScriptName(pycont->text->id.name + 2);
 							MEM_freeN(buf);
 						}
-						
+
 					}
 				}
 				else {
 					/* let the controller print any warnings here when importing */
-					pyctrl->SetScriptText(STR_String(pycont->module)); 
+					pyctrl->SetScriptText(STR_String(pycont->module));
 					pyctrl->SetScriptName(pycont->module); /* will be something like module.func so using it as the name is OK */
 
 					if (pycont->flag & CONT_PY_DEBUG) {
-						printf("\nDebuging \"%s\", module for object %s\n\texpect worse performance.\n", pycont->module, blenderobject->id.name+2);
+						printf("\nDebuging \"%s\", module for object %s\n\texpect worse performance.\n", pycont->module, blenderobject->id.name + 2);
 						pyctrl->SetDebug(true);
 					}
 				}
@@ -193,20 +193,20 @@ void BL_ConvertControllers(
 			}
 			default:
 			{
-				
+
 			}
 		}
 
 		if (gamecontroller && !(bcontr->flag & CONT_DEACTIVATE))
 		{
-			LinkControllerToActuators(gamecontroller,bcontr,logicmgr,converter);
+			LinkControllerToActuators(gamecontroller, bcontr, logicmgr, converter);
 			gamecontroller->SetExecutePriority(executePriority++);
 			gamecontroller->SetBookmark((bcontr->flag & CONT_PRIO) != 0);
 			gamecontroller->SetState(bcontr->state_mask);
 			STR_String uniquename = bcontr->name;
 			uniquename += "#CONTR#";
 			uniqueint++;
-			CIntValue* uniqueval = new CIntValue(uniqueint);
+			CIntValue *uniqueval = new CIntValue(uniqueint);
 			uniquename += uniqueval->GetText();
 			uniqueval->Release();
 			//unique name was never implemented for sensors and actuators, only for controllers
@@ -215,22 +215,22 @@ void BL_ConvertControllers(
 			//gamecontroller->SetName(uniquename);
 			gamecontroller->SetName(bcontr->name);
 			gameobj->AddController(gamecontroller);
-			
+
 			converter->RegisterGameController(gamecontroller, bcontr);
 
 #ifdef WITH_PYTHON
 			// When libloading, this is delayed to KX_Scene::MergeScene_LogicBrick to avoid GIL issues
-			if (!libloading && bcontr->type==CONT_PYTHON) {
-				SCA_PythonController *pyctrl= static_cast<SCA_PythonController*>(gamecontroller);
+			if (!libloading && bcontr->type == CONT_PYTHON) {
+				SCA_PythonController *pyctrl = static_cast<SCA_PythonController *>(gamecontroller);
 				/* not strictly needed but gives syntax errors early on and
 				 * gives more predictable performance for larger scripts */
-				if (pyctrl->m_mode==SCA_PythonController::SCA_PYEXEC_SCRIPT)
+				if (pyctrl->m_mode == SCA_PythonController::SCA_PYEXEC_SCRIPT)
 					pyctrl->Compile();
 				else {
 					/* We cant do this because importing runs the script which could end up accessing
 					 * internal BGE functions, this is unstable while we're converting the scene.
 					 * This is a pity because its useful to see errors at startup but cant help it */
-					
+
 					// pyctrl->Import();
 				}
 			}
@@ -242,7 +242,7 @@ void BL_ConvertControllers(
 		}
 		else if (gamecontroller)
 			gamecontroller->Release();
-		
+
 		bcontr = bcontr->next;
 	}
 

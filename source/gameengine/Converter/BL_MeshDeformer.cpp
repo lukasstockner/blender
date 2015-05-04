@@ -31,8 +31,8 @@
  */
 
 #ifdef _MSC_VER
-  /* This warning tells us about truncation of __long__ stl-generated names.
-   * It can occasionally cause DevStudio to have internal compiler warnings. */
+/* This warning tells us about truncation of __long__ stl-generated names.
+ * It can occasionally cause DevStudio to have internal compiler warnings. */
 #  pragma warning( disable:4786 )
 #endif
 
@@ -47,7 +47,7 @@
 #include "STR_HashedString.h"
 #include "BLI_math.h"
 
-bool BL_MeshDeformer::Apply(RAS_IPolyMaterial*)
+bool BL_MeshDeformer::Apply(RAS_IPolyMaterial *)
 {
 	size_t i;
 
@@ -56,18 +56,18 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial*)
 	    m_lastDeformUpdate != m_gameobj->GetLastFrame())
 	{
 		// For each material
-		for (list<RAS_MeshMaterial>::iterator mit= m_pMeshObject->GetFirstMaterial();
-			mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
-			if (!mit->m_slots[(void*)m_gameobj])
+		for (list<RAS_MeshMaterial>::iterator mit = m_pMeshObject->GetFirstMaterial();
+		     mit != m_pMeshObject->GetLastMaterial(); ++mit) {
+			if (!mit->m_slots[(void *)m_gameobj])
 				continue;
 
-			RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
+			RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj];
 			RAS_MeshSlot::iterator it;
 
 			// for each array
 			for (slot->begin(it); !slot->end(it); slot->next(it)) {
 				//	For each vertex
-				for (i=it.startvertex; i<it.endvertex; i++) {
+				for (i = it.startvertex; i < it.endvertex; i++) {
 					RAS_TexVert& v = it.vertex[i];
 					v.SetXYZ(m_bmesh->mvert[v.getOrigIndex()].co);
 				}
@@ -85,26 +85,26 @@ bool BL_MeshDeformer::Apply(RAS_IPolyMaterial*)
 BL_MeshDeformer::~BL_MeshDeformer()
 {
 	if (m_transverts)
-		delete [] m_transverts;
+		delete[] m_transverts;
 	if (m_transnors)
-		delete [] m_transnors;
+		delete[] m_transnors;
 }
- 
+
 void BL_MeshDeformer::ProcessReplica()
 {
 	m_transverts = NULL;
 	m_transnors = NULL;
 	m_tvtot = 0;
-	m_bDynamic=false;
+	m_bDynamic = false;
 	m_lastDeformUpdate = -1;
 }
 
-void BL_MeshDeformer::Relink(CTR_Map<class CTR_HashedPtr, void*>*map)
+void BL_MeshDeformer::Relink(CTR_Map<class CTR_HashedPtr, void *> *map)
 {
 	void **h_obj = (*map)[m_gameobj];
 
 	if (h_obj)
-		m_gameobj = (BL_DeformableGameObject*)(*h_obj);
+		m_gameobj = (BL_DeformableGameObject *)(*h_obj);
 	else
 		m_gameobj = NULL;
 }
@@ -123,35 +123,35 @@ void BL_MeshDeformer::RecalcNormals()
 	size_t i;
 
 	/* set vertex normals to zero */
-	memset(m_transnors, 0, sizeof(float)*3*m_bmesh->totvert);
+	memset(m_transnors, 0, sizeof(float) * 3 * m_bmesh->totvert);
 
 	/* add face normals to vertices. */
 	for (mit = m_pMeshObject->GetFirstMaterial();
-		mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
-		if (!mit->m_slots[(void*)m_gameobj])
+	     mit != m_pMeshObject->GetLastMaterial(); ++mit) {
+		if (!mit->m_slots[(void *)m_gameobj])
 			continue;
 
-		RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
+		RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj];
 
 		for (slot->begin(it); !slot->end(it); slot->next(it)) {
 			int nvert = (int)it.array->m_type;
 
-			for (i=0; i<it.totindex; i+=nvert) {
+			for (i = 0; i < it.totindex; i += nvert) {
 				RAS_TexVert& v1 = it.vertex[it.index[i]];
-				RAS_TexVert& v2 = it.vertex[it.index[i+1]];
-				RAS_TexVert& v3 = it.vertex[it.index[i+2]];
+				RAS_TexVert& v2 = it.vertex[it.index[i + 1]];
+				RAS_TexVert& v3 = it.vertex[it.index[i + 2]];
 				RAS_TexVert *v4 = NULL;
 
 				const float *co1 = m_transverts[v1.getOrigIndex()];
 				const float *co2 = m_transverts[v2.getOrigIndex()];
 				const float *co3 = m_transverts[v3.getOrigIndex()];
 				const float *co4 = NULL;
-				
+
 				/* compute face normal */
 				float fnor[3], n1[3], n2[3];
 
 				if (nvert == 4) {
-					v4 = &it.vertex[it.index[i+3]];
+					v4 = &it.vertex[it.index[i + 3]];
 					co4 = m_transverts[v4->getOrigIndex()];
 
 					n1[0] = co1[0] - co3[0];
@@ -205,14 +205,14 @@ void BL_MeshDeformer::RecalcNormals()
 
 	/* assign smooth vertex normals */
 	for (mit = m_pMeshObject->GetFirstMaterial();
-		mit != m_pMeshObject->GetLastMaterial(); ++ mit) {
-		if (!mit->m_slots[(void*)m_gameobj])
+	     mit != m_pMeshObject->GetLastMaterial(); ++mit) {
+		if (!mit->m_slots[(void *)m_gameobj])
 			continue;
 
-		RAS_MeshSlot *slot = *mit->m_slots[(void*)m_gameobj];
+		RAS_MeshSlot *slot = *mit->m_slots[(void *)m_gameobj];
 
 		for (slot->begin(it); !slot->end(it); slot->next(it)) {
-			for (i=it.startvertex; i<it.endvertex; i++) {
+			for (i = it.startvertex; i < it.endvertex; i++) {
 				RAS_TexVert& v = it.vertex[i];
 
 				if (!(v.getFlag() & RAS_TexVert::FLAT))
@@ -225,14 +225,14 @@ void BL_MeshDeformer::RecalcNormals()
 void BL_MeshDeformer::VerifyStorage()
 {
 	/* Ensure that we have the right number of verts assigned */
-	if (m_tvtot!=m_bmesh->totvert) {
+	if (m_tvtot != m_bmesh->totvert) {
 		if (m_transverts)
-			delete [] m_transverts;
+			delete[] m_transverts;
 		if (m_transnors)
-			delete [] m_transnors;
-		
-		m_transverts=new float[m_bmesh->totvert][3];
-		m_transnors=new float[m_bmesh->totvert][3];
+			delete[] m_transnors;
+
+		m_transverts = new float[m_bmesh->totvert][3];
+		m_transnors = new float[m_bmesh->totvert][3];
 		m_tvtot = m_bmesh->totvert;
 	}
 }

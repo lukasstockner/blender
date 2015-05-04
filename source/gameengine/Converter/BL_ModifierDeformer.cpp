@@ -57,7 +57,7 @@
 #include "BKE_ipo.h"
 #include "MT_Point3.h"
 
-extern "C"{
+extern "C" {
 	#include "BKE_customdata.h"
 	#include "BKE_DerivedMesh.h"
 	#include "BKE_lattice.h"
@@ -105,14 +105,14 @@ bool BL_ModifierDeformer::HasCompatibleDeformer(Object *ob)
 	// soft body cannot use mesh modifiers
 	if ((ob->gameflag & OB_SOFT_BODY) != 0)
 		return false;
-	ModifierData* md;
+	ModifierData *md;
 	for (md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
 		if (modifier_dependsOnTime(md))
 			continue;
 		if (!(md->mode & eModifierMode_Realtime))
 			continue;
 		/* armature modifier are handled by SkinDeformer, not ModifierDeformer */
-		if (md->type == eModifierType_Armature )
+		if (md->type == eModifierType_Armature)
 			continue;
 		return true;
 	}
@@ -124,28 +124,27 @@ bool BL_ModifierDeformer::HasArmatureDeformer(Object *ob)
 	if (!ob->modifiers.first)
 		return false;
 
-	ModifierData* md = (ModifierData*)ob->modifiers.first;
-	if (md->type == eModifierType_Armature )
+	ModifierData *md = (ModifierData *)ob->modifiers.first;
+	if (md->type == eModifierType_Armature)
 		return true;
 
 	return false;
 }
 
 // return a deformed mesh that supports mapping (with a valid CD_ORIGINDEX layer)
-struct DerivedMesh* BL_ModifierDeformer::GetPhysicsMesh()
-{
+struct DerivedMesh *BL_ModifierDeformer::GetPhysicsMesh(){
 	/* we need to compute the deformed mesh taking into account the current
 	 * shape and skin deformers, we cannot just call mesh_create_derived_physics()
 	 * because that would use the m_transvers already deformed previously by BL_ModifierDeformer::Update(),
-	 * so restart from scratch by forcing a full update the shape/skin deformers 
+	 * so restart from scratch by forcing a full update the shape/skin deformers
 	 * (will do nothing if there is no such deformer) */
 	BL_ShapeDeformer::ForceUpdate();
 	BL_ShapeDeformer::Update();
 	// now apply the modifiers but without those that don't support mapping
-	Object* blendobj = m_gameobj->GetBlendObject();
+	Object *blendobj = m_gameobj->GetBlendObject();
 	/* hack: the modifiers require that the mesh is attached to the object
 	 * It may not be the case here because of replace mesh actuator */
-	Mesh *oldmesh = (Mesh*)blendobj->data;
+	Mesh *oldmesh = (Mesh *)blendobj->data;
 	blendobj->data = m_bmesh;
 	DerivedMesh *dm = mesh_create_derived_physics(m_scene, blendobj, m_transverts, CD_MASK_MESH);
 	/* restore object data */
@@ -163,10 +162,10 @@ bool BL_ModifierDeformer::Update(void)
 		// static derived mesh are not updated
 		if (m_dm == NULL || m_bDynamic) {
 			/* execute the modifiers */
-			Object* blendobj = m_gameobj->GetBlendObject();
+			Object *blendobj = m_gameobj->GetBlendObject();
 			/* hack: the modifiers require that the mesh is attached to the object
 			 * It may not be the case here because of replace mesh actuator */
-			Mesh *oldmesh = (Mesh*)blendobj->data;
+			Mesh *oldmesh = (Mesh *)blendobj->data;
 			blendobj->data = m_bmesh;
 			/* execute the modifiers */
 			DerivedMesh *dm = mesh_create_derived_no_virtual(m_scene, blendobj, m_transverts, CD_MASK_MESH);
@@ -196,13 +195,13 @@ bool BL_ModifierDeformer::Update(void)
 				ctrl->SetLocalAabb(min, max);
 			}
 		}
-		m_lastModifierUpdate=m_gameobj->GetLastFrame();
+		m_lastModifierUpdate = m_gameobj->GetLastFrame();
 		bShapeUpdate = true;
 
 		int nmat = m_pMeshObject->NumMaterials();
-		for (int imat=0; imat<nmat; imat++) {
+		for (int imat = 0; imat < nmat; imat++) {
 			RAS_MeshMaterial *mmat = m_pMeshObject->GetMeshMaterial(imat);
-			RAS_MeshSlot **slot = mmat->m_slots[(void*)m_gameobj];
+			RAS_MeshSlot **slot = mmat->m_slots[(void *)m_gameobj];
 			if (!slot || !*slot)
 				continue;
 			(*slot)->m_pDerivedMesh = m_dm;

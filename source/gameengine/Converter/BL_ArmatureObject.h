@@ -49,68 +49,88 @@ class MT_Matrix4x4;
 struct Object;
 class KX_BlenderSceneConverter;
 
-class BL_ArmatureObject : public KX_GameObject  
+class BL_ArmatureObject : public KX_GameObject
 {
 	Py_Header
 public:
 
-	double GetLastFrame ();
+	double GetLastFrame();
 	virtual void ProcessReplica();
 	virtual void ReParentLogic();
-	virtual void Relink(CTR_Map<CTR_HashedPtr, void*> *obj_map);
-	virtual bool UnlinkObject(SCA_IObject* clientobj);
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *obj_map);
+	virtual bool UnlinkObject(SCA_IObject *clientobj);
 
 	BL_ArmatureObject(
-		void* sgReplicationInfo,
-		SG_Callbacks callbacks,
-		Object *armature,
-		Scene *scene,
-		int vert_deform_type
-	);
+	    void *sgReplicationInfo,
+	    SG_Callbacks callbacks,
+	    Object *armature,
+	    Scene *scene,
+	    int vert_deform_type
+	    );
 	virtual ~BL_ArmatureObject();
 
-	virtual CValue*	GetReplica();
+	virtual CValue *GetReplica();
 	void GetPose(struct bPose **pose);
-	void SetPose (struct bPose *pose);
-	struct bPose *GetOrigPose() {return m_pose;} // never edit this, only for accessing names
+	void SetPose(struct bPose *pose);
+	struct bPose *GetOrigPose() {
+		return m_pose;
+	}                                            // never edit this, only for accessing names
 
 	void ApplyPose();
-	void SetPoseByAction(struct bAction* action, float localtime);
+	void SetPoseByAction(struct bAction *action, float localtime);
 	void BlendInPose(struct bPose *blend_pose, float weight, short mode);
 	void RestorePose();
 
 	bool UpdateTimestep(double curtime);
-	
-	struct bArmature *GetArmature() { return (bArmature*)m_objArma->data; }
-	const struct bArmature * GetArmature() const { return (bArmature*)m_objArma->data; }
-	const struct Scene * GetScene() const { return m_scene; }
-	
-	Object* GetArmatureObject() {return m_objArma;}
-	Object* GetOrigArmatureObject() {return m_origObjArma;}
 
-	int GetVertDeformType() {return m_vert_deform_type;}
+	struct bArmature *GetArmature() {
+		return (bArmature *)m_objArma->data;
+	}
+	const struct bArmature *GetArmature() const {
+		return (bArmature *)m_objArma->data;
+	}
+	const struct Scene *GetScene() const {
+		return m_scene;
+	}
+
+	Object *GetArmatureObject() {
+		return m_objArma;
+	}
+	Object *GetOrigArmatureObject() {
+		return m_origObjArma;
+	}
+
+	int GetVertDeformType() {
+		return m_vert_deform_type;
+	}
 
 	// for constraint python API
-	void LoadConstraints(KX_BlenderSceneConverter* converter);
-	size_t GetConstraintNumber() const { return m_constraintNumber; }
-	BL_ArmatureConstraint* GetConstraint(const char* posechannel, const char* constraint);
-	BL_ArmatureConstraint* GetConstraint(const char* posechannelconstraint);
-	BL_ArmatureConstraint* GetConstraint(int index);
+	void LoadConstraints(KX_BlenderSceneConverter *converter);
+	size_t GetConstraintNumber() const {
+		return m_constraintNumber;
+	}
+	BL_ArmatureConstraint *GetConstraint(const char *posechannel, const char *constraint);
+	BL_ArmatureConstraint *GetConstraint(const char *posechannelconstraint);
+	BL_ArmatureConstraint *GetConstraint(int index);
 	// for pose channel python API
 	void LoadChannels();
-	size_t GetChannelNumber() const { return m_channelNumber; }
-	BL_ArmatureChannel* GetChannel(bPoseChannel* channel);
-	BL_ArmatureChannel* GetChannel(const char* channel);
-	BL_ArmatureChannel* GetChannel(int index);
+	size_t GetChannelNumber() const {
+		return m_channelNumber;
+	}
+	BL_ArmatureChannel *GetChannel(bPoseChannel *channel);
+	BL_ArmatureChannel *GetChannel(const char *channel);
+	BL_ArmatureChannel *GetChannel(int index);
 
 	/// Retrieve the pose matrix for the specified bone.
 	/// Returns true on success.
-	bool GetBoneMatrix(Bone* bone, MT_Matrix4x4& matrix);
-	
-	/// Returns the bone length.  The end of the bone is in the local y direction.
-	float GetBoneLength(Bone* bone) const;
+	bool GetBoneMatrix(Bone *bone, MT_Matrix4x4& matrix);
 
-	virtual int GetGameObjectType() { return OBJ_ARMATURE; }
+	/// Returns the bone length.  The end of the bone is in the local y direction.
+	float GetBoneLength(Bone *bone) const;
+
+	virtual int GetGameObjectType() {
+		return OBJ_ARMATURE;
+	}
 
 #ifdef WITH_PYTHON
 
@@ -123,23 +143,23 @@ public:
 
 protected:
 	/* list element: BL_ArmatureConstraint. Use SG_DListHead to have automatic list replication */
-	SG_DListHead<BL_ArmatureConstraint>	 m_controlledConstraints;
+	SG_DListHead<BL_ArmatureConstraint>  m_controlledConstraints;
 	/* list element: BL_ArmatureChannel. Use SG_DList to avoid list replication */
-	SG_DList			m_poseChannels;
-	Object				*m_objArma;
-	Object				*m_origObjArma;
-	struct bPose		*m_pose;
-	struct bPose		*m_armpose;
-	struct Scene		*m_scene; // need for BKE_pose_where_is 
-	double	m_lastframe;
-	double  m_timestep;		// delta since last pose evaluation.
-	int		m_vert_deform_type;
-	size_t  m_constraintNumber;
-	size_t  m_channelNumber;
+	SG_DList m_poseChannels;
+	Object              *m_objArma;
+	Object              *m_origObjArma;
+	struct bPose        *m_pose;
+	struct bPose        *m_armpose;
+	struct Scene        *m_scene; // need for BKE_pose_where_is
+	double m_lastframe;
+	double m_timestep;      // delta since last pose evaluation.
+	int m_vert_deform_type;
+	size_t m_constraintNumber;
+	size_t m_channelNumber;
 	// store the original armature object matrix
 	float m_obmat[4][4];
 
-	double			m_lastapplyframe;
+	double m_lastapplyframe;
 };
 
 #endif  /* __BL_ARMATUREOBJECT_H__ */
