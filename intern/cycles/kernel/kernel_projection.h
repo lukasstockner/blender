@@ -190,7 +190,7 @@ ccl_device float2 direction_to_mirrorball(float3 dir)
 	return make_float2(u, v);
 }
 
-ccl_device float3 panorama_to_direction(__ADDR_SPACE__ KernelGlobals *kg, float u, float v)
+ccl_device float3 panorama_to_direction(ccl_addr_space KernelGlobals *kg, float u, float v)
 {
 	switch(kernel_data.cam.panorama_type) {
 		case PANORAMA_EQUIRECTANGULAR:
@@ -206,7 +206,7 @@ ccl_device float3 panorama_to_direction(__ADDR_SPACE__ KernelGlobals *kg, float 
 	}
 }
 
-ccl_device float2 direction_to_panorama(__ADDR_SPACE__ KernelGlobals *kg, float3 dir)
+ccl_device float2 direction_to_panorama(ccl_addr_space KernelGlobals *kg, float3 dir)
 {
 	switch(kernel_data.cam.panorama_type) {
 		case PANORAMA_EQUIRECTANGULAR:

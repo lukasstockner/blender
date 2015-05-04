@@ -32,9 +32,9 @@
  *
  */
 
-ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(__ADDR_SPACE__ KernelGlobals *kg,
+ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(ccl_addr_space KernelGlobals *kg,
                                             const Ray *ray,
-                                            __ADDR_SPACE__ Intersection *isect,
+                                            ccl_addr_space Intersection *isect,
                                             const uint visibility
 #if BVH_FEATURE(BVH_HAIR_MINIMUM_WIDTH)
                                             , uint *lcg_state,
@@ -399,9 +399,9 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(__ADDR_SPACE__ KernelGlobals *kg,
 	return (isect->prim != PRIM_NONE);
 }
 
-ccl_device_inline bool BVH_FUNCTION_NAME(__ADDR_SPACE__ KernelGlobals *kg,
+ccl_device_inline bool BVH_FUNCTION_NAME(ccl_addr_space KernelGlobals *kg,
                                          const Ray *ray,
-                                         __ADDR_SPACE__ Intersection *isect,
+                                         ccl_addr_space Intersection *isect,
                                          const uint visibility
 #if BVH_FEATURE(BVH_HAIR_MINIMUM_WIDTH)
                                          , uint *lcg_state,

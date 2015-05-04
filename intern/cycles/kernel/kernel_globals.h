@@ -93,7 +93,7 @@ typedef struct KernelGlobals {
 
 /* Interpolated lookup table access */
 
-ccl_device float lookup_table_read(__ADDR_SPACE__ KernelGlobals *kg, float x, int offset, int size)
+ccl_device float lookup_table_read(ccl_addr_space KernelGlobals *kg, float x, int offset, int size)
 {
 	x = saturate(x)*(size-1);
 
@@ -109,7 +109,7 @@ ccl_device float lookup_table_read(__ADDR_SPACE__ KernelGlobals *kg, float x, in
 	return (1.0f - t)*data0 + t*data1;
 }
 
-ccl_device float lookup_table_read_2D(__ADDR_SPACE__ KernelGlobals *kg, float x, float y, int offset, int xsize, int ysize)
+ccl_device float lookup_table_read_2D(ccl_addr_space KernelGlobals *kg, float x, float y, int offset, int xsize, int ysize)
 {
 	y = saturate(y)*(ysize-1);
 

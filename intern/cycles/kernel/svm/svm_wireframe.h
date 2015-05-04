@@ -34,11 +34,11 @@ CCL_NAMESPACE_BEGIN
 
 /* Wireframe Node */
 
-ccl_device float wireframe_SPLIT(__ADDR_SPACE__ KernelGlobals *kg,
-__ADDR_SPACE__ ShaderData *sd,
+ccl_device float wireframe_SPLIT(ccl_addr_space KernelGlobals *kg,
+ccl_addr_space ShaderData *sd,
 float size,
 int pixel_size,
-__ADDR_SPACE__ float3 *P)
+ccl_addr_space float3 *P)
 {
 #ifdef __HAIR__
 	if(sd_fetch(prim) != PRIM_NONE && sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE)
@@ -91,8 +91,8 @@ __ADDR_SPACE__ float3 *P)
 	return 0.0f;
 }
 
-ccl_device float wireframe(__ADDR_SPACE__ KernelGlobals *kg,
-	__ADDR_SPACE__ ShaderData *sd,
+ccl_device float wireframe(ccl_addr_space KernelGlobals *kg,
+	ccl_addr_space ShaderData *sd,
 	float size,
 	int pixel_size,
 	float3 *P)
@@ -148,8 +148,8 @@ ccl_device float wireframe(__ADDR_SPACE__ KernelGlobals *kg,
 	return 0.0f;
 }
 
-ccl_device void svm_node_wireframe(__ADDR_SPACE__ KernelGlobals *kg,
-	__ADDR_SPACE__ ShaderData *sd,
+ccl_device void svm_node_wireframe(ccl_addr_space KernelGlobals *kg,
+	ccl_addr_space ShaderData *sd,
 	float *stack,
 	uint4 node)
 {

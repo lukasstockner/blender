@@ -19,7 +19,7 @@ CCL_NAMESPACE_BEGIN
 #if defined(__BRANCHED_PATH__) || defined(__SUBSURFACE__)
 
 /* branched path tracing: connect path directly to position on one or more lights and add it to L */
-ccl_device void kernel_branched_path_surface_connect_light(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng,
+ccl_device void kernel_branched_path_surface_connect_light(ccl_addr_space KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, PathState *state, float3 throughput, float num_samples_adjust, PathRadiance *L, bool sample_all_lights)
 {
 #ifdef __EMISSION__
@@ -123,7 +123,7 @@ ccl_device void kernel_branched_path_surface_connect_light(__ADDR_SPACE__ Kernel
 }
 
 /* branched path tracing: bounce off or through surface to with new direction stored in ray */
-ccl_device bool kernel_branched_path_surface_bounce(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng,
+ccl_device bool kernel_branched_path_surface_bounce(ccl_addr_space KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, const ShaderClosure *sc, int sample, int num_samples,
 	float3 *throughput, PathState *state, PathRadiance *L, Ray *ray)
 {
@@ -183,8 +183,8 @@ ccl_device bool kernel_branched_path_surface_bounce(__ADDR_SPACE__ KernelGlobals
 
 #ifndef __SPLIT_KERNEL__
 /* path tracing: connect path directly to position on a light and add it to L */
-ccl_device_inline void kernel_path_surface_connect_light(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ RNG *rng,
-	__ADDR_SPACE__ ShaderData *sd, float3 throughput, __ADDR_SPACE__ PathState *state, __ADDR_SPACE__ PathRadiance *L)
+ccl_device_inline void kernel_path_surface_connect_light(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng,
+	ccl_addr_space ShaderData *sd, float3 throughput, ccl_addr_space PathState *state, ccl_addr_space PathRadiance *L)
 {
 #ifdef __EMISSION__
 	if(!(kernel_data.integrator.use_direct_light && (sd_fetch(flag) & SD_BSDF_HAS_EVAL)))
@@ -220,8 +220,8 @@ ccl_device_inline void kernel_path_surface_connect_light(__ADDR_SPACE__ KernelGl
 #endif
 
 /* path tracing: bounce off or through surface to with new direction stored in ray */
-ccl_device_inline bool kernel_path_surface_bounce(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ RNG *rng,
-	__ADDR_SPACE__ ShaderData *sd, __ADDR_SPACE__ float3 *throughput, __ADDR_SPACE__ PathState *state, __ADDR_SPACE__ PathRadiance *L, __ADDR_SPACE__ Ray *ray)
+ccl_device_inline bool kernel_path_surface_bounce(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng,
+	ccl_addr_space ShaderData *sd, ccl_addr_space float3 *throughput, ccl_addr_space PathState *state, ccl_addr_space PathRadiance *L, ccl_addr_space Ray *ray)
 {
 	/* no BSDF? we can stop here */
 	if(sd_fetch(flag) & SD_BSDF) {

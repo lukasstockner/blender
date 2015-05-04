@@ -31,7 +31,7 @@
  *
  */
 
-ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(__ADDR_SPACE__ KernelGlobals *kg,
+ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(ccl_addr_space KernelGlobals *kg,
                                             const Ray *ray,
                                             Intersection *isect_array,
                                             const uint max_hits,
@@ -382,7 +382,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(__ADDR_SPACE__ KernelGlobals *kg,
 	return false;
 }
 
-ccl_device_inline bool BVH_FUNCTION_NAME(__ADDR_SPACE__ KernelGlobals *kg,
+ccl_device_inline bool BVH_FUNCTION_NAME(ccl_addr_space KernelGlobals *kg,
                                          const Ray *ray,
                                          Intersection *isect_array,
                                          const uint max_hits,

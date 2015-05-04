@@ -17,7 +17,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Bump Node */
-ccl_device void svm_node_set_bump(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_set_bump(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	/* get normal input */
@@ -60,7 +60,7 @@ ccl_device void svm_node_set_bump(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE
 }
 
 /* Displacement Node */
-ccl_device void svm_node_set_displacement(__ADDR_SPACE__ ShaderData *sd, float *stack, uint fac_offset)
+ccl_device void svm_node_set_displacement(ccl_addr_space ShaderData *sd, float *stack, uint fac_offset)
 {
 	float d = stack_load_float(stack, fac_offset);
 	sd_fetch(P) += sd_fetch(N)*d*0.1f; /* todo: get rid of this factor */

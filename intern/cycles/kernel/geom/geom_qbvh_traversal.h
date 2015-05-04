@@ -28,7 +28,7 @@
  *
  */
 
-ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(__ADDR_SPACE__ KernelGlobals *kg,
+ccl_device bool BVH_FUNCTION_FULL_NAME(QBVH)(ccl_addr_space KernelGlobals *kg,
                                              const Ray *ray,
                                              Intersection *isect,
                                              const uint visibility

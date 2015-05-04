@@ -16,15 +16,15 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void debug_data_init(__ADDR_SPACE__ DebugData *debug_data)
+ccl_device_inline void debug_data_init(ccl_addr_space DebugData *debug_data)
 {
 	debug_data->num_bvh_traversal_steps = 0;
 }
 
-ccl_device_inline void kernel_write_debug_passes(__ADDR_SPACE__ KernelGlobals *kg,
+ccl_device_inline void kernel_write_debug_passes(ccl_addr_space KernelGlobals *kg,
                                                  ccl_global float *buffer,
-                                                 __ADDR_SPACE__ PathState *state,
-                                                 __ADDR_SPACE__ DebugData *debug_data,
+                                                 ccl_addr_space PathState *state,
+                                                 ccl_addr_space DebugData *debug_data,
                                                  int sample)
 {
 	int flag = kernel_data.film.pass_flag;

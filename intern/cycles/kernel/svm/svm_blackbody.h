@@ -33,7 +33,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Blackbody Node */
-ccl_device void svm_node_blackbody(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint temperature_offset, uint col_offset)
+ccl_device void svm_node_blackbody(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint temperature_offset, uint col_offset)
 {
 	/* Output */
 	float3 color_rgb = make_float3(0.0f, 0.0f, 0.0f);

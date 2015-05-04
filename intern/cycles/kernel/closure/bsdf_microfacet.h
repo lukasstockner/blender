@@ -38,7 +38,7 @@ CCL_NAMESPACE_BEGIN
 /* Beckmann and GGX microfacet importance sampling. */
 
 ccl_device_inline void microfacet_beckmann_sample_slopes(
-	__ADDR_SPACE__ KernelGlobals *kg,
+	ccl_addr_space KernelGlobals *kg,
 	const float cos_theta_i, const float sin_theta_i,
 	float randu, float randv, float *slope_x, float *slope_y,
 	float *G1i)
@@ -171,7 +171,7 @@ ccl_device_inline void microfacet_ggx_sample_slopes(
 }
 
 ccl_device_inline float3 microfacet_sample_stretched(
-	__ADDR_SPACE__ KernelGlobals *kg, const float3 omega_i,
+	ccl_addr_space KernelGlobals *kg, const float3 omega_i,
 	const float alpha_x, const float alpha_y,
 	const float randu, const float randv,
 	bool beckmann, float *G1i)
@@ -233,7 +233,7 @@ ccl_device_inline float3 microfacet_sample_stretched(
  * Anisotropy is only supported for reflection currently, but adding it for
  * transmission is just a matter of copying code from reflection if needed. */
 
-ccl_device int bsdf_microfacet_ggx_setup(__ADDR_SPACE__ ShaderClosure *sc)
+ccl_device int bsdf_microfacet_ggx_setup(ccl_addr_space ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
@@ -243,7 +243,7 @@ ccl_device int bsdf_microfacet_ggx_setup(__ADDR_SPACE__ ShaderClosure *sc)
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
-ccl_device int bsdf_microfacet_ggx_aniso_setup(__ADDR_SPACE__ ShaderClosure *sc)
+ccl_device int bsdf_microfacet_ggx_aniso_setup(ccl_addr_space ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = saturate(sc->data1); /* alpha_y */
@@ -253,7 +253,7 @@ ccl_device int bsdf_microfacet_ggx_aniso_setup(__ADDR_SPACE__ ShaderClosure *sc)
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
-ccl_device int bsdf_microfacet_ggx_refraction_setup(__ADDR_SPACE__ ShaderClosure *sc)
+ccl_device int bsdf_microfacet_ggx_refraction_setup(ccl_addr_space ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
@@ -263,13 +263,13 @@ ccl_device int bsdf_microfacet_ggx_refraction_setup(__ADDR_SPACE__ ShaderClosure
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
-ccl_device void bsdf_microfacet_ggx_blur(__ADDR_SPACE__ ShaderClosure *sc, float roughness)
+ccl_device void bsdf_microfacet_ggx_blur(ccl_addr_space ShaderClosure *sc, float roughness)
 {
 	sc->data0 = fmaxf(roughness, sc->data0); /* alpha_x */
 	sc->data1 = fmaxf(roughness, sc->data1); /* alpha_y */
 }
 
-ccl_device float3 bsdf_microfacet_ggx_eval_reflect(__ADDR_SPACE__ const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_microfacet_ggx_eval_reflect(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -359,7 +359,7 @@ ccl_device float3 bsdf_microfacet_ggx_eval_reflect(__ADDR_SPACE__ const ShaderCl
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device float3 bsdf_microfacet_ggx_eval_transmit(__ADDR_SPACE__ const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_microfacet_ggx_eval_transmit(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -417,7 +417,7 @@ ccl_device float3 bsdf_microfacet_ggx_eval_transmit(__ADDR_SPACE__ const ShaderC
 	return make_float3(out, out, out);
 }
 
-ccl_device int bsdf_microfacet_ggx_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_microfacet_ggx_sample(ccl_addr_space KernelGlobals *kg, ccl_addr_space const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -586,7 +586,7 @@ ccl_device int bsdf_microfacet_ggx_sample(__ADDR_SPACE__ KernelGlobals *kg, __AD
  * Microfacet Models for Refraction through Rough Surfaces
  * B. Walter, S. R. Marschner, H. Li, K. E. Torrance, EGSR 2007 */
 
-ccl_device int bsdf_microfacet_beckmann_setup(__ADDR_SPACE__ ShaderClosure *sc)
+ccl_device int bsdf_microfacet_beckmann_setup(ccl_addr_space ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
@@ -595,7 +595,7 @@ ccl_device int bsdf_microfacet_beckmann_setup(__ADDR_SPACE__ ShaderClosure *sc)
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
-ccl_device int bsdf_microfacet_beckmann_aniso_setup(__ADDR_SPACE__ ShaderClosure *sc)
+ccl_device int bsdf_microfacet_beckmann_aniso_setup(ccl_addr_space ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = saturate(sc->data1); /* alpha_y */
@@ -604,7 +604,7 @@ ccl_device int bsdf_microfacet_beckmann_aniso_setup(__ADDR_SPACE__ ShaderClosure
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
-ccl_device int bsdf_microfacet_beckmann_refraction_setup(__ADDR_SPACE__ ShaderClosure *sc)
+ccl_device int bsdf_microfacet_beckmann_refraction_setup(ccl_addr_space ShaderClosure *sc)
 {
 	sc->data0 = saturate(sc->data0); /* alpha_x */
 	sc->data1 = sc->data0; /* alpha_y */
@@ -613,13 +613,13 @@ ccl_device int bsdf_microfacet_beckmann_refraction_setup(__ADDR_SPACE__ ShaderCl
 	return SD_BSDF|SD_BSDF_HAS_EVAL;
 }
 
-ccl_device void bsdf_microfacet_beckmann_blur(__ADDR_SPACE__ ShaderClosure *sc, float roughness)
+ccl_device void bsdf_microfacet_beckmann_blur(ccl_addr_space ShaderClosure *sc, float roughness)
 {
 	sc->data0 = fmaxf(roughness, sc->data0); /* alpha_x */
 	sc->data1 = fmaxf(roughness, sc->data1); /* alpha_y */
 }
 
-ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(__ADDR_SPACE__ const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -712,7 +712,7 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_reflect(__ADDR_SPACE__ const Sha
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(__ADDR_SPACE__ const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -769,7 +769,7 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(__ADDR_SPACE__ const Sh
 	return make_float3(out, out, out);
 }
 
-ccl_device int bsdf_microfacet_beckmann_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_microfacet_beckmann_sample(ccl_addr_space KernelGlobals *kg, ccl_addr_space const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;

@@ -18,9 +18,9 @@
 #define __KERNEL_TYPES_H__
 
 #ifdef __SPLIT_KERNEL__
-#define __ADDR_SPACE__ __global
+#define ccl_addr_space __global
 #else
-#define __ADDR_SPACE__
+#define ccl_addr_space
 #endif
 
 #include "kernel_math.h"

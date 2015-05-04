@@ -106,14 +106,14 @@ ccl_device_inline bool stack_valid(uint a)
 
 /* Reading Nodes */
 
-ccl_device_inline uint4 read_node(__ADDR_SPACE__ KernelGlobals *kg, int *offset)
+ccl_device_inline uint4 read_node(ccl_addr_space KernelGlobals *kg, int *offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, *offset);
 	(*offset)++;
 	return node;
 }
 
-ccl_device_inline float4 read_node_float(__ADDR_SPACE__ KernelGlobals *kg, int *offset)
+ccl_device_inline float4 read_node_float(ccl_addr_space KernelGlobals *kg, int *offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, *offset);
 	float4 f = make_float4(__uint_as_float(node.x), __uint_as_float(node.y), __uint_as_float(node.z), __uint_as_float(node.w));
@@ -121,7 +121,7 @@ ccl_device_inline float4 read_node_float(__ADDR_SPACE__ KernelGlobals *kg, int *
 	return f;
 }
 
-ccl_device_inline float4 fetch_node_float(__ADDR_SPACE__ KernelGlobals *kg, int offset)
+ccl_device_inline float4 fetch_node_float(ccl_addr_space KernelGlobals *kg, int offset)
 {
 	uint4 node = kernel_tex_fetch(__svm_nodes, offset);
 	return make_float4(__uint_as_float(node.x), __uint_as_float(node.y), __uint_as_float(node.z), __uint_as_float(node.w));
@@ -258,7 +258,7 @@ CCL_NAMESPACE_BEGIN
 #endif
 
 /* Main Interpreter Loop */
-ccl_device_noinline void svm_eval_nodes(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, ShaderType type, int path_flag)
+ccl_device_noinline void svm_eval_nodes(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, ShaderType type, int path_flag)
 {
 	float stack[SVM_STACK_SIZE];
 	int offset = sd_fetch(shader) & SHADER_MASK;

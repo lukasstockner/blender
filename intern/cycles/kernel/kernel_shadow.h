@@ -41,7 +41,7 @@ CCL_NAMESPACE_BEGIN
 
 #define STACK_MAX_HITS 64
 
-ccl_device_inline bool shadow_blocked(__ADDR_SPACE__ KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
+ccl_device_inline bool shadow_blocked(ccl_addr_space KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
@@ -181,7 +181,7 @@ ccl_device_inline bool shadow_blocked(__ADDR_SPACE__ KernelGlobals *kg, PathStat
  * one extra ray cast for the cases were we do want transparency. */
 
 #ifdef __SPLIT_KERNEL__
-ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ PathState *state, __ADDR_SPACE__ Ray *ray_global, float3 *shadow, __ADDR_SPACE__ ShaderData *sd, __ADDR_SPACE__ Intersection *isect_global)
+ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_global, float3 *shadow, ccl_addr_space ShaderData *sd, ccl_addr_space Intersection *isect_global)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
@@ -268,7 +268,7 @@ ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(__ADDR_SPACE__ KernelGlobals 
 }
 #else
 
-ccl_device_inline bool shadow_blocked(__ADDR_SPACE__ KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
+ccl_device_inline bool shadow_blocked(ccl_addr_space KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 

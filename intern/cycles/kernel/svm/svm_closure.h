@@ -19,7 +19,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Closure Nodes */
 
-ccl_device void svm_node_glass_setup(__ADDR_SPACE__ ShaderData *sd, __ADDR_SPACE__ ShaderClosure *sc, int type, float eta, float roughness, bool refract)
+ccl_device void svm_node_glass_setup(ccl_addr_space ShaderData *sd, ccl_addr_space ShaderClosure *sc, int type, float eta, float roughness, bool refract)
 {
 	if(type == CLOSURE_BSDF_SHARP_GLASS_ID) {
 		if(refract) {
@@ -56,9 +56,9 @@ ccl_device void svm_node_glass_setup(__ADDR_SPACE__ ShaderData *sd, __ADDR_SPACE
 	}
 }
 
-ccl_device_inline __ADDR_SPACE__ ShaderClosure *svm_node_closure_get_non_bsdf(__ADDR_SPACE__ ShaderData *sd, ClosureType type, float mix_weight)
+ccl_device_inline ccl_addr_space ShaderClosure *svm_node_closure_get_non_bsdf(ccl_addr_space ShaderData *sd, ClosureType type, float mix_weight)
 {
-	__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
+	ccl_addr_space ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 
 	if(sd_fetch(num_closure) < MAX_CLOSURE) {
 		sc->weight *= mix_weight;
@@ -73,9 +73,9 @@ ccl_device_inline __ADDR_SPACE__ ShaderClosure *svm_node_closure_get_non_bsdf(__
 	return NULL;
 }
 
-ccl_device_inline __ADDR_SPACE__ ShaderClosure *svm_node_closure_get_bsdf(__ADDR_SPACE__ ShaderData *sd, float mix_weight)
+ccl_device_inline ccl_addr_space ShaderClosure *svm_node_closure_get_bsdf(ccl_addr_space ShaderData *sd, float mix_weight)
 {
-	__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
+	ccl_addr_space ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 
 	float3 weight = sc->weight * mix_weight;
 	float sample_weight = fabsf(average(weight));
@@ -93,9 +93,9 @@ ccl_device_inline __ADDR_SPACE__ ShaderClosure *svm_node_closure_get_bsdf(__ADDR
 	return NULL;
 }
 
-ccl_device_inline __ADDR_SPACE__ ShaderClosure *svm_node_closure_get_absorption(__ADDR_SPACE__ ShaderData *sd, float mix_weight)
+ccl_device_inline ccl_addr_space ShaderClosure *svm_node_closure_get_absorption(ccl_addr_space ShaderData *sd, float mix_weight)
 {
-	__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
+	ccl_addr_space ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 
 	float3 weight = (make_float3(1.0f, 1.0f, 1.0f) - sc->weight) * mix_weight;
 	float sample_weight = fabsf(average(weight));
@@ -113,7 +113,7 @@ ccl_device_inline __ADDR_SPACE__ ShaderClosure *svm_node_closure_get_absorption(
 	return NULL;
 }
 
-ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int path_flag, int *offset)
+ccl_device void svm_node_closure_bsdf(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int path_flag, int *offset)
 {
 	uint type, param1_offset, param2_offset;
 
@@ -134,7 +134,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 
 	switch(type) {
 		case CLOSURE_BSDF_DIFFUSE_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				sc->N = N;
@@ -157,7 +157,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 			break;
 		}
 		case CLOSURE_BSDF_TRANSLUCENT_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				sc->data0 = 0.0f;
@@ -169,7 +169,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 			break;
 		}
 		case CLOSURE_BSDF_TRANSPARENT_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				sc->data0 = 0.0f;
@@ -188,7 +188,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 			if(!kernel_data.integrator.caustics_reflective && (path_flag & PATH_RAY_DIFFUSE))
 				break;
 #endif
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				sc->N = N;
@@ -216,7 +216,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 			if(!kernel_data.integrator.caustics_refractive && (path_flag & PATH_RAY_DIFFUSE))
 				break;
 #endif
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				sc->N = N;
@@ -265,7 +265,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 			float roughness = param1;
 
 			/* reflection */
-			__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
+			ccl_addr_space ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 
 			float3 weight = sc->weight;
 			float sample_weight = sc->sample_weight;
@@ -307,7 +307,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 			if(!kernel_data.integrator.caustics_reflective && (path_flag & PATH_RAY_DIFFUSE))
 				break;
 #endif
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				sc->N = N;
@@ -345,7 +345,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 			break;
 		}
 		case CLOSURE_BSDF_ASHIKHMIN_VELVET_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				sc->N = N;
@@ -360,7 +360,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 		}
 		case CLOSURE_BSDF_DIFFUSE_TOON_ID:
 		case CLOSURE_BSDF_GLOSSY_TOON_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 			if(sc) {
 				/* Normal, Size and Smooth */
@@ -381,7 +381,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID: {
 
 			if(sd_fetch(flag) & SD_BACKFACING && sd_fetch(type) & PRIMITIVE_ALL_CURVE) {
-				__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
+				ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 				if(sc) {
 					/* todo: giving a fixed weight here will cause issues when
@@ -397,7 +397,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 				}
 			}
 			else {
-				__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
+				ccl_addr_space ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 
 				sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
@@ -430,7 +430,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 #ifdef __SUBSURFACE__
 		case CLOSURE_BSSRDF_CUBIC_ID:
 		case CLOSURE_BSSRDF_GAUSSIAN_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
+			ccl_addr_space ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 
 			float3 weight = sc->weight * mix_weight;
 			float sample_weight = fabsf(average(weight));
@@ -511,7 +511,7 @@ ccl_device void svm_node_closure_bsdf(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_S
 	}
 }
 
-ccl_device void svm_node_closure_volume(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node, int path_flag)
+ccl_device void svm_node_closure_volume(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int path_flag)
 {
 #ifdef __VOLUME__
 	uint type, param1_offset, param2_offset;
@@ -529,7 +529,7 @@ ccl_device void svm_node_closure_volume(__ADDR_SPACE__ KernelGlobals *kg, __ADDR
 
 	switch(type) {
 		case CLOSURE_VOLUME_ABSORPTION_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_absorption(sd, mix_weight * density);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_absorption(sd, mix_weight * density);
 
 			if(sc) {
 				sd_fetch(flag) |= volume_absorption_setup(sc);
@@ -537,7 +537,7 @@ ccl_device void svm_node_closure_volume(__ADDR_SPACE__ KernelGlobals *kg, __ADDR
 			break;
 		}
 		case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID: {
-			__ADDR_SPACE__ ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight * density);
+			ccl_addr_space ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight * density);
 
 			if(sc) {
 				sc->data0 = param2; /* g */
@@ -552,7 +552,7 @@ ccl_device void svm_node_closure_volume(__ADDR_SPACE__ KernelGlobals *kg, __ADDR
 #endif
 }
 
-ccl_device void svm_node_closure_emission(__ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_emission(ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint mix_weight_offset = node.y;
 
@@ -570,7 +570,7 @@ ccl_device void svm_node_closure_emission(__ADDR_SPACE__ ShaderData *sd, float *
 	sd_fetch(flag) |= SD_EMISSION;
 }
 
-ccl_device void svm_node_closure_background(__ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_background(ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint mix_weight_offset = node.y;
 
@@ -586,7 +586,7 @@ ccl_device void svm_node_closure_background(__ADDR_SPACE__ ShaderData *sd, float
 		svm_node_closure_get_non_bsdf(sd, CLOSURE_BACKGROUND_ID, 1.0f);
 }
 
-ccl_device void svm_node_closure_holdout(__ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_holdout(ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint mix_weight_offset = node.y;
 
@@ -604,7 +604,7 @@ ccl_device void svm_node_closure_holdout(__ADDR_SPACE__ ShaderData *sd, float *s
 	sd_fetch(flag) |= SD_HOLDOUT;
 }
 
-ccl_device void svm_node_closure_ambient_occlusion(__ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_closure_ambient_occlusion(ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint mix_weight_offset = node.y;
 
@@ -624,28 +624,28 @@ ccl_device void svm_node_closure_ambient_occlusion(__ADDR_SPACE__ ShaderData *sd
 
 /* Closure Nodes */
 
-ccl_device_inline void svm_node_closure_store_weight(__ADDR_SPACE__ ShaderData *sd, float3 weight)
+ccl_device_inline void svm_node_closure_store_weight(ccl_addr_space ShaderData *sd, float3 weight)
 {
 	if(sd_fetch(num_closure) < MAX_CLOSURE) {
-		__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
+		ccl_addr_space ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 		sc->weight = weight;
 	}
 }
 
-ccl_device void svm_node_closure_set_weight(__ADDR_SPACE__ ShaderData *sd, uint r, uint g, uint b)
+ccl_device void svm_node_closure_set_weight(ccl_addr_space ShaderData *sd, uint r, uint g, uint b)
 {
 	float3 weight = make_float3(__uint_as_float(r), __uint_as_float(g), __uint_as_float(b));
 	svm_node_closure_store_weight(sd, weight);
 }
 
-ccl_device void svm_node_closure_weight(__ADDR_SPACE__ ShaderData *sd, float *stack, uint weight_offset)
+ccl_device void svm_node_closure_weight(ccl_addr_space ShaderData *sd, float *stack, uint weight_offset)
 {
 	float3 weight = stack_load_float3(stack, weight_offset);
 
 	svm_node_closure_store_weight(sd, weight);
 }
 
-ccl_device void svm_node_emission_weight(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_emission_weight(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint color_offset = node.y;
 	uint strength_offset = node.z;
@@ -656,7 +656,7 @@ ccl_device void svm_node_emission_weight(__ADDR_SPACE__ KernelGlobals *kg, __ADD
 	svm_node_closure_store_weight(sd, weight);
 }
 
-ccl_device void svm_node_mix_closure(__ADDR_SPACE__ ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_mix_closure(ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	/* fetch weight from blend input, previous mix closures,
 	 * and write to stack to be used by closure nodes later */
@@ -675,7 +675,7 @@ ccl_device void svm_node_mix_closure(__ADDR_SPACE__ ShaderData *sd, float *stack
 }
 
 /* (Bump) normal */
-ccl_device void svm_node_set_normal(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint in_direction, uint out_normal)
+ccl_device void svm_node_set_normal(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint in_direction, uint out_normal)
 {
 	float3 normal = stack_load_float3(stack, in_direction);
 	sd_fetch(N) = normal;

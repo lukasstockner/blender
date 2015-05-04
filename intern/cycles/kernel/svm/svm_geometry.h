@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Geometry Node */
 
-ccl_device void svm_node_geometry(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_geometry(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float3 data;
 
@@ -38,7 +38,7 @@ ccl_device void svm_node_geometry(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE
 	stack_store_float3(stack, out_offset, data);
 }
 
-ccl_device void svm_node_geometry_bump_dx(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_geometry_bump_dx(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	float3 data;
@@ -55,7 +55,7 @@ ccl_device void svm_node_geometry_bump_dx(__ADDR_SPACE__ KernelGlobals *kg, __AD
 #endif
 }
 
-ccl_device void svm_node_geometry_bump_dy(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_geometry_bump_dy(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	float3 data;
@@ -73,7 +73,7 @@ ccl_device void svm_node_geometry_bump_dy(__ADDR_SPACE__ KernelGlobals *kg, __AD
 }
 
 /* Object Info */
-ccl_device void svm_node_object_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_object_info(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float data;
 
@@ -93,7 +93,7 @@ ccl_device void svm_node_object_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SP
 
 /* Particle Info */
 
-ccl_device void svm_node_particle_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_particle_info(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	switch(type) {
 		case NODE_INFO_PAR_INDEX: {
@@ -144,7 +144,7 @@ ccl_device void svm_node_particle_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_
 #ifdef __HAIR__
 
 /* Hair Info */
-ccl_device void svm_node_hair_info(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, float *stack, uint type, uint out_offset)
+ccl_device void svm_node_hair_info(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float data;
 	float3 data3;

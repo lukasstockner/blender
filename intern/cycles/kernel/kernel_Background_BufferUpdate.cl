@@ -16,7 +16,7 @@
 
 #include "kernel_split.h"
 
-ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(__ADDR_SPACE__ KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, __ADDR_SPACE__ RNG *rng, __ADDR_SPACE__ Ray *ray)
+ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
 {
 	float filter_u;
 	float filter_v;
