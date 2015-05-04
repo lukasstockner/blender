@@ -146,8 +146,6 @@ static void game_copy_pose(bPose **dst, bPose *src, int copy_constraint)
 	*dst = out;
 }
 
-
-
 /* Only allowed for Poses with identical channels */
 static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode)
 {
@@ -157,12 +155,10 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
 	float dstweight;
 	int i;
 
-	if (mode == BL_Action::ACT_BLEND_BLEND)
-	{
+	if (mode == BL_Action::ACT_BLEND_BLEND) {
 		dstweight = 1.0f - srcweight;
 	}
-	else if (mode == BL_Action::ACT_BLEND_ADD)
-	{
+	else if (mode == BL_Action::ACT_BLEND_ADD) {
 		dstweight = 1.0f;
 	}
 	else {
@@ -211,23 +207,21 @@ static void game_blend_poses(bPose *dst, bPose *src, float srcweight, short mode
 	dst->ctime = src->ctime;
 }
 
-BL_ArmatureObject::BL_ArmatureObject(
-    void *sgReplicationInfo,
-    SG_Callbacks callbacks,
-    Object *armature,
-    Scene *scene,
-    int vert_deform_type)
-
-	:   KX_GameObject(sgReplicationInfo, callbacks),
+BL_ArmatureObject::BL_ArmatureObject(void *sgReplicationInfo,
+									 SG_Callbacks callbacks,
+									 Object *armature,
+									 Scene *scene,
+									 int vert_deform_type)
+	: KX_GameObject(sgReplicationInfo, callbacks),
 	m_controlledConstraints(),
 	m_poseChannels(),
 	m_scene(scene), // maybe remove later. needed for BKE_pose_where_is
-	m_lastframe(0.0),
-	m_timestep(0.040),
+	m_lastframe(0.0f),
+	m_timestep(0.040f),
 	m_vert_deform_type(vert_deform_type),
 	m_constraintNumber(0),
 	m_channelNumber(0),
-	m_lastapplyframe(0.0)
+	m_lastapplyframe(0.0f)
 {
 	m_origObjArma = armature; // Keep a copy of the original armature so we can fix drivers later
 	m_objArma = BKE_object_copy(armature);
@@ -255,7 +249,6 @@ BL_ArmatureObject::~BL_ArmatureObject()
 	if (m_objArma)
 		BKE_libblock_free(G.main, m_objArma);
 }
-
 
 void BL_ArmatureObject::LoadConstraints(KX_BlenderSceneConverter *converter)
 {
@@ -382,8 +375,7 @@ BL_ArmatureChannel *BL_ArmatureObject::GetChannel(bPoseChannel *pchan)
 {
 	LoadChannels();
 	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end(); ++cit)
-	{
+	for (cit.begin(); !cit.end(); ++cit) {
 		BL_ArmatureChannel *channel = *cit;
 		if (channel->m_posechannel == pchan)
 			return channel;
@@ -395,8 +387,7 @@ BL_ArmatureChannel *BL_ArmatureObject::GetChannel(const char *str)
 {
 	LoadChannels();
 	SG_DList::iterator<BL_ArmatureChannel> cit(m_poseChannels);
-	for (cit.begin(); !cit.end(); ++cit)
-	{
+	for (cit.begin(); !cit.end(); ++cit) {
 		BL_ArmatureChannel *channel = *cit;
 		if (!strcmp(channel->m_posechannel->name, str))
 			return channel;
@@ -495,7 +486,7 @@ void BL_ArmatureObject::RestorePose()
 void BL_ArmatureObject::SetPose(bPose *pose)
 {
 	extract_pose_from_pose(m_pose, pose);
-	m_lastapplyframe = -1.0;
+	m_lastapplyframe = -1.0f;
 }
 
 void BL_ArmatureObject::SetPoseByAction(bAction *action, float localtime)
@@ -607,9 +598,8 @@ PyMethodDef BL_ArmatureObject::Methods[] = {
 };
 
 PyAttributeDef BL_ArmatureObject::Attributes[] = {
-
-	KX_PYATTRIBUTE_RO_FUNCTION("constraints",       BL_ArmatureObject, pyattr_get_constraints),
-	KX_PYATTRIBUTE_RO_FUNCTION("channels",      BL_ArmatureObject, pyattr_get_channels),
+	KX_PYATTRIBUTE_RO_FUNCTION("constraints", BL_ArmatureObject, pyattr_get_constraints),
+	KX_PYATTRIBUTE_RO_FUNCTION("channels", BL_ArmatureObject, pyattr_get_channels),
 	{NULL} //Sentinel
 };
 
