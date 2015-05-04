@@ -1287,11 +1287,14 @@ KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skm
 {
 	Key *key = skmd->key;
 	KeyBlock *kb;
-	bool newkey = 0;
+	bool newkey = false;
 	
 	if (key == NULL) {
 		key = skmd->key = BKE_key_add_ex(NULL, KEY_FROMTYPE_STRANDS);
 		key->type = KEY_RELATIVE;
+		newkey = true;
+	}
+	else if (BLI_listbase_is_empty(&key->block)) {
 		newkey = true;
 	}
 	
