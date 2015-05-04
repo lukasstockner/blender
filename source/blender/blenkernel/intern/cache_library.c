@@ -1169,7 +1169,7 @@ static void shrinkwrap_apply(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *
 	}
 }
 
-static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode UNUSED(eval_mode))
+static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 	Object *ob = smd->object;
 	DupliObject *dob;
