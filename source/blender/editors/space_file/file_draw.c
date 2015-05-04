@@ -599,6 +599,9 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 			if (!(file->typeflag & FILE_TYPE_DIR)) {
+				if (file->entry->size_str[0] == '\0') {
+					BLI_filelist_entry_size_to_string(NULL, file->entry->size, file->entry->size_str);
+				}
 				file_draw_string(sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
