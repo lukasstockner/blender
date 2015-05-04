@@ -63,6 +63,7 @@
 #include "ED_markers.h"
 #include "ED_mask.h"
 #include "ED_sequencer.h"
+#include "ED_screen.h"
 #include "ED_space_api.h"
 
 #include "UI_interface.h"
@@ -1087,6 +1088,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	bool glsl_used = false;
 	const bool draw_gpencil = ((sseq->flag & SEQ_SHOW_GPENCIL) && sseq->gpd);
 	const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
+	bool draw_metadata = false;
 
 	if (G.is_rendering == false && (scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
 		/* stop all running jobs, except screen one. currently previews frustrate Render
@@ -1334,6 +1336,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 		}
 	}
+<<<<<<< HEAD
 	else if (draw_overdrop) {
 		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->overdrop_zoom;
 		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->overdrop_zoom;
@@ -1346,13 +1349,15 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		glTexCoord2f(1.0f, 0.0f); glVertex2f(imagex + xofs, -imagey + yofs);
 	}
 	else {
+		draw_metadata = ((sseq->flag & SEQ_SHOW_METADATA) != 0);
+
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymax);
 		glTexCoord2f(1.0f, 1.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymax);
 		glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 	}
 	glEnd();
-	
+
 	glBindTexture(GL_TEXTURE_2D, last_texid);
 	glDisable(GL_TEXTURE_2D);
 	if (sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA)
@@ -1368,7 +1373,15 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	if (!scope)
 		IMB_freeImBuf(ibuf);
 
+	if (draw_metadata) {
+		ED_region_image_metadata_draw(0.0, 0.0, ibuf, v2d->tot, 1.0, 1.0);
+	}
+
 	if (draw_overdrop) {
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glMatrixMode(GL_MODELVIEW);
 		return;
 	}
 

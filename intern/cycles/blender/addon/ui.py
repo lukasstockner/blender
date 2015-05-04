@@ -1422,10 +1422,17 @@ class CyclesScene_PT_simplify(CyclesButtonsPanel, Panel):
         rd = scene.render
 
         layout.active = rd.use_simplify
+        split = layout.split()
 
-        row = layout.row()
-        row.prop(rd, "simplify_subdivision", text="Subdivision")
-        row.prop(rd, "simplify_child_particles", text="Child Particles")
+        col = split.column()
+        col.label(text="Viewport:")
+        col.prop(rd, "simplify_subdivision", text="Subdivision")
+        col.prop(rd, "simplify_child_particles", text="Child Particles")
+
+        col = split.column()
+        col.label(text="Render:")
+        col.prop(rd, "simplify_subdivision_render", text="Subdivision")
+        col.prop(rd, "simplify_child_particles_render", text="Child Particles")
 
 
 def draw_device(self, context):

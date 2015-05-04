@@ -883,12 +883,16 @@ Image *BKE_image_add_generated(Main *bmain, unsigned int width, unsigned int hei
 /* Create an image image from ibuf. The refcount of ibuf is increased,
  * caller should take care to drop its reference by calling
  * IMB_freeImBuf if needed. */
-Image *BKE_image_add_from_imbuf(ImBuf *ibuf)
+Image *BKE_image_add_from_imbuf(ImBuf *ibuf, const char *name)
 {
 	/* on save, type is changed to FILE in editsima.c */
 	Image *ima;
 
-	ima = image_alloc(G.main, BLI_path_basename(ibuf->name), IMA_SRC_FILE, IMA_TYPE_IMAGE);
+	if (name == NULL) {
+		name = BLI_path_basename(ibuf->name);
+	}
+
+	ima = image_alloc(G.main, name, IMA_SRC_FILE, IMA_TYPE_IMAGE);
 
 	if (ima) {
 		BLI_strncpy(ima->name, ibuf->name, FILE_MAX);
@@ -3619,6 +3623,15 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **lock_
 			if (rpass) {
 				channels = rpass->channels;
 				rectf = rpass->rect;
+
+				if (!rectf) {
+					/* Happens when Save Buffers is enabled.
+					 * Use display buffer stored in the render layer.
+					 */
+					rect = (unsigned int *) rl->display_buffer;
+					byte_buffer_in_display_space = true;
+				}
+
 				dither = 0.0f; /* don't dither passes */
 			}
 

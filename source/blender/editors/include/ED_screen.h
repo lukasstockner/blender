@@ -66,7 +66,7 @@ void    ED_region_header_init(struct ARegion *ar);
 void    ED_region_header(const struct bContext *C, struct ARegion *ar);
 void    ED_region_toggle_hidden(struct bContext *C, struct ARegion *ar);
 void    ED_region_info_draw(struct ARegion *ar, const char *text, int block, float fill_color[4]);
-void    ED_region_image_metadata_draw(struct ARegion *ar, struct ImBuf *ibuf, float zoomx, float zoomy);
+void    ED_region_image_metadata_draw(int x, int y, struct ImBuf *ibuf, rctf frame, float zoomx, float zoomy);
 void    ED_region_grid_draw(struct ARegion *ar, float zoomx, float zoomy);
 void    ED_region_draw_backdrop_view3d(const struct bContext *C, struct Object *camera, const float alpha,
                                        const float width, const float height, const float x, const float y,
@@ -81,7 +81,6 @@ int ED_match_region_with_redraws(int spacetype, int regiontype, int redraws);
 /* spaces */
 void    ED_spacetypes_keymap(struct wmKeyConfig *keyconf);
 int     ED_area_header_switchbutton(const struct bContext *C, struct uiBlock *block, int yco);
-
 
 /* areas */
 void    ED_area_initialize(struct wmWindowManager *wm, struct wmWindow *win, struct ScrArea *sa);
