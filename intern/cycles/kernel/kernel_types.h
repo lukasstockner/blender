@@ -1047,7 +1047,7 @@ typedef struct DebugData {
 #define NUM_QUEUES 4
 
 /* Queue names */
-enum QUEUE_NUMBER {
+enum QueueNumber {
 	QUEUE_ACTIVE_AND_REGENERATED_RAYS,         /* All active rays and regenerated rays are enqueued here */
 	QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS,      /* All
 										        * 1.Background-hit rays,
@@ -1063,7 +1063,7 @@ enum QUEUE_NUMBER {
 /* We use RAY_STATE_MASK to get ray_state (enums 0 to 5) */
 #define RAY_STATE_MASK 0x007
 #define RAY_FLAG_MASK 0x0F8
-enum RAY_STATE {
+enum RayState {
 	RAY_ACTIVE = 0,             // Denotes ray is actively involved in path-iteration
 	RAY_INACTIVE = 1,           // Denotes ray has completed processing all samples and is inactive
 	RAY_UPDATE_BUFFER = 2,      // Denoted ray has exited path-iteration and needs to update output buffer
