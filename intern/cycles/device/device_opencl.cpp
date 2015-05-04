@@ -1728,19 +1728,8 @@ public:
 	}
 
 	size_t get_shader_data_size(size_t shader_closure_size) {
-		size_t shader_data_size = 0;
-		shader_data_size = SD_NUM_FLOAT3 * sizeof(float3)
-#ifdef __DPDU__
-			+ SD_NUM_DPDU_FLOAT3 * sizeof(float3)
-#endif
-#ifdef __RAY_DIFFERENTIALS__
-			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3 * sizeof(differential3)
-			+SD_NUM_DIFFERENTIAL * sizeof(differential)
-#endif
-			+ SD_NUM_RAY_DP_DIFFERENTIAL3 * sizeof(differential3)
-			+SD_NUM_INT * sizeof(int)
-			+SD_NUM_FLOAT * sizeof(float);
-
+		/* ShaderData size without accounting for ShaderClosure array */
+		size_t shader_data_size = sizeof(ShaderData) - (sizeof(ShaderClosure) * MAX_CLOSURE);
 		return (shader_data_size + shader_closure_size);
 	}
 
