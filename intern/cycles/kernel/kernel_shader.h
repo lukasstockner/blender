@@ -114,9 +114,17 @@ ccl_device void shader_setup_from_ray(ccl_addr_space KernelGlobals *kg, ccl_addr
 
 #ifdef __INSTANCING__
 	if(isect->object != OBJECT_NONE) {
+		/* Get values of N and Ng */
+		float3 sd_N = sd_fetch(N);
+		float3 sd_Ng = sd_fetch(Ng);
+
 		/* instance transform */
-		object_normal_transform(kg, sd, &sd_fetch(N));
-		object_normal_transform(kg, sd, &sd_fetch(Ng));
+		object_normal_transform(kg, sd, &sd_N);
+		object_normal_transform(kg, sd, &sd_Ng);
+
+		/* Store values to N and Ng */
+		sd_fetch(N) = sd_N;
+		sd_fetch(Ng) = sd_Ng;
 #ifdef __DPDU__
 		object_dir_transform(kg, sd, &sd_fetch(dPdu));
 		object_dir_transform(kg, sd, &sd_fetch(dPdv));
@@ -284,8 +292,11 @@ ccl_device void shader_setup_from_sample(ccl_addr_space KernelGlobals *kg, ccl_a
 			sd_fetch(N) = triangle_smooth_normal(kg, sd_fetch(prim), sd_fetch(u), sd_fetch(v));
 
 #ifdef __INSTANCING__
-			if(instanced)
-				object_normal_transform(kg, sd, &sd_fetch(N));
+			if(instanced) {
+				float3 sd_N = sd_fetch(N);
+				object_normal_transform(kg, sd, &sd_N);
+				sd_fetch(N) = sd_N;
+			}
 #endif
 		}
 

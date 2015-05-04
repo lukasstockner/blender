@@ -315,11 +315,7 @@ ccl_device void svm_node_normal_map(ccl_addr_space KernelGlobals *kg, ccl_addr_s
 		N = normalize(color.x * tangent + color.y * B + color.z * normal);
 
 		/* transform to world space */
-#ifdef __SPLIT_KERNEL__
-		object_normal_transform_private_N(kg, sd, &N);
-#else
 		object_normal_transform(kg, sd, &N);
-#endif
 	}
 	else {
 		/* strange blender convention */
@@ -332,11 +328,7 @@ ccl_device void svm_node_normal_map(ccl_addr_space KernelGlobals *kg, ccl_addr_s
 		N = color;
 
 		if(space == NODE_NORMAL_MAP_OBJECT || space == NODE_NORMAL_MAP_BLENDER_OBJECT)
-#ifdef __SPLIT_KERNEL__
-			object_normal_transform_private_N(kg, sd, &N);
-#else
 			object_normal_transform(kg, sd, &N);
-#endif
 		else
 			N = normalize(N);
 	}
@@ -387,11 +379,8 @@ ccl_device void svm_node_tangent(ccl_addr_space KernelGlobals *kg, ccl_addr_spac
 			tangent = make_float3(-(generated.y - 0.5f), (generated.x - 0.5f), 0.0f);
 	}
 
-#ifdef __SPLIT_KERNEL__
-	object_normal_transform_private_N(kg, sd, &tangent);
-#else
 	object_normal_transform(kg, sd, &tangent);
-#endif
+
 	tangent = cross(sd_fetch(N), normalize(cross(tangent, sd_fetch(N))));
 	stack_store_float3(stack, tangent_offset, tangent);
 }
