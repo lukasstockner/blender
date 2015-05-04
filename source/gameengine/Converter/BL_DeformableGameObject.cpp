@@ -66,8 +66,7 @@ bool BL_DeformableGameObject::SetActiveAction(BL_ShapeActionActuator *act, short
 		m_activeAct = NULL;
 	}
 
-	if (priority <= m_activePriority)
-	{
+	if (priority <= m_activePriority) {
 		if (m_activeAct && (m_activeAct != act))
 			m_activeAct->SetBlendTime(0.0f);    /* Reset the blend timer */
 		m_activeAct = act;
@@ -86,16 +85,13 @@ bool BL_DeformableGameObject::GetShape(vector<float> &shape)
 {
 	shape.clear();
 	BL_ShapeDeformer *shape_deformer = dynamic_cast<BL_ShapeDeformer *>(m_pDeformer);
-	if (shape_deformer)
-	{
+	if (shape_deformer) {
 		// this check is normally superfluous: a shape deformer can only be created if the mesh
 		// has relative keys
 		Key *key = shape_deformer->GetKey();
-		if (key && key->type == KEY_RELATIVE)
-		{
+		if (key && key->type == KEY_RELATIVE) {
 			KeyBlock *kb;
-			for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next)
-			{
+			for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next) {
 				shape.push_back(kb->curval);
 			}
 		}
@@ -108,9 +104,7 @@ void BL_DeformableGameObject::SetDeformer(class RAS_Deformer *deformer)
 	m_pDeformer = deformer;
 
 	SG_QList::iterator<RAS_MeshSlot> mit(m_meshSlots);
-	for (mit.begin(); !mit.end(); ++mit)
-	{
+	for (mit.begin(); !mit.end(); ++mit) {
 		(*mit)->SetDeformer(deformer);
 	}
 }
-

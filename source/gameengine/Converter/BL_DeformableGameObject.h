@@ -43,6 +43,7 @@
 #include <vector>
 
 class BL_ShapeActionActuator;
+class RAS_Deformer;
 struct Key;
 
 class BL_DeformableGameObject : public KX_GameObject
@@ -70,19 +71,20 @@ public:
 		KX_GameObject(sgReplicationInfo, callbacks),
 		m_pDeformer(NULL),
 		m_activeAct(NULL),
-		m_lastframe(0.0),
+		m_lastframe(0.0f),
 		m_blendobj(blendobj),
 		m_activePriority(9999)
 	{
 		m_isDeformable = true;
-	};
+	}
 	virtual ~BL_DeformableGameObject();
-	bool SetActiveAction(class BL_ShapeActionActuator *act, short priority, double curtime);
+
+	bool SetActiveAction(BL_ShapeActionActuator *act, short priority, double curtime);
 
 	bool GetShape(vector<float> &shape);
 
-	virtual void SetDeformer(class RAS_Deformer *deformer);
-	virtual class RAS_Deformer *GetDeformer()
+	virtual void SetDeformer(RAS_Deformer *deformer);
+	virtual RAS_Deformer *GetDeformer()
 	{
 		return m_pDeformer;
 	}
@@ -93,7 +95,7 @@ protected:
 
 	RAS_Deformer        *m_pDeformer;
 
-	class BL_ShapeActionActuator *m_activeAct;
+	BL_ShapeActionActuator *m_activeAct;
 	double m_lastframe;
 	Object *m_blendobj;
 	short m_activePriority;
