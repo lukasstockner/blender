@@ -1336,7 +1336,6 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 			glTexCoord2f(1.0f, 0.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymin);
 		}
 	}
-<<<<<<< HEAD
 	else if (draw_overdrop) {
 		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->overdrop_zoom;
 		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->overdrop_zoom;
