@@ -1030,6 +1030,7 @@ public:
 #define KERNEL_TEX(type, ttype, name) \
 	set_kernel_arg_mem(ckFilmConvertKernel, &narg, #name);
 #include "kernel_textures.h"
+#undef KERNEL_TEX
 
 		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_sample_scale), (void*)&d_sample_scale));
 		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_x), (void*)&d_x));
@@ -1077,6 +1078,7 @@ public:
 #define KERNEL_TEX(type, ttype, name) \
 			set_kernel_arg_mem(kernel, &narg, #name);
 #include "kernel_textures.h"
+#undef KERNEL_TEX
 
 			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_eval_type), (void*)&d_shader_eval_type));
 			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_x), (void*)&d_shader_x));
@@ -1212,6 +1214,7 @@ public:
 #define KERNEL_TEX(type, ttype, name) \
 		set_kernel_arg_mem(ckPathTraceKernel, &narg, #name);
 #include "kernel_textures.h"
+#undef KERNEL_TEX
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_sample), (void*)&d_sample));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_x), (void*)&d_x));
@@ -1749,6 +1752,7 @@ public:
 #define KERNEL_TEX(type, ttype, name) \
 	ccl_global type *name;
 #include "kernel_textures.h"
+#undef KERNEL_TEX
 		} KernelGlobals;
 
 		return sizeof(KernelGlobals);
@@ -2958,6 +2962,7 @@ public:
 #define KERNEL_TEX(type, ttype, name) \
 	set_kernel_arg_mem(ckPathTraceKernel_DataInit_SPLIT_KERNEL, &narg, #name);
 #include "kernel_textures.h"
+#undef KERNEL_TEX
 
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_x), (void*)&d_x));
@@ -3322,6 +3327,7 @@ public:
 #define KERNEL_TEX(type, ttype, name) \
 	scene_specific_mem_allocated += get_tex_size(#name);
 #include "kernel_textures.h"
+#undef KERNEL_TEX
 
 		return scene_specific_mem_allocated;
 	}
