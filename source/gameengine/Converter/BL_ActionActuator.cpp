@@ -65,7 +65,7 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
                                      const STR_String& framepropname,
                                      float starttime,
                                      float endtime,
-                                     struct bAction *action,
+                                     bAction *action,
                                      short playtype,
                                      short blend_mode,
                                      short blendin,
@@ -76,7 +76,6 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
                                      short end_reset,
                                      float stride)
 	: SCA_IActuator(gameobj, KX_ACT_ACTION),
-
 	m_lastpos(0, 0, 0),
 	m_blendframe(0),
 	m_flag(0),
@@ -100,7 +99,7 @@ BL_ActionActuator::BL_ActionActuator(SCA_IObject *gameobj,
 {
 	if (!end_reset)
 		m_flag |= ACT_FLAG_CONTINUE;
-};
+}
 
 BL_ActionActuator::~BL_ActionActuator()
 {
@@ -112,7 +111,6 @@ void BL_ActionActuator::ProcessReplica()
 
 	m_localtime = m_startframe;
 	m_lastUpdate = -1;
-
 }
 
 void BL_ActionActuator::SetBlendTime(float newtime)
@@ -130,8 +128,7 @@ void BL_ActionActuator::SetLocalTime(float curtime)
 	m_localtime = m_startframe + dt;
 
 	// Handle wrap around
-	if (m_localtime < min(m_startframe, m_endframe) || m_localtime > max(m_startframe, m_endframe))
-	{
+	if (m_localtime < min(m_startframe, m_endframe) || m_localtime > max(m_startframe, m_endframe)) {
 		switch (m_playtype) {
 			case ACT_ACTION_PLAY:
 				// Clamp
@@ -199,8 +196,7 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 			// with files made prior to animation changes from GSoC 2011.
 			playtype = BL_Action::ACT_MODE_PLAY;
 
-			if (m_flag & ACT_FLAG_REVERSE)
-			{
+			if (m_flag & ACT_FLAG_REVERSE) {
 				start = m_endframe;
 				end = m_startframe;
 			}
@@ -223,8 +219,7 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 
 
 	// Handle events
-	if (frame)
-	{
+	if (frame) {
 		bNegativeEvent = m_negevent;
 		bPositiveEvent = m_posevent;
 		RemoveAllEvents();
@@ -240,8 +235,7 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 		ResetStartTime(curtime);
 
 	// Handle a frame property if it's defined
-	if ((m_flag & ACT_FLAG_ACTIVE) && m_framepropname[0] != 0)
-	{
+	if ((m_flag & ACT_FLAG_ACTIVE) && m_framepropname[0] != 0) {
 		CValue *oldprop = obj->GetProperty(m_framepropname);
 		CValue *newval = new CFloatValue(obj->GetActionFrame(m_layer));
 		if (oldprop)
@@ -253,8 +247,7 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 	}
 
 	// Handle a finished animation
-	if ((m_flag & ACT_FLAG_PLAY_END) && (m_flag & ACT_FLAG_ACTIVE) && obj->IsActionDone(m_layer))
-	{
+	if ((m_flag & ACT_FLAG_PLAY_END) && (m_flag & ACT_FLAG_ACTIVE) && obj->IsActionDone(m_layer)) {
 		m_flag &= ~ACT_FLAG_ACTIVE;
 
 		if (m_playtype == ACT_ACTION_PINGPONG) {
@@ -270,17 +263,14 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 	if (obj->GetCurrentAction(m_layer) != m_action && !obj->IsActionDone(m_layer))
 		m_flag &= ~ACT_FLAG_ACTIVE;
 
-	if (bPositiveEvent || (m_flag & ACT_FLAG_ATTEMPT_PLAY && !(m_flag & ACT_FLAG_ACTIVE)))
-	{
-		if (bPositiveEvent && m_playtype == ACT_ACTION_PLAY)
-		{
+	if (bPositiveEvent || (m_flag & ACT_FLAG_ATTEMPT_PLAY && !(m_flag & ACT_FLAG_ACTIVE))) {
+		if (bPositiveEvent && m_playtype == ACT_ACTION_PLAY) {
 			if (obj->IsActionDone(m_layer))
 				m_localtime = start;
 			ResetStartTime(curtime);
 		}
 
-		if (obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, m_blendin, playtype, m_layer_weight, m_ipo_flags, 1.f, blendmode))
-		{
+		if (obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, m_blendin, playtype, m_layer_weight, m_ipo_flags, 1.0f, blendmode)) {
 			m_flag |= ACT_FLAG_ACTIVE;
 			if (bUseContinue)
 				obj->SetActionFrame(m_layer, m_localtime);
@@ -292,13 +282,11 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 		}
 		m_flag |= ACT_FLAG_ATTEMPT_PLAY;
 	}
-	else if ((m_flag & ACT_FLAG_ACTIVE) && bNegativeEvent)
-	{
+	else if ((m_flag & ACT_FLAG_ACTIVE) && bNegativeEvent) {
 		m_flag &= ~ACT_FLAG_ATTEMPT_PLAY;
 		m_localtime = obj->GetActionFrame(m_layer);
 		bAction *curr_action = obj->GetCurrentAction(m_layer);
-		if (curr_action && curr_action != m_action)
-		{
+		if (curr_action && curr_action != m_action) {
 			// Someone changed the action on us, so we wont mess with it
 			// Hopefully there wont be too many problems with two actuators using
 			// the same action...
@@ -325,7 +313,7 @@ bool BL_ActionActuator::Update(double curtime, bool frame)
 				float temp = end;
 				end = start;
 				start = curr_action ? obj->GetActionFrame(m_layer) : temp;
-				obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, 0, BL_Action::ACT_MODE_PLAY, m_layer_weight, m_ipo_flags, 1.f, blendmode);
+				obj->PlayAction(m_action->id.name + 2, start, end, m_layer, m_priority, 0, BL_Action::ACT_MODE_PLAY, m_layer_weight, m_ipo_flags, 1.0f, blendmode);
 
 				m_flag |= ACT_FLAG_PLAY_END;
 				break;
@@ -534,19 +522,19 @@ PyMethodDef BL_ActionActuator::Methods[] = {
 };
 
 PyAttributeDef BL_ActionActuator::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW("frameStart", 0, MAXFRAMEF, BL_ActionActuator, m_startframe),
-	KX_PYATTRIBUTE_FLOAT_RW("frameEnd", 0, MAXFRAMEF, BL_ActionActuator, m_endframe),
-	KX_PYATTRIBUTE_FLOAT_RW("blendIn", 0, MAXFRAMEF, BL_ActionActuator, m_blendin),
+	KX_PYATTRIBUTE_FLOAT_RW("frameStart", 0.0f, MAXFRAMEF, BL_ActionActuator, m_startframe),
+	KX_PYATTRIBUTE_FLOAT_RW("frameEnd", 0.0f, MAXFRAMEF, BL_ActionActuator, m_endframe),
+	KX_PYATTRIBUTE_FLOAT_RW("blendIn", 0.0f, MAXFRAMEF, BL_ActionActuator, m_blendin),
 	KX_PYATTRIBUTE_RW_FUNCTION("action", BL_ActionActuator, pyattr_get_action, pyattr_set_action),
 	KX_PYATTRIBUTE_RO_FUNCTION("channelNames", BL_ActionActuator, pyattr_get_channel_names),
 	KX_PYATTRIBUTE_SHORT_RW("priority", 0, 100, false, BL_ActionActuator, m_priority),
 	KX_PYATTRIBUTE_SHORT_RW("layer", 0, MAX_ACTION_LAYERS - 1, true, BL_ActionActuator, m_layer),
-	KX_PYATTRIBUTE_FLOAT_RW("layerWeight", 0, 1.0, BL_ActionActuator, m_layer_weight),
+	KX_PYATTRIBUTE_FLOAT_RW("layerWeight", 0.0f, 1.0f, BL_ActionActuator, m_layer_weight),
 	KX_PYATTRIBUTE_RW_FUNCTION("frame", BL_ActionActuator, pyattr_get_frame, pyattr_set_frame),
 	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_propname),
 	KX_PYATTRIBUTE_STRING_RW("framePropName", 0, MAX_PROP_NAME, false, BL_ActionActuator, m_framepropname),
 	KX_PYATTRIBUTE_RW_FUNCTION("useContinue", BL_ActionActuator, pyattr_get_use_continue, pyattr_set_use_continue),
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("blendTime", 0, MAXFRAMEF, BL_ActionActuator, m_blendframe, CheckBlendTime),
+	KX_PYATTRIBUTE_FLOAT_RW_CHECK("blendTime", 0.0f, MAXFRAMEF, BL_ActionActuator, m_blendframe, CheckBlendTime),
 	KX_PYATTRIBUTE_SHORT_RW_CHECK("mode", 0, 100, false, BL_ActionActuator, m_playtype, CheckType),
 	{ NULL }    //Sentinel
 };
@@ -561,8 +549,7 @@ int BL_ActionActuator::pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF 
 {
 	BL_ActionActuator *self = static_cast<BL_ActionActuator *>(self_v);
 
-	if (!PyUnicode_Check(value))
-	{
+	if (!PyUnicode_Check(value)) {
 		PyErr_SetString(PyExc_ValueError, "actuator.action = val: Action Actuator, expected the string name of the action");
 		return PY_SET_ATTR_FAIL;
 	}
@@ -570,11 +557,9 @@ int BL_ActionActuator::pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF 
 	bAction *action = NULL;
 	STR_String val = _PyUnicode_AsString(value);
 
-	if (val != "")
-	{
+	if (val != "") {
 		action = (bAction *)SCA_ILogicBrick::m_sCurrentLogicManager->GetActionByName(val);
-		if (!action)
-		{
+		if (!action) {
 			PyErr_SetString(PyExc_ValueError, "actuator.action = val: Action Actuator, action not found!");
 			return PY_SET_ATTR_FAIL;
 		}

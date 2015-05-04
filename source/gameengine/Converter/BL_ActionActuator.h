@@ -37,6 +37,8 @@
 #include "DNA_actuator_types.h"
 #include "MT_Point3.h"
 
+struct bAction;
+
 class BL_ActionActuator : public SCA_IActuator
 {
 public:
@@ -46,7 +48,7 @@ public:
 	                  const STR_String& framepropname,
 	                  float starttime,
 	                  float endtime,
-	                  struct bAction *action,
+	                  bAction *action,
 	                  short playtype,
 	                  short blend_mode,
 	                  short blendin,
@@ -66,10 +68,12 @@ public:
 	void SetLocalTime(float curtime);
 	void ResetStartTime(float curtime);
 
-	bAction *GetAction() {
+	bAction *GetAction()
+	{
 		return m_action;
 	}
-	void        SetAction(bAction *act) {
+	void SetAction(bAction *act)
+	{
 		m_action = act;
 	}
 
@@ -78,13 +82,13 @@ public:
 	KX_PYMETHOD_O(BL_ActionActuator, GetChannel)
 	KX_PYMETHOD_DOC(BL_ActionActuator, setChannel)
 
-	static PyObject *    pyattr_get_action(void *self_v, const KX_PYATTRIBUTE_DEF * attrdef);
-	static int          pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static PyObject *pyattr_get_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
+	static int pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_channel_names(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *pyattr_get_use_continue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int          pyattr_set_use_continue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_use_continue(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 	static PyObject *pyattr_get_frame(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int          pyattr_set_frame(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_frame(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	static int CheckBlendTime(void *self, const PyAttributeDef *)
 	{
@@ -138,7 +142,7 @@ protected:
 	short m_priority;
 	short m_layer;
 	short m_ipo_flags;
-	struct bAction *m_action;
+	bAction *m_action;
 	STR_String m_propname;
 	STR_String m_framepropname;
 };
@@ -157,4 +161,3 @@ enum {
 };
 
 #endif
-
