@@ -84,7 +84,8 @@ typedef struct Key {
 	 * (each one char) used for calculating shape key-blocks */
 	char elemstr[32];
 	int elemsize;  /* size of each element in #KeyBlock.data, use for allocation and stride */
-	int pad;
+	short fromtype;
+	short pad;
 	
 	ListBase block;  /* list of KeyBlock's */
 	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
@@ -103,6 +104,16 @@ typedef struct Key {
 	/* can never be 0, this is used for detecting old data */
 	int uidgen; /* current free uid for keyblocks */
 } Key;
+
+/* Key->fromtype
+ * XXX terrible mess, legacy code is redundant in several places, lets just add to the confusion ...
+ * Internally the code uses legacy IPO_* defines combined with the Key->from ID and a mode for curves.
+ * This enum allows using Key without a 'from' ID block and without knowing the legacy IPO enum.
+ */
+enum {
+	KEY_FROMTYPE_ID                 = 0,
+	KEY_FROMTYPE_STRANDS            = 1,
+};
 
 /* **************** KEY ********************* */
 

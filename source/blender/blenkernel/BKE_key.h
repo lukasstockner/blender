@@ -48,15 +48,10 @@ struct WeightsArrayCache;
 extern "C" {
 #endif
 
-/* old defines from DNA_ipo_types.h for data-type, stored in DNA - don't modify! */
-#define IPO_FLOAT       4
-#define IPO_BEZTRIPLE   100
-#define IPO_BPOINT      101
-
 void        BKE_key_free(struct Key *sc);
 void        BKE_key_free_nolib(struct Key *key);
 struct Key *BKE_key_add(struct ID *id);
-struct Key *BKE_key_add_ex(struct ID *from, char elemtype, char numelem, int elemsize);
+struct Key *BKE_key_add_ex(struct ID *from, short fromtype);
 struct Key *BKE_key_copy(struct Key *key);
 struct Key *BKE_key_copy_nolib(struct Key *key);
 void        BKE_key_make_local(struct Key *key);

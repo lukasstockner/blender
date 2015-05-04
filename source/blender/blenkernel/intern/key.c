@@ -66,6 +66,11 @@
 
 #include "RNA_access.h"
 
+/* old defines from DNA_ipo_types.h for data-type, stored in DNA - don't modify! */
+#define IPO_FLOAT       4
+#define IPO_BEZTRIPLE   100
+#define IPO_BPOINT      101
+
 #define KEY_MODE_DUMMY      0 /* use where mode isn't checked for */
 #define KEY_MODE_BPOINT     1
 #define KEY_MODE_BEZTRIPLE  2
@@ -94,57 +99,68 @@ void BKE_key_free_nolib(Key *key)
 	}
 }
 
-Key *BKE_key_add_ex(ID *from, char elemtype, char numelem, int elemsize)    /* common function */
-{
-	Key *key;
-	char *el;
-	
-	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
-	
-	key->type = KEY_NORMAL;
-	key->from = from;
-
-	key->uidgen = 1;
-	
-	el = key->elemstr;
-	
-	el[0] = numelem;
-	el[1] = elemtype;
-	el[2] = 0;
-	
-	key->elemsize = elemsize;
-	
-	return key;
-}
-
-Key *BKE_key_add(ID *id)
+static void key_set_elemstr(ID *id, short fromtype, char *r_elemstr, int *r_elemsize)
 {
 	/* XXX the code here uses some defines which will soon be deprecated... */
 	char elemtype = IPO_FLOAT;
 	char numelem = 0;
 	int elemsize = 0;
 	
-	if (id) {
-		switch (GS(id->name)) {
-			case ID_ME:
-				numelem = 3;
-				elemtype = IPO_FLOAT;
-				elemsize = 12;
-				break;
-			case ID_LT:
-				numelem = 3;
-				elemtype = IPO_FLOAT;
-				elemsize = 12;
-				break;
-			case ID_CU:
-				numelem = 4;
-				elemtype = IPO_BPOINT;
-				elemsize = 16;
-				break;
-		}
+	switch (fromtype) {
+		case KEY_FROMTYPE_ID:
+			if (id) {
+				switch (GS(id->name)) {
+					case ID_ME:
+						numelem = 3;
+						elemtype = IPO_FLOAT;
+						elemsize = 12;
+						break;
+					case ID_LT:
+						numelem = 3;
+						elemtype = IPO_FLOAT;
+						elemsize = 12;
+						break;
+					case ID_CU:
+						numelem = 4;
+						elemtype = IPO_BPOINT;
+						elemsize = 16;
+						break;
+				}
+			}
+			break;
+		case KEY_FROMTYPE_STRANDS:
+			numelem = 3;
+			elemtype = IPO_FLOAT;
+			elemsize = 12;
+			break;
 	}
 	
-	return BKE_key_add_ex(id, elemtype, numelem, elemsize);
+	r_elemstr[0] = numelem;
+	r_elemstr[1] = elemtype;
+	r_elemstr[2] = 0;
+	*r_elemsize = elemsize;
+}
+
+Key *BKE_key_add_ex(ID *from, short fromtype)    /* common function */
+{
+	Key *key;
+	
+	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
+	
+	key->type = KEY_NORMAL;
+	key->from = from;
+	key->fromtype = fromtype;
+
+	key->uidgen = 1;
+	
+	key_set_elemstr(from, fromtype, key->elemstr, &key->elemsize);
+	
+	return key;
+}
+
+Key *BKE_key_add(ID *id)
+{
+	return BKE_key_add_ex(id, KEY_FROMTYPE_ID);
 }
 
 Key *BKE_key_copy(Key *key)
@@ -547,35 +563,42 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 /* currently only the first value of 'ofs' may be set. */
 static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
 {
-	if (key->from == NULL) {
-		return false;
-	}
-
-	switch (GS(key->from->name)) {
-		case ID_ME:
+	switch (key->fromtype) {
+		case KEY_FROMTYPE_ID:
+			if (!key->from)
+				return false;
+			
+			switch (GS(key->from->name)) {
+				case ID_ME:
+					*ofs = sizeof(float) * 3;
+					*poinsize = *ofs;
+					break;
+				case ID_LT:
+					*ofs = sizeof(float) * 3;
+					*poinsize = *ofs;
+					break;
+				case ID_CU:
+					if (mode == KEY_MODE_BPOINT) {
+						*ofs = sizeof(float) * 4;
+						*poinsize = *ofs;
+					}
+					else {
+						ofs[0] = sizeof(float) * 12;
+						*poinsize = (*ofs) / 3;
+					}
+		
+					break;
+				default:
+					BLI_assert(!"invalid 'key->from' ID type");
+					return false;
+			}
+			break;
+		
+		case KEY_FROMTYPE_STRANDS:
 			*ofs = sizeof(float) * 3;
 			*poinsize = *ofs;
 			break;
-		case ID_LT:
-			*ofs = sizeof(float) * 3;
-			*poinsize = *ofs;
-			break;
-		case ID_CU:
-			if (mode == KEY_MODE_BPOINT) {
-				*ofs = sizeof(float) * 4;
-				*poinsize = *ofs;
-			}
-			else {
-				ofs[0] = sizeof(float) * 12;
-				*poinsize = (*ofs) / 3;
-			}
-
-			break;
-		default:
-			BLI_assert(!"invalid 'key->from' ID type");
-			return false;
 	}
-
 	return true;
 }
 
