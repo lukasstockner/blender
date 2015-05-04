@@ -1053,8 +1053,9 @@ static bool disk_is_flagged(BMVert *v, const char api_flag)
 			return false;
 		}
 		
-		if (bmesh_radial_length(l) == 1)
+		if (BM_edge_is_boundary(l->e)) {
 			return false;
+		}
 		
 		do {
 			if (!BM_ELEM_API_FLAG_TEST(l->f, api_flag))
@@ -2600,6 +2601,46 @@ BMVert *bmesh_urmv_loop_multi(
 #undef LOOP_VISIT
 #undef EDGE_VISIT
 
+	return v_new;
+}
+
+static void bmesh_edge_vert_swap__recursive(BMEdge *e, BMVert *v_dst, BMVert *v_src)
+{
+	BMLoop *l_iter, *l_first;
+
+	BLI_assert(ELEM(v_src, e->v1, e->v2));
+	bmesh_disk_vert_replace(e, v_dst, v_src);
+
+	l_iter = l_first = e->l;
+	do {
+		if (l_iter->v == v_src) {
+			l_iter->v = v_dst;
+			if (BM_vert_in_edge(l_iter->prev->e, v_src)) {
+				bmesh_edge_vert_swap__recursive(l_iter->prev->e, v_dst, v_src);
+			}
+		}
+		else if (l_iter->next->v == v_src) {
+			l_iter->next->v = v_dst;
+			if (BM_vert_in_edge(l_iter->next->e, v_src)) {
+				bmesh_edge_vert_swap__recursive(l_iter->next->e, v_dst, v_src);
+			}
+		}
+		else {
+			BLI_assert(l_iter->prev->v != v_src);
+		}
+	} while ((l_iter = l_iter->radial_next) != l_first);
+}
+
+/**
+ * This function assumes l_sep is apart of a larger fan which has already been
+ * isolated by calling bmesh_edge_separate to segragate it radially.
+ */
+BMVert *bmesh_urmv_loop_region(BMesh *bm, BMLoop *l_sep)
+{
+	BMVert *v_new = BM_vert_create(bm, l_sep->v->co, l_sep->v, BM_CREATE_NOP);
+	/* passing either 'l_sep->e', 'l_sep->prev->e' will work */
+	bmesh_edge_vert_swap__recursive(l_sep->e, v_new, l_sep->v);
+	BLI_assert(l_sep->v == v_new);
 	return v_new;
 }
 
