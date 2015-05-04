@@ -63,6 +63,7 @@
 
 #include "ED_fileselect.h"
 #include "ED_info.h"
+#include "ED_outliner.h"
 #include "ED_screen.h"
 #include "ED_view3d.h"
 #include "ED_util.h"
@@ -217,6 +218,7 @@ void WM_main_remove_notifier_reference(const void *reference)
 {
 	Main *bmain = G.main;
 	wmWindowManager *wm = bmain->wm.first;
+
 	if (wm) {
 		wmNotifier *note, *note_next;
 
@@ -227,6 +229,24 @@ void WM_main_remove_notifier_reference(const void *reference)
 				/* don't remove because this causes problems for #wm_event_do_notifiers
 				 * which may be looping on the data (deleting screens) */
 				wm_notifier_clear(note);
+			}
+		}
+	}
+}
+
+void WM_main_remove_editor_id_reference(const ID *id)
+{
+	Main *bmain = G.main;
+	bScreen *sc;
+
+	for (sc = bmain->screen.first; sc; sc = sc->id.next) {
+		ScrArea *sa;
+
+		for (sa = sc->areabase.first; sa; sa = sa->next) {
+			SpaceLink *sl;
+
+			for (sl = sa->spacedata.first; sl; sl = sl->next) {
+				ED_spacedata_id_unref(sl, id);
 			}
 		}
 	}
@@ -293,7 +313,7 @@ void wm_event_do_notifiers(bContext *C)
 						do_anim = true;
 				}
 			}
-			if (ELEM(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_SCENE, NC_WM)) {
+			if (ELEM(note->category, NC_SCENE, NC_OBJECT, NC_GEOM, NC_WM)) {
 				ED_info_stats_clear(win->screen->scene);
 				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_INFO, NULL);
 			}

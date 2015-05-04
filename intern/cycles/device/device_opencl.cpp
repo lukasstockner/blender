@@ -858,6 +858,7 @@ public:
 
 		if(debug_src)
 			path_write_text(*debug_src, source);
+
 		size_t source_len = source.size();
 		const char *source_str = source.c_str();
 
@@ -3398,7 +3399,7 @@ public:
 	*/
 	int2 get_max_render_feasible_tile_size(size_t feasible_global_work_size) {
 		int2 max_render_feasible_tile_size;
-		int square_root_val = sqrt(feasible_global_work_size);
+		int square_root_val = (int)sqrt(feasible_global_work_size);
 		max_render_feasible_tile_size.x = square_root_val;
 		max_render_feasible_tile_size.y = square_root_val;
 

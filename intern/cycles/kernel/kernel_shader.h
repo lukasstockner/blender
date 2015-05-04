@@ -332,9 +332,8 @@ ccl_device void shader_setup_from_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADD
 #endif
 }
 
-
 /* ShaderData setup for displacement */
-/// XXX not used by split kernel
+
 ccl_device void shader_setup_from_displace(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd,
 	int object, int prim, float u, float v)
 {
@@ -534,7 +533,7 @@ ccl_device void shader_merge_closures(ShaderData *sd)
 
 /* BSDF */
 
-ccl_device_inline void _shader_bsdf_multi_eval(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd, const float3 omega_in, float *pdf,
+ccl_device_inline void _shader_bsdf_multi_eval(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd, const float3 omega_in, float *pdf,
 	int skip_bsdf, BsdfEval *result_eval, float sum_pdf, float sum_sample_weight)
 {
 	/* this is the veach one-sample model with balance heuristic, some pdf
@@ -543,7 +542,7 @@ ccl_device_inline void _shader_bsdf_multi_eval(__ADDR_SPACE__ KernelGlobals *kg,
 		if(i == skip_bsdf)
 			continue;
 
-		__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(i);
+		const __ADDR_SPACE__ ShaderClosure *sc = sc_fetch(i);
 
 		if(CLOSURE_IS_BSDF(sc->type)) {
 			float bsdf_pdf = 0.0f;
@@ -569,7 +568,7 @@ ccl_device void shader_bsdf_eval(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE_
 	_shader_bsdf_multi_eval(kg, sd, omega_in, pdf, -1, eval, 0.0f, 0.0f);
 }
 
-ccl_device int shader_bsdf_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ ShaderData *sd,
+ccl_device int shader_bsdf_sample(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd,
 	float randu, float randv, BsdfEval *bsdf_eval,
 	float3 *omega_in, differential3 *domega_in, float *pdf)
 {
@@ -580,7 +579,7 @@ ccl_device int shader_bsdf_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE
 		float sum = 0.0f;
 
 		for(sampled = 0; sampled < sd_fetch(num_closure); sampled++) {
-			__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sampled);
+			const __ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sampled);
 
 			if(CLOSURE_IS_BSDF(sc->type))
 				sum += sc->sample_weight;
@@ -590,7 +589,7 @@ ccl_device int shader_bsdf_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE
 		sum = 0.0f;
 
 		for(sampled = 0; sampled < sd_fetch(num_closure); sampled++) {
-			__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sampled);
+			const __ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sampled);
 
 			if(CLOSURE_IS_BSDF(sc->type)) {
 				sum += sc->sample_weight;
@@ -606,7 +605,7 @@ ccl_device int shader_bsdf_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE
 		}
 	}
 
-	__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sampled);
+	const __ADDR_SPACE__ ShaderClosure *sc = sc_fetch(sampled);
 
 	int label;
 	float3 eval;
@@ -626,8 +625,8 @@ ccl_device int shader_bsdf_sample(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE
 	return label;
 }
 
-ccl_device int shader_bsdf_sample_closure(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE__ const ShaderData *sd,
-	__ADDR_SPACE__ const ShaderClosure *sc, float randu, float randv, BsdfEval *bsdf_eval,
+ccl_device int shader_bsdf_sample_closure(__ADDR_SPACE__ KernelGlobals *kg, const __ADDR_SPACE__ ShaderData *sd,
+	const __ADDR_SPACE__ ShaderClosure *sc, float randu, float randv, BsdfEval *bsdf_eval,
 	float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
@@ -649,7 +648,6 @@ ccl_device void shader_bsdf_blur(__ADDR_SPACE__ KernelGlobals *kg, __ADDR_SPACE_
 
 		if(CLOSURE_IS_BSDF(sc->type))
 			bsdf_blur(kg, sc, roughness);
-
 	}
 }
 
@@ -875,7 +873,7 @@ ccl_device float3 shader_eval_background(__ADDR_SPACE__ KernelGlobals *kg, __ADD
 		float3 eval = make_float3(0.0f, 0.0f, 0.0f);
 
 		for(int i = 0; i< sd_fetch(num_closure); i++) {
-			__ADDR_SPACE__ ShaderClosure *sc = sc_fetch(i);
+			const __ADDR_SPACE__ ShaderClosure *sc = sc_fetch(i);
 
 			if(CLOSURE_IS_BACKGROUND(sc->type))
 				eval += sc->weight;
@@ -1045,7 +1043,6 @@ ccl_device void shader_eval_volume(__ADDR_SPACE__ KernelGlobals *kg, ShaderData 
 #endif
 
 /* Displacement Evaluation */
-/// XXX not used by split kernel
 #ifndef __SPLIT_KERNEL__
 ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderContext ctx)
 {

@@ -325,7 +325,6 @@ ccl_device void kernel_path_ao(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd,
 	}
 }
 
-
 ccl_device void kernel_branched_path_ao(__ADDR_SPACE__ KernelGlobals *kg, ShaderData *sd, PathRadiance *L, PathState *state, RNG *rng, float3 throughput)
 {
 	int num_samples = kernel_data.integrator.ao_samples;
@@ -838,7 +837,6 @@ ccl_device void kernel_branched_path_subsurface_scatter(__ADDR_SPACE__ KernelGlo
 	}
 }
 #endif
-
 
 ccl_device float4 kernel_branched_path_integrate(__ADDR_SPACE__ KernelGlobals *kg, RNG *rng, int sample, Ray ray, ccl_global float *buffer)
 {
