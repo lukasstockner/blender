@@ -52,7 +52,7 @@ typedef struct IconFile {
 #define ICON_DEFAULT_WIDTH_SCALE  ((int)(UI_UNIT_X * 0.8f))
 
 #define ICON_RENDER_DEFAULT_HEIGHT 32
-#define PREVIEW_RENDER_DEFAULT_HEIGHT 128
+#define PREVIEW_RENDER_DEFAULT_HEIGHT 128  /* Warning, also linked to thumbnail code, shal not be changed. */
 
 /*
  * Resizable Icons for Blender
