@@ -38,6 +38,12 @@
 #define ccl_constant __constant
 #define ccl_global __global
 
+#ifdef __SPLIT_KERNEL__
+#define ccl_addr_space __global
+#else
+#define ccl_addr_space
+#endif
+
 /* no assert in opencl */
 #define kernel_assert(cond)
 

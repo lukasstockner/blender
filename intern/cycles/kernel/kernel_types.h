@@ -17,12 +17,6 @@
 #ifndef __KERNEL_TYPES_H__
 #define __KERNEL_TYPES_H__
 
-#ifdef __SPLIT_KERNEL__
-#define ccl_addr_space __global
-#else
-#define ccl_addr_space
-#endif
-
 #include "kernel_math.h"
 #include "svm/svm_types.h"
 
