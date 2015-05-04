@@ -54,6 +54,7 @@ set(SRC_HEADERS
 	kernel_queues.h
 	kernel_random.h
 	kernel_shader.h
+	kernel_shaderdata_vars.h
 	kernel_shadow.h
 	kernel_split.h
 	kernel_subsurface.h
