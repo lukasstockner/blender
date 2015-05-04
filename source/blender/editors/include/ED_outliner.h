@@ -15,21 +15,22 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  *
- * Contributor(s):
+ * The Original Code is Copyright (C) 2015, Blender Foundation
  *
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef __BMESH_EDGESPLIT_H__
-#define __BMESH_EDGESPLIT_H__
-
-/** \file blender/bmesh/tools/bmesh_edgesplit.h
- *  \ingroup bmesh
+/** \file ED_outliner.h
+ *  \ingroup editors
  */
 
-void BM_mesh_edgesplit(
-        BMesh *bm,
-        const bool use_verts,
-        const bool tag_only, const bool copy_select);
+#ifndef __ED_OUTLINER_H__
+#define __ED_OUTLINER_H__
 
-#endif /* __BMESH_EDGESPLIT_H__ */
+struct ID;
+struct SpaceOops;
+
+/* Used to check whether a given texture context is valid in current context. */
+void ED_outliner_id_unref(struct SpaceOops *so, const struct ID *id);
+
+#endif /*  __ED_OUTLINER_H__ */
