@@ -1224,6 +1224,7 @@ static void strandskey_init(StrandsKeyCacheModifier *skmd)
 	skmd->hair_system = -1;
 	
 	skmd->key = BKE_key_add_ex(NULL, KEY_FROMTYPE_STRANDS);
+	skmd->key->type = KEY_RELATIVE;
 }
 
 static void strandskey_copy(StrandsKeyCacheModifier *skmd, StrandsKeyCacheModifier *tskmd)
