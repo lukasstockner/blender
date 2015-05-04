@@ -2011,7 +2011,7 @@ static void lib_link_cache_modifiers(FileData *fd, CacheLibrary *cachelib)
 			case eCacheModifierType_StrandsKey: {
 				StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
 				/* Key is a local ID block, not handled by foreachIDLink */
-				skmd->key = newlibadr(fd, cachelib->id.lib, skmd->key);
+				skmd->key = newlibadr_us(fd, cachelib->id.lib, skmd->key);
 				break;
 			}
 		}
