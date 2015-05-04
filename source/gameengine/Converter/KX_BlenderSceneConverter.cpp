@@ -112,19 +112,19 @@ extern "C" {
 
 /* This is used to avoid including pthread.h in KX_BlenderSceneConverter.h */
 typedef struct ThreadInfo {
-	vector<pthread_t>	threads;
-	pthread_mutex_t		merge_lock;
+	vector<pthread_t> threads;
+	pthread_mutex_t merge_lock;
 } ThreadInfo;
 
 KX_BlenderSceneConverter::KX_BlenderSceneConverter(
-							Main *maggie,
-							KX_KetsjiEngine *engine)
-							:m_maggie(maggie),
-							m_ketsjiEngine(engine),
-							m_alwaysUseExpandFraming(false),
-							m_usemat(false),
-							m_useglslmat(false),
-							m_use_mat_cache(true)
+    Main *maggie,
+    KX_KetsjiEngine *engine)
+	: m_maggie(maggie),
+	m_ketsjiEngine(engine),
+	m_alwaysUseExpandFraming(false),
+	m_usemat(false),
+	m_useglslmat(false),
+	m_use_mat_cache(true)
 {
 	BKE_main_id_tag_all(maggie, false);  /* avoid re-tagging later on */
 	m_newfilename = "";
@@ -157,29 +157,29 @@ KX_BlenderSceneConverter::~KX_BlenderSceneConverter()
 
 	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator itw = m_worldinfos.begin();
 	while (itw != m_worldinfos.end()) {
-		delete (*itw).second;
+		delete itw->second;
 		itw++;
 	}
 	m_worldinfos.clear();
 
-	vector<pair<KX_Scene *,RAS_IPolyMaterial *> >::iterator itp = m_polymaterials.begin();
+	vector<pair<KX_Scene *, RAS_IPolyMaterial *> >::iterator itp = m_polymaterials.begin();
 	while (itp != m_polymaterials.end()) {
-		delete (*itp).second;
+		delete itp->second;
 		itp++;
 	}
 	m_polymaterials.clear();
 
 	// delete after RAS_IPolyMaterial
-	vector<pair<KX_Scene *,BL_Material *> >::iterator itmat = m_materials.begin();
+	vector<pair<KX_Scene *, BL_Material *> >::iterator itmat = m_materials.begin();
 	while (itmat != m_materials.end()) {
-		delete (*itmat).second;
+		delete itmat->second;
 		itmat++;
 	}
 	m_materials.clear();
 
-	vector<pair<KX_Scene *,RAS_MeshObject *> >::iterator itm = m_meshobjects.begin();
+	vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator itm = m_meshobjects.begin();
 	while (itm != m_meshobjects.end()) {
-		delete (*itm).second;
+		delete itm->second;
 		itm++;
 	}
 	m_meshobjects.clear();
@@ -214,10 +214,10 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String &name)
 	if ((sce = (Scene *)BLI_findstring(&m_maggie->scene, name.ReadPtr(), offsetof(ID, name) + 2)))
 		return sce;
 
-	for (vector<Main *>::iterator it=m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
+	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); it != m_DynamicMaggie.end(); it++) {
 		Main *main = *it;
 
-		if ((sce= (Scene *)BLI_findstring(&main->scene, name.ReadPtr(), offsetof(ID, name) + 2)))
+		if ((sce = (Scene *)BLI_findstring(&main->scene, name.ReadPtr(), offsetof(ID, name) + 2)))
 			return sce;
 	}
 
@@ -225,7 +225,7 @@ Scene *KX_BlenderSceneConverter::GetBlenderSceneForName(const STR_String &name)
 }
 
 void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRasterizer *rendertools,
-											RAS_ICanvas *canvas, bool libloading)
+                                            RAS_ICanvas *canvas, bool libloading)
 {
 	//find out which physics engine
 	Scene *blenderscene = destinationscene->GetBlenderScene();
@@ -243,7 +243,7 @@ void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRas
 
 	switch (blenderscene->gm.physicsEngine) {
 #ifdef WITH_BULLET
-	case WOPHY_BULLET:
+		case WOPHY_BULLET:
 		{
 			SYS_SystemHandle syshandle = SYS_GetSystem(); /*unused*/
 			int visualizePhysics = SYS_GetCommandLineInt(syshandle, "show_physics", 0);
@@ -253,8 +253,8 @@ void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRas
 			break;
 		}
 #endif
-	default:
-	case WOPHY_NONE:
+		default:
+		case WOPHY_NONE:
 		{
 			// We should probably use some sort of factory here
 			phy_env = new DummyPhysicsEnvironment();
@@ -266,15 +266,15 @@ void KX_BlenderSceneConverter::ConvertScene(KX_Scene *destinationscene, RAS_IRas
 	destinationscene->SetPhysicsEnvironment(phy_env);
 
 	BL_ConvertBlenderObjects(
-		m_maggie,
-		destinationscene,
-		m_ketsjiEngine,
-		physics_engine,
-		rendertools,
-		canvas,
-		this,
-		m_alwaysUseExpandFraming,
-		libloading);
+	    m_maggie,
+	    destinationscene,
+	    m_ketsjiEngine,
+	    physics_engine,
+	    rendertools,
+	    canvas,
+	    this,
+	    m_alwaysUseExpandFraming,
+	    libloading);
 
 	//These lookup are not needed during game
 	m_map_blender_to_gameactuator.clear();
@@ -303,12 +303,12 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator worldit;
 	size = m_worldinfos.size();
 	for (i = 0, worldit = m_worldinfos.begin(); i < size; ) {
-		if ((*worldit).first == scene) {
-			delete (*worldit).second;
+		if (worldit->first == scene) {
+			delete worldit->second;
 			*worldit = m_worldinfos.back();
 			m_worldinfos.pop_back();
 			size--;
-		} 
+		}
 		else {
 			i++;
 			worldit++;
@@ -318,13 +318,13 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 	vector<pair<KX_Scene *, RAS_IPolyMaterial *> >::iterator polymit;
 	size = m_polymaterials.size();
 	for (i = 0, polymit = m_polymaterials.begin(); i < size; ) {
-		if ((*polymit).first == scene) {
-			m_polymat_cache[scene].erase((*polymit).second->GetBlenderMaterial());
-			delete (*polymit).second;
+		if (polymit->first == scene) {
+			m_polymat_cache[scene].erase(polymit->second->GetBlenderMaterial());
+			delete polymit->second;
 			*polymit = m_polymaterials.back();
 			m_polymaterials.pop_back();
 			size--;
-		} 
+		}
 		else {
 			i++;
 			polymit++;
@@ -336,13 +336,13 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 	vector<pair<KX_Scene *, BL_Material *> >::iterator matit;
 	size = m_materials.size();
 	for (i = 0, matit = m_materials.begin(); i < size; ) {
-		if ((*matit).first == scene) {
-			m_mat_cache[scene].erase((*matit).second->material);
-			delete (*matit).second;
+		if (matit->first == scene) {
+			m_mat_cache[scene].erase(matit->second->material);
+			delete matit->second;
 			*matit = m_materials.back();
 			m_materials.pop_back();
 			size--;
-		} 
+		}
 		else {
 			i++;
 			matit++;
@@ -354,12 +354,12 @@ void KX_BlenderSceneConverter::RemoveScene(KX_Scene *scene)
 	vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator meshit;
 	size = m_meshobjects.size();
 	for (i = 0, meshit = m_meshobjects.begin(); i < size; ) {
-		if ((*meshit).first == scene) {
-			delete (*meshit).second;
+		if (meshit->first == scene) {
+			delete meshit->second;
 			*meshit = m_meshobjects.back();
 			m_meshobjects.pop_back();
 			size--;
-		} 
+		}
 		else {
 			i++;
 			meshit++;
@@ -413,10 +413,10 @@ void KX_BlenderSceneConverter::RegisterBlenderMaterial(BL_Material *mat)
 
 void KX_BlenderSceneConverter::SetAlwaysUseExpandFraming(bool to_what)
 {
-	m_alwaysUseExpandFraming= to_what;
+	m_alwaysUseExpandFraming = to_what;
 }
 
-void KX_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject) 
+void KX_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Object *for_blenderobject)
 {
 	/* only maintained while converting, freed during game runtime */
 	m_map_blender_to_gameobject.insert(CHashedPtr(for_blenderobject), gameobject);
@@ -424,7 +424,7 @@ void KX_BlenderSceneConverter::RegisterGameObject(KX_GameObject *gameobject, Obj
 
 /* only need to run this during conversion since
  * m_map_blender_to_gameobject is freed after conversion */
-void KX_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject) 
+void KX_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 {
 	Object *bobp = gameobject->GetBlenderObject();
 	if (bobp) {
@@ -438,7 +438,7 @@ void KX_BlenderSceneConverter::UnregisterGameObject(KX_GameObject *gameobject)
 	}
 }
 
-KX_GameObject *KX_BlenderSceneConverter::FindGameObject(Object *for_blenderobject) 
+KX_GameObject *KX_BlenderSceneConverter::FindGameObject(Object *for_blenderobject)
 {
 	KX_GameObject **obp = m_map_blender_to_gameobject[CHashedPtr(for_blenderobject)];
 
@@ -448,9 +448,9 @@ KX_GameObject *KX_BlenderSceneConverter::FindGameObject(Object *for_blenderobjec
 void KX_BlenderSceneConverter::RegisterGameMesh(RAS_MeshObject *gamemesh, Mesh *for_blendermesh)
 {
 	if (for_blendermesh) { /* dynamically loaded meshes we don't want to keep lookups for */
-		m_map_mesh_to_gamemesh.insert(CHashedPtr(for_blendermesh),gamemesh);
+		m_map_mesh_to_gamemesh.insert(CHashedPtr(for_blendermesh), gamemesh);
 	}
-	m_meshobjects.push_back(pair<KX_Scene *, RAS_MeshObject *> (m_currentScene,gamemesh));
+	m_meshobjects.push_back(pair<KX_Scene *, RAS_MeshObject *> (m_currentScene, gamemesh));
 }
 
 RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
@@ -459,7 +459,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::FindGameMesh(Mesh *for_blendermesh)
 
 	if (meshp) {
 		return *meshp;
-	} 
+	}
 	else {
 		return NULL;
 	}
@@ -555,33 +555,33 @@ void KX_BlenderSceneConverter::ResetPhysicsObjectsAnimationIpo(bool clearIpo)
 				if (blenderObject) {
 #if 0
 					//erase existing ipo's
-					Ipo* ipo = blenderObject->ipo;//findIpoForName(blenderObject->id.name+2);
-					if (ipo) { 	//clear the curve data
-						if (clearIpo) {//rcruiz
+					Ipo *ipo = blenderObject->ipo; //findIpoForName(blenderObject->id.name+2);
+					if (ipo) {  //clear the curve data
+						if (clearIpo) { //rcruiz
 							IpoCurve *icu1;
 
 							int numCurves = 0;
-							for ( icu1 = (IpoCurve*)ipo->curve.first; icu1;  ) {
+							for (icu1 = (IpoCurve *)ipo->curve.first; icu1; ) {
 
-								IpoCurve* tmpicu = icu1;
+								IpoCurve *tmpicu = icu1;
 
 								/*int i;
-								BezTriple *bezt;
-								for ( bezt = tmpicu->bezt, i = 0;	i < tmpicu->totvert; i++, bezt++) {
-									printf("(%f,%f,%f),(%f,%f,%f),(%f,%f,%f)\n",bezt->vec[0][0],bezt->vec[0][1],bezt->vec[0][2],bezt->vec[1][0],bezt->vec[1][1],bezt->vec[1][2],bezt->vec[2][0],bezt->vec[2][1],bezt->vec[2][2]);
-								}*/
+								   BezTriple *bezt;
+								   for ( bezt = tmpicu->bezt, i = 0;	i < tmpicu->totvert; i++, bezt++) {
+								    printf("(%f,%f,%f),(%f,%f,%f),(%f,%f,%f)\n",bezt->vec[0][0],bezt->vec[0][1],bezt->vec[0][2],bezt->vec[1][0],bezt->vec[1][1],bezt->vec[1][2],bezt->vec[2][0],bezt->vec[2][1],bezt->vec[2][2]);
+								   }*/
 
 								icu1 = icu1->next;
 								numCurves++;
 
-								BLI_remlink( &( blenderObject->ipo->curve ), tmpicu );
-								if ( tmpicu->bezt )
-									MEM_freeN( tmpicu->bezt );
-								MEM_freeN( tmpicu );
-								localDel_ipoCurve( tmpicu );
+								BLI_remlink(&(blenderObject->ipo->curve), tmpicu);
+								if (tmpicu->bezt)
+									MEM_freeN(tmpicu->bezt);
+								MEM_freeN(tmpicu);
+								localDel_ipoCurve(tmpicu);
 							}
 						}
-					} 
+					}
 					else {
 						ipo = NULL; // XXX add_ipo(blenderObject->id.name+2, ID_OB);
 						blenderObject->ipo = ipo;
@@ -613,8 +613,8 @@ void KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 		for (g = 0; g < numObjects; g++) {
 			KX_GameObject *gameObj = (KX_GameObject *)parentList->GetValue(g);
 			Object *blenderObject = gameObj->GetBlenderObject();
-			if (blenderObject && blenderObject->parent == NULL && gameObj->IsRecordAnimation()) {
-				if (blenderObject->adt == NULL)
+			if (blenderObject && !blenderObject->parent && gameObj->IsRecordAnimation()) {
+				if (!blenderObject->adt)
 					BKE_animdata_add_id(&blenderObject->id);
 
 				if (blenderObject->adt) {
@@ -638,63 +638,63 @@ void KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 					const MT_Point3& position = gameObj->NodeGetWorldPosition();
 					//const MT_Vector3& scale = gameObj->NodeGetWorldScaling();
 					const MT_Matrix3x3& orn = gameObj->NodeGetWorldOrientation();
-					
+
 					float eulerAngles[3];
 					float eulerAnglesOld[3] = {0.0f, 0.0f, 0.0f};
 					float tmat[3][3];
-					
+
 					// XXX animato
-					Ipo* ipo = blenderObject->ipo;
+					Ipo *ipo = blenderObject->ipo;
 
 					//create the curves, if not existing, set linear if new
 
-					IpoCurve *icu_lx = findIpoCurve((IpoCurve *)ipo->curve.first,"LocX");
+					IpoCurve *icu_lx = findIpoCurve((IpoCurve *)ipo->curve.first, "LocX");
 					if (!icu_lx) {
 						icu_lx = verify_ipocurve(&blenderObject->id, ipo->blocktype, NULL, NULL, NULL, OB_LOC_X, 1);
 						if (icu_lx) icu_lx->ipo = IPO_LIN;
 					}
-					IpoCurve *icu_ly = findIpoCurve((IpoCurve *)ipo->curve.first,"LocY");
+					IpoCurve *icu_ly = findIpoCurve((IpoCurve *)ipo->curve.first, "LocY");
 					if (!icu_ly) {
 						icu_ly = verify_ipocurve(&blenderObject->id, ipo->blocktype, NULL, NULL, NULL, OB_LOC_Y, 1);
 						if (icu_ly) icu_ly->ipo = IPO_LIN;
 					}
-					IpoCurve *icu_lz = findIpoCurve((IpoCurve *)ipo->curve.first,"LocZ");
+					IpoCurve *icu_lz = findIpoCurve((IpoCurve *)ipo->curve.first, "LocZ");
 					if (!icu_lz) {
 						icu_lz = verify_ipocurve(&blenderObject->id, ipo->blocktype, NULL, NULL, NULL, OB_LOC_Z, 1);
 						if (icu_lz) icu_lz->ipo = IPO_LIN;
 					}
-					IpoCurve *icu_rx = findIpoCurve((IpoCurve *)ipo->curve.first,"RotX");
+					IpoCurve *icu_rx = findIpoCurve((IpoCurve *)ipo->curve.first, "RotX");
 					if (!icu_rx) {
 						icu_rx = verify_ipocurve(&blenderObject->id, ipo->blocktype, NULL, NULL, NULL, OB_ROT_X, 1);
 						if (icu_rx) icu_rx->ipo = IPO_LIN;
 					}
-					IpoCurve *icu_ry = findIpoCurve((IpoCurve *)ipo->curve.first,"RotY");
+					IpoCurve *icu_ry = findIpoCurve((IpoCurve *)ipo->curve.first, "RotY");
 					if (!icu_ry) {
 						icu_ry = verify_ipocurve(&blenderObject->id, ipo->blocktype, NULL, NULL, NULL, OB_ROT_Y, 1);
 						if (icu_ry) icu_ry->ipo = IPO_LIN;
 					}
-					IpoCurve *icu_rz = findIpoCurve((IpoCurve *)ipo->curve.first,"RotZ");
+					IpoCurve *icu_rz = findIpoCurve((IpoCurve *)ipo->curve.first, "RotZ");
 					if (!icu_rz) {
 						icu_rz = verify_ipocurve(&blenderObject->id, ipo->blocktype, NULL, NULL, NULL, OB_ROT_Z, 1);
 						if (icu_rz) icu_rz->ipo = IPO_LIN;
 					}
-					
-					if (icu_rx) eulerAnglesOld[0] = eval_icu( icu_rx, frameNumber - 1 ) / ((180 / 3.14159265f) / 10);
-					if (icu_ry) eulerAnglesOld[1] = eval_icu( icu_ry, frameNumber - 1 ) / ((180 / 3.14159265f) / 10);
-					if (icu_rz) eulerAnglesOld[2] = eval_icu( icu_rz, frameNumber - 1 ) / ((180 / 3.14159265f) / 10);
-					
+
+					if (icu_rx) eulerAnglesOld[0] = eval_icu(icu_rx, frameNumber - 1) / ((180 / 3.14159265f) / 10);
+					if (icu_ry) eulerAnglesOld[1] = eval_icu(icu_ry, frameNumber - 1) / ((180 / 3.14159265f) / 10);
+					if (icu_rz) eulerAnglesOld[2] = eval_icu(icu_rz, frameNumber - 1) / ((180 / 3.14159265f) / 10);
+
 					// orn.getValue((float *)tmat); // uses the wrong ordering, cant use this
 					for (int r = 0; r < 3; r++)
 						for (int c = 0; c < 3; c++)
 							tmat[r][c] = orn[c][r];
-					
+
 					// mat3_to_eul( eulerAngles,tmat); // better to use Mat3ToCompatibleEul
-					mat3_to_compatible_eul( eulerAngles, eulerAnglesOld,tmat);
-					
+					mat3_to_compatible_eul(eulerAngles, eulerAnglesOld, tmat);
+
 					//eval_icu
 					for (int x = 0; x < 3; x++)
-						eulerAngles[x] *= (float) ((180 / 3.14159265f) / 10.0);
-					
+						eulerAngles[x] *= (float)((180 / 3.14159265f) / 10.0);
+
 					//fill the curves with data
 					if (icu_lx) insert_vert_icu(icu_lx, frameNumber, position.x(), 1);
 					if (icu_ly) insert_vert_icu(icu_ly, frameNumber, position.y(), 1);
@@ -702,7 +702,7 @@ void KX_BlenderSceneConverter::WritePhysicsObjectToAnimationIpo(int frameNumber)
 					if (icu_rx) insert_vert_icu(icu_rx, frameNumber, eulerAngles[0], 1);
 					if (icu_ry) insert_vert_icu(icu_ry, frameNumber, eulerAngles[1], 1);
 					if (icu_rz) insert_vert_icu(icu_rz, frameNumber, eulerAngles[2], 1);
-					
+
 					// Handles are corrected at the end, testhandles_ipocurve isn't needed yet
 #endif
 				}
@@ -742,16 +742,16 @@ void KX_BlenderSceneConverter::TestHandlesPhysicsObjectToAnimationIpo()
 					}
 #if 0
 					// XXX animato
-					Ipo* ipo = blenderObject->ipo;
+					Ipo *ipo = blenderObject->ipo;
 
 					//create the curves, if not existing
 					//testhandles_ipocurve checks for NULL
-					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first,"LocX"));
-					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first,"LocY"));
-					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first,"LocZ"));
-					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first,"RotX"));
-					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first,"RotY"));
-					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first,"RotZ"));
+					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first, "LocX"));
+					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first, "LocY"));
+					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first, "LocZ"));
+					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first, "RotX"));
+					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first, "RotY"));
+					testhandles_ipocurve(findIpoCurve((IpoCurve *)ipo->curve.first, "RotZ"));
 #endif
 				}
 			}
@@ -773,10 +773,10 @@ vector<Main *> &KX_BlenderSceneConverter::GetMainDynamic()
 
 Main *KX_BlenderSceneConverter::GetMainDynamicPath(const char *path)
 {
-	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++)
+	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); it != m_DynamicMaggie.end(); it++)
 		if (BLI_path_cmp((*it)->name, path) == 0)
 			return *it;
-	
+
 	return NULL;
 }
 
@@ -792,7 +792,7 @@ void KX_BlenderSceneConverter::MergeAsyncLoads()
 	for (mit = m_mergequeue.begin(); mit != m_mergequeue.end(); ++mit) {
 		merge_scenes = (vector<KX_Scene *> *)(*mit)->GetData();
 
-		for (sit=merge_scenes->begin(); sit!=merge_scenes->end(); ++sit) {
+		for (sit = merge_scenes->begin(); sit != merge_scenes->end(); ++sit) {
 			(*mit)->GetMergeScene()->MergeScene(*sit);
 			delete (*sit);
 		}
@@ -861,7 +861,7 @@ static void load_datablocks(Main *main_tmp, BlendHandle *bpy_openlib, const char
 
 	int totnames_dummy;
 	names = BLO_blendhandle_get_datablock_names(bpy_openlib, idcode, &totnames_dummy);
-	
+
 	int i = 0;
 	LinkNode *n = names;
 	while (n) {
@@ -869,7 +869,7 @@ static void load_datablocks(Main *main_tmp, BlendHandle *bpy_openlib, const char
 		n = (LinkNode *)n->next;
 		i++;
 	}
-	BLI_linklist_free(names, free);	/* free linklist *and* each node's data */
+	BLI_linklist_free(names, free); /* free linklist *and* each node's data */
 }
 
 KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openlib, const char *path, char *group, KX_Scene *scene_merge, char **err_str, short options)
@@ -890,7 +890,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		BLO_blendhandle_close(bpy_openlib);
 		return NULL;
 	}
-	
+
 	if (GetMainDynamicPath(path)) {
 		snprintf(err_local, sizeof(err_local), "blend file already open \"%s\"\n", path);
 		*err_str = err_local;
@@ -898,12 +898,12 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		return NULL;
 	}
 
-	if (bpy_openlib == NULL) {
+	if (!bpy_openlib) {
 		snprintf(err_local, sizeof(err_local), "could not open blendfile \"%s\"\n", path);
 		*err_str = err_local;
 		return NULL;
 	}
-	
+
 	main_newlib = BKE_main_new();
 	BKE_reports_init(&reports, RPT_STORE);
 
@@ -928,19 +928,19 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 
 	BKE_reports_clear(&reports);
 	/* done linking */
-	
+
 	/* needed for lookups*/
 	GetMainDynamic().push_back(main_newlib);
 	BLI_strncpy(main_newlib->name, path, sizeof(main_newlib->name));
-	
-	
+
+
 	status = new KX_LibLoadStatus(this, m_ketsjiEngine, scene_merge, path);
 
 	if (idcode == ID_ME) {
 		/* Convert all new meshes into BGE meshes */
 		ID *mesh;
-	
-		for (mesh = (ID *)main_newlib->mesh.first; mesh; mesh = (ID *)mesh->next ) {
+
+		for (mesh = (ID *)main_newlib->mesh.first; mesh; mesh = (ID *)mesh->next) {
 			if (options & LIB_LOAD_VERBOSE)
 				printf("MeshName: %s\n", mesh->name + 2);
 			RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)mesh, NULL, scene_merge, this, false); // For now only use the libloading option for scenes, which need to handle materials/shaders
@@ -951,7 +951,7 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		/* Convert all actions */
 		ID *action;
 
-		for (action= (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
+		for (action = (ID *)main_newlib->action.first; action; action = (ID *)action->next) {
 			if (options & LIB_LOAD_VERBOSE)
 				printf("ActionName: %s\n", action->name + 2);
 			scene_merge->GetLogicManager()->RegisterActionName(action->name + 2, action);
@@ -963,18 +963,18 @@ KX_LibLoadStatus *KX_BlenderSceneConverter::LinkBlendFile(BlendHandle *bpy_openl
 		// scenes gets deleted by the thread when it's done using it (look in async_convert())
 		vector<Scene *> *scenes = (options & LIB_LOAD_ASYNC) ? new vector<Scene *>() : NULL;
 
-		for (scene = (ID *)main_newlib->scene.first; scene; scene = (ID *)scene->next ) {
+		for (scene = (ID *)main_newlib->scene.first; scene; scene = (ID *)scene->next) {
 			if (options & LIB_LOAD_VERBOSE)
 				printf("SceneName: %s\n", scene->name + 2);
-			
+
 			if (options & LIB_LOAD_ASYNC) {
 				scenes->push_back((Scene *)scene);
-			} 
+			}
 			else {
 				/* merge into the base  scene */
-				KX_Scene* other = m_ketsjiEngine->CreateScene((Scene *)scene, true);
+				KX_Scene *other = m_ketsjiEngine->CreateScene((Scene *)scene, true);
 				scene_merge->MergeScene(other);
-			
+
 				// RemoveScene(other); // Don't run this, it frees the entire scene converter data, just delete the scene
 				delete other;
 			}
@@ -1021,11 +1021,11 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	int maggie_index = -1;
 	int i = 0;
 
-	if (maggie == NULL)
+	if (!maggie)
 		return false;
-	
+
 	/* tag all false except the one we remove */
-	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); !(it == m_DynamicMaggie.end()); it++) {
+	for (vector<Main *>::iterator it = m_DynamicMaggie.begin(); it != m_DynamicMaggie.end(); it++) {
 		Main *main = *it;
 		if (main != maggie) {
 			BKE_main_id_tag_all(main, false);
@@ -1060,9 +1060,9 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 			/* in case the mesh might be refered to later */
 			{
 				CTR_Map<STR_HashedString, void *> &mapStringToMeshes = scene->GetLogicManager()->GetMeshMap();
-				
+
 				for (int i = 0; i < mapStringToMeshes.size(); i++) {
-					RAS_MeshObject *meshobj = (RAS_MeshObject *) *mapStringToMeshes.at(i);
+					RAS_MeshObject *meshobj = (RAS_MeshObject *)*mapStringToMeshes.at(i);
 					if (meshobj && IS_TAGGED(meshobj->GetMesh())) {
 						STR_HashedString mn = meshobj->GetName();
 						mapStringToMeshes.remove(mn);
@@ -1077,7 +1077,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 				CTR_Map<STR_HashedString, void *> &mapStringToActions = scene->GetLogicManager()->GetActionMap();
 
 				for (int i = 0; i < mapStringToActions.size(); i++) {
-					ID *action = (ID*) *mapStringToActions.at(i);
+					ID *action = (ID *)*mapStringToActions.at(i);
 
 					if (IS_TAGGED(action)) {
 						STR_HashedString an = action->name + 2;
@@ -1086,7 +1086,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 					}
 				}
 			}
-			
+
 			//scene->FreeTagged(); /* removed tagged objects and meshes*/
 			CListValue *obj_lists[] = {scene->GetObjectList(), scene->GetInactiveList(), NULL};
 
@@ -1095,7 +1095,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 				RAS_MeshObject *mesh;
 
 				for (int ob_idx = 0; ob_idx < obs->GetCount(); ob_idx++) {
-					KX_GameObject *gameobj = (KX_GameObject*)obs->GetValue(ob_idx);
+					KX_GameObject *gameobj = (KX_GameObject *)obs->GetValue(ob_idx);
 					if (IS_TAGGED(gameobj->GetBlenderObject())) {
 						int size_before = obs->GetCount();
 
@@ -1149,15 +1149,16 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	// delete the entities of this scene
 	/* TODO - */
 #if 0
-	vector<pair<KX_Scene*,KX_WorldInfo*> >::iterator worldit;
+	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator worldit;
 	size = m_worldinfos.size();
-	for (i=0, worldit=m_worldinfos.begin(); i<size; ) {
+	for (i = 0, worldit = m_worldinfos.begin(); i < size; ) {
 		if ((*worldit).second) {
 			delete (*worldit).second;
 			*worldit = m_worldinfos.back();
 			m_worldinfos.pop_back();
 			size--;
-		} else {
+		}
+		else {
 			i++;
 			worldit++;
 		}
@@ -1176,13 +1177,13 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 
 	vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator worldit;
 	size = m_worldinfos.size();
-	for (i = 0, worldit = m_worldinfos.begin(); i < size;) {
-		if ((*worldit).second && (worldset.count((*worldit).second)) == 0) {
-			delete (*worldit).second;
+	for (i = 0, worldit = m_worldinfos.begin(); i < size; ) {
+		if (worldit->second && (worldset.count(worldit->second)) == 0) {
+			delete worldit->second;
 			*worldit = m_worldinfos.back();
 			m_worldinfos.pop_back();
 			size--;
-		} 
+		}
 		else {
 			i++;
 			worldit++;
@@ -1195,7 +1196,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	size = m_polymaterials.size();
 
 	for (i = 0, polymit = m_polymaterials.begin(); i < size; ) {
-		RAS_IPolyMaterial *mat = (*polymit).second;
+		RAS_IPolyMaterial *mat = polymit->second;
 		Material *bmat = NULL;
 
 		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial *>(mat);
@@ -1203,7 +1204,7 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 
 		if (IS_TAGGED(bmat)) {
 			/* only remove from bucket */
-			((*polymit).first)->GetBucketManager()->RemoveMaterial(mat);
+			polymit->first->GetBucketManager()->RemoveMaterial(mat);
 		}
 
 		i++;
@@ -1211,18 +1212,19 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	}
 
 	for (i = 0, polymit = m_polymaterials.begin(); i < size; ) {
-		RAS_IPolyMaterial *mat = (*polymit).second;
+		RAS_IPolyMaterial *mat = polymit->second;
 		Material *bmat = NULL;
 
-		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial*>(mat);
+		KX_BlenderMaterial *bl_mat = static_cast<KX_BlenderMaterial *>(mat);
 		bmat = bl_mat->GetBlenderMaterial();
 
 		if (IS_TAGGED(bmat)) {
-			delete (*polymit).second;
+			delete polymit->second;
 			*polymit = m_polymaterials.back();
 			m_polymaterials.pop_back();
 			size--;
-		} else {
+		}
+		else {
 			i++;
 			polymit++;
 		}
@@ -1231,13 +1233,13 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	vector<pair<KX_Scene *, BL_Material *> >::iterator matit;
 	size = m_materials.size();
 	for (i = 0, matit = m_materials.begin(); i < size; ) {
-		BL_Material *mat = (*matit).second;
+		BL_Material *mat = matit->second;
 		if (IS_TAGGED(mat->material)) {
-			delete (*matit).second;
+			delete matit->second;
 			*matit = m_materials.back();
 			m_materials.pop_back();
 			size--;
-		} 
+		}
 		else {
 			i++;
 			matit++;
@@ -1250,8 +1252,8 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 	RAS_BucketManager::BucketList buckets;
 
 	size = m_meshobjects.size();
-	for (i = 0, meshit = m_meshobjects.begin(); i < size;) {
-		RAS_MeshObject *me = (*meshit).second;
+	for (i = 0, meshit = m_meshobjects.begin(); i < size; ) {
+		RAS_MeshObject *me = meshit->second;
 		if (IS_TAGGED(me->GetMesh())) {
 			// Before deleting the mesh object, make sure the rasterizer is
 			// no longer referencing it.
@@ -1281,11 +1283,11 @@ bool KX_BlenderSceneConverter::FreeBlendFile(Main *maggie)
 			}
 
 			// Now it should be safe to delete
-			delete (*meshit).second;
+			delete meshit->second;
 			*meshit = m_meshobjects.back();
 			m_meshobjects.pop_back();
 			size--;
-		} 
+		}
 		else {
 			i++;
 			meshit++;
@@ -1316,8 +1318,8 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 	{
 		vector<pair<KX_Scene *, KX_WorldInfo *> >::iterator itp = m_worldinfos.begin();
 		while (itp != m_worldinfos.end()) {
-			if ((*itp).first == from)
-				(*itp).first = to;
+			if (itp->first == from)
+				itp->first = to;
 			itp++;
 		}
 	}
@@ -1325,11 +1327,11 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 	{
 		vector<pair<KX_Scene *, RAS_IPolyMaterial *> >::iterator itp = m_polymaterials.begin();
 		while (itp != m_polymaterials.end()) {
-			if ((*itp).first == from) {
-				(*itp).first = to;
+			if (itp->first == from) {
+				itp->first = to;
 
 				/* also switch internal data */
-				RAS_IPolyMaterial *mat = (*itp).second;
+				RAS_IPolyMaterial *mat = itp->second;
 				mat->Replace_IScene(to);
 			}
 			itp++;
@@ -1339,8 +1341,8 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 	{
 		vector<pair<KX_Scene *, RAS_MeshObject *> >::iterator itp = m_meshobjects.begin();
 		while (itp != m_meshobjects.end()) {
-			if ((*itp).first == from)
-				(*itp).first = to;
+			if (itp->first == from)
+				itp->first = to;
 			itp++;
 		}
 	}
@@ -1348,8 +1350,8 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 	{
 		vector<pair<KX_Scene *, BL_Material *> >::iterator itp = m_materials.begin();
 		while (itp != m_materials.end()) {
-			if ((*itp).first == from)
-				(*itp).first = to;
+			if (itp->first == from)
+				itp->first = to;
 			itp++;
 		}
 	}
@@ -1362,10 +1364,10 @@ bool KX_BlenderSceneConverter::MergeScene(KX_Scene *to, KX_Scene *from)
 RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene, Main *maggie, const char *name)
 {
 	/* Find a mesh in the current main */
-	ID *me= static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name, offsetof(ID, name) + 2));
+	ID *me = static_cast<ID *>(BLI_findstring(&m_maggie->mesh, name, offsetof(ID, name) + 2));
 	Main *from_maggie = m_maggie;
 
-	if (me == NULL) {
+	if (!me) {
 		// The mesh wasn't in the current main, try any dynamic (i.e., LibLoaded) ones
 		vector<Main *>::iterator it;
 
@@ -1378,7 +1380,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 		}
 	}
 
-	if (me == NULL) {
+	if (!me) {
 		printf("Could not be found \"%s\"\n", name);
 		return NULL;
 	}
@@ -1388,7 +1390,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 #ifdef DEBUG
 		printf("Mesh has a user \"%s\"\n", name);
 #endif
-		me = (ID*)BKE_mesh_copy_ex(from_maggie, (Mesh*)me);
+		me = (ID *)BKE_mesh_copy_ex(from_maggie, (Mesh *)me);
 		me->us--;
 	}
 	BLI_remlink(&from_maggie->mesh, me); /* even if we made the copy it needs to be removed */
@@ -1434,7 +1436,7 @@ RAS_MeshObject *KX_BlenderSceneConverter::ConvertMeshSpecial(KX_Scene *kx_scene,
 
 	m_currentScene = kx_scene; // This needs to be set in case we LibLoaded earlier
 	RAS_MeshObject *meshobj = BL_ConvertMesh((Mesh *)me, NULL, kx_scene, this, false);
-	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(),meshobj);
+	kx_scene->GetLogicManager()->RegisterMeshName(meshobj->GetName(), meshobj);
 	m_map_mesh_to_gamemesh.clear(); /* This is at runtime so no need to keep this, BL_ConvertMesh adds */
 	return meshobj;
 }
