@@ -3721,17 +3721,27 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 	string platform_name;
 	cl_device_type device_type;
 	if(get_platform_and_devicetype(info, platform_name, device_type)) {
-		if(platform_name == "AMD Accelerated Parallel Processing" && device_type == CL_DEVICE_TYPE_GPU) {
-			/* if the device is an AMD GPU, take split kernel path */
+		const bool force_split_kernel = getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL;
+		/* TODO(sergey): Replace string lookups with more enum-like API,
+		 * similar to device/venfdor checks blender's gpu.
+		 */
+		if(force_split_kernel ||
+		   (platform_name == "AMD Accelerated Parallel Processing" &&
+		    device_type == CL_DEVICE_TYPE_GPU))
+		{
+			/* If the device is an AMD GPU, take split kernel path. */
+			VLOG(1) << "Using split kernel";
 			return new OpenCLDeviceSplitKernel(info, stats, background);
 		} else {
-			/* For any other device, take megakernel path */
+			/* For any other device, take megakernel path. */
+			VLOG(1) << "Using megekernel";
 			return new OpenCLDeviceMegaKernel(info, stats, background);
 		}
 	} else {
 		/* If we can't retrieve platform and device type information for some reason,
-		 * we default to megakernel path
+		 * we default to megakernel path.
 		 */
+		VLOG(1) << "Failed to rertieve platform or device, using megakernel";
 		return new OpenCLDeviceMegaKernel(info, stats, background);
 	}
 }
