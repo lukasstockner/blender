@@ -47,27 +47,26 @@
 
 #include "RAS_Deformer.h"
 
-
 class BL_SkinDeformer : public BL_MeshDeformer
 {
 public:
 //	void SetArmatureController (BL_ArmatureController *cont);
-	virtual void Relink(CTR_Map<class CTR_HashedPtr, void *> *map);
+	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *map);
 	void SetArmature(class BL_ArmatureObject *armobj);
 
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
-	                struct Object *bmeshobj,
-					class RAS_MeshObject *mesh,
+	                Object *bmeshobj,
+					RAS_MeshObject *mesh,
 						BL_ArmatureObject *arma = NULL);
 
 	/* this second constructor is needed for making a mesh deformable on the fly. */
 	BL_SkinDeformer(BL_DeformableGameObject *gameobj,
-	                struct Object *bmeshobj_old,
-	                struct Object *bmeshobj_new,
-					class RAS_MeshObject *mesh,
-						bool release_object,
-						bool recalc_normal,
-						BL_ArmatureObject *arma = NULL);
+	                Object *bmeshobj_old,
+	                Object *bmeshobj_new,
+					RAS_MeshObject *mesh,
+					bool release_object,
+					bool recalc_normal,
+					BL_ArmatureObject *arma = NULL);
 
 	virtual RAS_Deformer *GetReplica();
 	virtual void ProcessReplica();
@@ -92,7 +91,7 @@ public:
 	void ForceUpdate()
 	{
 		m_lastArmaUpdate = -1.0;
-	};
+	}
 	virtual bool ShareVertexArray()
 	{
 		return false;
