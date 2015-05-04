@@ -482,7 +482,7 @@ float file_font_pointsize(void)
 #endif
 }
 
-static void column_widths(struct FileList *UNUSED(files), struct FileLayout *layout)
+static void column_widths(FileSelectParams *params, struct FileLayout *layout)
 {
 	int i;
 
@@ -490,9 +490,8 @@ static void column_widths(struct FileList *UNUSED(files), struct FileLayout *lay
 		layout->column_widths[i] = 0;
 	}
 
-	/* Biggest possible reasonable values...
-	 * TODO: better ways to get those! */
-	layout->column_widths[COLUMN_NAME] = file_string_width("WMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWM");
+	layout->column_widths[COLUMN_NAME] = ((float)params->thumbnail_size / 8.0f) * UI_UNIT_X;;
+	/* Biggest possible reasonable values... */
 	layout->column_widths[COLUMN_DATE] = file_string_width("23-Dec-89");
 	layout->column_widths[COLUMN_TIME] = file_string_width("23:59");
 	layout->column_widths[COLUMN_SIZE] = file_string_width("987.64 MiB");
@@ -554,7 +553,7 @@ void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
 		layout->height = (int)(BLI_rctf_size_y(&v2d->cur) - 2 * layout->tile_border_y);
 		layout->rows = layout->height / (layout->tile_h + 2 * layout->tile_border_y);
 
-		column_widths(sfile->files, layout);
+		column_widths(params, layout);
 
 		if (params->display == FILE_SHORTDISPLAY) {
 			maxlen = ICON_DEFAULT_WIDTH_SCALE + column_icon_space +
