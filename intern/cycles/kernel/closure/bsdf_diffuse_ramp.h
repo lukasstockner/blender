@@ -35,7 +35,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device float3 bsdf_diffuse_ramp_get_color(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], float pos)
+ccl_device float3 bsdf_diffuse_ramp_get_color(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], float pos)
 {
 	int MAXCOLORS = 8;
 	
@@ -61,7 +61,7 @@ ccl_device void bsdf_diffuse_ramp_blur(ShaderClosure *sc, float roughness)
 {
 }
 
-ccl_device float3 bsdf_diffuse_ramp_eval_reflect(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_diffuse_ramp_eval_reflect(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
 {
 	float3 N = sc->N;
 
@@ -70,12 +70,12 @@ ccl_device float3 bsdf_diffuse_ramp_eval_reflect(ccl_addr_space const ShaderClos
 	return bsdf_diffuse_ramp_get_color(sc, colors, cos_pi) * M_1_PI_F;
 }
 
-ccl_device float3 bsdf_diffuse_ramp_eval_transmit(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_diffuse_ramp_eval_transmit(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
 {
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device int bsdf_diffuse_ramp_sample(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_diffuse_ramp_sample(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float3 N = sc->N;
 

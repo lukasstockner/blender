@@ -60,7 +60,7 @@ ccl_device_inline float bsdf_ashikhmin_shirley_roughness_to_exponent(float rough
 	return 2.0f / (roughness*roughness) - 2.0f;
 }
 
-ccl_device float3 bsdf_ashikhmin_shirley_eval_reflect(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_ashikhmin_shirley_eval_reflect(const ccl_addr_space ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	float3 N = sc->N;
 
@@ -113,7 +113,7 @@ ccl_device float3 bsdf_ashikhmin_shirley_eval_reflect(ccl_addr_space const Shade
 	return make_float3(out, out, out);
 }
 
-ccl_device float3 bsdf_ashikhmin_shirley_eval_transmit(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_ashikhmin_shirley_eval_transmit(const ccl_addr_space ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
@@ -126,7 +126,7 @@ ccl_device_inline void bsdf_ashikhmin_shirley_sample_first_quadrant(float n_x, f
 	*cos_theta = powf(randv, 1.0f / (n_x * cos_phi*cos_phi + n_y * sin_phi*sin_phi + 1.0f));
 }
 
-ccl_device int bsdf_ashikhmin_shirley_sample(ccl_addr_space const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_ashikhmin_shirley_sample(const ccl_addr_space ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float3 N = sc->N;
 

@@ -263,13 +263,13 @@ ccl_device uint lcg_init(uint seed)
  * For branches in the path we must be careful not to reuse the same number
  * in a sequence and offset accordingly. */
 
-ccl_device_inline float path_state_rng_1D(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng, ccl_addr_space const PathState *state, int dimension)
+ccl_device_inline float path_state_rng_1D(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng, const ccl_addr_space PathState *state, int dimension)
 {
 	return path_rng_1D(kg, rng, state->sample, state->num_samples, state->rng_offset + dimension);
 }
 
 
-ccl_device_inline float path_state_rng_1D_for_decision(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng, ccl_addr_space const PathState *state, int dimension)
+ccl_device_inline float path_state_rng_1D_for_decision(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng, const ccl_addr_space PathState *state, int dimension)
 {
 	/* the rng_offset is not increased for transparent bounces. if we do then
 	 * fully transparent objects can become subtly visible by the different
@@ -283,7 +283,7 @@ ccl_device_inline float path_state_rng_1D_for_decision(ccl_addr_space KernelGlob
 }
 
 
-ccl_device_inline void path_state_rng_2D(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng, ccl_addr_space const PathState *state, int dimension, float *fx, float *fy)
+ccl_device_inline void path_state_rng_2D(ccl_addr_space KernelGlobals *kg, ccl_addr_space RNG *rng, const ccl_addr_space PathState *state, int dimension, float *fx, float *fy)
 {
 	path_rng_2D(kg, rng, state->sample, state->num_samples, state->rng_offset + dimension, fx, fy);
 }

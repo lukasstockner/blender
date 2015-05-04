@@ -41,17 +41,17 @@ ccl_device int bsdf_transparent_setup(ccl_addr_space ShaderClosure *sc)
 	return SD_BSDF|SD_TRANSPARENT;
 }
 
-ccl_device float3 bsdf_transparent_eval_reflect(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_transparent_eval_reflect(const ccl_addr_space ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device float3 bsdf_transparent_eval_transmit(ccl_addr_space const ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_transparent_eval_transmit(const ccl_addr_space ShaderClosure *sc, const float3 I, const float3 omega_in, float *pdf)
 {
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device int bsdf_transparent_sample(ccl_addr_space const ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_transparent_sample(const ccl_addr_space ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	// only one direction is possible
 	*omega_in = -I;

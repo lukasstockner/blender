@@ -293,7 +293,7 @@ ccl_device_inline void triangle_intersect_subsurface(
 
 ccl_device_inline float3 triangle_refine(ccl_addr_space KernelGlobals *kg,
                                          ccl_addr_space ShaderData *sd,
-                                         ccl_addr_space const Intersection *isect,
+                                         const ccl_addr_space Intersection *isect,
                                          const Ray *ray)
 {
 	float3 P = ray->P;

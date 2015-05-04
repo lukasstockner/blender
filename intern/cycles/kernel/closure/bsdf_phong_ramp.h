@@ -35,7 +35,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device float3 bsdf_phong_ramp_get_color(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], float pos)
+ccl_device float3 bsdf_phong_ramp_get_color(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], float pos)
 {
 	int MAXCOLORS = 8;
 	
@@ -61,7 +61,7 @@ ccl_device void bsdf_phong_ramp_blur(ccl_addr_space ShaderClosure *sc, float rou
 {
 }
 
-ccl_device float3 bsdf_phong_ramp_eval_reflect(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_phong_ramp_eval_reflect(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
 {
 	float m_exponent = sc->data0;
 	float cosNI = dot(sc->N, omega_in);
@@ -83,12 +83,12 @@ ccl_device float3 bsdf_phong_ramp_eval_reflect(ccl_addr_space const ShaderClosur
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device float3 bsdf_phong_ramp_eval_transmit(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_phong_ramp_eval_transmit(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], const float3 I, const float3 omega_in, float *pdf)
 {
 	return make_float3(0.0f, 0.0f, 0.0f);
 }
 
-ccl_device int bsdf_phong_ramp_sample(ccl_addr_space const ShaderClosure *sc, const float3 colors[8], float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_phong_ramp_sample(const ccl_addr_space ShaderClosure *sc, const float3 colors[8], float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float cosNO = dot(sc->N, I);
 	float m_exponent = sc->data0;
