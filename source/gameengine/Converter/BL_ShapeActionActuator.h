@@ -39,6 +39,9 @@
 #include <vector>
 
 struct Key;
+struct bAction;
+struct PointerRNA;
+
 class BL_ShapeActionActuator : public SCA_IActuator
 {
 public:
@@ -48,7 +51,7 @@ public:
 	                       const STR_String& framepropname,
 	                       float starttime,
 	                       float endtime,
-	                       struct bAction *action,
+	                       bAction *action,
 	                       short playtype,
 	                       short blendin,
 	                       short priority,
@@ -59,19 +62,21 @@ public:
 	virtual void ProcessReplica();
 
 	void SetBlendTime(float newtime);
-	void BlendShape(struct Key *key, float weight);
+	void BlendShape(Key *key, float weight);
 
-	bAction *GetAction() {
+	bAction *GetAction()
+	{
 		return m_action;
 	}
-	void        SetAction(bAction *act) {
+	void        SetAction(bAction *act)
+	{
 		m_action = act;
 	}
 
 #ifdef WITH_PYTHON
 
 	static PyObject *pyattr_get_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef);
-	static int          pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
+	static int pyattr_set_action(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, PyObject *value);
 
 	static int CheckBlendTime(void *self, const PyAttributeDef *)
 	{
@@ -109,7 +114,6 @@ public:
 				PyErr_SetString(PyExc_ValueError, "Shape Action Actuator, invalid play type supplied");
 				return 1;
 		}
-
 	}
 
 #endif  /* WITH_PYTHON */
@@ -138,11 +142,11 @@ protected:
 	float m_stridelength;
 	short m_playtype;
 	short m_priority;
-	struct bAction *m_action;
+	bAction *m_action;
 	STR_String m_framepropname;
 	STR_String m_propname;
 	vector<float> m_blendshape;
-	struct PointerRNA *m_idptr;
+	PointerRNA *m_idptr;
 };
 
 #endif  /* __BL_SHAPEACTIONACTUATOR_H__ */

@@ -62,23 +62,23 @@ BL_ShapeActionActuator::BL_ShapeActionActuator(SCA_IObject *gameobj,
                                                const STR_String& framepropname,
                                                float starttime,
                                                float endtime,
-                                               struct bAction *action,
+                                               bAction *action,
                                                short playtype,
                                                short blendin,
                                                short priority,
                                                float stride)
 	: SCA_IActuator(gameobj, KX_ACT_SHAPEACTION),
 
-	m_lastpos(0, 0, 0),
-	m_blendframe(0),
+	m_lastpos(0.0f, 0.0f, 0.0f),
+	m_blendframe(0.0f),
 	m_flag(0),
 	m_startframe(starttime),
 	m_endframe(endtime),
-	m_starttime(0),
+	m_starttime(0.0f),
 	m_localtime(starttime),
-	m_lastUpdate(-1),
+	m_lastUpdate(-1.0f),
 	m_blendin(blendin),
-	m_blendstart(0),
+	m_blendstart(0.0f),
 	m_stridelength(stride),
 	m_playtype(playtype),
 	m_priority(priority),
@@ -102,7 +102,7 @@ void BL_ShapeActionActuator::ProcessReplica()
 {
 	SCA_IActuator::ProcessReplica();
 	m_localtime = m_startframe;
-	m_lastUpdate = -1;
+	m_lastUpdate = -1.0f;
 }
 
 void BL_ShapeActionActuator::SetBlendTime(float newtime)
@@ -119,26 +119,22 @@ CValue *BL_ShapeActionActuator::GetReplica()
 
 bool BL_ShapeActionActuator::ClampLocalTime()
 {
-	if (m_startframe < m_endframe)  {
-		if (m_localtime < m_startframe)
-		{
+	if (m_startframe < m_endframe) {
+		if (m_localtime < m_startframe) {
 			m_localtime = m_startframe;
 			return true;
 		}
-		else if (m_localtime > m_endframe)
-		{
+		else if (m_localtime > m_endframe) {
 			m_localtime = m_endframe;
 			return true;
 		}
 	}
 	else {
-		if (m_localtime > m_startframe)
-		{
+		if (m_localtime > m_startframe) {
 			m_localtime = m_startframe;
 			return true;
 		}
-		else if (m_localtime < m_endframe)
-		{
+		else if (m_localtime < m_endframe) {
 			m_localtime = m_endframe;
 			return true;
 		}
@@ -148,7 +144,7 @@ bool BL_ShapeActionActuator::ClampLocalTime()
 
 void BL_ShapeActionActuator::SetStartTime(float curtime)
 {
-	float direction = m_startframe < m_endframe ? 1.0 : -1.0;
+	float direction = m_startframe < m_endframe ? 1.0f : -1.0f;
 
 	if (!(m_flag & ACT_FLAG_REVERSE))
 		m_starttime = curtime - direction * (m_localtime - m_startframe) / KX_KetsjiEngine::GetAnimFrameRate();
@@ -175,7 +171,7 @@ void BL_ShapeActionActuator::BlendShape(Key *key, float srcweight)
 	float dstweight;
 	KeyBlock *kb;
 
-	dstweight = 1.0F - srcweight;
+	dstweight = 1.0f - srcweight;
 
 	for (it = m_blendshape.begin(), kb = (KeyBlock *)key->block.first;
 	     kb && it != m_blendshape.end();
@@ -199,8 +195,7 @@ bool BL_ShapeActionActuator::Update(double curtime, bool frame)
 
 	// result = true if animation has to be continued, false if animation stops
 	// maybe there are events for us in the queue !
-	if (frame)
-	{
+	if (frame) {
 		bNegativeEvent = m_negevent;
 		bPositiveEvent = m_posevent;
 		RemoveAllEvents();
@@ -208,8 +203,7 @@ bool BL_ShapeActionActuator::Update(double curtime, bool frame)
 		if (bPositiveEvent)
 			m_flag |= ACT_FLAG_ACTIVE;
 
-		if (bNegativeEvent)
-		{
+		if (bNegativeEvent) {
 			if (!(m_flag & ACT_FLAG_ACTIVE))
 				return false;
 			m_flag &= ~ACT_FLAG_ACTIVE;
@@ -228,7 +222,7 @@ bool BL_ShapeActionActuator::Update(double curtime, bool frame)
 			if (bNegativeEvent) {
 				keepgoing = false;
 				apply = false;
-			};
+			}
 			break;
 		case ACT_ACTION_FROM_PROP:
 			if (bNegativeEvent) {
@@ -324,8 +318,7 @@ bool BL_ShapeActionActuator::Update(double curtime, bool frame)
 
 	/* Check if a wrapping response is needed */
 	if (length) {
-		if (m_localtime < m_startframe || m_localtime > m_endframe)
-		{
+		if (m_localtime < m_startframe || m_localtime > m_endframe) {
 			m_localtime = m_startframe + fmod(m_localtime, length);
 			wrap = true;
 		}
@@ -442,7 +435,7 @@ bool BL_ShapeActionActuator::Update(double curtime, bool frame)
 				// We go through and clear out the keyblocks so there isn't any interference
 				// from other shape actions
 				for (kb = (KeyBlock *)key->block.first; kb; kb = (KeyBlock *)kb->next)
-					kb->curval = 0.f;
+					kb->curval = 0.0f;
 
 				animsys_evaluate_action(m_idptr, m_action, NULL, m_localtime);
 
@@ -515,15 +508,15 @@ PyMethodDef BL_ShapeActionActuator::Methods[] = {
 };
 
 PyAttributeDef BL_ShapeActionActuator::Attributes[] = {
-	KX_PYATTRIBUTE_FLOAT_RW("frameStart", 0, MAXFRAMEF, BL_ShapeActionActuator, m_startframe),
-	KX_PYATTRIBUTE_FLOAT_RW("frameEnd", 0, MAXFRAMEF, BL_ShapeActionActuator, m_endframe),
-	KX_PYATTRIBUTE_FLOAT_RW("blendIn", 0, MAXFRAMEF, BL_ShapeActionActuator, m_blendin),
+	KX_PYATTRIBUTE_FLOAT_RW("frameStart", 0.0f, MAXFRAMEF, BL_ShapeActionActuator, m_startframe),
+	KX_PYATTRIBUTE_FLOAT_RW("frameEnd", 0.0f, MAXFRAMEF, BL_ShapeActionActuator, m_endframe),
+	KX_PYATTRIBUTE_FLOAT_RW("blendIn", 0.0f, MAXFRAMEF, BL_ShapeActionActuator, m_blendin),
 	KX_PYATTRIBUTE_RW_FUNCTION("action", BL_ShapeActionActuator, pyattr_get_action, pyattr_set_action),
 	KX_PYATTRIBUTE_SHORT_RW("priority", 0, 100, false, BL_ShapeActionActuator, m_priority),
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("frame", 0, MAXFRAMEF, BL_ShapeActionActuator, m_localtime, CheckFrame),
+	KX_PYATTRIBUTE_FLOAT_RW_CHECK("frame", 0.0f, MAXFRAMEF, BL_ShapeActionActuator, m_localtime, CheckFrame),
 	KX_PYATTRIBUTE_STRING_RW("propName", 0, MAX_PROP_NAME, false, BL_ShapeActionActuator, m_propname),
 	KX_PYATTRIBUTE_STRING_RW("framePropName", 0, MAX_PROP_NAME, false, BL_ShapeActionActuator, m_framepropname),
-	KX_PYATTRIBUTE_FLOAT_RW_CHECK("blendTime", 0, MAXFRAMEF, BL_ShapeActionActuator, m_blendframe, CheckBlendTime),
+	KX_PYATTRIBUTE_FLOAT_RW_CHECK("blendTime", 0.0f, MAXFRAMEF, BL_ShapeActionActuator, m_blendframe, CheckBlendTime),
 	KX_PYATTRIBUTE_SHORT_RW_CHECK("mode", 0, 100, false, BL_ShapeActionActuator, m_playtype, CheckType),
 	{ NULL }    //Sentinel
 };
@@ -538,8 +531,7 @@ int BL_ShapeActionActuator::pyattr_set_action(void *self_v, const KX_PYATTRIBUTE
 {
 	BL_ShapeActionActuator *self = static_cast<BL_ShapeActionActuator *>(self_v);
 	/* exact copy of BL_ActionActuator's function from here down */
-	if (!PyUnicode_Check(value))
-	{
+	if (!PyUnicode_Check(value)) {
 		PyErr_SetString(PyExc_ValueError, "actuator.action = val: Shape Action Actuator, expected the string name of the action");
 		return PY_SET_ATTR_FAIL;
 	}
@@ -547,11 +539,9 @@ int BL_ShapeActionActuator::pyattr_set_action(void *self_v, const KX_PYATTRIBUTE
 	bAction *action = NULL;
 	STR_String val = _PyUnicode_AsString(value);
 
-	if (val != "")
-	{
+	if (val != "") {
 		action = (bAction *)SCA_ILogicBrick::m_sCurrentLogicManager->GetActionByName(val);
-		if (action == NULL)
-		{
+		if (action == NULL) {
 			PyErr_SetString(PyExc_ValueError, "actuator.action = val: Shape Action Actuator, action not found!");
 			return PY_SET_ATTR_FAIL;
 		}
@@ -559,7 +549,6 @@ int BL_ShapeActionActuator::pyattr_set_action(void *self_v, const KX_PYATTRIBUTE
 
 	self->SetAction(action);
 	return PY_SET_ATTR_SUCCESS;
-
 }
 
 #endif // WITH_PYTHON
