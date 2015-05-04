@@ -1242,17 +1242,33 @@ static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibra
 	walk(userdata, cachelib, &skmd->modifier, (ID **)(&skmd->object));
 }
 
-static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode UNUSED(eval_mode))
+static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 	Object *ob = skmd->object;
 	Strands *strands;
-	
-	/* skip first step and potential backward steps */
-	if (frame <= frame_prev)
-		return;
+	KeyBlock *actkb;
+	float *shape;
 	
 	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands))
 		return;
+	
+	actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
+	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL);
+	if (shape) {
+		StrandsVertex *vert = strands->verts;
+		int totvert = strands->totverts;
+		int i;
+		
+		float *fp = shape;
+		for (i = 0; i < totvert; ++i) {
+			copy_v3_v3(vert->co, fp);
+			
+			fp += 3;
+			++vert;
+		}
+		
+		MEM_freeN(shape);
+	}
 }
 
 CacheModifierTypeInfo cacheModifierType_StrandsKey = {
