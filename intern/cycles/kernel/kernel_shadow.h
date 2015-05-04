@@ -181,7 +181,7 @@ ccl_device_inline bool shadow_blocked(ccl_addr_space KernelGlobals *kg, PathStat
  * one extra ray cast for the cases were we do want transparency. */
 
 #ifdef __SPLIT_KERNEL__
-ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow, ccl_addr_space ShaderData *sd, ccl_addr_space Intersection *isect_global)
+ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow, ccl_addr_space ShaderData *sd_input, ccl_addr_space Intersection *isect_global)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
@@ -230,13 +230,19 @@ ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals 
 #ifdef __VOLUME__
 				/* attenuation between last surface and next surface */
 				if(ps.volume_stack[0].shader != SHADER_NONE) {
-					Ray segment_ray = ray;
+					Ray segment_ray = *ray;
 					segment_ray.t = isect_global->t;
 					kernel_volume_shadow(kg, &ps, &segment_ray, &throughput);
 				}
 #endif
 
 				/* setup shader data at surface */
+#ifdef __SPLIT_KERNEL__
+				ccl_addr_space ShaderData *sd = sd_input;
+#else
+				ShaderData sd_object;
+				ShaderData *sd = &sd_object;
+#endif
 				shader_setup_from_ray(kg, sd, isect_global, ray, state->bounce+1, bounce);
 
 				/* attenuation from transparent surface */
@@ -255,7 +261,7 @@ ccl_device_inline bool shadow_blocked_SPLIT_KERNEL(ccl_addr_space KernelGlobals 
 
 #ifdef __VOLUME__
 				/* exit/enter volume */
-				kernel_volume_stack_enter_exit(kg, &sd, ps.volume_stack);
+				kernel_volume_stack_enter_exit(kg, sd, ps.volume_stack);
 #endif
 
 				bounce++;
