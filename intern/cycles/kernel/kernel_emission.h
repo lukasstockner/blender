@@ -37,7 +37,7 @@ ccl_device_noinline float3 direct_emissive_eval_SPLIT_KERNEL(ccl_addr_space Kern
 		ray.dP = differential3_zero();
 		ray.dD = dI;
 
-		shader_setup_from_background_privateRay(kg, sd, &ray, bounce+1, transparent_bounce);
+		shader_setup_from_background(kg, sd, &ray, bounce+1, transparent_bounce);
 		eval = shader_eval_background(kg, sd, 0, SHADER_CONTEXT_EMISSION);
 	}
 	else
@@ -298,11 +298,13 @@ ccl_device_noinline float3 indirect_background(ccl_addr_space KernelGlobals *kg,
 
 #ifdef __SPLIT_KERNEL__
 	/* evaluate background closure */
-	shader_setup_from_background(kg, sd_global, ray, state->bounce+1, state->transparent_bounce);
+	Ray priv_ray = *ray;
+	shader_setup_from_background(kg, sd_global, &priv_ray, state->bounce+1, state->transparent_bounce);
 	float3 L = shader_eval_background(kg, sd_global, state->flag, SHADER_CONTEXT_EMISSION);
 #else
 	ShaderData sd;
-	shader_setup_from_background(kg, &sd, ray, state->bounce+1, state->transparent_bounce);
+	Ray priv_ray = *ray;
+	shader_setup_from_background(kg, &sd, &priv_ray, state->bounce+1, state->transparent_bounce);
 	float3 L = shader_eval_background(kg, &sd, state->flag, SHADER_CONTEXT_EMISSION);
 #endif
 

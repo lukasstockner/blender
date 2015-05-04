@@ -377,53 +377,8 @@ ccl_device void shader_setup_from_displace(ccl_addr_space KernelGlobals *kg, ccl
 	shader_setup_from_sample(kg, sd, P, Ng, I, shader, object, prim, u, v, 0.0f, TIME_INVALID, 0, 0);
 }
 
-#ifdef __SPLIT_KERNEL__
 /* ShaderData setup from ray into background */
-ccl_device_inline void shader_setup_from_background_privateRay(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, Ray *ray, int bounce, int transparent_bounce)
-{
-	/* vectors */
-	sd_fetch(P) = ray->D;
-	sd_fetch(N) = -ray->D;
-	sd_fetch(Ng) = -ray->D;
-	sd_fetch(I) = -ray->D;
-	sd_fetch(shader) = kernel_data.background.surface_shader;
-	sd_fetch(flag) = kernel_tex_fetch(__shader_flag, (sd_fetch(shader) & SHADER_MASK)*2);
-#ifdef __OBJECT_MOTION__
-	sd->time = ray->time;
-#endif
-	sd_fetch(ray_length) = 0.0f;
-	sd_fetch(ray_depth) = bounce;
-	sd_fetch(transparent_depth) = transparent_bounce;
-
-#ifdef __INSTANCING__
-	sd_fetch(object) = PRIM_NONE;
-#endif
-	sd_fetch(prim) = PRIM_NONE;
-#ifdef __UV__
-	sd_fetch(u) = 0.0f;
-	sd_fetch(v) = 0.0f;
-#endif
-
-#ifdef __DPDU__
-	/* dPdu/dPdv */
-	sd_fetch(dPdu) = make_float3(0.0f, 0.0f, 0.0f);
-	sd_fetch(dPdv) = make_float3(0.0f, 0.0f, 0.0f);
-#endif
-
-#ifdef __RAY_DIFFERENTIALS__
-	/* differentials */
-	sd_fetch(dP) = ray->dD;
-	differential_incoming(&sd_fetch(dI), sd_fetch(dP));
-	sd_fetch(du).dx = 0.0f;
-	sd_fetch(du).dy = 0.0f;
-	sd_fetch(dv).dx = 0.0f;
-	sd_fetch(dv).dy = 0.0f;
-#endif
-}
-#endif
-
-/* ShaderData setup from ray into background */
-ccl_device_inline void shader_setup_from_background(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, const ccl_addr_space Ray *ray, int bounce, int transparent_bounce)
+ccl_device_inline void shader_setup_from_background(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, const Ray *ray, int bounce, int transparent_bounce)
 {
 	/* vectors */
 	sd_fetch(P) = ray->D;
