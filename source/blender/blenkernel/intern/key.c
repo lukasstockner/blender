@@ -1123,6 +1123,12 @@ static float *get_weights_array(Object *ob, char *vgroup, WeightsArrayCache *cac
 	return NULL;
 }
 
+static float *get_weights_array_strands(Strands *UNUSED(strands), const char *UNUSED(vgroup), WeightsArrayCache *UNUSED(cache))
+{
+	/* TODO no vgroup support for strands yet */
+	return NULL;
+}
+
 float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCache *cache)
 {
 	KeyBlock *keyblock;
@@ -1138,6 +1144,26 @@ float **BKE_keyblock_get_per_block_weights(Object *ob, Key *key, WeightsArrayCac
 	     keyblock = keyblock->next, keyblock_index++)
 	{
 		per_keyblock_weights[keyblock_index] = get_weights_array(ob, keyblock->vgroup, cache);
+	}
+
+	return per_keyblock_weights;
+}
+
+float **BKE_keyblock_strands_get_per_block_weights(Strands *strands, Key *key, WeightsArrayCache *cache)
+{
+	KeyBlock *keyblock;
+	float **per_keyblock_weights;
+	int keyblock_index;
+
+	per_keyblock_weights =
+		MEM_mallocN(sizeof(*per_keyblock_weights) * key->totkey,
+		            "per keyblock weights");
+
+	for (keyblock = key->block.first, keyblock_index = 0;
+	     keyblock;
+	     keyblock = keyblock->next, keyblock_index++)
+	{
+		per_keyblock_weights[keyblock_index] = get_weights_array_strands(strands, keyblock->vgroup, cache);
 	}
 
 	return per_keyblock_weights;
@@ -1391,23 +1417,18 @@ float *BKE_key_evaluate_object(Object *ob, int *r_totelem)
 	return BKE_key_evaluate_object_ex(ob, r_totelem, NULL, 0);
 }
 
-static void do_strands_key(Strands *UNUSED(strands), Key *key, KeyBlock *actkb, char *out, const int tot)
+static void do_strands_key(Strands *strands, Key *key, KeyBlock *actkb, char *out, const int tot)
 {
 	KeyBlock *k[4];
 	float t[4];
 	int flag = 0;
 
 	if (key->type == KEY_RELATIVE) {
-		/* XXX weights not supported for strands yet */
-#if 0
 		WeightsArrayCache cache = {0, NULL};
 		float **per_keyblock_weights ;
-		per_keyblock_weights = BKE_keyblock_get_per_block_weights(ob, key, &cache);
+		per_keyblock_weights = BKE_keyblock_strands_get_per_block_weights(strands, key, &cache);
 		BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY);
 		BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
-#else
-		BKE_key_evaluate_relative(0, tot, tot, (char *)out, key, actkb, NULL, KEY_MODE_DUMMY);
-#endif
 	}
 	else {
 		const float ctime_scaled = key->ctime / 100.0f;
@@ -1458,7 +1479,7 @@ float *BKE_key_evaluate_strands_ex(Strands *strands, Key *key, KeyBlock *actkb, 
 			actkb = key->refkey;
 		
 		/* XXX weights not supported for strands yet */
-		weights = NULL /*get_weights_array(ob, actkb->vgroup, NULL)*/;
+		weights = get_weights_array_strands(strands, actkb->vgroup, NULL);
 		
 		cp_key(0, tot, tot, out, key, actkb, actkb, weights, 0);
 		

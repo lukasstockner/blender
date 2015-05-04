@@ -96,6 +96,7 @@ typedef struct WeightsArrayCache {
 } WeightsArrayCache;
 
 float **BKE_keyblock_get_per_block_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
+float **BKE_keyblock_strands_get_per_block_weights(struct Strands *strands, struct Key *key, struct WeightsArrayCache *cache);
 void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_weights, struct WeightsArrayCache *cache);
 void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode);
