@@ -52,12 +52,12 @@ class BL_ArmatureChannel : public PyObjectPlus
 
 private:
 	friend class BL_ArmatureObject;
-	struct bPoseChannel *m_posechannel;
+	bPoseChannel *m_posechannel;
 	BL_ArmatureObject *m_armature;
 
 public:
-	BL_ArmatureChannel(class BL_ArmatureObject *armature,
-						   struct bPoseChannel *posechannel);
+	BL_ArmatureChannel(BL_ArmatureObject *armature,
+					   bPoseChannel *posechannel);
 	virtual ~BL_ArmatureChannel();
 
 #ifdef WITH_PYTHON
@@ -80,9 +80,12 @@ class BL_ArmatureBone : public PyObjectPlus
 	Py_HeaderPtr;
 private:
 	// make constructor private to make sure no one tries to instantiate this class
-	BL_ArmatureBone() {
+	BL_ArmatureBone()
+	{
 	}
-	virtual ~BL_ArmatureBone() {
+
+	virtual ~BL_ArmatureBone()
+	{
 	}
 
 public:
@@ -92,7 +95,6 @@ public:
 	static PyObject *py_bone_get_parent(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 	static PyObject *py_bone_get_children(void *self, const struct KX_PYATTRIBUTE_DEF *attrdef);
 #endif
-
 };
 
 #endif  /* __BL_ARMATURECHANNEL_H__ */

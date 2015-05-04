@@ -125,7 +125,7 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
 	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("location", -FLT_MAX, FLT_MAX, bPoseChannel, loc, 3),
 	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("scale", -FLT_MAX, FLT_MAX, bPoseChannel, size, 3),
 	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_quaternion", -1.0f, 1.0f, bPoseChannel, quat, 4),
-	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler", -10.f, 10.f, bPoseChannel, eul, 3),
+	KX_PYATTRIBUTE_FLOAT_VECTOR_RW("rotation_euler", -10.0f, 10.0f, bPoseChannel, eul, 3),
 	KX_PYATTRIBUTE_SHORT_RW("rotation_mode", ROT_MODE_MIN, ROT_MODE_MAX, false, bPoseChannel, rotmode),
 	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("channel_matrix", bPoseChannel, chan_mat, 4),
 	KX_PYATTRIBUTE_FLOAT_MATRIX_RO("pose_matrix", bPoseChannel, pose_mat, 4),
@@ -141,8 +141,8 @@ PyAttributeDef BL_ArmatureChannel::AttributesPtr[] = {
 	KX_PYATTRIBUTE_FLOAT_RO("ik_stiffness_y", bPoseChannel, stiffness[1]),
 	KX_PYATTRIBUTE_FLOAT_RO("ik_stiffness_z", bPoseChannel, stiffness[2]),
 	KX_PYATTRIBUTE_FLOAT_RO("ik_stretch", bPoseChannel, ikstretch),
-	KX_PYATTRIBUTE_FLOAT_RW("ik_rot_weight", 0, 1.0f, bPoseChannel, ikrotweight),
-	KX_PYATTRIBUTE_FLOAT_RW("ik_lin_weight", 0, 1.0f, bPoseChannel, iklinweight),
+	KX_PYATTRIBUTE_FLOAT_RW("ik_rot_weight", 0.0f, 1.0f, bPoseChannel, ikrotweight),
+	KX_PYATTRIBUTE_FLOAT_RW("ik_lin_weight", 0.0f, 1.0f, bPoseChannel, iklinweight),
 	KX_PYATTRIBUTE_RW_FUNCTION("joint_rotation", BL_ArmatureChannel, py_attr_get_joint_rotation, py_attr_set_joint_rotation),
 	{ NULL }    //Sentinel
 };
@@ -225,7 +225,7 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(void *self_v, const str
 	// remove the rest pose to get the joint movement
 	transpose_m3(rest_mat);
 	mul_m3_m3m3(joint_mat, rest_mat, pose_mat);
-	joints[0] = joints[1] = joints[2] = 0.f;
+	joints[0] = joints[1] = joints[2] = 0.0f;
 	// returns a 3 element list that gives corresponding joint
 	int flag = 0;
 	if (!(pchan->ikflag & BONE_IK_NO_XDOF))
@@ -239,19 +239,19 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(void *self_v, const str
 			break;
 		case 1: // X only
 			mat3_to_eulO(joints, EULER_ORDER_XYZ, joint_mat);
-			joints[1] = joints[2] = 0.f;
+			joints[1] = joints[2] = 0.0f;
 			break;
 		case 2: // Y only
 			mat3_to_eulO(joints, EULER_ORDER_XYZ, joint_mat);
-			joints[0] = joints[2] = 0.f;
+			joints[0] = joints[2] = 0.0f;
 			break;
 		case 3: // X+Y
 			mat3_to_eulO(joints, EULER_ORDER_ZYX, joint_mat);
-			joints[2] = 0.f;
+			joints[2] = 0.0f;
 			break;
 		case 4: // Z only
 			mat3_to_eulO(joints, EULER_ORDER_XYZ, joint_mat);
-			joints[0] = joints[1] = 0.f;
+			joints[0] = joints[1] = 0.0f;
 			break;
 		case 5: // X+Z
 			// decompose this as an equivalent rotation vector in X/Z plane
@@ -268,7 +268,7 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(void *self_v, const str
 			break;
 		case 6: // Y+Z
 			mat3_to_eulO(joints, EULER_ORDER_XYZ, joint_mat);
-			joints[0] = 0.f;
+			joints[0] = 0.0f;
 			break;
 		case 7: // X+Y+Z
 			// equivalent axis
@@ -281,13 +281,13 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(void *self_v, const str
 				norm = atan2(sa, ca) / sa;
 			}
 			else {
-				if (ca < 0.0) {
+				if (ca < 0.0f) {
 					norm = M_PI;
-					mul_v3_fl(joints, 0.f);
-					if (joint_mat[0][0] > 0.f) {
+					mul_v3_fl(joints, 0.0f);
+					if (joint_mat[0][0] > 0.0f) {
 						joints[0] = 1.0f;
 					}
-					else if (joint_mat[1][1] > 0.f) {
+					else if (joint_mat[1][1] > 0.0f) {
 						joints[1] = 1.0f;
 					}
 					else {
@@ -295,7 +295,7 @@ PyObject *BL_ArmatureChannel::py_attr_get_joint_rotation(void *self_v, const str
 					}
 				}
 				else {
-					norm = 0.0;
+					norm = 0.0f;
 				}
 			}
 			mul_v3_fl(joints, norm);
@@ -338,28 +338,28 @@ int BL_ArmatureChannel::py_attr_set_joint_rotation(void *self_v, const struct KX
 		case 0: // fixed joint
 			break;
 		case 1: // X only
-			joints[1] = joints[2] = 0.f;
+			joints[1] = joints[2] = 0.0f;
 			eulO_to_quat(quat, joints, EULER_ORDER_XYZ);
 			break;
 		case 2: // Y only
-			joints[0] = joints[2] = 0.f;
+			joints[0] = joints[2] = 0.0f;
 			eulO_to_quat(quat, joints, EULER_ORDER_XYZ);
 			break;
 		case 3: // X+Y
-			joints[2] = 0.f;
+			joints[2] = 0.0f;
 			eulO_to_quat(quat, joints, EULER_ORDER_ZYX);
 			break;
 		case 4: // Z only
-			joints[0] = joints[1] = 0.f;
+			joints[0] = joints[1] = 0.0f;
 			eulO_to_quat(quat, joints, EULER_ORDER_XYZ);
 			break;
 		case 5: // X+Z
 			// X and Z are components of an equivalent rotation axis
-			joints[1] = 0;
+			joints[1] = 0.0f;
 			axis_angle_to_quat(quat, joints, len_v3(joints));
 			break;
 		case 6: // Y+Z
-			joints[0] = 0.f;
+			joints[0] = 0.0f;
 			eulO_to_quat(quat, joints, EULER_ORDER_XYZ);
 			break;
 		case 7: // X+Y+Z
