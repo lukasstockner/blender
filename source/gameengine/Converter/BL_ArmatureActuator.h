@@ -59,11 +59,13 @@ public:
 
 	virtual ~BL_ArmatureActuator();
 
-	virtual CValue *GetReplica() {
+	virtual CValue *GetReplica()
+	{
 		BL_ArmatureActuator *replica = new BL_ArmatureActuator(*this);
 		replica->ProcessReplica();
 		return replica;
-	};
+	}
+
 	virtual void ProcessReplica();
 	virtual bool UnlinkObject(SCA_IObject *clientobj);
 	virtual void Relink(CTR_Map<CTR_HashedPtr, void *> *obj_map);

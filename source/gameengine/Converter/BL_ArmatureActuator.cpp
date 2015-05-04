@@ -54,8 +54,8 @@ BL_ArmatureActuator::BL_ArmatureActuator(SCA_IObject *obj,
                                          KX_GameObject *targetobj,
                                          KX_GameObject *subtargetobj,
                                          float weight,
-                                         float influence) :
-	SCA_IActuator(obj, KX_ACT_ARMATURE),
+                                         float influence)
+	: SCA_IActuator(obj, KX_ACT_ARMATURE),
 	m_constraint(NULL),
 	m_gametarget(targetobj),
 	m_gamesubtarget(subtargetobj),
@@ -100,14 +100,12 @@ void BL_ArmatureActuator::ReParent(SCA_IObject *parent)
 bool BL_ArmatureActuator::UnlinkObject(SCA_IObject *clientobj)
 {
 	bool res = false;
-	if (clientobj == m_gametarget)
-	{
+	if (clientobj == m_gametarget) {
 		// this object is being deleted, we cannot continue to track it.
 		m_gametarget = NULL;
 		res = true;
 	}
-	if (clientobj == m_gamesubtarget)
-	{
+	if (clientobj == m_gamesubtarget) {
 		// this object is being deleted, we cannot continue to track it.
 		m_gamesubtarget = NULL;
 		res = true;
@@ -268,4 +266,3 @@ PyObject *BL_ArmatureActuator::pyattr_get_constraint(void *self, const struct KX
 }
 
 #endif // WITH_PYTHON
-
