@@ -162,7 +162,7 @@ ccl_device_inline void object_normal_transform(ccl_addr_space KernelGlobals *kg,
 }
 
 /* Transform direction vector from object to world space */
-ccl_device_inline void object_dir_transform(ccl_addr_space KernelGlobals *kg, const ccl_addr_space ShaderData *sd, ccl_addr_space float3 *D)
+ccl_device_inline void object_dir_transform(ccl_addr_space KernelGlobals *kg, const ccl_addr_space ShaderData *sd, float3 *D)
 {
 #ifdef __OBJECT_MOTION__
 	*D = transform_direction(&sd_fetch(ob_tfm), *D);
@@ -171,18 +171,6 @@ ccl_device_inline void object_dir_transform(ccl_addr_space KernelGlobals *kg, co
 	*D = transform_direction(&tfm, *D);
 #endif
 }
-
-#ifdef __SPLIT_KERNEL__
-ccl_device_inline void object_dir_transform_private_D(ccl_addr_space KernelGlobals *kg, const ccl_addr_space ShaderData *sd, float3 *D)
-{
-#ifdef __OBJECT_MOTION__
-	*D = transform_direction(&sd_fetch(ob_tfm), *D);
-#else
-	Transform tfm = object_fetch_transform(kg, sd_fetch(object), OBJECT_TRANSFORM);
-	*D = transform_direction(&tfm, *D);
-#endif
-}
-#endif
 
 /* Transform direction vector from world to object space */
 ccl_device_inline void object_inverse_dir_transform(ccl_addr_space KernelGlobals *kg, const ccl_addr_space ShaderData *sd, float3 *D)

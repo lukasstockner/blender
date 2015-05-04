@@ -74,11 +74,7 @@ ccl_device void svm_node_vector_transform(ccl_addr_space KernelGlobals *kg, ccl_
 	else if(from == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_OBJECT) {
 		if((to == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_WORLD || to == NODE_VECTOR_TRANSFORM_CONVERT_SPACE_CAMERA) && is_object) {
 			if(is_direction)
-#ifdef __SPLIT_KERNEL__
-				object_dir_transform_private_D(kg, sd, &in);
-#else
 				object_dir_transform(kg, sd, &in);
-#endif
 			else
 				object_position_transform(kg, sd, &in);
 		}

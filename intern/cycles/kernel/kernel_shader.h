@@ -126,8 +126,16 @@ ccl_device void shader_setup_from_ray(ccl_addr_space KernelGlobals *kg, ccl_addr
 		sd_fetch(N) = sd_N;
 		sd_fetch(Ng) = sd_Ng;
 #ifdef __DPDU__
-		object_dir_transform(kg, sd, &sd_fetch(dPdu));
-		object_dir_transform(kg, sd, &sd_fetch(dPdv));
+		/* Get dPdu, dPdv values */
+		float3 sd_dPdu = sd_fetch(dPdu);
+		float3 sd_dPdv = sd_fetch(dPdv);
+
+		object_dir_transform(kg, sd, &sd_dPdu);
+		object_dir_transform(kg, sd, &sd_dPdv);
+
+		/* Store dPdu and dPdv values */
+		sd_fetch(dPdu) = sd_dPdu;
+		sd_fetch(dPdv) = sd_dPdv;
 #endif
 	}
 #endif
@@ -306,8 +314,16 @@ ccl_device void shader_setup_from_sample(ccl_addr_space KernelGlobals *kg, ccl_a
 
 #ifdef __INSTANCING__
 		if(instanced) {
-			object_dir_transform(kg, sd, &sd_fetch(dPdu));
-			object_dir_transform(kg, sd, &sd_fetch(dPdv));
+			/* Get dPdu and dPdv values */
+			float3 sd_dPdu = sd_fetch(dPdu);
+			float3 sd_dPdv = sd_fetch(dPdv);
+
+			object_dir_transform(kg, sd, &sd_dPdu);
+			object_dir_transform(kg, sd, &sd_dPdv);
+
+			/* Store dPdu and dPdv values */
+			sd_fetch(dPdu) = sd_dPdu;
+			sd_fetch(dPdv) = sd_dPdv;
 		}
 #endif
 #endif
