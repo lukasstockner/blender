@@ -1043,11 +1043,10 @@ ccl_device void shader_eval_volume(ccl_addr_space KernelGlobals *kg, ShaderData 
 #endif
 
 /* Displacement Evaluation */
-#ifndef __SPLIT_KERNEL__
-ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderContext ctx)
+ccl_device void shader_eval_displacement(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, ShaderContext ctx)
 {
-	sd->num_closure = 0;
-	sd->randb_closure = 0.0f;
+	sd_fetch(num_closure) = 0;
+	sd_fetch(randb_closure) = 0.0f;
 
 	/* this will modify sd->P */
 #ifdef __SVM__
@@ -1061,7 +1060,6 @@ ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, Shad
 	}
 #endif
 }
-#endif
 
 /* Transparent Shadows */
 
