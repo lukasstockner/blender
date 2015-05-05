@@ -2493,7 +2493,7 @@ public:
 			clReleaseProgram(sumAllRadiance_program);
 	}
 
-	void path_trace(RenderTile& rtile, int /*sample*/)
+	void path_trace(RenderTile& rtile)
 	{
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
@@ -3523,7 +3523,7 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 						/* Set max_render_feasible_render_tile_size for all tiles */
 						to_path_trace_render_tiles[tile_iter].max_render_feasible_tile_size = max_render_feasible_tile_size;
 						/* The second argument is dummy */
-						path_trace(to_path_trace_render_tiles[tile_iter], 0);
+						path_trace(to_path_trace_render_tiles[tile_iter]);
 					}
 				}
 				else {
@@ -3534,7 +3534,7 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 					/* buffer_rng_state_stride is stride itself */
 					tile.buffer_rng_state_stride = tile.stride;
 					/* The second argument is dummy */
-					path_trace(tile, 0);
+					path_trace(tile);
 				}
 				tile.sample = tile.start_sample + tile.num_samples;
 
