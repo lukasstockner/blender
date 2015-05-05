@@ -1329,7 +1329,7 @@ KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skm
 	return kb;
 }
 
-bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_skmd, DerivedMesh **r_dm, Strands **r_strands, DupliObjectData **r_dobdata, const char **r_name)
+bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_skmd, DerivedMesh **r_dm, Strands **r_strands, DupliObjectData **r_dobdata, const char **r_name, float r_mat[4][4])
 {
 	CacheLibrary *cachelib = ob->cache_library;
 	CacheModifier *md;
@@ -1350,6 +1350,29 @@ bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_
 				if (r_skmd) *r_skmd = skmd;
 				if (r_dm) *r_dm = dobdata->dm;
 				if (r_dobdata) *r_dobdata = dobdata;
+				
+				/* relative transform from the original hair object to the duplicator local space */
+				/* XXX bad hack, common problem: we want to display strand edit data in the place of "the" instance,
+				 * but in fact there can be multiple instances of the same dupli object data, so this is ambiguous ...
+				 * For our basic use case, just pick the first dupli instance, assuming that it's the only one.
+				 * ugh ...
+				 */
+				if (r_mat) {
+					DupliObject *dob;
+					for (dob = ob->dup_cache->duplilist.first; dob; dob = dob->next) {
+						if (dob->ob == skmd->object)
+							break;
+					}
+					if (dob) {
+						/* note: plain duplis from the dupli cache list are relative
+						 * to the duplicator already! (not in world space like final duplis)
+						 */
+						copy_m4_m4(r_mat, dob->mat);
+					}
+					else
+						unit_m4(r_mat);
+				}
+				
 				return true;
 			}
 		}

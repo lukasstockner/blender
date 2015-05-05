@@ -232,9 +232,11 @@ static void bm_make_strands(BMesh *bm, Strands *strands, Key *key, struct Derive
 /**
  * \brief ParticleSystem -> BMesh
  */
-void BM_strands_bm_from_strands(BMesh *bm, Strands *strands, Key *key, struct DerivedMesh *emitter_dm,
+void BM_strands_bm_from_strands(BMesh *bm, Strands *strands, Key *key, struct DerivedMesh *emitter_dm, float mat[4][4],
                             const bool set_key, int act_key_nr)
 {
+	BMIter iter;
+	BMVert *v;
 	KeyBlock *actkey;
 	float (*keyco)[3] = NULL;
 	int totvert, totedge;
@@ -273,6 +275,11 @@ void BM_strands_bm_from_strands(BMesh *bm, Strands *strands, Key *key, struct De
 	cd_shape_keyindex_offset = key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
 
 	bm_make_strands(bm, strands, key, emitter_dm, set_key ? keyco : NULL, cd_shape_keyindex_offset);
+
+	/* transform to duplicator local space */
+	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
+		mul_m4_v3(mat, v->co);
+	}
 
 #if 0 /* TODO */
 	if (me->mselect && me->totselect != 0) {
@@ -447,7 +454,7 @@ static void strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands
 	}
 }
 
-Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
+Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float mat[4][4], struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
 {
 	Strands *oldstrands;
 	int ntotcurves;
@@ -475,6 +482,17 @@ Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, struct 
 		BKE_strand_iter_next(&it_strand);
 	}
 	bm->elem_index_dirty &= ~BM_VERT;
+	
+	/* transform from edit space (duplicator local space) back to the original object space */
+	{
+		float imat[4][4];
+		int i;
+		
+		invert_m4_m4(imat, mat);
+		
+		for (i = 0; i < strands->totverts; ++i)
+			mul_m4_v3(imat, strands->verts[i].co);
+	}
 	
 	BKE_strands_ensure_normals(strands);
 

@@ -177,7 +177,8 @@ bool BKE_cache_modifier_find_object(struct DupliCache *dupcache, struct Object *
 bool BKE_cache_modifier_find_strands(struct DupliCache *dupcache, struct Object *ob, int hair_system, struct DupliObjectData **r_data, struct Strands **r_strands, const char **r_name);
 
 struct KeyBlock *BKE_cache_modifier_strands_key_insert_key(struct StrandsKeyCacheModifier *md, struct Strands *strands, const char *name, const bool from_mix);
-bool BKE_cache_modifier_strands_key_get(struct Object *ob, struct StrandsKeyCacheModifier **r_skmd, struct DerivedMesh **r_dm, struct Strands **r_strands, struct DupliObjectData **r_dobdata, const char **r_name);
+bool BKE_cache_modifier_strands_key_get(struct Object *ob, struct StrandsKeyCacheModifier **r_skmd, struct DerivedMesh **r_dm, struct Strands **r_strands,
+                                        struct DupliObjectData **r_dobdata, const char **r_name, float r_mat[4][4]);
 
 /* ========================================================================= */
 

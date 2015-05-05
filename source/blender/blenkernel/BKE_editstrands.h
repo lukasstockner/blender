@@ -93,8 +93,8 @@ void BKE_editstrands_ensure(struct BMEditStrands *es);
 
 /* === cache shape key conversion === */
 
-struct BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, int act_key_nr, struct DerivedMesh *dm);
-struct Strands *BKE_cache_strands_from_bmesh(struct BMEditStrands *edit, struct Key *key, struct DerivedMesh *dm);
+struct BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, float mat[4][4], int act_key_nr, struct DerivedMesh *dm);
+struct Strands *BKE_cache_strands_from_bmesh(struct BMEditStrands *edit, struct Key *key, float mat[4][4], struct DerivedMesh *dm);
 
 /* === particle conversion === */
 

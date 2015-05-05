@@ -89,7 +89,7 @@ BMEditStrands *BKE_editstrands_from_object(Object *ob)
 	
 	{
 		StrandsKeyCacheModifier *skmd;
-		if (BKE_cache_modifier_strands_key_get(ob, &skmd, NULL, NULL, NULL, NULL)) {
+		if (BKE_cache_modifier_strands_key_get(ob, &skmd, NULL, NULL, NULL, NULL, NULL)) {
 			if (skmd->edit)
 				return skmd->edit;
 		}
@@ -176,7 +176,7 @@ void BKE_editstrands_ensure(BMEditStrands *es)
 
 /* === cache shape key conversion === */
 
-BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, int act_key_nr, DerivedMesh *dm)
+BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, float mat[4][4], int act_key_nr, DerivedMesh *dm)
 {
 	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_STRANDS(strands);
 	BMesh *bm;
@@ -184,13 +184,13 @@ BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, int 
 	DM_ensure_tessface(dm);
 	
 	bm = BM_mesh_create(&allocsize);
-	BM_strands_bm_from_strands(bm, strands, key, dm, true, act_key_nr);
+	BM_strands_bm_from_strands(bm, strands, key, dm, mat, true, act_key_nr);
 	editstrands_calc_segment_lengths(bm);
 	
 	return bm;
 }
 
-struct Strands *BKE_cache_strands_from_bmesh(BMEditStrands *edit, struct Key *key, DerivedMesh *dm)
+struct Strands *BKE_cache_strands_from_bmesh(BMEditStrands *edit, struct Key *key, float mat[4][4], DerivedMesh *dm)
 {
 	BMesh *bm = edit ? edit->bm : NULL;
 	Strands *strands = NULL;
@@ -202,7 +202,7 @@ struct Strands *BKE_cache_strands_from_bmesh(BMEditStrands *edit, struct Key *ke
 		
 		bvhtree_from_mesh_faces(&bvhtree, dm, 0.0, 2, 6);
 		
-		strands = BM_strands_bm_to_strands(bm, strands, key, dm, &bvhtree);
+		strands = BM_strands_bm_to_strands(bm, strands, key, mat, dm, &bvhtree);
 		
 		free_bvhtree_from_mesh(&bvhtree);
 	}

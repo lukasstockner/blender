@@ -54,7 +54,7 @@
 
 bool ED_hair_object_has_hair_cache_data(Object *ob)
 {
-	return BKE_cache_modifier_strands_key_get(ob, NULL, NULL, NULL, NULL, NULL);
+	return BKE_cache_modifier_strands_key_get(ob, NULL, NULL, NULL, NULL, NULL, NULL);
 }
 
 bool ED_hair_object_init_cache_edit(Object *ob)
@@ -62,12 +62,13 @@ bool ED_hair_object_init_cache_edit(Object *ob)
 	StrandsKeyCacheModifier *skmd;
 	DerivedMesh *dm;
 	Strands *strands;
+	float mat[4][4];
 	
-	if (!BKE_cache_modifier_strands_key_get(ob, &skmd, &dm, &strands, NULL, NULL))
+	if (!BKE_cache_modifier_strands_key_get(ob, &skmd, &dm, &strands, NULL, NULL, mat))
 		return false;
 	
 	if (!skmd->edit) {
-		BMesh *bm = BKE_cache_strands_to_bmesh(strands, skmd->key, skmd->shapenr - 1, dm);
+		BMesh *bm = BKE_cache_strands_to_bmesh(strands, skmd->key, mat, skmd->shapenr - 1, dm);
 		
 		skmd->edit = BKE_editstrands_create(bm, dm);
 	}
@@ -82,14 +83,15 @@ bool ED_hair_object_apply_cache_edit(Object *ob)
 	Strands *strands;
 	DupliObjectData *dobdata;
 	const char *name;
+	float mat[4][4];
 	
-	if (!BKE_cache_modifier_strands_key_get(ob, &skmd, &dm, &strands, &dobdata, &name))
+	if (!BKE_cache_modifier_strands_key_get(ob, &skmd, &dm, &strands, &dobdata, &name, mat))
 		return false;
 	
 	if (skmd->edit) {
 		Strands *nstrands;
 		
-		nstrands = BKE_cache_strands_from_bmesh(skmd->edit, skmd->key, dm);
+		nstrands = BKE_cache_strands_from_bmesh(skmd->edit, skmd->key, mat, dm);
 		
 		BKE_dupli_object_data_add_strands(dobdata, name, nstrands);
 		
