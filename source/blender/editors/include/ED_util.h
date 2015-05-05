@@ -32,6 +32,8 @@
 #define __ED_UTIL_H__
 
 struct bContext;
+struct PackedFile;
+struct SpaceLink;
 struct wmOperator;
 struct wmOperatorType;
 

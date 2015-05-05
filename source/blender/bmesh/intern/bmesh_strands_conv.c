@@ -805,6 +805,8 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 					}
 				}
 			}
+#else
+			(void)cd_shape_keyindex_offset;
 #endif
 			
 			vindex += 1;
@@ -871,6 +873,8 @@ void BM_strands_bm_from_psys(BMesh *bm, Object *ob, ParticleSystem *psys, struct
 	actkey = bm_set_shapekey_from_psys(bm, psys, totvert, act_key_nr);
 	if (actkey)
 		keyco = actkey->data;
+#else
+	(void)act_key_nr;
 #endif
 
 	CustomData_bmesh_init_pool(&bm->vdata, totvert, BM_VERT);
