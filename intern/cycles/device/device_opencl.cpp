@@ -3292,14 +3292,20 @@ public:
 		return tile_specific_mem_allocated;
 	}
 
-	/* Calculates the texture memories that has been allocated */
-	size_t get_scene_specific_mem_allocated(cl_mem /*d_data*/) {
+	/* Calculates the texture memories and KernelData (d_data) memory that has been allocated */
+	size_t get_scene_specific_mem_allocated(cl_mem d_data) {
 		size_t scene_specific_mem_allocated = 0;
 		/* Calculate texture memories */
 #define KERNEL_TEX(type, ttype, name) \
 	scene_specific_mem_allocated += get_tex_size(#name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
+
+		size_t d_data_size;
+		ciErr = clGetMemObjectInfo(d_data, CL_MEM_SIZE, sizeof(d_data_size), &d_data_size, NULL);
+		assert(ciErr == CL_SUCCESS && "Can't get d_data mem object info");
+
+		scene_specific_mem_allocated += d_data_size;
 
 		return scene_specific_mem_allocated;
 	}
