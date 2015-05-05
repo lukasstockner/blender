@@ -2541,6 +2541,8 @@ public:
 		global_size[0] = d_w * num_parallel_samples;
 #endif // __WORK_STEALING__
 
+		assert(global_size[0] * global_size[1] <= max_render_feasible_tile_size.x * max_render_feasible_tile_size.y);
+
 		/* Allocate all required global memory once */
 		if(first_tile) {
 			size_t num_global_elements = rtile.max_render_feasible_tile_size.x * rtile.max_render_feasible_tile_size.y;
@@ -3336,11 +3338,11 @@ public:
 	* If not, we should split single tile into multiple tiles of small size
 	* and process them all
 	*/
-	bool need_to_split_tile(unsigned int d_w, unsigned int d_h, unsigned int feasible_global_work_size) {
+	bool need_to_split_tile(unsigned int d_w, unsigned int d_h, int2 max_render_feasible_tile_size) {
 		size_t global_size_estimate[2] = { 0, 0 };
 		global_size_estimate[0] = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
 		global_size_estimate[1] = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
-		if(global_size_estimate[0] * global_size_estimate[1] > feasible_global_work_size) {
+		if(global_size_estimate[0] * global_size_estimate[1] > (max_render_feasible_tile_size.x * max_render_feasible_tile_size.y)) {
 			return true;
 		}
 		else {
@@ -3500,7 +3502,7 @@ public:
 					/* Check render feasibility */
 					feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
 					max_render_feasible_tile_size = get_max_render_feasible_tile_size(feasible_global_work_size);
-					need_to_split_tiles_further = need_to_split_tile(tile.tile_size.x, tile.tile_size.y, feasible_global_work_size);
+					need_to_split_tiles_further = need_to_split_tile(tile.tile_size.x, tile.tile_size.y, max_render_feasible_tile_size);
 
 					initialize_data_and_check_render_feasibility = true;
 				}
