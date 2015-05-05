@@ -2493,7 +2493,7 @@ public:
 			clReleaseProgram(sumAllRadiance_program);
 	}
 
-	void path_trace(RenderTile& rtile)
+	void path_trace(RenderTile& rtile, int2 max_render_feasible_tile_size)
 	{
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
@@ -2507,8 +2507,8 @@ public:
 		cl_int d_stride = rtile.stride;
 
 		/* Make sure that set render feasible tile size is a multiple of local work size dimensions */
-		assert(rtile.max_render_feasible_tile_size.x % SPLIT_KERNEL_LOCAL_SIZE_X == 0);
-		assert(rtile.max_render_feasible_tile_size.y % SPLIT_KERNEL_LOCAL_SIZE_Y == 0);
+		assert(max_render_feasible_tile_size.x % SPLIT_KERNEL_LOCAL_SIZE_X == 0);
+		assert(max_render_feasible_tile_size.y % SPLIT_KERNEL_LOCAL_SIZE_Y == 0);
 
 		/* ray_state and hostRayStateArray should be of same size */
 		assert(hostRayState_size == rayState_size);
@@ -2528,7 +2528,7 @@ public:
 		unsigned int num_parallel_samples = 1;
 #else
 		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
-		unsigned int num_threads = rtile.max_render_feasible_tile_size.x * rtile.max_render_feasible_tile_size.y;
+		unsigned int num_threads = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
 		unsigned int num_tile_columns_possible = num_threads / global_size[1];
 		/* Estimate number of parallel samples that can be processed in parallel */
 		unsigned int num_parallel_samples = (num_tile_columns_possible / d_w) <= rtile.num_samples ? (num_tile_columns_possible / d_w) : rtile.num_samples;
@@ -2545,7 +2545,7 @@ public:
 
 		/* Allocate all required global memory once */
 		if(first_tile) {
-			size_t num_global_elements = rtile.max_render_feasible_tile_size.x * rtile.max_render_feasible_tile_size.y;
+			size_t num_global_elements = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
 
 #ifdef __MULTI_CLOSURE__
 			size_t ShaderClosure_size = get_shader_closure_size(clos_max);
@@ -2556,8 +2556,8 @@ public:
 #ifdef __WORK_STEALING__
 			/* Calculate max groups */
 			size_t max_global_size[2];
-			size_t tile_x = rtile.max_render_feasible_tile_size.x;
-			size_t tile_y = rtile.max_render_feasible_tile_size.y;
+			size_t tile_x = max_render_feasible_tile_size.x;
+			size_t tile_y = max_render_feasible_tile_size.y;
 			max_global_size[0] = (((tile_x - 1) / local_size[0]) + 1) * local_size[0];
 			max_global_size[1] = (((tile_y - 1) / local_size[1]) + 1) * local_size[1];
 			max_work_groups = (max_global_size[0] * max_global_size[1]) / (local_size[0] * local_size[1]);
@@ -3520,21 +3520,17 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 
 					/* Process all split tiles */
 					for(int tile_iter = 0; tile_iter < to_path_trace_render_tiles.size(); tile_iter++) {
-						/* Set max_render_feasible_render_tile_size for all tiles */
-						to_path_trace_render_tiles[tile_iter].max_render_feasible_tile_size = max_render_feasible_tile_size;
-						/* The second argument is dummy */
-						path_trace(to_path_trace_render_tiles[tile_iter]);
+						path_trace(to_path_trace_render_tiles[tile_iter], max_render_feasible_tile_size);
 					}
 				}
 				else {
 					/* No splitting required; process the entire tile at once */
 					/* Render feasible tile size is user-set-tile-size itself */
-					tile.max_render_feasible_tile_size.x = (((tile.tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
-					tile.max_render_feasible_tile_size.y = (((tile.tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+					max_render_feasible_tile_size.x = (((tile.tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+					max_render_feasible_tile_size.y = (((tile.tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
 					/* buffer_rng_state_stride is stride itself */
 					tile.buffer_rng_state_stride = tile.stride;
-					/* The second argument is dummy */
-					path_trace(tile);
+					path_trace(tile, max_render_feasible_tile_size);
 				}
 				tile.sample = tile.start_sample + tile.num_samples;
 

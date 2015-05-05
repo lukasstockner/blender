@@ -155,10 +155,6 @@ public:
 	int rng_state_offset_x;
 	int rng_state_offset_y;
 	int buffer_rng_state_stride;
-	/* Record the maximum of render-feasible tile size
-	 * to allocate enough memory for split kernel
-	 */
-	int2 max_render_feasible_tile_size;
 
 	device_ptr buffer;
 	device_ptr rng_state;
