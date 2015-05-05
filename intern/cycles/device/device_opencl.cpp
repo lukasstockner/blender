@@ -1498,7 +1498,7 @@ public:
 		: OpenCLDeviceBase(info, stats, background_)
 	{
 
-		use_split_kernel = true;
+		this->info.use_split_kernel = true;
 		background = background_;
 
 		/* Initialize kernels */

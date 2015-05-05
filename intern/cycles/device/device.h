@@ -56,6 +56,7 @@ public:
 	bool advanced_shading;
 	bool pack_images;
 	bool extended_images; /* flag for GPU and Multi device */
+	bool use_split_kernel; /* Denotes if the device is going to run cycles using split-kernel */
 	vector<DeviceInfo> multi_devices;
 
 	DeviceInfo()
@@ -67,6 +68,7 @@ public:
 		advanced_shading = true;
 		pack_images = false;
 		extended_images = false;
+		use_split_kernel = false;
 	}
 };
 
@@ -79,7 +81,7 @@ struct DeviceDrawParams {
 
 class Device {
 protected:
-	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), info(info_), stats(stats_) { use_split_kernel = false; }
+	Device(DeviceInfo& info_, Stats &stats_, bool background) : background(background), info(info_), stats(stats_) {}
 
 	bool background;
 	string error_msg;
@@ -98,8 +100,6 @@ public:
 	/* variables/functions used exclusively for split kernel */
 	/* Maximum closure count */
 	int clos_max;
-	/* Denotes if the device is going to run cycles using split-kernel */
-	bool use_split_kernel;
 	/* Get all closure nodes associated with the scene */
 	set<int> closure_nodes;
 	/* Return background */

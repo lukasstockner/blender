@@ -271,7 +271,7 @@ void Session::run_gpu()
 			/* update status and timing */
 			update_status_time();
 
-			if (device->use_split_kernel) {
+			if (device->info.use_split_kernel) {
 				/* OpenCL split - load kernels */
 				load_kernels();
 			}
@@ -560,7 +560,7 @@ void Session::run_cpu()
 			/* update status and timing */
 			update_status_time();
 
-			if (device->use_split_kernel) {
+			if (device->info.use_split_kernel) {
 				/* OpenCL split - load kernels */
 				load_kernels();
 			}
@@ -613,7 +613,7 @@ void Session::load_kernels()
 {
 	thread_scoped_lock scene_lock(scene->mutex);
 
-	if (!kernels_loaded || (device->use_split_kernel && !device->get_background())) {
+	if (!kernels_loaded || (device->info.use_split_kernel && !device->get_background())) {
 		/* for split kernel, in case if interactive rendering, we
 		 * we need to check kernel-reload before doing path trace
 		 */
@@ -662,7 +662,7 @@ static int getClosureCount(Scene *scene)
 
 void Session::run()
 {
-	if (device->use_split_kernel) {
+	if (device->info.use_split_kernel) {
 		device->clos_max = getClosureCount(scene);
 	}
 
@@ -671,7 +671,7 @@ void Session::run()
 	 * closures that will be used in rendering, which is not known at this point; Hence we
 	 * defer OpenCL split kernel load_kernels() to after device_update
 	 */
-	if (!device->use_split_kernel) {
+	if (!device->info.use_split_kernel) {
 		load_kernels();
 	}
 
@@ -840,7 +840,7 @@ void Session::update_status_time(bool show_pause, bool show_done)
 
 		substatus = string_printf("Path Tracing Tile %d/%d", tile, num_tiles);
 
-		if(((is_gpu && !is_multidevice) || (is_cpu && num_tiles == 1)) && !device->use_split_kernel) {
+		if(((is_gpu && !is_multidevice) || (is_cpu && num_tiles == 1)) && !device->info.use_split_kernel) {
 			/* When using split-kernel (OpenCL) each thread in a tile will be working on a different
 			 * sample. Can't display sample number when device uses split-kernel
 			 */

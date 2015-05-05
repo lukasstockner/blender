@@ -54,14 +54,14 @@ public:
 
 		foreach(DeviceInfo& subinfo, info.multi_devices) {
 			device = Device::create(subinfo, stats, background);
-			atleast_one_split_kernel_dev |= device->use_split_kernel;
+			atleast_one_split_kernel_dev |= device->info.use_split_kernel;
 			devices.push_back(SubDevice(device));
 		}
 
 		/* Set use_split_kernel of multi device to true, even
 		 * if one of the sub devices uses split kernel
 		 */
-		this->use_split_kernel = atleast_one_split_kernel_dev;
+		this->info.use_split_kernel = atleast_one_split_kernel_dev;
 
 #ifdef WITH_NETWORK
 		/* try to add network devices */
