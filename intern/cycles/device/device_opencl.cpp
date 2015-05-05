@@ -1749,18 +1749,18 @@ public:
 
 	/* Returns size of Structure of arrays implementation of */
 	size_t get_shaderdata_soa_size() {
-		size_t num_shader_soa_ptr = SD_NUM_FLOAT3 + SD_NUM_INT + SD_NUM_FLOAT
-#ifdef __DPDU__
-			+ SD_NUM_DPDU_FLOAT3
-#endif
-#ifdef __RAY_DIFFERENTIAL__
-			+ SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3
-			+ SD_NUM_DIFFERENTIAL
-#endif
-			+ SD_NUM_RAY_DP_DIFFERENTIAL3
-			+ sizeof(ShaderClosure *);
 
-		return (num_shader_soa_ptr * sizeof(void *));
+		size_t shader_soa_size = 0;
+
+#define SD_VAR(type, what) \
+		shader_soa_size += sizeof(void *);
+#define SD_CLOSURE_VAR(type, what, max_closure)
+		shader_soa_size += sizeof(void *);
+		#include "kernel_shaderdata_vars.h"
+#undef SD_VAR
+#undef SD_CLOSURE_VAR
+
+		return shader_soa_size;
 	}
 
 	/* Get enum type names */
