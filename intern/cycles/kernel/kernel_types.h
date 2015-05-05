@@ -90,7 +90,12 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __KERNEL_OPENCL_NVIDIA__
 #define __KERNEL_SHADING__
-#define __KERNEL_ADV_SHADING__
+/* TODO(sergey): Advanced shading code still requires work
+ * for split kernel.
+ */
+#  ifndef __SPLIT_KERNEL__
+#    define __KERNEL_ADV_SHADING__
+#  endif
 #endif
 
 #ifdef __KERNEL_OPENCL_APPLE__
@@ -117,7 +122,12 @@ CCL_NAMESPACE_BEGIN
 #ifdef __KERNEL_OPENCL_INTEL_CPU__
 #define __CL_USE_NATIVE__
 #define __KERNEL_SHADING__
-#define __KERNEL_ADV_SHADING__
+/* TODO(sergey): Advanced shading code still requires work
+ * for split kernel.
+ */
+#  ifndef __SPLIT_KERNEL__
+#    define __KERNEL_ADV_SHADING__
+#  endif
 #endif
 
 #endif // __KERNEL_OPENCL__
