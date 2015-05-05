@@ -276,7 +276,7 @@ static void file_draw_string(int sx, int sy, const char *string, float width, in
 	fs.align = align;
 
 	BLI_strncpy(fname, string, FILE_MAXFILE);
-	file_shorten_string(fname, width + 1.0f, 0);
+	UI_text_clip_middle_ex(&fs, fname, width + 1.0f, UI_DPI_ICON_SIZE, sizeof(fname), NULL);
 
 	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */
 	rect.xmin = sx;
@@ -479,6 +479,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	short align;
 	bool do_drag;
 	int column_space = 0.6f * UI_UNIT_X;
+	const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
+	const bool update_stat_strings = small_size != SMALL_SIZE_CHECK(layout->curr_size);
 
 	numfiles = filelist_numfiles(files);
 	
@@ -582,12 +584,14 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			}
 
 			but = uiDefBut(block, UI_BTYPE_TEXT, 1, "", sx, sy - layout->tile_h - 0.15f * UI_UNIT_X,
-			               width, textheight, sfile->params->renameedit, 1.0f, (float)sizeof(sfile->params->renameedit), 0, 0, "");
+			               width, textheight, sfile->params->renameedit, 1.0f,
+			               (float)sizeof(sfile->params->renameedit), 0, 0, "");
 			UI_but_func_rename_set(but, renamebutton_cb, file);
 			UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
 			UI_but_flag_disable(but, UI_BUT_UNDO);
 			if (false == UI_but_active_only(C, ar, block, but)) {
-				file_selflag = filelist_entry_select_set(sfile->files, file, FILE_SEL_REMOVE, FILE_SEL_EDITING, CHECK_ALL);
+				file_selflag = filelist_entry_select_set(
+				                   sfile->files, file, FILE_SEL_REMOVE, FILE_SEL_EDITING, CHECK_ALL);
 			}
 		}
 
@@ -599,15 +603,20 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 			if (!(file->typeflag & FILE_TYPE_DIR)) {
-				file_draw_string(sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				if ((file->entry->size_str[0] == '\0') || update_stat_strings) {
+					BLI_filelist_entry_size_to_string(NULL, file->entry->size, small_size, file->entry->size_str);
+				}
+				file_draw_string(
+				            sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}
 		else if (params->display == FILE_LONGDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 
-			if (file->entry->date_str[0] == '\0') {
-				BLI_filelist_entry_datetime_to_string(NULL, file->entry->time, file->entry->time_str, file->entry->date_str);
+			if ((file->entry->date_str[0] == '\0') || update_stat_strings) {
+				BLI_filelist_entry_datetime_to_string(
+				            NULL, file->entry->time, small_size, file->entry->time_str, file->entry->date_str);
 			}
 			file_draw_string(sx, sy, file->entry->date_str, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
 			sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
@@ -615,10 +624,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
 			if (!(file->typeflag & FILE_TYPE_DIR)) {
-				if (file->entry->size_str[0] == '\0') {
-					BLI_filelist_entry_size_to_string(NULL, file->entry->size, file->entry->size_str);
+				if ((file->entry->size_str[0] == '\0') || update_stat_strings) {
+					BLI_filelist_entry_size_to_string(NULL, file->entry->size, small_size, file->entry->size_str);
 				}
-				file_draw_string(sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				file_draw_string(
+				            sx, sy, file->entry->size_str, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}
@@ -627,4 +637,5 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	UI_block_end(C, block);
 	UI_block_draw(C, block);
 
+	layout->curr_size = params->thumbnail_size;
 }

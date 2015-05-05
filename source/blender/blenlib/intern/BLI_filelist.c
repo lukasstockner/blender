@@ -239,7 +239,8 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
  * Convert given entry's size into human-readable strings.
  *
  */
-void BLI_filelist_entry_size_to_string(struct stat *st, const uint64_t sz, char r_size[FILELIST_DIRENTRY_SIZE_LEN])
+void BLI_filelist_entry_size_to_string(
+        struct stat *st, const uint64_t sz, const bool compact, char r_size[static FILELIST_DIRENTRY_SIZE_LEN])
 {
 	double size;
 	const char *fmt;
@@ -253,15 +254,15 @@ void BLI_filelist_entry_size_to_string(struct stat *st, const uint64_t sz, char 
 
 	if (size > 1024.0 * 1024.0 * 1024.0) {
 		size /= (1024.0 * 1024.0 * 1024.0);
-		fmt = "%.2f GiB";
+		fmt = compact ? "%.0f G" : "%.2f GiB";
 	}
 	else if (size > 1024.0 * 1024.0) {
 		size /= (1024.0 * 1024.0);
-		fmt = "%.2f MiB";
+		fmt = compact ? "%.0f M" : "%.2f MiB";
 	}
 	else if (size > 1024.0) {
 		size /= 1024.0;
-		fmt = "%.2f KiB";
+		fmt = compact ? "%.0f K" : "%.2f KiB";
 	}
 	else {
 		fmt = "%.0f B";
@@ -275,8 +276,8 @@ void BLI_filelist_entry_size_to_string(struct stat *st, const uint64_t sz, char 
  *
  */
 void BLI_filelist_entry_mode_to_string(
-        struct stat *st, char r_mode1[FILELIST_DIRENTRY_MODE_LEN],
-        char r_mode2[FILELIST_DIRENTRY_MODE_LEN], char r_mode3[FILELIST_DIRENTRY_MODE_LEN])
+        struct stat *st, const bool UNUSED(compact), char r_mode1[static FILELIST_DIRENTRY_MODE_LEN],
+        char r_mode2[static FILELIST_DIRENTRY_MODE_LEN], char r_mode3[static FILELIST_DIRENTRY_MODE_LEN])
 {
 	const char *types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
 
@@ -311,7 +312,8 @@ void BLI_filelist_entry_mode_to_string(
  * Convert given entry's owner into human-readable strings.
  *
  */
-void BLI_filelist_entry_owner_to_string(struct stat *st, char r_owner[FILELIST_DIRENTRY_OWNER_LEN])
+void BLI_filelist_entry_owner_to_string(
+        struct stat *st, const bool UNUSED(compact), char r_owner[static FILELIST_DIRENTRY_OWNER_LEN])
 {
 #ifdef WIN32
 	strcpy(r_owner, "unknown");
@@ -331,7 +333,8 @@ void BLI_filelist_entry_owner_to_string(struct stat *st, char r_owner[FILELIST_D
  * Convert given entry's time into human-readable strings.
  */
 void BLI_filelist_entry_datetime_to_string(
-        struct stat *st, const int64_t ts, char r_time[FILELIST_DIRENTRY_TIME_LEN], char r_date[FILELIST_DIRENTRY_DATE_LEN])
+        struct stat *st, const int64_t ts, const bool compact,
+        char r_time[static FILELIST_DIRENTRY_TIME_LEN], char r_date[static FILELIST_DIRENTRY_DATE_LEN])
 {
 	const struct tm *tm = localtime(st ? &st->st_mtime : &ts);
 	const time_t zero = 0;
@@ -345,7 +348,7 @@ void BLI_filelist_entry_datetime_to_string(
 		strftime(r_time, sizeof(*r_time) * FILELIST_DIRENTRY_TIME_LEN, "%H:%M", tm);
 	}
 	if (r_date) {
-		strftime(r_date, sizeof(*r_date) * FILELIST_DIRENTRY_DATE_LEN, "%d-%b-%y", tm);
+		strftime(r_date, sizeof(*r_date) * FILELIST_DIRENTRY_DATE_LEN, compact ? "%d/%m/%y" : "%d-%b-%y", tm);
 	}
 }
 

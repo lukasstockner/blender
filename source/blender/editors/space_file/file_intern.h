@@ -48,6 +48,8 @@ struct ARegion *file_tools_region(struct ScrArea *sa);
 #define IMASEL_BUTTONS_HEIGHT (UI_UNIT_Y * 2)
 #define IMASEL_BUTTONS_MARGIN (UI_UNIT_Y / 6)
 
+#define SMALL_SIZE_CHECK(_size) ((_size) < 64)  /* Related to FileSelectParams.thumbnail_size. */
+
 void file_draw_buttons(const bContext *C, ARegion *ar);
 void file_calc_previews(const bContext *C, ARegion *ar);
 void file_draw_list(const bContext *C, ARegion *ar);
@@ -98,7 +100,6 @@ int file_highlight_set(struct SpaceFile *sfile, struct ARegion *ar, int mx, int 
 
 
 /* filesel.c */
-float file_shorten_string(char *string, float w, int front);
 float file_string_width(const char *str);
 
 float file_font_pointsize(void);

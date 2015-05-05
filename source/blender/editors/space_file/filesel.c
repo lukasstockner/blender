@@ -407,58 +407,6 @@ void ED_fileselect_layout_tilepos(FileLayout *layout, int tile, int *x, int *y)
 	}
 }
 
-/* Shorten a string to a given width w. 
- * If front is set, shorten from the front,
- * otherwise shorten from the end. */
-float file_shorten_string(char *string, float w, int front)
-{	
-	char temp[FILE_MAX];
-	short shortened = 0;
-	float sw = 0;
-	float pad = 0;
-
-	if (w <= 0) {
-		*string = '\0';
-		return 0.0;
-	}
-
-	sw = file_string_width(string);
-	if (front == 1) {
-		const char *s = string;
-		BLI_strncpy(temp, "...", 4);
-		pad = file_string_width(temp);
-		while ((*s) && (sw + pad > w)) {
-			s++;
-			sw = file_string_width(s);
-			shortened = 1;
-		}
-		if (shortened) {
-			int slen = strlen(s);
-			BLI_strncpy(temp + 3, s, slen + 1);
-			temp[slen + 4] = '\0';
-			BLI_strncpy(string, temp, slen + 4);
-		}
-	}
-	else {
-		const char *s = string;
-		while (sw > w) {
-			int slen = strlen(string);
-			string[slen - 1] = '\0';
-			sw = file_string_width(s);
-			shortened = 1;
-		}
-
-		if (shortened) {
-			int slen = strlen(string);
-			if (slen > 3) {
-				BLI_strncpy(string + slen - 3, "...", 4);
-			}
-		}
-	}
-	
-	return sw;
-}
-
 float file_string_width(const char *str)
 {
 	uiStyle *style = UI_style_get();
@@ -482,20 +430,20 @@ float file_font_pointsize(void)
 #endif
 }
 
-static void column_widths(struct FileList *UNUSED(files), struct FileLayout *layout)
+static void column_widths(FileSelectParams *params, struct FileLayout *layout)
 {
 	int i;
+	const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
 
 	for (i = 0; i < MAX_FILE_COLUMN; ++i) {
 		layout->column_widths[i] = 0;
 	}
 
-	/* Biggest possible reasonable values...
-	 * TODO: better ways to get those! */
-	layout->column_widths[COLUMN_NAME] = file_string_width("WMWMWMWMWMWMWMWMWMWMWMWMWMWMWMWM");
-	layout->column_widths[COLUMN_DATE] = file_string_width("23-Dec-89");
+	layout->column_widths[COLUMN_NAME] = ((float)params->thumbnail_size / 8.0f) * UI_UNIT_X;;
+	/* Biggest possible reasonable values... */
+	layout->column_widths[COLUMN_DATE] = file_string_width(small_size ? "23/08/89" : "23-Dec-89");
 	layout->column_widths[COLUMN_TIME] = file_string_width("23:59");
-	layout->column_widths[COLUMN_SIZE] = file_string_width("987.64 MiB");
+	layout->column_widths[COLUMN_SIZE] = file_string_width(small_size ? "987 M" : "987.64 MiB");
 }
 
 void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
@@ -554,7 +502,7 @@ void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
 		layout->height = (int)(BLI_rctf_size_y(&v2d->cur) - 2 * layout->tile_border_y);
 		layout->rows = layout->height / (layout->tile_h + 2 * layout->tile_border_y);
 
-		column_widths(sfile->files, layout);
+		column_widths(params, layout);
 
 		if (params->display == FILE_SHORTDISPLAY) {
 			maxlen = ICON_DEFAULT_WIDTH_SCALE + column_icon_space +

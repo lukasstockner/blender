@@ -68,6 +68,9 @@ typedef struct FileLayout {
 	int dirty;
 	int textheight;
 	float column_widths[MAX_FILE_COLUMN];
+
+	/* When we change display size, we may have to update static strings like size of files... */
+	short curr_size;
 } FileLayout;
 
 typedef struct FileSelection {

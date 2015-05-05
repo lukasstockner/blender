@@ -19,18 +19,11 @@
 # <pep8 compliant>
 
 # Populate a template file (POT format currently) from Blender RNA/py/C data.
-# XXX: This script is meant to be used from inside Blender!
-#      You should not directly use this script, rather use update_msg.py!
+# Note: This script is meant to be used from inside Blender!
 
 import collections
-import copy
-import datetime
 import os
-import re
 import sys
-
-# XXX Relative import does not work here when used from Blender...
-#~ from bl_previews_utils import utils
 
 import bpy
 from mathutils import Vector, Euler
@@ -75,6 +68,8 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         "scene", "world", "camera", "lamp", "camera_data", "lamp_data", "image",  # All those are names!
         "backup_scene", "backup_world", "backup_camera", "backup_lamp", "backup_camera_data", "backup_lamp_data",
     ))
+
+    RENDER_PREVIEW_SIZE = bpy.app.render_preview_size
 
     def render_context_create(engine, objects_ignored):
         if engine == '__SCENE':
@@ -139,14 +134,14 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         scene.render.image_settings.color_depth = '8'
         scene.render.image_settings.color_mode = 'RGBA'
         scene.render.image_settings.compression = 25
-        scene.render.resolution_x = 128
-        scene.render.resolution_y = 128
+        scene.render.resolution_x = RENDER_PREVIEW_SIZE
+        scene.render.resolution_y = RENDER_PREVIEW_SIZE
         scene.render.resolution_percentage = 100
-        scene.render.filepath = '/tmp/TEMP_preview_render.png'  # XXX To be done properly!!!!
+        scene.render.filepath = os.path.join(bpy.app.tempdir, 'TEMP_preview_render.png')
         scene.render.use_overwrite = True
         scene.render.use_stamp = False
 
-        image = bpy.data.images.new("TEMP_render_image", 128, 128, alpha=True)
+        image = bpy.data.images.new("TEMP_render_image", RENDER_PREVIEW_SIZE, RENDER_PREVIEW_SIZE, alpha=True)
         image.source = 'FILE'
         image.filepath = scene.render.filepath
 
@@ -274,9 +269,10 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         image = bpy.data.images[render_context.image]
         item = getattr(bpy.data, item_container)[item_name]
         image.reload()
+        # Note: we could use struct module here, but not quite sure it'd give any advantage really...
         pix = tuple((round(r * 255)) + (round(g * 255) << 8) + (round(b * 255) << 16) + (round(a * 255) << 24)
                     for r, g, b, a in zip(*[iter(image.pixels)] * 4))
-        item.preview.image_size = (128, 128)
+        item.preview.image_size = (RENDER_PREVIEW_SIZE, RENDER_PREVIEW_SIZE)
         item.preview.image_pixels = pix
 
     # And now, main code!
