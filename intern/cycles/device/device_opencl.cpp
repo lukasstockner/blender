@@ -1987,10 +1987,9 @@ public:
 		* to limit re-compilations
 		*/
 		if(!background) {
-			/* clos_max value can't be 0  */
-			clos_max = (clos_max == 0) ? 1 : clos_max;
+			assert((clos_max != 0) && "clos_max value is 0" );
 			clos_max = (((clos_max - 1) / 5) + 1) * 5;
-			/* clos_max value can't be greater than MAX_CLOSURE */
+			/* clos_max value shouldn't be greater than MAX_CLOSURE */
 			clos_max = (clos_max > MAX_CLOSURE) ? MAX_CLOSURE : clos_max;
 
 			if(current_clos_max == clos_max) {
@@ -2478,7 +2477,6 @@ public:
 #ifdef __WORK_STEALING__
 		if(work_pool_wgs != NULL)
 			clReleaseMemObject(work_pool_wgs);
-
 #endif
 
 		if(per_sample_output_buffers != NULL)
