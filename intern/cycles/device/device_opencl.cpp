@@ -60,19 +60,6 @@ CCL_NAMESPACE_BEGIN
  */
 #define DATA_ALLOCATION_MEM_FACTOR 5000000 //5MB
 
-/* Shader data variable count - To calculate ShaderData size */
-#define SD_NUM_FLOAT3 5
-#ifdef __DPDU__
-#define SD_NUM_DPDU_FLOAT3 2
-#endif
-#define SD_NUM_INT 8
-#define SD_NUM_FLOAT 5
-#ifdef __RAY_DIFFERENTIALS__
-#define SD_NUM_RAY_DIFFERENTIALS_DIFFERENTIAL3 2
-#define SD_NUM_DIFFERENTIAL 2
-#endif
-#define SD_NUM_RAY_DP_DIFFERENTIAL3 1
-
 static cl_device_type opencl_device_type()
 {
 	char *device = getenv("CYCLES_OPENCL_TEST");
