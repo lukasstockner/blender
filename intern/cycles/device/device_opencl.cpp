@@ -260,6 +260,12 @@ class OpenCLCache
 	}
 
 public:
+
+	enum ProgramName{
+		OCL_DEV_BASE_PROGRAM,
+		OCL_DEV_MEGAKERNEL_PROGRAM,
+	};
+
 	/* see get_something comment */
 	static cl_context get_context(cl_platform_id platform, cl_device_id device,
 		thread_scoped_lock &slot_locker)
@@ -278,16 +284,16 @@ public:
 	}
 
 	/* see get_something comment */
-	static cl_program get_program(cl_platform_id platform, cl_device_id device, string program_name,
+	static cl_program get_program(cl_platform_id platform, cl_device_id device, ProgramName program_name,
 		thread_scoped_lock &slot_locker)
 	{
 		cl_program program = NULL;
 
-		if(program_name == "ocl_dev_base_program") {
+		if(program_name == OCL_DEV_BASE_PROGRAM) {
 			/* Get program related to OpenCLDeviceBase */
 			program = get_something<cl_program>(platform, device, &Slot::ocl_dev_base_program, slot_locker);
 		}
-		else if(program_name == "ocl_dev_megakernel_program") {
+		else if(program_name == OCL_DEV_MEGAKERNEL_PROGRAM) {
 			/* Get program related to megakernel */
 			program = get_something<cl_program>(platform, device, &Slot::ocl_dev_megakernel_program, slot_locker);
 		} else {
@@ -319,13 +325,13 @@ public:
 	}
 
 	/* see store_something comment */
-	static void store_program(cl_platform_id platform, cl_device_id device, cl_program program, string program_name,
+	static void store_program(cl_platform_id platform, cl_device_id device, cl_program program, ProgramName program_name,
 		thread_scoped_lock &slot_locker)
 	{
-		if(program_name == "ocl_dev_base_program") {
+		if(program_name == OCL_DEV_BASE_PROGRAM) {
 			store_something<cl_program>(platform, device, program, &Slot::ocl_dev_base_program, slot_locker);
 		}
-		else if(program_name == "ocl_dev_megakernel_program") {
+		else if(program_name == OCL_DEV_MEGAKERNEL_PROGRAM) {
 			store_something<cl_program>(platform, device, program, &Slot::ocl_dev_megakernel_program, slot_locker);
 		} else {
 			fprintf(stderr, "Invalid program name in OpenCLCache \n");
@@ -876,7 +882,7 @@ public:
 
 		/* try to use cached kernel */
 		thread_scoped_lock cache_locker;
-		cpProgram = OpenCLCache::get_program(cpPlatform, cdDevice, "ocl_dev_base_program", cache_locker);
+		cpProgram = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::ProgramName::OCL_DEV_BASE_PROGRAM, cache_locker);
 
 		if(!cpProgram) {
 			/* verify we have right opencl version */
@@ -920,7 +926,7 @@ public:
 			}
 
 			/* cache the program */
-			OpenCLCache::store_program(cpPlatform, cdDevice, cpProgram, "ocl_dev_base_program", cache_locker);
+			OpenCLCache::store_program(cpPlatform, cdDevice, cpProgram, OpenCLCache::ProgramName::OCL_DEV_BASE_PROGRAM, cache_locker);
 		}
 
 		/* find kernels */
@@ -1111,7 +1117,7 @@ public:
 
 		/* try to use cached kernel */
 		thread_scoped_lock cache_locker;
-		path_trace_program = OpenCLCache::get_program(cpPlatform, cdDevice, "ocl_dev_megakernel_program", cache_locker);
+		path_trace_program = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::ProgramName::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
 
 		if(!path_trace_program) {
 			/* verify we have right opencl version */
@@ -1155,7 +1161,7 @@ public:
 			}
 
 			/* cache the program */
-			OpenCLCache::store_program(cpPlatform, cdDevice, path_trace_program, "ocl_dev_megakernel_program", cache_locker);
+			OpenCLCache::store_program(cpPlatform, cdDevice, path_trace_program, OpenCLCache::ProgramName::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
 		}
 
 		/* find kernels */
