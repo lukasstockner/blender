@@ -123,12 +123,11 @@ int hair_edit_toggle_poll(bContext *C)
 
 	if (ob == NULL)
 		return false;
-	if (!ob->data || ((ID *)ob->data)->lib)
-		return false;
 	if (CTX_data_edit_object(C))
 		return false;
 
-	return ED_hair_object_has_hair_particle_data(ob);
+	return (ob->data && !((ID *)ob->data)->lib && ED_hair_object_has_hair_particle_data(ob)) ||
+	        ED_hair_object_has_hair_cache_data(ob);
 }
 
 static void toggle_hair_cursor(bContext *C, bool enable)
@@ -162,14 +161,25 @@ static int hair_edit_toggle_exec(bContext *C, wmOperator *op)
 	}
 
 	if (!is_mode_set) {
-		ED_hair_object_init_particle_edit(scene, ob);
+		if (ED_hair_object_init_particle_edit(scene, ob)) {
+			/* particle edit */
+		}
+		else if (ED_hair_object_init_cache_edit(ob)) {
+			/* strands cache edit */
+		}
+		
 		ob->mode |= mode_flag;
 		
 		toggle_hair_cursor(C, true);
 		WM_event_add_notifier(C, NC_SCENE|ND_MODE|NS_MODE_HAIR, NULL);
 	}
 	else {
-		ED_hair_object_apply_particle_edit(ob);
+		if (ED_hair_object_apply_particle_edit(ob)) {
+			/* particle edit */
+		}
+		else if (ED_hair_object_apply_cache_edit(ob)) {
+			/* strands cache edit */
+		}
 		ob->mode &= ~mode_flag;
 		
 		toggle_hair_cursor(C, false);

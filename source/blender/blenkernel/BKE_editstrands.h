@@ -41,7 +41,9 @@
 
 struct BMesh;
 struct DerivedMesh;
+struct Key;
 struct Object;
+struct Strands;
 
 typedef struct BMEditStrands {
 	struct BMesh *bm;
@@ -87,6 +89,12 @@ void BKE_editstrands_free_locations(BMEditStrandsLocations locs);
 
 void BKE_editstrands_solve_constraints(struct Object *ob, struct BMEditStrands *es, BMEditStrandsLocations orig);
 void BKE_editstrands_ensure(struct BMEditStrands *es);
+
+
+/* === cache shape key conversion === */
+
+struct BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, int act_key_nr, struct DerivedMesh *dm);
+struct Strands *BKE_cache_strands_from_bmesh(struct BMEditStrands *edit, struct Key *key, struct DerivedMesh *dm);
 
 /* === particle conversion === */
 

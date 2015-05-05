@@ -2054,6 +2054,11 @@ static void direct_link_cache_modifiers(FileData *fd, ListBase *modifiers)
 					direct_link_curvemapping(fd, hsmd->sim_params.goal_stiffness_mapping);
 				break;
 			}
+			case eCacheModifierType_StrandsKey: {
+				StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
+				skmd->edit = NULL;
+				break;
+			}
 		}
 	}
 }

@@ -182,7 +182,9 @@ void undo_push_strands(bContext *C, const char *name)
 	 * though we could investigate the matter further. */
 	Object *obact = CTX_data_active_object(C);
 	BMEditStrands *edit = BKE_editstrands_from_object(obact);
-	edit->ob = obact;
-	
-	undo_editmode_push(C, name, CTX_data_active_object, strands_get_edit, strands_free_undo, strands_undo_to_edit, strands_edit_to_undo, NULL);
+	if (edit) {
+		edit->ob = obact;
+		
+		undo_editmode_push(C, name, CTX_data_active_object, strands_get_edit, strands_free_undo, strands_undo_to_edit, strands_edit_to_undo, NULL);
+	}
 }

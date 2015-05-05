@@ -34,12 +34,15 @@
 #include "BLI_math.h"
 #include "BLI_mempool.h"
 
+#include "DNA_cache_library_types.h"
 #include "DNA_customdata_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
+#include "DNA_strands_types.h"
 
 #include "BKE_bvhutils.h"
+#include "BKE_cache_library.h"
 #include "BKE_customdata.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
@@ -78,10 +81,20 @@ BMEditStrands *BKE_editstrands_copy(BMEditStrands *es)
  */
 BMEditStrands *BKE_editstrands_from_object(Object *ob)
 {
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys) {
-		return psys->hairedit;
+	{
+		ParticleSystem *psys = psys_get_current(ob);
+		if (psys && psys->hairedit)
+			return psys->hairedit;
 	}
+	
+	{
+		StrandsKeyCacheModifier *skmd;
+		if (BKE_cache_modifier_strands_key_get(ob, &skmd, NULL, NULL, NULL, NULL)) {
+			if (skmd->edit)
+				return skmd->edit;
+		}
+	}
+	
 	return NULL;
 }
 
@@ -158,6 +171,43 @@ void BKE_editstrands_ensure(BMEditStrands *es)
 		
 		es->flag &= ~BM_STRANDS_DIRTY_SEGLEN;
 	}
+}
+
+
+/* === cache shape key conversion === */
+
+BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, int act_key_nr, DerivedMesh *dm)
+{
+	const BMAllocTemplate allocsize = BMALLOC_TEMPLATE_FROM_STRANDS(strands);
+	BMesh *bm;
+	
+	DM_ensure_tessface(dm);
+	
+	bm = BM_mesh_create(&allocsize);
+	BM_strands_bm_from_strands(bm, strands, key, dm, true, act_key_nr);
+	editstrands_calc_segment_lengths(bm);
+	
+	return bm;
+}
+
+struct Strands *BKE_cache_strands_from_bmesh(BMEditStrands *edit, struct Key *key, DerivedMesh *dm)
+{
+	BMesh *bm = edit ? edit->bm : NULL;
+	Strands *strands = NULL;
+	
+	if (bm && dm) {
+		BVHTreeFromMesh bvhtree = {NULL};
+		
+		DM_ensure_tessface(dm);
+		
+		bvhtree_from_mesh_faces(&bvhtree, dm, 0.0, 2, 6);
+		
+		strands = BM_strands_bm_to_strands(bm, strands, key, dm, &bvhtree);
+		
+		free_bvhtree_from_mesh(&bvhtree);
+	}
+	
+	return strands;
 }
 
 

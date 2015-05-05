@@ -42,6 +42,10 @@ struct wmOperatorType;
 struct rcti;
 
 struct Object;
+struct Strands;
+struct DupliObjectData;
+struct StrandsKeyCacheModifier;
+struct DerivedMesh;
 
 /* hair_edit.c */
 bool hair_use_mirror_x(struct Object *ob);
@@ -58,6 +62,11 @@ void HAIR_OT_select_linked(struct wmOperatorType *ot);
 
 /* hair_stroke.c */
 void HAIR_OT_stroke(struct wmOperatorType *ot);
+
+/* hair_object_cachelib.c */
+bool ED_hair_object_has_hair_cache_data(struct Object *ob);
+bool ED_hair_object_init_cache_edit(struct Object *ob);
+bool ED_hair_object_apply_cache_edit(struct Object *ob);
 
 /* hair_object_particles.c */
 bool ED_hair_object_has_hair_particle_data(struct Object *ob);

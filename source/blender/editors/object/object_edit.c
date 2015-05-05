@@ -1511,7 +1511,8 @@ static EnumPropertyItem *object_mode_set_itemsf(bContext *C, PointerRNA *UNUSED(
 			    (input->value == OB_MODE_POSE && (ob->type == OB_ARMATURE)) ||
 			    (input->value == OB_MODE_PARTICLE_EDIT && use_mode_particle_edit) ||
 			    (ELEM(input->value, OB_MODE_SCULPT, OB_MODE_VERTEX_PAINT,
-			           OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT, OB_MODE_HAIR_EDIT) && (ob->type == OB_MESH)) ||
+			           OB_MODE_WEIGHT_PAINT, OB_MODE_TEXTURE_PAINT) && (ob->type == OB_MESH)) ||
+			    (input->value == OB_MODE_HAIR_EDIT) || /* XXX always on, testing for strand data is a bit involved */
 			    (input->value == OB_MODE_OBJECT))
 			{
 				RNA_enum_item_add(&item, &totitem, input);
@@ -1560,11 +1561,14 @@ static bool object_mode_compat_test(Object *ob, ObjectMode mode)
 	if (ob) {
 		if (mode == OB_MODE_OBJECT)
 			return true;
+		/* XXX this is not nice, but testing for cached strands data + shape keys is a bit complicated */
+		if (mode == OB_MODE_HAIR_EDIT)
+			return true;
 
 		switch (ob->type) {
 			case OB_MESH:
 				if (mode & (OB_MODE_EDIT | OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT |
-				            OB_MODE_TEXTURE_PAINT | OB_MODE_PARTICLE_EDIT | OB_MODE_HAIR_EDIT))
+				            OB_MODE_TEXTURE_PAINT | OB_MODE_PARTICLE_EDIT))
 				{
 					return true;
 				}

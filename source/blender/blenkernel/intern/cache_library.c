@@ -57,6 +57,7 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_editstrands.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -848,7 +849,7 @@ bool BKE_cache_modifier_find_object(DupliCache *dupcache, Object *ob, DupliObjec
 	return true;
 }
 
-bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_system, DupliObjectData **r_data, Strands **r_strands)
+bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_system, DupliObjectData **r_data, Strands **r_strands, const char **r_name)
 {
 	DupliObjectData *dobdata;
 	ParticleSystem *psys;
@@ -877,6 +878,7 @@ bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_
 	
 	if (r_data) *r_data = dobdata;
 	if (r_strands) *r_strands = strands;
+	if (r_name) *r_name = psys->name;
 	return true;
 }
 
@@ -951,7 +953,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 //	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
 //		return;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands, NULL))
 		return;
 	
 	/* Note: motion state data should always be created regardless of actual sim.
@@ -1179,7 +1181,7 @@ static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext
 	
 	ShrinkWrapCacheData shrinkwrap;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL))
 		return;
 	if (!BKE_cache_modifier_find_object(data->dupcache, smd->target, &target_data))
 		return;
@@ -1230,11 +1232,19 @@ static void strandskey_init(StrandsKeyCacheModifier *skmd)
 static void strandskey_copy(StrandsKeyCacheModifier *skmd, StrandsKeyCacheModifier *tskmd)
 {
 	tskmd->key = BKE_key_copy(skmd->key);
+	
+	tskmd->edit = NULL;
 }
 
 static void strandskey_free(StrandsKeyCacheModifier *skmd)
 {
 	BKE_key_free(skmd->key);
+	
+	if (skmd->edit) {
+		BKE_editstrands_free(skmd->edit);
+		MEM_freeN(skmd->edit);
+		skmd->edit = NULL;
+	}
 }
 
 static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
@@ -1249,7 +1259,7 @@ static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContex
 	KeyBlock *actkb;
 	float *shape;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands, NULL))
 		return;
 	
 	actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
@@ -1317,6 +1327,35 @@ KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skm
 	}
 	
 	return kb;
+}
+
+bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_skmd, DerivedMesh **r_dm, Strands **r_strands, DupliObjectData **r_dobdata, const char **r_name)
+{
+	CacheLibrary *cachelib = ob->cache_library;
+	CacheModifier *md;
+	
+	if (!cachelib)
+		return false;
+	
+	/* ignore when the object is not actually using the cachelib */
+	if (!((ob->transflag & OB_DUPLIGROUP) && ob->dup_group && ob->dup_cache))
+		return false;
+	
+	for (md = cachelib->modifiers.first; md; md = md->next) {
+		if (md->type == eCacheModifierType_StrandsKey) {
+			StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
+			DupliObjectData *dobdata;
+			
+			if (BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, &dobdata, r_strands, r_name)) {
+				if (r_skmd) *r_skmd = skmd;
+				if (r_dm) *r_dm = dobdata->dm;
+				if (r_dobdata) *r_dobdata = dobdata;
+				return true;
+			}
+		}
+	}
+	
+	return false;
 }
 
 void BKE_cache_modifier_init(void)

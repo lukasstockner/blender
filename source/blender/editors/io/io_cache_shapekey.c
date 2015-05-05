@@ -162,7 +162,7 @@ static bool shape_key_get_context(bContext *C, CacheLibrary **r_cachelib, Strand
 	
 	if (!(ob && ob->dup_cache && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group))
 		return false;
-	if (!BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, NULL, &strands))
+	if (!BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, NULL, &strands, NULL))
 		return false;
 	
 	if (r_cachelib) *r_cachelib = cachelib;

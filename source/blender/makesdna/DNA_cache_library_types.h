@@ -241,6 +241,8 @@ typedef struct StrandsKeyCacheModifier {
 	struct Key *key;
 	int shapenr;
 	int pad;
+	
+	struct BMEditStrands *edit; /* edit data (runtime) */
 } StrandsKeyCacheModifier;
 
 typedef enum eStrandsKeyCacheModifier_Flag {

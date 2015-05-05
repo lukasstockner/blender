@@ -25,7 +25,7 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-/** \file blender/editors/hair/hair_object_particles.c
+/** \file blender/editors/hair/hair_object_cachelib.c
  *  \ingroup edhair
  */
 
@@ -35,67 +35,68 @@
 
 #include "BLI_utildefines.h"
 
+#include "DNA_cache_library_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
-#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_strands_types.h"
 
+#include "BKE_anim.h"
+#include "BKE_cache_library.h"
 #include "BKE_cdderivedmesh.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_editstrands.h"
-#include "BKE_particle.h"
+#include "BKE_strands.h"
 
 #include "bmesh.h"
 
 #include "hair_intern.h"
 
-bool ED_hair_object_has_hair_particle_data(Object *ob)
+bool ED_hair_object_has_hair_cache_data(Object *ob)
 {
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys && psys->part->type == PART_HAIR)
-		return true;
-	
-	return false;
+	return BKE_cache_modifier_strands_key_get(ob, NULL, NULL, NULL, NULL, NULL);
 }
 
-bool ED_hair_object_init_particle_edit(Scene *scene, Object *ob)
+bool ED_hair_object_init_cache_edit(Object *ob)
 {
-	ParticleSystem *psys = psys_get_current(ob);
-	BMesh *bm;
+	StrandsKeyCacheModifier *skmd;
 	DerivedMesh *dm;
+	Strands *strands;
 	
-	if (psys && psys->part->type == PART_HAIR) {
-		if (!psys->hairedit) {
-			bm = BKE_particles_to_bmesh(ob, psys);
-			
-			if (ob->type == OB_MESH || ob->derivedFinal)
-				dm = ob->derivedFinal ? ob->derivedFinal : mesh_get_derived_final(scene, ob, CD_MASK_BAREMESH);
-			else
-				dm = NULL;
-			
-			psys->hairedit = BKE_editstrands_create(bm, dm);
-		}
-		return true;
+	if (!BKE_cache_modifier_strands_key_get(ob, &skmd, &dm, &strands, NULL, NULL))
+		return false;
+	
+	if (!skmd->edit) {
+		BMesh *bm = BKE_cache_strands_to_bmesh(strands, skmd->key, skmd->shapenr - 1, dm);
+		
+		skmd->edit = BKE_editstrands_create(bm, dm);
 	}
 	
-	return false;
+	return true;
 }
 
-bool ED_hair_object_apply_particle_edit(Object *ob)
+bool ED_hair_object_apply_cache_edit(Object *ob)
 {
-	ParticleSystem *psys = psys_get_current(ob);
-	if (psys && psys->part->type == PART_HAIR) {
-		if (psys->hairedit) {
-			BKE_particles_from_bmesh(ob, psys);
-			psys->flag |= PSYS_EDITED;
-			
-			BKE_editstrands_free(psys->hairedit);
-			MEM_freeN(psys->hairedit);
-			psys->hairedit = NULL;
-		}
+	StrandsKeyCacheModifier *skmd;
+	DerivedMesh *dm;
+	Strands *strands;
+	DupliObjectData *dobdata;
+	const char *name;
+	
+	if (!BKE_cache_modifier_strands_key_get(ob, &skmd, &dm, &strands, &dobdata, &name))
+		return false;
+	
+	if (skmd->edit) {
+		Strands *nstrands;
 		
-		return true;
+		nstrands = BKE_cache_strands_from_bmesh(skmd->edit, skmd->key, dm);
+		
+		BKE_dupli_object_data_add_strands(dobdata, name, nstrands);
+		
+		BKE_editstrands_free(skmd->edit);
+		MEM_freeN(skmd->edit);
+		skmd->edit = NULL;
 	}
 	
-	return false;
+	return true;
 }
