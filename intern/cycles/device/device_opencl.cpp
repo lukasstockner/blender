@@ -753,7 +753,7 @@ public:
 		}
 	}
 
-	bool load_binary(cl_program *program, const string& kernel_path, const string& clbin, string custom_kernel_build_options, const string *debug_src = NULL)
+	bool load_binary(const string& kernel_path, const string& clbin, string custom_kernel_build_options, cl_program *program, const string *debug_src = NULL)
 	{
 		/* read binary into memory */
 		vector<uint8_t> binary;
@@ -776,7 +776,7 @@ public:
 			return false;
 		}
 
-		if(!build_kernel(kernel_path, program, custom_kernel_build_options, debug_src))
+		if(!build_kernel(program, custom_kernel_build_options, debug_src))
 			return false;
 
 		return true;
@@ -802,8 +802,7 @@ public:
 		return true;
 	}
 
-	bool build_kernel(const string& /*kernel_path*/,
-		cl_program *kernel_program,
+	bool build_kernel(cl_program *kernel_program,
 		string custom_kernel_build_options,
 		const string *debug_src = NULL)
 	{
@@ -836,10 +835,9 @@ public:
 
 
 	bool compile_kernel(const string& kernel_path,
-		const string& /*kernel_name*/,
 		string source,
-		cl_program *kernel_program,
 		string custom_kernel_build_options,
+		cl_program *kernel_program,
 		const string *debug_src = NULL)
 	{
 		/* we compile kernels consisting of many files. unfortunately opencl
@@ -861,7 +859,7 @@ public:
 		double starttime = time_dt();
 		printf("Compiling OpenCL kernel ...\n");
 
-		if(!build_kernel(kernel_path, kernel_program, custom_kernel_build_options, debug_src))
+		if(!build_kernel(kernel_program, custom_kernel_build_options, debug_src))
 			return false;
 
 		printf("Kernel compilation finished in %.2lfs.\n", time_dt() - starttime);
@@ -907,7 +905,7 @@ public:
 			}
 
 			/* if exists already, try use it */
-			if(path_exists(clbin) && load_binary(&cpProgram, kernel_path, clbin, custom_kernel_build_options, debug_src)) {
+			if(path_exists(clbin) && load_binary(kernel_path, clbin, custom_kernel_build_options, &cpProgram)) {
 				/* kernel loaded from binary */
 			}
 			else {
@@ -915,7 +913,7 @@ public:
 				string init_kernel_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
 
 				/* if does not exist or loading binary failed, compile kernel */
-				if(!compile_kernel(kernel_path, "", init_kernel_source, &cpProgram, custom_kernel_build_options, debug_src))
+				if (!compile_kernel(kernel_path, init_kernel_source, custom_kernel_build_options, &cpProgram, debug_src))
 					return false;
 
 				/* save binary for reuse */
@@ -1142,7 +1140,7 @@ public:
 			}
 
 			/* if exists already, try use it */
-			if(path_exists(clbin) && load_binary(&path_trace_program, kernel_path, clbin, custom_kernel_build_options, debug_src)) {
+			if (path_exists(clbin) && load_binary(kernel_path, clbin, custom_kernel_build_options, &path_trace_program, debug_src)) {
 				/* kernel loaded from binary */
 			}
 			else {
@@ -1150,7 +1148,7 @@ public:
 				string init_kernel_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
 
 				/* if does not exist or loading binary failed, compile kernel */
-				if(!compile_kernel(kernel_path, "", init_kernel_source, &path_trace_program, custom_kernel_build_options, debug_src))
+				if (!compile_kernel(kernel_path, init_kernel_source, custom_kernel_build_options, &path_trace_program, debug_src))
 					return false;
 
 				/* save binary for reuse */
@@ -1663,13 +1661,11 @@ public:
 		}
 	}
 
-	bool load_split_kernel(cl_program *program,
-		string kernel_path,
-		string kernel_name,
-		string /*device_md5*/,
+	bool load_split_kernel(string kernel_path,
 		string kernel_init_source,
 		string clbin,
-		string custom_kernel_build_options) {
+		string custom_kernel_build_options,
+		cl_program *program) {
 
 		if(!opencl_version_check())
 			return false;
@@ -1680,12 +1676,12 @@ public:
 		string *debug_src = NULL;
 
 		/* if exists already, try use it */
-		if(path_exists(clbin) && load_binary(program, kernel_path, clbin, custom_kernel_build_options, debug_src)) {
+		if (path_exists(clbin) && load_binary(kernel_path, clbin, custom_kernel_build_options, program, debug_src)) {
 			/* kernel loaded from binary */
 		}
 		else {
 			/* if does not exist or loading binary failed, compile kernel */
-			if(!compile_kernel(kernel_path, kernel_name, kernel_init_source, program, custom_kernel_build_options))
+			if (!compile_kernel(kernel_path, kernel_init_source, custom_kernel_build_options, program))
 				return false;
 
 			/* save binary for reuse */
@@ -2054,7 +2050,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_DataInit.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&dataInit_program, kernel_path, "dataInit", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &dataInit_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_SceneIntersect.cl\" // " + kernel_md5 + "\n";
@@ -2064,7 +2060,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_SceneIntersect.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&sceneIntersect_program, kernel_path, "SceneIntersect", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &sceneIntersect_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_LampEmission.cl\" // " + kernel_md5 + "\n";
@@ -2074,7 +2070,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_LampEmission.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&lampEmission_program, kernel_path, "LampEmission", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &lampEmission_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_QueueEnqueue.cl\" // " + kernel_md5 + "\n";
@@ -2084,7 +2080,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_QueueEnqueue.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&QueueEnqueue_program, kernel_path, "Queue", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &QueueEnqueue_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_Background_BufferUpdate.cl\" // " + kernel_md5 + "\n";
@@ -2094,7 +2090,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_Background_BufferUpdate.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&background_BufferUpdate_program, kernel_path, "Background", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &background_BufferUpdate_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_ShaderEval.cl\" // " + kernel_md5 + "\n";
@@ -2104,7 +2100,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShaderEval.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&shaderEval_program, kernel_path, "shaderEval", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &shaderEval_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_Holdout_Emission_Blurring_Pathtermination_AO.cl\" // " + kernel_md5 + "\n";
@@ -2114,7 +2110,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_Holdout_Emission_Blurring_Pathtermination_AO.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&holdout_emission_blurring_termination_ao_program, kernel_path, "ao", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &holdout_emission_blurring_termination_ao_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_DirectLighting.cl\" // " + kernel_md5 + "\n";
@@ -2124,7 +2120,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_DirectLighting.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&directLighting_program, kernel_path, "directLighting", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &directLighting_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_ShadowBlocked.cl\" // " + kernel_md5 + "\n";
@@ -2134,7 +2130,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_ShadowBlocked.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&shadowBlocked_program, kernel_path, "shadow", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &shadowBlocked_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_NextIterationSetUp.cl\" // " + kernel_md5 + "\n";
@@ -2144,7 +2140,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_NextIterationSetUp.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&nextIterationSetUp_program, kernel_path, "nextIter", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &nextIterationSetUp_program))
 			return false;
 
 		kernel_init_source = "#include \"kernel_SumAllRadiance.cl\" // " + kernel_md5 + "\n";
@@ -2154,7 +2150,7 @@ public:
 #endif
 		device_md5 = device_md5_hash(custom_kernel_build_options);
 		clbin = string_printf("cycles_kernel_%s_%s_SumAllRadiance.clbin", device_md5.c_str(), kernel_md5.c_str());
-		if(!load_split_kernel(&sumAllRadiance_program, kernel_path, "sumAll", device_md5, kernel_init_source, clbin, custom_kernel_build_options))
+		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &sumAllRadiance_program))
 			return false;
 
 		current_clos_max = clos_max;
