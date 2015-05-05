@@ -1168,7 +1168,7 @@ static void filelist_cache_init(FileListEntryCache *cache)
 	cache->block_cursor = cache->block_start_index = cache->block_center_index = cache->block_end_index = 0;
 
 	cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
-	fill_vn_i(cache->misc_entries_indices, ARRAY_SIZE(cache->misc_entries_indices), -1);
+	copy_vn_i(cache->misc_entries_indices, ARRAY_SIZE(cache->misc_entries_indices), -1);
 	cache->misc_cursor = 0;
 
 	/* XXX This assumes uint is 32 bits and uuid is 128 bits (char[16]), be careful! */
