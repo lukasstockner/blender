@@ -261,7 +261,7 @@ class OpenCLCache
 
 public:
 
-	enum ProgramName{
+	enum ProgramName {
 		OCL_DEV_BASE_PROGRAM,
 		OCL_DEV_MEGAKERNEL_PROGRAM,
 	};
@@ -753,7 +753,11 @@ public:
 		}
 	}
 
-	bool load_binary(const string& kernel_path, const string& clbin, string custom_kernel_build_options, cl_program *program, const string *debug_src = NULL)
+	bool load_binary(const string& /*kernel_path*/,
+	                 const string& clbin,
+	                 string custom_kernel_build_options,
+	                 cl_program *program,
+	                 const string *debug_src = NULL)
 	{
 		/* read binary into memory */
 		vector<uint8_t> binary;
@@ -878,7 +882,7 @@ public:
 
 		/* try to use cached kernel */
 		thread_scoped_lock cache_locker;
-		cpProgram = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::ProgramName::OCL_DEV_BASE_PROGRAM, cache_locker);
+		cpProgram = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::OCL_DEV_BASE_PROGRAM, cache_locker);
 
 		if(!cpProgram) {
 			/* verify we have right opencl version */
@@ -922,7 +926,7 @@ public:
 			}
 
 			/* cache the program */
-			OpenCLCache::store_program(cpPlatform, cdDevice, cpProgram, OpenCLCache::ProgramName::OCL_DEV_BASE_PROGRAM, cache_locker);
+			OpenCLCache::store_program(cpPlatform, cdDevice, cpProgram, OpenCLCache::OCL_DEV_BASE_PROGRAM, cache_locker);
 		}
 
 		/* find kernels */
@@ -1113,7 +1117,7 @@ public:
 
 		/* try to use cached kernel */
 		thread_scoped_lock cache_locker;
-		path_trace_program = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::ProgramName::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
+		path_trace_program = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
 
 		if(!path_trace_program) {
 			/* verify we have right opencl version */
@@ -1157,7 +1161,7 @@ public:
 			}
 
 			/* cache the program */
-			OpenCLCache::store_program(cpPlatform, cdDevice, path_trace_program, OpenCLCache::ProgramName::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
+			OpenCLCache::store_program(cpPlatform, cdDevice, path_trace_program, OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
 		}
 
 		/* find kernels */
