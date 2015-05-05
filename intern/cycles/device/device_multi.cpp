@@ -105,7 +105,7 @@ public:
 			sub.device->clos_max = this->clos_max;
 
 			sub.device->closure_nodes = this->closure_nodes;
-			if (!sub.device->load_kernels(experimental))
+			if(!sub.device->load_kernels(experimental))
 				return false;
 		}
 		return true;

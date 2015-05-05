@@ -1755,224 +1755,81 @@ public:
 	}
 
 	/* Get enum type names */
+	/* ToDo: Avoid this switch somehow */
 	string get_node_type_as_string(NodeType node) {
 		switch (node) {
-		case NODE_SHADER_JUMP:
-			return "__NODE_SHADER_JUMP__";
-			break;
-		case NODE_CLOSURE_BSDF:
-			return "__NODE_CLOSURE_BSDF__";
-			break;
-		case NODE_CLOSURE_EMISSION:
-			return "__NODE_CLOSURE_EMISSION__";
-			break;
-		case NODE_CLOSURE_BACKGROUND:
-			return "__NODE_CLOSURE_BACKGROUND__";
-			break;
-		case NODE_CLOSURE_HOLDOUT:
-			return "__NODE_CLOSURE_HOLDOUT__";
-			break;
-		case NODE_CLOSURE_AMBIENT_OCCLUSION:
-			return "__NODE_CLOSURE_AMBIENT_OCCLUSION__";
-			break;
-		case NODE_CLOSURE_VOLUME:
-			return "__NODE_CLOSURE_VOLUME__";
-			break;
-		case NODE_CLOSURE_SET_WEIGHT:
-			return "__NODE_CLOSURE_SET_WEIGHT__";
-			break;
-		case NODE_CLOSURE_WEIGHT:
-			return "__NODE_CLOSURE_WEIGHT__";
-			break;
-		case NODE_EMISSION_WEIGHT:
-			return "__NODE_EMISSION_WEIGHT__";
-			break;
-		case NODE_MIX_CLOSURE:
-			return "__NODE_MIX_CLOSURE__";
-			break;
-		case NODE_JUMP_IF_ZERO:
-			return "__NODE_JUMP_IF_ZERO__";
-			break;
-		case NODE_JUMP_IF_ONE:
-			return "__NODE_JUMP_IF_ONE__";
-			break;
-		case NODE_TEX_IMAGE:
-			return "__NODE_TEX_IMAGE__";
-			break;
-		case NODE_TEX_IMAGE_BOX:
-			return "__NODE_TEX_IMAGE_BOX__";
-			break;
-		case NODE_TEX_ENVIRONMENT:
-			return "__NODE_TEX_ENVIRONMENT__";
-			break;
-		case NODE_TEX_SKY:
-			return "__NODE_TEX_SKY__";
-			break;
-		case NODE_TEX_GRADIENT:
-			return "__NODE_TEX_GRADIENT__";
-			break;
-		case NODE_TEX_NOISE:
-			return "__NODE_TEX_NOISE__";
-			break;
-		case NODE_TEX_VORONOI:
-			return "__NODE_TEX_VORONOI__";
-			break;
-		case NODE_TEX_MUSGRAVE:
-			return "__NODE_TEX_MUSGRAVE__";
-			break;
-		case NODE_TEX_WAVE:
-			return "__NODE_TEX_WAVE__";
-			break;
-		case NODE_TEX_MAGIC:
-			return "__NODE_TEX_MAGIC__";
-			break;
-		case NODE_TEX_CHECKER:
-			return "__NODE_TEX_CHECKER__";
-			break;
-		case NODE_TEX_BRICK:
-			return "__NODE_TEX_BRICK__";
-			break;
-		case NODE_CAMERA:
-			return "__NODE_CAMERA__";
-			break;
-		case NODE_GEOMETRY:
-			return "__NODE_GEOMETRY__";
-			break;
-		case NODE_GEOMETRY_BUMP_DX:
-			return "__NODE_GEOMETRY_BUMP_DX__";
-			break;
-		case NODE_GEOMETRY_BUMP_DY:
-			return "__NODE_GEOMETRY_BUMP_DY__";
-			break;
-		case NODE_LIGHT_PATH:
-			return "__NODE_LIGHT_PATH__";
-			break;
-		case NODE_OBJECT_INFO:
-			return "__NODE_OBJECT_INFO__";
-			break;
-		case NODE_PARTICLE_INFO:
-			return "__NODE_PARTICLE_INFO__";
-			break;
-		case NODE_HAIR_INFO:
-			return "__NODE_HAIR_INFO__";
-			break;
-		case NODE_CONVERT:
-			return "__NODE_CONVERT__";
-			break;
-		case NODE_VALUE_F:
-			return "__NODE_VALUE_F__";
-			break;
-		case NODE_VALUE_V:
-			return "__NODE_VALUE_V__";
-			break;
-		case NODE_INVERT:
-			return "__NODE_INVERT__";
-			break;
-		case NODE_GAMMA:
-			return "__NODE_GAMMA__";
-			break;
-		case NODE_BRIGHTCONTRAST:
-			return "__NODE_BRIGHTCONTRAST__";
-			break;
-		case NODE_MIX:
-			return "__NODE_MIX__";
-			break;
-		case NODE_SEPARATE_VECTOR:
-			return "__NODE_SEPARATE_VECTOR__";
-			break;
-		case NODE_COMBINE_VECTOR:
-			return "__NODE_COMBINE_VECTOR__";
-			break;
-		case NODE_SEPARATE_HSV:
-			return "__NODE_SEPARATE_HSV__";
-			break;
-		case NODE_COMBINE_HSV:
-			return "__NODE_COMBINE_HSV__";
-			break;
-		case NODE_HSV:
-			return "__NODE_HSV__";
-			break;
-		case NODE_ATTR:
-			return "__NODE_ATTR__";
-			break;
-		case NODE_ATTR_BUMP_DX:
-			return "__NODE_ATTR_BUMP_DX__";
-			break;
-		case NODE_ATTR_BUMP_DY:
-			return "__NODE_ATTR_BUMP_DY__";
-			break;
-		case NODE_FRESNEL:
-			return "__NODE_FRESNEL__";
-			break;
-		case NODE_LAYER_WEIGHT:
-			return "__NODE_LAYER_WEIGHT__";
-			break;
-		case NODE_WIREFRAME:
-			return "__NODE_WIREFRAME__";
-			break;
-		case NODE_WAVELENGTH:
-			return "__NODE_WAVELENGTH__";
-			break;
-		case NODE_BLACKBODY:
-			return "__NODE_BLACKBODY__";
-			break;
-		case NODE_SET_DISPLACEMENT:
-			return "__NODE_SET_DISPLACEMENT__";
-			break;
-		case NODE_SET_BUMP:
-			return "__NODE_SET_BUMP__";
-			break;
-		case NODE_MATH:
-			return "__NODE_MATH__";
-			break;
-		case NODE_VECTOR_MATH:
-			return "__NODE_VECTOR_MATH__";
-			break;
-		case NODE_VECTOR_TRANSFORM:
-			return "__NODE_VECTOR_TRANSFORM__";
-			break;
-		case NODE_NORMAL:
-			return "__NODE_NORMAL__";
-			break;
-		case NODE_MAPPING:
-			return "__NODE_MAPPING__";
-			break;
-		case NODE_MIN_MAX:
-			return "__NODE_MIN_MAX__";
-			break;
-		case NODE_TEX_COORD:
-			return "__NODE_TEX_COORD__";
-			break;
-		case NODE_TEX_COORD_BUMP_DX:
-			return "__NODE_TEX_COORD_BUMP_DX__";
-			break;
-		case NODE_TEX_COORD_BUMP_DY:
-			return "__NODE_TEX_COORD_BUMP_DY__";
-			break;
-		case NODE_CLOSURE_SET_NORMAL:
-			return "__NODE_CLOSURE_SET_NORMAL__";
-			break;
-		case NODE_RGB_RAMP:
-			return "__NODE_RGB_RAMP__";
-			break;
-		case NODE_RGB_CURVES:
-			return "__NODE_RGB_CURVES__";
-			break;
-		case NODE_VECTOR_CURVES:
-			return "__NODE_VECTOR_CURVES__";
-			break;
-		case NODE_LIGHT_FALLOFF:
-			return "__NODE_LIGHT_FALLOFF__";
-			break;
-		case NODE_TANGENT:
-			return "__NODE_TANGENT__";
-			break;
-		case NODE_NORMAL_MAP:
-			return "__NODE_NORMAL_MAP__";
-			break;
-		case NODE_END:
-			return "__NODE_END__";
-			break;
+		case NODE_SHADER_JUMP: return "__NODE_SHADER_JUMP__";
+		case NODE_CLOSURE_BSDF: return "__NODE_CLOSURE_BSDF__";
+		case NODE_CLOSURE_EMISSION: return "__NODE_CLOSURE_EMISSION__";
+		case NODE_CLOSURE_BACKGROUND: return "__NODE_CLOSURE_BACKGROUND__";
+		case NODE_CLOSURE_HOLDOUT: return "__NODE_CLOSURE_HOLDOUT__";
+		case NODE_CLOSURE_AMBIENT_OCCLUSION: return "__NODE_CLOSURE_AMBIENT_OCCLUSION__";
+		case NODE_CLOSURE_VOLUME: return "__NODE_CLOSURE_VOLUME__";
+		case NODE_CLOSURE_SET_WEIGHT: return "__NODE_CLOSURE_SET_WEIGHT__";
+		case NODE_CLOSURE_WEIGHT: return "__NODE_CLOSURE_WEIGHT__";
+		case NODE_EMISSION_WEIGHT: return "__NODE_EMISSION_WEIGHT__";
+		case NODE_MIX_CLOSURE: return "__NODE_MIX_CLOSURE__";
+		case NODE_JUMP_IF_ZERO: return "__NODE_JUMP_IF_ZERO__";
+		case NODE_JUMP_IF_ONE: return "__NODE_JUMP_IF_ONE__";
+		case NODE_TEX_IMAGE: return "__NODE_TEX_IMAGE__";
+		case NODE_TEX_IMAGE_BOX: return "__NODE_TEX_IMAGE_BOX__";
+		case NODE_TEX_ENVIRONMENT: return "__NODE_TEX_ENVIRONMENT__";
+		case NODE_TEX_SKY: return "__NODE_TEX_SKY__";
+		case NODE_TEX_GRADIENT: return "__NODE_TEX_GRADIENT__";
+		case NODE_TEX_NOISE: return "__NODE_TEX_NOISE__";
+		case NODE_TEX_VORONOI: return "__NODE_TEX_VORONOI__";
+		case NODE_TEX_MUSGRAVE: return "__NODE_TEX_MUSGRAVE__";
+		case NODE_TEX_WAVE: return "__NODE_TEX_WAVE__";
+		case NODE_TEX_MAGIC: return "__NODE_TEX_MAGIC__";
+		case NODE_TEX_CHECKER: return "__NODE_TEX_CHECKER__";
+		case NODE_TEX_BRICK: return "__NODE_TEX_BRICK__";
+		case NODE_CAMERA: return "__NODE_CAMERA__";
+		case NODE_GEOMETRY: return "__NODE_GEOMETRY__";
+		case NODE_GEOMETRY_BUMP_DX: return "__NODE_GEOMETRY_BUMP_DX__";
+		case NODE_GEOMETRY_BUMP_DY: return "__NODE_GEOMETRY_BUMP_DY__";
+		case NODE_LIGHT_PATH: return "__NODE_LIGHT_PATH__";
+		case NODE_OBJECT_INFO: return "__NODE_OBJECT_INFO__";
+		case NODE_PARTICLE_INFO: return "__NODE_PARTICLE_INFO__";
+		case NODE_HAIR_INFO: return "__NODE_HAIR_INFO__";
+		case NODE_CONVERT: return "__NODE_CONVERT__";
+		case NODE_VALUE_F: return "__NODE_VALUE_F__";
+		case NODE_VALUE_V: return "__NODE_VALUE_V__";
+		case NODE_INVERT: return "__NODE_INVERT__";
+		case NODE_GAMMA: return "__NODE_GAMMA__";
+		case NODE_BRIGHTCONTRAST: return "__NODE_BRIGHTCONTRAST__";
+		case NODE_MIX: return "__NODE_MIX__";
+		case NODE_SEPARATE_VECTOR: return "__NODE_SEPARATE_VECTOR__";
+		case NODE_COMBINE_VECTOR: return "__NODE_COMBINE_VECTOR__";
+		case NODE_SEPARATE_HSV: return "__NODE_SEPARATE_HSV__";
+		case NODE_COMBINE_HSV: return "__NODE_COMBINE_HSV__";
+		case NODE_HSV: return "__NODE_HSV__";
+		case NODE_ATTR: return "__NODE_ATTR__";
+		case NODE_ATTR_BUMP_DX: return "__NODE_ATTR_BUMP_DX__";
+		case NODE_ATTR_BUMP_DY: return "__NODE_ATTR_BUMP_DY__";
+		case NODE_FRESNEL: return "__NODE_FRESNEL__";
+		case NODE_LAYER_WEIGHT: return "__NODE_LAYER_WEIGHT__";
+		case NODE_WIREFRAME: return "__NODE_WIREFRAME__";
+		case NODE_WAVELENGTH: return "__NODE_WAVELENGTH__";
+		case NODE_BLACKBODY: return "__NODE_BLACKBODY__";
+		case NODE_SET_DISPLACEMENT: return "__NODE_SET_DISPLACEMENT__";
+		case NODE_SET_BUMP: return "__NODE_SET_BUMP__";
+		case NODE_MATH: return "__NODE_MATH__";
+		case NODE_VECTOR_MATH: return "__NODE_VECTOR_MATH__";
+		case NODE_VECTOR_TRANSFORM: return "__NODE_VECTOR_TRANSFORM__";
+		case NODE_NORMAL: return "__NODE_NORMAL__";
+		case NODE_MAPPING: return "__NODE_MAPPING__";
+		case NODE_MIN_MAX: return "__NODE_MIN_MAX__";
+		case NODE_TEX_COORD: return "__NODE_TEX_COORD__";
+		case NODE_TEX_COORD_BUMP_DX: return "__NODE_TEX_COORD_BUMP_DX__";
+		case NODE_TEX_COORD_BUMP_DY: return "__NODE_TEX_COORD_BUMP_DY__";
+		case NODE_CLOSURE_SET_NORMAL: return "__NODE_CLOSURE_SET_NORMAL__";
+		case NODE_RGB_RAMP: return "__NODE_RGB_RAMP__";
+		case NODE_RGB_CURVES: return "__NODE_RGB_CURVES__";
+		case NODE_VECTOR_CURVES: return "__NODE_VECTOR_CURVES__";
+		case NODE_LIGHT_FALLOFF: return "__NODE_LIGHT_FALLOFF__";
+		case NODE_TANGENT: return "__NODE_TANGENT__";
+		case NODE_NORMAL_MAP: return "__NODE_NORMAL_MAP__";
+		case NODE_END: return "__NODE_END__";
 		default:
 			assert(0);
 		}
