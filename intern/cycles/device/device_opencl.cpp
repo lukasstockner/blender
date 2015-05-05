@@ -413,9 +413,7 @@ public:
 #define opencl_assert(stmt) \
 	{ \
 		cl_int err = stmt; \
-		\
 		if(err != CL_SUCCESS) { \
-		\
 			string message = string_printf("OpenCL error: %s in %s", clewErrorString(err), #stmt); \
 			if(error_msg == "") \
 				error_msg = message; \
