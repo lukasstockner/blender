@@ -2686,41 +2686,40 @@ public:
 
 		/* Set arguments for ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL kernel */
 		narg = 0;
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(sd), (void*)&sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(per_sample_output_buffers), (void*)&per_sample_output_buffers));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_rng_state), (void*)&d_rng_state));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rng_coop), (void*)&rng_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(throughput_coop), (void*)&throughput_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(PathRadiance_coop), (void*)&PathRadiance_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(Ray_coop), (void*)&Ray_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(PathState_coop), (void*)&PathState_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(L_transparent_coop), (void*)&L_transparent_coop));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(ray_state), (void*)&ray_state));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_w), (void*)&d_w));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_h), (void*)&d_h));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_x), (void*)&d_x));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_y), (void*)&d_y));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(d_stride), (void*)&d_stride));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_x), (void*)&(rtile.rng_state_offset_x)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_y), (void*)&(rtile.rng_state_offset_y)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_rng_state_stride), (void*)&(rtile.buffer_rng_state_stride)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(work_array), (void*)&work_array));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(end_sample), (void*)&end_sample));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, per_sample_output_buffers);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_rng_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, L_transparent_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rtile.rng_state_offset_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rtile.rng_state_offset_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rtile.buffer_rng_state_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, work_array);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, end_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, start_sample);
 #ifdef __WORK_STEALING__
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(work_pool_wgs), (void*)&work_pool_wgs));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(num_samples), (void*)&num_samples));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, work_pool_wgs);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, num_samples);
 #endif
 #ifdef WITH_CYCLES_DEBUG
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(debugdata_coop), (void*)&debugdata_coop));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, debugdata_coop);
 #endif
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, num_parallel_samples);
 
 		/* Set arguments for ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL */
 		narg = 0;
