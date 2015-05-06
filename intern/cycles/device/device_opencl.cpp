@@ -2799,26 +2799,25 @@ public:
 
 		/* Set up arguments for ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL kernel */
 		narg = 0;
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(sd), (void*)&sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(rng_coop), (void*)&rng_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(throughput_coop), (void*)&throughput_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(PathRadiance_coop), (void*)&PathRadiance_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(Ray_coop), (void*)&Ray_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(PathState_coop), (void*)&PathState_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(LightRay_coop), (void*)&LightRay_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(ISLamp_coop), (void*)&ISLamp_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(BSDFEval_coop), (void*)&BSDFEval_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(AOLightRay_coop), (void*)&AOLightRay_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(AOBSDF_coop), (void*)&AOBSDF_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(AOAlpha_coop), (void*)&AOAlpha_coop));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(ray_state), (void*)&ray_state));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, narg++, sizeof(use_queues_flag), (void*)&use_queues_flag));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, LightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, ISLamp_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, BSDFEval_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, AOLightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, AOBSDF_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, AOAlpha_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, use_queues_flag);
 
 		/* Set up arguments for ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL */
 		narg = 0;
