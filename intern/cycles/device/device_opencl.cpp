@@ -2833,6 +2833,7 @@ public:
 		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, rtile.buffer_rng_state_stride);
 		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, start_sample);
 
+#undef KERNEL_APPEND_ARG
 
 		/* Macro for Enqueuing split kernels */
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
