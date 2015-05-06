@@ -35,9 +35,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-#define OPTIMAL_CLOSURE_COUNT 1
-static int maxclosure = OPTIMAL_CLOSURE_COUNT;
-
 /* Note about  preserve_tile_device option for tile manager:
  * progressive refine and viewport rendering does requires tiles to
  * always be allocated for the same device
@@ -81,6 +78,9 @@ Session::Session(const SessionParams& params_)
 	gpu_need_tonemap = false;
 	pause = false;
 	kernels_loaded = false;
+
+	/* TODO(sergey): Check if it's indeed optimal value for the split kernel. */
+	max_closure_global = 1;
 }
 
 Session::~Session()
@@ -966,10 +966,8 @@ int Session::max_closure_count_get()
 		int num_closures = scene->shaders[i]->graph->get_num_closures();
 		max_closures = max(max_closures, num_closures);
 	}
-	if(max_closures > maxclosure) {
-		maxclosure = max_closures;
-	}
-	return maxclosure;
+	max_closure_global = max(max_closure_global, max_closures);
+	return max_closure_global;
 }
 
 CCL_NAMESPACE_END
