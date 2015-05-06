@@ -46,6 +46,7 @@ struct bContext;
 struct bMotionPath;
 struct bPoseChannel;
 struct Mesh;
+struct BMEditStrands;
 struct Strands;
 struct StrandsChildren;
 struct wmNDOFMotionData;
@@ -185,6 +186,7 @@ void draw_sim_debug_data(Scene *scene, View3D *v3d, ARegion *ar);
 
 /* drawstrands.c */
 void draw_strands(Scene *scene, View3D *v3d, ARegion *ar, struct Object *ob, struct Strands *strands, struct StrandsChildren *children, short dflag);
+void draw_strands_edit_hair(Scene *scene, View3D *v3d, ARegion *ar, struct BMEditStrands *edit);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);

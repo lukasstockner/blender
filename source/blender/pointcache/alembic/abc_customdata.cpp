@@ -255,6 +255,45 @@ void write_sample<CD_ORIGSPACE_MLOOP>(CustomDataWriter *writer, OCompoundPropert
 	prop_uv.set(V2fArraySample(uv_data));
 }
 
+template <>
+void write_sample<CD_MSURFACE_SAMPLE>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
+{
+	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
+	
+	OUInt32ArrayProperty prop_orig_verts = writer->add_array_property<OUInt32ArrayProperty>(name + ":orig_verts", prop);
+	OFloatArrayProperty prop_orig_weights = writer->add_array_property<OFloatArrayProperty>(name + ":orig_weights", prop);
+	OInt32ArrayProperty prop_orig_poly = writer->add_array_property<OInt32ArrayProperty>(name + ":orig_poly", prop);
+	OUInt32ArrayProperty prop_orig_loops = writer->add_array_property<OUInt32ArrayProperty>(name + ":orig_loops", prop);
+	
+	MSurfaceSample *surf = (MSurfaceSample *)data;
+	std::vector<uint32_t> orig_verts_data;
+	std::vector<float32_t> orig_weights_data;
+	std::vector<int32_t> orig_poly_data;
+	std::vector<uint32_t> orig_loops_data;
+	orig_verts_data.reserve(num_data * 3);
+	orig_weights_data.reserve(num_data * 3);
+	orig_poly_data.reserve(num_data);
+	orig_loops_data.reserve(num_data * 3);
+	for (int i = 0; i < num_data; ++i) {
+		orig_verts_data.push_back(surf->orig_verts[0]);
+		orig_verts_data.push_back(surf->orig_verts[1]);
+		orig_verts_data.push_back(surf->orig_verts[2]);
+		orig_weights_data.push_back(surf->orig_weights[0]);
+		orig_weights_data.push_back(surf->orig_weights[1]);
+		orig_weights_data.push_back(surf->orig_weights[2]);
+		orig_poly_data.push_back(surf->orig_poly);
+		orig_loops_data.push_back(surf->orig_loops[0]);
+		orig_loops_data.push_back(surf->orig_loops[1]);
+		orig_loops_data.push_back(surf->orig_loops[2]);
+		
+		++surf;
+	}
+	prop_orig_verts.set(UInt32ArraySample(orig_verts_data));
+	prop_orig_weights.set(FloatArraySample(orig_weights_data));
+	prop_orig_poly.set(Int32ArraySample(orig_poly_data));
+	prop_orig_loops.set(UInt32ArraySample(orig_loops_data));
+}
+
 /* ------------------------------------------------------------------------- */
 
 template <CustomDataType CDTYPE>
@@ -517,6 +556,54 @@ PTCReadSampleResult read_sample<CD_ORIGSPACE_MLOOP>(CustomDataReader *reader, IC
 		
 		++sample_data;
 		++ospace;
+	}
+	
+	return PTC_READ_SAMPLE_EXACT;
+}
+
+template <>
+PTCReadSampleResult read_sample<CD_MSURFACE_SAMPLE>(CustomDataReader *reader, ICompoundProperty &parent, const ISampleSelector &ss, const std::string &name, void *data, int num_data)
+{
+	ICompoundProperty prop = reader->add_compound_property<ICompoundProperty>(name, parent);
+	
+	IUInt32ArrayProperty orig_verts_prop = reader->add_array_property<IUInt32ArrayProperty>(name + ":orig_verts", prop);
+	IFloatArrayProperty orig_weights_prop = reader->add_array_property<IFloatArrayProperty>(name + ":orig_weights", prop);
+	IInt32ArrayProperty orig_poly_prop = reader->add_array_property<IInt32ArrayProperty>(name + ":orig_poly", prop);
+	IUInt32ArrayProperty orig_loops_prop = reader->add_array_property<IUInt32ArrayProperty>(name + ":orig_loops", prop);
+	
+	UInt32ArraySamplePtr orig_verts_sample = orig_verts_prop.getValue(ss);
+	FloatArraySamplePtr orig_weights_sample = orig_weights_prop.getValue(ss);
+	Int32ArraySamplePtr orig_poly_sample = orig_poly_prop.getValue(ss);
+	UInt32ArraySamplePtr orig_loops_sample = orig_loops_prop.getValue(ss);
+	
+	if (orig_verts_sample->size() != num_data*3 ||
+	    orig_weights_sample->size() != num_data*3 ||
+	    orig_poly_sample->size() != num_data ||
+	    orig_loops_sample->size() != num_data*3)
+		return PTC_READ_SAMPLE_INVALID;
+	
+	MSurfaceSample *surf = (MSurfaceSample *)data;
+	const uint32_t *orig_verts_data = (const uint32_t *)orig_verts_sample->getData();
+	const float32_t *orig_weights_data = (const float32_t *)orig_weights_sample->getData();
+	const int32_t *orig_poly_data = (const int32_t *)orig_poly_sample->getData();
+	const uint32_t *orig_loops_data = (const uint32_t *)orig_loops_sample->getData();
+	for (int i = 0; i < num_data; ++i) {
+		surf->orig_verts[0] = orig_verts_data[0];
+		surf->orig_verts[1] = orig_verts_data[1];
+		surf->orig_verts[2] = orig_verts_data[2];
+		surf->orig_weights[0] = orig_weights_data[0];
+		surf->orig_weights[1] = orig_weights_data[1];
+		surf->orig_weights[2] = orig_weights_data[2];
+		surf->orig_poly = *orig_poly_data;
+		surf->orig_loops[0] = orig_loops_data[0];
+		surf->orig_loops[1] = orig_loops_data[1];
+		surf->orig_loops[2] = orig_loops_data[2];
+		
+		orig_verts_data += 3;
+		orig_weights_data += 3;
+		orig_poly_data += 1;
+		orig_loops_data += 3;
+		++surf;
 	}
 	
 	return PTC_READ_SAMPLE_EXACT;

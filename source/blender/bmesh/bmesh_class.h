@@ -276,8 +276,16 @@ enum {
 #define BM_CHECK_TYPE_ELEM(ele) \
 	CHECK_TYPE_ANY(ele, _BM_GENERIC_TYPE_ELEM_NONCONST, _BM_GENERIC_TYPE_ELEM_CONST)
 
+#ifndef __cplusplus
 #define BM_CHECK_TYPE_ELEM_ASSIGN(ele) \
 	(BM_CHECK_TYPE_ELEM(ele)), ele
+#else
+/* for C++: cast the lhs to a void*,
+ * because C++ does not allow implicit void* casting of the rhs
+ */
+#define BM_CHECK_TYPE_ELEM_ASSIGN(ele) \
+	(BM_CHECK_TYPE_ELEM(ele), CHECK_TYPE_NONCONST(ele)), *(void**)(&(ele))
+#endif
 
 /* BMHeader->hflag (char) */
 enum {

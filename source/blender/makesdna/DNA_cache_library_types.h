@@ -46,6 +46,7 @@ typedef enum eCacheLibrary_SourceMode {
 typedef enum eCacheLibrary_DisplayMode {
 	CACHE_LIBRARY_DISPLAY_SOURCE    = 0, /* display source data */
 	CACHE_LIBRARY_DISPLAY_RESULT    = 1, /* display result data */
+	CACHE_LIBRARY_DISPLAY_MODIFIERS = 2, /* display input with modifiers */
 } eCacheLibrary_DisplayMode;
 
 typedef enum eCacheLibrary_EvalMode {
@@ -169,6 +170,7 @@ typedef enum eCacheModifier_Type {
 	eCacheModifierType_HairSimulation               = 1,
 	eCacheModifierType_ForceField                   = 2,
 	eCacheModifierType_ShrinkWrap                   = 3,
+	eCacheModifierType_StrandsKey                      = 4,
 	
 	NUM_CACHE_MODIFIER_TYPES
 } eCacheModifier_Type;
@@ -228,5 +230,23 @@ typedef struct ShrinkWrapCacheModifier {
 	
 	struct Object *target;
 } ShrinkWrapCacheModifier;
+
+typedef struct StrandsKeyCacheModifier {
+	CacheModifier modifier;
+	
+	struct Object *object;
+	int hair_system;
+	int flag;
+	
+	struct Key *key;
+	int shapenr;
+	int pad;
+	
+	struct BMEditStrands *edit; /* edit data (runtime) */
+} StrandsKeyCacheModifier;
+
+typedef enum eStrandsKeyCacheModifier_Flag {
+	eStrandsKeyCacheModifier_Flag_ShapeLock             = (1 << 0),
+} eStrandsKeyCacheModifier_Flag;
 
 #endif

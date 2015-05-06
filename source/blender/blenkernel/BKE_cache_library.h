@@ -50,6 +50,8 @@ struct ID;
 struct CacheProcessData;
 struct BVHTreeFromMesh;
 struct Strands;
+struct StrandsKeyCacheModifier;
+struct KeyBlock;
 
 struct ClothModifierData;
 
@@ -96,7 +98,7 @@ typedef struct CacheProcessContext {
 } CacheProcessContext;
 
 typedef struct CacheProcessData {
-	int lay;
+	unsigned int lay;
 	float mat[4][4];
 	struct DupliCache *dupcache;
 } CacheProcessData;
@@ -172,7 +174,11 @@ struct CacheModifier *BKE_cache_modifier_copy(struct CacheLibrary *cachelib, str
 void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct CacheModifier *md, CacheModifier_IDWalkFunc walk, void *userdata);
 
 bool BKE_cache_modifier_find_object(struct DupliCache *dupcache, struct Object *ob, struct DupliObjectData **r_data);
-bool BKE_cache_modifier_find_strands(struct DupliCache *dupcache, struct Object *ob, int hair_system, struct DupliObjectData **r_data, struct Strands **r_strands);
+bool BKE_cache_modifier_find_strands(struct DupliCache *dupcache, struct Object *ob, int hair_system, struct DupliObjectData **r_data, struct Strands **r_strands, const char **r_name);
+
+struct KeyBlock *BKE_cache_modifier_strands_key_insert_key(struct StrandsKeyCacheModifier *md, struct Strands *strands, const char *name, const bool from_mix);
+bool BKE_cache_modifier_strands_key_get(struct Object *ob, struct StrandsKeyCacheModifier **r_skmd, struct DerivedMesh **r_dm, struct Strands **r_strands,
+                                        struct DupliObjectData **r_dobdata, const char **r_name, float r_mat[4][4]);
 
 /* ========================================================================= */
 

@@ -42,6 +42,7 @@
 
 #include "DNA_cache_library_types.h"
 #include "DNA_group_types.h"
+#include "DNA_key_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_force.h"
 #include "DNA_object_types.h"
@@ -56,9 +57,11 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_DerivedMesh.h"
+#include "BKE_editstrands.h"
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
+#include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
@@ -84,7 +87,7 @@ CacheLibrary *BKE_cache_library_add(Main *bmain, const char *name)
 	BLI_snprintf(cachelib->output_filepath, sizeof(cachelib->output_filepath), "//cache/%s.%s", basename, PTC_get_default_archive_extension());
 
 	cachelib->source_mode = CACHE_LIBRARY_SOURCE_SCENE;
-	cachelib->display_mode = CACHE_LIBRARY_DISPLAY_RESULT;
+	cachelib->display_mode = CACHE_LIBRARY_DISPLAY_MODIFIERS;
 	cachelib->display_flag = CACHE_LIBRARY_DISPLAY_MOTION | CACHE_LIBRARY_DISPLAY_CHILDREN;
 	cachelib->render_flag = CACHE_LIBRARY_RENDER_MOTION | CACHE_LIBRARY_RENDER_CHILDREN;
 	cachelib->eval_mode = CACHE_LIBRARY_EVAL_REALTIME | CACHE_LIBRARY_EVAL_RENDER;
@@ -319,7 +322,7 @@ static bool has_active_cache(CacheLibrary *cachelib)
 		}
 	}
 	
-	if (cachelib->source_mode == CACHE_LIBRARY_SOURCE_CACHE) {
+	if (ELEM(cachelib->source_mode, CACHE_LIBRARY_SOURCE_CACHE, CACHE_LIBRARY_DISPLAY_MODIFIERS)) {
 		return true;
 	}
 	
@@ -342,7 +345,7 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 		}
 	}
 	
-	if (!archive && cachelib->source_mode == CACHE_LIBRARY_SOURCE_CACHE) {
+	if (!archive && ELEM(cachelib->source_mode, CACHE_LIBRARY_SOURCE_CACHE, CACHE_LIBRARY_DISPLAY_MODIFIERS)) {
 		BKE_cache_archive_input_path(cachelib, filename, sizeof(filename));
 		archive = PTC_open_reader_archive(scene, filename);
 	}
@@ -846,7 +849,7 @@ bool BKE_cache_modifier_find_object(DupliCache *dupcache, Object *ob, DupliObjec
 	return true;
 }
 
-bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_system, DupliObjectData **r_data, Strands **r_strands)
+bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_system, DupliObjectData **r_data, Strands **r_strands, const char **r_name)
 {
 	DupliObjectData *dobdata;
 	ParticleSystem *psys;
@@ -875,6 +878,7 @@ bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_
 	
 	if (r_data) *r_data = dobdata;
 	if (r_strands) *r_strands = strands;
+	if (r_name) *r_name = psys->name;
 	return true;
 }
 
@@ -949,7 +953,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 //	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
 //		return;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands, NULL))
 		return;
 	
 	/* Note: motion state data should always be created regardless of actual sim.
@@ -1110,7 +1114,7 @@ static void shrinkwrap_data_free(ShrinkWrapCacheData *data)
 	}
 }
 
-static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *data, ShrinkWrapCacheInstance *inst, StrandsVertex *vertex, StrandsMotionState *UNUSED(state))
+static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *UNUSED(smd), ShrinkWrapCacheData *data, ShrinkWrapCacheInstance *inst, StrandsVertex *vertex, StrandsMotionState *UNUSED(state))
 {
 //	const float *point = state->co;
 //	float *npoint = state->co;
@@ -1167,7 +1171,7 @@ static void shrinkwrap_apply(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *
 	}
 }
 
-static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode)
+static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 	Object *ob = smd->object;
 	DupliObject *dob;
@@ -1177,15 +1181,7 @@ static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext
 	
 	ShrinkWrapCacheData shrinkwrap;
 	
-	/* only perform hair sim once */
-	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
-		return;
-	
-	/* skip first step and potential backward steps */
-	if (frame <= frame_prev)
-		return;
-	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL))
 		return;
 	if (!BKE_cache_modifier_find_object(data->dupcache, smd->target, &target_data))
 		return;
@@ -1222,11 +1218,175 @@ CacheModifierTypeInfo cacheModifierType_ShrinkWrap = {
     /* free */              (CacheModifier_FreeFunc)shrinkwrap_free,
 };
 
+/* ------------------------------------------------------------------------- */
+
+static void strandskey_init(StrandsKeyCacheModifier *skmd)
+{
+	skmd->object = NULL;
+	skmd->hair_system = -1;
+	
+	skmd->key = BKE_key_add_ex(NULL, KEY_FROMTYPE_STRANDS);
+	skmd->key->type = KEY_RELATIVE;
+}
+
+static void strandskey_copy(StrandsKeyCacheModifier *skmd, StrandsKeyCacheModifier *tskmd)
+{
+	tskmd->key = BKE_key_copy(skmd->key);
+	
+	tskmd->edit = NULL;
+}
+
+static void strandskey_free(StrandsKeyCacheModifier *skmd)
+{
+	BKE_key_free(skmd->key);
+	
+	if (skmd->edit) {
+		BKE_editstrands_free(skmd->edit);
+		MEM_freeN(skmd->edit);
+		skmd->edit = NULL;
+	}
+}
+
+static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	walk(userdata, cachelib, &skmd->modifier, (ID **)(&skmd->object));
+}
+
+static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
+{
+	Object *ob = skmd->object;
+	Strands *strands;
+	KeyBlock *actkb;
+	float *shape;
+	
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands, NULL))
+		return;
+	
+	actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
+	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL);
+	if (shape) {
+		StrandsVertex *vert = strands->verts;
+		int totvert = strands->totverts;
+		int i;
+		
+		float *fp = shape;
+		for (i = 0; i < totvert; ++i) {
+			copy_v3_v3(vert->co, fp);
+			
+			fp += 3;
+			++vert;
+		}
+		
+		MEM_freeN(shape);
+	}
+}
+
+CacheModifierTypeInfo cacheModifierType_StrandsKey = {
+    /* name */              "StrandsKey",
+    /* structName */        "StrandsKeyCacheModifier",
+    /* structSize */        sizeof(StrandsKeyCacheModifier),
+
+    /* copy */              (CacheModifier_CopyFunc)strandskey_copy,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)strandskey_foreach_id_link,
+    /* process */           (CacheModifier_ProcessFunc)strandskey_process,
+    /* init */              (CacheModifier_InitFunc)strandskey_init,
+    /* free */              (CacheModifier_FreeFunc)strandskey_free,
+};
+
+KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skmd, Strands *strands, const char *name, const bool from_mix)
+{
+	Key *key = skmd->key;
+	KeyBlock *kb;
+	bool newkey = false;
+	
+	if (key == NULL) {
+		key = skmd->key = BKE_key_add_ex(NULL, KEY_FROMTYPE_STRANDS);
+		key->type = KEY_RELATIVE;
+		newkey = true;
+	}
+	else if (BLI_listbase_is_empty(&key->block)) {
+		newkey = true;
+	}
+	
+	if (newkey || from_mix == false) {
+		/* create from mesh */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		BKE_keyblock_convert_from_strands(strands, key, kb);
+	}
+	else {
+		/* copy from current values */
+		KeyBlock *actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
+		bool shape_lock = skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock;
+		int totelem;
+		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem);
+		
+		/* create new block with prepared data */
+		kb = BKE_keyblock_add_ctime(key, name, false);
+		kb->data = data;
+		kb->totelem = totelem;
+	}
+	
+	return kb;
+}
+
+bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_skmd, DerivedMesh **r_dm, Strands **r_strands, DupliObjectData **r_dobdata, const char **r_name, float r_mat[4][4])
+{
+	CacheLibrary *cachelib = ob->cache_library;
+	CacheModifier *md;
+	
+	if (!cachelib)
+		return false;
+	
+	/* ignore when the object is not actually using the cachelib */
+	if (!((ob->transflag & OB_DUPLIGROUP) && ob->dup_group && ob->dup_cache))
+		return false;
+	
+	for (md = cachelib->modifiers.first; md; md = md->next) {
+		if (md->type == eCacheModifierType_StrandsKey) {
+			StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
+			DupliObjectData *dobdata;
+			
+			if (BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, &dobdata, r_strands, r_name)) {
+				if (r_skmd) *r_skmd = skmd;
+				if (r_dm) *r_dm = dobdata->dm;
+				if (r_dobdata) *r_dobdata = dobdata;
+				
+				/* relative transform from the original hair object to the duplicator local space */
+				/* XXX bad hack, common problem: we want to display strand edit data in the place of "the" instance,
+				 * but in fact there can be multiple instances of the same dupli object data, so this is ambiguous ...
+				 * For our basic use case, just pick the first dupli instance, assuming that it's the only one.
+				 * ugh ...
+				 */
+				if (r_mat) {
+					DupliObject *dob;
+					for (dob = ob->dup_cache->duplilist.first; dob; dob = dob->next) {
+						if (dob->ob == skmd->object)
+							break;
+					}
+					if (dob) {
+						/* note: plain duplis from the dupli cache list are relative
+						 * to the duplicator already! (not in world space like final duplis)
+						 */
+						copy_m4_m4(r_mat, dob->mat);
+					}
+					else
+						unit_m4(r_mat);
+				}
+				
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 void BKE_cache_modifier_init(void)
 {
 	cache_modifier_type_set(eCacheModifierType_HairSimulation, &cacheModifierType_HairSimulation);
 	cache_modifier_type_set(eCacheModifierType_ForceField, &cacheModifierType_ForceField);
 	cache_modifier_type_set(eCacheModifierType_ShrinkWrap, &cacheModifierType_ShrinkWrap);
+	cache_modifier_type_set(eCacheModifierType_StrandsKey, &cacheModifierType_StrandsKey);
 }
 
 /* ========================================================================= */

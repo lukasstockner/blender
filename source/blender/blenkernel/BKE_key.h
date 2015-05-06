@@ -41,6 +41,7 @@ struct Object;
 struct Lattice;
 struct Mesh;
 struct ParticleSystem;
+struct Strands;
 struct WeightsArrayCache;
 
 /* Kernel prototypes */
@@ -51,6 +52,7 @@ extern "C" {
 void        BKE_key_free(struct Key *sc);
 void        BKE_key_free_nolib(struct Key *key);
 struct Key *BKE_key_add(struct ID *id);
+struct Key *BKE_key_add_ex(struct ID *from, short fromtype);
 struct Key *BKE_key_add_particles(struct Object *ob, struct ParticleSystem *psys);
 struct Key *BKE_key_copy(struct Key *key);
 struct Key *BKE_key_copy_nolib(struct Key *key);
@@ -69,6 +71,12 @@ float *BKE_key_evaluate_object_ex(
         float *arr, size_t arr_size);
 float *BKE_key_evaluate_object(
         struct Object *ob, int *r_totelem);
+float *BKE_key_evaluate_strands_ex(
+        struct Strands *strands, struct Key *key, struct KeyBlock *actkb, bool lock_shape,
+        int *r_totelem, float *arr, size_t arr_size);
+float *BKE_key_evaluate_strands(
+        struct Strands *strand, struct Key *key, struct KeyBlock *actkbs, bool lock_shape,
+        int *r_totelem);
 float *BKE_key_evaluate_particles_ex(
         struct Object *ob, struct ParticleSystem *psys, float cfra, int *r_totelem,
         float *arr, size_t arr_size);
@@ -95,10 +103,13 @@ typedef struct WeightsArrayCache {
 } WeightsArrayCache;
 
 float **BKE_keyblock_get_per_block_object_weights(struct Object *ob, struct Key *key, struct WeightsArrayCache *cache);
+float **BKE_keyblock_strands_get_per_block_weights(struct Strands *strands, struct Key *key, struct WeightsArrayCache *cache);
 float **BKE_keyblock_get_per_block_particle_weights(struct Object *ob, struct ParticleSystem *psys, float cfra, struct Key *key, struct WeightsArrayCache *cache);
 void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_weights, struct WeightsArrayCache *cache);
 void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode);
+void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
+                                  float **per_keyblock_weights, const int mode, char *refdata);
 
 /* conversion functions */
 /* Note: 'update_from' versions do not (re)allocate mem in kb, while 'convert_from' do. */
@@ -114,6 +125,10 @@ void    BKE_keyblock_update_from_mesh(struct Mesh *me, struct KeyBlock *kb);
 void    BKE_keyblock_convert_from_mesh(struct Mesh *me, struct KeyBlock *kb);
 void    BKE_keyblock_convert_to_mesh(struct KeyBlock *kb, struct Mesh *me);
 
+void    BKE_keyblock_update_from_strands(struct Strands *strands, struct KeyBlock *kb);
+void    BKE_keyblock_convert_from_strands(struct Strands *strands, struct Key *key, struct KeyBlock *kb);
+void    BKE_keyblock_convert_to_strands(struct KeyBlock *kb, struct Strands *strands);
+
 void    BKE_keyblock_update_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
 void    BKE_keyblock_convert_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
 float (*BKE_keyblock_convert_to_vertcos(struct Object *ob, struct KeyBlock *kb))[3];
@@ -125,6 +140,7 @@ void    BKE_keyblock_convert_from_hair_keys(struct Object *ob, struct ParticleSy
 
 /* other management */
 bool    BKE_keyblock_move(struct Object *ob, int org_index, int new_index);
+bool    BKE_keyblock_move_ex(struct Key *key, int *shapenr, int org_index, int new_index);
 
 bool    BKE_keyblock_is_basis(struct Key *key, const int index);
 

@@ -47,6 +47,12 @@ void ED_operatortypes_io(void)
 	WM_operatortype_append(CACHELIBRARY_OT_add_modifier);
 	WM_operatortype_append(CACHELIBRARY_OT_remove_modifier);
 
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_add);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_remove);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_clear);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_retime);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_move);
+
 #ifdef WITH_COLLADA
 	/* Collada operators: */
 	WM_operatortype_append(WM_OT_collada_export);

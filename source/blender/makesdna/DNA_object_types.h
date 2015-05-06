@@ -723,10 +723,12 @@ typedef enum ObjectMode {
 	OB_MODE_TEXTURE_PAINT = 1 << 4,
 	OB_MODE_PARTICLE_EDIT = 1 << 5,
 	OB_MODE_POSE          = 1 << 6,
+	OB_MODE_HAIR_EDIT     = 1 << 7,
 } ObjectMode;
 
 /* any mode where the brush system is used */
 #define OB_MODE_ALL_PAINT (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)
+#define OB_MODE_ALL_BRUSH (OB_MODE_ALL_PAINT | OB_MODE_HAIR_EDIT)
 
 #define MAX_DUPLI_RECUR 8
 

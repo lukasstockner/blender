@@ -25,6 +25,8 @@
 
 #include "DNA_defs.h"
 
+#include "DNA_meshdata_types.h"
+
 typedef struct StrandsVertex {
 	float co[3];
 	float base[3]; /* base shape, defining deformation for children */
@@ -46,6 +48,8 @@ typedef struct StrandsMotionState {
 typedef struct StrandsCurve {
 	int numverts;
 	float root_matrix[3][3];
+	
+	MSurfaceSample msurf;
 } StrandsCurve;
 
 typedef struct Strands {
