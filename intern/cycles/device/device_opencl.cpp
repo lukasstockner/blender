@@ -1323,17 +1323,17 @@ public:
 	DedicatedTaskPool task_pool;
 
 	/* Kernel declaration */
-	cl_kernel ckPathTraceKernel_DataInit_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_LampEmission_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_DirectLighting_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL;
-	cl_kernel ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL;
+	cl_kernel ckPathTraceKernel_DataInit;
+	cl_kernel ckPathTraceKernel_SceneIntersect;
+	cl_kernel ckPathTraceKernel_LampEmission;
+	cl_kernel ckPathTraceKernel_QueueEnqueue;
+	cl_kernel ckPathTraceKernel_BG_BufferUpdate;
+	cl_kernel ckPathTraceKernel_Shader_Lighting;
+	cl_kernel ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO;
+	cl_kernel ckPathTraceKernel_DirectLighting;
+	cl_kernel ckPathTraceKernel_ShadowBlocked_DirectLighting;
+	cl_kernel ckPathTraceKernel_SetUpNextIteration;
+	cl_kernel ckPathTraceKernel_SumAllRadiance;
 
 	/* cl_program declaration */
 	cl_program dataInit_program;
@@ -1514,17 +1514,17 @@ public:
 		background = background_;
 
 		/* Initialize kernels */
-		ckPathTraceKernel_DataInit_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_LampEmission_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_DirectLighting_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL = NULL;
-		ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL = NULL;
+		ckPathTraceKernel_DataInit = NULL;
+		ckPathTraceKernel_SceneIntersect = NULL;
+		ckPathTraceKernel_LampEmission = NULL;
+		ckPathTraceKernel_BG_BufferUpdate = NULL;
+		ckPathTraceKernel_Shader_Lighting = NULL;
+		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO = NULL;
+		ckPathTraceKernel_DirectLighting = NULL;
+		ckPathTraceKernel_ShadowBlocked_DirectLighting = NULL;
+		ckPathTraceKernel_SetUpNextIteration = NULL;
+		ckPathTraceKernel_SumAllRadiance = NULL;
+		ckPathTraceKernel_QueueEnqueue = NULL;
 
 		/* Initialize program */
 		dataInit_program = NULL;
@@ -2006,47 +2006,47 @@ public:
 		current_clos_max = clos_max;
 
 		/* find kernels */
-		ckPathTraceKernel_DataInit_SPLIT_KERNEL = clCreateKernel(dataInit_program, "kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_DataInit = clCreateKernel(dataInit_program, "kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL = clCreateKernel(sceneIntersect_program, "kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_SceneIntersect = clCreateKernel(sceneIntersect_program, "kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_LampEmission_SPLIT_KERNEL = clCreateKernel(lampEmission_program, "kernel_ocl_path_trace_LampEmission_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_LampEmission = clCreateKernel(lampEmission_program, "kernel_ocl_path_trace_LampEmission_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL = clCreateKernel(QueueEnqueue_program, "kernel_ocl_path_trace_QueueEnqueue_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_QueueEnqueue = clCreateKernel(QueueEnqueue_program, "kernel_ocl_path_trace_QueueEnqueue_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL = clCreateKernel(background_BufferUpdate_program, "kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_BG_BufferUpdate = clCreateKernel(background_BufferUpdate_program, "kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL = clCreateKernel(shaderEval_program, "kernel_ocl_path_trace_ShaderEvaluation_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_Shader_Lighting = clCreateKernel(shaderEval_program, "kernel_ocl_path_trace_ShaderEvaluation_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL = clCreateKernel(holdout_emission_blurring_termination_ao_program, "kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO = clCreateKernel(holdout_emission_blurring_termination_ao_program, "kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_DirectLighting_SPLIT_KERNEL = clCreateKernel(directLighting_program, "kernel_ocl_path_trace_DirectLighting_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_DirectLighting = clCreateKernel(directLighting_program, "kernel_ocl_path_trace_DirectLighting_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL = clCreateKernel(shadowBlocked_program, "kernel_ocl_path_trace_ShadowBlocked_DirectLighting_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_ShadowBlocked_DirectLighting = clCreateKernel(shadowBlocked_program, "kernel_ocl_path_trace_ShadowBlocked_DirectLighting_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL = clCreateKernel(nextIterationSetUp_program, "kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_SetUpNextIteration = clCreateKernel(nextIterationSetUp_program, "kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL = clCreateKernel(sumAllRadiance_program, "kernel_ocl_path_trace_SumAllRadiance_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_SumAllRadiance = clCreateKernel(sumAllRadiance_program, "kernel_ocl_path_trace_SumAllRadiance_SPLIT_KERNEL", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
@@ -2058,38 +2058,38 @@ public:
 		task_pool.stop();
 
 		/* Release kernels */
-		if(ckPathTraceKernel_DataInit_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_DataInit_SPLIT_KERNEL);
+		if(ckPathTraceKernel_DataInit)
+			clReleaseKernel(ckPathTraceKernel_DataInit);
 
-		if(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL);
+		if(ckPathTraceKernel_SceneIntersect)
+			clReleaseKernel(ckPathTraceKernel_SceneIntersect);
 
-		if(ckPathTraceKernel_LampEmission_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_LampEmission_SPLIT_KERNEL);
+		if(ckPathTraceKernel_LampEmission)
+			clReleaseKernel(ckPathTraceKernel_LampEmission);
 
-		if(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL);
+		if(ckPathTraceKernel_QueueEnqueue)
+			clReleaseKernel(ckPathTraceKernel_QueueEnqueue);
 
-		if(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL);
+		if(ckPathTraceKernel_BG_BufferUpdate)
+			clReleaseKernel(ckPathTraceKernel_BG_BufferUpdate);
 
-		if(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL);
+		if(ckPathTraceKernel_Shader_Lighting)
+			clReleaseKernel(ckPathTraceKernel_Shader_Lighting);
 
-		if(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL);
+		if(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO)
+			clReleaseKernel(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO);
 
-		if(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL);
+		if(ckPathTraceKernel_DirectLighting)
+			clReleaseKernel(ckPathTraceKernel_DirectLighting);
 
-		if(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL);
+		if(ckPathTraceKernel_ShadowBlocked_DirectLighting)
+			clReleaseKernel(ckPathTraceKernel_ShadowBlocked_DirectLighting);
 
-		if(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL);
+		if(ckPathTraceKernel_SetUpNextIteration)
+			clReleaseKernel(ckPathTraceKernel_SetUpNextIteration);
 
-		if(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL)
-			clReleaseKernel(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL);
+		if(ckPathTraceKernel_SumAllRadiance)
+			clReleaseKernel(ckPathTraceKernel_SumAllRadiance);
 
 		/* Release global memory */
 		if(P_sd != NULL)
@@ -2545,305 +2545,305 @@ public:
 		cl_int dQueue_size = global_size[0] * global_size[1];
 		cl_int total_num_rays = global_size[0] * global_size[1];
 
-		/* Set arguments for ckPathTraceKernel_DataInit_SPLIT_KERNEL kernel */
+		/* Set arguments for ckPathTraceKernel_DataInit kernel */
 		cl_uint narg = 0;
 
 #define KERNEL_APPEND_ARG(kernel_name, arg) \
 		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, P_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, P_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, N_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, N_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Ng_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Ng_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, I_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, I_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, shader_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, shader_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, flag_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, flag_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, prim_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, prim_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, type_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, type_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, u_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, u_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, v_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, v_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, object_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, object_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, time_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, time_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_length_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_length_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_depth_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_depth_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, transparent_depth_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, transparent_depth_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, P_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, P_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, N_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, N_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Ng_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Ng_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, I_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, I_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, shader_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, shader_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, flag_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, flag_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, prim_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, prim_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, type_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, type_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, u_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, u_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, v_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, v_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, object_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, object_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, time_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, time_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_length_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_length_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_depth_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_depth_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, transparent_depth_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, transparent_depth_sd_DL_shadow);
 #ifdef __RAY_DIFFERENTIALS__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dP_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dP_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dI_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dI_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, du_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, du_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dv_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dv_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dP_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dP_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dI_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dI_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, du_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, du_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dv_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dv_sd_DL_shadow);
 #endif
 #ifdef __DPDU__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdu_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdu_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdv_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdv_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdu_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdu_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdv_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdv_sd_DL_shadow);
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, closure_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, closure_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_closure_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_closure_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, randb_closure_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, randb_closure_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_P_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_P_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_dP_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_dP_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_rng_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, L_transparent_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, closure_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, closure_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_closure_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_closure_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, randb_closure_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, randb_closure_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_P_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_P_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_dP_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_dP_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, per_sample_output_buffers);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_rng_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, L_transparent_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_state);
 
 #define KERNEL_TEX(type, ttype, name) \
-	set_kernel_arg_mem(ckPathTraceKernel_DataInit_SPLIT_KERNEL, &narg, #name);
+	set_kernel_arg_mem(ckPathTraceKernel_DataInit, &narg, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, start_sample);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_offset);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rtile.rng_state_offset_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rtile.rng_state_offset_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rtile.buffer_rng_state_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, use_queues_flag);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, work_array);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, start_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_offset);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rtile.rng_state_offset_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rtile.rng_state_offset_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rtile.buffer_rng_state_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, use_queues_flag);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, work_array);
 #ifdef __WORK_STEALING__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, work_pool_wgs);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, work_pool_wgs);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_samples);
 #endif
 #ifdef WITH_CYCLES_DEBUG
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, debugdata_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, debugdata_coop);
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_parallel_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_parallel_samples);
 
-		/* Set arguments for ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL */;
+		/* Set arguments for ckPathTraceKernel_SceneIntersect */;
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, use_queues_flag);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Intersection_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, use_queues_flag);
 #ifdef WITH_CYCLES_DEBUG
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, debugdata_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, debugdata_coop);
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, num_parallel_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, num_parallel_samples);
 
-		/* Set arguments for ckPathTracekernel_LampEmission_SPLIT_KERNEL kernel */
+		/* Set arguments for ckPathTracekernel_LampEmission kernel */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, use_queues_flag);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, num_parallel_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Intersection_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, use_queues_flag);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, num_parallel_samples);
 
-		/* Set arguments for ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL kernel */
+		/* Set arguments for ckPathTraceKernel_QueueEnqueue kernel */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, dQueue_size);
 
-		/* Set arguments for ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL kernel */
+		/* Set arguments for ckPathTraceKernel_BG_BufferUpdate kernel */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_rng_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, L_transparent_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rtile.rng_state_offset_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rtile.rng_state_offset_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, rtile.buffer_rng_state_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, work_array);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, end_sample);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, start_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, per_sample_output_buffers);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_rng_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, L_transparent_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rtile.rng_state_offset_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rtile.rng_state_offset_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rtile.buffer_rng_state_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, work_array);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, end_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, start_sample);
 #ifdef __WORK_STEALING__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, work_pool_wgs);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, num_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, work_pool_wgs);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, num_samples);
 #endif
 #ifdef WITH_CYCLES_DEBUG
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, debugdata_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, debugdata_coop);
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, num_parallel_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, num_parallel_samples);
 
-		/* Set arguments for ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL */
+		/* Set arguments for ckPathTraceKernel_Shader_Lighting */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Intersection_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, dQueue_size);
 
-		/* Set up arguments for ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL kernel */
+		/* Set up arguments for ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO kernel */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, L_transparent_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, AOAlpha_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, AOBSDF_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, AOLightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, d_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, d_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, work_array);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, per_sample_output_buffers);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, L_transparent_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, Intersection_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, AOAlpha_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, AOBSDF_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, AOLightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, work_array);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, dQueue_size);
 #ifdef __WORK_STEALING__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, start_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, start_sample);
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, num_parallel_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, num_parallel_samples);
 
-		/* Set up arguments for ckPathTraceKernel_DirectLighting_SPLIT_KERNEL kernel */
+		/* Set up arguments for ckPathTraceKernel_DirectLighting kernel */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, ISLamp_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, LightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, BSDFEval_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, ISLamp_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, LightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, BSDFEval_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, dQueue_size);
 
-		/* Set up arguments for ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL kernel */
+		/* Set up arguments for ckPathTraceKernel_ShadowBlocked_DirectLighting kernel */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, LightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, AOLightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, Intersection_coop_AO);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, Intersection_coop_DL);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, total_num_rays);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, LightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, AOLightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Intersection_coop_AO);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Intersection_coop_DL);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, total_num_rays);
 
-		/* Set up arguments for ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL kernel */
+		/* Set up arguments for ckPathTraceKernel_SetUpNextIteration kernel */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, LightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, ISLamp_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, BSDFEval_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, AOLightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, AOBSDF_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, AOAlpha_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, use_queues_flag);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, LightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, ISLamp_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, BSDFEval_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, AOLightRay_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, AOBSDF_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, AOAlpha_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, use_queues_flag);
 
-		/* Set up arguments for ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL */
+		/* Set up arguments for ckPathTraceKernel_SumAllRadiance */
 		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_buffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, num_parallel_samples);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, rtile.buffer_offset_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, rtile.buffer_offset_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, rtile.buffer_rng_state_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, start_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_buffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, per_sample_output_buffers);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, num_parallel_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_offset_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_offset_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_rng_state_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, start_sample);
 
 #undef KERNEL_APPEND_ARG
 
@@ -2851,30 +2851,30 @@ public:
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
 		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, kernelName, 2, NULL, globalSize, localSize, 0, NULL, NULL))
 
-		/* Enqueue ckPathTraceKernel_DataInit_SPLIT_KERNEL kernel */
-		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_DataInit_SPLIT_KERNEL, global_size, local_size);
+		/* Enqueue ckPathTraceKernel_DataInit kernel */
+		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_DataInit, global_size, local_size);
 		bool activeRaysAvailable = true;
 
 		/* Record number of time host intervention has been made */
 		unsigned int numHostIntervention = 0;
 		unsigned int numNextPathIterTimes = PathIteration_times;
 		while (activeRaysAvailable) {
-			/* Twice the global work size of other kernels for ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL */
+			/* Twice the global work size of other kernels for ckPathTraceKernel_ShadowBlocked_DirectLighting */
 			size_t global_size_shadow_blocked[2];
 			global_size_shadow_blocked[0] = global_size[0] * 2;
 			global_size_shadow_blocked[1] = global_size[1];
 
 			/* Do path-iteration in host [Enqueue Path-iteration kernels] */
 			for(int PathIter = 0; PathIter < PathIteration_times; PathIter++) {
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_LampEmission_SPLIT_KERNEL, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_Shader_Lighting_SPLIT_KERNEL, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO_SPLIT_KERNEL, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_DirectLighting_SPLIT_KERNEL, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_ShadowBlocked_DirectLighting_SPLIT_KERNEL, global_size_shadow_blocked, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SetUpNextIteration_SPLIT_KERNEL, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SceneIntersect, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_LampEmission, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_QueueEnqueue, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_BG_BufferUpdate, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_Shader_Lighting, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_DirectLighting, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_ShadowBlocked_DirectLighting, global_size_shadow_blocked, local_size);
+				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SetUpNextIteration, global_size, local_size);
 			}
 
 			/* Read ray-state into Host memory to decide if we should exit path-iteration in host */
@@ -2909,7 +2909,7 @@ public:
 		size_t sum_all_radiance_global_size[2];
 		sum_all_radiance_global_size[0] = (((d_w - 1) / sum_all_radiance_local_size[0]) + 1) * sum_all_radiance_local_size[0];
 		sum_all_radiance_global_size[1] = (((d_h - 1) / sum_all_radiance_local_size[1]) + 1) * sum_all_radiance_local_size[1];
-		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, sum_all_radiance_global_size, sum_all_radiance_local_size);
+		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SumAllRadiance, sum_all_radiance_global_size, sum_all_radiance_local_size);
 
 #undef ENQUEUE_SPLIT_KERNEL
 
