@@ -612,7 +612,7 @@ void Session::load_kernels()
 {
 	thread_scoped_lock scene_lock(scene->mutex);
 
-	if (!kernels_loaded || (device->info.use_split_kernel && !device->get_background())) {
+	if (!kernels_loaded || (device->info.use_split_kernel && !params.background)) {
 		/* for split kernel, in case if interactive rendering, we
 		 * we need to check kernel-reload before doing path trace
 		 */
