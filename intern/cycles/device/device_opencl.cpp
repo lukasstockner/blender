@@ -2640,24 +2640,23 @@ public:
 
 		/* Set arguments for ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL */;
 		narg = 0;
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(rng_coop), (void*)&rng_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(Ray_coop), (void*)&Ray_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(PathState_coop), (void*)&PathState_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(Intersection_coop), (void*)&Intersection_coop));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(ray_state), (void*)&ray_state));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(d_w), (void*)&d_w));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(d_h), (void*)&d_h));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(use_queues_flag), (void*)&use_queues_flag));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Intersection_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, use_queues_flag);
 #ifdef WITH_CYCLES_DEBUG
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(debugdata_coop), (void*)&debugdata_coop));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, debugdata_coop);
 #endif
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL, num_parallel_samples);
 
 		/* Set arguments for ckPathTracekernel_LampEmission_SPLIT_KERNEL kernel */
 		narg = 0;
