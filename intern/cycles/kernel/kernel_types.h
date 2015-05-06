@@ -108,7 +108,7 @@ CCL_NAMESPACE_BEGIN
 #define __KERNEL_SHADING__
 //__KERNEL_ADV_SHADING__
 #define __MULTI_CLOSURE__
-#define __TRANSPARENT_SHADOWS__
+//#define __TRANSPARENT_SHADOWS__
 #define __PASSES__
 #define __BACKGROUND_MIS__
 #define __LAMP_MIS__
