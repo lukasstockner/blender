@@ -22,22 +22,6 @@
 #include "kernel_types.h"
 #include "kernel_globals.h"
 
-#ifdef __OSL__
-#include "osl_shader.h"
-#endif
-
-#include "kernel_random.h"
-#include "kernel_projection.h"
-#include "kernel_montecarlo.h"
-#include "kernel_differential.h"
-#include "kernel_camera.h"
-
-#include "geom/geom.h"
-
-#include "kernel_accumulate.h"
-#include "kernel_shader.h"
-#include "kernel_light.h"
-
 /* atomic_add_float function should be defined prior to its usage in kernel_passes.h */
 #if defined(__SPLIT_KERNEL__) && defined(__WORK_STEALING__)
 /* Utility functions for float atomics */
@@ -61,6 +45,21 @@ ccl_device_inline void atomic_add_float(volatile ccl_global float *source, const
 }
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 
+#ifdef __OSL__
+#include "osl_shader.h"
+#endif
+
+#include "kernel_random.h"
+#include "kernel_projection.h"
+#include "kernel_montecarlo.h"
+#include "kernel_differential.h"
+#include "kernel_camera.h"
+
+#include "geom/geom.h"
+
+#include "kernel_accumulate.h"
+#include "kernel_shader.h"
+#include "kernel_light.h"
 #include "kernel_passes.h"
 
 #ifdef __SUBSURFACE__
