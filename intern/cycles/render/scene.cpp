@@ -195,11 +195,6 @@ void Scene::device_update(Device *device_, Progress& progress)
 
 	if(progress.get_cancel() || device->have_error()) return;
 
-	progress.set_status("Updating Images");
-	image_manager->device_update(device, &dscene, progress);
-
-	if(progress.get_cancel() || device->have_error()) return;
-
 	progress.set_status("Updating Camera Volume");
 	camera->device_update_volume(device, &dscene, this);
 
