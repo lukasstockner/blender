@@ -1027,22 +1027,26 @@ public:
 
 		cl_kernel ckFilmConvertKernel = (rgba_byte) ? ckFilmConvertByteKernel : ckFilmConvertHalfFloatKernel;
 
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_rgba), (void*)&d_rgba));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_buffer), (void*)&d_buffer));
+		/* TODO : Make the kernel launch similar to Cuda */
+#define KERNEL_APPEND_ARG(kernel_name, arg) \
+		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_data);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_rgba);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_buffer);
 
 #define KERNEL_TEX(type, ttype, name) \
 	set_kernel_arg_mem(ckFilmConvertKernel, &narg, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_sample_scale), (void*)&d_sample_scale));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_x), (void*)&d_x));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_y), (void*)&d_y));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_w), (void*)&d_w));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_h), (void*)&d_h));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_offset), (void*)&d_offset));
-		opencl_assert(clSetKernelArg(ckFilmConvertKernel, narg++, sizeof(d_stride), (void*)&d_stride));
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_sample_scale);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_x);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_y);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_w);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_h);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_offset);
+		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_stride);
+#undef KERNEL_APPEND_ARG
 
 		enqueue_kernel(ckFilmConvertKernel, d_w, d_h);
 	}
