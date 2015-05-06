@@ -20,6 +20,7 @@
 #include "buffers.h"
 #include "camera.h"
 #include "device.h"
+#include "graph.h"
 #include "integrator.h"
 #include "scene.h"
 #include "session.h"
@@ -31,8 +32,6 @@
 #include "util_opengl.h"
 #include "util_task.h"
 #include "util_time.h"
-
-#include "graph.h"
 
 CCL_NAMESPACE_BEGIN
 
