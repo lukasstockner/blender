@@ -60,10 +60,6 @@ CCL_NAMESPACE_BEGIN
  */
 #define DATA_ALLOCATION_MEM_FACTOR 5000000 //5MB
 
- /* Macro for Enqueuing split kernels */
-#define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, kernelName, 2, NULL, globalSize, localSize, 0, NULL, NULL));
-
-
 static cl_device_type opencl_device_type()
 {
 	char *device = getenv("CYCLES_OPENCL_TEST");
@@ -2871,6 +2867,11 @@ public:
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_rng_state_stride), (void*)&(rtile.buffer_rng_state_stride)));
 		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
 
+
+		/* Macro for Enqueuing split kernels */
+#define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
+		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, kernelName, 2, NULL, globalSize, localSize, 0, NULL, NULL))
+
 		/* Enqueue ckPathTraceKernel_DataInit_SPLIT_KERNEL kernel */
 		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_DataInit_SPLIT_KERNEL, global_size, local_size);
 		bool activeRaysAvailable = true;
@@ -2930,6 +2931,8 @@ public:
 		sum_all_radiance_global_size[0] = (((d_w - 1) / sum_all_radiance_local_size[0]) + 1) * sum_all_radiance_local_size[0];
 		sum_all_radiance_global_size[1] = (((d_h - 1) / sum_all_radiance_local_size[1]) + 1) * sum_all_radiance_local_size[1];
 		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, sum_all_radiance_global_size, sum_all_radiance_local_size);
+
+#undef ENQUEUE_SPLIT_KERNEL
 
 		if(numHostIntervention == 0) {
 			/* This means that we are executing kernel more than required
