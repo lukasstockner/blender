@@ -550,7 +550,7 @@ public:
 		if(opencl_error(ciErr))
 			return;
 
-		fprintf(stderr, "Device init succes\n");
+		fprintf(stderr, "Device init success\n");
 		device_initialized = true;
 	}
 
@@ -672,6 +672,17 @@ public:
 
 		stats.mem_alloc(size);
 		mem.device_size = size;
+	}
+
+	/* overloading function for creating split kernel device buffers */
+	cl_mem mem_alloc(size_t bufsize, cl_mem_flags mem_flag = CL_MEM_READ_WRITE) {
+		cl_mem ptr;
+		ptr = clCreateBuffer(cxContext, mem_flag, bufsize, NULL, &ciErr);
+		if (ciErr != CL_SUCCESS) {
+			fprintf(stderr, "(%d) %s in clCreateBuffer\n", ciErr, clewErrorString(ciErr));
+			assert(0);
+		}
+		return ptr;
 	}
 
 	void mem_copy_to(device_memory& mem)
@@ -2424,250 +2435,105 @@ public:
 			max_work_groups = (max_global_size[0] * max_global_size[1]) / (local_size[0] * local_size[1]);
 
 			/* Allocate work_pool_wgs memory */
-			work_pool_wgs = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, max_work_groups * sizeof(unsigned int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create work_pool_wgs memory");
+			work_pool_wgs = mem_alloc(max_work_groups * sizeof(unsigned int));
 #endif
 
 			/* Allocate queue_index memory only once */
-			Queue_index = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, NUM_QUEUES * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Queue_index memory");
-
-			use_queues_flag = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, sizeof(char), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create use_queues_flag memory");
-
-			kgbuffer = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_KernelGlobals_size(), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create kgbuffer memory");
+			Queue_index = mem_alloc(NUM_QUEUES * sizeof(int));
+			use_queues_flag = mem_alloc(sizeof(char));
+			kgbuffer = mem_alloc(get_KernelGlobals_size());
 
 			/* Create global buffers for ShaderData */
-			sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Shaderdata memory");
-
-			sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, get_shaderdata_soa_size(), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create sd_DL_shadow memory");
-
-			P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create P_sd memory");
-
-			P_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create P_sd_DL_shadow memory");
-
-			N_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create N_sd memory");
-
-			N_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create N_sd_DL_shadow memory");
-
-			Ng_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd memory");
-
-			Ng_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Ng_sd_DL_shadow memory");
-
-			I_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create I_sd memory");
-
-			I_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create I_sd_DL_shadow memory");
-
-			shader_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create shader_sd memory");
-
-			shader_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create shader_sd_DL_shadow memory");
-
-			flag_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create flag_sd memory");
-
-			flag_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create flag_sd_DL_shadow memory");
-
-			prim_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create prim_sd memory");
-
-			prim_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create prim_sd_DL_shadow memory");
-
-			type_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create type_sd memory");
-
-			type_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create type_sd_DL_shadow memory");
-
-			u_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create u_sd memory");
-
-			u_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create u_sd_DL_shadow memory");
-
-			v_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create v_sd memory");
-
-			v_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create v_sd_DL_shadow memory");
-
-			object_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create object_sd memory");
-
-			object_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create object_sd_DL_shadow memory");
-
-			time_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create time_sd memory");
-
-			time_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create time_sd_DL_shadow memory");
-
-			ray_length_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd memory");
-
-			ray_length_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_length_sd_DL_shadow memory");
-
-			ray_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd memory");
-
-			ray_depth_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_depth_sd_DL_shadow memory");
-
-			transparent_depth_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd memory");
-
-			transparent_depth_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create transparent_depth_sd_DL_shadow memory");
+			sd = mem_alloc(get_shaderdata_soa_size());
+			sd_DL_shadow = mem_alloc(get_shaderdata_soa_size());
+			P_sd = mem_alloc(num_global_elements * sizeof(float3));
+			P_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
+			N_sd = mem_alloc(num_global_elements * sizeof(float3));
+			N_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
+			Ng_sd = mem_alloc(num_global_elements * sizeof(float3));
+			Ng_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
+			I_sd = mem_alloc(num_global_elements * sizeof(float3));
+			I_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
+			shader_sd = mem_alloc(num_global_elements * sizeof(int));
+			shader_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
+			flag_sd = mem_alloc(num_global_elements * sizeof(int));
+			flag_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
+			prim_sd = mem_alloc(num_global_elements * sizeof(int));
+			prim_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
+			type_sd = mem_alloc(num_global_elements * sizeof(int));
+			type_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
+			u_sd = mem_alloc(num_global_elements * sizeof(float));
+			u_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float));
+			v_sd = mem_alloc(num_global_elements * sizeof(float));
+			v_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float));
+			object_sd = mem_alloc(num_global_elements * sizeof(int));
+			object_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
+			time_sd = mem_alloc(num_global_elements * sizeof(float));
+			time_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float));
+			ray_length_sd = mem_alloc(num_global_elements * sizeof(float));
+			ray_length_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float));
+			ray_depth_sd = mem_alloc(num_global_elements * sizeof(int));
+			ray_depth_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
+			transparent_depth_sd = mem_alloc(num_global_elements * sizeof(int));
+			transparent_depth_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
 
 #ifdef __RAY_DIFFERENTIALS__
-			dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dP_sd memory");
-
-			dP_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dP_sd_DL_shadow memory");
-
-			dI_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dI_sd memory");
-
-			dI_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dI_sd_DL_shadow memory");
-
-			du_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create du_sd memory");
-
-			du_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create du_sd_DL_shadow memory");
-
-			dv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create du_sd memory");
-
-			dv_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create du_sd_DL_shadow memory");
+			dP_sd = mem_alloc(num_global_elements * sizeof(differential3));
+			dP_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential3));
+			dI_sd = mem_alloc(num_global_elements * sizeof(differential3));
+			dI_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential3));
+			du_sd = mem_alloc(num_global_elements * sizeof(differential));
+			du_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential));
+			dv_sd = mem_alloc(num_global_elements * sizeof(differential));
+			dv_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential));
 #endif
+
 #ifdef __DPDU__
-			dPdu_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd memory");
-
-			dPdu_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dPdu_sd_DL_shadow memory");
-
-			dPdv_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd memory");
-
-			dPdv_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create dPdv_sd_DL_shadow memory");
+			dPdu_sd = mem_alloc(num_global_elements * sizeof(float3));
+			dPdu_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
+			dPdv_sd = mem_alloc(num_global_elements * sizeof(float3));
+			dPdv_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
 #endif
-			closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * ShaderClosure_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create closure_sd memory");
-
-			closure_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * ShaderClosure_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create closure_sd_DL_shadow memory");
-
-			num_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd memory");
-
-			num_closure_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(int), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create num_closure_sd_DL_shadow memory");
-
-			randb_closure_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd memory");
-
-			randb_closure_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create randb_closure_sd_DL_shadow memory");
-
-			ray_P_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd memory");
-
-			ray_P_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(float3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_P_sd_DL_shadow memory");
-
-			ray_dP_sd = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd memory");
-
-			ray_dP_sd_DL_shadow = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * 2 * sizeof(differential3), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_dP_sd_DL_shadow memory");
+			closure_sd = mem_alloc(num_global_elements * ShaderClosure_size);
+			closure_sd_DL_shadow = mem_alloc(num_global_elements * 2 * ShaderClosure_size);
+			num_closure_sd = mem_alloc(num_global_elements * sizeof(int));
+			num_closure_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
+			randb_closure_sd = mem_alloc(num_global_elements * sizeof(float));
+			randb_closure_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float));
+			ray_P_sd = mem_alloc(num_global_elements * sizeof(float3));
+			ray_P_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
+			ray_dP_sd = mem_alloc(num_global_elements * sizeof(differential3));
+			ray_dP_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential3));
 
 			/* creation of global memory buffers which are shared among the kernels */
-			rng_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * rng_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create rng_coop memory");
-
-			throughput_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * throughput_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create throughput_coop memory");
-
-			L_transparent_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * L_transparent_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create L_transparent_coop memory");
-
-			PathRadiance_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * PathRadiance_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create PathRadiance_coop memory");
-
-			Ray_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Ray_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Ray_coop memory");
-
-			PathState_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * PathState_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create PathState_coop memory");
-
-			Intersection_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Intersection_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Intersection_coop memory");
-
-			AOAlpha_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * AOAlpha_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create AOAlpha_coop memory");
-
-			AOBSDF_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * AOBSDF_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create AOBSDF_coop memory");
-
-			AOLightRay_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * AOLightRay_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create AOLightRay_coop memory");
-
-			BSDFEval_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * BSDFEval_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create BSDFEval_coop memory");
-
-			ISLamp_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * ISLamp_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ISLamp_coop memory");
-
-			LightRay_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * LightRay_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create LightRay_coop memory");
-
-			Intersection_coop_AO = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Intersection_coop_AO_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Intersection_coop_AO_memory");
-
-			Intersection_coop_DL = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * Intersection_coop_DL_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Intersection_coop_DL_memory");
+			rng_coop = mem_alloc(num_global_elements * rng_size);
+			throughput_coop = mem_alloc(num_global_elements * throughput_size);
+			L_transparent_coop = mem_alloc(num_global_elements * L_transparent_size);
+			PathRadiance_coop = mem_alloc(num_global_elements * PathRadiance_size);
+			Ray_coop = mem_alloc(num_global_elements * Ray_size);
+			PathState_coop = mem_alloc(num_global_elements * PathState_size);
+			Intersection_coop = mem_alloc(num_global_elements * Intersection_size);
+			AOAlpha_coop = mem_alloc(num_global_elements * AOAlpha_size);
+			AOBSDF_coop = mem_alloc(num_global_elements * AOBSDF_size);
+			AOLightRay_coop = mem_alloc(num_global_elements * AOLightRay_size);
+			BSDFEval_coop = mem_alloc(num_global_elements * BSDFEval_size);
+			ISLamp_coop = mem_alloc(num_global_elements * ISLamp_size);
+			LightRay_coop = mem_alloc(num_global_elements * LightRay_size);
+			Intersection_coop_AO = mem_alloc(num_global_elements * Intersection_coop_AO_size);
+			Intersection_coop_DL = mem_alloc(num_global_elements * Intersection_coop_DL_size);
 
 #ifdef WITH_CYCLES_DEBUG
-			debugdata_coop = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * debugdata_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create debugdata_coop memory");
+			debugdata_coop = mem_alloc(num_global_elements * debugdata_size);
 #endif
 
-			ray_state = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * rayState_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create ray_state memory");
+			ray_state = mem_alloc(num_global_elements * rayState_size);
 
 			hostRayStateArray = (char *)calloc(num_global_elements, hostRayState_size);
 			assert(hostRayStateArray != NULL && "Can't create hostRayStateArray memory");
 
-			Queue_data = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * (NUM_QUEUES * sizeof(int)+sizeof(int)), NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create Queue data memory");
-
-			work_array = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * work_element_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create work_array memory");
-
-			per_sample_output_buffers = clCreateBuffer(cxContext, CL_MEM_READ_WRITE, num_global_elements * per_thread_output_buffer_size, NULL, &ciErr);
-			assert(ciErr == CL_SUCCESS && "Can't create per_sample_output_buffers memory");
+			Queue_data = mem_alloc(num_global_elements * (NUM_QUEUES * sizeof(int)+sizeof(int)));
+			work_array = mem_alloc(num_global_elements * work_element_size);
+			per_sample_output_buffers = mem_alloc(num_global_elements * per_thread_output_buffer_size);
 		}
 
 		cl_int dQueue_size = global_size[0] * global_size[1];
