@@ -1883,17 +1883,11 @@ public:
 		/* Enable only the macros related to the scene */
 		for(int node_iter = NODE_END; node_iter <= NODE_UVMAP; node_iter++) {
 			if(node_iter == NODE_GEOMETRY_DUPLI || node_iter == NODE_UVMAP) { continue; }
-			if(node_iter != NODE_END)
-				svm_build_options += " ";
-			if(closure_nodes.find(node_iter) == closure_nodes.end()) {
-				svm_build_options += "-D" + get_node_type_as_string((NodeType)node_iter) + "=0";
-			}
-			else {
-				svm_build_options += "-D" + get_node_type_as_string((NodeType)node_iter) + "=1";
+			if(closure_nodes.find(node_iter) != closure_nodes.end()) {
+				svm_build_options += " -D" + get_node_type_as_string((NodeType)node_iter);
 			}
 		}
 		svm_build_options += " ";
-
 		/* Set max closure build option */
 #ifdef __MULTI_CLOSURE__
 		max_closure_build_option += string_printf("-DMAX_CLOSURE=%d ", clos_max);

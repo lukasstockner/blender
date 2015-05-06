@@ -182,82 +182,6 @@ CCL_NAMESPACE_END
 
 CCL_NAMESPACE_BEGIN
 
-#ifndef __SPLIT_KERNEL__
-/* If __SPLIT_KERNEL__ is not enabled, we enable all closures */
-#define __NODE_SHADER_JUMP__ 1
-#define __NODE_END__ 1
-#define __NODE_ATTR_BUMP_DX__ 1
-#define __NODE_ATTR_BUMP_DY__ 1
-#define __NODE_ATTR__ 1
-#define __NODE_BLACKBODY__ 1
-#define __NODE_BRIGHTCONTRAST__ 1
-#define __NODE_CAMERA__ 1
-#define __NODE_CLOSURE_AMBIENT_OCCLUSION__ 1
-#define __NODE_CLOSURE_BACKGROUND__ 1
-#define __NODE_CLOSURE_BSDF__ 1
-#define __NODE_CLOSURE_EMISSION__ 1
-#define __NODE_CLOSURE_HOLDOUT__ 1
-#define __NODE_CLOSURE_SET_NORMAL__ 1
-#define __NODE_CLOSURE_SET_WEIGHT__ 1
-#define __NODE_CLOSURE_VOLUME__ 1
-#define __NODE_CLOSURE_WEIGHT__ 1
-#define __NODE_COMBINE_HSV__ 1
-#define __NODE_COMBINE_VECTOR__ 1
-#define __NODE_CONVERT__ 1
-#define __NODE_EMISSION_WEIGHT__ 1
-#define __NODE_FRESNEL__ 1
-#define __NODE_GAMMA__ 1
-#define __NODE_GEOMETRY_BUMP_DX__ 1
-#define __NODE_GEOMETRY_BUMP_DY__ 1
-#define __NODE_GEOMETRY__ 1
-#define __NODE_HAIR_INFO__ 1
-#define __NODE_HSV__ 1
-#define __NODE_INVERT__ 1
-#define __NODE_JUMP_IF_ONE__ 1
-#define __NODE_JUMP_IF_ZERO__ 1
-#define __NODE_LAYER_WEIGHT__ 1
-#define __NODE_LIGHT_FALLOFF__ 1
-#define __NODE_LIGHT_PATH__ 1
-#define __NODE_MAPPING__ 1
-#define __NODE_MATH__ 1
-#define __NODE_MIN_MAX__ 1
-#define __NODE_MIX_CLOSURE__ 1
-#define __NODE_MIX__ 1
-#define __NODE_NORMAL_MAP__ 1
-#define __NODE_NORMAL__ 1
-#define __NODE_OBJECT_INFO__ 1
-#define __NODE_PARTICLE_INFO__ 1
-#define __NODE_RGB_CURVES__ 1
-#define __NODE_RGB_RAMP__ 1
-#define __NODE_SEPARATE_HSV__ 1
-#define __NODE_SEPARATE_VECTOR__ 1
-#define __NODE_SET_BUMP__ 1
-#define __NODE_SET_DISPLACEMENT__ 1
-#define __NODE_TANGENT__ 1
-#define __NODE_TEX_BRICK__ 1
-#define __NODE_TEX_CHECKER__ 1
-#define __NODE_TEX_COORD_BUMP_DX__ 1
-#define __NODE_TEX_COORD_BUMP_DY__ 1
-#define __NODE_TEX_COORD__ 1
-#define __NODE_TEX_ENVIRONMENT__ 1
-#define __NODE_TEX_GRADIENT__ 1
-#define __NODE_TEX_IMAGE_BOX__ 1
-#define __NODE_TEX_IMAGE__ 1
-#define __NODE_TEX_MAGIC__ 1
-#define __NODE_TEX_MUSGRAVE__ 1
-#define __NODE_TEX_NOISE__ 1
-#define __NODE_TEX_SKY__ 1
-#define __NODE_TEX_VORONOI__ 1
-#define __NODE_TEX_WAVE__ 1
-#define __NODE_VALUE_F__ 1
-#define __NODE_VALUE_V__ 1
-#define __NODE_VECTOR_CURVES__ 1
-#define __NODE_VECTOR_MATH__ 1
-#define __NODE_VECTOR_TRANSFORM__ 1
-#define __NODE_WAVELENGTH__ 1
-#define __NODE_WIREFRAME__ 1
-#endif
-
 /* Main Interpreter Loop */
 ccl_device_noinline void svm_eval_nodes(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, ShaderType type, int path_flag)
 {
@@ -268,7 +192,7 @@ ccl_device_noinline void svm_eval_nodes(ccl_addr_space KernelGlobals *kg, ccl_ad
 		uint4 node = read_node(kg, &offset);
 
 		switch(node.x) {
-#if __NODE_SHADER_JUMP__
+#if defined(__NODE_SHADER_JUMP__) || !defined(__SPLIT_KERNEL__)
 			case NODE_SHADER_JUMP: {
 				if(type == SHADER_TYPE_SURFACE) offset = node.y;
 				else if(type == SHADER_TYPE_VOLUME) offset = node.z;
@@ -277,168 +201,168 @@ ccl_device_noinline void svm_eval_nodes(ccl_addr_space KernelGlobals *kg, ccl_ad
 				break;
 			}
 #endif
-#if __NODE_CLOSURE_BSDF__
+#if defined(__NODE_CLOSURE_BSDF__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_BSDF:
 				svm_node_closure_bsdf(kg, sd, stack, node, path_flag, &offset);
 				break;
 #endif
-#if __NODE_CLOSURE_EMISSION__
+#if defined(__NODE_CLOSURE_EMISSION__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_EMISSION:
 				svm_node_closure_emission(sd, stack, node);
 				break;
 #endif
-#if __NODE_CLOSURE_BACKGROUND__
+#if defined(__NODE_CLOSURE_BACKGROUND__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_BACKGROUND:
 				svm_node_closure_background(sd, stack, node);
 				break;
 #endif
-#if __NODE_CLOSURE_HOLDOUT__
+#if defined(__NODE_CLOSURE_HOLDOUT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_HOLDOUT:
 				svm_node_closure_holdout(sd, stack, node);
 				break;
 #endif
-#if __NODE_CLOSURE_AMBIENT_OCCLUSION__
+#if defined(__NODE_CLOSURE_AMBIENT_OCCLUSION__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_AMBIENT_OCCLUSION:
 				svm_node_closure_ambient_occlusion(sd, stack, node);
 				break;
 #endif
-#if __NODE_CLOSURE_VOLUME__
+#if defined(__NODE_CLOSURE_VOLUME__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_VOLUME:
 				svm_node_closure_volume(kg, sd, stack, node, path_flag);
 				break;
 #endif
-#if __NODE_CLOSURE_SET_WEIGHT__
+#if defined(__NODE_CLOSURE_SET_WEIGHT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_SET_WEIGHT:
 				svm_node_closure_set_weight(sd, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_CLOSURE_WEIGHT__
+#if defined(__NODE_CLOSURE_WEIGHT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_WEIGHT:
 				svm_node_closure_weight(sd, stack, node.y);
 				break;
 #endif
-#if __NODE_EMISSION_WEIGHT__
+#if defined(__NODE_EMISSION_WEIGHT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_EMISSION_WEIGHT:
 				svm_node_emission_weight(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_MIX_CLOSURE__
+#if defined(__NODE_MIX_CLOSURE__) || !defined(__SPLIT_KERNEL__)
 			case NODE_MIX_CLOSURE:
 				svm_node_mix_closure(sd, stack, node);
 				break;
 #endif
-#if __NODE_JUMP_IF_ZERO__
+#if defined(__NODE_JUMP_IF_ZERO__) || !defined(__SPLIT_KERNEL__)
 			case NODE_JUMP_IF_ZERO:
 				if(stack_load_float(stack, node.z) == 0.0f)
 					offset += node.y;
 				break;
 #endif
-#if __NODE_JUMP_IF_ONE__
+#if defined(__NODE_JUMP_IF_ONE__) || !defined(__SPLIT_KERNEL__)
 			case NODE_JUMP_IF_ONE:
 				if(stack_load_float(stack, node.z) == 1.0f)
 					offset += node.y;
 				break;
 #endif
 #ifdef __TEXTURES__
-#if __NODE_TEX_IMAGE__
+#if defined(__NODE_TEX_IMAGE__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_IMAGE:
 				svm_node_tex_image(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_TEX_IMAGE_BOX__
+#if defined(__NODE_TEX_IMAGE_BOX__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_IMAGE_BOX:
 				svm_node_tex_image_box(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_TEX_ENVIRONMENT__
+#if defined(__NODE_TEX_ENVIRONMENT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_ENVIRONMENT:
 				svm_node_tex_environment(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_TEX_SKY__
+#if defined(__NODE_TEX_SKY__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_SKY:
 				svm_node_tex_sky(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_TEX_GRADIENT__
+#if defined(__NODE_TEX_GRADIENT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_GRADIENT:
 				svm_node_tex_gradient(sd, stack, node);
 				break;
 #endif
-#if __NODE_TEX_NOISE__
+#if defined(__NODE_TEX_NOISE__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_NOISE:
 				svm_node_tex_noise(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_TEX_VORONOI__
+#if defined(__NODE_TEX_VORONOI__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_VORONOI:
 				svm_node_tex_voronoi(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_TEX_MUSGRAVE__
+#if defined(__NODE_TEX_MUSGRAVE__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_MUSGRAVE:
 				svm_node_tex_musgrave(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_TEX_WAVE__
+#if defined(__NODE_TEX_WAVE__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_WAVE:
 				svm_node_tex_wave(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_TEX_MAGIC__
+#if defined(__NODE_TEX_MAGIC__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_MAGIC:
 				svm_node_tex_magic(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_TEX_CHECKER__
+#if defined(__NODE_TEX_CHECKER__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_CHECKER:
 				svm_node_tex_checker(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_TEX_BRICK__
+#if defined(__NODE_TEX_BRICK__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_BRICK:
 				svm_node_tex_brick(kg, sd, stack, node, &offset);
 				break;
 #endif
 #endif
-#if __NODE_CAMERA__
+#if defined(__NODE_CAMERA__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CAMERA:
 				svm_node_camera(kg, sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_GEOMETRY__
+#if defined(__NODE_GEOMETRY__) || !defined(__SPLIT_KERNEL__)
 			case NODE_GEOMETRY:
 				svm_node_geometry(kg, sd, stack, node.y, node.z);
 				break;
 #endif
 #ifdef __EXTRA_NODES__
-#if __NODE_GEOMETRY_BUMP_DX__
+#if defined(__NODE_GEOMETRY_BUMP_DX__) || !defined(__SPLIT_KERNEL__)
 			case NODE_GEOMETRY_BUMP_DX:
 				svm_node_geometry_bump_dx(kg, sd, stack, node.y, node.z);
 				break;
 #endif
-#if __NODE_GEOMETRY_BUMP_DY__
+#if defined(__NODE_GEOMETRY_BUMP_DY__) || !defined(__SPLIT_KERNEL__)
 			case NODE_GEOMETRY_BUMP_DY:
 				svm_node_geometry_bump_dy(kg, sd, stack, node.y, node.z);
 				break;
 #endif
-#if __NODE_LIGHT_PATH__
+#if defined(__NODE_LIGHT_PATH__) || !defined(__SPLIT_KERNEL__)
 			case NODE_LIGHT_PATH:
 				svm_node_light_path(sd, stack, node.y, node.z, path_flag);
 				break;
 #endif
-#if __NODE_OBJECT_INFO__
+#if defined(__NODE_OBJECT_INFO__) || !defined(__SPLIT_KERNEL__)
 			case NODE_OBJECT_INFO:
 				svm_node_object_info(kg, sd, stack, node.y, node.z);
 				break;
 #endif
-#if __NODE_PARTICLE_INFO__
+#if defined(__NODE_PARTICLE_INFO__) || !defined(__SPLIT_KERNEL__)
 			case NODE_PARTICLE_INFO:
 				svm_node_particle_info(kg, sd, stack, node.y, node.z);
 				break;
 #endif
 #ifdef __HAIR__
-#if __NODE_HAIR_INFO__
+#if defined(__NODE_HAIR_INFO__) || !defined(__SPLIT_KERNEL__)
 			case NODE_HAIR_INFO:
 				svm_node_hair_info(kg, sd, stack, node.y, node.z);
 				break;
@@ -446,205 +370,205 @@ ccl_device_noinline void svm_eval_nodes(ccl_addr_space KernelGlobals *kg, ccl_ad
 #endif
 
 #endif
-#if __NODE_CONVERT__
+#if defined(__NODE_CONVERT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CONVERT:
 				svm_node_convert(sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_VALUE_F__
+#if defined(__NODE_VALUE_F__) || !defined(__SPLIT_KERNEL__)
 			case NODE_VALUE_F:
 				svm_node_value_f(kg, sd, stack, node.y, node.z);
 				break;
 #endif
-#if __NODE_VALUE_V__
+#if defined(__NODE_VALUE_V__) || !defined(__SPLIT_KERNEL__)
 			case NODE_VALUE_V:
 				svm_node_value_v(kg, sd, stack, node.y, &offset);
 				break;
 #endif
 #ifdef __EXTRA_NODES__
-#if __NODE_INVERT__
+#if defined(__NODE_INVERT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_INVERT:
 				svm_node_invert(sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_GAMMA__
+#if defined(__NODE_GAMMA__) || !defined(__SPLIT_KERNEL__)
 			case NODE_GAMMA:
 				svm_node_gamma(sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_BRIGHTCONTRAST__
+#if defined(__NODE_BRIGHTCONTRAST__) || !defined(__SPLIT_KERNEL__)
 			case NODE_BRIGHTCONTRAST:
 				svm_node_brightness(sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_MIX__
+#if defined(__NODE_MIX__) || !defined(__SPLIT_KERNEL__)
 			case NODE_MIX:
 				svm_node_mix(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
-#if __NODE_SEPARATE_VECTOR__
+#if defined(__NODE_SEPARATE_VECTOR__) || !defined(__SPLIT_KERNEL__)
 			case NODE_SEPARATE_VECTOR:
 				svm_node_separate_vector(sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_COMBINE_VECTOR__
+#if defined(__NODE_COMBINE_VECTOR__) || !defined(__SPLIT_KERNEL__)
 			case NODE_COMBINE_VECTOR:
 				svm_node_combine_vector(sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_SEPARATE_HSV__
+#if defined(__NODE_SEPARATE_HSV__) || !defined(__SPLIT_KERNEL__)
 			case NODE_SEPARATE_HSV:
 				svm_node_separate_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
-#if __NODE_COMBINE_HSV__
+#if defined(__NODE_COMBINE_HSV__) || !defined(__SPLIT_KERNEL__)
 			case NODE_COMBINE_HSV:
 				svm_node_combine_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
-#if __NODE_HSV__
+#if defined(__NODE_HSV__) || !defined(__SPLIT_KERNEL__)
 			case NODE_HSV:
 				svm_node_hsv(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
 #endif
-#if __NODE_ATTR__
+#if defined(__NODE_ATTR__) || !defined(__SPLIT_KERNEL__)
 			case NODE_ATTR:
 				svm_node_attr(kg, sd, stack, node);
 				break;
 #endif
 #ifdef __EXTRA_NODES__
-#if __NODE_ATTR_BUMP_DX__
+#if defined(__NODE_ATTR_BUMP_DX__) || !defined(__SPLIT_KERNEL__)
 			case NODE_ATTR_BUMP_DX:
 				svm_node_attr_bump_dx(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_ATTR_BUMP_DY__
+#if defined(__NODE_ATTR_BUMP_DY__) || !defined(__SPLIT_KERNEL__)
 			case NODE_ATTR_BUMP_DY:
 				svm_node_attr_bump_dy(kg, sd, stack, node);
 				break;
 #endif
 #endif
-#if __NODE_FRESNEL__
+#if defined(__NODE_FRESNEL__) || !defined(__SPLIT_KERNEL__)
 			case NODE_FRESNEL:
 				svm_node_fresnel(sd, stack, node.y, node.z, node.w);
 				break;
 #endif
-#if __NODE_LAYER_WEIGHT__
+#if defined(__NODE_LAYER_WEIGHT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_LAYER_WEIGHT:
 				svm_node_layer_weight(sd, stack, node);
 				break;
 #endif
 #ifdef __EXTRA_NODES__
-#if __NODE_WIREFRAME__
+#if defined(__NODE_WIREFRAME__) || !defined(__SPLIT_KERNEL__)
 			case NODE_WIREFRAME:
 				svm_node_wireframe(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_WAVELENGTH__
+#if defined(__NODE_WAVELENGTH__) || !defined(__SPLIT_KERNEL__)
 			case NODE_WAVELENGTH:
 				svm_node_wavelength(sd, stack, node.y, node.z);
 				break;
 #endif
-#if __NODE_BLACKBODY__
+#if defined(__NODE_BLACKBODY__) || !defined(__SPLIT_KERNEL__)
 			case NODE_BLACKBODY:
 				svm_node_blackbody(kg, sd, stack, node.y, node.z);
 				break;
 #endif
-#if __NODE_SET_DISPLACEMENT__
+#if defined(__NODE_SET_DISPLACEMENT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_SET_DISPLACEMENT:
 				svm_node_set_displacement(sd, stack, node.y);
 				break;
 #endif
-#if __NODE_SET_BUMP__
+#if defined(__NODE_SET_BUMP__) || !defined(__SPLIT_KERNEL__)
 			case NODE_SET_BUMP:
 				svm_node_set_bump(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_MATH__
+#if defined(__NODE_MATH__) || !defined(__SPLIT_KERNEL__)
 			case NODE_MATH:
 				svm_node_math(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
-#if __NODE_VECTOR_MATH__
+#if defined(__NODE_VECTOR_MATH__) || !defined(__SPLIT_KERNEL__)
 			case NODE_VECTOR_MATH:
 				svm_node_vector_math(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
-#if __NODE_VECTOR_TRANSFORM__
+#if defined(__NODE_VECTOR_TRANSFORM__) || !defined(__SPLIT_KERNEL__)
 			case NODE_VECTOR_TRANSFORM:
 				svm_node_vector_transform(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_NORMAL__
+#if defined(__NODE_NORMAL__) || !defined(__SPLIT_KERNEL__)
 			case NODE_NORMAL:
 				svm_node_normal(kg, sd, stack, node.y, node.z, node.w, &offset);
 				break;
 #endif
 #endif
-#if __NODE_MAPPING__
+#if defined(__NODE_MAPPING__) || !defined(__SPLIT_KERNEL__)
 			case NODE_MAPPING:
 				svm_node_mapping(kg, sd, stack, node.y, node.z, &offset);
 				break;
 #endif
-#if __NODE_MIN_MAX__
+#if defined(__NODE_MIN_MAX__) || !defined(__SPLIT_KERNEL__)
 			case NODE_MIN_MAX:
 				svm_node_min_max(kg, sd, stack, node.y, node.z, &offset);
 				break;
 #endif
-#if __NODE_TEX_COORD__
+#if defined(__NODE_TEX_COORD__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_COORD:
 				svm_node_tex_coord(kg, sd, path_flag, stack, node, &offset);
 				break;
 #endif
 #ifdef __EXTRA_NODES__
-#if __NODE_TEX_COORD_BUMP_DX__
+#if defined(__NODE_TEX_COORD_BUMP_DX__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_COORD_BUMP_DX:
 				svm_node_tex_coord_bump_dx(kg, sd, path_flag, stack, node, &offset);
 				break;
 #endif
-#if __NODE_TEX_COORD_BUMP_DY__
+#if defined(__NODE_TEX_COORD_BUMP_DY__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TEX_COORD_BUMP_DY:
 				svm_node_tex_coord_bump_dy(kg, sd, path_flag, stack, node, &offset);
 				break;
 #endif
-#if __NODE_CLOSURE_SET_NORMAL__
+#if defined(__NODE_CLOSURE_SET_NORMAL__) || !defined(__SPLIT_KERNEL__)
 			case NODE_CLOSURE_SET_NORMAL:
 				svm_node_set_normal(kg, sd, stack, node.y, node.z );
 				break;
 #endif
-#if __NODE_RGB_RAMP__
+#if defined(__NODE_RGB_RAMP__) || !defined(__SPLIT_KERNEL__)
 			case NODE_RGB_RAMP:
 				svm_node_rgb_ramp(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_RGB_CURVES__
+#if defined(__NODE_RGB_CURVES__) || !defined(__SPLIT_KERNEL__)
 			case NODE_RGB_CURVES:
 				svm_node_rgb_curves(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_VECTOR_CURVES__
+#if defined(__NODE_VECTOR_CURVES__) || !defined(__SPLIT_KERNEL__)
 			case NODE_VECTOR_CURVES:
 				svm_node_vector_curves(kg, sd, stack, node, &offset);
 				break;
 #endif
-#if __NODE_LIGHT_FALLOFF__
+#if defined(__NODE_LIGHT_FALLOFF__) || !defined(__SPLIT_KERNEL__)
 			case NODE_LIGHT_FALLOFF:
 				svm_node_light_falloff(sd, stack, node);
 				break;
 #endif
 #endif
-#if __NODE_TANGENT__
+#if defined(__NODE_TANGENT__) || !defined(__SPLIT_KERNEL__)
 			case NODE_TANGENT:
 				svm_node_tangent(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_NORMAL_MAP__
+#if defined(__NODE_NORMAL_MAP__) || !defined(__SPLIT_KERNEL__)
 			case NODE_NORMAL_MAP:
 				svm_node_normal_map(kg, sd, stack, node);
 				break;
 #endif
-#if __NODE_END__
+#if defined(__NODE_END__) || !defined(__SPLIT_KERNEL__)
 			case NODE_END:
 #endif
 			default:
