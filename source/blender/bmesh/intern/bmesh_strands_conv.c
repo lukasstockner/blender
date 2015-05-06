@@ -177,13 +177,7 @@ static void bm_make_strands(BMesh *bm, Strands *strands, Key *key, struct Derive
 			BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_WEIGHT, it_vert.vertex->weight);
 			
 			/* root */
-			if (it_vert.index == 0) {
-				// XXX TODO
-//				MSurfaceSample root_loc;
-//				if (BKE_mesh_sample_from_particle(&root_loc, psys, emitter_dm, pa)) {
-//					BM_elem_meshsample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
-//				}
-			}
+			BM_elem_meshsample_data_named_set(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &it_strand.curve->msurf);
 			
 			/* set shapekey data */
 			if (key) {
@@ -405,7 +399,7 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 #endif
 
 static void strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands), Key *UNUSED(key),
-                                struct DerivedMesh *UNUSED(emitter_dm), struct BVHTreeFromMesh *UNUSED(emitter_bvhtree),
+                                struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *UNUSED(emitter_bvhtree),
                                 StrandIterator *it_strand)
 {
 	int numverts = BM_strands_keys_count(root);
@@ -415,7 +409,7 @@ static void strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands
 	StrandVertexIterator it_vert;
 	
 	it_strand->curve->numverts = numverts;
-	// XXX TODO
+	/* init root matrix, fully constructed below for non-degenerate strands */
 	unit_m3(it_strand->curve->root_matrix);
 	
 	BKE_strand_vertex_iter_init(&it_vert, it_strand);
@@ -424,17 +418,14 @@ static void strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands
 		
 		/* root */
 		if (it_vert.index == 0) {
-			// XXX TODO
-#if 0
-			MSurfaceSample root_loc;
-			BM_elem_meshsample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_loc);
-			if (!BKE_mesh_sample_to_particle(&root_loc, psys, emitter_dm, emitter_bvhtree, pa)) {
-				pa->num = 0;
-				pa->num_dmcache = DMCACHE_NOTFOUND;
-				zero_v4(pa->fuv);
-				pa->foffset = 0.0f;
-			}
-#endif
+			float loc[3], nor[3], tang[3];
+			BM_elem_meshsample_data_named_get(&bm->vdata, v, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &it_strand->curve->msurf);
+			BKE_mesh_sample_eval(emitter_dm, &it_strand->curve->msurf, loc, nor, tang);
+			
+			/* construct root matrix */
+			copy_v3_v3(it_strand->curve->root_matrix[2], nor);
+			copy_v3_v3(it_strand->curve->root_matrix[0], tang);
+			cross_v3_v3v3(it_strand->curve->root_matrix[1], it_strand->curve->root_matrix[2], it_strand->curve->root_matrix[0]);
 		}
 		
 		copy_v3_v3(it_vert.vertex->co, v->co);

@@ -124,7 +124,7 @@ static void strands_undo_to_edit(void *undov, void *editv, void *UNUSED(obdata))
 	 * because it owns the root_dm and we have to copy it before
 	 * it gets released when freeing the old edit.
 	 */
-	edit_tmp = BKE_editstrands_create(bm, dm);
+	edit_tmp = BKE_editstrands_create(bm, dm, NULL);
 	BKE_editstrands_free(edit);
 	*edit = *edit_tmp;
 	

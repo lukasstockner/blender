@@ -84,6 +84,10 @@ private:
 	
 	AbcGeom::OCurves m_curves;
 	AbcGeom::OQuatfGeomParam m_param_root_rot;
+	AbcGeom::OUInt32GeomParam m_param_root_orig_verts;
+	AbcGeom::OFloatGeomParam m_param_root_orig_weights;
+	AbcGeom::OInt32GeomParam m_param_root_orig_poly;
+	AbcGeom::OUInt32GeomParam m_param_root_orig_loops;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
 	
@@ -134,6 +138,10 @@ private:
 	
 	AbcGeom::OCurves m_curves;
 	AbcGeom::OQuatfGeomParam m_param_root_rot;
+	AbcGeom::OUInt32GeomParam m_param_root_orig_verts;
+	AbcGeom::OFloatGeomParam m_param_root_orig_weights;
+	AbcGeom::OInt32GeomParam m_param_root_orig_poly;
+	AbcGeom::OUInt32GeomParam m_param_root_orig_loops;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OFloatGeomParam m_param_weights;
 	AbcGeom::OCompoundProperty m_param_motion_state;
@@ -192,6 +200,10 @@ private:
 	
 	AbcGeom::ICurves m_curves;
 	AbcGeom::IQuatfGeomParam m_param_root_rot;
+	AbcGeom::IUInt32GeomParam m_param_root_orig_verts;
+	AbcGeom::IFloatGeomParam m_param_root_orig_weights;
+	AbcGeom::IInt32GeomParam m_param_root_orig_poly;
+	AbcGeom::IUInt32GeomParam m_param_root_orig_loops;
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IFloatGeomParam m_param_weights;
 	AbcGeom::ICompoundProperty m_param_motion_state;

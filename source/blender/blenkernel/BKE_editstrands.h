@@ -71,7 +71,7 @@ typedef enum BMEditStrandsFlag {
 	BM_STRANDS_DIRTY_SEGLEN     = 1,
 } BMEditStrandsFlag;
 
-struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm, struct DerivedMesh *root_dm);
+struct BMEditStrands *BKE_editstrands_create(struct BMesh *bm, struct DerivedMesh *root_dm, float mat[4][4]);
 struct BMEditStrands *BKE_editstrands_copy(struct BMEditStrands *es);
 struct BMEditStrands *BKE_editstrands_from_object(struct Object *ob);
 void BKE_editstrands_update_linked_customdata(struct BMEditStrands *es);

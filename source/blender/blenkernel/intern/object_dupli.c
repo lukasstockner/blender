@@ -62,6 +62,7 @@
 #include "BKE_lattice.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
@@ -1623,6 +1624,7 @@ static void dupli_strands_data_update(CacheLibrary *cachelib, DupliObjectData *d
 
 					scurve->numverts = pa->totkey;
 					copy_m3_m4(scurve->root_matrix, hairmat);
+					BKE_mesh_sample_from_particle(&scurve->msurf, psys, data->dm, pa);
 
 					for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
 						copy_v3_v3(svert->co, hkey->co);

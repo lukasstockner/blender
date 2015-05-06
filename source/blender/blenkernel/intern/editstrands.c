@@ -55,12 +55,25 @@
 
 #include "intern/bmesh_strands_conv.h"
 
-BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm)
+/* mat can be used to transform the dm into another space,
+ * in case the edited object is not the active object:
+ *   mat = inv(M_act) * M_edit
+ */
+BMEditStrands *BKE_editstrands_create(BMesh *bm, DerivedMesh *root_dm, float mat[4][4])
 {
 	BMEditStrands *es = MEM_callocN(sizeof(BMEditStrands), __func__);
 	
 	es->bm = bm;
 	es->root_dm = CDDM_copy(root_dm);
+	
+	if (mat) {
+		DerivedMesh *dm = es->root_dm;
+		MVert *mv = dm->getVertArray(dm);
+		int totvert = dm->getNumVerts(dm), i;
+		for (i = 0; i < totvert; ++i, ++mv) {
+			mul_m4_v3(mat, mv->co);
+		}
+	}
 	
 	return es;
 }

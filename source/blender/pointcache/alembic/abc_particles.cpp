@@ -31,6 +31,7 @@ extern "C" {
 #include "DNA_particle_types.h"
 
 #include "BKE_anim.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_particle.h"
 #include "BKE_strands.h"
 }
@@ -57,6 +58,10 @@ struct StrandsChildrenSample {
 struct StrandsSample {
 	std::vector<int32_t> numverts;
 	std::vector<Quatf> root_rotations;
+	std::vector<uint32_t> root_orig_verts;
+	std::vector<float32_t> root_orig_weights;
+	std::vector<int32_t> root_orig_poly;
+	std::vector<uint32_t> root_orig_loops;
 	
 	std::vector<V3f> positions;
 	std::vector<float32_t> times;
@@ -450,6 +455,10 @@ void AbcHairWriter::init_abc(OObject parent)
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
 	m_param_root_rot = OQuatfGeomParam(geom_props, "root_rotations", false, kUniformScope, 1, 0);
+	m_param_root_orig_verts = OUInt32GeomParam(geom_props, "root_orig_verts", false, kUniformScope, 1, 0);
+	m_param_root_orig_weights = OFloatGeomParam(geom_props, "root_orig_weights", false, kUniformScope, 1, 0);
+	m_param_root_orig_poly = OInt32GeomParam(geom_props, "root_orig_poly", false, kUniformScope, 1, 0);
+	m_param_root_orig_loops = OUInt32GeomParam(geom_props, "root_orig_loops", false, kUniformScope, 1, 0);
 	
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, 0);
@@ -482,6 +491,10 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 	if (do_numverts)
 		sample.numverts.reserve(totpart);
 	sample.root_rotations.reserve(totpart);
+	sample.root_orig_verts.reserve(totpart * 3);
+	sample.root_orig_weights.reserve(totpart * 3);
+	sample.root_orig_poly.reserve(totpart);
+	sample.root_orig_loops.reserve(totpart * 3);
 	sample.positions.reserve(totverts);
 	sample.times.reserve(totverts);
 	sample.weights.reserve(totverts);
@@ -498,6 +511,19 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 		float root_qt[4];
 		mat4_to_quat(root_qt, hairmat);
 		sample.root_rotations.push_back(Quatf(root_qt[0], root_qt[1], root_qt[2], root_qt[3]));
+		
+		MSurfaceSample surf;
+		BKE_mesh_sample_from_particle(&surf, psys, dm, pa);
+		sample.root_orig_verts.push_back(surf.orig_verts[0]);
+		sample.root_orig_verts.push_back(surf.orig_verts[1]);
+		sample.root_orig_verts.push_back(surf.orig_verts[2]);
+		sample.root_orig_weights.push_back(surf.orig_weights[0]);
+		sample.root_orig_weights.push_back(surf.orig_weights[1]);
+		sample.root_orig_weights.push_back(surf.orig_weights[2]);
+		sample.root_orig_poly.push_back(surf.orig_poly);
+		sample.root_orig_loops.push_back(surf.orig_loops[0]);
+		sample.root_orig_loops.push_back(surf.orig_loops[1]);
+		sample.root_orig_loops.push_back(surf.orig_loops[2]);
 		
 		for (k = 0; k < numverts; ++k) {
 			HairKey *key = &pa->hair[k];
@@ -542,6 +568,10 @@ void AbcHairWriter::write_sample()
 	schema.set(sample);
 	
 	m_param_root_rot.set(OQuatfGeomParam::Sample(QuatfArraySample(hair_sample.root_rotations), kUniformScope));
+	m_param_root_orig_verts.set(OUInt32GeomParam::Sample(UInt32ArraySample(hair_sample.root_orig_verts), kUniformScope));
+	m_param_root_orig_weights.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.root_orig_weights), kUniformScope));
+	m_param_root_orig_poly.set(OInt32GeomParam::Sample(Int32ArraySample(hair_sample.root_orig_poly), kUniformScope));
+	m_param_root_orig_loops.set(OUInt32GeomParam::Sample(UInt32ArraySample(hair_sample.root_orig_loops), kUniformScope));
 	
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(hair_sample.weights), kVertexScope));
@@ -722,6 +752,10 @@ void AbcStrandsWriter::init_abc(OObject parent)
 	OCompoundProperty geom_props = schema.getArbGeomParams();
 	
 	m_param_root_rot = OQuatfGeomParam(geom_props, "root_rotations", false, kUniformScope, 1, abc_archive()->frame_sampling());
+	m_param_root_orig_verts = OUInt32GeomParam(geom_props, "root_orig_verts", false, kUniformScope, 1, 0);
+	m_param_root_orig_weights = OFloatGeomParam(geom_props, "root_orig_weights", false, kUniformScope, 1, 0);
+	m_param_root_orig_poly = OInt32GeomParam(geom_props, "root_orig_poly", false, kUniformScope, 1, 0);
+	m_param_root_orig_loops = OUInt32GeomParam(geom_props, "root_orig_loops", false, kUniformScope, 1, 0);
 	
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	m_param_weights = OFloatGeomParam(geom_props, "weights", false, kVertexScope, 1, abc_archive()->frame_sampling());
@@ -746,6 +780,10 @@ static void strands_create_sample(Strands *strands, StrandsSample &sample, bool 
 	if (do_numverts)
 		sample.numverts.reserve(totcurves);
 	sample.root_rotations.reserve(totcurves);
+	sample.root_orig_verts.reserve(totcurves * 3);
+	sample.root_orig_weights.reserve(totcurves * 3);
+	sample.root_orig_poly.reserve(totcurves);
+	sample.root_orig_loops.reserve(totcurves * 3);
 	
 	sample.positions.reserve(totverts);
 	sample.times.reserve(totverts);
@@ -764,6 +802,17 @@ static void strands_create_sample(Strands *strands, StrandsSample &sample, bool 
 		float qt[4];
 		mat3_to_quat(qt, it_strand.curve->root_matrix);
 		sample.root_rotations.push_back(Quatf(qt[0], qt[1], qt[2], qt[3]));
+		
+		sample.root_orig_verts.push_back(it_strand.curve->msurf.orig_verts[0]);
+		sample.root_orig_verts.push_back(it_strand.curve->msurf.orig_verts[1]);
+		sample.root_orig_verts.push_back(it_strand.curve->msurf.orig_verts[2]);
+		sample.root_orig_weights.push_back(it_strand.curve->msurf.orig_weights[0]);
+		sample.root_orig_weights.push_back(it_strand.curve->msurf.orig_weights[1]);
+		sample.root_orig_weights.push_back(it_strand.curve->msurf.orig_weights[2]);
+		sample.root_orig_poly.push_back(it_strand.curve->msurf.orig_poly);
+		sample.root_orig_loops.push_back(it_strand.curve->msurf.orig_loops[0]);
+		sample.root_orig_loops.push_back(it_strand.curve->msurf.orig_loops[1]);
+		sample.root_orig_loops.push_back(it_strand.curve->msurf.orig_loops[2]);
 		
 		StrandVertexIterator it_vert;
 		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
@@ -806,6 +855,10 @@ void AbcStrandsWriter::write_sample()
 	schema.set(sample);
 	
 	m_param_root_rot.set(OQuatfGeomParam::Sample(QuatfArraySample(strands_sample.root_rotations), kUniformScope));
+	m_param_root_orig_verts.set(OUInt32GeomParam::Sample(UInt32ArraySample(strands_sample.root_orig_verts), kUniformScope));
+	m_param_root_orig_weights.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.root_orig_weights), kUniformScope));
+	m_param_root_orig_poly.set(OInt32GeomParam::Sample(Int32ArraySample(strands_sample.root_orig_poly), kUniformScope));
+	m_param_root_orig_loops.set(OUInt32GeomParam::Sample(UInt32ArraySample(strands_sample.root_orig_loops), kUniformScope));
 	
 	m_param_times.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.times), kVertexScope));
 	m_param_weights.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.weights), kVertexScope));
@@ -1026,6 +1079,10 @@ void AbcStrandsReader::init_abc(IObject object)
 	ICompoundProperty geom_props = schema.getArbGeomParams();
 	
 	m_param_root_rot = IQuatfGeomParam(geom_props, "root_rotations");
+	m_param_root_orig_verts = IUInt32GeomParam(geom_props, "root_orig_verts");
+	m_param_root_orig_weights = IFloatGeomParam(geom_props, "root_orig_weights");
+	m_param_root_orig_poly = IInt32GeomParam(geom_props, "root_orig_poly");
+	m_param_root_orig_loops = IUInt32GeomParam(geom_props, "root_orig_loops");
 	
 	m_param_times = IFloatGeomParam(geom_props, "times");
 	m_param_weights = IFloatGeomParam(geom_props, "weights");
@@ -1061,6 +1118,10 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 	P3fArraySamplePtr sample_co_base = sample_base.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
 	IQuatfGeomParam::Sample sample_root_rotations = m_param_root_rot.getExpandedValue(ss);
+	IUInt32GeomParam::Sample sample_root_orig_verts = m_param_root_orig_verts.getExpandedValue(ss);
+	IFloatGeomParam::Sample sample_root_orig_weights = m_param_root_orig_weights.getExpandedValue(ss);
+	IInt32GeomParam::Sample sample_root_orig_poly = m_param_root_orig_poly.getExpandedValue(ss);
+	IUInt32GeomParam::Sample sample_root_orig_loops = m_param_root_orig_loops.getExpandedValue(ss);
 	IQuatfGeomParam::Sample sample_root_rotations_base = m_param_root_rot.getExpandedValue(ISampleSelector((index_t)0));
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_weight = m_param_weights.getExpandedValue(ss);
@@ -1075,14 +1136,32 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 	
 	const int32_t *numvert = sample_numvert->get();
 	const Quatf *root_rot = sample_root_rotations.getVals()->get();
+	const uint32_t *orig_verts = sample_root_orig_verts.getVals()->get();
+	const float32_t *orig_weights = sample_root_orig_weights.getVals()->get();
+	const int32_t *orig_poly = sample_root_orig_poly.getVals()->get();
+	const uint32_t *orig_loops = sample_root_orig_loops.getVals()->get();
 	for (int i = 0; i < sample_numvert->size(); ++i) {
 		StrandsCurve *scurve = &m_strands->curves[i];
 		scurve->numverts = *numvert;
 		float qt[4] = {root_rot->r, root_rot->v.x, root_rot->v.y, root_rot->v.z};
 		quat_to_mat3(scurve->root_matrix, qt);
+		scurve->msurf.orig_verts[0] = orig_verts[0];
+		scurve->msurf.orig_verts[1] = orig_verts[1];
+		scurve->msurf.orig_verts[2] = orig_verts[2];
+		scurve->msurf.orig_weights[0] = orig_weights[0];
+		scurve->msurf.orig_weights[1] = orig_weights[1];
+		scurve->msurf.orig_weights[2] = orig_weights[2];
+		scurve->msurf.orig_poly = *orig_poly;
+		scurve->msurf.orig_loops[0] = orig_loops[0];
+		scurve->msurf.orig_loops[1] = orig_loops[1];
+		scurve->msurf.orig_loops[2] = orig_loops[2];
 		
 		++numvert;
 		++root_rot;
+		orig_verts += 3;
+		orig_weights += 3;
+		orig_poly += 1;
+		orig_loops += 3;
 	}
 	
 	const V3f *co = sample_co->get();

@@ -60,6 +60,9 @@ static bool strand_get_root_vectors(BMEditStrands *edit, BMVert *root, float loc
 	DerivedMesh *root_dm = edit->root_dm;
 	MSurfaceSample root_sample;
 	
+	if (!CustomData_has_layer(&bm->vdata, CD_MSURFACE_SAMPLE))
+		return false;
+	
 	BM_elem_meshsample_data_named_get(&bm->vdata, root, CD_MSURFACE_SAMPLE, CD_HAIR_ROOT_LOCATION, &root_sample);
 	return BKE_mesh_sample_eval(root_dm, &root_sample, loc, nor, tang);
 }
@@ -101,8 +104,9 @@ static void strands_apply_root_locations(BMEditStrands *edit)
 	BM_ITER_STRANDS(root, &iter, edit->bm, BM_STRANDS_OF_MESH) {
 		float loc[3], nor[3], tang[3];
 		
-		if (strand_get_root_vectors(edit, root, loc, nor, tang))
+		if (strand_get_root_vectors(edit, root, loc, nor, tang)) {
 			copy_v3_v3(root->co, loc);
+		}
 	}
 }
 
