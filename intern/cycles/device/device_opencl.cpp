@@ -2679,10 +2679,10 @@ public:
 
 		/* Set arguments for ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL kernel */
 		narg = 0;
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, narg++, sizeof(ray_state), (void*)&ray_state));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, ray_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue_SPLIT_KERNEL, dQueue_size);
 
 		/* Set arguments for ckPathTraceKernel_BG_BufferUpdate_SPLIT_KERNEL kernel */
 		narg = 0;
