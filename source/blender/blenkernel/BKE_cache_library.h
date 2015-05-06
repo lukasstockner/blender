@@ -69,6 +69,9 @@ bool BKE_cache_library_validate_item(struct CacheLibrary *cachelib, struct Objec
 
 /* ========================================================================= */
 
+void BKE_cache_library_get_read_flags(struct CacheLibrary *cachelib, eCacheLibrary_EvalMode eval_mode, bool for_display,
+                                      bool *read_strands_motion, bool *read_strands_children);
+
 bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, const char *path);
 void BKE_cache_archive_path_ex(const char *path, struct Library *lib, const char *default_filename, char *result, int max);
 void BKE_cache_archive_input_path(struct CacheLibrary *cachelib, char *result, int max);

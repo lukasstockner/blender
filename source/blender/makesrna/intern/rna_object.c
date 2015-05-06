@@ -1545,11 +1545,10 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 			/* use dupli cache for realtime dupli data if possible */
 			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
 			if (data) {
-				strands = BKE_dupli_object_data_find_strands(data, psys->name);
 				/* TODO(sergey): Consider sharing the data between viewport and
 				 * render engine.
 				 */
-				if (strands != NULL) {
+				if (BKE_dupli_object_data_find_strands(data, psys->name, &strands, NULL)) {
 					strands = BKE_strands_copy(strands);
 				}
 			}
@@ -1559,8 +1558,8 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 			
 			memset(&data, 0, sizeof(data));
 			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
-				strands = BKE_dupli_object_data_find_strands(&data, psys->name);
-				BKE_dupli_object_data_acquire_strands(&data, strands);
+				if (BKE_dupli_object_data_find_strands(&data, psys->name, &strands, NULL))
+					BKE_dupli_object_data_acquire_strands(&data, strands);
 			}
 			
 			BKE_dupli_object_data_clear(&data);
@@ -1600,11 +1599,10 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 			/* use dupli cache for realtime dupli data if possible */
 			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
 			if (data) {
-				strands = BKE_dupli_object_data_find_strands_children(data, psys->name);
 				/* TODO(sergey): Consider sharing the data between viewport and
 				 * render engine.
 				 */
-				if (strands != NULL) {
+				if (BKE_dupli_object_data_find_strands(data, psys->name, NULL, &strands)) {
 					strands = BKE_strands_children_copy(strands);
 				}
 			}
@@ -1614,8 +1612,16 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 			
 			memset(&data, 0, sizeof(data));
 			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
-				strands = BKE_dupli_object_data_find_strands_children(&data, psys->name);
-				BKE_dupli_object_data_acquire_strands_children(&data, strands);
+				Strands *parents;
+				if (BKE_dupli_object_data_find_strands(&data, psys->name, &parents, &strands)) {
+					BKE_dupli_object_data_acquire_strands_children(&data, strands);
+					
+					/* Deform child strands to follow parent motion.
+					 * Note that this is an optional feature for viewport/render display,
+					 * strand motion is not applied to raw child data in caches.
+					 */
+					BKE_strands_children_deform(strands, parents, true);
+				}
 			}
 			
 			BKE_dupli_object_data_clear(&data);
