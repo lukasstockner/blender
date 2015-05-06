@@ -1219,22 +1219,26 @@ public:
 		cl_int d_sample = sample;
 		cl_uint narg = 0;
 
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_buffer), (void*)&d_buffer));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_rng_state), (void*)&d_rng_state));
+		/* TODO : Make the kernel launch similar to Cuda */
+#define KERNEL_APPEND_ARG(kernel_name, arg) \
+		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_buffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_rng_state);
 
 #define KERNEL_TEX(type, ttype, name) \
 		set_kernel_arg_mem(ckPathTraceKernel, &narg, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_sample), (void*)&d_sample));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_x), (void*)&d_x));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_y), (void*)&d_y));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_w), (void*)&d_w));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_h), (void*)&d_h));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_offset), (void*)&d_offset));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel, narg++, sizeof(d_stride), (void*)&d_stride));
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_offset);
+		KERNEL_APPEND_ARG(ckPathTraceKernel, d_stride);
+#undef KERNEL_APPEND_ARG
 
 		enqueue_kernel(ckPathTraceKernel, d_w, d_h);
 	}
