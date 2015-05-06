@@ -98,8 +98,8 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 	int parallel_samples                       /* Number of samples to be processed in parallel */
 	)
 {
-	__local unsigned int local_queue_atomics_bg;
-	__local unsigned int local_queue_atomics_ao;
+	ccl_local unsigned int local_queue_atomics_bg;
+	ccl_local unsigned int local_queue_atomics_ao;
 	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
 		local_queue_atomics_bg = 0;
 		local_queue_atomics_ao = 0;

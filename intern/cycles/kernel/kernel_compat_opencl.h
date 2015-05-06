@@ -37,6 +37,8 @@
 #define ccl_may_alias
 #define ccl_constant __constant
 #define ccl_global __global
+#define ccl_local __local
+#define ccl_private __private
 
 #ifdef __SPLIT_KERNEL__
 #define ccl_addr_space __global

@@ -67,7 +67,7 @@ __kernel void kernel_ocl_path_trace_LampEmission_SPLIT_KERNEL(
 	}
 
 	/* Fetch use_queues_flag */
-	__local char local_use_queues_flag;
+	ccl_local char local_use_queues_flag;
 	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
 		local_use_queues_flag = use_queues_flag[0];
 	}

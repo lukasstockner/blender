@@ -19,7 +19,7 @@ CCL_NAMESPACE_BEGIN
 #if defined(__SPLIT_KERNEL__) && defined(__WORK_STEALING__)
 /* Utility functions for float atomics */
 /* float atomics impl credits : http://suhorukov.blogspot.in/2011/12/opencl-11-atomic-operations-on-floating.html */
-inline void atomic_add_float(volatile __global float *source, const float operand) {
+ccl_device_inline void atomic_add_float(volatile ccl_global float *source, const float operand) {
 	union {
 		unsigned int intVal;
 		float floatVal;
@@ -34,7 +34,7 @@ inline void atomic_add_float(volatile __global float *source, const float operan
 		prevVal.floatVal = *source;
 		newVal.floatVal = prevVal.floatVal + operand;
 
-	} while(atomic_cmpxchg((volatile __global unsigned int *)source, prevVal.intVal, newVal.intVal) != prevVal.intVal);
+	} while(atomic_cmpxchg((volatile ccl_global unsigned int *)source, prevVal.intVal, newVal.intVal) != prevVal.intVal);
 }
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 

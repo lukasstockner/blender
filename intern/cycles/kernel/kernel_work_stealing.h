@@ -61,8 +61,8 @@ unsigned int get_total_work(unsigned int tile_dim_x,
 
 /* Returns 0 in case there is no next work available */
 /* Returns 1 in case work assigned is valid */
-int get_next_work(__global unsigned int *work_pool,
-                  __private unsigned int *my_work,
+int get_next_work(ccl_global unsigned int *work_pool,
+                  ccl_private unsigned int *my_work,
                   unsigned int tile_dim_x,
                   unsigned int tile_dim_y,
                   unsigned int num_samples,
@@ -105,10 +105,10 @@ unsigned int get_my_sample(unsigned int my_work,
 }
 
 /* Decode pixel and tile position w.r.t. assigned my_work */
-void get_pixel_tile_position(__private unsigned int *pixel_x,
-                             __private unsigned int *pixel_y,
-                             __private unsigned int *tile_x,
-                             __private unsigned int *tile_y,
+void get_pixel_tile_position(ccl_private unsigned int *pixel_x,
+                             ccl_private unsigned int *pixel_y,
+                             ccl_private unsigned int *tile_x,
+                             ccl_private unsigned int *tile_y,
                              unsigned int my_work,
                              unsigned int tile_dim_x,
                              unsigned int tile_dim_y,

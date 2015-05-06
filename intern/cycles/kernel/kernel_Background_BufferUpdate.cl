@@ -128,7 +128,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 	int parallel_samples                         /* Number of samples to be processed in parallel */
 	)
 {
-	__local unsigned int local_queue_atomics;
+	ccl_local unsigned int local_queue_atomics;
 	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
 		local_queue_atomics = 0;
 	}

@@ -65,7 +65,7 @@ __kernel void kernel_ocl_path_trace_DirectLighting_SPLIT_KERNEL(
 	int queuesize                           /* Size (capacity) of each queue */
 	)
 {
-	__local unsigned int local_queue_atomics;
+	ccl_local unsigned int local_queue_atomics;
 	if(get_local_id(0) == 0 && get_local_id(1) == 0) {
 		local_queue_atomics = 0;
 	}

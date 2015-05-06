@@ -74,8 +74,8 @@ __kernel void kernel_ocl_path_trace_ShadowBlocked_DirectLighting_SPLIT_KERNEL(
 
 	int lidx = get_local_id(1) * get_local_id(0) + get_local_id(0);
 
-	__local unsigned int ao_queue_length;
-	__local unsigned int dl_queue_length;
+	ccl_local unsigned int ao_queue_length;
+	ccl_local unsigned int dl_queue_length;
 	if(lidx == 0) {
 		ao_queue_length = Queue_index[QUEUE_SHADOW_RAY_CAST_AO_RAYS];
 		dl_queue_length = Queue_index[QUEUE_SHADOW_RAY_CAST_DL_RAYS];
