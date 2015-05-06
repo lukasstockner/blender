@@ -179,6 +179,7 @@ Key *BKE_key_add_particles(Object *ob, ParticleSystem *psys)    /* particles are
 	
 	key->type = KEY_NORMAL;
 	BKE_key_set_from_particles(key, ob, psys);
+	key->fromtype = KEY_FROMTYPE_ID;
 	
 	key->uidgen = 1;
 	
@@ -620,8 +621,8 @@ static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int 
 			if (!key->from)
 				return false;
 			
-			switch (GS(key->from->name)) {
-				case ID_ME:
+			switch (key->from_extra.type) {
+				case KEY_OWNER_MESH:
 					*ofs = sizeof(float) * 3;
 					*poinsize = *ofs;
 					break;
