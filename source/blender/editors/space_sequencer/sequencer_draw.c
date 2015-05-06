@@ -1089,6 +1089,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	const bool draw_gpencil = ((sseq->flag & SEQ_SHOW_GPENCIL) && sseq->gpd);
 	const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
 	bool draw_metadata = false;
+	rctf metadataframe;
 
 	if (G.is_rendering == false && (scene->r.seq_flag & R_SEQ_GL_PREV) == 0) {
 		/* stop all running jobs, except screen one. currently previews frustrate Render
@@ -1341,7 +1342,11 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->overdrop_zoom;
 		float xofs = BLI_rcti_size_x(&ar->winrct)/2.0f + sseq->overdrop_offset[0];
 		float yofs = BLI_rcti_size_y(&ar->winrct)/2.0f + sseq->overdrop_offset[1];
-		
+
+		draw_metadata = ((sseq->flag & SEQ_SHOW_METADATA) != 0);
+
+		BLI_rctf_init(&metadataframe, -imagex + xofs, imagex + xofs, -imagey + yofs, imagey + yofs);
+
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex + xofs, -imagey + yofs);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex + xofs, imagey + yofs);
 		glTexCoord2f(1.0f, 1.0f); glVertex2f(imagex + xofs, imagey + yofs);
@@ -1350,6 +1355,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	else {
 		draw_metadata = ((sseq->flag & SEQ_SHOW_METADATA) != 0);
 
+		metadataframe = v2d->tot;
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymin);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(v2d->tot.xmin, v2d->tot.ymax);
 		glTexCoord2f(1.0f, 1.0f); glVertex2f(v2d->tot.xmax, v2d->tot.ymax);
@@ -1373,7 +1379,7 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 		IMB_freeImBuf(ibuf);
 
 	if (draw_metadata) {
-		ED_region_image_metadata_draw(0.0, 0.0, ibuf, v2d->tot, 1.0, 1.0);
+		ED_region_image_metadata_draw(0.0, 0.0, ibuf, metadataframe, 1.0, 1.0);
 	}
 
 	if (draw_overdrop) {
