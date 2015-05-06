@@ -2535,128 +2535,108 @@ public:
 
 		/* Set arguments for ckPathTraceKernel_DataInit_SPLIT_KERNEL kernel */
 		cl_uint narg = 0;
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(kgbuffer), (void*)&kgbuffer));
 
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd), (void*)&sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(sd_DL_shadow), (void*)&sd_DL_shadow));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd), (void*)&P_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(P_sd_DL_shadow), (void*)&P_sd_DL_shadow));
+#define KERNEL_APPEND_ARG(kernel_name, arg) \
+		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(N_sd), (void*)&N_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(N_sd_DL_shadow), (void*)&N_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ng_sd), (void*)&Ng_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ng_sd_DL_shadow), (void*)&Ng_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(I_sd), (void*)&I_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(I_sd_DL_shadow), (void*)&I_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(shader_sd), (void*)&shader_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(shader_sd_DL_shadow), (void*)&shader_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(flag_sd), (void*)&flag_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(flag_sd_DL_shadow), (void*)&flag_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(prim_sd), (void*)&prim_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(prim_sd_DL_shadow), (void*)&prim_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(type_sd), (void*)&type_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(type_sd_DL_shadow), (void*)&type_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(u_sd), (void*)&u_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(u_sd_DL_shadow), (void*)&u_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(v_sd), (void*)&v_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(v_sd_DL_shadow), (void*)&v_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(object_sd), (void*)&object_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(object_sd_DL_shadow), (void*)&object_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(time_sd), (void*)&time_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(time_sd_DL_shadow), (void*)&time_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_length_sd), (void*)&ray_length_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_length_sd_DL_shadow), (void*)&ray_length_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_depth_sd), (void*)&ray_depth_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_depth_sd_DL_shadow), (void*)&ray_depth_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(transparent_depth_sd), (void*)&transparent_depth_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(transparent_depth_sd_DL_shadow), (void*)&transparent_depth_sd_DL_shadow));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, kgbuffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, P_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, P_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, N_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, N_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Ng_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Ng_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, I_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, I_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, shader_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, shader_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, flag_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, flag_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, prim_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, prim_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, type_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, type_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, u_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, u_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, v_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, v_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, object_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, object_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, time_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, time_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_length_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_length_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_depth_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_depth_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, transparent_depth_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, transparent_depth_sd_DL_shadow);
 #ifdef __RAY_DIFFERENTIALS__
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dP_sd), (void*)&dP_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dP_sd_DL_shadow), (void*)&dP_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dI_sd), (void*)&dI_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dI_sd_DL_shadow), (void*)&dI_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(du_sd), (void*)&du_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(du_sd_DL_shadow), (void*)&du_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dv_sd), (void*)&dv_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dv_sd_DL_shadow), (void*)&dv_sd_DL_shadow));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dP_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dP_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dI_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dI_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, du_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, du_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dv_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dv_sd_DL_shadow);
 #endif
 #ifdef __DPDU__
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdu_sd), (void*)&dPdu_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdu_sd_DL_shadow), (void*)&dPdu_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdv_sd), (void*)&dPdv_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dPdv_sd_DL_shadow), (void*)&dPdv_sd_DL_shadow));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdu_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdu_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdv_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dPdv_sd_DL_shadow);
 #endif
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(closure_sd), (void*)&closure_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(closure_sd_DL_shadow), (void*)&closure_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_closure_sd), (void*)&num_closure_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_closure_sd_DL_shadow), (void*)&num_closure_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(randb_closure_sd), (void*)&randb_closure_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(randb_closure_sd_DL_shadow), (void*)&randb_closure_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_P_sd), (void*)&ray_P_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_P_sd_DL_shadow), (void*)&ray_P_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_dP_sd), (void*)&ray_dP_sd));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_dP_sd_DL_shadow), (void*)&ray_dP_sd_DL_shadow));
-
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_data), (void*)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(per_sample_output_buffers), (void*)&per_sample_output_buffers));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_rng_state), (void*)&d_rng_state));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rng_coop), (void*)&rng_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(throughput_coop), (void*)&throughput_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(L_transparent_coop), (void*)&L_transparent_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(PathRadiance_coop), (void*)&PathRadiance_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Ray_coop), (void*)&Ray_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(PathState_coop), (void*)&PathState_coop));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(ray_state), (void*)&ray_state));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, closure_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, closure_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_closure_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_closure_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, randb_closure_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, randb_closure_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_P_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_P_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_dP_sd);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_dP_sd_DL_shadow);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, per_sample_output_buffers);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_rng_state);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rng_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, throughput_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, L_transparent_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, PathRadiance_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Ray_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, PathState_coop);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, ray_state);
 
 #define KERNEL_TEX(type, ttype, name) \
 	set_kernel_arg_mem(ckPathTraceKernel_DataInit_SPLIT_KERNEL, &narg, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_x), (void*)&d_x));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_y), (void*)&d_y));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_w), (void*)&d_w));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_h), (void*)&d_h));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_offset), (void*)&d_offset));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(d_stride), (void*)&d_stride));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_x), (void*)&(rtile.rng_state_offset_x)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.rng_state_offset_y), (void*)&(rtile.rng_state_offset_y)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_rng_state_stride), (void*)&(rtile.buffer_rng_state_stride)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Queue_data), (void*)&Queue_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(Queue_index), (void*)&Queue_index));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(dQueue_size), (void*)&dQueue_size));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(use_queues_flag), (void*)&use_queues_flag));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(work_array), (void*)&work_array));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, start_sample);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_offset);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, d_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rtile.rng_state_offset_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rtile.rng_state_offset_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, rtile.buffer_rng_state_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Queue_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, Queue_index);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, dQueue_size);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, use_queues_flag);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, work_array);
 #ifdef __WORK_STEALING__
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(work_pool_wgs), (void*)&work_pool_wgs));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_samples), (void*)&num_samples));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, work_pool_wgs);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_samples);
 #endif
 #ifdef WITH_CYCLES_DEBUG
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(debugdata_coop), (void*)&debugdata_coop));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, debugdata_coop);
 #endif
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_DataInit_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void*)&num_parallel_samples));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit_SPLIT_KERNEL, num_parallel_samples);
 
 		/* Set arguments for ckPathTraceKernel_SceneIntersect_SPLIT_KERNEL */;
 		narg = 0;
