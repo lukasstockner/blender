@@ -1842,7 +1842,7 @@ public:
 		case NODE_NORMAL_MAP: return "__NODE_NORMAL_MAP__";
 		case NODE_END: return "__NODE_END__";
 		default:
-			assert(0);
+			assert(!"Unknown node type passed");
 		}
 		return "";
 	}
