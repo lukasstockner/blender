@@ -634,32 +634,6 @@ void Session::load_kernels()
 	}
 }
 
-static int getClosureCount(Scene *scene)
-{
-	int max_clos = 0;
-	for(int i = 0; i < scene->shaders.size(); i++) {
-		int num_closures = 0;
-		foreach(ShaderNode *node, scene->shaders[i]->graph->nodes) {
-			ClosureType type = node->clos;
-			if(type > 0) {
-				if(CLOSURE_IS_BSSRDF(type))
-					num_closures = num_closures + 3;
-				else if(type >= CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID && type <= CLOSURE_BSDF_SHARP_GLASS_ID)
-					num_closures = num_closures + 2;
-				else
-					num_closures = num_closures + 1;
-			}
-		}
-		if(num_closures > max_clos)
-			max_clos = num_closures;
-	}
-
-	if(max_clos > maxclosure) {
-		maxclosure = max_clos;
-	}
-	return maxclosure;
-}
-
 void Session::run()
 {
 	if (device->info.use_split_kernel) {

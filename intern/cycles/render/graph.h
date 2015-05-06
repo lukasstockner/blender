@@ -207,8 +207,6 @@ public:
 	ShaderBump bump; /* for bump mapping utility */
 	
 	ShaderNodeSpecialType special_type;	/* special node type */
-
-	ClosureType clos; /* Closure type of ShaderNode */
 };
 
 
