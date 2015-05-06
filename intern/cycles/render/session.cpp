@@ -663,7 +663,7 @@ static int getClosureCount(Scene *scene)
 void Session::run()
 {
 	if (device->info.use_split_kernel) {
-		device->clos_max = getClosureCount(scene);
+		device->clos_max = max_closure_count_get();
 	}
 
 	/* load kernels */
@@ -984,6 +984,19 @@ void Session::device_free()
 	/* used from background render only, so no need to
 	 * re-create render/display buffers here
 	 */
+}
+
+int Session::max_closure_count_get()
+{
+	int max_closures = 0;
+	for(int i = 0; i < scene->shaders.size(); i++) {
+		int num_closures = scene->shaders[i]->graph->get_num_closures();
+		max_closures = max(max_closures, num_closures);
+	}
+	if(max_closures > maxclosure) {
+		maxclosure = max_closures;
+	}
+	return maxclosure;
 }
 
 CCL_NAMESPACE_END

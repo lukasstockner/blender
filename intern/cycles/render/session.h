@@ -204,6 +204,9 @@ protected:
 	bool update_progressive_refine(bool cancel);
 
 	vector<RenderBuffers *> tile_buffers;
+
+	/* Number of closures for split kernel. */
+	int max_closure_count_get();
 };
 
 CCL_NAMESPACE_END
