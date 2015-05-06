@@ -205,9 +205,12 @@ protected:
 
 	vector<RenderBuffers *> tile_buffers;
 
-	/* ** Number of closures for split kernel. ** */
-	/* Maximumnumber of closure during session timelife. */
+	/* ** Split kernel routines ** */
+
+	/* Maximumnumber of closure during session lifetime. */
 	int max_closure_global;
+
+	/* Get maximum number of closures to be used in kernel. */
 	int max_closure_count_get();
 };
 
