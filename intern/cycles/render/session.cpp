@@ -612,6 +612,10 @@ void Session::load_kernels()
 {
 	thread_scoped_lock scene_lock(scene->mutex);
 
+	string progress_status;
+	string progress_substatus;
+	progress.get_status(progress_status, progress_substatus);
+
 	if (!kernels_loaded || (device->info.use_split_kernel && !params.background)) {
 		/* for split kernel, in case if interactive rendering, we
 		 * we need to check kernel-reload before doing path trace
@@ -627,6 +631,11 @@ void Session::load_kernels()
 			progress.set_status("Error", message);
 			progress.set_update();
 			return;
+		}
+
+		if (kernels_loaded){
+			/* Viewport render using split kernel */
+			progress.set_status(progress_status, progress_substatus);
 		}
 
 		kernels_loaded = true;
