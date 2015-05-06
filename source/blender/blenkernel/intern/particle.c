@@ -3034,7 +3034,7 @@ void psys_child_mat_to_object(Object *ob, ParticleSystem *psys, ParticleSystemMo
 	}
 	else {
 		ParticleData *pa = &psys->particles[cpa->parent];
-		psys_particle_on_emitter(psmd, psys->part->from, pa->num, DMCACHE_ISCHILD, pa->fuv, pa->foffset, co, NULL, NULL, NULL, NULL, NULL);
+		psys_particle_on_emitter(psmd, psys->part->from, pa->num, pa->num_dmcache, pa->fuv, pa->foffset, co, NULL, NULL, NULL, NULL, NULL);
 		psys_mat_hair_to_object(ob, psmd->dm, psys->part->from, pa, hairmat);
 	}
 	
