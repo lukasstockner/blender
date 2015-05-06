@@ -2821,17 +2821,17 @@ public:
 
 		/* Set up arguments for ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL */
 		narg = 0;
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_data), (void *)&d_data));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_buffer), (void *)&d_buffer));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(per_sample_output_buffers), (void *)&per_sample_output_buffers));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(num_parallel_samples), (void *)&num_parallel_samples));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_w), (void *)&d_w));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_h), (void *)&d_h));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(d_stride), (void *)&d_stride));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_offset_x), (void *)&(rtile.buffer_offset_x)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_offset_y), (void *)&(rtile.buffer_offset_y)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(rtile.buffer_rng_state_stride), (void*)&(rtile.buffer_rng_state_stride)));
-		opencl_assert(clSetKernelArg(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, narg++, sizeof(start_sample), (void*)&start_sample));
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_data);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_buffer);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, per_sample_output_buffers);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, num_parallel_samples);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_w);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_h);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, d_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, rtile.buffer_offset_x);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, rtile.buffer_offset_y);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, rtile.buffer_rng_state_stride);
+		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance_SPLIT_KERNEL, start_sample);
 
 
 		/* Macro for Enqueuing split kernels */
