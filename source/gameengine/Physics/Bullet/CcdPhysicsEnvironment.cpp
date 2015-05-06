@@ -461,6 +461,19 @@ m_scalingPropagated(false)
 
 void	CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController* ctrl)
 {
+	// the controller is already added we do nothing
+	if (!m_controllers.insert(ctrl).second) {
+		return;
+	}
+
+	/* In the case of compound child controller (see also RemoveCcdPhysicsController)
+	 * we add the controller to the trigger controlers list : m_triggerControllers
+	 * if it use collision callbacks.
+	 */
+	if (ctrl->Registered()) {
+		m_triggerControllers.insert(ctrl);
+	}
+
 	btRigidBody* body = ctrl->GetRigidBody();
 	btCollisionObject* obj = ctrl->GetCollisionObject();
 
@@ -468,8 +481,6 @@ void	CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController* ctrl)
 	obj->setUserPointer(ctrl);
 	if (body)
 		body->setGravity( m_gravity );
-
-	m_controllers.insert(ctrl);
 
 	if (body)
 	{
@@ -505,6 +516,21 @@ void	CcdPhysicsEnvironment::AddCcdPhysicsController(CcdPhysicsController* ctrl)
 
 bool	CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController* ctrl)
 {
+	// if the physics controller is already removed we do nothing
+	if (!m_controllers.erase(ctrl)) {
+		return false;
+	}
+
+	/* In the case of compound child controller which use collision callbacks
+	 * we remove it from the m_triggerControllers list but leave m_registerCount
+	 * to know in AddCcdPhysicsController if we have to add it in m_triggerControllers
+	 * and to avoid an useless added in RequestCollisionCallback, indeed we can't register
+	 * more than one time a controller.
+	 */
+	if (ctrl->Registered()) {
+		m_triggerControllers.erase(ctrl);
+	}
+
 	//also remove constraint
 	btRigidBody* body = ctrl->GetRigidBody();
 	if (body)
@@ -555,13 +581,8 @@ bool	CcdPhysicsEnvironment::RemoveCcdPhysicsController(CcdPhysicsController* ctr
 			}
 		}
 	}
-	if (ctrl->m_registerCount != 0)
-		printf("Warning: removing controller with non-zero m_registerCount: %d\n", ctrl->m_registerCount);
 
-	//remove it from the triggers
-	m_triggerControllers.erase(ctrl);
-
-	return (m_controllers.erase(ctrl) != 0);
+	return true;
 }
 
 void	CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController* ctrl, btScalar newMass, int newCollisionFlags, short int newCollisionGroup, short int newCollisionMask)
@@ -595,43 +616,6 @@ void	CcdPhysicsEnvironment::UpdateCcdPhysicsController(CcdPhysicsController* ctr
 	ctrl->m_cci.m_collisionFilterGroup = newCollisionGroup;
 	ctrl->m_cci.m_collisionFilterMask = newCollisionMask;
 	ctrl->m_cci.m_collisionFlags = newCollisionFlags;
-}
-
-void CcdPhysicsEnvironment::EnableCcdPhysicsController(CcdPhysicsController* ctrl)
-{
-	if (m_controllers.insert(ctrl).second)
-	{
-		btCollisionObject* obj = ctrl->GetCollisionObject();
-		obj->setUserPointer(ctrl);
-		// update the position of the object from the user
-		if (ctrl->GetMotionState()) 
-		{
-			btTransform xform = CcdPhysicsController::GetTransformFromMotionState(ctrl->GetMotionState());
-			ctrl->SetCenterOfMassTransform(xform);
-		}
-		m_dynamicsWorld->addCollisionObject(obj, 
-			ctrl->GetCollisionFilterGroup(), ctrl->GetCollisionFilterMask());
-	}
-}
-
-void CcdPhysicsEnvironment::DisableCcdPhysicsController(CcdPhysicsController* ctrl)
-{
-	if (m_controllers.erase(ctrl))
-	{
-		btRigidBody* body = ctrl->GetRigidBody();
-		if (body)
-		{
-			m_dynamicsWorld->removeRigidBody(body);
-		} else
-		{
-			if (ctrl->GetSoftBody())
-			{
-			} else
-			{
-				m_dynamicsWorld->removeCollisionObject(ctrl->GetCollisionObject());
-			}
-		}
-	}
 }
 
 void CcdPhysicsEnvironment::RefreshCcdPhysicsController(CcdPhysicsController* ctrl)
@@ -2204,15 +2188,8 @@ btTypedConstraint*	CcdPhysicsEnvironment::GetConstraintById(int constraintId)
 
 void CcdPhysicsEnvironment::AddSensor(PHY_IPhysicsController* ctrl)
 {
-
 	CcdPhysicsController* ctrl1 = (CcdPhysicsController* )ctrl;
-	// addSensor() is a "light" function for bullet because it is used
-	// dynamically when the sensor is activated. Use enableCcdPhysicsController() instead 
-	//if (m_controllers.insert(ctrl1).second)
-	//{
-	//	addCcdPhysicsController(ctrl1);
-	//}
-	EnableCcdPhysicsController(ctrl1);
+	AddCcdPhysicsController(ctrl1);
 }
 
 bool CcdPhysicsEnvironment::RemoveCollisionCallback(PHY_IPhysicsController* ctrl)
@@ -2227,7 +2204,7 @@ bool CcdPhysicsEnvironment::RemoveCollisionCallback(PHY_IPhysicsController* ctrl
 
 void CcdPhysicsEnvironment::RemoveSensor(PHY_IPhysicsController* ctrl)
 {
-	DisableCcdPhysicsController((CcdPhysicsController*)ctrl);
+	RemoveCcdPhysicsController((CcdPhysicsController*)ctrl);
 }
 
 void CcdPhysicsEnvironment::AddTouchCallback(int response_class, PHY_ResponseCallback callback, void *user)
