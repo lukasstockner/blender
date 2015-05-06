@@ -1079,20 +1079,24 @@ public:
 
 			cl_int d_sample = sample;
 
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_data), (void*)&d_data));
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_input), (void*)&d_input));
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_output), (void*)&d_output));
+			/* TODO : Make the kernel launch similar to Cuda */
+#define KERNEL_APPEND_ARG(kernel_name, arg) \
+			opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
+			KERNEL_APPEND_ARG(kernel, d_data);
+			KERNEL_APPEND_ARG(kernel, d_input);
+			KERNEL_APPEND_ARG(kernel, d_output);
 
 #define KERNEL_TEX(type, ttype, name) \
 			set_kernel_arg_mem(kernel, &narg, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_eval_type), (void*)&d_shader_eval_type));
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_x), (void*)&d_shader_x));
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_shader_w), (void*)&d_shader_w));
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_offset), (void*)&d_offset));
-			opencl_assert(clSetKernelArg(kernel, narg++, sizeof(d_sample), (void*)&d_sample));
+			KERNEL_APPEND_ARG(kernel, d_shader_eval_type);
+			KERNEL_APPEND_ARG(kernel, d_shader_x);
+			KERNEL_APPEND_ARG(kernel, d_shader_w);
+			KERNEL_APPEND_ARG(kernel, d_offset);
+			KERNEL_APPEND_ARG(kernel, d_sample);
+#undef KERNEL_APPEND_ARG
 
 			enqueue_kernel(kernel, task.shader_w, 1);
 
