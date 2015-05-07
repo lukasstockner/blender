@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 #ifdef __VOLUME_SCATTER__
 
-ccl_device void kernel_path_volume_connect_light(ccl_addr_space KernelGlobals *kg, RNG *rng,
+ccl_device void kernel_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, float3 throughput, PathState *state, PathRadiance *L)
 {
 #ifdef __EMISSION__
@@ -61,7 +61,7 @@ ccl_device_noinline
 #else
 ccl_device
 #endif
-bool kernel_path_volume_bounce(ccl_addr_space KernelGlobals *kg, RNG *rng,
+bool kernel_path_volume_bounce(KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, float3 *throughput, PathState *state, PathRadiance *L, Ray *ray)
 {
 	/* sample phase function */
@@ -105,7 +105,7 @@ bool kernel_path_volume_bounce(ccl_addr_space KernelGlobals *kg, RNG *rng,
 	return true;
 }
 
-ccl_device void kernel_branched_path_volume_connect_light(ccl_addr_space KernelGlobals *kg, RNG *rng,
+ccl_device void kernel_branched_path_volume_connect_light(KernelGlobals *kg, RNG *rng,
 	ShaderData *sd, float3 throughput, PathState *state, PathRadiance *L,
 	bool sample_all_lights, Ray *ray, const VolumeSegment *segment)
 {

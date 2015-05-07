@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Mapping Node */
 
-ccl_device void svm_node_mapping(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint vec_offset, uint out_offset, int *offset)
+ccl_device void svm_node_mapping(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint vec_offset, uint out_offset, int *offset)
 {
 	float3 v = stack_load_float3(stack, vec_offset);
 
@@ -32,7 +32,7 @@ ccl_device void svm_node_mapping(ccl_addr_space KernelGlobals *kg, ccl_addr_spac
 	stack_store_float3(stack, out_offset, r);
 }
 
-ccl_device void svm_node_min_max(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint vec_offset, uint out_offset, int *offset)
+ccl_device void svm_node_min_max(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint vec_offset, uint out_offset, int *offset)
 {
 	float3 v = stack_load_float3(stack, vec_offset);
 

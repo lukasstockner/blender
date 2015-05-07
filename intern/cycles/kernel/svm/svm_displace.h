@@ -17,7 +17,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Bump Node */
-ccl_device void svm_node_set_bump(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_set_bump(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 #ifdef __RAY_DIFFERENTIALS__
 	/* get normal input */

@@ -38,7 +38,7 @@ CCL_NAMESPACE_BEGIN
 /* Beckmann and GGX microfacet importance sampling. */
 
 ccl_device_inline void microfacet_beckmann_sample_slopes(
-	ccl_addr_space KernelGlobals *kg,
+	KernelGlobals *kg,
 	const float cos_theta_i, const float sin_theta_i,
 	float randu, float randv, float *slope_x, float *slope_y,
 	float *G1i)
@@ -171,7 +171,7 @@ ccl_device_inline void microfacet_ggx_sample_slopes(
 }
 
 ccl_device_inline float3 microfacet_sample_stretched(
-	ccl_addr_space KernelGlobals *kg, const float3 omega_i,
+	KernelGlobals *kg, const float3 omega_i,
 	const float alpha_x, const float alpha_y,
 	const float randu, const float randv,
 	bool beckmann, float *G1i)
@@ -417,7 +417,7 @@ ccl_device float3 bsdf_microfacet_ggx_eval_transmit(const ccl_addr_space ShaderC
 	return make_float3(out, out, out);
 }
 
-ccl_device int bsdf_microfacet_ggx_sample(ccl_addr_space KernelGlobals *kg, const ccl_addr_space ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_microfacet_ggx_sample(KernelGlobals *kg, const ccl_addr_space ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;
@@ -769,7 +769,7 @@ ccl_device float3 bsdf_microfacet_beckmann_eval_transmit(const ccl_addr_space Sh
 	return make_float3(out, out, out);
 }
 
-ccl_device int bsdf_microfacet_beckmann_sample(ccl_addr_space KernelGlobals *kg, const ccl_addr_space ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
+ccl_device int bsdf_microfacet_beckmann_sample(KernelGlobals *kg, const ccl_addr_space ShaderClosure *sc, float3 Ng, float3 I, float3 dIdx, float3 dIdy, float randu, float randv, float3 *eval, float3 *omega_in, float3 *domega_in_dx, float3 *domega_in_dy, float *pdf)
 {
 	float alpha_x = sc->data0;
 	float alpha_y = sc->data1;

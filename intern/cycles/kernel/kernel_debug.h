@@ -21,7 +21,7 @@ ccl_device_inline void debug_data_init(ccl_addr_space DebugData *debug_data)
 	debug_data->num_bvh_traversal_steps = 0;
 }
 
-ccl_device_inline void kernel_write_debug_passes(ccl_addr_space KernelGlobals *kg,
+ccl_device_inline void kernel_write_debug_passes(KernelGlobals *kg,
                                                  ccl_global float *buffer,
                                                  ccl_addr_space PathState *state,
                                                  ccl_addr_space DebugData *debug_data,

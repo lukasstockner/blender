@@ -27,7 +27,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Find attribute based on ID */
 
-ccl_device_inline int find_attribute(ccl_addr_space KernelGlobals *kg, const ccl_addr_space ShaderData *sd, uint id, AttributeElement *elem)
+ccl_device_inline int find_attribute(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, uint id, AttributeElement *elem)
 {
 	if(sd_fetch(object) == PRIM_NONE)
 		return (int)ATTR_STD_NOT_FOUND;
@@ -57,7 +57,7 @@ ccl_device_inline int find_attribute(ccl_addr_space KernelGlobals *kg, const ccl
 }
 
 /* Transform matrix attribute on meshes */
-ccl_device Transform primitive_attribute_matrix(ccl_addr_space KernelGlobals *kg, const ShaderData *sd, int offset)
+ccl_device Transform primitive_attribute_matrix(KernelGlobals *kg, const ShaderData *sd, int offset)
 {
 	Transform tfm;
 

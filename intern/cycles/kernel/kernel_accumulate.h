@@ -346,7 +346,7 @@ ccl_device_inline void path_radiance_reset_indirect(PathRadiance *L)
 }
 
 
-ccl_device_inline float3 path_radiance_clamp_and_sum(ccl_addr_space KernelGlobals *kg, ccl_addr_space PathRadiance *L)
+ccl_device_inline float3 path_radiance_clamp_and_sum(KernelGlobals *kg, ccl_addr_space PathRadiance *L)
 {
 	float3 L_sum, L_direct, L_indirect;
 	float clamp_direct = kernel_data.integrator.sample_clamp_direct;

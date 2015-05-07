@@ -19,7 +19,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device void svm_node_hsv(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint in_color_offset, uint fac_offset, uint out_color_offset, int *offset)
+ccl_device void svm_node_hsv(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint in_color_offset, uint fac_offset, uint out_color_offset, int *offset)
 {
 	/* read extra data */
 	uint4 node1 = read_node(kg, offset);

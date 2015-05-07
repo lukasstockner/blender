@@ -16,7 +16,7 @@
 
 #include "kernel_split.h"
 
-ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
+ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
 {
 	float filter_u;
 	float filter_v;
@@ -197,7 +197,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 {
 
 	/* Load kernel globals structure */
-	ccl_global KernelGlobals *kg = (ccl_global KernelGlobals *)globals;
+	KernelGlobals *kg = (KernelGlobals *)globals;
 
 	kg->data = data;
 #define KERNEL_TEX(type, ttype, name) \

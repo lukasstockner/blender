@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Direction Emission */
 /* The argument sd_input is meaningful only for split kernel. Other uses just pass NULL */
-ccl_device_noinline float3 direct_emissive_eval(ccl_addr_space KernelGlobals *kg,
+ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 	LightSample *ls, float3 I, differential3 dI, float t, float time, int bounce, int transparent_bounce, ccl_addr_space ShaderData *sd_input)
 {
 	/* setup shading at emitter */
@@ -69,7 +69,7 @@ ccl_device_noinline float3 direct_emissive_eval(ccl_addr_space KernelGlobals *kg
 }
 
 /* The argument sd_DL is meaningful only for split kernel. Other uses can just pass NULL */
-ccl_device_noinline bool direct_emission(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd,
+ccl_device_noinline bool direct_emission(KernelGlobals *kg, ccl_addr_space ShaderData *sd,
 	LightSample *ls, Ray *ray, BsdfEval *eval, bool *is_lamp,
 	int bounce, int transparent_bounce, ccl_addr_space ShaderData *sd_DL)
 {
@@ -159,7 +159,7 @@ ccl_device_noinline bool direct_emission(ccl_addr_space KernelGlobals *kg, ccl_a
 
 /* Indirect Primitive Emission */
 
-ccl_device_noinline float3 indirect_primitive_emission(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float t, int path_flag, float bsdf_pdf)
+ccl_device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float t, int path_flag, float bsdf_pdf)
 {
 	/* evaluate emissive closure */
 	float3 L = shader_emissive_eval(kg, sd);
@@ -183,7 +183,7 @@ ccl_device_noinline float3 indirect_primitive_emission(ccl_addr_space KernelGlob
 
 /* Indirect Lamp Emission */
 /* The argument sd is meaningful only for split kernel. Other uses can just pass NULL */
-ccl_device_noinline bool indirect_lamp_emission(ccl_addr_space KernelGlobals *kg, PathState *state, Ray *ray, float3 *emission, ccl_addr_space ShaderData *sd)
+ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg, PathState *state, Ray *ray, float3 *emission, ccl_addr_space ShaderData *sd)
 {
 	bool hit_lamp = false;
 
@@ -240,7 +240,7 @@ ccl_device_noinline bool indirect_lamp_emission(ccl_addr_space KernelGlobals *kg
 
 /* Indirect Background */
 
-ccl_device_noinline float3 indirect_background(ccl_addr_space KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray, ccl_addr_space ShaderData *sd_global)
+ccl_device_noinline float3 indirect_background(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray, ccl_addr_space ShaderData *sd_global)
 {
 #ifdef __BACKGROUND__
 	int shader = kernel_data.background.surface_shader;

@@ -113,7 +113,7 @@ ccl_device_inline ccl_addr_space ShaderClosure *svm_node_closure_get_absorption(
 	return NULL;
 }
 
-ccl_device void svm_node_closure_bsdf(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int path_flag, int *offset)
+ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int path_flag, int *offset)
 {
 	uint type, param1_offset, param2_offset;
 
@@ -511,7 +511,7 @@ ccl_device void svm_node_closure_bsdf(ccl_addr_space KernelGlobals *kg, ccl_addr
 	}
 }
 
-ccl_device void svm_node_closure_volume(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int path_flag)
+ccl_device void svm_node_closure_volume(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int path_flag)
 {
 #ifdef __VOLUME__
 	uint type, param1_offset, param2_offset;
@@ -645,7 +645,7 @@ ccl_device void svm_node_closure_weight(ccl_addr_space ShaderData *sd, float *st
 	svm_node_closure_store_weight(sd, weight);
 }
 
-ccl_device void svm_node_emission_weight(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_emission_weight(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint color_offset = node.y;
 	uint strength_offset = node.z;
@@ -675,7 +675,7 @@ ccl_device void svm_node_mix_closure(ccl_addr_space ShaderData *sd, float *stack
 }
 
 /* (Bump) normal */
-ccl_device void svm_node_set_normal(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint in_direction, uint out_normal)
+ccl_device void svm_node_set_normal(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint in_direction, uint out_normal)
 {
 	float3 normal = stack_load_float3(stack, in_direction);
 	sd_fetch(N) = normal;

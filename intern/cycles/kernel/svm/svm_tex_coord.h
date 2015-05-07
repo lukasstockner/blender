@@ -18,7 +18,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Texture Coordinate Node */
 
-ccl_device void svm_node_tex_coord(ccl_addr_space KernelGlobals *kg,
+ccl_device void svm_node_tex_coord(KernelGlobals *kg,
                                    ccl_addr_space ShaderData *sd,
                                    int path_flag,
                                    float *stack,
@@ -99,7 +99,7 @@ ccl_device void svm_node_tex_coord(ccl_addr_space KernelGlobals *kg,
 	stack_store_float3(stack, out_offset, data);
 }
 
-ccl_device void svm_node_tex_coord_bump_dx(ccl_addr_space KernelGlobals *kg,
+ccl_device void svm_node_tex_coord_bump_dx(KernelGlobals *kg,
                                            ccl_addr_space ShaderData *sd,
                                            int path_flag,
                                            float *stack,
@@ -184,7 +184,7 @@ ccl_device void svm_node_tex_coord_bump_dx(ccl_addr_space KernelGlobals *kg,
 #endif
 }
 
-ccl_device void svm_node_tex_coord_bump_dy(ccl_addr_space KernelGlobals *kg,
+ccl_device void svm_node_tex_coord_bump_dy(KernelGlobals *kg,
                                            ccl_addr_space ShaderData *sd,
                                            int path_flag,
                                            float *stack,
@@ -269,7 +269,7 @@ ccl_device void svm_node_tex_coord_bump_dy(ccl_addr_space KernelGlobals *kg,
 #endif
 }
 
-ccl_device void svm_node_normal_map(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_normal_map(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint color_offset, strength_offset, normal_offset, space;
 	decode_node_uchar4(node.y, &color_offset, &strength_offset, &normal_offset, &space);
@@ -343,7 +343,7 @@ ccl_device void svm_node_normal_map(ccl_addr_space KernelGlobals *kg, ccl_addr_s
 	stack_store_float3(stack, normal_offset, N);
 }
 
-ccl_device void svm_node_tangent(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tangent(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
 {
 	uint tangent_offset, direction_type, axis;
 	decode_node_uchar4(node.y, &tangent_offset, &direction_type, &axis, NULL);

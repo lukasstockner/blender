@@ -36,7 +36,7 @@ ccl_device float sky_perez_function(float *lam, float theta, float gamma)
 	return (1.0f + lam[0]*expf(lam[1]/ctheta)) * (1.0f + lam[2]*expf(lam[3]*gamma)  + lam[4]*cgamma*cgamma);
 }
 
-ccl_device float3 sky_radiance_old(ccl_addr_space KernelGlobals *kg, float3 dir,
+ccl_device float3 sky_radiance_old(KernelGlobals *kg, float3 dir,
                                  float sunphi, float suntheta,
                                  float radiance_x, float radiance_y, float radiance_z,
                                  float *config_x, float *config_y, float *config_z)
@@ -80,7 +80,7 @@ ccl_device float sky_radiance_internal(float *configuration, float theta, float 
 		(configuration[2] + configuration[3] * expM + configuration[5] * rayM + configuration[6] * mieM + configuration[7] * zenith);
 }
 
-ccl_device float3 sky_radiance_new(ccl_addr_space KernelGlobals *kg, float3 dir,
+ccl_device float3 sky_radiance_new(KernelGlobals *kg, float3 dir,
                                  float sunphi, float suntheta,
                                  float radiance_x, float radiance_y, float radiance_z,
                                  float *config_x, float *config_y, float *config_z)
@@ -105,7 +105,7 @@ ccl_device float3 sky_radiance_new(ccl_addr_space KernelGlobals *kg, float3 dir,
 	return xyz_to_rgb(x, y, z) * (M_2PI_F/683);
 }
 
-ccl_device void svm_node_tex_sky(ccl_addr_space KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_sky(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	/* Define variables */
 	float sunphi, suntheta, radiance_x, radiance_y, radiance_z;

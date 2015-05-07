@@ -116,7 +116,7 @@ __kernel void kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL(
 		return;
 
 	/* Load kernel globals structure */
-	ccl_global KernelGlobals *kg = (ccl_global KernelGlobals *)globals;
+	KernelGlobals *kg = (KernelGlobals *)globals;
 
 #ifdef __KERNEL_DEBUG__
 	ccl_global DebugData *debug_data = &debugdata_coop[ray_index];

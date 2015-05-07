@@ -16,7 +16,7 @@
 
 #include "kernel_split.h"
 
-ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(ccl_addr_space KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
+ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
 {
 	float filter_u;
 	float filter_v;
@@ -156,7 +156,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 	if(ray_index != QUEUE_EMPTY_SLOT) {
 #endif
 		/* Load kernel globals structure and ShaderData strucuture */
-		ccl_global KernelGlobals *kg = (ccl_global KernelGlobals *)globals;
+		KernelGlobals *kg = (KernelGlobals *)globals;
 		ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
 
 #ifdef __KERNEL_DEBUG__
