@@ -91,7 +91,7 @@ __kernel void kernel_ocl_path_trace_LampEmission_SPLIT_KERNEL(
 
 	if(IS_STATE(ray_state, ray_index, RAY_ACTIVE) || IS_STATE(ray_state, ray_index, RAY_HIT_BACKGROUND)) {
 	    KernelGlobals *kg = (KernelGlobals *)globals;
-	    ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
+	    ShaderData *sd = (ShaderData *)shader_data;
 	    ccl_global PathRadiance *L = &PathRadiance_coop[ray_index];
 
 		float3 throughput = throughput_coop[ray_index];

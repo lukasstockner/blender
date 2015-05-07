@@ -22,7 +22,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Generic primitive attribute reading functions */
-ccl_device float primitive_attribute_float(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
+ccl_device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
 	if(sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE) {
 		return triangle_attribute_float(kg, sd, elem, offset, dx, dy);
@@ -45,7 +45,7 @@ ccl_device float primitive_attribute_float(KernelGlobals *kg, const ccl_addr_spa
 }
 
 
-ccl_device float3 primitive_attribute_float3(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
+ccl_device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
 {
 	if(sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE) {
 		return triangle_attribute_float3(kg, sd, elem, offset, dx, dy);
@@ -68,7 +68,7 @@ ccl_device float3 primitive_attribute_float3(KernelGlobals *kg, const ccl_addr_s
 }
 
 /* Default UV coordinate */
-ccl_device float3 primitive_uv(KernelGlobals *kg, ccl_addr_space ShaderData *sd)
+ccl_device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
 {
 	AttributeElement elem_uv;
 	int offset_uv = find_attribute(kg, sd, ATTR_STD_UV, &elem_uv);
@@ -82,7 +82,7 @@ ccl_device float3 primitive_uv(KernelGlobals *kg, ccl_addr_space ShaderData *sd)
 }
 
 /* Ptex coordinates */
-ccl_device bool primitive_ptex(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float2 *uv, int *face_id)
+ccl_device bool primitive_ptex(KernelGlobals *kg, ShaderData *sd, float2 *uv, int *face_id)
 {
 	/* storing ptex data as attributes is not memory efficient but simple for tests */
 	AttributeElement elem_face_id, elem_uv;
@@ -102,7 +102,7 @@ ccl_device bool primitive_ptex(KernelGlobals *kg, ccl_addr_space ShaderData *sd,
 }
 
 /* Surface tangent */
-ccl_device float3 primitive_tangent(KernelGlobals *kg, ccl_addr_space ShaderData *sd)
+ccl_device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
 {
 #ifdef __HAIR__
 	if(sd_fetch(type) & PRIMITIVE_ALL_CURVE)
@@ -134,7 +134,7 @@ ccl_device float3 primitive_tangent(KernelGlobals *kg, ccl_addr_space ShaderData
 }
 
 /* Motion vector for motion pass */
-ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ccl_addr_space ShaderData *sd)
+ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
 {
 	/* center position */
 	float3 center;

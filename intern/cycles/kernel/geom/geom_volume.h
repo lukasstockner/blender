@@ -29,7 +29,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Return position normalized to 0..1 in mesh bounds */
 
-ccl_device float3 volume_normalized_position(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, float3 P)
+ccl_device float3 volume_normalized_position(KernelGlobals *kg, const ShaderData *sd, float3 P)
 {
 	/* todo: optimize this so it's just a single matrix multiplication when
 	 * possible (not motion blur), or perhaps even just translation + scale */

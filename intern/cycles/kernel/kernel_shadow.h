@@ -182,7 +182,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *
  * one extra ray cast for the cases were we do want transparency. */
 
 /* The arguments sd_mem and isect_mem are meaningful only for OpenCL split kernel. Other uses can just pass a NULL */
-ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow, ccl_addr_space ShaderData *sd_mem, ccl_addr_space Intersection *isect_mem)
+ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow, ShaderData *sd_mem, ccl_addr_space Intersection *isect_mem)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
@@ -246,7 +246,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathStat
 
 				/* setup shader data at surface */
 #ifdef __SPLIT_KERNEL__
-				ccl_addr_space ShaderData *sd = sd_mem;
+				ShaderData *sd = sd_mem;
 #else
 				ShaderData sd_object;
 				ShaderData *sd = &sd_object;

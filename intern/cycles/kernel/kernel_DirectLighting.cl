@@ -91,8 +91,8 @@ __kernel void kernel_ocl_path_trace_DirectLighting_SPLIT_KERNEL(
 		if(IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
     		/* Load kernel globals structure and ShaderData structure */
     		KernelGlobals *kg = (KernelGlobals *)globals;
-    		ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
-    		ccl_global ShaderData *sd_DL  = (ccl_global ShaderData *)shader_DL;
+    		ShaderData *sd = (ShaderData *)shader_data;
+    		ShaderData *sd_DL  = (ShaderData *)shader_DL;
 
 			ccl_global PathState *state = &PathState_coop[ray_index];
 

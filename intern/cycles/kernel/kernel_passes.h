@@ -61,7 +61,7 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 }
 
 ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, ccl_addr_space PathRadiance *L,
-	ccl_addr_space ShaderData *sd, int sample, ccl_addr_space PathState *state, float3 throughput)
+	ShaderData *sd, int sample, ccl_addr_space PathState *state, float3 throughput)
 {
 #ifdef __PASSES__
 	int path_flag = state->flag;

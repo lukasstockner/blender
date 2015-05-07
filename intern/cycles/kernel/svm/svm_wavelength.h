@@ -34,7 +34,7 @@ CCL_NAMESPACE_BEGIN
 
 /* Wavelength to RGB */
 
-ccl_device void svm_node_wavelength(ccl_addr_space ShaderData *sd, float *stack, uint wavelength, uint color_out)
+ccl_device void svm_node_wavelength(ShaderData *sd, float *stack, uint wavelength, uint color_out)
 {
 	// CIE colour matching functions xBar, yBar, and zBar for
 	//	 wavelengths from 380 through 780 nanometers, every 5

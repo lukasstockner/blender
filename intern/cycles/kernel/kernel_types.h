@@ -24,6 +24,13 @@
 #define __KERNEL_CPU__
 #endif
 
+/* TODO(sergey): This is only to make it possible to include this header
+ * from outside of the kernel. but this could be done somewhat cleaner?
+ */
+#ifndef ccl_addr_space
+#define ccl_addr_space
+#endif
+
 CCL_NAMESPACE_BEGIN
 
 /* constants */
@@ -659,7 +666,7 @@ struct KernelGlobals;
 #define sc_fetch(index) (&sd->closure[index])
 #endif
 
-typedef struct ShaderData {
+typedef ccl_addr_space struct ShaderData {
 
 #include "kernel_shaderdata_vars.h"
 

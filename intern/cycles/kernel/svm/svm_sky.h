@@ -105,7 +105,7 @@ ccl_device float3 sky_radiance_new(KernelGlobals *kg, float3 dir,
 	return xyz_to_rgb(x, y, z) * (M_2PI_F/683);
 }
 
-ccl_device void svm_node_tex_sky(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node, int *offset)
+ccl_device void svm_node_tex_sky(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node, int *offset)
 {
 	/* Define variables */
 	float sunphi, suntheta, radiance_x, radiance_y, radiance_z;

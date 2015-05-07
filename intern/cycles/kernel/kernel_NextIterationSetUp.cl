@@ -123,7 +123,7 @@ __kernel void kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL(
 #endif
 		/* Load kernel globals structure and ShaderData structure */
 		KernelGlobals *kg = (KernelGlobals *)globals;
-		ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
+		ShaderData *sd = (ShaderData *)shader_data;
 		ccl_global PathRadiance *L = 0x0;
 		ccl_global PathState *state = 0x0;
 

@@ -314,7 +314,7 @@ ccl_device_inline float3 camera_direction_from_point(KernelGlobals *kg, float3 P
 	}
 }
 
-ccl_device_inline float3 camera_world_to_ndc(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float3 P)
+ccl_device_inline float3 camera_world_to_ndc(KernelGlobals *kg, ShaderData *sd, float3 P)
 {
 	if(kernel_data.cam.type != CAMERA_PANORAMA) {
 		/* perspective / ortho */

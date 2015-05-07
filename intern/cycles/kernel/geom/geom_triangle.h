@@ -28,7 +28,7 @@ CCL_NAMESPACE_BEGIN
 
 
 /* normal on triangle  */
-ccl_device_inline float3 triangle_normal(KernelGlobals *kg, ccl_addr_space ShaderData *sd)
+ccl_device_inline float3 triangle_normal(KernelGlobals *kg, ShaderData *sd)
 {
 	/* load triangle vertices */
 	float4 tri_vindex = kernel_tex_fetch(__tri_vindex, sd_fetch(prim));
@@ -114,7 +114,7 @@ ccl_device_inline void triangle_dPdudv(KernelGlobals *kg, int prim, ccl_addr_spa
 
 /* Reading attributes on various triangle elements */
 
-ccl_device float triangle_attribute_float(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
+ccl_device float triangle_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
 	if(elem == ATTR_ELEMENT_FACE) {
 		if(dx) *dx = 0.0f;
@@ -157,7 +157,7 @@ ccl_device float triangle_attribute_float(KernelGlobals *kg, const ccl_addr_spac
 	}
 }
 
-ccl_device float3 triangle_attribute_float3(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
+ccl_device float3 triangle_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
 {
 	if(elem == ATTR_ELEMENT_FACE) {
 		if(dx) *dx = make_float3(0.0f, 0.0f, 0.0f);

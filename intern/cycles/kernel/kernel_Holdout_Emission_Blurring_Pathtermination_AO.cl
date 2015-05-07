@@ -126,7 +126,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 #endif
 		/* Load kernel globals structure and ShaderData structure */
 		KernelGlobals *kg = (KernelGlobals *)globals;
-		ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
+		ShaderData *sd = (ShaderData *)shader_data;
 
 #ifdef __WORK_STEALING__
 		unsigned int my_work;

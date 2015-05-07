@@ -122,7 +122,7 @@ ccl_device_inline void motion_triangle_vertices(KernelGlobals *kg, int object, i
  * far the precision is often not so good, this reintersects the primitive from
  * a closer distance. */
 
-ccl_device_inline float3 motion_triangle_refine(KernelGlobals *kg, ccl_addr_space ShaderData *sd, const ccl_addr_space Intersection *isect, const Ray *ray, float3 verts[3])
+ccl_device_inline float3 motion_triangle_refine(KernelGlobals *kg, ShaderData *sd, const ccl_addr_space Intersection *isect, const Ray *ray, float3 verts[3])
 {
 	float3 P = ray->P;
 	float3 D = ray->D;
@@ -233,7 +233,7 @@ ccl_device_inline float3 motion_triangle_refine_subsurface(KernelGlobals *kg, Sh
  * normals */
 
 /* return 3 triangle vertex normals */
-ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals *kg, ccl_addr_space ShaderData *sd, const ccl_addr_space Intersection *isect, const Ray *ray, bool subsurface)
+ccl_device_noinline void motion_triangle_shader_setup(KernelGlobals *kg, ShaderData *sd, const ccl_addr_space Intersection *isect, const Ray *ray, bool subsurface)
 {
 	/* get shader */
 	sd_fetch(shader) = kernel_tex_fetch(__tri_shader, sd_fetch(prim));

@@ -105,7 +105,7 @@ __kernel void kernel_ocl_path_trace_ShadowBlocked_DirectLighting_SPLIT_KERNEL(
 	if(IS_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_DL) || IS_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_AO)) {
         /* Load kernel global structure */
         KernelGlobals *kg = (KernelGlobals *)globals;
-        ccl_global ShaderData *sd_shadow  = (ccl_global ShaderData *)shader_shadow;
+        ShaderData *sd_shadow  = (ShaderData *)shader_shadow;
 
         ccl_global PathState *state = &PathState_coop[ray_index];
         ccl_global Ray *light_ray_dl_global = &LightRay_dl_coop[ray_index];

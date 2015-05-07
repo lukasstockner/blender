@@ -35,7 +35,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device int bsdf_sample(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, const ccl_addr_space ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
+ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ccl_addr_space ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
 
@@ -130,7 +130,7 @@ ccl_device int bsdf_sample(KernelGlobals *kg, const ccl_addr_space ShaderData *s
 	return label;
 }
 
-ccl_device float3 bsdf_eval(KernelGlobals *kg, const ccl_addr_space ShaderData *sd, const ccl_addr_space ShaderClosure *sc, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ccl_addr_space ShaderClosure *sc, const float3 omega_in, float *pdf)
 {
 	float3 eval;
 

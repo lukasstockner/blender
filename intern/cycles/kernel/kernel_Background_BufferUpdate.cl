@@ -157,7 +157,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 #endif
 		/* Load kernel globals structure and ShaderData strucuture */
 		KernelGlobals *kg = (KernelGlobals *)globals;
-		ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data;
+		ShaderData *sd = (ShaderData *)shader_data;
 
 #ifdef __KERNEL_DEBUG__
 		ccl_global DebugData *debug_data = &debugdata_coop[ray_index];

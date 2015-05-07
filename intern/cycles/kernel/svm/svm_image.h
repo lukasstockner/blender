@@ -360,7 +360,7 @@ ccl_device_inline float3 texco_remap_square(float3 co)
 	return (co - make_float3(0.5f, 0.5f, 0.5f)) * 2.0f;
 }
 
-ccl_device void svm_node_tex_image(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;
@@ -389,7 +389,7 @@ ccl_device void svm_node_tex_image(KernelGlobals *kg, ccl_addr_space ShaderData 
 		stack_store_float(stack, alpha_offset, f.w);
 }
 
-ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	/* get object space normal */
 	float3 N = sd_fetch(N);
@@ -481,7 +481,7 @@ ccl_device void svm_node_tex_image_box(KernelGlobals *kg, ccl_addr_space ShaderD
 		stack_store_float(stack, alpha_offset, f.w);
 }
 
-ccl_device void svm_node_tex_environment(KernelGlobals *kg, ccl_addr_space ShaderData *sd, float *stack, uint4 node)
+ccl_device void svm_node_tex_environment(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 	uint id = node.y;
 	uint co_offset, out_offset, alpha_offset, srgb;

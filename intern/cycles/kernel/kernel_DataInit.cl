@@ -205,8 +205,8 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 #include "kernel_textures.h"
 
 	/* Load ShaderData structure */
-	ccl_global ShaderData *sd = (ccl_global ShaderData *)shader_data_sd;
-	ccl_global ShaderData *sd_DL_shadow = (ccl_global ShaderData *)shader_data_sd_DL_shadow;
+	ShaderData *sd = (ShaderData *)shader_data_sd;
+	ShaderData *sd_DL_shadow = (ShaderData *)shader_data_sd_DL_shadow;
 
 	sd->P = P_sd;
 	sd_DL_shadow->P = P_sd_DL_shadow;
