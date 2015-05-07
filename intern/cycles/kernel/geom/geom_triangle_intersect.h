@@ -96,7 +96,7 @@ ccl_device_inline float xor_signmast(float x, int y)
 
 ccl_device_inline bool triangle_intersect(KernelGlobals *kg,
                                           const IsectPrecalc *isect_precalc,
-                                          ccl_addr_space Intersection *isect,
+                                          Intersection *isect,
                                           float3 P,
                                           uint visibility,
                                           int object,
@@ -293,7 +293,7 @@ ccl_device_inline void triangle_intersect_subsurface(
 
 ccl_device_inline float3 triangle_refine(KernelGlobals *kg,
                                          ShaderData *sd,
-                                         const ccl_addr_space Intersection *isect,
+                                         const Intersection *isect,
                                          const Ray *ray)
 {
 	float3 P = ray->P;

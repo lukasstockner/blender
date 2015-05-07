@@ -49,7 +49,7 @@ ccl_device void shader_setup_object_transforms(KernelGlobals *kg, ShaderData *sd
 #endif
 
 ccl_device void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
-	const ccl_addr_space Intersection *isect, const Ray *ray, int bounce, int transparent_bounce)
+	const Intersection *isect, const Ray *ray, int bounce, int transparent_bounce)
 {
 #ifdef __INSTANCING__
 	sd_fetch(object) = (isect->object == PRIM_NONE)? kernel_tex_fetch(__prim_object, isect->prim): isect->object;
@@ -1046,7 +1046,7 @@ ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, Shad
 /* Transparent Shadows */
 
 #ifdef __TRANSPARENT_SHADOWS__
-ccl_device bool shader_transparent_shadow(KernelGlobals *kg, ccl_addr_space Intersection *isect)
+ccl_device bool shader_transparent_shadow(KernelGlobals *kg, Intersection *isect)
 {
 	int prim = kernel_tex_fetch(__prim_index, isect->prim);
 	int shader = 0;

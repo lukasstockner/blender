@@ -216,7 +216,7 @@ CCL_NAMESPACE_BEGIN
 #undef BVH_NAME_EVAL
 #undef BVH_FUNCTION_FULL_NAME
 
-ccl_device_intersect bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, ccl_addr_space Intersection *isect,
+ccl_device_intersect bool scene_intersect(KernelGlobals *kg, const Ray *ray, const uint visibility, Intersection *isect,
 					 uint *lcg_state, float difl, float extmax)
 {
 #ifdef __OBJECT_MOTION__
@@ -447,6 +447,7 @@ ccl_device_inline float3 ray_offset(float3 P, float3 Ng)
 #endif
 }
 
+#if defined(__SHADOW_RECORD_ALL__) || defined (__VOLUME_RECORD_ALL__)
 /* ToDo: Move to another file? */
 ccl_device int intersections_compare(const void *a, const void *b)
 {
@@ -460,6 +461,7 @@ ccl_device int intersections_compare(const void *a, const void *b)
 	else
 		return 0;
 }
+#endif
 
 CCL_NAMESPACE_END
 

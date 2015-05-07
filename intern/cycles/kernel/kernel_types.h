@@ -470,7 +470,7 @@ typedef struct Ray {
 
 /* Intersection */
 
-typedef struct Intersection {
+typedef ccl_addr_space struct Intersection {
 	float t, u, v;
 	int prim;
 	int object;

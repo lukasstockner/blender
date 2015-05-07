@@ -34,7 +34,7 @@
 
 ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
                                             const Ray *ray,
-                                            ccl_addr_space Intersection *isect,
+                                            Intersection *isect,
                                             const uint visibility
 #if BVH_FEATURE(BVH_HAIR_MINIMUM_WIDTH)
                                             , uint *lcg_state,
@@ -401,7 +401,7 @@ ccl_device bool BVH_FUNCTION_FULL_NAME(BVH)(KernelGlobals *kg,
 
 ccl_device_inline bool BVH_FUNCTION_NAME(KernelGlobals *kg,
                                          const Ray *ray,
-                                         ccl_addr_space Intersection *isect,
+                                         Intersection *isect,
                                          const uint visibility
 #if BVH_FEATURE(BVH_HAIR_MINIMUM_WIDTH)
                                          , uint *lcg_state,

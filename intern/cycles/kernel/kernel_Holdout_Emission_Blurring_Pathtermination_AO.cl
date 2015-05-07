@@ -82,7 +82,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 	ccl_global float *L_transparent_coop,       /* Required for handling holdout material */
 	ccl_global PathRadiance *PathRadiance_coop, /* Required for "kernel_write_data_passes" and indirect primitive emission */
 	ccl_global PathState *PathState_coop,       /* Required throughout the kernel and AO */
-	ccl_global Intersection *Intersection_coop, /* Required for indirect primitive emission */
+	Intersection *Intersection_coop, /* Required for indirect primitive emission */
 	ccl_global float3 *AOAlpha_coop,            /* Required for AO */
 	ccl_global float3 *AOBSDF_coop,             /* Required for AO */
 	ccl_global Ray *AOLightRay_coop,            /* Required for AO */
