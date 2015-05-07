@@ -19,7 +19,11 @@ CCL_NAMESPACE_BEGIN
 /* Direction Emission */
 /* The argument sd_input is meaningful only for split kernel. Other uses just pass NULL */
 ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
-	LightSample *ls, float3 I, differential3 dI, float t, float time, int bounce, int transparent_bounce, ShaderData *sd_input)
+	LightSample *ls, float3 I, differential3 dI, float t, float time, int bounce, int transparent_bounce
+#ifdef __SPLIT_KERNEL__
+	,ShaderData *sd_input
+#endif
+)
 {
 	/* setup shading at emitter */
 #ifdef __SPLIT_KERNEL__
@@ -81,11 +85,13 @@ ccl_device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd,
 
 	/* evaluate closure */
 
+	float3 light_eval = direct_emissive_eval(kg, ls, -ls->D, dD, ls->t, sd_fetch(time),
+	                                         bounce,
+	                                         transparent_bounce
 #ifdef __SPLIT_KERNEL__
-	float3 light_eval = direct_emissive_eval(kg, ls, -ls->D, dD, ls->t, sd_fetch(time), bounce, transparent_bounce, sd_DL);
-#else
-	float3 light_eval = direct_emissive_eval(kg, ls, -ls->D, dD, ls->t, sd_fetch(time), bounce, transparent_bounce, NULL);
+	                                         ,sd_DL
 #endif
+	                                         );
 
 	if(is_zero(light_eval))
 		return false;
@@ -207,11 +213,13 @@ ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg, PathState *st
 		}
 #endif
 
+		float3 L = direct_emissive_eval(kg, &ls, -ray->D, ray->dD, ls.t, ray->time,
+		                                state->bounce,
+		                                state->transparent_bounce
 #ifdef __SPLIT_KERNEL__
-		float3 L = direct_emissive_eval(kg, &ls, -ray->D, ray->dD, ls.t, ray->time, state->bounce, state->transparent_bounce, sd);
-#else
-		float3 L = direct_emissive_eval(kg, &ls, -ray->D, ray->dD, ls.t, ray->time, state->bounce, state->transparent_bounce, NULL);
+		                                ,sd
 #endif
+		                                );
 
 #ifdef __VOLUME__
 		if(state->volume_stack[0].shader != SHADER_NONE) {
