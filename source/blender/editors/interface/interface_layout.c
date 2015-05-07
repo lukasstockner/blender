@@ -2149,6 +2149,7 @@ static RadialDirection ui_get_radialbut_vec(float vec[2], short itemnum)
 	RadialDirection dir;
 	BLI_assert(itemnum < 8);
 
+	itemnum %= 8;
 	dir = ui_radial_dir_order[itemnum];
 	ui_but_pie_dir(dir, vec);
 
