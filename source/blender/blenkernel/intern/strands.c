@@ -180,7 +180,9 @@ StrandsChildren *BKE_strands_children_new(int curves, int verts)
 	
 	/* must be added explicitly */
 	strands->curve_uvs = NULL;
+	strands->numuv = 0;
 	strands->curve_vcols = NULL;
+	strands->numvcol = 0;
 	
 	return strands;
 }
