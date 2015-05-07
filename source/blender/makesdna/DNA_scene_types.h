@@ -1047,6 +1047,8 @@ typedef struct Sculpt {
 
 	/* scale for constant detail size */
 	float constant_detail;
+	float detail_percent;
+	float pad;
 
 	struct Object *gravity_object;
 	void *pad2;
@@ -1880,7 +1882,8 @@ typedef enum SculptFlags {
 	SCULPT_DYNTOPO_COLLAPSE = (1 << 11),
 
 	/* If set, dynamic-topology detail size will be constant in object space */
-	SCULPT_DYNTOPO_DETAIL_CONSTANT = (1 << 13)
+	SCULPT_DYNTOPO_DETAIL_CONSTANT = (1 << 13),
+	SCULPT_DYNTOPO_DETAIL_BRUSH = (1 << 14),
 } SculptFlags;
 
 typedef enum ImagePaintMode {
