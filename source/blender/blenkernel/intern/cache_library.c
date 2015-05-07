@@ -779,22 +779,37 @@ static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *in
 	return true;
 }
 
+static void cache_effector_result_init(CacheEffectorResult *result)
+{
+	zero_v3(result->f);
+}
+
+static void cache_effector_result_add(CacheEffectorResult *result, const CacheEffectorResult *other)
+{
+	add_v3_v3(result->f, other->f);
+}
+
 int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoint *point, CacheEffectorResult *result)
 {
 	CacheEffector *eff;
 	int i, applied = 0;
 	
-	zero_v3(result->f);
+	cache_effector_result_init(result);
 	
 	for (i = 0, eff = effectors; i < tot; ++i, ++eff) {
 		const eCacheEffector_Type type = eff->type;
 		CacheEffectorInstance *inst;
 		
 		for (inst = eff->instances.first; inst; inst = inst->next) {
+			CacheEffectorResult inst_result;
+			cache_effector_result_init(&inst_result);
+			
 			switch (type) {
 				case eCacheEffector_Type_Deflect:
-					if (cache_effector_deflect(eff, inst, point, result))
+					if (cache_effector_deflect(eff, inst, point, &inst_result)) {
+						cache_effector_result_add(result, &inst_result);
 						++applied;
+					}
 					break;
 			}
 		}
