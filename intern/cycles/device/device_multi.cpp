@@ -102,9 +102,11 @@ public:
 		foreach(SubDevice& sub, devices) {
 
 			/* Update devic's clos_max; used in split kernel */
-			sub.device->clos_max = this->clos_max;
+			/* TODO(sergey): Get rid of this. */
+			sub.device->clos_max = clos_max;
+			sub.device->nodes_max_group = nodes_max_group;
+			sub.device->nodes_features = nodes_features;
 
-			sub.device->closure_nodes = this->closure_nodes;
 			if(!sub.device->load_kernels(experimental))
 				return false;
 		}

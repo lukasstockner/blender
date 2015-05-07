@@ -103,12 +103,8 @@ public:
 	/* variables/functions used exclusively for split kernel */
 	/* Maximum closure count */
 	int clos_max;
-	/* Get all closure nodes associated with the scene */
-	set<int> closure_nodes;
 	int nodes_max_group;
 	int nodes_features;
-	/* Return background */
-	bool get_background() { return background; }
 
 	/* regular memory */
 	virtual void mem_alloc(device_memory& mem, MemoryType type) = 0;
