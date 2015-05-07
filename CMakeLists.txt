@@ -1059,75 +1059,18 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
-	# XXX Maybe most of this section should go into an llvm module?
 	if(WITH_LLVM)
+        find_package_wrapper(LLVM)
 
-		if(LLVM_ROOT_DIR)
-			if(NOT DEFINED LLVM_VERSION)
-				find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION} HINTS ${LLVM_ROOT_DIR}/bin NO_CMAKE_PATH)
-			endif()
-			if(NOT LLVM_CONFIG)
-				find_program(LLVM_CONFIG llvm-config HINTS ${LLVM_ROOT_DIR}/bin NO_CMAKE_PATH)
-			endif()
-		else()
-			if(NOT DEFINED LLVM_VERSION)
-				find_program(LLVM_CONFIG llvm-config-${LLVM_VERSION})
-			endif()
-			if(NOT LLVM_CONFIG)
-				find_program(LLVM_CONFIG llvm-config)
-			endif()
+        if(NOT LLVM_FOUND)
+			set(WITH_LLVM OFF)
+			message(STATUS "LLVM not found")
 		endif()
-
-		if(NOT DEFINED LLVM_VERSION)
-			execute_process(COMMAND ${LLVM_CONFIG} --version
-							OUTPUT_VARIABLE LLVM_VERSION
-							OUTPUT_STRIP_TRAILING_WHITESPACE)
-			set(LLVM_VERSION ${LLVM_VERSION} CACHE STRING "Version of LLVM to use")
-		endif()
-		if(NOT DEFINED LLVM_ROOT_DIR)
-			execute_process(COMMAND ${LLVM_CONFIG} --prefix
-							OUTPUT_VARIABLE LLVM_ROOT_DIR
-							OUTPUT_STRIP_TRAILING_WHITESPACE)
-			set(LLVM_ROOT_DIR ${LLVM_ROOT_DIR} CACHE PATH "Path to the LLVM installation")
-		endif()
-		if(NOT DEFINED LLVM_LIBPATH)
-			execute_process(COMMAND ${LLVM_CONFIG} --libdir
-							OUTPUT_VARIABLE LLVM_LIBPATH
-							OUTPUT_STRIP_TRAILING_WHITESPACE)
-			set(LLVM_LIBPATH ${LLVM_LIBPATH} CACHE PATH "Path to the LLVM library path")
-			mark_as_advanced(LLVM_LIBPATH)
-		endif()
-
-		if(LLVM_STATIC)
-			find_library(LLVM_LIBRARY
-			             NAMES LLVMAnalysis # first of a whole bunch of libs to get
-			             PATHS ${LLVM_LIBPATH})
-		else()
-			find_library(LLVM_LIBRARY
-			             NAMES LLVM-${LLVM_VERSION}
-			             PATHS ${LLVM_LIBPATH})
-		endif()
-
-
-		if(LLVM_LIBRARY AND LLVM_ROOT_DIR AND LLVM_LIBPATH)
-			if(LLVM_STATIC)
-				# if static LLVM libraries were requested, use llvm-config to generate
-				# the list of what libraries we need, and substitute that in the right
-				# way for LLVM_LIBRARY.
-				execute_process(COMMAND ${LLVM_CONFIG} --libfiles
-				                OUTPUT_VARIABLE LLVM_LIBRARY
-				                OUTPUT_STRIP_TRAILING_WHITESPACE)
-				string(REPLACE " " ";" LLVM_LIBRARY "${LLVM_LIBRARY}")
-			endif()
-		else()
-			message(FATAL_ERROR "LLVM not found.")
-		endif()
-
 	endif()
 
 	if(WITH_LLVM OR WITH_SDL_DYNLOAD)
 		# Fix for conflict with Mesa llvmpipe
-		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Wl,--version-script=${CMAKE_SOURCE_DIR}/source/creator/blender.map")
+		set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -Wl,--version-script='${CMAKE_SOURCE_DIR}/source/creator/blender.map'")
 	endif()
 
 	# OpenSuse needs lutil, ArchLinux not, for now keep, can avoid by using --as-needed
@@ -1156,6 +1099,25 @@ if(UNIX AND NOT APPLE)
 	# GNU Compiler
 	if(CMAKE_COMPILER_IS_GNUCC)
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")
+
+		if(NOT "${CMAKE_C_COMPILER_VERSION}" VERSION_LESS "5.0")
+			# GCC5 uses gnu11, until we update, force c89
+			# though some c11 features can still be used.
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu89")
+		endif()
+
+		# use ld.gold linker if available, could make optional
+		execute_process(
+		        COMMAND ${CMAKE_C_COMPILER} -fuse-ld=gold -Wl,--version
+		        ERROR_QUIET OUTPUT_VARIABLE LD_VERSION)
+		if ("${LD_VERSION}" MATCHES "GNU gold")
+			set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fuse-ld=gold")
+			set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold")
+		else ()
+			message(INFO "GNU gold linker isn't available, using the default system linker.")
+		endif ()
+		unset(LD_VERSION)
+
 	# CLang is the same as GCC for now.
 	elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
 		set(PLATFORM_CFLAGS "-pipe -fPIC -funsigned-char -fno-strict-aliasing")

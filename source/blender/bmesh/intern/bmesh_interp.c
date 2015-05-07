@@ -459,8 +459,8 @@ static void bm_loop_interp_mdisps(BMesh *bm, BMLoop *l_dst, const BMFace *f_src)
 	
 	/* if no disps data allocate a new grid, the size of the first grid in f_src. */
 	if (!md_dst->totdisp) {
-		MDisps *md_src = BM_ELEM_CD_GET_VOID_P(BM_FACE_FIRST_LOOP(f_src), cd_loop_mdisp_offset);
-		
+		const MDisps *md_src = BM_ELEM_CD_GET_VOID_P(BM_FACE_FIRST_LOOP(f_src), cd_loop_mdisp_offset);
+
 		md_dst->totdisp = md_src->totdisp;
 		md_dst->level = md_src->level;
 		if (md_dst->totdisp) {
@@ -1057,7 +1057,7 @@ LinkNode *BM_vert_loop_groups_data_layer_create(
 				mul_vn_fl(lf->data_weights, lf->data_len, 1.0f / lwc.weight_accum);
 			}
 			else {
-				fill_vn_fl(lf->data_weights, lf->data_len, 1.0f / (float)lf->data_len);
+				copy_vn_fl(lf->data_weights, lf->data_len, 1.0f / (float)lf->data_len);
 			}
 
 			BLI_linklist_prepend_arena(&groups, lf, lwc.arena);

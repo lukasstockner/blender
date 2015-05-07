@@ -403,8 +403,9 @@ static const char *template_id_context(StructRNA *type)
 }
 #endif
 
-static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, short idcode, int flag,
-                        const char *newop, const char *openop, const char *unlinkop)
+static void template_ID(
+        bContext *C, uiLayout *layout, TemplateID *template, StructRNA *type, short idcode, int flag,
+        const char *newop, const char *openop, const char *unlinkop)
 {
 	uiBut *but;
 	uiBlock *block;
@@ -620,8 +621,9 @@ static void template_ID(bContext *C, uiLayout *layout, TemplateID *template, Str
 	UI_block_align_end(block);
 }
 
-static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
-                           const char *openop, const char *unlinkop, int flag, int prv_rows, int prv_cols)
+static void ui_template_id(
+        uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
+        const char *openop, const char *unlinkop, int flag, int prv_rows, int prv_cols)
 {
 	TemplateID *template;
 	PropertyRNA *prop;
@@ -661,21 +663,24 @@ static void ui_template_id(uiLayout *layout, bContext *C, PointerRNA *ptr, const
 	MEM_freeN(template);
 }
 
-void uiTemplateID(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
-                  const char *openop, const char *unlinkop)
+void uiTemplateID(
+        uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
+        const char *openop, const char *unlinkop)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop,
 	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE, 0, 0);
 }
 
-void uiTemplateIDBrowse(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
-                        const char *openop, const char *unlinkop)
+void uiTemplateIDBrowse(
+        uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
+        const char *openop, const char *unlinkop)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop, UI_ID_BROWSE | UI_ID_RENAME, 0, 0);
 }
 
-void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
-                         const char *openop, const char *unlinkop, int rows, int cols)
+void uiTemplateIDPreview(
+        uiLayout *layout, bContext *C, PointerRNA *ptr, const char *propname, const char *newop,
+        const char *openop, const char *unlinkop, int rows, int cols)
 {
 	ui_template_id(layout, C, ptr, propname, newop, openop, unlinkop,
 	               UI_ID_BROWSE | UI_ID_RENAME | UI_ID_DELETE | UI_ID_PREVIEWS, rows, cols);
@@ -688,8 +693,9 @@ void uiTemplateIDPreview(uiLayout *layout, bContext *C, PointerRNA *ptr, const c
  * - propname: property identifier for property that ID-pointer gets stored to
  * - proptypename: property identifier for property used to determine the type of ID-pointer that can be used
  */
-void uiTemplateAnyID(uiLayout *layout, PointerRNA *ptr, const char *propname, const char *proptypename,
-                     const char *text)
+void uiTemplateAnyID(
+        uiLayout *layout, PointerRNA *ptr, const char *propname, const char *proptypename,
+        const char *text)
 {
 	PropertyRNA *propID, *propType;
 	uiLayout *split, *row, *sub;
@@ -823,8 +829,9 @@ static int modifier_is_simulation(ModifierData *md)
 	}
 }
 
-static uiLayout *draw_modifier(uiLayout *layout, Scene *scene, Object *ob,
-                               ModifierData *md, int index, int cageIndex, int lastCageIndex)
+static uiLayout *draw_modifier(
+        uiLayout *layout, Scene *scene, Object *ob,
+        ModifierData *md, int index, int cageIndex, int lastCageIndex)
 {
 	const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 	PointerRNA ptr;
@@ -1286,8 +1293,9 @@ static void do_preview_buttons(bContext *C, void *arg, int event)
 	}
 }
 
-void uiTemplatePreview(uiLayout *layout, bContext *C, ID *id, int show_buttons, ID *parent, MTex *slot,
-                       const char *preview_id)
+void uiTemplatePreview(
+        uiLayout *layout, bContext *C, ID *id, int show_buttons, ID *parent, MTex *slot,
+        const char *preview_id)
 {
 	uiLayout *row, *col;
 	uiBlock *block;
@@ -1495,8 +1503,9 @@ static void colorband_update_cb(bContext *UNUSED(C), void *bt_v, void *coba_v)
 	bt->rnapoin.data = coba->data + coba->cur;
 }
 
-static void colorband_buttons_layout(uiLayout *layout, uiBlock *block, ColorBand *coba, const rctf *butr,
-                                     RNAUpdateCb *cb, int expand)
+static void colorband_buttons_layout(
+        uiLayout *layout, uiBlock *block, ColorBand *coba, const rctf *butr,
+        RNAUpdateCb *cb, int expand)
 {
 	uiLayout *row, *split, *subsplit;
 	uiBut *bt;
@@ -1641,10 +1650,7 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *ar, void *arg_litem)
 
 	/* arg_litem is malloced, can be freed by parent button */
 	cb = *((RNAUpdateCb *)arg_litem);
-	
-	/* unused */
-	// icon = RNA_property_enum_get(&cb.ptr, cb.prop);
-	
+
 	block = UI_block_begin(C, ar, "_popup", UI_EMBOSS);
 	UI_block_flag_enable(block, UI_BLOCK_LOOP);
 	
@@ -1682,12 +1688,13 @@ void uiTemplateIconView(uiLayout *layout, PointerRNA *ptr, const char *propname)
 	EnumPropertyItem *items;
 	uiBlock *block;
 	uiBut *but;
-//	rctf rect;  /* UNUSED */
 	int value, icon = ICON_NONE, tot_items;
 	bool free_items;
-	
-	if (!prop || RNA_property_type(prop) != PROP_ENUM)
+
+	if (!prop || RNA_property_type(prop) != PROP_ENUM) {
+		RNA_warning("property of type Enum not found: %s.%s", RNA_struct_identifier(ptr->type), propname);
 		return;
+	}
 
 	block = uiLayoutAbsoluteBlock(layout);
 
@@ -1698,21 +1705,12 @@ void uiTemplateIconView(uiLayout *layout, PointerRNA *ptr, const char *propname)
 	cb = MEM_callocN(sizeof(RNAUpdateCb), "RNAUpdateCb");
 	cb->ptr = *ptr;
 	cb->prop = prop;
-	
-//	rect.xmin = 0; rect.xmax = 10.0f * UI_UNIT_X;
-//	rect.ymin = 0; rect.ymax = 10.0f * UI_UNIT_X;
-	
-	but = uiDefBlockButN(block, ui_icon_view_menu_cb, MEM_dupallocN(cb), "", 0, 0, UI_UNIT_X * 6, UI_UNIT_Y * 6, "");
 
-	
-//	but = uiDefIconButR_prop(block, UI_BTYPE_ROW, 0, icon, 0, 0, BLI_rctf_size_x(&rect), BLI_rctf_size_y(&rect), ptr, prop, -1, 0, icon, -1, -1, NULL);
-	
+	but = uiDefBlockButN(block, ui_icon_view_menu_cb, cb, "", 0, 0, UI_UNIT_X * 6, UI_UNIT_Y * 6, "");
+
 	but->icon = icon;
 	UI_but_flag_enable(but, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
-	
-	UI_but_funcN_set(but, rna_update_cb, MEM_dupallocN(cb), NULL);
-	
-	MEM_freeN(cb);
+
 	if (free_items) {
 		MEM_freeN(items);
 	}
@@ -2085,8 +2083,9 @@ static void curvemap_buttons_reset(bContext *C, void *cb_v, void *cumap_v)
 }
 
 /* still unsure how this call evolves... we use labeltype for defining what curve-channels to show */
-static void curvemap_buttons_layout(uiLayout *layout, PointerRNA *ptr, char labeltype, int levels,
-                                    int brush, int neg_slope, RNAUpdateCb *cb)
+static void curvemap_buttons_layout(
+        uiLayout *layout, PointerRNA *ptr, char labeltype, int levels,
+        int brush, int neg_slope, RNAUpdateCb *cb)
 {
 	CurveMapping *cumap = ptr->data;
 	CurveMap *cm = &cumap->cm[cumap->cur];
@@ -2247,8 +2246,9 @@ static void curvemap_buttons_layout(uiLayout *layout, PointerRNA *ptr, char labe
 	UI_block_funcN_set(block, NULL, NULL, NULL);
 }
 
-void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, const char *propname, int type,
-                            int levels, int brush, int neg_slope)
+void uiTemplateCurveMapping(
+        uiLayout *layout, PointerRNA *ptr, const char *propname, int type,
+        int levels, int brush, int neg_slope)
 {
 	RNAUpdateCb *cb;
 	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
@@ -2291,8 +2291,9 @@ void uiTemplateCurveMapping(uiLayout *layout, PointerRNA *ptr, const char *propn
 #define WHEEL_SIZE  (5 * U.widget_unit)
 
 /* This template now follows User Preference for type - name is not correct anymore... */
-void uiTemplateColorPicker(uiLayout *layout, PointerRNA *ptr, const char *propname, int value_slider,
-                           int lock, int lock_luminosity, int cubic)
+void uiTemplateColorPicker(
+        uiLayout *layout, PointerRNA *ptr, const char *propname, int value_slider,
+        int lock, int lock_luminosity, int cubic)
 {
 	PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 	uiBlock *block = uiLayoutGetBlock(layout);
@@ -2467,8 +2468,9 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
  * - for now, grouping of layers is determined by dividing up the length of
  *   the array of layer bitflags */
 
-void uiTemplateLayers(uiLayout *layout, PointerRNA *ptr, const char *propname,
-                      PointerRNA *used_ptr, const char *used_propname, int active_layer)
+void uiTemplateLayers(
+        uiLayout *layout, PointerRNA *ptr, const char *propname,
+        PointerRNA *used_ptr, const char *used_propname, int active_layer)
 {
 	uiLayout *uRow, *uCol;
 	PropertyRNA *prop, *used_prop = NULL;
@@ -2534,8 +2536,9 @@ void uiTemplateLayers(uiLayout *layout, PointerRNA *ptr, const char *propname,
 	}
 }
 
-void uiTemplateGameStates(uiLayout *layout, PointerRNA *ptr, const char *propname,
-                          PointerRNA *used_ptr, const char *used_propname, int active_state)
+void uiTemplateGameStates(
+        uiLayout *layout, PointerRNA *ptr, const char *propname,
+        PointerRNA *used_ptr, const char *used_propname, int active_state)
 {
 	uiLayout *uRow, *uCol;
 	PropertyRNA *prop, *used_prop = NULL;
@@ -2775,8 +2778,9 @@ typedef struct {
 	int end_idx;       /* Index of last item to display + 1. */
 } uiListLayoutdata;
 
-static void uilist_prepare(uiList *ui_list, int len, int activei, int rows, int maxrows, int columns,
-                         uiListLayoutdata *layoutdata)
+static void uilist_prepare(
+        uiList *ui_list, int len, int activei, int rows, int maxrows, int columns,
+        uiListLayoutdata *layoutdata)
 {
 	uiListDyn *dyn_data = ui_list->dyn_data;
 	int activei_row, max_scroll;
@@ -2862,9 +2866,10 @@ static char *uilist_item_tooltip_func(bContext *UNUSED(C), void *argN, const cha
 	return BLI_sprintfN("%s - %s", tip, dyn_tooltip);
 }
 
-void uiTemplateList(uiLayout *layout, bContext *C, const char *listtype_name, const char *list_id,
-                    PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr, const char *active_propname,
-                    const char *item_dyntip_propname, int rows, int maxrows, int layout_type, int columns)
+void uiTemplateList(
+        uiLayout *layout, bContext *C, const char *listtype_name, const char *list_id,
+        PointerRNA *dataptr, const char *propname, PointerRNA *active_dataptr, const char *active_propname,
+        const char *item_dyntip_propname, int rows, int maxrows, int layout_type, int columns)
 {
 	uiListType *ui_list_type;
 	uiList *ui_list = NULL;

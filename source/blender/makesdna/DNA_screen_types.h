@@ -376,6 +376,8 @@ enum {
 	RGN_TYPE_PREVIEW = 7,
 	RGN_TYPE_TABS = 8
 };
+/* use for function args */
+#define RGN_TYPE_ANY -1
 
 /* region alignment */
 #define RGN_ALIGN_NONE		0
