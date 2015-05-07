@@ -270,11 +270,6 @@ void Session::run_gpu()
 			/* update status and timing */
 			update_status_time();
 
-			if (device->info.use_split_kernel) {
-				/* OpenCL split - load kernels */
-				load_kernels();
-			}
-
 			/* path trace */
 			path_trace();
 
@@ -559,11 +554,6 @@ void Session::run_cpu()
 			/* update status and timing */
 			update_status_time();
 
-			if (device->info.use_split_kernel) {
-				/* OpenCL split - load kernels */
-				load_kernels();
-			}
-
 			/* path trace */
 			path_trace();
 
@@ -645,17 +635,21 @@ void Session::load_kernels()
 void Session::run()
 {
 	if (device->info.use_split_kernel) {
-		device->clos_max = max_closure_count_get();
+		if(!params.background) {
+			device->clos_max = 64;
+			device->nodes_max_group = NODE_GROUP_LEVEL_2;
+			device->nodes_features = NODE_FEATURE_ALL;
+		}
+		else {
+			device->clos_max = max_closure_count_get();
+			scene->shader_manager->get_requested_features(scene,
+			                                              device->nodes_max_group,
+			                                              device->nodes_features);
+		}
 	}
 
 	/* load kernels */
-	/* Note : OpenCL split kernel does not load kernels here. OpenCL split kernel needs to know
-	 * closures that will be used in rendering, which is not known at this point; Hence we
-	 * defer OpenCL split kernel load_kernels() to after device_update
-	 */
-	if (!device->info.use_split_kernel) {
-		load_kernels();
-	}
+	load_kernels();
 
 	/* session thread loop */
 	progress.set_status("Waiting for render to start");
