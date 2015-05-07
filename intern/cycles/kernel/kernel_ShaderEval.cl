@@ -77,10 +77,10 @@ __kernel void kernel_ocl_path_trace_ShaderEvaluation(
 	if(ray_index == QUEUE_EMPTY_SLOT)
 		return;
 
-    /* Continue on with shader evaluation */
+	/* Continue on with shader evaluation */
 	if(IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
-	    KernelGlobals *kg = (KernelGlobals *)globals;
-	    ShaderData *sd = (ShaderData *)shader_data;
+		KernelGlobals *kg = (KernelGlobals *)globals;
+		ShaderData *sd = (ShaderData *)shader_data;
 		Intersection *isect = &Intersection_coop[ray_index];
 		ccl_global uint *rng = &rng_coop[ray_index];
 		ccl_global PathState *state = &PathState_coop[ray_index];

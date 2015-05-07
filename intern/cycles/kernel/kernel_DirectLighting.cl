@@ -52,8 +52,8 @@
 __kernel void kernel_ocl_path_trace_DirectLighting(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
-	ccl_global char *shader_data,		    /* Required for direct lighting */
-	ccl_global char *shader_DL,			    /* Required for direct lighting */
+	ccl_global char *shader_data,           /* Required for direct lighting */
+	ccl_global char *shader_DL,             /* Required for direct lighting */
 	ccl_global uint *rng_coop,              /* Required for direct lighting */
 	ccl_global PathState *PathState_coop,   /* Required for direct lighting */
 	ccl_global int *ISLamp_coop,            /* Required for direct lighting */
@@ -89,10 +89,10 @@ __kernel void kernel_ocl_path_trace_DirectLighting(
 	if(ray_index != QUEUE_EMPTY_SLOT) {
 #endif
 		if(IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
-    		/* Load kernel globals structure and ShaderData structure */
-    		KernelGlobals *kg = (KernelGlobals *)globals;
-    		ShaderData *sd = (ShaderData *)shader_data;
-    		ShaderData *sd_DL  = (ShaderData *)shader_DL;
+			/* Load kernel globals structure and ShaderData structure */
+			KernelGlobals *kg = (KernelGlobals *)globals;
+			ShaderData *sd = (ShaderData *)shader_data;
+			ShaderData *sd_DL  = (ShaderData *)shader_DL;
 
 			ccl_global PathState *state = &PathState_coop[ray_index];
 

@@ -64,7 +64,7 @@
 __kernel void kernel_ocl_path_trace_SetupNextIteration(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
-	ccl_global char *shader_data,				/* Required for setting up ray for next iteration */
+	ccl_global char *shader_data,               /* Required for setting up ray for next iteration */
 	ccl_global uint *rng_coop,                  /* Required for setting up ray for next iteration */
 	ccl_global float3 *throughput_coop,         /* Required for setting up ray for next iteration */
 	PathRadiance *PathRadiance_coop, /* Required for setting up ray for next iteration */

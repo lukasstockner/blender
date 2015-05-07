@@ -50,7 +50,7 @@
 __kernel void kernel_ocl_path_trace_ShadowBlocked_DirectLighting(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
-	ccl_global char *shader_shadow,				/* Required for shadow blocked */
+	ccl_global char *shader_shadow,             /* Required for shadow blocked */
 	ccl_global PathState *PathState_coop,       /* Required for shadow blocked */
 	ccl_global Ray *LightRay_dl_coop,           /* Required for direct lighting's shadow blocked */
 	ccl_global Ray *LightRay_ao_coop,           /* Required for AO's shadow blocked */
@@ -103,24 +103,24 @@ __kernel void kernel_ocl_path_trace_ShadowBlocked_DirectLighting(
 		return;
 
 	if(IS_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_DL) || IS_FLAG(ray_state, ray_index, RAY_SHADOW_RAY_CAST_AO)) {
-        /* Load kernel global structure */
-        KernelGlobals *kg = (KernelGlobals *)globals;
-        ShaderData *sd_shadow  = (ShaderData *)shader_shadow;
+		/* Load kernel global structure */
+		KernelGlobals *kg = (KernelGlobals *)globals;
+		ShaderData *sd_shadow  = (ShaderData *)shader_shadow;
 
-        ccl_global PathState *state = &PathState_coop[ray_index];
-        ccl_global Ray *light_ray_dl_global = &LightRay_dl_coop[ray_index];
-        ccl_global Ray *light_ray_ao_global = &LightRay_ao_coop[ray_index];
-        Intersection *isect_ao_global = &Intersection_coop_AO[ray_index];
-	    Intersection *isect_dl_global = &Intersection_coop_DL[ray_index];
+		ccl_global PathState *state = &PathState_coop[ray_index];
+		ccl_global Ray *light_ray_dl_global = &LightRay_dl_coop[ray_index];
+		ccl_global Ray *light_ray_ao_global = &LightRay_ao_coop[ray_index];
+		Intersection *isect_ao_global = &Intersection_coop_AO[ray_index];
+		Intersection *isect_dl_global = &Intersection_coop_DL[ray_index];
 
-        ccl_global Ray *light_ray_global = shadow_blocked_type == RAY_SHADOW_RAY_CAST_AO ? light_ray_ao_global : light_ray_dl_global;
-        Intersection *isect_global = RAY_SHADOW_RAY_CAST_AO ? isect_ao_global : isect_dl_global;
+		ccl_global Ray *light_ray_global = shadow_blocked_type == RAY_SHADOW_RAY_CAST_AO ? light_ray_ao_global : light_ray_dl_global;
+		Intersection *isect_global = RAY_SHADOW_RAY_CAST_AO ? isect_ao_global : isect_dl_global;
 
-	    float3 shadow;
-	    update_path_radiance = !(shadow_blocked(kg, state, light_ray_global, &shadow, sd_shadow, isect_global));
+		float3 shadow;
+		update_path_radiance = !(shadow_blocked(kg, state, light_ray_global, &shadow, sd_shadow, isect_global));
 
-	    /* We use light_ray_global's P and t to store shadow and update_path_radiance */
-	    light_ray_global->P = shadow;
-	    light_ray_global->t = update_path_radiance;
+		/* We use light_ray_global's P and t to store shadow and update_path_radiance */
+		light_ray_global->P = shadow;
+		light_ray_global->t = update_path_radiance;
 	}
 }

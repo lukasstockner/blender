@@ -69,7 +69,7 @@ __kernel void kernel_ocl_path_trace_SceneIntersect(
 	ccl_global uint *rng_coop,
 	ccl_global Ray *Ray_coop,                   /* Required for scene_intersect */
 	ccl_global PathState *PathState_coop,       /* Required for scene_intersect */
-	Intersection *Intersection_coop, /* Required for scene_intersect */
+	Intersection *Intersection_coop,            /* Required for scene_intersect */
 	ccl_global char *ray_state,                 /* Denotes the state of each ray */
 	int sw, int sh,
 	ccl_global int *Queue_data,                 /* Memory for queues */
