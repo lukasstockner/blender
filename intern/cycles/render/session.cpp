@@ -374,7 +374,7 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.start_sample = tile_manager.state.sample;
 	rtile.num_samples = tile_manager.state.num_samples;
 	rtile.resolution = tile_manager.state.resolution_divider;
-	rtile.tile_size = tile_manager.get_tile_size();
+	rtile.tile_size = params.tile_size;
 
 	tile_lock.unlock();
 
