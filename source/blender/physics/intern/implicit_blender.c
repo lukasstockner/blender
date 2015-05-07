@@ -1522,10 +1522,15 @@ BLI_INLINE void dfdx_spring(float to[3][3], const float dir[3], float length, fl
 {
 	// dir is unit length direction, rest is spring's restlength, k is spring constant.
 	//return  ( (I-outerprod(dir, dir))*Min(1.0f, rest/length) - I) * -k;
-	outerproduct(to, dir, dir);
-	sub_m3_m3m3(to, I, to);
+	if (L > ALMOST_ZERO) {
+		outerproduct(to, dir, dir);
+		sub_m3_m3m3(to, I, to);
+		
+		mul_m3_fl(to, (L / length)); 
+	}
+	else
+		zero_m3(to);
 	
-	mul_m3_fl(to, (L/length)); 
 	sub_m3_m3m3(to, to, I);
 	mul_m3_fl(to, k);
 }
@@ -1551,7 +1556,7 @@ BLI_INLINE void dfdv_damp(float to[3][3], const float dir[3], float damping)
 
 BLI_INLINE float fb(float length, float L)
 {
-	float x = length / L;
+	float x = L > ALMOST_ZERO ? length / L : 0.0f;
 	float xx = x * x;
 	float xxx = xx * x;
 	float xxxx = xxx * x;
@@ -1560,7 +1565,7 @@ BLI_INLINE float fb(float length, float L)
 
 BLI_INLINE float fbderiv(float length, float L)
 {
-	float x = length/L;
+	float x = L > ALMOST_ZERO ? length / L : 0.0f;
 	float xx = x * x;
 	float xxx = xx * x;
 	return (-46.164f * xxx + 102.579f * xx - 78.166f * x + 23.116f);
