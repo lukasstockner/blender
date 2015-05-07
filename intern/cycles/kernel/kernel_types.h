@@ -962,7 +962,7 @@ typedef struct KernelData {
 } KernelData;
 
 #ifdef __KERNEL_DEBUG__
-typedef struct DebugData {
+typedef ccl_addr_space struct DebugData {
 	// Total number of BVH node traversal steps and primitives intersections
 	// for the camera rays.
 	int num_bvh_traversal_steps;

@@ -190,7 +190,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	unsigned int num_samples,                    /* Total number of samples per pixel */
 #endif
 #ifdef __KERNEL_DEBUG__
-	ccl_global DebugData *debugdata_coop,
+	DebugData *debugdata_coop,
 #endif
 	int parallel_samples                         /* Number of samples to be processed in parallel */
 	)

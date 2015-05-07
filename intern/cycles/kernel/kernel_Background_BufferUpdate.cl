@@ -123,7 +123,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 	unsigned int num_samples,
 #endif
 #ifdef __KERNEL_DEBUG__
-	ccl_global DebugData *debugdata_coop,
+	DebugData *debugdata_coop,
 #endif
 	int parallel_samples                         /* Number of samples to be processed in parallel */
 	)
@@ -160,7 +160,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 		ShaderData *sd = (ShaderData *)shader_data;
 
 #ifdef __KERNEL_DEBUG__
-		ccl_global DebugData *debug_data = &debugdata_coop[ray_index];
+		DebugData *debug_data = &debugdata_coop[ray_index];
 #endif
 		ccl_global PathState *state = &PathState_coop[ray_index];
 		PathRadiance *L = L = &PathRadiance_coop[ray_index];
