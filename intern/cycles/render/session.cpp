@@ -622,18 +622,17 @@ void Session::load_kernels()
 
 void Session::run()
 {
-	if (device->info.use_split_kernel) {
-		if(!params.background) {
-			device->clos_max = 64;
-			device->nodes_max_group = NODE_GROUP_LEVEL_2;
-			device->nodes_features = NODE_FEATURE_ALL;
-		}
-		else {
-			device->clos_max = get_max_closure_count();
-			scene->shader_manager->get_requested_features(scene,
-			                                              device->nodes_max_group,
-			                                              device->nodes_features);
-		}
+	/* Gather feature set required from the device. */
+	if(!params.background) {
+		device->clos_max = 64;
+		device->nodes_max_group = NODE_GROUP_LEVEL_2;
+		device->nodes_features = NODE_FEATURE_ALL;
+	}
+	else {
+		device->clos_max = get_max_closure_count();
+		scene->shader_manager->get_requested_features(scene,
+		                                              device->nodes_max_group,
+		                                              device->nodes_features);
 	}
 
 	/* load kernels */
