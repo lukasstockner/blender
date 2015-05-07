@@ -524,6 +524,7 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 
 /* ========================================================================= */
 
+#if 0
 static void ui_item_nlabel(uiLayout *layout, const char *s, size_t len)
 {
 	char buf[256];
@@ -551,7 +552,7 @@ static void archive_info_labels(uiLayout *layout, const char *info)
 	ui_item_nlabel(layout, cur, linelen);
 }
 
-static uiBlock *UNUSED_FUNCTION(archive_info_popup_create)(bContext *C, ARegion *ar, void *arg)
+static uiBlock *archive_info_popup_create(bContext *C, ARegion *ar, void *arg)
 {
 	const char *info = arg;
 	uiBlock *block;
@@ -570,6 +571,7 @@ static uiBlock *UNUSED_FUNCTION(archive_info_popup_create)(bContext *C, ARegion 
 	
 	return block;
 }
+#endif
 
 static void print_stream(void *UNUSED(userdata), const char *s)
 {

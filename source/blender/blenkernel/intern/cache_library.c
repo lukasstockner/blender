@@ -848,7 +848,7 @@ bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_
 		return false;
 	
 	psys = BLI_findlink(&ob->particlesystem, hair_system);
-	if (!psys || !psys->part->type == PART_HAIR)
+	if (!psys || (psys->part->type != PART_HAIR))
 		return false;
 	
 	strands = NULL;

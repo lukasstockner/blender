@@ -875,12 +875,13 @@ void AbcStrandsWriter::write_sample()
 	m_child_writer.write_sample();
 }
 
-
+#if 0
 #define PRINT_M3_FORMAT "((%.3f, %.3f, %.3f), (%.3f, %.3f, %.3f), (%.3f, %.3f, %.3f))"
 #define PRINT_M3_ARGS(m) (double)m[0][0], (double)m[0][1], (double)m[0][2], (double)m[1][0], (double)m[1][1], (double)m[1][2], (double)m[2][0], (double)m[2][1], (double)m[2][2]
 #define PRINT_M4_FORMAT "((%.3f, %.3f, %.3f, %.3f), (%.3f, %.3f, %.3f, %.3f), (%.3f, %.3f, %.3f, %.3f), (%.3f, %.3f, %.3f, %.3f))"
 #define PRINT_M4_ARGS(m) (double)m[0][0], (double)m[0][1], (double)m[0][2], (double)m[0][3], (double)m[1][0], (double)m[1][1], (double)m[1][2], (double)m[1][3], \
                          (double)m[2][0], (double)m[2][1], (double)m[2][2], (double)m[2][3], (double)m[3][0], (double)m[3][1], (double)m[3][2], (double)m[3][3]
+#endif
 
 AbcStrandsChildrenReader::AbcStrandsChildrenReader(StrandsChildren *strands) :
     m_strands(strands)

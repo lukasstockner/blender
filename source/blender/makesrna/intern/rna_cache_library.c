@@ -308,9 +308,9 @@ static int rna_StrandsKeyCacheModifier_hair_system_poll(PointerRNA *ptr, Pointer
 
 static void rna_StrandsKeyCacheModifier_active_shape_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
+#if 0 // TODO
 	StrandsKeyCacheModifier *skmd = ptr->data;
 	
-#if 0 // TODO
 	if (scene->obedit == ob) {
 		/* exit/enter editmode to get new shape */
 		switch (ob->type) {

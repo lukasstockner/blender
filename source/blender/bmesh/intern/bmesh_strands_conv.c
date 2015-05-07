@@ -885,7 +885,7 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 void BM_strands_bm_from_psys(BMesh *bm, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm,
                              const bool set_key, int act_key_nr)
 {
-	KeyBlock *actkey;
+	// KeyBlock *actkey;
 	float (*keyco)[3] = NULL;
 	int totvert, totedge;
 	
