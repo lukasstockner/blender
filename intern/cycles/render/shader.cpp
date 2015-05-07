@@ -487,8 +487,8 @@ void ShaderManager::get_requested_features(Scene *scene, int& max_group, int& fe
 	for(int i = 0; i < scene->shaders.size(); i++) {
 		Shader *shader = scene->shaders[i];
 		foreach(ShaderNode *node, shader->graph->nodes) {
-			max_group = min(max_group, node->group_get());
-			features |= node->feature_get();
+			max_group = min(max_group, node->get_group());
+			features |= node->get_feature();
 			if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
 				BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
 				if(CLOSURE_IS_VOLUME(bsdf_node->closure)) {

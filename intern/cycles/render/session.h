@@ -211,7 +211,7 @@ protected:
 	int max_closure_global;
 
 	/* Get maximum number of closures to be used in kernel. */
-	int max_closure_count_get();
+	int get_max_closure_count();
 };
 
 CCL_NAMESPACE_END

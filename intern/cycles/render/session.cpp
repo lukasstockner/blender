@@ -641,7 +641,7 @@ void Session::run()
 			device->nodes_features = NODE_FEATURE_ALL;
 		}
 		else {
-			device->clos_max = max_closure_count_get();
+			device->clos_max = get_max_closure_count();
 			scene->shader_manager->get_requested_features(scene,
 			                                              device->nodes_max_group,
 			                                              device->nodes_features);
@@ -961,7 +961,7 @@ void Session::device_free()
 	 */
 }
 
-int Session::max_closure_count_get()
+int Session::get_max_closure_count()
 {
 	int max_closures = 0;
 	for(int i = 0; i < scene->shaders.size(); i++) {

@@ -218,13 +218,13 @@ public:
 	 * nodes which are most commonly used, further levels are extension
 	 * of previous one and includes less commonly used nodes.
 	 */
-	virtual int group_get() { return NODE_GROUP_LEVEL_0; }
+	virtual int get_group() { return NODE_GROUP_LEVEL_0; }
 
 	/* Node feature are used to disable huge nodes inside the group,
 	 * so it's possible to disable huge nodes inside of the required
 	 * nodes group.
 	 */
-	virtual int feature_get() { return 0; }
+	virtual int get_feature() { return 0; }
 };
 
 
