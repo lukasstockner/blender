@@ -167,7 +167,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	ccl_global uint *rng_coop,                   /* rng array to store rng values for all rays */
 	ccl_global float3 *throughput_coop,          /* throughput array to store throughput values for all rays */
 	ccl_global float *L_transparent_coop,        /* L_transparent array to store L_transparent values for all rays */
-	ccl_global PathRadiance *PathRadiance_coop,  /* PathRadiance array to store PathRadiance values for all rays */
+	PathRadiance *PathRadiance_coop,  /* PathRadiance array to store PathRadiance values for all rays */
 	ccl_global Ray *Ray_coop,                    /* Ray array to store Ray information for all rays */
 	ccl_global PathState *PathState_coop,        /* PathState array to store PathState information for all rays */
 	ccl_global char *ray_state,                  /* Stores information on current state of a ray */

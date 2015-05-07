@@ -60,7 +60,7 @@ ccl_device_inline void kernel_write_pass_float4(ccl_global float *buffer, int sa
 #endif // __SPLIT_KERNEL__ && __WORK_STEALING__
 }
 
-ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, ccl_addr_space PathRadiance *L,
+ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L,
 	ShaderData *sd, int sample, ccl_addr_space PathState *state, float3 throughput)
 {
 #ifdef __PASSES__
@@ -149,7 +149,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 #endif
 }
 
-ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, ccl_addr_space PathRadiance *L, int sample)
+ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global float *buffer, PathRadiance *L, int sample)
 {
 #ifdef __PASSES__
 	int flag = kernel_data.film.pass_flag;

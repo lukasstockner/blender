@@ -67,7 +67,7 @@ __kernel void kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL(
 	ccl_global char *shader_data,				/* Required for setting up ray for next iteration */
 	ccl_global uint *rng_coop,                  /* Required for setting up ray for next iteration */
 	ccl_global float3 *throughput_coop,         /* Required for setting up ray for next iteration */
-	ccl_global PathRadiance *PathRadiance_coop, /* Required for setting up ray for next iteration */
+	PathRadiance *PathRadiance_coop, /* Required for setting up ray for next iteration */
 	ccl_global Ray *Ray_coop,                   /* Required for setting up ray for next iteration */
 	ccl_global PathState *PathState_coop,       /* Required for setting up ray for next iteration */
 	ccl_global Ray *LightRay_dl_coop,           /* Required for radiance update - direct lighting */
@@ -124,7 +124,7 @@ __kernel void kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL(
 		/* Load kernel globals structure and ShaderData structure */
 		KernelGlobals *kg = (KernelGlobals *)globals;
 		ShaderData *sd = (ShaderData *)shader_data;
-		ccl_global PathRadiance *L = 0x0;
+		PathRadiance *L = 0x0;
 		ccl_global PathState *state = 0x0;
 
 		/* Path radiance update for AO/Direct_lighting's shadow blocked */

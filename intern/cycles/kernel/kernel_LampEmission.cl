@@ -45,7 +45,7 @@ __kernel void kernel_ocl_path_trace_LampEmission_SPLIT_KERNEL(
 	ccl_constant KernelData *data,
 	ccl_global char *shader_data,				/* Required for lamp emission */
 	ccl_global float3 *throughput_coop,         /* Required for lamp emission */
-	ccl_global PathRadiance *PathRadiance_coop, /* Required for lamp emission */
+	PathRadiance *PathRadiance_coop, /* Required for lamp emission */
 	ccl_global Ray *Ray_coop,                   /* Required for lamp emission */
 	ccl_global PathState *PathState_coop,       /* Required for lamp emission */
 	Intersection *Intersection_coop, /* Required for lamp emission */
@@ -92,7 +92,7 @@ __kernel void kernel_ocl_path_trace_LampEmission_SPLIT_KERNEL(
 	if(IS_STATE(ray_state, ray_index, RAY_ACTIVE) || IS_STATE(ray_state, ray_index, RAY_HIT_BACKGROUND)) {
 	    KernelGlobals *kg = (KernelGlobals *)globals;
 	    ShaderData *sd = (ShaderData *)shader_data;
-	    ccl_global PathRadiance *L = &PathRadiance_coop[ray_index];
+	    PathRadiance *L = &PathRadiance_coop[ray_index];
 
 		float3 throughput = throughput_coop[ray_index];
 		Ray ray = Ray_coop[ray_index];

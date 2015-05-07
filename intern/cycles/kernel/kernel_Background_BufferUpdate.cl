@@ -103,7 +103,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 	ccl_global uint *rng_state,
 	ccl_global uint *rng_coop,                   /* Required for buffer Update */
 	ccl_global float3 *throughput_coop,          /* Required for background hit processing */
-	ccl_global PathRadiance *PathRadiance_coop,  /* Required for background hit processing and buffer Update */
+	PathRadiance *PathRadiance_coop,  /* Required for background hit processing and buffer Update */
 	ccl_global Ray *Ray_coop,                    /* Required for background hit processing */
 	ccl_global PathState *PathState_coop,        /* Required for background hit processing */
 	ccl_global float *L_transparent_coop,        /* Required for background hit processing and buffer Update */
@@ -163,7 +163,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 		ccl_global DebugData *debug_data = &debugdata_coop[ray_index];
 #endif
 		ccl_global PathState *state = &PathState_coop[ray_index];
-		ccl_global PathRadiance *L = L = &PathRadiance_coop[ray_index];
+		PathRadiance *L = L = &PathRadiance_coop[ray_index];
 		ccl_global Ray *ray = &Ray_coop[ray_index];
 		ccl_global float3 *throughput = &throughput_coop[ray_index];
 		ccl_global float *L_transparent = &L_transparent_coop[ray_index];

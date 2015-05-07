@@ -341,7 +341,7 @@ typedef enum PassType {
 
 #ifdef __PASSES__
 
-typedef struct PathRadiance {
+typedef ccl_addr_space struct PathRadiance {
 	int use_light_pass;
 
 	float3 emission;
@@ -393,7 +393,7 @@ typedef struct BsdfEval {
 
 #else
 
-typedef float3 PathRadiance;
+typedef ccl_addr_space float3 PathRadiance;
 typedef float3 BsdfEval;
 
 #endif

@@ -80,7 +80,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 	ccl_global uint *rng_coop,                  /* Required for "kernel_write_data_passes" and AO */
 	ccl_global float3 *throughput_coop,         /* Required for handling holdout material and AO */
 	ccl_global float *L_transparent_coop,       /* Required for handling holdout material */
-	ccl_global PathRadiance *PathRadiance_coop, /* Required for "kernel_write_data_passes" and indirect primitive emission */
+	PathRadiance *PathRadiance_coop, /* Required for "kernel_write_data_passes" and indirect primitive emission */
 	ccl_global PathState *PathState_coop,       /* Required throughout the kernel and AO */
 	Intersection *Intersection_coop, /* Required for indirect primitive emission */
 	ccl_global float3 *AOAlpha_coop,            /* Required for AO */
@@ -187,7 +187,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 
 		if(IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
 
-			ccl_global PathRadiance *L = &PathRadiance_coop[ray_index];
+			PathRadiance *L = &PathRadiance_coop[ray_index];
 			/* holdout mask objects do not write data passes */
 			kernel_write_data_passes(kg, per_sample_output_buffers, L, sd, sample, state, throughput);
 
