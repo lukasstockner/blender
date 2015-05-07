@@ -1463,24 +1463,20 @@ void BKE_dupli_object_data_add_strands_children(DupliObjectData *data, const cha
 	dupli_cache_calc_boundbox(data);
 }
 
-Strands *BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name)
+bool BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name, Strands **r_strands, StrandsChildren **r_children)
 {
 	DupliObjectDataStrands *link;
 	for (link = data->strands.first; link; link = link->next) {
-		if (STREQ(link->name, name))
-			return link->strands;
+		if (STREQ(link->name, name)) {
+			if (r_strands) *r_strands = link->strands;
+			if (r_children) *r_children = link->strands_children;
+			return true;
+		}
 	}
-	return NULL;
-}
-
-StrandsChildren *BKE_dupli_object_data_find_strands_children(DupliObjectData *data, const char *name)
-{
-	DupliObjectDataStrands *link;
-	for (link = data->strands.first; link; link = link->next) {
-		if (STREQ(link->name, name))
-			return link->strands_children;
-	}
-	return NULL;
+	
+	if (r_strands) *r_strands = NULL;
+	if (r_children) *r_children = NULL;
+	return false;
 }
 
 bool BKE_dupli_object_data_acquire_strands(DupliObjectData *data, Strands *strands)
@@ -1771,11 +1767,33 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			
 			/* skip reading when the cachelib is baking, avoids unnecessary memory allocation */
 			if (!(ob->cache_library->flag & CACHE_LIBRARY_BAKING)) {
+				bool do_strands_motion, do_strands_children;
+				
+				BKE_cache_library_get_read_flags(ob->cache_library, eval_mode, true, &do_strands_motion, &do_strands_children);
+				
 				/* TODO at this point we could apply animation offset */
 				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, eval_mode, true);
 				
 				if (do_modifiers) {
 					object_dupli_cache_apply_modifiers(ob, scene, eval_mode);
+				}
+				
+				/* Deform child strands to follow parent motion.
+				 * Note that this is an optional feature for viewport/render display,
+				 * strand motion is not applied to raw child data in caches.
+				 */
+				if (do_strands_children) {
+					struct  DupliCacheIterator *it = BKE_dupli_cache_iter_new(ob->dup_cache);
+					for (; BKE_dupli_cache_iter_valid(it); BKE_dupli_cache_iter_next(it)) {
+						DupliObjectData *dobdata = BKE_dupli_cache_iter_get(it);
+						DupliObjectDataStrands *link;
+						
+						for (link = dobdata->strands.first; link; link = link->next) {
+							if (link->strands_children)
+								BKE_strands_children_deform(link->strands_children, link->strands, do_strands_motion);
+						}
+					}
+					BKE_dupli_cache_iter_free(it);
 				}
 			}
 			

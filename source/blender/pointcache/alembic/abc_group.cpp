@@ -433,8 +433,9 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 				}
 			}
 			else if (ICurvesSchema::matches(metadata)) {
-				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
-				StrandsChildren *children = BKE_dupli_object_data_find_strands_children(dupli_data, child.getName().c_str());
+				Strands *strands;
+				StrandsChildren *children;
+				BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str(), &strands, &children);
 				
 				AbcStrandsReader strands_reader(strands, children, m_read_strands_motion, m_read_strands_children);
 				strands_reader.init(abc_archive());
@@ -715,8 +716,9 @@ void AbcDupliObjectReader::read_dupligroup_object(IObject object, float frame)
 				}
 			}
 			else if (ICurvesSchema::matches(metadata)) {
-				Strands *strands = BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str());
-				StrandsChildren *children = BKE_dupli_object_data_find_strands_children(dupli_data, child.getName().c_str());
+				Strands *strands;
+				StrandsChildren *children;
+				BKE_dupli_object_data_find_strands(dupli_data, child.getName().c_str(), &strands, &children);
 				
 				AbcStrandsReader strands_reader(strands, children, m_read_strands_motion, m_read_strands_children);
 				strands_reader.init(abc_archive());

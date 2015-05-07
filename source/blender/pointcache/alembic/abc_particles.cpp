@@ -589,7 +589,9 @@ AbcStrandsChildrenWriter::AbcStrandsChildrenWriter(const std::string &name, cons
 
 StrandsChildren *AbcStrandsChildrenWriter::get_strands() const
 {
-	return BKE_dupli_object_data_find_strands_children(m_dobdata, m_name.c_str());
+	StrandsChildren *children;
+	BKE_dupli_object_data_find_strands(m_dobdata, m_name.c_str(), NULL, &children);
+	return children;
 }
 
 void AbcStrandsChildrenWriter::init_abc(OObject parent)
@@ -733,7 +735,9 @@ AbcStrandsWriter::AbcStrandsWriter(const std::string &name, DupliObjectData *dob
 
 Strands *AbcStrandsWriter::get_strands() const
 {
-	return BKE_dupli_object_data_find_strands(m_dobdata, m_name.c_str());
+	Strands *strands;
+	BKE_dupli_object_data_find_strands(m_dobdata, m_name.c_str(), &strands, NULL);
+	return strands;
 }
 
 void AbcStrandsWriter::init(WriterArchive *archive)

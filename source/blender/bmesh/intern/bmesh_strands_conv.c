@@ -321,6 +321,8 @@ void BM_strands_bm_from_strands(BMesh *bm, Strands *strands, Key *key, struct De
 #endif
 }
 
+/* ------------------------------------------------------------------------- */
+
 #if 0
 /**
  * \brief BMesh -> Mesh
@@ -398,9 +400,9 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 }
 #endif
 
-static void strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands), Key *UNUSED(key),
-                                struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *UNUSED(emitter_bvhtree),
-                                StrandIterator *it_strand)
+static void bm_strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands), Key *UNUSED(key),
+                                   struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *UNUSED(emitter_bvhtree),
+                                   StrandIterator *it_strand)
 {
 	int numverts = BM_strands_keys_count(root);
 	
@@ -445,6 +447,188 @@ static void strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands
 	}
 }
 
+/**
+ * returns customdata shapekey index from a keyblock or -1
+ * \note could split this out into a more generic function */
+static int bm_shape_layer_index_from_kb(BMesh *bm, KeyBlock *currkey)
+{
+	int i;
+	int j = 0;
+
+	for (i = 0; i < bm->vdata.totlayer; i++) {
+		if (bm->vdata.layers[i].type == CD_SHAPEKEY) {
+			if (currkey->uid == bm->vdata.layers[i].uid) {
+				return j;
+			}
+			j++;
+		}
+	}
+	return -1;
+}
+
+/* go through and find any shapekey customdata layers
+ * that might not have corresponding KeyBlocks, and add them if
+ * necessary */
+static void bm_strands_add_missing_shapekeys(BMesh *bm, Key *key)
+{
+	KeyBlock *currkey;
+	int i;
+	
+	for (i = 0; i < bm->vdata.totlayer; i++) {
+		const CustomDataLayer *layer = &bm->vdata.layers[i];
+		if (layer->type != CD_SHAPEKEY)
+			continue;
+		
+		for (currkey = key->block.first; currkey; currkey = currkey->next) {
+			if (currkey->uid == layer->uid)
+				break;
+		}
+		
+		if (!currkey) {
+			currkey = BKE_keyblock_add(key, layer->name);
+			currkey->uid = layer->uid;
+		}
+	}
+}
+
+/* returns offset of the edit against the active shape, so other shapes can compensate accordingly to avoid deformation */
+static void bm_strands_get_basiskey_offset(BMesh *bm, Strands *strands, Key *key, int cd_shape_keyindex_offset, float (**r_offset)[3])
+{
+	*r_offset = NULL;
+	
+	/* only need offsets for relative shape keys */
+	if (key->type == KEY_RELATIVE) {
+		
+		KeyBlock *actkey = BLI_findlink(&key->block, bm->shapenr - 1);
+		/* unlikely, but the active key may not be valid if the bmesh and the mesh are out of sync */
+		if (!actkey)
+			return;
+		
+		/* only if active key is a base */
+		if (BKE_keyblock_is_basis(key, bm->shapenr - 1) && cd_shape_keyindex_offset >= 0) {
+			float (*fp)[3] = actkey->data;
+			float (*ofs)[3] = MEM_callocN(sizeof(float) * 3 * bm->totvert,  "currkey->data");
+			BMIter iter;
+			BMVert *eve;
+			StrandsVertex *svert;
+			int i;
+			
+			svert = strands->verts;
+			BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
+				const int keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
+				
+				if (keyi != ORIGINDEX_NONE) {
+					sub_v3_v3v3(ofs[i], svert->co, fp[keyi]);
+				}
+				else {
+					/* if there are new vertices in the mesh, we can't propagate the offset
+					 * because it will only work for the existing vertices and not the new
+					 * ones, creating a mess when doing e.g. subdivide + translate */
+					MEM_freeN(ofs);
+					ofs = NULL;
+					break;
+				}
+				
+				svert++;
+			}
+			
+			*r_offset = ofs;
+		}
+	}
+}
+
+static float *bm_strands_apply_keyblock(BMesh *bm, Strands *strands, StrandsVertex *oldverts, Key *key, int cd_shape_keyindex_offset,
+                                        KeyBlock *kb, KeyBlock *actkb, float (*oldkey)[3], float (*offset)[3])
+{
+	const bool apply_offset = (offset && (kb != actkb) && (bm->shapenr - 1 == kb->relative));
+	const int shape_layer_index = bm_shape_layer_index_from_kb(bm, kb);
+	const int cd_shape_offset = CustomData_get_n_offset(&bm->vdata, CD_SHAPEKEY, shape_layer_index);
+	
+	float *newkey, *fp;
+	BMIter iter;
+	BMVert *eve;
+	StrandsVertex *svert;
+	int keyi;
+	float (*ofs_pt)[3] = offset;
+	
+	fp = newkey = MEM_callocN(key->elemsize * bm->totvert,  "currkey->data");
+	
+	svert = strands->verts;
+	BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
+		
+		if (kb == actkb) {
+			copy_v3_v3(fp, eve->co);
+			
+			if (actkb != key->refkey) { /* important see bug [#30771] */
+				if (cd_shape_keyindex_offset != -1) {
+					if (oldverts) {
+						keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
+						if (keyi != ORIGINDEX_NONE && keyi < kb->totelem) { /* valid old vertex */
+							copy_v3_v3(svert->co, oldverts[keyi].co);
+						}
+					}
+				}
+			}
+		}
+		else if (shape_layer_index != -1) {
+			/* in most cases this runs */
+			copy_v3_v3(fp, BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset));
+		}
+		else if ((oldkey != NULL) &&
+		         (cd_shape_keyindex_offset != -1) &&
+		         ((keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset)) != ORIGINDEX_NONE) &&
+		         (keyi < kb->totelem))
+		{
+			/* old method of reconstructing keys via vertice's original key indices,
+			 * currently used if the new method above fails (which is theoretically
+			 * possible in certain cases of undo) */
+			copy_v3_v3(fp, oldkey[keyi]);
+		}
+		else {
+			/* fail! fill in with dummy value */
+			copy_v3_v3(fp, svert->co);
+		}
+		
+		/* propagate edited basis offsets to other shapes */
+		if (apply_offset) {
+			add_v3_v3(fp, *ofs_pt++);
+		}
+		
+		fp += 3;
+		svert++;
+	}
+	
+	return newkey;
+}
+
+static void bm_strands_apply_shapekeys(BMesh *bm, Strands *strands, StrandsVertex *oldverts, Key *key)
+{
+	const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
+	KeyBlock *actkb = BLI_findlink(&key->block, bm->shapenr - 1);
+	KeyBlock *kb;
+	float (*offset)[3] = NULL;
+
+	bm_strands_add_missing_shapekeys(bm, key);
+
+	if (oldverts)
+		bm_strands_get_basiskey_offset(bm, strands, key, cd_shape_keyindex_offset, &offset);
+	
+	for (kb = key->block.first; kb; kb = kb->next) {
+		float *newkey;
+		
+		newkey = bm_strands_apply_keyblock(bm, strands, oldverts, key, cd_shape_keyindex_offset, kb, actkb, kb->data, offset);
+		
+		kb->totelem = bm->totvert;
+		if (kb->data) {
+			MEM_freeN(kb->data);
+		}
+		kb->data = newkey;
+	}
+	
+	if (offset)
+		MEM_freeN(offset);
+}
+
 Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float mat[4][4], struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
 {
 	Strands *oldstrands;
@@ -468,7 +652,7 @@ Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float m
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		BLI_assert(BKE_strand_iter_valid(&it_strand));
 		
-		strands_make_strand(bm, root, strands, key, emitter_dm, emitter_bvhtree, &it_strand);
+		bm_strands_make_strand(bm, root, strands, key, emitter_dm, emitter_bvhtree, &it_strand);
 		
 		BKE_strand_iter_next(&it_strand);
 	}
@@ -516,142 +700,9 @@ Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float m
 	}
 #endif
 
-#if 0 // TODO
-	/* see comment below, this logic is in twice */
-
-	if (me->key) {
-		const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
-
-		KeyBlock *currkey;
-		KeyBlock *actkey = BLI_findlink(&me->key->block, bm->shapenr - 1);
-
-		float (*ofs)[3] = NULL;
-
-		/* go through and find any shapekey customdata layers
-		 * that might not have corresponding KeyBlocks, and add them if
-		 * necessary */
-		j = 0;
-		for (i = 0; i < bm->vdata.totlayer; i++) {
-			if (bm->vdata.layers[i].type != CD_SHAPEKEY)
-				continue;
-
-			for (currkey = me->key->block.first; currkey; currkey = currkey->next) {
-				if (currkey->uid == bm->vdata.layers[i].uid)
-					break;
-			}
-
-			if (!currkey) {
-				currkey = BKE_keyblock_add(me->key, bm->vdata.layers[i].name);
-				currkey->uid = bm->vdata.layers[i].uid;
-			}
-
-			j++;
-		}
-
-
-		/* editing the base key should update others */
-		if ((me->key->type == KEY_RELATIVE) && /* only need offsets for relative shape keys */
-		    (actkey != NULL) &&                /* unlikely, but the active key may not be valid if the
-		                                        * bmesh and the mesh are out of sync */
-		    (oldverts != NULL))                /* not used here, but 'oldverts' is used later for applying 'ofs' */
-		{
-			const bool act_is_basis = BKE_keyblock_is_basis(me->key, bm->shapenr - 1);
-
-			/* active key is a base */
-			if (act_is_basis && (cd_shape_keyindex_offset != -1)) {
-				float (*fp)[3] = actkey->data;
-
-				ofs = MEM_callocN(sizeof(float) * 3 * bm->totvert,  "currkey->data");
-				mvert = me->mvert;
-				BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
-					const int keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
-
-					if (keyi != ORIGINDEX_NONE) {
-						sub_v3_v3v3(ofs[i], mvert->co, fp[keyi]);
-					}
-					else {
-						/* if there are new vertices in the mesh, we can't propagate the offset
-						 * because it will only work for the existing vertices and not the new
-						 * ones, creating a mess when doing e.g. subdivide + translate */
-						MEM_freeN(ofs);
-						ofs = NULL;
-						break;
-					}
-
-					mvert++;
-				}
-			}
-		}
-
-		for (currkey = me->key->block.first; currkey; currkey = currkey->next) {
-			const bool apply_offset = (ofs && (currkey != actkey) && (bm->shapenr - 1 == currkey->relative));
-			int cd_shape_offset;
-			int keyi;
-			float (*ofs_pt)[3] = ofs;
-			float *newkey, (*oldkey)[3], *fp;
-
-			j = bm_to_mesh_shape_layer_index_from_kb(bm, currkey);
-			cd_shape_offset = CustomData_get_n_offset(&bm->vdata, CD_SHAPEKEY, j);
-
-
-			fp = newkey = MEM_callocN(me->key->elemsize * bm->totvert,  "currkey->data");
-			oldkey = currkey->data;
-
-			mvert = me->mvert;
-			BM_ITER_MESH (eve, &iter, bm, BM_VERTS_OF_MESH) {
-
-				if (currkey == actkey) {
-					copy_v3_v3(fp, eve->co);
-
-					if (actkey != me->key->refkey) { /* important see bug [#30771] */
-						if (cd_shape_keyindex_offset != -1) {
-							if (oldverts) {
-								keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
-								if (keyi != ORIGINDEX_NONE && keyi < currkey->totelem) { /* valid old vertex */
-									copy_v3_v3(mvert->co, oldverts[keyi].co);
-								}
-							}
-						}
-					}
-				}
-				else if (j != -1) {
-					/* in most cases this runs */
-					copy_v3_v3(fp, BM_ELEM_CD_GET_VOID_P(eve, cd_shape_offset));
-				}
-				else if ((oldkey != NULL) &&
-				         (cd_shape_keyindex_offset != -1) &&
-				         ((keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset)) != ORIGINDEX_NONE) &&
-				         (keyi < currkey->totelem))
-				{
-					/* old method of reconstructing keys via vertice's original key indices,
-					 * currently used if the new method above fails (which is theoretically
-					 * possible in certain cases of undo) */
-					copy_v3_v3(fp, oldkey[keyi]);
-				}
-				else {
-					/* fail! fill in with dummy value */
-					copy_v3_v3(fp, mvert->co);
-				}
-
-				/* propagate edited basis offsets to other shapes */
-				if (apply_offset) {
-					add_v3_v3(fp, *ofs_pt++);
-				}
-
-				fp += 3;
-				mvert++;
-			}
-
-			currkey->totelem = bm->totvert;
-			if (currkey->data) {
-				MEM_freeN(currkey->data);
-			}
-			currkey->data = newkey;
-		}
-
-		if (ofs) MEM_freeN(ofs);
+	if (key) {
+		bm_strands_apply_shapekeys(bm, strands, oldstrands ? oldstrands->verts : NULL, key);
 	}
-#endif
 
 	if (oldstrands) {
 		BKE_strands_free(oldstrands);
@@ -729,7 +780,7 @@ static void bm_make_particles(BMesh *bm, Object *ob, ParticleSystem *psys, struc
 //	KeyBlock *block;
 	ParticleData *pa;
 	HairKey *hkey;
-	int p, k, j;
+	int p, k;
 	
 	int vindex, eindex;
 	BMVert *v = NULL, *v_prev;
