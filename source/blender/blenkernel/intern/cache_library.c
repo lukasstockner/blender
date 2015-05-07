@@ -1368,6 +1368,19 @@ bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_
 	return false;
 }
 
+bool BKE_cache_library_uses_key(CacheLibrary *cachelib, Key *key)
+{
+	CacheModifier *md;
+	for (md = cachelib->modifiers.first; md; md = md->next) {
+		if (md->type == eCacheModifierType_StrandsKey) {
+			StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
+			if (skmd->key == key)
+				return true;
+		}
+	}
+	return false;
+}
+
 void BKE_cache_modifier_init(void)
 {
 	cache_modifier_type_set(eCacheModifierType_HairSimulation, &cacheModifierType_HairSimulation);
