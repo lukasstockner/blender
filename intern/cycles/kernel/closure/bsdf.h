@@ -35,7 +35,7 @@
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ccl_addr_space ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
+ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, float randu, float randv, float3 *eval, float3 *omega_in, differential3 *domega_in, float *pdf)
 {
 	int label;
 
@@ -130,7 +130,7 @@ ccl_device int bsdf_sample(KernelGlobals *kg, const ShaderData *sd, const ccl_ad
 	return label;
 }
 
-ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ccl_addr_space ShaderClosure *sc, const float3 omega_in, float *pdf)
+ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ShaderClosure *sc, const float3 omega_in, float *pdf)
 {
 	float3 eval;
 
@@ -273,7 +273,7 @@ ccl_device float3 bsdf_eval(KernelGlobals *kg, const ShaderData *sd, const ccl_a
 	return eval;
 }
 
-ccl_device void bsdf_blur(KernelGlobals *kg, ccl_addr_space ShaderClosure *sc, float roughness)
+ccl_device void bsdf_blur(KernelGlobals *kg, ShaderClosure *sc, float roughness)
 {
 /* ToDo: do we want to blur volume closures? */
 

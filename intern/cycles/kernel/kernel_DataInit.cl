@@ -146,8 +146,8 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 	ccl_global float3 *dPdv_sd,
 	ccl_global float3 *dPdv_sd_DL_shadow,
 	#endif
-	ccl_global ShaderClosure *closure_sd,
-	ccl_global ShaderClosure *closure_sd_DL_shadow,
+	ShaderClosure *closure_sd,
+	ShaderClosure *closure_sd_DL_shadow,
 
 	ccl_global int *num_closure_sd,
 	ccl_global int *num_closure_sd_DL_shadow,

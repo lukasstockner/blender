@@ -567,7 +567,7 @@ typedef enum AttributeStandard {
  *   does not put own padding trying to align this members.
  * - We make sure OSL pointer is also 16 bytes aligned.
  */
-typedef struct ShaderClosure {
+typedef ccl_addr_space struct ShaderClosure {
 	float3 weight;
 	float3 N;
 	float3 T;
@@ -655,7 +655,7 @@ struct KernelGlobals;
 
 #ifdef __SPLIT_KERNEL__
 #define SD_VAR(type, what) ccl_global type *what;
-#define SD_CLOSURE_VAR(type, what, max_closure) ccl_global type *what;
+#define SD_CLOSURE_VAR(type, what, max_closure) type *what;
 #define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
 #define sd_fetch(t) (sd->t[TIDX])
 #define sc_fetch(index) (&sd->closure[TIDX * MAX_CLOSURE + index])
