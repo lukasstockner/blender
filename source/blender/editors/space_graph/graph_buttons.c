@@ -930,12 +930,12 @@ static void graph_panel_modifiers(const bContext *C, Panel *pa)
 /* ******************* Others ************************ */
 
 /* Graph Editor Backdrop Settings */
-static void graph_panel_backdrop(const bContext *C, Panel *UNUSED(pa))
+static void UNUSED_FUNCTION(graph_panel_backdrop)(const bContext *C, Panel *UNUSED(pa))
 {
 	bScreen *sc = CTX_wm_screen(C);
 	SpaceIpo *sipo = CTX_wm_space_graph(C);
 	PointerRNA spaceptr;
-	uiLayout *col;
+	// uiLayout *col;
 
 	/* get RNA pointers for use when creating the UI elements */
 	RNA_pointer_create(&sc->id, &RNA_SpaceGraphEditor, sipo, &spaceptr);

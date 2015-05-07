@@ -1124,7 +1124,7 @@ static void make_particle_hair(BMesh *bm, BMVert *root, Object *ob, ParticleSyst
 void BM_strands_bm_to_psys(BMesh *bm, Object *ob, ParticleSystem *psys, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
 {
 	ParticleData *particles, *oldparticles;
-	int ototpart, ototkey, ntotpart;
+	int ototpart /*, ototkey*/, ntotpart;
 	
 	BMVert *root;
 	BMIter iter;
@@ -1132,7 +1132,7 @@ void BM_strands_bm_to_psys(BMesh *bm, Object *ob, ParticleSystem *psys, struct D
 	int p;
 	
 	ototpart = psys->totpart;
-	ototkey = BM_strands_count_psys_keys(psys);
+	// ototkey = BM_strands_count_psys_keys(psys);
 	
 	ntotpart = BM_strands_count(bm);
 	

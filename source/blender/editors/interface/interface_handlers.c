@@ -6311,7 +6311,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 
 	{   /* Docs */
 		char buf[512];
-		PointerRNA ptr_props;
+		// PointerRNA ptr_props;
 
 		if (UI_but_online_manual_id(but, buf, sizeof(buf))) {
 			uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Online Manual"),
