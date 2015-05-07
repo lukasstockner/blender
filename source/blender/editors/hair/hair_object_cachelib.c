@@ -68,7 +68,7 @@ bool ED_hair_object_init_cache_edit(Object *ob)
 		return false;
 	
 	if (!skmd->edit) {
-		BMesh *bm = BKE_cache_strands_to_bmesh(strands, skmd->key, mat, skmd->shapenr - 1, dm);
+		BMesh *bm = BKE_cache_strands_to_bmesh(strands, skmd->key, mat, skmd->shapenr, dm);
 		
 		skmd->edit = BKE_editstrands_create(bm, dm, mat);
 	}
