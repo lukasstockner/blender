@@ -1814,10 +1814,9 @@ public:
 		/* Set svm_build_options */
 		svm_build_options += " -D__NODES_MAX_GROUP__=" + string_printf("%d", requested_features.max_nodes_group);
 		svm_build_options += " -D__NODES_FEATURES__=" + string_printf("%d", requested_features.nodes_features);
+
 		/* Set max closure build option */
-#ifdef __MULTI_CLOSURE__
-		max_closure_build_option += string_printf("-DMAX_CLOSURE=%d ", max_closure);
-#endif
+		max_closure_build_option += string_printf("-D__MAX_CLOSURE__=%d ", max_closure);
 
 		/* Set compute device build option */
 		cl_device_type device_type;
@@ -2338,12 +2337,10 @@ public:
 		/* Allocate all required global memory once */
 		if(first_tile) {
 			size_t num_global_elements = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
-
-#ifdef __MULTI_CLOSURE__
+			/* TODO(sergey): This will actually over-allocate if
+			 * particular kernel does not support multiclosure.
+			 */
 			size_t ShaderClosure_size = get_shader_closure_size(current_clos_max);
-#else
-			size_t ShaderClosure_size = get_shader_closure_size(MAX_CLOSURE);
-#endif
 
 #ifdef __WORK_STEALING__
 			/* Calculate max groups */
@@ -2916,11 +2913,11 @@ public:
 		size_t shader_closure_size = 0;
 		size_t shaderdata_volume = 0;
 
-#ifdef __MULTI_CLOSURE__
 		shader_closure_size = get_shader_closure_size(current_clos_max);
-#else
-		shader_closure_size = get_shader_closure_size(MAX_CLOSURE);
-#endif
+
+		/* TODO(sergey): This will actually over-allocate if
+		 * particular kernel does not support multiclosure.
+		 */
 		shaderdata_volume = get_shader_data_size(shader_closure_size);
 
 		size_t retval = rng_size + throughput_size + L_transparent_size + rayState_size + work_element_size

@@ -555,9 +555,11 @@ typedef enum AttributeStandard {
 /* Closure data */
 
 #ifdef __MULTI_CLOSURE__
-#ifndef MAX_CLOSURE
-#define MAX_CLOSURE 64
-#endif
+#  ifndef __MAX_CLOSURE__
+#     define MAX_CLOSURE 64
+#  else
+#    define MAX_CLOSURE __MAX_CLOSURE__
+#  endif
 #else
 #define MAX_CLOSURE 1
 #endif
