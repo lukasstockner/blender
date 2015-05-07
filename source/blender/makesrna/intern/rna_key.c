@@ -48,10 +48,12 @@
 
 #include <stddef.h>
 
+#include "DNA_cache_library_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_cache_library.h"
 #include "BKE_depsgraph.h"
 #include "BKE_key.h"
 #include "BKE_main.h"
@@ -376,6 +378,7 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 {
 	Key *key = ptr->id.data;
 	Object *ob;
+	CacheLibrary *cachelib;
 
 	switch (key->from_extra.type) {
 	case KEY_OWNER_MESH:
@@ -400,6 +403,13 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 			}
 		}
 		break;
+	}
+	
+	for (cachelib = bmain->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+		if (BKE_cache_library_uses_key(cachelib, key)) {
+			DAG_id_tag_update(&cachelib->id, OB_RECALC_DATA);
+			WM_main_add_notifier(NC_WINDOW, NULL);
+		}
 	}
 }
 

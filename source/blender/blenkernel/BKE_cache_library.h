@@ -51,6 +51,7 @@ struct CacheProcessData;
 struct BVHTreeFromMesh;
 struct Strands;
 struct StrandsKeyCacheModifier;
+struct Key;
 struct KeyBlock;
 
 struct ClothModifierData;
@@ -182,6 +183,7 @@ bool BKE_cache_modifier_find_strands(struct DupliCache *dupcache, struct Object 
 struct KeyBlock *BKE_cache_modifier_strands_key_insert_key(struct StrandsKeyCacheModifier *md, struct Strands *strands, const char *name, const bool from_mix);
 bool BKE_cache_modifier_strands_key_get(struct Object *ob, struct StrandsKeyCacheModifier **r_skmd, struct DerivedMesh **r_dm, struct Strands **r_strands,
                                         struct DupliObjectData **r_dobdata, const char **r_name, float r_mat[4][4]);
+bool BKE_cache_library_uses_key(struct CacheLibrary *cachelib, struct Key *key);
 
 /* ========================================================================= */
 
