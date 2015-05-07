@@ -1919,47 +1919,47 @@ public:
 		current_clos_max = max_closure;
 
 		/* find kernels */
-		ckPathTraceKernel_DataInit = clCreateKernel(dataInit_program, "kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_DataInit = clCreateKernel(dataInit_program, "kernel_ocl_path_trace_data_initialization", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_SceneIntersect = clCreateKernel(sceneIntersect_program, "kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_SceneIntersect = clCreateKernel(sceneIntersect_program, "kernel_ocl_path_trace_SceneIntersect", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_LampEmission = clCreateKernel(lampEmission_program, "kernel_ocl_path_trace_LampEmission_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_LampEmission = clCreateKernel(lampEmission_program, "kernel_ocl_path_trace_LampEmission", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_QueueEnqueue = clCreateKernel(QueueEnqueue_program, "kernel_ocl_path_trace_QueueEnqueue_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_QueueEnqueue = clCreateKernel(QueueEnqueue_program, "kernel_ocl_path_trace_QueueEnqueue", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_BG_BufferUpdate = clCreateKernel(background_BufferUpdate_program, "kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_BG_BufferUpdate = clCreateKernel(background_BufferUpdate_program, "kernel_ocl_path_trace_Background_BufferUpdate", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_Shader_Lighting = clCreateKernel(shaderEval_program, "kernel_ocl_path_trace_ShaderEvaluation_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_Shader_Lighting = clCreateKernel(shaderEval_program, "kernel_ocl_path_trace_ShaderEvaluation", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO = clCreateKernel(holdout_emission_blurring_termination_ao_program, "kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO = clCreateKernel(holdout_emission_blurring_termination_ao_program, "kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_DirectLighting = clCreateKernel(directLighting_program, "kernel_ocl_path_trace_DirectLighting_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_DirectLighting = clCreateKernel(directLighting_program, "kernel_ocl_path_trace_DirectLighting", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_ShadowBlocked_DirectLighting = clCreateKernel(shadowBlocked_program, "kernel_ocl_path_trace_ShadowBlocked_DirectLighting_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_ShadowBlocked_DirectLighting = clCreateKernel(shadowBlocked_program, "kernel_ocl_path_trace_ShadowBlocked_DirectLighting", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_SetUpNextIteration = clCreateKernel(nextIterationSetUp_program, "kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_SetUpNextIteration = clCreateKernel(nextIterationSetUp_program, "kernel_ocl_path_trace_SetupNextIteration", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
-		ckPathTraceKernel_SumAllRadiance = clCreateKernel(sumAllRadiance_program, "kernel_ocl_path_trace_SumAllRadiance_SPLIT_KERNEL", &ciErr);
+		ckPathTraceKernel_SumAllRadiance = clCreateKernel(sumAllRadiance_program, "kernel_ocl_path_trace_SumAllRadiance", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 

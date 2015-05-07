@@ -16,7 +16,7 @@
 
 #include "kernel_split.h"
 
-ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
+ccl_device_inline void kernel_path_trace_setup(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
 {
 	float filter_u;
 	float filter_v;
@@ -42,7 +42,7 @@ ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, c
 }
 
 /*
- * Note on kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL kernel.
+ * Note on kernel_ocl_path_trace_Background_BufferUpdate kernel.
  * This is the fourth kernel in the ray tracing logic, and the third
  * of the path iteration kernels. This kernel takes care of rays that hit
  * the background (sceneintersect kernel), and for the rays of
@@ -58,30 +58,30 @@ ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, c
  *
  * The input and output are as follows,
  *
- * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL ---|--- PathRadiance_coop
- * throughput_coop --------------------------------------|                                                                  |--- L_transparent_coop
- * per_sample_output_buffers ----------------------------|                                                                  |--- per_sample_output_buffers
- * Ray_coop ---------------------------------------------|                                                                  |--- ray_state
- * PathState_coop ---------------------------------------|                                                                  |--- Queue_data (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
- * L_transparent_coop -----------------------------------|                                                                  |--- Queue_data (QUEUE_ACTIVE_AND_REGENERATED_RAYS)
- * ray_state --------------------------------------------|                                                                  |--- Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
- * Queue_data (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS) ----|                                                                  |--- Queue_index (QUEUE_ACTIVE_AND_REGENERATED_RAYS)
- * Queue_index (QUEUE_ACTIVE_AND_REGENERATED_RAYS) ------|                                                                  |--- work_array
- * parallel_samples -------------------------------------|                                                                  |--- PathState_coop
- * end_sample -------------------------------------------|                                                                  |--- throughput_coop
- * kg (globals + data) ----------------------------------|                                                                  |--- rng_coop
- * rng_state --------------------------------------------|                                                                  |--- Ray
- * PathRadiance_coop ------------------------------------|                                                                  |
- * sw ---------------------------------------------------|                                                                  |
- * sh ---------------------------------------------------|                                                                  |
- * sx ---------------------------------------------------|                                                                  |
- * sy ---------------------------------------------------|                                                                  |
- * stride -----------------------------------------------|                                                                  |
- * work_array -------------------------------------------|                                                                  |--- work_array
- * queuesize --------------------------------------------|                                                                  |
- * start_sample -----------------------------------------|                                                                  |--- work_pool_wgs
- * work_pool_wgs ----------------------------------------|                                                                  |
- * num_samples ------------------------------------------|                                                                  |
+ * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_Background_BufferUpdate ---|--- PathRadiance_coop
+ * throughput_coop --------------------------------------|                                                     |--- L_transparent_coop
+ * per_sample_output_buffers ----------------------------|                                                     |--- per_sample_output_buffers
+ * Ray_coop ---------------------------------------------|                                                     |--- ray_state
+ * PathState_coop ---------------------------------------|                                                     |--- Queue_data (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
+ * L_transparent_coop -----------------------------------|                                                     |--- Queue_data (QUEUE_ACTIVE_AND_REGENERATED_RAYS)
+ * ray_state --------------------------------------------|                                                     |--- Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
+ * Queue_data (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS) ----|                                                     |--- Queue_index (QUEUE_ACTIVE_AND_REGENERATED_RAYS)
+ * Queue_index (QUEUE_ACTIVE_AND_REGENERATED_RAYS) ------|                                                     |--- work_array
+ * parallel_samples -------------------------------------|                                                     |--- PathState_coop
+ * end_sample -------------------------------------------|                                                     |--- throughput_coop
+ * kg (globals + data) ----------------------------------|                                                     |--- rng_coop
+ * rng_state --------------------------------------------|                                                     |--- Ray
+ * PathRadiance_coop ------------------------------------|                                                     |
+ * sw ---------------------------------------------------|                                                     |
+ * sh ---------------------------------------------------|                                                     |
+ * sx ---------------------------------------------------|                                                     |
+ * sy ---------------------------------------------------|                                                     |
+ * stride -----------------------------------------------|                                                     |
+ * work_array -------------------------------------------|                                                     |--- work_array
+ * queuesize --------------------------------------------|                                                     |
+ * start_sample -----------------------------------------|                                                     |--- work_pool_wgs
+ * work_pool_wgs ----------------------------------------|                                                     |
+ * num_samples ------------------------------------------|                                                     |
  *
  * note on shader_data : shader_data argument is neither an input nor an output for this kernel. It is just filled and consumed here itself.
  * Note on Queues :
@@ -95,7 +95,7 @@ ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, c
  * QUEUE_ACTIVE_AND_REGENERATED_RAYS will be filled with RAY_ACTIVE and RAY_REGENERATED rays
  * QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be empty
  */
-__kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
+__kernel void kernel_ocl_path_trace_Background_BufferUpdate(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
 	ccl_global char *shader_data,
@@ -272,7 +272,7 @@ __kernel void kernel_ocl_path_trace_Background_BufferUpdate_SPLIT_KERNEL(
 #endif
 
 				/* initialize random numbers and ray */
-				kernel_path_trace_setup_SPLIT_KERNEL(kg, rng_state, sample, pixel_x, pixel_y, rng, ray);
+				kernel_path_trace_setup(kg, rng_state, sample, pixel_x, pixel_y, rng, ray);
 
 				if(ray->t != 0.0f) {
 					/* Initialize throughput, L_transparent, Ray, PathState; These rays proceed with path-iteration*/

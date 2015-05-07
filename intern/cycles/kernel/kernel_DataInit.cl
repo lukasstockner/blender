@@ -16,7 +16,7 @@
 
 #include "kernel_split.h"
 
-ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
+ccl_device_inline void kernel_path_trace_setup(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int x, int y, ccl_addr_space RNG *rng, ccl_addr_space Ray *ray)
 {
 	float filter_u;
 	float filter_v;
@@ -43,7 +43,7 @@ ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, c
 }
 
 /*
- * Note on kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL kernel
+ * Note on kernel_ocl_path_trace_data_initialization kernel
  * This kernel Initializes structures needed in path-iteration kernels.
  * This is the first kernel in ray-tracing logic.
  *
@@ -51,33 +51,33 @@ ccl_device_inline void kernel_path_trace_setup_SPLIT_KERNEL(KernelGlobals *kg, c
  *
  * Its input and output are as follows,
  *
- * Un-initialized rng---------------|--- kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL ---|--- Initialized rng
- * Un-initialized throughput -------|                                                              |--- Initialized throughput
- * Un-initialized L_transparent ----|                                                              |--- Initialized L_transparent
- * Un-initialized PathRadiance -----|                                                              |--- Initialized PathRadiance
- * Un-initialized Ray --------------|                                                              |--- Initialized Ray
- * Un-initialized PathState --------|                                                              |--- Initialized PathState
- * Un-initialized QueueData --------|                                                              |--- Initialized QueueData (to QUEUE_EMPTY_SLOT)
- * Un-initilaized QueueIndex -------|                                                              |--- Initialized QueueIndex (to 0)
- * Un-initialized use_queues_flag---|                                                              |--- Initialized use_queues_flag (to false)
- * Un-initialized ray_state --------|                                                              |--- Initialized ray_state
- * parallel_samples --------------- |                                                              |--- Initialized per_sample_output_buffers
- * rng_state -----------------------|                                                              |--- Initialized work_array
- * data ----------------------------|                                                              |--- Initialized work_pool_wgs
- * start_sample --------------------|                                                              |
- * sx ------------------------------|                                                              |
- * sy ------------------------------|                                                              |
- * sw ------------------------------|                                                              |
- * sh ------------------------------|                                                              |
- * stride --------------------------|                                                              |
- * queuesize -----------------------|                                                              |
- * num_samples ---------------------|                                                              |
+ * Un-initialized rng---------------|--- kernel_ocl_path_trace_data_initialization ---|--- Initialized rng
+ * Un-initialized throughput -------|                                                 |--- Initialized throughput
+ * Un-initialized L_transparent ----|                                                 |--- Initialized L_transparent
+ * Un-initialized PathRadiance -----|                                                 |--- Initialized PathRadiance
+ * Un-initialized Ray --------------|                                                 |--- Initialized Ray
+ * Un-initialized PathState --------|                                                 |--- Initialized PathState
+ * Un-initialized QueueData --------|                                                 |--- Initialized QueueData (to QUEUE_EMPTY_SLOT)
+ * Un-initilaized QueueIndex -------|                                                 |--- Initialized QueueIndex (to 0)
+ * Un-initialized use_queues_flag---|                                                 |--- Initialized use_queues_flag (to false)
+ * Un-initialized ray_state --------|                                                 |--- Initialized ray_state
+ * parallel_samples --------------- |                                                 |--- Initialized per_sample_output_buffers
+ * rng_state -----------------------|                                                 |--- Initialized work_array
+ * data ----------------------------|                                                 |--- Initialized work_pool_wgs
+ * start_sample --------------------|                                                 |
+ * sx ------------------------------|                                                 |
+ * sy ------------------------------|                                                 |
+ * sw ------------------------------|                                                 |
+ * sh ------------------------------|                                                 |
+ * stride --------------------------|                                                 |
+ * queuesize -----------------------|                                                 |
+ * num_samples ---------------------|                                                 |
  *
  * Note on Queues :
  * All slots in queues are initialized to queue empty slot;
  * The number of elements in the queues is initialized to 0;
  */
-__kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
+__kernel void kernel_ocl_path_trace_data_initialization(
 	ccl_global char *globals,
 	ccl_global char *shader_data_sd,                  /* Arguments related to ShaderData */
 	ccl_global char *shader_data_sd_DL_shadow,     /* Arguments related to ShaderData */
@@ -379,7 +379,7 @@ __kernel void kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL(
 		}
 
 		/* initialize random numbers and ray */
-		kernel_path_trace_setup_SPLIT_KERNEL(kg, rng_state, my_sample, pixel_x, pixel_y, &rng_coop[ray_index], &Ray_coop[ray_index]);
+		kernel_path_trace_setup(kg, rng_state, my_sample, pixel_x, pixel_y, &rng_coop[ray_index], &Ray_coop[ray_index]);
 
 		if(Ray_coop[ray_index].t != 0.0f) {
 			/* Initialize throuput, L_transparent, Ray, PathState; These rays proceed with path-iteration*/

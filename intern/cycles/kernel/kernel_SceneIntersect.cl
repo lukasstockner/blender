@@ -17,7 +17,7 @@
 #include "kernel_split.h"
 
 /*
- * Note on kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL kernel.
+ * Note on kernel_ocl_path_trace_SceneIntersect kernel.
  * This is the second kernel in the ray tracing logic. This is the first
  * of the path iteration kernels. This kernel takes care of scene_intersect function.
  *
@@ -40,7 +40,7 @@
  * queuesize --------------------------------------|                                                         |
  *
  * Note on Queues :
- * Ideally we would want kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL to work on queues.
+ * Ideally we would want kernel_ocl_path_trace_SceneIntersect to work on queues.
  * But during the very first time, the queues wil be empty and hence we perform a direct mapping
  * between ray-index and thread-index; From the next time onward, the queue will be filled and
  * we may start operating on queues.
@@ -63,7 +63,7 @@
  * QUEUE_HITBF_BUFF_UPDATE_TOREGEN_RAYS - no change
  */
 
-__kernel void kernel_ocl_path_trace_SceneIntersect_SPLIT_KERNEL(
+__kernel void kernel_ocl_path_trace_SceneIntersect(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
 	ccl_global uint *rng_coop,

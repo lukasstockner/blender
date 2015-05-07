@@ -25,7 +25,7 @@
 * by all different samples and stores them in the RenderTile's output buffer.
 */
 
-__kernel void kernel_ocl_path_trace_SumAllRadiance_SPLIT_KERNEL(
+__kernel void kernel_ocl_path_trace_SumAllRadiance(
 	ccl_constant KernelData *data,               /* To get pass_stride to offet into buffer */
 	ccl_global float *buffer,                    /* Output buffer of RenderTile */
 	ccl_global float *per_sample_output_buffer,  /* Radiance contributed by all samples */

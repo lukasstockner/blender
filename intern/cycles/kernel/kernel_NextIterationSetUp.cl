@@ -17,7 +17,7 @@
 #include "kernel_split.h"
 
 /*
- * Note on kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL kernel.
+ * Note on kernel_ocl_path_trace_SetupNextIteration kernel.
  * This is the tenth kernel in the ray tracing logic. This is the ninth
  * of the path iteration kernels. This kernel takes care of setting up
  * Ray for the next iteration of path-iteration and accumulating radiance
@@ -27,16 +27,16 @@
  *
  * The input and output are as follows,
  *
- * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL ---|--- Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
- * throughput_coop --------------------------------------|                                                             |--- Queue_data (QUEUE_HITBF_BUFF_UPDATE_TOREGEN_RAYS)
- * PathRadiance_coop ------------------------------------|                                                             |--- throughput_coop
- * PathState_coop ---------------------------------------|                                                             |--- PathRadiance_coop
- * shader_data ------------------------------------------|                                                             |--- PathState_coop
- * ray_state --------------------------------------------|                                                             |--- ray_state
- * Queue_data (QUEUE_ACTIVE_AND_REGENERATD_RAYS) --------|                                                             |--- Ray_coop
- * Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS) ---|                                                             |--- use_queues_flag
- * Ray_coop ---------------------------------------------|                                                             |
- * kg (globals + data) ----------------------------------|                                                             |
+ * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_SetupNextIteration ---|--- Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
+ * throughput_coop --------------------------------------|                                                |--- Queue_data (QUEUE_HITBF_BUFF_UPDATE_TOREGEN_RAYS)
+ * PathRadiance_coop ------------------------------------|                                                |--- throughput_coop
+ * PathState_coop ---------------------------------------|                                                |--- PathRadiance_coop
+ * shader_data ------------------------------------------|                                                |--- PathState_coop
+ * ray_state --------------------------------------------|                                                |--- ray_state
+ * Queue_data (QUEUE_ACTIVE_AND_REGENERATD_RAYS) --------|                                                |--- Ray_coop
+ * Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS) ---|                                                |--- use_queues_flag
+ * Ray_coop ---------------------------------------------|                                                |
+ * kg (globals + data) ----------------------------------|                                                |
  * LightRay_dl_coop -------------------------------------|
  * ISLamp_coop ------------------------------------------|
  * BSDFEval_coop ----------------------------------------|
@@ -61,7 +61,7 @@
  * QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be filled with RAY_TO_REGENERATE and more RAY_UPDATE_BUFFER rays
  */
 
-__kernel void kernel_ocl_path_trace_SetupNextIteration_SPLIT_KERNEL(
+__kernel void kernel_ocl_path_trace_SetupNextIteration(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
 	ccl_global char *shader_data,				/* Required for setting up ray for next iteration */
