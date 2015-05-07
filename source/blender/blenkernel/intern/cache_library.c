@@ -920,6 +920,8 @@ static void hairsim_free(HairSimCacheModifier *hsmd)
 static void hairsim_foreach_id_link(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
 {
 	walk(userdata, cachelib, &hsmd->modifier, (ID **)(&hsmd->object));
+	if (hsmd->sim_params.effector_weights)
+		walk(userdata, cachelib, &hsmd->modifier, (ID **)(&hsmd->sim_params.effector_weights->group));
 }
 
 static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, eCacheLibrary_EvalMode UNUSED(eval_mode))
