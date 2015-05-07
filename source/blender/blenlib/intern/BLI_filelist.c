@@ -240,7 +240,7 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
  *
  */
 void BLI_filelist_entry_size_to_string(
-        struct stat *st, const uint64_t sz, const bool compact, char r_size[static FILELIST_DIRENTRY_SIZE_LEN])
+        struct stat *st, const uint64_t sz, const bool compact, char r_size[FILELIST_DIRENTRY_SIZE_LEN])
 {
 	double size;
 	const char *fmt;
@@ -276,8 +276,8 @@ void BLI_filelist_entry_size_to_string(
  *
  */
 void BLI_filelist_entry_mode_to_string(
-        struct stat *st, const bool UNUSED(compact), char r_mode1[static FILELIST_DIRENTRY_MODE_LEN],
-        char r_mode2[static FILELIST_DIRENTRY_MODE_LEN], char r_mode3[static FILELIST_DIRENTRY_MODE_LEN])
+        struct stat *st, const bool UNUSED(compact), char r_mode1[FILELIST_DIRENTRY_MODE_LEN],
+        char r_mode2[FILELIST_DIRENTRY_MODE_LEN], char r_mode3[FILELIST_DIRENTRY_MODE_LEN])
 {
 	const char *types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
 
@@ -313,7 +313,7 @@ void BLI_filelist_entry_mode_to_string(
  *
  */
 void BLI_filelist_entry_owner_to_string(
-        struct stat *st, const bool UNUSED(compact), char r_owner[static FILELIST_DIRENTRY_OWNER_LEN])
+        struct stat *st, const bool UNUSED(compact), char r_owner[FILELIST_DIRENTRY_OWNER_LEN])
 {
 #ifdef WIN32
 	strcpy(r_owner, "unknown");
@@ -334,7 +334,7 @@ void BLI_filelist_entry_owner_to_string(
  */
 void BLI_filelist_entry_datetime_to_string(
         struct stat *st, const int64_t ts, const bool compact,
-        char r_time[static FILELIST_DIRENTRY_TIME_LEN], char r_date[static FILELIST_DIRENTRY_DATE_LEN])
+        char r_time[FILELIST_DIRENTRY_TIME_LEN], char r_date[FILELIST_DIRENTRY_DATE_LEN])
 {
 	const struct tm *tm = localtime(st ? &st->st_mtime : &ts);
 	const time_t zero = 0;
