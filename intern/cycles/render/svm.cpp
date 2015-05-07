@@ -102,6 +102,25 @@ void SVMShaderManager::device_update(Device *device, DeviceScene *dscene, Scene 
 		}
 	}
 
+	/* TODO(sergey): Move this outside of device_update(). */
+	int max_group = NODE_GROUP_LEVEL_0;
+	int features = 0;
+	for(i = 0; i < scene->shaders.size(); i++) {
+		Shader *shader = scene->shaders[i];
+		foreach(ShaderNode *node, shader->graph->nodes) {
+			max_group = min(max_group, node->group_get());
+			features |= node->feature_get();
+			if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
+				BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
+				if(CLOSURE_IS_VOLUME(bsdf_node->closure)) {
+					features |= NODE_FEATURE_VOLUME;
+				}
+			}
+		}
+	}
+	device->nodes_max_group = max_group;
+	device->nodes_features = features;
+
 	dscene->svm_nodes.copy((uint4*)&svm_nodes[0], svm_nodes.size());
 	device->tex_alloc("__svm_nodes", dscene->svm_nodes);
 

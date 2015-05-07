@@ -97,11 +97,16 @@ public:
 	/* statistics */
 	Stats &stats;
 
+	/* TODO(sergey): Move this to RequestedFeatureset argument of
+	 * load_kernels method.
+	 */
 	/* variables/functions used exclusively for split kernel */
 	/* Maximum closure count */
 	int clos_max;
 	/* Get all closure nodes associated with the scene */
 	set<int> closure_nodes;
+	int nodes_max_group;
+	int nodes_features;
 	/* Return background */
 	bool get_background() { return background; }
 

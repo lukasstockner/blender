@@ -1899,7 +1899,8 @@ public:
 				svm_build_options += " -D" + get_node_type_as_string((NodeType)node_iter);
 			}
 		}
-		svm_build_options += " ";
+		svm_build_options += " -D__NODES_MAX_GROUP__=" + string_printf("%d", nodes_max_group);
+		svm_build_options += " -D__NODES_FEATURES__=" + string_printf("%d", nodes_features);
 		/* Set max closure build option */
 #ifdef __MULTI_CLOSURE__
 		max_closure_build_option += string_printf("-DMAX_CLOSURE=%d ", clos_max);

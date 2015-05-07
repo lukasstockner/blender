@@ -46,6 +46,14 @@
 #define ccl_addr_space
 #endif
 
+/* Selective nodes compilation. */
+#ifndef __NODES_MAX_GROUP__
+#  define __NODES_MAX_GROUP__ NODE_GROUP_LEVEL_MAX
+#endif
+#ifndef __NODES_FEATURES__
+#  define __NODES_FEATURES__ NODE_FEATURE_ALL
+#endif
+
 /* no assert in opencl */
 #define kernel_assert(cond)
 
