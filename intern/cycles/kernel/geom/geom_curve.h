@@ -98,7 +98,6 @@ ccl_device float3 curve_attribute_float3(KernelGlobals *kg, const ShaderData *sd
 	}
 }
 
-
 /* Curve thickness */
 
 ccl_device float curve_thickness(KernelGlobals *kg, ShaderData *sd)
@@ -129,7 +128,6 @@ ccl_device float curve_thickness(KernelGlobals *kg, ShaderData *sd)
 /* Curve location for motion pass, linear interpolation between keys and
  * ignoring radius because we do the same for the motion keys */
 
-
 ccl_device float3 curve_motion_center_location(KernelGlobals *kg, ShaderData *sd)
 {
 	float4 curvedata = kernel_tex_fetch(__curves, sd->prim);
@@ -143,7 +141,6 @@ ccl_device float3 curve_motion_center_location(KernelGlobals *kg, ShaderData *sd
 
 	return float4_to_float3(P_curve[1]) * sd->u + float4_to_float3(P_curve[0]) * (1.0f - sd->u);
 }
-
 
 /* Curve tangent normal */
 

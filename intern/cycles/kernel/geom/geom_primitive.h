@@ -22,6 +22,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Generic primitive attribute reading functions */
+
 ccl_device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float *dx, float *dy)
 {
 	if(sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE) {
@@ -43,7 +44,6 @@ ccl_device float primitive_attribute_float(KernelGlobals *kg, const ShaderData *
 		return 0.0f;
 	}
 }
-
 
 ccl_device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int offset, float3 *dx, float3 *dy)
 {
@@ -68,6 +68,7 @@ ccl_device float3 primitive_attribute_float3(KernelGlobals *kg, const ShaderData
 }
 
 /* Default UV coordinate */
+
 ccl_device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
 {
 	AttributeElement elem_uv;
@@ -82,6 +83,7 @@ ccl_device float3 primitive_uv(KernelGlobals *kg, ShaderData *sd)
 }
 
 /* Ptex coordinates */
+
 ccl_device bool primitive_ptex(KernelGlobals *kg, ShaderData *sd, float2 *uv, int *face_id)
 {
 	/* storing ptex data as attributes is not memory efficient but simple for tests */
@@ -102,6 +104,7 @@ ccl_device bool primitive_ptex(KernelGlobals *kg, ShaderData *sd, float2 *uv, in
 }
 
 /* Surface tangent */
+
 ccl_device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
 {
 #ifdef __HAIR__
@@ -134,6 +137,7 @@ ccl_device float3 primitive_tangent(KernelGlobals *kg, ShaderData *sd)
 }
 
 /* Motion vector for motion pass */
+
 ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
 {
 	/* center position */
@@ -224,7 +228,6 @@ ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
 
 	return make_float4(motion_pre.x, motion_pre.y, motion_post.x, motion_post.y);
 }
-
 
 CCL_NAMESPACE_END
 

@@ -41,6 +41,7 @@ enum ObjectVectorTransform {
 };
 
 /* Object to world space transformation */
+
 ccl_device_inline Transform object_fetch_transform(KernelGlobals *kg, int object, enum ObjectTransform type)
 {
 	int offset = object*OBJECT_SIZE + (int)type;
@@ -118,6 +119,7 @@ ccl_device_inline Transform object_fetch_transform_motion_test(KernelGlobals *kg
 #endif
 
 /* Transform position from object to world space */
+
 ccl_device_inline void object_position_transform(KernelGlobals *kg, const ShaderData *sd, float3 *P)
 {
 #ifdef __OBJECT_MOTION__
@@ -140,6 +142,7 @@ ccl_device_inline void object_inverse_position_transform(KernelGlobals *kg, cons
 }
 
 /* Transform normal from world to object space */
+
 ccl_device_inline void object_inverse_normal_transform(KernelGlobals *kg, const ShaderData *sd, float3 *N)
 {
 #ifdef __OBJECT_MOTION__
@@ -151,6 +154,7 @@ ccl_device_inline void object_inverse_normal_transform(KernelGlobals *kg, const 
 }
 
 /* Transform normal from object to world space */
+
 ccl_device_inline void object_normal_transform(KernelGlobals *kg, const ShaderData *sd, float3 *N)
 {
 #ifdef __OBJECT_MOTION__
@@ -162,6 +166,7 @@ ccl_device_inline void object_normal_transform(KernelGlobals *kg, const ShaderDa
 }
 
 /* Transform direction vector from object to world space */
+
 ccl_device_inline void object_dir_transform(KernelGlobals *kg, const ShaderData *sd, float3 *D)
 {
 #ifdef __OBJECT_MOTION__
@@ -173,6 +178,7 @@ ccl_device_inline void object_dir_transform(KernelGlobals *kg, const ShaderData 
 }
 
 /* Transform direction vector from world to object space */
+
 ccl_device_inline void object_inverse_dir_transform(KernelGlobals *kg, const ShaderData *sd, float3 *D)
 {
 #ifdef __OBJECT_MOTION__
@@ -182,6 +188,8 @@ ccl_device_inline void object_inverse_dir_transform(KernelGlobals *kg, const Sha
 	*D = transform_direction(&tfm, *D);
 #endif
 }
+
+/* Object center position */
 
 ccl_device_inline float3 object_location(KernelGlobals *kg, const ShaderData *sd)
 {
@@ -284,6 +292,7 @@ ccl_device_inline void object_motion_info(KernelGlobals *kg, int object, int *nu
 }
 
 /* Pass ID for shader */
+
 ccl_device int shader_pass_id(KernelGlobals *kg, const ShaderData *sd)
 {
 	return kernel_tex_fetch(__shader_flag, (sd_fetch(shader) & SHADER_MASK)*2 + 1);
@@ -414,6 +423,7 @@ ccl_device_inline void qbvh_instance_push(KernelGlobals *kg,
 #endif
 
 /* Transorm ray to exit static object in BVH */
+
 ccl_device_inline void bvh_instance_pop(KernelGlobals *kg, int object, const Ray *ray, float3 *P, float3 *dir, float3 *idir, ccl_addr_space float *t)
 {
 	if(*t != FLT_MAX) {

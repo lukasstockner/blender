@@ -815,7 +815,6 @@ void Session::update_status_time(bool show_pause, bool show_done)
 	string status, substatus;
 
 	if(!params.progressive) {
-
 		bool is_gpu = params.device.type == DEVICE_CUDA || params.device.type == DEVICE_OPENCL;
 		bool is_multidevice = params.device.multi_devices.size() > 1;
 		bool is_cpu = params.device.type == DEVICE_CPU;

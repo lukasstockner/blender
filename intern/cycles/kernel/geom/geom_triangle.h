@@ -23,10 +23,6 @@
 
 CCL_NAMESPACE_BEGIN
 
-
-
-
-
 /* normal on triangle  */
 ccl_device_inline float3 triangle_normal(KernelGlobals *kg, ShaderData *sd)
 {
