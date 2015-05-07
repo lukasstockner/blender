@@ -73,7 +73,7 @@ ccl_device_inline void kernel_write_data_passes(KernelGlobals *kg, ccl_global fl
 
 	if(!(flag & PASS_ALL))
 		return;
-
+	
 	if(!(path_flag & PATH_RAY_SINGLE_PASS_DONE)) {
 		if(!(sd_fetch(flag) & SD_TRANSPARENT) ||
 		   kernel_data.film.pass_alpha_threshold == 0.0f ||
@@ -156,7 +156,7 @@ ccl_device_inline void kernel_write_light_passes(KernelGlobals *kg, ccl_global f
 
 	if(!kernel_data.film.use_light_pass)
 		return;
-
+	
 	if(flag & PASS_DIFFUSE_INDIRECT)
 		kernel_write_pass_float3(buffer + kernel_data.film.pass_diffuse_indirect, sample, L->indirect_diffuse);
 	if(flag & PASS_GLOSSY_INDIRECT)

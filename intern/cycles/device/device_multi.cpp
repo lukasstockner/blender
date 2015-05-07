@@ -94,6 +94,7 @@ public:
 		foreach(SubDevice& sub, devices)
 			if(!sub.device->load_kernels(requested_features))
 				return false;
+
 		return true;
 	}
 

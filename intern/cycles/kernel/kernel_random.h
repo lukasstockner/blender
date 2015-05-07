@@ -73,7 +73,7 @@ ccl_device uint sobol_dimension(KernelGlobals *kg, int index, int dimension)
 	for(uint j = 0; i; i >>= 1, j++)
 		if(i & 1)
 			result ^= kernel_tex_fetch(__sobol_directions, 32*dimension + j);
-
+	
 	return result;
 }
 
@@ -97,7 +97,6 @@ ccl_device uint sobol_lookup(const uint m, const uint frame, const uint ex, cons
 	*y = sobol_shift ^ sobol_result ^ sobol_lower;
 	return index;
 }
-
 
 ccl_device_inline float path_rng_1D(KernelGlobals *kg, ccl_addr_space RNG *rng, int sample, int num_samples, int dimension)
 {
@@ -149,7 +148,6 @@ ccl_device_inline void path_rng_2D(KernelGlobals *kg, ccl_addr_space RNG *rng, i
 		*fy = path_rng_1D(kg, rng, sample, num_samples, dimension + 1);
 	}
 }
-
 
 ccl_device_inline void path_rng_init(KernelGlobals *kg, ccl_global uint *rng_state, int sample, int num_samples, ccl_addr_space RNG *rng, int x, int y, float *fx, float *fy)
 {
@@ -268,7 +266,6 @@ ccl_device_inline float path_state_rng_1D(KernelGlobals *kg, ccl_addr_space RNG 
 	return path_rng_1D(kg, rng, state->sample, state->num_samples, state->rng_offset + dimension);
 }
 
-
 ccl_device_inline float path_state_rng_1D_for_decision(KernelGlobals *kg, ccl_addr_space RNG *rng, const ccl_addr_space PathState *state, int dimension)
 {
 	/* the rng_offset is not increased for transparent bounces. if we do then
@@ -281,7 +278,6 @@ ccl_device_inline float path_state_rng_1D_for_decision(KernelGlobals *kg, ccl_ad
 	int rng_offset = state->rng_offset + state->transparent_bounce*PRNG_BOUNCE_NUM;
 	return path_rng_1D(kg, rng, state->sample, state->num_samples, rng_offset + dimension);
 }
-
 
 ccl_device_inline void path_state_rng_2D(KernelGlobals *kg, ccl_addr_space RNG *rng, const ccl_addr_space PathState *state, int dimension, float *fx, float *fy)
 {

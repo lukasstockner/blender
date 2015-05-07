@@ -520,7 +520,7 @@ ccl_device float lamp_light_pdf(KernelGlobals *kg, const float3 Ng, const float3
 
 	if(cos_pi <= 0.0f)
 		return 0.0f;
-
+	
 	return t*t/cos_pi;
 }
 
@@ -802,7 +802,7 @@ ccl_device float triangle_light_pdf(KernelGlobals *kg,
 
 	if(cos_pi == 0.0f)
 		return 0.0f;
-
+	
 	return t*t*pdf/cos_pi;
 }
 

@@ -86,7 +86,6 @@ typedef ccl_addr_space struct KernelGlobals {
 #define KERNEL_TEX(type, ttype, name) \
 	ccl_global type *name;
 #include "kernel_textures.h"
-
 } KernelGlobals;
 
 #endif

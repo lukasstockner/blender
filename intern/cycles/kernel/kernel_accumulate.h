@@ -176,7 +176,6 @@ ccl_device_inline void path_radiance_init(PathRadiance *L, int use_light_pass)
 #endif
 }
 
-
 ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, ccl_addr_space float3 *throughput,
 	BsdfEval *bsdf_eval, float bsdf_pdf, int bounce, int bsdf_label)
 {
@@ -195,7 +194,7 @@ ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, ccl_addr_space
 			L->path_scatter = bsdf_eval->scatter*value;
 
 			*throughput = L->path_diffuse + L->path_glossy + L->path_transmission + L->path_subsurface + L->path_scatter;
-
+			
 			L->direct_throughput = *throughput;
 		}
 		else {
@@ -211,7 +210,6 @@ ccl_device_inline void path_radiance_bsdf_bounce(PathRadiance *L, ccl_addr_space
 	*throughput *= *bsdf_eval*inverse_pdf;
 #endif
 }
-
 
 ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 throughput, float3 value, int bounce)
 {
@@ -230,7 +228,6 @@ ccl_device_inline void path_radiance_accum_emission(PathRadiance *L, float3 thro
 	*L += throughput*value;
 #endif
 }
-
 
 ccl_device_inline void path_radiance_accum_ao(PathRadiance *L, float3 throughput, float3 alpha, float3 bsdf, float3 ao, int bounce)
 {
@@ -252,7 +249,6 @@ ccl_device_inline void path_radiance_accum_ao(PathRadiance *L, float3 throughput
 	*L += throughput*bsdf*ao;
 #endif
 }
-
 
 ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 throughput, BsdfEval *bsdf_eval, float3 shadow, float shadow_fac, int bounce, bool is_lamp)
 {
@@ -285,7 +281,6 @@ ccl_device_inline void path_radiance_accum_light(PathRadiance *L, float3 through
 #endif
 }
 
-
 ccl_device_inline void path_radiance_accum_background(PathRadiance *L, float3 throughput, float3 value, int bounce)
 {
 #ifdef __PASSES__
@@ -303,7 +298,6 @@ ccl_device_inline void path_radiance_accum_background(PathRadiance *L, float3 th
 	*L += throughput*value;
 #endif
 }
-
 
 ccl_device_inline void path_radiance_sum_indirect(PathRadiance *L)
 {
@@ -344,7 +338,6 @@ ccl_device_inline void path_radiance_reset_indirect(PathRadiance *L)
 	}
 #endif
 }
-
 
 ccl_device_inline float3 path_radiance_clamp_and_sum(KernelGlobals *kg, PathRadiance *L)
 {

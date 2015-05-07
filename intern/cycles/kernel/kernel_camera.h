@@ -192,7 +192,7 @@ ccl_device void camera_sample_panorama(KernelGlobals *kg, float raster_x, float 
 	ray->D = panorama_to_direction(kg, Pcamera.x, Pcamera.y);
 
 	/* indicates ray should not receive any light, outside of the lens */
-	if(is_zero(ray->D)) {
+	if(is_zero(ray->D)) {	
 		ray->t = 0.0f;
 		return;
 	}
