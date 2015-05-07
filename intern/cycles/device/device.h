@@ -72,6 +72,43 @@ public:
 	}
 };
 
+class DeviceRequestedFeatures {
+public:
+	/* Use experimental feature set. */
+	bool experimental;
+
+	/* Maximum number of closures in shader trees. */
+	int max_closure;
+
+	/* Selective nodes compilation. */
+
+	/* Identifier of a node group up to which all the nodes needs to be
+	 * compiled in. Nodes from higher group indices will be ignores.
+	 */
+	int max_nodes_group;
+
+	/* Features bitfield indicating which features from the requested group
+	 * will be compiled in. Nodes which corresponds to features which are not
+	 * in this bitfield will be ignored even if they're in the requested group.
+	 */
+	int nodes_features;
+
+	DeviceRequestedFeatures()
+	{
+		/* TODO(sergey): Find more meaningful defaults. */
+		max_closure = 0;
+		max_nodes_group = 0;
+		nodes_features = 0;
+	}
+
+	bool modified(const DeviceRequestedFeatures& requested_features)
+	{
+		return !(max_closure == requested_features.max_closure &&
+		         max_nodes_group == requested_features.max_nodes_group &&
+		         nodes_features == requested_features.nodes_features);
+	}
+};
+
 /* Device */
 
 struct DeviceDrawParams {
@@ -96,15 +133,6 @@ public:
 
 	/* statistics */
 	Stats &stats;
-
-	/* TODO(sergey): Move this to RequestedFeatureset argument of
-	 * load_kernels method.
-	 */
-	/* variables/functions used exclusively for split kernel */
-	/* Maximum closure count */
-	int clos_max;
-	int nodes_max_group;
-	int nodes_features;
 
 	/* regular memory */
 	virtual void mem_alloc(device_memory& mem, MemoryType type) = 0;
@@ -137,7 +165,9 @@ public:
 	virtual void *osl_memory() { return NULL; }
 
 	/* load/compile kernels, must be called before adding tasks */ 
-	virtual bool load_kernels(bool /*experimental*/) { return true; }
+	virtual bool load_kernels(
+	        const DeviceRequestedFeatures& /*requested_features*/)
+	{ return true; }
 
 	/* tasks */
 	virtual int get_split_task_count(DeviceTask& task) = 0;

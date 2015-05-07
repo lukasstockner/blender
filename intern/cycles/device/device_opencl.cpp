@@ -883,7 +883,7 @@ public:
 	}
 
 
-	bool load_kernels(bool /*experimental*/)
+	bool load_kernels(const DeviceRequestedFeatures& /*requested_features*/)
 	{
 		/* verify if device was initialized */
 		if(!device_initialized) {
@@ -1121,7 +1121,7 @@ public:
 		path_trace_program = NULL;
 	}
 
-	bool load_kernels(bool /*experimental*/)
+	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
 		/* verify if device was initialized */
 		if(!device_initialized) {
@@ -1130,7 +1130,7 @@ public:
 		}
 
 		/* Get Shader, bake and film convert kernels */
-		if(!OpenCLDeviceBase::load_kernels(false)) {
+		if(!OpenCLDeviceBase::load_kernels(requested_features)) {
 			return false;
 		}
 
@@ -1777,7 +1777,7 @@ public:
 		return shader_soa_size;
 	}
 
-	bool load_kernels(bool /*experimental*/)
+	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
 		/* verify if device was initialized */
 		if(!device_initialized) {
@@ -1788,20 +1788,22 @@ public:
 		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
 		* to limit re-compilations
 		*/
+		/* TODO(sergey): Decision about this should be done on higher levels. */
+		int max_closure = requested_features.max_closure;
 		if(!background) {
-			assert((clos_max != 0) && "clos_max value is 0" );
-			clos_max = (((clos_max - 1) / 5) + 1) * 5;
+			assert((max_closure != 0) && "clos_max value is 0" );
+			max_closure = (((max_closure - 1) / 5) + 1) * 5;
 			/* clos_max value shouldn't be greater than MAX_CLOSURE */
-			clos_max = (clos_max > MAX_CLOSURE) ? MAX_CLOSURE : clos_max;
+			max_closure = (max_closure > MAX_CLOSURE) ? MAX_CLOSURE : max_closure;
 
-			if(current_clos_max == clos_max) {
+			if(current_clos_max == max_closure) {
 				/* present kernels have been created with the same closure count build option */
 				return true;
 			}
 		}
 
 		/* Get Shader, bake and film_convert kernels */
-		if(!OpenCLDeviceBase::load_kernels(false)) {
+		if(!OpenCLDeviceBase::load_kernels(requested_features)) {
 			return false;
 		}
 
@@ -1810,11 +1812,11 @@ public:
 		string compute_device_type_build_option = "";
 
 		/* Set svm_build_options */
-		svm_build_options += " -D__NODES_MAX_GROUP__=" + string_printf("%d", nodes_max_group);
-		svm_build_options += " -D__NODES_FEATURES__=" + string_printf("%d", nodes_features);
+		svm_build_options += " -D__NODES_MAX_GROUP__=" + string_printf("%d", requested_features.max_nodes_group);
+		svm_build_options += " -D__NODES_FEATURES__=" + string_printf("%d", requested_features.nodes_features);
 		/* Set max closure build option */
 #ifdef __MULTI_CLOSURE__
-		max_closure_build_option += string_printf("-DMAX_CLOSURE=%d ", clos_max);
+		max_closure_build_option += string_printf("-DMAX_CLOSURE=%d ", max_closure);
 #endif
 
 		/* Set compute device build option */
@@ -1915,7 +1917,7 @@ public:
 		if(!load_split_kernel(kernel_path, kernel_init_source, clbin, custom_kernel_build_options, &sumAllRadiance_program))
 			return false;
 
-		current_clos_max = clos_max;
+		current_clos_max = max_closure;
 
 		/* find kernels */
 		ckPathTraceKernel_DataInit = clCreateKernel(dataInit_program, "kernel_ocl_path_trace_data_initialization_SPLIT_KERNEL", &ciErr);
@@ -2338,7 +2340,7 @@ public:
 			size_t num_global_elements = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
 
 #ifdef __MULTI_CLOSURE__
-			size_t ShaderClosure_size = get_shader_closure_size(clos_max);
+			size_t ShaderClosure_size = get_shader_closure_size(current_clos_max);
 #else
 			size_t ShaderClosure_size = get_shader_closure_size(MAX_CLOSURE);
 #endif
@@ -2915,7 +2917,7 @@ public:
 		size_t shaderdata_volume = 0;
 
 #ifdef __MULTI_CLOSURE__
-		shader_closure_size = get_shader_closure_size(clos_max);
+		shader_closure_size = get_shader_closure_size(current_clos_max);
 #else
 		shader_closure_size = get_shader_closure_size(MAX_CLOSURE);
 #endif

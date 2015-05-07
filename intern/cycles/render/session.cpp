@@ -598,6 +598,25 @@ void Session::run_cpu()
 		update_progressive_refine(true);
 }
 
+DeviceRequestedFeatures Session::get_requested_device_features()
+{
+	DeviceRequestedFeatures requested_features;
+	requested_features.experimental = params.experimental;
+	if(!params.background) {
+		requested_features.max_closure = 64;
+		requested_features.max_nodes_group = NODE_GROUP_LEVEL_2;
+		requested_features.nodes_features = NODE_FEATURE_ALL;
+	}
+	else {
+		requested_features.max_closure = get_max_closure_count();
+		scene->shader_manager->get_requested_features(
+		        scene,
+		        requested_features.max_nodes_group,
+		        requested_features.nodes_features);
+	}
+	return requested_features;
+}
+
 void Session::load_kernels()
 {
 	thread_scoped_lock scene_lock(scene->mutex);
@@ -605,7 +624,7 @@ void Session::load_kernels()
 	if(!kernels_loaded) {
 		progress.set_status("Loading render kernels (may take a few minutes the first time)");
 
-		if(!device->load_kernels(params.experimental)) {
+		if(!device->load_kernels(get_requested_device_features())) {
 			string message = device->error_message();
 			if(message.empty())
 				message = "Failed loading render kernel, see console for errors";
@@ -622,19 +641,6 @@ void Session::load_kernels()
 
 void Session::run()
 {
-	/* Gather feature set required from the device. */
-	if(!params.background) {
-		device->clos_max = 64;
-		device->nodes_max_group = NODE_GROUP_LEVEL_2;
-		device->nodes_features = NODE_FEATURE_ALL;
-	}
-	else {
-		device->clos_max = get_max_closure_count();
-		scene->shader_manager->get_requested_features(scene,
-		                                              device->nodes_max_group,
-		                                              device->nodes_features);
-	}
-
 	/* load kernels */
 	load_kernels();
 
