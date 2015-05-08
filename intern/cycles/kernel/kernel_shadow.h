@@ -41,8 +41,7 @@ CCL_NAMESPACE_BEGIN
 
 #define STACK_MAX_HITS 64
 
- /* dummy_arg_1 and dummy_arg_2 are declared just to match the function signature of the GPU variant */
-ccl_device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow, void *dummy_arg_1, void *dummy_arg_2)
+ccl_device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *ray, float3 *shadow)
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
@@ -182,7 +181,11 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, PathState *state, Ray *
  * one extra ray cast for the cases were we do want transparency. */
 
 /* The arguments sd_mem and isect_mem are meaningful only for OpenCL split kernel. Other uses can just pass a NULL */
-ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow, ShaderData *sd_mem, Intersection *isect_mem)
+ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray_input, float3 *shadow
+#ifdef __SPLIT_KERNEL__
+                                      , ShaderData *sd_mem, Intersection *isect_mem
+#endif
+                                      )
 {
 	*shadow = make_float3(1.0f, 1.0f, 1.0f);
 
