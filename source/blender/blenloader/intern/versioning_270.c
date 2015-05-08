@@ -834,7 +834,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		}
 	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "HairSimParams", "CurveMapping", "bend_stiffness_mapping")) {
+	if (!DNA_struct_elem_find(fd->filesdna, "HairSimParams", "CurveMapping", "*bend_stiffness_mapping")) {
 		CacheLibrary *cachelib;
 		for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
 			CacheModifier *md;
