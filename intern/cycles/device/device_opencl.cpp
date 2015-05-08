@@ -1491,10 +1491,10 @@ public:
 	bool first_tile;
 
 	OpenCLDeviceSplitKernel(DeviceInfo& info, Stats &stats, bool background_)
-		: OpenCLDeviceBase(info, stats, background_)
+	: OpenCLDeviceBase(info, stats, background_)
 	{
 
-		this->info.use_split_kernel = true;
+		info.use_split_kernel = true;
 		background = background_;
 
 		/* Initialize kernels */
@@ -1676,8 +1676,8 @@ public:
 		string kernel_init_source,
 		string clbin,
 		string custom_kernel_build_options,
-		cl_program *program) {
-
+		cl_program *program)
+	{
 		if(!opencl_version_check())
 			return false;
 
@@ -1704,7 +1704,8 @@ public:
 	}
 
 	/* Split kernel utility functions */
-	size_t get_tex_size(const char *tex_name) {
+	size_t get_tex_size(const char *tex_name)
+	{
 		cl_mem ptr;
 		size_t ret_size;
 
@@ -1721,18 +1722,21 @@ public:
 		return ret_size;
 	}
 
-	size_t get_shader_closure_size(int max_closure) {
+	size_t get_shader_closure_size(int max_closure)
+	{
 		return (sizeof(ShaderClosure)* max_closure);
 	}
 
-	size_t get_shader_data_size(size_t shader_closure_size) {
+	size_t get_shader_data_size(size_t shader_closure_size)
+	{
 		/* ShaderData size without accounting for ShaderClosure array */
 		size_t shader_data_size = sizeof(ShaderData) - (sizeof(ShaderClosure) * MAX_CLOSURE);
 		return (shader_data_size + shader_closure_size);
 	}
 
 	/* Returns size of KernelGlobals structure associated with OpenCL */
-	size_t get_KernelGlobals_size() {
+	size_t get_KernelGlobals_size()
+	{
 		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
 		typedef struct KernelGlobals {
 			ccl_constant KernelData *data;
@@ -1746,8 +1750,8 @@ public:
 	}
 
 	/* Returns size of Structure of arrays implementation of */
-	size_t get_shaderdata_soa_size() {
-
+	size_t get_shaderdata_soa_size()
+	{
 		size_t shader_soa_size = 0;
 
 #define SD_VAR(type, what) \
@@ -2832,7 +2836,8 @@ public:
 	* the value returned by this function does not depend
 	* on the user set tile size or scene properties
 	*/
-	size_t get_invariable_mem_allocated() {
+	size_t get_invariable_mem_allocated()
+	{
 		size_t total_invariable_mem_allocated = 0;
 		size_t KernelGlobals_size = 0;
 		size_t ShaderData_SOA_size = 0;
@@ -2850,7 +2855,8 @@ public:
 	}
 
 	/* Calculate the memory that has-to-be/has-been allocated for the split kernel to function */
-	size_t get_tile_specific_mem_allocated(RenderTile rtile) {
+	size_t get_tile_specific_mem_allocated(RenderTile rtile)
+	{
 		size_t tile_specific_mem_allocated = 0;
 
 		/* Get required tile info */
@@ -2874,7 +2880,8 @@ public:
 	}
 
 	/* Calculates the texture memories and KernelData (d_data) memory that has been allocated */
-	size_t get_scene_specific_mem_allocated(cl_mem d_data) {
+	size_t get_scene_specific_mem_allocated(cl_mem d_data)
+	{
 		size_t scene_specific_mem_allocated = 0;
 		/* Calculate texture memories */
 #define KERNEL_TEX(type, ttype, name) \
@@ -2892,7 +2899,8 @@ public:
 	}
 
 	/* Calculate the memory required for one thread in split kernel */
-	size_t get_per_thread_memory() {
+	size_t get_per_thread_memory()
+	{
 
 		size_t shader_closure_size = 0;
 		size_t shaderdata_volume = 0;
@@ -2921,7 +2929,8 @@ public:
 	/* Considers the total memory available in the device and
 	* and returns the maximum global work size possible
 	*/
-	size_t get_feasible_global_work_size(RenderTile rtile, cl_mem d_data) {
+	size_t get_feasible_global_work_size(RenderTile rtile, cl_mem d_data)
+	{
 
 		/* Calculate invariably allocated memory */
 		size_t invariable_mem_allocated = get_invariable_mem_allocated();
@@ -2946,7 +2955,8 @@ public:
 	* If not, we should split single tile into multiple tiles of small size
 	* and process them all
 	*/
-	bool need_to_split_tile(unsigned int d_w, unsigned int d_h, int2 max_render_feasible_tile_size) {
+	bool need_to_split_tile(unsigned int d_w, unsigned int d_h, int2 max_render_feasible_tile_size)
+	{
 		size_t global_size_estimate[2] = { 0, 0 };
 		global_size_estimate[0] = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
 		global_size_estimate[1] = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
@@ -2962,7 +2972,8 @@ public:
 	* and returns a rectanglular tile dimension (approx the maximum)
 	* that should render on split kernel
 	*/
-	int2 get_max_render_feasible_tile_size(size_t feasible_global_work_size) {
+	int2 get_max_render_feasible_tile_size(size_t feasible_global_work_size)
+	{
 		int2 max_render_feasible_tile_size;
 		int square_root_val = (int)sqrt(feasible_global_work_size);
 		max_render_feasible_tile_size.x = square_root_val;
@@ -2986,7 +2997,8 @@ public:
 	}
 
 	/* Try splitting the current tile into multiple smaller almost-square-tiles */
-	int2 get_split_tile_size(RenderTile rtile, int2 max_render_feasible_tile_size) {
+	int2 get_split_tile_size(RenderTile rtile, int2 max_render_feasible_tile_size)
+	{
 		int2 split_tile_size;
 		int num_global_threads = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
 		int d_w = rtile.w;
@@ -3013,7 +3025,8 @@ public:
 	}
 
 	/* Splits existing tile into multiple tiles of tile size split_tile_size */
-	vector<RenderTile> split_tiles(RenderTile rtile, int2 split_tile_size) {
+	vector<RenderTile> split_tiles(RenderTile rtile, int2 split_tile_size)
+	{
 		vector<RenderTile> to_path_trace_rtile;
 
 		int d_w = rtile.w;
@@ -3203,7 +3216,8 @@ protected:
 */
 static bool get_platform_and_devicetype(const DeviceInfo info,
                                         string &platform_name,
-                                        cl_device_type &device_type) {
+                                        cl_device_type &device_type)
+{
 	cl_platform_id platform_id;
 	cl_device_id device_id;
 	cl_uint num_platforms;
@@ -3317,7 +3331,8 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 	}
 }
 
-bool device_opencl_init(void) {
+bool device_opencl_init(void)
+{
 	static bool initialized = false;
 	static bool result = false;
 
