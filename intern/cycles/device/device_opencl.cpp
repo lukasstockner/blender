@@ -39,6 +39,8 @@
 CCL_NAMESPACE_BEGIN
 
 #define CL_MEM_PTR(p) ((cl_mem)(uintptr_t)(p))
+#define KERNEL_APPEND_ARG(kernel_name, arg) \
+               opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 
 /* Macro declarations used with split kernel */
 
@@ -1013,8 +1015,6 @@ public:
 		cl_kernel ckFilmConvertKernel = (rgba_byte)? ckFilmConvertByteKernel: ckFilmConvertHalfFloatKernel;
 
 		/* TODO : Make the kernel launch similar to Cuda */
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_data);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_rgba);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_buffer);
@@ -1031,7 +1031,6 @@ public:
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_h);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_offset);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_stride);
-#undef KERNEL_APPEND_ARG
 
 		enqueue_kernel(ckFilmConvertKernel, d_w, d_h);
 	}
@@ -1065,8 +1064,6 @@ public:
 			cl_int d_sample = sample;
 
 			/* TODO : Make the kernel launch similar to Cuda */
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-			opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 			KERNEL_APPEND_ARG(kernel, d_data);
 			KERNEL_APPEND_ARG(kernel, d_input);
 			KERNEL_APPEND_ARG(kernel, d_output);
@@ -1081,7 +1078,6 @@ public:
 			KERNEL_APPEND_ARG(kernel, d_shader_w);
 			KERNEL_APPEND_ARG(kernel, d_offset);
 			KERNEL_APPEND_ARG(kernel, d_sample);
-#undef KERNEL_APPEND_ARG
 
 			enqueue_kernel(kernel, task.shader_w, 1);
 
@@ -1204,8 +1200,6 @@ public:
 		cl_uint narg = 0;
 
 		/* TODO : Make the kernel launch similar to Cuda */
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_data);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_buffer);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_rng_state);
@@ -1222,7 +1216,6 @@ public:
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_h);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_offset);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_stride);
-#undef KERNEL_APPEND_ARG
 
 		enqueue_kernel(ckPathTraceKernel, d_w, d_h);
 	}
@@ -2447,9 +2440,6 @@ public:
 		/* Set arguments for ckPathTraceKernel_DataInit kernel */
 		cl_uint narg = 0;
 
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
-
 		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, kgbuffer);
 		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, sd);
 		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, sd_DL_shadow);
@@ -2743,8 +2733,6 @@ public:
 		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_offset_y);
 		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_rng_state_stride);
 		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, start_sample);
-
-#undef KERNEL_APPEND_ARG
 
 		/* Macro for Enqueuing split kernels */
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
