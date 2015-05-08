@@ -20,9 +20,6 @@
 #ifndef SD_CLOSURE_VAR
 #define SD_CLOSURE_VAR(type, what, max_closure)
 #endif
-#ifndef MAX_CLOSURE
-#define MAX_CLOSURE 1
-#endif
 
 /* position */
 SD_VAR(float3, P)
