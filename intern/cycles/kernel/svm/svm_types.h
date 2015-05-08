@@ -119,11 +119,6 @@ typedef enum NodeType {
 	NODE_TANGENT,
 	NODE_NORMAL_MAP,
 	NODE_HAIR_INFO,
-	/* This enum type should be the last in the list;
-	 * This enum type is used to check the number of
-	 * types in the NodeType enum and is hard-coded in
-	 * svm.cpp and device_opencl.cpp.
-	 */
 	NODE_UVMAP
 } NodeType;
 

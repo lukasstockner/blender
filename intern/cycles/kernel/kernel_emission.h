@@ -17,7 +17,6 @@
 CCL_NAMESPACE_BEGIN
 
 /* Direction Emission */
-/* The argument sd_input is meaningful only for split kernel. Other uses just pass NULL */
 ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 	LightSample *ls, float3 I, differential3 dI, float t, float time, int bounce, int transparent_bounce
 #ifdef __SPLIT_KERNEL__
