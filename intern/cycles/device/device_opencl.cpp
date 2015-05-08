@@ -39,6 +39,8 @@
 CCL_NAMESPACE_BEGIN
 
 #define CL_MEM_PTR(p) ((cl_mem)(uintptr_t)(p))
+#define KERNEL_APPEND_ARG(kernel_name, arg) \
+               opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 
 /* Macro declarations used with split kernel */
 
@@ -1013,8 +1015,6 @@ public:
 		cl_kernel ckFilmConvertKernel = (rgba_byte)? ckFilmConvertByteKernel: ckFilmConvertHalfFloatKernel;
 
 		/* TODO : Make the kernel launch similar to Cuda */
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_data);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_rgba);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_buffer);
@@ -1031,7 +1031,6 @@ public:
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_h);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_offset);
 		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_stride);
-#undef KERNEL_APPEND_ARG
 
 		enqueue_kernel(ckFilmConvertKernel, d_w, d_h);
 	}
@@ -1065,8 +1064,6 @@ public:
 			cl_int d_sample = sample;
 
 			/* TODO : Make the kernel launch similar to Cuda */
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-			opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 			KERNEL_APPEND_ARG(kernel, d_data);
 			KERNEL_APPEND_ARG(kernel, d_input);
 			KERNEL_APPEND_ARG(kernel, d_output);
@@ -1081,7 +1078,6 @@ public:
 			KERNEL_APPEND_ARG(kernel, d_shader_w);
 			KERNEL_APPEND_ARG(kernel, d_offset);
 			KERNEL_APPEND_ARG(kernel, d_sample);
-#undef KERNEL_APPEND_ARG
 
 			enqueue_kernel(kernel, task.shader_w, 1);
 
@@ -1204,8 +1200,6 @@ public:
 		cl_uint narg = 0;
 
 		/* TODO : Make the kernel launch similar to Cuda */
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_data);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_buffer);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_rng_state);
@@ -1222,7 +1216,6 @@ public:
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_h);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_offset);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_stride);
-#undef KERNEL_APPEND_ARG
 
 		enqueue_kernel(ckPathTraceKernel, d_w, d_h);
 	}
@@ -1434,7 +1427,6 @@ public:
 	cl_mem use_queues_flag;
 
 	/* Required-memory size */
-	size_t rng_size;
 	size_t throughput_size;
 	size_t L_transparent_size;
 	size_t rayState_size;
@@ -1442,24 +1434,9 @@ public:
 	size_t work_element_size;
 	size_t ISLamp_size;
 
-	/* size of structures declared in kernel_types.h */
-	size_t PathRadiance_size;
-	size_t Ray_size;
-	size_t PathState_size;
-	size_t Intersection_size;
-
 	/* Sizes of memory required for shadow blocked function */
 	size_t AOAlpha_size;
 	size_t AOBSDF_size;
-	size_t AOLightRay_size;
-	size_t LightRay_size;
-	size_t BSDFEval_size;
-	size_t Intersection_coop_AO_size;
-	size_t Intersection_coop_DL_size;
-
-#ifdef WITH_CYCLES_DEBUG
-	size_t debugdata_size;
-#endif
 
 	/* Amount of memory in output buffer associated with one pixel/thread */
 	size_t per_thread_output_buffer_size;
@@ -1617,7 +1594,6 @@ public:
 		per_sample_output_buffers = NULL;
 
 		/* Initialize required memory size */
-		rng_size = sizeof(RNG);
 		throughput_size = sizeof(float3);
 		L_transparent_size = sizeof(float);
 		rayState_size = sizeof(char);
@@ -1625,30 +1601,9 @@ public:
 		work_element_size = sizeof(unsigned int);
 		ISLamp_size = sizeof(int);
 
-		/* Initialize size of structures declared in kernel_types.h */
-		PathRadiance_size = sizeof(PathRadiance);
-		Ray_size = sizeof(Ray);
-		PathState_size = sizeof(PathState);
-		Intersection_size = sizeof(Intersection);
-
-		/* Initialize sizes of memory required for shadow blocked function */
-		LightRay_size = sizeof(Ray);
-		BSDFEval_size = sizeof(BsdfEval);
-		Intersection_coop_AO_size = sizeof(Intersection);
-		Intersection_coop_DL_size = sizeof(Intersection);
-
 		/* Initialize sizes of memory required for shadow blocked function */
 		AOAlpha_size = sizeof(float3);
 		AOBSDF_size = sizeof(float3);
-		AOLightRay_size = sizeof(Ray);
-		LightRay_size = sizeof(Ray);
-		BSDFEval_size = sizeof(BsdfEval);
-		Intersection_coop_AO_size = sizeof(Intersection);
-		Intersection_coop_DL_size = sizeof(Intersection);
-
-#ifdef WITH_CYCLES_DEBUG
-		debugdata_size = sizeof(DebugData);
-#endif
 
 		per_thread_output_buffer_size = 0;
 		hostRayStateArray = NULL;
@@ -2411,24 +2366,24 @@ public:
 			ray_dP_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential3));
 
 			/* creation of global memory buffers which are shared among the kernels */
-			rng_coop = mem_alloc(num_global_elements * rng_size);
+			rng_coop = mem_alloc(num_global_elements * sizeof(RNG));
 			throughput_coop = mem_alloc(num_global_elements * throughput_size);
 			L_transparent_coop = mem_alloc(num_global_elements * L_transparent_size);
-			PathRadiance_coop = mem_alloc(num_global_elements * PathRadiance_size);
-			Ray_coop = mem_alloc(num_global_elements * Ray_size);
-			PathState_coop = mem_alloc(num_global_elements * PathState_size);
-			Intersection_coop = mem_alloc(num_global_elements * Intersection_size);
+			PathRadiance_coop = mem_alloc(num_global_elements * sizeof(PathRadiance));
+			Ray_coop = mem_alloc(num_global_elements * sizeof(Ray));
+			PathState_coop = mem_alloc(num_global_elements * sizeof(PathState));
+			Intersection_coop = mem_alloc(num_global_elements * sizeof(Intersection));
 			AOAlpha_coop = mem_alloc(num_global_elements * AOAlpha_size);
 			AOBSDF_coop = mem_alloc(num_global_elements * AOBSDF_size);
-			AOLightRay_coop = mem_alloc(num_global_elements * AOLightRay_size);
-			BSDFEval_coop = mem_alloc(num_global_elements * BSDFEval_size);
+			AOLightRay_coop = mem_alloc(num_global_elements * sizeof(Ray));
+			BSDFEval_coop = mem_alloc(num_global_elements * sizeof(BsdfEval));
 			ISLamp_coop = mem_alloc(num_global_elements * ISLamp_size);
-			LightRay_coop = mem_alloc(num_global_elements * LightRay_size);
-			Intersection_coop_AO = mem_alloc(num_global_elements * Intersection_coop_AO_size);
-			Intersection_coop_DL = mem_alloc(num_global_elements * Intersection_coop_DL_size);
+			LightRay_coop = mem_alloc(num_global_elements * sizeof(Ray));
+			Intersection_coop_AO = mem_alloc(num_global_elements * sizeof(Intersection));
+			Intersection_coop_DL = mem_alloc(num_global_elements * sizeof(Intersection));
 
 #ifdef WITH_CYCLES_DEBUG
-			debugdata_coop = mem_alloc(num_global_elements * debugdata_size);
+			debugdata_coop = mem_alloc(num_global_elements * sizeof(DebugData));
 #endif
 
 			ray_state = mem_alloc(num_global_elements * rayState_size);
@@ -2446,9 +2401,6 @@ public:
 
 		/* Set arguments for ckPathTraceKernel_DataInit kernel */
 		cl_uint narg = 0;
-
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-		opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 
 		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, kgbuffer);
 		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, sd);
@@ -2744,8 +2696,6 @@ public:
 		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_rng_state_stride);
 		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, start_sample);
 
-#undef KERNEL_APPEND_ARG
-
 		/* Macro for Enqueuing split kernels */
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
 		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, kernelName, 2, NULL, globalSize, localSize, 0, NULL, NULL))
@@ -2912,14 +2862,14 @@ public:
 		 */
 		shaderdata_volume = get_shader_data_size(shader_closure_size);
 
-		size_t retval = rng_size + throughput_size + L_transparent_size + rayState_size + work_element_size
-			+ ISLamp_size + PathRadiance_size + Ray_size + PathState_size
-			+ Intersection_size                  /* Overall isect */
-			+ Intersection_coop_AO_size          /* Instersection_coop_AO */
-			+ Intersection_coop_DL_size          /* Intersection coop DL */
+		size_t retval = sizeof(RNG) + throughput_size + L_transparent_size + rayState_size + work_element_size
+			+ ISLamp_size + sizeof(PathRadiance) + sizeof(Ray) + sizeof(PathState)
+			+ sizeof(Intersection)    /* Overall isect */
+			+ sizeof(Intersection)    /* Instersection_coop_AO */
+			+ sizeof(Intersection)    /* Intersection coop DL */
 			+ shaderdata_volume       /* Overall ShaderData */
 			+ (shaderdata_volume * 2) /* ShaderData : DL and shadow */
-			+ LightRay_size + BSDFEval_size + AOAlpha_size + AOBSDF_size + AOLightRay_size
+			+ sizeof(Ray) + sizeof(BsdfEval) + AOAlpha_size + AOBSDF_size + sizeof(Ray)
 			+ (sizeof(int)* NUM_QUEUES)
 			+ per_thread_output_buffer_size;
 
