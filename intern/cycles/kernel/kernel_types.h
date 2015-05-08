@@ -458,10 +458,11 @@ typedef struct differential {
 /* Ray */
 
 typedef struct Ray {
-	float t;		/* length of the ray */
-	float time;		/* time (for motion blur) */
 	float3 P;		/* origin */
 	float3 D;		/* direction */
+
+	float t;		/* length of the ray */
+	float time;		/* time (for motion blur) */
 #ifdef __RAY_DIFFERENTIALS__
 	differential3 dP;
 	differential3 dD;
