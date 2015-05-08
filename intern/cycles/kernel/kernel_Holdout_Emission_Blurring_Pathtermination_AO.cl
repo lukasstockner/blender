@@ -164,11 +164,11 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 
 			/* holdout */
 #ifdef __HOLDOUT__
-			if((sd_fetch(flag) & (SD_HOLDOUT|SD_HOLDOUT_MASK)) && (state->flag & PATH_RAY_CAMERA)) {
+			if((ccl_fetch(sd,flag) & (SD_HOLDOUT|SD_HOLDOUT_MASK)) && (state->flag & PATH_RAY_CAMERA)) {
 				if(kernel_data.background.transparent) {
 					float3 holdout_weight;
 
-					if(sd_fetch(flag) & SD_HOLDOUT_MASK)
+					if(ccl_fetch(sd,flag) & SD_HOLDOUT_MASK)
 						holdout_weight = make_float3(1.0f, 1.0f, 1.0f);
 					else
 						holdout_weight = shader_holdout_eval(kg, sd);
@@ -177,7 +177,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 					L_transparent_coop[ray_index] += average(holdout_weight*throughput);
 				}
 
-				if(sd_fetch(flag) & SD_HOLDOUT_MASK) {
+				if(ccl_fetch(sd,flag) & SD_HOLDOUT_MASK) {
 					ASSIGN_RAY_STATE(ray_state, ray_index, RAY_UPDATE_BUFFER);
 					enqueue_flag = 1;
 				}
@@ -204,7 +204,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 
 #ifdef __EMISSION__
 			/* emission */
-			if(sd_fetch(flag) & SD_EMISSION) {
+			if(ccl_fetch(sd,flag) & SD_EMISSION) {
 				/* todo: is isect.t wrong here for transparent surfaces? */
 				float3 emission = indirect_primitive_emission(kg, sd, Intersection_coop[ray_index].t, state->flag, state->ray_pdf);
 				path_radiance_accum_emission(L, throughput, emission, state->bounce);
@@ -238,7 +238,7 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 #ifdef __AO__
 		if(IS_STATE(ray_state, ray_index, RAY_ACTIVE)) {
 			/* ambient occlusion */
-			if(kernel_data.integrator.use_ambient_occlusion || (sd_fetch(flag) & SD_AO)) {
+			if(kernel_data.integrator.use_ambient_occlusion || (ccl_fetch(sd,flag) & SD_AO)) {
 				/* todo: solve correlation */
 				float bsdf_u, bsdf_v;
 				path_state_rng_2D(kg, rng, state, PRNG_BSDF_U, &bsdf_u, &bsdf_v);
@@ -252,15 +252,15 @@ __kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO
 				float ao_pdf;
 				sample_cos_hemisphere(ao_N, bsdf_u, bsdf_v, &ao_D, &ao_pdf);
 
-				if(dot(sd_fetch(Ng), ao_D) > 0.0f && ao_pdf != 0.0f) {
+				if(dot(ccl_fetch(sd,Ng), ao_D) > 0.0f && ao_pdf != 0.0f) {
 					Ray _ray;
-					_ray.P = ray_offset(sd_fetch(P), sd_fetch(Ng));
+					_ray.P = ray_offset(ccl_fetch(sd,P), ccl_fetch(sd,Ng));
 					_ray.D = ao_D;
 					_ray.t = kernel_data.background.ao_distance;
 #ifdef __OBJECT_MOTION__
-					_ray.time = sd_fetch(time);
+					_ray.time = ccl_fetch(sd,time);
 #endif
-					_ray.dP = sd_fetch(dP);
+					_ray.dP = ccl_fetch(sd,dP);
 					_ray.dD = differential3_zero();
 					AOLightRay_coop[ray_index] = _ray;
 

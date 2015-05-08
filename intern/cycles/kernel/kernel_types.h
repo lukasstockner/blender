@@ -657,12 +657,12 @@ struct KernelGlobals;
 #define SD_VAR(type, what) ccl_global type *what;
 #define SD_CLOSURE_VAR(type, what, max_closure) type *what;
 #define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
-#define sd_fetch(t) (sd->t[TIDX])
+#define ccl_fetch(s,t) (s->t[TIDX])
 #define sc_fetch(index) (&sd->closure[TIDX * MAX_CLOSURE + index])
 #else
 #define SD_VAR(type, what) type what;
 #define SD_CLOSURE_VAR(type, what, max_closure) type what[max_closure];
-#define sd_fetch(t) (sd->t)
+#define ccl_fetch(s,t) (s->t)
 #define sc_fetch(index) (&sd->closure[index])
 #endif
 

@@ -98,7 +98,7 @@ __kernel void kernel_ocl_path_trace_DirectLighting(
 
 			/* direct lighting */
 #ifdef __EMISSION__
-			if((kernel_data.integrator.use_direct_light && (sd_fetch(flag) & SD_BSDF_HAS_EVAL))) {
+			if((kernel_data.integrator.use_direct_light && (ccl_fetch(sd,flag) & SD_BSDF_HAS_EVAL))) {
 				/* sample illumination from lights to find path contribution */
 				ccl_global RNG* rng = &rng_coop[ray_index];
 				float light_t = path_state_rng_1D(kg, rng, state, PRNG_LIGHT);
@@ -109,7 +109,7 @@ __kernel void kernel_ocl_path_trace_DirectLighting(
 				light_ray.time = sd->time;
 #endif
 				LightSample ls;
-				light_sample(kg, light_t, light_u, light_v, sd_fetch(time), sd_fetch(P), state->bounce, &ls);
+				light_sample(kg, light_t, light_u, light_v, ccl_fetch(sd,time), ccl_fetch(sd,P), state->bounce, &ls);
 
 				Ray light_ray;
 				BsdfEval L_light;

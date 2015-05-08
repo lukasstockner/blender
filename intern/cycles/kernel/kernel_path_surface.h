@@ -187,7 +187,7 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 	ShaderData *sd, float3 throughput, ccl_addr_space PathState *state, PathRadiance *L)
 {
 #ifdef __EMISSION__
-	if(!(kernel_data.integrator.use_direct_light && (sd_fetch(flag) & SD_BSDF_HAS_EVAL)))
+	if(!(kernel_data.integrator.use_direct_light && (ccl_fetch(sd,flag) & SD_BSDF_HAS_EVAL)))
 		return;
 
 	/* sample illumination from lights to find path contribution */
@@ -204,7 +204,7 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 #endif
 
 	LightSample ls;
-	light_sample(kg, light_t, light_u, light_v, sd_fetch(time), sd_fetch(P), state->bounce, &ls);
+	light_sample(kg, light_t, light_u, light_v, ccl_fetch(sd,time), ccl_fetch(sd,P), state->bounce, &ls);
 
 	if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
 		/* trace shadow ray */
@@ -224,7 +224,7 @@ ccl_device_inline bool kernel_path_surface_bounce(KernelGlobals *kg, ccl_addr_sp
 	ShaderData *sd, ccl_addr_space float3 *throughput, ccl_addr_space PathState *state, PathRadiance *L, ccl_addr_space Ray *ray)
 {
 	/* no BSDF? we can stop here */
-	if(sd_fetch(flag) & SD_BSDF) {
+	if(ccl_fetch(sd,flag) & SD_BSDF) {
 		/* sample BSDF */
 		float bsdf_pdf;
 		BsdfEval bsdf_eval;
@@ -256,16 +256,16 @@ ccl_device_inline bool kernel_path_surface_bounce(KernelGlobals *kg, ccl_addr_sp
 		path_state_next(kg, state, label);
 
 		/* setup ray */
-		ray->P = ray_offset(sd_fetch(P), (label & LABEL_TRANSMIT)? -sd_fetch(Ng): sd_fetch(Ng));
+		ray->P = ray_offset(ccl_fetch(sd,P), (label & LABEL_TRANSMIT)? -ccl_fetch(sd,Ng): ccl_fetch(sd,Ng));
 		ray->D = bsdf_omega_in;
 
 		if(state->bounce == 0)
-			ray->t -= sd_fetch(ray_length); /* clipping works through transparent */
+			ray->t -= ccl_fetch(sd,ray_length); /* clipping works through transparent */
 		else
 			ray->t = FLT_MAX;
 
 #ifdef __RAY_DIFFERENTIALS__
-		ray->dP = sd_fetch(dP);
+		ray->dP = ccl_fetch(sd,dP);
 		ray->dD = bsdf_domega_in;
 #endif
 
@@ -277,21 +277,21 @@ ccl_device_inline bool kernel_path_surface_bounce(KernelGlobals *kg, ccl_addr_sp
 		return true;
 	}
 #ifdef __VOLUME__
-	else if(sd_fetch(flag) & SD_HAS_ONLY_VOLUME) {
+	else if(ccl_fetch(sd,flag) & SD_HAS_ONLY_VOLUME) {
 		/* no surface shader but have a volume shader? act transparent */
 
 		/* update path state, count as transparent */
 		path_state_next(kg, state, LABEL_TRANSPARENT);
 
 		if(state->bounce == 0)
-			ray->t -= sd_fetch(ray_length); /* clipping works through transparent */
+			ray->t -= ccl_fetch(sd,ray_length); /* clipping works through transparent */
 		else
 			ray->t = FLT_MAX;
 
 		/* setup ray position, direction stays unchanged */
-		ray->P = ray_offset(sd_fetch(P), -sd_fetch(Ng));
+		ray->P = ray_offset(ccl_fetch(sd,P), -ccl_fetch(sd,Ng));
 #ifdef __RAY_DIFFERENTIALS__
-		ray->dP = sd_fetch(dP);
+		ray->dP = ccl_fetch(sd,dP);
 #endif
 
 		/* enter/exit volume */

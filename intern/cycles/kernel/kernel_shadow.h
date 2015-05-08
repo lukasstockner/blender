@@ -257,7 +257,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathStat
 				shader_setup_from_ray(kg, sd, isect, ray, state->bounce+1, bounce);
 
 				/* attenuation from transparent surface */
-				if(!(sd_fetch(flag) & SD_HAS_ONLY_VOLUME)) {
+				if(!(ccl_fetch(sd,flag) & SD_HAS_ONLY_VOLUME)) {
 					shader_eval_surface(kg, sd, 0.0f, PATH_RAY_SHADOW, SHADER_CONTEXT_SHADOW);
 					throughput *= shader_bsdf_transparency(kg, sd);
 				}
@@ -266,7 +266,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathStat
 					return true;
 
 				/* move ray forward */
-				ray->P = ray_offset(sd_fetch(P), -sd_fetch(Ng));
+				ray->P = ray_offset(ccl_fetch(sd,P), -ccl_fetch(sd,Ng));
 				if(ray->t != FLT_MAX)
 					ray->D = normalize_len(Pend - ray->P, &ray->t);
 
