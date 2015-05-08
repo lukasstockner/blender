@@ -189,10 +189,12 @@ typedef struct HairSimParams {
 	struct CurveMapping *goal_stiffness_mapping;
 	float stretch_stiffness, stretch_damping;
 	float bend_stiffness, bend_damping;
+	struct CurveMapping *bend_stiffness_mapping;
 } HairSimParams;
 
 typedef enum eHairSimParams_Flag {
 	eHairSimParams_Flag_UseGoalStiffnessCurve        = (1 << 0),
+	eHairSimParams_Flag_UseBendStiffnessCurve        = (1 << 1),
 } eHairSimParams_Flag;
 
 typedef struct HairSimCacheModifier {

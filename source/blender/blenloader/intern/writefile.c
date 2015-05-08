@@ -3550,6 +3550,8 @@ static void write_cache_modifiers(WriteData *wd, CacheLibrary *cachelib)
 				writestruct(wd, DATA, "EffectorWeights", 1, hsmd->sim_params.effector_weights);
 				if (hsmd->sim_params.goal_stiffness_mapping)
 					write_curvemapping(wd, hsmd->sim_params.goal_stiffness_mapping);
+				if (hsmd->sim_params.bend_stiffness_mapping)
+					write_curvemapping(wd, hsmd->sim_params.bend_stiffness_mapping);
 				break;
 			}
 		}

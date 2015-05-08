@@ -889,6 +889,14 @@ static void hairsim_params_init(HairSimParams *params)
 		cm->cm[0].curve[1].y = 0.0f;
 		params->goal_stiffness_mapping = cm;
 	}
+	{
+		CurveMapping *cm = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+		cm->cm[0].curve[0].x = 0.0f;
+		cm->cm[0].curve[0].y = 1.0f;
+		cm->cm[0].curve[1].x = 1.0f;
+		cm->cm[0].curve[1].y = 1.0f;
+		params->bend_stiffness_mapping = cm;
+	}
 	
 	params->effector_weights = BKE_add_effector_weights(NULL);
 }
@@ -907,6 +915,8 @@ static void hairsim_copy(HairSimCacheModifier *hsmd, HairSimCacheModifier *thsmd
 		thsmd->sim_params.effector_weights = MEM_dupallocN(hsmd->sim_params.effector_weights);
 	if (hsmd->sim_params.goal_stiffness_mapping)
 		thsmd->sim_params.goal_stiffness_mapping = curvemapping_copy(hsmd->sim_params.goal_stiffness_mapping);
+	if (hsmd->sim_params.bend_stiffness_mapping)
+		thsmd->sim_params.bend_stiffness_mapping = curvemapping_copy(hsmd->sim_params.bend_stiffness_mapping);
 }
 
 static void hairsim_free(HairSimCacheModifier *hsmd)
@@ -915,6 +925,8 @@ static void hairsim_free(HairSimCacheModifier *hsmd)
 		MEM_freeN(hsmd->sim_params.effector_weights);
 	if (hsmd->sim_params.goal_stiffness_mapping)
 		curvemapping_free(hsmd->sim_params.goal_stiffness_mapping);
+	if (hsmd->sim_params.bend_stiffness_mapping)
+		curvemapping_free(hsmd->sim_params.bend_stiffness_mapping);
 }
 
 static void hairsim_foreach_id_link(HairSimCacheModifier *hsmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
@@ -951,8 +963,10 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	
 	/* skip first step and potential backward steps */
 	if (frame > frame_prev) {
-		if (hsmd->sim_params.flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
+		if (hsmd->sim_params.flag & eHairSimParams_Flag_UseGoalStiffnessCurve && hsmd->sim_params.goal_stiffness_mapping)
 			curvemapping_changed_all(hsmd->sim_params.goal_stiffness_mapping);
+		if (hsmd->sim_params.flag & eHairSimParams_Flag_UseBendStiffnessCurve && hsmd->sim_params.bend_stiffness_mapping)
+			curvemapping_changed_all(hsmd->sim_params.bend_stiffness_mapping);
 		
 		if (ob)
 			mul_m4_m4m4(mat, data->mat, ob->obmat);

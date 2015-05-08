@@ -1240,14 +1240,31 @@ static void strands_calc_curve_stretch_forces(Strands *strands, float UNUSED(spa
 	}
 }
 
+static float strands_bending_stiffness(Strands *UNUSED(strands), HairSimParams *params, StrandsVertex *UNUSED(vert), float t)
+{
+	float weight;
+	
+	if (params->flag & eHairSimParams_Flag_UseBendStiffnessCurve)
+		weight = curvemapping_evaluateF(params->bend_stiffness_mapping, 0, t);
+	else
+		weight = 1.0f;
+	CLAMP(weight, 0.0f, 1.0f);
+	
+	return params->bend_stiffness * weight;
+}
+
 /* bending forces aim to restore the rest shape of each strand locally */
 static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
 {
 	StrandBendIterator it_bend;
 	
-	const float stiffness = params->bend_stiffness;
-	const float damping = stiffness * params->bend_damping;
+	float length = 0.0f;
+	StrandEdgeIterator it_edge;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge))
+		length += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+	float length_inv = length > 0.0f ? 1.0f / length : 0.0f;
 	
+	float t = 0.0f;
 	BKE_strand_bend_iter_init(&it_bend, it_strand);
 	if (!BKE_strand_bend_iter_valid(&it_bend))
 		return;
@@ -1304,6 +1321,9 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 		float target_state[3];
 		mul_v3_m3v3(target_state, mat, target);
 		
+		const float stiffness = strands_bending_stiffness(strands, params, it_bend.vertex0, t * length_inv);
+		const float damping = stiffness * params->bend_damping;
+		
 		int vroot = BKE_strand_bend_iter_vertex0_offset(strands, &it_bend); /* root velocity used as goal velocity */
 		int vj = BKE_strand_bend_iter_vertex1_offset(strands, &it_bend);
 		float goal[3], rootvel[3];
@@ -1313,6 +1333,9 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 	}
 	
 	do {
+		float restlen = len_v3v3(it_bend.vertex1->co, it_bend.vertex0->co);
+		t += restlen;
+		
 		{ /* advance the coordinate frame */
 			float rotrest[3][3], rotrest_inv[3][3], rotstate[3][3], rotstate_inv[3][3];
 			BKE_strand_bend_iter_transform_rest(&it_bend, rotrest);
@@ -1334,6 +1357,9 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 			
 			float target_state[3];
 			mul_v3_m3v3(target_state, mat, target);
+			
+			const float stiffness = strands_bending_stiffness(strands, params, it_bend.vertex1, t * length_inv);
+			const float damping = stiffness * params->bend_damping;
 			
 			int vi = BKE_strand_bend_iter_vertex0_offset(strands, &it_bend);
 			int vj = BKE_strand_bend_iter_vertex1_offset(strands, &it_bend);
