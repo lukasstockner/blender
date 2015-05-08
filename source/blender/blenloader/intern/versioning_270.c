@@ -36,6 +36,7 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_brush_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
@@ -54,6 +55,7 @@
 
 #include "DNA_genfile.h"
 
+#include "BKE_colortools.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
@@ -828,6 +830,26 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
 				scene->r.simplify_subsurf_render = scene->r.simplify_subsurf;
 				scene->r.simplify_particles_render = scene->r.simplify_particles;
+			}
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "HairSimParams", "CurveMapping", "bend_stiffness_mapping")) {
+		CacheLibrary *cachelib;
+		for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+			CacheModifier *md;
+			for (md = cachelib->modifiers.first; md; md = md->next) {
+				if (md->type == eCacheModifierType_HairSimulation) {
+					HairSimCacheModifier *hsmd = (HairSimCacheModifier *)md;
+					{
+						CurveMapping *cm = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+						cm->cm[0].curve[0].x = 0.0f;
+						cm->cm[0].curve[0].y = 1.0f;
+						cm->cm[0].curve[1].x = 1.0f;
+						cm->cm[0].curve[1].y = 1.0f;
+						hsmd->sim_params.bend_stiffness_mapping = cm;
+					}
+				}
 			}
 		}
 	}
