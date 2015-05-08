@@ -380,7 +380,6 @@ ccl_device void svm_node_tangent(KernelGlobals *kg, ShaderData *sd, float *stack
 	}
 
 	object_normal_transform(kg, sd, &tangent);
-
 	tangent = cross(sd_fetch(N), normalize(cross(tangent, sd_fetch(N))));
 	stack_store_float3(stack, tangent_offset, tangent);
 }

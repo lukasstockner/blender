@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2011-2013 Blender Foundation
  *
@@ -266,7 +265,6 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 
 			/* reflection */
 			ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
-
 			float3 weight = sc->weight;
 			float sample_weight = sc->sample_weight;
 
@@ -398,7 +396,6 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 			}
 			else {
 				ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
-
 				sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
 				if(sc) {
@@ -431,7 +428,6 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 		case CLOSURE_BSSRDF_CUBIC_ID:
 		case CLOSURE_BSSRDF_GAUSSIAN_ID: {
 			ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
-
 			float3 weight = sc->weight * mix_weight;
 			float sample_weight = fabsf(average(weight));
 
@@ -465,7 +461,6 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 
 					sd_fetch(num_closure)++;
 					sc = sc_fetch(sd_fetch(num_closure));
-					//sc++;
 				}
 
 				if(fabsf(weight.y) > 0.0f) {
@@ -675,6 +670,7 @@ ccl_device void svm_node_mix_closure(ShaderData *sd, float *stack, uint4 node)
 }
 
 /* (Bump) normal */
+
 ccl_device void svm_node_set_normal(KernelGlobals *kg, ShaderData *sd, float *stack, uint in_direction, uint out_normal)
 {
 	float3 normal = stack_load_float3(stack, in_direction);

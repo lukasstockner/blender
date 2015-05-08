@@ -17,6 +17,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Bump Node */
+
 ccl_device void svm_node_set_bump(KernelGlobals *kg, ShaderData *sd, float *stack, uint4 node)
 {
 #ifdef __RAY_DIFFERENTIALS__
@@ -60,6 +61,7 @@ ccl_device void svm_node_set_bump(KernelGlobals *kg, ShaderData *sd, float *stac
 }
 
 /* Displacement Node */
+
 ccl_device void svm_node_set_displacement(ShaderData *sd, float *stack, uint fac_offset)
 {
 	float d = stack_load_float(stack, fac_offset);

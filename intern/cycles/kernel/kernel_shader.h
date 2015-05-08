@@ -378,6 +378,7 @@ ccl_device void shader_setup_from_displace(KernelGlobals *kg, ShaderData *sd,
 }
 
 /* ShaderData setup from ray into background */
+
 ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderData *sd, const Ray *ray, int bounce, int transparent_bounce)
 {
 	/* vectors */
@@ -420,6 +421,7 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderDat
 #endif
 }
 
+/* ShaderData setup from point inside volume */
 
 #ifdef __VOLUME__
 ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *sd, const Ray *ray, int bounce, int transparent_bounce)
@@ -794,6 +796,7 @@ ccl_device float3 shader_emissive_eval(KernelGlobals *kg, ShaderData *sd)
 }
 
 /* Holdout */
+
 ccl_device float3 shader_holdout_eval(KernelGlobals *kg, ShaderData *sd)
 {
 	float3 weight = make_float3(0.0f, 0.0f, 0.0f);
@@ -1025,6 +1028,7 @@ ccl_device void shader_eval_volume(KernelGlobals *kg, ShaderData *sd,
 #endif
 
 /* Displacement Evaluation */
+
 ccl_device void shader_eval_displacement(KernelGlobals *kg, ShaderData *sd, ShaderContext ctx)
 {
 	sd_fetch(num_closure) = 0;

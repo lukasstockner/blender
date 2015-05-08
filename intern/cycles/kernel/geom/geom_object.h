@@ -131,6 +131,7 @@ ccl_device_inline void object_position_transform(KernelGlobals *kg, const Shader
 }
 
 /* Transform position from world to object space */
+
 ccl_device_inline void object_inverse_position_transform(KernelGlobals *kg, const ShaderData *sd, float3 *P)
 {
 #ifdef __OBJECT_MOTION__

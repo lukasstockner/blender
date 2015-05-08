@@ -33,8 +33,8 @@
 #ifndef __BSDF_HAIR_H__
 #define __BSDF_HAIR_H__
 
-
 CCL_NAMESPACE_BEGIN
+
 
 ccl_device int bsdf_hair_reflection_setup(ShaderClosure *sc)
 {

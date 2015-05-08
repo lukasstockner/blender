@@ -33,6 +33,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Blackbody Node */
+
 ccl_device void svm_node_blackbody(KernelGlobals *kg, ShaderData *sd, float *stack, uint temperature_offset, uint col_offset)
 {
 	/* Input */

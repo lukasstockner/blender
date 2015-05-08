@@ -17,6 +17,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Attribute Node */
+
 ccl_device void svm_node_attr_init(KernelGlobals *kg, ShaderData *sd,
 	uint4 node, NodeAttributeType *type,
 	NodeAttributeType *mesh_type, AttributeElement *elem, int *offset, uint *out_offset)

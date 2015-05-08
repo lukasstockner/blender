@@ -73,6 +73,7 @@ ccl_device void svm_node_geometry_bump_dy(KernelGlobals *kg, ShaderData *sd, flo
 }
 
 /* Object Info */
+
 ccl_device void svm_node_object_info(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float data;
@@ -144,6 +145,7 @@ ccl_device void svm_node_particle_info(KernelGlobals *kg, ShaderData *sd, float 
 #ifdef __HAIR__
 
 /* Hair Info */
+
 ccl_device void svm_node_hair_info(KernelGlobals *kg, ShaderData *sd, float *stack, uint type, uint out_offset)
 {
 	float data;

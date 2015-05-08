@@ -286,6 +286,7 @@ ccl_device_inline bool shadow_blocked(KernelGlobals *kg, ccl_addr_space PathStat
 
 	return blocked;
 }
+
 #endif
 
 CCL_NAMESPACE_END
