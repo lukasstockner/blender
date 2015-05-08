@@ -34,63 +34,6 @@ CCL_NAMESPACE_BEGIN
 
 /* Wireframe Node */
 
-ccl_device float wireframe_SPLIT(KernelGlobals *kg,
-ShaderData *sd,
-float size,
-int pixel_size,
-ccl_addr_space float3 *P)
-{
-#ifdef __HAIR__
-	if(sd_fetch(prim) != PRIM_NONE && sd_fetch(type) & PRIMITIVE_ALL_TRIANGLE)
-#else
-	if(sd_fetch(prim) != PRIM_NONE)
-#endif
-	{
-		float3 Co[3];
-		float pixelwidth = 1.0f;
-
-		/* Triangles */
-		int np = 3;
-
-		if(sd_fetch(type) & PRIMITIVE_TRIANGLE)
-			triangle_vertices(kg, sd_fetch(prim), Co);
-		else
-			motion_triangle_vertices(kg, sd_fetch(object), sd_fetch(prim), sd_fetch(time), Co);
-
-		if(!(sd_fetch(flag) & SD_TRANSFORM_APPLIED)) {
-			object_position_transform(kg, sd, &Co[0]);
-			object_position_transform(kg, sd, &Co[1]);
-			object_position_transform(kg, sd, &Co[2]);
-		}
-
-		if(pixel_size) {
-			// Project the derivatives of P to the viewing plane defined
-			// by I so we have a measure of how big is a pixel at this point
-			float pixelwidth_x = len(sd_fetch(dP).dx - dot(sd_fetch(dP).dx, sd_fetch(I)) * sd_fetch(I));
-			float pixelwidth_y = len(sd_fetch(dP).dy - dot(sd_fetch(dP).dy, sd_fetch(I)) * sd_fetch(I));
-			// Take the average of both axis' length
-			pixelwidth = (pixelwidth_x + pixelwidth_y) * 0.5f;
-		}
-
-		// Use half the width as the neighbor face will render the
-		// other half. And take the square for fast comparison
-		pixelwidth *= 0.5f * size;
-		pixelwidth *= pixelwidth;
-		for(int i = 0; i < np; i++) {
-			int i2 = i ? i - 1 : np - 1;
-			float3 dir = *P - Co[i];
-			float3 edge = Co[i] - Co[i2];
-			float3 crs = cross(edge, dir);
-			// At this point dot(crs, crs) / dot(edge, edge) is
-			// the square of area / length(edge) == square of the
-			// distance to the edge.
-			if(dot(crs, crs) < (dot(edge, edge) * pixelwidth))
-				return 1.0f;
-		}
-	}
-	return 0.0f;
-}
-
 ccl_device float wireframe(KernelGlobals *kg,
                            ShaderData *sd,
                            float size,
@@ -163,7 +106,18 @@ ccl_device void svm_node_wireframe(KernelGlobals *kg,
 	int pixel_size = (int)use_pixel_size;
 
 	/* Calculate wireframe */
-	float f = wireframe_SPLIT(kg, sd, size, pixel_size, &sd_fetch(P));
+#ifdef __SPLIT_KERNEL__
+	/* TODO(sergey): This is because sd is actually a global space,
+	 * which makes it difficult to re-use same weireframe() function.
+	 *
+	 * With OpenCL 2.0 it's possible to avoid this change, but for until
+	 * then we'll be living with such an exception.
+	 */
+	float3 P = sd_fetch(P);
+	float f = wireframe(kg, sd, size, pixel_size, &P);
+#else
+	float f = wireframe(kg, sd, size, pixel_size, &sd_fetch(P));
+#endif
 
 	/* TODO(sergey): Think of faster way to calculate derivatives. */
 	if(bump_offset == NODE_BUMP_OFFSET_DX) {
