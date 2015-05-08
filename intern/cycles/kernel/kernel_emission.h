@@ -280,8 +280,8 @@ ccl_device_noinline float3 indirect_background(KernelGlobals *kg, ccl_addr_space
 	float3 L = shader_eval_background(kg, sd_global, state->flag, SHADER_CONTEXT_EMISSION);
 #else
 	ShaderData sd;
-	Ray priv_ray = *ray;
-	shader_setup_from_background(kg, &sd, &priv_ray, state->bounce+1, state->transparent_bounce);
+	shader_setup_from_background(kg, &sd, ray, state->bounce+1, state->transparent_bounce);
+
 	float3 L = shader_eval_background(kg, &sd, state->flag, SHADER_CONTEXT_EMISSION);
 #endif
 
