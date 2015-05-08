@@ -520,5 +520,38 @@ ccl_device_inline void bvh_instance_motion_pop_factor(KernelGlobals *kg, int obj
 
 #endif
 
+/* TODO(sergey): This is only for until we've got OpenCL 2.0
+ * on all devices we consider supported. It'll be replaced with
+ * generic address space.
+ */
+
+#ifdef __KERNEL_OPENCL__
+ccl_device_inline void object_dir_transform_addrspace(KernelGlobals *kg,
+                                                      const ShaderData *sd,
+                                                      ccl_addr_space float3 *D)
+{
+	float3 private_D = *D;
+	object_dir_transform(kg, sd, &private_D);
+	*D = private_D;
+}
+
+ccl_device_inline void object_normal_transform_addrspace(KernelGlobals *kg,
+                                                         const ShaderData *sd,
+                                                         ccl_addr_space float3 *N)
+{
+	float3 private_N = *N;
+	object_dir_transform(kg, sd, &private_N);
+	*N = private_N;
+}
+#endif
+
+#ifndef __KERNEL_OPENCL__
+#  define object_dir_transform_auto object_dir_transform
+#  define object_normal_transform_auto object_normal_transform
+#else
+#  define object_dir_transform_auto object_dir_transform_addrspace
+#  define object_normal_transform_auto object_normal_transform_addrspace
+#endif
+
 CCL_NAMESPACE_END
 
