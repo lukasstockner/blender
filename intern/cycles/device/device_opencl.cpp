@@ -1084,6 +1084,104 @@ public:
 			task.update_progress(NULL);
 		}
 	}
+
+protected:
+	class ArgumentWrapper {
+	public:
+		ArgumentWrapper() : size(0), pointer(NULL) {}
+		template <typename T>
+		ArgumentWrapper(T& argument) : size(sizeof(argument)),
+		                               pointer(&argument) { }
+		size_t size;
+		void *pointer;
+	};
+
+	int kernel_set_args(cl_kernel kernel,
+	                    int start_argument_index,
+	                    const ArgumentWrapper& arg1 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg2 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg3 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg4 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg5 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg6 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg7 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg8 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg9 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg10 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg11 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg12 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg13 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg14 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg15 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg16 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg17 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg18 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg19 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg20 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg21 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg22 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg23 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg24 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg25 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg26 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg27 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg28 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg29 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg30 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg31 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg32 = ArgumentWrapper(),
+	                    const ArgumentWrapper& arg33 = ArgumentWrapper())
+	{
+		int current_arg_index = 0;
+#define FAKE_VARARG_HANDLE_ARG(arg) \
+		do { \
+			if(arg.pointer != NULL) { \
+				opencl_assert(clSetKernelArg( \
+					kernel, \
+					start_argument_index + current_arg_index, \
+					arg.size, arg.pointer)); \
+				++current_arg_index; \
+			} \
+			else { \
+				return current_arg_index; \
+			} \
+		} while(false)
+		FAKE_VARARG_HANDLE_ARG(arg1);
+		FAKE_VARARG_HANDLE_ARG(arg2);
+		FAKE_VARARG_HANDLE_ARG(arg3);
+		FAKE_VARARG_HANDLE_ARG(arg4);
+		FAKE_VARARG_HANDLE_ARG(arg5);
+		FAKE_VARARG_HANDLE_ARG(arg6);
+		FAKE_VARARG_HANDLE_ARG(arg7);
+		FAKE_VARARG_HANDLE_ARG(arg8);
+		FAKE_VARARG_HANDLE_ARG(arg9);
+		FAKE_VARARG_HANDLE_ARG(arg10);
+		FAKE_VARARG_HANDLE_ARG(arg11);
+		FAKE_VARARG_HANDLE_ARG(arg12);
+		FAKE_VARARG_HANDLE_ARG(arg13);
+		FAKE_VARARG_HANDLE_ARG(arg14);
+		FAKE_VARARG_HANDLE_ARG(arg15);
+		FAKE_VARARG_HANDLE_ARG(arg16);
+		FAKE_VARARG_HANDLE_ARG(arg17);
+		FAKE_VARARG_HANDLE_ARG(arg18);
+		FAKE_VARARG_HANDLE_ARG(arg19);
+		FAKE_VARARG_HANDLE_ARG(arg20);
+		FAKE_VARARG_HANDLE_ARG(arg21);
+		FAKE_VARARG_HANDLE_ARG(arg22);
+		FAKE_VARARG_HANDLE_ARG(arg23);
+		FAKE_VARARG_HANDLE_ARG(arg24);
+		FAKE_VARARG_HANDLE_ARG(arg25);
+		FAKE_VARARG_HANDLE_ARG(arg26);
+		FAKE_VARARG_HANDLE_ARG(arg27);
+		FAKE_VARARG_HANDLE_ARG(arg28);
+		FAKE_VARARG_HANDLE_ARG(arg29);
+		FAKE_VARARG_HANDLE_ARG(arg30);
+		FAKE_VARARG_HANDLE_ARG(arg31);
+		FAKE_VARARG_HANDLE_ARG(arg32);
+		FAKE_VARARG_HANDLE_ARG(arg33);
+#undef FAKE_VARARG_HANDLE_ARG
+		return current_arg_index;
+	}
 };
 
 class OpenCLDeviceMegaKernel : public OpenCLDeviceBase
@@ -2335,301 +2433,310 @@ public:
 		cl_int total_num_rays = global_size[0] * global_size[1];
 
 		/* Set arguments for ckPathTraceKernel_DataInit kernel */
-		cl_uint narg = 0;
+		cl_uint start_arg_index =
+			kernel_set_args(ckPathTraceKernel_DataInit,
+			                0,
+			                kgbuffer,
+			                sd,
+			                sd_DL_shadow,
+			                P_sd,
+			                P_sd_DL_shadow,
+			                N_sd,
+			                N_sd_DL_shadow,
+			                Ng_sd,
+			                Ng_sd_DL_shadow,
+			                I_sd,
+			                I_sd_DL_shadow,
+			                shader_sd,
+			                shader_sd_DL_shadow,
+			                flag_sd,
+			                flag_sd_DL_shadow,
+			                prim_sd,
+			                prim_sd_DL_shadow,
+			                type_sd,
+			                type_sd_DL_shadow,
+			                u_sd,
+			                u_sd_DL_shadow,
+			                v_sd,
+			                v_sd_DL_shadow,
+			                object_sd,
+			                object_sd_DL_shadow,
+			                time_sd,
+			                time_sd_DL_shadow,
+			                ray_length_sd,
+			                ray_length_sd_DL_shadow,
+			                ray_depth_sd,
+			                ray_depth_sd_DL_shadow,
+			                transparent_depth_sd,
+			                transparent_depth_sd_DL_shadow);
 
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, P_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, P_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, N_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, N_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Ng_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Ng_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, I_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, I_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, shader_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, shader_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, flag_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, flag_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, prim_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, prim_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, type_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, type_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, u_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, u_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, v_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, v_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, object_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, object_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, time_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, time_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_length_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_length_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_depth_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_depth_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, transparent_depth_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, transparent_depth_sd_DL_shadow);
+		start_arg_index +=
+			kernel_set_args(ckPathTraceKernel_DataInit,
 #ifdef __RAY_DIFFERENTIALS__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dP_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dP_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dI_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dI_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, du_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, du_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dv_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dv_sd_DL_shadow);
+			                start_arg_index,
+			                dP_sd,
+			                dP_sd_DL_shadow,
+			                dI_sd,
+			                dI_sd_DL_shadow,
+			                du_sd,
+			                du_sd_DL_shadow,
+			                dv_sd,
+			                dv_sd_DL_shadow,
 #endif
 #ifdef __DPDU__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdu_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdu_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdv_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dPdv_sd_DL_shadow);
+			                dPdu_sd,
+			                dPdu_sd_DL_shadow,
+			                dPdv_sd,
+			                dPdv_sd_DL_shadow,
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, closure_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, closure_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_closure_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_closure_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, randb_closure_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, randb_closure_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_P_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_P_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_dP_sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_dP_sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_rng_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, L_transparent_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, ray_state);
+			                closure_sd,
+			                closure_sd_DL_shadow,
+			                num_closure_sd,
+			                num_closure_sd_DL_shadow,
+			                randb_closure_sd,
+			                randb_closure_sd_DL_shadow,
+			                ray_P_sd,
+			                ray_P_sd_DL_shadow,
+			                ray_dP_sd,
+			                ray_dP_sd_DL_shadow,
+			                d_data,
+			                per_sample_output_buffers,
+			                d_rng_state,
+			                rng_coop,
+			                throughput_coop,
+			                L_transparent_coop,
+			                PathRadiance_coop,
+			                Ray_coop,
+			                PathState_coop,
+			                ray_state);
 
+/* TODO(segrey): Avoid map lookup here. */
 #define KERNEL_TEX(type, ttype, name) \
-	set_kernel_arg_mem(ckPathTraceKernel_DataInit, &narg, #name);
+	set_kernel_arg_mem(ckPathTraceKernel_DataInit, &start_arg_index, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, start_sample);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_offset);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rtile.rng_state_offset_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rtile.rng_state_offset_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, rtile.buffer_rng_state_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, use_queues_flag);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, work_array);
+		start_arg_index +=
+			kernel_set_args(ckPathTraceKernel_DataInit,
+			                start_arg_index,
+			                start_sample,
+			                d_x,
+			                d_y,
+			                d_w,
+			                d_h,
+			                d_offset,
+			                d_stride,
+			                rtile.rng_state_offset_x,
+			                rtile.rng_state_offset_y,
+			                rtile.buffer_rng_state_stride,
+			                Queue_data,
+			                Queue_index,
+			                dQueue_size,
+			                use_queues_flag,
+			                work_array,
 #ifdef __WORK_STEALING__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, work_pool_wgs);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_samples);
+			                work_pool_wgs,
+			                num_samples,
 #endif
 #ifdef WITH_CYCLES_DEBUG
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, debugdata_coop);
+			                debugdata_coop,
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DataInit, num_parallel_samples);
+			                num_parallel_samples);
 
-		/* Set arguments for ckPathTraceKernel_SceneIntersect */;
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, use_queues_flag);
+		kernel_set_args(ckPathTraceKernel_SceneIntersect,
+		                0,
+		                kgbuffer,
+		                d_data,
+		                rng_coop,
+		                Ray_coop,
+		                PathState_coop,
+		                Intersection_coop,
+		                ray_state,
+		                d_w,
+		                d_h,
+		                Queue_data,
+		                Queue_index,
+		                dQueue_size,
+		                use_queues_flag,
 #ifdef WITH_CYCLES_DEBUG
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, debugdata_coop);
+		                debugdata_coop,
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SceneIntersect, num_parallel_samples);
+		                num_parallel_samples);
 
-		/* Set arguments for ckPathTracekernel_LampEmission kernel */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, use_queues_flag);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_LampEmission, num_parallel_samples);
+		kernel_set_args(ckPathTraceKernel_LampEmission,
+		                0,
+		                kgbuffer,
+		                d_data,
+		                sd,
+		                throughput_coop,
+		                PathRadiance_coop,
+		                Ray_coop,
+		                PathState_coop,
+		                Intersection_coop,
+		                ray_state,
+		                d_w,
+		                d_h,
+		                Queue_data,
+		                Queue_index,
+		                dQueue_size,
+		                use_queues_flag,
+		                num_parallel_samples);
 
-		/* Set arguments for ckPathTraceKernel_QueueEnqueue kernel */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_QueueEnqueue, dQueue_size);
+		kernel_set_args(ckPathTraceKernel_QueueEnqueue,
+		                0,
+		                Queue_data,
+		                Queue_index,
+		                ray_state,
+		                dQueue_size);
 
-		/* Set arguments for ckPathTraceKernel_BG_BufferUpdate kernel */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_rng_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, L_transparent_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rtile.rng_state_offset_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rtile.rng_state_offset_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, rtile.buffer_rng_state_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, work_array);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, end_sample);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, start_sample);
+		kernel_set_args(ckPathTraceKernel_BG_BufferUpdate,
+		                 0,
+		                 kgbuffer,
+		                 d_data,
+		                 sd,
+		                 per_sample_output_buffers,
+		                 d_rng_state,
+		                 rng_coop,
+		                 throughput_coop,
+		                 PathRadiance_coop,
+		                 Ray_coop,
+		                 PathState_coop,
+		                 L_transparent_coop,
+		                 ray_state,
+		                 d_w,
+		                 d_h,
+		                 d_x,
+		                 d_y,
+		                 d_stride,
+		                 rtile.rng_state_offset_x,
+		                 rtile.rng_state_offset_y,
+		                 rtile.buffer_rng_state_stride,
+		                 work_array,
+		                 Queue_data,
+		                 Queue_index,
+		                 dQueue_size,
+		                 end_sample,
+		                 start_sample,
 #ifdef __WORK_STEALING__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, work_pool_wgs);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, num_samples);
+		                 work_pool_wgs,
+		                 num_samples,
 #endif
 #ifdef WITH_CYCLES_DEBUG
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, debugdata_coop);
+		                 debugdata_coop,
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_BG_BufferUpdate, num_parallel_samples);
+		                 num_parallel_samples);
 
-		/* Set arguments for ckPathTraceKernel_Shader_Lighting */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Shader_Lighting, dQueue_size);
+		kernel_set_args(ckPathTraceKernel_Shader_Lighting,
+		                0,
+		                kgbuffer,
+		                d_data,
+		                sd,
+		                rng_coop,
+		                Ray_coop,
+		                PathState_coop,
+		                Intersection_coop,
+		                ray_state,
+		                Queue_data,
+		                Queue_index,
+		                dQueue_size);
 
-		/* Set up arguments for ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO kernel */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, L_transparent_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, Intersection_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, AOAlpha_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, AOBSDF_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, AOLightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, work_array);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, dQueue_size);
+		kernel_set_args(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO,
+		                0,
+		                kgbuffer,
+		                d_data,
+		                sd,
+		                per_sample_output_buffers,
+		                rng_coop,
+		                throughput_coop,
+		                L_transparent_coop,
+		                PathRadiance_coop,
+		                PathState_coop,
+		                Intersection_coop,
+		                AOAlpha_coop,
+		                AOBSDF_coop,
+		                AOLightRay_coop,
+		                d_w,
+		                d_h,
+		                d_x,
+		                d_y,
+		                d_stride,
+		                ray_state,
+		                work_array,
+		                Queue_data,
+		                Queue_index,
+		                dQueue_size,
 #ifdef __WORK_STEALING__
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, start_sample);
+		                start_sample,
 #endif
-		KERNEL_APPEND_ARG(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, num_parallel_samples);
+		                num_parallel_samples);
 
-		/* Set up arguments for ckPathTraceKernel_DirectLighting kernel */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, ISLamp_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, LightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, BSDFEval_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_DirectLighting, dQueue_size);
+		kernel_set_args(ckPathTraceKernel_DirectLighting,
+		                0,
+		                kgbuffer,
+		                d_data,
+		                sd,
+		                sd_DL_shadow,
+		                rng_coop,
+		                PathState_coop,
+		                ISLamp_coop,
+		                LightRay_coop,
+		                BSDFEval_coop,
+		                ray_state,
+		                Queue_data,
+		                Queue_index,
+		                dQueue_size);
 
-		/* Set up arguments for ckPathTraceKernel_ShadowBlocked_DirectLighting kernel */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, sd_DL_shadow);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, LightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, AOLightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Intersection_coop_AO);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Intersection_coop_DL);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_ShadowBlocked_DirectLighting, total_num_rays);
+		kernel_set_args(ckPathTraceKernel_ShadowBlocked_DirectLighting,
+		                0,
+		                kgbuffer,
+		                d_data,
+		                sd_DL_shadow,
+		                PathState_coop,
+		                LightRay_coop,
+		                AOLightRay_coop,
+		                Intersection_coop_AO,
+		                Intersection_coop_DL,
+		                ray_state,
+		                Queue_data,
+		                Queue_index,
+		                dQueue_size,
+		                total_num_rays);
 
-		/* Set up arguments for ckPathTraceKernel_SetUpNextIteration kernel */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, kgbuffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, sd);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, rng_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, throughput_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, PathRadiance_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, Ray_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, PathState_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, LightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, ISLamp_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, BSDFEval_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, AOLightRay_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, AOBSDF_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, AOAlpha_coop);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, ray_state);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, Queue_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, Queue_index);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, dQueue_size);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SetUpNextIteration, use_queues_flag);
+		kernel_set_args(ckPathTraceKernel_SetUpNextIteration,
+		                0,
+		                kgbuffer,
+		                d_data,
+		                sd,
+		                rng_coop,
+		                throughput_coop,
+		                PathRadiance_coop,
+		                Ray_coop,
+		                PathState_coop,
+		                LightRay_coop,
+		                ISLamp_coop,
+		                BSDFEval_coop,
+		                AOLightRay_coop,
+		                AOBSDF_coop,
+		                AOAlpha_coop,
+		                ray_state,
+		                Queue_data,
+		                Queue_index,
+		                dQueue_size,
+		                use_queues_flag);
 
-		/* Set up arguments for ckPathTraceKernel_SumAllRadiance */
-		narg = 0;
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_buffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, per_sample_output_buffers);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, num_parallel_samples);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, d_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_offset_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_offset_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, rtile.buffer_rng_state_stride);
-		KERNEL_APPEND_ARG(ckPathTraceKernel_SumAllRadiance, start_sample);
+		kernel_set_args(ckPathTraceKernel_SumAllRadiance,
+		                0,
+		                d_data,
+		                d_buffer,
+		                per_sample_output_buffers,
+		                num_parallel_samples,
+		                d_w,
+		                d_h,
+		                d_stride,
+		                rtile.buffer_offset_x,
+		                rtile.buffer_offset_y,
+		                rtile.buffer_rng_state_stride,
+		                start_sample);
 
 		/* Macro for Enqueuing split kernels */
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
