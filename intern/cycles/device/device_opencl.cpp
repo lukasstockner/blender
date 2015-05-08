@@ -57,8 +57,7 @@ CCL_NAMESPACE_BEGIN
  */
 #define PATH_ITER_INC_FACTOR 8
 
-/*
- * When allocate global memory in chunks. We may not be able to
+/* When allocate global memory in chunks. We may not be able to
  * allocate exactly "CL_DEVICE_MAX_MEM_ALLOC_SIZE" bytes in chunks;
  * Since some bytes may be needed for aligning chunks of memory;
  * This is the amount of memory that we dedicate for that purpose.
@@ -692,8 +691,8 @@ public:
 	                    const string *debug_src = NULL)
 	{
 		/* we compile kernels consisting of many files. unfortunately opencl
-		* kernel caches do not seem to recognize changes in included files.
-		* so we force recompile on changes by adding the md5 hash of all files */
+		 * kernel caches do not seem to recognize changes in included files.
+		 * so we force recompile on changes by adding the md5 hash of all files */
 		source = path_source_replace_includes(source, kernel_path);
 
 		if(debug_src)
@@ -1370,11 +1369,11 @@ public:
 
 				/* Complete kernel execution before release tile */
 				/* This helps in multi-device render;
-				* The device that reaches the critical-section function release_tile
-				* waits (stalling other devices from entering release_tile) for all kernels
-				* to complete. If device1 (a slow-render device) reaches release_tile first then
-				* it would stall device2 (a fast-render device) from proceeding to render next tile
-				*/
+				 * The device that reaches the critical-section function release_tile
+				 * waits (stalling other devices from entering release_tile) for all kernels
+				 * to complete. If device1 (a slow-render device) reaches release_tile first then
+				 * it would stall device2 (a fast-render device) from proceeding to render next tile
+				 */
 				clFinish(cqCommandQueue);
 
 				task->release_tile(tile);
@@ -1445,10 +1444,10 @@ public:
 	cl_program sumAllRadiance_program;
 
 	/* Global memory variables [porting]; These memory is used for
-	* co-operation between different kernels; Data written by one
-	* kernel will be avaible to another kernel via this global
-	* memory
-	*/
+	 * co-operation between different kernels; Data written by one
+	 * kernel will be avaible to another kernel via this global
+	 * memory
+	 */
 	cl_mem rng_coop;
 	cl_mem throughput_coop;
 	cl_mem L_transparent_coop;
@@ -1739,9 +1738,9 @@ public:
 		assert(ciErr == CL_SUCCESS);
 		if(platform_name == "AMD Accelerated Parallel Processing") {
 			/* This value is tweak-able; AMD platform does not seem to
-			* give maximum performance when all of CL_DEVICE_MAX_MEM_ALLOC_SIZE
-			* is considered for further computation.
-			*/
+			 * give maximum performance when all of CL_DEVICE_MAX_MEM_ALLOC_SIZE
+			 * is considered for further computation.
+			 */
 			total_allocatable_memory /= 2;
 		}
 	}
@@ -1848,8 +1847,8 @@ public:
 		}
 
 		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
-		* to limit re-compilations
-		*/
+		 * to limit re-compilations
+		 */
 		/* TODO(sergey): Decision about this should be done on higher levels. */
 		int max_closure = requested_features.max_closure;
 		if(!background) {
@@ -2613,10 +2612,9 @@ public:
 
 				PathIteration_times = PATH_ITER_INC_FACTOR;
 
-				/*
-				* Host intervention done before all rays become RAY_INACTIVE;
-				* Set do more initial iterations for the next tile
-				*/
+				/* Host intervention done before all rays become RAY_INACTIVE;
+				 * Set do more initial iterations for the next tile
+				 */
 				numNextPathIterTimes += PATH_ITER_INC_FACTOR;
 			}
 		}
@@ -2632,16 +2630,15 @@ public:
 
 		if(numHostIntervention == 0) {
 			/* This means that we are executing kernel more than required
-			* Must avoid this for the next sample/tile
-			*/
+			 * Must avoid this for the next sample/tile
+			 */
 			PathIteration_times = ((numNextPathIterTimes - PATH_ITER_INC_FACTOR) <= 0) ?
 			PATH_ITER_INC_FACTOR : numNextPathIterTimes - PATH_ITER_INC_FACTOR;
 		}
 		else {
-			/*
-			* Number of path-iterations done for this tile is set as
-			* Initial path-iteration times for the next tile
-			*/
+			/* Number of path-iterations done for this tile is set as
+			 * Initial path-iteration times for the next tile
+			 */
 			PathIteration_times = numNextPathIterTimes;
 		}
 
@@ -2649,11 +2646,11 @@ public:
 	}
 
 	/* Calculates the amount of memory that has to be always
-	* allocated in order for the split kernel to function.
-	* This memory is tile/scene-property invariant (meaning,
-	* the value returned by this function does not depend
-	* on the user set tile size or scene properties
-	*/
+	 * allocated in order for the split kernel to function.
+	 * This memory is tile/scene-property invariant (meaning,
+	 * the value returned by this function does not depend
+	 * on the user set tile size or scene properties
+	 */
 	size_t get_invariable_mem_allocated()
 	{
 		size_t total_invariable_mem_allocated = 0;
@@ -2745,8 +2742,8 @@ public:
 	}
 
 	/* Considers the total memory available in the device and
-	* and returns the maximum global work size possible
-	*/
+	 * and returns the maximum global work size possible
+	 */
 	size_t get_feasible_global_work_size(RenderTile rtile, cl_mem d_data)
 	{
 
@@ -2770,9 +2767,9 @@ public:
 	}
 
 	/* Checks if the device has enough memory to render the whole tile;
-	* If not, we should split single tile into multiple tiles of small size
-	* and process them all
-	*/
+	 * If not, we should split single tile into multiple tiles of small size
+	 * and process them all
+	 */
 	bool need_to_split_tile(unsigned int d_w, unsigned int d_h, int2 max_render_feasible_tile_size)
 	{
 		size_t global_size_estimate[2] = { 0, 0 };
@@ -2787,9 +2784,9 @@ public:
 	}
 
 	/* Considers the scene properties, global memory available in the device
-	* and returns a rectanglular tile dimension (approx the maximum)
-	* that should render on split kernel
-	*/
+	 * and returns a rectanglular tile dimension (approx the maximum)
+	 * that should render on split kernel
+	 */
 	int2 get_max_render_feasible_tile_size(size_t feasible_global_work_size)
 	{
 		int2 max_render_feasible_tile_size;
@@ -2927,14 +2924,14 @@ public:
 					/* This value is different when running on AMD and NV */
 					if(background) {
 						/* In offline render the number of buffer elements
-						* associated with tile.buffer is the current tile size
-						*/
+						 * associated with tile.buffer is the current tile size
+						 */
 						per_thread_output_buffer_size = output_buffer_size / (tile.w * tile.h);
 					}
 					else {
 						/* interactive rendering, unlike offline render, the number of buffer elements
-						* associated with tile.buffer is the entire viewport size.
-						*/
+						 * associated with tile.buffer is the entire viewport size.
+						 */
 						per_thread_output_buffer_size = output_buffer_size / (tile.buffers->params.width * tile.buffers->params.height);
 					}
 
@@ -3030,8 +3027,8 @@ protected:
 };
 
 /* Returns true in case of successful detection of platform and device type,
-* else returns false
-*/
+ * else returns false
+ */
 static bool get_platform_and_devicetype(const DeviceInfo info,
                                         string &platform_name,
                                         cl_device_type &device_type)
