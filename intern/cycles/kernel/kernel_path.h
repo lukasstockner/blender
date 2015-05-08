@@ -77,7 +77,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 			/* intersect with lamp */
 			float3 emission;
 
-			if(indirect_lamp_emission(kg, &state, &light_ray, &emission, NULL))
+			if(indirect_lamp_emission(kg, &state, &light_ray, &emission))
 				path_radiance_accum_emission(L, throughput, emission, state.bounce);
 		}
 #endif
@@ -170,7 +170,7 @@ ccl_device void kernel_path_indirect(KernelGlobals *kg, RNG *rng, Ray ray,
 		if(!hit) {
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &state, &ray, NULL);
+			float3 L_background = indirect_background(kg, &state, &ray);
 			path_radiance_accum_background(L, throughput, L_background, state.bounce);
 #endif
 
@@ -497,7 +497,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 			/* intersect with lamp */
 			float3 emission;
 
-			if(indirect_lamp_emission(kg, &state, &light_ray, &emission, NULL))
+			if(indirect_lamp_emission(kg, &state, &light_ray, &emission))
 				path_radiance_accum_emission(&L, throughput, emission, state.bounce);
 		}
 #endif
@@ -600,7 +600,7 @@ ccl_device float4 kernel_path_integrate(KernelGlobals *kg, RNG *rng, int sample,
 
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &state, &ray, NULL);
+			float3 L_background = indirect_background(kg, &state, &ray);
 			path_radiance_accum_background(&L, throughput, L_background, state.bounce);
 #endif
 
@@ -1018,7 +1018,7 @@ ccl_device float4 kernel_branched_path_integrate(KernelGlobals *kg, RNG *rng, in
 
 #ifdef __BACKGROUND__
 			/* sample background shader */
-			float3 L_background = indirect_background(kg, &state, &ray, NULL);
+			float3 L_background = indirect_background(kg, &state, &ray);
 			path_radiance_accum_background(&L, throughput, L_background, state.bounce);
 #endif
 

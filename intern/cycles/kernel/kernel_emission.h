@@ -190,7 +190,11 @@ ccl_device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, Shader
 /* Indirect Lamp Emission */
 
 /* The argument sd is meaningful only for split kernel. Other uses can just pass NULL */
-ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg, PathState *state, Ray *ray, float3 *emission, ShaderData *sd)
+ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg, PathState *state, Ray *ray, float3 *emission
+#ifdef __SPLIT_KERNEL__
+                                                ,ShaderData *sd
+#endif
+                                                )
 {
 	bool hit_lamp = false;
 
@@ -249,7 +253,11 @@ ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg, PathState *st
 
 /* Indirect Background */
 
-ccl_device_noinline float3 indirect_background(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray, ShaderData *sd_global)
+ccl_device_noinline float3 indirect_background(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space Ray *ray
+#ifdef __SPLIT_KERNEL__
+                                               ,ShaderData *sd_global
+#endif
+                                               )
 {
 #ifdef __BACKGROUND__
 	int shader = kernel_data.background.surface_shader;
