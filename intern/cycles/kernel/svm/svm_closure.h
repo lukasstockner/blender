@@ -425,6 +425,11 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 #endif
 
 #ifdef __SUBSURFACE__
+#ifndef __SPLIT_KERNEL__
+#  define sc_next(sc) sc++
+#  else
+#  define sc_next(sc) sc = sc_fetch(sd_fetch(num_closure))
+#  endif
 		case CLOSURE_BSSRDF_CUBIC_ID:
 		case CLOSURE_BSSRDF_GAUSSIAN_ID: {
 			ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
@@ -460,7 +465,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 					sd_fetch(flag) |= bssrdf_setup(sc, (ClosureType)type);
 
 					sd_fetch(num_closure)++;
-					sc = sc_fetch(sd_fetch(num_closure));
+					sc_next(sc);
 				}
 
 				if(fabsf(weight.y) > 0.0f) {
@@ -477,7 +482,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 					sd_fetch(flag) |= bssrdf_setup(sc, (ClosureType)type);
 
 					sd_fetch(num_closure)++;
-					sc = sc_fetch(sd_fetch(num_closure));
+					sc_next(sc);
 				}
 
 				if(fabsf(weight.z) > 0.0f) {
@@ -494,12 +499,13 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 					sd_fetch(flag) |= bssrdf_setup(sc, (ClosureType)type);
 
 					sd_fetch(num_closure)++;
-					sc = sc_fetch(sd_fetch(num_closure));
+					sc_next(sc);
 				}
 			}
 
 			break;
 		}
+#  undef sc_next
 #endif
 		default:
 			break;
