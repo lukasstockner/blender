@@ -38,12 +38,6 @@ CCL_NAMESPACE_BEGIN
 #define BSSRDF_MIN_RADIUS			1e-8f
 #define BSSRDF_MAX_HITS				4
 
-#define BB_DRAPER				800.0f
-#define BB_MAX_TABLE_RANGE		12000.0f
-#define BB_TABLE_XPOWER			1.5f
-#define BB_TABLE_YPOWER			5.0f
-#define BB_TABLE_SPACING		2.0f
-
 #define BECKMANN_TABLE_SIZE		256
 
 #define TEX_NUM_FLOAT_IMAGES	5
@@ -72,6 +66,7 @@ CCL_NAMESPACE_BEGIN
 #define __VOLUME_DECOUPLED__
 #define __VOLUME_SCATTER__
 #define __SHADOW_RECORD_ALL__
+#define __VOLUME_RECORD_ALL__
 #endif
 
 #ifdef __KERNEL_CUDA__
@@ -269,9 +264,7 @@ enum PathRayFlag {
 
 	PATH_RAY_MIS_SKIP = 2048,
 	PATH_RAY_DIFFUSE_ANCESTOR = 4096,
-	PATH_RAY_GLOSSY_ANCESTOR = 8192,
-	PATH_RAY_BSSRDF_ANCESTOR = 16384,
-	PATH_RAY_SINGLE_PASS_DONE = 32768,
+	PATH_RAY_SINGLE_PASS_DONE = 8192,
 
 	/* we need layer member flags to be the 20 upper bits */
 	PATH_RAY_LAYER_SHIFT = (32-20)
@@ -426,6 +419,7 @@ enum CameraType {
 
 enum PanoramaType {
 	PANORAMA_EQUIRECTANGULAR,
+	PANORAMA_MIRRORBALL,
 	PANORAMA_FISHEYE_EQUIDISTANT,
 	PANORAMA_FISHEYE_EQUISOLID
 };
@@ -895,6 +889,11 @@ typedef struct KernelIntegrator {
 	float inv_pdf_lights;
 	int pdf_background_res;
 
+	/* light portals */
+	float portal_pdf;
+	int num_portals;
+	int portal_offset;
+
 	/* bounces */
 	int min_bounce;
 	int max_bounce;
@@ -947,6 +946,8 @@ typedef struct KernelIntegrator {
 	int volume_max_steps;
 	float volume_step_size;
 	int volume_samples;
+
+	int pad;
 } KernelIntegrator;
 
 typedef struct KernelBVH {
@@ -980,9 +981,8 @@ typedef struct KernelCurves {
 } KernelCurves;
 
 typedef struct KernelTables {
-	int blackbody_offset;
 	int beckmann_offset;
-	int pad1, pad2;
+	int pad1, pad2, pad3;
 } KernelTables;
 
 typedef struct KernelData {

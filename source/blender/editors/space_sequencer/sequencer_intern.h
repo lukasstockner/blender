@@ -45,6 +45,8 @@ struct ARegion;
 struct ARegionType;
 struct Scene;
 struct Main;
+struct wmOperator;
+struct StripElem;
 
 /* space_sequencer.c */
 struct ARegion *sequencer_has_buttons_region(struct ScrArea *sa);
@@ -52,7 +54,7 @@ struct ARegion *sequencer_has_buttons_region(struct ScrArea *sa);
 
 /* sequencer_draw.c */
 void draw_timeline_seq(const struct bContext *C, struct ARegion *ar);
-void draw_image_seq(const struct bContext *C, struct Scene *scene, struct  ARegion *ar, struct SpaceSeq *sseq, int cfra, int offset, bool draw_overlay, bool draw_backdrop);
+void draw_image_seq(const struct bContext *C, struct Scene *scene, struct  ARegion *ar, struct SpaceSeq *sseq, int cfra, int offset, bool draw_overlay, bool draw_overdrop);
 void color3ubv_from_seq(struct Scene *curscene, struct Sequence *seq, unsigned char col[3]);
 void draw_shadedstrip(struct Sequence *seq, unsigned char col[3], float x1, float y1, float x2, float y2);
 void draw_sequence_extensions(struct Scene *scene, struct ARegion *ar, struct Sequence *seq);
@@ -205,6 +207,10 @@ void SEQUENCER_OT_sample(struct wmOperatorType *ot);
 
 /* sequencer_preview.c */
 void sequencer_preview_add_sound(const struct bContext *C, struct Sequence *seq);
+
+/* sequencer_add */
+int sequencer_image_seq_get_minmax_frame(struct wmOperator *op, int sfra, int *r_minframe);
+void sequencer_image_seq_reserve_frames(struct wmOperator *op, struct StripElem *se, int len, int minframe);
 
 #endif /* __SEQUENCER_INTERN_H__ */
 
