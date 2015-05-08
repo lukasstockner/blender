@@ -387,10 +387,8 @@ ccl_device_inline void shader_setup_from_background(KernelGlobals *kg, ShaderDat
 	/* differentials */
 	sd_fetch(dP) = ray->dD;
 	differential_incoming(&sd_fetch(dI), sd_fetch(dP));
-	sd_fetch(du).dx = 0.0f;
-	sd_fetch(du).dy = 0.0f;
-	sd_fetch(dv).dx = 0.0f;
-	sd_fetch(dv).dy = 0.0f;
+	sd_fetch(du) = differential_zero();
+	sd_fetch(dv) = differential_zero();
 #endif
 }
 
