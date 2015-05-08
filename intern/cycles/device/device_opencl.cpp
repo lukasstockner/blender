@@ -1088,21 +1088,6 @@ public:
 			task.update_progress(NULL);
 		}
 	}
-
-protected:
-	/* Overloading function for creating split kernel device buffers.
-	 *
-	 * TODO(sergey): Move tihs to split kernel device?
-	 */
-	cl_mem mem_alloc(size_t bufsize, cl_mem_flags mem_flag = CL_MEM_READ_WRITE) {
-		cl_mem ptr;
-		ptr = clCreateBuffer(cxContext, mem_flag, bufsize, NULL, &ciErr);
-		if (ciErr != CL_SUCCESS) {
-			fprintf(stderr, "(%d) %s in clCreateBuffer\n", ciErr, clewErrorString(ciErr));
-			assert(0);
-		}
-		return ptr;
-	}
 };
 
 class OpenCLDeviceMegaKernel : public OpenCLDeviceBase
@@ -3198,6 +3183,18 @@ The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for 
 	void task_cancel()
 	{
 		task_pool.cancel();
+	}
+
+protected:
+	cl_mem mem_alloc(size_t bufsize, cl_mem_flags mem_flag = CL_MEM_READ_WRITE)
+	{
+		cl_mem ptr;
+		ptr = clCreateBuffer(cxContext, mem_flag, bufsize, NULL, &ciErr);
+		if (ciErr != CL_SUCCESS) {
+			fprintf(stderr, "(%d) %s in clCreateBuffer\n", ciErr, clewErrorString(ciErr));
+			assert(0);
+		}
+		return ptr;
 	}
 };
 
