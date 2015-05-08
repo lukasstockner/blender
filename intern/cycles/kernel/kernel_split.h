@@ -73,6 +73,7 @@ ccl_device_inline void atomic_add_float(volatile ccl_global float *source, const
 #include "kernel_path_state.h"
 #include "kernel_shadow.h"
 #include "kernel_emission.h"
+#include "kernel_path_common.h"
 #include "kernel_path_surface.h"
 #include "kernel_path_volume.h"
 
