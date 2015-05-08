@@ -93,7 +93,7 @@ ccl_device void shader_setup_from_ray(KernelGlobals *kg, ShaderData *sd,
 		sd_fetch(P) = triangle_refine(kg, sd, isect, ray);
 		sd_fetch(Ng) = Ng;
 		sd_fetch(N) = Ng;
-
+		
 		/* smooth normal */
 		if(sd_fetch(shader) & SHADER_SMOOTH_NORMAL)
 			sd_fetch(N) = triangle_smooth_normal(kg, sd_fetch(prim), sd_fetch(u), sd_fetch(v));
@@ -428,7 +428,7 @@ ccl_device_inline void shader_setup_from_volume(KernelGlobals *kg, ShaderData *s
 {
 	/* vectors */
 	sd->P = ray->P;
-	sd->N = -ray->D;
+	sd->N = -ray->D;  
 	sd->Ng = -ray->D;
 	sd->I = -ray->D;
 	sd->shader = SHADER_NONE;
@@ -564,7 +564,7 @@ ccl_device int shader_bsdf_sample(KernelGlobals *kg, const ShaderData *sd,
 
 		for(sampled = 0; sampled < sd_fetch(num_closure); sampled++) {
 			const ShaderClosure *sc = sc_fetch(sampled);
-
+			
 			if(CLOSURE_IS_BSDF(sc->type))
 				sum += sc->sample_weight;
 		}
@@ -574,7 +574,7 @@ ccl_device int shader_bsdf_sample(KernelGlobals *kg, const ShaderData *sd,
 
 		for(sampled = 0; sampled < sd_fetch(num_closure); sampled++) {
 			const ShaderClosure *sc = sc_fetch(sampled);
-
+			
 			if(CLOSURE_IS_BSDF(sc->type)) {
 				sum += sc->sample_weight;
 
@@ -658,7 +658,7 @@ ccl_device float3 shader_bsdf_alpha(KernelGlobals *kg, ShaderData *sd)
 
 	alpha = max(alpha, make_float3(0.0f, 0.0f, 0.0f));
 	alpha = min(alpha, make_float3(1.0f, 1.0f, 1.0f));
-
+	
 	return alpha;
 }
 

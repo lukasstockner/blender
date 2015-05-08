@@ -285,7 +285,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 #endif
 
 			/* refraction */
-		    sc = sc_fetch(sd_fetch(num_closure));
+			sc = sc_fetch(sd_fetch(num_closure));
 			sc->weight = weight;
 			sc->sample_weight = sample_weight;
 
@@ -366,7 +366,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 				sc->data0 = param1;
 				sc->data1 = param2;
 				sc->data2 = 0.0f;
-
+				
 				if(type == CLOSURE_BSDF_DIFFUSE_TOON_ID)
 					sd_fetch(flag) |= bsdf_diffuse_toon_setup(sc);
 				else
@@ -377,7 +377,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 #ifdef __HAIR__
 		case CLOSURE_BSDF_HAIR_REFLECTION_ID:
 		case CLOSURE_BSDF_HAIR_TRANSMISSION_ID: {
-
+			
 			if(sd_fetch(flag) & SD_BACKFACING && sd_fetch(type) & PRIMITIVE_ALL_CURVE) {
 				ShaderClosure *sc = svm_node_closure_get_bsdf(sd, mix_weight);
 
@@ -430,7 +430,7 @@ ccl_device void svm_node_closure_bsdf(KernelGlobals *kg, ShaderData *sd, float *
 			ShaderClosure *sc = sc_fetch(sd_fetch(num_closure));
 			float3 weight = sc->weight * mix_weight;
 			float sample_weight = fabsf(average(weight));
-
+			
 			/* disable in case of diffuse ancestor, can't see it well then and
 			 * adds considerably noise due to probabilities of continuing path
 			 * getting lower and lower */

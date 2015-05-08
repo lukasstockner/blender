@@ -30,7 +30,7 @@ ccl_device void svm_node_attr_init(KernelGlobals *kg, ShaderData *sd,
 		attr_offset = (sd_fetch(type) & PRIMITIVE_ALL_CURVE)? attr_offset + ATTR_PRIM_CURVE: attr_offset;
 #endif
 		uint4 attr_map = kernel_tex_fetch(__attributes_map, attr_offset);
-
+		
 		while(attr_map.x != id) {
 			attr_offset += ATTR_PRIM_TYPES;
 			attr_map = kernel_tex_fetch(__attributes_map, attr_offset);

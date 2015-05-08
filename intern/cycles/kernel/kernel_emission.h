@@ -57,7 +57,7 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 		ls->Ng = sd_fetch(Ng);
 
 		/* no path flag, we're evaluating this for all closures. that's weak but
-		* we'd have to do multiple evaluations otherwise */
+		 * we'd have to do multiple evaluations otherwise */
 		shader_eval_surface(kg, sd, 0.0f, 0, SHADER_CONTEXT_EMISSION);
 
 		/* evaluate emissive closure */
@@ -66,7 +66,7 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 		else
 			eval = make_float3(0.0f, 0.0f, 0.0f);
 	}
-
+	
 	eval *= ls->eval_fac;
 
 	return eval;
@@ -113,7 +113,7 @@ ccl_device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd,
 		float mis_weight = power_heuristic(ls->pdf, bsdf_pdf);
 		light_eval *= mis_weight;
 	}
-
+	
 	bsdf_eval_mul(eval, light_eval/ls->pdf);
 
 #ifdef __PASSES__
@@ -188,6 +188,7 @@ ccl_device_noinline float3 indirect_primitive_emission(KernelGlobals *kg, Shader
 }
 
 /* Indirect Lamp Emission */
+
 /* The argument sd is meaningful only for split kernel. Other uses can just pass NULL */
 ccl_device_noinline bool indirect_lamp_emission(KernelGlobals *kg, PathState *state, Ray *ray, float3 *emission, ShaderData *sd)
 {

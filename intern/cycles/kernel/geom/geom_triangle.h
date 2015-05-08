@@ -32,7 +32,7 @@ ccl_device_inline float3 triangle_normal(KernelGlobals *kg, ShaderData *sd)
 	float3 v0 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.x)));
 	float3 v1 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.y)));
 	float3 v2 = float4_to_float3(kernel_tex_fetch(__tri_verts, __float_as_int(tri_vindex.z)));
-
+	
 	/* return normal */
 	if(sd_fetch(flag) & SD_NEGATIVE_SCALE_APPLIED)
 		return normalize(cross(v2 - v0, v1 - v0));

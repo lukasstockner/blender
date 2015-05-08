@@ -153,7 +153,8 @@ ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
 	}
 	else
 #endif
-	center = sd_fetch(P);
+		center = sd_fetch(P);
+
 	float3 motion_pre = center, motion_post = center;
 
 	/* deformation motion */
@@ -177,12 +178,12 @@ ccl_device float4 primitive_motion_vector(KernelGlobals *kg, ShaderData *sd)
 			object_position_transform(kg, sd, &motion_post);
 		}
 #endif
-		}
+	}
 
 	/* object motion. note that depending on the mesh having motion vectors, this
 	 * transformation was set match the world/object space of motion_pre/post */
 	Transform tfm;
-
+	
 	tfm = object_fetch_vector_transform(kg, sd_fetch(object), OBJECT_VECTOR_MOTION_PRE);
 	motion_pre = transform_point(&tfm, motion_pre);
 
