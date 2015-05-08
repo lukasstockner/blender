@@ -23,13 +23,16 @@
 
 #ifdef __WORK_STEALING__
 
+#ifdef __KERNEL_OPENCL__
 #pragma OPENCL EXTENSION cl_khr_global_int32_base_atomics : enable
+#endif
 
 unsigned int get_group_id_with_ray_index(unsigned int ray_index,
                                          unsigned int tile_dim_x,
                                          unsigned int tile_dim_y,
                                          unsigned int parallel_samples,
-                                         int dim) {
+                                         int dim)
+{
 	unsigned int retval;
 	if(dim == 0) {
 		unsigned int x_span = ray_index % (tile_dim_x * parallel_samples);
@@ -46,7 +49,8 @@ unsigned int get_total_work(unsigned int tile_dim_x,
                             unsigned int tile_dim_y,
                             unsigned int grp_idx,
                             unsigned int grp_idy,
-                            unsigned int num_samples) {
+                            unsigned int num_samples)
+{
 	unsigned int threads_within_tile_border_x;
 	unsigned int threads_within_tile_border_y;
 
@@ -67,18 +71,14 @@ int get_next_work(ccl_global unsigned int *work_pool,
                   unsigned int tile_dim_y,
                   unsigned int num_samples,
                   unsigned int parallel_samples,
-                  unsigned int ray_index) {
-
+                  unsigned int ray_index)
+{
 		unsigned int grp_idx = get_group_id_with_ray_index(ray_index, tile_dim_x, tile_dim_y, parallel_samples, 0);
 		unsigned int grp_idy = get_group_id_with_ray_index(ray_index, tile_dim_x, tile_dim_y, parallel_samples, 1);
 		unsigned int total_work = get_total_work(tile_dim_x, tile_dim_y, grp_idx, grp_idy, num_samples);
 		unsigned int group_index = grp_idy * get_num_groups(0) + grp_idx;
-
 		*my_work = atomic_inc(&work_pool[group_index]);
-
-		int retval = (*my_work < total_work) ? 1 : 0;
-
-		return retval;
+		return = (*my_work < total_work) ? 1 : 0;
 }
 
 /* This function assumes that the passed my_work is valid */
@@ -87,11 +87,10 @@ unsigned int get_my_sample(unsigned int my_work,
                            unsigned int tile_dim_x,
                            unsigned int tile_dim_y,
                            unsigned int parallel_samples,
-                           unsigned int ray_index) {
-
+                           unsigned int ray_index)
+{
 	unsigned int grp_idx = get_group_id_with_ray_index(ray_index, tile_dim_x, tile_dim_y, parallel_samples, 0);
 	unsigned int grp_idy = get_group_id_with_ray_index(ray_index, tile_dim_x, tile_dim_y, parallel_samples, 1);
-
 	unsigned int threads_within_tile_border_x;
 	unsigned int threads_within_tile_border_y;
 
@@ -115,11 +114,10 @@ void get_pixel_tile_position(ccl_private unsigned int *pixel_x,
                              unsigned int tile_offset_x,
                              unsigned int tile_offset_y,
                              unsigned int parallel_samples,
-                             unsigned int ray_index) {
-
+                             unsigned int ray_index)
+{
 	unsigned int grp_idx = get_group_id_with_ray_index(ray_index, tile_dim_x, tile_dim_y, parallel_samples, 0);
 	unsigned int grp_idy = get_group_id_with_ray_index(ray_index, tile_dim_x, tile_dim_y, parallel_samples, 1);
-
 	unsigned int threads_within_tile_border_x;
 	unsigned int threads_within_tile_border_y;
 
@@ -139,5 +137,7 @@ void get_pixel_tile_position(ccl_private unsigned int *pixel_x,
 	*tile_x = *pixel_x - tile_offset_x;
 	*tile_y = *pixel_y - tile_offset_y;
 }
-#endif // __WORK_STEALING__
-#endif // __KERNEL_WORK_STEALING_H__
+
+#endif  /* __WORK_STEALING__ */
+
+#endif  /* __KERNEL_WORK_STEALING_H__ */
