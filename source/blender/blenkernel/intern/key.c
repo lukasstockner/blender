@@ -796,10 +796,7 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 
 				poin = basispoin;
 				from = key_block_get_data(key, actkb, kb, &freefrom);
-				if (refdata) {
-					reffrom = refdata;
-				}
-				else {
+				{
 					/* reference now can be any block */
 					KeyBlock *refb = BLI_findlink(&key->block, kb->relative);
 					if (refb == NULL) continue;
