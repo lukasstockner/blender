@@ -48,8 +48,11 @@ CCL_NAMESPACE_BEGIN
 #define SPLIT_KERNEL_LOCAL_SIZE_X 64
 #define SPLIT_KERNEL_LOCAL_SIZE_Y 1
 
-/* This value may be tuned according to the scene we are rendering */
-/* modifying PATH_ITER_INC_FACTOR value proportional to number of expected ray-bounces will improve performance */
+/* This value may be tuned according to the scene we are rendering.
+ *
+ * Modifying PATH_ITER_INC_FACTOR value proportional to number of expected
+ * ray-bounces will improve performance.
+ */
 #define PATH_ITER_INC_FACTOR 8
 
 /*
@@ -297,7 +300,7 @@ public:
 			/* Get program related to megakernel */
 			program = get_something<cl_program>(platform, device, &Slot::ocl_dev_megakernel_program, slot_locker);
 		} else {
-			fprintf(stderr, "Invalid program name in OpenCLCache \n");
+			assert(!"Invalid program name");
 		}
 
 		if(!program)
@@ -334,7 +337,7 @@ public:
 		else if(program_name == OCL_DEV_MEGAKERNEL_PROGRAM) {
 			store_something<cl_program>(platform, device, program, &Slot::ocl_dev_megakernel_program, slot_locker);
 		} else {
-			fprintf(stderr, "Invalid program name in OpenCLCache \n");
+			assert(!"Invalid program name\n");
 			return;
 		}
 
@@ -372,13 +375,12 @@ public:
 	cl_command_queue cqCommandQueue;
 	cl_platform_id cpPlatform;
 	cl_device_id cdDevice;
-	cl_int ciErr;
-
-	cl_kernel ckShaderKernel;
-	cl_kernel ckBakeKernel;
+	cl_program cpProgram;
 	cl_kernel ckFilmConvertByteKernel;
 	cl_kernel ckFilmConvertHalfFloatKernel;
-	cl_program cpProgram;
+	cl_kernel ckShaderKernel;
+	cl_kernel ckBakeKernel;
+	cl_int ciErr;
 
 	typedef map<string, device_vector<uchar>*> ConstMemMap;
 	typedef map<string, device_ptr> MemMap;
@@ -413,6 +415,7 @@ public:
 #define opencl_assert(stmt) \
 	{ \
 		cl_int err = stmt; \
+		\
 		if(err != CL_SUCCESS) { \
 			string message = string_printf("OpenCL error: %s in %s", clewErrorString(err), #stmt); \
 			if(error_msg == "") \
@@ -435,20 +438,19 @@ public:
 	}
 
 	OpenCLDeviceBase(DeviceInfo& info, Stats &stats, bool background_)
-		: Device(info, stats, background_)
+	: Device(info, stats, background_)
 	{
 		cpPlatform = NULL;
 		cdDevice = NULL;
 		cxContext = NULL;
 		cqCommandQueue = NULL;
-		null_mem = 0;
-		device_initialized = false;
-
-		ckShaderKernel = NULL;
-		ckBakeKernel = NULL;
+		cpProgram = NULL;
 		ckFilmConvertByteKernel = NULL;
 		ckFilmConvertHalfFloatKernel = NULL;
-		cpProgram = NULL;
+		ckShaderKernel = NULL;
+		ckBakeKernel = NULL;
+		null_mem = 0;
+		device_initialized = false;
 
 		/* setup platform */
 		cl_uint num_platforms;
@@ -596,174 +598,6 @@ public:
 		return true;
 	}
 
-	string device_md5_hash(string kernel_custom_build_option)
-	{
-		MD5Hash md5;
-		char version[256], driver[256], name[256], vendor[256];
-
-		clGetPlatformInfo(cpPlatform, CL_PLATFORM_VENDOR, sizeof(vendor), &vendor, NULL);
-		clGetDeviceInfo(cdDevice, CL_DEVICE_VERSION, sizeof(version), &version, NULL);
-		clGetDeviceInfo(cdDevice, CL_DEVICE_NAME, sizeof(name), &name, NULL);
-		clGetDeviceInfo(cdDevice, CL_DRIVER_VERSION, sizeof(driver), &driver, NULL);
-
-		md5.append((uint8_t*)vendor, strlen(vendor));
-		md5.append((uint8_t*)version, strlen(version));
-		md5.append((uint8_t*)name, strlen(name));
-		md5.append((uint8_t*)driver, strlen(driver));
-
-		string options;
-
-		options = opencl_kernel_build_options(platform_name) + kernel_custom_build_option;
-		md5.append((uint8_t*)options.c_str(), options.size());
-
-		return md5.get_hex();
-	}
-
-	~OpenCLDeviceBase()
-	{
-
-		if(null_mem)
-			clReleaseMemObject(CL_MEM_PTR(null_mem));
-
-		ConstMemMap::iterator mt;
-		for(mt = const_mem_map.begin(); mt != const_mem_map.end(); mt++) {
-			mem_free(*(mt->second));
-			delete mt->second;
-		}
-
-		if(ckBakeKernel)
-			clReleaseKernel(ckBakeKernel);
-
-		if(ckShaderKernel)
-			clReleaseKernel(ckShaderKernel);
-
-		if(ckFilmConvertByteKernel)
-			clReleaseKernel(ckFilmConvertByteKernel);
-
-		if(ckFilmConvertHalfFloatKernel)
-			clReleaseKernel(ckFilmConvertHalfFloatKernel);
-
-		if(cpProgram)
-			clReleaseProgram(cpProgram);
-
-		if(cqCommandQueue)
-			clReleaseCommandQueue(cqCommandQueue);
-		if(cxContext)
-			clReleaseContext(cxContext);
-	}
-
-	void mem_alloc(device_memory& mem, MemoryType type)
-	{
-		size_t size = mem.memory_size();
-
-		cl_mem_flags mem_flag;
-		void *mem_ptr = NULL;
-
-		if(type == MEM_READ_ONLY)
-			mem_flag = CL_MEM_READ_ONLY;
-		else if(type == MEM_WRITE_ONLY)
-			mem_flag = CL_MEM_WRITE_ONLY;
-		else
-			mem_flag = CL_MEM_READ_WRITE;
-
-		mem.device_pointer = (device_ptr)clCreateBuffer(cxContext, mem_flag, size, mem_ptr, &ciErr);
-
-		opencl_assert_err(ciErr, "clCreateBuffer");
-
-		stats.mem_alloc(size);
-		mem.device_size = size;
-	}
-
-	/* overloading function for creating split kernel device buffers */
-	cl_mem mem_alloc(size_t bufsize, cl_mem_flags mem_flag = CL_MEM_READ_WRITE) {
-		cl_mem ptr;
-		ptr = clCreateBuffer(cxContext, mem_flag, bufsize, NULL, &ciErr);
-		if (ciErr != CL_SUCCESS) {
-			fprintf(stderr, "(%d) %s in clCreateBuffer\n", ciErr, clewErrorString(ciErr));
-			assert(0);
-		}
-		return ptr;
-	}
-
-	void mem_copy_to(device_memory& mem)
-	{
-		/* this is blocking */
-		size_t size = mem.memory_size();
-		opencl_assert(clEnqueueWriteBuffer(cqCommandQueue, CL_MEM_PTR(mem.device_pointer), CL_TRUE, 0, size, (void*)mem.data_pointer, 0, NULL, NULL));
-	}
-
-	void mem_copy_from(device_memory& mem, int y, int w, int h, int elem)
-	{
-		size_t offset = elem*y*w;
-		size_t size = elem*w*h;
-
-		opencl_assert(clEnqueueReadBuffer(cqCommandQueue, CL_MEM_PTR(mem.device_pointer), CL_TRUE, offset, size, (uchar*)mem.data_pointer + offset, 0, NULL, NULL));
-	}
-
-	void mem_zero(device_memory& mem)
-	{
-		if(mem.device_pointer) {
-			memset((void*)mem.data_pointer, 0, mem.memory_size());
-			mem_copy_to(mem);
-		}
-	}
-
-	void mem_free(device_memory& mem)
-	{
-		if(mem.device_pointer) {
-			opencl_assert(clReleaseMemObject(CL_MEM_PTR(mem.device_pointer)));
-			mem.device_pointer = 0;
-
-			stats.mem_free(mem.device_size);
-			mem.device_size = 0;
-		}
-	}
-
-	void const_copy_to(const char *name, void *host, size_t size)
-	{
-		ConstMemMap::iterator i = const_mem_map.find(name);
-
-		if(i == const_mem_map.end()) {
-			device_vector<uchar> *data = new device_vector<uchar>();
-			data->copy((uchar*)host, size);
-
-			mem_alloc(*data, MEM_READ_ONLY);
-			i = const_mem_map.insert(ConstMemMap::value_type(name, data)).first;
-		}
-		else {
-			device_vector<uchar> *data = i->second;
-			data->copy((uchar*)host, size);
-		}
-
-		mem_copy_to(*i->second);
-	}
-
-	void tex_alloc(const char *name,
-		device_memory& mem,
-		InterpolationType /*interpolation*/,
-		bool /*periodic*/)
-	{
-		VLOG(1) << "Texture allocate: " << name << ", " << mem.memory_size() << " bytes.";
-		mem_alloc(mem, MEM_READ_ONLY);
-		mem_copy_to(mem);
-		assert(mem_map.find(name) == mem_map.end());
-		mem_map.insert(MemMap::value_type(name, mem.device_pointer));
-	}
-
-	void tex_free(device_memory& mem)
-	{
-		if(mem.device_pointer) {
-			foreach(const MemMap::value_type& value, mem_map) {
-				if(value.second == mem.device_pointer) {
-					mem_map.erase(value.first);
-					break;
-				}
-			}
-
-			mem_free(mem);
-		}
-	}
-
 	bool load_binary(const string& /*kernel_path*/,
 	                 const string& clbin,
 	                 string custom_kernel_build_options,
@@ -797,7 +631,8 @@ public:
 		return true;
 	}
 
-	bool save_binary(cl_program *program, const string& clbin) {
+	bool save_binary(cl_program *program, const string& clbin)
+	{
 		size_t size = 0;
 		clGetProgramInfo(*program, CL_PROGRAM_BINARY_SIZES, sizeof(size_t), &size, NULL);
 
@@ -818,8 +653,8 @@ public:
 	}
 
 	bool build_kernel(cl_program *kernel_program,
-		string custom_kernel_build_options,
-		const string *debug_src = NULL)
+	                  string custom_kernel_build_options,
+	                  const string *debug_src = NULL)
 	{
 		string build_options;
 		build_options = opencl_kernel_build_options(platform_name, debug_src) + custom_kernel_build_options;
@@ -848,12 +683,11 @@ public:
 		return true;
 	}
 
-
 	bool compile_kernel(const string& kernel_path,
-		string source,
-		string custom_kernel_build_options,
-		cl_program *kernel_program,
-		const string *debug_src = NULL)
+	                    string source,
+	                    string custom_kernel_build_options,
+	                    cl_program *kernel_program,
+	                    const string *debug_src = NULL)
 	{
 		/* we compile kernels consisting of many files. unfortunately opencl
 		* kernel caches do not seem to recognize changes in included files.
@@ -882,6 +716,27 @@ public:
 		return true;
 	}
 
+	string device_md5_hash(string kernel_custom_build_options)
+	{
+		MD5Hash md5;
+		char version[256], driver[256], name[256], vendor[256];
+
+		clGetPlatformInfo(cpPlatform, CL_PLATFORM_VENDOR, sizeof(vendor), &vendor, NULL);
+		clGetDeviceInfo(cdDevice, CL_DEVICE_VERSION, sizeof(version), &version, NULL);
+		clGetDeviceInfo(cdDevice, CL_DEVICE_NAME, sizeof(name), &name, NULL);
+		clGetDeviceInfo(cdDevice, CL_DRIVER_VERSION, sizeof(driver), &driver, NULL);
+
+		md5.append((uint8_t*)vendor, strlen(vendor));
+		md5.append((uint8_t*)version, strlen(version));
+		md5.append((uint8_t*)name, strlen(name));
+		md5.append((uint8_t*)driver, strlen(driver));
+
+		string options = opencl_kernel_build_options(platform_name);
+		options += kernel_custom_build_options;
+		md5.append((uint8_t*)options.c_str(), options.size());
+
+		return md5.get_hex();
+	}
 
 	bool load_kernels(const DeviceRequestedFeatures& /*requested_features*/)
 	{
@@ -960,10 +815,139 @@ public:
 		return true;
 	}
 
+	~OpenCLDeviceBase()
+	{
+
+		if(null_mem)
+			clReleaseMemObject(CL_MEM_PTR(null_mem));
+
+		ConstMemMap::iterator mt;
+		for(mt = const_mem_map.begin(); mt != const_mem_map.end(); mt++) {
+			mem_free(*(mt->second));
+			delete mt->second;
+		}
+
+		if(ckFilmConvertByteKernel)
+			clReleaseKernel(ckFilmConvertByteKernel);  
+		if(ckFilmConvertHalfFloatKernel)
+			clReleaseKernel(ckFilmConvertHalfFloatKernel);  
+		if(ckShaderKernel)
+			clReleaseKernel(ckShaderKernel);
+		if(ckBakeKernel)
+			clReleaseKernel(ckBakeKernel);
+		if(cpProgram)
+			clReleaseProgram(cpProgram);
+		if(cqCommandQueue)
+			clReleaseCommandQueue(cqCommandQueue);
+		if(cxContext)
+			clReleaseContext(cxContext);
+	}
+
+	void mem_alloc(device_memory& mem, MemoryType type)
+	{
+		size_t size = mem.memory_size();
+
+		cl_mem_flags mem_flag;
+		void *mem_ptr = NULL;
+
+		if(type == MEM_READ_ONLY)
+			mem_flag = CL_MEM_READ_ONLY;
+		else if(type == MEM_WRITE_ONLY)
+			mem_flag = CL_MEM_WRITE_ONLY;
+		else
+			mem_flag = CL_MEM_READ_WRITE;
+
+		mem.device_pointer = (device_ptr)clCreateBuffer(cxContext, mem_flag, size, mem_ptr, &ciErr);
+
+		opencl_assert_err(ciErr, "clCreateBuffer");
+
+		stats.mem_alloc(size);
+		mem.device_size = size;
+	}
+
+	void mem_copy_to(device_memory& mem)
+	{
+		/* this is blocking */
+		size_t size = mem.memory_size();
+		opencl_assert(clEnqueueWriteBuffer(cqCommandQueue, CL_MEM_PTR(mem.device_pointer), CL_TRUE, 0, size, (void*)mem.data_pointer, 0, NULL, NULL));
+	}
+
+	void mem_copy_from(device_memory& mem, int y, int w, int h, int elem)
+	{
+		size_t offset = elem*y*w;
+		size_t size = elem*w*h;
+
+		opencl_assert(clEnqueueReadBuffer(cqCommandQueue, CL_MEM_PTR(mem.device_pointer), CL_TRUE, offset, size, (uchar*)mem.data_pointer + offset, 0, NULL, NULL));
+	}
+
+	void mem_zero(device_memory& mem)
+	{
+		if(mem.device_pointer) {
+			memset((void*)mem.data_pointer, 0, mem.memory_size());
+			mem_copy_to(mem);
+		}
+	}
+
+	void mem_free(device_memory& mem)
+	{
+		if(mem.device_pointer) {
+			opencl_assert(clReleaseMemObject(CL_MEM_PTR(mem.device_pointer)));
+			mem.device_pointer = 0;
+
+			stats.mem_free(mem.device_size);
+			mem.device_size = 0;
+		}
+	}
+
+	void const_copy_to(const char *name, void *host, size_t size)
+	{
+		ConstMemMap::iterator i = const_mem_map.find(name);
+
+		if(i == const_mem_map.end()) {
+			device_vector<uchar> *data = new device_vector<uchar>();
+			data->copy((uchar*)host, size);
+
+			mem_alloc(*data, MEM_READ_ONLY);
+			i = const_mem_map.insert(ConstMemMap::value_type(name, data)).first;
+		}
+		else {
+			device_vector<uchar> *data = i->second;
+			data->copy((uchar*)host, size);
+		}
+
+		mem_copy_to(*i->second);
+	}
+
+	void tex_alloc(const char *name,
+	               device_memory& mem,
+	               InterpolationType /*interpolation*/,
+	               bool /*periodic*/)
+	{
+		VLOG(1) << "Texture allocate: " << name << ", " << mem.memory_size() << " bytes.";
+		mem_alloc(mem, MEM_READ_ONLY);
+		mem_copy_to(mem);
+		assert(mem_map.find(name) == mem_map.end());
+		mem_map.insert(MemMap::value_type(name, mem.device_pointer));
+	}
+
+	void tex_free(device_memory& mem)
+	{
+		if(mem.device_pointer) {
+			foreach(const MemMap::value_type& value, mem_map) {
+				if(value.second == mem.device_pointer) {
+					mem_map.erase(value.first);
+					break;
+				}
+			}
+
+			mem_free(mem);
+		}
+	}
+
 	size_t global_size_round_up(int group_size, int global_size)
 	{
 		int r = global_size % group_size;
-		return global_size + ((r == 0) ? 0 : group_size - r);
+		return global_size + ((r == 0)? 0 : group_size - r);
 	}
 
 	void enqueue_kernel(cl_kernel kernel, size_t w, size_t h)
@@ -973,19 +957,19 @@ public:
 		clGetKernelWorkGroupInfo(kernel, cdDevice,
 			CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &workgroup_size, NULL);
 		clGetDeviceInfo(cdDevice,
-			CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)* 3, max_work_items, NULL);
-
+			CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(size_t)*3, max_work_items, NULL);
+	
 		/* try to divide evenly over 2 dimensions */
 		size_t sqrt_workgroup_size = max((size_t)sqrt((double)workgroup_size), 1);
-		size_t local_size[2] = { sqrt_workgroup_size, sqrt_workgroup_size };
+		size_t local_size[2] = {sqrt_workgroup_size, sqrt_workgroup_size};
 
 		/* some implementations have max size 1 on 2nd dimension */
 		if(local_size[1] > max_work_items[1]) {
-			local_size[0] = workgroup_size / max_work_items[1];
+			local_size[0] = workgroup_size/max_work_items[1];
 			local_size[1] = max_work_items[1];
 		}
 
-		size_t global_size[2] = { global_size_round_up(local_size[0], w), global_size_round_up(local_size[1], h) };
+		size_t global_size[2] = {global_size_round_up(local_size[0], w), global_size_round_up(local_size[1], h)};
 
 		/* run kernel */
 		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, kernel, 2, NULL, global_size, NULL, 0, NULL, NULL));
@@ -1004,7 +988,7 @@ public:
 			/* work around NULL not working, even though the spec says otherwise */
 			ptr = CL_MEM_PTR(null_mem);
 		}
-
+		
 		opencl_assert(clSetKernelArg(kernel, (*narg)++, sizeof(ptr), (void*)&ptr));
 	}
 
@@ -1012,20 +996,21 @@ public:
 	{
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
-		cl_mem d_rgba = (rgba_byte) ? CL_MEM_PTR(rgba_byte) : CL_MEM_PTR(rgba_half);
+		cl_mem d_rgba = (rgba_byte)? CL_MEM_PTR(rgba_byte): CL_MEM_PTR(rgba_half);
 		cl_mem d_buffer = CL_MEM_PTR(buffer);
 		cl_int d_x = task.x;
 		cl_int d_y = task.y;
 		cl_int d_w = task.w;
 		cl_int d_h = task.h;
-		cl_float d_sample_scale = 1.0f / (task.sample + 1);
+		cl_float d_sample_scale = 1.0f/(task.sample + 1);
 		cl_int d_offset = task.offset;
 		cl_int d_stride = task.stride;
 
 		/* sample arguments */
 		cl_uint narg = 0;
 
-		cl_kernel ckFilmConvertKernel = (rgba_byte) ? ckFilmConvertByteKernel : ckFilmConvertHalfFloatKernel;
+
+		cl_kernel ckFilmConvertKernel = (rgba_byte)? ckFilmConvertByteKernel: ckFilmConvertHalfFloatKernel;
 
 		/* TODO : Make the kernel launch similar to Cuda */
 #define KERNEL_APPEND_ARG(kernel_name, arg) \
@@ -1087,7 +1072,7 @@ public:
 			KERNEL_APPEND_ARG(kernel, d_output);
 
 #define KERNEL_TEX(type, ttype, name) \
-			set_kernel_arg_mem(kernel, &narg, #name);
+		set_kernel_arg_mem(kernel, &narg, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
@@ -1104,6 +1089,20 @@ public:
 		}
 	}
 
+protected:
+	/* Overloading function for creating split kernel device buffers.
+	 *
+	 * TODO(sergey): Move tihs to split kernel device?
+	 */
+	cl_mem mem_alloc(size_t bufsize, cl_mem_flags mem_flag = CL_MEM_READ_WRITE) {
+		cl_mem ptr;
+		ptr = clCreateBuffer(cxContext, mem_flag, bufsize, NULL, &ciErr);
+		if (ciErr != CL_SUCCESS) {
+			fprintf(stderr, "(%d) %s in clCreateBuffer\n", ciErr, clewErrorString(ciErr));
+			assert(0);
+		}
+		return ptr;
+	}
 };
 
 class OpenCLDeviceMegaKernel : public OpenCLDeviceBase
