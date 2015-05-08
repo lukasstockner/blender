@@ -136,7 +136,7 @@ static KeyBlock *bm_set_shapekey_from_strands_key(BMesh *bm, Strands *strands, K
 }
 
 /* create vertex and edge data for BMesh based on strand data */
-static void bm_make_strands(BMesh *bm, Strands *strands, Key *key, struct DerivedMesh *UNUSED(emitter_dm), float (*keyco)[3], int cd_shape_keyindex_offset)
+static void bm_make_strands(BMesh *bm, Strands *strands, Key *key, struct DerivedMesh *UNUSED(emitter_dm), float mat[4][4], float (*keyco)[3], int cd_shape_keyindex_offset)
 {
 	KeyBlock *block;
 	StrandIterator it_strand;
@@ -154,6 +154,8 @@ static void bm_make_strands(BMesh *bm, Strands *strands, Key *key, struct Derive
 			float co[3];
 			
 			copy_v3_v3(co, keyco ? keyco[vindex] : it_vert.vertex->co);
+			/* transform to duplicator local space */
+			mul_m4_v3(mat, co);
 			
 			v_prev = v;
 			v = BM_vert_create(bm, co, NULL, BM_CREATE_SKIP_CD);
@@ -191,7 +193,7 @@ static void bm_make_strands(BMesh *bm, Strands *strands, Key *key, struct Derive
 					float *co = CustomData_bmesh_get_n(&bm->vdata, v->head.data, CD_SHAPEKEY, k);
 					
 					if (co) {
-						copy_v3_v3(co, ((float *)block->data) + 3 * vindex);
+						mul_v3_m4v3(co, mat, ((float *)block->data) + 3 * vindex);
 					}
 				}
 			}
@@ -226,11 +228,9 @@ static void bm_make_strands(BMesh *bm, Strands *strands, Key *key, struct Derive
 /**
  * \brief ParticleSystem -> BMesh
  */
-void BM_strands_bm_from_strands(BMesh *bm, Strands *strands, Key *key, struct DerivedMesh *emitter_dm, float mat[4][4],
+void BM_strands_bm_from_strands(BMesh *bm, Strands *strands, float mat[4][4], Key *key, struct DerivedMesh *emitter_dm,
                             const bool set_key, int act_key_nr)
 {
-	BMIter iter;
-	BMVert *v;
 	KeyBlock *actkey;
 	float (*keyco)[3] = NULL;
 	int totvert, totedge;
@@ -268,12 +268,7 @@ void BM_strands_bm_from_strands(BMesh *bm, Strands *strands, Key *key, struct De
 
 	cd_shape_keyindex_offset = key ? CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX) : -1;
 
-	bm_make_strands(bm, strands, key, emitter_dm, set_key ? keyco : NULL, cd_shape_keyindex_offset);
-
-	/* transform to duplicator local space */
-	BM_ITER_MESH(v, &iter, bm, BM_VERTS_OF_MESH) {
-		mul_m4_v3(mat, v->co);
-	}
+	bm_make_strands(bm, strands, key, emitter_dm, mat, set_key ? keyco : NULL, cd_shape_keyindex_offset);
 
 #if 0 /* TODO */
 	if (me->mselect && me->totselect != 0) {
@@ -361,25 +356,6 @@ static BMVert **bm_to_mesh_vertex_map(BMesh *bm, int ototvert)
 	return vertMap;
 }
 
-/**
- * returns customdata shapekey index from a keyblock or -1
- * \note could split this out into a more generic function */
-static int bm_to_mesh_shape_layer_index_from_kb(BMesh *bm, KeyBlock *currkey)
-{
-	int i;
-	int j = 0;
-
-	for (i = 0; i < bm->vdata.totlayer; i++) {
-		if (bm->vdata.layers[i].type == CD_SHAPEKEY) {
-			if (currkey->uid == bm->vdata.layers[i].uid) {
-				return j;
-			}
-			j++;
-		}
-	}
-	return -1;
-}
-
 BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 {
 	/* this is a cheap way to set the edge draw, its not precise and will
@@ -400,7 +376,7 @@ BLI_INLINE void bmesh_quick_edgedraw_flag(MEdge *med, BMEdge *e)
 }
 #endif
 
-static void bm_strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands), Key *UNUSED(key),
+static void bm_strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(strands), float imat[4][4], Key *UNUSED(key),
                                    struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *UNUSED(emitter_bvhtree),
                                    StrandIterator *it_strand)
 {
@@ -428,9 +404,15 @@ static void bm_strands_make_strand(BMesh *bm, BMVert *root, Strands *UNUSED(stra
 			copy_v3_v3(it_strand->curve->root_matrix[2], nor);
 			copy_v3_v3(it_strand->curve->root_matrix[0], tang);
 			cross_v3_v3v3(it_strand->curve->root_matrix[1], it_strand->curve->root_matrix[2], it_strand->curve->root_matrix[0]);
+			
+			/* transform from edit space (duplicator local space) back to the original object space */
+			mul_mat3_m4_v3(imat, it_strand->curve->root_matrix[0]);
+			mul_mat3_m4_v3(imat, it_strand->curve->root_matrix[1]);
+			mul_mat3_m4_v3(imat, it_strand->curve->root_matrix[2]);
 		}
 		
-		copy_v3_v3(it_vert.vertex->co, v->co);
+		/* transform from edit space (duplicator local space) back to the original object space */
+		mul_v3_m4v3(it_vert.vertex->co, imat, v->co);
 		it_vert.vertex->time = numverts > 0 ? (float)it_vert.index / (float)(numverts - 1) : 0.0f;
 		
 		if (it_vert.index == 0) {
@@ -537,7 +519,7 @@ static void bm_strands_get_basiskey_offset(BMesh *bm, Strands *strands, Key *key
 	}
 }
 
-static float *bm_strands_apply_keyblock(BMesh *bm, Strands *strands, StrandsVertex *oldverts, Key *key, int cd_shape_keyindex_offset,
+static float *bm_strands_apply_keyblock(BMesh *bm, Strands *strands, StrandsVertex *oldverts, float imat[4][4], Key *key, int cd_shape_keyindex_offset,
                                         KeyBlock *kb, KeyBlock *actkb, float (*oldkey)[3], float (*offset)[3])
 {
 	const bool apply_offset = (offset && (kb != actkb) && (bm->shapenr - 1 == kb->relative));
@@ -594,6 +576,9 @@ static float *bm_strands_apply_keyblock(BMesh *bm, Strands *strands, StrandsVert
 			add_v3_v3(fp, *ofs_pt++);
 		}
 		
+		/* transform from edit space (duplicator local space) back to the original object space */
+		mul_m4_v3(imat, fp);
+		
 		fp += 3;
 		svert++;
 	}
@@ -601,7 +586,7 @@ static float *bm_strands_apply_keyblock(BMesh *bm, Strands *strands, StrandsVert
 	return newkey;
 }
 
-static void bm_strands_apply_shapekeys(BMesh *bm, Strands *strands, StrandsVertex *oldverts, Key *key)
+static void bm_strands_apply_shapekeys(BMesh *bm, Strands *strands, StrandsVertex *oldverts, float imat[4][4], Key *key)
 {
 	const int cd_shape_keyindex_offset = CustomData_get_offset(&bm->vdata, CD_SHAPE_KEYINDEX);
 	KeyBlock *actkb = BLI_findlink(&key->block, bm->shapenr - 1);
@@ -616,7 +601,7 @@ static void bm_strands_apply_shapekeys(BMesh *bm, Strands *strands, StrandsVerte
 	for (kb = key->block.first; kb; kb = kb->next) {
 		float *newkey;
 		
-		newkey = bm_strands_apply_keyblock(bm, strands, oldverts, key, cd_shape_keyindex_offset, kb, actkb, kb->data, offset);
+		newkey = bm_strands_apply_keyblock(bm, strands, oldverts, imat, key, cd_shape_keyindex_offset, kb, actkb, kb->data, offset);
 		
 		kb->totelem = bm->totvert;
 		if (kb->data) {
@@ -629,10 +614,11 @@ static void bm_strands_apply_shapekeys(BMesh *bm, Strands *strands, StrandsVerte
 		MEM_freeN(offset);
 }
 
-Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float mat[4][4], struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
+Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, float mat[4][4], Key *key, struct DerivedMesh *emitter_dm, struct BVHTreeFromMesh *emitter_bvhtree)
 {
 	Strands *oldstrands;
 	int ntotcurves;
+	float imat[4][4];
 	
 	BMVert *root;
 	BMIter iter;
@@ -644,6 +630,8 @@ Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float m
 	 * a key ... we now do processing of the keys at the end */
 	oldstrands = strands;
 	
+	invert_m4_m4(imat, mat);
+	
 	strands = BKE_strands_new(ntotcurves, bm->totvert);
 	
 //	strands->cd_flag = BM_strands_cd_flag_from_bmesh(bm);
@@ -652,22 +640,11 @@ Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float m
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
 		BLI_assert(BKE_strand_iter_valid(&it_strand));
 		
-		bm_strands_make_strand(bm, root, strands, key, emitter_dm, emitter_bvhtree, &it_strand);
+		bm_strands_make_strand(bm, root, strands, imat, key, emitter_dm, emitter_bvhtree, &it_strand);
 		
 		BKE_strand_iter_next(&it_strand);
 	}
 	bm->elem_index_dirty &= ~BM_VERT;
-	
-	/* transform from edit space (duplicator local space) back to the original object space */
-	{
-		float imat[4][4];
-		int i;
-		
-		invert_m4_m4(imat, mat);
-		
-		for (i = 0; i < strands->totverts; ++i)
-			mul_m4_v3(imat, strands->verts[i].co);
-	}
 	
 	BKE_strands_ensure_normals(strands);
 
@@ -701,7 +678,7 @@ Strands *BM_strands_bm_to_strands(BMesh *bm, Strands *strands, Key *key, float m
 #endif
 
 	if (key) {
-		bm_strands_apply_shapekeys(bm, strands, oldstrands ? oldstrands->verts : NULL, key);
+		bm_strands_apply_shapekeys(bm, strands, oldstrands ? oldstrands->verts : NULL, imat, key);
 	}
 
 	if (oldstrands) {

@@ -197,7 +197,7 @@ BMesh *BKE_cache_strands_to_bmesh(struct Strands *strands, struct Key *key, floa
 	DM_ensure_tessface(dm);
 	
 	bm = BM_mesh_create(&allocsize);
-	BM_strands_bm_from_strands(bm, strands, key, dm, mat, true, act_key_nr);
+	BM_strands_bm_from_strands(bm, strands, mat, key, dm, true, act_key_nr);
 	editstrands_calc_segment_lengths(bm);
 	
 	return bm;
@@ -215,7 +215,7 @@ struct Strands *BKE_cache_strands_from_bmesh(BMEditStrands *edit, struct Key *ke
 		
 		bvhtree_from_mesh_faces(&bvhtree, dm, 0.0, 2, 6);
 		
-		strands = BM_strands_bm_to_strands(bm, strands, key, mat, dm, &bvhtree);
+		strands = BM_strands_bm_to_strands(bm, strands, mat, key, dm, &bvhtree);
 		
 		free_bvhtree_from_mesh(&bvhtree);
 	}
