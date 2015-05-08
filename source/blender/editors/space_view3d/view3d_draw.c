@@ -2046,18 +2046,24 @@ int dupli_ob_sort(void *arg1, void *arg2)
 }
 #endif
 
-static void draw_dupli_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, DupliObject *UNUSED(dob), DupliObjectData *dob_data, short dflag)
+static void draw_dupli_object(Scene *scene, ARegion *ar, View3D *v3d,
+                              Base *base, DupliObject *UNUSED(dob), DupliObjectData *dob_data,
+                              short dflag, bool draw_dupli_strands)
 {
 	draw_object(scene, ar, v3d, base, dflag);
 	
 	if (dob_data) {
-		DupliObjectDataStrands *link;
 		
-		for (link = dob_data->strands.first; link; link = link->next) {
-			struct Strands *strands = link->strands;
-			struct StrandsChildren *children = link->strands_children;
+		/* draw strands only when not editing */
+		if (draw_dupli_strands) {
+			DupliObjectDataStrands *link;
 			
-			draw_strands(scene, v3d, ar, base->object, strands, children, dflag);
+			for (link = dob_data->strands.first; link; link = link->next) {
+				struct Strands *strands = link->strands;
+				struct StrandsChildren *children = link->strands_children;
+				
+				draw_strands(scene, v3d, ar, base->object, strands, children, dflag);
+			}
 		}
 	}
 }
@@ -2082,6 +2088,7 @@ static void draw_dupli_objects_color(
 	GLuint displist = 0;
 	unsigned char color_rgb[3];
 	const short dflag_dupli = dflag | DRAW_CONSTCOLOR;
+	const bool draw_dupli_strands = !(base->object->mode & OB_MODE_HAIR_EDIT);
 	short transflag;
 	bool use_displist = false;  /* -1 is initialize */
 	char dt;
@@ -2211,7 +2218,7 @@ static void draw_dupli_objects_color(
 					
 					displist = glGenLists(1);
 					glNewList(displist, GL_COMPILE);
-					draw_dupli_object(scene, ar, v3d, &tbase, dob, dob_data, dflag_dupli);
+					draw_dupli_object(scene, ar, v3d, &tbase, dob, dob_data, dflag_dupli, draw_dupli_strands);
 					glEndList();
 					
 					use_displist = true;
@@ -2227,7 +2234,7 @@ static void draw_dupli_objects_color(
 			}	
 			else {
 				copy_m4_m4(dob->ob->obmat, dob->mat);
-				draw_dupli_object(scene, ar, v3d, &tbase, dob, dob_data, dflag_dupli);
+				draw_dupli_object(scene, ar, v3d, &tbase, dob, dob_data, dflag_dupli, draw_dupli_strands);
 			}
 		}
 		
