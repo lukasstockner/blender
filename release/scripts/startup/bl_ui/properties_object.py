@@ -525,6 +525,10 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop(params, "bend_stiffness")
         row.prop(params, "bend_damping")
+        row.prop(params, "use_bend_stiffness_curve")
+        if params.use_bend_stiffness_curve:
+            sub = col.column()
+            sub.template_curve_mapping(params, "bend_stiffness_curve")
 
         row = col.row(align=True)
         row.prop(params, "goal_stiffness")

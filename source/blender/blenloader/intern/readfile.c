@@ -2053,6 +2053,9 @@ static void direct_link_cache_modifiers(FileData *fd, ListBase *modifiers)
 				hsmd->sim_params.goal_stiffness_mapping = newdataadr(fd, hsmd->sim_params.goal_stiffness_mapping);
 				if (hsmd->sim_params.goal_stiffness_mapping)
 					direct_link_curvemapping(fd, hsmd->sim_params.goal_stiffness_mapping);
+				hsmd->sim_params.bend_stiffness_mapping = newdataadr(fd, hsmd->sim_params.bend_stiffness_mapping);
+				if (hsmd->sim_params.bend_stiffness_mapping)
+					direct_link_curvemapping(fd, hsmd->sim_params.bend_stiffness_mapping);
 				break;
 			}
 			case eCacheModifierType_StrandsKey: {
