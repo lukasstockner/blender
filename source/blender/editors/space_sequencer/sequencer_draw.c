@@ -1302,8 +1302,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	else if (draw_overdrop) {
 		float imagex = (scene->r.size * scene->r.xsch) / 200.0f * sseq->overdrop_zoom;
 		float imagey = (scene->r.size * scene->r.ysch) / 200.0f * sseq->overdrop_zoom;
-		float xofs = BLI_rcti_size_x(&ar->winrct)/2.0f + sseq->overdrop_offset[0];
-		float yofs = BLI_rcti_size_y(&ar->winrct)/2.0f + sseq->overdrop_offset[1];
+		float xofs = BLI_rcti_size_x(&ar->winrct) / 2.0f + sseq->overdrop_offset[0];
+		float yofs = BLI_rcti_size_y(&ar->winrct) / 2.0f + sseq->overdrop_offset[1];
 
 		glTexCoord2f(0.0f, 0.0f); glVertex2f(-imagex + xofs, -imagey + yofs);
 		glTexCoord2f(0.0f, 1.0f); glVertex2f(-imagex + xofs, imagey + yofs);

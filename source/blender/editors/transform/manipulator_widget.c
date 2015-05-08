@@ -153,16 +153,18 @@ enum {
 
 /* loop over axes of given type */
 #define MAN_ITER_AXES_BEGIN(axis_type) \
-	for (i = (axis_type == MAN_AXES_ROTATE ? 3 : 0); \
-	     i < (axis_type == MAN_AXES_TRANSLATE ? 3 : 6 ); \
-	     i++) { \
+	for (i = (axis_type == MAN_AXES_ROTATE ? MAN_AXIS_ROT_X : MAN_AXIS_TRANS_X); \
+	     i < (axis_type == MAN_AXES_TRANSLATE ? MAN_AXIS_TRANS_Z + 1 : MAN_AXIS_ROT_Z + 1); \
+	     i++) \
+	{ \
 		axis = manipulator_get_axis_from_index(manipulator, i);
 
-#define MAN_ITER_AXES_END }
+#define MAN_ITER_AXES_END \
+	} (void)0
 
 static wmWidget *manipulator_get_axis_from_index(const ManipulatorGroup *manipulator, const short index)
 {
-	wmWidget *axis;
+	wmWidget *axis = NULL;
 
 	BLI_assert(IN_RANGE_INCL(index, 0.0f, 5.0f));
 
@@ -2020,7 +2022,7 @@ static void WIDGETGROUP_manipulator_create(const struct bContext *UNUSED(C), str
 		}
 		axis->render_3d_intersection = widget->render_3d_intersection; /* XXX overides arrow/dial intersection */
 	}
-	MAN_ITER_AXES_END
+	MAN_ITER_AXES_END;
 
 	WM_widgetgroup_customdata_set(wgroup, manipulator);
 }
@@ -2049,7 +2051,7 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 		{
 			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
 		}
-		MAN_ITER_AXES_END
+		MAN_ITER_AXES_END;
 		return;
 	}
 
@@ -2089,7 +2091,7 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 		{
 			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
 		}
-		MAN_ITER_AXES_END
+		MAN_ITER_AXES_END;
 
 		return;
 	}
@@ -2101,12 +2103,12 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 	{
 		WM_widget_operator(axis, "TRANSFORM_OT_translate");
 	}
-	MAN_ITER_AXES_END
+	MAN_ITER_AXES_END;
 	MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
 	{
 		WM_widget_operator(axis, "TRANSFORM_OT_rotate");
 	}
-	MAN_ITER_AXES_END
+	MAN_ITER_AXES_END;
 
 	if (v3d->twtype & V3D_MANIP_TRANSLATE) {
 		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
@@ -2117,14 +2119,14 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 
 			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
 		}
-		MAN_ITER_AXES_END
+		MAN_ITER_AXES_END;
 	}
 	else {
 		MAN_ITER_AXES_BEGIN(MAN_AXES_TRANSLATE)
 		{
 			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
 		}
-		MAN_ITER_AXES_END
+		MAN_ITER_AXES_END;
 	}
 
 	if (v3d->twtype & V3D_MANIP_ROTATE) {
@@ -2136,14 +2138,14 @@ void WIDGETGROUP_manipulator_update(const struct bContext *C, struct wmWidgetGro
 
 			WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
 		}
-		MAN_ITER_AXES_END
+		MAN_ITER_AXES_END;
 	}
 	else {
 		MAN_ITER_AXES_BEGIN(MAN_AXES_ROTATE)
 		{
 			WM_widget_flag_enable(axis, WM_WIDGET_HIDDEN);
 		}
-		MAN_ITER_AXES_END
+		MAN_ITER_AXES_END;
 	}
 }
 
@@ -2184,5 +2186,5 @@ void WIDGETGROUP_object_manipulator_draw(const struct bContext *C, struct wmWidg
 		WIDGET_arrow_set_direction(axis, rv3d->twmat[i]);
 		WM_widget_flag_disable(axis, WM_WIDGET_HIDDEN);
 	}
-	MAN_ITER_AXES_END
+	MAN_ITER_AXES_END;
 }
