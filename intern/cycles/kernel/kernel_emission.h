@@ -75,7 +75,11 @@ ccl_device_noinline float3 direct_emissive_eval(KernelGlobals *kg,
 /* The argument sd_DL is meaningful only for split kernel. Other uses can just pass NULL */
 ccl_device_noinline bool direct_emission(KernelGlobals *kg, ShaderData *sd,
 	LightSample *ls, Ray *ray, BsdfEval *eval, bool *is_lamp,
-	int bounce, int transparent_bounce, ShaderData *sd_DL)
+	int bounce, int transparent_bounce
+#ifdef __SPLIT_KERNEL__
+	, ShaderData *sd_DL
+#endif
+	)
 {
 	if(ls->pdf == 0.0f)
 		return false;
