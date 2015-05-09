@@ -102,6 +102,13 @@ CCL_NAMESPACE_BEGIN
  */
 #  ifndef __SPLIT_KERNEL__
 #    define __KERNEL_ADV_SHADING__
+#  else
+#    define __MULTI_CLOSURE__
+#    define __TRANSPARENT_SHADOWS__
+#    define __PASSES__
+#    define __BACKGROUND_MIS__
+#    define __LAMP_MIS__
+#    define __AO__
 #  endif
 #endif
 
@@ -134,6 +141,13 @@ CCL_NAMESPACE_BEGIN
  */
 #  ifndef __SPLIT_KERNEL__
 #    define __KERNEL_ADV_SHADING__
+#  else
+#    define __MULTI_CLOSURE__
+#    define __TRANSPARENT_SHADOWS__
+#    define __PASSES__
+#    define __BACKGROUND_MIS__
+#    define __LAMP_MIS__
+#    define __AO__
 #  endif
 #endif
 
