@@ -95,6 +95,7 @@ public:
 	DeviceRequestedFeatures()
 	{
 		/* TODO(sergey): Find more meaningful defaults. */
+		experimental = false;
 		max_closure = 0;
 		max_nodes_group = 0;
 		nodes_features = 0;
@@ -102,7 +103,8 @@ public:
 
 	bool modified(const DeviceRequestedFeatures& requested_features)
 	{
-		return !(max_closure == requested_features.max_closure &&
+		return !(experimental == requested_features.experimental &&
+		         max_closure == requested_features.max_closure &&
 		         max_nodes_group == requested_features.max_nodes_group &&
 		         nodes_features == requested_features.nodes_features);
 	}
