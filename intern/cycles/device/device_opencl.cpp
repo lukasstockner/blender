@@ -372,6 +372,7 @@ public:
 class OpenCLDeviceBase : public Device
 {
 public:
+	DedicatedTaskPool task_pool;
 	cl_context cxContext;
 	cl_command_queue cqCommandQueue;
 	cl_platform_id cpPlatform;
@@ -1083,6 +1084,39 @@ public:
 		}
 	}
 
+	class OpenCLDeviceTask : public DeviceTask {
+	public:
+		OpenCLDeviceTask(OpenCLDeviceBase *device, DeviceTask& task)
+		: DeviceTask(task)
+		{
+			run = function_bind(&OpenCLDeviceBase::thread_run,
+			                    device,
+			                    this);
+		}
+	};
+
+	int get_split_task_count(DeviceTask& /*task*/)
+	{
+		return 1;
+	}
+
+	void task_add(DeviceTask& task)
+	{
+		task_pool.push(new OpenCLDeviceTask(this, task));
+	}
+
+	void task_wait()
+	{
+		task_pool.wait();
+	}
+
+	void task_cancel()
+	{
+		task_pool.cancel();
+	}
+
+	virtual void thread_run(DeviceTask * /*task*/) = 0;
+
 protected:
 	class ArgumentWrapper {
 	public:
@@ -1209,8 +1243,6 @@ protected:
 class OpenCLDeviceMegaKernel : public OpenCLDeviceBase
 {
 public:
-	DedicatedTaskPool task_pool;
-
 	cl_kernel ckPathTraceKernel;
 	cl_program path_trace_program;
 
@@ -1394,37 +1426,6 @@ public:
 			}
 		}
 	}
-
-	class OpenCLDeviceTask : public DeviceTask {
-	public:
-		OpenCLDeviceTask(OpenCLDeviceMegaKernel *device, DeviceTask& task)
-		: DeviceTask(task)
-		{
-			run = function_bind(&OpenCLDeviceMegaKernel::thread_run,
-			                    device,
-			                    this);
-		}
-	};
-
-	int get_split_task_count(DeviceTask& /*task*/)
-	{
-		return 1;
-	}
-
-	void task_add(DeviceTask& task)
-	{
-		task_pool.push(new OpenCLDeviceTask(this, task));
-	}
-
-	void task_wait()
-	{
-		task_pool.wait();
-	}
-
-	void task_cancel()
-	{
-		task_pool.cancel();
-	}
 };
 
 /* TODO(sergey): This is to keep tile split on OpenCL level working
@@ -1488,8 +1489,6 @@ public:
 class OpenCLDeviceSplitKernel : public OpenCLDeviceBase
 {
 public:
-	DedicatedTaskPool task_pool;
-
 	/* Kernel declaration. */
 	cl_kernel ckPathTraceKernel_DataInit;
 	cl_kernel ckPathTraceKernel_SceneIntersect;
@@ -3177,35 +3176,6 @@ public:
 				task->release_tile(tile);
 			}
 		}
-	}
-
-	class OpenCLDeviceTask : public DeviceTask {
-	public:
-		OpenCLDeviceTask(OpenCLDeviceSplitKernel *device, DeviceTask& task)
-			: DeviceTask(task)
-		{
-			run = function_bind(&OpenCLDeviceSplitKernel::thread_run, device, this);
-		}
-	};
-
-	int get_split_task_count(DeviceTask& /*task*/)
-	{
-		return 1;
-	}
-
-	void task_add(DeviceTask& task)
-	{
-		task_pool.push(new OpenCLDeviceTask(this, task));
-	}
-
-	void task_wait()
-	{
-		task_pool.wait();
-	}
-
-	void task_cancel()
-	{
-		task_pool.cancel();
 	}
 
 protected:
