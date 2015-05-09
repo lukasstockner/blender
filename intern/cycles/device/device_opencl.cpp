@@ -1094,6 +1094,9 @@ protected:
 		void *pointer;
 	};
 
+	/* TODO(sergey): In the future we can use variadic templates, once
+	 * C++0x is allowed. Should allow to clean this up a bit.
+	 */
 	int kernel_set_args(cl_kernel kernel,
 	                    int start_argument_index,
 	                    const ArgumentWrapper& arg1 = ArgumentWrapper(),
@@ -1220,88 +1223,99 @@ public:
 
 	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
-		/* verify if device was initialized */
-		if(!device_initialized) {
-			fprintf(stderr, "OpenCL: failed to initialize device.\n");
-			return false;
-		}
-
-		/* Get Shader, bake and film convert kernels */
+		/* Get Shader, bake and film convert kernels.
+		 * It'll also do verification of OpenCL actually initialized.
+		 */
 		if(!OpenCLDeviceBase::load_kernels(requested_features)) {
 			return false;
 		}
 
-		/* try to use cached kernel */
+		/* Try to use cached kernel. */
 		thread_scoped_lock cache_locker;
-		path_trace_program = OpenCLCache::get_program(cpPlatform, cdDevice, OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
+		path_trace_program = OpenCLCache::get_program(cpPlatform,
+		                                              cdDevice,
+		                                              OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM,
+		                                              cache_locker);
 
 		if(!path_trace_program) {
-			/* verify we have right opencl version */
+			/* Verify we have right opencl version. */
 			if(!opencl_version_check())
 				return false;
 
-			/* md5 hash to detect changes */
+			/* Calculate md5 hash to detect changes. */
 			string kernel_path = path_get("kernel");
 			string kernel_md5 = path_files_md5_hash(kernel_path);
 			string custom_kernel_build_options = "-D__COMPILE_ONLY_MEGAKERNEL__ ";
 			string device_md5 = device_md5_hash(custom_kernel_build_options);
 
-			/* path to cached binary */
-			string clbin = string_printf("cycles_kernel_%s_%s.clbin", device_md5.c_str(), kernel_md5.c_str());
+			/* Path to cached binary. */
+			string clbin = string_printf("cycles_kernel_%s_%s.clbin",
+			                             device_md5.c_str(),
+			                             kernel_md5.c_str());
 			clbin = path_user_get(path_join("cache", clbin));
 
-			/* path to preprocessed source for debugging */
+			/* Path to preprocessed source for debugging. */
 			string clsrc, *debug_src = NULL;
-
 			if(opencl_kernel_use_debug()) {
-				clsrc = string_printf("cycles_kernel_%s_%s.cl", device_md5.c_str(), kernel_md5.c_str());
+				clsrc = string_printf("cycles_kernel_%s_%s.cl",
+				                      device_md5.c_str(),
+				                      kernel_md5.c_str());
 				clsrc = path_user_get(path_join("cache", clsrc));
 				debug_src = &clsrc;
 			}
 
-			/* if exists already, try use it */
-			if (path_exists(clbin) && load_binary(kernel_path, clbin, custom_kernel_build_options, &path_trace_program, debug_src)) {
-				/* kernel loaded from binary */
+			/* If exists already, try use it. */
+			if (path_exists(clbin) && load_binary(kernel_path,
+			                                      clbin,
+			                                      custom_kernel_build_options,
+			                                      &path_trace_program,
+			                                      debug_src)) {
+				/* Kernel loaded from binary, nothing to do. */
 			}
 			else {
-
-				string init_kernel_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
-
-				/* if does not exist or loading binary failed, compile kernel */
-				if (!compile_kernel(kernel_path, init_kernel_source, custom_kernel_build_options, &path_trace_program, debug_src))
+				string init_kernel_source = "#include \"kernel.cl\" // " +
+				                            kernel_md5 + "\n";
+				/* If does not exist or loading binary failed, compile kernel. */
+				if (!compile_kernel(kernel_path,
+				                    init_kernel_source,
+				                    custom_kernel_build_options,
+				                    &path_trace_program,
+				                    debug_src))
+				{
 					return false;
-
-				/* save binary for reuse */
-				if(!save_binary(&path_trace_program, clbin))
+				}
+				/* Save binary for reuse. */
+				if(!save_binary(&path_trace_program, clbin)) {
 					return false;
+				}
 			}
-
-			/* cache the program */
-			OpenCLCache::store_program(cpPlatform, cdDevice, path_trace_program, OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM, cache_locker);
+			/* Cache the program. */
+			OpenCLCache::store_program(cpPlatform,
+			                           cdDevice,
+			                           path_trace_program,
+			                           OpenCLCache::OCL_DEV_MEGAKERNEL_PROGRAM,
+			                           cache_locker);
 		}
 
-		/* find kernels */
-		ckPathTraceKernel = clCreateKernel(path_trace_program, "kernel_ocl_path_trace", &ciErr);
+		/* Find kernels. */
+		ckPathTraceKernel = clCreateKernel(path_trace_program,
+		                                   "kernel_ocl_path_trace",
+		                                   &ciErr);
 		if(opencl_error(ciErr))
 			return false;
-
 		return true;
 	}
 
 	~OpenCLDeviceMegaKernel()
 	{
 		task_pool.stop();
-
-		if(ckPathTraceKernel)
-			clReleaseKernel(ckPathTraceKernel);
-
-		if(path_trace_program)
-			clReleaseProgram(path_trace_program);
+		release_kernel_safe(ckPathTraceKernel);
+		release_program_safe(path_trace_program);
 	}
 
 	void path_trace(RenderTile& rtile, int sample)
 	{
-		/* cast arguments to cl types */
+		/* Cast arguments to cl types. */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
 		cl_mem d_buffer = CL_MEM_PTR(rtile.buffer);
 		cl_mem d_rng_state = CL_MEM_PTR(rtile.rng_state);
@@ -1312,11 +1326,11 @@ public:
 		cl_int d_offset = rtile.offset;
 		cl_int d_stride = rtile.stride;
 
-		/* sample arguments */
+		/* Sample arguments. */
 		cl_int d_sample = sample;
 		cl_uint narg = 0;
 
-		/* TODO : Make the kernel launch similar to Cuda */
+		/* TODO : Make the kernel launch similar to Cuda. */
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_data);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_buffer);
 		KERNEL_APPEND_ARG(ckPathTraceKernel, d_rng_state);
@@ -1347,8 +1361,7 @@ public:
 		}
 		else if(task->type == DeviceTask::PATH_TRACE) {
 			RenderTile tile;
-
-			/* keep rendering tiles until done */
+			/* Keep rendering tiles until done. */
 			while(task->acquire_tile(this, tile)) {
 				int start_sample = tile.start_sample;
 				int end_sample = tile.start_sample + tile.num_samples;
@@ -1368,10 +1381,12 @@ public:
 
 				/* Complete kernel execution before release tile */
 				/* This helps in multi-device render;
-				 * The device that reaches the critical-section function release_tile
-				 * waits (stalling other devices from entering release_tile) for all kernels
-				 * to complete. If device1 (a slow-render device) reaches release_tile first then
-				 * it would stall device2 (a fast-render device) from proceeding to render next tile
+				 * The device that reaches the critical-section function
+				 * release_tile waits (stalling other devices from entering
+				 * release_tile) for all kernels to complete. If device1 (a
+				 * slow-render device) reaches release_tile first then it would
+				 * stall device2 (a fast-render device) from proceeding to render
+				 * next tile.
 				 */
 				clFinish(cqCommandQueue);
 
@@ -1385,7 +1400,9 @@ public:
 		OpenCLDeviceTask(OpenCLDeviceMegaKernel *device, DeviceTask& task)
 		: DeviceTask(task)
 		{
-			run = function_bind(&OpenCLDeviceMegaKernel::thread_run, device, this);
+			run = function_bind(&OpenCLDeviceMegaKernel::thread_run,
+			                    device,
+			                    this);
 		}
 	};
 
@@ -1410,13 +1427,13 @@ public:
 	}
 };
 
-/* OpenCLDeviceSplitKernel's declaration/definition */
+/* OpenCLDeviceSplitKernel's declaration/definition. */
 class OpenCLDeviceSplitKernel : public OpenCLDeviceBase
 {
 public:
 	DedicatedTaskPool task_pool;
 
-	/* Kernel declaration */
+	/* Kernel declaration. */
 	cl_kernel ckPathTraceKernel_DataInit;
 	cl_kernel ckPathTraceKernel_SceneIntersect;
 	cl_kernel ckPathTraceKernel_LampEmission;
@@ -1429,7 +1446,7 @@ public:
 	cl_kernel ckPathTraceKernel_SetUpNextIteration;
 	cl_kernel ckPathTraceKernel_SumAllRadiance;
 
-	/* cl_program declaration */
+	/* cl_program declaration. */
 	cl_program dataInit_program;
 	cl_program sceneIntersect_program;
 	cl_program lampEmission_program;
@@ -1445,7 +1462,7 @@ public:
 	/* Global memory variables [porting]; These memory is used for
 	 * co-operation between different kernels; Data written by one
 	 * kernel will be avaible to another kernel via this global
-	 * memory
+	 * memory.
 	 */
 	cl_mem rng_coop;
 	cl_mem throughput_coop;
@@ -1454,13 +1471,15 @@ public:
 	cl_mem Ray_coop;
 	cl_mem PathState_coop;
 	cl_mem Intersection_coop;
-	cl_mem kgbuffer; /* KernelGlobals buffer */
+	cl_mem kgbuffer;  /* KernelGlobals buffer. */
 
-	/* global buffers for ShaderData */
-	cl_mem sd;                      /* ShaderData used in the main path-iteration loop */
-	cl_mem sd_DL_shadow;            /* ShaderData used in Direct Lighting and ShadowBlocked kernel */
+	/* Global buffers for ShaderData. */
+	cl_mem sd;             /* ShaderData used in the main path-iteration loop. */
+	cl_mem sd_DL_shadow;   /* ShaderData used in Direct Lighting and
+	                        * ShadowBlocked kernel.
+	                        */
 
-	/* global buffers of each member of ShaderData */
+	/* Global buffers of each member of ShaderData. */
 	cl_mem P_sd;
 	cl_mem P_sd_DL_shadow;
 	cl_mem N_sd;
@@ -1512,7 +1531,7 @@ public:
 	cl_mem ray_dP_sd;
 	cl_mem ray_dP_sd_DL_shadow;
 
-	/* Global memory required for shadow blocked and accum_radiance */
+	/* Global memory required for shadow blocked and accum_radiance. */
 	cl_mem BSDFEval_coop;
 	cl_mem ISLamp_coop;
 	cl_mem LightRay_coop;
@@ -1527,23 +1546,25 @@ public:
 	cl_mem debugdata_coop;
 #endif
 
-	/* Global state array that tracks ray state */
+	/* Global state array that tracks ray state. */
 	cl_mem ray_state;
 
-	/* per sample buffers */
+	/* Per sample buffers. */
 	cl_mem per_sample_output_buffers;
 
-	/* Denotes which sample each ray is being processed for */
+	/* Denotes which sample each ray is being processed for. */
 	cl_mem work_array;
 
-	/* Queue*/
-	cl_mem Queue_data;  /* Array of size queuesize * num_queues * sizeof(int) */
-	cl_mem Queue_index; /* Array of size num_queues * sizeof(int); Tracks the size of each queue */
+	/* Queue */
+	cl_mem Queue_data;  /* Array of size queuesize * num_queues * sizeof(int). */
+	cl_mem Queue_index; /* Array of size num_queues * sizeof(int);
+	                     * Tracks the size of each queue.
+	                     */
 
-	/* Flag to make sceneintersect and lampemission kernel use queues */
+	/* Flag to make sceneintersect and lampemission kernel use queues. */
 	cl_mem use_queues_flag;
 
-	/* Required-memory size */
+	/* Required-memory size. */
 	size_t throughput_size;
 	size_t L_transparent_size;
 	size_t rayState_size;
@@ -1551,37 +1572,36 @@ public:
 	size_t work_element_size;
 	size_t ISLamp_size;
 
-	/* Sizes of memory required for shadow blocked function */
+	/* Sizes of memory required for shadow blocked function. */
 	size_t AOAlpha_size;
 	size_t AOBSDF_size;
 
-	/* Amount of memory in output buffer associated with one pixel/thread */
+	/* Amount of memory in output buffer associated with one pixel/thread. */
 	size_t per_thread_output_buffer_size;
 
-	/* Total allocatable available device memory */
+	/* Total allocatable available device memory. */
 	size_t total_allocatable_memory;
 
-	/* host version of ray_state; Used in checking host path-iteration termination */
+	/* host version of ray_state; Used in checking host path-iteration
+	 * termination.
+	 */
 	char *hostRayStateArray;
 
-	/* Number of path-iterations to be done in one shot */
+	/* Number of path-iterations to be done in one shot. */
 	unsigned int PathIteration_times;
 
-	/* Denotes if the render is background or foreground */
-	bool background;
-
 #ifdef __WORK_STEALING__
-	/* Work pool with respect to each work group */
+	/* Work pool with respect to each work group. */
 	cl_mem work_pool_wgs;
 
-	/* Denotes the maximum work groups possible w.r.t. current tile size */
+	/* Denotes the maximum work groups possible w.r.t. current tile size. */
 	unsigned int max_work_groups;
 #endif
 
-	/* clos_max value for which the kernels have been loaded currently */
+	/* clos_max value for which the kernels have been loaded currently. */
 	int current_clos_max;
 
-	/* Marked True in constructor and marked false at the end of path_trace() */
+	/* Marked True in constructor and marked false at the end of path_trace(). */
 	bool first_tile;
 
 	OpenCLDeviceSplitKernel(DeviceInfo& info, Stats &stats, bool background_)
@@ -1591,7 +1611,7 @@ public:
 		info.use_split_kernel = true;
 		background = background_;
 
-		/* Initialize kernels */
+		/* Initialize kernels. */
 		ckPathTraceKernel_DataInit = NULL;
 		ckPathTraceKernel_SceneIntersect = NULL;
 		ckPathTraceKernel_LampEmission = NULL;
@@ -1604,7 +1624,7 @@ public:
 		ckPathTraceKernel_SumAllRadiance = NULL;
 		ckPathTraceKernel_QueueEnqueue = NULL;
 
-		/* Initialize program */
+		/* Initialize program. */
 		dataInit_program = NULL;
 		sceneIntersect_program = NULL;
 		lampEmission_program = NULL;
@@ -1617,7 +1637,7 @@ public:
 		nextIterationSetUp_program = NULL;
 		sumAllRadiance_program = NULL;
 
-		/* Initialize cl_mem variables */
+		/* Initialize cl_mem variables. */
 		kgbuffer = NULL;
 		sd = NULL;
 		sd_DL_shadow = NULL;
@@ -1703,14 +1723,14 @@ public:
 
 		work_array = NULL;
 
-		/* Queue */
+		/* Queue. */
 		Queue_data = NULL;
 		Queue_index = NULL;
 		use_queues_flag = NULL;
 
 		per_sample_output_buffers = NULL;
 
-		/* Initialize required memory size */
+		/* Initialize required memory size. */
 		throughput_size = sizeof(float3);
 		L_transparent_size = sizeof(float);
 		rayState_size = sizeof(char);
@@ -1718,7 +1738,7 @@ public:
 		work_element_size = sizeof(unsigned int);
 		ISLamp_size = sizeof(int);
 
-		/* Initialize sizes of memory required for shadow blocked function */
+		/* Initialize sizes of memory required for shadow blocked function. */
 		AOAlpha_size = sizeof(float3);
 		AOBSDF_size = sizeof(float3);
 
@@ -1732,8 +1752,12 @@ public:
 		current_clos_max = -1;
 		first_tile = true;
 
-		/* Get device's maximum memory that can be allocated */
-		ciErr = clGetDeviceInfo(cdDevice, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(size_t), &total_allocatable_memory, NULL);
+		/* Get device's maximum memory that can be allocated. */
+		ciErr = clGetDeviceInfo(cdDevice,
+		                        CL_DEVICE_MAX_MEM_ALLOC_SIZE,
+		                        sizeof(size_t),
+		                        &total_allocatable_memory,
+		                        NULL);
 		assert(ciErr == CL_SUCCESS);
 		if(platform_name == "AMD Accelerated Parallel Processing") {
 			/* This value is tweak-able; AMD platform does not seem to
@@ -1744,53 +1768,63 @@ public:
 		}
 	}
 
+	/* TODO(sergey): Seems really close to load_kernel(),
+	 * could it be de-duplicated?
+	 */
 	bool load_split_kernel(string kernel_path,
-		string kernel_init_source,
-		string clbin,
-		string custom_kernel_build_options,
-		cl_program *program)
+	                       string kernel_init_source,
+	                       string clbin,
+	                       string custom_kernel_build_options,
+	                       cl_program *program)
 	{
 		if(!opencl_version_check())
 			return false;
 
 		clbin = path_user_get(path_join("cache", clbin));
 
-		/* path to preprocessed source for debugging */
+		/* Path to preprocessed source for debugging. */
 		string *debug_src = NULL;
 
-		/* if exists already, try use it */
-		if (path_exists(clbin) && load_binary(kernel_path, clbin, custom_kernel_build_options, program, debug_src)) {
-			/* kernel loaded from binary */
+		/* If exists already, try use it. */
+		if (path_exists(clbin) && load_binary(kernel_path,
+		                                      clbin,
+		                                      custom_kernel_build_options,
+		                                      program,
+		                                      debug_src)) {
+			/* Kernel loaded from binary. */
 		}
 		else {
-			/* if does not exist or loading binary failed, compile kernel */
-			if (!compile_kernel(kernel_path, kernel_init_source, custom_kernel_build_options, program))
+			/* If does not exist or loading binary failed, compile kernel. */
+			if (!compile_kernel(kernel_path,
+			                    kernel_init_source,
+			                    custom_kernel_build_options,
+			                    program))
+			{
 				return false;
-
-			/* save binary for reuse */
-			if(!save_binary(program, clbin))
+			}
+			/* Save binary for reuse. */
+			if(!save_binary(program, clbin)) {
 				return false;
+			}
 		}
-
 		return true;
 	}
 
-	/* Split kernel utility functions */
+	/* Split kernel utility functions. */
 	size_t get_tex_size(const char *tex_name)
 	{
 		cl_mem ptr;
-		size_t ret_size;
-
+		size_t ret_size = 0;
 		MemMap::iterator i = mem_map.find(tex_name);
 		if(i != mem_map.end()) {
 			ptr = CL_MEM_PTR(i->second);
-			ciErr = clGetMemObjectInfo(ptr, CL_MEM_SIZE, sizeof(ret_size), &ret_size, NULL);
+			ciErr = clGetMemObjectInfo(ptr,
+			                           CL_MEM_SIZE,
+			                           sizeof(ret_size),
+			                           &ret_size,
+			                           NULL);
 			assert(ciErr == CL_SUCCESS);
 		}
-		else {
-			ret_size = 0;
-		}
-
 		return ret_size;
 	}
 
@@ -1801,15 +1835,18 @@ public:
 
 	size_t get_shader_data_size(size_t shader_closure_size)
 	{
-		/* ShaderData size without accounting for ShaderClosure array */
-		size_t shader_data_size = sizeof(ShaderData) - (sizeof(ShaderClosure) * MAX_CLOSURE);
+		/* ShaderData size without accounting for ShaderClosure array. */
+		size_t shader_data_size =
+			sizeof(ShaderData) - (sizeof(ShaderClosure) * MAX_CLOSURE);
 		return (shader_data_size + shader_closure_size);
 	}
 
-	/* Returns size of KernelGlobals structure associated with OpenCL */
+	/* Returns size of KernelGlobals structure associated with OpenCL. */
 	size_t get_KernelGlobals_size()
 	{
-		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to fetch its size */
+		/* Copy dummy KernelGlobals related to OpenCL from kernel_globals.h to
+		 * fetch its size.
+		 */
 		typedef struct KernelGlobals {
 			ccl_constant KernelData *data;
 #define KERNEL_TEX(type, ttype, name) \
@@ -1821,7 +1858,7 @@ public:
 		return sizeof(KernelGlobals);
 	}
 
-	/* Returns size of Structure of arrays implementation of */
+	/* Returns size of Structure of arrays implementation of. */
 	size_t get_shaderdata_soa_size()
 	{
 		size_t shader_soa_size = 0;
@@ -1839,30 +1876,26 @@ public:
 
 	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
-		/* verify if device was initialized */
-		if(!device_initialized) {
-			fprintf(stderr, "OpenCL: failed to initialize device.\n");
-			return false;
-		}
-
-		/* if it is an interactive render; we ceil clos_max value to a multiple of 5 in order
-		 * to limit re-compilations
+		/* If it is an interactive render; we ceil clos_max value to a multiple
+		 * of 5 in order to limit re-compilations.
 		 */
 		/* TODO(sergey): Decision about this should be done on higher levels. */
 		int max_closure = requested_features.max_closure;
 		if(!background) {
 			assert((max_closure != 0) && "clos_max value is 0" );
 			max_closure = (((max_closure - 1) / 5) + 1) * 5;
-			/* clos_max value shouldn't be greater than MAX_CLOSURE */
+			/* clos_max value shouldn't be greater than MAX_CLOSURE. */
 			max_closure = (max_closure > MAX_CLOSURE) ? MAX_CLOSURE : max_closure;
-
 			if(current_clos_max == max_closure) {
-				/* present kernels have been created with the same closure count build option */
+				/* Present kernels have been created with the same closure count
+				 * build option.
+				 */
 				return true;
 			}
 		}
-
-		/* Get Shader, bake and film_convert kernels */
+		/* Get Shader, bake and film_convert kernels.
+		 * It'll also do verification of OpenCL actually initialized.
+		 */
 		if(!OpenCLDeviceBase::load_kernels(requested_features)) {
 			return false;
 		}
@@ -1871,16 +1904,23 @@ public:
 		string max_closure_build_option = "";
 		string compute_device_type_build_option = "";
 
-		/* Set svm_build_options */
-		svm_build_options += " -D__NODES_MAX_GROUP__=" + string_printf("%d", requested_features.max_nodes_group);
-		svm_build_options += " -D__NODES_FEATURES__=" + string_printf("%d", requested_features.nodes_features);
+		/* Set svm_build_options. */
+		svm_build_options += " -D__NODES_MAX_GROUP__=" +
+			string_printf("%d", requested_features.max_nodes_group);
+		svm_build_options += " -D__NODES_FEATURES__=" +
+			string_printf("%d", requested_features.nodes_features);
 
-		/* Set max closure build option */
-		max_closure_build_option += string_printf("-D__MAX_CLOSURE__=%d ", max_closure);
+		/* Set max closure build option. */
+		max_closure_build_option += string_printf("-D__MAX_CLOSURE__=%d ",
+		                                          max_closure);
 
-		/* Set compute device build option */
+		/* Set compute device build option. */
 		cl_device_type device_type;
-		ciErr = clGetDeviceInfo(cdDevice, CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type, NULL);
+		ciErr = clGetDeviceInfo(cdDevice,
+		                        CL_DEVICE_TYPE,
+		                        sizeof(cl_device_type),
+		                        &device_type,
+		                        NULL);
 		assert(ciErr == CL_SUCCESS);
 		if(device_type == CL_DEVICE_TYPE_GPU) {
 			compute_device_type_build_option = "-D__COMPUTE_DEVICE_GPU__ ";
@@ -1894,7 +1934,8 @@ public:
 		string clbin;
 
 		string common_custom_build_options = "";
-		common_custom_build_options = "-D__SPLIT_KERNEL__ " + max_closure_build_option;
+		common_custom_build_options += "-D__SPLIT_KERNEL__ ";
+		common_custom_build_options += max_closure_build_option;;
 #ifdef __WORK_STEALING__
 		common_custom_build_options += "-D__WORK_STEALING__ ";
 #endif
@@ -1914,6 +1955,9 @@ public:
 		} \
 	} while(false)
 
+		/* TODO(sergey): If names are unified we can save some more bits of
+		 * code here.
+		 */
 		LOAD_KERNEL(dataInit_program, "DataInit");
 		LOAD_KERNEL(sceneIntersect_program, "SceneIntersect");
 		LOAD_KERNEL(lampEmission_program, "LampEmission");
@@ -2097,18 +2141,23 @@ public:
 		cl_int d_offset = rtile.offset;
 		cl_int d_stride = rtile.stride;
 
-		/* Make sure that set render feasible tile size is a multiple of local work size dimensions */
+		/* Make sure that set render feasible tile size is a multiple of local
+		 * work size dimensions.
+		 */
 		assert(max_render_feasible_tile_size.x % SPLIT_KERNEL_LOCAL_SIZE_X == 0);
 		assert(max_render_feasible_tile_size.y % SPLIT_KERNEL_LOCAL_SIZE_Y == 0);
 
-		/* ray_state and hostRayStateArray should be of same size */
+		/* ray_state and hostRayStateArray should be of same size. */
 		assert(hostRayState_size == rayState_size);
 		assert(rayState_size == 1);
 
 		size_t global_size[2];
-		size_t local_size[2] = { SPLIT_KERNEL_LOCAL_SIZE_X, SPLIT_KERNEL_LOCAL_SIZE_Y };
+		size_t local_size[2] = {SPLIT_KERNEL_LOCAL_SIZE_X,
+		                        SPLIT_KERNEL_LOCAL_SIZE_Y};
 
-		/* Set the range of samples to be processed for every ray in path-regeneration logic */
+		/* Set the range of samples to be processed for every ray in
+		 * path-regeneration logic.
+		 */
 		cl_int start_sample = rtile.start_sample;
 		cl_int end_sample = rtile.start_sample + rtile.num_samples;
 		cl_int num_samples = rtile.num_samples;
@@ -2119,24 +2168,33 @@ public:
 		unsigned int num_parallel_samples = 1;
 #else
 		global_size[1] = (((d_h - 1) / local_size[1]) + 1) * local_size[1];
-		unsigned int num_threads = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
+		unsigned int num_threads = max_render_feasible_tile_size.x *
+		                           max_render_feasible_tile_size.y;
 		unsigned int num_tile_columns_possible = num_threads / global_size[1];
-		/* Estimate number of parallel samples that can be processed in parallel */
-		unsigned int num_parallel_samples = (num_tile_columns_possible / d_w) <= rtile.num_samples ? (num_tile_columns_possible / d_w) : rtile.num_samples;
-		/* Wavefront size in AMD is 64 */
-		num_parallel_samples = ((num_parallel_samples / 64) == 0) ?
-		num_parallel_samples :
-							 (num_parallel_samples / 64) * 64;
+		/* Estimate number of parallel samples that can be
+		 * processed in parallel.
+		 */
+		unsigned int num_parallel_samples = min(num_tile_columns_possible / d_w,
+		                                        rtile.num_samples);
+		/* Wavefront size in AMD is 64.
+		 * TODO(sergey): What about other platforms?
+		 */
+		if(num_parallel_samples >= 64) {
+			/* TODO(sergey): Could use generic round-up here. */
+			num_parallel_samples = (num_parallel_samples / 64) * 64
+		}
 		assert(num_parallel_samples != 0);
 
 		global_size[0] = d_w * num_parallel_samples;
-#endif // __WORK_STEALING__
+#endif  /* __WORK_STEALING__ */
 
-		assert(global_size[0] * global_size[1] <= max_render_feasible_tile_size.x * max_render_feasible_tile_size.y);
+		assert(global_size[0] * global_size[1] <=
+		       max_render_feasible_tile_size.x * max_render_feasible_tile_size.y);
 
-		/* Allocate all required global memory once */
+		/* Allocate all required global memory once. */
 		if(first_tile) {
-			size_t num_global_elements = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
+			size_t num_global_elements = max_render_feasible_tile_size.x *
+			                             max_render_feasible_tile_size.y;
 			/* TODO(sergey): This will actually over-allocate if
 			 * particular kernel does not support multiclosure.
 			 */
@@ -2149,18 +2207,18 @@ public:
 			size_t tile_y = max_render_feasible_tile_size.y;
 			max_global_size[0] = (((tile_x - 1) / local_size[0]) + 1) * local_size[0];
 			max_global_size[1] = (((tile_y - 1) / local_size[1]) + 1) * local_size[1];
-			max_work_groups = (max_global_size[0] * max_global_size[1]) / (local_size[0] * local_size[1]);
-
-			/* Allocate work_pool_wgs memory */
+			max_work_groups = (max_global_size[0] * max_global_size[1]) /
+			                  (local_size[0] * local_size[1]);
+			/* Allocate work_pool_wgs memory. */
 			work_pool_wgs = mem_alloc(max_work_groups * sizeof(unsigned int));
-#endif
+#endif  /* __WORK_STEALING__ */
 
-			/* Allocate queue_index memory only once */
+			/* Allocate queue_index memory only once. */
 			Queue_index = mem_alloc(NUM_QUEUES * sizeof(int));
 			use_queues_flag = mem_alloc(sizeof(char));
 			kgbuffer = mem_alloc(get_KernelGlobals_size());
 
-			/* Create global buffers for ShaderData */
+			/* Create global buffers for ShaderData. */
 			sd = mem_alloc(get_shaderdata_soa_size());
 			sd_DL_shadow = mem_alloc(get_shaderdata_soa_size());
 			P_sd = mem_alloc(num_global_elements * sizeof(float3));
@@ -2222,7 +2280,9 @@ public:
 			ray_dP_sd = mem_alloc(num_global_elements * sizeof(differential3));
 			ray_dP_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential3));
 
-			/* creation of global memory buffers which are shared among the kernels */
+			/* Creation of global memory buffers which are shared among
+			 * the kernels.
+			 */
 			rng_coop = mem_alloc(num_global_elements * sizeof(RNG));
 			throughput_coop = mem_alloc(num_global_elements * throughput_size);
 			L_transparent_coop = mem_alloc(num_global_elements * L_transparent_size);
@@ -2250,13 +2310,13 @@ public:
 
 			Queue_data = mem_alloc(num_global_elements * (NUM_QUEUES * sizeof(int)+sizeof(int)));
 			work_array = mem_alloc(num_global_elements * work_element_size);
-			per_sample_output_buffers = mem_alloc(num_global_elements * per_thread_output_buffer_size);
+			per_sample_output_buffers = mem_alloc(num_global_elements *
+			                                      per_thread_output_buffer_size);
 		}
 
 		cl_int dQueue_size = global_size[0] * global_size[1];
 		cl_int total_num_rays = global_size[0] * global_size[1];
 
-		/* Set arguments for ckPathTraceKernel_DataInit kernel */
 		cl_uint start_arg_index =
 			kernel_set_args(ckPathTraceKernel_DataInit,
 			                0,
@@ -2562,45 +2622,69 @@ public:
 		                rtile.buffer_rng_state_stride,
 		                start_sample);
 
-		/* Macro for Enqueuing split kernels */
+		/* Macro for Enqueuing split kernels. */
+#define GLUE(a, b) a ## b
 #define ENQUEUE_SPLIT_KERNEL(kernelName, globalSize, localSize) \
-		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, kernelName, 2, NULL, globalSize, localSize, 0, NULL, NULL))
+		opencl_assert(clEnqueueNDRangeKernel(cqCommandQueue, \
+		                                     GLUE(ckPathTraceKernel_, \
+		                                          kernelName), \
+		                                     2, \
+		                                     NULL, \
+		                                     globalSize, \
+		                                     localSize, \
+		                                     0, \
+		                                     NULL, \
+		                                     NULL))
 
-		/* Enqueue ckPathTraceKernel_DataInit kernel */
-		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_DataInit, global_size, local_size);
+		/* Enqueue ckPathTraceKernel_DataInit kernel. */
+		ENQUEUE_SPLIT_KERNEL(DataInit, global_size, local_size);
 		bool activeRaysAvailable = true;
 
 		/* Record number of time host intervention has been made */
 		unsigned int numHostIntervention = 0;
 		unsigned int numNextPathIterTimes = PathIteration_times;
-		while (activeRaysAvailable) {
-			/* Twice the global work size of other kernels for ckPathTraceKernel_ShadowBlocked_DirectLighting */
+		while(activeRaysAvailable) {
+			/* Twice the global work size of other kernels for
+			 * ckPathTraceKernel_ShadowBlocked_DirectLighting. */
 			size_t global_size_shadow_blocked[2];
 			global_size_shadow_blocked[0] = global_size[0] * 2;
 			global_size_shadow_blocked[1] = global_size[1];
 
-			/* Do path-iteration in host [Enqueue Path-iteration kernels] */
+			/* Do path-iteration in host [Enqueue Path-iteration kernels. */
 			for(int PathIter = 0; PathIter < PathIteration_times; PathIter++) {
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SceneIntersect, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_LampEmission, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_QueueEnqueue, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_BG_BufferUpdate, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_Shader_Lighting, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_DirectLighting, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_ShadowBlocked_DirectLighting, global_size_shadow_blocked, local_size);
-				ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SetUpNextIteration, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(SceneIntersect, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(LampEmission, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(QueueEnqueue, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(BG_BufferUpdate, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(Shader_Lighting, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(Holdout_Emission_Blurring_Pathtermination_AO, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(DirectLighting, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(ShadowBlocked_DirectLighting, global_size_shadow_blocked, local_size);
+				ENQUEUE_SPLIT_KERNEL(SetUpNextIteration, global_size, local_size);
 			}
 
-			/* Read ray-state into Host memory to decide if we should exit path-iteration in host */
-			ciErr = clEnqueueReadBuffer(cqCommandQueue, ray_state, CL_TRUE, 0, global_size[0] * global_size[1] * sizeof(char), hostRayStateArray, 0, NULL, NULL);
+			/* Read ray-state into Host memory to decide if we should exit
+			 * path-iteration in host.
+			 */
+			ciErr = clEnqueueReadBuffer(cqCommandQueue,
+			                            ray_state,
+			                            CL_TRUE,
+			                            0,
+			                            global_size[0] * global_size[1] * sizeof(char),
+			                            hostRayStateArray,
+			                            0,
+			                            NULL,
+			                            NULL);
 			assert(ciErr == CL_SUCCESS);
 
 			activeRaysAvailable = false;
 
-			for(int rayStateIter = 0; rayStateIter < global_size[0] * global_size[1]; rayStateIter++) {
+			for(int rayStateIter = 0;
+			    rayStateIter < global_size[0] * global_size[1];
+			    ++rayStateIter)
+			{
 				if(int8_t(hostRayStateArray[rayStateIter]) != RAY_INACTIVE) {
-					/* Not all rays are RAY_INACTIVE */
+					/* Not all rays are RAY_INACTIVE. */
 					activeRaysAvailable = true;
 					break;
 				}
@@ -2608,28 +2692,35 @@ public:
 
 			if(activeRaysAvailable) {
 				numHostIntervention++;
-
 				PathIteration_times = PATH_ITER_INC_FACTOR;
-
 				/* Host intervention done before all rays become RAY_INACTIVE;
-				 * Set do more initial iterations for the next tile
+				 * Set do more initial iterations for the next tile.
 				 */
 				numNextPathIterTimes += PATH_ITER_INC_FACTOR;
 			}
 		}
 
-		/* Execute SumALLRadiance kernel to accumulate radiance calculated in per_sample_output_buffers into RenderTile's output buffer */
-		size_t sum_all_radiance_local_size[2] = { 16, 16 };
+		/* Execute SumALLRadiance kernel to accumulate radiance calculated in
+		 * per_sample_output_buffers into RenderTile's output buffer.
+		 */
+		size_t sum_all_radiance_local_size[2] = {16, 16};
 		size_t sum_all_radiance_global_size[2];
-		sum_all_radiance_global_size[0] = (((d_w - 1) / sum_all_radiance_local_size[0]) + 1) * sum_all_radiance_local_size[0];
-		sum_all_radiance_global_size[1] = (((d_h - 1) / sum_all_radiance_local_size[1]) + 1) * sum_all_radiance_local_size[1];
-		ENQUEUE_SPLIT_KERNEL(ckPathTraceKernel_SumAllRadiance, sum_all_radiance_global_size, sum_all_radiance_local_size);
+		sum_all_radiance_global_size[0] =
+			(((d_w - 1) / sum_all_radiance_local_size[0]) + 1) *
+			sum_all_radiance_local_size[0];
+		sum_all_radiance_global_size[1] =
+			(((d_h - 1) / sum_all_radiance_local_size[1]) + 1) *
+			sum_all_radiance_local_size[1];
+		ENQUEUE_SPLIT_KERNEL(SumAllRadiance,
+		                     sum_all_radiance_global_size,
+		                     sum_all_radiance_local_size);
 
 #undef ENQUEUE_SPLIT_KERNEL
+#undef GLUE
 
 		if(numHostIntervention == 0) {
 			/* This means that we are executing kernel more than required
-			 * Must avoid this for the next sample/tile
+			 * Must avoid this for the next sample/tile.
 			 */
 			PathIteration_times = ((numNextPathIterTimes - PATH_ITER_INC_FACTOR) <= 0) ?
 			PATH_ITER_INC_FACTOR : numNextPathIterTimes - PATH_ITER_INC_FACTOR;
@@ -2648,7 +2739,7 @@ public:
 	 * allocated in order for the split kernel to function.
 	 * This memory is tile/scene-property invariant (meaning,
 	 * the value returned by this function does not depend
-	 * on the user set tile size or scene properties
+	 * on the user set tile size or scene properties.
 	 */
 	size_t get_invariable_mem_allocated()
 	{
@@ -2668,7 +2759,9 @@ public:
 		return total_invariable_mem_allocated;
 	}
 
-	/* Calculate the memory that has-to-be/has-been allocated for the split kernel to function */
+	/* Calculate the memory that has-to-be/has-been allocated for
+	 * the split kernel to function.
+	 */
 	size_t get_tile_specific_mem_allocated(RenderTile rtile)
 	{
 		size_t tile_specific_mem_allocated = 0;
@@ -2678,55 +2771,66 @@ public:
 		unsigned int user_set_tile_h = rtile.tile_size.y;
 
 #ifdef __WORK_STEALING__
-		/* Calculate memory to be allocated for work_pools in case of work_stealing */
+		/* Calculate memory to be allocated for work_pools in
+		 * case of work_stealing.
+		 */
 		size_t max_global_size[2];
 		size_t max_num_work_pools = 0;
-		max_global_size[0] = (((user_set_tile_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
-		max_global_size[1] = (((user_set_tile_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
-		max_num_work_pools = (max_global_size[0] * max_global_size[1]) / (SPLIT_KERNEL_LOCAL_SIZE_X * SPLIT_KERNEL_LOCAL_SIZE_Y);
+		max_global_size[0] =
+			(((user_set_tile_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_X;
+		max_global_size[1] =
+			(((user_set_tile_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_Y;
+		max_num_work_pools =
+			(max_global_size[0] * max_global_size[1]) /
+			(SPLIT_KERNEL_LOCAL_SIZE_X * SPLIT_KERNEL_LOCAL_SIZE_Y);
 		tile_specific_mem_allocated += max_num_work_pools * sizeof(unsigned int);
 #endif
 
-		tile_specific_mem_allocated += user_set_tile_w * user_set_tile_h * per_thread_output_buffer_size;
-		tile_specific_mem_allocated += user_set_tile_w * user_set_tile_h * sizeof(RNG);
+		tile_specific_mem_allocated +=
+			user_set_tile_w * user_set_tile_h * per_thread_output_buffer_size;
+		tile_specific_mem_allocated +=
+			user_set_tile_w * user_set_tile_h * sizeof(RNG);
 
 		return tile_specific_mem_allocated;
 	}
 
-	/* Calculates the texture memories and KernelData (d_data) memory that has been allocated */
+	/* Calculates the texture memories and KernelData (d_data) memory
+	 * that has been allocated.
+	 */
 	size_t get_scene_specific_mem_allocated(cl_mem d_data)
 	{
 		size_t scene_specific_mem_allocated = 0;
-		/* Calculate texture memories */
+		/* Calculate texture memories. */
 #define KERNEL_TEX(type, ttype, name) \
 	scene_specific_mem_allocated += get_tex_size(#name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
-
 		size_t d_data_size;
-		ciErr = clGetMemObjectInfo(d_data, CL_MEM_SIZE, sizeof(d_data_size), &d_data_size, NULL);
+		ciErr = clGetMemObjectInfo(d_data,
+		                           CL_MEM_SIZE,
+		                           sizeof(d_data_size),
+		                           &d_data_size,
+		                           NULL);
 		assert(ciErr == CL_SUCCESS && "Can't get d_data mem object info");
-
 		scene_specific_mem_allocated += d_data_size;
-
 		return scene_specific_mem_allocated;
 	}
 
-	/* Calculate the memory required for one thread in split kernel */
+	/* Calculate the memory required for one thread in split kernel. */
 	size_t get_per_thread_memory()
 	{
-
 		size_t shader_closure_size = 0;
 		size_t shaderdata_volume = 0;
-
 		shader_closure_size = get_shader_closure_size(current_clos_max);
-
 		/* TODO(sergey): This will actually over-allocate if
 		 * particular kernel does not support multiclosure.
 		 */
 		shaderdata_volume = get_shader_data_size(shader_closure_size);
-
-		size_t retval = sizeof(RNG) + throughput_size + L_transparent_size + rayState_size + work_element_size
+		size_t retval = sizeof(RNG)
+			+ throughput_size + L_transparent_size
+			+ rayState_size + work_element_size
 			+ ISLamp_size + sizeof(PathRadiance) + sizeof(Ray) + sizeof(PathState)
 			+ sizeof(Intersection)    /* Overall isect */
 			+ sizeof(Intersection)    /* Instersection_coop_AO */
@@ -2736,45 +2840,53 @@ public:
 			+ sizeof(Ray) + sizeof(BsdfEval) + AOAlpha_size + AOBSDF_size + sizeof(Ray)
 			+ (sizeof(int)* NUM_QUEUES)
 			+ per_thread_output_buffer_size;
-
 		return retval;
 	}
 
 	/* Considers the total memory available in the device and
-	 * and returns the maximum global work size possible
+	 * and returns the maximum global work size possible.
 	 */
 	size_t get_feasible_global_work_size(RenderTile rtile, cl_mem d_data)
 	{
-
-		/* Calculate invariably allocated memory */
+		/* Calculate invariably allocated memory. */
 		size_t invariable_mem_allocated = get_invariable_mem_allocated();
-		/* Calculate tile specific allocated memory */
-		size_t tile_specific_mem_allocated = get_tile_specific_mem_allocated(rtile);
-		/* Calculate scene specific allocated memory */
-		size_t scene_specific_mem_allocated = get_scene_specific_mem_allocated(d_data);
-
-		/* Calculate total memory available for the threads in global work size */
+		/* Calculate tile specific allocated memory. */
+		size_t tile_specific_mem_allocated =
+			get_tile_specific_mem_allocated(rtile);
+		/* Calculate scene specific allocated memory. */
+		size_t scene_specific_mem_allocated =
+			get_scene_specific_mem_allocated(d_data);
+		/* Calculate total memory available for the threads in global work size. */
 		size_t available_memory = total_allocatable_memory
 			- invariable_mem_allocated
 			- tile_specific_mem_allocated
 			- scene_specific_mem_allocated
 			- DATA_ALLOCATION_MEM_FACTOR;
-
 		size_t per_thread_memory_required = get_per_thread_memory();
-
 		return (available_memory / per_thread_memory_required);
 	}
 
 	/* Checks if the device has enough memory to render the whole tile;
 	 * If not, we should split single tile into multiple tiles of small size
-	 * and process them all
+	 * and process them all.
 	 */
-	bool need_to_split_tile(unsigned int d_w, unsigned int d_h, int2 max_render_feasible_tile_size)
+	bool need_to_split_tile(unsigned int d_w,
+	                        unsigned int d_h,
+	                        int2 max_render_feasible_tile_size)
 	{
-		size_t global_size_estimate[2] = { 0, 0 };
-		global_size_estimate[0] = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
-		global_size_estimate[1] = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
-		if(global_size_estimate[0] * global_size_estimate[1] > (max_render_feasible_tile_size.x * max_render_feasible_tile_size.y)) {
+		size_t global_size_estimate[2];
+		/* TODO(sergey): Such round-ups are in quite few places, need to replace
+		 * them with an utility macro.
+		 */
+		global_size_estimate[0] =
+			(((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_X;
+		global_size_estimate[1] =
+			(((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_Y;
+		if((global_size_estimate[0] * global_size_estimate[1]) >
+		   (max_render_feasible_tile_size.x * max_render_feasible_tile_size.y))
+		{
 			return true;
 		}
 		else {
@@ -2784,7 +2896,7 @@ public:
 
 	/* Considers the scene properties, global memory available in the device
 	 * and returns a rectanglular tile dimension (approx the maximum)
-	 * that should render on split kernel
+	 * that should render on split kernel.
 	 */
 	int2 get_max_render_feasible_tile_size(size_t feasible_global_work_size)
 	{
@@ -2792,45 +2904,57 @@ public:
 		int square_root_val = (int)sqrt(feasible_global_work_size);
 		max_render_feasible_tile_size.x = square_root_val;
 		max_render_feasible_tile_size.y = square_root_val;
-
-		/* ciel round-off max_render_feasible_tile_size */
+		/* Ciel round-off max_render_feasible_tile_size. */
 		int2 ceil_render_feasible_tile_size;
-		ceil_render_feasible_tile_size.x = (((max_render_feasible_tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
-		ceil_render_feasible_tile_size.y = (((max_render_feasible_tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
-
-		if(ceil_render_feasible_tile_size.x * ceil_render_feasible_tile_size.y <= feasible_global_work_size) {
+		ceil_render_feasible_tile_size.x =
+			(((max_render_feasible_tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_X;
+		ceil_render_feasible_tile_size.y =
+			(((max_render_feasible_tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_Y;
+		if(ceil_render_feasible_tile_size.x * ceil_render_feasible_tile_size.y <=
+		   feasible_global_work_size)
+		{
 			return ceil_render_feasible_tile_size;
 		}
-
-		/* floor round-off max_render_feasible_tile_size */
+		/* Floor round-off max_render_feasible_tile_size. */
 		int2 floor_render_feasible_tile_size;
-		floor_render_feasible_tile_size.x = (max_render_feasible_tile_size.x / SPLIT_KERNEL_LOCAL_SIZE_X) * SPLIT_KERNEL_LOCAL_SIZE_X;
-		floor_render_feasible_tile_size.y = (max_render_feasible_tile_size.y / SPLIT_KERNEL_LOCAL_SIZE_Y) * SPLIT_KERNEL_LOCAL_SIZE_Y;
-
+		floor_render_feasible_tile_size.x =
+			(max_render_feasible_tile_size.x / SPLIT_KERNEL_LOCAL_SIZE_X) *
+			SPLIT_KERNEL_LOCAL_SIZE_X;
+		floor_render_feasible_tile_size.y =
+			(max_render_feasible_tile_size.y / SPLIT_KERNEL_LOCAL_SIZE_Y) *
+			SPLIT_KERNEL_LOCAL_SIZE_Y;
 		return floor_render_feasible_tile_size;
 	}
 
-	/* Try splitting the current tile into multiple smaller almost-square-tiles */
-	int2 get_split_tile_size(RenderTile rtile, int2 max_render_feasible_tile_size)
+	/* Try splitting the current tile into multiple smaller
+	 * almost-square-tiles.
+	 */
+	int2 get_split_tile_size(RenderTile rtile,
+	                         int2 max_render_feasible_tile_size)
 	{
 		int2 split_tile_size;
-		int num_global_threads = max_render_feasible_tile_size.x * max_render_feasible_tile_size.y;
+		int num_global_threads = max_render_feasible_tile_size.x *
+		                         max_render_feasible_tile_size.y;
 		int d_w = rtile.w;
 		int d_h = rtile.h;
-
 		/* Ceil round off d_w and d_h */
-		d_w = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
-		d_h = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
-
+		d_w = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_X;
+		d_h = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
+			SPLIT_KERNEL_LOCAL_SIZE_Y;
 		while (d_w * d_h > num_global_threads) {
-			/* Halve the longer dimension */
+			/* Halve the longer dimension. */
 			if(d_w >= d_h) {
 				d_w = d_w / 2;
-				d_w = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
+				d_w = (((d_w - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
+					SPLIT_KERNEL_LOCAL_SIZE_X;
 			}
 			else {
 				d_h = d_h / 2;
-				d_h = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
+				d_h = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
+					SPLIT_KERNEL_LOCAL_SIZE_Y;
 			}
 		}
 		split_tile_size.x = d_w;
@@ -2838,28 +2962,23 @@ public:
 		return split_tile_size;
 	}
 
-	/* Splits existing tile into multiple tiles of tile size split_tile_size */
+	/* Splits existing tile into multiple tiles of tile size split_tile_size. */
 	vector<RenderTile> split_tiles(RenderTile rtile, int2 split_tile_size)
 	{
 		vector<RenderTile> to_path_trace_rtile;
-
 		int d_w = rtile.w;
 		int d_h = rtile.h;
 		int num_tiles_x = (((d_w - 1) / split_tile_size.x) + 1);
 		int num_tiles_y = (((d_h - 1) / split_tile_size.y) + 1);
-
-		/* buffer and rng_state offset calc */
+		/* Buffer and rng_state offset calc. */
 		size_t offset_index = rtile.offset + (rtile.x + rtile.y * rtile.stride);
 		size_t offset_x = offset_index % rtile.stride;
 		size_t offset_y = offset_index / rtile.stride;
-
-		/* Resize to_path_trace_rtile */
+		/* Resize to_path_trace_rtile. */
 		to_path_trace_rtile.resize(num_tiles_x * num_tiles_y);
-
 		for(int tile_iter_y = 0; tile_iter_y < num_tiles_y; tile_iter_y++) {
 			for(int tile_iter_x = 0; tile_iter_x < num_tiles_x; tile_iter_x++) {
 				int rtile_index = tile_iter_y * num_tiles_x + tile_iter_x;
-
 				to_path_trace_rtile[rtile_index].rng_state_offset_x = offset_x + tile_iter_x * split_tile_size.x;
 				to_path_trace_rtile[rtile_index].rng_state_offset_y = offset_y + tile_iter_y * split_tile_size.y;
 				to_path_trace_rtile[rtile_index].buffer_offset_x = offset_x + tile_iter_x * split_tile_size.x;
@@ -2876,15 +2995,13 @@ public:
 				to_path_trace_rtile[rtile_index].x = rtile.x + (tile_iter_x * split_tile_size.x);
 				to_path_trace_rtile[rtile_index].y = rtile.y + (tile_iter_y * split_tile_size.y);
 				to_path_trace_rtile[rtile_index].buffer_rng_state_stride = rtile.stride;
-
-				/* Fill width and height of the new render tile */
+				/* Fill width and height of the new render tile. */
 				to_path_trace_rtile[rtile_index].w = (tile_iter_x == (num_tiles_x - 1)) ?
 					(d_w - (tile_iter_x * split_tile_size.x)) /* Border tile */
 					: split_tile_size.x;
 				to_path_trace_rtile[rtile_index].h = (tile_iter_y == (num_tiles_y - 1)) ?
 					(d_h - (tile_iter_y * split_tile_size.y)) /* Border tile */
 					: split_tile_size.y;
-
 				to_path_trace_rtile[rtile_index].stride = to_path_trace_rtile[rtile_index].w;
 			}
 		}
@@ -2901,13 +3018,11 @@ public:
 		}
 		else if(task->type == DeviceTask::PATH_TRACE) {
 			RenderTile tile;
-
 			bool initialize_data_and_check_render_feasibility = false;
 			bool need_to_split_tiles_further = false;
 			int2 max_render_feasible_tile_size;
 			size_t feasible_global_work_size;
-
-			/* keep rendering tiles until done */
+			/* Keep rendering tiles until done. */
 			while (task->acquire_tile(this, tile)) {
 				tile.buffer_offset_x = 0;
 				tile.buffer_offset_y = 0;
@@ -2915,66 +3030,94 @@ public:
 				tile.rng_state_offset_y = 0;
 
 				if(!initialize_data_and_check_render_feasibility) {
-					/* Initialize data */
-					/* Calculate per_thread_output_buffer_size */
+					/* Initialize data. */
+					/* Calculate per_thread_output_buffer_size. */
 					size_t output_buffer_size = 0;
-					ciErr = clGetMemObjectInfo((cl_mem)tile.buffer, CL_MEM_SIZE, sizeof(output_buffer_size), &output_buffer_size, NULL);
+					ciErr = clGetMemObjectInfo((cl_mem)tile.buffer,
+					                           CL_MEM_SIZE,
+					                           sizeof(output_buffer_size),
+					                           &output_buffer_size,
+					                           NULL);
 					assert(ciErr == CL_SUCCESS && "Can't get tile.buffer mem object info");
-					/* This value is different when running on AMD and NV */
+					/* This value is different when running on AMD and NV. */
 					if(background) {
 						/* In offline render the number of buffer elements
-						 * associated with tile.buffer is the current tile size
+						 * associated with tile.buffer is the current tile size.
 						 */
-						per_thread_output_buffer_size = output_buffer_size / (tile.w * tile.h);
+						per_thread_output_buffer_size =
+							output_buffer_size / (tile.w * tile.h);
 					}
 					else {
 						/* interactive rendering, unlike offline render, the number of buffer elements
 						 * associated with tile.buffer is the entire viewport size.
 						 */
-						per_thread_output_buffer_size = output_buffer_size / (tile.buffers->params.width * tile.buffers->params.height);
+						per_thread_output_buffer_size =
+							output_buffer_size / (tile.buffers->params.width *
+							                      tile.buffers->params.height);
 					}
-
-					/* Check render feasibility */
-					feasible_global_work_size = get_feasible_global_work_size(tile, CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
-					max_render_feasible_tile_size = get_max_render_feasible_tile_size(feasible_global_work_size);
-					need_to_split_tiles_further = need_to_split_tile(tile.tile_size.x, tile.tile_size.y, max_render_feasible_tile_size);
-
+					/* Check render feasibility. */
+					feasible_global_work_size = get_feasible_global_work_size(
+						tile,
+						CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
+					max_render_feasible_tile_size =
+						get_max_render_feasible_tile_size(
+							feasible_global_work_size);
+					need_to_split_tiles_further =
+						need_to_split_tile(tile.tile_size.x,
+						                   tile.tile_size.y,
+						                   max_render_feasible_tile_size);
 					initialize_data_and_check_render_feasibility = true;
 				}
-
 				if(need_to_split_tiles_further) {
-
-					int2 split_tile_size = get_split_tile_size(tile, max_render_feasible_tile_size);
-					vector<RenderTile> to_path_trace_render_tiles = split_tiles(tile, split_tile_size);
-
+					int2 split_tile_size =
+						get_split_tile_size(tile,
+						                    max_render_feasible_tile_size);
+					vector<RenderTile> to_path_trace_render_tiles =
+						split_tiles(tile, split_tile_size);
 					/* Print message to console */
 					if(background && (to_path_trace_render_tiles.size() > 1)) {
-						fprintf(stderr, "Message : Tiles need to be split further inside path trace (due to insufficient device-global-memory for split kernel to function) \n\
-The current tile of dimensions %dx%d is split into tiles of dimension %dx%d for render \n", tile.w, tile.h, split_tile_size.x, split_tile_size.y);
+						fprintf(stderr, "Message : Tiles need to be split "
+						        "further inside path trace (due to insufficient "
+						        "device-global-memory for split kernel to "
+						        "function) \n"
+						        "The current tile of dimensions %dx%d is split "
+						        "into tiles of dimension %dx%d for render \n",
+						        tile.w, tile.h,
+						        split_tile_size.x,
+						        split_tile_size.y);
 					}
-
-					/* Process all split tiles */
-					for(int tile_iter = 0; tile_iter < to_path_trace_render_tiles.size(); tile_iter++) {
-						path_trace(to_path_trace_render_tiles[tile_iter], max_render_feasible_tile_size);
+					/* Process all split tiles. */
+					for(int tile_iter = 0;
+					    tile_iter < to_path_trace_render_tiles.size();
+					    ++tile_iter)
+					{
+						path_trace(to_path_trace_render_tiles[tile_iter],
+						           max_render_feasible_tile_size);
 					}
 				}
 				else {
-					/* No splitting required; process the entire tile at once */
-					/* Render feasible tile size is user-set-tile-size itself */
-					max_render_feasible_tile_size.x = (((tile.tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) * SPLIT_KERNEL_LOCAL_SIZE_X;
-					max_render_feasible_tile_size.y = (((tile.tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) * SPLIT_KERNEL_LOCAL_SIZE_Y;
-					/* buffer_rng_state_stride is stride itself */
+					/* No splitting required; process the entire tile at once. */
+					/* Render feasible tile size is user-set-tile-size itself. */
+					max_render_feasible_tile_size.x =
+						(((tile.tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
+						SPLIT_KERNEL_LOCAL_SIZE_X;
+					max_render_feasible_tile_size.y =
+						(((tile.tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
+						SPLIT_KERNEL_LOCAL_SIZE_Y;
+					/* buffer_rng_state_stride is stride itself. */
 					tile.buffer_rng_state_stride = tile.stride;
 					path_trace(tile, max_render_feasible_tile_size);
 				}
 				tile.sample = tile.start_sample + tile.num_samples;
 
-				/* Complete kernel execution before release tile */
+				/* Complete kernel execution before release tile. */
 				/* This helps in multi-device render;
-				 * The device that reaches the critical-section function release_tile
-				 * waits (stalling other devices from entering release_tile) for all kernels
-				 * to complete. If device1 (a slow-render device) reaches release_tile first then
-				 * it would stall device2 (a fast-render device) from proceeding to render next tile
+				 * The device that reaches the critical-section function
+				 * release_tile waits (stalling other devices from entering
+				 * release_tile) for all kernels to complete. If device1 (a
+				 * slow-render device) reaches release_tile first then it would
+				 * stall device2 (a fast-render device) from proceeding to render
+				 * next tile.
 				 */
 				clFinish(cqCommandQueue);
 
@@ -3017,8 +3160,7 @@ protected:
 	{
 		cl_mem ptr;
 		ptr = clCreateBuffer(cxContext, mem_flag, bufsize, NULL, &ciErr);
-		if (ciErr != CL_SUCCESS) {
-			fprintf(stderr, "(%d) %s in clCreateBuffer\n", ciErr, clewErrorString(ciErr));
+		if(opencl_error(ciErr)) {
 			assert(0);
 		}
 		return ptr;
@@ -3026,7 +3168,7 @@ protected:
 };
 
 /* Returns true in case of successful detection of platform and device type,
- * else returns false
+ * else returns false.
  */
 static bool get_platform_and_devicetype(const DeviceInfo info,
                                         string &platform_name,
@@ -3037,6 +3179,7 @@ static bool get_platform_and_devicetype(const DeviceInfo info,
 	cl_uint num_platforms;
 	cl_int ciErr;
 
+	/* TODO(sergey): Use some generic error print helper function/ */
 	ciErr = clGetPlatformIDs(0, NULL, &num_platforms);
 	if(ciErr != CL_SUCCESS) {
 		fprintf(stderr, "Can't getPlatformIds. file - %s, line - %d\n", __FILE__, __LINE__);
@@ -3120,7 +3263,8 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 	string platform_name;
 	cl_device_type device_type;
 	if(get_platform_and_devicetype(info, platform_name, device_type)) {
-		const bool force_split_kernel = getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL;
+		const bool force_split_kernel =
+			getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL;
 		/* TODO(sergey): Replace string lookups with more enum-like API,
 		 * similar to device/venfdor checks blender's gpu.
 		 */
@@ -3137,8 +3281,8 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 			return new OpenCLDeviceMegaKernel(info, stats, background);
 		}
 	} else {
-		/* If we can't retrieve platform and device type information for some reason,
-		 * we default to megakernel path.
+		/* If we can't retrieve platform and device type information for some
+		 * reason, we default to megakernel path.
 		 */
 		VLOG(1) << "Failed to rertieve platform or device, using megakernel";
 		return new OpenCLDeviceMegaKernel(info, stats, background);
