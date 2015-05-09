@@ -1751,7 +1751,8 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 	if (use_previews == (cache->previews_pool != NULL)) {
 		return;
 	}
-	else if (use_previews) {
+	/* Do not start preview work while listing, gives nasty flickering! */
+	else if (use_previews && filelist->filelist_ready) {
 		TaskScheduler *scheduler = BLI_task_scheduler_get();
 		TaskPool *pool;
 		int num_tasks = 4;
