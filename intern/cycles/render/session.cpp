@@ -374,7 +374,6 @@ bool Session::acquire_tile(Device *tile_device, RenderTile& rtile)
 	rtile.start_sample = tile_manager.state.sample;
 	rtile.num_samples = tile_manager.state.num_samples;
 	rtile.resolution = tile_manager.state.resolution_divider;
-	rtile.tile_size = params.tile_size;
 
 	tile_lock.unlock();
 
@@ -879,6 +878,7 @@ void Session::path_trace()
 	task.update_progress_sample = function_bind(&Session::update_progress_sample, this);
 	task.need_finish_queue = params.progressive_refine;
 	task.integrator_branched = scene->integrator->method == Integrator::BRANCHED_PATH;
+	task.requested_tile_size = params.tile_size;
 
 	device->task_add(task);
 }

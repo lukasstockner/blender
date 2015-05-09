@@ -1465,7 +1465,6 @@ public:
 		resolution = tile.resolution;
 		offset = tile.offset;
 		stride = tile.stride;
-		tile_size = tile.tile_size;
 		buffer = tile.buffer;
 		rng_state = tile.rng_state;
 		buffers = tile.buffers;
@@ -2819,13 +2818,13 @@ public:
 	/* Calculate the memory that has-to-be/has-been allocated for
 	 * the split kernel to function.
 	 */
-	size_t get_tile_specific_mem_allocated(RenderTile rtile)
+	size_t get_tile_specific_mem_allocated(const int2 tile_size)
 	{
 		size_t tile_specific_mem_allocated = 0;
 
 		/* Get required tile info */
-		unsigned int user_set_tile_w = rtile.tile_size.x;
-		unsigned int user_set_tile_h = rtile.tile_size.y;
+		unsigned int user_set_tile_w = tile_size.x;
+		unsigned int user_set_tile_h = tile_size.y;
 
 #ifdef __WORK_STEALING__
 		/* Calculate memory to be allocated for work_pools in
@@ -2903,13 +2902,13 @@ public:
 	/* Considers the total memory available in the device and
 	 * and returns the maximum global work size possible.
 	 */
-	size_t get_feasible_global_work_size(RenderTile rtile, cl_mem d_data)
+	size_t get_feasible_global_work_size(int2 tile_size, cl_mem d_data)
 	{
 		/* Calculate invariably allocated memory. */
 		size_t invariable_mem_allocated = get_invariable_mem_allocated();
 		/* Calculate tile specific allocated memory. */
 		size_t tile_specific_mem_allocated =
-			get_tile_specific_mem_allocated(rtile);
+			get_tile_specific_mem_allocated(tile_size);
 		/* Calculate scene specific allocated memory. */
 		size_t scene_specific_mem_allocated =
 			get_scene_specific_mem_allocated(d_data);
@@ -3045,7 +3044,6 @@ public:
 				to_path_trace_rtile[rtile_index].sample = rtile.sample;
 				to_path_trace_rtile[rtile_index].resolution = rtile.resolution;
 				to_path_trace_rtile[rtile_index].offset = rtile.offset;
-				to_path_trace_rtile[rtile_index].tile_size = rtile.tile_size;
 				to_path_trace_rtile[rtile_index].buffers = rtile.buffers;
 				to_path_trace_rtile[rtile_index].buffer = rtile.buffer;
 				to_path_trace_rtile[rtile_index].rng_state = rtile.rng_state;
@@ -3079,6 +3077,7 @@ public:
 			bool need_to_split_tiles_further = false;
 			int2 max_render_feasible_tile_size;
 			size_t feasible_global_work_size;
+			const int2 tile_size = task->requested_tile_size;
 			/* Keep rendering tiles until done. */
 			while (task->acquire_tile(this, tile)) {
 				if(!initialize_data_and_check_render_feasibility) {
@@ -3109,14 +3108,14 @@ public:
 					}
 					/* Check render feasibility. */
 					feasible_global_work_size = get_feasible_global_work_size(
-						tile,
+						tile_size,
 						CL_MEM_PTR(const_mem_map["__data"]->device_pointer));
 					max_render_feasible_tile_size =
 						get_max_render_feasible_tile_size(
 							feasible_global_work_size);
 					need_to_split_tiles_further =
-						need_to_split_tile(tile.tile_size.x,
-						                   tile.tile_size.y,
+						need_to_split_tile(tile_size.x,
+						                   tile_size.y,
 						                   max_render_feasible_tile_size);
 					initialize_data_and_check_render_feasibility = true;
 				}
@@ -3151,10 +3150,10 @@ public:
 					/* No splitting required; process the entire tile at once. */
 					/* Render feasible tile size is user-set-tile-size itself. */
 					max_render_feasible_tile_size.x =
-						(((tile.tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
+						(((tile_size.x - 1) / SPLIT_KERNEL_LOCAL_SIZE_X) + 1) *
 						SPLIT_KERNEL_LOCAL_SIZE_X;
 					max_render_feasible_tile_size.y =
-						(((tile.tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
+						(((tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
 						SPLIT_KERNEL_LOCAL_SIZE_Y;
 					/* buffer_rng_state_stride is stride itself. */
 					SplitRenderTile split_tile(tile);
