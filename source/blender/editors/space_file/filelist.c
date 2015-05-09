@@ -2414,6 +2414,8 @@ static void filelist_readjob_do(
 		if (nbr_entries) {
 			BLI_mutex_lock(lock);
 
+			*do_update = true;
+
 			BLI_movelisttolist(&filelist->filelist.entries, &entries);
 			filelist->filelist.nbr_entries += nbr_entries;
 
@@ -2422,7 +2424,6 @@ static void filelist_readjob_do(
 
 		nbr_done_dirs++;
 		*progress = (float)nbr_done_dirs / (float)nbr_todo_dirs;
-		*do_update = true;
 		MEM_freeN(subdir);
 	}
 
@@ -2526,6 +2527,9 @@ static void filelist_readjob_update(void *flrjv)
 static void filelist_readjob_endjob(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
+
+	/* In case there would be some dangling update... */
+	filelist_readjob_update(flrjv);
 
 	flrj->filelist->filelist_pending = false;
 	flrj->filelist->filelist_ready = true;
