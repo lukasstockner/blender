@@ -717,7 +717,7 @@ public:
 		return true;
 	}
 
-	string device_md5_hash(string kernel_custom_build_options)
+	string device_md5_hash(string kernel_custom_build_options = "")
 	{
 		MD5Hash md5;
 		char version[256], driver[256], name[256], vendor[256];
@@ -759,8 +759,7 @@ public:
 			/* md5 hash to detect changes */
 			string kernel_path = path_get("kernel");
 			string kernel_md5 = path_files_md5_hash(kernel_path);
-			string custom_kernel_build_options = "";
-			string device_md5 = device_md5_hash(custom_kernel_build_options);
+			string device_md5 = device_md5_hash();
 
 			/* path to cached binary */
 			string clbin = string_printf("cycles_kernel_%s_%s.clbin", device_md5.c_str(), kernel_md5.c_str());
@@ -776,7 +775,7 @@ public:
 			}
 
 			/* if exists already, try use it */
-			if(path_exists(clbin) && load_binary(kernel_path, clbin, custom_kernel_build_options, &cpProgram)) {
+			if(path_exists(clbin) && load_binary(kernel_path, clbin, "", &cpProgram)) {
 				/* kernel loaded from binary */
 			}
 			else {
@@ -784,7 +783,7 @@ public:
 				string init_kernel_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
 
 				/* if does not exist or loading binary failed, compile kernel */
-				if (!compile_kernel(kernel_path, init_kernel_source, custom_kernel_build_options, &cpProgram, debug_src))
+				if (!compile_kernel(kernel_path, init_kernel_source, "", &cpProgram, debug_src))
 					return false;
 
 				/* save binary for reuse */
@@ -797,19 +796,19 @@ public:
 		}
 
 		/* find kernels */
-		ckShaderKernel = clCreateKernel(cpProgram, "kernel_ocl_shader", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
-
-		ckBakeKernel = clCreateKernel(cpProgram, "kernel_ocl_bake", &ciErr);
-		if(opencl_error(ciErr))
-			return false;
-
 		ckFilmConvertByteKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_byte", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
 		ckFilmConvertHalfFloatKernel = clCreateKernel(cpProgram, "kernel_ocl_convert_to_half_float", &ciErr);
+		if(opencl_error(ciErr))
+			return false;
+
+		ckShaderKernel = clCreateKernel(cpProgram, "kernel_ocl_shader", &ciErr);
+		if(opencl_error(ciErr))
+			return false;
+
+		ckBakeKernel = clCreateKernel(cpProgram, "kernel_ocl_bake", &ciErr);
 		if(opencl_error(ciErr))
 			return false;
 
@@ -948,7 +947,7 @@ public:
 	size_t global_size_round_up(int group_size, int global_size)
 	{
 		int r = global_size % group_size;
-		return global_size + ((r == 0)? 0 : group_size - r);
+		return global_size + ((r == 0)? 0: group_size - r);
 	}
 
 	void enqueue_kernel(cl_kernel kernel, size_t w, size_t h)
