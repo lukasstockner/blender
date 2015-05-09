@@ -24,7 +24,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 {
 #ifdef __EMISSION__
 	/* sample illumination from lights to find path contribution */
-	if(!(sd->flag & SD_BSDF_HAS_EVAL))
+	if(!(ccl_fetch(sd, flag) & SD_BSDF_HAS_EVAL))
 		return;
 
 	Ray light_ray;
@@ -32,7 +32,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 	bool is_lamp;
 
 #ifdef __OBJECT_MOTION__
-	light_ray.time = sd->time;
+	light_ray.time = ccl_fetch(sd, time);
 #endif
 
 	if(sample_all_lights) {
@@ -53,7 +53,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 				path_branched_rng_2D(kg, &lamp_rng, state, j, num_samples, PRNG_LIGHT_U, &light_u, &light_v);
 
 				LightSample ls;
-				lamp_light_sample(kg, i, light_u, light_v, sd->P, &ls);
+				lamp_light_sample(kg, i, light_u, light_v, ccl_fetch(sd, P), &ls);
 
 				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
 					/* trace shadow ray */
@@ -85,7 +85,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 					light_t = 0.5f*light_t;
 
 				LightSample ls;
-				light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, state->bounce, &ls);
+				light_sample(kg, light_t, light_u, light_v, ccl_fetch(sd, time), ccl_fetch(sd, P), state->bounce, &ls);
 
 				if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
 					/* trace shadow ray */
@@ -106,7 +106,7 @@ ccl_device void kernel_branched_path_surface_connect_light(KernelGlobals *kg, RN
 		path_state_rng_2D(kg, rng, state, PRNG_LIGHT_U, &light_u, &light_v);
 
 		LightSample ls;
-		light_sample(kg, light_t, light_u, light_v, sd->time, sd->P, state->bounce, &ls);
+		light_sample(kg, light_t, light_u, light_v, ccl_fetch(sd, time), ccl_fetch(sd, P), state->bounce, &ls);
 
 		/* sample random light */
 		if(direct_emission(kg, sd, &ls, &light_ray, &L_light, &is_lamp, state->bounce, state->transparent_bounce)) {
@@ -149,15 +149,15 @@ ccl_device bool kernel_branched_path_surface_bounce(KernelGlobals *kg, RNG *rng,
 	path_state_next(kg, state, label);
 
 	/* setup ray */
-	ray->P = ray_offset(sd->P, (label & LABEL_TRANSMIT)? -sd->Ng: sd->Ng);
+	ray->P = ray_offset(ccl_fetch(sd, P), (label & LABEL_TRANSMIT)? -ccl_fetch(sd, Ng): ccl_fetch(sd, Ng));
 	ray->D = bsdf_omega_in;
 	ray->t = FLT_MAX;
 #ifdef __RAY_DIFFERENTIALS__
-	ray->dP = sd->dP;
+	ray->dP = ccl_fetch(sd, dP);
 	ray->dD = bsdf_domega_in;
 #endif
 #ifdef __OBJECT_MOTION__
-	ray->time = sd->time;
+	ray->time = ccl_fetch(sd, time);
 #endif
 
 #ifdef __VOLUME__
@@ -200,7 +200,7 @@ ccl_device_inline void kernel_path_surface_connect_light(KernelGlobals *kg, ccl_
 	bool is_lamp;
 
 #ifdef __OBJECT_MOTION__
-	light_ray.time = sd->time;
+	light_ray.time = ccl_fetch(sd, time);
 #endif
 
 	LightSample ls;
