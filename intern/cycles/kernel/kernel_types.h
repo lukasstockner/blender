@@ -657,13 +657,13 @@ struct KernelGlobals;
 #define SD_VAR(type, what) ccl_global type *what;
 #define SD_CLOSURE_VAR(type, what, max_closure) type *what;
 #define TIDX (get_global_id(1) * get_global_size(0) + get_global_id(0))
-#define ccl_fetch(s,t) (s->t[TIDX])
-#define sc_fetch(index) (&sd->closure[TIDX * MAX_CLOSURE + index])
+#define ccl_fetch(s, t) (s->t[TIDX])
+#define ccl_fetch_array(s, t, index) (&s->t[TIDX * MAX_CLOSURE + index])
 #else
 #define SD_VAR(type, what) type what;
 #define SD_CLOSURE_VAR(type, what, max_closure) type what[max_closure];
-#define ccl_fetch(s,t) (s->t)
-#define sc_fetch(index) (&sd->closure[index])
+#define ccl_fetch(s, t) (s->t)
+#define ccl_fetch_array(s, t, index) (&s->t[index])
 #endif
 
 typedef ccl_addr_space struct ShaderData {
