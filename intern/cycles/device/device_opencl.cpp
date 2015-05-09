@@ -784,7 +784,7 @@ public:
 				string init_kernel_source = "#include \"kernel.cl\" // " + kernel_md5 + "\n";
 
 				/* if does not exist or loading binary failed, compile kernel */
-				if (!compile_kernel(kernel_path, init_kernel_source, "", &cpProgram, debug_src))
+				if(!compile_kernel(kernel_path, init_kernel_source, "", &cpProgram, debug_src))
 					return false;
 
 				/* save binary for reuse */
@@ -1298,22 +1298,22 @@ public:
 			}
 
 			/* If exists already, try use it. */
-			if (path_exists(clbin) && load_binary(kernel_path,
-			                                      clbin,
-			                                      custom_kernel_build_options,
-			                                      &path_trace_program,
-			                                      debug_src)) {
+			if(path_exists(clbin) && load_binary(kernel_path,
+			                                     clbin,
+			                                     custom_kernel_build_options,
+			                                     &path_trace_program,
+			                                     debug_src)) {
 				/* Kernel loaded from binary, nothing to do. */
 			}
 			else {
 				string init_kernel_source = "#include \"kernel.cl\" // " +
 				                            kernel_md5 + "\n";
 				/* If does not exist or loading binary failed, compile kernel. */
-				if (!compile_kernel(kernel_path,
-				                    init_kernel_source,
-				                    custom_kernel_build_options,
-				                    &path_trace_program,
-				                    debug_src))
+				if(!compile_kernel(kernel_path,
+				                   init_kernel_source,
+				                   custom_kernel_build_options,
+				                   &path_trace_program,
+				                   debug_src))
 				{
 					return false;
 				}
@@ -1842,19 +1842,19 @@ public:
 		string *debug_src = NULL;
 
 		/* If exists already, try use it. */
-		if (path_exists(clbin) && load_binary(kernel_path,
-		                                      clbin,
-		                                      custom_kernel_build_options,
-		                                      program,
-		                                      debug_src)) {
+		if(path_exists(clbin) && load_binary(kernel_path,
+		                                     clbin,
+		                                     custom_kernel_build_options,
+		                                     program,
+		                                     debug_src)) {
 			/* Kernel loaded from binary. */
 		}
 		else {
 			/* If does not exist or loading binary failed, compile kernel. */
-			if (!compile_kernel(kernel_path,
-			                    kernel_init_source,
-			                    custom_kernel_build_options,
-			                    program))
+			if(!compile_kernel(kernel_path,
+			                   kernel_init_source,
+			                   custom_kernel_build_options,
+			                   program))
 			{
 				return false;
 			}
@@ -3000,7 +3000,7 @@ public:
 			SPLIT_KERNEL_LOCAL_SIZE_X;
 		d_h = (((d_h - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
 			SPLIT_KERNEL_LOCAL_SIZE_Y;
-		while (d_w * d_h > num_global_threads) {
+		while(d_w * d_h > num_global_threads) {
 			/* Halve the longer dimension. */
 			if(d_w >= d_h) {
 				d_w = d_w / 2;
@@ -3079,7 +3079,7 @@ public:
 			size_t feasible_global_work_size;
 			const int2 tile_size = task->requested_tile_size;
 			/* Keep rendering tiles until done. */
-			while (task->acquire_tile(this, tile)) {
+			while(task->acquire_tile(this, tile)) {
 				if(!initialize_data_and_check_render_feasibility) {
 					/* Initialize data. */
 					/* Calculate per_thread_output_buffer_size. */

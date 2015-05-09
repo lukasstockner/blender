@@ -23,7 +23,6 @@
 #include "device_task.h"
 
 #include "util_list.h"
-#include "util_set.h"
 #include "util_stats.h"
 #include "util_string.h"
 #include "util_thread.h"
