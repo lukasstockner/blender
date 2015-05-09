@@ -818,6 +818,7 @@ public:
 
 	~OpenCLDeviceBase()
 	{
+		task_pool.stop();
 
 		if(null_mem)
 			clReleaseMemObject(CL_MEM_PTR(null_mem));
@@ -3337,7 +3338,7 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 	/* get devices */
 	if(clGetPlatformIDs(0, NULL, &num_platforms) != CL_SUCCESS || num_platforms == 0)
 		return;
-
+	
 	platform_ids.resize(num_platforms);
 
 	if(clGetPlatformIDs(num_platforms, &platform_ids[0], NULL) != CL_SUCCESS)
