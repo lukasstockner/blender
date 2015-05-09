@@ -108,7 +108,7 @@ ccl_device void svm_node_wireframe(KernelGlobals *kg,
 	/* Calculate wireframe */
 #ifdef __SPLIT_KERNEL__
 	/* TODO(sergey): This is because sd is actually a global space,
-	 * which makes it difficult to re-use same weireframe() function.
+	 * which makes it difficult to re-use same wireframe() function.
 	 *
 	 * With OpenCL 2.0 it's possible to avoid this change, but for until
 	 * then we'll be living with such an exception.
