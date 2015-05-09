@@ -1574,8 +1574,8 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
 
-	printf("%s: [%d:%d] around index %d (current cache: [%d:%d])\n", __func__,
-	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
+//	printf("%s: [%d:%d] around index %d (current cache: [%d:%d])\n", __func__,
+//	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
 
 	/* If we have something to (re)cache... */
 	if ((start_index != cache->block_start_index) || (end_index != cache->block_end_index)) {
@@ -1740,7 +1740,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	cache->block_center_index = index;
 
-	printf("%s Finished!\n", __func__);
+//	printf("%s Finished!\n", __func__);
 
 	return true;
 }
@@ -2586,12 +2586,12 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
-void filelist_readjob_stop(wmWindowManager *wm, FileList *filelist)
+void filelist_readjob_stop(wmWindowManager *wm, ScrArea *sa)
 {
-	WM_jobs_kill_type(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
+	WM_jobs_kill_type(wm, sa, WM_JOB_TYPE_FILESEL_READDIR);
 }
 
-int filelist_readjob_running(wmWindowManager *wm, FileList *filelist)
+int filelist_readjob_running(wmWindowManager *wm, ScrArea *sa)
 {
-	return WM_jobs_test(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
+	return WM_jobs_test(wm, sa, WM_JOB_TYPE_FILESEL_READDIR);
 }

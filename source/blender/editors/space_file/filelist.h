@@ -114,8 +114,8 @@ bool                filelist_islibrary(struct FileList *filelist, char *dir, cha
 void                filelist_freelib(struct FileList *filelist);
 
 void                filelist_readjob_start(struct FileList *filelist, const struct bContext *C);
-void                filelist_readjob_stop(struct wmWindowManager *wm, struct FileList *filelist);
-int                 filelist_readjob_running(struct wmWindowManager *wm, struct FileList *filelist);
+void                filelist_readjob_stop(struct wmWindowManager *wm, struct ScrArea *sa);
+int                 filelist_readjob_running(struct wmWindowManager *wm, struct ScrArea *sa);
 
 bool                filelist_cache_previews_update(struct FileList *filelist);
 void                filelist_cache_previews_set(struct FileList *filelist, const bool use_previews);

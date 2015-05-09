@@ -177,7 +177,7 @@ static void file_exit(wmWindowManager *wm, ScrArea *sa)
 		sfile->previews_timer = NULL;
 	}
 
-	ED_fileselect_exit(wm, sfile);
+	ED_fileselect_exit(wm, sa, sfile);
 }
 
 static SpaceLink *file_duplicate(SpaceLink *sl)
@@ -237,7 +237,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	sfile->recentnr = fsmenu_get_active_indices(fsmenu, FS_CATEGORY_RECENT, params->dir);
 
 	if (filelist_force_reset(sfile->files)) {
-		filelist_readjob_stop(wm, sfile->files);
+		filelist_readjob_stop(wm, sa);
 		filelist_clear(sfile->files);
 	}
 
