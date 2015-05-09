@@ -17,14 +17,14 @@
 #include "kernel_split.h"
 
 /*
- * Note on kernel_ocl_path_trace_LampEmission
+ * Note on kernel_ocl_path_trace_lamp_emission
  * This is the 3rd kernel in the ray-tracing logic. This is the second of the
  * path-iteration kernels. This kernel takes care of the indirect lamp emission logic.
  * This kernel operates on QUEUE_ACTIVE_AND_REGENERATED_RAYS. It processes rays of state RAY_ACTIVE
  * and RAY_HIT_BACKGROUND.
  * We will empty QUEUE_ACTIVE_AND_REGENERATED_RAYS queue in this kernel.
  * The input/output of the kernel is as follows,
- * Throughput_coop ------------------------------------|--- kernel_ocl_path_trace_LampEmission ---|--- PathRadiance_coop
+ * Throughput_coop ------------------------------------|--- kernel_ocl_path_trace_lamp_emission --|--- PathRadiance_coop
  * Ray_coop -------------------------------------------|                                          |--- Queue_data(QUEUE_ACTIVE_AND_REGENERATED_RAYS)
  * PathState_coop -------------------------------------|                                          |--- Queue_index(QUEUE_ACTIVE_AND_REGENERATED_RAYS)
  * kg (globals + data) --------------------------------|                                          |
@@ -38,9 +38,9 @@
  * sh -------------------------------------------------|                                          |
  * parallel_samples -----------------------------------|                                          |
  *
- * note : shader_data is neither input nor output. Its just filled and consumed in the same, kernel_ocl_path_trace_LampEmission, kernel.
+ * note : shader_data is neither input nor output. Its just filled and consumed in the same, kernel_ocl_path_trace_lamp_emission, kernel.
  */
-__kernel void kernel_ocl_path_trace_LampEmission(
+__kernel void kernel_ocl_path_trace_lamp_emission(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
 	ccl_global char *shader_data,               /* Required for lamp emission */

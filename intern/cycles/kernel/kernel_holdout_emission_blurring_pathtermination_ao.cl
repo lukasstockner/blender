@@ -17,21 +17,21 @@
 #include "kernel_split.h"
 
 /*
- * Note on kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO kernel.
+ * Note on kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_ao kernel.
  * This is the sixth kernel in the ray tracing logic. This is the fifth
  * of the path iteration kernels. This kernel takes care of the logic to process
  * "material of type holdout", indirect primitive emission, bsdf blurring,
  * probabilistic path termination and AO.
  *
  * This kernels determines the rays for which a shadow_blocked() function associated with AO should be executed.
- * Those rays for which a shadow_blocked() function for AO must be executed are marked with flag RAY_SHADOW_RAY_CAST_AO and
+ * Those rays for which a shadow_blocked() function for AO must be executed are marked with flag RAY_SHADOW_RAY_CAST_ao and
  * enqueued into the queue QUEUE_SHADOW_RAY_CAST_AO_RAYS
  *
  * Ray state of rays that are terminated in this kernel are changed to RAY_UPDATE_BUFFER
  *
  * The input and output are as follows,
  *
- * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO ---|--- Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
+ * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_ao ---|--- Queue_index (QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS)
  * throughput_coop --------------------------------------|                                                                          |--- PathState_coop
  * PathRadiance_coop ------------------------------------|                                                                          |--- throughput_coop
  * Intersection_coop ------------------------------------|                                                                          |--- L_transparent_coop
@@ -72,7 +72,7 @@
  * QUEUE_SHADOW_RAY_CAST_AO_RAYS will be filled with rays marked with flag RAY_SHADOW_RAY_CAST_AO
  */
 
-__kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_AO(
+__kernel void kernel_ocl_path_trace_holdout_emission_blurring_pathtermination_ao(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
 	ccl_global char *shader_data,               /* Required throughout the kernel except probabilistic path termination and AO */

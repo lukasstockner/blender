@@ -17,7 +17,7 @@
 #include "kernel_split.h"
 
 /*
- * Note on kernel_ocl_path_trace_Background_BufferUpdate kernel.
+ * Note on kernel_ocl_path_trace_background_buffer_update kernel.
  * This is the fourth kernel in the ray tracing logic, and the third
  * of the path iteration kernels. This kernel takes care of rays that hit
  * the background (sceneintersect kernel), and for the rays of
@@ -33,7 +33,7 @@
  *
  * The input and output are as follows,
  *
- * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_Background_BufferUpdate ---|--- PathRadiance_coop
+ * rng_coop ---------------------------------------------|--- kernel_ocl_path_trace_background_buffer_update --|--- PathRadiance_coop
  * throughput_coop --------------------------------------|                                                     |--- L_transparent_coop
  * per_sample_output_buffers ----------------------------|                                                     |--- per_sample_output_buffers
  * Ray_coop ---------------------------------------------|                                                     |--- ray_state
@@ -70,7 +70,7 @@
  * QUEUE_ACTIVE_AND_REGENERATED_RAYS will be filled with RAY_ACTIVE and RAY_REGENERATED rays
  * QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be empty
  */
-__kernel void kernel_ocl_path_trace_Background_BufferUpdate(
+__kernel void kernel_ocl_path_trace_background_buffer_update(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
 	ccl_global char *shader_data,

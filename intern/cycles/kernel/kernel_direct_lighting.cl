@@ -17,7 +17,7 @@
 #include "kernel_split.h"
 
 /*
- * Note on kernel_ocl_path_trace_DirectLighting kernel.
+ * Note on kernel_ocl_path_trace_direct_lighting kernel.
  * This is the eighth kernel in the ray tracing logic. This is the seventh
  * of the path iteration kernels. This kernel takes care of direct lighting
  * logic. However, the "shadow ray cast" part of direct lighting is handled
@@ -29,7 +29,7 @@
  *
  * The input and output are as follows,
  *
- * rng_coop -----------------------------------------|--- kernel_ocl_path_trace_DirectLighting ---|--- BSDFEval_coop
+ * rng_coop -----------------------------------------|--- kernel_ocl_path_trace_direct_lighting --|--- BSDFEval_coop
  * PathState_coop -----------------------------------|                                            |--- ISLamp_coop
  * shader_data --------------------------------------|                                            |--- LightRay_coop
  * ray_state ----------------------------------------|                                            |--- ray_state
@@ -49,7 +49,7 @@
  * QUEUE_SHADOW_RAY_CAST_DL_RAYS queue will be filled with rays for which a shadow_blocked function must be executed, after this
  * kernel call. Before this kernel call the QUEUE_SHADOW_RAY_CAST_DL_RAYS will be empty.
  */
-__kernel void kernel_ocl_path_trace_DirectLighting(
+__kernel void kernel_ocl_path_trace_direct_lighting(
 	ccl_global char *globals,
 	ccl_constant KernelData *data,
 	ccl_global char *shader_data,           /* Required for direct lighting */

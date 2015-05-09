@@ -1490,30 +1490,30 @@ class OpenCLDeviceSplitKernel : public OpenCLDeviceBase
 {
 public:
 	/* Kernel declaration. */
-	cl_kernel ckPathTraceKernel_DataInit;
-	cl_kernel ckPathTraceKernel_SceneIntersect;
-	cl_kernel ckPathTraceKernel_LampEmission;
-	cl_kernel ckPathTraceKernel_QueueEnqueue;
-	cl_kernel ckPathTraceKernel_BG_BufferUpdate;
-	cl_kernel ckPathTraceKernel_Shader_Lighting;
-	cl_kernel ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO;
-	cl_kernel ckPathTraceKernel_DirectLighting;
-	cl_kernel ckPathTraceKernel_ShadowBlocked_DirectLighting;
-	cl_kernel ckPathTraceKernel_SetUpNextIteration;
-	cl_kernel ckPathTraceKernel_SumAllRadiance;
+	cl_kernel ckPathTraceKernel_data_init;
+	cl_kernel ckPathTraceKernel_scene_intersect;
+	cl_kernel ckPathTraceKernel_lamp_emission;
+	cl_kernel ckPathTraceKernel_queue_enqueue;
+	cl_kernel ckPathTraceKernel_background_buffer_update;
+	cl_kernel ckPathTraceKernel_shader_lighting;
+	cl_kernel ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao;
+	cl_kernel ckPathTraceKernel_direct_lighting;
+	cl_kernel ckPathTraceKernel_shadow_blocked_direct_lighting;
+	cl_kernel ckPathTraceKernel_setup_next_iteration;
+	cl_kernel ckPathTraceKernel_sum_all_radiance;
 
 	/* cl_program declaration. */
-	cl_program dataInit_program;
-	cl_program sceneIntersect_program;
-	cl_program lampEmission_program;
-	cl_program QueueEnqueue_program;
-	cl_program background_BufferUpdate_program;
-	cl_program shaderEval_program;
+	cl_program data_init_program;
+	cl_program scene_intersect_program;
+	cl_program lamp_emission_program;
+	cl_program queue_enqueue_program;
+	cl_program background_buffer_update_program;
+	cl_program shader_eval_program;
 	cl_program holdout_emission_blurring_termination_ao_program;
-	cl_program directLighting_program;
-	cl_program shadowBlocked_program;
-	cl_program nextIterationSetUp_program;
-	cl_program sumAllRadiance_program;
+	cl_program direct_lighting_program;
+	cl_program shadow_blocked_program;
+	cl_program next_iteration_setup_program;
+	cl_program sum_all_radiance_program;
 
 	/* Global memory variables [porting]; These memory is used for
 	 * co-operation between different kernels; Data written by one
@@ -1532,7 +1532,7 @@ public:
 	/* Global buffers for ShaderData. */
 	cl_mem sd;             /* ShaderData used in the main path-iteration loop. */
 	cl_mem sd_DL_shadow;   /* ShaderData used in Direct Lighting and
-	                        * ShadowBlocked kernel.
+	                        * shadow_blocked kernel.
 	                        */
 
 	/* Global buffers of each member of ShaderData. */
@@ -1668,30 +1668,30 @@ public:
 		background = background_;
 
 		/* Initialize kernels. */
-		ckPathTraceKernel_DataInit = NULL;
-		ckPathTraceKernel_SceneIntersect = NULL;
-		ckPathTraceKernel_LampEmission = NULL;
-		ckPathTraceKernel_BG_BufferUpdate = NULL;
-		ckPathTraceKernel_Shader_Lighting = NULL;
-		ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO = NULL;
-		ckPathTraceKernel_DirectLighting = NULL;
-		ckPathTraceKernel_ShadowBlocked_DirectLighting = NULL;
-		ckPathTraceKernel_SetUpNextIteration = NULL;
-		ckPathTraceKernel_SumAllRadiance = NULL;
-		ckPathTraceKernel_QueueEnqueue = NULL;
+		ckPathTraceKernel_data_init = NULL;
+		ckPathTraceKernel_scene_intersect = NULL;
+		ckPathTraceKernel_lamp_emission = NULL;
+		ckPathTraceKernel_background_buffer_update = NULL;
+		ckPathTraceKernel_shader_lighting = NULL;
+		ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao = NULL;
+		ckPathTraceKernel_direct_lighting = NULL;
+		ckPathTraceKernel_shadow_blocked_direct_lighting = NULL;
+		ckPathTraceKernel_setup_next_iteration = NULL;
+		ckPathTraceKernel_sum_all_radiance = NULL;
+		ckPathTraceKernel_queue_enqueue = NULL;
 
 		/* Initialize program. */
-		dataInit_program = NULL;
-		sceneIntersect_program = NULL;
-		lampEmission_program = NULL;
-		QueueEnqueue_program = NULL;
-		background_BufferUpdate_program = NULL;
-		shaderEval_program = NULL;
+		data_init_program = NULL;
+		scene_intersect_program = NULL;
+		lamp_emission_program = NULL;
+		queue_enqueue_program = NULL;
+		background_buffer_update_program = NULL;
+		shader_eval_program = NULL;
 		holdout_emission_blurring_termination_ao_program = NULL;
-		directLighting_program = NULL;
-		shadowBlocked_program = NULL;
-		nextIterationSetUp_program = NULL;
-		sumAllRadiance_program = NULL;
+		direct_lighting_program = NULL;
+		shadow_blocked_program = NULL;
+		next_iteration_setup_program = NULL;
+		sum_all_radiance_program = NULL;
 
 		/* Initialize cl_mem variables. */
 		kgbuffer = NULL;
@@ -2014,18 +2014,18 @@ public:
 		/* TODO(sergey): If names are unified we can save some more bits of
 		 * code here.
 		 */
-		LOAD_KERNEL(dataInit_program, "data_init");
-		LOAD_KERNEL(sceneIntersect_program, "scene_intersect");
-		LOAD_KERNEL(lampEmission_program, "lamp_emission");
-		LOAD_KERNEL(QueueEnqueue_program, "queue_enqueue");
-		LOAD_KERNEL(background_BufferUpdate_program, "background_buffer_update");
-		LOAD_KERNEL(shaderEval_program, "shader_eval");
+		LOAD_KERNEL(data_init_program, "data_init");
+		LOAD_KERNEL(scene_intersect_program, "scene_intersect");
+		LOAD_KERNEL(lamp_emission_program, "lamp_emission");
+		LOAD_KERNEL(queue_enqueue_program, "queue_enqueue");
+		LOAD_KERNEL(background_buffer_update_program, "background_buffer_update");
+		LOAD_KERNEL(shader_eval_program, "shader_eval");
 		LOAD_KERNEL(holdout_emission_blurring_termination_ao_program,
 		            "holdout_emission_blurring_pathtermination_ao");
-		LOAD_KERNEL(directLighting_program, "direct_lighting");
-		LOAD_KERNEL(shadowBlocked_program, "shadow_blocked");
-		LOAD_KERNEL(nextIterationSetUp_program, "next_iteration_setup");
-		LOAD_KERNEL(sumAllRadiance_program, "sum_all_radiance");
+		LOAD_KERNEL(direct_lighting_program, "direct_lighting");
+		LOAD_KERNEL(shadow_blocked_program, "shadow_blocked");
+		LOAD_KERNEL(next_iteration_setup_program, "next_iteration_setup");
+		LOAD_KERNEL(sum_all_radiance_program, "sum_all_radiance");
 
 #undef LOAD_KERNEL
 
@@ -2040,19 +2040,19 @@ public:
 		} \
 	} while(false)
 
-		FIND_KERNEL(DataInit, dataInit, "data_initialization");
-		FIND_KERNEL(SceneIntersect, sceneIntersect, "SceneIntersect");
-		FIND_KERNEL(LampEmission, lampEmission, "LampEmission");
-		FIND_KERNEL(QueueEnqueue, QueueEnqueue, "QueueEnqueue");
-		FIND_KERNEL(BG_BufferUpdate, background_BufferUpdate, "Background_BufferUpdate");
-		FIND_KERNEL(Shader_Lighting, shaderEval, "ShaderEvaluation");
-		FIND_KERNEL(Holdout_Emission_Blurring_Pathtermination_AO,
+		FIND_KERNEL(data_init, data_init, "data_initialization");
+		FIND_KERNEL(scene_intersect, scene_intersect, "scene_intersect");
+		FIND_KERNEL(lamp_emission, lamp_emission, "lamp_emission");
+		FIND_KERNEL(queue_enqueue, queue_enqueue, "queue_enqueue");
+		FIND_KERNEL(background_buffer_update, background_buffer_update, "background_buffer_update");
+		FIND_KERNEL(shader_lighting, shader_eval, "shader_evaluation");
+		FIND_KERNEL(holdout_emission_blurring_pathtermination_ao,
 		            holdout_emission_blurring_termination_ao,
-		            "holdout_emission_blurring_pathtermination_AO");
-		FIND_KERNEL(DirectLighting, directLighting, "DirectLighting");
-		FIND_KERNEL(ShadowBlocked_DirectLighting, shadowBlocked, "ShadowBlocked_DirectLighting");
-		FIND_KERNEL(SetUpNextIteration, nextIterationSetUp, "SetupNextIteration");
-		FIND_KERNEL(SumAllRadiance, sumAllRadiance, "SumAllRadiance");
+		            "holdout_emission_blurring_pathtermination_ao");
+		FIND_KERNEL(direct_lighting, direct_lighting, "direct_lighting");
+		FIND_KERNEL(shadow_blocked_direct_lighting, shadow_blocked, "shadow_blocked_direct_lighting");
+		FIND_KERNEL(setup_next_iteration, next_iteration_setup, "setup_next_iteration");
+		FIND_KERNEL(sum_all_radiance, sum_all_radiance, "sum_all_radiance");
 #undef FIND_KERNEL
 #undef GLUE
 
@@ -2066,17 +2066,17 @@ public:
 		task_pool.stop();
 
 		/* Release kernels */
-		release_kernel_safe(ckPathTraceKernel_DataInit);
-		release_kernel_safe(ckPathTraceKernel_SceneIntersect);
-		release_kernel_safe(ckPathTraceKernel_LampEmission);
-		release_kernel_safe(ckPathTraceKernel_QueueEnqueue);
-		release_kernel_safe(ckPathTraceKernel_BG_BufferUpdate);
-		release_kernel_safe(ckPathTraceKernel_Shader_Lighting);
-		release_kernel_safe(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO);
-		release_kernel_safe(ckPathTraceKernel_DirectLighting);
-		release_kernel_safe(ckPathTraceKernel_ShadowBlocked_DirectLighting);
-		release_kernel_safe(ckPathTraceKernel_SetUpNextIteration);
-		release_kernel_safe(ckPathTraceKernel_SumAllRadiance);
+		release_kernel_safe(ckPathTraceKernel_data_init);
+		release_kernel_safe(ckPathTraceKernel_scene_intersect);
+		release_kernel_safe(ckPathTraceKernel_lamp_emission);
+		release_kernel_safe(ckPathTraceKernel_queue_enqueue);
+		release_kernel_safe(ckPathTraceKernel_background_buffer_update);
+		release_kernel_safe(ckPathTraceKernel_shader_lighting);
+		release_kernel_safe(ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao);
+		release_kernel_safe(ckPathTraceKernel_direct_lighting);
+		release_kernel_safe(ckPathTraceKernel_shadow_blocked_direct_lighting);
+		release_kernel_safe(ckPathTraceKernel_setup_next_iteration);
+		release_kernel_safe(ckPathTraceKernel_sum_all_radiance);
 
 		/* Release global memory */
 		release_mem_object_safe(P_sd);
@@ -2167,17 +2167,17 @@ public:
 		release_mem_object_safe(per_sample_output_buffers);
 
 		/* Release programs */
-		release_program_safe(dataInit_program);
-		release_program_safe(sceneIntersect_program);
-		release_program_safe(lampEmission_program);
-		release_program_safe(QueueEnqueue_program);
-		release_program_safe(background_BufferUpdate_program);
-		release_program_safe(shaderEval_program);
+		release_program_safe(data_init_program);
+		release_program_safe(scene_intersect_program);
+		release_program_safe(lamp_emission_program);
+		release_program_safe(queue_enqueue_program);
+		release_program_safe(background_buffer_update_program);
+		release_program_safe(shader_eval_program);
 		release_program_safe(holdout_emission_blurring_termination_ao_program);
-		release_program_safe(directLighting_program);
-		release_program_safe(shadowBlocked_program);
-		release_program_safe(nextIterationSetUp_program);
-		release_program_safe(sumAllRadiance_program);
+		release_program_safe(direct_lighting_program);
+		release_program_safe(shadow_blocked_program);
+		release_program_safe(next_iteration_setup_program);
+		release_program_safe(sum_all_radiance_program);
 
 		if(hostRayStateArray != NULL) {
 			free(hostRayStateArray);
@@ -2374,7 +2374,7 @@ public:
 		cl_int total_num_rays = global_size[0] * global_size[1];
 
 		cl_uint start_arg_index =
-			kernel_set_args(ckPathTraceKernel_DataInit,
+			kernel_set_args(ckPathTraceKernel_data_init,
 			                0,
 			                kgbuffer,
 			                sd,
@@ -2411,7 +2411,7 @@ public:
 			                transparent_depth_sd_DL_shadow);
 
 		start_arg_index +=
-			kernel_set_args(ckPathTraceKernel_DataInit,
+			kernel_set_args(ckPathTraceKernel_data_init,
 #ifdef __RAY_DIFFERENTIALS__
 			                start_arg_index,
 			                dP_sd,
@@ -2452,12 +2452,12 @@ public:
 
 /* TODO(segrey): Avoid map lookup here. */
 #define KERNEL_TEX(type, ttype, name) \
-	set_kernel_arg_mem(ckPathTraceKernel_DataInit, &start_arg_index, #name);
+	set_kernel_arg_mem(ckPathTraceKernel_data_init, &start_arg_index, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
 		start_arg_index +=
-			kernel_set_args(ckPathTraceKernel_DataInit,
+			kernel_set_args(ckPathTraceKernel_data_init,
 			                start_arg_index,
 			                start_sample,
 			                d_x,
@@ -2483,7 +2483,7 @@ public:
 #endif
 			                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_SceneIntersect,
+		kernel_set_args(ckPathTraceKernel_scene_intersect,
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -2503,7 +2503,7 @@ public:
 #endif
 		                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_LampEmission,
+		kernel_set_args(ckPathTraceKernel_lamp_emission,
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -2522,14 +2522,14 @@ public:
 		                use_queues_flag,
 		                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_QueueEnqueue,
+		kernel_set_args(ckPathTraceKernel_queue_enqueue,
 		                0,
 		                Queue_data,
 		                Queue_index,
 		                ray_state,
 		                dQueue_size);
 
-		kernel_set_args(ckPathTraceKernel_BG_BufferUpdate,
+		kernel_set_args(ckPathTraceKernel_background_buffer_update,
 		                 0,
 		                 kgbuffer,
 		                 d_data,
@@ -2566,7 +2566,7 @@ public:
 #endif
 		                 num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_Shader_Lighting,
+		kernel_set_args(ckPathTraceKernel_shader_lighting,
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -2580,7 +2580,7 @@ public:
 		                Queue_index,
 		                dQueue_size);
 
-		kernel_set_args(ckPathTraceKernel_Holdout_Emission_Blurring_Pathtermination_AO,
+		kernel_set_args(ckPathTraceKernel_holdout_emission_blurring_pathtermination_ao,
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -2610,7 +2610,7 @@ public:
 #endif
 		                num_parallel_samples);
 
-		kernel_set_args(ckPathTraceKernel_DirectLighting,
+		kernel_set_args(ckPathTraceKernel_direct_lighting,
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -2626,7 +2626,7 @@ public:
 		                Queue_index,
 		                dQueue_size);
 
-		kernel_set_args(ckPathTraceKernel_ShadowBlocked_DirectLighting,
+		kernel_set_args(ckPathTraceKernel_shadow_blocked_direct_lighting,
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -2642,7 +2642,7 @@ public:
 		                dQueue_size,
 		                total_num_rays);
 
-		kernel_set_args(ckPathTraceKernel_SetUpNextIteration,
+		kernel_set_args(ckPathTraceKernel_setup_next_iteration,
 		                0,
 		                kgbuffer,
 		                d_data,
@@ -2664,7 +2664,7 @@ public:
 		                dQueue_size,
 		                use_queues_flag);
 
-		kernel_set_args(ckPathTraceKernel_SumAllRadiance,
+		kernel_set_args(ckPathTraceKernel_sum_all_radiance,
 		                0,
 		                d_data,
 		                d_buffer,
@@ -2692,8 +2692,8 @@ public:
 		                                     NULL, \
 		                                     NULL))
 
-		/* Enqueue ckPathTraceKernel_DataInit kernel. */
-		ENQUEUE_SPLIT_KERNEL(DataInit, global_size, local_size);
+		/* Enqueue ckPathTraceKernel_data_init kernel. */
+		ENQUEUE_SPLIT_KERNEL(data_init, global_size, local_size);
 		bool activeRaysAvailable = true;
 
 		/* Record number of time host intervention has been made */
@@ -2701,22 +2701,22 @@ public:
 		unsigned int numNextPathIterTimes = PathIteration_times;
 		while(activeRaysAvailable) {
 			/* Twice the global work size of other kernels for
-			 * ckPathTraceKernel_ShadowBlocked_DirectLighting. */
+			 * ckPathTraceKernel_shadow_blocked_direct_lighting. */
 			size_t global_size_shadow_blocked[2];
 			global_size_shadow_blocked[0] = global_size[0] * 2;
 			global_size_shadow_blocked[1] = global_size[1];
 
 			/* Do path-iteration in host [Enqueue Path-iteration kernels. */
 			for(int PathIter = 0; PathIter < PathIteration_times; PathIter++) {
-				ENQUEUE_SPLIT_KERNEL(SceneIntersect, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(LampEmission, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(QueueEnqueue, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(BG_BufferUpdate, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(Shader_Lighting, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(Holdout_Emission_Blurring_Pathtermination_AO, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(DirectLighting, global_size, local_size);
-				ENQUEUE_SPLIT_KERNEL(ShadowBlocked_DirectLighting, global_size_shadow_blocked, local_size);
-				ENQUEUE_SPLIT_KERNEL(SetUpNextIteration, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(scene_intersect, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(lamp_emission, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(queue_enqueue, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(background_buffer_update, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(shader_lighting, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(holdout_emission_blurring_pathtermination_ao, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(direct_lighting, global_size, local_size);
+				ENQUEUE_SPLIT_KERNEL(shadow_blocked_direct_lighting, global_size_shadow_blocked, local_size);
+				ENQUEUE_SPLIT_KERNEL(setup_next_iteration, global_size, local_size);
 			}
 
 			/* Read ray-state into Host memory to decide if we should exit
@@ -2767,7 +2767,7 @@ public:
 		sum_all_radiance_global_size[1] =
 			(((d_h - 1) / sum_all_radiance_local_size[1]) + 1) *
 			sum_all_radiance_local_size[1];
-		ENQUEUE_SPLIT_KERNEL(SumAllRadiance,
+		ENQUEUE_SPLIT_KERNEL(sum_all_radiance,
 		                     sum_all_radiance_global_size,
 		                     sum_all_radiance_local_size);
 

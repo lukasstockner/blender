@@ -21,16 +21,16 @@
 #include "kernel_queues.h"
 
 /*
- * The kernel "kernel_ocl_path_trace_QueueEnqueue" enqueues rays of
+ * The kernel "kernel_ocl_path_trace_queue_enqueue" enqueues rays of
  * different ray state into their appropriate Queues;
  * 1. Rays that have been determined to hit the background from the
- * "kernel_ocl_path_trace_SceneIntersect" kernel
+ * "kernel_ocl_path_trace_scene_intersect" kernel
  * are enqueued in QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS;
  * 2. Rays that have been determined to be actively participating in path-iteration will be enqueued into QUEUE_ACTIVE_AND_REGENERATED_RAYS.
  *
  * The input and output of the kernel is as follows,
  *
- * ray_state -------------------------------------------|--- kernel_ocl_path_trace_QueueEnqueue ---|--- Queue_data (QUEUE_ACTIVE_AND_REGENERATED_RAYS & QUEUE_HITBF_BUFF_UPDATE_TOREGEN_RAYS)
+ * ray_state -------------------------------------------|--- kernel_ocl_path_trace_queue_enqueue --|--- Queue_data (QUEUE_ACTIVE_AND_REGENERATED_RAYS & QUEUE_HITBF_BUFF_UPDATE_TOREGEN_RAYS)
  * Queue_index(QUEUE_ACTIVE_AND_REGENERATED_RAYS) ------|                                          |--- Queue_index (QUEUE_ACTIVE_AND_REGENERATED_RAYS & QUEUE_HITBF_BUFF_UPDATE_TOREGEN_RAYS)
  * Queue_index(QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS) ---|                                          |
  * queuesize -------------------------------------------|                                          |
@@ -52,7 +52,7 @@
  * QUEUE_HITBG_BUFF_UPDATE_TOREGEN_RAYS will be filled with RAY_TO_REGENERATE, RAY_UPDATE_BUFFER, RAY_HIT_BACKGROUND rays.
  */
 
-__kernel void kernel_ocl_path_trace_QueueEnqueue(
+__kernel void kernel_ocl_path_trace_queue_enqueue(
 	ccl_global int *Queue_data,   /* Queue memory */
 	ccl_global int *Queue_index,  /* Tracks the number of elements in each queue */
 	ccl_global char *ray_state,   /* Denotes the state of each ray */
