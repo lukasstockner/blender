@@ -1427,6 +1427,63 @@ public:
 	}
 };
 
+/* TODO(sergey): This is to keep tile split on OpenCL level working
+ * for now, since withotu this viewport render does not work as it
+ * should.
+ *
+ * Ideally it'll be done on the higher level, but we need to get ready
+ * for merge rather soon, so let's keep split logic private here in
+ * the file.
+ */
+class SplitRenderTile : public RenderTile {
+public:
+	SplitRenderTile()
+		: RenderTile(),
+		  buffer_offset_x(0),
+		  buffer_offset_y(0),
+		  rng_state_offset_x(0),
+		  rng_state_offset_y(0),
+		  buffer_rng_state_stride(0) {}
+
+	explicit SplitRenderTile(RenderTile& tile)
+		: RenderTile(),
+		  buffer_offset_x(0),
+		  buffer_offset_y(0),
+		  rng_state_offset_x(0),
+		  rng_state_offset_y(0),
+		  buffer_rng_state_stride(0)
+	{
+		x = tile.x;
+		y = tile.y;
+		w = tile.w;
+		h = tile.h;
+		start_sample = tile.start_sample;
+		num_samples = tile.num_samples;
+		sample = tile.sample;
+		resolution = tile.resolution;
+		offset = tile.offset;
+		stride = tile.stride;
+		tile_size = tile.tile_size;
+		buffer = tile.buffer;
+		rng_state = tile.rng_state;
+		buffers = tile.buffers;
+	}
+
+	/* Split kernel is device global memory constained;
+	 * hence split kernel cant render big tile size's in
+	 * one go. If the user sets a big tile size (big tile size
+	 * is a term relative to the available device global memory),
+	 * we split the tile further and then call path_trace on
+	 * each of those split tiles. The following variables declared,
+	 * assist in achieving that purpose
+	 */
+	int buffer_offset_x;
+	int buffer_offset_y;
+	int rng_state_offset_x;
+	int rng_state_offset_y;
+	int buffer_rng_state_stride;
+};
+
 /* OpenCLDeviceSplitKernel's declaration/definition. */
 class OpenCLDeviceSplitKernel : public OpenCLDeviceBase
 {
@@ -2128,7 +2185,7 @@ public:
 		}
 	}
 
-	void path_trace(RenderTile& rtile, int2 max_render_feasible_tile_size)
+	void path_trace(SplitRenderTile& rtile, int2 max_render_feasible_tile_size)
 	{
 		/* cast arguments to cl types */
 		cl_mem d_data = CL_MEM_PTR(const_mem_map["__data"]->device_pointer);
@@ -2963,9 +3020,9 @@ public:
 	}
 
 	/* Splits existing tile into multiple tiles of tile size split_tile_size. */
-	vector<RenderTile> split_tiles(RenderTile rtile, int2 split_tile_size)
+	vector<SplitRenderTile> split_tiles(RenderTile rtile, int2 split_tile_size)
 	{
-		vector<RenderTile> to_path_trace_rtile;
+		vector<SplitRenderTile> to_path_trace_rtile;
 		int d_w = rtile.w;
 		int d_h = rtile.h;
 		int num_tiles_x = (((d_w - 1) / split_tile_size.x) + 1);
@@ -3024,11 +3081,6 @@ public:
 			size_t feasible_global_work_size;
 			/* Keep rendering tiles until done. */
 			while (task->acquire_tile(this, tile)) {
-				tile.buffer_offset_x = 0;
-				tile.buffer_offset_y = 0;
-				tile.rng_state_offset_x = 0;
-				tile.rng_state_offset_y = 0;
-
 				if(!initialize_data_and_check_render_feasibility) {
 					/* Initialize data. */
 					/* Calculate per_thread_output_buffer_size. */
@@ -3072,7 +3124,7 @@ public:
 					int2 split_tile_size =
 						get_split_tile_size(tile,
 						                    max_render_feasible_tile_size);
-					vector<RenderTile> to_path_trace_render_tiles =
+					vector<SplitRenderTile> to_path_trace_render_tiles =
 						split_tiles(tile, split_tile_size);
 					/* Print message to console */
 					if(background && (to_path_trace_render_tiles.size() > 1)) {
@@ -3105,8 +3157,9 @@ public:
 						(((tile.tile_size.y - 1) / SPLIT_KERNEL_LOCAL_SIZE_Y) + 1) *
 						SPLIT_KERNEL_LOCAL_SIZE_Y;
 					/* buffer_rng_state_stride is stride itself. */
-					tile.buffer_rng_state_stride = tile.stride;
-					path_trace(tile, max_render_feasible_tile_size);
+					SplitRenderTile split_tile(tile);
+					split_tile.buffer_rng_state_stride = tile.stride;
+					path_trace(split_tile, max_render_feasible_tile_size);
 				}
 				tile.sample = tile.start_sample + tile.num_samples;
 
