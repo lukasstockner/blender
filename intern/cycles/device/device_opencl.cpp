@@ -1958,18 +1958,18 @@ public:
 		/* TODO(sergey): If names are unified we can save some more bits of
 		 * code here.
 		 */
-		LOAD_KERNEL(dataInit_program, "DataInit");
-		LOAD_KERNEL(sceneIntersect_program, "SceneIntersect");
-		LOAD_KERNEL(lampEmission_program, "LampEmission");
-		LOAD_KERNEL(QueueEnqueue_program, "QueueEnqueue");
-		LOAD_KERNEL(background_BufferUpdate_program, "Background_BufferUpdate");
-		LOAD_KERNEL(shaderEval_program, "ShaderEval");
+		LOAD_KERNEL(dataInit_program, "data_init");
+		LOAD_KERNEL(sceneIntersect_program, "scene_intersect");
+		LOAD_KERNEL(lampEmission_program, "lamp_emission");
+		LOAD_KERNEL(QueueEnqueue_program, "queue_enqueue");
+		LOAD_KERNEL(background_BufferUpdate_program, "background_buffer_update");
+		LOAD_KERNEL(shaderEval_program, "shader_eval");
 		LOAD_KERNEL(holdout_emission_blurring_termination_ao_program,
-		            "Holdout_Emission_Blurring_Pathtermination_AO");
-		LOAD_KERNEL(directLighting_program, "DirectLighting");
-		LOAD_KERNEL(shadowBlocked_program, "ShadowBlocked");
-		LOAD_KERNEL(nextIterationSetUp_program, "NextIterationSetUp");
-		LOAD_KERNEL(sumAllRadiance_program, "SumAllRadiance");
+		            "holdout_emission_blurring_pathtermination_ao");
+		LOAD_KERNEL(directLighting_program, "direct_lighting");
+		LOAD_KERNEL(shadowBlocked_program, "shadow_blocked");
+		LOAD_KERNEL(nextIterationSetUp_program, "next_iteration_setup");
+		LOAD_KERNEL(sumAllRadiance_program, "sum_all_radiance");
 
 #undef LOAD_KERNEL
 
