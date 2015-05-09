@@ -1159,9 +1159,10 @@ static int file_refresh_exec(bContext *C, wmOperator *UNUSED(unused))
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
+	ScrArea *sa = CTX_wm_area(C);
 	struct FSMenu *fsmenu = ED_fsmenu_get();
 
-	ED_fileselect_clear(wm, sfile);
+	ED_fileselect_clear(wm, sa, sfile);
 
 	/* refresh system directory menu */
 	fsmenu_refresh_system_category(fsmenu);
@@ -1378,6 +1379,7 @@ int file_directory_new_exec(bContext *C, wmOperator *op)
 
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
+	ScrArea *sa = CTX_wm_area(C);
 	
 	if (!sfile->params) {
 		BKE_report(op->reports, RPT_WARNING, "No parent directory given");
@@ -1415,7 +1417,7 @@ int file_directory_new_exec(bContext *C, wmOperator *op)
 	sfile->scroll_offset = 0;
 
 	/* reload dir to make sure we're seeing what's in the directory */
-	ED_fileselect_clear(wm, sfile);
+	ED_fileselect_clear(wm, sa, sfile);
 
 	if (RNA_boolean_get(op->ptr, "open")) {
 		BLI_strncpy(sfile->params->dir, path, sizeof(sfile->params->dir));
@@ -1632,10 +1634,11 @@ static int file_hidedot_exec(bContext *C, wmOperator *UNUSED(unused))
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
+	ScrArea *sa = CTX_wm_area(C);
 	
 	if (sfile->params) {
 		sfile->params->flag ^= FILE_HIDE_DOT;
-		ED_fileselect_clear(wm, sfile);
+		ED_fileselect_clear(wm, sa, sfile);
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 	}
 	
@@ -1832,6 +1835,7 @@ int file_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	char str[FILE_MAX];
 	wmWindowManager *wm = CTX_wm_manager(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
+	ScrArea *sa = CTX_wm_area(C);
 	FileDirEntry *file;
 	int numfiles = filelist_numfiles(sfile->files);
 	int i;
@@ -1844,7 +1848,7 @@ int file_delete_exec(bContext *C, wmOperator *UNUSED(op))
 		}
 	}
 	
-	ED_fileselect_clear(wm, sfile);
+	ED_fileselect_clear(wm, sa, sfile);
 	WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 	
 	return OPERATOR_FINISHED;

@@ -34,6 +34,7 @@
 struct ARegion;
 struct AssetEngine;
 struct FileSelectParams;
+struct ScrArea;
 struct SpaceFile;
 struct bContext;
 struct wmWindowManager;
@@ -100,9 +101,9 @@ void ED_fileselect_layout_tilepos(FileLayout *layout, int tile, int *x, int *y);
 
 void ED_operatormacros_file(void);
 
-void ED_fileselect_clear(struct wmWindowManager *wm, struct SpaceFile *sfile);
+void ED_fileselect_clear(struct wmWindowManager *wm, struct ScrArea *sa, struct SpaceFile *sfile);
 
-void ED_fileselect_exit(struct wmWindowManager *wm, struct SpaceFile *sfile);
+void ED_fileselect_exit(struct wmWindowManager *wm, struct ScrArea *sa, struct SpaceFile *sfile);
 
 int ED_file_extension_icon(const char *relname);
 

@@ -1661,8 +1661,8 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
 
-	printf("%s: [%d:%d] around index %d (current cache: [%d:%d])\n", __func__,
-	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
+//	printf("%s: [%d:%d] around index %d (current cache: [%d:%d])\n", __func__,
+//	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
 
 	/* If we have something to (re)cache... */
 	if ((start_index != cache->block_start_index) || (end_index != cache->block_end_index)) {
@@ -1827,7 +1827,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 	cache->block_center_index = index;
 
-	printf("%s Finished!\n", __func__);
+//	printf("%s Finished!\n", __func__);
 
 	return true;
 }
@@ -1838,7 +1838,8 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 	if (use_previews == (cache->previews_pool != NULL)) {
 		return;
 	}
-	else if (use_previews) {
+	/* Do not start preview work while listing, gives nasty flickering! */
+	else if (use_previews && filelist->filelist_ready) {
 		TaskScheduler *scheduler = BLI_task_scheduler_get();
 		TaskPool *pool;
 		int num_tasks = 4;
@@ -2555,6 +2556,8 @@ static void filelist_readjob_do(
 		if (nbr_entries) {
 			BLI_mutex_lock(lock);
 
+			*do_update = true;
+
 			BLI_movelisttolist(&filelist->filelist.entries, &entries);
 			filelist->filelist.nbr_entries += nbr_entries;
 
@@ -2563,7 +2566,6 @@ static void filelist_readjob_do(
 
 		nbr_done_dirs++;
 		*progress = (float)nbr_done_dirs / (float)nbr_todo_dirs;
-		*do_update = true;
 		MEM_freeN(subdir);
 	}
 
@@ -2703,6 +2705,9 @@ static void filelist_readjob_endjob(void *flrjv)
 {
 	FileListReadJob *flrj = flrjv;
 
+	/* In case there would be some dangling update... */
+	filelist_readjob_update(flrjv);
+
 	flrj->filelist->filelist_pending = false;
 	flrj->filelist->filelist_ready = true;
 
@@ -2762,12 +2767,12 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	WM_jobs_start(CTX_wm_manager(C), wm_job);
 }
 
-void filelist_readjob_stop(wmWindowManager *wm, FileList *filelist)
+void filelist_readjob_stop(wmWindowManager *wm, ScrArea *sa)
 {
-	WM_jobs_kill_type(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
+	WM_jobs_kill_type(wm, sa, WM_JOB_TYPE_FILESEL_READDIR);
 }
 
-int filelist_readjob_running(wmWindowManager *wm, FileList *filelist)
+int filelist_readjob_running(wmWindowManager *wm, ScrArea *sa)
 {
-	return WM_jobs_test(wm, filelist, WM_JOB_TYPE_FILESEL_READDIR);
+	return WM_jobs_test(wm, sa, WM_JOB_TYPE_FILESEL_READDIR);
 }
