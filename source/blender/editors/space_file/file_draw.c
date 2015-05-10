@@ -505,6 +505,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		numfiles_layout += layout->columns;
 	}
 
+	filelist_file_cache_slidingwindow_set(files, numfiles_layout);
+
 	textwidth = (FILE_IMGDISPLAY == params->display) ? layout->tile_w : (int)layout->column_widths[COLUMN_NAME];
 	textheight = (int)(layout->textheight * 3.0 / 2.0 + 0.5);
 
