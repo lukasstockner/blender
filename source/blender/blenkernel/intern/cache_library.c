@@ -593,6 +593,11 @@ void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *dat
 
 /* ------------------------------------------------------------------------- */
 
+static ForceFieldVertexCache *forcefield_vertex_cache_new(void);
+static void forcefield_vertex_cache_free(ForceFieldVertexCache *cache);
+static void forcefield_vertex_cache_clear(ForceFieldVertexCache *cache);
+static void forcefield_vertex_cache_init(ForceFieldVertexCache *cache, float frame, DerivedMesh *dm);
+
 static void effector_set_mesh(CacheEffector *eff, Object *ob, DerivedMesh *dm, bool create_dm, bool create_bvhtree, bool world_space)
 {
 	if (create_dm && dm) {
@@ -659,12 +664,21 @@ static bool forcefield_get_effector(DupliCache *dupcache, float obmat[4][4], For
 	effector_set_mesh(eff, dobdata->ob, dobdata->dm, true, true, false);
 	effector_set_instances(eff, dobdata->ob, obmat, &dupcache->duplilist);
 	
-	eff->type = eCacheEffector_Type_Deflect;
+	switch (ffmd->type) {
+		case eForceFieldCacheModifier_Type_Deflect:
+			eff->type = eCacheEffector_Type_Deflect;
+			break;
+		case eForceFieldCacheModifier_Type_Drag:
+			eff->type = eCacheEffector_Type_Drag;
+			break;
+	}
+	
 	eff->strength = ffmd->strength;
 	eff->falloff = ffmd->falloff;
 	eff->mindist = ffmd->min_distance;
 	eff->maxdist = ffmd->max_distance;
 	eff->double_sided = ffmd->flag & eForceFieldCacheModifier_Flag_DoubleSided;
+	eff->vertex_cache = ffmd->vertex_cache;
 	
 	return true;
 }
@@ -681,10 +695,12 @@ int BKE_cache_effectors_get(CacheEffector *effectors, int max, CacheLibrary *cac
 	
 	for (md = cachelib->modifiers.first; md; md = md->next) {
 		switch (md->type) {
-			case eCacheModifierType_ForceField:
-				if (forcefield_get_effector(dupcache, obmat, (ForceFieldCacheModifier *)md, &effectors[tot]))
+			case eCacheModifierType_ForceField: {
+				ForceFieldCacheModifier *ffmd = (ForceFieldCacheModifier *)md;
+				if (forcefield_get_effector(dupcache, obmat, ffmd, &effectors[tot]))
 					tot++;
 				break;
+			}
 		}
 		
 		BLI_assert(tot <= max);
@@ -714,6 +730,58 @@ void BKE_cache_effectors_free(CacheEffector *effectors, int tot)
 	}
 }
 
+static bool forcefield_velocity_update(DupliCache *dupcache, float obmat[4][4], float frame, ForceFieldCacheModifier *ffmd)
+{
+	DupliObjectData *dobdata;
+	bool use_vertex_cache = false;
+	
+	if (!ffmd->object)
+		return false;
+	
+	dobdata = BKE_dupli_cache_find_data(dupcache, ffmd->object);
+	if (!dobdata)
+		return false;
+	
+	switch (ffmd->type) {
+		case eForceFieldCacheModifier_Type_Drag:
+			use_vertex_cache = true;
+			break;
+	}
+	
+	if (use_vertex_cache) {
+		if (!ffmd->vertex_cache) {
+			ffmd->vertex_cache = forcefield_vertex_cache_new();
+		}
+		
+		forcefield_vertex_cache_init(ffmd->vertex_cache, frame, dobdata->dm);
+		{
+			int i;
+			for (i = 0; i < ffmd->vertex_cache->totvert; ++i) {
+				float x[3], v[3];
+				mul_v3_m4v3(x, obmat, ffmd->vertex_cache->co_prev[i]);
+				copy_v3_v3(v, ffmd->vertex_cache->vel[i]);
+				mul_mat3_m4_v3(obmat, v);
+				BKE_sim_debug_data_add_vector(x, v, 1,1,0, "hairsim", 45232, i);
+			}
+		}
+	}
+	
+	return true;
+}
+
+void BKE_cache_effector_velocity_update(CacheLibrary *cachelib, DupliCache *dupcache, float obmat[4][4], float frame)
+{
+	CacheModifier *md;
+	
+	for (md = cachelib->modifiers.first; md; md = md->next) {
+		switch (md->type) {
+			case eCacheModifierType_ForceField:
+				forcefield_velocity_update(dupcache, obmat, frame, (ForceFieldCacheModifier *)md);
+				break;
+		}
+	}
+}
+
 static float cache_effector_falloff(const CacheEffector *eff, float distance)
 {
 	float mindist = eff->mindist;
@@ -731,10 +799,42 @@ static float cache_effector_falloff(const CacheEffector *eff, float distance)
 	return powf(1.0f - (distance - mindist) / range, falloff);
 }
 
-static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *inst, CacheEffectorPoint *point, CacheEffectorResult *result)
+typedef struct CacheEffectorTessfaceData {
+	int face_index;
+	MFace *mface;
+	MVert *mvert[4];
+	float weight[4];
+} CacheEffectorTessfaceData;
+
+static void cache_effector_velocity(const CacheEffector *eff, CacheEffectorInstance *inst, CacheEffectorTessfaceData *tessface, float vel[3])
 {
+	zero_v3(vel);
+	
+	if (!eff->vertex_cache)
+		return;
+	
+	BLI_assert(eff->vertex_cache->totvert == eff->dm->getNumVerts(eff->dm));
+	
+	madd_v3_v3fl(vel, eff->vertex_cache->vel[tessface->mface->v1], tessface->weight[0]);
+	madd_v3_v3fl(vel, eff->vertex_cache->vel[tessface->mface->v2], tessface->weight[1]);
+	madd_v3_v3fl(vel, eff->vertex_cache->vel[tessface->mface->v3], tessface->weight[2]);
+	if (tessface->mface->v4)
+		madd_v3_v3fl(vel, eff->vertex_cache->vel[tessface->mface->v4], tessface->weight[3]);
+	
+	/* vertex cache velocities are in local space, effector results are all expected in world space */
+	mul_mat3_m4_v3(inst->mat, vel);
+}
+
+static bool cache_effector_find_nearest(CacheEffector *eff, CacheEffectorInstance *inst, CacheEffectorPoint *point,
+                                        float r_vec[3], float r_nor[3], float *r_dist, bool *r_inside,
+                                        CacheEffectorTessfaceData *r_tessface)
+{
+	const bool need_inside = r_dist || r_inside;
+	
 	BVHTreeNearest nearest = {0, };
-	float co[3];
+	float world_near_co[3], world_near_no[3];
+	float co[3], vec[3], dist;
+	bool inside;
 	
 	if (!eff->treedata)
 		return false;
@@ -749,32 +849,84 @@ static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *in
 		return false;
 	
 	/* convert back to world space */
-	mul_m4_v3(inst->mat, nearest.co);
+	mul_v3_m4v3(world_near_co, inst->mat, nearest.co);
+	copy_v3_v3(world_near_no, nearest.no);
+	mul_mat3_m4_v3(inst->mat, world_near_no);
 	
-	{
-		float vec[3], dist;
-		bool inside = false;
-		float factor;
-		
-		sub_v3_v3v3(vec, point->x, nearest.co);
-		
-		dist = normalize_v3(vec);
+	sub_v3_v3v3(vec, point->x, world_near_co);
+	dist = normalize_v3(vec);
+	
+	if (need_inside) {
+		inside = false;
 		if (!eff->double_sided) {
-			/* dm normal also needed in world space */
-			mul_mat3_m4_v3(inst->mat, nearest.no);
-			
-			if (dot_v3v3(vec, nearest.no) < 0.0f) {
+			if (dot_v3v3(vec, world_near_no) < 0.0f) {
 				dist = -dist;
 				inside = true;
 			}
 		}
-		
-		factor = cache_effector_falloff(eff, dist);
-		
-		mul_v3_v3fl(result->f, vec, eff->strength * factor);
-		if (inside)
-			negate_v3(result->f);
 	}
+	
+	if (r_vec) copy_v3_v3(r_vec, vec);
+	if (r_nor) copy_v3_v3(r_nor, world_near_no);
+	if (r_dist) *r_dist = dist;
+	if (r_inside) *r_inside = inside;
+	
+	if (r_tessface && eff->dm) {
+		CacheEffectorTessfaceData *t = r_tessface;
+		DerivedMesh *dm = eff->dm;
+		MFace *mf = dm->getTessFaceArray(dm) + nearest.index;
+		MVert *mverts = dm->getVertArray(dm);
+		
+		t->face_index = nearest.index;
+		t->mface = mf;
+		t->mvert[0] = &mverts[mf->v1];
+		t->mvert[1] = &mverts[mf->v2];
+		t->mvert[2] = &mverts[mf->v3];
+		
+		if (mf->v4) {
+			t->mvert[3] = &mverts[mf->v4];
+			interp_weights_face_v3(t->weight, t->mvert[0]->co, t->mvert[1]->co, t->mvert[2]->co, t->mvert[3]->co, nearest.co);
+		}
+		else {
+			t->mvert[3] = NULL;
+			interp_weights_face_v3(t->weight, t->mvert[0]->co, t->mvert[1]->co, t->mvert[2]->co, NULL, nearest.co);
+		}
+	}
+	
+	return true;
+}
+
+static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *inst, CacheEffectorPoint *point, CacheEffectorResult *result)
+{
+	float vec[3], dist, falloff;
+	bool inside;
+	
+	if (!cache_effector_find_nearest(eff, inst, point, vec, NULL, &dist, &inside, NULL))
+		return false;
+	
+	falloff = cache_effector_falloff(eff, dist);
+	mul_v3_v3fl(result->f, vec, eff->strength * falloff);
+	if (inside)
+		negate_v3(result->f);
+	return true;
+}
+
+static bool cache_effector_drag(CacheEffector *eff, CacheEffectorInstance *inst, CacheEffectorPoint *point, CacheEffectorResult *result)
+{
+	float vec[3], dist, vel[3];
+	float falloff;
+	CacheEffectorTessfaceData facedata;
+	
+	if (!cache_effector_find_nearest(eff, inst, point, vec, NULL, &dist, NULL, &facedata))
+		return false;
+	
+	falloff = cache_effector_falloff(eff, dist);
+	cache_effector_velocity(eff, inst, &facedata, vel);
+	
+	/* relative velocity */
+	sub_v3_v3v3(vel, point->v, vel);
+	
+	mul_v3_v3fl(result->f, vel, eff->strength * falloff);
 	
 	return true;
 }
@@ -807,6 +959,12 @@ int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoi
 			switch (type) {
 				case eCacheEffector_Type_Deflect:
 					if (cache_effector_deflect(eff, inst, point, &inst_result)) {
+						cache_effector_result_add(result, &inst_result);
+						++applied;
+					}
+					break;
+				case eCacheEffector_Type_Drag:
+					if (cache_effector_drag(eff, inst, point, &inst_result)) {
 						cache_effector_result_add(result, &inst_result);
 						++applied;
 					}
@@ -973,6 +1131,8 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 		else
 			copy_m4_m4(mat, data->mat);
 		
+		BKE_cache_effector_velocity_update(ctx->cachelib, data->dupcache, data->mat, (float)frame);
+		
 		solver_data = BPH_strands_solver_create(strands, &hsmd->sim_params);
 		effectors = pdInitEffectors_ex(ctx->scene, ob, NULL, data->lay, hsmd->sim_params.effector_weights, true);
 		tot_cache_effectors = BKE_cache_effectors_get(cache_effectors, MAX_CACHE_EFFECTORS, ctx->cachelib, data->dupcache, data->mat);
@@ -1001,9 +1161,62 @@ CacheModifierTypeInfo cacheModifierType_HairSimulation = {
 
 /* ------------------------------------------------------------------------- */
 
+static ForceFieldVertexCache *forcefield_vertex_cache_new(void)
+{
+	ForceFieldVertexCache *cache = MEM_callocN(sizeof(ForceFieldVertexCache), "force field vertex cache");
+	return cache;
+}
+
+static void forcefield_vertex_cache_free(ForceFieldVertexCache *cache)
+{
+	if (cache->co_prev)
+		MEM_freeN(cache->co_prev);
+	if (cache->vel)
+		MEM_freeN(cache->vel);
+	MEM_freeN(cache);
+}
+
+static void forcefield_vertex_cache_clear(ForceFieldVertexCache *cache)
+{
+	if (cache->co_prev)
+		MEM_freeN(cache->co_prev);
+	if (cache->vel)
+		MEM_freeN(cache->vel);
+	memset(cache, 0, sizeof(ForceFieldVertexCache));
+}
+
+static void forcefield_vertex_cache_init(ForceFieldVertexCache *cache, float frame, DerivedMesh *dm)
+{
+	MVert *mvert = dm->getVertArray(dm);
+	float dframe = frame - cache->frame_prev;
+	float inv_dframe = dframe > 0.0f ? 1.0f / dframe : 0.0f;
+	int totvert = dm->getNumVerts(dm);
+	int i;
+	
+	if (cache->totvert != totvert) {
+		forcefield_vertex_cache_clear(cache);
+		dframe = 0.0f;
+	}
+	
+	if (!cache->co_prev)
+		cache->co_prev = MEM_mallocN(sizeof(float) * 3 * totvert, "force field vertex cache vertices");
+	if (!cache->vel)
+		cache->vel = MEM_mallocN(sizeof(float) * 3 * totvert, "force field vertex cache vertices");
+	
+	for (i = 0; i < totvert; ++i) {
+		sub_v3_v3v3(cache->vel[i], mvert[i].co, cache->co_prev[i]);
+		mul_v3_fl(cache->vel[i], inv_dframe);
+		copy_v3_v3(cache->co_prev[i], mvert[i].co);
+	}
+	cache->frame_prev = frame;
+	cache->totvert = totvert;
+}
+
 static void forcefield_init(ForceFieldCacheModifier *ffmd)
 {
 	ffmd->object = NULL;
+	
+	ffmd->vertex_cache = NULL;
 	
 	ffmd->strength = 0.0f;
 	ffmd->falloff = 1.0f;
@@ -1011,12 +1224,17 @@ static void forcefield_init(ForceFieldCacheModifier *ffmd)
 	ffmd->max_distance = 1.0f;
 }
 
-static void forcefield_copy(ForceFieldCacheModifier *UNUSED(ffmd), ForceFieldCacheModifier *UNUSED(tffmd))
+static void forcefield_copy(ForceFieldCacheModifier *UNUSED(ffmd), ForceFieldCacheModifier *tffmd)
 {
+	tffmd->vertex_cache = NULL;
 }
 
-static void forcefield_free(ForceFieldCacheModifier *UNUSED(ffmd))
+static void forcefield_free(ForceFieldCacheModifier *ffmd)
 {
+	if (ffmd->vertex_cache) {
+		forcefield_vertex_cache_free(ffmd->vertex_cache);
+		ffmd->vertex_cache = NULL;
+	}
 }
 
 static void forcefield_foreach_id_link(ForceFieldCacheModifier *ffmd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)

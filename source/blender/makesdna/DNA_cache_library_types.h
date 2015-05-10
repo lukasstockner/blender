@@ -207,17 +207,32 @@ typedef struct HairSimCacheModifier {
 	HairSimParams sim_params;
 } HairSimCacheModifier;
 
+/* cached mesh data for calculating velocities */
+typedef struct ForceFieldVertexCache {
+	float frame_prev;
+	int totvert;
+	float (*co_prev)[3];
+	float (*vel)[3];
+} ForceFieldVertexCache;
+
 typedef struct ForceFieldCacheModifier {
 	CacheModifier modifier;
 	
 	struct Object *object;
 	
+	struct ForceFieldVertexCache *vertex_cache;
+	
+	int type;
 	int flag;
 	float strength;
 	float min_distance, max_distance;
 	float falloff;
-	int pad;
 } ForceFieldCacheModifier;
+
+typedef enum eForceFieldCacheModifier_Type {
+	eForceFieldCacheModifier_Type_Deflect               = 0,
+	eForceFieldCacheModifier_Type_Drag                  = 1,
+} eForceFieldCacheModifier_Type;
 
 typedef enum eForceFieldCacheModifier_Flag {
 	eForceFieldCacheModifier_Flag_DoubleSided           = (1 << 0),

@@ -543,14 +543,17 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
     def FORCE_FIELD(self, context, layout, cachelib, md):
         layout.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
 
-        layout.prop(md, "strength")
-        layout.prop(md, "falloff")
+        layout.prop(md, "force_type", text="")
 
-        row = layout.row()
+        row = layout.row(align=True)
+        row.prop(md, "strength")
+        row.prop(md, "falloff")
+
+        col = layout.column(align=True)
+        row = layout.row(align=True)
         row.prop(md, "min_distance")
         row.prop(md, "max_distance")
-        
-        layout.prop(md, "use_double_sided")
+        col.prop(md, "use_double_sided")
 
     def SHRINK_WRAP(self, context, layout, cachelib, md):
         col = layout.column(align=True)
