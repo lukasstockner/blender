@@ -34,6 +34,7 @@ incs = [
     env['BF_GLEW_INC'],
     '#/intern/glew-mx',
     '../include',
+    '../interface',
     '../../blenfont',
     '../../blenkernel',
     '../../blenlib',
