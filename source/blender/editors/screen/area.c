@@ -1642,7 +1642,7 @@ void ED_area_newspace(bContext *C, ScrArea *sa, int type)
 		else {
 			/* new space */
 			if (st) {
-				sl = st->alloc(C);
+				sl = st->new(C);
 				BLI_addhead(&sa->spacedata, sl);
 				
 				/* swap regions */

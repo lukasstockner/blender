@@ -41,7 +41,10 @@ extern "C" {
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_node.h"
+
+#define new new_
 #include "BKE_screen.h"
+#undef new
 
 #include "DEG_depsgraph.h"
 } /* extern "C" */

@@ -309,7 +309,7 @@ void ED_spacetype_logic(void)
 	st->spaceid = SPACE_LOGIC;
 	strncpy(st->name, "Logic", BKE_ST_MAXNAME);
 	
-	st->alloc = logic_new;
+	st->new = logic_new;
 	st->free = logic_free;
 	st->init = logic_init;
 	st->duplicate = logic_duplicate;

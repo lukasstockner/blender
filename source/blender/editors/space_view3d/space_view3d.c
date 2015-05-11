@@ -1408,7 +1408,7 @@ void ED_spacetype_view3d(void)
 	st->spaceid = SPACE_VIEW3D;
 	strncpy(st->name, "View3D", BKE_ST_MAXNAME);
 	
-	st->alloc = view3d_new;
+	st->new = view3d_new;
 	st->free = view3d_free;
 	st->init = view3d_init;
 	st->listener = space_view3d_listener;

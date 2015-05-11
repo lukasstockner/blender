@@ -192,7 +192,7 @@ void ED_spacetype_script(void)
 	st->spaceid = SPACE_SCRIPT;
 	strncpy(st->name, "Script", BKE_ST_MAXNAME);
 	
-	st->alloc = script_new;
+	st->new = script_new;
 	st->free = script_free;
 	st->init = script_init;
 	st->duplicate = script_duplicate;
