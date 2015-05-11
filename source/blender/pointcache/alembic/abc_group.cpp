@@ -131,7 +131,7 @@ void AbcDupligroupWriter::init_abc()
 	m_abc_group = abc_archive()->add_id_object<OObject>((ID *)m_group);
 }
 
-void AbcDupligroupWriter::write_sample_object(Object *ob)
+void AbcDupligroupWriter::write_sample_object(Object *ob, bool write_data)
 {
 	AbcWriter *ob_writer;
 
@@ -140,8 +140,8 @@ void AbcDupligroupWriter::write_sample_object(Object *ob)
 		thread_scoped_lock lock(m_init_mutex);
 		ob_writer = find_id_writer((ID *)ob);
 		if (!ob_writer) {
-			bool do_mesh = (m_cachelib->data_types & CACHE_TYPE_DERIVED_MESH);
-			bool do_hair = (m_cachelib->data_types & CACHE_TYPE_HAIR);
+			bool do_mesh = write_data && (m_cachelib->data_types & CACHE_TYPE_DERIVED_MESH);
+			bool do_hair = write_data && (m_cachelib->data_types & CACHE_TYPE_HAIR);
 
 			ob_writer = new AbcObjectWriter(ob->id.name, m_scene, ob, do_mesh, do_hair);
 			ob_writer->init(abc_archive());
@@ -198,24 +198,25 @@ void AbcDupligroupWriter::write_sample()
 		return;
 	
 	ListBase *duplilist = group_duplilist_ex(m_eval_ctx, m_scene, m_group, true);
-	BKE_cache_library_filter_duplilist(m_cachelib, duplilist);
 	DupliObject *dob;
 	int i;
 	
-	/* LIB_DOIT is used to mark handled objects, clear first */
+	/* use a set to ensure each object is handled only once */
+	std::set<Object*> objects;
 	for (dob = (DupliObject *)duplilist->first; dob; dob = dob->next) {
 		if (dob->ob)
-			dob->ob->id.flag &= ~LIB_DOIT;
+			objects.insert(dob->ob);
 	}
+
+	/* tag objects for which to store data */
+	BKE_cache_library_tag_used_objects(m_cachelib);
 
 	UtilTaskPool pool;
 	/* write actual object data: duplicator itself + all instanced objects */
-	for (dob = (DupliObject *)duplilist->first; dob; dob = dob->next) {
-		if (dob->ob->id.flag & LIB_DOIT)
-			continue;
-		dob->ob->id.flag |= LIB_DOIT;
-		pool.push(function_bind(&AbcDupligroupWriter::write_sample_object,
-		                        this, dob->ob));
+	for (std::set<Object*>::const_iterator it = objects.begin(); it != objects.end(); ++it) {
+		Object *ob = *it;
+		bool write_data = (ob->id.flag & LIB_DOIT);
+		pool.push(function_bind(&AbcDupligroupWriter::write_sample_object, this, ob, write_data));
 	}
 
 	pool.wait_work();
@@ -410,7 +411,11 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 		if (!b_ob)
 			return;
 		
-		DupliObjectData *dupli_data = NULL;
+		/* Always add dupli data, even if no geometry is stored.
+		 * Any missing geometry data will be replaced by the original uncached data in drawing/rendering if available.
+		 */
+		DupliObjectData *dupli_data = BKE_dupli_cache_add_object(dupli_cache, b_ob);
+		insert_dupli_data(object.getPtr(), dupli_data);
 		
 		for (int i = 0; i < object.getNumChildren(); ++i) {
 			IObject child = object.getChild(i);
@@ -421,11 +426,6 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 				dm_reader.init(abc_archive());
 				dm_reader.init_abc(child);
 				if (dm_reader.read_sample_abc(frame) != PTC_READ_SAMPLE_INVALID) {
-					if (!dupli_data) {
-						dupli_data = BKE_dupli_cache_add_object(dupli_cache, b_ob);
-						insert_dupli_data(object.getPtr(), dupli_data);
-					}
-					
 					BKE_dupli_object_data_set_mesh(dupli_data, dm_reader.acquire_result());
 				}
 				else {
@@ -441,11 +441,6 @@ void AbcDupliCacheReader::read_dupligroup_object(IObject object, float frame)
 				strands_reader.init(abc_archive());
 				strands_reader.init_abc(child);
 				if (strands_reader.read_sample_abc(frame) != PTC_READ_SAMPLE_INVALID) {
-					if (!dupli_data) {
-						dupli_data = BKE_dupli_cache_add_object(dupli_cache, b_ob);
-						insert_dupli_data(object.getPtr(), dupli_data);
-					}
-					
 					Strands *newstrands = strands_reader.acquire_result();
 					if (strands && strands != newstrands) {
 						/* reader can replace strands internally if topology does not match */

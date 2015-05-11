@@ -363,7 +363,9 @@ Mesh *rna_Main_meshes_new_from_dupli(
 			BKE_dupli_object_data_clear(&data);
 		}
 	}
-	else {
+	
+	/* default, and fallback in case no mesh data was stored in the cache */
+	if (!mesh) {
 		mesh = BKE_mesh_new_from_object(bmain, scene, dob->ob, true, settings, calc_tessface, calc_undeformed);
 	}
 	

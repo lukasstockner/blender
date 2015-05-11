@@ -83,7 +83,7 @@ public:
 	void init_abc();
 	
 	void write_sample();
-	void write_sample_object(Object *ob);
+	void write_sample_object(Object *ob, bool write_data);
 	void write_sample_dupli(DupliObject *dob, int index);
 	
 	AbcWriter *find_id_writer(ID *id) const;

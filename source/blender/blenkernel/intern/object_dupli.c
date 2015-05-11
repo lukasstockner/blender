@@ -1463,20 +1463,19 @@ void BKE_dupli_object_data_add_strands_children(DupliObjectData *data, const cha
 	dupli_cache_calc_boundbox(data);
 }
 
-bool BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name, Strands **r_strands, StrandsChildren **r_children)
+void BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name, Strands **r_strands, StrandsChildren **r_children)
 {
 	DupliObjectDataStrands *link;
 	for (link = data->strands.first; link; link = link->next) {
 		if (STREQ(link->name, name)) {
 			if (r_strands) *r_strands = link->strands;
 			if (r_children) *r_children = link->strands_children;
-			return true;
+			return;
 		}
 	}
 	
 	if (r_strands) *r_strands = NULL;
 	if (r_children) *r_children = NULL;
-	return false;
 }
 
 bool BKE_dupli_object_data_acquire_strands(DupliObjectData *data, Strands *strands)
@@ -1687,7 +1686,6 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 	{
 		/* copy duplilist to the cache */
 		ListBase *duplilist = group_duplilist(eval_ctx, scene, group);
-		BKE_cache_library_filter_duplilist(cachelib, duplilist);
 		dupcache->duplilist = *duplilist;
 		MEM_freeN(duplilist);
 	}
@@ -1698,25 +1696,32 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 	state.calc_strands_base = calc_strands_base;
 	task_pool = BLI_task_pool_create(task_scheduler, &state);
 
+	/* tag objects for which to store data */
+	BKE_cache_library_tag_used_objects(cachelib);
+	
 	for (dob = dupcache->duplilist.first; dob; dob = dob->next) {
 		DupliObjectData *data = BKE_dupli_cache_find_data(dupcache, dob->ob);
 		if (!data) {
 			bool strands_handled = false;
 			data = dupli_cache_add_object_data(dupcache, dob->ob);
-			if (cachelib->data_types & CACHE_TYPE_DERIVED_MESH) {
-				if (dob->ob->type == OB_MESH) {
-					/* TODO(sergey): Consider using memory pool instead. */
-					DupliObjectDataFromGroupTask *task = MEM_mallocN(sizeof(DupliObjectDataFromGroupTask),
-					                                                 "dupcache task");
-					task->dob = dob;
-					task->data = data;
-					BLI_task_pool_push(task_pool, dupli_object_data_from_group_func, task, true, TASK_PRIORITY_LOW);
-					/* Task is getting care of strands as well. */
-					strands_handled = true;
+			
+			/* generate data only for filtered objects */
+			if (dob->ob->id.flag & LIB_DOIT) {
+				if (cachelib->data_types & CACHE_TYPE_DERIVED_MESH) {
+					if (dob->ob->type == OB_MESH) {
+						/* TODO(sergey): Consider using memory pool instead. */
+						DupliObjectDataFromGroupTask *task = MEM_mallocN(sizeof(DupliObjectDataFromGroupTask),
+						                                                 "dupcache task");
+						task->dob = dob;
+						task->data = data;
+						BLI_task_pool_push(task_pool, dupli_object_data_from_group_func, task, true, TASK_PRIORITY_LOW);
+						/* Task is getting care of strands as well. */
+						strands_handled = true;
+					}
 				}
-			}
-			if (!strands_handled) {
-				dupli_strands_data_update(cachelib, data, dob, calc_strands_base);
+				if (!strands_handled) {
+					dupli_strands_data_update(cachelib, data, dob, calc_strands_base);
+				}
 			}
 		}
 	}

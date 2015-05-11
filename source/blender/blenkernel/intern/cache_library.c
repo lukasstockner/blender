@@ -217,6 +217,11 @@ bool BKE_cache_library_validate_item(CacheLibrary *cachelib, Object *ob, int typ
 
 /* ========================================================================= */
 
+/* unused
+ * filtering now only tags objects to exclude them from storing data,
+ * but does not actually remove them from the duplilist.
+ */
+#if 0
 void BKE_cache_library_filter_duplilist(CacheLibrary *cachelib, ListBase *duplilist)
 {
 	if (cachelib->filter_group) {
@@ -247,6 +252,23 @@ void BKE_cache_library_filter_duplilist(CacheLibrary *cachelib, ListBase *duplil
 	
 	/* clear LIB_DOIT tags */
 	BKE_main_id_tag_idcode(G.main, ID_OB, false);
+}
+#endif
+
+void BKE_cache_library_tag_used_objects(CacheLibrary *cachelib)
+{
+	if (cachelib->filter_group) {
+		GroupObject *gob;
+		
+		/* tag only filter group objects as valid */
+		BKE_main_id_tag_idcode(G.main, ID_OB, false);
+		for (gob = cachelib->filter_group->gobject.first; gob; gob = gob->next)
+			gob->ob->id.flag |= LIB_DOIT;
+	}
+	else {
+		/* all objects valid */
+		BKE_main_id_tag_idcode(G.main, ID_OB, true);
+	}
 }
 
 /* ========================================================================= */
