@@ -321,7 +321,7 @@ typedef struct bNodeTreeType {
 
 struct bNodeTreeType *ntreeTypeFind(const char *idname);
 void ntreeTypeAdd(struct bNodeTreeType *nt);
-void ntreeTypeFreeLink(struct bNodeTreeType *nt);
+void ntreeTypeFreeLink(const struct bNodeTreeType *nt);
 bool ntreeIsRegistered(struct bNodeTree *ntree);
 struct GHashIterator *ntreeTypeGetIterator(void);
 

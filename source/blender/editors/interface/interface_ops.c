@@ -261,7 +261,7 @@ static void UI_OT_unset_property_button(wmOperatorType *ot)
 
 /* Copy To Selected Operator ------------------------ */
 
-static bool copy_to_selected_list(
+bool UI_context_copy_to_selected_list(
         bContext *C, PointerRNA *ptr, PropertyRNA *prop,
         ListBase *r_lb, bool *r_use_path_from_id, char **r_path)
 {
@@ -325,7 +325,7 @@ static bool copy_to_selected_button(bContext *C, bool all, bool poll)
 		CollectionPointerLink *link;
 		ListBase lb;
 
-		if (!copy_to_selected_list(C, &ptr, prop, &lb, &use_path_from_id, &path))
+		if (!UI_context_copy_to_selected_list(C, &ptr, prop, &lb, &use_path_from_id, &path))
 			return success;
 
 		for (link = lb.first; link; link = link->next) {
@@ -553,8 +553,9 @@ void UI_editsource_active_but_test(uiBut *but)
 	BLI_ghash_insert(ui_editsource_info->hash, but, but_store);
 }
 
-static int editsource_text_edit(bContext *C, wmOperator *op,
-                                char filepath[FILE_MAX], int line)
+static int editsource_text_edit(
+        bContext *C, wmOperator *op,
+        char filepath[FILE_MAX], int line)
 {
 	struct Main *bmain = CTX_data_main(C);
 	Text *text;

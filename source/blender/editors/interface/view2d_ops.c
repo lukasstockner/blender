@@ -328,7 +328,7 @@ static void VIEW2D_OT_pan(wmOperatorType *ot)
 	ot->cancel = view_pan_cancel;
 	
 	/* operator is modal */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR;
 	
 	/* rna - must keep these in sync with the other operators */
 	RNA_def_int(ot->srna, "deltax", 0, INT_MIN, INT_MAX, "Delta X", "", INT_MIN, INT_MAX);
@@ -620,8 +620,9 @@ static int view_zoom_poll(bContext *C)
 }
  
 /* apply transform to view (i.e. adjust 'cur' rect) */
-static void view_zoomstep_apply_ex(bContext *C, v2dViewZoomData *vzd, const bool use_mousepos,
-                                   const float facx, const float facy)
+static void view_zoomstep_apply_ex(
+        bContext *C, v2dViewZoomData *vzd, const bool use_mousepos,
+        const float facx, const float facy)
 {
 	ARegion *ar = CTX_wm_region(C);
 	View2D *v2d = &ar->v2d;
@@ -661,7 +662,9 @@ static void view_zoomstep_apply_ex(bContext *C, v2dViewZoomData *vzd, const bool
 				const float zoomx = (float)(BLI_rcti_size_x(&v2d->mask) + 1) / BLI_rctf_size_x(&v2d->cur);
 
 				/* only move view to mouse if zoom fac is inside minzoom/maxzoom */
-				if (IN_RANGE_INCL(zoomx, v2d->minzoom, v2d->maxzoom)) {
+				if (((v2d->keepzoom & V2D_LIMITZOOM) == 0) ||
+				    IN_RANGE_INCL(zoomx, v2d->minzoom, v2d->maxzoom))
+				{
 					float mval_fac = (vzd->mx_2d - cur_old.xmin) / BLI_rctf_size_x(&cur_old);
 					float mval_faci = 1.0f - mval_fac;
 					float ofs = (mval_fac * dx) - (mval_faci * dx);
@@ -692,7 +695,9 @@ static void view_zoomstep_apply_ex(bContext *C, v2dViewZoomData *vzd, const bool
 				const float zoomy = (float)(BLI_rcti_size_y(&v2d->mask) + 1) / BLI_rctf_size_y(&v2d->cur);
 
 				/* only move view to mouse if zoom fac is inside minzoom/maxzoom */
-				if (IN_RANGE_INCL(zoomy, v2d->minzoom, v2d->maxzoom)) {
+				if (((v2d->keepzoom & V2D_LIMITZOOM) == 0) ||
+				    IN_RANGE_INCL(zoomy, v2d->minzoom, v2d->maxzoom))
+				{
 					float mval_fac = (vzd->my_2d - cur_old.ymin) / BLI_rctf_size_y(&cur_old);
 					float mval_faci = 1.0f - mval_fac;
 					float ofs = (mval_fac * dy) - (mval_faci * dy);
@@ -1175,7 +1180,7 @@ static void VIEW2D_OT_zoom(wmOperatorType *ot)
 	ot->poll = view_zoom_poll;
 	
 	/* operator is repeatable */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR;
 	
 	/* rna - must keep these in sync with the other operators */
 	prop = RNA_def_float(ot->srna, "deltax", 0, -FLT_MAX, FLT_MAX, "Delta X", "", -FLT_MAX, FLT_MAX);
@@ -1402,8 +1407,9 @@ static float smooth_view_rect_to_fac(const rctf *rect_a, const rctf *rect_b)
 
 /* will start timer if appropriate */
 /* the arguments are the desired situation */
-void UI_view2d_smooth_view(bContext *C, ARegion *ar,
-                           const rctf *cur, const int smooth_viewtx)
+void UI_view2d_smooth_view(
+        bContext *C, ARegion *ar,
+        const rctf *cur, const int smooth_viewtx)
 {
 	wmWindowManager *wm = CTX_wm_manager(C);
 	wmWindow *win = CTX_wm_window(C);

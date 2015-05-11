@@ -835,8 +835,9 @@ static int ui_but_draw_menu_icon(const uiBut *but)
 
 /* icons have been standardized... and this call draws in untransformed coordinates */
 
-static void widget_draw_icon(const uiBut *but, BIFIconID icon, float alpha, const rcti *rect,
-                             const bool show_menu_icon)
+static void widget_draw_icon(
+        const uiBut *but, BIFIconID icon, float alpha, const rcti *rect,
+        const bool show_menu_icon)
 {
 	float xs = 0.0f, ys = 0.0f;
 	float aspect, height;
@@ -932,8 +933,9 @@ static void ui_text_clip_give_next_off(uiBut *but, const char *str)
  * This func assumes things like kerning handling have already been handled!
  * Return the length of modified (right-clipped + ellipsis) string.
  */
-static void ui_text_clip_right_ex(uiFontStyle *fstyle, char *str, const size_t max_len, const float okwidth,
-                                  const char *sep, const int sep_len, const float sep_strwidth, size_t *r_final_len)
+static void ui_text_clip_right_ex(
+        uiFontStyle *fstyle, char *str, const size_t max_len, const float okwidth,
+        const char *sep, const int sep_len, const float sep_strwidth, size_t *r_final_len)
 {
 	float tmp;
 	int l_end;
@@ -965,8 +967,9 @@ static void ui_text_clip_right_ex(uiFontStyle *fstyle, char *str, const size_t m
  * If rpart_sep is not Null, the part of str starting to first occurrence of rpart_sep is preserved at all cost (useful
  * for strings with shortcuts, like 'AVeryLongFooBarLabelForMenuEntry|Ctrl O' -> 'AVeryLong...MenuEntry|Ctrl O').
  */
-static float ui_text_clip_middle_ex(uiFontStyle *fstyle, char *str, float okwidth, const float minwidth,
-                                    const size_t max_len, const char *rpart_sep)
+float UI_text_clip_middle_ex(
+        uiFontStyle *fstyle, char *str, float okwidth, const float minwidth,
+        const size_t max_len, const char *rpart_sep)
 {
 	float strwidth;
 
@@ -1066,7 +1069,7 @@ static float ui_text_clip_middle_ex(uiFontStyle *fstyle, char *str, float okwidt
 }
 
 /**
- * Wrapper around ui_text_clip_middle_ex.
+ * Wrapper around UI_text_clip_middle_ex.
  */
 static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
@@ -1077,7 +1080,7 @@ static void ui_text_clip_middle(uiFontStyle *fstyle, uiBut *but, const rcti *rec
 	const float minwidth = (float)(UI_DPI_ICON_SIZE) / but->block->aspect * 2.0f;
 
 	but->ofs = 0;
-	but->strwidth = ui_text_clip_middle_ex(fstyle, but->drawstr, okwidth, minwidth, max_len, NULL);
+	but->strwidth = UI_text_clip_middle_ex(fstyle, but->drawstr, okwidth, minwidth, max_len, NULL);
 }
 
 /**
@@ -1093,7 +1096,7 @@ static void ui_text_clip_middle_protect_right(uiFontStyle *fstyle, uiBut *but, c
 	const float minwidth = (float)(UI_DPI_ICON_SIZE) / but->block->aspect * 2.0f;
 
 	but->ofs = 0;
-	but->strwidth = ui_text_clip_middle_ex(fstyle, but->drawstr, okwidth, minwidth, max_len, rsep);
+	but->strwidth = UI_text_clip_middle_ex(fstyle, but->drawstr, okwidth, minwidth, max_len, rsep);
 }
 
 /**
@@ -1501,6 +1504,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	const bool show_menu_icon = ui_but_draw_menu_icon(but);
 	float alpha = (float)wcol->text[3] / 255.0f;
 	char password_str[UI_MAX_DRAW_STR];
+	uiButExtraIconType extra_icon_type;
 
 	ui_but_text_password_hide(password_str, but, false);
 
@@ -1540,11 +1544,23 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	}
 
 	/* unlink icon for this button type */
-	if ((but->type == UI_BTYPE_SEARCH_MENU) && ui_but_is_search_unlink_visible(but)) {
+	if ((but->type == UI_BTYPE_SEARCH_MENU) &&
+	    ((extra_icon_type = ui_but_icon_extra_get(but)) != UI_BUT_ICONEXTRA_NONE))
+	{
 		rcti temp = *rect;
 
 		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
-		widget_draw_icon(but, ICON_X, alpha, &temp, false);
+
+		if (extra_icon_type == UI_BUT_ICONEXTRA_UNLINK) {
+			widget_draw_icon(but, ICON_X, alpha, &temp, false);
+		}
+		else if (extra_icon_type == UI_BUT_ICONEXTRA_EYEDROPPER) {
+			widget_draw_icon(but, ICON_EYEDROPPER, alpha, &temp, false);
+		}
+		else {
+			BLI_assert(0);
+		}
+
 		rect->xmax -= ICON_SIZE_FROM_BUTRECT(rect);
 	}
 
@@ -4052,7 +4068,7 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 		const float minwidth = (float)(UI_DPI_ICON_SIZE);
 
 		BLI_strncpy(drawstr, name, sizeof(drawstr));
-		ui_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, NULL);
+		UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, NULL);
 
 		glColor4ubv((unsigned char *)wt->wcol.text);
 		UI_fontstyle_draw(fstyle, rect, drawstr);
@@ -4127,7 +4143,7 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 		const float minwidth = (float)(UI_DPI_ICON_SIZE);
 
 		BLI_strncpy(drawstr, name, sizeof(drawstr));
-		ui_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, NULL);
+		UI_text_clip_middle_ex(fstyle, drawstr, okwidth, minwidth, max_len, NULL);
 
 		glColor4ubv((unsigned char *)wt->wcol.text);
 		UI_fontstyle_draw(fstyle, &trect, drawstr);

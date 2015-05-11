@@ -569,6 +569,13 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 					cp = ts->paint_curve_pivot;
 					break;
 
+				case TH_METADATA_BG:
+					cp = ts->metadatabg;
+					break;
+				case TH_METADATA_TEXT:
+					cp = ts->metadatatext;
+					break;
+
 				case TH_UV_OTHERS:
 					cp = ts->uv_others;
 					break;
@@ -1504,8 +1511,9 @@ void UI_GetColorPtrShade3ubv(const unsigned char cp[3], unsigned char col[3], in
 }
 
 /* get a 3 byte color, blended and shaded between two other char color pointers */
-void UI_GetColorPtrBlendShade3ubv(const unsigned char cp1[3], const unsigned char cp2[3], unsigned char col[3],
-                                  float fac, int offset)
+void UI_GetColorPtrBlendShade3ubv(
+        const unsigned char cp1[3], const unsigned char cp2[3], unsigned char col[3],
+        float fac, int offset)
 {
 	int r, g, b;
 
@@ -2602,6 +2610,15 @@ void init_userdef_do_versions(void)
 			cp[3] = 255;
 		}
 	}
+
+	if (U.versionfile < 274 || (U.versionfile == 274 && U.subversionfile < 5)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			copy_v4_v4_char(btheme->tima.metadatatext, btheme->tima.text_hi);
+			copy_v4_v4_char(btheme->tseq.metadatatext, btheme->tseq.text_hi);
+		}
+	}
+
 		
 	if (U.pixelsize == 0.0f)
 		U.pixelsize = 1.0f;

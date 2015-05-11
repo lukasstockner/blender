@@ -55,8 +55,15 @@ def use_cpu(context):
 
     return (device_type == 'NONE' or cscene.device == 'CPU')
 
+def use_branched_path(context):
+    cscene = context.scene.cycles
+    device_type = context.user_preferences.system.compute_device_type
 
-def draw_samples_info(layout, cscene):
+    return (cscene.progressive == 'BRANCHED_PATH' and device_type != 'OPENCL')
+
+
+def draw_samples_info(layout, context):
+    cscene = context.scene.cycles
     integrator = cscene.progressive
 
     # Calculate sample values
@@ -86,7 +93,7 @@ def draw_samples_info(layout, cscene):
 
     # Draw interface
     # Do not draw for progressive, when Square Samples are disabled
-    if (integrator == 'BRANCHED_PATH') or (cscene.use_square_samples and integrator == 'PATH'):
+    if use_branched_path(context) or (cscene.use_square_samples and integrator == 'PATH'):
         col = layout.column(align=True)
         col.scale_y = 0.6
         col.label("Total Samples:")
@@ -110,6 +117,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
 
         scene = context.scene
         cscene = scene.cycles
+        device_type = context.user_preferences.system.compute_device_type
 
         row = layout.row(align=True)
         row.menu("CYCLES_MT_sampling_presets", text=bpy.types.CYCLES_MT_sampling_presets.bl_label)
@@ -117,7 +125,9 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         row.operator("render.cycles_sampling_preset_add", text="", icon="ZOOMOUT").remove_active = True
 
         row = layout.row()
-        row.prop(cscene, "progressive", text="")
+        sub = row.row()
+        sub.active = device_type != 'OPENCL'
+        sub.prop(cscene, "progressive", text="")
         row.prop(cscene, "use_square_samples")
 
         split = layout.split()
@@ -129,7 +139,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "sample_clamp_direct")
         sub.prop(cscene, "sample_clamp_indirect")
 
-        if cscene.progressive == 'PATH':
+        if cscene.progressive == 'PATH' or use_branched_path(context) == False:
             col = split.column()
             sub = col.column(align=True)
             sub.label(text="Samples:")
@@ -163,7 +173,7 @@ class CyclesRender_PT_sampling(CyclesButtonsPanel, Panel):
                 layout.row().prop(cscene, "use_layer_samples")
                 break
 
-        draw_samples_info(layout, cscene)
+        draw_samples_info(layout, context)
 
 
 class CyclesRender_PT_volume_sampling(CyclesButtonsPanel, Panel):
@@ -743,7 +753,10 @@ class CyclesLamp_PT_preview(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.lamp and CyclesButtonsPanel.poll(context)
+        return context.lamp and \
+               not (context.lamp.type == 'AREA' and
+                    context.lamp.cycles.is_portal) \
+               and CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         self.layout.template_preview(context.lamp)
@@ -781,13 +794,21 @@ class CyclesLamp_PT_lamp(CyclesButtonsPanel, Panel):
                 sub.prop(lamp, "size", text="Size X")
                 sub.prop(lamp, "size_y", text="Size Y")
 
-        if cscene.progressive == 'BRANCHED_PATH':
-            col.prop(clamp, "samples")
-        col.prop(clamp, "max_bounces")
+        if not (lamp.type == 'AREA' and clamp.is_portal):
+            sub = col.column(align=True)
+            if use_branched_path(context):
+                sub.prop(clamp, "samples")
+            sub.prop(clamp, "max_bounces")
 
         col = split.column()
-        col.prop(clamp, "cast_shadow")
-        col.prop(clamp, "use_multiple_importance_sampling", text="Multiple Importance")
+
+        sub = col.column(align=True)
+        sub.active = not (lamp.type == 'AREA' and clamp.is_portal)
+        sub.prop(clamp, "cast_shadow")
+        sub.prop(clamp, "use_multiple_importance_sampling", text="Multiple Importance")
+
+        if lamp.type == 'AREA':
+            col.prop(clamp, "is_portal", text="Portal")
 
         if lamp.type == 'HEMI':
             layout.label(text="Not supported, interpreted as sun lamp")
@@ -799,7 +820,9 @@ class CyclesLamp_PT_nodes(CyclesButtonsPanel, Panel):
 
     @classmethod
     def poll(cls, context):
-        return context.lamp and CyclesButtonsPanel.poll(context)
+        return context.lamp and not (context.lamp.type == 'AREA' and
+                                     context.lamp.cycles.is_portal) and \
+               CyclesButtonsPanel.poll(context)
 
     def draw(self, context):
         layout = self.layout
@@ -982,7 +1005,7 @@ class CyclesWorld_PT_settings(CyclesButtonsPanel, Panel):
         sub = col.column(align=True)
         sub.active = cworld.sample_as_light
         sub.prop(cworld, "sample_map_resolution")
-        if cscene.progressive == 'BRANCHED_PATH':
+        if use_branched_path(context):
             sub.prop(cworld, "samples")
 
         col = split.column()
@@ -1084,7 +1107,7 @@ class CyclesMaterial_PT_settings(CyclesButtonsPanel, Panel):
         sub = col.column()
         sub.active = use_cpu(context)
         sub.prop(cmat, "volume_sampling", text="")
-        col.prop(cmat, "volume_interpolation", text="")
+        sub.prop(cmat, "volume_interpolation", text="")
         col.prop(cmat, "homogeneous_volume", text="Homogeneous")
 
         layout.separator()
@@ -1396,10 +1419,17 @@ class CyclesScene_PT_simplify(CyclesButtonsPanel, Panel):
         rd = context.scene.render
 
         layout.active = rd.use_simplify
+        split = layout.split()
 
-        row = layout.row()
-        row.prop(rd, "simplify_subdivision", text="Subdivision")
-        row.prop(rd, "simplify_child_particles", text="Child Particles")
+        col = split.column()
+        col.label(text="Viewport:")
+        col.prop(rd, "simplify_subdivision", text="Subdivision")
+        col.prop(rd, "simplify_child_particles", text="Child Particles")
+
+        col = split.column()
+        col.label(text="Render:")
+        col.prop(rd, "simplify_subdivision_render", text="Subdivision")
+        col.prop(rd, "simplify_child_particles_render", text="Child Particles")
 
 
 def draw_device(self, context):

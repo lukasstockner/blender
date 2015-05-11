@@ -443,6 +443,8 @@ static void gp_draw_stroke_3d(bGPDspoint *points, int totpoints, short thickness
 	/* draw debug points of curve on top? */
 	/* XXX: for now, we represent "selected" strokes in the same way as debug, which isn't used anymore */
 	if (debug) {
+		glPointSize((float)(thickness + 2));
+		
 		glBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++)
 			glVertex3fv(&pt->x);
@@ -617,6 +619,8 @@ static void gp_draw_stroke_2d(bGPDspoint *points, int totpoints, short thickness
 		bGPDspoint *pt;
 		int i;
 		
+		glPointSize((float)(thickness_s + 2));
+		
 		glBegin(GL_POINTS);
 		for (i = 0, pt = points; i < totpoints && pt; i++, pt++) {
 			float co[2];
@@ -757,7 +761,7 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 {
 	bGPDstroke *gps;
 	
-	const int no_xray = (dflag & GP_DRAWDATA_NO_XRAY);
+	const bool no_xray = (dflag & GP_DRAWDATA_NO_XRAY) != 0;
 	int mask_orig = 0;
 	
 	/* set up depth masks... */
@@ -876,7 +880,7 @@ static void gp_draw_strokes_edit(bGPDframe *gpf, int offsx, int offsy, int winx,
 
 /* draw onion-skinning for a layer */
 static void gp_draw_onionskins(bGPDlayer *gpl, bGPDframe *gpf, int offsx, int offsy, int winx, int winy,
-                               int UNUSED(cfra), int dflag, short debug, short lthick)
+                               int UNUSED(cfra), int dflag, bool debug, short lthick)
 {
 	const float alpha = gpl->color[3];
 	float color[4];

@@ -55,6 +55,16 @@ struct XMLReadState {
 	string base;		/* base path to current file*/
 	float dicing_rate;	/* current dicing rate */
 	Mesh::DisplacementMethod displacement_method;
+
+	XMLReadState()
+	  : scene(NULL),
+	    smooth(false),
+	    shader(0),
+	    dicing_rate(0.0f),
+	    displacement_method(Mesh::DISPLACE_BUMP)
+	{
+		tfm = transform_identity();
+	}
 };
 
 /* Attribute Reading */
@@ -493,10 +503,6 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			xml_read_int(&magic->depth, node, "depth");
 			snode = magic;
 		}
-		else if(string_iequals(node.name(), "noise_texture")) {
-			NoiseTextureNode *dist = new NoiseTextureNode();
-			snode = dist;
-		}
 		else if(string_iequals(node.name(), "wave_texture")) {
 			WaveTextureNode *wave = new WaveTextureNode();
 			xml_read_enum(&wave->type, WaveTextureNode::type_enum, node, "type");
@@ -637,10 +643,10 @@ static void xml_read_shader_graph(const XMLReadState& state, Shader *shader, pug
 			snode = new SeparateHSVNode();
 		}
 		else if(string_iequals(node.name(), "combine_xyz")) {
-			snode = new CombineHSVNode();
+			snode = new CombineXYZNode();
 		}
 		else if(string_iequals(node.name(), "separate_xyz")) {
-			snode = new SeparateHSVNode();
+			snode = new SeparateXYZNode();
 		}
 		else if(string_iequals(node.name(), "hsv")) {
 			snode = new HSVNode();

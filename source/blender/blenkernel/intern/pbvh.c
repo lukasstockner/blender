@@ -1430,6 +1430,15 @@ void BKE_pbvh_node_get_proxies(PBVHNode *node, PBVHProxyNode **proxies, int *pro
 	}
 }
 
+void BKE_pbvh_node_get_bm_orco_data(
+        PBVHNode *node,
+        int (**r_orco_tris)[3], int *r_orco_tris_num, float (**r_orco_coords)[3])
+{
+	*r_orco_tris = node->bm_ortri;
+	*r_orco_tris_num = node->bm_tot_ortri;
+	*r_orco_coords = node->bm_orco;
+}
+
 /********************************* Raycast ***********************************/
 
 typedef struct {
@@ -1603,7 +1612,9 @@ bool BKE_pbvh_node_raycast(
 	return hit;
 }
 
-void BKE_pbvh_raycast_project_ray_root (PBVH *bvh, bool original, float ray_start[3], float ray_end[3], float ray_normal[3])
+void BKE_pbvh_raycast_project_ray_root(
+        PBVH *bvh, bool original,
+        float ray_start[3], float ray_end[3], float ray_normal[3])
 {
 	if (bvh->nodes) {
 		float rootmin_start, rootmin_end;
