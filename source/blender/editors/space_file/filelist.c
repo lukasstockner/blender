@@ -228,16 +228,20 @@ typedef struct FileListIntern {
 	FileListInternEntry **filtered;
 } FileListIntern;
 
-#define FILELIST_ENTRYCACHESIZE 1024  /* Keep it a power of two! */
+#define FILELIST_ENTRYCACHESIZE_DEFAULT 1024  /* Keep it a power of two! */
 typedef struct FileListEntryCache {
+	size_t size;  /* The size of the cache... */
+
+	bool is_init;
+
 	/* Block cache: all entries between start and end index. used for part of the list on diplay. */
-	FileDirEntry *block_entries[FILELIST_ENTRYCACHESIZE];
+	FileDirEntry **block_entries;
 	int block_start_index, block_end_index, block_center_index, block_cursor;
 
 	/* Misc cache: random indices, FIFO behavior.
 	 * Note: Not 100% sure we actually need that, time will say. */
 	int misc_cursor;
-	int misc_entries_indices[FILELIST_ENTRYCACHESIZE];
+	int *misc_entries_indices;
 	GHash *misc_entries;
 
 	/* Allows to quickly get a cached entry from its UUID. */
@@ -338,7 +342,7 @@ static int groupname_to_code(const char *group);
 static unsigned int groupname_to_filter_id(const char *group);
 
 static void filelist_filter_clear(FileList *filelist);
-static void filelist_cache_clear(FileListEntryCache *cache);
+static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size);
 
 /* ********** Sort helpers ********** */
 
@@ -668,7 +672,7 @@ void filelist_sort_filter(struct FileList *filelist, FileSelectParams *params)
 			                                                     params, &filelist->filelist);
 			printf("%s: changed: %d\n", __func__, changed);
 		}
-		filelist_cache_clear(&filelist->filelist_cache);
+		filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
 		filelist->need_sorting = false;
 		filelist->need_filtering = false;
 	}
@@ -740,7 +744,7 @@ void filelist_sort_filter(struct FileList *filelist, FileSelectParams *params)
 			filelist->filelist.nbr_entries_filtered = num_filtered;
 		//	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
 
-			filelist_cache_clear(&filelist->filelist_cache);
+			filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
 			filelist->need_filtering = false;
 
 			MEM_freeN(filtered_tmp);
@@ -1111,56 +1115,72 @@ static void filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
 	}
 }
 
-static void filelist_cache_init(FileListEntryCache *cache)
+static void filelist_cache_init(FileListEntryCache *cache, size_t cache_size)
 {
 	cache->block_cursor = cache->block_start_index = cache->block_center_index = cache->block_end_index = 0;
+	cache->block_entries = MEM_mallocN(sizeof(*cache->block_entries) * cache_size, __func__);
 
-	cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, FILELIST_ENTRYCACHESIZE);
-	copy_vn_i(cache->misc_entries_indices, ARRAY_SIZE(cache->misc_entries_indices), -1);
+	cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, cache_size);
+	cache->misc_entries_indices = MEM_mallocN(sizeof(*cache->misc_entries_indices) * cache_size, __func__);
+	copy_vn_i(cache->misc_entries_indices, cache_size, -1);
 	cache->misc_cursor = 0;
 
 	/* XXX This assumes uint is 32 bits and uuid is 128 bits (char[16]), be careful! */
-	cache->uuids = BLI_ghash_new_ex(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp,
-	                                __func__, FILELIST_ENTRYCACHESIZE * 2);
+	cache->uuids = BLI_ghash_new_ex(
+	                   BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__, cache_size * 2);
+
+	cache->size = cache_size;
+	cache->is_init = true;
 }
 
 static void filelist_cache_free(FileListEntryCache *cache)
 {
+	if (!cache->is_init) {
+		return;
+	}
+
 	filelist_cache_previews_free(cache);
 
 	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
-	if (cache->misc_entries) {
-		BLI_ghash_free(cache->misc_entries, NULL, NULL);
-		cache->misc_entries = NULL;
-	}
+	MEM_freeN(cache->block_entries);
 
-	if (cache->uuids) {
-		BLI_ghash_free(cache->uuids, NULL, NULL);
-		cache->uuids = NULL;
-	}
+	BLI_ghash_free(cache->misc_entries, NULL, NULL);
+	MEM_freeN(cache->misc_entries_indices);
+
+	BLI_ghash_free(cache->uuids, NULL, NULL);
 }
 
-static void filelist_cache_clear(FileListEntryCache *cache)
+static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
 {
-	filelist_cache_previews_free(cache);
+	if (!cache->is_init) {
+		return;
+	}
+
+	filelist_cache_previews_clear(cache);
 
 	/* Note we nearly have nothing to do here, entries are just 'borrowed', not owned by cache... */
 	cache->block_cursor = cache->block_start_index = cache->block_center_index = cache->block_end_index = 0;
-
-	if (cache->misc_entries) {
-		BLI_ghash_clear_ex(cache->misc_entries, NULL, NULL, FILELIST_ENTRYCACHESIZE);
+	if (new_size != cache->size) {
+		cache->block_entries = MEM_reallocN(cache->block_entries, sizeof(*cache->block_entries) * new_size);
 	}
 
-	if (cache->uuids) {
-		BLI_ghash_clear_ex(cache->uuids, NULL, NULL, FILELIST_ENTRYCACHESIZE * 2);
+	BLI_ghash_clear_ex(cache->misc_entries, NULL, NULL, new_size);
+	if (new_size != cache->size) {
+		cache->misc_entries_indices = MEM_reallocN(cache->misc_entries_indices,
+												   sizeof(*cache->misc_entries_indices) * new_size);
 	}
+	copy_vn_i(cache->misc_entries_indices, new_size, -1);
+
+	BLI_ghash_clear_ex(cache->uuids, NULL, NULL, new_size * 2);
+
+	cache->size = new_size;
 }
 
 FileList *filelist_new(short type)
 {
 	FileList *p = MEM_callocN(sizeof(*p), __func__);
 
-	filelist_cache_init(&p->filelist_cache);
+	filelist_cache_init(&p->filelist_cache, FILELIST_ENTRYCACHESIZE_DEFAULT);
 
 	p->selection_state = BLI_ghash_new(BLI_ghashutil_uinthash_v4_p, BLI_ghashutil_uinthash_v4_cmp, __func__);
 
@@ -1192,7 +1212,7 @@ void filelist_clear(struct FileList *filelist)
 
 	filelist_filter_clear(filelist);
 
-	filelist_cache_clear(&filelist->filelist_cache);
+	filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
 
 	filelist_intern_free(&filelist->filelist_intern);
 
@@ -1462,6 +1482,7 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 {
 	FileDirEntry *ret = NULL, *old;
 	FileListEntryCache *cache = &filelist->filelist_cache;
+	const size_t cache_size = cache->size;
 	int old_index;
 
 	if ((index < 0) || (index >= filelist->filelist.nbr_entries_filtered)) {
@@ -1469,7 +1490,7 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 	}
 
 	if (index >= cache->block_start_index && index < cache->block_end_index) {
-		const int idx = (index - cache->block_start_index + cache->block_cursor) % FILELIST_ENTRYCACHESIZE;
+		const int idx = (index - cache->block_start_index + cache->block_cursor) % cache_size;
 		return cache->block_entries[idx];
 	}
 
@@ -1493,8 +1514,9 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 		}
 		BLI_ghash_insert(cache->misc_entries, SET_INT_IN_POINTER(index), ret);
 		BLI_ghash_insert(cache->uuids, ret->uuid, ret);
+
 		cache->misc_entries_indices[cache->misc_cursor] = index;
-		cache->misc_cursor = (cache->misc_cursor + 1) % FILELIST_ENTRYCACHESIZE;
+		cache->misc_cursor = (cache->misc_cursor + 1) % cache_size;
 
 #if 0  /* Actually no, only block cached entries should have preview imho. */
 		if (cache->previews_pool) {
@@ -1585,8 +1607,23 @@ FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const int uuid
 	return NULL;
 }
 
-/* Helpers, low-level, they assume cursor + size <= FILELIST_ENTRYCACHESIZE */
-static bool filelist_file_cache_block_create(struct FileList *filelist, const int start_index, const int size, int cursor)
+void filelist_file_cache_slidingwindow_set(FileList *filelist, size_t window_size)
+{
+	/* Always keep it power of 2, in [256, 8192] range for now, cache being app. twice bigger than requested window. */
+	size_t size = 256;
+	window_size *= 2;
+
+	while (size < window_size && size < 8192) {
+		size *= 2;
+	}
+
+	if (size != filelist->filelist_cache.size) {
+		filelist_cache_clear(&filelist->filelist_cache, size);
+	}
+}
+
+/* Helpers, low-level, they assume cursor + size <= cache_size */
+static bool filelist_file_cache_block_create(FileList *filelist, const int start_index, const int size, int cursor)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
 
@@ -1638,10 +1675,11 @@ static void filelist_file_cache_block_release(struct FileList *filelist, const i
 bool filelist_file_cache_block(struct FileList *filelist, const int index)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
+	const size_t cache_size = cache->size;
 
 	const int nbr_entries = filelist->filelist.nbr_entries_filtered;
-	int start_index = max_ii(0, index - (FILELIST_ENTRYCACHESIZE / 2));
-	int end_index = min_ii(nbr_entries, index + (FILELIST_ENTRYCACHESIZE / 2));
+	int start_index = max_ii(0, index - (cache_size / 2));
+	int end_index = min_ii(nbr_entries, index + (cache_size / 2));
 	int i;
 
 	if ((index < 0) || (index >= nbr_entries)) {
@@ -1650,16 +1688,16 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	}
 
 	/* Maximize cached range! */
-	if ((end_index - start_index) < FILELIST_ENTRYCACHESIZE) {
+	if ((end_index - start_index) < cache_size) {
 		if (start_index == 0) {
-			end_index = min_ii(nbr_entries, start_index + FILELIST_ENTRYCACHESIZE);
+			end_index = min_ii(nbr_entries, start_index + cache_size);
 		}
 		else if (end_index == nbr_entries) {
-			start_index = max_ii(0, end_index - FILELIST_ENTRYCACHESIZE);
+			start_index = max_ii(0, end_index - cache_size);
 		}
 	}
 
-	BLI_assert((end_index - start_index) <= FILELIST_ENTRYCACHESIZE) ;
+	BLI_assert((end_index - start_index) <= cache_size) ;
 
 //	printf("%s: [%d:%d] around index %d (current cache: [%d:%d])\n", __func__,
 //	       start_index, end_index, index, cache->block_start_index, cache->block_end_index);
@@ -1673,8 +1711,8 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 //			printf("Full Recaching!\n");
 
-			if (idx1 + size1 > FILELIST_ENTRYCACHESIZE) {
-				size2 = idx1 + size1 - FILELIST_ENTRYCACHESIZE;
+			if (idx1 + size1 > cache_size) {
+				size2 = idx1 + size1 - cache_size;
 				size1 -= size2;
 				filelist_file_cache_block_release(filelist, size2, idx2);
 			}
@@ -1712,14 +1750,14 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 //				printf("\tcache releasing: [%d:%d] (%d, %d)\n", cache->block_start_index, cache->block_start_index + size1, cache->block_cursor, size1);
 
-				if (idx1 + size1 > FILELIST_ENTRYCACHESIZE) {
-					size2 = idx1 + size1 - FILELIST_ENTRYCACHESIZE;
+				if (idx1 + size1 > cache_size) {
+					size2 = idx1 + size1 - cache_size;
 					size1 -= size2;
 					filelist_file_cache_block_release(filelist, size2, idx2);
 				}
 				filelist_file_cache_block_release(filelist, size1, idx1);
 
-				cache->block_cursor = (idx1 + size1 + size2) % FILELIST_ENTRYCACHESIZE;
+				cache->block_cursor = (idx1 + size1 + size2) % cache_size;
 				cache->block_start_index = start_index;
 			}
 			if (end_index < cache->block_end_index) {
@@ -1729,9 +1767,9 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 //				printf("\tcache releasing: [%d:%d] (%d)\n", cache->block_end_index - size1, cache->block_end_index, cache->block_cursor);
 
-				idx1 = (cache->block_cursor + end_index - cache->block_start_index) % FILELIST_ENTRYCACHESIZE;
-				if (idx1 + size1 > FILELIST_ENTRYCACHESIZE) {
-					size2 = idx1 + size1 - FILELIST_ENTRYCACHESIZE;
+				idx1 = (cache->block_cursor + end_index - cache->block_start_index) % cache_size;
+				if (idx1 + size1 > cache_size) {
+					size2 = idx1 + size1 - cache_size;
 					size1 -= size2;
 					filelist_file_cache_block_release(filelist, size2, idx2);
 				}
@@ -1744,7 +1782,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 			if (start_index < cache->block_start_index) {
 				/* Add (request) needed entries before already cached ones. */
-				/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+				/* Note: We need some index black magic to wrap around (cycle) inside our cache_size array... */
 				int size1 = cache->block_start_index - start_index;
 				int size2 = 0;
 				int idx1, idx2;
@@ -1754,7 +1792,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 					size1 -= cache->block_cursor;
 					size2 -= size1;
 					idx2 = 0;
-					idx1 = FILELIST_ENTRYCACHESIZE - size1;
+					idx1 = cache_size - size1;
 				}
 				else {
 					idx1 = cache->block_cursor - size1;
@@ -1775,15 +1813,15 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 //			printf("\tstart-extended...\n");
 			if (end_index > cache->block_end_index) {
 				/* Add (request) needed entries after already cached ones. */
-				/* Note: We need some index black magic to wrap around (cycle) inside our FILELIST_ENTRYCACHESIZE array... */
+				/* Note: We need some index black magic to wrap around (cycle) inside our cache_size array... */
 				int size1 = end_index - cache->block_end_index;
 				int size2 = 0;
 				int idx1, idx2;
 
-				idx1 = (cache->block_cursor + end_index - cache->block_start_index - size1) % FILELIST_ENTRYCACHESIZE;
-				if ((idx1 + size1) > FILELIST_ENTRYCACHESIZE) {
+				idx1 = (cache->block_cursor + end_index - cache->block_start_index - size1) % cache_size;
+				if ((idx1 + size1) > cache_size) {
 					size2 = size1;
-					size1 = FILELIST_ENTRYCACHESIZE - idx1;
+					size1 = cache_size - idx1;
 					size2 -= size1;
 					idx2 = 0;
 				}
@@ -1815,11 +1853,11 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	if (cache->previews_pool) {
 		for (i = 0; ((index + i) < end_index) || ((index - i) >= start_index); i++) {
 			if ((index - i) >= start_index) {
-				const int idx = (cache->block_cursor + (index - start_index) - i) % FILELIST_ENTRYCACHESIZE;
+				const int idx = (cache->block_cursor + (index - start_index) - i) % cache_size;
 				filelist_cache_previews_push(filelist, cache->block_entries[idx], index - i);
 			}
 			if ((index + i) < end_index) {
-				const int idx = (cache->block_cursor + (index - start_index) + i) % FILELIST_ENTRYCACHESIZE;
+				const int idx = (cache->block_cursor + (index - start_index) + i) % cache_size;
 				filelist_cache_previews_push(filelist, cache->block_entries[idx], index + i);
 			}
 		}
@@ -1835,6 +1873,8 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 {
 	FileListEntryCache *cache = &filelist->filelist_cache;
+	const size_t cache_size = cache->size;
+
 	if (use_previews == (cache->previews_pool != NULL)) {
 		return;
 	}
@@ -1859,7 +1899,7 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 
 		i = -(cache->block_end_index - cache->block_start_index);
 		while (i++) {
-			const int idx = (cache->block_cursor - i) % FILELIST_ENTRYCACHESIZE;
+			const int idx = (cache->block_cursor - i) % cache_size;
 			FileDirEntry *entry = cache->block_entries[idx];
 
 			filelist_cache_previews_push(filelist, entry, cache->block_start_index - i);

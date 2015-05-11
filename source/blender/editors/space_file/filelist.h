@@ -92,6 +92,7 @@ int                 filelist_numfiles(struct FileList *filelist);
 struct FileDirEntry *filelist_file(struct FileList *filelist, int index);
 int                 filelist_file_findpath(struct FileList *filelist, const char *file);
 FileDirEntry *      filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4]);
+void                filelist_file_cache_slidingwindow_set(struct FileList *filelist, size_t window_size);
 bool                filelist_file_cache_block(struct FileList *filelist, const int index);
 
 bool                filelist_force_reset(struct FileList *filelist);
