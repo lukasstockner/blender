@@ -276,7 +276,8 @@ void BKE_cache_library_tag_used_objects(CacheLibrary *cachelib)
 BLI_INLINE bool path_is_dirpath(const char *path)
 {
 	/* last char is a slash? */
-	return *(BLI_last_slash(path) + 1) == '\0';
+	const char *last_slash = BLI_last_slash(path);
+	return last_slash ? (*(last_slash + 1) == '\0') : false;
 }
 
 bool BKE_cache_archive_path_test(CacheLibrary *cachelib, const char *path)
