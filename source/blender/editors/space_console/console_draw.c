@@ -41,6 +41,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_immediate.h"
+
 #include "UI_interface.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
@@ -186,7 +188,7 @@ static int console_textview_line_color(struct TextViewContext *tvc, unsigned cha
 		UI_GetThemeColor3ubv(TH_CONSOLE_CURSOR, fg);
 		glColor3ubv(fg);
 
-		glRecti((xy[0] + pen[0]) - 1,
+		GPURecti((xy[0] + pen[0]) - 1,
 		        (xy[1] + pen[1]),
 		        (xy[0] + pen[0]) + 1,
 		        (xy[1] + pen[1] + tvc->lheight)

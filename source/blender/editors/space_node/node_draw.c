@@ -663,7 +663,7 @@ static void node_draw_preview_background(float tile, rctf *rect)
 	
 	/* draw checkerboard backdrop to show alpha */
 	glColor3ub(120, 120, 120);
-	glRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+	GPURectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 	glColor3ub(160, 160, 160);
 	
 	for (y = rect->ymin; y < rect->ymax; y += tile * 2) {
@@ -675,7 +675,7 @@ static void node_draw_preview_background(float tile, rctf *rect)
 			if (y + tile > rect->ymax)
 				tiley = rect->ymax - y;
 
-			glRectf(x, y, x + tilex, y + tiley);
+			GPURectf(x, y, x + tilex, y + tiley);
 		}
 	}
 	for (y = rect->ymin + tile; y < rect->ymax; y += tile * 2) {
@@ -687,7 +687,7 @@ static void node_draw_preview_background(float tile, rctf *rect)
 			if (y + tile > rect->ymax)
 				tiley = rect->ymax - y;
 
-			glRectf(x, y, x + tilex, y + tiley);
+			GPURectf(x, y, x + tilex, y + tiley);
 		}
 	}
 }

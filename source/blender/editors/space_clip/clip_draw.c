@@ -84,7 +84,7 @@ static void draw_keyframe(int frame, int cfra, int sfra, float framelen, int wid
 		glEnd();
 	}
 	else {
-		glRecti(x, 0, x + width, height * UI_DPI_FAC);
+		GPURecti(x, 0, x + width, height * UI_DPI_FAC);
 	}
 }
 
@@ -195,7 +195,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 				else
 					glColor4ub(255, 255, 0, 96);
 
-				glRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 4 * UI_DPI_FAC);
+				GPURecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 4 * UI_DPI_FAC);
 			}
 		}
 	}
@@ -223,7 +223,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 			}
 
 			if (!ok)
-				glRecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 8 * UI_DPI_FAC);
+				GPURecti((i - sfra + clip->start_frame - 1) * framelen, 0, (i - sfra + clip->start_frame) * framelen, 8 * UI_DPI_FAC);
 		}
 	}
 
@@ -233,7 +233,7 @@ static void draw_movieclip_cache(SpaceClip *sc, ARegion *ar, MovieClip *clip, Sc
 	x = (sc->user.framenr - sfra) / (efra - sfra + 1) * ar->winx;
 
 	UI_ThemeColor(TH_CFRAME);
-	glRecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
+	GPURecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
 
 	ED_region_cache_draw_curfra_label(sc->user.framenr, x, 8.0f * UI_DPI_FAC);
 
@@ -278,7 +278,7 @@ static void draw_movieclip_muted(ARegion *ar, int width, int height, float zoomx
 	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x, &y);
 
 	glColor3f(0.0f, 0.0f, 0.0f);
-	glRectf(x, y, x + zoomx * width, y + zoomy * height);
+	GPURectf(x, y, x + zoomx * width, y + zoomy * height);
 }
 
 static void draw_movieclip_buffer(const bContext *C, SpaceClip *sc, ARegion *ar, ImBuf *ibuf,

@@ -1447,8 +1447,7 @@ void KX_Dome::CalculateFrustum(KX_Camera *cam)
 	right = aspect * top
 
 	// the equivalent GLU call is:
-	gpuMatrixMode(GL_PROJECTION);
-	gpuLoadIdentity();
+	gpuLoadIdentity(GL_PROJECTION_MATRIX);
 	gluPerspective(90.0,1.0,cam->GetCameraNear(),cam->GetCameraFar());
 #endif
 

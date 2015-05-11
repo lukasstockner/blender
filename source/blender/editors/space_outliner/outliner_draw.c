@@ -68,6 +68,8 @@
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 
+#include "GPU_immediate.h"
+
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
@@ -1440,7 +1442,7 @@ static void outliner_draw_tree_element(
 			UI_GetThemeColorType4ubv(TH_MATCH, SPACE_OUTLINER, col);
 			col[3] = alpha;
 			glColor4ubv((GLubyte *)col);
-			glRecti(startx, *starty + 1, ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
+			GPURecti(startx, *starty + 1, ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
 		}
 
 		/* colors for active/selected data */
@@ -1581,7 +1583,7 @@ static void outliner_draw_tree_element(
 					
 					/* divider */
 					UI_ThemeColorShade(TH_BACK, -40);
-					glRecti(tempx   - 10.0f * ufac,
+					GPURecti(tempx   - 10.0f * ufac,
 					        *starty +  4.0f * ufac,
 					        tempx   -  8.0f * ufac,
 					        *starty + UI_UNIT_Y - 4.0f * ufac);
@@ -1633,7 +1635,7 @@ static void outliner_draw_hierarchy(SpaceOops *soops, ListBase *lb, int startx, 
 		
 		/* horizontal line? */
 		if (tselem->type == 0 && (te->idcode == ID_OB || te->idcode == ID_SCE))
-			glRecti(startx, *starty, startx + UI_UNIT_X, *starty - 1);
+			GPURecti(startx, *starty, startx + UI_UNIT_X, *starty - 1);
 			
 		*starty -= UI_UNIT_Y;
 		
@@ -1647,7 +1649,7 @@ static void outliner_draw_hierarchy(SpaceOops *soops, ListBase *lb, int startx, 
 		tselem = TREESTORE(te);
 		if (tselem->type == 0 && te->idcode == ID_OB) {
 			
-			glRecti(startx, y1 + UI_UNIT_Y, startx + 1, y2);
+			GPURecti(startx, y1 + UI_UNIT_Y, startx + 1, y2);
 		}
 	}
 }
@@ -1663,7 +1665,7 @@ static void outliner_draw_struct_marks(ARegion *ar, SpaceOops *soops, ListBase *
 		/* selection status */
 		if (TSELEM_OPEN(tselem, soops))
 			if (tselem->type == TSE_RNA_STRUCT)
-				glRecti(0, *starty + 1, (int)ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
+				GPURecti(0, *starty + 1, (int)ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
 
 		*starty -= UI_UNIT_Y;
 		if (TSELEM_OPEN(tselem, soops)) {
@@ -1684,7 +1686,7 @@ static void outliner_draw_selection(ARegion *ar, SpaceOops *soops, ListBase *lb,
 		
 		/* selection status */
 		if (tselem->flag & TSE_SELECTED) {
-			glRecti(0, *starty + 1, (int)ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
+			GPURecti(0, *starty + 1, (int)ar->v2d.cur.xmax, *starty + UI_UNIT_Y - 1);
 		}
 		*starty -= UI_UNIT_Y;
 		if (TSELEM_OPEN(tselem, soops)) outliner_draw_selection(ar, soops, &te->subtree, starty);
@@ -1740,7 +1742,7 @@ static void outliner_back(ARegion *ar)
 	ystart = UI_UNIT_Y * (ystart / (UI_UNIT_Y)) - OL_Y_OFFSET;
 	
 	while (ystart + 2 * UI_UNIT_Y > ar->v2d.cur.ymin) {
-		glRecti(0, ystart, (int)ar->v2d.cur.xmax, ystart + UI_UNIT_Y);
+		GPURecti(0, ystart, (int)ar->v2d.cur.xmax, ystart + UI_UNIT_Y);
 		ystart -= 2 * UI_UNIT_Y;
 	}
 }
@@ -1751,7 +1753,7 @@ static void outliner_draw_restrictcols(ARegion *ar)
 	
 	/* background underneath */
 	UI_ThemeColor(TH_BACK);
-	glRecti((int)(ar->v2d.cur.xmax - OL_TOGW),
+	GPURecti((int)(ar->v2d.cur.xmax - OL_TOGW),
 	        (int)(ar->v2d.cur.ymin - 1), (int)ar->v2d.cur.xmax, (int)ar->v2d.cur.ymax);
 	
 	UI_ThemeColorShade(TH_BACK, 6);
@@ -1759,7 +1761,7 @@ static void outliner_draw_restrictcols(ARegion *ar)
 	ystart = UI_UNIT_Y * (ystart / (UI_UNIT_Y)) - OL_Y_OFFSET;
 	
 	while (ystart + 2 * UI_UNIT_Y > ar->v2d.cur.ymin) {
-		glRecti((int)ar->v2d.cur.xmax - OL_TOGW, ystart, (int)ar->v2d.cur.xmax, ystart + UI_UNIT_Y);
+		GPURecti((int)ar->v2d.cur.xmax - OL_TOGW, ystart, (int)ar->v2d.cur.xmax, ystart + UI_UNIT_Y);
 		ystart -= 2 * UI_UNIT_Y;
 	}
 	

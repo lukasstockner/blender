@@ -1728,7 +1728,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		UI_GetThemeColor4ubv(TH_BACK, col);
 		if (col[3] == 255) {
 			glColor3ub(col[0], col[1], col[2]);
-			glRecti(v2d->hor.xmin, v2d->hor.ymin, v2d->hor.xmax, v2d->hor.ymax);
+			GPURecti(v2d->hor.xmin, v2d->hor.ymin, v2d->hor.xmax, v2d->hor.ymax);
 		}
 		
 		UI_draw_widget_scroll(&wcol, &hor, &slider, state);
@@ -1829,7 +1829,7 @@ void UI_view2d_scrollers_draw(const bContext *C, View2D *v2d, View2DScrollers *v
 		UI_GetThemeColor4ubv(TH_BACK, col);
 		if (col[3] == 255) {
 			glColor3ub(col[0], col[1], col[2]);
-			glRecti(v2d->vert.xmin, v2d->vert.ymin, v2d->vert.xmax, v2d->vert.ymax);
+			GPURecti(v2d->vert.xmin, v2d->vert.ymin, v2d->vert.xmax, v2d->vert.ymax);
 		}
 		
 		UI_draw_widget_scroll(&wcol, &vert, &slider, state);

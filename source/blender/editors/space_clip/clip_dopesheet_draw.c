@@ -161,7 +161,7 @@ static void clip_draw_dopesheet_background(ARegion *ar, MovieClip *clip)
 			else
 				glColor4f(1.0f, 1.0f, 0.0f, 0.07f);
 
-			glRectf(start_frame, v2d->cur.ymin, end_frame, v2d->cur.ymax);
+			GPURectf(start_frame, v2d->cur.ymin, end_frame, v2d->cur.ymax);
 		}
 	}
 }
@@ -223,7 +223,7 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 					track_channel_color(track, default_color, color);
 					glColor4fv(color);
 
-					glRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
+					GPURectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
 					        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
 				}
 
@@ -240,7 +240,7 @@ void clip_draw_dopesheet_main(SpaceClip *sc, ARegion *ar, Scene *scene)
 						glColor4fv(strip);
 
 					if (start_frame != end_frame) {
-						glRectf(start_frame, (float) y - STRIP_HEIGHT_HALF,
+						GPURectf(start_frame, (float) y - STRIP_HEIGHT_HALF,
 						        end_frame, (float) y + STRIP_HEIGHT_HALF);
 						draw_keyframe_shape(start_frame, y, xscale, yscale, sel, alpha);
 						draw_keyframe_shape(end_frame, y, xscale, yscale, sel, alpha);
@@ -331,7 +331,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *ar)
 			track_channel_color(track, NULL, color);
 			glColor3fv(color);
 
-			glRectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
+			GPURectf(v2d->cur.xmin, (float) y - CHANNEL_HEIGHT_HALF,
 			        v2d->cur.xmax + EXTRA_SCROLL_PAD, (float) y + CHANNEL_HEIGHT_HALF);
 
 			if (sel)

@@ -1367,7 +1367,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 				selwidth_draw = BLF_width(fstyle->uifont_id, drawstr + but->ofs, but->selend - but->ofs);
 
 				glColor4ubv((unsigned char *)wcol->item);
-				glRecti(rect->xmin + selsta_draw,
+				GPURecti(rect->xmin + selsta_draw,
 				        rect->ymin + 2,
 				        min_ii(rect->xmin + selwidth_draw, rect->xmax - 2),
 				        rect->ymax - 2);
@@ -1399,7 +1399,7 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 			ty = rect->ymin + 2;
 
 			/* draw cursor */
-			glRecti(rect->xmin + t, ty, tx, rect->ymax - 2);
+			GPURecti(rect->xmin + t, ty, tx, rect->ymax - 2);
 		}
 
 #ifdef WITH_INPUT_IME
@@ -4143,7 +4143,7 @@ void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int
 		bg_rect.xmax = rect->xmax - PREVIEW_PAD;
 
 	glColor4ubv((unsigned char *)wt->wcol_theme->inner_sel);
-	glRecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
+	GPURecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
 	glDisable(GL_BLEND);
 
 	{

@@ -905,8 +905,8 @@ static void draw_horizontal_join_shape(ScrArea *sa, char dir)
 	glVertex2f(points[0].x, points[0].y);
 	glEnd();
 
-	glRectf(points[2].x, points[2].y, points[8].x, points[8].y);
-	glRectf(points[6].x, points[6].y, points[9].x, points[9].y);
+	GPURectf(points[2].x, points[2].y, points[8].x, points[8].y);
+	GPURectf(points[6].x, points[6].y, points[9].x, points[9].y);
 }
 
 /* draw vertical shape visualizing future joining (up/down direction) */
@@ -977,8 +977,8 @@ static void draw_vertical_join_shape(ScrArea *sa, char dir)
 	glVertex2f(points[0].x, points[0].y);
 	glEnd();
 
-	glRectf(points[2].x, points[2].y, points[8].x, points[8].y);
-	glRectf(points[6].x, points[6].y, points[9].x, points[9].y);
+	GPURectf(points[2].x, points[2].y, points[8].x, points[8].y);
+	GPURectf(points[6].x, points[6].y, points[9].x, points[9].y);
 }
 
 /* draw join shape due to direction of joining */
@@ -1008,7 +1008,7 @@ static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 	/* value 181 was hardly computed: 181~105 */
 	glColor4ub(255, 255, 255, 50);
 	/* draw_join_shape(sa, dir); */
-	glRecti(sa->v1->vec.x, sa->v1->vec.y, sa->v3->vec.x, sa->v3->vec.y);
+	GPURecti(sa->v1->vec.x, sa->v1->vec.y, sa->v3->vec.x, sa->v3->vec.y);
 	glDisable(GL_BLEND);
 }
 

@@ -127,7 +127,7 @@ static void nla_action_draw_keyframes(AnimData *adt, bAction *act, View2D *v2d, 
 	f1 = ((ActKeyColumn *)keys.first)->cfra;
 	f2 = ((ActKeyColumn *)keys.last)->cfra;
 	
-	glRectf(f1, ymin + 2, f2, ymax - 2);
+	GPURectf(f1, ymin + 2, f2, ymax - 2);
 	
 	
 	/* get View2D scaling factor */
@@ -350,7 +350,7 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 		glColor4f(color[0], color[1], color[2], 0.1f);
 		
 		glEnable(GL_BLEND);
-		glRectf(strip->start, yminc, strip->end, ymaxc);
+		GPURectf(strip->start, yminc, strip->end, ymaxc);
 		glDisable(GL_BLEND);
 	}
 	
@@ -584,7 +584,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 					/* draw slightly shifted up for greater separation from standard channels,
 					 * but also slightly shorter for some more contrast when viewing the strips
 					 */
-					glRectf(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, ymaxc - NLACHANNEL_SKIP);
+					GPURectf(v2d->cur.xmin, yminc + NLACHANNEL_SKIP, v2d->cur.xmax, ymaxc - NLACHANNEL_SKIP);
 					
 					/* draw keyframes in the action */
 					nla_action_draw_keyframes(adt, ale->data, v2d, y, yminc + NLACHANNEL_SKIP, ymaxc - NLACHANNEL_SKIP);

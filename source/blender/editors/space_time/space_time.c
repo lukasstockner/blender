@@ -80,11 +80,11 @@ static void time_draw_sfra_efra(Scene *scene, View2D *v2d)
 	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 		
 	if (PSFRA < PEFRA) {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
-		glRectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		GPURectf(v2d->cur.xmin, v2d->cur.ymin, (float)PSFRA, v2d->cur.ymax);
+		GPURectf((float)PEFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	else {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		GPURectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	glDisable(GL_BLEND);
 
@@ -213,7 +213,7 @@ static void time_draw_cache(SpaceTime *stime, Object *ob, Scene *scene)
 		
 		glEnable(GL_BLEND);
 		
-		glRectf((float)sta, 0.0, (float)end, 1.0);
+		GPURectf((float)sta, 0.0, (float)end, 1.0);
 		
 		col[3] = 0.4f;
 		if (pid->cache->flag & PTCACHE_BAKED) {

@@ -597,7 +597,7 @@ static void draw_keylist(View2D *v2d, DLRBT_Tree *keys, DLRBT_Tree *blocks, floa
 				else
 					glColor4fv(unsel_color);
 				
-				glRectf(ab->start, ypos - iconsize, ab->end, ypos + iconsize);
+				GPURectf(ab->start, ypos - iconsize, ab->end, ypos + iconsize);
 			}
 		}
 	}

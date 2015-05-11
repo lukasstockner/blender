@@ -896,7 +896,7 @@ static void draw_textscroll(SpaceText *st, rcti *scroll, rcti *back)
 	float rad;
 	
 	UI_ThemeColor(TH_BACK);
-	glRecti(back->xmin, back->ymin, back->xmax, back->ymax);
+	GPURecti(back->xmin, back->ymin, back->xmax, back->ymax);
 
 	UI_draw_widget_scroll(&wcol, scroll, &st->txtbar, (st->flags & ST_SCROLL_SELECT) ? UI_SCROLL_PRESSED : 0);
 
@@ -946,7 +946,7 @@ static void draw_documentation(SpaceText *st, ARegion *ar)
 
 	/* Draw panel */
 	UI_ThemeColor(TH_BACK);
-	glRecti(x, y, x + boxw, y - boxh);
+	GPURecti(x, y, x + boxw, y - boxh);
 	UI_ThemeColor(TH_SHADE1);
 	GPUBegin(GL_LINE_LOOP);
 	glVertex2i(x, y);
@@ -1043,9 +1043,9 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 	UI_draw_box_shadow(220, x, y - boxh, x + boxw, y);
 
 	UI_ThemeColor(TH_SHADE1);
-	glRecti(x - 1, y + 1, x + boxw + 1, y - boxh - 1);
+	GPURecti(x - 1, y + 1, x + boxw + 1, y - boxh - 1);
 	UI_ThemeColorShade(TH_BACK, 16);
-	glRecti(x, y, x + boxw, y - boxh);
+	GPURecti(x, y, x + boxw, y - boxh);
 
 	/* Set the top 'item' of the visible list */
 	for (i = 0, item = first; i < *top && item->next; i++, item = item->next) ;
@@ -1061,7 +1061,7 @@ static void draw_suggestion_list(SpaceText *st, ARegion *ar)
 		
 		if (item == sel) {
 			UI_ThemeColor(TH_SHADE2);
-			glRecti(x + margin_x, y - 3, x + margin_x + w, y + lheight - 3);
+			GPURecti(x + margin_x, y - 3, x + margin_x + w, y + lheight - 3);
 		}
 
 		format_draw_color(item->type);
@@ -1101,9 +1101,9 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 		if (vcurl == vsell) {
 			y -= vcurl * lheight;
 			if (vcurc < vselc)
-				glRecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - lheight);
+				GPURecti(x + vcurc * st->cwidth - 1, y, x + vselc * st->cwidth, y - lheight);
 			else
-				glRecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - lheight);
+				GPURecti(x + vselc * st->cwidth - 1, y, x + vcurc * st->cwidth, y - lheight);
 		}
 		else {
 			int froml, fromc, tol, toc;
@@ -1118,11 +1118,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			}
 
 			y -= froml * lheight;
-			glRecti(x + fromc * st->cwidth - 1, y, ar->winx, y - lheight); y -= lheight;
+			GPURecti(x + fromc * st->cwidth - 1, y, ar->winx, y - lheight); y -= lheight;
 			for (i = froml + 1; i < tol; i++)
-				glRecti(x - 4, y, ar->winx, y - lheight),  y -= lheight;
+				GPURecti(x - 4, y, ar->winx, y - lheight),  y -= lheight;
 
-			glRecti(x - 4, y, x + toc * st->cwidth, y - lheight);  y -= lheight;
+			GPURecti(x - 4, y, x + toc * st->cwidth, y - lheight);  y -= lheight;
 		}
 	}
 	else {
@@ -1162,7 +1162,7 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 			glEnable(GL_BLEND);
-			glRecti(x1 - 4, y1, x2, y2);
+			GPURecti(x1 - 4, y1, x2, y2);
 			glDisable(GL_BLEND);
 		}
 	}
@@ -1181,11 +1181,11 @@ static void draw_cursor(SpaceText *st, ARegion *ar)
 			if (ch == '\t') w *= st->tabnumber - (vselc + st->left) % st->tabnumber;
 			
 			UI_ThemeColor(TH_HILITE);
-			glRecti(x, y - lheight - 1, x + w, y - lheight + 1);
+			GPURecti(x, y - lheight - 1, x + w, y - lheight + 1);
 		}
 		else {
 			UI_ThemeColor(TH_HILITE);
-			glRecti(x - 1, y, x + 1, y - lheight);
+			GPURecti(x - 1, y, x + 1, y - lheight);
 		}
 	}
 }
@@ -1387,7 +1387,7 @@ void draw_text_main(SpaceText *st, ARegion *ar)
 		x = TXT_OFFSET + TEXTXLOC;
 
 		UI_ThemeColor(TH_GRID);
-		glRecti((TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
+		GPURecti((TXT_OFFSET - 12), 0, (TXT_OFFSET - 5) + TEXTXLOC, ar->winy - 2);
 	}
 	else {
 		st->linenrs_tot = 0; /* not used */

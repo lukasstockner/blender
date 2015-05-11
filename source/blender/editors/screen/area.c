@@ -285,9 +285,9 @@ static void draw_azone_plus(float x1, float y1, float x2, float y2)
 	float width = 0.1f * U.widget_unit;
 	float pad = 0.2f * U.widget_unit;
 	
-	glRectf((x1 + x2 - width) * 0.5f, y1 + pad, (x1 + x2 + width) * 0.5f, y2 - pad);
-	glRectf(x1 + pad, (y1 + y2 - width) * 0.5f, (x1 + x2 - width) * 0.5f, (y1 + y2 + width) * 0.5f);
-	glRectf((x1 + x2 + width) * 0.5f, (y1 + y2 - width) * 0.5f, x2 - pad, (y1 + y2 + width) * 0.5f);
+	GPURectf((x1 + x2 - width) * 0.5f, y1 + pad, (x1 + x2 + width) * 0.5f, y2 - pad);
+	GPURectf(x1 + pad, (y1 + y2 - width) * 0.5f, (x1 + x2 - width) * 0.5f, (y1 + y2 + width) * 0.5f);
+	GPURectf((x1 + x2 + width) * 0.5f, (y1 + y2 - width) * 0.5f, x2 - pad, (y1 + y2 + width) * 0.5f);
 }
 
 static void region_draw_azone_tab_plus(AZone *az)
@@ -524,7 +524,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 #if 0
 	glEnable(GL_BLEND);
 	glColor4f(drand48(), drand48(), drand48(), 0.1f);
-	glRectf(ar->drawrct.xmin - ar->winrct.xmin, ar->drawrct.ymin - ar->winrct.ymin,
+	GPURectf(ar->drawrct.xmin - ar->winrct.xmin, ar->drawrct.ymin - ar->winrct.ymin,
 	        ar->drawrct.xmax - ar->winrct.xmin, ar->drawrct.ymax - ar->winrct.ymin);
 	glDisable(GL_BLEND);
 #endif
@@ -1918,7 +1918,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 		UI_view2d_view_restore(C);
 		glEnable(GL_BLEND);
 		UI_ThemeColor4((ar->type->regionid == RGN_TYPE_PREVIEW) ? TH_PREVIEW_BACK : TH_BACK);
-		glRecti(0, 0, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
+		GPURecti(0, 0, BLI_rcti_size_x(&ar->winrct), BLI_rcti_size_y(&ar->winrct));
 		glDisable(GL_BLEND);
 	}
 	else {
@@ -2046,7 +2046,7 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glColor4fv(fill_color);
-	glRecti(rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
+	GPURecti(rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
 	glDisable(GL_BLEND);
 
 	/* text */
@@ -2217,7 +2217,7 @@ void ED_region_image_metadata_draw(int x, int y, ImBuf *ibuf, rctf frame, float 
 		/* set up rect */
 		BLI_rctf_init(&rect, frame.xmin, frame.xmax, frame.ymax, frame.ymax + box_y);
 		/* draw top box */
-		glRectf(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+		GPURectf(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 
 		BLF_clipping(blf_mono_font, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 		BLF_enable(blf_mono_font, BLF_CLIPPING);
@@ -2239,7 +2239,7 @@ void ED_region_image_metadata_draw(int x, int y, ImBuf *ibuf, rctf frame, float 
 		/* set up box rect */
 		BLI_rctf_init(&rect, frame.xmin, frame.xmax, frame.ymin - box_y, frame.ymin);
 		/* draw top box */
-		glRectf(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+		GPURectf(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 
 		BLF_clipping(blf_mono_font, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
 		BLF_enable(blf_mono_font, BLF_CLIPPING);
@@ -2264,7 +2264,7 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 
 	UI_view2d_view_to_region(&ar->v2d, 0.0f, 0.0f, &x1, &y1);
 	UI_view2d_view_to_region(&ar->v2d, 1.0f, 1.0f, &x2, &y2);
-	glRectf(x1, y1, x2, y2);
+	GPURectf(x1, y1, x2, y2);
 
 	/* gridsize adapted to zoom level */
 	gridsize = 0.5f * (zoomx + zoomy);
@@ -2348,7 +2348,7 @@ void ED_region_visible_rect(ARegion *ar, rcti *rect)
 void ED_region_cache_draw_background(const ARegion *ar)
 {
 	glColor4ub(128, 128, 255, 64);
-	glRecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
+	GPURecti(0, 0, ar->winx, 8 * UI_DPI_FAC);
 }
 
 void ED_region_cache_draw_curfra_label(const int framenr, const float x, const float y)
@@ -2364,7 +2364,7 @@ void ED_region_cache_draw_curfra_label(const int framenr, const float x, const f
 
 	BLF_width_and_height(fontid, numstr, sizeof(numstr), &font_dims[0], &font_dims[1]);
 
-	glRecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
+	GPURecti(x, y, x + font_dims[0] + 6.0f, y + font_dims[1] + 4.0f);
 
 	UI_ThemeColor(TH_TEXT);
 	BLF_position(fontid, x + 2.0f, y + 2.0f, 0.0f);
@@ -2384,7 +2384,7 @@ void ED_region_cache_draw_cached_segments(const ARegion *ar, const int num_segme
 			x1 = (float)(points[a * 2] - sfra) / (efra - sfra + 1) * ar->winx;
 			x2 = (float)(points[a * 2 + 1] - sfra + 1) / (efra - sfra + 1) * ar->winx;
 
-			glRecti(x1, 0, x2, 8 * UI_DPI_FAC);
+			GPURecti(x1, 0, x2, 8 * UI_DPI_FAC);
 		}
 	}
 }

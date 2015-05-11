@@ -154,7 +154,8 @@ void gpuEnd(void);
 void GPUBegin(GLenum mode);
 void GPUDrawArrays(GLenum mode, int start, int count);
 void GPUDrawElements(GLenum mode, int count, int type, const void *p);
-
+void GPURectf(float x1, float y1, float x2, float y2);
+void GPURecti(int x1, int y1, int x2, int y2);
 
 typedef struct GPUarrays {
 	GLenum colorType;

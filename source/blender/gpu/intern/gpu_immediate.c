@@ -2422,4 +2422,17 @@ void GPUDrawElements(GLenum mode, int count, int type, const void *p)
 	GPU_CHECK_ERRORS_AROUND(glDrawElements(mode, count, type, p));
 }
 
+void GPURectf(float x1, float y1, float x2, float y2)
+{
+	gpu_commit_matrix();
+	GPU_ASSERT_NO_GL_ERRORS("GPURectf");
+	glRectf(x1, y1, x2, y2);
+}
+
+void GPURecti(int x1, int y1, int x2, int y2)
+{
+	gpu_commit_matrix();
+	GPU_ASSERT_NO_GL_ERRORS("GPURectf");
+	glRecti(x1, y1, x2, y2);
+}
 

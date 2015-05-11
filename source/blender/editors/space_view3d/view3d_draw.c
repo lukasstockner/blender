@@ -1121,13 +1121,13 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 			glColor4f(0, 0, 0, ca->passepartalpha);
 		}
 		if (x1i > 0.0f)
-			glRectf(0.0, winy, x1i, 0.0);
+			GPURectf(0.0, winy, x1i, 0.0);
 		if (x2i < winx)
-			glRectf(x2i, winy, winx, 0.0);
+			GPURectf(x2i, winy, winx, 0.0);
 		if (y2i < winy)
-			glRectf(x1i, winy, x2i, y2i);
+			GPURectf(x1i, winy, x2i, y2i);
 		if (y2i > 0.0f)
-			glRectf(x1i, y1i, x2i, 0.0);
+			GPURectf(x1i, y1i, x2i, 0.0);
 		
 		glDisable(GL_BLEND);
 	}
@@ -1139,12 +1139,12 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 
 	UI_ThemeColor(TH_BACK);
 		
-	glRectf(x1i, y1i, x2i, y2i);
+	GPURectf(x1i, y1i, x2i, y2i);
 
 #ifdef VIEW3D_CAMERA_BORDER_HACK
 	if (view3d_camera_border_hack_test == true) {
 		glColor3ubv(view3d_camera_border_hack_col);
-		glRectf(x1i + 1, y1i + 1, x2i - 1, y2i - 1);
+		GPURectf(x1i + 1, y1i + 1, x2i - 1, y2i - 1);
 		view3d_camera_border_hack_test = false;
 	}
 #endif
@@ -1154,11 +1154,11 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 	/* outer line not to confuse with object selecton */
 	if (v3d->flag2 & V3D_LOCK_CAMERA) {
 		UI_ThemeColor(TH_REDALERT);
-		glRectf(x1i - 1, y1i - 1, x2i + 1, y2i + 1);
+		GPURectf(x1i - 1, y1i - 1, x2i + 1, y2i + 1);
 	}
 
 	UI_ThemeColor(TH_VIEW_OVERLAY);
-	glRectf(x1i, y1i, x2i, y2i);
+	GPURectf(x1i, y1i, x2i, y2i);
 
 	/* border */
 	if (scene->r.mode & R_BORDER) {
@@ -1170,7 +1170,7 @@ static void drawviewborder(Scene *scene, ARegion *ar, View3D *v3d)
 		y4 = y1i + 1 + roundf(scene->r.border.ymax * (y2 - y1));
 
 		cpack(0x4040FF);
-		glRecti(x3,  y3,  x4,  y4);
+		GPURecti(x3,  y3,  x4,  y4);
 	}
 
 	/* safety border */
@@ -2931,12 +2931,10 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			material_not_bound = !GPU_material_bound(gpumat);
 
 			if (material_not_bound) {
-				glMatrixMode(GL_PROJECTION);
-				glPushMatrix();
-				glLoadIdentity();
-				glMatrixMode(GL_MODELVIEW);
-				glPushMatrix();
-				glLoadIdentity();
+				gpuPushMatrix(GPU_PROJECTION_MATRIX);
+				gpuLoadIdentity(GPU_PROJECTION_MATRIX);
+				gpuPushMatrix(GPU_MODELVIEW_MATRIX);
+				gpuLoadIdentity(GPU_MODELVIEW_MATRIX);
 				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
 			}
 
@@ -2952,10 +2950,8 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 			glShadeModel(GL_FLAT);
 
 			if (material_not_bound) {
-				glMatrixMode(GL_PROJECTION);
-				glPopMatrix();
-				glMatrixMode(GL_MODELVIEW);
-				glPopMatrix();
+				gpuPopMatrix(GPU_PROJECTION_MATRIX);
+				gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 			}
 
 			GPU_material_unbind(gpumat);
@@ -3806,7 +3802,7 @@ static void view3d_main_area_draw_info(const bContext *C, Scene *scene,
 		setlinestyle(3);
 		cpack(0x4040FF);
 
-		glRecti(v3d->render_border.xmin * ar->winx, v3d->render_border.ymin * ar->winy,
+		GPURecti(v3d->render_border.xmin * ar->winx, v3d->render_border.ymin * ar->winy,
 		        v3d->render_border.xmax * ar->winx, v3d->render_border.ymax * ar->winy);
 
 		setlinestyle(0);

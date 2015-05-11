@@ -41,6 +41,8 @@
 
 #include "BIF_gl.h"
 
+#include "GPU_immediate.h"
+
 #include "BKE_text.h"
 
 #include "textview.h"
@@ -82,7 +84,7 @@ static void console_draw_sel(const char *str, const int sel[2], const int xy[2],
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4ubv(bg_sel);
 
-		glRecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);
+		GPURecti(xy[0] + (cwidth * sta), xy[1] - 2 + lheight, xy[0] + (cwidth * end), xy[1] - 2);
 
 		glDisable(GL_BLEND);
 	}
@@ -183,7 +185,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 		
 		if (bg) {
 			glColor3ubv(bg);
-			glRecti(0, cdc->xy[1], cdc->winx, (cdc->xy[1] + (cdc->lheight * tot_lines)));
+			GPURecti(0, cdc->xy[1], cdc->winx, (cdc->xy[1] + (cdc->lheight * tot_lines)));
 		}
 
 		glColor3ubv(fg);
@@ -231,7 +233,7 @@ static int console_draw_string(ConsoleDrawContext *cdc, const char *str, int str
 
 		if (bg) {
 			glColor3ubv(bg);
-			glRecti(0, cdc->xy[1], cdc->winx, cdc->xy[1] + cdc->lheight);
+			GPURecti(0, cdc->xy[1], cdc->winx, cdc->xy[1] + cdc->lheight);
 		}
 
 		glColor3ubv(fg);

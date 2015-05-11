@@ -174,7 +174,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, bool color_manage, bool use_d
 
 	/* noisy, high contrast make impossible to read if lower alpha is used. */
 	glColor4ub(0, 0, 0, 190);
-	glRecti(0.0, 0.0, BLI_rcti_size_x(&ar->winrct) + 1, UI_UNIT_Y);
+	GPURecti(0.0, 0.0, BLI_rcti_size_x(&ar->winrct) + 1, UI_UNIT_Y);
 	glDisable(GL_BLEND);
 
 	BLF_size(blf_mono_font, 11 * U.pixelsize, U.dpi);
@@ -314,7 +314,7 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, bool color_manage, bool use_d
 
 		color_rect_half = color_rect;
 		color_rect_half.xmax = BLI_rcti_cent_x(&color_rect);
-		glRecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
+		GPURecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
 
 		color_rect_half = color_rect;
 		color_rect_half.xmin = BLI_rcti_cent_x(&color_rect);
@@ -323,27 +323,27 @@ void ED_image_draw_info(Scene *scene, ARegion *ar, bool color_manage, bool use_d
 		color_quater_y = BLI_rcti_cent_y(&color_rect_half);
 
 		glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
-		glRecti(color_rect_half.xmin, color_rect_half.ymin, color_rect_half.xmax, color_rect_half.ymax);
+		GPURecti(color_rect_half.xmin, color_rect_half.ymin, color_rect_half.xmax, color_rect_half.ymax);
 
 		glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
-		glRecti(color_quater_x, color_quater_y, color_rect_half.xmax, color_rect_half.ymax);
-		glRecti(color_rect_half.xmin, color_rect_half.ymin, color_quater_x, color_quater_y);
+		GPURecti(color_quater_x, color_quater_y, color_rect_half.xmax, color_rect_half.ymax);
+		GPURecti(color_rect_half.xmin, color_rect_half.ymin, color_quater_x, color_quater_y);
 
 		glEnable(GL_BLEND);
 		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		glColor4f(UNPACK3(finalcol), fp ? fp[3] : (cp[3] / 255.0f));
-		glRecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
+		GPURecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
 		glDisable(GL_BLEND);
 	}
 	else {
 		glColor3fv(finalcol);
-		glRecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
+		GPURecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
 	}
 
 	/* draw outline */
 	glColor3ub(128, 128, 128);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	glRecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
+	GPURecti(color_rect.xmin, color_rect.ymin, color_rect.xmax, color_rect.ymax);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
 	dx += 1.75f * UI_UNIT_X;
@@ -880,7 +880,7 @@ void draw_image_main(const bContext *C, ARegion *ar)
 			glColor3ub(0, 0, 0);
 			calc_image_view(sima, 'f');
 			myortho2(G.v2d->cur.xmin, G.v2d->cur.xmax, G.v2d->cur.ymin, G.v2d->cur.ymax);
-			glRectf(0.0f, 0.0f, 1.0f, 1.0f);
+			GPURectf(0.0f, 0.0f, 1.0f, 1.0f);
 			gpuLoadIdentity();
 		}
 	}
@@ -948,7 +948,7 @@ void draw_image_cache(const bContext *C, ARegion *ar)
 	x = (cfra - sfra) / (efra - sfra + 1) * ar->winx;
 
 	UI_ThemeColor(TH_CFRAME);
-	glRecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
+	GPURecti(x, 0, x + ceilf(framelen), 8 * UI_DPI_FAC);
 	ED_region_cache_draw_curfra_label(cfra, x, 8.0f * UI_DPI_FAC);
 
 	if (mask != NULL) {

@@ -334,7 +334,7 @@ static void drawmeta_contents(Scene *scene, Sequence *seqm, float x1, float y1, 
 			y1_chan = y1 + y_chan + (draw_height * SEQ_STRIP_OFSBOTTOM);
 			y2_chan = y1 + y_chan + (draw_height * SEQ_STRIP_OFSTOP);
 
-			glRectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
+			GPURectf(x1_chan,  y1_chan, x2_chan,  y2_chan);
 
 			UI_GetColorPtrShade3ubv(col, col, -30);
 			glColor4ubv(col);
@@ -409,7 +409,7 @@ static void draw_seq_handle(View2D *v2d, Sequence *seq, const float handsize_cla
 		else if (seq->flag & SELECT) glColor4ub(255, 255, 255, 30);
 		else glColor4ub(0, 0, 0, 22);
 		
-		glRectf(rx1, y1, rx2, y2);
+		GPURectf(rx1, y1, rx2, y2);
 		
 		if (seq->flag & whichsel) glColor4ub(255, 255, 255, 200);
 		else glColor4ub(0, 0, 0, 50);
@@ -583,7 +583,7 @@ void draw_shadedstrip(Sequence *seq, unsigned char col[3], float x1, float y1, f
 	
 	glEnd();
 	
-	glRectf(x1,  ymid1,  x2,  ymid2);
+	GPURectf(x1,  ymid1,  x2,  ymid2);
 
 	GPUBegin(GL_QUADS);
 	
@@ -638,7 +638,7 @@ void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 			glColor4ub(col[0], col[1], col[2], 110);
 		}
 		
-		glRectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
+		GPURectf((float)(seq->start), y1 - SEQ_STRIP_OFSBOTTOM, x1, y1);
 		
 		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
 		else glColor4ub(col[0], col[1], col[2], 160);
@@ -662,7 +662,7 @@ void draw_sequence_extensions(Scene *scene, ARegion *ar, Sequence *seq)
 			glColor4ub(col[0], col[1], col[2], 110);
 		}
 		
-		glRectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
+		GPURectf(x2, y2, (float)(seq->start + seq->len), y2 + SEQ_STRIP_OFSBOTTOM);
 		
 		if (seq->flag & SELECT) glColor4ub(col[0], col[1], col[2], 255);
 		else glColor4ub(col[0], col[1], col[2], 160);
@@ -774,12 +774,12 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		/* light stripes */
 		glColor4ub(255, 255, 255, 32);
 		glPolygonStipple(stipple_diag_stripes_pos);
-		glRectf(x1, y1, x2, y2);
+		GPURectf(x1, y1, x2, y2);
 
 		/* dark stripes */
 		glColor4ub(0, 0, 0, 32);
 		glPolygonStipple(stipple_diag_stripes_neg);
-		glRectf(x1, y1, x2, y2);
+		GPURectf(x1, y1, x2, y2);
 
 		glDisable(GL_POLYGON_STIPPLE);
 		glDisable(GL_BLEND);
@@ -791,7 +791,7 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 		/* panic! */
 		glColor4ub(255, 0, 0, 255);
 		glPolygonStipple(stipple_diag_stripes_pos);
-		glRectf(x1, y1, x2, y2);
+		GPURectf(x1, y1, x2, y2);
 
 		glDisable(GL_POLYGON_STIPPLE);
 	}
@@ -1362,10 +1362,8 @@ void draw_image_seq(const bContext *C, Scene *scene, ARegion *ar, SpaceSeq *sseq
 	}
 
 	if (draw_backdrop) {
-		glPopMatrix();
-		glMatrixMode(GL_PROJECTION);
-		glPopMatrix();
-		glMatrixMode(GL_MODELVIEW);
+		gpuPopMatrix(GPU_PROJECTION_MATRIX);
+		gpuPopMatrix(GPU_MODELVIEW_MATRIX);
 		return;
 	}
 
@@ -1442,7 +1440,7 @@ static void draw_seq_backdrop(View2D *v2d)
 	
 	/* darker gray overlay over the view backdrop */
 	UI_ThemeColorShade(TH_BACK, -20);
-	glRectf(v2d->cur.xmin,  -1.0,  v2d->cur.xmax,  1.0);
+	GPURectf(v2d->cur.xmin,  -1.0,  v2d->cur.xmax,  1.0);
 
 	/* Alternating horizontal stripes */
 	i = max_ii(1, ((int)v2d->cur.ymin) - 1);
@@ -1519,7 +1517,7 @@ static void draw_seq_strips(const bContext *C, Editing *ed, ARegion *ar)
 		const Sequence *seq = special_seq_update;
 		glEnable(GL_BLEND);
 		glColor4ub(255, 255, 255, 48);
-		glRectf(seq->startdisp, seq->machine + SEQ_STRIP_OFSBOTTOM, seq->enddisp, seq->machine + SEQ_STRIP_OFSTOP);
+		GPURectf(seq->startdisp, seq->machine + SEQ_STRIP_OFSBOTTOM, seq->enddisp, seq->machine + SEQ_STRIP_OFSTOP);
 		glDisable(GL_BLEND);
 	}
 }
@@ -1537,11 +1535,11 @@ static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
 	UI_ThemeColorShadeAlpha(TH_BACK, -25, -100);
 
 	if (frame_sta < frame_end) {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)frame_sta, v2d->cur.ymax);
-		glRectf((float)frame_end, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		GPURectf(v2d->cur.xmin, v2d->cur.ymin, (float)frame_sta, v2d->cur.ymax);
+		GPURectf((float)frame_end, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 	else {
-		glRectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+		GPURectf(v2d->cur.xmin, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	}
 
 	UI_ThemeColorShade(TH_BACK, -60);
@@ -1553,7 +1551,7 @@ static void seq_draw_sfra_efra(Scene *scene, View2D *v2d)
 		MetaStack *ms = ed->metastack.last;
 
 		glColor4ub(255, 255, 255, 8);
-		glRectf(ms->disp_range[0], v2d->cur.ymin, ms->disp_range[1], v2d->cur.ymax);
+		GPURectf(ms->disp_range[0], v2d->cur.ymin, ms->disp_range[1], v2d->cur.ymax);
 
 		UI_ThemeColorShade(TH_BACK, -40);
 
@@ -1635,7 +1633,7 @@ void draw_timeline_seq(const bContext *C, ARegion *ar)
 	if (scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) {
 		int cfra_over = (scene->ed->over_flag & SEQ_EDIT_OVERLAY_ABS) ? scene->ed->over_cfra : scene->r.cfra + scene->ed->over_ofs;
 		glColor3f(0.2, 0.2, 0.2);
-		// glRectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
+		// GPURectf(cfra_over, v2d->cur.ymin, scene->ed->over_ofs + scene->r.cfra + 1, v2d->cur.ymax);
 
 		GPUBegin(GL_LINES);
 		glVertex2f(cfra_over, v2d->cur.ymin);

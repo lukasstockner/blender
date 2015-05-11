@@ -288,8 +288,8 @@ void clip_draw_sfra_efra(View2D *v2d, Scene *scene)
 	glEnable(GL_BLEND);
 	glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 
-	glRectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
-	glRectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
+	GPURectf(v2d->cur.xmin, v2d->cur.ymin, (float)SFRA, v2d->cur.ymax);
+	GPURectf((float)EFRA, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 	glDisable(GL_BLEND);
 
 	UI_ThemeColorShade(TH_BACK, -60);

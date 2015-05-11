@@ -523,9 +523,9 @@ static void ui_draw_panel_dragwidget(const rctf *rect)
 			const int y_co = (y_min + y_ofs) + (i_y * (box_size + box_margin));
 
 			glColor3ubv(col_dark);
-			glRectf(x_co - box_size, y_co - px_zoom, x_co, (y_co + box_size) - px_zoom);
+			GPURectf(x_co - box_size, y_co - px_zoom, x_co, (y_co + box_size) - px_zoom);
 			glColor3ubv(col_high);
-			glRectf(x_co - box_size, y_co, x_co, y_co + box_size);
+			GPURectf(x_co - box_size, y_co, x_co, y_co + box_size);
 		}
 	}
 }
@@ -590,7 +590,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		if (UI_GetThemeValue(TH_PANEL_SHOW_HEADER)) {
 			/* draw with background color */
 			UI_ThemeColor4(TH_PANEL_HEADER);
-			glRectf(minx, headrect.ymin + 1, maxx, y);
+			GPURectf(minx, headrect.ymin + 1, maxx, y);
 
 			fdrawline(minx, y, maxx, y);
 			fdrawline(minx, y, maxx, y);
@@ -663,7 +663,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 			/* draw with background color */
 			glEnable(GL_BLEND);
 			UI_ThemeColor4(TH_PANEL_BACK);
-			glRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+			GPURecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 		}
 
 		if (panel->control & UI_PNL_SCALE)
@@ -1722,7 +1722,7 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		glColor3ubv(theme_col_tab_bg);
 	}
 
-	glRecti(v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
+	GPURecti(v2d->mask.xmin, v2d->mask.ymin, v2d->mask.xmin + category_tabs_width, v2d->mask.ymax);
 
 	if (is_alpha) {
 		glDisable(GL_BLEND);
@@ -1773,7 +1773,7 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		/* tab blackline */
 		if (!is_active) {
 			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + category_tabs_width - px,
+			GPURecti(v2d->mask.xmin + category_tabs_width - px,
 			        rct->ymin - tab_v_pad,
 			        v2d->mask.xmin + category_tabs_width,
 			        rct->ymax + tab_v_pad);
@@ -1799,14 +1799,14 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		/* tab blackline remaining (last tab) */
 		if (pc_dyn->prev == NULL) {
 			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + category_tabs_width - px,
+			GPURecti(v2d->mask.xmin + category_tabs_width - px,
 			        rct->ymax + px,
 			        v2d->mask.xmin + category_tabs_width,
 			        v2d->mask.ymax);
 		}
 		if (pc_dyn->next == NULL) {
 			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + category_tabs_width - px,
+			GPURecti(v2d->mask.xmin + category_tabs_width - px,
 			        0,
 			        v2d->mask.xmin + category_tabs_width,
 			        rct->ymin);
@@ -1816,7 +1816,7 @@ void UI_panel_category_draw_all(ARegion *ar, const char *category_id_active)
 		/* draw line between inactive tabs */
 		if (is_active == false && is_active_prev == false && pc_dyn->prev) {
 			glColor3ubv(theme_col_tab_divider);
-			glRecti(v2d->mask.xmin + (category_tabs_width / 5),
+			GPURecti(v2d->mask.xmin + (category_tabs_width / 5),
 			        rct->ymax + px,
 			        (v2d->mask.xmin + category_tabs_width) - (category_tabs_width / 5),
 			        rct->ymax + (px * 3));

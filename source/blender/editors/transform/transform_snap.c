@@ -223,7 +223,7 @@ void drawSnapping(const struct bContext *C, TransInfo *t)
 			cpack(0xFFFFFF);
 			gpuTranslate(t->tsnap.snapPoint[0], t->tsnap.snapPoint[1], 0.0f);
 			
-			//glRectf(0, 0, 1, 1);
+			//GPURectf(0, 0, 1, 1);
 			
 			setlinestyle(0);
 			cpack(0x0);

@@ -401,7 +401,7 @@ void UI_draw_roundbox(float minx, float miny, float maxx, float maxy, float rad)
 void UI_draw_text_underline(int pos_x, int pos_y, int len, int height)
 {
 	int ofs_y = 4 * U.pixelsize;
-	glRecti(pos_x, pos_y - ofs_y, pos_x + len, pos_y - ofs_y + (height * U.pixelsize));
+	GPURecti(pos_x, pos_y - ofs_y, pos_x + len, pos_y - ofs_y + (height * U.pixelsize));
 }
 
 /* ************** SPECIAL BUTTON DRAWING FUNCTIONS ************* */
@@ -1135,11 +1135,11 @@ void ui_draw_but_COLORBAND(uiBut *but, uiWidgetColors *UNUSED(wcol), const rcti 
 
 	/* layer: background, to show tranparency */
 	glColor4ub(UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, UI_ALPHA_CHECKER_DARK, 255);
-	glRectf(x1, y1, x1 + sizex, rect->ymax);
+	GPURectf(x1, y1, x1 + sizex, rect->ymax);
 	glEnable(GL_POLYGON_STIPPLE);
 	glColor4ub(UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, UI_ALPHA_CHECKER_LIGHT, 255);
 	glPolygonStipple(stipple_checker_8px);
-	glRectf(x1, y1, x1 + sizex, rect->ymax);
+	GPURectf(x1, y1, x1 + sizex, rect->ymax);
 	glDisable(GL_POLYGON_STIPPLE);
 
 	/* layer: color ramp */
@@ -1399,16 +1399,16 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 	else {
 		if (cumap->flag & CUMA_DO_CLIP) {
 			gl_shaded_color((unsigned char *)wcol->inner, -20);
-			glRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+			GPURectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 			glColor3ubv((unsigned char *)wcol->inner);
-			glRectf(rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
+			GPURectf(rect->xmin + zoomx * (cumap->clipr.xmin - offsx),
 			        rect->ymin + zoomy * (cumap->clipr.ymin - offsy),
 			        rect->xmin + zoomx * (cumap->clipr.xmax - offsx),
 			        rect->ymin + zoomy * (cumap->clipr.ymax - offsy));
 		}
 		else {
 			glColor3ubv((unsigned char *)wcol->inner);
-			glRectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+			GPURectf(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
 		}
 
 		/* grid, every 0.25 step */
