@@ -4965,15 +4965,9 @@ static int previews_clear_exec(bContext *C, wmOperator *op)
 		}
 
 		for (; id; id = id->next) {
-			PreviewImage *prv_img = BKE_previewimg_get(id);
-			int j;
+			PreviewImage *prv_img = BKE_previewimg_id_ensure(id);
 
-			for (j = 0; j < 2; j++) {
-				prv_img->user_edited[j] = false;
-				prv_img->changed[j] = true;
-
-				BKE_previewimg_clear(prv_img, j);
-			}
+			BKE_previewimg_clear(prv_img);
 		}
 	}
 
