@@ -144,6 +144,7 @@ float paint_grid_paint_mask(const struct GridPaintMask *gpm, unsigned level,
 
 /* stroke related */
 void paint_calculate_rake_rotation(struct UnifiedPaintSettings *ups, struct Brush *brush, const float mouse_pos[2]);
+void paint_update_brush_rake_rotation(struct UnifiedPaintSettings *ups, struct Brush *brush, float rotation);
 
 void BKE_paint_stroke_get_average(struct Scene *scene, struct Object *ob, float stroke[3]);
 
@@ -156,7 +157,6 @@ typedef struct SculptSession {
 	struct MPoly *mpoly;
 	struct MLoop *mloop;
 	int totvert, totpoly;
-	float (*face_normals)[3];
 	struct KeyBlock *kb;
 	float *vmask;
 	

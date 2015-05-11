@@ -33,7 +33,7 @@ ShaderInput::ShaderInput(ShaderNode *parent_, const char *name_, ShaderSocketTyp
 	name = name_;
 	type = type_;
 	link = NULL;
-	value = make_float3(0, 0, 0);
+	value = make_float3(0.0f, 0.0f, 0.0f);
 	stack_offset = SVM_STACK_INVALID;
 	default_value = NONE;
 	usage = USE_ALL;
@@ -831,6 +831,26 @@ void ShaderGraph::transform_multi_closure(ShaderNode *node, ShaderOutput *weight
 		else
 			weight_in->value.x += 1.0f;
 	}
+}
+
+int ShaderGraph::get_num_closures()
+{
+	int num_closures = 0;
+	foreach(ShaderNode *node, nodes) {
+		if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
+			BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
+			/* TODO(sergey): Make it more generic approach, maybe some utility
+			 * macros like CLOSURE_IS_FOO()?
+			 */
+			if(CLOSURE_IS_BSSRDF(bsdf_node->closure))
+				num_closures = num_closures + 3;
+			else if(CLOSURE_IS_GLASS(bsdf_node->closure))
+				num_closures = num_closures + 2;
+			else
+				num_closures = num_closures + 1;
+		}
+	}
+	return num_closures;
 }
 
 void ShaderGraph::dump_graph(const char *filename)

@@ -2120,7 +2120,7 @@ static int uv_mouse_select(bContext *C, const float co[2], bool extend, bool loo
 		/* mark 1 vertex as being hit */
 		hitv  = BLI_array_alloca(hitv,  hit.efa->len);
 		hituv = BLI_array_alloca(hituv, hit.efa->len);
-		fill_vn_i(hitv, hit.efa->len, 0xFFFFFFFF);
+		copy_vn_i(hitv, hit.efa->len, 0xFFFFFFFF);
 
 		hitv[hit.lindex] = BM_elem_index_get(hit.l->v);
 		hituv[hit.lindex] = hit.luv->uv;
@@ -2137,7 +2137,7 @@ static int uv_mouse_select(bContext *C, const float co[2], bool extend, bool loo
 		/* mark 2 edge vertices as being hit */
 		hitv  = BLI_array_alloca(hitv,  hit.efa->len);
 		hituv = BLI_array_alloca(hituv, hit.efa->len);
-		fill_vn_i(hitv, hit.efa->len, 0xFFFFFFFF);
+		copy_vn_i(hitv, hit.efa->len, 0xFFFFFFFF);
 
 		hitv[hit.lindex] = BM_elem_index_get(hit.l->v);
 		hitv[(hit.lindex + 1) % hit.efa->len] = BM_elem_index_get(hit.l->next->v);
@@ -3098,9 +3098,10 @@ static bool do_lasso_select_mesh_uv(bContext *C, const int mcords[][2], short mo
 	Scene *scene = CTX_data_scene(C);
 	ToolSettings *ts = scene->toolsettings;
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
-	const int use_face_center = (ts->uv_flag & UV_SYNC_SELECTION) ?
-	                            (ts->selectmode == SCE_SELECT_FACE) :
-	                            (ts->uv_selectmode == UV_SELECT_FACE);
+	const bool use_face_center = (
+	        (ts->uv_flag & UV_SYNC_SELECTION) ?
+	        (ts->selectmode == SCE_SELECT_FACE) :
+	        (ts->uv_selectmode == UV_SELECT_FACE));
 
 	const int cd_loop_uv_offset  = CustomData_get_offset(&em->bm->ldata, CD_MLOOPUV);
 	const int cd_poly_tex_offset = CustomData_get_offset(&em->bm->pdata, CD_MTEXPOLY);

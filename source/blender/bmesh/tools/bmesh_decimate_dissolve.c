@@ -98,11 +98,12 @@ fail:
 }
 
 
-void BM_mesh_decimate_dissolve_ex(BMesh *bm, const float angle_limit, const bool do_dissolve_boundaries,
-                                  const BMO_Delimit delimit,
-                                  BMVert **vinput_arr, const int vinput_len,
-                                  BMEdge **einput_arr, const int einput_len,
-                                  const short oflag_out)
+void BM_mesh_decimate_dissolve_ex(
+        BMesh *bm, const float angle_limit, const bool do_dissolve_boundaries,
+        const BMO_Delimit delimit,
+        BMVert **vinput_arr, const int vinput_len,
+        BMEdge **einput_arr, const int einput_len,
+        const short oflag_out)
 {
 	const int eheap_table_len = do_dissolve_boundaries ? einput_len : max_ii(einput_len, vinput_len);
 	void *_heap_table = MEM_mallocN(sizeof(HeapNode *) * eheap_table_len, __func__);
@@ -189,7 +190,7 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm, const float angle_limit, const bool
 		/* prepare for cleanup */
 		BM_mesh_elem_index_ensure(bm, BM_VERT);
 		vert_reverse_lookup = MEM_mallocN(sizeof(int) * bm->totvert, __func__);
-		fill_vn_i(vert_reverse_lookup, bm->totvert, -1);
+		copy_vn_i(vert_reverse_lookup, bm->totvert, -1);
 		for (i = 0; i < vinput_len; i++) {
 			BMVert *v = vinput_arr[i];
 			vert_reverse_lookup[BM_elem_index_get(v)] = i;
@@ -316,8 +317,9 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm, const float angle_limit, const bool
 	MEM_freeN(_heap_table);
 }
 
-void BM_mesh_decimate_dissolve(BMesh *bm, const float angle_limit, const bool do_dissolve_boundaries,
-                               const BMO_Delimit delimit)
+void BM_mesh_decimate_dissolve(
+        BMesh *bm, const float angle_limit, const bool do_dissolve_boundaries,
+        const BMO_Delimit delimit)
 {
 	int vinput_len;
 	int einput_len;

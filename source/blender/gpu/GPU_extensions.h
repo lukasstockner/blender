@@ -72,6 +72,9 @@ int GPU_color_depth(void);
 int GPU_max_textures(void);
 void GPU_get_dfdy_factors(float fac[2]);
 
+bool GPU_mem_stats_supported(void);
+void GPU_mem_stats_get(int *totalmem, int *freemem);
+
 void GPU_code_generate_glsl_lib(void);
 
 /* GPU Types */
