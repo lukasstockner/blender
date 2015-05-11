@@ -1310,6 +1310,7 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 //		mul_m3_m3m3(Mstate, rot, Mrest);
 	}
 	
+#if 0
 	{ /* apply force */
 		/* Note: applying forces to the first segment is necessary to equalize forces on the root,
 		 * otherwise energy gets introduced at the root and can destabilize the simulation.
@@ -1331,6 +1332,7 @@ static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4
 		BPH_mass_spring_get_velocity(data, vroot, rootvel);
 		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, NULL, NULL, NULL);
 	}
+#endif
 	
 	do {
 		float restlen = len_v3v3(it_bend.vertex1->co, it_bend.vertex0->co);
