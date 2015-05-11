@@ -3235,6 +3235,18 @@ static uiBut *ui_def_but(
 	return but;
 }
 
+void ui_def_but_icon(uiBut *but, const int icon, const int flag) {
+	if (icon) {
+		ui_icon_ensure_deferred(but->block->evil_C, icon, (flag & UI_BUT_ICON_PREVIEW) != 0);
+	}
+	but->icon = (BIFIconID)icon;
+	but->flag |= flag;
+
+	if (but->str && but->str[0]) {
+		but->drawflag |= UI_BUT_ICON_LEFT;
+	}
+}
+
 static void ui_def_but_rna__disable(uiBut *but)
 {
 	but->flag |= UI_BUT_DISABLED;
@@ -3498,11 +3510,7 @@ static uiBut *ui_def_but_rna(
 		but->rnaindex = 0;
 
 	if (icon) {
-		but->icon = (BIFIconID)icon;
-		but->flag |= UI_HAS_ICON;
-		if (str[0]) {
-			but->drawflag |= UI_BUT_ICON_LEFT;
-		}
+		ui_def_but_icon(but, icon, UI_HAS_ICON);
 	}
 	
 	if ((type == UI_BTYPE_MENU) && (but->dt == UI_EMBOSS_PULLDOWN)) {
@@ -3689,8 +3697,7 @@ int UI_autocomplete_end(AutoComplete *autocpl, char *autoname)
 static void ui_but_update_and_icon_set(uiBut *but, int icon)
 {
 	if (icon) {
-		but->icon = (BIFIconID) icon;
-		but->flag |= UI_HAS_ICON;
+		ui_def_but_icon(but, icon, UI_HAS_ICON);
 	}
 
 	ui_but_update(but);
@@ -4064,7 +4071,7 @@ void UI_but_drag_set_value(uiBut *but)
 void UI_but_drag_set_image(uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale)
 {
 	but->dragtype = WM_DRAG_PATH;
-	but->icon = icon; /* no flag UI_HAS_ICON, so icon doesnt draw in button */
+	ui_def_but_icon(but, icon, 0);  /* no flag UI_HAS_ICON, so icon doesnt draw in button */
 	but->dragpoin = (void *)path;
 	but->imb = imb;
 	but->imb_scale = scale;
@@ -4218,8 +4225,7 @@ uiBut *uiDefIconTextMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, in
 {
 	uiBut *but = ui_def_but(block, UI_BTYPE_PULLDOWN, 0, str, x, y, width, height, arg, 0.0, 0.0, 0.0, 0.0, tip);
 
-	but->icon = (BIFIconID) icon;
-	but->flag |= UI_HAS_ICON;
+	ui_def_but_icon(but, icon, UI_HAS_ICON);
 
 	but->drawflag |= UI_BUT_ICON_LEFT;
 	but->flag |= UI_BUT_ICON_SUBMENU;
@@ -4234,8 +4240,7 @@ uiBut *uiDefIconMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, int ic
 {
 	uiBut *but = ui_def_but(block, UI_BTYPE_PULLDOWN, 0, "", x, y, width, height, arg, 0.0, 0.0, 0.0, 0.0, tip);
 
-	but->icon = (BIFIconID) icon;
-	but->flag |= UI_HAS_ICON;
+	ui_def_but_icon(but, icon, UI_HAS_ICON);
 	but->drawflag &= ~UI_BUT_ICON_LEFT;
 
 	but->menu_create_func = func;
@@ -4251,7 +4256,7 @@ uiBut *uiDefIconTextBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, 
 	
 	/* XXX temp, old menu calls pass on icon arrow, which is now UI_BUT_ICON_SUBMENU flag */
 	if (icon != ICON_RIGHTARROW_THIN) {
-		but->icon = (BIFIconID) icon;
+		ui_def_but_icon(but, icon, 0);
 		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	but->flag |= UI_HAS_ICON;
@@ -4268,9 +4273,8 @@ uiBut *uiDefIconBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, int 
 {
 	uiBut *but = ui_def_but(block, UI_BTYPE_BLOCK, retval, "", x, y, width, height, arg, 0.0, 0.0, 0.0, 0.0, tip);
 	
-	but->icon = (BIFIconID) icon;
-	but->flag |= UI_HAS_ICON;
-	
+	ui_def_but_icon(but, icon, UI_HAS_ICON);
+
 	but->drawflag |= UI_BUT_ICON_LEFT;
 	
 	but->block_create_func = func;
@@ -4303,9 +4307,8 @@ uiBut *uiDefSearchBut(uiBlock *block, void *arg, int retval, int icon, int maxle
 {
 	uiBut *but = ui_def_but(block, UI_BTYPE_SEARCH_MENU, retval, "", x, y, width, height, arg, 0.0, maxlen, a1, a2, tip);
 	
-	but->icon = (BIFIconID) icon;
-	but->flag |= UI_HAS_ICON;
-	
+	ui_def_but_icon(but, icon, UI_HAS_ICON);
+
 	but->drawflag |= UI_BUT_ICON_LEFT | UI_BUT_TEXT_LEFT;
 	
 	ui_but_update(but);
