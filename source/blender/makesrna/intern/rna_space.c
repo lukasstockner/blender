@@ -3075,6 +3075,11 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Center-Cut Safe Areas", "Show safe areas to fit content in a different aspect ratio");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
 
+	prop = RNA_def_property(srna, "show_metadata", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", 	SEQ_SHOW_METADATA);
+	RNA_def_property_ui_text(prop, "Show Metadata", "Show metadata of first visible strip");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, NULL);
+
 	prop = RNA_def_property(srna, "show_seconds", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SEQ_DRAWFRAMES);
 	RNA_def_property_ui_text(prop, "Show Seconds", "Show timing in seconds not frames");
@@ -3699,6 +3704,14 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 		{0, NULL, 0, NULL, NULL}
 	};
 
+	static EnumPropertyItem thumbnail_size_items[] = {
+	    {32,    "TINY",     0,      "Tiny", ""},
+	    {64,    "SMALL",    0,      "Small", ""},
+	    {128,   "NORMAL",   0,      "Normal", ""},
+	    {256,   "LARGE",    0,      "Large", ""},
+	    {0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "FileSelectParams", NULL);
 	RNA_def_struct_ui_text(srna, "File Select Parameters", "File Select Parameters");
 
@@ -3804,9 +3817,9 @@ static void rna_def_fileselect_params(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_TEXTEDIT_UPDATE);
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 
-	prop = RNA_def_property(srna, "thumbnails_size", PROP_INT, PROP_PIXEL);
-	RNA_def_property_int_sdna(prop, NULL, "thumbnails_size");
-	RNA_def_property_range(prop, 32, 256);
+	prop = RNA_def_property(srna, "thumbnail_size", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "thumbnail_size");
+	RNA_def_property_enum_items(prop, thumbnail_size_items);
 	RNA_def_property_ui_text(prop, "Thumbnails Size", "Change the size of the thumbnails");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 }

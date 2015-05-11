@@ -253,7 +253,7 @@ static PyObject *bpy_bm_utils_vert_splice(PyObject *UNUSED(self), PyObject *args
 	}
 
 	/* should always succeed */
-	ok = BM_vert_splice(bm, py_vert->v, py_vert_target->v);
+	ok = BM_vert_splice(bm, py_vert_target->v, py_vert->v);
 	BLI_assert(ok == true);
 	UNUSED_VARS_NDEBUG(ok);
 
@@ -307,7 +307,7 @@ static PyObject *bpy_bm_utils_vert_separate(PyObject *UNUSED(self), PyObject *ar
 		return NULL;
 	}
 
-	BM_vert_separate(bm, py_vert->v, &elem, &elem_len, edge_array, edge_array_len);
+	BM_vert_separate(bm, py_vert->v, edge_array, edge_array_len, false, &elem, &elem_len);
 	/* return collected verts */
 	ret = BPy_BMVert_Array_As_Tuple(bm, elem, elem_len);
 	MEM_freeN(elem);

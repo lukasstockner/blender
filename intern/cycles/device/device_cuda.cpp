@@ -309,18 +309,18 @@ public:
 		return cubin;
 	}
 
-	bool load_kernels(bool experimental)
+	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
 		/* check if cuda init succeeded */
 		if(cuContext == 0)
 			return false;
 		
 		/* check if GPU is supported */
-		if(!support_device(experimental))
+		if(!support_device(requested_features.experimental))
 			return false;
 
 		/* get kernel */
-		string cubin = compile_kernel(experimental);
+		string cubin = compile_kernel(requested_features.experimental);
 
 		if(cubin == "")
 			return false;
@@ -918,23 +918,18 @@ public:
 				draw_params.bind_display_space_shader_cb();
 			}
 
-			glPushMatrix();
-			glTranslatef(0.0f, (float)dy, 0.0f);
-				
 			glBegin(GL_QUADS);
 			
 			glTexCoord2f(0.0f, 0.0f);
-			glVertex2f(0.0f, 0.0f);
+			glVertex2f(0.0f, dy);
 			glTexCoord2f((float)w/(float)pmem.w, 0.0f);
-			glVertex2f((float)width, 0.0f);
+			glVertex2f((float)width, dy);
 			glTexCoord2f((float)w/(float)pmem.w, (float)h/(float)pmem.h);
-			glVertex2f((float)width, (float)height);
+			glVertex2f((float)width, (float)height + dy);
 			glTexCoord2f(0.0f, (float)h/(float)pmem.h);
-			glVertex2f(0.0f, (float)height);
+			glVertex2f(0.0f, (float)height + dy);
 
 			glEnd();
-
-			glPopMatrix();
 
 			if(draw_params.unbind_display_space_shader_cb) {
 				draw_params.unbind_display_space_shader_cb();

@@ -3886,7 +3886,7 @@ static void project_paint_begin(
 {
 	ProjPaintLayerClone layer_clone;
 	ProjPaintFaceLookup face_lookup;
-	MTFace *tf_base;
+	MTFace *tf_base = NULL;
 
 	MemArena *arena; /* at the moment this is just ps->arena_mt[0], but use this to show were not multithreading */
 
@@ -4664,7 +4664,14 @@ static void *do_projectpaint_thread(void *ph_v)
 					}
 					
 					if (lock_alpha) {
-						if (is_floatbuf) projPixel->pixel.f_pt[3] = projPixel->origColor.f_pt[3];
+						if (is_floatbuf) {
+							/* slightly more involved case since floats are in premultiplied space we need
+							 * to make sure alpha is consistent, see T44627 */
+							float rgb_straight[4];
+							premul_to_straight_v4_v4(rgb_straight, projPixel->pixel.f_pt);
+							rgb_straight[3] = projPixel->origColor.f_pt[3];
+							straight_to_premul_v4_v4(projPixel->pixel.f_pt, rgb_straight);
+						}
 						else projPixel->pixel.ch_pt[3] = projPixel->origColor.ch_pt[3];
 					}
 
@@ -4830,11 +4837,18 @@ static void *do_projectpaint_thread(void *ph_v)
 									else             do_projectpaint_draw(ps, projPixel, texrgb, mask, ps->dither, projPixel->x_px, projPixel->y_px);
 									break;
 							}
-						}
 
-						if (lock_alpha) {
-							if (is_floatbuf) projPixel->pixel.f_pt[3] = projPixel->origColor.f_pt[3];
-							else projPixel->pixel.ch_pt[3] = projPixel->origColor.ch_pt[3];
+							if (lock_alpha) {
+								if (is_floatbuf) {
+									/* slightly more involved case since floats are in premultiplied space we need
+									 * to make sure alpha is consistent, see T44627 */
+									float rgb_straight[4];
+									premul_to_straight_v4_v4(rgb_straight, projPixel->pixel.f_pt);
+									rgb_straight[3] = projPixel->origColor.f_pt[3];
+									straight_to_premul_v4_v4(projPixel->pixel.f_pt, rgb_straight);
+								}
+								else projPixel->pixel.ch_pt[3] = projPixel->origColor.ch_pt[3];
+							}
 						}
 
 						/* done painting */
@@ -5474,7 +5488,7 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	image = BKE_image_add_from_imbuf(ibuf);
+	image = BKE_image_add_from_imbuf(ibuf, "image_view");
 
 	/* Drop reference to ibuf so that the image owns it */
 	IMB_freeImBuf(ibuf);
@@ -5504,8 +5518,6 @@ static int texture_paint_image_from_view_exec(bContext *C, wmOperator *op)
 		array[2] = is_ortho ? 1.0f : 0.0f;
 
 		IDP_AddToGroup(idgroup, view_data);
-
-		rename_id(&image->id, "image_view");
 	}
 
 	return OPERATOR_FINISHED;

@@ -2940,20 +2940,40 @@ static void view3d_main_area_clear(Scene *scene, View3D *v3d, ARegion *ar)
 		if (glsl) {
 			RegionView3D *rv3d = ar->regiondata;
 			GPUMaterial *gpumat = GPU_material_world(scene, scene->world);
+			bool material_not_bound;
 
 			/* calculate full shader for background */
 			GPU_material_bind(gpumat, 1, 1, 1.0, false, rv3d->viewmat, rv3d->viewinv, rv3d->viewcamtexcofac, (v3d->scenelock != 0));
 			
+			material_not_bound = !GPU_material_bound(gpumat);
+
+			if (material_not_bound) {
+				glMatrixMode(GL_PROJECTION);
+				glPushMatrix();
+				glLoadIdentity();
+				glMatrixMode(GL_MODELVIEW);
+				glPushMatrix();
+				glLoadIdentity();
+				glColor4f(0.0f, 0.0f, 0.0f, 1.0f);
+			}
+
 			glEnable(GL_DEPTH_TEST);
 			glDepthFunc(GL_ALWAYS);
 			glShadeModel(GL_SMOOTH);
-			glBegin(GL_QUADS);
+			glBegin(GL_TRIANGLE_STRIP);
 			glVertex3f(-1.0, -1.0, 1.0);
 			glVertex3f(1.0, -1.0, 1.0);
-			glVertex3f(1.0, 1.0, 1.0);
 			glVertex3f(-1.0, 1.0, 1.0);
+			glVertex3f(1.0, 1.0, 1.0);
 			glEnd();
 			glShadeModel(GL_FLAT);
+
+			if (material_not_bound) {
+				glMatrixMode(GL_PROJECTION);
+				glPopMatrix();
+				glMatrixMode(GL_MODELVIEW);
+				glPopMatrix();
+			}
 
 			GPU_material_unbind(gpumat);
 			
@@ -3709,7 +3729,7 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 #endif
 
 	/* framebuffer fx needed, we need to draw offscreen first */
-	if (v3d->fx_settings.fx_flag) {
+	if (v3d->fx_settings.fx_flag && v3d->drawtype >= OB_SOLID) {
 		GPUFXSettings fx_settings;
 		BKE_screen_gpu_fx_validate(&v3d->fx_settings);
 		fx_settings = v3d->fx_settings;
@@ -3721,9 +3741,6 @@ static void view3d_main_area_draw_objects(const bContext *C, Scene *scene, View3
 		else {
 			fx_settings.dof = NULL;
 		}
-
-		if (v3d->drawtype < OB_SOLID)
-			fx_settings.ssao = NULL;
 
 		do_compositing = GPU_fx_compositor_initialize_passes(rv3d->compositor, &ar->winrct, &ar->drawrct, &fx_settings);
 	}
