@@ -149,18 +149,6 @@ static const int NAN_INT = 0x7FC00000;
 #ifdef WIN32
 #  if defined(_MSC_VER)
 #    define finite(n) _finite(n)
-#  elif defined(__MINGW64__)
-     /* finite(x) is not defined for mingw64 using C++11,
-	  * so we have to use std::isfinite(x) instead.
-	  *
-	  * But, remapping all finite(x) calls to std::isfinite(x)
-	  * is not so easy, as these headers are used in both C and C++ code.
-	  */
-     int __finite(double n);
-
-#    ifdef __cplusplus
-#      define finite(n) __finite(n)
-#    endif
 #  endif
 #endif
 

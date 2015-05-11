@@ -26,7 +26,6 @@
 #define __FREESTYLE_PYTHON_UNARYFUNCTION0D_H__
 
 extern "C" {
-#include <math.h>
 #include <Python.h>
 }
 

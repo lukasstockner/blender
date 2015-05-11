@@ -29,7 +29,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#include <math.h>
 #endif
 
 

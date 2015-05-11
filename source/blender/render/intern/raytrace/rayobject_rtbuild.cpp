@@ -42,17 +42,6 @@
 #include "BLI_math.h"
 #include "BLI_utildefines.h"
 
-
-/* XXX: MINGW COMPILE KLUDGE */
-#ifdef __MINGW64__
-#undef finite
-
-#include <cmath>
-
-#define finite(x) isfinite(x)
-using std::isfinite;
-#endif
-
 static bool selected_node(RTBuilder::Object *node)
 {
 	return node->selected;

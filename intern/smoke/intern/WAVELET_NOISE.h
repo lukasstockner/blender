@@ -49,9 +49,7 @@
 
 #ifdef WIN32
 #include <float.h>
-#ifndef __MINGW64__
-#  define isnan _isnan
-#endif
+#define isnan _isnan
 #endif
 
 // Tile file header, update revision upon any change done to the noise generator

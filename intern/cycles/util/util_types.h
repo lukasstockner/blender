@@ -500,7 +500,7 @@ template<typename T> static inline T decltype_helper(T x) { return x; }
  * ... the compiler optimizes away the temp var */
 #ifdef __GNUC__
 #define CHECK_TYPE(var, type)  {  \
-	TYPEOF(var) *__tmp;          \
+	TYPEOF(var) *__tmp;         \
 	__tmp = (type *)NULL;         \
 	(void)__tmp;                  \
 } (void)0

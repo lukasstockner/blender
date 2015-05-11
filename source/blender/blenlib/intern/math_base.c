@@ -78,14 +78,3 @@ double double_round(double x, int ndigits)
 	/* if computation resulted in overflow, raise OverflowError */
 	return z;
 }
-
-/* Hack for problems with mingw64, C++11, and finite(x) not existing */
-#if defined(WIN32) && defined(__MINGW64__)
-int __finite(double x)
-{
-	/* just a wrapper around the version that's available in C,
-	 * so that we have something our macro redef can expose to C++ code
-	 */
-	return finite(x);
-}
-#endif

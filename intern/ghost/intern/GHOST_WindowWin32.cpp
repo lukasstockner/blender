@@ -49,10 +49,6 @@
 #include <string.h>
 #include <assert.h>
 
-/* XXX: mingw64 c++11 compile fix */
-#ifndef M_PI
-#define M_PI        3.14159265358979323846
-#endif
 
 
 const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
