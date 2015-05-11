@@ -93,7 +93,7 @@ void BKE_dupli_object_data_clear(struct DupliObjectData *data);
 void BKE_dupli_object_data_set_mesh(struct DupliObjectData *data, struct DerivedMesh *dm);
 void BKE_dupli_object_data_add_strands(struct DupliObjectData *data, const char *name, struct Strands *strands);
 void BKE_dupli_object_data_add_strands_children(struct DupliObjectData *data, const char *name, struct StrandsChildren *children);
-bool BKE_dupli_object_data_find_strands(struct DupliObjectData *data, const char *name, struct Strands **r_strands, struct StrandsChildren **r_children);
+void BKE_dupli_object_data_find_strands(struct DupliObjectData *data, const char *name, struct Strands **r_strands, struct StrandsChildren **r_children);
 bool BKE_dupli_object_data_acquire_strands(struct DupliObjectData *data, struct Strands *strands);
 bool BKE_dupli_object_data_acquire_strands_children(struct DupliObjectData *data, struct StrandsChildren *children);
 

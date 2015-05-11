@@ -1463,20 +1463,19 @@ void BKE_dupli_object_data_add_strands_children(DupliObjectData *data, const cha
 	dupli_cache_calc_boundbox(data);
 }
 
-bool BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name, Strands **r_strands, StrandsChildren **r_children)
+void BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name, Strands **r_strands, StrandsChildren **r_children)
 {
 	DupliObjectDataStrands *link;
 	for (link = data->strands.first; link; link = link->next) {
 		if (STREQ(link->name, name)) {
 			if (r_strands) *r_strands = link->strands;
 			if (r_children) *r_children = link->strands_children;
-			return true;
+			return;
 		}
 	}
 	
 	if (r_strands) *r_strands = NULL;
 	if (r_children) *r_children = NULL;
-	return false;
 }
 
 bool BKE_dupli_object_data_acquire_strands(DupliObjectData *data, Strands *strands)

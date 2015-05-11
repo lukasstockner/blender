@@ -1548,7 +1548,8 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 				/* TODO(sergey): Consider sharing the data between viewport and
 				 * render engine.
 				 */
-				if (BKE_dupli_object_data_find_strands(data, psys->name, &strands, NULL)) {
+				BKE_dupli_object_data_find_strands(data, psys->name, &strands, NULL);
+				if (strands) {
 					strands = BKE_strands_copy(strands);
 				}
 			}
@@ -1558,7 +1559,8 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 			
 			memset(&data, 0, sizeof(data));
 			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
-				if (BKE_dupli_object_data_find_strands(&data, psys->name, &strands, NULL))
+				BKE_dupli_object_data_find_strands(&data, psys->name, &strands, NULL);
+				if (strands)
 					BKE_dupli_object_data_acquire_strands(&data, strands);
 			}
 			
@@ -1602,7 +1604,8 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 				/* TODO(sergey): Consider sharing the data between viewport and
 				 * render engine.
 				 */
-				if (BKE_dupli_object_data_find_strands(data, psys->name, NULL, &strands)) {
+				BKE_dupli_object_data_find_strands(data, psys->name, NULL, &strands);
+				if (strands) {
 					strands = BKE_strands_children_copy(strands);
 				}
 			}
@@ -1613,14 +1616,16 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 			memset(&data, 0, sizeof(data));
 			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
 				Strands *parents;
-				if (BKE_dupli_object_data_find_strands(&data, psys->name, &parents, &strands)) {
+				BKE_dupli_object_data_find_strands(&data, psys->name, &parents, &strands);
+				if (strands) {
 					BKE_dupli_object_data_acquire_strands_children(&data, strands);
 					
 					/* Deform child strands to follow parent motion.
 					 * Note that this is an optional feature for viewport/render display,
 					 * strand motion is not applied to raw child data in caches.
 					 */
-					BKE_strands_children_deform(strands, parents, true);
+					if (parents)
+						BKE_strands_children_deform(strands, parents, true);
 				}
 			}
 			
