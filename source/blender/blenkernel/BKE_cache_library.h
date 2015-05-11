@@ -202,6 +202,7 @@ typedef struct CacheEffector {
 	
 	struct DerivedMesh *dm;
 	struct BVHTreeFromMesh *treedata;
+	struct ForceFieldVertexCache *vertex_cache;
 	
 	float strength, falloff;
 	float mindist, maxdist;
@@ -210,6 +211,7 @@ typedef struct CacheEffector {
 
 typedef enum eCacheEffector_Type {
 	eCacheEffector_Type_Deflect           = 0,
+	eCacheEffector_Type_Drag              = 1,
 } eCacheEffector_Type;
 
 typedef struct CacheEffectorPoint {
@@ -223,6 +225,7 @@ typedef struct CacheEffectorResult {
 
 int BKE_cache_effectors_get(struct CacheEffector *effectors, int max, struct CacheLibrary *cachelib, struct DupliCache *dupcache, float obmat[4][4]);
 void BKE_cache_effectors_free(struct CacheEffector *effectors, int tot);
+void BKE_cache_effector_velocity_update(struct CacheLibrary *cachelib, struct DupliCache *dupcache, float obmat[4][4], float frame);
 int BKE_cache_effectors_eval(struct CacheEffector *effectors, int tot, struct CacheEffectorPoint *point, struct CacheEffectorResult *result);
 
 /* ========================================================================= */

@@ -217,12 +217,6 @@ typedef struct CacheLibraryBakeJob {
 	float origframelen;                     /* original frame length to reset scene after export */
 } CacheLibraryBakeJob;
 
-static void cache_library_bake_freejob(void *customdata)
-{
-	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
-	MEM_freeN(data);
-}
-
 static bool cache_library_bake_stop(CacheLibraryBakeJob *data)
 {
 	return (*data->stop) || G.is_break;
@@ -334,7 +328,34 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	BKE_dupli_cache_free(process_data.dupcache);
 }
 
-static void cache_library_bake_startjob(void *customdata, short *stop, short *do_update, float *progress)
+/* Warning! Deletes existing files if possible, operator should show confirm dialog! */
+static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
+{
+	char filename[FILE_MAX];
+	
+	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
+	
+	if (BLI_exists(filename)) {
+		if (BLI_is_dir(filename)) {
+			return false;
+		}
+		else if (BLI_is_file(filename)) {
+			if (BLI_file_is_writable(filename)) {
+				/* returns 0 on success */
+				return (BLI_delete(filename, false, false) == 0);
+			}
+			else {
+				return false;
+			}
+		}
+		else {
+			return false;
+		}
+	}
+	return true;
+}
+
+static void cache_library_bake_start(void *customdata, short *stop, short *do_update, float *progress)
 {
 	CacheLibraryBakeJob *data = (CacheLibraryBakeJob *)customdata;
 	Scene *scene = data->scene;
@@ -375,7 +396,7 @@ static void cache_library_bake_startjob(void *customdata, short *stop, short *do
 	*stop = 0;
 }
 
-static void cache_library_bake_endjob(void *customdata)
+static void cache_library_bake_end(void *customdata)
 {
 	CacheLibraryBakeJob *data = (CacheLibraryBakeJob *)customdata;
 	Scene *scene = data->scene;
@@ -394,41 +415,12 @@ static void cache_library_bake_endjob(void *customdata)
 	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 }
 
-/* Warning! Deletes existing files if possible, operator should show confirm dialog! */
-static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
-{
-	char filename[FILE_MAX];
-	
-	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
-	
-	if (BLI_exists(filename)) {
-		if (BLI_is_dir(filename)) {
-			return false;
-		}
-		else if (BLI_is_file(filename)) {
-			if (BLI_file_is_writable(filename)) {
-				/* returns 0 on success */
-				return (BLI_delete(filename, false, false) == 0);
-			}
-			else {
-				return false;
-			}
-		}
-		else {
-			return false;
-		}
-	}
-	return true;
-}
-
-static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
+static void cache_library_bake_init(CacheLibraryBakeJob *data, bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
 	CacheLibrary *cachelib = ob->cache_library;
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	CacheLibraryBakeJob *data;
-	wmJob *wm_job;
 	
 	/* make sure we can write */
 	cache_library_bake_ensure_file_target(cachelib);
@@ -440,28 +432,65 @@ static int cache_library_bake_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	BKE_spacedata_draw_locks(true);
 	
-	/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,
-	 * since we need to set G.is_rendering
-	 */
-	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), scene, "Cache Library Bake",
-	                     WM_JOB_PROGRESS | WM_JOB_EXCL_RENDER, WM_JOB_TYPE_CACHELIBRARY_BAKE);
-	
-	/* setup job */
-	data = MEM_callocN(sizeof(CacheLibraryBakeJob), "Cache Library Bake Job");
+	/* setup data */
 	data->bmain = bmain;
 	data->scene = scene;
 	data->cachelib = cachelib;
 	data->lay = ob->lay;
 	copy_m4_m4(data->mat, ob->obmat);
 	data->group = ob->dup_group;
+}
+
+static void cache_library_bake_freejob(void *customdata)
+{
+	CacheLibraryBakeJob *data= (CacheLibraryBakeJob *)customdata;
+	MEM_freeN(data);
+}
+
+static int cache_library_bake_exec(bContext *C, wmOperator *op)
+{
+	const bool use_job = RNA_boolean_get(op->ptr, "use_job");
 	
-	WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
-	WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
-	WM_jobs_callbacks(wm_job, cache_library_bake_startjob, NULL, NULL, cache_library_bake_endjob);
-	
-	WM_jobs_start(CTX_wm_manager(C), wm_job);
-	
-	return OPERATOR_FINISHED;
+	if (use_job) {
+		/* when running through invoke, run as a job */
+		CacheLibraryBakeJob *data;
+		wmJob *wm_job;
+		
+		/* XXX set WM_JOB_EXCL_RENDER to prevent conflicts with render jobs,
+		 * since we need to set G.is_rendering
+		 */
+		wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), CTX_data_scene(C), "Cache Library Bake",
+		                     WM_JOB_PROGRESS | WM_JOB_EXCL_RENDER, WM_JOB_TYPE_CACHELIBRARY_BAKE);
+		
+		/* setup data */
+		data = MEM_callocN(sizeof(CacheLibraryBakeJob), "Cache Library Bake Job");
+		cache_library_bake_init(data, C);
+		
+		WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
+		WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
+		WM_jobs_callbacks(wm_job, cache_library_bake_start, NULL, NULL, cache_library_bake_end);
+		
+		WM_jobs_start(CTX_wm_manager(C), wm_job);
+		WM_cursor_wait(0);
+		
+		/* add modal handler for ESC */
+		WM_event_add_modal_handler(C, op);
+		
+		return OPERATOR_RUNNING_MODAL;
+	}
+	else {
+		/* in direct execution mode we run this operator blocking instead of using a job */
+		CacheLibraryBakeJob data;
+		short stop = false, do_update = false;
+		float progress = 0.0f;
+		
+		cache_library_bake_init(&data, C);
+		
+		cache_library_bake_start(&data, &stop, &do_update, &progress);
+		cache_library_bake_end(&data);
+		
+		return OPERATOR_FINISHED;
+	}
 }
 
 static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
@@ -473,6 +502,9 @@ static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 	
 	if (!cachelib)
 		return OPERATOR_CANCELLED;
+	
+	/* make sure we run a job when exec is called after confirm popup */
+	RNA_boolean_set(op->ptr, "use_job", true);
 	
 	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
 	
@@ -501,12 +533,30 @@ static int cache_library_bake_invoke(bContext *C, wmOperator *op, const wmEvent 
 			return OPERATOR_CANCELLED;
 		}
 	}
-	else
+	else {
 		return cache_library_bake_exec(C, op);
+	}
+}
+
+/* catch esc */
+static int cache_library_bake_modal(bContext *C, wmOperator *UNUSED(op), const wmEvent *event)
+{
+	/* no running job, remove handler and pass through */
+	if (!WM_jobs_test(CTX_wm_manager(C), CTX_data_scene(C), WM_JOB_TYPE_CACHELIBRARY_BAKE))
+		return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
+	
+	/* running bake */
+	switch (event->type) {
+		case ESCKEY:
+			return OPERATOR_RUNNING_MODAL;
+	}
+	return OPERATOR_PASS_THROUGH;
 }
 
 void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 {
+	PropertyRNA *prop;
+	
 	/* identifiers */
 	ot->name = "Bake";
 	ot->description = "Bake cache library";
@@ -515,11 +565,19 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = cache_library_bake_invoke;
 	ot->exec = cache_library_bake_exec;
+	ot->modal = cache_library_bake_modal;
 	ot->poll = cache_library_bake_poll;
 	
 	/* flags */
 	/* no undo for this operator, cannot restore old cache files anyway */
 	ot->flag = OPTYPE_REGISTER;
+	
+	prop = RNA_def_boolean(ot->srna, "use_job", false, "Use Job", "Run operator as a job");
+	/* This is in internal property set by the invoke function.
+	 * It allows the exec function to be called from both the confirm popup
+	 * as well as a direct exec call for running a blocking operator in background mode.
+	 */
+	RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
 /* ========================================================================= */

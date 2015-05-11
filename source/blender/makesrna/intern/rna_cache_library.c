@@ -544,6 +544,12 @@ static void rna_def_cache_modifier_force_field(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
+	static EnumPropertyItem force_type_items[] = {
+	    {eForceFieldCacheModifier_Type_Deflect, "DEFLECT", ICON_FORCE_FORCE, "Deflect", "Push away from the surface"},
+	    {eForceFieldCacheModifier_Type_Drag, "DRAG", ICON_FORCE_DRAG, "Drag", "Adjust velocity to the surface"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
 	srna = RNA_def_struct(brna, "ForceFieldCacheModifier", "CacheLibraryModifier");
 	RNA_def_struct_sdna(srna, "ForceFieldCacheModifier");
 	RNA_def_struct_ui_text(srna, "Force Field Cache Modifier", "Use an object as a force field");
@@ -556,6 +562,11 @@ static void rna_def_cache_modifier_force_field(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Object", "Object whose cache to simulate");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "force_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "type");
+	RNA_def_property_enum_items(prop, force_type_items);
+	RNA_def_property_ui_text(prop, "Force Type", "Type of force field");
 	
 	prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
