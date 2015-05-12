@@ -76,7 +76,7 @@
  * memory block was allocated and print this trace for all
  * unfreed blocks.
  */
-#define DEBUG_BACKTRACE
+//#define DEBUG_BACKTRACE
 
 #ifdef DEBUG_BACKTRACE
 #  define BACKTRACE_SIZE 100

@@ -261,7 +261,7 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 	UI_but_func_tooltip_set(but, file_draw_tooltip_func, BLI_strdup(path));
 
 	if (drag) {
-		UI_but_drag_set_path(but, "" /* path */);  /* XXX TODO FIXME broken, dragpath expects a static string too... :( */
+		UI_but_drag_set_path(but, BLI_strdup(path), true);
 	}
 }
 
@@ -377,7 +377,7 @@ static void file_draw_preview(
 
 	/* dragregion */
 	if (drag) {
-		UI_but_drag_set_image(but, "" /* path */, icon, imb, scale);  /* XXX TODO FIXME broken, dragpath expects a static string too... :( */
+		UI_but_drag_set_image(but, BLI_strdup(path), true, icon, imb, scale);
 	}
 
 	glDisable(GL_BLEND);
