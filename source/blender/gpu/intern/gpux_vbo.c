@@ -616,28 +616,3 @@ unsigned GPUx_vertex_ct(const VertexBuffer *buff)
 {
 	return buff->vertex_ct;
 }
-
-
-GLuint buffer_id_alloc(void)
-{
-	GLuint id;
-	glGenBuffers(1, &id);
-	return id;
-}
-
-void buffer_id_free(GLuint buffer_id)
-{
-	glDeleteBuffers(1, &buffer_id);
-}
-
-GLuint vao_id_alloc(void)
-{
-	GLuint id;
-	glGenVertexArrays(1, &id);
-	return id;
-}
-
-void vao_id_free(GLuint vao_id)
-{
-	glDeleteVertexArrays(1, &vao_id);
-}
