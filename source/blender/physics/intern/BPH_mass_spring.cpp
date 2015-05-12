@@ -1682,7 +1682,6 @@ bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, Hai
 		}
 #endif
 		
-		step += dstep;
 	}
 	
 	/* copy results back to strand data */

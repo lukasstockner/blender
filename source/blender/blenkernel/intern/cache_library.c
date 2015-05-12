@@ -1213,6 +1213,7 @@ static void forcefield_vertex_cache_init(ForceFieldVertexCache *cache, float fra
 	MVert *mvert = dm->getVertArray(dm);
 	float dframe = frame - cache->frame_prev;
 	float inv_dframe = dframe > 0.0f ? 1.0f / dframe : 0.0f;
+	bool has_co_prev = (cache->co_prev != NULL);
 	int totvert = dm->getNumVerts(dm);
 	int i;
 	
@@ -1227,8 +1228,14 @@ static void forcefield_vertex_cache_init(ForceFieldVertexCache *cache, float fra
 		cache->vel = MEM_mallocN(sizeof(float) * 3 * totvert, "force field vertex cache vertices");
 	
 	for (i = 0; i < totvert; ++i) {
-		sub_v3_v3v3(cache->vel[i], mvert[i].co, cache->co_prev[i]);
-		mul_v3_fl(cache->vel[i], inv_dframe);
+		if (has_co_prev) {
+			sub_v3_v3v3(cache->vel[i], mvert[i].co, cache->co_prev[i]);
+			mul_v3_fl(cache->vel[i], inv_dframe);
+		}
+		else {
+			zero_v3(cache->vel[i]);
+		}
+		
 		copy_v3_v3(cache->co_prev[i], mvert[i].co);
 	}
 	cache->frame_prev = frame;
