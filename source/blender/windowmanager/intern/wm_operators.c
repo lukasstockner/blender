@@ -75,7 +75,6 @@
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
 #include "BKE_icons.h"
-#include "BKE_idcode.h"
 #include "BKE_idprop.h"
 #include "BKE_image.h"
 #include "BKE_library.h"
@@ -88,6 +87,8 @@
 #include "BKE_screen.h" /* BKE_ST_MAXNAME */
 #include "BKE_unit.h"
 #include "BKE_utildefines.h"
+
+#include "BKE_idcode.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h" /* for paint cursor */
@@ -2647,12 +2648,14 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
+
 	/* from here down, no error returns */
 
 	/* now we have or selected, or an indicated file */
 	if (RNA_boolean_get(op->ptr, "autoselect"))
 		BKE_scene_base_deselect_all(scene);
 
+	
 	flag = wm_link_append_flag(op);
 
 	/* sanity checks for flag */

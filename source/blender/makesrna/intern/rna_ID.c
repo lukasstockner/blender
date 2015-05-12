@@ -577,7 +577,6 @@ static int rna_ImagePreview_icon_id_get(PointerRNA *ptr)
 	/* Using a callback here allows us to only generate icon matching that preview when icon_id is requested. */
 	return BKE_icon_preview_ensure((PreviewImage *)(ptr->data));
 }
-
 static void rna_ImagePreview_icon_reload(PreviewImage *prv)
 {
 	/* will lazy load on next use, but only in case icon is not user-modified! */

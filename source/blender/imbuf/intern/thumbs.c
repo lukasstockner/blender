@@ -47,8 +47,6 @@
 #include "IMB_thumbs.h"
 #include "IMB_metadata.h"
 
-#include "../../editors/include/UI_interface_icons.h"
-
 #include <ctype.h>
 #include <string.h>
 #include <time.h>
