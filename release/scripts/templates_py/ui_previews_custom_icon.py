@@ -3,7 +3,7 @@
 #
 # IMPORTANT NOTE: if you run this sample, there will be no icon in the button
 # You need to replace the image path with a real existing one.
-# For distributable addons, it is recommended to place the icons inside the
+# For distributable scripts, it is recommended to place the icons inside the
 # addon folder and access it relative to the py script file for portability
 #
 #
@@ -31,7 +31,7 @@ class PreviewsExamplePanel(bpy.types.Panel):
         pcoll = preview_collections["main"]
 
         row = layout.row()
-        my_icon = pcoll.get("my_icon")
+        my_icon = pcoll["my_icon"]
         row.operator("render.render", icon_value=my_icon.icon_id)
 
         # my_icon.icon_id can be used in any UI function that accepts
@@ -56,13 +56,7 @@ def register():
     my_icons_dir = os.path.join(os.path.dirname(__file__), "icons")
 
     # load a preview thumbnail of a file and store in the previews collection
-    pcoll.load(
-        # identifier
-        "my_icon",
-        # path to image
-        os.path.join(my_icons_dir, "icon-image.png"),
-        # file type to generate preview from. others are: MOVIE, FONT, BLEND
-        'IMAGE')
+    pcoll.load("my_icon", os.path.join(my_icons_dir, "icon-image.png"), 'IMAGE')
 
     preview_collections["main"] = pcoll
 
