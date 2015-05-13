@@ -805,21 +805,25 @@ void BKE_cache_effector_velocity_update(CacheLibrary *cachelib, DupliCache *dupc
 	}
 }
 
-static float cache_effector_falloff(const CacheEffector *eff, float distance)
+static bool cache_effector_falloff(const CacheEffector *eff, float distance, float *r_factor)
 {
 	float mindist = eff->mindist;
 	float maxdist = eff->maxdist;
 	float falloff = eff->falloff;
 	float range = maxdist - mindist;
 	
-	if (range <= 0.0f)
-		return 0.0f;
+	if (r_factor) *r_factor = 0.0f;
 	
+	if (range <= 0.0f)
+		return false;
+	
+	if (distance > eff->maxdist)
+		return false;
 	CLAMP_MIN(distance, eff->mindist);
-	CLAMP_MAX(distance, eff->maxdist);
 	CLAMP_MIN(falloff, 0.0f);
 	
-	return powf(1.0f - (distance - mindist) / range, falloff);
+	if (r_factor) *r_factor = powf(1.0f - (distance - mindist) / range, falloff);
+	return true;
 }
 
 typedef struct CacheEffectorTessfaceData {
@@ -926,8 +930,9 @@ static bool cache_effector_deflect(CacheEffector *eff, CacheEffectorInstance *in
 	
 	if (!cache_effector_find_nearest(eff, inst, point, vec, NULL, &dist, &inside, NULL))
 		return false;
+	if (!cache_effector_falloff(eff, dist, &falloff))
+		return false;
 	
-	falloff = cache_effector_falloff(eff, dist);
 	mul_v3_v3fl(result->f, vec, eff->strength * falloff);
 	if (inside)
 		negate_v3(result->f);
@@ -942,8 +947,9 @@ static bool cache_effector_drag(CacheEffector *eff, CacheEffectorInstance *inst,
 	
 	if (!cache_effector_find_nearest(eff, inst, point, vec, NULL, &dist, NULL, &facedata))
 		return false;
+	if (!cache_effector_falloff(eff, dist, &falloff))
+		return false;
 	
-	falloff = cache_effector_falloff(eff, dist);
 	cache_effector_velocity(eff, inst, &facedata, vel);
 	
 	/* relative velocity */
@@ -964,7 +970,8 @@ static void cache_effector_result_add(CacheEffectorResult *result, const CacheEf
 	add_v3_v3(result->f, other->f);
 }
 
-int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoint *point, CacheEffectorResult *result)
+int BKE_cache_effectors_eval_ex(CacheEffector *effectors, int tot, CacheEffectorPoint *point, CacheEffectorResult *result,
+                                bool (*filter)(void *, CacheEffector *), void *filter_data)
 {
 	CacheEffector *eff;
 	int i, applied = 0;
@@ -978,6 +985,9 @@ int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoi
 		for (inst = eff->instances.first; inst; inst = inst->next) {
 			CacheEffectorResult inst_result;
 			cache_effector_result_init(&inst_result);
+			
+			if (filter && !filter(filter_data, eff))
+				continue;
 			
 			switch (type) {
 				case eCacheEffector_Type_Deflect:
@@ -997,6 +1007,11 @@ int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoi
 	}
 	
 	return applied;
+}
+
+int BKE_cache_effectors_eval(CacheEffector *effectors, int tot, CacheEffectorPoint *point, CacheEffectorResult *result)
+{
+	return BKE_cache_effectors_eval_ex(effectors, tot, point, result, NULL, NULL);
 }
 
 /* ========================================================================= */

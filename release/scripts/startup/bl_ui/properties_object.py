@@ -533,7 +533,9 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         row = col.row(align=True)
         row.prop(params, "goal_stiffness")
         row.prop(params, "goal_damping")
+        row = col.row(align=True)
         row.prop(params, "use_goal_stiffness_curve")
+        row.prop(params, "use_goal_deflect")
         if params.use_goal_stiffness_curve:
             sub = col.column()
             sub.template_curve_mapping(params, "goal_stiffness_curve")

@@ -459,6 +459,11 @@ static void rna_def_hair_sim_params(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Goal Stiffness Curve", "Stiffness of goal springs along the strand curves");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 	
+	prop = RNA_def_property(srna, "use_goal_deflect", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eHairSimParams_Flag_UseGoalDeflect);
+	RNA_def_property_ui_text(prop, "Use Goal Deflect", "Disable goal springs inside deflectors, to avoid unstable deformations");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
 	prop = RNA_def_property(srna, "use_bend_stiffness_curve", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", eHairSimParams_Flag_UseBendStiffnessCurve);
 	RNA_def_property_ui_text(prop, "Use Bend Stiffness Curve", "Use a curve to define bend resistance along the strand");

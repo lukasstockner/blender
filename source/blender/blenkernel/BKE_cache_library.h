@@ -228,6 +228,8 @@ int BKE_cache_effectors_get(struct CacheEffector *effectors, int max, struct Cac
 void BKE_cache_effectors_free(struct CacheEffector *effectors, int tot);
 void BKE_cache_effector_velocity_update(struct CacheLibrary *cachelib, struct DupliCache *dupcache, float obmat[4][4], float frame);
 int BKE_cache_effectors_eval(struct CacheEffector *effectors, int tot, struct CacheEffectorPoint *point, struct CacheEffectorResult *result);
+int BKE_cache_effectors_eval_ex(struct CacheEffector *effectors, int tot, struct CacheEffectorPoint *point, struct CacheEffectorResult *result,
+                                bool (*filter)(void *, struct CacheEffector *), void *filter_data);
 
 /* ========================================================================= */
 

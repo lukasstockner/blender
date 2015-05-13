@@ -170,7 +170,7 @@ typedef enum eCacheModifier_Type {
 	eCacheModifierType_HairSimulation               = 1,
 	eCacheModifierType_ForceField                   = 2,
 	eCacheModifierType_ShrinkWrap                   = 3,
-	eCacheModifierType_StrandsKey                      = 4,
+	eCacheModifierType_StrandsKey                   = 4,
 	
 	NUM_CACHE_MODIFIER_TYPES
 } eCacheModifier_Type;
@@ -195,6 +195,7 @@ typedef struct HairSimParams {
 typedef enum eHairSimParams_Flag {
 	eHairSimParams_Flag_UseGoalStiffnessCurve        = (1 << 0),
 	eHairSimParams_Flag_UseBendStiffnessCurve        = (1 << 1),
+	eHairSimParams_Flag_UseGoalDeflect               = (1 << 2),
 } eHairSimParams_Flag;
 
 typedef struct HairSimCacheModifier {

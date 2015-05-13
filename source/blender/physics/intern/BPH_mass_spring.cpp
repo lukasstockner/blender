@@ -1382,8 +1382,24 @@ static float strands_goal_stiffness(Strands *UNUSED(strands), HairSimParams *par
 	return params->goal_stiffness * weight;
 }
 
+static bool strands_test_deflector(StrandsVertex *UNUSED(vertex), int index, CacheEffector *cache_effectors, int tot_cache_effectors,
+                                   Implicit_Data *data, StrandIterator *it_strand)
+{
+	CacheEffectorPoint point;
+	point.index = index;
+	BPH_mass_spring_get_motion_state(data, index, point.x, point.v);
+	
+	CacheEffectorResult result;
+	if (BKE_cache_effectors_eval(cache_effectors, tot_cache_effectors, &point, &result) > 0) {
+		return true;
+	}
+	
+	return false;
+}
+
 /* goal forces pull vertices toward their rest position */
-static void strands_calc_vertex_goal_forces(Strands *strands, float UNUSED(space[4][4]), HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4], HairSimParams *params, CacheEffector *cache_effectors, int tot_cache_effectors,
+                                            Implicit_Data *data, StrandIterator *it_strand)
 {
 	const int goalstart = strands->totverts;
 	StrandEdgeIterator it_edge;
@@ -1398,6 +1414,11 @@ static void strands_calc_vertex_goal_forces(Strands *strands, float UNUSED(space
 		int vj = BKE_strand_edge_iter_vertex1_offset(strands, &it_edge);
 		int numroots = it_strand->index + 1; /* roots don't have goal verts, skip this many */
 		int goalj = goalstart + vj - numroots;
+		
+		if (params->flag & eHairSimParams_Flag_UseGoalDeflect) {
+			if (strands_test_deflector(it_edge.vertex1, vj, cache_effectors, tot_cache_effectors, data, it_strand))
+				continue;
+		}
 		
 		float restlen = len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
 		t += restlen;
@@ -1438,11 +1459,12 @@ static void strands_calc_vertex_goal_forces(Strands *strands, float UNUSED(space
 }
 
 /* calculates internal forces for a single strand curve */
-static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairSimParams *params, CacheEffector *cache_effectors, int tot_cache_effectors,
+                                      Implicit_Data *data, StrandIterator *it_strand)
 {
 	strands_calc_curve_stretch_forces(strands, space, params, data, it_strand);
 	strands_calc_curve_bending_forces(strands, space, params, data, it_strand);
-	strands_calc_vertex_goal_forces(strands, space, params, data, it_strand);
+	strands_calc_vertex_goal_forces(strands, space, params, cache_effectors, tot_cache_effectors, data, it_strand);
 }
 
 /* Collect forces and derivatives:  F, dFdX, dFdV */
@@ -1505,7 +1527,7 @@ static void strands_calc_force(Strands *strands, float space[4][4], HairSimParam
 	/* spring forces */
 	StrandIterator it_strand;
 	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
-		strands_calc_curve_forces(strands, space, params, data, &it_strand);
+		strands_calc_curve_forces(strands, space, params, cache_effectors, tot_cache_effectors, data, &it_strand);
 	}
 }
 
