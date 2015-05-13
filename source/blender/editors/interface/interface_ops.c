@@ -33,6 +33,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_text_types.h" /* for UI_OT_reports_to_text */
+#include "DNA_object_types.h" /* for OB_DATA_SUPPORT_ID */
 
 #include "BLI_blenlib.h"
 #include "BLI_math_color.h"
@@ -277,6 +278,14 @@ bool UI_context_copy_to_selected_list(
 	else if (RNA_struct_is_a(ptr->type, &RNA_Sequence)) {
 		*r_lb = CTX_data_collection_get(C, "selected_editable_sequences");
 	}
+	else if (RNA_struct_is_a(ptr->type, &RNA_Node)) {
+		*r_lb = CTX_data_collection_get(C, "selected_nodes");
+	}
+	else if (RNA_struct_is_a(ptr->type, &RNA_NodeSocket)) {
+		if ((*r_path = RNA_path_resolve_from_type_to_property(ptr, prop, &RNA_Node)) != NULL) {
+			*r_lb = CTX_data_collection_get(C, "selected_nodes");
+		}
+	}
 	else if (ptr->id.data) {
 		ID *id = ptr->id.data;
 
@@ -284,6 +293,48 @@ bool UI_context_copy_to_selected_list(
 			*r_lb = CTX_data_collection_get(C, "selected_editable_objects");
 			*r_use_path_from_id = true;
 			*r_path = RNA_path_from_ID_to_property(ptr, prop);
+		}
+		else if (OB_DATA_SUPPORT_ID(GS(id->name))) {
+			/* check we're using the active object */
+			const short id_code = GS(id->name);
+			ListBase lb = CTX_data_collection_get(C, "selected_editable_objects");
+			char *path = RNA_path_from_ID_to_property(ptr, prop);
+
+			/* de-duplicate obdata */
+			if (!BLI_listbase_is_empty(&lb)) {
+				CollectionPointerLink *link, *link_next;
+
+				for (link = lb.first; link; link = link->next) {
+					Object *ob = link->ptr.id.data;
+					if (ob->data) {
+						ID *id_data = ob->data;
+						id_data->flag |= LIB_DOIT;
+					}
+				}
+
+				for (link = lb.first; link; link = link_next) {
+					Object *ob = link->ptr.id.data;
+					ID *id_data = ob->data;
+					link_next = link->next;
+
+					if ((id_data == NULL) ||
+					    (id_data->flag & LIB_DOIT) == 0 ||
+					    (id_data->lib) ||
+					    (GS(id_data->name) != id_code))
+					{
+						BLI_remlink(&lb, link);
+						MEM_freeN(link);
+					}
+					else {
+						/* avoid prepending 'data' to the path */
+						RNA_id_pointer_create(id_data, &link->ptr);
+					}
+					id_data->flag &= ~LIB_DOIT;
+				}
+			}
+
+			*r_lb = lb;
+			*r_path = path;
 		}
 		else if (GS(id->name) == ID_SCE) {
 			/* Sequencer's ID is scene :/ */

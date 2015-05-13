@@ -2742,7 +2742,7 @@ static void project_paint_face_init(
 			int fidx1, fidx2; /* face edge pairs - loop throuh these ((0,1), (1,2), (2,3), (3,0)) or ((0,1), (1,2), (2,0)) for a tri */
 
 			float seam_subsection[4][2];
-			float fac1, fac2, ftot;
+			float fac1, fac2;
 
 			if (outset_uv[0][0] == FLT_MAX) /* first time initialize */
 				uv_image_outset(tf_uv_pxoffset, outset_uv, ps->seam_bleed_px, ibuf->x, ibuf->y, mf->v4 != 0, (ps->faceWindingFlags[face_index] & PROJ_FACE_WINDING_CW) == 0);
@@ -2776,17 +2776,14 @@ static void project_paint_face_init(
 				if ((face_seam_flag & (1 << fidx1)) && /* 1<<fidx1 -> PROJ_FACE_SEAM# */
 				    line_clip_rect2f(bucket_bounds, vCoSS[fidx1], vCoSS[fidx2], bucket_clip_edges[0], bucket_clip_edges[1]))
 				{
-
-					ftot = len_v2v2(vCoSS[fidx1], vCoSS[fidx2]); /* screenspace edge length */
-
-					if (ftot > 0.0f) { /* avoid div by zero */
+					if (len_squared_v2v2(vCoSS[fidx1], vCoSS[fidx2]) > FLT_EPSILON) { /* avoid div by zero */
 						if (mf->v4) {
 							if (fidx1 == 2 || fidx2 == 2) side = 1;
 							else side = 0;
 						}
 
-						fac1 = len_v2v2(vCoSS[fidx1], bucket_clip_edges[0]) / ftot;
-						fac2 = len_v2v2(vCoSS[fidx1], bucket_clip_edges[1]) / ftot;
+						fac1 = line_point_factor_v2(bucket_clip_edges[0], vCoSS[fidx1], vCoSS[fidx2]);
+						fac2 = line_point_factor_v2(bucket_clip_edges[1], vCoSS[fidx1], vCoSS[fidx2]);
 
 						interp_v2_v2v2(seam_subsection[0], tf_uv_pxoffset[fidx1], tf_uv_pxoffset[fidx2], fac1);
 						interp_v2_v2v2(seam_subsection[1], tf_uv_pxoffset[fidx1], tf_uv_pxoffset[fidx2], fac2);
@@ -2828,11 +2825,8 @@ static void project_paint_face_init(
 
 										/* Since this is a seam we need to work out where on the line this pixel is */
 										//fac = line_point_factor_v2(uv, uv_seam_quad[0], uv_seam_quad[1]);
-
-										fac = line_point_factor_v2(uv, seam_subsection[0], seam_subsection[1]);
-										if      (fac < 0.0f) { copy_v3_v3(pixelScreenCo, edge_verts_inset_clip[0]); }
-										else if (fac > 1.0f) { copy_v3_v3(pixelScreenCo, edge_verts_inset_clip[1]); }
-										else                 { interp_v3_v3v3(pixelScreenCo, edge_verts_inset_clip[0], edge_verts_inset_clip[1], fac); }
+										fac = resolve_quad_u_v2(uv, UNPACK4(seam_subsection));
+										interp_v3_v3v3(pixelScreenCo, edge_verts_inset_clip[0], edge_verts_inset_clip[1], fac);
 
 										if (!is_ortho) {
 											pixelScreenCo[3] = 1.0f;
@@ -2847,10 +2841,11 @@ static void project_paint_face_init(
 										{
 											/* Only bother calculating the weights if we intersect */
 											if (ps->do_mask_normal || ps->dm_mtface_clone) {
-#if 1
+												float uv_fac;
+#if 0
 												/* get the UV on the line since we want to copy the pixels from there for bleeding */
 												float uv_close[2];
-												float uv_fac = closest_to_line_v2(uv_close, uv, tf_uv_pxoffset[fidx1], tf_uv_pxoffset[fidx2]);
+												uv_fac = closest_to_line_v2(uv_close, uv, tf_uv_pxoffset[fidx1], tf_uv_pxoffset[fidx2]);
 												if      (uv_fac < 0.0f) copy_v2_v2(uv_close, tf_uv_pxoffset[fidx1]);
 												else if (uv_fac > 1.0f) copy_v2_v2(uv_close, tf_uv_pxoffset[fidx2]);
 
@@ -2860,7 +2855,7 @@ static void project_paint_face_init(
 												else {
 													barycentric_weights_v2(tf_uv_pxoffset[0], tf_uv_pxoffset[1], tf_uv_pxoffset[2], uv_close, w);
 												}
-#else											/* this is buggy with quads, don't use for now */
+#else
 
 												/* Cheat, we know where we are along the edge so work out the weights from that */
 												uv_fac = fac1 + (uv_fac * (fac2 - fac1));
