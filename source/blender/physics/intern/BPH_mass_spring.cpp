@@ -1413,15 +1413,19 @@ static float strands_goal_stiffness(Strands *UNUSED(strands), HairSimParams *par
 	return params->goal_stiffness * weight;
 }
 
-static bool strands_test_deflector(StrandsVertex *UNUSED(vertex), int index, CacheEffector *cache_effectors, int tot_cache_effectors,
-                                   Implicit_Data *data, StrandIterator *it_strand)
+static bool strands_deflector_filter(void *UNUSED(data), CacheEffector *eff)
+{
+	return eff->type == eCacheEffector_Type_Deflect;
+}
+
+static bool strands_test_deflector(StrandsVertex *UNUSED(vertex), int index, CacheEffector *cache_effectors, int tot_cache_effectors, Implicit_Data *data)
 {
 	CacheEffectorPoint point;
 	point.index = index;
 	BPH_mass_spring_get_motion_state(data, index, point.x, point.v);
 	
 	CacheEffectorResult result;
-	if (BKE_cache_effectors_eval(cache_effectors, tot_cache_effectors, &point, &result) > 0) {
+	if (BKE_cache_effectors_eval_ex(cache_effectors, tot_cache_effectors, &point, &result, strands_deflector_filter, NULL) > 0) {
 		return true;
 	}
 	
@@ -1429,7 +1433,7 @@ static bool strands_test_deflector(StrandsVertex *UNUSED(vertex), int index, Cac
 }
 
 /* goal forces pull vertices toward their rest position */
-static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4], HairSimParams *params, CacheEffector *cache_effectors, int tot_cache_effectors,
+static void strands_calc_vertex_goal_forces(Strands *strands, float UNUSED(space[4][4]), HairSimParams *params, CacheEffector *cache_effectors, int tot_cache_effectors,
                                             Implicit_Data *data, StrandIterator *it_strand)
 {
 	const int goalstart = strands->totverts;
@@ -1447,7 +1451,7 @@ static void strands_calc_vertex_goal_forces(Strands *strands, float space[4][4],
 		int goalj = goalstart + vj - numroots;
 		
 		if (params->flag & eHairSimParams_Flag_UseGoalDeflect) {
-			if (strands_test_deflector(it_edge.vertex1, vj, cache_effectors, tot_cache_effectors, data, it_strand))
+			if (strands_test_deflector(it_edge.vertex1, vj, cache_effectors, tot_cache_effectors, data))
 				continue;
 		}
 		
