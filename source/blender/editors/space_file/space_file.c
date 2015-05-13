@@ -277,7 +277,11 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 			}
 		}
 		BLI_strncpy(sfile->params->renameedit, sfile->params->renamefile, sizeof(sfile->params->renameedit));
-		params->renamefile[0] = '\0';
+		/* File listing is now async, do not clear renamefile if matching entry not found
+		 * and dirlist is not finished! */
+		if (idx >= 0 || filelist_is_ready(sfile->files)) {
+			params->renamefile[0] = '\0';
+		}
 	}
 
 	if (sfile->layout) {
