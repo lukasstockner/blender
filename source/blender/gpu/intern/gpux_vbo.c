@@ -4,6 +4,7 @@
 #include "GPU_extensions.h"
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
+#include <stdlib.h>
 #include <string.h>
 
 #ifdef PRINT
@@ -169,7 +170,7 @@ void GPUx_vertex_buffer_discard(VertexBuffer *buff)
 			buffer_id_free(a->vbo_id);
 #endif /* USE_VBO */
 #ifdef GENERIC_ATTRIB
-		MEM_freeN(a->name);
+		free(a->name);
 #endif /* GENERIC_ATTRIB */
 		if (a->data)
 			MEM_freeN(a->data);
