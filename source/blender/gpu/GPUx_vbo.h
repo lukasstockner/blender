@@ -62,17 +62,13 @@ void GPUx_fill_attrib(VertexBuffer*, unsigned attrib_num, const void *data);
 void GPUx_fill_attrib_stride(VertexBuffer*, unsigned attrib_num, const void *data, unsigned stride);
 
 /* call before drawing to make this vertex buffer part of current OpenGL state */
-void GPUx_vertex_buffer_use(VertexBuffer*);
+void GPUx_vertex_buffer_use(const VertexBuffer*);
 /* call after drawing */
 void GPUx_vertex_buffer_done_using(const VertexBuffer*);
 
-/* alternative to vertex_buffer_use:
- * prime does all the setup (create VBOs, send to GPU, etc.) so use_primed doesn't have to */
+/* prime does all the setup (create VBOs, send to GPU, etc.)
+ * call sequence: prime, use {draw} done_using, use {draw} done_using ...
+ * TODO: wiki page about this */
 void GPUx_vertex_buffer_prime(VertexBuffer*);
-void GPUx_vertex_buffer_use_primed(const VertexBuffer*);
-/* prime, use_primed, done_using, use_primed, done_using ...
- * use, done_using, use, done_using ... (first use auto-primes)
- * 'use' modifies VAO and VBO IDs on first run, so is non-const (no 'mutable' in C)
- * this was primary motivation for splitting into two functions */
 
 #endif /* BLENDER_GL_VERTEX_BUFFER */

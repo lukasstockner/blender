@@ -373,89 +373,6 @@ void GPUx_fill_attrib_stride(VertexBuffer *buff, unsigned attrib_num, const void
 	}
 }
 
-void GPUx_vertex_buffer_use(VertexBuffer *buff)
-{
-	unsigned a_idx;
-	const void *data;
-#ifdef USE_VAO
-	if (buff->vao_id) {
-		/* simply bind & exit */
-		glBindVertexArray(buff->vao_id);
-		return;
-	}
-	else {
-		buff->vao_id = vao_id_alloc();
-		glBindVertexArray(buff->vao_id);
-	}
-#endif /* USE_VAO */
-
-	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
-		Attrib *a = buff->attribs + a_idx;
-
-#ifdef GENERIC_ATTRIB
-		glEnableVertexAttribArray(a_idx);
-#else
-		glEnableClientState(a->array);
-#endif /* GENERIC_ATTRIB */
-
-#ifdef USE_VBO
-		if (a->vbo_id)
-			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
-		else {
-			a->vbo_id = buffer_id_alloc();
-			glBindBuffer(GL_ARRAY_BUFFER, a->vbo_id);
-			/* fill with delicious data & send to GPU the first time only */
-			glBufferData(GL_ARRAY_BUFFER, attrib_total_size(buff, a_idx), a->data, GL_STATIC_DRAW);
-  #ifdef KEEP_SINGLE_COPY
-			/* now that GL has a copy, discard original */
-			MEM_freeN(a->data);
-			a->data = NULL;
-  #endif /* KEEP_SINGLE_COPY */
-		}
-
-		data = 0;
-#else /* client vertex array */
-		data = a->data;
-#endif /* USE_VBO */
-
-#ifdef GENERIC_ATTRIB
-		switch (a->fetch_mode) {
-			case KEEP_FLOAT:
-			case CONVERT_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_FALSE, a->stride, data);
-				break;
-			case NORMALIZE_INT_TO_FLOAT:
-				glVertexAttribPointer(a_idx, a->comp_ct, a->comp_type, GL_TRUE, a->stride, data);
-				break;
-			case KEEP_INT:
-				glVertexAttribIPointerEXT(a_idx, a->comp_ct, a->comp_type, a->stride, data);
-		}
-#else /* classic (non-generic) attributes */
-		switch (a->array) {
-			case GL_VERTEX_ARRAY:
-				glVertexPointer(a->comp_ct, a->comp_type, a->stride, data);
-				break;
-			case GL_NORMAL_ARRAY:
-				glNormalPointer(a->comp_type, a->stride, data);
-				break;
-			case GL_COLOR_ARRAY:
-				glColorPointer(a->comp_ct, a->comp_type, a->stride, data);
-				break;
-			case GL_TEXTURE_COORD_ARRAY:
-				glTexCoordPointer(a->comp_ct, a->comp_type, a->stride, data);
-				/* TODO: transition to glMultiTexCoordPointer? */
-				break;
-			default:
-				;
-		}
-#endif /* GENERIC_ATTRIB */
-	}
-
-#ifdef USE_VBO
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-#endif /* USE_VBO */
-}
-
 void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 {
 	unsigned a_idx;
@@ -538,7 +455,7 @@ void GPUx_vertex_buffer_prime(VertexBuffer *buff)
 #endif /* USE_VAO */
 }
 
-void GPUx_vertex_buffer_use_primed(const VertexBuffer *buff)
+void GPUx_vertex_buffer_use(const VertexBuffer *buff)
 {
 #ifdef USE_VAO
   #ifdef TRUST_NO_ONE

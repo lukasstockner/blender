@@ -28,10 +28,10 @@ void GPUx_draw_points(const VertexBuffer *vbo, const ElementList *el, const Poin
 #endif /* TRUST_NO_ONE */
 
 #ifdef REALLY_DRAW
-	GPUx_vertex_buffer_use_primed(vbo);
+	GPUx_vertex_buffer_use(vbo);
 
 	if (el) {
-		GPUx_element_list_use_primed(el);
+		GPUx_element_list_use(el);
 		glDrawRangeElements(GL_POINTS, min_index(el), max_index(el), el->prim_ct, el->index_type, index_ptr(el));
 		GPUx_element_list_done_using(el);
 	}
@@ -55,10 +55,10 @@ void GPUx_draw_lines(const VertexBuffer *vbo, const ElementList *el, const LineD
 #endif /* TRUST_NO_ONE */
 
 #ifdef REALLY_DRAW
-	GPUx_vertex_buffer_use_primed(vbo);
+	GPUx_vertex_buffer_use(vbo);
 
 	if (el) {
-		GPUx_element_list_use_primed(el);
+		GPUx_element_list_use(el);
 		glDrawRangeElements(GL_LINES, min_index(el), max_index(el), el->prim_ct * 2, el->index_type, index_ptr(el));
 		GPUx_element_list_done_using(el);
 	}
@@ -82,10 +82,10 @@ void GPUx_draw_triangles(const VertexBuffer *vbo, const ElementList *el, const P
 #endif /* TRUST_NO_ONE */
 
 #ifdef REALLY_DRAW
-	GPUx_vertex_buffer_use_primed(vbo);
+	GPUx_vertex_buffer_use(vbo);
 
 	if (el) {
-		GPUx_element_list_use_primed(el);
+		GPUx_element_list_use(el);
 		glDrawRangeElements(GL_TRIANGLES, min_index(el), max_index(el), el->prim_ct * 3, el->index_type, index_ptr(el));
 		GPUx_element_list_done_using(el);
 	}
@@ -128,8 +128,8 @@ void GPUx_draw_primitives(const VertexBuffer *vbo, const ElementList *el, const 
 	GPUx_set_common_state(common_state);
 
 #ifdef REALLY_DRAW
-	GPUx_vertex_buffer_use_primed(vbo);
-	GPUx_element_list_use_primed(el);
+	GPUx_vertex_buffer_use(vbo);
+	GPUx_element_list_use(el);
 
 	glDrawRangeElements(el->prim_type, min_index(el), max_index(el), el->prim_ct * vert_per_prim, el->index_type, index_ptr(el));
 
@@ -197,10 +197,10 @@ void GPUx_draw_batch(const GPUxBatch *batch)
 	GPUx_set_common_state(&batch->state.common);
 
 #ifdef REALLY_DRAW
-	GPUx_vertex_buffer_use_primed(batch->buff);
+	GPUx_vertex_buffer_use(batch->buff);
 
 	if (batch->elem) {
-		GPUx_element_list_use_primed(batch->elem);
+		GPUx_element_list_use(batch->elem);
 		glDrawRangeElements(batch->prim_type, min_index(batch->elem), max_index(batch->elem),
 		                    batch->elem->prim_ct * vert_per_prim, batch->elem->index_type, index_ptr(batch->elem));
 		GPUx_element_list_done_using(batch->elem);

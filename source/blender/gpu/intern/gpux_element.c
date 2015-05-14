@@ -269,7 +269,7 @@ void GPUx_element_list_prime(ElementList *el)
 #endif /* USE_ELEM_VBO */
 }
 
-void GPUx_element_list_use_primed(const ElementList *el)
+void GPUx_element_list_use(const ElementList *el)
 {
 #ifdef USE_ELEM_VBO
   #ifdef TRUST_NO_ONE
