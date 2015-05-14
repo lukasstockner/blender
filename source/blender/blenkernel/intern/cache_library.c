@@ -955,7 +955,7 @@ static bool cache_effector_drag(CacheEffector *eff, CacheEffectorInstance *inst,
 	/* relative velocity */
 	sub_v3_v3v3(vel, point->v, vel);
 	
-	mul_v3_v3fl(result->f, vel, eff->strength * falloff);
+	mul_v3_v3fl(result->f, vel, -eff->strength * falloff);
 	
 	return true;
 }
