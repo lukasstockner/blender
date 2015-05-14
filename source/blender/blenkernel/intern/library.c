@@ -118,6 +118,8 @@
 #include "BKE_texture.h"
 #include "BKE_world.h"
 
+#include "DEG_depsgraph.h"
+
 #include "RNA_access.h"
 
 #ifdef WITH_PYTHON
@@ -1097,8 +1099,7 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 Main *BKE_main_new(void)
 {
 	Main *bmain = MEM_callocN(sizeof(Main), "new main");
-	bmain->eval_ctx = MEM_callocN(sizeof(EvaluationContext),
-	                              "EvaluationContext");
+	bmain->eval_ctx = DEG_evaluation_context_new(DAG_EVAL_VIEWPORT);
 	bmain->lock = MEM_mallocN(sizeof(SpinLock), "main lock");
 	BLI_spin_init((SpinLock *)bmain->lock);
 	return bmain;
@@ -1165,7 +1166,7 @@ void BKE_main_free(Main *mainvar)
 
 	BLI_spin_end((SpinLock *)mainvar->lock);
 	MEM_freeN(mainvar->lock);
-	MEM_freeN(mainvar->eval_ctx);
+	DEG_evaluation_context_free(mainvar->eval_ctx);
 	MEM_freeN(mainvar);
 }
 

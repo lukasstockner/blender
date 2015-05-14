@@ -15,6 +15,7 @@
  */
 
 #include "background.h"
+#include "camera.h"
 #include "device.h"
 #include "graph.h"
 #include "light.h"
@@ -477,6 +478,25 @@ void ShaderManager::add_default(Scene *scene)
 		shader->graph = graph;
 		scene->shaders.push_back(shader);
 		scene->default_empty = scene->shaders.size() - 1;
+	}
+}
+
+void ShaderManager::get_requested_features(Scene *scene, int& max_group, int& features)
+{
+	max_group = NODE_GROUP_LEVEL_0;
+	features = 0;
+	for(int i = 0; i < scene->shaders.size(); i++) {
+		Shader *shader = scene->shaders[i];
+		foreach(ShaderNode *node, shader->graph->nodes) {
+			max_group = min(max_group, node->get_group());
+			features |= node->get_feature();
+			if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
+				BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
+				if(CLOSURE_IS_VOLUME(bsdf_node->closure)) {
+					features |= NODE_FEATURE_VOLUME;
+				}
+			}
+		}
 	}
 }
 

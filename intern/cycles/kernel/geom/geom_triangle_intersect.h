@@ -326,7 +326,7 @@ ccl_device_inline float3 triangle_refine(KernelGlobals *kg,
 			return P;
 		}
 #ifdef __OBJECT_MOTION__
-		Transform tfm = sd->ob_itfm;
+		Transform tfm = ccl_fetch(sd, ob_itfm);
 #else
 		Transform tfm = object_fetch_transform(kg, isect->object, OBJECT_INVERSE_TRANSFORM);
 #endif
@@ -362,7 +362,7 @@ ccl_device_inline float3 triangle_refine(KernelGlobals *kg,
 
 	if(isect->object != OBJECT_NONE) {
 #ifdef __OBJECT_MOTION__
-		Transform tfm = sd->ob_tfm;
+		Transform tfm = ccl_fetch(sd, ob_tfm);
 #else
 		Transform tfm = object_fetch_transform(kg, isect->object, OBJECT_TRANSFORM);
 #endif
@@ -391,7 +391,7 @@ ccl_device_inline float3 triangle_refine_subsurface(KernelGlobals *kg,
 #ifdef __INTERSECTION_REFINE__
 	if(isect->object != OBJECT_NONE) {
 #ifdef __OBJECT_MOTION__
-		Transform tfm = sd->ob_itfm;
+		Transform tfm = ccl_fetch(sd, ob_itfm);
 #else
 		Transform tfm = object_fetch_transform(kg,
 		                                       isect->object,
@@ -429,7 +429,7 @@ ccl_device_inline float3 triangle_refine_subsurface(KernelGlobals *kg,
 
 	if(isect->object != OBJECT_NONE) {
 #ifdef __OBJECT_MOTION__
-		Transform tfm = sd->ob_tfm;
+		Transform tfm = ccl_fetch(sd, ob_tfm);
 #else
 		Transform tfm = object_fetch_transform(kg,
 		                                       isect->object,

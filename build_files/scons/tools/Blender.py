@@ -393,6 +393,7 @@ def creator(env):
     incs = ['#/intern/guardedalloc',
             '#/source/blender/blenlib',
             '#/source/blender/blenkernel',
+            '#/source/blender/depsgraph',
             '#/source/blender/editors/include',
             '#/source/blender/blenloader',
             '#/source/blender/imbuf',
