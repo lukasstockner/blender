@@ -446,9 +446,6 @@ static GPUBuffer *gpu_try_realloc(GPUBufferPool *pool, GPUBuffer *buffer, int si
 	return buffer;
 }
 
-typedef void (*GPUBufferCopyFunc)(DerivedMesh *dm, float *varray, int *index,
-                                  int *mat_orig_to_new, void *user_data);
-
 static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
                                    int type, void *user)
 {
