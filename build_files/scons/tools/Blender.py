@@ -395,6 +395,7 @@ def creator(env):
             '#/source/blender/blenkernel',
             '#/source/blender/editors/include',
             '#/source/blender/blenloader',
+            '#/source/blender/depsgraph',
             '#/source/blender/imbuf',
             '#/source/blender/renderconverter',
             '#/source/blender/render/extern/include',

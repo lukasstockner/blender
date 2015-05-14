@@ -35,6 +35,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_modifier_types.h"
+#include "DNA_space_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
@@ -60,6 +61,7 @@
 #include "BKE_library.h"
 #include "BKE_object.h"
 #include "BKE_material.h"
+#include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_texture.h"
 #include "BKE_scene.h"
@@ -887,11 +889,12 @@ static int rna_Main_cachelibraries_is_updated_get(PointerRNA *ptr) { return DAG_
 
 #else
 
-void RNA_api_main(StructRNA *srna)
+void RNA_api_main(StructRNA *UNUSED(srna))
 {
 #if 0
 	FunctionRNA *func;
 	PropertyRNA *parm;
+
 	/* maybe we want to add functions in 'bpy.data' still?
 	 * for now they are all in collections bpy.data.images.new(...) */
 	func = RNA_def_function(srna, "add_image", "rna_Main_add_image");
@@ -900,8 +903,6 @@ void RNA_api_main(StructRNA *srna)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "image", "Image", "", "New image");
 	RNA_def_function_return(func, parm);
-#else
-	(void)srna;
 #endif
 }
 

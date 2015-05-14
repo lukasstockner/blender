@@ -46,6 +46,7 @@ set(DEFSRC
 	rna_context.c
 	rna_controller.c
 	rna_curve.c
+	rna_depsgraph.c
 	rna_dynamicpaint.c
 	rna_fcurve.c
 	rna_fluidsim.c
@@ -310,6 +311,7 @@ blender_include_dirs(
 	../../blenlib
 	../../bmesh
 	../../blenfont
+	../../depsgraph
 	../../gpu
 	../../imbuf
 	../../ikplugin
