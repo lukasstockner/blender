@@ -1038,7 +1038,7 @@ void DepsgraphRelationBuilder::build_particles(Scene *scene, Object *ob)
 #endif
 
 		/* effectors */
-		ListBase *effectors = pdInitEffectors(scene, ob, psys, part->effector_weights);
+		ListBase *effectors = pdInitEffectors_ex(scene, ob, psys, ob->lay, part->effector_weights, false);
 
 		if (effectors) {
 			for (EffectorCache *eff = (EffectorCache *)effectors->first; eff; eff = eff->next) {
