@@ -40,6 +40,12 @@ void GPUx_specify_attrib(VertexBuffer*, unsigned attrib_num,
 #endif
                     GLenum comp_type, unsigned comp_ct, VertexFetchMode);
 
+#ifdef GENERIC_ATTRIB
+/* binds all our named attributes to internally-used GL indices
+ * call this before linking the program */
+void GPUx_bind_attrib_locations(const VertexBuffer*, GLuint program);
+#endif
+
 /* set value of single attribute of single vertex
  * incoming data must be of same type & size for this attribute */
 void GPUx_set_attrib(VertexBuffer*, unsigned attrib_num, unsigned vertex_num, const void *data);

@@ -285,6 +285,20 @@ void GPUx_specify_attrib(VertexBuffer *buff, unsigned attrib_num,
 #endif /* PRINT */
 }
 
+#ifdef GENERIC_ATTRIB
+void GPUx_bind_attrib_locations(const VertexBuffer *buff, GLuint program)
+{
+	unsigned a_idx;
+  #ifdef TRUST_NO_ONE
+	BLI_assert(glIsProgram(program));
+  #endif
+	for (a_idx = 0; a_idx < buff->attrib_ct; ++a_idx) {
+		const Attrib *a = buff->attribs + a_idx;
+		glBindAttribLocation(program, a_idx, a->name);
+	}
+}
+#endif /* GENERIC_ATTRIB */
+
 void GPUx_set_attrib(VertexBuffer *buff, unsigned attrib_num, unsigned vertex_num, const void *data)
 {
 	Attrib *attrib = buff->attribs + attrib_num;
