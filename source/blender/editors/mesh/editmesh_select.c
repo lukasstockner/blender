@@ -1454,7 +1454,7 @@ static int edbm_loop_multiselect_exec(bContext *C, wmOperator *op)
 	else {
 		for (edindex = 0; edindex < totedgesel; edindex += 1) {
 			eed = edarray[edindex];
-			walker_select(em, BMW_LOOP, eed, true);
+			walker_select(em, BMW_EDGELOOP, eed, true);
 		}
 		EDBM_selectmode_flush(em);
 	}
@@ -1512,12 +1512,12 @@ static void mouse_mesh_loop_edge(BMEditMesh *em, BMEdge *eed, bool select, bool 
 {
 	bool edge_boundary = false;
 
-	/* cycle between BMW_LOOP / BMW_EDGEBOUNDARY  */
+	/* cycle between BMW_EDGELOOP / BMW_EDGEBOUNDARY  */
 	if (select_cycle && BM_edge_is_boundary(eed)) {
 		int tot[2];
 
 		/* if the loops selected toggle the boundaries */
-		walker_select_count(em, BMW_LOOP, eed, select, false,
+		walker_select_count(em, BMW_EDGELOOP, eed, select, false,
 		                    &tot[0], &tot[1]);
 		if (tot[select] == 0) {
 			edge_boundary = true;
@@ -1539,7 +1539,7 @@ static void mouse_mesh_loop_edge(BMEditMesh *em, BMEdge *eed, bool select, bool 
 		walker_select(em, BMW_EDGEBOUNDARY, eed, select);
 	}
 	else {
-		walker_select(em, BMW_LOOP, eed, select);
+		walker_select(em, BMW_EDGELOOP, eed, select);
 	}
 }
 
@@ -2353,7 +2353,6 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	BMesh *bm = em->bm;
 	BMIter iter;
-	BMEdge *e;
 	BMWalker walker;
 
 	int limit;
@@ -2362,19 +2361,114 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 
 	limit = RNA_boolean_get(op->ptr, "limit");
 
-	if (em->selectmode == SCE_SELECT_FACE) {
-		BMFace *efa;
+	if (limit) {
+		BMEdge *e;
+		/* grr, shouldn't need to alloc BMO flags here */
+		BM_mesh_elem_toolflags_ensure(bm);
+		if (em->selectmode ==  SCE_SELECT_FACE) {
+			BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+				const bool is_walk_ok = (
+				        BM_elem_flag_test(e, BM_ELEM_SEAM) == 0);
 
-		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-			BM_elem_flag_set(efa, BM_ELEM_TAG, BM_elem_flag_test(efa, BM_ELEM_SELECT));
+				BMO_elem_flag_set(bm, e, BMO_ELE_TAG, is_walk_ok);
+			}
+		}
+		else {
+			/* don't delimit selected edges in vert/edge mode */
+			BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+				const bool is_walk_ok = (
+				        BM_elem_flag_test(e, BM_ELEM_SEAM) == 0 ||
+				        BM_elem_flag_test(e, BM_ELEM_SELECT));
+
+				BMO_elem_flag_set(bm, e, BMO_ELE_TAG, is_walk_ok);
+			}
+		}
+	}
+
+	if (em->selectmode & SCE_SELECT_VERTEX) {
+		BMVert *v;
+
+		BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+			BM_elem_flag_set(v, BM_ELEM_TAG, BM_elem_flag_test(v, BM_ELEM_SELECT));
 		}
 
+		BMW_init(&walker, em->bm, limit ? BMW_LOOP_SHELL : BMW_VERT_SHELL,
+		         BMW_MASK_NOP, limit ? BMO_ELE_TAG : BMW_MASK_NOP, BMW_MASK_NOP,
+		         BMW_FLAG_TEST_HIDDEN,
+		         BMW_NIL_LAY);
+
 		if (limit) {
-			/* grr, shouldn't need to alloc BMO flags here */
-			BM_mesh_elem_toolflags_ensure(bm);
-			BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-				BMO_elem_flag_set(bm, e, BMO_ELE_TAG, !BM_elem_flag_test(e, BM_ELEM_SEAM));
+			BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+				if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
+					BMLoop *l_walk;
+					BMW_ITER (l_walk, &walker, v) {
+						BM_vert_select_set(em->bm, l_walk->v, true);
+						BM_elem_flag_disable(l_walk->v, BM_ELEM_TAG);
+					}
+				}
 			}
+		}
+		else {
+			BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+				if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
+					BMEdge *e_walk;
+					BMW_ITER (e_walk, &walker, v) {
+						BM_edge_select_set(em->bm, e_walk, true);
+						BM_elem_flag_disable(e_walk, BM_ELEM_TAG);
+					}
+				}
+			}
+		}
+
+		BMW_end(&walker);
+
+		EDBM_selectmode_flush(em);
+	}
+	else if (em->selectmode & SCE_SELECT_EDGE) {
+		BMEdge *e;
+
+		BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+			BM_elem_flag_set(e, BM_ELEM_TAG, BM_elem_flag_test(e, BM_ELEM_SELECT));
+		}
+
+		BMW_init(&walker, em->bm, limit ? BMW_LOOP_SHELL : BMW_VERT_SHELL,
+		         BMW_MASK_NOP, limit ? BMO_ELE_TAG : BMW_MASK_NOP, BMW_MASK_NOP,
+		         BMW_FLAG_TEST_HIDDEN,
+		         BMW_NIL_LAY);
+
+		if (limit) {
+			BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+				if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
+					BMLoop *l_walk;
+					BMW_ITER (l_walk, &walker, e) {
+						BM_edge_select_set(em->bm, l_walk->e, true);
+						BM_edge_select_set(em->bm, l_walk->prev->e, true);
+						BM_elem_flag_disable(l_walk->e, BM_ELEM_TAG);
+					}
+				}
+			}
+		}
+		else {
+			BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+				if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
+					BMEdge *e_walk;
+					BMW_ITER (e_walk, &walker, e) {
+						BM_edge_select_set(em->bm, e_walk, true);
+						BM_elem_flag_disable(e_walk, BM_ELEM_TAG);
+					}
+				}
+			}
+		}
+
+		BMW_end(&walker);
+
+		EDBM_selectmode_flush(em);
+	}
+	else {
+		BMFace *f;
+
+		BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+			BM_elem_flag_set(f, BM_ELEM_TAG, BM_elem_flag_test(f, BM_ELEM_SELECT));
 		}
 
 		BMW_init(&walker, bm, BMW_ISLAND,
@@ -2382,43 +2476,21 @@ static int edbm_select_linked_exec(bContext *C, wmOperator *op)
 		         BMW_FLAG_TEST_HIDDEN,
 		         BMW_NIL_LAY);
 
-		BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
-			if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
-				for (efa = BMW_begin(&walker, efa); efa; efa = BMW_step(&walker)) {
-					BM_face_select_set(bm, efa, true);
-					BM_elem_flag_disable(efa, BM_ELEM_TAG);
+		BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+			if (BM_elem_flag_test(f, BM_ELEM_TAG)) {
+				BMFace *f_walk;
+				BMW_ITER (f_walk, &walker, f) {
+					BM_face_select_set(bm, f_walk, true);
+					BM_elem_flag_disable(f_walk, BM_ELEM_TAG);
 				}
 			}
 		}
-		BMW_end(&walker);
 
-		if (limit) {
-			BM_mesh_elem_toolflags_clear(bm);
-		}
+		BMW_end(&walker);
 	}
-	else {
-		BMVert *v;
 
-		BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
-			BM_elem_flag_set(v, BM_ELEM_TAG, BM_elem_flag_test(v, BM_ELEM_SELECT));
-		}
-
-		BMW_init(&walker, em->bm, BMW_VERT_SHELL,
-		         BMW_MASK_NOP, BMW_MASK_NOP, BMW_MASK_NOP,
-		         BMW_FLAG_TEST_HIDDEN,
-		         BMW_NIL_LAY);
-
-		BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
-			if (BM_elem_flag_test(v, BM_ELEM_TAG)) {
-				for (e = BMW_begin(&walker, v); e; e = BMW_step(&walker)) {
-					BM_edge_select_set(em->bm, e, true);
-					BM_elem_flag_disable(e, BM_ELEM_TAG);
-				}
-			}
-		}
-		BMW_end(&walker);
-
-		EDBM_selectmode_flush(em);
+	if (limit) {
+		BM_mesh_elem_toolflags_clear(bm);
 	}
 
 	WM_event_add_notifier(C, NC_GEOM | ND_SELECT, obedit);

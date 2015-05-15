@@ -84,7 +84,7 @@ CCL_NAMESPACE_BEGIN
 #define __VOLUME_SCATTER__
 
 /* Experimental on GPU */
-#ifdef __KERNEL_CUDA_EXPERIMENTAL__
+#ifdef __KERNEL_EXPERIMENTAL__
 #define __SUBSURFACE__
 #define __CMJ__
 #endif
@@ -110,6 +110,10 @@ CCL_NAMESPACE_BEGIN
 #    define __LAMP_MIS__
 #    define __AO__
 #    define __HAIR__
+#    define __CAMERA_MOTION__
+#  endif
+#  ifdef __KERNEL_EXPERIMENTAL__
+#    define __CMJ__
 #  endif
 #endif
 
@@ -135,21 +139,11 @@ CCL_NAMESPACE_BEGIN
 #endif
 
 #ifdef __KERNEL_OPENCL_INTEL_CPU__
-#define __CL_USE_NATIVE__
-#define __KERNEL_SHADING__
-/* TODO(sergey): Advanced shading code still requires work
- * for split kernel.
- */
-#  ifndef __SPLIT_KERNEL__
-#    define __KERNEL_ADV_SHADING__
-#  else
-#    define __MULTI_CLOSURE__
-#    define __TRANSPARENT_SHADOWS__
-#    define __PASSES__
-#    define __BACKGROUND_MIS__
-#    define __LAMP_MIS__
-#    define __AO__
-#    define __HAIR__
+#  define __CL_USE_NATIVE__
+#  define __KERNEL_SHADING__
+#  define __KERNEL_ADV_SHADING__
+#  ifdef __KERNEL_EXPERIMENTAL__
+#    define __CMJ__
 #  endif
 #endif
 
@@ -473,7 +467,7 @@ typedef struct differential {
 
 typedef struct Ray {
 /* TODO(sergey): This is only needed because current AMD
- * compilet has hard time bulding the kernel with this
+ * compiler has hard time building the kernel with this
  * reshuffle. And at the same time reshuffle will cause
  * less optimal CPU code in certain places.
  *
