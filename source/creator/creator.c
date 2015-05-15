@@ -1719,6 +1719,9 @@ int main(
 	BKE_brush_system_init();
 	RE_init_texture_rng();
 	
+	/* Initialize ffmpeg if built in, also needed for bg mode if videos are
+	 * rendered via ffmpeg */
+	BKE_sound_init_once();
 
 	BLI_callback_global_init();
 
@@ -1779,10 +1782,6 @@ int main(
 	/* background render uses this font too */
 	BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
 
-	/* Initialize ffmpeg if built in, also needed for bg mode if videos are
-	 * rendered via ffmpeg */
-	BKE_sound_init_once();
-	
 	init_def_material();
 
 	if (G.background == 0) {

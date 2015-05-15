@@ -71,6 +71,10 @@
 
 #include "WM_api.h"  /* only for WM_main_playanim */
 
+#ifdef WITH_AUDASPACE
+#include "AUD_C-API.h"
+#endif
+
 struct PlayState;
 static void playanim_window_zoom(struct PlayState *ps, const float zoom_offset);
 
@@ -902,6 +906,21 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	
 	PlayState ps = {0};
 
+#ifdef WITH_AUDASPACE
+	AUD_Sound *source;
+	AUD_Handle *playback_handle;
+	AUD_DeviceSpecs specs;
+	float volume = 1.0f;
+
+	specs.rate = AUD_RATE_44100;
+	specs.format = AUD_FORMAT_S16;
+	specs.channels = AUD_CHANNELS_STEREO;
+
+	if (!AUD_init(AUD_OPENAL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE))
+		AUD_init(AUD_NULL_DEVICE, specs, AUD_DEFAULT_BUFFER_SIZE);
+
+#endif
+
 	/* ps.doubleb   = true;*/ /* UNUSED */
 	ps.go        = true;
 	ps.direction = true;
@@ -1071,6 +1090,11 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	}
 
 	build_pict_list(&ps, filepath, (efra - sfra) + 1, ps.fstep, ps.fontid);
+
+#ifdef WITH_AUDASPACE
+	source = AUD_load(filepath);
+	playback_handle = AUD_play(source, 1);
+#endif
 
 	for (i = 2; i < argc; i++) {
 		BLI_strncpy(filepath, argv[i], sizeof(filepath));
@@ -1283,6 +1307,12 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 		return filepath;
 	}
 	
+#ifdef WITH_AUDASPACE
+	AUD_stop(playback_handle);
+	AUD_unload(source);
+	AUD_exit();
+#endif
+
 	IMB_exit();
 	BKE_images_exit();
 	DAG_exit();
