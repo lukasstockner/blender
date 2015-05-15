@@ -364,8 +364,9 @@ static void hair_children_create_sample(Object *ob, ParticleSystem *psys, Partic
 				
 				for (k = 0; k < numkeys; ++k) {
 					ParticleCacheKey *key = &keys[k];
-					float co[3];
+					
 					/* pathcache keys are in world space, transform to hair root space */
+					float co[3];
 					mul_v3_m4v3(co, imat, key->co);
 					
 					sample.positions.push_back(V3f(co[0], co[1], co[2]));
@@ -527,14 +528,12 @@ static void hair_create_sample(Object *ob, DerivedMesh *dm, ParticleSystem *psys
 		
 		for (k = 0; k < numverts; ++k) {
 			HairKey *key = &pa->hair[k];
-			float hairmat[4][4];
-			float co[3];
 			
 			/* hair keys are in "hair space" relative to the mesh,
 			 * store them in object space for compatibility and to avoid
 			 * complexities of how particles work.
 			 */
-			psys_mat_hair_to_object(ob, dm, psys->part->from, pa, hairmat);
+			float co[3];
 			mul_v3_m4v3(co, hairmat, key->co);
 			
 			sample.positions.push_back(V3f(co[0], co[1], co[2]));
