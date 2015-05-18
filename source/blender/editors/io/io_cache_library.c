@@ -289,6 +289,8 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 		
 		const bool init_strands = (frame == start_frame);
 		
+		printf("Bake Cache '%s' | Frame %d\n", data->group->id.name+2, frame);
+		
 		/* XXX Ugly, but necessary to avoid particle caching of paths when not needed.
 		 * This takes a lot of time, but is only needed in the first frame.
 		 */
