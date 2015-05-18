@@ -36,8 +36,6 @@ extern "C" {
 #include "DNA_ID.h"
 }
 
-struct Scene;
-
 namespace PTC {
 
 using namespace Alembic;
@@ -46,11 +44,12 @@ class AbcWriterArchive : public WriterArchive, public FrameMapper {
 public:
 	virtual ~AbcWriterArchive();
 	
-	static AbcWriterArchive *open(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
+	static AbcWriterArchive *open(double fps, float start_frame, const std::string &filename, ErrorHandler *error_handler);
 	
 	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }
 	
+	Abc::OArchive abc_archive() const { return m_abc_archive; }
 	Abc::OObject root();
 	
 	Abc::OObject get_id_object(ID *id);
@@ -63,7 +62,7 @@ public:
 	Abc::TimeSamplingPtr frame_sampling();
 	
 protected:
-	AbcWriterArchive(Scene *scene, ErrorHandler *error_handler, Abc::OArchive abc_archive);
+	AbcWriterArchive(double fps, float start_frame, ErrorHandler *error_handler, Abc::OArchive abc_archive);
 	
 protected:
 	ErrorHandler *m_error_handler;

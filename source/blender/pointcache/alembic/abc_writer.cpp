@@ -27,8 +27,6 @@
 extern "C" {
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
-
-#include "DNA_scene_types.h"
 }
 
 namespace PTC {
@@ -43,7 +41,7 @@ static void ensure_directory(const char *filename)
 	BLI_dir_create_recursive(dir);
 }
 
-AbcWriterArchive *AbcWriterArchive::open(Scene *scene, const std::string &filename, ErrorHandler *error_handler)
+AbcWriterArchive *AbcWriterArchive::open(double fps, float start_frame, const std::string &filename, ErrorHandler *error_handler)
 {
 	ensure_directory(filename.c_str());
 	
@@ -54,13 +52,13 @@ AbcWriterArchive *AbcWriterArchive::open(Scene *scene, const std::string &filena
 	PTC_SAFE_CALL_END_HANDLER(error_handler)
 	
 	if (abc_archive)
-		return new AbcWriterArchive(scene, error_handler, abc_archive);
+		return new AbcWriterArchive(fps, start_frame, error_handler, abc_archive);
 	else
 		return NULL;
 }
 
-AbcWriterArchive::AbcWriterArchive(Scene *scene, ErrorHandler *error_handler, OArchive abc_archive) :
-    FrameMapper(scene),
+AbcWriterArchive::AbcWriterArchive(double fps, float start_frame, ErrorHandler *error_handler, OArchive abc_archive) :
+    FrameMapper(fps, start_frame),
     m_error_handler(error_handler),
     m_use_render(false),
     m_abc_archive(abc_archive)

@@ -28,14 +28,14 @@
 #include "util_error_handler.h"
 
 extern "C" {
-#include "DNA_scene_types.h"
+#include "DNA_ID.h"
 }
 
 namespace PTC {
 
 using namespace Abc;
 
-AbcReaderArchive *AbcReaderArchive::open(Scene *scene, const std::string &filename, ErrorHandler *error_handler)
+AbcReaderArchive *AbcReaderArchive::open(double fps, float start_frame, const std::string &filename, ErrorHandler *error_handler)
 {
 	IArchive abc_archive;
 	PTC_SAFE_CALL_BEGIN
@@ -44,13 +44,13 @@ AbcReaderArchive *AbcReaderArchive::open(Scene *scene, const std::string &filena
 	PTC_SAFE_CALL_END_HANDLER(error_handler)
 	
 	if (abc_archive)
-		return new AbcReaderArchive(scene, error_handler, abc_archive);
+		return new AbcReaderArchive(fps, start_frame, error_handler, abc_archive);
 	else
 		return NULL;
 }
 
-AbcReaderArchive::AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, IArchive abc_archive) :
-    FrameMapper(scene),
+AbcReaderArchive::AbcReaderArchive(double fps, float start_frame, ErrorHandler *error_handler, IArchive abc_archive) :
+    FrameMapper(fps, start_frame),
     m_error_handler(error_handler),
     m_use_render(false),
     m_abc_archive(abc_archive)

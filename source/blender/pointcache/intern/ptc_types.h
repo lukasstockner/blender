@@ -198,8 +198,10 @@ protected:
 
 struct Factory {
 	virtual const std::string &get_default_extension() = 0;
-	virtual WriterArchive *open_writer_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
-	virtual ReaderArchive *open_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler) = 0;
+	virtual WriterArchive *open_writer_archive(double fps, float start_frame, const std::string &name, ErrorHandler *error_handler) = 0;
+	virtual ReaderArchive *open_reader_archive(double fps, float start_frame, const std::string &name, ErrorHandler *error_handler) = 0;
+	
+	virtual void slice(ReaderArchive *in, WriterArchive *out, float start_frame, float end_frame) = 0;
 	
 	virtual Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob) = 0;
 	virtual Reader *create_reader_object(const std::string &name, Object *ob) = 0;
