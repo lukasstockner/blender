@@ -37,10 +37,12 @@ extern "C" {
 
 #include "DNA_listBase.h"
 #include "DNA_modifier_types.h"
+#include "DNA_scene_types.h"
 
 #include "BKE_DerivedMesh.h"
 #include "BKE_modifier.h"
 #include "BKE_report.h"
+#include "BKE_scene.h"
 
 #include "RNA_access.h"
 }
@@ -136,7 +138,14 @@ const char *PTC_get_default_archive_extension(void)
 
 PTCWriterArchive *PTC_open_writer_archive(Scene *scene, const char *path)
 {
-	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(scene, path, NULL);
+	double fps = FPS;
+	float start_frame = scene->r.sfra;
+	return PTC_open_writer_archive_ex(fps, start_frame, path);
+}
+
+PTCWriterArchive *PTC_open_writer_archive_ex(double fps, float start_frame, const char *path)
+{
+	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(fps, start_frame, path, NULL);
 }
 
 void PTC_close_writer_archive(PTCWriterArchive *_archive)
@@ -153,7 +162,14 @@ void PTC_writer_archive_use_render(PTCWriterArchive *_archive, bool enable)
 
 PTCReaderArchive *PTC_open_reader_archive(Scene *scene, const char *path)
 {
-	return (PTCReaderArchive *)PTC::Factory::alembic->open_reader_archive(scene, path, NULL);
+	double fps = FPS;
+	float start_frame = scene->r.sfra;
+	return PTC_open_reader_archive_ex(fps, start_frame, path);
+}
+
+PTCReaderArchive *PTC_open_reader_archive_ex(double fps, float start_frame, const char *path)
+{
+	return (PTCReaderArchive *)PTC::Factory::alembic->open_reader_archive(fps, start_frame, path, NULL);
 }
 
 void PTC_close_reader_archive(PTCReaderArchive *_archive)

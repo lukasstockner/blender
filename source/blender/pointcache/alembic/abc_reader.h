@@ -32,8 +32,6 @@
 #include "util_error_handler.h"
 #include "util_types.h"
 
-struct Scene;
-
 namespace PTC {
 
 using namespace Alembic;
@@ -42,7 +40,7 @@ class AbcReaderArchive : public ReaderArchive, public FrameMapper {
 public:
 	virtual ~AbcReaderArchive();
 	
-	static AbcReaderArchive *open(Scene *scene, const std::string &filename, ErrorHandler *error_handler);
+	static AbcReaderArchive *open(double fps, float start_frame, const std::string &filename, ErrorHandler *error_handler);
 	
 	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }
@@ -60,7 +58,7 @@ public:
 	void get_info_nodes(CacheArchiveInfo *info, bool calc_bytes_size);
 	
 protected:
-	AbcReaderArchive(Scene *scene, ErrorHandler *error_handler, Abc::IArchive abc_archive);
+	AbcReaderArchive(double fps, float start_frame, ErrorHandler *error_handler, Abc::IArchive abc_archive);
 	
 protected:
 	ErrorHandler *m_error_handler;
