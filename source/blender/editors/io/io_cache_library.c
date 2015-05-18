@@ -213,6 +213,7 @@ typedef struct CacheLibraryBakeJob {
 	struct PTCWriterArchive *archive;
 	struct PTCWriter *writer;
 	
+	int start_frame, end_frame;
 	int origfra;                            /* original frame to reset scene after export */
 	float origframelen;                     /* original frame length to reset scene after export */
 } CacheLibraryBakeJob;
@@ -279,8 +280,8 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	PTC_writer_init(data->writer, data->archive);
 	
 	/* XXX where to get this from? */
-	start_frame = scene->r.sfra;
-	end_frame = scene->r.efra;
+	start_frame = data->start_frame;
+	end_frame = data->end_frame;
 	
 	/* === frame loop === */
 	
@@ -417,7 +418,7 @@ static void cache_library_bake_end(void *customdata)
 	BKE_scene_update_for_newframe(&data->eval_ctx, data->bmain, scene, scene->lay);
 }
 
-static void cache_library_bake_init(CacheLibraryBakeJob *data, bContext *C)
+static void cache_library_bake_init(CacheLibraryBakeJob *data, bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	CacheLibrary *cachelib = ob->cache_library;
@@ -441,6 +442,15 @@ static void cache_library_bake_init(CacheLibraryBakeJob *data, bContext *C)
 	data->lay = ob->lay;
 	copy_m4_m4(data->mat, ob->obmat);
 	data->group = ob->dup_group;
+	
+	if (RNA_struct_property_is_set(op->ptr, "start_frame"))
+		data->start_frame = RNA_int_get(op->ptr, "start_frame");
+	else
+		data->start_frame = scene->r.sfra;
+	if (RNA_struct_property_is_set(op->ptr, "end_frame"))
+		data->end_frame = RNA_int_get(op->ptr, "end_frame");
+	else
+		data->end_frame = scene->r.efra;
 }
 
 static void cache_library_bake_freejob(void *customdata)
@@ -466,7 +476,7 @@ static int cache_library_bake_exec(bContext *C, wmOperator *op)
 		
 		/* setup data */
 		data = MEM_callocN(sizeof(CacheLibraryBakeJob), "Cache Library Bake Job");
-		cache_library_bake_init(data, C);
+		cache_library_bake_init(data, C, op);
 		
 		WM_jobs_customdata_set(wm_job, data, cache_library_bake_freejob);
 		WM_jobs_timer(wm_job, 0.1, NC_SCENE|ND_FRAME, NC_SCENE|ND_FRAME);
@@ -486,7 +496,7 @@ static int cache_library_bake_exec(bContext *C, wmOperator *op)
 		short stop = false, do_update = false;
 		float progress = 0.0f;
 		
-		cache_library_bake_init(&data, C);
+		cache_library_bake_init(&data, C, op);
 		
 		cache_library_bake_start(&data, &stop, &do_update, &progress);
 		cache_library_bake_end(&data);
@@ -580,6 +590,9 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 	 * as well as a direct exec call for running a blocking operator in background mode.
 	 */
 	RNA_def_property_flag(prop, PROP_HIDDEN);
+	
+	RNA_def_int(ot->srna, "start_frame", 0, INT_MIN, INT_MAX, "Start Frame", "First frame to be cached", INT_MIN, INT_MAX);
+	RNA_def_int(ot->srna, "end_frame", 0, INT_MIN, INT_MAX, "End Frame", "Last frame to be cached", INT_MIN, INT_MAX);
 }
 
 /* ========================================================================= */
