@@ -501,8 +501,18 @@ static void change_frame(PlayState *ps, int cx)
 		ps->picture = ps->picture->next;
 	}
 	i = (i * cx) / sizex;
+
 	if (playback_handle) {
-		AUD_seek(playback_handle, i / fps_movie);
+		AUD_Status status = AUD_getStatus(playback_handle);
+		if (status != AUD_STATUS_PLAYING) {
+			AUD_stop(playback_handle);
+			playback_handle = AUD_play(source, 1);
+			if (playback_handle)
+				AUD_seek(playback_handle, i / fps_movie);
+		}
+		else {
+			AUD_seek(playback_handle, i / fps_movie);
+		}
 	}
 	ps->picture = picsbase.first;
 	for (; i > 0; i--) {
