@@ -628,7 +628,7 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	output_archive = PTC_open_writer_archive(scene, output_filename);
+	output_archive = PTC_open_writer_archive_ex(FPS, start_frame, output_filename);
 	if (!output_archive) {
 		BKE_reportf(op->reports, RPT_ERROR, "Cannot write to cache file at '%s'", output_filepath);
 		return OPERATOR_CANCELLED;

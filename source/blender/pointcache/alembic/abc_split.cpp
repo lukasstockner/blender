@@ -73,11 +73,10 @@ using namespace ::Alembic::AbcGeom;
 
 namespace PTC {
 
-static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, chrono_t start, chrono_t end);
+static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end);
 
-static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_parent, chrono_t start, chrono_t end)
+static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
 {
-	TimeSamplingPtr time_sampling = iProp.getTimeSampling();
 	OArrayProperty out(out_parent, iProp.getName(), iProp.getDataType(), iProp.getMetaData(), time_sampling);
 	
 	ArrayPropertyReaderPtr reader = iProp.getPtr();
@@ -115,9 +114,8 @@ static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_par
 		delete[] buf;
 }
 
-static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_parent, chrono_t start, chrono_t end)
+static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
 {
-	TimeSamplingPtr time_sampling = iProp.getTimeSampling();
 	OScalarProperty out(out_parent, iProp.getName(), iProp.getDataType(), iProp.getMetaData(), time_sampling);
 	
 	ScalarPropertyReaderPtr reader = iProp.getPtr();
@@ -154,27 +152,27 @@ static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_p
 	delete[] buf;
 }
 
-static void slice_compound_property(ICompoundProperty iProp, OCompoundProperty out_parent, chrono_t start, chrono_t end)
+static void slice_compound_property(ICompoundProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
 {
 	OCompoundProperty out(out_parent, iProp.getName(), iProp.getMetaData());
 	
-	slice_properties(iProp, out, start, end);
+	slice_properties(iProp, out, time_sampling, start, end);
 }
 
-static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, chrono_t start, chrono_t end)
+static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
 {
 	for (size_t i = 0 ; i < iParent.getNumProperties() ; i++) {
 		PropertyHeader header = iParent.getPropertyHeader(i);
 		
 		if (header.isCompound()) {
-			slice_compound_property(ICompoundProperty(iParent, header.getName()), out_parent, start, end);
+			slice_compound_property(ICompoundProperty(iParent, header.getName()), out_parent, time_sampling, start, end);
 		}
 		else if (header.isScalar()) {
-			slice_scalar_property(IScalarProperty(iParent, header.getName()), out_parent, start, end);
+			slice_scalar_property(IScalarProperty(iParent, header.getName()), out_parent, time_sampling, start, end);
 		}
 		else {
 			BLI_assert(header.isArray());
-			slice_array_property(IArrayProperty(iParent, header.getName()), out_parent, start, end);
+			slice_array_property(IArrayProperty(iParent, header.getName()), out_parent, time_sampling, start, end);
 		}
 	}
 }
@@ -182,10 +180,10 @@ static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_pa
 typedef std::map<ObjectReaderPtr, ObjectWriterPtr> ObjectMap;
 typedef std::pair<ObjectReaderPtr, ObjectWriterPtr> ObjectPair;
 
-static void slice_object(IObject iObj, OObject out, chrono_t start, chrono_t end, ObjectMap &object_map)
+static void slice_object(IObject iObj, OObject out, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end, ObjectMap &object_map)
 {
 	// Get the properties.
-	slice_properties(iObj.getProperties(), out.getProperties(), start, end);
+	slice_properties(iObj.getProperties(), out.getProperties(), time_sampling, start, end);
 	
 	// now the child objects
 	for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
@@ -204,7 +202,7 @@ static void slice_object(IObject iObj, OObject out, chrono_t start, chrono_t end
 				out_child = OObject(out, child_header.getName(), child_header.getMetaData());
 			object_map[child.getPtr()] = out_child.getPtr();
 			
-			slice_object(child, out_child, start, end, object_map);
+			slice_object(child, out_child, time_sampling, start, end, object_map);
 		}
 	}
 }
@@ -230,11 +228,11 @@ static void slice_object_instances(IObject iObj, OObject out, const ObjectMap &o
 	}
 }
 
-void abc_archive_slice(IArchive in, OArchive out, chrono_t start, chrono_t end)
+void abc_archive_slice(IArchive in, OArchive out, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
 {
 	ObjectMap object_map;
 	
-	slice_object(in.getTop(), out.getTop(), start, end, object_map);
+	slice_object(in.getTop(), out.getTop(), time_sampling, start, end, object_map);
 	slice_object_instances(in.getTop(), out.getTop(), object_map);
 }
 

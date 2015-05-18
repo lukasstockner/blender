@@ -56,7 +56,7 @@ class AbcFactory : public Factory {
 		AbcReaderArchive *abc_in = static_cast<AbcReaderArchive*>(in);
 		AbcWriterArchive *abc_out = static_cast<AbcWriterArchive*>(out);
 		
-		abc_archive_slice(abc_in->abc_archive(), abc_out->abc_archive(), abc_in->frame_to_time(start_frame), abc_in->frame_to_time(end_frame));
+		abc_archive_slice(abc_in->abc_archive(), abc_out->abc_archive(), abc_out->frame_sampling(), abc_in->frame_to_time(start_frame), abc_in->frame_to_time(end_frame));
 	}
 	
 	Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob)
