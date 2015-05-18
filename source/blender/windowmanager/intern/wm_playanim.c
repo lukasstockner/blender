@@ -73,6 +73,10 @@
 
 #ifdef WITH_AUDASPACE
 #include "AUD_C-API.h"
+
+AUD_Sound *source = NULL;
+AUD_Handle *playback_handle = NULL;
+double fps_movie;
 #endif
 
 struct PlayState;
@@ -483,6 +487,35 @@ static void build_pict_list(PlayState *ps, const char *first, int totframes, int
 	ps->loading = false;
 }
 
+static void change_frame(PlayState *ps, int cx)
+{
+	int sizex, sizey;
+	int i;
+
+	playanim_window_get_size(&sizex, &sizey);
+	ps->picture = picsbase.first;
+	/* TODO - store in ps direct? */
+	i = 0;
+	while (ps->picture) {
+		i++;
+		ps->picture = ps->picture->next;
+	}
+	i = (i * cx) / sizex;
+	if (playback_handle) {
+		AUD_seek(playback_handle, i / fps_movie);
+	}
+	ps->picture = picsbase.first;
+	for (; i > 0; i--) {
+		if (ps->picture->next == NULL) break;
+		ps->picture = ps->picture->next;
+	}
+	if (!playback_handle) {
+		ps->sstep = true;
+		ps->wait2 = false;
+		ps->next_frame = 0;
+	}
+}
+
 static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 {
 	PlayState *ps = (PlayState *)ps_void;
@@ -733,8 +766,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			
 			if (bd->button == GHOST_kButtonMaskLeft) {
 				if (type == GHOST_kEventButtonDown) {
-					if (inside_window)
+					if (inside_window) {
 						g_WS.qual |= WS_QUAL_LMOUSE;
+						change_frame(ps, cx);
+					}
 				}
 				else
 					g_WS.qual &= ~WS_QUAL_LMOUSE;
@@ -760,31 +795,12 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 		case GHOST_kEventCursorMove:
 		{
 			if (g_WS.qual & WS_QUAL_LMOUSE) {
-				int sizex, sizey;
-				int i;
-
 				GHOST_TEventCursorData *cd = GHOST_GetEventData(evt);
 				int cx, cy;
 
 				GHOST_ScreenToClient(g_WS.ghost_window, cd->x, cd->y, &cx, &cy);
 
-				playanim_window_get_size(&sizex, &sizey);
-				ps->picture = picsbase.first;
-				/* TODO - store in ps direct? */
-				i = 0;
-				while (ps->picture) {
-					i++;
-					ps->picture = ps->picture->next;
-				}
-				i = (i * cx) / sizex;
-				ps->picture = picsbase.first;
-				for (; i > 0; i--) {
-					if (ps->picture->next == NULL) break;
-					ps->picture = ps->picture->next;
-				}
-				ps->sstep = true;
-				ps->wait2 = false;
-				ps->next_frame = 0;
+				change_frame(ps, cx);
 			}
 			break;
 		}
@@ -907,10 +923,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	PlayState ps = {0};
 
 #ifdef WITH_AUDASPACE
-	AUD_Sound *source;
-	AUD_Handle *playback_handle;
 	AUD_DeviceSpecs specs;
-	float volume = 1.0f;
 
 	specs.rate = AUD_RATE_44100;
 	specs.format = AUD_FORMAT_S16;
@@ -1094,6 +1107,17 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 #ifdef WITH_AUDASPACE
 	source = AUD_load(filepath);
 	playback_handle = AUD_play(source, 1);
+	{
+		struct anim *anim_movie = ((struct PlayAnimPict *)picsbase.first)->anim;
+		if (anim_movie) {
+			short frs_sec = 25;
+			float frs_sec_base = 1.0;
+
+			IMB_anim_get_fps(anim_movie, &frs_sec, &frs_sec_base, true);
+
+			fps_movie = (double) frs_sec / (double) frs_sec_base;
+		}
+	}
 #endif
 
 	for (i = 2; i < argc; i++) {
@@ -1308,7 +1332,8 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	}
 	
 #ifdef WITH_AUDASPACE
-	AUD_stop(playback_handle);
+	if (playback_handle)
+		AUD_stop(playback_handle);
 	AUD_unload(source);
 	AUD_exit();
 #endif
