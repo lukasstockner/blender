@@ -1150,6 +1150,7 @@ class VIEW3D_MT_object(Menu):
         layout.menu("VIEW3D_MT_object_parent")
         layout.menu("VIEW3D_MT_object_track")
         layout.menu("VIEW3D_MT_object_group")
+        layout.menu("VIEW3D_MT_object_cachelib")
         layout.menu("VIEW3D_MT_object_constraints")
 
         layout.separator()
@@ -1414,6 +1415,29 @@ class VIEW3D_MT_object_group(Menu):
 
         layout.operator("group.objects_add_active")
         layout.operator("group.objects_remove_active")
+
+
+class VIEW3D_MT_object_cachelib(Menu):
+    bl_label = "Cache Library"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.active_object
+        if not (ob and ob.cache_library):
+            return False
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        ob = context.active_object
+        cachelib = ob.cache_library
+
+        layout.operator("cachelibrary.bake", text="Bake")
+        props = layout.operator("cachelibrary.archive_slice", text="Slice")
+        props.input_filepath = cachelib.input_filepath
+        props.start_frame = scene.frame_start
+        props.end_frame = scene.frame_end
 
 
 class VIEW3D_MT_object_constraints(Menu):

@@ -247,6 +247,14 @@ void PTC_get_archive_info_nodes(PTCReaderArchive *_archive, struct CacheArchiveI
 	archive->get_info_nodes(info, calc_bytes_size);
 }
 
+void PTC_archive_slice(PTCReaderArchive *_in, PTCWriterArchive *_out, float start_frame, float end_frame)
+{
+	PTC::ReaderArchive *in = (PTC::ReaderArchive *)_in;
+	PTC::WriterArchive *out = (PTC::WriterArchive *)_out;
+	
+	PTC::Factory::alembic->slice(in, out, start_frame, end_frame);
+}
+
 
 PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib)
 {

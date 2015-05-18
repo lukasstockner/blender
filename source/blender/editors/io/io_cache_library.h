@@ -38,6 +38,7 @@ void CACHELIBRARY_OT_delete(struct wmOperatorType *ot);
 void CACHELIBRARY_OT_bake(struct wmOperatorType *ot);
 
 void CACHELIBRARY_OT_archive_info(struct wmOperatorType *ot);
+void CACHELIBRARY_OT_archive_slice(struct wmOperatorType *ot);
 
 /* ------------------------------------------------------------------------- */
 /* Cache Modifiers */

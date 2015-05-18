@@ -47,6 +47,7 @@ public:
 	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }
 	
+	Abc::IArchive abc_archive() const { return m_abc_archive; }
 	Abc::IObject root();
 	
 	Abc::IObject get_id_object(ID *id);

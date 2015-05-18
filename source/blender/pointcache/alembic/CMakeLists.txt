@@ -48,6 +48,7 @@ set(SRC
 	abc_reader.cpp
 	abc_reader.h
 	abc_schema.h
+	abc_split.cpp
 	abc_writer.cpp
 	abc_writer.h
 

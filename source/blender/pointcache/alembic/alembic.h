@@ -30,6 +30,8 @@ namespace PTC {
 void abc_archive_info_stream(Alembic::Abc::IArchive &archive, void (*stream)(void *, const char *), void *userdata);
 void abc_archive_info_nodes(Alembic::Abc::IArchive &archive, CacheArchiveInfo *info, bool calc_bytes_size);
 
+void abc_archive_slice(Alembic::Abc::IArchive in, Alembic::Abc::OArchive out, Alembic::Abc::chrono_t start, Alembic::Abc::chrono_t end);
+
 } /* namespace PTC */
 
 #endif  /* PTC_CLOTH_H */

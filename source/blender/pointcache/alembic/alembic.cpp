@@ -28,6 +28,8 @@
 #include "abc_object.h"
 #include "abc_particles.h"
 
+#include "alembic.h"
+
 namespace PTC {
 
 class AbcFactory : public Factory {
@@ -45,6 +47,16 @@ class AbcFactory : public Factory {
 	ReaderArchive *open_reader_archive(Scene *scene, const std::string &name, ErrorHandler *error_handler)
 	{
 		return AbcReaderArchive::open(scene, name, error_handler);
+	}
+	
+	void slice(ReaderArchive *in, WriterArchive *out, float start_frame, float end_frame)
+	{
+		BLI_assert(dynamic_cast<AbcReaderArchive*>(in));
+		BLI_assert(dynamic_cast<AbcWriterArchive*>(out));
+		AbcReaderArchive *abc_in = static_cast<AbcReaderArchive*>(in);
+		AbcWriterArchive *abc_out = static_cast<AbcWriterArchive*>(out);
+		
+		abc_archive_slice(abc_in->abc_archive(), abc_out->abc_archive(), abc_in->frame_to_time(start_frame), abc_in->frame_to_time(end_frame));
 	}
 	
 	Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob)

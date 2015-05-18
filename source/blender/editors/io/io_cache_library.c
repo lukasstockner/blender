@@ -332,12 +332,8 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 }
 
 /* Warning! Deletes existing files if possible, operator should show confirm dialog! */
-static bool cache_library_bake_ensure_file_target(CacheLibrary *cachelib)
+static bool cache_library_bake_ensure_file_target(const char *filename)
 {
-	char filename[FILE_MAX];
-	
-	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
-	
 	if (BLI_exists(filename)) {
 		if (BLI_is_dir(filename)) {
 			return false;
@@ -426,7 +422,9 @@ static void cache_library_bake_init(CacheLibraryBakeJob *data, bContext *C, wmOp
 	Scene *scene = CTX_data_scene(C);
 	
 	/* make sure we can write */
-	cache_library_bake_ensure_file_target(cachelib);
+	char filename[FILE_MAX];
+	BKE_cache_archive_output_path(cachelib, filename, sizeof(filename));
+	cache_library_bake_ensure_file_target(filename);
 	
 	/* XXX annoying hack: needed to prevent data corruption when changing
 	 * scene frame in separate threads
@@ -593,6 +591,139 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 	
 	RNA_def_int(ot->srna, "start_frame", 0, INT_MIN, INT_MAX, "Start Frame", "First frame to be cached", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "end_frame", 0, INT_MIN, INT_MAX, "End Frame", "Last frame to be cached", INT_MIN, INT_MAX);
+}
+
+/* ========================================================================= */
+
+static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
+{
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
+	Scene *scene = CTX_data_scene(C);
+	
+	const int start_frame = RNA_int_get(op->ptr, "start_frame");
+	const int end_frame = RNA_int_get(op->ptr, "end_frame");
+	
+	char input_filepath[FILE_MAX], input_filename[FILE_MAX];
+	char output_filepath[FILE_MAX], output_filename[FILE_MAX];
+	struct PTCReaderArchive *input_archive;
+	struct PTCWriterArchive *output_archive;
+	
+	RNA_string_get(op->ptr, "input_filepath", input_filepath);
+	if (input_filepath[0] == '\0')
+		return OPERATOR_CANCELLED;
+	RNA_string_get(op->ptr, "output_filepath", output_filepath);
+	if (output_filepath[0] == '\0')
+		return OPERATOR_CANCELLED;
+	
+	BKE_cache_archive_path_ex(input_filepath, cachelib->id.lib, NULL, input_filename, sizeof(input_filename));
+	BKE_cache_archive_path_ex(output_filepath, cachelib->id.lib, NULL, output_filename, sizeof(output_filename));
+	
+	/* make sure we can write */
+	cache_library_bake_ensure_file_target(output_filename);
+	
+	input_archive = PTC_open_reader_archive(scene, input_filename);
+	if (!input_archive) {
+		BKE_reportf(op->reports, RPT_ERROR, "Cannot open cache file at '%s'", input_filepath);
+		return OPERATOR_CANCELLED;
+	}
+	
+	output_archive = PTC_open_writer_archive(scene, output_filename);
+	if (!output_archive) {
+		BKE_reportf(op->reports, RPT_ERROR, "Cannot write to cache file at '%s'", output_filepath);
+		return OPERATOR_CANCELLED;
+	}
+	
+	PTC_archive_slice(input_archive, output_archive, start_frame, end_frame);
+	
+	PTC_close_reader_archive(input_archive);
+	PTC_close_writer_archive(output_archive);
+	
+	return OPERATOR_FINISHED;
+}
+
+static int cache_library_archive_slice_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	return WM_operator_props_popup_confirm(C, op, event);
+	
+#if 0
+	Object *ob = CTX_data_active_object(C);
+	CacheLibrary *cachelib = ob->cache_library;
+	
+	char output_filename[FILE_MAX];
+	
+	if (!cachelib)
+		return OPERATOR_CANCELLED;
+	
+	/* make sure we run a job when exec is called after confirm popup */
+	RNA_boolean_set(op->ptr, "use_job", true);
+	
+	RNA_string_get(op->ptr, "output_filepath", output_filepath);
+	if (output_filepath[0] == '\0')
+		return OPERATOR_CANCELLED;
+	BKE_cache_archive_output_path(cachelib, output_filename, sizeof(output_filename));
+	
+	if (!BKE_cache_archive_path_test(cachelib, output_filepath)) {
+		BKE_reportf(op->reports, RPT_ERROR, "Cannot create file path for cache library %200s", cachelib->id.name+2);
+		return OPERATOR_CANCELLED;
+	}
+	
+	if (BLI_exists(output_filename)) {
+		if (BLI_is_dir(output_filename)) {
+			BKE_reportf(op->reports, RPT_ERROR, "Cache Library target is a directory: %200s", output_filename);
+			return OPERATOR_CANCELLED;
+		}
+		else if (BLI_is_file(output_filename)) {
+			if (BLI_file_is_writable(output_filename)) {
+				return WM_operator_confirm_message(C, op, "Overwrite?");
+			}
+			else {
+				BKE_reportf(op->reports, RPT_ERROR, "Cannot overwrite Cache Library target: %200s", output_filename);
+				return OPERATOR_CANCELLED;
+			}
+			
+		}
+		else {
+			BKE_reportf(op->reports, RPT_ERROR, "Invalid Cache Library target: %200s", output_filename);
+			return OPERATOR_CANCELLED;
+		}
+	}
+	else {
+		return cache_library_bake_exec(C, op);
+	}
+#endif
+}
+
+void CACHELIBRARY_OT_archive_slice(wmOperatorType *ot)
+{
+	PropertyRNA *prop;
+	
+	/* identifiers */
+	ot->name = "Archive Slice";
+	ot->description = "Copy a range of frames to a new cache archive";
+	ot->idname = "CACHELIBRARY_OT_archive_slice";
+	
+	/* api callbacks */
+	ot->exec = cache_library_archive_slice_exec;
+	ot->invoke = cache_library_archive_slice_invoke;
+	ot->poll = ED_cache_library_active_object_poll;
+	
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	prop = RNA_def_boolean(ot->srna, "use_job", false, "Use Job", "Run operator as a job");
+	/* This is in internal property set by the invoke function.
+	 * It allows the exec function to be called from both the confirm popup
+	 * as well as a direct exec call for running a blocking operator in background mode.
+	 */
+	RNA_def_property_flag(prop, PROP_HIDDEN);
+	
+	prop = RNA_def_string(ot->srna, "input_filepath", NULL, FILE_MAX, "Input File Path", "Path to the source cache archive");
+	RNA_def_property_subtype(prop, PROP_FILEPATH);
+	prop = RNA_def_string(ot->srna, "output_filepath", NULL, FILE_MAX, "Output File Path", "Path to the target cache archive");
+	RNA_def_property_subtype(prop, PROP_FILEPATH);
+	RNA_def_int(ot->srna, "start_frame", 1, INT_MIN, INT_MAX, "Start Frame", "First frame to copy", 1, 10000);
+	RNA_def_int(ot->srna, "end_frame", 250, INT_MIN, INT_MAX, "End Frame", "Last frame to copy", 1, 10000);
 }
 
 /* ========================================================================= */
