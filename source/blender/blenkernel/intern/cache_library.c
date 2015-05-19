@@ -1530,15 +1530,21 @@ static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContex
 	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL);
 	if (shape) {
 		StrandsVertex *vert = strands->verts;
+		StrandsMotionState *state = strands->state;
 		int totvert = strands->totverts;
 		int i;
 		
 		float *fp = shape;
 		for (i = 0; i < totvert; ++i) {
 			copy_v3_v3(vert->co, fp);
+			++vert;
+			
+			if (state) {
+				copy_v3_v3(state->co, fp);
+				++state;
+			}
 			
 			fp += 3;
-			++vert;
 		}
 		
 		MEM_freeN(shape);
