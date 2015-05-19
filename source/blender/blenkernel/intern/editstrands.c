@@ -160,17 +160,22 @@ void BKE_editstrands_solve_constraints(Object *ob, BMEditStrands *es, BMEditStra
 
 static void editstrands_calc_segment_lengths(BMesh *bm)
 {
-	BMVert *root, *v, *vprev;
-	BMIter iter, iter_strand;
-	int k;
+	BMVert *root;
+	BMIter iter;
 	
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
-			if (k > 0) {
+		BMVert *v, *vprev = NULL;
+		BMIter iter_strand;
+		BM_ITER_STRANDS_ELEM(v, &iter_strand, root, BM_VERTS_OF_STRAND) {
+			if (vprev) {
 				float length = len_v3v3(v->co, vprev->co);
-				BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH, length);
+				BM_elem_float_data_named_set(&bm->vdata, vprev, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH, length);
 			}
 			vprev = v;
+		}
+		if (vprev) {
+			/* set last to 0 */
+			BM_elem_float_data_named_set(&bm->vdata, vprev, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH, 0.0f);
 		}
 	}
 }
