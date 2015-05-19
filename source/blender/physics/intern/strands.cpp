@@ -116,11 +116,11 @@ static void strands_adjust_segment_lengths(BMesh *bm)
 	BMIter iter;
 	
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-				float base_length = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
 		BMVert *v, *vprev = NULL;
 		BMIter iter_strand;
 		BM_ITER_STRANDS_ELEM(v, &iter_strand, root, BM_VERTS_OF_STRAND) {
 			if (vprev) {
+				float base_length = BM_elem_float_data_named_get(&bm->vdata, vprev, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
 				float dist[3];
 				float length;
 				
@@ -134,10 +134,79 @@ static void strands_adjust_segment_lengths(BMesh *bm)
 	}
 }
 
+static void strands_vertex_relax(BMesh *bm, float relax_factor, const BMVert *vprev, const BMVert *v, const BMVert *vnext, float relax[3])
+{
+	float D_pos[3], D_neg[3];
+	
+	if (vprev) {
+		sub_v3_v3v3(D_neg, vprev->co, v->co);
+		float len = len_v3(D_neg);
+		if (len > 0.0f) {
+			float Lprev = BM_elem_float_data_named_get(&bm->vdata, (void *)vprev, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+			mul_v3_fl(D_neg, (1.0f - Lprev / len) * relax_factor);
+		}
+		else
+			zero_v3(D_neg);
+	}
+	else
+		zero_v3(D_neg);
+	
+	if (vnext) {
+		sub_v3_v3v3(D_pos, vnext->co, v->co);
+		float len = len_v3(D_pos);
+		if (len > 0.0f) {
+			float L = BM_elem_float_data_named_get(&bm->vdata, (void *)v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+			mul_v3_fl(D_pos, (1.0f - L / len) * relax_factor);
+		}
+		else
+			zero_v3(D_pos);
+	}
+	else
+		zero_v3(D_pos);
+	
+	add_v3_v3v3(relax, D_neg, D_pos);
+}
+
+/* single relaxation iteration, must be repeated totkey times for complete relaxation */
+static void strands_relax(BMesh *bm, BMVert *root, bool skip_first)
+{
+	const int numvert = BM_strands_keys_count(root);
+	const float relax_factor = numvert > 0 ? 1.0f / numvert : 0.0f;
+	
+	BMVert *vert_next, *vert = NULL, *vert_prev = NULL;
+	float relax_prev[3], relax[3];
+	BMIter iter;
+	
+	BM_ITER_STRANDS_ELEM(vert_next, &iter, root, BM_VERTS_OF_STRAND) {
+		
+		if (vert) {
+			/* note: relaxation is applied *after* calculating the next segment, so vertex location can be modified safely */
+			strands_vertex_relax(bm, relax_factor, vert_prev, vert, vert_next, relax);
+			
+			/* don't modify fixed root */
+			if (vert_prev && !(skip_first && vert_prev == root)) {
+				add_v3_v3(vert_prev->co, relax_prev);
+			}
+		}
+		
+		vert_prev = vert;
+		vert = vert_next;
+		copy_v3_v3(relax_prev, relax);
+	}
+	
+	/* last segment */
+	{
+		/* don't modify fixed root */
+		if (vert_prev && !(skip_first && vert_prev == root)) {
+			add_v3_v3(vert_prev->co, relax_prev);
+		}
+	}
+}
+
 /* try to find a nice solution to keep distances between neighboring keys */
 /* XXX Stub implementation ported from particles:
  * Successively relax each segment starting from the root,
- * repeat this for every vertex (O(n^2) !!)
+ * repeat this for every vertex (O(n^2))
  * This should be replaced by a more advanced method using a least-squares
  * error metric with length and root location constraints (IK solver)
  */
@@ -153,46 +222,19 @@ static void strands_solve_edge_relaxation(BMEditStrands *edit)
 //		return;
 	
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		const int numvert = BM_strands_keys_count(root);
-		float relax_factor = numvert > 0 ? 1.0f / numvert : 0.0f;
-		
 		BMVert *vj;
 		BMIter iterj;
 		int j;
 		
 		BM_ITER_STRANDS_ELEM_INDEX(vj, &iterj, root, BM_VERTS_OF_STRAND, j) {
-			BMVert *vk, *vk_prev;
-			float lenk, lenk_prev;
-			BMIter iterk;
-			int k;
-			bool skip_first;
 			
-			if (j == 0)
+			if (j < 1)
 				continue;
 			
-			if (true /* XXX particles use PE_LOCK_FIRST option */)
-				skip_first = true;
-			else
-				skip_first = false;
+			/* XXX particles use PE_LOCK_FIRST option */
+			bool skip_first = true;
 			
-			BM_ITER_STRANDS_ELEM_INDEX(vk, &iterk, root, BM_VERTS_OF_STRAND, k) {
-				float dir[3], tlen, relax;
-				
-				lenk = BM_elem_float_data_named_get(&bm->vdata, vk, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
-				
-				if (k > 0) {
-					sub_v3_v3v3(dir, vk->co, vk_prev->co);
-					tlen = normalize_v3(dir);
-					relax = relax_factor * (tlen - lenk_prev);
-					
-					if (!(k == 1 && skip_first))
-						madd_v3_v3fl(vk_prev->co, dir, relax);
-					madd_v3_v3fl(vk->co, dir, -relax);
-				}
-				
-				vk_prev = vk;
-				lenk_prev = lenk;
-			}
+			strands_relax(bm, root, skip_first);
 		}
 	}
 }

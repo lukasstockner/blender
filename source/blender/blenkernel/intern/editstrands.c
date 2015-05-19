@@ -169,9 +169,13 @@ static void editstrands_calc_segment_lengths(BMesh *bm)
 		BM_ITER_STRANDS_ELEM(v, &iter_strand, root, BM_VERTS_OF_STRAND) {
 			if (vprev) {
 				float length = len_v3v3(v->co, vprev->co);
-				BM_elem_float_data_named_set(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH, length);
+				BM_elem_float_data_named_set(&bm->vdata, vprev, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH, length);
 			}
 			vprev = v;
+		}
+		if (vprev) {
+			/* set last to 0 */
+			BM_elem_float_data_named_set(&bm->vdata, vprev, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH, 0.0f);
 		}
 	}
 }
