@@ -78,6 +78,12 @@ typedef enum eKeyOwnerType {
 	KEY_OWNER_CACHELIB      = 5,
 } eKeyOwnerType;
 
+/* DEPRECATED */
+typedef struct KeyFrom {
+	int type DNA_DEPRECATED;
+	int index DNA_DEPRECATED; /* index of owner in the id */
+} KeyFrom;
+
 typedef struct Key {
 	ID id;
 	struct AnimData *adt;	/* animation data (must be immediately after id for utilities to use it) */ 
@@ -98,6 +104,7 @@ typedef struct Key {
 	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 
 	ID *from;
+	KeyFrom from_extra  DNA_DEPRECATED;
 	int fromtype; /* supplementary type of the Key owner */
 	int fromindex; /* index of owner in the id */
 

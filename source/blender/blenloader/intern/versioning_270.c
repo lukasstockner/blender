@@ -1056,4 +1056,13 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+
+	/* from_extra has been moved to fromtype, fromindex */
+	if (!DNA_struct_elem_find(fd->filesdna, "Key", "int", "fromindex")) {
+		Key *key;
+		for (key = main->key.first; key; key = key->id.next) {
+			key->fromtype = key->from_extra.type;
+			key->fromindex = key->from_extra.index;
+		}
+	}
 }
