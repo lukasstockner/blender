@@ -195,21 +195,8 @@ void RE_FreeRenderResult(RenderResult *res)
 
 float *RE_RenderLayerGetPass(volatile RenderLayer *rl, int passtype, const char *viewname)
 {
-	RenderPass *rpass;
-	float *rect = NULL;
-
-	for (rpass = rl->passes.last; rpass; rpass = rpass->prev) {
-		if (rpass->passtype == passtype) {
-			rect = rpass->rect;
-
-			if (viewname == NULL)
-				break;
-			else if (STREQ(rpass->view, viewname))
-				break;
-		}
-	}
-
-	return rect;
+	RenderPass *rpass = RE_pass_find_by_type(rl, passtype, viewname);
+	return rpass ? rpass->rect : NULL;
 }
 
 RenderLayer *RE_GetRenderLayer(RenderResult *rr, const char *name)
@@ -1377,6 +1364,7 @@ static void threaded_tile_processor(Render *re)
 }
 
 #ifdef WITH_FREESTYLE
+static void init_freestyle(Render *re);
 static void add_freestyle(Render *re, int render);
 static void free_all_freestyle_renders(void);
 #endif
@@ -1394,8 +1382,8 @@ void RE_TileProcessor(Render *re)
 	/* Freestyle */
 	if (re->r.mode & R_EDGE_FRS) {
 		if (!re->test_break(re->tbh)) {
+			init_freestyle(re);
 			add_freestyle(re, 1);
-	
 			free_all_freestyle_renders();
 			
 			re->i.lastframetime = PIL_check_seconds_timer() - re->i.starttime;
@@ -1429,6 +1417,12 @@ static void do_render_3d(Render *re)
 
 	/* init main render result */
 	main_render_result_new(re);
+
+#ifdef WITH_FREESTYLE
+	if (re->r.mode & R_EDGE_FRS) {
+		init_freestyle(re);
+	}
+#endif
 
 	/* we need a new database for each view */
 	for (rv = re->result->views.first; rv; rv = rv->next) {
@@ -2065,6 +2059,23 @@ static void render_composit_stats(void *UNUSED(arg), const char *str)
 }
 
 #ifdef WITH_FREESTYLE
+/* init Freestyle renderer */
+static void init_freestyle(Render *re)
+{
+	re->freestyle_bmain = BKE_main_new();
+
+	/* We use the same window manager for freestyle bmain as
+	* real bmain uses. This is needed because freestyle's
+	* bmain could be used to tag scenes for update, which
+	* implies call of ED_render_scene_update in some cases
+	* and that function requires proper window manager
+	* to present (sergey)
+	*/
+	re->freestyle_bmain->wm = re->main->wm;
+
+	FRS_init_stroke_renderer(re);
+}
+
 /* invokes Freestyle stroke rendering */
 static void add_freestyle(Render *re, int render)
 {
@@ -2075,18 +2086,7 @@ static void add_freestyle(Render *re, int render)
 
 	actsrl = BLI_findlink(&re->r.layers, re->r.actlay);
 
-	re->freestyle_bmain = BKE_main_new();
-
-	/* We use the same window manager for freestyle bmain as
-	 * real bmain uses. This is needed because freestyle's
-	 * bmain could be used to tag scenes for update, which
-	 * implies call of ED_render_scene_update in some cases
-	 * and that function requires proper window manager
-	 * to present (sergey)
-	 */
-	re->freestyle_bmain->wm = re->main->wm;
-
-	FRS_init_stroke_rendering(re);
+	FRS_begin_stroke_rendering(re);
 
 	for (srl = (SceneRenderLayer *)re->r.layers.first; srl; srl = srl->next) {
 		if (do_link) {
@@ -2102,7 +2102,7 @@ static void add_freestyle(Render *re, int render)
 		}
 	}
 
-	FRS_finish_stroke_rendering(re);
+	FRS_end_stroke_rendering(re);
 
 	/* restore the global R value (invalidated by nested execution of the internal renderer) */
 	R = *re;
@@ -2112,28 +2112,32 @@ static void add_freestyle(Render *re, int render)
 static void composite_freestyle_renders(Render *re, int sample)
 {
 	Render *freestyle_render;
+	RenderView *rv;
 	SceneRenderLayer *srl, *actsrl;
 	LinkData *link;
 
 	actsrl = BLI_findlink(&re->r.layers, re->r.actlay);
 
 	link = (LinkData *)re->freestyle_renders.first;
-	for (srl= (SceneRenderLayer *)re->r.layers.first; srl; srl= srl->next) {
-		if ((re->r.scemode & R_SINGLE_LAYER) && srl != actsrl)
-			continue;
 
-		if (FRS_is_freestyle_enabled(srl)) {
-			freestyle_render = (Render *)link->data;
+	for (rv = re->result->views.first; rv; rv = rv->next) {
+		for (srl = (SceneRenderLayer *)re->r.layers.first; srl; srl = srl->next) {
+			if ((re->r.scemode & R_SINGLE_LAYER) && srl != actsrl)
+				continue;
 
-			/* may be NULL in case of empty render layer */
-			if (freestyle_render) {
-				render_result_exr_file_read_sample(freestyle_render, sample);
-				FRS_composite_result(re, srl, freestyle_render);
-				RE_FreeRenderResult(freestyle_render->result);
-				freestyle_render->result = NULL;
+			if (FRS_is_freestyle_enabled(srl)) {
+				freestyle_render = (Render *)link->data;
+
+				/* may be NULL in case of empty render layer */
+				if (freestyle_render) {
+					render_result_exr_file_read_sample(freestyle_render, sample);
+					FRS_composite_result(re, srl, freestyle_render);
+					RE_FreeRenderResult(freestyle_render->result);
+					freestyle_render->result = NULL;
+				}
 			}
+			link = link->next;
 		}
-		link = link->next;
 	}
 }
 
@@ -2375,8 +2379,10 @@ void RE_MergeFullSample(Render *re, Main *bmain, Scene *sce, bNodeTree *ntree)
 	re->display_clear(re->dch, re->result);
 	
 #ifdef WITH_FREESTYLE
-	if (re->r.mode & R_EDGE_FRS)
+	if (re->r.mode & R_EDGE_FRS) {
+		init_freestyle(re);
 		add_freestyle(re, 0);
+	}
 #endif
 
 	do_merge_fullsample(re, ntree);
@@ -3100,6 +3106,7 @@ void RE_RenderFreestyleExternal(Render *re)
 	if (!re->test_break(re->tbh)) {
 		RE_Database_FromScene(re, re->main, re->scene, re->lay, 1);
 		RE_Database_Preprocess(re);
+		init_freestyle(re);
 		add_freestyle(re, 1);
 		RE_Database_Free(re);
 	}
@@ -3878,14 +3885,18 @@ bool RE_layers_have_name(struct RenderResult *rr)
 	return false;
 }
 
-RenderPass *RE_pass_find_by_type(RenderLayer *rl, int passtype, const char *viewname)
+RenderPass *RE_pass_find_by_type(volatile RenderLayer *rl, int passtype, const char *viewname)
 {
-	RenderPass *rp;
-	for (rp = rl->passes.first; rp; rp = rp->next) {
+	RenderPass *rp = NULL;
+
+	for (rp = rl->passes.last; rp; rp = rp->prev) {
 		if (rp->passtype == passtype) {
-			if (STREQ(rp->view, viewname))
-				return rp;
+
+			if (viewname == NULL)
+				break;
+			else if (STREQ(rp->view, viewname))
+				break;
 		}
 	}
-	return NULL;
+	return rp;
 }

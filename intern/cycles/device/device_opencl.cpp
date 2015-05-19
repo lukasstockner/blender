@@ -95,7 +95,7 @@ static bool opencl_kernel_use_advanced_shading(const string& platform)
 	else if(platform == "Apple")
 		return false;
 	else if(platform == "AMD Accelerated Parallel Processing")
-		return false;
+		return true;
 	else if(platform == "Intel(R) OpenCL")
 		return true;
 
@@ -3327,7 +3327,7 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 		const bool force_split_kernel =
 			getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL;
 		/* TODO(sergey): Replace string lookups with more enum-like API,
-		 * similar to device/venfdor checks blender's gpu.
+		 * similar to device/vendor checks blender's gpu.
 		 */
 		if(force_split_kernel ||
 		   (platform_name == "AMD Accelerated Parallel Processing" &&
@@ -3338,14 +3338,14 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 			return new OpenCLDeviceSplitKernel(info, stats, background);
 		} else {
 			/* For any other device, take megakernel path. */
-			VLOG(1) << "Using megekernel";
+			VLOG(1) << "Using mega kernel";
 			return new OpenCLDeviceMegaKernel(info, stats, background);
 		}
 	} else {
 		/* If we can't retrieve platform and device type information for some
 		 * reason, we default to megakernel path.
 		 */
-		VLOG(1) << "Failed to rertieve platform or device, using megakernel";
+		VLOG(1) << "Failed to retrieve platform or device, using mega kernel";
 		return new OpenCLDeviceMegaKernel(info, stats, background);
 	}
 }

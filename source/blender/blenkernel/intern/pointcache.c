@@ -3324,7 +3324,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 			}
 		}
 
-	BLI_end_threads(&threads);
+		BLI_end_threads(&threads);
 	}
 	/* clear baking flag */
 	if (pid) {
