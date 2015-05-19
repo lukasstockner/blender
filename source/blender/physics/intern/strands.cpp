@@ -112,14 +112,15 @@ static void strands_apply_root_locations(BMEditStrands *edit)
 
 static void strands_adjust_segment_lengths(BMesh *bm)
 {
-	BMVert *root, *v, *vprev;
-	BMIter iter, iter_strand;
-	int k;
+	BMVert *root;
+	BMIter iter;
 	
 	BM_ITER_STRANDS(root, &iter, bm, BM_STRANDS_OF_MESH) {
-		BM_ITER_STRANDS_ELEM_INDEX(v, &iter_strand, root, BM_VERTS_OF_STRAND, k) {
-			if (k > 0) {
 				float base_length = BM_elem_float_data_named_get(&bm->vdata, v, CD_PROP_FLT, CD_HAIR_SEGMENT_LENGTH);
+		BMVert *v, *vprev = NULL;
+		BMIter iter_strand;
+		BM_ITER_STRANDS_ELEM(v, &iter_strand, root, BM_VERTS_OF_STRAND) {
+			if (vprev) {
 				float dist[3];
 				float length;
 				
