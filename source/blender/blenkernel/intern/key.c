@@ -99,7 +99,7 @@ void BKE_key_free_nolib(Key *key)
 	}
 }
 
-static void key_set_elemstr(ID *id, short fromtype, char *r_elemstr, int *r_elemsize)
+static void key_set_elemstr(short fromtype, char *r_elemstr, int *r_elemsize)
 {
 	/* XXX the code here uses some defines which will soon be deprecated... */
 	char elemtype = IPO_FLOAT;
@@ -107,28 +107,22 @@ static void key_set_elemstr(ID *id, short fromtype, char *r_elemstr, int *r_elem
 	int elemsize = 0;
 	
 	switch (fromtype) {
-		case KEY_FROMTYPE_ID:
-			if (id) {
-				switch (GS(id->name)) {
-					case ID_ME:
-						numelem = 3;
-						elemtype = IPO_FLOAT;
-						elemsize = 12;
-						break;
-					case ID_LT:
-						numelem = 3;
-						elemtype = IPO_FLOAT;
-						elemsize = 12;
-						break;
-					case ID_CU:
-						numelem = 4;
-						elemtype = IPO_BPOINT;
-						elemsize = 16;
-						break;
-				}
-			}
+		case KEY_OWNER_MESH:
+			numelem = 3;
+			elemtype = IPO_FLOAT;
+			elemsize = 12;
 			break;
-		case KEY_FROMTYPE_STRANDS:
+		case KEY_OWNER_LATTICE:
+			numelem = 3;
+			elemtype = IPO_FLOAT;
+			elemsize = 12;
+			break;
+		case KEY_OWNER_CURVE:
+			numelem = 4;
+			elemtype = IPO_BPOINT;
+			elemsize = 16;
+			break;
+		case KEY_OWNER_CACHELIB:
 			numelem = 3;
 			elemtype = IPO_FLOAT;
 			elemsize = 12;
@@ -141,26 +135,34 @@ static void key_set_elemstr(ID *id, short fromtype, char *r_elemstr, int *r_elem
 	*r_elemsize = elemsize;
 }
 
-Key *BKE_key_add_ex(ID *from, short fromtype)    /* common function */
+Key *BKE_key_add_ex(ID *from, int fromtype, int fromindex)    /* common function */
 {
 	Key *key;
 	
 	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
 	
 	key->type = KEY_NORMAL;
-	key->from = from;
+	BKE_key_set_from_id(key, from);
 	key->fromtype = fromtype;
+	key->fromindex = fromindex;
 
 	key->uidgen = 1;
 	
-	key_set_elemstr(from, fromtype, key->elemstr, &key->elemsize);
+	key_set_elemstr(fromtype, key->elemstr, &key->elemsize);
 	
 	return key;
 }
 
 Key *BKE_key_add(ID *id)
 {
-	return BKE_key_add_ex(id, KEY_FROMTYPE_ID);
+	int fromtype = 0;
+	switch (GS(id->name)) {
+		case ID_ME: fromtype = KEY_OWNER_MESH; break;
+		case ID_CU: fromtype = KEY_OWNER_CURVE; break;
+		case ID_LT: fromtype = KEY_OWNER_LATTICE; break;
+		default: BLI_assert(false); break; /* other fromtypes should use the _ex version for specifying the type */
+	}
+	return BKE_key_add_ex(id, fromtype, -1);
 }
 
 Key *BKE_key_copy(Key *key)
@@ -265,6 +267,19 @@ void BKE_key_sort(Key *key)
 
 	/* new rule; first key is refkey, this to match drawing channels... */
 	key->refkey = key->block.first;
+}
+
+void BKE_key_set_from_id(Key *key, ID *id)
+{
+	if (key) {
+		key->from = id;
+		switch (GS(id->name)) {
+			case ID_ME: key->fromtype = KEY_OWNER_MESH; break;
+			case ID_CU: key->fromtype = KEY_OWNER_CURVE; break;
+			case ID_LT: key->fromtype = KEY_OWNER_LATTICE; break;
+		}
+		key->fromindex = -1;
+	}
 }
 
 /**************** do the key ****************/
@@ -563,41 +578,37 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 /* currently only the first value of 'ofs' may be set. */
 static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
 {
+	/* some types allow NULL for key->from */
+	if (!key->from && !ELEM(key->fromtype, KEY_OWNER_CACHELIB))
+		return false;
+	
 	switch (key->fromtype) {
-		case KEY_FROMTYPE_ID:
-			if (!key->from)
-				return false;
-			
-			switch (GS(key->from->name)) {
-				case ID_ME:
-					*ofs = sizeof(float) * 3;
-					*poinsize = *ofs;
-					break;
-				case ID_LT:
-					*ofs = sizeof(float) * 3;
-					*poinsize = *ofs;
-					break;
-				case ID_CU:
-					if (mode == KEY_MODE_BPOINT) {
-						*ofs = sizeof(float) * 4;
-						*poinsize = *ofs;
-					}
-					else {
-						ofs[0] = sizeof(float) * 12;
-						*poinsize = (*ofs) / 3;
-					}
-		
-					break;
-				default:
-					BLI_assert(!"invalid 'key->from' ID type");
-					return false;
-			}
-			break;
-		
-		case KEY_FROMTYPE_STRANDS:
+		case KEY_OWNER_MESH:
 			*ofs = sizeof(float) * 3;
 			*poinsize = *ofs;
 			break;
+		case KEY_OWNER_LATTICE:
+			*ofs = sizeof(float) * 3;
+			*poinsize = *ofs;
+			break;
+		case KEY_OWNER_CURVE:
+			if (mode == KEY_MODE_BPOINT) {
+				*ofs = sizeof(float) * 4;
+				*poinsize = *ofs;
+			}
+			else {
+				ofs[0] = sizeof(float) * 12;
+				*poinsize = (*ofs) / 3;
+			}
+			break;
+		case KEY_OWNER_CACHELIB:
+			*ofs = sizeof(float) * 3;
+			*poinsize = *ofs;
+			break;
+			
+		default:
+			BLI_assert(!"invalid 'key->from' ID type");
+			return false;
 	}
 	return true;
 }
@@ -1418,7 +1429,7 @@ float *BKE_key_evaluate_object_ex(
 	}
 
 	/* prevent python from screwing this up? anyhoo, the from pointer could be dropped */
-	key->from = (ID *)ob->data;
+	BKE_key_set_from_id(key, (ID *)ob->data);
 		
 	if (ob->shapeflag & OB_SHAPE_LOCK) {
 		/* shape locked, copy the locked shape instead of blending */

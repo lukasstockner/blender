@@ -1489,7 +1489,7 @@ static void strandskey_init(StrandsKeyCacheModifier *skmd)
 	skmd->object = NULL;
 	skmd->hair_system = -1;
 	
-	skmd->key = BKE_key_add_ex(NULL, KEY_FROMTYPE_STRANDS);
+	skmd->key = BKE_key_add_ex(NULL, KEY_OWNER_CACHELIB, -1);
 	skmd->key->type = KEY_RELATIVE;
 }
 
@@ -1564,7 +1564,7 @@ KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skm
 	bool newkey = false;
 	
 	if (key == NULL) {
-		key = skmd->key = BKE_key_add_ex(NULL, KEY_FROMTYPE_STRANDS);
+		key = skmd->key = BKE_key_add_ex(NULL, KEY_OWNER_CACHELIB, -1);
 		key->type = KEY_RELATIVE;
 		newkey = true;
 	}

@@ -69,6 +69,14 @@ typedef struct KeyBlock {
 
 } KeyBlock;
 
+typedef enum eKeyOwnerType {
+	/* 0 used as 'undefined', for versioning */
+	KEY_OWNER_MESH          = 1,
+	KEY_OWNER_CURVE         = 2,
+	KEY_OWNER_LATTICE       = 3,
+	/*KEY_OWNER_PARTICLES     = 4,*/ /* reserved */
+	KEY_OWNER_CACHELIB      = 5,
+} eKeyOwnerType;
 
 typedef struct Key {
 	ID id;
@@ -84,13 +92,14 @@ typedef struct Key {
 	 * (each one char) used for calculating shape key-blocks */
 	char elemstr[32];
 	int elemsize;  /* size of each element in #KeyBlock.data, use for allocation and stride */
-	short fromtype;
-	short pad;
+	int pad;
 	
 	ListBase block;  /* list of KeyBlock's */
 	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 
 	ID *from;
+	int fromtype; /* supplementary type of the Key owner */
+	int fromindex; /* index of owner in the id */
 
 	int totkey;  /* (totkey == BLI_listbase_count(&key->block)) */
 	short flag;
@@ -104,16 +113,6 @@ typedef struct Key {
 	/* can never be 0, this is used for detecting old data */
 	int uidgen; /* current free uid for keyblocks */
 } Key;
-
-/* Key->fromtype
- * XXX terrible mess, legacy code is redundant in several places, lets just add to the confusion ...
- * Internally the code uses legacy IPO_* defines combined with the Key->from ID and a mode for curves.
- * This enum allows using Key without a 'from' ID block and without knowing the legacy IPO enum.
- */
-enum {
-	KEY_FROMTYPE_ID                 = 0,
-	KEY_FROMTYPE_STRANDS            = 1,
-};
 
 /* **************** KEY ********************* */
 

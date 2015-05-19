@@ -125,6 +125,7 @@
 #include "BKE_fcurve.h"
 #include "BKE_global.h" // for G
 #include "BKE_group.h"
+#include "BKE_key.h"
 #include "BKE_library.h" // for which_libbase
 #include "BKE_idcode.h"
 #include "BKE_material.h"
@@ -3261,6 +3262,10 @@ static void lib_link_key(FileData *fd, Main *main)
 			
 			key->ipo = newlibadr_us(fd, key->id.lib, key->ipo); // XXX deprecated - old animation system
 			key->from = newlibadr(fd, key->id.lib, key->from);
+			/* versioning: initialize extra owner info */
+			if (!key->fromtype && key->from) {
+				BKE_key_set_from_id(key, key->from);
+			}
 			
 			key->id.flag -= LIB_NEED_LINK;
 		}
