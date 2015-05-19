@@ -52,7 +52,7 @@ extern "C" {
 void        BKE_key_free(struct Key *sc);
 void        BKE_key_free_nolib(struct Key *key);
 struct Key *BKE_key_add(struct ID *id);
-struct Key *BKE_key_add_ex(struct ID *from, short fromtype);
+struct Key *BKE_key_add_ex(struct ID *from, int fromtype, int fromindex);
 struct Key *BKE_key_add_particles(struct Object *ob, struct ParticleSystem *psys);
 struct Key *BKE_key_copy(struct Key *key);
 struct Key *BKE_key_copy_nolib(struct Key *key);

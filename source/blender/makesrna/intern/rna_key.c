@@ -306,7 +306,7 @@ static void rna_ShapeKey_data_begin(CollectionPropertyIterator *iter, PointerRNA
 	Nurb *nu;
 	int tot = kb->totelem, size = key->elemsize;
 	
-	if (key->from && key->from_extra.type == KEY_OWNER_CURVE) {
+	if (key->from && key->fromtype == KEY_OWNER_CURVE) {
 		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
@@ -327,7 +327,7 @@ static int rna_ShapeKey_data_length(PointerRNA *ptr)
 	Nurb *nu;
 	int tot = kb->totelem;
 	
-	if (key->from && key->from_extra.type == KEY_OWNER_CURVE) {
+	if (key->from && key->fromtype == KEY_OWNER_CURVE) {
 		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
@@ -345,7 +345,7 @@ static PointerRNA rna_ShapeKey_data_get(CollectionPropertyIterator *iter)
 	Curve *cu;
 	Nurb *nu;
 	
-	if (key->from && key->from_extra.type == KEY_OWNER_CURVE) {
+	if (key->from && key->fromtype == KEY_OWNER_CURVE) {
 		cu = (Curve *)key->from;
 		nu = cu->nurb.first;
 		
@@ -380,7 +380,7 @@ static void rna_Key_update_data(Main *bmain, Scene *UNUSED(scene), PointerRNA *p
 	Object *ob;
 	CacheLibrary *cachelib;
 
-	switch (key->from_extra.type) {
+	switch (key->fromtype) {
 	case KEY_OWNER_MESH:
 	case KEY_OWNER_CURVE:
 	case KEY_OWNER_LATTICE:

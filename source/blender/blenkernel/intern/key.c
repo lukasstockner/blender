@@ -106,7 +106,7 @@ void BKE_key_free_nolib(Key *key)
 	}
 }
 
-static void key_set_elemstr(ID *id, short fromtype, char *r_elemstr, int *r_elemsize)
+static void key_set_elemstr(short fromtype, char *r_elemstr, int *r_elemsize)
 {
 	/* XXX the code here uses some defines which will soon be deprecated... */
 	char elemtype = IPO_FLOAT;
@@ -114,28 +114,27 @@ static void key_set_elemstr(ID *id, short fromtype, char *r_elemstr, int *r_elem
 	int elemsize = 0;
 	
 	switch (fromtype) {
-		case KEY_FROMTYPE_ID:
-			if (id) {
-				switch (GS(id->name)) {
-					case ID_ME:
-						numelem = 3;
-						elemtype = IPO_FLOAT;
-						elemsize = 12;
-						break;
-					case ID_LT:
-						numelem = 3;
-						elemtype = IPO_FLOAT;
-						elemsize = 12;
-						break;
-					case ID_CU:
-						numelem = 4;
-						elemtype = IPO_BPOINT;
-						elemsize = 16;
-						break;
-				}
-			}
+		case KEY_OWNER_MESH:
+			numelem = 3;
+			elemtype = IPO_FLOAT;
+			elemsize = 12;
 			break;
-		case KEY_FROMTYPE_STRANDS:
+		case KEY_OWNER_LATTICE:
+			numelem = 3;
+			elemtype = IPO_FLOAT;
+			elemsize = 12;
+			break;
+		case KEY_OWNER_CURVE:
+			numelem = 4;
+			elemtype = IPO_BPOINT;
+			elemsize = 16;
+			break;
+		case KEY_OWNER_PARTICLES:
+			numelem = 3;
+			elemtype = IPO_FLOAT;
+			elemsize = 12;
+			break;
+		case KEY_OWNER_CACHELIB:
 			numelem = 3;
 			elemtype = IPO_FLOAT;
 			elemsize = 12;
@@ -148,7 +147,7 @@ static void key_set_elemstr(ID *id, short fromtype, char *r_elemstr, int *r_elem
 	*r_elemsize = elemsize;
 }
 
-Key *BKE_key_add_ex(ID *from, short fromtype)    /* common function */
+Key *BKE_key_add_ex(ID *from, int fromtype, int fromindex)    /* common function */
 {
 	Key *key;
 	
@@ -157,41 +156,30 @@ Key *BKE_key_add_ex(ID *from, short fromtype)    /* common function */
 	key->type = KEY_NORMAL;
 	BKE_key_set_from_id(key, from);
 	key->fromtype = fromtype;
+	key->fromindex = fromindex;
 
 	key->uidgen = 1;
 	
-	key_set_elemstr(from, fromtype, key->elemstr, &key->elemsize);
+	key_set_elemstr(fromtype, key->elemstr, &key->elemsize);
 	
 	return key;
 }
 
 Key *BKE_key_add(ID *id)
 {
-	return BKE_key_add_ex(id, KEY_FROMTYPE_ID);
+	int fromtype = 0;
+	switch (GS(id->name)) {
+		case ID_ME: fromtype = KEY_OWNER_MESH; break;
+		case ID_CU: fromtype = KEY_OWNER_CURVE; break;
+		case ID_LT: fromtype = KEY_OWNER_LATTICE; break;
+		default: BLI_assert(false); break; /* other fromtypes should use the _ex version for specifying the type */
+	}
+	return BKE_key_add_ex(id, fromtype, -1);
 }
 
 Key *BKE_key_add_particles(Object *ob, ParticleSystem *psys)    /* particles are "special" */
 {
-	Key *key;
-	char *el;
-	
-	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
-	
-	key->type = KEY_NORMAL;
-	BKE_key_set_from_particles(key, ob, psys);
-	key->fromtype = KEY_FROMTYPE_ID;
-	
-	key->uidgen = 1;
-	
-	el = key->elemstr;
-	
-	el[0] = 3;
-	el[1] = IPO_FLOAT;
-	el[2] = 0;
-	
-	key->elemsize = 12;
-	
-	return key;
+	return BKE_key_add_ex((ID *)ob, KEY_OWNER_PARTICLES, BLI_findindex(&ob->particlesystem, psys));
 }
 
 Key *BKE_key_copy(Key *key)
@@ -303,11 +291,11 @@ void BKE_key_set_from_id(Key *key, ID *id)
 	if (key) {
 		key->from = id;
 		switch (GS(id->name)) {
-			case ID_ME: key->from_extra.type = KEY_OWNER_MESH; break;
-			case ID_CU: key->from_extra.type = KEY_OWNER_CURVE; break;
-			case ID_LT: key->from_extra.type = KEY_OWNER_LATTICE; break;
+			case ID_ME: key->fromtype = KEY_OWNER_MESH; break;
+			case ID_CU: key->fromtype = KEY_OWNER_CURVE; break;
+			case ID_LT: key->fromtype = KEY_OWNER_LATTICE; break;
 		}
-		key->from_extra.index = -1;
+		key->fromindex = -1;
 	}
 }
 
@@ -315,8 +303,8 @@ void BKE_key_set_from_particles(Key *key, Object *ob, ParticleSystem *psys)
 {
 	if (key) {
 		key->from = (ID *)ob;
-		key->from_extra.type = KEY_OWNER_PARTICLES;
-		key->from_extra.index = BLI_findindex(&ob->particlesystem, psys);
+		key->fromtype = KEY_OWNER_PARTICLES;
+		key->fromindex = BLI_findindex(&ob->particlesystem, psys);
 	}
 }
 
@@ -584,7 +572,7 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 	if (kb == actkb) {
 		/* this hack makes it possible to edit shape keys in
 		 * edit mode with shape keys blending applied */
-		if (key->from && key->from_extra.type == KEY_OWNER_MESH) {
+		if (key->from && key->fromtype == KEY_OWNER_MESH) {
 			Mesh *me;
 			BMVert *eve;
 			BMIter iter;
@@ -616,45 +604,41 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 /* currently only the first value of 'ofs' may be set. */
 static bool key_pointer_size(const Key *key, const int mode, int *poinsize, int *ofs)
 {
+	/* some types allow NULL for key->from */
+	if (!key->from && !ELEM(key->fromtype, KEY_OWNER_CACHELIB))
+		return false;
+	
 	switch (key->fromtype) {
-		case KEY_FROMTYPE_ID:
-			if (!key->from)
-				return false;
-			
-			switch (key->from_extra.type) {
-				case KEY_OWNER_MESH:
-					*ofs = sizeof(float) * 3;
-					*poinsize = *ofs;
-					break;
-				case KEY_OWNER_LATTICE:
-					*ofs = sizeof(float) * 3;
-					*poinsize = *ofs;
-					break;
-				case KEY_OWNER_CURVE:
-					if (mode == KEY_MODE_BPOINT) {
-						*ofs = sizeof(float) * 4;
-						*poinsize = *ofs;
-					}
-					else {
-						ofs[0] = sizeof(float) * 12;
-						*poinsize = (*ofs) / 3;
-					}
-					break;
-				case KEY_OWNER_PARTICLES:
-					*ofs = sizeof(float) * 3;
-					*poinsize = *ofs;
-					break;
-		
-				default:
-					BLI_assert(!"invalid 'key->from' ID type");
-					return false;
-			}
-			break;
-		
-		case KEY_FROMTYPE_STRANDS:
+		case KEY_OWNER_MESH:
 			*ofs = sizeof(float) * 3;
 			*poinsize = *ofs;
 			break;
+		case KEY_OWNER_LATTICE:
+			*ofs = sizeof(float) * 3;
+			*poinsize = *ofs;
+			break;
+		case KEY_OWNER_CURVE:
+			if (mode == KEY_MODE_BPOINT) {
+				*ofs = sizeof(float) * 4;
+				*poinsize = *ofs;
+			}
+			else {
+				ofs[0] = sizeof(float) * 12;
+				*poinsize = (*ofs) / 3;
+			}
+			break;
+		case KEY_OWNER_PARTICLES:
+			*ofs = sizeof(float) * 3;
+			*poinsize = *ofs;
+			break;
+		case KEY_OWNER_CACHELIB:
+			*ofs = sizeof(float) * 3;
+			*poinsize = *ofs;
+			break;
+			
+		default:
+			BLI_assert(!"invalid 'key->from' ID type");
+			return false;
 	}
 	return true;
 }

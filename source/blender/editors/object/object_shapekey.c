@@ -100,9 +100,9 @@ static bool ED_object_shape_key_remove_all(Main *bmain, Object *ob)
 		return false;
 	
 	if (key->from) {
-		switch (key->from_extra.type) {
-			case KEY_OWNER_MESH: ((Mesh *)key->from)->key    = NULL; break;
-			case KEY_OWNER_CURVE: ((Curve *)key->from)->key   = NULL; break;
+		switch (key->fromtype) {
+			case KEY_OWNER_MESH: ((Mesh *)key->from)->key       = NULL; break;
+			case KEY_OWNER_CURVE: ((Curve *)key->from)->key     = NULL; break;
 			case KEY_OWNER_LATTICE: ((Lattice *)key->from)->key = NULL; break;
 		}
 	}
@@ -167,7 +167,7 @@ static bool ED_object_shape_key_remove(Main *bmain, Object *ob)
 	
 	if (key->totkey == 0) {
 		if (key->from) {
-			switch (key->from_extra.type) {
+			switch (key->fromtype) {
 				case KEY_OWNER_MESH: ((Mesh *)key->from)->key    = NULL; break;
 				case KEY_OWNER_CURVE: ((Curve *)key->from)->key   = NULL; break;
 				case KEY_OWNER_LATTICE: ((Lattice *)key->from)->key = NULL; break;
