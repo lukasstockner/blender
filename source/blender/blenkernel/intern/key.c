@@ -142,7 +142,7 @@ Key *BKE_key_add_ex(ID *from, int fromtype, int fromindex)    /* common function
 	key = BKE_libblock_alloc(G.main, ID_KE, "Key");
 	
 	key->type = KEY_NORMAL;
-	BKE_key_set_from_id(key, from);
+	key->from = from;
 	key->fromtype = fromtype;
 	key->fromindex = fromindex;
 
