@@ -765,8 +765,112 @@ static void cp_cu_key(Curve *cu, Key *key, KeyBlock *actkb, KeyBlock *kb, const 
 	}
 }
 
-void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
-                                  float **per_keyblock_weights, const int mode, char *refdata)
+void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
+                               float **per_keyblock_weights, const int mode)
+{
+	KeyBlock *kb;
+	int *ofsp, ofs[3], elemsize, b;
+	char *poin, *reffrom, *from;
+	char elemstr[8];
+	int poinsize, keyblock_index;
+
+	/* currently always 0, in future key_pointer_size may assign */
+	ofs[1] = 0;
+
+	if (!key_pointer_size(key, mode, &poinsize, &ofs[0]))
+		return;
+
+	if (end > tot) end = tot;
+
+	/* in case of beztriple */
+	elemstr[0] = 1;              /* nr of ipofloats */
+	elemstr[1] = IPO_BEZTRIPLE;
+	elemstr[2] = 0;
+
+	/* just here, not above! */
+	elemsize = key->elemsize;
+	if (mode == KEY_MODE_BEZTRIPLE) elemsize *= 3;
+
+	/* step 1 init */
+	cp_key(start, end, tot, basispoin, key, actkb, key->refkey, NULL, mode, NULL);
+	
+	/* step 2: do it */
+	
+	for (kb = key->block.first, keyblock_index = 0; kb; kb = kb->next, keyblock_index++) {
+		if (kb != key->refkey) {
+			float icuval = kb->curval;
+			
+			/* only with value, and no difference allowed */
+			if (!(kb->flag & KEYBLOCK_MUTE) && icuval != 0.0f && kb->totelem == tot) {
+				float weight, *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : NULL;
+				char *freefrom = NULL, *freereffrom = NULL;
+
+				poin = basispoin;
+				from = key_block_get_data(key, actkb, kb, &freefrom);
+				{
+					/* reference now can be any block */
+					KeyBlock *refb = BLI_findlink(&key->block, kb->relative);
+					if (refb == NULL) continue;
+					
+					reffrom = key_block_get_data(key, actkb, refb, &freereffrom);
+				}
+
+				poin += start * poinsize;
+				reffrom += key->elemsize * start;  // key elemsize yes!
+				from += key->elemsize * start;
+				
+				for (b = start; b < end; b++) {
+					char *cp;
+				
+					weight = weights ? (*weights * icuval) : icuval;
+					
+					cp = key->elemstr;
+					if (mode == KEY_MODE_BEZTRIPLE) cp = elemstr;
+					
+					ofsp = ofs;
+					
+					while (cp[0]) {  /* (cp[0] == amount) */
+						
+						switch (cp[1]) {
+							case IPO_FLOAT:
+								rel_flerp(3, (float *)poin, (float *)reffrom, (float *)from, weight);
+								break;
+							case IPO_BPOINT:
+								rel_flerp(4, (float *)poin, (float *)reffrom, (float *)from, weight);
+								break;
+							case IPO_BEZTRIPLE:
+								rel_flerp(12, (float *)poin, (float *)reffrom, (float *)from, weight);
+								break;
+							default:
+								/* should never happen */
+								if (freefrom) MEM_freeN(freefrom);
+								if (freereffrom) MEM_freeN(freereffrom);
+								BLI_assert(!"invalid 'cp[1]'");
+								return;
+						}
+
+						poin += *ofsp;
+						
+						cp += 2;
+						ofsp++;
+					}
+					
+					reffrom += elemsize;
+					from += elemsize;
+					
+					if (mode == KEY_MODE_BEZTRIPLE) b += 2;
+					if (weights) weights++;
+				}
+
+				if (freefrom) MEM_freeN(freefrom);
+				if (freereffrom) MEM_freeN(freereffrom);
+			}
+		}
+	}
+}
+
+void BKE_key_evaluate_strands_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
+                                       float **per_keyblock_weights, const int mode, char *refdata)
 {
 	KeyBlock *kb;
 	int *ofsp, ofs[3], elemsize, b;
@@ -882,12 +986,6 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 	}
 	
 	if (freekeyreffrom) MEM_freeN(freekeyreffrom);
-}
-
-void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
-                               float **per_keyblock_weights, const int mode)
-{
-	BKE_key_evaluate_relative_ex(start, end, tot, basispoin, key, actkb, per_keyblock_weights, mode, NULL);
 }
 
 static void do_key(const int start, int end, const int tot, char *poin, Key *key, KeyBlock *actkb, KeyBlock **k, float *t, const int mode)
@@ -1498,7 +1596,7 @@ static void do_strands_key(Strands *strands, Key *key, KeyBlock *actkb, char *ou
 		WeightsArrayCache cache = {0, NULL};
 		float **per_keyblock_weights ;
 		per_keyblock_weights = BKE_keyblock_strands_get_per_block_weights(strands, key, &cache);
-		BKE_key_evaluate_relative_ex(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY, out);
+		BKE_key_evaluate_strands_relative(0, tot, tot, (char *)out, key, actkb, per_keyblock_weights, KEY_MODE_DUMMY, out);
 		BKE_keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
 	}
 	else {
