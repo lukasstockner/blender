@@ -498,12 +498,14 @@ static void build_pict_list(PlayState *ps, const char *first, int totframes, int
 
 static void update_sound_fps(void)
 {
+#ifdef WITH_AUDASPACE
 	if (playback_handle) {
 		/* swaptime stores the 1.0/fps ratio */
 		double speed = 1.0 / (swaptime * fps_movie);
 
 		AUD_setSoundPitch(playback_handle, speed);
 	}
+#endif
 }
 
 static void change_frame(PlayState *ps, int cx)
@@ -521,6 +523,7 @@ static void change_frame(PlayState *ps, int cx)
 	}
 	i = (i * cx) / sizex;
 
+#ifdef WITH_AUDASPACE
 	if (playback_handle) {
 		AUD_Status status = AUD_getStatus(playback_handle);
 		if (status != AUD_STATUS_PLAYING) {
@@ -533,16 +536,21 @@ static void change_frame(PlayState *ps, int cx)
 			AUD_seek(playback_handle, i / fps_movie);
 		}
 	}
+#endif
+
 	ps->picture = picsbase.first;
 	for (; i > 0; i--) {
 		if (ps->picture->next == NULL) break;
 		ps->picture = ps->picture->next;
 	}
+
+#ifdef WITH_AUDASPACE
 	if (!playback_handle) {
 		ps->sstep = true;
 		ps->wait2 = false;
 		ps->next_frame = 0;
 	}
+#endif
 }
 
 static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
@@ -764,6 +772,20 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 				case GHOST_kKeyNumpadEnter:
 					if (val) {
 						ps->wait2 = ps->sstep = false;
+#ifdef WITH_AUDASPACE
+						{
+							PlayAnimPict *picture = picsbase.first;
+							/* TODO - store in ps direct? */
+							int i = 0;
+							while (picture && picture != ps->picture) {
+								i++;
+								picture = picture->next;
+							}
+							playback_handle = AUD_play(source, 1);
+							if (playback_handle)
+								AUD_seek(playback_handle, i / fps_movie);
+						}
+#endif
 					}
 					break;
 				case GHOST_kKeyPeriod:
@@ -775,6 +797,12 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 						else {
 							ps->sstep = true;
 							ps->wait2 = !ps->wait2;
+#ifdef WITH_AUDASPACE
+							if (playback_handle) {
+								AUD_stop(playback_handle);
+								playback_handle = NULL;
+							}
+#endif
 						}
 					}
 					break;
