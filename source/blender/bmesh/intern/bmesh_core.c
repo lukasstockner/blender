@@ -2193,7 +2193,7 @@ void bmesh_vert_separate(
  *
  * Any edges which failed to split off in #bmesh_vert_separate will be merged back into the original edge.
  *
- * \param edges_seperate
+ * \param edges_separate
  * A list-of-lists, each list is from a single original edge (the first edge is the original),
  * Check for duplicates (not just with the first) but between all.
  * This is O(n2) but radial edges are very rarely >2 and almost never >~10.
@@ -2633,7 +2633,7 @@ static void bmesh_edge_vert_swap__recursive(BMEdge *e, BMVert *v_dst, BMVert *v_
 
 /**
  * This function assumes l_sep is apart of a larger fan which has already been
- * isolated by calling bmesh_edge_separate to segragate it radially.
+ * isolated by calling bmesh_edge_separate to segregate it radially.
  */
 BMVert *bmesh_urmv_loop_region(BMesh *bm, BMLoop *l_sep)
 {
