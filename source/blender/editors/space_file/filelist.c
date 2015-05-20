@@ -1274,7 +1274,7 @@ int filelist_numfiles(struct FileList *filelist)
 
 static const char *fileentry_uiname(const char *root, const char *relpath, const int typeflag, char *buff)
 {
-	char *name;
+	char *name = NULL;
 
 	if (typeflag & FILE_TYPE_BLENDERLIB) {
 		char abspath[FILE_MAX_LIBEXTRA];
@@ -1286,11 +1286,14 @@ static const char *fileentry_uiname(const char *root, const char *relpath, const
 			name = group;
 		}
 	}
-	else if (typeflag & FILE_TYPE_DIR) {
-		name = (char *)relpath;
-	}
-	else {
-		name = (char *)BLI_path_basename(relpath);
+	/* Depending on platforms, 'my_file.blend/..' might be viewed as dir or not... */
+	if (!name) {
+		if (typeflag & FILE_TYPE_DIR) {
+			name = (char *)relpath;
+		}
+		else {
+			name = (char *)BLI_path_basename(relpath);
+		}
 	}
 	BLI_assert(name);
 
@@ -1333,7 +1336,7 @@ void filelist_setdir(struct FileList *filelist, char *r_dir)
 {
 #ifndef NDEBUG
 	size_t len = strlen(r_dir);
-	BLI_assert((len < FILE_MAX_LIBEXTRA) && r_dir[len - 1] == '/');
+	BLI_assert((len < FILE_MAX_LIBEXTRA) && ELEM(r_dir[len - 1], SEP, ALTSEP));
 #endif
 
 	BLI_cleanup_dir(G.main->name, r_dir);

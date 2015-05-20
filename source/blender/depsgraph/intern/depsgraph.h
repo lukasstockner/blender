@@ -22,6 +22,10 @@
  * Contributor(s): Sergey Sharybin
  *
  * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file blender/depsgraph/intern/depsgraph.h
+ *  \ingroup depsgraph
  *
  * Datatypes for internal use in the Depsgraph
  *
@@ -72,7 +76,7 @@ struct DepsRelation {
 	DepsNode *to;                 /* B */
 
 	/* relationship attributes */
-	const char* name;             /* label for debugging */
+	const char *name;             /* label for debugging */
 
 	eDepsRelation_Type type;      /* type */
 	int flag;                     /* (eDepsRelation_Flag) */
@@ -195,7 +199,7 @@ struct Depsgraph {
 };
 
 /**
- * Helper macros for interating over set of relationship links
+ * Helper macros for iterating over set of relationship links
  * incident on each node.
  *
  * \note it is safe to perform removal operations here...

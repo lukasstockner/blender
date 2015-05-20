@@ -20,6 +20,12 @@
  *
  * Original Author: Lukas Toenne
  * Contributor(s): 
+ *
+ * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file blender/depsgraph/util/depsgraph_util_function.h
+ *  \ingroup depsgraph
  */
 
 #ifndef __DEPSGRAPH_UTIL_FUNCTION_H__
@@ -59,7 +65,7 @@ public:
 	function() {};
 	function(void *) {}
 	operator bool() const { return false; }
-	bool operator== (void*) { return false; }
+	bool operator== (void *) { return false; }
 
 	template<typename T1>
 	void operator() (T1) {

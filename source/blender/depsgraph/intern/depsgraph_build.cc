@@ -22,8 +22,12 @@
  * Contributor(s): Based on original depsgraph.c code - Blender Foundation (2005-2013)
  *
  * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file blender/depsgraph/intern/depsgraph_build.cc
+ *  \ingroup depsgraph
  *
- * Methods for constructing depsgraph
+ * Methods for constructing depsgraph.
  */
 
 #include <stack>
@@ -178,7 +182,7 @@ string deg_fcurve_id_name(const FCurve *fcu)
 
 static void deg_graph_build_finalize(Depsgraph *graph)
 {
-	std::stack<OperationDepsNode*> stack;
+	std::stack<OperationDepsNode *> stack;
 
 	for (Depsgraph::OperationNodes::const_iterator it_op = graph->operations.begin();
 	     it_op != graph->operations.end();
@@ -192,8 +196,9 @@ static void deg_graph_build_finalize(Depsgraph *graph)
 		     ++it_rel)
 		{
 			DepsRelation *rel = *it_rel;
-			if (rel->from->type == DEPSNODE_TYPE_OPERATION &&
-			    (rel->flag & DEPSREL_FLAG_CYCLIC) == 0) {
+			if ((rel->from->type == DEPSNODE_TYPE_OPERATION) &&
+			    (rel->flag & DEPSREL_FLAG_CYCLIC) == 0)
+			{
 				++node->num_links_pending;
 			}
 		}

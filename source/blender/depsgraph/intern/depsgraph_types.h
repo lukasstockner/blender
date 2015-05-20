@@ -22,6 +22,10 @@
  * Contributor(s): None Yet
  *
  * ***** END GPL LICENSE BLOCK *****
+ */
+
+/** \file blender/depsgraph/intern/depsgraph_types.h
+ *  \ingroup depsgraph
  *
  * Datatypes for internal use in the Depsgraph
  *
@@ -53,7 +57,7 @@ struct FCurve;
 
 /* Evaluation Operation for atomic operation */
 // XXX: move this to another header that can be exposed?
-typedef function<void(struct EvaluationContext*)> DepsEvalOperationCb;
+typedef function<void(struct EvaluationContext *)> DepsEvalOperationCb;
 
 /* Metatype of Nodes - The general "level" in the graph structure the node serves */
 typedef enum eDepsNode_Class {

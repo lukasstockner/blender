@@ -24,8 +24,12 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
-#ifndef ___DEPSGRAPH_UTIL_PCHANMAP_H__
-#define ___DEPSGRAPH_UTIL_PCHANMAP_H__
+/** \file blender/depsgraph/util/depsgraph_util_pchanmap.h
+ *  \ingroup depsgraph
+ */
+
+#ifndef __DEPSGRAPH_UTIL_PCHANMAP_H__
+#define __DEPSGRAPH_UTIL_PCHANMAP_H__
 
 struct RootPChanMap {
 	/* ctor and dtor - Create and free the internal map respectively. */

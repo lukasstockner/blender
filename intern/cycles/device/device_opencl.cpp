@@ -39,8 +39,6 @@
 CCL_NAMESPACE_BEGIN
 
 #define CL_MEM_PTR(p) ((cl_mem)(uintptr_t)(p))
-#define KERNEL_APPEND_ARG(kernel_name, arg) \
-               opencl_assert(clSetKernelArg(kernel_name, narg++, sizeof(arg), (void*)&arg))
 
 /* Macro declarations used with split kernel */
 
@@ -97,42 +95,11 @@ static bool opencl_kernel_use_advanced_shading(const string& platform)
 	else if(platform == "Apple")
 		return false;
 	else if(platform == "AMD Accelerated Parallel Processing")
-		return false;
+		return true;
 	else if(platform == "Intel(R) OpenCL")
 		return true;
 
 	return false;
-}
-
-static string opencl_kernel_build_options(const string& platform, const string *debug_src = NULL)
-{
-	string build_options = " -cl-fast-relaxed-math ";
-
-	if(platform == "NVIDIA CUDA")
-		build_options += "-D__KERNEL_OPENCL_NVIDIA__ -cl-nv-maxrregcount=32 -cl-nv-verbose ";
-
-	else if(platform == "Apple")
-		build_options += "-D__KERNEL_OPENCL_APPLE__ ";
-
-	else if(platform == "AMD Accelerated Parallel Processing")
-		build_options += "-D__KERNEL_OPENCL_AMD__ ";
-
-	else if(platform == "Intel(R) OpenCL") {
-		build_options += "-D__KERNEL_OPENCL_INTEL_CPU__ ";
-
-		/* options for gdb source level kernel debugging. this segfaults on linux currently */
-		if(opencl_kernel_use_debug() && debug_src)
-			build_options += "-g -s \"" + *debug_src + "\" ";
-	}
-
-	if(opencl_kernel_use_debug())
-		build_options += "-D__KERNEL_OPENCL_DEBUG__ ";
-
-#ifdef WITH_CYCLES_DEBUG
-	build_options += "-D__KERNEL_DEBUG__ ";
-#endif
-
-	return build_options;
 }
 
 /* thread safe cache for contexts and programs */
@@ -659,7 +626,7 @@ public:
 	                  const string *debug_src = NULL)
 	{
 		string build_options;
-		build_options = opencl_kernel_build_options(platform_name, debug_src) + custom_kernel_build_options;
+		build_options = kernel_build_options(debug_src) + custom_kernel_build_options;
 
 		ciErr = clBuildProgram(*kernel_program, 0, NULL, build_options.c_str(), NULL, NULL);
 
@@ -733,7 +700,7 @@ public:
 		md5.append((uint8_t*)name, strlen(name));
 		md5.append((uint8_t*)driver, strlen(driver));
 
-		string options = opencl_kernel_build_options(platform_name);
+		string options = kernel_build_options();
 		options += kernel_custom_build_options;
 		md5.append((uint8_t*)options.c_str(), options.size());
 
@@ -1008,29 +975,30 @@ public:
 		cl_int d_offset = task.offset;
 		cl_int d_stride = task.stride;
 
-		/* sample arguments */
-		cl_uint narg = 0;
-
 
 		cl_kernel ckFilmConvertKernel = (rgba_byte)? ckFilmConvertByteKernel: ckFilmConvertHalfFloatKernel;
 
-		/* TODO : Make the kernel launch similar to Cuda */
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_data);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_rgba);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_buffer);
+		cl_uint start_arg_index =
+			kernel_set_args(ckFilmConvertKernel,
+			                0,
+			                d_data,
+			                d_rgba,
+			                d_buffer);
 
 #define KERNEL_TEX(type, ttype, name) \
-	set_kernel_arg_mem(ckFilmConvertKernel, &narg, #name);
+	set_kernel_arg_mem(ckFilmConvertKernel, &start_arg_index, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_sample_scale);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_x);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_y);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_w);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_h);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_offset);
-		KERNEL_APPEND_ARG(ckFilmConvertKernel, d_stride);
+		start_arg_index += kernel_set_args(ckFilmConvertKernel,
+		                                   start_arg_index,
+		                                   d_sample_scale,
+		                                   d_x,
+		                                   d_y,
+		                                   d_w,
+		                                   d_h,
+		                                   d_offset,
+		                                   d_stride);
 
 		enqueue_kernel(ckFilmConvertKernel, d_w, d_h);
 	}
@@ -1046,9 +1014,6 @@ public:
 		cl_int d_shader_w = task.shader_w;
 		cl_int d_offset = task.offset;
 
-		/* sample arguments */
-		cl_uint narg = 0;
-
 		cl_kernel kernel;
 
 		if(task.shader_eval_type >= SHADER_EVAL_BAKE)
@@ -1063,21 +1028,25 @@ public:
 
 			cl_int d_sample = sample;
 
-			/* TODO : Make the kernel launch similar to Cuda */
-			KERNEL_APPEND_ARG(kernel, d_data);
-			KERNEL_APPEND_ARG(kernel, d_input);
-			KERNEL_APPEND_ARG(kernel, d_output);
+			cl_uint start_arg_index =
+				kernel_set_args(kernel,
+				                0,
+				                d_data,
+				                d_input,
+				                d_output);
 
 #define KERNEL_TEX(type, ttype, name) \
-		set_kernel_arg_mem(kernel, &narg, #name);
+		set_kernel_arg_mem(kernel, &start_arg_index, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-			KERNEL_APPEND_ARG(kernel, d_shader_eval_type);
-			KERNEL_APPEND_ARG(kernel, d_shader_x);
-			KERNEL_APPEND_ARG(kernel, d_shader_w);
-			KERNEL_APPEND_ARG(kernel, d_offset);
-			KERNEL_APPEND_ARG(kernel, d_sample);
+			start_arg_index += kernel_set_args(kernel,
+			                                   start_arg_index,
+			                                   d_shader_eval_type,
+			                                   d_shader_x,
+			                                   d_shader_w,
+			                                   d_offset,
+			                                   d_sample);
 
 			enqueue_kernel(kernel, task.shader_w, 1);
 
@@ -1119,6 +1088,53 @@ public:
 	virtual void thread_run(DeviceTask * /*task*/) = 0;
 
 protected:
+
+	string kernel_build_options(const string *debug_src = NULL)
+	{
+		string build_options = " -cl-fast-relaxed-math ";
+
+		if(platform_name == "NVIDIA CUDA") {
+			build_options += "-D__KERNEL_OPENCL_NVIDIA__ "
+			                 "-cl-nv-maxrregcount=32 "
+			                 "-cl-nv-verbose ";
+
+			uint compute_capability_major, compute_capability_minor;
+			clGetDeviceInfo(cdDevice, CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV,
+			                sizeof(cl_uint), &compute_capability_major, NULL);
+			clGetDeviceInfo(cdDevice, CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV,
+			                sizeof(cl_uint), &compute_capability_minor, NULL);
+
+			build_options += string_printf("-D__COMPUTE_CAPABILITY__=%u ",
+			                               compute_capability_major * 100 +
+			                               compute_capability_minor * 10);
+		}
+
+		else if(platform_name == "Apple")
+			build_options += "-D__KERNEL_OPENCL_APPLE__ ";
+
+		else if(platform_name == "AMD Accelerated Parallel Processing")
+			build_options += "-D__KERNEL_OPENCL_AMD__ ";
+
+		else if(platform_name == "Intel(R) OpenCL") {
+			build_options += "-D__KERNEL_OPENCL_INTEL_CPU__ ";
+
+			/* Options for gdb source level kernel debugging.
+			 * this segfaults on linux currently.
+			 */
+			if(opencl_kernel_use_debug() && debug_src)
+				build_options += "-g -s \"" + *debug_src + "\" ";
+		}
+
+		if(opencl_kernel_use_debug())
+			build_options += "-D__KERNEL_OPENCL_DEBUG__ ";
+
+#ifdef WITH_CYCLES_DEBUG
+		build_options += "-D__KERNEL_DEBUG__ ";
+#endif
+
+		return build_options;
+	}
+
 	class ArgumentWrapper {
 	public:
 		ArgumentWrapper() : size(0), pointer(NULL) {}
@@ -1361,25 +1377,28 @@ public:
 
 		/* Sample arguments. */
 		cl_int d_sample = sample;
-		cl_uint narg = 0;
 
-		/* TODO : Make the kernel launch similar to Cuda. */
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_data);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_buffer);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_rng_state);
+		cl_uint start_arg_index =
+			kernel_set_args(ckPathTraceKernel,
+			                0,
+			                d_data,
+			                d_buffer,
+			                d_rng_state);
 
 #define KERNEL_TEX(type, ttype, name) \
-		set_kernel_arg_mem(ckPathTraceKernel, &narg, #name);
+		set_kernel_arg_mem(ckPathTraceKernel, &start_arg_index, #name);
 #include "kernel_textures.h"
 #undef KERNEL_TEX
 
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_sample);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_x);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_y);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_w);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_h);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_offset);
-		KERNEL_APPEND_ARG(ckPathTraceKernel, d_stride);
+		start_arg_index += kernel_set_args(ckPathTraceKernel,
+		                                   start_arg_index,
+		                                   d_sample,
+		                                   d_x,
+		                                   d_y,
+		                                   d_w,
+		                                   d_h,
+		                                   d_offset,
+		                                   d_stride);
 
 		enqueue_kernel(ckPathTraceKernel, d_w, d_h);
 	}
@@ -1430,7 +1449,7 @@ public:
 };
 
 /* TODO(sergey): This is to keep tile split on OpenCL level working
- * for now, since withotu this viewport render does not work as it
+ * for now, since without this view-port render does not work as it
  * should.
  *
  * Ideally it'll be done on the higher level, but we need to get ready
@@ -1470,7 +1489,7 @@ public:
 		buffers = tile.buffers;
 	}
 
-	/* Split kernel is device global memory constained;
+	/* Split kernel is device global memory constrained;
 	 * hence split kernel cant render big tile size's in
 	 * one go. If the user sets a big tile size (big tile size
 	 * is a term relative to the available device global memory),
@@ -1517,7 +1536,7 @@ public:
 
 	/* Global memory variables [porting]; These memory is used for
 	 * co-operation between different kernels; Data written by one
-	 * kernel will be avaible to another kernel via this global
+	 * kernel will be available to another kernel via this global
 	 * memory.
 	 */
 	cl_mem rng_coop;
@@ -1566,16 +1585,21 @@ public:
 	cl_mem ray_depth_sd_DL_shadow;
 	cl_mem transparent_depth_sd;
 	cl_mem transparent_depth_sd_DL_shadow;
-#ifdef __RAY_DIFFERENTIALS__
+
+	/* Ray differentials. */
 	cl_mem dP_sd, dI_sd;
 	cl_mem dP_sd_DL_shadow, dI_sd_DL_shadow;
 	cl_mem du_sd, dv_sd;
 	cl_mem du_sd_DL_shadow, dv_sd_DL_shadow;
-#endif
-#ifdef __DPDU__
+
+	/* Dp/Du */
 	cl_mem dPdu_sd, dPdv_sd;
 	cl_mem dPdu_sd_DL_shadow, dPdv_sd_DL_shadow;
-#endif
+
+	/* Object motion. */
+	cl_mem ob_tfm_sd, ob_itfm_sd;
+	cl_mem ob_tfm_sd_DL_shadow, ob_itfm_sd_DL_shadow;
+
 	cl_mem closure_sd;
 	cl_mem closure_sd_DL_shadow;
 	cl_mem num_closure_sd;
@@ -1619,18 +1643,6 @@ public:
 
 	/* Flag to make sceneintersect and lampemission kernel use queues. */
 	cl_mem use_queues_flag;
-
-	/* Required-memory size. */
-	size_t throughput_size;
-	size_t L_transparent_size;
-	size_t rayState_size;
-	size_t hostRayState_size;
-	size_t work_element_size;
-	size_t ISLamp_size;
-
-	/* Sizes of memory required for shadow blocked function. */
-	size_t AOAlpha_size;
-	size_t AOBSDF_size;
 
 	/* Amount of memory in output buffer associated with one pixel/thread. */
 	size_t per_thread_output_buffer_size;
@@ -1728,7 +1740,8 @@ public:
 		ray_depth_sd_DL_shadow = NULL;
 		transparent_depth_sd = NULL;
 		transparent_depth_sd_DL_shadow = NULL;
-#ifdef __RAY_DIFFERENTIALS__
+
+		/* Ray differentials. */
 		dP_sd = NULL;
 		dI_sd = NULL;
 		dP_sd_DL_shadow = NULL;
@@ -1737,13 +1750,19 @@ public:
 		dv_sd = NULL;
 		du_sd_DL_shadow = NULL;
 		dv_sd_DL_shadow = NULL;
-#endif
-#ifdef __DPDU__
+
+		/* Dp/Du */
 		dPdu_sd = NULL;
 		dPdv_sd = NULL;
 		dPdu_sd_DL_shadow = NULL;
 		dPdv_sd_DL_shadow = NULL;
-#endif
+
+		/* Object motion. */
+		ob_tfm_sd = NULL;
+		ob_itfm_sd = NULL;
+		ob_tfm_sd_DL_shadow = NULL;
+		ob_itfm_sd_DL_shadow = NULL;
+
 		closure_sd = NULL;
 		closure_sd_DL_shadow = NULL;
 		num_closure_sd = NULL;
@@ -1785,18 +1804,6 @@ public:
 		use_queues_flag = NULL;
 
 		per_sample_output_buffers = NULL;
-
-		/* Initialize required memory size. */
-		throughput_size = sizeof(float3);
-		L_transparent_size = sizeof(float);
-		rayState_size = sizeof(char);
-		hostRayState_size = sizeof(char);
-		work_element_size = sizeof(unsigned int);
-		ISLamp_size = sizeof(int);
-
-		/* Initialize sizes of memory required for shadow blocked function. */
-		AOAlpha_size = sizeof(float3);
-		AOBSDF_size = sizeof(float3);
 
 		per_thread_output_buffer_size = 0;
 		hostRayStateArray = NULL;
@@ -1886,7 +1893,7 @@ public:
 
 	size_t get_shader_closure_size(int max_closure)
 	{
-		return (sizeof(ShaderClosure)* max_closure);
+		return (sizeof(ShaderClosure) * max_closure);
 	}
 
 	size_t get_shader_data_size(size_t shader_closure_size)
@@ -1919,10 +1926,8 @@ public:
 	{
 		size_t shader_soa_size = 0;
 
-#define SD_VAR(type, what) \
-		shader_soa_size += sizeof(void *);
-#define SD_CLOSURE_VAR(type, what, max_closure)
-		shader_soa_size += sizeof(void *);
+#define SD_VAR(type, what) shader_soa_size += sizeof(void *);
+#define SD_CLOSURE_VAR(type, what, max_closure) shader_soa_size += sizeof(void *);
 		#include "kernel_shaderdata_vars.h"
 #undef SD_VAR
 #undef SD_CLOSURE_VAR
@@ -1995,6 +2000,9 @@ public:
 #ifdef __WORK_STEALING__
 		common_custom_build_options += "-D__WORK_STEALING__ ";
 #endif
+		if(requested_features.experimental) {
+			common_custom_build_options += "-D__KERNEL_EXPERIMENTAL__ ";
+		}
 
 #define LOAD_KERNEL(program, name) \
 	do { \
@@ -2109,7 +2117,8 @@ public:
 		release_mem_object_safe(ray_depth_sd_DL_shadow);
 		release_mem_object_safe(transparent_depth_sd);
 		release_mem_object_safe(transparent_depth_sd_DL_shadow);
-#ifdef __RAY_DIFFERENTIALS__
+
+		/* Ray differentials. */
 		release_mem_object_safe(dP_sd);
 		release_mem_object_safe(dP_sd_DL_shadow);
 		release_mem_object_safe(dI_sd);
@@ -2118,13 +2127,20 @@ public:
 		release_mem_object_safe(du_sd_DL_shadow);
 		release_mem_object_safe(dv_sd);
 		release_mem_object_safe(dv_sd_DL_shadow);
-#endif
-#ifdef __DPDU__
+
+		/* Dp/Du */
 		release_mem_object_safe(dPdu_sd);
 		release_mem_object_safe(dPdu_sd_DL_shadow);
 		release_mem_object_safe(dPdv_sd);
 		release_mem_object_safe(dPdv_sd_DL_shadow);
-#endif
+
+		/* Object motion. */
+		release_mem_object_safe(ob_tfm_sd);
+		release_mem_object_safe(ob_itfm_sd);
+
+		release_mem_object_safe(ob_tfm_sd_DL_shadow);
+		release_mem_object_safe(ob_itfm_sd_DL_shadow);
+
 		release_mem_object_safe(closure_sd);
 		release_mem_object_safe(closure_sd_DL_shadow);
 		release_mem_object_safe(num_closure_sd);
@@ -2203,10 +2219,6 @@ public:
 		assert(max_render_feasible_tile_size.x % SPLIT_KERNEL_LOCAL_SIZE_X == 0);
 		assert(max_render_feasible_tile_size.y % SPLIT_KERNEL_LOCAL_SIZE_Y == 0);
 
-		/* ray_state and hostRayStateArray should be of same size. */
-		assert(hostRayState_size == rayState_size);
-		assert(rayState_size == 1);
-
 		size_t global_size[2];
 		size_t local_size[2] = {SPLIT_KERNEL_LOCAL_SIZE_X,
 		                        SPLIT_KERNEL_LOCAL_SIZE_Y};
@@ -2237,7 +2249,7 @@ public:
 		 */
 		if(num_parallel_samples >= 64) {
 			/* TODO(sergey): Could use generic round-up here. */
-			num_parallel_samples = (num_parallel_samples / 64) * 64
+			num_parallel_samples = (num_parallel_samples / 64) * 64;
 		}
 		assert(num_parallel_samples != 0);
 
@@ -2308,7 +2320,7 @@ public:
 			transparent_depth_sd = mem_alloc(num_global_elements * sizeof(int));
 			transparent_depth_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(int));
 
-#ifdef __RAY_DIFFERENTIALS__
+			/* Ray differentials. */
 			dP_sd = mem_alloc(num_global_elements * sizeof(differential3));
 			dP_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential3));
 			dI_sd = mem_alloc(num_global_elements * sizeof(differential3));
@@ -2317,14 +2329,19 @@ public:
 			du_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential));
 			dv_sd = mem_alloc(num_global_elements * sizeof(differential));
 			dv_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(differential));
-#endif
 
-#ifdef __DPDU__
+			/* Dp/Du */
 			dPdu_sd = mem_alloc(num_global_elements * sizeof(float3));
 			dPdu_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
 			dPdv_sd = mem_alloc(num_global_elements * sizeof(float3));
 			dPdv_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(float3));
-#endif
+
+			/* Object motion. */
+			ob_tfm_sd = mem_alloc(num_global_elements * sizeof(Transform));
+			ob_tfm_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(Transform));
+			ob_itfm_sd = mem_alloc(num_global_elements * sizeof(float3));
+			ob_itfm_sd_DL_shadow = mem_alloc(num_global_elements * 2 * sizeof(Transform));
+
 			closure_sd = mem_alloc(num_global_elements * ShaderClosure_size);
 			closure_sd_DL_shadow = mem_alloc(num_global_elements * 2 * ShaderClosure_size);
 			num_closure_sd = mem_alloc(num_global_elements * sizeof(int));
@@ -2340,17 +2357,17 @@ public:
 			 * the kernels.
 			 */
 			rng_coop = mem_alloc(num_global_elements * sizeof(RNG));
-			throughput_coop = mem_alloc(num_global_elements * throughput_size);
-			L_transparent_coop = mem_alloc(num_global_elements * L_transparent_size);
+			throughput_coop = mem_alloc(num_global_elements * sizeof(float3));
+			L_transparent_coop = mem_alloc(num_global_elements * sizeof(float));
 			PathRadiance_coop = mem_alloc(num_global_elements * sizeof(PathRadiance));
 			Ray_coop = mem_alloc(num_global_elements * sizeof(Ray));
 			PathState_coop = mem_alloc(num_global_elements * sizeof(PathState));
 			Intersection_coop = mem_alloc(num_global_elements * sizeof(Intersection));
-			AOAlpha_coop = mem_alloc(num_global_elements * AOAlpha_size);
-			AOBSDF_coop = mem_alloc(num_global_elements * AOBSDF_size);
+			AOAlpha_coop = mem_alloc(num_global_elements * sizeof(float3));
+			AOBSDF_coop = mem_alloc(num_global_elements * sizeof(float3));
 			AOLightRay_coop = mem_alloc(num_global_elements * sizeof(Ray));
 			BSDFEval_coop = mem_alloc(num_global_elements * sizeof(BsdfEval));
-			ISLamp_coop = mem_alloc(num_global_elements * ISLamp_size);
+			ISLamp_coop = mem_alloc(num_global_elements * sizeof(int));
 			LightRay_coop = mem_alloc(num_global_elements * sizeof(Ray));
 			Intersection_coop_AO = mem_alloc(num_global_elements * sizeof(Intersection));
 			Intersection_coop_DL = mem_alloc(num_global_elements * sizeof(Intersection));
@@ -2359,13 +2376,13 @@ public:
 			debugdata_coop = mem_alloc(num_global_elements * sizeof(DebugData));
 #endif
 
-			ray_state = mem_alloc(num_global_elements * rayState_size);
+			ray_state = mem_alloc(num_global_elements * sizeof(char));
 
-			hostRayStateArray = (char *)calloc(num_global_elements, hostRayState_size);
+			hostRayStateArray = (char *)calloc(num_global_elements, sizeof(char));
 			assert(hostRayStateArray != NULL && "Can't create hostRayStateArray memory");
 
 			Queue_data = mem_alloc(num_global_elements * (NUM_QUEUES * sizeof(int)+sizeof(int)));
-			work_array = mem_alloc(num_global_elements * work_element_size);
+			work_array = mem_alloc(num_global_elements * sizeof(unsigned int));
 			per_sample_output_buffers = mem_alloc(num_global_elements *
 			                                      per_thread_output_buffer_size);
 		}
@@ -2410,9 +2427,9 @@ public:
 			                transparent_depth_sd,
 			                transparent_depth_sd_DL_shadow);
 
+		/* Ray differentials. */
 		start_arg_index +=
 			kernel_set_args(ckPathTraceKernel_data_init,
-#ifdef __RAY_DIFFERENTIALS__
 			                start_arg_index,
 			                dP_sd,
 			                dP_sd_DL_shadow,
@@ -2421,14 +2438,29 @@ public:
 			                du_sd,
 			                du_sd_DL_shadow,
 			                dv_sd,
-			                dv_sd_DL_shadow,
-#endif
-#ifdef __DPDU__
+			                dv_sd_DL_shadow);
+
+		/* Dp/Du */
+		start_arg_index +=
+			kernel_set_args(ckPathTraceKernel_data_init,
+			                start_arg_index,
 			                dPdu_sd,
 			                dPdu_sd_DL_shadow,
 			                dPdv_sd,
-			                dPdv_sd_DL_shadow,
-#endif
+			                dPdv_sd_DL_shadow);
+
+		/* Object motion. */
+		start_arg_index +=
+			kernel_set_args(ckPathTraceKernel_data_init,
+			                start_arg_index,
+			                ob_tfm_sd,
+			                ob_tfm_sd_DL_shadow,
+			                ob_itfm_sd,
+			                ob_itfm_sd_DL_shadow);
+
+		start_arg_index +=
+			kernel_set_args(ckPathTraceKernel_data_init,
+			                start_arg_index,
 			                closure_sd,
 			                closure_sd_DL_shadow,
 			                num_closure_sd,
@@ -2885,16 +2917,22 @@ public:
 		 */
 		shaderdata_volume = get_shader_data_size(shader_closure_size);
 		size_t retval = sizeof(RNG)
-			+ throughput_size + L_transparent_size
-			+ rayState_size + work_element_size
-			+ ISLamp_size + sizeof(PathRadiance) + sizeof(Ray) + sizeof(PathState)
+			+ sizeof(float3)          /* Throughput size */
+			+ sizeof(float)           /* L transparent size */
+			+ sizeof(char)            /* Ray state size */
+			+ sizeof(unsigned int)    /* Work element size */
+			+ sizeof(int)             /* ISLamp_size */
+			+ sizeof(PathRadiance) + sizeof(Ray) + sizeof(PathState)
 			+ sizeof(Intersection)    /* Overall isect */
 			+ sizeof(Intersection)    /* Instersection_coop_AO */
 			+ sizeof(Intersection)    /* Intersection coop DL */
 			+ shaderdata_volume       /* Overall ShaderData */
 			+ (shaderdata_volume * 2) /* ShaderData : DL and shadow */
-			+ sizeof(Ray) + sizeof(BsdfEval) + AOAlpha_size + AOBSDF_size + sizeof(Ray)
-			+ (sizeof(int)* NUM_QUEUES)
+			+ sizeof(Ray) + sizeof(BsdfEval)
+			+ sizeof(float3)          /* AOAlpha size */
+			+ sizeof(float3)          /* AOBSDF size */
+			+ sizeof(Ray)
+			+ (sizeof(int) * NUM_QUEUES)
 			+ per_thread_output_buffer_size;
 		return retval;
 	}
@@ -3289,7 +3327,7 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 		const bool force_split_kernel =
 			getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST") != NULL;
 		/* TODO(sergey): Replace string lookups with more enum-like API,
-		 * similar to device/venfdor checks blender's gpu.
+		 * similar to device/vendor checks blender's gpu.
 		 */
 		if(force_split_kernel ||
 		   (platform_name == "AMD Accelerated Parallel Processing" &&
@@ -3300,14 +3338,14 @@ Device *device_opencl_create(DeviceInfo& info, Stats &stats, bool background)
 			return new OpenCLDeviceSplitKernel(info, stats, background);
 		} else {
 			/* For any other device, take megakernel path. */
-			VLOG(1) << "Using megekernel";
+			VLOG(1) << "Using mega kernel";
 			return new OpenCLDeviceMegaKernel(info, stats, background);
 		}
 	} else {
 		/* If we can't retrieve platform and device type information for some
 		 * reason, we default to megakernel path.
 		 */
-		VLOG(1) << "Failed to rertieve platform or device, using megakernel";
+		VLOG(1) << "Failed to retrieve platform or device, using mega kernel";
 		return new OpenCLDeviceMegaKernel(info, stats, background);
 	}
 }
