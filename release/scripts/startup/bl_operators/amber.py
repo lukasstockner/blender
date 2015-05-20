@@ -41,6 +41,7 @@ import stat
 import struct
 import time
 
+
 AMBER_DB_NAME = "__amber_db.json"
 AMBER_DBK_VERSION = "version"
 
@@ -229,12 +230,6 @@ class AmberJobList(AmberJob):
 class AssetEngineAmber(AssetEngine):
     bl_label = "Amber"
 
-    max_entries = IntProperty(
-            name="Max Entries",
-            description="Max number of entries to return as a 'list' request (avoids risks of 'explosion' on big repos)",
-            min=10, max=10000, default=1000,
-    )
-
     # *Very* primitive! Only 32 tags allowed...
     def _tags_gen(self, context):
         tags = getattr(self, "tags_source", [])
@@ -255,10 +250,11 @@ class AssetEngineAmber(AssetEngine):
         self.job_uuid = 1
 
     def __del__(self):
-        pass
         # XXX This errors, saying self has no executor attribute... Suspect some py/RNA funky game. :/
         #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
-        #~ self.executor.shutdown(wait=False)
+        executor = getattr(self, "executor", None)
+        if executor is not None:
+            executor.shutdown(wait=False)
 
     ########## Various helpers ##########
     def reset(self):
@@ -564,7 +560,6 @@ class AMBER_PT_options(Panel, AmberPanel):
         ae = space.asset_engine
 
         row = layout.row()
-        row.prop(ae, "max_entries")
 
 
 class AMBER_PT_tags(Panel, AmberPanel):
@@ -583,4 +578,3 @@ class AMBER_PT_tags(Panel, AmberPanel):
 
 if __name__ == "__main__":  # only for live edit.
     bpy.utils.register_module(__name__)
-    bpy.utils.register_class(AssetEngineFlame)
