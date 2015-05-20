@@ -529,8 +529,10 @@ static void change_frame(PlayState *ps, int cx)
 		if (status != AUD_STATUS_PLAYING) {
 			AUD_stop(playback_handle);
 			playback_handle = AUD_play(source, 1);
-			if (playback_handle)
+			if (playback_handle) {
 				AUD_seek(playback_handle, i / fps_movie);
+			}
+			update_sound_fps();
 		}
 		else {
 			AUD_seek(playback_handle, i / fps_movie);
@@ -784,6 +786,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 							playback_handle = AUD_play(source, 1);
 							if (playback_handle)
 								AUD_seek(playback_handle, i / fps_movie);
+							update_sound_fps();
 						}
 #endif
 					}
