@@ -38,6 +38,8 @@
 #include "BKE_asset.h"
 #include "BKE_idprop.h"
 
+#include "WM_types.h"
+
 #ifdef RNA_RUNTIME
 
 #include "MEM_guardedalloc.h"
@@ -618,6 +620,40 @@ static IDProperty *rna_AssetEngine_idprops(PointerRNA *ptr, bool create)
 	return ae->properties;
 }
 
+static int rna_AssetEngine_is_dirty_sorting_get(PointerRNA *ptr)
+{
+	AssetEngine *ae = ptr->data;
+	return (ae->flag & AE_DIRTY_SORTING) != 0;
+}
+
+static void rna_AssetEngine_is_dirty_sorting_set(PointerRNA *ptr, int val)
+{
+	AssetEngine *ae = ptr->data;
+	if (val) {
+		ae->flag |= AE_DIRTY_SORTING;
+	}
+	else {
+		ae->flag &= ~AE_DIRTY_SORTING;
+	}
+}
+
+static int rna_AssetEngine_is_dirty_filtering_get(PointerRNA *ptr)
+{
+	AssetEngine *ae = ptr->data;
+	return (ae->flag & AE_DIRTY_FILTER) != 0;
+}
+
+static void rna_AssetEngine_is_dirty_filtering_set(PointerRNA *ptr, int val)
+{
+	AssetEngine *ae = ptr->data;
+	if (val) {
+		ae->flag |= AE_DIRTY_FILTER;
+	}
+	else {
+		ae->flag &= ~AE_DIRTY_FILTER;
+	}
+}
+
 #else /* RNA_RUNTIME */
 
 /* Much lighter version of asset/variant/revision identifier. */
@@ -951,6 +987,19 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 	RNA_def_struct_register_funcs(srna, "rna_AssetEngine_register", "rna_AssetEngine_unregister",
 	                              "rna_AssetEngine_instance");
 	RNA_def_struct_idprops_func(srna, "rna_AssetEngine_idprops");
+
+	/* AssetEngine state. */
+	prop = RNA_def_property(srna, "is_dirty_sorting", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_AssetEngine_is_dirty_sorting_get",
+	                               "rna_AssetEngine_is_dirty_sorting_set");
+	RNA_def_property_ui_text(prop, "Dirty Sorting", "FileBrowser shall call AE's sorting function on next draw");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+
+	prop = RNA_def_property(srna, "is_dirty_filtering", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_funcs(prop, "rna_AssetEngine_is_dirty_filtering_get",
+	                               "rna_AssetEngine_is_dirty_filtering_set");
+	RNA_def_property_ui_text(prop, "Dirty Filtering", "FileBrowser shall call AE's filtering function on next draw");
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
 
 	/* Status callback */
 	func = RNA_def_function(srna, "status", NULL);

@@ -22,7 +22,12 @@
 #       as a startup module!
 
 import bpy
-from bpy.types import AssetEngine, Panel
+from bpy.types import (
+        AssetEngine,
+        Panel,
+        PropertyGroup,
+        UIList,
+        )
 from bpy.props import (
         StringProperty,
         BoolProperty,
@@ -227,19 +232,30 @@ class AmberJobList(AmberJob):
 
 ###########################
 # Main Asset Engine class.
+class AmberTag(PropertyGroup):
+    name = StringProperty(name="Name", description="Tag name")
+    priority = IntProperty(name="Priority", default=0, description="Tag priority")
+
+    def include_update(self, context):
+        if self.use_include:
+            self.use_exclude = False
+        context.space_data.asset_engine.is_dirty_filtering = True
+    use_include = BoolProperty(name="Include", default=False, description="This tag must exist in filtered items",
+                               update=include_update)
+
+    def exclude_update(self, context):
+        if self.use_exclude:
+            self.use_include = False
+        context.space_data.asset_engine.is_dirty_filtering = True
+    use_exclude = BoolProperty(name="Exclude", default=False, description="This tag must not exist in filtered items",
+                               update=exclude_update)
+
+
 class AssetEngineAmber(AssetEngine):
     bl_label = "Amber"
 
-    # *Very* primitive! Only 32 tags allowed...
-    def _tags_gen(self, context):
-        tags = getattr(self, "tags_source", [])
-        return [(tag, tag, str(prio)) for tag, prio in tags[:32]]
-    tags = EnumProperty(
-            items=_tags_gen,
-            name="Tags",
-            description="Active tags",
-            options={'ENUM_FLAG'},
-    )
+    tags = CollectionProperty(name="Tags", type=AmberTag, description="Filtering tags")
+    active_tag_index = IntProperty(name="Active Tag", options={'HIDDEN'})
 
     def __init__(self):
         self.executor = futures.ThreadPoolExecutor(8)  # Using threads for now, if issues arise we'll switch to process.
@@ -262,7 +278,6 @@ class AssetEngineAmber(AssetEngine):
         self.root = ""
         self.repo = {}
         self.dirs = []
-        self.tags_source = []
 
         self.sortedfiltered = []
 
@@ -407,10 +422,19 @@ class AssetEngineAmber(AssetEngine):
             self.root = entries.root_path
         if self.repo:
             entries.nbr_entries = len(self.repo["entries"])
-            self.tags_source[:] = sorted(self.repo["tags"].items(), key=lambda i: i[1], reverse=True)
+            valid_tags = set()
+            for name, prio in sorted(self.repo["tags"].items(), key=lambda i: i[1], reverse=True):
+                tag = self.tags.get(name)
+                if tag is None:
+                    tag = self.tags.add()
+                    tag.name = name
+                tag.priority = prio
+                valid_tags.add(name)
+            for name in (set(self.tags.keys()) - valid_tags):
+                del self.tags[name]
         else:
             entries.nbr_entries = len(self.dirs)
-            self.tags_source.clear()
+            self.tags.clear()
         return job_id
 
     def load_pre(self, uuids, entries):
@@ -445,39 +469,47 @@ class AssetEngineAmber(AssetEngine):
             filter_search = params.filter_search
             self.sortedfiltered.clear()
             if self.repo:
+                if params.use_filter:
+                    file_type = set()
+                    blen_type = set()
+                    tags_incl = {t.name for t in self.tags if t.use_include}
+                    tags_excl = {t.name for t in self.tags if t.use_exclude}
+                    if params.use_filter_image:
+                        file_type.add('IMAGE')
+                    if params.use_filter_blender:
+                        file_type.add('BLENDER')
+                    if params.use_filter_backup:
+                        file_type.add('BACKUP')
+                    if params.use_filter_movie:
+                        file_type.add('MOVIE')
+                    if params.use_filter_script:
+                        file_type.add('SCRIPT')
+                    if params.use_filter_font:
+                        file_type.add('FONT')
+                    if params.use_filter_sound:
+                        file_type.add('SOUND')
+                    if params.use_filter_text:
+                        file_type.add('TEXT')
+                    if params.use_filter_blendid and params.use_library_browsing:
+                        file_type.add('BLENLIB')
+                        blen_type = params.filter_id
+
                 for key, val in self.repo["entries"].items():
                     if filter_search and filter_search not in (val["name"] + val["description"]):
                         continue
                     if params.use_filter:
-                        file_type = set()
-                        blen_type = set()
-                        tags = set(self.tags)
-                        if params.use_filter_image:
-                            file_type.add('IMAGE')
-                        if params.use_filter_blender:
-                            file_type.add('BLENDER')
-                        if params.use_filter_backup:
-                            file_type.add('BACKUP')
-                        if params.use_filter_movie:
-                            file_type.add('MOVIE')
-                        if params.use_filter_script:
-                            file_type.add('SCRIPT')
-                        if params.use_filter_font:
-                            file_type.add('FONT')
-                        if params.use_filter_sound:
-                            file_type.add('SOUND')
-                        if params.use_filter_text:
-                            file_type.add('TEXT')
-                        if params.use_filter_blendid and params.use_library_browsing:
-                            file_type.add('BLENLIB')
-                            blen_type = params.filter_id
                         if val["file_type"] not in file_type:
                             continue
                         if params.use_library_browsing and val["blen_type"] not in blen_type:
                             continue
-                        if tags and not tags & set(val["tags"]):
-                            continue
+                        if tags_incl or tags_excl:
+                            tags = set(val["tags"])
+                            if tags_incl and ((tags_incl & tags) != tags_incl):
+                                continue
+                            if tags_excl and (tags_excl & tags):
+                                continue
                     self.sortedfiltered.append((key, val))
+
             elif self.dirs:
                 for path, size, timestamp, uuid in self.dirs:
                     if filter_search and filter_search not in path:
@@ -487,6 +519,7 @@ class AssetEngineAmber(AssetEngine):
                     self.sortedfiltered.append((path, size, timestamp, uuid))
             use_sort = True
         entries.nbr_entries_filtered = len(self.sortedfiltered)
+
         if use_sort:
             if self.repo:
                 if params.sort_method == 'FILE_SORT_TIME':
@@ -537,6 +570,26 @@ class AssetEngineAmber(AssetEngine):
 
 ##########
 # UI stuff
+class AMBER_UL_tags_filter(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.AmberTag))
+        ae_amber = data
+        tag = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            split = layout.split(0.66, False)
+            split.prop(tag, "name", text="", emboss=False, icon_value=icon)
+            row = split.row(align=True)
+            sub = row.row(align=True)
+            sub.active = tag.use_include
+            sub.prop(tag, "use_include", emboss=False, text="", icon='ZOOMIN')
+            sub = row.row(align=True)
+            sub.active = tag.use_exclude
+            sub.prop(tag, "use_exclude", emboss=False, text="", icon='ZOOMOUT')
+        elif self.layout_type == 'GRID':
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
 class AmberPanel():
     @classmethod
     def poll(cls, context):
@@ -573,7 +626,8 @@ class AMBER_PT_tags(Panel, AmberPanel):
 
         # Note: This is *ultra-primitive*!
         #       A good UI will most likely need new widget option anyway (template). Or maybe just some UIList...
-        self.layout.props_enum(ae, "tags")
+        #~ self.layout.props_enum(ae, "tags")
+        self.layout.template_list("AMBER_UL_tags_filter", "", ae, "tags", ae, "active_tag_index")
 
 
 if __name__ == "__main__":  # only for live edit.

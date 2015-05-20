@@ -152,6 +152,12 @@ typedef struct AssetEngine {
 	struct ReportList *reports;
 } AssetEngine;
 
+/* AssetEngine->flag */
+enum {
+	AE_DIRTY_FILTER  = 1 << 0,
+	AE_DIRTY_SORTING = 1 << 1,
+};
+
 /* Engine Types */
 void BKE_asset_engines_init(void);
 void BKE_asset_engines_exit(void);

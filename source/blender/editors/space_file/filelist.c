@@ -493,7 +493,16 @@ static int compare_extension(void *UNUSED(user_data), const void *a1, const void
 
 bool filelist_need_sorting(struct FileList *filelist)
 {
-	return filelist->need_sorting && (filelist->sort != FILE_SORT_NONE);
+	return ((filelist->need_sorting || (filelist->ae && filelist->ae->flag & AE_DIRTY_SORTING)) &&
+	        (filelist->sort != FILE_SORT_NONE));
+}
+
+static void filelist_need_sorting_clear(struct FileList *filelist)
+{
+	filelist->need_sorting = false;
+	if (filelist->ae) {
+		filelist->ae->flag &= ~AE_DIRTY_SORTING;
+	}
 }
 
 void filelist_setsorting(struct FileList *filelist, const short sort)
@@ -638,6 +647,19 @@ static void filelist_filter_clear(FileList *filelist)
 	filelist->need_filtering = true;
 }
 
+bool filelist_need_filtering(struct FileList *filelist)
+{
+	return (filelist->need_filtering || (filelist->ae && filelist->ae->flag & AE_DIRTY_FILTER));
+}
+
+static void filelist_need_filtering_clear(struct FileList *filelist)
+{
+	filelist->need_filtering = false;
+	if (filelist->ae) {
+		filelist->ae->flag &= ~AE_DIRTY_FILTER;
+	}
+}
+
 void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const bool hide_parent,
                                 const unsigned int filter, const unsigned int filter_id,
                                 const char *filter_glob, const char *filter_search)
@@ -668,18 +690,18 @@ void filelist_sort_filter(struct FileList *filelist, FileSelectParams *params)
 {
 	if (filelist->ae) {
 		if (filelist->ae->type->sort_filter) {
-			const bool changed = filelist->ae->type->sort_filter(filelist->ae, true, true,
-			                                                     params, &filelist->filelist);
+			const bool need_sorting = filelist_need_sorting(filelist);
+			const bool need_filtering = filelist_need_filtering(filelist);
+			const bool changed = filelist->ae->type->sort_filter(
+			                         filelist->ae, need_sorting, need_filtering, params, &filelist->filelist);
 			printf("%s: changed: %d\n", __func__, changed);
+			if (changed) {
+				filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
+			}
 		}
-		filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
-		filelist->need_sorting = false;
-		filelist->need_filtering = false;
 	}
 	else {
 		if (filelist_need_sorting(filelist)) {
-			filelist->need_sorting = false;
-
 			switch (filelist->sort) {
 				case FILE_SORT_ALPHA:
 					BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_name);
@@ -701,17 +723,12 @@ void filelist_sort_filter(struct FileList *filelist, FileSelectParams *params)
 			filelist_filter_clear(filelist);
 		}
 
-		{
+		if (filelist_need_filtering(filelist)) {
 			int num_filtered = 0;
 			const int num_files = filelist->filelist.nbr_entries;
 			FileListInternEntry **filtered_tmp, *file;
 
 			if (filelist->filelist.nbr_entries == 0) {
-				return;
-			}
-
-			if (!filelist->need_filtering) {
-				/* Assume it has already been filtered, nothing else to do! */
 				return;
 			}
 
@@ -745,11 +762,13 @@ void filelist_sort_filter(struct FileList *filelist, FileSelectParams *params)
 		//	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
 
 			filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
-			filelist->need_filtering = false;
 
 			MEM_freeN(filtered_tmp);
 		}
 	}
+
+	filelist_need_sorting_clear(filelist);
+	filelist_need_filtering_clear(filelist);
 }
 
 
