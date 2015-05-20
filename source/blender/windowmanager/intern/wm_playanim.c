@@ -76,7 +76,6 @@
 
 AUD_Sound *source = NULL;
 AUD_Handle *playback_handle = NULL;
-double fps_movie;
 /* simple limiter to avoid flooding memory */
 #endif
 
@@ -239,6 +238,7 @@ static struct ListBase picsbase = {NULL, NULL};
 /* frames in memory - store them here to for easy deallocation later */
 static bool fromdisk = false;
 static double ptottime = 0.0, swaptime = 0.04;
+static double fps_movie;
 
 #ifdef USE_FRAME_CACHE_LIMIT
 static struct ListBase inmempicsbase = {NULL, NULL};
@@ -496,6 +496,16 @@ static void build_pict_list(PlayState *ps, const char *first, int totframes, int
 	ps->loading = false;
 }
 
+static void update_sound_fps(void)
+{
+	if (playback_handle) {
+		/* swaptime stores the 1.0/fps ratio */
+		double speed = 1.0 / (swaptime * fps_movie);
+
+		AUD_setSoundPitch(playback_handle, speed);
+	}
+}
+
 static void change_frame(PlayState *ps, int cx)
 {
 	int sizex, sizey;
@@ -607,42 +617,70 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 				}
 				case GHOST_kKey1:
 				case GHOST_kKeyNumpad1:
-					if (val) swaptime = ps->fstep / 60.0;
+					if (val) {
+						swaptime = ps->fstep / 60.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey2:
 				case GHOST_kKeyNumpad2:
-					if (val) swaptime = ps->fstep / 50.0;
+					if (val) {
+						swaptime = ps->fstep / 50.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey3:
 				case GHOST_kKeyNumpad3:
-					if (val) swaptime = ps->fstep / 30.0;
+					if (val) {
+						swaptime = ps->fstep / 30.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey4:
 				case GHOST_kKeyNumpad4:
-					if (g_WS.qual & WS_QUAL_SHIFT)
+					if (g_WS.qual & WS_QUAL_SHIFT) {
 						swaptime = ps->fstep / 24.0;
-					else
+						update_sound_fps();
+					}
+					else {
 						swaptime = ps->fstep / 25.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey5:
 				case GHOST_kKeyNumpad5:
-					if (val) swaptime = ps->fstep / 20.0;
+					if (val) {
+						swaptime = ps->fstep / 20.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey6:
 				case GHOST_kKeyNumpad6:
-					if (val) swaptime = ps->fstep / 15.0;
+					if (val) {
+						swaptime = ps->fstep / 15.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey7:
 				case GHOST_kKeyNumpad7:
-					if (val) swaptime = ps->fstep / 12.0;
+					if (val) {
+						swaptime = ps->fstep / 12.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey8:
 				case GHOST_kKeyNumpad8:
-					if (val) swaptime = ps->fstep / 10.0;
+					if (val) {
+						swaptime = ps->fstep / 10.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKey9:
 				case GHOST_kKeyNumpad9:
-					if (val) swaptime = ps->fstep / 6.0;
+					if (val) {
+						swaptime = ps->fstep / 6.0;
+						update_sound_fps();
+					}
 					break;
 				case GHOST_kKeyLeftArrow:
 					if (val) {
@@ -705,6 +743,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 						}
 						else {
 							swaptime = ps->fstep / 5.0;
+							update_sound_fps();
 						}
 					}
 					break;
@@ -748,6 +787,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					}
 					else {
 						swaptime /= 1.1;
+						update_sound_fps();
 					}
 					break;
 				}
@@ -760,6 +800,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 					}
 					else {
 						swaptime *= 1.1;
+						update_sound_fps();
 					}
 					break;
 				}
@@ -1135,6 +1176,10 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 			IMB_anim_get_fps(anim_movie, &frs_sec, &frs_sec_base, true);
 
 			fps_movie = (double) frs_sec / (double) frs_sec_base;
+			/* enforce same fps for movie as sound */
+			swaptime = ps.fstep / fps_movie;
+
+			AUD_setSoundPitch(playback_handle, 1.0);
 		}
 	}
 #endif
