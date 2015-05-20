@@ -98,7 +98,7 @@ void BKE_keyblock_free_per_block_weights(struct Key *key, float **per_keyblock_w
 void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
                                float **per_keyblock_weights, const int mode);
 void BKE_key_evaluate_strands_relative(const int start, int end, const int tot, char *basispoin, struct Key *key, struct KeyBlock *actkb,
-                                       float **per_keyblock_weights, const int mode, char *refdata);
+                                       float **per_keyblock_weights, const int mode);
 
 /* conversion functions */
 /* Note: 'update_from' versions do not (re)allocate mem in kb, while 'convert_from' do. */
