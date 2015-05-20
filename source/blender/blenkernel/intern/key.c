@@ -770,7 +770,9 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 {
 	KeyBlock *kb;
 	int *ofsp, ofs[3], elemsize, b;
-	char *cp, *poin, *reffrom, *from, elemstr[8];
+	char *poin, *reffrom, *from, *keyreffrom;
+	char *freekeyreffrom = NULL;
+	char elemstr[8];
 	int poinsize, keyblock_index;
 
 	/* currently always 0, in future key_pointer_size may assign */
@@ -791,8 +793,10 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 	if (mode == KEY_MODE_BEZTRIPLE) elemsize *= 3;
 
 	/* step 1 init */
-	if (!refdata)
+	keyreffrom = key_block_get_data(key, actkb, key->refkey, &freekeyreffrom);
+	if (!refdata) {
 		cp_key(start, end, tot, basispoin, key, actkb, key->refkey, NULL, mode, NULL);
+	}
 	
 	/* step 2: do it */
 	
@@ -818,8 +822,11 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 				poin += start * poinsize;
 				reffrom += key->elemsize * start;  // key elemsize yes!
 				from += key->elemsize * start;
+				keyreffrom += key->elemsize * start;
+				if (refdata) refdata += key->elemsize * start;
 				
 				for (b = start; b < end; b++) {
+					char *cp;
 				
 					weight = weights ? (*weights * icuval) : icuval;
 					
@@ -833,6 +840,11 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 						switch (cp[1]) {
 							case IPO_FLOAT:
 								rel_flerp(3, (float *)poin, (float *)reffrom, (float *)from, weight);
+								if (refdata) {
+									float offset[3];
+									sub_v3_v3v3(offset, (float *)keyreffrom, (float *)refdata);
+									madd_v3_v3fl((float *)poin, offset, weight);
+								}
 								break;
 							case IPO_BPOINT:
 								rel_flerp(4, (float *)poin, (float *)reffrom, (float *)from, weight);
@@ -856,6 +868,8 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 					
 					reffrom += elemsize;
 					from += elemsize;
+					keyreffrom += elemsize;
+					if (refdata) refdata += elemsize;
 					
 					if (mode == KEY_MODE_BEZTRIPLE) b += 2;
 					if (weights) weights++;
@@ -866,6 +880,8 @@ void BKE_key_evaluate_relative_ex(const int start, int end, const int tot, char 
 			}
 		}
 	}
+	
+	if (freekeyreffrom) MEM_freeN(freekeyreffrom);
 }
 
 void BKE_key_evaluate_relative(const int start, int end, const int tot, char *basispoin, Key *key, KeyBlock *actkb,
@@ -1551,7 +1567,7 @@ float *BKE_key_evaluate_strands_ex(Strands *strands, Key *key, KeyBlock *actkb, 
 	return (float *)out;
 }
 
-float *BKE_key_evaluate_strands(Strands *strands, Key *key, KeyBlock *actkb, bool lock_shape, int *r_totelem)
+float *BKE_key_evaluate_strands(Strands *strands, Key *key, KeyBlock *actkb, bool lock_shape, int *r_totelem, bool use_motion_basis)
 {
 	size_t size = sizeof(float) * 3 * strands->totverts;
 	float *data = MEM_mallocN(size, "strands shape key data");
@@ -1559,8 +1575,14 @@ float *BKE_key_evaluate_strands(Strands *strands, Key *key, KeyBlock *actkb, boo
 	float *fp;
 	int i;
 	
-	for (i = 0, fp = data; i < strands->totverts; ++i, fp += 3)
-		copy_v3_v3(fp, strands->verts[i].co);
+	if (use_motion_basis && strands->state) {
+		for (i = 0, fp = data; i < strands->totverts; ++i, fp += 3)
+			copy_v3_v3(fp, strands->state[i].co);
+	}
+	else {
+		for (i = 0, fp = data; i < strands->totverts; ++i, fp += 3)
+			copy_v3_v3(fp, strands->verts[i].co);
+	}
 	
 	result = BKE_key_evaluate_strands_ex(strands, key, actkb, lock_shape, r_totelem, data, size);
 	if (result != data)

@@ -1527,10 +1527,9 @@ static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContex
 		return;
 	
 	actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
-	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL);
+	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL, false);
 	if (shape) {
 		StrandsVertex *vert = strands->verts;
-		StrandsMotionState *state = strands->state;
 		int totvert = strands->totverts;
 		int i;
 		
@@ -1538,16 +1537,29 @@ static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContex
 		for (i = 0; i < totvert; ++i) {
 			copy_v3_v3(vert->co, fp);
 			++vert;
-			
-			if (state) {
-				copy_v3_v3(state->co, fp);
-				++state;
-			}
-			
 			fp += 3;
 		}
 		
 		MEM_freeN(shape);
+	}
+	
+	/* motion shape, if needed */
+	if (strands->state) {
+		shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL, true);
+		if (shape) {
+			StrandsMotionState *state = strands->state;
+			int totvert = strands->totverts;
+			int i;
+			
+			float *fp = shape;
+			for (i = 0; i < totvert; ++i) {
+				copy_v3_v3(state->co, fp);
+				++state;
+				fp += 3;
+			}
+			
+			MEM_freeN(shape);
+		}
 	}
 }
 
@@ -1588,7 +1600,7 @@ KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skm
 		KeyBlock *actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
 		bool shape_lock = skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock;
 		int totelem;
-		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem);
+		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem, false);
 		
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);

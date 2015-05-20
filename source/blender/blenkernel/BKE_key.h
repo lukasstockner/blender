@@ -73,7 +73,7 @@ float *BKE_key_evaluate_strands_ex(
         int *r_totelem, float *arr, size_t arr_size);
 float *BKE_key_evaluate_strands(
         struct Strands *strand, struct Key *key, struct KeyBlock *actkbs, bool lock_shape,
-        int *r_totelem);
+        int *r_totelem, bool use_motion_basis);
 
 struct Key      *BKE_key_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
