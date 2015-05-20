@@ -873,24 +873,15 @@ void BKE_key_evaluate_strands_relative(const int start, int end, const int tot, 
                                        float **per_keyblock_weights, const int mode, char *refdata)
 {
 	KeyBlock *kb;
-	int *ofsp, ofs[3], elemsize, b;
+	int ofs, elemsize, b;
 	char *poin, *reffrom, *from, *keyreffrom;
 	char *freekeyreffrom = NULL;
-	char elemstr[8];
 	int poinsize, keyblock_index;
 
-	/* currently always 0, in future key_pointer_size may assign */
-	ofs[1] = 0;
-
-	if (!key_pointer_size(key, mode, &poinsize, &ofs[0]))
+	if (!key_pointer_size(key, mode, &poinsize, &ofs))
 		return;
 
 	if (end > tot) end = tot;
-
-	/* in case of beztriple */
-	elemstr[0] = 1;              /* nr of ipofloats */
-	elemstr[1] = IPO_BEZTRIPLE;
-	elemstr[2] = 0;
 
 	/* just here, not above! */
 	elemsize = key->elemsize;
@@ -930,44 +921,13 @@ void BKE_key_evaluate_strands_relative(const int start, int end, const int tot, 
 				if (refdata) refdata += key->elemsize * start;
 				
 				for (b = start; b < end; b++) {
-					char *cp;
-				
 					weight = weights ? (*weights * icuval) : icuval;
 					
-					cp = key->elemstr;
-					if (mode == KEY_MODE_BEZTRIPLE) cp = elemstr;
-					
-					ofsp = ofs;
-					
-					while (cp[0]) {  /* (cp[0] == amount) */
-						
-						switch (cp[1]) {
-							case IPO_FLOAT:
-								rel_flerp(3, (float *)poin, (float *)reffrom, (float *)from, weight);
-								if (refdata) {
-									float offset[3];
-									sub_v3_v3v3(offset, (float *)keyreffrom, (float *)refdata);
-									madd_v3_v3fl((float *)poin, offset, weight);
-								}
-								break;
-							case IPO_BPOINT:
-								rel_flerp(4, (float *)poin, (float *)reffrom, (float *)from, weight);
-								break;
-							case IPO_BEZTRIPLE:
-								rel_flerp(12, (float *)poin, (float *)reffrom, (float *)from, weight);
-								break;
-							default:
-								/* should never happen */
-								if (freefrom) MEM_freeN(freefrom);
-								if (freereffrom) MEM_freeN(freereffrom);
-								BLI_assert(!"invalid 'cp[1]'");
-								return;
-						}
-
-						poin += *ofsp;
-						
-						cp += 2;
-						ofsp++;
+					rel_flerp(3, (float *)poin, (float *)reffrom, (float *)from, weight);
+					if (refdata) {
+						float offset[3];
+						sub_v3_v3v3(offset, (float *)keyreffrom, (float *)refdata);
+						madd_v3_v3fl((float *)poin, offset, weight);
 					}
 					
 					reffrom += elemsize;
