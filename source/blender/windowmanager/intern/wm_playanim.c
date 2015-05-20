@@ -1197,7 +1197,6 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 
 #ifdef WITH_AUDASPACE
 	source = AUD_load(filepath);
-	playback_handle = AUD_play(source, 1);
 	{
 		struct anim *anim_movie = ((struct PlayAnimPict *)picsbase.first)->anim;
 		if (anim_movie) {
@@ -1209,8 +1208,6 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 			fps_movie = (double) frs_sec / (double) frs_sec_base;
 			/* enforce same fps for movie as sound */
 			swaptime = ps.fstep / fps_movie;
-
-			AUD_setSoundPitch(playback_handle, 1.0);
 		}
 	}
 #endif
@@ -1253,6 +1250,13 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 			}
 		}
 		if (ptottime > 0.0) ptottime = 0.0;
+
+#ifdef WITH_AUDASPACE
+		if (playback_handle)
+			AUD_stop(playback_handle);
+		playback_handle = AUD_play(source, 1);
+		update_sound_fps();
+#endif
 
 		while (ps.picture) {
 			int hasevent;
@@ -1415,6 +1419,14 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 #endif
 
 	BLI_freelistN(&picsbase);
+
+#ifdef WITH_AUDASPACE
+	if (playback_handle)
+		AUD_stop(playback_handle);
+	AUD_unload(source);
+	AUD_exit();
+#endif
+
 #if 0 // XXX25
 	free_blender();
 #else
@@ -1431,13 +1443,6 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 		return filepath;
 	}
 	
-#ifdef WITH_AUDASPACE
-	if (playback_handle)
-		AUD_stop(playback_handle);
-	AUD_unload(source);
-	AUD_exit();
-#endif
-
 	IMB_exit();
 	BKE_images_exit();
 	DAG_exit();
