@@ -1655,6 +1655,191 @@ bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_
 	return false;
 }
 
+/* ------------------------------------------------------------------------- */
+
+static void haircut_init(HaircutCacheModifier *hmd)
+{
+	hmd->object = NULL;
+	hmd->hair_system = -1;
+}
+
+static void haircut_copy(HaircutCacheModifier *UNUSED(hmd), HaircutCacheModifier *UNUSED(thmd))
+{
+}
+
+static void haircut_free(HaircutCacheModifier *UNUSED(hmd))
+{
+}
+
+static void haircut_foreach_id_link(HaircutCacheModifier *smd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	walk(userdata, cachelib, &smd->modifier, (ID **)(&smd->object));
+	walk(userdata, cachelib, &smd->modifier, (ID **)(&smd->target));
+}
+
+typedef struct HaircutCacheData {
+	DerivedMesh *dm;
+	BVHTreeFromMesh treedata;
+	
+	ListBase instances;
+} HaircutCacheData;
+
+typedef struct HaircutCacheInstance {
+	struct HaircutCacheInstance *next, *prev;
+	
+	float mat[4][4];
+	float imat[4][4];
+} HaircutCacheInstance;
+
+static void haircut_data_get_bvhtree(HaircutCacheData *data, DerivedMesh *dm, bool create_bvhtree)
+{
+	data->dm = CDDM_copy(dm);
+	if (!data->dm)
+		return;
+	
+	DM_ensure_tessface(data->dm);
+	CDDM_calc_normals(data->dm);
+	
+	if (create_bvhtree) {
+		bvhtree_from_mesh_faces(&data->treedata, data->dm, 0.0, 2, 6);
+	}
+}
+
+static void haircut_data_get_instances(HaircutCacheData *data, Object *ob, float obmat[4][4], ListBase *duplilist)
+{
+	DupliObject *dob;
+	
+	for (dob = duplilist->first; dob; dob = dob->next) {
+		HaircutCacheInstance *inst;
+		
+		if (dob->ob != ob)
+			continue;
+		
+		inst = MEM_callocN(sizeof(HaircutCacheInstance), "shrink wrap instance");
+		mul_m4_m4m4(inst->mat, obmat, dob->mat);
+		invert_m4_m4(inst->imat, inst->mat);
+		
+		BLI_addtail(&data->instances, inst);
+	}
+}
+
+static void haircut_data_free(HaircutCacheData *data)
+{
+	BLI_freelistN(&data->instances);
+	
+	free_bvhtree_from_mesh(&data->treedata);
+	
+	if (data->dm) {
+		data->dm->release(data->dm);
+	}
+}
+
+static void haircut_apply_vertex(HaircutCacheModifier *UNUSED(hmd), HaircutCacheData *data, HaircutCacheInstance *inst, StrandsVertex *vertex, StrandsMotionState *UNUSED(state))
+{
+//	const float *point = state->co;
+//	float *npoint = state->co;
+	const float *point = vertex->co;
+	float *npoint = vertex->co;
+	
+	BVHTreeNearest nearest = {0, };
+	float co[3];
+	
+	if (!data->treedata.tree)
+		return;
+	
+	nearest.index = -1;
+	nearest.dist_sq = FLT_MAX;
+	
+	/* lookup in target space */
+	mul_v3_m4v3(co, inst->imat, point);
+	
+	BLI_bvhtree_find_nearest(data->treedata.tree, co, &nearest, data->treedata.nearest_callback, &data->treedata);
+	if (nearest.index < 0)
+		return;
+	
+	/* convert back to world space */
+	mul_m4_v3(inst->mat, nearest.co);
+	mul_mat3_m4_v3(inst->mat, nearest.no);
+	
+	{
+		float vec[3];
+		
+		sub_v3_v3v3(vec, point, nearest.co);
+		
+		/* project along the distance vector */
+		if (dot_v3v3(vec, nearest.no) < 0.0f) {
+			sub_v3_v3v3(npoint, point, vec);
+		}
+	}
+}
+
+static void haircut_apply(HaircutCacheModifier *hmd, HaircutCacheData *data, Strands *strands)
+{
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			HaircutCacheInstance *inst;
+			
+			/* XXX this is not great, the result depends on order of instances in the duplilist ...
+			 * but good enough for single instance use case.
+			 */
+			for (inst = data->instances.first; inst; inst = inst->next) {
+				haircut_apply_vertex(hmd, data, inst, it_vert.vertex, it_vert.state);
+			}
+		}
+	}
+}
+
+static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
+{
+	Object *ob = hmd->object;
+	DupliObject *dob;
+	Strands *strands;
+	DupliObjectData *target_data;
+	float mat[4][4];
+	
+	HaircutCacheData shrinkwrap;
+	
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hmd->hair_system, NULL, &strands, NULL))
+		return;
+	if (!BKE_cache_modifier_find_object(data->dupcache, hmd->target, &target_data))
+		return;
+	
+	for (dob = data->dupcache->duplilist.first; dob; dob = dob->next) {
+		if (dob->ob != ob)
+			continue;
+		
+		/* instances are calculated relative to the strands object */
+		invert_m4_m4(mat, dob->mat);
+		
+		memset(&shrinkwrap, 0, sizeof(shrinkwrap));
+		haircut_data_get_bvhtree(&shrinkwrap, target_data->dm, true);
+		haircut_data_get_instances(&shrinkwrap, hmd->target, mat, &data->dupcache->duplilist);
+		
+		haircut_apply(hmd, &shrinkwrap, strands);
+		
+		haircut_data_free(&shrinkwrap);
+		
+		/* XXX assume a single instance ... otherwise would just overwrite previous strands data */
+		break;
+	}
+}
+
+CacheModifierTypeInfo cacheModifierType_Haircut = {
+    /* name */              "Haircut",
+    /* structName */        "HaircutCacheModifier",
+    /* structSize */        sizeof(HaircutCacheModifier),
+
+    /* copy */              (CacheModifier_CopyFunc)haircut_copy,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)haircut_foreach_id_link,
+    /* process */           (CacheModifier_ProcessFunc)haircut_process,
+    /* init */              (CacheModifier_InitFunc)haircut_init,
+    /* free */              (CacheModifier_FreeFunc)haircut_free,
+};
+
+/* ------------------------------------------------------------------------- */
+
 bool BKE_cache_library_uses_key(CacheLibrary *cachelib, Key *key)
 {
 	CacheModifier *md;
@@ -1674,6 +1859,7 @@ void BKE_cache_modifier_init(void)
 	cache_modifier_type_set(eCacheModifierType_ForceField, &cacheModifierType_ForceField);
 	cache_modifier_type_set(eCacheModifierType_ShrinkWrap, &cacheModifierType_ShrinkWrap);
 	cache_modifier_type_set(eCacheModifierType_StrandsKey, &cacheModifierType_StrandsKey);
+	cache_modifier_type_set(eCacheModifierType_Haircut, &cacheModifierType_Haircut);
 }
 
 /* ========================================================================= */

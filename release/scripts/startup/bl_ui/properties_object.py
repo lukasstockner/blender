@@ -557,6 +557,21 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         row.prop(md, "max_distance")
         col.prop(md, "use_double_sided")
 
+    def HAIRCUT(self, context, layout, cachelib, md):
+        col = layout.column(align=True)
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        sub = col.column()
+        if (md.object):
+            sub.prop_search(md, "hair_system", md.object, "particle_systems")
+        else:
+            sub.enabled = False
+            sub.prop(md, "hair_system")
+
+        layout.prop_search(md, "target", context.blend_data, "objects", icon='OBJECT_DATA')
+
+        layout = layout.column()
+        layout.active = md.hair_system is not None
+
     def SHRINK_WRAP(self, context, layout, cachelib, md):
         col = layout.column(align=True)
         col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
