@@ -978,9 +978,12 @@ void BKE_key_evaluate_strands_relative(const int start, int end, const int tot, 
 				from += key->elemsize * start;
 				
 				for (b = start; b < end; b++) {
+					float delta[3];
+					
 					weight = weights ? (*weights * icuval) : icuval;
 					
-					madd_v3_v3fl((float *)poin, (float *)from, weight);
+					sub_v3_v3v3(delta, (float *)from, (float *)poin);
+					madd_v3_v3fl((float *)poin, delta, weight);
 					
 					poin += ofs;
 					from += elemsize;
@@ -1344,6 +1347,7 @@ static void do_key_strands(const int start, int end, const int tot, char *poin, 
 
 	for (a = start; a < end; a++) {
 		
+		zero_v3((float *)poin);
 		madd_v3_v3fl((float *)poin, (float *)k1, t[0]);
 		madd_v3_v3fl((float *)poin, (float *)k2, t[1]);
 		madd_v3_v3fl((float *)poin, (float *)k3, t[2]);
