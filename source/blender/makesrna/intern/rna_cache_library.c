@@ -676,6 +676,11 @@ static void rna_def_cache_modifier_strands_key(BlenderRNA *brna)
 	RNA_def_property_pointer_sdna(prop, NULL, "key");
 	RNA_def_property_ui_text(prop, "Shape Keys", "");
 	
+	prop = RNA_def_property(srna, "use_motion_state", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eStrandsKeyCacheModifier_Flag_UseMotionState);
+	RNA_def_property_ui_text(prop, "Use Motion State", "Apply the shape key to the motion state instead of the base shape");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
 	prop = RNA_def_property(srna, "show_only_shape_key", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", eStrandsKeyCacheModifier_Flag_ShapeLock);
 	RNA_def_property_ui_text(prop, "Shape Key Lock", "Always show the current Shape for this Object");

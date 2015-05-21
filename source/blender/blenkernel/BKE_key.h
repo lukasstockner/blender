@@ -73,7 +73,7 @@ float *BKE_key_evaluate_strands_ex(
         int *r_totelem, float *arr, size_t arr_size);
 float *BKE_key_evaluate_strands(
         struct Strands *strand, struct Key *key, struct KeyBlock *actkbs, bool lock_shape,
-        int *r_totelem, bool use_motion_basis);
+        int *r_totelem, bool use_motion);
 
 struct Key      *BKE_key_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
@@ -114,9 +114,9 @@ void    BKE_keyblock_update_from_mesh(struct Mesh *me, struct KeyBlock *kb);
 void    BKE_keyblock_convert_from_mesh(struct Mesh *me, struct KeyBlock *kb);
 void    BKE_keyblock_convert_to_mesh(struct KeyBlock *kb, struct Mesh *me);
 
-void    BKE_keyblock_update_from_strands(struct Strands *strands, struct KeyBlock *kb);
-void    BKE_keyblock_convert_from_strands(struct Strands *strands, struct Key *key, struct KeyBlock *kb);
-void    BKE_keyblock_convert_to_strands(struct KeyBlock *kb, struct Strands *strands);
+void    BKE_keyblock_update_from_strands(struct Strands *strands, struct KeyBlock *kb, bool use_motion);
+void    BKE_keyblock_convert_from_strands(struct Strands *strands, struct Key *key, struct KeyBlock *kb, bool use_motion);
+void    BKE_keyblock_convert_to_strands(struct KeyBlock *kb, struct Strands *strands, bool use_motion);
 
 void    BKE_keyblock_update_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);
 void    BKE_keyblock_convert_from_vertcos(struct Object *ob, struct KeyBlock *kb, float (*vertCos)[3]);

@@ -265,6 +265,7 @@ typedef struct StrandsKeyCacheModifier {
 
 typedef enum eStrandsKeyCacheModifier_Flag {
 	eStrandsKeyCacheModifier_Flag_ShapeLock             = (1 << 0),
+	eStrandsKeyCacheModifier_Flag_UseMotionState        = (1 << 1),
 } eStrandsKeyCacheModifier_Flag;
 
 #endif

@@ -1866,7 +1866,7 @@ float *BKE_key_evaluate_strands_ex(Strands *strands, Key *key, KeyBlock *actkb, 
 	return (float *)out;
 }
 
-float *BKE_key_evaluate_strands(Strands *strands, Key *key, KeyBlock *actkb, bool lock_shape, int *r_totelem, bool use_motion_basis)
+float *BKE_key_evaluate_strands(Strands *strands, Key *key, KeyBlock *actkb, bool lock_shape, int *r_totelem, bool use_motion)
 {
 	size_t size = sizeof(float) * 3 * strands->totverts;
 	float *data = MEM_mallocN(size, "strands shape key data");
@@ -1874,7 +1874,7 @@ float *BKE_key_evaluate_strands(Strands *strands, Key *key, KeyBlock *actkb, boo
 	float *fp;
 	int i;
 	
-	if (use_motion_basis && strands->state) {
+	if (use_motion && strands->state) {
 		for (i = 0, fp = data; i < strands->totverts; ++i, fp += 3)
 			copy_v3_v3(fp, strands->state[i].co);
 	}
@@ -2261,9 +2261,8 @@ void BKE_keyblock_convert_to_mesh(KeyBlock *kb, Mesh *me)
 }
 
 /************************* Strands ************************/
-void BKE_keyblock_update_from_strands(Strands *strands, KeyBlock *kb)
+void BKE_keyblock_update_from_strands(Strands *strands, KeyBlock *kb, bool use_motion)
 {
-	StrandsVertex *vert;
 	float (*fp)[3];
 	int a, tot;
 
@@ -2272,14 +2271,23 @@ void BKE_keyblock_update_from_strands(Strands *strands, KeyBlock *kb)
 	tot = strands->totverts;
 	if (tot == 0) return;
 
-	vert = strands->verts;
 	fp = kb->data;
-	for (a = 0; a < tot; a++, fp++, vert++) {
-		copy_v3_v3(*fp, vert->co);
+	/* use vertex locations as fallback, so we always get a valid shape */
+	if (use_motion && strands->state) {
+		StrandsMotionState *state = strands->state;
+		for (a = 0; a < tot; a++, fp++, state++) {
+			copy_v3_v3(*fp, state->co);
+		}
+	}
+	else {
+		StrandsVertex *vert = strands->verts;
+		for (a = 0; a < tot; a++, fp++, vert++) {
+			copy_v3_v3(*fp, vert->co);
+		}
 	}
 }
 
-void BKE_keyblock_convert_from_strands(Strands *strands, Key *key, KeyBlock *kb)
+void BKE_keyblock_convert_from_strands(Strands *strands, Key *key, KeyBlock *kb, bool use_motion)
 {
 	int tot = strands->totverts;
 
@@ -2290,22 +2298,31 @@ void BKE_keyblock_convert_from_strands(Strands *strands, Key *key, KeyBlock *kb)
 	kb->data = MEM_mallocN(key->elemsize * tot, __func__);
 	kb->totelem = tot;
 
-	BKE_keyblock_update_from_strands(strands, kb);
+	BKE_keyblock_update_from_strands(strands, kb, use_motion);
 }
 
-void BKE_keyblock_convert_to_strands(KeyBlock *kb, Strands *strands)
+void BKE_keyblock_convert_to_strands(KeyBlock *kb, Strands *strands, bool use_motion)
 {
-	StrandsVertex *vert;
 	const float (*fp)[3];
 	int a, tot;
 
-	vert = strands->verts;
 	fp = kb->data;
 
 	tot = min_ii(kb->totelem, strands->totverts);
 
-	for (a = 0; a < tot; a++, fp++, vert++) {
-		copy_v3_v3(vert->co, *fp);
+	if (use_motion) {
+		if (strands->state) {
+			StrandsMotionState *state = strands->state;
+			for (a = 0; a < tot; a++, fp++, state++) {
+				copy_v3_v3(state->co, *fp);
+			}
+		}
+	}
+	else {
+		StrandsVertex *vert = strands->verts;
+		for (a = 0; a < tot; a++, fp++, vert++) {
+			copy_v3_v3(vert->co, *fp);
+		}
 	}
 }
 

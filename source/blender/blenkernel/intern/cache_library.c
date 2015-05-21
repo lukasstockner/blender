@@ -1518,6 +1518,7 @@ static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibra
 
 static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
+	const bool use_motion = skmd->flag & eStrandsKeyCacheModifier_Flag_UseMotionState;
 	Object *ob = skmd->object;
 	Strands *strands;
 	KeyBlock *actkb;
@@ -1525,41 +1526,31 @@ static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContex
 	
 	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands, NULL))
 		return;
+	if (use_motion && !strands->state)
+		return;
 	
 	actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
-	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL, false);
+	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL, use_motion);
 	if (shape) {
 		StrandsVertex *vert = strands->verts;
+		StrandsMotionState *state = use_motion ? strands->state : NULL;
 		int totvert = strands->totverts;
 		int i;
 		
 		float *fp = shape;
 		for (i = 0; i < totvert; ++i) {
-			copy_v3_v3(vert->co, fp);
-			++vert;
+			if (state) {
+				copy_v3_v3(state->co, fp);
+				++state;
+			}
+			else {
+				copy_v3_v3(vert->co, fp);
+				++vert;
+			}
 			fp += 3;
 		}
 		
 		MEM_freeN(shape);
-	}
-	
-	/* motion shape, if needed */
-	if (strands->state) {
-		shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL, true);
-		if (shape) {
-			StrandsMotionState *state = strands->state;
-			int totvert = strands->totverts;
-			int i;
-			
-			float *fp = shape;
-			for (i = 0; i < totvert; ++i) {
-				copy_v3_v3(state->co, fp);
-				++state;
-				fp += 3;
-			}
-			
-			MEM_freeN(shape);
-		}
 	}
 }
 
@@ -1577,6 +1568,7 @@ CacheModifierTypeInfo cacheModifierType_StrandsKey = {
 
 KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skmd, Strands *strands, const char *name, const bool from_mix)
 {
+	const bool use_motion = skmd->flag & eStrandsKeyCacheModifier_Flag_UseMotionState;
 	Key *key = skmd->key;
 	KeyBlock *kb;
 	bool newkey = false;
@@ -1593,14 +1585,14 @@ KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skm
 	if (newkey || from_mix == false) {
 		/* create from mesh */
 		kb = BKE_keyblock_add_ctime(key, name, false);
-		BKE_keyblock_convert_from_strands(strands, key, kb);
+		BKE_keyblock_convert_from_strands(strands, key, kb, use_motion);
 	}
 	else {
 		/* copy from current values */
 		KeyBlock *actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
 		bool shape_lock = skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock;
 		int totelem;
-		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem, false);
+		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem, use_motion);
 		
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);

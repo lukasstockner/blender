@@ -134,7 +134,7 @@ static bool ED_cache_shape_key_remove(StrandsKeyCacheModifier *skmd, Strands *st
 	
 			if (key->refkey) {
 				/* apply new basis key on original data */
-				BKE_keyblock_convert_to_strands(key->refkey, strands);
+				BKE_keyblock_convert_to_strands(key->refkey, strands, skmd->flag & eStrandsKeyCacheModifier_Flag_UseMotionState);
 			}
 		}
 		

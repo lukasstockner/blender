@@ -600,6 +600,8 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         #sub.operator("object.shape_key_remove", icon='ZOOMOUT', text="").all = False
         sub.menu("CACHELIB_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
 
+        col.prop(md, "use_motion_state")
+
         if kb:
             col.separator()
 
