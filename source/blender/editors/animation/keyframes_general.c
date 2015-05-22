@@ -188,6 +188,10 @@ static void copy_bezt_ipo(BezTriple *bezdst, BezTriple *bezsrc)
 	bezdst->period = bezsrc->period;
 	bezdst->h1 = bezsrc->h1;
 	bezdst->h2 = bezsrc->h2;
+	bezdst->vec[0][0] = bezsrc->vec[0][0];
+	bezdst->vec[0][1] = bezsrc->vec[0][1];
+	bezdst->vec[2][0] = bezsrc->vec[2][0];
+	bezdst->vec[2][1] = bezsrc->vec[2][1];
 }
 
 /* Basic F-Curve 'cleanup' function that removes 'double points' and unnecessary keyframes on linear-segments only
@@ -303,8 +307,9 @@ void clean_fcurve(struct bAnimContext *ac, bAnimListElem *ale, float thresh, boo
 		}
 	}
 
-	calchandles_fcurve(fcu);
-	
+	/* skip doing this, handles should be already sorted since we are copying in forward order only */
+	/* calchandles_fcurve(fcu); */
+
 	/* now free the memory used by the old BezTriples */
 	if (old_bezts)
 		MEM_freeN(old_bezts);
