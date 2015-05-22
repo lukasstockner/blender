@@ -771,6 +771,11 @@ static void rna_def_cache_modifier_haircut(BlenderRNA *brna)
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Target", "Mesh object to wrap onto");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "use_internal_target", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", eHaircutCacheModifier_Flag_InternalTarget);
+	RNA_def_property_ui_text(prop, "Use Internal Target", "Use a cached object from the group instead of an object in the scene");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 }
 
 static void rna_def_cache_modifier(BlenderRNA *brna)

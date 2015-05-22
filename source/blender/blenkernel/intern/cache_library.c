@@ -1793,20 +1793,29 @@ static void haircut_apply(HaircutCacheModifier *hmd, HaircutCacheData *data, Str
 	}
 }
 
-static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
+static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *ctx, CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
 	Object *ob = hmd->object;
 	DupliObject *dob;
 	Strands *strands;
-	DupliObjectData *target_data;
+	DerivedMesh *target_dm;
 	float mat[4][4];
 	
 	HaircutCacheData shrinkwrap;
 	
 	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hmd->hair_system, NULL, &strands, NULL))
 		return;
-	if (!BKE_cache_modifier_find_object(data->dupcache, hmd->target, &target_data))
-		return;
+	if (hmd->flag & eHaircutCacheModifier_Flag_InternalTarget) {
+		DupliObjectData *target_data;
+		if (!BKE_cache_modifier_find_object(data->dupcache, hmd->target, &target_data))
+			return;
+		target_dm = target_data->dm;
+	}
+	else {
+		if (!hmd->target)
+			return;
+		target_dm = mesh_get_derived_final(ctx->scene, hmd->target, CD_MASK_BAREMESH);
+	}
 	
 	for (dob = data->dupcache->duplilist.first; dob; dob = dob->next) {
 		if (dob->ob != ob)
@@ -1816,7 +1825,7 @@ static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *UNUS
 		invert_m4_m4(mat, dob->mat);
 		
 		memset(&shrinkwrap, 0, sizeof(shrinkwrap));
-		haircut_data_get_bvhtree(&shrinkwrap, target_data->dm, true);
+		haircut_data_get_bvhtree(&shrinkwrap, target_dm, true);
 		haircut_data_get_instances(&shrinkwrap, hmd->target, mat, &data->dupcache->duplilist);
 		
 		haircut_apply(hmd, &shrinkwrap, strands);
