@@ -570,6 +570,7 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         row = layout.row()
         row.prop_search(md, "target", context.blend_data, "objects", icon='OBJECT_DATA')
         row.prop(md, "use_internal_target", text="Internal")
+        layout.prop(md, "cut_mode", toggle=True, expand=True)
 
         layout = layout.column()
         layout.active = md.hair_system is not None

@@ -740,6 +740,12 @@ static void rna_def_cache_modifier_haircut(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 	
+	static EnumPropertyItem cut_mode_items[] = {
+	    {eHaircutCacheModifier_CutMode_Enter, "ENTER", 0, "Enter", "Cut strands when entering the target mesh"},
+	    {eHaircutCacheModifier_CutMode_Exit, "EXIT", 0, "Exit", "Cut strands when exiting the target mesh"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
 	srna = RNA_def_struct(brna, "HaircutCacheModifier", "CacheLibraryModifier");
 	RNA_def_struct_sdna(srna, "HaircutCacheModifier");
 	RNA_def_struct_ui_text(srna, "Hair Cut Cache Modifier", "");
@@ -776,6 +782,13 @@ static void rna_def_cache_modifier_haircut(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", eHaircutCacheModifier_Flag_InternalTarget);
 	RNA_def_property_ui_text(prop, "Use Internal Target", "Use a cached object from the group instead of an object in the scene");
 	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
+	
+	prop = RNA_def_property(srna, "cut_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "cut_mode");
+	RNA_def_property_enum_items(prop, cut_mode_items);
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	RNA_def_property_ui_text(prop, "Cut Mode", "When to cut strands with the target");
+	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 }
 
 static void rna_def_cache_modifier(BlenderRNA *brna)

@@ -67,6 +67,7 @@ typedef struct StrandsChildCurve {
 	float root_matrix[4][4];
 	int parents[4];
 	float parent_weights[4];
+	float cutoff; /* shortens the curve if 0 <= cutoff < numverts */
 } StrandsChildCurve;
 
 typedef struct StrandsChildCurveUV {

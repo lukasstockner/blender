@@ -967,6 +967,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	for (int i = 0; i < sample_numvert->size(); ++i) {
 		StrandsChildCurve *scurve = &m_strands->curves[i];
 		scurve->numverts = *numvert;
+		scurve->cutoff = -1.0f;
 		
 		float qt[4] = {root_rot->r, root_rot->v.x, root_rot->v.y, root_rot->v.z};
 		quat_to_mat4(scurve->root_matrix, qt);

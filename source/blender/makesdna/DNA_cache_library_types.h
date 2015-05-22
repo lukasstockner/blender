@@ -276,11 +276,19 @@ typedef struct HaircutCacheModifier {
 	int hair_system;
 	int flag;
 	
+	short cut_mode;
+	short pad[3];
+	
 	struct Object *target;
 } HaircutCacheModifier;
 
 typedef enum eHaircutCacheModifier_Flag {
 	eHaircutCacheModifier_Flag_InternalTarget           = (1 << 0),
 } eHaircutCacheModifier_Flag;
+
+typedef enum eHaircutCacheModifier_CutMode {
+	eHaircutCacheModifier_CutMode_Enter         = (1 << 0),
+	eHaircutCacheModifier_CutMode_Exit          = (1 << 1),
+} eHaircutCacheModifier_CutMode;
 
 #endif

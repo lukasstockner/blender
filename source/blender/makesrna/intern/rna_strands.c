@@ -44,6 +44,12 @@ static int rna_Strands_has_motion_state_get(PointerRNA *ptr)
 	return (bool)(strands->state != NULL);
 }
 
+static int rna_StrandsChildCurve_render_size_get(PointerRNA *ptr)
+{
+	StrandsChildCurve *curve = ptr->data;
+	return curve->cutoff < 0.0f ? curve->numverts : min_ii(curve->numverts, (int)curve->cutoff);
+}
+
 static void rna_StrandsChildren_curve_uvs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	StrandsChildren *strands = ptr->data;
@@ -109,6 +115,12 @@ static void rna_def_strands_curve(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "numverts");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Size", "Number of vertices of the curve");
+	
+	/* same as "size", defined for consistency */
+	prop = RNA_def_property(srna, "render_size", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "numverts");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Render Size", "Number of vertices of the curve for rendering based on cutoff length");
 }
 
 static void rna_def_strands_vertex(BlenderRNA *brna)
@@ -186,6 +198,16 @@ static void rna_def_strands_child_curve(BlenderRNA *brna)
 	RNA_def_property_int_sdna(prop, NULL, "numverts");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Size", "Number of vertices of the curve");
+	
+	prop = RNA_def_property(srna, "render_size", PROP_INT, PROP_NONE);
+	RNA_def_property_int_funcs(prop, "rna_StrandsChildCurve_render_size_get", NULL, NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Render Size", "Number of vertices of the curve for rendering based on cutoff length");
+	
+	prop = RNA_def_property(srna, "cutoff", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "cutoff");
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Cutoff", "Curve parameter at which the curve is cut short for rendering");
 }
 
 static void rna_def_strands_child_curve_uv(BlenderRNA *brna)
