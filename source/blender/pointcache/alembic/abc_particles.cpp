@@ -46,6 +46,7 @@ struct StrandsChildrenSample {
 	std::vector<int32_t> numverts;
 	std::vector<Quatf> root_rotations;
 	std::vector<V3f> root_positions;
+	std::vector<float32_t> cutoff;
 	
 	std::vector<V3f> positions;
 	std::vector<float32_t> times;
@@ -95,6 +96,7 @@ void AbcHairChildrenWriter::init_abc(OObject parent)
 	
 	m_prop_root_rot = OQuatfArrayProperty(user_props, "root_rotations", abc_archive()->frame_sampling());
 	m_prop_root_positions = OV3fArrayProperty(user_props, "root_positions", abc_archive()->frame_sampling());
+	m_param_cutoff = OFloatGeomParam(geom_props, "cutoff", false, kUniformScope, 1, 0);
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, 0);
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
 	m_prop_parent_weights = OFloatArrayProperty(user_props, "parent_weights", abc_archive()->frame_sampling());
@@ -381,6 +383,7 @@ static void hair_children_create_sample(Object *ob, ParticleSystem *psys, Partic
 		sample.root_rotations.push_back(Quatf(qt[0], qt[1], qt[2], qt[3]));
 		float *co = hairmat[3];
 		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
+		sample.cutoff.push_back(-1.0f);
 	}
 	
 	if (write_constants) {
@@ -426,6 +429,7 @@ void AbcHairChildrenWriter::write_sample()
 	
 	m_prop_root_rot.set(QuatfArraySample(child_sample.root_rotations));
 	m_prop_root_positions.set(V3fArraySample(child_sample.root_positions));
+	m_param_cutoff.set(OFloatGeomParam::Sample(FloatArraySample(child_sample.cutoff), kUniformScope));
 }
 
 
@@ -605,6 +609,7 @@ void AbcStrandsChildrenWriter::init_abc(OObject parent)
 	
 	m_prop_root_rot = OQuatfArrayProperty(user_props, "root_rotations", abc_archive()->frame_sampling());
 	m_prop_root_positions = OV3fArrayProperty(user_props, "root_positions", abc_archive()->frame_sampling());
+	m_param_cutoff = OFloatGeomParam(geom_props, "cutoff", false, kUniformScope, 1, abc_archive()->frame_sampling());
 	m_param_times = OFloatGeomParam(geom_props, "times", false, kVertexScope, 1, abc_archive()->frame_sampling());
 	m_prop_parents = OInt32ArrayProperty(user_props, "parents", abc_archive()->frame_sampling());
 	m_prop_parent_weights = OFloatArrayProperty(user_props, "parent_weights", abc_archive()->frame_sampling());
@@ -682,6 +687,7 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 		sample.root_rotations.push_back(Quatf(qt[0], qt[1], qt[2], qt[3]));
 		float *co = it_strand.curve->root_matrix[3];
 		sample.root_positions.push_back(V3f(co[0], co[1], co[2]));
+		sample.cutoff.push_back(it_strand.curve->cutoff);
 	}
 	
 	if (write_constants) {
@@ -722,6 +728,7 @@ void AbcStrandsChildrenWriter::write_sample()
 	
 	m_prop_root_rot.set(QuatfArraySample(strands_sample.root_rotations));
 	m_prop_root_positions.set(V3fArraySample(strands_sample.root_positions));
+	m_param_cutoff.set(OFloatGeomParam::Sample(FloatArraySample(strands_sample.cutoff), kUniformScope));
 }
 
 
@@ -904,6 +911,8 @@ void AbcStrandsChildrenReader::init_abc(IObject object)
 	
 	m_prop_root_rot = IQuatfArrayProperty(user_props, "root_rotations");
 	m_prop_root_positions = IV3fArrayProperty(user_props, "root_positions");
+	if (geom_props.getPropertyHeader("cutoff"))
+		m_param_cutoff = IFloatGeomParam(geom_props, "cutoff");
 	m_param_times = IFloatGeomParam(geom_props, "times");
 	m_prop_parents = IInt32ArrayProperty(user_props, "parents", 0);
 	m_prop_parent_weights = IFloatArrayProperty(user_props, "parent_weights", 0);
@@ -931,6 +940,9 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
 	QuatfArraySamplePtr sample_root_rotations = m_prop_root_rot.getValue(ss);
 	V3fArraySamplePtr sample_root_positions = m_prop_root_positions.getValue(ss);
+	IFloatGeomParam::Sample sample_cutoff;
+	if (m_param_cutoff)
+		sample_cutoff = m_param_cutoff.getExpandedValue(ss);
 	IFloatGeomParam::Sample sample_time = m_param_times.getExpandedValue(ss);
 	Int32ArraySamplePtr sample_parents = m_prop_parents.getValue(ss);
 	FloatArraySamplePtr sample_parent_weights = m_prop_parent_weights.getValue(ss);
@@ -962,6 +974,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	const int32_t *numvert = sample_numvert->get();
 	const Quatf *root_rot = sample_root_rotations->get();
 	const V3f *root_positions = sample_root_positions->get();
+	const float32_t *cutoff = sample_cutoff ? sample_cutoff.getVals()->get() : NULL;
 	const int32_t *parents = sample_parents->get();
 	const float32_t *parent_weights = sample_parent_weights->get();
 	for (int i = 0; i < sample_numvert->size(); ++i) {
@@ -972,6 +985,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 		float qt[4] = {root_rot->r, root_rot->v.x, root_rot->v.y, root_rot->v.z};
 		quat_to_mat4(scurve->root_matrix, qt);
 		copy_v3_v3(scurve->root_matrix[3], root_positions->getValue());
+		
+		scurve->cutoff = cutoff ? *cutoff : -1.0f;
 		
 		scurve->parents[0] = parents[0];
 		scurve->parents[1] = parents[1];
@@ -987,6 +1002,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 		++root_positions;
 		parents += 4;
 		parent_weights += 4;
+		if (cutoff) ++cutoff;
 	}
 	
 	if (sample_curve_uvs->size() > 0 && sample_curve_uvs->size() % totcurves == 0) {

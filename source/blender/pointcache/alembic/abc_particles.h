@@ -61,6 +61,7 @@ private:
 	AbcGeom::OCurves m_curves;
 	AbcGeom::OQuatfArrayProperty m_prop_root_rot;
 	AbcGeom::OV3fArrayProperty m_prop_root_positions;
+	AbcGeom::OFloatGeomParam m_param_cutoff;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
 	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
@@ -113,6 +114,7 @@ private:
 	AbcGeom::OCurves m_curves;
 	AbcGeom::OQuatfArrayProperty m_prop_root_rot;
 	AbcGeom::OV3fArrayProperty m_prop_root_positions;
+	AbcGeom::OFloatGeomParam m_param_cutoff;
 	AbcGeom::OFloatGeomParam m_param_times;
 	AbcGeom::OInt32ArrayProperty m_prop_parents;
 	AbcGeom::OFloatArrayProperty m_prop_parent_weights;
@@ -171,6 +173,7 @@ private:
 	AbcGeom::ICurves m_curves;
 	AbcGeom::IQuatfArrayProperty m_prop_root_rot;
 	AbcGeom::IV3fArrayProperty m_prop_root_positions;
+	AbcGeom::IFloatGeomParam m_param_cutoff;
 	AbcGeom::IFloatGeomParam m_param_times;
 	AbcGeom::IInt32ArrayProperty m_prop_parents;
 	AbcGeom::IFloatArrayProperty m_prop_parent_weights;
