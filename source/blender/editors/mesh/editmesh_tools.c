@@ -2489,7 +2489,7 @@ void MESH_OT_blend_from_shape(wmOperatorType *ot)
 	/* properties */
 	prop = RNA_def_enum(ot->srna, "shape", DummyRNA_NULL_items, 0, "Shape", "Shape key to use for blending");
 	RNA_def_enum_funcs(prop, shape_itemf);
-	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE);
+	RNA_def_property_flag(prop, PROP_ENUM_NO_TRANSLATE | PROP_NEVER_UNLINK);
 	RNA_def_float(ot->srna, "blend", 1.0f, -FLT_MAX, FLT_MAX, "Blend", "Blending factor", -2.0f, 2.0f);
 	RNA_def_boolean(ot->srna, "add", 1, "Add", "Add rather than blend between shapes");
 }
@@ -3760,7 +3760,20 @@ static int edbm_tris_convert_to_quads_exec(bContext *C, wmOperator *op)
 	Object *obedit = CTX_data_edit_object(C);
 	BMEditMesh *em = BKE_editmesh_from_object(obedit);
 	int dosharp, douvs, dovcols, domaterials;
-	const float limit = RNA_float_get(op->ptr, "limit");
+	float limit;
+	PropertyRNA *prop;
+
+	/* When joining exactly 2 faces, no limit.
+	 * this is useful for one off joins while editing. */
+	prop = RNA_struct_find_property(op->ptr, "limit");
+	if ((em->bm->totfacesel == 2) &&
+	    (RNA_property_is_set(op->ptr, prop) == false))
+	{
+		limit = DEG2RADF(180.0f);
+	}
+	else {
+		limit = RNA_property_float_get(op->ptr, prop);
+	}
 
 	dosharp = RNA_boolean_get(op->ptr, "sharp");
 	douvs = RNA_boolean_get(op->ptr, "uvs");

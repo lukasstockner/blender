@@ -470,6 +470,14 @@ if env['OURPLATFORM']=='darwin':
 ###################  End Automatic configuration for OSX   ##################
 #############################################################################
 
+if env['OURPLATFORM'] == 'linux' and not env['C_COMPILER_ID']:
+    command = ["%s"%env['CC'], "--version"]
+    line = btools.get_command_output(command)
+    if line.startswith('gcc'):
+        env['C_COMPILER_ID'] = 'gcc'
+    elif 'clang' in line[0]:
+        env['C_COMPILER_ID'] = 'clang'
+
 if env['WITH_BF_OPENMP'] == 1:
         if env['OURPLATFORM'] in ('win32-vc', 'win64-vc'):
                 env['CCFLAGS'].append('/openmp')
@@ -1035,6 +1043,7 @@ if env['OURPLATFORM']!='darwin':
             source.remove('shaders')
             source.remove('osl')
             source=['intern/cycles/kernel/'+s for s in source]
+            source.append('intern/cycles/util/util_atomic.h')
             source.append('intern/cycles/util/util_color.h')
             source.append('intern/cycles/util/util_half.h')
             source.append('intern/cycles/util/util_math.h')

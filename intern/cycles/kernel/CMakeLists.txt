@@ -155,6 +155,7 @@ set(SRC_GEOM_HEADERS
 )
 
 set(SRC_UTIL_HEADERS
+	../util/util_atomic.h
 	../util/util_color.h
 	../util/util_half.h
 	../util/util_math.h
