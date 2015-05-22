@@ -47,7 +47,7 @@ static int rna_Strands_has_motion_state_get(PointerRNA *ptr)
 static int rna_StrandsChildCurve_render_size_get(PointerRNA *ptr)
 {
 	StrandsChildCurve *curve = ptr->data;
-	return curve->cutoff < 0.0f ? curve->numverts : min_ii(curve->numverts, (int)curve->cutoff);
+	return curve->cutoff < 0.0f ? curve->numverts : min_ii(curve->numverts, (int)ceilf(curve->cutoff) + 1);
 }
 
 static void rna_StrandsChildren_curve_uvs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)

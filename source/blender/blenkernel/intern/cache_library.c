@@ -1849,13 +1849,7 @@ static bool haircut_find_segment_cut(HaircutCacheModifier *hmd, HaircutCacheData
 	if ((hmd->cut_mode & eHaircutCacheModifier_CutMode_Enter && is_entering) ||
 	    (hmd->cut_mode & eHaircutCacheModifier_CutMode_Exit && !is_entering))
 	{
-		
-		/* convert back to world space */
-		mul_m4_v3(inst->mat, hit.co);
-		mul_mat3_m4_v3(inst->mat, hit.no);
-		
-		if (r_lambda) *r_lambda = len_v3v3(hit.co, v1) / length;
-		
+		if (r_lambda) *r_lambda = len_v3v3(hit.co, start) / length;
 		return true;
 	}
 	

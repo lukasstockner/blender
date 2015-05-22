@@ -396,9 +396,9 @@ void BKE_strands_children_deform(StrandsChildren *strands, Strands *parents, boo
 			mul_m4_v3(it_strand.curve->root_matrix, it_vert.vertex->co);
 		}
 		
-		strands_children_apply_cutoff(&it_strand);
-		
 		strands_children_strand_deform_intern(&it_strand, parents, vertstart, use_motion, NULL);
+		
+		strands_children_apply_cutoff(&it_strand);
 	}
 	
 	if (vertstart)

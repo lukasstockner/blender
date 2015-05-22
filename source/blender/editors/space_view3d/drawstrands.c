@@ -148,7 +148,7 @@ static void draw_strand_child_lines(StrandsChildren *children, short dflag)
 	
 	for (BKE_strand_child_iter_init(&it_strand, children); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
 		StrandsChildCurve *curve = it_strand.curve;
-		const int numverts = curve->cutoff < 0.0f ? curve->numverts : min_ii(curve->numverts, (int)curve->cutoff);
+		const int numverts = curve->cutoff < 0.0f ? curve->numverts : min_ii(curve->numverts, (int)ceilf(curve->cutoff) + 1);
 		
 		if (it_strand.tot <= 0)
 			continue;
