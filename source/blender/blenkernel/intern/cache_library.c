@@ -1960,12 +1960,19 @@ static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *ctx,
 		if (dob->ob != ob)
 			continue;
 		
-		/* instances are calculated relative to the strands object */
-		invert_m4_m4(mat, dob->mat);
-		
 		memset(&haircut, 0, sizeof(haircut));
 		haircut_data_get_bvhtree(&haircut, target_dm, true);
-		haircut_data_get_instances(&haircut, hmd->target, mat, dupli_target ? &data->dupcache->duplilist : NULL);
+		if (dupli_target) {
+			/* instances are calculated relative to the strands object */
+			invert_m4_m4(mat, dob->mat);
+			haircut_data_get_instances(&haircut, hmd->target, mat, &data->dupcache->duplilist);
+		}
+		else {
+			/* instances are calculated relative to the strands object */
+			mul_m4_m4m4(mat, data->mat, dob->mat);
+			invert_m4(mat);
+			haircut_data_get_instances(&haircut, hmd->target, mat, NULL);
+		}
 		
 		haircut_apply(hmd, ctx, eval_mode, &haircut, parents, strands);
 		
