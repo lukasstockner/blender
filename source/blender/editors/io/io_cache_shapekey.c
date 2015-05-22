@@ -134,7 +134,7 @@ static bool ED_cache_shape_key_remove(StrandsKeyCacheModifier *skmd, Strands *st
 	
 			if (key->refkey) {
 				/* apply new basis key on original data */
-				BKE_keyblock_convert_to_strands(key->refkey, strands);
+				BKE_keyblock_convert_to_strands(key->refkey, strands, skmd->flag & eStrandsKeyCacheModifier_Flag_UseMotionState);
 			}
 		}
 		
@@ -162,7 +162,7 @@ static bool shape_key_get_context(bContext *C, CacheLibrary **r_cachelib, Strand
 	
 	if (!(ob && ob->dup_cache && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group))
 		return false;
-	if (!BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, NULL, &strands, NULL))
+	if (!BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, NULL, &strands, NULL, NULL))
 		return false;
 	
 	if (r_cachelib) *r_cachelib = cachelib;

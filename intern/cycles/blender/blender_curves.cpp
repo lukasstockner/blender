@@ -373,7 +373,7 @@ static bool ObtainCacheStrandsData(Mesh *mesh, BL::Scene /*b_scene*/, BL::Object
 	int ivert = 0;
 	for(; icurve < totcurves; ++icurve) {
 		CurveT b_curve = b_strands.curves[icurve];
-		int numverts = b_curve.size();
+		int numverts = b_curve.render_size();
 		int usedverts = 0;
 		CData->curve_firstkey.push_back(keyno);
 		

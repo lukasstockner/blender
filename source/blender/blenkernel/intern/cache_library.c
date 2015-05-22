@@ -1030,12 +1030,13 @@ bool BKE_cache_modifier_find_object(DupliCache *dupcache, Object *ob, DupliObjec
 	return true;
 }
 
-bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_system, DupliObjectData **r_data, Strands **r_strands, const char **r_name)
+bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_system, DupliObjectData **r_data, Strands **r_strands, StrandsChildren **r_children, const char **r_name)
 {
 	DupliObjectData *dobdata;
 	ParticleSystem *psys;
 	DupliObjectDataStrands *link;
 	Strands *strands;
+	StrandsChildren *children;
 	
 	if (!ob)
 		return false;
@@ -1048,17 +1049,20 @@ bool BKE_cache_modifier_find_strands(DupliCache *dupcache, Object *ob, int hair_
 		return false;
 	
 	strands = NULL;
+	children = NULL;
 	for (link = dobdata->strands.first; link; link = link->next) {
 		if (link->strands && STREQ(link->name, psys->name)) {
 			strands = link->strands;
+			children = link->strands_children;
 			break;
 		}
 	}
-	if (!strands)
+	if ((r_strands && !strands) || (r_children && !children))
 		return false;
 	
 	if (r_data) *r_data = dobdata;
 	if (r_strands) *r_strands = strands;
+	if (r_children) *r_children = children;
 	if (r_name) *r_name = psys->name;
 	return true;
 }
@@ -1083,6 +1087,7 @@ static void hairsim_params_init(HairSimParams *params)
 		cm->cm[0].curve[0].y = 1.0f;
 		cm->cm[0].curve[1].x = 1.0f;
 		cm->cm[0].curve[1].y = 0.0f;
+		curvemapping_changed_all(cm);
 		params->goal_stiffness_mapping = cm;
 	}
 	{
@@ -1091,6 +1096,7 @@ static void hairsim_params_init(HairSimParams *params)
 		cm->cm[0].curve[0].y = 1.0f;
 		cm->cm[0].curve[1].x = 1.0f;
 		cm->cm[0].curve[1].y = 1.0f;
+		curvemapping_changed_all(cm);
 		params->bend_stiffness_mapping = cm;
 	}
 	
@@ -1148,7 +1154,7 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 //	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
 //		return;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands, NULL))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands, NULL, NULL))
 		return;
 	
 	/* Note: motion state data should always be created regardless of actual sim.
@@ -1445,7 +1451,7 @@ static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext
 	
 	ShrinkWrapCacheData shrinkwrap;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL, NULL))
 		return;
 	if (!BKE_cache_modifier_find_object(data->dupcache, smd->target, &target_data))
 		return;
@@ -1518,27 +1524,36 @@ static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibra
 
 static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode UNUSED(eval_mode))
 {
+	const bool use_motion = skmd->flag & eStrandsKeyCacheModifier_Flag_UseMotionState;
 	Object *ob = skmd->object;
 	Strands *strands;
 	KeyBlock *actkb;
 	float *shape;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands, NULL))
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands, NULL, NULL))
+		return;
+	if (use_motion && !strands->state)
 		return;
 	
 	actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
-	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL);
+	shape = BKE_key_evaluate_strands(strands, skmd->key, actkb, skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock, NULL, use_motion);
 	if (shape) {
 		StrandsVertex *vert = strands->verts;
+		StrandsMotionState *state = use_motion ? strands->state : NULL;
 		int totvert = strands->totverts;
 		int i;
 		
 		float *fp = shape;
 		for (i = 0; i < totvert; ++i) {
-			copy_v3_v3(vert->co, fp);
-			
+			if (state) {
+				copy_v3_v3(state->co, fp);
+				++state;
+			}
+			else {
+				copy_v3_v3(vert->co, fp);
+				++vert;
+			}
 			fp += 3;
-			++vert;
 		}
 		
 		MEM_freeN(shape);
@@ -1559,6 +1574,7 @@ CacheModifierTypeInfo cacheModifierType_StrandsKey = {
 
 KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skmd, Strands *strands, const char *name, const bool from_mix)
 {
+	const bool use_motion = skmd->flag & eStrandsKeyCacheModifier_Flag_UseMotionState;
 	Key *key = skmd->key;
 	KeyBlock *kb;
 	bool newkey = false;
@@ -1575,14 +1591,14 @@ KeyBlock *BKE_cache_modifier_strands_key_insert_key(StrandsKeyCacheModifier *skm
 	if (newkey || from_mix == false) {
 		/* create from mesh */
 		kb = BKE_keyblock_add_ctime(key, name, false);
-		BKE_keyblock_convert_from_strands(strands, key, kb);
+		BKE_keyblock_convert_from_strands(strands, key, kb, use_motion);
 	}
 	else {
 		/* copy from current values */
 		KeyBlock *actkb = BLI_findlink(&skmd->key->block, skmd->shapenr);
 		bool shape_lock = skmd->flag & eStrandsKeyCacheModifier_Flag_ShapeLock;
 		int totelem;
-		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem);
+		float *data = BKE_key_evaluate_strands(strands, key, actkb, shape_lock, &totelem, use_motion);
 		
 		/* create new block with prepared data */
 		kb = BKE_keyblock_add_ctime(key, name, false);
@@ -1610,7 +1626,7 @@ bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_
 			StrandsKeyCacheModifier *skmd = (StrandsKeyCacheModifier *)md;
 			DupliObjectData *dobdata;
 			
-			if (BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, &dobdata, r_strands, r_name)) {
+			if (BKE_cache_modifier_find_strands(ob->dup_cache, skmd->object, skmd->hair_system, &dobdata, r_strands, NULL, r_name)) {
 				if (r_skmd) *r_skmd = skmd;
 				if (r_dm) *r_dm = dobdata->dm;
 				if (r_dobdata) *r_dobdata = dobdata;
@@ -1645,6 +1661,342 @@ bool BKE_cache_modifier_strands_key_get(Object *ob, StrandsKeyCacheModifier **r_
 	return false;
 }
 
+/* ------------------------------------------------------------------------- */
+
+static void haircut_init(HaircutCacheModifier *hmd)
+{
+	hmd->object = NULL;
+	hmd->hair_system = -1;
+}
+
+static void haircut_copy(HaircutCacheModifier *UNUSED(hmd), HaircutCacheModifier *UNUSED(thmd))
+{
+}
+
+static void haircut_free(HaircutCacheModifier *UNUSED(hmd))
+{
+}
+
+static void haircut_foreach_id_link(HaircutCacheModifier *smd, CacheLibrary *cachelib, CacheModifier_IDWalkFunc walk, void *userdata)
+{
+	walk(userdata, cachelib, &smd->modifier, (ID **)(&smd->object));
+	walk(userdata, cachelib, &smd->modifier, (ID **)(&smd->target));
+}
+
+typedef struct HaircutCacheData {
+	DerivedMesh *dm;
+	BVHTreeFromMesh treedata;
+	
+	ListBase instances;
+} HaircutCacheData;
+
+typedef struct HaircutCacheInstance {
+	struct HaircutCacheInstance *next, *prev;
+	
+	float mat[4][4];
+	float imat[4][4];
+} HaircutCacheInstance;
+
+static void haircut_data_get_bvhtree(HaircutCacheData *data, DerivedMesh *dm, bool create_bvhtree)
+{
+	data->dm = CDDM_copy(dm);
+	if (!data->dm)
+		return;
+	
+	DM_ensure_tessface(data->dm);
+	CDDM_calc_normals(data->dm);
+	
+	if (create_bvhtree) {
+		bvhtree_from_mesh_faces(&data->treedata, data->dm, 0.0, 2, 6);
+	}
+}
+
+static void haircut_data_get_instances(HaircutCacheData *data, Object *ob, float obmat[4][4], ListBase *duplilist)
+{
+	if (duplilist) {
+		DupliObject *dob;
+		
+		for (dob = duplilist->first; dob; dob = dob->next) {
+			HaircutCacheInstance *inst;
+			
+			if (dob->ob != ob)
+				continue;
+			
+			inst = MEM_callocN(sizeof(HaircutCacheInstance), "haircut instance");
+			mul_m4_m4m4(inst->mat, obmat, dob->mat);
+			invert_m4_m4(inst->imat, inst->mat);
+			
+			BLI_addtail(&data->instances, inst);
+		}
+	}
+	else {
+		HaircutCacheInstance *inst = MEM_callocN(sizeof(HaircutCacheInstance), "haircut instance");
+		mul_m4_m4m4(inst->mat, obmat, ob->obmat);
+		invert_m4_m4(inst->imat, inst->mat);
+		
+		BLI_addtail(&data->instances, inst);
+	}
+}
+
+static void haircut_data_free(HaircutCacheData *data)
+{
+	BLI_freelistN(&data->instances);
+	
+	free_bvhtree_from_mesh(&data->treedata);
+	
+	if (data->dm) {
+		data->dm->release(data->dm);
+	}
+}
+
+/* XXX intersection counting does not work reliably */
+#if 0
+typedef struct PointInsideBVH {
+	BVHTreeFromMesh bvhdata;
+	int num_hits;
+} PointInsideBVH;
+
+static void point_inside_bvh_cb(void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit)
+{
+	PointInsideBVH *data = userdata;
+	
+	data->bvhdata.raycast_callback(&data->bvhdata, index, ray, hit);
+	
+	if (hit->index != -1)
+		++data->num_hits;
+}
+
+/* true if the point is inside the target mesh */
+static bool haircut_test_point(HaircutCacheModifier *hmd, HaircutCacheData *data, HaircutCacheInstance *inst, const float *v)
+{
+	const float dir[3] = {1.0f, 0.0f, 0.0f};
+	float start[3];
+	PointInsideBVH userdata;
+	
+	if (!(hmd->cut_mode & eHaircutCacheModifier_CutMode_Enter))
+		return false;
+	
+	userdata.bvhdata = data->treedata;
+	userdata.num_hits = 0;
+	
+	/* lookup in target space */
+	mul_v3_m4v3(start, inst->imat, v);
+	
+	BLI_bvhtree_ray_cast_all(data->treedata.tree, start, dir, 0.0f, point_inside_bvh_cb, &userdata);
+	
+	/* for any point inside a watertight mesh the number of hits is uneven */
+	return (userdata.num_hits % 2) == 1;
+}
+#else
+/* true if the point is inside the target mesh */
+static bool haircut_test_point(HaircutCacheModifier *hmd, HaircutCacheData *data, HaircutCacheInstance *inst, const float *v)
+{
+	BVHTreeRayHit hit = {0, };
+	float start[3], dir[3] = {0.0f, 0.0f, 1.0f};
+	bool is_entering;
+	
+	if (!(hmd->cut_mode & eHaircutCacheModifier_CutMode_Enter))
+		return false;
+	if (!data->treedata.tree)
+		return false;
+	
+	/* lookup in target space */
+	mul_v3_m4v3(start, inst->imat, v);
+	
+	hit.index = -1;
+	hit.dist = FLT_MAX;
+	
+	BLI_bvhtree_ray_cast(data->treedata.tree, start, dir, 0.0f, &hit, data->treedata.raycast_callback, &data->treedata);
+	if (hit.index < 0) {
+		return false;
+	}
+	
+	mul_mat3_m4_v3(inst->mat, hit.no);
+	
+	is_entering = (dot_v3v3(dir, hit.no) < 0.0f);
+	
+	return !is_entering;
+}
+#endif
+
+static bool haircut_find_segment_cut(HaircutCacheModifier *hmd, HaircutCacheData *data, HaircutCacheInstance *inst,
+                                     const float *v1, const float *v2, float *r_lambda)
+{
+	BVHTreeRayHit hit = {0, };
+	float start[3], dir[3], length;
+	bool is_entering;
+	
+	if (!data->treedata.tree)
+		return false;
+	
+	/* lookup in target space */
+	mul_v3_m4v3(start, inst->imat, v1);
+	sub_v3_v3v3(dir, v2, v1);
+	mul_mat3_m4_v3(inst->imat, dir);
+	length = normalize_v3(dir);
+	
+	if (length == 0.0f)
+		return false;
+	
+	hit.index = -1;
+	hit.dist = length;
+	
+	BLI_bvhtree_ray_cast(data->treedata.tree, start, dir, 0.0f, &hit, data->treedata.raycast_callback, &data->treedata);
+	if (hit.index < 0)
+		return false;
+	
+	is_entering = (dot_v3v3(dir, hit.no) < 0.0f);
+	if ((hmd->cut_mode & eHaircutCacheModifier_CutMode_Enter && is_entering) ||
+	    (hmd->cut_mode & eHaircutCacheModifier_CutMode_Exit && !is_entering))
+	{
+		if (r_lambda) *r_lambda = len_v3v3(hit.co, start) / length;
+		return true;
+	}
+	
+	return false;
+}
+
+static bool haircut_find_first_strand_cut(HaircutCacheModifier *hmd, HaircutCacheData *data, StrandChildIterator *it_strand, float (*strand_deform)[3], float *r_cutoff)
+{
+	StrandChildVertexIterator it_vert;
+	int vprev = -1;
+	float cutoff = 0.0f;
+	
+	for (BKE_strand_child_vertex_iter_init(&it_vert, it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
+		bool found_cut = false;
+		float lambda_min = 1.0f;
+		HaircutCacheInstance *inst;
+		
+		if (it_vert.index == 0) {
+			for (inst = data->instances.first; inst; inst = inst->next) {
+				/* test root vertex */
+				if (haircut_test_point(hmd, data, inst, strand_deform[it_vert.index])) {
+					if (r_cutoff) *r_cutoff = 0.0f;
+					return true;
+				}
+			}
+		}
+		else {
+			for (inst = data->instances.first; inst; inst = inst->next) {
+				float lambda;
+				if (haircut_find_segment_cut(hmd, data, inst, strand_deform[vprev], strand_deform[it_vert.index], &lambda)) {
+					found_cut = true;
+					if (lambda < lambda_min)
+						lambda_min = lambda;
+				}
+			}
+			
+			if (found_cut) {
+				if (r_cutoff) *r_cutoff = cutoff + lambda_min;
+				return true;
+			}
+		}
+		
+		cutoff += 1.0f;
+		vprev = it_vert.index;
+	}
+	
+	if (r_cutoff) *r_cutoff = -1.0f; /* indicates "no cutoff" */
+	return false;
+}
+
+static void haircut_apply(HaircutCacheModifier *hmd, CacheProcessContext *ctx, eCacheLibrary_EvalMode eval_mode, HaircutCacheData *data, Strands *parents, StrandsChildren *strands)
+{
+	StrandChildIterator it_strand;
+	bool do_strands_motion, do_strands_children;
+	
+	/* Note: the child data here is not yet deformed by parents, so the intersections won't be correct.
+	 * We deform each strand individually on-the-fly to avoid duplicating memory.
+	 */
+	int *vertstart = BKE_strands_calc_vertex_start(parents);
+	int maxlen = BKE_strands_children_max_length(strands);
+	float (*strand_deform)[3] = (float (*)[3])MEM_mallocN(sizeof(float) * 3 * maxlen, "child strand buffer");
+	
+	BKE_cache_library_get_read_flags(ctx->cachelib, eval_mode, true, &do_strands_motion, &do_strands_children);
+	
+	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
+		float cutoff = -1.0f;
+		
+		BKE_strands_children_strand_deform(&it_strand, parents, vertstart, do_strands_motion, strand_deform);
+		
+		if (haircut_find_first_strand_cut(hmd, data, &it_strand, strand_deform, &cutoff))
+			it_strand.curve->cutoff = cutoff;
+	}
+	
+	if (vertstart)
+		MEM_freeN(vertstart);
+	if (strand_deform)
+		MEM_freeN(strand_deform);
+}
+
+static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *ctx, CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), eCacheLibrary_EvalMode eval_mode)
+{
+	const bool dupli_target = hmd->flag & eHaircutCacheModifier_Flag_InternalTarget;
+	Object *ob = hmd->object;
+	DupliObject *dob;
+	Strands *parents;
+	StrandsChildren *strands;
+	DerivedMesh *target_dm;
+	float mat[4][4];
+	
+	HaircutCacheData haircut;
+	
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hmd->hair_system, NULL, &parents, &strands, NULL))
+		return;
+	
+	if (dupli_target) {
+		DupliObjectData *target_data;
+		if (!BKE_cache_modifier_find_object(data->dupcache, hmd->target, &target_data))
+			return;
+		target_dm = target_data->dm;
+	}
+	else {
+		if (!hmd->target)
+			return;
+		target_dm = mesh_get_derived_final(ctx->scene, hmd->target, CD_MASK_BAREMESH);
+	}
+	
+	for (dob = data->dupcache->duplilist.first; dob; dob = dob->next) {
+		if (dob->ob != ob)
+			continue;
+		
+		memset(&haircut, 0, sizeof(haircut));
+		haircut_data_get_bvhtree(&haircut, target_dm, true);
+		if (dupli_target) {
+			/* instances are calculated relative to the strands object */
+			invert_m4_m4(mat, dob->mat);
+			haircut_data_get_instances(&haircut, hmd->target, mat, &data->dupcache->duplilist);
+		}
+		else {
+			/* instances are calculated relative to the strands object */
+			mul_m4_m4m4(mat, data->mat, dob->mat);
+			invert_m4(mat);
+			haircut_data_get_instances(&haircut, hmd->target, mat, NULL);
+		}
+		
+		haircut_apply(hmd, ctx, eval_mode, &haircut, parents, strands);
+		
+		haircut_data_free(&haircut);
+		
+		/* XXX assume a single instance ... otherwise would just overwrite previous strands data */
+		break;
+	}
+}
+
+CacheModifierTypeInfo cacheModifierType_Haircut = {
+    /* name */              "Haircut",
+    /* structName */        "HaircutCacheModifier",
+    /* structSize */        sizeof(HaircutCacheModifier),
+
+    /* copy */              (CacheModifier_CopyFunc)haircut_copy,
+    /* foreachIDLink */     (CacheModifier_ForeachIDLinkFunc)haircut_foreach_id_link,
+    /* process */           (CacheModifier_ProcessFunc)haircut_process,
+    /* init */              (CacheModifier_InitFunc)haircut_init,
+    /* free */              (CacheModifier_FreeFunc)haircut_free,
+};
+
+/* ------------------------------------------------------------------------- */
+
 bool BKE_cache_library_uses_key(CacheLibrary *cachelib, Key *key)
 {
 	CacheModifier *md;
@@ -1664,6 +2016,7 @@ void BKE_cache_modifier_init(void)
 	cache_modifier_type_set(eCacheModifierType_ForceField, &cacheModifierType_ForceField);
 	cache_modifier_type_set(eCacheModifierType_ShrinkWrap, &cacheModifierType_ShrinkWrap);
 	cache_modifier_type_set(eCacheModifierType_StrandsKey, &cacheModifierType_StrandsKey);
+	cache_modifier_type_set(eCacheModifierType_Haircut, &cacheModifierType_Haircut);
 }
 
 /* ========================================================================= */

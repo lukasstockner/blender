@@ -171,6 +171,7 @@ typedef enum eCacheModifier_Type {
 	eCacheModifierType_ForceField                   = 2,
 	eCacheModifierType_ShrinkWrap                   = 3,
 	eCacheModifierType_StrandsKey                   = 4,
+	eCacheModifierType_Haircut                      = 5,
 	
 	NUM_CACHE_MODIFIER_TYPES
 } eCacheModifier_Type;
@@ -265,6 +266,29 @@ typedef struct StrandsKeyCacheModifier {
 
 typedef enum eStrandsKeyCacheModifier_Flag {
 	eStrandsKeyCacheModifier_Flag_ShapeLock             = (1 << 0),
+	eStrandsKeyCacheModifier_Flag_UseMotionState        = (1 << 1),
 } eStrandsKeyCacheModifier_Flag;
+
+typedef struct HaircutCacheModifier {
+	CacheModifier modifier;
+	
+	struct Object *object;
+	int hair_system;
+	int flag;
+	
+	short cut_mode;
+	short pad[3];
+	
+	struct Object *target;
+} HaircutCacheModifier;
+
+typedef enum eHaircutCacheModifier_Flag {
+	eHaircutCacheModifier_Flag_InternalTarget           = (1 << 0),
+} eHaircutCacheModifier_Flag;
+
+typedef enum eHaircutCacheModifier_CutMode {
+	eHaircutCacheModifier_CutMode_Enter         = (1 << 0),
+	eHaircutCacheModifier_CutMode_Exit          = (1 << 1),
+} eHaircutCacheModifier_CutMode;
 
 #endif

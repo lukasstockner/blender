@@ -51,8 +51,9 @@ using namespace PTC;
 
 class StubFactory : public Factory {
 	const std::string &get_default_extension() { static std::string ext = ""; return ext; }
-	WriterArchive *open_writer_archive(Scene */*scene*/, const std::string &/*name*/, ErrorHandler */*error_handler*/) { return NULL; }
-	ReaderArchive *open_reader_archive(Scene */*scene*/, const std::string &/*name*/, ErrorHandler */*error_handler*/) { return NULL; }
+	WriterArchive *open_writer_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, ErrorHandler * /*error_handler*/) { return NULL; }
+	ReaderArchive *open_reader_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, ErrorHandler * /*error_handler*/) { return NULL; }
+	void slice(ReaderArchive * /*in*/, WriterArchive * /*out*/, float /*start_frame*/, float /*end_frame*/) {}
 	Writer *create_writer_object(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/) { return NULL; }
 	Reader *create_reader_object(const std::string &/*name*/, Object */*ob*/) { return NULL; }
 	Writer *create_writer_group(const std::string &/*name*/, Group */*group*/) { return NULL; }

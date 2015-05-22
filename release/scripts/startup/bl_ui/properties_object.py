@@ -559,6 +559,24 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         row.prop(md, "max_distance")
         col.prop(md, "use_double_sided")
 
+    def HAIRCUT(self, context, layout, cachelib, md):
+        col = layout.column(align=True)
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        sub = col.column()
+        if (md.object):
+            sub.prop_search(md, "hair_system", md.object, "particle_systems")
+        else:
+            sub.enabled = False
+            sub.prop(md, "hair_system")
+
+        row = layout.row()
+        row.prop_search(md, "target", context.blend_data, "objects", icon='OBJECT_DATA')
+        row.prop(md, "use_internal_target", text="Internal")
+        layout.prop(md, "cut_mode", toggle=True, expand=True)
+
+        layout = layout.column()
+        layout.active = md.hair_system is not None
+
     def SHRINK_WRAP(self, context, layout, cachelib, md):
         col = layout.column(align=True)
         col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
@@ -601,6 +619,8 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         #sub.operator("object.shape_key_add", icon='ZOOMIN', text="").from_mix = False
         #sub.operator("object.shape_key_remove", icon='ZOOMOUT', text="").all = False
         sub.menu("CACHELIB_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
+
+        col.prop(md, "use_motion_state")
 
         if kb:
             col.separator()
