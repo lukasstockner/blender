@@ -1083,6 +1083,7 @@ static void hairsim_params_init(HairSimParams *params)
 		cm->cm[0].curve[0].y = 1.0f;
 		cm->cm[0].curve[1].x = 1.0f;
 		cm->cm[0].curve[1].y = 0.0f;
+		curvemapping_changed_all(cm);
 		params->goal_stiffness_mapping = cm;
 	}
 	{
@@ -1091,6 +1092,7 @@ static void hairsim_params_init(HairSimParams *params)
 		cm->cm[0].curve[0].y = 1.0f;
 		cm->cm[0].curve[1].x = 1.0f;
 		cm->cm[0].curve[1].y = 1.0f;
+		curvemapping_changed_all(cm);
 		params->bend_stiffness_mapping = cm;
 	}
 	
