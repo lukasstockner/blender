@@ -373,14 +373,15 @@ static bool ObtainCacheStrandsData(Mesh *mesh, BL::Scene /*b_scene*/, BL::Object
 	int ivert = 0;
 	for(; icurve < totcurves; ++icurve) {
 		CurveT b_curve = b_strands.curves[icurve];
-		int numverts = b_curve.render_size();
+		int numverts = b_curve.size();
+		int showverts = b_curve.render_size();
 		int usedverts = 0;
 		CData->curve_firstkey.push_back(keyno);
 		
 		float curve_length = 0.0f;
 		float3 pcKey;
-		for(int cvert = 0; cvert < numverts; ++cvert, ++ivert) {
-			float3 cKey = traits::get_location(b_strands, ivert);
+		for(int cvert = 0; cvert < showverts; ++cvert) {
+			float3 cKey = traits::get_location(b_strands, ivert + cvert);
 			
 			if(cvert > 0) {
 				float step_length = len(cKey - pcKey);
@@ -394,6 +395,7 @@ static bool ObtainCacheStrandsData(Mesh *mesh, BL::Scene /*b_scene*/, BL::Object
 			usedverts++;
 		}
 		keyno += usedverts;
+		ivert += numverts;
 
 		CData->curve_keynum.push_back(usedverts);
 		CData->curve_length.push_back(curve_length);
