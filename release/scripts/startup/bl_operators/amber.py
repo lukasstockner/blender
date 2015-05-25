@@ -268,9 +268,10 @@ class AssetEngineAmber(AssetEngine):
     def __del__(self):
         # XXX This errors, saying self has no executor attribute... Suspect some py/RNA funky game. :/
         #     Even though it does not seem to be an issue, this is not nice and shall be fixed somehow.
-        executor = getattr(self, "executor", None)
-        if executor is not None:
-            executor.shutdown(wait=False)
+        # XXX This is still erroring... Looks like we should rather have a 'remove' callback or so. :|
+        #~ executor = getattr(self, "executor", None)
+        #~ if executor is not None:
+            #~ executor.shutdown(wait=False)
 
     ########## Various helpers ##########
     def reset(self):

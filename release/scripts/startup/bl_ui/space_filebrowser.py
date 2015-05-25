@@ -41,17 +41,14 @@ class FILEBROWSER_HT_header(Header):
         row.operator("file.parent", text="", icon='FILE_PARENT')
         row.operator("file.refresh", text="", icon='FILE_REFRESH')
 
-        row = layout.row()
-        row.separator()
-
         if st.asset_engine:
             draw_header = getattr(st.asset_engine, "draw_header", None)
             if draw_header:
-                draw_header(row, context)
+                draw_header(layout, context)
         else:
-            row = layout.row(align=True)
             layout.operator_context = 'EXEC_DEFAULT'
-            row.operator("file.directory_new", icon='NEWFOLDER')
+            layout.operator("file.directory_new", icon='NEWFOLDER', text="")
+            layout.separator()
             layout.operator_context = 'INVOKE_DEFAULT'
 
             params = st.params
@@ -60,13 +57,14 @@ class FILEBROWSER_HT_header(Header):
             if params:
                 is_lib_browser = params.use_library_browsing
 
+                layout.prop(params, "recursion_level", text="")
+
                 layout.prop(params, "display_type", expand=True, text="")
 
                 layout.prop(params, "thumbnail_size", text="")
 
                 layout.prop(params, "sort_method", expand=True, text="")
 
-                layout.prop(params, "recursion_level")
                 layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
                 layout.prop(params, "use_filter", text="", icon='FILTER')
 
