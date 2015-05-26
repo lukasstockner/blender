@@ -691,6 +691,10 @@ static void rna_def_asset_uuid_list(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "AssetUUID");
 	RNA_def_property_ui_text(prop, "UUIDs", "Collection of asset UUIDs");
 
+	prop = RNA_def_int(srna, "asset_engine_version", 0, 0, INT_MAX, "Asset Engine Version",
+	                   "Asset engine version those uuids were generated from", 0, INT_MAX);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
 	rna_def_asset_uuid(brna);
 }
 

@@ -166,6 +166,7 @@ AssetUUIDList *BKE_asset_engine_load_pre(AssetEngine *engine, FileDirEntryArr *r
 
 	uuids->uuids = MEM_mallocN(sizeof(*uuids->uuids) * nbr_entries, __func__);
 	uuids->nbr_uuids = nbr_entries;
+	uuids->asset_engine_version = engine->type->version;
 
 	for (i = 0, en = r_entries->entries.first; en; i++, en = en->next) {
 		FileDirEntryVariant *var = BLI_findlink(&en->variants, en->act_variant);

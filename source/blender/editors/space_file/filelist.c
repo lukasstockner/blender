@@ -1600,6 +1600,7 @@ FileDirEntry *filelist_entry_find_uuid(struct FileList *filelist, const int uuid
 
 			uuids->uuids = MEM_callocN(sizeof(*uuids->uuids), __func__);
 			uuids->nbr_uuids = 1;
+			uuids->asset_engine_version = engine->type->version;
 			uuid = &uuids->uuids[0];
 
 			memcpy(uuid->uuid_asset, uuid, sizeof(uuid->uuid_asset));

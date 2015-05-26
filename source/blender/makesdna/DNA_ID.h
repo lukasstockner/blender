@@ -122,7 +122,8 @@ typedef struct AssetUUID {
 
 typedef struct AssetUUIDList {
 	AssetUUID *uuids;
-	int nbr_uuids, pad;
+	int nbr_uuids;
+	int asset_engine_version;
 } AssetUUIDList;
 
 /* watch it: Sequence has identical beginning. */
