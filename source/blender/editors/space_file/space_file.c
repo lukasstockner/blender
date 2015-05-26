@@ -76,6 +76,8 @@ static SpaceLink *file_new(const bContext *UNUSED(C))
 	sfile = MEM_callocN(sizeof(SpaceFile), "initfile");
 	sfile->spacetype = SPACE_FILE;
 
+	BKE_asset_engines_get_default(sfile->asset_engine, sizeof(sfile->asset_engine));
+
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for file");
 	BLI_addtail(&sfile->regionbase, ar);
@@ -166,9 +168,13 @@ static void file_init(wmWindowManager *UNUSED(wm), ScrArea *sa)
 	 */
 	fsmenu_refresh_bookmarks_status(ED_fsmenu_get());
 
-	if (sfile->layout) sfile->layout->dirty = true;
+	if (!BKE_asset_engines_find(sfile->asset_engine)) {
+		BKE_asset_engines_get_default(sfile->asset_engine, sizeof(sfile->asset_engine));
+		ED_area_tag_refresh(sa);
+		ED_area_tag_redraw(sa);
+	}
 
-	BLI_strncpy(sfile->asset_engine, ((AssetEngineType *)asset_engines.first)->idname, sizeof(sfile->asset_engine));
+	if (sfile->layout) sfile->layout->dirty = true;
 }
 
 static void file_exit(wmWindowManager *wm, ScrArea *sa)
@@ -187,7 +193,7 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 {
 	SpaceFile *sfileo = (SpaceFile *)sl;
 	SpaceFile *sfilen = MEM_dupallocN(sl);
-	
+
 	/* clear or remove stuff from old */
 	sfilen->op = NULL; /* file window doesn't own operators */
 

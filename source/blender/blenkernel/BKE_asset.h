@@ -163,6 +163,7 @@ void BKE_asset_engines_init(void);
 void BKE_asset_engines_exit(void);
 
 AssetEngineType *BKE_asset_engines_find(const char *idname);
+AssetEngineType *BKE_asset_engines_get_default(char *r_idname, const size_t len);
 
 /* Engine Instances */
 AssetEngine *BKE_asset_engine_create(AssetEngineType *type);

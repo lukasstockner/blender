@@ -99,6 +99,19 @@ AssetEngineType *BKE_asset_engines_find(const char *idname)
 	return type;
 }
 
+AssetEngineType *BKE_asset_engines_get_default(char *r_idname, const size_t len)
+{
+	AssetEngineType *type = asset_engines.first;
+
+	BLI_assert(type);
+
+	if (r_idname) {
+		BLI_strncpy(r_idname, type->idname, len);
+	}
+
+	return type;
+}
+
 /* Asset engine instances. */
 
 /* Create, Free */
