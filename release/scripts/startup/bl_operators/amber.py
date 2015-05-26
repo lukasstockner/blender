@@ -272,6 +272,7 @@ class AssetEngineAmber(AssetEngine):
         #~ executor = getattr(self, "executor", None)
         #~ if executor is not None:
             #~ executor.shutdown(wait=False)
+        pass
 
     ########## Various helpers ##########
     def reset(self):

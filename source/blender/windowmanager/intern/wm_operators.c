@@ -3585,7 +3585,10 @@ static void tweak_gesture_modal(bContext *C, const wmEvent *event)
 					tevent.type = EVT_TWEAK_M;
 				tevent.val = val;
 				/* mouse coords! */
-				wm_event_add(window, &tevent);
+
+				/* important we add immediately after this event, so future mouse releases
+				 * (which may be in the queue already), are handled in order, see T44740 */
+				wm_event_add_ex(window, &tevent, event);
 				
 				WM_gesture_end(C, gesture); /* frees gesture itself, and unregisters from window */
 			}

@@ -68,7 +68,7 @@ int UI_preview_render_size(enum eIconSizes size);
 void UI_icon_draw(float x, float y, int icon_id);
 void UI_icon_draw_preview(float x, float y, int icon_id);
 void UI_icon_draw_preview_aspect(float x, float y, int icon_id, float aspect);
-void UI_icon_draw_preview_aspect_size(float x, float y, int icon_id, float aspect, int size);
+void UI_icon_draw_preview_aspect_size(float x, float y, int icon_id, float aspect, float alpha, int size);
 
 void UI_icon_draw_aspect(float x, float y, int icon_id, float aspect, float alpha);
 void UI_icon_draw_aspect_color(float x, float y, int icon_id, float aspect, const float rgb[3]);

@@ -807,7 +807,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 #define PREVIEW_PAD 4
 
-static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), const rcti *rect)
+static void widget_draw_preview(BIFIconID icon, float alpha, const rcti *rect)
 {
 	int w, h, size;
 
@@ -823,7 +823,7 @@ static void widget_draw_preview(BIFIconID icon, float UNUSED(alpha), const rcti 
 		int x = rect->xmin + w / 2 - size / 2;
 		int y = rect->ymin + h / 2 - size / 2;
 
-		UI_icon_draw_preview_aspect_size(x, y, icon, 1.0f, size);
+		UI_icon_draw_preview_aspect_size(x, y, icon, 1.0f, alpha, size);
 	}
 }
 
@@ -1525,7 +1525,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		float icon_size, text_size;
 
 		/* This is a bit britle, but avoids adding an 'UI_BUT_HAS_LABEL' flag to but... */
-		if(icon_size_i > (float)BLI_rcti_size_x(rect)) {
+		if (icon_size_i > BLI_rcti_size_x(rect)) {
 			icon_size = 0.8f * (float)icon_size_i;
 			text_size = 0.2f * (float)icon_size_i;
 		}
@@ -1536,7 +1536,9 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 
 		/* draw icon in rect above the space reserved for the label */
 		rect->ymin += text_size;
-		widget_draw_icon(but, icon, alpha, rect, show_menu_icon);
+		glEnable(GL_BLEND);
+		widget_draw_preview(icon, alpha, rect);
+		glDisable(GL_BLEND);
 
 		/* offset rect to draw label in*/
 		rect->ymin -= text_size;

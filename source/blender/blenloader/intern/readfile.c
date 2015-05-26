@@ -1549,9 +1549,6 @@ void blo_make_packed_pointer_map(FileData *fd, Main *oldmain)
 	
 	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
 		ImagePackedFile *imapf;
-		if (ima->packedfile)
-			insert_packedmap(fd, ima->packedfile);
-
 		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next)
 			if (imapf->packedfile)
 				insert_packedmap(fd, imapf->packedfile);
@@ -1590,8 +1587,6 @@ void blo_end_packed_pointer_map(FileData *fd, Main *oldmain)
 	
 	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
 		ImagePackedFile *imapf;
-		ima->packedfile = newpackedadr(fd, ima->packedfile);
-
 		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next)
 			imapf->packedfile = newpackedadr(fd, imapf->packedfile);
 	}
@@ -3450,6 +3445,7 @@ static void direct_link_image(FileData *fd, Image *ima)
 	link_list(fd, &(ima->views));
 	link_list(fd, &(ima->packedfiles));
 
+	ima->packedfile = NULL;
 	for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
 		imapf->packedfile = direct_link_packedfile(fd, imapf->packedfile);
 	}
