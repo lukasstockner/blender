@@ -1172,7 +1172,9 @@ static void do_key(const int start, int end, const int tot, char *poin, Key *key
 					k1 += elemsize;
 				}
 			}
-			else k1 += elemsize;
+			else {
+				k1 += elemsize;
+			}
 		}
 		if (flagdo & 2) {
 			if (flagflo & 2) {
