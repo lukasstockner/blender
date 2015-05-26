@@ -253,6 +253,7 @@ class AmberTag(PropertyGroup):
 
 class AssetEngineAmber(AssetEngine):
     bl_label = "Amber"
+    bl_version = 1
 
     tags = CollectionProperty(name="Tags", type=AmberTag, description="Filtering tags")
     active_tag_index = IntProperty(name="Active Tag", options={'HIDDEN'})

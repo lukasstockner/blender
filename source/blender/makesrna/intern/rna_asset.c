@@ -1082,6 +1082,10 @@ static void rna_def_asset_engine(BlenderRNA *brna)
 	RNA_def_property_string_sdna(prop, NULL, "type->idname");
 	RNA_def_property_flag(prop, PROP_REGISTER);
 
+	prop = RNA_def_property(srna, "bl_version", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "type->version");
+	RNA_def_property_flag(prop, PROP_REGISTER);
+
 	prop = RNA_def_property(srna, "bl_label", PROP_STRING, PROP_NONE);
 	RNA_def_property_string_sdna(prop, NULL, "type->name");
 	RNA_def_property_flag(prop, PROP_REGISTER);

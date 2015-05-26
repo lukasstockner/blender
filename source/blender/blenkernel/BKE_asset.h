@@ -117,6 +117,8 @@ typedef struct AssetEngineType {
 
 	/* type info */
 	char idname[64]; /* best keep the same size as BKE_ST_MAXNAME */
+	int version;
+
 	char name[64];
 	int flag;
 
