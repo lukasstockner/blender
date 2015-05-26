@@ -69,7 +69,13 @@
 
 #include "BLO_readfile.h"
 
+#include "RNA_access.h"
+#include "RNA_define.h"
+#include "RNA_types.h"
+#include "RNA_enum_types.h"
+
 #include "BKE_appdir.h"
+#include "BKE_asset.h"
 #include "BKE_autoexec.h"
 #include "BKE_blender.h"
 #include "BKE_brush.h"
@@ -105,10 +111,6 @@
 #include "ED_view3d.h"
 
 #include "GPU_material.h"
-
-#include "RNA_access.h"
-#include "RNA_define.h"
-#include "RNA_enum_types.h"
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
@@ -2845,6 +2847,10 @@ static void wm_link_append_properties_common(wmOperatorType *ot, bool is_link)
 
 	/* better not save _any_ settings for this operator */
 	/* properties */
+	prop = RNA_def_string(ot->srna, "asset_engine", NULL, sizeof(((AssetEngineType *)NULL)->idname),
+	                      "Asset Engine", "Asset engine identifier used to append/link the data");
+	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
+
 	prop = RNA_def_boolean(ot->srna, "link", is_link,
 	                       "Link", "Link the objects or datablocks rather than appending");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
