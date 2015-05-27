@@ -386,6 +386,14 @@ class CACHELIB_UL_shape_keys(UIList):
             layout.label(text="", icon_value=icon)
 
 
+class CACHELIBRARY_MT_hair_simulation_presets(Menu):
+    bl_label = "Hair Simulation Presets"
+    preset_subdir = "cachelibrary_hair_simulation"
+    preset_operator = "script.execute_preset"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    draw = Menu.draw_preset
+
+
 class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
     bl_label = "Cache"
 
@@ -514,6 +522,14 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
 
         layout = layout.column()
         layout.active = md.hair_system is not None
+
+        row = layout.row(align=True)
+        row.menu("CACHELIBRARY_MT_hair_simulation_presets", text=bpy.types.CACHELIBRARY_MT_hair_simulation_presets.bl_label)
+        props = row.operator("cachelibrary.hair_simulation_preset_add", text="", icon='ZOOMIN')
+        props.modifier_name = md.name
+        props = row.operator("cachelibrary.hair_simulation_preset_add", text="", icon='ZOOMOUT')
+        props.modifier_name = md.name
+        props.remove_active = True
 
         col = layout.column()
         col.prop(params, "substeps")
