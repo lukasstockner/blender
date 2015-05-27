@@ -49,11 +49,6 @@ typedef enum eCacheLibrary_DisplayMode {
 	CACHE_LIBRARY_DISPLAY_MODIFIERS = 2, /* display input with modifiers */
 } eCacheLibrary_DisplayMode;
 
-typedef enum eCacheLibrary_EvalMode {
-	CACHE_LIBRARY_EVAL_REALTIME     = (1 << 0), /* evaluate data with realtime settings */
-	CACHE_LIBRARY_EVAL_RENDER       = (1 << 1), /* evaluate data with render settings */
-} eCacheLibrary_EvalMode;
-
 typedef enum eCacheDataType {
 	CACHE_TYPE_OBJECT               = (1 << 0),
 	CACHE_TYPE_DERIVED_MESH         = (1 << 1),
@@ -81,21 +76,16 @@ typedef enum eCacheLibrary_DisplayFlag {
 	CACHE_LIBRARY_DISPLAY_CHILDREN    = (1 << 1), /* display child strands, if available */
 } eCacheLibrary_DisplayFlag;
 
-typedef enum eCacheLibrary_RenderFlag {
-	CACHE_LIBRARY_RENDER_MOTION      = (1 << 0), /* render motion state result from simulation, if available */
-	CACHE_LIBRARY_RENDER_CHILDREN    = (1 << 1), /* render child strands, if available */
-} eCacheLibrary_RenderFlag;
-
 typedef struct CacheLibrary {
 	ID id;
 	
 	int flag;
-	short eval_mode;
+	short eval_mode DNA_DEPRECATED;
 	short source_mode;
 	short display_mode;
 	short pad;
 	int display_flag;
-	int render_flag;
+	int render_flag DNA_DEPRECATED;
 	int data_types;
 	struct Group *filter_group;
 	

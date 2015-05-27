@@ -431,11 +431,6 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         col.label("Display:")
         col.prop(cachelib, "display_motion", text="Motion")
         col.prop(cachelib, "display_children", text="Children")
-        split = row.split()
-        col = split.column()
-        col.label("Render:")
-        col.prop(cachelib, "render_motion", text="Motion")
-        col.prop(cachelib, "render_children", text="Children")
 
         layout.separator()
 
@@ -453,12 +448,22 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         
         col = row.column()
         row2 = col.row()
-        row2.prop(cachelib, "eval_mode", toggle=True, expand=True)
-        row2 = col.row()
         row2.alignment = 'LEFT'
         row2.prop(cachelib, "data_types", icon_only=True, toggle=True)
         row2.template_ID(cachelib, "filter_group")
-        row.operator("cachelibrary.bake")
+        col = row.column()
+        props = col.operator("cachelibrary.bake", text="Bake Preview", icon='RESTRICT_VIEW_OFF')
+        props.eval_mode = {'PREVIEW'}
+        if context.scene.use_preview_range:
+            props.start_frame = context.scene.frame_preview_start
+            props.end_frame = context.scene.frame_preview_end
+        else:
+            props.start_frame = context.scene.frame_start
+            props.end_frame = context.scene.frame_end
+        props = col.operator("cachelibrary.bake", text="Bake Render", icon='RESTRICT_RENDER_OFF')
+        props.eval_mode = {'RENDER'}
+        props.start_frame = context.scene.frame_start
+        props.end_frame = context.scene.frame_end
 
         '''
         row = layout.row(align=True)

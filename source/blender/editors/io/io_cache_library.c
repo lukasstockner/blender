@@ -183,6 +183,11 @@ void CACHELIBRARY_OT_delete(wmOperatorType *ot)
 
 /********************** bake cache operator *********************/
 
+typedef enum eCacheLibraryBake_EvalMode {
+	CACHELIBRARY_BAKE_PREVIEW       = (1 << 0), /* evaluate data with preview settings */
+	CACHELIBRARY_BAKE_RENDER        = (1 << 1), /* evaluate data with render settings */
+} eCacheLibraryBake_EvalMode;
+
 static int cache_library_bake_poll(bContext *C)
 {
 	Object *ob = CTX_data_active_object(C);
@@ -207,7 +212,7 @@ typedef struct CacheLibraryBakeJob {
 	float mat[4][4];
 	struct Group *group;
 	
-	eCacheLibrary_EvalMode cache_eval_mode;
+	eCacheLibraryBake_EvalMode eval_mode;
 	EvaluationContext eval_ctx;
 	
 	struct PTCWriterArchive *archive;
@@ -247,7 +252,7 @@ static void cache_library_bake_set_particle_baking(Main *bmain, bool baking)
 	}
 }
 
-static void cache_library_bake_do(CacheLibraryBakeJob *data)
+static void cache_library_bake_do(CacheLibraryBakeJob *data, bool use_render)
 {
 	Scene *scene = data->scene;
 	int frame, frame_prev, start_frame, end_frame;
@@ -279,7 +284,6 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 	
 	PTC_writer_init(data->writer, data->archive);
 	
-	/* XXX where to get this from? */
 	start_frame = data->start_frame;
 	end_frame = data->end_frame;
 	
@@ -305,11 +309,11 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data)
 				BKE_dupli_cache_from_group(scene, data->group, data->cachelib, process_data.dupcache, &data->eval_ctx, init_strands);
 				break;
 			case CACHE_LIBRARY_SOURCE_CACHE:
-				BKE_cache_read_dupli_cache(data->cachelib, process_data.dupcache, scene, data->group, frame, data->cache_eval_mode, false);
+				BKE_cache_read_dupli_cache(data->cachelib, process_data.dupcache, scene, data->group, frame, use_render, false);
 				break;
 		}
 		
-		BKE_cache_process_dupli_cache(data->cachelib, &process_data, scene, data->group, frame_prev, frame, data->cache_eval_mode);
+		BKE_cache_process_dupli_cache(data->cachelib, &process_data, scene, data->group, frame_prev, frame);
 		
 		PTC_write_sample(data->writer);
 		
@@ -357,6 +361,9 @@ static bool cache_library_bake_ensure_file_target(const char *filename)
 static void cache_library_bake_start(void *customdata, short *stop, short *do_update, float *progress)
 {
 	CacheLibraryBakeJob *data = (CacheLibraryBakeJob *)customdata;
+	const bool do_preview = data->eval_mode & CACHELIBRARY_BAKE_PREVIEW;
+	const bool do_render = data->eval_mode & CACHELIBRARY_BAKE_RENDER;
+	const PTCArchiveResolution archive_res = (do_preview ? PTC_RESOLUTION_PREVIEW : 0) | (do_render ? PTC_RESOLUTION_RENDER : 0);
 	Scene *scene = data->scene;
 	char filename[FILE_MAX];
 	
@@ -369,24 +376,22 @@ static void cache_library_bake_start(void *customdata, short *stop, short *do_up
 	scene->r.framelen = 1.0f;
 	
 	BKE_cache_archive_output_path(data->cachelib, filename, sizeof(filename));
-	data->archive = PTC_open_writer_archive(scene, filename);
+	data->archive = PTC_open_writer_archive(FPS, data->start_frame, filename, archive_res);
 	
 	if (data->archive) {
 		
 		G.is_break = false;
 		
-		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_REALTIME) {
-			data->cache_eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
+		if (do_preview) {
 			data->eval_ctx.mode = DAG_EVAL_VIEWPORT;
 			PTC_writer_archive_use_render(data->archive, false);
-			cache_library_bake_do(data);
+			cache_library_bake_do(data, false);
 		}
 		
-		if (data->cachelib->eval_mode & CACHE_LIBRARY_EVAL_RENDER) {
-			data->cache_eval_mode = CACHE_LIBRARY_EVAL_RENDER;
+		if (do_render) {
 			data->eval_ctx.mode = DAG_EVAL_RENDER;
 			PTC_writer_archive_use_render(data->archive, true);
-			cache_library_bake_do(data);
+			cache_library_bake_do(data, true);
 		}
 		
 	}
@@ -440,6 +445,8 @@ static void cache_library_bake_init(CacheLibraryBakeJob *data, bContext *C, wmOp
 	data->lay = ob->lay;
 	copy_m4_m4(data->mat, ob->obmat);
 	data->group = ob->dup_group;
+	
+	data->eval_mode = RNA_enum_get(op->ptr, "eval_mode");
 	
 	if (RNA_struct_property_is_set(op->ptr, "start_frame"))
 		data->start_frame = RNA_int_get(op->ptr, "start_frame");
@@ -567,6 +574,12 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 {
 	PropertyRNA *prop;
 	
+	static EnumPropertyItem eval_mode_items[] = {
+	    {CACHELIBRARY_BAKE_PREVIEW, "PREVIEW", ICON_RESTRICT_VIEW_OFF, "Preview", "Evaluate data with preview settings"},
+	    {CACHELIBRARY_BAKE_RENDER, "RENDER", ICON_RESTRICT_RENDER_OFF, "Render", "Evaluate data with render settings"},
+	    {0, NULL, 0, NULL, NULL}
+	};
+	
 	/* identifiers */
 	ot->name = "Bake";
 	ot->description = "Bake cache library";
@@ -589,6 +602,9 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 	 */
 	RNA_def_property_flag(prop, PROP_HIDDEN);
 	
+	prop = RNA_def_enum(ot->srna, "eval_mode", eval_mode_items, CACHELIBRARY_BAKE_RENDER, "Evaluation Mode", "Mode to use when evaluating data");
+	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
+	
 	RNA_def_int(ot->srna, "start_frame", 0, INT_MIN, INT_MAX, "Start Frame", "First frame to be cached", INT_MIN, INT_MAX);
 	RNA_def_int(ot->srna, "end_frame", 0, INT_MIN, INT_MAX, "End Frame", "Last frame to be cached", INT_MIN, INT_MAX);
 }
@@ -608,6 +624,7 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 	char output_filepath[FILE_MAX], output_filename[FILE_MAX];
 	struct PTCReaderArchive *input_archive;
 	struct PTCWriterArchive *output_archive;
+	PTCArchiveResolution archive_res;
 	
 	RNA_string_get(op->ptr, "input_filepath", input_filepath);
 	if (input_filepath[0] == '\0')
@@ -628,7 +645,8 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	output_archive = PTC_open_writer_archive_ex(FPS, start_frame, output_filename);
+	archive_res = PTC_reader_archive_get_resolutions(input_archive);
+	output_archive = PTC_open_writer_archive(FPS, start_frame, output_filename, archive_res);
 	if (!output_archive) {
 		BKE_reportf(op->reports, RPT_ERROR, "Cannot write to cache file at '%s'", output_filepath);
 		return OPERATOR_CANCELLED;

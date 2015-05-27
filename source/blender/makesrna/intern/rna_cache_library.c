@@ -879,12 +879,6 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	    {0, NULL, 0, NULL, NULL}
 	};
 	
-	static EnumPropertyItem eval_mode_items[] = {
-	    {CACHE_LIBRARY_EVAL_REALTIME,   "REALTIME",     ICON_RESTRICT_VIEW_OFF,     "Realtime",     "Evaluate data with realtime settings"},
-	    {CACHE_LIBRARY_EVAL_RENDER,     "RENDER",       ICON_RESTRICT_RENDER_OFF,   "Render",       "Evaluate data with render settings"},
-	    {0, NULL, 0, NULL, NULL}
-	};
-	
 	srna = RNA_def_struct(brna, "CacheLibrary", "ID");
 	RNA_def_struct_ui_text(srna, "Cache Library", "Cache Library datablock for constructing an archive of caches");
 	RNA_def_struct_ui_icon(srna, ICON_PHYSICS);
@@ -919,23 +913,6 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "display_children", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "display_flag", CACHE_LIBRARY_DISPLAY_CHILDREN);
 	RNA_def_property_ui_text(prop, "Display Children", "Display child strands, if available");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
-	
-	prop = RNA_def_property(srna, "render_motion", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "render_flag", CACHE_LIBRARY_RENDER_MOTION);
-	RNA_def_property_ui_text(prop, "Render Motion", "Render motion state result from simulation, if available");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
-	
-	prop = RNA_def_property(srna, "render_children", PROP_BOOLEAN, PROP_NONE);
-	RNA_def_property_boolean_sdna(prop, NULL, "render_flag", CACHE_LIBRARY_RENDER_CHILDREN);
-	RNA_def_property_ui_text(prop, "Render Children", "Render child strands, if available");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
-	
-	prop = RNA_def_property(srna, "eval_mode", PROP_ENUM, PROP_NONE);
-	RNA_def_property_enum_sdna(prop, NULL, "eval_mode");
-	RNA_def_property_enum_items(prop, eval_mode_items);
-	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
-	RNA_def_property_ui_text(prop, "Evaluation Mode", "Mode to use when evaluating data");
 	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
 	prop = RNA_def_property(srna, "data_types", PROP_ENUM, PROP_NONE);

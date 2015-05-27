@@ -137,16 +137,9 @@ const char *PTC_get_default_archive_extension(void)
 	return PTC::Factory::alembic->get_default_extension().c_str();
 }
 
-PTCWriterArchive *PTC_open_writer_archive(Scene *scene, const char *path)
+PTCWriterArchive *PTC_open_writer_archive(double fps, float start_frame, const char *path, PTCArchiveResolution resolutions)
 {
-	double fps = FPS;
-	float start_frame = scene->r.sfra;
-	return PTC_open_writer_archive_ex(fps, start_frame, path);
-}
-
-PTCWriterArchive *PTC_open_writer_archive_ex(double fps, float start_frame, const char *path)
-{
-	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(fps, start_frame, path, NULL);
+	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(fps, start_frame, path, resolutions, NULL);
 }
 
 void PTC_close_writer_archive(PTCWriterArchive *_archive)
@@ -177,6 +170,12 @@ void PTC_close_reader_archive(PTCReaderArchive *_archive)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	delete archive;
+}
+
+PTCArchiveResolution PTC_reader_archive_get_resolutions(PTCReaderArchive *_archive)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	return archive->get_resolutions();
 }
 
 void PTC_reader_archive_use_render(PTCReaderArchive *_archive, bool enable)

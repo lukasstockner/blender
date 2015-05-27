@@ -71,8 +71,7 @@ bool BKE_cache_library_validate_item(struct CacheLibrary *cachelib, struct Objec
 
 /* ========================================================================= */
 
-void BKE_cache_library_get_read_flags(struct CacheLibrary *cachelib, eCacheLibrary_EvalMode eval_mode, bool for_display,
-                                      bool *read_strands_motion, bool *read_strands_children);
+void BKE_cache_library_get_read_flags(struct CacheLibrary *cachelib, bool use_render, bool for_display, bool *read_strands_motion, bool *read_strands_children);
 
 bool BKE_cache_archive_path_test(struct CacheLibrary *cachelib, const char *path);
 void BKE_cache_archive_path_ex(const char *path, struct Library *lib, const char *default_filename, char *result, int max);
@@ -85,12 +84,12 @@ void BKE_cache_library_dag_recalc_tag(struct EvaluationContext *eval_ctx, struct
 void BKE_cache_library_tag_used_objects(CacheLibrary *cachelib);
 
 bool BKE_cache_read_dupli_cache(struct CacheLibrary *cachelib, struct DupliCache *dupcache,
-                                struct Scene *scene, struct Group *dupgroup, float frame, eCacheLibrary_EvalMode eval_mode, bool for_display);
+                                struct Scene *scene, struct Group *dupgroup, float frame, bool use_render, bool for_display);
 bool BKE_cache_read_dupli_object(struct CacheLibrary *cachelib, struct DupliObjectData *data,
-                                 struct Scene *scene, struct Object *ob, float frame, eCacheLibrary_EvalMode eval_mode, bool for_display);
+                                 struct Scene *scene, struct Object *ob, float frame, bool use_render, bool for_display);
 
 void BKE_cache_process_dupli_cache(struct CacheLibrary *cachelib, struct CacheProcessData *data,
-                                   struct Scene *scene, struct Group *dupgroup, float frame_prev, float frame, eCacheLibrary_EvalMode eval_mode);
+                                   struct Scene *scene, struct Group *dupgroup, float frame_prev, float frame);
 
 /* ========================================================================= */
 
@@ -115,7 +114,7 @@ typedef void (*CacheModifier_CopyFunc)(struct CacheModifier *md, struct CacheMod
 typedef void (*CacheModifier_ForeachIDLinkFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib,
                                                 CacheModifier_IDWalkFunc walk, void *userData);
 typedef void (*CacheModifier_ProcessFunc)(struct CacheModifier *md, struct CacheProcessContext *ctx, struct CacheProcessData *data,
-                                          int frame, int frame_prev, eCacheLibrary_EvalMode eval_mode);
+                                          int frame, int frame_prev);
 
 typedef struct CacheModifierTypeInfo {
 	/* The user visible name for this modifier */

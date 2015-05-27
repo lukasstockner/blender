@@ -42,6 +42,7 @@ public:
 	
 	static AbcReaderArchive *open(double fps, float start_frame, const std::string &filename, ErrorHandler *error_handler);
 	
+	PTCArchiveResolution get_resolutions();
 	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }
 	
