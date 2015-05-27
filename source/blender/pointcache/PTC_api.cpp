@@ -51,21 +51,13 @@ using namespace PTC;
 
 class StubFactory : public Factory {
 	const std::string &get_default_extension() { static std::string ext = ""; return ext; }
-	WriterArchive *open_writer_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, ErrorHandler * /*error_handler*/) { return NULL; }
+	WriterArchive *open_writer_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, PTCArchiveResolution /*resolutions*/, ErrorHandler */*error_handler*/) { return NULL; }
 	ReaderArchive *open_reader_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, ErrorHandler * /*error_handler*/) { return NULL; }
 	void slice(ReaderArchive * /*in*/, WriterArchive * /*out*/, float /*start_frame*/, float /*end_frame*/) {}
 	Writer *create_writer_object(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/) { return NULL; }
 	Reader *create_reader_object(const std::string &/*name*/, Object */*ob*/) { return NULL; }
 	Writer *create_writer_group(const std::string &/*name*/, Group */*group*/) { return NULL; }
 	Reader *create_reader_group(const std::string &/*name*/, Group */*group*/) { return NULL; }
-	Writer *create_writer_particles(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
-	Reader *create_reader_particles(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
-	Writer *create_writer_hair_dynamics(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
-	Reader *create_reader_hair_dynamics(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
-	Writer *create_writer_particles_pathcache_parents(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
-	Reader *create_reader_particles_pathcache_parents(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
-	Writer *create_writer_particles_pathcache_children(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
-	Reader *create_reader_particles_pathcache_children(const std::string &/*name*/, Object */*ob*/, ParticleSystem */*psys*/) { return NULL; }
 	Writer *create_writer_cloth(const std::string &/*name*/, Object */*ob*/, ClothModifierData */*clmd*/) { return NULL; }
 	Reader *create_reader_cloth(const std::string &/*name*/, Object */*ob*/, ClothModifierData */*clmd*/) { return NULL; }
 	Writer *create_writer_derived_mesh(const std::string &/*name*/, Object */*ob*/, DerivedMesh **/*dm_ptr*/) { return NULL; }
