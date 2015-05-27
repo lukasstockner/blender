@@ -3179,14 +3179,14 @@ bool RE_WriteRenderViewsImage(ReportList *reports, RenderResult *rr, Scene *scen
 					ibuf->planes = 24;
 
 					IMB_colormanagement_imbuf_for_write(ibuf, true, false, &scene->view_settings,
-					                                    &scene->display_settings, &rd->im_format);
+					                                    &scene->display_settings, &imf);
 
 					if (stamp) {
 						/* writes the name of the individual cameras */
-						ok = BKE_imbuf_write_stamp(scene, rr, ibuf, name, &rd->im_format);
+						ok = BKE_imbuf_write_stamp(scene, rr, ibuf, name, &imf);
 					}
 					else {
-						ok = BKE_imbuf_write(ibuf, name, &rd->im_format);
+						ok = BKE_imbuf_write(ibuf, name, &imf);
 					}
 					printf("Saved: %s\n", name);
 				}
