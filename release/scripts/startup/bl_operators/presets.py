@@ -57,6 +57,39 @@ class AddPresetBase:
             name = name.replace(char, '_')
         return name.lower().strip()
 
+    def write_preset_py(self, file_preset):
+        def rna_recursive_attr_expand(value, rna_path_step, level):
+            if isinstance(value, bpy.types.PropertyGroup):
+                for sub_value_attr in value.bl_rna.properties.keys():
+                    if sub_value_attr == "rna_type":
+                        continue
+                    sub_value = getattr(value, sub_value_attr)
+                    rna_recursive_attr_expand(sub_value, "%s.%s" % (rna_path_step, sub_value_attr), level)
+            elif type(value).__name__ == "bpy_prop_collection_idprop":  # could use nicer method
+                file_preset.write("%s.clear()\n" % rna_path_step)
+                for sub_value in value:
+                    file_preset.write("item_sub_%d = %s.add()\n" % (level, rna_path_step))
+                    rna_recursive_attr_expand(sub_value, "item_sub_%d" % level, level + 1)
+            else:
+                # convert thin wrapped sequences
+                # to simple lists to repr()
+                try:
+                    value = value[:]
+                except:
+                    pass
+
+                file_preset.write("%s = %r\n" % (rna_path_step, value))
+
+        if hasattr(self, "preset_defines"):
+            for rna_path in self.preset_defines:
+                exec(rna_path)
+                file_preset.write("%s\n" % rna_path)
+            file_preset.write("\n")
+
+        for rna_path in self.preset_values:
+            value = eval(rna_path)
+            rna_recursive_attr_expand(value, rna_path, 1)
+
     def execute(self, context):
         import os
 
@@ -101,41 +134,10 @@ class AddPresetBase:
                                            filepath,
                                            preset_menu_class.preset_xml_map)
                 else:
-
-                    def rna_recursive_attr_expand(value, rna_path_step, level):
-                        if isinstance(value, bpy.types.PropertyGroup):
-                            for sub_value_attr in value.bl_rna.properties.keys():
-                                if sub_value_attr == "rna_type":
-                                    continue
-                                sub_value = getattr(value, sub_value_attr)
-                                rna_recursive_attr_expand(sub_value, "%s.%s" % (rna_path_step, sub_value_attr), level)
-                        elif type(value).__name__ == "bpy_prop_collection_idprop":  # could use nicer method
-                            file_preset.write("%s.clear()\n" % rna_path_step)
-                            for sub_value in value:
-                                file_preset.write("item_sub_%d = %s.add()\n" % (level, rna_path_step))
-                                rna_recursive_attr_expand(sub_value, "item_sub_%d" % level, level + 1)
-                        else:
-                            # convert thin wrapped sequences
-                            # to simple lists to repr()
-                            try:
-                                value = value[:]
-                            except:
-                                pass
-
-                            file_preset.write("%s = %r\n" % (rna_path_step, value))
-
                     file_preset = open(filepath, 'w')
                     file_preset.write("import bpy\n")
 
-                    if hasattr(self, "preset_defines"):
-                        for rna_path in self.preset_defines:
-                            exec(rna_path)
-                            file_preset.write("%s\n" % rna_path)
-                        file_preset.write("\n")
-
-                    for rna_path in self.preset_values:
-                        value = eval(rna_path)
-                        rna_recursive_attr_expand(value, rna_path, 1)
+                    self.write_preset_py(file_preset)
 
                     file_preset.close()
 
@@ -399,6 +401,93 @@ class AddPresetHairDynamics(AddPresetBase, Operator):
         "settings.voxel_cell_size",
         "settings.pin_stiffness",
         ]
+
+
+class AddPresetCacheLibraryHairSimulation(AddPresetBase, Operator):
+    """Add or remove a Hair Simulation Preset"""
+    bl_idname = "cachelibrary.hair_simulation_preset_add"
+    bl_label = "Add Hair Simulation Preset"
+    preset_menu = "CACHELIBRARY_MT_hair_simulation_presets"
+
+    # XXX cache_modifier should be stored in the context, but using a confirm popup
+    # for the operator causes this to get lost
+    modifier_name = StringProperty(name="Modifier Name")
+
+    '''
+    preset_defines = [
+        "cachelib = bpy.context.cache_library",
+        "md = bpy.context.cache_modifier",
+    ]
+    '''
+
+    @property
+    def preset_defines(self):
+        return [
+            "cachelib = bpy.context.object.cache_library",
+            "md = cachelib.modifiers[%r]" % self.modifier_name,
+            "params = md.parameters",
+            ]
+
+    preset_subdir = "cachelibrary_hair_simulation"
+
+    preset_values = [
+        "params.substeps",
+        "params.timescale",
+        "params.mass",
+        "params.drag",
+        "params.stretch_stiffness",
+        "params.stretch_damping",
+        "params.bend_stiffness",
+        "params.bend_damping",
+        "params.use_bend_stiffness_curve",
+        "params.goal_stiffness",
+        "params.goal_damping",
+        "params.use_goal_stiffness_curve",
+        "params.use_goal_deflect",
+        ]
+
+    def write_curve_map(self, file_preset, cuma, prop):
+        if cuma is None:
+            return
+
+        file_preset.write("from mathutils import *\n")
+
+        file_preset.write("cuma = %s\n" % prop)
+        file_preset.write("if cuma:\n")
+
+        file_preset.write("    cuma.black_level = %r\n" % cuma.black_level)
+        file_preset.write("    cuma.white_level = %r\n" % cuma.white_level)
+
+        file_preset.write("    cuma.use_clip = %r\n" % cuma.use_clip)
+        if cuma.use_clip:
+            file_preset.write("    cuma.clip_min_x = %r\n" % cuma.clip_min_x)
+            file_preset.write("    cuma.clip_max_x = %r\n" % cuma.clip_max_x)
+            file_preset.write("    cuma.clip_min_y = %r\n" % cuma.clip_min_y)
+            file_preset.write("    cuma.clip_max_y = %r\n" % cuma.clip_max_y)
+
+        for i, cu in enumerate(cuma.curves):
+            file_preset.write("    cu = cuma.curves[%d]\n" % i)
+            file_preset.write("    cu.extend = %r\n" % cu.extend)
+            file_preset.write("    for p in range(max(len(cu.points) - %d, 0)):\n" % len(cu.points))
+            file_preset.write("        cu.points.remove(cu.points[0])\n")
+            file_preset.write("    for i in range(max(%d - len(cu.points), 0)):\n" % len(cu.points))
+            file_preset.write("        cu.points.new(0, 0)\n")
+            for j, p in enumerate(cu.points):
+                file_preset.write("    cu.points[%d].handle_type = %r\n" % (j, p.handle_type))
+                file_preset.write("    cu.points[%d].location = %r\n" % (j, p.location))
+                file_preset.write("    cu.points[%d].select = %r\n" % (j, p.select))
+
+        file_preset.write("    cuma.update()\n")
+
+    def write_preset_py(self, file_preset):
+        AddPresetBase.write_preset_py(self, file_preset)
+
+        cachelib = bpy.context.object.cache_library
+        md = cachelib.modifiers[self.modifier_name]
+        params = md.parameters
+
+        self.write_curve_map(file_preset, params.bend_stiffness_curve, "params.bend_stiffness_curve")
+        self.write_curve_map(file_preset, params.goal_stiffness_curve, "params.goal_stiffness_curve")
 
 
 class AddPresetSunSky(AddPresetBase, Operator):
