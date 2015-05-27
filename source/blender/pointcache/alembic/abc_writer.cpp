@@ -41,7 +41,7 @@ static void ensure_directory(const char *filename)
 	BLI_dir_create_recursive(dir);
 }
 
-AbcWriterArchive *AbcWriterArchive::open(double fps, float start_frame, const std::string &filename, ErrorHandler *error_handler)
+AbcWriterArchive *AbcWriterArchive::open(double fps, float start_frame, const std::string &filename, PTCArchiveResolution resolutions, ErrorHandler *error_handler)
 {
 	ensure_directory(filename.c_str());
 	
@@ -52,12 +52,12 @@ AbcWriterArchive *AbcWriterArchive::open(double fps, float start_frame, const st
 	PTC_SAFE_CALL_END_HANDLER(error_handler)
 	
 	if (abc_archive)
-		return new AbcWriterArchive(fps, start_frame, error_handler, abc_archive);
+		return new AbcWriterArchive(fps, start_frame, resolutions, error_handler, abc_archive);
 	else
 		return NULL;
 }
 
-AbcWriterArchive::AbcWriterArchive(double fps, float start_frame, ErrorHandler *error_handler, OArchive abc_archive) :
+AbcWriterArchive::AbcWriterArchive(double fps, float start_frame, PTCArchiveResolution resolutions, ErrorHandler *error_handler, OArchive abc_archive) :
     FrameMapper(fps, start_frame),
     m_error_handler(error_handler),
     m_use_render(false),
@@ -68,8 +68,10 @@ AbcWriterArchive::AbcWriterArchive(double fps, float start_frame, ErrorHandler *
 		chrono_t start_time = this->start_time();
 		m_frame_sampling = m_abc_archive.addTimeSampling(TimeSampling(cycle_time, start_time));
 		
-		m_abc_root = OObject(m_abc_archive.getTop(), "root");
-		m_abc_root_render = OObject(m_abc_archive.getTop(), "root_render");
+		if (resolutions & PTC_RESOLUTION_PREVIEW)
+			m_abc_root = OObject(m_abc_archive.getTop(), "root");
+		if (resolutions & PTC_RESOLUTION_RENDER)
+			m_abc_root_render = OObject(m_abc_archive.getTop(), "root_render");
 	}
 }
 
@@ -100,9 +102,9 @@ OObject AbcWriterArchive::get_id_object(ID *id)
 OObject AbcWriterArchive::root()
 {
 	if (m_use_render)
-		return m_abc_root_render;
+		return m_abc_root_render ? m_abc_root_render : OObject();
 	else
-		return m_abc_root;
+		return m_abc_root ? m_abc_root : OObject();
 }
 
 bool AbcWriterArchive::has_id_object(ID *id)

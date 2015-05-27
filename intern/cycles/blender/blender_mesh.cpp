@@ -633,11 +633,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 
 	bool need_update;
 	BL::CacheLibrary b_cachelib = b_parent.cache_library();
-	const BL::CacheLibrary::eval_mode_enum dupli_eval_mode =
-	        preview ? BL::CacheLibrary::eval_mode_REALTIME
-	                : BL::CacheLibrary::eval_mode_RENDER;
 	bool use_dupli_override = b_dupli_ob && b_cachelib &&
-	       ((b_cachelib.eval_mode() & dupli_eval_mode) != 0) &&
 	        (b_cachelib.source_mode() == BL::CacheLibrary::source_mode_CACHE ||
 	         b_cachelib.display_mode() == BL::CacheLibrary::display_mode_RESULT);
 	if (use_dupli_override) {

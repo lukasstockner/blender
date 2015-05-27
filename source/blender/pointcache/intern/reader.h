@@ -34,6 +34,7 @@ class ReaderArchive {
 public:
 	virtual ~ReaderArchive() {}
 	
+	virtual PTCArchiveResolution get_resolutions() = 0;
 	virtual void use_render(bool enable) = 0;
 	
 	virtual bool get_frame_range(int &start_frame, int &end_frame) = 0;

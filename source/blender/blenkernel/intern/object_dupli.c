@@ -1732,7 +1732,7 @@ void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachel
 
 /* ------------------------------------------------------------------------- */
 
-static void object_dupli_cache_apply_modifiers(Object *ob, Scene *scene, eCacheLibrary_EvalMode eval_mode)
+static void object_dupli_cache_apply_modifiers(Object *ob, Scene *scene)
 {
 	CacheLibrary *cachelib = ob->cache_library;
 	int frame = scene->r.cfra;
@@ -1742,13 +1742,12 @@ static void object_dupli_cache_apply_modifiers(Object *ob, Scene *scene, eCacheL
 	copy_m4_m4(process_data.mat, ob->obmat);
 	process_data.dupcache = ob->dup_cache;
 	
-	BKE_cache_process_dupli_cache(cachelib, &process_data, scene, ob->dup_group, (float)frame, (float)frame, eval_mode);
+	BKE_cache_process_dupli_cache(cachelib, &process_data, scene, ob->dup_group, (float)frame, (float)frame);
 }
 
 void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *eval_ctx, float frame)
 {
-	const eCacheLibrary_EvalMode eval_mode = eval_ctx->mode == DAG_EVAL_RENDER ? CACHE_LIBRARY_EVAL_RENDER : CACHE_LIBRARY_EVAL_REALTIME;
-	
+	bool use_render = (eval_ctx->mode == DAG_EVAL_RENDER);
 	bool is_dupligroup = (ob->transflag & OB_DUPLIGROUP) && ob->dup_group;
 	bool is_cached = ob->cache_library && (ob->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || ob->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
 	bool do_modifiers = ob->cache_library && ob->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_MODIFIERS;
@@ -1774,13 +1773,13 @@ void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *
 			if (!(ob->cache_library->flag & CACHE_LIBRARY_BAKING)) {
 				bool do_strands_motion, do_strands_children;
 				
-				BKE_cache_library_get_read_flags(ob->cache_library, eval_mode, true, &do_strands_motion, &do_strands_children);
+				BKE_cache_library_get_read_flags(ob->cache_library, use_render, true, &do_strands_motion, &do_strands_children);
 				
 				/* TODO at this point we could apply animation offset */
-				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, eval_mode, true);
+				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, use_render, true);
 				
 				if (do_modifiers) {
-					object_dupli_cache_apply_modifiers(ob, scene, eval_mode);
+					object_dupli_cache_apply_modifiers(ob, scene);
 				}
 				
 				/* Deform child strands to follow parent motion.

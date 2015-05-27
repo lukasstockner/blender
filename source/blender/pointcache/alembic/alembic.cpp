@@ -39,9 +39,9 @@ class AbcFactory : public Factory {
 		return ext;
 	}
 	
-	WriterArchive *open_writer_archive(double fps, float start_frame, const std::string &name, ErrorHandler *error_handler)
+	WriterArchive *open_writer_archive(double fps, float start_frame, const std::string &name, PTCArchiveResolution resolutions, ErrorHandler *error_handler)
 	{
-		return AbcWriterArchive::open(fps, start_frame, name, error_handler);
+		return AbcWriterArchive::open(fps, start_frame, name, resolutions, error_handler);
 	}
 	
 	ReaderArchive *open_reader_archive(double fps, float start_frame, const std::string &name, ErrorHandler *error_handler)

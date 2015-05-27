@@ -29,6 +29,7 @@
 #include "abc_frame_mapper.h"
 
 #include "util_error_handler.h"
+#include "util_types.h"
 
 extern "C" {
 #include "BLI_utildefines.h"
@@ -44,7 +45,7 @@ class AbcWriterArchive : public WriterArchive, public FrameMapper {
 public:
 	virtual ~AbcWriterArchive();
 	
-	static AbcWriterArchive *open(double fps, float start_frame, const std::string &filename, ErrorHandler *error_handler);
+	static AbcWriterArchive *open(double fps, float start_frame, const std::string &filename, PTCArchiveResolution resolutions, ErrorHandler *error_handler);
 	
 	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }
@@ -62,7 +63,7 @@ public:
 	Abc::TimeSamplingPtr frame_sampling();
 	
 protected:
-	AbcWriterArchive(double fps, float start_frame, ErrorHandler *error_handler, Abc::OArchive abc_archive);
+	AbcWriterArchive(double fps, float start_frame, PTCArchiveResolution resolutions, ErrorHandler *error_handler, Abc::OArchive abc_archive);
 	
 protected:
 	ErrorHandler *m_error_handler;

@@ -338,13 +338,9 @@ Mesh *rna_Main_meshes_new_from_dupli(
 	
 	if (is_cached) {
 		float frame = (float)scene->r.cfra;
-		eCacheLibrary_EvalMode eval_mode;
+		bool use_render = (settings == 2);
 		
-		if (settings == 1)
-			eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
-		else if (settings == 2)
-			eval_mode = CACHE_LIBRARY_EVAL_RENDER;
-		else
+		if (!ELEM(settings, 1, 2))
 			return NULL;
 		
 		if (settings == 1 && parent->dup_cache) {
@@ -359,7 +355,7 @@ Mesh *rna_Main_meshes_new_from_dupli(
 			DupliObjectData data;
 			
 			memset(&data, 0, sizeof(data));
-			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true))
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, use_render, true))
 				mesh = BKE_mesh_new_from_dupli_data(bmain, &data, calc_tessface, calc_undeformed);
 			
 			BKE_dupli_object_data_clear(&data);

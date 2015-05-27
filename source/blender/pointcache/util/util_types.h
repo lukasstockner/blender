@@ -23,6 +23,12 @@
 extern "C" {
 #endif
 
+typedef enum PTCArchiveResolution {
+	PTC_RESOLUTION_NONE             = 0,
+	PTC_RESOLUTION_PREVIEW          = (1 << 0),
+	PTC_RESOLUTION_RENDER           = (1 << 1),
+} PTCArchiveResolution;
+
 typedef enum PTCErrorLevel {
 	PTC_ERROR_NONE      = 0,
 	PTC_ERROR_INFO      = 1,

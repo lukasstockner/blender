@@ -1531,16 +1531,12 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 	
 	if (is_cached) {
 		float frame = (float)scene->r.cfra;
-		eCacheLibrary_EvalMode eval_mode;
+		bool use_render = (settings == 2);
 		
-		if (settings == 1)
-			eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
-		else if (settings == 2)
-			eval_mode = CACHE_LIBRARY_EVAL_RENDER;
-		else
+		if (!ELEM(settings, 1, 2))
 			return NULL;
 		
-		if (settings == 1 && parent->dup_cache) {
+		if (!use_render && parent->dup_cache) {
 			DupliObjectData *data;
 			
 			/* use dupli cache for realtime dupli data if possible */
@@ -1559,7 +1555,7 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 			DupliObjectData data;
 			
 			memset(&data, 0, sizeof(data));
-			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, use_render, true)) {
 				BKE_dupli_object_data_find_strands(&data, psys->name, &strands, NULL);
 				if (strands)
 					BKE_dupli_object_data_acquire_strands(&data, strands);
@@ -1587,16 +1583,12 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 	
 	if (is_cached) {
 		float frame = (float)scene->r.cfra;
-		eCacheLibrary_EvalMode eval_mode;
+		bool use_render = (settings == 2);
 		
-		if (settings == 1)
-			eval_mode = CACHE_LIBRARY_EVAL_REALTIME;
-		else if (settings == 2)
-			eval_mode = CACHE_LIBRARY_EVAL_RENDER;
-		else
+		if (!ELEM(settings, 1, 2))
 			return NULL;
 		
-		if (settings == 1 && parent->dup_cache) {
+		if (!use_render && parent->dup_cache) {
 			DupliObjectData *data;
 			
 			/* use dupli cache for realtime dupli data if possible */
@@ -1615,7 +1607,7 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 			DupliObjectData data;
 			
 			memset(&data, 0, sizeof(data));
-			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, eval_mode, true)) {
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, use_render, true)) {
 				Strands *parents;
 				BKE_dupli_object_data_find_strands(&data, psys->name, &parents, &strands);
 				if (strands) {

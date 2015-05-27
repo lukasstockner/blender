@@ -55,20 +55,37 @@ AbcReaderArchive::AbcReaderArchive(double fps, float start_frame, ErrorHandler *
     m_use_render(false),
     m_abc_archive(abc_archive)
 {
-	m_abc_root = IObject(m_abc_archive.getTop(), "root");
-	m_abc_root_render = IObject(m_abc_archive.getTop(), "root_render");
+	if (m_abc_archive.getTop().getChildHeader("root"))
+		m_abc_root = IObject(m_abc_archive.getTop(), "root");
+	else
+		m_abc_root = IObject();
+	
+	if (m_abc_archive.getTop().getChildHeader("root_render"))
+		m_abc_root_render = IObject(m_abc_archive.getTop(), "root_render");
+	else
+		m_abc_root_render = IObject();
 }
 
 AbcReaderArchive::~AbcReaderArchive()
 {
 }
 
+PTCArchiveResolution AbcReaderArchive::get_resolutions()
+{
+	int res = 0;
+	if (m_abc_root)
+		res |= PTC_RESOLUTION_PREVIEW;
+	if (m_abc_root_render)
+		res |= PTC_RESOLUTION_RENDER;
+	return (PTCArchiveResolution)res;
+}
+
 Abc::IObject AbcReaderArchive::root()
 {
 	if (m_use_render)
-		return m_abc_root_render;
+		return m_abc_root_render ? m_abc_root_render : m_abc_root;
 	else
-		return m_abc_root;
+		return m_abc_root ? m_abc_root : m_abc_root_render;
 }
 
 IObject AbcReaderArchive::get_id_object(ID *id)
