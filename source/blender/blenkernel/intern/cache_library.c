@@ -1864,12 +1864,14 @@ static bool haircut_find_first_strand_cut(HaircutCacheModifier *hmd, HaircutCach
 			}
 			
 			if (found_cut) {
-				if (r_cutoff) *r_cutoff = cutoff + lambda_min;
+				cutoff += lambda_min;
+				if (r_cutoff) *r_cutoff = cutoff;
 				return true;
 			}
+			else
+				cutoff += 1.0f;
 		}
 		
-		cutoff += 1.0f;
 		vprev = it_vert.index;
 	}
 	
