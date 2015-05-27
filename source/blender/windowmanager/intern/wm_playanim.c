@@ -76,9 +76,10 @@
 
 AUD_Sound *source = NULL;
 AUD_Handle *playback_handle = NULL;
-/* simple limiter to avoid flooding memory */
+AUD_Handle *scrub_handle = NULL;
 #endif
 
+/* simple limiter to avoid flooding memory */
 #define USE_FRAME_CACHE_LIMIT
 #ifdef USE_FRAME_CACHE_LIMIT
 #  define PLAY_FRAME_CACHE_MAX 30
@@ -524,6 +525,11 @@ static void change_frame(PlayState *ps, int cx)
 	i = (i * cx) / sizex;
 
 #ifdef WITH_AUDASPACE
+	if (scrub_handle) {
+		AUD_stop(scrub_handle);
+		scrub_handle = NULL;
+	}
+
 	if (playback_handle) {
 		AUD_Status status = AUD_getStatus(playback_handle);
 		if (status != AUD_STATUS_PLAYING) {
@@ -531,12 +537,22 @@ static void change_frame(PlayState *ps, int cx)
 			playback_handle = AUD_play(source, 1);
 			if (playback_handle) {
 				AUD_seek(playback_handle, i / fps_movie);
+				scrub_handle = AUD_pauseAfter(playback_handle, 1 / fps_movie);
 			}
 			update_sound_fps();
 		}
 		else {
 			AUD_seek(playback_handle, i / fps_movie);
+			scrub_handle = AUD_pauseAfter(playback_handle, 1 / fps_movie);
 		}
+	}
+	else if (source) {
+		playback_handle = AUD_play(source, 1);
+		if (playback_handle) {
+			AUD_seek(playback_handle, i / fps_movie);
+			scrub_handle = AUD_pauseAfter(playback_handle, 1 / fps_movie);
+		}
+		update_sound_fps();
 	}
 #endif
 
@@ -546,13 +562,9 @@ static void change_frame(PlayState *ps, int cx)
 		ps->picture = ps->picture->next;
 	}
 
-#ifdef WITH_AUDASPACE
-	if (!playback_handle) {
-		ps->sstep = true;
-		ps->wait2 = false;
-		ps->next_frame = 0;
-	}
-#endif
+	ps->sstep = true;
+	ps->wait2 = false;
+	ps->next_frame = 0;
 }
 
 static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
@@ -770,6 +782,42 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 						}
 					}
 					break;
+
+				case GHOST_kKeySpace:
+					if (val) {
+						if (ps->wait2 || ps->sstep) {
+							ps->wait2 = ps->sstep = false;
+#ifdef WITH_AUDASPACE
+							{
+								PlayAnimPict *picture = picsbase.first;
+								/* TODO - store in ps direct? */
+								int i = 0;
+
+								while (picture && picture != ps->picture) {
+									i++;
+									picture = picture->next;
+								}
+								if (playback_handle)
+									AUD_stop(playback_handle);
+								playback_handle = AUD_play(source, 1);
+								if (playback_handle)
+									AUD_seek(playback_handle, i / fps_movie);
+								update_sound_fps();
+							}
+#endif
+						}
+						else {
+							ps->sstep = true;
+							ps->wait2 = true;
+#ifdef WITH_AUDASPACE
+							if (playback_handle) {
+								AUD_stop(playback_handle);
+								playback_handle = NULL;
+							}
+#endif
+						}
+					}
+					break;
 				case GHOST_kKeyEnter:
 				case GHOST_kKeyNumpadEnter:
 					if (val) {
@@ -783,6 +831,8 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 								i++;
 								picture = picture->next;
 							}
+							if (playback_handle)
+								AUD_stop(playback_handle);
 							playback_handle = AUD_play(source, 1);
 							if (playback_handle)
 								AUD_seek(playback_handle, i / fps_movie);
@@ -1425,6 +1475,8 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 #ifdef WITH_AUDASPACE
 	if (playback_handle)
 		AUD_stop(playback_handle);
+	if (scrub_handle)
+		AUD_stop(scrub_handle);
 	AUD_unload(source);
 	AUD_exit();
 #endif
