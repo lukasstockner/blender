@@ -788,7 +788,7 @@ static void rna_def_cache_modifier_haircut(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, cut_mode_items);
 	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Cut Mode", "When to cut strands with the target");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	RNA_def_property_update(prop, 0, "rna_CacheModifier_update");
 }
 
 static void rna_def_cache_modifier(BlenderRNA *brna)
