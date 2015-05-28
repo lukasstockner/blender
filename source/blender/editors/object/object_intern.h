@@ -256,7 +256,7 @@ void OBJECT_OT_face_map_deselect(struct wmOperatorType *ot);
 void OBJECT_OT_face_map_move(struct wmOperatorType *ot);
 
 /* object_warp.c */
-void OBJECT_OT_vertex_warp(struct wmOperatorType *ot);
+void TRANSFORM_OT_vertex_warp(struct wmOperatorType *ot);
 
 /* object_shapekey.c */
 void OBJECT_OT_shape_key_add(struct wmOperatorType *ot);
@@ -282,7 +282,7 @@ void OBJECT_OT_lod_add(struct wmOperatorType *ot);
 void OBJECT_OT_lod_remove(struct wmOperatorType *ot);
 
 /* object_random.c */
-void OBJECT_OT_vertex_random(struct wmOperatorType *ot);
+void TRANSFORM_OT_vertex_random(struct wmOperatorType *ot);
 
 /* object_lamp.c */
 void LAMP_OT_lamp_position(struct wmOperatorType *ot);

@@ -208,7 +208,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_face_map_deselect);
 	WM_operatortype_append(OBJECT_OT_face_map_move);
 
-	WM_operatortype_append(OBJECT_OT_vertex_warp);
+	WM_operatortype_append(TRANSFORM_OT_vertex_warp);
 
 	WM_operatortype_append(OBJECT_OT_game_property_new);
 	WM_operatortype_append(OBJECT_OT_game_property_remove);
@@ -257,7 +257,7 @@ void ED_operatortypes_object(void)
 	WM_operatortype_append(OBJECT_OT_lod_add);
 	WM_operatortype_append(OBJECT_OT_lod_remove);
 
-	WM_operatortype_append(OBJECT_OT_vertex_random);
+	WM_operatortype_append(TRANSFORM_OT_vertex_random);
 
 	WM_operatortype_append(LAMP_OT_lamp_position);
 

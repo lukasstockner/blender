@@ -1303,6 +1303,7 @@ static void scene_armature_depsgraph_workaround(Main *bmain)
 }
 #endif
 
+#ifdef WITH_LEGACY_DEPSGRAPH
 static void scene_rebuild_rbw_recursive(Scene *scene, float ctime)
 {
 	if (scene->set)
@@ -1320,6 +1321,7 @@ static void scene_do_rb_simulation_recursive(Scene *scene, float ctime)
 	if (BKE_scene_check_rigidbody_active(scene))
 		BKE_rigidbody_do_simulation(scene, ctime);
 }
+#endif
 
 /* Used to visualize CPU threads activity during threaded object update,
  * would pollute STDERR with whole bunch of timing information which then
@@ -1579,6 +1581,9 @@ static void scene_update_objects(EvaluationContext *eval_ctx, Main *bmain, Scene
 #endif
 
 	task_pool = BLI_task_pool_create(task_scheduler, &state);
+	if (G.debug & G_DEBUG_DEPSGRAPH_NO_THREADS) {
+		BLI_pool_set_num_threads(task_pool, 1);
+	}
 
 	DAG_threaded_update_begin(scene, scene_update_object_add_task, task_pool);
 	BLI_task_pool_work_and_wait(task_pool);
@@ -1732,7 +1737,7 @@ void BKE_scene_update_tagged(EvaluationContext *eval_ctx, Main *bmain, Scene *sc
 		scene_update_tagged_recursive(eval_ctx, bmain, scene, scene);
 	}
 #else
-	DEG_evaluate_on_refresh(eval_ctx, bmain, scene->depsgraph, scene);
+	DEG_evaluate_on_refresh(eval_ctx, scene->depsgraph, scene);
 #endif
 
 	/* update sound system animation (TODO, move to depsgraph) */
