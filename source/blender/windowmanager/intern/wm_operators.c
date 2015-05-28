@@ -2624,10 +2624,18 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	int idcode, totfiles = 0;
 	short flag;
 
+	char asset_engine[BKE_ST_MAXNAME];
+	AssetEngineType *aet = NULL;
+
 	GSet *todo_libraries = NULL;
 
 	RNA_string_get(op->ptr, "filename", relname);
 	RNA_string_get(op->ptr, "directory", dir);
+
+	RNA_string_get(op->ptr, "asset_engine", asset_engine);
+	if (asset_engine[0] != '\0') {
+		aet = BKE_asset_engines_find(asset_engine);
+	}
 
 	BLI_join_dirfile(path, sizeof(path), dir, relname);
 
