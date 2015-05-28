@@ -244,18 +244,7 @@ void BKE_strands_children_add_vcols(StrandsChildren *strands, int num_layers)
 	}
 }
 
-int BKE_strands_children_max_length(StrandsChildren *strands)
-{
-	StrandChildIterator it_strand;
-	int maxlen = 0;
-	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
-		if (maxlen < it_strand.curve->numverts)
-			maxlen = it_strand.curve->numverts;
-	}
-	return maxlen;
-}
-
-int *BKE_strands_calc_vertex_start(Strands *strands)
+static int *strands_calc_vertex_start(Strands *strands)
 {
 	int *vertstart = MEM_mallocN(sizeof(int) * strands->totcurves, "strand curves vertex start");
 	StrandIterator it_strand;
@@ -270,35 +259,11 @@ int *BKE_strands_calc_vertex_start(Strands *strands)
 	return vertstart;
 }
 
-/* shortens the last visible segment to have exact cutoff length */
-static void strands_children_apply_cutoff(StrandChildIterator *it_strand)
-{
-	StrandsChildCurve *curve = it_strand->curve;
-	const float cutoff = curve->cutoff;
-	
-	int last, end;
-	float *a, *b;
-	float t;
-	
-	if (cutoff < 0 || cutoff >= (float)(curve->numverts-1))
-		return;
-	
-	last = (int)cutoff;
-	end = last + 1;
-	BLI_assert(last < curve->numverts);
-	BLI_assert(end < curve->numverts);
-	
-	a = it_strand->verts[last].co;
-	b = it_strand->verts[end].co;
-	t = cutoff - floorf(cutoff);
-	interp_v3_v3v3(b, a, b, t);
-}
-
 
 /* 'out' is an optional array to write final positions to, instead of writing back to vertex locations.
  * It must be at least as large as the number of vertices.
  */
-static void strands_children_strand_deform_intern(StrandChildIterator *it_strand, Strands *parents, int *vertstart, bool use_motion, float (*out)[3])
+static void strands_children_strand_deform(StrandChildIterator *it_strand, Strands *parents, int *vertstart, bool use_motion, float (*out)[3])
 {
 	int i;
 	
@@ -357,48 +322,22 @@ static void strands_children_strand_deform_intern(StrandChildIterator *it_strand
 	}
 }
 
-/* Deform a single strand on-the-fly for intermediate processing.
- * 'out' is an optional array to write final positions to, instead of writing back to vertex locations.
- * It must be at least as large as the number of vertices.
- */
-void BKE_strands_children_strand_deform(StrandChildIterator *it_strand, Strands *parents, int *vertstart, bool use_motion, float (*out)[3])
-{
-	StrandChildVertexIterator it_vert;
-	
-	/* move child strands from their local root space to object space */
-	if (out) {
-		StrandChildVertexIterator it_vert;
-		for (BKE_strand_child_vertex_iter_init(&it_vert, it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
-			mul_v3_m4v3(out[it_vert.index], it_strand->curve->root_matrix, it_vert.vertex->co);
-		}
-	}
-	else {
-		for (BKE_strand_child_vertex_iter_init(&it_vert, it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
-			mul_m4_v3(it_strand->curve->root_matrix, it_vert.vertex->co);
-		}
-	}
-	
-	strands_children_strand_deform_intern(it_strand, parents, vertstart, use_motion, out);
-}
-
 void BKE_strands_children_deform(StrandsChildren *strands, Strands *parents, bool use_motion)
 {
 	int *vertstart = NULL;
 	StrandChildIterator it_strand;
 	
 	if (parents)
-		vertstart = BKE_strands_calc_vertex_start(parents);
+		vertstart = strands_calc_vertex_start(parents);
 	
 	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
 		/* move child strands from their local root space to object space */
 		StrandChildVertexIterator it_vert;
 		for (BKE_strand_child_vertex_iter_init(&it_vert, &it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
-			mul_m4_v3(it_strand.curve->root_matrix, it_vert.vertex->co);
+			mul_v3_m4v3(it_vert.vertex->co, it_strand.curve->root_matrix, it_vert.vertex->base);
 		}
 		
-		strands_children_strand_deform_intern(&it_strand, parents, vertstart, use_motion, NULL);
-		
-		strands_children_apply_cutoff(&it_strand);
+		strands_children_strand_deform(&it_strand, parents, vertstart, use_motion, NULL);
 	}
 	
 	if (vertstart)

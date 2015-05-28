@@ -313,7 +313,7 @@ static void cache_library_bake_do(CacheLibraryBakeJob *data, bool use_render)
 				break;
 		}
 		
-		BKE_cache_process_dupli_cache(data->cachelib, &process_data, scene, data->group, frame_prev, frame);
+		BKE_cache_process_dupli_cache(data->cachelib, &process_data, scene, data->group, frame_prev, frame, true, false, true);
 		
 		PTC_write_sample(data->writer);
 		

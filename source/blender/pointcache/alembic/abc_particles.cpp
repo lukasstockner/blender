@@ -676,7 +676,7 @@ static void strands_children_create_sample(StrandsChildren *strands, StrandsChil
 			
 			StrandChildVertexIterator it_vert;
 			for (BKE_strand_child_vertex_iter_init(&it_vert, &it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
-				const float *co = it_vert.vertex->co;
+				const float *co = it_vert.vertex->base;
 				sample.positions.push_back(V3f(co[0], co[1], co[2]));
 				sample.times.push_back(it_vert.vertex->time);
 			}
@@ -1046,6 +1046,7 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	for (int i = 0; i < sample_co->size(); ++i) {
 		StrandsChildVertex *svert = &m_strands->verts[i];
 		copy_v3_v3(svert->co, co->getValue());
+		copy_v3_v3(svert->base, svert->co);
 		svert->time = *time;
 		
 		++co;

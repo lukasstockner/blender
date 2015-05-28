@@ -46,9 +46,6 @@ void BKE_strands_children_free(struct StrandsChildren *strands);
 void BKE_strands_children_add_uvs(struct StrandsChildren *strands, int num_layers);
 void BKE_strands_children_add_vcols(struct StrandsChildren *strands, int num_layers);
 
-int BKE_strands_children_max_length(struct StrandsChildren *strands);
-int *BKE_strands_calc_vertex_start(struct Strands *strands);
-void BKE_strands_children_strand_deform(struct StrandChildIterator *it_strand, struct Strands *parents, int *vertstart, bool use_motion, float (*out)[3]);
 void BKE_strands_children_deform(struct StrandsChildren *strands, struct Strands *parents, bool use_motion);
 
 void BKE_strands_children_ensure_normals(struct StrandsChildren *strands);

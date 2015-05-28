@@ -80,6 +80,7 @@ typedef struct StrandsChildCurveVCol {
 
 typedef struct StrandsChildVertex {
 	float co[3];
+	float base[3]; /* undeformed shape */
 	float time;
 	
 	/* utility data */
