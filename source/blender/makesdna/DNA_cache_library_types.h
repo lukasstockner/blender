@@ -235,10 +235,14 @@ typedef struct ShrinkWrapCacheModifier {
 	
 	struct Object *object;
 	int hair_system;
-	int pad;
+	int flag;
 	
 	struct Object *target;
 } ShrinkWrapCacheModifier;
+
+typedef enum eShrinkWrapCacheModifier_Flag {
+	eShrinkWrapCacheModifier_Flag_InternalTarget        = (1 << 0),
+} eShrinkWrapCacheModifier_Flag;
 
 typedef struct StrandsKeyCacheModifier {
 	CacheModifier modifier;

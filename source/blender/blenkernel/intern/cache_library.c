@@ -1334,16 +1334,25 @@ static void shrinkwrap_data_get_bvhtree(ShrinkWrapCacheData *data, DerivedMesh *
 
 static void shrinkwrap_data_get_instances(ShrinkWrapCacheData *data, Object *ob, float obmat[4][4], ListBase *duplilist)
 {
-	DupliObject *dob;
-	
-	for (dob = duplilist->first; dob; dob = dob->next) {
-		ShrinkWrapCacheInstance *inst;
+	if (duplilist) {
+		DupliObject *dob;
 		
-		if (dob->ob != ob)
-			continue;
-		
-		inst = MEM_callocN(sizeof(ShrinkWrapCacheInstance), "shrink wrap instance");
-		mul_m4_m4m4(inst->mat, obmat, dob->mat);
+		for (dob = duplilist->first; dob; dob = dob->next) {
+			ShrinkWrapCacheInstance *inst;
+			
+			if (dob->ob != ob)
+				continue;
+			
+			inst = MEM_callocN(sizeof(ShrinkWrapCacheInstance), "shrink wrap instance");
+			mul_m4_m4m4(inst->mat, obmat, dob->mat);
+			invert_m4_m4(inst->imat, inst->mat);
+			
+			BLI_addtail(&data->instances, inst);
+		}
+	}
+	else {
+		ShrinkWrapCacheInstance *inst = MEM_callocN(sizeof(ShrinkWrapCacheInstance), "shrink wrap instance");
+		mul_m4_m4m4(inst->mat, obmat, ob->obmat);
 		invert_m4_m4(inst->imat, inst->mat);
 		
 		BLI_addtail(&data->instances, inst);
@@ -1361,15 +1370,10 @@ static void shrinkwrap_data_free(ShrinkWrapCacheData *data)
 	}
 }
 
-static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *UNUSED(smd), ShrinkWrapCacheData *data, ShrinkWrapCacheInstance *inst, StrandsVertex *vertex, StrandsMotionState *UNUSED(state))
+static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *UNUSED(smd), ShrinkWrapCacheData *data, ShrinkWrapCacheInstance *inst, const float *point, float *out)
 {
-//	const float *point = state->co;
-//	float *npoint = state->co;
-	const float *point = vertex->co;
-	float *npoint = vertex->co;
-	
 	BVHTreeNearest nearest = {0, };
-	float co[3];
+	float co[3], near_co[3], near_no[3];
 	
 	if (!data->treedata.tree)
 		return;
@@ -1385,66 +1389,107 @@ static void shrinkwrap_apply_vertex(ShrinkWrapCacheModifier *UNUSED(smd), Shrink
 		return;
 	
 	/* convert back to world space */
-	mul_m4_v3(inst->mat, nearest.co);
-	mul_mat3_m4_v3(inst->mat, nearest.no);
+	mul_v3_m4v3(near_co, inst->mat, nearest.co);
+	copy_v3_v3(near_no, nearest.no);
+	mul_mat3_m4_v3(inst->mat, near_no);
 	
 	{
 		float vec[3];
 		
-		sub_v3_v3v3(vec, point, nearest.co);
+		sub_v3_v3v3(vec, point, near_co);
 		
 		/* project along the distance vector */
-		if (dot_v3v3(vec, nearest.no) < 0.0f) {
-			sub_v3_v3v3(npoint, point, vec);
+		if (dot_v3v3(vec, near_no) < 0.0f) {
+			copy_v3_v3(out, near_co);
 		}
 	}
 }
 
-static void shrinkwrap_apply(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *data, Strands *strands)
+static void shrinkwrap_apply(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *data, Strands *strands, StrandsChildren *children, bool do_motion)
 {
-	StrandIterator it_strand;
-	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
-		StrandVertexIterator it_vert;
-		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
-			ShrinkWrapCacheInstance *inst;
-			
-			/* XXX this is not great, the result depends on order of instances in the duplilist ...
-			 * but good enough for single instance use case.
-			 */
-			for (inst = data->instances.first; inst; inst = inst->next) {
-				shrinkwrap_apply_vertex(smd, data, inst, it_vert.vertex, it_vert.state);
+	/* XXX this is not great, the result depends on order of instances in the duplilist ...
+	 * but good enough for single instance use case.
+	 */
+	ShrinkWrapCacheInstance *inst;
+	for (inst = data->instances.first; inst; inst = inst->next) {
+		
+		if (strands) {
+			StrandIterator it_strand;
+			for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+				StrandVertexIterator it_vert;
+				for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+					if (do_motion && strands->state)
+						shrinkwrap_apply_vertex(smd, data, inst, it_vert.state->co, it_vert.state->co);
+					else
+						shrinkwrap_apply_vertex(smd, data, inst, it_vert.vertex->co, it_vert.vertex->co);
+				}
+			}
+		}
+		
+		if (children) {
+			StrandChildIterator it_strand;
+			for (BKE_strand_child_iter_init(&it_strand, children); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
+				StrandChildVertexIterator it_vert;
+				for (BKE_strand_child_vertex_iter_init(&it_vert, &it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
+					shrinkwrap_apply_vertex(smd, data, inst, it_vert.vertex->co, it_vert.vertex->co);
+				}
 			}
 		}
 	}
 }
 
-static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev))
+static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *ctx, CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev))
 {
+	bool do_strands_motion = true;
+	bool do_strands_children = true;
+	
+	const bool dupli_target = smd->flag & eShrinkWrapCacheModifier_Flag_InternalTarget;
 	Object *ob = smd->object;
 	DupliObject *dob;
-	Strands *strands;
-	DupliObjectData *target_data;
+	Strands *strands = NULL;
+	StrandsChildren *children = NULL;
+	DerivedMesh *target_dm;
 	float mat[4][4];
 	
 	ShrinkWrapCacheData shrinkwrap;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL, NULL))
-		return;
-	if (!BKE_cache_modifier_find_object(data->dupcache, smd->target, &target_data))
-		return;
+	if (do_strands_children) {
+		BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, NULL, &children, NULL);
+	}
+	BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL, NULL);
+	
+	if (dupli_target) {
+		DupliObjectData *target_data;
+		if (!BKE_cache_modifier_find_object(data->dupcache, smd->target, &target_data))
+			return;
+		target_dm = target_data->dm;
+	}
+	else {
+		if (!smd->target)
+			return;
+		target_dm = mesh_get_derived_final(ctx->scene, smd->target, CD_MASK_BAREMESH);
+	}
 	
 	for (dob = data->dupcache->duplilist.first; dob; dob = dob->next) {
 		if (dob->ob != ob)
 			continue;
 		
-		/* instances are calculated relative to the strands object */
-		invert_m4_m4(mat, dob->mat);
-		
 		memset(&shrinkwrap, 0, sizeof(shrinkwrap));
-		shrinkwrap_data_get_bvhtree(&shrinkwrap, target_data->dm, true);
-		shrinkwrap_data_get_instances(&shrinkwrap, smd->target, mat, &data->dupcache->duplilist);
+		shrinkwrap_data_get_bvhtree(&shrinkwrap, target_dm, true);
 		
-		shrinkwrap_apply(smd, &shrinkwrap, strands);
+		if (dupli_target) {
+			/* instances are calculated relative to the strands object */
+			invert_m4_m4(mat, dob->mat);
+			shrinkwrap_data_get_instances(&shrinkwrap, smd->target, mat, &data->dupcache->duplilist);
+		}
+		else {
+			/* instances are calculated relative to the strands object */
+			mul_m4_m4m4(mat, data->mat, dob->mat);
+			invert_m4(mat);
+			shrinkwrap_data_get_instances(&shrinkwrap, smd->target, mat, NULL);
+		}
+		
+		shrinkwrap_apply(smd, &shrinkwrap, strands, children, do_strands_motion);
 		
 		shrinkwrap_data_free(&shrinkwrap);
 		
