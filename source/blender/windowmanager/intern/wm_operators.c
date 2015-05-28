@@ -2612,16 +2612,109 @@ static short wm_link_append_flag(wmOperator *op)
 	return flag;
 }
 
+/* Helper.
+ *     if `name` is non-NULL, we assume a single-item link/append.
+ *     else if `*todo_libraries` is NULL we assume first-run.
+ */
+static void wm_link_append_do_libgroup(
+        bContext *C, wmOperator *op, const char *root, const char *libname, char *group, char *name,
+        const short flag, GSet **todo_libraries)
+{
+	Main *bmain = CTX_data_main(C);
+	Main *mainl;
+	BlendHandle *bh;
+	Library *lib;
+
+	char path[FILE_MAX_LIBEXTRA], relname[FILE_MAX];
+	int idcode;
+	const bool is_first_run = (*todo_libraries == NULL);
+
+	BLI_assert(group);
+	idcode = BKE_idcode_from_name(group);
+
+	bh = BLO_blendhandle_from_file(libname, op->reports);
+
+	if (bh == NULL) {
+		/* unlikely since we just browsed it, but possible
+		 * error reports will have been made by BLO_blendhandle_from_file() */
+		return;
+	}
+
+	/* here appending/linking starts */
+	mainl = BLO_library_append_begin(bmain, &bh, libname);
+	lib = mainl->curlib;
+	BLI_assert(lib);
+
+	if (mainl->versionfile < 250) {
+		BKE_reportf(op->reports, RPT_WARNING,
+		            "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will "
+		            "be done! You may want to re-save your lib file with current Blender",
+		            mainl->versionfile, mainl->subversionfile);
+	}
+
+	if (name) {
+		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+	}
+	else {
+		if (is_first_run) {
+			*todo_libraries = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
+		}
+
+		RNA_BEGIN (op->ptr, itemptr, "files")
+		{
+			int asset_uuid[4];
+			char curr_libname[FILE_MAX];
+			int curr_idcode;
+
+			RNA_string_get(&itemptr, "name", relname);
+			RNA_int_get_array(&itemptr, "asset_uuid", asset_uuid);
+
+			printf("asset uuid %s: %d, %d, %d, %d\n", relname, asset_uuid[0], asset_uuid[1], asset_uuid[2], asset_uuid[3]);
+
+			BLI_join_dirfile(path, sizeof(path), root, relname);
+
+			if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
+				if (!group || !name) {
+					continue;
+				}
+
+				curr_idcode = BKE_idcode_from_name(group);
+
+				if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
+					BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+				}
+				else if (is_first_run) {
+					BLI_join_dirfile(path, sizeof(path), curr_libname, group);
+					if (!BLI_gset_haskey(*todo_libraries, path)) {
+						BLI_gset_insert(*todo_libraries, BLI_strdup(path));
+					}
+				}
+			}
+		}
+		RNA_END;
+	}
+	BLO_library_append_end(C, mainl, &bh, idcode, flag);
+
+	BLO_blendhandle_close(bh);
+
+	/* mark all library linked objects to be updated */
+	BKE_main_lib_objects_recalc_all(bmain);
+	IMB_colormanagement_check_file_config(bmain);
+
+	/* append, rather than linking */
+	if ((flag & FILE_LINK) == 0) {
+		BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
+		BKE_library_make_local(bmain, lib, true);
+	}
+}
+
 static int wm_link_append_exec(bContext *C, wmOperator *op)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
-	Main *mainl = NULL;
-	BlendHandle *bh;
-	Library *lib;
 	PropertyRNA *prop;
-	char path[FILE_MAX_LIBEXTRA], dir[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX], *group, *name;
-	int idcode, totfiles = 0;
+	char path[FILE_MAX_LIBEXTRA], root[FILE_MAXDIR], libname[FILE_MAX], relname[FILE_MAX], *group, *name;
+	int totfiles = 0;
 	short flag;
 
 	char asset_engine[BKE_ST_MAXNAME];
@@ -2630,14 +2723,14 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	GSet *todo_libraries = NULL;
 
 	RNA_string_get(op->ptr, "filename", relname);
-	RNA_string_get(op->ptr, "directory", dir);
+	RNA_string_get(op->ptr, "directory", root);
+
+	BLI_join_dirfile(path, sizeof(path), root, relname);
 
 	RNA_string_get(op->ptr, "asset_engine", asset_engine);
 	if (asset_engine[0] != '\0') {
 		aet = BKE_asset_engines_find(asset_engine);
 	}
-
-	BLI_join_dirfile(path, sizeof(path), dir, relname);
 
 	/* test if we have a valid data */
 	if (!BLO_library_path_explode(path, libname, &group, &name)) {
@@ -2669,22 +2762,6 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 
-	bh = BLO_blendhandle_from_file(libname, op->reports);
-
-	if (bh == NULL) {
-		/* unlikely since we just browsed it, but possible
-		 * error reports will have been made by BLO_blendhandle_from_file() */
-		return OPERATOR_CANCELLED;
-	}
-
-
-	/* from here down, no error returns */
-
-	/* now we have or selected, or an indicated file */
-	if (RNA_boolean_get(op->ptr, "autoselect"))
-		BKE_scene_base_deselect_all(scene);
-
-	
 	flag = wm_link_append_flag(op);
 
 	/* sanity checks for flag */
@@ -2694,78 +2771,23 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		flag &= ~FILE_GROUP_INSTANCE;
 	}
 
-	idcode = BKE_idcode_from_name(group);
+	/* from here down, no error returns */
 
+	/* now we have or selected, or an indicated file */
+	if (RNA_boolean_get(op->ptr, "autoselect"))
+		BKE_scene_base_deselect_all(scene);
+	
 	/* tag everything, all untagged data can be made local
 	 * its also generally useful to know what is new
 	 *
 	 * take extra care BKE_main_id_flag_all(LIB_LINK_TAG, false) is called after! */
 	BKE_main_id_flag_all(bmain, LIB_PRE_EXISTING, 1);
 
-	/* here appending/linking starts */
-	mainl = BLO_library_append_begin(bmain, &bh, libname);
-	lib = mainl->curlib;
-	BLI_assert(lib);
-
-	if (mainl->versionfile < 250) {
-		BKE_reportf(op->reports, RPT_WARNING,
-		            "Linking or appending from a very old .blend file format (%d.%d), no animation conversion will "
-		            "be done! You may want to re-save your lib file with current Blender",
-		            mainl->versionfile, mainl->subversionfile);
+	if (totfiles != 0) {
+		name = NULL;
 	}
 
-	if (totfiles == 0) {
-		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
-	}
-	else {
-		todo_libraries = BLI_gset_new(BLI_ghashutil_strhash_p, BLI_ghashutil_strcmp, __func__);
-
-		RNA_BEGIN (op->ptr, itemptr, "files")
-		{
-			int asset_uuid[4];
-			char curr_libname[FILE_MAX];
-			int curr_idcode;
-
-			RNA_string_get(&itemptr, "name", relname);
-			RNA_int_get_array(&itemptr, "asset_uuid", asset_uuid);
-
-			printf("asset uuid %s: %d, %d, %d, %d\n", relname, asset_uuid[0], asset_uuid[1], asset_uuid[2], asset_uuid[3]);
-
-			BLI_join_dirfile(path, sizeof(path), dir, relname);
-
-			if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
-				if (!group || !name) {
-					continue;
-				}
-
-				curr_idcode = BKE_idcode_from_name(group);
-
-				if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
-					BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
-				}
-				else {
-					BLI_join_dirfile(path, sizeof(path), curr_libname, group);
-					if (!BLI_gset_haskey(todo_libraries, path)) {
-						BLI_gset_insert(todo_libraries, BLI_strdup(path));
-					}
-				}
-			}
-		}
-		RNA_END;
-	}
-	BLO_library_append_end(C, mainl, &bh, idcode, flag);
-	
-	/* mark all library linked objects to be updated */
-	BKE_main_lib_objects_recalc_all(bmain);
-	IMB_colormanagement_check_file_config(bmain);
-
-	/* append, rather than linking */
-	if ((flag & FILE_LINK) == 0) {
-		BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
-		BKE_library_make_local(bmain, lib, true);
-	}
-
-	BLO_blendhandle_close(bh);
+	wm_link_append_do_libgroup(C, op, root, libname, group, name, flag, &todo_libraries);
 
 	if (todo_libraries) {
 		GSetIterator libs_it;
@@ -2774,58 +2796,8 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 			char *libpath = (char *)BLI_gsetIterator_getKey(&libs_it);
 
 			BLO_library_path_explode(libpath, libname, &group, NULL);
-			BLI_assert(group);
-			idcode = BKE_idcode_from_name(group);
 
-			bh = BLO_blendhandle_from_file(libname, op->reports);
-
-			if (bh == NULL) {
-				/* unlikely since we just browsed it, but possible
-				 * error reports will have been made by BLO_blendhandle_from_file() */
-				continue;
-			}
-
-			/* here appending/linking starts */
-			mainl = BLO_library_append_begin(bmain, &bh, libname);
-			lib = mainl->curlib;
-			BLI_assert(lib);
-
-			RNA_BEGIN (op->ptr, itemptr, "files")
-			{
-				char curr_libname[FILE_MAX];
-				int curr_idcode;
-
-				RNA_string_get(&itemptr, "name", relname);
-
-				BLI_join_dirfile(path, sizeof(path), dir, relname);
-
-				if (BLO_library_path_explode(path, curr_libname, &group, &name)) {
-					if (!group || !name) {
-						continue;
-					}
-
-					curr_idcode = BKE_idcode_from_name(group);
-
-					if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
-						BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
-					}
-				}
-			}
-			RNA_END;
-
-			BLO_library_append_end(C, mainl, &bh, idcode, flag);
-
-			/* mark all library linked objects to be updated */
-			BKE_main_lib_objects_recalc_all(bmain);
-			IMB_colormanagement_check_file_config(bmain);
-
-			/* append, rather than linking */
-			if ((flag & FILE_LINK) == 0) {
-				BLI_assert(BLI_findindex(&bmain->library, lib) != -1);
-				BKE_library_make_local(bmain, lib, true);
-			}
-
-			BLO_blendhandle_close(bh);
+			wm_link_append_do_libgroup(C, op, root, libname, group, NULL, flag, &todo_libraries);
 		}
 
 		BLI_gset_free(todo_libraries, MEM_freeN);
@@ -2842,7 +2814,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 	GPU_materials_free();
 
 	/* XXX TODO: align G.lib with other directory storage (like last opened image etc...) */
-	BLI_strncpy(G.lib, dir, FILE_MAX);
+	BLI_strncpy(G.lib, root, FILE_MAX);
 
 	WM_event_add_notifier(C, NC_WINDOW, NULL);
 
