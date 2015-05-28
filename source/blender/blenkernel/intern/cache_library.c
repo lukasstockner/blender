@@ -573,7 +573,8 @@ void BKE_cache_modifier_foreachIDLink(struct CacheLibrary *cachelib, struct Cach
 }
 
 void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *data,
-                                   Scene *scene, Group *dupgroup, float frame_prev, float frame)
+                                   Scene *scene, Group *dupgroup, float frame_prev, float frame,
+                                   bool do_modifiers, bool do_strands_child_deform, bool do_strands_motion)
 {
 	CacheProcessContext ctx;
 	CacheModifier *md;
@@ -583,11 +584,41 @@ void BKE_cache_process_dupli_cache(CacheLibrary *cachelib, CacheProcessData *dat
 	ctx.cachelib = cachelib;
 	ctx.group = dupgroup;
 	
-	for (md = cachelib->modifiers.first; md; md = md->next) {
-		CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+	if (do_modifiers) {
+		for (md = cachelib->modifiers.first; md; md = md->next) {
+			CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+			
+			// TODO parent modifiers only here
+			if (mti->process)
+				mti->process(md, &ctx, data, frame, frame_prev, eCacheProcessFlag_DoStrands);
+		}
+	}
+	
+	/* deform child strands to follow parent motion */
+	if (do_modifiers || do_strands_child_deform) {
+		struct  DupliCacheIterator *it;
 		
-		if (mti->process)
-			mti->process(md, &ctx, data, frame, frame_prev);
+		it = BKE_dupli_cache_iter_new(data->dupcache);
+		for (; BKE_dupli_cache_iter_valid(it); BKE_dupli_cache_iter_next(it)) {
+			DupliObjectData *dobdata = BKE_dupli_cache_iter_get(it);
+			DupliObjectDataStrands *link;
+			
+			for (link = dobdata->strands.first; link; link = link->next) {
+				if (link->strands_children)
+					BKE_strands_children_deform(link->strands_children, link->strands, do_strands_motion);
+			}
+		}
+		BKE_dupli_cache_iter_free(it);
+	}
+	
+	if (do_modifiers) {
+		for (md = cachelib->modifiers.first; md; md = md->next) {
+			CacheModifierTypeInfo *mti = cache_modifier_type_get(md->type);
+			
+			// TODO child modifiers only here
+			if (mti->process)
+				mti->process(md, &ctx, data, frame, frame_prev, eCacheProcessFlag_DoStrandsChildren);
+		}
 	}
 }
 
@@ -1115,7 +1146,7 @@ static void hairsim_foreach_id_link(HairSimCacheModifier *hsmd, CacheLibrary *ca
 		walk(userdata, cachelib, &hsmd->modifier, (ID **)(&hsmd->sim_params.effector_weights->group));
 }
 
-static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev)
+static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx, CacheProcessData *data, int frame, int frame_prev, int process_flag)
 {
 #define MAX_CACHE_EFFECTORS 64
 	
@@ -1127,9 +1158,9 @@ static void hairsim_process(HairSimCacheModifier *hsmd, CacheProcessContext *ctx
 	int tot_cache_effectors;
 	struct Implicit_Data *solver_data;
 	
-	/* only perform hair sim once */
-//	if (eval_mode != CACHE_LIBRARY_EVAL_REALTIME)
-//		return;
+	/* only applies to parent strands */
+	if (!(process_flag & eCacheProcessFlag_DoStrands))
+		return;
 	
 	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hsmd->hair_system, NULL, &strands, NULL, NULL))
 		return;
@@ -1438,25 +1469,25 @@ static void shrinkwrap_apply(ShrinkWrapCacheModifier *smd, ShrinkWrapCacheData *
 	}
 }
 
-static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *ctx, CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev))
+static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext *ctx, CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), int process_flag)
 {
 	bool do_strands_motion = true;
-	bool do_strands_children = true;
 	
 	const bool dupli_target = smd->flag & eShrinkWrapCacheModifier_Flag_InternalTarget;
 	Object *ob = smd->object;
 	DupliObject *dob;
 	Strands *strands = NULL;
-	StrandsChildren *children = NULL;
 	DerivedMesh *target_dm;
 	float mat[4][4];
 	
 	ShrinkWrapCacheData shrinkwrap;
 	
-	if (do_strands_children) {
-		BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, NULL, &children, NULL);
-	}
-	BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL, NULL);
+	/* only applies to parent strands */
+	if (!(process_flag & eCacheProcessFlag_DoStrands))
+		return;
+	
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, smd->hair_system, NULL, &strands, NULL, NULL))
+		return;
 	
 	if (dupli_target) {
 		DupliObjectData *target_data;
@@ -1489,7 +1520,7 @@ static void shrinkwrap_process(ShrinkWrapCacheModifier *smd, CacheProcessContext
 			shrinkwrap_data_get_instances(&shrinkwrap, smd->target, mat, NULL);
 		}
 		
-		shrinkwrap_apply(smd, &shrinkwrap, strands, children, do_strands_motion);
+		shrinkwrap_apply(smd, &shrinkwrap, strands, NULL, do_strands_motion);
 		
 		shrinkwrap_data_free(&shrinkwrap);
 		
@@ -1544,7 +1575,7 @@ static void strandskey_foreach_id_link(StrandsKeyCacheModifier *skmd, CacheLibra
 	walk(userdata, cachelib, &skmd->modifier, (ID **)(&skmd->object));
 }
 
-static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev))
+static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContext *UNUSED(ctx), CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), int process_flag)
 {
 	const bool use_motion = skmd->flag & eStrandsKeyCacheModifier_Flag_UseMotionState;
 	Object *ob = skmd->object;
@@ -1552,6 +1583,9 @@ static void strandskey_process(StrandsKeyCacheModifier *skmd, CacheProcessContex
 	KeyBlock *actkb;
 	float *shape;
 	
+	/* only applies to parents */
+	if (!(process_flag & eCacheProcessFlag_DoStrands))
+		return;
 	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, skmd->hair_system, NULL, &strands, NULL, NULL))
 		return;
 	if (use_motion && !strands->state)
@@ -1878,13 +1912,14 @@ static bool haircut_find_segment_cut(HaircutCacheModifier *hmd, HaircutCacheData
 	return false;
 }
 
-static bool haircut_find_first_strand_cut(HaircutCacheModifier *hmd, HaircutCacheData *data, StrandChildIterator *it_strand, float (*strand_deform)[3], float *r_cutoff)
+static bool haircut_find_first_strand_cut(HaircutCacheModifier *hmd, HaircutCacheData *data, StrandChildIterator *it_strand, float *r_cutoff)
 {
 	StrandChildVertexIterator it_vert;
 	int vprev = -1;
 	float cutoff = 0.0f;
 	
 	for (BKE_strand_child_vertex_iter_init(&it_vert, it_strand); BKE_strand_child_vertex_iter_valid(&it_vert); BKE_strand_child_vertex_iter_next(&it_vert)) {
+		StrandsChildVertex *verts = it_strand->verts;
 		bool found_cut = false;
 		float lambda_min = 1.0f;
 		HaircutCacheInstance *inst;
@@ -1892,7 +1927,7 @@ static bool haircut_find_first_strand_cut(HaircutCacheModifier *hmd, HaircutCach
 		if (it_vert.index == 0) {
 			for (inst = data->instances.first; inst; inst = inst->next) {
 				/* test root vertex */
-				if (haircut_test_point(hmd, data, inst, strand_deform[it_vert.index])) {
+				if (haircut_test_point(hmd, data, inst, verts[it_vert.index].co)) {
 					if (r_cutoff) *r_cutoff = 0.0f;
 					return true;
 				}
@@ -1901,7 +1936,7 @@ static bool haircut_find_first_strand_cut(HaircutCacheModifier *hmd, HaircutCach
 		else {
 			for (inst = data->instances.first; inst; inst = inst->next) {
 				float lambda;
-				if (haircut_find_segment_cut(hmd, data, inst, strand_deform[vprev], strand_deform[it_vert.index], &lambda)) {
+				if (haircut_find_segment_cut(hmd, data, inst, verts[vprev].co, verts[it_vert.index].co, &lambda)) {
 					found_cut = true;
 					if (lambda < lambda_min)
 						lambda_min = lambda;
@@ -1924,46 +1959,57 @@ static bool haircut_find_first_strand_cut(HaircutCacheModifier *hmd, HaircutCach
 	return false;
 }
 
-static void haircut_apply(HaircutCacheModifier *hmd, CacheProcessContext *UNUSED(ctx), HaircutCacheData *data, Strands *parents, StrandsChildren *strands)
+/* shortens the last visible segment to have exact cutoff length */
+static void haircut_strand_adjust_tip(StrandChildIterator *it_strand, float cutoff)
 {
-	StrandChildIterator it_strand;
-	bool do_strands_motion = true;
+	StrandsChildCurve *curve = it_strand->curve;
 	
-	/* Note: the child data here is not yet deformed by parents, so the intersections won't be correct.
-	 * We deform each strand individually on-the-fly to avoid duplicating memory.
-	 */
-	int *vertstart = BKE_strands_calc_vertex_start(parents);
-	int maxlen = BKE_strands_children_max_length(strands);
-	float (*strand_deform)[3] = (float (*)[3])MEM_mallocN(sizeof(float) * 3 * maxlen, "child strand buffer");
+	int last, end;
+	float *a, *b;
+	float t;
 	
-	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
-		float cutoff = -1.0f;
-		
-		BKE_strands_children_strand_deform(&it_strand, parents, vertstart, do_strands_motion, strand_deform);
-		
-		if (haircut_find_first_strand_cut(hmd, data, &it_strand, strand_deform, &cutoff))
-			it_strand.curve->cutoff = cutoff;
-	}
+	if (cutoff < 0 || cutoff >= (float)(curve->numverts-1))
+		return;
 	
-	if (vertstart)
-		MEM_freeN(vertstart);
-	if (strand_deform)
-		MEM_freeN(strand_deform);
+	last = (int)cutoff;
+	end = last + 1;
+	BLI_assert(last < curve->numverts);
+	BLI_assert(end < curve->numverts);
+	
+	a = it_strand->verts[last].co;
+	b = it_strand->verts[end].co;
+	t = cutoff - floorf(cutoff);
+	interp_v3_v3v3(b, a, b, t);
 }
 
-static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *ctx, CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev))
+static void haircut_apply(HaircutCacheModifier *hmd, CacheProcessContext *UNUSED(ctx), HaircutCacheData *data, StrandsChildren *strands)
 {
+	StrandChildIterator it_strand;
+	for (BKE_strand_child_iter_init(&it_strand, strands); BKE_strand_child_iter_valid(&it_strand); BKE_strand_child_iter_next(&it_strand)) {
+		float cutoff = -1.0f;
+		if (haircut_find_first_strand_cut(hmd, data, &it_strand, &cutoff)) {
+			it_strand.curve->cutoff = cutoff;
+			haircut_strand_adjust_tip(&it_strand, cutoff);
+		}
+	}
+}
+
+static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *ctx, CacheProcessData *data, int UNUSED(frame), int UNUSED(frame_prev), int process_flag)
+{
+	bool do_strands_children = (process_flag & eCacheProcessFlag_DoStrandsChildren);
 	const bool dupli_target = hmd->flag & eHaircutCacheModifier_Flag_InternalTarget;
 	Object *ob = hmd->object;
 	DupliObject *dob;
-	Strands *parents;
 	StrandsChildren *strands;
 	DerivedMesh *target_dm;
 	float mat[4][4];
 	
 	HaircutCacheData haircut;
 	
-	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hmd->hair_system, NULL, &parents, &strands, NULL))
+	/* only applies to children */
+	if (!do_strands_children)
+		return;
+	if (!BKE_cache_modifier_find_strands(data->dupcache, ob, hmd->hair_system, NULL, NULL, do_strands_children ? &strands : NULL, NULL))
 		return;
 	
 	if (dupli_target) {
@@ -1996,7 +2042,7 @@ static void haircut_process(HaircutCacheModifier *hmd, CacheProcessContext *ctx,
 			haircut_data_get_instances(&haircut, hmd->target, mat, NULL);
 		}
 		
-		haircut_apply(hmd, ctx, &haircut, parents, strands);
+		haircut_apply(hmd, ctx, &haircut, strands);
 		
 		haircut_data_free(&haircut);
 		

@@ -89,7 +89,8 @@ bool BKE_cache_read_dupli_object(struct CacheLibrary *cachelib, struct DupliObje
                                  struct Scene *scene, struct Object *ob, float frame, bool use_render, bool for_display);
 
 void BKE_cache_process_dupli_cache(struct CacheLibrary *cachelib, struct CacheProcessData *data,
-                                   struct Scene *scene, struct Group *dupgroup, float frame_prev, float frame);
+                                   struct Scene *scene, struct Group *dupgroup, float frame_prev, float frame,
+                                   bool do_modifiers, bool do_strands_child_deform, bool do_strands_motion);
 
 /* ========================================================================= */
 
@@ -108,13 +109,18 @@ typedef struct CacheProcessData {
 	struct DupliCache *dupcache;
 } CacheProcessData;
 
+typedef enum eCacheProcessFlag {
+	eCacheProcessFlag_DoStrands             = (1 << 0),
+	eCacheProcessFlag_DoStrandsChildren     = (1 << 1),
+} eCacheProcessFlag;
+
 typedef void (*CacheModifier_InitFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_FreeFunc)(struct CacheModifier *md);
 typedef void (*CacheModifier_CopyFunc)(struct CacheModifier *md, struct CacheModifier *target);
 typedef void (*CacheModifier_ForeachIDLinkFunc)(struct CacheModifier *md, struct CacheLibrary *cachelib,
                                                 CacheModifier_IDWalkFunc walk, void *userData);
 typedef void (*CacheModifier_ProcessFunc)(struct CacheModifier *md, struct CacheProcessContext *ctx, struct CacheProcessData *data,
-                                          int frame, int frame_prev);
+                                          int frame, int frame_prev, int process_flag);
 
 typedef struct CacheModifierTypeInfo {
 	/* The user visible name for this modifier */
