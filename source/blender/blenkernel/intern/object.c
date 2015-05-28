@@ -2077,7 +2077,7 @@ static void ob_parcurve(Scene *scene, Object *ob, Object *par, float mat[4][4])
 	unit_m4(mat);
 	
 	cu = par->data;
-	if (ELEM(NULL, par->curve_cache, par->curve_cache->path, par->curve_cache->path->data)) /* only happens on reload file, but violates depsgraph still... fix! */
+	if (par->curve_cache == NULL) /* only happens on reload file, but violates depsgraph still... fix! */
 		BKE_displist_make_curveTypes(scene, par, 0);
 	if (par->curve_cache->path == NULL) return;
 	
@@ -3031,8 +3031,9 @@ void BKE_object_handle_update_ex(EvaluationContext *eval_ctx,
 				// printf("ob proxy copy, lib ob %s proxy %s\n", ob->id.name, ob->proxy_from->id.name);
 				if (ob->proxy_from->proxy_group) { /* transform proxy into group space */
 					Object *obg = ob->proxy_from->proxy_group;
-					invert_m4_m4(obg->imat, obg->obmat);
-					mul_m4_m4m4(ob->obmat, obg->imat, ob->proxy_from->obmat);
+					float imat[4][4];
+					invert_m4_m4(imat, obg->obmat);
+					mul_m4_m4m4(ob->obmat, imat, ob->proxy_from->obmat);
 					if (obg->dup_group) { /* should always be true */
 						add_v3_v3(ob->obmat[3], obg->dup_group->dupli_ofs);
 					}

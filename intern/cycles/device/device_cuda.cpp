@@ -266,7 +266,7 @@ public:
 			printf("CUDA version %d.%d detected, build may succeed but only CUDA 6.5 is officially supported.\n", cuda_version/10, cuda_version%10);
 
 		/* compile */
-		string kernel = path_join(kernel_path, "kernel.cu");
+		string kernel = path_join(kernel_path, path_join("kernels", path_join("cuda", "kernel.cu")));
 		string include = kernel_path;
 		const int machine = system_cpu_bits();
 
@@ -281,7 +281,7 @@ public:
 			nvcc, major, minor, machine, kernel.c_str(), cubin.c_str(), include.c_str(), cuda_version);
 		
 		if(experimental)
-			command += " -D__KERNEL_CUDA_EXPERIMENTAL__";
+			command += " -D__KERNEL_EXPERIMENTAL__";
 
 		if(getenv("CYCLES_CUDA_EXTRA_CFLAGS")) {
 			command += string(" ") + getenv("CYCLES_CUDA_EXTRA_CFLAGS");

@@ -38,6 +38,7 @@
 #include "BLI_math.h"
 #include "BLI_alloca.h"
 #include "BLI_buffer.h"
+#include "BLI_kdtree.h"
 #include "BLI_listbase.h"
 
 #include "BKE_DerivedMesh.h"
@@ -614,7 +615,9 @@ void undo_push_mesh(bContext *C, const char *name)
 /**
  * Return a new UVVertMap from the editmesh
  */
-UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2])
+UvVertMap *BM_uv_vert_map_create(
+        BMesh *bm,
+        const float limit[2], const bool use_select, const bool use_winding)
 {
 	BMVert *ev;
 	BMFace *efa;
@@ -628,7 +631,7 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2
 	unsigned int a;
 	int totverts, i, totuv, totfaces;
 	const int cd_loop_uv_offset = CustomData_get_offset(&bm->ldata, CD_MLOOPUV);
-	bool *winding;
+	bool *winding = NULL;
 	BLI_buffer_declare_static(vec2f, tf_uv_buf, BLI_BUFFER_NOP, BM_DEFAULT_NGON_STACK_SIZE);
 
 	BM_mesh_elem_index_ensure(bm, BM_VERT | BM_FACE);
@@ -654,7 +657,9 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2
 
 	vmap->vert = (UvMapVert **)MEM_callocN(sizeof(*vmap->vert) * totverts, "UvMapVert_pt");
 	buf = vmap->buf = (UvMapVert *)MEM_callocN(sizeof(*vmap->buf) * totuv, "UvMapVert");
-	winding = MEM_callocN(sizeof(*winding) * totfaces, "winding");
+	if (use_winding) {
+		winding = MEM_callocN(sizeof(*winding) * totfaces, "winding");
+	}
 
 	if (!vmap->vert || !vmap->buf) {
 		BKE_mesh_uv_vert_map_free(vmap);
@@ -663,7 +668,11 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2
 	
 	BM_ITER_MESH_INDEX (efa, &iter, bm, BM_FACES_OF_MESH, a) {
 		if ((use_select == false) || BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
-			float (*tf_uv)[2]     = (float (*)[2])BLI_buffer_resize_data(&tf_uv_buf, vec2f, efa->len);
+			float (*tf_uv)[2];
+
+			if (use_winding) {
+				tf_uv = (float (*)[2])BLI_buffer_resize_data(&tf_uv_buf, vec2f, efa->len);
+			}
 
 			BM_ITER_ELEM_INDEX(l, &liter, efa, BM_LOOPS_OF_FACE, i) {
 				buf->tfindex = i;
@@ -672,14 +681,17 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2
 				
 				buf->next = vmap->vert[BM_elem_index_get(l->v)];
 				vmap->vert[BM_elem_index_get(l->v)] = buf;
-				
-				luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
-				copy_v2_v2(tf_uv[i], luv->uv);
-
 				buf++;
+
+				if (use_winding) {
+					luv = BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
+					copy_v2_v2(tf_uv[i], luv->uv);
+				}
 			}
 
-			winding[a] = cross_poly_v2((const float (*)[2])tf_uv, efa->len) > 0;
+			if (use_winding) {
+				winding[a] = cross_poly_v2((const float (*)[2])tf_uv, efa->len) > 0;
+			}
 		}
 	}
 	
@@ -717,7 +729,7 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2
 				sub_v2_v2v2(uvdiff, uv2, uv);
 
 				if (fabsf(uvdiff[0]) < limit[0] && fabsf(uvdiff[1]) < limit[1] &&
-				    winding[iterv->f] == winding[v->f])
+				    (!use_winding || winding[iterv->f] == winding[v->f]))
 				{
 					if (lastv) lastv->next = next;
 					else vlist = next;
@@ -737,7 +749,10 @@ UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, const float limit[2
 		vmap->vert[a] = newvlist;
 	}
 
-	MEM_freeN(winding);
+	if (use_winding) {
+		MEM_freeN(winding);
+	}
+
 	BLI_buffer_free(&tf_uv_buf);
 
 	return vmap;
@@ -1056,26 +1071,19 @@ static BMVert *cache_mirr_intptr_as_bmvert(intptr_t *index_lookup, int index)
 }
 
 /**
- * [note: I've decided to use ideasman's code for non-editmode stuff, but since
- *  it has a big "not for editmode!" disclaimer, I'm going to keep what I have here
- *  - joeedh]
+ * Mirror editing API, usage:
  *
- * x-mirror editing api.  usage:
+ * \code{.c}
+ * EDBM_verts_mirror_cache_begin(em, ...);
  *
- *  EDBM_verts_mirror_cache_begin(em);
- *  ...
- *  ...
- *  BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
- *     mirrorv = EDBM_verts_mirror_get(em, v);
- *  }
- *  ...
- *  ...
- *  EDBM_verts_mirror_cache_end(em);
+ * BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+ *     v_mirror = EDBM_verts_mirror_get(em, v);
+ *     e_mirror = EDBM_verts_mirror_get_edge(em, e);
+ *     f_mirror = EDBM_verts_mirror_get_face(em, f);
+ * }
  *
- * \param use_self  Allow a vertex to reference its self.
- * \param use_select  Only cache selected verts.
- *
- * \note why do we only allow x axis mirror editing?
+ * EDBM_verts_mirror_cache_end(em);
+ * \endcode
  */
 
 /* BM_SEARCH_MAXDIST is too big, copied from 2.6x MOC_THRESH, should become a
@@ -1100,9 +1108,10 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em, const int axis, const bool
 	BMVert *v;
 	int cd_vmirr_offset;
 	int i;
+	const float maxdist_sq = SQUARE(maxdist);
 
 	/* one or the other is used depending if topo is enabled */
-	struct BMBVHTree *tree = NULL;
+	KDTree *tree = NULL;
 	MirrTopoStore_t mesh_topo_store = {NULL, -1, -1, -1};
 
 	BM_mesh_elem_table_ensure(bm, BM_VERT);
@@ -1127,7 +1136,11 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em, const int axis, const bool
 		ED_mesh_mirrtopo_init(me, -1, &mesh_topo_store, true);
 	}
 	else {
-		tree = BKE_bmbvh_new_from_editmesh(em, 0, NULL, false);
+		tree = BLI_kdtree_new(bm->totvert);
+		BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
+			BLI_kdtree_insert(tree, i, v->co);
+		}
+		BLI_kdtree_balance(tree);
 	}
 
 #define VERT_INTPTR(_v, _i) r_index ? &r_index[_i] : BM_ELEM_CD_GET_VOID_P(_v, cd_vmirr_offset);
@@ -1147,10 +1160,19 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em, const int axis, const bool
 				v_mirr = cache_mirr_intptr_as_bmvert(mesh_topo_store.index_lookup, i);
 			}
 			else {
+				int i_mirr;
 				float co[3];
 				copy_v3_v3(co, v->co);
 				co[axis] *= -1.0f;
-				v_mirr = BKE_bmbvh_find_vert_closest(tree, co, maxdist);
+
+				v_mirr = NULL;
+				i_mirr = BLI_kdtree_find_nearest(tree, co, NULL);
+				if (i_mirr != -1) {
+					BMVert *v_test = BM_vert_at_index(bm, i_mirr);
+					if (len_squared_v3v3(co, v_test->co) < maxdist_sq) {
+						v_mirr = v_test;
+					}
+				}
 			}
 
 			if (v_mirr && (use_self || (v_mirr != v))) {
@@ -1172,7 +1194,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em, const int axis, const bool
 		ED_mesh_mirrtopo_free(&mesh_topo_store);
 	}
 	else {
-		BKE_bmbvh_free(tree);
+		BLI_kdtree_free(tree);
 	}
 }
 

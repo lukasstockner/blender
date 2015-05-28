@@ -38,6 +38,8 @@
 #include "BLI_linklist.h"
 #include "BLI_stackdefines.h"
 
+#include "BKE_customdata.h"
+
 #include "bmesh.h"
 #include "intern/bmesh_private.h"
 
@@ -240,6 +242,36 @@ BMFace *BM_vert_pair_share_face_by_len(
 		BM_ITER_ELEM (l_a, &iter, v_a, BM_LOOPS_OF_VERT) {
 			if ((f_cur == NULL) || (l_a->f->len < f_cur->len)) {
 				l_b = BM_face_vert_share_loop(l_a->f, v_b);
+				if (l_b && (allow_adjacent || !BM_loop_is_adjacent(l_a, l_b))) {
+					f_cur = l_a->f;
+					l_cur_a = l_a;
+					l_cur_b = l_b;
+				}
+			}
+		}
+	}
+
+	*r_l_a = l_cur_a;
+	*r_l_b = l_cur_b;
+
+	return f_cur;
+}
+
+BMFace *BM_edge_pair_share_face_by_len(
+        BMEdge *e_a, BMEdge *e_b,
+        BMLoop **r_l_a, BMLoop **r_l_b,
+        const bool allow_adjacent)
+{
+	BMLoop *l_cur_a = NULL, *l_cur_b = NULL;
+	BMFace *f_cur = NULL;
+
+	if (e_a->l && e_b->l) {
+		BMIter iter;
+		BMLoop *l_a, *l_b;
+
+		BM_ITER_ELEM (l_a, &iter, e_a, BM_LOOPS_OF_EDGE) {
+			if ((f_cur == NULL) || (l_a->f->len < f_cur->len)) {
+				l_b = BM_face_edge_share_loop(l_a->f, e_b);
 				if (l_b && (allow_adjacent || !BM_loop_is_adjacent(l_a, l_b))) {
 					f_cur = l_a->f;
 					l_cur_a = l_a;
@@ -1035,6 +1067,53 @@ bool BM_edge_is_convex(const BMEdge *e)
 			sub_v3_v3v3(l_dir, l1->next->v->co, l1->v->co);
 			return (dot_v3v3(l_dir, cross) > 0.0f);
 		}
+	}
+	return true;
+}
+
+/**
+ * \return true when loop customdata is contiguous.
+ */
+bool BM_edge_is_contiguous_loop_cd(
+        const BMEdge *e,
+        const int cd_loop_type, const int cd_loop_offset)
+{
+	BLI_assert(cd_loop_offset != -1);
+
+	if (e->l && e->l->radial_next != e->l) {
+		const BMLoop *l_base_v1 = e->l;
+		const BMLoop *l_base_v2 = e->l->next;
+		const void *l_base_cd_v1 = BM_ELEM_CD_GET_VOID_P(l_base_v1, cd_loop_offset);
+		const void *l_base_cd_v2 = BM_ELEM_CD_GET_VOID_P(l_base_v2, cd_loop_offset);
+		const BMLoop *l_iter = e->l->radial_next;
+		do {
+			const BMLoop *l_iter_v1;
+			const BMLoop *l_iter_v2;
+			const void *l_iter_cd_v1;
+			const void *l_iter_cd_v2;
+
+			if (l_iter->v == l_base_v1->v) {
+				l_iter_v1 = l_iter;
+				l_iter_v2 = l_iter->next;
+			}
+			else {
+				l_iter_v1 = l_iter->next;
+				l_iter_v2 = l_iter;
+			}
+			BLI_assert((l_iter_v1->v == l_base_v1->v) &&
+			           (l_iter_v2->v == l_base_v2->v));
+
+			l_iter_cd_v1 = BM_ELEM_CD_GET_VOID_P(l_iter_v1, cd_loop_offset);
+			l_iter_cd_v2 = BM_ELEM_CD_GET_VOID_P(l_iter_v2, cd_loop_offset);
+
+
+			if ((CustomData_data_equals(cd_loop_type, l_base_cd_v1, l_iter_cd_v1) == 0) ||
+			    (CustomData_data_equals(cd_loop_type, l_base_cd_v2, l_iter_cd_v2) == 0))
+			{
+				return false;
+			}
+
+		} while ((l_iter = l_iter->radial_next) != e->l);
 	}
 	return true;
 }
@@ -1885,8 +1964,8 @@ bool BM_face_exists_multi(BMVert **varr, BMEdge **earr, int len)
 			if (/* non-boundary edge */
 			    BM_elem_flag_test(e, BM_ELEM_INTERNAL_TAG) == false &&
 			    /* ...using boundary verts */
-			    BM_elem_flag_test(e->v1, BM_ELEM_INTERNAL_TAG) == true &&
-			    BM_elem_flag_test(e->v2, BM_ELEM_INTERNAL_TAG) == true)
+			    BM_elem_flag_test(e->v1, BM_ELEM_INTERNAL_TAG) &&
+			    BM_elem_flag_test(e->v2, BM_ELEM_INTERNAL_TAG))
 			{
 				int tot_face_tag = 0;
 				BM_ITER_ELEM (f, &fiter, e, BM_FACES_OF_EDGE) {

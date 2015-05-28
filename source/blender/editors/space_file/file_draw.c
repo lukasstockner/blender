@@ -295,15 +295,22 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 
 static void file_draw_string(int sx, int sy, const char *string, float width, int height, short align)
 {
-	uiStyle *style = UI_style_get();
-	uiFontStyle fs = style->widgetlabel;
+	uiStyle *style;
+	uiFontStyle fs;
 	rcti rect;
 	char fname[FILE_MAXFILE];
+
+	if (string[0] == '\0') {
+		return;
+	}
+
+	style = UI_style_get();
+	fs = style->widgetlabel;
 
 	fs.align = align;
 
 	BLI_strncpy(fname, string, FILE_MAXFILE);
-	UI_text_clip_middle_ex(&fs, fname, width + 1.0f, UI_DPI_ICON_SIZE, sizeof(fname), NULL);
+	UI_text_clip_middle_ex(&fs, fname, width, UI_DPI_ICON_SIZE, sizeof(fname), NULL);
 
 	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */
 	rect.xmin = sx;
