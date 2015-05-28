@@ -845,6 +845,7 @@ static void file_sfile_to_operator(
         wmOperator *op, SpaceFile *sfile, char filepath[FILE_MAX_LIBEXTRA], const bool is_fake)
 {
 	PropertyRNA *prop, *prop_files, *prop_dirs;
+	/* Note filebrowser does not create ae for default NONE 'engine', we'll get NULL in this case here. */
 	AssetEngine *ae = filelist_assetengine_get(sfile->files);
 	AssetUUIDList *uuids;
 	FileDirEntryArr *selection;

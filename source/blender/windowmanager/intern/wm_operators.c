@@ -2618,7 +2618,7 @@ static short wm_link_append_flag(wmOperator *op)
  */
 static void wm_link_append_do_libgroup(
         bContext *C, wmOperator *op, const char *root, const char *libname, char *group, char *name,
-        const short flag, GSet **todo_libraries)
+        AssetEngineType *aet, const short flag, GSet **todo_libraries)
 {
 	Main *bmain = CTX_data_main(C);
 	Main *mainl;
@@ -2662,14 +2662,10 @@ static void wm_link_append_do_libgroup(
 
 		RNA_BEGIN (op->ptr, itemptr, "files")
 		{
-			int asset_uuid[4];
 			char curr_libname[FILE_MAX];
 			int curr_idcode;
 
 			RNA_string_get(&itemptr, "name", relname);
-			RNA_int_get_array(&itemptr, "asset_uuid", asset_uuid);
-
-			printf("asset uuid %s: %d, %d, %d, %d\n", relname, asset_uuid[0], asset_uuid[1], asset_uuid[2], asset_uuid[3]);
 
 			BLI_join_dirfile(path, sizeof(path), root, relname);
 
@@ -2681,6 +2677,12 @@ static void wm_link_append_do_libgroup(
 				curr_idcode = BKE_idcode_from_name(group);
 
 				if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
+					AssetUUID asset_uuid;
+
+					RNA_int_get_array(&itemptr, "asset_uuid", asset_uuid.uuid_asset);
+					RNA_int_get_array(&itemptr, "variant_uuid", asset_uuid.uuid_variant);
+					RNA_int_get_array(&itemptr, "revision_uuid", asset_uuid.uuid_revision);
+
 					BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 				}
 				else if (is_first_run) {
@@ -2787,7 +2789,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 		name = NULL;
 	}
 
-	wm_link_append_do_libgroup(C, op, root, libname, group, name, flag, &todo_libraries);
+	wm_link_append_do_libgroup(C, op, root, libname, group, name, aet, flag, &todo_libraries);
 
 	if (todo_libraries) {
 		GSetIterator libs_it;
@@ -2797,7 +2799,7 @@ static int wm_link_append_exec(bContext *C, wmOperator *op)
 
 			BLO_library_path_explode(libpath, libname, &group, NULL);
 
-			wm_link_append_do_libgroup(C, op, root, libname, group, NULL, flag, &todo_libraries);
+			wm_link_append_do_libgroup(C, op, root, libname, group, NULL, aet, flag, &todo_libraries);
 		}
 
 		BLI_gset_free(todo_libraries, MEM_freeN);

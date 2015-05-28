@@ -163,7 +163,7 @@ typedef struct Library {
 	ID *idblock;
 	struct FileData *filedata;
 	/* path name used for reading, can be relative and edited in the outliner.
-     * In case it's an asset engine, it's path to aset engine 'root' (meaning depends on asset engine). */
+     * In case it's an asset engine, it's path from asset engine's 'root'. */
 	char name[1024];
 
 	/* absolute filepath, this is only for convenience, 'name' is the real path used on file read but in
@@ -179,6 +179,8 @@ typedef struct Library {
 	char asset_engine[64];  /* MAX_ST_NAME */
 	int asset_engine_version;
 	int pad_i1;
+	/* 'Path' to asset engine's root of the reprository, can be an url, whatever... */
+	char asset_engine_root[1024];
 } Library;
 
 enum eIconSizes {
