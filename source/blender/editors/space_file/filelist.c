@@ -288,6 +288,10 @@ typedef struct FileList {
 
 	struct FileListEntryCache filelist_cache;
 
+	/* We need to keep those info outside of actual filelist items, because those are no more persistent
+	 * (only generated on demand, and freed as soon as possible).
+	 * Persistent part (mere list of paths + stat info) is kept as small as possible, and filebrowser-agnostic.
+	 */
 	GHash *selection_state;
 
 	short max_recursion;
