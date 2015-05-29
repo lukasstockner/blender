@@ -814,6 +814,11 @@ static void rna_def_userdef_theme_ui_wcol(BlenderRNA *brna)
 	RNA_def_property_range(prop, -100, 100);
 	RNA_def_property_ui_text(prop, "Shade Down", "");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "roundness", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_range(prop, 0.1f, 0.5f);
+	RNA_def_property_ui_text(prop, "Roundness", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 
 static void rna_def_userdef_theme_ui_wcol_state(BlenderRNA *brna)

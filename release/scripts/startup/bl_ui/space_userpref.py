@@ -619,6 +619,8 @@ class USERPREF_PT_theme(Panel):
         subsub.active = widget_style.show_shaded
         subsub.prop(widget_style, "shadetop")
         subsub.prop(widget_style, "shadedown")
+        subsub = colsub.column(align=True)
+        subsub.prop(widget_style, "roundness")
 
         layout.separator()
 

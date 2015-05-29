@@ -855,6 +855,24 @@ void ui_theme_init_default(void)
 	
 	rgba_char_args_set_fl(btheme->tui.widget_emboss, 1.0f, 1.0f, 1.0f, 0.02f);
 
+	btheme->tui.wcol_box.roundness = 0.2f;
+	btheme->tui.wcol_list_item.roundness = 0.2f;
+	btheme->tui.wcol_menu.roundness = 0.2f;
+	btheme->tui.wcol_menu_back.roundness = 0.25f;
+	btheme->tui.wcol_menu_item.roundness = 0.2f;
+	btheme->tui.wcol_num.roundness = 0.5f;
+	btheme->tui.wcol_numslider.roundness = 0.5f;
+	btheme->tui.wcol_option.roundness = 0.35f;
+	btheme->tui.wcol_progress.roundness = 0.2f;
+	btheme->tui.wcol_pulldown.roundness = 0.2f;
+	btheme->tui.wcol_radio.roundness = 0.2f;
+	btheme->tui.wcol_regular.roundness = 0.2f;
+	btheme->tui.wcol_scroll.roundness = 0.5f;
+	btheme->tui.wcol_text.roundness = 0.2f;
+	btheme->tui.wcol_toggle.roundness = 0.2f;
+	btheme->tui.wcol_tool.roundness = 0.25f;
+	btheme->tui.wcol_tooltip.roundness = 0.2f;
+
 	rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
 	rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
 	rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
@@ -2616,6 +2634,29 @@ void init_userdef_do_versions(void)
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			copy_v4_v4_char(btheme->tima.metadatatext, btheme->tima.text_hi);
 			copy_v4_v4_char(btheme->tseq.metadatatext, btheme->tseq.text_hi);
+		}
+	}
+
+	if (U.versionfile < 274 || (U.versionfile == 274 && U.subversionfile < 6)) {
+		bTheme *btheme;
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			btheme->tui.wcol_box.roundness = 0.2f;
+			btheme->tui.wcol_list_item.roundness = 0.2f;
+			btheme->tui.wcol_menu.roundness = 0.2f;
+			btheme->tui.wcol_menu_back.roundness = 0.25f;
+			btheme->tui.wcol_menu_item.roundness = 0.2f;
+			btheme->tui.wcol_num.roundness = 0.5f;
+			btheme->tui.wcol_numslider.roundness = 0.5f;
+			btheme->tui.wcol_option.roundness = 0.35f;
+			btheme->tui.wcol_progress.roundness = 0.2f;
+			btheme->tui.wcol_pulldown.roundness = 0.2f;
+			btheme->tui.wcol_radio.roundness = 0.2f;
+			btheme->tui.wcol_regular.roundness = 0.2f;
+			btheme->tui.wcol_scroll.roundness = 0.5f;
+			btheme->tui.wcol_text.roundness = 0.2f;
+			btheme->tui.wcol_toggle.roundness = 0.2f;
+			btheme->tui.wcol_tool.roundness = 0.25f;
+			btheme->tui.wcol_tooltip.roundness = 0.2f;
 		}
 	}
 
