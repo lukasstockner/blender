@@ -3292,32 +3292,37 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	rcti recttemp = *rect;
 	float rad;
 	int delta;
-	
+
 	widget_init(&wtb);
-	
+
 	/* square */
 	recttemp.xmax = recttemp.xmin + BLI_rcti_size_y(&recttemp);
-	
+
 	/* smaller */
-	delta = 1 + BLI_rcti_size_y(&recttemp) / 8;
+	delta = 1 + BLI_rcti_size_y(&recttemp) / 10;
 	recttemp.xmin += delta;
 	recttemp.ymin += delta;
 	recttemp.xmax -= delta;
 	recttemp.ymax -= delta;
-	
+
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = 0.35f * U.widget_unit;
 	round_box_edges(&wtb, UI_CNR_ALL, &recttemp, rad);
-	
+
+	/* some offset for decoration */
+	BLI_rcti_translate(&recttemp, -0.1f * U.widget_unit, -0.1f * U.widget_unit);
+	BLI_rcti_resize(&recttemp, 0.8f * BLI_rcti_size_x(&recttemp), 0.8f * BLI_rcti_size_y(&recttemp));
+
 	/* decoration */
 	if (state & UI_SELECT) {
 		widget_check_trias(&wtb.tria1, &recttemp);
 	}
-	
+
 	widgetbase_draw(&wtb, wcol);
-	
+
 	/* text space */
-	rect->xmin += BLI_rcti_size_y(rect) * 0.7 + delta;
+	rect->xmin += BLI_rcti_size_y(rect) * 0.5 + delta;
+	rect->ymin += 0.1f * U.widget_unit;
 }
 
 /* labels use Editor theme colors for text */
