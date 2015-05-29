@@ -252,7 +252,11 @@ void BLI_filelist_entry_size_to_string(
 	 */
 	size = (double)(st ? st->st_size : sz);
 
-	if (size > 1024.0 * 1024.0 * 1024.0) {
+	if (size > 1024.0 * 1024.0 * 1024.0 * 1024.0) {
+		size /= (1024.0 * 1024.0 * 1024.0 * 1024.0);
+		fmt = compact ? "%.0f T" : "%.2f TiB";
+	}
+	else if (size > 1024.0 * 1024.0 * 1024.0) {
 		size /= (1024.0 * 1024.0 * 1024.0);
 		fmt = compact ? "%.0f G" : "%.2f GiB";
 	}

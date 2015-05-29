@@ -895,62 +895,9 @@ static int filelist_geticon_ex(
 	else if (typeflag & FILE_TYPE_TEXT)
 		return ICON_FILE_TEXT;
 	else if (typeflag & FILE_TYPE_BLENDERLIB) {
-		/* TODO: this should most likely be completed and moved to UI_interface_icons.h ? unless it already exists somewhere... */
-		switch (blentype) {
-			case ID_AC:
-				return ICON_ANIM_DATA;
-			case ID_AR:
-				return ICON_ARMATURE_DATA;
-			case ID_BR:
-				return ICON_BRUSH_DATA;
-			case ID_CA:
-				return ICON_CAMERA_DATA;
-			case ID_CU:
-				return ICON_CURVE_DATA;
-			case ID_GD:
-				return ICON_GREASEPENCIL;
-			case ID_GR:
-				return ICON_GROUP;
-			case ID_IM:
-				return ICON_IMAGE_DATA;
-			case ID_LA:
-				return ICON_LAMP_DATA;
-			case ID_LS:
-				return ICON_LINE_DATA;
-			case ID_LT:
-				return ICON_LATTICE_DATA;
-			case ID_MA:
-				return ICON_MATERIAL_DATA;
-			case ID_MB:
-				return ICON_META_DATA;
-			case ID_MC:
-				return ICON_CLIP;
-			case ID_ME:
-				return ICON_MESH_DATA;
-			case ID_MSK:
-				return ICON_MOD_MASK;  /* TODO! this would need its own icon! */
-			case ID_NT:
-				return ICON_NODETREE;
-			case ID_OB:
-				return ICON_OBJECT_DATA;
-			case ID_PAL:
-				return ICON_COLOR;  /* TODO! this would need its own icon! */
-			case ID_PC:
-				return ICON_CURVE_BEZCURVE;  /* TODO! this would need its own icon! */
-			case ID_SCE:
-				return ICON_SCENE_DATA;
-			case ID_SPK:
-				return ICON_SPEAKER;
-			case ID_SO:
-				return ICON_SOUND;
-			case ID_TE:
-				return ICON_TEXTURE_DATA;
-			case ID_TXT:
-				return ICON_TEXT;
-			case ID_VF:
-				return ICON_FONT_DATA;
-			case ID_WO:
-				return ICON_WORLD_DATA;
+		const int ret = UI_idcode_icon_get(blentype);
+		if (ret != ICON_NONE) {
+			return ret;
 		}
 	}
 	return is_main ? ICON_FILE_BLANK : ICON_NONE;
@@ -1977,7 +1924,7 @@ int filelist_empty(struct FileList *filelist)
 }
 
 unsigned int filelist_entry_select_set(
-        FileList *filelist, FileDirEntry *entry, FileSelType select, unsigned int flag, FileCheckType check)
+        const FileList *filelist, const FileDirEntry *entry, FileSelType select, unsigned int flag, FileCheckType check)
 {
 	/* Default NULL pointer if not found is fine here! */
 	unsigned int entry_flag = GET_UINT_FROM_POINTER(BLI_ghash_lookup(filelist->selection_state, entry->uuid));

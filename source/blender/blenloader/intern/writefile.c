@@ -603,8 +603,8 @@ static void write_previews(WriteData *wd, PreviewImage *prv)
 			prv->rect[1] = NULL;
 		}
 		writestruct(wd, DATA, "PreviewImage", 1, prv);
-		if (prv->rect[0]) writedata(wd, DATA, prv->w[0]*prv->h[0]*sizeof(unsigned int), prv->rect[0]);
-		if (prv->rect[1]) writedata(wd, DATA, prv->w[1]*prv->h[1]*sizeof(unsigned int), prv->rect[1]);
+		if (prv->rect[0]) writedata(wd, DATA, prv->w[0] * prv->h[0] * sizeof(unsigned int), prv->rect[0]);
+		if (prv->rect[1]) writedata(wd, DATA, prv->w[1] * prv->h[1] * sizeof(unsigned int), prv->rect[1]);
 
 		/* restore preview, we still want to keep it in memory even if not saved to file */
 		if (!(U.flag & USER_SAVE_PREVIEWS) ) {
