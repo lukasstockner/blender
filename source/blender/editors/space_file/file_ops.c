@@ -171,7 +171,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
 	int numfiles = filelist_numfiles(sfile->files);
-	FileDirEntry *file;
+	const FileDirEntry *file;
 
 	/* make the selected file active */
 	if ((selected_idx >= 0) &&
@@ -197,7 +197,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 					BLI_parent_dir(params->dir);
 
 					if (params->recursion_level > 1) {
-						/* Disable 'dirtree' recursion when going up in tree! */
+						/* Disable 'dirtree' recursion when going up in tree. */
 						params->recursion_level = 1;
 						filelist_setrecursion(sfile->files, params->recursion_level);
 					}
@@ -278,7 +278,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 
 			/* dont highlight readonly file (".." or ".") on border select */
 			for (idx = sel.last; idx >= 0; idx--) {
-				struct FileDirEntry *file = filelist_file(sfile->files, idx);
+				const FileDirEntry *file = filelist_file(sfile->files, idx);
 
 				if (FILENAME_IS_CURRPAR(file->relpath)) {
 					filelist_entry_select_set(sfile->files, file, FILE_SEL_REMOVE, FILE_SEL_HIGHLIGHTED, CHECK_ALL);
@@ -1130,7 +1130,7 @@ int file_parent_exec(bContext *C, wmOperator *UNUSED(unused))
 				ED_file_change_dir(C, true);
 			}
 			if (sfile->params->recursion_level > 1) {
-				/* Disable 'dirtree' recursion when going up in tree! */
+				/* Disable 'dirtree' recursion when going up in tree. */
 				sfile->params->recursion_level = 1;
 				filelist_setrecursion(sfile->files, sfile->params->recursion_level);
 			}

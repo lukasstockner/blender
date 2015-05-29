@@ -261,6 +261,7 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 	UI_but_func_tooltip_set(but, file_draw_tooltip_func, BLI_strdup(path));
 
 	if (drag) {
+		/* path is no more static, cannot give it directly to but... */
 		UI_but_drag_set_path(but, BLI_strdup(path), true);
 	}
 }
@@ -283,7 +284,7 @@ static void file_draw_string(int sx, int sy, const char *string, float width, in
 	fs.align = align;
 
 	BLI_strncpy(fname, string, FILE_MAXFILE);
-	UI_text_clip_middle_ex(&fs, fname, width + 1.0f, UI_DPI_ICON_SIZE, sizeof(fname), NULL);
+	UI_text_clip_middle_ex(&fs, fname, width, UI_DPI_ICON_SIZE, sizeof(fname), NULL);
 
 	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */
 	rect.xmin = sx;
@@ -384,6 +385,7 @@ static void file_draw_preview(
 
 	/* dragregion */
 	if (drag) {
+		/* path is no more static, cannot give it directly to but... */
 		UI_but_drag_set_image(but, BLI_strdup(path), true, icon, imb, scale);
 	}
 
