@@ -400,7 +400,7 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         print("*NOT* Saving %s, because some error(s) happened while deleting temp render data..." % bpy.data.filepath)
 
 
-def do_clear_previews(do_objects, do_groups):
+def do_clear_previews(do_objects, do_groups, do_scenes, do_data_intern):
     if do_data_intern:
         bpy.ops.wm.previews_clear(id_type=INTERN_PREVIEW_TYPES)
 
