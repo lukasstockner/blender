@@ -123,7 +123,7 @@ BMVert *BM_strands_create(BMesh *bm, int len, bool set_defaults)
 {
 	float co[3] = {0.0f, 0.0f, 0.0f};
 	
-	BMVert *root, *v, *vprev;
+	BMVert *root, *v = NULL, *vprev;
 	int k;
 	
 	for (k = 0; k < len; ++k) {
