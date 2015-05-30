@@ -219,6 +219,10 @@ if(WITH_IMAGE_HDR)
 	add_definitions(-DWITH_HDR)
 endif()
 
+if(WITH_IMAGE_KTX)
+	add_definitions(-DWITH_KTX)
+endif()
+
 if(WITH_IMAGE_FRAMESERVER)
 	add_definitions(-DWITH_FRAMESERVER)
 endif()

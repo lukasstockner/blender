@@ -40,14 +40,14 @@ typedef struct ImFileType {
 
 	int (*is_a)(unsigned char *buf);
 	int (*is_a_filepath)(const char *name);
-	int (*ftype)(const struct ImFileType *type, struct ImBuf *ibuf);
+	long long int (*ftype)(const struct ImFileType *type, struct ImBuf *ibuf);
 	struct ImBuf *(*load)(unsigned char *mem, size_t size, int flags, char colorspace[IM_MAX_SPACE]);
 	struct ImBuf *(*load_filepath)(const char *name, int flags, char colorspace[IM_MAX_SPACE]);
 	int (*save)(struct ImBuf *ibuf, const char *name, int flags);
 	void (*load_tile)(struct ImBuf *ibuf, unsigned char *mem, size_t size, int tx, int ty, unsigned int *rect);
 
 	int flag;
-	int filetype;
+	long long int filetype;
 	int default_save_role;
 } ImFileType;
 
@@ -120,6 +120,14 @@ struct ImBuf *imb_loadtiff(unsigned char *mem, size_t size, int flags, char colo
 void imb_loadtiletiff(struct ImBuf *ibuf, unsigned char *mem, size_t size,
 	int tx, int ty, unsigned int *rect);
 int imb_savetiff(struct ImBuf *ibuf, const char *name, int flags);
+
+/* ktx */
+void imb_initktx(void);
+int check_ktx(unsigned char *mem);
+int imb_is_a_ktx(const char *filename);
+struct ImBuf *imb_loadktx(unsigned char *mem, size_t size, int flags, char colorspace[]);
+int imb_savektx(struct ImBuf *ibuf, const char *name, int flags);
+
 
 #endif	/* __IMB_FILETYPE_H__ */
 

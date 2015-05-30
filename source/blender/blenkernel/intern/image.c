@@ -1249,7 +1249,7 @@ int BKE_image_imtype_to_ftype(const char imtype)
 		return JPG | 90;
 }
 
-char BKE_image_ftype_to_imtype(const int ftype)
+char BKE_image_ftype_to_imtype(const long long ftype)
 {
 	if (ftype == 0)
 		return R_IMF_IMTYPE_TARGA;
@@ -1286,6 +1286,10 @@ char BKE_image_ftype_to_imtype(const int ftype)
 #ifdef WITH_OPENJPEG
 	else if (ftype & JP2)
 		return R_IMF_IMTYPE_JP2;
+#endif
+#ifdef WITH_KTX
+	else if (ftype & KTX)
+		return R_IMF_IMTYPE_KTX;
 #endif
 	else
 		return R_IMF_IMTYPE_JPEG90;
@@ -1371,6 +1375,7 @@ char BKE_imtype_valid_channels(const char imtype, bool write_file)
 		case R_IMF_IMTYPE_JP2:
 		case R_IMF_IMTYPE_QUICKTIME:
 		case R_IMF_IMTYPE_DPX:
+		case R_IMF_IMTYPE_KTX:
 			chan_flag |= IMA_CHAN_FLAG_ALPHA;
 			break;
 	}
@@ -1543,6 +1548,12 @@ static bool do_add_image_extension(char *string, const char imtype, const ImageF
 		}
 	}
 #endif
+#ifdef WITH_KTX
+	else if (imtype == R_IMF_IMTYPE_KTX) {
+		if (!BLI_testextensie(string, extension_test = ".ktx"))
+			extension = extension_test;
+	}
+#endif
 	else { //   R_IMF_IMTYPE_AVIRAW, R_IMF_IMTYPE_AVIJPEG, R_IMF_IMTYPE_JPEG90, R_IMF_IMTYPE_QUICKTIME etc
 		if (!(BLI_testextensie_n(string, extension_test = ".jpg", ".jpeg", NULL)))
 			extension = extension_test;
@@ -1591,7 +1602,7 @@ void BKE_imformat_defaults(ImageFormatData *im_format)
 
 void BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const ImBuf *imbuf)
 {
-	int ftype        = imbuf->ftype & ~IB_CUSTOM_FLAGS_MASK;
+	long long int ftype = imbuf->ftype & ~IB_CUSTOM_FLAGS_MASK;
 	int custom_flags = imbuf->ftype & IB_CUSTOM_FLAGS_MASK;
 
 	BKE_imformat_defaults(im_format);
@@ -1683,6 +1694,11 @@ void BKE_imbuf_to_image_format(struct ImageFormatData *im_format, const ImBuf *i
 	}
 #endif
 
+#ifdef WITH_KTX
+	else if (ftype & KTX) {
+		im_format->imtype = R_IMF_IMTYPE_KTX;
+	}
+#endif
 	else {
 		im_format->imtype = R_IMF_IMTYPE_JPEG90;
 		im_format->quality = custom_flags & ~JPG_MSK;
@@ -2261,6 +2277,11 @@ void BKE_imbuf_write_prepare(ImBuf *ibuf, ImageFormatData *imf)
 			ibuf->ftype |= JP2_J2K;
 		else
 			BLI_assert(!"Unsupported jp2 codec was specified in im_format->jp2_codec");
+	}
+#endif
+#ifdef WITH_KTX
+	else if (imtype == R_IMF_IMTYPE_KTX) {
+		ibuf->ftype = KTX;
 	}
 #endif
 	else {

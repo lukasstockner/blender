@@ -113,7 +113,9 @@ typedef struct ImBuf {
 	void *userdata;					/* temporary storage */
 
 	/* file information */
-	int	ftype;							/* file type we are going to save as */
+	long long int ftype;				/* file type we are going to save as */
+	int fsubtype;						/* file subtype */
+	int pad;
 	char name[IB_FILENAME_SIZE];		/* filename associated with this image */
 	char cachename[IB_FILENAME_SIZE];	/* full filename used for reading from cache */
 
@@ -172,7 +174,7 @@ typedef struct ImBuf {
 #define IB_alphamode_premul	(1 << 12)  /* indicates whether image on disk have premul alpha */
 #define IB_alphamode_detect	(1 << 13)  /* if this flag is set, alpha mode would be guessed from file */
 #define IB_ignore_alpha		(1 << 14)  /* ignore alpha on load and substitude it with 1.0f */
-#define IB_thumbnail		(1 << 15)
+#define IB_thumbnail		(1 << 15)  /* only used as a flag during thumbnail creation */
 #define IB_multiview		(1 << 16)
 
 /*
@@ -180,6 +182,10 @@ typedef struct ImBuf {
  * Note that the lower 11 bits is used for storing custom flags
  */
 #define IB_CUSTOM_FLAGS_MASK 0x7ff
+
+#ifdef WITH_KTX
+#define KTX				(1LL << 32)
+#endif
 
 #ifdef WITH_OPENIMAGEIO
 #define PSD				(1 << 31)
@@ -225,7 +231,7 @@ typedef struct ImBuf {
 #define JP2_16BIT		(1 << 16)
 #define JP2_YCC			(1 << 15)
 #define JP2_CINE		(1 << 14)
-#define JP2_CINE_48FPS	(1 << 13) 
+#define JP2_CINE_48FPS	(1 << 13)
 #define JP2_JP2	(1 << 12)
 #define JP2_J2K	(1 << 11)
 #endif

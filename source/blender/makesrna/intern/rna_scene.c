@@ -243,6 +243,12 @@ EnumPropertyItem snap_uv_element_items[] = {
 #  define R_IMF_ENUM_TIFF
 #endif
 
+#if WITH_KTX
+#  define R_IMF_ENUM_KTX {R_IMF_IMTYPE_KTX, "KTX", ICON_FILE_IMAGE, "KTX", "Output image in KTX format"},
+#else
+#  define R_IMF_ENUM_KTX
+#endif
+
 #define IMAGE_TYPE_ITEMS_IMAGE_ONLY                                           \
 	R_IMF_ENUM_BMP                                                            \
 	/* DDS save not supported yet R_IMF_ENUM_DDS */                           \
@@ -259,6 +265,7 @@ EnumPropertyItem snap_uv_element_items[] = {
 	R_IMF_ENUM_EXR                                                            \
 	R_IMF_ENUM_HDR                                                            \
 	R_IMF_ENUM_TIFF                                                           \
+	R_IMF_ENUM_KTX                                                            \
 
 
 EnumPropertyItem image_only_type_items[] = {

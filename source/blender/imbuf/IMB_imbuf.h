@@ -391,7 +391,7 @@ struct ImBuf *IMB_prepare_write_ImBuf(const bool isfloat, struct ImBuf *ibuf);
  * \attention Defined in util.c
  */
 bool IMB_ispic(const char *name);
-int  IMB_ispic_type(const char *name);
+long long int  IMB_ispic_type(const char *name);
 
 /**
  *

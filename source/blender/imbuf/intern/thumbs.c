@@ -352,7 +352,7 @@ static ImBuf *thumb_create_ex(
 				if (img == NULL) {
 					switch (source) {
 						case THB_SOURCE_IMAGE:
-							img = IMB_loadiffname(file_path, IB_rect | IB_metadata, NULL);
+							img = IMB_loadiffname(file_path, IB_thumbnail | IB_rect | IB_metadata, NULL);
 							break;
 						case THB_SOURCE_BLEND:
 							img = IMB_thumb_load_blend(file_path);

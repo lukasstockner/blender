@@ -178,6 +178,19 @@ if(WITH_IMAGE_HDR)
 	add_definitions(-DWITH_HDR)
 endif()
 
+if(WITH_IMAGE_KTX)
+	list(APPEND INC
+		../../../intern/KTX/include
+	)
+	list(APPEND INC_SYS
+		${GLEW_INCLUDE_PATH}
+	)
+	list(APPEND SRC
+		intern/ktx.c
+	)
+	add_definitions(-DWITH_KTX)
+endif()
+
 list(APPEND INC
 	../../../intern/opencolorio
 )

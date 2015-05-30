@@ -97,6 +97,9 @@ const char *imb_ext_image[] = {
 #ifdef WITH_OPENIMAGEIO
 	".psd", ".pdd", ".psb",
 #endif
+#ifdef WITH_KTX
+	".ktx",
+#endif
 	NULL
 };
 
@@ -104,6 +107,7 @@ const char *imb_ext_image_filepath_only[] = {
 #ifdef WITH_OPENIMAGEIO
 	".psd", ".pdd", ".psb",
 #endif
+
 	NULL
 };
 
@@ -180,7 +184,7 @@ const char *imb_ext_audio[] = {
 	NULL
 };
 
-int IMB_ispic_type(const char *name)
+long long int IMB_ispic_type(const char *name)
 {
 	/* increased from 32 to 64 because of the bitmaps header size */
 #define HEADER_SIZE 64

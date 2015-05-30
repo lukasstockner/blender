@@ -51,11 +51,11 @@
 #include "quicktime_import.h"
 #endif
 
-static int imb_ftype_default(const ImFileType *type, ImBuf *ibuf)
+static long long int imb_ftype_default(const ImFileType *type, ImBuf *ibuf)
 {
 	return (ibuf->ftype & type->filetype);
 }
-static int imb_ftype_iris(const ImFileType *type, ImBuf *ibuf)
+static long long int imb_ftype_iris(const ImFileType *type, ImBuf *ibuf)
 {
 	(void)type;
 	return (ibuf->ftype == IMAGIC);
@@ -88,6 +88,9 @@ const ImFileType IMB_FILE_TYPES[] = {
 #endif
 #ifdef WITH_OPENIMAGEIO
 	{NULL, NULL, NULL, imb_is_a_photoshop, imb_ftype_default, NULL, imb_load_photoshop, NULL, NULL, IM_FTYPE_FLOAT, PSD, COLOR_ROLE_DEFAULT_FLOAT},
+#endif
+#ifdef WITH_KTX
+	{imb_initktx, NULL, check_ktx, imb_is_a_ktx, imb_ftype_default, imb_loadktx, NULL, imb_savektx, NULL, 0, KTX, COLOR_ROLE_DEFAULT_BYTE},
 #endif
 	{NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0}
 };

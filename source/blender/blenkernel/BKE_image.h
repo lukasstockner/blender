@@ -79,7 +79,7 @@ void    BKE_image_path_from_imtype(
         const char imtype, const bool use_ext, const bool use_frames, const char *suffix);
 int     BKE_image_path_ensure_ext_from_imformat(char *string, const struct ImageFormatData *im_format);
 int     BKE_image_path_ensure_ext_from_imtype(char *string, const char imtype);
-char    BKE_image_ftype_to_imtype(const int ftype);
+char    BKE_image_ftype_to_imtype(const long long int ftype);
 int     BKE_image_imtype_to_ftype(const char imtype);
 
 bool    BKE_imtype_is_movie(const char imtype);
