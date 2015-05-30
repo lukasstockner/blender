@@ -798,6 +798,11 @@ static void ui_theme_init_new_do(ThemeSpace *ts)
 	rgba_char_args_set(ts->tab_inactive,   83, 83, 83, 255);
 	rgba_char_args_set(ts->tab_back,       64, 64, 64, 255);
 	rgba_char_args_set(ts->tab_outline,    60, 60, 60, 255);
+
+	/* XXX maybe remove show_back/show_header options? */
+	ts->panelcolors.show_back = ts->panelcolors.show_header = true;
+	rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
+	rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
 }
 
 static void ui_theme_init_new(bTheme *btheme)
@@ -887,10 +892,6 @@ void ui_theme_init_default(void)
 	ui_theme_init_new(btheme);
 	
 	/* space view3d */
-	btheme->tv3d.panelcolors.show_back = false;
-	btheme->tv3d.panelcolors.show_header = false;
-	rgba_char_args_set_fl(btheme->tv3d.panelcolors.back, 0.45, 0.45, 0.45, 0.5);
-	rgba_char_args_set_fl(btheme->tv3d.panelcolors.header, 0, 0, 0, 0.01);
 	rgba_char_args_set_fl(btheme->tv3d.back,       0.225, 0.225, 0.225, 1.0);
 	rgba_char_args_set(btheme->tv3d.text,       0, 0, 0, 255);
 	rgba_char_args_set(btheme->tv3d.text_hi, 255, 255, 255, 255);
@@ -2639,6 +2640,8 @@ void init_userdef_do_versions(void)
 
 	if (U.versionfile < 274 || (U.versionfile == 274 && U.subversionfile < 6)) {
 		bTheme *btheme;
+		ThemeSpace *ts;
+
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			btheme->tui.wcol_box.roundness = 0.2f;
 			btheme->tui.wcol_list_item.roundness = 0.2f;
@@ -2657,6 +2660,13 @@ void init_userdef_do_versions(void)
 			btheme->tui.wcol_toggle.roundness = 0.2f;
 			btheme->tui.wcol_tool.roundness = 0.25f;
 			btheme->tui.wcol_tooltip.roundness = 0.2f;
+
+			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+				/* XXX maybe remove show_back/show_header options? */
+				ts->panelcolors.show_back = ts->panelcolors.show_header = true;
+				rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
+				rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
+			}
 		}
 	}
 

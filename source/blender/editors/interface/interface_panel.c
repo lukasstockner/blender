@@ -567,6 +567,10 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	Panel *panel = block->panel;
 	rcti headrect;
 	rctf itemrect;
+	const bool draw_header = UI_GetThemeValue(TH_PANEL_SHOW_HEADER);
+	const bool draw_back = UI_GetThemeValue(TH_PANEL_SHOW_BACK);
+	const bool is_selected = panel->flag & PNL_SELECT;
+	const float alpha_fac = is_selected ? 0.7f : 1.0f;
 	int ofsx;
 
 	if (panel->paneltab) return;
@@ -578,6 +582,43 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	headrect.ymin = headrect.ymax;
 	headrect.ymax = headrect.ymin + floor(PNL_HEADER / block->aspect + 0.001f);
 
+	/* draw panel shadow */
+	if (draw_header == false && panel->flag & PNL_CLOSED) {
+		/* skip */
+	}
+	else if ((draw_header || draw_back)) {
+		rcti shadowrect = headrect;
+		float alpha_fac_tmp = 0.2f * alpha_fac;
+		int shadow_ofs = is_selected ? 2.0f * U.pixelsize : 1.0f * U.pixelsize;
+
+		if (!(panel->flag & PNL_CLOSED) && draw_back) {
+			shadowrect.ymin = rect->ymin;
+		}
+		if (draw_back && !draw_header) {
+			shadowrect.ymax = rect->ymax;
+		}
+
+		glEnable(GL_BLEND);
+
+		if (is_selected) {
+			UI_draw_box_shadow(alpha_fac * 255, shadowrect.xmin, shadowrect.ymin, shadowrect.xmax, shadowrect.ymax);
+		}
+		else {
+			int i;
+
+			for (i = 0; i < 2; i++) {
+				glColor4f(0.0f, 0.0f, 0.0f, alpha_fac_tmp);
+
+				glRectf(shadowrect.xmin + shadow_ofs, shadowrect.ymin - shadow_ofs,
+				        shadowrect.xmax + shadow_ofs, shadowrect.ymax - shadow_ofs);
+
+				shadow_ofs += 1 * U.pixelsize;
+				alpha_fac_tmp *= 0.5f;
+			}
+		}
+		glDisable(GL_BLEND);
+	}
+
 	{
 		float minx = rect->xmin;
 		float maxx = rect->xmax;
@@ -585,13 +626,19 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 
 		glEnable(GL_BLEND);
 
-		if (UI_GetThemeValue(TH_PANEL_SHOW_HEADER)) {
-			/* draw with background color */
-			UI_ThemeColor4(TH_PANEL_HEADER);
-			glRectf(minx, headrect.ymin + 1, maxx, y);
+		if (draw_header) {
+			unsigned char col[4];
 
-			fdrawline(minx, y, maxx, y);
-			fdrawline(minx, y, maxx, y);
+			UI_GetThemeColor3ubv(TH_PANEL_HEADER, col);
+
+			/* draw with background color */
+			glColor4ub(UNPACK3(col), alpha_fac * 255.0f);
+
+			glRectf(minx, headrect.ymin, maxx, y);
+
+			glColor4f(1.0f, 1.0f, 1.0f, 0.17f);
+			fdrawline(minx, y - 1, maxx, y - 1);
+			fdrawline(minx, headrect.ymin, minx, y - 1);
 		}
 		else if (!(panel->runtime_flag & PNL_FIRST)) {
 			/* draw embossed separator */
@@ -647,21 +694,23 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	}
 	/* an open panel */
 	else {
-		/* in some occasions, draw a border */
-		if (panel->flag & PNL_SELECT) {
-			if (panel->control & UI_PNL_SOLID) UI_draw_roundbox_corner_set(UI_CNR_ALL);
-			else UI_draw_roundbox_corner_set(UI_CNR_NONE);
-
-			UI_ThemeColorShade(TH_BACK, -120);
-			UI_draw_roundbox_unfilled(0.5f + rect->xmin, 0.5f + rect->ymin, 0.5f + rect->xmax, 0.5f + headrect.ymax + 1, 8);
-		}
-
 		/* panel backdrop */
-		if (UI_GetThemeValue(TH_PANEL_SHOW_BACK)) {
+		if (draw_back) {
 			/* draw with background color */
+			unsigned char col[4];
+
+			UI_GetThemeColor3ubv(TH_PANEL_BACK, col);
+
 			glEnable(GL_BLEND);
-			UI_ThemeColor4(TH_PANEL_BACK);
+			glColor4ub(UNPACK3(col), alpha_fac * 255.0f);
+
 			glRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
+
+			glColor4f(1.0f, 1.0f, 1.0f, 0.10f);
+			if (draw_header == false) {
+				fdrawline(rect->xmin + 1, rect->ymax - 1, rect->xmax, rect->ymax - 1);
+			}
+			fdrawline(rect->xmin, rect->ymin, rect->xmin, rect->ymax);
 		}
 
 		if (panel->control & UI_PNL_SCALE)
@@ -842,8 +891,9 @@ static bool uiAlignPanelStep(ScrArea *sa, ARegion *ar, const float fac, const bo
 	
 	/* no smart other default start loc! this keeps switching f5/f6/etc compatible */
 	ps = panelsort;
-	ps->pa->ofsx = 0;
-	ps->pa->ofsy = -get_panel_size_y(ps->pa);
+	ps->pa->ofsx = UI_PANEL_MARGIN;
+	/* offset first panel, but not for properties editor, there is already some space making this look odd */
+	ps->pa->ofsy = -(get_panel_size_y(ps->pa) + (sa->spacetype == SPACE_BUTS ? 0 : UI_PANEL_MARGIN));
 
 	if (has_category_tabs) {
 		if (align == BUT_VERTICAL) {
@@ -856,10 +906,10 @@ static bool uiAlignPanelStep(ScrArea *sa, ARegion *ar, const float fac, const bo
 
 		if (align == BUT_VERTICAL) {
 			psnext->pa->ofsx = ps->pa->ofsx;
-			psnext->pa->ofsy = get_panel_real_ofsy(ps->pa) - get_panel_size_y(psnext->pa);
+			psnext->pa->ofsy = get_panel_real_ofsy(ps->pa) - get_panel_size_y(psnext->pa) - UI_PANEL_MARGIN;
 		}
 		else {
-			psnext->pa->ofsx = get_panel_real_ofsx(ps->pa);
+			psnext->pa->ofsx = get_panel_real_ofsx(ps->pa) + UI_PANEL_MARGIN * 2;
 			psnext->pa->ofsy = ps->pa->ofsy + get_panel_size_y(ps->pa) - get_panel_size_y(psnext->pa);
 		}
 	}
