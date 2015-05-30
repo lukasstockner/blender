@@ -184,6 +184,7 @@ enum {
 #define UI_PANEL_WIDTH          340
 #define UI_COMPACT_PANEL_WIDTH  160
 
+#define UI_PANEL_MARGIN                (U.widget_unit * 0.25f)
 #define UI_PANEL_CATEGORY_MARGIN_WIDTH (U.widget_unit * 1.0f)
 
 #define UI_TAB_REGION_MARGIN_HEIGHT (U.widget_unit * 1.15f)

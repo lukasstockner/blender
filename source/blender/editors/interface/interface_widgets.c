@@ -2260,10 +2260,10 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 	}
 	
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, roundboxalign, 0.25f * U.widget_unit);
+	widget_softshadow(rect, roundboxalign, wcol->roundness * U.widget_unit);
 	
-	round_box_edges(&wtb, roundboxalign, rect, 0.25f * U.widget_unit);
-	wtb.draw_emboss = false;
+	round_box_edges(&wtb, roundboxalign, rect, wcol->roundness * U.widget_unit);
+	wtb.draw_emboss = 0;
 	widgetbase_draw(&wtb, wcol);
 	
 	glDisable(GL_BLEND);
@@ -2696,8 +2696,9 @@ static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
 static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, bool emboss)
 {
 	uiWidgetBase wtb;
-	const float rad = 0.5f * BLI_rcti_size_y(rect);
-	float textofs = rad * 0.85f;
+	const int sizey = BLI_rcti_size_y(rect);
+	const float rad = wcol->roundness * sizey;
+	float textofs = 0.43f * sizey;
 
 	if (state & UI_SELECT)
 		SWAP(short, wcol->shadetop, wcol->shadedown);
@@ -2797,9 +2798,9 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 	horizontal = (BLI_rcti_size_x(rect) > BLI_rcti_size_y(rect));
 
 	if (horizontal)
-		rad = 0.5f * BLI_rcti_size_y(rect);
+		rad = wcol->roundness * BLI_rcti_size_y(rect);
 	else
-		rad = 0.5f * BLI_rcti_size_x(rect);
+		rad = wcol->roundness * BLI_rcti_size_x(rect);
 	
 	wtb.draw_shadedir = (horizontal) ? true : false;
 	
@@ -2980,7 +2981,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	/* backdrop first */
 	
 	/* fully rounded */
-	offs = 0.5f * BLI_rcti_size_y(rect);
+	offs = wcol->roundness * BLI_rcti_size_y(rect);
 	toffs = offs * 0.75f;
 	round_box_edges(&wtb, roundboxalign, rect, offs);
 
@@ -3070,7 +3071,7 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 	widget_init(&wtb);
 	
 	/* half rounded */
-	rad = 0.25f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 		
 	ui_but_v3_get(but, col);
@@ -3130,7 +3131,7 @@ static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, i
 		wtb.draw_outline = false;
 		
 		/* rounded */
-		rad = 0.5f * BLI_rcti_size_y(rect);
+		rad = wcol->roundness * BLI_rcti_size_y(rect);
 		round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
 		widgetbase_draw(&wtb, wcol);
 	}
@@ -3153,7 +3154,7 @@ static void widget_textbut(uiWidgetColors *wcol, rcti *rect, int state, int roun
 	widget_init(&wtb);
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3168,7 +3169,7 @@ static void widget_menubut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), 
 	widget_init(&wtb);
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
 	/* decoration */
@@ -3188,7 +3189,7 @@ static void widget_menuiconbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 	widget_init(&wtb);
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
 	/* decoration */
@@ -3205,7 +3206,7 @@ static void widget_menunodebut(uiWidgetColors *wcol, rcti *rect, int UNUSED(stat
 	widget_init(&wtb);
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 
 	wcol->inner[0] = min_ii(wcol->inner[0] + 15, 255);
@@ -3224,7 +3225,7 @@ static void widget_pulldownbut(uiWidgetColors *wcol, rcti *rect, int state, int 
 {
 	if (state & UI_ACTIVE) {
 		uiWidgetBase wtb;
-		const float rad = 0.2f * U.widget_unit;
+		const float rad = wcol->roundness * U.widget_unit;
 
 		widget_init(&wtb);
 
@@ -3274,13 +3275,12 @@ static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *r
 static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
 {
 	uiWidgetBase wtb;
-	float rad;
+	const float rad = wcol->roundness * U.widget_unit;
 	
 	widget_init(&wtb);
 	
 	/* rounded, but no outline */
 	wtb.draw_outline = false;
-	rad = 0.2f * U.widget_unit;
 	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3306,7 +3306,7 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	recttemp.ymax -= delta;
 
 	/* half rounded */
-	rad = 0.35f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, UI_CNR_ALL, &recttemp, rad);
 
 	/* some offset for decoration */
@@ -3353,7 +3353,7 @@ static void widget_radiobut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state),
 	widget_init(&wtb);
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3377,7 +3377,7 @@ static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	}
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3393,7 +3393,7 @@ static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int 
 	widget_init(&wtb);
 	
 	/* half rounded */
-	rad = 0.2f * U.widget_unit;
+	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3402,7 +3402,7 @@ static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int 
 static void widget_roundbut(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
 {
 	uiWidgetBase wtb;
-	const float rad = 0.25f * U.widget_unit;
+	const float rad = wcol->roundness * U.widget_unit;
 	
 	widget_init(&wtb);
 	
@@ -3447,7 +3447,7 @@ static void widget_tab(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 
 	/* draw inner */
-	wtb.outline = 0;
+	wtb.draw_outline = 0;
 	widgetbase_draw(&wtb, wcol);
 
 	/* draw outline (3d look) */

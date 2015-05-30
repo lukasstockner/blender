@@ -798,6 +798,11 @@ static void ui_theme_init_new_do(ThemeSpace *ts)
 	rgba_char_args_set(ts->tabs.tab_inactive,   83, 83, 83, 255);
 	rgba_char_args_set(ts->tabs.tab_back,       64, 64, 64, 255);
 	rgba_char_args_set(ts->tabs.tab_outline,    60, 60, 60, 255);
+
+	/* XXX maybe remove show_back/show_header options? */
+	ts->panelcolors.show_back = ts->panelcolors.show_header = true;
+	rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
+	rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
 }
 
 static void ui_theme_init_new(bTheme *btheme)
@@ -855,6 +860,24 @@ void ui_theme_init_default(void)
 	
 	rgba_char_args_set_fl(btheme->tui.widget_emboss, 1.0f, 1.0f, 1.0f, 0.02f);
 
+	btheme->tui.wcol_box.roundness = 0.2f;
+	btheme->tui.wcol_list_item.roundness = 0.2f;
+	btheme->tui.wcol_menu.roundness = 0.2f;
+	btheme->tui.wcol_menu_back.roundness = 0.25f;
+	btheme->tui.wcol_menu_item.roundness = 0.2f;
+	btheme->tui.wcol_num.roundness = 0.5f;
+	btheme->tui.wcol_numslider.roundness = 0.5f;
+	btheme->tui.wcol_option.roundness = 0.35f;
+	btheme->tui.wcol_progress.roundness = 0.2f;
+	btheme->tui.wcol_pulldown.roundness = 0.2f;
+	btheme->tui.wcol_radio.roundness = 0.2f;
+	btheme->tui.wcol_regular.roundness = 0.2f;
+	btheme->tui.wcol_scroll.roundness = 0.5f;
+	btheme->tui.wcol_text.roundness = 0.2f;
+	btheme->tui.wcol_toggle.roundness = 0.2f;
+	btheme->tui.wcol_tool.roundness = 0.25f;
+	btheme->tui.wcol_tooltip.roundness = 0.2f;
+
 	rgba_char_args_set(btheme->tui.xaxis, 220,   0,   0, 255);
 	rgba_char_args_set(btheme->tui.yaxis,   0, 220,   0, 255);
 	rgba_char_args_set(btheme->tui.zaxis,   0,   0, 220, 255);
@@ -869,10 +892,6 @@ void ui_theme_init_default(void)
 	ui_theme_init_new(btheme);
 	
 	/* space view3d */
-	btheme->tv3d.panelcolors.show_back = false;
-	btheme->tv3d.panelcolors.show_header = false;
-	rgba_char_args_set_fl(btheme->tv3d.panelcolors.back, 0.45, 0.45, 0.45, 0.5);
-	rgba_char_args_set_fl(btheme->tv3d.panelcolors.header, 0, 0, 0, 0.01);
 	rgba_char_args_set_fl(btheme->tv3d.back,       0.225, 0.225, 0.225, 1.0);
 	rgba_char_args_set(btheme->tv3d.text,       0, 0, 0, 255);
 	rgba_char_args_set(btheme->tv3d.text_hi, 255, 255, 255, 255);
@@ -2503,7 +2522,6 @@ void init_userdef_do_versions(void)
 
 	if (U.versionfile < 271) {
 		bTheme *btheme;
-
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			rgba_char_args_set(btheme->tui.wcol_tooltip.text, 255, 255, 255, 255);
 		}
@@ -2645,6 +2663,38 @@ void init_userdef_do_versions(void)
 				copy_v4_v4_char(ts->tabs.tab_inactive, ts->tab_inactive);
 				copy_v4_v4_char(ts->tabs.tab_back, ts->tab_back);
 				copy_v4_v4_char(ts->tabs.tab_outline, ts->tab_outline);
+			}
+		}
+	}
+
+	if (U.versionfile < 274 || (U.versionfile == 274 && U.subversionfile < 6)) {
+		bTheme *btheme;
+		ThemeSpace *ts;
+
+		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+			btheme->tui.wcol_box.roundness = 0.2f;
+			btheme->tui.wcol_list_item.roundness = 0.2f;
+			btheme->tui.wcol_menu.roundness = 0.2f;
+			btheme->tui.wcol_menu_back.roundness = 0.25f;
+			btheme->tui.wcol_menu_item.roundness = 0.2f;
+			btheme->tui.wcol_num.roundness = 0.5f;
+			btheme->tui.wcol_numslider.roundness = 0.5f;
+			btheme->tui.wcol_option.roundness = 0.35f;
+			btheme->tui.wcol_progress.roundness = 0.2f;
+			btheme->tui.wcol_pulldown.roundness = 0.2f;
+			btheme->tui.wcol_radio.roundness = 0.2f;
+			btheme->tui.wcol_regular.roundness = 0.2f;
+			btheme->tui.wcol_scroll.roundness = 0.5f;
+			btheme->tui.wcol_text.roundness = 0.2f;
+			btheme->tui.wcol_toggle.roundness = 0.2f;
+			btheme->tui.wcol_tool.roundness = 0.25f;
+			btheme->tui.wcol_tooltip.roundness = 0.2f;
+
+			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+				/* XXX maybe remove show_back/show_header options? */
+				ts->panelcolors.show_back = ts->panelcolors.show_header = true;
+				rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
+				rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
 			}
 		}
 	}

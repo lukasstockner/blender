@@ -1854,7 +1854,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 			em = (ar->type->prefsizex) ? 10 : 20;
 		}
 
-		w -= margin_x;
+		w -= margin_x + UI_PANEL_MARGIN * 2.0f;
 		
 		/* create panels */
 		UI_panels_begin(C, ar);
