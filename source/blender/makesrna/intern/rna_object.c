@@ -1530,7 +1530,7 @@ Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(report
 	bool is_cached = parent->cache_library && (parent->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || parent->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
 	
 	if (is_cached) {
-		float frame = (float)scene->r.cfra;
+		float frame = (float)scene->r.cfra + scene->r.subframe;
 		bool use_render = (settings == 2);
 		
 		if (!ELEM(settings, 1, 2))
@@ -1582,7 +1582,7 @@ StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportLi
 	bool is_cached = parent->cache_library && (parent->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || parent->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
 	
 	if (is_cached) {
-		float frame = (float)scene->r.cfra;
+		float frame = (float)scene->r.cfra + scene->r.subframe;
 		bool use_render = (settings == 2);
 		
 		if (!ELEM(settings, 1, 2))

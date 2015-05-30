@@ -337,7 +337,7 @@ Mesh *rna_Main_meshes_new_from_dupli(
 	}
 	
 	if (is_cached) {
-		float frame = (float)scene->r.cfra;
+		float frame = (float)scene->r.cfra + scene->r.subframe;
 		bool use_render = (settings == 2);
 		
 		if (!ELEM(settings, 1, 2))

@@ -1234,7 +1234,7 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
 	if (update) {
-		BKE_object_dupli_cache_update(scene, ob, eval_ctx, (float)scene->r.cfra);
+		BKE_object_dupli_cache_update(scene, ob, eval_ctx, (float)scene->r.cfra + scene->r.subframe);
 	}
 	
 	if (ob->dup_cache && (ob->dup_cache->result != CACHE_READ_SAMPLE_INVALID)) {
