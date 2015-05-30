@@ -138,6 +138,11 @@ ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)
 	return ISampleSelector(frame_to_time(frame), ISampleSelector::kFloorIndex);
 }
 
+ISampleSelector AbcReaderArchive::get_frame_sample_selector(chrono_t time)
+{
+	return ISampleSelector(time, ISampleSelector::kFloorIndex);
+}
+
 
 bool AbcReader::get_frame_range(int &start_frame, int &end_frame)
 {
@@ -171,7 +176,7 @@ PTCReadSampleResult AbcReader::read_sample(float frame)
 {
 	
 	try {
-		return read_sample_abc(frame);
+		return read_sample_abc(m_abc_archive->frame_to_time(frame));
 	}
 	catch (Alembic::Util::Exception e) {
 		handle_alembic_exception(ErrorHandler::get_default_handler(), PTC_ERROR_CRITICAL, e);

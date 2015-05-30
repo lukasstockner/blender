@@ -55,7 +55,7 @@ public:
 	
 	void init_abc(Abc::IObject parent);
 	
-	PTCReadSampleResult read_sample_abc(float frame);
+	PTCReadSampleResult read_sample_abc(chrono_t time);
 	
 private:
 	AbcGeom::IPoints m_points;

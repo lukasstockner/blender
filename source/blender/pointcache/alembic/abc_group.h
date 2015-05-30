@@ -61,7 +61,7 @@ public:
 	
 	void init_abc(Abc::IObject object);
 	
-	PTCReadSampleResult read_sample_abc(float frame);
+	PTCReadSampleResult read_sample_abc(chrono_t time);
 	
 private:
 	Abc::IObject m_abc_object;
@@ -145,11 +145,11 @@ public:
 	
 	void init_abc(Abc::IObject object);
 	
-	PTCReadSampleResult read_sample_abc(float frame);
+	PTCReadSampleResult read_sample_abc(chrono_t time);
 	
 protected:
-	void read_dupligroup_object(Abc::IObject object, float frame);
-	void read_dupligroup_group(Abc::IObject abc_group, const Abc::ISampleSelector &ss);
+	void read_dupligroup_object(Abc::IObject object, chrono_t time);
+	void read_dupligroup_group(Abc::IObject abc_group, chrono_t time);
 	
 	DupliObjectData *find_dupli_data(Abc::ObjectReaderPtr ptr) const;
 	void insert_dupli_data(Abc::ObjectReaderPtr ptr, DupliObjectData *data);
@@ -205,10 +205,10 @@ public:
 	void init(ReaderArchive *archive);
 	void init_abc(Abc::IObject object);
 	
-	PTCReadSampleResult read_sample_abc(float frame);
+	PTCReadSampleResult read_sample_abc(chrono_t time);
 	
 protected:
-	void read_dupligroup_object(Abc::IObject object, float frame);
+	void read_dupligroup_object(Abc::IObject object, chrono_t time);
 	
 	DupliObjectData *find_dupli_data(Abc::ObjectReaderPtr ptr) const;
 	void insert_dupli_data(Abc::ObjectReaderPtr ptr, DupliObjectData *data);

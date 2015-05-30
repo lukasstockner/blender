@@ -73,7 +73,7 @@ public:
 	
 	void init_abc(Abc::IObject object);
 	
-	PTCReadSampleResult read_sample_abc(float frame);
+	PTCReadSampleResult read_sample_abc(chrono_t time);
 	
 private:
 	Abc::IObject m_abc_object;

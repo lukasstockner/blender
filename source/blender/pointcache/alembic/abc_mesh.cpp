@@ -500,7 +500,7 @@ static PTCReadSampleResult apply_sample_loops(DerivedMesh *dm, Int32ArraySampleP
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(float frame)
+PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(chrono_t time)
 {
 #ifdef USE_TIMING
 	double start_time;
@@ -526,7 +526,7 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	ICompoundProperty user_props = schema.getUserProperties();
 	
-	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = get_frame_sample_selector(time);
 	
 	PROFILE_START;
 	IPolyMeshSchema::Sample sample;

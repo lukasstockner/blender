@@ -150,7 +150,7 @@ void AbcObjectReader::init_abc(IObject object)
 	m_abc_object = object;
 }
 
-PTCReadSampleResult AbcObjectReader::read_sample_abc(float /*frame*/)
+PTCReadSampleResult AbcObjectReader::read_sample_abc(chrono_t /*time*/)
 {
 	if (!m_abc_object)
 		return PTC_READ_SAMPLE_INVALID;
