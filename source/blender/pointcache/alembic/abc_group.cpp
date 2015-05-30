@@ -25,6 +25,7 @@
 
 #include "abc_mesh.h"
 #include "abc_group.h"
+#include "abc_interpolate.h"
 #include "abc_object.h"
 #include "abc_particles.h"
 #include "abc_simdebug.h"
@@ -476,7 +477,7 @@ void AbcDupliCacheReader::read_dupligroup_group(IObject abc_group, chrono_t time
 			ICompoundProperty props = abc_dupli.getProperties();
 			
 			IM44fProperty prop_matrix(props, "matrix", 0);
-			M44f abc_matrix = prop_matrix.getValue(ss);
+			M44f abc_matrix = abc_interpolate_sample_linear(prop_matrix, time);
 			float matrix[4][4];
 			memcpy(matrix, abc_matrix.getValue(), sizeof(matrix));
 			

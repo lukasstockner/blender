@@ -17,6 +17,7 @@
  */
 
 #include "abc_cloth.h"
+#include "abc_interpolate.h"
 #include "abc_mesh.h"
 #include "abc_particles.h"
 
@@ -938,8 +939,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(chrono_t time)
 	
 	P3fArraySamplePtr sample_co = sample.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
-	QuatfArraySamplePtr sample_root_rotations = m_prop_root_rot.getValue(ss);
-	V3fArraySamplePtr sample_root_positions = m_prop_root_positions.getValue(ss);
+	QuatfArraySamplePtr sample_root_rotations = abc_interpolate_sample_linear(m_prop_root_rot, time);
+	V3fArraySamplePtr sample_root_positions = abc_interpolate_sample_linear(m_prop_root_positions, time);
 	IFloatGeomParam::Sample sample_cutoff;
 	if (m_param_cutoff)
 		sample_cutoff = m_param_cutoff.getExpandedValue(ss);

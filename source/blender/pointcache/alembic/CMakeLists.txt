@@ -45,6 +45,8 @@ set(SRC
 	abc_frame_mapper.cpp
 	abc_frame_mapper.h
 	abc_info.cpp
+	abc_interpolate.cpp
+	abc_interpolate.h
 	abc_reader.cpp
 	abc_reader.h
 	abc_schema.h
