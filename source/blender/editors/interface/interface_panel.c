@@ -627,18 +627,13 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		glEnable(GL_BLEND);
 
 		if (draw_header) {
-			unsigned char col[4];
+			float col[4];
 
-			UI_GetThemeColor3ubv(TH_PANEL_HEADER, col);
+			UI_GetThemeColor3fv(TH_PANEL_HEADER, col);
 
 			/* draw with background color */
-			glColor4ub(UNPACK3(col), alpha_fac * 255.0f);
-
+			glColor4f(UNPACK3(col), alpha_fac);
 			glRectf(minx, headrect.ymin, maxx, y);
-
-			glColor4f(1.0f, 1.0f, 1.0f, 0.17f);
-			fdrawline(minx, y - 1, maxx, y - 1);
-			fdrawline(minx, headrect.ymin, minx, y - 1);
 		}
 		else if (!(panel->runtime_flag & PNL_FIRST)) {
 			/* draw embossed separator */
@@ -697,20 +692,14 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		/* panel backdrop */
 		if (draw_back) {
 			/* draw with background color */
-			unsigned char col[4];
+			float col[4];
 
-			UI_GetThemeColor3ubv(TH_PANEL_BACK, col);
+			UI_GetThemeColor3fv(TH_PANEL_BACK, col);
 
 			glEnable(GL_BLEND);
-			glColor4ub(UNPACK3(col), alpha_fac * 255.0f);
-
+			glColor4f(UNPACK3(col), alpha_fac);
 			glRecti(rect->xmin, rect->ymin, rect->xmax, rect->ymax);
-
-			glColor4f(1.0f, 1.0f, 1.0f, 0.10f);
-			if (draw_header == false) {
-				fdrawline(rect->xmin + 1, rect->ymax - 1, rect->xmax, rect->ymax - 1);
-			}
-			fdrawline(rect->xmin, rect->ymin, rect->xmin, rect->ymax);
+			glDisable(GL_BLEND);
 		}
 
 		if (panel->control & UI_PNL_SCALE)
