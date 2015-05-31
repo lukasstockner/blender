@@ -554,10 +554,8 @@ static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, const r
 		UI_fontstyle_draw(&style->paneltitle, &hrect, activename);
 	}
 	else {
-		/* ignore 'pnl_icons', otherwise the text gets offset horizontally 
-		 * + 0.001f to avoid flirting with float inaccuracy
-		 */
-		hrect.xmin = rect->xmin + (PNL_ICON + 5) / block->aspect + 0.001f;
+		/* ignore 'pnl_icons', otherwise the text gets offset horizontally */
+		hrect.xmin = rect->xmin + (PNL_HEADER - 1) / block->aspect;
 		UI_fontstyle_draw_rotated(&style->paneltitle, &hrect, activename);
 	}
 }
@@ -568,13 +566,14 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	Panel *panel = block->panel;
 	rcti headrect;
 	rctf itemrect;
-	const bool draw_header = UI_GetThemeValue(TH_PANEL_SHOW_HEADER);
-	const bool draw_back = UI_GetThemeValue(TH_PANEL_SHOW_BACK);
-	const bool is_selected = panel->flag & PNL_SELECT;
+	const bool is_selected = (panel->flag & PNL_SELECT) ? true : false;
 	const float alpha_fac = is_selected ? 0.7f : 1.0f;
 	int ofsx;
+
 	const bool is_closed_x = (panel->flag & PNL_CLOSEDX) ? true : false;
 	const bool is_closed_y = (panel->flag & PNL_CLOSEDY) ? true : false;
+	const bool draw_header = UI_GetThemeValue(TH_PANEL_SHOW_HEADER);
+	const bool draw_back = UI_GetThemeValue(TH_PANEL_SHOW_BACK);
 
 	if (panel->paneltab) return;
 	if (panel->type && (panel->type->flag & PNL_NO_HEADER)) return;
@@ -585,10 +584,10 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	headrect.ymin = headrect.ymax;
 	headrect.ymax = headrect.ymin + floor(PNL_HEADER / block->aspect + 0.001f);
 
-	/* draw panel shadow */
 	if (draw_header == false && panel->flag & PNL_CLOSED) {
 		/* skip */
 	}
+	/* draw panel shadow */
 	else if ((draw_header || draw_back)) {
 		rcti shadowrect = headrect;
 		float alpha_fac_tmp = 0.2f * alpha_fac;
@@ -599,6 +598,9 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		}
 		if (draw_back && !draw_header) {
 			shadowrect.ymax = rect->ymax;
+		}
+		if (is_closed_x) {
+			shadowrect.xmax = (shadowrect.xmin + PNL_HEADER / block->aspect);
 		}
 
 		glEnable(GL_BLEND);
@@ -726,7 +728,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	UI_ThemeColor(TH_TITLE);
 
 	/* itemrect smaller */
-	itemrect.xmin = headrect.xmin + 5.0f / block->aspect;
+	itemrect.xmin = headrect.xmin + (is_closed_x ? (1.0f / block->aspect) : (5.0f / block->aspect));
 	itemrect.xmax = itemrect.xmin + BLI_rcti_size_y(&headrect);
 	itemrect.ymin = headrect.ymin;
 	itemrect.ymax = headrect.ymax;
