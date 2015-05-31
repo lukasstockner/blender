@@ -903,6 +903,7 @@ typedef enum StereoViews {
 	STEREO_MONO_ID = 3,
 } StereoViews;
 
+/* *************************************************************** */
 /* Markers */
 
 typedef struct TimeMarker {	
@@ -1031,6 +1032,7 @@ typedef struct Sculpt {
 typedef struct UvSculpt {
 	Paint paint;
 } UvSculpt;
+
 /* ------------------------------------------- */
 /* Vertex Paint */
 
@@ -1158,6 +1160,10 @@ typedef enum {
 	UNIFIED_PAINT_BRUSH_ALPHA_PRESSURE  = (1 << 4)
 } UnifiedPaintSettingsFlags;
 
+/* *************************************************************** */
+/* Stats */
+
+/* Stats for Meshes */
 typedef struct MeshStatVis {
 	char type;
 	char _pad1[2];
