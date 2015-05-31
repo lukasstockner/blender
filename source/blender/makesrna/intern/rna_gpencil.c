@@ -886,7 +886,7 @@ static void rna_def_gpencil_data(BlenderRNA *brna)
 	
 	prop = RNA_def_property(srna, "use_stroke_edit_mode", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", GP_DATA_STROKE_EDITMODE);
-	RNA_def_property_ui_text(prop, "Stroke Edit Mode", "Enable alternative keymap to make editing stroke points easier");
+	RNA_def_property_ui_text(prop, "Stroke Edit Mode", "Edit Grease Pencil strokes instead of viewport data");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | ND_GPENCIL_EDITMODE, "rna_GPencil_update");
 	
 	/* API Functions */

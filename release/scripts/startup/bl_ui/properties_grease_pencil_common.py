@@ -80,6 +80,12 @@ class GreasePencilDrawingToolsPanel:
             col.separator()
             gpencil_stroke_placement_settings(context, col, gpd)
 
+            layout.separator()
+            layout.separator()
+
+            col = layout.column(align=True)
+            col.prop(gpd, "use_stroke_edit_mode", text="Enable Editing", icon='EDIT', toggle=True)
+
         if context.space_data.type == 'VIEW_3D':
             col.separator()
             col.separator()
@@ -98,64 +104,54 @@ class GreasePencilStrokeEditPanel:
 
     @classmethod
     def poll(cls, context):
-        return (context.gpencil_data is not None)
+        if context.gpencil_data is None:
+            return False
+
+        gpd = context.gpencil_data
+        return bool(context.editable_gpencil_strokes) and bool(gpd.use_stroke_edit_mode)
 
     @staticmethod
     def draw(self, context):
         layout = self.layout
 
-        gpd = context.gpencil_data
-        edit_ok = bool(context.editable_gpencil_strokes) and bool(gpd.use_stroke_edit_mode)
+        layout.label(text="Select:")
+        col = layout.column(align=True)
+        col.operator("gpencil.select_all", text="Select All")
+        col.operator("gpencil.select_border")
+        col.operator("gpencil.select_circle")
+
+        layout.separator()
 
         col = layout.column(align=True)
-        col.prop(gpd, "use_stroke_edit_mode", text="Enable Editing", icon='EDIT', toggle=True)
+        col.operator("gpencil.select_linked")
+        col.operator("gpencil.select_more")
+        col.operator("gpencil.select_less")
 
-        col.separator()
+        layout.separator()
 
-        col.label(text="Select:")
-        subcol = col.column(align=True)
-        subcol.active = edit_ok
-        subcol.operator("gpencil.select_all", text="Select All")
-        subcol.operator("gpencil.select_border")
-        subcol.operator("gpencil.select_circle")
-
-        col.separator()
-
-        subcol = col.column(align=True)
-        subcol.active = edit_ok
-        subcol.operator("gpencil.select_linked")
-        subcol.operator("gpencil.select_more")
-        subcol.operator("gpencil.select_less")
-
-        col.separator()
-
-        col.label(text="Edit:")
-        row = col.row(align=True)
-        row.active = edit_ok
+        layout.label(text="Edit:")
+        row = layout.row(align=True)
         row.operator("gpencil.copy", text="Copy")
         row.operator("gpencil.paste", text="Paste")
 
-        subcol = col.column(align=True)
-        subcol.active = edit_ok
-        subcol.operator("gpencil.delete", text="Delete")
-        subcol.operator("gpencil.duplicate_move", text="Duplicate")
-        subcol.operator("transform.mirror", text="Mirror").gpencil_strokes = True
+        col = layout.column(align=True)
+        col.operator("gpencil.delete", text="Delete")
+        col.operator("gpencil.duplicate_move", text="Duplicate")
+        col.operator("transform.mirror", text="Mirror").gpencil_strokes = True
 
-        col.separator()
+        layout.separator()
 
-        subcol = col.column(align=True)
-        subcol.active = edit_ok
-        subcol.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
-        subcol.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
-        subcol.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'
+        col = layout.column(align=True)
+        col.operator("transform.translate").gpencil_strokes = True   # icon='MAN_TRANS'
+        col.operator("transform.rotate").gpencil_strokes = True      # icon='MAN_ROT'
+        col.operator("transform.resize", text="Scale").gpencil_strokes = True      # icon='MAN_SCALE'
 
-        col.separator()
+        layout.separator()
 
-        subcol = col.column(align=True)
-        subcol.active = edit_ok
-        subcol.operator("transform.bend", text="Bend").gpencil_strokes = True
-        subcol.operator("transform.shear", text="Shear").gpencil_strokes = True
-        subcol.operator("transform.tosphere", text="To Sphere").gpencil_strokes = True
+        col = layout.column(align=True)
+        col.operator("transform.bend", text="Bend").gpencil_strokes = True
+        col.operator("transform.shear", text="Shear").gpencil_strokes = True
+        col.operator("transform.tosphere", text="To Sphere").gpencil_strokes = True
 
 
 ###############################
