@@ -606,10 +606,12 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	Panel *panel = block->panel;
 	rctf fullrect, itemrect;
 	rcti headrect;
+
 	const bool is_selected = (panel->flag & PNL_SELECT) ? true : false;
 	const float alpha_fac = is_selected ? 0.7f : 1.0f;
 	int ofsx;
 
+	const bool is_inside = ELEM(panel->mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER);
 	const bool is_closed_x = (panel->flag & PNL_CLOSEDX) ? true : false;
 	const bool is_closed_y = (panel->flag & PNL_CLOSEDY) ? true : false;
 	const bool draw_header = UI_GetThemeValue(TH_PANEL_SHOW_HEADER);
@@ -650,9 +652,15 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		glEnable(GL_BLEND);
 
 		if (draw_header) {
-			float col[4];
+			float col[3];
 
-			UI_GetThemeColor3fv(TH_PANEL_HEADER, col);
+			if (is_inside) {
+				/* highlight if mouse is inside */
+				UI_GetThemeColorShade3fv(TH_PANEL_HEADER, 5, col);
+			}
+			else {
+				UI_GetThemeColor3fv(TH_PANEL_HEADER, col);
+			}
 
 			/* draw with background color */
 			glColor4f(UNPACK3(col), alpha_fac);
@@ -694,14 +702,16 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	if (is_closed_x == false) {
 		ui_draw_aligned_panel_header(style, block, &headrect, 'h');
 
+		if (is_inside) {
 		/* itemrect smaller */
-		itemrect.xmax = headrect.xmax - 5.0f / block->aspect;
-		itemrect.xmin = itemrect.xmax - BLI_rcti_size_y(&headrect);
-		itemrect.ymin = headrect.ymin;
-		itemrect.ymax = headrect.ymax;
+			itemrect.xmax = headrect.xmax - 5.0f / block->aspect;
+			itemrect.xmin = itemrect.xmax - BLI_rcti_size_y(&headrect);
+			itemrect.ymin = headrect.ymin;
+			itemrect.ymax = headrect.ymax;
 
-		BLI_rctf_scale(&itemrect, 0.7f);
-		ui_draw_panel_dragwidget(&itemrect);
+			BLI_rctf_scale(&itemrect, 0.7f);
+			ui_draw_panel_dragwidget(&itemrect);
+		}
 	}
 
 	/* if the panel is minimized vertically:
@@ -719,9 +729,15 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		/* panel backdrop */
 		if (draw_back) {
 			/* draw with background color */
-			float col[4];
+			float col[3];
 
-			UI_GetThemeColor3fv(TH_PANEL_BACK, col);
+			if (is_inside) {
+				/* highlight if mouse is inside */
+				UI_GetThemeColorShade3fv(TH_PANEL_BACK, 5, col);
+			}
+			else {
+				UI_GetThemeColor3fv(TH_PANEL_BACK, col);
+			}
 
 			glEnable(GL_BLEND);
 			glColor4f(UNPACK3(col), alpha_fac);
@@ -1962,8 +1978,6 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 	}
 
 	for (block = ar->uiblocks.last; block; block = block->prev) {
-		uiPanelMouseState mouse_state;
-
 		mx = event->x;
 		my = event->y;
 		ui_window_to_block(ar, block, &mx, &my);
@@ -1976,10 +1990,22 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 		if (pa->type && pa->type->flag & PNL_NO_HEADER)  /* XXX - accessed freed panels when scripts reload, need to fix. */
 			continue;
 
-		mouse_state = ui_panel_mouse_state_get(block, pa, mx, my);
+		pa->mouse_state = ui_panel_mouse_state_get(block, pa, mx, my);
+
+		/* some special redrawing (skipped if area is already tagged for redraw) */
+		if (event->type == MOUSEMOVE && ar->do_draw == 0) {
+			int mx_prev = event->prevx;
+			int my_prev = event->prevy;
+
+			ui_window_to_block(ar, block, &mx_prev, &my_prev);
+			/* redraw if mouse state has changed for mouse hover feedback */
+			if (pa->mouse_state != ui_panel_mouse_state_get(block, pa, mx_prev, my_prev)) {
+				ED_region_tag_redraw(ar);
+			}
+		}
 
 		/* XXX hardcoded key warning */
-		if (ELEM(mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER) && event->val == KM_PRESS) {
+		if (ELEM(pa->mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER) && event->val == KM_PRESS) {
 			if (event->type == AKEY && ((event->ctrl + event->oskey + event->shift + event->alt) == 0)) {
 				
 				if (pa->flag & PNL_CLOSEDY) {
@@ -1998,13 +2024,13 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 		if (ui_but_is_active(ar))
 			continue;
 		
-		if (ELEM(mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER)) {
+		if (ELEM(pa->mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER)) {
 
 			if (event->val == KM_PRESS) {
 				
 				/* open close on header */
 				if (ELEM(event->type, RETKEY, PADENTER)) {
-					if (mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
+					if (pa->mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
 						ui_handle_panel_header(C, block, mx, my, RETKEY, event->ctrl, event->shift);
 						retval = WM_UI_HANDLER_BREAK;
 						break;
@@ -2014,12 +2040,12 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 					/* all inside clicks should return in break - overlapping/float panels */
 					retval = WM_UI_HANDLER_BREAK;
 					
-					if (mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
+					if (pa->mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
 						ui_handle_panel_header(C, block, mx, my, event->type, event->ctrl, event->shift);
 						retval = WM_UI_HANDLER_BREAK;
 						break;
 					}
-					else if ((mouse_state == PANEL_MOUSE_INSIDE_SCALE) && !(pa->flag & PNL_CLOSED)) {
+					else if ((pa->mouse_state == PANEL_MOUSE_INSIDE_SCALE) && !(pa->flag & PNL_CLOSED)) {
 						panel_activate_state(C, pa, PANEL_STATE_DRAG_SCALE);
 						retval = WM_UI_HANDLER_BREAK;
 						break;
@@ -2027,7 +2053,7 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 
 				}
 				else if (event->type == RIGHTMOUSE) {
-					if (mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
+					if (pa->mouse_state == PANEL_MOUSE_INSIDE_HEADER) {
 						ui_panel_menu(C, ar, block->panel);
 						retval = WM_UI_HANDLER_BREAK;
 						break;
