@@ -560,12 +560,52 @@ static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, const r
 	}
 }
 
+static void ui_draw_panel_shadow(const rctf shadowrect, const float alpha_fac, const bool is_selected)
+{
+	float alpha_fac_tmp = 0.2f * alpha_fac;
+	short shadow_ofs = is_selected ? 2.0f * U.pixelsize : 1.0f * U.pixelsize;
+
+	glEnable(GL_BLEND);
+
+	if (is_selected) {
+		/* draw a big soft shadow while dragging */
+		UI_draw_box_shadow(alpha_fac * 255, shadowrect.xmin, shadowrect.ymin, shadowrect.xmax, shadowrect.ymax);
+	}
+	else {
+		short i;
+
+		/* draw a soft 2px shadow */
+		for (i = 0; i < 2; i++) {
+			glColor4f(0.0f, 0.0f, 0.0f, alpha_fac_tmp);
+
+			glRectf(shadowrect.xmin + shadow_ofs, shadowrect.ymin - shadow_ofs,
+			        shadowrect.xmax + shadow_ofs, shadowrect.ymax - shadow_ofs);
+
+			shadow_ofs += 1 * U.pixelsize;
+			alpha_fac_tmp *= 0.5f;
+		}
+	}
+
+	glDisable(GL_BLEND);
+}
+
+static void panel_boundbox_get(
+        const uiBlock *block, const Panel *pa,
+        const rcti *blockrect, const rcti *headrect,
+        rctf *r_bounds)
+{
+	const int xmax = (pa->flag & PNL_CLOSEDX) ? (blockrect->xmin + PNL_HEADER / block->aspect) : blockrect->xmax;
+	const int ymin = (pa->flag & PNL_CLOSED)  ? headrect->ymin : blockrect->ymin;
+
+	BLI_rctf_init(r_bounds, blockrect->xmin, xmax, ymin, headrect->ymax);
+}
+
 /* panel integrated in buttonswindow, tool/property lists etc */
 void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, const bool show_pin)
 {
 	Panel *panel = block->panel;
+	rctf fullrect, itemrect;
 	rcti headrect;
-	rctf itemrect;
 	const bool is_selected = (panel->flag & PNL_SELECT) ? true : false;
 	const float alpha_fac = is_selected ? 0.7f : 1.0f;
 	int ofsx;
@@ -584,44 +624,22 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	headrect.ymin = headrect.ymax;
 	headrect.ymax = headrect.ymin + floor(PNL_HEADER / block->aspect + 0.001f);
 
+	/* set fullrect */
+	panel_boundbox_get(block, panel, rect, &headrect, &fullrect);
+
 	if (draw_header == false && panel->flag & PNL_CLOSED) {
 		/* skip */
 	}
 	/* draw panel shadow */
-	else if ((draw_header || draw_back)) {
-		rcti shadowrect = headrect;
-		float alpha_fac_tmp = 0.2f * alpha_fac;
-		int shadow_ofs = is_selected ? 2.0f * U.pixelsize : 1.0f * U.pixelsize;
+	else if (draw_header || draw_back) {
+		rctf shadowrect = fullrect;
 
-		if (!(panel->flag & PNL_CLOSED) && draw_back) {
-			shadowrect.ymin = rect->ymin;
-		}
+		/* adjust shadowrect for special case: draw background but not header */
 		if (draw_back && !draw_header) {
 			shadowrect.ymax = rect->ymax;
 		}
-		if (is_closed_x) {
-			shadowrect.xmax = (shadowrect.xmin + PNL_HEADER / block->aspect);
-		}
 
-		glEnable(GL_BLEND);
-
-		if (is_selected) {
-			UI_draw_box_shadow(alpha_fac * 255, shadowrect.xmin, shadowrect.ymin, shadowrect.xmax, shadowrect.ymax);
-		}
-		else {
-			int i;
-
-			for (i = 0; i < 2; i++) {
-				glColor4f(0.0f, 0.0f, 0.0f, alpha_fac_tmp);
-
-				glRectf(shadowrect.xmin + shadow_ofs, shadowrect.ymin - shadow_ofs,
-				        shadowrect.xmax + shadow_ofs, shadowrect.ymax - shadow_ofs);
-
-				shadow_ofs += 1 * U.pixelsize;
-				alpha_fac_tmp *= 0.5f;
-			}
-		}
-		glDisable(GL_BLEND);
+		ui_draw_panel_shadow(shadowrect, alpha_fac, is_selected);
 	}
 
 	{
