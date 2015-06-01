@@ -38,17 +38,33 @@ using namespace Abc;
 
 using Alembic::Util::shared_ptr;
 
-template <typename PropT>
-BLI_INLINE typename PropT::value_type interpolate_sample(const typename PropT::value_type &val0, const typename PropT::value_type &val1, float t);
+enum InterpolateSemanticDefault {
+	InterpolateSemanticDefault_None = 0,
+};
 
-BLI_INLINE float interpolate_sample(const float &val0, const float &val1, float t)
+enum InterpolateSemanticVector {
+	InterpolateSemanticVector_Linear    = 0,
+	InterpolateSemanticVector_Slerp     = 1,
+};
+
+/* linear blending for primitive types */
+template <typename T>
+BLI_INLINE T interpolate_sample(const T &val0, const T &val1, float t)
 {
 	return val0 * (1.0f-t) + val1 * t;
 }
 
-BLI_INLINE V3f interpolate_sample(const V3f &val0, const V3f &val1, float t)
+/* vector semantics */
+BLI_INLINE V3f interpolate_sample(const V3f &val0, const V3f &val1, float t, InterpolateSemanticVector semantic)
 {
-	return val0 * (1.0f-t) + val1 * t;
+	switch (semantic) {
+		case InterpolateSemanticVector_Linear:
+			return val0 * (1.0f-t) + val1 * t;
+		case InterpolateSemanticVector_Slerp:
+			V3f result;
+			interp_v3_v3v3_slerp_safe(result.getValue(), val0.getValue(), val1.getValue(), t);
+			return result;
+	}
 }
 
 BLI_INLINE Quatf interpolate_sample(const Quatf &val0, const Quatf &val1, float t)
@@ -83,12 +99,74 @@ BLI_INLINE M44f interpolate_sample(const M44f &val0, const M44f &val1, float t)
 	return result;
 }
 
-template <typename TraitsT>
-BLI_INLINE shared_ptr< TypedArraySample<TraitsT> > interpolate_sample(const TypedArraySample<TraitsT> &val0, const TypedArraySample<TraitsT> &val1, float t)
+/* ------------------------------------------------------------------------- */
+
+/* These wrapper types allow calling all the interpolate_sample variants without knowing the semantics type
+ * structs are required for this, since partial specialization does not work with functions.
+ */
+
+/* forward declaration */
+template <typename ArraySampleT, typename SemanticT>
+BLI_INLINE shared_ptr<ArraySampleT> interpolate_sample(const ArraySampleT &val0, const ArraySampleT &val1, float t, SemanticT semantic);
+
+template <typename T, typename SemanticT>
+struct InterpolateSampleCaller {
+	BLI_INLINE T call(const T &val0, const T &val1, float t, SemanticT semantic)
+	{
+		return interpolate_sample(val0, val1, t, semantic);
+	}
+};
+
+template <typename T>
+struct InterpolateSampleCaller<T, InterpolateSemanticDefault> {
+	BLI_INLINE T call(const T &val0, const T &val1, float t, InterpolateSemanticDefault)
+	{
+		return interpolate_sample(val0, val1, t);
+	}
+};
+
+/* ------------------------------------------------------------------------- */
+
+/* Scalar Properties */
+
+template <typename PropT, typename SemanticT>
+typename PropT::value_type abc_interpolate_sample_linear(const PropT &prop, chrono_t time, SemanticT semantic)
 {
-	typedef TypedArraySample<TraitsT> sample_type;
-	typedef shared_ptr<sample_type> sample_ptr_type;
-	typedef typename sample_type::value_type value_type;
+	typedef typename PropT::value_type value_type;
+	
+	ISampleSelector ss0(time, ISampleSelector::kFloorIndex);
+	ISampleSelector ss1(time, ISampleSelector::kCeilIndex);
+	
+	index_t index0 = ss0.getIndex(prop.getTimeSampling(), prop.getNumSamples());
+	index_t index1 = ss1.getIndex(prop.getTimeSampling(), prop.getNumSamples());
+	if (index0 == index1) {
+		/* no interpolation needed */
+		return prop.getValue(ss0);
+	}
+	else {
+		chrono_t time0 = prop.getTimeSampling()->getSampleTime(index0);
+		chrono_t time1 = prop.getTimeSampling()->getSampleTime(index1);
+		
+		float t = (time1 > time0) ? (time - time0) / (time1 - time0) : 0.0f;
+		return InterpolateSampleCaller<value_type, SemanticT>::call(prop.getValue(ss0), prop.getValue(ss1), t, semantic);
+	}
+}
+
+template <typename PropT>
+typename PropT::value_type abc_interpolate_sample_linear(const PropT &prop, chrono_t time)
+{
+	return abc_interpolate_sample_linear(prop, time, InterpolateSemanticDefault_None);
+}
+
+
+/* Array Properties */
+
+template <typename ArraySampleT, typename SemanticT>
+BLI_INLINE shared_ptr<ArraySampleT> interpolate_array_sample(const ArraySampleT &val0, const ArraySampleT &val1, float t, SemanticT semantic)
+{
+	typedef ArraySampleT sample_type;
+	typedef shared_ptr<ArraySampleT> sample_ptr_type;
+	typedef typename ArraySampleT::value_type value_type;
 	
 	size_t size0 = val0.size();
 	size_t size1 = val1.size();
@@ -101,7 +179,7 @@ BLI_INLINE shared_ptr< TypedArraySample<TraitsT> > interpolate_sample(const Type
 	value_type *data = result;
 	
 	for (size_t i = 0; i < minsize; ++i) {
-		*data = interpolate_sample(*data0, *data1, t);
+		*data = InterpolateSampleCaller<value_type, SemanticT>::call(*data0, *data1, t, semantic);
 		++data;
 		++data0;
 		++data1;
@@ -125,10 +203,8 @@ BLI_INLINE shared_ptr< TypedArraySample<TraitsT> > interpolate_sample(const Type
 	return sample_ptr_type(new sample_type(result, maxsize));
 }
 
-/* ------------------------------------------------------------------------- */
-
-template <typename PropT>
-typename PropT::value_type abc_interpolate_sample_linear(const PropT &prop, chrono_t time)
+template <typename TraitsT, typename SemanticT>
+shared_ptr<typename ITypedArrayProperty<TraitsT>::sample_type> abc_interpolate_sample_linear(const ITypedArrayProperty<TraitsT> &prop, chrono_t time, SemanticT semantic)
 {
 	ISampleSelector ss0(time, ISampleSelector::kFloorIndex);
 	ISampleSelector ss1(time, ISampleSelector::kCeilIndex);
@@ -144,29 +220,14 @@ typename PropT::value_type abc_interpolate_sample_linear(const PropT &prop, chro
 		chrono_t time1 = prop.getTimeSampling()->getSampleTime(index1);
 		
 		float t = (time1 > time0) ? (time - time0) / (time1 - time0) : 0.0f;
-		return interpolate_sample(prop.getValue(ss0), prop.getValue(ss1), t);
+		return interpolate_array_sample(*prop.getValue(ss0), *prop.getValue(ss1), t, semantic);
 	}
 }
 
 template <typename TraitsT>
 shared_ptr<typename ITypedArrayProperty<TraitsT>::sample_type> abc_interpolate_sample_linear(const ITypedArrayProperty<TraitsT> &prop, chrono_t time)
 {
-	ISampleSelector ss0(time, ISampleSelector::kFloorIndex);
-	ISampleSelector ss1(time, ISampleSelector::kCeilIndex);
-	
-	index_t index0 = ss0.getIndex(prop.getTimeSampling(), prop.getNumSamples());
-	index_t index1 = ss1.getIndex(prop.getTimeSampling(), prop.getNumSamples());
-	if (index0 == index1) {
-		/* no interpolation needed */
-		return prop.getValue(ss0);
-	}
-	else {
-		chrono_t time0 = prop.getTimeSampling()->getSampleTime(index0);
-		chrono_t time1 = prop.getTimeSampling()->getSampleTime(index1);
-		
-		float t = (time1 > time0) ? (time - time0) / (time1 - time0) : 0.0f;
-		return interpolate_sample(*prop.getValue(ss0), *prop.getValue(ss1), t);
-	}
+	return abc_interpolate_sample_linear(prop, time, InterpolateSemanticDefault_None);
 }
 
 } /* namespace PTC */

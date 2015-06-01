@@ -16,6 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "abc_interpolate.h"
 #include "abc_mesh.h"
 
 extern "C" {
@@ -532,14 +533,14 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(chrono_t time)
 	IPolyMeshSchema::Sample sample;
 	schema.get(sample, ss);
 	
-	P3fArraySamplePtr vert_co = sample.getPositions();
+	P3fArraySamplePtr vert_co = abc_interpolate_sample_linear(schema.getPositionsProperty(), time);
 	Int32ArraySamplePtr loop_verts = sample.getFaceIndices();
 	Int32ArraySamplePtr poly_totloop = sample.getFaceCounts();
 	
 	N3fArraySamplePtr vnormals;
 	bool has_normals = false;
 	if (m_prop_vert_normals && m_prop_vert_normals.getNumSamples() > 0) {
-		vnormals = m_prop_vert_normals.getValue(ss);
+		vnormals = abc_interpolate_sample_linear(m_prop_vert_normals, time, InterpolateSemanticVector_Slerp);
 		has_normals = vnormals->valid();
 	}
 	
