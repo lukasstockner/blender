@@ -88,6 +88,7 @@ typedef struct CacheLibrary {
 	int render_flag DNA_DEPRECATED;
 	int data_types;
 	struct Group *filter_group;
+	char description[256];
 	
 	char input_filepath[1024]; /* 1024 = FILE_MAX */
 	char output_filepath[1024]; /* 1024 = FILE_MAX */

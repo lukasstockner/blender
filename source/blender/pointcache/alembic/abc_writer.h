@@ -37,6 +37,8 @@ extern "C" {
 #include "DNA_ID.h"
 }
 
+struct tm;
+
 namespace PTC {
 
 using namespace Alembic;
@@ -45,7 +47,8 @@ class AbcWriterArchive : public WriterArchive, public FrameMapper {
 public:
 	virtual ~AbcWriterArchive();
 	
-	static AbcWriterArchive *open(double fps, float start_frame, const std::string &filename, PTCArchiveResolution resolutions, ErrorHandler *error_handler);
+	static AbcWriterArchive *open(double fps, float start_frame, const std::string &filename, PTCArchiveResolution resolutions,
+	                              const char *app_name, const char *description, const struct tm *time, ErrorHandler *error_handler);
 	
 	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }

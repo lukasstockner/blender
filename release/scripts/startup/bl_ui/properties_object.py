@@ -449,9 +449,9 @@ class CacheArchiveInfoPanel():
     def draw_info(self, context, layout, info):
         layout.prop(info, "filepath", text="File")
         row = layout.row(align=True)
-        row.prop(info, "app_name", text="Created by")
-        row.prop(info, "date_written", text="")
-        layout.prop(info, "description", text="")
+        row.label("Created by: {} | {}".format(info.app_name if info.app_name else "-", info.date_written if info.date_written else "-"))
+        if info.description:
+            layout.label(info.description)
 
         if info.root_node:
             row = layout.row()
@@ -526,6 +526,7 @@ class OBJECT_PT_cache_library(CacheArchiveInfoPanel, ObjectButtonsPanel, Panel):
         row2.alignment = 'LEFT'
         row2.prop(cachelib, "data_types", icon_only=True, toggle=True)
         row2.template_ID(cachelib, "filter_group")
+        col.prop(cachelib, "description")
         col = row.column()
         props = col.operator("cachelibrary.bake", text="Bake Preview", icon='RESTRICT_VIEW_OFF')
         props.eval_mode = {'PREVIEW'}

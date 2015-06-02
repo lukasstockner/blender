@@ -25,6 +25,8 @@
 extern "C" {
 #endif
 
+struct tm;
+
 struct Main;
 struct Scene;
 struct EvaluationContext;
@@ -59,7 +61,8 @@ void PTC_error_handler_modifier(struct ModifierData *md);
 
 const char *PTC_get_default_archive_extension(void);
 
-struct PTCWriterArchive *PTC_open_writer_archive(double fps, float start_frame, const char *path, PTCArchiveResolution resolutions);
+struct PTCWriterArchive *PTC_open_writer_archive(double fps, float start_frame, const char *path, PTCArchiveResolution resolutions,
+                                                 const char *app_name, const char *description, const struct tm *time);
 void PTC_close_writer_archive(struct PTCWriterArchive *archive);
 void PTC_writer_archive_use_render(struct PTCWriterArchive *archive, bool enable);
 

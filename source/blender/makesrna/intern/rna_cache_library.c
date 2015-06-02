@@ -925,13 +925,14 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, cache_library_data_type_items);
 	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Data Types", "Types of data to store in the cache");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
 	prop = RNA_def_property(srna, "filter_group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "filter_group");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Filter Group", "If set, only objects in this group will be cached");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Description", "Description of the output archive");
 	
 	/* modifiers */
 	prop = RNA_def_property(srna, "modifiers", PROP_COLLECTION, PROP_NONE);

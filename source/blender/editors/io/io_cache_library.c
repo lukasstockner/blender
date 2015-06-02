@@ -49,6 +49,7 @@
 #include "DNA_particle_types.h"
 
 #include "BKE_anim.h"
+#include "BKE_blender.h"
 #include "BKE_depsgraph.h"
 #include "BKE_cache_library.h"
 #include "BKE_context.h"
@@ -366,6 +367,7 @@ static void cache_library_bake_start(void *customdata, short *stop, short *do_up
 	const PTCArchiveResolution archive_res = (do_preview ? PTC_RESOLUTION_PREVIEW : 0) | (do_render ? PTC_RESOLUTION_RENDER : 0);
 	Scene *scene = data->scene;
 	char filename[FILE_MAX];
+	char app_name[MAX_NAME];
 	
 	data->stop = stop;
 	data->do_update = do_update;
@@ -376,7 +378,8 @@ static void cache_library_bake_start(void *customdata, short *stop, short *do_up
 	scene->r.framelen = 1.0f;
 	
 	BKE_cache_archive_output_path(data->cachelib, filename, sizeof(filename));
-	data->archive = PTC_open_writer_archive(FPS, data->start_frame, filename, archive_res);
+	BLI_snprintf(app_name, sizeof(app_name), "Blender %s", versionstr);
+	data->archive = PTC_open_writer_archive(FPS, data->start_frame, filename, archive_res, app_name, data->cachelib->description, NULL);
 	
 	if (data->archive) {
 		
@@ -625,6 +628,7 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 	struct PTCReaderArchive *input_archive;
 	struct PTCWriterArchive *output_archive;
 	PTCArchiveResolution archive_res;
+	CacheArchiveInfo info;
 	
 	RNA_string_get(op->ptr, "input_filepath", input_filepath);
 	if (input_filepath[0] == '\0')
@@ -646,7 +650,9 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 	}
 	
 	archive_res = PTC_reader_archive_get_resolutions(input_archive);
-	output_archive = PTC_open_writer_archive(FPS, start_frame, output_filename, archive_res);
+	PTC_get_archive_info(input_archive, &info);
+	
+	output_archive = PTC_open_writer_archive(FPS, start_frame, output_filename, archive_res, info.app_name, info.description, NULL);
 	if (!output_archive) {
 		BKE_reportf(op->reports, RPT_ERROR, "Cannot write to cache file at '%s'", output_filepath);
 		return OPERATOR_CANCELLED;
