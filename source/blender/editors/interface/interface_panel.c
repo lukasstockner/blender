@@ -943,7 +943,8 @@ static bool uiAlignPanelStep(ScrArea *sa, ARegion *ar, const float fac, const bo
 	ps = panelsort;
 	ps->pa->ofsx = UI_PANEL_MARGIN;
 	/* offset first panel, but not for properties editor, there is already some space making this look odd */
-	ps->pa->ofsy = -(get_panel_size_y(ps->pa) + (sa->spacetype == SPACE_BUTS ? 0 : UI_PANEL_MARGIN));
+	ps->pa->ofsy = -(get_panel_size_y(ps->pa) + ((sa->spacetype == SPACE_BUTS || ar->regiontype == RGN_TYPE_TABS) ?
+	                                             0 : UI_PANEL_MARGIN));
 
 	if (has_category_tabs) {
 		if (align == BUT_VERTICAL) {
