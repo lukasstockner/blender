@@ -48,7 +48,7 @@ public:
 	virtual ~AbcWriterArchive();
 	
 	static AbcWriterArchive *open(double fps, float start_frame, const std::string &filename, PTCArchiveResolution resolutions,
-	                              const char *app_name, const char *description, const struct tm *time, ErrorHandler *error_handler);
+	                              const char *app_name, const char *description, const struct tm *time, IDProperty *metadata, ErrorHandler *error_handler);
 	
 	bool use_render() const { return m_use_render; }
 	void use_render(bool enable) { m_use_render = enable; }

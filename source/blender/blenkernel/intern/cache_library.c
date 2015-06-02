@@ -61,6 +61,7 @@
 #include "BKE_effect.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
+#include "BKE_idprop.h"
 #include "BKE_key.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
@@ -271,6 +272,32 @@ void BKE_cache_library_tag_used_objects(CacheLibrary *cachelib)
 
 /* ========================================================================= */
 
+static IDProperty *cache_library_get_metadata(CacheLibrary *cachelib, const char *name, bool create)
+{
+	IDProperty *idprops = IDP_GetProperties((ID *)cachelib, create);
+	IDProperty *metadata = NULL;
+	if (idprops) {
+		metadata = IDP_GetPropertyFromGroup(idprops, name);
+		if (!metadata && create) {
+			IDPropertyTemplate val;
+			val.i = 0;
+			metadata = IDP_New(IDP_GROUP, &val, name);
+			IDP_AddToGroup(idprops, metadata);
+		}
+	}
+	return metadata;
+}
+
+IDProperty *BKE_cache_library_get_input_metadata(CacheLibrary *cachelib, bool create)
+{
+	return cache_library_get_metadata(cachelib, "input_metadata", create);
+}
+
+IDProperty *BKE_cache_library_get_output_metadata(CacheLibrary *cachelib, bool create)
+{
+	return cache_library_get_metadata(cachelib, "output_metadata", create);
+}
+
 BLI_INLINE bool path_is_dirpath(const char *path)
 {
 	/* last char is a slash? */
@@ -377,8 +404,10 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 	else
 		cachelib->archive_info = BKE_cache_archive_info_new();
 	BLI_strncpy(cachelib->archive_info->filepath, filename, sizeof(cachelib->archive_info->filepath));
-	if (archive)
-		PTC_get_archive_info(archive, cachelib->archive_info);
+	if (archive) {
+		IDProperty *metadata = BKE_cache_library_get_input_metadata(cachelib, true);
+		PTC_get_archive_info(archive, cachelib->archive_info, metadata);
+	}
 	
 	return archive;
 }

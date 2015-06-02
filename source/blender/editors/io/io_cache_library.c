@@ -368,6 +368,7 @@ static void cache_library_bake_start(void *customdata, short *stop, short *do_up
 	Scene *scene = data->scene;
 	char filename[FILE_MAX];
 	char app_name[MAX_NAME];
+	IDProperty *metadata;
 	
 	data->stop = stop;
 	data->do_update = do_update;
@@ -379,7 +380,10 @@ static void cache_library_bake_start(void *customdata, short *stop, short *do_up
 	
 	BKE_cache_archive_output_path(data->cachelib, filename, sizeof(filename));
 	BLI_snprintf(app_name, sizeof(app_name), "Blender %s", versionstr);
-	data->archive = PTC_open_writer_archive(FPS, data->start_frame, filename, archive_res, app_name, data->cachelib->description, NULL);
+	
+	metadata = BKE_cache_library_get_output_metadata(data->cachelib, false);
+	
+	data->archive = PTC_open_writer_archive(FPS, data->start_frame, filename, archive_res, app_name, data->cachelib->description, NULL, metadata);
 	
 	if (data->archive) {
 		
@@ -629,6 +633,7 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 	struct PTCWriterArchive *output_archive;
 	PTCArchiveResolution archive_res;
 	CacheArchiveInfo info;
+	IDProperty *metadata;
 	
 	RNA_string_get(op->ptr, "input_filepath", input_filepath);
 	if (input_filepath[0] == '\0')
@@ -650,9 +655,18 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 	}
 	
 	archive_res = PTC_reader_archive_get_resolutions(input_archive);
-	PTC_get_archive_info(input_archive, &info);
+	{
+		IDPropertyTemplate val;
+		val.i = 0;
+		metadata = IDP_New(IDP_GROUP, &val, "cache input metadata");
+	}
+	PTC_get_archive_info(input_archive, &info, metadata);
 	
-	output_archive = PTC_open_writer_archive(FPS, start_frame, output_filename, archive_res, info.app_name, info.description, NULL);
+	output_archive = PTC_open_writer_archive(FPS, start_frame, output_filename, archive_res, info.app_name, info.description, NULL, metadata);
+	
+	IDP_FreeProperty(metadata);
+	MEM_freeN(metadata);
+	
 	if (!output_archive) {
 		BKE_reportf(op->reports, RPT_ERROR, "Cannot write to cache file at '%s'", output_filepath);
 		return OPERATOR_CANCELLED;

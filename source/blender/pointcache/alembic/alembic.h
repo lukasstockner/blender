@@ -24,11 +24,18 @@
 #include <Alembic/Abc/IArchive.h>
 
 struct CacheArchiveInfo;
+struct IDProperty;
 
 namespace PTC {
 
+using namespace Alembic;
+
+void abc_metadata_from_idprops_group(Abc::MetaData &md, IDProperty *prop);
+void abc_metadata_to_idprops_group(const Abc::MetaData &md, IDProperty *prop);
+Abc::MetaData abc_create_archive_info(const char *app_name, const char *description, const struct tm *t, struct IDProperty *props);
+
 void abc_archive_info_stream(Alembic::Abc::IArchive &archive, void (*stream)(void *, const char *), void *userdata);
-void abc_archive_info_nodes(Alembic::Abc::IArchive &archive, CacheArchiveInfo *info, bool calc_nodes, bool calc_bytes_size);
+void abc_archive_info_nodes(Alembic::Abc::IArchive &archive, CacheArchiveInfo *info, IDProperty *metadata, bool calc_nodes, bool calc_bytes_size);
 
 void abc_archive_slice(Alembic::Abc::IArchive in, Alembic::Abc::OArchive out, Alembic::Abc::TimeSamplingPtr time_sampling, Alembic::Abc::chrono_t start, Alembic::Abc::chrono_t end);
 
