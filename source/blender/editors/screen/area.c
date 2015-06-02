@@ -73,6 +73,8 @@
 
 #include "screen_intern.h"
 
+extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3); /* xxx temp */
+
 /* general area and region code */
 
 static void region_draw_emboss(ScrArea *sa, const ARegion *ar, const rcti *scirct)
@@ -1765,7 +1767,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 	Panel *panel;
 	View2D *v2d = &ar->v2d;
 	View2DScrollers *scrollers;
-	int x, y, xco, yco, w, em, triangle;
+	int x, y, xco, yco, w, em;
 	int theme_col_bg = TH_BACK;
 	bool is_context_new = 0;
 	int redo;
@@ -1878,23 +1880,26 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 			block = UI_block_begin(C, ar, pt->idname, UI_EMBOSS);
 			panel = UI_panel_begin(sa, ar, block, pt, panel, &open);
 
-			/* bad fixed values */
-			triangle = (int)(UI_UNIT_Y * 1.1f);
-
 			if (pt->draw_header && !(pt->flag & PNL_NO_HEADER) && (open || vertical)) {
+				const int ar_x = (int)BLI_rctf_size_x(&ar->v2d.cur);
+				const int ofs_x = iroundf(MIN2(UI_UNIT_X * 0.6f, ar_x * 0.1f));
+				/* using panel->sizex causes too much jittering */
+				const int panel_sizex = ar_x - (int)(UI_PANEL_MARGIN * 2.0f);
+
 				/* for enabled buttons */
-				panel->layout = UI_block_layout(
-				        block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER,
-				        triangle, (UI_UNIT_Y * 1.1f) + style->panelspace, UI_UNIT_Y, 1, 0, style);
+				uiLayout *row;
+				uiLayout *layout = UI_block_layout(
+				        block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
+				        -ofs_x, (UI_UNIT_Y * 1.1f) + style->panelspace,
+				        panel_sizex, 1, 0, style);
+
+				row = uiLayoutRow(layout, 1);
+				uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+				panel->layout = row;
 
 				pt->draw_header(C, panel);
 
-				UI_block_layout_resolve(block, &xco, &yco);
-				panel->labelofs = xco - triangle;
 				panel->layout = NULL;
-			}
-			else {
-				panel->labelofs = 0;
 			}
 
 			if (open) {
