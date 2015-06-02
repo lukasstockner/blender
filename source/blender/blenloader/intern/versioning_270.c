@@ -831,4 +831,40 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			}
 		}
 	}
+
+	{
+		bScreen *screen;
+		for (screen = main->screen.first; screen; screen = screen->id.next) {
+			ScrArea *sa;
+
+			for (sa = screen->areabase.first; sa; sa = sa->next) {
+				ARegion *ar;
+				SpaceLink *sl;
+
+				for (ar = sa->regionbase.first; ar; ar = ar->next) {
+					if (ar->regiontype == RGN_TYPE_WINDOW) {
+						break;
+					}
+				}
+
+				if (ar) {
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						switch (sl->spacetype) {
+							case SPACE_TIME:
+							case SPACE_ACTION:
+							case SPACE_NLA:
+								ar->v2d.flag |= V2D_USES_UNITS_HORIZONTAL;
+								break;
+							case SPACE_IPO:
+							case SPACE_SEQ:
+								ar->v2d.flag |= (V2D_USES_UNITS_HORIZONTAL | V2D_USES_UNITS_VERTICAL);
+								break;
+							default:
+								break;
+						}
+					}
+				}
+			}
+		}
+	}
 }

@@ -190,6 +190,7 @@ static SpaceLink *sequencer_new(const bContext *C)
 	ar->v2d.keepzoom = 0;
 	ar->v2d.keeptot = 0;
 	ar->v2d.align = V2D_ALIGN_NO_NEG_Y;
+	ar->v2d.flag |= (V2D_USES_UNITS_HORIZONTAL | V2D_USES_UNITS_VERTICAL);
 
 	return (SpaceLink *)sseq;
 }

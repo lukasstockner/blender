@@ -2742,6 +2742,7 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 		rad = wcol->roundness * BLI_rcti_size_x(rect);
 	
 	wtb.draw_shadedir = (horizontal) ? true : false;
+	wtb.draw_outline = false;
 	
 	/* draw back part, colors swapped and shading inverted */
 	if (horizontal)
