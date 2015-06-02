@@ -16,22 +16,17 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef PTC_ALEMBIC_H
-#define PTC_ALEMBIC_H
+#include "abc_interpolate.h"
 
-#include <string>
-
-#include <Alembic/Abc/IArchive.h>
-
-struct CacheArchiveInfo;
+extern "C" {
+#include "BLI_math.h"
+#include "BLI_utildefines.h"
+}
 
 namespace PTC {
 
-void abc_archive_info_stream(Alembic::Abc::IArchive &archive, void (*stream)(void *, const char *), void *userdata);
-void abc_archive_info_nodes(Alembic::Abc::IArchive &archive, CacheArchiveInfo *info, bool calc_nodes, bool calc_bytes_size);
+using namespace Abc;
 
-void abc_archive_slice(Alembic::Abc::IArchive in, Alembic::Abc::OArchive out, Alembic::Abc::TimeSamplingPtr time_sampling, Alembic::Abc::chrono_t start, Alembic::Abc::chrono_t end);
+
 
 } /* namespace PTC */
-
-#endif  /* PTC_CLOTH_H */

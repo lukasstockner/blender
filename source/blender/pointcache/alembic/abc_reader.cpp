@@ -127,15 +127,26 @@ void AbcReaderArchive::get_info_stream(void (*stream)(void *, const char *), voi
 		abc_archive_info_stream(m_abc_archive, stream, userdata);
 }
 
+void AbcReaderArchive::get_info(CacheArchiveInfo *info)
+{
+	if (m_abc_archive)
+		abc_archive_info_nodes(m_abc_archive, info, false, false);
+}
+
 void AbcReaderArchive::get_info_nodes(CacheArchiveInfo *info, bool calc_bytes_size)
 {
 	if (m_abc_archive)
-		abc_archive_info_nodes(m_abc_archive, info, calc_bytes_size);
+		abc_archive_info_nodes(m_abc_archive, info, true, calc_bytes_size);
 }
 
 ISampleSelector AbcReaderArchive::get_frame_sample_selector(float frame)
 {
 	return ISampleSelector(frame_to_time(frame), ISampleSelector::kFloorIndex);
+}
+
+ISampleSelector AbcReaderArchive::get_frame_sample_selector(chrono_t time)
+{
+	return ISampleSelector(time, ISampleSelector::kFloorIndex);
 }
 
 
@@ -171,7 +182,7 @@ PTCReadSampleResult AbcReader::read_sample(float frame)
 {
 	
 	try {
-		return read_sample_abc(frame);
+		return read_sample_abc(m_abc_archive->frame_to_time(frame));
 	}
 	catch (Alembic::Util::Exception e) {
 		handle_alembic_exception(ErrorHandler::get_default_handler(), PTC_ERROR_CRITICAL, e);

@@ -193,7 +193,7 @@ static void apply_sample_goal_positions(Cloth *cloth, P3fArraySamplePtr sample)
 	}
 }
 
-PTCReadSampleResult AbcClothReader::read_sample_abc(float frame)
+PTCReadSampleResult AbcClothReader::read_sample_abc(chrono_t time)
 {
 	Cloth *cloth = m_clmd->clothObject;
 	
@@ -203,14 +203,8 @@ PTCReadSampleResult AbcClothReader::read_sample_abc(float frame)
 	IPointsSchema &schema = m_points.getSchema();
 	if (schema.getNumSamples() == 0)
 		return PTC_READ_SAMPLE_INVALID;
-	TimeSamplingPtr ts = schema.getTimeSampling();
 	
-	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
-//	chrono_t time = ss.getRequestedTime();
-	
-//	std::pair<index_t, chrono_t> sres = ts->getFloorIndex(time, schema.getNumSamples());
-//	chrono_t stime = sres.second;
-//	float sframe = archive()->time_to_frame(stime);
+	ISampleSelector ss = get_frame_sample_selector(time);
 	
 	IPointsSchema::Sample sample;
 	schema.get(sample, ss);

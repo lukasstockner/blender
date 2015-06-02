@@ -925,13 +925,14 @@ static void rna_def_cache_library(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, cache_library_data_type_items);
 	RNA_def_property_flag(prop, PROP_ENUM_FLAG);
 	RNA_def_property_ui_text(prop, "Data Types", "Types of data to store in the cache");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
 	
 	prop = RNA_def_property(srna, "filter_group", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "filter_group");
 	RNA_def_property_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Filter Group", "If set, only objects in this group will be cached");
-	RNA_def_property_update(prop, 0, "rna_CacheLibrary_update");
+	
+	prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Description", "Description of the output archive");
 	
 	/* modifiers */
 	prop = RNA_def_property(srna, "modifiers", PROP_COLLECTION, PROP_NONE);
@@ -1018,6 +1019,18 @@ static void rna_def_cache_archive_info(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "File Path", "Path to the cache archive");
+	
+	prop = RNA_def_property(srna, "app_name", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Application", "Name of the application that created the archive");
+	
+	prop = RNA_def_property(srna, "date_written", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Date", "Date and time when the archive was created");
+	
+	prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Description", "Description of the archive");
 	
 	prop = RNA_def_property(srna, "root_node", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "CacheArchiveInfoNode");

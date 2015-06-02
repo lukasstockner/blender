@@ -169,15 +169,15 @@ static PTCReadSampleResult apply_sample(SimDebugData *data,
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-PTCReadSampleResult AbcSimDebugReader::read_sample_abc(float frame)
+PTCReadSampleResult AbcSimDebugReader::read_sample_abc(chrono_t time)
 {
 	if (!m_object)
 		return PTC_READ_SAMPLE_INVALID;
 	
-	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = get_frame_sample_selector(time);
 	
 	apply_sample(m_data, m_prop_category_hash.getValue(ss), m_prop_hash.getValue(ss), m_prop_type.getValue(ss),
-	                   m_prop_color.getValue(ss), m_prop_v1.getValue(ss), m_prop_v2.getValue(ss));
+	             m_prop_color.getValue(ss), m_prop_v1.getValue(ss), m_prop_v2.getValue(ss));
 	
 	return PTC_READ_SAMPLE_EXACT;
 }

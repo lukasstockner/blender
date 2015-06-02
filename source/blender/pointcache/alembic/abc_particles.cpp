@@ -17,6 +17,7 @@
  */
 
 #include "abc_cloth.h"
+#include "abc_interpolate.h"
 #include "abc_mesh.h"
 #include "abc_particles.h"
 
@@ -920,9 +921,9 @@ void AbcStrandsChildrenReader::init_abc(IObject object)
 	m_prop_curve_vcols = IC3fArrayProperty(user_props, "curve_vcols", 0);
 }
 
-PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
+PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(chrono_t time)
 {
-	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = get_frame_sample_selector(time);
 	
 	if (!m_curves.valid()) {
 		return PTC_READ_SAMPLE_INVALID;
@@ -938,8 +939,8 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	
 	P3fArraySamplePtr sample_co = sample.getPositions();
 	Int32ArraySamplePtr sample_numvert = sample.getCurvesNumVertices();
-	QuatfArraySamplePtr sample_root_rotations = m_prop_root_rot.getValue(ss);
-	V3fArraySamplePtr sample_root_positions = m_prop_root_positions.getValue(ss);
+	QuatfArraySamplePtr sample_root_rotations = abc_interpolate_sample_linear(m_prop_root_rot, time);
+	V3fArraySamplePtr sample_root_positions = abc_interpolate_sample_linear(m_prop_root_positions, time);
 	IFloatGeomParam::Sample sample_cutoff;
 	if (m_param_cutoff)
 		sample_cutoff = m_param_cutoff.getExpandedValue(ss);
@@ -1042,15 +1043,15 @@ PTCReadSampleResult AbcStrandsChildrenReader::read_sample_abc(float frame)
 	}
 	
 	const V3f *co = sample_co->get();
-	const float32_t *time = sample_time.getVals()->get();
+	const float32_t *curve_time = sample_time.getVals()->get();
 	for (int i = 0; i < sample_co->size(); ++i) {
 		StrandsChildVertex *svert = &m_strands->verts[i];
 		copy_v3_v3(svert->co, co->getValue());
 		copy_v3_v3(svert->base, svert->co);
-		svert->time = *time;
+		svert->time = *curve_time;
 		
 		++co;
-		++time;
+		++curve_time;
 	}
 	
 	BKE_strands_children_ensure_normals(m_strands);
@@ -1121,9 +1122,9 @@ void AbcStrandsReader::init_abc(IObject object)
 	}
 }
 
-PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
+PTCReadSampleResult AbcStrandsReader::read_sample_abc(chrono_t time)
 {
-	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = get_frame_sample_selector(time);
 	
 	if (!m_curves.valid())
 		return PTC_READ_SAMPLE_INVALID;
@@ -1187,16 +1188,16 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 	}
 	
 	const V3f *co = sample_co->get();
-	const float32_t *time = sample_time.getVals()->get();
+	const float32_t *curve_time = sample_time.getVals()->get();
 	const float32_t *weight = sample_weight.getVals()->get();
 	for (int i = 0; i < sample_co->size(); ++i) {
 		StrandsVertex *svert = &m_strands->verts[i];
 		copy_v3_v3(svert->co, co->getValue());
-		svert->time = *time;
+		svert->time = *curve_time;
 		svert->weight = *weight;
 		
 		++co;
-		++time;
+		++curve_time;
 		++weight;
 	}
 	
@@ -1260,7 +1261,7 @@ PTCReadSampleResult AbcStrandsReader::read_sample_abc(float frame)
 	BKE_strands_ensure_normals(m_strands);
 	
 	if (m_read_children) {
-		m_child_reader.read_sample_abc(frame);
+		m_child_reader.read_sample_abc(time);
 	}
 	
 	return PTC_READ_SAMPLE_EXACT;

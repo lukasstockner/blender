@@ -36,6 +36,8 @@ namespace PTC {
 
 using namespace Alembic;
 
+using Abc::chrono_t;
+
 class AbcReaderArchive : public ReaderArchive, public FrameMapper {
 public:
 	virtual ~AbcReaderArchive();
@@ -54,8 +56,10 @@ public:
 	
 	bool get_frame_range(int &start_frame, int &end_frame);
 	Abc::ISampleSelector get_frame_sample_selector(float frame);
+	Abc::ISampleSelector get_frame_sample_selector(chrono_t time);
 	
 	void get_info_stream(void (*stream)(void *, const char *), void *userdata);
+	void get_info(CacheArchiveInfo *info);
 	void get_info_nodes(CacheArchiveInfo *info, bool calc_bytes_size);
 	
 protected:
@@ -87,9 +91,13 @@ public:
 	AbcReaderArchive *abc_archive() const { return m_abc_archive; }
 	
 	bool get_frame_range(int &start_frame, int &end_frame);
+	
+	Abc::ISampleSelector get_frame_sample_selector(float frame) { return m_abc_archive->get_frame_sample_selector(frame); }
+	Abc::ISampleSelector get_frame_sample_selector(chrono_t time) { return m_abc_archive->get_frame_sample_selector(time); }
+	
 	PTCReadSampleResult test_sample(float frame);
 	PTCReadSampleResult read_sample(float frame);
-	virtual PTCReadSampleResult read_sample_abc(float frame) = 0;
+	virtual PTCReadSampleResult read_sample_abc(chrono_t time) = 0;
 	
 private:
 	AbcReaderArchive *m_abc_archive;

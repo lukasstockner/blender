@@ -16,6 +16,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
+#include "abc_interpolate.h"
 #include "abc_mesh.h"
 
 extern "C" {
@@ -500,7 +501,7 @@ static PTCReadSampleResult apply_sample_loops(DerivedMesh *dm, Int32ArraySampleP
 	return PTC_READ_SAMPLE_EXACT;
 }
 
-PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(float frame)
+PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(chrono_t time)
 {
 #ifdef USE_TIMING
 	double start_time;
@@ -526,20 +527,20 @@ PTCReadSampleResult AbcDerivedMeshReader::read_sample_abc(float frame)
 		return PTC_READ_SAMPLE_INVALID;
 	ICompoundProperty user_props = schema.getUserProperties();
 	
-	ISampleSelector ss = abc_archive()->get_frame_sample_selector(frame);
+	ISampleSelector ss = get_frame_sample_selector(time);
 	
 	PROFILE_START;
 	IPolyMeshSchema::Sample sample;
 	schema.get(sample, ss);
 	
-	P3fArraySamplePtr vert_co = sample.getPositions();
+	P3fArraySamplePtr vert_co = abc_interpolate_sample_linear(schema.getPositionsProperty(), time);
 	Int32ArraySamplePtr loop_verts = sample.getFaceIndices();
 	Int32ArraySamplePtr poly_totloop = sample.getFaceCounts();
 	
 	N3fArraySamplePtr vnormals;
 	bool has_normals = false;
 	if (m_prop_vert_normals && m_prop_vert_normals.getNumSamples() > 0) {
-		vnormals = m_prop_vert_normals.getValue(ss);
+		vnormals = abc_interpolate_sample_linear(m_prop_vert_normals, time, InterpolateSemanticVector_Slerp);
 		has_normals = vnormals->valid();
 	}
 	

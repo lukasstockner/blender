@@ -396,7 +396,79 @@ class CACHELIBRARY_MT_hair_simulation_presets(Menu):
     draw = Menu.draw_preset
 
 
-class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
+class CacheArchiveInfoPanel():
+    def draw_node_structure(self, context, layout, node, indent):
+        row = layout.row()
+        for i in range(indent):
+            row.label(text="", icon='BLANK1')
+        
+        if not node.child_nodes:
+            row.label(text="", icon='DOT')
+        elif not node.expand:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_RIGHT', icon_only=True, emboss=False)
+        else:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_DOWN', icon_only=True, emboss=False)
+
+            for child in node.child_nodes:
+                self.draw_node_structure(context, layout, child, indent + 1)
+
+
+    info_columns = ['Name', 'Node', 'Samples', 'Size', 'Data', '', 'Array Size']
+
+    def draw_node_info(self, context, layout, node, column):
+        if column == 0:
+            layout.prop(node, "name", text="")
+        if column == 1:
+            layout.prop(node, "type", text="")
+        if column == 2:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "samples", text="")
+            else:
+                layout.label(" ")
+        if column == 3:
+            size = int(node.bytes_size)
+            layout.label(sizeof_fmt(size) if size >= 0 else "-")
+        if column == 4:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype", text="")
+            else:
+                layout.label(" ")
+        if column == 5:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype_extent", text="")
+            else:
+                layout.label(" ")
+        if column == 6:
+            if node.type in {'ARRAY_PROPERTY'}:
+                layout.label(node.array_size if node.array_size >= 0 else "-")
+            else:
+                layout.label(" ")
+
+        if node.expand:
+            for child in node.child_nodes:
+                self.draw_node_info(context, layout, child, column)
+
+    def draw_info(self, context, layout, info):
+        layout.prop(info, "filepath", text="File")
+        row = layout.row(align=True)
+        row.label("Created by: {} | {}".format(info.app_name if info.app_name else "-", info.date_written if info.date_written else "-"))
+        if info.description:
+            layout.label(info.description)
+
+        if info.root_node:
+            row = layout.row()
+
+            col = row.column()
+            col.label(" ")
+            self.draw_node_structure(context, col, info.root_node, 0)
+
+            for i, column in enumerate(self.info_columns):
+                col = row.column()
+                col.label(column)
+                self.draw_node_info(context, col, info.root_node, i)
+
+
+class OBJECT_PT_cache_library(CacheArchiveInfoPanel, ObjectButtonsPanel, Panel):
     bl_label = "Cache"
 
     @classmethod
@@ -417,18 +489,15 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         getattr(self, md.type)(context, layout, cachelib, md)
 
     def draw_cachelib(self, context, layout, ob, cachelib, objects):
-        col = layout.column()
-        row = col.row()
+        box = layout.box()
+        row = box.row()
         row.label("Source:")
         row.prop(cachelib, "source_mode", text="Source", expand=True)
-        row = col.row(align=True)
+        row = box.row(align=True)
         row.enabled = (cachelib.source_mode == 'CACHE')
         row.prop(cachelib, "input_filepath", text="")
-        props = row.operator("cachelibrary.archive_info", text="", icon='QUESTION')
-        props.filepath = cachelib.input_filepath
-        props.use_stdout = True
-        props.use_popup = True
-        props.use_clipboard = True
+        if cachelib.archive_info:
+            self.draw_info(context, box, cachelib.archive_info)
 
         layout.separator()
 
@@ -459,6 +528,7 @@ class OBJECT_PT_cache_library(ObjectButtonsPanel, Panel):
         row2.alignment = 'LEFT'
         row2.prop(cachelib, "data_types", icon_only=True, toggle=True)
         row2.template_ID(cachelib, "filter_group")
+        col.prop(cachelib, "description")
         col = row.column()
         props = col.operator("cachelibrary.bake", text="Bake Preview", icon='RESTRICT_VIEW_OFF')
         props.eval_mode = {'PREVIEW'}
@@ -701,7 +771,7 @@ def sizeof_fmt(num, suffix='B'):
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Y', suffix)
 
-class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
+class OBJECT_PT_cache_archive_info(CacheArchiveInfoPanel, ObjectButtonsPanel, Panel):
     bl_label = "Cache Archive Info"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -709,57 +779,6 @@ class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
     def poll(cls, context):
         ob = context.object
         return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group and ob.cache_library)
-
-    def draw_node_structure(self, context, layout, node, indent):
-        row = layout.row()
-        for i in range(indent):
-            row.label(text="", icon='BLANK1')
-        
-        if not node.child_nodes:
-            row.label(text="", icon='DOT')
-        elif not node.expand:
-            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_RIGHT', icon_only=True, emboss=False)
-        else:
-            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_DOWN', icon_only=True, emboss=False)
-
-            for child in node.child_nodes:
-                self.draw_node_structure(context, layout, child, indent + 1)
-
-
-    info_columns = ['Name', 'Node', 'Samples', 'Size', 'Data', '', 'Array Size']
-
-    def draw_node_info(self, context, layout, node, column):
-        if column == 0:
-            layout.prop(node, "name", text="")
-        if column == 1:
-            layout.prop(node, "type", text="")
-        if column == 2:
-            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
-                layout.prop(node, "samples", text="")
-            else:
-                layout.label(" ")
-        if column == 3:
-            size = int(node.bytes_size)
-            layout.label(sizeof_fmt(size) if size >= 0 else "-")
-        if column == 4:
-            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
-                layout.prop(node, "datatype", text="")
-            else:
-                layout.label(" ")
-        if column == 5:
-            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
-                layout.prop(node, "datatype_extent", text="")
-            else:
-                layout.label(" ")
-        if column == 6:
-            if node.type in {'ARRAY_PROPERTY'}:
-                layout.label(node.array_size if node.array_size >= 0 else "-")
-            else:
-                layout.label(" ")
-
-        if node.expand:
-            for child in node.child_nodes:
-                self.draw_node_info(context, layout, child, column)
 
     def draw(self, context):
         ob = context.object
@@ -786,19 +805,7 @@ class OBJECT_PT_cache_archive_info(ObjectButtonsPanel, Panel):
 
             layout.separator()
 
-            layout.prop(info, "filepath")
-
-            if info.root_node:
-                row = layout.row()
-
-                col = row.column()
-                col.label(" ")
-                self.draw_node_structure(context, col, info.root_node, 0)
-
-                for i, column in enumerate(self.info_columns):
-                    col = row.column()
-                    col.label(column)
-                    self.draw_node_info(context, col, info.root_node, i)
+            self.draw_info(context, layout, info)
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

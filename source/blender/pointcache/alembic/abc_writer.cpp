@@ -19,12 +19,15 @@
 //#include <Alembic/AbcCoreHDF5/ReadWrite.h>
 #include <Alembic/AbcCoreOgawa/ReadWrite.h>
 #include <Alembic/Abc/OObject.h>
+#include <Alembic/Abc/ArchiveInfo.h>
 
 #include "abc_writer.h"
 
 #include "util_error_handler.h"
 
 extern "C" {
+#include <ctime>
+
 #include "BLI_fileops.h"
 #include "BLI_path_util.h"
 }
@@ -41,14 +44,38 @@ static void ensure_directory(const char *filename)
 	BLI_dir_create_recursive(dir);
 }
 
-AbcWriterArchive *AbcWriterArchive::open(double fps, float start_frame, const std::string &filename, PTCArchiveResolution resolutions, ErrorHandler *error_handler)
+static MetaData create_archive_info(const char *app_name, const char *description, const struct tm *t)
+{
+	MetaData md;
+	
+	md.set(kApplicationNameKey, app_name);
+	md.set(kUserDescriptionKey, description);
+	
+	if (!t) {
+		time_t curtime = time(NULL);
+		t = localtime(&curtime);
+	}
+	
+	if (t) {
+		char buf[256];
+		strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", t);
+		md.set(kDateWrittenKey, buf);
+	}
+	
+	return md;
+}
+
+AbcWriterArchive *AbcWriterArchive::open(double fps, float start_frame, const std::string &filename, PTCArchiveResolution resolutions,
+                                         const char *app_name, const char *description, const struct tm *time, ErrorHandler *error_handler)
 {
 	ensure_directory(filename.c_str());
 	
+	MetaData md = create_archive_info(app_name, description, time);
+	
 	OArchive abc_archive;
 	PTC_SAFE_CALL_BEGIN
-//	abc_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
-	abc_archive = OArchive(AbcCoreOgawa::WriteArchive(), filename, Abc::ErrorHandler::kThrowPolicy);
+//	abc_archive = OArchive(AbcCoreHDF5::WriteArchive(), filename, md, Abc::ErrorHandler::kThrowPolicy);
+	abc_archive = OArchive(AbcCoreOgawa::WriteArchive(), filename, md, Abc::ErrorHandler::kThrowPolicy);
 	PTC_SAFE_CALL_END_HANDLER(error_handler)
 	
 	if (abc_archive)

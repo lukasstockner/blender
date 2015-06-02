@@ -51,7 +51,8 @@ using namespace PTC;
 
 class StubFactory : public Factory {
 	const std::string &get_default_extension() { static std::string ext = ""; return ext; }
-	WriterArchive *open_writer_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, PTCArchiveResolution /*resolutions*/, ErrorHandler */*error_handler*/) { return NULL; }
+	WriterArchive *open_writer_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, PTCArchiveResolution /*resolutions*/,
+	                                   const char */*app_name*/, const char */*description*/, const struct tm */*t*/, ErrorHandler */*error_handler*/) { return NULL; }
 	ReaderArchive *open_reader_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, ErrorHandler * /*error_handler*/) { return NULL; }
 	void slice(ReaderArchive * /*in*/, WriterArchive * /*out*/, float /*start_frame*/, float /*end_frame*/) {}
 	Writer *create_writer_object(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/) { return NULL; }
@@ -129,9 +130,10 @@ const char *PTC_get_default_archive_extension(void)
 	return PTC::Factory::alembic->get_default_extension().c_str();
 }
 
-PTCWriterArchive *PTC_open_writer_archive(double fps, float start_frame, const char *path, PTCArchiveResolution resolutions)
+PTCWriterArchive *PTC_open_writer_archive(double fps, float start_frame, const char *path, PTCArchiveResolution resolutions,
+                                          const char *app_name, const char *description, const struct tm *time)
 {
-	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(fps, start_frame, path, resolutions, NULL);
+	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(fps, start_frame, path, resolutions, app_name, description, time, NULL);
 }
 
 void PTC_close_writer_archive(PTCWriterArchive *_archive)
@@ -247,6 +249,12 @@ void PTC_get_archive_info_stream(PTCReaderArchive *_archive, void (*stream)(void
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
 	archive->get_info_stream(stream, userdata);
+}
+
+void PTC_get_archive_info(PTCReaderArchive *_archive, struct CacheArchiveInfo *info)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	archive->get_info(info);
 }
 
 void PTC_get_archive_info_nodes(PTCReaderArchive *_archive, struct CacheArchiveInfo *info, bool calc_bytes_size)
