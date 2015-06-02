@@ -266,6 +266,13 @@ bpy.types.CacheLibrary.filter_string = \
         name="Filter Object Name",
         description="Filter cache library objects by name",
         )
+bpy.types.CacheLibrary.show_metadata = \
+    bpy.props.BoolProperty(
+        name="Show Metadata",
+        description="Show metadata for the input archive",
+        default=False,
+        )
+
 
 def cachelib_objects(cachelib, group):
     if not cachelib or not group:
@@ -446,12 +453,19 @@ class CacheArchiveInfoPanel():
             for child in node.child_nodes:
                 self.draw_node_info(context, layout, child, column)
 
-    def draw_info(self, context, layout, info):
-        layout.prop(info, "filepath", text="File")
+    def draw_info(self, context, layout, info, metadata=None):
         row = layout.row(align=True)
         row.label("Created by: {} | {}".format(info.app_name if info.app_name else "-", info.date_written if info.date_written else "-"))
         if info.description:
             layout.label(info.description)
+
+        if metadata:
+            row = layout.row(align=True)
+            col_key = row.column()
+            col_value = row.column()
+            for key, value in metadata.items():
+                col_key.label(key)
+                col_value.label(value)
 
         if info.root_node:
             row = layout.row()
@@ -494,8 +508,9 @@ class OBJECT_PT_cache_library(CacheArchiveInfoPanel, ObjectButtonsPanel, Panel):
         row = box.row(align=True)
         row.enabled = (cachelib.source_mode == 'CACHE')
         row.prop(cachelib, "input_filepath", text="")
-        if cachelib.archive_info:
-            self.draw_info(context, box, cachelib.archive_info)
+        row.prop(cachelib, "show_metadata", text="", icon='QUESTION', toggle=True)
+        if cachelib.show_metadata and cachelib.archive_info:
+            self.draw_info(context, box, cachelib.archive_info, cachelib['input_metadata'])
 
         layout.separator()
 
@@ -512,11 +527,6 @@ class OBJECT_PT_cache_library(CacheArchiveInfoPanel, ObjectButtonsPanel, Panel):
         row = layout.row(align=True)
         row.enabled = (cachelib.display_mode == 'RESULT')
         row.prop(cachelib, "output_filepath", text="")
-        props = row.operator("cachelibrary.archive_info", text="", icon='QUESTION')
-        props.filepath = cachelib.output_filepath
-        props.use_stdout = True
-        props.use_popup = True
-        props.use_clipboard = True
 
         box = layout.box()
         row = box.row()
@@ -803,6 +813,7 @@ class OBJECT_PT_cache_archive_info(CacheArchiveInfoPanel, ObjectButtonsPanel, Pa
 
             layout.separator()
 
+            layout.prop(info, "filepath", text="File")
             self.draw_info(context, layout, info)
 
 
