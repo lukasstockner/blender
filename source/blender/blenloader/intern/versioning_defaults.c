@@ -48,10 +48,35 @@
 
 
 /**
+ * Override theme options in startup.blend
+ */
+static void update_defaults_themes(void)
+{
+	bTheme *btheme;
+	ThemeSpace *ts;
+	uiWidgetColors *wcol;
+
+	for (btheme = U.themes.first; btheme; btheme = btheme->next) {
+		for (wcol = UI_THEMEWIDGETS_START(&btheme->tui); wcol != UI_THEMEWIDGETS_END(&btheme->tui); wcol++) {
+			wcol->shaded = 0;
+		}
+
+		for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
+			/* XXX maybe remove show_back/show_header options? */
+			ts->panelcolors.show_back = ts->panelcolors.show_header = true;
+			rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
+			rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
+		}
+	}
+}
+
+/**
  * Override values in in-memory startup.blend, avoids resaving for small changes.
  */
 void BLO_update_defaults_userpref_blend(void)
 {
+	uiStyle *style;
+
 	/* defaults from T37518 */
 
 	U.uiflag |= USER_ZBUF_CURSOR;
@@ -60,6 +85,18 @@ void BLO_update_defaults_userpref_blend(void)
 
 	U.versions = 1;
 	U.savetime = 2;
+
+	U.dpi = 78;
+
+	for (style = U.uistyles.first; style; style = style->next) {
+		style->paneltitle.points = style->widgetlabel.points = style->widget.points = 10;
+		style->paneltitle.shadx =  1;
+		style->paneltitle.shady = -1;
+		style->paneltitle.shadowalpha = 0.1f;
+		style->paneltitle.shadowcolor = 0.0f;
+	}
+
+	update_defaults_themes();
 }
 
 /**
