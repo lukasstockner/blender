@@ -1527,17 +1527,14 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	/* Big previews with optional text label below */
 	if (but->flag & UI_BUT_ICON_PREVIEW && ui_block_is_menu(but->block)) {
 		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
-		const int icon_size_i = BLI_rcti_size_y(rect);
-		float icon_size, text_size;
+		int icon_size = BLI_rcti_size_y(rect);
+		int text_size = 0;
 
 		/* This is a bit britle, but avoids adding an 'UI_BUT_HAS_LABEL' flag to but... */
-		if (icon_size_i > BLI_rcti_size_x(rect)) {
-			icon_size = 0.8f * (float)icon_size_i;
-			text_size = 0.2f * (float)icon_size_i;
-		}
-		else {
-			icon_size = (float)icon_size_i;
-			text_size = 0.0f;
+		if (icon_size > BLI_rcti_size_x(rect)) {
+			/* button is not square, it has extra height for label */
+			text_size = UI_UNIT_Y;
+			icon_size -= text_size;
 		}
 
 		/* draw icon in rect above the space reserved for the label */
@@ -1546,9 +1543,12 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		widget_draw_preview(icon, alpha, rect);
 		glDisable(GL_BLEND);
 
-		/* offset rect to draw label in*/
+		/* offset rect to draw label in */
 		rect->ymin -= text_size;
 		rect->ymax -= icon_size;
+
+		/* vertically centering text */
+		rect->ymin += UI_UNIT_Y / 2;
 	}
 	/* Icons on the left with optional text label on the right */
 	else if (but->flag & UI_HAS_ICON || show_menu_icon) {
@@ -4214,38 +4214,30 @@ void ui_draw_menu_item(uiFontStyle *fstyle, rcti *rect, const char *name, int ic
 
 void ui_draw_preview_item(uiFontStyle *fstyle, rcti *rect, const char *name, int iconid, int state)
 {
-	rcti trect = *rect, bg_rect;
+	rcti trect = *rect;
+	const float text_size = UI_UNIT_Y;
 	float font_dims[2] = {0.0f, 0.0f};
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_ITEM);
 	
+	/* drawing button background */
 	wt->state(wt, state);
 	wt->draw(&wt->wcol, rect, 0, 0);
 	
+	/* draw icon in rect above the space reserved for the label */
+	rect->ymin += text_size;
 	glEnable(GL_BLEND);
 	widget_draw_preview(iconid, 1.0f, rect);
+	glDisable(GL_BLEND);
 	
 	BLF_width_and_height(fstyle->uifont_id, name, BLF_DRAW_STR_DUMMY_MAX, &font_dims[0], &font_dims[1]);
 
 	/* text rect */
 	trect.xmin += 0;
-	trect.xmax = trect.xmin + font_dims[0] + 10;
-	trect.ymin += 10;
+	trect.xmax = trect.xmin + font_dims[0] + U.widget_unit / 2;
+	trect.ymin += U.widget_unit / 2;
 	trect.ymax = trect.ymin + font_dims[1];
 	if (trect.xmax > rect->xmax - PREVIEW_PAD)
 		trect.xmax = rect->xmax - PREVIEW_PAD;
-
-	bg_rect = trect;
-	bg_rect.xmin = rect->xmin + PREVIEW_PAD;
-	bg_rect.ymin = rect->ymin + PREVIEW_PAD;
-	bg_rect.xmax = rect->xmax - PREVIEW_PAD;
-	bg_rect.ymax += PREVIEW_PAD / 2;
-	
-	if (bg_rect.xmax > rect->xmax - PREVIEW_PAD)
-		bg_rect.xmax = rect->xmax - PREVIEW_PAD;
-
-	glColor4ubv((unsigned char *)wt->wcol_theme->inner_sel);
-	glRecti(bg_rect.xmin, bg_rect.ymin, bg_rect.xmax, bg_rect.ymax);
-	glDisable(GL_BLEND);
 
 	{
 		char drawstr[UI_MAX_DRAW_STR];
