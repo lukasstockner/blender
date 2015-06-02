@@ -109,10 +109,13 @@
 #include "BLI_threads.h"
 #include "BLI_mempool.h"
 
+#include "RNA_types.h"
+
 #include "BLF_translation.h"
 
 #include "BKE_action.h"
 #include "BKE_armature.h"
+#include "BKE_asset.h"
 #include "BKE_brush.h"
 #include "BKE_cloth.h"
 #include "BKE_constraint.h"
@@ -9342,7 +9345,9 @@ void BLO_library_append_all(Main *mainl, BlendHandle *bh)
 }
 
 
-static ID *append_named_part_ex(const bContext *C, Main *mainl, FileData *fd, const char *idname, const int idcode, const int flag)
+static ID *append_named_part_ex(
+        const bContext *C, Main *mainl, FileData *fd, const AssetEngineType *aet,
+        const char *idname, const int idcode, const AssetUUID *uuid, const int flag)
 {
 	ID *id= append_named_part(mainl, fd, idname, idcode);
 
@@ -9393,7 +9398,15 @@ ID *BLO_library_append_named_part(Main *mainl, BlendHandle **bh, const char *idn
 ID *BLO_library_append_named_part_ex(const bContext *C, Main *mainl, BlendHandle **bh, const char *idname, const int idcode, const short flag)
 {
 	FileData *fd = (FileData*)(*bh);
-	return append_named_part_ex(C, mainl, fd, idname, idcode, flag);
+	return append_named_part_ex(C, mainl, fd, NULL, idname, idcode, NULL, flag);
+}
+
+ID *BLO_library_append_named_part_asset(
+        const bContext *C, Main *mainl, BlendHandle **bh, const AssetEngineType *aet,
+        const char *idname, const int idcode, const AssetUUID *uuid, const int flag)
+{
+	FileData *fd = (FileData*)(*bh);
+	return append_named_part_ex(C, mainl, fd, aet, idname, idcode, uuid, flag);
 }
 
 static void append_id_part(FileData *fd, Main *mainvar, ID *id, ID **r_id)

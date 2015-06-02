@@ -2656,6 +2656,9 @@ static void wm_link_append_do_libgroup(
 	}
 
 	if (name) {
+		/* No uuid/asset-handling here, name is never defined in this case. */
+		BLI_assert(aet == NULL);
+
 		BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
 	}
 	else {
@@ -2680,13 +2683,18 @@ static void wm_link_append_do_libgroup(
 				curr_idcode = BKE_idcode_from_name(group);
 
 				if ((idcode == curr_idcode) && (BLI_path_cmp(curr_libname, libname) == 0)) {
-					AssetUUID asset_uuid;
+					if (aet) {
+						AssetUUID asset_uuid;
 
-					RNA_int_get_array(&itemptr, "asset_uuid", asset_uuid.uuid_asset);
-					RNA_int_get_array(&itemptr, "variant_uuid", asset_uuid.uuid_variant);
-					RNA_int_get_array(&itemptr, "revision_uuid", asset_uuid.uuid_revision);
+						RNA_int_get_array(&itemptr, "asset_uuid", asset_uuid.uuid_asset);
+						RNA_int_get_array(&itemptr, "variant_uuid", asset_uuid.uuid_variant);
+						RNA_int_get_array(&itemptr, "revision_uuid", asset_uuid.uuid_revision);
 
-					BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+						BLO_library_append_named_part_asset(C, mainl, &bh, aet, name, idcode, &asset_uuid, flag);
+					}
+					else {
+						BLO_library_append_named_part_ex(C, mainl, &bh, name, idcode, flag);
+					}
 				}
 				else if (is_first_run) {
 					BLI_join_dirfile(path, sizeof(path), curr_libname, group);

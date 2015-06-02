@@ -36,6 +36,8 @@
 extern "C" {
 #endif
 
+struct AssetEngineType;
+struct AssetUUID;
 struct bScreen;
 struct LinkNode;
 struct Main;
@@ -245,6 +247,23 @@ struct ID *BLO_library_append_named_part(
 struct ID *BLO_library_append_named_part_ex(
         const struct bContext *C, struct Main *mainl, BlendHandle **bh,
         const char *idname, const int idcode, const short flag);
+/**
+ * Link/Append a named datablock from an external blend file.
+ * optionally instance the object in the scene when the flags are set.
+ *
+ * \param C The context, when NULL instancing object in the scene isn't done.
+ * \param mainl The main database to link from (not the active one).
+ * \param bh The blender file handle.
+ * \param aet The asset engine type (NULL when no asset engine is used).
+ * \param idname The name of the datablock (without the 2 char ID prefix)
+ * \param idcode The kind of datablock to link.
+ * \param uuid The asset engine's UUID of this datablock (NULL when no asset engine is used).
+ * \param flag Options for linking, used for instancing.
+ * \return the appended ID when found.
+ */
+struct ID *BLO_library_append_named_part_asset(
+        const struct bContext *C, struct Main *mainl, BlendHandle **bh, const struct AssetEngineType *aet,
+        const char *idname, const int idcode, const struct AssetUUID *uuid, const int flag);
 
 void BLO_library_append_end(const struct bContext *C, struct Main *mainl, BlendHandle **bh, int idcode, short flag);
 

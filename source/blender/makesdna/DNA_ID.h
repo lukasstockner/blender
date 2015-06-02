@@ -162,8 +162,7 @@ typedef struct Library {
 	ID id;
 	ID *idblock;
 	struct FileData *filedata;
-	/* path name used for reading, can be relative and edited in the outliner.
-     * In case it's an asset engine, it's path from asset engine's 'root'. */
+	/* path name used for reading, can be relative and edited in the outliner. */
 	char name[1024];
 
 	/* absolute filepath, this is only for convenience, 'name' is the real path used on file read but in
