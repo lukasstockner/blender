@@ -465,7 +465,7 @@ class CacheArchiveInfoPanel():
             col_value = row.column()
             for key, value in metadata.items():
                 col_key.label(key)
-                col_value.label(value)
+                col_value.label(str(value))
 
         if info.root_node:
             row = layout.row()
