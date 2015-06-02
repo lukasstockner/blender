@@ -137,6 +137,11 @@ typedef enum eCacheArchiveInfoNode_Type {
 
 typedef struct CacheArchiveInfo {
 	char filepath[1024]; /* FILE_MAX */
+	
+	char app_name[64]; /* MAX_NAME */
+	char date_written[64]; /* MAX_NAME */
+	char description[256];
+	
 	struct CacheArchiveInfoNode *root_node;
 } CacheArchiveInfo;
 

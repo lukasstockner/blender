@@ -249,6 +249,12 @@ void PTC_get_archive_info_stream(PTCReaderArchive *_archive, void (*stream)(void
 	archive->get_info_stream(stream, userdata);
 }
 
+void PTC_get_archive_info(PTCReaderArchive *_archive, struct CacheArchiveInfo *info)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	archive->get_info(info);
+}
+
 void PTC_get_archive_info_nodes(PTCReaderArchive *_archive, struct CacheArchiveInfo *info, bool calc_bytes_size)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;

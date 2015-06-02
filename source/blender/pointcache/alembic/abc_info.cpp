@@ -388,43 +388,32 @@ static void info_nodes_object(CacheArchiveInfo *info, IObject iObj, CacheArchive
 		parent->bytes_size += node->bytes_size;
 }
 
-void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info, bool calc_bytes_size)
+void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info, bool calc_nodes, bool calc_bytes_size)
 {
-#if 0
-	stringstream ss(stream, userdata);
-	
-	ss << "Alembic Archive Info for "
-	   << Alembic::AbcCoreAbstract::GetLibraryVersion()
-	   << g_endl;
+//	ss << "Alembic Archive Info for "
+//	   << Alembic::AbcCoreAbstract::GetLibraryVersion()
+//	   << g_endl;
 	
 	std::string appName;
 	std::string libraryVersionString;
-	Alembic::Util::uint32_t libraryVersion;
+	uint32_t libraryVersion;
 	std::string whenWritten;
 	std::string userDescription;
-	GetArchiveInfo(archive,
-	               appName,
-	               libraryVersionString,
-	               libraryVersion,
-	               whenWritten,
-	               userDescription);
+	GetArchiveInfo(archive, appName, libraryVersionString, libraryVersion, whenWritten, userDescription);
 	
 	if (appName != "") {
-		ss << "  file written by: " << appName << g_endl;
-		ss << "  using Alembic : " << libraryVersionString << g_endl;
-		ss << "  written on : " << whenWritten << g_endl;
-		ss << "  user description : " << userDescription << g_endl;
-		ss << g_endl;
+		BLI_strncpy(info->app_name, appName.c_str(), sizeof(info->app_name));
+		BLI_strncpy(info->date_written, whenWritten.c_str(), sizeof(info->date_written));
+		BLI_strncpy(info->description, userDescription.c_str(), sizeof(info->description));
 	}
 	else {
-//		ss << argv[1] << g_endl;
-		ss << "  (file doesn't have any ArchiveInfo)"
-		   << g_endl;
-		ss << g_endl;
+		info->app_name[0] = '\0';
+		info->date_written[0] = '\0';
+		info->description[0] = '\0';
 	}
-#endif
 	
-	info_nodes_object(info, archive.getTop(), NULL, calc_bytes_size);
+	if (calc_nodes)
+		info_nodes_object(info, archive.getTop(), NULL, calc_bytes_size);
 }
 
 } /* namespace PTC */

@@ -1019,6 +1019,18 @@ static void rna_def_cache_archive_info(BlenderRNA *brna)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "File Path", "Path to the cache archive");
 	
+	prop = RNA_def_property(srna, "app_name", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Application", "Name of the application that created the archive");
+	
+	prop = RNA_def_property(srna, "date_written", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Date", "Date and time when the archive was created");
+	
+	prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Description", "Description of the archive");
+	
 	prop = RNA_def_property(srna, "root_node", PROP_POINTER, PROP_NONE);
 	RNA_def_property_struct_type(prop, "CacheArchiveInfoNode");
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);

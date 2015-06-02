@@ -371,6 +371,15 @@ static struct PTCReaderArchive *find_active_cache(Scene *scene, CacheLibrary *ca
 		archive = PTC_open_reader_archive(scene, filename);
 	}
 	
+	/* get basic archive info */
+	if (cachelib->archive_info)
+		BKE_cache_archive_info_clear(cachelib->archive_info);
+	else
+		cachelib->archive_info = BKE_cache_archive_info_new();
+	BLI_strncpy(cachelib->archive_info->filepath, filename, sizeof(cachelib->archive_info->filepath));
+	if (archive)
+		PTC_get_archive_info(archive, cachelib->archive_info);
+	
 	return archive;
 }
 
@@ -2166,6 +2175,11 @@ void BKE_cache_archive_info_free(CacheArchiveInfo *info)
 
 void BKE_cache_archive_info_clear(CacheArchiveInfo *info)
 {
+	info->filepath[0] = '\0';
+	info->app_name[0] = '\0';
+	info->date_written[0] = '\0';
+	info->description[0] = '\0';
+	
 	if (info->root_node) {
 		cache_archive_info_node_free(info->root_node);
 		info->root_node = NULL;

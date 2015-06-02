@@ -84,6 +84,7 @@ PTCReadSampleResult PTC_read_sample(struct PTCReader *reader, float frame);
 PTCReadSampleResult PTC_test_sample(struct PTCReader *reader, float frame);
 
 void PTC_get_archive_info_stream(struct PTCReaderArchive *archive, void (*stream)(void *, const char *), void *userdata);
+void PTC_get_archive_info(struct PTCReaderArchive *_archive, struct CacheArchiveInfo *info);
 void PTC_get_archive_info_nodes(struct PTCReaderArchive *_archive, struct CacheArchiveInfo *info, bool calc_bytes_size);
 
 void PTC_archive_slice(struct PTCReaderArchive *in, struct PTCWriterArchive *out, float start_frame, float end_frame);
