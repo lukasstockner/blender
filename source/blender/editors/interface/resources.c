@@ -2642,6 +2642,7 @@ void init_userdef_do_versions(void)
 	if (U.versionfile < 274 || (U.versionfile == 274 && U.subversionfile < 6)) {
 		bTheme *btheme;
 		ThemeSpace *ts;
+		uiWidgetColors *wcol;
 
 		for (btheme = U.themes.first; btheme; btheme = btheme->next) {
 			btheme->tui.wcol_box.roundness = 0.2f;
@@ -2661,6 +2662,10 @@ void init_userdef_do_versions(void)
 			btheme->tui.wcol_toggle.roundness = 0.2f;
 			btheme->tui.wcol_tool.roundness = 0.25f;
 			btheme->tui.wcol_tooltip.roundness = 0.2f;
+
+			for (wcol = UI_THEMEWIDGETS_START(&btheme->tui); wcol != UI_THEMEWIDGETS_END(&btheme->tui); wcol++) {
+				wcol->shaded = 0;
+			}
 
 			for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
 				/* XXX maybe remove show_back/show_header options? */
