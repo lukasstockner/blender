@@ -108,6 +108,7 @@ static void metadata_from_idprops(MetaData &md, IDProperty *prop)
 				for (int a = 0; a < prop->len; a++)
 					metadata_from_idprops(md, array[a]);
 			}
+			break;
 		}
 #endif
 		
@@ -115,16 +116,19 @@ static void metadata_from_idprops(MetaData &md, IDProperty *prop)
 			std::stringstream ss;
 			ss << IDP_String(prop);
 			md.set("s" + std::string(prop->name), ss.str());
+			break;
 		}
 		case IDP_INT: {
 			std::stringstream ss;
 			ss << IDP_Int(prop);
 			md.set("i" + std::string(prop->name), ss.str());
+			break;
 		}
 		case IDP_FLOAT: {
 			std::stringstream ss;
 			ss << IDP_Float(prop);
 			md.set("f" + std::string(prop->name), ss.str());
+			break;
 		}
 	}
 }
