@@ -65,6 +65,7 @@ BLI_INLINE V3f interpolate_sample(const V3f &val0, const V3f &val1, float t, Int
 			interp_v3_v3v3_slerp_safe(result.getValue(), val0.getValue(), val1.getValue(), t);
 			return result;
 	}
+	return V3f(0.0f, 0.0f, 0.0f);
 }
 
 BLI_INLINE Quatf interpolate_sample(const Quatf &val0, const Quatf &val1, float t)
