@@ -238,9 +238,11 @@ static void widget_init(uiWidgetBase *wtb)
 	wtb->tria2.tot = 0;
 
 	wtb->draw_inner = true;
-	wtb->draw_outline = true;
 	wtb->draw_emboss = true;
 	wtb->draw_shadedir = true;
+
+	/* don't draw outline by default */
+	wtb->draw_outline = false;
 }
 
 /* helper call, makes shadow rect, with 'sun' above menu, so only shadow to left/right/bottom */
@@ -2203,6 +2205,7 @@ static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int dir
 	
 	round_box_edges(&wtb, roundboxalign, rect, wcol->roundness * U.widget_unit);
 	wtb.draw_emboss = 0;
+	wtb.draw_outline = true;
 	widgetbase_draw(&wtb, wcol);
 	
 	glDisable(GL_BLEND);
@@ -2742,7 +2745,6 @@ void UI_draw_widget_scroll(uiWidgetColors *wcol, const rcti *rect, const rcti *s
 		rad = wcol->roundness * BLI_rcti_size_x(rect);
 	
 	wtb.draw_shadedir = (horizontal) ? true : false;
-	wtb.draw_outline = false;
 	
 	/* draw back part, colors swapped and shading inverted */
 	if (horizontal)
@@ -2925,7 +2927,6 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	toffs = offs * 0.75f;
 	round_box_edges(&wtb, roundboxalign, rect, offs);
 
-	wtb.draw_outline = false;
 	widgetbase_draw(&wtb, wcol);
 	
 	/* draw left/right parts only when not in text editing */
@@ -2950,7 +2951,6 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 		/* left part of slider, always rounded */
 		rect1.xmax = rect1.xmin + ceil(offs + U.pixelsize);
 		round_box_edges(&wtb1, roundboxalign & ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT), &rect1, offs);
-		wtb1.draw_outline = false;
 		widgetbase_draw(&wtb1, wcol);
 		
 		/* right part of slider, interpolate roundness */
@@ -2973,11 +2973,6 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 		if (!(state & UI_SELECT))
 			SWAP(short, wcol->shadetop, wcol->shadedown);
 	}
-	
-	/* outline */
-	wtb.draw_outline = true;
-	wtb.draw_inner = false;
-	widgetbase_draw(&wtb, wcol);
 
 	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
 	if (!(state & UI_TEXTINPUT)) {
@@ -3034,6 +3029,8 @@ static void widget_swatch(uiBut *but, uiWidgetColors *wcol, rcti *rect, int stat
 	
 	rgba_float_to_uchar((unsigned char *)wcol->inner, col);
 
+	/* always draw an outline for color buts to prevent them from being invisible */
+	wtb.draw_outline = true;
 	wcol->shaded = 0;
 	wcol->alpha_check = (wcol->inner[3] < 255);
 
@@ -3068,7 +3065,6 @@ static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, i
 		float rad;
 		
 		widget_init(&wtb);
-		wtb.draw_outline = false;
 		
 		/* rounded */
 		rad = wcol->roundness * BLI_rcti_size_y(rect);
@@ -3183,7 +3179,6 @@ static void widget_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widget_init(&wtb);
 	
 	/* not rounded, no outline */
-	wtb.draw_outline = false;
 	round_box_edges(&wtb, 0, rect, 0.0f);
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3220,9 +3215,8 @@ static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widget_init(&wtb);
 	
 	/* rounded, but no outline */
-	wtb.draw_outline = false;
 	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
-	
+
 	widgetbase_draw(&wtb, wcol);
 }
 
@@ -3336,6 +3330,7 @@ static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int 
 	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
+	wtb.draw_outline = true;
 	widgetbase_draw(&wtb, wcol);
 }
 

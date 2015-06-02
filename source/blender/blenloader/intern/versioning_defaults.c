@@ -50,7 +50,7 @@
 /**
  * Override theme options in startup.blend
  */
-static void update_defaults_themes(void)
+static void blo_update_defaults_themes(void)
 {
 	bTheme *btheme;
 	ThemeSpace *ts;
@@ -67,6 +67,9 @@ static void update_defaults_themes(void)
 			rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
 			rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
 		}
+
+		/* XXX maybe remove widget_emboss as well? */
+		btheme->tui.widget_emboss[3] = 0;
 	}
 }
 
@@ -96,7 +99,7 @@ void BLO_update_defaults_userpref_blend(void)
 		style->paneltitle.shadowcolor = 0.0f;
 	}
 
-	update_defaults_themes();
+	blo_update_defaults_themes();
 }
 
 /**
