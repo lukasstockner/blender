@@ -949,10 +949,11 @@ static void file_sfile_to_operator(
 	else {
 		/* We have to ensure those are properly reset!!! */
 		if ((prop = RNA_struct_find_property(op->ptr, "filename"))) {
-			RNA_property_reset(op->ptr, prop, 0);
+			RNA_property_string_set(op->ptr, prop, sfile->params->file);
 		}
 		if ((prop = RNA_struct_find_property(op->ptr, "filepath"))) {
-			RNA_property_reset(op->ptr, prop, 0);
+			BLI_join_dirfile(filepath, FILE_MAX_LIBEXTRA, sfile->params->dir, sfile->params->file);
+			RNA_property_string_set(op->ptr, prop, filepath);
 		}
 		if (prop_files) {
 			RNA_property_reset(op->ptr, prop, 0);
