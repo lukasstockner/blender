@@ -427,16 +427,43 @@ void UI_draw_icon_tri(float x, float y, char dir)
 	}
 }
 
-/* triangle 'icon' inside rect */
-static void ui_draw_tria_rect(const rctf *rect, char dir)
+static void ui_draw_tria_rect(const rctf *rect, const bool is_closed)
 {
-	if (dir == 'h') {
+	const float col_tint = 50;
+	const int px = (int)UI_DPI_FAC;
+	float col[3];
+
+	/* XXX ensure contrast */
+	UI_GetThemeColorShade3fv(TH_TITLE, col_tint, col);
+
+	/* color for shadow drawing */
+	glColor4f(0.0f, 0.0f, 0.0f, 0.3f);
+
+	if (is_closed) {
 		float half = 0.5f * BLI_rctf_size_y(rect);
-		ui_draw_anti_tria(rect->xmin, rect->ymin, rect->xmin, rect->ymax, rect->xmax, rect->ymin + half);
+
+		/* draw shadow first */
+		ui_draw_anti_tria(rect->xmin + px, rect->ymin - px,
+		                  rect->xmin + px, rect->ymax - px,
+		                  rect->xmax + px, rect->ymin + half - px);
+
+		glColor3fv(col);
+		ui_draw_anti_tria(rect->xmin, rect->ymin,
+		                  rect->xmin, rect->ymax,
+		                  rect->xmax, rect->ymin + half);
 	}
 	else {
-		float half = 0.5f * BLI_rctf_size_x(rect);
-		ui_draw_anti_tria(rect->xmin, rect->ymax, rect->xmax, rect->ymax, rect->xmin + half, rect->ymin);
+		float half = 0.5f * BLI_rctf_size_y(rect);
+
+		/* draw shadow first */
+		ui_draw_anti_tria(rect->xmin + px, rect->ymax - px,
+		                  rect->xmax + px, rect->ymax - px,
+		                  rect->xmin + half + px, rect->ymin - px);
+
+		glColor3fv(col);
+		ui_draw_anti_tria(rect->xmin, rect->ymax,
+		                  rect->xmax, rect->ymax,
+		                  rect->xmin + half, rect->ymin);
 	}
 }
 
@@ -462,9 +489,7 @@ static void ui_draw_anti_x(float x1, float y1, float x2, float y2)
 /* x 'icon' for panel header */
 static void ui_draw_x_icon(float x, float y)
 {
-
 	ui_draw_anti_x(x, y, x + 9.375f, y + 9.375f);
-
 }
 
 #define PNL_ICON    UI_UNIT_X  /* could be UI_UNIT_Y too */
@@ -492,78 +517,73 @@ static void ui_draw_panel_scalewidget(const rcti *rect)
 	fdrawline(xmin + dx, ymin + 1, xmax, ymax - dy + 1);
 	glDisable(GL_BLEND);
 }
+
 static void ui_draw_panel_dragwidget(const rctf *rect)
 {
 	unsigned char col_back[3], col_high[3], col_dark[3];
-	const int col_tint = 84;
+	const int col_tint = 60;
 
-	const int px = (int)U.pixelsize;
+	const int px = (int)UI_DPI_FAC;
 	const int px_zoom = max_ii(iroundf(BLI_rctf_size_y(rect) / 22.0f), 1);
 
 	const int box_margin = max_ii(iroundf((float)(px_zoom * 2.0f)), px);
 	const int box_size = max_ii(iroundf((BLI_rctf_size_y(rect) / 8.0f) - px), px);
+	const int box_rows = 4;
 
 	const int x_min = rect->xmin;
 	const int y_min = rect->ymin;
-	const int y_ofs = max_ii(iroundf(BLI_rctf_size_y(rect) / 3.0f), px);
-	const int x_ofs = y_ofs;
-	int i_x, i_y;
+	const int y_ofs = (BLI_rctf_size_y(rect) / box_rows) - (box_margin * 0.5f);
+	int i;
 
 
 	UI_GetThemeColor3ubv(UI_GetThemeValue(TH_PANEL_SHOW_HEADER) ? TH_PANEL_HEADER : TH_PANEL_BACK, col_back);
-	UI_GetColorPtrShade3ubv(col_back, col_high,  col_tint);
-	UI_GetColorPtrShade3ubv(col_back, col_dark, -col_tint);
+	UI_GetColorPtrShade3ubv(col_back, col_high, col_tint);
+	UI_GetColorPtrShade3ubv(col_back, col_dark, -(col_tint * 0.4));
 
 
 	/* draw multiple boxes */
-	for (i_x = 0; i_x < 4; i_x++) {
-		for (i_y = 0; i_y < 2; i_y++) {
-			const int x_co = (x_min + x_ofs) + (i_x * (box_size + box_margin));
-			const int y_co = (y_min + y_ofs) + (i_y * (box_size + box_margin));
+	for (i = 0; i < box_rows; i++) {
+		const int y_co = (y_min + y_ofs) + (i * (box_size + box_margin));
 
-			glColor3ubv(col_dark);
-			glRectf(x_co - box_size, y_co - px_zoom, x_co, (y_co + box_size) - px_zoom);
-			glColor3ubv(col_high);
-			glRectf(x_co - box_size, y_co, x_co, y_co + box_size);
-		}
+		glColor3ubv(col_dark);
+		glRectf(x_min - box_size + px_zoom, y_co - px_zoom, x_min + px_zoom, (y_co + box_size) - px_zoom);
+		glColor3ubv(col_high);
+		glRectf(x_min - box_size, y_co, x_min, y_co + box_size);
 	}
 }
 
-
-static void ui_draw_aligned_panel_header(uiStyle *style, uiBlock *block, const rcti *rect, char dir)
+static void ui_draw_aligned_panel_header(
+        const uiStyle *style, const uiBlock *block,
+        const rcti *rect, const char dir)
 {
-	Panel *panel = block->panel;
-	rcti hrect;
-	int pnl_icons;
+	const Panel *panel = block->panel;
+	const int px = (int)UI_DPI_FAC;
 	const char *activename = panel->drawname[0] ? panel->drawname : panel->panelname;
+	rcti hrect;
 
-	/* + 0.001f to avoid flirting with float inaccuracy */
-	if (panel->control & UI_PNL_CLOSE)
-		pnl_icons = (panel->labelofs + 2 * PNL_ICON + 5) / block->aspect + 0.001f;
-	else
-		pnl_icons = (panel->labelofs + PNL_ICON + 5) / block->aspect + 0.001f;
-	
 	/* active tab */
 	/* draw text label */
 	UI_ThemeColor(TH_TITLE);
-	
+
 	hrect = *rect;
 	if (dir == 'h') {
-		hrect.xmin = rect->xmin + pnl_icons;
-		hrect.ymin += 2.0f / block->aspect;
+		hrect.xmin = rect->xmin + BLI_rcti_size_y(rect);
+		hrect.ymin += (2.0f / block->aspect) * px;
 		UI_fontstyle_draw(&style->paneltitle, &hrect, activename);
 	}
 	else {
-		/* ignore 'pnl_icons', otherwise the text gets offset horizontally */
-		hrect.xmin = rect->xmin + (PNL_HEADER - 1) / block->aspect;
+		hrect.xmin = rect->xmin + ((PNL_HEADER - 1) / block->aspect);
 		UI_fontstyle_draw_rotated(&style->paneltitle, &hrect, activename);
 	}
 }
 
-static void ui_draw_panel_shadow(const rctf shadowrect, const float alpha_fac, const bool is_selected)
+static void ui_draw_panel_shadow(
+        const rctf shadowrect, const float aspect,
+        const float alpha_fac, const bool is_selected)
 {
 	float alpha_fac_tmp = 0.2f * alpha_fac;
-	short shadow_ofs = is_selected ? 2.0f * U.pixelsize : 1.0f * U.pixelsize;
+	const int px = MAX2(iroundf(UI_DPI_FAC * (1 / aspect)), 1);
+	short shadow_ofs = is_selected ? 2.0f * px : 1.0f * px;
 
 	glEnable(GL_BLEND);
 
@@ -581,7 +601,7 @@ static void ui_draw_panel_shadow(const rctf shadowrect, const float alpha_fac, c
 			glRectf(shadowrect.xmin + shadow_ofs, shadowrect.ymin - shadow_ofs,
 			        shadowrect.xmax + shadow_ofs, shadowrect.ymax - shadow_ofs);
 
-			shadow_ofs += 1 * U.pixelsize;
+			shadow_ofs += px;
 			alpha_fac_tmp *= 0.5f;
 		}
 	}
@@ -594,26 +614,33 @@ static void panel_boundbox_get(
         const rcti *blockrect, const rcti *headrect,
         rctf *r_bounds)
 {
-	const int xmax = (pa->flag & PNL_CLOSEDX) ? (blockrect->xmin + PNL_HEADER / block->aspect) : blockrect->xmax;
+	const int xmax = (pa->flag & PNL_CLOSEDX) ? (blockrect->xmin + (PNL_HEADER / block->aspect)) : blockrect->xmax;
 	const int ymin = (pa->flag & PNL_CLOSED)  ? headrect->ymin : blockrect->ymin;
 
 	BLI_rctf_init(r_bounds, blockrect->xmin, xmax, ymin, headrect->ymax);
 }
 
 /* panel integrated in buttonswindow, tool/property lists etc */
-void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, const bool show_pin)
+void ui_draw_aligned_panel(
+        uiStyle *style, uiBlock *block,
+        const rcti *rect,
+        const bool show_pin)
 {
 	Panel *panel = block->panel;
 	rctf fullrect, itemrect;
 	rcti headrect;
+	int ofsx;
 
 	const bool is_selected = (panel->flag & PNL_SELECT) ? true : false;
 	const float alpha_fac = is_selected ? 0.7f : 1.0f;
-	int ofsx;
 
+	/* panel states */
 	const bool is_inside = ELEM(panel->mouse_state, PANEL_MOUSE_INSIDE_CONTENT, PANEL_MOUSE_INSIDE_HEADER);
+	const bool is_closed_xy = (panel->flag & PNL_CLOSED) ? true : false;
 	const bool is_closed_x = (panel->flag & PNL_CLOSEDX) ? true : false;
 	const bool is_closed_y = (panel->flag & PNL_CLOSEDY) ? true : false;
+
+	/* theme options */
 	const bool draw_header = UI_GetThemeValue(TH_PANEL_SHOW_HEADER);
 	const bool draw_back = UI_GetThemeValue(TH_PANEL_SHOW_BACK);
 
@@ -629,7 +656,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 	/* set fullrect */
 	panel_boundbox_get(block, panel, rect, &headrect, &fullrect);
 
-	if (draw_header == false && panel->flag & PNL_CLOSED) {
+	if (draw_header == false && is_closed_xy) {
 		/* skip */
 	}
 	/* draw panel shadow */
@@ -641,12 +668,12 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 			shadowrect.ymax = rect->ymax;
 		}
 
-		ui_draw_panel_shadow(shadowrect, alpha_fac, is_selected);
+		ui_draw_panel_shadow(shadowrect, block->aspect, alpha_fac, is_selected);
 	}
 
 	{
 		float minx = rect->xmin;
-		float maxx = is_closed_x ? (minx + PNL_HEADER / block->aspect) : rect->xmax;
+		float maxx = is_closed_x ? (minx + (PNL_HEADER / block->aspect)) : rect->xmax;
 		float y = headrect.ymax;
 
 		glEnable(GL_BLEND);
@@ -656,7 +683,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 
 			if (is_inside) {
 				/* highlight if mouse is inside */
-				UI_GetThemeColorShade3fv(TH_PANEL_HEADER, 5, col);
+				UI_GetThemeColorShade3fv(TH_PANEL_HEADER, 7, col);
 			}
 			else {
 				UI_GetThemeColor3fv(TH_PANEL_HEADER, col);
@@ -692,24 +719,22 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 #endif
 	{
 		glEnable(GL_BLEND);
-		UI_icon_draw_aspect(headrect.xmax - ((PNL_ICON * 2.2f) / block->aspect), headrect.ymin + (5.0f / block->aspect),
+		UI_icon_draw_aspect(headrect.xmax - ((PNL_ICON * 1.8f) / block->aspect), headrect.ymin + (5.0f / block->aspect),
 		                    (panel->flag & PNL_PIN) ? ICON_PINNED : ICON_UNPINNED,
 		                    (block->aspect / UI_DPI_FAC), 1.0f);
 		glDisable(GL_BLEND);
 	}
 
-	/* horizontal title */
 	if (is_closed_x == false) {
+		/* horizontal title */
 		ui_draw_aligned_panel_header(style, block, &headrect, 'h');
 
+		/* drag widget */
 		if (is_inside) {
-		/* itemrect smaller */
-			itemrect.xmax = headrect.xmax - 5.0f / block->aspect;
-			itemrect.xmin = itemrect.xmax - BLI_rcti_size_y(&headrect);
-			itemrect.ymin = headrect.ymin;
-			itemrect.ymax = headrect.ymax;
+			BLI_rctf_rcti_copy(&itemrect, &headrect);
+			/* itemrect smaller */
+			itemrect.xmin = itemrect.xmax - (5.0f / block->aspect);
 
-			BLI_rctf_scale(&itemrect, 0.7f);
 			ui_draw_panel_dragwidget(&itemrect);
 		}
 	}
@@ -733,7 +758,7 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 
 			if (is_inside) {
 				/* highlight if mouse is inside */
-				UI_GetThemeColorShade3fv(TH_PANEL_BACK, 5, col);
+				UI_GetThemeColorShade3fv(TH_PANEL_BACK, 7, col);
 			}
 			else {
 				UI_GetThemeColor3fv(TH_PANEL_BACK, col);
@@ -758,23 +783,14 @@ void ui_draw_aligned_panel(uiStyle *style, uiBlock *block, const rcti *rect, con
 		ofsx = 22;
 	}
 
-	/* draw collapse icon */
-	UI_ThemeColor(TH_TITLE);
-
 	/* itemrect smaller */
-	itemrect.xmin = headrect.xmin + (is_closed_x ? (1.0f / block->aspect) : (5.0f / block->aspect));
+	itemrect.xmin = headrect.xmin + (is_closed_x ? (1.0f / block->aspect) : (3.0f / block->aspect));
 	itemrect.xmax = itemrect.xmin + BLI_rcti_size_y(&headrect);
 	itemrect.ymin = headrect.ymin;
 	itemrect.ymax = headrect.ymax;
-
 	BLI_rctf_scale(&itemrect, 0.35f);
 
-	if (is_closed_y)
-		ui_draw_tria_rect(&itemrect, 'h');
-	else if (is_closed_x)
-		ui_draw_tria_rect(&itemrect, 'h');
-	else
-		ui_draw_tria_rect(&itemrect, 'v');
+	ui_draw_tria_rect(&itemrect, is_closed_xy);
 
 	(void)ofsx;
 }
@@ -1388,17 +1404,17 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 	int align = panel_aligned(sa, ar), button = 0;
 
 	rctf rect_drag, rect_pin;
-	float rect_leftmost;
+	float collapse_xmax;
 
 
 	/* drag and pin rect's */
 	rect_drag = block->rect;
-	rect_drag.xmin = block->rect.xmax - (PNL_ICON * 1.5f);
+	rect_drag.xmin = block->rect.xmax - (PNL_ICON * 0.8f);
 	rect_pin = rect_drag;
 	if (show_pin) {
 		BLI_rctf_translate(&rect_pin, -PNL_ICON, 0.0f);
 	}
-	rect_leftmost = rect_pin.xmin;
+	collapse_xmax = rect_pin.xmin;
 
 	/* mouse coordinates in panel space! */
 	
@@ -1421,7 +1437,7 @@ static void ui_handle_panel_header(const bContext *C, uiBlock *block, int mx, in
 		if (mx <= block->rect.xmax - 8 - PNL_ICON) button = 2;
 		//else if (mx <= block->rect.xmin + 10 + 2 * PNL_ICON + 2) button = 1;
 	}
-	else if (mx < rect_leftmost) {
+	else if (mx < collapse_xmax) {
 		button = 1;
 	}
 	
