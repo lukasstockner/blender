@@ -1659,7 +1659,7 @@ static struct uiWidgetColors wcol_numslider = {
 	{25, 25, 25, 255},
 	{180, 180, 180, 255},
 	{153, 153, 153, 255},
-	{128, 128, 128, 255},
+	{140, 140, 140, 255},
 	
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
@@ -1823,7 +1823,7 @@ static struct uiWidgetColors wcol_radio = {
 };
 
 static struct uiWidgetColors wcol_regular = {
-	{25, 25, 25, 255},
+	{40, 40, 40, 255},
 	{153, 153, 153, 255},
 	{100, 100, 100, 255},
 	{25, 25, 25, 255},
@@ -1855,9 +1855,9 @@ static struct uiWidgetColors wcol_tool = {
 };
 
 static struct uiWidgetColors wcol_box = {
-	{25, 25, 25, 255},
-	{128, 128, 128, 255},
-	{100, 100, 100, 255},
+	{50, 50, 50, 255},
+	{140, 140, 140, 255},
+	{130, 130, 130, 255},
 	{25, 25, 25, 255},
 	
 	{0, 0, 0, 255},
@@ -1871,7 +1871,7 @@ static struct uiWidgetColors wcol_box = {
 };
 
 static struct uiWidgetColors wcol_toggle = {
-	{25, 25, 25, 255},
+	{70, 70, 70, 255},
 	{153, 153, 153, 255},
 	{100, 100, 100, 255},
 	{25, 25, 25, 255},
@@ -1890,7 +1890,7 @@ static struct uiWidgetColors wcol_scroll = {
 	{50, 50, 50, 180},
 	{80, 80, 80, 180},
 	{100, 100, 100, 180},
-	{128, 128, 128, 255},
+	{140, 140, 140, 255},
 	
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
@@ -3371,6 +3371,7 @@ static void widget_box(uiBut *but, uiWidgetColors *wcol, rcti *rect, int UNUSED(
 	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
 	
+	wtb.draw_outline = true;
 	widgetbase_draw(&wtb, wcol);
 		
 	copy_v3_v3_char(wcol->inner, old_col);
@@ -3380,13 +3381,27 @@ static void widget_but(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int 
 {
 	uiWidgetBase wtb;
 	float rad;
-	
+
 	widget_init(&wtb);
-	
+
 	/* half rounded */
 	rad = wcol->roundness * U.widget_unit;
 	round_box_edges(&wtb, roundboxalign, rect, rad);
-	
+
+	widgetbase_draw(&wtb, wcol);
+}
+
+static void widget_toggle(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int roundboxalign)
+{
+	uiWidgetBase wtb;
+	float rad;
+
+	widget_init(&wtb);
+
+	/* half rounded */
+	rad = wcol->roundness * U.widget_unit;
+	round_box_edges(&wtb, roundboxalign, rect, rad);
+
 	wtb.draw_outline = true;
 	widgetbase_draw(&wtb, wcol);
 }
@@ -3458,6 +3473,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_TOGGLE:
 			wt.wcol_theme = &btheme->tui.wcol_toggle;
+			wt.draw = widget_toggle;
 			break;
 			
 		case UI_WTYPE_CHECKBOX:

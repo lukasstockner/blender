@@ -67,10 +67,7 @@ void BLO_update_defaults_userpref_blend(void)
 
 	for (style = U.uistyles.first; style; style = style->next) {
 		style->paneltitle.points = style->widgetlabel.points = style->widget.points = 10;
-		style->paneltitle.shadx =  1;
-		style->paneltitle.shady = -1;
-		style->paneltitle.shadowalpha = 0.1f;
-		style->paneltitle.shadowcolor = 0.0f;
+		style->paneltitle.shadow = style->widgetlabel.shadow = 0;
 	}
 }
 
