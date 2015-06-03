@@ -131,9 +131,9 @@ const char *PTC_get_default_archive_extension(void)
 }
 
 PTCWriterArchive *PTC_open_writer_archive(double fps, float start_frame, const char *path, PTCArchiveResolution resolutions,
-                                          const char *app_name, const char *description, const struct tm *time)
+                                          const char *app_name, const char *description, const struct tm *time, struct IDProperty *metadata)
 {
-	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(fps, start_frame, path, resolutions, app_name, description, time, NULL);
+	return (PTCWriterArchive *)PTC::Factory::alembic->open_writer_archive(fps, start_frame, path, resolutions, app_name, description, time, metadata, NULL);
 }
 
 void PTC_close_writer_archive(PTCWriterArchive *_archive)
@@ -251,10 +251,10 @@ void PTC_get_archive_info_stream(PTCReaderArchive *_archive, void (*stream)(void
 	archive->get_info_stream(stream, userdata);
 }
 
-void PTC_get_archive_info(PTCReaderArchive *_archive, struct CacheArchiveInfo *info)
+void PTC_get_archive_info(PTCReaderArchive *_archive, struct CacheArchiveInfo *info, IDProperty *metadata)
 {
 	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
-	archive->get_info(info);
+	archive->get_info(info, metadata);
 }
 
 void PTC_get_archive_info_nodes(PTCReaderArchive *_archive, struct CacheArchiveInfo *info, bool calc_bytes_size)

@@ -31,6 +31,7 @@ extern "C" {
 }
 
 struct CacheLibrary;
+struct IDProperty;
 
 namespace PTC {
 
@@ -199,7 +200,7 @@ protected:
 struct Factory {
 	virtual const std::string &get_default_extension() = 0;
 	virtual WriterArchive *open_writer_archive(double fps, float start_frame, const std::string &name, PTCArchiveResolution resolutions,
-	                                           const char *app_name, const char *description, const struct tm *time, ErrorHandler *error_handler) = 0;
+	                                           const char *app_name, const char *description, const struct tm *time, struct IDProperty *metadata, ErrorHandler *error_handler) = 0;
 	virtual ReaderArchive *open_reader_archive(double fps, float start_frame, const std::string &name, ErrorHandler *error_handler) = 0;
 	
 	virtual void slice(ReaderArchive *in, WriterArchive *out, float start_frame, float end_frame) = 0;

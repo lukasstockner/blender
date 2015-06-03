@@ -59,7 +59,7 @@ public:
 	Abc::ISampleSelector get_frame_sample_selector(chrono_t time);
 	
 	void get_info_stream(void (*stream)(void *, const char *), void *userdata);
-	void get_info(CacheArchiveInfo *info);
+	void get_info(CacheArchiveInfo *info, IDProperty *metadata);
 	void get_info_nodes(CacheArchiveInfo *info, bool calc_bytes_size);
 	
 protected:

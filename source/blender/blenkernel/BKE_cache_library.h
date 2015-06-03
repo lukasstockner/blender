@@ -69,6 +69,9 @@ eCacheReadSampleResult BKE_cache_read_result(int ptc_result);
 
 bool BKE_cache_library_validate_item(struct CacheLibrary *cachelib, struct Object *ob, int type, int index);
 
+struct IDProperty *BKE_cache_library_get_input_metadata(struct CacheLibrary *cachelib, bool create);
+struct IDProperty *BKE_cache_library_get_output_metadata(struct CacheLibrary *cachelib, bool create);
+
 /* ========================================================================= */
 
 void BKE_cache_library_get_read_flags(struct CacheLibrary *cachelib, bool use_render, bool for_display, bool *read_strands_motion, bool *read_strands_children);

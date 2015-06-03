@@ -66,12 +66,106 @@ extern "C" {
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "DNA_ID.h"
+
 #include "BKE_cache_library.h"
+#include "BKE_idprop.h"
 }
 
 using namespace ::Alembic::AbcGeom;
 
 namespace PTC {
+
+static void metadata_from_idprops(MetaData &md, IDProperty *prop);
+
+void abc_metadata_from_idprops_group(MetaData &md, IDProperty *prop)
+{
+	if (!prop)
+		return;
+	
+	IDProperty *child;
+	for (child = (IDProperty *)prop->data.group.first; child; child = child->next)
+		metadata_from_idprops(md, child);
+}
+
+static void metadata_from_idprops(MetaData &md, IDProperty *prop)
+{
+	/* skip default metadata entries, these are set explicitly */
+	std::string key(prop->name);
+	if (key.compare(kApplicationNameKey)==0 || key.compare(kDateWrittenKey)==0 || key.compare(kUserDescriptionKey)==0)
+		return;
+	
+	switch (prop->type) {
+#if 0 /* don't support recursion yet */
+		case IDP_GROUP: {
+			metadata_from_idprops_group(md, child);
+			break;
+		}
+		
+		case IDP_ARRAY: {
+			if (prop->data.pointer) {
+				IDProperty **array = (IDProperty **)prop->data.pointer;
+				for (int a = 0; a < prop->len; a++)
+					metadata_from_idprops(md, array[a]);
+			}
+			break;
+		}
+#endif
+		
+		/* only string properties are used */
+		case IDP_STRING: {
+			md.set(prop->name, IDP_String(prop));
+			break;
+		}
+	}
+}
+
+void abc_metadata_to_idprops_group(const MetaData &md, IDProperty *prop)
+{
+	if (!prop)
+		return;
+	
+	for (MetaData::const_iterator it = md.begin(); it != md.end(); ++it) {
+		const std::string &key = it->first;
+		const std::string &value = it->second;
+		
+		/* skip default metadata entries, these are stored in CacheArchiveInfo */
+		if (key.compare(kApplicationNameKey)==0 || key.compare(kDateWrittenKey)==0 || key.compare(kUserDescriptionKey)==0)
+			continue;
+		
+		IDPropertyTemplate val;
+		val.string.str = value.c_str();
+		val.string.len = value.length();
+		IDP_ReplaceInGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()));
+	}
+}
+
+MetaData abc_create_archive_info(const char *app_name, const char *description, const struct tm *t, IDProperty *props)
+{
+	MetaData md;
+	
+	md.set(kApplicationNameKey, app_name);
+	md.set(kUserDescriptionKey, description);
+	
+	if (!t) {
+		time_t curtime = time(NULL);
+		t = localtime(&curtime);
+	}
+	
+	if (t) {
+		char buf[256];
+		strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", t);
+		md.set(kDateWrittenKey, buf);
+	}
+	
+	/* store custom properties as metadata */
+	if (props && props->type == IDP_GROUP)
+		abc_metadata_from_idprops_group(md, props);
+	
+	return md;
+}
+
+/* ========================================================================= */
 
 struct stringstream {
 	stringstream(void (*cb)(void *, const char *), void *userdata) :
@@ -388,7 +482,7 @@ static void info_nodes_object(CacheArchiveInfo *info, IObject iObj, CacheArchive
 		parent->bytes_size += node->bytes_size;
 }
 
-void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info, bool calc_nodes, bool calc_bytes_size)
+void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info, IDProperty *metadata, bool calc_nodes, bool calc_bytes_size)
 {
 //	ss << "Alembic Archive Info for "
 //	   << Alembic::AbcCoreAbstract::GetLibraryVersion()
@@ -411,6 +505,9 @@ void abc_archive_info_nodes(IArchive &archive, CacheArchiveInfo *info, bool calc
 		info->date_written[0] = '\0';
 		info->description[0] = '\0';
 	}
+	
+	if (metadata)
+		abc_metadata_to_idprops_group(archive.getPtr()->getMetaData(), metadata);
 	
 	if (calc_nodes)
 		info_nodes_object(info, archive.getTop(), NULL, calc_bytes_size);
