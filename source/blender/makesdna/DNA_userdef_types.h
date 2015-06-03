@@ -128,8 +128,9 @@ typedef struct uiWidgetColors {
 	char text_sel[4];
 	short shaded;
 	short shadetop, shadedown;
-	short alpha_check;
-	float roundness, pad;
+	short pad;
+	float roundness;
+	short alpha_check, pad2;
 } uiWidgetColors;
 
 typedef struct uiWidgetStateColors {
@@ -399,9 +400,6 @@ typedef struct bTheme {
 
 #define UI_THEMESPACE_START(btheme)  (CHECK_TYPE_INLINE(btheme, bTheme *),  &((btheme)->tbuts))
 #define UI_THEMESPACE_END(btheme)    (CHECK_TYPE_INLINE(btheme, bTheme *), (&((btheme)->tclip) + 1))
-
-#define UI_THEMEWIDGETS_START(tui)   (CHECK_TYPE_INLINE(tui, ThemeUI *),  &((tui)->wcol_regular))
-#define UI_THEMEWIDGETS_END(tui)     (CHECK_TYPE_INLINE(tui, ThemeUI *), (&((tui)->wcol_pie_menu) + 1))
 
 /* for the moment only the name. may want to store options with this later */
 typedef struct bAddon {

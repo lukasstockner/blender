@@ -48,32 +48,6 @@
 
 
 /**
- * Override theme options in startup.blend
- */
-static void blo_update_defaults_themes(void)
-{
-	bTheme *btheme;
-	ThemeSpace *ts;
-	uiWidgetColors *wcol;
-
-	for (btheme = U.themes.first; btheme; btheme = btheme->next) {
-		for (wcol = UI_THEMEWIDGETS_START(&btheme->tui); wcol != UI_THEMEWIDGETS_END(&btheme->tui); wcol++) {
-			wcol->shaded = 0;
-		}
-
-		for (ts = UI_THEMESPACE_START(btheme); ts != UI_THEMESPACE_END(btheme); ts++) {
-			/* XXX maybe remove show_back/show_header options? */
-			ts->panelcolors.show_back = ts->panelcolors.show_header = true;
-			rgba_char_args_set(ts->panelcolors.back, 128, 128, 128, 255);
-			rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
-		}
-
-		/* XXX maybe remove widget_emboss as well? */
-		btheme->tui.widget_emboss[3] = 0;
-	}
-}
-
-/**
  * Override values in in-memory startup.blend, avoids resaving for small changes.
  */
 void BLO_update_defaults_userpref_blend(void)
@@ -98,8 +72,6 @@ void BLO_update_defaults_userpref_blend(void)
 		style->paneltitle.shadowalpha = 0.1f;
 		style->paneltitle.shadowcolor = 0.0f;
 	}
-
-	blo_update_defaults_themes();
 }
 
 /**

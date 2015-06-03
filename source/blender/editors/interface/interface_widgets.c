@@ -1648,8 +1648,11 @@ static struct uiWidgetColors wcol_num = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	1,
-	-20, 0
+	0,
+	-20, 0,
+
+	0, /* pad */
+	0.5f
 };
 
 static struct uiWidgetColors wcol_numslider = {
@@ -1661,8 +1664,11 @@ static struct uiWidgetColors wcol_numslider = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	1,
-	-20, 0
+	0,
+	-20, 0,
+
+	0, /* pad */
+	0.5f
 };
 
 static struct uiWidgetColors wcol_text = {
@@ -1674,8 +1680,11 @@ static struct uiWidgetColors wcol_text = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	1,
-	0, 25
+	0,
+	0, 25,
+
+	0, /* pad */
+	0.2f
 };
 
 static struct uiWidgetColors wcol_option = {
@@ -1687,8 +1696,11 @@ static struct uiWidgetColors wcol_option = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	1,
-	15, -15
+	0,
+	15, -15,
+
+	0, /* pad */
+	0.35f
 };
 
 /* button that shows popup */
@@ -1701,8 +1713,11 @@ static struct uiWidgetColors wcol_menu = {
 	{255, 255, 255, 255},
 	{204, 204, 204, 255},
 	
-	1,
-	15, -15
+	0,
+	15, -15,
+
+	0, /* pad */
+	0.2f
 };
 
 /* button that starts pulldown */
@@ -1716,7 +1731,10 @@ static struct uiWidgetColors wcol_pulldown = {
 	{0, 0, 0, 255},
 	
 	0,
-	25, -20
+	25, -20,
+
+	0, /* pad */
+	0.2f
 };
 
 /* button inside menu */
@@ -1729,8 +1747,11 @@ static struct uiWidgetColors wcol_menu_item = {
 	{255, 255, 255, 255},
 	{0, 0, 0, 255},
 	
-	1,
-	38, 0
+	0,
+	38, 0,
+
+	0, /* pad */
+	0.2f
 };
 
 /* backdrop menu + title text color */
@@ -1744,7 +1765,10 @@ static struct uiWidgetColors wcol_menu_back = {
 	{255, 255, 255, 255},
 	
 	0,
-	25, -20
+	25, -20,
+
+	0, /* pad */
+	0.25f
 };
 
 /* pie menus */
@@ -1757,8 +1781,11 @@ static struct uiWidgetColors wcol_pie_menu = {
 	{160, 160, 160, 255},
 	{255, 255, 255, 255},
 
-	1,
-	10, -10
+	0,
+	10, -10,
+
+	0, /* pad */
+	0.5f
 };
 
 
@@ -1773,7 +1800,10 @@ static struct uiWidgetColors wcol_tooltip = {
 	{255, 255, 255, 255},
 
 	0,
-	25, -20
+	25, -20,
+
+	0, /* pad */
+	0.2f
 };
 
 static struct uiWidgetColors wcol_radio = {
@@ -1785,8 +1815,11 @@ static struct uiWidgetColors wcol_radio = {
 	{255, 255, 255, 255},
 	{0, 0, 0, 255},
 	
-	1,
-	15, -15
+	0,
+	15, -15,
+
+	0, /* pad */
+	0.2f
 };
 
 static struct uiWidgetColors wcol_regular = {
@@ -1799,7 +1832,10 @@ static struct uiWidgetColors wcol_regular = {
 	{255, 255, 255, 255},
 	
 	0,
-	0, 0
+	0, 0,
+
+	0, /* pad */
+	0.2f
 };
 
 static struct uiWidgetColors wcol_tool = {
@@ -1811,8 +1847,11 @@ static struct uiWidgetColors wcol_tool = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	1,
-	15, -15
+	0,
+	15, -15,
+
+	0, /* pad */
+	0.25f
 };
 
 static struct uiWidgetColors wcol_box = {
@@ -1825,7 +1864,10 @@ static struct uiWidgetColors wcol_box = {
 	{255, 255, 255, 255},
 	
 	0,
-	0, 0
+	0, 0,
+
+	0, /* pad */
+	0.2f
 };
 
 static struct uiWidgetColors wcol_toggle = {
@@ -1838,7 +1880,10 @@ static struct uiWidgetColors wcol_toggle = {
 	{255, 255, 255, 255},
 	
 	0,
-	0, 0
+	0, 0,
+
+	0, /* pad */
+	0.2f
 };
 
 static struct uiWidgetColors wcol_scroll = {
@@ -1850,8 +1895,11 @@ static struct uiWidgetColors wcol_scroll = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	1,
-	5, -5
+	0,
+	5, -5,
+
+	0, /* pad */
+	0.5f
 };
 
 static struct uiWidgetColors wcol_progress = {
@@ -1864,7 +1912,10 @@ static struct uiWidgetColors wcol_progress = {
 	{255, 255, 255, 255},
 	
 	0,
-	0, 0
+	0, 0,
+
+	0, /* pad */
+	0.2f
 };
 
 static struct uiWidgetColors wcol_list_item = {
@@ -1877,7 +1928,10 @@ static struct uiWidgetColors wcol_list_item = {
 	{0, 0, 0, 255},
 	
 	0,
-	0, 0
+	0, 0,
+
+	0, /* pad */
+	0.2f
 };
 
 /* free wcol struct to play with */
@@ -1891,7 +1945,10 @@ static struct uiWidgetColors wcol_tmp = {
 	{255, 255, 255, 255},
 	
 	0,
-	0, 0
+	0, 0,
+
+	0, /* pad */
+	0.2f
 };
 
 
@@ -3194,7 +3251,7 @@ static void widget_menu_radial_itembut(uiBut *but, uiWidgetColors *wcol, rcti *r
 
 	wtb.draw_emboss = false;
 
-	rad = 0.5f * BLI_rcti_size_y(rect);
+	rad = wcol->roundness * BLI_rcti_size_y(rect);
 	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
 
 	wcol->inner[3] *= fac;
