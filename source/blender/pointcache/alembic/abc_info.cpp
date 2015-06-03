@@ -112,22 +112,9 @@ static void metadata_from_idprops(MetaData &md, IDProperty *prop)
 		}
 #endif
 		
+		/* only string properties are used */
 		case IDP_STRING: {
-			std::stringstream ss;
-			ss << IDP_String(prop);
-			md.set("s" + std::string(prop->name), ss.str());
-			break;
-		}
-		case IDP_INT: {
-			std::stringstream ss;
-			ss << IDP_Int(prop);
-			md.set("i" + std::string(prop->name), ss.str());
-			break;
-		}
-		case IDP_FLOAT: {
-			std::stringstream ss;
-			ss << IDP_Float(prop);
-			md.set("f" + std::string(prop->name), ss.str());
+			md.set(prop->name, IDP_String(prop));
 			break;
 		}
 	}
@@ -147,29 +134,9 @@ void abc_metadata_to_idprops_group(const MetaData &md, IDProperty *prop)
 			continue;
 		
 		IDPropertyTemplate val;
-		
-		if (key[0] == 'i') {
-			std::istringstream ss(value);
-			if (ss >> val.i) {
-				IDP_ReplaceInGroup(prop, IDP_New(IDP_INT, &val, key.c_str()+1));
-			}
-		}
-		else if (key[0] == 'f') {
-			std::istringstream ss(value);
-			if (ss >> val.f) {
-				IDP_ReplaceInGroup(prop, IDP_New(IDP_FLOAT, &val, key.c_str()+1));
-			}
-		}
-		else if (key[0] == 's') {
-			val.string.str = value.c_str();
-			val.string.len = value.length();
-			IDP_ReplaceInGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()+1));
-		}
-		else {
-			val.string.str = value.c_str();
-			val.string.len = value.length();
-			IDP_ReplaceInGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()));
-		}
+		val.string.str = value.c_str();
+		val.string.len = value.length();
+		IDP_ReplaceInGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()));
 	}
 }
 
