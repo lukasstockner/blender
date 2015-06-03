@@ -322,7 +322,7 @@ void UI_draw_widget_scroll(struct uiWidgetColors *wcol, const struct rcti *rect,
 /* Shortening string helper. */
 float UI_text_clip_middle_ex(
         struct uiFontStyle *fstyle, char *str, float okwidth, const float minwidth,
-        const size_t max_len, const char *rpart_sep);
+        const size_t max_len, const char rpart_sep);
 
 /* Callbacks
  *
@@ -471,7 +471,7 @@ void    UI_but_drag_set_path(uiBut *but, const char *path, const bool use_free);
 void    UI_but_drag_set_name(uiBut *but, const char *name);
 void    UI_but_drag_set_value(uiBut *but);
 void    UI_but_drag_set_image(
-                uiBut *but, const char *path, const bool use_free, int icon, struct ImBuf *ima, float scale);
+                uiBut *but, const char *path, int icon, struct ImBuf *ima, float scale, const bool use_free);
 
 bool    UI_but_active_drop_name(struct bContext *C);
 bool    UI_but_active_drop_color(struct bContext *C);

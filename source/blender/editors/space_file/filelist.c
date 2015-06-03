@@ -2006,28 +2006,30 @@ int ED_file_extension_icon(const char *path)
 {
 	int type = path_extension_type(path);
 	
-	if (type == FILE_TYPE_BLENDER)
-		return ICON_FILE_BLEND;
-	else if (type == FILE_TYPE_BLENDER_BACKUP)
-		return ICON_FILE_BACKUP;
-	else if (type == FILE_TYPE_IMAGE)
-		return ICON_FILE_IMAGE;
-	else if (type == FILE_TYPE_MOVIE)
-		return ICON_FILE_MOVIE;
-	else if (type == FILE_TYPE_PYSCRIPT)
-		return ICON_FILE_SCRIPT;
-	else if (type == FILE_TYPE_SOUND)
-		return ICON_FILE_SOUND;
-	else if (type == FILE_TYPE_FTFONT)
-		return ICON_FILE_FONT;
-	else if (type == FILE_TYPE_BTX)
-		return ICON_FILE_BLANK;
-	else if (type == FILE_TYPE_COLLADA)
-		return ICON_FILE_BLANK;
-	else if (type == FILE_TYPE_TEXT)
-		return ICON_FILE_TEXT;
-	
-	return ICON_FILE_BLANK;
+	switch (type) {
+		case FILE_TYPE_BLENDER:
+			return ICON_FILE_BLEND;
+		case FILE_TYPE_BLENDER_BACKUP:
+			return ICON_FILE_BACKUP;
+		case FILE_TYPE_IMAGE:
+			return ICON_FILE_IMAGE;
+		case FILE_TYPE_MOVIE:
+			return ICON_FILE_MOVIE;
+		case FILE_TYPE_PYSCRIPT:
+			return ICON_FILE_SCRIPT;
+		case FILE_TYPE_SOUND:
+			return ICON_FILE_SOUND;
+		case FILE_TYPE_FTFONT:
+			return ICON_FILE_FONT;
+		case FILE_TYPE_BTX:
+			return ICON_FILE_BLANK;
+		case FILE_TYPE_COLLADA:
+			return ICON_FILE_BLANK;
+		case FILE_TYPE_TEXT:
+			return ICON_FILE_TEXT;
+		default:
+			return ICON_FILE_BLANK;
+	}
 }
 
 int filelist_empty(struct FileList *filelist)

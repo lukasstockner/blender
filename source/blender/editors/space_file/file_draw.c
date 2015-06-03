@@ -284,7 +284,7 @@ static void file_draw_string(int sx, int sy, const char *string, float width, in
 	fs.align = align;
 
 	BLI_strncpy(fname, string, FILE_MAXFILE);
-	UI_text_clip_middle_ex(&fs, fname, width, UI_DPI_ICON_SIZE, sizeof(fname), NULL);
+	UI_text_clip_middle_ex(&fs, fname, width, UI_DPI_ICON_SIZE, sizeof(fname), '\0');
 
 	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */
 	rect.xmin = sx;
@@ -386,7 +386,7 @@ static void file_draw_preview(
 	/* dragregion */
 	if (drag) {
 		/* path is no more static, cannot give it directly to but... */
-		UI_but_drag_set_image(but, BLI_strdup(path), true, icon, imb, scale);
+		UI_but_drag_set_image(but, BLI_strdup(path), icon, imb, scale, true);
 	}
 
 	glDisable(GL_BLEND);

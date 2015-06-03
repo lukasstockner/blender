@@ -4102,7 +4102,7 @@ void UI_but_drag_set_value(uiBut *but)
 	but->dragtype = WM_DRAG_VALUE;
 }
 
-void UI_but_drag_set_image(uiBut *but, const char *path, const bool use_free, int icon, struct ImBuf *imb, float scale)
+void UI_but_drag_set_image(uiBut *but, const char *path, int icon, struct ImBuf *imb, float scale, const bool use_free)
 {
 	but->dragtype = WM_DRAG_PATH;
 	ui_def_but_icon(but, icon, 0);  /* no flag UI_HAS_ICON, so icon doesnt draw in button */
@@ -4491,7 +4491,19 @@ void UI_but_string_info_get(bContext *C, uiBut *but, ...)
 
 		if (type == BUT_GET_LABEL) {
 			if (but->str) {
-				tmp = BLI_strdup(but->str);
+				const char *str_sep;
+				size_t str_len;
+
+				if ((but->flag & UI_BUT_HAS_SEP_CHAR) &&
+				    (str_sep = strrchr(but->str, UI_SEP_CHAR)))
+				{
+					str_len = (str_sep - but->str);
+				}
+				else {
+					str_len = strlen(but->str);
+				}
+
+				tmp = BLI_strdupn(but->str, str_len);
 			}
 			else {
 				type = BUT_GET_RNA_LABEL;  /* Fail-safe solution... */
