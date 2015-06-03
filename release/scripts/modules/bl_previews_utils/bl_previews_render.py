@@ -146,7 +146,7 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         image.filepath = scene.render.filepath
 
         return RenderContext(
-            scene.name, world.name, camera.name, lamp.name if lamp else None,
+            scene.name, world.name if world else None, camera.name, lamp.name if lamp else None,
             camera_data.name, lamp_data.name if lamp_data else None, image.name,
             backup_scene, backup_world, backup_camera, backup_lamp, backup_camera_data, backup_lamp_data,
         )
@@ -166,13 +166,14 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
                 scene = None
             else:
                 rna_backup_restore(scene, render_context.backup_scene)
-            world = bpy.data.worlds[render_context.world]
-            if render_context.backup_world is None:
-                if scene is not None:
-                    scene.world = None
-                bpy.data.worlds.remove(world)
-            else:
-                rna_backup_restore(world, render_context.backup_world)
+            if render_context.world is not None:
+                world = bpy.data.worlds[render_context.world]
+                if render_context.backup_world is None:
+                    if scene is not None:
+                        scene.world = None
+                    bpy.data.worlds.remove(world)
+                else:
+                    rna_backup_restore(world, render_context.backup_world)
             if render_context.camera:
                 camera = bpy.data.objects[render_context.camera]
                 if render_context.backup_camera is None:
