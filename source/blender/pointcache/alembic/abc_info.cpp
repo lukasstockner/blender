@@ -151,24 +151,24 @@ void abc_metadata_to_idprops_group(const MetaData &md, IDProperty *prop)
 		if (key[0] == 'i') {
 			std::istringstream ss(value);
 			if (ss >> val.i) {
-				IDP_AddToGroup(prop, IDP_New(IDP_INT, &val, key.c_str()+1));
+				IDP_ReplaceInGroup(prop, IDP_New(IDP_INT, &val, key.c_str()+1));
 			}
 		}
 		else if (key[0] == 'f') {
 			std::istringstream ss(value);
 			if (ss >> val.f) {
-				IDP_AddToGroup(prop, IDP_New(IDP_FLOAT, &val, key.c_str()+1));
+				IDP_ReplaceInGroup(prop, IDP_New(IDP_FLOAT, &val, key.c_str()+1));
 			}
 		}
 		else if (key[0] == 's') {
 			val.string.str = value.c_str();
 			val.string.len = value.length();
-			IDP_AddToGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()+1));
+			IDP_ReplaceInGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()+1));
 		}
 		else {
 			val.string.str = value.c_str();
 			val.string.len = value.length();
-			IDP_AddToGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()));
+			IDP_ReplaceInGroup(prop, IDP_New(IDP_STRING, &val, key.c_str()));
 		}
 	}
 }
