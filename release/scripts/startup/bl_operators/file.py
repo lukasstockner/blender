@@ -85,7 +85,6 @@ class WM_OT_previews_batch_generate(Operator):
                 "--python",
                 os.path.join(os.path.dirname(preview_render.__file__), "bl_previews_render.py"),
                 "--",
-                "bl_previews_render.py",  # arg parser expects first arg to be prog name!
             ]
             if not self.use_scenes:
                 cmmd.append('--no_scenes')
@@ -162,7 +161,6 @@ class WM_OT_previews_batch_clear(Operator):
                 "--python",
                 os.path.join(os.path.dirname(preview_render.__file__), "bl_previews_render.py"),
                 "--",
-                "bl_previews_render.py",  # arg parser expects first arg to be prog name!
                 "--clear",
             ]
             if not self.use_scenes:

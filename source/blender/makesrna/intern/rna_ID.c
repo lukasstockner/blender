@@ -457,14 +457,14 @@ static void rna_ImagePreview_size_set(PointerRNA *ptr, const int *values, enum e
 		BLI_assert(prv_img == BKE_previewimg_id_ensure(id));
 	}
 
-	BKE_previewimg_ensure(prv_img, size);
+	BKE_previewimg_clear_single(prv_img, size);
 
 	if (values[0] && values[1]) {
 		prv_img->rect[size] = MEM_callocN(values[0] * values[1] * sizeof(unsigned int), "prv_rect");
-	}
 
-	prv_img->w[size] = values[0];
-	prv_img->h[size] = values[1];
+		prv_img->w[size] = values[0];
+		prv_img->h[size] = values[1];
+	}
 
 	prv_img->flag[size] |= (PRV_CHANGED | PRV_USER_EDITED);
 }
