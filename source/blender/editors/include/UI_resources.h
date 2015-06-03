@@ -55,6 +55,9 @@ enum {
 	TH_REDALERT,
 
 	TH_THEMEUI,
+
+	TH_AREA_EDGES,
+
 // common colors among spaces
 	
 	TH_BACK,

@@ -78,33 +78,31 @@ extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, 
 static void region_draw_emboss(ARegion *ar, rcti *scirct)
 {
 	rcti rect;
-	
+
+	if (!ELEM(ar->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_PROPS))
+		return;
+
 	/* translate scissor rect to region space */
 	rect.xmin = scirct->xmin - ar->winrct.xmin;
 	rect.ymin = scirct->ymin - ar->winrct.ymin;
 	rect.xmax = scirct->xmax - ar->winrct.xmin;
 	rect.ymax = scirct->ymax - ar->winrct.ymin;
-	
+
 	/* set transp line */
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
-	/* right  */
-	glColor4ub(0, 0, 0, 30);
-	sdrawline(rect.xmax, rect.ymin, rect.xmax, rect.ymax);
-	
-	/* bottom  */
-	glColor4ub(0, 0, 0, 30);
-	sdrawline(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
-	
-	/* top  */
-	glColor4ub(255, 255, 255, 30);
-	sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
+	glColor4ub(0, 0, 0, 50);
 
-	/* left  */
-	glColor4ub(255, 255, 255, 30);
-	sdrawline(rect.xmin, rect.ymin, rect.xmin, rect.ymax);
-	
+	/* bottom  */
+	if (ar->alignment == RGN_ALIGN_TOP) {
+		sdrawline(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
+	}
+	/* top  */
+	else {
+		BLI_assert(ar->alignment == RGN_ALIGN_BOTTOM);
+		sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
+	}
+
 	glDisable(GL_BLEND);
 }
 

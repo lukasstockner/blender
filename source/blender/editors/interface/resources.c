@@ -171,6 +171,10 @@ const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colo
 			}
 
 			switch (colorid) {
+				case TH_AREA_EDGES:
+					cp = btheme->tui.area_edges;
+					break;
+
 				case TH_BACK:
 					if (theme_regionid == RGN_TYPE_WINDOW)
 						cp = ts->back;
@@ -851,7 +855,9 @@ void ui_theme_init_default(void)
 
 	/* UI buttons */
 	ui_widget_color_init(&btheme->tui);
-	
+
+	rgba_char_args_set_fl(btheme->tui.area_edges, 0.15f, 0.15f, 0.15f, 1.0f);
+
 	btheme->tui.iconfile[0] = 0;
 	btheme->tui.panel.show_back = false;
 	btheme->tui.panel.show_header = false;
@@ -2660,6 +2666,8 @@ void init_userdef_do_versions(void)
 			btheme->tui.wcol_toggle.roundness = 0.2f;
 			btheme->tui.wcol_tool.roundness = 0.25f;
 			btheme->tui.wcol_tooltip.roundness = 0.2f;
+
+			rgba_char_args_set_fl(btheme->tui.area_edges, 0.15, 0.15f, 0.15f, 1.0f);
 		}
 	}
 
