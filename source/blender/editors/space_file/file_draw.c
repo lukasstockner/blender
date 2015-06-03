@@ -386,7 +386,7 @@ static void file_draw_preview(
 	/* dragregion */
 	if (drag) {
 		/* path is no more static, cannot give it directly to but... */
-		UI_but_drag_set_image(but, BLI_strdup(path), true, icon, imb, scale);
+		UI_but_drag_set_image(but, BLI_strdup(path), icon, imb, scale, true);
 	}
 
 	glDisable(GL_BLEND);

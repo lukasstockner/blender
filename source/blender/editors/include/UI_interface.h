@@ -471,7 +471,7 @@ void    UI_but_drag_set_path(uiBut *but, const char *path, const bool use_free);
 void    UI_but_drag_set_name(uiBut *but, const char *name);
 void    UI_but_drag_set_value(uiBut *but);
 void    UI_but_drag_set_image(
-                uiBut *but, const char *path, const bool use_free, int icon, struct ImBuf *ima, float scale);
+                uiBut *but, const char *path, int icon, struct ImBuf *ima, float scale, const bool use_free);
 
 bool    UI_but_active_drop_name(struct bContext *C);
 bool    UI_but_active_drop_color(struct bContext *C);
