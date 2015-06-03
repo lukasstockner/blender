@@ -230,6 +230,12 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			}
 		}
 
+		if (params->filter & FILE_TYPE_IMAGE) {
+			if ((prop = RNA_struct_find_property(op->ptr, "collapse_images"))) {
+				params->flag |= FILE_COLLAPSE_IMAGES;
+			}
+		}
+
 		if (is_relative_path) {
 			if ((prop = RNA_struct_find_property(op->ptr, "relative_path"))) {
 				if (!RNA_property_is_set_ex(op->ptr, prop, false)) {

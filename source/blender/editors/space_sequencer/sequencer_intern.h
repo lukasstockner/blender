@@ -161,6 +161,7 @@ void SEQUENCER_OT_movieclip_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_mask_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_sound_strip_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_image_strip_add(struct wmOperatorType *ot);
+void SEQUENCER_OT_image_sequence_add(struct wmOperatorType *ot);
 void SEQUENCER_OT_effect_strip_add(struct wmOperatorType *ot);
 
 enum {

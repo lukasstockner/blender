@@ -60,6 +60,10 @@ class FILEBROWSER_HT_header(Header):
             layout.prop(params, "sort_method", expand=True, text="")
 
             layout.prop(params, "show_hidden", text="", icon='FILE_HIDDEN')
+            if params.collapse_seq:
+                layout.prop(params, "collapse_seq", text="", icon='FULLSCREEN_EXIT')
+            else:
+                layout.prop(params, "collapse_seq", text="", icon='FULLSCREEN_ENTER')
             layout.prop(params, "use_filter", text="", icon='FILTER')
 
             row = layout.row(align=True)

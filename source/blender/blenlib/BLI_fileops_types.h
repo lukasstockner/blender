@@ -34,6 +34,7 @@
  */
 
 #include <sys/stat.h>
+#include "BLI_listbase.h"
 
 #if defined(WIN32) && !defined(FREE_WINDOWS)
 typedef unsigned int mode_t;
@@ -69,6 +70,11 @@ struct direntry {
 	int     nr;
 	struct ImBuf *image;
 	unsigned int selflag; /* selection flag */
+
+	/* ultra dirty temporary ugliness, store the container for the image sequence here.
+	 * ideally we should store this to a struct in a customdata pointer.
+	 * Maybe poin can be used instead */
+	ListBase list;
 };
 
 struct dirlink {

@@ -309,11 +309,11 @@ bool        WM_operator_last_properties_store(struct wmOperator *op);
 /* flags for WM_operator_properties_filesel */
 #define WM_FILESEL_RELPATH		(1 << 0)
 
-#define WM_FILESEL_DIRECTORY	(1 << 1)
-#define WM_FILESEL_FILENAME		(1 << 2)
-#define WM_FILESEL_FILEPATH		(1 << 3)
-#define WM_FILESEL_FILES		(1 << 4)
-
+#define WM_FILESEL_DIRECTORY		(1 << 1)
+#define WM_FILESEL_FILENAME			(1 << 2)
+#define WM_FILESEL_FILEPATH			(1 << 3)
+#define WM_FILESEL_FILES			(1 << 4)
+#define WM_FILESEL_IMAGE_COLLAPSE	(1 << 5)
 
 		/* operator as a python command (resultuing string must be freed) */
 char		*WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op,

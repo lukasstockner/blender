@@ -868,6 +868,23 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 			for (i = 0; i < numfiles; i++) {
 				if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
 					struct direntry *file = filelist_file(sfile->files, i);
+
+					if (file->selflag & FILE_SEL_COLLAPSED) {
+						LinkData *link_iter = file->list.first;
+
+						while (link_iter) {
+							LinkData *link_tmp = link_iter->next;
+							struct direntry *file_tmp = link_iter->data;
+							RNA_property_collection_add(op->ptr, prop, &itemptr);
+							RNA_string_set(&itemptr, "name", file_tmp->relname);
+							num_files++;
+							MEM_freeN(link_iter);
+							link_iter = link_tmp;
+						}
+
+						BLI_listbase_clear(&file->list);
+					}
+
 					RNA_property_collection_add(op->ptr, prop, &itemptr);
 					RNA_string_set(&itemptr, "name", file->relname);
 					num_files++;
@@ -1673,9 +1690,11 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 		int numfiles = filelist_numfiles(sfile->files);
 		if ( (0 <= idx) && (idx < numfiles) ) {
 			struct direntry *file = filelist_file(sfile->files, idx);
-			filelist_select_file(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
-			BLI_strncpy(sfile->params->renameedit, file->relname, FILE_MAXFILE);
-			sfile->params->renamefile[0] = '\0';
+			if (!(file->selflag & FILE_SEL_COLLAPSED)) {
+				filelist_select_file(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
+				BLI_strncpy(sfile->params->renameedit, file->relname, FILE_MAXFILE);
+				sfile->params->renamefile[0] = '\0';
+			}
 		}
 		ED_area_tag_redraw(sa);
 	}

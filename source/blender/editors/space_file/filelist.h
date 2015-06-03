@@ -69,6 +69,7 @@ bool                filelist_need_sorting(struct FileList *filelist);
 void                filelist_sort(struct FileList *filelist);
 
 void                filelist_setfilter_options(struct FileList *filelist, const bool hide_dot, const bool hide_parent,
+                                               const bool collapse_ima_seq,
                                                const unsigned int filter,
                                                const char *filter_glob, const char *filter_search);
 void                filelist_filter(struct FileList *filelist);

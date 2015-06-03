@@ -309,6 +309,7 @@ class SEQUENCER_MT_add(Menu):
             layout.operator_menu_enum("sequencer.mask_strip_add", "mask", text="Mask...")
 
         layout.operator("sequencer.movie_strip_add", text="Movie")
+        layout.operator("sequencer.image_sequence_add", text="Image Sequence")
         layout.operator("sequencer.image_strip_add", text="Image")
         layout.operator("sequencer.sound_strip_add", text="Sound")
 

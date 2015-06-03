@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <ctype.h>
 
 #ifndef WIN32
 #  include <unistd.h>
@@ -49,6 +50,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -208,9 +210,11 @@ typedef struct FileImage {
 typedef struct FileListFilter {
 	bool hide_dot;
 	bool hide_parent;
+	bool collapse_ima_seq;
 	unsigned int filter;
 	char filter_glob[64];
-	char filter_search[66];  /* + 2 for heading/trailing implicit '*' wildcards. */
+	char filter_search[66];   /* + 2 for heading/trailing implicit '*' wildcards. */
+	GHash *unique_image_list; /* hash that stores unique filename */
 } FileListFilter;
 
 typedef struct FileList {
@@ -464,6 +468,46 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 		}
 	}
 
+	if (is_filtered && filter->collapse_ima_seq) {
+		const char *filename, *filename_stripped;
+		filename = file->relname;
+
+		filename_stripped = filename;
+
+		if (filename_stripped) {
+#define MAX_FRA_DIGITS 20
+			int numlen = 0;
+
+			/* strip numeric extensions */
+			while (*filename_stripped && isdigit(*filename_stripped)) {
+				filename_stripped++;
+				numlen++;
+			}
+
+			/* was the number really an extension? */
+			if (*filename_stripped == '.')
+				filename_stripped++;
+			else {
+				filename_stripped = filename;
+			}
+
+			if (numlen > 0 && numlen < MAX_FRA_DIGITS) {
+				struct direntry *ofile;
+
+				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename_stripped))) {
+					is_filtered = false;
+					ofile->selflag |= FILE_SEL_COLLAPSED;
+					file->selflag |= FILE_SEL_COLLAPSED;
+					BLI_addhead(&ofile->list, BLI_genericNodeN(file));
+				}
+				else {
+					BLI_ghash_insert(filter->unique_image_list, (void *)filename_stripped, file);
+				}
+			}
+#undef MAX_FRA_DIGITS
+		}
+	}
+
 	return is_filtered;
 }
 
@@ -517,6 +561,11 @@ void filelist_filter(FileList *filelist)
 
 	fidx_tmp = MEM_mallocN(sizeof(*fidx_tmp) * (size_t)filelist->numfiles, __func__);
 
+	/* */
+	if (filelist->filter_data.collapse_ima_seq) {
+		filelist->filter_data.unique_image_list = BLI_ghash_str_new("image_seq_hash");
+	}
+
 	/* Filter remap & count how many files are left after filter in a single loop. */
 	for (i = 0; i < filelist->numfiles; ++i) {
 		struct direntry *file = &filelist->filelist[i];
@@ -524,6 +573,11 @@ void filelist_filter(FileList *filelist)
 		if (filelist->filterf(file, filelist->dir, &filelist->filter_data)) {
 			fidx_tmp[num_filtered++] = i;
 		}
+	}
+
+	if (filelist->filter_data.unique_image_list) {
+		BLI_ghash_free(filelist->filter_data.unique_image_list, NULL, NULL);
+		filelist->filter_data.unique_image_list = NULL;
 	}
 
 	/* Note: maybe we could even accept filelist->fidx to be filelist->numfiles -len allocated? */
@@ -535,17 +589,20 @@ void filelist_filter(FileList *filelist)
 }
 
 void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const bool hide_parent,
+                                const bool collapse_ima_seq,
                                 const unsigned int filter,
                                 const char *filter_glob, const char *filter_search)
 {
 	if ((filelist->filter_data.hide_dot != hide_dot) ||
 	    (filelist->filter_data.hide_parent != hide_parent) ||
+	    (filelist->filter_data.collapse_ima_seq != collapse_ima_seq) ||
 	    (filelist->filter_data.filter != filter) ||
 	    !STREQ(filelist->filter_data.filter_glob, filter_glob) ||
 	    (BLI_strcmp_ignore_pad(filelist->filter_data.filter_search, filter_search, '*') != 0))
 	{
 		filelist->filter_data.hide_dot = hide_dot;
 		filelist->filter_data.hide_parent = hide_parent;
+		filelist->filter_data.collapse_ima_seq = collapse_ima_seq;
 
 		filelist->filter_data.filter = filter;
 		BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
