@@ -428,11 +428,11 @@ def main():
         return
 
     import sys
-    back_argv = sys.argv
-    # Get rid of Blender args!
-    sys.argv = sys.argv[sys.argv.index("--") + 1:]
-
     import argparse
+
+    # Get rid of Blender args!
+    argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+
     parser = argparse.ArgumentParser(description="Use Blender to generate previews for currently open Blender file's items.")
     parser.add_argument('--clear', default=False, action="store_true", help="Clear previews instead of generating them.")
     parser.add_argument('--no_scenes', default=True, action="store_false", help="Do not generate/clear previews for scene IDs.")
@@ -440,16 +440,16 @@ def main():
     parser.add_argument('--no_objects', default=True, action="store_false", help="Do not generate/clear previews for object IDs.")
     parser.add_argument('--no_data_intern', default=True, action="store_false",
                         help="Do not generate/clear previews for mat/tex/image/etc. IDs (those handled by core Blender code).")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.clear:
+        print("clear!")
         do_clear_previews(do_objects=args.no_objects, do_groups=args.no_groups, do_scenes=args.no_scenes,
                           do_data_intern=args.no_data_intern)
     else:
+        print("render!")
         do_previews(do_objects=args.no_objects, do_groups=args.no_groups, do_scenes=args.no_scenes,
                     do_data_intern=args.no_data_intern)
-
-    sys.argv = back_argv
 
 
 if __name__ == "__main__":
