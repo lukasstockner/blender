@@ -3250,7 +3250,7 @@ void ui_def_but_icon(uiBut *but, const int icon, const int flag)
 	but->flag |= flag;
 
 	if (but->str && but->str[0]) {
-		but->drawflag |= UI_BUT_ICON_LEFT;
+		but->drawflag |= (UI_BUT_ICON_LEFT | UI_BUT_TEXT_LEFT);
 	}
 }
 
