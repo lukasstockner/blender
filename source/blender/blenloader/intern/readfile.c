@@ -1539,6 +1539,10 @@ void blo_make_packed_pointer_map(FileData *fd, Main *oldmain)
 	
 	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
 		ImagePackedFile *imapf;
+
+		if (ima->packedfile)
+			insert_packedmap(fd, ima->packedfile);
+
 		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next)
 			if (imapf->packedfile)
 				insert_packedmap(fd, imapf->packedfile);
@@ -1577,6 +1581,9 @@ void blo_end_packed_pointer_map(FileData *fd, Main *oldmain)
 	
 	for (ima = oldmain->image.first; ima; ima = ima->id.next) {
 		ImagePackedFile *imapf;
+
+		ima->packedfile = newpackedadr(fd, ima->packedfile);
+
 		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next)
 			imapf->packedfile = newpackedadr(fd, imapf->packedfile);
 	}
@@ -2081,7 +2088,7 @@ static void direct_link_cache_library(FileData *fd, CacheLibrary *cachelib)
 static PackedFile *direct_link_packedfile(FileData *fd, PackedFile *oldpf)
 {
 	PackedFile *pf = newpackedadr(fd, oldpf);
-	
+
 	if (pf) {
 		pf->data = newpackedadr(fd, pf->data);
 	}
@@ -3528,13 +3535,17 @@ static void direct_link_image(FileData *fd, Image *ima)
 	link_list(fd, &(ima->views));
 	link_list(fd, &(ima->packedfiles));
 
-	ima->packedfile = NULL;
-	for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
-		imapf->packedfile = direct_link_packedfile(fd, imapf->packedfile);
+	if (ima->packedfiles.first) {
+		for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
+			imapf->packedfile = direct_link_packedfile(fd, imapf->packedfile);
+		}
+		ima->packedfile = NULL;
+	}
+	else {
+		ima->packedfile = direct_link_packedfile(fd, ima->packedfile);
 	}
 
 	ima->anims.first = ima->anims.last = NULL;
-	ima->packedfile = direct_link_packedfile(fd, ima->packedfile);
 	ima->preview = direct_link_preview_image(fd, ima->preview);
 	ima->stereo3d_format = newdataadr(fd, ima->stereo3d_format);
 	ima->ok = 1;
