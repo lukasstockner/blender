@@ -69,21 +69,18 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
-#include "interface_intern.h"
-
 #include "screen_intern.h"
 
 extern void ui_draw_anti_tria(float x1, float y1, float x2, float y2, float x3, float y3); /* xxx temp */
 
 /* general area and region code */
 
-static void region_draw_emboss(ScrArea *sa, const ARegion *ar, const rcti *scirct)
+static void region_draw_emboss(ARegion *ar, rcti *scirct)
 {
-	uiBut *but;
-	rctf trct;
 	rcti rect;
-	float xofs = 0.0f; /* scrolling offset */
-	bool breakl = false;
+
+	if (!ELEM(ar->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_PROPS))
+		return;
 
 	/* translate scissor rect to region space */
 	rect.xmin = scirct->xmin - ar->winrct.xmin;
@@ -91,54 +88,21 @@ static void region_draw_emboss(ScrArea *sa, const ARegion *ar, const rcti *scirc
 	rect.xmax = scirct->xmax - ar->winrct.xmin;
 	rect.ymax = scirct->ymax - ar->winrct.ymin;
 
-	/* we want to have divided region seperators if a region contains tabs!
-	 * XXX currently only top aligned tabs are supported here */
-	if (ar->regiontype == RGN_TYPE_TABS) {}
-	/* find the region below the tabs */
-	else if (sa->flag & AREA_CONTAINS_TABS) {
-		ARegion *ar_tab;
-
-		ar_tab = BKE_area_find_region_type(sa, RGN_TYPE_TABS);
-
-		if (ar_tab->winrct.ymin == ar->winrct.ymax + 1) {
-			but = ui_but_find_activated_tab(ar_tab);
-			if (but) {
-				trct = but->rect;
-				xofs = ar_tab->v2d.tot.xmin - ar_tab->v2d.cur.xmin;
-
-				breakl = true;
-			}
-		}
-	}
-
 	/* set transp line */
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	
-	/* right  */
-	glColor4ub(0, 0, 0, 30);
-	sdrawline(rect.xmax, rect.ymin, rect.xmax, rect.ymax);
-	
+	glColor4ub(0, 0, 0, 50);
+
 	/* bottom  */
-	glColor4ub(0, 0, 0, 30);
-	if (!ar->type == RGN_TYPE_TABS) {
+	if (ar->alignment == RGN_ALIGN_TOP) {
 		sdrawline(rect.xmin, rect.ymin, rect.xmax, rect.ymin);
 	}
-	
 	/* top  */
-	glColor4ub(255, 255, 255, 30);
-	if (breakl) {
-		sdrawline(rect.xmin, rect.ymax, trct.xmin + xofs, rect.ymax);
-		sdrawline(trct.xmax + xofs, rect.ymax, rect.xmax, rect.ymax);
-	}
 	else {
+		BLI_assert(ar->alignment == RGN_ALIGN_BOTTOM);
 		sdrawline(rect.xmin, rect.ymax, rect.xmax, rect.ymax);
 	}
 
-	/* left  */
-	glColor4ub(255, 255, 255, 30);
-	sdrawline(rect.xmin, rect.ymin, rect.xmin, rect.ymax);
-	
 	glDisable(GL_BLEND);
 }
 
@@ -572,7 +536,7 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	UI_blocklist_free_inactive(C, &ar->uiblocks);
 
 	if (sa && (win->screen->state != SCREENFULL)) {
-		region_draw_emboss(sa, ar, &ar->winrct);
+		region_draw_emboss(ar, &ar->winrct);
 	}
 }
 
@@ -1892,6 +1856,7 @@ void ED_region_panels(const bContext *C, ARegion *ar, int vertical, const char *
 				        block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL,
 				        -ofs_x, (UI_UNIT_Y * 1.1f) + style->panelspace,
 				        panel_sizex, 1, 0, style);
+
 
 				row = uiLayoutRow(layout, 1);
 				uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);

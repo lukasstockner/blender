@@ -52,6 +52,8 @@
  */
 void BLO_update_defaults_userpref_blend(void)
 {
+	uiStyle *style;
+
 	/* defaults from T37518 */
 
 	U.uiflag |= USER_ZBUF_CURSOR;
@@ -60,6 +62,13 @@ void BLO_update_defaults_userpref_blend(void)
 
 	U.versions = 1;
 	U.savetime = 2;
+
+	U.dpi = 78;
+
+	for (style = U.uistyles.first; style; style = style->next) {
+		style->paneltitle.points = style->widgetlabel.points = style->widget.points = 10;
+		style->paneltitle.shadow = style->widgetlabel.shadow = 0;
+	}
 }
 
 /**

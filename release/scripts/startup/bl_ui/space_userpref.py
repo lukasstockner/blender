@@ -795,6 +795,7 @@ class USERPREF_PT_theme(Panel):
             colsub = padding.column()
             colsub = padding.column()
             colsub.row().prop(ui, "widget_emboss")
+            colsub.row().prop(ui, "area_edges")
 
             col.separator()
             col.separator()

@@ -63,6 +63,7 @@
 #include "ED_render.h"
 
 #include "UI_interface.h"
+#include "UI_resources.h"
 
 /* XXX actually should be not here... solve later */
 #include "wm_subwindow.h"
@@ -1010,47 +1011,38 @@ static void scrarea_draw_shape_light(ScrArea *sa, char UNUSED(dir))
 	glDisable(GL_BLEND);
 }
 
-static void drawscredge_area_draw(int sizex, int sizey, int x1, int y1, int x2, int y2, int a)
+static void drawscredge_area_draw(int sizex, int sizey, int x1, int y1, int x2, int y2)
 {
 	/* right border area */
 	if (x2 < sizex - 1)
-		sdrawline(x2 + a, y1, x2 + a, y2);
+		sdrawline(x2, y1, x2, y2);
 	
 	/* left border area */
 	if (x1 > 0) /* otherwise it draws the emboss of window over */
-		sdrawline(x1 + a, y1, x1 + a, y2);
+		sdrawline(x1, y1, x1, y2);
 	
 	/* top border area */
 	if (y2 < sizey - 1)
-		sdrawline(x1, y2 + a, x2, y2 + a);
+		sdrawline(x1, y2, x2, y2);
 	
 	/* bottom border area */
 	if (y1 > 0)
-		sdrawline(x1, y1 + a, x2, y1 + a);
+		sdrawline(x1, y1, x2, y1);
 	
 }
 
 /** screen edges drawing **/
-static void drawscredge_area(ScrArea *sa, int sizex, int sizey, int center)
+static void drawscredge_area(ScrArea *sa, int sizex, int sizey)
 {
 	short x1 = sa->v1->vec.x;
 	short y1 = sa->v1->vec.y;
 	short x2 = sa->v3->vec.x;
 	short y2 = sa->v3->vec.y;
-	
-	if (center == 0) {
-		if (U.pixelsize > 1.0f) {
-		
-			glColor3ub(0x50, 0x50, 0x50);
-			glLineWidth((2.0f * U.pixelsize) - 1);
-			drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
-			glLineWidth(1.0f);
-		}
-	}
-	else {
-		glColor3ub(0, 0, 0);
-		drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2, 0);
-	}
+
+	glLineWidth(UI_DPI_FAC * 2.0f);
+	UI_ThemeColor(TH_AREA_EDGES);
+	drawscredge_area_draw(sizex, sizey, x1, y1, x2, y2);
+	glLineWidth(1.0f);
 }
 
 /* ****************** EXPORTED API TO OTHER MODULES *************************** */
@@ -1133,10 +1125,8 @@ void ED_screen_draw(wmWindow *win)
 		if (sa->flag & AREA_FLAG_DRAWJOINFROM) sa1 = sa;
 		if (sa->flag & AREA_FLAG_DRAWJOINTO) sa2 = sa;
 		if (sa->flag & (AREA_FLAG_DRAWSPLIT_H | AREA_FLAG_DRAWSPLIT_V)) sa3 = sa;
-		drawscredge_area(sa, winsize_x, winsize_y, 0);
+		drawscredge_area(sa, winsize_x, winsize_y);
 	}
-	for (sa = win->screen->areabase.first; sa; sa = sa->next)
-		drawscredge_area(sa, winsize_x, winsize_y, 1);
 	
 	/* blended join arrow */
 	if (sa1 && sa2) {

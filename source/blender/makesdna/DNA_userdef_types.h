@@ -128,8 +128,9 @@ typedef struct uiWidgetColors {
 	char text_sel[4];
 	short shaded;
 	short shadetop, shadedown;
-	short alpha_check;
-	float roundness, pad;
+	short pad;
+	float roundness;
+	short alpha_check, pad2;
 } uiWidgetColors;
 
 typedef struct uiWidgetStateColors {
@@ -177,13 +178,15 @@ typedef struct ThemeUI {
 	uiTabColors tab;
 	uiPanelColors panel; /* depricated, but we keep it for do_versions (2.66.1) */
 
+	char area_edges[4];
+
 	char widget_emboss[4];
 
 	/* fac: 0 - 1 for blend factor, width in pixels */
 	float menu_shadow_fac;
 	short menu_shadow_width;
 	
-	short pad[3];
+	short pad[5];
 	
 	char iconfile[256];	// FILE_MAXFILE length
 	float icon_alpha;

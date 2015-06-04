@@ -1990,6 +1990,16 @@ int ui_handler_panel_region(bContext *C, const wmEvent *event, ARegion *ar)
 		}
 	}
 
+	/* do a first iteration over all panels to see if we have one that is already being dragged */
+	for (block = ar->uiblocks.last; block; block = block->prev) {
+		if (block->panel && block->panel->flag & PNL_SELECT) {
+			/* don't handle any further interaction while a panel
+			 * is dragged (which is handled separately) */
+			retval = WM_UI_HANDLER_BREAK;
+			break;
+		}
+	}
+
 	if (retval == WM_UI_HANDLER_BREAK) {
 		return retval;
 	}

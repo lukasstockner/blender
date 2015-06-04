@@ -79,6 +79,8 @@
 
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
+#include "UI_view2d.h"
+
 #include "interface_intern.h"
 
 void UI_template_fix_linking(void)
@@ -3145,7 +3147,7 @@ void uiTemplateList(
 			/* add scrollbar */
 			if (len > layoutdata.visual_items) {
 				col = uiLayoutColumn(row, false);
-				uiDefButI(block, UI_BTYPE_SCROLL, 0, "", 0, 0, UI_UNIT_X * 0.75, UI_UNIT_Y * dyn_data->visual_height,
+				uiDefButI(block, UI_BTYPE_SCROLL, 0, "", 0, 0, V2D_SCROLL_WIDTH, UI_UNIT_Y * dyn_data->visual_height,
 				          &ui_list->list_scroll, 0, dyn_data->height - dyn_data->visual_height,
 				          dyn_data->visual_height, 0, "");
 			}
@@ -3234,7 +3236,7 @@ void uiTemplateList(
 			/* add scrollbar */
 			if (len > layoutdata.visual_items) {
 				/* col = */ uiLayoutColumn(row, false);
-				uiDefButI(block, UI_BTYPE_SCROLL, 0, "", 0, 0, UI_UNIT_X * 0.75, UI_UNIT_Y * dyn_data->visual_height,
+				uiDefButI(block, UI_BTYPE_SCROLL, 0, "", 0, 0, V2D_SCROLL_WIDTH, UI_UNIT_Y * dyn_data->visual_height,
 				          &ui_list->list_scroll, 0, dyn_data->height - dyn_data->visual_height,
 				          dyn_data->visual_height, 0, "");
 			}

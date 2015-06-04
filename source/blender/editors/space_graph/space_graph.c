@@ -156,6 +156,7 @@ static SpaceLink *graph_new(const bContext *C)
 	
 	ar->v2d.scroll = (V2D_SCROLL_BOTTOM | V2D_SCROLL_SCALE_HORIZONTAL);
 	ar->v2d.scroll |= (V2D_SCROLL_LEFT | V2D_SCROLL_SCALE_VERTICAL);
+	ar->v2d.flag |= (V2D_USES_UNITS_HORIZONTAL | V2D_USES_UNITS_VERTICAL);
 	
 	ar->v2d.keeptot = 0;
 	

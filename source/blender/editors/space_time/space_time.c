@@ -671,6 +671,7 @@ static SpaceLink *time_new(const bContext *C)
 	ar->v2d.align |= V2D_ALIGN_NO_NEG_Y;
 	ar->v2d.keepofs |= V2D_LOCKOFS_Y;
 	ar->v2d.keepzoom |= V2D_LOCKZOOM_Y;
+	ar->v2d.flag |= V2D_USES_UNITS_HORIZONTAL;
 
 
 	return (SpaceLink *)stime;

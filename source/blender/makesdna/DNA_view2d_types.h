@@ -114,6 +114,9 @@ typedef struct View2D {
 #define V2D_PIXELOFS_Y				(1<<3)
 	/* view settings need to be set still... */
 #define V2D_IS_INITIALISED			(1<<10)
+	/* for screens that need to draw units on top of the scroller */
+#define V2D_USES_UNITS_VERTICAL     (1 << 11)
+#define V2D_USES_UNITS_HORIZONTAL   (1 << 12)
 
 /* scroller flags for View2D (v2d->scroll) */
 	/* left scrollbar */
