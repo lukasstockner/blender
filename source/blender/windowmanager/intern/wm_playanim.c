@@ -867,9 +867,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 						playanim_window_zoom(ps, 1.0f);
 					}
 					else {
-						swaptime /= 1.1;
-						swaptime = MAX2(ps->fstep / 60.0, swaptime);
-						update_sound_fps();
+						if (swaptime > ps->fstep / 60.0) {
+							swaptime /= 1.1;
+							update_sound_fps();
+						}
 					}
 					break;
 				}
@@ -881,9 +882,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 						playanim_window_zoom(ps, -1.0f);
 					}
 					else {
-						swaptime *= 1.1;
-						swaptime = MIN2(ps->fstep / 5.0, swaptime);
-						update_sound_fps();
+						if (swaptime < ps->fstep / 5.0) {
+							swaptime *= 1.1;
+							update_sound_fps();
+						}
 					}
 					break;
 				}
