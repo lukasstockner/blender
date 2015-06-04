@@ -912,7 +912,7 @@ bool BLI_path_frame_get(char *path, int *r_frame, int *r_numdigits)
 	return false;
 }
 
-void BLI_path_frame_strip(char *path, bool setsharp, char *ext)
+bool BLI_path_frame_strip(char *path, bool setsharp, char *ext)
 {
 	if (path && *path) {
 		char *file = (char *)BLI_last_slash(path);
@@ -958,8 +958,12 @@ void BLI_path_frame_strip(char *path, bool setsharp, char *ext)
 			}
 			*c = 0;
 			if (ext) *ext = 0;
+
+			return true;
 		}
 	}
+
+	return false;
 }
 
 

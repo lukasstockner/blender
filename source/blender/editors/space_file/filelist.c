@@ -469,42 +469,24 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 	}
 
 	if (is_filtered && filter->collapse_ima_seq) {
-		const char *filename, *filename_stripped;
-		filename = file->relname;
+		char filename[PATH_MAX];
 
-		filename_stripped = filename;
+		if (file->relname) {
+			struct direntry *ofile;
+			BLI_strncpy(filename, file->relname, sizeof(filename));
 
-		if (filename_stripped) {
-#define MAX_FRA_DIGITS 20
-			int numlen = 0;
 
-			/* strip numeric extensions */
-			while (*filename_stripped && isdigit(*filename_stripped)) {
-				filename_stripped++;
-				numlen++;
-			}
-
-			/* was the number really an extension? */
-			if (*filename_stripped == '.')
-				filename_stripped++;
-			else {
-				filename_stripped = filename;
-			}
-
-			if (numlen > 0 && numlen < MAX_FRA_DIGITS) {
-				struct direntry *ofile;
-
-				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename_stripped))) {
+			if (BLI_path_frame_strip(filename, false, NULL)) {
+				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename))) {
 					is_filtered = false;
 					ofile->selflag |= FILE_SEL_COLLAPSED;
 					file->selflag |= FILE_SEL_COLLAPSED;
 					BLI_addhead(&ofile->list, BLI_genericNodeN(file));
 				}
 				else {
-					BLI_ghash_insert(filter->unique_image_list, (void *)filename_stripped, file);
+					BLI_ghash_insert(filter->unique_image_list, (void *)filename, file);
 				}
 			}
-#undef MAX_FRA_DIGITS
 		}
 	}
 
