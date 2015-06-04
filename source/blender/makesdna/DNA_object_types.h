@@ -252,7 +252,11 @@ typedef struct Object {
 	short index;			/* custom index, for renderpasses */
 	unsigned short actdef;	/* current deformation group, note: index starts at 1 */
 	unsigned short actfmap;	/* current face map, note: index starts at 1 */
-	unsigned short pad2[3];
+	unsigned short pad2[2];
+
+	/* did last modifier stack generation need mapping support? */
+	short lastNeedMapping;
+
 	float col[4];			/* object color */
 
 	int gameflag;
