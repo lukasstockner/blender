@@ -104,6 +104,7 @@ typedef struct PlayState {
 	bool  turbo;
 	bool  pingpong;
 	bool  noskip;
+	bool  indicator;
 	bool  sstep;
 	bool  wait2;
 	bool  stopped;
@@ -343,6 +344,30 @@ static void playanim_toscreen(PlayState *ps, PlayAnimPict *picture, struct ImBuf
 		BLF_draw(fontid, str, sizeof(str));
 	}
 
+	if (ps->indicator) {
+		float fac = ps->picture->frame / (double)(((PlayAnimPict *)picsbase.last)->frame - ((PlayAnimPict *)picsbase.first)->frame);
+
+		fac = 2.0f * fac - 1.0f;
+		glMatrixMode(GL_PROJECTION);
+		glPushMatrix();
+		glLoadIdentity();
+		glMatrixMode(GL_MODELVIEW);
+		glPushMatrix();
+		glLoadIdentity();
+
+		glColor4f(0.0f, 1.0f, 0.0f, 1.0f);
+
+		glBegin(GL_LINES);
+		glVertex2f(fac, -1.0f);
+		glVertex2f(fac, 1.0f);
+		glEnd();
+
+		glPopMatrix();
+		glMatrixMode(GL_PROJECTION);
+		glPopMatrix();
+		glMatrixMode(GL_MODELVIEW);
+	}
+
 	GHOST_SwapWindowBuffers(g_WS.ghost_window);
 }
 
@@ -580,7 +605,6 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 	/* convert ghost event into value keyboard or mouse */
 	val = ELEM(type, GHOST_kEventKeyDown, GHOST_kEventButtonDown);
 
-
 	/* first check if we're busy loading files */
 	if (ps->loading) {
 		switch (type) {
@@ -625,6 +649,9 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr ps_void)
 			switch (key_data->key) {
 				case GHOST_kKeyA:
 					if (val) ps->noskip = !ps->noskip;
+					break;
+				case GHOST_kKeyI:
+					if (val) ps->indicator = !ps->indicator;
 					break;
 				case GHOST_kKeyP:
 					if (val) ps->pingpong = !ps->pingpong;
@@ -1092,6 +1119,7 @@ static char *wm_main_playanim_intern(int argc, const char **argv)
 	ps.stopped   = false;
 	ps.loading   = false;
 	ps.picture   = NULL;
+	ps.indicator = false;
 	ps.dropped_file[0] = 0;
 	ps.zoom      = 1.0f;
 	/* resetmap = false */
