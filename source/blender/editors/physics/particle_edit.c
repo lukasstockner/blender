@@ -416,18 +416,18 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 	}
 }
 
-static void PE_create_shape_tree(PEData *data, Object *shapeob)
+static bool PE_create_shape_tree(PEData *data, Object *shapeob)
 {
 	DerivedMesh *dm = shapeob->derivedFinal;
 	
 	memset(&data->shape_bvh, 0, sizeof(data->shape_bvh));
 	
 	if (!dm) {
-		return;
+		return false;
 	}
 	
 	DM_ensure_tessface(dm);
-	bvhtree_from_mesh_faces(&data->shape_bvh, dm, 0.0f, 4, 8);
+	return bvhtree_from_mesh_faces(&data->shape_bvh, dm, 0.0f, 4, 8);
 }
 
 static void PE_free_shape_tree(PEData *data)
@@ -4069,11 +4069,12 @@ void PARTICLE_OT_brush_edit(wmOperatorType *ot)
 static int shape_cut_poll(bContext *C)
 {
 	if (PE_hair_poll(C)) {
-		Scene *scene= CTX_data_scene(C);
-		ParticleEditSettings *pset= PE_settings(scene);
+		Scene *scene = CTX_data_scene(C);
+		ParticleEditSettings *pset = PE_settings(scene);
 		
-		if (pset->shape_object)
+		if (pset->shape_object && (pset->shape_object->type == OB_MESH)) {
 			return true;
+		}
 	}
 	
 	return false;
@@ -4190,7 +4191,10 @@ static int shape_cut_exec(bContext *C, wmOperator *UNUSED(op))
 		int removed;
 		
 		PE_set_data(C, &data);
-		PE_create_shape_tree(&data, shapeob);
+		if (!PE_create_shape_tree(&data, shapeob)) {
+			/* shapeob may not have faces... */
+			return OPERATOR_CANCELLED;
+		}
 		
 		if (selected)
 			foreach_selected_point(&data, shape_cut);
