@@ -101,6 +101,11 @@ typedef enum {
 	UI_WTYPE_PROGRESSBAR,
 } uiWidgetTypeEnum;
 
+/* general menu defines */
+#define UI_MENU_TITLE_WIDTH     (short)(UI_UNIT_X * 5.0f)
+#define UI_MENU_TITLE_HEIGHT    (short)(UI_UNIT_Y * 1.1f)
+#define UI_MENU_SUBMENU_PADDING (10 * UI_DPI_FAC) /* some extra padding added to menus containing submenu icons */
+
 /* menu scrolling */
 #define UI_MENU_SCROLL_ARROW	12
 #define UI_MENU_SCROLL_MOUSE	(UI_MENU_SCROLL_ARROW + 2)

@@ -247,14 +247,21 @@ static void widget_init(uiWidgetBase *wtb)
 
 /* helper call, makes shadow rect, with 'sun' above menu, so only shadow to left/right/bottom */
 /* return tot */
-static int round_box_shadow_edges(float (*vert)[2], const rcti *rect, float rad, int roundboxalign, float step)
+static int round_box_shadow_edges(
+        float (*vert)[2], const rcti *rect,
+        float rad, int roundboxalign, float step,
+        const bool has_outline)
 {
 	float vec[WIDGET_CURVE_RESOLU][2];
 	float minx, miny, maxx, maxy;
 	int a, tot = 0;
 	
 	rad += step;
-	
+
+	if (has_outline == false) {
+		step -= U.pixelsize;
+	}
+
 	if (2.0f * rad > BLI_rcti_size_y(rect))
 		rad = 0.5f * BLI_rcti_size_y(rect);
 
@@ -906,10 +913,19 @@ static void widget_draw_icon(
 	}
 
 	if (show_menu_icon) {
-		xs = rect->xmax - UI_DPI_ICON_SIZE - aspect;
+		rcti tria;
+		const int size = (int)(ICON_DEFAULT_HEIGHT / aspect);
+
+		xs = rect->xmax - (UI_MENU_SUBMENU_PADDING * 0.5f);
 		ys = (rect->ymin + rect->ymax - height) / 2.0f;
-		
-		UI_icon_draw_aspect(xs, ys, ICON_RIGHTARROW_THIN, aspect, alpha);
+
+		BLI_rcti_init(&tria, xs, xs + size, ys, ys + size);
+		BLI_rcti_scale(&tria, 0.5f);
+
+		glColor3f(1.0f, 1.0f, 1.0f);
+		ui_draw_anti_tria(tria.xmin, tria.ymin,
+		                  tria.xmax, tria.ymin + BLI_rcti_size_y(&tria) / 2,
+		                  tria.xmin, tria.ymax);
 	}
 	
 	glDisable(GL_BLEND);
@@ -1505,30 +1521,91 @@ static void widget_draw_text(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *b
 	}
 }
 
+#define WITH_DUMMY_ICON_TEXT_ALIGN
+
+#ifdef WITH_DUMMY_ICON_TEXT_ALIGN
+static bool ui_block_has_real_icon_but(const uiBlock *block)
+{
+	uiBut *but;
+
+	for (but = block->buttons.first; but; but = but->next) {
+		if ((but->flag & UI_HAS_ICON) && (but->icon != ICON_BLANK1)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif
+
 /* draws text and icons for buttons */
 static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiBut *but, rcti *rect)
 {
-	const bool show_menu_icon = ui_but_draw_menu_icon(but);
+	uiBlock *block = but->block;
 	float alpha = (float)wcol->text[3] / 255.0f;
+	const int size_y = BLI_rcti_size_y(rect);
+	int add_y = 0;
 	char password_str[UI_MAX_DRAW_STR];
 	uiButExtraIconType extra_icon_type;
 
+	const bool show_menu_icon = ui_but_draw_menu_icon(but);
+	const bool is_block_menu = ui_block_is_menu(block);
+
+
 	ui_but_text_password_hide(password_str, but, false);
+
+	/* scale down rect so the text isn't drawn into the
+	 * extra space for added for submenu triangles */
+	if (UNLIKELY((is_block_menu == true) &&
+	             (block->flag & UI_BLOCK_HAS_SUBMENU) &&
+	             (but->type != UI_BTYPE_SEPR_LINE)))
+	{
+		rect->xmax -= UI_MENU_SUBMENU_PADDING;
+	}
+
+	/* add some offset for menu titles to make them centered vertically - ugly but works best */
+	if (but->type == UI_BTYPE_LABEL && but->flag & UI_BUT_MENU_TITLE) {
+		BLI_assert(is_block_menu);
+
+		if (block->direction == UI_DIR_UP || block->flag & UI_BLOCK_POPUP) {
+			rect->ymin += 2 * (int)(0.2f * UI_UNIT_Y); /* 2 * MENU_PADDING */
+			rect->ymin -= 2.0f * U.pixelsize;
+		}
+		else if (block->direction == UI_DIR_DOWN) {
+			rect->ymin -= (int)(0.2f * UI_UNIT_Y); /* MENU_PADDING */
+		}
+		else {
+			BLI_assert(0);
+		}
+	}
 
 	/* check for button text label */
 	if (but->type == UI_BTYPE_MENU && (but->flag & UI_BUT_NODE_LINK)) {
 		rcti temp = *rect;
-		temp.xmin = rect->xmax - BLI_rcti_size_y(rect) - 1;
+		temp.xmin = rect->xmax - size_y - 1;
 		widget_draw_icon(but, ICON_LAYER_USED, alpha, &temp, false);
 	}
 
 	/* If there's an icon too (made with uiDefIconTextBut) then draw the icon
 	 * and offset the text label to accommodate it */
 
+#ifdef WITH_DUMMY_ICON_TEXT_ALIGN
+	if (ui_block_has_real_icon_but(but->block) == false) {
+		/* block doesn't have any real icons so we can skip */
+
+		/* we still want to draw the submenu triangle icon though */
+		if (show_menu_icon) {
+			widget_draw_icon(but, ICON_NONE, alpha, rect, show_menu_icon);
+		}
+	}
 	/* Big previews with optional text label below */
-	if (but->flag & UI_BUT_ICON_PREVIEW && ui_block_is_menu(but->block)) {
+	else if (but->flag & UI_BUT_ICON_PREVIEW && is_block_menu) {
+#else
+	/* Big previews with optional text label below */
+	if (but->flag & UI_BUT_ICON_PREVIEW && is_block_menu) {
+#endif
 		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
-		int icon_size = BLI_rcti_size_y(rect);
+		int icon_size = size_y;
 		int text_size = 0;
 
 		/* This is a bit britle, but avoids adding an 'UI_BUT_HAS_LABEL' flag to but... */
@@ -1549,32 +1626,49 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 		rect->ymax -= icon_size;
 
 		/* vertically centering text */
-		rect->ymin += UI_UNIT_Y / 2;
+		rect->ymin += (size_y + add_y) / 2;
 	}
 	/* Icons on the left with optional text label on the right */
-	else if (but->flag & UI_HAS_ICON || show_menu_icon) {
+#ifdef WITH_DUMMY_ICON_TEXT_ALIGN
+	else if ((but->flag & UI_HAS_ICON) || show_menu_icon) {
 		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
 		const float icon_size = ICON_SIZE_FROM_BUTRECT(rect);
 
 		/* menu item - add some more padding so menus don't feel cramped. it must
 		 * be part of the button so that this area is still clickable */
-		if (ui_block_is_menu(but->block))
+		if (is_block_menu)
 			rect->xmin += 0.3f * U.widget_unit;
 
 		widget_draw_icon(but, icon, alpha, rect, show_menu_icon);
 
 		rect->xmin += icon_size;
-		/* without this menu keybindings will overlap the arrow icon [#38083] */
-		if (show_menu_icon) {
-			rect->xmax -= icon_size / 2.0f;
-		}
 	}
+#else
+	else if ((but->flag & UI_HAS_ICON) && but->icon != ICON_BLANK1) {
+		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
+		const float icon_size = ICON_SIZE_FROM_BUTRECT(rect);
+
+		/* menu item - add some more padding so menus don't feel cramped. it must
+		 * be part of the button so that this area is still clickable */
+		if (is_block_menu) {
+			rect->xmin += 0.3f * U.widget_unit;
+		}
+
+		widget_draw_icon(but, icon, alpha, rect, show_menu_icon);
+
+		rect->xmin += icon_size;
+	}
+	else if (show_menu_icon) {
+		const BIFIconID icon = (but->flag & UI_HAS_ICON) ? but->icon + but->iconadd : ICON_NONE;
+		widget_draw_icon(but, icon, alpha, rect, show_menu_icon);
+	}
+#endif
 
 	if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
-		rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+		rect->xmin += (UI_TEXT_MARGIN_X * U.widget_unit) / block->aspect;
 	}
 	else if ((but->drawflag & UI_BUT_TEXT_RIGHT)) {
-		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / but->block->aspect;
+		rect->xmax -= (UI_TEXT_MARGIN_X * U.widget_unit) / block->aspect;
 	}
 
 	/* unlink icon for this button type */
@@ -1583,7 +1677,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 	{
 		rcti temp = *rect;
 
-		temp.xmin = temp.xmax - (BLI_rcti_size_y(rect) * 1.08f);
+		temp.xmin = temp.xmax - (size_y * 1.08f);
 
 		if (extra_icon_type == UI_BUT_ICONEXTRA_UNLINK) {
 			widget_draw_icon(but, ICON_X, alpha, &temp, false);
@@ -1625,6 +1719,7 @@ static void widget_draw_text_icon(uiFontStyle *fstyle, uiWidgetColors *wcol, uiB
 }
 
 #undef UI_TEXT_CLIP_MARGIN
+#undef WITH_ICON_TEXT_ALIGNMENT
 
 
 /* *********************** widget types ************************************* */
@@ -1757,11 +1852,11 @@ static struct uiWidgetColors wcol_menu_item = {
 /* backdrop menu + title text color */
 static struct uiWidgetColors wcol_menu_back = {
 	{0, 0, 0, 255},
-	{25, 25, 25, 230},
+	{40, 40, 40, 230},
 	{45, 45, 45, 230},
 	{100, 100, 100, 255},
 	
-	{160, 160, 160, 255},
+	{220, 220, 220, 255},
 	{255, 255, 255, 255},
 	
 	0,
@@ -2192,7 +2287,7 @@ static void widget_state_menu_item(uiWidgetType *wt, int state)
 /* ************ menu backdrop ************************* */
 
 /* outside of rect, rad to left/bottom/right */
-static void widget_softshadow(const rcti *rect, int roundboxalign, const float radin)
+static void widget_softshadow(const rcti *rect, int roundboxalign, const float radin, const bool has_outline)
 {
 	bTheme *btheme = UI_GetTheme();
 	uiWidgetBase wtb;
@@ -2213,7 +2308,10 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 		rect1.ymax -= radout;
 	
 	/* inner part */
-	totvert = round_box_shadow_edges(wtb.inner_v, &rect1, radin, roundboxalign & (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT), 0.0f);
+	totvert = round_box_shadow_edges(
+	              wtb.inner_v, &rect1, radin,
+	              roundboxalign & (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT),
+	              0.0f, has_outline);
 
 	/* we draw a number of increasing size alpha quad strips */
 	alphastep = 3.0f * btheme->tui.menu_shadow_fac / radout;
@@ -2223,7 +2321,7 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 	for (step = 1; step <= (int)radout; step++) {
 		float expfac = sqrtf(step / radout);
 		
-		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step);
+		round_box_shadow_edges(wtb.outer_v, &rect1, radin, UI_CNR_ALL, (float)step, has_outline);
 		
 		glColor4f(0.0f, 0.0f, 0.0f, alphastep * (1.0f - expfac));
 
@@ -2236,35 +2334,104 @@ static void widget_softshadow(const rcti *rect, int roundboxalign, const float r
 	glDisableClientState(GL_VERTEX_ARRAY);
 }
 
-static void widget_menu_back(uiWidgetColors *wcol, rcti *rect, int flag, int direction)
+static void widget_menu_back(uiWidgetColors *wcol, const uiBlock *block, rcti *rect)
 {
 	uiWidgetBase wtb;
+	const uiBut *title_but;
+	rcti rect_title = *rect;
 	int roundboxalign = UI_CNR_ALL;
-	
+	int roundbox_cpy = 0;
+	const bool is_popup = block->flag & UI_BLOCK_POPUP;
+
 	widget_init(&wtb);
-	
-	/* menu is 2nd level or deeper */
-	if (flag & UI_BLOCK_POPUP) {
-		//rect->ymin -= 4.0;
-		//rect->ymax += 4.0;
+
+	wtb.draw_emboss = 0;
+
+	/* search a menu title button */
+	for (title_but = block->buttons.first; title_but; title_but = title_but->next) {
+		if (title_but->flag & UI_BUT_MENU_TITLE) {
+			break;
+		}
 	}
-	else if (direction == UI_DIR_DOWN) {
-		roundboxalign = (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
-		rect->ymin -= 0.1f * U.widget_unit;
+
+	if (is_popup) {
+		if (title_but) {
+			rect_title.ymin = title_but->rect.ymin;
+		}
 	}
-	else if (direction == UI_DIR_UP) {
+	else if (block->direction == UI_DIR_UP) {
 		roundboxalign = UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT;
 		rect->ymax += 0.1f * U.widget_unit;
+
+		if (title_but) {
+			/* adjust title rect */
+			rect_title.ymin = title_but->rect.ymin;
+			rect_title.ymax = rect->ymax;
+		}
 	}
-	
+	else if (block->direction == UI_DIR_DOWN) {
+		roundboxalign = (UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
+		rect->ymin -= 0.1f * U.widget_unit;
+
+		if (title_but) {
+			/* adjust title rect */
+			rect_title.ymax = title_but->rect.ymax;
+			rect_title.ymin = rect->ymin;
+		}
+	}
+	roundbox_cpy = roundboxalign;
+
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, roundboxalign, wcol->roundness * U.widget_unit);
-	
+	widget_softshadow(rect, roundboxalign, wcol->roundness * U.widget_unit, wtb.draw_outline);
+
+	/* adjust the main rect after shadow drawing to exclude the title rect */
+	if (title_but) {
+		if (block->direction == UI_DIR_UP || is_popup) {
+			rect->ymax = rect_title.ymin + (int)(2.0f * U.pixelsize);
+			roundboxalign &= ~(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
+		}
+		else if (block->direction == UI_DIR_DOWN) {
+			rect->ymin = rect_title.ymax - (int)(2.0f * U.pixelsize);
+			roundboxalign &= ~(UI_CNR_BOTTOM_LEFT | UI_CNR_BOTTOM_RIGHT);
+		}
+	}
+
 	round_box_edges(&wtb, roundboxalign, rect, wcol->roundness * U.widget_unit);
-	wtb.draw_emboss = 0;
-	wtb.draw_outline = true;
 	widgetbase_draw(&wtb, wcol);
-	
+
+	/* draw title rect (in a darker color) */
+	if (title_but) {
+		uiWidgetColors wcol_title = *wcol;
+		const char tint = -12;
+		const char inner_title[3] = {UNPACK3_EX(, wcol->inner, + tint)}; /* XXX _util function? */
+
+		copy_v3_v3_char(wcol_title.inner, inner_title);
+
+		/* invert the temporarily tweaked roundboxalign with
+		 * its earlier value to get the corners we need now */
+		roundboxalign ^= roundbox_cpy;
+
+		round_box_edges(&wtb, roundboxalign, &rect_title, wcol->roundness * U.widget_unit);
+		widgetbase_draw(&wtb, &wcol_title);
+	}
+
+	glDisable(GL_BLEND);
+}
+
+static void widget_tooltip_back(uiWidgetColors *wcol, rcti *rect, int UNUSED(state), int UNUSED(roundboxalign))
+{
+	uiWidgetBase wtb;
+
+	widget_init(&wtb);
+	wtb.draw_emboss = false;
+
+	glEnable(GL_BLEND);
+	widget_softshadow(rect, UI_CNR_ALL, wcol->roundness * U.widget_unit, wtb.draw_outline);
+
+	round_box_edges(&wtb, UI_CNR_ALL, rect, wcol->roundness * U.widget_unit);
+
+	widgetbase_draw(&wtb, wcol);
+
 	glDisable(GL_BLEND);
 }
 
@@ -2675,21 +2842,23 @@ static void ui_draw_but_HSV_v(uiBut *but, const rcti *rect)
 
 
 /* ************ separator, for menus etc ***************** */
+
+#define WIDGET_SEPARATOR_HEIGHT (2.0f * UI_DPI_FAC)
+
 static void ui_draw_separator(const rcti *rect,  uiWidgetColors *wcol)
 {
-	int y = rect->ymin + BLI_rcti_size_y(rect) / 2 - 1;
-	unsigned char col[4];
-	
-	col[0] = wcol->text[0];
-	col[1] = wcol->text[1];
-	col[2] = wcol->text[2];
-	col[3] = 30;
+	int y = rect->ymin + (BLI_rcti_size_y(rect) - WIDGET_SEPARATOR_HEIGHT) / 2;
+	const unsigned char tint = 30;
 	
 	glEnable(GL_BLEND);
-	glColor4ubv(col);
-	sdrawline(rect->xmin, y, rect->xmax, y);
+	glLineWidth(WIDGET_SEPARATOR_HEIGHT);
+	glColor4ub(UNPACK3_EX(, wcol->inner, + tint), wcol->inner[3] / 2);
+	sdrawline(rect->xmin + UI_DPI_FAC, y, rect->xmax, y);
+	glLineWidth(1);
 	glDisable(GL_BLEND);
 }
+
+#undef WIDGET_SEPARATOR_HEIGHT
 
 /* ************ button callbacks, draw ***************** */
 static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign, bool emboss)
@@ -3504,7 +3673,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 
 		case UI_WTYPE_TOOLTIP:
 			wt.wcol_theme = &btheme->tui.wcol_tooltip;
-			wt.draw = widget_menu_back;
+			wt.draw = widget_tooltip_back;
 			break;
 			
 			
@@ -3560,7 +3729,6 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 			
 		case UI_WTYPE_MENU_BACK:
 			wt.wcol_theme = &btheme->tui.wcol_menu_back;
-			wt.draw = widget_menu_back;
 			break;
 			
 		/* specials */
@@ -3683,7 +3851,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				widget_draw_text_icon(&style->widgetlabel, &tui->wcol_menu_back, but, rect);
 				break;
 			case UI_BTYPE_SEPR_LINE:
-				ui_draw_separator(rect, &tui->wcol_menu_item);
+				ui_draw_separator(rect, &tui->wcol_menu_back);
 				break;
 			default:
 				wt = widget_type(UI_WTYPE_MENU_ITEM);
@@ -3925,27 +4093,22 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 	}
 }
 
-void ui_draw_menu_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
+void ui_draw_menu_back(struct uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 {
 	uiWidgetType *wt = widget_type(UI_WTYPE_MENU_BACK);
-	
+
 	wt->state(wt, 0);
-	if (block)
-		wt->draw(&wt->wcol, rect, block->flag, block->direction);
-	else
-		wt->draw(&wt->wcol, rect, 0, 0);
-	
-	if (block) {
-		if (block->flag & UI_BLOCK_CLIPTOP) {
-			/* XXX no scaling for UI here yet */
-			glColor3ubv((unsigned char *)wt->wcol.text);
-			UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymax - 8, 't');
-		}
-		if (block->flag & UI_BLOCK_CLIPBOTTOM) {
-			/* XXX no scaling for UI here yet */
-			glColor3ubv((unsigned char *)wt->wcol.text);
-			UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymin + 10, 'v');
-		}
+	widget_menu_back(&wt->wcol, block, rect);
+
+	if (block->flag & UI_BLOCK_CLIPTOP) {
+		/* XXX no scaling for UI here yet */
+		glColor3ubv((unsigned char *)wt->wcol.text);
+		UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymax - 8, 't');
+	}
+	if (block->flag & UI_BLOCK_CLIPBOTTOM) {
+		/* XXX no scaling for UI here yet */
+		glColor3ubv((unsigned char *)wt->wcol.text);
+		UI_draw_icon_tri(BLI_rcti_cent_x(rect), rect->ymin + 10, 'v');
 	}
 }
 
@@ -4094,7 +4257,7 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	uiWidgetType *wt = widget_type(UI_WTYPE_BOX);
 	
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit);
+	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit, false);
 	glDisable(GL_BLEND);
 
 	wt->state(wt, 0);
