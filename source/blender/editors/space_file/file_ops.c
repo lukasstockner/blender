@@ -917,7 +917,10 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 			}
 		}
 
-
+		if ((prop = RNA_struct_find_property(op->ptr, "collapse_images"))) {
+			/* turn off collapsed flag if evoked from operator */
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES;
+		}
 	}
 }
 
