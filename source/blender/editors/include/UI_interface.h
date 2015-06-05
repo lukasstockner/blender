@@ -133,8 +133,9 @@ enum {
 
 /* block->flag bits 14-17 are identical to but->drawflag bits */
 
-#define UI_BLOCK_LIST_ITEM   (1 << 19)
-#define UI_BLOCK_RADIAL      (1 << 20)
+#define UI_BLOCK_LIST_ITEM      (1 << 19)
+#define UI_BLOCK_RADIAL         (1 << 20)
+#define UI_BLOCK_HAS_SUBMENU    (1 << 21)  /* the block has at least one button leading to a submenu */
 
 /* uiPopupBlockHandle->menuretval */
 #define UI_RETURN_CANCEL     (1 << 0)   /* cancel all menus cascading */
@@ -179,6 +180,7 @@ enum {
 	UI_BUT_TIP_FORCE       = (1 << 28),  /* force show tooltips when holding option/alt if U's USER_TOOLTIPS is off */
 	UI_BUT_TEXTEDIT_UPDATE = (1 << 29),  /* when widget is in textedit mode, update value on each char stroke */
 	UI_BUT_SEARCH_UNLINK   = (1 << 30),  /* show unlink for search button */
+	UI_BUT_MENU_TITLE      = (1 << 31),  /* title of a menu - XXX maybe new BTYPE? */
 };
 
 #define UI_PANEL_WIDTH          340
@@ -635,6 +637,7 @@ int UI_icon_from_report_type(int type);
 
 uiBut *uiDefPulldownBut(uiBlock *block, uiBlockCreateFunc func, void *arg, const char *str, int x, int y, short width, short height, const char *tip);
 uiBut *uiDefMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, const char *str, int x, int y, short width, short height, const char *tip);
+uiBut *uiDefMenuTitleBut(uiBlock *block, const char *str);
 uiBut *uiDefIconTextMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, int icon, const char *str, int x, int y, short width, short height, const char *tip);
 uiBut *uiDefIconMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, int icon, int x, int y, short width, short height, const char *tip);
 

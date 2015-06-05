@@ -6465,6 +6465,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	uiPopupMenu *pup;
 	uiLayout *layout;
 	bool is_array, is_array_component;
+	bool is_first_item = true; /* will the next added item be the first menu entry? */
 	uiStringInfo label = {BUT_GET_LABEL, NULL};
 
 /*	if ((but->rnapoin.data && but->rnaprop) == 0 && but->optype == NULL)*/
@@ -6486,6 +6487,9 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 		MEM_freeN(label.strinfo);
 
 	uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+
+	/* adds a separator if it wouldn't be the first item (after title) */
+#define ADD_SEPARATOR_CONDITIONAL if (is_first_item == false) uiItemS(layout);
 
 	if (but->rnapoin.data && but->rnaprop) {
 		PointerRNA *ptr = &but->rnapoin;
@@ -6526,7 +6530,7 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			/* keyframe settings */
 			uiItemS(layout);
 			
-			
+			is_first_item = false;
 		}
 		else if (but->flag & UI_BUT_DRIVEN) {
 			/* pass */
@@ -6542,6 +6546,8 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 				uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Insert Keyframe"),
 				               ICON_NONE, "ANIM_OT_keyframe_insert_button", "all", 1);
 			}
+
+			is_first_item = false;
 		}
 		
 		if (but->flag & UI_BUT_ANIMATED) {
@@ -6555,11 +6561,13 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 				uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Keyframes"),
 				               ICON_NONE, "ANIM_OT_keyframe_clear_button", "all", 1);
 			}
+
+			is_first_item = false;
 		}
 
 		/* Drivers */
 		if (but->flag & UI_BUT_DRIVEN) {
-			uiItemS(layout);
+			ADD_SEPARATOR_CONDITIONAL
 
 			if (is_array_component) {
 				uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Delete Drivers"),
@@ -6578,12 +6586,14 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 				uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Paste Driver"),
 				        ICON_NONE, "ANIM_OT_paste_driver_button");
 			}
+
+			is_first_item = false;
 		}
 		else if (but->flag & (UI_BUT_ANIMATED_KEY | UI_BUT_ANIMATED)) {
 			/* pass */
 		}
 		else if (is_anim) {
-			uiItemS(layout);
+			ADD_SEPARATOR_CONDITIONAL
 
 			if (is_array_component) {
 				uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add Drivers"),
@@ -6600,12 +6610,14 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 				uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Paste Driver"),
 				        ICON_NONE, "ANIM_OT_paste_driver_button");
 			}
+
+			is_first_item = false;
 		}
 		
 		/* Keying Sets */
 		/* TODO: check on modifyability of Keying Set when doing this */
 		if (is_anim) {
-			uiItemS(layout);
+			ADD_SEPARATOR_CONDITIONAL
 
 			if (is_array_component) {
 				uiItemBooleanO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add All to Keying Set"),
@@ -6621,10 +6633,12 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 				uiItemO(layout, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove from Keying Set"),
 				        ICON_NONE, "ANIM_OT_keyingset_button_remove");
 			}
+
+			is_first_item = false;
 		}
-		
-		uiItemS(layout);
-		
+
+		ADD_SEPARATOR_CONDITIONAL
+
 		/* Property Operators */
 		
 		/* Copy Property Value
@@ -6679,16 +6693,22 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 			but2 = uiDefIconTextBut(block, UI_BTYPE_BUT, 0, 0, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Shortcut"),
 			                        0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 			UI_but_func_set(but2, remove_shortcut_func, but, NULL);
+
+			is_first_item = false;
 		}
 		/* only show 'add' if there's a suitable key map for it to go in */
 		else if (WM_keymap_guess_opname(C, but->optype->idname)) {
 			but2 = uiDefIconTextBut(block, UI_BTYPE_BUT, 0, 0, CTX_IFACE_(BLF_I18NCONTEXT_OPERATOR_DEFAULT, "Add Shortcut"),
 			                        0, 0, w, UI_UNIT_Y, NULL, 0, 0, 0, 0, "");
 			UI_but_func_set(but2, popup_add_shortcut_func, but, NULL);
+
+			is_first_item = false;
 		}
-		
-		uiItemS(layout);
+
+		ADD_SEPARATOR_CONDITIONAL
 	}
+
+#undef ADD_SEPARATOR_CONDITIONAL
 
 	/* Show header tools for header buttons. */
 	if (ui_block_is_menu(but->block) == false) {
@@ -8769,7 +8789,7 @@ static int ui_handle_menu_event(
 
 	/* check if mouse is inside block */
 	inside = BLI_rctf_isect_pt(&block->rect, mx, my);
-	inside_title = inside && ((my + (UI_UNIT_Y * 1.5f)) > block->rect.ymax);
+	inside_title = inside && ((my + UI_MENU_TITLE_HEIGHT) > block->rect.ymax);
 
 	/* if there's an active modal button, don't check events or outside, except for search menu */
 	but = ui_but_find_active_in_region(ar);

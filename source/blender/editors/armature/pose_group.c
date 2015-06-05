@@ -164,7 +164,9 @@ static int pose_groups_menu_invoke(bContext *C, wmOperator *op, const wmEvent *U
 		 */
 		if (strstr(op->idname, "assign")) {
 			uiItemIntO(layout, "New Group", ICON_NONE, op->idname, "type", 0);
-			uiItemS(layout);
+			if (!BLI_listbase_is_empty(&pose->agroups)) {
+				uiItemS(layout);
+			}
 		}
 		
 		/* add entries for each group */

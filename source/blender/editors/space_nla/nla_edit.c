@@ -2236,7 +2236,6 @@ static int nla_fmodifier_add_invoke(bContext *C, wmOperator *UNUSED(op), const w
 		/* add entry to add this type of modifier */
 		uiItemEnumO(layout, "NLA_OT_fmodifier_add", fmi->name, 0, "type", i);
 	}
-	uiItemS(layout);
 	
 	UI_popup_menu_end(C, pup);
 	

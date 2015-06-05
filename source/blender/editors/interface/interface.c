@@ -2236,6 +2236,12 @@ static void ui_but_string_set_internal(uiBut *but, const char *str, size_t str_l
 	memcpy(but->str, str, str_len);
 }
 
+static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
+{
+	but->flag |= UI_BUT_ICON_SUBMENU;
+	block->flag |= UI_BLOCK_HAS_SUBMENU;
+}
+
 static void ui_but_string_free_internal(uiBut *but)
 {
 	if (but->str) {
@@ -3254,7 +3260,7 @@ void ui_def_but_icon(uiBut *but, const int icon, const int flag)
 	but->flag |= flag;
 
 	if (but->str && but->str[0]) {
-		but->drawflag |= UI_BUT_ICON_LEFT;
+		but->drawflag |= (UI_BUT_ICON_LEFT | UI_BUT_TEXT_LEFT);
 	}
 }
 
@@ -3317,9 +3323,7 @@ static void ui_def_but_rna__menu(bContext *UNUSED(C), uiLayout *layout, void *bu
 		rows++;
 
 	/* Title */
-	uiDefBut(block, UI_BTYPE_LABEL, 0, RNA_property_ui_name(but->rnaprop),
-	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-	uiItemS(layout);
+	uiDefMenuTitleBut(block, RNA_property_ui_name(but->rnaprop));
 
 	/* note, item_array[...] is reversed on access */
 
@@ -3525,7 +3529,7 @@ static uiBut *ui_def_but_rna(
 	}
 	
 	if ((type == UI_BTYPE_MENU) && (but->dt == UI_EMBOSS_PULLDOWN)) {
-		but->flag |= UI_BUT_ICON_SUBMENU;
+		ui_but_submenu_enable(block, but);
 	}
 
 	if (!RNA_property_editable(&but->rnapoin, prop)) {
@@ -4232,6 +4236,17 @@ uiBut *uiDefMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, const char
 	return but;
 }
 
+uiBut *uiDefMenuTitleBut(uiBlock *block, const char *str)
+{
+	uiBut *but = ui_def_but(block, UI_BTYPE_LABEL, 0, str, 0, 0, UI_MENU_TITLE_WIDTH, UI_MENU_TITLE_HEIGHT,
+	                        NULL, 0.0, 0.0, 0.0, 0.0, "");
+	but->flag |= UI_BUT_MENU_TITLE;
+
+	ui_but_update(but);
+
+	return but;
+}
+
 uiBut *uiDefIconTextMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, int icon, const char *str, int x, int y, short width, short height, const char *tip)
 {
 	uiBut *but = ui_def_but(block, UI_BTYPE_PULLDOWN, 0, str, x, y, width, height, arg, 0.0, 0.0, 0.0, 0.0, tip);
@@ -4239,7 +4254,7 @@ uiBut *uiDefIconTextMenuBut(uiBlock *block, uiMenuCreateFunc func, void *arg, in
 	ui_def_but_icon(but, icon, UI_HAS_ICON);
 
 	but->drawflag |= UI_BUT_ICON_LEFT;
-	but->flag |= UI_BUT_ICON_SUBMENU;
+	ui_but_submenu_enable(block, but);
 
 	but->menu_create_func = func;
 	ui_but_update(but);
@@ -4271,7 +4286,7 @@ uiBut *uiDefIconTextBlockBut(uiBlock *block, uiBlockCreateFunc func, void *arg, 
 		but->drawflag |= UI_BUT_ICON_LEFT;
 	}
 	but->flag |= UI_HAS_ICON;
-	but->flag |= UI_BUT_ICON_SUBMENU;
+	ui_but_submenu_enable(block, but);
 
 	but->block_create_func = func;
 	ui_but_update(but);

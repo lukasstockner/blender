@@ -1341,7 +1341,8 @@ class VIEW3D_MT_object_specials(Menu):
                     props.input_scale = 0.05
                     props.header_text = "Clip End: %.2f"
 
-        layout.separator()
+        if obj.type in {'CAMERA', 'CURVE', 'FONT', 'EMPTY', 'LAMP'}:
+            layout.separator()
 
         props = layout.operator("object.isolate_type_render")
         props = layout.operator("object.hide_render_clear_all")

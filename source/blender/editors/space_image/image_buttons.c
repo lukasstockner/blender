@@ -292,9 +292,7 @@ static void ui_imageuser_slot_menu(bContext *UNUSED(C), uiLayout *layout, void *
 	Image *image = image_p;
 	int slot;
 
-	uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("Slot"),
-	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-	uiItemS(layout);
+	uiDefMenuTitleBut(block, IFACE_("Slot"));
 
 	slot = IMA_MAX_RENDER_SLOT;
 	while (slot--) {
@@ -346,9 +344,7 @@ static void ui_imageuser_layer_menu(bContext *UNUSED(C), uiLayout *layout, void 
 	UI_block_layout_set_current(block, layout);
 	uiLayoutColumn(layout, false);
 
-	uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("Layer"),
-	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-	uiItemS(layout);
+	uiDefMenuTitleBut(block, IFACE_("Layer"));
 
 	nr = BLI_listbase_count(&rr->layers) - 1;
 	fake_name = ui_imageuser_layer_fake_name(rr);
@@ -413,10 +409,7 @@ static void ui_imageuser_pass_menu(bContext *UNUSED(C), uiLayout *layout, void *
 	UI_block_layout_set_current(block, layout);
 	uiLayoutColumn(layout, false);
 
-	uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("Pass"),
-	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-
-	uiItemS(layout);
+	uiDefMenuTitleBut(block, IFACE_("Pass"));
 
 	nr = (rl ? BLI_listbase_count(&rl->passes) : 0) - 1;
 	fake_name = ui_imageuser_pass_fake_name(rl);
@@ -472,10 +465,7 @@ static void ui_imageuser_view_menu_rr(bContext *UNUSED(C), uiLayout *layout, voi
 	UI_block_layout_set_current(block, layout);
 	uiLayoutColumn(layout, false);
 
-	uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("View"),
-	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-
-	uiItemS(layout);
+	uiDefMenuTitleBut(block, IFACE_("View"));
 
 	nr = (rr ? BLI_listbase_count(&rr->views) : 0) - 1;
 	for (rview = rr ? rr->views.last : NULL; rview; rview = rview->prev, nr--) {
@@ -498,10 +488,7 @@ static void ui_imageuser_view_menu_multiview(bContext *UNUSED(C), uiLayout *layo
 	UI_block_layout_set_current(block, layout);
 	uiLayoutColumn(layout, false);
 
-	uiDefBut(block, UI_BTYPE_LABEL, 0, IFACE_("View"),
-	         0, 0, UI_UNIT_X * 5, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
-
-	uiItemS(layout);
+	uiDefMenuTitleBut(block, IFACE_("View"));
 
 	nr = BLI_listbase_count(&image->views) - 1;
 	for (iv = image->views.last; iv; iv = iv->prev, nr--) {

@@ -1353,6 +1353,10 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 
 			for (bt = block->buttons.first; bt; bt = bt->next) {
 				BLI_rctf_union(&block->rect, &bt->rect);
+
+				if (UNLIKELY(block->flag & UI_BLOCK_HAS_SUBMENU)) {
+					bt->rect.xmax += UI_MENU_SUBMENU_PADDING;
+				}
 			}
 		}
 		else {
@@ -1360,8 +1364,12 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 			block->rect.xmin = block->rect.ymin = 0;
 			block->rect.xmax = block->rect.ymax = 20;
 		}
+
+		if (block->flag & UI_BLOCK_HAS_SUBMENU) {
+			block->rect.xmax += UI_MENU_SUBMENU_PADDING;
+		}
 	}
-		
+
 	/* aspect = (float)(BLI_rcti_size_x(&block->rect) + 4);*/ /*UNUSED*/
 	ui_block_to_window_rctf(butregion, but->block, &block->rect, &block->rect);
 
@@ -1429,34 +1437,40 @@ static void ui_block_position(wmWindow *window, ARegion *butregion, uiBut *but, 
 			if (dir2 == UI_DIR_DOWN && down == 0) dir2 = UI_DIR_UP;
 		}
 
-		if (dir1 == UI_DIR_LEFT) {
-			xof = butrct.xmin - block->rect.xmax;
-			if (dir2 == UI_DIR_UP) yof = butrct.ymin - block->rect.ymin - center - MENU_PADDING;
-			else                   yof = butrct.ymax - block->rect.ymax + center + MENU_PADDING;
+#define RECTS_BUT_BLOCK_DIFF(member) (butrct.member - block->rect.member)
+
+		switch (dir1) {
+			case UI_DIR_LEFT:
+				xof = butrct.xmin - block->rect.xmax;
+				if (dir2 == UI_DIR_UP) yof = RECTS_BUT_BLOCK_DIFF(ymin) - center - MENU_PADDING;
+				else                   yof = RECTS_BUT_BLOCK_DIFF(ymax) + center + MENU_PADDING;
+				break;
+			case UI_DIR_RIGHT:
+				xof = butrct.xmax - block->rect.xmin;
+				if (dir2 == UI_DIR_UP) yof = RECTS_BUT_BLOCK_DIFF(ymin) - center - MENU_PADDING;
+				else                   yof = RECTS_BUT_BLOCK_DIFF(ymax) + center + MENU_PADDING;
+				break;
+			case UI_DIR_UP:
+				yof = iroundf(butrct.ymax - block->rect.ymin - (2.0f * U.pixelsize));
+				if (dir2 == UI_DIR_RIGHT) xof = RECTS_BUT_BLOCK_DIFF(xmax);
+				else                      xof = RECTS_BUT_BLOCK_DIFF(xmin);
+				/* changed direction? */
+				if ((dir1 & block->direction) == 0) {
+					UI_block_order_flip(block);
+				}
+				break;
+			case UI_DIR_DOWN:
+				yof = iroundf(butrct.ymin - block->rect.ymax + (2.0f * U.pixelsize));
+				if (dir2 == UI_DIR_RIGHT) xof = RECTS_BUT_BLOCK_DIFF(xmax);
+				else                      xof = RECTS_BUT_BLOCK_DIFF(xmin);
+				/* changed direction? */
+				if ((dir1 & block->direction) == 0) {
+					UI_block_order_flip(block);
+				}
+				break;
 		}
-		else if (dir1 == UI_DIR_RIGHT) {
-			xof = butrct.xmax - block->rect.xmin;
-			if (dir2 == UI_DIR_UP) yof = butrct.ymin - block->rect.ymin - center - MENU_PADDING;
-			else                   yof = butrct.ymax - block->rect.ymax + center + MENU_PADDING;
-		}
-		else if (dir1 == UI_DIR_UP) {
-			yof = butrct.ymax - block->rect.ymin;
-			if (dir2 == UI_DIR_RIGHT) xof = butrct.xmax - block->rect.xmax;
-			else                      xof = butrct.xmin - block->rect.xmin;
-			/* changed direction? */
-			if ((dir1 & block->direction) == 0) {
-				UI_block_order_flip(block);
-			}
-		}
-		else if (dir1 == UI_DIR_DOWN) {
-			yof = butrct.ymin - block->rect.ymax;
-			if (dir2 == UI_DIR_RIGHT) xof = butrct.xmax - block->rect.xmax;
-			else                      xof = butrct.xmin - block->rect.xmin;
-			/* changed direction? */
-			if ((dir1 & block->direction) == 0) {
-				UI_block_order_flip(block);
-			}
-		}
+
+#undef RECTS_BUT_BLOCK_DIFF
 
 		/* and now we handle the exception; no space below or to top */
 		if (top == 0 && down == 0) {
@@ -2656,14 +2670,15 @@ uiPopupMenu *UI_popup_menu_begin(bContext *C, const char *title, int icon)
 		
 		if (icon) {
 			BLI_snprintf(titlestr, sizeof(titlestr), " %s", title);
-			uiDefIconTextBut(pup->block, UI_BTYPE_LABEL, 0, icon, titlestr, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+			but = uiDefIconTextBut(pup->block, UI_BTYPE_LABEL, 0, icon, titlestr, 0, 0,
+			                       UI_MENU_TITLE_WIDTH, UI_MENU_TITLE_HEIGHT, NULL,
+			                       0.0, 0.0, 0, 0, "");
+			but->flag |= UI_BUT_MENU_TITLE;
 		}
 		else {
-			but = uiDefBut(pup->block, UI_BTYPE_LABEL, 0, title, 0, 0, 200, UI_UNIT_Y, NULL, 0.0, 0.0, 0, 0, "");
+			but = uiDefMenuTitleBut(pup->block, title);
 			but->drawflag = UI_BUT_TEXT_LEFT;
 		}
-
-		uiItemS(pup->layout);
 	}
 
 	return pup;
