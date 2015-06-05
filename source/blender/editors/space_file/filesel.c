@@ -452,7 +452,19 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 		struct direntry *file = filelist_file(files, i);
 		if (file) {
 			float len;
-			len = file_string_width(file->relname);
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				char fname[PATH_MAX];
+				char finalname[PATH_MAX];
+				char ext[PATH_MAX];
+				BLI_strncpy(fname, file->relname, sizeof(fname));
+				BLI_path_frame_strip(fname, false, ext);
+				BLI_snprintf(finalname, sizeof(finalname), "%s%.*d-%.*d%s",
+				             fname, file->numdigits, file->minframe, file->numdigits, file->maxframe, ext);
+				len = file_string_width(finalname);
+			}
+			else {
+				len = file_string_width(file->relname);
+			}
 			if (len > layout->column_widths[COLUMN_NAME]) layout->column_widths[COLUMN_NAME] = len;
 			len = file_string_width(file->date);
 			if (len > layout->column_widths[COLUMN_DATE]) layout->column_widths[COLUMN_DATE] = len;

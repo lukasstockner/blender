@@ -469,22 +469,32 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 	}
 
 	if (is_filtered && filter->collapse_ima_seq) {
-		char filename[PATH_MAX];
-
 		if (file->relname) {
 			struct direntry *ofile;
-			BLI_strncpy(filename, file->relname, sizeof(filename));
+			int frame, numdigits;
 
+			if (BLI_path_frame_get(file->relname, &frame, &numdigits)) {
+				char filename[PATH_MAX];
 
-			if (BLI_path_frame_strip(filename, false, NULL)) {
-				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename))) {
+				BLI_strncpy(filename, file->relname, sizeof(filename));
+				BLI_path_frame_strip(filename, false, NULL);
+
+				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename)) &&
+				    numdigits == ofile->numdigits)
+				{
 					is_filtered = false;
 					ofile->selflag |= FILE_SEL_COLLAPSED;
 					file->selflag |= FILE_SEL_COLLAPSED;
 					BLI_addhead(&ofile->list, BLI_genericNodeN(file));
+					ofile->collapsedsize += file->realsize;
+					ofile->maxframe = MAX2(frame, ofile->maxframe);
+					ofile->minframe = MIN2(frame, ofile->minframe);
 				}
 				else {
-					BLI_ghash_insert(filter->unique_image_list, (void *)filename, file);
+					BLI_ghash_insert(filter->unique_image_list, BLI_strdup(filename), file);
+					file->collapsedsize = file->realsize;
+					file->maxframe = file->minframe = frame;
+					file->numdigits = numdigits;
 				}
 			}
 		}
@@ -558,7 +568,7 @@ void filelist_filter(FileList *filelist)
 	}
 
 	if (filelist->filter_data.unique_image_list) {
-		BLI_ghash_free(filelist->filter_data.unique_image_list, NULL, NULL);
+		BLI_ghash_free(filelist->filter_data.unique_image_list, MEM_freeN, NULL);
 		filelist->filter_data.unique_image_list = NULL;
 	}
 

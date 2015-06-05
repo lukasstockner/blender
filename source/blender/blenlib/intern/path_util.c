@@ -947,17 +947,34 @@ bool BLI_path_frame_strip(char *path, bool setsharp, char *ext)
 		c++;
 
 		if(numdigits) {
-			/* replace the number with the suffix and terminate the string */
-			while (numdigits--) {
-				if (ext) *ext++ = *suffix;
+			/* logic here is a bit complex. Idea is: if ext has been provided,
+			 * fill it with the extension part and do not keep it in filename
+			 * if no ext has been provided, just strip the number or fill it with #
+			 */
+			if (ext) {
+				while (*suffix) {
+					*ext++ = *suffix++;
+				}
+				*ext = 0;
 
-				if (setsharp) *c++ = '#';
-				else *c++ = *suffix;
-
-				suffix++;
+				if (setsharp) {
+					while (numdigits--) {
+						*c++ = '#';
+					}
+				}
+				*c = 0;
 			}
-			*c = 0;
-			if (ext) *ext = 0;
+			else {
+				if (setsharp) {
+					while (numdigits--) {
+						*c++ = '#';
+					}
+				}
+				while (*suffix) {
+					*c++ = *suffix++;
+				}
+				*c = 0;
+			}
 
 			return true;
 		}

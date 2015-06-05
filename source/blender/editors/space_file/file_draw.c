@@ -254,8 +254,13 @@ static int get_file_icon(struct direntry *file)
 		return ICON_FILE_BLEND;
 	else if (file->flags & FILE_TYPE_BLENDER_BACKUP)
 		return ICON_FILE_BACKUP;
-	else if (file->flags & FILE_TYPE_IMAGE)
-		return ICON_FILE_IMAGE;
+	else if (file->flags & FILE_TYPE_IMAGE) {
+		if (file->selflag & FILE_SEL_COLLAPSED) {
+			return ICON_FILE_MOVIE;
+		}
+		else
+			return ICON_FILE_IMAGE;
+	}
 	else if (file->flags & FILE_TYPE_MOVIE)
 		return ICON_FILE_MOVIE;
 	else if (file->flags & FILE_TYPE_PYSCRIPT)
@@ -605,43 +610,68 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		if (!(file->selflag & FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
-			file_draw_string(sx + 1, tpos, file->relname, (float)textwidth, textheight, align);
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				char fname[PATH_MAX];
+				char finalname[PATH_MAX];
+				char ext[PATH_MAX];
+				BLI_strncpy(fname, file->relname, sizeof(fname));
+				BLI_path_frame_strip(fname, false, ext);
+				BLI_snprintf(finalname, sizeof(finalname), "%s%.*d-%.*d%s",
+				             fname, file->numdigits, file->minframe, file->numdigits, file->maxframe, ext);
+				file_draw_string(sx + 1, tpos, finalname, (float)textwidth, textheight, align);
+			}
+			else
+				file_draw_string(sx + 1, tpos, file->relname, (float)textwidth, textheight, align);
 		}
 
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 			if (!(file->type & S_IFDIR)) {
-				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				if (file->selflag & FILE_SEL_COLLAPSED) {
+					char sizestr[16];
+					BLI_file_size_string(file->collapsedsize, sizestr, sizeof(sizestr));
+					file_draw_string(sx, sy, sizestr, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				}
+				else
+					file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}
 		else if (params->display == FILE_LONGDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 
+			/* for collapsed files it doesn't make sense to display all info */
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				char sizestr[16];
+				BLI_file_size_string(file->collapsedsize, sizestr, sizeof(sizestr));
+				file_draw_string(sx, sy, sizestr, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+			}
+			else {
 #ifndef WIN32
-			/* rwx rwx rwx */
-			file_draw_string(sx, sy, file->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align); 
-			sx += layout->column_widths[COLUMN_MODE1] + column_space;
+				/* rwx rwx rwx */
+				file_draw_string(sx, sy, file->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_MODE1] + column_space;
 
-			file_draw_string(sx, sy, file->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_MODE2] + column_space;
+				file_draw_string(sx, sy, file->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_MODE2] + column_space;
 
-			file_draw_string(sx, sy, file->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_MODE3] + column_space;
+				file_draw_string(sx, sy, file->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_MODE3] + column_space;
 
-			file_draw_string(sx, sy, file->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_OWNER] + column_space;
+				file_draw_string(sx, sy, file->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_OWNER] + column_space;
 #endif
 
-			file_draw_string(sx, sy, file->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
-			sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
+				file_draw_string(sx, sy, file->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
+				sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
 
-			file_draw_string(sx, sy, file->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
-			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
+				file_draw_string(sx, sy, file->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
+				sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
-			if (!(file->type & S_IFDIR)) {
-				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
-				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
+				if (!(file->type & S_IFDIR)) {
+					file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+					sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
+				}
 			}
 		}
 	}

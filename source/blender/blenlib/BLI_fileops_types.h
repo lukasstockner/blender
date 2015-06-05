@@ -75,6 +75,12 @@ struct direntry {
 	 * ideally we should store this to a struct in a customdata pointer.
 	 * Maybe poin can be used instead */
 	ListBase list;
+	/* it sucks to store this as well but it's needed */
+	off_t realsize;
+	off_t collapsedsize;
+	int minframe;
+	int maxframe;
+	int numdigits;
 };
 
 struct dirlink {
