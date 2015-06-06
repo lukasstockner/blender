@@ -104,7 +104,7 @@ static void init_preview_region(const bContext *C, ARegion *ar)
 		ar->v2d.keepzoom = V2D_LOCKZOOM_Y;
 		ar->v2d.keepofs = V2D_KEEPOFS_Y;
 		ar->v2d.align = V2D_ALIGN_NO_POS_Y;
-		ar->v2d.flag = V2D_VIEWSYNC_AREA_VERTICAL;
+		ar->v2d.flag = (V2D_VIEWSYNC_AREA_VERTICAL | V2D_USES_UNITS_HORIZONTAL);
 	}
 	else {
 		ar->v2d.tot.xmin = 0.0f;
@@ -128,7 +128,7 @@ static void init_preview_region(const bContext *C, ARegion *ar)
 		ar->v2d.keepzoom = 0;
 		ar->v2d.keepofs = 0;
 		ar->v2d.align = 0;
-		ar->v2d.flag = 0;
+		ar->v2d.flag = (V2D_USES_UNITS_HORIZONTAL | V2D_USES_UNITS_VERTICAL);
 
 		ar->v2d.keeptot = 0;
 	}
@@ -143,8 +143,8 @@ static void reinit_preview_region(const bContext *C, ARegion *ar)
 			init_preview_region(C, ar);
 	}
 	else {
-		if (ar->v2d.flag & V2D_VIEWSYNC_AREA_VERTICAL)
-			init_preview_region(C, ar);
+		/* XXX check with sergey */
+		init_preview_region(C, ar);
 	}
 }
 
