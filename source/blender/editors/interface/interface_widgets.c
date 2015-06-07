@@ -3951,7 +3951,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 				break;
 		}
 	}
-	else if (but->dt == UI_EMBOSS_NONE) {
+	else if (but->dt == UI_EMBOSS_NONE && (but->flag & UI_ACTIVE) == 0) {
 		/* "nothing" */
 		wt = widget_type(UI_WTYPE_ICON);
 	}
@@ -3959,7 +3959,7 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 		wt = widget_type(UI_WTYPE_MENU_ITEM_RADIAL);
 	}
 	else {
-		BLI_assert(but->dt == UI_EMBOSS);
+		BLI_assert(but->dt == UI_EMBOSS || (but->dt == UI_EMBOSS_NONE && (but->flag & UI_ACTIVE)));
 
 		switch (but->type) {
 			case UI_BTYPE_LABEL:
