@@ -53,7 +53,7 @@
 
 static int imb_ftype_default(const ImFileType *type, ImBuf *ibuf)
 {
-	return (ibuf->ftype & type->filetype);
+	return (ibuf->ftype == type->filetype);
 }
 static int imb_ftype_iris(const ImFileType *type, ImBuf *ibuf)
 {

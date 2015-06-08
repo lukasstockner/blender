@@ -1322,8 +1322,8 @@ static void movieclip_build_proxy_ibuf(MovieClip *clip, ImBuf *ibuf, int cfra, i
 		IMB_scaleImBuf(scaleibuf, (short)rectx, (short)recty);
 
 	quality = clip->proxy.quality;
-	scaleibuf->ftype = JPG | quality;
-
+	scaleibuf->ftype = JPG;
+	scaleibuf->foptions = quality;
 	/* unsupported feature only confuses other s/w */
 	if (scaleibuf->planes == 32)
 		scaleibuf->planes = 24;

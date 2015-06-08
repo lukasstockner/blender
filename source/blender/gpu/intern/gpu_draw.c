@@ -668,7 +668,7 @@ int GPU_verify_image(Image *ima, ImageUser *iuser, int tftile, bool compare, boo
 	}
 
 #ifdef WITH_DDS
-	if (ibuf->ftype & DDS)
+	if (ibuf->ftype == DDS)
 		GPU_create_gl_tex_compressed(bind, rect, rectw, recth, mipmap, ima, ibuf);
 	else
 #endif
