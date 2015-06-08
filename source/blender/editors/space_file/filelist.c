@@ -499,6 +499,10 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 			}
 		}
 	}
+	else {
+		/* may have been set in a previous filtering iteration, so always clear */
+		file->selflag &= ~FILE_SEL_COLLAPSED;
+	}
 
 	return is_filtered;
 }
