@@ -486,26 +486,32 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 					is_filtered = false;
 					ofile->selflag |= FILE_SEL_COLLAPSED;
 					file->selflag |= FILE_SEL_COLLAPSED;
+					file->frame = frame;
 					BLI_addhead(&collapsed->list, BLI_genericNodeN(file));
 					collapsed->totalsize += file->realsize;
 					collapsed->maxframe = MAX2(frame, collapsed->maxframe);
 					collapsed->minframe = MIN2(frame, collapsed->minframe);
+					collapsed->totfiles++;
 				}
 				else {
-					if (file->collapsed_info.list.first) {
-						BLI_freelistN(&file->collapsed_info.list);
+					if (file->collapsed_info.darray) {
+						MEM_freeN(file->collapsed_info.darray);
+						file->collapsed_info.darray = NULL;
 					}
 					BLI_ghash_insert(filter->unique_image_list, BLI_strdup(filename), file);
+					file->frame = frame;
 					file->collapsed_info.totalsize = file->realsize;
 					file->collapsed_info.maxframe = file->collapsed_info.minframe = frame;
 					file->collapsed_info.numdigits = numdigits;
+					file->collapsed_info.totfiles = 1;
 				}
 			}
 		}
 	}
 	else {
-		if (file->collapsed_info.list.first) {
-			BLI_freelistN(&file->collapsed_info.list);
+		if (file->collapsed_info.darray) {
+			MEM_freeN(file->collapsed_info.darray);
+			file->collapsed_info.darray = NULL;
 		}
 		/* may have been set in a previous filtering iteration, so always clear */
 		file->selflag &= ~FILE_SEL_COLLAPSED;
@@ -547,6 +553,17 @@ static void filelist_filter_clear(FileList *filelist)
 	filelist->numfiltered = 0;
 }
 
+static int compareFrame(const void *pa, const void *pb)
+{
+	struct direntry *a = *((struct direntry **)pa);
+	struct direntry *b = *((struct direntry **)pb);
+	if (a->frame < b->frame)
+		return -1;
+	if (a->frame > b->frame)
+		return 1;
+	return 0;
+}
+
 void filelist_filter(FileList *filelist)
 {
 	int num_filtered = 0;
@@ -581,6 +598,28 @@ void filelist_filter(FileList *filelist)
 	if (filelist->filter_data.unique_image_list) {
 		BLI_ghash_free(filelist->filter_data.unique_image_list, MEM_freeN, NULL);
 		filelist->filter_data.unique_image_list = NULL;
+	}
+
+	/* extra step, need to sort the file list according to frame */
+	if (filelist->filter_data.collapse_ima_seq) {
+		for (i = 0; i < num_filtered; i++) {
+			struct direntry *file = &filelist->filelist[fidx_tmp[i]];
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				LinkData *fdata = file->collapsed_info.list.first;
+				int j = 1;
+				file->collapsed_info.darray =
+				        MEM_mallocN(sizeof(struct direntry *) * file->collapsed_info.totfiles, "collapsed files");
+				file->collapsed_info.darray[0] = file;
+
+				for (; fdata; fdata = fdata->next, j++) {
+					file->collapsed_info.darray[j] = fdata->data;
+				}
+				qsort(file->collapsed_info.darray, file->collapsed_info.totfiles, sizeof(struct direntry *), compareFrame);
+				if (file->collapsed_info.list.first) {
+					BLI_freelistN(&file->collapsed_info.list);
+				}
+			}
+		}
 	}
 
 	/* Note: maybe we could even accept filelist->fidx to be filelist->numfiles -len allocated? */

@@ -870,25 +870,24 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 					struct direntry *file = filelist_file(sfile->files, i);
 
 					if (file->selflag & FILE_SEL_COLLAPSED) {
+						int j = 0;
 						CollapsedEntry *collapsed = &file->collapsed_info;
-						LinkData *link_iter = collapsed->list.first;
 
-						while (link_iter) {
-							LinkData *link_tmp = link_iter->next;
-							struct direntry *file_tmp = link_iter->data;
+						for (; j < collapsed->totfiles; j++) {
+							struct direntry *file_tmp = collapsed->darray[j];
 							RNA_property_collection_add(op->ptr, prop, &itemptr);
 							RNA_string_set(&itemptr, "name", file_tmp->relname);
 							num_files++;
-							MEM_freeN(link_iter);
-							link_iter = link_tmp;
 						}
 
-						BLI_listbase_clear(&collapsed->list);
+						MEM_freeN(collapsed->darray);
+						collapsed->darray = NULL;
 					}
-
-					RNA_property_collection_add(op->ptr, prop, &itemptr);
-					RNA_string_set(&itemptr, "name", file->relname);
-					num_files++;
+					else {
+						RNA_property_collection_add(op->ptr, prop, &itemptr);
+						RNA_string_set(&itemptr, "name", file->relname);
+						num_files++;
+					}
 				}
 			}
 			/* make sure the file specified in the filename button is added even if no files selected */

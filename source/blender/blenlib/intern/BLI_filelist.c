@@ -365,6 +365,9 @@ void BLI_filelist_duplicate(
 		if (dest->poin && dup_poin) {
 			dest->poin = dup_poin(src->poin);
 		}
+		if (dest->collapsed_info.darray) {
+			dest->collapsed_info.darray = NULL;
+		}
 	}
 }
 
@@ -385,9 +388,8 @@ void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries, void (
 			MEM_freeN(entry->path);
 		if (entry->poin && free_poin)
 			free_poin(entry->poin);
-		if (entry->collapsed_info.list.first) {
-			BLI_freelistN(&entry->collapsed_info.list);
-		}
+		if (entry->collapsed_info.darray)
+			MEM_freeN(entry->collapsed_info.darray);
 	}
 
 	if (filelist != NULL) {

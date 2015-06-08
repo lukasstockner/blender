@@ -46,11 +46,12 @@ typedef struct CollapsedEntry {
 	/* list that gets populated during file open */
 	ListBase list;
 	/* sorted array of the files for quick access of frames */
-	struct direntry *darray;
+	struct direntry **darray;
 	off_t totalsize;
 	int minframe;
 	int maxframe;
 	int numdigits;
+	int totfiles;
 } CollapsedEntry;
 
 struct direntry {
@@ -81,7 +82,8 @@ struct direntry {
 	int     nr;
 	struct ImBuf *image;
 	unsigned int selflag; /* selection flag */
-	off_t realsize;
+	off_t realsize;	/* real size of file */
+	int frame; /* frame of file in a movie sequence */
 
 	CollapsedEntry collapsed_info;
 };
