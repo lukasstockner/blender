@@ -74,8 +74,8 @@ class RenderLayerFreestyleButtonsPanel:
         rd = context.scene.render
         with_freestyle = bpy.app.build_options.freestyle
 
-        return (scene and with_freestyle and rd.use_freestyle
-            and rd.layers.active and(scene.render.engine in cls.COMPAT_ENGINES))
+        return (scene and with_freestyle and rd.use_freestyle and
+                rd.layers.active and(scene.render.engine in cls.COMPAT_ENGINES))
 
 
 class RenderLayerFreestyleEditorButtonsPanel(RenderLayerFreestyleButtonsPanel):
@@ -690,10 +690,11 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             row.prop(linestyle, "texture_spacing", text="Spacing Along Stroke")
 
             row = layout.row()
-            op = row.operator("wm.properties_context_change",
-                         text="Go to Linestyle Textures Properties",
-                         icon='TEXTURE')
-            op.context = 'TEXTURE'
+            props = row.operator(
+                    "wm.properties_context_change",
+                    text="Go to Linestyle Textures Properties",
+                    icon='TEXTURE')
+            props.context = 'TEXTURE'
 
         elif linestyle.panel == 'MISC':
             pass

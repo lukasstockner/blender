@@ -33,7 +33,7 @@ ShaderInput::ShaderInput(ShaderNode *parent_, const char *name_, ShaderSocketTyp
 	name = name_;
 	type = type_;
 	link = NULL;
-	value = make_float3(0, 0, 0);
+	value = make_float3(0.0f, 0.0f, 0.0f);
 	stack_offset = SVM_STACK_INVALID;
 	default_value = NONE;
 	usage = USE_ALL;
@@ -400,6 +400,21 @@ void ShaderGraph::remove_unneeded_nodes()
 
 					relink(bg->inputs, inputs, NULL);
 					removed[bg->id] = true;
+					any_node_removed = true;
+				}
+			}
+		}
+		else if(node->special_type == SHADER_SPECIAL_TYPE_EMISSION) {
+			EmissionNode *em = static_cast<EmissionNode*>(node);
+
+			if(em->outputs[0]->links.size()) {
+				/* Black color or zero strength, remove node */
+				if((!em->inputs[0]->link && em->inputs[0]->value == make_float3(0.0f, 0.0f, 0.0f)) ||
+				   (!em->inputs[1]->link && em->inputs[1]->value.x == 0.0f)) {
+					vector<ShaderInput*> inputs = em->outputs[0]->links;
+
+					relink(em->inputs, inputs, NULL);
+					removed[em->id] = true;
 					any_node_removed = true;
 				}
 			}
@@ -831,6 +846,26 @@ void ShaderGraph::transform_multi_closure(ShaderNode *node, ShaderOutput *weight
 		else
 			weight_in->value.x += 1.0f;
 	}
+}
+
+int ShaderGraph::get_num_closures()
+{
+	int num_closures = 0;
+	foreach(ShaderNode *node, nodes) {
+		if(node->special_type == SHADER_SPECIAL_TYPE_CLOSURE) {
+			BsdfNode *bsdf_node = static_cast<BsdfNode*>(node);
+			/* TODO(sergey): Make it more generic approach, maybe some utility
+			 * macros like CLOSURE_IS_FOO()?
+			 */
+			if(CLOSURE_IS_BSSRDF(bsdf_node->closure))
+				num_closures = num_closures + 3;
+			else if(CLOSURE_IS_GLASS(bsdf_node->closure))
+				num_closures = num_closures + 2;
+			else
+				num_closures = num_closures + 1;
+		}
+	}
+	return num_closures;
 }
 
 void ShaderGraph::dump_graph(const char *filename)

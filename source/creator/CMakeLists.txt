@@ -31,6 +31,7 @@ blender_include_dirs(
 	../blender/blenlib
 	../blender/blenkernel
 	../blender/blenloader
+	../blender/depsgraph
 	../blender/editors/include
 	../blender/makesrna
 	../blender/imbuf
@@ -493,6 +494,12 @@ if(UNIX AND NOT APPLE)
 
 	if(WITH_PYTHON)
 		if(WITH_PYTHON_INSTALL)
+
+			install(
+				FILES ${PYTHON_EXECUTABLE}
+				DESTINATION ${TARGETDIR_VER}/python/bin
+			)
+
 			# on some platforms (like openSUSE) Python is linked
 			# to be used from lib64 folder.
 			# determine this from Python's libraries path
@@ -643,9 +650,9 @@ elseif(WIN32)
 
 				execute_process(
 					COMMAND \${CMAKE_COMMAND} -E make_directory
-					        \"\${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python/lib\"
+					        \"\${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python\"
 					COMMAND \${CMAKE_COMMAND} -E
-					        chdir \"\${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python/lib\"
+					        chdir \"\${CMAKE_INSTALL_PREFIX}/${BLENDER_VERSION}/python\"
 					        \${CMAKE_COMMAND} -E
 					        tar xzfv \"\${PYTHON_ZIP}\"
 				)

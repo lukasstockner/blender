@@ -372,6 +372,10 @@ void BKE_lnor_space_define(MLoopNorSpace *lnor_space, const float lnor[3],
 		/* If vec_ref or vec_other are too much aligned with lnor, we can't build lnor space,
 		 * tag it as invalid and abort. */
 		lnor_space->ref_alpha = lnor_space->ref_beta = 0.0f;
+
+		if (edge_vectors) {
+			BLI_stack_clear(edge_vectors);
+		}
 		return;
 	}
 
@@ -2253,12 +2257,15 @@ void BKE_mesh_loops_to_tessdata(CustomData *fdata, CustomData *ldata, CustomData
 /**
  * Recreate tessellation.
  *
- * \param do_face_nor_copy controls whether the normals from the poly are copied to the tessellated faces.
+ * \param do_face_nor_copy: Controls whether the normals from the poly are copied to the tessellated faces.
  *
  * \return number of tessellation faces.
  */
-int BKE_mesh_recalc_tessellation(CustomData *fdata, CustomData *ldata, CustomData *pdata,
-                                 MVert *mvert, int totface, int totloop, int totpoly, const bool do_face_nor_cpy)
+int BKE_mesh_recalc_tessellation(
+        CustomData *fdata, CustomData *ldata, CustomData *pdata,
+        MVert *mvert,
+        int totface, int totloop, int totpoly,
+        const bool do_face_nor_copy)
 {
 	/* use this to avoid locking pthread for _every_ polygon
 	 * and calling the fill function */
@@ -2468,7 +2475,7 @@ int BKE_mesh_recalc_tessellation(CustomData *fdata, CustomData *ldata, CustomDat
 	CustomData_add_layer(fdata, CD_ORIGINDEX, CD_ASSIGN, mface_to_poly_map, totface);
 	CustomData_from_bmeshpoly(fdata, pdata, ldata, totface);
 
-	if (do_face_nor_cpy) {
+	if (do_face_nor_copy) {
 		/* If polys have a normals layer, copying that to faces can help
 		 * avoid the need to recalculate normals later */
 		if (CustomData_has_layer(pdata, CD_NORMAL)) {

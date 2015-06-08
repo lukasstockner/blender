@@ -34,7 +34,6 @@ struct CCGElem;
 struct CCGKey;
 struct CustomData;
 struct DMFlagMat;
-struct DMGridAdjacency;
 struct MFace;
 struct MVert;
 struct PBVH;
@@ -63,7 +62,7 @@ PBVH *BKE_pbvh_new(void);
 void BKE_pbvh_build_mesh(PBVH *bvh, struct MFace *faces, struct MVert *verts,
                          int totface, int totvert, struct CustomData *vdata);
 void BKE_pbvh_build_grids(PBVH *bvh, struct CCGElem **grid_elems,
-                          struct DMGridAdjacency *gridadj, int totgrid,
+                          int totgrid,
                           struct CCGKey *key, void **gridfaces, struct DMFlagMat *flagmats,
                           unsigned int **grid_hidden);
 void BKE_pbvh_build_bmesh(PBVH *bvh, struct BMesh *bm, bool smooth_shading, struct BMLog *log, const int cd_vert_node_offset, const int cd_face_node_offset);
@@ -104,8 +103,9 @@ bool BKE_pbvh_bmesh_node_raycast_detail(
 
 /* for orthographic cameras, project the far away ray segment points to the root node so
  * we can have better precision. */
-void BKE_pbvh_raycast_project_ray_root(PBVH *bvh, bool original, float ray_start[3],
-                                       float ray_end[3], float ray_normal[3]);
+void BKE_pbvh_raycast_project_ray_root(
+        PBVH *bvh, bool original,
+        float ray_start[3], float ray_end[3], float ray_normal[3]);
 
 /* Drawing */
 
@@ -144,8 +144,10 @@ typedef enum {
 	PBVH_Subdivide = 1,
 	PBVH_Collapse = 2,
 } PBVHTopologyUpdateMode;
-bool BKE_pbvh_bmesh_update_topology(PBVH *bvh, PBVHTopologyUpdateMode mode,
-                                   const float center[3], float radius);
+bool BKE_pbvh_bmesh_update_topology(
+        PBVH *bvh, PBVHTopologyUpdateMode mode,
+        const float center[3], const float view_normal[3],
+        float radius);
 
 /* Node Access */
 
@@ -173,7 +175,7 @@ void BKE_pbvh_node_fully_hidden_set(PBVHNode *node, int fully_hidden);
 
 void BKE_pbvh_node_get_grids(PBVH *bvh, PBVHNode *node,
                              int **grid_indices, int *totgrid, int *maxgrid, int *gridsize,
-                             struct CCGElem ***grid_elems, struct DMGridAdjacency **gridadj);
+                             struct CCGElem ***grid_elems);
 void BKE_pbvh_node_num_verts(PBVH *bvh, PBVHNode *node,
                              int *uniquevert, int *totvert);
 void BKE_pbvh_node_get_verts(PBVH *bvh, PBVHNode *node,
@@ -201,7 +203,7 @@ void BKE_pbvh_update(PBVH *bvh, int flags, float (*face_nors)[3]);
 void BKE_pbvh_redraw_BB(PBVH *bvh, float bb_min[3], float bb_max[3]);
 void BKE_pbvh_get_grid_updates(PBVH *bvh, int clear, void ***r_gridfaces, int *r_totface);
 void BKE_pbvh_grids_update(PBVH *bvh, struct CCGElem **grid_elems,
-                           struct DMGridAdjacency *gridadj, void **gridfaces,
+                           void **gridfaces,
                            struct DMFlagMat *flagmats, unsigned int **grid_hidden);
 
 /* Layer displacement */

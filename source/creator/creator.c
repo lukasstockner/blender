@@ -93,6 +93,8 @@
 #include "BKE_image.h"
 #include "BKE_particle.h"
 
+#include "DEG_depsgraph.h"
+
 #include "IMB_imbuf.h"  /* for IMB_init */
 
 #ifdef WITH_PYTHON
@@ -320,6 +322,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--debug-jobs");
 	BLI_argsPrintArgDoc(ba, "--debug-python");
 	BLI_argsPrintArgDoc(ba, "--debug-depsgraph");
+	BLI_argsPrintArgDoc(ba, "--debug-depsgraph-no-threads");
 
 	BLI_argsPrintArgDoc(ba, "--debug-wm");
 	BLI_argsPrintArgDoc(ba, "--debug-all");
@@ -356,6 +359,10 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 
 	printf("Other Options:\n");
 	BLI_argsPrintOtherDoc(ba);
+
+	printf("\n");
+	printf("Experimental features:\n");
+	BLI_argsPrintArgDoc(ba, "--enable-new-depsgraph");
 
 	printf("Argument Parsing:\n");
 	printf("\targuments must be separated by white space. eg\n");
@@ -671,7 +678,11 @@ LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
 	/* If this is a stack overflow then we can't walk the stack, so just show
 	 * where the error happened */
 	if (EXCEPTION_STACK_OVERFLOW != ExceptionInfo->ExceptionRecord->ExceptionCode) {
+#ifdef NDEBUG
+		TerminateProcess(GetCurrentProcess(), SIGSEGV);
+#else
 		blender_crash_handler(SIGSEGV);
+#endif
 	}
 
 	return EXCEPTION_EXECUTE_HANDLER;
@@ -929,6 +940,13 @@ static int set_threads(int argc, const char **argv, void *UNUSED(data))
 	}
 }
 
+static int depsgraph_use_new(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	printf("Using new dependency graph.\n");
+	DEG_depsgraph_switch_to_new();
+	return 0;
+}
+
 static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
 {
 	if (argc > 1) {
@@ -1024,6 +1042,7 @@ static int set_ge_parameters(int argc, const char **argv, void *data)
 			}
 			/* linearMipMap */
 			if (STREQ(argv[a], "linearmipmap")) {
+				GPU_set_mipmap(1);
 				GPU_set_linear_mipmap(1); //linearMipMap = 1;
 			}
 
@@ -1491,6 +1510,10 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 	BLI_argsAdd(ba, 1, NULL, "--debug-jobs",  "\n\tEnable time profiling for background jobs.", debug_mode_generic, (void *)G_DEBUG_JOBS);
 	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph", "\n\tEnable debug messages from dependency graph", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH);
+	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph-no-threads", "\n\tSwitch dependency graph to a single threaded evlauation", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH_NO_THREADS);
+	BLI_argsAdd(ba, 1, NULL, "--debug-gpumem", "\n\tEnable GPU memory stats in status bar", debug_mode_generic, (void *)G_DEBUG_GPU_MEM);
+
+	BLI_argsAdd(ba, 1, NULL, "--enable-new-depsgraph", "\n\tUse new dependency graph", depsgraph_use_new, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", "<verbose>\n\tSet logging verbosity level.", set_verbosity, NULL);
 

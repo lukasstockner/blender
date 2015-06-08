@@ -341,7 +341,9 @@ static int wm_macro_modal(bContext *C, wmOperator *op, const wmEvent *event)
 				 * */
 				if (op->opm->type->flag & OPTYPE_BLOCKING) {
 					int bounds[4] = {-1, -1, -1, -1};
-					int wrap = (U.uiflag & USER_CONTINUOUS_MOUSE) && ((op->opm->flag & OP_GRAB_POINTER) || (op->opm->type->flag & OPTYPE_GRAB_POINTER));
+					const bool wrap = (
+					        (U.uiflag & USER_CONTINUOUS_MOUSE) &&
+					        ((op->opm->flag & OP_IS_MODAL_GRAB_CURSOR) || (op->opm->type->flag & OPTYPE_GRAB_CURSOR)));
 
 					if (wrap) {
 						ARegion *ar = CTX_wm_region(C);
@@ -491,7 +493,7 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 	if (ot->macro.first)
 		wm_operatortype_free_macro(ot);
 
-	BLI_ghash_remove(global_ops_hash, (void *)ot->idname, NULL, NULL);
+	BLI_ghash_remove(global_ops_hash, ot->idname, NULL, NULL);
 
 	WM_keyconfig_update_operatortype();
 
@@ -575,12 +577,13 @@ void WM_operator_bl_idname(char *to, const char *from)
 		to[0] = 0;
 }
 
-/* Print a string representation of the operator, with the args that it runs so python can run it again.
+/**
+ * Print a string representation of the operator, with the args that it runs so python can run it again.
  *
  * When calling from an existing wmOperator, better to use simple version:
- *     WM_operator_pystring(C, op);
+ * `WM_operator_pystring(C, op);`
  *
- * Note: both op and opptr may be NULL (op is only used for macro operators).
+ * \note Both \a op and \a opptr may be `NULL` (\a op is only used for macro operators).
  */
 char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, const bool macro_args,
                               wmOperatorType *ot, PointerRNA *opptr)
@@ -1551,6 +1554,9 @@ typedef struct wmOpPopUp {
 /* Only invoked by OK button in popups created with wm_block_dialog_create() */
 static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+
 	wmOpPopUp *data = arg1;
 	uiBlock *block = arg2;
 
@@ -1563,7 +1569,11 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 	/* in this case, wm_operator_ui_popup_cancel wont run */
 	MEM_freeN(data);
 
-	UI_popup_block_close(C, block);
+	/* check window before 'block->handle' incase the
+	 * popup execution closed the window and freed the block. see T44688. */
+	if (BLI_findindex(&wm->windows, win) != -1) {
+		UI_popup_block_close(C, win, block);
+	}
 }
 
 static void dialog_check_cb(bContext *C, void *op_ptr, void *UNUSED(arg))
@@ -1720,18 +1730,20 @@ static int wm_operator_props_popup_ex(bContext *C, wmOperator *op,
 	return OPERATOR_RUNNING_MODAL;
 }
 
-/* Same as WM_operator_props_popup but don't use operator redo.
- * just wraps WM_operator_props_dialog_popup.
+/**
+ * Same as #WM_operator_props_popup but don't use operator redo.
+ * just wraps #WM_operator_props_dialog_popup.
  */
 int WM_operator_props_popup_confirm(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	return wm_operator_props_popup_ex(C, op, false, false);
 }
 
-/* Same as WM_operator_props_popup but call the operator first,
+/**
+ * Same as #WM_operator_props_popup but call the operator first,
  * This way - the button values correspond to the result of the operator.
- * Without this, first access to a button will make the result jump,
- * see [#32452] */
+ * Without this, first access to a button will make the result jump, see T32452.
+ */
 int WM_operator_props_popup_call(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	return wm_operator_props_popup_ex(C, op, true, true);
@@ -1835,7 +1847,8 @@ static void WM_OT_operator_defaults(wmOperatorType *ot)
 
 static void wm_block_splash_close(bContext *C, void *arg_block, void *UNUSED(arg))
 {
-	UI_popup_block_close(C, arg_block);
+	wmWindow *win = CTX_wm_window(C);
+	UI_popup_block_close(C, win, arg_block);
 }
 
 static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unused);
@@ -1847,7 +1860,8 @@ static void wm_block_splash_refreshmenu(bContext *UNUSED(C), void *UNUSED(arg_bl
 	/* ugh, causes crashes in other buttons, disabling for now until 
 	 * a better fix */
 #if 0
-	UI_popup_block_close(C, arg_block);
+	wmWindow *win = CTX_wm_window(C);
+	UI_popup_block_close(C, win, arg_block);
 	UI_popup_block_invoke(C, wm_block_create_splash, NULL);
 #endif
 }
@@ -3164,9 +3178,10 @@ void WM_paint_cursor_end(wmWindowManager *wm, void *handle)
 
 /* **************** Border gesture *************** */
 
-/* Border gesture has two types:
- * 1) WM_GESTURE_CROSS_RECT: starts a cross, on mouse click it changes to border
- * 2) WM_GESTURE_RECT: starts immediate as a border, on mouse click or release it ends
+/**
+ * Border gesture has two types:
+ * -# #WM_GESTURE_CROSS_RECT: starts a cross, on mouse click it changes to border.
+ * -# #WM_GESTURE_RECT: starts immediate as a border, on mouse click or release it ends.
  *
  * It stores 4 values (xmin, xmax, ymin, ymax) and event it ended with (event_type)
  */
@@ -3465,7 +3480,10 @@ static void tweak_gesture_modal(bContext *C, const wmEvent *event)
 					tevent.type = EVT_TWEAK_M;
 				tevent.val = val;
 				/* mouse coords! */
-				wm_event_add(window, &tevent);
+
+				/* important we add immediately after this event, so future mouse releases
+				 * (which may be in the queue already), are handled in order, see T44740 */
+				wm_event_add_ex(window, &tevent, event);
 				
 				WM_gesture_end(C, gesture); /* frees gesture itself, and unregisters from window */
 			}
@@ -3848,7 +3866,7 @@ void WM_OT_straightline_gesture(wmOperatorType *ot)
 #define WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE (35 * U.pixelsize)
 #define WM_RADIAL_CONTROL_DISPLAY_WIDTH (WM_RADIAL_CONTROL_DISPLAY_SIZE - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE)
 #define WM_RADIAL_CONTROL_HEADER_LENGTH 180
-#define WM_RADIAL_MAX_STR 6
+#define WM_RADIAL_MAX_STR 10
 
 typedef struct {
 	PropertyType type;
@@ -3894,9 +3912,11 @@ static void radial_control_set_initial_mouse(RadialControl *rc, const wmEvent *e
 	switch (rc->subtype) {
 		case PROP_NONE:
 		case PROP_DISTANCE:
-		case PROP_PERCENTAGE:
 		case PROP_PIXEL:
 			d[0] = rc->initial_value * U.pixelsize;
+			break;
+		case PROP_PERCENTAGE:
+			d[0] = (rc->initial_value) / 100.0f * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
 			break;
 		case PROP_FACTOR:
 			d[0] = (1 - rc->initial_value) * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
@@ -4003,10 +4023,18 @@ static void radial_control_paint_cursor(bContext *C, int x, int y, void *customd
 	switch (rc->subtype) {
 		case PROP_NONE:
 		case PROP_DISTANCE:
-		case PROP_PERCENTAGE:
 		case PROP_PIXEL:
 			r1 = rc->current_value * U.pixelsize;
 			r2 = rc->initial_value * U.pixelsize;
+			tex_radius = r1;
+			alpha = 0.75;
+			break;
+		case PROP_PERCENTAGE:
+			r1 = rc->current_value / 100.0f * WM_RADIAL_CONTROL_DISPLAY_WIDTH + WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
+			r2 = tex_radius = WM_RADIAL_CONTROL_DISPLAY_SIZE;
+			rmin = WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE;
+			BLI_snprintf(str, WM_RADIAL_MAX_STR, "%3.1f%%", rc->current_value);
+			strdrawlen = BLI_strlen_utf8(str);
 			tex_radius = r1;
 			alpha = 0.75;
 			break;
@@ -4092,12 +4120,15 @@ typedef enum {
 	RC_PROP_REQUIRE_BOOL = 4,
 } RCPropFlags;
 
-/* attempt to retrieve the rna pointer/property from an rna path;
- * returns 0 for failure, 1 for success, and also 1 if property is not
- * set */
-static int radial_control_get_path(PointerRNA *ctx_ptr, wmOperator *op,
-                                   const char *name, PointerRNA *r_ptr,
-                                   PropertyRNA **r_prop, int req_length, RCPropFlags flags)
+/**
+ * Attempt to retrieve the rna pointer/property from an rna path.
+ *
+ * \return 0 for failure, 1 for success, and also 1 if property is not set.
+ */
+static int radial_control_get_path(
+        PointerRNA *ctx_ptr, wmOperator *op,
+        const char *name, PointerRNA *r_ptr,
+        PropertyRNA **r_prop, int req_length, RCPropFlags flags)
 {
 	PropertyRNA *unused_prop;
 	int len;
@@ -4444,11 +4475,14 @@ static int radial_control_modal(bContext *C, wmOperator *op, const wmEvent *even
 					switch (rc->subtype) {
 						case PROP_NONE:
 						case PROP_DISTANCE:
-						case PROP_PERCENTAGE:
 						case PROP_PIXEL:
 							new_value = dist;
 							if (snap) new_value = ((int)new_value + 5) / 10 * 10;
 							new_value /= U.pixelsize;
+							break;
+						case PROP_PERCENTAGE:
+							new_value = ((dist - WM_RADIAL_CONTROL_DISPLAY_MIN_SIZE) / WM_RADIAL_CONTROL_DISPLAY_WIDTH) * 100.0f;
+							if (snap) new_value = ((int)(new_value + 2.5)) / 5 * 5;
 							break;
 						case PROP_FACTOR:
 							new_value = (WM_RADIAL_CONTROL_DISPLAY_SIZE - dist) / WM_RADIAL_CONTROL_DISPLAY_WIDTH;
@@ -4831,6 +4865,38 @@ static void WM_OT_previews_ensure(wmOperatorType *ot)
 	ot->exec = previews_ensure_exec;
 }
 
+static int doc_view_manual_ui_context_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	PointerRNA ptr_props;
+	char buf[512];
+	short retval = OPERATOR_CANCELLED;
+
+	if (UI_but_online_manual_id_from_active(C, buf, sizeof(buf))) {
+		WM_operator_properties_create(&ptr_props, "WM_OT_doc_view_manual");
+		RNA_string_set(&ptr_props, "doc_id", buf);
+
+		retval = WM_operator_name_call_ptr(
+		        C, WM_operatortype_find("WM_OT_doc_view_manual", false),
+		        WM_OP_EXEC_DEFAULT, &ptr_props);
+
+		WM_operator_properties_free(&ptr_props);
+	}
+
+	return retval;
+}
+
+static void WM_OT_doc_view_manual_ui_context(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "View Online Manual";
+	ot->idname = "WM_OT_doc_view_manual_ui_context";
+	ot->description = "View a context based online manual in a web browser";
+
+	/* callbacks */
+	ot->poll = ED_operator_regionactive;
+	ot->exec = doc_view_manual_ui_context_exec;
+}
+
 /* ******************************************************* */
 
 static void operatortype_ghash_free_cb(wmOperatorType *ot)
@@ -4927,6 +4993,7 @@ void wm_operatortype_init(void)
 	WM_operatortype_append(WM_OT_console_toggle);
 #endif
 	WM_operatortype_append(WM_OT_previews_ensure);
+	WM_operatortype_append(WM_OT_doc_view_manual_ui_context);
 }
 
 /* circleselect-like modal operators */
@@ -5152,6 +5219,8 @@ void wm_window_keymap(wmKeyConfig *keyconf)
 
 	WM_keymap_verify_item(keymap, "WM_OT_window_fullscreen_toggle", F11KEY, KM_PRESS, KM_ALT, 0);
 	WM_keymap_add_item(keymap, "WM_OT_quit_blender", QKEY, KM_PRESS, KM_CTRL, 0);
+
+	WM_keymap_add_item(keymap, "WM_OT_doc_view_manual_ui_context", F1KEY, KM_PRESS, KM_ALT, 0);
 
 	/* debug/testing */
 	WM_keymap_verify_item(keymap, "WM_OT_redraw_timer", TKEY, KM_PRESS, KM_ALT | KM_CTRL, 0);

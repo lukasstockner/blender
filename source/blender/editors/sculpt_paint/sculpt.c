@@ -373,6 +373,9 @@ static void sculpt_project_v3_cache_init(
 	spvc->len_sq_inv_neg = (spvc->is_valid) ? -1.0f / spvc->len_sq : 0.0f;
 }
 
+/**
+ * Calculate the projection.
+ */
 static void sculpt_project_v3(
         const SculptProjectVector *spvc, const float vec[3],
         float r_vec[3])
@@ -1197,7 +1200,7 @@ static float brush_strength(const Sculpt *sd, const StrokeCache *cache, const fl
 	/* Primary strength input; square it to make lower values more sensitive */
 	const float root_alpha = BKE_brush_alpha_get(scene, brush);
 	float alpha        = root_alpha * root_alpha;
-	float dir          = brush->flag & BRUSH_DIR_IN ? -1 : 1;
+	float dir          = (brush->flag & BRUSH_DIR_IN) ? -1 : 1;
 	float pressure     = BKE_brush_use_alpha_pressure(scene, brush) ? cache->pressure : 1;
 	float pen_flip     = cache->pen_flip ? -1 : 1;
 	float invert       = cache->invert ? -1 : 1;
@@ -1761,7 +1764,6 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	SculptBrushTest test;
 	CCGElem **griddata, *data;
 	CCGKey key;
-	DMGridAdjacency *gridadj, *adj;
 	float (*tmpgrid_co)[3], (*tmprow_co)[3];
 	float *tmpgrid_mask, *tmprow_mask;
 	int v1, v2, v3, v4;
@@ -1774,7 +1776,7 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 	CLAMP(bstrength, 0.0f, 1.0f);
 
 	BKE_pbvh_node_get_grids(ss->pbvh, node, &grid_indices, &totgrid,
-	                        NULL, &gridsize, &griddata, &gridadj);
+	                        NULL, &gridsize, &griddata);
 	BKE_pbvh_get_grid_key(ss->pbvh, &key);
 
 	grid_hidden = BKE_pbvh_grid_hidden(ss->pbvh);
@@ -1793,7 +1795,6 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 		int gi = grid_indices[i];
 		const BLI_bitmap *gh = grid_hidden[gi];
 		data = griddata[gi];
-		adj = &gridadj[gi];
 
 		if (smooth_mask)
 			memset(tmpgrid_mask, 0, sizeof(float) * gridsize * gridsize);
@@ -1858,18 +1859,6 @@ static void do_multires_smooth_brush(Sculpt *sd, SculptSession *ss, PBVHNode *no
 					if (BLI_BITMAP_TEST(gh, y * gridsize + x))
 						continue;
 				}
-
-				if (x == 0 && adj->index[0] == -1)
-					continue;
-
-				if (x == gridsize - 1 && adj->index[2] == -1)
-					continue;
-
-				if (y == 0 && adj->index[3] == -1)
-					continue;
-
-				if (y == gridsize - 1 && adj->index[1] == -1)
-					continue;
 
 				index = x + y * gridsize;
 				co = CCG_elem_offset_co(&key, data, index);
@@ -2747,7 +2736,7 @@ static void do_clay_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int totnode)
 						/* note, the normal from the vertices is ignored,
 						 * causes glitch with planes, see: T44390 */
 						const float fade = bstrength * tex_strength(ss, brush, vd.co, sqrtf(test.dist),
-						                                            NULL, area_no, vd.mask ? *vd.mask : 0.0f);
+						                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -2851,7 +2840,7 @@ static void do_clay_strips_brush(Sculpt *sd, Object *ob, PBVHNode **nodes, int t
 						 * causes glitch with planes, see: T44390 */
 						const float fade = bstrength * tex_strength(ss, brush, vd.co,
 						                                            ss->cache->radius * test.dist,
-						                                            NULL, area_no, vd.mask ? *vd.mask : 0.0f);
+						                                            vd.no, vd.fno, vd.mask ? *vd.mask : 0.0f);
 
 						mul_v3_v3fl(proxy[vd.i], val, fade);
 
@@ -3126,9 +3115,11 @@ static void sculpt_topology_update(Sculpt *sd, Object *ob, Brush *brush, Unified
 		}
 
 		if (BKE_pbvh_type(ss->pbvh) == PBVH_BMESH) {
-			BKE_pbvh_bmesh_update_topology(ss->pbvh, mode,
-			                               ss->cache->location,
-			                               ss->cache->radius);
+			BKE_pbvh_bmesh_update_topology(
+			        ss->pbvh, mode,
+			        ss->cache->location,
+			        (brush->flag & BRUSH_FRONTFACE) ? ss->cache->view_normal : NULL,
+			        ss->cache->radius);
 		}
 
 		MEM_freeN(nodes);
@@ -3696,7 +3687,7 @@ static void sculpt_omp_start(Sculpt *sd, SculptSession *ss)
 	if (ss->multires) {
 		int i, gridsize, array_mem_size;
 		BKE_pbvh_node_get_grids(ss->pbvh, NULL, NULL, NULL, NULL,
-		                        &gridsize, NULL, NULL);
+		                        &gridsize, NULL);
 
 		array_mem_size = cache->num_threads * sizeof(void *);
 
@@ -4379,6 +4370,9 @@ static void sculpt_stroke_update_step(bContext *C, struct PaintStroke *UNUSED(st
 	if (sd->flags & SCULPT_DYNTOPO_DETAIL_CONSTANT) {
 		BKE_pbvh_bmesh_detail_size_set(ss->pbvh, sd->constant_detail / 100.0f);
 	}
+	else if (sd->flags & SCULPT_DYNTOPO_DETAIL_BRUSH) {
+		BKE_pbvh_bmesh_detail_size_set(ss->pbvh, ss->cache->radius * sd->detail_percent / 100.0f);
+	}
 	else {
 		BKE_pbvh_bmesh_detail_size_set(
 		        ss->pbvh,
@@ -4966,6 +4960,9 @@ static int sculpt_symmetrize_exec(bContext *C, wmOperator *UNUSED(op))
 	             sd->symmetrize_direction, 0.00001f);
 	sculpt_dynamic_topology_triangulate(ss->bm);
 
+	/* bisect operator flags edges (keep tags clean for edge queue) */
+	BM_mesh_elem_hflag_disable_all(ss->bm, BM_EDGE, BM_ELEM_TAG, false);
+
 	/* Finish undo */
 	BM_log_all_added(ss->bm, ss->bm_log);
 	sculpt_undo_push_end();
@@ -5069,10 +5066,10 @@ static int sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
 			ts->sculpt->flags |= SCULPT_DYNTOPO_SUBDIVIDE | SCULPT_DYNTOPO_COLLAPSE;
 		}
 
-		if (!ts->sculpt->detail_size) {
+		if (!ts->sculpt->detail_size)
 			ts->sculpt->detail_size = 12;
-		}
-
+		if (!ts->sculpt->detail_percent)
+			ts->sculpt->detail_percent = 25;
 		if (ts->sculpt->constant_detail == 0.0f)
 			ts->sculpt->constant_detail = 30.0f;
 
@@ -5161,7 +5158,10 @@ static int sculpt_detail_flood_fill_exec(bContext *C, wmOperator *UNUSED(op))
 	sculpt_undo_push_begin("Dynamic topology flood fill");
 	sculpt_undo_push_node(ob, NULL, SCULPT_UNDO_COORDS);
 
-	while (BKE_pbvh_bmesh_update_topology(ss->pbvh, PBVH_Collapse | PBVH_Subdivide, bb_min, size)) {
+	while (BKE_pbvh_bmesh_update_topology(
+	               ss->pbvh, PBVH_Collapse | PBVH_Subdivide,
+	               bb_min, NULL, size))
+	{
 		for (i = 0; i < totnodes; i++)
 			BKE_pbvh_node_mark_topology_update(nodes[i]);
 	}
@@ -5304,6 +5304,10 @@ static int sculpt_set_detail_size_exec(bContext *C, wmOperator *UNUSED(op))
 	if (sd->flags & SCULPT_DYNTOPO_DETAIL_CONSTANT) {
 		set_brush_rc_props(&props_ptr, "sculpt", "constant_detail", NULL, 0);
 		RNA_string_set(&props_ptr, "data_path_primary", "tool_settings.sculpt.constant_detail");
+	}
+	else if (sd->flags & SCULPT_DYNTOPO_DETAIL_BRUSH) {
+		set_brush_rc_props(&props_ptr, "sculpt", "constant_detail", NULL, 0);
+		RNA_string_set(&props_ptr, "data_path_primary", "tool_settings.sculpt.detail_percent");
 	}
 	else {
 		set_brush_rc_props(&props_ptr, "sculpt", "detail_size", NULL, 0);

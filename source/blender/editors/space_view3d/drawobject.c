@@ -301,11 +301,12 @@ bool draw_glsl_material(Scene *scene, Object *ob, View3D *v3d, const char dt)
 	if (v3d->flag2 & V3D_SHOW_SOLID_MATCAP)
 		return true;
 	
-	if (BKE_scene_use_new_shading_nodes(scene))
+	if (v3d->drawtype == OB_TEXTURE)
+		return (scene->gm.matmode == GAME_MAT_GLSL && !BKE_scene_use_new_shading_nodes(scene));
+	else if (v3d->drawtype == OB_MATERIAL && dt > OB_SOLID)
+		return true;
+	else
 		return false;
-	
-	return ((scene->gm.matmode == GAME_MAT_GLSL && v3d->drawtype == OB_TEXTURE) ||
-	        (v3d->drawtype == OB_MATERIAL)) && (dt > OB_SOLID);
 }
 
 static bool check_alpha_pass(Base *base)
@@ -3041,7 +3042,7 @@ static void draw_dm_faces_sel(BMEditMesh *em, DerivedMesh *dm, unsigned char *ba
 		data.orig_index_mf_to_mpoly = data.orig_index_mp_to_orig = NULL;
 	}
 
-	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, GPU_enable_material, draw_dm_faces_sel__compareDrawOptions, &data, 0);
+	dm->drawMappedFaces(dm, draw_dm_faces_sel__setDrawOptions, NULL, draw_dm_faces_sel__compareDrawOptions, &data, 0);
 }
 
 static DMDrawOption draw_dm_creases__setDrawOptions(void *userData, int index)
@@ -3372,7 +3373,7 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 						                            unit->system, B_UNIT_LENGTH, do_split, false);
 					}
 					else {
-						numstr_len = BLI_snprintf(numstr, sizeof(numstr), conv_float, len_v3v3(v1, v2));
+						numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), conv_float, len_v3v3(v1, v2));
 					}
 
 					view3d_cached_text_draw_add(vmid, numstr, numstr_len, 0, txt_flag, col);
@@ -3449,7 +3450,7 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 
 						angle = angle_normalized_v3v3(no_a, no_b);
 
-						numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%.3f", is_rad ? angle : RAD2DEGF(angle));
+						numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%.3f", is_rad ? angle : RAD2DEGF(angle));
 
 						view3d_cached_text_draw_add(vmid, numstr, numstr_len, 0, txt_flag, col);
 					}
@@ -3474,7 +3475,7 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 			        3, unit->system, B_UNIT_AREA, do_split, false);                      \
 		}                                                                                \
 		else {                                                                           \
-			numstr_len = BLI_snprintf(numstr, sizeof(numstr), conv_float, area);         \
+			numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), conv_float, area);    \
 		}                                                                                \
 		view3d_cached_text_draw_add(vmid, numstr, numstr_len, 0, txt_flag, col);         \
 	} (void)0
@@ -3592,7 +3593,7 @@ static void draw_em_measure_stats(ARegion *ar, View3D *v3d, Object *ob, BMEditMe
 
 						angle = angle_v3v3v3(v1, v2, v3);
 
-						numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%.3f", is_rad ? angle : RAD2DEGF(angle));
+						numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%.3f", is_rad ? angle : RAD2DEGF(angle));
 						interp_v3_v3v3(fvec, vmid, v2_local, 0.8f);
 						view3d_cached_text_draw_add(fvec, numstr, numstr_len, 0, txt_flag, col);
 					}
@@ -3623,7 +3624,7 @@ static void draw_em_indices(BMEditMesh *em)
 		UI_GetThemeColor3ubv(TH_DRAWEXTRA_FACEANG, col);
 		BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 			if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
-				numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%d", i);
+				numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%d", i);
 				view3d_cached_text_draw_add(v->co, numstr, numstr_len, 0, txt_flag, col);
 			}
 			i++;
@@ -3635,7 +3636,7 @@ static void draw_em_indices(BMEditMesh *em)
 		UI_GetThemeColor3ubv(TH_DRAWEXTRA_EDGELEN, col);
 		BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
 			if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
-				numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%d", i);
+				numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%d", i);
 				mid_v3_v3v3(pos, e->v1->co, e->v2->co);
 				view3d_cached_text_draw_add(pos, numstr, numstr_len, 0, txt_flag, col);
 			}
@@ -3649,7 +3650,7 @@ static void draw_em_indices(BMEditMesh *em)
 		BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
 			if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
 				BM_face_calc_center_mean(f, pos);
-				numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%d", i);
+				numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%d", i);
 				view3d_cached_text_draw_add(pos, numstr, numstr_len, 0, txt_flag, col);
 			}
 			i++;
@@ -4225,7 +4226,7 @@ static void draw_mesh_fancy(Scene *scene, ARegion *ar, View3D *v3d, RegionView3D
 	}
 	
 	if (is_obact && BKE_paint_select_vert_test(ob)) {
-		const int use_depth = (v3d->flag & V3D_ZBUF_SELECT);
+		const bool use_depth = (v3d->flag & V3D_ZBUF_SELECT) != 0;
 		glColor3f(0.0f, 0.0f, 0.0f);
 		glPointSize(UI_GetThemeValuef(TH_VERTEX_SIZE));
 
@@ -4284,7 +4285,9 @@ static bool draw_mesh_object(Scene *scene, ARegion *ar, View3D *v3d, RegionView3
 			                                              scene->customdata_mask);
 
 		DM_update_materials(finalDM, ob);
-		DM_update_materials(cageDM, ob);
+		if (cageDM != finalDM) {
+			DM_update_materials(cageDM, ob);
+		}
 
 		if (dt > OB_WIRE) {
 			const bool glsl = draw_glsl_material(scene, ob, v3d, dt);
@@ -5397,15 +5400,15 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 						if (part->draw & PART_DRAW_NUM) {
 							if (a < totpart && (part->draw & PART_DRAW_HEALTH) && (part->phystype == PART_PHYS_BOIDS)) {
-								numstr_len = BLI_snprintf(val_pos, sizeof(numstr), "%d:%.2f", a, pa_health);
+								numstr_len = BLI_snprintf_rlen(val_pos, sizeof(numstr), "%d:%.2f", a, pa_health);
 							}
 							else {
-								numstr_len = BLI_snprintf(val_pos, sizeof(numstr), "%d", a);
+								numstr_len = BLI_snprintf_rlen(val_pos, sizeof(numstr), "%d", a);
 							}
 						}
 						else {
 							if (a < totpart && (part->draw & PART_DRAW_HEALTH) && (part->phystype == PART_PHYS_BOIDS)) {
-								numstr_len = BLI_snprintf(val_pos, sizeof(numstr), "%.2f", pa_health);
+								numstr_len = BLI_snprintf_rlen(val_pos, sizeof(numstr), "%.2f", pa_health);
 							}
 						}
 
@@ -5646,7 +5649,7 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 
 			for (a = 0, pa = psys->particles; a < totpart; a++, pa++) {
 				float vec_txt[3];
-				numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%i", a);
+				numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%i", a);
 				/* use worldspace because object matrix is already applied */
 				mul_v3_m4v3(vec_txt, ob->imat, cache[a]->co);
 				view3d_cached_text_draw_add(vec_txt, numstr, numstr_len,
@@ -5775,7 +5778,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	PTCacheEditPoint *point;
 	PTCacheEditKey *key;
 	ParticleEditSettings *pset = PE_settings(scene);
-	int i, k, totpoint = edit->totpoint, timed = pset->flag & PE_FADE_TIME ? pset->fade_frames : 0;
+	int i, k, totpoint = edit->totpoint, timed = (pset->flag & PE_FADE_TIME) ? pset->fade_frames : 0;
 	int totkeys = 1;
 	float sel_col[3];
 	float nosel_col[3];
@@ -5915,7 +5918,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 						glColor3fv(nosel_col);
 					/* has to be like this.. otherwise selection won't work, have try glArrayElement later..*/
 					glBegin(GL_POINTS);
-					glVertex3fv(key->flag & PEK_USE_WCO ? key->world_co : key->co);
+					glVertex3fv((key->flag & PEK_USE_WCO) ? key->world_co : key->co);
 					glEnd();
 				}
 			}
@@ -7997,14 +8000,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		/* only draw domains */
 		if (smd->domain) {
 			SmokeDomainSettings *sds = smd->domain;
-			float p0[3], p1[3], viewnormal[3];
-			BoundBox bb;
+			float viewnormal[3];
 
 			glLoadMatrixf(rv3d->viewmat);
 			glMultMatrixf(ob->obmat);
 
 			/* draw adaptive domain bounds */
-			if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+			if ((sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) && !render_override) {
+				float p0[3], p1[3];
+				BoundBox bb;
 				/* draw domain max bounds */
 				VECSUBFAC(p0, sds->p0, sds->cell_size, sds->adapt_res);
 				VECADDFAC(p1, sds->p1, sds->cell_size, sds->adapt_res);
@@ -8020,10 +8024,11 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
 			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
+				float p0[3], p1[3];
+
 				/* get view vector */
-				copy_v3_v3(viewnormal, rv3d->viewinv[2]);
 				invert_m4_m4(ob->imat, ob->obmat);
-				mul_mat3_m4_v3(ob->imat, viewnormal);
+				mul_v3_mat3_m4v3(viewnormal, ob->imat, rv3d->viewinv[2]);
 				normalize_v3(viewnormal);
 
 				/* set dynamic boundaries to draw the volume

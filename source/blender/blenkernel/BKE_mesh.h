@@ -108,6 +108,7 @@ void BKE_mesh_to_curve_nurblist(struct DerivedMesh *dm, struct ListBase *nurblis
 void BKE_mesh_to_curve(struct Scene *scene, struct Object *ob);
 void BKE_mesh_material_index_remove(struct Mesh *me, short index);
 void BKE_mesh_material_index_clear(struct Mesh *me);
+void BKE_mesh_material_remap(struct Mesh *me, const unsigned int *remap, unsigned int remap_len);
 void BKE_mesh_smooth_flag_set(struct Object *meshOb, int enableSmooth);
 
 const char *BKE_mesh_cmp(struct Mesh *me1, struct Mesh *me2, float thresh);
@@ -275,7 +276,7 @@ int BKE_mesh_recalc_tessellation(
         struct CustomData *fdata, struct CustomData *ldata, struct CustomData *pdata,
         struct MVert *mvert,
         int totface, int totloop, int totpoly,
-        const bool do_face_normals);
+        const bool do_face_nor_copy);
 int BKE_mesh_mpoly_to_mface(
         struct CustomData *fdata, struct CustomData *ldata,
         struct CustomData *pdata, int totface, int totloop, int totpoly);
@@ -358,6 +359,13 @@ void BKE_mesh_strip_loose_edges(struct Mesh *me);
 
 void BKE_mesh_calc_edges_legacy(struct Mesh *me, const bool use_old);
 void BKE_mesh_calc_edges(struct Mesh *mesh, bool update, const bool select);
+
+/* **** Depsgraph evaluation **** */
+
+struct EvaluationContext;
+
+void BKE_mesh_eval_geometry(struct EvaluationContext *eval_ctx,
+                            struct Mesh *mesh);
 
 #ifdef __cplusplus
 }

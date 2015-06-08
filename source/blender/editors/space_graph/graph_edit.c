@@ -261,7 +261,7 @@ static int graphkeys_view_selected_exec(bContext *C, wmOperator *op)
 static int graphkeys_view_frame_exec(bContext *C, wmOperator *op)
 {
 	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-	UI_view2d_center_frame(C, smooth_viewtx);
+	ANIM_center_frame(C, smooth_viewtx);
 	return OPERATOR_FINISHED;
 }
 
@@ -1178,6 +1178,11 @@ static int graphkeys_sound_bake_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	RNA_string_get(op->ptr, "filepath", path);
+
+	if (!BLI_is_file(path)) {
+		BKE_reportf(op->reports, RPT_ERROR, "File not found '%s'", path);
+		return OPERATOR_CANCELLED;
+	}
 
 	scene = ac.scene;    /* current scene */
 

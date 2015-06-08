@@ -719,7 +719,7 @@ class WM_OT_context_modal_mouse(Operator):
     """Adjust arbitrary values with mouse input"""
     bl_idname = "wm.context_modal_mouse"
     bl_label = "Context Modal Mouse"
-    bl_options = {'GRAB_POINTER', 'BLOCKING', 'UNDO', 'INTERNAL'}
+    bl_options = {'GRAB_CURSOR', 'BLOCKING', 'UNDO', 'INTERNAL'}
 
     data_path_iter = data_path_iter
     data_path_item = data_path_item
@@ -974,10 +974,12 @@ class WM_OT_doc_view_manual(Operator):
         url = self._lookup_rna_url(rna_id)
 
         if url is None:
-            self.report({'WARNING'}, "No reference available %r, "
-                                     "Update info in 'rna_wiki_reference.py' "
-                                     " or callback to bpy.utils.manual_map()" %
-                                     self.doc_id)
+            self.report(
+                    {'WARNING'},
+                    "No reference available %r, "
+                    "Update info in 'rna_manual_reference.py' "
+                    "or callback to bpy.utils.manual_map()" %
+                    self.doc_id)
             return {'CANCELLED'}
         else:
             import webbrowser
