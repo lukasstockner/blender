@@ -455,6 +455,12 @@ static int rna_Object_update_from_editmode(Object *ob)
 	}
 	return false;
 }
+
+static void rna_Object_cache_release(Object *object, int free_smoke_sim)
+{
+	BKE_object_free_caches(object, free_smoke_sim != 0);
+}
+
 #else /* RNA_RUNTIME */
 
 void RNA_api_object(StructRNA *srna)
@@ -678,7 +684,8 @@ void RNA_api_object(StructRNA *srna)
 	parm = RNA_def_boolean(func, "result", 0, "", "Success");
 	RNA_def_function_return(func, parm);
 
-	func = RNA_def_function(srna, "cache_release", "BKE_object_free_caches");
+	func = RNA_def_function(srna, "cache_release", "rna_Object_cache_release");
+	 RNA_def_boolean(func, "free_smoke_sim", 0, "", "Free baked smoke simulation data");
 	RNA_def_function_ui_description(func, "Release memory used by caches associated with this object. Intended to be used by render engines only");
 }
 

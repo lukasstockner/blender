@@ -764,7 +764,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide
 				sync_curves(mesh, b_mesh, b_parent, false, 0, b_dupli_ob);
 
 			if(can_free_caches) {
-				b_ob.cache_release();
+				b_ob.cache_release(false);
 			}
 
 			/* free derived mesh */

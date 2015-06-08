@@ -109,6 +109,8 @@ protected:
 	void builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels);
 	bool builtin_image_pixels(const string &builtin_name, void *builtin_data, unsigned char *pixels);
 	bool builtin_image_float_pixels(const string &builtin_name, void *builtin_data, float *pixels);
+
+	void clear_blender_database();
 };
 
 CCL_NAMESPACE_END

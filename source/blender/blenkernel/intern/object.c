@@ -111,6 +111,7 @@
 #include "BKE_sca.h"
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
+#include "BKE_smoke.h"
 #include "BKE_speaker.h"
 #include "BKE_softbody.h"
 #include "BKE_subsurf.h"
@@ -347,7 +348,7 @@ void BKE_object_free_derived_caches(Object *ob)
 	BKE_object_dupli_cache_clear(ob);
 }
 
-void BKE_object_free_caches(Object *object)
+void BKE_object_free_caches(Object *object, bool free_smoke_sim)
 {
 	ModifierData *md;
 	short update_flag = 0;
@@ -374,6 +375,28 @@ void BKE_object_free_caches(Object *object)
 				psmd->dm = NULL;
 				psmd->flag |= eParticleSystemFlag_file_loaded;
 				update_flag |= OB_RECALC_DATA;
+			}
+		}
+		else if (md->type == eModifierType_Smoke) {
+			if (free_smoke_sim) {
+				SmokeModifierData *smd = (SmokeModifierData *) md;
+				SmokeDomainSettings *sds = smd->domain;
+				if (sds != NULL) {
+					bool use_sim = sds->point_cache[0] == NULL;
+					PointCache *cache;
+					/* We only reset cache if all the point caches are baked to file. */
+					for (cache = sds->ptcaches[0].first;
+					     cache != NULL && use_sim == false;
+					     cache = cache->next)
+					{
+						use_sim |= ((cache->flag & (PTCACHE_BAKED|PTCACHE_DISK_CACHE)) != (PTCACHE_BAKED|PTCACHE_DISK_CACHE));
+					}
+					if (!use_sim) {
+						smokeModifier_reset(smd);
+						smokeModifier_reset_turbulence(smd);
+						update_flag |= OB_RECALC_DATA;
+					}
+				}
 			}
 		}
 	}
