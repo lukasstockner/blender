@@ -220,7 +220,7 @@ typedef struct uiSubBut {
 	struct uiSubBut *next, *prev;
 
 	uiSubButType type;
-	uiSubButAlign align; /* alignment within subbut */
+	uiSubButAlign align; /* alignment within but */
 
 	int width, height;
 	rcti rect;           /* block relative coords */

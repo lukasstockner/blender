@@ -251,6 +251,21 @@ static void ui_draw_anti_circle(float rad)
 	glDisable(GL_BLEND);
 }
 
+static void ui_draw_anti_circle_rect(const rcti *rect)
+{
+	const int size_x = BLI_rcti_size_x(rect);
+	const int size_y = BLI_rcti_size_y(rect);
+	const float rad = size_y / 2;
+
+	glPushMatrix();
+
+	/* origin is center of the rect */
+	glTranslatef(rect->xmin + size_x / 2, rect->ymin + size_y / 2, 0.0f);
+	ui_draw_anti_circle(rad);
+
+	glPopMatrix();
+}
+
 static void widget_init(uiWidgetBase *wtb)
 {
 	wtb->totvert = wtb->halfwayvert = 0;
@@ -3522,8 +3537,6 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 {
 	uiWidgetBase wtb;
 	rcti recttemp = *rect;
-	float rad;
-	int delta;
 
 	widget_init(&wtb);
 
@@ -3531,29 +3544,27 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	recttemp.xmax = recttemp.xmin + BLI_rcti_size_y(&recttemp);
 
 	/* smaller */
-	delta = 1 + BLI_rcti_size_y(&recttemp) / 10;
-	recttemp.xmin += delta;
-	recttemp.ymin += delta;
-	recttemp.xmax -= delta;
-	recttemp.ymax -= delta;
+	BLI_rcti_scale(&recttemp, 0.8f);
 
-	/* half rounded */
-	rad = wcol->roundness * U.widget_unit;
-	round_box_edges(&wtb, UI_CNR_ALL, &recttemp, rad);
+	/* draw inner */
+	glColor4ubv((unsigned char *)wcol->inner);
+	ui_draw_anti_circle_rect(&recttemp);
 
-	/* some offset for decoration */
+	/* adjust recttemp for decoration */
 	BLI_rcti_translate(&recttemp, -0.1f * U.widget_unit, -0.1f * U.widget_unit);
-	BLI_rcti_resize(&recttemp, 0.8f * BLI_rcti_size_x(&recttemp), 0.8f * BLI_rcti_size_y(&recttemp));
+	BLI_rcti_scale(&recttemp, 0.9f);
 
 	/* decoration */
 	if (state & UI_SELECT) {
 		widget_check_trias(&wtb.tria1, &recttemp);
 	}
 
+	/* disable inner as this was already drawn */
+	wtb.draw_inner = false;
 	widgetbase_draw(&wtb, wcol);
 
 	/* text space */
-	rect->xmin += BLI_rcti_size_y(rect) * 0.5 + delta;
+	rect->xmin += BLI_rcti_size_y(rect) * 0.7f;
 	rect->ymin += 0.1f * U.widget_unit;
 }
 
