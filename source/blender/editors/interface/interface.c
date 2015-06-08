@@ -161,6 +161,13 @@ void ui_block_to_window_rctf(const ARegion *ar, uiBlock *block, rctf *rct_dst, c
 	ui_block_to_window_fl(ar, block, &rct_dst->xmax, &rct_dst->ymax);
 }
 
+void ui_block_to_window_rcti(const ARegion *ar, uiBlock *block, rcti *rct_dst, const rcti *rct_src)
+{
+	*rct_dst = *rct_src;
+	ui_block_to_window(ar, block, &rct_dst->xmin, &rct_dst->ymin);
+	ui_block_to_window(ar, block, &rct_dst->xmax, &rct_dst->ymax);
+}
+
 void ui_window_to_block_fl(const ARegion *ar, uiBlock *block, float *x, float *y)   /* for mouse cursor */
 {
 	float a, b, c, d, e, f, px, py;
@@ -1321,6 +1328,43 @@ static void ui_but_to_pixelrect(rcti *rect, const ARegion *ar, uiBlock *block, u
 	rect->ymin = floorf(rectf.ymin);
 	rect->xmax = floorf(rectf.xmax);
 	rect->ymax = floorf(rectf.ymax);
+}
+
+
+/* project a rcti to pixels in regionspace */
+void ui_rcti_to_pixelrect(const ARegion *ar, uiBlock *block, rcti *rct_dst, const rcti *rct_src)
+{
+	rcti rect;
+
+	ui_block_to_window_rcti(ar, block, &rect, rct_src);
+
+	rect.xmin -= ar->winrct.xmin;
+	rect.ymin -= ar->winrct.ymin;
+	rect.xmax -= ar->winrct.xmin;
+	rect.ymax -= ar->winrct.ymin;
+
+	rct_dst->xmin = iroundf(rect.xmin);
+	rct_dst->ymin = iroundf(rect.ymin);
+	rct_dst->xmax = iroundf(rect.xmax);
+	rct_dst->ymax = iroundf(rect.ymax);
+}
+
+/* project a rctf to pixels in regionspace */
+void ui_rctf_to_pixelrect(const ARegion *ar, uiBlock *block, rctf *rct_dst, const rctf *rct_src)
+{
+	rctf rect;
+
+	ui_block_to_window_rctf(ar, block, &rect, rct_src);
+
+	rect.xmin -= ar->winrct.xmin;
+	rect.ymin -= ar->winrct.ymin;
+	rect.xmax -= ar->winrct.xmin;
+	rect.ymax -= ar->winrct.ymin;
+
+	rct_dst->xmin = floorf(rect.xmin);
+	rct_dst->ymin = floorf(rect.ymin);
+	rct_dst->xmax = floorf(rect.xmax);
+	rct_dst->ymax = floorf(rect.ymax);
 }
 
 /* uses local copy of style, to scale things down, and allow widgets to change stuff */
@@ -2529,6 +2573,10 @@ static void ui_but_free(const bContext *C, uiBut *but)
 		IMB_freeImBuf((struct ImBuf *)but->poin);
 	}
 
+	if ((BLI_listbase_is_empty(&but->subbuts)) == false) {
+		BLI_freelistN(&but->subbuts);
+	}
+
 	BLI_assert(UI_butstore_is_registered(but->block, but) == false);
 
 	MEM_freeN(but);
@@ -3108,6 +3156,25 @@ void ui_block_cm_to_scene_linear_v3(uiBlock *block, float pixel[3])
 	IMB_colormanagement_display_to_scene_linear_v3(pixel, display);
 }
 
+static uiSubBut *ui_def_subbut(
+        uiBut *but, const int type,
+        uiSubButAlign alignment,
+        const int width, const int height)
+{
+	uiSubBut *sbut = MEM_callocN(sizeof(uiSubBut), "uiSubBut");
+
+	sbut->type = type;
+	sbut->align = alignment;
+	sbut->width = width;
+	sbut->height = height;
+
+	/* sbut->rect is calculated later */
+
+	BLI_addtail(&but->subbuts, sbut);
+
+	return sbut;
+}
+
 /**
  * \brief ui_def_but is the function that draws many button types
  *
@@ -3220,6 +3287,13 @@ static uiBut *ui_def_but(
 		if (but->lockstr) {
 			but->flag |= UI_BUT_DISABLED;
 		}
+	}
+
+	if (but->type == UI_BTYPE_NUM) {
+		const int sbut_width = MIN2(width / 3, height);
+
+		ui_def_subbut(but, UI_SBUT_TYPE_VAL_DECREASE, UI_SBUT_ALIGN_LEFT, sbut_width, height);
+		ui_def_subbut(but, UI_SBUT_TYPE_VAL_INCREASE, UI_SBUT_ALIGN_RIGHT, sbut_width, height);
 	}
 
 	/* keep track of UI_interface.h */

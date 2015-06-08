@@ -852,30 +852,38 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			ScrArea *sa;
 
 			for (sa = screen->areabase.first; sa; sa = sa->next) {
-				ARegion *ar;
+				const char needed_type = (sa->spacetype == SPACE_CLIP) ? RGN_TYPE_PREVIEW : RGN_TYPE_WINDOW;
+				ARegion *ar = BKE_area_find_region_type(sa, needed_type);
 				SpaceLink *sl;
 
-				for (ar = sa->regionbase.first; ar; ar = ar->next) {
-					if (ar->regiontype == RGN_TYPE_WINDOW) {
-						break;
-					}
-				}
+				if (ar == NULL)
+					continue;
 
-				if (ar) {
-					for (sl = sa->spacedata.first; sl; sl = sl->next) {
-						switch (sl->spacetype) {
-							case SPACE_TIME:
-							case SPACE_ACTION:
-							case SPACE_NLA:
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					switch (sl->spacetype) {
+						case SPACE_TIME:
+						case SPACE_ACTION:
+						case SPACE_NLA:
+							ar->v2d.flag |= V2D_USES_UNITS_HORIZONTAL;
+							break;
+						case SPACE_IPO:
+						case SPACE_SEQ:
+							ar->v2d.flag |= (V2D_USES_UNITS_HORIZONTAL | V2D_USES_UNITS_VERTICAL);
+							break;
+						case SPACE_CLIP:
+						{
+							SpaceClip *sc = (SpaceClip *)sl;
+
+							if (sc->view == SC_VIEW_DOPESHEET) {
 								ar->v2d.flag |= V2D_USES_UNITS_HORIZONTAL;
-								break;
-							case SPACE_IPO:
-							case SPACE_SEQ:
+							}
+							else if (sc->view == SC_VIEW_GRAPH) {
 								ar->v2d.flag |= (V2D_USES_UNITS_HORIZONTAL | V2D_USES_UNITS_VERTICAL);
-								break;
-							default:
-								break;
+							}
+							break;
 						}
+						default:
+							break;
 					}
 				}
 			}
