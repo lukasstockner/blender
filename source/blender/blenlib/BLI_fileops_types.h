@@ -52,6 +52,7 @@ typedef struct CollapsedEntry {
 	int maxframe;
 	int numdigits;
 	int totfiles;
+	int curfra;
 } CollapsedEntry;
 
 struct direntry {

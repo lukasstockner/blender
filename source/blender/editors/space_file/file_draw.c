@@ -64,6 +64,7 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
+#include "WM_api.h"
 #include "WM_types.h"
 
 #include "filelist.h"
@@ -573,6 +574,14 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			}
 
 			file_draw_preview(block, file, sx, sy, imb, layout, is_icon, do_drag);
+
+			if ((file->selflag & FILE_SEL_COLLAPSED) && (file->selflag & FILE_SEL_SELECTED)) {
+				/* refresh to keep movie playing */
+				file->collapsed_info.curfra++;
+				file->collapsed_info.curfra %= file->collapsed_info.totfiles;
+
+				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+			}
 		}
 		else {
 			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), get_file_icon(file), ICON_DEFAULT_WIDTH_SCALE, ICON_DEFAULT_HEIGHT_SCALE, do_drag);

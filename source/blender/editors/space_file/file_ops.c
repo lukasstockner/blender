@@ -274,6 +274,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 
 				if (FILENAME_IS_CURRPAR(file->relname)) {
 					file->selflag &= ~FILE_SEL_HIGHLIGHTED;
+					file->collapsed_info.curfra = 0;
 				}
 
 				/* active_file gets highlighted as well - make sure it is no readonly file */

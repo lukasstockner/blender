@@ -710,6 +710,7 @@ ImBuf *filelist_getimage(struct FileList *filelist, const int index)
 {
 	ImBuf *ibuf = NULL;
 	int fidx = 0;
+	struct direntry *file;
 
 	BLI_assert(G.background == false);
 
@@ -717,8 +718,15 @@ ImBuf *filelist_getimage(struct FileList *filelist, const int index)
 		return NULL;
 	}
 	fidx = filelist->fidx[index];
-	ibuf = filelist->filelist[fidx].image;
+	file = filelist->filelist + fidx;
 
+	if (file->selflag & FILE_SEL_COLLAPSED) {
+		int curfra = file->collapsed_info.curfra;
+		ibuf = file->collapsed_info.darray[curfra]->image;
+	}
+	else {
+		ibuf = filelist->filelist[fidx].image;
+	}
 	return ibuf;
 }
 
@@ -769,7 +777,10 @@ ImBuf *filelist_geticon(struct FileList *filelist, const int index)
 		ibuf = gSpecialFileImages[SPECIAL_IMG_TEXTFILE];
 	}
 	else if (file->flags & FILE_TYPE_IMAGE) {
-		ibuf = gSpecialFileImages[SPECIAL_IMG_LOADING];
+		if (file->selflag & FILE_SEL_COLLAPSED)
+			ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
+		else
+			ibuf = gSpecialFileImages[SPECIAL_IMG_LOADING];
 	}
 	else if (file->flags & FILE_TYPE_BLENDER_BACKUP) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BACKUP];
