@@ -99,7 +99,7 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float l
 	return true;
 }
 
-bool BKE_mesh_sample_shapekey(Key *key, KeyBlock *kb, const MSurfaceSample *sample, float loc[3])
+bool BKE_mesh_sample_shapekey(Key *UNUSED(key), KeyBlock *kb, const MSurfaceSample *sample, float loc[3])
 {
 	float *v1, *v2, *v3;
 	
