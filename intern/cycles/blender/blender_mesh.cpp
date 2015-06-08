@@ -229,7 +229,13 @@ static void mikk_compute_tangents(BL::Mesh b_mesh, BL::MeshTextureFaceLayer *b_l
 
 /* Create Volume Attribute */
 
-static void create_mesh_volume_attribute(BL::Object b_ob, Mesh *mesh, ImageManager *image_manager, AttributeStandard std, float frame)
+static void create_mesh_volume_attribute(BL::Object b_ob,
+                                         Mesh *mesh,
+                                         ImageManager *image_manager,
+                                         AttributeStandard std,
+                                         float frame,
+                                         AttributeStandard special_std = ATTR_STD_NONE,
+                                         bool from_alpha = false)
 {
 	BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
 
@@ -240,17 +246,35 @@ static void create_mesh_volume_attribute(BL::Object b_ob, Mesh *mesh, ImageManag
 	VoxelAttribute *volume_data = attr->data_voxel();
 	bool is_float, is_linear;
 	bool animated = false;
+	AttributeStandard data_attr = (special_std == ATTR_STD_NONE) ? std : special_std;
 
 	volume_data->manager = image_manager;
-	volume_data->slot = image_manager->add_image(Attribute::standard_name(std),
+	volume_data->slot = image_manager->add_image(Attribute::standard_name(data_attr),
 		b_ob.ptr.data, animated, frame, is_float, is_linear, INTERPOLATION_LINEAR, true);
+	volume_data->from_alpha = from_alpha;
 }
 
 static void create_mesh_volume_attributes(Scene *scene, BL::Object b_ob, Mesh *mesh, float frame)
 {
 	/* for smoke volume rendering */
-	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY))
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_DENSITY, frame);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY)) {
+		/* Special case: we re-map density to A channel of Color texture
+		 * if both attributes are requested.
+		 */
+		AttributeStandard special_std = ATTR_STD_VOLUME_DENSITY;
+		bool from_alpha = false;
+		if(mesh->need_attribute(scene, ATTR_STD_VOLUME_COLOR)) {
+			special_std = ATTR_STD_VOLUME_COLOR;
+			from_alpha = true;
+		}
+		create_mesh_volume_attribute(b_ob,
+		                             mesh,
+		                             scene->image_manager,
+		                             ATTR_STD_VOLUME_DENSITY,
+		                             frame,
+		                             special_std,
+		                             from_alpha);
+	}
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_COLOR))
 		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_COLOR, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_FLAME))

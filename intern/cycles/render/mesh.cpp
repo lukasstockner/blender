@@ -818,7 +818,10 @@ static void update_attribute_element_offset(Mesh *mesh,
 		if(mattr->element == ATTR_ELEMENT_VOXEL) {
 			/* store slot in offset value */
 			VoxelAttribute *voxel_data = mattr->data_voxel();
-			offset = voxel_data->slot;
+			offset = voxel_data->slot << 1;
+			if(voxel_data->from_alpha) {
+				++offset;
+			}
 		}
 		else if(mattr->element == ATTR_ELEMENT_CORNER_BYTE) {
 			uchar4 *data = mattr->data_uchar4();
