@@ -475,6 +475,7 @@ static void build_pict_list_ex(PlayState *ps, const char *first, int totframes, 
 
 			picture->mem = mem;
 			picture->name = strdup(filepath);
+			picture->frame = count; /* not exact but should work for positioning */
 			close(file);
 			BLI_addtail(&picsbase, picture);
 			count++;
