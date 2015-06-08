@@ -51,11 +51,11 @@
 #include "quicktime_import.h"
 #endif
 
-static long long int imb_ftype_default(const ImFileType *type, ImBuf *ibuf)
+static int imb_ftype_default(const ImFileType *type, ImBuf *ibuf)
 {
 	return (ibuf->ftype == type->filetype);
 }
-static long long int imb_ftype_iris(const ImFileType *type, ImBuf *ibuf)
+static int imb_ftype_iris(const ImFileType *type, ImBuf *ibuf)
 {
 	(void)type;
 	return (ibuf->ftype == IMAGIC);

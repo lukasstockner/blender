@@ -184,7 +184,7 @@ const char *imb_ext_audio[] = {
 	NULL
 };
 
-long long int IMB_ispic_type(const char *name)
+int IMB_ispic_type(const char *name)
 {
 	/* increased from 32 to 64 because of the bitmaps header size */
 #define HEADER_SIZE 64
