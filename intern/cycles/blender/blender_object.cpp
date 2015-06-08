@@ -616,7 +616,6 @@ void BlenderSync::sync_objects(BL::SpaceView3D b_v3d, float motion_time)
 				if(!object_render_hide(b_ob, true, true, hide_tris)) {
 					/* object itself */
 					Transform tfm = get_transform(b_ob.matrix_world());
-
 					sync_object(b_ob,
 					            NULL,
 					            PointerRNA_NULL,
