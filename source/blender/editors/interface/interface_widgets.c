@@ -743,11 +743,18 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 			}
 			else {
 				/* simple fill */
-				glColor4ubv((unsigned char *)wcol->inner);
+				glColor4ub(UNPACK3(wcol->inner), wcol->inner[3] * 0.285f);
 
 				glEnableClientState(GL_VERTEX_ARRAY);
 				glVertexPointer(2, GL_FLOAT, 0, wtb->inner_v);
-				glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+
+				/* for each AA step */
+				for (j = 0; j < WIDGET_AA_JITTER; j++) {
+					glTranslatef(jit[j][0], jit[j][1], 0.0f);
+					glDrawArrays(GL_POLYGON, 0, wtb->totvert);
+					glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
+				}
+
 				glDisableClientState(GL_VERTEX_ARRAY);
 			}
 		}
