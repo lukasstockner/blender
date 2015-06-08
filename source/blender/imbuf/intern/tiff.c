@@ -720,7 +720,7 @@ int imb_savetiff(ImBuf *ibuf, const char *name, int flags)
 		return (0);
 	}
 
-	if ((ibuf->ftype & TIF_16BIT) && ibuf->rect_float)
+	if ((ibuf->foptions & TIF_16BIT) && ibuf->rect_float)
 		bitspersample = 16;
 	else
 		bitspersample = 8;

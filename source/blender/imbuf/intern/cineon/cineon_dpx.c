@@ -114,17 +114,17 @@ static int imb_save_dpx_cineon(ImBuf *ibuf, const char *filename, int use_cineon
 		return 0;
 	}
 
-	if (ibuf->ftype & CINEON_10BIT)
+	if (ibuf->foptions & CINEON_10BIT)
 		bitspersample = 10;
-	else if (ibuf->ftype & CINEON_12BIT)
+	else if (ibuf->foptions & CINEON_12BIT)
 		bitspersample = 12;
-	else if (ibuf->ftype & CINEON_16BIT)
+	else if (ibuf->foptions & CINEON_16BIT)
 		bitspersample = 16;
 	else
 		bitspersample = 8;
 
 	logImage = logImageCreate(filename, use_cineon, ibuf->x, ibuf->y, bitspersample, (depth == 4),
-	                          (ibuf->ftype & CINEON_LOG), -1, -1, -1, "Blender");
+	                          (ibuf->foptions & CINEON_LOG), -1, -1, -1, "Blender");
 
 	if (logImage == NULL) {
 		printf("DPX/Cineon: error creating file.\n");
