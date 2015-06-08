@@ -614,10 +614,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 				char fname[PATH_MAX];
 				char finalname[PATH_MAX];
 				char ext[PATH_MAX];
+				CollapsedEntry *collapsed = &file->collapsed_info;
 				BLI_strncpy(fname, file->relname, sizeof(fname));
 				BLI_path_frame_strip(fname, false, ext);
 				BLI_snprintf(finalname, sizeof(finalname), "%s%.*d-%.*d%s",
-				             fname, file->numdigits, file->minframe, file->numdigits, file->maxframe, ext);
+				             fname, collapsed->numdigits, collapsed->minframe, collapsed->numdigits, collapsed->maxframe, ext);
 				file_draw_string(sx + 1, tpos, finalname, (float)textwidth, textheight, align);
 			}
 			else
@@ -628,8 +629,9 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 			if (!(file->type & S_IFDIR)) {
 				if (file->selflag & FILE_SEL_COLLAPSED) {
+					CollapsedEntry *collapsed = &file->collapsed_info;
 					char sizestr[16];
-					BLI_file_size_string(file->collapsedsize, sizestr, sizeof(sizestr));
+					BLI_file_size_string(collapsed->totalsize, sizestr, sizeof(sizestr));
 					file_draw_string(sx, sy, sizestr, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				}
 				else
@@ -643,7 +645,8 @@ void file_draw_list(const bContext *C, ARegion *ar)
 			/* for collapsed files it doesn't make sense to display all info */
 			if (file->selflag & FILE_SEL_COLLAPSED) {
 				char sizestr[16];
-				BLI_file_size_string(file->collapsedsize, sizestr, sizeof(sizestr));
+				CollapsedEntry *collapsed = &file->collapsed_info;
+				BLI_file_size_string(collapsed->totalsize, sizestr, sizeof(sizestr));
 				file_draw_string(sx, sy, sizestr, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 			}
 			else {

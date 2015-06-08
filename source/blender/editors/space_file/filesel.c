@@ -456,10 +456,11 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 				char fname[PATH_MAX];
 				char finalname[PATH_MAX];
 				char ext[PATH_MAX];
+				CollapsedEntry *collapsed = &file->collapsed_info;
 				BLI_strncpy(fname, file->relname, sizeof(fname));
 				BLI_path_frame_strip(fname, false, ext);
 				BLI_snprintf(finalname, sizeof(finalname), "%s%.*d-%.*d%s",
-				             fname, file->numdigits, file->minframe, file->numdigits, file->maxframe, ext);
+				             fname, collapsed->numdigits, collapsed->minframe, collapsed->numdigits, collapsed->maxframe, ext);
 				len = file_string_width(finalname);
 			}
 			else {

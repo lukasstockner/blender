@@ -870,7 +870,8 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 					struct direntry *file = filelist_file(sfile->files, i);
 
 					if (file->selflag & FILE_SEL_COLLAPSED) {
-						LinkData *link_iter = file->list.first;
+						CollapsedEntry *collapsed = &file->collapsed_info;
+						LinkData *link_iter = collapsed->list.first;
 
 						while (link_iter) {
 							LinkData *link_tmp = link_iter->next;
@@ -882,7 +883,7 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 							link_iter = link_tmp;
 						}
 
-						BLI_listbase_clear(&file->list);
+						BLI_listbase_clear(&collapsed->list);
 					}
 
 					RNA_property_collection_add(op->ptr, prop, &itemptr);

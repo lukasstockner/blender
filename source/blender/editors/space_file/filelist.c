@@ -480,21 +480,22 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 				BLI_path_frame_strip(filename, false, NULL);
 
 				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename)) &&
-				    numdigits == ofile->numdigits)
+				    numdigits == ofile->collapsed_info.numdigits)
 				{
+					CollapsedEntry *collapsed = &ofile->collapsed_info;
 					is_filtered = false;
 					ofile->selflag |= FILE_SEL_COLLAPSED;
 					file->selflag |= FILE_SEL_COLLAPSED;
-					BLI_addhead(&ofile->list, BLI_genericNodeN(file));
-					ofile->collapsedsize += file->realsize;
-					ofile->maxframe = MAX2(frame, ofile->maxframe);
-					ofile->minframe = MIN2(frame, ofile->minframe);
+					BLI_addhead(&collapsed->list, BLI_genericNodeN(file));
+					collapsed->totalsize += file->realsize;
+					collapsed->maxframe = MAX2(frame, collapsed->maxframe);
+					collapsed->minframe = MIN2(frame, collapsed->minframe);
 				}
 				else {
 					BLI_ghash_insert(filter->unique_image_list, BLI_strdup(filename), file);
-					file->collapsedsize = file->realsize;
-					file->maxframe = file->minframe = frame;
-					file->numdigits = numdigits;
+					file->collapsed_info.totalsize = file->realsize;
+					file->collapsed_info.maxframe = file->collapsed_info.minframe = frame;
+					file->collapsed_info.numdigits = numdigits;
 				}
 			}
 		}

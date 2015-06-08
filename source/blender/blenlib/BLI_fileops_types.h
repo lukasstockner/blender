@@ -42,6 +42,17 @@ typedef unsigned int mode_t;
 
 struct ImBuf;
 
+typedef struct CollapsedEntry {
+	/* list that gets populated during file open */
+	ListBase list;
+	/* sorted array of the files for quick access of frames */
+	struct direntry *darray;
+	off_t totalsize;
+	int minframe;
+	int maxframe;
+	int numdigits;
+} CollapsedEntry;
+
 struct direntry {
 	mode_t  type;
 	char   *relname;
@@ -70,17 +81,9 @@ struct direntry {
 	int     nr;
 	struct ImBuf *image;
 	unsigned int selflag; /* selection flag */
-
-	/* ultra dirty temporary ugliness, store the container for the image sequence here.
-	 * ideally we should store this to a struct in a customdata pointer.
-	 * Maybe poin can be used instead */
-	ListBase list;
-	/* it sucks to store this as well but it's needed */
 	off_t realsize;
-	off_t collapsedsize;
-	int minframe;
-	int maxframe;
-	int numdigits;
+
+	CollapsedEntry collapsed_info;
 };
 
 struct dirlink {
