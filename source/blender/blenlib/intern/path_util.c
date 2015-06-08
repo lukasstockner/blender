@@ -1182,8 +1182,8 @@ bool BLI_path_program_extensions_add_win32(char *name, const size_t maxlen)
 					memcpy(filename_ext, ext, ext_len);
 					filename_ext[ext_len] = '\0';
 
-					 type = BLI_exists(filename);
-					 if (type && (!S_ISDIR(type))) {
+					type = BLI_exists(filename);
+					if (type && (!S_ISDIR(type))) {
 						retval = true;
 						BLI_strncpy(name, filename, maxlen);
 						break;

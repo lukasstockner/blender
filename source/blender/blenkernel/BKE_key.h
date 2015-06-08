@@ -83,6 +83,7 @@ float *BKE_key_evaluate_particles_ex(
 float *BKE_key_evaluate_particles(
         struct Object *ob, struct ParticleSystem *psys, float cfra, int *r_totelem);
 
+struct Key     **BKE_key_from_object_p(struct Object *ob);
 struct Key      *BKE_key_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object(struct Object *ob);
 struct KeyBlock *BKE_keyblock_from_object_reference(struct Object *ob);

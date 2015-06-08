@@ -2122,22 +2122,34 @@ float *BKE_key_evaluate_particles(Object *ob, ParticleSystem *psys, float cfra, 
 	return BKE_key_evaluate_particles_ex(ob, psys, cfra, r_totelem, NULL, 0);
 }
 
-Key *BKE_key_from_object(Object *ob)
+Key **BKE_key_from_object_p(Object *ob)
 {
-	if (ob == NULL) return NULL;
-	
+	if (ob == NULL)
+		return NULL;
+
 	if (ob->type == OB_MESH) {
 		Mesh *me = ob->data;
-		return me->key;
+		return &me->key;
 	}
 	else if (ELEM(ob->type, OB_CURVE, OB_SURF)) {
 		Curve *cu = ob->data;
-		return cu->key;
+		return &cu->key;
 	}
 	else if (ob->type == OB_LATTICE) {
 		Lattice *lt = ob->data;
-		return lt->key;
+		return &lt->key;
 	}
+	return NULL;
+}
+
+Key *BKE_key_from_object(Object *ob)
+{
+	Key **key_p;
+	key_p = BKE_key_from_object_p(ob);
+	if (key_p) {
+		return *key_p;
+	}
+
 	return NULL;
 }
 
