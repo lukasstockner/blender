@@ -337,7 +337,9 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
 	
 	
 	/* update header */
-	ED_area_headerprint(CTX_wm_area(C), IFACE_("Grease Pencil: Stroke Sculptmode"));
+	ED_area_headerprint(CTX_wm_area(C),
+	                    IFACE_("Grease Pencil: Stroke Sculptmode | LMB to paint | RMB/Escape to Exit"
+	                           " | Ctrl to Invert Action"));
 	
 	/* setup cursor drawing */
 	WM_cursor_modal_set(CTX_wm_window(C), BC_CROSSCURSOR);
