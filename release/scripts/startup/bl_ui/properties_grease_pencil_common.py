@@ -154,6 +154,41 @@ class GreasePencilStrokeEditPanel:
         col.operator("transform.tosphere", text="To Sphere").gpencil_strokes = True
 
 
+class GreasePencilStrokeSculptPanel:
+    # subclass must set
+    # bl_space_type = 'IMAGE_EDITOR'
+    bl_label = "Sculpt Strokes"
+    bl_category = "Grease Pencil"
+    bl_region_type = 'TOOLS'
+
+    @classmethod
+    def poll(cls, context):
+        if context.gpencil_data is None:
+            return False
+
+        gpd = context.gpencil_data
+        return bool(context.editable_gpencil_strokes) and bool(gpd.use_stroke_edit_mode)
+
+    @staticmethod
+    def draw(self, context):
+        layout = self.layout
+        
+        settings = context.tool_settings.gpencil_sculpt
+        tool = settings.tool
+        brush = settings.brush
+        
+        layout.column().prop(settings, "tool", expand=True)
+
+        col = layout.column()
+        col.prop(brush, "size", slider=True)
+        row = col.row(align=True)
+        row.prop(brush, "strength", slider=True)
+        row.prop(brush, "use_pressure_strength", text="")
+        col.prop(brush, "use_falloff")
+
+        layout.prop(settings, "use_select_mask")
+
+
 ###############################
 
 class GPENCIL_PIE_tool_palette(Menu):

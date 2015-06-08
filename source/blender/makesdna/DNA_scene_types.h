@@ -1058,6 +1058,55 @@ enum {
 	VP_ONLYVGROUP   = (1 << 7)   /* weight paint only */
 };
 
+/* ------------------------------------------- */
+/* GPencil Stroke Sculpting */
+
+/* Brush types */
+typedef enum eGP_EditBrush_Types {
+	GP_EDITBRUSH_TYPE_SMOOTH    = 0,
+	GP_EDITBRUSH_TYPE_THICKNESS = 1,
+	GP_EDITBRUSH_TYPE_GRAB      = 2,
+	GP_EDITBRUSH_TYPE_RANDOMISE = 3,
+	
+	TOT_GP_EDITBRUSH_TYPES
+} eGP_EditBrush_Types;
+
+
+/* Settings for a GPencil Stroke Sculpting Brush */
+typedef struct GP_EditBrush_Data {
+	short size;             /* radius of brush */
+	short flag;             /* eGP_EditBrush_Flag */
+	float strength;         /* strength of effect */
+} GP_EditBrush_Data;
+
+/* GP_EditBrush_Data.flag */
+typedef enum eGP_EditBrush_Flag {
+	/* invert the effect of the brush */
+	GP_EDITBRUSH_FLAG_INVERT       = (1 << 0),
+	/* adjust strength using pen pressure */
+	GP_EDITBRUSH_FLAG_USE_PRESSURE = (1 << 1),
+	
+	/* strength of brush falls off with distance from cursor */
+	GP_EDITBRUSH_FLAG_USE_FALLOFF  = (1 << 2),
+} eGP_EditBrush_Flag;
+
+
+
+/* GPencil Stroke Sculpting Settings */
+typedef struct GP_BrushEdit_Settings {
+	GP_EditBrush_Data brush[4];   /* 4 = TOT_GP_EDITBRUSH_TYPES */
+	void *paintcursor;            /* runtime */
+	
+	int brushtype;                /* eGP_EditBrush_Types */
+	int flag;                     /* eGP_BrushEdit_SettingsFlag */
+} GP_BrushEdit_Settings;
+
+/* GP_BrushEdit_Settings.flag */
+typedef enum eGP_BrushEdit_SettingsFlag {
+	/* only affect selected points */
+	GP_BRUSHEDIT_FLAG_SELECT_MASK = (1 << 0)
+} eGP_BrushEdit_SettingsFlag;
+
 /* *************************************************************** */
 /* Transform Orientations */
 
@@ -1221,6 +1270,9 @@ typedef struct ToolSettings {
 	char gpencil_src;		/* for main 3D view Grease Pencil, where data comes from */
 
 	char pad[4];
+	
+	/* Grease Pencil Sculpt */
+	struct GP_BrushEdit_Settings gp_sculpt;
 
 	/* Image Paint (8 byttse aligned please!) */
 	struct ImagePaintSettings imapaint;

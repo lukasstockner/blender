@@ -134,6 +134,10 @@ void GPENCIL_OT_delete(struct wmOperatorType *ot);
 void GPENCIL_OT_copy(struct wmOperatorType *ot);
 void GPENCIL_OT_paste(struct wmOperatorType *ot);
 
+/* stroke sculpting -- */
+
+void GPENCIL_OT_brush_paint(struct wmOperatorType *ot);
+
 /* buttons editing --- */
 
 void GPENCIL_OT_data_add(struct wmOperatorType *ot);

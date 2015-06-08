@@ -2283,6 +2283,11 @@ static void rna_def_tool_settings(BlenderRNA  *brna)
 	                         "Datablock where active Grease Pencil data is found from");
 	RNA_def_property_update(prop, NC_GPENCIL | ND_DATA, NULL);
 	
+	prop = RNA_def_property(srna, "gpencil_sculpt", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "gp_sculpt");
+	RNA_def_property_struct_type(prop, "GPencilSculptSettings");
+	RNA_def_property_ui_text(prop, "Grease Pencil Sculpt", "");
+	
 	/* Auto Keying */
 	prop = RNA_def_property(srna, "use_keyframe_insert_auto", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "autokey_mode", AUTOKEY_ON);

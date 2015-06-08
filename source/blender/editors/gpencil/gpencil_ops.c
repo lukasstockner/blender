@@ -194,6 +194,10 @@ static void ed_keymap_gpencil_editing(wmKeyConfig *keyconf)
 	RNA_boolean_set(kmi->ptr, "unselected", true);
 	
 	
+	/* Brush-Based Editing */
+	WM_keymap_add_item(keymap, "GPENCIL_OT_brush_paint", EKEY, KM_PRESS, 0, 0);
+	
+	
 	/* Transform Tools */
 	kmi = WM_keymap_add_item(keymap, "TRANSFORM_OT_translate", GKEY, KM_PRESS, 0, 0);
 	RNA_boolean_set(kmi->ptr, "gpencil_strokes", true);
@@ -260,6 +264,8 @@ void ED_operatortypes_gpencil(void)
 	WM_operatortype_append(GPENCIL_OT_delete);
 	WM_operatortype_append(GPENCIL_OT_copy);
 	WM_operatortype_append(GPENCIL_OT_paste);
+	
+	WM_operatortype_append(GPENCIL_OT_brush_paint);
 	
 	/* Editing (Buttons) ------------ */
 	
