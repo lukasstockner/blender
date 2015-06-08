@@ -492,6 +492,9 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 					collapsed->minframe = MIN2(frame, collapsed->minframe);
 				}
 				else {
+					if (file->collapsed_info.list.first) {
+						BLI_freelistN(&file->collapsed_info.list);
+					}
 					BLI_ghash_insert(filter->unique_image_list, BLI_strdup(filename), file);
 					file->collapsed_info.totalsize = file->realsize;
 					file->collapsed_info.maxframe = file->collapsed_info.minframe = frame;
@@ -501,6 +504,9 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 		}
 	}
 	else {
+		if (file->collapsed_info.list.first) {
+			BLI_freelistN(&file->collapsed_info.list);
+		}
 		/* may have been set in a previous filtering iteration, so always clear */
 		file->selflag &= ~FILE_SEL_COLLAPSED;
 	}
