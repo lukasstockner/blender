@@ -126,6 +126,18 @@ enum {
 	/* warn: rest of uiBut->flag in UI_interface.h */
 };
 
+/* uiSubBut->type */
+typedef enum uiSubButType {
+	UI_SBUT_TYPE_VAL_DECREASE,
+	UI_SBUT_TYPE_VAL_INCREASE,
+} uiSubButType;
+
+/* uiSubBut->align */
+typedef enum uiSubButAlign {
+	UI_SBUT_ALIGN_LEFT,
+	UI_SBUT_ALIGN_RIGHT,
+} uiSubButAlign;
+
 /* some buttons display icons only under special conditions
  * (e.g. 'x' icon in search menu) - used with ui_but_icon_extra_get */
 typedef enum uiButExtraIconType {
@@ -204,8 +216,23 @@ typedef struct {
 	ListBase lines;
 } uiLink;
 
+typedef struct uiSubBut {
+	struct uiSubBut *next, *prev;
+
+	uiSubButType type;
+	uiSubButAlign align; /* alignment within subbut */
+
+	int width, height;
+	rcti rect;           /* block relative coords */
+
+	bool is_hovered;     /* could be made into flag */
+} uiSubBut;
+
 struct uiBut {
 	struct uiBut *next, *prev;
+
+	ListBase subbuts;
+
 	int flag, drawflag;
 	eButType         type;
 	eButPointerType  pointype;
@@ -445,10 +472,13 @@ extern bool ui_block_is_pie_menu(const uiBlock *block) ATTR_WARN_UNUSED_RESULT;
 extern void ui_block_to_window_fl(const struct ARegion *ar, uiBlock *block, float *x, float *y);
 extern void ui_block_to_window(const struct ARegion *ar, uiBlock *block, int *x, int *y);
 extern void ui_block_to_window_rctf(const struct ARegion *ar, uiBlock *block, rctf *rct_dst, const rctf *rct_src);
+extern void ui_block_to_window_rcti(const ARegion *ar, uiBlock *block, rcti *rct_dst, const rcti *rct_src);
 extern void ui_window_to_block_fl(const struct ARegion *ar, uiBlock *block, float *x, float *y);
 extern void ui_window_to_block(const struct ARegion *ar, uiBlock *block, int *x, int *y);
 extern void ui_window_to_region(const ARegion *ar, int *x, int *y);
 extern void ui_region_to_window(const struct ARegion *ar, int *x, int *y);
+extern void ui_rcti_to_pixelrect(const ARegion *ar, uiBlock *block, rcti *rct_dst, const rcti *rct_src);
+extern void ui_rctf_to_pixelrect(const ARegion *ar, uiBlock *block, rctf *rct_dst, const rctf *rct_src);
 
 extern double ui_but_value_get(uiBut *but);
 extern void ui_but_value_set(uiBut *but, double value);

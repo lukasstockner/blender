@@ -122,6 +122,7 @@ typedef struct uiWidgetType {
 	void (*state)(struct uiWidgetType *, int state);
 	void (*draw)(uiWidgetColors *, rcti *, int state, int roundboxalign);
 	void (*custom)(uiBut *, uiWidgetColors *, rcti *, int state, int roundboxalign);
+	void (*subbut_draw)(uiSubBut *, uiWidgetColors *, rcti *, int state, int roundboxalign);
 	void (*text)(uiFontStyle *, uiWidgetColors *, uiBut *, rcti *);
 	
 } uiWidgetType;
@@ -225,6 +226,25 @@ void ui_draw_anti_roundbox(int mode, float minx, float miny, float maxx, float m
 	for (j = 0; j < WIDGET_AA_JITTER; j++) {
 		glTranslatef(jit[j][0], jit[j][1], 0.0f);
 		UI_draw_roundbox_gl_mode(mode, minx, miny, maxx, maxy, rad);
+		glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
+	}
+
+	glDisable(GL_BLEND);
+}
+
+static void ui_draw_anti_circle(float rad)
+{
+	float color[4];
+	int j;
+
+	glEnable(GL_BLEND);
+	glGetFloatv(GL_CURRENT_COLOR, color);
+	color[3] *= 0.125f;
+	glColor4fv(color);
+
+	for (j = 0; j < WIDGET_AA_JITTER; j++) {
+		glTranslatef(jit[j][0], jit[j][1], 0.0f);
+		glutil_draw_filled_arc(0.0f, M_PI * 2.0f, rad, 40);
 		glTranslatef(-jit[j][0], -jit[j][1], 0.0f);
 	}
 
@@ -528,6 +548,8 @@ static void widget_draw_tria_ex(
 	tria->index = tris;
 }
 
+/* number button triangles are now drawn using sub-buttons */
+#if 0
 static void widget_num_tria(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
 {
 	widget_draw_tria_ex(
@@ -535,6 +557,7 @@ static void widget_num_tria(uiWidgetTrias *tria, const rcti *rect, float triasiz
 	        num_tria_vert, ARRAY_SIZE(num_tria_vert),
 	        num_tria_face, ARRAY_SIZE(num_tria_face));
 }
+#endif
 
 static void widget_scroll_circle(uiWidgetTrias *tria, const rcti *rect, float triasize, char where)
 {
@@ -1738,7 +1761,7 @@ static struct uiWidgetColors wcol_num = {
 	{25, 25, 25, 255},
 	{180, 180, 180, 255},
 	{153, 153, 153, 255},
-	{90, 90, 90, 255},
+	{90, 90, 90, 160},
 	
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
@@ -2870,21 +2893,15 @@ static void widget_numbut_draw(uiWidgetColors *wcol, rcti *rect, int state, int 
 
 	if (state & UI_SELECT)
 		SWAP(short, wcol->shadetop, wcol->shadedown);
-	
+
 	widget_init(&wtb);
-	
+
 	if (!emboss) {
 		round_box_edges(&wtb, roundboxalign, rect, rad);
 	}
 
-	/* decoration */
-	if (!(state & UI_TEXTINPUT)) {
-		widget_num_tria(&wtb.tria1, rect, 0.6f, 'l');
-		widget_num_tria(&wtb.tria2, rect, 0.6f, 'r');
-	}
-
 	widgetbase_draw(&wtb, wcol);
-	
+
 	if (!(state & UI_TEXTINPUT)) {
 		/* text space */
 		rect->xmin += textofs;
@@ -2903,6 +2920,61 @@ static void widget_numbut(uiWidgetColors *wcol, rcti *rect, int state, int round
 static void widget_numbut_embossn(uiBut *UNUSED(but), uiWidgetColors *wcol, rcti *rect, int state, int roundboxalign)
 {
 	widget_numbut_draw(wcol, rect, state, roundboxalign, true);
+}
+
+static void widget_numbut_subbut(uiSubBut *sbut, uiWidgetColors *wcol, rcti *rect, int state, int UNUSED(roundboxalign))
+{
+	uiWidgetBase wtb;
+	uiWidgetColors wcol_cpy = *wcol;
+	int half;
+
+	if ((state & UI_ACTIVE) == 0 || (state & UI_TEXTINPUT))
+		return;
+
+	widget_init(&wtb);
+
+	if (sbut->is_hovered) {
+		rcti circle_rect = *rect;
+		int origin_x, origin_y;
+		int size_x, size_y;
+
+		/* smaller version of rect */
+		BLI_rcti_scale(&circle_rect, 0.7f);
+
+		size_x = BLI_rcti_size_x(&circle_rect);
+		size_y = BLI_rcti_size_y(&circle_rect);
+		origin_x = circle_rect.xmin + (size_x / 2);
+		origin_y = circle_rect.ymin + (size_y / 2);
+
+		glColor4ub(UNPACK3((unsigned char *)wcol->item), wcol->item[3] * 0.8f);
+		glPushMatrix();
+		glTranslatef(origin_x, origin_y, 0.0f);
+
+		ui_draw_anti_circle(size_y / 2);
+
+		glPopMatrix();
+	}
+
+	/* rect smaller */
+	BLI_rcti_scale(rect, 0.4f);
+	/* offset rect a bit - looks better */
+	BLI_rcti_translate(rect, (sbut->align == UI_SBUT_ALIGN_LEFT) ? -UI_DPI_FAC : UI_DPI_FAC, 0);
+	half = iroundf(BLI_rcti_size_y(rect) / 2);
+
+	glColor4ubv((unsigned char *)(sbut->is_hovered ? wcol->inner : wcol_cpy.item));
+	glEnable(GL_BLEND);
+
+	if (sbut->type == UI_SBUT_TYPE_VAL_DECREASE) {
+		ui_draw_anti_tria(rect->xmin, rect->ymin + half, rect->xmax, rect->ymin, rect->xmax, rect->ymax);
+	}
+	else if (sbut->type == UI_SBUT_TYPE_VAL_INCREASE) {
+		ui_draw_anti_tria(rect->xmin, rect->ymin, rect->xmax, rect->ymin + half, rect->xmin, rect->ymax);
+	}
+	else {
+		BLI_assert(0);
+	}
+
+	glDisable(GL_BLEND);
 }
 
 bool ui_link_bezier_points(const rcti *rect, float coord_array[][2], int resol)
@@ -3658,6 +3730,7 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
 		case UI_WTYPE_NUMBER:
 			wt.wcol_theme = &btheme->tui.wcol_num;
 			wt.draw = widget_numbut;
+			wt.subbut_draw = widget_numbut_subbut;
 			break;
 			
 		case UI_WTYPE_SLIDER:
@@ -4080,6 +4153,16 @@ void ui_draw_but(const bContext *C, ARegion *ar, uiStyle *style, uiBut *but, rct
 			wt->custom(but, &wt->wcol, rect, state, roundboxalign);
 		else if (wt->draw)
 			wt->draw(&wt->wcol, rect, state, roundboxalign);
+
+		/* draw sub-buts */
+		if (wt->subbut_draw && but->subbuts.first) {
+			uiSubBut *sbut;
+			for (sbut = but->subbuts.first; sbut; sbut = sbut->next) {
+				rcti sbut_rect;
+				ui_rcti_to_pixelrect(ar, but->block, &sbut_rect, &sbut->rect);
+				wt->subbut_draw(sbut, &wt->wcol, &sbut_rect, state, roundboxalign);
+			}
+		}
 
 		if (disabled)
 			glEnable(GL_BLEND);

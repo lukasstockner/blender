@@ -281,12 +281,40 @@ static void ui_item_position(uiItem *item, int x, int y, int w, int h)
 {
 	if (item->type == ITEM_BUTTON) {
 		uiButtonItem *bitem = (uiButtonItem *)item;
+		uiBut *but = bitem->but;
 
-		bitem->but->rect.xmin = x;
-		bitem->but->rect.ymin = y;
-		bitem->but->rect.xmax = x + w;
-		bitem->but->rect.ymax = y + h;
-		
+		but->rect.xmin = x;
+		but->rect.ymin = y;
+		but->rect.xmax = x + w;
+		but->rect.ymax = y + h;
+
+		/* set subbut sizes */
+		if (BLI_listbase_is_empty(&but->subbuts) == false) {
+			uiSubBut *sbut;
+			for (sbut = but->subbuts.first; sbut; sbut = sbut->next) {
+				if (sbut->align == UI_SBUT_ALIGN_LEFT) {
+					sbut->rect.xmin = but->rect.xmin - 2; /* - 2 looks a bit better */
+					sbut->rect.xmax = sbut->rect.xmin + sbut->width;
+				}
+				else if (sbut->align == UI_SBUT_ALIGN_RIGHT) {
+					sbut->rect.xmax = but->rect.xmax + 4; /* + 4 looks a bit better */
+					sbut->rect.xmin = but->rect.xmax - sbut->width;
+				}
+				else {
+					BLI_assert(0);
+				}
+				sbut->rect.ymin = but->rect.ymin + (U.pixelsize - 1.0f);
+				sbut->rect.ymax = sbut->rect.ymin + sbut->height;
+
+				if (but->block->panel) {
+					uiStyle *style = UI_style_get_dpi();
+
+					sbut->rect.ymin += (but->block->panel->sizey - style->panelspace);
+					sbut->rect.ymax += (but->block->panel->sizey - style->panelspace);
+				}
+			}
+		}
+
 		ui_but_update(bitem->but); /* for strlen */
 	}
 	else {

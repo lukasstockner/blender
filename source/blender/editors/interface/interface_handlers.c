@@ -381,6 +381,7 @@ static bool ui_but_contains_pt(uiBut *but, float mx, float my);
 static bool ui_but_contains_point_px(ARegion *ar, uiBut *but, int x, int y);
 static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, const bool labeledit);
 static uiBut *ui_but_find_mouse_over(ARegion *ar, const wmEvent *event);
+static uiSubBut *ui_subbut_find_mouse_over(const ARegion *ar, const uiBut *but, const int mouse_xy[2]);
 static void button_activate_init(bContext *C, ARegion *ar, uiBut *but, uiButtonActivateType type);
 static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState state);
 static void button_activate_exit(
@@ -4235,68 +4236,8 @@ static int ui_do_but_NUM(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 	}
 	
 	if (click) {
-		/* we can click on the side arrows to increment/decrement,
-		 * or click inside to edit the value directly */
-		float tempf, softmin, softmax;
-		float handlewidth;
-		int temp;
-
-		softmin = but->softmin;
-		softmax = but->softmax;
-
-		handlewidth = min_ff(BLI_rctf_size_x(&but->rect) / 3, BLI_rctf_size_y(&but->rect));
-
-		if (!ui_but_is_float(but)) {
-			if (mx < (but->rect.xmin + handlewidth)) {
-				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-
-				temp = (int)data->value - 1;
-				if (temp >= softmin && temp <= softmax)
-					data->value = (double)temp;
-				else
-					data->cancel = true;
-
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			}
-			else if (mx > (but->rect.xmax - handlewidth)) {
-				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-
-				temp = (int)data->value + 1;
-				if (temp >= softmin && temp <= softmax)
-					data->value = (double)temp;
-				else
-					data->cancel = true;
-
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			}
-			else {
-				button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
-			}
-		}
-		else {
-			if (mx < (but->rect.xmin + handlewidth)) {
-				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-
-				tempf = (float)data->value - 0.01f * but->a1;
-				if (tempf < softmin) tempf = softmin;
-				data->value = tempf;
-
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			}
-			else if (mx > but->rect.xmax - handlewidth) {
-				button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
-
-				tempf = (float)data->value + 0.01f * but->a1;
-				if (tempf > softmax) tempf = softmax;
-				data->value = tempf;
-
-				button_activate_state(C, but, BUTTON_STATE_EXIT);
-			}
-			else {
-				button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
-			}
-		}
-
+		/* start textediting - clicking to increase/decrease numbers is handled via sub-buttons */
+		button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
 		retval = WM_UI_HANDLER_BREAK;
 	}
 	
@@ -4304,6 +4245,40 @@ static int ui_do_but_NUM(bContext *C, uiBlock *block, uiBut *but, uiHandleButton
 	data->draglasty = my;
 
 	return retval;
+}
+
+static int ui_do_subbut_NUM(bContext *C, uiBut *but, const uiSubBut *sbut, const wmEvent *event)
+{
+	uiHandleButtonData *data = but->active;
+	const float softmin = but->softmin;
+	const float softmax = but->softmax;
+	const bool is_float = ui_but_is_float(but);
+	const bool increase = (sbut->type == UI_SBUT_TYPE_VAL_INCREASE);
+	float tempf;
+	int temp;
+
+	if (event->type != LEFTMOUSE || event->val != KM_RELEASE || data->dragchange)
+		return WM_UI_HANDLER_CONTINUE;
+
+	button_activate_state(C, but, BUTTON_STATE_NUM_EDITING);
+
+	if (is_float) {
+		tempf = (float)data->value + (increase ? 0.01f : -0.01f) * but->a1;
+		CLAMP(tempf, softmin, softmax);
+		data->value = tempf;
+	}
+	else {
+		temp = (int)data->value + (increase ? 1 : -1);
+		if (IN_RANGE_INCL(temp, softmin, softmax))
+			data->value = (double)temp;
+		else
+			data->cancel = true;
+	}
+
+	button_activate_state(C, but, BUTTON_STATE_EXIT);
+
+	/* always break */
+	return WM_UI_HANDLER_BREAK;
 }
 
 static bool ui_numedit_but_SLI(
@@ -6742,8 +6717,33 @@ static bool ui_but_menu(bContext *C, uiBut *but)
 	return true;
 }
 
+static int ui_do_but_subbut(bContext *C, uiBut *but, uiSubBut *sbut, const wmEvent *event)
+{
+	int retval = WM_UI_HANDLER_CONTINUE;
+
+	BLI_assert(sbut->is_hovered);
+
+	switch (but->type) {
+		case UI_BTYPE_NUM:
+			retval = ui_do_subbut_NUM(C, but, sbut, event);
+			break;
+		default:
+			break;
+	}
+
+	if (retval == WM_UI_HANDLER_BREAK) {
+		BLI_assert(ui_but_contains_point_px(CTX_wm_region(C), but, event->x, event->y));
+		button_activate_exit(C, but, but->active, true, false);
+		/* reactivate highlight state */
+		button_activate_init(C, CTX_wm_region(C), but, BUTTON_ACTIVATE_OVER);
+	}
+
+	return retval;
+}
+
 static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *event)
 {
+	uiSubBut *sbut;
 	uiHandleButtonData *data;
 	int retval;
 
@@ -6884,6 +6884,16 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
 			BKE_reportf(NULL, RPT_WARNING, "DoButton pointer error: %s", but->str);
 			button_activate_state(C, but, BUTTON_STATE_EXIT);
 			return WM_UI_HANDLER_BREAK;
+		}
+	}
+
+	sbut = ui_subbut_find_mouse_over(CTX_wm_region(C), but, &event->x);
+
+	if (sbut) {
+		retval = ui_do_but_subbut(C, but, sbut, event);
+
+		if (retval == WM_UI_HANDLER_BREAK) {
+			return retval;
 		}
 	}
 
@@ -7353,6 +7363,25 @@ static uiBut *ui_but_find_mouse_over_ex(ARegion *ar, const int x, const int y, c
 static uiBut *ui_but_find_mouse_over(ARegion *ar, const wmEvent *event)
 {
 	return ui_but_find_mouse_over_ex(ar, event->x, event->y, event->ctrl != 0);
+}
+
+
+static uiSubBut *ui_subbut_find_mouse_over(const ARegion *ar, const uiBut *but, const int mouse_xy[2])
+{
+	uiSubBut *sbut;
+	float mx = mouse_xy[0];
+	float my = mouse_xy[1];
+
+	BLI_assert(ui_but_contains_point_px(ar, but, UNPACK2(mouse_xy)));
+
+	ui_window_to_block_fl(ar, but->block, &mx, &my);
+
+	for (sbut = but->subbuts.first; sbut; sbut = sbut->next) {
+		if (BLI_rcti_isect_x(&sbut->rect, mx)) {
+			return sbut;
+		}
+	}
+	return NULL;
 }
 
 
@@ -8038,6 +8067,31 @@ static void ui_handle_button_activate(bContext *C, ARegion *ar, uiBut *but, uiBu
 
 /************ handle events for an activated button ***********/
 
+static void ui_handle_but_subbuts(ARegion *ar, const uiBut *but, const int mouse_xy[2])
+{
+	uiSubBut *sbut = ui_subbut_find_mouse_over(ar, but, mouse_xy);
+	bool changed = false;
+
+	if (sbut) {
+		if (sbut->is_hovered == false) {
+			sbut->is_hovered = true;
+			changed = true;
+		}
+	}
+	else {
+		for (sbut = but->subbuts.first; sbut; sbut = sbut->next) {
+			if (sbut->is_hovered) {
+				sbut->is_hovered = false;
+				changed = true;
+			}
+		}
+	}
+
+	if (changed) {
+		ED_region_tag_redraw(ar);
+	}
+}
+
 static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 {
 	uiHandleButtonData *data = but->active;
@@ -8082,6 +8136,10 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
 					/* re-enable tooltip on mouse move */
 					ui_blocks_set_tooltips(ar, true);
 					button_tooltip_timer_reset(C, but);
+				}
+
+				if (BLI_listbase_is_empty(&but->subbuts) == false) {
+					ui_handle_but_subbuts(ar, but, &event->x);
 				}
 
 				break;
