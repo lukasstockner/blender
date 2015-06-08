@@ -340,6 +340,7 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
 	ED_area_headerprint(CTX_wm_area(C), IFACE_("Grease Pencil: Stroke Sculptmode"));
 	
 	/* setup cursor drawing */
+	WM_cursor_modal_set(CTX_wm_window(C), BC_CROSSCURSOR);
 	gpencil_toggle_brush_cursor(C, true);
 	
 	return true;
@@ -348,16 +349,18 @@ static bool gpsculpt_brush_init(bContext *C, wmOperator *op)
 static void gpsculpt_brush_exit(bContext *C, wmOperator *op)
 {
 	tGP_BrushEditData *gso = op->customdata;
+	wmWindow *win = CTX_wm_window(C);
 	
 #if 0
 	/* unregister timer (only used for realtime) */
 	if (gso->timer) {
-		WM_event_remove_timer(CTX_wm_manager(C), CTX_wm_window(C), gso->timer);
+		WM_event_remove_timer(CTX_wm_manager(C), win, gso->timer);
 	}
 #endif
 
 	/* disable cursor and headerprints */
 	ED_area_headerprint(CTX_wm_area(C), NULL);
+	WM_cursor_modal_restore(win);
 	gpencil_toggle_brush_cursor(C, false);
 	
 	/* free operator data */
