@@ -29,6 +29,7 @@ import bpy
 from bpy.types import Operator
 from bpy.props import (
         IntProperty,
+        FloatProperty,
         BoolProperty,
         EnumProperty,
         StringProperty,
@@ -216,6 +217,13 @@ class BakeAction(Operator):
                         "(useful for baking only part of bones in an armature)",
             default=False,
             )
+    clean_threshold = FloatProperty(
+            name="Clean Threshold",
+            description="Allowed error when simplifying baked curves (set to zero to disable)",
+            default=0.1,
+            min=0.0,
+            max=1.0,
+            )
     bake_types = EnumProperty(
             name="Bake Data",
             description="Which data's transformations to bake",
@@ -227,7 +235,6 @@ class BakeAction(Operator):
             )
 
     def execute(self, context):
-
         from bpy_extras import anim_utils
 
         action = None
@@ -246,6 +253,7 @@ class BakeAction(Operator):
                                         do_constraint_clear=self.clear_constraints,
                                         do_parents_clear=self.clear_parents,
                                         do_clean=True,
+                                        clean_threshold=self.clean_threshold,
                                         action=action,
                                         )
 
