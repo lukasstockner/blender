@@ -812,6 +812,10 @@ void Session::update_scene()
 		progress.set_status("Updating Scene");
 		scene->device_update(device, progress);
 	}
+
+	if(clear_database_cb) {
+		clear_database_cb();
+	}
 }
 
 void Session::update_status_time(bool show_pause, bool show_done)

@@ -409,6 +409,7 @@ void BlenderSession::render()
 	/* set callback to write out render results */
 	session->write_render_tile_cb = function_bind(&BlenderSession::write_render_tile, this, _1);
 	session->update_render_tile_cb = function_bind(&BlenderSession::update_render_tile, this, _1);
+	session->clear_database_cb = function_bind(&BlenderSession::clear_blender_database, this);
 
 	/* get buffer parameters */
 	SessionParams session_params = BlenderSync::get_session_params(b_engine, b_userpref, b_scene, background);
@@ -501,6 +502,7 @@ void BlenderSession::render()
 	/* clear callback */
 	session->write_render_tile_cb = function_null;
 	session->update_render_tile_cb = function_null;
+	session->clear_database_cb = function_null;
 
 	/* free all memory used (host and device), so we wouldn't leave render
 	 * engine with extra memory allocated
@@ -1146,6 +1148,27 @@ bool BlenderSession::builtin_image_float_pixels(const string &builtin_name, void
 	}
 
 	return false;
+}
+
+void BlenderSession::clear_blender_database()
+{
+	const bool is_interface_locked = b_engine.render() &&
+	                                 b_engine.render().use_lock_interface();
+	const bool can_free_database = BlenderSession::headless || is_interface_locked;
+	if(!can_free_database) {
+		/* Database might be used by the interface, can not free it at all. */
+		return;
+	}
+	for(BL::Scene b_sce = b_scene; b_sce; b_sce = b_sce.background_set()) {
+		BL::Scene::object_bases_iterator b_base;
+		for(b_sce.object_bases.begin(b_base);
+		    b_base != b_sce.object_bases.end();
+		    ++b_base)
+		{
+			BL::Object b_ob = b_base->object();
+			b_ob.cache_release(true);
+		}
+	}
 }
 
 CCL_NAMESPACE_END

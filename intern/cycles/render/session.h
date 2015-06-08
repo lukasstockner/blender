@@ -128,6 +128,7 @@ public:
 
 	function<void(RenderTile&)> write_render_tile_cb;
 	function<void(RenderTile&)> update_render_tile_cb;
+	function<void(void)> clear_database_cb;
 
 	Session(const SessionParams& params);
 	~Session();
