@@ -2640,7 +2640,8 @@ void init_userdef_do_versions(void)
 			}
 
 			rgba_char_args_set_fl(btheme->tui.area_edges, 0.23f, 0.23f, 0.23f, 1.0f);
-			btheme->tui.widget_emboss[3] = 0;
+
+			btheme->tui.interface_style = TH_IFACE_STYLE_FLAT;
 
 			ui_widget_color_init(&btheme->tui);
 		}

@@ -681,6 +681,14 @@ class USERPREF_PT_theme(Panel):
             col = split.column()
             ui = theme.user_interface
 
+            row = col.row()
+            subsplit = row.split(percentage=0.47)
+            subsplit.prop(ui, "interface_style")
+
+            col.separator()
+            col.separator()
+            col.separator()
+
             col.label(text="Regular:")
             self._theme_widget_style(col, ui.wcol_regular)
 

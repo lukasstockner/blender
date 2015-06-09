@@ -64,6 +64,10 @@
 /* icons are 80% of height of button (16 pixels inside 20 height) */
 #define ICON_SIZE_FROM_BUTRECT(rect) (0.8f * BLI_rcti_size_y(rect))
 
+/* for checking interface style type */
+#define IFACE_STYLE_IS_CLASSIC (((bTheme *)UI_GetTheme())->tui.interface_style == TH_IFACE_STYLE_CLASSIC)
+#define IFACE_STYLE_IS_FLAT    (((bTheme *)UI_GetTheme())->tui.interface_style == TH_IFACE_STYLE_FLAT)
+
 /* ************** widget base functions ************** */
 /**
  * - in: roundbox codes for corner types and radius
@@ -273,11 +277,19 @@ static void widget_init(uiWidgetBase *wtb)
 	wtb->tria2.tot = 0;
 
 	wtb->draw_inner = true;
-	wtb->draw_emboss = true;
 	wtb->draw_shadedir = true;
 
-	/* don't draw outline by default */
-	wtb->draw_outline = false;
+	if (IFACE_STYLE_IS_CLASSIC) {
+		wtb->draw_outline = true;
+		wtb->draw_emboss = true;
+	}
+	else {
+		BLI_assert(IFACE_STYLE_IS_FLAT);
+
+		/* don't draw outline or emboss by default */
+		wtb->draw_outline = false;
+		wtb->draw_emboss = false;
+	}
 }
 
 /* helper call, makes shadow rect, with 'sun' above menu, so only shadow to left/right/bottom */
@@ -695,7 +707,7 @@ static void widgetbase_draw(uiWidgetBase *wtb, uiWidgetColors *wcol)
 
 	/* backdrop non AA */
 	if (wtb->draw_inner) {
-		if (wcol->shaded == 0) {
+		if (wcol->shaded == 0 || IFACE_STYLE_IS_FLAT) {
 			if (wcol->alpha_check) {
 				float inner_v_half[WIDGET_SIZE_MAX][2];
 				float x_mid = 0.0f; /* used for dumb clamping of values */
@@ -1788,7 +1800,7 @@ static struct uiWidgetColors wcol_num = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	0,
+	1,
 	-20, 0,
 
 	0, /* pad */
@@ -1804,7 +1816,7 @@ static struct uiWidgetColors wcol_numslider = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	0,
+	1,
 	-20, 0,
 
 	0, /* pad */
@@ -1820,7 +1832,7 @@ static struct uiWidgetColors wcol_text = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	0,
+	1,
 	0, 25,
 
 	0, /* pad */
@@ -1836,7 +1848,7 @@ static struct uiWidgetColors wcol_option = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	0,
+	1,
 	15, -15,
 
 	0, /* pad */
@@ -1853,7 +1865,7 @@ static struct uiWidgetColors wcol_menu = {
 	{255, 255, 255, 255},
 	{204, 204, 204, 255},
 	
-	0,
+	1,
 	15, -15,
 
 	0, /* pad */
@@ -1887,7 +1899,7 @@ static struct uiWidgetColors wcol_menu_item = {
 	{255, 255, 255, 255},
 	{0, 0, 0, 255},
 	
-	0,
+	1,
 	38, 0,
 
 	0, /* pad */
@@ -1921,7 +1933,7 @@ static struct uiWidgetColors wcol_pie_menu = {
 	{160, 160, 160, 255},
 	{255, 255, 255, 255},
 
-	0,
+	1,
 	10, -10,
 
 	0, /* pad */
@@ -1955,7 +1967,7 @@ static struct uiWidgetColors wcol_radio = {
 	{255, 255, 255, 255},
 	{0, 0, 0, 255},
 	
-	0,
+	1,
 	15, -15,
 
 	0, /* pad */
@@ -1987,7 +1999,7 @@ static struct uiWidgetColors wcol_tool = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	0,
+	1,
 	15, -15,
 
 	0, /* pad */
@@ -2035,7 +2047,7 @@ static struct uiWidgetColors wcol_scroll = {
 	{0, 0, 0, 255},
 	{255, 255, 255, 255},
 	
-	0,
+	1,
 	5, -5,
 
 	0, /* pad */
@@ -3247,6 +3259,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 	toffs = offs * 0.75f;
 	round_box_edges(&wtb, roundboxalign, rect, offs);
 
+	wtb.draw_outline = false;
 	widgetbase_draw(&wtb, wcol);
 	
 	/* draw left/right parts only when not in text editing */
@@ -3271,6 +3284,7 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 		/* left part of slider, always rounded */
 		rect1.xmax = rect1.xmin + ceil(offs + U.pixelsize);
 		round_box_edges(&wtb1, roundboxalign & ~(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT), &rect1, offs);
+		wtb1.draw_outline = false;
 		widgetbase_draw(&wtb1, wcol);
 		
 		/* right part of slider, interpolate roundness */
@@ -3292,6 +3306,13 @@ static void widget_numslider(uiBut *but, uiWidgetColors *wcol, rcti *rect, int s
 		
 		if (!(state & UI_SELECT))
 			SWAP(short, wcol->shadetop, wcol->shadedown);
+	}
+
+	/* outline */
+	if (IFACE_STYLE_IS_CLASSIC) {
+		wtb.draw_outline = true;
+		wtb.draw_inner   = false;
+		widgetbase_draw(&wtb, wcol);
 	}
 
 	/* add space at either side of the button so text aligns with numbuttons (which have arrow icons) */
@@ -3385,6 +3406,7 @@ static void widget_icon_has_anim(uiBut *but, uiWidgetColors *wcol, rcti *rect, i
 		float rad;
 		
 		widget_init(&wtb);
+		wtb.draw_outline = false;
 		
 		/* rounded */
 		rad = wcol->roundness * BLI_rcti_size_y(rect);
@@ -3499,6 +3521,7 @@ static void widget_menu_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widget_init(&wtb);
 	
 	/* not rounded, no outline */
+	wtb.draw_outline = false;
 	round_box_edges(&wtb, 0, rect, 0.0f);
 	
 	widgetbase_draw(&wtb, wcol);
@@ -3535,6 +3558,7 @@ static void widget_list_itembut(uiWidgetColors *wcol, rcti *rect, int UNUSED(sta
 	widget_init(&wtb);
 	
 	/* rounded, but no outline */
+	wtb.draw_outline = false;
 	round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
 
 	widgetbase_draw(&wtb, wcol);
@@ -3544,6 +3568,7 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 {
 	uiWidgetBase wtb;
 	rcti recttemp = *rect;
+	const bool is_style_flat = IFACE_STYLE_IS_FLAT;
 
 	widget_init(&wtb);
 
@@ -3551,23 +3576,30 @@ static void widget_optionbut(uiWidgetColors *wcol, rcti *rect, int state, int UN
 	recttemp.xmax = recttemp.xmin + BLI_rcti_size_y(&recttemp);
 
 	/* smaller */
-	BLI_rcti_scale(&recttemp, 0.8f);
+	BLI_rcti_scale(&recttemp, is_style_flat ? 0.8f : 0.7f);
 
-	/* draw inner */
-	glColor4ubv((unsigned char *)wcol->inner);
-	ui_draw_anti_circle_rect(&recttemp);
+	if (is_style_flat) {
+		/* draw circle as inner */
+		glColor4ubv((unsigned char *)wcol->inner);
+		ui_draw_anti_circle_rect(&recttemp);
 
-	/* adjust recttemp for decoration */
-	BLI_rcti_translate(&recttemp, -0.1f * U.widget_unit, -0.1f * U.widget_unit);
-	BLI_rcti_scale(&recttemp, 0.9f);
+		/* adjust recttemp for decoration */
+		BLI_rcti_translate(&recttemp, -0.1f * U.widget_unit, -0.1f * U.widget_unit);
+		BLI_rcti_scale(&recttemp, 0.9f);
+	}
+	else {
+		round_box_edges(&wtb, UI_CNR_ALL, &recttemp, 0.2f * U.widget_unit);
+	}
 
 	/* decoration */
 	if (state & UI_SELECT) {
 		widget_check_trias(&wtb.tria1, &recttemp);
 	}
 
-	/* disable inner as this was already drawn */
-	wtb.draw_inner = false;
+	if (is_style_flat) {
+		/* disable inner as this was already drawn */
+		wtb.draw_inner = false;
+	}
 	widgetbase_draw(&wtb, wcol);
 
 	/* text space */
@@ -4358,7 +4390,7 @@ void ui_draw_search_back(uiStyle *UNUSED(style), uiBlock *block, rcti *rect)
 	uiWidgetType *wt = widget_type(UI_WTYPE_BOX);
 	
 	glEnable(GL_BLEND);
-	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit, false);
+	widget_softshadow(rect, UI_CNR_ALL, 0.25f * U.widget_unit, IFACE_STYLE_IS_CLASSIC);
 	glDisable(GL_BLEND);
 
 	wt->state(wt, 0);
