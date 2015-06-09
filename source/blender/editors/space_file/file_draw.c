@@ -412,8 +412,8 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		UI_but_drag_set_image(but, file->path, get_file_icon(file), imb, scale);
 	}
 
-	if (play) {
-		float r = MIN2(ey, ex) / 5.0f;
+	if (play && !is_icon) {
+		float r = MIN2(ey, ex) / 6.0f;
 		float yr = sqrt(3) / 2 * r;
 		float xr = r / 2;
 		glPushMatrix();
@@ -421,9 +421,7 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		glColor4f(1.0f, 1.0f, 1.0f, 0.8);
 		glutil_draw_filled_arc(0.0f, 2.0f * M_PI, ey / 4.0f, 32);
 		glColor4f(0.3f, 0.3f, 1.0f, 0.8f);
-		glLineWidth(3.0);
-		glutil_draw_lined_arc(0.0f, 2.0f * M_PI, ey / 4.0f, 32);
-		glLineWidth(1.0);
+		glutil_draw_filled_arc_part(0.0f, 2.0f * M_PI, ey / 4.0f, ey / 5.0f, 32);
 		glBegin(GL_TRIANGLES);
 		glVertex2f(-xr, yr);
 		glVertex2f(-xr, -yr);

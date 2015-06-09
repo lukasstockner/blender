@@ -89,6 +89,9 @@ void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments
  */
 void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments);
 
+
+void glutil_draw_filled_arc_part(float start, float angle, float radius, float radius_inn, int nsegments);
+
 /**
  * Returns an integer value as obtained by glGetIntegerv.
  * The param must cause only one value to be gotten from GL.

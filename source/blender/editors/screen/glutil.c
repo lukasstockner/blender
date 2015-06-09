@@ -422,6 +422,24 @@ void glutil_draw_filled_arc(float start, float angle, float radius, int nsegment
 	glEnd();
 }
 
+void glutil_draw_filled_arc_part(float start, float angle, float radius, float radius_inn, int nsegments)
+{
+	int i;
+
+	glBegin(GL_QUAD_STRIP);
+	glVertex2f(cosf(start) * radius_inn, sinf(start) * radius_inn);
+	glVertex2f(cosf(start) * radius, sinf(start) * radius);
+	for (i = 0; i < nsegments; i++) {
+		float t = (float) i / (nsegments - 1);
+		float cur = start + t * angle;
+
+		glVertex2f(cosf(cur) * radius_inn, sinf(cur) * radius_inn);
+		glVertex2f(cosf(cur) * radius, sinf(cur) * radius);
+	}
+	glEnd();
+}
+
+
 void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments)
 {
 	int i;
