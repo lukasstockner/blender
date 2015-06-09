@@ -413,6 +413,9 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 	}
 
 	if (play) {
+		float r = MIN2(ey, ex) / 5.0f;
+		float yr = sqrt(3) / 2 * r;
+		float xr = r / 2;
 		glPushMatrix();
 		glTranslatef(xco + ex / 2.0f, yco + ey / 2.0f, 0.0);
 		glColor4f(1.0f, 1.0f, 1.0f, 0.8);
@@ -422,9 +425,9 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 		glutil_draw_lined_arc(0.0f, 2.0f * M_PI, ey / 4.0f, 32);
 		glLineWidth(1.0);
 		glBegin(GL_TRIANGLES);
-		glVertex2f(-ey / 8.0f, ey / 8.0f);
-		glVertex2f(-ey / 8.0f, -ey / 8.0f);
-		glVertex2f(ey / 8.0f, 0.0f);
+		glVertex2f(-xr, yr);
+		glVertex2f(-xr, -yr);
+		glVertex2f(r, 0.0f);
 		glEnd();
 		glPopMatrix();
 	}
