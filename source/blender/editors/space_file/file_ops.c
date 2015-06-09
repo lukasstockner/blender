@@ -804,6 +804,17 @@ int file_cancel_exec(bContext *C, wmOperator *UNUSED(unused))
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	wmOperator *op = sfile->op;
 	
+	if (op) {
+		PropertyRNA *prop;
+		if ((prop = RNA_struct_find_property(op->ptr, "collapse_images")) &&
+		    (sfile->params->flag & FILE_COLLAPSE_IMAGES_TMP))
+		{
+			/* turn off collapsed flag if evoked from operator */
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES_TMP;
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES;
+		}
+	}
+
 	sfile->op = NULL;
 
 	WM_event_fileselect_event(wm, op, EVT_FILESELECT_CANCEL);
@@ -918,8 +929,11 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 			}
 		}
 
-		if ((prop = RNA_struct_find_property(op->ptr, "collapse_images"))) {
+		if ((prop = RNA_struct_find_property(op->ptr, "collapse_images")) &&
+		    (sfile->params->flag & FILE_COLLAPSE_IMAGES_TMP))
+		{
 			/* turn off collapsed flag if evoked from operator */
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES_TMP;
 			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES;
 		}
 	}

@@ -702,18 +702,19 @@ typedef enum eFileSel_Action {
 
 /* sfile->params->flag and simasel->flag */
 typedef enum eFileSel_Params_Flag {
-	FILE_SHOWSHORT       = (1 << 0),
-	FILE_RELPATH         = (1 << 1), /* was FILE_STRINGCODE */
-	FILE_LINK            = (1 << 2),
-	FILE_HIDE_DOT        = (1 << 3),
-	FILE_AUTOSELECT      = (1 << 4),
-	FILE_ACTIVELAY       = (1 << 5),
-/*  FILE_ATCURSOR        = (1 << 6), */ /* deprecated */
-	FILE_DIRSEL_ONLY     = (1 << 7),
-	FILE_FILTER          = (1 << 8),
-	FILE_BOOKMARKS       = (1 << 9),
-	FILE_GROUP_INSTANCE  = (1 << 10),
-	FILE_COLLAPSE_IMAGES = (1 << 11),
+	FILE_SHOWSHORT           = (1 << 0),
+	FILE_RELPATH             = (1 << 1), /* was FILE_STRINGCODE */
+	FILE_LINK                = (1 << 2),
+	FILE_HIDE_DOT            = (1 << 3),
+	FILE_AUTOSELECT          = (1 << 4),
+	FILE_ACTIVELAY           = (1 << 5),
+/*  FILE_ATCURSOR            = (1 << 6), */ /* deprecated */
+	FILE_DIRSEL_ONLY         = (1 << 7),
+	FILE_FILTER              = (1 << 8),
+	FILE_BOOKMARKS           = (1 << 9),
+	FILE_GROUP_INSTANCE      = (1 << 10),
+	FILE_COLLAPSE_IMAGES     = (1 << 11),
+	FILE_COLLAPSE_IMAGES_TMP = (1 << 12),
 } eFileSel_Params_Flag;
 
 

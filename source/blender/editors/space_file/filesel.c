@@ -232,7 +232,10 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 
 		if (params->filter & FILE_TYPE_IMAGE) {
 			if ((prop = RNA_struct_find_property(op->ptr, "collapse_images"))) {
-				params->flag |= FILE_COLLAPSE_IMAGES;
+				if (!(params->flag & FILE_COLLAPSE_IMAGES)) {
+					params->flag |= FILE_COLLAPSE_IMAGES_TMP;
+					params->flag |= FILE_COLLAPSE_IMAGES;
+				}
 			}
 		}
 
