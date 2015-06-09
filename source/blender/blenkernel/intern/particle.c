@@ -1768,9 +1768,9 @@ static void psys_calc_child_parent_weights(ParticleTask *task, struct ChildParti
 		}
 
 		/* modify weights to create parting */
-		if (p_fac > 0.f) {
+		if (p_fac > 0.f && key[0]->segments != -1) {
 			for (w = 0; w < 4; w++) {
-				if (w && weight[w] > 0.f) {
+				if (w && weight[w] > 0.f && key[w]->segments != -1) {
 					float d;
 					if (part->flag & PART_CHILD_LONG_HAIR) {
 						/* For long hair use tip distance/root distance as parting factor instead of root to tip angle. */
