@@ -2639,7 +2639,7 @@ void init_userdef_do_versions(void)
 				rgba_char_args_set(ts->panelcolors.header, 97, 97, 97, 255);
 			}
 
-			rgba_char_args_set_fl(btheme->tui.area_edges, 0.23f, 0.23f, 0.23f, 1.0f);
+			rgba_char_args_set_fl(btheme->tui.area_edges, 0.10f, 0.10f, 0.10f, 1.0f);
 
 			btheme->tui.interface_style = TH_IFACE_STYLE_FLAT;
 
