@@ -372,6 +372,9 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			else {
 				/* single select, deselect all selected first */
 				if (!(file->type & S_IFDIR) && (file->selflag & FILE_SEL_COLLAPSED)&& (file->selflag & FILE_SEL_SELECTED)) {
+					if (file->selflag & FILE_SEL_PLAYING) {
+						file->collapsed_info.curfra = 0;
+					}
 					file->selflag ^= FILE_SEL_PLAYING;
 				}
 				if (!extend) {
