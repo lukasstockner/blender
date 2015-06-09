@@ -224,7 +224,7 @@ static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select,
 	
 	/* flag the files as selected in the filelist */
 	filelist_select(sfile->files, &sel, select, FILE_SEL_SELECTED, check_type);
-	
+
 	/* Don't act on multiple selected files */
 	if (sel.first != sel.last) select = 0;
 
@@ -371,7 +371,12 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			}
 			else {
 				/* single select, deselect all selected first */
-				if (!extend) file_deselect_all(sfile, FILE_SEL_SELECTED);
+				if (!(file->type & S_IFDIR) && (file->selflag & FILE_SEL_COLLAPSED)&& (file->selflag & FILE_SEL_SELECTED)) {
+					file->selflag ^= FILE_SEL_PLAYING;
+				}
+				if (!extend) {
+					file_deselect_all(sfile, FILE_SEL_SELECTED);
+				}
 			}
 		}
 	}

@@ -336,7 +336,7 @@ void file_calc_previews(const bContext *C, ARegion *ar)
 	UI_view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
 }
 
-static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int sy, ImBuf *imb, FileLayout *layout, bool is_icon, bool drag)
+static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int sy, ImBuf *imb, FileLayout *layout, bool is_icon, bool drag, bool play)
 {
 	uiBut *but;
 	float fx, fy;
@@ -410,6 +410,23 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 	if (drag) {
 		but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, "");
 		UI_but_drag_set_image(but, file->path, get_file_icon(file), imb, scale);
+	}
+
+	if (play) {
+		glPushMatrix();
+		glTranslatef(xco + ex / 2.0f, yco + ey / 2.0f, 0.0);
+		glColor4f(1.0f, 1.0f, 1.0f, 0.8);
+		glutil_draw_filled_arc(0.0f, 2.0f * M_PI, ey / 4.0f, 32);
+		glColor4f(0.3f, 0.3f, 1.0f, 0.8f);
+		glLineWidth(3.0);
+		glutil_draw_lined_arc(0.0f, 2.0f * M_PI, ey / 4.0f, 32);
+		glLineWidth(1.0);
+		glBegin(GL_TRIANGLES);
+		glVertex2f(-ey / 8.0f, ey / 8.0f);
+		glVertex2f(-ey / 8.0f, -ey / 8.0f);
+		glVertex2f(ey / 8.0f, 0.0f);
+		glEnd();
+		glPopMatrix();
 	}
 
 	glDisable(GL_BLEND);
@@ -509,6 +526,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	bool is_icon;
 	short align;
 	bool do_drag;
+	bool do_play;
 	int column_space = 0.6f * UI_UNIT_X;
 
 	numfiles = filelist_numfiles(files);
@@ -566,16 +584,18 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		do_drag = !(FILENAME_IS_CURRPAR(file->relname));
 
 		if (FILE_IMGDISPLAY == params->display) {
-			is_icon = 0;
+			is_icon = false;
 			imb = filelist_getimage(files, i);
 			if (!imb) {
 				imb = filelist_geticon(files, i);
-				is_icon = 1;
+				is_icon = true;
 			}
 
-			file_draw_preview(block, file, sx, sy, imb, layout, is_icon, do_drag);
+			do_play = (file->selflag & FILE_SEL_COLLAPSED) && !(file->selflag & FILE_SEL_PLAYING);
 
-			if ((file->selflag & FILE_SEL_COLLAPSED) && (file->selflag & FILE_SEL_SELECTED)) {
+			file_draw_preview(block, file, sx, sy, imb, layout, is_icon, do_drag, do_play);
+
+			if ((file->selflag & FILE_SEL_COLLAPSED) && (file->selflag & FILE_SEL_PLAYING)) {
 				/* refresh to keep movie playing */
 				file->collapsed_info.curfra++;
 				file->collapsed_info.curfra %= file->collapsed_info.totfiles;

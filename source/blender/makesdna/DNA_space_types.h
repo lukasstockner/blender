@@ -743,6 +743,7 @@ typedef enum eDirEntry_SelectFlag {
 	FILE_SEL_SELECTED       = (1 << 3),
 	FILE_SEL_EDITING        = (1 << 4),
 	FILE_SEL_COLLAPSED      = (1 << 5),
+	FILE_SEL_PLAYING        = (1 << 6),
 } eDirEntry_SelectFlag;
 
 /* Image/UV Editor ======================================== */
