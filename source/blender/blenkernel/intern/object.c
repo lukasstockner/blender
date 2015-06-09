@@ -373,6 +373,7 @@ void BKE_object_free_caches(Object *object, bool free_smoke_sim)
 				psmd->dm->needsFree = 1;
 				psmd->dm->release(psmd->dm);
 				psmd->dm = NULL;
+				psmd->flag |= eParticleSystemFlag_file_loaded;
 				update_flag |= OB_RECALC_DATA;
 			}
 		}
