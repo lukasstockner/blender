@@ -546,6 +546,7 @@ typedef enum eSpaceSeq_Flag {
 	SEQ_NO_WAVEFORMS            = (1 << 8), /* draw no waveforms */
 	SEQ_SHOW_SAFE_CENTER        = (1 << 9),
 	SEQ_SHOW_METADATA           = (1 << 10),
+	SEQ_NO_INFO                = (1 << 11), /* do not draw names on strips */
 } eSpaceSeq_Flag;
 
 /* sseq->view */

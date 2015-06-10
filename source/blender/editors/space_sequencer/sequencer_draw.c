@@ -839,20 +839,22 @@ static void draw_seq_strip(const bContext *C, SpaceSeq *sseq, Scene *scene, AReg
 	{
 		drawmeta_contents(scene, seq, x1, y1, x2, y2);
 	}
-	
-	/* calculate if seq is long enough to print a name */
-	x1 = seq->startdisp + handsize_clamped;
-	x2 = seq->enddisp   - handsize_clamped;
 
-	/* info text on the strip */
-	if (x1 < v2d->cur.xmin) x1 = v2d->cur.xmin;
-	else if (x1 > v2d->cur.xmax) x1 = v2d->cur.xmax;
-	if (x2 < v2d->cur.xmin) x2 = v2d->cur.xmin;
-	else if (x2 > v2d->cur.xmax) x2 = v2d->cur.xmax;
+	if (!(sseq->flag & SEQ_NO_INFO)) {
+		/* calculate if seq is long enough to print a name */
+		x1 = seq->startdisp + handsize_clamped;
+		x2 = seq->enddisp   - handsize_clamped;
 
-	/* nice text here would require changing the view matrix for texture text */
-	if ((x2 - x1) / pixelx > 32) {
-		draw_seq_text(v2d, seq, x1, x2, y1, y2, background_col);
+		/* info text on the strip */
+		if (x1 < v2d->cur.xmin) x1 = v2d->cur.xmin;
+		else if (x1 > v2d->cur.xmax) x1 = v2d->cur.xmax;
+		if (x2 < v2d->cur.xmin) x2 = v2d->cur.xmin;
+		else if (x2 > v2d->cur.xmax) x2 = v2d->cur.xmax;
+
+		/* nice text here would require changing the view matrix for texture text */
+		if ((x2 - x1) / pixelx > 32) {
+			draw_seq_text(v2d, seq, x1, x2, y1, y2, background_col);
+		}
 	}
 }
 

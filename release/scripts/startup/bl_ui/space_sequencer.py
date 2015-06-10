@@ -201,16 +201,16 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_seconds")
             layout.prop(st, "show_frame_indicator")
             layout.prop(st, "show_strip_offset")
+            layout.prop(st, "show_info")
 
             layout.prop_menu_enum(st, "waveform_draw_type")
 
         if is_preview:
-            if st.display_mode == 'IMAGE':
-                layout.prop(st, "show_metadata")
-            elif st.display_mode == 'WAVEFORM':
+            if st.display_mode == 'WAVEFORM':
                 layout.prop(st, "show_separate_color")
 
         layout.prop(st, "show_metadata")
+
 
         layout.separator()
 
