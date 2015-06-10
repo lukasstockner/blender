@@ -78,6 +78,9 @@ AUD_Specs AUD_SequencerReader::getSpecs() const
 
 void AUD_SequencerReader::read(int& length, bool& eos, sample_t* buffer)
 {
+	if (m_sequence->m_recursive)
+		return;
+
 	AUD_MutexLock lock(*m_sequence);
 
 	if(m_sequence->m_status != m_status)
@@ -192,7 +195,9 @@ void AUD_SequencerReader::read(int& length, bool& eos, sample_t* buffer)
 		v2 -= v;
 		m_device.setListenerVelocity(v2 * m_sequence->m_fps);
 
+		m_sequence->m_recursive = true;
 		m_device.read(reinterpret_cast<data_t*>(buffer + specs.channels * pos), len);
+		m_sequence->m_recursive = false;
 
 		pos += len;
 		time += float(len) / float(specs.rate);

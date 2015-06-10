@@ -201,6 +201,8 @@ public:
 	 * \param entry The entry to remove.
 	 */
 	void remove(boost::shared_ptr<AUD_SequencerEntry> entry);
+
+	bool m_recursive;
 };
 
 #endif //__AUD_SEQUENCER_H__
