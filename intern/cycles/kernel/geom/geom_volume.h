@@ -53,17 +53,21 @@ ccl_device float volume_attribute_float(KernelGlobals *kg, const ShaderData *sd,
 	float4 r = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 #else
 	float4 r;
+	int slot = id >> 1;
 	if(sd->flag & SD_VOLUME_CUBIC)
-		r = kernel_tex_image_interp_3d_ex(id, P.x, P.y, P.z, INTERPOLATION_CUBIC);
+		r = kernel_tex_image_interp_3d_ex(slot, P.x, P.y, P.z, INTERPOLATION_CUBIC);
 	else
-		r = kernel_tex_image_interp_3d(id, P.x, P.y, P.z);
+		r = kernel_tex_image_interp_3d(slot, P.x, P.y, P.z);
 #endif
 
 	if(dx) *dx = 0.0f;
-	if(dx) *dy = 0.0f;
+	if(dy) *dy = 0.0f;
 
 	/* todo: support float textures to lower memory usage for single floats */
-	return average(float4_to_float3(r));
+	if(id & 1)
+		return r.w;
+	else
+		return average(float4_to_float3(r));
 }
 
 ccl_device float3 volume_attribute_float3(KernelGlobals *kg, const ShaderData *sd, AttributeElement elem, int id, float3 *dx, float3 *dy)
@@ -73,16 +77,20 @@ ccl_device float3 volume_attribute_float3(KernelGlobals *kg, const ShaderData *s
 	float4 r = make_float4(0.0f, 0.0f, 0.0f, 0.0f);
 #else
 	float4 r;
+	int slot = id >> 1;
 	if(sd->flag & SD_VOLUME_CUBIC)
-		r = kernel_tex_image_interp_3d_ex(id, P.x, P.y, P.z, INTERPOLATION_CUBIC);
+		r = kernel_tex_image_interp_3d_ex(slot, P.x, P.y, P.z, INTERPOLATION_CUBIC);
 	else
-		r = kernel_tex_image_interp_3d(id, P.x, P.y, P.z);
+		r = kernel_tex_image_interp_3d(slot, P.x, P.y, P.z);
 #endif
 
 	if(dx) *dx = make_float3(0.0f, 0.0f, 0.0f);
 	if(dy) *dy = make_float3(0.0f, 0.0f, 0.0f);
 
-	return float4_to_float3(r);
+	if(id & 1)
+		return make_float3(r.w, r.w, r.w);
+	else
+		return float4_to_float3(r);
 }
 
 #endif

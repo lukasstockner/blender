@@ -183,7 +183,7 @@ static SpaceLink *sequencer_new(const bContext *C)
 	ar->v2d.min[1] = 0.5f;
 	
 	ar->v2d.max[0] = MAXFRAMEF;
-	ar->v2d.max[1] = MAXSEQ;
+	ar->v2d.max[1] = MAXSEQ * 4;
 	
 	ar->v2d.minzoom = 0.01f;
 	ar->v2d.maxzoom = 100.0f;
@@ -564,6 +564,10 @@ static void sequencer_preview_area_init(wmWindowManager *wm, ARegion *ar)
 	/* own keymap */
 	keymap = WM_keymap_find(wm->defaultconf, "SequencerPreview", SPACE_SEQ, 0);
 	WM_event_add_keymap_handler_bb(&ar->handlers, keymap, &ar->v2d.mask, &ar->winrct);
+
+	if (BLI_listbase_is_empty(&ar->widgetmaps)) {
+		BLI_addhead(&ar->widgetmaps, WM_widgetmap_from_type("Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false));
+	}
 }
 
 static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
@@ -572,7 +576,10 @@ static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
 	SpaceSeq *sseq = sa->spacedata.first;
 	Scene *scene = CTX_data_scene(C);
 	wmWindowManager *wm = CTX_wm_manager(C);
-	int show_split = scene->ed && scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW && sseq->mainb == SEQ_DRAW_IMG_IMBUF;
+	const bool show_split = (
+	        scene->ed &&
+	        (scene->ed->over_flag & SEQ_EDIT_OVERLAY_SHOW) &&
+	        (sseq->mainb == SEQ_DRAW_IMG_IMBUF));
 
 	/* XXX temp fix for wrong setting in sseq->mainb */
 	if (sseq->mainb == SEQ_DRAW_SEQUENCE) sseq->mainb = SEQ_DRAW_IMG_IMBUF;
@@ -597,6 +604,9 @@ static void sequencer_preview_area_draw(const bContext *C, ARegion *ar)
 		ED_region_visible_rect(ar, &rect);
 		ED_scene_draw_fps(scene, &rect);
 	}
+
+	WM_widgets_update(C, ar->widgetmaps.first);
+	WM_widgets_draw(C, ar->widgetmaps.first, false);
 }
 
 static void sequencer_preview_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa), ARegion *ar, wmNotifier *wmn)
@@ -699,6 +709,8 @@ static void sequencer_widgets(void)
 {
 	/* create the widgetmap for the area here */
 	WM_widgetmaptype_find("Seq_Canvas", SPACE_SEQ, RGN_TYPE_WINDOW, false, true);
+
+	WM_widgetmaptype_find("Seq_Canvas", SPACE_SEQ, RGN_TYPE_PREVIEW, false, true);
 }
 
 

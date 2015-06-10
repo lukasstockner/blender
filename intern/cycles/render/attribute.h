@@ -39,6 +39,7 @@ struct Transform;
 struct VoxelAttribute {
 	ImageManager *manager;
 	int slot;
+	int from_alpha;
 };
 
 /* Attribute

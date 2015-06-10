@@ -44,7 +44,8 @@ AUD_Sequencer::AUD_Sequencer(AUD_Specs specs, float fps, bool muted) :
 	m_distance_model(AUD_DISTANCE_MODEL_INVERSE_CLAMPED),
 	m_volume(1, 1.0f),
 	m_location(3),
-	m_orientation(4)
+	m_orientation(4),
+	m_recursive(false)
 {
 	AUD_Quaternion q;
 	m_orientation.write(q.get());

@@ -182,7 +182,8 @@ def validate_arguments(args, bc):
             'WITH_BF_BOOST', 'WITH_BF_STATICBOOST', 'BF_BOOST', 'BF_BOOST_INC', 'BF_BOOST_LIB', 'BF_BOOST_LIB_INTERNATIONAL', 'BF_BOOST_LIB_STATIC', 'BF_BOOST_LIBPATH',
             'WITH_BF_LIBMV', 'WITH_BF_LIBMV_SCHUR_SPECIALIZATIONS',
             'WITH_BF_CYCLES_OSL', 'WITH_BF_STATICOSL', 'BF_OSL', 'BF_OSL_INC', 'BF_OSL_LIB', 'BF_OSL_LIBPATH', 'BF_OSL_LIB_STATIC', 'BF_OSL_COMPILER',
-            'WITH_BF_LLVM', 'WITH_BF_STATICLLVM', 'BF_LLVM', 'BF_LLVM_LIB', 'BF_LLVM_LIBPATH', 'BF_LLVM_LIB_STATIC', 'BF_PROGRAM_LINKFLAGS'
+            'WITH_BF_LLVM', 'WITH_BF_STATICLLVM', 'BF_LLVM', 'BF_LLVM_LIB', 'BF_LLVM_LIBPATH', 'BF_LLVM_LIB_STATIC', 'BF_PROGRAM_LINKFLAGS',
+            'WITH_BF_ALEMBIC', 'BF_ALEMBIC', 'BF_ALEMBIC_INC', 'BF_ALEMBIC_LIB', 'BF_ALEMBIC_LIBPATH',
             ]
 
     # Have options here that scons expects to be lists
@@ -198,7 +199,8 @@ def validate_arguments(args, bc):
             'C_WARN', 'CC_WARN', 'CXX_WARN',
             'LLIBS', 'PLATFORM_LINKFLAGS', 'MACOSX_ARCHITECTURE', 'MACOSX_SDK', 'XCODE_CUR_VER', 'C_COMPILER_ID',
             'BF_CYCLES_CUDA_BINARIES_ARCH', 'BF_PROGRAM_LINKFLAGS', 'MACOSX_DEPLOYMENT_TARGET',
-            'WITH_BF_CYCLES_DEBUG', 'WITH_BF_CYCLES_LOGGING'
+            'WITH_BF_CYCLES_DEBUG', 'WITH_BF_CYCLES_LOGGING',
+            'WITH_BF_CPP11', 'WITH_BF_LEGACY_DEPSGRAPH',
     ]
 
 
@@ -580,6 +582,19 @@ def read_opts(env, cfg, args):
         (BoolVariable('WITH_BF_LIBMV_SCHUR_SPECIALIZATIONS', 'Enable fixed-size schur specializations', True)),
 
         (BoolVariable('WITH_BF_COMPOSITOR', 'Enable the tile based nodal compositor', True)),
+
+        (BoolVariable('WITH_BF_HDF5', 'Use HDF5 if true', False)),
+        ('BF_HDF5', 'HDF5 base path', ''),
+        ('BF_HDF5_LIB', 'HDF5 library', ''),
+        ('BF_HDF5_LIBPATH', 'HDF5 library path', ''),
+
+        (BoolVariable('WITH_BF_ALEMBIC', 'Use Alembic if true', False)),
+        (BoolVariable('WITH_BF_STATICALEMBIC', 'Staticly link to Alembic', False)),
+        ('BF_ALEMBIC', 'Alembic base path', ''),
+        ('BF_ALEMBIC_INC', 'Alembic include path', ''),
+        ('BF_ALEMBIC_LIB', 'Alembic library', ''),
+        ('BF_ALEMBIC_LIB_STATIC', 'Alembic static libraries', ''),
+        ('BF_ALEMBIC_LIBPATH', 'Alembic library path', ''),
     ) # end of opts.AddOptions()
 
     localopts.AddVariables(
@@ -653,7 +668,11 @@ def read_opts(env, cfg, args):
         ('BF_LLVM_LIBPATH', 'LLVM library path', ''),
         ('BF_LLVM_LIB_STATIC', 'LLVM static library', ''),
 
-        ('BF_PROGRAM_LINKFLAGS', 'Link flags applied only to final binaries (blender and blenderplayer, not makesrna/makesdna)', '')
+        ('BF_PROGRAM_LINKFLAGS', 'Link flags applied only to final binaries (blender and blenderplayer, not makesrna/makesdna)', ''),
+
+        (BoolVariable('WITH_BF_CPP11', '"Build with C++11 standard enabled, for development use only!', False)),
+
+        (BoolVariable('WITH_BF_LEGACY_DEPSGRAPH', 'Build Blender with legacy dependency graph', True)),
     ) # end of opts.AddOptions()
 
     return localopts

@@ -251,6 +251,12 @@ static void rna_Main_particle_begin(CollectionPropertyIterator *iter, PointerRNA
 	rna_iterator_listbase_begin(iter, &bmain->particle, NULL);
 }
 
+static void rna_Main_palettes_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Main *bmain = (Main *)ptr->data;
+	rna_iterator_listbase_begin(iter, &bmain->palettes, NULL);
+}
+
 static void rna_Main_gpencil_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
 	Main *bmain = (Main *)ptr->data;
@@ -279,6 +285,12 @@ static void rna_Main_linestyle_begin(CollectionPropertyIterator *iter, PointerRN
 {
 	Main *bmain = (Main *)ptr->data;
 	rna_iterator_listbase_begin(iter, &bmain->linestyle, NULL);
+}
+
+static void rna_Main_cachelibraries_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+	Main *bmain = (Main *)ptr->data;
+	rna_iterator_listbase_begin(iter, &bmain->cache_library, NULL);
 }
 
 static void rna_Main_version_get(PointerRNA *ptr, int *value)
@@ -350,10 +362,12 @@ void RNA_def_main(BlenderRNA *brna)
 		{"armatures", "Armature", "rna_Main_armature_begin", "Armatures", "Armature datablocks", RNA_def_main_armatures},
 		{"actions", "Action", "rna_Main_action_begin", "Actions", "Action datablocks", RNA_def_main_actions},
 		{"particles", "ParticleSettings", "rna_Main_particle_begin", "Particles", "Particle datablocks", RNA_def_main_particles},
+		{"palettes", "Palette", "rna_Main_palettes_begin", "Palettes", "Palette datablocks", RNA_def_main_palettes},
 		{"grease_pencil", "GreasePencil", "rna_Main_gpencil_begin", "Grease Pencil", "Grease Pencil datablocks", RNA_def_main_gpencil},
 		{"movieclips", "MovieClip", "rna_Main_movieclips_begin", "Movie Clips", "Movie Clip datablocks", RNA_def_main_movieclips},
 		{"masks", "Mask", "rna_Main_masks_begin", "Masks", "Masks datablocks", RNA_def_main_masks},
 		{"linestyles", "FreestyleLineStyle", "rna_Main_linestyle_begin", "Line Styles", "Line Style datablocks", RNA_def_main_linestyles},
+		{"cache_libraries", "CacheLibrary", "rna_Main_cachelibraries_begin", "Cache Libraries", "Cache Library datablocks", RNA_def_main_cache_libraries},
 		{NULL, NULL, NULL, NULL, NULL, NULL}
 	};
 

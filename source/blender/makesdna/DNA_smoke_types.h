@@ -137,6 +137,8 @@ typedef struct SmokeDomainSettings {
 	/* Smoke uses only one cache from now on (index [0]), but keeping the array for now for reading old files. */
 	struct PointCache *point_cache[2];	/* definition is in DNA_object_force.h */
 	struct ListBase ptcaches[2];
+	int point_cache_offset;
+	int pad;
 	struct EffectorWeights *effector_weights;
 	int border_collisions;	/* How domain border collisions are handled */
 	float time_scale;
@@ -149,6 +151,10 @@ typedef struct SmokeDomainSettings {
 	float burning_rate, flame_smoke, flame_vorticity;
 	float flame_ignition, flame_max_temp;
 	float flame_smoke_color[3];
+
+	/* display */
+	float display_thickness;
+	int pad2;
 } SmokeDomainSettings;
 
 
@@ -173,6 +179,7 @@ typedef struct SmokeDomainSettings {
 #define MOD_SMOKE_FLOW_INITVELOCITY (1<<2) /* passes particles speed to the smoke */
 #define MOD_SMOKE_FLOW_TEXTUREEMIT (1<<3) /* use texture to control emission speed */
 #define MOD_SMOKE_FLOW_USE_PART_SIZE (1<<4) /* use specific size for particles instead of closest cell */
+#define MOD_SMOKE_FLOW_USE_PART_TEXCOLOR (1<<5) /* passes particles texture color to the smoke */
 
 typedef struct SmokeFlowSettings {
 	struct SmokeModifierData *smd; /* for fast RNA access */

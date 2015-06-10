@@ -229,7 +229,13 @@ static void mikk_compute_tangents(BL::Mesh b_mesh, BL::MeshTextureFaceLayer *b_l
 
 /* Create Volume Attribute */
 
-static void create_mesh_volume_attribute(BL::Object b_ob, Mesh *mesh, ImageManager *image_manager, AttributeStandard std, float frame)
+static void create_mesh_volume_attribute(BL::Object b_ob,
+                                         Mesh *mesh,
+                                         ImageManager *image_manager,
+                                         AttributeStandard std,
+                                         float frame,
+                                         AttributeStandard special_std = ATTR_STD_NONE,
+                                         bool from_alpha = false)
 {
 	BL::SmokeDomainSettings b_domain = object_smoke_domain_find(b_ob);
 
@@ -240,17 +246,35 @@ static void create_mesh_volume_attribute(BL::Object b_ob, Mesh *mesh, ImageManag
 	VoxelAttribute *volume_data = attr->data_voxel();
 	bool is_float, is_linear;
 	bool animated = false;
+	AttributeStandard data_attr = (special_std == ATTR_STD_NONE) ? std : special_std;
 
 	volume_data->manager = image_manager;
-	volume_data->slot = image_manager->add_image(Attribute::standard_name(std),
+	volume_data->slot = image_manager->add_image(Attribute::standard_name(data_attr),
 		b_ob.ptr.data, animated, frame, is_float, is_linear, INTERPOLATION_LINEAR, true);
+	volume_data->from_alpha = from_alpha;
 }
 
 static void create_mesh_volume_attributes(Scene *scene, BL::Object b_ob, Mesh *mesh, float frame)
 {
 	/* for smoke volume rendering */
-	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY))
-		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_DENSITY, frame);
+	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_DENSITY)) {
+		/* Special case: we re-map density to A channel of Color texture
+		 * if both attributes are requested.
+		 */
+		AttributeStandard special_std = ATTR_STD_VOLUME_DENSITY;
+		bool from_alpha = false;
+		if(mesh->need_attribute(scene, ATTR_STD_VOLUME_COLOR)) {
+			special_std = ATTR_STD_VOLUME_COLOR;
+			from_alpha = true;
+		}
+		create_mesh_volume_attribute(b_ob,
+		                             mesh,
+		                             scene->image_manager,
+		                             ATTR_STD_VOLUME_DENSITY,
+		                             frame,
+		                             special_std,
+		                             from_alpha);
+	}
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_COLOR))
 		create_mesh_volume_attribute(b_ob, mesh, scene->image_manager, ATTR_STD_VOLUME_COLOR, frame);
 	if(mesh->need_attribute(scene, ATTR_STD_VOLUME_FLAME))
@@ -302,7 +326,7 @@ static void attr_create_uv_map(Scene *scene,
                                BL::Mesh b_mesh,
                                const vector<int>& nverts)
 {
-	if (b_mesh.tessface_uv_textures.length() != 0) {
+	if(b_mesh.tessface_uv_textures.length() != 0) {
 		BL::Mesh::tessface_uv_textures_iterator l;
 
 		for(b_mesh.tessface_uv_textures.begin(l); l != b_mesh.tessface_uv_textures.end(); ++l) {
@@ -324,15 +348,15 @@ static void attr_create_uv_map(Scene *scene,
 				size_t i = 0;
 
 				for(l->data.begin(t); t != l->data.end(); ++t, ++i) {
-					fdata[0] =  get_float3(t->uv1());
-					fdata[1] =  get_float3(t->uv2());
-					fdata[2] =  get_float3(t->uv3());
+					fdata[0] = get_float3(t->uv1());
+					fdata[1] = get_float3(t->uv2());
+					fdata[2] = get_float3(t->uv3());
 					fdata += 3;
 
 					if(nverts[i] == 4) {
-						fdata[0] =  get_float3(t->uv1());
-						fdata[1] =  get_float3(t->uv3());
-						fdata[2] =  get_float3(t->uv4());
+						fdata[0] = get_float3(t->uv1());
+						fdata[1] = get_float3(t->uv3());
+						fdata[2] = get_float3(t->uv4());
 						fdata += 3;
 					}
 				}
@@ -634,8 +658,10 @@ static void create_subd_mesh(Scene *scene, Mesh *mesh, BL::Mesh b_mesh, PointerR
 
 /* Sync */
 
-Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris)
+Mesh *BlenderSync::sync_mesh(BL::Object b_parent, bool object_updated, bool hide_tris, BL::DupliObject b_dupli_ob)
 {
+	BL::Object b_ob = (b_dupli_ob ? b_dupli_ob.object() : b_parent);
+	
 	/* When viewport display is not needed during render we can force some
 	 * caches to be releases from blender side in order to reduce peak memory
 	 * footprint during synchronization process.
@@ -646,7 +672,6 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 
 	/* test if we can instance or if the object is modified */
 	BL::ID b_ob_data = b_ob.data();
-	BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob_data;
 	BL::Material material_override = render_layer.material_override;
 
 	/* find shader indices */
@@ -668,16 +693,39 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	}
 	
 	/* test if we need to sync */
-	bool use_mesh_geometry = render_layer.use_surfaces || render_layer.use_hair;
+	int requested_geometry_flags = Mesh::GEOMETRY_NONE;
+	if(render_layer.use_surfaces) {
+		requested_geometry_flags |= Mesh::GEOMETRY_TRIANGLES;
+	}
+	if(render_layer.use_hair) {
+		requested_geometry_flags |= Mesh::GEOMETRY_CURVES;
+	}
 	Mesh *mesh;
 
-	if(!mesh_map.sync(&mesh, key)) {
+	bool need_update;
+	BL::CacheLibrary b_cachelib = b_parent.cache_library();
+	bool use_dupli_override = b_dupli_ob && b_cachelib &&
+	        (b_cachelib.source_mode() == BL::CacheLibrary::source_mode_CACHE ||
+	         b_cachelib.display_mode() == BL::CacheLibrary::display_mode_RESULT);
+	if (use_dupli_override) {
+		/* if a dupli override (cached data) is used, identify the mesh by object and parent together,
+		 * so that individual per-dupli overrides are possible.
+		 */
+		MeshKey key = MeshKey(b_parent, b_ob);
+		need_update = mesh_map.sync(&mesh, b_ob, b_parent, key);
+	}
+	else {
+		BL::ID key = (BKE_object_is_modified(b_ob))? b_ob: b_ob_data;
+		need_update = mesh_map.sync(&mesh, key);
+	}
+
+	if(!need_update) {
 		/* if transform was applied to mesh, need full update */
 		if(object_updated && mesh->transform_applied);
 		/* test if shaders changed, these can be object level so mesh
 		 * does not get tagged for recalc */
 		else if(mesh->used_shaders != used_shaders);
-		else if(use_mesh_geometry != mesh->geometry_synced);
+		else if(requested_geometry_flags != mesh->geometry_flags);
 		else {
 			/* even if not tagged for recalc, we may need to sync anyway
 			 * because the shader needs different mesh attributes */
@@ -711,7 +759,7 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	mesh->used_shaders = used_shaders;
 	mesh->name = ustring(b_ob_data.name().c_str());
 
-	if(use_mesh_geometry) {
+	if(requested_geometry_flags != Mesh::GEOMETRY_NONE) {
 		/* mesh objects does have special handle in the dependency graph,
 		 * they're ensured to have properly updated.
 		 *
@@ -722,7 +770,9 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 			b_ob.update_from_editmode();
 
 		bool need_undeformed = mesh->need_attribute(scene, ATTR_STD_GENERATED);
-		BL::Mesh b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, need_undeformed);
+		BL::Mesh b_mesh = (use_dupli_override)?
+		            dupli_to_mesh(b_data, b_scene, b_parent, b_dupli_ob, !preview, need_undeformed):
+		            object_to_mesh(b_data, b_ob, b_scene, true, !preview, need_undeformed);
 
 		if(b_mesh) {
 			if(render_layer.use_surfaces && !hide_tris) {
@@ -735,17 +785,17 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 			}
 
 			if(render_layer.use_hair)
-				sync_curves(mesh, b_mesh, b_ob, false);
+				sync_curves(mesh, b_mesh, b_parent, false, 0, b_dupli_ob);
 
 			if(can_free_caches) {
-				b_ob.cache_release();
+				b_ob.cache_release(false);
 			}
 
 			/* free derived mesh */
 			b_data.meshes.remove(b_mesh);
 		}
-		mesh->geometry_synced = true;
 	}
+	mesh->geometry_flags = requested_geometry_flags;
 
 	/* displacement method */
 	if(cmesh.data) {
@@ -781,8 +831,9 @@ Mesh *BlenderSync::sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tri
 	return mesh;
 }
 
-void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion_time)
+void BlenderSync::sync_mesh_motion(BL::Object b_parent, Object *object, float motion_time, BL::DupliObject b_dupli_ob)
 {
+	BL::Object b_ob = (b_dupli_ob ? b_dupli_ob.object() : b_parent);
 	/* ensure we only sync instanced meshes once */
 	Mesh *mesh = object->mesh;
 
@@ -841,7 +892,9 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 
 	if(ccl::BKE_object_is_deform_modified(b_ob, b_scene, preview)) {
 		/* get derived mesh */
-		b_mesh = object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
+		b_mesh = (b_dupli_ob && b_parent)?
+		            dupli_to_mesh(b_data, b_scene, b_parent, b_dupli_ob, !preview, false):
+		            object_to_mesh(b_data, b_ob, b_scene, true, !preview, false);
 	}
 
 	if(!b_mesh) {
@@ -931,7 +984,7 @@ void BlenderSync::sync_mesh_motion(BL::Object b_ob, Object *object, float motion
 
 	/* hair motion */
 	if(numkeys)
-		sync_curves(mesh, b_mesh, b_ob, true, time_index);
+		sync_curves(mesh, b_mesh, b_parent, true, time_index, b_dupli_ob);
 
 	/* free derived mesh */
 	b_data.meshes.remove(b_mesh);

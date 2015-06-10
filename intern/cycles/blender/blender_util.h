@@ -43,6 +43,18 @@ void python_thread_state_restore(void **python_thread_state);
 static inline BL::Mesh object_to_mesh(BL::BlendData data, BL::Object object, BL::Scene scene, bool apply_modifiers, bool render, bool calc_undeformed)
 {
 	BL::Mesh me = data.meshes.new_from_object(scene, object, apply_modifiers, (render)? 2: 1, false, calc_undeformed);
+	if((bool)me) {
+		if(me.use_auto_smooth()) {
+			me.calc_normals_split();
+		}
+		me.calc_tessface(true);
+	}
+	return me;
+}
+
+static inline BL::Mesh dupli_to_mesh(BL::BlendData data, BL::Scene scene, BL::Object parent, BL::DupliObject dob, bool render, bool calc_undeformed)
+{
+	BL::Mesh me = data.meshes.new_from_dupli(scene, parent, dob, (render)? 2: 1, false, calc_undeformed);
 	if ((bool)me) {
 		if (me.use_auto_smooth()) {
 			me.calc_normals_split();
@@ -310,7 +322,7 @@ static inline string get_string(PointerRNA& ptr, const char *name)
 	char cstrbuf[1024];
 	char *cstr = RNA_string_get_alloc(&ptr, name, cstrbuf, sizeof(cstrbuf));
 	string str(cstr);
-	if (cstr != cstrbuf)
+	if(cstr != cstrbuf)
 		MEM_freeN(cstr);
 	
 	return str;
@@ -388,7 +400,7 @@ static inline BL::SmokeDomainSettings object_smoke_domain_find(BL::Object b_ob)
 	BL::Object::modifiers_iterator b_mod;
 
 	for(b_ob.modifiers.begin(b_mod); b_mod != b_ob.modifiers.end(); ++b_mod) {
-		if (b_mod->is_a(&RNA_SmokeModifier)) {
+		if(b_mod->is_a(&RNA_SmokeModifier)) {
 			BL::SmokeModifier b_smd(*b_mod);
 
 			if(b_smd.smoke_type() == BL::SmokeModifier::smoke_type_DOMAIN)
@@ -562,6 +574,36 @@ struct ObjectKey {
 				return true;
 			else if(parent == k.parent)
 				return memcmp(id, k.id, sizeof(id)) < 0;
+		}
+
+		return false;
+	}
+};
+
+/* Mesh Key */
+
+struct MeshKey {
+	void *parent;
+	void *mesh;
+
+	MeshKey(void *mesh_)
+	: parent(NULL), mesh(mesh_)
+	{
+	}
+	
+	MeshKey(void *parent_, void *mesh_)
+	: parent(parent_), mesh(mesh_)
+	{
+	}
+
+	bool operator<(const MeshKey& k) const
+	{
+		if(mesh < k.mesh) {
+			return true;
+		}
+		else if(mesh == k.mesh) {
+			return parent < k.parent;
+				return true;
 		}
 
 		return false;

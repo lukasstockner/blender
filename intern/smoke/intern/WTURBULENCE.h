@@ -36,10 +36,13 @@ struct WTURBULENCE
 {
 	public:
 		// both config files can be NULL, altCfg might override values from noiseCfg
-		WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, const char *noisefile_path, int init_fire, int init_colors);
+		WTURBULENCE(int xResSm, int yResSm, int zResSm, int amplify, int noisetype, const char *noisefile_path, int init_fire, int init_colors, int init_sim);
 
 		/// destructor
 		virtual ~WTURBULENCE();
+
+		// Ensure data needed for simulation is allocated
+		void initSimulation();
 
 		void initFire();
 		void initColors(float init_r, float init_g, float init_b);
@@ -144,6 +147,8 @@ struct WTURBULENCE
 		
 		void computeEigenvalues(float *_eigMin, float *_eigMax);
 		void decomposeEnergy(float *energy, float *_highFreqEnergy);
+
+		bool _need_sim_data;
 };
 
 #endif // WTURBULENCE_H

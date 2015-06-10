@@ -71,6 +71,7 @@ EnumPropertyItem object_mode_items[] = {
 	{OB_MODE_WEIGHT_PAINT, "WEIGHT_PAINT", ICON_WPAINT_HLT, "Weight Paint", ""},
 	{OB_MODE_TEXTURE_PAINT, "TEXTURE_PAINT", ICON_TPAINT_HLT, "Texture Paint", ""},
 	{OB_MODE_PARTICLE_EDIT, "PARTICLE_EDIT", ICON_PARTICLEMODE, "Particle Edit", ""},
+	{OB_MODE_HAIR_EDIT, "HAIR_EDIT", ICON_PARTICLEMODE, "Hair Edit", ""},
 	{0, NULL, 0, NULL, NULL}
 };
 
@@ -183,12 +184,15 @@ EnumPropertyItem object_axis_unsigned_items[] = {
 #include "BLI_math.h"
 
 #include "DNA_key_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_node_types.h"
 
+#include "BKE_anim.h"
 #include "BKE_armature.h"
 #include "BKE_bullet.h"
+#include "BKE_cache_library.h"
 #include "BKE_constraint.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -201,6 +205,7 @@ EnumPropertyItem object_axis_unsigned_items[] = {
 #include "BKE_mesh.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
+#include "BKE_strands.h"
 #include "BKE_deform.h"
 
 #include "ED_mesh.h"
@@ -1031,6 +1036,7 @@ static void rna_MaterialSlot_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 
 	WM_main_add_notifier(NC_OBJECT | ND_OB_SHADING, ptr->id.data);
 	WM_main_add_notifier(NC_MATERIAL | ND_SHADING_LINKS, NULL);
+	DAG_relations_tag_update(bmain);
 }
 
 static char *rna_MaterialSlot_path(PointerRNA *ptr)
@@ -1091,7 +1097,7 @@ static int rna_GameObjectSettings_physics_type_get(PointerRNA *ptr)
 static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 {
 	Object *ob = (Object *)ptr->id.data;
-	const int was_navmesh = (ob->gameflag & OB_NAVMESH);
+	const int gameflag_prev = ob->gameflag;
 	ob->body_type = value;
 
 	switch (ob->body_type) {
@@ -1149,7 +1155,7 @@ static void rna_GameObjectSettings_physics_type_set(PointerRNA *ptr, int value)
 			break;
 	}
 
-	if (was_navmesh != (ob->gameflag & OB_NAVMESH)) {
+	if ((gameflag_prev & OB_NAVMESH) != (ob->gameflag & OB_NAVMESH)) {
 		if (ob->type == OB_MESH) {
 			/* this is needed to refresh the derived meshes draw func */
 			DAG_id_tag_update(ptr->id.data, OB_RECALC_DATA);
@@ -1469,7 +1475,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
 		memcpy(values, bb->vec, sizeof(bb->vec));
 	}
 	else {
-		fill_vn_fl(values, sizeof(bb->vec) / sizeof(float), 0.0f);
+		copy_vn_fl(values, sizeof(bb->vec) / sizeof(float), 0.0f);
 	}
 
 }
@@ -1661,6 +1667,120 @@ static void rna_Object_lod_distance_update(Main *UNUSED(bmain), Scene *UNUSED(sc
 	(void)ob;
 #endif
 }
+
+/* settings: 1 - preview, 2 - render */
+Strands *rna_DupliObject_strands_new(DupliObject *dob, ReportList *UNUSED(reports), Scene *scene, Object *parent, ParticleSystem *psys, int settings)
+{
+	Strands *strands = NULL;
+	bool is_cached = parent->cache_library && (parent->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || parent->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
+	
+	if (is_cached) {
+		float frame = (float)scene->r.cfra + scene->r.subframe;
+		bool use_render = (settings == 2);
+		
+		if (!ELEM(settings, 1, 2))
+			return NULL;
+		
+		if (!use_render && parent->dup_cache) {
+			DupliObjectData *data;
+			
+			/* use dupli cache for realtime dupli data if possible */
+			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
+			if (data) {
+				/* TODO(sergey): Consider sharing the data between viewport and
+				 * render engine.
+				 */
+				BKE_dupli_object_data_find_strands(data, psys->name, &strands, NULL);
+				if (strands) {
+					strands = BKE_strands_copy(strands);
+				}
+			}
+		}
+		else {
+			DupliObjectData data;
+			
+			memset(&data, 0, sizeof(data));
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, use_render, true)) {
+				BKE_dupli_object_data_find_strands(&data, psys->name, &strands, NULL);
+				if (strands)
+					BKE_dupli_object_data_acquire_strands(&data, strands);
+			}
+			
+			BKE_dupli_object_data_clear(&data);
+		}
+	}
+	
+	return strands;
+}
+
+static void rna_DupliObject_strands_free(DupliObject *UNUSED(dob), ReportList *UNUSED(reports), PointerRNA *strands_ptr)
+{
+	Strands *strands = strands_ptr->data;
+	if (strands)
+		BKE_strands_free(strands);
+}
+
+/* settings: 1 - preview, 2 - render */
+StrandsChildren *rna_DupliObject_strands_children_new(DupliObject *dob, ReportList *UNUSED(reports), Scene *scene, Object *parent, ParticleSystem *psys, int settings)
+{
+	StrandsChildren *strands = NULL;
+	bool is_cached = parent->cache_library && (parent->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || parent->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
+	
+	if (is_cached) {
+		float frame = (float)scene->r.cfra + scene->r.subframe;
+		bool use_render = (settings == 2);
+		
+		if (!ELEM(settings, 1, 2))
+			return NULL;
+		
+		if (!use_render && parent->dup_cache) {
+			DupliObjectData *data;
+			
+			/* use dupli cache for realtime dupli data if possible */
+			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
+			if (data) {
+				/* TODO(sergey): Consider sharing the data between viewport and
+				 * render engine.
+				 */
+				BKE_dupli_object_data_find_strands(data, psys->name, NULL, &strands);
+				if (strands) {
+					strands = BKE_strands_children_copy(strands);
+				}
+			}
+		}
+		else {
+			DupliObjectData data;
+			
+			memset(&data, 0, sizeof(data));
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, use_render, true)) {
+				Strands *parents;
+				BKE_dupli_object_data_find_strands(&data, psys->name, &parents, &strands);
+				if (strands) {
+					BKE_dupli_object_data_acquire_strands_children(&data, strands);
+					
+					/* Deform child strands to follow parent motion.
+					 * Note that this is an optional feature for viewport/render display,
+					 * strand motion is not applied to raw child data in caches.
+					 */
+					if (parents)
+						BKE_strands_children_deform(strands, parents, true);
+				}
+			}
+			
+			BKE_dupli_object_data_clear(&data);
+		}
+	}
+	
+	return strands;
+}
+
+static void rna_DupliObject_strands_children_free(DupliObject *UNUSED(dob), ReportList *UNUSED(reports), PointerRNA *strands_ptr)
+{
+	StrandsChildren *strands = strands_ptr->data;
+	if (strands)
+		BKE_strands_children_free(strands);
+}
+
 #else
 
 static void rna_def_vertex_group(BlenderRNA *brna)
@@ -1869,6 +1989,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "physics_type", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "body_type");
 	RNA_def_property_enum_items(prop, body_type_items);
+	RNA_def_property_enum_default(prop, OB_BODY_TYPE_STATIC);
 	RNA_def_property_enum_funcs(prop, "rna_GameObjectSettings_physics_type_get",
 	                            "rna_GameObjectSettings_physics_type_set", NULL);
 	RNA_def_property_ui_text(prop, "Physics Type", "Select the type of physical representation");
@@ -1888,12 +2009,14 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "mass", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_range(prop, 0.01, 10000.0);
+	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Mass", "Mass of the object");
 
 	prop = RNA_def_property(srna, "radius", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
 	RNA_def_property_float_sdna(prop, NULL, "inertia");
 	RNA_def_property_range(prop, 0.01f, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0.01f, 10.0f, 1, 3);
+	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Radius", "Radius of bounding sphere and material physics");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
 
@@ -1904,11 +2027,13 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "damping", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "damping");
 	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_default(prop, 0.04f);
 	RNA_def_property_ui_text(prop, "Damping", "General movement damping");
 
 	prop = RNA_def_property(srna, "rotation_damping", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "rdamping");
 	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_default(prop, 0.1f);
 	RNA_def_property_ui_text(prop, "Rotation Damping", "General rotation damping");
 
 	prop = RNA_def_property(srna, "velocity_min", PROP_FLOAT, PROP_NONE);
@@ -1925,16 +2050,19 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "step_height", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "step_height");
 	RNA_def_property_range(prop, 0.01, 1.0);
+	RNA_def_property_float_default(prop, 0.15f);
 	RNA_def_property_ui_text(prop, "Step Height", "Maximum height of steps the character can run over");
 
 	prop = RNA_def_property(srna, "jump_speed", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "jump_speed");
 	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_float_default(prop, 10.0f);
 	RNA_def_property_ui_text(prop, "Jump Force", "Upward velocity applied to the character when jumping");
 
 	prop = RNA_def_property(srna, "fall_speed", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "fall_speed");
 	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_float_default(prop, 55.0f);
 	RNA_def_property_ui_text(prop, "Fall Speed Max", "Maximum speed at which the character will fall");
 
 	/* Collision Masks */
@@ -1995,6 +2123,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "form_factor", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "formfactor");
 	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_default(prop, 0.4f);
 	RNA_def_property_ui_text(prop, "Form Factor", "Form factor scales the inertia tensor");
 
 	prop = RNA_def_property(srna, "use_anisotropic_friction", PROP_BOOLEAN, PROP_NONE);
@@ -2027,6 +2156,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "collision_margin", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
 	RNA_def_property_float_sdna(prop, NULL, "margin");
 	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_float_default(prop, 0.04f);
 	RNA_def_property_ui_text(prop, "Collision Margin",
 	                         "Extra margin around object for collision detection, small amount required "
 	                         "for stability");
@@ -2042,6 +2172,7 @@ static void rna_def_object_game_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "obstacle_radius", PROP_FLOAT, PROP_NONE | PROP_UNIT_LENGTH);
 	RNA_def_property_float_sdna(prop, NULL, "obstacleRad");
 	RNA_def_property_range(prop, 0.0, 1000.0);
+	RNA_def_property_float_default(prop, 1.0f);
 	RNA_def_property_ui_text(prop, "Obstacle Radius", "Radius of object representation in obstacle simulation");
 	
 	/* state */
@@ -2320,6 +2451,14 @@ static void rna_def_object_lodlevel(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Distance", "Distance to begin using this level of detail");
 	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, "rna_Object_lod_distance_update");
 
+	prop = RNA_def_property(srna, "object_hysteresis_percentage", PROP_INT, PROP_PERCENTAGE);
+	RNA_def_property_int_sdna(prop, NULL, "obhysteresis");
+	RNA_def_property_range(prop, 0, 100);
+	RNA_def_property_ui_range(prop, 0, 100, 10, 1);
+	RNA_def_property_ui_text(prop, "Hysteresis %",
+	                         "Minimum distance change required to transition to the previous level of detail");
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+
 	prop = RNA_def_property(srna, "object", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "source");
 	RNA_def_property_struct_type(prop, "Object");
@@ -2337,6 +2476,11 @@ static void rna_def_object_lodlevel(BlenderRNA *brna)
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_MAT);
 	RNA_def_property_ui_text(prop, "Use Material", "Use the material from this object at this level of detail");
 	RNA_def_property_ui_icon(prop, ICON_MATERIAL, 0);
+	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
+
+	prop = RNA_def_property(srna, "use_object_hysteresis", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", OB_LOD_USE_HYST);
+	RNA_def_property_ui_text(prop, "Hysteresis Override", "Override LoD Hysteresis scene setting for this LoD level");
 	RNA_def_property_update(prop, NC_OBJECT | ND_LOD, NULL);
 }
 
@@ -2880,6 +3024,12 @@ static void rna_def_object(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Dupli Group", "Instance an existing group");
 	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
 
+	prop = RNA_def_property(srna, "cache_library", PROP_POINTER, PROP_NONE);
+	RNA_def_property_pointer_sdna(prop, NULL, "cache_library");
+	RNA_def_property_flag(prop, PROP_EDITABLE);
+	RNA_def_property_ui_text(prop, "Cache Library", "Cache Library to use");
+	RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_dependency_update");
+
 	prop = RNA_def_property(srna, "dupli_frames_start", PROP_INT, PROP_NONE | PROP_UNIT_TIME);
 	RNA_def_property_int_sdna(prop, NULL, "dupsta");
 	RNA_def_property_range(prop, MINAFRAME, MAXFRAME);
@@ -3041,6 +3191,14 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 {
 	StructRNA *srna;
 	PropertyRNA *prop;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+
+	static EnumPropertyItem strand_settings_items[] = {
+		{1, "PREVIEW", 0, "Preview", "Apply preview settings"},
+		{2, "RENDER", 0, "Render", "Apply render settings"},
+		{0, NULL, 0, NULL, NULL}
+	};
 
 	srna = RNA_def_struct(brna, "DupliObject", NULL);
 	RNA_def_struct_sdna(srna, "DupliObject");
@@ -3089,6 +3247,60 @@ static void rna_def_dupli_object(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, dupli_items);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);
 	RNA_def_property_ui_text(prop, "Dupli Type", "Duplicator type that generated this dupli object");
+
+	func = RNA_def_function(srna, "strands_new", "rna_DupliObject_strands_new");
+	RNA_def_function_ui_description(func, "Add new strands created from dupli cache data");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "scene", "Scene", "", "Scene within which to evaluate modifiers");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "parent", "Object", "", "Duplicator parent of the object");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "particle_system", "ParticleSystem", "", "Particle System");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "settings", strand_settings_items, 0, "", "Modifier settings to apply");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_pointer(func, "strands", "Strands", "",
+	                       "Strands created from object, remove it if it is only used for export");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "strands_free", "rna_DupliObject_strands_free");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Free strands data");
+	parm = RNA_def_pointer(func, "strands", "Strands", "", "Strands to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+
+	func = RNA_def_function(srna, "strands_children_new", "rna_DupliObject_strands_children_new");
+	RNA_def_function_ui_description(func, "Add new strands created from dupli cache data");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "scene", "Scene", "", "Scene within which to evaluate modifiers");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "parent", "Object", "", "Duplicator parent of the object");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "particle_system", "ParticleSystem", "", "Particle System");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "settings", strand_settings_items, 0, "", "Modifier settings to apply");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	parm = RNA_def_pointer(func, "strands", "StrandsChildren", "",
+	                       "Strands created from object, remove it if it is only used for export");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "strands_children_free", "rna_DupliObject_strands_children_free");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Free strands data");
+	parm = RNA_def_pointer(func, "strands", "StrandsChildren", "", "Strands to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+}
+
+static void rna_def_dupli_object_data(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	/*PropertyRNA *prop;*/
+
+	srna = RNA_def_struct(brna, "DupliObjectData", NULL);
+	RNA_def_struct_sdna(srna, "DupliObjectData");
+	RNA_def_struct_ui_text(srna, "Object Duplicate Data", "Override of object data for duplis");
 }
 
 static void rna_def_object_base(BlenderRNA *brna)
@@ -3138,6 +3350,7 @@ void RNA_def_object(BlenderRNA *brna)
 	rna_def_face_map(brna);
 	rna_def_material_slot(brna);
 	rna_def_dupli_object(brna);
+	rna_def_dupli_object_data(brna);
 	RNA_define_animate_sdna(true);
 	rna_def_object_lodlevel(brna);
 }

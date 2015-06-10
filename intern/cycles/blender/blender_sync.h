@@ -68,7 +68,7 @@ public:
 	                                        BL::Scene b_scene,
 	                                        bool background);
 	static bool get_session_pause(BL::Scene b_scene, bool background);
-	static BufferParams get_buffer_params(BL::RenderSettings b_render, BL::Scene b_scene, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, Camera *cam, int width, int height);
+	static BufferParams get_buffer_params(BL::RenderSettings b_render, BL::SpaceView3D b_v3d, BL::RegionView3D b_rv3d, Camera *cam, int width, int height);
 
 private:
 	/* sync */
@@ -83,17 +83,29 @@ private:
 	void sync_curve_settings();
 
 	void sync_nodes(Shader *shader, BL::ShaderNodeTree b_ntree);
-	Mesh *sync_mesh(BL::Object b_ob, bool object_updated, bool hide_tris);
-	void sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool motion, int time_index = 0);
-	Object *sync_object(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::DupliObject b_dupli_ob,
-	                                 Transform& tfm, uint layer_flag, float motion_time, bool hide_tris);
-	void sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::Object b_ob, Transform& tfm);
-	void sync_background_light();
-	void sync_mesh_motion(BL::Object b_ob, Object *object, float motion_time);
+	Mesh *sync_mesh(BL::Object b_parent, bool object_updated, bool hide_tris, BL::DupliObject b_dupli_ob = PointerRNA_NULL);
+	void sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_parent, bool motion, int time_index = 0, BL::DupliObject b_dupli_ob = PointerRNA_NULL);
+	Object *sync_object(BL::Object b_parent,
+	                    int persistent_id[OBJECT_PERSISTENT_ID_SIZE],
+	                    BL::DupliObject b_dupli_ob,
+	                    Transform& tfm,
+	                    uint layer_flag,
+	                    float motion_time,
+	                    bool hide_tris,
+	                    bool use_camera_cull,
+	                    float camera_cull_margin,
+	                    bool *use_portal);
+	void sync_light(BL::Object b_parent, int persistent_id[OBJECT_PERSISTENT_ID_SIZE], BL::Object b_ob, Transform& tfm, bool *use_portal);
+	void sync_background_light(bool use_portal);
+	void sync_mesh_motion(BL::Object b_parent, Object *object, float motion_time, BL::DupliObject b_dupli_ob = PointerRNA_NULL);
+
 	void sync_camera_motion(BL::Object b_ob, float motion_time);
 
 	/* particles */
 	bool sync_dupli_particle(BL::Object b_ob, BL::DupliObject b_dup, Object *object);
+
+	/* Images. */
+	void sync_images();
 
 	/* util */
 	void find_shader(BL::ID id, vector<uint>& used_shaders, int default_shader);
@@ -108,7 +120,7 @@ private:
 
 	id_map<void*, Shader> shader_map;
 	id_map<ObjectKey, Object> object_map;
-	id_map<void*, Mesh> mesh_map;
+	id_map<MeshKey, Mesh> mesh_map;
 	id_map<ObjectKey, Light> light_map;
 	id_map<ParticleSystemKey, ParticleSystem> particle_system_map;
 	set<Mesh*> mesh_synced;

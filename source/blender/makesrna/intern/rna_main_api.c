@@ -35,6 +35,7 @@
 
 #include "DNA_ID.h"
 #include "DNA_modifier_types.h"
+#include "DNA_space_types.h"
 
 #include "BLI_utildefines.h"
 #include "BLI_path_util.h"
@@ -48,6 +49,8 @@
 #ifdef RNA_RUNTIME
 
 #include "BKE_main.h"
+#include "BKE_anim.h"
+#include "BKE_cache_library.h"
 #include "BKE_camera.h"
 #include "BKE_curve.h"
 #include "BKE_DerivedMesh.h"
@@ -58,9 +61,11 @@
 #include "BKE_library.h"
 #include "BKE_object.h"
 #include "BKE_material.h"
+#include "BKE_icons.h"
 #include "BKE_image.h"
 #include "BKE_texture.h"
 #include "BKE_scene.h"
+#include "BKE_sound.h"
 #include "BKE_text.h"
 #include "BKE_action.h"
 #include "BKE_group.h"
@@ -69,6 +74,7 @@
 #include "BKE_mball.h"
 #include "BKE_world.h"
 #include "BKE_particle.h"
+#include "BKE_paint.h"
 #include "BKE_font.h"
 #include "BKE_node.h"
 #include "BKE_depsgraph.h"
@@ -79,6 +85,7 @@
 #include "BKE_linestyle.h"
 
 #include "DNA_armature_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_lamp_types.h"
@@ -86,6 +93,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_object_types.h"
 #include "DNA_speaker_types.h"
+#include "DNA_sound_types.h"
 #include "DNA_text_types.h"
 #include "DNA_texture_types.h"
 #include "DNA_group_types.h"
@@ -307,6 +315,61 @@ Mesh *rna_Main_meshes_new_from_object(
 	return BKE_mesh_new_from_object(bmain, sce, ob, apply_modifiers, settings, calc_tessface, calc_undeformed);
 }
 
+/* copied from Mesh_getFromObject and adapted to RNA interface */
+/* settings: 1 - preview, 2 - render */
+Mesh *rna_Main_meshes_new_from_dupli(
+        Main *bmain, ReportList *reports, Scene *scene, Object *parent, DupliObject *dob,
+        int settings, int calc_tessface, int calc_undeformed)
+{
+	Mesh *mesh = NULL;
+	bool is_cached = parent->cache_library && (parent->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || parent->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
+	
+	switch (dob->ob->type) {
+		case OB_FONT:
+		case OB_CURVE:
+		case OB_SURF:
+		case OB_MBALL:
+		case OB_MESH:
+			break;
+		default:
+			BKE_report(reports, RPT_ERROR, "Object does not have geometry data");
+			return NULL;
+	}
+	
+	if (is_cached) {
+		float frame = (float)scene->r.cfra + scene->r.subframe;
+		bool use_render = (settings == 2);
+		
+		if (!ELEM(settings, 1, 2))
+			return NULL;
+		
+		if (settings == 1 && parent->dup_cache) {
+			DupliObjectData *data;
+			
+			/* use dupli cache for realtime dupli data if possible */
+			data = BKE_dupli_cache_find_data(parent->dup_cache, dob->ob);
+			if (data)
+				mesh = BKE_mesh_new_from_dupli_data(bmain, data, calc_tessface, calc_undeformed);
+		}
+		else {
+			DupliObjectData data;
+			
+			memset(&data, 0, sizeof(data));
+			if (BKE_cache_read_dupli_object(parent->cache_library, &data, scene, dob->ob, frame, use_render, true))
+				mesh = BKE_mesh_new_from_dupli_data(bmain, &data, calc_tessface, calc_undeformed);
+			
+			BKE_dupli_object_data_clear(&data);
+		}
+	}
+	
+	/* default, and fallback in case no mesh data was stored in the cache */
+	if (!mesh) {
+		mesh = BKE_mesh_new_from_object(bmain, scene, dob->ob, true, settings, calc_tessface, calc_undeformed);
+	}
+	
+	return mesh;
+}
+
 static void rna_Main_meshes_remove(Main *bmain, ReportList *reports, PointerRNA *mesh_ptr)
 {
 	Mesh *mesh = mesh_ptr->data;
@@ -340,10 +403,10 @@ static void rna_Main_lamps_remove(Main *bmain, ReportList *reports, PointerRNA *
 	}
 }
 
-static Image *rna_Main_images_new(Main *bmain, const char *name, int width, int height, int alpha, int float_buffer)
+static Image *rna_Main_images_new(Main *bmain, const char *name, int width, int height, int alpha, int float_buffer, int stereo3d)
 {
 	float color[4] = {0.0, 0.0, 0.0, 1.0};
-	Image *image = BKE_image_add_generated(bmain, width, height, name, alpha ? 32 : 24, float_buffer, 0, color);
+	Image *image = BKE_image_add_generated(bmain, width, height, name, alpha ? 32 : 24, float_buffer, 0, color, stereo3d);
 	id_us_min(&image->id);
 	return image;
 }
@@ -460,8 +523,8 @@ static void rna_Main_fonts_remove(Main *bmain, ReportList *reports, PointerRNA *
 
 static Tex *rna_Main_textures_new(Main *bmain, const char *name, int type)
 {
-	Tex *tex = add_texture(bmain, name);
-	tex_set_type(tex, type);
+	Tex *tex = BKE_texture_add(bmain, name);
+	BKE_texture_type_set(tex, type);
 	id_us_min(&tex->id);
 	return tex;
 }
@@ -544,6 +607,25 @@ static void rna_Main_speakers_remove(Main *bmain, ReportList *reports, PointerRN
 	else {
 		BKE_reportf(reports, RPT_ERROR, "Speaker '%s' must have zero users to be removed, found %d",
 		            speaker->id.name + 2, ID_REAL_USERS(speaker));
+	}
+}
+
+static bSound *rna_Main_sounds_load(Main *bmain, const char *name)
+{
+	bSound *sound = BKE_sound_new_file(bmain, name);
+	id_us_min(&sound->id);
+	return sound;
+}
+static void rna_Main_sounds_remove(Main *bmain, ReportList *reports, PointerRNA *sound_ptr)
+{
+	Speaker *sound = sound_ptr->data;
+	if (ID_REAL_USERS(sound) <= 0) {
+		BKE_libblock_free(bmain, sound);
+		RNA_POINTER_INVALIDATE(sound_ptr);
+	}
+	else {
+		BKE_reportf(reports, RPT_ERROR, "Sound '%s' must have zero users to be removed, found %d",
+		            sound->id.name + 2, ID_REAL_USERS(sound));
 	}
 }
 
@@ -631,6 +713,25 @@ static void rna_Main_particles_remove(Main *bmain, ReportList *reports, PointerR
 	}
 }
 
+static Palette *rna_Main_palettes_new(Main *bmain, const char *name)
+{
+	Palette *palette = BKE_palette_add(bmain, name);
+	id_us_min(&palette->id);
+	return (Palette *)palette;
+}
+static void rna_Main_palettes_remove(Main *bmain, ReportList *reports, PointerRNA *palette_ptr)
+{
+	Palette *palette = palette_ptr->data;
+	if (ID_REAL_USERS(palette) <= 0) {
+		BKE_libblock_free(bmain, palette);
+		RNA_POINTER_INVALIDATE(palette_ptr);
+	}
+	else {
+		BKE_reportf(reports, RPT_ERROR, "Palette settings '%s' must have zero users to be removed, found %d",
+		            palette->id.name + 2, ID_REAL_USERS(palette));
+	}
+}
+
 static MovieClip *rna_Main_movieclip_load(Main *bmain, ReportList *reports, const char *filepath)
 {
 	MovieClip *clip;
@@ -685,7 +786,7 @@ static void rna_Main_grease_pencil_remove(Main *bmain, ReportList *reports, Poin
 
 static FreestyleLineStyle *rna_Main_linestyles_new(Main *bmain, const char *name)
 {
-	FreestyleLineStyle *linestyle = BKE_linestyle_new(name, bmain);
+	FreestyleLineStyle *linestyle = BKE_linestyle_new(bmain, name);
 	id_us_min(&linestyle->id);
 	return linestyle;
 }
@@ -699,6 +800,22 @@ static void rna_Main_linestyles_remove(Main *bmain, ReportList *reports, Freesty
 		            linestyle->id.name + 2, ID_REAL_USERS(linestyle));
 
 	/* XXX python now has invalid pointer? */
+}
+
+static CacheLibrary *rna_Main_cachelibraries_new(Main *bmain, const char *name)
+{
+	CacheLibrary *cachelib = BKE_cache_library_add(bmain, name);
+	id_us_min(&cachelib->id);
+	return cachelib;
+}
+
+static void rna_Main_cachelibraries_remove(Main *bmain, ReportList *reports, CacheLibrary *cachelib)
+{
+	if (ID_REAL_USERS(cachelib) <= 0)
+		BKE_libblock_free(bmain, cachelib);
+	else
+		BKE_reportf(reports, RPT_ERROR, "Cache library '%s' must have zero users to be removed, found %d",
+		            cachelib->id.name + 2, ID_REAL_USERS(cachelib));
 }
 
 /* tag functions, all the same */
@@ -729,10 +846,12 @@ static void rna_Main_sounds_tag(Main *bmain, int value) { BKE_main_id_tag_listba
 static void rna_Main_armatures_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->armature, value); }
 static void rna_Main_actions_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->action, value); }
 static void rna_Main_particles_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->particle, value); }
+static void rna_Main_palettes_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->palettes, value); }
 static void rna_Main_gpencil_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->gpencil, value); }
 static void rna_Main_movieclips_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->movieclip, value); }
 static void rna_Main_masks_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->mask, value); }
 static void rna_Main_linestyle_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->linestyle, value); }
+static void rna_Main_cachelibraries_tag(Main *bmain, int value) { BKE_main_id_tag_listbase(&bmain->cache_library, value); }
 
 static int rna_Main_cameras_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_CA) != 0; }
 static int rna_Main_scenes_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_SCE) != 0; }
@@ -759,16 +878,19 @@ static int rna_Main_sounds_is_updated_get(PointerRNA *ptr) { return DAG_id_type_
 static int rna_Main_armatures_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_AR) != 0; }
 static int rna_Main_actions_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_AC) != 0; }
 static int rna_Main_particles_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_PA) != 0; }
+static int rna_Main_palettes_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_PAL) != 0; }
 static int rna_Main_gpencil_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_GD) != 0; }
 static int rna_Main_linestyle_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_LS) != 0; }
+static int rna_Main_cachelibraries_is_updated_get(PointerRNA *ptr) { return DAG_id_type_tagged(ptr->data, ID_CL) != 0; }
 
 #else
 
-void RNA_api_main(StructRNA *srna)
+void RNA_api_main(StructRNA *UNUSED(srna))
 {
 #if 0
 	FunctionRNA *func;
 	PropertyRNA *parm;
+
 	/* maybe we want to add functions in 'bpy.data' still?
 	 * for now they are all in collections bpy.data.images.new(...) */
 	func = RNA_def_function(srna, "add_image", "rna_Main_add_image");
@@ -777,8 +899,6 @@ void RNA_api_main(StructRNA *srna)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	parm = RNA_def_pointer(func, "image", "Image", "", "New image");
 	RNA_def_function_return(func, parm);
-#else
-	(void)srna;
 #endif
 }
 
@@ -1015,6 +1135,23 @@ void RNA_def_main_meshes(BlenderRNA *brna, PropertyRNA *cprop)
 	                       "Mesh created from object, remove it if it is only used for export");
 	RNA_def_function_return(func, parm);
 
+	func = RNA_def_function(srna, "new_from_dupli", "rna_Main_meshes_new_from_dupli");
+	RNA_def_function_ui_description(func, "Add a new mesh created from dupli cache data");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	parm = RNA_def_pointer(func, "scene", "Scene", "", "Scene within which to evaluate modifiers");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "parent", "Object", "", "Duplicator parent of the object");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_pointer(func, "dupli_object", "DupliObject", "", "Dupli Object to create mesh from");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL);
+	parm = RNA_def_enum(func, "settings", mesh_type_items, 0, "", "Modifier settings to apply");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_boolean(func, "calc_tessface", true, "Calculate Tessellation", "Calculate tessellation faces");
+	RNA_def_boolean(func, "calc_undeformed", false, "Calculate Undeformed", "Calculate undeformed vertex coordinates");
+	parm = RNA_def_pointer(func, "mesh", "Mesh", "",
+	                       "Mesh created from object, remove it if it is only used for export");
+	RNA_def_function_return(func, parm);
+
 	func = RNA_def_function(srna, "remove", "rna_Main_meshes_remove");
 	RNA_def_function_flag(func, FUNC_USE_REPORTS);
 	RNA_def_function_ui_description(func, "Remove a mesh from the current blendfile");
@@ -1152,6 +1289,7 @@ void RNA_def_main_images(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_flag(parm, PROP_REQUIRED);
 	RNA_def_boolean(func, "alpha", 0, "Alpha", "Use alpha channel");
 	RNA_def_boolean(func, "float_buffer", 0, "Float Buffer", "Create an image with floating point color");
+	RNA_def_boolean(func, "stereo3d", 0, "Stereo 3D", "Create left and right views");
 	/* return type */
 	parm = RNA_def_pointer(func, "image", "Image", "", "New image datablock");
 	RNA_def_function_return(func, parm);
@@ -1562,7 +1700,21 @@ void RNA_def_main_sounds(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_struct_sdna(srna, "Main");
 	RNA_def_struct_ui_text(srna, "Main Sounds", "Collection of sounds");
 
-	/* TODO, 'load' */
+	/* load func */
+	func = RNA_def_function(srna, "load", "rna_Main_sounds_load");
+	RNA_def_function_ui_description(func, "Add a new sound to the main database from a file");
+	parm = RNA_def_string_file_path(func, "filepath", "Path", FILE_MAX, "", "path for the datablock");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return type */
+	parm = RNA_def_pointer(func, "sound", "Sound", "", "New text datablock");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_Main_sounds_remove");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Remove a sound from the current blendfile");
+	parm = RNA_def_pointer(func, "sound", "Sound", "", "Sound to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
 
 	func = RNA_def_function(srna, "tag", "rna_Main_sounds_tag");
 	parm = RNA_def_boolean(func, "value", 0, "Value", "");
@@ -1678,7 +1830,41 @@ void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop)
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Main_particles_is_updated_get", NULL);
 }
+void RNA_def_main_palettes(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+	PropertyRNA *prop;
 
+	RNA_def_property_srna(cprop, "BlendDataPalettes");
+	srna = RNA_def_struct(brna, "BlendDataPalettes", NULL);
+	RNA_def_struct_sdna(srna, "Main");
+	RNA_def_struct_ui_text(srna, "Main Palettes", "Collection of palettes");
+
+	func = RNA_def_function(srna, "new", "rna_Main_palettes_new");
+	RNA_def_function_ui_description(func, "Add a new palette to the main database");
+	parm = RNA_def_string(func, "name", "Palette", 0, "", "New name for the datablock");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return type */
+	parm = RNA_def_pointer(func, "palette", "Palette", "", "New palette datablock");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_Main_palettes_remove");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Remove a palette from the current blendfile");
+	parm = RNA_def_pointer(func, "palette", "Palette", "", "Palette to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_NEVER_NULL | PROP_RNAPTR);
+	RNA_def_property_clear_flag(parm, PROP_THICK_WRAP);
+
+	func = RNA_def_function(srna, "tag", "rna_Main_palettes_tag");
+	parm = RNA_def_boolean(func, "value", 0, "Value", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_palettes_is_updated_get", NULL);
+}
 void RNA_def_main_gpencil(BlenderRNA *brna, PropertyRNA *cprop)
 {
 	StructRNA *srna;
@@ -1811,6 +1997,41 @@ void RNA_def_main_linestyles(BlenderRNA *brna, PropertyRNA *cprop)
 	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 	RNA_def_property_boolean_funcs(prop, "rna_Main_linestyle_is_updated_get", NULL);
+}
+
+void RNA_def_main_cache_libraries(BlenderRNA *brna, PropertyRNA *cprop)
+{
+	StructRNA *srna;
+	FunctionRNA *func;
+	PropertyRNA *parm;
+	PropertyRNA *prop;
+
+	RNA_def_property_srna(cprop, "BlendDataCacheLibraries");
+	srna = RNA_def_struct(brna, "BlendDataCacheLibraries", NULL);
+	RNA_def_struct_sdna(srna, "Main");
+	RNA_def_struct_ui_text(srna, "Main Cache Libraries", "Collection of cache libraries");
+
+	func = RNA_def_function(srna, "tag", "rna_Main_cachelibraries_tag");
+	parm = RNA_def_boolean(func, "value", 0, "Value", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	func = RNA_def_function(srna, "new", "rna_Main_cachelibraries_new");
+	RNA_def_function_ui_description(func, "Add a new cache library to the main database");
+	parm = RNA_def_string(func, "name", "CacheLibrary", 0, "", "New name for the datablock");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	/* return type */
+	parm = RNA_def_pointer(func, "cachelib", "CacheLibrary", "", "New cache library datablock");
+	RNA_def_function_return(func, parm);
+
+	func = RNA_def_function(srna, "remove", "rna_Main_cachelibraries_remove");
+	RNA_def_function_flag(func, FUNC_USE_REPORTS);
+	RNA_def_function_ui_description(func, "Remove a cache library from the current blendfile");
+	parm = RNA_def_pointer(func, "cachelib", "CacheLibrary", "", "Cache Library to remove");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+
+	prop = RNA_def_property(srna, "is_updated", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_boolean_funcs(prop, "rna_Main_cachelibraries_is_updated_get", NULL);
 }
 
 #endif

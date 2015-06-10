@@ -26,8 +26,10 @@ set(INC
 	../../bmesh
 	../../makesdna
 	../../makesrna
+	../../pointcache
 	../../windowmanager
 	../../collada
+	../../../../intern/guardedalloc
 )
 
 set(INC_SYS
@@ -35,9 +37,12 @@ set(INC_SYS
 )
 
 set(SRC
+	io_cache_library.c
+	io_cache_shapekey.c
 	io_collada.c
 	io_ops.c
 
+	io_cache_library.h
 	io_collada.h
 	io_ops.h
 )

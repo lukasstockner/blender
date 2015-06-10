@@ -282,6 +282,7 @@ typedef struct ParticleSystem {
 
 	struct PTCacheEdit *edit;						/* particle editmode (runtime) */
 	void (*free_edit)(struct PTCacheEdit *edit);	/* free callback */
+	struct BMEditStrands *hairedit;			/* hair edit data (runtime) */
 
 	struct ParticleCacheKey **pathcache;	/* path cache (runtime) */
 	struct ParticleCacheKey **childcache;	/* child cache (runtime) */
@@ -452,8 +453,8 @@ typedef enum eParticleDrawColorMode {
 	PART_DRAW_COL_VEL		= 2,
 	PART_DRAW_COL_ACC		= 3,
 	PART_DRAW_COL_PARENT	= 4,
+	PART_DRAW_COL_TEX		= 5,
 } eParticleDrawColorMode;
-
 
 /* part->simplify_flag */
 #define PART_SIMPLIFY_ENABLE	1
@@ -625,6 +626,8 @@ typedef enum eParticleTextureInfluence {
 	PAMAP_LENGTH	= (1<<4),
 	PAMAP_CHILD		= (PAMAP_CLUMP | PAMAP_KINK_FREQ | PAMAP_KINK_AMP | PAMAP_ROUGH | PAMAP_LENGTH),
 	PAMAP_SHAPEKEY	= (1<<13), /* shapekey blend multiplier */
+	/* color */
+	PAMAP_COLOR		= (1<<14),
 } eParticleTextureInfluence;
 
 #endif

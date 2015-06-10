@@ -414,6 +414,14 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_enum_items(prop, smoke_cache_comp_items);
 	RNA_def_property_ui_text(prop, "Cache Compression", "Compression method to be used");
 
+	prop = RNA_def_property(srna, "point_cache_offset", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "point_cache_offset");
+	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+	RNA_def_property_range(prop, -10000, 10000);
+	RNA_def_property_ui_range(prop, -10000, 10000, 1, -1);
+	RNA_def_property_ui_text(prop, "Point Cache Offset", "Offset to add to cached frames");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_update");
+
 	prop = RNA_def_property(srna, "collision_extents", PROP_ENUM, PROP_NONE);
 	RNA_def_property_enum_sdna(prop, NULL, "border_collisions");
 	RNA_def_property_enum_items(prop, smoke_domain_colli_items);
@@ -544,6 +552,14 @@ static void rna_def_smoke_domain_settings(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Threshold",
 	                         "Maximum amount of fluid cell can contain before it is considered empty");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_resetCache");
+
+	/* display */
+	prop = RNA_def_property(srna, "display_thickness", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "display_thickness");
+	RNA_def_property_range(prop, 0.001f, 1000.0f);
+	RNA_def_property_ui_range(prop, 0.1f, 10.0f, 0.1, 3);
+	RNA_def_property_ui_text(prop, "Thickness", "Thickness of smoke drawing in the viewport");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, NULL);
 }
 
 static void rna_def_smoke_flow_settings(BlenderRNA *brna)
@@ -673,6 +689,11 @@ static void rna_def_smoke_flow_settings(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_particle_size", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SMOKE_FLOW_USE_PART_SIZE);
 	RNA_def_property_ui_text(prop, "Set Size", "Set particle size in simulation cells or use nearest cell");
+	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
+
+	prop = RNA_def_property(srna, "use_particle_texture_color", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flags", MOD_SMOKE_FLOW_USE_PART_TEXCOLOR);
+	RNA_def_property_ui_text(prop, "Set Texture Color", "Set particle texture color in simulation cells");
 	RNA_def_property_update(prop, NC_OBJECT | ND_MODIFIER, "rna_Smoke_reset");
 
 	prop = RNA_def_property(srna, "subframes", PROP_INT, PROP_NONE);

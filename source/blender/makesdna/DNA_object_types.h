@@ -48,7 +48,6 @@ struct Ipo;
 struct BoundBox;
 struct Path;
 struct Material;
-struct bConstraintChannel;
 struct PartDeflect;
 struct SoftBody;
 struct FluidsimSettings;
@@ -117,7 +116,8 @@ typedef struct LodLevel {
 	struct LodLevel *next, *prev;
 	struct Object *source;
 	int flags;
-	float distance;
+	float distance, pad;
+	int obhysteresis;
 } LodLevel;
 
 typedef struct Object {
@@ -189,7 +189,8 @@ typedef struct Object {
 	short flag;			/* copy of Base */
 	short colbits DNA_DEPRECATED;		/* deprecated, use 'matbits' */
 	
-	short transflag, protectflag;	/* transformation settings and transform locks  */
+	int transflag;				/* transformation settings */
+	short protectflag, pad;		/* transform locks */
 	short trackflag, upflag;
 	short nlaflag;				/* used for DopeSheet filtering settings (expanded/collapsed) */
 	short ipoflag;				// xxx deprecated... old animation system
@@ -199,8 +200,6 @@ typedef struct Object {
 
 	/* dupli-frame settings */
 	int dupon, dupoff, dupsta, dupend;
-
-	int pad;
 
 	/* during realtime */
 
@@ -253,7 +252,11 @@ typedef struct Object {
 	short index;			/* custom index, for renderpasses */
 	unsigned short actdef;	/* current deformation group, note: index starts at 1 */
 	unsigned short actfmap;	/* current face map, note: index starts at 1 */
-	unsigned short pad2[3];
+	unsigned short pad2[2];
+
+	/* did last modifier stack generation need mapping support? */
+	short lastNeedMapping;
+
 	float col[4];			/* object color */
 
 	int gameflag;
@@ -274,6 +277,8 @@ typedef struct Object {
 	struct PartDeflect *pd;		/* particle deflector/attractor/collision data */
 	struct SoftBody *soft;		/* if exists, saved in file */
 	struct Group *dup_group;	/* object duplicator for group */
+	struct DupliCache *dup_cache;		/* cached dupli overrides */
+	struct CacheLibrary *cache_library;	/* cache library to use */
 
 	char  body_type;			/* for now used to temporarily holds the type of collision object */
 	char  shapeflag;			/* flag for pinning */
@@ -339,7 +344,42 @@ typedef struct DupliObject {
 
 	/* particle this dupli was generated from */
 	struct ParticleSystem *particle_system;
+	
+	struct DupliObjectData *data;
 } DupliObject;
+
+typedef struct DupliObjectDataStrands {
+	struct DupliObjectDataStrands *next, *prev;
+	
+	char name[64]; /* MAX_NAME */
+	struct Strands *strands;
+	struct StrandsChildren *strands_children;
+} DupliObjectDataStrands;
+
+/* data that can be shared by multiple DupliObject instances */
+typedef struct DupliObjectData {
+	/* XXX eventually it should be possible to construct dupli instances
+	 * entirely without Objects in the DNA, but current drawing code and
+	 * others make this too difficult
+	 */
+	struct Object *ob;
+	struct BoundBox bb;
+	struct DerivedMesh *dm;
+	ListBase strands;
+} DupliObjectData;
+
+typedef struct DupliCache {
+	short flag;
+	short result;
+	float cfra; /* frame for which the cache was constructed */
+	
+	struct GHash *ghash;
+	ListBase duplilist;
+} DupliCache;
+
+typedef enum eDupliCache_Flag {
+	DUPCACHE_FLAG_DIRTY         = (1 << 0), /* cache requires update */
+} eDupliCache_Flag;
 
 /* **************** OBJECT ********************* */
 
@@ -408,7 +448,7 @@ enum {
 	OB_DUPLIVERTS       = 1 << 4,
 	OB_DUPLIROT         = 1 << 5,
 	OB_DUPLINOSPEED     = 1 << 6,
-/*	OB_POWERTRACK       = 1 << 7,*/ /*UNUSED*/
+	OB_DUPLICALCDERIVED = 1 << 7, /* runtime, calculate derivedmesh for dupli before it's used */
 	OB_DUPLIGROUP       = 1 << 8,
 	OB_DUPLIFACES       = 1 << 9,
 	OB_DUPLIFACES_SCALE = 1 << 10,
@@ -416,6 +456,8 @@ enum {
 	OB_RENDER_DUPLI     = 1 << 12,
 	OB_NO_CONSTRAINTS   = 1 << 13,  /* runtime constraints disable */
 	OB_NO_PSYS_UPDATE   = 1 << 14,  /* hack to work around particle issue */
+
+	OB_IS_DUPLI_CACHE   = 1 << 31,  /* temporary flag: object data overridden from cache */
 
 	OB_DUPLI            = OB_DUPLIFRAMES | OB_DUPLIVERTS | OB_DUPLIGROUP | OB_DUPLIFACES | OB_DUPLIPARTS,
 };
@@ -496,6 +538,7 @@ enum {
 enum {
 	OB_LOD_USE_MESH		= 1 << 0,
 	OB_LOD_USE_MAT		= 1 << 1,
+	OB_LOD_USE_HYST		= 1 << 2,
 };
 
 
@@ -541,7 +584,7 @@ enum {
 #define OB_MAX_STATES       30
 
 /* collision masks */
-#define OB_MAX_COL_MASKS    8
+#define OB_MAX_COL_MASKS    16
 
 /* ob->gameflag */
 enum {
@@ -684,10 +727,12 @@ typedef enum ObjectMode {
 	OB_MODE_TEXTURE_PAINT = 1 << 4,
 	OB_MODE_PARTICLE_EDIT = 1 << 5,
 	OB_MODE_POSE          = 1 << 6,
+	OB_MODE_HAIR_EDIT     = 1 << 7,
 } ObjectMode;
 
 /* any mode where the brush system is used */
 #define OB_MODE_ALL_PAINT (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT | OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)
+#define OB_MODE_ALL_BRUSH (OB_MODE_ALL_PAINT | OB_MODE_HAIR_EDIT)
 
 #define MAX_DUPLI_RECUR 8
 

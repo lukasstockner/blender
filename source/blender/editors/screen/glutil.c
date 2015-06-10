@@ -422,6 +422,24 @@ void glutil_draw_filled_arc(float start, float angle, float radius, int nsegment
 	glEnd();
 }
 
+void glutil_draw_filled_arc_part(float start, float angle, float radius, float radius_inn, int nsegments)
+{
+	int i;
+
+	glBegin(GL_QUAD_STRIP);
+	glVertex2f(cosf(start) * radius_inn, sinf(start) * radius_inn);
+	glVertex2f(cosf(start) * radius, sinf(start) * radius);
+	for (i = 0; i < nsegments; i++) {
+		float t = (float) i / (nsegments - 1);
+		float cur = start + t * angle;
+
+		glVertex2f(cosf(cur) * radius_inn, sinf(cur) * radius_inn);
+		glVertex2f(cosf(cur) * radius, sinf(cur) * radius);
+	}
+	glEnd();
+}
+
+
 void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments)
 {
 	int i;
@@ -579,25 +597,25 @@ void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, 
 				continue;
 			
 			if (type == GL_FLOAT) {
-				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_FLOAT, &f_rect[subpart_y * offset_y * img_w * components + subpart_x * offset_x * components]);
+				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_FLOAT, &f_rect[((size_t)subpart_y) * offset_y * img_w * components + subpart_x * offset_x * components]);
 				
 				/* add an extra border of pixels so linear looks ok at edges of full image. */
 				if (subpart_w < tex_w)
-					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, 0, 1, subpart_h, format, GL_FLOAT, &f_rect[subpart_y * offset_y * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, 0, 1, subpart_h, format, GL_FLOAT, &f_rect[((size_t)subpart_y) * offset_y * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 				if (subpart_h < tex_h)
-					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, subpart_h, subpart_w, 1, format, GL_FLOAT, &f_rect[(subpart_y * offset_y + subpart_h - 1) * img_w * components + subpart_x * offset_x * components]);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, subpart_h, subpart_w, 1, format, GL_FLOAT, &f_rect[(((size_t)subpart_y) * offset_y + subpart_h - 1) * img_w * components + subpart_x * offset_x * components]);
 				if (subpart_w < tex_w && subpart_h < tex_h)
-					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_FLOAT, &f_rect[(subpart_y * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_FLOAT, &f_rect[(((size_t)subpart_y) * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 			}
 			else {
-				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_UNSIGNED_BYTE, &uc_rect[subpart_y * offset_y * img_w * components + subpart_x * offset_x * components]);
+				glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, subpart_w, subpart_h, format, GL_UNSIGNED_BYTE, &uc_rect[((size_t)subpart_y) * offset_y * img_w * components + subpart_x * offset_x * components]);
 				
 				if (subpart_w < tex_w)
-					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, 0, 1, subpart_h, format, GL_UNSIGNED_BYTE, &uc_rect[subpart_y * offset_y * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, 0, 1, subpart_h, format, GL_UNSIGNED_BYTE, &uc_rect[((size_t)subpart_y) * offset_y * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 				if (subpart_h < tex_h)
-					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, subpart_h, subpart_w, 1, format, GL_UNSIGNED_BYTE, &uc_rect[(subpart_y * offset_y + subpart_h - 1) * img_w * components + subpart_x * offset_x * components]);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, 0, subpart_h, subpart_w, 1, format, GL_UNSIGNED_BYTE, &uc_rect[(((size_t)subpart_y) * offset_y + subpart_h - 1) * img_w * components + subpart_x * offset_x * components]);
 				if (subpart_w < tex_w && subpart_h < tex_h)
-					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_UNSIGNED_BYTE, &uc_rect[(subpart_y * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
+					glTexSubImage2D(GL_TEXTURE_2D, 0, subpart_w, subpart_h, 1, 1, format, GL_UNSIGNED_BYTE, &uc_rect[(((size_t)subpart_y) * offset_y + subpart_h - 1) * img_w * components + (subpart_x * offset_x + subpart_w - 1) * components]);
 			}
 
 			glEnable(GL_TEXTURE_2D);
@@ -713,10 +731,11 @@ void glaDrawPixelsSafe(float x, float y, int img_w, int img_h, int row_w, int fo
 }
 
 /* uses either DrawPixelsSafe or DrawPixelsTex, based on user defined maximum */
-void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect)
+void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format,
+                       int type, int zoomfilter, float alpha, void *rect)
 {
 	if (U.image_draw_method != IMAGE_DRAW_METHOD_DRAWPIXELS) {
-		glColor4f(1.0, 1.0, 1.0, 1.0);
+		glColor4f(1.0, 1.0, 1.0, alpha);
 		glaDrawPixelsTex(x, y, img_w, img_h, format, type, zoomfilter, rect);
 	}
 	else {
@@ -841,7 +860,7 @@ void gla2DDrawTranslatePt(gla2DDrawInfo *di, float wo_x, float wo_y, int *r_sc_x
 /**
  * Translate the \a world point from world coordinates into screen space.
  */
-void gla2DDrawTranslatePtv(gla2DDrawInfo *di, float world[2], int screen_r[2])
+void gla2DDrawTranslatePtv(gla2DDrawInfo *di, float world[2], int r_screen[2])
 {
 	screen_r[0] = (world[0] - di->world_rect.xmin) * di->wo_to_sc[0];
 	screen_r[1] = (world[1] - di->world_rect.ymin) * di->wo_to_sc[1];
@@ -991,7 +1010,7 @@ void bgl_get_mats(bglMats *mats)
 /**
  * \note \a viewdist is only for ortho at the moment.
  */
-void bglPolygonOffset(float viewdist, float dist) 
+void bglPolygonOffset(float viewdist, float dist)
 {
 	static float winmat[16], offset = 0.0;
 	
@@ -1007,8 +1026,25 @@ void bglPolygonOffset(float viewdist, float dist)
 		
 		/* dist is from camera to center point */
 		
-		if (winmat[15] > 0.5f) offs = 0.00001f * dist * viewdist;  // ortho tweaking
-		else offs = 0.0005f * dist;  // should be clipping value or so...
+		if (winmat[15] > 0.5f) {
+#if 1
+			offs = 0.00001f * dist * viewdist;  // ortho tweaking
+#else
+			static float depth_fac = 0.0f;
+			if (depth_fac == 0.0f) {
+				int depthbits;
+				glGetIntegerv(GL_DEPTH_BITS, &depthbits);
+				depth_fac = 1.0f / (float)((1 << depthbits) - 1);
+			}
+			offs = (-1.0 / winmat[10]) * dist * depth_fac;
+
+			UNUSED_VARS(viewdist);
+#endif
+		}
+		else {
+			/* should be clipping value or so... */
+			offs = 0.0005f * dist;
+		}
 		
 		winmat[14] -= offs;
 		offset += offs;
@@ -1040,7 +1076,7 @@ void bglFlush(void)
 /* **** Color management helper functions for GLSL display/transform ***** */
 
 /* Draw given image buffer on a screen using GLSL for display transform */
-void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
+void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter, float alpha,
                        ColorManagedViewSettings *view_settings,
                        ColorManagedDisplaySettings *display_settings)
 {
@@ -1080,7 +1116,7 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 
 		if (ok) {
 			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-			glColor4f(1.0, 1.0, 1.0, 1.0);
+			glColor4f(1.0, 1.0, 1.0, alpha);
 
 			if (ibuf->rect_float) {
 				int format = 0;
@@ -1118,20 +1154,20 @@ void glaDrawImBuf_glsl(ImBuf *ibuf, float x, float y, int zoomfilter,
 
 		if (display_buffer)
 			glaDrawPixelsAuto(x, y, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE,
-			                  zoomfilter, display_buffer);
+			                  zoomfilter, alpha, display_buffer);
 
 		IMB_display_buffer_release(cache_handle);
 	}
 }
 
-void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int zoomfilter)
+void glaDrawImBuf_glsl_ctx(const bContext *C, ImBuf *ibuf, float x, float y, int zoomfilter, float alpha)
 {
 	ColorManagedViewSettings *view_settings;
 	ColorManagedDisplaySettings *display_settings;
 
 	IMB_colormanagement_display_settings_from_ctx(C, &view_settings, &display_settings);
 
-	glaDrawImBuf_glsl(ibuf, x, y, zoomfilter, view_settings, display_settings);
+	glaDrawImBuf_glsl(ibuf, x, y, zoomfilter, alpha, view_settings, display_settings);
 }
 
 void cpack(unsigned int x)

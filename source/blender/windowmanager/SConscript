@@ -36,6 +36,7 @@ incs = [
     '#/intern/ghost',
     '#/intern/guardedalloc',
     '#/intern/memutil',
+    '#/intern/audaspace/intern',
     '#/source/gameengine/BlenderRoutines',
     env['BF_GLEW_INC'],
     '#/intern/glew-mx',

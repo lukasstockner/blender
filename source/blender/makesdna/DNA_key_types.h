@@ -69,18 +69,20 @@ typedef struct KeyBlock {
 	float slidermax;
 } KeyBlock;
 
-typedef struct KeyFrom {
-	int type;
-	int index; /* index of owner in the id */
-} KeyFrom;
-
 typedef enum eKeyOwnerType {
 	/* 0 used as 'undefined', for versioning */
 	KEY_OWNER_MESH          = 1,
 	KEY_OWNER_CURVE         = 2,
 	KEY_OWNER_LATTICE       = 3,
 	KEY_OWNER_PARTICLES     = 4,
+	KEY_OWNER_CACHELIB      = 5,
 } eKeyOwnerType;
+
+/* DEPRECATED */
+typedef struct KeyFrom {
+	int type DNA_DEPRECATED;
+	int index DNA_DEPRECATED; /* index of owner in the id */
+} KeyFrom;
 
 typedef struct Key {
 	ID id;
@@ -102,7 +104,9 @@ typedef struct Key {
 	struct Ipo *ipo  DNA_DEPRECATED;  /* old animation system, deprecated for 2.5 */
 
 	ID *from;
-	KeyFrom from_extra;     /* supplementary info about the 'from' datablock */
+	KeyFrom from_extra  DNA_DEPRECATED;
+	int fromtype; /* supplementary type of the Key owner */
+	int fromindex; /* index of owner in the id */
 
 	int totkey;  /* (totkey == BLI_listbase_count(&key->block)) */
 	short flag;

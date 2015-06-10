@@ -106,6 +106,7 @@ endif()
 		bf_intern_ghostndof3dconnexion
 		bf_rna
 		bf_blenkernel
+		bf_depsgraph
 		bf_physics
 		bf_intern_rigidbody
 		bf_blenloader
@@ -149,6 +150,8 @@ endif()
 		bf_dna
 		ge_videotex
 		bf_blenfont
+		bf_pointcache_alembic
+		bf_pointcache
 		bf_intern_audaspace
 		blenkernel_blc
 		bf_bmesh

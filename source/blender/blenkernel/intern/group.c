@@ -36,6 +36,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_cache_library_types.h"
 #include "DNA_group_types.h"
 #include "DNA_material_types.h"
 #include "DNA_object_types.h"
@@ -45,7 +46,7 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-
+#include "BKE_cache_library.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_group.h"
@@ -318,7 +319,7 @@ bool BKE_group_is_animated(Group *group, Object *UNUSED(parent))
 	GroupObject *go;
 
 #if 0 /* XXX OLD ANIMSYS, NLASTRIPS ARE NO LONGER USED */
-	if (parent->nlastrips.first)
+	if (parent && parent->nlastrips.first)
 		return 1;
 #endif
 
@@ -385,7 +386,7 @@ void BKE_group_handle_recalc_and_update(EvaluationContext *eval_ctx, Scene *scen
 	   * but when its enabled at some point it will need to be changed so as not to update so much - campbell */
 
 	/* if animated group... */
-	if (parent->nlastrips.first) {
+	if (parent && parent->nlastrips.first) {
 		int cfrao;
 		
 		/* switch to local time */

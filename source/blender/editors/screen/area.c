@@ -34,6 +34,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "DNA_object_types.h"
 #include "DNA_userdef_types.h"
 
 #include "BLI_blenlib.h"
@@ -44,6 +45,8 @@
 
 #include "BKE_context.h"
 #include "BKE_global.h"
+#include "BKE_main.h"
+#include "BKE_scene.h"
 #include "BKE_screen.h"
 
 #include "RNA_access.h"
@@ -56,15 +59,22 @@
 #include "ED_screen.h"
 #include "ED_screen_types.h"
 #include "ED_space_api.h"
+#include "ED_view3d.h"
 
 #include "BIF_gl.h"
 #include "BIF_glutil.h"
 #include "BLF_api.h"
 
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
+
 #include "UI_interface.h"
 #include "UI_interface_icons.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
+
+#include "IMB_imbuf.h"
+#include "IMB_imbuf_types.h"
 
 #include "screen_intern.h"
 
@@ -146,6 +156,34 @@ void ED_area_do_refresh(bContext *C, ScrArea *sa)
 		sa->type->refresh(C, sa);
 	}
 	sa->do_refresh = false;
+}
+
+/**
+ * Action zones are only updated if the mouse is inside of them, but in some cases (currently only fullscreen icon)
+ * it might be needed to update their properties and redraw if the mouse isn't inside.
+ */
+void ED_area_azones_update(ScrArea *sa, const int mouse_xy[2])
+{
+	AZone *az;
+	bool changed = false;
+
+	for (az = sa->actionzones.first; az; az = az->next) {
+		if (az->type == AZONE_FULLSCREEN) {
+			/* only if mouse is not hovering the azone */
+			if (BLI_rcti_isect_pt_v(&az->rect, mouse_xy) == false) {
+				az->alpha = 0.0f;
+				changed = true;
+
+				/* can break since currently only this is handled here */
+				break;
+			}
+		}
+	}
+
+	if (changed) {
+		sa->flag &= ~AREA_FLAG_ACTIONZONES_UPDATE;
+		ED_area_tag_redraw(sa);
+	}
 }
 
 /**
@@ -366,6 +404,11 @@ static void region_draw_azone_tria(AZone *az)
 	glDisable(GL_BLEND);
 }
 
+static void area_azone_tag_update(ScrArea *sa)
+{
+	sa->flag |= AREA_FLAG_ACTIONZONES_UPDATE;
+}
+
 static void region_draw_azones(ScrArea *sa, ARegion *ar)
 {
 	AZone *az;
@@ -406,6 +449,10 @@ static void region_draw_azones(ScrArea *sa, ARegion *ar)
 			}
 			else if (az->type == AZONE_FULLSCREEN) {
 				area_draw_azone_fullscreen(az->x1, az->y1, az->x2, az->y2, az->alpha);
+
+				if (az->alpha != 0.0f) {
+					area_azone_tag_update(sa);
+				}
 			}
 		}
 	}
@@ -493,7 +540,6 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
 	glDisable(GL_BLEND);
 #endif
 
-	ar->do_draw = 0;
 	memset(&ar->drawrct, 0, sizeof(ar->drawrct));
 	
 	UI_blocklist_free_inactive(C, &ar->uiblocks);
@@ -507,6 +553,100 @@ void ED_region_do_draw(bContext *C, ARegion *ar)
  * maybe silly, but let's try for now
  * to keep these tags protected
  * ********************************** */
+int ED_match_area_with_refresh(int spacetype, int refresh)
+{
+	switch (spacetype) {
+		case SPACE_TIME:
+			if (refresh & SPACE_TIME)
+				return 1;
+			break;
+	}
+
+	return 0;
+}
+
+int ED_match_region_with_redraws(int spacetype, int regiontype, int redraws)
+{
+	if (regiontype == RGN_TYPE_WINDOW) {
+
+		switch (spacetype) {
+			case SPACE_VIEW3D:
+				if (redraws & TIME_ALL_3D_WIN)
+					return 1;
+				break;
+			case SPACE_IPO:
+			case SPACE_ACTION:
+			case SPACE_NLA:
+				if (redraws & TIME_ALL_ANIM_WIN)
+					return 1;
+				break;
+			case SPACE_TIME:
+				/* if only 1 window or 3d windows, we do timeline too */
+				if (redraws & (TIME_ALL_ANIM_WIN | TIME_REGION | TIME_ALL_3D_WIN))
+					return 1;
+				break;
+			case SPACE_BUTS:
+				if (redraws & TIME_ALL_BUTS_WIN)
+					return 1;
+				break;
+			case SPACE_SEQ:
+				if (redraws & (TIME_SEQ | TIME_ALL_ANIM_WIN))
+					return 1;
+				break;
+			case SPACE_NODE:
+				if (redraws & (TIME_NODES))
+					return 1;
+				break;
+			case SPACE_IMAGE:
+				if (redraws & TIME_ALL_IMAGE_WIN)
+					return 1;
+				break;
+			case SPACE_CLIP:
+				if (redraws & TIME_CLIPS)
+					return 1;
+				break;
+
+		}
+	}
+	else if (regiontype == RGN_TYPE_CHANNELS) {
+		switch (spacetype) {
+			case SPACE_IPO:
+			case SPACE_ACTION:
+			case SPACE_NLA:
+				if (redraws & TIME_ALL_ANIM_WIN)
+					return 1;
+				break;
+		}
+	}
+	else if (regiontype == RGN_TYPE_UI) {
+		if (spacetype == SPACE_CLIP) {
+			/* Track Preview button is on Properties Editor in SpaceClip,
+			 * and it's very common case when users want it be refreshing
+			 * during playback, so asking people to enable special option
+			 * for this is a bit tricky, so add exception here for refreshing
+			 * Properties Editor for SpaceClip always */
+			return 1;
+		}
+
+		if (redraws & TIME_ALL_BUTS_WIN)
+			return 1;
+	}
+	else if (regiontype == RGN_TYPE_HEADER) {
+		if (spacetype == SPACE_TIME)
+			return 1;
+	}
+	else if (regiontype == RGN_TYPE_PREVIEW) {
+		switch (spacetype) {
+			case SPACE_SEQ:
+				if (redraws & (TIME_SEQ | TIME_ALL_ANIM_WIN))
+					return 1;
+				break;
+			case SPACE_CLIP:
+				return 1;
+		}
+	}
+	return 0;
+}
 
 void ED_region_tag_redraw(ARegion *ar)
 {
@@ -773,7 +913,7 @@ static void region_azone_tab_plus(ScrArea *sa, AZone *az, ARegion *ar)
 	
 	switch (az->edge) {
 		case AE_TOP_TO_BOTTOMRIGHT:
-			if (ar->winrct.ymax == sa->totrct.ymin) add = 1; else add = 0;
+			add = (ar->winrct.ymax == sa->totrct.ymin) ? 1 : 0;
 			az->x1 = ar->winrct.xmax - 2.5f * AZONEPAD_TAB_PLUSW;
 			az->y1 = ar->winrct.ymax - add;
 			az->x2 = ar->winrct.xmax - 1.5f * AZONEPAD_TAB_PLUSW;
@@ -818,7 +958,7 @@ static void region_azone_tab(ScrArea *sa, AZone *az, ARegion *ar)
 	
 	switch (az->edge) {
 		case AE_TOP_TO_BOTTOMRIGHT:
-			if (ar->winrct.ymax == sa->totrct.ymin) add = 1; else add = 0;
+			add = (ar->winrct.ymax == sa->totrct.ymin) ? 1 : 0;
 			az->x1 = ar->winrct.xmax - 2 * AZONEPAD_TABW;
 			az->y1 = ar->winrct.ymax - add;
 			az->x2 = ar->winrct.xmax - AZONEPAD_TABW;
@@ -863,7 +1003,7 @@ static void region_azone_tria(ScrArea *sa, AZone *az, ARegion *ar)
 	
 	switch (az->edge) {
 		case AE_TOP_TO_BOTTOMRIGHT:
-			if (ar->winrct.ymax == sa->totrct.ymin) add = 1; else add = 0;
+			add = (ar->winrct.ymax == sa->totrct.ymin) ? 1 : 0;
 			az->x1 = ar->winrct.xmax - 2 * AZONEPAD_TRIAW;
 			az->y1 = ar->winrct.ymax - add;
 			az->x2 = ar->winrct.xmax - AZONEPAD_TRIAW;
@@ -1224,16 +1364,22 @@ static void region_rect_recursive(wmWindow *win, ScrArea *sa, ARegion *ar, rcti 
 	if (ar->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) {
 		ar->winrct = *remainder;
 		
-		if (alignment == RGN_ALIGN_TOP)
-			ar->winrct.ymin = ar->winrct.ymax;
-		else if (alignment == RGN_ALIGN_BOTTOM)
-			ar->winrct.ymax = ar->winrct.ymin;
-		else if (alignment == RGN_ALIGN_RIGHT)
-			ar->winrct.xmin = ar->winrct.xmax;
-		else if (alignment == RGN_ALIGN_LEFT)
-			ar->winrct.xmax = ar->winrct.xmin;
-		else /* prevent winrct to be valid */
-			ar->winrct.xmax = ar->winrct.xmin;
+		switch (alignment) {
+			case RGN_ALIGN_TOP:
+				ar->winrct.ymin = ar->winrct.ymax;
+				break;
+			case RGN_ALIGN_BOTTOM:
+				ar->winrct.ymax = ar->winrct.ymin;
+				break;
+			case RGN_ALIGN_RIGHT:
+				ar->winrct.xmin = ar->winrct.xmax;
+				break;
+			case RGN_ALIGN_LEFT:
+			default:
+				/* prevent winrct to be valid */
+				ar->winrct.xmax = ar->winrct.xmin;
+				break;
+		}
 	}
 
 	/* restore prev-split exception */
@@ -2029,6 +2175,196 @@ void ED_region_info_draw(ARegion *ar, const char *text, int block, float fill_co
 	glScissor(scissor[0], scissor[1], scissor[2], scissor[3]);
 }
 
+#define MAX_METADATA_STR    1024
+
+static const char *meta_data_list[] =
+{
+	"File",
+	"Strip",
+	"Note",
+	"Date",
+	"RenderTime",
+	"Marker",
+	"Time",
+	"Frame",
+	"Camera",
+	"Scene"
+};
+
+BLI_INLINE bool metadata_is_valid(ImBuf *ibuf, char *r_str, short index, int offset)
+{
+	return (IMB_metadata_get_field(ibuf, meta_data_list[index], r_str + offset, MAX_METADATA_STR - offset) && r_str[0]);
+}
+
+static void metadata_draw_imbuf(ImBuf *ibuf, rctf rect, int fontid, const bool is_top)
+{
+	char temp_str[MAX_METADATA_STR];
+	int line_width;
+	int ofs_y = 0;
+	short i;
+	int len;
+	const float height = BLF_height_max(fontid);
+	const float vertical_offset = height + (0.1f * U.widget_unit);
+
+	if (is_top) {
+		for (i = 0; i < 4; i++) {
+			/* first line */
+			if (i == 0) {
+				bool do_newline = false;
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[0]);
+				if (metadata_is_valid(ibuf, temp_str, 0, len)) {
+					BLF_position(fontid, rect.xmin + (0.2f * U.widget_unit),
+					             rect.ymax - vertical_offset, 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					do_newline = true;
+				}
+
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[1]);
+				if (metadata_is_valid(ibuf, temp_str, 1, len)) {
+					line_width = BLF_width(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					BLF_position(fontid, rect.xmax - line_width - (0.2f * U.widget_unit),
+					             rect.ymax - vertical_offset, 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					do_newline = true;
+				}
+
+				if (do_newline)
+					ofs_y += vertical_offset;
+			}
+			else if (i == 1) {
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[i + 1]);
+				if (metadata_is_valid(ibuf, temp_str, i + 1, len)) {
+					BLF_position(fontid, rect.xmin + (0.2f * U.widget_unit),
+					             rect.ymax - vertical_offset - ofs_y, 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					ofs_y += vertical_offset;
+				}
+			}
+			else {
+				len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[i + 1]);
+				if (metadata_is_valid(ibuf, temp_str, i + 1, len)) {
+					line_width = BLF_width(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					BLF_position(fontid, rect.xmax  - line_width -  (0.2f * U.widget_unit),
+					             rect.ymax - vertical_offset - ofs_y, 0.0f);
+					BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+					ofs_y += vertical_offset;
+				}
+			}
+		}
+	}
+	else {
+		int ofs_x = 0;
+		for (i = 5; i < 10; i++) {
+			len = BLI_snprintf_rlen(temp_str, MAX_METADATA_STR, "%s: ", meta_data_list[i]);
+			if (metadata_is_valid(ibuf, temp_str, i, len)) {
+				BLF_position(fontid, rect.xmin + (0.2f * U.widget_unit) + ofs_x,
+				             rect.ymin + (0.3f * U.widget_unit), 0.0f);
+				BLF_draw(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX);
+	
+				ofs_x += BLF_width(fontid, temp_str, BLF_DRAW_STR_DUMMY_MAX) + UI_UNIT_X;
+			}
+		}
+	}
+}
+
+static float metadata_box_height_get(ImBuf *ibuf, int fontid, const bool is_top)
+{
+	char str[MAX_METADATA_STR] = "";
+	short i, count = 0;
+	const float height = BLF_height_max(fontid) + 0.1f * U.widget_unit;
+
+	if (is_top) {
+		if (metadata_is_valid(ibuf, str, 0, 0) || metadata_is_valid(ibuf, str, 1, 0)) {
+			count++;
+		}
+		for (i = 2; i < 5; i++) {
+			if (metadata_is_valid(ibuf, str, i, 0)) {
+				count++;
+			}
+		}
+	}
+	else {
+		for (i = 5; i < 10; i++) {
+			if (metadata_is_valid(ibuf, str, i, 0)) {
+				count = 1;
+			}
+		}
+	}
+
+	if (count) {
+		return (height * count + (0.1f * U.widget_unit));
+	}
+
+	return 0;
+}
+
+#undef MAX_METADATA_STR
+
+void ED_region_image_metadata_draw(int x, int y, ImBuf *ibuf, rctf frame, float zoomx, float zoomy)
+{
+	float box_y;
+	rctf rect;
+	uiStyle *style = UI_style_get_dpi();
+
+	if (!ibuf->metadata)
+		return;
+
+	/* find window pixel coordinates of origin */
+	glPushMatrix();
+
+	/* offset and zoom using ogl */
+	glTranslatef(x, y, 0.0f);
+	glScalef(zoomx, zoomy, 1.0f);
+
+	BLF_size(blf_mono_font, style->widgetlabel.points, U.dpi);
+
+	/* *** upper box*** */
+
+	/* get needed box height */
+	box_y = metadata_box_height_get(ibuf, blf_mono_font, true);
+
+	if (box_y) {
+		UI_ThemeColor(TH_METADATA_BG);
+
+		/* set up rect */
+		BLI_rctf_init(&rect, frame.xmin, frame.xmax, frame.ymax, frame.ymax + box_y);
+		/* draw top box */
+		glRectf(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+
+		BLF_clipping(blf_mono_font, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+		BLF_enable(blf_mono_font, BLF_CLIPPING);
+
+		UI_ThemeColor(TH_METADATA_TEXT);
+		metadata_draw_imbuf(ibuf, rect, blf_mono_font, true);
+
+		BLF_disable(blf_mono_font, BLF_CLIPPING);
+	}
+
+
+	/* *** lower box*** */
+
+	box_y = metadata_box_height_get(ibuf, blf_mono_font, false);
+
+	if (box_y) {
+		UI_ThemeColor(TH_METADATA_BG);
+
+		/* set up box rect */
+		BLI_rctf_init(&rect, frame.xmin, frame.xmax, frame.ymin - box_y, frame.ymin);
+		/* draw top box */
+		glRectf(rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+
+		BLF_clipping(blf_mono_font, rect.xmin, rect.ymin, rect.xmax, rect.ymax);
+		BLF_enable(blf_mono_font, BLF_CLIPPING);
+
+		UI_ThemeColor(TH_METADATA_TEXT);
+		metadata_draw_imbuf(ibuf, rect, blf_mono_font, false);
+
+		BLF_disable(blf_mono_font, BLF_CLIPPING);
+	}
+
+	glPopMatrix();
+}
+
 void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 {
 	float gridsize, gridstep = 1.0f / 32.0f;
@@ -2087,6 +2423,47 @@ void ED_region_grid_draw(ARegion *ar, float zoomx, float zoomy)
 		fac += 4.0f * gridstep;
 	}
 	glEnd();
+}
+
+/* uses the viewplane from the given camera and draws it as a backdrop */
+void ED_region_draw_backdrop_view3d(const bContext *C, struct Object *camera, const float alpha,
+                                    const float width, const float height, const float x, const float y,
+                                    const float zoomx, const float zoomy, const bool draw_background)
+{
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	char err_out[256] = "unknown";
+	struct ImBuf *ibuf;
+
+	BKE_scene_update_for_newframe(bmain->eval_ctx, bmain, scene, scene->lay);
+	ibuf = ED_view3d_draw_offscreen_imbuf_simple(scene, camera, width, height, IB_rect,
+	                                             OB_SOLID, false, false, false,
+	                                             R_ADDSKY, NULL, err_out);
+
+	if (ibuf == NULL)
+		return;
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glPushMatrix();
+	glScalef(zoomx, zoomy, 0.0f);
+	glTranslatef(x, y, 0.0f);
+
+	/* draw background */
+	if (draw_background) {
+		char col[4];
+
+		UI_GetThemeColorType4ubv(TH_HIGH_GRAD, SPACE_VIEW3D, col);
+		glColor4ub(UNPACK3(col), alpha * 255);
+		glRectf(0, 0, width, height);
+	}
+	/* draw the imbuf itself */
+	glaDrawImBuf_glsl_ctx(C, ibuf, 0.0f, 0.0f, GL_NEAREST, alpha);
+
+	glPopMatrix();
+	glDisable(GL_BLEND);
+
+	IMB_freeImBuf(ibuf);
 }
 
 /* If the area has overlapping regions, it returns visible rect for Region *ar */

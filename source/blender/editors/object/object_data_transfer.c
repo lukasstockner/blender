@@ -29,8 +29,6 @@
  *  \ingroup edobj
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
@@ -59,7 +57,6 @@
 #include "ED_object.h"
 
 #include "UI_interface.h"
-#include "UI_resources.h"
 
 #include "object_intern.h"
 
@@ -299,7 +296,7 @@ static bool data_transfer_exec_is_object_valid(
         wmOperator *op, Object *ob_src, Object *ob_dst, const bool reverse_transfer)
 {
 	Mesh *me;
-	if ((ob_dst == ob_src) || !ELEM(OB_MESH, ob_src->type, ob_dst->type)) {
+	if ((ob_dst == ob_src) || (ob_src->type != OB_MESH) || (ob_dst->type != OB_MESH)) {
 		return false;
 	}
 
@@ -325,7 +322,7 @@ static bool data_transfer_exec_is_object_valid(
 static int data_transfer_exec(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
-	Object *ob_src = CTX_data_active_object(C);
+	Object *ob_src = ED_object_active_context(C);
 
 	ListBase ctx_objects;
 	CollectionPointerLink *ctx_ob_dst;
@@ -419,7 +416,7 @@ static int data_transfer_exec(bContext *C, wmOperator *op)
 /* Note this context poll is only really partial, it cannot check for all possible invalid cases. */
 static int data_transfer_poll(bContext *C)
 {
-	Object *ob = ED_object_context(C);
+	Object *ob = ED_object_active_context(C);
 	ID *data = (ob) ? ob->data : NULL;
 	return (ob && ob->type == OB_MESH && data);
 }

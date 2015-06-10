@@ -42,7 +42,6 @@ struct wmNotifier;
 struct wmEvent;
 struct wmKeyConfig;
 struct bContext;
-struct SpaceType;
 struct Scene;
 struct bScreen;
 struct ARegion;
@@ -67,15 +66,21 @@ void    ED_region_header_init(struct ARegion *ar);
 void    ED_region_header(const struct bContext *C, struct ARegion *ar);
 void    ED_region_toggle_hidden(struct bContext *C, struct ARegion *ar);
 void    ED_region_info_draw(struct ARegion *ar, const char *text, int block, float fill_color[4]);
+void    ED_region_image_metadata_draw(int x, int y, struct ImBuf *ibuf, rctf frame, float zoomx, float zoomy);
 void    ED_region_grid_draw(struct ARegion *ar, float zoomx, float zoomy);
+void    ED_region_draw_backdrop_view3d(const struct bContext *C, struct Object *camera, const float alpha,
+                                       const float width, const float height, const float x, const float y,
+                                       const float zoomx, const float zoomy, const bool draw_background);
 float	ED_region_blend_factor(struct ARegion *ar);
 void	ED_region_visible_rect(struct ARegion *ar, struct rcti *rect);
+
+int ED_match_area_with_refresh(int spacetype, int refresh);
+int ED_match_region_with_redraws(int spacetype, int regiontype, int redraws);
 
 
 /* spaces */
 void    ED_spacetypes_keymap(struct wmKeyConfig *keyconf);
 int     ED_area_header_switchbutton(const struct bContext *C, struct uiBlock *block, int yco);
-
 
 /* areas */
 void    ED_area_initialize(struct wmWindowManager *wm, struct wmWindow *win, struct ScrArea *sa);
@@ -86,6 +91,7 @@ void    ED_area_tag_redraw(ScrArea *sa);
 void    ED_area_tag_redraw_regiontype(ScrArea *sa, int type);
 void    ED_area_tag_refresh(ScrArea *sa);
 void    ED_area_do_refresh(struct bContext *C, ScrArea *sa);
+void    ED_area_azones_update(ScrArea *sa, const int mouse_xy[]);
 void    ED_area_headerprint(ScrArea *sa, const char *str);
 void    ED_area_newspace(struct bContext *C, ScrArea *sa, int type);
 void    ED_area_prevspace(struct bContext *C, ScrArea *sa);
@@ -113,6 +119,7 @@ void    ED_screen_full_prevspace(struct bContext *C, ScrArea *sa);
 void    ED_screen_full_restore(struct bContext *C, ScrArea *sa);
 struct ScrArea *ED_screen_state_toggle(struct bContext *C, struct wmWindow *win, struct ScrArea *sa, const short state);
 void    ED_screens_header_tools_menu_create(struct bContext *C, struct uiLayout *layout, void *arg);
+bool    ED_screen_stereo3d_required(struct bScreen *screen);
 
 /* anim */
 void    ED_update_for_newframe(struct Main *bmain, struct Scene *scene, int mute);
@@ -120,6 +127,7 @@ void    ED_update_for_newframe(struct Main *bmain, struct Scene *scene, int mute
 void    ED_refresh_viewport_fps(struct bContext *C);
 int		ED_screen_animation_play(struct bContext *C, int sync, int mode);
 bScreen	*ED_screen_animation_playing(const struct wmWindowManager *wm);
+bScreen *ED_screen_animation_no_scrub(const struct wmWindowManager *wm);
 
 /* screen keymaps */
 void    ED_operatortypes_screen(void);

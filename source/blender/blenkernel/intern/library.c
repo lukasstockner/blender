@@ -45,6 +45,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_brush_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_gpencil_types.h"
@@ -79,6 +80,7 @@
 #include "BKE_armature.h"
 #include "BKE_bpath.h"
 #include "BKE_brush.h"
+#include "BKE_cache_library.h"
 #include "BKE_camera.h"
 #include "BKE_context.h"
 #include "BKE_curve.h"
@@ -107,6 +109,7 @@
 #include "BKE_paint.h"
 #include "BKE_particle.h"
 #include "BKE_packedFile.h"
+#include "BKE_pointcache.h"
 #include "BKE_speaker.h"
 #include "BKE_sound.h"
 #include "BKE_screen.h"
@@ -114,6 +117,8 @@
 #include "BKE_text.h"
 #include "BKE_texture.h"
 #include "BKE_world.h"
+
+#include "DEG_depsgraph.h"
 
 #include "RNA_access.h"
 
@@ -291,7 +296,7 @@ bool id_make_local(ID *id, bool test)
 
 /**
  * Invokes the appropriate copy method for the block and returns the result in
- * newid, unless test. Returns true iff the block can be copied.
+ * newid, unless test. Returns true if the block can be copied.
  */
 bool id_copy(ID *id, ID **newid, bool test)
 {
@@ -384,7 +389,7 @@ bool id_copy(ID *id, ID **newid, bool test)
 			if (!test) *newid = (ID *)BKE_mask_copy((Mask *)id);
 			return true;
 		case ID_LS:
-			if (!test) *newid = (ID *)BKE_linestyle_copy((FreestyleLineStyle *)id);
+			if (!test) *newid = (ID *)BKE_linestyle_copy(G.main, (FreestyleLineStyle *)id);
 			return true;
 	}
 	
@@ -409,6 +414,10 @@ bool id_unlink(ID *id, int test)
 			if (test) return true;
 			BKE_object_unlink((Object *)id);
 			break;
+		case ID_CL:
+			if (test) return true;
+			BKE_cache_library_unlink((CacheLibrary *)id);
+			break;
 	}
 
 	if (id->us == 0) {
@@ -432,7 +441,7 @@ bool id_single_user(bContext *C, ID *id, PointerRNA *ptr, PropertyRNA *prop)
 		if (RNA_property_editable(ptr, prop)) {
 			if (id_copy(id, &newid, false) && newid) {
 				/* copy animation actions too */
-				BKE_copy_animdata_id_action(id);
+				BKE_animdata_copy_id_action(id);
 				/* us is 1 by convention, but RNA_property_pointer_set
 				 * will also increment it, so set it to zero */
 				newid->us = 0;
@@ -521,6 +530,8 @@ ListBase *which_libbase(Main *mainlib, short type)
 			return &(mainlib->palettes);
 		case ID_PC:
 			return &(mainlib->paintcurves);
+		case ID_CL:
+			return &(mainlib->cache_library);
 	}
 	return NULL;
 }
@@ -610,13 +621,14 @@ int set_listbasepointers(Main *main, ListBase **lb)
 	lb[a++] = &(main->speaker);
 
 	lb[a++] = &(main->world);
+	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->screen);
 	lb[a++] = &(main->object);
 	lb[a++] = &(main->linestyle); /* referenced by scenes */
 	lb[a++] = &(main->scene);
 	lb[a++] = &(main->library);
+	lb[a++] = &(main->cache_library);
 	lb[a++] = &(main->wm);
-	lb[a++] = &(main->movieclip);
 	lb[a++] = &(main->mask);
 	
 	lb[a] = NULL;
@@ -747,6 +759,9 @@ static ID *alloc_libblock_notest(short type)
 		case ID_PC:
 			id = MEM_callocN(sizeof(PaintCurve), "Paint Curve");
 			break;
+		case ID_CL:
+			id = MEM_callocN(sizeof(CacheLibrary), "Cache Library");
+			break;
 	}
 	return id;
 }
@@ -785,7 +800,7 @@ static void id_copy_animdata(ID *id, const bool do_action)
 	
 	if (adt) {
 		IdAdtTemplate *iat = (IdAdtTemplate *)id;
-		iat->adt = BKE_copy_animdata(iat->adt, do_action); /* could be set to false, need to investigate */
+		iat->adt = BKE_animdata_copy(iat->adt, do_action); /* could be set to false, need to investigate */
 	}
 }
 
@@ -865,18 +880,24 @@ static void BKE_library_free(Library *lib)
 
 static void (*free_windowmanager_cb)(bContext *, wmWindowManager *) = NULL;
 
-void set_free_windowmanager_cb(void (*func)(bContext *C, wmWindowManager *) )
+void BKE_library_callback_free_window_manager_set(void (*func)(bContext *C, wmWindowManager *) )
 {
 	free_windowmanager_cb = func;
 }
 
 static void (*free_notifier_reference_cb)(const void *) = NULL;
 
-void set_free_notifier_reference_cb(void (*func)(const void *) )
+void BKE_library_callback_free_notifier_reference_set(void (*func)(const void *) )
 {
 	free_notifier_reference_cb = func;
 }
 
+static void (*free_editor_id_reference_cb)(const ID *) = NULL;
+
+void BKE_library_callback_free_editor_id_reference_set(void (*func)(const ID *))
+{
+	free_editor_id_reference_cb = func;
+}
 
 static void animdata_dtar_clear_cb(ID *UNUSED(id), AnimData *adt, void *userdata)
 {
@@ -1029,13 +1050,21 @@ void BKE_libblock_free_ex(Main *bmain, void *idv, bool do_id_user)
 		case ID_PC:
 			BKE_paint_curve_free((PaintCurve *)id);
 			break;
+		case ID_CL:
+			BKE_cache_library_free((CacheLibrary *)id);
+			break;
 	}
 
 	/* avoid notifying on removed data */
 	BKE_main_lock(bmain);
 
-	if (free_notifier_reference_cb)
+	if (free_notifier_reference_cb) {
 		free_notifier_reference_cb(id);
+	}
+
+	if (free_editor_id_reference_cb) {
+		free_editor_id_reference_cb(id);
+	}
 
 	BLI_remlink(lb, id);
 
@@ -1070,8 +1099,7 @@ void BKE_libblock_free_us(Main *bmain, void *idv)      /* test users */
 Main *BKE_main_new(void)
 {
 	Main *bmain = MEM_callocN(sizeof(Main), "new main");
-	bmain->eval_ctx = MEM_callocN(sizeof(EvaluationContext),
-	                              "EvaluationContext");
+	bmain->eval_ctx = DEG_evaluation_context_new(DAG_EVAL_VIEWPORT);
 	bmain->lock = MEM_mallocN(sizeof(SpinLock), "main lock");
 	BLI_spin_init((SpinLock *)bmain->lock);
 	return bmain;
@@ -1138,7 +1166,7 @@ void BKE_main_free(Main *mainvar)
 
 	BLI_spin_end((SpinLock *)mainvar->lock);
 	MEM_freeN(mainvar->lock);
-	MEM_freeN(mainvar->eval_ctx);
+	DEG_evaluation_context_free(mainvar->eval_ctx);
 	MEM_freeN(mainvar);
 }
 
@@ -1404,16 +1432,11 @@ void id_clear_lib_data(Main *bmain, ID *id)
 	/* internal bNodeTree blocks inside ID types below
 	 * also stores id->lib, make sure this stays in sync.
 	 */
-	switch (GS(id->name)) {
-		case ID_SCE:	ntree = ((Scene *)id)->nodetree;		break;
-		case ID_MA:		ntree = ((Material *)id)->nodetree;		break;
-		case ID_LA:		ntree = ((Lamp *)id)->nodetree;			break;
-		case ID_WO:		ntree = ((World *)id)->nodetree;		break;
-		case ID_TE:		ntree = ((Tex *)id)->nodetree;			break;
-		case ID_LS:		ntree = ((FreestyleLineStyle *)id)->nodetree; break;
-	}
-	if (ntree)
+	ntree = ntreeFromID(id);
+
+	if (ntree) {
 		ntree->id.lib = NULL;
+	}
 }
 
 /* next to indirect usage in read/writefile also in editobject.c scene.c */
@@ -1603,7 +1626,7 @@ void rename_id(ID *id, const char *name)
 void name_uiprefix_id(char *name, const ID *id)
 {
 	name[0] = id->lib ? 'L' : ' ';
-	name[1] = id->flag & LIB_FAKEUSER ? 'F' : (id->us == 0) ? '0' : ' ';
+	name[1] = (id->flag & LIB_FAKEUSER) ? 'F' : ((id->us == 0) ? '0' : ' ');
 	name[2] = ' ';
 
 	strcpy(name + 3, id->name + 2);

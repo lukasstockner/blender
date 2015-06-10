@@ -436,7 +436,7 @@ void ui_draw_but_IMAGE(ARegion *UNUSED(ar), uiBut *but, uiWidgetColors *UNUSED(w
 		float facy = (float)h / (float)ibuf->y;
 		glPixelZoom(facx, facy);
 	}
-	glaDrawPixelsAuto((float)rect->xmin, (float)rect->ymin, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, ibuf->rect);
+	glaDrawPixelsAuto((float)rect->xmin, (float)rect->ymin, ibuf->x, ibuf->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, 1.0f, ibuf->rect);
 	
 	glPixelZoom(1.0f, 1.0f);
 	
@@ -508,8 +508,9 @@ static void draw_scope_end(const rctf *rect, GLint *scissor)
 	UI_draw_roundbox_gl_mode(GL_LINE_LOOP, rect->xmin - 1, rect->ymin, rect->xmax + 1, rect->ymax + 1, 3.0f);
 }
 
-static void histogram_draw_one(float r, float g, float b, float alpha,
-                               float x, float y, float w, float h, const float *data, int res, const bool is_line)
+static void histogram_draw_one(
+        float r, float g, float b, float alpha,
+        float x, float y, float w, float h, const float *data, int res, const bool is_line)
 {
 	int i;
 	
@@ -1453,7 +1454,7 @@ void ui_draw_but_CURVE(ARegion *ar, uiBut *but, uiWidgetColors *wcol, const rcti
 			glEnd();
 		}
 		else if (cumap->cur == 3) {
-			float lum = rgb_to_bw(cumap->sample);
+			float lum = IMB_colormanagement_get_luminance(cumap->sample);
 			glColor3ub(240, 240, 240);
 			
 			glBegin(GL_LINES);

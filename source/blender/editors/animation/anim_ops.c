@@ -60,6 +60,8 @@
 
 #include "anim_intern.h"
 
+#include "MEM_guardedalloc.h"
+
 /* ********************** frame change operator ***************************/
 
 /* Check if the operator can be run from the current context */
@@ -90,10 +92,11 @@ static int change_frame_poll(bContext *C)
 }
 
 /* Set the new frame number */
-static void change_frame_apply(bContext *C, wmOperator *op)
+static void change_frame_apply(bContext *C, wmOperator *op, bool final)
 {
 	Main *bmain = CTX_data_main(C);
 	Scene *scene = CTX_data_scene(C);
+	ARegion *ar_op = CTX_wm_region(C);
 	int frame = RNA_int_get(op->ptr, "frame");
 	bool do_snap = RNA_boolean_get(op->ptr, "snap");
 
@@ -107,8 +110,44 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 	SUBFRA = 0.0f;
 	
 	/* do updates */
-	sound_seek_scene(bmain, scene);
-	WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+
+	if (final) {
+		BKE_sound_seek_scene(bmain, scene);
+		WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+	}
+	else
+	{
+		bScreen *screen = CTX_wm_screen(C);
+		wmWindowManager *wm = CTX_wm_manager(C);
+		wmWindow *window;
+		ScrArea *sa;
+
+		BKE_sound_seek_scene(bmain, scene);
+
+		ED_update_for_newframe(bmain, scene, 1);
+
+		for (window = wm->windows.first; window; window = window->next) {
+			for (sa = window->screen->areabase.first; sa; sa = sa->next) {
+				ARegion *ar;
+				for (ar = sa->regionbase.first; ar; ar = ar->next) {
+					bool redraw = false;
+					if (ar == ar_op) {
+						redraw = true;
+					}
+					else if (ED_match_region_with_redraws(sa->spacetype, ar->regiontype, screen->redraws_flag)) {
+						redraw = true;
+					}
+
+					if (redraw) {
+						ED_region_tag_redraw(ar);
+					}
+				}
+
+				if (ED_match_area_with_refresh(sa->spacetype, SPACE_TIME))
+					ED_area_tag_refresh(sa);
+			}
+		}
+	}
 }
 
 /* ---- */
@@ -116,8 +155,7 @@ static void change_frame_apply(bContext *C, wmOperator *op)
 /* Non-modal callback for running operator without user input */
 static int change_frame_exec(bContext *C, wmOperator *op)
 {
-	change_frame_apply(C, op);
-
+	change_frame_apply(C, op, true);
 	return OPERATOR_FINISHED;
 }
 
@@ -154,13 +192,35 @@ static void change_frame_seq_preview_begin(bContext *C, const wmEvent *event)
 		}
 	}
 }
-static void change_frame_seq_preview_end(bContext *C)
+
+typedef struct ChangeFrameData {
+	wmTimer *timer;
+	double last_duration;
+	int frame;
+	int last_frame;
+} ChangeFrameData;
+
+static void change_frame_seq_preview_end(bContext *C, wmOperator *op)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+
 	if (ED_sequencer_special_preview_get() != NULL) {
 		Scene *scene = CTX_data_scene(C);
 		ED_sequencer_special_preview_clear();
 		WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
 	}
+
+	if (op->customdata) {
+		ChangeFrameData *data = op->customdata;
+		WM_event_remove_timer(wm, win, data->timer);
+		MEM_freeN(data);
+		op->customdata = NULL;
+		/* add here too to take care of cancelling */
+		if (win->screen)
+			win->screen->scrubbing = false;
+	}
+
 }
 
 /* Modal Operator init */
@@ -170,11 +230,22 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	 * as user could click on a single frame (jump to frame) as well as
 	 * click-dragging over a range (modal scrubbing).
 	 */
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+	Scene *scene = CTX_data_scene(C);
+	ChangeFrameData *data = MEM_callocN(sizeof(ChangeFrameData), "changeframedata");
+
+	data->timer = WM_event_add_timer(wm, win, TIMER, FRA2TIME(1.0));
+
 	RNA_int_set(op->ptr, "frame", frame_from_event(C, event));
 
+	op->customdata = data;
 	change_frame_seq_preview_begin(C, event);
 
-	change_frame_apply(C, op);
+	if (win->screen)
+		win->screen->scrubbing = true;
+
+	change_frame_apply(C, op, false);
 	
 	/* add temp handler */
 	WM_event_add_modal_handler(C, op);
@@ -182,24 +253,43 @@ static int change_frame_invoke(bContext *C, wmOperator *op, const wmEvent *event
 	return OPERATOR_RUNNING_MODAL;
 }
 
-static void change_frame_cancel(bContext *C, wmOperator *UNUSED(op))
+static void change_frame_cancel(bContext *C, wmOperator *op)
 {
-	change_frame_seq_preview_end(C);
+	change_frame_seq_preview_end(C, op);
 }
 
 /* Modal event handling of frame changing */
 static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+	Main *bmain = CTX_data_main(C);
+	Scene *scene = CTX_data_scene(C);
+	ChangeFrameData *data = op->customdata;
+	wmWindow *win = CTX_wm_window(C);
+
 	int ret = OPERATOR_RUNNING_MODAL;
 	/* execute the events */
 	switch (event->type) {
 		case ESCKEY:
+			WM_event_add_notifier(C, NC_SCENE | ND_FRAME, scene);
+			if (win->screen)
+				win->screen->scrubbing = false;
+			BKE_sound_seek_scene(bmain, scene);
 			ret = OPERATOR_FINISHED;
 			break;
 
 		case MOUSEMOVE:
-			RNA_int_set(op->ptr, "frame", frame_from_event(C, event));
-			change_frame_apply(C, op);
+			data->frame = frame_from_event(C, event);
+			break;
+
+		case TIMER:
+			if (data->timer->duration - data->last_duration > FRA2TIME(1)) {
+				if (data->frame != data->last_frame) {
+					RNA_int_set(op->ptr, "frame", data->frame);
+					change_frame_apply(C, op, false);
+					data->last_frame = data->frame;
+					data->last_duration = data->timer->duration;
+				}
+			}
 			break;
 		
 		case LEFTMOUSE: 
@@ -208,8 +298,14 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 			/* we check for either mouse-button to end, as checking for ACTIONMOUSE (which is used to init 
 			 * the modal op) doesn't work for some reason
 			 */
-			if (event->val == KM_RELEASE)
+			if (event->val == KM_RELEASE) {
+				if (win->screen)
+					win->screen->scrubbing = false;
+				data->frame = frame_from_event(C, event);
+				RNA_int_set(op->ptr, "frame", data->frame);
+				change_frame_apply(C, op, true);
 				ret = OPERATOR_FINISHED;
+			}
 			break;
 
 		case LEFTCTRLKEY:
@@ -224,7 +320,7 @@ static int change_frame_modal(bContext *C, wmOperator *op, const wmEvent *event)
 	}
 
 	if (ret != OPERATOR_RUNNING_MODAL) {
-		change_frame_seq_preview_end(C);
+		change_frame_seq_preview_end(C, op);
 	}
 
 	return ret;
@@ -247,7 +343,7 @@ static void ANIM_OT_change_frame(wmOperatorType *ot)
 	ot->poll = change_frame_poll;
 	
 	/* flags */
-	ot->flag = OPTYPE_BLOCKING | OPTYPE_UNDO | OPTYPE_GRAB_POINTER;
+	ot->flag = OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR;
 
 	/* rna */
 	ot->prop = RNA_def_int(ot->srna, "frame", 0, MINAFRAME, MAXFRAME, "Frame", "", MINAFRAME, MAXFRAME);

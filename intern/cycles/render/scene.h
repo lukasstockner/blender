@@ -62,6 +62,7 @@ class DeviceScene {
 public:
 	/* BVH */
 	device_vector<float4> bvh_nodes;
+	device_vector<float4> bvh_leaf_nodes;
 	device_vector<uint> object_node;
 	device_vector<float4> tri_woop;
 	device_vector<uint> prim_type;
@@ -127,6 +128,7 @@ public:
 	enum BVHType { BVH_DYNAMIC, BVH_STATIC } bvh_type;
 	bool use_bvh_cache;
 	bool use_bvh_spatial_split;
+	bool use_bvh_triangle_storage;
 	bool use_qbvh;
 	bool persistent_data;
 
@@ -136,6 +138,7 @@ public:
 		bvh_type = BVH_DYNAMIC;
 		use_bvh_cache = false;
 		use_bvh_spatial_split = false;
+		use_bvh_triangle_storage = true;
 		use_qbvh = false;
 		persistent_data = false;
 	}
@@ -145,6 +148,7 @@ public:
 		&& bvh_type == params.bvh_type
 		&& use_bvh_cache == params.use_bvh_cache
 		&& use_bvh_spatial_split == params.use_bvh_spatial_split
+		&& use_bvh_triangle_storage == params.use_bvh_triangle_storage
 		&& use_qbvh == params.use_qbvh
 		&& persistent_data == params.persistent_data); }
 };
@@ -193,7 +197,9 @@ public:
 	/* mutex must be locked manually by callers */
 	thread_mutex mutex;
 
-	Scene(const SceneParams& params, const DeviceInfo& device_info);
+	Scene(const SceneParams& params,
+	      const DeviceInfo& device_info,
+	      const bool free_data_after_update = false);
 	~Scene();
 
 	void device_update(Device *device, Progress& progress);

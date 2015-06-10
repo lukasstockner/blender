@@ -137,6 +137,8 @@ static const char *includefiles[] = {
 	"DNA_rigidbody_types.h",
 	"DNA_freestyle_types.h",
 	"DNA_linestyle_types.h",
+	"DNA_cache_library_types.h",
+	"DNA_strands_types.h",
 
 	/* empty string to indicate end of includefiles */
 	""
@@ -539,6 +541,11 @@ static void *read_file_data(char *filename, int *r_len)
 	fseek(fp, 0L, SEEK_END);
 	*r_len = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
+
+	if (*r_len == -1) {
+		fclose(fp);
+		return NULL;
+	}
 
 	data = MEM_mallocN(*r_len, "read_file_data");
 	if (!data) {
@@ -1289,4 +1296,6 @@ int main(int argc, char **argv)
 #include "DNA_rigidbody_types.h"
 #include "DNA_freestyle_types.h"
 #include "DNA_linestyle_types.h"
+#include "DNA_cache_library_types.h"
+#include "DNA_strands_types.h"
 /* end of list */

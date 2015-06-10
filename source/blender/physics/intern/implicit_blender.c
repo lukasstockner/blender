@@ -373,7 +373,7 @@ static void print_bfmatrix(fmatrix3x3 *m)
 			if (i > 0 && i % 3 == 0)
 				printf("  ");
 			
-			implicit_print_matrix_elem(t[i + j * size]);
+			print_matrix_elem(t[i + j * size]);
 		}
 		printf("\n");
 	}
@@ -1229,6 +1229,11 @@ void BPH_mass_spring_get_position(struct Implicit_Data *data, int index, float x
 	root_to_world_v3(data, index, x, data->X[index]);
 }
 
+void BPH_mass_spring_get_velocity(struct Implicit_Data *data, int index, float v[3])
+{
+	root_to_world_v3(data, index, v, data->V[index]);
+}
+
 void BPH_mass_spring_get_new_position(struct Implicit_Data *data, int index, float x[3])
 {
 	root_to_world_v3(data, index, x, data->Xnew[index]);
@@ -1507,15 +1512,13 @@ void BPH_mass_spring_force_edge_wind(Implicit_Data *data, int v1, int v2, float 
 	add_v3_v3(data->F[v2], f);
 }
 
-void BPH_mass_spring_force_vertex_wind(Implicit_Data *data, int v, float UNUSED(radius), const float (*winvec)[3])
+void BPH_mass_spring_force_vertex_wind(Implicit_Data *data, int v, float factor, const float (*winvec)[3])
 {
-	const float density = 0.01f; /* XXX arbitrary value, corresponds to effect of air density */
-	
 	float wind[3];
 	float f[3];
 	
 	world_to_root_v3(data, v, wind, winvec[v]);
-	mul_v3_v3fl(f, wind, density);
+	mul_v3_v3fl(f, wind, factor);
 	add_v3_v3(data->F[v], f);
 }
 
@@ -1523,10 +1526,15 @@ BLI_INLINE void dfdx_spring(float to[3][3], const float dir[3], float length, fl
 {
 	// dir is unit length direction, rest is spring's restlength, k is spring constant.
 	//return  ( (I-outerprod(dir, dir))*Min(1.0f, rest/length) - I) * -k;
-	outerproduct(to, dir, dir);
-	sub_m3_m3m3(to, I, to);
+	if (L > ALMOST_ZERO) {
+		outerproduct(to, dir, dir);
+		sub_m3_m3m3(to, I, to);
+		
+		mul_m3_fl(to, (L / length)); 
+	}
+	else
+		zero_m3(to);
 	
-	mul_m3_fl(to, (L/length)); 
 	sub_m3_m3m3(to, to, I);
 	mul_m3_fl(to, k);
 }
@@ -1540,7 +1548,7 @@ BLI_INLINE void dfdv_damp(float to[3][3], const float dir[3], float damping)
 
 BLI_INLINE float fb(float length, float L)
 {
-	float x = length / L;
+	float x = L > ALMOST_ZERO ? length / L : 0.0f;
 	float xx = x * x;
 	float xxx = xx * x;
 	float xxxx = xxx * x;
@@ -1549,7 +1557,7 @@ BLI_INLINE float fb(float length, float L)
 
 BLI_INLINE float fbderiv(float length, float L)
 {
-	float x = length / L;
+	float x = L > ALMOST_ZERO ? length / L : 0.0f;
 	float xx = x * x;
 	float xxx = xx * x;
 	return (-46.164f * xxx + 102.579f * xx - 78.166f * x + 23.116f);
@@ -1846,7 +1854,8 @@ BLI_INLINE void spring_angbend_estimate_dfdv(Implicit_Data *data, int i, int j, 
  * See "Artistic Simulation of Curly Hair" (Pixar technical memo #12-03a)
  */
 bool BPH_mass_spring_force_spring_bending_angular(Implicit_Data *data, int i, int j, int k,
-                                                  const float target[3], float stiffness, float damping)
+                                                  const float target[3], float stiffness, float damping,
+                                                  float r_f[3], float r_dfdx[3][3], float r_dfdv[3][3])
 {
 	float goal[3];
 	float fj[3], fk[3];
@@ -1982,6 +1991,13 @@ bool BPH_mass_spring_force_spring_bending_angular(Implicit_Data *data, int i, in
 	add_m3_m3m3(data->dFdX[block_jk].m, data->dFdX[block_jk].m, dfk_dxj);
 	add_m3_m3m3(data->dFdX[block_ik].m, data->dFdX[block_ik].m, dfk_dxi);
 #endif
+	
+	if (r_f)
+		copy_v3_v3(r_f, fj);
+	if (r_dfdx)
+		copy_m3_m3(r_dfdx, dfj_dxj);
+	if (r_dfdv)
+		copy_m3_m3(r_dfdx, dfj_dvj);
 	
 	return true;
 }

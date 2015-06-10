@@ -215,8 +215,9 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		params->active_file = -1; /* added this so it opens nicer (ton) */
 	}
 	filelist_setsorting(sfile->files, params->sort);
-	filelist_setfilter_options(sfile->files, params->flag & FILE_HIDE_DOT,
+	filelist_setfilter_options(sfile->files, (params->flag & FILE_HIDE_DOT) != 0,
 	                                         false, /* TODO hide_parent, should be controllable? */
+	                                         (params->flag & FILE_COLLAPSE_IMAGES) != 0,
 	                                         params->flag & FILE_FILTER ? params->filter : 0,
 	                                         params->filter_glob,
 	                                         params->filter_search);
@@ -254,7 +255,7 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 		int idx = filelist_find(sfile->files, params->renamefile);
 		if (idx >= 0) {
 			struct direntry *file = filelist_file(sfile->files, idx);
-			if (file) {
+			if (file && !(file->selflag & FILE_SEL_COLLAPSED)) {
 				file->selflag |= FILE_SEL_EDITING;
 			}
 		}

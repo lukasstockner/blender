@@ -35,11 +35,16 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_path_util.h"
+#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "BLI_math.h"
 #include "BLI_rand.h"
+#include "BLI_task.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_group_types.h"
@@ -48,6 +53,7 @@
 #include "DNA_vfont_types.h"
 
 #include "BKE_animsys.h"
+#include "BKE_cache_library.h"
 #include "BKE_DerivedMesh.h"
 #include "BKE_depsgraph.h"
 #include "BKE_font.h"
@@ -56,14 +62,17 @@
 #include "BKE_lattice.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_mesh_sample.h"
 #include "BKE_object.h"
 #include "BKE_particle.h"
 #include "BKE_scene.h"
 #include "BKE_editmesh.h"
 #include "BKE_anim.h"
-
+#include "BKE_strands.h"
 
 #include "BLI_strict_flags.h"
+
+#include "BLF_translation.h"
 
 /* Dupli-Geometry */
 
@@ -96,7 +105,7 @@ typedef struct DupliGenerator {
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx);
 
 /* create initial context for root object */
-static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene *scene, Object *ob, float space_mat[4][4], bool update)
+static void init_context_ex(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene *scene, Object *ob, float space_mat[4][4], const DupliGenerator *gen, bool update)
 {
 	r_ctx->eval_ctx = eval_ctx;
 	r_ctx->scene = scene;
@@ -110,12 +119,17 @@ static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene
 		copy_m4_m4(r_ctx->space_mat, space_mat);
 	else
 		unit_m4(r_ctx->space_mat);
-	r_ctx->lay = ob->lay;
+	r_ctx->lay = ob ? ob->lay : 0;
 	r_ctx->level = 0;
 
-	r_ctx->gen = get_dupli_generator(r_ctx);
+	r_ctx->gen = gen ? gen : get_dupli_generator(r_ctx);
 
 	r_ctx->duplilist = NULL;
+}
+
+static void init_context(DupliContext *r_ctx, EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
+{
+	init_context_ex(r_ctx, eval_ctx, scene, ob, NULL, NULL, update);
 }
 
 /* create sub-context for recursive duplis */
@@ -126,7 +140,7 @@ static void copy_dupli_context(DupliContext *r_ctx, const DupliContext *ctx, Obj
 	r_ctx->animated |= animated; /* object animation makes all children animated */
 
 	/* XXX annoying, previously was done by passing an ID* argument, this at least is more explicit */
-	if (ctx->gen->type == OB_DUPLIGROUP)
+	if (ctx->gen->type == OB_DUPLIGROUP && ctx->object)
 		r_ctx->group = ctx->object->dup_group;
 
 	r_ctx->object = ob;
@@ -219,7 +233,10 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 {
 	Object *parent = ctx->object;
 	Object *obedit = ctx->scene->obedit;
-
+	
+	if (!parent)
+		return;
+	
 	if (ctx->group) {
 		unsigned int lay = ctx->group->layer;
 		GroupObject *go;
@@ -255,67 +272,82 @@ static void make_child_duplis(const DupliContext *ctx, void *userdata, MakeChild
 
 /*---- Implementations ----*/
 
-/* OB_DUPLIGROUP */
-static void make_duplis_group(const DupliContext *ctx)
+/* Intern function for creating instances of group content
+ * with or without a parent (parent == NULL is allowed!)
+ * Note: some of the group animation update functions use the parent object,
+ * but this is old NLA code that is currently disabled and might be removed entirely.
+ */
+static void make_duplis_group_intern(const DupliContext *ctx, Group *group, Object *parent)
 {
-	bool for_render = (ctx->eval_ctx->mode == DAG_EVAL_RENDER);
-	Object *ob = ctx->object;
-	Group *group;
+	const bool for_render = (ctx->eval_ctx->mode == DAG_EVAL_RENDER);
+	
 	GroupObject *go;
 	float group_mat[4][4];
 	int id;
-	bool animated, hide;
-
-	if (ob->dup_group == NULL) return;
-	group = ob->dup_group;
-
-	/* combine group offset and obmat */
+	bool animated;
+	
 	unit_m4(group_mat);
 	sub_v3_v3(group_mat[3], group->dupli_ofs);
-	mul_m4_m4m4(group_mat, ob->obmat, group_mat);
-	/* don't access 'ob->obmat' from now on. */
-
+	
+	if (parent) {
+		/* combine group offset and obmat */
+		mul_m4_m4m4(group_mat, parent->obmat, group_mat);
+		/* don't access 'parent->obmat' from now on. */
+	}
+	
 	/* handles animated groups */
-
+	
 	/* we need to check update for objects that are not in scene... */
 	if (ctx->do_update) {
 		/* note: update is optional because we don't always need object
 		 * transformations to be correct. Also fixes bug [#29616]. */
-		BKE_group_handle_recalc_and_update(ctx->eval_ctx, ctx->scene, ob, group);
+		BKE_group_handle_recalc_and_update(ctx->eval_ctx, ctx->scene, parent, group);
 	}
-
-	animated = BKE_group_is_animated(group, ob);
-
+	
+	animated = BKE_group_is_animated(group, parent);
+	
 	for (go = group->gobject.first, id = 0; go; go = go->next, id++) {
+		float mat[4][4];
+		bool hide;
+		
 		/* note, if you check on layer here, render goes wrong... it still deforms verts and uses parent imat */
-		if (go->ob != ob) {
-			float mat[4][4];
-
-			/* Special case for instancing dupli-groups, see: T40051
-			 * this object may be instanced via dupli-verts/faces, in this case we don't want to render
-			 * (blender convention), but _do_ show in the viewport.
-			 *
-			 * Regular objects work fine but not if we're instancing dupli-groups,
-			 * because the rules for rendering aren't applied to objects they instance.
-			 * We could recursively pass down the 'hide' flag instead, but that seems unnecessary.
-			 */
-			if (for_render && go->ob->parent && go->ob->parent->transflag & (OB_DUPLIVERTS | OB_DUPLIFACES)) {
-				continue;
-			}
-
-			/* group dupli offset, should apply after everything else */
-			mul_m4_m4m4(mat, group_mat, go->ob->obmat);
-
-			/* check the group instance and object layers match, also that the object visible flags are ok. */
-			hide = (go->ob->lay & group->layer) == 0 ||
-			       (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
-
-			make_dupli(ctx, go->ob, mat, id, animated, hide);
-
-			/* recursion */
-			make_recursive_duplis(ctx, go->ob, group_mat, id, animated);
+		if (go->ob == parent)
+			continue;
+		
+		/* Special case for instancing dupli-groups, see: T40051
+		 * this object may be instanced via dupli-verts/faces, in this case we don't want to render
+		 * (blender convention), but _do_ show in the viewport.
+		 *
+		 * Regular objects work fine but not if we're instancing dupli-groups,
+		 * because the rules for rendering aren't applied to objects they instance.
+		 * We could recursively pass down the 'hide' flag instead, but that seems unnecessary.
+		 */
+		if (for_render && go->ob->parent && go->ob->parent->transflag & (OB_DUPLIVERTS | OB_DUPLIFACES)) {
+			continue;
 		}
+		
+		/* group dupli offset, should apply after everything else */
+		mul_m4_m4m4(mat, group_mat, go->ob->obmat);
+		
+		/* check the group instance and object layers match, also that the object visible flags are ok. */
+		hide = (go->ob->lay & group->layer) == 0 ||
+		        (for_render ? go->ob->restrictflag & OB_RESTRICT_RENDER : go->ob->restrictflag & OB_RESTRICT_VIEW);
+		
+		make_dupli(ctx, go->ob, mat, id, animated, hide);
+		
+		/* recursion */
+		make_recursive_duplis(ctx, go->ob, group_mat, id, animated);
 	}
+}
+
+/* OB_DUPLIGROUP */
+static void make_duplis_group(const DupliContext *ctx)
+{
+	Object *ob = ctx->object;
+	if (!ob || !ob->dup_group)
+		return;
+	
+	make_duplis_group_intern(ctx, ob->dup_group, ob);
 }
 
 const DupliGenerator gen_dupli_group = {
@@ -331,8 +363,9 @@ static void make_duplis_frames(const DupliContext *ctx)
 	extern int enable_cu_speed; /* object.c */
 	Object copyob;
 	int cfrao = scene->r.cfra;
-	int dupend = ob->dupend;
 
+	if (!ob)
+		return;
 	/* dupliframes not supported inside groups */
 	if (ctx->group)
 		return;
@@ -341,7 +374,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 	 */
 	if (ob->parent == NULL && BLI_listbase_is_empty(&ob->constraints) && ob->adt == NULL)
 		return;
-
+	
 	/* make a copy of the object's original data (before any dupli-data overwrites it)
 	 * as we'll need this to keep track of unkeyed data
 	 *	- this doesn't take into account other data that can be reached from the object,
@@ -356,7 +389,7 @@ static void make_duplis_frames(const DupliContext *ctx)
 	 * updates, as this is not a permanent change to the object */
 	ob->id.flag |= LIB_ANIM_NO_RECALC;
 
-	for (scene->r.cfra = ob->dupsta; scene->r.cfra <= dupend; scene->r.cfra++) {
+	for (scene->r.cfra = ob->dupsta; scene->r.cfra <= ob->dupend; scene->r.cfra++) {
 		int ok = 1;
 
 		/* - dupoff = how often a frames within the range shouldn't be made into duplis
@@ -512,6 +545,9 @@ static void make_duplis_verts(const DupliContext *ctx)
 	Object *parent = ctx->object;
 	bool use_texcoords = ELEM(ctx->eval_ctx->mode, DAG_EVAL_RENDER, DAG_EVAL_PREVIEW);
 	VertexDupliData vdd;
+	
+	if (!parent)
+		return;
 
 	vdd.ctx = ctx;
 	vdd.use_rotation = parent->transflag & OB_DUPLIROT;
@@ -592,6 +628,8 @@ static void make_duplis_font(const DupliContext *ctx)
 	const wchar_t *text = NULL;
 	bool text_free = false;
 
+	if (!par)
+		return;
 	/* font dupliverts not supported inside groups */
 	if (ctx->group)
 		return;
@@ -779,6 +817,9 @@ static void make_duplis_faces(const DupliContext *ctx)
 	bool use_texcoords = ELEM(ctx->eval_ctx->mode, DAG_EVAL_RENDER, DAG_EVAL_PREVIEW);
 	FaceDupliData fdd;
 
+	if (!parent)
+		return;
+
 	fdd.use_scale = ((parent->transflag & OB_DUPLIFACES_SCALE) != 0);
 
 	/* gather mesh info */
@@ -842,7 +883,8 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 	int no_draw_flag = PARS_UNEXIST;
 
-	if (psys == NULL) return;
+	if (!psys)
+		return;
 
 	part = psys->part;
 
@@ -983,7 +1025,7 @@ static void make_duplis_particle_system(const DupliContext *ctx, ParticleSystem 
 
 				/* for groups, pick the object based on settings */
 				if (part->draw & PART_DRAW_RAND_GR)
-					b = BLI_rand() % totgroup;
+					b = (int)(psys_frand(psys, (unsigned int)(a + 974)) * (float)totgroup) % totgroup;
 				else
 					b = a % totgroup;
 
@@ -1123,6 +1165,9 @@ static void make_duplis_particles(const DupliContext *ctx)
 	ParticleSystem *psys;
 	int psysid;
 
+	if (!ctx->object)
+		return;
+
 	/* particle system take up one level in id, the particles another */
 	for (psys = ctx->object->particlesystem.first, psysid = 0; psys; psys = psys->next, psysid++) {
 		/* particles create one more level for persistent psys index */
@@ -1142,8 +1187,13 @@ const DupliGenerator gen_dupli_particles = {
 /* select dupli generator from given context */
 static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 {
-	int transflag = ctx->object->transflag;
-	int restrictflag = ctx->object->restrictflag;
+	int transflag, restrictflag;
+	
+	if (!ctx->object)
+		return NULL;
+	
+	transflag = ctx->object->transflag;
+	restrictflag = ctx->object->restrictflag;
 
 	if ((transflag & OB_DUPLI) == 0)
 		return NULL;
@@ -1183,15 +1233,36 @@ static const DupliGenerator *get_dupli_generator(const DupliContext *ctx)
 /* Returns a list of DupliObject */
 ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object *ob, bool update)
 {
-	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
-	DupliContext ctx;
-	init_context(&ctx, eval_ctx, scene, ob, NULL, update);
-	if (ctx.gen) {
-		ctx.duplilist = duplilist;
-		ctx.gen->make_duplis(&ctx);
+	if (update) {
+		BKE_object_dupli_cache_update(scene, ob, eval_ctx, (float)scene->r.cfra + scene->r.subframe);
 	}
-
-	return duplilist;
+	
+	if (ob->dup_cache && (ob->dup_cache->result != CACHE_READ_SAMPLE_INVALID)) {
+		/* Note: duplis in the cache don't have the main duplicator obmat applied.
+		 * duplilist also should return a full copy of duplis, so we copy
+		 * the cached list and apply the obmat to each.
+		 */
+		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		DupliObject *dob;
+		
+		BLI_duplicatelist(duplilist, &ob->dup_cache->duplilist);
+		
+		for (dob = duplilist->first; dob; dob = dob->next) {
+			mul_m4_m4m4(dob->mat, ob->obmat, dob->mat);
+		}
+		
+		return duplilist;
+	}
+	else {
+		ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+		DupliContext ctx;
+		init_context(&ctx, eval_ctx, scene, ob, update);
+		if (ctx.gen) {
+			ctx.duplilist = duplilist;
+			ctx.gen->make_duplis(&ctx);
+		}
+		return duplilist;
+	}
 }
 
 /* note: previously updating was always done, this is why it defaults to be on
@@ -1199,6 +1270,24 @@ ListBase *object_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Object 
 ListBase *object_duplilist(EvaluationContext *eval_ctx, Scene *sce, Object *ob)
 {
 	return object_duplilist_ex(eval_ctx, sce, ob, true);
+}
+
+ListBase *group_duplilist_ex(EvaluationContext *eval_ctx, Scene *scene, Group *group, bool update)
+{
+	ListBase *duplilist = MEM_callocN(sizeof(ListBase), "duplilist");
+	DupliContext ctx;
+	
+	init_context_ex(&ctx, eval_ctx, scene, NULL, NULL, &gen_dupli_group, update);
+	ctx.duplilist = duplilist;
+	
+	make_duplis_group_intern(&ctx, group, NULL);
+	
+	return duplilist;
+}
+
+ListBase *group_duplilist(EvaluationContext *eval_ctx, Scene *scene, Group *group)
+{
+	return group_duplilist_ex(eval_ctx, scene, group, true);
 }
 
 void free_object_duplilist(ListBase *lb)
@@ -1237,7 +1326,559 @@ int count_duplilist(Object *ob)
 	return 1;
 }
 
-DupliApplyData *duplilist_apply(Object *ob, ListBase *duplilist)
+/* ------------------------------------------------------------------------- */
+
+static void dupli_cache_calc_boundbox(DupliObjectData *data)
+{
+	DupliObjectDataStrands *link;
+	float min[3], max[3];
+	bool has_data = false;
+	
+	INIT_MINMAX(min, max);
+	if (data->dm) {
+		data->dm->getMinMax(data->dm, min, max);
+		has_data = true;
+	}
+	for (link = data->strands.first; link; link = link->next) {
+		if (link->strands) {
+			BKE_strands_get_minmax(link->strands, min, max, true);
+			has_data = true;
+		}
+		if (link->strands_children) {
+			BKE_strands_children_get_minmax(link->strands_children, min, max);
+			has_data = true;
+		}
+	}
+	
+	if (!has_data) {
+		zero_v3(min);
+		zero_v3(max);
+	}
+	
+	BKE_boundbox_init_from_minmax(&data->bb, min, max);
+}
+
+static bool UNUSED_FUNCTION(dupli_object_data_strands_unique_name)(ListBase *lb, DupliObjectDataStrands *link)
+{
+	if (lb && link) {
+		return BLI_uniquename(lb, link, DATA_("Strands"), '.', offsetof(DupliObjectDataStrands, name), sizeof(link->name));
+	}
+	return false;
+}
+
+void BKE_dupli_object_data_init(DupliObjectData *data, Object *ob)
+{
+	data->ob = ob;
+	
+	data->dm = NULL;
+	BLI_listbase_clear(&data->strands);
+	
+	memset(&data->bb, 0, sizeof(data->bb));
+	dupli_cache_calc_boundbox(data);
+}
+
+void BKE_dupli_object_data_clear(DupliObjectData *data)
+{
+	DupliObjectDataStrands *link;
+	
+	if (data->dm) {
+		/* we lock DMs in the cache to prevent freeing outside,
+		 * now allow releasing again
+		 */
+		data->dm->needsFree = true;
+		data->dm->release(data->dm);
+	}
+	
+	for (link = data->strands.first; link; link = link->next) {
+		if (link->strands)
+			BKE_strands_free(link->strands);
+		if (link->strands_children)
+			BKE_strands_children_free(link->strands_children);
+	}
+	BLI_freelistN(&data->strands);
+}
+
+void BKE_dupli_object_data_set_mesh(DupliObjectData *data, DerivedMesh *dm)
+{
+	if (data->dm) {
+		/* we lock DMs in the cache to prevent freeing outside,
+		 * now allow releasing again
+		 */
+		data->dm->needsFree = true;
+		data->dm->release(data->dm);
+	}
+	
+	data->dm = dm;
+	/* we own this dm now and need to protect it until we free it ourselves */
+	dm->needsFree = false;
+	
+	dupli_cache_calc_boundbox(data);
+}
+
+void BKE_dupli_object_data_add_strands(DupliObjectData *data, const char *name, Strands *strands)
+{
+	DupliObjectDataStrands *link = NULL;
+	for (link = data->strands.first; link; link = link->next) {
+		if (STREQ(link->name, name))
+			break;
+	}
+	
+	if (!link) {
+		link = MEM_callocN(sizeof(DupliObjectDataStrands), "strands link");
+		BLI_strncpy(link->name, name, sizeof(link->name));
+		link->strands = strands;
+		
+		BLI_addtail(&data->strands, link);
+	}
+	else {
+		if (link->strands && link->strands != strands)
+			BKE_strands_free(link->strands);
+		link->strands = strands;
+	}
+	
+	dupli_cache_calc_boundbox(data);
+}
+
+void BKE_dupli_object_data_add_strands_children(DupliObjectData *data, const char *name, StrandsChildren *children)
+{
+	DupliObjectDataStrands *link = NULL;
+	for (link = data->strands.first; link; link = link->next) {
+		if (STREQ(link->name, name))
+			break;
+	}
+	
+	if (!link) {
+		link = MEM_callocN(sizeof(DupliObjectDataStrands), "strands link");
+		BLI_strncpy(link->name, name, sizeof(link->name));
+		link->strands_children = children;
+		
+		BLI_addtail(&data->strands, link);
+	}
+	else {
+		if (link->strands_children && link->strands_children != children)
+			BKE_strands_children_free(link->strands_children);
+		link->strands_children = children;
+	}
+
+	dupli_cache_calc_boundbox(data);
+}
+
+void BKE_dupli_object_data_find_strands(DupliObjectData *data, const char *name, Strands **r_strands, StrandsChildren **r_children)
+{
+	DupliObjectDataStrands *link;
+	for (link = data->strands.first; link; link = link->next) {
+		if (STREQ(link->name, name)) {
+			if (r_strands) *r_strands = link->strands;
+			if (r_children) *r_children = link->strands_children;
+			return;
+		}
+	}
+	
+	if (r_strands) *r_strands = NULL;
+	if (r_children) *r_children = NULL;
+}
+
+bool BKE_dupli_object_data_acquire_strands(DupliObjectData *data, Strands *strands)
+{
+	DupliObjectDataStrands *link, *link_next;
+	bool found = false;
+	
+	if (!data || !strands)
+		return false;
+	
+	for (link = data->strands.first; link; link = link_next) {
+		link_next = link->next;
+		if (link->strands == strands) {
+			link->strands = NULL;
+			found = true;
+		}
+	}
+	return found;
+}
+
+bool BKE_dupli_object_data_acquire_strands_children(DupliObjectData *data, StrandsChildren *children)
+{
+	DupliObjectDataStrands *link, *link_next;
+	bool found = false;
+	
+	if (!data || !children)
+		return false;
+	
+	for (link = data->strands.first; link; link = link_next) {
+		link_next = link->next;
+		if (link->strands_children == children) {
+			link->strands_children = NULL;
+			found = true;
+		}
+	}
+	return found;
+}
+
+/* ------------------------------------------------------------------------- */
+
+static void dupli_object_data_free(DupliObjectData *data)
+{
+	BKE_dupli_object_data_clear(data);
+	MEM_freeN(data);
+}
+
+static void dupli_object_free(DupliObject *dob)
+{
+	MEM_freeN(dob);
+}
+
+DupliCache *BKE_dupli_cache_new(void)
+{
+	DupliCache *dupcache = MEM_callocN(sizeof(DupliCache), "dupli object cache");
+	
+	dupcache->ghash = BLI_ghash_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "dupli object data hash");
+	
+	return dupcache;
+}
+
+void BKE_dupli_cache_free(DupliCache *dupcache)
+{
+	BKE_dupli_cache_clear(dupcache);
+	
+	BLI_ghash_free(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
+	MEM_freeN(dupcache);
+}
+
+void BKE_dupli_cache_clear(DupliCache *dupcache)
+{
+	DupliObject *dob, *dob_next;
+	for (dob = dupcache->duplilist.first; dob; dob = dob_next) {
+		dob_next = dob->next;
+		
+		dupli_object_free(dob);
+	}
+	BLI_listbase_clear(&dupcache->duplilist);
+	
+	BLI_ghash_clear(dupcache->ghash, NULL, (GHashValFreeFP)dupli_object_data_free);
+}
+
+void BKE_dupli_cache_clear_instances(DupliCache *dupcache)
+{
+	DupliObject *dob, *dob_next;
+	for (dob = dupcache->duplilist.first; dob; dob = dob_next) {
+		dob_next = dob->next;
+		
+		dupli_object_free(dob);
+	}
+	BLI_listbase_clear(&dupcache->duplilist);
+}
+
+static DupliObjectData *dupli_cache_add_object_data(DupliCache *dupcache, Object *ob)
+{
+	DupliObjectData *data = MEM_callocN(sizeof(DupliObjectData), "dupli object data");
+	
+	data->ob = ob;
+	BLI_ghash_insert(dupcache->ghash, data->ob, data);
+	return data;
+}
+
+static DupliObject *dupli_cache_add_object(DupliCache *dupcache)
+{
+	DupliObject *dob = MEM_callocN(sizeof(DupliObject), "dupli object");
+	
+	unit_m4(dob->mat);
+	
+	BLI_addtail(&dupcache->duplilist, dob);
+	return dob;
+}
+
+static int count_hair_verts(ParticleSystem *psys)
+{
+	int numverts = 0;
+	int p;
+	for (p = 0; p < psys->totpart; ++p) {
+		numverts += psys->particles[p].totkey;
+	}
+	return numverts;
+}
+
+static void dupli_strands_data_update(CacheLibrary *cachelib, DupliObjectData *data,
+                                      DupliObject *dob, bool calc_strands_base) {
+	ParticleSystem *psys;
+	for (psys = dob->ob->particlesystem.first; psys; psys = psys->next) {
+		if (cachelib->data_types & CACHE_TYPE_HAIR) {
+			if (psys->part && psys->part->type == PART_HAIR) {
+				int numstrands = psys->totpart;
+				int numverts = count_hair_verts(psys);
+				ParticleData *pa;
+				HairKey *hkey;
+				int p, k;
+
+				Strands *strands = BKE_strands_new(numstrands, numverts);
+				StrandsCurve *scurve = strands->curves;
+				StrandsVertex *svert = strands->verts;
+
+				for (p = 0, pa = psys->particles; p < psys->totpart; ++p, ++pa) {
+					float hairmat[4][4];
+					psys_mat_hair_to_object(dob->ob, data->dm, psys->part->from, pa, hairmat);
+
+					scurve->numverts = pa->totkey;
+					copy_m3_m4(scurve->root_matrix, hairmat);
+					BKE_mesh_sample_from_particle(&scurve->msurf, psys, data->dm, pa);
+
+					for (k = 0, hkey = pa->hair; k < pa->totkey; ++k, ++hkey) {
+						copy_v3_v3(svert->co, hkey->co);
+						if (calc_strands_base)
+							copy_v3_v3(svert->base, hkey->co);
+						svert->time = hkey->time;
+						svert->weight = hkey->weight;
+						++svert;
+					}
+					++scurve;
+				}
+
+				BKE_dupli_object_data_add_strands(data, psys->name, strands);
+			}
+		}
+	}
+}
+
+typedef struct DupliObjectDataFromGroupState {
+	EvaluationContext *eval_ctx;
+	Scene *scene;
+	CacheLibrary *cachelib;
+	bool calc_strands_base;
+} DupliObjectDataFromGroupState;
+
+typedef struct DupliObjectDataFromGroupTask {
+	DupliObject *dob;
+	DupliObjectData *data;
+} DupliObjectDataFromGroupTask;
+
+static void dupli_object_data_from_group_func(TaskPool *pool, void *taskdata, int UNUSED(threadid))
+{
+	DupliObjectDataFromGroupState *state = (DupliObjectDataFromGroupState *)BLI_task_pool_userdata(pool);
+	DupliObjectDataFromGroupTask *task = (DupliObjectDataFromGroupTask *)taskdata;
+	Object *object = task->dob->ob;
+	DerivedMesh *dm;
+
+	if (state->eval_ctx->mode == DAG_EVAL_RENDER) {
+		dm = mesh_create_derived_render(state->scene, object, CD_MASK_BAREMESH);
+	}
+	else {
+		dm = mesh_create_derived_view(state->scene, object, CD_MASK_BAREMESH);
+	}
+
+	if (dm != NULL) {
+		BKE_dupli_object_data_set_mesh(task->data, dm);
+	}
+
+	dupli_strands_data_update(state->cachelib, task->data, task->dob, state->calc_strands_base);
+}
+
+void BKE_dupli_cache_from_group(Scene *scene, Group *group, CacheLibrary *cachelib, DupliCache *dupcache, EvaluationContext *eval_ctx, bool calc_strands_base)
+{
+	DupliObject *dob;
+	TaskScheduler *task_scheduler = BLI_task_scheduler_get();
+	TaskPool *task_pool;
+	DupliObjectDataFromGroupState state;
+
+	BKE_dupli_cache_clear(dupcache);
+	
+	if (!(group && cachelib))
+		return;
+	
+	{
+		/* copy duplilist to the cache */
+		ListBase *duplilist = group_duplilist(eval_ctx, scene, group);
+		dupcache->duplilist = *duplilist;
+		MEM_freeN(duplilist);
+	}
+
+	state.eval_ctx = eval_ctx;
+	state.scene = scene;
+	state.cachelib = cachelib;
+	state.calc_strands_base = calc_strands_base;
+	task_pool = BLI_task_pool_create(task_scheduler, &state);
+
+	/* tag objects for which to store data */
+	BKE_cache_library_tag_used_objects(cachelib);
+	
+	for (dob = dupcache->duplilist.first; dob; dob = dob->next) {
+		DupliObjectData *data = BKE_dupli_cache_find_data(dupcache, dob->ob);
+		if (!data) {
+			bool strands_handled = false;
+			data = dupli_cache_add_object_data(dupcache, dob->ob);
+			
+			/* generate data only for filtered objects */
+			if (dob->ob->id.flag & LIB_DOIT) {
+				if (cachelib->data_types & CACHE_TYPE_DERIVED_MESH) {
+					if (dob->ob->type == OB_MESH) {
+						/* TODO(sergey): Consider using memory pool instead. */
+						DupliObjectDataFromGroupTask *task = MEM_mallocN(sizeof(DupliObjectDataFromGroupTask),
+						                                                 "dupcache task");
+						task->dob = dob;
+						task->data = data;
+						BLI_task_pool_push(task_pool, dupli_object_data_from_group_func, task, true, TASK_PRIORITY_LOW);
+						/* Task is getting care of strands as well. */
+						strands_handled = true;
+					}
+				}
+				if (!strands_handled) {
+					dupli_strands_data_update(cachelib, data, dob, calc_strands_base);
+				}
+			}
+		}
+	}
+
+	BLI_task_pool_work_and_wait(task_pool);
+	BLI_task_pool_free(task_pool);
+}
+
+/* ------------------------------------------------------------------------- */
+
+void BKE_object_dupli_cache_update(Scene *scene, Object *ob, EvaluationContext *eval_ctx, float frame)
+{
+	bool use_render = (eval_ctx->mode == DAG_EVAL_RENDER);
+	bool is_dupligroup = (ob->transflag & OB_DUPLIGROUP) && ob->dup_group;
+	bool is_cached = ob->cache_library && (ob->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE || ob->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_RESULT);
+	bool do_modifiers = ob->cache_library && ob->cache_library->display_mode == CACHE_LIBRARY_DISPLAY_MODIFIERS;
+	
+	/* cache is a group duplicator feature only */
+	if (is_dupligroup && is_cached) {
+		
+		if (ob->dup_cache && !(ob->dup_cache->flag & DUPCACHE_FLAG_DIRTY)) {
+			/* skip if cache is valid */
+		}
+		else {
+			if (G.debug & G_DEBUG)
+				printf("Update dupli cache for object '%s'\n", ob->id.name+2);
+			
+			if (ob->dup_cache) {
+				BKE_dupli_cache_clear(ob->dup_cache);
+			}
+			else {
+				ob->dup_cache = BKE_dupli_cache_new();
+			}
+			
+			/* skip reading when the cachelib is baking, avoids unnecessary memory allocation */
+			if (!(ob->cache_library->flag & CACHE_LIBRARY_BAKING)) {
+				bool do_strands_motion, do_strands_children;
+				CacheLibrary *cachelib = ob->cache_library;
+				CacheProcessData process_data;
+				
+				BKE_cache_library_get_read_flags(ob->cache_library, use_render, true, &do_strands_motion, &do_strands_children);
+				
+				/* TODO at this point we could apply animation offset */
+				BKE_cache_read_dupli_cache(ob->cache_library, ob->dup_cache, scene, ob->dup_group, frame, use_render, true);
+				
+				process_data.lay = ob->lay;
+				copy_m4_m4(process_data.mat, ob->obmat);
+				process_data.dupcache = ob->dup_cache;
+				
+				BKE_cache_process_dupli_cache(cachelib, &process_data, scene, ob->dup_group, (float)scene->r.cfra, frame, do_modifiers, do_strands_children, do_strands_motion);
+			}
+			
+			ob->dup_cache->flag &= ~DUPCACHE_FLAG_DIRTY;
+			ob->dup_cache->cfra = frame;
+		}
+	
+	}
+	else {
+		if (ob->dup_cache) {
+			BKE_dupli_cache_free(ob->dup_cache);
+			ob->dup_cache = NULL;
+		}
+	}
+}
+
+void BKE_object_dupli_cache_clear(Object *ob)
+{
+	if (ob->dup_cache) {
+		BKE_dupli_cache_clear(ob->dup_cache);
+	}
+}
+
+void BKE_object_dupli_cache_free(Object *ob)
+{
+	if (ob->dup_cache) {
+		BKE_dupli_cache_free(ob->dup_cache);
+		ob->dup_cache = NULL;
+	}
+}
+
+bool BKE_object_dupli_cache_contains(Object *ob, Object *other)
+{
+	if (ob->dup_cache) {
+		DupliObject *dob;
+		for (dob = ob->dup_cache->duplilist.first; dob; dob = dob->next) {
+			if (dob->ob == other)
+				return true;
+		}
+	}
+	return false;
+}
+
+
+DupliObjectData *BKE_dupli_cache_find_data(DupliCache *dupcache, Object *ob)
+{
+	DupliObjectData *data = BLI_ghash_lookup(dupcache->ghash, ob);
+	return data;
+}
+
+DupliObjectData *BKE_dupli_cache_add_object(DupliCache *dupcache, Object *ob)
+{
+	DupliObjectData *data = BKE_dupli_cache_find_data(dupcache, ob);
+	if (!data) {
+		data = dupli_cache_add_object_data(dupcache, ob);
+	}
+	return data;
+}
+
+DupliObject *BKE_dupli_cache_add_instance(DupliCache *dupcache, float obmat[4][4], DupliObjectData *data)
+{
+	DupliObject *dob = dupli_cache_add_object(dupcache);
+	
+	/* data must have been created correctly */
+	BLI_assert(BLI_ghash_lookup(dupcache->ghash, data->ob) != NULL);
+	
+	dob->ob = data->ob;
+	copy_m4_m4(dob->mat, obmat);
+	
+	dob->data = data;
+	
+	return dob;
+}
+
+/* ------------------------------------------------------------------------- */
+
+typedef struct DupliCacheIterator {
+	int unused;
+} DupliCacheIterator;
+
+DupliCacheIterator *BKE_dupli_cache_iter_new(struct DupliCache *dupcache)
+{
+	return (DupliCacheIterator *)BLI_ghashIterator_new(dupcache->ghash);
+}
+
+void BKE_dupli_cache_iter_free(DupliCacheIterator *iter)
+{
+	BLI_ghashIterator_free((GHashIterator *)iter);
+}
+
+bool BKE_dupli_cache_iter_valid(DupliCacheIterator *iter)
+{
+	return !BLI_ghashIterator_done((GHashIterator *)iter);
+}
+
+void BKE_dupli_cache_iter_next(DupliCacheIterator *iter)
+{
+	BLI_ghashIterator_step((GHashIterator *)iter);
+}
+
+DupliObjectData *BKE_dupli_cache_iter_get(DupliCacheIterator *iter)
+{
+	return BLI_ghashIterator_getValue((GHashIterator *)iter);
+}
+
+/* ------------------------------------------------------------------------- */
+
+DupliApplyData *duplilist_apply(Object *ob, Scene *scene, ListBase *duplilist)
 {
 	DupliApplyData *apply_data = NULL;
 	int num_objects = BLI_listbase_count(duplilist);
@@ -1253,6 +1894,13 @@ DupliApplyData *duplilist_apply(Object *ob, ListBase *duplilist)
 		for (dob = duplilist->first, i = 0; dob; dob = dob->next, ++i) {
 			/* copy obmat from duplis */
 			copy_m4_m4(apply_data->extra[i].obmat, dob->ob->obmat);
+
+			/* make sure derivedmesh is calculated once, before drawing */
+			if (scene && !(dob->ob->transflag & OB_DUPLICALCDERIVED) && dob->ob->type == OB_MESH) {
+				mesh_get_derived_final(scene, dob->ob, scene->customdata_mask);
+				dob->ob->transflag |= OB_DUPLICALCDERIVED;
+			}
+
 			copy_m4_m4(dob->ob->obmat, dob->mat);
 			
 			/* copy layers from the main duplicator object */
@@ -1273,6 +1921,7 @@ void duplilist_restore(ListBase *duplilist, DupliApplyData *apply_data)
 	 */
 	for (dob = duplilist->last, i = apply_data->num_objects - 1; dob; dob = dob->prev, --i) {
 		copy_m4_m4(dob->ob->obmat, apply_data->extra[i].obmat);
+		dob->ob->transflag &= ~OB_DUPLICALCDERIVED;
 		
 		dob->ob->lay = apply_data->extra[i].lay;
 	}

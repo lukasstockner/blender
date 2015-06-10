@@ -30,13 +30,30 @@
 
 #include "io_ops.h"  /* own include */
 
+#include "io_cache_library.h"
 #ifdef WITH_COLLADA
 #  include "io_collada.h"
-#  include "WM_api.h"
 #endif
+
+#include "WM_api.h"
 
 void ED_operatortypes_io(void) 
 {
+	WM_operatortype_append(CACHELIBRARY_OT_new);
+	WM_operatortype_append(CACHELIBRARY_OT_delete);
+	WM_operatortype_append(CACHELIBRARY_OT_bake);
+	WM_operatortype_append(CACHELIBRARY_OT_archive_info);
+	WM_operatortype_append(CACHELIBRARY_OT_archive_slice);
+
+	WM_operatortype_append(CACHELIBRARY_OT_add_modifier);
+	WM_operatortype_append(CACHELIBRARY_OT_remove_modifier);
+
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_add);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_remove);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_clear);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_retime);
+	WM_operatortype_append(CACHELIBRARY_OT_shape_key_move);
+
 #ifdef WITH_COLLADA
 	/* Collada operators: */
 	WM_operatortype_append(WM_OT_collada_export);

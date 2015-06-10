@@ -143,6 +143,7 @@ class BRUSH_OT_active_index_set(Operator):
                   "vertex_paint": "use_paint_vertex",
                   "weight_paint": "use_paint_weight",
                   "image_paint": "use_paint_image",
+                  "hair_edit": "use_hair_edit",
                   }
 
     def execute(self, context):
@@ -719,7 +720,7 @@ class WM_OT_context_modal_mouse(Operator):
     """Adjust arbitrary values with mouse input"""
     bl_idname = "wm.context_modal_mouse"
     bl_label = "Context Modal Mouse"
-    bl_options = {'GRAB_POINTER', 'BLOCKING', 'UNDO', 'INTERNAL'}
+    bl_options = {'GRAB_CURSOR', 'BLOCKING', 'UNDO', 'INTERNAL'}
 
     data_path_iter = data_path_iter
     data_path_item = data_path_item
@@ -974,10 +975,12 @@ class WM_OT_doc_view_manual(Operator):
         url = self._lookup_rna_url(rna_id)
 
         if url is None:
-            self.report({'WARNING'}, "No reference available %r, "
-                                     "Update info in 'rna_wiki_reference.py' "
-                                     " or callback to bpy.utils.manual_map()" %
-                                     self.doc_id)
+            self.report(
+                    {'WARNING'},
+                    "No reference available %r, "
+                    "Update info in 'rna_manual_reference.py' "
+                    "or callback to bpy.utils.manual_map()" %
+                    self.doc_id)
             return {'CANCELLED'}
         else:
             import webbrowser
@@ -1296,9 +1299,13 @@ class WM_OT_properties_remove(Operator):
     property = rna_property
 
     def execute(self, context):
+        from rna_prop_ui import rna_idprop_ui_prop_clear
         data_path = self.data_path
         item = eval("context.%s" % data_path)
-        del item[self.property]
+        prop = self.property
+        del item[prop]
+        rna_idprop_ui_prop_clear(item, prop)
+
         return {'FINISHED'}
 
 

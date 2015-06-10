@@ -267,10 +267,8 @@ void BKE_ptcache_id_from_rigidbody(PTCacheID *pid, struct Object *ob, struct Rig
 
 void BKE_ptcache_ids_from_object(struct ListBase *lb, struct Object *ob, struct Scene *scene, int duplis);
 
-/***************** Global funcs ****************************/
-void BKE_ptcache_remove(void);
-
 /************ ID specific functions ************************/
+void    BKE_ptcache_id_clear_ex(PTCacheID *pid, int mode, unsigned int cfra, bool allow_file_delete);
 void    BKE_ptcache_id_clear(PTCacheID *id, int mode, unsigned int cfra);
 int     BKE_ptcache_id_exist(PTCacheID *id, int cfra);
 int     BKE_ptcache_id_reset(struct Scene *scene, PTCacheID *id, int mode);
@@ -303,7 +301,7 @@ struct PointCache *BKE_ptcache_add(struct ListBase *ptcaches);
 void BKE_ptcache_free_mem(struct ListBase *mem_cache);
 void BKE_ptcache_free(struct PointCache *cache);
 void BKE_ptcache_free_list(struct ListBase *ptcaches);
-struct PointCache *BKE_ptcache_copy_list(struct ListBase *ptcaches_new, struct ListBase *ptcaches_old, bool copy_data);
+struct PointCache *BKE_ptcache_copy_list(struct ListBase *ptcaches_new, const struct ListBase *ptcaches_old, bool copy_data);
 
 /********************** Baking *********************/
 
@@ -314,10 +312,10 @@ void BKE_ptcache_quick_cache_all(struct Main *bmain, struct Scene *scene);
 void BKE_ptcache_bake(struct PTCacheBaker *baker);
 
 /* Convert disk cache to memory cache. */
-void BKE_ptcache_disk_to_mem(struct PTCacheID *pid);
+void BKE_ptcache_disk_to_mem(struct PTCacheID *pid, bool clear);
 
 /* Convert memory cache to disk cache. */
-void BKE_ptcache_mem_to_disk(struct PTCacheID *pid);
+void BKE_ptcache_mem_to_disk(struct PTCacheID *pid, bool clear);
 
 /* Convert disk cache to memory cache and vice versa. Clears the cache that was converted. */
 void BKE_ptcache_toggle_disk_cache(struct PTCacheID *pid);

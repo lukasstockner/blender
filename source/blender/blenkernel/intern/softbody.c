@@ -522,10 +522,8 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
 			mima->maxz = max_ff(mima->maxz, v[2] + hull);
 		}
 
-
-	mima++;
-	mface++;
-
+		mima++;
+		mface++;
 	}
 	return;
 }
@@ -707,7 +705,7 @@ static void add_2nd_order_roller(Object *ob, float UNUSED(stiffness), int *count
 						}
 					}
 					if ((bs2->v2 !=notthis)&&(bs2->v2 > v0)) {
-					(*counter)++;/*hit */
+						(*counter)++;  /* hit */
 						if (addsprings) {
 							bs3->v1= v0;
 							bs3->v2= bs2->v2;
@@ -1037,6 +1035,7 @@ static int sb_detect_aabb_collisionCached(float UNUSED(force[3]), unsigned int U
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 #if 0			/* UNUSED */
@@ -1078,6 +1077,7 @@ static int sb_detect_aabb_collisionCached(float UNUSED(force[3]), unsigned int U
 				}
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1116,6 +1116,7 @@ static int sb_detect_face_pointCached(float face_v1[3], float face_v2[3], float 
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MVert *mvert= NULL;
@@ -1179,6 +1180,7 @@ static int sb_detect_face_pointCached(float face_v1[3], float face_v2[3], float 
 				} /* if (mvert) */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1208,6 +1210,7 @@ static int sb_detect_face_collisionCached(float face_v1[3], float face_v2[3], fl
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1317,6 +1320,7 @@ static int sb_detect_face_collisionCached(float face_v1[3], float face_v2[3], fl
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1436,6 +1440,7 @@ static int sb_detect_edge_collisionCached(float edge_v1[3], float edge_v2[3], fl
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1557,6 +1562,7 @@ static int sb_detect_edge_collisionCached(float edge_v1[3], float edge_v2[3], fl
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1641,7 +1647,7 @@ static void scan_for_ext_spring_forces(Scene *scene, Object *ob, float timenow)
 	SoftBody *sb = ob->soft;
 	ListBase *do_effector = NULL;
 
-	do_effector = pdInitEffectors(scene, ob, NULL, sb->effector_weights, true);
+	do_effector = pdInitEffectors(scene, ob, NULL, sb->effector_weights);
 	_scan_for_ext_spring_forces(scene, ob, timenow, 0, sb->totspring, do_effector);
 	pdEndEffectors(&do_effector);
 }
@@ -1661,7 +1667,7 @@ static void sb_sfesf_threads_run(Scene *scene, struct Object *ob, float timenow,
 	int i, totthread, left, dec;
 	int lowsprings =100; /* wild guess .. may increase with better thread management 'above' or even be UI option sb->spawn_cf_threads_nopts */
 
-	do_effector= pdInitEffectors(scene, ob, NULL, ob->soft->effector_weights, true);
+	do_effector= pdInitEffectors(scene, ob, NULL, ob->soft->effector_weights);
 
 	/* figure the number of threads while preventing pretty pointless threading overhead */
 	totthread= BKE_scene_num_threads(scene);
@@ -1764,6 +1770,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1801,7 +1808,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 				else {
 					/*aye that should be cached*/
 					printf("missing cache error\n");
-						BLI_ghashIterator_step(ihash);
+					BLI_ghashIterator_step(ihash);
 					continue;
 				}
 
@@ -1919,16 +1926,16 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 								if (facedist > outerfacethickness*ff)
 									force_mag_norm =(float)force_mag_norm*fa*(facedist - outerfacethickness)*(facedist - outerfacethickness);
 								*damp=ob->pd->pdef_sbdamp;
-							if (facedist > 0.0f) {
-								*damp *= (1.0f - facedist/outerfacethickness);
-								Vec3PlusStVec(outerforceaccu, force_mag_norm, d_nvect);
-								deflected = 3;
+								if (facedist > 0.0f) {
+									*damp *= (1.0f - facedist/outerfacethickness);
+									Vec3PlusStVec(outerforceaccu, force_mag_norm, d_nvect);
+									deflected = 3;
 
-							}
-							else {
-								Vec3PlusStVec(innerforceaccu, force_mag_norm, d_nvect);
-								if (deflected < 2) deflected = 2;
-							}
+								}
+								else {
+									Vec3PlusStVec(innerforceaccu, force_mag_norm, d_nvect);
+									if (deflected < 2) deflected = 2;
+								}
 
 								if ((mprevvert) && (*damp > 0.0f)) {
 									choose_winner(ve, opco, nv1, nv3, nv4, vv1, vv3, vv4);
@@ -1999,6 +2006,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 
 	if (deflected == 1) { // no face but 'outer' edge cylinder sees vert
@@ -2337,14 +2345,14 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 				float kd = 1.0f;
 
 				if (sb_deflect_face(ob, bp->pos, facenormal, defforce, &cf, timenow, vel, &intrusion)) {
-						if (intrusion < 0.0f) {
-							sb->scratch->flag |= SBF_DOFUZZY;
-							bp->loc_flag |= SBF_DOFUZZY;
-							bp->choke = sb->choke*0.01f;
-						}
+					if (intrusion < 0.0f) {
+						sb->scratch->flag |= SBF_DOFUZZY;
+						bp->loc_flag |= SBF_DOFUZZY;
+						bp->choke = sb->choke*0.01f;
+					}
 
-							sub_v3_v3v3(cfforce, bp->vec, vel);
-							Vec3PlusStVec(bp->force, -cf*50.0f, cfforce);
+					sub_v3_v3v3(cfforce, bp->vec, vel);
+					Vec3PlusStVec(bp->force, -cf*50.0f, cfforce);
 
 					Vec3PlusStVec(bp->force, kd, defforce);
 				}
@@ -2467,7 +2475,7 @@ static void softbody_calc_forcesEx(Scene *scene, Object *ob, float forcetime, fl
 	sb_sfesf_threads_run(scene, ob, timenow, sb->totspring, NULL);
 
 	/* after spring scan because it uses Effoctors too */
-	do_effector= pdInitEffectors(scene, ob, NULL, sb->effector_weights, true);
+	do_effector= pdInitEffectors(scene, ob, NULL, sb->effector_weights);
 
 	if (do_deflector) {
 		float defforce[3];
@@ -2542,7 +2550,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 
 		if (do_springcollision || do_aero)  scan_for_ext_spring_forces(scene, ob, timenow);
 		/* after spring scan because it uses Effoctors too */
-		do_effector= pdInitEffectors(scene, ob, NULL, ob->soft->effector_weights, true);
+		do_effector= pdInitEffectors(scene, ob, NULL, ob->soft->effector_weights);
 
 		if (do_deflector) {
 			float defforce[3];
@@ -3486,7 +3494,7 @@ static void makelatticesprings(Lattice *lt,	BodySpring *bs, int dostiff, Object 
 							bs->v1 = bpc;
 							bs->v2 = bpc+dw+dv-1;
 							bs->springtype=SB_BEND;
-							 bs->len= globallen((bp+dw+dv-1)->vec, bp->vec, ob);
+							bs->len= globallen((bp+dw+dv-1)->vec, bp->vec, ob);
 							bs++;
 						}
 					}

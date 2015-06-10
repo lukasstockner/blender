@@ -2425,6 +2425,71 @@ void interp_weights_face_v3(float w[4], const float v1[3], const float v2[3], co
 	}
 }
 
+void interp_weights_face_v3_index(int tri[3], float w[4], const float v1[3], const float v2[3], const float v3[3], const float v4[3], const float co[3])
+{
+	float w2[3];
+
+	w[0] = w[1] = w[2] = w[3] = 0.0f;
+	tri[0] = tri[1] = tri[2] = -1;
+
+	/* first check for exact match */
+	if (equals_v3v3(co, v1)) {
+		w[0] = 1.0f;
+		tri[0] = 0; tri[1] = 1; tri[2] = 3;
+	}
+	else if (equals_v3v3(co, v2)) {
+		w[1] = 1.0f;
+		tri[0] = 0; tri[1] = 1; tri[2] = 3;
+	}
+	else if (equals_v3v3(co, v3)) {
+		w[2] = 1.0f;
+		tri[0] = 1; tri[1] = 2; tri[2] = 3;
+	}
+	else if (v4 && equals_v3v3(co, v4)) {
+		w[3] = 1.0f;
+		tri[0] = 1; tri[1] = 2; tri[2] = 3;
+	}
+	else {
+		/* otherwise compute barycentric interpolation weights */
+		float n1[3], n2[3], n[3];
+		bool degenerate;
+
+		sub_v3_v3v3(n1, v1, v3);
+		if (v4) {
+			sub_v3_v3v3(n2, v2, v4);
+		}
+		else {
+			sub_v3_v3v3(n2, v2, v3);
+		}
+		cross_v3_v3v3(n, n1, n2);
+
+		/* OpenGL seems to split this way, so we do too */
+		if (v4) {
+			degenerate = barycentric_weights(v1, v2, v4, co, n, w);
+			SWAP(float, w[2], w[3]);
+			tri[0] = 0; tri[1] = 1; tri[2] = 3;
+
+			if (degenerate || (w[0] < 0.0f)) {
+				/* if w[1] is negative, co is on the other side of the v1-v3 edge,
+				 * so we interpolate using the other triangle */
+				degenerate = barycentric_weights(v2, v3, v4, co, n, w2);
+
+				if (!degenerate) {
+					w[0] = 0.0f;
+					w[1] = w2[0];
+					w[2] = w2[1];
+					w[3] = w2[2];
+					tri[0] = 1; tri[1] = 2; tri[2] = 3;
+				}
+			}
+		}
+		else {
+			barycentric_weights(v1, v2, v3, co, n, w);
+			tri[0] = 0; tri[1] = 1; tri[2] = 2;
+		}
+	}
+}
+
 /* return 1 of point is inside triangle, 2 if it's on the edge, 0 if point is outside of triangle */
 int barycentric_inside_triangle_v2(const float w[3])
 {
@@ -3100,6 +3165,43 @@ void resolve_quad_uv_v2_deriv(float r_uv[2], float r_deriv[2][2],
 		}
 	}
 }
+
+/* a version of resolve_quad_uv_v2 that only calculates the 'u' */
+float resolve_quad_u_v2(
+        const float st[2],
+        const float st0[2], const float st1[2], const float st2[2], const float st3[2])
+{
+	const double signed_area = (st0[0] * st1[1] - st0[1] * st1[0]) + (st1[0] * st2[1] - st1[1] * st2[0]) +
+	                           (st2[0] * st3[1] - st2[1] * st3[0]) + (st3[0] * st0[1] - st3[1] * st0[0]);
+
+	/* X is 2D cross product (determinant)
+	 * A = (p0 - p) X (p0 - p3)*/
+	const double a = (st0[0] - st[0]) * (st0[1] - st3[1]) - (st0[1] - st[1]) * (st0[0] - st3[0]);
+
+	/* B = ( (p0 - p) X (p1 - p2) + (p1 - p) X (p0 - p3) ) / 2 */
+	const double b = 0.5 * (double)(((st0[0] - st[0]) * (st1[1] - st2[1]) - (st0[1] - st[1]) * (st1[0] - st2[0])) +
+	                                ((st1[0] - st[0]) * (st0[1] - st3[1]) - (st1[1] - st[1]) * (st0[0] - st3[0])));
+
+	/* C = (p1-p) X (p1-p2) */
+	const double fC = (st1[0] - st[0]) * (st1[1] - st2[1]) - (st1[1] - st[1]) * (st1[0] - st2[0]);
+	double denom = a - 2 * b + fC;
+
+	if (IS_ZERO(denom) != 0) {
+		const double fDen = a - fC;
+		if (IS_ZERO(fDen) == 0)
+			return (float)(a / fDen);
+		else
+			return 0.0f;
+	}
+	else {
+		const double desc_sq = b * b - a * fC;
+		const double desc = sqrt(desc_sq < 0.0 ? 0.0 : desc_sq);
+		const double s = signed_area > 0 ? (-1.0) : 1.0;
+
+		return (float)(((a - b) + s * desc) / denom);
+	}
+}
+
 
 #undef IS_ZERO
 

@@ -155,19 +155,35 @@ typedef struct Library {
 
 enum eIconSizes {
 	ICON_SIZE_ICON = 0,
-	ICON_SIZE_PREVIEW = 1
+	ICON_SIZE_PREVIEW = 1,
+
+	NUM_ICON_SIZES
 };
-#define NUM_ICON_SIZES (ICON_SIZE_PREVIEW + 1)
+
+/* for PreviewImage->flag */
+enum ePreviewImage_Flag {
+	PRV_CHANGED          = (1 << 0),
+	PRV_USER_EDITED      = (1 << 1),  /* if user-edited, do not auto-update this anymore! */
+};
 
 typedef struct PreviewImage {
 	/* All values of 2 are really NUM_ICON_SIZES */
 	unsigned int w[2];
 	unsigned int h[2];
-	short changed[2];
+	short flag[2];
 	short changed_timestamp[2];
 	unsigned int *rect[2];
+
+	/* Runtime-only data. */
 	struct GPUTexture *gputexture[2];
+	int icon_id;  /* Used by previews outside of ID context. */
+
+	char pad[3];
+	char use_deferred;  /* for now a mere bool, if we add more deferred loading methods we can switch to bitflag. */
 } PreviewImage;
+
+#define PRV_DEFERRED_DATA(prv) \
+	(CHECK_TYPE_INLINE(prv, PreviewImage *), BLI_assert((prv)->use_deferred), (void *)((prv) + 1))
 
 /**
  * Defines for working with IDs.
@@ -222,6 +238,7 @@ typedef struct PreviewImage {
 #define ID_LS		MAKE_ID2('L', 'S') /* FreestyleLineStyle */
 #define ID_PAL		MAKE_ID2('P', 'L') /* Palette */
 #define ID_PC		MAKE_ID2('P', 'C') /* PaintCurve  */
+#define ID_CL		MAKE_ID2('C', 'L') /* CacheLibrary */
 
 	/* NOTE! Fake IDs, needed for g.sipo->blocktype or outliner */
 #define ID_SEQ		MAKE_ID2('S', 'Q')

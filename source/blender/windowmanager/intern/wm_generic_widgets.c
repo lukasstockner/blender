@@ -657,7 +657,9 @@ static void rect_transform_draw_corners(rctf *r, float offsetx, float offsety)
 static void rect_transform_draw_interaction(int highlighted, float half_w, float half_h, float w, float h)
 {
 	float verts[4][2];
+#if 0
 	unsigned short elems[4] = {0, 1, 3, 2};
+#endif
 	
 	switch (highlighted) {
 		case WIDGET_RECT_TRANSFORM_INTERSECT_SCALEX_LEFT:
@@ -1040,6 +1042,13 @@ struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int sty
 	wm_widget_register(wgroup, &cage->widget);
 	
 	return (wmWidget *)cage;
+}
+
+void WIDGET_rect_transform_set_offset(struct wmWidget *widget, float offset[2])
+{
+	RectTransformWidget *cage = (RectTransformWidget *)widget;
+
+	copy_v2_v2(cage->offset, offset);
 }
 
 /********* Facemap widget ************/

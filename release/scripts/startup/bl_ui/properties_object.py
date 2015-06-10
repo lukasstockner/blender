@@ -18,8 +18,9 @@
 
 # <pep8 compliant>
 import bpy
-from bpy.types import Panel, Menu
+from bpy.types import Panel, Menu, UIList
 from rna_prop_ui import PropertyPanel
+from bl_ui.properties_physics_common import effector_weights_ui
 
 
 class ObjectButtonsPanel:
@@ -261,6 +262,62 @@ class OBJECT_PT_display(ObjectButtonsPanel, Panel):
             row.prop(obj, "show_wire_color", text="", toggle=True, icon='WIRE')
 
 
+# XXX temporary solution
+bpy.types.CacheLibrary.filter_string = \
+    bpy.props.StringProperty(
+        name="Filter Object Name",
+        description="Filter cache library objects by name",
+        )
+bpy.types.CacheLibrary.show_metadata = \
+    bpy.props.BoolProperty(
+        name="Show Metadata",
+        description="Show metadata for the input archive",
+        default=False,
+        )
+
+
+def cachelib_objects(cachelib, group):
+    if not cachelib or not group:
+        return []
+    
+    filter_string = cachelib.filter_string.lower()
+    if filter_string:
+        return filter(lambda ob: filter_string in ob.name.lower(), group.objects)
+    else:
+        return group.objects
+
+# Yields (type, index, enabled)
+def cachelib_object_items(cachelib, ob):
+    filter_types = cachelib.data_types
+
+    def items_desc():
+        yield 'OBJECT', -1
+        
+        if (ob.type == 'MESH'):
+            yield 'DERIVED_MESH', -1
+
+        for index, psys in enumerate(ob.particle_systems):
+            if psys.settings.type == 'EMITTER':
+                yield 'PARTICLES', index
+            if psys.settings.type == 'HAIR':
+                yield 'HAIR', index
+                yield 'HAIR_PATHS', index
+
+    for datatype, index in items_desc():
+        show = False
+        enable = False
+        # always show selected types
+        if datatype in filter_types:
+            show = True
+            enable = True
+        # special case: OBJECT type used as top level, show but disable
+        elif datatype == 'OBJECT':
+            show = True
+            enable = False
+        
+        if show:
+            yield datatype, index, enable
+
 class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
     bl_label = "Duplication"
 
@@ -296,6 +353,470 @@ class OBJECT_PT_duplication(ObjectButtonsPanel, Panel):
 
         elif ob.dupli_type == 'GROUP':
             layout.prop(ob, "dupli_group", text="Group")
+
+
+
+class CACHELIB_MT_shape_key_specials(Menu):
+    bl_label = "Shape Key Specials"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        #layout.operator("object.shape_key_transfer", icon='COPY_ID')  # icon is not ideal
+        #layout.operator("object.join_shapes", icon='COPY_ID')  # icon is not ideal
+        layout.operator("cachelibrary.shape_key_add", icon='ZOOMIN', text="New Shape From Mix").from_mix = True
+        layout.operator("cachelibrary.shape_key_remove", icon='X', text="Delete All Shapes").all = True
+        layout.operator("cachelibrary.shape_key_move", icon='TRIA_UP_BAR', text="Move To Top").type = 'TOP'
+        layout.operator("cachelibrary.shape_key_move", icon='TRIA_DOWN_BAR', text="Move To Bottom").type = 'BOTTOM'
+
+
+class CACHELIB_UL_shape_keys(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        # assert(isinstance(item, bpy.types.ShapeKey))
+        md = active_data
+        # key = data
+        key_block = item
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            split = layout.split(0.66, False)
+            split.prop(key_block, "name", text="", emboss=False, icon_value=icon)
+            row = split.row(align=True)
+            if key_block.mute:
+                row.active = False
+            if not item.id_data.use_relative:
+                row.prop(key_block, "frame", text="", emboss=False)
+            elif index > 0:
+                row.prop(key_block, "value", text="", emboss=False)
+            else:
+                row.label(text="")
+            row.prop(key_block, "mute", text="", emboss=False)
+        elif self.layout_type == 'GRID':
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
+class CACHELIBRARY_MT_hair_simulation_presets(Menu):
+    bl_label = "Hair Simulation Presets"
+    preset_subdir = "cachelibrary_hair_simulation"
+    preset_operator = "script.execute_preset"
+    COMPAT_ENGINES = {'BLENDER_RENDER', 'BLENDER_GAME'}
+    draw = Menu.draw_preset
+
+
+class CacheArchiveInfoPanel():
+    def draw_node_structure(self, context, layout, node, indent):
+        row = layout.row()
+        for i in range(indent):
+            row.label(text="", icon='BLANK1')
+        
+        if not node.child_nodes:
+            row.label(text="", icon='DOT')
+        elif not node.expand:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_RIGHT', icon_only=True, emboss=False)
+        else:
+            row.prop(node, "expand", text="", icon='DISCLOSURE_TRI_DOWN', icon_only=True, emboss=False)
+
+            for child in node.child_nodes:
+                self.draw_node_structure(context, layout, child, indent + 1)
+
+
+    info_columns = ['Name', 'Node', 'Samples', 'Size', 'Data', '', 'Array Size']
+
+    def draw_node_info(self, context, layout, node, column):
+        if column == 0:
+            layout.prop(node, "name", text="")
+        if column == 1:
+            layout.prop(node, "type", text="")
+        if column == 2:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "samples", text="")
+            else:
+                layout.label(" ")
+        if column == 3:
+            size = int(node.bytes_size)
+            layout.label(sizeof_fmt(size) if size >= 0 else "-")
+        if column == 4:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype", text="")
+            else:
+                layout.label(" ")
+        if column == 5:
+            if node.type in {'SCALAR_PROPERTY', 'ARRAY_PROPERTY'}:
+                layout.prop(node, "datatype_extent", text="")
+            else:
+                layout.label(" ")
+        if column == 6:
+            if node.type in {'ARRAY_PROPERTY'}:
+                layout.label(node.array_size if node.array_size >= 0 else "-")
+            else:
+                layout.label(" ")
+
+        if node.expand:
+            for child in node.child_nodes:
+                self.draw_node_info(context, layout, child, column)
+
+    def draw_info(self, context, layout, info, metadata=None):
+        row = layout.row(align=True)
+        row.label("Created by: {} | {}".format(info.app_name if info.app_name else "-", info.date_written if info.date_written else "-"))
+        if info.description:
+            layout.label(info.description)
+
+        if metadata:
+            row = layout.row(align=True)
+            col_key = row.column()
+            col_value = row.column()
+            for key, value in metadata.items():
+                col_key.label(key)
+                col_value.label(str(value))
+
+        if info.root_node:
+            row = layout.row()
+
+            col = row.column()
+            col.label(" ")
+            self.draw_node_structure(context, col, info.root_node, 0)
+
+            for i, column in enumerate(self.info_columns):
+                col = row.column()
+                col.label(column)
+                self.draw_node_info(context, col, info.root_node, i)
+
+
+class OBJECT_PT_cache_library(CacheArchiveInfoPanel, ObjectButtonsPanel, Panel):
+    bl_label = "Cache"
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group)
+
+    def draw_cache_modifier(self, context, layout, cachelib, md):
+        layout.context_pointer_set("cache_library", cachelib)
+        layout.context_pointer_set("cache_modifier", md)
+
+        row = layout.row(align=True)
+        row.context_pointer_set("cache_modifier", md)
+        row.prop(md, "name", text="")
+        row.operator("cachelibrary.remove_modifier", icon='X', text="", emboss=False)
+
+        # match enum type to our functions, avoids a lookup table.
+        getattr(self, md.type)(context, layout, cachelib, md)
+
+    def draw_cachelib(self, context, layout, ob, cachelib, objects):
+        box = layout.box()
+        row = box.row()
+        row.label("Source:")
+        row.prop(cachelib, "source_mode", text="Source", expand=True)
+        row = box.row(align=True)
+        row.enabled = (cachelib.source_mode == 'CACHE')
+        row.prop(cachelib, "input_filepath", text="")
+        row.prop(cachelib, "show_metadata", text="", icon='QUESTION', toggle=True)
+        if cachelib.show_metadata and cachelib.archive_info:
+            self.draw_info(context, box, cachelib.archive_info, cachelib['input_metadata'])
+
+        layout.separator()
+
+        layout.prop(cachelib, "display_mode", expand=True)
+        row = layout.row()
+        split = row.split()
+        col = split.column()
+        col.label("Display:")
+        col.prop(cachelib, "display_motion", text="Motion")
+        col.prop(cachelib, "display_children", text="Children")
+
+        layout.separator()
+
+        row = layout.row(align=True)
+        row.enabled = (cachelib.display_mode == 'RESULT')
+        row.prop(cachelib, "output_filepath", text="")
+
+        box = layout.box()
+        row = box.row()
+        
+        col = row.column()
+        row2 = col.row()
+        row2.alignment = 'LEFT'
+        row2.prop(cachelib, "data_types", icon_only=True, toggle=True)
+        row2.template_ID(cachelib, "filter_group")
+        col.prop(cachelib, "description")
+        col = row.column()
+        props = col.operator("cachelibrary.bake", text="Bake Preview", icon='RESTRICT_VIEW_OFF')
+        props.eval_mode = {'PREVIEW'}
+        if context.scene.use_preview_range:
+            props.start_frame = context.scene.frame_preview_start
+            props.end_frame = context.scene.frame_preview_end
+        else:
+            props.start_frame = context.scene.frame_start
+            props.end_frame = context.scene.frame_end
+        props = col.operator("cachelibrary.bake", text="Bake Render", icon='RESTRICT_RENDER_OFF')
+        props.eval_mode = {'RENDER'}
+        props.start_frame = context.scene.frame_start
+        props.end_frame = context.scene.frame_end
+
+        '''
+        row = layout.row(align=True)
+        row.label("Filter:")
+        row.prop(cachelib, "filter_string", icon='VIEWZOOM', text="")
+
+        first = True
+        for ob in objects:
+            if not any(cachelib_object_items(cachelib, ob)):
+                continue
+
+            if first:
+                layout.separator()
+                first = False
+
+            for datatype, index, enable in cachelib_object_items(cachelib, ob):
+                row = layout.row(align=True)
+                row.alignment = 'LEFT'
+                row.template_cache_library_item(cachelib, ob, datatype, index, enable)
+        '''
+    
+        layout.operator_menu_enum("cachelibrary.add_modifier", "type")
+
+        for md in cachelib.modifiers:
+            box = layout.box()
+            self.draw_cache_modifier(context, box, cachelib, md)
+
+    def draw(self, context):
+        ob = context.object
+
+        layout = self.layout
+        row = layout.row(align=True)
+        row.template_ID(ob, "cache_library", new="cachelibrary.new")
+
+        if ob.cache_library:
+            cache_objects = cachelib_objects(ob.cache_library, ob.dupli_group)
+            self.draw_cachelib(context, layout, ob, ob.cache_library, cache_objects)
+
+    def HAIR_SIMULATION(self, context, layout, cachelib, md):
+        params = md.parameters
+
+        col = layout.column(align=True)
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        sub = col.column()
+        if (md.object):
+            sub.prop_search(md, "hair_system", md.object, "particle_systems")
+        else:
+            sub.enabled = False
+            sub.prop(md, "hair_system")
+
+        layout = layout.column()
+        layout.active = md.hair_system is not None
+
+        row = layout.row(align=True)
+        row.menu("CACHELIBRARY_MT_hair_simulation_presets", text=bpy.types.CACHELIBRARY_MT_hair_simulation_presets.bl_label)
+        props = row.operator("cachelibrary.hair_simulation_preset_add", text="", icon='ZOOMIN')
+        props.modifier_name = md.name
+        props = row.operator("cachelibrary.hair_simulation_preset_add", text="", icon='ZOOMOUT')
+        props.modifier_name = md.name
+        props.remove_active = True
+
+        col = layout.column()
+        col.prop(params, "substeps")
+        col.prop(params, "timescale")
+        col.prop(params, "mass")
+        col.prop(params, "drag")
+
+        row = col.row(align=True)
+        row.prop(params, "stretch_stiffness")
+        row.prop(params, "stretch_damping")
+
+        row = col.row(align=True)
+        row.prop(params, "bend_stiffness")
+        row.prop(params, "bend_damping")
+        row.prop(params, "use_bend_stiffness_curve")
+        if params.use_bend_stiffness_curve:
+            sub = col.column()
+            sub.template_curve_mapping(params, "bend_stiffness_curve")
+
+        row = col.row(align=True)
+        row.prop(params, "goal_stiffness")
+        row.prop(params, "goal_damping")
+        row = col.row(align=True)
+        row.prop(params, "use_goal_stiffness_curve")
+        row.prop(params, "use_goal_deflect")
+        if params.use_goal_stiffness_curve:
+            sub = col.column()
+            sub.template_curve_mapping(params, "goal_stiffness_curve")
+
+        layout.separator()
+
+        effector_weights_ui(self, context, params.effector_weights, 'HAIR')
+
+    def FORCE_FIELD(self, context, layout, cachelib, md):
+        layout.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+
+        layout.prop(md, "force_type", text="")
+
+        row = layout.row(align=True)
+        row.prop(md, "strength")
+        row.prop(md, "falloff")
+
+        col = layout.column(align=True)
+        row = layout.row(align=True)
+        row.prop(md, "min_distance")
+        row.prop(md, "max_distance")
+        col.prop(md, "use_double_sided")
+
+    def HAIRCUT(self, context, layout, cachelib, md):
+        col = layout.column(align=True)
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        sub = col.column()
+        if (md.object):
+            sub.prop_search(md, "hair_system", md.object, "particle_systems")
+        else:
+            sub.enabled = False
+            sub.prop(md, "hair_system")
+
+        row = layout.row()
+        row.prop_search(md, "target", context.blend_data, "objects", icon='OBJECT_DATA')
+        row.prop(md, "use_internal_target", text="Internal")
+        layout.prop(md, "cut_mode", toggle=True, expand=True)
+
+        layout = layout.column()
+        layout.active = md.hair_system is not None
+
+    def SHRINK_WRAP(self, context, layout, cachelib, md):
+        col = layout.column(align=True)
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        sub = col.column()
+        if (md.object):
+            sub.prop_search(md, "hair_system", md.object, "particle_systems")
+        else:
+            sub.enabled = False
+            sub.prop(md, "hair_system")
+
+        row = layout.row()
+        row.prop_search(md, "target", context.blend_data, "objects", icon='OBJECT_DATA')
+        row.prop(md, "use_internal_target", text="Internal")
+
+        layout = layout.column()
+        layout.active = md.hair_system is not None
+
+    def STRANDS_KEY(self, context, layout, cachelib, md):
+        col = layout.column(align=True)
+        col.prop_search(md, "object", context.blend_data, "objects", icon='OBJECT_DATA')
+        sub = col.column()
+        if (md.object):
+            sub.prop_search(md, "hair_system", md.object, "particle_systems")
+        else:
+            sub.enabled = False
+            sub.prop(md, "hair_system")
+
+        key = md.shape_keys
+        kb = md.active_shape_key
+        kb_index = md.active_shape_key_index
+
+        row = layout.row()
+
+        rows = 2
+        if kb:
+            rows = 4
+        row.template_list("CACHELIB_UL_shape_keys", "", key, "key_blocks", md, "active_shape_key_index", rows=rows)
+
+        col = row.column()
+
+        sub = col.column(align=True)
+        #sub.operator("object.shape_key_add", icon='ZOOMIN', text="").from_mix = False
+        #sub.operator("object.shape_key_remove", icon='ZOOMOUT', text="").all = False
+        sub.menu("CACHELIB_MT_shape_key_specials", icon='DOWNARROW_HLT', text="")
+
+        col.prop(md, "use_motion_state")
+
+        if kb:
+            col.separator()
+
+            sub = col.column(align=True)
+            #sub.operator("object.shape_key_move", icon='TRIA_UP', text="").type = 'UP'
+            #sub.operator("object.shape_key_move", icon='TRIA_DOWN', text="").type = 'DOWN'
+
+            split = layout.split(percentage=0.4)
+            row = split.row()
+            row.prop(key, "use_relative")
+
+            row = split.row()
+            row.alignment = 'RIGHT'
+
+            sub = row.row(align=True)
+            sub.label()  # XXX, for alignment only
+            subsub = sub.row(align=True)
+            subsub.prop(md, "show_only_shape_key", text="")
+
+            sub = row.row()
+            #if key.use_relative:
+            #    sub.operator("object.shape_key_clear", icon='X', text="")
+            #else:
+            #    sub.operator("object.shape_key_retime", icon='RECOVER_LAST', text="")
+
+            if key.use_relative:
+                if kb_index != 0:
+                    row = layout.row()
+                    row.prop(kb, "value")
+
+                    split = layout.split()
+
+                    col = split.column(align=True)
+                    col.label(text="Range:")
+                    col.prop(kb, "slider_min", text="Min")
+                    col.prop(kb, "slider_max", text="Max")
+
+                    col = split.column(align=True)
+                    col.label(text="Blend:")
+                    #col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="")
+                    col.prop_search(kb, "relative_key", key, "key_blocks", text="")
+
+            else:
+                layout.prop(kb, "interpolation")
+                row = layout.column()
+                row.prop(key, "eval_time")
+
+
+# Simple human-readable size (based on http://stackoverflow.com/a/1094933)
+def sizeof_fmt(num, suffix='B'):
+    for unit in ['','K','M','G','T','P','E','Z']:
+        if abs(num) < 1024.0:
+            return "%3.1f%s%s" % (num, unit, suffix)
+        num /= 1024.0
+    return "%.1f%s%s" % (num, 'Y', suffix)
+
+class OBJECT_PT_cache_archive_info(CacheArchiveInfoPanel, ObjectButtonsPanel, Panel):
+    bl_label = "Cache Archive Info"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        ob = context.object
+        return (ob and ob.dupli_type == 'GROUP' and ob.dupli_group and ob.cache_library)
+
+    def draw(self, context):
+        ob = context.object
+        cachelib = ob.cache_library
+        info = cachelib.archive_info
+
+        layout = self.layout
+        
+        row = layout.row()
+        props = row.operator("cachelibrary.archive_info", text="Input", icon='QUESTION')
+        props.filepath = cachelib.input_filepath
+        props.use_cache_info = True
+        props = row.operator("cachelibrary.archive_info", text="Output", icon='QUESTION')
+        props.filepath = cachelib.output_filepath
+        props.use_cache_info = True
+
+        if info:
+            row = layout.row()
+            row.enabled = bool(info.filepath)
+            props = layout.operator("cachelibrary.archive_info", text="Calculate Size", icon='FILE_REFRESH')
+            props.filepath = info.filepath
+            props.use_cache_info = True
+            props.calc_bytes_size = True
+
+            layout.separator()
+
+            layout.prop(info, "filepath", text="File")
+            self.draw_info(context, layout, info)
 
 
 class OBJECT_PT_relations_extras(ObjectButtonsPanel, Panel):

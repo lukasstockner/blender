@@ -27,6 +27,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_compiler_attrs.h"
+#include "BLI_string.h"
 
 /* for MinGW32 definition of NULL, could use BLI_blenlib.h instead too */
 #include <stddef.h>
@@ -35,11 +36,13 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_brush_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_key_types.h"
 #include "DNA_sdna_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_object_types.h"
@@ -48,13 +51,20 @@
 #include "DNA_particle_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_actuator_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_view3d_types.h"
+#include "DNA_smoke_types.h"
 
 #include "DNA_genfile.h"
 
+#include "BKE_colortools.h"
 #include "BKE_main.h"
 #include "BKE_modifier.h"
 #include "BKE_node.h"
+#include "BKE_scene.h"
+#include "BKE_sequencer.h"
 #include "BKE_screen.h"
+#include "BKE_sequencer.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"
@@ -508,10 +518,10 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			br->mtex.random_angle = 2.0 * M_PI;
 			br->mask_mtex.random_angle = 2.0 * M_PI;
 		}
+	}
 
 #undef BRUSH_RAKE
 #undef BRUSH_RANDOM_ROTATION
-	}
 
 	if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "float", "clump_noise_size")) {
 		ParticleSettings *part;
@@ -739,18 +749,6 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 				}
 			}
 		}
-
-		if (!DNA_struct_elem_find(fd->filesdna, "bSteeringActuator", "float", "acceleration")) {
-			for (ob = main->object.first; ob; ob = ob->id.next) {
-				bActuator *act;
-				for (act = ob->actuators.first; act; act = act->next) {
-					if (act->type == ACT_STEERING) {
-						bSteeringActuator *sact = act->data;
-						sact->acceleration = 1000.f;
-					}
-				}
-			}
-		}
 	}
 
 	if (!MAIN_VERSION_ATLEAST(main, 273, 9)) {
@@ -797,6 +795,288 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 					}
 				}
 			}
+		}
+		
+		/* particle systems need to be forced to redistribute for jitter mode fix */
+		{
+			Object *ob;
+			ParticleSystem *psys;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+					psys->recalc |= PSYS_RECALC_RESET;
+				}
+			}
+		}
+
+		/* hysteresis setted to 10% but not actived */
+		if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				LodLevel *level;
+				for (level = ob->lodlevels.first; level; level = level->next) {
+					level->obhysteresis = 10;
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "int", "scehysteresis")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.scehysteresis = 10;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 2)) {
+		FOREACH_NODETREE(main, ntree, id) {
+			bNode *node;
+			bNodeSocket *sock;
+
+			for (node = ntree->nodes.first; node; node = node->next) {
+				if (node->type == SH_NODE_MATERIAL) {
+					for (sock = node->inputs.first; sock; sock = sock->next) {
+						if (STREQ(sock->name, "Refl")) {
+							BLI_strncpy(sock->name, "DiffuseIntensity", sizeof(sock->name));
+						}
+					}
+				}
+				else if (node->type == SH_NODE_MATERIAL_EXT) {
+					for (sock = node->outputs.first; sock; sock = sock->next) {
+						if (STREQ(sock->name, "Refl")) {
+							BLI_strncpy(sock->name, "DiffuseIntensity", sizeof(sock->name));
+						}
+						else if (STREQ(sock->name, "Ray Mirror")) {
+							BLI_strncpy(sock->name, "Reflectivity", sizeof(sock->name));
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
+
+	{
+		bScreen *scr;
+		ScrArea *sa;
+		SpaceLink *sl;
+		ARegion *ar;
+		/* Make sure sequencer preview area limits zoom */
+		for (scr = main->screen.first; scr; scr = scr->id.next) {
+			for (sa = scr->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_SEQ) {
+						ListBase *lb = (sl == sa->spacedata.first) ? &sa->regionbase : &sl->regionbase;
+
+						for (ar = lb->first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_WINDOW) {
+								ar->v2d.max[1] = MAXSEQ * 4;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 4)) {
+		SceneRenderView *srv;
+		wmWindowManager *wm;
+		bScreen *screen;
+		wmWindow *win;
+		Scene *scene;
+		Camera *cam;
+		Image *ima;
+
+		for (scene = main->scene.first; scene; scene = scene->id.next) {
+			Sequence *seq;
+
+			BKE_scene_add_render_view(scene, STEREO_LEFT_NAME);
+			srv = scene->r.views.first;
+			BLI_strncpy(srv->suffix, STEREO_LEFT_SUFFIX, sizeof(srv->suffix));
+
+			BKE_scene_add_render_view(scene, STEREO_RIGHT_NAME);
+			srv = scene->r.views.last;
+			BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
+
+			SEQ_BEGIN (scene->ed, seq)
+			{
+				seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
+				/* patch sequencer scene strips (used to be the same flag before multiview merge)*/
+				if (seq->flag & SEQ_USE_VIEWS) {
+					seq->flag |= SEQ_SCENE_STRIPS;
+					seq->flag &= ~SEQ_USE_VIEWS;
+				}
+
+#define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
+#define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
+				if (seq->strip && seq->strip->proxy && !seq->strip->proxy->storage) {
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
+				}
+#undef SEQ_USE_PROXY_CUSTOM_DIR
+#undef SEQ_USE_PROXY_CUSTOM_FILE
+
+			}
+			SEQ_END
+		}
+
+		for (screen = main->screen.first; screen; screen = screen->id.next) {
+			ScrArea *sa;
+			for (sa = screen->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					switch (sl->spacetype) {
+						case SPACE_VIEW3D:
+						{
+							View3D *v3d = (View3D *)sl;
+							v3d->stereo3d_camera = STEREO_3D_ID;
+							v3d->stereo3d_flag |= V3D_S3D_DISPPLANE;
+							v3d->stereo3d_convergence_alpha = 0.15f;
+							v3d->stereo3d_volume_alpha = 0.05f;
+							break;
+						}
+						case SPACE_IMAGE:
+						{
+							SpaceImage *sima = (SpaceImage *) sl;
+							sima->iuser.flag |= IMA_SHOW_STEREO;
+							sima->iuser.passtype = SCE_PASS_COMBINED;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		for (cam = main->camera.first; cam; cam = cam->id.next) {
+			cam->stereo.interocular_distance = 0.065f;
+			cam->stereo.convergence_distance = 30.0f * 0.065f;
+		}
+
+		for (ima = main->image.first; ima; ima = ima->id.next) {
+			ima->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Image Stereo 3d Format");
+
+			if (ima->packedfile) {
+				ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image Packed File");
+				BLI_addtail(&ima->packedfiles, imapf);
+
+				imapf->packedfile = ima->packedfile;
+				BLI_strncpy(imapf->filepath, ima->name, FILE_MAX);
+				ima->packedfile = NULL;
+			}
+		}
+
+		for (wm = main->wm.first; wm; wm = wm->id.next) {
+			for (win = wm->windows.first; win; win = win->next) {
+				win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
+			}
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "SmokeDomainSettings", "float", "display_thickness")) {
+		Object *ob;
+		ModifierData *md;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_Smoke) {
+					SmokeModifierData *smd = (SmokeModifierData *)md;
+					if (smd->domain) {
+						smd->domain->display_thickness = 1.0f;
+					}
+				}
+			}
+		}
+	}
+	if (!DNA_struct_elem_find(fd->filesdna, "SpaceIpo", "float", "backdrop_zoom")) {
+		bScreen *sc;
+		for (sc = main->screen.first; sc; sc = sc->id.next) {
+			ScrArea *sa;
+			for (sa = sc->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_IPO) {
+						SpaceIpo *sipo = (SpaceIpo *)sl;
+						sipo->backdrop_zoom = 1.0f;
+						sipo->backdrop_opacity = 0.7f;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 6)) {
+		bScreen *screen;
+
+		if (!DNA_struct_elem_find(fd->filesdna, "FileSelectParams", "int", "thumbnail_size")) {
+			for (screen = main->screen.first; screen; screen = screen->id.next) {
+				ScrArea *sa;
+
+				for (sa = screen->areabase.first; sa; sa = sa->next) {
+					SpaceLink *sl;
+
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_FILE) {
+							SpaceFile *sfile = (SpaceFile *)sl;
+
+							if (sfile->params) {
+								sfile->params->thumbnail_size = 128;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "short", "simplify_subsurf_render")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
+				scene->r.simplify_subsurf_render = scene->r.simplify_subsurf;
+				scene->r.simplify_particles_render = scene->r.simplify_particles;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "DecimateModifierData", "float", "defgrp_factor")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Decimate) {
+						DecimateModifierData *dmd = (DecimateModifierData *)md;
+						dmd->defgrp_factor = 1.0f;
+					}
+				}
+			}
+		}
+	}
+
+	if (!DNA_struct_elem_find(fd->filesdna, "HairSimParams", "CurveMapping", "*bend_stiffness_mapping")) {
+		CacheLibrary *cachelib;
+		for (cachelib = main->cache_library.first; cachelib; cachelib = cachelib->id.next) {
+			CacheModifier *md;
+			for (md = cachelib->modifiers.first; md; md = md->next) {
+				if (md->type == eCacheModifierType_HairSimulation) {
+					HairSimCacheModifier *hsmd = (HairSimCacheModifier *)md;
+					{
+						CurveMapping *cm = curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+						cm->cm[0].curve[0].x = 0.0f;
+						cm->cm[0].curve[0].y = 1.0f;
+						cm->cm[0].curve[1].x = 1.0f;
+						cm->cm[0].curve[1].y = 1.0f;
+						hsmd->sim_params.bend_stiffness_mapping = cm;
+					}
+				}
+			}
+		}
+	}
+
+	/* from_extra has been moved to fromtype, fromindex */
+	if (!DNA_struct_elem_find(fd->filesdna, "Key", "int", "fromindex")) {
+		Key *key;
+		for (key = main->key.first; key; key = key->id.next) {
+			key->fromtype = key->from_extra.type;
+			key->fromindex = key->from_extra.index;
 		}
 	}
 }

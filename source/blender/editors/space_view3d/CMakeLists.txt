@@ -30,6 +30,7 @@ set(INC
 	../../makesrna
 	../../render/extern/include
 	../../windowmanager
+	../../depsgraph
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
 	../../../../intern/smoke/extern
@@ -45,6 +46,7 @@ set(SRC
 	drawmesh.c
 	drawobject.c
 	drawsimdebug.c
+	drawstrands.c
 	drawvolume.c
 	space_view3d.c
 	view3d_buttons.c

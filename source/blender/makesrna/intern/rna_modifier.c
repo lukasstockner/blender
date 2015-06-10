@@ -92,6 +92,7 @@ EnumPropertyItem modifier_type_items[] = {
 	{0, "", 0, N_("Deform"), ""},
 	{eModifierType_Armature, "ARMATURE", ICON_MOD_ARMATURE, "Armature", ""},
 	{eModifierType_Cast, "CAST", ICON_MOD_CAST, "Cast", ""},
+    {eModifierType_CorrectiveSmooth, "CORRECTIVE_SMOOTH", ICON_MOD_SMOOTH, "Corrective Smooth", ""},
 	{eModifierType_Curve, "CURVE", ICON_MOD_CURVE, "Curve", ""},
 	{eModifierType_Displace, "DISPLACE", ICON_MOD_DISPLACE, "Displace", ""},
 	{eModifierType_Hook, "HOOK", ICON_HOOK, "Hook", ""},
@@ -379,6 +380,8 @@ static StructRNA *rna_Modifier_refine(struct PointerRNA *ptr)
 			return &RNA_DataTransferModifier;
 		case eModifierType_NormalEdit:
 			return &RNA_NormalEditModifier;
+		case eModifierType_CorrectiveSmooth:
+			return &RNA_CorrectiveSmoothModifier;
 		/* Default */
 		case eModifierType_None:
 		case eModifierType_ShapeKey:
@@ -407,7 +410,7 @@ static void rna_Modifier_name_set(PointerRNA *ptr, const char *value)
 	}
 	
 	/* fix all the animation data which may link to this */
-	BKE_all_animdata_fix_paths_rename(NULL, "modifiers", oldname, md->name);
+	BKE_animdata_fix_paths_rename_all(NULL, "modifiers", oldname, md->name);
 }
 
 static char *rna_Modifier_path(PointerRNA *ptr)
@@ -446,6 +449,7 @@ RNA_MOD_VGROUP_NAME_SET(Cast, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Curve, name);
 RNA_MOD_VGROUP_NAME_SET(DataTransfer, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Decimate, defgrp_name);
+RNA_MOD_VGROUP_NAME_SET(CorrectiveSmooth, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Displace, defgrp_name);
 RNA_MOD_VGROUP_NAME_SET(Hook, name);
 RNA_MOD_VGROUP_NAME_SET(LaplacianDeform, anchor_grp_name);
@@ -1036,6 +1040,33 @@ static EnumPropertyItem *rna_DataTransferModifier_mix_mode_itemf(bContext *C, Po
 	return item;
 }
 
+static void rna_CorrectiveSmoothModifier_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)ptr->data;
+
+	MEM_SAFE_FREE(csmd->delta_cache);
+
+	rna_Modifier_update(bmain, scene, ptr);
+}
+
+static void rna_CorrectiveSmoothModifier_rest_source_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)ptr->data;
+
+	if (csmd->rest_source != MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND) {
+		MEM_SAFE_FREE(csmd->bind_coords);
+		csmd->bind_coords_num = 0;
+	}
+
+	rna_CorrectiveSmoothModifier_update(bmain, scene, ptr);
+}
+
+static int rna_CorrectiveSmoothModifier_is_bind_get(PointerRNA *ptr)
+{
+	CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)ptr->data;
+	return (csmd->bind_coords != NULL);
+}
+
 static int rna_ParticleInstanceModifier_particle_system_poll(PointerRNA *ptr, const PointerRNA value)
 {
 	ParticleInstanceModifierData *psmd = ptr->data;
@@ -1441,7 +1472,7 @@ static void rna_def_modifier_mirror(BlenderRNA *brna)
 	RNA_def_property_float_sdna(prop, NULL, "tolerance");
 	RNA_def_property_range(prop, 0, FLT_MAX);
 	RNA_def_property_ui_range(prop, 0, 1, 0.01, 6);
-	RNA_def_property_ui_text(prop, "Merge Limit", "Distance from axis within which mirrored vertices are merged");
+	RNA_def_property_ui_text(prop, "Merge Limit", "Distance within which mirrored vertices are merged");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
 	prop = RNA_def_property(srna, "mirror_object", PROP_POINTER, PROP_NONE);
@@ -1513,6 +1544,13 @@ static void rna_def_modifier_decimate(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "use_collapse_triangulate", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_DECIM_FLAG_TRIANGULATE);
 	RNA_def_property_ui_text(prop, "Triangulate", "Keep triangulated faces resulting from decimation (collapse only)");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "vertex_group_factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "defgrp_factor");
+	RNA_def_property_range(prop, 0, 1000);
+	RNA_def_property_ui_range(prop, 0, 10, 1, 4);
+	RNA_def_property_ui_text(prop, "Factor", "Vertex group strength");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 	/* end collapse-only option */
 
@@ -2155,6 +2193,90 @@ static void rna_def_modifier_smooth(BlenderRNA *brna)
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 }
 
+
+static void rna_def_modifier_correctivesmooth(BlenderRNA *brna)
+{
+	StructRNA *srna;
+	PropertyRNA *prop;
+
+	static EnumPropertyItem modifier_smooth_type_items[] = {
+		{MOD_CORRECTIVESMOOTH_SMOOTH_SIMPLE, "SIMPLE", 0, "Simple",
+		 "Use the average of adjacent edge-vertices"},
+		{MOD_CORRECTIVESMOOTH_SMOOTH_LENGTH_WEIGHT, "LENGTH_WEIGHTED", 0, "Length Weight",
+		 "Use the average of adjacent edge-vertices weighted by their length"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem modifier_rest_source_items[] = {
+		{MOD_CORRECTIVESMOOTH_RESTSOURCE_ORCO, "ORCO", 0, "Original Coords",
+		 "Use base mesh vert coords as the rest position"},
+		{MOD_CORRECTIVESMOOTH_RESTSOURCE_BIND, "BIND", 0, "Bind Coords",
+		 "Use bind vert coords for rest position"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	srna = RNA_def_struct(brna, "CorrectiveSmoothModifier", "Modifier");
+	RNA_def_struct_ui_text(srna, "Corrective Smooth Modifier", "Correct distortion caused by deformation");
+	RNA_def_struct_sdna(srna, "CorrectiveSmoothModifierData");
+	RNA_def_struct_ui_icon(srna, ICON_MOD_SMOOTH);
+
+	prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
+	RNA_def_property_float_sdna(prop, NULL, "lambda");
+	RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
+	RNA_def_property_ui_range(prop, 0.0, 1.0, 5, 3);
+	RNA_def_property_ui_text(prop, "Lambda Factor", "Smooth factor effect");
+	RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_update");
+
+	prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
+	RNA_def_property_int_sdna(prop, NULL, "repeat");
+	RNA_def_property_ui_range(prop, 0, 200, 1, -1);
+	RNA_def_property_ui_text(prop, "Repeat", "");
+	RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_update");
+
+	prop = RNA_def_property(srna, "rest_source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "rest_source");
+	RNA_def_property_enum_items(prop, modifier_rest_source_items);
+	RNA_def_property_ui_text(prop, "Rest Source", "Select the source of rest positions");
+	RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_rest_source_update");
+
+	prop = RNA_def_property(srna, "smooth_type", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "smooth_type");
+	RNA_def_property_enum_items(prop, modifier_smooth_type_items);
+	RNA_def_property_ui_text(prop, "Smooth Type", "Method used for smoothing");
+	RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_update");
+
+	prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_CORRECTIVESMOOTH_INVERT_VGROUP);
+	RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
+	RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_update");
+
+	prop = RNA_def_property(srna, "vertex_group", PROP_STRING, PROP_NONE);
+	RNA_def_property_string_sdna(prop, NULL, "defgrp_name");
+	RNA_def_property_ui_text(prop, "Vertex Group",
+	                         "Name of Vertex Group which determines influence of modifier per point");
+	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_CorrectiveSmoothModifier_defgrp_name_set");
+	RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_update");
+
+	prop = RNA_def_property(srna, "is_bind", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_ui_text(prop, "Bind current shape", "");
+	RNA_def_property_boolean_funcs(prop, "rna_CorrectiveSmoothModifier_is_bind_get", NULL);
+	RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "use_only_smooth", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_CORRECTIVESMOOTH_ONLY_SMOOTH);
+	RNA_def_property_ui_text(prop, "Only Smooth",
+	                         "Apply smoothing without reconstructing the surface");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "use_pin_boundary", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_CORRECTIVESMOOTH_PIN_BOUNDARY);
+	RNA_def_property_ui_text(prop, "Pin Boundaries",
+	                         "Excludes boundary vertices from being smoothed");
+	RNA_def_property_update(prop, 0, "rna_CorrectiveSmoothModifier_update");
+}
+
+
 static void rna_def_modifier_laplaciansmooth(BlenderRNA *brna)
 {
 	StructRNA *srna;
@@ -2485,6 +2607,18 @@ static void rna_def_modifier_particleinstance(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Random Position", "Randomize position along path");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+	prop = RNA_def_property(srna, "rotation", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "rotation");
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_text(prop, "Rotation", "Rotation around path");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
+	prop = RNA_def_property(srna, "random_rotation", PROP_FLOAT, PROP_FACTOR);
+	RNA_def_property_float_sdna(prop, NULL, "random_rotation");
+	RNA_def_property_range(prop, 0.0, 1.0);
+	RNA_def_property_ui_text(prop, "Random Rotation", "Randomize rotation around path");
+	RNA_def_property_update(prop, 0, "rna_Modifier_update");
+
 	prop = RNA_def_property(srna, "particle_amount", PROP_FLOAT, PROP_FACTOR);
 	RNA_def_property_range(prop, 0.0, 1.0);
 	RNA_def_property_ui_text(prop, "Particle Amount", "Amount of particles to use for instancing");
@@ -2584,7 +2718,7 @@ static void rna_def_modifier_cloth(BlenderRNA *brna)
 	RNA_def_property_struct_type(prop, "ClothSolverResult");
 	RNA_def_property_pointer_sdna(prop, NULL, "solver_result");
 	RNA_def_property_ui_text(prop, "Solver Result", "");
-	
+
 	prop = RNA_def_property(srna, "point_cache", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_ui_text(prop, "Point Cache", "");
@@ -4504,7 +4638,7 @@ static void rna_def_modifier_normaledit(BlenderRNA *brna)
 	RNA_def_property_string_funcs(prop, NULL, NULL, "rna_NormalEditModifier_defgrp_name_set");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
-	prop = RNA_def_property(srna, "use_invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
+	prop = RNA_def_property(srna, "invert_vertex_group", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", MOD_NORMALEDIT_INVERT_VGROUP);
 	RNA_def_property_ui_text(prop, "Invert", "Invert vertex group influence");
 	RNA_def_property_update(prop, 0, "rna_Modifier_update");
@@ -4606,6 +4740,7 @@ void RNA_def_modifier(BlenderRNA *brna)
 	rna_def_modifier_displace(brna);
 	rna_def_modifier_uvproject(brna);
 	rna_def_modifier_smooth(brna);
+	rna_def_modifier_correctivesmooth(brna);
 	rna_def_modifier_cast(brna);
 	rna_def_modifier_meshdeform(brna);
 	rna_def_modifier_particlesystem(brna);

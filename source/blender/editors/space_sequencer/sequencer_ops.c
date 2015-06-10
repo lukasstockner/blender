@@ -112,6 +112,7 @@ void sequencer_operatortypes(void)
 	WM_operatortype_append(SEQUENCER_OT_movie_strip_add);
 	WM_operatortype_append(SEQUENCER_OT_sound_strip_add);
 	WM_operatortype_append(SEQUENCER_OT_image_strip_add);
+	WM_operatortype_append(SEQUENCER_OT_image_sequence_add);
 	WM_operatortype_append(SEQUENCER_OT_effect_strip_add);
 
 	/* sequencer_buttons.c */
@@ -125,6 +126,7 @@ void sequencer_operatortypes(void)
 	/* sequencer_view.h */
 	WM_operatortype_append(SEQUENCER_OT_sample);
 	WM_operatortype_append(SEQUENCER_OT_overdrop_transform);
+	WM_operatortype_append(SEQUENCER_OT_image_transform_widget);
 }
 
 
@@ -345,6 +347,8 @@ void sequencer_keymap(wmKeyConfig *keyconf)
 	/* would prefer to use numpad keys for job */
 	RNA_float_set(WM_keymap_add_item(keymap, "SEQUENCER_OT_view_zoom_ratio", PAD1, KM_PRESS, 0, 0)->ptr, "ratio", 1.0f);
 
+//	WM_keymap_add_item(keymap, "SEQUENCER_OT_image_transform_widget", VKEY, KM_PRESS, 0, 0);
+
 	/* Setting zoom levels is not that useful, except for back to zoom level 1, removing keymap because of conflicts for now */
 #if 0
 	RNA_float_set(WM_keymap_add_item(keymap, "SEQUENCER_OT_view_zoom_ratio", PAD8, KM_PRESS, KM_SHIFT, 0)->ptr, "ratio", 8.0f);
@@ -368,5 +372,5 @@ void ED_operatormacros_sequencer(void)
 	                                  "Duplicate selected strips and move them", OPTYPE_UNDO | OPTYPE_REGISTER);
 
 	WM_operatortype_macro_define(ot, "SEQUENCER_OT_duplicate");
-	WM_operatortype_macro_define(ot, "TRANSFORM_OT_translate");
+	WM_operatortype_macro_define(ot, "TRANSFORM_OT_seq_slide");
 }

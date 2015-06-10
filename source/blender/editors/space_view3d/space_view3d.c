@@ -84,6 +84,8 @@
 #  include "BPY_extern.h"
 #endif
 
+#include "DEG_depsgraph.h"
+
 #include "view3d_intern.h"  /* own include */
 
 /* ******************** manage regions ********************* */
@@ -276,7 +278,7 @@ void ED_view3d_check_mats_rv3d(struct RegionView3D *rv3d)
 }
 #endif
 
-static void view3d_stop_render_preview(wmWindowManager *wm, ARegion *ar)
+void ED_view3d_stop_render_preview(wmWindowManager *wm, ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
@@ -307,7 +309,7 @@ void ED_view3d_shade_update(Main *bmain, Scene *scene, View3D *v3d, ScrArea *sa)
 
 		for (ar = sa->regionbase.first; ar; ar = ar->next) {
 			if (ar->regiondata)
-				view3d_stop_render_preview(wm, ar);
+				ED_view3d_stop_render_preview(wm, ar);
 		}
 	}
 	else if (scene->obedit != NULL && scene->obedit->type == OB_MESH) {
@@ -354,7 +356,13 @@ static SpaceLink *view3d_new(const bContext *C)
 	
 	v3d->bundle_size = 0.2f;
 	v3d->bundle_drawtype = OB_PLAINAXES;
-	
+
+	/* stereo */
+	v3d->stereo3d_camera = STEREO_3D_ID;
+	v3d->stereo3d_flag |= V3D_S3D_DISPPLANE;
+	v3d->stereo3d_convergence_alpha = 0.15f;
+	v3d->stereo3d_volume_alpha = 0.05f;
+
 	/* header */
 	ar = MEM_callocN(sizeof(ARegion), "header for view3d");
 	
@@ -552,6 +560,9 @@ static void view3d_main_area_init(wmWindowManager *wm, ARegion *ar)
 	keymap = WM_keymap_find(wm->defaultconf, "Particle", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
 
+	keymap = WM_keymap_find(wm->defaultconf, "Hair", 0, 0);
+	WM_event_add_keymap_handler(&ar->handlers, keymap);
+
 	/* editfont keymap swallows all... */
 	keymap = WM_keymap_find(wm->defaultconf, "Font", 0, 0);
 	WM_event_add_keymap_handler(&ar->handlers, keymap);
@@ -579,7 +590,7 @@ static void view3d_main_area_exit(wmWindowManager *wm, ARegion *ar)
 {
 	RegionView3D *rv3d = ar->regiondata;
 
-	view3d_stop_render_preview(wm, ar);
+	ED_view3d_stop_render_preview(wm, ar);
 
 	if (rv3d->gpuoffscreen) {
 		GPU_offscreen_free(rv3d->gpuoffscreen);
@@ -1097,7 +1108,8 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 					    (ob && (ob->mode == OB_MODE_TEXTURE_PAINT)) ||
 					    (v3d->drawtype == OB_TEXTURE &&
 					     (scene->gm.matmode == GAME_MAT_GLSL ||
-					      BKE_scene_use_new_shading_nodes(scene))))
+					      BKE_scene_use_new_shading_nodes(scene))) ||
+					    !DEG_depsgraph_use_legacy())
 					{
 						ED_region_tag_redraw(ar);
 					}
@@ -1120,7 +1132,8 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 			switch (wmn->data) {
 				case ND_LIGHTING:
 					if ((v3d->drawtype == OB_MATERIAL) ||
-					    (v3d->drawtype == OB_TEXTURE && (scene->gm.matmode == GAME_MAT_GLSL)))
+					    (v3d->drawtype == OB_TEXTURE && (scene->gm.matmode == GAME_MAT_GLSL)) ||
+					    !DEG_depsgraph_use_legacy())
 					{
 						ED_region_tag_redraw(ar);
 					}
@@ -1177,7 +1190,7 @@ static void view3d_main_area_listener(bScreen *sc, ScrArea *sa, ARegion *ar, wmN
 
 			break;
 		case NC_GPENCIL:
-			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
+			if (wmn->data == ND_DATA || ELEM(wmn->action, NA_EDITED, NA_SELECTED)) {
 				ED_region_tag_redraw(ar);
 			}
 			break;
@@ -1324,7 +1337,8 @@ static void view3d_buttons_area_listener(bScreen *UNUSED(sc), ScrArea *UNUSED(sa
 			ED_region_tag_redraw(ar);
 			break;
 		case NC_BRUSH:
-			if (wmn->action == NA_EDITED)
+			/* NA_SELECTED is used on brush changes */
+			if (ELEM(wmn->action, NA_EDITED, NA_SELECTED))
 				ED_region_tag_redraw(ar);
 			break;
 		case NC_SPACE:

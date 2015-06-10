@@ -181,7 +181,7 @@ static void rna_Texture_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *pt
 static void rna_Texture_mapping_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
 	TexMapping *texmap = ptr->data;
-	init_tex_mapping(texmap);
+	BKE_texture_mapping_init(texmap);
 	rna_Texture_update(bmain, scene, ptr);
 }
 
@@ -222,7 +222,7 @@ static void rna_Texture_type_set(PointerRNA *ptr, int value)
 {
 	Tex *tex = (Tex *)ptr->data;
 	
-	tex_set_type(tex, value);
+	BKE_texture_type_set(tex, value);
 }
 
 void rna_TextureSlot_update(Main *UNUSED(bmain), Scene *UNUSED(scene), PointerRNA *ptr)
@@ -445,7 +445,7 @@ static void rna_Envmap_update_generic(Main *bmain, Scene *scene, PointerRNA *ptr
 	Tex *tex = ptr->id.data;
 	if (tex->env) {
 		ED_preview_kill_jobs(bmain->wm.first, bmain);
-		BKE_free_envmapdata(tex->env);
+		BKE_texture_envmap_free_data(tex->env);
 	}
 	rna_Texture_update(bmain, scene, ptr);
 }
@@ -1674,6 +1674,7 @@ static void rna_def_texture_pointdensity(BlenderRNA *brna)
 		{TEX_PD_COLOR_PARTSPEED, "PARTICLE_SPEED", 0, "Particle Speed",
 		                         "Particle speed (absolute magnitude of velocity) mapped as 0.0-1.0 intensity"},
 		{TEX_PD_COLOR_PARTVEL, "PARTICLE_VELOCITY", 0, "Particle Velocity", "XYZ velocity mapped to RGB colors"},
+		{TEX_PD_COLOR_PARTTEX, "PARTICLE_TEXTURE", 0, "Particle Texture", "Texture color of particles"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	

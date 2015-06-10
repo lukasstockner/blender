@@ -54,7 +54,6 @@ struct wmEvent;
 struct wmEventHandler;
 struct wmGesture;
 struct wmJob;
-struct wmNotifier;
 struct wmOperatorType;
 struct wmOperator;
 struct wmWidget;
@@ -65,7 +64,6 @@ struct wmWidgetMapType;
 struct rcti;
 struct PointerRNA;
 struct PropertyRNA;
-struct EnumPropertyItem;
 struct MenuType;
 struct wmDropBox;
 struct wmDrag;
@@ -113,6 +111,7 @@ void		WM_window_open_temp	(struct bContext *C, struct rcti *position, int type);
 			/* returns true if draw method is triple buffer */
 bool		WM_is_draw_triple(struct wmWindow *win);
 
+bool		WM_stereo3d_enabled(struct wmWindow *win, bool only_fullscreen_test);
 
 
 			/* files */
@@ -160,7 +159,7 @@ typedef void (*wmUIHandlerRemoveFunc)(struct bContext *C, void *userdata);
 struct wmEventHandler *WM_event_add_ui_handler(
         const struct bContext *C, ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
-        void *userdata,  const bool accept_dbl_click);
+        void *userdata, const char flag);
 void WM_event_remove_ui_handler(
         ListBase *handlers,
         wmUIHandlerFunc ui_handle, wmUIHandlerRemoveFunc ui_remove,
@@ -174,23 +173,42 @@ void WM_event_free_ui_handler_all(
 struct wmEventHandler *WM_event_add_modal_handler(struct bContext *C, struct wmOperator *op);
 void		WM_event_remove_handlers(struct bContext *C, ListBase *handlers);
 
+/* handler flag */
+enum {
+	WM_HANDLER_BLOCKING             = (1 << 0),  /* after this handler all others are ignored */
+	WM_HANDLER_ACCEPT_DBL_CLICK     = (1 << 1),  /* handler accepts double key press events */
+
+	/* internal */
+	WM_HANDLER_DO_FREE              = (1 << 7),  /* handler tagged to be freed in wm_handlers_do() */
+};
+
 struct wmEventHandler *WM_event_add_dropbox_handler(ListBase *handlers, ListBase *dropboxes);
 
 			/* mouse */
 void		WM_event_add_mousemove(struct bContext *C);
 bool        WM_modal_tweak_exit(const struct wmEvent *event, int tweak_event);
+bool		WM_event_is_absolute(const struct wmEvent *event);
 
 			/* notifiers */
 void		WM_event_add_notifier(const struct bContext *C, unsigned int type, void *reference);
 void		WM_main_add_notifier(unsigned int type, void *reference);
 void		WM_main_remove_notifier_reference(const void *reference);
+void		WM_main_remove_editor_id_reference(const struct ID *id);
 
 			/* reports */
+void        WM_report_banner_show(const struct bContext *C);
 void        WM_report(const struct bContext *C, ReportType type, const char *message);
 void        WM_reportf(const struct bContext *C, ReportType type, const char *format, ...) ATTR_PRINTF_FORMAT(3, 4);
 
-void		wm_event_add(struct wmWindow *win, const struct wmEvent *event_to_add);
-void		wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
+void wm_event_add_ex(
+        struct wmWindow *win, const struct wmEvent *event_to_add,
+        const struct wmEvent *event_to_add_after)
+        ATTR_NONNULL(1, 2);
+void wm_event_add(
+        struct wmWindow *win, const struct wmEvent *event_to_add)
+        ATTR_NONNULL(1, 2);
+
+void wm_event_init_from_window(struct wmWindow *win, struct wmEvent *event);
 
 
 			/* at maximum, every timestep seconds it triggers event_type events */
@@ -291,11 +309,11 @@ bool        WM_operator_last_properties_store(struct wmOperator *op);
 /* flags for WM_operator_properties_filesel */
 #define WM_FILESEL_RELPATH		(1 << 0)
 
-#define WM_FILESEL_DIRECTORY	(1 << 1)
-#define WM_FILESEL_FILENAME		(1 << 2)
-#define WM_FILESEL_FILEPATH		(1 << 3)
-#define WM_FILESEL_FILES		(1 << 4)
-
+#define WM_FILESEL_DIRECTORY		(1 << 1)
+#define WM_FILESEL_FILENAME			(1 << 2)
+#define WM_FILESEL_FILEPATH			(1 << 3)
+#define WM_FILESEL_FILES			(1 << 4)
+#define WM_FILESEL_IMAGE_COLLAPSE	(1 << 5)
 
 		/* operator as a python command (resultuing string must be freed) */
 char		*WM_operator_pystring_ex(struct bContext *C, struct wmOperator *op,
@@ -400,6 +418,8 @@ enum {
 	WM_JOB_TYPE_OBJECT_SIM_FLUID,
 	WM_JOB_TYPE_OBJECT_BAKE_TEXTURE,
 	WM_JOB_TYPE_OBJECT_BAKE,
+	WM_JOB_TYPE_PTCACHE_EXPORT,
+	WM_JOB_TYPE_CACHELIBRARY_BAKE,
 	WM_JOB_TYPE_FILESEL_THUMBNAIL,
 	WM_JOB_TYPE_CLIP_BUILD_PROXY,
 	WM_JOB_TYPE_CLIP_TRACK_MARKERS,
@@ -550,6 +570,7 @@ void WIDGET_dial_set_color(struct wmWidget *widget, float color[4]);
 void WIDGET_dial_set_direction(struct wmWidget *widget, float direction[3]);
 
 struct wmWidget *WIDGET_rect_transform_new(struct wmWidgetGroup *wgroup, int style, float width, float height);
+void WIDGET_rect_transform_set_offset(struct wmWidget *widget, float offset[2]);
 
 struct wmWidget *WIDGET_facemap_new(struct wmWidgetGroup *wgroup, int style, struct Object *ob, int facemap);
 void WIDGET_facemap_set_color(struct wmWidget *widget, float color[4]);

@@ -139,6 +139,13 @@ static void graph_panel_view(const bContext *C, Panel *pa)
 	row = uiLayoutSplit(sub, 0.7f, true);
 	uiItemR(row, &spaceptr, "cursor_position_y", 0, IFACE_("Cursor Y"), ICON_NONE);
 	uiItemEnumO(row, "GRAPH_OT_snap", IFACE_("To Keys"), 0, "type", GRAPHKEYS_SNAP_VALUE);
+
+	col = uiLayoutColumn(pa->layout, false);
+	uiItemR(col, &spaceptr, "show_backdrop", 0, NULL, ICON_NONE);
+	col = uiLayoutColumn(pa->layout, false);
+	uiLayoutSetActive(col, RNA_boolean_get(&spaceptr, "show_backdrop"));
+	uiItemR(col, &spaceptr, "backdrop_camera", 0, "Camera", ICON_NONE);
+	uiItemR(col, &spaceptr, "backdrop_opacity", 0, "Opacity", ICON_NONE);
 }
 
 /* ******************* active F-Curve ************** */
@@ -165,9 +172,28 @@ static void graph_panel_properties(const bContext *C, Panel *pa)
 	RNA_pointer_create(ale->id, &RNA_FCurve, fcu, &fcu_ptr);
 	
 	/* user-friendly 'name' for F-Curve */
-	/* TODO: only show the path if this is invalid? */
 	col = uiLayoutColumn(layout, false);
-	icon = getname_anim_fcurve(name, ale->id, fcu);
+	if (ale->type == ANIMTYPE_FCURVE) {
+		/* get user-friendly name for F-Curve */
+		icon = getname_anim_fcurve(name, ale->id, fcu);
+	}
+	else {
+		/* NLA Control Curve, etc. */
+		const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
+		
+		/* get name */
+		if (acf && acf->name) {
+			acf->name(ale, name);
+		}
+		else {
+			strcpy(name, IFACE_("<invalid>"));
+			icon = ICON_ERROR;
+		}
+		
+		/* icon */
+		if (ale->type == ANIMTYPE_NLACURVE)
+			icon = ICON_NLA;
+	}
 	uiItemL(col, name, icon);
 		
 	/* RNA-Path Editing - only really should be enabled when things aren't working */
@@ -864,6 +890,7 @@ static void graph_panel_modifiers(const bContext *C, Panel *pa)
 	FModifier *fcm;
 	uiLayout *col, *row;
 	uiBlock *block;
+	bool active;
 	
 	if (!graph_panel_context(C, &ale, &fcu))
 		return;
@@ -888,14 +915,31 @@ static void graph_panel_modifiers(const bContext *C, Panel *pa)
 		uiItemO(row, "", ICON_PASTEDOWN, "GRAPH_OT_fmodifier_paste");
 	}
 	
+	active = !(fcu->flag & FCURVE_MOD_OFF);
 	/* draw each modifier */
 	for (fcm = fcu->modifiers.first; fcm; fcm = fcm->next) {
 		col = uiLayoutColumn(pa->layout, true);
+		uiLayoutSetActive(col, active);
 		
 		ANIM_uiTemplate_fmodifier_draw(col, ale->id, &fcu->modifiers, fcm);
 	}
 
 	MEM_freeN(ale);
+}
+
+/* ******************* Others ************************ */
+
+/* Graph Editor Backdrop Settings */
+static void UNUSED_FUNCTION(graph_panel_backdrop)(const bContext *C, Panel *UNUSED(pa))
+{
+	bScreen *sc = CTX_wm_screen(C);
+	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	PointerRNA spaceptr;
+	// uiLayout *col;
+
+	/* get RNA pointers for use when creating the UI elements */
+	RNA_pointer_create(&sc->id, &RNA_SpaceGraphEditor, sipo, &spaceptr);
+
 }
 
 /* ******************* general ******************************** */
@@ -909,7 +953,6 @@ void graph_buttons_register(ARegionType *art)
 	strcpy(pt->label, N_("View Properties"));
 	strcpy(pt->translation_context, BLF_I18NCONTEXT_DEFAULT_BPYRNA);
 	pt->draw = graph_panel_view;
-	pt->flag |= PNL_DEFAULT_CLOSED;
 	BLI_addtail(&art->paneltypes, pt);
 	
 	pt = MEM_callocN(sizeof(PanelType), "spacetype graph panel properties");

@@ -72,7 +72,7 @@ class TEXTURE_UL_texslots(UIList):
                 layout.label(text="", icon_value=icon)
             if tex and isinstance(item, bpy.types.MaterialTextureSlot):
                 layout.prop(ma, "use_textures", text="", index=index)
-        elif self.layout_type in {'GRID'}:
+        elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label(text="", icon_value=icon)
 
@@ -676,8 +676,7 @@ class TEXTURE_PT_musgrave(TextureTypePanel, Panel):
         col = split.column()
         if musgrave_type in {'HETERO_TERRAIN', 'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL'}:
             col.prop(tex, "offset")
-        if musgrave_type in {'MULTIFRACTAL', 'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL'}:
-            col.prop(tex, "noise_intensity", text="Intensity")
+        col.prop(tex, "noise_intensity", text="Intensity")
         if musgrave_type in {'RIDGED_MULTIFRACTAL', 'HYBRID_MULTIFRACTAL'}:
             col.prop(tex, "gain")
 
@@ -1148,6 +1147,7 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
             factor_but(col, "use_map_life", "life_factor", "Lifetime")
             factor_but(col, "use_map_density", "density_factor", "Density")
             factor_but(col, "use_map_size", "size_factor", "Size")
+            factor_but(col, "use_map_particle_color", "particle_color_factor", "Color")
 
             col = split.column()
             col.label(text="Physics:")
@@ -1182,7 +1182,8 @@ class TEXTURE_PT_influence(TextureSlotPanel, Panel):
 
         layout.separator()
 
-        if not isinstance(idblock, ParticleSettings):
+        show_blend_settings = (not isinstance(idblock, ParticleSettings)) or tex.use_map_particle_color
+        if show_blend_settings:
             split = layout.split()
 
             col = split.column()

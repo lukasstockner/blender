@@ -93,7 +93,11 @@
 #include "BKE_image.h"
 #include "BKE_particle.h"
 
+#include "DEG_depsgraph.h"
+
 #include "IMB_imbuf.h"  /* for IMB_init */
+
+#include "PTC_api.h"
 
 #ifdef WITH_PYTHON
 #include "BPY_extern.h"
@@ -320,6 +324,7 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 	BLI_argsPrintArgDoc(ba, "--debug-jobs");
 	BLI_argsPrintArgDoc(ba, "--debug-python");
 	BLI_argsPrintArgDoc(ba, "--debug-depsgraph");
+	BLI_argsPrintArgDoc(ba, "--debug-depsgraph-no-threads");
 
 	BLI_argsPrintArgDoc(ba, "--debug-wm");
 	BLI_argsPrintArgDoc(ba, "--debug-all");
@@ -356,6 +361,10 @@ static int print_help(int UNUSED(argc), const char **UNUSED(argv), void *data)
 
 	printf("Other Options:\n");
 	BLI_argsPrintOtherDoc(ba);
+
+	printf("\n");
+	printf("Experimental features:\n");
+	BLI_argsPrintArgDoc(ba, "--enable-new-depsgraph");
 
 	printf("Argument Parsing:\n");
 	printf("\targuments must be separated by white space. eg\n");
@@ -598,10 +607,9 @@ static void blender_crash_handler(int signum)
 }
 
 #ifdef WIN32
-LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS * ExceptionInfo)
+LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
 {
-	switch(ExceptionInfo->ExceptionRecord->ExceptionCode)
-	{
+	switch (ExceptionInfo->ExceptionRecord->ExceptionCode) {
 		case EXCEPTION_ACCESS_VIOLATION:
 			fputs("Error: EXCEPTION_ACCESS_VIOLATION\n", stderr);
 			break;
@@ -671,9 +679,12 @@ LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS * ExceptionInfo)
 
 	/* If this is a stack overflow then we can't walk the stack, so just show
 	 * where the error happened */
-	if (EXCEPTION_STACK_OVERFLOW != ExceptionInfo->ExceptionRecord->ExceptionCode)
-	{
+	if (EXCEPTION_STACK_OVERFLOW != ExceptionInfo->ExceptionRecord->ExceptionCode) {
+#ifdef NDEBUG
+		TerminateProcess(GetCurrentProcess(), SIGSEGV);
+#else
 		blender_crash_handler(SIGSEGV);
+#endif
 	}
 
 	return EXCEPTION_EXECUTE_HANDLER;
@@ -813,7 +824,7 @@ static int no_glsl(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(dat
 
 static int no_audio(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
 {
-	sound_force_device(0);
+	BKE_sound_force_device(0);
 	return 0;
 }
 
@@ -824,7 +835,7 @@ static int set_audio(int argc, const char **argv, void *UNUSED(data))
 		exit(1);
 	}
 
-	sound_force_device(sound_define_from_str(argv[1]));
+	BKE_sound_force_device(BKE_sound_define_from_str(argv[1]));
 	return 1;
 }
 
@@ -931,6 +942,13 @@ static int set_threads(int argc, const char **argv, void *UNUSED(data))
 	}
 }
 
+static int depsgraph_use_new(int UNUSED(argc), const char **UNUSED(argv), void *UNUSED(data))
+{
+	printf("Using new dependency graph.\n");
+	DEG_depsgraph_switch_to_new();
+	return 0;
+}
+
 static int set_verbosity(int argc, const char **argv, void *UNUSED(data))
 {
 	if (argc > 1) {
@@ -1026,6 +1044,7 @@ static int set_ge_parameters(int argc, const char **argv, void *data)
 			}
 			/* linearMipMap */
 			if (STREQ(argv[a], "linearmipmap")) {
+				GPU_set_mipmap(1);
 				GPU_set_linear_mipmap(1); //linearMipMap = 1;
 			}
 
@@ -1187,19 +1206,24 @@ static int set_skip_frame(int argc, const char **argv, void *data)
 #define BPY_CTX_SETUP(_cmd)                                                   \
 	{                                                                         \
 		wmWindowManager *wm = CTX_wm_manager(C);                              \
-		wmWindow *prevwin = CTX_wm_window(C);                                 \
-		Scene *prevscene = CTX_data_scene(C);                                 \
-		if (wm->windows.first) {                                              \
+		Scene *scene_prev = CTX_data_scene(C);                                \
+		wmWindow *win_prev;                                                   \
+		const bool has_win = !BLI_listbase_is_empty(&wm->windows);            \
+		if (has_win) {                                                        \
+			win_prev = CTX_wm_window(C);                                      \
 			CTX_wm_window_set(C, wm->windows.first);                          \
-			_cmd;                                                             \
-			CTX_wm_window_set(C, prevwin);                                    \
 		}                                                                     \
 		else {                                                                \
 			fprintf(stderr, "Python script \"%s\" "                           \
 			        "running with missing context data.\n", argv[1]);         \
+		}                                                                     \
+		{                                                                     \
 			_cmd;                                                             \
 		}                                                                     \
-		CTX_data_scene_set(C, prevscene);                                     \
+		if (has_win) {                                                        \
+			CTX_wm_window_set(C, win_prev);                                   \
+		}                                                                     \
+		CTX_data_scene_set(C, scene_prev);                                    \
 	} (void)0                                                                 \
 
 #endif /* WITH_PYTHON */
@@ -1366,8 +1390,8 @@ static int load_file(int UNUSED(argc), const char **argv, void *data)
 		BLI_callback_exec(CTX_data_main(C), NULL, BLI_CB_EVT_LOAD_POST);
 
 		/* happens for the UI on file reading too (huh? (ton))*/
-		// XXX		BKE_reset_undo();
-		//			BKE_write_undo("original");	/* save current state */
+		// XXX		BKE_undo_reset();
+		//			BKE_undo_write("original");	/* save current state */
 	}
 	else {
 		/* we are not running in background mode here, but start blender in UI mode with
@@ -1488,6 +1512,10 @@ static void setupArguments(bContext *C, bArgs *ba, SYS_SystemHandle *syshandle)
 	BLI_argsAdd(ba, 1, NULL, "--debug-value", "<value>\n\tSet debug value of <value> on startup\n", set_debug_value, NULL);
 	BLI_argsAdd(ba, 1, NULL, "--debug-jobs",  "\n\tEnable time profiling for background jobs.", debug_mode_generic, (void *)G_DEBUG_JOBS);
 	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph", "\n\tEnable debug messages from dependency graph", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH);
+	BLI_argsAdd(ba, 1, NULL, "--debug-depsgraph-no-threads", "\n\tSwitch dependency graph to a single threaded evlauation", debug_mode_generic, (void *)G_DEBUG_DEPSGRAPH_NO_THREADS);
+	BLI_argsAdd(ba, 1, NULL, "--debug-gpumem", "\n\tEnable GPU memory stats in status bar", debug_mode_generic, (void *)G_DEBUG_GPU_MEM);
+
+	BLI_argsAdd(ba, 1, NULL, "--enable-new-depsgraph", "\n\tUse new dependency graph", depsgraph_use_new, NULL);
 
 	BLI_argsAdd(ba, 1, NULL, "--verbose", "<verbose>\n\tSet logging verbosity level.", set_verbosity, NULL);
 
@@ -1556,13 +1584,13 @@ char **environ = NULL;
  *   or exit when running in background mode.
  */
 int main(
-       int argc,
+        int argc,
 #ifdef WIN32
         const char **UNUSED(argv_c)
 #else
         const char **argv
 #endif
-         )
+        )
 {
 	bContext *C;
 	SYS_SystemHandle syshandle;
@@ -1570,6 +1598,14 @@ int main(
 #ifndef WITH_PYTHON_MODULE
 	bArgs *ba;
 #endif
+
+#ifdef WIN32
+	char **argv;
+	int argv_num;
+#endif
+
+	/* --- end declarations --- */
+
 
 #ifdef WIN32
 	/* FMA3 support in the 2013 CRT is broken on Vista and Windows 7 RTM (fixed in SP1). Just disable it. */
@@ -1581,16 +1617,15 @@ int main(
 	/* NOTE: cannot use guardedalloc malloc here, as it's not yet initialized
 	 *       (it depends on the args passed in, which is what we're getting here!)
 	 */
-	wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
-	char **argv = malloc(argc * sizeof(char *));
-	int argci = 0;
-	
-	for (argci = 0; argci < argc; argci++) {
-		argv[argci] = alloc_utf_8_from_16(argv_16[argci], 0);
+	{
+		wchar_t **argv_16 = CommandLineToArgvW(GetCommandLineW(), &argc);
+		argv = malloc(argc * sizeof(char *));
+		for (argv_num = 0; argv_num < argc; argv_num++) {
+			argv[argv_num] = alloc_utf_8_from_16(argv_16[argv_num], 0);
+		}
+		LocalFree(argv_16);
 	}
-	
-	LocalFree(argv_16);
-#endif
+#endif  /* WIN32 */
 
 	/* NOTE: Special exception for guarded allocator type switch:
 	 *       we need to perform switch from lock-free to fully
@@ -1658,7 +1693,7 @@ int main(
 	setCallbacks();
 	
 #if defined(__APPLE__) && !defined(WITH_PYTHON_MODULE)
-/* patch to ignore argument finder gives us (pid?) */
+	/* patch to ignore argument finder gives us (pid?) */
 	if (argc == 2 && STREQLEN(argv[1], "-psn_", 5)) {
 		extern int GHOST_HACK_getFirstFile(char buf[]);
 		static char firstfilebuf[512];
@@ -1691,6 +1726,9 @@ int main(
 	BKE_brush_system_init();
 	RE_init_texture_rng();
 	
+	/* Initialize ffmpeg if built in, also needed for bg mode if videos are
+	 * rendered via ffmpeg */
+	BKE_sound_init_once();
 
 	BLI_callback_global_init();
 
@@ -1735,6 +1773,7 @@ int main(
 	RE_engines_init();
 	init_nodesystem();
 	psys_init_rng();
+	PTC_alembic_init();
 	/* end second init */
 
 
@@ -1750,10 +1789,6 @@ int main(
 	/* background render uses this font too */
 	BKE_vfont_builtin_register(datatoc_bfont_pfb, datatoc_bfont_pfb_size);
 
-	/* Initialize ffmpeg if built in, also needed for bg mode if videos are
-	 * rendered via ffmpeg */
-	sound_init_once();
-	
 	init_def_material();
 
 	if (G.background == 0) {
@@ -1816,8 +1851,8 @@ int main(
 #endif
 
 #ifdef WIN32
-	while (argci) {
-		free(argv[--argci]);
+	while (argv_num) {
+		free(argv[--argv_num]);
 	}
 	free(argv);
 	argv = NULL;

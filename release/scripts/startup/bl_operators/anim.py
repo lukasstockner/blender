@@ -29,6 +29,7 @@ import bpy
 from bpy.types import Operator
 from bpy.props import (
         IntProperty,
+        FloatProperty,
         BoolProperty,
         EnumProperty,
         StringProperty,
@@ -210,6 +211,19 @@ class BakeAction(Operator):
             description="Bake animation onto the object then clear parents (objects only)",
             default=False,
             )
+    use_current_action = BoolProperty(
+            name="Overwrite Current Action",
+            description="Bake animation into current action, instead of creating a new one "
+                        "(useful for baking only part of bones in an armature)",
+            default=False,
+            )
+    clean_threshold = FloatProperty(
+            name="Clean Threshold",
+            description="Allowed error when simplifying baked curves (set to zero to disable)",
+            default=0.1,
+            min=0.0,
+            max=1.0,
+            )
     bake_types = EnumProperty(
             name="Bake Data",
             description="Which data's transformations to bake",
@@ -221,8 +235,13 @@ class BakeAction(Operator):
             )
 
     def execute(self, context):
-
         from bpy_extras import anim_utils
+
+        action = None
+        if self.use_current_action:
+            obj = context.object
+            if obj.animation_data:
+                action = obj.animation_data.action
 
         action = anim_utils.bake_action(self.frame_start,
                                         self.frame_end,
@@ -234,6 +253,8 @@ class BakeAction(Operator):
                                         do_constraint_clear=self.clear_constraints,
                                         do_parents_clear=self.clear_parents,
                                         do_clean=True,
+                                        clean_threshold=self.clean_threshold,
+                                        action=action,
                                         )
 
         if action is None:

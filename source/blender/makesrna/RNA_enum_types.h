@@ -56,6 +56,7 @@ extern EnumPropertyItem mesh_delimit_mode_items[];
 extern EnumPropertyItem space_type_items[];
 extern EnumPropertyItem region_type_items[];
 extern EnumPropertyItem modifier_type_items[];
+extern EnumPropertyItem cache_modifier_type_items[];
 extern EnumPropertyItem constraint_type_items[];
 extern EnumPropertyItem boidrule_type_items[];
 extern EnumPropertyItem sequence_modifier_type_items[];
@@ -71,6 +72,13 @@ extern EnumPropertyItem image_generated_type_items[];
 extern EnumPropertyItem normal_space_items[];
 extern EnumPropertyItem normal_swizzle_items[];
 extern EnumPropertyItem bake_save_mode_items[];
+
+extern EnumPropertyItem views_format_items[];
+extern EnumPropertyItem views_format_multilayer_items[];
+extern EnumPropertyItem views_format_multiview_items[];
+extern EnumPropertyItem stereo3d_display_items[];
+extern EnumPropertyItem stereo3d_anaglyph_type_items[];
+extern EnumPropertyItem stereo3d_interlace_type_items[];
 
 extern EnumPropertyItem exr_codec_items[];
 extern EnumPropertyItem color_sets_items[];
@@ -102,6 +110,7 @@ extern EnumPropertyItem operator_return_items[];
 extern EnumPropertyItem brush_sculpt_tool_items[];
 extern EnumPropertyItem brush_vertex_tool_items[];
 extern EnumPropertyItem brush_image_tool_items[];
+extern EnumPropertyItem brush_hair_tool_items[];
 
 extern EnumPropertyItem symmetrize_direction_items[];
 
@@ -174,6 +183,9 @@ extern EnumPropertyItem prop_dynamicpaint_type_items[];
 
 extern EnumPropertyItem clip_editor_mode_items[];
 
+extern EnumPropertyItem cache_library_data_type_items[];
+extern EnumPropertyItem cache_library_read_result_items[];
+
 extern EnumPropertyItem icon_items[];
 extern EnumPropertyItem uilist_layout_type_items[];
 
@@ -213,5 +225,7 @@ EnumPropertyItem *RNA_movieclip_itemf(struct bContext *C, struct PointerRNA *ptr
 EnumPropertyItem *RNA_movieclip_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 EnumPropertyItem *RNA_mask_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 EnumPropertyItem *RNA_mask_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+EnumPropertyItem *RNA_cachelibrary_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
+EnumPropertyItem *RNA_cachelibrary_local_itemf(struct bContext *C, struct PointerRNA *ptr, struct PropertyRNA *prop, bool *r_free);
 
 #endif /* __RNA_ENUM_TYPES_H__ */

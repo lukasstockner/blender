@@ -35,6 +35,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#include <ctype.h>
 
 #ifndef WIN32
 #  include <unistd.h>
@@ -49,6 +50,7 @@
 #include "BLI_fnmatch.h"
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
+#include "BLI_ghash.h"
 
 #ifdef WIN32
 #  include "BLI_winstuff.h"
@@ -208,9 +210,11 @@ typedef struct FileImage {
 typedef struct FileListFilter {
 	bool hide_dot;
 	bool hide_parent;
+	bool collapse_ima_seq;
 	unsigned int filter;
 	char filter_glob[64];
-	char filter_search[66];  /* + 2 for heading/trailing implicit '*' wildcards. */
+	char filter_search[66];   /* + 2 for heading/trailing implicit '*' wildcards. */
+	GHash *unique_image_list; /* hash that stores unique filename */
 } FileListFilter;
 
 typedef struct FileList {
@@ -464,6 +468,55 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 		}
 	}
 
+	if (is_filtered && !(file->type & S_IFDIR) && filter->collapse_ima_seq) {
+		if (file->relname) {
+			struct direntry *ofile;
+			int frame, numdigits;
+
+			if (BLI_path_frame_get(file->relname, &frame, &numdigits)) {
+				char filename[PATH_MAX];
+
+				BLI_strncpy(filename, file->relname, sizeof(filename));
+				BLI_path_frame_strip(filename, false, NULL);
+
+				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename)) &&
+				    numdigits == ofile->collapsed_info.numdigits)
+				{
+					CollapsedEntry *collapsed = &ofile->collapsed_info;
+					is_filtered = false;
+					ofile->selflag |= FILE_SEL_COLLAPSED;
+					file->selflag |= FILE_SEL_COLLAPSED;
+					file->frame = frame;
+					BLI_addhead(&collapsed->list, BLI_genericNodeN(file));
+					collapsed->totalsize += file->realsize;
+					collapsed->maxframe = MAX2(frame, collapsed->maxframe);
+					collapsed->minframe = MIN2(frame, collapsed->minframe);
+					collapsed->totfiles++;
+				}
+				else {
+					if (file->collapsed_info.darray) {
+						MEM_freeN(file->collapsed_info.darray);
+						file->collapsed_info.darray = NULL;
+					}
+					BLI_ghash_insert(filter->unique_image_list, BLI_strdup(filename), file);
+					file->frame = frame;
+					file->collapsed_info.totalsize = file->realsize;
+					file->collapsed_info.maxframe = file->collapsed_info.minframe = frame;
+					file->collapsed_info.numdigits = numdigits;
+					file->collapsed_info.totfiles = 1;
+				}
+			}
+		}
+	}
+	else {
+		if (file->collapsed_info.darray) {
+			MEM_freeN(file->collapsed_info.darray);
+			file->collapsed_info.darray = NULL;
+		}
+		/* may have been set in a previous filtering iteration, so always clear */
+		file->selflag &= ~FILE_SEL_COLLAPSED;
+	}
+
 	return is_filtered;
 }
 
@@ -500,6 +553,17 @@ static void filelist_filter_clear(FileList *filelist)
 	filelist->numfiltered = 0;
 }
 
+static int compareFrame(const void *pa, const void *pb)
+{
+	struct direntry *a = *((struct direntry **)pa);
+	struct direntry *b = *((struct direntry **)pb);
+	if (a->frame < b->frame)
+		return -1;
+	if (a->frame > b->frame)
+		return 1;
+	return 0;
+}
+
 void filelist_filter(FileList *filelist)
 {
 	int num_filtered = 0;
@@ -517,12 +581,44 @@ void filelist_filter(FileList *filelist)
 
 	fidx_tmp = MEM_mallocN(sizeof(*fidx_tmp) * (size_t)filelist->numfiles, __func__);
 
+	/* */
+	if (filelist->filter_data.collapse_ima_seq) {
+		filelist->filter_data.unique_image_list = BLI_ghash_str_new("image_seq_hash");
+	}
+
 	/* Filter remap & count how many files are left after filter in a single loop. */
 	for (i = 0; i < filelist->numfiles; ++i) {
 		struct direntry *file = &filelist->filelist[i];
 
 		if (filelist->filterf(file, filelist->dir, &filelist->filter_data)) {
 			fidx_tmp[num_filtered++] = i;
+		}
+	}
+
+	if (filelist->filter_data.unique_image_list) {
+		BLI_ghash_free(filelist->filter_data.unique_image_list, MEM_freeN, NULL);
+		filelist->filter_data.unique_image_list = NULL;
+	}
+
+	/* extra step, need to sort the file list according to frame */
+	if (filelist->filter_data.collapse_ima_seq) {
+		for (i = 0; i < num_filtered; i++) {
+			struct direntry *file = &filelist->filelist[fidx_tmp[i]];
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				LinkData *fdata = file->collapsed_info.list.first;
+				int j = 1;
+				file->collapsed_info.darray =
+				        MEM_mallocN(sizeof(struct direntry *) * file->collapsed_info.totfiles, "collapsed files");
+				file->collapsed_info.darray[0] = file;
+
+				for (; fdata; fdata = fdata->next, j++) {
+					file->collapsed_info.darray[j] = fdata->data;
+				}
+				qsort(file->collapsed_info.darray, file->collapsed_info.totfiles, sizeof(struct direntry *), compareFrame);
+				if (file->collapsed_info.list.first) {
+					BLI_freelistN(&file->collapsed_info.list);
+				}
+			}
 		}
 	}
 
@@ -535,17 +631,20 @@ void filelist_filter(FileList *filelist)
 }
 
 void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const bool hide_parent,
+                                const bool collapse_ima_seq,
                                 const unsigned int filter,
                                 const char *filter_glob, const char *filter_search)
 {
 	if ((filelist->filter_data.hide_dot != hide_dot) ||
 	    (filelist->filter_data.hide_parent != hide_parent) ||
+	    (filelist->filter_data.collapse_ima_seq != collapse_ima_seq) ||
 	    (filelist->filter_data.filter != filter) ||
 	    !STREQ(filelist->filter_data.filter_glob, filter_glob) ||
 	    (BLI_strcmp_ignore_pad(filelist->filter_data.filter_search, filter_search, '*') != 0))
 	{
 		filelist->filter_data.hide_dot = hide_dot;
 		filelist->filter_data.hide_parent = hide_parent;
+		filelist->filter_data.collapse_ima_seq = collapse_ima_seq;
 
 		filelist->filter_data.filter = filter;
 		BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
@@ -611,6 +710,7 @@ ImBuf *filelist_getimage(struct FileList *filelist, const int index)
 {
 	ImBuf *ibuf = NULL;
 	int fidx = 0;
+	struct direntry *file;
 
 	BLI_assert(G.background == false);
 
@@ -618,8 +718,15 @@ ImBuf *filelist_getimage(struct FileList *filelist, const int index)
 		return NULL;
 	}
 	fidx = filelist->fidx[index];
-	ibuf = filelist->filelist[fidx].image;
+	file = filelist->filelist + fidx;
 
+	if (file->selflag & FILE_SEL_COLLAPSED) {
+		int curfra = file->collapsed_info.curfra;
+		ibuf = file->collapsed_info.darray[curfra]->image;
+	}
+	else {
+		ibuf = filelist->filelist[fidx].image;
+	}
 	return ibuf;
 }
 
@@ -654,7 +761,7 @@ ImBuf *filelist_geticon(struct FileList *filelist, const int index)
 	if (file->flags & FILE_TYPE_BLENDER) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BLENDFILE];
 	}
-	else if ((file->flags & FILE_TYPE_MOVIE) || (file->flags & FILE_TYPE_MOVIE_ICON)) {
+	else if (file->flags & FILE_TYPE_MOVIE) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
 	}
 	else if (file->flags & FILE_TYPE_SOUND) {
@@ -670,7 +777,10 @@ ImBuf *filelist_geticon(struct FileList *filelist, const int index)
 		ibuf = gSpecialFileImages[SPECIAL_IMG_TEXTFILE];
 	}
 	else if (file->flags & FILE_TYPE_IMAGE) {
-		ibuf = gSpecialFileImages[SPECIAL_IMG_LOADING];
+		if (file->selflag & FILE_SEL_COLLAPSED)
+			ibuf = gSpecialFileImages[SPECIAL_IMG_MOVIEFILE];
+		else
+			ibuf = gSpecialFileImages[SPECIAL_IMG_LOADING];
 	}
 	else if (file->flags & FILE_TYPE_BLENDER_BACKUP) {
 		ibuf = gSpecialFileImages[SPECIAL_IMG_BACKUP];
@@ -900,7 +1010,6 @@ static void filelist_setfiletypes(struct FileList *filelist)
 	file = filelist->filelist;
 
 	for (num = 0; num < filelist->numfiles; num++, file++) {
-		file->type = file->s.st_mode;  /* restore the mess below */
 #ifndef __APPLE__
 		/* Don't check extensions for directories, allow in OSX cause bundles have extensions*/
 		if (file->type & S_IFDIR) {
@@ -1190,29 +1299,30 @@ static void filelist_from_main(struct FileList *filelist)
 
 		filelist->filelist[0].relname = BLI_strdup(FILENAME_PARENT);
 		filelist->filelist[1].relname = BLI_strdup("Scene");
-		filelist->filelist[2].relname = BLI_strdup("Object");
-		filelist->filelist[3].relname = BLI_strdup("Mesh");
-		filelist->filelist[4].relname = BLI_strdup("Curve");
-		filelist->filelist[5].relname = BLI_strdup("Metaball");
-		filelist->filelist[6].relname = BLI_strdup("Material");
-		filelist->filelist[7].relname = BLI_strdup("Texture");
-		filelist->filelist[8].relname = BLI_strdup("Image");
-		filelist->filelist[9].relname = BLI_strdup("Ika");
-		filelist->filelist[10].relname = BLI_strdup("Wave");
-		filelist->filelist[11].relname = BLI_strdup("Lattice");
-		filelist->filelist[12].relname = BLI_strdup("Lamp");
-		filelist->filelist[13].relname = BLI_strdup("Camera");
-		filelist->filelist[14].relname = BLI_strdup("Ipo");
-		filelist->filelist[15].relname = BLI_strdup("World");
-		filelist->filelist[16].relname = BLI_strdup("Screen");
-		filelist->filelist[17].relname = BLI_strdup("VFont");
-		filelist->filelist[18].relname = BLI_strdup("Text");
-		filelist->filelist[19].relname = BLI_strdup("Armature");
-		filelist->filelist[20].relname = BLI_strdup("Action");
-		filelist->filelist[21].relname = BLI_strdup("NodeTree");
-		filelist->filelist[22].relname = BLI_strdup("Speaker");
+		filelist->filelist[2].relname = BLI_strdup("CacheLibrary");
+		filelist->filelist[3].relname = BLI_strdup("Object");
+		filelist->filelist[4].relname = BLI_strdup("Mesh");
+		filelist->filelist[5].relname = BLI_strdup("Curve");
+		filelist->filelist[6].relname = BLI_strdup("Metaball");
+		filelist->filelist[7].relname = BLI_strdup("Material");
+		filelist->filelist[8].relname = BLI_strdup("Texture");
+		filelist->filelist[9].relname = BLI_strdup("Image");
+		filelist->filelist[10].relname = BLI_strdup("Ika");
+		filelist->filelist[11].relname = BLI_strdup("Wave");
+		filelist->filelist[12].relname = BLI_strdup("Lattice");
+		filelist->filelist[13].relname = BLI_strdup("Lamp");
+		filelist->filelist[14].relname = BLI_strdup("Camera");
+		filelist->filelist[15].relname = BLI_strdup("Ipo");
+		filelist->filelist[16].relname = BLI_strdup("World");
+		filelist->filelist[17].relname = BLI_strdup("Screen");
+		filelist->filelist[18].relname = BLI_strdup("VFont");
+		filelist->filelist[19].relname = BLI_strdup("Text");
+		filelist->filelist[20].relname = BLI_strdup("Armature");
+		filelist->filelist[21].relname = BLI_strdup("Action");
+		filelist->filelist[22].relname = BLI_strdup("NodeTree");
+		filelist->filelist[23].relname = BLI_strdup("Speaker");
 #ifdef WITH_FREESTYLE
-		filelist->filelist[23].relname = BLI_strdup("FreestyleLineStyle");
+		filelist->filelist[24].relname = BLI_strdup("FreestyleLineStyle");
 #endif
 	}
 	else {
@@ -1235,7 +1345,7 @@ static void filelist_from_main(struct FileList *filelist)
 
 		files = filelist->filelist;
 
-		if (!filelist->filter_data.hide_parent) {
+		if (files && !filelist->filter_data.hide_parent) {
 			memset(&(filelist->filelist[0]), 0, sizeof(struct direntry));
 			filelist->filelist[0].relname = BLI_strdup(FILENAME_PARENT);
 			filelist->filelist[0].type |= S_IFDIR;
@@ -1247,7 +1357,7 @@ static void filelist_from_main(struct FileList *filelist)
 		for (id = lb->first; id; id = id->next) {
 			ok = 1;
 			if (ok) {
-				if (!filelist->filter_data.hide_dot || id->name[2] != '.') {
+				if (files && (!filelist->filter_data.hide_dot || id->name[2] != '.')) {
 					memset(files, 0, sizeof(struct direntry));
 					if (id->lib == NULL) {
 						files->relname = BLI_strdup(id->name + 2);
@@ -1334,20 +1444,23 @@ static void thumbnails_startjob(void *tjv, short *stop, short *do_update, float 
 	tj->do_update = do_update;
 
 	while ((*stop == 0) && (limg)) {
+		ThumbSource source = 0;
+
+		BLI_assert(limg->flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_FTFONT |
+		                          FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP));
 		if (limg->flags & FILE_TYPE_IMAGE) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_IMAGE);
+			source = THB_SOURCE_IMAGE;
 		}
 		else if (limg->flags & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_BLEND);
+			source = THB_SOURCE_BLEND;
 		}
 		else if (limg->flags & FILE_TYPE_MOVIE) {
-			limg->img = IMB_thumb_manage(limg->path, THB_NORMAL, THB_SOURCE_MOVIE);
-			if (!limg->img) {
-				/* remember that file can't be loaded via IMB_open_anim */
-				limg->flags &= ~FILE_TYPE_MOVIE;
-				limg->flags |= FILE_TYPE_MOVIE_ICON;
-			}
+			source = THB_SOURCE_MOVIE;
 		}
+		else if (limg->flags & FILE_TYPE_FTFONT) {
+			source = THB_SOURCE_FONT;
+		}
+		limg->img = IMB_thumb_manage(limg->path, THB_LARGE, source);
 		*do_update = true;
 		PIL_sleep_ms(10);
 		limg = limg->next;
@@ -1363,11 +1476,6 @@ static void thumbnails_update(void *tjv)
 		while (limg) {
 			if (!limg->done && limg->img) {
 				tj->filelist->filelist[limg->index].image = IMB_dupImBuf(limg->img);
-				/* update flag for movie files where thumbnail can't be created */
-				if (limg->flags & FILE_TYPE_MOVIE_ICON) {
-					tj->filelist->filelist[limg->index].flags &= ~FILE_TYPE_MOVIE;
-					tj->filelist->filelist[limg->index].flags |= FILE_TYPE_MOVIE_ICON;
-				}
 				limg->done = true;
 				IMB_freeImBuf(limg->img);
 				limg->img = NULL;
@@ -1408,7 +1516,7 @@ void thumbnails_start(FileList *filelist, const bContext *C)
 			continue;
 		}
 		if (!filelist->filelist[idx].image) {
-			if (filelist->filelist[idx].flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE |
+			if (filelist->filelist[idx].flags & (FILE_TYPE_IMAGE | FILE_TYPE_MOVIE | FILE_TYPE_FTFONT |
 			                                     FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP))
 			{
 				FileImage *limg = MEM_callocN(sizeof(*limg), __func__);

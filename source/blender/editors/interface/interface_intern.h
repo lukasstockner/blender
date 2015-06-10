@@ -40,11 +40,9 @@
 
 struct ARegion;
 struct bContext;
-struct IDProperty;
 struct uiHandleButtonData;
 struct wmEvent;
 struct wmOperatorType;
-struct wmWindow;
 struct wmTimer;
 struct uiStyle;
 struct uiWidgetColors;
@@ -122,6 +120,14 @@ enum {
 	UI_HIDDEN       = (1 << 5),
 	/* warn: rest of uiBut->flag in UI_interface.h */
 };
+
+/* some buttons display icons only under special conditions
+ * (e.g. 'x' icon in search menu) - used with ui_but_icon_extra_get */
+typedef enum uiButExtraIconType {
+	UI_BUT_ICONEXTRA_NONE = 1,
+	UI_BUT_ICONEXTRA_UNLINK,
+	UI_BUT_ICONEXTRA_EYEDROPPER,
+} uiButExtraIconType;
 
 /* but->pie_dir */
 typedef enum RadialDirection {
@@ -294,9 +300,6 @@ struct uiBut {
 	void *dragpoin;
 	struct ImBuf *imb;
 	float imb_scale;
-
-	/* block drag and drop */
-	char subblock_id[64]; /* NAME_MAX */
 	
 	/* active button data */
 	struct uiHandleButtonData *active;
@@ -335,27 +338,6 @@ struct PieMenuData {
 	float alphafac;
 };
 
-/* SubBlockData->drag_state */
-enum {
-	UI_BLOCK_DRAGSTATE_NONE      = 0,
-	UI_BLOCK_DRAGSTATE_DRAGGING  = 1, /* block is being dragged */
-	UI_BLOCK_DRAGSTATE_ANIMATING = 2, /* key was released -> animation is running */
-};
-
-typedef struct SubBlockData {
-	char subblock_id[64][MAX_NAME];  /* buttons that have the same but->subblock_id build a sub-block */
-	int tot_subblocks;               /* total amount of built sub-blocks */
-	rctf rect;                       /* bounds of the sub-block */
-	bool is_subblock_building;       /* set while buttons are collected to build the sub-block */
-
-	/* sub-but drag data */
-	short drag_state;                /* current state for sub-block drag and drop */
-	char dragged_subblock[MAX_NAME]; /* name of the currently dragged sub-block */
-	int drag_xy_prev[2];             /* coordinates used to calc block position while dragging */
-	int click_xy[2];                 /* coordinates on mouse click relative to sub-block */
-	rctf rect_above, rect_below;     /* rectangles of the sub-blocks above and below the dragged one */
-} SubBlockData;
-
 struct uiBlock {
 	uiBlock *next, *prev;
 
@@ -367,8 +349,6 @@ struct uiBlock {
 
 	ListBase layouts;
 	struct uiLayout *curlayout;
-
-	SubBlockData subblock;
 
 	ListBase contexts;
 	
@@ -471,8 +451,9 @@ extern void ui_but_hsv_set(uiBut *but);
 extern void ui_but_v3_get(uiBut *but, float vec[3]);
 extern void ui_but_v3_set(uiBut *but, const float vec[3]);
 
-extern void ui_hsvcircle_vals_from_pos(float *val_rad, float *val_dist, const rcti *rect,
-                                       const float mx, const float my);
+extern void ui_hsvcircle_vals_from_pos(
+        float *val_rad, float *val_dist, const rcti *rect,
+        const float mx, const float my);
 extern void ui_hsvcircle_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xpos, float *ypos);
 extern void ui_hsvcube_pos_from_vals(struct uiBut *but, const rcti *rect, float *hsv, float *xp, float *yp);
 bool ui_but_is_colorpicker_display_space(struct uiBut *but);
@@ -485,6 +466,9 @@ extern bool ui_but_string_set_eval_num(struct bContext *C, uiBut *but, const cha
 extern int  ui_but_string_get_max_length(uiBut *but);
 extern uiBut *ui_but_drag_multi_edit_get(uiBut *but);
 
+void ui_def_but_icon(uiBut *but, const int icon, const int flag);
+extern uiButExtraIconType ui_but_icon_extra_get(uiBut *but);
+
 extern void ui_but_default_set(struct bContext *C, const bool all, const bool use_afterfunc);
 
 extern void ui_but_update(uiBut *but);
@@ -494,7 +478,6 @@ extern bool ui_but_is_unit(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_compatible(const uiBut *but_a, const uiBut *but_b) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_rna_valid(uiBut *but) ATTR_WARN_UNUSED_RESULT;
 extern bool ui_but_is_utf8(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
-extern bool ui_but_is_search_unlink_visible(const uiBut *but) ATTR_WARN_UNUSED_RESULT;
 
 extern int  ui_but_is_pushed_ex(uiBut *but, double *value) ATTR_WARN_UNUSED_RESULT;
 extern int  ui_but_is_pushed(uiBut *but) ATTR_WARN_UNUSED_RESULT;
@@ -601,20 +584,22 @@ bool ui_searchbox_apply(uiBut *but, struct ARegion *ar);
 void ui_searchbox_free(struct bContext *C, struct ARegion *ar);
 void ui_but_search_refresh(uiBut *but);
 
-uiBlock *ui_popup_block_refresh(struct bContext *C, uiPopupBlockHandle *handle,
-                                ARegion *butregion, uiBut *but);
+uiBlock *ui_popup_block_refresh(
+        struct bContext *C, uiPopupBlockHandle *handle,
+        ARegion *butregion, uiBut *but);
 
-uiPopupBlockHandle *ui_popup_block_create(struct bContext *C, struct ARegion *butregion, uiBut *but,
-                                          uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
-                                          void *arg);
-uiPopupBlockHandle *ui_popup_menu_create(struct bContext *C, struct ARegion *butregion, uiBut *but,
-                                         uiMenuCreateFunc create_func, void *arg);
+uiPopupBlockHandle *ui_popup_block_create(
+        struct bContext *C, struct ARegion *butregion, uiBut *but,
+        uiBlockCreateFunc create_func, uiBlockHandleCreateFunc handle_create_func,
+        void *arg);
+uiPopupBlockHandle *ui_popup_menu_create(
+        struct bContext *C, struct ARegion *butregion, uiBut *but,
+        uiMenuCreateFunc create_func, void *arg);
 
 void ui_popup_block_free(struct bContext *C, uiPopupBlockHandle *handle);
 
 int ui_but_menu_step(uiBut *but, int step);
 
-struct AutoComplete;
 
 /* interface_panel.c */
 extern int ui_handler_panel_region(struct bContext *C, const struct wmEvent *event, struct ARegion *ar);
@@ -648,6 +633,7 @@ extern int ui_but_menu_direction(uiBut *but);
 extern void ui_but_text_password_hide(char password_str[UI_MAX_DRAW_STR], uiBut *but, const bool restore);
 extern uiBut *ui_but_find_select_in_enum(uiBut *but, int direction);
 extern uiBut *ui_but_find_active_in_region(struct ARegion *ar);
+extern uiBut *ui_but_find_menu_root(struct bContext *C);
 bool ui_but_is_editable(const uiBut *but);
 bool ui_but_is_editable_as_text(const uiBut *but);
 void ui_but_pie_dir_visual(RadialDirection dir, float vec[2]);
@@ -661,7 +647,7 @@ uiBut *ui_but_find_new(uiBlock *block_old, const uiBut *but_new);
 
 #ifdef WITH_INPUT_IME
 void ui_but_ime_reposition(uiBut *but, int x, int y, bool complete);
-struct wmIMEData *ui_but_get_ime_data(uiBut *but);
+struct wmIMEData *ui_but_ime_data_get(uiBut *but);
 #endif
 
 /* interface_widgets.c */
@@ -690,6 +676,7 @@ void ui_draw_preview_item(struct uiFontStyle *fstyle, rcti *rect, const char *na
 void uiStyleInit(void);
 
 /* interface_icons.c */
+void ui_icon_ensure_deferred(const struct bContext *C, const int icon_id, const bool big);
 int ui_id_icon_get(const struct bContext *C, struct ID *id, const bool big);
 
 /* resources.c */

@@ -43,6 +43,7 @@
 
 #include "BLF_translation.h"
 
+#include "BKE_context.h"
 #include "BKE_report.h"
 
 #include "MEM_guardedalloc.h"
@@ -51,6 +52,9 @@
 
 #include "UI_interface.h"
 #include "UI_resources.h"
+
+#include "WM_api.h"
+#include "WM_types.h"
 
 #include "interface_intern.h"
 
@@ -154,9 +158,10 @@ uiBut *uiDefAutoButR(uiBlock *block, PointerRNA *ptr, PropertyRNA *prop, int ind
  * \a check_prop callback filters functions to avoid drawing certain properties,
  * in cases where PROP_HIDDEN flag can't be used for a property.
  */
-int uiDefAutoButsRNA(uiLayout *layout, PointerRNA *ptr,
-                     bool (*check_prop)(PointerRNA *, PropertyRNA *),
-                     const char label_align)
+int uiDefAutoButsRNA(
+        uiLayout *layout, PointerRNA *ptr,
+        bool (*check_prop)(PointerRNA *, PropertyRNA *),
+        const char label_align)
 {
 	uiLayout *split, *col;
 	int flag;
@@ -307,6 +312,53 @@ int UI_calc_float_precision(int prec, double value)
 	CLAMP(prec, 0, UI_PRECISION_FLOAT_MAX);
 
 	return prec;
+}
+
+uiBut *ui_but_find_menu_root(struct bContext *C) {
+	ScrArea *sa = CTX_wm_area(C);
+	ARegion *ar;
+	uiBlock *block;
+	uiBut *but;
+
+	for (ar = sa->regionbase.first; ar; ar = ar->next) {
+		for (block = ar->uiblocks.first; block; block = block->next) {
+			for (but = block->buttons.first; but; but = but->next) {
+				if (but->flag & UI_BUT_MENU_ROOT) {
+					return but;
+				}
+			}
+		}
+	}
+
+	return NULL;
+}
+
+bool UI_but_online_manual_id(const uiBut *but, char *r_str, size_t maxlength)
+{
+	if (but->rnapoin.id.data && but->rnapoin.data && but->rnaprop) {
+		BLI_snprintf(r_str, maxlength, "%s.%s", RNA_struct_identifier(but->rnapoin.type),
+		             RNA_property_identifier(but->rnaprop));
+		return true;
+	}
+	else if (but->optype) {
+		WM_operator_py_idname(r_str, but->optype->idname);
+		return true;
+	}
+
+	*r_str = '\0';
+	return false;
+}
+
+bool UI_but_online_manual_id_from_active(const struct bContext *C, char *r_str, size_t maxlength)
+{
+	uiBut *but = UI_context_active_but_get(C);
+
+	if (but) {
+		return UI_but_online_manual_id(but, r_str, maxlength);
+	}
+
+	*r_str = '\0';
+	return false;
 }
 
 
@@ -483,16 +535,6 @@ void UI_butstore_update(uiBlock *block)
 			}
 		}
 	}
-}
-
-
-/* -------------------------------------------------------------------- */
-/* Sub-Block API */
-
-bool UI_subblock_is_dragging(uiBlock *block)
-{
-	return ((block->flag & UI_BLOCK_DRAGGABLE) &&
-	        (block->subblock.drag_state == UI_BLOCK_DRAGSTATE_DRAGGING));
 }
 
 /** \} */

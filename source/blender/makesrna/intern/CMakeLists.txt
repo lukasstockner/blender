@@ -38,6 +38,7 @@ set(DEFSRC
 	rna_armature.c
 	rna_boid.c
 	rna_brush.c
+	rna_cache_library.c
 	rna_camera.c
 	rna_cloth.c
 	rna_color.c
@@ -45,6 +46,7 @@ set(DEFSRC
 	rna_context.c
 	rna_controller.c
 	rna_curve.c
+	rna_depsgraph.c
 	rna_dynamicpaint.c
 	rna_fcurve.c
 	rna_fluidsim.c
@@ -59,6 +61,7 @@ set(DEFSRC
 	rna_mask.c
 	rna_material.c
 	rna_mesh.c
+	rna_mesh_sample.c
 	rna_meta.c
 	rna_modifier.c
 	rna_movieclip.c
@@ -67,6 +70,7 @@ set(DEFSRC
 	rna_object.c
 	rna_object_force.c
 	rna_packedfile.c
+	rna_palette.c
 	rna_particle.c
 	rna_pose.c
 	rna_property.c
@@ -82,6 +86,7 @@ set(DEFSRC
 	rna_sound.c
 	rna_space.c
 	rna_speaker.c
+	rna_strands.c
 	rna_test.c
 	rna_text.c
 	rna_texture.c
@@ -124,6 +129,9 @@ set(APISRC
 )
 
 string(REGEX REPLACE "rna_([a-zA-Z0-9_-]*).c" "${CMAKE_CURRENT_BINARY_DIR}/rna_\\1_gen.c" GENSRC "${DEFSRC}")
+list(APPEND GENSRC
+	"${CMAKE_CURRENT_BINARY_DIR}/rna_prototypes_gen.h"
+)
 set_source_files_properties(${GENSRC} PROPERTIES GENERATED TRUE)
 
 # --------------------------
@@ -303,6 +311,7 @@ blender_include_dirs(
 	../../blenlib
 	../../bmesh
 	../../blenfont
+	../../depsgraph
 	../../gpu
 	../../imbuf
 	../../ikplugin

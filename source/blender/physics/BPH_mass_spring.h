@@ -25,6 +25,10 @@
  * ***** END GPL LICENSE BLOCK *****
  */
 
+/** \file blender/physics/BPH_mass_spring.h
+ *  \ingroup bph
+ */
+
 #ifndef __BPH_MASS_SPRING_H__
 #define __BPH_MASS_SPRING_H__
 
@@ -36,7 +40,10 @@ struct Implicit_Data;
 struct Object;
 struct ClothModifierData;
 struct ListBase;
+struct Strands;
+struct HairSimParams;
 struct VoxelData;
+struct CacheEffector;
 
 typedef enum eMassSpringSolverStatus {
 	BPH_SOLVER_SUCCESS              = (1 << 0),
@@ -55,6 +62,10 @@ int BPH_cloth_solve(struct Object *ob, float frame, struct ClothModifierData *cl
 void BPH_cloth_solver_set_positions(struct ClothModifierData *clmd);
 
 bool BPH_cloth_solver_get_texture_data(struct Object *ob, struct ClothModifierData *clmd, struct VoxelData *vd);
+
+struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *params);
+bool BPH_strands_solve(struct Strands *strands, float mat[4][4], struct Implicit_Data *id, struct HairSimParams *params, float frame, float frame_prev, struct Scene *scene,
+                       struct ListBase *effectors, struct CacheEffector *cache_effectors, int tot_cache_effectors);
 
 #ifdef __cplusplus
 }

@@ -45,10 +45,8 @@ struct ParticleSystemModifierData;
 struct ParticleSystem;
 struct ParticleKey;
 struct ParticleSettings;
-struct HairKey;
 
 struct Main;
-struct Group;
 struct Object;
 struct Scene;
 struct DerivedMesh;
@@ -57,12 +55,10 @@ struct MTFace;
 struct MCol;
 struct MFace;
 struct MVert;
-struct IpoCurve;
 struct LatticeDeformData;
 struct LinkNode;
 struct KDTree;
 struct RNG;
-struct SurfaceModifierData;
 struct BVHTreeRay;
 struct BVHTreeRayHit; 
 struct EdgeHash;
@@ -122,6 +118,7 @@ typedef struct ParticleTexture {
 	float damp, gravity, field;           /* used in physics */
 	float length, clump, kink_freq, kink_amp, effector;  /* used in path caching */
 	float rough1, rough2, roughe;         /* used in path caching */
+	float color[3];
 } ParticleTexture;
 
 typedef struct ParticleSeam {
@@ -395,7 +392,7 @@ void psys_get_dupli_path_transform(struct ParticleSimulationData *sim, struct Pa
 
 void psys_thread_context_init(struct ParticleThreadContext *ctx, struct ParticleSimulationData *sim);
 void psys_thread_context_free(struct ParticleThreadContext *ctx);
-void psys_tasks_create(struct ParticleThreadContext *ctx, int totpart, struct ParticleTask **r_tasks, int *r_numtasks);
+void psys_tasks_create(struct ParticleThreadContext *ctx, int startpart, int endpart, struct ParticleTask **r_tasks, int *r_numtasks);
 void psys_tasks_free(struct ParticleTask *tasks, int numtasks);
 
 void psys_make_billboard(ParticleBillboardData *bb, float xvec[3], float yvec[3], float zvec[3], float center[3]);
@@ -431,6 +428,7 @@ void psys_vec_rot_to_face(struct DerivedMesh *dm, struct ParticleData *pa, float
 void psys_mat_hair_to_object(struct Object *ob, struct DerivedMesh *dm, short from, struct ParticleData *pa, float hairmat[4][4]);
 void psys_mat_hair_to_global(struct Object *ob, struct DerivedMesh *dm, short from, struct ParticleData *pa, float hairmat[4][4]);
 void psys_mat_hair_to_orco(struct Object *ob, struct DerivedMesh *dm, short from, struct ParticleData *pa, float hairmat[4][4]);
+void psys_child_mat_to_object(struct Object *ob, struct ParticleSystem *psys, struct ParticleSystemModifierData *psmd, struct ChildParticle *cpa, float hairmat[4][4]);
 
 float psys_get_dietime_from_cache(struct PointCache *cache, int index);
 
@@ -445,6 +443,7 @@ void psys_interpolate_face(struct MVert *mvert, struct MFace *mface, struct MTFa
                            float orco[3], float ornor[3]);
 float psys_particle_value_from_verts(struct DerivedMesh *dm, short from, struct ParticleData *pa, float *values);
 void psys_get_from_key(struct ParticleKey *key, float loc[3], float vel[3], float rot[4], float *time);
+int psys_get_index_on_dm(struct ParticleSystem *psys, struct DerivedMesh *dm, ParticleData *pa, int *mapindex, float mapfw[4]);
 
 /* BLI_bvhtree_ray_cast callback */
 void BKE_psys_collision_neartest_cb(void *userdata, int index, const struct BVHTreeRay *ray, struct BVHTreeRayHit *hit);
@@ -498,5 +497,13 @@ typedef struct ParticleRenderData {
 /* index_dmcache */
 #define DMCACHE_NOTFOUND    -1
 #define DMCACHE_ISCHILD     -2
+
+/* **** Depsgraph evaluation **** */
+
+struct EvaluationContext;
+
+void BKE_particle_system_eval(struct EvaluationContext *eval_ctx,
+                              struct Object *ob,
+                              struct ParticleSystem *psys);
 
 #endif

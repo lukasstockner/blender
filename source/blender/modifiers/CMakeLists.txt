@@ -30,9 +30,11 @@ set(INC
 	../blenkernel
 	../blenlib
 	../blenfont
+	../depsgraph
 	../makesdna
 	../makesrna
 	../bmesh
+	../pointcache
 	../render/extern/include
 	../../../intern/elbeem/extern
 	../../../intern/guardedalloc
@@ -51,6 +53,7 @@ set(SRC
 	intern/MOD_cast.c
 	intern/MOD_cloth.c
 	intern/MOD_collision.c
+	intern/MOD_correctivesmooth.c
 	intern/MOD_curve.c
 	intern/MOD_datatransfer.c
 	intern/MOD_decimate.c

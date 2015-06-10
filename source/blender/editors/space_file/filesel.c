@@ -102,6 +102,8 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 		/* set path to most recently opened .blend */
 		BLI_split_dirfile(G.main->name, sfile->params->dir, sfile->params->file, sizeof(sfile->params->dir), sizeof(sfile->params->file));
 		sfile->params->filter_glob[0] = '\0';
+		/* set the default thumbnails size */
+		sfile->params->thumbnail_size = 128;
 	}
 
 	params = sfile->params;
@@ -225,6 +227,15 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 			}
 			else {
 				params->display = FILE_SHORTDISPLAY;
+			}
+		}
+
+		if (params->filter & FILE_TYPE_IMAGE) {
+			if ((prop = RNA_struct_find_property(op->ptr, "collapse_images"))) {
+				if (!(params->flag & FILE_COLLAPSE_IMAGES)) {
+					params->flag |= FILE_COLLAPSE_IMAGES_TMP;
+					params->flag |= FILE_COLLAPSE_IMAGES;
+				}
 			}
 		}
 
@@ -396,63 +407,23 @@ void ED_fileselect_layout_tilepos(FileLayout *layout, int tile, int *x, int *y)
 	}
 }
 
-/* Shorten a string to a given width w. 
- * If front is set, shorten from the front,
- * otherwise shorten from the end. */
-float file_shorten_string(char *string, float w, int front)
-{	
-	char temp[FILE_MAX];
-	short shortened = 0;
-	float sw = 0;
-	float pad = 0;
-
-	if (w <= 0) {
-		*string = '\0';
-		return 0.0;
-	}
-
-	sw = file_string_width(string);
-	if (front == 1) {
-		const char *s = string;
-		BLI_strncpy(temp, "...", 4);
-		pad = file_string_width(temp);
-		while ((*s) && (sw + pad > w)) {
-			s++;
-			sw = file_string_width(s);
-			shortened = 1;
-		}
-		if (shortened) {
-			int slen = strlen(s);
-			BLI_strncpy(temp + 3, s, slen + 1);
-			temp[slen + 4] = '\0';
-			BLI_strncpy(string, temp, slen + 4);
-		}
-	}
-	else {
-		const char *s = string;
-		while (sw > w) {
-			int slen = strlen(string);
-			string[slen - 1] = '\0';
-			sw = file_string_width(s);
-			shortened = 1;
-		}
-
-		if (shortened) {
-			int slen = strlen(string);
-			if (slen > 3) {
-				BLI_strncpy(string + slen - 3, "...", 4);
-			}
-		}
-	}
-	
-	return sw;
-}
-
 float file_string_width(const char *str)
 {
 	uiStyle *style = UI_style_get();
+	float width;
+
 	UI_fontstyle_set(&style->widget);
-	return BLF_width(style->widget.uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
+	if (style->widget.kerning == 1) {  /* for BLF_width */
+		BLF_enable(style->widget.uifont_id, BLF_KERNING_DEFAULT);
+	}
+
+	width = BLF_width(style->widget.uifont_id, str, BLF_DRAW_STR_DUMMY_MAX);
+
+	if (style->widget.kerning == 1) {
+		BLF_disable(style->widget.uifont_id, BLF_KERNING_DEFAULT);
+	}
+
+	return width;
 }
 
 float file_font_pointsize(void)
@@ -484,7 +455,20 @@ static void column_widths(struct FileList *files, struct FileLayout *layout)
 		struct direntry *file = filelist_file(files, i);
 		if (file) {
 			float len;
-			len = file_string_width(file->relname);
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				char fname[PATH_MAX];
+				char finalname[PATH_MAX];
+				char ext[PATH_MAX];
+				CollapsedEntry *collapsed = &file->collapsed_info;
+				BLI_strncpy(fname, file->relname, sizeof(fname));
+				BLI_path_frame_strip(fname, false, ext);
+				BLI_snprintf(finalname, sizeof(finalname), "%s%.*d-%.*d%s",
+				             fname, collapsed->numdigits, collapsed->minframe, collapsed->numdigits, collapsed->maxframe, ext);
+				len = file_string_width(finalname);
+			}
+			else {
+				len = file_string_width(file->relname);
+			}
 			if (len > layout->column_widths[COLUMN_NAME]) layout->column_widths[COLUMN_NAME] = len;
 			len = file_string_width(file->date);
 			if (len > layout->column_widths[COLUMN_DATE]) layout->column_widths[COLUMN_DATE] = len;
@@ -527,8 +511,8 @@ void ED_fileselect_init_layout(struct SpaceFile *sfile, ARegion *ar)
 	layout->textheight = textheight;
 
 	if (params->display == FILE_IMGDISPLAY) {
-		layout->prv_w = 4.8f * UI_UNIT_X;
-		layout->prv_h = 4.8f * UI_UNIT_Y;
+		layout->prv_w = ((float)params->thumbnail_size / 20.0f) * UI_UNIT_X;
+		layout->prv_h = ((float)params->thumbnail_size / 20.0f) * UI_UNIT_Y;
 		layout->tile_border_x = 0.3f * UI_UNIT_X;
 		layout->tile_border_y = 0.3f * UI_UNIT_X;
 		layout->prv_border_x = 0.3f * UI_UNIT_X;
@@ -642,8 +626,8 @@ int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matche
 	 */
 	for (i = 0; i < n; i++) {
 		file = filelist_file(sfile->files, i);
-		/* use same rule as 'FileCheckType.CHECK_FILES' */
-		if (S_ISREG(file->type) && (fnmatch(pattern, file->relname, 0) == 0)) {
+		/* Do not check wether file is a file or dir here! Causes T44243 (we do accept dirs at this stage). */
+		if (fnmatch(pattern, file->relname, 0) == 0) {
 			file->selflag |= FILE_SEL_SELECTED;
 			if (!match) {
 				BLI_strncpy(matched_file, file->relname, FILE_MAX);
@@ -694,13 +678,8 @@ int autocomplete_directory(struct bContext *C, char *str, void *UNUSED(arg_v))
 			closedir(dir);
 
 			match = UI_autocomplete_end(autocpl, str);
-			if (match) {
-				if (match == AUTOCOMPLETE_FULL_MATCH) {
-					BLI_add_slash(str);
-				}
-				else {
-					BLI_strncpy(sfile->params->dir, str, sizeof(sfile->params->dir));
-				}
+			if (match == AUTOCOMPLETE_FULL_MATCH) {
+				BLI_add_slash(str);
 			}
 		}
 	}

@@ -64,6 +64,7 @@ set(SRC
 	intern/wm_operators.c
 	intern/wm_subwindow.c
 	intern/wm_window.c
+	intern/wm_stereo.c
 	intern/wm_widgets.c
 	intern/wm_generic_widgets.c
 	3d_widgets/arrow_widget.c
@@ -82,6 +83,13 @@ set(SRC
 	wm_window.h
 	3d_widgets/ui_widget_library.h
 )
+
+if(WITH_AUDASPACE)
+	list(APPEND INC
+		../../../intern/audaspace/intern
+	)
+	add_definitions(-DWITH_AUDASPACE)
+endif()
 
 add_definitions(${GL_DEFINITIONS})
 

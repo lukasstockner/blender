@@ -35,16 +35,13 @@
 
 #define RNA_MAGIC ((int)~0)
 
-struct ColorBand;
 struct ID;
 struct IDProperty;
 struct Main;
 struct Mesh;
 struct Object;
-struct RenderEngine;
 struct ReportList;
 struct SDNA;
-struct Sequence;
 
 /* Data structures used during define */
 
@@ -136,6 +133,7 @@ void RNA_def_armature(struct BlenderRNA *brna);
 void RNA_def_actuator(struct BlenderRNA *brna);
 void RNA_def_boid(struct BlenderRNA *brna);
 void RNA_def_brush(struct BlenderRNA *brna);
+void RNA_def_cache_library(struct BlenderRNA *brna);
 void RNA_def_camera(struct BlenderRNA *brna);
 void RNA_def_cloth(struct BlenderRNA *brna);
 void RNA_def_color(struct BlenderRNA *brna);
@@ -143,6 +141,7 @@ void RNA_def_constraint(struct BlenderRNA *brna);
 void RNA_def_context(struct BlenderRNA *brna);
 void RNA_def_controller(struct BlenderRNA *brna);
 void RNA_def_curve(struct BlenderRNA *brna);
+void RNA_def_depsgraph(struct BlenderRNA *brna);
 void RNA_def_dynamic_paint(struct BlenderRNA *brna);
 void RNA_def_fluidsim(struct BlenderRNA *brna);
 void RNA_def_fcurve(struct BlenderRNA *brna);
@@ -157,6 +156,7 @@ void RNA_def_linestyle(struct BlenderRNA *brna);
 void RNA_def_main(struct BlenderRNA *brna);
 void RNA_def_material(struct BlenderRNA *brna);
 void RNA_def_mesh(struct BlenderRNA *brna);
+void RNA_def_mesh_sample(struct BlenderRNA *brna);
 void RNA_def_meta(struct BlenderRNA *brna);
 void RNA_def_modifier(struct BlenderRNA *brna);
 void RNA_def_nla(struct BlenderRNA *brna);
@@ -164,6 +164,7 @@ void RNA_def_nodetree(struct BlenderRNA *brna);
 void RNA_def_object(struct BlenderRNA *brna);
 void RNA_def_object_force(struct BlenderRNA *brna);
 void RNA_def_packedfile(struct BlenderRNA *brna);
+void RNA_def_palette(struct BlenderRNA *brna);
 void RNA_def_particle(struct BlenderRNA *brna);
 void RNA_def_pose(struct BlenderRNA *brna);
 void RNA_def_render(struct BlenderRNA *brna);
@@ -177,6 +178,7 @@ void RNA_def_sequencer(struct BlenderRNA *brna);
 void RNA_def_smoke(struct BlenderRNA *brna);
 void RNA_def_space(struct BlenderRNA *brna);
 void RNA_def_speaker(struct BlenderRNA *brna);
+void RNA_def_strands(struct BlenderRNA *brna);
 void RNA_def_test(struct BlenderRNA *brna);
 void RNA_def_text(struct BlenderRNA *brna);
 void RNA_def_texture(struct BlenderRNA *brna);
@@ -327,10 +329,12 @@ void RNA_def_main_sounds(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_armatures(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_palettes(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_gpencil(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_movieclips(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_masks(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_linestyles(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_def_main_cache_libraries(BlenderRNA *brna, PropertyRNA *cprop);
 
 /* ID Properties */
 

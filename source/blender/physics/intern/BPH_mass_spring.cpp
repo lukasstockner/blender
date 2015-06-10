@@ -32,6 +32,7 @@
 extern "C" {
 #include "MEM_guardedalloc.h"
 
+#include "DNA_cache_library_types.h"
 #include "DNA_cloth_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_object_force.h"
@@ -43,9 +44,12 @@ extern "C" {
 #include "BLI_linklist.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_cache_library.h"
 #include "BKE_cloth.h"
 #include "BKE_collision.h"
+#include "BKE_colortools.h"
 #include "BKE_effect.h"
+#include "BKE_strands.h"
 }
 
 #include "BPH_mass_spring.h"
@@ -154,7 +158,7 @@ static bool collision_response(ClothModifierData *clmd, CollisionModifierData *c
 	float v1[3], v2_old[3], v2_new[3], v_rel_old[3], v_rel_new[3];
 	float epsilon2 = BLI_bvhtree_getepsilon(collmd->bvhtree);
 
-	float margin_distance = collpair->distance - epsilon2;
+	float margin_distance = (float)collpair->distance - epsilon2;
 	float mag_v_rel;
 	
 	zero_v3(r_impulse);
@@ -434,7 +438,7 @@ BLI_INLINE void cloth_calc_spring_force(ClothModifierData *clmd, ClothSpring *s,
 		cb = scaling / (20.0f * (parms->avg_spring_len + FLT_EPSILON));
 		
 		/* XXX assuming same restlen for ij and jk segments here, this can be done correctly for hair later */
-		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->target, kb, cb);
+		BPH_mass_spring_force_spring_bending_angular(data, s->ij, s->kl, s->mn, s->target, kb, cb, NULL, NULL, NULL);
 		
 #if 0
 		{
@@ -526,6 +530,7 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 
 		/* Hair has only edges */
 		if (cloth->numfaces == 0) {
+			const float density = 0.01f; /* XXX arbitrary value, corresponds to effect of air density */
 #if 0
 			ClothHairData *hairdata = clmd->hairdata;
 			ClothHairData *hair_ij, *hair_kl;
@@ -556,10 +561,10 @@ static void cloth_calc_force(ClothModifierData *clmd, float UNUSED(frame), ListB
 			for (i = 0; i < cloth->numverts; i++, vert++) {
 				if (hairdata) {
 					ClothHairData *hair = &hairdata[i];
-					BPH_mass_spring_force_vertex_wind(data, i, hair->radius, winvec);
+					BPH_mass_spring_force_vertex_wind(data, i, hair->radius * density, winvec);
 				}
 				else
-					BPH_mass_spring_force_vertex_wind(data, i, 1.0f, winvec);
+					BPH_mass_spring_force_vertex_wind(data, i, density, winvec);
 			}
 #endif
 		}
@@ -848,7 +853,7 @@ static void cloth_collision_solve_extra(Object *ob, ClothModifierData *clmd, Lis
 	
 	// call collision function
 	// TODO: check if "step" or "step+dt" is correct - dg
-	do_extra_solve = cloth_bvh_objcollision(ob, clmd, step/clmd->sim_parms->timescale, dt/clmd->sim_parms->timescale);
+	do_extra_solve = cloth_bvh_objcollision(ob, clmd, step / clmd->sim_parms->timescale, dt / clmd->sim_parms->timescale);
 	
 	// copy corrected positions back to simulation
 	for (i = 0; i < numverts; i++) {
@@ -1081,6 +1086,639 @@ bool BPH_cloth_solver_get_texture_data(Object *UNUSED(ob), ClothModifierData *cl
 	BPH_hair_volume_get_texture_data(grid, vd);
 	
 	BPH_hair_volume_free_vertex_grid(grid);
+	
+	return true;
+}
+
+/* ========================================================================= */
+
+struct Implicit_Data *BPH_strands_solver_create(struct Strands *strands, struct HairSimParams *params)
+{
+	static float I3[3][3] = { {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f} };
+	
+	struct Implicit_Data *id;
+	int numverts = strands->totverts;
+	int numcurves = strands->totcurves;
+	int numgoalverts = numverts - numcurves; /* extra virtual vertices to act as goal spring targets */
+	int numedges = max_ii(numverts - numcurves, 0);
+	int numbends = max_ii(numverts - 2*numcurves, 0);
+	
+	/* goal springs:    1 per vertex, except roots
+	 * stretch springs: 1 per edge
+	 * bending sprints: 3 per bend // XXX outdated, 1 is enough
+	 */
+	int numsprings = numgoalverts + numedges + 3*numbends;
+	int i;
+	
+	id = BPH_mass_spring_solver_create(numverts + numgoalverts, numsprings);
+	
+	for (i = 0; i < numverts; i++) {
+		float mass = params->mass;
+		BPH_mass_spring_set_vertex_mass(id, i, mass);
+	}
+	for (i = numverts; i < numverts + numgoalverts; i++) {
+		BPH_mass_spring_set_vertex_mass(id, i, 1.0f);
+	}
+	
+	for (i = 0; i < numverts; i++) {
+		BPH_mass_spring_set_rest_transform(id, i, I3);
+	}
+	for (i = numverts; i < numverts + numgoalverts; i++) {
+		BPH_mass_spring_set_rest_transform(id, i, I3);
+	}
+	
+	return id;
+}
+
+/* Init constraint matrix
+ * This is part of the modified CG method suggested by Baraff/Witkin in
+ * "Large Steps in Cloth Simulation" (Siggraph 1998)
+ */
+static void strands_setup_constraints(Strands *strands, Implicit_Data *data, ColliderContacts *UNUSED(contacts), int UNUSED(totcolliders), float UNUSED(dt))
+{
+	static const float ZERO[3] = { 0.0f, 0.0f, 0.0f };
+	
+	BPH_mass_spring_clear_constraints(data);
+	
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		int index = BKE_strand_iter_vertex_offset(strands, &it_strand);
+		
+		/* pin strand roots */
+		BPH_mass_spring_add_constraint_ndof0(data, index, ZERO); /* velocity is defined externally */
+		
+//		StrandVertexIterator it_vert;
+//		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+//		}
+	}
+
+	/* pin virtual goal targets */
+	{
+		int goalstart = strands->totverts;
+		int goalend = goalstart + strands->totverts - strands->totcurves;
+		for (int i = goalstart; i < goalend; ++i) {
+			BPH_mass_spring_add_constraint_ndof0(data, i, ZERO); /* velocity is defined externally */
+		}
+	}
+
+#if 0
+	for (i = 0; i < totcolliders; ++i) {
+		ColliderContacts *ct = &contacts[i];
+		for (j = 0; j < ct->totcollisions; ++j) {
+			CollPair *collpair = &ct->collisions[j];
+//			float restitution = (1.0f - clmd->coll_parms->damping) * (1.0f - ct->ob->pd->pdef_sbdamp);
+			float restitution = 0.0f;
+			int v = collpair->face1;
+			float impulse[3];
+			
+			/* pinned verts handled separately */
+			if (verts[v].flags & CLOTH_VERT_FLAG_PINNED)
+				continue;
+			
+			/* XXX cheap way of avoiding instability from multiple collisions in the same step
+			 * this should eventually be supported ...
+			 */
+			if (verts[v].impulse_count > 0)
+				continue;
+			
+			/* calculate collision response */
+			if (!collision_response(clmd, ct->collmd, collpair, dt, restitution, impulse))
+				continue;
+			
+			BPH_mass_spring_add_constraint_ndof2(data, v, collpair->normal, impulse);
+			++verts[v].impulse_count;
+		}
+	}
+#endif
+}
+
+/* stretch forces are created between 2 vertices of each segment */
+static void strands_calc_curve_stretch_forces(Strands *strands, float UNUSED(space[4][4]), HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+{
+	StrandEdgeIterator it_edge;
+	
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+		int vi = BKE_strand_edge_iter_vertex0_offset(strands, &it_edge);
+		int vj = BKE_strand_edge_iter_vertex1_offset(strands, &it_edge);
+		float restlen = len_v3v3(it_edge.vertex0->co, it_edge.vertex1->co);
+		
+		float stiffness = params->stretch_stiffness;
+		float damping = stiffness * params->stretch_damping;
+		float f[3];
+		BPH_mass_spring_force_spring_linear(data, vi, vj, restlen, stiffness, damping, true, 0.0f, f, NULL, NULL);
+	}
+}
+
+static float strands_bending_stiffness(Strands *UNUSED(strands), HairSimParams *params, StrandsVertex *UNUSED(vert), float t)
+{
+	float weight;
+	
+	if (params->flag & eHairSimParams_Flag_UseBendStiffnessCurve)
+		weight = curvemapping_evaluateF(params->bend_stiffness_mapping, 0, t);
+	else
+		weight = 1.0f;
+	CLAMP(weight, 0.0f, 1.0f);
+	
+	return params->bend_stiffness * weight;
+}
+
+/* bending forces aim to restore the rest shape of each strand locally */
+static void strands_calc_curve_bending_forces(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, StrandIterator *it_strand)
+{
+	StrandBendIterator it_bend;
+	
+	float length = 0.0f;
+	StrandEdgeIterator it_edge;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge))
+		length += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+	float length_inv = length > 0.0f ? 1.0f / length : 0.0f;
+	
+	float t = 0.0f;
+	BKE_strand_bend_iter_init(&it_bend, it_strand);
+	if (!BKE_strand_bend_iter_valid(&it_bend))
+		return;
+	
+	/* The 'mat' matrix (here: A) contains the relative transform between the local rest and motion state coordinate systems.
+	 * In the beginning both systems are the root matrix R, so the relative transform is the unit matrix.
+	 * 
+	 * A = M_state * M_rest^T
+	 *   = R * R^T
+	 *   = I
+	 * 
+	 * With each bend the matrices are rotated along the curvature, described by matrix B^T. Since we are only
+	 * interested in the combined transform however, the resulting operation becomes
+	 * 
+	 * A' = M_state' * M_rest'
+	 *    = (B_state^T * M_state) * (B_rest^T * M_rest)^T
+	 *    = B_state^T * M_state * M_rest^T * B_rest
+	 *    = B_state^T * A * B_rest
+	 * 
+	 * The target vector is originally the direction of the first segment. For each bend, the target vector
+	 * is the _previous_ segment's direction, i.e. the target vector is rotated by B with a 1-step delay.
+	 * 
+	 * The target vector in the current motion state system for each segment could thus be calculated by multiplying
+	 * 
+	 * t_state = M * t_rest
+	 * 
+	 * but using the edge vector directly is more practical.
+	 * 
+	 */
+	float mat[3][3];
+//	float Mrest[3][3], Mstate[3][3];
+	
+	{ /* initialize using the first edge deviation from the rest direction */
+		float edge_rest[3], edge_state[3], rot[3][3];
+		sub_v3_v3v3(edge_rest, it_strand->verts[1].co, it_strand->verts[0].co);
+		sub_v3_v3v3(edge_state, it_strand->state[1].co, it_strand->state[0].co);
+		normalize_v3(edge_rest);
+		normalize_v3(edge_state);
+		rotation_between_vecs_to_mat3(rot, edge_rest, edge_state);
+		
+		copy_m3_m3(mat, rot);
+//		copy_m3_m3(Mrest, it_strand->curve->root_matrix);
+//		mul_m3_m3m3(Mstate, rot, Mrest);
+	}
+	
+	{ /* apply force */
+		/* Note: applying forces to the first segment is necessary to equalize forces on the root,
+		 * otherwise energy gets introduced at the root and can destabilize the simulation.
+		 */
+		float target[3];
+		sub_v3_v3v3(target, it_strand->verts[1].co, it_strand->verts[0].co);
+		mul_mat3_m4_v3(space, target); /* to solver space (world space) */
+		
+		float target_state[3];
+		mul_v3_m3v3(target_state, mat, target);
+		
+		const float stiffness = strands_bending_stiffness(strands, params, it_bend.vertex0, t * length_inv);
+		const float damping = stiffness * params->bend_damping;
+		
+		int vroot = BKE_strand_bend_iter_vertex0_offset(strands, &it_bend); /* root velocity used as goal velocity */
+		int vj = BKE_strand_bend_iter_vertex1_offset(strands, &it_bend);
+		float goal[3], rootvel[3];
+		mul_v3_m4v3(goal, space, it_strand->verts[1].co);
+		BPH_mass_spring_get_velocity(data, vroot, rootvel);
+		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, NULL, NULL, NULL);
+	}
+	
+	do {
+		float restlen = len_v3v3(it_bend.vertex1->co, it_bend.vertex0->co);
+		t += restlen;
+		
+		{ /* advance the coordinate frame */
+			float rotrest[3][3], rotrest_inv[3][3], rotstate[3][3], rotstate_inv[3][3];
+			BKE_strand_bend_iter_transform_rest(&it_bend, rotrest);
+			BKE_strand_bend_iter_transform_state(&it_bend, rotstate);
+			transpose_m3_m3(rotrest_inv, rotrest);
+			transpose_m3_m3(rotstate_inv, rotstate);
+			
+//			mul_m3_m3m3(Mrest, rotrest_inv, Mrest);
+//			mul_m3_m3m3(Mstate, rotstate_inv, Mstate);
+			
+			mul_m3_m3m3(mat, mat, rotrest);
+			mul_m3_m3m3(mat, rotstate_inv, mat);
+		}
+		
+		{ /* apply force */
+			float target[3];
+			sub_v3_v3v3(target, it_bend.vertex1->co, it_bend.vertex0->co);
+			mul_mat3_m4_v3(space, target); /* to solver space (world space) */
+			
+			float target_state[3];
+			mul_v3_m3v3(target_state, mat, target);
+			
+			const float stiffness = strands_bending_stiffness(strands, params, it_bend.vertex1, t * length_inv);
+			const float damping = stiffness * params->bend_damping;
+			
+			int vi = BKE_strand_bend_iter_vertex0_offset(strands, &it_bend);
+			int vj = BKE_strand_bend_iter_vertex1_offset(strands, &it_bend);
+			int vk = BKE_strand_bend_iter_vertex2_offset(strands, &it_bend);
+			float f[3];
+			BPH_mass_spring_force_spring_bending_angular(data, vi, vj, vk, target_state, stiffness, damping, f, NULL, NULL);
+			
+#if 0 /* debug */
+			{
+				float mscale = 0.1f;
+				
+				float x[3];
+				BPH_mass_spring_get_position(data, vj, x);
+				BKE_sim_debug_data_add_vector(x, target, 0,0,1, "hairsim", 2598, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, target_state, 0.4,0.4,1, "hairsim", 2599, vi, vj, vk);
+				
+				float mr[3][3];
+				copy_m3_m3(mr, Mrest);
+				mul_m3_fl(mr, mscale);
+				BKE_sim_debug_data_add_vector(x, mr[0], 0.7,0.0,0.0, "hairsim", 1957, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, mr[1], 0.0,0.7,0.0, "hairsim", 1958, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, mr[2], 0.0,0.0,0.7, "hairsim", 1959, vi, vj, vk);
+				
+				float ms[3][3];
+				copy_m3_m3(ms, Mstate);
+				mul_m3_fl(ms, mscale);
+				BKE_sim_debug_data_add_vector(x, ms[0], 1.0,0.4,0.4, "hairsim", 1857, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, ms[1], 0.4,1.0,0.4, "hairsim", 1858, vi, vj, vk);
+				BKE_sim_debug_data_add_vector(x, ms[2], 0.4,0.4,1.0, "hairsim", 1859, vi, vj, vk);
+			}
+#endif
+		}
+		
+		BKE_strand_bend_iter_next(&it_bend);
+	} while (BKE_strand_bend_iter_valid(&it_bend));
+}
+
+static float strands_goal_stiffness(Strands *UNUSED(strands), HairSimParams *params, StrandsVertex *vert, float t)
+{
+	/* XXX There is no possibility of tweaking them in linked data currently,
+	 * so the original workflow of painting weights in particle edit mode is virtually useless.
+	 */
+	float weight;
+	
+	if (params->flag & eHairSimParams_Flag_UseGoalStiffnessCurve)
+		weight = curvemapping_evaluateF(params->goal_stiffness_mapping, 0, t);
+	else
+		weight = vert->weight;
+	CLAMP(weight, 0.0f, 1.0f);
+	
+	return params->goal_stiffness * weight;
+}
+
+static bool strands_deflector_filter(void *UNUSED(data), CacheEffector *eff)
+{
+	return eff->type == eCacheEffector_Type_Deflect;
+}
+
+static bool strands_test_deflector(StrandsVertex *UNUSED(vertex), int index, CacheEffector *cache_effectors, int tot_cache_effectors, Implicit_Data *data)
+{
+	CacheEffectorPoint point;
+	point.index = index;
+	BPH_mass_spring_get_motion_state(data, index, point.x, point.v);
+	
+	CacheEffectorResult result;
+	if (BKE_cache_effectors_eval_ex(cache_effectors, tot_cache_effectors, &point, &result, strands_deflector_filter, NULL) > 0) {
+		return true;
+	}
+	
+	return false;
+}
+
+/* goal forces pull vertices toward their rest position */
+static void strands_calc_vertex_goal_forces(Strands *strands, float UNUSED(space[4][4]), HairSimParams *params, CacheEffector *cache_effectors, int tot_cache_effectors,
+                                            Implicit_Data *data, StrandIterator *it_strand)
+{
+	const int goalstart = strands->totverts;
+	StrandEdgeIterator it_edge;
+	
+	float length = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge))
+		length += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+	float length_inv = length > 0.0f ? 1.0f / length : 0.0f;
+	
+	float t = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+		int vj = BKE_strand_edge_iter_vertex1_offset(strands, &it_edge);
+		int numroots = it_strand->index + 1; /* roots don't have goal verts, skip this many */
+		int goalj = goalstart + vj - numroots;
+		
+		if (params->flag & eHairSimParams_Flag_UseGoalDeflect) {
+			if (strands_test_deflector(it_edge.vertex1, vj, cache_effectors, tot_cache_effectors, data))
+				continue;
+		}
+		
+		float restlen = len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+		t += restlen;
+		
+		float stiffness = strands_goal_stiffness(strands, params, it_edge.vertex1, t * length_inv);
+		float damping = stiffness * params->goal_damping;
+		
+		float f[3];
+		BPH_mass_spring_force_spring_linear(data, vj, goalj, 0.0f, stiffness, damping, true, 0.0f, f, NULL, NULL);
+	}
+	
+#if 0
+	StrandEdgeIterator it_edge;
+	
+	float rootvel[3];
+	BPH_mass_spring_get_velocity(data, BKE_strand_iter_vertex_offset(strands, it_strand), rootvel);
+	
+	float length = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge))
+		length += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+	float length_inv = length > 0.0f ? 1.0f / length : 0.0f;
+	
+	float t = 0.0f;
+	for (BKE_strand_edge_iter_init(&it_edge, it_strand); BKE_strand_edge_iter_valid(&it_edge); BKE_strand_edge_iter_next(&it_edge)) {
+		int vj = BKE_strand_edge_iter_vertex1_offset(strands, &it_edge);
+		t += len_v3v3(it_edge.vertex1->co, it_edge.vertex0->co);
+		
+		float stiffness = strands_goal_stiffness(strands, params, it_edge.vertex1, t * length_inv);
+		float damping = stiffness * params->goal_damping;
+		
+		float goal[3];
+		mul_v3_m4v3(goal, space, it_edge.vertex1->co);
+		
+		float f[3];
+		BPH_mass_spring_force_spring_goal(data, vj, goal, rootvel, stiffness, damping, f, NULL, NULL);
+	}
+#endif
+}
+
+/* calculates internal forces for a single strand curve */
+static void strands_calc_curve_forces(Strands *strands, float space[4][4], HairSimParams *params, CacheEffector *cache_effectors, int tot_cache_effectors,
+                                      Implicit_Data *data, StrandIterator *it_strand)
+{
+	strands_calc_curve_stretch_forces(strands, space, params, data, it_strand);
+	strands_calc_curve_bending_forces(strands, space, params, data, it_strand);
+	strands_calc_vertex_goal_forces(strands, space, params, cache_effectors, tot_cache_effectors, data, it_strand);
+}
+
+/* Collect forces and derivatives:  F, dFdX, dFdV */
+static void strands_calc_force(Strands *strands, float space[4][4], HairSimParams *params, Implicit_Data *data, float UNUSED(frame), Scene *scene,
+                               ListBase *effectors, CacheEffector *cache_effectors, int tot_cache_effectors)
+{
+	unsigned int numverts = strands->totverts;
+	
+	int i = 0;
+	float gravity[3] = {0.0f, 0.0f, 0.0f};
+	
+	/* global acceleration (gravitation) */
+	if (scene->physics_settings.flag & PHYS_GLOBAL_GRAVITY) {
+		/* scale gravity force */
+		mul_v3_v3fl(gravity, scene->physics_settings.gravity, params->effector_weights->global_gravity);
+	}
+	for (i = 0; i < numverts; i++) {
+		float mass = params->mass;
+		BPH_mass_spring_force_gravity(data, i, mass, gravity);
+	}
+	
+	BPH_mass_spring_force_drag(data, params->drag);
+	
+	/* handle external forces like wind */
+	if (effectors || (cache_effectors && tot_cache_effectors > 0)) {
+		/* cache per-vertex forces to avoid redundant calculation */
+		float (*ext_forces)[3] = (float (*)[3])MEM_callocN(sizeof(float) * 3 * numverts, "effector forces");
+		
+		if (effectors) {
+			for (i = 0; i < numverts; ++i) {
+				float x[3], v[3];
+				EffectedPoint epoint;
+				
+				BPH_mass_spring_get_motion_state(data, i, x, v);
+				pd_point_from_loc(scene, x, v, i, &epoint);
+				pdDoEffectors(effectors, NULL, params->effector_weights, &epoint, ext_forces[i], NULL);
+			}
+		}
+		
+		if (cache_effectors && tot_cache_effectors > 0) {
+			for (i = 0; i < numverts; ++i) {
+				CacheEffectorPoint point;
+				point.index = i;
+				BPH_mass_spring_get_motion_state(data, i, point.x, point.v);
+				
+				CacheEffectorResult result;
+				if (BKE_cache_effectors_eval(cache_effectors, tot_cache_effectors, &point, &result) > 0) {
+					add_v3_v3(ext_forces[i], result.f);
+				}
+			}
+		}
+		
+		for (i = 0; i < numverts; ++i) {
+			BPH_mass_spring_force_vertex_wind(data, i, 1.0f, ext_forces);
+		}
+
+		MEM_freeN(ext_forces);
+	}
+	
+	/* spring forces */
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		strands_calc_curve_forces(strands, space, params, cache_effectors, tot_cache_effectors, data, &it_strand);
+	}
+}
+
+/* calculates the velocity of strand roots using the new rest location (verts->co) and the current motion state */
+static void strands_calc_root_velocity(Strands *strands, float mat[4][4], Implicit_Data *data, float timestep)
+{
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		if (it_strand.curve->numverts > 0) {
+			int index = BKE_strand_iter_vertex_offset(strands, &it_strand);
+			
+			float vel[3];
+			sub_v3_v3v3(vel, it_strand.verts[0].co, it_strand.state[0].co);
+			mul_v3_fl(vel, 1.0f/timestep);
+			mul_mat3_m4_v3(mat, vel);
+			
+			BPH_mass_spring_set_velocity(data, index, vel);
+		}
+	}
+}
+
+/* calculates the location of strand roots using the new rest location (verts->co) and the current motion state */
+static void strands_calc_root_location(Strands *strands, float mat[4][4], Implicit_Data *data, float step)
+{
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		if (it_strand.curve->numverts > 0) {
+			int index = BKE_strand_iter_vertex_offset(strands, &it_strand);
+			
+			float co[3];
+			interp_v3_v3v3(co, it_strand.state[0].co, it_strand.verts[0].co, step);
+			mul_m4_v3(mat, co);
+			
+			BPH_mass_spring_set_position(data, index, co);
+		}
+	}
+}
+
+/* calculates the location of virtual goal vertices */
+static void strands_calc_goal_velocities(Strands *strands, float mat[4][4], Implicit_Data *data, float timestep)
+{
+	const int goalstart = strands->totverts;
+	int goalindex = goalstart;
+	
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			/* skip root */
+			if (it_vert.index == 0)
+				continue;
+			
+			int index = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert);
+			
+			float vel[3];
+			sub_v3_v3v3(vel, strands->verts[index].co, strands->state[index].co);
+			mul_v3_fl(vel, 1.0f/timestep);
+			mul_mat3_m4_v3(mat, vel);
+			
+			BPH_mass_spring_set_velocity(data, goalindex, vel);
+			
+			++goalindex;
+		}
+	}
+}
+
+/* calculates the location of virtual goal vertices */
+static void strands_calc_goal_locations(Strands *strands, float mat[4][4], Implicit_Data *data, float step)
+{
+	const int goalstart = strands->totverts;
+	int goalindex = goalstart;
+	
+	StrandIterator it_strand;
+	for (BKE_strand_iter_init(&it_strand, strands); BKE_strand_iter_valid(&it_strand); BKE_strand_iter_next(&it_strand)) {
+		StrandVertexIterator it_vert;
+		for (BKE_strand_vertex_iter_init(&it_vert, &it_strand); BKE_strand_vertex_iter_valid(&it_vert); BKE_strand_vertex_iter_next(&it_vert)) {
+			/* skip root */
+			if (it_vert.index == 0)
+				continue;
+			
+			int index = BKE_strand_vertex_iter_vertex_offset(strands, &it_vert);
+			
+			float co[3];
+			interp_v3_v3v3(co, strands->state[index].co, strands->verts[index].co, step);
+			mul_m4_v3(mat, co);
+			
+			BPH_mass_spring_set_position(data, goalindex, co);
+			
+			++goalindex;
+		}
+	}
+}
+
+/* XXX Do we need to take fictitious forces from the moving and/or accelerated frame of reference into account?
+ * This would mean we pass not only the basic world transform mat, but also linear/angular velocity and acceleration.
+ */
+bool BPH_strands_solve(Strands *strands, float mat[4][4], Implicit_Data *id, HairSimParams *params, float frame, float frame_prev, Scene *scene,
+                       ListBase *effectors, CacheEffector *cache_effectors, int tot_cache_effectors)
+{
+	if (params->timescale == 0.0f || params->substeps < 1)
+		return false;
+	
+	float timestep = (FRA2TIME(frame) - FRA2TIME(frame_prev)) * params->timescale;
+	float dstep = 1.0f / params->substeps;
+	float dtime = timestep * dstep;
+	int numverts = strands->totverts;
+	
+	int i;
+	ColliderContacts *contacts = NULL;
+	int totcolliders = 0;
+	
+	float imat[4][4];
+	invert_m4_m4(imat, mat);
+	
+//	if (!clmd->solver_result)
+//		clmd->solver_result = (ClothSolverResult *)MEM_callocN(sizeof(ClothSolverResult), "cloth solver result");
+//	cloth_clear_result(clmd);
+	
+	/* initialize solver data */
+	for (i = 0; i < numverts; i++) {
+		float wco[3], wvel[3];
+		copy_v3_v3(wco, strands->state[i].co);
+		copy_v3_v3(wvel, strands->state[i].vel);
+		mul_m4_v3(mat, wco);
+		mul_mat3_m4_v3(mat, wvel);
+		BPH_mass_spring_set_motion_state(id, i, wco, wvel);
+	}
+	strands_calc_root_velocity(strands, mat, id, timestep);
+	
+	strands_calc_goal_locations(strands, mat, id, 0.0f);
+	strands_calc_goal_velocities(strands, mat, id, timestep);
+	
+	for (float step = 0.0f; step < 1.0f; step += dstep) {
+		ImplicitSolverResult result;
+		
+#if 0
+		/* determine contact points */
+		if (clmd->coll_parms->flags & CLOTH_COLLSETTINGS_FLAG_ENABLED) {
+			cloth_find_point_contacts(ob, clmd, 0.0f, tf, &contacts, &totcolliders);
+		}
+#endif
+		
+		/* setup vertex constraints for pinned vertices and contacts */
+		strands_setup_constraints(strands, id, contacts, totcolliders, dtime);
+		
+		/* initialize forces to zero */
+		BPH_mass_spring_clear_forces(id);
+		
+		// calculate forces
+		strands_calc_force(strands, mat, params, id, frame, scene, effectors, cache_effectors, tot_cache_effectors);
+		
+		// calculate new velocity and position
+		BPH_mass_spring_solve_velocities(id, dtime, &result);
+//		cloth_record_result(clmd, &result, clmd->sim_parms->stepsPerFrame);
+		
+#if 0
+		if (is_hair) {
+			cloth_continuum_step(clmd, dtime);
+		}
+#endif
+		
+		BPH_mass_spring_solve_positions(id, dtime);
+		
+		BPH_mass_spring_apply_result(id);
+		
+		/* move pinned verts to correct position */
+		strands_calc_root_location(strands, mat, id, step + dstep);
+		strands_calc_goal_locations(strands, mat, id, step + dstep);
+		
+#if 0
+		/* free contact points */
+		if (contacts) {
+			cloth_free_contacts(contacts, totcolliders);
+		}
+#endif
+		
+	}
+	
+	/* copy results back to strand data */
+	for (i = 0; i < numverts; i++) {
+		float co[3], vel[3];
+		BPH_mass_spring_get_motion_state(id, i, co, vel);
+		mul_m4_v3(imat, co);
+		mul_mat3_m4_v3(imat, vel);
+		copy_v3_v3(strands->state[i].co, co);
+		copy_v3_v3(strands->state[i].vel, vel);
+	}
 	
 	return true;
 }

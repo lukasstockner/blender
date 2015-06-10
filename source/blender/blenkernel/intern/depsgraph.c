@@ -45,6 +45,7 @@
 #include "BLI_threads.h"
 
 #include "DNA_anim_types.h"
+#include "DNA_cache_library_types.h"
 #include "DNA_camera_types.h"
 #include "DNA_group_types.h"
 #include "DNA_lamp_types.h"
@@ -88,16 +89,25 @@
 
 #include "depsgraph_private.h"
 
+#include "DEG_depsgraph.h"
+#include "DEG_depsgraph_build.h"
+#include "DEG_depsgraph_debug.h"
+#include "DEG_depsgraph_query.h"
+
+#ifdef WITH_LEGACY_DEPSGRAPH
+
 static SpinLock threaded_update_lock;
 
 void DAG_init(void)
 {
 	BLI_spin_init(&threaded_update_lock);
+	DEG_register_node_types();
 }
 
 void DAG_exit(void)
 {
 	BLI_spin_end(&threaded_update_lock);
+	DEG_free_node_types();
 }
 
 /* Queue and stack operations for dag traversal 
@@ -484,7 +494,7 @@ static void dag_add_collision_field_relation(DagForest *dag, Scene *scene, Objec
 	}
 }
 
-static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, Object *ob, int mask)
+static void build_dag_object(DagForest *dag, DagNode *scenenode, Main *bmain, Scene *scene, Object *ob, int mask)
 {
 	bConstraint *con;
 	DagNode *node;
@@ -512,7 +522,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 			
 			for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
 				for (con = pchan->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					ListBase targets = {NULL, NULL};
 					bConstraintTarget *ct;
 					
@@ -574,9 +584,9 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 		ModifierData *md;
 		
 		for (md = ob->modifiers.first; md; md = md->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 			
-			if (mti->updateDepgraph) mti->updateDepgraph(md, dag, scene, ob, node);
+			if (mti->updateDepgraph) mti->updateDepgraph(md, dag, bmain, scene, ob, node);
 		}
 	}
 	if (ob->parent) {
@@ -620,8 +630,22 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 		/* inverted relation, so addtoroot shouldn't be set to zero */
 	}
 	
+	/* XXX Fake dependency: duplicator object becomes a child of group objects.
+	 * This exploits the layer visibility mechanism, making the group objects update
+	 * when the duplicator is visible (even if group objects are not visible themselves).
+	 * It is not a true dependency, the duplicator does not in any way depend on group objects or data!
+	 */
 	if (ob->transflag & OB_DUPLI) {
+		/* XXX In theory it would be possible to disable the visibility dependency when dupli groups are cached,
+		 * since we use the results from the cache instead of the generated object data anyway.
+		 * However, the caching system depends a lot on DNA objects currently and behaves unpredictably without this ...
+		 */
+#if 0
+		bool is_cached = ob->cache_library && ob->cache_library->source_mode == CACHE_LIBRARY_SOURCE_CACHE;
+		if (!is_cached && (ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+#else
 		if ((ob->transflag & OB_DUPLIGROUP) && ob->dup_group) {
+#endif
 			GroupObject *go;
 			for (go = ob->dup_group->gobject.first; go; go = go->next) {
 				if (go->ob) {
@@ -793,7 +817,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 				}
 			}
 
-			effectors = pdInitEffectors(scene, ob, psys, part->effector_weights, false);
+			effectors = pdInitEffectors_ex(scene, ob, psys, ob->lay, part->effector_weights, false);
 
 			if (effectors) {
 				for (eff = effectors->first; eff; eff = eff->next) {
@@ -827,7 +851,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 	
 	/* object constraints */
 	for (con = ob->constraints.first; con; con = con->next) {
-		bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+		const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 		ListBase targets = {NULL, NULL};
 		bConstraintTarget *ct;
 		
@@ -895,7 +919,7 @@ static void build_dag_object(DagForest *dag, DagNode *scenenode, Scene *scene, O
 		dag_add_relation(dag, scenenode, node, DAG_RL_SCENE, "Scene Relation");
 }
 
-static void build_dag_group(DagForest *dag, DagNode *scenenode, Scene *scene, Group *group, short mask)
+static void build_dag_group(DagForest *dag, DagNode *scenenode, Main *bmain, Scene *scene, Group *group, short mask)
 {
 	GroupObject *go;
 
@@ -905,9 +929,9 @@ static void build_dag_group(DagForest *dag, DagNode *scenenode, Scene *scene, Gr
 	group->id.flag |= LIB_DOIT;
 
 	for (go = group->gobject.first; go; go = go->next) {
-		build_dag_object(dag, scenenode, scene, go->ob, mask);
+		build_dag_object(dag, scenenode, bmain, scene, go->ob, mask);
 		if (go->ob->dup_group)
-			build_dag_group(dag, scenenode, scene, go->ob->dup_group, mask);
+			build_dag_group(dag, scenenode, bmain, scene, go->ob->dup_group, mask);
 	}
 }
 
@@ -940,11 +964,11 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 	for (base = sce->base.first; base; base = base->next) {
 		ob = base->object;
 		
-		build_dag_object(dag, scenenode, sce, ob, mask);
+		build_dag_object(dag, scenenode, bmain, sce, ob, mask);
 		if (ob->proxy)
-			build_dag_object(dag, scenenode, sce, ob->proxy, mask);
+			build_dag_object(dag, scenenode, bmain, sce, ob->proxy, mask);
 		if (ob->dup_group) 
-			build_dag_group(dag, scenenode, sce, ob->dup_group, mask);
+			build_dag_group(dag, scenenode, bmain, sce, ob->dup_group, mask);
 	}
 	
 	BKE_main_id_tag_idcode(bmain, ID_GR, false);
@@ -964,6 +988,10 @@ DagForest *build_dag(Main *bmain, Scene *sce, short mask)
 
 			/* also flush custom data mask */
 			((Object *)node->ob)->customdata_mask = node->customdata_mask;
+
+			if (node->parent == NULL) {
+				dag_add_relation(dag, scenenode, node, DAG_RL_SCENE, "Scene Relation");
+			}
 		}
 	}
 	/* now set relations equal, so that when only one parent changes, the correct recalcs are found */
@@ -1329,8 +1357,14 @@ static void (*EditorsUpdateSceneCb)(Main *bmain, Scene *scene, int updated) = NU
 
 void DAG_editors_update_cb(void (*id_func)(Main *bmain, ID *id), void (*scene_func)(Main *bmain, Scene *scene, int updated))
 {
-	EditorsUpdateIDCb = id_func;
-	EditorsUpdateSceneCb = scene_func;
+	if (DEG_depsgraph_use_legacy()) {
+		EditorsUpdateIDCb = id_func;
+		EditorsUpdateSceneCb = scene_func;
+	}
+	else {
+		/* New dependency graph. */
+		DEG_editors_set_update_cb(id_func, scene_func);
+	}
 }
 
 static void dag_editors_id_update(Main *bmain, ID *id)
@@ -1529,7 +1563,7 @@ static void dag_scene_build(Main *bmain, Scene *sce)
 	Base *base;
 
 	BLI_listbase_clear(&tempbase);
-	
+
 	build_dag(bmain, sce, DAG_RL_ALL_BUT_DATA);
 	
 	dag_check_cycle(sce->theDag);
@@ -1621,32 +1655,65 @@ static void dag_scene_build(Main *bmain, Scene *sce)
 /* clear all dependency graphs */
 void DAG_relations_tag_update(Main *bmain)
 {
-	Scene *sce;
-
-	for (sce = bmain->scene.first; sce; sce = sce->id.next)
-		dag_scene_free(sce);
+	if (DEG_depsgraph_use_legacy()) {
+		Scene *sce;
+		for (sce = bmain->scene.first; sce; sce = sce->id.next) {
+			dag_scene_free(sce);
+		}
+	}
+	else {
+		/* New dependency graph. */
+		DEG_relations_tag_update(bmain);
+	}
 }
 
 /* rebuild dependency graph only for a given scene */
 void DAG_scene_relations_rebuild(Main *bmain, Scene *sce)
 {
-	dag_scene_free(sce);
-	DAG_scene_relations_update(bmain, sce);
+	if (DEG_depsgraph_use_legacy()) {
+		dag_scene_free(sce);
+		DAG_scene_relations_update(bmain, sce);
+	}
+	else {
+		/* New dependency graph. */
+		DEG_scene_relations_rebuild(bmain, sce);
+	}
 }
 
 /* create dependency graph if it was cleared or didn't exist yet */
 void DAG_scene_relations_update(Main *bmain, Scene *sce)
 {
-	if (!sce->theDag)
-		dag_scene_build(bmain, sce);
+	if (DEG_depsgraph_use_legacy()) {
+		if (!sce->theDag)
+			dag_scene_build(bmain, sce);
+	}
+	else {
+		/* New dependency graph. */
+		DEG_scene_relations_update(bmain, sce);
+	}
+}
+
+void DAG_scene_relations_validate(Main *bmain, Scene *sce)
+{
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_debug_scene_relations_validate(bmain, sce);
+	}
 }
 
 void DAG_scene_free(Scene *sce)
 {
-	if (sce->theDag) {
-		free_forest(sce->theDag);
-		MEM_freeN(sce->theDag);
-		sce->theDag = NULL;
+	if (DEG_depsgraph_use_legacy()) {
+		if (sce->theDag) {
+			free_forest(sce->theDag);
+			MEM_freeN(sce->theDag);
+			sce->theDag = NULL;
+		}
+	}
+	else {
+		if (sce->depsgraph) {
+			DEG_graph_free(sce->depsgraph);
+			sce->depsgraph = NULL;
+		}
 	}
 }
 
@@ -1889,7 +1956,11 @@ void DAG_scene_flush_update(Main *bmain, Scene *sce, unsigned int lay, const sho
 	DagAdjList *itA;
 	Object *ob;
 	int lasttime;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		return;
+	}
+
 	if (sce->theDag == NULL) {
 		printf("DAG zero... not allowed to happen!\n");
 		DAG_scene_relations_update(bmain, sce);
@@ -2015,7 +2086,7 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 	if (ob->constraints.first) {
 		bConstraint *con;
 		for (con = ob->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+			const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -2141,6 +2212,10 @@ static void dag_object_time_update_flags(Main *bmain, Scene *scene, Object *ob)
 		}
 	}
 
+	/* invalidate dupli cache */
+	if (ob->dup_cache)
+		ob->dup_cache->flag |= DUPCACHE_FLAG_DIRTY;
+
 	if (ob->recalc & OB_RECALC_OB)
 		lib_id_recalc_tag(bmain, &ob->id);
 	if (ob->recalc & OB_RECALC_DATA)
@@ -2229,6 +2304,90 @@ void DAG_scene_update_flags(Main *bmain, Scene *scene, unsigned int lay, const b
 	}
 }
 
+void DAG_scene_update_group_flags(Main *bmain,
+                                  Scene *scene,
+                                  Group *group,
+                                  unsigned int lay,
+                                  const bool do_time,
+                                  const bool do_invisible_flush)
+{
+	DagNode *root_node = scene->theDag->DagNode.first, *node;
+	GroupObject *go;
+	DagNodeQueue *queue;
+
+	/* Tag all possible objects for update. */
+	DAG_scene_update_flags(bmain, scene, lay, do_time, do_invisible_flush);
+
+	/* Initialize colors of nodes. */
+	for (node = root_node; node != NULL; node = node->next) {
+		node->color = DAG_WHITE;
+		node->scheduled = false;
+	}
+
+	/* Tag nodes which corresponds to objects which are to be updated. */
+	for (go = group->gobject.first; go != NULL; go = go->next) {
+		if (go->ob != NULL) {
+			node = dag_find_node(scene->theDag, go->ob);
+			if (node != NULL) {
+				node->scheduled = true;
+			}
+		}
+	}
+
+	/* Flush schedule flags to parent. */
+	queue = queue_create(DAGQUEUEALLOC);
+	for (node = root_node; node != NULL; node = node->next) {
+		if (node->color == DAG_WHITE) {
+			push_stack(queue, node);
+			node->color = DAG_GRAY;
+			while (queue->count) {
+				DagNode *current_node = get_top_node_queue(queue);
+				DagAdjList *itA;
+				bool skip = false;
+				/* Check if all child nodes were scheduled. */
+				for (itA = current_node->child; itA; itA = itA->next) {
+					if (itA->node->color == DAG_WHITE) {
+						itA->node->color = DAG_GRAY;
+						push_stack(queue, itA->node);
+						skip = true;
+						break;
+					}
+				}
+				/* Check if there are scheduled children and if so schedule
+				 * current node as well since it's needed for chidlren.
+				 */
+				if (!skip) {
+					current_node = pop_queue(queue);
+					if (current_node->type == ID_OB) {
+						for (itA = current_node->child; itA; itA = itA->next) {
+							if (itA->node->scheduled) {
+								current_node->scheduled = true;
+								break;
+							}
+						}
+					}
+					node->color = DAG_BLACK;
+				}
+			}
+		}
+	}
+	queue_delete(queue);
+
+	/* Clear recalc flags from objects which corresponds to nodes which are
+	 * not needed for the interesting group update.
+	 */
+	for (node = root_node; node != NULL; node = node->next) {
+		if (node->type == ID_OB) {
+			Object *object = node->ob;
+			if (!node->scheduled) {
+				object->recalc &= ~OB_RECALC_ALL;
+			}
+		}
+		node->color = DAG_WHITE;
+		node->scheduled = false;
+	}
+}
+
 /* struct returned by DagSceneLayer */
 typedef struct DagSceneLayer {
 	struct DagSceneLayer *next, *prev;
@@ -2300,7 +2459,7 @@ static void dag_current_scene_layers(Main *bmain, ListBase *lb)
 	}
 }
 
-static void dag_group_on_visible_update(Group *group)
+static void dag_group_on_visible_update(Scene *scene, Group *group)
 {
 	GroupObject *go;
 
@@ -2322,7 +2481,7 @@ static void dag_group_on_visible_update(Group *group)
 		}
 
 		if (go->ob->dup_group)
-			dag_group_on_visible_update(go->ob->dup_group);
+			dag_group_on_visible_update(scene, go->ob->dup_group);
 	}
 }
 
@@ -2330,7 +2489,13 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 {
 	ListBase listbase;
 	DagSceneLayer *dsl;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		/* Inform new dependnecy graphs about visibility changes. */
+		DEG_on_visible_update(bmain, do_time);
+		return;
+	}
+
 	/* get list of visible scenes and layers */
 	dag_current_scene_layers(bmain, &listbase);
 	
@@ -2357,7 +2522,8 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 			oblay = (node) ? node->lay : ob->lay;
 
 			if ((oblay & lay) & ~scene->lay_updated) {
-				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE)) {
+				/* TODO(sergey): Why do we need armature here now but didn't need before? */
+				if (ELEM(ob->type, OB_MESH, OB_CURVE, OB_SURF, OB_FONT, OB_MBALL, OB_LATTICE, OB_ARMATURE)) {
 					ob->recalc |= OB_RECALC_DATA;
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
@@ -2375,7 +2541,7 @@ void DAG_on_visible_update(Main *bmain, const bool do_time)
 					lib_id_recalc_tag(bmain, &ob->id);
 				}
 				if (ob->dup_group)
-					dag_group_on_visible_update(ob->dup_group);
+					dag_group_on_visible_update(scene, ob->dup_group);
 			}
 		}
 
@@ -2550,7 +2716,7 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 			for (obt = bmain->object.first; obt; obt = obt->id.next) {
 				bConstraint *con;
 				for (con = obt->constraints.first; con; con = con->next) {
-					bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+					const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 					if (ELEM(cti->type, CONSTRAINT_TYPE_FOLLOWTRACK, CONSTRAINT_TYPE_CAMERASOLVER,
 					          CONSTRAINT_TYPE_OBJECTSOLVER))
 					{
@@ -2600,6 +2766,21 @@ static void dag_id_flush_update(Main *bmain, Scene *sce, ID *id)
 				}
 			}
 		}
+		
+		/* set flags based on CacheLibrary */
+		if (idtype == ID_CL) {
+			for (obt = bmain->object.first; obt; obt = obt->id.next) {
+				if (!(ob && obt == ob) && ((ID *)obt->cache_library == id)) {
+					obt->flag |= (OB_RECALC_OB | OB_RECALC_DATA);
+					lib_id_recalc_tag(bmain, &obt->id);
+					lib_id_recalc_data_tag(bmain, &obt->id);
+					
+					/* invalidate dupli cache */
+					if (obt->dup_cache)
+						obt->dup_cache->flag |= DUPCACHE_FLAG_DIRTY;
+				}
+			}
+		}
 
 		/* camera's matrix is used to orient reconstructed stuff,
 		 * so it should happen tracking-related constraints recalculation
@@ -2623,7 +2804,12 @@ void DAG_ids_flush_tagged(Main *bmain)
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
 	bool do_flush = false;
-	
+
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_ids_flush_tagged(bmain);
+		return;
+	}
+
 	/* get list of visible scenes and layers */
 	dag_current_scene_layers(bmain, &listbase);
 
@@ -2666,6 +2852,11 @@ void DAG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
 	ListBase *lbarray[MAX_LIBARRAY];
 	int a;
 	bool updated = false;
+
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_ids_check_recalc(bmain, scene, time);
+		return;
+	}
 
 	/* loop over all ID types */
 	a  = set_listbasepointers(bmain, lbarray);
@@ -2783,6 +2974,11 @@ void DAG_ids_clear_recalc(Main *bmain)
 
 void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
 {
+	if (!DEG_depsgraph_use_legacy()) {
+		DEG_id_tag_update_ex(bmain, id, flag);
+		return;
+	}
+
 	if (id == NULL) return;
 
 	if (G.debug & G_DEBUG_DEPSGRAPH) {
@@ -2934,7 +3130,7 @@ void DAG_pose_sort(Object *ob)
 			addtoroot = 0;
 		}
 		for (con = pchan->constraints.first; con; con = con->next) {
-			bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
+			const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_get(con);
 			ListBase targets = {NULL, NULL};
 			bConstraintTarget *ct;
 			
@@ -3174,6 +3370,10 @@ short DAG_get_eval_flags_for_object(Scene *scene, void *object)
 {
 	DagNode *node;
 
+	if (!DEG_depsgraph_use_legacy()) {
+		return DEG_get_eval_flags_for_id(scene->depsgraph, (ID *)object);
+	}
+
 	if (scene->theDag == NULL) {
 		/* Happens when converting objects to mesh from a python script
 		 * after modifying scene graph.
@@ -3212,3 +3412,286 @@ bool DAG_is_acyclic(Scene *scene)
 {
 	return scene->theDag->is_acyclic;
 }
+
+#else
+
+/* *********************************************************************
+ * Stubs to avoid linking issues and make sure legacy crap is not used *
+ * *********************************************************************
+ */
+
+DagNodeQueue *queue_create(int UNUSED(slots))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+void queue_raz(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void queue_delete(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void push_queue(DagNodeQueue *UNUSED(queue), DagNode *UNUSED(node))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void push_stack(DagNodeQueue *UNUSED(queue), DagNode *UNUSED(node))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+DagNode *pop_queue(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *get_top_node_queue(DagNodeQueue *UNUSED(queue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagForest *dag_init(void)
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagForest *build_dag(Main *UNUSED(bmain),
+                     Scene *UNUSED(sce),
+                     short UNUSED(mask))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+void free_forest(DagForest *UNUSED(Dag))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+DagNode *dag_find_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *dag_add_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *dag_get_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+DagNode *dag_get_sub_node(DagForest *UNUSED(forest), void *UNUSED(fob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+void dag_add_relation(DagForest *UNUSED(forest),
+                      DagNode *UNUSED(fob1),
+                      DagNode *UNUSED(fob2),
+                      short UNUSED(rel),
+                      const char *UNUSED(name))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+/* debug test functions */
+
+void graph_print_queue(DagNodeQueue *UNUSED(nqueue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void graph_print_queue_dist(DagNodeQueue *UNUSED(nqueue))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void graph_print_adj_list(DagForest *UNUSED(dag))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_scene_flush_update(Main *UNUSED(bmain),
+                            Scene *UNUSED(sce),
+                            unsigned int UNUSED(lay),
+                            const short UNUSED(time))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+void DAG_scene_update_flags(Main *UNUSED(bmain),
+                            Scene *UNUSED(scene),
+                            unsigned int UNUSED(lay),
+                            const bool UNUSED(do_time),
+                            const bool UNUSED(do_invisible_flush))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+/* ******************* DAG FOR ARMATURE POSE ***************** */
+
+void DAG_pose_sort(Object *UNUSED(ob))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+}
+
+/* ************************  DAG FOR THREADED UPDATE  ********************* */
+
+void DAG_threaded_update_begin(Scene *UNUSED(scene),
+                               void (*func)(void *node, void *user_data),
+                               void *UNUSED(user_data))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	(void)func;
+}
+
+void DAG_threaded_update_handle_node_updated(void *UNUSED(node_v),
+                                             void (*func)(void *node, void *user_data),
+                                             void *UNUSED(user_data))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	(void)func;
+}
+
+/* ************************ DAG querying ********************* */
+
+Object *DAG_get_node_object(void *UNUSED(node_v))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return NULL;
+}
+
+const char *DAG_get_node_name(Scene *UNUSED(scene), void *UNUSED(node_v))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return "INVALID";
+}
+
+bool DAG_is_acyclic(Scene *UNUSED(scene))
+{
+	BLI_assert(!"Should not be used with new dependnecy graph");
+	return false;
+}
+
+/* ************************************
+ * This functions are to be supported *
+ * ************************************
+ */
+
+void DAG_init(void)
+{
+	DEG_register_node_types();
+}
+
+void DAG_exit(void)
+{
+	DEG_free_node_types();
+}
+
+/* ************************ API *********************** */
+
+void DAG_editors_update_cb(DEG_EditorUpdateIDCb id_func,
+                           DEG_EditorUpdateSceneCb scene_func)
+{
+	DEG_editors_set_update_cb(id_func, scene_func);
+}
+
+/* Tag all relations for update. */
+void DAG_relations_tag_update(Main *bmain)
+{
+	DEG_relations_tag_update(bmain);
+}
+
+/* Rebuild dependency graph only for a given scene. */
+void DAG_scene_relations_rebuild(Main *bmain, Scene *scene)
+{
+	DEG_scene_relations_rebuild(bmain, scene);
+}
+
+/* Create dependency graph if it was cleared or didn't exist yet. */
+void DAG_scene_relations_update(Main *bmain, Scene *scene)
+{
+	DEG_scene_relations_update(bmain, scene);
+}
+
+void DAG_scene_relations_validate(Main *bmain, Scene *scene)
+{
+	DEG_debug_scene_relations_validate(bmain, scene);
+}
+
+void DAG_scene_free(Scene *scene)
+{
+	DEG_scene_graph_free(scene);
+}
+
+void DAG_on_visible_update(Main *bmain, const bool do_time)
+{
+	DEG_on_visible_update(bmain, do_time);
+}
+
+void DAG_ids_check_recalc(Main *bmain, Scene *scene, bool time)
+{
+	DEG_ids_check_recalc(bmain, scene, time);
+}
+
+void DAG_id_tag_update(ID *id, short flag)
+{
+	DEG_id_tag_update_ex(G.main, id, flag);
+}
+
+void DAG_id_tag_update_ex(Main *bmain, ID *id, short flag)
+{
+	DEG_id_tag_update_ex(bmain, id, flag);
+}
+
+void DAG_id_type_tag(Main *bmain, short idtype)
+{
+	DEG_id_type_tag(bmain, idtype);
+}
+
+int DAG_id_type_tagged(Main *bmain, short idtype)
+{
+	return DEG_id_type_tagged(bmain, idtype);
+}
+
+void DAG_ids_clear_recalc(Main *bmain)
+{
+	DEG_ids_clear_recalc(bmain);
+}
+
+short DAG_get_eval_flags_for_object(Scene *scene, void *object)
+{
+	return DEG_get_eval_flags_for_id(scene->depsgraph, (ID *)object);
+}
+
+void DAG_ids_flush_tagged(Main *bmain)
+{
+	DEG_ids_flush_tagged(bmain);
+}
+
+/* ************************ DAG DEBUGGING ********************* */
+
+void DAG_print_dependencies(Main *UNUSED(bmain),
+                            Scene *scene,
+                            Object *UNUSED(ob))
+{
+	DEG_debug_graphviz(scene->depsgraph, stdout, "Depsgraph", false);
+}
+
+#endif

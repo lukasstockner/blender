@@ -59,7 +59,6 @@ extern "C" {
 //#define IMPLICIT_ENABLE_EIGEN_DEBUG
 
 struct Implicit_Data;
-struct ImplicitSolverInput;
 
 typedef struct ImplicitSolverResult {
 	int status;
@@ -67,11 +66,6 @@ typedef struct ImplicitSolverResult {
 	int iterations;
 	float error;
 } ImplicitSolverResult;
-
-BLI_INLINE void implicit_print_matrix_elem(float v)
-{
-    printf("%-8.3f", v);
-}
 
 void BPH_mass_spring_set_vertex_mass(struct Implicit_Data *data, int index, float mass);
 void BPH_mass_spring_set_rest_transform(struct Implicit_Data *data, int index, float rot[3][3]);
@@ -81,6 +75,7 @@ void BPH_mass_spring_set_position(struct Implicit_Data *data, int index, const f
 void BPH_mass_spring_set_velocity(struct Implicit_Data *data, int index, const float v[3]);
 void BPH_mass_spring_get_motion_state(struct Implicit_Data *data, int index, float x[3], float v[3]);
 void BPH_mass_spring_get_position(struct Implicit_Data *data, int index, float x[3]);
+void BPH_mass_spring_get_velocity(struct Implicit_Data *data, int index, float v[3]);
 
 /* access to modified motion state during solver step */
 void BPH_mass_spring_get_new_position(struct Implicit_Data *data, int index, float x[3]);
@@ -112,7 +107,7 @@ void BPH_mass_spring_force_face_wind(struct Implicit_Data *data, int v1, int v2,
 /* Wind force, acting on an edge */
 void BPH_mass_spring_force_edge_wind(struct Implicit_Data *data, int v1, int v2, float radius1, float radius2, const float (*winvec)[3]);
 /* Wind force, acting on a vertex */
-void BPH_mass_spring_force_vertex_wind(struct Implicit_Data *data, int v, float radius, const float (*winvec)[3]);
+void BPH_mass_spring_force_vertex_wind(struct Implicit_Data *data, int v, float factor, const float (*winvec)[3]);
 /* Linear spring force between two points */
 bool BPH_mass_spring_force_spring_linear(struct Implicit_Data *data, int i, int j, float restlen,
                                          float stiffness, float damping, bool no_compress, float clamp_force,
@@ -123,7 +118,8 @@ bool BPH_mass_spring_force_spring_bending(struct Implicit_Data *data, int i, int
                                           float r_f[3], float r_dfdx[3][3], float r_dfdv[3][3]);
 /* Angular bending force based on local target vectors */
 bool BPH_mass_spring_force_spring_bending_angular(struct Implicit_Data *data, int i, int j, int k,
-                                                  const float target[3], float stiffness, float damping);
+                                                  const float target[3], float stiffness, float damping,
+                                                  float r_f[3], float r_dfdx[3][3], float r_dfdv[3][3]);
 /* Global goal spring */
 bool BPH_mass_spring_force_spring_goal(struct Implicit_Data *data, int i, const float goal_x[3], const float goal_v[3],
                                        float stiffness, float damping,
@@ -133,7 +129,6 @@ bool BPH_mass_spring_force_spring_goal(struct Implicit_Data *data, int i, const 
 
 struct HairGrid;
 
-struct Object;
 struct VoxelData;
 
 #define MAX_HAIR_GRID_RES 256

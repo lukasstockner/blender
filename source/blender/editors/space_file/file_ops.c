@@ -224,7 +224,7 @@ static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select,
 	
 	/* flag the files as selected in the filelist */
 	filelist_select(sfile->files, &sel, select, FILE_SEL_SELECTED, check_type);
-	
+
 	/* Don't act on multiple selected files */
 	if (sel.first != sel.last) select = 0;
 
@@ -274,6 +274,7 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 
 				if (FILENAME_IS_CURRPAR(file->relname)) {
 					file->selflag &= ~FILE_SEL_HIGHLIGHTED;
+					file->collapsed_info.curfra = 0;
 				}
 
 				/* active_file gets highlighted as well - make sure it is no readonly file */
@@ -370,7 +371,15 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 			}
 			else {
 				/* single select, deselect all selected first */
-				if (!extend) file_deselect_all(sfile, FILE_SEL_SELECTED);
+				if (!(file->type & S_IFDIR) && (file->selflag & FILE_SEL_COLLAPSED)&& (file->selflag & FILE_SEL_SELECTED)) {
+					if (file->selflag & FILE_SEL_PLAYING) {
+						file->collapsed_info.curfra = 0;
+					}
+					file->selflag ^= FILE_SEL_PLAYING;
+				}
+				if (!extend) {
+					file_deselect_all(sfile, FILE_SEL_SELECTED);
+				}
 			}
 		}
 	}
@@ -803,6 +812,17 @@ int file_cancel_exec(bContext *C, wmOperator *UNUSED(unused))
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	wmOperator *op = sfile->op;
 	
+	if (op) {
+		PropertyRNA *prop;
+		if ((prop = RNA_struct_find_property(op->ptr, "collapse_images")) &&
+		    (sfile->params->flag & FILE_COLLAPSE_IMAGES_TMP))
+		{
+			/* turn off collapsed flag if evoked from operator */
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES_TMP;
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES;
+		}
+	}
+
 	sfile->op = NULL;
 
 	WM_event_fileselect_event(wm, op, EVT_FILESELECT_CANCEL);
@@ -868,9 +888,26 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 			for (i = 0; i < numfiles; i++) {
 				if (filelist_is_selected(sfile->files, i, CHECK_FILES)) {
 					struct direntry *file = filelist_file(sfile->files, i);
-					RNA_property_collection_add(op->ptr, prop, &itemptr);
-					RNA_string_set(&itemptr, "name", file->relname);
-					num_files++;
+
+					if (file->selflag & FILE_SEL_COLLAPSED) {
+						int j = 0;
+						CollapsedEntry *collapsed = &file->collapsed_info;
+
+						for (; j < collapsed->totfiles; j++) {
+							struct direntry *file_tmp = collapsed->darray[j];
+							RNA_property_collection_add(op->ptr, prop, &itemptr);
+							RNA_string_set(&itemptr, "name", file_tmp->relname);
+							num_files++;
+						}
+
+						MEM_freeN(collapsed->darray);
+						collapsed->darray = NULL;
+					}
+					else {
+						RNA_property_collection_add(op->ptr, prop, &itemptr);
+						RNA_string_set(&itemptr, "name", file->relname);
+						num_files++;
+					}
 				}
 			}
 			/* make sure the file specified in the filename button is added even if no files selected */
@@ -900,7 +937,13 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 			}
 		}
 
-
+		if ((prop = RNA_struct_find_property(op->ptr, "collapse_images")) &&
+		    (sfile->params->flag & FILE_COLLAPSE_IMAGES_TMP))
+		{
+			/* turn off collapsed flag if evoked from operator */
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES_TMP;
+			sfile->params->flag &= ~FILE_COLLAPSE_IMAGES;
+		}
 	}
 }
 
@@ -1673,9 +1716,11 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 		int numfiles = filelist_numfiles(sfile->files);
 		if ( (0 <= idx) && (idx < numfiles) ) {
 			struct direntry *file = filelist_file(sfile->files, idx);
-			filelist_select_file(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
-			BLI_strncpy(sfile->params->renameedit, file->relname, FILE_MAXFILE);
-			sfile->params->renamefile[0] = '\0';
+			if (!(file->selflag & FILE_SEL_COLLAPSED)) {
+				filelist_select_file(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
+				BLI_strncpy(sfile->params->renameedit, file->relname, FILE_MAXFILE);
+				sfile->params->renamefile[0] = '\0';
+			}
 		}
 		ED_area_tag_redraw(sa);
 	}

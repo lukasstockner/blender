@@ -31,6 +31,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_armature_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_boid_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_brush_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_cache_library_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_camera_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_cloth_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_color_types.h
@@ -79,6 +80,7 @@ set(SRC_DNA_INC
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_sound_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_space_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_speaker_types.h
+	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_strands_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_text_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_texture_types.h
 	${CMAKE_CURRENT_SOURCE_DIR}/makesdna/DNA_userdef_types.h
@@ -103,12 +105,14 @@ add_subdirectory(bmesh)
 add_subdirectory(render)
 add_subdirectory(blenfont)
 add_subdirectory(blenloader)
+add_subdirectory(depsgraph)
 add_subdirectory(ikplugin)
 add_subdirectory(physics)
 add_subdirectory(gpu)
 add_subdirectory(imbuf)
 add_subdirectory(nodes)
 add_subdirectory(modifiers)
+add_subdirectory(pointcache)
 add_subdirectory(makesdna)
 add_subdirectory(makesrna)
 

@@ -177,7 +177,7 @@ static GHash *id_weakref_pool_get(ID *id)
 	if (weakinfo_hash == NULL) {
 		/* we're using a ghash as a set, could use libHX's HXMAP_SINGULAR but would be an extra dep. */
 		weakinfo_hash = BLI_ghash_ptr_new("rna_id");
-		BLI_ghash_insert(id_weakref_pool, (void *)id, weakinfo_hash);
+		BLI_ghash_insert(id_weakref_pool, id, weakinfo_hash);
 	}
 
 	return weakinfo_hash;
@@ -203,7 +203,7 @@ static void id_weakref_pool_add(ID *id, BPy_DummyPointerRNA *pyrna)
 	Py_DECREF(weakref_cb_py); /* function owned by the weakref now */
 
 	/* important to add at the end, since first removal looks at the end */
-	BLI_ghash_insert(weakinfo_hash, (void *)weakref, id); /* using a hash table as a set, all 'id's are the same */
+	BLI_ghash_insert(weakinfo_hash, weakref, id); /* using a hash table as a set, all 'id's are the same */
 	/* weakinfo_hash owns the weakref */
 
 }
@@ -1830,25 +1830,23 @@ static int pyrna_py_to_prop(PointerRNA *ptr, PropertyRNA *prop, void *data, PyOb
 							RNA_property_pointer_set(ptr, prop, param->ptr);
 						}
 						else {
-							PointerRNA tmp;
-							RNA_pointer_create(NULL, ptr_type, NULL, &tmp);
-							PyErr_Format(PyExc_TypeError,
-							             "%.200s %.200s.%.200s expected a %.200s type. not %.200s",
-							             error_prefix, RNA_struct_identifier(ptr->type),
-							             RNA_property_identifier(prop), RNA_struct_identifier(tmp.type),
-							             RNA_struct_identifier(param->ptr.type));
-							Py_XDECREF(value_new); return -1;
+							raise_error = true;
 						}
 					}
 
 					if (raise_error) {
-						PointerRNA tmp;
-						RNA_pointer_create(NULL, ptr_type, NULL, &tmp);
-						PyErr_Format(PyExc_TypeError,
-						             "%.200s %.200s.%.200s expected a %.200s type, not %.200s",
-						             error_prefix, RNA_struct_identifier(ptr->type),
-						             RNA_property_identifier(prop), RNA_struct_identifier(tmp.type),
-						             RNA_struct_identifier(param->ptr.type));
+						if (pyrna_struct_validity_check(param) == -1) {
+							/* error set */
+						}
+						else {
+							PointerRNA tmp;
+							RNA_pointer_create(NULL, ptr_type, NULL, &tmp);
+							PyErr_Format(PyExc_TypeError,
+							             "%.200s %.200s.%.200s expected a %.200s type, not %.200s",
+							             error_prefix, RNA_struct_identifier(ptr->type),
+							             RNA_property_identifier(prop), RNA_struct_identifier(tmp.type),
+							             RNA_struct_identifier(param->ptr.type));
+						}
 						Py_XDECREF(value_new); return -1;
 					}
 				}

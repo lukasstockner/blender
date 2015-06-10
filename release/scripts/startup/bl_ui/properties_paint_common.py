@@ -38,10 +38,10 @@ class UnifiedPaintPanel:
         elif context.image_paint_object:
             if (toolsettings.image_paint and toolsettings.image_paint.detect_data()):
                 return toolsettings.image_paint
-
-            return None
         elif context.particle_edit_object:
             return toolsettings.particle_edit
+        elif context.hair_edit_object:
+            return toolsettings.hair_edit
 
         return None
 
@@ -133,7 +133,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
             else:
                 row = col.row(align=True)
                 panel.prop_unified_color(row, context, brush, "color", text="")
-                if brush.image_tool == 'FILL':
+                if brush.image_tool == 'FILL' and not projpaint:
                     col.prop(brush, "fill_threshold")
                 else:
                     panel.prop_unified_color(row, context, brush, "secondary_color", text="")
@@ -216,7 +216,9 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
         col = layout.column(align=True)
         col.prop(brush, "use_accumulate")
 
-    col.prop(brush, "use_alpha")
+    if projpaint:
+        col.prop(brush, "use_alpha")
+
     col.prop(brush, "use_gradient")
 
     col.separator()

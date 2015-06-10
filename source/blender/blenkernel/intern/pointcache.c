@@ -84,8 +84,12 @@
 #endif
 
 #ifdef WITH_LZO
-#include "minilzo.h"
-#define LZO_HEAP_ALLOC(var,size) \
+#  ifdef WITH_SYSTEM_LZO
+#    include <lzo/lzo1x.h>
+#  else
+#    include "minilzo.h"
+#  endif
+#  define LZO_HEAP_ALLOC(var,size) \
 	lzo_align_t __LZO_MMODEL var [ ((size) + (sizeof(lzo_align_t) - 1)) / sizeof(lzo_align_t) ]
 #endif
 
@@ -2533,7 +2537,7 @@ int BKE_ptcache_write(PTCacheID *pid, unsigned int cfra)
  */
 
 /* Clears & resets */
-void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
+void BKE_ptcache_id_clear_ex(PTCacheID *pid, int mode, unsigned int cfra, bool allow_file_delete)
 {
 	unsigned int len; /* store the length of the string */
 	unsigned int sta, end;
@@ -2591,8 +2595,10 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 					if (STREQLEN(filename, de->d_name, len)) { /* do we have the right prefix */
 						if (mode == PTCACHE_CLEAR_ALL) {
 							pid->cache->last_exact = MIN2(pid->cache->startframe, 0);
-							BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
-							BLI_delete(path_full, false, false);
+							if (allow_file_delete) {
+								BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
+								BLI_delete(path_full, false, false);
+							}
 						}
 						else {
 							/* read the number of the file */
@@ -2607,8 +2613,10 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 								    (mode == PTCACHE_CLEAR_AFTER && frame > cfra))
 								{
 									
-									BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
-									BLI_delete(path_full, false, false);
+									if (allow_file_delete) {
+										BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
+										BLI_delete(path_full, false, false);
+									}
 									if (pid->cache->cached_frames && frame >=sta && frame <= end)
 										pid->cache->cached_frames[frame-sta] = 0;
 								}
@@ -2661,8 +2669,10 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 	case PTCACHE_CLEAR_FRAME:
 		if (pid->cache->flag & PTCACHE_DISK_CACHE) {
 			if (BKE_ptcache_id_exist(pid, cfra)) {
-				ptcache_filename(pid, filename, cfra, 1, 1); /* no path */
-				BLI_delete(filename, false, false);
+				if (allow_file_delete) {
+					ptcache_filename(pid, filename, cfra, 1, 1); /* no path */
+					BLI_delete(filename, false, false);
+				}
 			}
 		}
 		else {
@@ -2684,6 +2694,13 @@ void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
 
 	BKE_ptcache_update_info(pid);
 }
+
+/* Clears & resets */
+void BKE_ptcache_id_clear(PTCacheID *pid, int mode, unsigned int cfra)
+{
+	BKE_ptcache_id_clear_ex(pid, mode, cfra, false);
+}
+
 int  BKE_ptcache_id_exist(PTCacheID *pid, int cfra)
 {
 	if (!pid->cache)
@@ -2955,49 +2972,6 @@ int  BKE_ptcache_object_reset(Scene *scene, Object *ob, int mode)
 	return reset;
 }
 
-/* Use this when quitting blender, with unsaved files */
-void BKE_ptcache_remove(void)
-{
-	char path[MAX_PTCACHE_PATH];
-	char path_full[MAX_PTCACHE_PATH];
-	int rmdir = 1;
-	
-	ptcache_path(NULL, path);
-
-	if (BLI_exists(path)) {
-		/* The pointcache dir exists? - remove all pointcache */
-
-		DIR *dir; 
-		struct dirent *de;
-
-		dir = opendir(path);
-		if (dir==NULL)
-			return;
-		
-		while ((de = readdir(dir)) != NULL) {
-			if (FILENAME_IS_CURRPAR(de->d_name)) {
-				/* do nothing */
-			}
-			else if (strstr(de->d_name, PTCACHE_EXT)) { /* do we have the right extension?*/
-				BLI_join_dirfile(path_full, sizeof(path_full), path, de->d_name);
-				BLI_delete(path_full, false, false);
-			}
-			else {
-				rmdir = 0; /* unknown file, don't remove the dir */
-			}
-		}
-
-		closedir(dir);
-	}
-	else {
-		rmdir = 0; /* path dosnt exist  */
-	}
-	
-	if (rmdir) {
-		BLI_delete(path, true, false);
-	}
-}
-
 /* Point Cache handling */
 
 PointCache *BKE_ptcache_add(ListBase *ptcaches)
@@ -3089,7 +3063,7 @@ static PointCache *ptcache_copy(PointCache *cache, bool copy_data)
 }
 
 /* returns first point cache */
-PointCache *BKE_ptcache_copy_list(ListBase *ptcaches_new, ListBase *ptcaches_old, bool copy_data)
+PointCache *BKE_ptcache_copy_list(ListBase *ptcaches_new, const ListBase *ptcaches_old, bool copy_data)
 {
 	PointCache *cache = ptcaches_old->first;
 
@@ -3350,7 +3324,7 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 			}
 		}
 
-	BLI_end_threads(&threads);
+		BLI_end_threads(&threads);
 	}
 	/* clear baking flag */
 	if (pid) {
@@ -3408,21 +3382,24 @@ void BKE_ptcache_bake(PTCacheBaker *baker)
 	/* TODO: call redraw all windows somehow */
 }
 /* Helpers */
-void BKE_ptcache_disk_to_mem(PTCacheID *pid)
+void BKE_ptcache_disk_to_mem(PTCacheID *pid, bool clear)
 {
 	PointCache *cache = pid->cache;
 	PTCacheMem *pm = NULL;
-	int baked = cache->flag & PTCACHE_BAKED;
 	int cfra, sfra = cache->startframe, efra = cache->endframe;
 
-	/* Remove possible bake flag to allow clear */
-	cache->flag &= ~PTCACHE_BAKED;
-
-	/* PTCACHE_DISK_CACHE flag was cleared already */
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
-
-	/* restore possible bake flag */
-	cache->flag |= baked;
+	if (clear) {
+		int baked = cache->flag & PTCACHE_BAKED;
+		
+		/* Remove possible bake flag to allow clear */
+		cache->flag &= ~PTCACHE_BAKED;
+		
+		/* PTCACHE_DISK_CACHE flag was cleared already */
+		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+		
+		/* restore possible bake flag */
+		cache->flag |= baked;
+	}
 
 	for (cfra=sfra; cfra <= efra; cfra++) {
 		pm = ptcache_disk_frame_to_mem(pid, cfra);
@@ -3431,20 +3408,23 @@ void BKE_ptcache_disk_to_mem(PTCacheID *pid)
 			BLI_addtail(&pid->cache->mem_cache, pm);
 	}
 }
-void BKE_ptcache_mem_to_disk(PTCacheID *pid)
+void BKE_ptcache_mem_to_disk(PTCacheID *pid, bool clear)
 {
 	PointCache *cache = pid->cache;
 	PTCacheMem *pm = cache->mem_cache.first;
-	int baked = cache->flag & PTCACHE_BAKED;
 
-	/* Remove possible bake flag to allow clear */
-	cache->flag &= ~PTCACHE_BAKED;
-
-	/* PTCACHE_DISK_CACHE flag was set already */
-	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
-
-	/* restore possible bake flag */
-	cache->flag |= baked;
+	if (clear) {
+		int baked = cache->flag & PTCACHE_BAKED;
+		
+		/* Remove possible bake flag to allow clear */
+		cache->flag &= ~PTCACHE_BAKED;
+		
+		/* PTCACHE_DISK_CACHE flag was set already */
+		BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);
+		
+		/* restore possible bake flag */
+		cache->flag |= baked;
+	}
 
 	for (; pm; pm=pm->next) {
 		if (ptcache_mem_frame_to_disk(pid, pm)==0) {
@@ -3475,9 +3455,9 @@ void BKE_ptcache_toggle_disk_cache(PTCacheID *pid)
 	}
 
 	if (cache->flag & PTCACHE_DISK_CACHE)
-		BKE_ptcache_mem_to_disk(pid);
+		BKE_ptcache_mem_to_disk(pid, true);
 	else
-		BKE_ptcache_disk_to_mem(pid);
+		BKE_ptcache_disk_to_mem(pid, true);
 
 	cache->flag ^= PTCACHE_DISK_CACHE;
 	BKE_ptcache_id_clear(pid, PTCACHE_CLEAR_ALL, 0);

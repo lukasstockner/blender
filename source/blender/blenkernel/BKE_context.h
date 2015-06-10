@@ -53,7 +53,6 @@ struct StructRNA;
 struct ToolSettings;
 struct Image;
 struct Text;
-struct ImBuf;
 struct EditBone;
 struct bPoseChannel;
 struct bGPdata;
@@ -108,6 +107,7 @@ enum {
 	CTX_MODE_PAINT_VERTEX,
 	CTX_MODE_PAINT_TEXTURE,
 	CTX_MODE_PARTICLE,
+	CTX_MODE_HAIR,
 	CTX_MODE_OBJECT
 };
 

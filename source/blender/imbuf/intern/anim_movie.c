@@ -288,6 +288,11 @@ struct anim *IMB_open_anim(const char *name, int ib_flags, int streamindex, char
 	return(anim);
 }
 
+void IMB_suffix_anim(struct anim *anim, const char *suffix)
+{
+	BLI_strncpy(anim->suffix, suffix, sizeof(anim->suffix));
+}
+
 #ifdef WITH_AVI
 static int startavi(struct anim *anim)
 {
@@ -1422,11 +1427,17 @@ int IMB_anim_get_duration(struct anim *anim, IMB_Timecode_Type tc)
 }
 
 bool IMB_anim_get_fps(struct anim *anim,
-                     short *frs_sec, float *frs_sec_base)
+                     short *frs_sec, float *frs_sec_base, bool no_av_base)
 {
 	if (anim->frs_sec) {
 		*frs_sec = anim->frs_sec;
 		*frs_sec_base = anim->frs_sec_base;
+#ifdef WITH_FFMPEG
+		if (no_av_base)
+			*frs_sec_base /= AV_TIME_BASE;
+#else
+		(void)no_av_base;
+#endif
 		return true;
 	}
 	return false;

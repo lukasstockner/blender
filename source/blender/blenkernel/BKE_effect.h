@@ -39,11 +39,8 @@
 
 struct Object;
 struct Scene;
-struct Effect;
 struct ListBase;
-struct Particle;
 struct Group;
-struct RNG;
 struct ParticleSimulationData;
 struct ParticleData;
 struct ParticleKey;
@@ -113,7 +110,8 @@ typedef struct EffectorCache {
 } EffectorCache;
 
 void            free_partdeflect(struct PartDeflect *pd);
-struct ListBase *pdInitEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights, bool precalc);
+struct ListBase *pdInitEffectors(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, struct EffectorWeights *weights);
+struct ListBase *pdInitEffectors_ex(struct Scene *scene, struct Object *ob_src, struct ParticleSystem *psys_src, int layers, struct EffectorWeights *weights, bool precalc);
 void            pdEndEffectors(struct ListBase **effectors);
 void            pdPrecalculateEffectors(struct ListBase *effectors);
 void            pdDoEffectors(struct ListBase *effectors, struct ListBase *colliders, struct EffectorWeights *weights, struct EffectedPoint *point, float *force, float *impulse);
@@ -196,7 +194,10 @@ void BKE_sim_debug_data_free(void);
 
 void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[3],
                                     float r, float g, float b, const char *category, unsigned int hash);
+void BKE_sim_debug_data_add_element_ex(struct SimDebugData *debug_data, int type, const float v1[3], const float v2[3],
+                                       float r, float g, float b, unsigned int category_hash, unsigned int hash);
 void BKE_sim_debug_data_remove_element(unsigned int hash);
+void BKE_sim_debug_data_remove_element_ex(struct SimDebugData *debug_data, unsigned int hash);
 
 #define BKE_sim_debug_data_add_dot(p, r, g, b, category, ...) { \
 	const float v2[3] = { 0.0f, 0.0f, 0.0f }; \

@@ -21,6 +21,7 @@
 #include "device.h"
 #include "scene.h"
 #include "session.h"
+#include "integrator.h"
 
 #include "util_args.h"
 #include "util_foreach.h"
@@ -37,13 +38,23 @@
 #endif
 
 #include "cycles_xml.h"
+#ifdef WITH_ALEMBIC
+#include "cycles_alembic.h"
+#endif
 
 CCL_NAMESPACE_BEGIN
+
+enum FileType {
+	FILETYPE_XML = 0,
+	FILETYPE_ABC_HDF5,
+	FILETYPE_ABC_OGAWA,
+};
 
 struct Options {
 	Session *session;
 	Scene *scene;
 	string filepath;
+	FileType filetype;
 	int width, height;
 	SceneParams scene_params;
 	SessionParams session_params;
@@ -120,11 +131,25 @@ static void scene_init()
 {
 	options.scene = new Scene(options.scene_params, options.session_params.device);
 
-	/* Read XML */
-	xml_read_file(options.scene, options.filepath.c_str());
+	/* Read file */
+	switch (options.filetype) {
+		case FILETYPE_XML:
+			xml_read_file(options.scene, options.filepath.c_str());
+			break;
+#ifdef WITH_ALEMBIC
+		case FILETYPE_ABC_OGAWA:
+			abc_read_ogawa_file(options.scene, options.filepath.c_str());
+			break;
+		case FILETYPE_ABC_HDF5:
+			abc_read_hdf5_file(options.scene, options.filepath.c_str());
+			break;
+#endif
+		default:
+			return;
+	}
 
 	/* Camera width/height override? */
-	if (!(options.width == 0 || options.height == 0)) {
+	if(!(options.width == 0 || options.height == 0)) {
 		options.scene->camera->width = options.width;
 		options.scene->camera->height = options.height;
 	}
@@ -272,6 +297,7 @@ static void keyboard(unsigned char key)
 	else if(key == 'i')
 		options.interactive = !(options.interactive);
 
+	/* Navigation */
 	else if(options.interactive && (key == 'w' || key == 'a' || key == 's' || key == 'd')) {
 		Transform matrix = options.session->scene->camera->matrix;
 		float3 translate;
@@ -291,6 +317,25 @@ static void keyboard(unsigned char key)
 		options.session->scene->camera->matrix = matrix;
 		options.session->scene->camera->need_update = true;
 		options.session->scene->camera->need_device_update = true;
+
+		options.session->reset(session_buffer_params(), options.session_params.samples);
+	}
+
+	/* Set Max Bounces */
+	else if(options.interactive && (key == '0' || key == '1' || key == '2' || key == '3')) {
+		int bounce;
+		switch(key) {
+			case '0': bounce = 0; break;
+			case '1': bounce = 1; break;
+			case '2': bounce = 2; break;
+			case '3': bounce = 3; break;
+			default: bounce = 0; break;
+		}
+
+		options.session->scene->integrator->max_bounce = bounce;
+
+		/* Update and Reset */
+		options.session->scene->integrator->need_update = true;
 
 		options.session->reset(session_buffer_params(), options.session_params.samples);
 	}
@@ -335,6 +380,16 @@ static void options_parse(int argc, const char **argv)
 	/* shading system */
 	string ssname = "svm";
 
+	/* input file type */
+	string filetypes = "auto, xml";
+#ifdef WITH_ALEMBIC
+	filetypes += ", alembic_ogawa";
+#ifdef WITH_HDF5
+	filetypes += ", alembic_hdf5";
+#endif
+#endif
+	string filetype = "auto";
+
 	/* parse options */
 	ArgParse ap;
 	bool help = false, debug = false;
@@ -350,6 +405,7 @@ static void options_parse(int argc, const char **argv)
 		"--quiet", &options.quiet, "In background mode, don't print progress messages",
 		"--samples %d", &options.session_params.samples, "Number of samples to render",
 		"--output %s", &options.session_params.output_path, "File path to write output image",
+		"--filetype %s", &filetype, ("File type: " + filetypes).c_str(),
 		"--threads %d", &options.session_params.threads, "CPU Rendering Threads",
 		"--width  %d", &options.width, "Window width in pixel",
 		"--height %d", &options.height, "Window height in pixel",
@@ -367,7 +423,7 @@ static void options_parse(int argc, const char **argv)
 		exit(EXIT_FAILURE);
 	}
 
-	if (debug) {
+	if(debug) {
 		util_logging_start();
 		util_logging_verbosity_set(verbosity);
 	}
@@ -377,7 +433,8 @@ static void options_parse(int argc, const char **argv)
 		printf("Devices:\n");
 
 		foreach(DeviceInfo& info, devices) {
-			printf("    %s%s\n",
+			printf("    %-10s%s%s\n",
+				Device::string_from_type(info.type).c_str(),
 				info.description.c_str(),
 				(info.display_device)? " (display)": "");
 		}
@@ -393,6 +450,21 @@ static void options_parse(int argc, const char **argv)
 		options.scene_params.shadingsystem = SHADINGSYSTEM_OSL;
 	else if(ssname == "svm")
 		options.scene_params.shadingsystem = SHADINGSYSTEM_SVM;
+
+	if(filetype == "auto") {
+		string extension = options.filepath.substr(options.filepath.find_last_of(".") + 1);
+		
+		if (extension == "xml")
+			options.filetype = FILETYPE_XML;
+		else if (extension == "abc")
+			options.filetype = FILETYPE_ABC_OGAWA;
+	}
+	else if(filetype == "xml")
+		options.filetype = FILETYPE_XML;
+	else if(filetype == "alembic_ogawa")
+		options.filetype = FILETYPE_ABC_OGAWA;
+	else if(filetype == "alembic_hdf5")
+		options.filetype = FILETYPE_ABC_HDF5;
 
 #ifndef WITH_CYCLES_STANDALONE_GUI
 	options.session_params.background = true;

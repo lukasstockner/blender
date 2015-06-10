@@ -464,15 +464,6 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_float(func, "percentage", 0.0f, 0.0f, 1.0f, "Percentage", "Percentage of width to split at", 0.0f, 1.0f);
 	RNA_def_boolean(func, "align", false, "", "Align buttons to each other");
 
-	/* sub-block */
-	func = RNA_def_function(srna, "subblock_begin", "uiLayoutSubblockBegin");
-	parm = RNA_def_string(func, "identifier", NULL, MAX_NAME, "", "Name/ID of the sub-block");
-	RNA_def_property_flag(parm, PROP_REQUIRED);
-	RNA_def_function_ui_description(func, "Set the beginning of a sub-block");
-
-	func = RNA_def_function(srna, "subblock_end", "uiLayoutSubblockEnd");
-	RNA_def_function_ui_description(func, "Set the end of a sub-block");
-
 	/* radial/pie layout */
 	func = RNA_def_function(srna, "menu_pie", "uiLayoutRadial");
 	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
@@ -728,11 +719,12 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Item. A color ramp widget");
 	api_ui_item_rna_common(func);
 	RNA_def_boolean(func, "expand", false, "", "Expand button to show more detail");
-	
+
 	func = RNA_def_function(srna, "template_icon_view", "uiTemplateIconView");
 	RNA_def_function_ui_description(func, "Enum. Large widget showing Icon previews");
 	api_ui_item_rna_common(func);
-	
+	RNA_def_boolean(func, "show_labels", false, "", "Show enum label in preview buttons");
+
 	func = RNA_def_function(srna, "template_histogram", "uiTemplateHistogram");
 	RNA_def_function_ui_description(func, "Item. A histogramm widget to analyze imaga data");
 	api_ui_item_rna_common(func);
@@ -787,6 +779,16 @@ void RNA_api_ui_layout(StructRNA *srna)
 	parm = RNA_def_pointer(func, "image_settings", "ImageFormatSettings", "", "");
 	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_RNAPTR | PROP_NEVER_NULL);
 	RNA_def_boolean(func, "color_management", false, "", "Show color management settings");
+
+	func = RNA_def_function(srna, "template_image_stereo_3d", "uiTemplateImageStereo3d");
+	RNA_def_function_ui_description(func, "User interface for setting image stereo 3d options");
+	parm = RNA_def_pointer(func, "stereo_3d_format", "Stereo3dFormat", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_RNAPTR | PROP_NEVER_NULL);
+
+	func = RNA_def_function(srna, "template_image_views", "uiTemplateImageViews");
+	RNA_def_function_ui_description(func, "User interface for setting image views output options");
+	parm = RNA_def_pointer(func, "image_settings", "ImageFormatSettings", "", "");
+	RNA_def_property_flag(parm, PROP_REQUIRED | PROP_RNAPTR | PROP_NEVER_NULL);
 
 	func = RNA_def_function(srna, "template_movieclip", "uiTemplateMovieClip");
 	RNA_def_function_ui_description(func, "Item(s). User interface for selecting movie clips and their source paths");
@@ -908,6 +910,19 @@ void RNA_api_ui_layout(StructRNA *srna)
 	RNA_def_function_ui_description(func, "Node Socket Icon");
 	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
 	RNA_def_float_array(func, "color", 4, node_socket_color_default, 0.0f, 1.0f, "Color", "", 0.0f, 1.0f);
+
+	/* cache library item */
+	func = RNA_def_function(srna, "template_cache_library_item", "uiTemplateCacheLibraryItem");
+	RNA_def_function_ui_description(func, "Cache Library Item");
+	RNA_def_function_flag(func, FUNC_USE_CONTEXT);
+	RNA_def_pointer(func, "cachelib", "CacheLibrary", "Cache Library", "Cache library containing the item");
+	RNA_def_pointer(func, "object", "Object", "Object", "Object to cache");
+	parm = RNA_def_enum(func, "datatype", cache_library_data_type_items, 0, "Data Type", "Type of cached data");
+	RNA_def_property_flag(parm, PROP_REQUIRED);
+	RNA_def_int(func, "index", -1, -1, INT_MAX, "Index", "Index of cached data", -1, INT_MAX);
+	RNA_def_boolean(func, "enabled", true, "Enabled", "Enable the item");
+	parm = RNA_def_pointer(func, "layout", "UILayout", "", "Sub-layout to put items in");
+	RNA_def_function_return(func, parm);
 }
 
 #endif

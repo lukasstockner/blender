@@ -64,6 +64,7 @@
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
+#include "WM_api.h"
 #include "WM_types.h"
 
 #include "filelist.h"
@@ -254,8 +255,13 @@ static int get_file_icon(struct direntry *file)
 		return ICON_FILE_BLEND;
 	else if (file->flags & FILE_TYPE_BLENDER_BACKUP)
 		return ICON_FILE_BACKUP;
-	else if (file->flags & FILE_TYPE_IMAGE)
-		return ICON_FILE_IMAGE;
+	else if (file->flags & FILE_TYPE_IMAGE) {
+		if (file->selflag & FILE_SEL_COLLAPSED) {
+			return ICON_FILE_MOVIE;
+		}
+		else
+			return ICON_FILE_IMAGE;
+	}
 	else if (file->flags & FILE_TYPE_MOVIE)
 		return ICON_FILE_MOVIE;
 	else if (file->flags & FILE_TYPE_PYSCRIPT)
@@ -295,22 +301,29 @@ static void file_draw_icon(uiBlock *block, char *path, int sx, int sy, int icon,
 
 static void file_draw_string(int sx, int sy, const char *string, float width, int height, short align)
 {
-	uiStyle *style = UI_style_get();
-	uiFontStyle fs = style->widgetlabel;
+	uiStyle *style;
+	uiFontStyle fs;
 	rcti rect;
 	char fname[FILE_MAXFILE];
+
+	if (string[0] == '\0') {
+		return;
+	}
+
+	style = UI_style_get();
+	fs = style->widgetlabel;
 
 	fs.align = align;
 
 	BLI_strncpy(fname, string, FILE_MAXFILE);
-	file_shorten_string(fname, width + 1.0f, 0);
+	UI_text_clip_middle_ex(&fs, fname, width, UI_DPI_ICON_SIZE, sizeof(fname), '\0');
 
 	/* no text clipping needed, UI_fontstyle_draw does it but is a bit too strict (for buttons it works) */
 	rect.xmin = sx;
-	rect.xmax = (int)(sx + ceil(width + 4.0f));
+	rect.xmax = (int)(sx + ceil(width + 5.0f / UI_DPI_FAC));
 	rect.ymin = sy - height;
 	rect.ymax = sy;
-	
+
 	UI_fontstyle_draw(&fs, &rect, fname);
 }
 
@@ -323,35 +336,40 @@ void file_calc_previews(const bContext *C, ARegion *ar)
 	UI_view2d_totRect_set(v2d, sfile->layout->width, sfile->layout->height);
 }
 
-static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int sy, ImBuf *imb, FileLayout *layout, bool dropshadow, bool drag)
+static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int sy, ImBuf *imb, FileLayout *layout, bool is_icon, bool drag, bool play)
 {
 	uiBut *but;
 	float fx, fy;
 	float dx, dy;
 	int xco, yco;
+	float ui_imbx, ui_imby;
 	float scaledx, scaledy;
 	float scale;
 	int ex, ey;
+	bool use_dropshadow = !is_icon && (file->flags & FILE_TYPE_IMAGE);
 
 	BLI_assert(imb != NULL);
 
-	if ((imb->x * UI_DPI_FAC > layout->prv_w) ||
-	    (imb->y * UI_DPI_FAC > layout->prv_h))
+	ui_imbx = imb->x * UI_DPI_FAC;
+	ui_imby = imb->y * UI_DPI_FAC;
+	/* Unlike thumbnails, icons are not scaled up. */
+	if (((ui_imbx > layout->prv_w) || (ui_imby > layout->prv_h)) ||
+	    (!is_icon && ((ui_imbx < layout->prv_w) || (ui_imby < layout->prv_h))))
 	{
 		if (imb->x > imb->y) {
 			scaledx = (float)layout->prv_w;
-			scaledy =  ( (float)imb->y / (float)imb->x) * layout->prv_w;
+			scaledy = ((float)imb->y / (float)imb->x) * layout->prv_w;
 			scale = scaledx / imb->x;
 		}
 		else {
 			scaledy = (float)layout->prv_h;
-			scaledx =  ( (float)imb->x / (float)imb->y) * layout->prv_h;
+			scaledx = ((float)imb->x / (float)imb->y) * layout->prv_h;
 			scale = scaledy / imb->y;
 		}
 	}
 	else {
-		scaledx = (float)imb->x * UI_DPI_FAC;
-		scaledy = (float)imb->y * UI_DPI_FAC;
+		scaledx = ui_imbx;
+		scaledy = ui_imby;
 		scale = UI_DPI_FAC;
 	}
 
@@ -367,17 +385,23 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 	glBlendFunc(GL_SRC_ALPHA,  GL_ONE_MINUS_SRC_ALPHA);
 
 	/* shadow */
-	if (dropshadow)
+	if (use_dropshadow) {
 		UI_draw_box_shadow(220, (float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
+	}
 
 	glEnable(GL_BLEND);
 
 	/* the image */
-	glColor4f(1.0, 1.0, 1.0, 1.0);
+	if (!is_icon && file->flags & FILE_TYPE_FTFONT) {
+		UI_ThemeColor(TH_TEXT);
+	}
+	else {
+		glColor4f(1.0, 1.0, 1.0, 1.0);
+	}
 	glaDrawPixelsTexScaled((float)xco, (float)yco, imb->x, imb->y, GL_RGBA, GL_UNSIGNED_BYTE, GL_NEAREST, imb->rect, scale, scale);
 
 	/* border */
-	if (dropshadow) {
+	if (use_dropshadow) {
 		glColor4f(0.0f, 0.0f, 0.0f, 0.4f);
 		fdrawbox((float)xco, (float)yco, (float)(xco + ex), (float)(yco + ey));
 	}
@@ -386,6 +410,24 @@ static void file_draw_preview(uiBlock *block, struct direntry *file, int sx, int
 	if (drag) {
 		but = uiDefBut(block, UI_BTYPE_LABEL, 0, "", xco, yco, ex, ey, NULL, 0.0, 0.0, 0, 0, "");
 		UI_but_drag_set_image(but, file->path, get_file_icon(file), imb, scale);
+	}
+
+	if (play && !is_icon) {
+		float r = MIN2(ey, ex) / 6.0f;
+		float yr = sqrt(3) / 2 * r;
+		float xr = r / 2;
+		glPushMatrix();
+		glTranslatef(xco + ex / 2.0f, yco + ey / 2.0f, 0.0);
+		glColor4f(1.0f, 1.0f, 1.0f, 0.8);
+		glutil_draw_filled_arc(0.0f, 2.0f * M_PI, ey / 4.0f, 32);
+		glColor4f(0.3f, 0.3f, 1.0f, 0.8f);
+		glutil_draw_filled_arc_part(0.0f, 2.0f * M_PI, ey / 4.0f, ey / 5.0f, 32);
+		glBegin(GL_TRIANGLES);
+		glVertex2f(-xr, yr);
+		glVertex2f(-xr, -yr);
+		glVertex2f(r, 0.0f);
+		glEnd();
+		glPopMatrix();
 	}
 
 	glDisable(GL_BLEND);
@@ -485,6 +527,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	bool is_icon;
 	short align;
 	bool do_drag;
+	bool do_play;
 	int column_space = 0.6f * UI_UNIT_X;
 
 	numfiles = filelist_numfiles(files);
@@ -542,14 +585,24 @@ void file_draw_list(const bContext *C, ARegion *ar)
 		do_drag = !(FILENAME_IS_CURRPAR(file->relname));
 
 		if (FILE_IMGDISPLAY == params->display) {
-			is_icon = 0;
+			is_icon = false;
 			imb = filelist_getimage(files, i);
 			if (!imb) {
 				imb = filelist_geticon(files, i);
-				is_icon = 1;
+				is_icon = true;
 			}
 
-			file_draw_preview(block, file, sx, sy, imb, layout, !is_icon && (file->flags & FILE_TYPE_IMAGE), do_drag);
+			do_play = (file->selflag & FILE_SEL_COLLAPSED) && !(file->selflag & FILE_SEL_PLAYING);
+
+			file_draw_preview(block, file, sx, sy, imb, layout, is_icon, do_drag, do_play);
+
+			if ((file->selflag & FILE_SEL_COLLAPSED) && (file->selflag & FILE_SEL_PLAYING)) {
+				/* refresh to keep movie playing */
+				file->collapsed_info.curfra++;
+				file->collapsed_info.curfra %= file->collapsed_info.totfiles;
+
+				WM_event_add_notifier(C, NC_SPACE | ND_SPACE_FILE_PARAMS, NULL);
+			}
 		}
 		else {
 			file_draw_icon(block, file->path, sx, sy - (UI_UNIT_Y / 6), get_file_icon(file), ICON_DEFAULT_WIDTH_SCALE, ICON_DEFAULT_HEIGHT_SCALE, do_drag);
@@ -587,43 +640,71 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 		if (!(file->selflag & FILE_SEL_EDITING)) {
 			int tpos = (FILE_IMGDISPLAY == params->display) ? sy - layout->tile_h + layout->textheight : sy;
-			file_draw_string(sx + 1, tpos, file->relname, (float)textwidth, textheight, align);
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				char fname[PATH_MAX];
+				char finalname[PATH_MAX];
+				char ext[PATH_MAX];
+				CollapsedEntry *collapsed = &file->collapsed_info;
+				BLI_strncpy(fname, file->relname, sizeof(fname));
+				BLI_path_frame_strip(fname, false, ext);
+				BLI_snprintf(finalname, sizeof(finalname), "%s%.*d-%.*d%s",
+				             fname, collapsed->numdigits, collapsed->minframe, collapsed->numdigits, collapsed->maxframe, ext);
+				file_draw_string(sx + 1, tpos, finalname, (float)textwidth, textheight, align);
+			}
+			else
+				file_draw_string(sx + 1, tpos, file->relname, (float)textwidth, textheight, align);
 		}
 
 		if (params->display == FILE_SHORTDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 			if (!(file->type & S_IFDIR)) {
-				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				if (file->selflag & FILE_SEL_COLLAPSED) {
+					CollapsedEntry *collapsed = &file->collapsed_info;
+					char sizestr[16];
+					BLI_file_size_string(collapsed->totalsize, sizestr, sizeof(sizestr));
+					file_draw_string(sx, sy, sizestr, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+				}
+				else
+					file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
 				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
 			}
 		}
 		else if (params->display == FILE_LONGDISPLAY) {
 			sx += (int)layout->column_widths[COLUMN_NAME] + column_space;
 
+			/* for collapsed files it doesn't make sense to display all info */
+			if (file->selflag & FILE_SEL_COLLAPSED) {
+				char sizestr[16];
+				CollapsedEntry *collapsed = &file->collapsed_info;
+				BLI_file_size_string(collapsed->totalsize, sizestr, sizeof(sizestr));
+				file_draw_string(sx, sy, sizestr, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+			}
+			else {
 #ifndef WIN32
-			/* rwx rwx rwx */
-			file_draw_string(sx, sy, file->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align); 
-			sx += layout->column_widths[COLUMN_MODE1] + column_space;
+				/* rwx rwx rwx */
+				file_draw_string(sx, sy, file->mode1, layout->column_widths[COLUMN_MODE1], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_MODE1] + column_space;
 
-			file_draw_string(sx, sy, file->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_MODE2] + column_space;
+				file_draw_string(sx, sy, file->mode2, layout->column_widths[COLUMN_MODE2], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_MODE2] + column_space;
 
-			file_draw_string(sx, sy, file->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_MODE3] + column_space;
+				file_draw_string(sx, sy, file->mode3, layout->column_widths[COLUMN_MODE3], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_MODE3] + column_space;
 
-			file_draw_string(sx, sy, file->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
-			sx += layout->column_widths[COLUMN_OWNER] + column_space;
+				file_draw_string(sx, sy, file->owner, layout->column_widths[COLUMN_OWNER], layout->tile_h, align);
+				sx += layout->column_widths[COLUMN_OWNER] + column_space;
 #endif
 
-			file_draw_string(sx, sy, file->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
-			sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
+				file_draw_string(sx, sy, file->date, layout->column_widths[COLUMN_DATE], layout->tile_h, align);
+				sx += (int)layout->column_widths[COLUMN_DATE] + column_space;
 
-			file_draw_string(sx, sy, file->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
-			sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
+				file_draw_string(sx, sy, file->time, layout->column_widths[COLUMN_TIME], layout->tile_h, align);
+				sx += (int)layout->column_widths[COLUMN_TIME] + column_space;
 
-			if (!(file->type & S_IFDIR)) {
-				file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
-				sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
+				if (!(file->type & S_IFDIR)) {
+					file_draw_string(sx, sy, file->size, layout->column_widths[COLUMN_SIZE], layout->tile_h, align);
+					sx += (int)layout->column_widths[COLUMN_SIZE] + column_space;
+				}
 			}
 		}
 	}

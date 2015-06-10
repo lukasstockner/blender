@@ -370,7 +370,7 @@ static int do_step_cloth(Object *ob, ClothModifierData *clmd, DerivedMesh *resul
 		mul_m4_v3(ob->obmat, verts->xconst);
 	}
 
-	effectors = pdInitEffectors(clmd->scene, ob, NULL, clmd->sim_parms->effector_weights, true);
+	effectors = pdInitEffectors(clmd->scene, ob, NULL, clmd->sim_parms->effector_weights);
 
 	/* Support for dynamic vertex groups, changing from frame to frame */
 	cloth_apply_vgroup ( clmd, result );
@@ -500,7 +500,6 @@ void clothModifier_do(ClothModifierData *clmd, Scene *scene, Object *ob, Derived
 	cache_result = BKE_ptcache_read(&pid, (float)framenr+scene->r.subframe);
 
 	if (cache_result == PTCACHE_READ_EXACT || cache_result == PTCACHE_READ_INTERPOLATED) {
-		BPH_cloth_solver_set_positions(clmd);
 		cloth_to_object (ob, clmd, vertexCos);
 
 		BKE_ptcache_validate(cache, framenr);
@@ -779,17 +778,15 @@ static void cloth_apply_vgroup ( ClothModifierData *clmd, DerivedMesh *dm )
 							}
 						}
 
-					if (clmd->sim_parms->vgroup_shrink > 0 )
-					{
-						if ( dvert->dw[j].def_nr == (clmd->sim_parms->vgroup_shrink-1))
-						{
-							verts->shrink_factor = clmd->sim_parms->shrink_min*(1.0f-dvert->dw[j].weight)+clmd->sim_parms->shrink_max*dvert->dw [j].weight; // linear interpolation between min and max shrink factor based on weight
+						if (clmd->sim_parms->vgroup_shrink > 0) {
+							if (dvert->dw[j].def_nr == (clmd->sim_parms->vgroup_shrink - 1)) {
+								/* linear interpolation between min and max shrink factor based on weight */
+								verts->shrink_factor = clmd->sim_parms->shrink_min * (1.0f - dvert->dw[j].weight) + clmd->sim_parms->shrink_max * dvert->dw [j].weight;
+							}
 						}
-					}
-					else {
-						verts->shrink_factor = clmd->sim_parms->shrink_min;
-					}
-
+						else {
+							verts->shrink_factor = clmd->sim_parms->shrink_min;
+						}
 					}
 				}
 			}

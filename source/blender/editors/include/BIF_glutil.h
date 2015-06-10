@@ -89,6 +89,9 @@ void glutil_draw_lined_arc(float start, float angle, float radius, int nsegments
  */
 void glutil_draw_filled_arc(float start, float angle, float radius, int nsegments);
 
+
+void glutil_draw_filled_arc_part(float start, float angle, float radius, float radius_inn, int nsegments);
+
 /**
  * Returns an integer value as obtained by glGetIntegerv.
  * The param must cause only one value to be gotten from GL.
@@ -155,7 +158,8 @@ void glaDrawPixelsTex(float x, float y, int img_w, int img_h, int format, int ty
  * only RGBA
  * needs glaDefine2DArea to be set.
  */
-void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect);
+void glaDrawPixelsAuto(float x, float y, int img_w, int img_h, int format,
+                       int type, int zoomfilter, float alpha, void *rect);
 
 
 void glaDrawPixelsTexScaled(float x, float y, int img_w, int img_h, int format, int type, int zoomfilter, void *rect, float scaleX, float scaleY);
@@ -181,8 +185,8 @@ typedef struct gla2DDrawInfo gla2DDrawInfo;
 #if 0
 
 gla2DDrawInfo  *glaBegin2DDraw(struct rcti *screen_rect, struct rctf *world_rect);
-void gla2DDrawTranslatePt(gla2DDrawInfo *di, float wo_x, float wo_y, int *sc_x_r, int *sc_y_r);
-void gla2DDrawTranslatePtv(gla2DDrawInfo *di, float world[2], int screen_r[2]);
+void gla2DDrawTranslatePt(gla2DDrawInfo *di, float wo_x, float wo_y, int *r_sc_x, int *r_sc_y);
+void gla2DDrawTranslatePtv(gla2DDrawInfo *di, float world[2], int r_screen[2]);
 
 void glaEnd2DDraw(gla2DDrawInfo *di);
 
@@ -217,12 +221,12 @@ void bgl_get_mats(bglMats *mats);
 /* **** Color management helper functions for GLSL display/transform ***** */
 
 /* Draw imbuf on a screen, preferably using GLSL display transform */
-void glaDrawImBuf_glsl(struct ImBuf *ibuf, float x, float y, int zoomfilter,
+void glaDrawImBuf_glsl(struct ImBuf *ibuf, float x, float y, int zoomfilter, float alpha,
                        struct ColorManagedViewSettings *view_settings,
                        struct ColorManagedDisplaySettings *display_settings);
 
 /* Draw imbuf on a screen, preferably using GLSL display transform */
-void glaDrawImBuf_glsl_ctx(const struct bContext *C, struct ImBuf *ibuf, float x, float y, int zoomfilter);
+void glaDrawImBuf_glsl_ctx(const struct bContext *C, struct ImBuf *ibuf, float x, float y, int zoomfilter, float alpha);
 
 void glaDrawBorderCorners(const struct rcti *border, float zoomx, float zoomy);
 

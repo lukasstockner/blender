@@ -20,9 +20,11 @@
 #include "camera.h"
 #include "curves.h"
 #include "device.h"
+#include "graph.h"
 #include "shader.h"
 #include "light.h"
 #include "mesh.h"
+#include "nodes.h"
 #include "object.h"
 #include "scene.h"
 
@@ -135,7 +137,7 @@ void Mesh::clear()
 	transform_applied = false;
 	transform_negative_scaled = false;
 	transform_normal = transform_identity();
-	geometry_synced = false;
+	geometry_flags = GEOMETRY_NONE;
 }
 
 int Mesh::split_vertex(int vertex)
@@ -210,11 +212,11 @@ void Mesh::compute_bounds()
 			bnds.grow(float4_to_float3(curve_keys[i]), curve_keys[i].w);
 
 		Attribute *attr = attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
-		if (use_motion_blur && attr) {
+		if(use_motion_blur && attr) {
 			size_t steps_size = verts.size() * (motion_steps - 1);
 			float3 *vert_steps = attr->data_float3();
 	
-			for (size_t i = 0; i < steps_size; i++)
+			for(size_t i = 0; i < steps_size; i++)
 				bnds.grow(vert_steps[i]);
 		}
 
@@ -223,7 +225,7 @@ void Mesh::compute_bounds()
 			size_t steps_size = curve_keys.size() * (motion_steps - 1);
 			float3 *key_steps = curve_attr->data_float3();
 	
-			for (size_t i = 0; i < steps_size; i++)
+			for(size_t i = 0; i < steps_size; i++)
 				bnds.grow(key_steps[i]);
 		}
 
@@ -237,19 +239,19 @@ void Mesh::compute_bounds()
 			for(size_t i = 0; i < curve_keys_size; i++)
 				bnds.grow_safe(float4_to_float3(curve_keys[i]), curve_keys[i].w);
 			
-			if (use_motion_blur && attr) {
+			if(use_motion_blur && attr) {
 				size_t steps_size = verts.size() * (motion_steps - 1);
 				float3 *vert_steps = attr->data_float3();
 		
-				for (size_t i = 0; i < steps_size; i++)
+				for(size_t i = 0; i < steps_size; i++)
 					bnds.grow_safe(vert_steps[i]);
 			}
 
-			if (use_motion_blur && curve_attr) {
+			if(use_motion_blur && curve_attr) {
 				size_t steps_size = curve_keys.size() * (motion_steps - 1);
 				float3 *key_steps = curve_attr->data_float3();
 		
-				for (size_t i = 0; i < steps_size; i++)
+				for(size_t i = 0; i < steps_size; i++)
 					bnds.grow_safe(key_steps[i]);
 			}
 		}
@@ -513,6 +515,7 @@ void Mesh::compute_bvh(SceneParams *params, Progress *progress, int n, int total
 			BVHParams bparams;
 			bparams.use_cache = params->use_bvh_cache;
 			bparams.use_spatial_split = params->use_bvh_spatial_split;
+			bparams.use_triangle_storage = params->use_bvh_triangle_storage;
 			bparams.use_qbvh = params->use_qbvh;
 
 			delete bvh;
@@ -552,9 +555,10 @@ bool Mesh::has_motion_blur() const
 
 /* Mesh Manager */
 
-MeshManager::MeshManager()
+MeshManager::MeshManager(const bool free_data_after_update_)
 {
 	bvh = NULL;
+	free_data_after_update = free_data_after_update_;
 	need_update = true;
 	need_flags_update = true;
 }
@@ -653,6 +657,10 @@ void MeshManager::update_osl_attributes(Device *device, Scene *scene, vector<Att
 			}
 		}
 	}
+#else
+	(void)device;
+	(void)scene;
+	(void)mesh_attributes;
 #endif
 }
 
@@ -810,7 +818,10 @@ static void update_attribute_element_offset(Mesh *mesh,
 		if(mattr->element == ATTR_ELEMENT_VOXEL) {
 			/* store slot in offset value */
 			VoxelAttribute *voxel_data = mattr->data_voxel();
-			offset = voxel_data->slot;
+			offset = voxel_data->slot << 1;
+			if(voxel_data->from_alpha) {
+				++offset;
+			}
 		}
 		else if(mattr->element == ATTR_ELEMENT_CORNER_BYTE) {
 			uchar4 *data = mattr->data_uchar4();
@@ -1079,6 +1090,7 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	bparams.use_qbvh = scene->params.use_qbvh;
 	bparams.use_spatial_split = scene->params.use_bvh_spatial_split;
 	bparams.use_cache = scene->params.use_bvh_cache;
+	bparams.use_triangle_storage = scene->params.use_bvh_triangle_storage;
 
 	delete bvh;
 	bvh = BVH::create(bparams, scene->objects);
@@ -1094,6 +1106,10 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 	if(pack.nodes.size()) {
 		dscene->bvh_nodes.reference((float4*)&pack.nodes[0], pack.nodes.size());
 		device->tex_alloc("__bvh_nodes", dscene->bvh_nodes);
+	}
+	if(pack.leaf_nodes.size()) {
+		dscene->bvh_leaf_nodes.reference((float4*)&pack.leaf_nodes[0], pack.leaf_nodes.size());
+		device->tex_alloc("__bvh_leaf_nodes", dscene->bvh_leaf_nodes);
 	}
 	if(pack.object_node.size()) {
 		dscene->object_node.reference((uint*)&pack.object_node[0], pack.object_node.size());
@@ -1122,9 +1138,13 @@ void MeshManager::device_update_bvh(Device *device, DeviceScene *dscene, Scene *
 
 	dscene->data.bvh.root = pack.root_index;
 	dscene->data.bvh.use_qbvh = scene->params.use_qbvh;
+	dscene->data.bvh.use_tri_storage = scene->params.use_bvh_triangle_storage? 1: 0;
 }
 
-void MeshManager::device_update_flags(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
+void MeshManager::device_update_flags(Device * /*device*/,
+                                      DeviceScene * /*dscene*/,
+                                      Scene * scene,
+                                      Progress& /*progress*/)
 {
 	if(!need_update && !need_flags_update) {
 		return;
@@ -1141,8 +1161,59 @@ void MeshManager::device_update_flags(Device *device, DeviceScene *dscene, Scene
 	need_flags_update = false;
 }
 
+void MeshManager::device_update_displacement_images(Device *device,
+                                                    DeviceScene *dscene,
+                                                    Scene *scene,
+                                                    Progress& progress)
+{
+	progress.set_status("Updating Displacement Images");
+	TaskPool pool;
+	ImageManager *image_manager = scene->image_manager;
+	set<int> bump_images;
+	foreach(Mesh *mesh, scene->meshes) {
+		if(mesh->need_update) {
+			foreach(uint shader_index, mesh->used_shaders) {
+				Shader *shader = scene->shaders[shader_index];
+				if(shader->graph_bump == NULL) {
+					continue;
+				}
+				foreach(ShaderNode* node, shader->graph_bump->nodes) {
+					if(node->special_type != SHADER_SPECIAL_TYPE_IMAGE_SLOT) {
+						continue;
+					}
+					if(device->info.pack_images) {
+						/* If device requires packed images we need to update all
+						 * images now, even if they're not used for displacement.
+						 */
+						image_manager->device_update(device,
+						                             dscene,
+						                             progress);
+						return;
+					}
+					ImageSlotNode *image_node = static_cast<ImageSlotNode*>(node);
+					int slot = image_node->slot;
+					if(slot != -1) {
+						bump_images.insert(slot);
+					}
+				}
+			}
+		}
+	}
+	foreach(int slot, bump_images) {
+		pool.push(function_bind(&ImageManager::device_update_slot,
+		                        image_manager,
+		                        device,
+		                        dscene,
+		                        slot,
+		                        &progress));
+	}
+	pool.wait_work();
+}
+
 void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress)
 {
+	VLOG(1) << "Total " << scene->meshes.size() << " meshes.";
+
 	if(!need_update)
 		return;
 
@@ -1159,6 +1230,28 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 
 			if(progress.get_cancel()) return;
 		}
+	}
+
+	/* Update images needed for true displacement. */
+	bool need_displacement_images = false;
+	bool old_need_object_flags_update = false;
+	foreach(Mesh *mesh, scene->meshes) {
+		if(mesh->need_update &&
+		   mesh->displacement_method != Mesh::DISPLACE_BUMP)
+		{
+			need_displacement_images = true;
+			break;
+		}
+	}
+	if(need_displacement_images) {
+		VLOG(1) << "Updating images used for true displacement.";
+		device_update_displacement_images(device, dscene, scene, progress);
+		old_need_object_flags_update = scene->object_manager->need_flags_update;
+		scene->object_manager->device_update_flags(device,
+		                                           dscene,
+		                                           scene,
+		                                           progress,
+		                                           false);
 	}
 
 	/* device update */
@@ -1208,7 +1301,9 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 			                        &progress,
 			                        i,
 			                        num_bvh));
-			i++;
+			if(!mesh->transform_applied) {
+				i++;
+			}
 		}
 	}
 
@@ -1232,12 +1327,32 @@ void MeshManager::device_update(Device *device, DeviceScene *dscene, Scene *scen
 
 	device_update_bvh(device, dscene, scene, progress);
 
+	if(free_data_after_update) {
+		foreach(Object *object, scene->objects) {
+			if(object->mesh->bvh != NULL) {
+				delete object->mesh->bvh;
+				object->mesh->bvh = NULL;
+			}
+		}
+	}
+
 	need_update = false;
+
+	if(need_displacement_images) {
+		/* Re-tag flags for update, so they're re-evaluated
+		 * for meshes with correct bounding boxes.
+		 *
+		 * This wouldn't cause wrong results, just true
+		 * displacement might be less optimal ot calculate.
+		 */
+		scene->object_manager->need_flags_update = old_need_object_flags_update;
+	}
 }
 
 void MeshManager::device_free(Device *device, DeviceScene *dscene)
 {
 	device->tex_free(dscene->bvh_nodes);
+	device->tex_free(dscene->bvh_leaf_nodes);
 	device->tex_free(dscene->object_node);
 	device->tex_free(dscene->tri_woop);
 	device->tex_free(dscene->prim_type);

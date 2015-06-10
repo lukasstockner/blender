@@ -203,18 +203,17 @@ static void add_particles_to_effectors(ListBase **effectors, Scene *scene, Effec
 }
 
 /* returns ListBase handle with objects taking part in the effecting */
-ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
-                          EffectorWeights *weights, bool precalc)
+ListBase *pdInitEffectors_ex(Scene *scene, Object *ob_src, ParticleSystem *psys_src, int layers,
+                             EffectorWeights *weights, bool precalc)
 {
 	Base *base;
-	unsigned int layer= ob_src->lay;
 	ListBase *effectors = NULL;
 	
 	if (weights->group) {
 		GroupObject *go;
 		
 		for (go= weights->group->gobject.first; go; go= go->next) {
-			if ( (go->ob->lay & layer) ) {
+			if ( (go->ob->lay & layers) ) {
 				if ( go->ob->pd && go->ob->pd->forcefield )
 					add_object_to_effectors(&effectors, scene, weights, go->ob, ob_src);
 
@@ -229,9 +228,9 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 	}
 	else {
 		for (base = scene->base.first; base; base= base->next) {
-			if ( (base->lay & layer) ) {
+			if ( (base->lay & layers) ) {
 				if ( base->object->pd && base->object->pd->forcefield )
-				add_object_to_effectors(&effectors, scene, weights, base->object, ob_src);
+					add_object_to_effectors(&effectors, scene, weights, base->object, ob_src);
 
 				if ( base->object->particlesystem.first ) {
 					ParticleSystem *psys= base->object->particlesystem.first;
@@ -247,6 +246,12 @@ ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src
 		pdPrecalculateEffectors(effectors);
 	
 	return effectors;
+}
+
+ListBase *pdInitEffectors(Scene *scene, Object *ob_src, ParticleSystem *psys_src,
+                          EffectorWeights *weights)
+{
+	return pdInitEffectors_ex(scene, ob_src, psys_src, ob_src->lay, weights, true);
 }
 
 void pdEndEffectors(ListBase **effectors)
@@ -1125,10 +1130,10 @@ static void debug_data_insert(SimDebugData *debug_data, SimDebugElement *elem)
 		BLI_ghash_insert(debug_data->gh, elem, elem);
 }
 
-void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[3], float r, float g, float b, const char *category, unsigned int hash)
+void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[3],
+                                    float r, float g, float b, const char *category, unsigned int hash)
 {
 	unsigned int category_hash = BLI_ghashutil_strhash_p(category);
-	SimDebugElement *elem;
 	
 	if (!_sim_debug_data) {
 		if (G.debug & G_DEBUG_SIMDATA)
@@ -1136,6 +1141,16 @@ void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[
 		else
 			return;
 	}
+	
+	BKE_sim_debug_data_add_element_ex(_sim_debug_data, type, v1, v2, r, g, b, category_hash, hash);
+}
+
+void BKE_sim_debug_data_add_element_ex(SimDebugData *debug_data, int type, const float v1[3], const float v2[3],
+                                       float r, float g, float b, unsigned int category_hash, unsigned int hash)
+{
+	SimDebugElement *elem;
+	if (!debug_data)
+		return;
 	
 	elem = MEM_callocN(sizeof(SimDebugElement), "sim debug data element");
 	elem->type = type;
@@ -1147,17 +1162,22 @@ void BKE_sim_debug_data_add_element(int type, const float v1[3], const float v2[
 	copy_v3_v3(elem->v1, v1);
 	copy_v3_v3(elem->v2, v2);
 	
-	debug_data_insert(_sim_debug_data, elem);
+	debug_data_insert(debug_data, elem);
 }
 
 void BKE_sim_debug_data_remove_element(unsigned int hash)
 {
+	BKE_sim_debug_data_remove_element_ex(_sim_debug_data, hash);
+}
+
+void BKE_sim_debug_data_remove_element_ex(SimDebugData *debug_data, unsigned int hash)
+{
 	SimDebugElement dummy;
-	if (!_sim_debug_data)
+	if (!debug_data)
 		return;
 	
 	dummy.hash = hash;
-	BLI_ghash_remove(_sim_debug_data->gh, &dummy, NULL, debug_element_free);
+	BLI_ghash_remove(debug_data->gh, &dummy, NULL, debug_element_free);
 }
 
 void BKE_sim_debug_data_clear(void)
@@ -1180,7 +1200,7 @@ void BKE_sim_debug_data_clear_category(const char *category)
 		GHashIterator iter;
 		BLI_ghashIterator_init(&iter, _sim_debug_data->gh);
 		while (!BLI_ghashIterator_done(&iter)) {
-			SimDebugElement *elem = BLI_ghashIterator_getValue(&iter);
+			const SimDebugElement *elem = BLI_ghashIterator_getValue(&iter);
 			BLI_ghashIterator_step(&iter); /* removing invalidates the current iterator, so step before removing */
 			
 			if (elem->category_hash == category_hash)

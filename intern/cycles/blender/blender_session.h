@@ -52,7 +52,7 @@ public:
 	/* offline render */
 	void render();
 
-	void bake(BL::Object b_object, const string& pass_type, BL::BakePixel pixel_array, const size_t num_pixels, const int depth, float pixels[]);
+	void bake(BL::Object b_object, const string& pass_type, const int object_id, BL::BakePixel pixel_array, const size_t num_pixels, const int depth, float pixels[]);
 
 	void write_render_result(BL::RenderResult b_rr, BL::RenderLayer b_rlay, RenderTile& rtile);
 	void write_render_tile(RenderTile& rtile);
@@ -90,6 +90,7 @@ public:
 	BL::SpaceView3D b_v3d;
 	BL::RegionView3D b_rv3d;
 	string b_rlay_name;
+	string b_rview_name;
 
 	string last_status;
 	string last_error;
@@ -108,6 +109,8 @@ protected:
 	void builtin_image_info(const string &builtin_name, void *builtin_data, bool &is_float, int &width, int &height, int &depth, int &channels);
 	bool builtin_image_pixels(const string &builtin_name, void *builtin_data, unsigned char *pixels);
 	bool builtin_image_float_pixels(const string &builtin_name, void *builtin_data, float *pixels);
+
+	void clear_blender_database();
 };
 
 CCL_NAMESPACE_END

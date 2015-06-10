@@ -59,6 +59,7 @@
 #include "BKE_nla.h"
 #include "BKE_context.h"
 #include "BKE_report.h"
+#include "BKE_screen.h"
 
 #include "UI_view2d.h"
 
@@ -109,7 +110,7 @@ void get_graph_keyframe_extents(bAnimContext *ac, float *xmin, float *xmax, floa
 			AnimData *adt = ANIM_nla_mapping_get(ac, ale);
 			FCurve *fcu = (FCurve *)ale->key_data;
 			float txmin, txmax, tymin, tymax;
-			float unitFac;
+			float unitFac, offset;
 			
 			/* get range */
 			if (calc_fcurve_bounds(fcu, &txmin, &txmax, &tymin, &tymax, do_sel_only, include_handles)) {
@@ -122,7 +123,9 @@ void get_graph_keyframe_extents(bAnimContext *ac, float *xmin, float *xmax, floa
 				}
 				
 				/* apply unit corrections */
-				unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
+				unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
+				tymin += offset;
+				tymax += offset;
 				tymin *= unitFac;
 				tymax *= unitFac;
 				
@@ -256,6 +259,14 @@ static int graphkeys_view_selected_exec(bContext *C, wmOperator *op)
 	return graphkeys_viewall(C, true, include_handles, smooth_viewtx);
 }
 
+static int graphkeys_view_frame_exec(bContext *C, wmOperator *op)
+{
+	const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+	ANIM_center_frame(C, smooth_viewtx);
+	return OPERATOR_FINISHED;
+}
+
+
 void GRAPH_OT_view_all(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -294,6 +305,21 @@ void GRAPH_OT_view_selected(wmOperatorType *ot)
 	                           "Include handles of keyframes when calculating extents");
 }
 
+void GRAPH_OT_view_frame(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "View Frame";
+	ot->idname = "GRAPH_OT_view_frame";
+	ot->description = "Reset viewable area to show range around current frame";
+
+	/* api callbacks */
+	ot->exec = graphkeys_view_frame_exec;
+	ot->poll = ED_operator_graphedit_active; /* XXX: unchecked poll to get fsamples working too, but makes modifier damage trickier... */
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
 /* ******************** Create Ghost-Curves Operator *********************** */
 /* This operator samples the data of the selected F-Curves to F-Points, storing them
  * as 'ghost curves' in the active Graph Editor
@@ -327,7 +353,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 		AnimData *adt = ANIM_nla_mapping_get(ac, ale);
 		ChannelDriver *driver = fcu->driver;
 		FPoint *fpt;
-		float unitFac;
+		float unitFac, offset;
 		int cfra;
 		SpaceIpo *sipo = (SpaceIpo *) ac->sl;
 		short mapping_flag = ANIM_get_normalization_flags(ac);
@@ -336,7 +362,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 		fcu->driver = NULL;
 		
 		/* calculate unit-mapping factor */
-		unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag);
+		unitFac = ANIM_unit_mapping_get_factor(ac->scene, ale->id, fcu, mapping_flag, &offset);
 		
 		/* create samples, but store them in a new curve 
 		 *	- we cannot use fcurve_store_samples() as that will only overwrite the original curve 
@@ -349,7 +375,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
 			float cfrae = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
 			
 			fpt->vec[0] = cfrae;
-			fpt->vec[1] = fcurve_samplingcb_evalcurve(fcu, NULL, cfrae) * unitFac;
+			fpt->vec[1] = (fcurve_samplingcb_evalcurve(fcu, NULL, cfrae) + offset) * unitFac;
 		}
 		
 		/* set color of ghost curve 
@@ -498,12 +524,17 @@ static void insert_graph_keys(bAnimContext *ac, short mode)
 		else 
 			cfra = (float)CFRA;
 			
-		/* if there's an id */
-		if (ale->id)
+		/* read value from property the F-Curve represents, or from the curve only?
+		 * - ale->id != NULL:    Typically, this means that we have enough info to try resolving the path
+		 * - ale->owner != NULL: If this is set, then the path may not be resolvable from the ID alone,
+		 *                       so it's easier for now to just read the F-Curve directly.
+		 *                       (TODO: add the full-blown PointerRNA relative parsing case here...)
+		 */
+		if (ale->id && !ale->owner)
 			insert_keyframe(reports, ale->id, NULL, ((fcu->grp) ? (fcu->grp->name) : (NULL)), fcu->rna_path, fcu->array_index, cfra, flag);
 		else
 			insert_vert_fcurve(fcu, cfra, fcu->curval, 0);
-
+		
 		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
 	
@@ -582,7 +613,7 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
 		ListBase anim_data;
 
 		short mapping_flag = ANIM_get_normalization_flags(&ac);
-
+		float scale, offset;
 		/* get frame and value from props */
 		frame = RNA_float_get(op->ptr, "frame");
 		val = RNA_float_get(op->ptr, "value");
@@ -592,16 +623,18 @@ static int graphkeys_click_insert_exec(bContext *C, wmOperator *op)
 		frame = BKE_nla_tweakedit_remap(adt, frame, NLATIME_CONVERT_UNMAP);
 		
 		/* apply inverse unit-mapping to value to get correct value for F-Curves */
-		val *= ANIM_unit_mapping_get_factor(ac.scene, ale->id, fcu, mapping_flag | ANIM_UNITCONV_RESTORE);
-		
+		scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, fcu, mapping_flag | ANIM_UNITCONV_RESTORE, &offset);
+
+		val = val * scale - offset;
+
 		/* insert keyframe on the specified frame + value */
 		insert_vert_fcurve(fcu, frame, val, 0);
-
+		
 		ale->update |= ANIM_UPDATE_DEPS;
-
+		
 		BLI_listbase_clear(&anim_data);
 		BLI_addtail(&anim_data, ale);
-
+		
 		ANIM_animdata_update(&ac, &anim_data);
 	}
 	else {
@@ -851,13 +884,6 @@ static int graphkeys_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 	return OPERATOR_FINISHED;
 }
 
-static int graphkeys_duplicate_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
-{
-	graphkeys_duplicate_exec(C, op);
-
-	return OPERATOR_FINISHED;
-}
- 
 void GRAPH_OT_duplicate(wmOperatorType *ot)
 {
 	/* identifiers */
@@ -866,7 +892,6 @@ void GRAPH_OT_duplicate(wmOperatorType *ot)
 	ot->description = "Make a copy of all selected keyframes";
 	
 	/* api callbacks */
-	ot->invoke = graphkeys_duplicate_invoke;
 	ot->exec = graphkeys_duplicate_exec;
 	ot->poll = graphop_editable_keyframes_poll;
 	
@@ -958,7 +983,7 @@ void GRAPH_OT_delete(wmOperatorType *ot)
 
 /* ******************** Clean Keyframes Operator ************************* */
 
-static void clean_graph_keys(bAnimContext *ac, float thresh)
+static void clean_graph_keys(bAnimContext *ac, float thresh, bool clean_chan)
 {	
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
@@ -970,7 +995,7 @@ static void clean_graph_keys(bAnimContext *ac, float thresh)
 	
 	/* loop through filtered data and clean curves */
 	for (ale = anim_data.first; ale; ale = ale->next) {
-		clean_fcurve((FCurve *)ale->key_data, thresh);
+		clean_fcurve(ac, ale, thresh, clean_chan);
 
 		ale->update |= ANIM_UPDATE_DEFAULT;
 	}
@@ -985,6 +1010,7 @@ static int graphkeys_clean_exec(bContext *C, wmOperator *op)
 {
 	bAnimContext ac;
 	float thresh;
+	bool clean_chan;
 	
 	/* get editor data */
 	if (ANIM_animdata_get_context(C, &ac) == 0)
@@ -992,9 +1018,9 @@ static int graphkeys_clean_exec(bContext *C, wmOperator *op)
 		
 	/* get cleaning threshold */
 	thresh = RNA_float_get(op->ptr, "threshold");
-	
+	clean_chan = RNA_boolean_get(op->ptr, "channels");
 	/* clean keyframes */
-	clean_graph_keys(&ac, thresh);
+	clean_graph_keys(&ac, thresh, clean_chan);
 	
 	/* set notifier that keyframes have changed */
 	WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, NULL);
@@ -1019,6 +1045,7 @@ void GRAPH_OT_clean(wmOperatorType *ot)
 	
 	/* properties */
 	ot->prop = RNA_def_float(ot->srna, "threshold", 0.001f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 1000.0f);
+	RNA_def_boolean(ot->srna, "channels", false, "Channels", "");
 }
 
 /* ******************** Bake F-Curve Operator *********************** */
@@ -1154,6 +1181,11 @@ static int graphkeys_sound_bake_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 
 	RNA_string_get(op->ptr, "filepath", path);
+
+	if (!BLI_is_file(path)) {
+		BKE_reportf(op->reports, RPT_ERROR, "File not found '%s'", path);
+		return OPERATOR_CANCELLED;
+	}
 
 	scene = ac.scene;    /* current scene */
 
@@ -1877,7 +1909,8 @@ static int graphkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 		AnimData *adt = ANIM_nla_mapping_get(&ac, ale);
 		short mapping_flag = ANIM_get_normalization_flags(&ac);
 		KeyframeEditData current_ked;
-		float unit_scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, ale->key_data, mapping_flag | ANIM_UNITCONV_ONLYKEYS);
+		float offset;
+		float unit_scale = ANIM_unit_mapping_get_factor(ac.scene, ale->id, ale->key_data, mapping_flag | ANIM_UNITCONV_ONLYKEYS, &offset);
 
 		memset(&current_ked, 0, sizeof(current_ked));
 
@@ -1891,7 +1924,7 @@ static int graphkeys_framejump_exec(bContext *C, wmOperator *UNUSED(op))
 
 		ked.f1 += current_ked.f1;
 		ked.i1 += current_ked.i1;
-		ked.f2 += current_ked.f2 * unit_scale;
+		ked.f2 += (current_ked.f2 + offset) * unit_scale;
 		ked.i2 += current_ked.i2;
 	}
 	
@@ -1984,9 +2017,10 @@ static void snap_graph_keys(bAnimContext *ac, short mode)
 		/* normalise cursor value (for normalised F-Curves display) */
 		if (mode == GRAPHKEYS_SNAP_VALUE) {
 			short mapping_flag = ANIM_get_normalization_flags(ac);
-			float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, ale->key_data, mapping_flag);
+			float offset;
+			float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, ale->key_data, mapping_flag, &offset);
 			
-			ked.f1 = cursor_value / unit_scale;
+			ked.f1 = (cursor_value / unit_scale) - offset;
 		}
 		
 		/* perform snapping */
@@ -2111,9 +2145,10 @@ static void mirror_graph_keys(bAnimContext *ac, short mode)
 		/* apply unit corrections */
 		if (mode == GRAPHKEYS_MIRROR_VALUE) {
 			short mapping_flag = ANIM_get_normalization_flags(ac);
-			float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, ale->key_data, mapping_flag | ANIM_UNITCONV_ONLYKEYS);
+			float offset;
+			float unit_scale = ANIM_unit_mapping_get_factor(ac->scene, ale->id, ale->key_data, mapping_flag | ANIM_UNITCONV_ONLYKEYS, &offset);
 			
-			ked.f1 = cursor_value * unit_scale;
+			ked.f1 = (cursor_value + offset) * unit_scale;
 		}
 		
 		/* perform actual mirroring */
@@ -2243,7 +2278,7 @@ static EnumPropertyItem *graph_fmodifier_itemf(bContext *C, PointerRNA *UNUSED(p
 
 	/* start from 1 to skip the 'Invalid' modifier type */
 	for (i = 1; i < FMODIFIER_NUM_TYPES; i++) {
-		FModifierTypeInfo *fmi = get_fmodifier_typeinfo(i);
+		const FModifierTypeInfo *fmi = get_fmodifier_typeinfo(i);
 		int index;
 
 		/* check if modifier is valid for this context */
@@ -2459,3 +2494,154 @@ void GRAPH_OT_fmodifier_paste(wmOperatorType *ot)
 }
 
 /* ************************************************************************** */
+
+typedef struct BackDropTransformData {
+	float init_offset[2];
+	float init_zoom;
+	short event_type;
+	wmWidgetGroupType *cagetype;
+} BackDropTransformData;
+
+static int graph_widget_backdrop_transform_poll(bContext *C)
+{
+	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	ARegion *ar = CTX_wm_region(C);
+
+	return ((sipo != NULL) &&
+	        (ar->type->regionid == RGN_TYPE_WINDOW) &&
+	        (sipo->flag & SIPO_DRAW_BACKDROP) &&
+	        (sipo->backdrop_camera));
+}
+
+static void widgetgroup_backdrop_draw(const struct bContext *C, struct wmWidgetGroup *wgroup)
+{
+	ARegion *ar = CTX_wm_region(C);
+	wmOperator *op = wgroup->type->op;
+	Scene *scene = CTX_data_scene(C);
+	int width = (scene->r.size * scene->r.xsch) / 150.0f;
+	int height = (scene->r.size * scene->r.ysch) / 150.0f;
+	float origin[3];
+
+	wmWidget *cage = WIDGET_rect_transform_new(wgroup, WIDGET_RECT_TRANSFORM_STYLE_SCALE_UNIFORM |
+	                                           WIDGET_RECT_TRANSFORM_STYLE_TRANSLATE, width, height);
+	WM_widget_property(cage, RECT_TRANSFORM_SLOT_OFFSET, op->ptr, "offset");
+	WM_widget_property(cage, RECT_TRANSFORM_SLOT_SCALE, op->ptr, "scale");
+
+	origin[0] = BLI_rcti_size_x(&ar->winrct) / 2.0f;
+	origin[1] = BLI_rcti_size_y(&ar->winrct) / 2.0f;
+
+	WM_widget_set_origin(cage, origin);
+}
+
+static int graph_widget_backdrop_transform_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	SpaceIpo *sipo = CTX_wm_space_graph(C);
+	/* no poll, lives always for the duration of the operator */
+	wmWidgetGroupType *cagetype = WM_widgetgrouptype_new(NULL, widgetgroup_backdrop_draw, CTX_data_main(C), "Graph_Canvas", SPACE_IPO, RGN_TYPE_WINDOW, false);
+	struct wmEventHandler *handler = WM_event_add_modal_handler(C, op);
+	BackDropTransformData *data = MEM_mallocN(sizeof(BackDropTransformData), "overdrop transform data");
+	WM_modal_handler_attach_widgetgroup(C, handler, cagetype, op);
+
+	RNA_float_set_array(op->ptr, "offset", sipo->backdrop_offset);
+	RNA_float_set(op->ptr, "scale", sipo->backdrop_zoom);
+
+	copy_v2_v2(data->init_offset, sipo->backdrop_offset);
+	data->init_zoom = sipo->backdrop_zoom;
+	data->cagetype = cagetype;
+	data->event_type = event->type;
+
+	op->customdata = data;
+
+	ED_area_headerprint(sa, "Drag to place, and scale, Space/Enter/Caller key to confirm, R to recenter, RClick/Esc to cancel");
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+static void graph_widget_backdrop_transform_finish(bContext *C, BackDropTransformData *data)
+{
+	ScrArea *sa = CTX_wm_area(C);
+	ED_area_headerprint(sa, NULL);
+	WM_widgetgrouptype_unregister(C, CTX_data_main(C), data->cagetype);
+	MEM_freeN(data);
+}
+
+static void graph_widget_backdrop_transform_cancel(struct bContext *C, struct wmOperator *op)
+{
+	BackDropTransformData *data = op->customdata;
+	graph_widget_backdrop_transform_finish(C, data);
+}
+
+static int graph_widget_backdrop_transform_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+	BackDropTransformData *data = op->customdata;
+
+	if (event->type == data->event_type && event->val == KM_PRESS) {
+		graph_widget_backdrop_transform_finish(C, data);
+		return OPERATOR_FINISHED;
+	}
+
+	switch (event->type) {
+		case EVT_WIDGET_UPDATE: {
+			SpaceIpo *sipo = CTX_wm_space_graph(C);
+			RNA_float_get_array(op->ptr, "offset", sipo->backdrop_offset);
+			sipo->backdrop_zoom = RNA_float_get(op->ptr, "scale");
+			break;
+		}
+		case RKEY:
+		{
+			SpaceIpo *sipo = CTX_wm_space_graph(C);
+			ARegion *ar = CTX_wm_region(C);
+			float zero[2] = {0.0f};
+			RNA_float_set_array(op->ptr, "offset", zero);
+			RNA_float_set(op->ptr, "scale", 1.0f);
+			copy_v2_v2(sipo->backdrop_offset, zero);
+			sipo->backdrop_zoom = 1.0f;
+			ED_region_tag_redraw(ar);
+			/* add a mousemove to refresh the widget */
+			WM_event_add_mousemove(C);
+			break;
+		}
+		case RETKEY:
+		case PADENTER:
+		case SPACEKEY:
+		{
+			graph_widget_backdrop_transform_finish(C, data);
+			return OPERATOR_FINISHED;
+		}
+		case ESCKEY:
+		case RIGHTMOUSE:
+		{
+			SpaceIpo *sipo = CTX_wm_space_graph(C);
+			copy_v2_v2(sipo->backdrop_offset, data->init_offset);
+			sipo->backdrop_zoom = data->init_zoom;
+
+			graph_widget_backdrop_transform_finish(C, data);
+			return OPERATOR_CANCELLED;
+		}
+	}
+
+	return OPERATOR_RUNNING_MODAL;
+}
+
+void GRAPH_OT_widget_backdrop_transform(struct wmOperatorType *ot)
+{
+	float default_offset[2] = {0.0f, 0.0f};
+
+	/* identifiers */
+	ot->name = "Transform Backdrop";
+	ot->idname = "GRAPH_OT_widget_backdrop_transform";
+	ot->description = "";
+
+	/* api callbacks */
+	ot->invoke = graph_widget_backdrop_transform_invoke;
+	ot->modal = graph_widget_backdrop_transform_modal;
+	ot->poll = graph_widget_backdrop_transform_poll;
+	ot->cancel = graph_widget_backdrop_transform_cancel;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+	
+	RNA_def_float_array(ot->srna, "offset", 2, default_offset, FLT_MIN, FLT_MAX, "Offset", "Offset of the backdrop", FLT_MIN, FLT_MAX);
+	RNA_def_float(ot->srna, "scale", 1.0f, 0.0f, FLT_MAX, "Scale", "Scale of the backdrop", 0.0f, FLT_MAX);
+}
