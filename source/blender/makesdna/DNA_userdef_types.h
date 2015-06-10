@@ -178,6 +178,9 @@ typedef struct ThemeUI {
 	uiTabColors tab;
 	uiPanelColors panel; /* depricated, but we keep it for do_versions (2.66.1) */
 
+	short interface_style; /* flat/classic - don't confuse with uiStyle */
+	short pad2;
+
 	char area_edges[4];
 
 	char widget_emboss[4];
@@ -186,7 +189,7 @@ typedef struct ThemeUI {
 	float menu_shadow_fac;
 	short menu_shadow_width;
 	
-	short pad[5];
+	short pad[3];
 	
 	char iconfile[256];	// FILE_MAXFILE length
 	float icon_alpha;
@@ -893,6 +896,11 @@ typedef enum eUserpref_VirtualPixel {
 	VIRTUAL_PIXEL_NATIVE = 0,
 	VIRTUAL_PIXEL_DOUBLE = 1,
 } eUserpref_VirtualPixel;
+
+typedef enum eTheme_InterfaceStyle {
+	TH_IFACE_STYLE_CLASSIC = 0,
+	TH_IFACE_STYLE_FLAT    = 1,
+} eTheme_InterfaceStyle;
 
 #ifdef __cplusplus
 }

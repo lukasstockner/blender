@@ -958,6 +958,12 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 	StructRNA *srna;
 	PropertyRNA *prop;
 
+	static EnumPropertyItem interface_style_items[] = {
+		{TH_IFACE_STYLE_CLASSIC, "CLASSIC", 0, "Classic", "Use a classic interface drawing style"},
+		{TH_IFACE_STYLE_FLAT,    "FLAT",    0, "Flat",    "Use a flat interface drawing style"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	rna_def_userdef_theme_ui_wcol(brna);
 	rna_def_userdef_theme_ui_wcol_state(brna);
 	rna_def_userdef_theme_ui_tabs(brna);
@@ -1062,6 +1068,12 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "wcol_state", PROP_POINTER, PROP_NONE);
 	RNA_def_property_flag(prop, PROP_NEVER_NULL);
 	RNA_def_property_ui_text(prop, "State Colors", "");
+	RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+	prop = RNA_def_property(srna, "interface_style", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "interface_style");
+	RNA_def_property_enum_items(prop, interface_style_items);
+	RNA_def_property_ui_text(prop, "Interface Style", "Adjusts the interface drawing for different styles");
 	RNA_def_property_update(prop, 0, "rna_userdef_update");
 
 	prop = RNA_def_property(srna, "area_edges", PROP_FLOAT, PROP_COLOR_GAMMA);
