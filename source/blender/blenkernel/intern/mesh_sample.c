@@ -102,7 +102,7 @@ bool BKE_mesh_sample_eval(DerivedMesh *dm, const MSurfaceSample *sample, float l
 bool BKE_mesh_sample_shapekey(Key *key, KeyBlock *kb, const MSurfaceSample *sample, float loc[3])
 {
 	float *v1, *v2, *v3;
-	
+	(void)key;  /* unused in the release builds. */
 	BLI_assert(key->elemsize == 3 * sizeof(float));
 	BLI_assert(sample->orig_verts[0] < (unsigned int)kb->totelem);
 	BLI_assert(sample->orig_verts[1] < (unsigned int)kb->totelem);
