@@ -258,12 +258,12 @@ static bool file_is_any_selected(struct FileList *files)
 	const int numfiles = filelist_numfiles(files);
 	int i;
 
+	/* Is any file selected ? */
 	for (i = 0; i < numfiles; ++i) {
-		if (filelist_is_selected(files, i, CHECK_ALL)) {
+		if (filelist_entry_select_index_get(files, i, CHECK_ALL)) {
 			return true;
 		}
 	}
-
 	return false;
 }
 
@@ -484,18 +484,21 @@ static bool file_walk_select_selection_set(
 
 	if (has_selection) {
 		if (extend &&
-		    filelist_is_selected(files, active_old, FILE_SEL_SELECTED) &&
-		    filelist_is_selected(files, active_new, FILE_SEL_SELECTED))
+		    filelist_entry_select_index_get(files, active_old, FILE_SEL_SELECTED) &&
+		    filelist_entry_select_index_get(files, active_new, FILE_SEL_SELECTED))
 		{
 				/* conditions for deselecting: initial file is selected, new file is
 				 * selected and either other_side isn't selected/found or we use fill */
-				deselect = (fill || other_site == -1 || !filelist_is_selected(files, other_site, FILE_SEL_SELECTED));
+				deselect = (fill || other_site == -1 ||
+				            !filelist_entry_select_index_get(files, other_site, FILE_SEL_SELECTED));
 
 				/* don't change active here since we either want to deselect active or we want to
 				 * walk through a block of selected files without selecting/deselecting anything */
 				params->active_file = active_new;
 				/* but we want to change active if we use fill (needed to get correct selection bounds) */
-				if (deselect && fill) active = active_new;
+				if (deselect && fill) {
+					active = active_new;
+				}
 		}
 		else {
 			/* regular selection change */
@@ -536,16 +539,16 @@ static bool file_walk_select_selection_set(
 		FileSelection sel = { MIN2(active, last_sel), MAX2(active, last_sel) };
 
 		/* fill selection between last and first selected file */
-		filelist_select(sfile->files, &sel, deselect ? FILE_SEL_REMOVE : FILE_SEL_ADD,
-		                FILE_SEL_SELECTED, CHECK_ALL);
+		filelist_entries_select_index_range_set(
+		            files, &sel, deselect ? FILE_SEL_REMOVE : FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
 		/* entire sel is cleared here, so select active again */
 		if (deselect) {
-			filelist_select_file(sfile->files, active, FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
+			filelist_entry_select_index_set(files, active, FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
 		}
 	}
 	else {
-		filelist_select_file(sfile->files, active, deselect ? FILE_SEL_REMOVE : FILE_SEL_ADD,
-		                     FILE_SEL_SELECTED, CHECK_ALL);
+		filelist_entry_select_index_set(
+		            files, active, deselect ? FILE_SEL_REMOVE : FILE_SEL_ADD, FILE_SEL_SELECTED, CHECK_ALL);
 	}
 
 	BLI_assert(IN_RANGE(active, 0, numfiles));
@@ -606,18 +609,22 @@ static bool file_walk_select_do(
 		}
 
 		if (!IN_RANGE(active_new, 0, numfiles)) {
-			/* extend to invalid file -> abort */
-			if (extend) return false;
-			/* select initial file */
-			else active_new = active_old;
+			if (extend) {
+				/* extend to invalid file -> abort */
+				return false;
+			}
+			else {
+				/* select initial file */
+				active_new = active_old;
+			}
 		}
 		if (!IN_RANGE(other_site, 0, numfiles)) {
 			other_site = -1;
 		}
 	}
 
-	return file_walk_select_selection_set(C, sfile, direction, numfiles, active_old, active_new, other_site,
-	                                      has_selection, extend, fill);
+	return file_walk_select_selection_set(
+	            C, sfile, direction, numfiles, active_old, active_new, other_site, has_selection, extend, fill);
 }
 
 static int file_walk_select_invoke(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
@@ -679,16 +686,6 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 	sel.first = 0; 
 	sel.last = numfiles - 1;
 
-/* START XXX TODO!!! */
-	/* Is any file selected ? */
-	for (i = 0; i < numfiles; ++i) {
-		if (filelist_entry_select_index_get(sfile->files, i, CHECK_ALL)) {
-			is_selected = true;
-			break;
-		}
-	}
-/* END XXX TODO!!! */
-
 	/* select all only if previously no file was selected */
 	if (has_selection) {
 		filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_REMOVE, FILE_SEL_SELECTED, CHECK_ALL);
@@ -701,7 +698,7 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 
 		/* set active_file to first selected */
 		for (i = 0; i < numfiles; i++) {
-			if (filelist_is_selected(sfile->files, i, check_type)) {
+			if (filelist_entry_select_index_get(sfile->files, i, check_type)) {
 				sfile->params->active_file = i;
 				break;
 			}

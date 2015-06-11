@@ -502,16 +502,16 @@ void filelist_sort(struct FileList *filelist)
 
 		switch (filelist->sort) {
 			case FILE_SORT_ALPHA:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_name);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, compare_name, NULL);
 				break;
 			case FILE_SORT_TIME:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_date);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, compare_date, NULL);
 				break;
 			case FILE_SORT_SIZE:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_size);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, compare_size, NULL);
 				break;
 			case FILE_SORT_EXTENSION:
-				BLI_listbase_sort_r(&filelist->filelist_intern.entries, NULL, compare_extension);
+				BLI_listbase_sort_r(&filelist->filelist_intern.entries, compare_extension, NULL);
 				break;
 			case FILE_SORT_NONE:  /* Should never reach this point! */
 			default:
