@@ -4722,7 +4722,7 @@ static void *do_projectpaint_thread(void *ph_v)
 				if (dist_sq <= brush_radius_sq) {
 					dist = sqrtf(dist_sq);
 
-					falloff = BKE_brush_curve_strength(ps->brush, dist, brush_radius);
+					falloff = BKE_brush_curve_strength_clamped(ps->brush, dist, brush_radius);
 
 					if (falloff > 0.0f) {
 						float texrgb[3];
@@ -5085,7 +5085,7 @@ static void project_state_init(bContext *C, Object *ob, ProjPaintState *ps, int 
 		ps->blend = brush->blend;
 		/* only check for inversion for the soften tool, elsewhere, a resident brush inversion flag can cause issues */
 		if (brush->imagepaint_tool == PAINT_TOOL_SOFTEN) {
-			ps->mode = ((ps->mode == BRUSH_STROKE_INVERT) ^ ((brush->flag & BRUSH_DIR_IN) != 0) ?
+			ps->mode = (((ps->mode == BRUSH_STROKE_INVERT) ^ ((brush->flag & BRUSH_DIR_IN) != 0)) ?
 			            BRUSH_STROKE_INVERT : BRUSH_STROKE_NORMAL);
 
 			ps->blurkernel = paint_new_blur_kernel(brush, true);
