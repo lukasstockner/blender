@@ -543,11 +543,11 @@ void file_draw_list(const bContext *C, ARegion *ar)
 
 
 		if (!(file_selflag & FILE_SEL_EDITING)) {
-			if ((params->active_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ||
+			if ((params->highlight_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ||
 			    (file_selflag & FILE_SEL_SELECTED))
 			{
 				int colorid = (file_selflag & FILE_SEL_SELECTED) ? TH_HILITE : TH_BACK;
-				int shade = (params->active_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ? 20 : 0;
+				int shade = (params->highlight_file == i) || (file_selflag & FILE_SEL_HIGHLIGHTED) ? 35 : 0;
 
 				/* readonly files (".." and ".") must not be drawn as selected - set color back to normal */
 				if (FILENAME_IS_CURRPAR(file->relpath)) {

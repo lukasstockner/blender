@@ -682,7 +682,7 @@ void ED_fileselect_clear(wmWindowManager *wm, ScrArea *sa, SpaceFile *sfile)
 		filelist_clear(sfile->files);
 	}
 
-	sfile->params->active_file = -1;
+	sfile->params->highlight_file = -1;
 	WM_main_add_notifier(NC_SPACE | ND_SPACE_FILE_LIST, NULL);
 }
 
