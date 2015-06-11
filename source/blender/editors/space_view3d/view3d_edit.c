@@ -4665,7 +4665,7 @@ void ED_view3d_cursor3d_update(bContext *C, const int mval[2])
 		}
 	}
 
-	if (v3d && v3d->localvd)
+	if (v3d->localvd)
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 	else
 		WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
