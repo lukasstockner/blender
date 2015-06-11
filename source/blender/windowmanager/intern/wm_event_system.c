@@ -1137,7 +1137,10 @@ static int wm_operator_invoke(
 				int bounds[4] = {-1, -1, -1, -1};
 				bool wrap;
 
-				if (op->opm) {
+				if (event == NULL) {
+					wrap = false;
+				}
+				else if (op->opm) {
 					wrap = (U.uiflag & USER_CONTINUOUS_MOUSE) &&
 					       ((op->opm->flag & OP_IS_MODAL_GRAB_CURSOR) || (op->opm->type->flag & OPTYPE_GRAB_CURSOR));
 				}
@@ -1159,7 +1162,7 @@ static int wm_operator_invoke(
 					ARegion *ar = CTX_wm_region(C);
 					ScrArea *sa = CTX_wm_area(C);
 
-					if (ar && ar->regiontype == RGN_TYPE_WINDOW && event &&
+					if (ar && ar->regiontype == RGN_TYPE_WINDOW &&
 					    BLI_rcti_isect_pt_v(&ar->winrct, &event->x))
 					{
 						winrect = &ar->winrct;
@@ -1793,7 +1796,11 @@ static int wm_handler_fileselect_do(bContext *C, ListBase *handlers, wmEventHand
 			BLI_remlink(handlers, handler);
 
 			if (val != EVT_FILESELECT_EXTERNAL_CANCEL) {
-				ED_screen_full_prevspace(C, CTX_wm_area(C));
+				ScrArea *sa = CTX_wm_area(C);
+				const SpaceLink *sl = sa->spacedata.first;
+				const bool was_prev_temp = (sl->next && sl->next->spacetype == SPACE_IMAGE);
+
+				ED_screen_full_prevspace(C, sa, was_prev_temp);
 			}
 
 			wm_handler_op_context(C, handler, CTX_wm_window(C)->eventstate);
