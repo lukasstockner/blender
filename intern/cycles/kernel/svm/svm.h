@@ -168,6 +168,7 @@ CCL_NAMESPACE_END
 #include "svm_wave.h"
 #include "svm_math.h"
 #include "svm_mix.h"
+#include "svm_openvdb.h"
 #include "svm_ramp.h"
 #include "svm_sepcomb_hsv.h"
 #include "svm_sepcomb_vector.h"
@@ -451,6 +452,11 @@ ccl_device_noinline void svm_eval_nodes(KernelGlobals *kg, ShaderData *sd, Shade
 				break;
 #  endif  /* __EXTRA_NODES__ */
 #endif  /* NODES_GROUP(NODE_GROUP_LEVEL_3) */
+#ifdef __OPENVDB__
+			case NODE_OPENVDB:
+				svm_node_openvdb(kg, sd, stack, node, &offset);
+				break;
+#endif
 			case NODE_END:
 				return;
 			default:

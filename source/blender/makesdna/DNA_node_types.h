@@ -866,6 +866,44 @@ typedef struct NodeShaderUVMap {
 	char uv_map[64];
 } NodeShaderUVMap;
 
+typedef struct OpenVDBGridInfo {
+	struct OpenVDBGridInfo *next, *prev;
+	
+	char name[64]; /* MAX_NAME */
+	short flag;
+	short type;
+	int pad;
+} OpenVDBGridInfo;
+
+typedef enum eOpenVDBGridInfo_Flag {
+	OPENVDB_FLAG_UNIFORM_VOXELS         = (1 << 0),
+} eOpenVDBGridInfo_Flag;
+
+typedef enum eOpenVDBGridInfo_Type {
+	OPENVDB_TYPE_UNKNOWN                = 0,
+	OPENVDB_TYPE_FLOAT                  = 1,
+	OPENVDB_TYPE_VEC3                   = 2,
+	OPENVDB_TYPE_COLOR                  = 3,
+} eOpenVDBGridInfo_Type;
+
+typedef struct NodeShaderOpenVDB {
+	char filename[1024];
+	short sampling, source;
+	int pad;
+	
+	ListBase grid_info;
+} NodeShaderOpenVDB;
+
+enum {
+	NODE_VDB_SAMPLE_POINT = 0,
+	NODE_VDB_SAMPLE_BOX   = 1,
+};
+
+enum {
+	NODE_VDB_SRC_FILE = 0,
+	NODE_VDB_SRC_SEQ  = 1,
+};
+
 typedef struct NodeSunBeams {
 	float source[2];
 

@@ -52,6 +52,7 @@ set(SRC_HEADERS
 	util_math_fast.h
 	util_md5.h
 	util_opengl.h
+	util_openvdb.h
 	util_optimization.h
 	util_param.h
 	util_path.h
@@ -81,6 +82,12 @@ if(WITH_CYCLES_DEBUG)
 	list(APPEND SRC_HEADERS
 		util_guarded_allocator.h
 	)
+endif()
+
+if(WITH_OPENVDB)
+    add_definitions(
+        -DWITH_OPENVDB
+    )
 endif()
 
 include_directories(${INC})

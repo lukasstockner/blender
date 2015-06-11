@@ -34,6 +34,7 @@ set(INC
 	../../windowmanager
 	../../../../intern/guardedalloc
 	../../../../intern/glew-mx
+	../../../../intern/openvdb
 )
 
 set(INC_SYS

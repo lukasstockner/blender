@@ -24,6 +24,7 @@
 
 #include "kernel_types.h"
 
+#include "util_openvdb.h"
 #include "util_param.h"
 #include "util_string.h"
 #include "util_system.h"
@@ -55,6 +56,7 @@ class ShaderManager;
 class Progress;
 class BakeManager;
 class BakeData;
+class VolumeManager;
 
 /* Scene Device Data */
 
@@ -180,6 +182,7 @@ public:
 	ParticleSystemManager *particle_system_manager;
 	CurveSystemManager *curve_system_manager;
 	BakeManager *bake_manager;
+	VolumeManager *volume_manager;
 
 	/* default shaders */
 	int default_surface;

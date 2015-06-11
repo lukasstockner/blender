@@ -16,6 +16,7 @@
 
 #include "image.h"
 #include "nodes.h"
+#include "openvdb.h"
 #include "svm.h"
 #include "svm_math_util.h"
 #include "osl.h"
@@ -4475,6 +4476,73 @@ void TangentNode::compile(OSLCompiler& compiler)
 	compiler.parameter("direction_type", direction_type);
 	compiler.parameter("axis", axis);
 	compiler.add(this, "node_tangent"); 
+}
+
+OpenVDBNode::OpenVDBNode()
+: ShaderNode("openvdb")
+{
+	filename = "";
+	volume_manager = NULL;
+	sampling = OPENVDB_SAMPLE_POINT;
+	tfm = transform_identity();
+
+	add_input("Vector", SHADER_SOCKET_POINT, ShaderInput::POSITION);
+}
+
+void OpenVDBNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+	if(shader->has_volume)
+		attributes->add(ATTR_STD_GENERATED_TRANSFORM);
+
+	ShaderNode::attributes(shader, attributes);
+}
+
+void OpenVDBNode::compile(SVMCompiler& compiler)
+{
+	ShaderInput *vector_in = input("Vector");
+	volume_manager = compiler.volume_manager;
+
+	compiler.stack_assign(vector_in);
+
+	for(size_t i = 0; i < outputs.size(); ++i) {
+		ShaderOutput *out = outputs[i];
+
+		if(out->links.empty()) {
+			continue;
+		}
+
+		int type = NODE_VDB_FLOAT;
+
+		if(out->type == SHADER_SOCKET_VECTOR || out->type == SHADER_SOCKET_COLOR) {
+			type = NODE_VDB_FLOAT3;
+		}
+
+		grid_slot = volume_manager->add_volume(filename.string(),
+		                                       output_names[i].string(),
+		                                       sampling, type);
+
+		if(grid_slot == -1) {
+			continue;
+		}
+
+		compiler.stack_assign(out);
+
+		compiler.add_node(NODE_OPENVDB,
+		                  grid_slot,
+		                  compiler.encode_uchar4(type,
+		                                         vector_in->stack_offset,
+		                                         out->stack_offset,
+		                                         sampling));
+
+		compiler.add_node(tfm.x);
+		compiler.add_node(tfm.y);
+		compiler.add_node(tfm.z);
+		compiler.add_node(tfm.w);
+	}
+}
+
+void OpenVDBNode::compile(OSLCompiler& /*compiler*/)
+{
 }
 
 CCL_NAMESPACE_END

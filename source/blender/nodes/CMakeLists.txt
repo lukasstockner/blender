@@ -39,6 +39,7 @@ set(INC
 	../render/extern/include
 	../../../intern/guardedalloc
 	../../../intern/glew-mx
+	../../../intern/openvdb
 )
 
 set(INC_SYS
@@ -182,6 +183,7 @@ set(SRC
 	shader/nodes/node_shader_mix_shader.c
 	shader/nodes/node_shader_normal_map.c
 	shader/nodes/node_shader_object_info.c
+	shader/nodes/node_shader_openvdb.c
 	shader/nodes/node_shader_hair_info.c
 	shader/nodes/node_shader_output_lamp.c
 	shader/nodes/node_shader_output_material.c
@@ -286,6 +288,11 @@ add_definitions(${GL_DEFINITIONS})
 
 if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)
+endif()
+
+if(WITH_OPENVDB)
+	add_definitions(-DWITH_OPENVDB)
+	add_definitions(-DOPENVDB_USE_BLOSC)
 endif()
 
 blender_add_lib(bf_nodes "${SRC}" "${INC}" "${INC_SYS}")

@@ -146,6 +146,15 @@ if(WITH_CYCLES_OSL)
 	)
 endif()
 
+if(WITH_OPENVDB)
+	add_definitions(-DWITH_OPENVDB)
+	add_definitions(-DOPENVDB_USE_BLOSC)
+	add_definitions(-DDWREAL_IS_DOUBLE=0)
+	include_directories(
+		${OPENVDB_INCLUDE_DIRS}
+	)
+endif()
+
 add_definitions(
 	-DWITH_OPENCL
 	-DWITH_CUDA

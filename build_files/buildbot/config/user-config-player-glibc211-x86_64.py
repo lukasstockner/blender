@@ -133,6 +133,9 @@ BF_ALEMBIC_LIB_STATIC = '${BF_ALEMBIC_LIBPATH}/libAlembicAbcGeom.a ${BF_ALEMBIC_
     '${BF_ALEMBIC_LIBPATH}/libAlembicOgawa.a ${BF_ALEMBIC_LIBPATH}/libAlembicAbcCoreAbstract.a ' + \
     '${BF_ALEMBIC_LIBPATH}/libAlembicUtil.a'
 
+# OpenVDB
+WITH_BF_OPENVDB = False
+
 # Compilation and optimization
 BF_DEBUG = False
 REL_CCFLAGS = ['-DNDEBUG', '-O2', '-msse', '-msse2']  # C & C++

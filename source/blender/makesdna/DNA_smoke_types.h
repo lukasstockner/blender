@@ -41,6 +41,7 @@ enum {
 	MOD_SMOKE_HIGH_SMOOTH = (1 << 5),  /* -- Deprecated -- */
 	MOD_SMOKE_FILE_LOAD = (1 << 6),  /* flag for file load */
 	MOD_SMOKE_ADAPTIVE_DOMAIN = (1 << 7),
+	MOD_SMOKE_OPENVDB_EXPORTED = (1 << 8),
 };
 
 #if (DNA_DEPRECATED_GCC_POISON == 1)
@@ -105,6 +106,8 @@ typedef struct SmokeDomainSettings {
 	float obj_shift_f[3]; /* how much object has shifted since previous smoke frame (used to "lock" domain while drawing) */
 	float imat[4][4]; /* domain object imat */
 	float obmat[4][4]; /* domain obmat */
+	float fluidmat[4][4]; /* low res fluid matrix */
+	float fluidmat_wt[4][4]; /* high res fluid matrix */
 
 	int base_res[3]; /* initial "non-adapted" resolution */
 	int res_min[3]; /* cell min */
@@ -155,8 +158,30 @@ typedef struct SmokeDomainSettings {
 	/* display */
 	float display_thickness;
 	int pad2;
+
+	struct ListBase vdb_caches;
+	short use_openvdb, pad3[3];
 } SmokeDomainSettings;
 
+typedef struct OpenVDBCache {
+	struct OpenVDBCache *next, *prev;
+	struct OpenVDBReader *reader;
+	struct OpenVDBWriter *writer;
+	char path[1024];
+	char name[64];
+	int startframe, endframe;
+	short flag, compression, pad[2];
+} OpenVDBCache;
+
+enum {
+	VDB_CACHE_CURRENT = 1,
+};
+
+enum {
+	VDB_COMPRESSION_ZIP   = 0,
+	VDB_COMPRESSION_BLOSC = 1,
+	VDB_COMPRESSION_NONE  = 2,
+};
 
 /* inflow / outflow */
 

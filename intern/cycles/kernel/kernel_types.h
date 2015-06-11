@@ -67,6 +67,9 @@ CCL_NAMESPACE_BEGIN
 #ifdef WITH_OSL
 #define __OSL__
 #endif
+#ifdef WITH_OPENVDB
+#define __OPENVDB__
+#endif
 #define __SUBSURFACE__
 #define __CMJ__
 #define __VOLUME__
@@ -970,7 +973,8 @@ typedef struct KernelCurves {
 
 typedef struct KernelTables {
 	int beckmann_offset;
-	int pad1, pad2, pad3;
+	int num_volumes;
+	int density_index, pad2;
 } KernelTables;
 
 typedef struct KernelData {

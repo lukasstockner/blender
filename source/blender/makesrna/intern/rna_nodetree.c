@@ -3055,6 +3055,18 @@ void rna_ShaderNodePointDensity_density_calc(bNode *self, Scene *scene, int *len
 	BKE_texture_pointdensity_free_data(&pd);
 }
 
+static void rna_ShaderNodeOpenVDB_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+	bNodeTree *ntree = (bNodeTree *)ptr->id.data;
+	bNode *node = (bNode *)ptr->data;
+
+	ntreeUpdateOpenVDBNode(bmain, ntree, node);
+	ntreeUpdateTree(bmain, ntree);
+	WM_main_add_notifier(NC_NODE | NA_EDITED, ntree);
+
+	UNUSED_VARS(scene);
+}
+
 #else
 
 static EnumPropertyItem prop_image_layer_items[] = {
@@ -4059,6 +4071,43 @@ static void def_sh_uvmap(StructRNA *srna)
 	prop = RNA_def_property(srna, "uv_map", PROP_STRING, PROP_NONE);
 	RNA_def_property_ui_text(prop, "UV Map", "UV coordinates to be used for mapping");
 	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+	RNA_def_struct_sdna_from(srna, "bNode", NULL);
+}
+
+static void def_sh_openvdb(StructRNA *srna)
+{
+	PropertyRNA *prop;
+
+	static const EnumPropertyItem prop_openvdb_sampling[] = {
+		{NODE_VDB_SAMPLE_POINT, "POINT", 0, "Point",
+		                       "Nearest neighbor interpolation type"},
+		{NODE_VDB_SAMPLE_BOX, "Box", 0, "Box",
+		                      "Trilinear interpolation type"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static const EnumPropertyItem prop_openvdb_source[] = {
+		{NODE_VDB_SRC_FILE, "FILE", 0, "Single File", "Single vdb file"},
+		{NODE_VDB_SRC_SEQ, "SEQUENCE", 0, "File Sequence", "Multiple vdb files, as a sequence"},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	RNA_def_struct_sdna_from(srna, "NodeShaderOpenVDB", "storage");
+
+	prop = RNA_def_property(srna, "filename", PROP_STRING, PROP_FILEPATH);
+	RNA_def_property_ui_text(prop, "File Path", "Path to the file to use");
+	RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_ShaderNodeOpenVDB_update");
+
+	prop = RNA_def_property(srna, "sampling", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_openvdb_sampling);
+	RNA_def_property_ui_text(prop, "Sampling", "Grid interpolation");
+	RNA_def_property_update(prop, 0, "rna_Node_update");
+
+	prop = RNA_def_property(srna, "source", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_items(prop, prop_openvdb_source);
+	RNA_def_property_ui_text(prop, "Source", "File Source");
+	RNA_def_property_update(prop, 0, "rna_Node_update");
 
 	RNA_def_struct_sdna_from(srna, "bNode", NULL);
 }

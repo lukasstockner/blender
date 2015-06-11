@@ -25,6 +25,7 @@ CCL_NAMESPACE_BEGIN
 
 class ImageManager;
 class Shader;
+class VolumeManager;
 
 /* Texture Mapping */
 
@@ -756,6 +757,22 @@ public:
 	static ShaderEnum axis_enum;
 
 	ustring attribute;
+};
+
+class OpenVDBNode : public ShaderNode {
+public:
+	SHADER_NODE_CLASS(OpenVDBNode)
+	void attributes(Shader *shader, AttributeRequestSet *attributes);
+	bool has_spatial_varying() { return true; }
+
+	ustring filename;
+	VolumeManager *volume_manager;
+
+	int grid_slot;
+	int sampling;
+	vector<ustring> output_names;
+
+	Transform tfm;
 };
 
 CCL_NAMESPACE_END

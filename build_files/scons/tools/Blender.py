@@ -226,6 +226,11 @@ def setup_staticlibs(lenv):
         if lenv['WITH_BF_STATICOCIO']:
             statlibs += Split(lenv['BF_OCIO_LIB_STATIC'])
 
+    if lenv['WITH_BF_OPENVDB']:
+        libincs += Split(lenv['BF_OPENVDB_LIB_PATH'])
+        if lenv['WITH_BF_STATICOPENVDB']:
+            statlibs += Split(lenv['BF_OPENVDB_LIB_STATIC'])
+
     if lenv['WITH_BF_CYCLES_OSL']:
         libincs += Split(lenv['BF_OSL_LIBPATH'])
         if lenv['WITH_BF_STATICOSL']:
@@ -299,6 +304,9 @@ def setup_syslibs(lenv):
     if lenv['WITH_BF_ALEMBIC']:
         if not lenv['WITH_BF_STATICALEMBIC']:
             syslibs += Split(lenv['BF_ALEMBIC_LIB'])
+
+    if lenv['WITH_BF_OPENVDB'] and not lenv ['WITH_BF_STATICOPENVDB']:
+        syslibs += Split(lenv['BF_OPENVDB_LIB'])
 
     if lenv['WITH_BF_OPENEXR'] and not lenv['WITH_BF_STATICOPENEXR']:
         syslibs += Split(lenv['BF_OPENEXR_LIB'])

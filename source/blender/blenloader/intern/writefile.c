@@ -871,23 +871,38 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 			writestruct(wd, DATA, "bNodeLink", 1, link);
 		if (node->storage) {
 			/* could be handlerized at some point, now only 1 exception still */
-			if (ntree->type==NTREE_SHADER && (node->type==SH_NODE_CURVE_VEC || node->type==SH_NODE_CURVE_RGB))
-				write_curvemapping(wd, node->storage);
-			else if (ntree->type==NTREE_SHADER && node->type==SH_NODE_SCRIPT) {
-				NodeShaderScript *nss = (NodeShaderScript *)node->storage;
-				if (nss->bytecode)
-					writedata(wd, DATA, strlen(nss->bytecode)+1, nss->bytecode);
-				writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
+			if (ntree->type==NTREE_SHADER) {
+				if (node->type==SH_NODE_CURVE_VEC || node->type==SH_NODE_CURVE_RGB)
+					write_curvemapping(wd, node->storage);
+				else if (node->type==SH_NODE_SCRIPT) {
+					NodeShaderScript *nss = (NodeShaderScript *)node->storage;
+					if (nss->bytecode)
+						writedata(wd, DATA, strlen(nss->bytecode)+1, nss->bytecode);
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
+				}
+				else if (node->type==SH_NODE_OPENVDB) {
+					NodeShaderOpenVDB *vdb = (NodeShaderOpenVDB *)node->storage;
+					writelist(wd, DATA, "OpenVDBGridInfo", &vdb->grid_info);
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
+				}
+				else
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 			}
-			else if (ntree->type==NTREE_COMPOSIT && ELEM(node->type, CMP_NODE_TIME, CMP_NODE_CURVE_VEC, CMP_NODE_CURVE_RGB, CMP_NODE_HUECORRECT))
-				write_curvemapping(wd, node->storage);
-			else if (ntree->type==NTREE_TEXTURE && (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME) )
-				write_curvemapping(wd, node->storage);
-			else if (ntree->type==NTREE_COMPOSIT && node->type==CMP_NODE_MOVIEDISTORTION) {
-				/* pass */
+			else if (ntree->type==NTREE_COMPOSIT) {
+				if (ELEM(node->type, CMP_NODE_TIME, CMP_NODE_CURVE_VEC, CMP_NODE_CURVE_RGB, CMP_NODE_HUECORRECT))
+					write_curvemapping(wd, node->storage);
+				else if (node->type==CMP_NODE_MOVIEDISTORTION) {
+					/* pass */
+				}
+				else
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
 			}
-			else
-				writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
+			else if (ntree->type==NTREE_TEXTURE) {
+				if (node->type==TEX_NODE_CURVE_RGB || node->type==TEX_NODE_CURVE_TIME)
+					write_curvemapping(wd, node->storage);
+				else
+					writestruct(wd, DATA, node->typeinfo->storagename, 1, node->storage);
+			}
 		}
 		
 		if (node->type==CMP_NODE_OUTPUT_FILE) {
@@ -1534,6 +1549,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 		}
 		else if (md->type==eModifierType_Smoke) {
 			SmokeModifierData *smd = (SmokeModifierData*) md;
+			OpenVDBCache *cache;
 			
 			if (smd->type & MOD_SMOKE_TYPE_DOMAIN) {
 				if (smd->domain) {
@@ -1556,6 +1572,12 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 					
 					writestruct(wd, DATA, "EffectorWeights", 1, smd->domain->effector_weights);
 				}
+
+				cache = smd->domain->vdb_caches.first;
+				for (; cache; cache = cache->next) {
+					writestruct(wd, DATA, "OpenVDBCache", 1, cache);
+				}
+
 			}
 			else if (smd->type & MOD_SMOKE_TYPE_FLOW)
 				writestruct(wd, DATA, "SmokeFlowSettings", 1, smd->flow);

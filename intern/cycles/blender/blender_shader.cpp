@@ -765,6 +765,34 @@ static ShaderNode *add_node(Scene *scene,
 		}
 		node = point_density;
 	}
+	else if(b_node.is_a(&RNA_ShaderNodeOpenVDB)) {
+		BL::ShaderNodeOpenVDB b_vdb_node(b_node);
+		OpenVDBNode *vdb_node = new OpenVDBNode();
+		vdb_node->filename = b_vdb_node.filename();
+		vdb_node->sampling = b_vdb_node.sampling();
+
+		/* TODO(kevin) */
+		if(b_vdb_node.source() == 1) {
+			string filename = b_vdb_node.filename();
+			string basename = filename.substr(0, filename.size() - 8);
+			stringstream ss;
+			ss << b_scene.frame_current();
+			string frame = ss.str();
+			frame.insert(frame.begin(), 4 - frame.size(), '0');
+
+			vdb_node->filename = ustring::format("%s%s.vdb", basename, frame);
+		}
+
+		BL::Node::outputs_iterator b_output;
+
+		for(b_vdb_node.outputs.begin(b_output); b_output != b_vdb_node.outputs.end(); ++b_output) {
+			vdb_node->output_names.push_back(ustring(b_output->name()));
+			vdb_node->add_output(vdb_node->output_names.back().c_str(),
+			                     convert_socket_type(*b_output));
+		}
+
+		node = vdb_node;
+	}
 
 	if(node)
 		graph->add(node);

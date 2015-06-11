@@ -453,6 +453,14 @@ struct bNodeSocket *nodeInsertStaticSocket(struct bNodeTree *ntree, struct bNode
 void nodeRemoveSocket(struct bNodeTree *ntree, struct bNode *node, struct bNodeSocket *sock);
 void nodeRemoveAllSockets(struct bNodeTree *ntree, struct bNode *node);
 
+typedef void (*CreateSocketsCB)(void *userdata, struct bNodeTree *ntree, struct bNode *node);
+typedef void (*SyncSocketCB)(void *userdata, struct bNode *node, struct bNodeSocket *newsock, struct bNodeSocket *oldsock);
+/* create_outputs_cb must create new sockets using nodeAddSocket/nodeAddStaticSocket
+ * sync_output_cb is optional, for copying settings from old to new socket if needed
+ */
+void nodeSyncInputs(struct bNodeTree *ntree, struct bNode *node, CreateSocketsCB create_inputs_cb, SyncSocketCB sync_input_cb, void *userdata);
+void nodeSyncOutputs(struct bNodeTree *ntree, struct bNode *node, CreateSocketsCB create_outputs_cb, SyncSocketCB sync_output_cb, void *userdata);
+
 struct bNode	*nodeAddNode(const struct bContext *C, struct bNodeTree *ntree, const char *idname);
 struct bNode	*nodeAddStaticNode(const struct bContext *C, struct bNodeTree *ntree, int type);
 void            nodeUnlinkNode(struct bNodeTree *ntree, struct bNode *node);
@@ -783,6 +791,7 @@ struct ShadeResult;
 #define SH_NODE_OUTPUT_LINESTYLE		190
 #define SH_NODE_UVALONGSTROKE			191
 #define SH_NODE_TEX_POINTDENSITY		192
+#define SH_NODE_OPENVDB					193
 
 /* custom defines options for Material node */
 #define SH_NODE_MAT_DIFF   1
@@ -810,6 +819,8 @@ extern void (*node_shader_lamp_loop)(struct ShadeInput *, struct ShadeResult *);
 void            set_node_shader_lamp_loop(void (*lamp_loop_func)(struct ShadeInput *, struct ShadeResult *));
 
 void            ntreeGPUMaterialNodes(struct bNodeTree *ntree, struct GPUMaterial *mat, short compatibility);
+
+void            ntreeUpdateOpenVDBNode(struct Main *bmain, struct bNodeTree *ntree, struct bNode *node);
 
 /** \} */
 
