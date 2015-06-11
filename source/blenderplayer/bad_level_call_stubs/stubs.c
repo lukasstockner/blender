@@ -82,7 +82,6 @@ struct HookModifierData;
 struct NodeBlurData;
 struct Nurb;
 struct Object;
-struct OpenVDBCache;
 struct ParticleSystem;
 struct PBVHNode;
 struct PyObject;
@@ -97,7 +96,6 @@ struct ScrArea;
 struct SculptSession;
 struct ShadeInput;
 struct ShadeResult;
-struct SmokeDomainSettings;
 struct SpaceButs;
 struct SpaceClip;
 struct SpaceImage;
@@ -150,7 +148,6 @@ struct wmWidgetMap;
 #include "../blender/blenkernel/BKE_modifier.h"
 #include "../blender/blenkernel/BKE_paint.h"
 #include "../blender/blenkernel/BKE_object_deform.h"
-#include "../blender/blenkernel/BKE_smoke.h"
 #include "../blender/collada/collada.h"
 #include "../blender/compositor/COM_compositor.h"
 #include "../blender/editors/include/ED_armature.h"
@@ -272,7 +269,6 @@ float RE_lamp_get_data(struct ShadeInput *shi, struct Object *lamp_obj, float co
 
 /* blenkernel */
 bool BKE_paint_proj_mesh_data_check(struct Scene *scene, struct Object *ob, bool *uvs, bool *mat, bool *tex, bool *stencil) RET_ZERO
-struct OpenVDBCache *BKE_openvdb_get_current_cache(struct SmokeDomainSettings *sds) RET_NULL
 
 /* render */
 void RE_FreeRenderResult(struct RenderResult *res) RET_NONE
