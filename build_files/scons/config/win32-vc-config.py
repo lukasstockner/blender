@@ -214,6 +214,9 @@ BF_RAYOPTIMIZATION_SSE_FLAGS = ['/arch:SSE']
 #Freestyle
 WITH_BF_FREESTYLE = True
 
+# Disable OpenVDB, until libraries are available
+WITH_BF_OPENVDB = False
+
 WITH_BF_STATICOPENGL = False
 BF_OPENGL_INC = '${BF_OPENGL}/include'
 BF_OPENGL_LIBINC = '${BF_OPENGL}/lib'

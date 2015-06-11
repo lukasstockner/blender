@@ -226,6 +226,9 @@ BF_RAYOPTIMIZATION_SSE_FLAGS = []
 # SpaceNavigator and related 3D mice, driver must be 3DxWare 10 Beta 4 (Mac OS X) or later !
 WITH_BF_3DMOUSE = True
 
+# Disable OpenVDB, until libraries are available
+WITH_BF_OPENVDB = False
+
 #############################################################################
 ###################  various compile settings and flags    ##################
 #############################################################################

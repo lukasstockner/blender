@@ -188,6 +188,9 @@ BF_CYCLES_CUDA_BINARIES_ARCH = ['sm_20', 'sm_21', 'sm_30', 'sm_35', 'sm_50']
 #Freestyle
 WITH_BF_FREESTYLE = True
 
+# Disable OpenVDB, until libraries are available
+WITH_BF_OPENVDB = False
+
 ##
 CC = 'gcc'
 CXX = 'g++'

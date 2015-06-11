@@ -182,6 +182,9 @@ WITH_BF_OPENMP = True
 #Freestyle
 WITH_BF_FREESTYLE = True
 
+# Disable OpenVDB, until libraries are available
+WITH_BF_OPENVDB = False
+
 ##
 CC = 'gcc'
 CXX = 'g++'
