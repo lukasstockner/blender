@@ -350,6 +350,9 @@ static int smokeModifier_init(SmokeModifierData *smd, Object *ob, Scene *scene, 
 		if (!sds->shadow)
 			sds->shadow = MEM_callocN(sizeof(float) * sds->res[0] * sds->res[1] * sds->res[2], "SmokeDomainShadow");
 
+		sds->density = NULL;
+		sds->density_high = NULL;
+
 		return 1;
 	}
 	else if ((smd->type & MOD_SMOKE_TYPE_FLOW) && smd->flow)
@@ -2819,6 +2822,7 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 	{
 		SmokeDomainSettings *sds = smd->domain;
 		PointCache *cache = NULL;
+		OpenVDBCache *vdb_cache = NULL;
 		PTCacheID pid;
 		int startframe, endframe, framenr;
 		float timescale;
@@ -2856,14 +2860,17 @@ static void smokeModifier_process(SmokeModifierData *smd, Scene *scene, Object *
 		}
 
 		/* try to read from openvdb cache */
-//		if (sds->use_openvdb && (sds->flags & MOD_SMOKE_OPENVDB_EXPORTED)) {
-//			smokeModifier_OpenVDB_import(smd, scene, ob);
-//			smd->time = framenr;
-//			return;
+//		vdb_cache = BKE_openvdb_get_current_cache(sds);
+//		if (sds->use_openvdb && vdb_cache) {
+//			if (vdb_cache->flags & VDB_CACHE_SMOKE_EXPORTED) {
+//				smokeModifier_OpenVDB_import(smd, scene, ob, vdb_cache);
+//				smd->time = framenr;
+//				return;
+//			}
 //		}
 
 		/* try to read from cache */
-		if (BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT) {
+		if (/*!sds->use_openvdb && */(BKE_ptcache_read(&pid, (float)framenr) == PTCACHE_READ_EXACT)) {
 			BKE_ptcache_validate(cache, framenr);
 			smd->time = framenr;
 			return;
@@ -3405,7 +3412,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		OpenVDB_import_grid_fl(reader, "Shadow", &sds->shadow, sds->res);
 
 		if (for_low_display) {
-			OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
+			sds->density = OpenVDB_import_grid_fl(reader, "Density", &dens, sds->res);
 		}
 
 		if (fluid_fields & SM_ACTIVE_HEAT && !for_low_display) {
@@ -3428,7 +3435,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 
 		if (!for_low_display) {
 			OpenVDB_import_grid_vec(reader, "Velocity", &vx, &vy, &vz, sds->res);
-			OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
+			//OpenVDB_import_grid_ch(reader, "Obstacles", &obstacles, sds->res);
 		}
 	}
 
@@ -3439,7 +3446,7 @@ static void OpenVDB_import_smoke(SmokeDomainSettings *sds, struct OpenVDBReader 
 		smoke_turbulence_export(sds->wt, &dens, &react, &flame, &fuel, &r, &g, &b, &tcu, &tcv, &tcw);
 
 		if (for_wt_display) {
-			OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
+			sds->density_high = OpenVDB_import_grid_fl(reader, "Density High", &dens, sds->res_wt);
 		}
 
 		if (fluid_fields & SM_ACTIVE_FIRE && for_wt_display) {
@@ -3518,15 +3525,14 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 		}
 	}
 
-	sds->flags |= MOD_SMOKE_OPENVDB_EXPORTED;
+	cache->flags |= VDB_CACHE_SMOKE_EXPORTED;
 
 	scene->r.cfra = orig_frame;
 }
 
-void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob)
+void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	SmokeDomainSettings *sds = smd->domain;
-	OpenVDBCache *cache;
 	int startframe, endframe;
 	char filename[FILE_MAX];
 	const char *relbase = modifier_path_relbase(ob);
@@ -3618,7 +3624,7 @@ void smokeModifier_OpenVDB_export(SmokeModifierData *smd, Scene *scene, Object *
 	UNUSED_VARS(smd, scene, ob, dm, update, update_cb_data);
 }
 
-void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob)
+void smokeModifier_OpenVDB_import(SmokeModifierData *smd, Scene *scene, Object *ob, OpenVDBCache *cache)
 {
 	UNUSED_VARS(smd, scene, ob);
 }
@@ -3636,3 +3642,16 @@ void BKE_openvdb_cache_filename(char *r_filename, const char *path, const char *
 }
 
 #endif
+
+OpenVDBCache *BKE_openvdb_get_current_cache(SmokeDomainSettings *sds)
+{
+	OpenVDBCache *cache = sds->vdb_caches.first;
+
+	for (; cache; cache = cache->next) {
+		if (cache->flags & VDB_CACHE_CURRENT) {
+			break;
+		}
+	}
+
+	return cache;
+}
