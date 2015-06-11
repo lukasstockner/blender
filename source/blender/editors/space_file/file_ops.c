@@ -249,7 +249,6 @@ static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select,
 	return retval;
 }
 
-/* START XXX TODO!!!!!! */
 /**
  * \warning: loops over all files so better use cautiously
  */
@@ -296,8 +295,6 @@ static int file_border_select_find_last_selected(
 
 	return dist_first < dist_last ? sel->first : sel->last;
 }
-
-/* END XXX TODO!!!!!! */
 
 static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -466,7 +463,6 @@ void FILE_OT_select(wmOperatorType *ot)
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-/* START XXX TODO!!! */
 /**
  * \returns true if selection has changed
  */
@@ -519,7 +515,9 @@ static bool file_walk_select_selection_set(
 		}
 	}
 
-	if (!params || active < 0) return false;
+	if (!params || active < 0) {
+		return false;
+	}
 
 	/* highlight the active walker file for extended selection for better visual feedback */
 	if (extend) {
@@ -565,8 +563,9 @@ static bool file_walk_select_do(
         FileSelectParams *params, const int direction,
         const bool extend, const bool fill)
 {
-	const int numfiles = filelist_numfiles(sfile->files);
-	const bool has_selection = file_is_any_selected(sfile->files);
+	struct FileList *files = sfile->files;
+	const int numfiles = filelist_numfiles(files);
+	const bool has_selection = file_is_any_selected(files);
 	const int active_old = params->active_file;
 	int active_new = -1;
 	int other_site = -1; /* file on the other site of active_old */
@@ -673,7 +672,6 @@ void FILE_OT_select_walk(wmOperatorType *ot)
 	prop = RNA_def_boolean(ot->srna, "fill", false, "Fill", "Select everything beginning with the last selection");
 	RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
-/* END XXX TODO!!! */
 
 static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 {
