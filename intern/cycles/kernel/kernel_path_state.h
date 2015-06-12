@@ -140,6 +140,9 @@ ccl_device_inline uint path_state_ray_visibility(KernelGlobals *kg, PathState *s
 
 ccl_device_inline float path_state_terminate_probability(KernelGlobals *kg, ccl_addr_space PathState *state, const float3 throughput)
 {
+	if(state->flag & PATH_RAY_TERMINATE) {
+		return 0.0f;
+	}
 	if(state->flag & PATH_RAY_TRANSPARENT) {
 		/* transparent rays treated separately */
 		if(state->transparent_bounce >= kernel_data.integrator.transparent_max_bounce)

@@ -327,6 +327,18 @@ Object *BlenderSync::sync_object(BL::Object b_parent, int persistent_id[OBJECT_P
 		object_updated = true;
 	}
 
+	bool use_direct_light_only = false;
+	PointerRNA cobject = RNA_pointer_get(&b_ob.ptr, "cycles");
+	use_direct_light_only = get_boolean(cobject, "use_direct_light_only");
+	if(b_parent.ptr.data != b_ob.ptr.data) {
+		PointerRNA parent_cobject = RNA_pointer_get(&b_parent.ptr, "cycles");
+		use_direct_light_only |= get_boolean(parent_cobject, "use_direct_light_only");
+	}
+	if(use_direct_light_only != object->use_direct_light_only) {
+		object->use_direct_light_only = use_direct_light_only;
+		object_updated = true;
+	}
+
 	/* object sync
 	 * transform comparison should not be needed, but duplis don't work perfect
 	 * in the depsgraph and may not signal changes, so this is a workaround */

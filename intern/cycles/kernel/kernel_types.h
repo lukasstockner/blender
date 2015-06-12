@@ -289,6 +289,7 @@ enum PathRayFlag {
 	PATH_RAY_MIS_SKIP = 2048,
 	PATH_RAY_DIFFUSE_ANCESTOR = 4096,
 	PATH_RAY_SINGLE_PASS_DONE = 8192,
+	PATH_RAY_TERMINATE = 16384,
 
 	/* we need layer member flags to be the 20 upper bits */
 	PATH_RAY_LAYER_SHIFT = (32-20)
@@ -671,10 +672,11 @@ enum ShaderDataFlag {
 	SD_OBJECT_HAS_VOLUME        = (1 << 24),  /* object has a volume shader */
 	SD_OBJECT_INTERSECTS_VOLUME = (1 << 25),  /* object intersects AABB of an object with volume shader */
 	SD_OBJECT_HAS_VERTEX_MOTION = (1 << 26),  /* has position for motion vertices */
+	SD_OBJECT_DIRECT_LIGHT_ONLY = (1 << 27),
 
 	SD_OBJECT_FLAGS = (SD_HOLDOUT_MASK|SD_OBJECT_MOTION|SD_TRANSFORM_APPLIED|
 	                   SD_NEGATIVE_SCALE_APPLIED|SD_OBJECT_HAS_VOLUME|
-	                   SD_OBJECT_INTERSECTS_VOLUME)
+	                   SD_OBJECT_INTERSECTS_VOLUME|SD_OBJECT_DIRECT_LIGHT_ONLY)
 };
 
 struct KernelGlobals;

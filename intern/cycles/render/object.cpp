@@ -49,6 +49,7 @@ Object::Object()
 	motion.post = transform_identity();
 	use_motion = false;
 	use_holdout = false;
+	use_direct_light_only = false;
 	dupli_generated = make_float3(0.0f, 0.0f, 0.0f);
 	dupli_uv = make_float2(0.0f, 0.0f);
 }
@@ -358,6 +359,8 @@ void ObjectManager::device_update_transforms(Device *device, DeviceScene *dscene
 		/* object flag */
 		if(ob->use_holdout)
 			flag |= SD_HOLDOUT_MASK;
+		if(ob->use_direct_light_only)
+			flag |= SD_OBJECT_DIRECT_LIGHT_ONLY;
 		object_flag[i] = flag;
 
 		/* have curves */

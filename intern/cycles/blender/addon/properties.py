@@ -890,6 +890,12 @@ class CyclesObjectBlurSettings(bpy.types.PropertyGroup):
                 default=1,
                 )
 
+        cls.use_direct_light_only = BoolProperty(
+                name="Direct Light Only",
+                description="Use only direct light for this object",
+                default=False,
+                )
+
     @classmethod
     def unregister(cls):
         del bpy.types.Object.cycles

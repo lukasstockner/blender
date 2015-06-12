@@ -47,6 +47,7 @@ public:
 	MotionTransform motion;
 	bool use_motion;
 	bool use_holdout;
+	bool use_direct_light_only;
 
 	float3 dupli_generated;
 	float2 dupli_uv;

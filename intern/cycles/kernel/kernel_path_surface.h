@@ -274,6 +274,9 @@ ccl_device_inline bool kernel_path_surface_bounce(KernelGlobals *kg, ccl_addr_sp
 		if(label & LABEL_TRANSMIT)
 			kernel_volume_stack_enter_exit(kg, sd, state->volume_stack);
 #endif
+		if(ccl_fetch(sd, flag) & SD_OBJECT_DIRECT_LIGHT_ONLY) {
+			state->flag |= PATH_RAY_TERMINATE;
+		}
 		return true;
 	}
 #ifdef __VOLUME__

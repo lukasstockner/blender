@@ -718,6 +718,11 @@ class CyclesObject_PT_cycles_settings(CyclesButtonsPanel, Panel):
         if ob.type != 'LAMP':
             flow.prop(visibility, "shadow")
 
+            if not use_branched_path(context):
+                layout.label(text="Performance:")
+                flow = layout.column_flow()
+                flow.prop(cob, "use_direct_light_only")
+
 
 class CYCLES_OT_use_shading_nodes(Operator):
     """Enable nodes on a material, world or lamp"""
