@@ -259,6 +259,7 @@ short ED_fileselect_set_params(SpaceFile *sfile)
 
 	/* operator has no setting for this */
 	params->sort = FILE_SORT_ALPHA;
+	params->active_file = -1;
 
 
 	/* initialize the list with previous folders */
@@ -292,6 +293,7 @@ void ED_fileselect_reset_params(SpaceFile *sfile)
 	sfile->params->type = FILE_UNIX;
 	sfile->params->flag = 0;
 	sfile->params->title[0] = '\0';
+	sfile->params->active_file = -1;
 }
 
 int ED_fileselect_layout_numfiles(FileLayout *layout, ARegion *ar)
