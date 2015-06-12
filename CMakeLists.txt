@@ -993,6 +993,24 @@ if(UNIX AND NOT APPLE)
 		endif()
 	endif()
 
+	if(WITH_OPENVDB)
+		find_package_wrapper(OpenVDB)
+
+		set(TBB ${LIBDIR}/tbb)
+		set(TBB_LIBRARIES tbb)
+		set(TBB_LIBPATH ${TBB}/lib)
+
+		set(OPENVDB_LIBRARIES ${OPENVDB_LIBRARIES} ${BOOST_LIBRARIES} ${ZLIB_LIBRARIES} ${TBB_LIBRARIES})
+		set(OPENVDB_LIBPATH)  # TODO, remove and reference the absolute path everywhere
+		set(OPENVDB_DEFINITIONS)
+
+		if(NOT OPENVDB_FOUND)
+			set(WITH_OPENVDB OFF)
+			set(WITH_OPENVDB_BLOSC OFF)
+			message(STATUS "OpenVDB not found")
+		endif()
+	endif()
+
 	if(WITH_BOOST)
 		# uses in build instructions to override include and library variables
 		if(NOT BOOST_CUSTOM)
@@ -1073,24 +1091,6 @@ if(UNIX AND NOT APPLE)
 		if(NOT OPENCOLORIO_FOUND)
 			set(WITH_OPENCOLORIO OFF)
 			message(STATUS "OpenColorIO not found")
-		endif()
-	endif()
-
-	if(WITH_OPENVDB)
-		find_package_wrapper(OpenVDB)
-
-		set(TBB ${LIBDIR}/tbb)
-		set(TBB_LIBRARIES tbb)
-		set(TBB_LIBPATH ${TBB}/lib)
-
-		set(OPENVDB_LIBRARIES ${OPENVDB_LIBRARIES} ${BOOST_LIBRARIES} ${ZLIB_LIBRARIES} ${TBB_LIBRARIES})
-		set(OPENVDB_LIBPATH)  # TODO, remove and reference the absolute path everywhere
-		set(OPENVDB_DEFINITIONS)
-
-		if(NOT OPENVDB_FOUND)
-			set(WITH_OPENVDB OFF)
-			set(WITH_OPENVDB_BLOSC OFF)
-			message(STATUS "OpenVDB not found")
 		endif()
 	endif()
 
