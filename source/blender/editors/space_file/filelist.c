@@ -2304,7 +2304,7 @@ static int filelist_readjob_list_lib(const char *root, ListBase *entries, const 
 	}
 	else {
 		names = BLO_blendhandle_get_linkable_groups(libfiledata);
-		nnames = BLI_linklist_length(names);
+		nnames = BLI_linklist_count(names);
 	}
 
 	BLO_blendhandle_close(libfiledata);

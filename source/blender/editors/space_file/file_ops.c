@@ -223,6 +223,24 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 	return retval;
 }
 
+/**
+ * \warning: loops over all files so better use cautiously
+ */
+static bool file_is_any_selected(struct FileList *files)
+{
+	const int numfiles = filelist_numfiles(files);
+	int i;
+
+	/* Is any file selected ? */
+	for (i = 0; i < numfiles; ++i) {
+		if (filelist_entry_select_index_get(files, i, CHECK_ALL)) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select, bool fill, bool do_diropen)
 {
@@ -238,34 +256,21 @@ static FileSelect file_select(bContext *C, const rcti *rect, FileSelType select,
 	if (sel.first != sel.last) select = 0;
 
 	/* Do we have a valid selection and are we actually selecting */
-	if ((sel.last >= 0) && ((select == FILE_SEL_ADD) || (select == FILE_SEL_TOGGLE))) {
+	if ((sel.last >= 0) && (select != FILE_SEL_REMOVE)) {
 		/* Check last selection, if selected, act on the file or dir */
 		if (filelist_entry_select_index_get(sfile->files, sel.last, check_type)) {
 			retval = file_select_do(C, sel.last, do_diropen);
 		}
 	}
 
+	if (select != FILE_SEL_ADD && !file_is_any_selected(sfile->files)) {
+		sfile->params->active_file = -1;
+	}
+
 	/* update operator for name change event */
 	file_draw_check(C);
 	
 	return retval;
-}
-
-/**
- * \warning: loops over all files so better use cautiously
- */
-static bool file_is_any_selected(struct FileList *files)
-{
-	const int numfiles = filelist_numfiles(files);
-	int i;
-
-	/* Is any file selected ? */
-	for (i = 0; i < numfiles; ++i) {
-		if (filelist_entry_select_index_get(files, i, CHECK_ALL)) {
-			return true;
-		}
-	}
-	return false;
 }
 
 static int file_border_select_find_last_selected(
@@ -480,6 +485,8 @@ static bool file_walk_select_selection_set(
 	int active = active_old; /* could use active_old instead, just for readability */
 	bool deselect = false;
 
+	BLI_assert(params);
+
 	if (has_selection) {
 		if (extend &&
 		    filelist_entry_select_index_get(files, active_old, FILE_SEL_SELECTED) &&
@@ -517,7 +524,7 @@ static bool file_walk_select_selection_set(
 		}
 	}
 
-	if (!params || active < 0) {
+	if (active < 0) {
 		return false;
 	}
 
@@ -689,6 +696,7 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 	/* select all only if previously no file was selected */
 	if (has_selection) {
 		filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_REMOVE, FILE_SEL_SELECTED, CHECK_ALL);
+		sfile->params->active_file = -1;
 	}
 	else {
 		const FileCheckType check_type = (sfile->params->flag & FILE_DIRSEL_ONLY) ? CHECK_DIRS : CHECK_FILES;
