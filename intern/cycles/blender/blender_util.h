@@ -354,11 +354,14 @@ static inline void mesh_texture_space(BL::Mesh b_mesh, float3& loc, float3& size
 }
 
 /* object used for motion blur */
-static inline bool object_use_motion(BL::Object b_ob)
+static inline bool object_use_motion(BL::Object b_parent, BL::Object b_ob)
 {
 	PointerRNA cobject = RNA_pointer_get(&b_ob.ptr, "cycles");
 	bool use_motion = get_boolean(cobject, "use_motion_blur");
-	
+	if(b_parent.ptr.data != b_ob.ptr.data) {
+		PointerRNA parent_cobject = RNA_pointer_get(&b_parent.ptr, "cycles");
+		use_motion &= get_boolean(parent_cobject, "use_motion_blur");
+	}
 	return use_motion;
 }
 
@@ -375,11 +378,14 @@ static inline uint object_motion_steps(BL::Object b_ob)
 }
 
 /* object uses deformation motion blur */
-static inline bool object_use_deform_motion(BL::Object b_ob)
+static inline bool object_use_deform_motion(BL::Object b_parent, BL::Object b_ob)
 {
 	PointerRNA cobject = RNA_pointer_get(&b_ob.ptr, "cycles");
 	bool use_deform_motion = get_boolean(cobject, "use_deform_motion");
-	
+	if(b_parent.ptr.data != b_ob.ptr.data) {
+		PointerRNA parent_cobject = RNA_pointer_get(&b_parent.ptr, "cycles");
+		use_deform_motion &= get_boolean(parent_cobject, "use_deform_motion");
+	}
 	return use_deform_motion;
 }
 
