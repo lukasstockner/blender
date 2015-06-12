@@ -235,7 +235,13 @@ static bool gp_brush_thickness_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
                                      const int x0, const int y0)
 {
 	bGPDspoint *pt = gps->points + i;
-	float inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0);
+	float inf;
+	
+	/* Compute strength of effect
+	 * - We divide the strength by 10, so that users can set "sane" values.
+	 *   Otherwise, good default values are in the range of 0.093
+	 */
+	inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0) / 10.0f;
 	
 	/* apply */
 	// XXX: this is much too strong, and it should probably do some smoothing with the surrounding stuff
