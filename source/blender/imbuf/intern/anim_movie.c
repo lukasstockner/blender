@@ -1433,10 +1433,11 @@ bool IMB_anim_get_fps(struct anim *anim,
 		*frs_sec = anim->frs_sec;
 		*frs_sec_base = anim->frs_sec_base;
 #ifdef WITH_FFMPEG
-		if (no_av_base)
+		if (no_av_base) {
 			*frs_sec_base /= AV_TIME_BASE;
+		}
 #else
-		(void)no_av_base;
+		UNUSED_VARS(no_av_base);
 #endif
 		return true;
 	}

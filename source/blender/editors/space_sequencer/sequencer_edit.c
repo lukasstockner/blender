@@ -1739,7 +1739,7 @@ void SEQUENCER_OT_mute(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Mute Strips";
 	ot->idname = "SEQUENCER_OT_mute";
-	ot->description = "Mute selected strips";
+	ot->description = "Mute (un)selected strips";
 	
 	/* api callbacks */
 	ot->exec = sequencer_mute_exec;
@@ -1790,7 +1790,7 @@ void SEQUENCER_OT_unmute(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Un-Mute Strips";
 	ot->idname = "SEQUENCER_OT_unmute";
-	ot->description = "Un-Mute unselected rather than selected strips";
+	ot->description = "Unmute (un)selected strips";
 	
 	/* api callbacks */
 	ot->exec = sequencer_unmute_exec;
@@ -1799,7 +1799,7 @@ void SEQUENCER_OT_unmute(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "UnMute unselected rather than selected strips");
+	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Unmute unselected rather than selected strips");
 }
 
 
