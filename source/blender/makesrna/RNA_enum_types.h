@@ -134,6 +134,7 @@ extern EnumPropertyItem object_axis_unsigned_items[];
 extern EnumPropertyItem controller_type_items[];
 
 extern EnumPropertyItem render_pass_type_items[];
+extern EnumPropertyItem render_pass_debug_type_items[];
 
 extern EnumPropertyItem keymap_propvalue_items[];
 
