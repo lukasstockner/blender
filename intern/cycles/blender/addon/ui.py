@@ -687,8 +687,8 @@ class CyclesObject_PT_motion_blur(CyclesButtonsPanel, Panel):
         sub.prop(cob, "motion_steps", text="Steps")
 
 
-class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
-    bl_label = "Ray Visibility"
+class CyclesObject_PT_cycles_settings(CyclesButtonsPanel, Panel):
+    bl_label = "Cycles Settings"
     bl_context = "object"
     bl_options = {'DEFAULT_CLOSED'}
 
@@ -703,8 +703,10 @@ class CyclesObject_PT_ray_visibility(CyclesButtonsPanel, Panel):
         layout = self.layout
 
         ob = context.object
+        cob = ob.cycles
         visibility = ob.cycles_visibility
 
+        layout.label(text="Ray Visibility:")
         flow = layout.column_flow()
 
         flow.prop(visibility, "camera")
