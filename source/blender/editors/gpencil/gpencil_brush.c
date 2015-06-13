@@ -268,6 +268,39 @@ static bool gp_brush_thickness_apply(tGP_BrushEditData *gso, bGPDstroke *gps, in
 /* ----------------------------------------------- */
 /* Grab Brush */
 
+#if 0
+
+/* initialise custom data for handling this stroke */
+static bool gp_brush_grab_stroke_init(tGP_BrushEditData *gso, bGPDstroke *gps)
+{
+	
+}
+
+/* store references to stroke points in the initial stage */
+static bool gp_brush_grab_store_points(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+                                       const int mx, const int my, const int radius,
+                                       const int x0, const int y0)
+{
+	bGPDspoint *pt = &gps->points[i];
+	
+	
+	return true;
+}
+
+/* apply smoothing by blending between the average coordinates and the current coordinates */
+static bool gp_brush_grab_apply(tGP_BrushEditData *gso, bGPDstroke *gps, int i,
+                                const int mx, const int my, const int radius,
+                                const int x0, const int y0)
+{
+	bGPDspoint *pt = &gps->points[i];
+	float inf = gp_brush_influence_calc(gso, radius, mx, my, x0, y0);
+	 
+	
+	return true;
+}
+
+#endif
+
 /* ************************************************ */
 /* Cursor drawing */
 
