@@ -5991,7 +5991,7 @@ static bool createEdgeSlideVerts(TransInfo *t)
 						get_next_loop(v, l_a, e_prev, l_tmp->e, sv->dir_side[0]);
 					}
 					else {
-						sub_v3_v3v3(sv->dir_side[0], BM_edge_other_vert(l_tmp->e, v)->co, v->co);
+						sub_v3_v3v3(sv->dir_side[0], sv->v_side[0]->co, v->co);
 					}
 				}
 
@@ -6002,7 +6002,7 @@ static bool createEdgeSlideVerts(TransInfo *t)
 						get_next_loop(v, l_b, e_prev, l_tmp->e, sv->dir_side[1]);
 					}
 					else {
-						sub_v3_v3v3(sv->dir_side[1], BM_edge_other_vert(l_tmp->e, v)->co, v->co);
+						sub_v3_v3v3(sv->dir_side[1], sv->v_side[1]->co, v->co);
 					}
 				}
 
