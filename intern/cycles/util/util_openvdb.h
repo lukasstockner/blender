@@ -1,7 +1,10 @@
 #ifndef __UTIL_OPENVDB_H__
 #define __UTIL_OPENVDB_H__
 
-#include "util_map.h"
+#ifdef WITH_OPENVDB
+#  include "util_map.h"
+#endif
+
 #include "util_types.h"
 
 #include "kernel_types.h"
