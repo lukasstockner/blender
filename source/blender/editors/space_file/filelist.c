@@ -479,8 +479,7 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 				BLI_strncpy(filename, file->relname, sizeof(filename));
 				BLI_path_frame_strip(filename, false, NULL);
 
-				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename)) &&
-				    numdigits == ofile->collapsed_info.numdigits)
+				if ((ofile = BLI_ghash_lookup(filter->unique_image_list, filename)))
 				{
 					CollapsedEntry *collapsed = &ofile->collapsed_info;
 					is_filtered = false;
@@ -491,6 +490,7 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 					collapsed->totalsize += file->realsize;
 					collapsed->maxframe = MAX2(frame, collapsed->maxframe);
 					collapsed->minframe = MIN2(frame, collapsed->minframe);
+					file->collapsed_info.numdigits = MAX2(numdigits, file->collapsed_info.numdigits);
 					collapsed->totfiles++;
 				}
 				else {
