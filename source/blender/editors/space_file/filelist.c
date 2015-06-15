@@ -468,7 +468,7 @@ static bool is_filtered_file(struct direntry *file, const char *UNUSED(root), Fi
 		}
 	}
 
-	if (is_filtered && !(file->type & S_IFDIR) && filter->collapse_ima_seq) {
+	if (is_filtered && (file->flags & FILE_TYPE_IMAGE) && filter->collapse_ima_seq) {
 		if (file->relname) {
 			struct direntry *ofile;
 			int frame, numdigits;
