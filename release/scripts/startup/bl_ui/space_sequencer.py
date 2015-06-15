@@ -1055,6 +1055,7 @@ class SEQUENCER_PT_modifiers(SequencerButtonsPanel, Panel):
         layout.prop(strip, "use_linear_modifiers")
 
         layout.operator_menu_enum("sequencer.strip_modifier_add", "type")
+        layout.operator("sequencer.strip_modifier_copy")
 
         for mod in strip.modifiers:
             box = layout.box()
