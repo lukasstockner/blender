@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef KERNEL_TEX
@@ -24,6 +24,7 @@
 
 /* bvh */
 KERNEL_TEX(float4, texture_float4, __bvh_nodes)
+KERNEL_TEX(float4, texture_float4, __bvh_leaf_nodes)
 KERNEL_TEX(float4, texture_float4, __tri_woop)
 KERNEL_TEX(uint, texture_uint, __prim_type)
 KERNEL_TEX(uint, texture_uint, __prim_visibility)
@@ -36,7 +37,7 @@ KERNEL_TEX(float4, texture_float4, __objects)
 KERNEL_TEX(float4, texture_float4, __objects_vector)
 
 /* triangles */
-KERNEL_TEX(float, texture_float, __tri_shader)
+KERNEL_TEX(uint, texture_uint, __tri_shader)
 KERNEL_TEX(float4, texture_float4, __tri_vnormal)
 KERNEL_TEX(float4, texture_float4, __tri_vindex)
 KERNEL_TEX(float4, texture_float4, __tri_verts)

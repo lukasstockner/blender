@@ -350,7 +350,7 @@ typedef unsigned int cl_GLenum;
 
 #ifdef _MSC_VER
 #if defined(_M_IX86)
-#if _M_IX86_FP >= 0
+#if _M_IX86_FP >= 0 && !defined(__SSE__)
 #define __SSE__
 #endif
 #if _M_IX86_FP >= 1
@@ -1815,6 +1815,11 @@ typedef struct _cl_buffer_region {
 
 /*  Function signature typedef's */
 
+#ifdef __APPLE__
+#  pragma GCC diagnostic push
+#  pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
+
 /* Platform API */
 typedef CL_API_ENTRY cl_int (CL_API_CALL *
 PFNCLGETPLATFORMIDS)(cl_uint          /* num_entries */,
@@ -2476,6 +2481,10 @@ PFNCLCREATEFROMGLTEXTURE3D)(cl_context      /* context */,
                       cl_int *        /* errcode_ret */) CL_EXT_SUFFIX__VERSION_1_1_DEPRECATED;
 #endif
 
+#ifdef __APPLE__
+#  pragma GCC diagnostic pop // ignored "-Wignored-attributes"
+#endif
+	
 /* cl_khr_gl_sharing extension  */
 
 #define cl_khr_gl_sharing 1
@@ -2742,6 +2751,30 @@ CLEW_FUN_EXPORT     PFNCLGETGLCONTEXTINFOKHR            __clewGetGLContextInfoKH
 #endif
 #define	clGetGLContextInfoKHR           CLEW_GET_FUN(__clewGetGLContextInfoKHR           )
 
+/* cl_ext */
+
+/******************************************
+ * cl_nv_device_attribute_query extension *
+ ******************************************/
+/* cl_nv_device_attribute_query extension - no extension #define since it has no functions */
+#define CL_DEVICE_COMPUTE_CAPABILITY_MAJOR_NV       0x4000
+#define CL_DEVICE_COMPUTE_CAPABILITY_MINOR_NV       0x4001
+#define CL_DEVICE_REGISTERS_PER_BLOCK_NV            0x4002
+#define CL_DEVICE_WARP_SIZE_NV                      0x4003
+#define CL_DEVICE_GPU_OVERLAP_NV                    0x4004
+#define CL_DEVICE_KERNEL_EXEC_TIMEOUT_NV            0x4005
+#define CL_DEVICE_INTEGRATED_MEMORY_NV              0x4006
+
+/*********************************
+ * cl_amd_device_attribute_query *
+ *********************************/
+#define CL_DEVICE_PROFILING_TIMER_OFFSET_AMD        0x4036
+
+/*********************************
+ * cl_arm_printf extension
+ *********************************/
+#define CL_PRINTF_CALLBACK_ARM                      0x40B0
+#define CL_PRINTF_BUFFERSIZE_ARM                    0x40B1
 
 #define CLEW_SUCCESS                0       //!<    Success error code
 #define CLEW_ERROR_OPEN_FAILED      -1      //!<    Error code for failing to open the dynamic library

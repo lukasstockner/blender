@@ -33,6 +33,7 @@
 #include "BLI_string_cursor_utf8.h"
 
 #include "BKE_context.h"
+#include "BKE_scene.h"
 #include "BKE_unit.h"
 
 #include "DNA_scene_types.h"
@@ -72,14 +73,14 @@ void initNumInput(NumInput *n)
 {
 	n->idx_max = 0;
 	n->unit_sys = USER_UNIT_NONE;
-	fill_vn_i(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
+	copy_vn_i(n->unit_type, NUM_MAX_ELEMENTS, B_UNIT_NONE);
 	n->unit_use_radians = false;
 
 	n->flag = 0;
-	fill_vn_short(n->val_flag, NUM_MAX_ELEMENTS, 0);
+	copy_vn_short(n->val_flag, NUM_MAX_ELEMENTS, 0);
 	zero_v3(n->val);
-	fill_vn_fl(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
-	fill_vn_fl(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
+	copy_vn_fl(n->val_org, NUM_MAX_ELEMENTS, 0.0f);
+	copy_vn_fl(n->val_inc, NUM_MAX_ELEMENTS, 1.0f);
 
 	n->idx = 0;
 	n->str[0] = '\0';
@@ -87,7 +88,7 @@ void initNumInput(NumInput *n)
 }
 
 /* str must be NUM_STR_REP_LEN * (idx_max + 1) length. */
-void outputNumInput(NumInput *n, char *str, const float scale_length)
+void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings)
 {
 	short j;
 	const int ln = NUM_STR_REP_LEN;
@@ -98,11 +99,11 @@ void outputNumInput(NumInput *n, char *str, const float scale_length)
 		const short i = (n->flag & NUM_AFFECT_ALL && n->idx != j && !(n->val_flag[j] & NUM_EDITED)) ? 0 : j;
 
 		/* Use scale_length if needed! */
-		const float fac = ELEM(n->unit_type[j], B_UNIT_LENGTH, B_UNIT_AREA, B_UNIT_VOLUME) ? scale_length : 1.0f;
+		const float fac = (float)BKE_scene_unit_scale(unit_settings, n->unit_type[j], 1.0);
 
 		if (n->val_flag[i] & NUM_EDITED) {
 			/* Get the best precision, allows us to draw '10.0001' as '10' instead! */
-			prec = uiFloatPrecisionCalc(prec, (double)n->val[i]);
+			prec = UI_calc_float_precision(prec, (double)n->val[i]);
 			if (i == n->idx) {
 				const char *heading_exp = "", *trailing_exp = "";
 				char before_cursor[NUM_STR_REP_LEN];
@@ -442,6 +443,13 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 		}
 	}
 
+	/* Up to this point, if we have a ctrl modifier, skip.
+	 * This allows to still access most of modals' shortcuts even in numinput mode.
+	 */
+	if (!updated && event->ctrl) {
+		return false;
+	}
+
 	if ((!utf8_buf || !utf8_buf[0]) && ascii[0]) {
 		/* Fallback to ascii. */
 		utf8_buf = ascii;
@@ -471,26 +479,24 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
 #ifdef WITH_PYTHON
 		Scene *sce = CTX_data_scene(C);
 		double val;
-		float fac = 1.0f;
 		char str_unit_convert[NUM_STR_REP_LEN * 6];  /* Should be more than enough! */
 		const char *default_unit = NULL;
+
+		/* Use scale_length if needed! */
+		const float fac = (float)BKE_scene_unit_scale(&sce->unit, n->unit_type[idx], 1.0);
 
 		/* Make radian default unit when needed. */
 		if (n->unit_use_radians && n->unit_type[idx] == B_UNIT_ROTATION)
 			default_unit = "r";
 
-		/* Use scale_length if needed! */
-		if (ELEM(n->unit_type[idx], B_UNIT_LENGTH, B_UNIT_AREA, B_UNIT_VOLUME))
-			fac /= sce->unit.scale_length;
-
 		BLI_strncpy(str_unit_convert, n->str, sizeof(str_unit_convert));
 
-		bUnit_ReplaceString(str_unit_convert, sizeof(str_unit_convert), default_unit, 1.0,
+		bUnit_ReplaceString(str_unit_convert, sizeof(str_unit_convert), default_unit, fac,
 		                    n->unit_sys, n->unit_type[idx]);
 
 		/* Note: with angles, we always get values as radians here... */
 		if (BPY_button_exec(C, str_unit_convert, &val, false) != -1) {
-			n->val[idx] = (float)val * fac;
+			n->val[idx] = (float)val;
 			n->val_flag[idx] &= ~NUM_INVALID;
 		}
 		else {

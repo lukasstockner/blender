@@ -85,7 +85,9 @@ typedef struct GameSettings {
 
 typedef struct TexPaintSlot {
 	struct Image *ima; /* image to be painted on */
-	char *uvname; /* customdata index for uv layer, MAX_NAME*/
+	char *uvname;      /* customdata index for uv layer, MAX_NAME*/
+	int index;         /* index for mtex slot in material for blender internal */
+	int pad;
 } TexPaintSlot;
 
 typedef struct Material {
@@ -436,6 +438,7 @@ typedef struct Material {
 #define MAP_PA_CLUMP	128
 #define MAP_PA_KINK		256
 #define MAP_PA_ROUGH	512
+#define MAP_PA_FREQ		1024
 
 /* pr_type */
 #define MA_FLAT			0

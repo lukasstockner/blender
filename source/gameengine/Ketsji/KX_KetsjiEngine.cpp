@@ -80,9 +80,6 @@
 
 #include "KX_NavMeshObject.h"
 
-// If define: little test for Nzc: guarded drawing. If the canvas is
-// not valid, skip rendering this frame.
-//#define NZC_GUARDED_OUTPUT
 #define DEFAULT_LOGIC_TIC_RATE 60.0
 //#define DEFAULT_PHYSICS_TIC_RATE 60.0
 
@@ -140,6 +137,7 @@ KX_KetsjiEngine::KX_KetsjiEngine(KX_ISystem* system)
 	m_frameTime(0.f),
 	m_clockTime(0.f),
 	m_previousClockTime(0.f),
+	m_previousAnimTime(0.f),
 
 
 	m_exitcode(KX_EXIT_REQUEST_NO_REQUEST),
@@ -314,10 +312,11 @@ void KX_KetsjiEngine::RenderDome()
 		// for each scene, call the proceed functions
 		{
 			scene = *sceneit;
+			KX_SetActiveScene(scene);
 			KX_Camera* cam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
-			SetWorldSettings(scene->GetWorldInfo());
+			scene->GetWorldInfo()->UpdateWorldSettings();
 
 			// shadow buffers
 			if (i == 0) {
@@ -391,8 +390,10 @@ void KX_KetsjiEngine::RenderDome()
 			);
 	}
 	m_dome->Draw();
+
 	// Draw Callback for the last scene
 #ifdef WITH_PYTHON
+	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
 #endif
 	EndFrame();
@@ -477,7 +478,7 @@ void KX_KetsjiEngine::ClearFrame()
 
 	if (doclear) {
 		KX_Scene* firstscene = *m_scenes.begin();
-		SetBackGround(firstscene->GetWorldInfo());
+		firstscene->GetWorldInfo()->UpdateBackGround();
 
 		m_canvas->SetViewPort(clearvp.GetLeft(), clearvp.GetBottom(),
 			clearvp.GetRight(), clearvp.GetTop());
@@ -686,6 +687,16 @@ bool KX_KetsjiEngine::NextFrame()
 				SG_SetActiveStage(SG_STAGE_ACTUATOR_UPDATE);
 				scene->UpdateParents(m_frameTime);
 
+				// update levels of detail
+				scene->UpdateObjectLods();
+
+				if (!GetRestrictAnimationFPS())
+				{
+					m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
+					SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
+					scene->UpdateAnimations(m_frameTime);
+				}
+
 				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
 				SG_SetActiveStage(SG_STAGE_PHYSICS2);
 				scene->GetPhysicsEnvironment()->BeginFrame();
@@ -730,61 +741,23 @@ bool KX_KetsjiEngine::NextFrame()
 		frames--;
 	}
 
-	bool bUseAsyncLogicBricks= false;//true;
-
-	if (bUseAsyncLogicBricks)
+	// Handle the animations independently of the logic time step
+	if (GetRestrictAnimationFPS())
 	{
-		// Logic update sub frame: this will let some logic bricks run at the
-		// full frame rate.
-		for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
-		// for each scene, call the proceed functions
+		double clocktime = m_kxsystem->GetTimeInSeconds();
+		m_logger->StartLog(tc_animations, clocktime, true);
+		SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
+
+		double anim_timestep = 1.0/KX_GetActiveScene()->GetAnimationFPS();
+		if (clocktime - m_previousAnimTime > anim_timestep)
 		{
-			KX_Scene* scene = *sceneit;
-
-			if (!scene->IsSuspended())
+			// Sanity/debug print to make sure we're actually going at the fps we want (should be close to anim_timestep)
+			// printf("Anim fps: %f\n", 1.0/(m_clockTime - m_previousAnimTime));
+			m_previousAnimTime = clocktime;
+			for (sceneit = m_scenes.begin();sceneit != m_scenes.end(); ++sceneit)
 			{
-				// if the scene was suspended recalcutlate the delta tu "curtime"
-				m_suspendedtime = scene->getSuspendedTime();
-				if (scene->getSuspendedTime()!=0.0)
-					scene->setSuspendedDelta(scene->getSuspendedDelta()+m_clockTime-scene->getSuspendedTime());
-				m_suspendeddelta = scene->getSuspendedDelta();
-				
-				// set Python hooks for each scene
-#ifdef WITH_PYTHON
-				PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
-#endif
-				KX_SetActiveScene(scene);
-				
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_PHYSICS1);
-				scene->UpdateParents(m_clockTime);
-
-				// Perform physics calculations on the scene. This can involve 
-				// many iterations of the physics solver.
-				m_logger->StartLog(tc_physics, m_kxsystem->GetTimeInSeconds(), true);
-				scene->GetPhysicsEnvironment()->ProceedDeltaTime(m_clockTime,timestep,timestep);
-				// Update scenegraph after physics step. This maps physics calculations
-				// into node positions.
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_PHYSICS2);
-				scene->UpdateParents(m_clockTime);
-				
-				// Do some cleanup work for this logic frame
-				m_logger->StartLog(tc_logic, m_kxsystem->GetTimeInSeconds(), true);
-				scene->LogicUpdateFrame(m_clockTime, false);
-
-				// Actuators can affect the scenegraph
-				m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
-				SG_SetActiveStage(SG_STAGE_ACTUATOR);
-				scene->UpdateParents(m_clockTime);
-
-				scene->setSuspendedTime(0.0);
-			} // suspended
-			else
-				if (scene->getSuspendedTime()==0.0)
-					scene->setSuspendedTime(m_clockTime);
-
-			m_logger->StartLog(tc_services, m_kxsystem->GetTimeInSeconds(), true);
+				(*sceneit)->UpdateAnimations(clocktime);
+			}
 		}
 	}
 	
@@ -855,7 +828,7 @@ void KX_KetsjiEngine::Render()
 		KX_Scene* scene = *sceneit;
 		KX_Camera* cam = scene->GetActiveCamera();
 		// pass the scene's worldsettings to the rasterizer
-		SetWorldSettings(scene->GetWorldInfo());
+		scene->GetWorldInfo()->UpdateWorldSettings();
 
 		// this is now done incrementatlly in KX_Scene::CalculateVisibleMeshes
 		//scene->UpdateMeshTransformations();
@@ -912,7 +885,7 @@ void KX_KetsjiEngine::Render()
 			KX_Camera* cam = scene->GetActiveCamera();
 
 			// pass the scene's worldsettings to the rasterizer
-			SetWorldSettings(scene->GetWorldInfo());
+			scene->GetWorldInfo()->UpdateWorldSettings();
 		
 			if (scene->IsClearingZBuffer())
 				m_rasterizer->ClearDepthBuffer();
@@ -992,54 +965,6 @@ const STR_String& KX_KetsjiEngine::GetExitString()
 	return m_exitstring;
 }
 
-
-void KX_KetsjiEngine::SetBackGround(KX_WorldInfo* wi)
-{
-	if (wi->hasWorld())
-	{
-		if (m_rasterizer->GetDrawingMode() == RAS_IRasterizer::KX_TEXTURED)
-		{
-			m_rasterizer->SetBackColor(
-				wi->getBackColorRed(),
-				wi->getBackColorGreen(),
-				wi->getBackColorBlue(),
-				0.0
-			);
-		}
-	}
-}
-
-
-
-void KX_KetsjiEngine::SetWorldSettings(KX_WorldInfo* wi)
-{
-	if (wi->hasWorld())
-	{
-		// ...
-		m_rasterizer->SetAmbientColor(
-			wi->getAmbientColorRed(),
-			wi->getAmbientColorGreen(),
-			wi->getAmbientColorBlue()
-		);
-
-		if (m_rasterizer->GetDrawingMode() >= RAS_IRasterizer::KX_SOLID)
-		{
-			if (wi->hasMist())
-			{
-				m_rasterizer->SetFog(
-					wi->getMistStart(),
-					wi->getMistDistance(),
-					wi->getMistColorRed(),
-					wi->getMistColorGreen(),
-					wi->getMistColorBlue()
-				);
-			}
-		}
-	}
-}
-
-
-	
 void KX_KetsjiEngine::EnableCameraOverride(const STR_String& forscene)
 {
 	m_overrideCam = true;
@@ -1155,14 +1080,7 @@ void KX_KetsjiEngine::RenderShadowBuffers(KX_Scene *scene)
 			raslight->BindShadowBuffer(m_canvas, cam, camtrans);
 
 			/* update scene */
-			m_logger->StartLog(tc_scenegraph, m_kxsystem->GetTimeInSeconds(), true);
 			scene->CalculateVisibleMeshes(m_rasterizer, cam, raslight->GetShadowLayer());
-
-			m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
-			scene->UpdateAnimations(GetFrameTime());
-
-			m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
-
 
 			/* render */
 			m_rasterizer->ClearDepthBuffer();
@@ -1187,6 +1105,13 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 	
 	if (!cam)
 		return;
+
+	KX_SetActiveScene(scene);
+
+#ifdef WITH_PYTHON
+	scene->RunDrawingCallbacks(scene->GetPreDrawSetupCB());
+#endif
+
 	GetSceneViewport(scene, cam, area, viewport);
 
 	// store the computed viewport in the scene
@@ -1295,15 +1220,11 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
 
 	scene->CalculateVisibleMeshes(m_rasterizer,cam);
 
-	m_logger->StartLog(tc_animations, m_kxsystem->GetTimeInSeconds(), true);
-	SG_SetActiveStage(SG_STAGE_ANIMATION_UPDATE);
-
-	scene->UpdateAnimations(GetFrameTime());
-
 	m_logger->StartLog(tc_rasterizer, m_kxsystem->GetTimeInSeconds(), true);
 	SG_SetActiveStage(SG_STAGE_RENDER);
 
 #ifdef WITH_PYTHON
+	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	// Run any pre-drawing python callbacks
 	scene->RunDrawingCallbacks(scene->GetPreDrawCB());
 #endif
@@ -1322,12 +1243,16 @@ void KX_KetsjiEngine::RenderFrame(KX_Scene* scene, KX_Camera* cam)
  */
 void KX_KetsjiEngine::PostRenderScene(KX_Scene* scene)
 {
+	KX_SetActiveScene(scene);
+
 	// We need to first make sure our viewport is correct (enabling multiple viewports can mess this up)
 	m_canvas->SetViewPort(0, 0, m_canvas->GetWidth(), m_canvas->GetHeight());
 	
 	m_rasterizer->FlushDebugShapes();
 	scene->Render2DFilters(m_canvas);
+
 #ifdef WITH_PYTHON
+	PHY_SetActiveEnvironment(scene->GetPhysicsEnvironment());
 	scene->RunDrawingCallbacks(scene->GetPostDrawCB());
 #endif
 }
@@ -1732,9 +1657,19 @@ void KX_KetsjiEngine::AddScheduledScenes()
 
 
 
-void KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene,const STR_String& newscene)
+bool KX_KetsjiEngine::ReplaceScene(const STR_String& oldscene,const STR_String& newscene)
 {
-	m_replace_scenes.push_back(std::make_pair(oldscene,newscene));
+	// Don't allow replacement if the new scene doesn't exists.
+	// Allows smarter game design (used to have no check here).
+	// Note that it creates a small backward compatbility issue
+	// for a game that did a replace followed by a lib load with the
+	// new scene in the lib => it won't work anymore, the lib
+	// must be loaded before doing the replace.
+	if (m_sceneconverter->GetBlenderSceneForName(newscene) != NULL) {
+		m_replace_scenes.push_back(std::make_pair(oldscene,newscene));
+		return true;
+	}
+	return false;
 }
 
 // replace scene is not the same as removing and adding because the
@@ -1756,15 +1691,20 @@ void KX_KetsjiEngine::ReplaceScheduledScenes()
 			int i=0;
 			/* Scenes are not supposed to be included twice... I think */
 			KX_SceneList::iterator sceneit;
-			for (sceneit = m_scenes.begin();sceneit != m_scenes.end() ; sceneit++)
-			{
+			for (sceneit = m_scenes.begin();sceneit != m_scenes.end() ; sceneit++) {
 				KX_Scene* scene = *sceneit;
-				if (scene->GetName() == oldscenename)
-				{
-					m_sceneconverter->RemoveScene(scene);
-					KX_Scene* tmpscene = CreateScene(newscenename);
-					m_scenes[i]=tmpscene;
-					PostProcessScene(tmpscene);
+				if (scene->GetName() == oldscenename) {
+					// avoid crash if the new scene doesn't exist, just do nothing
+					Scene *blScene = m_sceneconverter->GetBlenderSceneForName(newscenename);
+					if (blScene) {
+						m_sceneconverter->RemoveScene(scene);
+						KX_Scene* tmpscene = CreateScene(blScene);
+						m_scenes[i]=tmpscene;
+						PostProcessScene(tmpscene);
+					}
+					else {
+						printf("warning: scene %s could not be found, not replaced!\n",newscenename.ReadPtr());
+					}
 				}
 				i++;
 			}

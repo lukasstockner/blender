@@ -79,9 +79,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "zlib.h"
-
 #ifdef WIN32
+#  include <zlib.h>  /* odd include order-issue */
 #  include "winsock2.h"
 #  include <io.h>
 #  include "BLI_winstuff.h"
@@ -163,11 +162,9 @@
 #include "BKE_mesh.h"
 
 #ifdef USE_NODE_COMPAT_CUSTOMNODES
-#include "NOD_common.h"
 #include "NOD_socket.h"	/* for sock->default_value data */
 #endif
 
-#include "RNA_access.h"
 
 #include "BLO_writefile.h"
 #include "BLO_readfile.h"
@@ -183,6 +180,114 @@
 #define MYWRITE_BUFFER_SIZE	100000
 #define MYWRITE_MAX_CHUNK	32768
 
+
+
+/** \name Small API to handle compression.
+ * \{ */
+
+typedef enum {
+	WW_WRAP_NONE = 1,
+	WW_WRAP_ZLIB,
+} eWriteWrapType;
+
+typedef struct WriteWrap WriteWrap;
+struct WriteWrap {
+	/* callbacks */
+	bool   (*open)(WriteWrap *ww, const char *filepath);
+	bool   (*close)(WriteWrap *ww);
+	size_t (*write)(WriteWrap *ww, const char *data, size_t data_len);
+
+	/* internal */
+	union {
+		int file_handle;
+		gzFile gz_handle;
+	} _user_data;
+};
+
+/* none */
+#define FILE_HANDLE(ww) \
+	(ww)->_user_data.file_handle
+
+static bool ww_open_none(WriteWrap *ww, const char *filepath)
+{
+	int file;
+
+	file = BLI_open(filepath, O_BINARY + O_WRONLY + O_CREAT + O_TRUNC, 0666);
+
+	if (file != -1) {
+		FILE_HANDLE(ww) = file;
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+static bool ww_close_none(WriteWrap *ww)
+{
+	return (close(FILE_HANDLE(ww)) != -1);
+}
+static size_t ww_write_none(WriteWrap *ww, const char *buf, size_t buf_len)
+{
+	return write(FILE_HANDLE(ww), buf, buf_len);
+}
+#undef FILE_HANDLE
+
+/* zlib */
+#define FILE_HANDLE(ww) \
+	(ww)->_user_data.gz_handle
+
+static bool ww_open_zlib(WriteWrap *ww, const char *filepath)
+{
+	gzFile file;
+
+	file = BLI_gzopen(filepath, "wb1");
+
+	if (file != Z_NULL) {
+		FILE_HANDLE(ww) = file;
+		return true;
+	}
+	else {
+		return false;
+	}
+}
+static bool ww_close_zlib(WriteWrap *ww)
+{
+	return (gzclose(FILE_HANDLE(ww)) == Z_OK);
+}
+static size_t ww_write_zlib(WriteWrap *ww, const char *buf, size_t buf_len)
+{
+	return gzwrite(FILE_HANDLE(ww), buf, buf_len);
+}
+#undef FILE_HANDLE
+
+/* --- end compression types --- */
+
+static void ww_handle_init(eWriteWrapType ww_type, WriteWrap *r_ww)
+{
+	memset(r_ww, 0, sizeof(*r_ww));
+
+	switch (ww_type) {
+		case WW_WRAP_ZLIB:
+		{
+			r_ww->open  = ww_open_zlib;
+			r_ww->close = ww_close_zlib;
+			r_ww->write = ww_write_zlib;
+			break;
+		}
+		default:
+		{
+			r_ww->open  = ww_open_none;
+			r_ww->close = ww_close_none;
+			r_ww->write = ww_write_none;
+			break;
+		}
+	}
+}
+
+/** \} */
+
+
+
 typedef struct {
 	struct SDNA *sdna;
 
@@ -192,12 +297,17 @@ typedef struct {
 	
 	int tot, count, error, memsize;
 
+	/* Wrap writing, so we can use zlib or
+	 * other compression types later, see: G_FILE_COMPRESS
+	 * Will be NULL for UNDO. */
+	WriteWrap *ww;
+
 #ifdef USE_BMESH_SAVE_AS_COMPAT
 	char use_mesh_compat; /* option to save with older mesh format */
 #endif
 } WriteData;
 
-static WriteData *writedata_new(int file)
+static WriteData *writedata_new(WriteWrap *ww)
 {
 	WriteData *wd= MEM_callocN(sizeof(*wd), "writedata");
 
@@ -209,7 +319,7 @@ static WriteData *writedata_new(int file)
 
 	wd->sdna = DNA_sdna_from_data(DNAstr, DNAlen, false);
 
-	wd->file= file;
+	wd->ww = ww;
 
 	wd->buf= MEM_mallocN(MYWRITE_BUFFER_SIZE, "wd->buf");
 
@@ -223,12 +333,12 @@ static void writedata_do_write(WriteData *wd, const void *mem, int memlen)
 
 	/* memory based save */
 	if (wd->current) {
-		add_memfilechunk(NULL, wd->current, mem, memlen);
+		memfile_chunk_add(NULL, wd->current, mem, memlen);
 	}
 	else {
-		if (write(wd->file, mem, memlen) != memlen)
-			wd->error= 1;
-		
+		if (wd->ww->write(wd->ww, mem, memlen) != memlen) {
+			wd->error = 1;
+		}
 	}
 }
 
@@ -297,21 +407,21 @@ static void mywrite(WriteData *wd, const void *adr, int len)
 
 /**
  * BeGiN initializer for mywrite
- * \param file File descriptor
+ * \param ww: File write wrapper.
  * \param compare Previous memory file (can be NULL).
  * \param current The current memory file (can be NULL).
  * \warning Talks to other functions with global parameters
  */
-static WriteData *bgnwrite(int file, MemFile *compare, MemFile *current)
+static WriteData *bgnwrite(WriteWrap *ww, MemFile *compare, MemFile *current)
 {
-	WriteData *wd= writedata_new(file);
+	WriteData *wd= writedata_new(ww);
 
 	if (wd == NULL) return NULL;
 
 	wd->compare= compare;
 	wd->current= current;
 	/* this inits comparing */
-	add_memfilechunk(compare, NULL, NULL, 0);
+	memfile_chunk_add(compare, NULL, NULL, 0);
 	
 	return wd;
 }
@@ -487,7 +597,7 @@ static void write_fmodifiers(WriteData *wd, ListBase *fmodifiers)
 	
 	/* Modifiers */
 	for (fcm= fmodifiers->first; fcm; fcm= fcm->next) {
-		FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
+		const FModifierTypeInfo *fmi= fmodifier_get_typeinfo(fcm);
 		
 		/* Write the specific data */
 		if (fmi && fcm->data) {
@@ -799,16 +909,39 @@ static void write_nodetree(WriteData *wd, bNodeTree *ntree)
 		write_node_socket_interface(wd, ntree, sock);
 }
 
-static void current_screen_compat(Main *mainvar, bScreen **screen)
+/**
+ * Take care using 'use_active_win', since we wont want the currently active window
+ * to change which scene renders (currently only used for undo).
+ */
+static void current_screen_compat(Main *mainvar, bScreen **r_screen, bool use_active_win)
 {
 	wmWindowManager *wm;
-	wmWindow *window;
+	wmWindow *window = NULL;
 
 	/* find a global current screen in the first open window, to have
 	 * a reasonable default for reading in older versions */
 	wm = mainvar->wm.first;
-	window = (wm) ? wm->windows.first : NULL;
-	*screen = (window) ? window->screen : NULL;
+
+	if (wm) {
+		if (use_active_win) {
+			/* write the active window into the file, needed for multi-window undo T43424 */
+			for (window = wm->windows.first; window; window = window->next) {
+				if (window->active) {
+					break;
+				}
+			}
+
+			/* fallback */
+			if (window == NULL) {
+				window = wm->windows.first;
+			}
+		}
+		else {
+			window = wm->windows.first;
+		}
+	}
+
+	*r_screen = (window) ? window->screen : NULL;
 }
 
 typedef struct RenderInfo {
@@ -827,7 +960,7 @@ static void write_renderinfo(WriteData *wd, Main *mainvar)
 	RenderInfo data;
 
 	/* XXX in future, handle multiple windows with multiple screens? */
-	current_screen_compat(mainvar, &curscreen);
+	current_screen_compat(mainvar, &curscreen, false);
 	if (curscreen) curscene = curscreen->scene;
 	
 	for (sce= mainvar->scene.first; sce; sce= sce->id.next) {
@@ -998,6 +1131,11 @@ static void write_particlesettings(WriteData *wd, ListBase *idbase)
 			writestruct(wd, DATA, "PartDeflect", 1, part->pd2);
 			writestruct(wd, DATA, "EffectorWeights", 1, part->effector_weights);
 
+			if (part->clumpcurve)
+				write_curvemapping(wd, part->clumpcurve);
+			if (part->roughcurve)
+				write_curvemapping(wd, part->roughcurve);
+			
 			dw = part->dupliweights.first;
 			for (; dw; dw=dw->next) {
 				/* update indices */
@@ -1266,7 +1404,7 @@ static void write_constraints(WriteData *wd, ListBase *conlist)
 	bConstraint *con;
 
 	for (con=conlist->first; con; con=con->next) {
-		bConstraintTypeInfo *cti= BKE_constraint_typeinfo_get(con);
+		const bConstraintTypeInfo *cti= BKE_constraint_typeinfo_get(con);
 		
 		/* Write the specific data */
 		if (cti && con->data) {
@@ -1338,7 +1476,7 @@ static void write_pose(WriteData *wd, bPose *pose)
 
 	/* write IK param */
 	if (pose->ikparam) {
-		const char *structname = (char *)BKE_pose_ikparam_get_name(pose);
+		const char *structname = BKE_pose_ikparam_get_name(pose);
 		if (structname)
 			writestruct(wd, DATA, structname, 1, pose->ikparam);
 	}
@@ -1362,7 +1500,7 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 
 	if (modbase == NULL) return;
 	for (md=modbase->first; md; md= md->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 		if (mti == NULL) return;
 		
 		writestruct(wd, DATA, mti->structName, 1, md);
@@ -1370,6 +1508,10 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 		if (md->type==eModifierType_Hook) {
 			HookModifierData *hmd = (HookModifierData*) md;
 			
+			if (hmd->curfalloff) {
+				write_curvemapping(wd, hmd->curfalloff);
+			}
+
 			writedata(wd, DATA, sizeof(int)*hmd->totindex, hmd->indexar);
 		}
 		else if (md->type==eModifierType_Cloth) {
@@ -1477,6 +1619,13 @@ static void write_modifiers(WriteData *wd, ListBase *modbase)
 			LaplacianDeformModifierData *lmd = (LaplacianDeformModifierData*) md;
 
 			writedata(wd, DATA, sizeof(float)*lmd->total_verts * 3, lmd->vertexco);
+		}
+		else if (md->type == eModifierType_CorrectiveSmooth) {
+			CorrectiveSmoothModifierData *csmd = (CorrectiveSmoothModifierData *)md;
+
+			if (csmd->bind_coords) {
+				writedata(wd, DATA, sizeof(float[3]) * csmd->bind_coords_num, csmd->bind_coords);
+			}
 		}
 	}
 }
@@ -1754,26 +1903,35 @@ static void write_grid_paint_mask(WriteData *wd, int count, GridPaintMask *grid_
 
 static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data, int partial_type, int partial_count)
 {
-	CustomData data_tmp;
 	int i;
 
-	/* This copy will automatically ignore/remove layers set as NO_COPY (and TEMPORARY). */
-	CustomData_copy(data, &data_tmp, CD_MASK_EVERYTHING, CD_REFERENCE, count);
+	int nofree_buff[128];
+	int *nofree;
 
 	/* write external customdata (not for undo) */
-	if (data_tmp.external && !wd->current)
-		CustomData_external_write(&data_tmp, id, CD_MASK_MESH, count, 0);
+	if (data->external && !wd->current)
+		CustomData_external_write(data, id, CD_MASK_MESH, count, 0);
 
-	for (i = 0; i < data_tmp.totlayer; i++)
-		data_tmp.layers[i].flag &= ~CD_FLAG_NOFREE;
+	if (data->totlayer > ARRAY_SIZE(nofree_buff)) {
+		nofree = MEM_mallocN(sizeof(*nofree) * (size_t)data->totlayer, __func__);
+	}
+	else {
+		nofree = nofree_buff;
+	}
 
-	writestruct_at_address(wd, DATA, "CustomDataLayer", data_tmp.maxlayer, data->layers, data_tmp.layers);
+	for (i = 0; i < data->totlayer; i++) {
+		nofree[i] = (data->layers[i].flag & CD_FLAG_NOFREE);
+		data->layers[i].flag &= ~CD_FLAG_NOFREE;
+	}
+
+	writestruct(wd, DATA, "CustomDataLayer", data->maxlayer, data->layers);
  
-	for (i = 0; i < data_tmp.totlayer; i++)
-		data_tmp.layers[i].flag |= CD_FLAG_NOFREE;
+	for (i = 0; i < data->totlayer; i++) {
+		data->layers[i].flag |= nofree[i];
+	}
 
-	for (i = 0; i < data_tmp.totlayer; i++) {
-		CustomDataLayer *layer= &data_tmp.layers[i];
+	for (i = 0; i < data->totlayer; i++) {
+		CustomDataLayer *layer= &data->layers[i];
 		const char *structname;
 		int structnum, datasize;
 
@@ -1809,10 +1967,12 @@ static void write_customdata(WriteData *wd, ID *id, int count, CustomData *data,
 		}
 	}
 
-	if (data_tmp.external)
-		writestruct_at_address(wd, DATA, "CustomDataExternal", 1, data->external, data_tmp.external);
+	if (data->external)
+		writestruct(wd, DATA, "CustomDataExternal", 1, data->external);
 
-	CustomData_free(&data_tmp, count);
+	if (nofree != nofree_buff) {
+		MEM_freeN(nofree);
+	}
 }
 
 static void write_meshes(WriteData *wd, ListBase *idbase)
@@ -1829,23 +1989,32 @@ static void write_meshes(WriteData *wd, ListBase *idbase)
 		if (mesh->id.us>0 || wd->current) {
 			/* write LibData */
 			if (!save_for_old_blender) {
-
-#ifdef USE_BMESH_SAVE_WITHOUT_MFACE
 				/* write a copy of the mesh, don't modify in place because it is
 				 * not thread safe for threaded renders that are reading this */
 				Mesh *old_mesh = mesh;
 				Mesh copy_mesh = *mesh;
 				mesh = &copy_mesh;
 
+#ifdef USE_BMESH_SAVE_WITHOUT_MFACE
 				/* cache only - don't write */
 				mesh->mface = NULL;
 				mesh->totface = 0;
 				memset(&mesh->fdata, 0, sizeof(mesh->fdata));
+#endif /* USE_BMESH_SAVE_WITHOUT_MFACE */
+
+				/* Bummer! We need to do the copy *before* writing mesh's struct itself,
+				 * because we eliminate NO_COPY & TEMPORARY layers here, which means
+				 * **number of layers (data.totlayer) may be smaller!**
+				 * If we do not do that, we can get crash by buffer-overflow on reading, see T44461. */
+				CustomData_copy(&old_mesh->vdata, &mesh->vdata, CD_MASK_EVERYTHING, CD_REFERENCE, mesh->totvert);
+				CustomData_copy(&old_mesh->edata, &mesh->edata, CD_MASK_EVERYTHING, CD_REFERENCE, mesh->totedge);
+#ifndef USE_BMESH_SAVE_WITHOUT_MFACE  /* Do not copy org fdata in this case!!! */
+				CustomData_copy(&old_mesh->fdata, &mesh->fdata, CD_MASK_EVERYTHING, CD_REFERENCE, mesh->totface);
+#endif
+				CustomData_copy(&old_mesh->ldata, &mesh->ldata, CD_MASK_EVERYTHING, CD_REFERENCE, mesh->totloop);
+				CustomData_copy(&old_mesh->pdata, &mesh->pdata, CD_MASK_EVERYTHING, CD_REFERENCE, mesh->totpoly);
 
 				writestruct_at_address(wd, ID_ME, "Mesh", 1, old_mesh, mesh);
-#else
-				writestruct(wd, ID_ME, "Mesh", 1, mesh);
-#endif /* USE_BMESH_SAVE_WITHOUT_MFACE */
 
 				/* direct data */
 				if (mesh->id.properties) IDP_WriteProperty(mesh->id.properties, wd);
@@ -1861,11 +2030,16 @@ static void write_meshes(WriteData *wd, ListBase *idbase)
 				write_customdata(wd, &mesh->id, mesh->totloop, &mesh->ldata, -1, 0);
 				write_customdata(wd, &mesh->id, mesh->totpoly, &mesh->pdata, -1, 0);
 
-#ifdef USE_BMESH_SAVE_WITHOUT_MFACE
+				CustomData_free(&mesh->vdata, mesh->totvert);
+				CustomData_free(&mesh->edata, mesh->totedge);
+#ifndef USE_BMESH_SAVE_WITHOUT_MFACE
+				CustomData_free(&mesh->fdata, mesh->totface);
+#endif
+				CustomData_free(&mesh->ldata, mesh->totloop);
+				CustomData_free(&mesh->pdata, mesh->totpoly);
+
 				/* restore pointer */
 				mesh = old_mesh;
-#endif /* USE_BMESH_SAVE_WITHOUT_MFACE */
-
 			}
 			else {
 
@@ -1892,6 +2066,10 @@ static void write_meshes(WriteData *wd, ListBase *idbase)
 
 				BKE_mesh_update_customdata_pointers(mesh, false);
 
+				/* See comment above. Note that loop/poly data are ignored here, and face ones are already handled. */
+				CustomData_copy(&old_mesh->vdata, &mesh->vdata, CD_MASK_EVERYTHING, CD_REFERENCE, mesh->totvert);
+				CustomData_copy(&old_mesh->edata, &mesh->edata, CD_MASK_EVERYTHING, CD_REFERENCE, mesh->totedge);
+
 				writestruct_at_address(wd, ID_ME, "Mesh", 1, old_mesh, mesh);
 
 				/* direct data */
@@ -1910,6 +2088,8 @@ static void write_meshes(WriteData *wd, ListBase *idbase)
 				write_customdata(wd, &mesh->id, mesh->totpoly, &mesh->pdata, -1, 0);
 #endif
 
+				CustomData_free(&mesh->vdata, mesh->totvert);
+				CustomData_free(&mesh->edata, mesh->totedge);
 				CustomData_free(&mesh->fdata, mesh->totface);
 
 				/* restore pointer */
@@ -1947,7 +2127,8 @@ static void write_lattices(WriteData *wd, ListBase *idbase)
 
 static void write_previews(WriteData *wd, PreviewImage *prv)
 {
-	if (prv) {
+	/* Never write previews in undo steps! */
+	if (prv && !wd->current) {
 		short w = prv->w[1];
 		short h = prv->h[1];
 		unsigned int *rect = prv->rect[1];
@@ -1974,22 +2155,39 @@ static void write_images(WriteData *wd, ListBase *idbase)
 {
 	Image *ima;
 	PackedFile * pf;
-
+	ImageView *iv;
+	ImagePackedFile *imapf;
 
 	ima= idbase->first;
 	while (ima) {
 		if (ima->id.us>0 || wd->current) {
+			/* Some trickery to keep forward compatibility of packed images. */
+			BLI_assert(ima->packedfile == NULL);
+			if (ima->packedfiles.first != NULL) {
+				imapf = ima->packedfiles.first;
+				ima->packedfile = imapf->packedfile;
+			}
+
 			/* write LibData */
 			writestruct(wd, ID_IM, "Image", 1, ima);
 			if (ima->id.properties) IDP_WriteProperty(ima->id.properties, wd);
 
-			if (ima->packedfile) {
-				pf = ima->packedfile;
-				writestruct(wd, DATA, "PackedFile", 1, pf);
-				writedata(wd, DATA, pf->size, pf->data);
+			for (imapf = ima->packedfiles.first; imapf; imapf = imapf->next) {
+				writestruct(wd, DATA, "ImagePackedFile", 1, imapf);
+				if (imapf->packedfile) {
+					pf = imapf->packedfile;
+					writestruct(wd, DATA, "PackedFile", 1, pf);
+					writedata(wd, DATA, pf->size, pf->data);
+				}
 			}
 
 			write_previews(wd, ima->preview);
+
+			for (iv = ima->views.first; iv; iv = iv->next)
+				writestruct(wd, DATA, "ImageView", 1, iv);
+			writestruct(wd, DATA, "Stereo3dFormat", 1, ima->stereo3d_format);
+
+			ima->packedfile = NULL;
 		}
 		ima= ima->id.next;
 	}
@@ -2144,7 +2342,7 @@ static void write_sequence_modifiers(WriteData *wd, ListBase *modbase)
 	SequenceModifierData *smd;
 
 	for (smd = modbase->first; smd; smd = smd->next) {
-		SequenceModifierTypeInfo *smti = BKE_sequence_modifier_type_info_get(smd->type);
+		const SequenceModifierTypeInfo *smti = BKE_sequence_modifier_type_info_get(smd->type);
 
 		if (smti) {
 			writestruct(wd, DATA, smti->struct_name, 1, smd);
@@ -2173,6 +2371,12 @@ static void write_view_settings(WriteData *wd, ColorManagedViewSettings *view_se
 	}
 }
 
+static void write_paint(WriteData *wd, Paint *p)
+{
+	if (p->cavity_curve)
+		write_curvemapping(wd, p->cavity_curve);
+}
+
 static void write_scenes(WriteData *wd, ListBase *scebase)
 {
 	Scene *sce;
@@ -2184,6 +2388,7 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 	TimeMarker *marker;
 	TransformOrientation *ts;
 	SceneRenderLayer *srl;
+	SceneRenderView *srv;
 	ToolSettings *tos;
 	FreestyleModuleConfig *fmc;
 	FreestyleLineSet *fls;
@@ -2208,18 +2413,22 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 		writestruct(wd, DATA, "ToolSettings", 1, tos);
 		if (tos->vpaint) {
 			writestruct(wd, DATA, "VPaint", 1, tos->vpaint);
+			write_paint (wd, &tos->vpaint->paint);
 		}
 		if (tos->wpaint) {
 			writestruct(wd, DATA, "VPaint", 1, tos->wpaint);
+			write_paint (wd, &tos->wpaint->paint);
 		}
 		if (tos->sculpt) {
 			writestruct(wd, DATA, "Sculpt", 1, tos->sculpt);
+			write_paint (wd, &tos->sculpt->paint);
 		}
 		if (tos->uvsculpt) {
 			writestruct(wd, DATA, "UvSculpt", 1, tos->uvsculpt);
+			write_paint (wd, &tos->uvsculpt->paint);
 		}
 
-		// write_paint(wd, &tos->imapaint.paint);
+		write_paint(wd, &tos->imapaint.paint);
 
 		ed= sce->ed;
 		if (ed) {
@@ -2261,7 +2470,9 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 							break;
 						}
 					}
-					
+
+					writestruct(wd, DATA, "Stereo3dFormat", 1, seq->stereo3d_format);
+
 					strip= seq->strip;
 					writestruct(wd, DATA, "Strip", 1, strip);
 					if (seq->flag & SEQ_USE_CROP && strip->crop) {
@@ -2279,6 +2490,10 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 						writestruct(wd, DATA, "StripElem", 1, strip->stripdata);
 					
 					strip->done = true;
+				}
+
+				if (seq->prop) {
+					IDP_WriteProperty(seq->prop, wd);
 				}
 
 				write_sequence_modifiers(wd, &seq->modifiers);
@@ -2322,6 +2537,10 @@ static void write_scenes(WriteData *wd, ListBase *scebase)
 				writestruct(wd, DATA, "FreestyleLineSet", 1, fls);
 			}
 		}
+
+		/* writing MultiView to the blend file */
+		for (srv = sce->r.views.first; srv; srv = srv->next)
+			writestruct(wd, DATA, "SceneRenderView", 1, srv);
 		
 		if (sce->nodetree) {
 			writestruct(wd, DATA, "bNodeTree", 1, sce->nodetree);
@@ -2355,6 +2574,8 @@ static void write_gpencils(WriteData *wd, ListBase *lb)
 			/* write gpd data block to file */
 			writestruct(wd, ID_GD, "bGPdata", 1, gpd);
 			
+			if (gpd->adt) write_animdata(wd, gpd->adt);
+			
 			/* write grease-pencil layers to file */
 			writelist(wd, DATA, "bGPDlayer", &gpd->layers);
 			for (gpl= gpd->layers.first; gpl; gpl= gpl->next) {
@@ -2382,8 +2603,10 @@ static void write_windowmanagers(WriteData *wd, ListBase *lb)
 	for (wm= lb->first; wm; wm= wm->id.next) {
 		writestruct(wd, ID_WM, "wmWindowManager", 1, wm);
 		
-		for (win= wm->windows.first; win; win= win->next)
+		for (win= wm->windows.first; win; win= win->next) {
 			writestruct(wd, DATA, "wmWindow", 1, win);
+			writestruct(wd, DATA, "Stereo3dFormat", 1, win->stereo3d_format);
+		}
 	}
 }
 
@@ -2527,6 +2750,11 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 					for (bgpic= v3d->bgpicbase.first; bgpic; bgpic= bgpic->next)
 						writestruct(wd, DATA, "BGpic", 1, bgpic);
 					if (v3d->localvd) writestruct(wd, DATA, "View3D", 1, v3d->localvd);
+
+					if (v3d->fx_settings.ssao)
+						writestruct(wd, DATA, "GPUSSAOSettings", 1, v3d->fx_settings.ssao);
+					if (v3d->fx_settings.dof)
+						writestruct(wd, DATA, "GPUDOFSettings", 1, v3d->fx_settings.dof);
 				}
 				else if (sl->spacetype==SPACE_IPO) {
 					SpaceIpo *sipo= (SpaceIpo *)sl;
@@ -2613,6 +2841,9 @@ static void write_screens(WriteData *wd, ListBase *scrbase)
 				}
 				else if (sl->spacetype==SPACE_CLIP) {
 					writestruct(wd, DATA, "SpaceClip", 1, sl);
+				}
+				else if (sl->spacetype == SPACE_INFO) {
+					writestruct(wd, DATA, "SpaceInfo", 1, sl);
 				}
 
 				sl= sl->next;
@@ -2924,7 +3155,7 @@ static void write_brushes(WriteData *wd, ListBase *idbase)
 			
 			if (brush->curve)
 				write_curvemapping(wd, brush->curve);
-			if (brush->curve)
+			if (brush->gradient)
 				writestruct(wd, DATA, "ColorBand", 1, brush->gradient);
 		}
 	}
@@ -3315,22 +3546,21 @@ static void write_linestyles(WriteData *wd, ListBase *idbase)
  * - for undofile, curscene needs to be saved */
 static void write_global(WriteData *wd, int fileflags, Main *mainvar)
 {
+	const bool is_undo = (wd->current != NULL);
 	FileGlobal fg;
 	bScreen *screen;
 	char subvstr[8];
 	
 	/* prevent mem checkers from complaining */
-	fg.pads= 0;
+	memset(fg.pad, 0, sizeof(fg.pad));
 	memset(fg.filename, 0, sizeof(fg.filename));
 	memset(fg.build_hash, 0, sizeof(fg.build_hash));
 
-	current_screen_compat(mainvar, &screen);
+	current_screen_compat(mainvar, &screen, is_undo);
 
 	/* XXX still remap G */
 	fg.curscreen= screen;
 	fg.curscene= screen ? screen->scene : NULL;
-	fg.displaymode= G.displaymode;
-	fg.winpos= G.winpos;
 
 	/* prevent to save this, is not good convention, and feature with concerns... */
 	fg.fileflags= (fileflags & ~G_FILE_FLAGS_RUNTIME);
@@ -3369,8 +3599,11 @@ static void write_thumb(WriteData *wd, const int *img)
 }
 
 /* if MemFile * there's filesave to memory */
-static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFile *current, 
-                             int write_user_block, int write_flags, const int *thumb)
+static int write_file_handle(
+        Main *mainvar,
+        WriteWrap *ww,
+        MemFile *compare, MemFile *current,
+        int write_user_block, int write_flags, const int *thumb)
 {
 	BHead bhead;
 	ListBase mainlist;
@@ -3379,7 +3612,7 @@ static int write_file_handle(Main *mainvar, int handle, MemFile *compare, MemFil
 
 	blo_split_main(&mainlist, mainvar);
 
-	wd= bgnwrite(handle, compare, current);
+	wd = bgnwrite(ww, compare, current);
 
 #ifdef USE_BMESH_SAVE_AS_COMPAT
 	wd->use_mesh_compat = (write_flags & G_FILE_MESH_COMPAT) != 0;
@@ -3505,7 +3738,9 @@ static bool do_history(const char *name, ReportList *reports)
 int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportList *reports, const int *thumb)
 {
 	char tempname[FILE_MAX+1];
-	int file, err, write_user_block;
+	int err, write_user_block;
+	eWriteWrapType ww_type;
+	WriteWrap ww;
 
 	/* path backup/restore */
 	void     *path_list_backup = NULL;
@@ -3514,8 +3749,16 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 	/* open temporary file, so we preserve the original in case we crash */
 	BLI_snprintf(tempname, sizeof(tempname), "%s@", filepath);
 
-	file = BLI_open(tempname, O_BINARY+O_WRONLY+O_CREAT+O_TRUNC, 0666);
-	if (file == -1) {
+	if (write_flags & G_FILE_COMPRESS) {
+		ww_type = WW_WRAP_ZLIB;
+	}
+	else {
+		ww_type = WW_WRAP_NONE;
+	}
+
+	ww_handle_init(ww_type, &ww);
+
+	if (ww.open(&ww, tempname) == false) {
 		BKE_reportf(reports, RPT_ERROR, "Cannot open file %s for writing: %s", tempname, strerror(errno));
 		return 0;
 	}
@@ -3556,8 +3799,9 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 		BKE_bpath_relative_convert(mainvar, filepath, NULL); /* note, making relative to something OTHER then G.main->name */
 
 	/* actual file writing */
-	err= write_file_handle(mainvar, file, NULL, NULL, write_user_block, write_flags, thumb);
-	close(file);
+	err = write_file_handle(mainvar, &ww, NULL, NULL, write_user_block, write_flags, thumb);
+
+	ww.close(&ww);
 
 	if (UNLIKELY(path_list_backup)) {
 		BKE_bpath_list_restore(mainvar, path_list_flag, path_list_backup);
@@ -3581,34 +3825,7 @@ int BLO_write_file(Main *mainvar, const char *filepath, int write_flags, ReportL
 		}
 	}
 
-	if (write_flags & G_FILE_COMPRESS) {
-		/* compressed files have the same ending as regular files... only from 2.4!!! */
-		char gzname[FILE_MAX+4];
-		int ret;
-
-		/* first write compressed to separate @.gz */
-		BLI_snprintf(gzname, sizeof(gzname), "%s@.gz", filepath);
-		ret = BLI_file_gzip(tempname, gzname);
-		
-		if (0==ret) {
-			/* now rename to real file name, and delete temp @ file too */
-			if (BLI_rename(gzname, filepath) != 0) {
-				BKE_report(reports, RPT_ERROR, "Cannot change old file (file saved with @)");
-				return 0;
-			}
-
-			BLI_delete(tempname, false, false);
-		}
-		else if (-1==ret) {
-			BKE_report(reports, RPT_ERROR, "Failed opening .gz file");
-			return 0;
-		}
-		else if (-2==ret) {
-			BKE_report(reports, RPT_ERROR, "Failed opening .blend file for compression");
-			return 0;
-		}
-	}
-	else if (BLI_rename(tempname, filepath) != 0) {
+	if (BLI_rename(tempname, filepath) != 0) {
 		BKE_report(reports, RPT_ERROR, "Cannot change old file (file saved with @)");
 		return 0;
 	}
@@ -3621,7 +3838,7 @@ int BLO_write_file_mem(Main *mainvar, MemFile *compare, MemFile *current, int wr
 {
 	int err;
 
-	err= write_file_handle(mainvar, 0, compare, current, 0, write_flags, NULL);
+	err = write_file_handle(mainvar, NULL, compare, current, 0, write_flags, NULL);
 	
 	if (err==0) return 1;
 	return 0;

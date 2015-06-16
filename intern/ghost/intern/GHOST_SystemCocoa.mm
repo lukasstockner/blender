@@ -22,6 +22,7 @@
  *
  * Contributors: Maarten Gribnau 05/2001
  *               Damien Plisson 09/2009
+ *               Jens Verwiebe   10/2014
  *
  * ***** END GPL LICENSE BLOCK *****
  */
@@ -56,6 +57,7 @@
 
 #include "AssertMacros.h"
 
+
 #pragma mark KeyMap, mouse converters
 
 static GHOST_TButtonMask convertButton(int button)
@@ -71,6 +73,10 @@ static GHOST_TButtonMask convertButton(int button)
 			return GHOST_kButtonMaskButton4;
 		case 4:
 			return GHOST_kButtonMaskButton5;
+		case 5:
+			return GHOST_kButtonMaskButton6;
+		case 6:
+			return GHOST_kButtonMaskButton7;
 		default:
 			return GHOST_kButtonMaskLeft;
 	}
@@ -203,6 +209,7 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
 			return GHOST_kKeyUnknown;
 			
 		default:
+		{
 			/* alphanumerical or punctuation key that is remappable in int'l keyboards */
 			if ((recvChar >= 'A') && (recvChar <= 'Z')) {
 				return (GHOST_TKey) (recvChar - 'A' + GHOST_kKeyA);
@@ -211,27 +218,25 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
 				return (GHOST_TKey) (recvChar - 'a' + GHOST_kKeyA);
 			}
 			else {
-
-			/* Leopard and Snow Leopard 64bit compatible API*/
-			CFDataRef uchrHandle; /*the keyboard layout*/
-			TISInputSourceRef kbdTISHandle;
-			
-			kbdTISHandle = TISCopyCurrentKeyboardLayoutInputSource();
-			uchrHandle = (CFDataRef)TISGetInputSourceProperty(kbdTISHandle,kTISPropertyUnicodeKeyLayoutData);
-			CFRelease(kbdTISHandle);
-			
-			/*get actual character value of the "remappable" keys in int'l keyboards,
-			 if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
-			 then fallback on using the received charactersIgnoringModifiers */
-			if (uchrHandle)
-			{
-				UInt32 deadKeyState=0;
-				UniCharCount actualStrLength=0;
+				/* Leopard and Snow Leopard 64bit compatible API*/
+				CFDataRef uchrHandle; /*the keyboard layout*/
+				TISInputSourceRef kbdTISHandle;
 				
-				UCKeyTranslate((UCKeyboardLayout*)CFDataGetBytePtr(uchrHandle), rawCode, keyAction, 0,
-							   LMGetKbdType(), kUCKeyTranslateNoDeadKeysBit, &deadKeyState, 1, &actualStrLength, &recvChar);
+				kbdTISHandle = TISCopyCurrentKeyboardLayoutInputSource();
+				uchrHandle = (CFDataRef)TISGetInputSourceProperty(kbdTISHandle,kTISPropertyUnicodeKeyLayoutData);
+				CFRelease(kbdTISHandle);
 				
-			}
+				/*get actual character value of the "remappable" keys in int'l keyboards,
+				if keyboard layout is not correctly reported (e.g. some non Apple keyboards in Tiger),
+				then fallback on using the received charactersIgnoringModifiers */
+				if (uchrHandle) {
+					UInt32 deadKeyState=0;
+					UniCharCount actualStrLength=0;
+					
+					UCKeyTranslate((UCKeyboardLayout*)CFDataGetBytePtr(uchrHandle), rawCode, keyAction, 0,
+					               LMGetKbdType(), kUCKeyTranslateNoDeadKeysBit, &deadKeyState, 1, &actualStrLength, &recvChar);
+					
+				}
 
 				switch (recvChar) {
 					case '-': 	return GHOST_kKeyMinus;
@@ -249,12 +254,10 @@ static GHOST_TKey convertKey(int rawCode, unichar recvChar, UInt16 keyAction)
 						return GHOST_kKeyUnknown;
 				}
 			}
+		}
 	}
 	return GHOST_kKeyUnknown;
 }
-
-
-#pragma mark defines for 10.6 api not documented in 10.5
 
 #pragma mark Utility functions
 
@@ -271,7 +274,7 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[FIRSTFILEBUFLG])
 		return 1;
 	}
 	else {
-		return 0; 
+		return 0;
 	}
 }
 
@@ -334,11 +337,7 @@ extern "C" int GHOST_HACK_getFirstFile(char buf[FIRSTFILEBUFLG])
 @end
 
 
-
-
 #pragma mark initialization/finalization
-
-char GHOST_user_locale[128]; // Global current user locale
 
 GHOST_SystemCocoa::GHOST_SystemCocoa()
 {
@@ -377,15 +376,6 @@ GHOST_SystemCocoa::GHOST_SystemCocoa()
 	rstring = NULL;
 	
 	m_ignoreWindowSizedMessages = false;
-	
-	//Get current locale
-	NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
-	CFLocaleRef myCFLocale = CFLocaleCopyCurrent();
-	NSLocale * myNSLocale = (NSLocale *) myCFLocale;
-	[myNSLocale autorelease];
-	NSString *nsIdentifier = [myNSLocale localeIdentifier];
-	strncpy(GHOST_user_locale, [nsIdentifier UTF8String], sizeof(GHOST_user_locale) - 1);
-	[pool drain];
 }
 
 GHOST_SystemCocoa::~GHOST_SystemCocoa()
@@ -544,9 +534,8 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 	GHOST_TUns32 height,
 	GHOST_TWindowState state,
 	GHOST_TDrawingContextType type,
-	bool stereoVisual,
+	GHOST_GLSettings glSettings,
 	const bool exclusive,
-	const GHOST_TUns16 numOfAASamples,
 	const GHOST_TEmbedderWindowID parentWindow
 )
 {
@@ -562,29 +551,26 @@ GHOST_IWindow* GHOST_SystemCocoa::createWindow(
 
 	//Ensures window top left is inside this available rect
 	left = left > contentRect.origin.x ? left : contentRect.origin.x;
-	bottom = bottom > contentRect.origin.y ? bottom : contentRect.origin.y;
+	// Add contentRect.origin.y to respect docksize
+	bottom = bottom > contentRect.origin.y ? bottom + contentRect.origin.y : contentRect.origin.y;
 
-	window = new GHOST_WindowCocoa (this, title, left, bottom, width, height, state, type, stereoVisual, numOfAASamples);
+	window = new GHOST_WindowCocoa (this, title, left, bottom, width, height, state, type, ((glSettings.flags & GHOST_glStereoVisual) != 0), glSettings.numOfAASamples);
 
-	if (window) {
-		if (window->getValid()) {
-			// Store the pointer to the window
-			GHOST_ASSERT(m_windowManager, "m_windowManager not initialized");
-			m_windowManager->addWindow(window);
-			m_windowManager->setActiveWindow(window);
-			//Need to tell window manager the new window is the active one (Cocoa does not send the event activate upon window creation)
-			pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowActivate, window));
-			pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window));
-		}
-		else {
-			GHOST_PRINT("GHOST_SystemCocoa::createWindow(): window invalid\n");
-			delete window;
-			window = 0;
-		}
+	if (window->getValid()) {
+		// Store the pointer to the window
+		GHOST_ASSERT(m_windowManager, "m_windowManager not initialized");
+		m_windowManager->addWindow(window);
+		m_windowManager->setActiveWindow(window);
+		//Need to tell window manager the new window is the active one (Cocoa does not send the event activate upon window creation)
+		pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowActivate, window));
+		pushEvent(new GHOST_Event(getMilliSeconds(), GHOST_kEventWindowSize, window));
 	}
 	else {
-		GHOST_PRINT("GHOST_SystemCocoa::createWindow(): could not create window\n");
+		GHOST_PRINT("GHOST_SystemCocoa::createWindow(): window invalid\n");
+		delete window;
+		window = 0;
 	}
+	
 	[pool drain];
 	return window;
 }
@@ -671,7 +657,6 @@ GHOST_TSuccess GHOST_SystemCocoa::getButtons(GHOST_Buttons& buttons) const
 }
 
 
-
 #pragma mark Event handlers
 
 /**
@@ -736,10 +721,10 @@ bool GHOST_SystemCocoa::processEvents(bool waitForEvent)
 				handleKeyEvent(event);
 			}
 			else {
-				// For some reason NSApp is swallowing the key up events when command
+				// For some reason NSApp is swallowing the key up events when modifier
 				// key is pressed, even if there seems to be no apparent reason to do
 				// so, as a workaround we always handle these up events.
-				if ([event type] == NSKeyUp && ([event modifierFlags] & NSCommandKeyMask))
+				if ([event type] == NSKeyUp && ([event modifierFlags] & (NSCommandKeyMask | NSAlternateKeyMask)))
 					handleKeyEvent(event);
 
 				[NSApp sendEvent:event];
@@ -901,7 +886,10 @@ GHOST_TSuccess GHOST_SystemCocoa::handleDraggingEvent(GHOST_TEventType eventType
 					if (!strArray) return GHOST_kFailure;
 					
 					strArray->count = [droppedArray count];
-					if (strArray->count == 0) return GHOST_kFailure;
+					if (strArray->count == 0) {
+						free(strArray);
+						return GHOST_kFailure;
+					}
 					
 					strArray->strings = (GHOST_TUns8**) malloc(strArray->count*sizeof(GHOST_TUns8*));
 					
@@ -1606,7 +1594,6 @@ GHOST_TSuccess GHOST_SystemCocoa::handleKeyEvent(void *eventPtr)
 	
 	return GHOST_kSuccess;
 }
-
 
 
 #pragma mark Clipboard get/set

@@ -17,9 +17,10 @@
 # ##### END GPL LICENSE BLOCK #####
 
 # <pep8 compliant>
+from bpy.types import Menu
 
 
-class UnifiedPaintPanel():
+class UnifiedPaintPanel:
     # subclass must set
     # bl_space_type = 'IMAGE_EDITOR'
     # bl_region_type = 'UI'
@@ -35,7 +36,10 @@ class UnifiedPaintPanel():
         elif context.weight_paint_object:
             return toolsettings.weight_paint
         elif context.image_paint_object:
-            return toolsettings.image_paint
+            if (toolsettings.image_paint and toolsettings.image_paint.detect_data()):
+                return toolsettings.image_paint
+
+            return None
         elif context.particle_edit_object:
             return toolsettings.particle_edit
 
@@ -86,6 +90,18 @@ class UnifiedPaintPanel():
         parent.template_color_picker(ptr, prop_name, value_slider=value_slider)
 
 
+class VIEW3D_MT_tools_projectpaint_clone(Menu):
+    bl_label = "Clone Layer"
+
+    def draw(self, context):
+        layout = self.layout
+
+        for i, tex in enumerate(context.active_object.data.uv_textures):
+            props = layout.operator("wm.context_set_int", text=tex.name, translate=False)
+            props.data_path = "active_object.data.uv_texture_clone_index"
+            props.value = i
+
+
 def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=False):
     capabilities = brush.image_paint_capabilities
 
@@ -117,7 +133,7 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
             else:
                 row = col.row(align=True)
                 panel.prop_unified_color(row, context, brush, "color", text="")
-                if brush.image_tool == 'FILL':
+                if brush.image_tool == 'FILL' and not projpaint:
                     col.prop(brush, "fill_threshold")
                 else:
                     panel.prop_unified_color(row, context, brush, "secondary_color", text="")
@@ -129,7 +145,8 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
         col.row().prop(brush, "direction", expand=True)
         col.separator()
         col.prop(brush, "sharp_threshold")
-        col.prop(brush, "blur_kernel_radius")
+        if not projpaint:
+            col.prop(brush, "blur_kernel_radius")
         col.separator()
         col.prop(brush, "blur_mode")
     elif brush.image_tool == 'MASK':
@@ -138,30 +155,40 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
     elif brush.image_tool == 'CLONE':
         col.separator()
         if projpaint:
-            col.prop(settings, "use_clone_layer", text="Clone from paint slot")
+            if settings.mode == 'MATERIAL':
+                col.prop(settings, "use_clone_layer", text="Clone from paint slot")
+            elif settings.mode == 'IMAGE':
+                col.prop(settings, "use_clone_layer", text="Clone from image/UV map")
 
             if settings.use_clone_layer:
                 ob = context.active_object
                 col = layout.column()
 
-                if len(ob.material_slots) > 1:
-                    col.label("Materials")
-                    col.template_list("MATERIAL_UL_matslots", "",
-                                      ob, "material_slots",
-                                      ob, "active_material_index", rows=2)
+                if settings.mode == 'MATERIAL':
+                    if len(ob.material_slots) > 1:
+                        col.label("Materials")
+                        col.template_list("MATERIAL_UL_matslots", "",
+                                          ob, "material_slots",
+                                          ob, "active_material_index", rows=2)
 
-                mat = ob.active_material
-                if mat:
-                    col.label("Clone Slot")
-                    col.template_list("TEXTURE_UL_texpaintslots", "",
-                                      mat, "texture_paint_images",
-                                      mat, "paint_clone_slot", rows=2)
+                    mat = ob.active_material
+                    if mat:
+                        col.label("Source Clone Slot")
+                        col.template_list("TEXTURE_UL_texpaintslots", "",
+                                          mat, "texture_paint_images",
+                                          mat, "paint_clone_slot", rows=2)
 
+                elif settings.mode == 'IMAGE':
+                    mesh = ob.data
+
+                    clone_text = mesh.uv_texture_clone.name if mesh.uv_texture_clone else ""
+                    col.label("Source Clone Image")
+                    col.template_ID(settings, "clone_image")
+                    col.label("Source Clone UV Map")
+                    col.menu("VIEW3D_MT_tools_projectpaint_clone", text=clone_text, translate=False)
         else:
             col.prop(brush, "clone_image", text="Image")
             col.prop(brush, "clone_alpha", text="Alpha")
-
-
 
     col.separator()
 
@@ -189,7 +216,9 @@ def brush_texpaint_common(panel, context, layout, brush, settings, projpaint=Fal
         col = layout.column(align=True)
         col.prop(brush, "use_accumulate")
 
-    col.prop(brush, "use_alpha")
+    if projpaint:
+        col.prop(brush, "use_alpha")
+
     col.prop(brush, "use_gradient")
 
     col.separator()
@@ -216,24 +245,23 @@ def brush_texture_settings(layout, brush, sculpt):
         layout.operator("brush.stencil_reset_transform")
 
     # angle and texture_angle_source
-    if brush.brush_capabilities.has_texture_angle:
+    if tex_slot.has_texture_angle:
         col = layout.column()
         col.label(text="Angle:")
-        row = col.row(align=True)
-        if brush.brush_capabilities.has_texture_angle_source:
-            if brush.brush_capabilities.has_random_texture_angle:
+        col.prop(tex_slot, "angle", text="")
+        if tex_slot.has_texture_angle_source:
+            col.prop(tex_slot, "use_rake", text="Rake")
+
+            if brush.brush_capabilities.has_random_texture_angle and tex_slot.has_random_texture_angle:
                 if sculpt:
                     if brush.sculpt_capabilities.has_random_texture_angle:
-                        row.prop(brush, "texture_angle_source_random", text="")
-                    else:
-                        row.prop(brush, "texture_angle_source_no_random", text="")
-
+                        col.prop(tex_slot, "use_random", text="Random")
+                        if tex_slot.use_random:
+                            col.prop(tex_slot, "random_angle", text="")
                 else:
-                    row.prop(brush, "texture_angle_source_random", text="")
-            else:
-                row.prop(brush, "texture_angle_source_no_random", text="")
-
-        row.prop(tex_slot, "angle", text="")
+                    col.prop(tex_slot, "use_random", text="Random")
+                    if tex_slot.use_random:
+                        col.prop(tex_slot, "random_angle", text="")
 
     # scale and offset
     split = layout.split()
@@ -263,9 +291,18 @@ def brush_mask_texture_settings(layout, brush):
 
     col = layout.column()
     col.prop(brush, "use_pressure_masking", text="")
-    col.label(text="Angle:")
-    col.active = brush.brush_capabilities.has_texture_angle
-    col.prop(mask_tex_slot, "angle", text="")
+    # angle and texture_angle_source
+    if mask_tex_slot.has_texture_angle:
+        col = layout.column()
+        col.label(text="Angle:")
+        col.prop(mask_tex_slot, "angle", text="")
+        if mask_tex_slot.has_texture_angle_source:
+            col.prop(mask_tex_slot, "use_rake", text="Rake")
+
+            if brush.brush_capabilities.has_random_texture_angle and mask_tex_slot.has_random_texture_angle:
+                col.prop(mask_tex_slot, "use_random", text="Random")
+                if mask_tex_slot.use_random:
+                    col.prop(mask_tex_slot, "random_angle", text="")
 
     # scale and offset
     split = layout.split()

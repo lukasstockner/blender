@@ -56,7 +56,7 @@ const char bm_iter_itype_htype_map[BM_ITYPE_MAX] = {
 /**
  * Utility function.
  */
-int BM_iter_mesh_count(BMesh *bm, const char itype)
+int BM_iter_mesh_count(const char itype, BMesh *bm)
 {
 	int count;
 
@@ -136,8 +136,9 @@ int BM_iter_as_array(BMesh *bm, const char itype, void *data, void **array, cons
  *
  * Sometimes its convenient to get the iterator as an array.
  */
-int BMO_iter_as_array(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name, const char restrictmask,
-                      void **array, const int len)
+int BMO_iter_as_array(
+        BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name, const char restrictmask,
+        void **array, const int len)
 {
 	int i = 0;
 
@@ -169,9 +170,10 @@ int BMO_iter_as_array(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_nam
  *
  * Caller needs to free the array.
  */
-void *BM_iter_as_arrayN(BMesh *bm, const char itype, void *data, int *r_len,
-                        /* optional args to avoid an alloc (normally stack array) */
-                        void **stack_array, int stack_array_size)
+void *BM_iter_as_arrayN(
+        BMesh *bm, const char itype, void *data, int *r_len,
+        /* optional args to avoid an alloc (normally stack array) */
+        void **stack_array, int stack_array_size)
 {
 	BMIter iter;
 
@@ -212,10 +214,11 @@ void *BM_iter_as_arrayN(BMesh *bm, const char itype, void *data, int *r_len,
 	}
 }
 
-void *BMO_iter_as_arrayN(BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name, const char restrictmask,
-                         int *r_len,
-                         /* optional args to avoid an alloc (normally stack array) */
-                         void **stack_array, int stack_array_size)
+void *BMO_iter_as_arrayN(
+        BMOpSlot slot_args[BMO_OP_MAX_SLOTS], const char *slot_name, const char restrictmask,
+        int *r_len,
+        /* optional args to avoid an alloc (normally stack array) */
+        void **stack_array, int stack_array_size)
 {
 	BMOIter iter;
 	BMElem *ele;
@@ -273,8 +276,9 @@ int BM_iter_elem_count_flag(const char itype, void *data, const char hflag, cons
  *
  * Counts how many flagged / unflagged items are found in this element.
  */
-int BMO_iter_elem_count_flag(BMesh *bm, const char itype, void *data,
-                             const short oflag, const bool value)
+int BMO_iter_elem_count_flag(
+        BMesh *bm, const char itype, void *data,
+        const short oflag, const bool value)
 {
 	BMIter iter;
 	BMElemF *ele;
@@ -338,50 +342,18 @@ int BM_iter_mesh_count_flag(const char itype, BMesh *bm, const char hflag, const
 #  define USE_IMMUTABLE_ASSERT
 #endif
 
-void bmiter__vert_of_mesh_begin(struct BMIter__vert_of_mesh *iter)
+void bmiter__elem_of_mesh_begin(struct BMIter__elem_of_mesh *iter)
 {
 #ifdef USE_IMMUTABLE_ASSERT
-	((BMIter *)iter)->count = iter->bm->totvert;
+	((BMIter *)iter)->count = BLI_mempool_count(iter->pooliter.pool);
 #endif
-	BLI_mempool_iternew(iter->bm->vpool, &iter->pooliter);
+	BLI_mempool_iternew(iter->pooliter.pool, &iter->pooliter);
 }
 
-void *bmiter__vert_of_mesh_step(struct BMIter__vert_of_mesh *iter)
+void *bmiter__elem_of_mesh_step(struct BMIter__elem_of_mesh *iter)
 {
 #ifdef USE_IMMUTABLE_ASSERT
-	BLI_assert(((BMIter *)iter)->count <= iter->bm->totvert);
-#endif
-	return BLI_mempool_iterstep(&iter->pooliter);
-}
-
-void bmiter__edge_of_mesh_begin(struct BMIter__edge_of_mesh *iter)
-{
-#ifdef USE_IMMUTABLE_ASSERT
-	((BMIter *)iter)->count = iter->bm->totedge;
-#endif
-	BLI_mempool_iternew(iter->bm->epool, &iter->pooliter);
-}
-
-void  *bmiter__edge_of_mesh_step(struct BMIter__edge_of_mesh *iter)
-{
-#ifdef USE_IMMUTABLE_ASSERT
-	BLI_assert(((BMIter *)iter)->count <= iter->bm->totedge);
-#endif
-	return BLI_mempool_iterstep(&iter->pooliter);
-}
-
-void  bmiter__face_of_mesh_begin(struct BMIter__face_of_mesh *iter)
-{
-#ifdef USE_IMMUTABLE_ASSERT
-	((BMIter *)iter)->count = iter->bm->totface;
-#endif
-	BLI_mempool_iternew(iter->bm->fpool, &iter->pooliter);
-}
-
-void  *bmiter__face_of_mesh_step(struct BMIter__face_of_mesh *iter)
-{
-#ifdef USE_IMMUTABLE_ASSERT
-	BLI_assert(((BMIter *)iter)->count <= iter->bm->totface);
+	BLI_assert(((BMIter *)iter)->count <= BLI_mempool_count(iter->pooliter.pool));
 #endif
 	return BLI_mempool_iterstep(&iter->pooliter);
 }

@@ -93,6 +93,8 @@ void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *ar)
 	
 	/* loop through channels, and set up drawing depending on their type  */
 	{   /* first pass: just the standard GL-drawing for backdrop + text */
+		size_t channel_index = 0;
+		
 		y = (float)ACHANNEL_FIRST;
 		
 		for (ale = anim_data.first; ale; ale = ale->next) {
@@ -104,15 +106,16 @@ void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *ar)
 			    IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax) )
 			{
 				/* draw all channels using standard channel-drawing API */
-				ANIM_channel_draw(ac, ale, yminc, ymaxc);
+				ANIM_channel_draw(ac, ale, yminc, ymaxc, channel_index);
 			}
 			
 			/* adjust y-position for next one */
 			y -= ACHANNEL_STEP;
+			channel_index++;
 		}
 	}
 	{   /* second pass: widgets */
-		uiBlock *block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
+		uiBlock *block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 		size_t channel_index = 0;
 		
 		y = (float)ACHANNEL_FIRST;
@@ -134,8 +137,8 @@ void draw_channel_names(bContext *C, bAnimContext *ac, ARegion *ar)
 			channel_index++;
 		}
 		
-		uiEndBlock(C, block);
-		uiDrawBlock(C, block);
+		UI_block_end(C, block);
+		UI_block_draw(C, block);
 	}
 	
 	/* free tempolary channels */
@@ -210,7 +213,7 @@ void draw_channel_strips(bAnimContext *ac, SpaceAction *saction, ARegion *ar)
 		if (IN_RANGE(yminc, v2d->cur.ymin, v2d->cur.ymax) ||
 		    IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax) )
 		{
-			bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
+			const bAnimChannelType *acf = ANIM_channel_get_typeinfo(ale);
 			int sel = 0;
 			
 			/* determine if any need to draw channel */

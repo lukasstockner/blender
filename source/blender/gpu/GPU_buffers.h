@@ -32,28 +32,27 @@
 #ifndef __GPU_BUFFERS_H__
 #define __GPU_BUFFERS_H__
 
-#ifdef _DEBUG
-/*#define DEBUG_VBO(X) printf(X)*/
-#define DEBUG_VBO(X)
+#ifdef DEBUG
+/*  #define DEBUG_VBO(X) printf(X)*/
+#  define DEBUG_VBO(X)
 #else
-#define DEBUG_VBO(X)
+#  define DEBUG_VBO(X)
 #endif
 
 struct BMesh;
 struct CCGElem;
 struct CCGKey;
-struct CustomData;
 struct DMFlagMat;
 struct DerivedMesh;
-struct GHash;
 struct GSet;
 struct GPUVertPointLink;
 struct PBVH;
 
 typedef struct GPUBuffer {
-	int size;	/* in bytes */
-	void *pointer;	/* used with vertex arrays */
-	unsigned int id;	/* used with vertex buffer objects */
+	int size;        /* in bytes */
+	void *pointer;   /* used with vertex arrays */
+	unsigned int id; /* used with vertex buffer objects */
+	bool use_vbo;    /* true for VBOs, false for vertex arrays */
 } GPUBuffer;
 
 typedef struct GPUBufferMaterial {
@@ -85,6 +84,7 @@ typedef struct GPUDrawObject {
 	GPUBuffer *points;
 	GPUBuffer *normals;
 	GPUBuffer *uv;
+	GPUBuffer *uv_tex;
 	GPUBuffer *colors;
 	GPUBuffer *edges;
 	GPUBuffer *uvedges;
@@ -113,10 +113,6 @@ typedef struct GPUDrawObject {
 	/* caches of the original DerivedMesh values */
 	int totvert;
 	int totedge;
-
-	/* if there was a failure allocating some buffer, use old
-	 * rendering code */
-	bool legacy;
 } GPUDrawObject;
 
 /* used for GLSL materials */
@@ -129,7 +125,7 @@ typedef struct GPUAttrib {
 void GPU_global_buffer_pool_free(void);
 void GPU_global_buffer_pool_free_unused(void);
 
-GPUBuffer *GPU_buffer_alloc(int size);
+GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays);
 void GPU_buffer_free(GPUBuffer *buffer);
 
 GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm);
@@ -160,9 +156,6 @@ void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start,
 
 /* called after drawing */
 void GPU_buffer_unbind(void);
-
-/* used to check whether to use the old (without buffers) code */
-bool GPU_buffer_legacy(struct DerivedMesh *dm);
 
 /* Buffers for non-DerivedMesh drawing */
 typedef struct GPU_PBVH_Buffers GPU_PBVH_Buffers;

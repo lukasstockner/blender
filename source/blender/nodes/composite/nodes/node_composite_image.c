@@ -39,8 +39,6 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "RNA_access.h"
-
 /* **************** IMAGE (and RenderResult, multilayer image) ******************** */
 
 static bNodeSocketTemplate cmp_node_rlayers_out[] = {
@@ -170,20 +168,35 @@ static void cmp_node_image_add_multilayer_outputs(bNodeTree *ntree, bNode *node,
 	NodeImageLayer *sockdata;
 	RenderPass *rpass;
 	int index;
+	int passflag = 0;
 	for (rpass = rl->passes.first, index = 0; rpass; rpass = rpass->next, ++index) {
 		int type;
 		if (rpass->channels == 1)
 			type = SOCK_FLOAT;
 		else
 			type = SOCK_RGBA;
-		
-		sock = nodeAddStaticSocket(ntree, node, SOCK_OUT, type, PROP_NONE, rpass->name, rpass->name);
+
+		/* we only need one socket per type */
+		if (passflag & rpass->passtype)
+			continue;
+
+		passflag |= rpass->passtype;
+
+		sock = nodeAddStaticSocket(ntree, node, SOCK_OUT, type, PROP_NONE, rpass->internal_name, rpass->internal_name);
 		/* extra socket info */
 		sockdata = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
 		sock->storage = sockdata;
 		
 		sockdata->pass_index = index;
 		sockdata->pass_flag = rpass->passtype;
+
+		if (rpass->passtype == SCE_PASS_COMBINED) {
+			sock = nodeAddStaticSocket(ntree, node, SOCK_OUT, SOCK_FLOAT, PROP_NONE, "Alpha", "Alpha");
+			sockdata = MEM_callocN(sizeof(NodeImageLayer), "node image layer");
+			sock->storage = sockdata;
+			sockdata->pass_index = index;
+			sockdata->pass_flag = rpass->passtype;
+		}
 	}
 }
 
@@ -441,7 +454,7 @@ static void node_composit_init_rlayers(const bContext *C, PointerRNA *ptr)
 
 static int node_composit_poll_rlayers(bNodeType *UNUSED(ntype), bNodeTree *ntree)
 {
-	if (strcmp(ntree->idname, "CompositorNodeTree") == 0) {
+	if (STREQ(ntree->idname, "CompositorNodeTree")) {
 		Scene *scene;
 		
 		/* XXX ugly: check if ntree is a local scene node tree.

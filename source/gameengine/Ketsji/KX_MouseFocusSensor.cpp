@@ -36,6 +36,8 @@
 #  pragma warning(disable:4786)
 #endif
 
+#include <stdio.h>
+
 #include "MT_Point3.h"
 #include "RAS_FramingManager.h"
 #include "RAS_ICanvas.h"
@@ -269,8 +271,8 @@ bool KX_MouseFocusSensor::ParentObjectHasFocusCamera(KX_Camera *cam)
 	m_kxengine->GetSceneViewport(m_kxscene, cam, area, viewport);
 	
 	/* Check if the mouse is in the viewport */
-	if ((	m_x < viewport.m_x2 &&	// less then right
-			m_x > viewport.m_x1 &&	// more then then left
+	if ((	m_x < viewport.m_x2 &&	// less than right
+			m_x > viewport.m_x1 &&	// more than then left
 			m_y_inv < viewport.m_y2 &&	// below top
 			m_y_inv > viewport.m_y1) == 0)	// above bottom
 	{

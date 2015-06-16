@@ -38,11 +38,7 @@ struct ARegion;
 struct ARegionType;
 struct ScrArea;
 struct SpaceImage;
-struct Object;
-struct Image;
-struct ImBuf;
 struct wmOperatorType;
-struct Scene;
 struct bNodeTree;
 
 /* space_image.c */
@@ -71,6 +67,7 @@ void IMAGE_OT_view_ndof(struct wmOperatorType *ot);
 
 void IMAGE_OT_new(struct wmOperatorType *ot);
 void IMAGE_OT_open(struct wmOperatorType *ot);
+void IMAGE_OT_unlink(struct wmOperatorType *ot);
 void IMAGE_OT_match_movie_length(struct wmOperatorType *ot);
 void IMAGE_OT_replace(struct wmOperatorType *ot);
 void IMAGE_OT_reload(struct wmOperatorType *ot);
@@ -91,6 +88,8 @@ void IMAGE_OT_curves_point_set(struct wmOperatorType *ot);
 void IMAGE_OT_change_frame(struct wmOperatorType *ot);
 
 void IMAGE_OT_read_renderlayers(struct wmOperatorType *ot);
+void IMAGE_OT_render_border(struct wmOperatorType *ot);
+void IMAGE_OT_clear_render_border(struct wmOperatorType *ot);
 
 /* image_panels.c */
 struct ImageUser *ntree_get_active_iuser(struct bNodeTree *ntree);

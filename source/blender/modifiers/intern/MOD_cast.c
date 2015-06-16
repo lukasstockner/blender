@@ -106,6 +106,7 @@ static void foreachObjectLink(
 }
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,
+                           struct Main *UNUSED(bmain),
                            struct Scene *UNUSED(scene),
                            Object *UNUSED(ob),
                            DagNode *obNode)
@@ -117,6 +118,18 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 
 		dag_add_relation(forest, curNode, obNode, DAG_RL_OB_DATA,
 		                 "Cast Modifier");
+	}
+}
+
+static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	CastModifierData *cmd = (CastModifierData *)md;
+	if (cmd->object != NULL) {
+		DEG_add_object_relation(node, cmd->object, DEG_OB_COMP_TRANSFORM, "Cast Modifier");
 	}
 }
 
@@ -151,8 +164,8 @@ static void sphere_do(
 	 * we use its location, transformed to ob's local space */
 	if (ctrl_ob) {
 		if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-			invert_m4_m4(ctrl_ob->imat, ctrl_ob->obmat);
-			mul_m4_m4m4(mat, ctrl_ob->imat, ob->obmat);
+			invert_m4_m4(imat, ctrl_ob->obmat);
+			mul_m4_m4m4(mat, imat, ob->obmat);
 			invert_m4_m4(imat, mat);
 		}
 
@@ -275,8 +288,8 @@ static void cuboid_do(
 
 	if (ctrl_ob) {
 		if (flag & MOD_CAST_USE_OB_TRANSFORM) {
-			invert_m4_m4(ctrl_ob->imat, ctrl_ob->obmat);
-			mul_m4_m4m4(mat, ctrl_ob->imat, ob->obmat);
+			invert_m4_m4(imat, ctrl_ob->obmat);
+			mul_m4_m4m4(mat, imat, ob->obmat);
 			invert_m4_m4(imat, mat);
 		}
 
@@ -499,6 +512,7 @@ ModifierTypeInfo modifierType_Cast = {
 	/* freeData */          NULL,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

@@ -59,7 +59,6 @@
 #include "WM_types.h"
 
 #include "UI_interface.h"
-#include "UI_interface_icons.h"
 #include "UI_resources.h"
 #include "UI_view2d.h"
 
@@ -187,7 +186,7 @@ static void nla_strip_get_color_inside(AnimData *adt, NlaStrip *strip, float col
 	}
 	else {
 		/* Action Clip (default/normal type of strip) */
-		if ((strip->flag & NLASTRIP_FLAG_ACTIVE) && (adt && (adt->flag & ADT_NLA_EDIT_ON))) {
+		if (adt && (adt->flag & ADT_NLA_EDIT_ON) && (adt->actstrip == strip)) {
 			/* active strip should be drawn green when it is acting as the tweaking strip.
 			 * however, this case should be skipped for when not in EditMode...
 			 */
@@ -341,9 +340,9 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 	if (nonSolo == 0) {
 		/* strip is in normal track */
 		glColor3fv(color);
-		uiSetRoundBox(UI_CNR_ALL); /* all corners rounded */
+		UI_draw_roundbox_corner_set(UI_CNR_ALL); /* all corners rounded */
 		
-		uiDrawBoxShade(GL_POLYGON, strip->start, yminc, strip->end, ymaxc, 0.0, 0.5, 0.1);
+		UI_draw_roundbox_shade_x(GL_POLYGON, strip->start, yminc, strip->end, ymaxc, 0.0, 0.5, 0.1);
 	}
 	else {
 		/* strip is in disabled track - make less visible */
@@ -375,11 +374,11 @@ static void nla_draw_strip(SpaceNla *snla, AnimData *adt, NlaTrack *nlt, NlaStri
 	}
 	
 	/* - line style: dotted for muted */
-	if (strip->flag & NLASTRIP_FLAG_MUTED)
+	if ((nlt->flag & NLATRACK_MUTED) || (strip->flag & NLASTRIP_FLAG_MUTED))
 		setlinestyle(4);
 		
 	/* draw outline */
-	uiDrawBoxShade(GL_LINE_LOOP, strip->start, yminc, strip->end, ymaxc, 0.0, 0.0, 0.1);
+	UI_draw_roundbox_shade_x(GL_LINE_LOOP, strip->start, yminc, strip->end, ymaxc, 0.0, 0.0, 0.1);
 	
 	/* if action-clip strip, draw lines delimiting repeats too (in the same color as outline) */
 	if ((strip->type == NLASTRIP_TYPE_CLIP) && IS_EQF(strip->repeat, 1.0f) == 0) {
@@ -434,7 +433,7 @@ static void nla_draw_strip_text(AnimData *adt, NlaTrack *nlt, NlaStrip *strip, i
 	
 	/* just print the name and the range */
 	if (strip->flag & NLASTRIP_FLAG_TEMP_META) {
-		str_len = BLI_snprintf(str, sizeof(str), "%d) Temp-Meta", index);
+		str_len = BLI_snprintf_rlen(str, sizeof(str), "%d) Temp-Meta", index);
 	}
 	else {
 		str_len = BLI_strncpy_rlen(str, strip->name, sizeof(str));
@@ -491,11 +490,11 @@ static void nla_draw_strip_frames_text(NlaTrack *UNUSED(nlt), NlaStrip *strip, V
 	 *	  while also preserving some accuracy, since we do use floats
 	 */
 	/* start frame */
-	numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%.1f", strip->start);
+	numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%.1f", strip->start);
 	UI_view2d_text_cache_add(v2d, strip->start - 1.0f, ymaxc + ytol, numstr, numstr_len, col);
 	
 	/* end frame */
-	numstr_len = BLI_snprintf(numstr, sizeof(numstr), "%.1f", strip->end);
+	numstr_len = BLI_snprintf_rlen(numstr, sizeof(numstr), "%.1f", strip->end);
 	UI_view2d_text_cache_add(v2d, strip->end, ymaxc + ytol, numstr, numstr_len, col);
 }
 
@@ -619,7 +618,7 @@ void draw_nla_main_data(bAnimContext *ac, SpaceNla *snla, ARegion *ar)
 /* *********************************************** */
 /* Channel List */
 
-void draw_nla_channel_list(bContext *C, bAnimContext *ac, ARegion *ar)
+void draw_nla_channel_list(const bContext *C, bAnimContext *ac, ARegion *ar)
 {
 	ListBase anim_data = {NULL, NULL};
 	bAnimListElem *ale;
@@ -651,6 +650,8 @@ void draw_nla_channel_list(bContext *C, bAnimContext *ac, ARegion *ar)
 	
 	/* draw channels */
 	{   /* first pass: just the standard GL-drawing for backdrop + text */
+		size_t channel_index = 0;
+		
 		y = (float)(-NLACHANNEL_HEIGHT(snla));
 		
 		for (ale = anim_data.first; ale; ale = ale->next) {
@@ -662,15 +663,16 @@ void draw_nla_channel_list(bContext *C, bAnimContext *ac, ARegion *ar)
 			    IN_RANGE(ymaxc, v2d->cur.ymin, v2d->cur.ymax) )
 			{
 				/* draw all channels using standard channel-drawing API */
-				ANIM_channel_draw(ac, ale, yminc, ymaxc);
+				ANIM_channel_draw(ac, ale, yminc, ymaxc, channel_index);
 			}
 			
 			/* adjust y-position for next one */
 			y -= NLACHANNEL_STEP(snla);
+			channel_index++;
 		}
 	}
 	{   /* second pass: UI widgets */
-		uiBlock *block = uiBeginBlock(C, ar, __func__, UI_EMBOSS);
+		uiBlock *block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 		size_t channel_index = 0;
 		
 		y = (float)(-NLACHANNEL_HEIGHT(snla));
@@ -697,8 +699,8 @@ void draw_nla_channel_list(bContext *C, bAnimContext *ac, ARegion *ar)
 			channel_index++;
 		}
 		
-		uiEndBlock(C, block);
-		uiDrawBlock(C, block);
+		UI_block_end(C, block);
+		UI_block_draw(C, block);
 		
 		glDisable(GL_BLEND);
 	}

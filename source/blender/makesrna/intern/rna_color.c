@@ -46,6 +46,8 @@
 #include "DNA_material_types.h"
 #include "DNA_movieclip_types.h"
 #include "DNA_node_types.h"
+#include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_sequence_types.h"
 
 #include "MEM_guardedalloc.h"
@@ -345,6 +347,13 @@ static void rna_ColorRamp_update(Main *bmain, Scene *UNUSED(scene), PointerRNA *
 				WM_main_add_notifier(NC_LINESTYLE, linestyle);
 				break;
 			}
+			case ID_PA:
+			{
+				ParticleSettings *part = ptr->id.data;
+				
+				DAG_id_tag_update(&part->id, OB_RECALC_DATA | PSYS_RECALC_REDO);
+				WM_main_add_notifier(NC_OBJECT | ND_PARTICLE | NA_EDITED, part);
+			}
 			default:
 				break;
 		}
@@ -378,7 +387,7 @@ static void rna_ColorRampElement_remove(struct ColorBand *coba, ReportList *repo
 	RNA_POINTER_INVALIDATE(element_ptr);
 }
 
-void rna_CurveMap_remove_point(CurveMap *cuma, ReportList *reports, PointerRNA *point_ptr)
+static void rna_CurveMap_remove_point(CurveMap *cuma, ReportList *reports, PointerRNA *point_ptr)
 {
 	CurveMapPoint *point = point_ptr->data;
 	if (curvemap_remove_point(cuma, point) == false) {
@@ -438,6 +447,7 @@ static void rna_ColorManagedDisplaySettings_display_device_update(Main *UNUSED(b
 
 		IMB_colormanagement_validate_settings(&scene->display_settings, &scene->view_settings);
 
+		DAG_id_tag_update(id, 0);
 		WM_main_add_notifier(NC_SCENE | ND_SEQUENCER, NULL);
 	}
 }
@@ -610,9 +620,11 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain)
 			}
 
 			if (seq_found) {
-				if (seq->anim) {
-					IMB_free_anim(seq->anim);
-					seq->anim = NULL;
+				BKE_sequence_free_anim(seq);
+
+				if (seq->strip->proxy && seq->strip->proxy->anim) {
+					IMB_free_anim(seq->strip->proxy->anim);
+					seq->strip->proxy->anim = NULL;
 				}
 
 				BKE_sequence_invalidate_cache(scene, seq);
@@ -621,10 +633,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *UNUSED(bmain)
 			else {
 				SEQ_BEGIN(scene->ed, seq);
 				{
-					if (seq->anim) {
-						IMB_free_anim(seq->anim);
-						seq->anim = NULL;
-					}
+					BKE_sequence_free_anim(seq);
 				}
 				SEQ_END;
 
@@ -664,7 +673,7 @@ static void rna_ColorManagement_update(Main *UNUSED(bmain), Scene *UNUSED(scene)
 static float rna_CurveMap_evaluateF(struct CurveMap *cuma, ReportList *reports, float value)
 {
 	if (!cuma->table) {
-		BKE_reportf(reports, RPT_ERROR, "CurveMap table not initialized, call initialize() on CurveMapping owner of the CurveMap");
+		BKE_report(reports, RPT_ERROR, "CurveMap table not initialized, call initialize() on CurveMapping owner of the CurveMap");
 		return 0.0f;
 	}
 	return curvemap_evaluateF(cuma, value);
@@ -850,7 +859,12 @@ static void rna_def_color_ramp_element(BlenderRNA *brna)
 	RNA_def_property_array(prop, 4);
 	RNA_def_property_ui_text(prop, "Color", "Set color of selected color stop");
 	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
-	
+
+	prop = RNA_def_property(srna, "alpha", PROP_FLOAT, PROP_COLOR);
+	RNA_def_property_float_sdna(prop, NULL, "a");
+	RNA_def_property_ui_text(prop, "Alpha", "Set alpha of selected color stop");
+	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
+
 	prop = RNA_def_property(srna, "position", PROP_FLOAT, PROP_NONE);
 	RNA_def_property_float_sdna(prop, NULL, "pos");
 	RNA_def_property_range(prop, 0, 1);
@@ -895,14 +909,29 @@ static void rna_def_color_ramp(BlenderRNA *brna)
 	FunctionRNA *func;
 
 	static EnumPropertyItem prop_interpolation_items[] = {
-		{1, "EASE", 0, "Ease", ""},
-		{3, "CARDINAL", 0, "Cardinal", ""},
-		{0, "LINEAR", 0, "Linear", ""},
-		{2, "B_SPLINE", 0, "B-Spline", ""},
-		{4, "CONSTANT", 0, "Constant", ""},
+		{COLBAND_INTERP_EASE, "EASE", 0, "Ease", ""},
+		{COLBAND_INTERP_CARDINAL, "CARDINAL", 0, "Cardinal", ""},
+		{COLBAND_INTERP_LINEAR, "LINEAR", 0, "Linear", ""},
+		{COLBAND_INTERP_B_SPLINE, "B_SPLINE", 0, "B-Spline", ""},
+		{COLBAND_INTERP_CONSTANT, "CONSTANT", 0, "Constant", ""},
 		{0, NULL, 0, NULL, NULL}
 	};
 	
+	static EnumPropertyItem prop_mode_items[] = {
+		{COLBAND_BLEND_RGB, "RGB", 0, "RGB", ""},
+		{COLBAND_BLEND_HSV, "HSV", 0, "HSV", ""},
+		{COLBAND_BLEND_HSL, "HSL", 0, "HSL", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
+	static EnumPropertyItem prop_hsv_items[] = {
+		{COLBAND_HUE_NEAR, "NEAR", 0, "Near", ""},
+		{COLBAND_HUE_FAR, "FAR", 0, "Far", ""},
+		{COLBAND_HUE_CW, "CW", 0, "Clockwise", ""},
+		{COLBAND_HUE_CCW, "CCW", 0, "Counter-Clockwise", ""},
+		{0, NULL, 0, NULL, NULL}
+	};
+
 	srna = RNA_def_struct(brna, "ColorRamp", NULL);
 	RNA_def_struct_sdna(srna, "ColorBand");
 	RNA_def_struct_path_func(srna, "rna_ColorRamp_path");
@@ -919,6 +948,18 @@ static void rna_def_color_ramp(BlenderRNA *brna)
 	RNA_def_property_enum_sdna(prop, NULL, "ipotype");
 	RNA_def_property_enum_items(prop, prop_interpolation_items);
 	RNA_def_property_ui_text(prop, "Interpolation", "Set interpolation between color stops");
+	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
+
+	prop = RNA_def_property(srna, "hue_interpolation", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "ipotype_hue");
+	RNA_def_property_enum_items(prop, prop_hsv_items);
+	RNA_def_property_ui_text(prop, "Color Interpolation", "Set color interpolation");
+	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
+
+	prop = RNA_def_property(srna, "color_mode", PROP_ENUM, PROP_NONE);
+	RNA_def_property_enum_sdna(prop, NULL, "color_mode");
+	RNA_def_property_enum_items(prop, prop_mode_items);
+	RNA_def_property_ui_text(prop, "Color Mode", "Set color mode to use for interpolation");
 	RNA_def_property_update(prop, 0, "rna_ColorRamp_update");
 
 #if 0 /* use len(elements) */

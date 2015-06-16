@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 CCL_NAMESPACE_BEGIN
@@ -21,19 +21,25 @@ CCL_NAMESPACE_BEGIN
 ccl_device float2 camera_sample_aperture(KernelGlobals *kg, float u, float v)
 {
 	float blades = kernel_data.cam.blades;
+	float2 bokeh;
 
 	if(blades == 0.0f) {
 		/* sample disk */
-		return concentric_sample_disk(u, v);
+		bokeh = concentric_sample_disk(u, v);
 	}
 	else {
 		/* sample polygon */
 		float rotation = kernel_data.cam.bladesrotation;
-		return regular_polygon_sample(blades, rotation, u, v);
+		bokeh = regular_polygon_sample(blades, rotation, u, v);
 	}
+
+	/* anamorphic lens bokeh */
+	bokeh.x *= kernel_data.cam.inv_aperture_ratio;
+
+	return bokeh;
 }
 
-ccl_device void camera_sample_perspective(KernelGlobals *kg, float raster_x, float raster_y, float lens_u, float lens_v, Ray *ray)
+ccl_device void camera_sample_perspective(KernelGlobals *kg, float raster_x, float raster_y, float lens_u, float lens_v, ccl_addr_space Ray *ray)
 {
 	/* create ray form raster position */
 	Transform rastertocamera = kernel_data.cam.rastertocamera;
@@ -62,8 +68,18 @@ ccl_device void camera_sample_perspective(KernelGlobals *kg, float raster_x, flo
 	Transform cameratoworld = kernel_data.cam.cameratoworld;
 
 #ifdef __CAMERA_MOTION__
-	if(kernel_data.cam.have_motion)
-		transform_motion_interpolate(&cameratoworld, (const DecompMotionTransform*)&kernel_data.cam.motion, ray->time);
+	if(kernel_data.cam.have_motion) {
+#ifdef __KERNEL_OPENCL__
+		const MotionTransform tfm = kernel_data.cam.motion;
+		transform_motion_interpolate(&cameratoworld,
+		                             ((const DecompMotionTransform*)&tfm),
+		                             ray->time);
+#else
+		transform_motion_interpolate(&cameratoworld,
+		                             ((const DecompMotionTransform*)&kernel_data.cam.motion),
+		                             ray->time);
+#endif
+	}
 #endif
 
 	ray->P = transform_point(&cameratoworld, ray->P);
@@ -82,16 +98,17 @@ ccl_device void camera_sample_perspective(KernelGlobals *kg, float raster_x, flo
 
 #ifdef __CAMERA_CLIPPING__
 	/* clipping */
-	ray->P += kernel_data.cam.nearclip*ray->D;
-	ray->t = kernel_data.cam.cliplength;
+	float3 Pclip = normalize(Pcamera);
+	float z_inv = 1.0f / Pclip.z;
+	ray->P += kernel_data.cam.nearclip*ray->D * z_inv;
+	ray->t = kernel_data.cam.cliplength * z_inv;
 #else
 	ray->t = FLT_MAX;
 #endif
 }
 
 /* Orthographic Camera */
-
-ccl_device void camera_sample_orthographic(KernelGlobals *kg, float raster_x, float raster_y, float lens_u, float lens_v, Ray *ray)
+ccl_device void camera_sample_orthographic(KernelGlobals *kg, float raster_x, float raster_y, float lens_u, float lens_v, ccl_addr_space Ray *ray)
 {
 	/* create ray form raster position */
 	Transform rastertocamera = kernel_data.cam.rastertocamera;
@@ -121,8 +138,18 @@ ccl_device void camera_sample_orthographic(KernelGlobals *kg, float raster_x, fl
 	Transform cameratoworld = kernel_data.cam.cameratoworld;
 
 #ifdef __CAMERA_MOTION__
-	if(kernel_data.cam.have_motion)
-		transform_motion_interpolate(&cameratoworld, (const DecompMotionTransform*)&kernel_data.cam.motion, ray->time);
+	if(kernel_data.cam.have_motion) {
+#ifdef __KERNEL_OPENCL__
+		const MotionTransform tfm = kernel_data.cam.motion;
+		transform_motion_interpolate(&cameratoworld,
+		                             (const DecompMotionTransform*)&tfm,
+		                             ray->time);
+#else
+		transform_motion_interpolate(&cameratoworld,
+		                             (const DecompMotionTransform*)&kernel_data.cam.motion,
+		                             ray->time);
+#endif
+	}
 #endif
 
 	ray->P = transform_point(&cameratoworld, ray->P);
@@ -147,7 +174,7 @@ ccl_device void camera_sample_orthographic(KernelGlobals *kg, float raster_x, fl
 
 /* Panorama Camera */
 
-ccl_device void camera_sample_panorama(KernelGlobals *kg, float raster_x, float raster_y, float lens_u, float lens_v, Ray *ray)
+ccl_device void camera_sample_panorama(KernelGlobals *kg, float raster_x, float raster_y, float lens_u, float lens_v, ccl_addr_space Ray *ray)
 {
 	Transform rastertocamera = kernel_data.cam.rastertocamera;
 	float3 Pcamera = transform_perspective(&rastertocamera, make_float3(raster_x, raster_y, 0.0f));
@@ -183,7 +210,8 @@ ccl_device void camera_sample_panorama(KernelGlobals *kg, float raster_x, float 
 
 		/* calculate orthonormal coordinates perpendicular to D */
 		float3 U, V;
-		make_orthonormals(D, &U, &V);
+		U = normalize(make_float3(1.0f, 0.0f, 0.0f) -  D.x * D);
+		V = normalize(cross(D, U));
 
 		/* update ray for effect of lens */
 		ray->P = U * lensuv.x + V * lensuv.y;
@@ -194,8 +222,18 @@ ccl_device void camera_sample_panorama(KernelGlobals *kg, float raster_x, float 
 	Transform cameratoworld = kernel_data.cam.cameratoworld;
 
 #ifdef __CAMERA_MOTION__
-	if(kernel_data.cam.have_motion)
-		transform_motion_interpolate(&cameratoworld, (const DecompMotionTransform*)&kernel_data.cam.motion, ray->time);
+	if(kernel_data.cam.have_motion) {
+#ifdef __KERNEL_OPENCL__
+		const MotionTransform tfm = kernel_data.cam.motion;
+		transform_motion_interpolate(&cameratoworld,
+		                             (const DecompMotionTransform*)&tfm,
+		                             ray->time);
+#else
+		transform_motion_interpolate(&cameratoworld,
+		                             (const DecompMotionTransform*)&kernel_data.cam.motion,
+		                             ray->time);
+#endif
+	}
 #endif
 
 	ray->P = transform_point(&cameratoworld, ray->P);
@@ -217,7 +255,7 @@ ccl_device void camera_sample_panorama(KernelGlobals *kg, float raster_x, float 
 /* Common */
 
 ccl_device void camera_sample(KernelGlobals *kg, int x, int y, float filter_u, float filter_v,
-	float lens_u, float lens_v, float time, Ray *ray)
+	float lens_u, float lens_v, float time, ccl_addr_space Ray *ray)
 {
 	/* pixel filter */
 	int filter_table_offset = kernel_data.film.filter_table_offset;
@@ -280,7 +318,7 @@ ccl_device_inline float3 camera_world_to_ndc(KernelGlobals *kg, ShaderData *sd, 
 {
 	if(kernel_data.cam.type != CAMERA_PANORAMA) {
 		/* perspective / ortho */
-		if(sd->object == PRIM_NONE && kernel_data.cam.type == CAMERA_PERSPECTIVE)
+		if(ccl_fetch(sd, object) == PRIM_NONE && kernel_data.cam.type == CAMERA_PERSPECTIVE)
 			P += camera_position(kg);
 
 		Transform tfm = kernel_data.cam.worldtondc;
@@ -290,7 +328,7 @@ ccl_device_inline float3 camera_world_to_ndc(KernelGlobals *kg, ShaderData *sd, 
 		/* panorama */
 		Transform tfm = kernel_data.cam.worldtocamera;
 
-		if(sd->object != OBJECT_NONE)
+		if(ccl_fetch(sd, object) != OBJECT_NONE)
 			P = normalize(transform_point(&tfm, P));
 		else
 			P = normalize(transform_direction(&tfm, P));
@@ -302,4 +340,3 @@ ccl_device_inline float3 camera_world_to_ndc(KernelGlobals *kg, ShaderData *sd, 
 }
 
 CCL_NAMESPACE_END
-

@@ -42,9 +42,13 @@
 #include "BLI_path_util.h"
 #include "BLI_string.h"
 
+#include "BKE_appdir.h"
+
 #include "DNA_userdef_types.h" /* For user settings. */
 
+#ifdef WITH_PYTHON
 #include "BPY_extern.h"
+#endif
 
 #ifdef WITH_INTERNATIONAL
 
@@ -62,7 +66,7 @@ unsigned char *BLF_get_unifont(int *r_unifont_size)
 {
 #ifdef WITH_INTERNATIONAL
 	if (unifont_ttf == NULL) {
-		const char * const fontpath = BLI_get_folder(BLENDER_DATAFILES, "fonts");
+		const char * const fontpath = BKE_appdir_folder_id(BLENDER_DATAFILES, "fonts");
 		if (fontpath) {
 			char unifont_path[1024];
 
@@ -97,7 +101,7 @@ unsigned char *BLF_get_unifont_mono(int *r_unifont_size)
 {
 #ifdef WITH_INTERNATIONAL
 	if (unifont_mono_ttf == NULL) {
-		const char *fontpath = BLI_get_folder(BLENDER_DATAFILES, "fonts");
+		const char *fontpath = BKE_appdir_folder_id(BLENDER_DATAFILES, "fonts");
 		if (fontpath) {
 			char unifont_path[1024];
 
@@ -131,7 +135,7 @@ void BLF_free_unifont_mono(void)
 bool BLF_is_default_context(const char *msgctxt)
 {
 	/* We use the "short" test, a more complete one could be:
-	 * return (!msgctxt || !msgctxt[0] || !strcmp(msgctxt == BLF_I18NCONTEXT_DEFAULT_BPYRNA))
+	 * return (!msgctxt || !msgctxt[0] || STREQ(msgctxt, BLF_I18NCONTEXT_DEFAULT_BPYRNA))
 	 */
 	/* Note: trying without the void string check for now, it *should* not be necessary... */
 	return (!msgctxt || msgctxt[0] == BLF_I18NCONTEXT_DEFAULT_BPYRNA[0]);
@@ -150,15 +154,26 @@ const char *BLF_pgettext(const char *msgctxt, const char *msgid)
 		/* We assume if the returned string is the same (memory level) as the msgid, no translation was found,
 		 * and we can try py scripts' ones!
 		 */
+#ifdef WITH_PYTHON
 		if (ret == msgid) {
 			ret = BPY_app_translations_py_pgettext(msgctxt, msgid);
 		}
+#endif
 	}
 
 	return ret;
 #else
 	(void)msgctxt;
 	return msgid;
+#endif
+}
+
+bool BLF_translate(void)
+{
+#ifdef WITH_INTERNATIONAL
+	return (U.transopts & USER_DOTRANSLATE) != 0;
+#else
+	return false;
 #endif
 }
 
@@ -186,6 +201,21 @@ bool BLF_translate_new_dataname(void)
 	return (U.transopts & USER_DOTRANSLATE) && (U.transopts & USER_TR_NEWDATANAME);
 #else
 	return false;
+#endif
+}
+
+const char *BLF_translate_do(const char *msgctxt, const char *msgid)
+{
+#ifdef WITH_INTERNATIONAL
+	if (BLF_translate()) {
+		return BLF_pgettext(msgctxt, msgid);
+	}
+	else {
+		return msgid;
+	}
+#else
+	(void)msgctxt;
+	return msgid;
 #endif
 }
 

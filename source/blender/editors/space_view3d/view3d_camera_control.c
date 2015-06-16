@@ -31,9 +31,9 @@
  *
  * Typical view-control usage:
  *
- * - aquire a view-control (#ED_view3d_control_aquire).
+ * - acquire a view-control (#ED_view3d_control_acquire).
  * - modify ``rv3d->ofs``, ``rv3d->viewquat``.
- * - update the view data (#ED_view3d_control_aquire) - within a loop which draws the viewport.
+ * - update the view data (#ED_view3d_control_acquire) - within a loop which draws the viewport.
  * - finish and release the view-control (#ED_view3d_control_release),
  *   either keeping the current view or restoring the initial view.
  *
@@ -51,14 +51,12 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math.h"
-#include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_object.h"
 
 #include "BKE_depsgraph.h" /* for object updating */
 
-#include "ED_keyframing.h"
 #include "ED_screen.h"
 
 #include "view3d_intern.h"  /* own include */
@@ -138,7 +136,7 @@ Object *ED_view3d_cameracontrol_object_get(View3DCameraControl *vctrl)
  * Creates a #View3DControl handle and sets up
  * the view for first-person style navigation.
  */
-struct View3DCameraControl *ED_view3d_cameracontrol_aquire(
+struct View3DCameraControl *ED_view3d_cameracontrol_acquire(
         Scene *scene, View3D *v3d, RegionView3D *rv3d,
         const bool use_parent_root)
 {
@@ -266,6 +264,8 @@ void ED_view3d_cameracontrol_update(
 
 		BKE_object_apply_mat4(v3d->camera, view_mat, true, true);
 
+		DAG_id_tag_update(&v3d->camera->id, OB_RECALC_OB);
+
 		copy_v3_v3(v3d->camera->size, size_back);
 
 		id_key = &v3d->camera->id;
@@ -282,7 +282,7 @@ void ED_view3d_cameracontrol_update(
  * Release view control.
  *
  * \param restore  Sets the view state to the values that were set
- *                 before #ED_view3d_control_aquire was called.
+ *                 before #ED_view3d_control_acquire was called.
  */
 void ED_view3d_cameracontrol_release(
         View3DCameraControl *vctrl,

@@ -24,8 +24,6 @@
  * based on mouse cursor position, split of vertices along the closest edge.
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_object_types.h"
 
 #include "BLI_math.h"
@@ -33,9 +31,6 @@
 #include "BKE_context.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
-
-#include "RNA_define.h"
-#include "RNA_access.h"
 
 #include "WM_types.h"
 
@@ -63,6 +58,7 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator *UNUSED(op), const wmEve
 	const float mval_fl[2] = {UNPACK2(event->mval)};
 	float cent_sco[2];
 	int cent_tot;
+	bool changed = false;
 
 	/* mouse direction to view center */
 	float mval_dir[2];
@@ -176,7 +172,7 @@ static int edbm_rip_edge_invoke(bContext *C, wmOperator *UNUSED(op), const wmEve
 
 					ED_view3d_project_float_v2_m4(ar, v_other->co, v_other_sco, projectMat);
 
-					/* avoid comparing with view-axis aligned edges (less then a pixel) */
+					/* avoid comparing with view-axis aligned edges (less than a pixel) */
 					if (len_squared_v2v2(v_sco, v_other_sco) > 1.0f) {
 						float v_dir[2];
 
@@ -211,17 +207,24 @@ found_edge:
 					BM_edge_select_set(bm, e_best, true);
 				}
 				BM_elem_flag_enable(v_new, BM_ELEM_TAG);  /* prevent further splitting */
+
+				changed = true;
 			}
 		}
 	}
 
-	BM_select_history_clear(bm);
+	if (changed) {
+		BM_select_history_clear(bm);
 
-	BM_mesh_select_mode_flush(bm);
+		BM_mesh_select_mode_flush(bm);
 
-	EDBM_update_generic(em, true, true);
+		EDBM_update_generic(em, true, true);
 
-	return OPERATOR_FINISHED;
+		return OPERATOR_FINISHED;
+	}
+	else {
+		return OPERATOR_CANCELLED;
+	}
 }
 
 

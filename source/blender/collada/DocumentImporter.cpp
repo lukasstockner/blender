@@ -104,7 +104,7 @@ DocumentImporter::DocumentImporter(bContext *C, const ImportSettings *import_set
 	import_settings(import_settings),
 	mImportStage(General),
 	mContext(C),
-	armature_importer(&unit_converter, &mesh_importer, CTX_data_scene(C)),
+	armature_importer(&unit_converter, &mesh_importer, CTX_data_scene(C), import_settings),
 	mesh_importer(&unit_converter, &armature_importer, CTX_data_scene(C)),
 	anim_importer(&unit_converter, &armature_importer, CTX_data_scene(C))
 {
@@ -156,9 +156,6 @@ bool DocumentImporter::import()
 	
 	
 	delete ehandler;
-
-	//XXX No longer needed (geometries are now created as bmesh)
-	//mesh_importer.bmeshConversion();
 
 	return true;
 }
@@ -483,6 +480,17 @@ void DocumentImporter::create_constraints(ExtraTags *et, Object *ob)
 	}
 }
 
+void DocumentImporter::report_unknown_reference(const COLLADAFW::Node &node, const std::string object_type)
+{
+	std::string id = node.getOriginalId();
+	std::string name = node.getName();
+	fprintf(stderr,
+		"error: node id=\"%s\", name=\"%s\" refers to an undefined %s.\n",
+		id.c_str(),
+		name.c_str(),
+		object_type.c_str());
+}
+
 std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLADAFW::Node *parent_node, Scene *sce, Object *par, bool is_library_node)
 {
 	Object *ob = NULL;
@@ -538,10 +546,7 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 			ob = mesh_importer.create_mesh_object(node, geom[geom_done], false, uid_material_map,
 			                                      material_texture_mapping_map);
 			if (ob == NULL) {
-				fprintf(stderr,
-						"<node id=\"%s\", name=\"%s\" >...contains a reference to an unknown instance_mesh.\n",
-						id.c_str(),
-						name.c_str());
+				report_unknown_reference(*node, "instance_mesh");
 			}
 			else {
 				objects_done->push_back(ob);
@@ -554,9 +559,7 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 		while (camera_done < camera.getCount()) {
 			ob = create_camera_object(camera[camera_done], sce);
 			if (ob == NULL) {
-				std::string id   = node->getOriginalId();
-				std::string name = node->getName();
-				fprintf(stderr, "<node id=\"%s\", name=\"%s\" >...contains a reference to an unknown instance_camera.\n", id.c_str(), name.c_str());
+				report_unknown_reference(*node, "instance_camera");
 			}
 			else {
 				objects_done->push_back(ob);
@@ -568,18 +571,28 @@ std::vector<Object *> *DocumentImporter::write_node(COLLADAFW::Node *node, COLLA
 		}
 		while (lamp_done < lamp.getCount()) {
 			ob = create_lamp_object(lamp[lamp_done], sce);
-			objects_done->push_back(ob);
-			if (parent_node == NULL) {
-				root_objects->push_back(ob);
+			if (ob == NULL) {
+				report_unknown_reference(*node, "instance_lamp");
+			}
+			else {
+				objects_done->push_back(ob);
+				if (parent_node == NULL) {
+					root_objects->push_back(ob);
+				}
 			}
 			++lamp_done;
 		}
 		while (controller_done < controller.getCount()) {
 			COLLADAFW::InstanceGeometry *geom = (COLLADAFW::InstanceGeometry *)controller[controller_done];
 			ob = mesh_importer.create_mesh_object(node, geom, true, uid_material_map, material_texture_mapping_map);
-			objects_done->push_back(ob);
-			if (parent_node == NULL) {
-				root_objects->push_back(ob);
+			if (ob == NULL) {
+				report_unknown_reference(*node, "instance_controller");
+			}
+			else {
+				objects_done->push_back(ob);
+				if (parent_node == NULL) {
+					root_objects->push_back(ob);
+				}
 			}
 			++controller_done;
 		}
@@ -758,9 +771,9 @@ MTex *DocumentImporter::create_texture(COLLADAFW::EffectCommon *ef, COLLADAFW::T
 		return NULL;
 	}
 	
-	ma->mtex[i] = add_mtex();
+	ma->mtex[i] = BKE_texture_mtex_add();
 	ma->mtex[i]->texco = TEXCO_UV;
-	ma->mtex[i]->tex = add_texture(G.main, "Texture");
+	ma->mtex[i]->tex = BKE_texture_add(G.main, "Texture");
 	ma->mtex[i]->tex->type = TEX_IMAGE;
 	ma->mtex[i]->tex->ima = uid_image_map[ima_uid];
 	
@@ -805,10 +818,14 @@ void DocumentImporter::write_profile_COMMON(COLLADAFW::EffectCommon *ef, Materia
 	// DIFFUSE
 	// color
 	if (ef->getDiffuse().isColor()) {
+		/* too high intensity can create artefacts (fireflies)
+		   So here we take care that intensity is set to 0.8 wherever possible
+		*/
 		col = ef->getDiffuse().getColor();
-		ma->r = col.getRed();
-		ma->g = col.getGreen();
-		ma->b = col.getBlue();
+		ma->ref = max_ffff(col.getRed(), col.getGreen(), col.getBlue(), 0.8);
+		ma->r = col.getRed()   / ma->ref;
+		ma->g = col.getGreen() / ma->ref;
+		ma->b = col.getBlue()  / ma->ref;
 	}
 	// texture
 	else if (ef->getDiffuse().isTexture()) {

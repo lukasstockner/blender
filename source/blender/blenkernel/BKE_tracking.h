@@ -41,7 +41,6 @@ struct MovieTrackingMarker;
 struct MovieTrackingPlaneTrack;
 struct MovieTrackingPlaneMarker;
 struct MovieTracking;
-struct MovieTrackingContext;
 struct MovieTrackingObject;
 struct MovieClipUser;
 struct MovieDistortion;
@@ -91,7 +90,7 @@ struct MovieTrackingTrack *BKE_tracking_track_get_named(struct MovieTracking *tr
                                                         struct MovieTrackingObject *object,
                                                         const char *name);
 struct MovieTrackingTrack *BKE_tracking_track_get_indexed(struct MovieTracking *tracking, int tracknr,
-                                                          struct ListBase **tracksbase_r);
+                                                          struct ListBase **r_tracksbase);
 
 struct MovieTrackingTrack *BKE_tracking_track_get_active(struct MovieTracking *tracking);
 
@@ -137,6 +136,21 @@ struct MovieTrackingPlaneTrack *BKE_tracking_plane_track_get_active(struct Movie
 
 void BKE_tracking_plane_tracks_deselect_all(struct ListBase *plane_tracks_base);
 
+bool BKE_tracking_plane_track_has_point_track(struct MovieTrackingPlaneTrack *plane_track,
+                                              struct MovieTrackingTrack *track);
+bool BKE_tracking_plane_track_remove_point_track(struct MovieTrackingPlaneTrack *plane_track,
+                                                 struct MovieTrackingTrack *track);
+
+void BKE_tracking_plane_tracks_remove_point_track(struct MovieTracking *tracking,
+                                                  struct MovieTrackingTrack *track);
+
+void BKE_tracking_plane_track_replace_point_track(struct MovieTrackingPlaneTrack *plane_track,
+                                                  struct MovieTrackingTrack *old_track,
+                                                  struct MovieTrackingTrack *new_track);
+void BKE_tracking_plane_tracks_replace_point_track(struct MovieTracking *tracking,
+                                                   struct MovieTrackingTrack *old_track,
+                                                   struct MovieTrackingTrack *new_track);
+
 /* **** Plane Marker **** */
 struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_insert(struct MovieTrackingPlaneTrack *plane_track,
                                                                   struct MovieTrackingPlaneMarker *plane_marker);
@@ -145,6 +159,9 @@ void BKE_tracking_plane_marker_delete(struct MovieTrackingPlaneTrack *plane_trac
 struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_get(struct MovieTrackingPlaneTrack *plane_track, int framenr);
 struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_get_exact(struct MovieTrackingPlaneTrack *plane_track, int framenr);
 struct MovieTrackingPlaneMarker *BKE_tracking_plane_marker_ensure(struct MovieTrackingPlaneTrack *plane_track, int framenr);
+void BKE_tracking_plane_marker_get_subframe_corners(struct MovieTrackingPlaneTrack *plane_track,
+                                                    float framenr,
+                                                    float corners[4][2]);
 
 /* **** Object **** */
 struct MovieTrackingObject *BKE_tracking_object_add(struct MovieTracking *tracking, const char *name);
@@ -193,7 +210,8 @@ struct ImBuf *BKE_tracking_undistort_frame(struct MovieTracking *tracking, struc
 struct ImBuf *BKE_tracking_distort_frame(struct MovieTracking *tracking, struct ImBuf *ibuf,
                                          int calibration_width, int calibration_height, float overscan);
 
-void BKE_tracking_max_undistortion_delta_across_bound(struct MovieTracking *tracking, struct rcti *rect, float delta[2]);
+void BKE_tracking_max_distortion_delta_across_bound(struct MovieTracking *tracking, struct rcti *rect,
+                                                    bool undistort, float delta[2]);
 
 /* **** Image sampling **** */
 struct ImBuf *BKE_tracking_sample_pattern(int frame_width, int frame_height,
@@ -209,15 +227,17 @@ void BKE_tracking_disable_channels(struct ImBuf *ibuf, bool disable_red, bool di
                                    bool disable_blue, bool grayscale);
 
 /* **** 2D tracking **** */
-struct MovieTrackingContext *BKE_tracking_context_new(struct MovieClip *clip, struct MovieClipUser *user,
-                                                      const bool backwards, const bool sequence);
-void BKE_tracking_context_free(struct MovieTrackingContext *context);
-void BKE_tracking_context_sync(struct MovieTrackingContext *context);
-void BKE_tracking_context_sync_user(const struct MovieTrackingContext *context, struct MovieClipUser *user);
-bool BKE_tracking_context_step(struct MovieTrackingContext *context);
-void BKE_tracking_context_finish(struct MovieTrackingContext *context);
-
 void BKE_tracking_refine_marker(struct MovieClip *clip, struct MovieTrackingTrack *track, struct MovieTrackingMarker *marker, bool backwards);
+
+/* *** 2D auto track  *** */
+
+struct AutoTrackContext *BKE_autotrack_context_new(struct MovieClip *clip, struct MovieClipUser *user,
+                                                   const bool backwards, const bool sequence);
+bool BKE_autotrack_context_step(struct AutoTrackContext *context);
+void BKE_autotrack_context_sync(struct AutoTrackContext *context);
+void BKE_autotrack_context_sync_user(struct AutoTrackContext *context, struct MovieClipUser *user);
+void BKE_autotrack_context_finish(struct AutoTrackContext *context);
+void BKE_autotrack_context_free(struct AutoTrackContext *context);
 
 /* **** Plane tracking **** */
 

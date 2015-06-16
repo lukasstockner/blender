@@ -20,12 +20,13 @@
 
 import bpy
 from bpy.types import Operator
-from bpy.props import (StringProperty,
-                       BoolProperty,
-                       IntProperty,
-                       FloatProperty,
-                       EnumProperty,
-                       )
+from bpy.props import (
+        StringProperty,
+        BoolProperty,
+        IntProperty,
+        FloatProperty,
+        EnumProperty,
+        )
 
 from bpy.app.translations import pgettext_tip as tip_
 
@@ -527,7 +528,76 @@ class WM_OT_context_menu_enum(Operator):
 
         context.window_manager.popup_menu(draw_func=draw_cb, title=prop.name, icon=prop.icon)
 
-        return {'PASS_THROUGH'}
+        return {'FINISHED'}
+
+
+class WM_OT_context_pie_enum(Operator):
+    bl_idname = "wm.context_pie_enum"
+    bl_label = "Context Enum Pie"
+    bl_options = {'UNDO', 'INTERNAL'}
+    data_path = rna_path_prop
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+        data_path = self.data_path
+        value = context_path_validate(context, data_path)
+
+        if value is Ellipsis:
+            return {'PASS_THROUGH'}
+
+        base_path, prop_string = data_path.rsplit(".", 1)
+        value_base = context_path_validate(context, base_path)
+        prop = value_base.bl_rna.properties[prop_string]
+
+        def draw_cb(self, context):
+            layout = self.layout
+            layout.prop(value_base, prop_string, expand=True)
+
+        wm.popup_menu_pie(draw_func=draw_cb, title=prop.name, icon=prop.icon, event=event)
+
+        return {'FINISHED'}
+
+
+class WM_OT_operator_pie_enum(Operator):
+    bl_idname = "wm.operator_pie_enum"
+    bl_label = "Operator Enum Pie"
+    bl_options = {'UNDO', 'INTERNAL'}
+    data_path = StringProperty(
+            name="Operator",
+            description="Operator name (in python as string)",
+            maxlen=1024,
+            )
+    prop_string = StringProperty(
+            name="Property",
+            description="Property name (as a string)",
+            maxlen=1024,
+            )
+
+    def invoke(self, context, event):
+        wm = context.window_manager
+
+        data_path = self.data_path
+        prop_string = self.prop_string
+
+        # same as eval("bpy.ops." + data_path)
+        op_mod_str, ob_id_str = data_path.split(".", 1)
+        op = getattr(getattr(bpy.ops, op_mod_str), ob_id_str)
+        del op_mod_str, ob_id_str
+
+        try:
+            op_rna = op.get_rna()
+        except KeyError:
+            self.report({'ERROR'}, "Operator not found: bpy.ops.%s" % data_path)
+            return {'CANCELLED'}
+
+        def draw_cb(self, context):
+            layout = self.layout
+            pie = layout.menu_pie()
+            pie.operator_enum(data_path, prop_string)
+
+        wm.popup_menu_pie(draw_func=draw_cb, title=op_rna.bl_rna.name, event=event)
+
+        return {'FINISHED'}
 
 
 class WM_OT_context_set_id(Operator):
@@ -649,7 +719,7 @@ class WM_OT_context_modal_mouse(Operator):
     """Adjust arbitrary values with mouse input"""
     bl_idname = "wm.context_modal_mouse"
     bl_label = "Context Modal Mouse"
-    bl_options = {'GRAB_POINTER', 'BLOCKING', 'UNDO', 'INTERNAL'}
+    bl_options = {'GRAB_CURSOR', 'BLOCKING', 'UNDO', 'INTERNAL'}
 
     data_path_iter = data_path_iter
     data_path_item = data_path_item
@@ -904,10 +974,12 @@ class WM_OT_doc_view_manual(Operator):
         url = self._lookup_rna_url(rna_id)
 
         if url is None:
-            self.report({'WARNING'}, "No reference available %r, "
-                                     "Update info in 'rna_wiki_reference.py' "
-                                     " or callback to bpy.utils.manual_map()" %
-                                     self.doc_id)
+            self.report(
+                    {'WARNING'},
+                    "No reference available %r, "
+                    "Update info in 'rna_manual_reference.py' "
+                    "or callback to bpy.utils.manual_map()" %
+                    self.doc_id)
             return {'CANCELLED'}
         else:
             import webbrowser
@@ -1033,13 +1105,13 @@ rna_property = StringProperty(
 
 rna_min = FloatProperty(
         name="Min",
-        default=0.0,
+        default=-10000.0,
         precision=3,
         )
 
 rna_max = FloatProperty(
         name="Max",
-        default=1.0,
+        default=10000.0,
         precision=3,
         )
 
@@ -1226,9 +1298,13 @@ class WM_OT_properties_remove(Operator):
     property = rna_property
 
     def execute(self, context):
+        from rna_prop_ui import rna_idprop_ui_prop_clear
         data_path = self.data_path
         item = eval("context.%s" % data_path)
-        del item[self.property]
+        prop = self.property
+        del item[prop]
+        rna_idprop_ui_prop_clear(item, prop)
+
         return {'FINISHED'}
 
 
@@ -1668,7 +1744,7 @@ class WM_OT_addon_enable(Operator):
             err_str = traceback.format_exc()
             print(err_str)
 
-        mod = addon_utils.enable(self.module, handle_error=err_cb)
+        mod = addon_utils.enable(self.module, default_set=True, handle_error=err_cb)
 
         if mod:
             info = addon_utils.module_bl_info(mod)
@@ -1712,7 +1788,7 @@ class WM_OT_addon_disable(Operator):
             err_str = traceback.format_exc()
             print(err_str)
 
-        addon_utils.disable(self.module, handle_error=err_cb)
+        addon_utils.disable(self.module, default_set=True, handle_error=err_cb)
 
         if err_str:
             self.report({'ERROR'}, err_str)
@@ -1865,7 +1941,6 @@ class WM_OT_addon_install(Operator):
             try:
                 os.makedirs(path_addons, exist_ok=True)
             except:
-                import traceback
                 traceback.print_exc()
 
         # Check if we are installing from a target path,
@@ -1883,7 +1958,7 @@ class WM_OT_addon_install(Operator):
 
         addons_old = {mod.__name__ for mod in addon_utils.modules()}
 
-        #check to see if the file is in compressed format (.zip)
+        # check to see if the file is in compressed format (.zip)
         if zipfile.is_zipfile(pyfile):
             try:
                 file_to_extract = zipfile.ZipFile(pyfile, 'r')
@@ -1916,10 +1991,9 @@ class WM_OT_addon_install(Operator):
                 self.report({'WARNING'}, "File already installed to %r\n" % path_dest)
                 return {'CANCELLED'}
 
-            #if not compressed file just copy into the addon path
+            # if not compressed file just copy into the addon path
             try:
                 shutil.copyfile(pyfile, path_dest)
-
             except:
                 traceback.print_exc()
                 return {'CANCELLED'}
@@ -1930,7 +2004,7 @@ class WM_OT_addon_install(Operator):
         # disable any addons we may have enabled previously and removed.
         # this is unlikely but do just in case. bug [#23978]
         for new_addon in addons_new:
-            addon_utils.disable(new_addon)
+            addon_utils.disable(new_addon, default_set=True)
 
         # possible the zip contains multiple addons, we could disallow this
         # but for now just use the first
@@ -1994,7 +2068,7 @@ class WM_OT_addon_remove(Operator):
             return {'CANCELLED'}
 
         # in case its enabled
-        addon_utils.disable(self.module)
+        addon_utils.disable(self.module, default_set=True)
 
         import shutil
         if isdir:
@@ -2034,15 +2108,9 @@ class WM_OT_addon_expand(Operator):
 
         module_name = self.module
 
-        # unlikely to fail, module should have already been imported
-        try:
-            # mod = __import__(module_name)
-            mod = addon_utils.addons_fake_modules.get(module_name)
-        except:
-            import traceback
-            traceback.print_exc()
-            return {'CANCELLED'}
+        mod = addon_utils.addons_fake_modules.get(module_name)
+        if mod is not None:
+            info = addon_utils.module_bl_info(mod)
+            info["show_expanded"] = not info["show_expanded"]
 
-        info = addon_utils.module_bl_info(mod)
-        info["show_expanded"] = not info["show_expanded"]
         return {'FINISHED'}

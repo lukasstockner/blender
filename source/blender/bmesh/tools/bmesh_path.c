@@ -95,7 +95,7 @@ static void verttag_add_adjacent(Heap *heap, BMVert *v_a, BMVert **verts_prev, f
 
 LinkNode *BM_mesh_calc_path_vert(
         BMesh *bm, BMVert *v_src, BMVert *v_dst, const bool use_length,
-        void *user_data, bool (*test_fn)(BMVert *, void *user_data))
+        bool (*test_fn)(BMVert *, void *user_data), void *user_data)
 {
 	LinkNode *path = NULL;
 	/* BM_ELEM_TAG flag is used to store visited edges */
@@ -126,7 +126,7 @@ LinkNode *BM_mesh_calc_path_vert(
 	verts_prev = MEM_callocN(sizeof(*verts_prev) * totvert, __func__);
 	cost = MEM_mallocN(sizeof(*cost) * totvert, __func__);
 
-	fill_vn_fl(cost, totvert, 1e20f);
+	copy_vn_fl(cost, totvert, 1e20f);
 
 	/*
 	 * Arrays are now filled as follows:
@@ -221,7 +221,7 @@ static void edgetag_add_adjacent(Heap *heap, BMEdge *e1, BMEdge **edges_prev, fl
 
 LinkNode *BM_mesh_calc_path_edge(
         BMesh *bm, BMEdge *e_src, BMEdge *e_dst, const bool use_length,
-        void *user_data, bool (*filter_fn)(BMEdge *, void *user_data))
+        bool (*filter_fn)(BMEdge *, void *user_data), void *user_data)
 {
 	LinkNode *path = NULL;
 	/* BM_ELEM_TAG flag is used to store visited edges */
@@ -252,7 +252,7 @@ LinkNode *BM_mesh_calc_path_edge(
 	edges_prev = MEM_callocN(sizeof(*edges_prev) * totedge, "SeamPathPrevious");
 	cost = MEM_mallocN(sizeof(*cost) * totedge, "SeamPathCost");
 
-	fill_vn_fl(cost, totedge, 1e20f);
+	copy_vn_fl(cost, totedge, 1e20f);
 
 	/*
 	 * Arrays are now filled as follows:
@@ -347,7 +347,7 @@ static void facetag_add_adjacent(Heap *heap, BMFace *f_a, BMFace **faces_prev, f
 
 LinkNode *BM_mesh_calc_path_face(
         BMesh *bm, BMFace *f_src, BMFace *f_dst, const bool use_length,
-        void *user_data, bool (*test_fn)(BMFace *, void *user_data))
+        bool (*test_fn)(BMFace *, void *user_data), void *user_data)
 {
 	LinkNode *path = NULL;
 	/* BM_ELEM_TAG flag is used to store visited edges */
@@ -378,7 +378,7 @@ LinkNode *BM_mesh_calc_path_face(
 	faces_prev = MEM_callocN(sizeof(*faces_prev) * totface, __func__);
 	cost = MEM_mallocN(sizeof(*cost) * totface, __func__);
 
-	fill_vn_fl(cost, totface, 1e20f);
+	copy_vn_fl(cost, totface, 1e20f);
 
 	/*
 	 * Arrays are now filled as follows:

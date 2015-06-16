@@ -40,12 +40,12 @@ set(INC
 	../../gameengine/BlenderRoutines
 	../../../intern/ghost
 	../../../intern/guardedalloc
+	../../../intern/glew-mx
 	../../../intern/memutil
 )
 
 set(INC_SYS
 	${ZLIB_INCLUDE_DIRS}
-	${OPENGL_INCLUDE_DIR}
 	${GLEW_INCLUDE_PATH}
 )
 
@@ -64,6 +64,7 @@ set(SRC
 	intern/wm_operators.c
 	intern/wm_subwindow.c
 	intern/wm_window.c
+	intern/wm_stereo.c
 
 	WM_api.h
 	WM_keymap.h
@@ -78,7 +79,14 @@ set(SRC
 	wm_window.h
 )
 
-add_definitions(-DGLEW_STATIC)
+if(WITH_AUDASPACE)
+	list(APPEND INC
+		../../../intern/audaspace/intern
+	)
+	add_definitions(-DWITH_AUDASPACE)
+endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
@@ -107,6 +115,8 @@ endif()
 
 if(WITH_HEADLESS)
 	add_definitions(-DWITH_HEADLESS)
+elseif(WITH_X11)
+	add_definitions(-DWITH_X11)
 endif()
 
 if(WITH_PYTHON)
@@ -135,10 +145,10 @@ if(WITH_OPENSUBDIV)
 	)
 endif()
 
-if(WIN322)
-	list(APPEND INC
-		../../../intern/utfconv
-	)
+if(WIN32)
+	if(WITH_INPUT_IME)
+		add_definitions(-DWITH_INPUT_IME)
+	endif()
 endif()
 
 if(WITH_COMPOSITOR)

@@ -79,9 +79,11 @@ bool BLF_is_default_context(const char *msgctxt);
 const char *BLF_pgettext(const char *msgctxt, const char *msgid);
 
 /* translation */
+bool BLF_translate(void);
 bool BLF_translate_iface(void);
 bool BLF_translate_tooltips(void);
 bool BLF_translate_new_dataname(void);
+const char *BLF_translate_do(const char *msgctxt, const char *msgid);
 const char *BLF_translate_do_iface(const char *msgctxt, const char *msgid);
 const char *BLF_translate_do_tooltip(const char *msgctxt, const char *msgid);
 const char *BLF_translate_do_new_dataname(const char *msgctxt, const char *msgid);
@@ -163,6 +165,8 @@ const char *BLF_translate_do_new_dataname(const char *msgctxt, const char *msgid
 #define BLF_I18NCONTEXT_ID_MESH                 "Mesh"
 #define BLF_I18NCONTEXT_ID_NODETREE             "NodeTree"
 #define BLF_I18NCONTEXT_ID_OBJECT               "Object"
+#define BLF_I18NCONTEXT_ID_PAINTCURVE           "PaintCurve"
+#define BLF_I18NCONTEXT_ID_PALETTE              "Palette"
 #define BLF_I18NCONTEXT_ID_PARTICLESETTINGS     "ParticleSettings"
 #define BLF_I18NCONTEXT_ID_SCENE                "Scene"
 #define BLF_I18NCONTEXT_ID_SCREEN               "Screen"
@@ -178,8 +182,7 @@ const char *BLF_translate_do_new_dataname(const char *msgctxt, const char *msgid
 #define BLF_I18NCONTEXT_ID_MASK                 "Mask"
 
 /* Helper for bpy.app.i18n object... */
-typedef struct
-{
+typedef struct {
 	const char *c_id;
 	const char *py_id;
 	const char *value;
@@ -207,11 +210,15 @@ typedef struct
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_LAMP, "id_lamp"),                                                         \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_LIBRARY, "id_library"),                                                   \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_LATTICE, "id_lattice"),                                                   \
+	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_MASK, "id_mask"),                                                         \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_MATERIAL, "id_material"),                                                 \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_METABALL, "id_metaball"),                                                 \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_MESH, "id_mesh"),                                                         \
+	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_MOVIECLIP, "id_movieclip"),                                               \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_NODETREE, "id_nodetree"),                                                 \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_OBJECT, "id_object"),                                                     \
+	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_PAINTCURVE, "id_paintcurve"),                                             \
+	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_PALETTE, "id_palette"),                                                   \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_PARTICLESETTINGS, "id_particlesettings"),                                 \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_SCENE, "id_scene"),                                                       \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_SCREEN, "id_screen"),                                                     \
@@ -223,8 +230,6 @@ typedef struct
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_VFONT, "id_vfont"),                                                       \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_WORLD, "id_world"),                                                       \
 	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_WINDOWMANAGER, "id_windowmanager"),                                       \
-	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_MOVIECLIP, "id_movieclip"),                                               \
-	BLF_I18NCONTEXTS_ITEM(BLF_I18NCONTEXT_ID_MASK, "id_mask"),                                                         \
 	{NULL, NULL, NULL}                                                                                                 \
 }
 

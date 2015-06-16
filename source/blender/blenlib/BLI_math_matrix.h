@@ -38,12 +38,15 @@ extern "C" {
 
 /********************************* Init **************************************/
 
+void zero_m2(float R[2][2]);
 void zero_m3(float R[3][3]);
 void zero_m4(float R[4][4]);
 
+void unit_m2(float R[2][2]);
 void unit_m3(float R[3][3]);
 void unit_m4(float R[4][4]);
 
+void copy_m2_m2(float R[2][2], float A[2][2]);
 void copy_m3_m3(float R[3][3], float A[3][3]);
 void copy_m4_m4(float R[4][4], float A[4][4]);
 void copy_m3_m4(float R[3][3], float A[4][4]);
@@ -103,9 +106,11 @@ void mul_v2_m4v3(float r[2], float M[4][4], const float v[3]);
 void mul_v2_m2v2(float r[2], float M[2][2], const float v[2]);
 void mul_m2v2(float M[2][2], float v[2]);
 void mul_mat3_m4_v3(float M[4][4], float r[3]);
+void mul_v3_mat3_m4v3(float r[3], float M[4][4], const float v[3]);
 void mul_m4_v4(float M[4][4], float r[4]);
 void mul_v4_m4v4(float r[4], float M[4][4], const float v[4]);
 void mul_project_m4_v3(float M[4][4], float vec[3]);
+void mul_v3_project_m4_v3(float r[3], float mat[4][4], const float vec[3]);
 void mul_v2_project_m4_v3(float r[2], float M[4][4], const float vec[3]);
 
 void mul_m3_v2(float m[3][3], float r[2]);
@@ -121,7 +126,8 @@ void mul_m3_fl(float R[3][3], float f);
 void mul_m4_fl(float R[4][4], float f);
 void mul_mat3_m4_fl(float R[4][4], float f);
 
-void negate_m3(float R[4][4]);
+void negate_m3(float R[3][3]);
+void negate_mat3_m4(float R[4][4]);
 void negate_m4(float R[4][4]);
 
 bool invert_m3_ex(float m[3][3], const float epsilon);
@@ -140,7 +146,10 @@ void mul_v4d_m4v4d(double r[4], float M[4][4], double v[4]);
 /****************************** Linear Algebra *******************************/
 
 void transpose_m3(float R[3][3]);
+void transpose_m3_m3(float R[3][3], float A[3][3]);
+void transpose_m3_m4(float R[3][3], float A[4][4]);
 void transpose_m4(float R[4][4]);
+void transpose_m4_m4(float R[4][4], float A[4][4]);
 
 int compare_m4m4(float mat1[4][4], float mat2[4][4], float limit);
 

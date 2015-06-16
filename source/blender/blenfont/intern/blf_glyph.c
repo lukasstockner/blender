@@ -153,7 +153,7 @@ static void blf_glyph_cache_texture(FontBLF *font, GlyphCacheBLF *gc)
 	/* move the index. */
 	gc->cur_tex++;
 
-	if (gc->cur_tex >= gc->ntex) {
+	if (UNLIKELY(gc->cur_tex >= gc->ntex)) {
 		gc->ntex *= 2;
 		gc->textures = (GLuint *)MEM_reallocN((void *)gc->textures, sizeof(GLuint) * gc->ntex);
 	}
@@ -199,7 +199,7 @@ GlyphBLF *blf_glyph_add(FontBLF *font, unsigned int index, unsigned int c)
 	GlyphBLF *g;
 	FT_Error err;
 	FT_Bitmap bitmap, tempbitmap;
-	int sharp = (U.text_render & USER_TEXT_DISABLE_AA);
+	const bool is_sharp = (U.text_render & USER_TEXT_DISABLE_AA) != 0;
 	int flags = FT_LOAD_TARGET_NORMAL | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP;
 	FT_BBox bbox;
 	unsigned int key;
@@ -224,7 +224,7 @@ GlyphBLF *blf_glyph_add(FontBLF *font, unsigned int index, unsigned int c)
 	if (font->flags & BLF_HINTING)
 		flags &= ~FT_LOAD_NO_HINTING;
 	
-	if (sharp)
+	if (is_sharp)
 		err = FT_Load_Glyph(font->face, (FT_UInt)index, FT_LOAD_TARGET_MONO);
 	else
 		err = FT_Load_Glyph(font->face, (FT_UInt)index, flags);  
@@ -237,7 +237,7 @@ GlyphBLF *blf_glyph_add(FontBLF *font, unsigned int index, unsigned int c)
 	/* get the glyph. */
 	slot = font->face->glyph;
 
-	if (sharp) {
+	if (is_sharp) {
 		err = FT_Render_Glyph(slot, FT_RENDER_MODE_MONO);
 
 		/* Convert result from 1 bit per pixel to 8 bit per pixel */
@@ -262,11 +262,11 @@ GlyphBLF *blf_glyph_add(FontBLF *font, unsigned int index, unsigned int c)
 	g->xoff = -1;
 	g->yoff = -1;
 	bitmap = slot->bitmap;
-	g->width = bitmap.width;
-	g->height = bitmap.rows;
+	g->width = (int)bitmap.width;
+	g->height = (int)bitmap.rows;
 
 	if (g->width && g->height) {
-		if (sharp) {
+		if (is_sharp) {
 			/* Font buffer uses only 0 or 1 values, Blender expects full 0..255 range */
 			int i;
 			for (i = 0; i < (g->width * g->height); i++) {
@@ -379,7 +379,7 @@ static void blf_texture3_draw(const float shadow_col[4], float uv[2][2], float x
 
 static void blf_glyph_calc_rect(rctf *rect, GlyphBLF *g, float x, float y)
 {
-	rect->xmin = (float)floor(x + g->pos_x);
+	rect->xmin = floorf(x + g->pos_x);
 	rect->xmax = rect->xmin + (float)g->width;
 	rect->ymin = y + g->pos_y;
 	rect->ymax = y + g->pos_y - (float)g->height;

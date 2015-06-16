@@ -29,6 +29,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array.h"
+#include "BLI_stack.h"
 #include "BLI_math.h"
 
 #include "bmesh.h"
@@ -88,13 +89,18 @@ static bool UNUSED_FUNCTION(check_hole_in_region) (BMesh *bm, BMFace *f)
 
 static void bm_face_split(BMesh *bm, const short oflag, bool use_edge_delete)
 {
+	BLI_Stack *edge_delete_verts;
 	BMIter iter;
 	BMVert *v;
 
-	BMIter liter;
+	if (use_edge_delete) {
+		edge_delete_verts = BLI_stack_new(sizeof(BMVert *), __func__);
+	}
+
 	BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
 		if (BMO_elem_flag_test(bm, v, oflag)) {
 			if (BM_vert_is_edge_pair(v) == false) {
+				BMIter liter;
 				BMLoop *l;
 				BM_ITER_ELEM (l, &liter, v, BM_LOOPS_OF_VERT) {
 					if (l->f->len > 3) {
@@ -105,14 +111,23 @@ static void bm_face_split(BMesh *bm, const short oflag, bool use_edge_delete)
 						}
 					}
 				}
-				/* remove surrounding edges & faces */
+
 				if (use_edge_delete) {
-					while (v->e) {
-						BM_edge_kill(bm, v->e);
-					}
+					BLI_stack_push(edge_delete_verts, &v);
 				}
 			}
 		}
+	}
+
+	if (use_edge_delete) {
+		while (!BLI_stack_is_empty(edge_delete_verts)) {
+			/* remove surrounding edges & faces */
+			BLI_stack_pop(edge_delete_verts, &v);
+			while (v->e) {
+				BM_edge_kill(bm, v->e);
+			}
+		}
+		BLI_stack_free(edge_delete_verts);
 	}
 }
 
@@ -460,7 +475,7 @@ void bmo_dissolve_limit_exec(BMesh *bm, BMOperator *op)
 {
 	BMOpSlot *einput = BMO_slot_get(op->slots_in, "edges");
 	BMOpSlot *vinput = BMO_slot_get(op->slots_in, "verts");
-	const float angle_max = (float)M_PI / 2.0f;
+	const float angle_max = M_PI_2;
 	const float angle_limit = min_ff(angle_max, BMO_slot_float_get(op->slots_in, "angle_limit"));
 	const bool do_dissolve_boundaries = BMO_slot_bool_get(op->slots_in, "use_dissolve_boundaries");
 	const BMO_Delimit delimit = BMO_slot_int_get(op->slots_in, "delimit");
@@ -479,7 +494,7 @@ void bmo_dissolve_limit_exec(BMesh *bm, BMOperator *op)
 
 static void bm_mesh_edge_collapse_flagged(BMesh *bm, const int flag, const short oflag)
 {
-	BMO_op_callf(bm, flag, "collapse edges=%fe", oflag);
+	BMO_op_callf(bm, flag, "collapse edges=%fe uvs=%b", oflag, true);
 }
 
 void bmo_dissolve_degenerate_exec(BMesh *bm, BMOperator *op)

@@ -51,7 +51,7 @@
 /* Only this one is used liberally here, and in imbuf */
 void IMB_convert_rgba_to_abgr(struct ImBuf *ibuf)
 {
-	int size;
+	size_t size;
 	unsigned char rt, *cp = (unsigned char *)ibuf->rect;
 	float rtf, *cpf = ibuf->rect_float;
 
@@ -86,7 +86,7 @@ void IMB_convert_rgba_to_abgr(struct ImBuf *ibuf)
 static void pixel_from_buffer(struct ImBuf *ibuf, unsigned char **outI, float **outF, int x, int y)
 
 {
-	int offset = ibuf->x * y * 4 + 4 * x;
+	size_t offset = ((size_t)ibuf->x) * y * 4 + 4 * x;
 	
 	if (ibuf->rect)
 		*outI = (unsigned char *)ibuf->rect + offset;
@@ -166,32 +166,34 @@ void bilinear_interpolation_color_wrap(struct ImBuf *in, unsigned char outI[4], 
 	if (x2 >= in->x) x2 = x2 - in->x;
 	if (y2 >= in->y) y2 = y2 - in->y;
 
+	a = u - floorf(u);
+	b = v - floorf(v);
+	a_b = a * b; ma_b = (1.0f - a) * b; a_mb = a * (1.0f - b); ma_mb = (1.0f - a) * (1.0f - b);
+
 	if (outF) {
 		/* sample including outside of edges of image */
-		row1 = in->rect_float + in->x * y1 * 4 + 4 * x1;
-		row2 = in->rect_float + in->x * y2 * 4 + 4 * x1;
-		row3 = in->rect_float + in->x * y1 * 4 + 4 * x2;
-		row4 = in->rect_float + in->x * y2 * 4 + 4 * x2;
-
-		a = u - floorf(u);
-		b = v - floorf(v);
-		a_b = a * b; ma_b = (1.0f - a) * b; a_mb = a * (1.0f - b); ma_mb = (1.0f - a) * (1.0f - b);
+		row1 = in->rect_float + ((size_t)in->x) * y1 * 4 + 4 * x1;
+		row2 = in->rect_float + ((size_t)in->x) * y2 * 4 + 4 * x1;
+		row3 = in->rect_float + ((size_t)in->x) * y1 * 4 + 4 * x2;
+		row4 = in->rect_float + ((size_t)in->x) * y2 * 4 + 4 * x2;
 
 		outF[0] = ma_mb * row1[0] + a_mb * row3[0] + ma_b * row2[0] + a_b * row4[0];
 		outF[1] = ma_mb * row1[1] + a_mb * row3[1] + ma_b * row2[1] + a_b * row4[1];
 		outF[2] = ma_mb * row1[2] + a_mb * row3[2] + ma_b * row2[2] + a_b * row4[2];
 		outF[3] = ma_mb * row1[3] + a_mb * row3[3] + ma_b * row2[3] + a_b * row4[3];
+
+		/* clamp here or else we can easily get off-range */
+		CLAMP(outF[0], 0.0f, 1.0f);
+		CLAMP(outF[1], 0.0f, 1.0f);
+		CLAMP(outF[2], 0.0f, 1.0f);
+		CLAMP(outF[3], 0.0f, 1.0f);
 	}
 	if (outI) {
 		/* sample including outside of edges of image */
-		row1I = (unsigned char *)in->rect + in->x * y1 * 4 + 4 * x1;
-		row2I = (unsigned char *)in->rect + in->x * y2 * 4 + 4 * x1;
-		row3I = (unsigned char *)in->rect + in->x * y1 * 4 + 4 * x2;
-		row4I = (unsigned char *)in->rect + in->x * y2 * 4 + 4 * x2;
-
-		a = u - floorf(u);
-		b = v - floorf(v);
-		a_b = a * b; ma_b = (1.0f - a) * b; a_mb = a * (1.0f - b); ma_mb = (1.0f - a) * (1.0f - b);
+		row1I = (unsigned char *)in->rect + ((size_t)in->x) * y1 * 4 + 4 * x1;
+		row2I = (unsigned char *)in->rect + ((size_t)in->x) * y2 * 4 + 4 * x1;
+		row3I = (unsigned char *)in->rect + ((size_t)in->x) * y1 * 4 + 4 * x2;
+		row4I = (unsigned char *)in->rect + ((size_t)in->x) * y2 * 4 + 4 * x2;
 		
 		/* need to add 0.5 to avoid rounding down (causes darken with the smear brush)
 		 * tested with white images and this should not wrap back to zero */
@@ -254,20 +256,55 @@ void nearest_interpolation_color(struct ImBuf *in, unsigned char outI[4], float 
 		}
 	}
 	else {
-		dataI = (unsigned char *)in->rect + in->x * y1 * 4 + 4 * x1;
+		dataI = (unsigned char *)in->rect + ((size_t)in->x) * y1 * 4 + 4 * x1;
 		if (outI) {
 			outI[0] = dataI[0];
 			outI[1] = dataI[1];
 			outI[2] = dataI[2];
 			outI[3] = dataI[3];
 		}
-		dataF = in->rect_float + in->x * y1 * 4 + 4 * x1;
+		dataF = in->rect_float + ((size_t)in->x) * y1 * 4 + 4 * x1;
 		if (outF) {
 			outF[0] = dataF[0];
 			outF[1] = dataF[1];
 			outF[2] = dataF[2];
 			outF[3] = dataF[3];
 		}
+	}
+}
+
+
+void nearest_interpolation_color_wrap(struct ImBuf *in, unsigned char outI[4], float outF[4], float u, float v)
+{
+	const float *dataF;
+	unsigned char *dataI;
+	int y, x;
+
+	/* ImBuf in must have a valid rect or rect_float, assume this is already checked */
+
+	x = (int) floor(u);
+	y = (int) floor(v);
+
+	x = x % in->x;
+	y = y % in->y;
+
+	/* wrap interpolation pixels - main difference from nearest_interpolation_color  */
+	if (x < 0) x += in->x;
+	if (y < 0) y += in->y;
+
+	dataI = (unsigned char *)in->rect + ((size_t)in->x) * y * 4 + 4 * x;
+	if (outI) {
+		outI[0] = dataI[0];
+		outI[1] = dataI[1];
+		outI[2] = dataI[2];
+		outI[3] = dataI[3];
+	}
+	dataF = in->rect_float + ((size_t)in->x) * y * 4 + 4 * x;
+	if (outF) {
+		outF[0] = dataF[0];
+		outF[1] = dataF[1];
+		outF[2] = dataF[2];
+		outF[3] = dataF[3];
 	}
 }
 
@@ -341,7 +378,7 @@ void IMB_processor_apply_threaded(int buffer_lines, int handle_size, void *init_
 
 void IMB_alpha_under_color_float(float *rect_float, int x, int y, float backcol[3])
 {
-	int a = x * y;
+	size_t a = ((size_t)x) * y;
 	float *fp = rect_float;
 
 	while (a--) {
@@ -364,7 +401,7 @@ void IMB_alpha_under_color_float(float *rect_float, int x, int y, float backcol[
 
 void IMB_alpha_under_color_byte(unsigned char *rect, int x, int y, float backcol[3])
 {
-	int a = x * y;
+	size_t a = ((size_t)x) * y;
 	unsigned char *cp = rect;
 
 	while (a--) {

@@ -466,7 +466,7 @@ MINLINE float mul_project_m4_v3_zfac(float mat[4][4], const float co[3])
 }
 
 /**
- * Has the effect of mul_m3_v3(), on a single axis.
+ * Has the effect of #mul_m3_v3(), on a single axis.
  */
 MINLINE float dot_m3_v3_row_x(float M[3][3], const float a[3])
 {
@@ -482,7 +482,8 @@ MINLINE float dot_m3_v3_row_z(float M[3][3], const float a[3])
 }
 
 /**
- * Almost like mul_m4_v3(), misses adding translation.
+ * Has the effect of #mul_mat3_m4_v3(), on a single axis.
+ * (no adding translation)
  */
 MINLINE float dot_m4_v3_row_x(float M[4][4], const float a[3])
 {
@@ -610,6 +611,48 @@ MINLINE void negate_v3_short(short r[3])
 	r[2] = (short)-r[2];
 }
 
+MINLINE void abs_v2(float r[2])
+{
+	r[0] = fabsf(r[0]);
+	r[1] = fabsf(r[1]);
+}
+
+MINLINE void abs_v2_v2(float r[2], const float a[2])
+{
+	r[0] = fabsf(a[0]);
+	r[1] = fabsf(a[1]);
+}
+
+MINLINE void abs_v3(float r[3])
+{
+	r[0] = fabsf(r[0]);
+	r[1] = fabsf(r[1]);
+	r[2] = fabsf(r[2]);
+}
+
+MINLINE void abs_v3_v3(float r[3], const float a[3])
+{
+	r[0] = fabsf(a[0]);
+	r[1] = fabsf(a[1]);
+	r[2] = fabsf(a[2]);
+}
+
+MINLINE void abs_v4(float r[4])
+{
+	r[0] = fabsf(r[0]);
+	r[1] = fabsf(r[1]);
+	r[2] = fabsf(r[2]);
+	r[3] = fabsf(r[3]);
+}
+
+MINLINE void abs_v4_v4(float r[4], const float a[4])
+{
+	r[0] = fabsf(a[0]);
+	r[1] = fabsf(a[1]);
+	r[2] = fabsf(a[2]);
+	r[3] = fabsf(a[3]);
+}
+
 MINLINE float dot_v2v2(const float a[2], const float b[2])
 {
 	return a[0] * b[0] + a[1] * b[1];
@@ -620,9 +663,26 @@ MINLINE float dot_v3v3(const float a[3], const float b[3])
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 }
 
+MINLINE float dot_v3v3v3(const float p[3], const float a[3], const float b[3])
+{
+	float vec1[3], vec2[3];
+
+	sub_v3_v3v3(vec1, a, p);
+	sub_v3_v3v3(vec2, b, p);
+	if (is_zero_v3(vec1) || is_zero_v3(vec2)) {
+		return 0.0f;
+	}
+	return dot_v3v3(vec1, vec2);
+}
+
 MINLINE float dot_v4v4(const float a[4], const float b[4])
 {
 	return a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3];
+}
+
+MINLINE double dot_v3db_v3fl(const double a[3], const float b[3])
+{
+	return a[0] * (double)b[0] + a[1] * (double)b[1] + a[2] * (double)b[2];
 }
 
 MINLINE float cross_v2v2(const float a[2], const float b[2])
@@ -956,6 +1016,18 @@ MINLINE bool compare_v4v4(const float v1[4], const float v2[4], const float limi
 	return false;
 }
 
+/**
+ * <pre>
+ *        + l1
+ *        |
+ * neg <- | -> pos
+ *        |
+ *        + l2
+ * </pre>
+ *
+ * \return Positive value when 'pt' is left-of-line
+ * (looking from 'l1' -> 'l2').
+ */
 MINLINE float line_point_side_v2(const float l1[2], const float l2[2], const float pt[2])
 {
 	return (((l1[0] - pt[0]) * (l2[1] - pt[1])) -

@@ -1,9 +1,8 @@
 # Apache License, Version 2.0
 
-# ./blender.bin --background -noaudio --python tests/python/bl_pyapi_mathutils.py
+# ./blender.bin --background -noaudio --python tests/python/bl_pyapi_mathutils.py -- --verbose
 import unittest
-from test import support
-from mathutils import Matrix, Vector
+from mathutils import Matrix, Vector, Quaternion
 from mathutils import kdtree
 import math
 
@@ -163,6 +162,29 @@ class MatrixTesting(unittest.TestCase):
 
         self.assertEqual(mat.inverted(), inv_mat)
 
+    def test_matrix_inverse_safe(self):
+        mat = Matrix(((1, 4, 0, -1),
+                      (2, -1, 0, -2),
+                      (0, 3, 0, 3),
+                      (-2, 9, 0, 0)))
+
+        # Warning, if we change epsilon in py api we have to update this!!!
+        epsilon = 1e-8
+        inv_mat_safe = mat.copy()
+        inv_mat_safe[0][0] += epsilon
+        inv_mat_safe[1][1] += epsilon
+        inv_mat_safe[2][2] += epsilon
+        inv_mat_safe[3][3] += epsilon
+        inv_mat_safe.invert()
+        '''
+        inv_mat_safe = Matrix(((1.0, -0.5, 0.0, -0.5),
+                               (0.222222, -0.111111, -0.0, 0.0),
+                               (-333333344.0, 316666656.0, 100000000.0,  150000000.0),
+                               (0.888888, -0.9444444, 0.0, -0.5)))
+        '''
+
+        self.assertEqual(mat.inverted_safe(), inv_mat_safe)
+
     def test_matrix_mult(self):
         mat = Matrix(((1, 4, 0, -1),
                       (2, -1, 2, -2),
@@ -186,6 +208,35 @@ class VectorTesting(unittest.TestCase):
             v = Vector(v)
             if v.length_squared != 0.0:
                 self.assertAlmostEqual(v.angle(v.orthogonal()), angle_90d)
+
+
+class QuaternionTesting(unittest.TestCase):
+
+    def test_to_expmap(self):
+        q = Quaternion((0, 0, 1), math.radians(90))
+
+        e = q.to_exponential_map()
+        self.assertAlmostEqual(e.x, 0)
+        self.assertAlmostEqual(e.y, 0)
+        self.assertAlmostEqual(e.z, math.radians(90), 6)
+
+    def test_expmap_axis_normalization(self):
+        q = Quaternion((1, 1, 0), 2)
+        e = q.to_exponential_map()
+
+        self.assertAlmostEqual(e.x, 2 * math.sqrt(0.5), 6)
+        self.assertAlmostEqual(e.y, 2 * math.sqrt(0.5), 6)
+        self.assertAlmostEqual(e.z, 0)
+
+    def test_from_expmap(self):
+        e = Vector((1, 1, 0))
+        q = Quaternion(e)
+        axis, angle = q.to_axis_angle()
+
+        self.assertAlmostEqual(angle, math.sqrt(2), 6)
+        self.assertAlmostEqual(axis.x, math.sqrt(0.5), 6)
+        self.assertAlmostEqual(axis.y, math.sqrt(0.5), 6)
+        self.assertAlmostEqual(axis.z, 0)
 
 
 class KDTreeTesting(unittest.TestCase):
@@ -291,19 +342,7 @@ class KDTreeTesting(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             k.find(co)
 
-
-def test_main():
-    try:
-        support.run_unittest(MatrixTesting)
-        support.run_unittest(VectorTesting)
-        support.run_unittest(KDTreeTesting)
-    except:
-        import traceback
-        traceback.print_exc()
-
-        # alert CTest we failed
-        import sys
-        sys.exit(1)
-
 if __name__ == '__main__':
-    test_main()
+    import sys
+    sys.argv = [__file__] + (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
+    unittest.main()

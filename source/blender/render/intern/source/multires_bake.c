@@ -42,6 +42,7 @@
 #include "BLI_threads.h"
 
 #include "BKE_ccg.h"
+#include "BKE_depsgraph.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
 #include "BKE_multires.h"
@@ -126,9 +127,13 @@ typedef struct {
 
 static void multiresbake_get_normal(const MResolvePixelData *data, float norm[],const int face_num, const int vert_index)
 {
-	unsigned int indices[] = {data->mface[face_num].v1, data->mface[face_num].v2,
-	                          data->mface[face_num].v3, data->mface[face_num].v4};
-	const int smoothnormal = (data->mface[face_num].flag & ME_SMOOTH);
+	const unsigned int indices[] = {
+	    data->mface[face_num].v1,
+	    data->mface[face_num].v2,
+	    data->mface[face_num].v3,
+	    data->mface[face_num].v4,
+	};
+	const bool smoothnormal = (data->mface[face_num].flag & ME_SMOOTH) != 0;
 
 	if (!smoothnormal) { /* flat */
 		if (data->precomputed_normals) {
@@ -1154,10 +1159,10 @@ static void apply_ao_callback(DerivedMesh *lores_dm, DerivedMesh *hires_dm, void
 		/* this gives results identical to the so-called cosine
 		 * weighted distribution relative to the north pole.
 		 */
-		float SiPhi = sqrt(SiSqPhi);
+		float SiPhi = sqrtf(SiSqPhi);
 		float CoPhi = SiSqPhi < 1.0f ? sqrtf(1.0f - SiSqPhi) : 0;
-		float CoThe = cos(Theta);
-		float SiThe = sin(Theta);
+		float CoThe = cosf(Theta);
+		float SiThe = sinf(Theta);
 
 		const float dx = CoThe * CoPhi;
 		const float dy = SiThe * CoPhi;
@@ -1297,6 +1302,7 @@ static void finish_images(MultiresBakeRender *bkr, MultiresBakeResult *result)
 		}
 
 		BKE_image_release_ibuf(ima, ibuf, NULL);
+		DAG_id_tag_update(&ima->id, 0);		
 	}
 }
 

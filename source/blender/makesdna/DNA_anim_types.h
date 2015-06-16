@@ -459,7 +459,7 @@ typedef struct FCurve {
 	int color_mode;			/* coloring method to use (eFCurve_Coloring) */
 	float color[3];			/* the last-color this curve took */
 
-	float prev_norm_factor, pad;
+	float prev_norm_factor, prev_offset;
 } FCurve;
 
 
@@ -719,13 +719,13 @@ typedef struct KS_Path {
 	int idtype;				/* ID-type that path can be used on */
 	
 	short groupmode;		/* group naming (eKSP_Grouping) */
-	short pad;
+	short flag;				/* various settings, etc. */
 	
 	char *rna_path;			/* dynamically (or statically in the case of predefined sets) path */
 	int array_index;		/* index that path affects */
 	
-	short flag;				/* various settings, etc. */
-	short keyingflag;		/* settings to supply insertkey() with */
+	short keyingflag;		/* (eInsertKeyFlags) settings to supply insertkey() with */
+	short keyingoverride;	/* (eInsertKeyFlags) for each flag set, the relevant keyingflag bit overrides the default */
 } KS_Path;
 
 /* KS_Path->flag */
@@ -770,10 +770,14 @@ typedef struct KeyingSet {
 	char description[240];	/* (RNA_DYN_DESCR_MAX) short help text. */
 	char typeinfo[64];		/* name of the typeinfo data used for the relative paths */
 	
-	short flag;				/* settings for KeyingSet */
-	short keyingflag;		/* settings to supply insertkey() with */
-	
 	int active_path;		/* index of the active path */
+	
+	short flag;				/* settings for KeyingSet */
+	
+	short keyingflag;		/* (eInsertKeyFlags) settings to supply insertkey() with */
+	short keyingoverride;	/* (eInsertKeyFlags) for each flag set, the relevant keyingflag bit overrides the default */
+	
+	char pad[6];
 } KeyingSet;
 
 /* KeyingSet settings */
@@ -793,6 +797,9 @@ typedef enum eInsertKeyFlags {
 	INSERTKEY_REPLACE 	= (1<<4),	/* only replace an existing keyframe (this overrides INSERTKEY_NEEDED) */
 	INSERTKEY_XYZ2RGB	= (1<<5),	/* transform F-Curves should have XYZ->RGB color mode */
 	INSERTKEY_NO_USERPREF	= (1 << 6),	/* ignore user-prefs (needed for predictable API use) */
+	/* Allow to make a full copy of new key into existing one, if any, instead of 'reusing' existing handles.
+	 * Used by copy/paste code. */
+	INSERTKEY_OVERWRITE_FULL = (1<<7),
 } eInsertKeyFlags;
 
 /* ************************************************ */
@@ -846,6 +853,8 @@ typedef struct AnimData {
 
 		/* nla-tracks */
 	ListBase    nla_tracks;
+		/* active NLA-track (only set/used during tweaking, so no need to worry about dangling pointers) */
+	NlaTrack	*act_track;
 		/* active NLA-strip (only set/used during tweaking, so no need to worry about dangling pointers) */
 	NlaStrip    *actstrip;
 

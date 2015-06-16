@@ -51,6 +51,15 @@
 
 #define CONNECT_EPS 0.0001f
 #define VERT_OUT 1
+#define VERT_EXCLUDE 2
+
+/* typically hidden faces */
+#define FACE_EXCLUDE 2
+
+#define FACE_WALK_TEST(f)  (CHECK_TYPE_INLINE(f, BMFace *), \
+	BMO_elem_flag_test(pc->bm_bmoflag, f, FACE_EXCLUDE) == 0)
+#define VERT_WALK_TEST(v)  (CHECK_TYPE_INLINE(v, BMVert *), \
+	BMO_elem_flag_test(pc->bm_bmoflag, v, VERT_EXCLUDE) == 0)
 
 // #define DEBUG_PRINT
 
@@ -58,6 +67,9 @@ typedef struct PathContext {
 	ListBase state_lb;
 	float matrix[3][3];
 	float axis_sep;
+
+	/* only to access BMO flags */
+	BMesh *bm_bmoflag;
 
 	BMVert *v_a, *v_b;
 
@@ -70,7 +82,7 @@ typedef struct PathContext {
 typedef struct PathLink {
 	struct PathLink *next;
 	BMElem *ele;       /* edge or vert */
-	BMElem *ele_from;  /* edge or face we game from (not 'next->ele') */
+	BMElem *ele_from;  /* edge or face we came from (not 'next->ele') */
 } PathLink;
 
 typedef struct PathLinkState {
@@ -84,8 +96,65 @@ typedef struct PathLinkState {
 	float co_prev[3];
 } PathLinkState;
 
-static int state_isect_co_pair(const PathContext *pc,
-                               const float co_a[3], const float co_b[3])
+/**
+  \name Min Dist Dir Util
+
+ * Simply getting the closest intersecting vert/edge is _not_ good enough. see T43792
+ * we need to get the closest in both directions since the absolute closest may be a dead-end.
+ *
+ * Logic is simple:
+ *
+ * - first intersection, store the direction.
+ * - successive intersections will update the first distance if its aligned with the first hit.
+ *   otherwise update the opposite distance.
+ * - caller stores best outcome in both directions.
+ *
+ * \{ */
+
+typedef struct MinDistDir {
+	/* distance in both directions (FLT_MAX == uninitialized) */
+	float dist_min[2];
+	/* direction of the first intersection found */
+	float dir[3];
+} MinDistDir;
+
+#define MIN_DIST_DIR_INIT {{FLT_MAX, FLT_MAX}}
+
+static int min_dist_dir_test(MinDistDir *mddir, const float dist_dir[3], const float dist_sq)
+{
+
+	if (mddir->dist_min[0] == FLT_MAX) {
+		return 0;
+	}
+	else {
+		if (dot_v3v3(dist_dir, mddir->dir) > 0.0f) {
+			if (dist_sq < mddir->dist_min[0]) {
+				return 0;
+			}
+		}
+		else {
+			if (dist_sq < mddir->dist_min[1]) {
+				return 1;
+			}
+		}
+	}
+
+	return -1;
+}
+
+static void min_dist_dir_update(MinDistDir *dist, const float dist_dir[3])
+{
+	if (dist->dist_min[0] == FLT_MAX) {
+		copy_v3_v3(dist->dir, dist_dir);
+	}
+}
+
+/** \} */
+
+
+static int state_isect_co_pair(
+        const PathContext *pc,
+        const float co_a[3], const float co_b[3])
 {
 	const float diff_a = dot_m3_v3_row_x((float (*)[3])pc->matrix, co_a) - pc->axis_sep;
 	const float diff_b = dot_m3_v3_row_x((float (*)[3])pc->matrix, co_b) - pc->axis_sep;
@@ -101,15 +170,17 @@ static int state_isect_co_pair(const PathContext *pc,
 	}
 }
 
-static int state_isect_co_exact(const PathContext *pc,
-                                const float co[3])
+static int state_isect_co_exact(
+        const PathContext *pc,
+        const float co[3])
 {
 	const float diff = dot_m3_v3_row_x((float (*)[3])pc->matrix, co) - pc->axis_sep;
 	return (fabsf(diff) <= CONNECT_EPS);
 }
 
-static float state_calc_co_pair_fac(const PathContext *pc,
-                                    const float co_a[3], const float co_b[3])
+static float state_calc_co_pair_fac(
+        const PathContext *pc,
+        const float co_a[3], const float co_b[3])
 {
 	float diff_a, diff_b, diff_tot;
 
@@ -119,9 +190,10 @@ static float state_calc_co_pair_fac(const PathContext *pc,
 	return (diff_tot > FLT_EPSILON) ? (diff_a / diff_tot) : 0.5f;
 }
 
-static void state_calc_co_pair(const PathContext *pc,
-                               const float co_a[3], const float co_b[3],
-                               float r_co[3])
+static void state_calc_co_pair(
+        const PathContext *pc,
+        const float co_a[3], const float co_b[3],
+        float r_co[3])
 {
 	const float fac = state_calc_co_pair_fac(pc, co_a, co_b);
 	interp_v3_v3v3(r_co, co_a, co_b, fac);
@@ -129,9 +201,9 @@ static void state_calc_co_pair(const PathContext *pc,
 
 /**
  * Ideally we wouldn't need this and for most cases we don't.
- * But when a face has vertices that are on the boundary more then once this becomes tricky.
+ * But when a face has vertices that are on the boundary more than once this becomes tricky.
  */
-static bool state_link_find(PathLinkState *state, BMElem *ele)
+static bool state_link_find(const PathLinkState *state, BMElem *ele)
 {
 	PathLink *link = state->link_last;
 	BLI_assert(ELEM(ele->head.htype, BM_VERT, BM_EDGE, BM_FACE));
@@ -145,8 +217,9 @@ static bool state_link_find(PathLinkState *state, BMElem *ele)
 	return false;
 }
 
-static void state_link_add(PathContext *pc, PathLinkState *state,
-                           BMElem *ele, BMElem *ele_from)
+static void state_link_add(
+        PathContext *pc, PathLinkState *state,
+        BMElem *ele, BMElem *ele_from)
 {
 	PathLink *step_new = BLI_mempool_alloc(pc->link_pool);
 	BLI_assert(ele != ele_from);
@@ -204,8 +277,9 @@ static void state_link_add(PathContext *pc, PathLinkState *state,
 	state->link_last = step_new;
 }
 
-static PathLinkState *state_dupe_add(PathContext *pc,
-                                     PathLinkState *state, const PathLinkState *state_orig)
+static PathLinkState *state_dupe_add(
+        PathContext *pc,
+        PathLinkState *state, const PathLinkState *state_orig)
 {
 	state = MEM_mallocN(sizeof(*state), __func__);
 	*state = *state_orig;
@@ -214,44 +288,103 @@ static PathLinkState *state_dupe_add(PathContext *pc,
 }
 
 /* walk around the face edges */
-static PathLinkState *state_step__face_edges(PathContext *pc,
-                                             PathLinkState *state, const PathLinkState *state_orig,
-                                             BMLoop *l_iter, BMLoop *l_last)
+static PathLinkState *state_step__face_edges(
+        PathContext *pc,
+        PathLinkState *state, const PathLinkState *state_orig,
+        BMLoop *l_iter, BMLoop *l_last,
+        MinDistDir *mddir)
 {
+
+	BMLoop *l_iter_best[2] = {NULL, NULL};
+	int i;
+
 	do {
 		if (state_isect_co_pair(pc, l_iter->v->co, l_iter->next->v->co)) {
-			BMElem *ele_next      = (BMElem *)l_iter->e;
-			BMElem *ele_next_from = (BMElem *)l_iter->f;
+			float dist_test;
+			float co_isect[3];
+			float dist_dir[3];
+			int index;
 
-			if (state_link_find(state, ele_next) == false) {
-				if (state_orig->link_last != state->link_last) {
-					state = state_dupe_add(pc, state, state_orig);
+			state_calc_co_pair(pc, l_iter->v->co, l_iter->next->v->co, co_isect);
+
+			sub_v3_v3v3(dist_dir, co_isect, state_orig->co_prev);
+			dist_test = len_squared_v3(dist_dir);
+			if ((index = min_dist_dir_test(mddir, dist_dir, dist_test)) != -1) {
+				BMElem *ele_next      = (BMElem *)l_iter->e;
+				BMElem *ele_next_from = (BMElem *)l_iter->f;
+
+				if (FACE_WALK_TEST((BMFace *)ele_next_from) &&
+				    (state_link_find(state_orig, ele_next) == false))
+				{
+					min_dist_dir_update(mddir, dist_dir);
+					mddir->dist_min[index] = dist_test;
+					l_iter_best[index] = l_iter;
 				}
-				state_link_add(pc, state, ele_next, ele_next_from);
 			}
 		}
 	} while ((l_iter = l_iter->next) != l_last);
+
+	for (i = 0; i < 2; i++) {
+		if ((l_iter = l_iter_best[i])) {
+			BMElem *ele_next      = (BMElem *)l_iter->e;
+			BMElem *ele_next_from = (BMElem *)l_iter->f;
+
+			if (state_orig->link_last != state->link_last) {
+				state = state_dupe_add(pc, state, state_orig);
+			}
+			state_link_add(pc, state, ele_next, ele_next_from);
+		}
+	}
+
 	return state;
 }
 
 /* walk around the face verts */
-static PathLinkState *state_step__face_verts(PathContext *pc,
-                                             PathLinkState *state, const PathLinkState *state_orig,
-                                             BMLoop *l_iter, BMLoop *l_last)
+static PathLinkState *state_step__face_verts(
+        PathContext *pc,
+        PathLinkState *state, const PathLinkState *state_orig,
+        BMLoop *l_iter, BMLoop *l_last,
+        MinDistDir *mddir)
 {
+	BMLoop *l_iter_best[2] = {NULL, NULL};
+	int i;
+
 	do {
 		if (state_isect_co_exact(pc, l_iter->v->co)) {
-			BMElem *ele_next      = (BMElem *)l_iter->v;
-			BMElem *ele_next_from = (BMElem *)l_iter->f;
+			float dist_test;
+			const float *co_isect = l_iter->v->co;
+			float dist_dir[3];
+			int index;
 
-			if (state_link_find(state, ele_next) == false) {
-				if (state_orig->link_last != state->link_last) {
-					state = state_dupe_add(pc, state, state_orig);
+			sub_v3_v3v3(dist_dir, co_isect, state_orig->co_prev);
+			dist_test = len_squared_v3(dist_dir);
+			if ((index = min_dist_dir_test(mddir, dist_dir, dist_test)) != -1) {
+				BMElem *ele_next      = (BMElem *)l_iter->v;
+				BMElem *ele_next_from = (BMElem *)l_iter->f;
+
+				if (FACE_WALK_TEST((BMFace *)ele_next_from) &&
+				    (state_link_find(state_orig, ele_next) == false))
+				{
+					min_dist_dir_update(mddir, dist_dir);
+					mddir->dist_min[index] = dist_test;
+					l_iter_best[index] = l_iter;
 				}
-				state_link_add(pc, state, ele_next, ele_next_from);
 			}
 		}
 	} while ((l_iter = l_iter->next) != l_last);
+
+	for (i = 0; i < 2; i++) {
+		if ((l_iter = l_iter_best[i])) {
+			BMElem *ele_next      = (BMElem *)l_iter->v;
+			BMElem *ele_next_from = (BMElem *)l_iter->f;
+
+			if (state_orig->link_last != state->link_last) {
+				state = state_dupe_add(pc, state, state_orig);
+			}
+			state_link_add(pc, state, ele_next, ele_next_from);
+		}
+	}
+
 	return state;
 }
 
@@ -268,21 +401,15 @@ static bool state_step(PathContext *pc, PathLinkState *state)
 		BMLoop *l_start;
 
 		BM_ITER_ELEM (l_start, &liter, e, BM_LOOPS_OF_EDGE) {
-			if (l_start->f != ele_from) {
+			if ((l_start->f != ele_from) &&
+			    FACE_WALK_TEST(l_start->f))
+			{
+				MinDistDir mddir = MIN_DIST_DIR_INIT;
 				/* very similar to block below */
-				if (BM_vert_in_face(l_start->f, pc->v_b)) {
-					if (state_orig.link_last != state->link_last) {
-						state = state_dupe_add(pc, state, &state_orig);
-					}
-
-					state_link_add(pc, state, (BMElem *)pc->v_b, (BMElem *)l_start->f);
-				}
-				else {
-					state = state_step__face_edges(pc, state, &state_orig,
-					                               l_start->next, l_start);
-					state = state_step__face_verts(pc, state, &state_orig,
-					                               l_start->next->next, l_start);
-				}
+				state = state_step__face_edges(pc, state, &state_orig,
+				                               l_start->next, l_start, &mddir);
+				state = state_step__face_verts(pc, state, &state_orig,
+				                               l_start->next->next, l_start, &mddir);
 			}
 		}
 	}
@@ -295,25 +422,17 @@ static bool state_step(PathContext *pc, PathLinkState *state)
 			BMLoop *l_start;
 
 			BM_ITER_ELEM (l_start, &liter, v, BM_LOOPS_OF_VERT) {
-				if (l_start->f != ele_from) {
+				if ((l_start->f != ele_from) &&
+				    FACE_WALK_TEST(l_start->f))
+				{
+					MinDistDir mddir = MIN_DIST_DIR_INIT;
 					/* very similar to block above */
-					if (BM_vert_in_face(l_start->f, pc->v_b)) {
-						BMElem *ele_next      = (BMElem *)pc->v_b;
-						BMElem *ele_next_from = (BMElem *)l_start->f;
-
-						if (state_orig.link_last != state->link_last) {
-							state = state_dupe_add(pc, state, &state_orig);
-						}
-						state_link_add(pc, state, ele_next, ele_next_from);
-					}
-					else {
-						state = state_step__face_edges(pc, state, &state_orig,
-						                               l_start->next, l_start->prev);
-						if (l_start->f->len > 3) {
-							/* adjacent verts are handled in state_step__vert_edges */
-							state = state_step__face_verts(pc, state, &state_orig,
-							                               l_start->next->next, l_start->prev);
-						}
+					state = state_step__face_edges(pc, state, &state_orig,
+					                               l_start->next, l_start->prev, &mddir);
+					if (l_start->f->len > 3) {
+						/* adjacent verts are handled in state_step__vert_edges */
+						state = state_step__face_verts(pc, state, &state_orig,
+						                               l_start->next->next, l_start->prev, &mddir);
 					}
 				}
 			}
@@ -324,33 +443,23 @@ static bool state_step(PathContext *pc, PathLinkState *state)
 			BMIter eiter;
 			BMEdge *e;
 			BM_ITER_ELEM (e, &eiter, v, BM_EDGES_OF_VERT) {
-				if ((BMElem *)e != ele_from) {
-					BMVert *v_other = BM_edge_other_vert(e, v);
-					if (v_other == pc->v_b) {
-						BMElem *ele_next      = (BMElem *)pc->v_b;
+				BMVert *v_other = BM_edge_other_vert(e, v);
+				if (((BMElem *)e != ele_from) &&
+				    VERT_WALK_TEST(v_other))
+				{
+					if (state_isect_co_exact(pc, v_other->co)) {
+						BMElem *ele_next      = (BMElem *)v_other;
 						BMElem *ele_next_from = (BMElem *)e;
-
-						if (state_orig.link_last != state->link_last) {
-							state = state_dupe_add(pc, state, &state_orig);
-						}
-						state_link_add(pc, state, ele_next, ele_next_from);
-					}
-					else {
-						if (state_isect_co_exact(pc, v_other->co)) {
-							BMElem *ele_next      = (BMElem *)v_other;
-							BMElem *ele_next_from = (BMElem *)e;
-							if (state_link_find(state, ele_next) == false) {
-								if (state_orig.link_last != state->link_last) {
-									state = state_dupe_add(pc, state, &state_orig);
-								}
-								state_link_add(pc, state, ele_next, ele_next_from);
+						if (state_link_find(state, ele_next) == false) {
+							if (state_orig.link_last != state->link_last) {
+								state = state_dupe_add(pc, state, &state_orig);
 							}
+							state_link_add(pc, state, ele_next, ele_next_from);
 						}
 					}
 				}
 			}
 		}
-
 	}
 	else {
 		BLI_assert(0);
@@ -371,6 +480,7 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 		return;
 	}
 
+	pc.bm_bmoflag = bm;
 	pc.v_a = ((BMVert **)op_verts_slot->data.p)[0];
 	pc.v_b = ((BMVert **)op_verts_slot->data.p)[1];
 
@@ -383,6 +493,10 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 	printf("%s: v_a: %d\n", __func__, BM_elem_index_get(pc.v_a));
 	printf("%s: v_b: %d\n", __func__, BM_elem_index_get(pc.v_b));
 #endif
+
+	/* tag so we won't touch ever (typically hidden faces) */
+	BMO_slot_buffer_flag_enable(bm, op->slots_in, "faces_exclude", BM_FACE, FACE_EXCLUDE);
+	BMO_slot_buffer_flag_enable(bm, op->slots_in, "verts_exclude", BM_VERT, VERT_EXCLUDE);
 
 	/* setup context */
 	{
@@ -429,11 +543,19 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 #endif
 
 		/* get third axis */
+		normalize_v3(basis_dir);
+		normalize_v3(basis_nor);
 		cross_v3_v3v3(basis_tmp, basis_dir, basis_nor);
+		if (UNLIKELY(normalize_v3(basis_tmp) < FLT_EPSILON)) {
+			ortho_v3_v3(basis_nor, basis_dir);
+			normalize_v3(basis_nor);
+			cross_v3_v3v3(basis_tmp, basis_dir, basis_nor);
+			normalize_v3(basis_tmp);
+		}
 
-		normalize_v3_v3(pc.matrix[0], basis_tmp);
-		normalize_v3_v3(pc.matrix[1], basis_dir);
-		normalize_v3_v3(pc.matrix[2], basis_nor);
+		copy_v3_v3(pc.matrix[0], basis_tmp);
+		copy_v3_v3(pc.matrix[1], basis_dir);
+		copy_v3_v3(pc.matrix[2], basis_nor);
 		invert_m3(pc.matrix);
 
 		pc.axis_sep = dot_m3_v3_row_x(pc.matrix, pc.v_a->co);
@@ -452,6 +574,9 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 	while (pc.state_lb.first) {
 		PathLinkState *state, *state_next;
 		found_all = true;
+#ifdef DEBUG_PRINT
+		printf("\n%s: stepping %d\n", __func__, BLI_listbase_count(&pc.state_lb));
+#endif
 		for (state = pc.state_lb.first; state; state = state_next) {
 			state_next = state->next;
 			if (state->link_last->ele == (BMElem *)pc.v_b) {
@@ -468,9 +593,7 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 					BLI_remlink(&pc.state_lb, state);
 					MEM_freeN(state);
 				}
-				else {
-					found_all = false;
-				}
+				found_all = false;
 			}
 			else {
 				/* didn't reach the end, remove it,
@@ -481,6 +604,11 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 		}
 
 		if (found_all) {
+#ifdef DEBUG
+			for (state = pc.state_lb.first; state; state = state->next) {
+				BLI_assert(state->link_last->ele == (BMElem *)pc.v_b);
+			}
+#endif
 			break;
 		}
 	}
@@ -529,11 +657,10 @@ void bmo_connect_vert_pair_exec(BMesh *bm, BMOperator *op)
 
 #if 1
 	if (found_all) {
-		/* leave 'check_degenerate' off, if a user tries to cut with 2 verts,
-		 * always connect even when resulting faces are degenerate [#39418] */
 		BMOperator op_sub;
 		BMO_op_initf(bm, &op_sub, 0,
-		             "connect_verts verts=%fv", VERT_OUT);
+		             "connect_verts verts=%fv faces_exclude=%s check_degenerate=%b",
+		             VERT_OUT, op, "faces_exclude", true);
 		BMO_op_exec(bm, &op_sub);
 		BMO_slot_copy(&op_sub, slots_out, "edges.out",
 		              op,      slots_out, "edges.out");

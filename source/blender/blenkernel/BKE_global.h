@@ -45,7 +45,6 @@ extern "C" {
 
 /* forwards */
 struct Main;
-struct Object;
 
 typedef struct Global {
 
@@ -70,7 +69,6 @@ typedef struct Global {
 	bool factory_startup;
 
 	short moving;
-	short winpos, displaymode;  /* used to be in Render */
 
 	/* to indicate render is busy, prevent renderwindow events etc */
 	bool is_rendering;
@@ -89,9 +87,6 @@ typedef struct Global {
 
 	/* this variable is written to / read from FileGlobal->fileflags */
 	int fileflags;
-
-	/* save the allowed windowstate of blender when using -W or -w (GHOST_TWindowState) */
-	int windowstate;
 
 	/* message to use when autoexec fails */
 	char autoexec_fail[200];
@@ -130,10 +125,13 @@ enum {
 	G_DEBUG_JOBS =      (1 << 6), /* jobs time profiling */
 	G_DEBUG_FREESTYLE = (1 << 7), /* freestyle messages */
 	G_DEBUG_DEPSGRAPH = (1 << 8), /* depsgraph messages */
+	G_DEBUG_SIMDATA =   (1 << 9), /* sim debug data display */
+	G_DEBUG_GPU_MEM =   (1 << 10), /* gpu memory in status bar */
+	G_DEBUG_DEPSGRAPH_NO_THREADS = (1 << 11),  /* sinle threaded depsgraph */
 };
 
 #define G_DEBUG_ALL  (G_DEBUG | G_DEBUG_FFMPEG | G_DEBUG_PYTHON | G_DEBUG_EVENTS | G_DEBUG_WM | G_DEBUG_JOBS | \
-                      G_DEBUG_FREESTYLE | G_DEBUG_DEPSGRAPH)
+                      G_DEBUG_FREESTYLE | G_DEBUG_DEPSGRAPH | G_DEBUG_GPU_MEM)
 
 
 /* G.fileflags */

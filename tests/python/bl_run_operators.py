@@ -34,6 +34,10 @@ RANDOM_SEED = [1]  # so we can redo crashes
 RANDOM_RESET = 0.1  # 10% chance of resetting on each new operator
 RANDOM_MULTIPLY = 10
 
+STATE = {
+    "counter": 0,
+    }
+
 
 op_blacklist = (
     "script.reload",
@@ -66,6 +70,7 @@ op_blacklist = (
     "wm.doc_edit",
     "wm.doc_view_manual",
     "wm.path_open",
+    "wm.copy_prev_settings",
     "wm.theme_install",
     "wm.context_*",
     "wm.properties_add",
@@ -74,6 +79,7 @@ op_blacklist = (
     "wm.properties_context_change",
     "wm.operator_cheat_sheet",
     "wm.interface_theme_*",
+    "wm.previews_ensure",       # slow - but harmless
     "wm.appconfig_*",           # just annoying - but harmless
     "wm.keyitem_add",           # just annoying - but harmless
     "wm.keyconfig_activate",    # just annoying - but harmless
@@ -157,7 +163,7 @@ if USE_ATTRSET:
             if issubclass(cls, skip_classes):
                 continue
 
-            ## to support skip-save we cant get all props
+            # # to support skip-save we cant get all props
             # properties = cls.bl_rna.properties.keys()
             properties = []
             for prop_id, prop in cls.bl_rna.properties.items():
@@ -247,7 +253,8 @@ def run_ops(operators, setup_func=None, reset=True):
     # first invoke
     for op_id, op in operators:
         if op.poll():
-            print("    operator:", op_id)
+            print("    operator: %4d, %s" % (STATE["counter"], op_id))
+            STATE["counter"] += 1
             sys.stdout.flush()  # in case of crash
 
             # disable will get blender in a bad state and crash easy!

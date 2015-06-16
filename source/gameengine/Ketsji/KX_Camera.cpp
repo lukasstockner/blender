@@ -31,7 +31,7 @@
  */
 
  
-#include "GL/glew.h"
+#include "glew-mx.h"
 #include "KX_Camera.h"
 #include "KX_Scene.h"
 #include "KX_PythonInit.h"
@@ -463,6 +463,7 @@ bool KX_Camera::GetFrustumCulling() const
  
 void KX_Camera::EnableViewport(bool viewport)
 {
+	InvalidateProjectionMatrix(false); // We need to reset projection matrix
 	m_camdata.m_viewport = viewport;
 }
 
@@ -747,7 +748,7 @@ int KX_Camera::pyattr_set_lens(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, 
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
-		PyErr_SetString(PyExc_AttributeError, "camera.lens = float: KX_Camera, expected a float greater then zero");
+		PyErr_SetString(PyExc_AttributeError, "camera.lens = float: KX_Camera, expected a float greater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 	
@@ -772,7 +773,7 @@ int KX_Camera::pyattr_set_fov(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, P
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float fov = PyFloat_AsDouble(value);
 	if (fov <= 0.0) {
-		PyErr_SetString(PyExc_AttributeError, "camera.fov = float: KX_Camera, expected a float greater then zero");
+		PyErr_SetString(PyExc_AttributeError, "camera.fov = float: KX_Camera, expected a float greater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 
@@ -796,7 +797,7 @@ int KX_Camera::pyattr_set_ortho_scale(void *self_v, const KX_PYATTRIBUTE_DEF *at
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
-		PyErr_SetString(PyExc_AttributeError, "camera.ortho_scale = float: KX_Camera, expected a float greater then zero");
+		PyErr_SetString(PyExc_AttributeError, "camera.ortho_scale = float: KX_Camera, expected a float greater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 	
@@ -816,7 +817,7 @@ int KX_Camera::pyattr_set_near(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, 
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
-		PyErr_SetString(PyExc_AttributeError, "camera.near = float: KX_Camera, expected a float greater then zero");
+		PyErr_SetString(PyExc_AttributeError, "camera.near = float: KX_Camera, expected a float greater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 	
@@ -836,7 +837,7 @@ int KX_Camera::pyattr_set_far(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef, P
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
 	float param = PyFloat_AsDouble(value);
 	if (param == -1) {
-		PyErr_SetString(PyExc_AttributeError, "camera.far = float: KX_Camera, expected a float greater then zero");
+		PyErr_SetString(PyExc_AttributeError, "camera.far = float: KX_Camera, expected a float greater than zero");
 		return PY_SET_ATTR_FAIL;
 	}
 	
@@ -885,7 +886,7 @@ int KX_Camera::pyattr_set_projection_matrix(void *self_v, const KX_PYATTRIBUTE_D
 PyObject *KX_Camera::pyattr_get_modelview_matrix(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
 {
 	KX_Camera* self = static_cast<KX_Camera*>(self_v);
-	return PyObjectFrom(self->GetModelviewMatrix()); 
+	return PyObjectFrom(self->GetWorldToCamera());
 }
 
 PyObject *KX_Camera::pyattr_get_camera_to_world(void *self_v, const KX_PYATTRIBUTE_DEF *attrdef)
@@ -994,7 +995,7 @@ KX_PYMETHODDEF_DOC_O(KX_Camera, getScreenPosition,
 	GLdouble modelmatrix[16];
 	GLdouble projmatrix[16];
 
-	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
+	MT_Matrix4x4 m_modelmatrix = this->GetWorldToCamera();
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
 
 	m_modelmatrix.getValue(modelmatrix);
@@ -1037,7 +1038,7 @@ KX_PYMETHODDEF_DOC_VARARGS(KX_Camera, getScreenVect,
 	GLdouble modelmatrix[16];
 	GLdouble projmatrix[16];
 
-	MT_Matrix4x4 m_modelmatrix = this->GetModelviewMatrix();
+	MT_Matrix4x4 m_modelmatrix = this->GetWorldToCamera();
 	MT_Matrix4x4 m_projmatrix = this->GetProjectionMatrix();
 
 	m_modelmatrix.getValue(modelmatrix);

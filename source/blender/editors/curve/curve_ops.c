@@ -36,10 +36,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_math.h"
-#include "BLI_blenlib.h"
-
-
 #include "RNA_access.h"
 
 #include "WM_api.h"
@@ -58,7 +54,6 @@ void ED_operatortypes_curve(void)
 {
 	WM_operatortype_append(FONT_OT_text_insert);
 	WM_operatortype_append(FONT_OT_line_break);
-	WM_operatortype_append(FONT_OT_insert_lorem);
 
 	WM_operatortype_append(FONT_OT_case_toggle);
 	WM_operatortype_append(FONT_OT_case_set);

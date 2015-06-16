@@ -44,11 +44,10 @@
 #include "BLF_translation.h"
 
 #include "RNA_types.h"
-#include "RNA_access.h"
 
+#include "../generic/python_utildefines.h"
 
-typedef struct
-{
+typedef struct {
 	PyObject_HEAD
 	/* The string used to separate context from actual message in PY_TRANSLATE RNA props. */
 	const char *context_separator;
@@ -86,16 +85,15 @@ static unsigned int _ghashutil_keyhash(const void *ptr)
 	return hash ^ BLI_ghashutil_strhash(key->msgid);
 }
 
-static int _ghashutil_keycmp(const void *a, const void *b)
+static bool _ghashutil_keycmp(const void *a, const void *b)
 {
 	const GHashKey *A = a;
 	const GHashKey *B = b;
 
 	/* Note: comparing msgid first, most of the time it will be enough! */
-	int cmp = BLI_ghashutil_strcmp(A->msgid, B->msgid);
-	if (cmp == 0)
+	if (BLI_ghashutil_strcmp(A->msgid, B->msgid) == false)
 		return BLI_ghashutil_strcmp(A->msgctxt, B->msgctxt);
-	return cmp;
+	return true;  /* true means they are not equal! */
 }
 
 static void _ghashutil_keyfree(void *ptr)
@@ -243,12 +241,9 @@ static void _build_translations_cache(PyObject *py_messages, const char *locale)
 	}
 
 	/* Clean up! */
-	if (language)
-		MEM_freeN(language);
-	if (language_country)
-		MEM_freeN(language_country);
-	if (language_variant)
-		MEM_freeN(language_variant);
+	MEM_SAFE_FREE(language);
+	MEM_SAFE_FREE(language_country);
+	MEM_SAFE_FREE(language_variant);
 }
 
 const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *msgid)
@@ -264,7 +259,7 @@ const char *BPY_app_translations_py_pgettext(const char *msgctxt, const char *ms
 		return msgid;
 
 	tmp = BLF_lang_get();
-	if (strcmp(tmp, locale) || !_translations_cache) {
+	if (!STREQ(tmp, locale) || !_translations_cache) {
 		PyGILState_STATE _py_state;
 
 		BLI_strncpy(locale, tmp, STATIC_LOCALE_SIZE);
@@ -411,7 +406,7 @@ static PyObject *app_translations_contexts_make(void)
 	}
 
 #define SetObjString(item) PyStructSequence_SET_ITEM(translations_contexts, pos++, PyUnicode_FromString((item)))
-#define SetObjNone() Py_INCREF(Py_None); PyStructSequence_SET_ITEM(translations_contexts, pos++, Py_None)
+#define SetObjNone() PyStructSequence_SET_ITEM(translations_contexts, pos++, Py_INCREF_RET(Py_None))
 
 	for (ctxt = _contexts; ctxt->c_id; ctxt++) {
 		if (ctxt->value) {
@@ -431,11 +426,11 @@ static PyObject *app_translations_contexts_make(void)
 /***** Main BlenderAppTranslations Py object definition *****/
 
 PyDoc_STRVAR(app_translations_contexts_doc,
-	"A named tuple containing all pre-defined translation contexts.\n"
-	"\n"
-	".. warning::\n"
-	"    Never use a (new) context starting with \"" BLF_I18NCONTEXT_DEFAULT_BPYRNA "\", it would be internally \n"
-	"    assimilated as the default one!\n"
+"A named tuple containing all pre-defined translation contexts.\n"
+"\n"
+".. warning::\n"
+"    Never use a (new) context starting with \"" BLF_I18NCONTEXT_DEFAULT_BPYRNA "\", it would be internally \n"
+"    assimilated as the default one!\n"
 );
 
 PyDoc_STRVAR(app_translations_contexts_C_to_py_doc,
@@ -451,8 +446,8 @@ static PyMemberDef app_translations_members[] = {
 };
 
 PyDoc_STRVAR(app_translations_locale_doc,
-	"The actual locale currently in use (will always return a void string when Blender is built without "
-	"internationalization support)."
+"The actual locale currently in use (will always return a void string when Blender is built without "
+"internationalization support)."
 );
 static PyObject *app_translations_locale_get(PyObject *UNUSED(self), void *UNUSED(userdata))
 {
@@ -521,9 +516,7 @@ static PyObject *_py_pgettext(PyObject *args, PyObject *kw, const char *(*_pgett
 		return NULL;
 	}
 
-	Py_INCREF(msgid);
-
-	return msgid;
+	return Py_INCREF_RET(msgid);
 #endif
 }
 
@@ -633,6 +626,7 @@ PyDoc_STRVAR(app_translations_locale_explode_doc,
 );
 static PyObject *app_translations_locale_explode(BlenderAppTranslations *UNUSED(self), PyObject *args, PyObject *kw)
 {
+	PyObject *ret_tuple;
 	static const char *kwlist[] = {"locale", NULL};
 	const char *locale;
 	char *language, *country, *variant, *language_country, *language_variant;
@@ -643,7 +637,15 @@ static PyObject *app_translations_locale_explode(BlenderAppTranslations *UNUSED(
 
 	BLF_locale_explode(locale, &language, &country, &variant, &language_country, &language_variant);
 
-	return Py_BuildValue("sssss", language, country, variant, language_country, language_variant);
+	ret_tuple = Py_BuildValue("sssss", language, country, variant, language_country, language_variant);
+
+	MEM_SAFE_FREE(language);
+	MEM_SAFE_FREE(country);
+	MEM_SAFE_FREE(variant);
+	MEM_SAFE_FREE(language_country);
+	MEM_SAFE_FREE(language_variant);
+
+	return ret_tuple;
 }
 
 static PyMethodDef app_translations_methods[] = {
@@ -818,3 +820,12 @@ PyObject *BPY_app_translations_struct(void)
 
 	return ret;
 }
+
+void BPY_app_translations_end(void)
+{
+	/* Incase the object remains in a module's namespace, see T44127. */
+#ifdef WITH_INTERNATIONAL
+	_clear_translations_cache();
+#endif
+}
+

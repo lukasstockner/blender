@@ -40,7 +40,6 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_math.h"
-#include "BLI_bitmap.h"
 
 #include "BKE_crazyspace.h"
 #include "BKE_DerivedMesh.h"
@@ -48,11 +47,6 @@
 #include "BKE_multires.h"
 #include "BKE_mesh.h"
 #include "BKE_editmesh.h"
-
-typedef struct {
-	float (*vertexcos)[3];
-	BLI_bitmap *vertex_visit;
-} MappedUserData;
 
 BLI_INLINE void tan_calc_quat_v3(
         float r_quat[4],
@@ -88,20 +82,6 @@ static void set_crazy_vertex_quat(
 	sub_qt_qtqt(r_quat, q2, q1);
 }
 
-static void make_vertexcos__mapFunc(void *userData, int index, const float co[3],
-                                    const float UNUSED(no_f[3]), const short UNUSED(no_s[3]))
-{
-	MappedUserData *mappedData = (MappedUserData *)userData;
-
-	if (BLI_BITMAP_TEST(mappedData->vertex_visit, index) == 0) {
-		/* we need coord from prototype vertex, not from copies,
-		 * assume they stored in the beginning of vertex array stored in DM
-		 * (mirror modifier for eg does this) */
-		copy_v3_v3(mappedData->vertexcos[index], co);
-		BLI_BITMAP_ENABLE(mappedData->vertex_visit, index);
-	}
-}
-
 static int modifiers_disable_subsurf_temporary(Object *ob)
 {
 	ModifierData *md;
@@ -124,8 +104,6 @@ float (*BKE_crazyspace_get_mapped_editverts(Scene *scene, Object *obedit))[3]
 	DerivedMesh *dm;
 	float (*vertexcos)[3];
 	int nverts = me->edit_btmesh->bm->totvert;
-	BLI_bitmap *vertex_visit;
-	MappedUserData userData;
 
 	/* disable subsurf temporal, get mapped cos, and enable it */
 	if (modifiers_disable_subsurf_temporary(obedit)) {
@@ -134,21 +112,16 @@ float (*BKE_crazyspace_get_mapped_editverts(Scene *scene, Object *obedit))[3]
 	}
 
 	/* now get the cage */
+	vertexcos = MEM_mallocN(sizeof(*vertexcos) * nverts, "vertexcos map");
+
 	dm = editbmesh_get_derived_cage(scene, obedit, me->edit_btmesh, CD_MASK_BAREMESH);
 
-	vertexcos = MEM_callocN(sizeof(*vertexcos) * nverts, "vertexcos map");
-	vertex_visit = BLI_BITMAP_NEW(nverts, "vertexcos flags");
-
-	userData.vertexcos = vertexcos;
-	userData.vertex_visit = vertex_visit;
-	dm->foreachMappedVert(dm, make_vertexcos__mapFunc, &userData, DM_FOREACH_NOP);
+	mesh_get_mapped_verts_coords(dm, vertexcos, nverts);
 
 	dm->release(dm);
 
 	/* set back the flag, no new cage needs to be built, transform does it */
 	modifiers_disable_subsurf_temporary(obedit);
-
-	MEM_freeN(vertex_visit);
 
 	return vertexcos;
 }
@@ -293,7 +266,7 @@ int editbmesh_get_first_deform_matrices(Scene *scene, Object *ob, BMEditMesh *em
 	 * modifiers with on cage editing that are enabled and support computing
 	 * deform matrices */
 	for (i = 0; md && i <= cageIndex; i++, md = md->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		if (!editbmesh_modifier_is_enabled(scene, md, dm))
 			continue;
@@ -349,7 +322,7 @@ int BKE_sculpt_get_first_deform_matrices(Scene *scene, Object *ob, float (**defo
 	md = modifiers_getVirtualModifierList(ob, &virtualModifierData);
 
 	for (; md; md = md->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		if (!modifier_isEnabled(scene, md, eModifierMode_Realtime)) continue;
 
@@ -370,7 +343,7 @@ int BKE_sculpt_get_first_deform_matrices(Scene *scene, Object *ob, float (**defo
 	}
 
 	for (; md; md = md->next) {
-		ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+		const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 		if (!modifier_isEnabled(scene, md, eModifierMode_Realtime)) continue;
 
@@ -404,7 +377,7 @@ void BKE_crazyspace_build_sculpt(Scene *scene, Object *ob, float (**deformmats)[
 		Mesh *me = (Mesh *)ob->data;
 
 		for (; md; md = md->next) {
-			ModifierTypeInfo *mti = modifierType_getInfo(md->type);
+			const ModifierTypeInfo *mti = modifierType_getInfo(md->type);
 
 			if (!modifier_isEnabled(scene, md, eModifierMode_Realtime)) continue;
 

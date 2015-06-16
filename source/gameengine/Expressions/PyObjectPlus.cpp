@@ -148,12 +148,18 @@ PyObject *PyObjectPlus::py_base_repr(PyObject *self)			// This should be the ent
 PyObject *PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
 	PyTypeObject *base_type;
-	PyObjectPlus_Proxy *base = NULL;
 
-	if (!PyArg_ParseTuple(args, "O:Base PyObjectPlus", &base))
+	/* one or more args is needed */
+	if (!PyTuple_GET_SIZE(args)) {
+		PyErr_SetString(PyExc_TypeError,
+		                "Expected at least one argument");
 		return NULL;
+	}
 
-	/* the 'base' PyObject may be subclassed (multiple times even)
+	PyObjectPlus_Proxy *base = (PyObjectPlus_Proxy *)PyTuple_GET_ITEM(args, 0);
+
+	/**
+	 * the 'base' PyObject may be subclassed (multiple times even)
 	 * we need to find the first C++ defined class to check 'type'
 	 * is a subclass of the base arguments type.
 	 *
@@ -162,12 +168,13 @@ PyObject *PyObjectPlus::py_base_new(PyTypeObject *type, PyObject *args, PyObject
 	 * eg.
 	 *
 	 * # CustomOb is called 'type' in this C code
+	 * \code{.py}
 	 * class CustomOb(GameTypes.KX_GameObject):
 	 *     pass
 	 *
 	 * # this calls py_base_new(...), the type of 'CustomOb' is checked to be a subclass of the 'cont.owner' type
 	 * ob = CustomOb(cont.owner)
-	 *
+	 * \endcode
 	 * */
 	base_type= Py_TYPE(base);
 	while (base_type && !BGE_PROXY_CHECK_TYPE(base_type))
@@ -418,7 +425,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 							return NULL;
 						}
 #ifdef USE_MATHUTILS
-						return Vector_CreatePyObject(val, attrdef->m_imax, Py_NEW, NULL);
+						return Vector_CreatePyObject(val, attrdef->m_imax, NULL);
 #else
 						PyObject *resultlist = PyList_New(attrdef->m_imax);
 						for (unsigned int i=0; i<attrdef->m_imax; i++)
@@ -435,7 +442,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 						return NULL;
 					}
 #ifdef USE_MATHUTILS
-					return Matrix_CreatePyObject(val, attrdef->m_imin, attrdef->m_imax, Py_WRAP, NULL);
+					return Matrix_CreatePyObject_wrap(val, attrdef->m_imin, attrdef->m_imax, NULL);
 #else
 					PyObject *collist = PyList_New(attrdef->m_imin);
 					for (unsigned int i=0; i<attrdef->m_imin; i++)
@@ -458,7 +465,7 @@ PyObject *PyObjectPlus::py_get_attrdef(PyObject *self_py, const PyAttributeDef *
 #ifdef USE_MATHUTILS
 				float fval[3];
 				val->getValue(fval);
-				return Vector_CreatePyObject(fval, 3, Py_NEW, NULL);
+				return Vector_CreatePyObject(fval, 3, NULL);
 #else
 				PyObject *resultlist = PyList_New(3);
 				for (unsigned int i=0; i<3; i++)

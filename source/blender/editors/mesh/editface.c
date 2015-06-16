@@ -31,8 +31,6 @@
 #include "BLI_math.h"
 #include "BLI_bitmap.h"
 
-#include "BLF_translation.h"
-
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
@@ -448,7 +446,7 @@ int do_paintface_box_select(ViewContext *vc, rcti *rect, bool select, bool exten
 		}
 	}
 
-	view3d_validate_backbuf(vc);
+	ED_view3d_backbuf_validate(vc);
 
 	ibuf = IMB_allocImBuf(sx, sy, 32, IB_rect);
 	rt = ibuf->rect;

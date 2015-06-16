@@ -266,8 +266,20 @@ void ED_markers_make_cfra_list(ListBase *markers, ListBase *lb, short only_sel)
 {
 	TimeMarker *marker;
 	
-	if (markers == NULL)
+	if (lb) {
+		/* Clear the list first, since callers have no way of knowing
+		 * whether this terminated early otherwise. This may lead
+		 * to crashes if the user didn't clear the memory first.
+		 */
+		lb->first = lb->last = NULL;
+	}
+	else {
 		return;
+	}
+	
+	if (markers == NULL) {
+		return;
+	}
 	
 	for (marker = markers->first; marker; marker = marker->next)
 		add_marker_to_cfra_elem(lb, marker, only_sel);
@@ -316,19 +328,14 @@ void debug_markers_print_list(ListBase *markers)
 /* ************* Marker Drawing ************ */
 
 /* function to draw markers */
-static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
+static void draw_marker(
+        View2D *v2d, const uiFontStyle *fstyle, TimeMarker *marker, int cfra, int flag,
+        /* avoid re-calculating each time */
+        const float ypixels, const float xscale, const float yscale)
 {
-	float xpos, ypixels, xscale, yscale;
-	int icon_id = 0;
-	
-	xpos = marker->frame;
-	
-	/* no time correction for framelen! space is drawn with old values */
-	ypixels = BLI_rcti_size_y(&v2d->mask);
-	UI_view2d_scale_get(v2d, &xscale, &yscale);
-	
-	glScalef(1.0f / xscale, 1.0f, 1.0f);
-	
+	const float xpos = marker->frame * xscale;
+	int icon_id;
+
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	
@@ -347,8 +354,8 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 			glColor4ub(0, 0, 0, 96);
 		
 		glBegin(GL_LINES);
-		glVertex2f((xpos * xscale) + 0.5f, 12.0f);
-		glVertex2f((xpos * xscale) + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
+		glVertex2f(xpos + 0.5f, 12.0f);
+		glVertex2f(xpos + 0.5f, (v2d->cur.ymax + 12.0f) * yscale);
 		glEnd();
 		
 		setlinestyle(0);
@@ -365,7 +372,7 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 		          ICON_MARKER;
 	}
 	
-	UI_icon_draw(xpos * xscale - 0.45f * UI_DPI_ICON_SIZE, UI_DPI_ICON_SIZE, icon_id);
+	UI_icon_draw(xpos - 0.45f * UI_DPI_ICON_SIZE, UI_DPI_ICON_SIZE, icon_id);
 	
 	glDisable(GL_BLEND);
 	
@@ -378,19 +385,19 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 		
 		if (marker->flag & SELECT) {
 			UI_ThemeColor(TH_TEXT_HI);
-			x = xpos * xscale + 4.0f * UI_DPI_FAC;
+			x = xpos + 4.0f * UI_DPI_FAC;
 			y = (ypixels <= 39.0f * UI_DPI_FAC) ? (ypixels - 10.0f * UI_DPI_FAC) : 29.0f * UI_DPI_FAC;
 			y = max_ii(y, min_y);
 		}
 		else {
 			UI_ThemeColor(TH_TEXT);
 			if ((marker->frame <= cfra) && (marker->frame + 5 > cfra)) {
-				x = xpos * xscale + 8.0f * UI_DPI_FAC;
+				x = xpos + 8.0f * UI_DPI_FAC;
 				y = (ypixels <= 39.0f * UI_DPI_FAC) ? (ypixels - 10.0f * UI_DPI_FAC) : 29.0f * UI_DPI_FAC;
 				y = max_ii(y, min_y);
 			}
 			else {
-				x = xpos * xscale + 8.0f * UI_DPI_FAC;
+				x = xpos + 8.0f * UI_DPI_FAC;
 				y = 17.0f * UI_DPI_FAC;
 			}
 		}
@@ -404,39 +411,71 @@ static void draw_marker(View2D *v2d, TimeMarker *marker, int cfra, int flag)
 		}
 #endif
 
-		UI_DrawString(x, y, marker->name);
+		UI_fontstyle_draw_simple(fstyle, x, y, marker->name);
 	}
-	
-	glScalef(xscale, 1.0f, 1.0f);
 }
 
 /* Draw Scene-Markers in time window */
-void draw_markers_time(const bContext *C, int flag)
+void ED_markers_draw(const bContext *C, int flag)
 {
+	const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 	ListBase *markers = ED_context_get_markers(C);
 	View2D *v2d;
 	TimeMarker *marker;
 	Scene *scene;
+	int select_pass;
+	int v2d_clip_range_x[2];
+	float font_width_max;
 
-	if (markers == NULL)
+	/* cache values */
+	float ypixels, xscale, yscale;
+
+	if (markers == NULL || BLI_listbase_is_empty(markers)) {
 		return;
+	}
 
 	scene = CTX_data_scene(C);
 	v2d = UI_view2d_fromcontext(C);
 
-	/* unselected markers are drawn at the first time */
-	for (marker = markers->first; marker; marker = marker->next) {
-		if ((marker->flag & SELECT) == 0) {
-			draw_marker(v2d, marker, scene->r.cfra, flag);
+	if (flag & DRAW_MARKERS_MARGIN) {
+		const unsigned char shade[4] = {0, 0, 0, 16};
+		glColor4ubv(shade);
+
+		glEnable(GL_BLEND);
+		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+		glRectf(v2d->cur.xmin, 0, v2d->cur.xmax, UI_MARKER_MARGIN_Y);
+
+		glDisable(GL_BLEND);
+	}
+
+	/* no time correction for framelen! space is drawn with old values */
+	ypixels = BLI_rcti_size_y(&v2d->mask);
+	UI_view2d_scale_get(v2d, &xscale, &yscale);
+	glScalef(1.0f / xscale, 1.0f, 1.0f);
+
+	/* x-bounds with offset for text (adjust for long string, avoid checking string width) */
+	font_width_max = (10 * UI_DPI_FAC) / xscale;
+	v2d_clip_range_x[0] = v2d->cur.xmin - (sizeof(marker->name) * font_width_max);
+	v2d_clip_range_x[1] = v2d->cur.xmax + font_width_max;
+
+	/* loop [unselected, selected] */
+	for (select_pass = 0; select_pass <= SELECT; select_pass += SELECT) {
+		/* unselected markers are drawn at the first time */
+		for (marker = markers->first; marker; marker = marker->next) {
+			if ((marker->flag & SELECT) == select_pass) {
+				/* bounds check */
+				if ((marker->frame >= v2d_clip_range_x[0]) &&
+				    (marker->frame <= v2d_clip_range_x[1]))
+				{
+					draw_marker(v2d, fstyle, marker, scene->r.cfra, flag,
+					            ypixels, xscale, yscale);
+				}
+			}
 		}
 	}
-	
-	/* selected markers are drawn later */
-	for (marker = markers->first; marker; marker = marker->next) {
-		if (marker->flag & SELECT) {
-			draw_marker(v2d, marker, scene->r.cfra, flag);
-		}
-	}
+
+	glScalef(xscale, 1.0f, 1.0f);
 }
 
 /* ************************ Marker Wrappers API ********************* */
@@ -459,6 +498,23 @@ static int ed_markers_poll_selected_markers(bContext *C)
 	/* check if some marker is selected */
 	return ED_markers_get_first_selected(markers) != NULL;
 }
+
+static int ed_markers_poll_selected_no_locked_markers(bContext *C)
+{
+	ListBase *markers = ED_context_get_markers(C);
+	ToolSettings *ts = CTX_data_tool_settings(C);
+
+	if (ts->lock_markers)
+		return 0;
+
+	/* first things first: markers can only exist in timeline views */
+	if (ED_operator_animview_active(C) == 0)
+		return 0;
+
+	/* check if some marker is selected */
+	return ED_markers_get_first_selected(markers) != NULL;
+}
+
 
 /* special poll() which checks if there are any markers at all first */
 static int ed_markers_poll_markers_exist(bContext *C)
@@ -503,8 +559,9 @@ static int ed_markers_opwrap_invoke_custom(bContext *C, wmOperator *op, const wm
 	/* return status modifications - for now, make this spacetype dependent as above */
 	if (sa->spacetype != SPACE_TIME) {
 		/* unless successful, must add "pass-through" to let normal operator's have a chance at tackling this event */
-		if (retval != OPERATOR_FINISHED)
+		if ((retval & (OPERATOR_FINISHED | OPERATOR_INTERFACE)) == 0) {
 			retval |= OPERATOR_PASS_THROUGH;
+		}
 	}
 	
 	return retval;
@@ -604,24 +661,88 @@ typedef struct MarkerMove {
 	NumInput num;
 } MarkerMove;
 
+static bool ed_marker_move_use_time(MarkerMove *mm)
+{
+	if (((mm->slink->spacetype == SPACE_TIME) && !(((SpaceTime *)mm->slink)->flag & TIME_DRAWFRAMES)) ||
+	    ((mm->slink->spacetype == SPACE_SEQ) && !(((SpaceSeq *)mm->slink)->flag & SEQ_DRAWFRAMES)) ||
+	    ((mm->slink->spacetype == SPACE_ACTION) && (((SpaceAction *)mm->slink)->flag & SACTION_DRAWTIME)) ||
+	    ((mm->slink->spacetype == SPACE_IPO) && !(((SpaceIpo *)mm->slink)->flag & SIPO_DRAWTIME)) ||
+	    ((mm->slink->spacetype == SPACE_NLA) && !(((SpaceNla *)mm->slink)->flag & SNLA_DRAWTIME)))
+	{
+		return true;
+	}
+
+	return false;
+}
+
+static void ed_marker_move_update_header(bContext *C, wmOperator *op)
+{
+	Scene *scene = CTX_data_scene(C);
+	MarkerMove *mm = op->customdata;
+	TimeMarker *marker, *selmarker = NULL;
+	const int offs = RNA_int_get(op->ptr, "frames");
+	char str[256];
+	char str_offs[NUM_STR_REP_LEN];
+	int totmark;
+	const bool use_time = ed_marker_move_use_time(mm);
+
+	for (totmark = 0, marker = mm->markers->first; marker; marker = marker->next) {
+		if (marker->flag & SELECT) {
+			selmarker = marker;
+			totmark++;
+		}
+	}
+
+	if (hasNumInput(&mm->num)) {
+		outputNumInput(&mm->num, str_offs, &scene->unit);
+	}
+	else if (use_time) {
+		BLI_snprintf(str_offs, sizeof(str_offs), "%.2f", FRA2TIME(offs));
+	}
+	else {
+		BLI_snprintf(str_offs, sizeof(str_offs), "%d", offs);
+	}
+
+	if (totmark == 1 && selmarker) {
+		/* we print current marker value */
+		if (use_time) {
+			BLI_snprintf(str, sizeof(str), "Marker %.2f offset %s", FRA2TIME(selmarker->frame), str_offs);
+		}
+		else {
+			BLI_snprintf(str, sizeof(str), "Marker %d offset %s", selmarker->frame, str_offs);
+		}
+	}
+	else {
+		BLI_snprintf(str, sizeof(str), "Marker offset %s", str_offs);
+	}
+
+	ED_area_headerprint(CTX_wm_area(C), str);
+}
+
 /* copy selection to temp buffer */
 /* return 0 if not OK */
-static int ed_marker_move_init(bContext *C, wmOperator *op)
+static bool ed_marker_move_init(bContext *C, wmOperator *op)
 {
 	Scene *scene = CTX_data_scene(C);
 	ListBase *markers = ED_context_get_markers(C);
 	MarkerMove *mm;
 	TimeMarker *marker;
-	int totmark = 0;
-	int a;
+	int a, totmark;
 
-	if (markers == NULL) return 0;
-	
-	for (marker = markers->first; marker; marker = marker->next)
-		if (marker->flag & SELECT) totmark++;
-	
-	if (totmark == 0) return 0;
-	
+	if (markers == NULL) {
+		return false;
+	}
+
+	for (totmark = 0, marker = markers->first; marker; marker = marker->next) {
+		if (marker->flag & SELECT) {
+			totmark++;
+		}
+	}
+
+	if (totmark == 0) {
+		return false;
+	}
+
 	op->customdata = mm = MEM_callocN(sizeof(MarkerMove), "Markermove");
 	mm->slink = CTX_wm_space_data(C);
 	mm->markers = markers;
@@ -632,16 +753,16 @@ static int ed_marker_move_init(bContext *C, wmOperator *op)
 	mm->num.val_flag[0] |= NUM_NO_FRACTION;
 	mm->num.unit_sys = scene->unit.system;
 	/* No time unit supporting frames currently... */
-	mm->num.unit_type[0] = B_UNIT_NONE;
-	
+	mm->num.unit_type[0] = ed_marker_move_use_time(mm) ? B_UNIT_TIME : B_UNIT_NONE;
+
 	for (a = 0, marker = markers->first; marker; marker = marker->next) {
 		if (marker->flag & SELECT) {
 			mm->oldframe[a] = marker->frame;
 			a++;
 		}
 	}
-	
-	return 1;
+
+	return true;
 }
 
 /* free stuff */
@@ -672,7 +793,9 @@ static int ed_marker_move_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 		
 		/* reset frs delta */
 		RNA_int_set(op->ptr, "frames", 0);
-		
+
+		ed_marker_move_update_header(C, op);
+
 		return OPERATOR_RUNNING_MODAL;
 	}
 	
@@ -726,138 +849,88 @@ static void ed_marker_move_cancel(bContext *C, wmOperator *op)
 	ed_marker_move_exit(C, op);
 }
 
-
-
 static int ed_marker_move_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	Scene *scene = CTX_data_scene(C);
 	MarkerMove *mm = op->customdata;
 	View2D *v2d = UI_view2d_fromcontext(C);
-	TimeMarker *marker, *selmarker = NULL;
-	char str[256];
-		
-	switch (event->type) {
-		case ESCKEY:
-			ed_marker_move_cancel(C, op);
-			return OPERATOR_CANCELLED;
-		case RIGHTMOUSE:
-			/* press = user manually demands transform to be canceled */
-			if (event->val == KM_PRESS) {
+	const bool has_numinput = hasNumInput(&mm->num);
+	const bool use_time = ed_marker_move_use_time(mm);
+
+	/* Modal numinput active, try to handle numeric inputs first... */
+	if (event->val == KM_PRESS && has_numinput && handleNumInput(C, &mm->num, event)) {
+		float value = (float)RNA_int_get(op->ptr, "frames");
+
+		applyNumInput(&mm->num, &value);
+		if (use_time) {
+			value = TIME2FRA(value);
+		}
+
+		RNA_int_set(op->ptr, "frames", (int)value);
+		ed_marker_move_apply(C, op);
+		ed_marker_move_update_header(C, op);
+	}
+	else {
+		bool handled = false;
+		switch (event->type) {
+			case ESCKEY:
 				ed_marker_move_cancel(C, op);
 				return OPERATOR_CANCELLED;
-			}
-		/* else continue; <--- see if release event should be caught for tweak-end */
-		
-		case RETKEY:
-		case PADENTER:
-		case LEFTMOUSE:
-		case MIDDLEMOUSE:
-			if (WM_modal_tweak_exit(event, mm->event_type)) {
-				ed_marker_move_exit(C, op);
-				WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, NULL);
-				WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, NULL);
-				return OPERATOR_FINISHED;
-			}
-			break;
-		case MOUSEMOVE:
-		{
-			float dx, fac;
+			case RIGHTMOUSE:
+				/* press = user manually demands transform to be canceled */
+				if (event->val == KM_PRESS) {
+					ed_marker_move_cancel(C, op);
+					return OPERATOR_CANCELLED;
+				}
+			/* else continue; <--- see if release event should be caught for tweak-end */
 
-			if (hasNumInput(&mm->num))
+			case RETKEY:
+			case PADENTER:
+			case LEFTMOUSE:
+			case MIDDLEMOUSE:
+				if (WM_modal_tweak_exit(event, mm->event_type)) {
+					ed_marker_move_exit(C, op);
+					WM_event_add_notifier(C, NC_SCENE | ND_MARKERS, NULL);
+					WM_event_add_notifier(C, NC_ANIMATION | ND_MARKERS, NULL);
+					return OPERATOR_FINISHED;
+				}
 				break;
-			
-			dx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
-			
-			if (event->x != mm->evtx) {   /* XXX maybe init for first time */
-				int a, offs, totmark = 0;
-				
-				mm->evtx = event->x;
-				
-				fac = ((float)(event->x - mm->firstx) * dx);
-				
-				if (mm->slink->spacetype == SPACE_TIME) 
-					apply_keyb_grid(event->shift, event->ctrl, &fac, 0.0, FPS, 0.1 * FPS, 0);
-				else
-					apply_keyb_grid(event->shift, event->ctrl, &fac, 0.0, 1.0, 0.1, 0 /*was: U.flag & USER_AUTOGRABGRID*/);
-				
-				offs = (int)fac;
-				RNA_int_set(op->ptr, "frames", offs);
-				ed_marker_move_apply(C, op);
-				
-				/* cruft below is for header print */
-				for (a = 0, marker = mm->markers->first; marker; marker = marker->next) {
-					if (marker->flag & SELECT) {
-						selmarker = marker;
-						a++; totmark++;
-					}
-				}
-				
-				if (totmark == 1) {
-					/* we print current marker value */
-					if (mm->slink->spacetype == SPACE_TIME) {
-						SpaceTime *stime = (SpaceTime *)mm->slink;
-						if (stime->flag & TIME_DRAWFRAMES) 
-							BLI_snprintf(str, sizeof(str), "Marker %d offset %d", selmarker->frame, offs);
-						else 
-							BLI_snprintf(str, sizeof(str), "Marker %.2f offset %.2f", FRA2TIME(selmarker->frame), FRA2TIME(offs));
-					}
-					else if (mm->slink->spacetype == SPACE_ACTION) {
-						SpaceAction *saction = (SpaceAction *)mm->slink;
-						if (saction->flag & SACTION_DRAWTIME)
-							BLI_snprintf(str, sizeof(str), "Marker %.2f offset %.2f", FRA2TIME(selmarker->frame), FRA2TIME(offs));
+			case MOUSEMOVE:
+				if (!has_numinput) {
+					float dx;
+
+					dx = BLI_rctf_size_x(&v2d->cur) / BLI_rcti_size_x(&v2d->mask);
+
+					if (event->x != mm->evtx) {   /* XXX maybe init for first time */
+						float fac;
+
+						mm->evtx = event->x;
+						fac = ((float)(event->x - mm->firstx) * dx);
+
+						if (mm->slink->spacetype == SPACE_TIME)
+							apply_keyb_grid(event->shift, event->ctrl, &fac, 0.0, FPS, 0.1 * FPS, 0);
 						else
-							BLI_snprintf(str, sizeof(str), "Marker %.2f offset %.2f", (double)(selmarker->frame), (double)(offs));
-					}
-					else {
-						BLI_snprintf(str, sizeof(str), "Marker %.2f offset %.2f", (double)(selmarker->frame), (double)(offs));
-					}
-				}
-				else {
-					/* we only print the offset */
-					if (mm->slink->spacetype == SPACE_TIME) {
-						SpaceTime *stime = (SpaceTime *)mm->slink;
-						if (stime->flag & TIME_DRAWFRAMES) 
-							BLI_snprintf(str, sizeof(str), "Marker offset %d ", offs);
-						else 
-							BLI_snprintf(str, sizeof(str), "Marker offset %.2f ", FRA2TIME(offs));
-					}
-					else if (mm->slink->spacetype == SPACE_ACTION) {
-						SpaceAction *saction = (SpaceAction *)mm->slink;
-						if (saction->flag & SACTION_DRAWTIME)
-							BLI_snprintf(str, sizeof(str), "Marker offset %.2f ", FRA2TIME(offs));
-						else
-							BLI_snprintf(str, sizeof(str), "Marker offset %.2f ", (double)(offs));
-					}
-					else {
-						BLI_snprintf(str, sizeof(str), "Marker offset %.2f ", (double)(offs));
+							apply_keyb_grid(event->shift, event->ctrl, &fac, 0.0, 1.0, 0.1, 0 /*was: U.flag & USER_AUTOGRABGRID*/);
+
+						RNA_int_set(op->ptr, "frames", (int)fac);
+						ed_marker_move_apply(C, op);
+						ed_marker_move_update_header(C, op);
 					}
 				}
-				
-				ED_area_headerprint(CTX_wm_area(C), str);
-			}
-			break;
+				break;
 		}
-	}
 
-	if (event->val == KM_PRESS) {
-		if (handleNumInput(C, &mm->num, event)) {
-			char str_tx[NUM_STR_REP_LEN];
-			float value = RNA_int_get(op->ptr, "frames");
+		if (!handled && event->val == KM_PRESS && handleNumInput(C, &mm->num, event)) {
+			float value = (float)RNA_int_get(op->ptr, "frames");
+
 			applyNumInput(&mm->num, &value);
-
-			if (hasNumInput(&mm->num)) {
-				outputNumInput(&mm->num, str_tx, scene->unit.scale_length);
-			}
-			else {
-				BLI_snprintf(str_tx, sizeof(str_tx), "%d", (int)value);
+			if (use_time) {
+				value = TIME2FRA(value);
 			}
 
-			RNA_int_set(op->ptr, "frames", value);
+			RNA_int_set(op->ptr, "frames", (int)value);
 			ed_marker_move_apply(C, op);
-			// ed_marker_header_update(C, op, str, (int)value);
-			// strcat(str, str_tx);
-			BLI_snprintf(str, sizeof(str), "Marker offset %s", str_tx);
-			ED_area_headerprint(CTX_wm_area(C), str);
+			ed_marker_move_update_header(C, op);
 		}
 	}
 
@@ -885,11 +958,11 @@ static void MARKER_OT_move(wmOperatorType *ot)
 	ot->exec = ed_marker_move_exec;
 	ot->invoke = ed_marker_move_invoke_wrapper;
 	ot->modal = ed_marker_move_modal;
-	ot->poll = ed_markers_poll_selected_markers;
+	ot->poll = ed_markers_poll_selected_no_locked_markers;
 	ot->cancel = ed_marker_move_cancel;
 	
 	/* flags */
-	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_POINTER;
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING | OPTYPE_GRAB_CURSOR;
 	
 	/* rna storage */
 	RNA_def_int(ot->srna, "frames", 0, INT_MIN, INT_MAX, "Frames", "", INT_MIN, INT_MAX);
@@ -978,7 +1051,7 @@ static void MARKER_OT_duplicate(wmOperatorType *ot)
 	ot->exec = ed_marker_duplicate_exec;
 	ot->invoke = ed_marker_duplicate_invoke_wrapper;
 	ot->modal = ed_marker_move_modal;
-	ot->poll = ed_markers_poll_selected_markers;
+	ot->poll = ed_markers_poll_selected_no_locked_markers;
 	ot->cancel = ed_marker_move_cancel;
 	
 	/* flags */
@@ -1013,7 +1086,7 @@ static void select_timeline_marker_frame(ListBase *markers, int frame, bool exte
 	}
 
 	BLI_LISTBASE_CIRCULAR_FORWARD_BEGIN (markers, marker, marker_first) {
-		/* this way a not-extend select will allways give 1 selected marker */
+		/* this way a not-extend select will always give 1 selected marker */
 		if (marker->frame == frame) {
 			marker->flag ^= SELECT;
 			break;
@@ -1308,7 +1381,7 @@ static void MARKER_OT_delete(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = ed_marker_delete_invoke_wrapper;
 	ot->exec = ed_marker_delete_exec;
-	ot->poll = ed_markers_poll_selected_markers;
+	ot->poll = ed_markers_poll_selected_no_locked_markers;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1356,7 +1429,7 @@ static void MARKER_OT_rename(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = ed_marker_rename_invoke_wrapper;
 	ot->exec = ed_marker_rename_exec;
-	ot->poll = ed_markers_poll_selected_markers;
+	ot->poll = ed_markers_poll_selected_no_locked_markers;
 	
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1381,6 +1454,11 @@ static int ed_marker_make_links_scene_exec(bContext *C, wmOperator *op)
 
 	if (scene_to == CTX_data_scene(C)) {
 		BKE_report(op->reports, RPT_ERROR, "Cannot re-link markers into the same scene");
+		return OPERATOR_CANCELLED;
+	}
+
+	if (scene_to->toolsettings->lock_markers) {
+		BKE_report(op->reports, RPT_ERROR, "Target scene has locked markers");
 		return OPERATOR_CANCELLED;
 	}
 
@@ -1459,13 +1537,13 @@ static void MARKER_OT_camera_bind(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Bind Camera to Markers";
-	ot->description = "Bind the active camera to selected markers(s)";
+	ot->description = "Bind the active camera to selected marker(s)";
 	ot->idname = "MARKER_OT_camera_bind";
 
 	/* api callbacks */
 	ot->exec = ed_marker_camera_bind_exec;
 	ot->invoke = ed_markers_opwrap_invoke;
-	ot->poll = ed_markers_poll_selected_markers;
+	ot->poll = ed_markers_poll_selected_no_locked_markers;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

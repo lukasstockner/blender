@@ -11,19 +11,21 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #include "attribute.h"
+#include "camera.h"
+#include "curves.h"
 #include "mesh.h"
 #include "object.h"
 #include "scene.h"
-#include "curves.h"
 
 #include "blender_sync.h"
 #include "blender_util.h"
 
 #include "util_foreach.h"
+#include "util_logging.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -39,10 +41,11 @@ bool ObtainCacheParticleUV(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Parti
 bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background, int vcol_num);
 bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, ParticleCurveData *CData, bool background);
 void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData);
-void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotCam);
+void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData,
+                               float3 RotCam, bool is_ortho);
 void ExportCurveTriangleGeometry(Mesh *mesh, ParticleCurveData *CData, int resolution);
-void ExportCurveTriangleUV(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata);
-void ExportCurveTriangleVcol(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, uchar4 *cdata);
+void ExportCurveTriangleUV(ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata);
+void ExportCurveTriangleVcol(ParticleCurveData *CData, int vert_offset, int resol, uchar4 *cdata);
 
 ParticleCurveData::ParticleCurveData()
 {
@@ -138,7 +141,6 @@ bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 				int mi = clamp(b_part.material()-1, 0, mesh->used_shaders.size()-1);
 				int shader = mesh->used_shaders[mi];
 				int draw_step = background ? b_part.render_step() : b_part.draw_step();
-				int ren_step = (int)powf(2.0f, (float)draw_step);
 				int totparts = b_psys.particles.length();
 				int totchild = background ? b_psys.child_particles.length() : (int)((float)b_psys.child_particles.length() * (float)b_part.draw_percentage() / 100.0f);
 				int totcurves = totchild;
@@ -148,6 +150,10 @@ bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 
 				if(totcurves == 0)
 					continue;
+
+				int ren_step = (1 << draw_step) + 1;
+				if(b_part.kink() == BL::ParticleSettings::kink_SPIRAL)
+					ren_step += b_part.kink_extra_steps();
 
 				PointerRNA cpsys = RNA_pointer_get(&b_part.ptr, "cycles");
 
@@ -170,8 +176,8 @@ bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 				CData->curve_firstkey.reserve(CData->curve_firstkey.size() + num_add);
 				CData->curve_keynum.reserve(CData->curve_keynum.size() + num_add);
 				CData->curve_length.reserve(CData->curve_length.size() + num_add);
-				CData->curvekey_co.reserve(CData->curvekey_co.size() + num_add*(ren_step+1));
-				CData->curvekey_time.reserve(CData->curvekey_time.size() + num_add*(ren_step+1));
+				CData->curvekey_co.reserve(CData->curvekey_co.size() + num_add*ren_step);
+				CData->curvekey_time.reserve(CData->curvekey_time.size() + num_add*ren_step);
 
 				for(; pa_no < totparts+totchild; pa_no++) {
 					int keynum = 0;
@@ -179,7 +185,7 @@ bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 					
 					float curve_length = 0.0f;
 					float3 pcKey;
-					for(int step_no = 0; step_no <= ren_step; step_no++) {
+					for(int step_no = 0; step_no < ren_step; step_no++) {
 						float nco[3];
 						b_psys.co_hair(*b_ob, pa_no, step_no, nco);
 						float3 cKey = make_float3(nco[0], nco[1], nco[2]);
@@ -193,9 +199,9 @@ bool ObtainCacheParticleData(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 						CData->curvekey_co.push_back(cKey);
 						CData->curvekey_time.push_back(curve_length);
 						pcKey = cKey;
-						keyno++;
 						keynum++;
 					}
+					keyno += keynum;
 
 					CData->curve_keynum.push_back(keynum);
 					CData->curve_length.push_back(curve_length);
@@ -227,10 +233,10 @@ bool ObtainCacheParticleUV(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Parti
 				int totchild = background ? b_psys.child_particles.length() : (int)((float)b_psys.child_particles.length() * (float)b_part.draw_percentage() / 100.0f);
 				int totcurves = totchild;
 				
-				if (b_part.child_type() == 0)
+				if(b_part.child_type() == 0)
 					totcurves += totparts;
 
-				if (totcurves == 0)
+				if(totcurves == 0)
 					continue;
 
 				int pa_no = 0;
@@ -281,10 +287,10 @@ bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 				int totchild = background ? b_psys.child_particles.length() : (int)((float)b_psys.child_particles.length() * (float)b_part.draw_percentage() / 100.0f);
 				int totcurves = totchild;
 				
-				if (b_part.child_type() == 0)
+				if(b_part.child_type() == 0)
 					totcurves += totparts;
 
-				if (totcurves == 0)
+				if(totcurves == 0)
 					continue;
 
 				int pa_no = 0;
@@ -316,11 +322,11 @@ bool ObtainCacheParticleVcol(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, Par
 	return true;
 }
 
-static void set_resolution(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, BL::Scene *scene, bool render)
+static void set_resolution(BL::Object *b_ob, BL::Scene *scene, bool render)
 {
 	BL::Object::modifiers_iterator b_mod;
 	for(b_ob->modifiers.begin(b_mod); b_mod != b_ob->modifiers.end(); ++b_mod) {
-		if ((b_mod->type() == b_mod->type_PARTICLE_SYSTEM) && ((b_mod->show_viewport()) || (b_mod->show_render()))) {
+		if((b_mod->type() == b_mod->type_PARTICLE_SYSTEM) && ((b_mod->show_viewport()) || (b_mod->show_render()))) {
 			BL::ParticleSystemModifier psmd((const PointerRNA)b_mod->ptr);
 			BL::ParticleSystem b_psys((const PointerRNA)psmd.particle_system().ptr);
 			b_psys.set_resolution(*scene, *b_ob, (render)? 2: 1);
@@ -328,7 +334,8 @@ static void set_resolution(Mesh *mesh, BL::Mesh *b_mesh, BL::Object *b_ob, BL::S
 	}
 }
 
-void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotCam)
+void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData,
+                               float3 RotCam, bool is_ortho)
 {
 	int vertexno = mesh->verts.size();
 	int vertexindex = vertexno;
@@ -362,7 +369,10 @@ void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotC
 			float3 ickey_loc = CData->curvekey_co[CData->curve_firstkey[curve]];
 			float radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], CData->psys_tipradius[sys], 0.0f);
 			v1 = CData->curvekey_co[CData->curve_firstkey[curve] + 1] - CData->curvekey_co[CData->curve_firstkey[curve]];
-			xbasis = normalize(cross(RotCam - ickey_loc,v1));
+			if(is_ortho)
+				xbasis = normalize(cross(RotCam, v1));
+			else
+				xbasis = normalize(cross(RotCam - ickey_loc, v1));
 			float3 ickey_loc_shfl = ickey_loc - radius * xbasis;
 			float3 ickey_loc_shfr = ickey_loc + radius * xbasis;
 			mesh->verts.push_back(ickey_loc_shfl);
@@ -386,7 +396,10 @@ void ExportCurveTrianglePlanes(Mesh *mesh, ParticleCurveData *CData, float3 RotC
 				if(CData->psys_closetip[sys] && (curvekey == CData->curve_firstkey[curve] + CData->curve_keynum[curve] - 1))
 					radius = shaperadius(CData->psys_shape[sys], CData->psys_rootradius[sys], 0.0f, 0.95f);
 
-				xbasis = normalize(cross(RotCam - ickey_loc,v1));
+				if(is_ortho)
+					xbasis = normalize(cross(RotCam, v1));
+				else
+					xbasis = normalize(cross(RotCam - ickey_loc, v1));
 				float3 ickey_loc_shfl = ickey_loc - radius * xbasis;
 				float3 ickey_loc_shfr = ickey_loc + radius * xbasis;
 				mesh->verts.push_back(ickey_loc_shfl);
@@ -500,7 +513,7 @@ void ExportCurveTriangleGeometry(Mesh *mesh, ParticleCurveData *CData, int resol
 
 				ybasis = normalize(cross(xbasis, v2));
 
-				for (; subv <= 1; subv++) {
+				for(; subv <= 1; subv++) {
 					float3 ickey_loc = make_float3(0.0f,0.0f,0.0f);
 					float time = 0.0f;
 
@@ -568,6 +581,10 @@ void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData)
 		}
 	}
 
+	if(num_curves > 0) {
+		VLOG(1) << "Exporting curve segments for mesh " << mesh->name;
+	}
+
 	mesh->curve_keys.reserve(mesh->curve_keys.size() + num_keys);
 	mesh->curves.reserve(mesh->curves.size() + num_curves);
 
@@ -603,23 +620,27 @@ void ExportCurveSegments(Scene *scene, Mesh *mesh, ParticleCurveData *CData)
 		}
 	}
 
-	/* check allocation*/
-	if((mesh->curve_keys.size() !=  num_keys) || (mesh->curves.size() !=  num_curves)) {
-		/* allocation failed -> clear data */
+	/* check allocation */
+	if((mesh->curve_keys.size() != num_keys) || (mesh->curves.size() != num_curves)) {
+		VLOG(1) << "Allocation failed, clearing data";
 		mesh->curve_keys.clear();
 		mesh->curves.clear();
 		mesh->curve_attributes.clear();
 	}
 }
 
-static void ExportCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveData *CData, int time_index)
+static void ExportCurveSegmentsMotion(Mesh *mesh, ParticleCurveData *CData, int time_index)
 {
+	VLOG(1) << "Exporting curve motion segments for mesh " << mesh->name
+	        << ", time index " << time_index;
+
 	/* find attribute */
 	Attribute *attr_mP = mesh->curve_attributes.find(ATTR_STD_MOTION_VERTEX_POSITION);
 	bool new_attribute = false;
 
 	/* add new attribute if it doesn't exist already */
 	if(!attr_mP) {
+		VLOG(1) << "Creating new motion vertex position attribute";
 		attr_mP = mesh->curve_attributes.add(ATTR_STD_MOTION_VERTEX_POSITION);
 		new_attribute = true;
 	}
@@ -666,9 +687,12 @@ static void ExportCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveDat
 	if(new_attribute) {
 		if(i != numkeys || !have_motion) {
 			/* no motion, remove attributes again */
+			VLOG(1) << "No motion, removing attribute";
 			mesh->curve_attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
 		}
 		else if(time_index > 0) {
+			VLOG(1) << "Filling in new motion vertex position for time_index "
+			        << time_index;
 			/* motion, fill up previous steps that we might have skipped because
 			 * they had no motion, but we need them anyway now */
 			for(int step = 0; step < time_index; step++) {
@@ -681,7 +705,7 @@ static void ExportCurveSegmentsMotion(Scene *scene, Mesh *mesh, ParticleCurveDat
 	}
 }
 
-void ExportCurveTriangleUV(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata)
+void ExportCurveTriangleUV(ParticleCurveData *CData, int vert_offset, int resol, float3 *uvdata)
 {
 	if(uvdata == NULL)
 		return;
@@ -726,7 +750,7 @@ void ExportCurveTriangleUV(Mesh *mesh, ParticleCurveData *CData, int vert_offset
 	}
 }
 
-void ExportCurveTriangleVcol(Mesh *mesh, ParticleCurveData *CData, int vert_offset, int resol, uchar4 *cdata)
+void ExportCurveTriangleVcol(ParticleCurveData *CData, int vert_offset, int resol, uchar4 *cdata)
 {
 	if(cdata == NULL)
 		return;
@@ -777,30 +801,38 @@ void BlenderSync::sync_curve_settings()
 	curve_system_manager->subdivisions = get_int(csscene, "subdivisions");
 	curve_system_manager->use_backfacing = !get_boolean(csscene, "cull_backfacing");
 
-	if(curve_system_manager->primitive == CURVE_TRIANGLES && curve_system_manager->curve_shape == CURVE_RIBBON) {
+	/* Triangles */
+	if(curve_system_manager->primitive == CURVE_TRIANGLES) {
 		/* camera facing planes */
-		curve_system_manager->triangle_method = CURVE_CAMERA_TRIANGLES;
-		curve_system_manager->resolution = 1;
+		if(curve_system_manager->curve_shape == CURVE_RIBBON) {
+			curve_system_manager->triangle_method = CURVE_CAMERA_TRIANGLES;
+			curve_system_manager->resolution = 1;
+		}
+		else if(curve_system_manager->curve_shape == CURVE_THICK) {
+			curve_system_manager->triangle_method = CURVE_TESSELATED_TRIANGLES;
+		}
 	}
-	else if(curve_system_manager->primitive == CURVE_TRIANGLES && curve_system_manager->curve_shape == CURVE_THICK) {
-		/* camera facing planes */
-		curve_system_manager->triangle_method = CURVE_TESSELATED_TRIANGLES;
+	/* Line Segments */
+	else if(curve_system_manager->primitive == CURVE_LINE_SEGMENTS) {
+		if(curve_system_manager->curve_shape == CURVE_RIBBON) {
+			/* tangent shading */
+			curve_system_manager->line_method = CURVE_UNCORRECTED;
+			curve_system_manager->use_encasing = true;
+			curve_system_manager->use_backfacing = false;
+			curve_system_manager->use_tangent_normal_geometry = true;
+		}
+		else if(curve_system_manager->curve_shape == CURVE_THICK) {
+			curve_system_manager->line_method = CURVE_ACCURATE;
+			curve_system_manager->use_encasing = false;
+			curve_system_manager->use_tangent_normal_geometry = false;
+		}
 	}
-	else if(curve_system_manager->primitive == CURVE_LINE_SEGMENTS && curve_system_manager->curve_shape == CURVE_RIBBON) {
-		/* tangent shading */
-		curve_system_manager->line_method = CURVE_UNCORRECTED;
-		curve_system_manager->use_encasing = true;
-		curve_system_manager->use_backfacing = false;
-		curve_system_manager->use_tangent_normal_geometry = true;
-	}
-	else if(curve_system_manager->primitive == CURVE_LINE_SEGMENTS && curve_system_manager->curve_shape == CURVE_THICK) {
-		curve_system_manager->line_method = CURVE_ACCURATE;
-		curve_system_manager->use_encasing = false;
-		curve_system_manager->use_tangent_normal_geometry = false;
-	}
-	else if(curve_system_manager->primitive == CURVE_SEGMENTS && curve_system_manager->curve_shape == CURVE_RIBBON) {
-		curve_system_manager->primitive = CURVE_RIBBONS;
-		curve_system_manager->use_backfacing = false;
+	/* Curve Segments */
+	else if(curve_system_manager->primitive == CURVE_SEGMENTS) {
+		if(curve_system_manager->curve_shape == CURVE_RIBBON) {
+			curve_system_manager->primitive = CURVE_RIBBONS;
+			curve_system_manager->use_backfacing = false;
+		}
 	}
 
 	if(curve_system_manager->modified_mesh(prev_curve_system_manager)) {
@@ -854,24 +886,30 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 	ParticleCurveData CData;
 
 	if(!preview)
-		set_resolution(mesh, &b_mesh, &b_ob, &b_scene, true);
+		set_resolution(&b_ob, &b_scene, true);
 
 	ObtainCacheParticleData(mesh, &b_mesh, &b_ob, &CData, !preview);
 
-	/* obtain camera parameters */
-	BL::Object b_CamOb = b_scene.camera();
-	float3 RotCam = make_float3(0.0f, 0.0f, 0.0f);
-	if(b_CamOb) {
-		Transform ctfm = get_transform(b_CamOb.matrix_world());
-		Transform tfm = get_transform(b_ob.matrix_world());
-		Transform itfm = transform_quick_inverse(tfm);
-		RotCam = transform_point(&itfm, make_float3(ctfm.x.w, ctfm.y.w, ctfm.z.w));
-	}
-
 	/* add hair geometry to mesh */
 	if(primitive == CURVE_TRIANGLES) {
-		if(triangle_method == CURVE_CAMERA_TRIANGLES)
-			ExportCurveTrianglePlanes(mesh, &CData, RotCam);
+		if(triangle_method == CURVE_CAMERA_TRIANGLES) {
+			/* obtain camera parameters */
+			float3 RotCam;
+			Camera *camera = scene->camera;
+			Transform &ctfm = camera->matrix;
+			if(camera->type == CAMERA_ORTHOGRAPHIC) {
+				RotCam = -make_float3(ctfm.x.z, ctfm.y.z, ctfm.z.z);
+			}
+			else {
+				Transform tfm = get_transform(b_ob.matrix_world());
+				Transform itfm = transform_quick_inverse(tfm);
+				RotCam = transform_point(&itfm, make_float3(ctfm.x.w,
+				                                            ctfm.y.w,
+				                                            ctfm.z.w));
+			}
+			bool is_ortho = camera->type == CAMERA_ORTHOGRAPHIC;
+			ExportCurveTrianglePlanes(mesh, &CData, RotCam, is_ortho);
+		}
 		else {
 			ExportCurveTriangleGeometry(mesh, &CData, resolution);
 			used_res = resolution;
@@ -879,7 +917,7 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 	}
 	else {
 		if(motion)
-			ExportCurveSegmentsMotion(scene, mesh, &CData, time_index);
+			ExportCurveSegmentsMotion(mesh, &CData, time_index);
 		else
 			ExportCurveSegments(scene, mesh, &CData);
 	}
@@ -928,7 +966,7 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 
 				uchar4 *cdata = attr_vcol->data_uchar4();
 
-				ExportCurveTriangleVcol(mesh, &CData, tri_num * 3, used_res, cdata);
+				ExportCurveTriangleVcol(&CData, tri_num * 3, used_res, cdata);
 			}
 			else {
 				Attribute *attr_vcol = mesh->curve_attributes.add(
@@ -971,7 +1009,7 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 
 					float3 *uv = attr_uv->data_float3();
 
-					ExportCurveTriangleUV(mesh, &CData, tri_num * 3, used_res, uv);
+					ExportCurveTriangleUV(&CData, tri_num * 3, used_res, uv);
 				}
 				else {
 					if(active_render)
@@ -994,7 +1032,7 @@ void BlenderSync::sync_curves(Mesh *mesh, BL::Mesh b_mesh, BL::Object b_ob, bool
 	}
 
 	if(!preview)
-		set_resolution(mesh, &b_mesh, &b_ob, &b_scene, false);
+		set_resolution(&b_ob, &b_scene, false);
 
 	mesh->compute_bounds();
 }

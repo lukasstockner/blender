@@ -32,6 +32,11 @@
  *  \ingroup GHOST
  */
 
+#include <X11/Xatom.h>
+#include <X11/keysym.h>
+#include <X11/XKBlib.h> /* allow detectable autorepeate */
+#include <X11/Xutil.h>
+
 #include "GHOST_SystemX11.h"
 #include "GHOST_WindowX11.h"
 #include "GHOST_WindowManager.h"
@@ -51,10 +56,6 @@
 #endif
 
 #include "GHOST_Debug.h"
-
-#include <X11/Xatom.h>
-#include <X11/keysym.h>
-#include <X11/XKBlib.h> /* allow detectable autorepeate */
 
 #ifdef WITH_XF86KEYSYM
 #include <X11/XF86keysym.h>
@@ -140,6 +141,8 @@ GHOST_SystemX11(
 #undef GHOST_INTERN_ATOM
 
 	m_last_warp = 0;
+	m_last_release_keycode = 0;
+	m_last_release_time = 0;
 
 	/* compute the initial time */
 	timeval tv;
@@ -243,7 +246,7 @@ getMainDisplayDimensions(
 {
 	if (m_display) {
 		/* note, for this to work as documented,
-		 * we would need to use Xinerama check r54370 for code that did thia,
+		 * we would need to use Xinerama check r54370 for code that did this,
 		 * we've since removed since its not worth the extra dep - campbell */
 		getAllDisplayDimensions(width, height);
 	}
@@ -286,31 +289,26 @@ getAllDisplayDimensions(
  */
 GHOST_IWindow *
 GHOST_SystemX11::
-createWindow(
-		const STR_String& title,
+createWindow(const STR_String& title,
 		GHOST_TInt32 left,
 		GHOST_TInt32 top,
 		GHOST_TUns32 width,
 		GHOST_TUns32 height,
 		GHOST_TWindowState state,
 		GHOST_TDrawingContextType type,
-		const bool stereoVisual,
+		GHOST_GLSettings glSettings,
 		const bool exclusive,
-		const GHOST_TUns16 numOfAASamples,
 		const GHOST_TEmbedderWindowID parentWindow)
 {
 	GHOST_WindowX11 *window = 0;
 	
 	if (!m_display) return 0;
 	
-
-	
-
 	window = new GHOST_WindowX11(this, m_display, title,
 	                             left, top, width, height,
 	                             state, parentWindow, type,
-	                             stereoVisual, exclusive,
-	                             numOfAASamples);
+	                             ((glSettings.flags & GHOST_glStereoVisual) != 0), exclusive,
+	                             glSettings.numOfAASamples);
 
 	if (window) {
 		/* Both are now handle in GHOST_WindowX11.cpp
@@ -331,7 +329,7 @@ createWindow(
 }
 
 #if defined(WITH_X11_XINPUT) && defined(X_HAVE_UTF8_STRING)
-static void destroyIMCallback(XIM xim, XPointer ptr, XPointer data)
+static void destroyIMCallback(XIM /*xim*/, XPointer ptr, XPointer /*data*/)
 {
 	GHOST_PRINT("XIM server died\n");
 
@@ -525,6 +523,16 @@ processEvents(
 				continue;
 			}
 #endif
+			/* when using autorepeat, some keypress events can actually come *after* the
+			 * last keyrelease. The next code takes care of that */
+			if (xevent.type == KeyRelease) {
+				m_last_release_keycode = xevent.xkey.keycode;
+				m_last_release_time = xevent.xkey.time;
+			}
+			else if (xevent.type == KeyPress) {
+				if ((xevent.xkey.keycode == m_last_release_keycode) && ((xevent.xkey.time <= m_last_release_time)))
+					continue;
+			}
 
 			processEvent(&xevent);
 			anyProcessed = true;
@@ -658,7 +666,7 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 #ifdef WITH_X11_XINPUT
 	/* Proximity-Out Events are not reliable, if the tablet is active - check on each event
 	 * this adds a little overhead but only while the tablet is in use.
-	 * in the futire we could have a ghost call window->CheckTabletProximity()
+	 * in the future we could have a ghost call window->CheckTabletProximity()
 	 * but for now enough parts of the code are checking 'Active'
 	 * - campbell */
 	if (window->GetTabletData()->Active != GHOST_kTabletModeNone) {
@@ -1168,7 +1176,11 @@ GHOST_SystemX11::processEvent(XEvent *xe)
 		default:
 		{
 #ifdef WITH_X11_XINPUT
-			if (xe->type == m_xtablet.MotionEvent) {
+			if (xe->type == m_xtablet.MotionEvent ||
+			    xe->type == m_xtablet.MotionEventEraser ||
+			    xe->type == m_xtablet.PressEvent ||
+			    xe->type == m_xtablet.PressEventEraser)
+			{
 				XDeviceMotionEvent *data = (XDeviceMotionEvent *)xe;
 				const unsigned char axis_first = data->first_axis;
 				const unsigned char axes_end = axis_first + data->axes_count;  /* after the last */
@@ -1239,7 +1251,7 @@ getModifierKeys(
 
 	XQueryKeymap(m_display, (char *)m_keyboard_vector);
 
-	/* now translate key symobols into keycodes and
+	/* now translate key symbols into keycodes and
 	 * test with vector. */
 
 	const static KeyCode shift_l = XKeysymToKeycode(m_display, XK_Shift_L);
@@ -1861,13 +1873,16 @@ GHOST_TSuccess GHOST_SystemX11::pushDragDropEvent(GHOST_TEventType eventType,
 }
 #endif
 
-#ifdef WITH_X11_XINPUT
-/* 
+#if defined(USE_X11_ERROR_HANDLERS) || defined(WITH_X11_XINPUT)
+/*
+ * These callbacks can be used for debugging, so we can breakpoint on an X11 error.
+
+ *
  * Dummy function to get around IO Handler exiting if device invalid
  * Basically it will not crash blender now if you have a X device that
  * is configured but not plugged in.
  */
-int GHOST_X11_ApplicationErrorHandler(Display *display, XErrorEvent *theEvent)
+int GHOST_X11_ApplicationErrorHandler(Display * /*display*/, XErrorEvent *theEvent)
 {
 	fprintf(stderr, "Ignoring Xlib error: error code %d request code %d\n",
 	        theEvent->error_code, theEvent->request_code);
@@ -1876,14 +1891,16 @@ int GHOST_X11_ApplicationErrorHandler(Display *display, XErrorEvent *theEvent)
 	return 0;
 }
 
-int GHOST_X11_ApplicationIOErrorHandler(Display *display)
+int GHOST_X11_ApplicationIOErrorHandler(Display * /*display*/)
 {
 	fprintf(stderr, "Ignoring Xlib error: error IO\n");
 
 	/* No exit! - but keep lint happy */
 	return 0;
 }
+#endif
 
+#ifdef WITH_X11_XINPUT
 /* These C functions are copied from Wine 1.1.13's wintab.c */
 #define BOOL int
 #define TRUE 1

@@ -32,7 +32,6 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_windowmanager_types.h"
 
@@ -121,7 +120,7 @@ void ED_spacetypes_init(void)
 	ED_operatortypes_io();
 	
 	ED_operatortypes_view2d();
-	UI_buttons_operatortypes();
+	ED_button_operatortypes();
 	
 	/* register operators */
 	spacetypes = BKE_spacetypes_list();
@@ -130,8 +129,17 @@ void ED_spacetypes_init(void)
 			type->operatortypes();
 	}
 
-	/* Macros's must go last since they reference other operators
-	 * maybe we'll need to have them go after python operators too? */
+	/* register internal render callbacks */
+	ED_render_internal_init();
+}
+
+void ED_spacemacros_init(void)
+{
+	const ListBase *spacetypes;
+	SpaceType *type;
+
+	/* Macros's must go last since they reference other operators.
+	 * We need to have them go after python operators too */
 	ED_operatormacros_armature();
 	ED_operatormacros_mesh();
 	ED_operatormacros_metaball();
@@ -145,6 +153,7 @@ void ED_spacetypes_init(void)
 	ED_operatormacros_mask();
 	ED_operatormacros_sequencer();
 	ED_operatormacros_paint();
+	ED_operatormacros_gpencil();
 
 	/* register dropboxes (can use macros) */
 	spacetypes = BKE_spacetypes_list();
@@ -152,9 +161,6 @@ void ED_spacetypes_init(void)
 		if (type->dropboxes)
 			type->dropboxes();
 	}
-	
-	/* register internal render callbacks */
-	ED_render_internal_init();
 }
 
 /* called in wm.c */
@@ -311,7 +317,3 @@ void ED_spacetype_xxx(void)
 }
 
 /* ****************************** end template *********************** */
-
-
-
-

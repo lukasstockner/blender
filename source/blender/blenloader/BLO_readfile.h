@@ -37,13 +37,11 @@ extern "C" {
 #endif
 
 struct bScreen;
-struct direntry;
 struct LinkNode;
 struct Main;
 struct MemFile;
 struct ReportList;
 struct Scene;
-struct SpaceFile;
 struct UserDef;
 struct bContext;
 struct BHead;
@@ -61,9 +59,7 @@ typedef struct BlendFileData {
 	struct Main *main;
 	struct UserDef *user;
 
-	int winpos;
 	int fileflags;
-	int displaymode;
 	int globalf;
 	char filename[1024];    /* 1024 = FILE_MAX */
 	
@@ -123,8 +119,8 @@ BLO_blendfiledata_free(BlendFileData *bfd);
 /**
  * Open a blendhandle from a file path.
  *
- * \param file The file path to open.
- * \param reports Report errors in opening the file (can be NULL).
+ * \param filepath: The file path to open.
+ * \param reports: Report errors in opening the file (can be NULL).
  * \return A handle on success, or NULL on failure.
  */
 BlendHandle *BLO_blendhandle_from_file(

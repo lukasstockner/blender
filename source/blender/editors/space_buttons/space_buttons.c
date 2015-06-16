@@ -28,7 +28,6 @@
  *  \ingroup spbuttons
  */
 
-
 #include <string.h>
 #include <stdio.h>
 
@@ -45,10 +44,6 @@
 
 #include "WM_api.h"
 #include "WM_types.h"
-
-#include "UI_resources.h"
-#include "UI_view2d.h"
-
 
 #include "buttons_intern.h"  /* own include */
 
@@ -232,6 +227,10 @@ static void buttons_area_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *
 				case ND_RENDER_OPTIONS:
 					buttons_area_redraw(sa, BCONTEXT_RENDER);
 					buttons_area_redraw(sa, BCONTEXT_RENDER_LAYER);
+					break;
+				case ND_WORLD:
+					buttons_area_redraw(sa, BCONTEXT_WORLD);
+					sbuts->preview = 1;
 					break;
 				case ND_FRAME:
 					/* any buttons area can have animated properties so redraw all */

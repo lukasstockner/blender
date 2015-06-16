@@ -64,6 +64,7 @@ extern "C"
 #include "BLO_readfile.h"
 #include "BLO_runtime.h"
 
+#include "BKE_appdir.h"
 #include "BKE_blender.h"
 #include "BKE_depsgraph.h"
 #include "BKE_global.h"
@@ -73,13 +74,16 @@ extern "C"
 #include "BKE_report.h"
 #include "BKE_library.h"
 #include "BKE_modifier.h"
+#include "BKE_material.h"
 #include "BKE_text.h"
 #include "BKE_sound.h"
 
 #include "IMB_imbuf.h"
 #include "IMB_moviecache.h"
 	
+#ifdef __APPLE__
 	int GHOST_HACK_getFirstFile(char buf[]);
+#endif
 	
 // For BLF
 #include "BLF_api.h"
@@ -115,6 +119,10 @@ extern char datatoc_bmonofont_ttf[];
 #include <wincon.h>
 #endif // !defined(DEBUG)
 #endif // WIN32
+
+#ifdef WITH_SDL_DYNLOAD
+#  include "sdlew.h"
+#endif
 
 const int kMinWindowWidth = 100;
 const int kMinWindowHeight = 100;
@@ -299,7 +307,7 @@ static void get_filename(int argc, char **argv, char *filename)
 			if (GHOST_HACK_getFirstFile(firstfilebuf)) {
 				BLI_strncpy(filename, firstfilebuf, FILE_MAX);
 			}
-		}                        
+		}
 	}
 	
 	srclen -= ::strlen("MacOS/blenderplayer");
@@ -429,8 +437,13 @@ int main(int argc, char** argv)
 	signal (SIGFPE, SIG_IGN);
 #endif /* __alpha__ */
 #endif /* __linux__ */
-	BLI_init_program_path(argv[0]);
-	BLI_temp_dir_init(NULL);
+
+#ifdef WITH_SDL_DYNLOAD
+	sdlewInit();
+#endif
+
+	BKE_appdir_program_path_init(argv[0]);
+	BKE_tempdir_init(NULL);
 	
 	// We don't use threads directly in the BGE, but we need to call this so things like
 	// freeing up GPU_Textures works correctly.
@@ -505,9 +518,12 @@ int main(int argc, char** argv)
 	// enable fast mipmap generation
 	U.use_gpu_mipmap = 1;
 
-	sound_init_once();
+	BKE_sound_init_once();
 
-	set_free_windowmanager_cb(wm_free);
+	// Initialize a default material for meshes without materials.
+	init_def_material();
+
+	BKE_library_callback_free_window_manager_set(wm_free);
 
 	/* if running blenderplayer the last argument can't be parsed since it has to be the filename. else it is bundled */
 	isBlenderPlayer = !BLO_is_a_runtime(argv[0]);
@@ -811,14 +827,6 @@ int main(int argc, char** argv)
 	if (scr_saver_mode != SCREEN_SAVER_MODE_CONFIGURATION)
 #endif
 	{
-
-		if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
-			GPU_set_mipmap(0);
-		}
-
-		GPU_set_anisotropic(U.anisotropic_filter);
-		GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
-		
 		// Create the system
 		if (GHOST_ISystem::createSystem() == GHOST_kSuccess) {
 			GHOST_ISystem* system = GHOST_ISystem::getSystem();
@@ -877,7 +885,7 @@ int main(int argc, char** argv)
 						}
 					}
 					else {
-						bfd = load_game_data(BLI_program_path(), filename[0]? filename: NULL);
+						bfd = load_game_data(BKE_appdir_program_path(), filename[0]? filename: NULL);
 					}
 
 #if defined(DEBUG)
@@ -1041,6 +1049,13 @@ int main(int argc, char** argv)
 									else
 										app.startWindow(title, windowLeft, windowTop, windowWidth, windowHeight,
 										                stereoWindow, stereomode, aasamples);
+
+									if (SYS_GetCommandLineInt(syshandle, "nomipmap", 0)) {
+										GPU_set_mipmap(0);
+									}
+
+									GPU_set_anisotropic(U.anisotropic_filter);
+									GPU_set_gpu_mipmapping(U.use_gpu_mipmap);
 								}
 							}
 						}
@@ -1142,7 +1157,7 @@ int main(int argc, char** argv)
 		MEM_printmemlist();
 	}
 
-	BLI_temp_dir_session_purge();
+	BKE_tempdir_session_purge();
 
 	return error ? -1 : 0;
 }

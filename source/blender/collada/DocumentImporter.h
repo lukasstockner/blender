@@ -51,7 +51,6 @@
 
 
 
-struct Main;
 struct bContext;
 
 /** Importer class. */
@@ -171,6 +170,8 @@ private:
 	std::map<COLLADAFW::UniqueId, const COLLADAFW::Object*> FW_object_map;
 
 	std::string import_from_version;
+
+	void report_unknown_reference(const COLLADAFW::Node &node, const std::string object_type);
 };
 
 #endif

@@ -35,6 +35,7 @@
 #include "BKE_context.h"
 #include "BKE_mask.h"
 
+#include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 
 #include "WM_api.h"
@@ -397,6 +398,58 @@ void ED_mask_cursor_location_get(ScrArea *sa, float cursor[2])
 	}
 }
 
+bool ED_mask_selected_minmax(const bContext *C, float min[2], float max[2])
+{
+	Mask *mask = CTX_data_edit_mask(C);
+	MaskLayer *mask_layer;
+	bool ok = false;
+	INIT_MINMAX2(min, max);
+	for (mask_layer = mask->masklayers.first;
+	     mask_layer != NULL;
+	     mask_layer = mask_layer->next)
+	{
+		MaskSpline *spline;
+		if (mask_layer->restrictflag & (MASK_RESTRICT_VIEW | MASK_RESTRICT_SELECT)) {
+			continue;
+		}
+		for (spline = mask_layer->splines.first;
+		     spline != NULL;
+		     spline = spline->next)
+		{
+			MaskSplinePoint *points_array = BKE_mask_spline_point_array(spline);
+			int i;
+			for (i = 0; i < spline->tot_point; i++) {
+				MaskSplinePoint *point = &spline->points[i];
+				MaskSplinePoint *deform_point = &points_array[i];
+				BezTriple *bezt = &point->bezt;
+				float handle[2];
+				if (!MASKPOINT_ISSEL_ANY(point)) {
+					continue;
+				}
+				if (bezt->f2 & SELECT) {
+					minmax_v2v2_v2(min, max, deform_point->bezt.vec[1]);
+				}
+				if (BKE_mask_point_handles_mode_get(point) == MASK_HANDLE_MODE_STICK) {
+					BKE_mask_point_handle(deform_point, MASK_WHICH_HANDLE_STICK, handle);
+					minmax_v2v2_v2(min, max, handle);
+				}
+				else {
+					if ((bezt->f1 & SELECT) && (bezt->h1 != HD_VECT)) {
+						BKE_mask_point_handle(deform_point, MASK_WHICH_HANDLE_LEFT, handle);
+						minmax_v2v2_v2(min, max, handle);
+					}
+					if ((bezt->f3 & SELECT) && (bezt->h2 != HD_VECT)) {
+						BKE_mask_point_handle(deform_point, MASK_WHICH_HANDLE_RIGHT, handle);
+						minmax_v2v2_v2(min, max, handle);
+					}
+				}
+				ok = true;
+			}
+		}
+	}
+	return ok;
+}
+
 /********************** registration *********************/
 
 void ED_operatortypes_mask(void)
@@ -550,6 +603,8 @@ void ED_keymap_mask(wmKeyConfig *keyconf)
 
 	/* duplicate */
 	WM_keymap_add_item(keymap, "MASK_OT_duplicate_move", DKEY, KM_PRESS, KM_SHIFT, 0);
+	WM_keymap_add_item(keymap, "MASK_OT_copy_splines", CKEY, KM_PRESS, KM_CTRL, 0);
+	WM_keymap_add_item(keymap, "MASK_OT_paste_splines", VKEY, KM_PRESS, KM_CTRL, 0);
 
 	/* for image editor only */
 	WM_keymap_add_item(keymap, "UV_OT_cursor_set", ACTIONMOUSE, KM_PRESS, 0, 0);

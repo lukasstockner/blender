@@ -296,10 +296,10 @@ static void fly_update_header(bContext *C, FlyInfo *fly)
 	                                           "Ctrl: free look, "
 	                                           "X: Upright x axis (%s), "
 	                                           "Z: Upright z axis (%s), "
-                                               "(+/- | Wheel): speed"),
+	                                           "(+/- | Wheel): speed"),
 
 	    WM_bool_as_string(fly->xlock != FLY_AXISLOCK_STATE_OFF),
-		WM_bool_as_string(fly->zlock != FLY_AXISLOCK_STATE_OFF));
+	    WM_bool_as_string(fly->zlock != FLY_AXISLOCK_STATE_OFF));
 
 	ED_area_headerprint(CTX_wm_area(C), header);
 #undef HEADER_LENGTH
@@ -385,7 +385,7 @@ static bool initFlyInfo(bContext *C, FlyInfo *fly, wmOperator *op, const wmEvent
 		fly->zlock = FLY_AXISLOCK_STATE_IDLE;
 	}
 
-	fly->v3d_camera_control = ED_view3d_cameracontrol_aquire(
+	fly->v3d_camera_control = ED_view3d_cameracontrol_acquire(
 	        fly->scene, fly->v3d, fly->rv3d,
 	        (U.uiflag & USER_CAM_LOCK_NO_PARENT) == 0);
 
@@ -806,7 +806,7 @@ static int flyApply(bContext *C, FlyInfo *fly)
 					copy_v3_fl3(upvec, 1.0f, 0.0f, 0.0f);
 					mul_m3_v3(mat, upvec);
 					/* Rotate about the relative up vec */
-					axis_angle_to_quat(tmp_quat, upvec, (float)moffset[1] * time_redraw * -FLY_ROTATE_FAC);
+					axis_angle_to_quat(tmp_quat, upvec, moffset[1] * time_redraw * -FLY_ROTATE_FAC);
 					mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, tmp_quat);
 
 					if (fly->xlock != FLY_AXISLOCK_STATE_OFF)
@@ -836,7 +836,7 @@ static int flyApply(bContext *C, FlyInfo *fly)
 					}
 
 					/* Rotate about the relative up vec */
-					axis_angle_to_quat(tmp_quat, upvec, (float)moffset[0] * time_redraw * FLY_ROTATE_FAC);
+					axis_angle_to_quat(tmp_quat, upvec, moffset[0] * time_redraw * FLY_ROTATE_FAC);
 					mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, tmp_quat);
 
 					if (fly->xlock != FLY_AXISLOCK_STATE_OFF)

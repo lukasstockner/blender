@@ -42,10 +42,10 @@
 #include "BKE_modifier.h"
 #include "BKE_deform.h"
 
-#include "bmesh.h"
-
 #include "MEM_guardedalloc.h"
+
 #include "depsgraph_private.h"
+#include "DEG_depsgraph_build.h"
 
 static void initData(ModifierData *md)
 {
@@ -75,6 +75,7 @@ static void foreachObjectLink(ModifierData *md, Object *ob,
 }
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,
+                           struct Main *UNUSED(bmain),
                            struct Scene *UNUSED(scene),
                            Object *UNUSED(ob),
                            DagNode *obNode)
@@ -89,13 +90,25 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 	}
 }
 
+static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	MirrorModifierData *mmd = (MirrorModifierData *)md;
+	if (mmd->mirror_ob != NULL) {
+		DEG_add_object_relation(node, mmd->mirror_ob, DEG_OB_COMP_TRANSFORM, "Mirror Modifier");
+	}
+}
+
 static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,
                                    Object *ob,
                                    DerivedMesh *dm,
                                    int axis)
 {
 	const float tolerance_sq = mmd->tolerance * mmd->tolerance;
-	const int do_vtargetmap = !(mmd->flag & MOD_MIR_NO_MERGE);
+	const bool do_vtargetmap = (mmd->flag & MOD_MIR_NO_MERGE) == 0;
 	int tot_vtargetmap = 0;  /* total merge vertices */
 
 	DerivedMesh *result;
@@ -290,7 +303,7 @@ static DerivedMesh *doMirrorOnAxis(MirrorModifierData *mmd,
 		/* slow - so only call if one or more merge verts are found,
 		 * users may leave this on and not realize there is nothing to merge - campbell */
 		if (tot_vtargetmap) {
-			result = CDDM_merge_verts(result, vtargetmap, tot_vtargetmap);
+			result = CDDM_merge_verts(result, vtargetmap, tot_vtargetmap, CDDM_MERGE_VERTS_DUMP_IF_MAPPED);
 		}
 		MEM_freeN(vtargetmap);
 	}
@@ -362,6 +375,7 @@ ModifierTypeInfo modifierType_Mirror = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

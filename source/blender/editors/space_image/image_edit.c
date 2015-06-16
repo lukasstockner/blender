@@ -35,6 +35,7 @@
 
 #include "BLI_rect.h"
 
+#include "BKE_colortools.h"
 #include "BKE_context.h"
 #include "BKE_global.h"
 #include "BKE_image.h"
@@ -103,7 +104,7 @@ void ED_space_image_set_mask(bContext *C, SpaceImage *sima, Mask *mask)
 	}
 }
 
-ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima, void **lock_r)
+ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima, void **r_lock)
 {
 	ImBuf *ibuf;
 
@@ -113,7 +114,7 @@ ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima, void **lock_r)
 			return BIF_render_spare_imbuf();
 		else
 #endif
-		ibuf = BKE_image_acquire_ibuf(sima->image, &sima->iuser, lock_r);
+		ibuf = BKE_image_acquire_ibuf(sima->image, &sima->iuser, r_lock);
 
 		if (ibuf) {
 			if (ibuf->rect || ibuf->rect_float)
@@ -123,7 +124,7 @@ ImBuf *ED_space_image_acquire_buffer(SpaceImage *sima, void **lock_r)
 		}
 	}
 	else
-		*lock_r = NULL;
+		*r_lock = NULL;
 
 	return NULL;
 }
@@ -290,6 +291,20 @@ void ED_image_point_pos__reverse(SpaceImage *sima, ARegion *ar, const float co[2
 	r_co[1] = (co[1] * height * zoomy) + (float)sy;
 }
 
+void ED_space_image_scopes_update(const struct bContext *C, struct SpaceImage *sima, struct ImBuf *ibuf, bool use_view_settings)
+{
+	Scene *scene = CTX_data_scene(C);
+	Object *ob = CTX_data_active_object(C);
+	
+	/* scope update can be expensive, don't update during paint modes */
+	if (sima->mode == SI_MODE_PAINT)
+		return;
+	if (ob && ((ob->mode & (OB_MODE_TEXTURE_PAINT | OB_MODE_EDIT)) != 0))
+		return;
+	
+	scopes_update(&sima->scopes, ibuf, use_view_settings ? &scene->view_settings : NULL, &scene->display_settings);
+}
+
 bool ED_space_image_show_render(SpaceImage *sima)
 {
 	return (sima->image && ELEM(sima->image->type, IMA_TYPE_R_RESULT, IMA_TYPE_COMPOSITE));
@@ -301,13 +316,6 @@ bool ED_space_image_show_paint(SpaceImage *sima)
 		return false;
 
 	return (sima->mode == SI_MODE_PAINT);
-}
-
-bool ED_space_image_show_texpaint(SpaceImage *sima, Object *ob)
-{
-	return (ob && ob->type == OB_MESH &&
-	        ob->mode == OB_MODE_TEXTURE_PAINT &&
-	        !(sima->flag & SI_NO_DRAW_TEXPAINT));
 }
 
 bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
@@ -323,24 +331,6 @@ bool ED_space_image_show_uvedit(SpaceImage *sima, Object *obedit)
 
 		return ret;
 	}
-
-	return false;
-}
-
-bool ED_space_image_show_uvshadow(SpaceImage *sima, Object *obedit)
-{
-	if (ED_space_image_show_render(sima))
-		return false;
-
-	if (ED_space_image_show_paint(sima))
-		if (obedit && obedit->type == OB_MESH) {
-			struct BMEditMesh *em = BKE_editmesh_from_object(obedit);
-			bool ret;
-
-			ret = EDBM_mtexpoly_check(em);
-
-			return ret && !(sima->flag & SI_NO_DRAW_TEXPAINT);
-		}
 
 	return false;
 }

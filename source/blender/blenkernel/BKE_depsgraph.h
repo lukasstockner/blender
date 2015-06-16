@@ -48,7 +48,6 @@ struct ID;
 struct Main;
 struct Object;
 struct Scene;
-struct ListBase;
 
 /* Dependency graph evaluation context
  *
@@ -57,12 +56,13 @@ struct ListBase;
  */
 typedef struct EvaluationContext {
 	int mode;               /* evaluation mode */
+	float ctime;            /* evaluation time */
 } EvaluationContext;
 
 typedef enum eEvaluationMode {
 	DAG_EVAL_VIEWPORT       = 0,    /* evaluate for OpenGL viewport */
-    DAG_EVAL_PREVIEW        = 1,    /* evaluate for render with preview settings */
-    DAG_EVAL_RENDER         = 2,    /* evaluate for render purposes */
+	DAG_EVAL_PREVIEW        = 1,    /* evaluate for render with preview settings */
+	DAG_EVAL_RENDER         = 2,    /* evaluate for render purposes */
 } eEvaluationMode;
 
 /* DagNode->eval_flags */
@@ -92,6 +92,7 @@ void DAG_exit(void);
  */
 
 void DAG_scene_relations_update(struct Main *bmain, struct Scene *sce);
+void DAG_scene_relations_validate(struct Main *bmain, struct Scene *sce);
 void DAG_relations_tag_update(struct Main *bmain);
 void DAG_scene_relations_rebuild(struct Main *bmain, struct Scene *scene);
 void DAG_scene_free(struct Scene *sce);

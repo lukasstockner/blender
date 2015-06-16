@@ -100,7 +100,7 @@ void make_editLatt(Object *obedit)
 
 	actkey = BKE_keyblock_from_object(obedit);
 	if (actkey)
-		BKE_key_convert_to_lattice(actkey, lt);
+		BKE_keyblock_convert_to_lattice(actkey, lt);
 
 	lt->editlatt = MEM_callocN(sizeof(EditLatt), "editlatt");
 	lt->editlatt->latt = MEM_dupallocN(lt);
@@ -172,21 +172,6 @@ void load_editLatt(Object *obedit)
 		lt->dvert = MEM_mallocN(sizeof(MDeformVert) * tot, "Lattice MDeformVert");
 		BKE_defvert_array_copy(lt->dvert, editlt->dvert, tot);
 	}
-}
-
-/*************************** Transform Operator ************************/
-
-void ED_lattice_transform(Lattice *lt, float mat[4][4])
-{
-	BPoint *bp = lt->def;
-	int a = lt->pntsu * lt->pntsv * lt->pntsw;
-
-	while (a--) {
-		mul_m4_v3(mat, bp->vec);
-		bp++;
-	}
-
-	DAG_id_tag_update(&lt->id, 0);
 }
 
 static void bpoint_select_set(BPoint *bp, bool select)

@@ -23,7 +23,7 @@ from bpy.types import Menu, Panel, UIList
 
 # Render properties
 
-class RenderFreestyleButtonsPanel():
+class RenderFreestyleButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "render"
@@ -62,7 +62,7 @@ class RENDER_PT_freestyle(RenderFreestyleButtonsPanel, Panel):
 
 # Render layer properties
 
-class RenderLayerFreestyleButtonsPanel():
+class RenderLayerFreestyleButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "render_layer"
@@ -74,8 +74,8 @@ class RenderLayerFreestyleButtonsPanel():
         rd = context.scene.render
         with_freestyle = bpy.app.build_options.freestyle
 
-        return (scene and with_freestyle and rd.use_freestyle
-            and rd.layers.active and(scene.render.engine in cls.COMPAT_ENGINES))
+        return (scene and with_freestyle and rd.use_freestyle and
+                rd.layers.active and(scene.render.engine in cls.COMPAT_ENGINES))
 
 
 class RenderLayerFreestyleEditorButtonsPanel(RenderLayerFreestyleButtonsPanel):
@@ -95,7 +95,7 @@ class RENDERLAYER_UL_linesets(UIList):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             layout.prop(lineset, "name", text="", emboss=False, icon_value=icon)
             layout.prop(lineset, "show_render", text="", index=index)
-        elif self.layout_type in {'GRID'}:
+        elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
             layout.label("", icon_value=icon)
 
@@ -122,7 +122,9 @@ class RENDERLAYER_PT_freestyle(RenderLayerFreestyleButtonsPanel, Panel):
 
         layout.active = rl.use_freestyle
 
+        row = layout.row()
         layout.prop(freestyle, "mode", text="Control mode")
+        layout.prop(freestyle, "use_view_map_cache", text="View Map Cache")
         layout.label(text="Edge Detection Options:")
 
         split = layout.split()
@@ -579,6 +581,20 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             sub.prop(linestyle, "split_dash3", text="D3")
             sub.prop(linestyle, "split_gap3", text="G3")
 
+            ## Sorting
+            layout.prop(linestyle, "use_sorting", text="Sorting:")
+            col = layout.column()
+            col.active = linestyle.use_sorting
+            row = col.row(align=True)
+            row.prop(linestyle, "sort_key", text="")
+            sub = row.row()
+            sub.active = linestyle.sort_key in {'DISTANCE_FROM_CAMERA',
+                                                'PROJECTED_X',
+                                                'PROJECTED_Y'}
+            sub.prop(linestyle, "integration_type", text="")
+            row = col.row(align=True)
+            row.prop(linestyle, "sort_order", expand=True)
+
             ## Selection
             layout.label(text="Selection:")
             split = layout.split(align=True)
@@ -589,25 +605,18 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             sub = row.row()
             sub.active = linestyle.use_length_min
             sub.prop(linestyle, "length_min")
-            # Second column
-            col = split.column()
             row = col.row(align=True)
             row.prop(linestyle, "use_length_max", text="")
             sub = row.row()
             sub.active = linestyle.use_length_max
             sub.prop(linestyle, "length_max")
-
-            ## Sorting
-            layout.prop(linestyle, "use_sorting", text="Sorting:")
-            col = layout.column()
-            col.active = linestyle.use_sorting
+            # Second column
+            col = split.column()
             row = col.row(align=True)
-            row.prop(linestyle, "sort_key", text="")
+            row.prop(linestyle, "use_chain_count", text="")
             sub = row.row()
-            sub.active = linestyle.sort_key in {'DISTANCE_FROM_CAMERA'}
-            sub.prop(linestyle, "integration_type", text="")
-            row = col.row(align=True)
-            row.prop(linestyle, "sort_order", expand=True)
+            sub.active = linestyle.use_chain_count
+            sub.prop(linestyle, "chain_count")
 
             ## Caps
             layout.label(text="Caps:")
@@ -674,14 +683,18 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
             layout.separator()
 
             row = layout.row()
-            row.prop(linestyle, "use_texture")
+            if rd.use_shading_nodes:
+                row.prop(linestyle, "use_nodes")
+            else:
+                row.prop(linestyle, "use_texture")
             row.prop(linestyle, "texture_spacing", text="Spacing Along Stroke")
 
             row = layout.row()
-            op = row.operator("wm.properties_context_change",
-                         text="Go to Linestyle Textures Properties",
-                         icon='TEXTURE')
-            op.context = 'TEXTURE'
+            props = row.operator(
+                    "wm.properties_context_change",
+                    text="Go to Linestyle Textures Properties",
+                    icon='TEXTURE')
+            props.context = 'TEXTURE'
 
         elif linestyle.panel == 'MISC':
             pass
@@ -689,7 +702,7 @@ class RENDERLAYER_PT_freestyle_linestyle(RenderLayerFreestyleEditorButtonsPanel,
 
 # Material properties
 
-class MaterialFreestyleButtonsPanel():
+class MaterialFreestyleButtonsPanel:
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "material"
@@ -707,7 +720,7 @@ class MaterialFreestyleButtonsPanel():
 class MATERIAL_PT_freestyle_line(MaterialFreestyleButtonsPanel, Panel):
     bl_label = "Freestyle Line"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_RENDER'} # TODO: 'CYCLES'
+    COMPAT_ENGINES = {'BLENDER_RENDER'}
 
     def draw(self, context):
         layout = self.layout

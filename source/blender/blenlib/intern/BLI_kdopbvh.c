@@ -43,6 +43,9 @@
 #include <omp.h>
 #endif
 
+/* used for iterative_raycast */
+// #define USE_SKIP_LINKS
+
 #define MAX_TREETYPE 32
 
 /* Setting zero so we can catch bugs in OpenMP/KDOPBVH.
@@ -61,7 +64,9 @@ typedef unsigned char axis_t;
 typedef struct BVHNode {
 	struct BVHNode **children;
 	struct BVHNode *parent; /* some user defined traversed need that */
+#ifdef USE_SKIP_LINKS
 	struct BVHNode *skip[2];
+#endif
 	float *bv;      /* Bounding volume of all nodes, max 13 axis */
 	int index;      /* face, edge, vertex index */
 	char totnode;   /* how many nodes are used, used for speedup */
@@ -385,7 +390,7 @@ static int partition_nth_element(BVHNode **a, int _begin, int _end, int n, int a
 	return n;
 }
 
-/* --- */
+#ifdef USE_SKIP_LINKS
 static void build_skip_links(BVHTree *tree, BVHNode *node, BVHNode *left, BVHNode *right)
 {
 	int i;
@@ -402,6 +407,7 @@ static void build_skip_links(BVHTree *tree, BVHNode *node, BVHNode *left, BVHNod
 		left = node->children[i];
 	}
 }
+#endif
 
 /*
  * BVHTree bounding volumes functions
@@ -680,7 +686,7 @@ static int implicit_leafs_index(BVHBuildHelper *data, int depth, int child_index
 /* This functions returns the number of branches needed to have the requested number of leafs. */
 static int implicit_needed_branches(int tree_type, int leafs)
 {
-	return max_ii(1, (leafs + tree_type - 3) / (tree_type - 1) );
+	return max_ii(1, (leafs + tree_type - 3) / (tree_type - 1));
 }
 
 /**
@@ -942,7 +948,10 @@ void BLI_bvhtree_balance(BVHTree *tree)
 	for (i = 0; i < tree->totbranch; i++)
 		tree->nodes[tree->totleaf + i] = branches_array + i;
 
+#ifdef USE_SKIP_LINKS
 	build_skip_links(tree, tree->nodes[tree->totleaf], NULL, NULL);
+#endif
+
 	/* bvhtree_info(tree); */
 }
 
@@ -970,14 +979,14 @@ void BLI_bvhtree_insert(BVHTree *tree, int index, const float co[3], int numpoin
 
 
 /* call before BLI_bvhtree_update_tree() */
-int BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const float co_moving[3], int numpoints)
+bool BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const float co_moving[3], int numpoints)
 {
 	BVHNode *node = NULL;
 	axis_t axis_iter;
 	
 	/* check if index exists */
 	if (index > tree->totleaf)
-		return 0;
+		return false;
 	
 	node = tree->nodearray + index;
 	
@@ -992,7 +1001,7 @@ int BLI_bvhtree_update_node(BVHTree *tree, int index, const float co[3], const f
 		node->bv[(2 * axis_iter) + 1] += tree->epsilon; /* maximum */
 	}
 
-	return 1;
+	return true;
 }
 
 /* call BLI_bvhtree_update_node() first for every node/point/triangle */
@@ -1459,6 +1468,42 @@ static void dfs_raycast(BVHRayCastData *data, BVHNode *node)
 	}
 }
 
+static void dfs_raycast_all(BVHRayCastData *data, BVHNode *node)
+{
+	int i;
+
+	/* ray-bv is really fast.. and simple tests revealed its worth to test it
+	 * before calling the ray-primitive functions */
+	/* XXX: temporary solution for particles until fast_ray_nearest_hit supports ray.radius */
+	float dist = (data->ray.radius == 0.0f) ? fast_ray_nearest_hit(data, node) : ray_nearest_hit(data, node->bv);
+
+	if (node->totnode == 0) {
+		if (data->callback) {
+			data->hit.index = -1;
+			data->hit.dist = FLT_MAX;
+			data->callback(data->userdata, node->index, &data->ray, &data->hit);
+		}
+		else {
+			data->hit.index = node->index;
+			data->hit.dist  = dist;
+			madd_v3_v3v3fl(data->hit.co, data->ray.origin, data->ray.direction, dist);
+		}
+	}
+	else {
+		/* pick loop direction to dive into the tree (based on ray direction and split axis) */
+		if (data->ray_dot_axis[node->main_axis] > 0.0f) {
+			for (i = 0; i != node->totnode; i++) {
+				dfs_raycast_all(data, node->children[i]);
+			}
+		}
+		else {
+			for (i = node->totnode - 1; i >= 0; i--) {
+				dfs_raycast_all(data, node->children[i]);
+			}
+		}
+	}
+}
+
 #if 0
 static void iterative_raycast(BVHRayCastData *data, BVHNode *node)
 {
@@ -1562,6 +1607,48 @@ float BLI_bvhtree_bb_raycast(const float bv[6], const float light_start[3], cons
 
 	return dist;
 	
+}
+
+int BLI_bvhtree_ray_cast_all(BVHTree *tree, const float co[3], const float dir[3], float radius,
+                             BVHTree_RayCastCallback callback, void *userdata)
+{
+	int i;
+	BVHRayCastData data;
+	BVHNode *root = tree->nodes[tree->totleaf];
+
+	data.tree = tree;
+
+	data.callback = callback;
+	data.userdata = userdata;
+
+	copy_v3_v3(data.ray.origin,    co);
+	copy_v3_v3(data.ray.direction, dir);
+	data.ray.radius = radius;
+
+	normalize_v3(data.ray.direction);
+
+	for (i = 0; i < 3; i++) {
+		data.ray_dot_axis[i] = dot_v3v3(data.ray.direction, KDOP_AXES[i]);
+		data.idot_axis[i] = 1.0f / data.ray_dot_axis[i];
+
+		if (fabsf(data.ray_dot_axis[i]) < FLT_EPSILON) {
+			data.ray_dot_axis[i] = 0.0;
+		}
+		data.index[2 * i] = data.idot_axis[i] < 0.0f ? 1 : 0;
+		data.index[2 * i + 1] = 1 - data.index[2 * i];
+		data.index[2 * i]   += 2 * i;
+		data.index[2 * i + 1] += 2 * i;
+	}
+
+
+	data.hit.index = -1;
+	data.hit.dist = FLT_MAX;
+
+	if (root) {
+		dfs_raycast_all(&data, root);
+	}
+
+	return data.hit.index;
 }
 
 /**

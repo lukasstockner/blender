@@ -64,12 +64,11 @@ NodeGroup *BlenderFileLoader::Load()
 	_viewplane_bottom = _re->viewplane.ymin;
 	_viewplane_top =    _re->viewplane.ymax;
 
-	if ((_re->r.scemode & R_VIEWPORT_PREVIEW) && (_re->r.mode & R_ORTHO)) {
+	if (_re->clipsta < 0.f) {
 		// Adjust clipping start/end and set up a Z offset when the viewport preview
 		// is used with the orthographic view.  In this case, _re->clipsta is negative,
 		// while Freestyle assumes that imported mesh data are in the camera coordinate
 		// system with the view point located at origin [bug #36009].
-		BLI_assert(_re->clipsta < 0.f);
 		_z_near = -0.001f;
 		_z_offset = _re->clipsta + _z_near;
 		_z_far = -_re->clipend + _z_offset;
@@ -256,6 +255,7 @@ void BlenderFileLoader::clipTriangle(int numTris, float triCoords[][3], float v1
 		}
 	}
 	BLI_assert(k == 2 + numTris);
+	(void)numTris;  /* Ignored in release builds. */
 }
 
 void BlenderFileLoader::addTriangle(struct LoaderState *ls, float v1[3], float v2[3], float v3[3],
@@ -457,6 +457,7 @@ void BlenderFileLoader::insertShapeNode(ObjectInstanceRen *obi, int id)
 	unsigned nSize = vSize;
 	float *normals = new float[nSize];
 	unsigned *numVertexPerFaces = new unsigned[numFaces];
+	vector<Material *> meshMaterials;
 	vector<FrsMaterial> meshFrsMaterials;
 
 	IndexedFaceSet::TRIANGLES_STYLE *faceStyle = new IndexedFaceSet::TRIANGLES_STYLE[numFaces];
@@ -588,20 +589,21 @@ void BlenderFileLoader::insertShapeNode(ObjectInstanceRen *obi, int id)
 			tmpMat.setPriority(mat->line_priority);
 		}
 
-		if (meshFrsMaterials.empty()) {
+		if (meshMaterials.empty()) {
+			meshMaterials.push_back(mat);
 			meshFrsMaterials.push_back(tmpMat);
 			shape->setFrsMaterial(tmpMat);
 		}
 		else {
-			// find if the material is already in the list
+			// find if the Blender material is already in the list
 			unsigned int i = 0;
 			bool found = false;
 
-			for (vector<FrsMaterial>::iterator it = meshFrsMaterials.begin(), itend = meshFrsMaterials.end();
+			for (vector<Material *>::iterator it = meshMaterials.begin(), itend = meshMaterials.end();
 			     it != itend;
 			     it++, i++)
 			{
-				if (*it == tmpMat) {
+				if (*it == mat) {
 					ls.currentMIndex = i;
 					found = true;
 					break;
@@ -609,6 +611,7 @@ void BlenderFileLoader::insertShapeNode(ObjectInstanceRen *obi, int id)
 			}
 
 			if (!found) {
+				meshMaterials.push_back(mat);
 				meshFrsMaterials.push_back(tmpMat);
 				ls.currentMIndex = meshFrsMaterials.size() - 1;
 			}

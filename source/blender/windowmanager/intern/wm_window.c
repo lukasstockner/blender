@@ -55,7 +55,6 @@
 #include "BKE_global.h"
 #include "BKE_main.h"
 
-#include "BIF_gl.h"
 
 #include "RNA_access.h"
 
@@ -74,6 +73,8 @@
 
 #include "GPU_draw.h"
 #include "GPU_extensions.h"
+#include "GPU_init_exit.h"
+#include "GPU_glew.h"
 
 #include "UI_interface.h"
 
@@ -106,25 +107,25 @@ static struct WMInitStruct {
 
 /* XXX this one should correctly check for apple top header...
  * done for Cocoa : returns window contents (and not frame) max size*/
-void wm_get_screensize(int *width_r, int *height_r)
+void wm_get_screensize(int *r_width, int *r_height)
 {
 	unsigned int uiwidth;
 	unsigned int uiheight;
 	
 	GHOST_GetMainDisplayDimensions(g_system, &uiwidth, &uiheight);
-	*width_r = uiwidth;
-	*height_r = uiheight;
+	*r_width = uiwidth;
+	*r_height = uiheight;
 }
 
 /* size of all screens (desktop), useful since the mouse is bound by this */
-void wm_get_desktopsize(int *width_r, int *height_r)
+void wm_get_desktopsize(int *r_width, int *r_height)
 {
 	unsigned int uiwidth;
 	unsigned int uiheight;
 
 	GHOST_GetAllDisplayDimensions(g_system, &uiwidth, &uiheight);
-	*width_r = uiwidth;
-	*height_r = uiheight;
+	*r_width = uiwidth;
+	*r_height = uiheight;
 }
 
 /* keeps offset and size within monitor bounds */
@@ -205,12 +206,13 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
 	
 	wm_event_free_all(win);
 	wm_subwindows_free(win);
-	
-	if (win->drawdata)
-		MEM_freeN(win->drawdata);
-	
+
+	wm_draw_data_free(win);
+
 	wm_ghostwindow_destroy(win);
-	
+
+	MEM_freeN(win->stereo3d_format);
+
 	MEM_freeN(win);
 }
 
@@ -235,32 +237,60 @@ wmWindow *wm_window_new(bContext *C)
 	BLI_addtail(&wm->windows, win);
 	win->winid = find_free_winid(wm);
 
+	win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo 3D Format (window)");
+
 	return win;
 }
 
 
 /* part of wm_window.c api */
-wmWindow *wm_window_copy(bContext *C, wmWindow *winorig)
+wmWindow *wm_window_copy(bContext *C, wmWindow *win_src)
 {
-	wmWindow *win = wm_window_new(C);
+	wmWindow *win_dst = wm_window_new(C);
 	
-	win->posx = winorig->posx + 10;
-	win->posy = winorig->posy;
-	win->sizex = winorig->sizex;
-	win->sizey = winorig->sizey;
+	win_dst->posx = win_src->posx + 10;
+	win_dst->posy = win_src->posy;
+	win_dst->sizex = win_src->sizex;
+	win_dst->sizey = win_src->sizey;
 	
 	/* duplicate assigns to window */
-	win->screen = ED_screen_duplicate(win, winorig->screen);
-	BLI_strncpy(win->screenname, win->screen->id.name + 2, sizeof(win->screenname));
-	win->screen->winid = win->winid;
+	win_dst->screen = ED_screen_duplicate(win_dst, win_src->screen);
+	BLI_strncpy(win_dst->screenname, win_dst->screen->id.name + 2, sizeof(win_dst->screenname));
+	win_dst->screen->winid = win_dst->winid;
 
-	win->screen->do_refresh = true;
-	win->screen->do_draw = true;
+	win_dst->screen->do_refresh = true;
+	win_dst->screen->do_draw = true;
 
-	win->drawmethod = U.wmdrawmethod;
-	win->drawdata = NULL;
-	
-	return win;
+	win_dst->drawmethod = U.wmdrawmethod;
+
+	BLI_listbase_clear(&win_dst->drawdata);
+
+	*win_dst->stereo3d_format = *win_src->stereo3d_format;
+
+	return win_dst;
+}
+
+/**
+ * A higher level version of copy that tests the new window can be added.
+ * (called from the operator directly)
+ */
+wmWindow *wm_window_copy_test(bContext *C, wmWindow *win_src)
+{
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win_dst;
+
+	win_dst = wm_window_copy(C, win_src);
+
+	WM_check(C);
+
+	if (win_dst->ghostwin) {
+		WM_event_add_notifier(C, NC_WINDOW | NA_ADDED, NULL);
+		return win_dst;
+	}
+	else {
+		wm_window_close(C, wm, win_dst);
+		return NULL;
+	}
 }
 
 /* this is event from ghost, or exit-blender op */
@@ -319,8 +349,7 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 		/* nothing to do for 'temp' windows,
 		 * because WM_window_open_temp always sets window title  */
 	}
-	else {
-		
+	else if (win->ghostwin) {
 		/* this is set to 1 if you don't have startup.blend open */
 		if (G.save_over && G.main->name[0]) {
 			char str[sizeof(G.main->name) + 24];
@@ -339,10 +368,24 @@ void wm_window_title(wmWindowManager *wm, wmWindow *win)
 	}
 }
 
+float wm_window_pixelsize(wmWindow *win)
+{
+	float pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
+	
+	switch (U.virtual_pixel) {
+		default:
+		case VIRTUAL_PIXEL_NATIVE:
+			return pixelsize;
+		case VIRTUAL_PIXEL_DOUBLE:
+			return 2.0f * pixelsize;
+	}
+}
+
 /* belongs to below */
-static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
+static void wm_window_add_ghostwindow(wmWindowManager *wm, const char *title, wmWindow *win)
 {
 	GHOST_WindowHandle ghostwin;
+	GHOST_GLSettings glSettings = {0};
 	static int multisamples = -1;
 	int scr_w, scr_h, posy;
 	
@@ -350,7 +393,16 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 	 * mix it, either all windows have it, or none (tested in OSX opengl) */
 	if (multisamples == -1)
 		multisamples = U.ogl_multisamples;
-	
+
+	glSettings.numOfAASamples = multisamples;
+
+	/* a new window is created when pageflip mode is required for a window */
+	if (win->stereo3d_format->display_mode == S3D_DISPLAY_PAGEFLIP)
+		glSettings.flags |= GHOST_glStereoVisual;
+
+	if (!(U.uiflag2 & USER_OPENGL_NO_WARN_SUPPORT))
+		glSettings.flags |= GHOST_glWarnSupport;
+
 	wm_get_screensize(&scr_w, &scr_h);
 	posy = (scr_h - win->posy - win->sizey);
 	
@@ -358,14 +410,16 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 	                              win->posx, posy, win->sizex, win->sizey,
 	                              (GHOST_TWindowState)win->windowstate,
 	                              GHOST_kDrawingContextTypeOpenGL,
-	                              0 /* no stereo */,
-	                              multisamples /* AA */);
+	                              glSettings);
 	
 	if (ghostwin) {
 		GHOST_RectangleHandle bounds;
 		
+		/* the new window has already been made drawable upon creation */
+		wm->windrawable = win;
+
 		/* needed so we can detect the graphics card below */
-		GPU_extensions_init();
+		GPU_init();
 		
 		win->ghostwin = ghostwin;
 		GHOST_SetWindowUserData(ghostwin, win); /* pointer back */
@@ -397,7 +451,7 @@ static void wm_window_add_ghostwindow(const char *title, wmWindow *win)
 		
 		/* displays with larger native pixels, like Macbook. Used to scale dpi with */
 		/* needed here, because it's used before it reads userdef */
-		U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
+		U.pixelsize = wm_window_pixelsize(win);
 		BKE_userdef_state();
 		
 		wm_window_swap_buffers(win);
@@ -425,14 +479,13 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 	if (wm_init_state.size_x == 0) {
 		wm_get_screensize(&wm_init_state.size_x, &wm_init_state.size_y);
 		
-	/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
-	 * we'd need a wm_get_screensize like function that gives offset,
-	 * in practice the window manager will likely move to the correct monitor */
-	wm_init_state.start_x = 0;
-	wm_init_state.start_y = 0;
+		/* note!, this isnt quite correct, active screen maybe offset 1000s if PX,
+		 * we'd need a wm_get_screensize like function that gives offset,
+		 * in practice the window manager will likely move to the correct monitor */
+		wm_init_state.start_x = 0;
+		wm_init_state.start_y = 0;
 
-
-#if !defined(__APPLE__) && !defined(WIN32)  /* X11 */
+#ifdef WITH_X11 /* X11 */
 		/* X11, start maximized but use default sane size */
 		wm_init_state.size_x = min_ii(wm_init_state.size_x, WM_WIN_INIT_SIZE_X);
 		wm_init_state.size_y = min_ii(wm_init_state.size_y, WM_WIN_INIT_SIZE_Y);
@@ -461,7 +514,7 @@ void wm_window_add_ghostwindows(wmWindowManager *wm)
 				wm_init_state.override_flag &= ~WIN_OVERRIDE_WINSTATE;
 			}
 
-			wm_window_add_ghostwindow("Blender", win);
+			wm_window_add_ghostwindow(wm, "Blender", win);
 		}
 		/* happens after fileread */
 		if (win->eventstate == NULL)
@@ -499,8 +552,7 @@ wmWindow *WM_window_open(bContext *C, const rcti *rect)
 	win->sizey = BLI_rcti_size_y(rect);
 
 	win->drawmethod = U.wmdrawmethod;
-	win->drawdata = NULL;
-	
+
 	WM_check(C);
 	
 	return win;
@@ -586,12 +638,12 @@ void WM_window_open_temp(bContext *C, rcti *position, int type)
 /* operator callback */
 int wm_window_duplicate_exec(bContext *C, wmOperator *UNUSED(op))
 {
-	wm_window_copy(C, CTX_wm_window(C));
-	WM_check(C);
-	
-	WM_event_add_notifier(C, NC_WINDOW | NA_ADDED, NULL);
-	
-	return OPERATOR_FINISHED;
+	wmWindow *win_src = CTX_wm_window(C);
+	bool ok;
+
+	ok = (wm_window_copy_test(C, win_src) != NULL);
+
+	return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 
@@ -686,7 +738,7 @@ void wm_window_make_drawable(wmWindowManager *wm, wmWindow *win)
 		GHOST_ActivateWindowDrawingContext(win->ghostwin);
 		
 		/* this can change per window */
-		U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
+		U.pixelsize = wm_window_pixelsize(win);
 		BKE_userdef_state();
 	}
 }
@@ -1046,7 +1098,7 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 			case GHOST_kEventNativeResolutionChange:
 				// printf("change, pixel size %f\n", GHOST_GetNativePixelSize(win->ghostwin));
 				
-				U.pixelsize = GHOST_GetNativePixelSize(win->ghostwin);
+				U.pixelsize = wm_window_pixelsize(win);
 				BKE_userdef_state();
 				WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, NULL);
 				WM_event_add_notifier(C, NC_WINDOW | NA_EDITED, NULL);
@@ -1078,10 +1130,10 @@ static int ghost_event_proc(GHOST_EventHandle evt, GHOST_TUserDataPtr C_void_ptr
 }
 
 
-/* This timer system only gives maximum 1 timer event per redraw cycle,
+/**
+ * This timer system only gives maximum 1 timer event per redraw cycle,
  * to prevent queues to get overloaded.
- * Timer handlers should check for delta to decide if they just
- * update, or follow real time.
+ * Timer handlers should check for delta to decide if they just update, or follow real time.
  * Timer handlers can also set duration to match frames passed
  */
 static int wm_window_timer(const bContext *C)
@@ -1112,7 +1164,7 @@ static int wm_window_timer(const bContext *C)
 					wm_event_init_from_window(win, &event);
 					
 					event.type = wt->event_type;
-					event.val = 0;
+					event.val = KM_NOTHING;
 					event.keymodifier = 0;
 					event.custom = EVT_DATA_TIMER;
 					event.customdata = wt;
@@ -1375,10 +1427,10 @@ void WM_progress_clear(wmWindow *win)
 
 /* ************************************ */
 
-void wm_window_get_position(wmWindow *win, int *posx_r, int *posy_r) 
+void wm_window_get_position(wmWindow *win, int *r_pos_x, int *r_pos_y)
 {
-	*posx_r = win->posx;
-	*posy_r = win->posy;
+	*r_pos_x = win->posx;
+	*r_pos_y = win->posy;
 }
 
 void wm_window_set_size(wmWindow *win, int width, int height) 
@@ -1413,9 +1465,9 @@ void wm_window_set_swap_interval (wmWindow *win, int interval)
 	GHOST_SetSwapInterval(win->ghostwin, interval);
 }
 
-int wm_window_get_swap_interval (wmWindow *win)
+bool wm_window_get_swap_interval(wmWindow *win, int *intervalOut)
 {
-	return GHOST_GetSwapInterval(win->ghostwin);
+	return GHOST_GetSwapInterval(win->ghostwin, intervalOut);
 }
 
 
@@ -1509,3 +1561,21 @@ bool WM_window_is_fullscreen(wmWindow *win)
 	return win->windowstate == GHOST_kWindowStateFullScreen;
 }
 
+
+#ifdef WITH_INPUT_IME
+/* note: keep in mind wm_window_IME_begin is also used to reposition the IME window */
+void wm_window_IME_begin(wmWindow *win, int x, int y, int w, int h, bool complete)
+{
+	BLI_assert(win);
+
+	GHOST_BeginIME(win->ghostwin, x, win->sizey - y, w, h, complete);
+}
+
+void wm_window_IME_end(wmWindow *win)
+{
+	BLI_assert(win && win->ime_data);
+
+	GHOST_EndIME(win->ghostwin);
+	win->ime_data = NULL;
+}
+#endif  /* WITH_INPUT_IME */

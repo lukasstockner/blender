@@ -38,17 +38,16 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 #include "DNA_world_types.h"
+#include "DNA_linestyle_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BLF_translation.h"
 
 #include "BKE_context.h"
-#include "BKE_global.h"
-#include "BKE_main.h"
+#include "BKE_linestyle.h"
 #include "BKE_node.h"
 #include "BKE_scene.h"
 
@@ -68,9 +67,10 @@ static int shader_tree_poll(const bContext *C, bNodeTreeType *UNUSED(treetype))
 	Scene *scene = CTX_data_scene(C);
 	/* allow empty engine string too, this is from older versions that didn't have registerable engines yet */
 	return (scene->r.engine[0] == '\0' ||
-	        STREQ(scene->r.engine, "BLENDER_RENDER") ||
-	        STREQ(scene->r.engine, "BLENDER_GAME") ||
-	        STREQ(scene->r.engine, "CYCLES"));
+	        STREQ(scene->r.engine, RE_engine_id_BLENDER_RENDER) ||
+	        STREQ(scene->r.engine, RE_engine_id_BLENDER_GAME) ||
+	        STREQ(scene->r.engine, RE_engine_id_CYCLES) ||
+	        !BKE_scene_use_shading_nodes_custom(scene));
 }
 
 static void shader_get_from_context(const bContext *C, bNodeTreeType *UNUSED(treetype), bNodeTree **r_ntree, ID **r_id, ID **r_from)
@@ -97,6 +97,16 @@ static void shader_get_from_context(const bContext *C, bNodeTreeType *UNUSED(tre
 			}
 		}
 	}
+#ifdef WITH_FREESTYLE
+	else if (snode->shaderfrom == SNODE_SHADER_LINESTYLE) {
+		FreestyleLineStyle *linestyle = BKE_linestyle_active_from_scene(scene);
+		if (linestyle) {
+			*r_from = NULL;
+			*r_id = &linestyle->id;
+			*r_ntree = linestyle->nodetree;
+		}
+	}
+#endif
 	else { /* SNODE_SHADER_WORLD */
 		if (scene->world) {
 			*r_from = NULL;

@@ -43,14 +43,13 @@
 
 #include "BKE_context.h"
 #include "BKE_depsgraph.h"
-#include "BKE_image.h"
 #include "BKE_library.h"
 #include "BKE_main.h"
 #include "BKE_mesh.h"
+#include "BKE_paint.h"
 #include "BKE_report.h"
 #include "BKE_editmesh.h"
 
-#include "RNA_access.h"
 #include "RNA_define.h"
 
 #include "WM_api.h"
@@ -58,6 +57,7 @@
 
 #include "ED_mesh.h"
 #include "ED_object.h"
+#include "ED_screen.h"
 #include "ED_uvedit.h"
 #include "ED_view3d.h"
 
@@ -335,6 +335,26 @@ int ED_mesh_uv_texture_add(Mesh *me, const char *name, const bool active_set)
 	return layernum_dst;
 }
 
+void ED_mesh_uv_texture_ensure(struct Mesh *me, const char *name)
+{
+	BMEditMesh *em;
+	int layernum_dst;
+
+	if (me->edit_btmesh) {
+		em = me->edit_btmesh;
+
+		layernum_dst = CustomData_number_of_layers(&em->bm->pdata, CD_MTEXPOLY);
+		if (layernum_dst == 0)
+			ED_mesh_uv_texture_add(me, name, true);
+	}
+	else {
+		layernum_dst = CustomData_number_of_layers(&me->pdata, CD_MTEXPOLY);
+		if (layernum_dst == 0)
+			ED_mesh_uv_texture_add(me, name, true);
+	}
+}
+
+
 bool ED_mesh_uv_texture_remove_index(Mesh *me, const int n)
 {
 	CustomData *pdata = GET_CD_DATA(me, pdata), *ldata = GET_CD_DATA(me, ldata);
@@ -409,7 +429,7 @@ int ED_mesh_color_add(Mesh *me, const char *name, const bool active_set)
 		/* copy data from active vertex color layer */
 		if (layernum) {
 			const int layernum_dst = CustomData_get_active_layer(&em->bm->ldata, CD_MLOOPCOL);
-			BM_data_layer_copy(em->bm, &em->bm->ldata, CD_MLOOPCOL, layernum, layernum_dst);
+			BM_data_layer_copy(em->bm, &em->bm->ldata, CD_MLOOPCOL, layernum_dst, layernum);
 		}
 		if (active_set || layernum == 0) {
 			CustomData_set_layer_active(&em->bm->ldata, CD_MLOOPCOL, layernum);
@@ -502,6 +522,12 @@ static int mesh_uv_texture_add_exec(bContext *C, wmOperator *UNUSED(op))
 	if (ED_mesh_uv_texture_add(me, NULL, true) == -1)
 		return OPERATOR_CANCELLED;
 
+	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+		Scene *scene = CTX_data_scene(C);
+		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
+	}
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -544,24 +570,13 @@ static int drop_named_image_invoke(bContext *C, wmOperator *op, const wmEvent *e
 		return OPERATOR_CANCELLED;
 	}
 	
-	/* check input variables */
-	if (RNA_struct_property_is_set(op->ptr, "filepath")) {
-		char path[FILE_MAX];
-		
-		RNA_string_get(op->ptr, "filepath", path);
-		ima = BKE_image_load_exists(path);
-	}
-	else {
-		char name[MAX_ID_NAME - 2];
-		RNA_string_get(op->ptr, "name", name);
-		ima = (Image *)BKE_libblock_find_name(ID_IM, name);
-	}
-	
+	ima = (Image *)WM_operator_drop_load_path(C, op, ID_IM);
 	if (!ima) {
-		BKE_report(op->reports, RPT_ERROR, "Not an image");
 		return OPERATOR_CANCELLED;
 	}
-	
+	/* handled below */
+	id_us_min((ID *)ima);
+
 	/* put mesh in editmode */
 
 	obedit = base->object;
@@ -612,6 +627,7 @@ void MESH_OT_drop_named_image(wmOperatorType *ot)
 	/* properties */
 	RNA_def_string(ot->srna, "name", "Image", MAX_ID_NAME - 2, "Name", "Image name to assign");
 	RNA_def_string(ot->srna, "filepath", "Path", FILE_MAX, "Filepath", "Path to image file");
+	RNA_def_boolean(ot->srna, "relative_path", true, "Relative Path", "Select the file relative to the blend file");
 }
 
 static int mesh_uv_texture_remove_exec(bContext *C, wmOperator *UNUSED(op))
@@ -622,6 +638,12 @@ static int mesh_uv_texture_remove_exec(bContext *C, wmOperator *UNUSED(op))
 	if (!ED_mesh_uv_texture_remove_active(me))
 		return OPERATOR_CANCELLED;
 
+	if (ob->mode & OB_MODE_TEXTURE_PAINT) {
+		Scene *scene = CTX_data_scene(C);
+		BKE_paint_proj_mesh_data_check(scene, ob, NULL, NULL, NULL, NULL);
+		WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, NULL);
+	}
+	
 	return OPERATOR_FINISHED;
 }
 
@@ -726,7 +748,7 @@ static int mesh_customdata_clear_exec__internal(bContext *C,
 }
 
 /* Clear Mask */
-static int mesh_customdata_clear_mask_poll(bContext *C)
+static int mesh_customdata_mask_clear_poll(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 	if (ob && ob->type == OB_MESH) {
@@ -750,7 +772,7 @@ static int mesh_customdata_clear_mask_poll(bContext *C)
 	}
 	return false;
 }
-static int mesh_customdata_clear_mask_exec(bContext *C, wmOperator *UNUSED(op))
+static int mesh_customdata_mask_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	int ret_a = mesh_customdata_clear_exec__internal(C, BM_VERT, CD_PAINT_MASK);
 	int ret_b = mesh_customdata_clear_exec__internal(C, BM_LOOP, CD_GRID_PAINT_MASK);
@@ -765,24 +787,27 @@ static int mesh_customdata_clear_mask_exec(bContext *C, wmOperator *UNUSED(op))
 	}
 }
 
-void MESH_OT_customdata_clear_mask(wmOperatorType *ot)
+void MESH_OT_customdata_mask_clear(wmOperatorType *ot)
 {
 
 	/* identifiers */
 	ot->name = "Clear Sculpt-Mask Data";
-	ot->idname = "MESH_OT_customdata_clear_mask";
+	ot->idname = "MESH_OT_customdata_mask_clear";
 	ot->description = "Clear vertex sculpt masking data from the mesh";
 
 	/* api callbacks */
-	ot->exec = mesh_customdata_clear_mask_exec;
-	ot->poll = mesh_customdata_clear_mask_poll;
+	ot->exec = mesh_customdata_mask_clear_exec;
+	ot->poll = mesh_customdata_mask_clear_poll;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-/* Clear Skin */
-static int mesh_customdata_clear_skin_poll(bContext *C)
+/**
+ * Clear Skin
+ * \return -1 invalid state, 0 no skin, 1 has skin.
+ */
+static int mesh_customdata_skin_state(bContext *C)
 {
 	Object *ob = ED_object_context(C);
 
@@ -790,28 +815,130 @@ static int mesh_customdata_clear_skin_poll(bContext *C)
 		Mesh *me = ob->data;
 		if (me->id.lib == NULL) {
 			CustomData *data = GET_CD_DATA(me, vdata);
-			if (CustomData_has_layer(data, CD_MVERT_SKIN)) {
-				return true;
-			}
+			return CustomData_has_layer(data, CD_MVERT_SKIN);
 		}
 	}
-	return false;
+	return -1;
 }
-static int mesh_customdata_clear_skin_exec(bContext *C, wmOperator *UNUSED(op))
+
+static int mesh_customdata_skin_add_poll(bContext *C)
+{
+	return (mesh_customdata_skin_state(C) == 0);
+}
+
+static int mesh_customdata_skin_add_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = ED_object_context(C);
+	Mesh *me = ob->data;
+
+	BKE_mesh_ensure_skin_customdata(me);
+
+	DAG_id_tag_update(&me->id, 0);
+	WM_event_add_notifier(C, NC_GEOM | ND_DATA, me);
+
+	return OPERATOR_FINISHED;
+}
+
+void MESH_OT_customdata_skin_add(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Skin Data";
+	ot->idname = "MESH_OT_customdata_skin_add";
+	ot->description = "Add a vertex skin layer";
+
+	/* api callbacks */
+	ot->exec = mesh_customdata_skin_add_exec;
+	ot->poll = mesh_customdata_skin_add_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int mesh_customdata_skin_clear_poll(bContext *C)
+{
+	return (mesh_customdata_skin_state(C) == 1);
+}
+
+static int mesh_customdata_skin_clear_exec(bContext *C, wmOperator *UNUSED(op))
 {
 	return mesh_customdata_clear_exec__internal(C, BM_VERT, CD_MVERT_SKIN);
 }
 
-void MESH_OT_customdata_clear_skin(wmOperatorType *ot)
+void MESH_OT_customdata_skin_clear(wmOperatorType *ot)
 {
 	/* identifiers */
 	ot->name = "Clear Skin Data";
-	ot->idname = "MESH_OT_customdata_clear_skin";
+	ot->idname = "MESH_OT_customdata_skin_clear";
 	ot->description = "Clear vertex skin layer";
 
 	/* api callbacks */
-	ot->exec = mesh_customdata_clear_skin_exec;
-	ot->poll = mesh_customdata_clear_skin_poll;
+	ot->exec = mesh_customdata_skin_clear_exec;
+	ot->poll = mesh_customdata_skin_clear_poll;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/* Clear custom loop normals */
+static int mesh_customdata_custom_splitnormals_add_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = ED_object_context(C);
+	Mesh *me = ob->data;
+
+	if (!BKE_mesh_has_custom_loop_normals(me)) {
+		CustomData *data = GET_CD_DATA(me, ldata);
+
+		if (me->edit_btmesh) {
+			BM_data_layer_add(me->edit_btmesh->bm, data, CD_CUSTOMLOOPNORMAL);
+		}
+		else {
+			CustomData_add_layer(data, CD_CUSTOMLOOPNORMAL, CD_DEFAULT, NULL, me->totloop);
+		}
+
+		DAG_id_tag_update(&me->id, 0);
+		WM_event_add_notifier(C, NC_GEOM | ND_DATA, me);
+
+		return OPERATOR_FINISHED;
+	}
+	return OPERATOR_CANCELLED;
+}
+
+void MESH_OT_customdata_custom_splitnormals_add(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Add Custom Split Normals Data";
+	ot->idname = "MESH_OT_customdata_custom_splitnormals_add";
+	ot->description = "Add a custom split normals layer, if none exists yet";
+
+	/* api callbacks */
+	ot->exec = mesh_customdata_custom_splitnormals_add_exec;
+	ot->poll = ED_operator_object_active_editable_mesh;
+
+	/* flags */
+	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+static int mesh_customdata_custom_splitnormals_clear_exec(bContext *C, wmOperator *UNUSED(op))
+{
+	Object *ob = ED_object_context(C);
+	Mesh *me = ob->data;
+
+	if (BKE_mesh_has_custom_loop_normals(me)) {
+		return mesh_customdata_clear_exec__internal(C, BM_LOOP, CD_CUSTOMLOOPNORMAL);
+	}
+	return OPERATOR_CANCELLED;
+}
+
+void MESH_OT_customdata_custom_splitnormals_clear(wmOperatorType *ot)
+{
+	/* identifiers */
+	ot->name = "Clear Custom Split Normals Data";
+	ot->idname = "MESH_OT_customdata_custom_splitnormals_clear";
+	ot->description = "Remove the custom split normals layer, if it exists";
+
+	/* api callbacks */
+	ot->exec = mesh_customdata_custom_splitnormals_clear_exec;
+	ot->poll = ED_operator_object_active_editable_mesh;
 
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -878,17 +1005,6 @@ static void mesh_add_verts(Mesh *mesh, int len)
 
 	/* set final vertex list size */
 	mesh->totvert = totvert;
-}
-
-void ED_mesh_transform(Mesh *me, float mat[4][4])
-{
-	int i;
-	MVert *mvert = me->mvert;
-
-	for (i = 0; i < me->totvert; i++, mvert++)
-		mul_m4_v3(mat, mvert->co);
-
-	/* don't update normals, caller can do this explicitly */
 }
 
 static void mesh_add_edges(Mesh *mesh, int len)
@@ -1159,13 +1275,24 @@ void ED_mesh_polys_add(Mesh *mesh, ReportList *reports, int count)
 	mesh_add_polys(mesh, count);
 }
 
-void ED_mesh_calc_tessface(Mesh *mesh)
+void ED_mesh_calc_tessface(Mesh *mesh, bool free_mpoly)
 {
 	if (mesh->edit_btmesh) {
 		BKE_editmesh_tessface_calc(mesh->edit_btmesh);
 	}
 	else {
 		BKE_mesh_tessface_calc(mesh);
+	}
+	if (free_mpoly) {
+		CustomData_free(&mesh->ldata, mesh->totloop);
+		CustomData_free(&mesh->pdata, mesh->totpoly);
+		mesh->totloop = 0;
+		mesh->totpoly = 0;
+		mesh->mloop = NULL;
+		mesh->mloopcol = NULL;
+		mesh->mloopuv = NULL;
+		mesh->mpoly = NULL;
+		mesh->mtpoly = NULL;
 	}
 }
 

@@ -41,16 +41,15 @@ struct BoundBox;
 struct DerivedMesh;
 struct Object;
 struct SmokeDomainSettings;
-struct ViewContext;
 struct bAnimVizSettings;
 struct bContext;
 struct bMotionPath;
 struct bPoseChannel;
-struct bScreen;
 struct Mesh;
 struct wmNDOFMotionData;
 struct wmOperatorType;
 struct wmWindowManager;
+struct wmKeyConfig;
 
 /* drawing flags: */
 enum {
@@ -163,7 +162,9 @@ bool draw_armature(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 /* drawmesh.c */
 void draw_mesh_textured(Scene *scene, View3D *v3d, RegionView3D *rv3d,
                         struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
-void draw_mesh_face_select(struct RegionView3D *rv3d, struct Mesh *me, struct DerivedMesh *dm);
+void draw_mesh_face_select(
+        struct RegionView3D *rv3d, struct Mesh *me, struct DerivedMesh *dm,
+        bool draw_select_edges);
 void draw_mesh_paint_weight_faces(struct DerivedMesh *dm, const bool do_light,
                                   void *facemask_cb, void *user_data);
 void draw_mesh_paint_vcolor_faces(struct DerivedMesh *dm, const bool use_light,
@@ -174,6 +175,9 @@ void draw_mesh_paint_weight_edges(RegionView3D *rv3d, struct DerivedMesh *dm,
                                   void *edgemask_cb, void *user_data);
 void draw_mesh_paint(View3D *v3d, RegionView3D *rv3d,
                      struct Object *ob, struct DerivedMesh *dm, const int draw_flags);
+
+/* drawsimdebug.c */
+void draw_sim_debug_data(Scene *scene, View3D *v3d, ARegion *ar);
 
 /* view3d_draw.c */
 void view3d_main_area_draw(const struct bContext *C, struct ARegion *ar);
@@ -201,7 +205,7 @@ void VIEW3D_OT_localview(struct wmOperatorType *ot);
 void VIEW3D_OT_game_start(struct wmOperatorType *ot);
 
 
-bool ED_view3d_boundbox_clip_ex(RegionView3D *rv3d, const struct BoundBox *bb, float obmat[4][4]);
+bool ED_view3d_boundbox_clip_ex(const RegionView3D *rv3d, const struct BoundBox *bb, float obmat[4][4]);
 bool ED_view3d_boundbox_clip(RegionView3D *rv3d, const struct BoundBox *bb);
 
 void ED_view3d_smooth_view_ex(
@@ -218,8 +222,8 @@ void ED_view3d_smooth_view(
         const float *ofs, const float *quat, const float *dist, const float *lens,
         const int smooth_viewtx);
 
-void view3d_winmatrix_set(ARegion *ar, View3D *v3d, const rctf *rect);
-void view3d_viewmatrix_set(Scene *scene, View3D *v3d, RegionView3D *rv3d);
+void view3d_winmatrix_set(ARegion *ar, const View3D *v3d, const rctf *rect);
+void view3d_viewmatrix_set(Scene *scene, const View3D *v3d, RegionView3D *rv3d);
 
 void fly_modal_keymap(struct wmKeyConfig *keyconf);
 void walk_modal_keymap(struct wmKeyConfig *keyconf);
@@ -233,7 +237,7 @@ void VIEW3D_OT_properties(struct wmOperatorType *ot);
 void view3d_buttons_register(struct ARegionType *art);
 
 /* view3d_camera_control.c */
-struct View3DCameraControl *ED_view3d_cameracontrol_aquire(
+struct View3DCameraControl *ED_view3d_cameracontrol_acquire(
         Scene *scene, View3D *v3d, RegionView3D *rv3d,
         const bool use_parent_root);
 void ED_view3d_cameracontrol_update(
@@ -285,7 +289,7 @@ void draw_smoke_heat(struct SmokeDomainSettings *domain, struct Object *ob);
 
 /* workaround for trivial but noticeable camera bug caused by imprecision
  * between view border calculation in 2D/3D space, workaround for bug [#28037].
- * without this deifne we get the old behavior which is to try and align them
+ * without this define we get the old behavior which is to try and align them
  * both which _mostly_ works fine, but when the camera moves beyond ~1000 in
  * any direction it starts to fail */
 #define VIEW3D_CAMERA_BORDER_HACK

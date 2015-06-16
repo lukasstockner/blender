@@ -44,6 +44,24 @@
 #  define UNLIKELY(x)     (x)
 #endif
 
+/* powf is really slow for raising to integer powers. */
+MINLINE float pow2f(float x)
+{
+	return x * x;
+}
+MINLINE float pow3f(float x)
+{
+	return pow2f(x) * x;
+}
+MINLINE float pow4f(float x)
+{
+	return pow2f(pow2f(x));
+}
+MINLINE float pow7f(float x)
+{
+	return pow2f(pow3f(x)) * x;
+}
+
 MINLINE float sqrt3f(float f)
 {
 	if      (UNLIKELY(f == 0.0f)) return 0.0f;
@@ -180,25 +198,6 @@ MINLINE int mod_i(int i, int n)
 	return (i % n + n) % n;
 }
 
-MINLINE unsigned int highest_order_bit_i(unsigned int n)
-{
-	n |= (n >>  1);
-	n |= (n >>  2);
-	n |= (n >>  4);
-	n |= (n >>  8);
-	n |= (n >> 16);
-	return n - (n >> 1);
-}
-
-MINLINE unsigned short highest_order_bit_s(unsigned short n)
-{
-	n |= (n >>  1);
-	n |= (n >>  2);
-	n |= (n >>  4);
-	n |= (n >>  8);
-	return (unsigned short)(n - (n >> 1));
-}
-
 MINLINE float min_ff(float a, float b)
 {
 	return (a < b) ? a : b;
@@ -258,5 +257,18 @@ MINLINE float signf(float f)
 	return (f < 0.f) ? -1.f : 1.f;
 }
 
+MINLINE int signum_i_ex(float a, float eps)
+{
+	if (a >  eps) return  1;
+	if (a < -eps) return -1;
+	else          return  0;
+}
+
+MINLINE int signum_i(float a)
+{
+	if (a > 0.0f) return  1;
+	if (a < 0.0f) return -1;
+	else          return  0;
+}
 
 #endif /* __MATH_BASE_INLINE_C__ */

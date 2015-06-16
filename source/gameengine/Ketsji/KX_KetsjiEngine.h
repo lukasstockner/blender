@@ -111,6 +111,7 @@ private:
 	double				m_frameTime;//discrete timestamp of the 'game logic frame'
 	double				m_clockTime;//current time
 	double				m_previousClockTime;//previous clock time
+	double				m_previousAnimTime; //the last time animations were updated
 	double				m_remainingTime;
 
 	static int				m_maxLogicFrame;	/* maximum number of consecutive logic frame */
@@ -204,14 +205,12 @@ private:
 	void					PostRenderScene(KX_Scene* scene);
 	void					RenderDebugProperties();
 	void					RenderShadowBuffers(KX_Scene *scene);
-	void					SetBackGround(KX_WorldInfo* worldinfo);
 
 public:
 	KX_KetsjiEngine(class KX_ISystem* system);
 	virtual ~KX_KetsjiEngine();
 
 	// set the devices and stuff. the client must take care of creating these
-	void			SetWorldSettings(KX_WorldInfo* worldinfo);
 	void			SetKeyboardDevice(SCA_IInputDevice* keyboarddevice);
 	void			SetMouseDevice(SCA_IInputDevice* mousedevice);
 	void			SetNetworkDevice(NG_NetworkDeviceInterface* networkdevice);
@@ -258,7 +257,7 @@ public:
 	void			ConvertAndAddScene(const STR_String& scenename,bool overlay);
 
 	void			RemoveScene(const STR_String& scenename);
-	void			ReplaceScene(const STR_String& oldscene,const STR_String& newscene);
+    bool			ReplaceScene(const STR_String& oldscene,const STR_String& newscene);
 	void			SuspendScene(const STR_String& scenename);
 	void			ResumeScene(const STR_String& scenename);
 

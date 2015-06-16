@@ -33,7 +33,7 @@ builder = sys.argv[1]
 # we run from build/ directory
 blender_dir = '../blender.git'
 
-if builder.find('cmake') != -1:
+if 'cmake' in builder:
     # cmake
 
     # set build options
@@ -46,11 +46,21 @@ if builder.find('cmake') != -1:
     elif builder.endswith('mac_ppc_cmake'):
         cmake_options.append('-DCMAKE_OSX_ARCHITECTURES:STRING=ppc')
 
+    if 'win64' in builder:
+        cmake_options.append(['-G', '"Visual Studio 12 2013 Win64"'])
+    elif 'win32' in builder:
+        cmake_options.append(['-G', '"Visual Studio 12 2013"'])
+
+    cmake_options.append("-C../blender.git/build_files/cmake/config/blender_full.cmake")
+    cmake_options.append("-DWITH_CYCLES_CUDA_BINARIES=1")
     # configure and make
     retcode = subprocess.call(['cmake', blender_dir] + cmake_options)
     if retcode != 0:
         sys.exit(retcode)
-    retcode = subprocess.call(['make', '-s', '-j4', 'install'])
+    if 'win' in builder:
+        retcode = subprocess.call(['msbuild', 'INSTALL.vcxproj', '/p:Configuration=Release'])
+    else:
+        retcode = subprocess.call(['make', '-s', '-j4', 'install'])
     sys.exit(retcode)
 else:
     python_bin = 'python'
@@ -106,6 +116,8 @@ else:
 
             if config.find('player') != -1:
                 scons_options.append('BF_BUILDDIR=%s_player' % (build_dir))
+            elif config.find('cuda') != -1:
+                scons_options.append('BF_BUILDDIR=%s_cuda' % (build_dir))
             else:
                 scons_options.append('BF_BUILDDIR=%s' % (build_dir))
 
@@ -130,7 +142,7 @@ else:
 
             retcode = subprocess.call(cur_scons_cmd + scons_options)
             if retcode != 0:
-                print('Error building rules wuth config ' + config)
+                print('Error building rules with config ' + config)
                 sys.exit(retcode)
 
         sys.exit(0)
@@ -152,7 +164,7 @@ else:
                 scons_options.append('MSVS_VERSION=12.0')
                 scons_options.append('MSVC_VERSION=12.0')
                 scons_options.append('WITH_BF_CYCLES_CUDA_BINARIES=1')
-                scons_options.append('BF_CYCLES_CUDA_NVCC=nvcc')
+                scons_options.append('BF_CYCLES_CUDA_NVCC=nvcc.exe')
             scons_options.append('BF_NUMJOBS=1')
 
         elif builder.find('mac') != -1:
@@ -168,8 +180,6 @@ else:
                 os.makedirs(install_dir)
             if builder.endswith('vc2013'):
                 dlls = ('msvcp120.dll', 'msvcr120.dll', 'vcomp120.dll')
-            else:
-                dlls = ('msvcm90.dll', 'msvcp90.dll', 'msvcr90.dll', 'vcomp90.dll', 'Microsoft.VC90.CRT.manifest', 'Microsoft.VC90.OpenMP.manifest')
             if builder.find('win64') == -1:
                 dlls_path = '..\\..\\..\\redist\\x86'
             else:

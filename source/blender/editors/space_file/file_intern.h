@@ -38,7 +38,7 @@ struct ARegionType;
 struct SpaceFile;
 
 /* file_ops.c */
-struct ARegion *file_buttons_region(struct ScrArea *sa);
+struct ARegion *file_tools_region(struct ScrArea *sa);
 
 /* file_draw.c */
 #define TILE_BORDER_X (UI_UNIT_X / 4)
@@ -52,20 +52,31 @@ void file_draw_buttons(const bContext *C, ARegion *ar);
 void file_calc_previews(const bContext *C, ARegion *ar);
 void file_draw_list(const bContext *C, ARegion *ar);
 
+void file_draw_check(bContext *C);
 void file_draw_check_cb(bContext *C, void *arg1, void *arg2);
 bool file_draw_check_exists(SpaceFile *sfile);
 
 /* file_ops.h */
 struct wmOperatorType;
 struct wmOperator;
-struct wmEvent;
+
+typedef enum WalkSelectDirection {
+	FILE_SELECT_WALK_UP,
+	FILE_SELECT_WALK_DOWN,
+	FILE_SELECT_WALK_LEFT,
+	FILE_SELECT_WALK_RIGHT,
+} WalkSelectDirections;
+
 void FILE_OT_highlight(struct wmOperatorType *ot);
 void FILE_OT_select(struct wmOperatorType *ot);
+void FILE_OT_select_walk(struct wmOperatorType *ot);
 void FILE_OT_select_all_toggle(struct wmOperatorType *ot);
 void FILE_OT_select_border(struct wmOperatorType *ot);
 void FILE_OT_select_bookmark(struct wmOperatorType *ot);
 void FILE_OT_bookmark_add(struct wmOperatorType *ot);
 void FILE_OT_bookmark_delete(struct wmOperatorType *ot);
+void FILE_OT_bookmark_cleanup(struct wmOperatorType *ot);
+void FILE_OT_bookmark_move(struct wmOperatorType *ot);
 void FILE_OT_reset_recent(wmOperatorType *ot);
 void FILE_OT_hidedot(struct wmOperatorType *ot);
 void FILE_OT_execute(struct wmOperatorType *ot);
@@ -99,17 +110,18 @@ void file_operator_to_sfile(struct SpaceFile *sfile, struct wmOperator *op);
 
 
 /* filesel.c */
-float file_shorten_string(char *string, float w, int front);
 float file_string_width(const char *str);
 
 float file_font_pointsize(void);
-void file_change_dir(bContext *C, int checkdir);
 int file_select_match(struct SpaceFile *sfile, const char *pattern, char *matched_file);
 int autocomplete_directory(struct bContext *C, char *str, void *arg_v);
 int autocomplete_file(struct bContext *C, char *str, void *arg_v);
 
 /* file_panels.c */
 void file_panels_register(struct ARegionType *art);
+
+/* file_utils.c */
+void file_tile_boundbox(const ARegion *ar, FileLayout *layout, const int file, rcti *r_bounds);
 
 #endif /* __FILE_INTERN_H__ */
 

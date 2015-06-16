@@ -11,12 +11,12 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 CCL_NAMESPACE_BEGIN
 
-ccl_device_inline void path_state_init(KernelGlobals *kg, PathState *state, RNG *rng, int sample)
+ccl_device_inline void path_state_init(KernelGlobals *kg, ccl_addr_space PathState *state, ccl_addr_space RNG *rng, int sample, ccl_addr_space Ray *ray)
 {
 	state->flag = PATH_RAY_CAMERA|PATH_RAY_MIS_SKIP;
 
@@ -41,7 +41,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg, PathState *state, RNG 
 
 	if(kernel_data.integrator.use_volumes) {
 		/* initialize volume stack with volume we are inside of */
-		kernel_volume_stack_init(kg, state->volume_stack);
+		kernel_volume_stack_init(kg, ray, state->volume_stack);
 		/* seed RNG for cases where we can't use stratified samples */
 		state->rng_congruential = lcg_init(*rng + sample*0x51633e2d);
 	}
@@ -51,7 +51,7 @@ ccl_device_inline void path_state_init(KernelGlobals *kg, PathState *state, RNG 
 #endif
 }
 
-ccl_device_inline void path_state_next(KernelGlobals *kg, PathState *state, int label)
+ccl_device_inline void path_state_next(KernelGlobals *kg, ccl_addr_space PathState *state, int label)
 {
 	/* ray through transparent keeps same flags from previous ray and is
 	 * not counted as a regular bounce, transparent has separate max */
@@ -106,7 +106,7 @@ ccl_device_inline void path_state_next(KernelGlobals *kg, PathState *state, int 
 			state->flag &= ~(PATH_RAY_GLOSSY|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP);
 		}
 		else if(label & LABEL_GLOSSY) {
-			state->flag |= PATH_RAY_GLOSSY|PATH_RAY_GLOSSY_ANCESTOR;
+			state->flag |= PATH_RAY_GLOSSY;
 			state->flag &= ~(PATH_RAY_DIFFUSE|PATH_RAY_SINGULAR|PATH_RAY_MIS_SKIP);
 		}
 		else {
@@ -138,7 +138,7 @@ ccl_device_inline uint path_state_ray_visibility(KernelGlobals *kg, PathState *s
 	return flag;
 }
 
-ccl_device_inline float path_state_terminate_probability(KernelGlobals *kg, PathState *state, const float3 throughput)
+ccl_device_inline float path_state_terminate_probability(KernelGlobals *kg, ccl_addr_space PathState *state, const float3 throughput)
 {
 	if(state->flag & PATH_RAY_TRANSPARENT) {
 		/* transparent rays treated separately */

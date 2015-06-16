@@ -47,8 +47,6 @@
  * contains an Amiga-format file).
  */
 
-struct ImMetaData;
-
 #define IB_MIPMAP_LEVELS	20
 #define IB_FILENAME_SIZE	1024
 
@@ -111,8 +109,8 @@ typedef struct ImBuf {
 	/* externally used data */
 	int index;						/* reference index for ImBuf lists */
 	int	userflags;					/* used to set imbuf to dirty and other stuff */
-	struct ImMetaData *metadata;	/* image metadata */
-	void *userdata;					/* temporary storage, only used by baking at the moment */
+	struct IDProperty *metadata;	/* image metadata */
+	void *userdata;					/* temporary storage */
 
 	/* file information */
 	int	ftype;							/* file type we are going to save as */
@@ -174,6 +172,8 @@ typedef struct ImBuf {
 #define IB_alphamode_premul	(1 << 12)  /* indicates whether image on disk have premul alpha */
 #define IB_alphamode_detect	(1 << 13)  /* if this flag is set, alpha mode would be guessed from file */
 #define IB_ignore_alpha		(1 << 14)  /* ignore alpha on load and substitude it with 1.0f */
+#define IB_thumbnail		(1 << 15)
+#define IB_multiview		(1 << 16)
 
 /*
  * The bit flag is stored in the ImBuf.ftype variable.
@@ -204,7 +204,7 @@ typedef struct ImBuf {
 
 #define OPENEXR			(1 << 22)
 #define OPENEXR_HALF	(1 << 8 )
-#define OPENEXR_COMPRESS (7)	
+#define OPENEXR_COMPRESS (15)
 
 #ifdef WITH_CINEON
 #define CINEON			(1 << 21)

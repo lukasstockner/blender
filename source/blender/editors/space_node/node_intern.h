@@ -42,12 +42,9 @@ struct ARegionType;
 struct View2D;
 struct bContext;
 struct wmWindow;
-struct wmWindowManager;
-struct wmEvent;
 struct bNode;
 struct bNodeSocket;
 struct bNodeLink;
-struct Main;
 struct wmKeyConfig;
 
 /* temp data to pass on to modal */
@@ -163,7 +160,6 @@ void NODE_OT_links_cut(struct wmOperatorType *ot);
 void NODE_OT_links_detach(struct wmOperatorType *ot);
 
 void NODE_OT_parent_set(struct wmOperatorType *ot);
-void NODE_OT_parent_clear(struct wmOperatorType *ot);
 void NODE_OT_join(struct wmOperatorType *ot);
 void NODE_OT_attach(struct wmOperatorType *ot);
 void NODE_OT_detach(struct wmOperatorType *ot);
@@ -203,6 +199,8 @@ void NODE_OT_render_changed(struct wmOperatorType *ot);
 void NODE_OT_output_file_add_socket(struct wmOperatorType *ot);
 void NODE_OT_output_file_remove_active_socket(struct wmOperatorType *ot);
 void NODE_OT_output_file_move_active_socket(struct wmOperatorType *ot);
+
+void NODE_OT_switch_view_update (struct wmOperatorType *ot);
 
 /* Note: clipboard_cut is a simple macro of copy + delete */
 void NODE_OT_clipboard_copy(struct wmOperatorType *ot);

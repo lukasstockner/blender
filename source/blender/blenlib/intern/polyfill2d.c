@@ -165,7 +165,7 @@ static bool       pf_ear_tip_check(PolyFill *pf, PolyIndex *pi_ear_tip);
 static void       pf_ear_tip_cut(PolyFill *pf, PolyIndex *pi_ear_tip);
 
 
-BLI_INLINE eSign signum_i(float a)
+BLI_INLINE eSign signum_enum(float a)
 {
 	if (UNLIKELY(a == 0.0f))
 		return  0;
@@ -179,7 +179,7 @@ BLI_INLINE eSign signum_i(float a)
  * alternative version of #area_tri_signed_v2
  * needed because of float precision issues
  *
- * \note removes / 2 since its not needed since we only need ths sign.
+ * \note removes / 2 since its not needed since we only need the sign.
  */
 BLI_INLINE float area_tri_signed_v2_alt_2x(const float v1[2], const float v2[2], const float v3[2])
 {
@@ -191,7 +191,7 @@ BLI_INLINE float area_tri_signed_v2_alt_2x(const float v1[2], const float v2[2],
 
 static eSign span_tri_v2_sign(const float v1[2], const float v2[2], const float v3[2])
 {
-	return signum_i(area_tri_signed_v2_alt_2x(v3, v2, v1));
+	return signum_enum(area_tri_signed_v2_alt_2x(v3, v2, v1));
 }
 
 
@@ -567,7 +567,7 @@ static void pf_triangulate(PolyFill *pf)
 
 #ifdef USE_CLIP_EVEN
 #ifdef USE_CLIP_SWEEP
-		pi_ear_init = reverse ? pi_next->next : pi_prev->prev;
+		pi_ear_init = reverse ? pi_prev->prev : pi_next->next;
 #else
 		pi_ear_init = pi_next->next;
 #endif
@@ -661,11 +661,11 @@ static PolyIndex *pf_ear_tip_find(
 
 static bool pf_ear_tip_check(PolyFill *pf, PolyIndex *pi_ear_tip)
 {
-	/* localize */
-	PolyIndex *pi_curr;
-	const float (*coords)[2] = pf->coords;
-
 #ifndef USE_KDTREE
+	/* localize */
+	const float (*coords)[2] = pf->coords;
+	PolyIndex *pi_curr;
+
 	const float *v1, *v2, *v3;
 #endif
 
@@ -711,8 +711,6 @@ static bool pf_ear_tip_check(PolyFill *pf, PolyIndex *pi_ear_tip)
 			return false;
 		}
 	}
-	(void)pi_curr;
-	(void)coords;
 #else
 
 	v1 = coords[pi_ear_tip->prev->index];

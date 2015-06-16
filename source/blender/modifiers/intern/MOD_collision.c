@@ -32,7 +32,6 @@
  *  \ingroup modifiers
  */
 
-
 #include "DNA_object_types.h"
 #include "DNA_meshdata_types.h"
 
@@ -48,8 +47,6 @@
 #include "BKE_modifier.h"
 #include "BKE_pointcache.h"
 #include "BKE_scene.h"
-
-#include "MOD_util.h"
 
 static void initData(ModifierData *md) 
 {
@@ -244,6 +241,7 @@ ModifierTypeInfo modifierType_Collision = {
 	/* freeData */          freeData,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    NULL,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     dependsOnTime,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,

@@ -522,10 +522,8 @@ static void ccd_mesh_update(Object *ob, ccd_Mesh *pccd_M)
 			mima->maxz = max_ff(mima->maxz, v[2] + hull);
 		}
 
-
-	mima++;
-	mface++;
-
+		mima++;
+		mface++;
 	}
 	return;
 }
@@ -707,7 +705,7 @@ static void add_2nd_order_roller(Object *ob, float UNUSED(stiffness), int *count
 						}
 					}
 					if ((bs2->v2 !=notthis)&&(bs2->v2 > v0)) {
-					(*counter)++;/*hit */
+						(*counter)++;  /* hit */
 						if (addsprings) {
 							bs3->v1= v0;
 							bs3->v2= bs2->v2;
@@ -1037,6 +1035,7 @@ static int sb_detect_aabb_collisionCached(float UNUSED(force[3]), unsigned int U
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 #if 0			/* UNUSED */
@@ -1078,6 +1077,7 @@ static int sb_detect_aabb_collisionCached(float UNUSED(force[3]), unsigned int U
 				}
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1116,6 +1116,7 @@ static int sb_detect_face_pointCached(float face_v1[3], float face_v2[3], float 
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MVert *mvert= NULL;
@@ -1179,6 +1180,7 @@ static int sb_detect_face_pointCached(float face_v1[3], float face_v2[3], float 
 				} /* if (mvert) */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1208,6 +1210,7 @@ static int sb_detect_face_collisionCached(float face_v1[3], float face_v2[3], fl
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1317,6 +1320,7 @@ static int sb_detect_face_collisionCached(float face_v1[3], float face_v2[3], fl
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1436,6 +1440,7 @@ static int sb_detect_edge_collisionCached(float edge_v1[3], float edge_v2[3], fl
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1557,6 +1562,7 @@ static int sb_detect_edge_collisionCached(float edge_v1[3], float edge_v2[3], fl
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 	BLI_ghashIterator_free(ihash);
 	return deflected;
@@ -1764,6 +1770,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 
 		ccd_Mesh *ccdm = BLI_ghashIterator_getValue	(ihash);
 		ob             = BLI_ghashIterator_getKey	(ihash);
+		{
 			/* only with deflecting set */
 			if (ob->pd && ob->pd->deflect) {
 				MFace *mface= NULL;
@@ -1801,7 +1808,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 				else {
 					/*aye that should be cached*/
 					printf("missing cache error\n");
-						BLI_ghashIterator_step(ihash);
+					BLI_ghashIterator_step(ihash);
 					continue;
 				}
 
@@ -1919,16 +1926,16 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 								if (facedist > outerfacethickness*ff)
 									force_mag_norm =(float)force_mag_norm*fa*(facedist - outerfacethickness)*(facedist - outerfacethickness);
 								*damp=ob->pd->pdef_sbdamp;
-							if (facedist > 0.0f) {
-								*damp *= (1.0f - facedist/outerfacethickness);
-								Vec3PlusStVec(outerforceaccu, force_mag_norm, d_nvect);
-								deflected = 3;
+								if (facedist > 0.0f) {
+									*damp *= (1.0f - facedist/outerfacethickness);
+									Vec3PlusStVec(outerforceaccu, force_mag_norm, d_nvect);
+									deflected = 3;
 
-							}
-							else {
-								Vec3PlusStVec(innerforceaccu, force_mag_norm, d_nvect);
-								if (deflected < 2) deflected = 2;
-							}
+								}
+								else {
+									Vec3PlusStVec(innerforceaccu, force_mag_norm, d_nvect);
+									if (deflected < 2) deflected = 2;
+								}
 
 								if ((mprevvert) && (*damp > 0.0f)) {
 									choose_winner(ve, opco, nv1, nv3, nv4, vv1, vv3, vv4);
@@ -1945,7 +1952,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 							float dist;
 
 							closest_to_line_segment_v3(ve, opco, nv1, nv2);
-							 sub_v3_v3v3(ve, opco, ve);
+							sub_v3_v3v3(ve, opco, ve);
 							dist = normalize_v3(ve);
 							if ((dist < outerfacethickness)&&(dist < mindistedge )) {
 								copy_v3_v3(coledge, ve);
@@ -1999,6 +2006,7 @@ static int sb_detect_vertex_collisionCached(float opco[3], float facenormal[3], 
 				}/* while a */
 			} /* if (ob->pd && ob->pd->deflect) */
 			BLI_ghashIterator_step(ihash);
+		}
 	} /* while () */
 
 	if (deflected == 1) { // no face but 'outer' edge cylinder sees vert
@@ -2160,7 +2168,7 @@ static void sb_spring_force(Object *ob, int bpi, BodySpring *bs, float iks, floa
 		// dfdx_spring(ia, ia, op, dir, bs->len, distance, -mpos);
 		/* depending on my vel */
 		// dfdv_goal(ia, ia, mvel); // well that ignores geometie
-		if (bp2->goal < SOFTGOALSNAP) { /* ommit this bp when it snaps */
+		if (bp2->goal < SOFTGOALSNAP) {  /* omit this bp when it snaps */
 			/* depending on other pos */
 			// dfdx_spring(ia, ic, op, dir, bs->len, distance, mpos);
 			/* depending on other vel */
@@ -2257,7 +2265,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 		}
 		/* naive ball self collision done */
 
-		if (_final_goal(ob, bp) < SOFTGOALSNAP) { /* ommit this bp when it snaps */
+		if (_final_goal(ob, bp) < SOFTGOALSNAP) {  /* omit this bp when it snaps */
 			float auxvect[3];
 			float velgoal[3];
 
@@ -2337,14 +2345,14 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene, Object *ob, flo
 				float kd = 1.0f;
 
 				if (sb_deflect_face(ob, bp->pos, facenormal, defforce, &cf, timenow, vel, &intrusion)) {
-						if (intrusion < 0.0f) {
-							sb->scratch->flag |= SBF_DOFUZZY;
-							bp->loc_flag |= SBF_DOFUZZY;
-							bp->choke = sb->choke*0.01f;
-						}
+					if (intrusion < 0.0f) {
+						sb->scratch->flag |= SBF_DOFUZZY;
+						bp->loc_flag |= SBF_DOFUZZY;
+						bp->choke = sb->choke*0.01f;
+					}
 
-							sub_v3_v3v3(cfforce, bp->vec, vel);
-							Vec3PlusStVec(bp->force, -cf*50.0f, cfforce);
+					sub_v3_v3v3(cfforce, bp->vec, vel);
+					Vec3PlusStVec(bp->force, -cf*50.0f, cfforce);
 
 					Vec3PlusStVec(bp->force, kd, defforce);
 				}
@@ -2652,7 +2660,7 @@ static void softbody_calc_forces(Scene *scene, Object *ob, float forcetime, floa
 			}
 			/* naive ball self collision done */
 
-			if (_final_goal(ob, bp) < SOFTGOALSNAP) { /* ommit this bp when it snaps */
+			if (_final_goal(ob, bp) < SOFTGOALSNAP) {  /* omit this bp when it snaps */
 				float auxvect[3];
 				float velgoal[3];
 
@@ -3349,7 +3357,7 @@ static void mesh_to_softbody(Scene *scene, Object *ob)
 			build_bps_springlist(ob); /* scan for springs attached to bodypoints ONCE */
 			/* insert *other second order* springs if desired */
 			if (sb->secondspring > 0.0000001f) {
-				add_2nd_order_springs(ob, sb->secondspring); /* exploits the the first run of build_bps_springlist(ob);*/
+				add_2nd_order_springs(ob, sb->secondspring); /* exploits the first run of build_bps_springlist(ob);*/
 				build_bps_springlist(ob); /* yes we need to do it again*/
 			}
 			springs_from_mesh(ob); /* write the 'rest'-length of the springs */
@@ -3486,7 +3494,7 @@ static void makelatticesprings(Lattice *lt,	BodySpring *bs, int dostiff, Object 
 							bs->v1 = bpc;
 							bs->v2 = bpc+dw+dv-1;
 							bs->springtype=SB_BEND;
-							 bs->len= globallen((bp+dw+dv-1)->vec, bp->vec, ob);
+							bs->len= globallen((bp+dw+dv-1)->vec, bp->vec, ob);
 							bs++;
 						}
 					}
@@ -3561,7 +3569,7 @@ static void curve_surf_to_softbody(Scene *scene, Object *ob)
 
 	if (ob->softflag & OB_SB_EDGES) {
 		if (ob->type==OB_CURVE) {
-			totspring= totvert - BLI_countlist(&cu->nurb);
+			totspring = totvert - BLI_listbase_count(&cu->nurb);
 		}
 	}
 

@@ -34,7 +34,6 @@
 #define __GHOST_SYSTEMX11_H__
 
 #include <X11/Xlib.h>
-#include <GL/glx.h>
 
 #include "GHOST_System.h"
 #include "../GHOST_Types.h"
@@ -76,7 +75,7 @@ public:
 	/**
 	 * Destructor.
 	 */
-	virtual ~GHOST_SystemX11();
+	~GHOST_SystemX11();
 
 
 	GHOST_TSuccess
@@ -152,15 +151,10 @@ public:
 	    GHOST_TUns32 height,
 	    GHOST_TWindowState state,
 	    GHOST_TDrawingContextType type,
-	    const bool stereoVisual,
+	    GHOST_GLSettings glSettings,
 	    const bool exclusive = false,
-	    const GHOST_TUns16 numOfAASamples = 0,
 	    const GHOST_TEmbedderWindowID parentWindow = 0
 	    );
-
-	/**
-	 * \section Interface Inherited from GHOST_ISystem
-	 */
 
 	/**
 	 * Retrieves events from the system and stores them in the queue.
@@ -172,9 +166,6 @@ public:
 	    bool waitForEvent
 	    );
 
-	/**
-	 * \section Interface Inherited from GHOST_System
-	 */
 	GHOST_TSuccess
 	getCursorPosition(
 	    GHOST_TInt32& x,
@@ -208,7 +199,6 @@ public:
 	    ) const;
 
 	/**
-	 * \section Interface Dirty
 	 * Flag a window as dirty. This will
 	 * generate a GHOST window update event on a call to processEvents() 
 	 */
@@ -243,7 +233,7 @@ public:
 	                        unsigned int *context) const;
 
 	/**
-	 * Returns unsinged char from CUT_BUFFER0
+	 * Returns unsigned char from CUT_BUFFER0
 	 * \param selection		Get selection, X11 only feature
 	 * \return				Returns the Clipboard indicated by Flag
 	 */
@@ -273,7 +263,7 @@ public:
 	/**
 	 * \see GHOST_ISystem
 	 */
-	int toggleConsole(int action) {
+	int toggleConsole(int /*action*/) {
 		return 0;
 	}
 
@@ -287,6 +277,12 @@ public:
 		int MotionEvent;
 		int ProxInEvent;
 		int ProxOutEvent;
+		int PressEvent;
+
+		int MotionEventEraser;
+		int ProxInEventEraser;
+		int ProxOutEventEraser;
+		int PressEventEraser;
 
 		int PressureLevels;
 		int XtiltLevels, YtiltLevels;
@@ -355,6 +351,10 @@ private:
 	/* to prevent multiple warp, we store the time of the last warp event
 	 *  and stop accumulating all events generated before that */
 	Time m_last_warp;
+
+	/* detect autorepeat glitch */
+	unsigned int m_last_release_keycode;
+	Time m_last_release_time;
 
 	/**
 	 * Return the ghost window associated with the

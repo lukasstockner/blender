@@ -767,7 +767,7 @@ static void LaplacianDeformModifier_do(
         LaplacianDeformModifierData *lmd, Object *ob, DerivedMesh *dm,
         float (*vertexCos)[3], int numVerts)
 {
-	(void)lmd, (void)ob, (void)dm, (void)vertexCos, (void)numVerts;
+	UNUSED_VARS(lmd, ob, dm, vertexCos, numVerts);
 }
 #endif  /* WITH_OPENNL */
 
@@ -862,6 +862,7 @@ ModifierTypeInfo modifierType_LaplacianDeform = {
 	/* freeData */          freeData,
 	/* isDisabled */        isDisabled,
 	/* updateDepgraph */    NULL,
+	/* updateDepsgraph */   NULL,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ NULL,

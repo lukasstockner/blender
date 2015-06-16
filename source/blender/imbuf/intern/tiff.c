@@ -53,9 +53,7 @@
 #include "IMB_imbuf_types.h"
 #include "IMB_imbuf.h"
 
-#include "IMB_allocimbuf.h"
 #include "IMB_filetype.h"
-#include "IMB_filter.h"
 
 #include "IMB_colormanagement.h"
 #include "IMB_colormanagement_intern.h"
@@ -311,8 +309,8 @@ int imb_is_a_tiff(unsigned char *mem)
 	char big_endian[IMB_TIFF_NCB] = { 0x4d, 0x4d, 0x00, 0x2a };
 	char lil_endian[IMB_TIFF_NCB] = { 0x49, 0x49, 0x2a, 0x00 };
 
-	return ( (memcmp(big_endian, mem, IMB_TIFF_NCB) == 0) ||
-	         (memcmp(lil_endian, mem, IMB_TIFF_NCB) == 0) );
+	return ((memcmp(big_endian, mem, IMB_TIFF_NCB) == 0) ||
+	        (memcmp(lil_endian, mem, IMB_TIFF_NCB) == 0));
 }
 
 static void scanline_contig_16bit(float *rectf, const unsigned short *sbuf, int scanline_w, int spp)
@@ -456,7 +454,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 				
 				if (bitspersample == 32) {
 					if (chan == 3 && spp == 3) /* fill alpha if only RGB TIFF */
-						fill_vn_fl(fbuf, ibuf->x, 1.0f);
+						copy_vn_fl(fbuf, ibuf->x, 1.0f);
 					else if (chan >= spp) /* for grayscale, duplicate first channel into G and B */
 						success |= TIFFReadScanline(image, fbuf, row, 0);
 					else
@@ -466,7 +464,7 @@ static int imb_read_tiff_pixels(ImBuf *ibuf, TIFF *image)
 				}
 				else if (bitspersample == 16) {
 					if (chan == 3 && spp == 3) /* fill alpha if only RGB TIFF */
-						fill_vn_ushort(sbuf, ibuf->x, 65535);
+						copy_vn_ushort(sbuf, ibuf->x, 65535);
 					else if (chan >= spp) /* for grayscale, duplicate first channel into G and B */
 						success |= TIFFReadScanline(image, fbuf, row, 0);
 					else
@@ -596,7 +594,7 @@ ImBuf *imb_loadtiff(unsigned char *mem, size_t size, int flags, char colorspace[
 		format = NULL;
 		TIFFGetField(image, TIFFTAG_PIXAR_TEXTUREFORMAT, &format);
 
-		if (format && strcmp(format, "Plain Texture") == 0 && TIFFIsTiled(image)) {
+		if (format && STREQ(format, "Plain Texture") && TIFFIsTiled(image)) {
 			int numlevel = TIFFNumberOfDirectories(image);
 
 			/* create empty mipmap levels in advance */

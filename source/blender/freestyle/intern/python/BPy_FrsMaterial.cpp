@@ -30,6 +30,9 @@
 extern "C" {
 #endif
 
+#include "BLI_hash_mm2a.h"
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////
 
 //-------------------MODULE INITIALIZATION--------------------------------
@@ -80,9 +83,9 @@ PyDoc_STRVAR(FrsMaterial_doc,
 "   :arg emission: The emissive color.\n"
 "   :type emission: :class:`mathutils.Vector`, list or tuple of 4 float values\n"
 "   :arg shininess: The shininess coefficient.\n"
-"   :type shininess: :class:float\n"
+"   :type shininess: float\n"
 "   :arg priority: The line color priority.\n"
-"   :type priority: :class:int");
+"   :type priority: int");
 
 static int FrsMaterial_init(BPy_FrsMaterial *self, PyObject *args, PyObject *kwds)
 {
@@ -311,7 +314,7 @@ void FrsMaterial_mathutils_register_callback()
 PyDoc_STRVAR(FrsMaterial_line_doc,
 "RGBA components of the line color of the material.\n"
 "\n"
-":type: mathutils.Vector");
+":type: :class:`mathutils.Vector`");
 
 static PyObject *FrsMaterial_line_get(BPy_FrsMaterial *self, void *UNUSED(closure))
 {
@@ -333,7 +336,7 @@ static int FrsMaterial_line_set(BPy_FrsMaterial *self, PyObject *value, void *UN
 PyDoc_STRVAR(FrsMaterial_diffuse_doc,
 "RGBA components of the diffuse color of the material.\n"
 "\n"
-":type: mathutils.Vector");
+":type: :class:`mathutils.Vector`");
 
 static PyObject *FrsMaterial_diffuse_get(BPy_FrsMaterial *self, void *UNUSED(closure))
 {
@@ -355,7 +358,7 @@ static int FrsMaterial_diffuse_set(BPy_FrsMaterial *self, PyObject *value, void 
 PyDoc_STRVAR(FrsMaterial_specular_doc,
 "RGBA components of the specular color of the material.\n"
 "\n"
-":type: mathutils.Vector");
+":type: :class:`mathutils.Vector`");
 
 static PyObject *FrsMaterial_specular_get(BPy_FrsMaterial *self, void *UNUSED(closure))
 {
@@ -377,7 +380,7 @@ static int FrsMaterial_specular_set(BPy_FrsMaterial *self, PyObject *value, void
 PyDoc_STRVAR(FrsMaterial_ambient_doc,
 "RGBA components of the ambient color of the material.\n"
 "\n"
-":type: mathutils.Color");
+":type: :class:`mathutils.Color`");
 
 static PyObject *FrsMaterial_ambient_get(BPy_FrsMaterial *self, void *UNUSED(closure))
 {
@@ -399,7 +402,7 @@ static int FrsMaterial_ambient_set(BPy_FrsMaterial *self, PyObject *value, void 
 PyDoc_STRVAR(FrsMaterial_emission_doc,
 "RGBA components of the emissive color of the material.\n"
 "\n"
-":type: mathutils.Color");
+":type: :class:`mathutils.Color`");
 
 static PyObject *FrsMaterial_emission_get(BPy_FrsMaterial *self, void *UNUSED(closure))
 {
@@ -478,6 +481,48 @@ static PyGetSetDef BPy_FrsMaterial_getseters[] = {
 	{NULL, NULL, NULL, NULL, NULL}  /* Sentinel */
 };
 
+static PyObject *BPy_FrsMaterial_richcmpr(PyObject *objectA, PyObject *objectB, int comparison_type)
+{
+	const BPy_FrsMaterial *matA = NULL, *matB = NULL;
+	bool result = 0;
+
+	if (!BPy_FrsMaterial_Check(objectA) || !BPy_FrsMaterial_Check(objectB)) {
+		if (comparison_type == Py_NE) {
+			Py_RETURN_TRUE;
+		}
+		else {
+			Py_RETURN_FALSE;
+		}
+	}
+
+	matA = (BPy_FrsMaterial *)objectA;
+	matB = (BPy_FrsMaterial *)objectB;
+
+	switch (comparison_type) {
+		case Py_NE:
+			result = (*matA->m) != (*matB->m);
+			break;
+		case Py_EQ:
+			result = (*matA->m) == (*matB->m);
+			break;
+		default:
+			PyErr_SetString(PyExc_TypeError, "Material does not support this comparison type");
+			return NULL;
+	}
+
+	if (result == true) {
+		Py_RETURN_TRUE;
+	}
+	else {
+		Py_RETURN_FALSE;
+	}
+}
+
+
+static Py_hash_t FrsMaterial_hash(PyObject *self)
+{
+	return (Py_uhash_t)BLI_hash_mm2((const unsigned char *)self, sizeof(*self), 0);
+}
 /*-----------------------BPy_FrsMaterial type definition ------------------------------*/
 
 PyTypeObject FrsMaterial_Type = {
@@ -494,7 +539,7 @@ PyTypeObject FrsMaterial_Type = {
 	0,                              /* tp_as_number */
 	0,                              /* tp_as_sequence */
 	0,                              /* tp_as_mapping */
-	0,                              /* tp_hash  */
+	(hashfunc)FrsMaterial_hash,     /* tp_hash  */
 	0,                              /* tp_call */
 	0,                              /* tp_str */
 	0,                              /* tp_getattro */
@@ -504,7 +549,7 @@ PyTypeObject FrsMaterial_Type = {
 	FrsMaterial_doc,                /* tp_doc */
 	0,                              /* tp_traverse */
 	0,                              /* tp_clear */
-	0,                              /* tp_richcompare */
+	(richcmpfunc)BPy_FrsMaterial_richcmpr, /* tp_richcompare */
 	0,                              /* tp_weaklistoffset */
 	0,                              /* tp_iter */
 	0,                              /* tp_iternext */

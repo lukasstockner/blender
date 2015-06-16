@@ -166,7 +166,7 @@ static int StrokeVertex_mathutils_check(BaseMathObject *bmo)
 	return 0;
 }
 
-static int StrokeVertex_mathutils_get(BaseMathObject *bmo, int subtype)
+static int StrokeVertex_mathutils_get(BaseMathObject *bmo, int /*subtype*/)
 {
 	BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
 	bmo->data[0] = (float)self->sv->x();
@@ -174,7 +174,7 @@ static int StrokeVertex_mathutils_get(BaseMathObject *bmo, int subtype)
 	return 0;
 }
 
-static int StrokeVertex_mathutils_set(BaseMathObject *bmo, int subtype)
+static int StrokeVertex_mathutils_set(BaseMathObject *bmo, int /*subtype*/)
 {
 	BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
 	self->sv->setX((real)bmo->data[0]);
@@ -182,7 +182,7 @@ static int StrokeVertex_mathutils_set(BaseMathObject *bmo, int subtype)
 	return 0;
 }
 
-static int StrokeVertex_mathutils_get_index(BaseMathObject *bmo, int subtype, int index)
+static int StrokeVertex_mathutils_get_index(BaseMathObject *bmo, int /*subtype*/, int index)
 {
 	BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
 	switch (index) {
@@ -194,7 +194,7 @@ static int StrokeVertex_mathutils_get_index(BaseMathObject *bmo, int subtype, in
 	return 0;
 }
 
-static int StrokeVertex_mathutils_set_index(BaseMathObject *bmo, int subtype, int index)
+static int StrokeVertex_mathutils_set_index(BaseMathObject *bmo, int /*subtype*/, int index)
 {
 	BPy_StrokeVertex *self = (BPy_StrokeVertex *)bmo->cb_user;
 	switch (index) {
@@ -226,7 +226,7 @@ void StrokeVertex_mathutils_register_callback()
 PyDoc_STRVAR(StrokeVertex_attribute_doc,
 "StrokeAttribute for this StrokeVertex.\n"
 "\n"
-":type: StrokeAttribute");
+":type: :class:`StrokeAttribute`");
 
 static PyObject *StrokeVertex_attribute_get(BPy_StrokeVertex *self, void *UNUSED(closure))
 {
@@ -267,7 +267,7 @@ static int StrokeVertex_curvilinear_abscissa_set(BPy_StrokeVertex *self, PyObjec
 PyDoc_STRVAR(StrokeVertex_point_doc,
 "2D point coordinates.\n"
 "\n"
-":type: mathutils.Vector");
+":type: :class:`mathutils.Vector`");
 
 static PyObject *StrokeVertex_point_get(BPy_StrokeVertex *self, void *UNUSED(closure))
 {

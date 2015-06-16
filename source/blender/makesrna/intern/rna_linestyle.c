@@ -87,6 +87,8 @@ EnumPropertyItem linestyle_geometry_modifier_type_items[] = {
 #include "BKE_texture.h"
 #include "BKE_depsgraph.h"
 
+#include "ED_node.h"
+
 #include "RNA_access.h"
 
 static StructRNA *rna_LineStyle_color_modifier_refine(struct PointerRNA *ptr)
@@ -281,6 +283,16 @@ static void rna_LineStyle_update(Main *UNUSED(bmain), Scene *UNUSED(scene), Poin
 
 	DAG_id_tag_update(&linestyle->id, 0);
 	WM_main_add_notifier(NC_LINESTYLE, linestyle);
+}
+
+static void rna_LineStyle_use_nodes_update(bContext *C, PointerRNA *ptr)
+{
+	FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->data;
+
+	if (linestyle->use_nodes && linestyle->nodetree == NULL)
+		BKE_linestyle_default_shader(C, linestyle);
+
+	rna_LineStyle_update(CTX_data_main(C), CTX_data_scene(C), ptr);
 }
 
 static LineStyleModifier *rna_LineStyle_color_modifier_add(FreestyleLineStyle *linestyle, ReportList *reports,
@@ -571,6 +583,7 @@ static void rna_def_modifier_type_common(StructRNA *srna, EnumPropertyItem *modi
 	prop = RNA_def_property(srna, "use", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "modifier.flags", LS_MODIFIER_ENABLED);
 	RNA_def_property_ui_text(prop, "Use", "Enable or disable this modifier during stroke rendering");
+	RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
 	prop = RNA_def_property(srna, "expanded", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "modifier.flags", LS_MODIFIER_EXPANDED);
@@ -685,6 +698,7 @@ static void rna_def_modifier_material_common(StructRNA *srna)
 		{LS_MODIFIER_MATERIAL_LINE_R, "LINE_R", 0, "Line Color Red", ""},
 		{LS_MODIFIER_MATERIAL_LINE_G, "LINE_G", 0, "Line Color Green", ""},
 		{LS_MODIFIER_MATERIAL_LINE_B, "LINE_B", 0, "Line Color Blue", ""},
+		{LS_MODIFIER_MATERIAL_LINE_A, "LINE_A", 0, "Line Color Alpha", ""},
 		{LS_MODIFIER_MATERIAL_DIFF, "DIFF", 0, "Diffuse Color", ""},
 		{LS_MODIFIER_MATERIAL_DIFF_R, "DIFF_R", 0, "Diffuse Color Red", ""},
 		{LS_MODIFIER_MATERIAL_DIFF_G, "DIFF_G", 0, "Diffuse Color Green", ""},
@@ -1309,6 +1323,8 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	static EnumPropertyItem sort_key_items[] = {
 		{LS_SORT_KEY_DISTANCE_FROM_CAMERA, "DISTANCE_FROM_CAMERA", 0, "Distance from Camera", "Sort by distance from camera (closer lines lie on top of further lines)"},
 		{LS_SORT_KEY_2D_LENGTH, "2D_LENGTH", 0, "2D Length", "Sort by curvilinear 2D length (longer lines lie on top of shorter lines)"},
+		{LS_SORT_KEY_PROJECTED_X, "PROJECTED_X", 0, "Projected X", "Sort by the projected X value in the image coordinate system"},
+		{LS_SORT_KEY_PROJECTED_Y, "PROJECTED_Y", 0, "Projected Y", "Sort by the projected Y value in the image coordinate system"},
 		{0, NULL, 0, NULL, NULL}
 	};
 	static EnumPropertyItem sort_order_items[] = {
@@ -1337,7 +1353,6 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	RNA_def_property_enum_bitflag_sdna(prop, NULL, "panel");
 	RNA_def_property_enum_items(prop, panel_items);
 	RNA_def_property_ui_text(prop, "Panel", "Select the property panel to be shown");
-	RNA_def_property_update(prop, NC_LINESTYLE, NULL);
 
 	prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR);
 	RNA_def_property_float_sdna(prop, NULL, "r");
@@ -1476,6 +1491,16 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	RNA_def_property_ui_text(prop, "Max 2D Length", "Maximum curvilinear 2D length for the selection of chains");
 	RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
+	prop = RNA_def_property(srna, "use_chain_count", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", LS_CHAIN_COUNT);
+	RNA_def_property_ui_text(prop, "Use Chain Count", "Enable the selection of first N chains");
+	RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
+
+	prop = RNA_def_property(srna, "chain_count", PROP_INT, PROP_UNSIGNED);
+	RNA_def_property_int_sdna(prop, NULL, "chain_count");
+	RNA_def_property_ui_text(prop, "Chain Count", "Chain count for the selection of first N chains");
+	RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
+
 	prop = RNA_def_property(srna, "use_split_pattern", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", LS_SPLIT_PATTERN);
 	RNA_def_property_ui_text(prop, "Use Split Pattern", "Enable chain splitting by dashed line patterns");
@@ -1606,14 +1631,14 @@ static void rna_def_linestyle(BlenderRNA *brna)
 	/* nodes */
 	prop = RNA_def_property(srna, "node_tree", PROP_POINTER, PROP_NONE);
 	RNA_def_property_pointer_sdna(prop, NULL, "nodetree");
-	RNA_def_property_ui_text(prop, "Node Tree", "Node tree for node based textures");
+	RNA_def_property_ui_text(prop, "Node Tree", "Node tree for node-based shaders");
 
 	prop = RNA_def_property(srna, "use_nodes", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "use_nodes", 1);
 	RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 	RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
-	RNA_def_property_ui_text(prop, "Use Nodes", "Use texture nodes for the line style");
-	RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
+	RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes for the line style");
+	RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_use_nodes_update");
 }
 
 void RNA_def_linestyle(BlenderRNA *brna)

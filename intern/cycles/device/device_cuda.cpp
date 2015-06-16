@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #include <stdio.h>
@@ -25,10 +25,11 @@
 
 #include "cuew.h"
 #include "util_debug.h"
-#include "util_foreach.h"
+#include "util_logging.h"
 #include "util_map.h"
 #include "util_opengl.h"
 #include "util_path.h"
+#include "util_string.h"
 #include "util_system.h"
 #include "util_types.h"
 #include "util_time.h"
@@ -77,7 +78,7 @@ public:
 	{
 		if(first_error) {
 			fprintf(stderr, "\nRefer to the Cycles GPU rendering documentation for possible solutions:\n");
-			fprintf(stderr, "http://wiki.blender.org/index.php/Doc:2.6/Manual/Render/Cycles/GPU_Rendering\n\n");
+			fprintf(stderr, "http://www.blender.org/manual/render/cycles/gpu_rendering.html\n\n");
 			first_error = false;
 		}
 	}
@@ -184,7 +185,7 @@ public:
 		cuda_assert(cuCtxDestroy(cuContext));
 	}
 
-	bool support_device(bool experimental)
+	bool support_device(bool /*experimental*/)
 	{
 		int major, minor;
 		cuDeviceComputeCapability(&major, &minor, cuDevId);
@@ -198,27 +199,39 @@ public:
 		return true;
 	}
 
-	string compile_kernel()
+	string compile_kernel(bool experimental)
 	{
 		/* compute cubin name */
 		int major, minor;
 		cuDeviceComputeCapability(&major, &minor, cuDevId);
+		string cubin;
 
 		/* attempt to use kernel provided with blender */
-		string cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin", major, minor));
-		if(path_exists(cubin))
+		if(experimental)
+			cubin = path_get(string_printf("lib/kernel_experimental_sm_%d%d.cubin", major, minor));
+		else
+			cubin = path_get(string_printf("lib/kernel_sm_%d%d.cubin", major, minor));
+		VLOG(1) << "Testing for pre-compiled kernel " << cubin;
+		if(path_exists(cubin)) {
+			VLOG(1) << "Using precompiled kernel";
 			return cubin;
+		}
 
 		/* not found, try to use locally compiled kernel */
 		string kernel_path = path_get("kernel");
 		string md5 = path_files_md5_hash(kernel_path);
 
-		cubin = string_printf("cycles_kernel_sm%d%d_%s.cubin", major, minor, md5.c_str());
+		if(experimental)
+			cubin = string_printf("cycles_kernel_experimental_sm%d%d_%s.cubin", major, minor, md5.c_str());
+		else
+			cubin = string_printf("cycles_kernel_sm%d%d_%s.cubin", major, minor, md5.c_str());
 		cubin = path_user_get(path_join("cache", cubin));
-
+		VLOG(1) << "Testing for locally compiled kernel " << cubin;
 		/* if exists already, use it */
-		if(path_exists(cubin))
+		if(path_exists(cubin)) {
+			VLOG(1) << "Using locally compiled kernel";
 			return cubin;
+		}
 
 #ifdef _WIN32
 		if(have_precompiled_kernels()) {
@@ -239,20 +252,21 @@ public:
 		}
 
 		int cuda_version = cuewCompilerVersion();
+		VLOG(1) << "Found nvcc " << nvcc << ", CUDA version " << cuda_version;
 
 		if(cuda_version == 0) {
 			cuda_error_message("CUDA nvcc compiler version could not be parsed.");
 			return "";
 		}
-		if(cuda_version < 50) {
-			printf("Unsupported CUDA version %d.%d detected, you need CUDA 6.0.\n", cuda_version/10, cuda_version%10);
+		if(cuda_version < 60) {
+			printf("Unsupported CUDA version %d.%d detected, you need CUDA 6.5.\n", cuda_version/10, cuda_version%10);
 			return "";
 		}
-		else if(cuda_version != 60)
-			printf("CUDA version %d.%d detected, build may succeed but only CUDA 6.0 is officially supported.\n", cuda_version/10, cuda_version%10);
+		else if(cuda_version != 65)
+			printf("CUDA version %d.%d detected, build may succeed but only CUDA 6.5 is officially supported.\n", cuda_version/10, cuda_version%10);
 
 		/* compile */
-		string kernel = path_join(kernel_path, "kernel.cu");
+		string kernel = path_join(kernel_path, path_join("kernels", path_join("cuda", "kernel.cu")));
 		string include = kernel_path;
 		const int machine = system_cpu_bits();
 
@@ -262,8 +276,20 @@ public:
 		path_create_directories(cubin);
 
 		string command = string_printf("\"%s\" -arch=sm_%d%d -m%d --cubin \"%s\" "
-			"-o \"%s\" --ptxas-options=\"-v\" -I\"%s\" -DNVCC -D__KERNEL_CUDA_VERSION__=%d",
+			"-o \"%s\" --ptxas-options=\"-v\" --use_fast_math -I\"%s\" "
+			"-DNVCC -D__KERNEL_CUDA_VERSION__=%d",
 			nvcc, major, minor, machine, kernel.c_str(), cubin.c_str(), include.c_str(), cuda_version);
+		
+		if(experimental)
+			command += " -D__KERNEL_EXPERIMENTAL__";
+
+		if(getenv("CYCLES_CUDA_EXTRA_CFLAGS")) {
+			command += string(" ") + getenv("CYCLES_CUDA_EXTRA_CFLAGS");
+		}
+
+#ifdef WITH_CYCLES_DEBUG
+		command += " -D__KERNEL_DEBUG__";
+#endif
 
 		printf("%s\n", command.c_str());
 
@@ -283,18 +309,18 @@ public:
 		return cubin;
 	}
 
-	bool load_kernels(bool experimental)
+	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
 		/* check if cuda init succeeded */
 		if(cuContext == 0)
 			return false;
 		
 		/* check if GPU is supported */
-		if(!support_device(experimental))
+		if(!support_device(requested_features.experimental))
 			return false;
 
 		/* get kernel */
-		string cubin = compile_kernel();
+		string cubin = compile_kernel(requested_features.experimental);
 
 		if(cubin == "")
 			return false;
@@ -305,7 +331,7 @@ public:
 		string cubin_data;
 		CUresult result;
 
-		if (path_read_text(cubin, cubin_data))
+		if(path_read_text(cubin, cubin_data))
 			result = cuModuleLoadData(&cuModule, cubin_data.c_str());
 		else
 			result = CUDA_ERROR_FILE_NOT_FOUND;
@@ -318,13 +344,14 @@ public:
 		return (result == CUDA_SUCCESS);
 	}
 
-	void mem_alloc(device_memory& mem, MemoryType type)
+	void mem_alloc(device_memory& mem, MemoryType /*type*/)
 	{
 		cuda_push_context();
 		CUdeviceptr device_pointer;
 		size_t size = mem.memory_size();
 		cuda_assert(cuMemAlloc(&device_pointer, size));
 		mem.device_pointer = (device_ptr)device_pointer;
+		mem.device_size = size;
 		stats.mem_alloc(size);
 		cuda_pop_context();
 	}
@@ -345,7 +372,7 @@ public:
 		cuda_push_context();
 		if(mem.device_pointer) {
 			cuda_assert(cuMemcpyDtoH((uchar*)mem.data_pointer + offset,
-			                         (CUdeviceptr)((uchar*)mem.device_pointer + offset), size));
+			                         (CUdeviceptr)(mem.device_pointer + offset), size));
 		}
 		else {
 			memset((char*)mem.data_pointer + offset, 0, size);
@@ -372,7 +399,8 @@ public:
 
 			mem.device_pointer = 0;
 
-			stats.mem_free(mem.memory_size());
+			stats.mem_free(mem.device_size);
+			mem.device_size = 0;
 		}
 	}
 
@@ -391,6 +419,7 @@ public:
 	void tex_alloc(const char *name, device_memory& mem, InterpolationType interpolation, bool periodic)
 	{
 		/* todo: support 3D textures, only CPU for now */
+		VLOG(1) << "Texture allocate: " << name << ", " << mem.memory_size() << " bytes.";
 
 		/* determine format */
 		CUarray_format_enum format;
@@ -455,7 +484,7 @@ public:
 				if(interpolation == INTERPOLATION_CLOSEST) {
 					cuda_assert(cuTexRefSetFilterMode(texref, CU_TR_FILTER_MODE_POINT));
 				}
-				else if (interpolation == INTERPOLATION_LINEAR) {
+				else if(interpolation == INTERPOLATION_LINEAR) {
 					cuda_assert(cuTexRefSetFilterMode(texref, CU_TR_FILTER_MODE_LINEAR));
 				}
 				else {/* CUBIC and SMART are unsupported for CUDA */
@@ -464,6 +493,7 @@ public:
 				cuda_assert(cuTexRefSetFlags(texref, CU_TRSF_NORMALIZED_COORDINATES));
 
 				mem.device_pointer = (device_ptr)handle;
+				mem.device_size = size;
 
 				stats.mem_alloc(size);
 			}
@@ -531,7 +561,8 @@ public:
 				tex_interp_map.erase(tex_interp_map.find(mem.device_pointer));
 				mem.device_pointer = 0;
 
-				stats.mem_free(mem.memory_size());
+				stats.mem_free(mem.device_size);
+				mem.device_size = 0;
 			}
 			else {
 				tex_interp_map.erase(tex_interp_map.find(mem.device_pointer));
@@ -677,6 +708,7 @@ public:
 		const int shader_chunk_size = 65536;
 		const int start = task.shader_x;
 		const int end = task.shader_x + task.shader_w;
+		int offset = task.offset;
 
 		bool canceled = false;
 		for(int sample = 0; sample < task.num_samples && !canceled; sample++) {
@@ -689,6 +721,7 @@ public:
 								 &task.shader_eval_type,
 								 &shader_x,
 								 &shader_w,
+								 &offset,
 								 &sample};
 
 				/* launch kernel */
@@ -779,7 +812,8 @@ public:
 				mem.device_pointer = pmem.cuTexId;
 				pixel_mem_map[mem.device_pointer] = pmem;
 
-				stats.mem_alloc(mem.memory_size());
+				mem.device_size = mem.memory_size();
+				stats.mem_alloc(mem.device_size);
 
 				return;
 			}
@@ -836,7 +870,8 @@ public:
 				pixel_mem_map.erase(pixel_mem_map.find(mem.device_pointer));
 				mem.device_pointer = 0;
 
-				stats.mem_free(mem.memory_size());
+				stats.mem_free(mem.device_size);
+				mem.device_size = 0;
 
 				return;
 			}
@@ -845,11 +880,12 @@ public:
 		}
 	}
 
-	void draw_pixels(device_memory& mem, int y, int w, int h, int dy, int width, int height, bool transparent,
+	void draw_pixels(device_memory& mem, int y, int w, int h, int dx, int dy, int width, int height, bool transparent,
 		const DeviceDrawParams &draw_params)
 	{
 		if(!background) {
 			PixelMem pmem = pixel_mem_map[mem.device_pointer];
+			float *vpointer;
 
 			cuda_push_context();
 
@@ -883,23 +919,52 @@ public:
 				draw_params.bind_display_space_shader_cb();
 			}
 
-			glPushMatrix();
-			glTranslatef(0.0f, (float)dy, 0.0f);
-				
-			glBegin(GL_QUADS);
-			
-			glTexCoord2f(0.0f, 0.0f);
-			glVertex2f(0.0f, 0.0f);
-			glTexCoord2f((float)w/(float)pmem.w, 0.0f);
-			glVertex2f((float)width, 0.0f);
-			glTexCoord2f((float)w/(float)pmem.w, (float)h/(float)pmem.h);
-			glVertex2f((float)width, (float)height);
-			glTexCoord2f(0.0f, (float)h/(float)pmem.h);
-			glVertex2f(0.0f, (float)height);
+			if(!vertex_buffer)
+				glGenBuffers(1, &vertex_buffer);
 
-			glEnd();
+			glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+			/* invalidate old contents - avoids stalling if buffer is still waiting in queue to be rendered */
+			glBufferData(GL_ARRAY_BUFFER, 16 * sizeof(float), NULL, GL_STREAM_DRAW);
 
-			glPopMatrix();
+			vpointer = (float *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+
+			if(vpointer) {
+				/* texture coordinate - vertex pair */
+				vpointer[0] = 0.0f;
+				vpointer[1] = 0.0f;
+				vpointer[2] = dx;
+				vpointer[3] = dy;
+
+				vpointer[4] = (float)w/(float)pmem.w;
+				vpointer[5] = 0.0f;
+				vpointer[6] = (float)width + dx;
+				vpointer[7] = dy;
+
+				vpointer[8] = (float)w/(float)pmem.w;
+				vpointer[9] = (float)h/(float)pmem.h;
+				vpointer[10] = (float)width + dx;
+				vpointer[11] = (float)height + dy;
+
+				vpointer[12] = 0.0f;
+				vpointer[13] = (float)h/(float)pmem.h;
+				vpointer[14] = dx;
+				vpointer[15] = (float)height + dy;
+
+				glUnmapBuffer(GL_ARRAY_BUFFER);
+			}
+
+			glTexCoordPointer(2, GL_FLOAT, 4 * sizeof(float), 0);
+			glVertexPointer(2, GL_FLOAT, 4 * sizeof(float), (char *)NULL + 2 * sizeof(float));
+
+			glEnableClientState(GL_VERTEX_ARRAY);
+			glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+
+			glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+			glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+			glDisableClientState(GL_VERTEX_ARRAY);
+
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 			if(draw_params.unbind_display_space_shader_cb) {
 				draw_params.unbind_display_space_shader_cb();
@@ -916,7 +981,7 @@ public:
 			return;
 		}
 
-		Device::draw_pixels(mem, y, w, h, dy, width, height, transparent, draw_params);
+		Device::draw_pixels(mem, y, w, h, dx, dy, width, height, transparent, draw_params);
 	}
 
 	void thread_run(DeviceTask *task)
@@ -932,7 +997,7 @@ public:
 				int end_sample = tile.start_sample + tile.num_samples;
 
 				for(int sample = start_sample; sample < end_sample; sample++) {
-					if (task->get_cancel()) {
+					if(task->get_cancel()) {
 						if(task->need_finish_queue == false)
 							break;
 					}
@@ -965,12 +1030,9 @@ public:
 		}
 	};
 
-	int get_split_task_count(DeviceTask& task)
+	int get_split_task_count(DeviceTask& /*task*/)
 	{
-		if (task.type == DeviceTask::SHADER)
-			return task.get_subtask_count(TaskScheduler::num_threads(), 1024 * 1024);
-		else
-			return 1;
+		return 1;
 	}
 
 	void task_add(DeviceTask& task)
@@ -982,15 +1044,6 @@ public:
 			cuda_push_context();
 			cuda_assert(cuCtxSynchronize());
 			cuda_pop_context();
-		}
-		else if(task.type == DeviceTask::SHADER) {
-			/* split task into smaller ones */
-			list<DeviceTask> tasks;
-
-			task.split(tasks, TaskScheduler::num_threads(), 1024 * 1024);
-
-			foreach(DeviceTask& task, tasks)
-				task_pool.push(new CUDADeviceTask(this, task));
 		}
 		else {
 			task_pool.push(new CUDADeviceTask(this, task));
@@ -1013,18 +1066,33 @@ bool device_cuda_init(void)
 	static bool initialized = false;
 	static bool result = false;
 
-	if (initialized)
+	if(initialized)
 		return result;
 
 	initialized = true;
-
-	if (cuewInit() == CUEW_SUCCESS) {
-		if(CUDADevice::have_precompiled_kernels())
+	int cuew_result = cuewInit();
+	if(cuew_result == CUEW_SUCCESS) {
+		VLOG(1) << "CUEW initialization succeeded";
+		if(CUDADevice::have_precompiled_kernels()) {
+			VLOG(1) << "Found precompiled  kernels";
 			result = true;
+		}
 #ifndef _WIN32
-		else if(cuewCompilerPath() != NULL)
+		else if(cuewCompilerPath() != NULL) {
+			VLOG(1) << "Found CUDA compiled " << cuewCompilerPath();
 			result = true;
+		}
+		else {
+			VLOG(1) << "Neither precompiled kernels nor CUDA compiler wad found,"
+			        << " unable to use CUDA";
+		}
 #endif
+	}
+	else {
+		VLOG(1) << "CUEW initialization failed: "
+		        << ((cuew_result == CUEW_ERROR_ATEXIT_FAILED)
+		            ? "Error setting up atexit() handler"
+		            : "Error opening the library");
 	}
 
 	return result;
@@ -1088,5 +1156,135 @@ void device_cuda_info(vector<DeviceInfo>& devices)
 		devices.insert(devices.end(), display_devices.begin(), display_devices.end());
 }
 
-CCL_NAMESPACE_END
+string device_cuda_capabilities(void)
+{
+	CUresult result = cuInit(0);
+	if(result != CUDA_SUCCESS) {
+		if(result != CUDA_ERROR_NO_DEVICE) {
+			return string("Error initializing CUDA: ") + cuewErrorString(result);
+		}
+		return "No CUDA device found\n";
+	}
 
+	int count;
+	result = cuDeviceGetCount(&count);
+	if(result != CUDA_SUCCESS) {
+		return string("Error getting devices: ") + cuewErrorString(result);
+	}
+
+	string capabilities = "";
+	for(int num = 0; num < count; num++) {
+		char name[256];
+		if(cuDeviceGetName(name, 256, num) != CUDA_SUCCESS) {
+			continue;
+		}
+		capabilities += string("\t") + name + "\n";
+		int value;
+#define GET_ATTR(attr) \
+		{ \
+			if(cuDeviceGetAttribute(&value, \
+			                        CU_DEVICE_ATTRIBUTE_##attr, \
+			                        num) == CUDA_SUCCESS) \
+			{ \
+				capabilities += string_printf("\t\tCU_DEVICE_ATTRIBUTE_" #attr "\t\t\t%d\n", \
+				                              value); \
+			} \
+		} (void)0
+		/* TODO(sergey): Strip all attributes which are not useful for us
+		 * or does not depend on the driver.
+		 */
+		GET_ATTR(MAX_THREADS_PER_BLOCK);
+		GET_ATTR(MAX_BLOCK_DIM_X);
+		GET_ATTR(MAX_BLOCK_DIM_Y);
+		GET_ATTR(MAX_BLOCK_DIM_Z);
+		GET_ATTR(MAX_GRID_DIM_X);
+		GET_ATTR(MAX_GRID_DIM_Y);
+		GET_ATTR(MAX_GRID_DIM_Z);
+		GET_ATTR(MAX_SHARED_MEMORY_PER_BLOCK);
+		GET_ATTR(SHARED_MEMORY_PER_BLOCK);
+		GET_ATTR(TOTAL_CONSTANT_MEMORY);
+		GET_ATTR(WARP_SIZE);
+		GET_ATTR(MAX_PITCH);
+		GET_ATTR(MAX_REGISTERS_PER_BLOCK);
+		GET_ATTR(REGISTERS_PER_BLOCK);
+		GET_ATTR(CLOCK_RATE);
+		GET_ATTR(TEXTURE_ALIGNMENT);
+		GET_ATTR(GPU_OVERLAP);
+		GET_ATTR(MULTIPROCESSOR_COUNT);
+		GET_ATTR(KERNEL_EXEC_TIMEOUT);
+		GET_ATTR(INTEGRATED);
+		GET_ATTR(CAN_MAP_HOST_MEMORY);
+		GET_ATTR(COMPUTE_MODE);
+		GET_ATTR(MAXIMUM_TEXTURE1D_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_HEIGHT);
+		GET_ATTR(MAXIMUM_TEXTURE3D_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE3D_HEIGHT);
+		GET_ATTR(MAXIMUM_TEXTURE3D_DEPTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_LAYERED_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_LAYERED_HEIGHT);
+		GET_ATTR(MAXIMUM_TEXTURE2D_LAYERED_LAYERS);
+		GET_ATTR(MAXIMUM_TEXTURE2D_ARRAY_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_ARRAY_HEIGHT);
+		GET_ATTR(MAXIMUM_TEXTURE2D_ARRAY_NUMSLICES);
+		GET_ATTR(SURFACE_ALIGNMENT);
+		GET_ATTR(CONCURRENT_KERNELS);
+		GET_ATTR(ECC_ENABLED);
+		GET_ATTR(TCC_DRIVER);
+		GET_ATTR(MEMORY_CLOCK_RATE);
+		GET_ATTR(GLOBAL_MEMORY_BUS_WIDTH);
+		GET_ATTR(L2_CACHE_SIZE);
+		GET_ATTR(MAX_THREADS_PER_MULTIPROCESSOR);
+		GET_ATTR(ASYNC_ENGINE_COUNT);
+		GET_ATTR(UNIFIED_ADDRESSING);
+		GET_ATTR(MAXIMUM_TEXTURE1D_LAYERED_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE1D_LAYERED_LAYERS);
+		GET_ATTR(CAN_TEX2D_GATHER);
+		GET_ATTR(MAXIMUM_TEXTURE2D_GATHER_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_GATHER_HEIGHT);
+		GET_ATTR(MAXIMUM_TEXTURE3D_WIDTH_ALTERNATE);
+		GET_ATTR(MAXIMUM_TEXTURE3D_HEIGHT_ALTERNATE);
+		GET_ATTR(MAXIMUM_TEXTURE3D_DEPTH_ALTERNATE);
+		GET_ATTR(TEXTURE_PITCH_ALIGNMENT);
+		GET_ATTR(MAXIMUM_TEXTURECUBEMAP_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURECUBEMAP_LAYERED_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURECUBEMAP_LAYERED_LAYERS);
+		GET_ATTR(MAXIMUM_SURFACE1D_WIDTH);
+		GET_ATTR(MAXIMUM_SURFACE2D_WIDTH);
+		GET_ATTR(MAXIMUM_SURFACE2D_HEIGHT);
+		GET_ATTR(MAXIMUM_SURFACE3D_WIDTH);
+		GET_ATTR(MAXIMUM_SURFACE3D_HEIGHT);
+		GET_ATTR(MAXIMUM_SURFACE3D_DEPTH);
+		GET_ATTR(MAXIMUM_SURFACE1D_LAYERED_WIDTH);
+		GET_ATTR(MAXIMUM_SURFACE1D_LAYERED_LAYERS);
+		GET_ATTR(MAXIMUM_SURFACE2D_LAYERED_WIDTH);
+		GET_ATTR(MAXIMUM_SURFACE2D_LAYERED_HEIGHT);
+		GET_ATTR(MAXIMUM_SURFACE2D_LAYERED_LAYERS);
+		GET_ATTR(MAXIMUM_SURFACECUBEMAP_WIDTH);
+		GET_ATTR(MAXIMUM_SURFACECUBEMAP_LAYERED_WIDTH);
+		GET_ATTR(MAXIMUM_SURFACECUBEMAP_LAYERED_LAYERS);
+		GET_ATTR(MAXIMUM_TEXTURE1D_LINEAR_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_LINEAR_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_LINEAR_HEIGHT);
+		GET_ATTR(MAXIMUM_TEXTURE2D_LINEAR_PITCH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_MIPMAPPED_WIDTH);
+		GET_ATTR(MAXIMUM_TEXTURE2D_MIPMAPPED_HEIGHT);
+		GET_ATTR(COMPUTE_CAPABILITY_MAJOR);
+		GET_ATTR(COMPUTE_CAPABILITY_MINOR);
+		GET_ATTR(MAXIMUM_TEXTURE1D_MIPMAPPED_WIDTH);
+		GET_ATTR(STREAM_PRIORITIES_SUPPORTED);
+		GET_ATTR(GLOBAL_L1_CACHE_SUPPORTED);
+		GET_ATTR(LOCAL_L1_CACHE_SUPPORTED);
+		GET_ATTR(MAX_SHARED_MEMORY_PER_MULTIPROCESSOR);
+		GET_ATTR(MAX_REGISTERS_PER_MULTIPROCESSOR);
+		GET_ATTR(MANAGED_MEMORY);
+		GET_ATTR(MULTI_GPU_BOARD);
+		GET_ATTR(MULTI_GPU_BOARD_GROUP_ID);
+#undef GET_ATTR
+		capabilities += "\n";
+	}
+
+	return capabilities;
+}
+
+CCL_NAMESPACE_END

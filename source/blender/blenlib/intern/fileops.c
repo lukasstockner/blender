@@ -66,7 +66,7 @@
 #include "BLI_fileops.h"
 #include "BLI_sys_types.h" // for intptr_t support
 
-
+#if 0  /* UNUSED */
 /* gzip the file in from and write it to "to". 
  * return -1 if zlib fails, -2 if the originating file does not exist
  * note: will remove the "from" file
@@ -111,6 +111,7 @@ int BLI_file_gzip(const char *from, const char *to)
 
 	return rval;
 }
+#endif
 
 /* gzip the file in from_file and write it to memory to_mem, at most size bytes.
  * return the unziped size
@@ -310,12 +311,12 @@ static bool delete_recursive(const char *dir)
 	bool err = false;
 	unsigned int nbr, i;
 
-	i = nbr = BLI_dir_contents(dir, &filelist);
+	i = nbr = BLI_filelist_dir_contents(dir, &filelist);
 	fl = filelist;
 	while (i--) {
 		char file[8];
 		BLI_split_file_part(fl->path, file, sizeof(file));
-		if (STREQ(file, ".") || STREQ(file, "..")) {
+		if (FILENAME_IS_CURRPAR(file)) {
 			/* Skip! */
 		}
 		else if (S_ISDIR(fl->type)) {
@@ -335,7 +336,7 @@ static bool delete_recursive(const char *dir)
 		err = true;
 	}
 
-	BLI_free_filelist(filelist, nbr);
+	BLI_filelist_free(filelist, nbr, NULL);
 
 	return err;
 }
@@ -583,7 +584,7 @@ static int recursive_operation(const char *startfrom, const char *startto,
 		for (i = 0; i < n; i++) {
 			const struct dirent * const dirent = dirlist[i];
 
-			if (!strcmp(dirent->d_name, ".") || !strcmp(dirent->d_name, ".."))
+			if (FILENAME_IS_CURRPAR(dirent->d_name))
 				continue;
 
 			join_dirfile_alloc(&from_path, &from_alloc_len, from, dirent->d_name);
@@ -895,7 +896,7 @@ int BLI_move(const char *file, const char *to)
 }
 #endif
 
-static char *check_destination(const char *file, const char *to)
+static const char *check_destination(const char *file, const char *to)
 {
 	struct stat st;
 
@@ -926,18 +927,18 @@ static char *check_destination(const char *file, const char *to)
 		}
 	}
 
-	return (char *)to;
+	return to;
 }
 
 int BLI_copy(const char *file, const char *to)
 {
-	char *actual_to = check_destination(file, to);
+	const char *actual_to = check_destination(file, to);
 	int ret;
 
 	ret = recursive_operation(file, actual_to, copy_callback_pre, copy_single_file, NULL);
 
 	if (actual_to != to)
-		MEM_freeN(actual_to);
+		MEM_freeN((void *)actual_to);
 
 	return ret;
 }

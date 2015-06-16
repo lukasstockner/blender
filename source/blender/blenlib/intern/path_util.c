@@ -45,12 +45,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_fnmatch.h"
 
-#include "../blenkernel/BKE_blender.h"  /* BLENDER_VERSION, bad level include (no function call) */
-
-#include "GHOST_Path-api.h"
-
-#include "MEM_guardedalloc.h"
-
 #ifdef WIN32
 #  include "utf_winfunc.h"
 #  include "utfconv.h"
@@ -62,20 +56,14 @@
 #  include <windows.h>
 #  include <shlobj.h>
 #  include "BLI_winstuff.h"
-#else /* non windows */
-#  ifdef WITH_BINRELOC
-#    include "binreloc.h"
-#  endif
-#  include <unistd.h>  /* mkdtemp on OSX (and probably all *BSD?), not worth making specific check for this OS. */
+#  include "MEM_guardedalloc.h"
+#  include "BLI_alloca.h"
+#else
+#  include "unistd.h"
 #endif /* WIN32 */
 
 /* local */
 #define UNIQUE_NAME_MAX 128
-
-static char bprogname[FILE_MAX];    /* full path to program executable */
-static char bprogdir[FILE_MAX];     /* full path to directory in which executable is located */
-static char btempdir_base[FILE_MAX];          /* persistent temporary directory */
-static char btempdir_session[FILE_MAX] = "";  /* volatile temporary directory */
 
 /* implementation */
 
@@ -243,7 +231,8 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
 		int number;
 		int len = BLI_split_name_num(left, &number, name, delim);
 		do {
-			const int numlen = BLI_snprintf(numstr, sizeof(numstr), "%c%03d", delim, ++number);
+			/* add 1 to account for \0 */
+			const int numlen = BLI_snprintf(numstr, sizeof(numstr), "%c%03d", delim, ++number) + 1;
 
 			/* highly unlikely the string only has enough room for the number
 			 * but support anyway */
@@ -253,9 +242,8 @@ bool BLI_uniquename_cb(bool (*unique_check)(void *arg, const char *name),
 			}
 			else {
 				char *tempname_buf;
-				tempname[0] = '\0';
-				tempname_buf = BLI_strncat_utf8(tempname, left, name_len - numlen);
-				memcpy(tempname_buf, numstr, numlen + 1);
+				tempname_buf = tempname + BLI_strncpy_utf8_rlen(tempname, left, name_len - numlen);
+				memcpy(tempname_buf, numstr, numlen);
 			}
 		} while (unique_check(arg, tempname));
 
@@ -305,7 +293,7 @@ static bool uniquename_unique_check(void *arg, const char *name)
 
 /**
  * Ensures that the specified block has a unique name within the containing list,
- * incrementing its numeric suffix as necessary.
+ * incrementing its numeric suffix as necessary. Returns true if name had to be adjusted.
  *
  * \param list  List containing the block
  * \param vlink  The block to check the name for
@@ -314,7 +302,7 @@ static bool uniquename_unique_check(void *arg, const char *name)
  * \param name_offs  Offset of name within block structure
  * \param name_len  Maximum length of name area
  */
-void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim, int name_offs, int name_len)
+bool BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim, int name_offs, int name_len)
 {
 	struct {ListBase *lb; void *vlink; int name_offs; } data;
 	data.lb = list;
@@ -325,9 +313,9 @@ void BLI_uniquename(ListBase *list, void *vlink, const char *defname, char delim
 
 	/* See if we are given an empty string */
 	if (ELEM(NULL, vlink, defname))
-		return;
+		return false;
 
-	BLI_uniquename_cb(uniquename_unique_check, &data, defname, delim, GIVE_STRADDR(vlink, name_offs), name_len);
+	return BLI_uniquename_cb(uniquename_unique_check, &data, defname, delim, GIVE_STRADDR(vlink, name_offs), name_len);
 }
 
 static int BLI_path_unc_prefix_len(const char *path); /* defined below in same file */
@@ -361,7 +349,7 @@ void BLI_cleanup_path(const char *relabase, char *path)
 	/* Note
 	 *   memmove(start, eind, strlen(eind) + 1);
 	 * is the same as
-	 *   strcpy( start, eind ); 
+	 *   strcpy(start, eind);
 	 * except strcpy should not be used because there is overlap,
 	 * so use memmove's slightly more obscure syntax - Campbell
 	 */
@@ -441,6 +429,23 @@ void BLI_cleanup_file(const char *relabase, char *path)
 {
 	BLI_cleanup_path(relabase, path);
 	BLI_del_slash(path);
+}
+
+
+/**
+ * Make given name safe to be used in paths.
+ *
+ * For now, simply replaces reserved chars (as listed in
+ * http://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words )
+ * by underscores ('_').
+ */
+void BLI_filename_make_safe(char *fname)
+{
+	const char *invalid = "/\\?%*:|\"<>. ";
+
+	for (; *fname && (fname = strpbrk(fname, invalid)); fname++) {
+		*fname = '_';
+	}
 }
 
 /**
@@ -741,7 +746,7 @@ bool BLI_parent_dir(char *path)
 	BLI_cleanup_dir(NULL, tmp); /* does all the work of normalizing the path for us */
 
 	if (!BLI_testextensie(tmp, parent_dir)) {
-		BLI_strncpy(path, tmp, sizeof(tmp));
+		strcpy(path, tmp);  /* We assume pardir is always shorter... */
 		return true;
 	}
 	else {
@@ -854,6 +859,111 @@ bool BLI_path_frame_range(char *path, int sta, int end, int digits)
 }
 
 /**
+ * Get the frame from a filename formatted by blender's frame scheme
+ */
+bool BLI_path_frame_get(char *path, int *r_frame, int *r_numdigits)
+{
+	if (path && *path) {
+		char *file = (char *)BLI_last_slash(path);
+		char *c;
+		int len, numdigits;
+
+		numdigits = *r_numdigits = 0;
+
+		if (file == NULL)
+			file = path;
+
+		/* first get the extension part */
+		len = strlen(file);
+
+		c = file + len;
+
+		/* isolate extension */
+		while (--c != file) {
+			if (*c == '.') {
+				c--;
+				break;
+			}
+		}
+
+		/* find start of number */
+		while (c != (file - 1) && isdigit(*c)) {
+			c--;
+			numdigits++;
+		}
+
+		if (numdigits) {
+			char prevchar;
+
+			c++;
+			prevchar = c[numdigits];
+			c[numdigits] = 0;
+
+			/* was the number really an extension? */
+			*r_frame = atoi(c);
+			c[numdigits] = prevchar;
+
+			*r_numdigits = numdigits;
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void BLI_path_frame_strip(char *path, bool setsharp, char *ext)
+{
+	if (path && *path) {
+		char *file = (char *)BLI_last_slash(path);
+		char *c, *suffix;
+		int len;
+		int numdigits = 0;
+
+		if (file == NULL)
+			file = path;
+
+		/* first get the extension part */
+		len = strlen(file);
+
+		c = file + len;
+
+		/* isolate extension */
+		while (--c != file) {
+			if (*c == '.') {
+				c--;
+				break;
+			}
+		}
+
+		suffix = c + 1;
+
+		/* find start of number */
+		while (c != (file - 1) && isdigit(*c)) {
+			c--;
+			numdigits++;
+		}
+
+		c++;
+
+		if (numdigits) {
+			/* replace the number with the suffix and terminate the string */
+			while (numdigits--) {
+				if (ext) *ext++ = *suffix;
+
+				if (setsharp) *c++ = '#';
+				else *c++ = *suffix;
+
+				suffix++;
+			}
+			*c = 0;
+			if (ext) *ext = 0;
+		}
+	}
+}
+
+
+/**
  * Check if we have '#' chars, usable for #BLI_path_frame, #BLI_path_frame_range
  */
 bool BLI_path_frame_check_chars(const char *path)
@@ -873,9 +983,12 @@ bool BLI_path_abs(char *path, const char *basepath)
 	char tmp[FILE_MAX];
 	char base[FILE_MAX];
 #ifdef WIN32
-	char vol[3] = {'\0', '\0', '\0'};
 
-	BLI_strncpy(vol, path, 3);
+	/* without this: "" --> "C:\" */
+	if (*path == '\0') {
+		return wasrelative;
+	}
+
 	/* we are checking here if we have an absolute path that is not in the current
 	 * blend file as a lib main - we are basically checking for the case that a 
 	 * UNIX root '/' is passed.
@@ -951,8 +1064,6 @@ bool BLI_path_abs(char *path, const char *basepath)
 		BLI_strncpy(path, tmp, FILE_MAX);
 	}
 
-	BLI_cleanup_path(NULL, path);
-
 #ifdef WIN32
 	/* skip first two chars, which in case of
 	 * absolute path will be drive:/blabla and
@@ -962,7 +1073,10 @@ bool BLI_path_abs(char *path, const char *basepath)
 	 */
 	BLI_char_switch(path + 2, '/', '\\');
 #endif
-	
+
+	/* ensure this is after correcting for path switch */
+	BLI_cleanup_path(NULL, path);
+
 	return wasrelative;
 }
 
@@ -1012,6 +1126,114 @@ bool BLI_path_cwd(char *path)
 	return wasrelative;
 }
 
+#ifdef _WIN32
+/**
+ * Tries appending each of the semicolon-separated extensions in the PATHEXT
+ * environment variable (Windows-only) onto *name in turn until such a file is found.
+ * Returns success/failure.
+ */
+bool BLI_path_program_extensions_add_win32(char *name, const size_t maxlen)
+{
+	bool retval = false;
+	int type;
+
+	type = BLI_exists(name);
+	if ((type == 0) || S_ISDIR(type)) {
+		/* typically 3-5, ".EXE", ".BAT"... etc */
+		const int ext_max = 12;
+		const char *ext = getenv("PATHEXT");
+		if (ext) {
+			const int name_len = strlen(name);
+			char *filename = alloca(name_len + ext_max);
+			char *filename_ext;
+			const char *ext_next;
+
+			/* null terminated in the loop */
+			memcpy(filename, name, name_len);
+			filename_ext = filename + name_len;
+
+			do {
+				int ext_len;
+				ext_next = strchr(ext, ';');
+				ext_len = ext_next ? ((ext_next++) - ext) : strlen(ext);
+
+				if (LIKELY(ext_len < ext_max)) {
+					memcpy(filename_ext, ext, ext_len);
+					filename_ext[ext_len] = '\0';
+
+					type = BLI_exists(filename);
+					if (type && (!S_ISDIR(type))) {
+						retval = true;
+						BLI_strncpy(name, filename, maxlen);
+						break;
+					}
+				}
+			} while ((ext = ext_next));
+		}
+	}
+	else {
+		retval = true;
+	}
+
+	return retval;
+}
+#endif  /* WIN32 */
+
+/**
+ * Search for a binary (executable)
+ */
+bool BLI_path_program_search(
+        char *fullname, const size_t maxlen,
+        const char *name)
+{
+	const char *path;
+	bool retval = false;
+
+#ifdef _WIN32
+	const char separator = ';';
+#else
+	const char separator = ':';
+#endif
+
+	path = getenv("PATH");
+	if (path) {
+		char filename[FILE_MAX];
+		const char *temp;
+
+		do {
+			temp = strchr(path, separator);
+			if (temp) {
+				strncpy(filename, path, temp - path);
+				filename[temp - path] = 0;
+				path = temp + 1;
+			}
+			else {
+				strncpy(filename, path, sizeof(filename));
+			}
+
+			BLI_path_append(filename, maxlen, name);
+			if (
+#ifdef _WIN32
+			    BLI_path_program_extensions_add_win32(filename, maxlen)
+#else
+			    BLI_exists(filename)
+#endif
+			    )
+			{
+				BLI_strncpy(fullname, filename, maxlen);
+				retval = true;
+				break;
+			}
+		} while (temp);
+	}
+
+	if (retval == false) {
+		*fullname = '\0';
+	}
+
+	return retval;
+}
+
 /**
  * Copies into *last the part of *dir following the second-last slash.
  */
@@ -1035,446 +1257,6 @@ void BLI_getlastdir(const char *dir, char *last, const size_t maxlen)
 	}
 }
 
-/* This is now only used to really get the user's default document folder */
-/* On Windows I chose the 'Users/<MyUserName>/Documents' since it's used
- * as default location to save documents */
-const char *BLI_getDefaultDocumentFolder(void)
-{
-#ifndef WIN32
-	const char * const xdg_documents_dir = getenv("XDG_DOCUMENTS_DIR");
-
-	if (xdg_documents_dir)
-		return xdg_documents_dir;
-
-	return getenv("HOME");
-#else /* Windows */
-	static char documentfolder[MAXPATHLEN];
-	HRESULT hResult;
-
-	/* Check for %HOME% env var */
-	if (uput_getenv("HOME", documentfolder, MAXPATHLEN)) {
-		if (BLI_is_dir(documentfolder)) return documentfolder;
-	}
-				
-	/* add user profile support for WIN 2K / NT.
-	 * This is %APPDATA%, which translates to either
-	 * %USERPROFILE%\Application Data or since Vista
-	 * to %USERPROFILE%\AppData\Roaming
-	 */
-	hResult = SHGetFolderPath(NULL, CSIDL_PERSONAL, NULL, SHGFP_TYPE_CURRENT, documentfolder);
-		
-	if (hResult == S_OK) {
-		if (BLI_is_dir(documentfolder)) return documentfolder;
-	}
-		
-	return NULL;
-#endif /* WIN32 */
-}
-
-/* NEW stuff, to be cleaned up when fully migrated */
-/* ************************************************************* */
-/* ************************************************************* */
-
-// #define PATH_DEBUG
-
-/* returns a formatted representation of the specified version number. Non-reentrant! */
-static char *blender_version_decimal(const int ver)
-{
-	static char version_str[5];
-	sprintf(version_str, "%d.%02d", ver / 100, ver % 100);
-	return version_str;
-}
-
-/**
- * Concatenates path_base, (optional) path_sep and (optional) folder_name into targetpath,
- * returning true if result points to a directory.
- */
-static bool test_path(char *targetpath, const char *path_base, const char *path_sep, const char *folder_name)
-{
-	char tmppath[FILE_MAX];
-	
-	if (path_sep) BLI_join_dirfile(tmppath, sizeof(tmppath), path_base, path_sep);
-	else BLI_strncpy(tmppath, path_base, sizeof(tmppath));
-
-	/* rare cases folder_name is omitted (when looking for ~/.blender/2.xx dir only) */
-	if (folder_name)
-		BLI_make_file_string("/", targetpath, tmppath, folder_name);
-	else
-		BLI_strncpy(targetpath, tmppath, sizeof(tmppath));
-	/* FIXME: why is "//" on front of tmppath expanded to "/" (by BLI_join_dirfile)
-	 * if folder_name is specified but not otherwise? */
-
-	if (BLI_is_dir(targetpath)) {
-#ifdef PATH_DEBUG
-		printf("\t%s found: %s\n", __func__, targetpath);
-#endif
-		return true;
-	}
-	else {
-#ifdef PATH_DEBUG
-		printf("\t%s missing: %s\n", __func__, targetpath);
-#endif
-		//targetpath[0] = '\0';
-		return false;
-	}
-}
-
-/**
- * Puts the value of the specified environment variable into *path if it exists
- * and points at a directory. Returns true if this was done.
- */
-static bool test_env_path(char *path, const char *envvar)
-{
-	const char *env = envvar ? getenv(envvar) : NULL;
-	if (!env) return false;
-	
-	if (BLI_is_dir(env)) {
-		BLI_strncpy(path, env, FILE_MAX);
-#ifdef PATH_DEBUG
-		printf("\t%s env %s found: %s\n", __func__, envvar, env);
-#endif
-		return true;
-	}
-	else {
-		path[0] = '\0';
-#ifdef PATH_DEBUG
-		printf("\t%s env %s missing: %s\n", __func__, envvar, env);
-#endif
-		return false;
-	}
-}
-
-/**
- * Constructs in \a targetpath the name of a directory relative to a version-specific
- * subdirectory in the parent directory of the Blender executable.
- *
- * \param targetpath  String to return path
- * \param folder_name  Optional folder name within version-specific directory
- * \param subfolder_name  Optional subfolder name within folder_name
- * \param ver  To construct name of version-specific directory within bprogdir
- * \return true if such a directory exists.
- */
-static bool get_path_local(char *targetpath, const char *folder_name, const char *subfolder_name, const int ver)
-{
-	char relfolder[FILE_MAX];
-	
-#ifdef PATH_DEBUG
-	printf("%s...\n", __func__);
-#endif
-
-	if (folder_name) {
-		if (subfolder_name) {
-			BLI_join_dirfile(relfolder, sizeof(relfolder), folder_name, subfolder_name);
-		}
-		else {
-			BLI_strncpy(relfolder, folder_name, sizeof(relfolder));
-		}
-	}
-	else {
-		relfolder[0] = '\0';
-	}
-
-	/* try EXECUTABLE_DIR/2.5x/folder_name - new default directory for local blender installed files */
-#ifdef __APPLE__
-	static char osx_resourses[FILE_MAX]; /* due new codesign situation in OSX > 10.9.5 we must move the blender_version dir with contents to Resources */
-	sprintf(osx_resourses, "%s../Resources", bprogdir);
-	return test_path(targetpath, osx_resourses, blender_version_decimal(ver), relfolder);
-#else
-	return test_path(targetpath, bprogdir, blender_version_decimal(ver), relfolder);
-#endif
-}
-
-/**
- * Is this an install with user files kept together with the Blender executable and its
- * installation files.
- */
-static bool is_portable_install(void)
-{
-	/* detect portable install by the existence of config folder */
-	const int ver = BLENDER_VERSION;
-	char path[FILE_MAX];
-
-	return get_path_local(path, "config", NULL, ver);
-}
-
-/**
- * Returns the path of a folder within the user-files area.
- *
- *
- * \param targetpath  String to return path
- * \param folder_name  default name of folder within user area
- * \param subfolder_name  optional name of subfolder within folder
- * \param envvar  name of environment variable which, if defined, overrides folder_name
- * \param ver  Blender version, used to construct a subdirectory name
- * \return true if it was able to construct such a path.
- */
-static bool get_path_user(char *targetpath, const char *folder_name, const char *subfolder_name, const char *envvar, const int ver)
-{
-	char user_path[FILE_MAX];
-	const char *user_base_path;
-
-	/* for portable install, user path is always local */
-	if (is_portable_install())
-		return get_path_local(targetpath, folder_name, subfolder_name, ver);
-	
-	user_path[0] = '\0';
-
-	if (test_env_path(user_path, envvar)) {
-		if (subfolder_name) {
-			return test_path(targetpath, user_path, NULL, subfolder_name);
-		}
-		else {
-			BLI_strncpy(targetpath, user_path, FILE_MAX);
-			return true;
-		}
-	}
-
-	user_base_path = (const char *)GHOST_getUserDir(ver, blender_version_decimal(ver));
-	if (user_base_path)
-		BLI_strncpy(user_path, user_base_path, FILE_MAX);
-
-	if (!user_path[0])
-		return false;
-	
-#ifdef PATH_DEBUG
-	printf("%s: %s\n", __func__, user_path);
-#endif
-	
-	if (subfolder_name) {
-		return test_path(targetpath, user_path, folder_name, subfolder_name);
-	}
-	else {
-		return test_path(targetpath, user_path, NULL, folder_name);
-	}
-}
-
-/**
- * Returns the path of a folder within the Blender installation directory.
- *
- * \param targetpath  String to return path
- * \param folder_name  default name of folder within installation area
- * \param subfolder_name  optional name of subfolder within folder
- * \param envvar  name of environment variable which, if defined, overrides folder_name
- * \param ver  Blender version, used to construct a subdirectory name
- * \return  true if it was able to construct such a path.
- */
-static bool get_path_system(char *targetpath, const char *folder_name, const char *subfolder_name, const char *envvar, const int ver)
-{
-	char system_path[FILE_MAX];
-	const char *system_base_path;
-	char cwd[FILE_MAX];
-	char relfolder[FILE_MAX];
-
-	if (folder_name) {
-		if (subfolder_name) {
-			BLI_join_dirfile(relfolder, sizeof(relfolder), folder_name, subfolder_name);
-		}
-		else {
-			BLI_strncpy(relfolder, folder_name, sizeof(relfolder));
-		}
-	}
-	else {
-		relfolder[0] = '\0';
-	}
-
-	/* first allow developer only overrides to the system path
-	 * these are only used when running blender from source */
-
-	/* try CWD/release/folder_name */
-	if (BLI_current_working_dir(cwd, sizeof(cwd))) {
-		if (test_path(targetpath, cwd, "release", relfolder)) {
-			return true;
-		}
-	}
-
-	/* try EXECUTABLE_DIR/release/folder_name */
-	if (test_path(targetpath, bprogdir, "release", relfolder))
-		return true;
-
-	/* end developer overrides */
-
-
-
-	system_path[0] = '\0';
-
-	if (test_env_path(system_path, envvar)) {
-		if (subfolder_name) {
-			return test_path(targetpath, system_path, NULL, subfolder_name);
-		}
-		else {
-			BLI_strncpy(targetpath, system_path, FILE_MAX);
-			return true;
-		}
-	}
-
-	system_base_path = (const char *)GHOST_getSystemDir(ver, blender_version_decimal(ver));
-	if (system_base_path)
-		BLI_strncpy(system_path, system_base_path, FILE_MAX);
-	
-	if (!system_path[0])
-		return false;
-	
-#ifdef PATH_DEBUG
-	printf("%s: %s\n", __func__, system_path);
-#endif
-	
-	if (subfolder_name) {
-		/* try $BLENDERPATH/folder_name/subfolder_name */
-		return test_path(targetpath, system_path, folder_name, subfolder_name);
-	}
-	else {
-		/* try $BLENDERPATH/folder_name */
-		return test_path(targetpath, system_path, NULL, folder_name);
-	}
-}
-
-/* get a folder out of the 'folder_id' presets for paths */
-/* returns the path if found, NULL string if not */
-const char *BLI_get_folder(int folder_id, const char *subfolder)
-{
-	const int ver = BLENDER_VERSION;
-	static char path[FILE_MAX] = "";
-	
-	switch (folder_id) {
-		case BLENDER_DATAFILES:     /* general case */
-			if (get_path_user(path, "datafiles", subfolder, "BLENDER_USER_DATAFILES", ver)) break;
-			if (get_path_local(path, "datafiles", subfolder, ver)) break;
-			if (get_path_system(path, "datafiles", subfolder, "BLENDER_SYSTEM_DATAFILES", ver)) break;
-			return NULL;
-			
-		case BLENDER_USER_DATAFILES:
-			if (get_path_user(path, "datafiles", subfolder, "BLENDER_USER_DATAFILES", ver)) break;
-			return NULL;
-			
-		case BLENDER_SYSTEM_DATAFILES:
-			if (get_path_local(path, "datafiles", subfolder, ver)) break;
-			if (get_path_system(path, "datafiles", subfolder, "BLENDER_SYSTEM_DATAFILES", ver)) break;
-			return NULL;
-			
-		case BLENDER_USER_AUTOSAVE:
-			if (get_path_user(path, "autosave", subfolder, "BLENDER_USER_DATAFILES", ver)) break;
-			return NULL;
-
-		case BLENDER_USER_CONFIG:
-			if (get_path_user(path, "config", subfolder, "BLENDER_USER_CONFIG", ver)) break;
-			return NULL;
-			
-		case BLENDER_USER_SCRIPTS:
-			if (get_path_user(path, "scripts", subfolder, "BLENDER_USER_SCRIPTS", ver)) break;
-			return NULL;
-			
-		case BLENDER_SYSTEM_SCRIPTS:
-			if (get_path_local(path, "scripts", subfolder, ver)) break;
-			if (get_path_system(path, "scripts", subfolder, "BLENDER_SYSTEM_SCRIPTS", ver)) break;
-			return NULL;
-			
-		case BLENDER_SYSTEM_PYTHON:
-			if (get_path_local(path, "python", subfolder, ver)) break;
-			if (get_path_system(path, "python", subfolder, "BLENDER_SYSTEM_PYTHON", ver)) break;
-			return NULL;
-
-		default:
-			BLI_assert(0);
-			break;
-	}
-	
-	return path;
-}
-
-/**
- * Returns the path to a folder in the user area without checking that it actually exists first.
- */
-const char *BLI_get_user_folder_notest(int folder_id, const char *subfolder)
-{
-	const int ver = BLENDER_VERSION;
-	static char path[FILE_MAX] = "";
-
-	switch (folder_id) {
-		case BLENDER_USER_DATAFILES:
-			get_path_user(path, "datafiles", subfolder, "BLENDER_USER_DATAFILES", ver);
-			break;
-		case BLENDER_USER_CONFIG:
-			get_path_user(path, "config", subfolder, "BLENDER_USER_CONFIG", ver);
-			break;
-		case BLENDER_USER_AUTOSAVE:
-			get_path_user(path, "autosave", subfolder, "BLENDER_USER_AUTOSAVE", ver);
-			break;
-		case BLENDER_USER_SCRIPTS:
-			get_path_user(path, "scripts", subfolder, "BLENDER_USER_SCRIPTS", ver);
-			break;
-		default:
-			BLI_assert(0);
-			break;
-	}
-
-	if ('\0' == path[0]) {
-		return NULL;
-	}
-	return path;
-}
-
-/**
- * Returns the path to a folder in the user area, creating it if it doesn't exist.
- */
-const char *BLI_get_folder_create(int folder_id, const char *subfolder)
-{
-	const char *path;
-
-	/* only for user folders */
-	if (!ELEM(folder_id, BLENDER_USER_DATAFILES, BLENDER_USER_CONFIG, BLENDER_USER_SCRIPTS, BLENDER_USER_AUTOSAVE))
-		return NULL;
-	
-	path = BLI_get_folder(folder_id, subfolder);
-	
-	if (!path) {
-		path = BLI_get_user_folder_notest(folder_id, subfolder);
-		if (path) BLI_dir_create_recursive(path);
-	}
-	
-	return path;
-}
-
-/**
- * Returns the path of the top-level version-specific local, user or system directory.
- * If do_check, then the result will be NULL if the directory doesn't exist.
- */
-const char *BLI_get_folder_version(const int id, const int ver, const bool do_check)
-{
-	static char path[FILE_MAX] = "";
-	bool ok;
-	switch (id) {
-		case BLENDER_RESOURCE_PATH_USER:
-			ok = get_path_user(path, NULL, NULL, NULL, ver);
-			break;
-		case BLENDER_RESOURCE_PATH_LOCAL:
-			ok = get_path_local(path, NULL, NULL, ver);
-			break;
-		case BLENDER_RESOURCE_PATH_SYSTEM:
-			ok = get_path_system(path, NULL, NULL, NULL, ver);
-			break;
-		default:
-			path[0] = '\0'; /* in case do_check is false */
-			ok = false;
-			BLI_assert(!"incorrect ID");
-			break;
-	}
-
-	if (!ok && do_check) {
-		return NULL;
-	}
-
-	return path;
-}
-
-/* End new stuff */
-/* ************************************************************* */
-/* ************************************************************* */
-
-
-
-#ifdef PATH_DEBUG
-#  undef PATH_DEBUG
-#endif
 
 /**
  * Sets the specified environment variable to the specified value,
@@ -1538,34 +1320,23 @@ void BLI_char_switch(char *string, char from, char to)
 }
 
 /**
- * Strips off nonexistent subdirectories from the end of *dir, leaving the path of
- * the lowest-level directory that does exist.
+ * Strips off nonexistent (or non-accessible) subdirectories from the end of *dir, leaving the path of
+ * the lowest-level directory that does exist and we can read.
  */
 void BLI_make_exist(char *dir)
 {
-	int a;
+	bool valid_path = true;
 
-	BLI_char_switch(dir, ALTSEP, SEP);
+	/* Loop as long as cur path is not a dir, and we can get a parent path. */
+	while ((BLI_access(dir, R_OK) != 0) && (valid_path = BLI_parent_dir(dir)));
 
-	a = strlen(dir);
-
-	while (!BLI_is_dir(dir)) {
-		a--;
-		while (dir[a] != SEP) {
-			a--;
-			if (a <= 0) break;
-		}
-		if (a >= 0) {
-			dir[a + 1] = '\0';
-		}
-		else {
+	/* If we could not find an existing dir, use default root... */
+	if (!valid_path || !dir[0]) {
 #ifdef WIN32
-			get_default_root(dir);
+		get_default_root(dir);
 #else
-			strcpy(dir, "/");
+		strcpy(dir, "/");
 #endif
-			break;
-		}
 	}
 }
 
@@ -1577,7 +1348,7 @@ void BLI_make_existing_file(const char *name)
 	char di[FILE_MAX];
 	BLI_split_dir_part(name, di, sizeof(di));
 
-	/* make if if the dir doesn't exist */
+	/* make if the dir doesn't exist */
 	BLI_dir_create_recursive(di);
 }
 
@@ -1704,11 +1475,10 @@ bool BLI_testextensie_n(const char *str, ...)
 	while ((ext = (const char *) va_arg(args, void *))) {
 		if (testextensie_ex(str, str_len, ext, strlen(ext))) {
 			ret = true;
-			goto finally;
+			break;
 		}
 	}
 
-finally:
 	va_end(args);
 
 	return ret;
@@ -1800,9 +1570,7 @@ bool BLI_ensure_extension(char *path, size_t maxlen, const char *ext)
 	ssize_t a;
 
 	/* first check the extension is already there */
-	if (    (ext_len <= path_len) &&
-	        (strcmp(path + (path_len - ext_len), ext) == 0))
-	{
+	if ((ext_len <= path_len) && (STREQ(path + (path_len - ext_len), ext))) {
 		return true;
 	}
 
@@ -2150,310 +1918,6 @@ void BLI_path_native_slash(char *path)
 #endif
 }
 
-/**
- * Tries appending each of the semicolon-separated extensions in the PATHEXT
- * environment variable (Windows-only) onto *name in turn until such a file is found.
- * Returns success/failure.
- */
-static int add_win32_extension(char *name)
-{
-	int retval = 0;
-	int type;
-
-	type = BLI_exists(name);
-	if ((type == 0) || S_ISDIR(type)) {
-#ifdef _WIN32
-		char filename[FILE_MAX];
-		char ext[FILE_MAX];
-		const char *extensions = getenv("PATHEXT");
-		if (extensions) {
-			char *temp;
-			do {
-				strcpy(filename, name);
-				temp = strstr(extensions, ";");
-				if (temp) {
-					strncpy(ext, extensions, temp - extensions);
-					ext[temp - extensions] = 0;
-					extensions = temp + 1;
-					strcat(filename, ext);
-				}
-				else {
-					strcat(filename, extensions);
-				}
-
-				type = BLI_exists(filename);
-				if (type && (!S_ISDIR(type))) {
-					retval = 1;
-					strcpy(name, filename);
-					break;
-				}
-			} while (temp);
-		}
-#endif
-	}
-	else {
-		retval = 1;
-	}
-
-	return (retval);
-}
-
-/**
- * Checks if name is a fully qualified filename to an executable.
- * If not it searches $PATH for the file. On Windows it also
- * adds the correct extension (.com .exe etc) from
- * $PATHEXT if necessary. Also on Windows it translates
- * the name to its 8.3 version to prevent problems with
- * spaces and stuff. Final result is returned in fullname.
- *
- * \param fullname The full path and full name of the executable
- * (must be FILE_MAX minimum)
- * \param name The name of the executable (usually argv[0]) to be checked
- */
-static void bli_where_am_i(char *fullname, const size_t maxlen, const char *name)
-{
-	char filename[FILE_MAX];
-	const char *path = NULL, *temp;
-
-#ifdef _WIN32
-	const char *separator = ";";
-#else
-	const char *separator = ":";
-#endif
-
-	
-#ifdef WITH_BINRELOC
-	/* linux uses binreloc since argv[0] is not reliable, call br_init( NULL ) first */
-	path = br_find_exe(NULL);
-	if (path) {
-		BLI_strncpy(fullname, path, maxlen);
-		free((void *)path);
-		return;
-	}
-#endif
-
-#ifdef _WIN32
-	wchar_t *fullname_16 = MEM_mallocN(maxlen * sizeof(wchar_t), "ProgramPath");
-	if (GetModuleFileNameW(0, fullname_16, maxlen)) {
-		conv_utf_16_to_8(fullname_16, fullname, maxlen);
-		if (!BLI_exists(fullname)) {
-			printf("path can't be found: \"%.*s\"\n", (int)maxlen, fullname);
-			MessageBox(NULL, "path contains invalid characters or is too long (see console)", "Error", MB_OK);
-		}
-		MEM_freeN(fullname_16);
-		return;
-	}
-
-	MEM_freeN(fullname_16);
-#endif
-
-	/* unix and non linux */
-	if (name && name[0]) {
-
-		BLI_strncpy(fullname, name, maxlen);
-		if (name[0] == '.') {
-			char wdir[FILE_MAX] = "";
-			BLI_current_working_dir(wdir, sizeof(wdir));     /* backup cwd to restore after */
-
-			// not needed but avoids annoying /./ in name
-			if (name[1] == SEP)
-				BLI_join_dirfile(fullname, maxlen, wdir, name + 2);
-			else
-				BLI_join_dirfile(fullname, maxlen, wdir, name);
-
-			add_win32_extension(fullname); /* XXX, doesnt respect length */
-		}
-		else if (BLI_last_slash(name)) {
-			// full path
-			BLI_strncpy(fullname, name, maxlen);
-			add_win32_extension(fullname);
-		}
-		else {
-			// search for binary in $PATH
-			path = getenv("PATH");
-			if (path) {
-				do {
-					temp = strstr(path, separator);
-					if (temp) {
-						strncpy(filename, path, temp - path);
-						filename[temp - path] = 0;
-						path = temp + 1;
-					}
-					else {
-						strncpy(filename, path, sizeof(filename));
-					}
-					BLI_path_append(fullname, maxlen, name);
-					if (add_win32_extension(filename)) {
-						BLI_strncpy(fullname, filename, maxlen);
-						break;
-					}
-				} while (temp);
-			}
-		}
-#if defined(DEBUG)
-		if (strcmp(name, fullname)) {
-			printf("guessing '%s' == '%s'\n", name, fullname);
-		}
-#endif
-	}
-}
-
-void BLI_init_program_path(const char *argv0)
-{
-	bli_where_am_i(bprogname, sizeof(bprogname), argv0);
-	BLI_split_dir_part(bprogname, bprogdir, sizeof(bprogdir));
-}
-
-/**
- * Path to executable
- */
-const char *BLI_program_path(void)
-{
-	return bprogname;
-}
-
-/**
- * Path to directory of executable
- */
-const char *BLI_program_dir(void)
-{
-	return bprogdir;
-}
-
-/**
- * Gets the temp directory when blender first runs.
- * If the default path is not found, use try $TEMP
- * 
- * Also make sure the temp dir has a trailing slash
- *
- * \param fullname The full path to the temporary temp directory
- * \param basename The full path to the persistent temp directory (may be NULL)
- * \param maxlen The size of the fullname buffer
- * \param userdir Directory specified in user preferences 
- */
-static void BLI_where_is_temp(char *fullname, char *basename, const size_t maxlen, char *userdir)
-{
-	/* Clear existing temp dir, if needed. */
-	BLI_temp_dir_session_purge();
-
-	fullname[0] = '\0';
-	if (basename) {
-		basename[0] = '\0';
-	}
-
-	if (userdir && BLI_is_dir(userdir)) {
-		BLI_strncpy(fullname, userdir, maxlen);
-	}
-	
-	
-#ifdef WIN32
-	if (fullname[0] == '\0') {
-		const char *tmp = getenv("TEMP"); /* Windows */
-		if (tmp && BLI_is_dir(tmp)) {
-			BLI_strncpy(fullname, tmp, maxlen);
-		}
-	}
-#else
-	/* Other OS's - Try TMP and TMPDIR */
-	if (fullname[0] == '\0') {
-		const char *tmp = getenv("TMP");
-		if (tmp && BLI_is_dir(tmp)) {
-			BLI_strncpy(fullname, tmp, maxlen);
-		}
-	}
-	
-	if (fullname[0] == '\0') {
-		const char *tmp = getenv("TMPDIR");
-		if (tmp && BLI_is_dir(tmp)) {
-			BLI_strncpy(fullname, tmp, maxlen);
-		}
-	}
-#endif
-	
-	if (fullname[0] == '\0') {
-		BLI_strncpy(fullname, "/tmp/", maxlen);
-	}
-	else {
-		/* add a trailing slash if needed */
-		BLI_add_slash(fullname);
-#ifdef WIN32
-		if (userdir && userdir != fullname) {
-			BLI_strncpy(userdir, fullname, maxlen); /* also set user pref to show %TEMP%. /tmp/ is just plain confusing for Windows users. */
-		}
-#endif
-	}
-
-	/* Now that we have a valid temp dir, add system-generated unique sub-dir. */
-	if (basename) {
-		/* 'XXXXXX' is kind of tag to be replaced by mktemp-familly by an uuid. */
-		char *tmp_name = BLI_strdupcat(fullname, "blender_XXXXXX");
-		const size_t ln = strlen(tmp_name) + 1;
-		if (ln <= maxlen) {
-#ifdef WIN32
-			if (_mktemp_s(tmp_name, ln) == 0) {
-				BLI_dir_create_recursive(tmp_name);
-			}
-#else
-			mkdtemp(tmp_name);
-#endif
-		}
-		if (BLI_is_dir(tmp_name)) {
-			BLI_strncpy(basename, fullname, maxlen);
-			BLI_strncpy(fullname, tmp_name, maxlen);
-			BLI_add_slash(fullname);
-		}
-		else {
-			printf("Warning! Could not generate a temp file name for '%s', falling back to '%s'\n", tmp_name, fullname);
-		}
-
-		MEM_freeN(tmp_name);
-	}
-}
-
-/**
- * Sets btempdir_base to userdir if specified and is a valid directory, otherwise
- * chooses a suitable OS-specific temporary directory.
- * Sets btempdir_session to a mkdtemp-generated sub-dir of btempdir_base.
- */
-void BLI_temp_dir_init(char *userdir)
-{
-	BLI_where_is_temp(btempdir_session, btempdir_base, FILE_MAX, userdir);
-;
-}
-
-/**
- * Path to temporary directory (with trailing slash)
- */
-const char *BLI_temp_dir_session(void)
-{
-	return btempdir_session[0] ? btempdir_session : BLI_temp_dir_base();
-}
-
-/**
- * Path to persistent temporary directory (with trailing slash)
- */
-const char *BLI_temp_dir_base(void)
-{
-	return btempdir_base;
-}
-
-/**
- * Path to the system temporary directory (with trailing slash)
- */
-void BLI_system_temporary_dir(char *dir)
-{
-	BLI_where_is_temp(dir, NULL, FILE_MAX, NULL);
-}
-
-/**
- * Delete content of this instance's temp dir.
- */
-void BLI_temp_dir_session_purge(void)
-{
-	if (btempdir_session[0] && BLI_is_dir(btempdir_session)) {
-		BLI_delete(btempdir_session, true, true);
-	}
-}
 
 #ifdef WITH_ICONV
 

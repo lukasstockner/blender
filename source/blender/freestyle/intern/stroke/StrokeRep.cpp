@@ -425,7 +425,7 @@ void Strip::cleanUpSingularities (const vector<StrokeVertex*>& iStrokeVertices)
 				Vec2r avP(0.0, 0.0);
 				for (j = i - timeSinceSingu1; j <= i; j++)
 					avP = Vec2r(avP + _vertices[2 * j]->point2d());
-				avP = Vec2r( 1.0 / float(timeSinceSingu1 + 1) * avP);
+				avP = Vec2r(1.0 / float(timeSinceSingu1 + 1) * avP);
 				for (j = i - timeSinceSingu1; j <= i; j++)
 					_vertices[2 * j]->setPoint2d(avP);
 				//_vertex[2 * j] = _vertex[2 * i];
@@ -704,6 +704,8 @@ StrokeRep::StrokeRep()
 {
 	_stroke = 0;
 	_strokeType = Stroke::OPAQUE_MEDIUM;
+	_nodeTree = NULL;
+	_hasTex = false;
 	_textureStep = 1.0;
 	for (int a = 0; a < MAX_MTEX; a++) {
 		_mtex[a] = NULL;
@@ -724,6 +726,8 @@ StrokeRep::StrokeRep(Stroke *iStroke)
 {
 	_stroke = iStroke;
 	_strokeType = iStroke->getMediumType();
+	_nodeTree = iStroke->getNodeTree();
+	_hasTex = iStroke->hasTex();
 	_textureId = iStroke->getTextureId();
 	_textureStep = iStroke->getTextureStep();
 	for (int a = 0; a < MAX_MTEX; a++) {
@@ -757,6 +761,8 @@ StrokeRep::StrokeRep(const StrokeRep& iBrother)
 	_strokeType = iBrother._strokeType;
 	_textureId = iBrother._textureId;
 	_textureStep = iBrother._textureStep;
+	_nodeTree = iBrother._nodeTree;
+	_hasTex = iBrother._hasTex;
 	for (int a = 0; a < MAX_MTEX; a++) {
 		if (iBrother._mtex[a]) {
 			_mtex[a] = iBrother._mtex[a];
@@ -808,7 +814,7 @@ void StrokeRep::create()
 			end = true;
 		}
 		if ((!strip.empty()) && (strip.size() > 1)) {
-			_strips.push_back(new Strip(strip, _stroke->hasTex(), first, end, _textureStep));
+			_strips.push_back(new Strip(strip, _hasTex, first, end, _textureStep));
 			strip.clear();
 		}
 		first = false;

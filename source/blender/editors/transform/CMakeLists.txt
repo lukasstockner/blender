@@ -30,6 +30,7 @@ set(INC
 	../../makesrna
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -53,5 +54,11 @@ set(SRC
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
+
+if(WITH_LEGACY_DEPSGRAPH)
+	add_definitions(-DWITH_LEGACY_DEPSGRAPH)
+endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 blender_add_lib(bf_editor_transform "${SRC}" "${INC}" "${INC_SYS}")

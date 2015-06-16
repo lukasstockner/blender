@@ -26,7 +26,6 @@
 /** \file BLI_edgehash.h
  *  \ingroup bli
  *  \author Daniel Dunbar
- *  \brief A general unordered 2-int pair hash table ADT.
  */
 
 #include "BLI_compiler_attrs.h"
@@ -55,6 +54,10 @@ bool            BLI_edgehash_reinsert(EdgeHash *eh, unsigned int v0, unsigned in
 void           *BLI_edgehash_lookup(EdgeHash *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
 void           *BLI_edgehash_lookup_default(EdgeHash *eh, unsigned int v0, unsigned int v1, void *val_default) ATTR_WARN_UNUSED_RESULT;
 void          **BLI_edgehash_lookup_p(EdgeHash *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
+bool            BLI_edgehash_ensure_p(EdgeHash *eh, unsigned int v0, unsigned int v1, void ***r_val) ATTR_WARN_UNUSED_RESULT;
+bool            BLI_edgehash_remove(EdgeHash *eh, unsigned int v0, unsigned int v1, EdgeHashFreeFP valfreefp);
+
+void           *BLI_edgehash_popkey(EdgeHash *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
 bool            BLI_edgehash_haskey(EdgeHash *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
 int             BLI_edgehash_size(EdgeHash *eh) ATTR_WARN_UNUSED_RESULT;
 void            BLI_edgehash_clear_ex(EdgeHash *eh, EdgeHashFreeFP valfreefp,
@@ -106,6 +109,8 @@ bool     BLI_edgeset_add(EdgeSet *es, unsigned int v0, unsigned int v1);
 void     BLI_edgeset_insert(EdgeSet *es, unsigned int v0, unsigned int v1);
 bool     BLI_edgeset_haskey(EdgeSet *eh, unsigned int v0, unsigned int v1) ATTR_WARN_UNUSED_RESULT;
 void     BLI_edgeset_free(EdgeSet *es);
+void     BLI_edgeset_flag_set(EdgeSet *es, unsigned int flag);
+void     BLI_edgeset_flag_clear(EdgeSet *es, unsigned int flag);
 
 /* rely on inline api for now */
 BLI_INLINE EdgeSetIterator *BLI_edgesetIterator_new(EdgeSet *gs) { return (EdgeSetIterator *)BLI_edgehashIterator_new((EdgeHash *)gs); }

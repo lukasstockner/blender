@@ -61,7 +61,6 @@
 #include "ED_armature.h"
 #include "ED_keyframes_draw.h"
 
-#include "BLF_api.h"
 
 #include "UI_resources.h"
 
@@ -467,10 +466,10 @@ static const unsigned int bone_octahedral_solid_tris[8][3] = {
 
 /* aligned with bone_octahedral_solid_tris */
 static const float bone_octahedral_solid_normals[8][3] = {
-	{ 0.70710683f, -0.70710683f,  0.00000000f},
-	{-0.00000000f, -0.70710683f, -0.70710683f},
-	{-0.70710683f, -0.70710683f,  0.00000000f},
-	{ 0.00000000f, -0.70710683f,  0.70710683f},
+	{ M_SQRT1_2,   -M_SQRT1_2,    0.00000000f},
+	{-0.00000000f, -M_SQRT1_2,   -M_SQRT1_2},
+	{-M_SQRT1_2,   -M_SQRT1_2,    0.00000000f},
+	{ 0.00000000f, -M_SQRT1_2,    M_SQRT1_2},
 	{ 0.99388373f,  0.11043154f, -0.00000000f},
 	{ 0.00000000f,  0.11043154f, -0.99388373f},
 	{-0.99388373f,  0.11043154f,  0.00000000f},
@@ -1620,7 +1619,7 @@ static void draw_pose_dofs(Object *ob)
 								for (a = -16; a <= 16; a++) {
 									/* *0.5f here comes from M_PI/360.0f when rotations were still in degrees */
 									float fac = ((float)a) / 16.0f * 0.5f;
-									phi = (float)(0.5 * M_PI) + fac * (pchan->limitmax[0] - pchan->limitmin[0]);
+									phi = (float)M_PI_2 + fac * (pchan->limitmax[0] - pchan->limitmin[0]);
 									
 									i = (a == -16) ? 2 : 3;
 									corner[i][0] = 0.0f;
@@ -2088,6 +2087,10 @@ static void draw_pose_bones(Scene *scene, View3D *v3d, ARegion *ar, Base *base,
 			if (v3d->zbuf) glEnable(GL_DEPTH_TEST);
 		}
 	}
+
+	if (index != -1) {
+		GPU_select_load_id(-1);
+	}
 }
 
 /* in editmode, we don't store the bone matrix... */
@@ -2392,7 +2395,7 @@ static void draw_ghost_poses_range(Scene *scene, View3D *v3d, ARegion *ar, Base 
 	if (v3d->zbuf) glDisable(GL_DEPTH_TEST);
 	
 	/* draw from first frame of range to last */
-	for (CFRA = (int)start; CFRA < end; CFRA += (int)stepsize) {
+	for (CFRA = (int)start; CFRA <= end; CFRA += (int)stepsize) {
 		colfac = (end - (float)CFRA) / range;
 		UI_ThemeColorShadeAlpha(TH_WIRE, 0, -128 - (int)(120.0f * sqrtf(colfac)));
 		

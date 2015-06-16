@@ -135,7 +135,7 @@ static void text_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 					break;
 				case ND_CURSOR:
 					if (st->text && st->text == wmn->reference)
-						text_scroll_to_cursor(st, sa);
+						text_scroll_to_cursor__area(st, sa, true);
 
 					ED_area_tag_redraw(sa);
 					break;
@@ -156,7 +156,7 @@ static void text_listener(bScreen *UNUSED(sc), ScrArea *sa, wmNotifier *wmn)
 					break;
 				case NA_SELECTED:
 					if (st->text && st->text == wmn->reference)
-						text_scroll_to_cursor(st, sa);
+						text_scroll_to_cursor__area(st, sa, true);
 
 					break;
 			}
@@ -462,10 +462,13 @@ static void text_cursor(wmWindow *win, ScrArea *sa, ARegion *ar)
 
 static int text_drop_poll(bContext *UNUSED(C), wmDrag *drag, const wmEvent *UNUSED(event))
 {
-	if (drag->type == WM_DRAG_PATH)
-		if (ELEM(drag->icon, ICON_FILE_SCRIPT, ICON_FILE_BLANK))    /* rule might not work? */
-			return 1;
-	return 0;
+	if (drag->type == WM_DRAG_PATH) {
+		/* rule might not work? */
+		if (ELEM(drag->icon, ICON_FILE_SCRIPT, ICON_FILE_TEXT, ICON_FILE_BLANK)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 static void text_drop_copy(wmDrag *drag, wmDropBox *drop)

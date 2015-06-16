@@ -47,8 +47,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#include "BLI_threads.h"
 
 static SpinLock refcounter_spin;
 
@@ -210,6 +210,8 @@ ImBuf *IMB_makeSingleUser(ImBuf *ibuf)
 
 	rval = IMB_dupImBuf(ibuf);
 
+	IMB_metadata_copy(rval, ibuf);
+
 	IMB_freeImBuf(ibuf);
 
 	return rval;
@@ -362,6 +364,30 @@ bool imb_addrectImBuf(ImBuf *ibuf)
 	return false;
 }
 
+struct ImBuf *IMB_allocFromBuffer(const unsigned int *rect, const float *rectf,
+                                  unsigned int w, unsigned int h)
+{
+	ImBuf *ibuf = NULL;
+
+	if (!(rect || rectf))
+		return NULL;
+
+	ibuf = IMB_allocImBuf(w, h, 32, 0);
+
+	if (rectf) {
+		ibuf->rect_float = MEM_dupallocN(rectf);
+		ibuf->flags |= IB_rectfloat;
+		ibuf->mall |= IB_rectfloat;
+	}
+	if (rect) {
+		ibuf->rect = MEM_dupallocN(rect);
+		ibuf->flags |= IB_rect;
+		ibuf->mall |= IB_rect;
+	}
+
+	return ibuf;
+}
+
 bool imb_addtilesImBuf(ImBuf *ibuf)
 {
 	if (ibuf == NULL) return false;
@@ -441,10 +467,10 @@ ImBuf *IMB_dupImBuf(ImBuf *ibuf1)
 	if (ibuf2 == NULL) return NULL;
 
 	if (flags & IB_rect)
-		memcpy(ibuf2->rect, ibuf1->rect, x * y * sizeof(int));
+		memcpy(ibuf2->rect, ibuf1->rect, ((size_t)x) * y * sizeof(int));
 	
 	if (flags & IB_rectfloat)
-		memcpy(ibuf2->rect_float, ibuf1->rect_float, ibuf1->channels * x * y * sizeof(float));
+		memcpy(ibuf2->rect_float, ibuf1->rect_float, ((size_t)ibuf1->channels) * x * y * sizeof(float));
 
 	if (ibuf1->encodedbuffer) {
 		ibuf2->encodedbuffersize = ibuf1->encodedbuffersize;

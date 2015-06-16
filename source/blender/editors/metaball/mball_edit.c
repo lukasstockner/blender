@@ -47,7 +47,6 @@
 
 #include "RNA_define.h"
 #include "RNA_access.h"
-#include "RNA_enum_types.h"
 
 #include "BKE_depsgraph.h"
 #include "BKE_context.h"
@@ -584,7 +583,7 @@ bool mouse_mball(bContext *C, const int mval[2], bool extend, bool deselect, boo
 	MetaBall *mb = (MetaBall *)obedit->data;
 	MetaElem *ml, *ml_act = NULL;
 	int a, hits;
-	unsigned int buffer[4 * MAXPICKBUF];
+	unsigned int buffer[MAXPICKBUF];
 	rcti rect;
 
 	view3d_set_viewcontext(C, &vc);
@@ -742,29 +741,4 @@ static void *get_data(bContext *C)
 void undo_push_mball(bContext *C, const char *name)
 {
 	undo_editmode_push(C, name, get_data, free_undoMball, undoMball_to_editMball, editMball_to_undoMball, NULL);
-}
-
-void ED_mball_transform(MetaBall *mb, float mat[4][4])
-{
-	MetaElem *me;
-	float quat[4];
-	const float scale = mat4_to_scale(mat);
-	const float scale_sqrt = sqrtf(scale);
-
-	mat4_to_quat(quat, mat);
-
-	for (me = mb->elems.first; me; me = me->next) {
-		mul_m4_v3(mat, &me->x);
-		mul_qt_qtqt(me->quat, quat, me->quat);
-		me->rad *= scale;
-		/* hrmf, probably elems shouldn't be
-		 * treating scale differently - campbell */
-		if (!MB_TYPE_SIZE_SQUARED(me->type)) {
-			mul_v3_fl(&me->expx, scale);
-		}
-		else {
-			mul_v3_fl(&me->expx, scale_sqrt);
-		}
-	}
-	DAG_id_tag_update(&mb->id, 0);
 }

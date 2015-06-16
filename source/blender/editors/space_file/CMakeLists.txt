@@ -25,11 +25,13 @@ set(INC
 	../../blenlib
 	../../blenloader
 	../../imbuf
+	../../gpu
 	../../makesdna
 	../../makesrna
 	../../render/extern/include
 	../../windowmanager
 	../../../../intern/guardedalloc
+	../../../../intern/glew-mx
 )
 
 set(INC_SYS
@@ -40,6 +42,7 @@ set(SRC
 	file_draw.c
 	file_ops.c
 	file_panels.c
+	file_utils.c
 	filelist.c
 	filesel.c
 	fsmenu.c
@@ -85,6 +88,8 @@ endif()
 if(WITH_INTERNATIONAL)
 	add_definitions(-DWITH_INTERNATIONAL)
 endif()
+
+add_definitions(${GL_DEFINITIONS})
 
 if(WITH_FREESTYLE)
 	add_definitions(-DWITH_FREESTYLE)

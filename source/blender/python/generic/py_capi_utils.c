@@ -37,6 +37,8 @@
 
 #include "py_capi_utils.h"
 
+#include "../generic/python_utildefines.h"
+
 /* only for BLI_strncpy_wchar_from_utf8, should replace with py funcs but too late in release now */
 #include "BLI_string_utf8.h"
 
@@ -174,6 +176,17 @@ void PyC_Tuple_Fill(PyObject *tuple, PyObject *value)
 
 	for (i = 0; i < tot; i++) {
 		PyTuple_SET_ITEM(tuple, i, value);
+		Py_INCREF(value);
+	}
+}
+
+void PyC_List_Fill(PyObject *list, PyObject *value)
+{
+	unsigned int tot = PyList_GET_SIZE(list);
+	unsigned int i;
+
+	for (i = 0; i < tot; i++) {
+		PyList_SET_ITEM(list, i, value);
 		Py_INCREF(value);
 	}
 }
@@ -465,6 +478,34 @@ error_cleanup:
 }
 #endif
 
+PyObject *PyC_ExceptionBuffer_Simple(void)
+{
+	PyObject *string_io_buf;
+
+	PyObject *error_type, *error_value, *error_traceback;
+
+	if (!PyErr_Occurred())
+		return NULL;
+
+	PyErr_Fetch(&error_type, &error_value, &error_traceback);
+
+	if (error_value == NULL) {
+		return NULL;
+	}
+
+	string_io_buf = PyObject_Str(error_value);
+	/* Python does this too */
+	if (UNLIKELY(string_io_buf == NULL)) {
+		string_io_buf = PyUnicode_FromFormat(
+		        "<unprintable %s object>", Py_TYPE(error_value)->tp_name);
+	}
+
+	PyErr_Restore(error_type, error_value, error_traceback);
+
+	PyErr_Print();
+	PyErr_Clear();
+	return string_io_buf;
+}
 
 /* string conversion, escape non-unicode chars, coerce must be set to NULL */
 const char *PyC_UnicodeAsByte(PyObject *py_str, PyObject **coerce)
@@ -568,7 +609,7 @@ void PyC_MainModule_Restore(PyObject *main_mod)
 	Py_XDECREF(main_mod);
 }
 
-/* must be called before Py_Initialize, expects output of BLI_get_folder(BLENDER_PYTHON, NULL) */
+/* must be called before Py_Initialize, expects output of BKE_appdir_folder_id(BLENDER_PYTHON, NULL) */
 void PyC_SetHomePath(const char *py_path_bundle)
 {
 	if (py_path_bundle == NULL) {
@@ -664,8 +705,7 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
 				PyErr_Print();
 				PyErr_Clear();
 
-				PyList_SET_ITEM(values, i, Py_None); /* hold user */
-				Py_INCREF(Py_None);
+				PyList_SET_ITEM(values, i, Py_INCREF_RET(Py_None)); /* hold user */
 
 				sizes[i] = 0;
 			}

@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __BAKE_H__
@@ -31,6 +31,7 @@ public:
 	~BakeData();
 
 	void set(int i, int prim, float uv[2], float dudx, float dudy, float dvdx, float dvdy);
+	void set_null(int i);
 	int object();
 	size_t size();
 	uint4 data(int i);
@@ -60,6 +61,8 @@ public:
 
 	BakeData *init(const int object, const size_t tri_offset, const size_t num_pixels);
 
+	void set_shader_limit(const size_t x, const size_t y);
+
 	bool bake(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress, ShaderEvalType shader_type, BakeData *bake_data, float result[]);
 
 	void device_update(Device *device, DeviceScene *dscene, Scene *scene, Progress& progress);
@@ -76,6 +79,7 @@ public:
 private:
 	BakeData *m_bake_data;
 	bool m_is_baking;
+	size_t m_shader_limit;
 };
 
 CCL_NAMESPACE_END

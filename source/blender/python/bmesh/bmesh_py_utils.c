@@ -42,6 +42,8 @@
 #include "bmesh_py_types.h"
 #include "bmesh_py_utils.h" /* own include */
 
+#include "../generic/python_utildefines.h"
+
 
 PyDoc_STRVAR(bpy_bm_utils_vert_collapse_edge_doc,
 ".. method:: vert_collapse_edge(vert, edge)\n"
@@ -82,7 +84,7 @@ static PyObject *bpy_bm_utils_vert_collapse_edge(PyObject *UNUSED(self), PyObjec
 		return NULL;
 	}
 
-	if (BM_vert_edge_count(py_vert->v) > 2) {
+	if (BM_vert_edge_count_is_over(py_vert->v, 2)) {
 		PyErr_SetString(PyExc_ValueError,
 		                "vert_collapse_edge(vert, edge): vert has more than 2 connected edges");
 		return NULL;
@@ -148,7 +150,7 @@ static PyObject *bpy_bm_utils_vert_collapse_faces(PyObject *UNUSED(self), PyObje
 		return NULL;
 	}
 
-	if (BM_vert_edge_count(py_vert->v) > 2) {
+	if (BM_vert_edge_count_is_over(py_vert->v, 2)) {
 		PyErr_SetString(PyExc_ValueError,
 		                "vert_collapse_faces(vert, edge): vert has more than 2 connected edges");
 		return NULL;
@@ -251,8 +253,9 @@ static PyObject *bpy_bm_utils_vert_splice(PyObject *UNUSED(self), PyObject *args
 	}
 
 	/* should always succeed */
-	ok = BM_vert_splice(bm, py_vert->v, py_vert_target->v);
+	ok = BM_vert_splice(bm, py_vert_target->v, py_vert->v);
 	BLI_assert(ok == true);
+	UNUSED_VARS_NDEBUG(ok);
 
 	Py_RETURN_NONE;
 }
@@ -304,7 +307,7 @@ static PyObject *bpy_bm_utils_vert_separate(PyObject *UNUSED(self), PyObject *ar
 		return NULL;
 	}
 
-	BM_vert_separate(bm, py_vert->v, &elem, &elem_len, edge_array, edge_array_len);
+	BM_vert_separate(bm, py_vert->v, edge_array, edge_array_len, false, &elem, &elem_len);
 	/* return collected verts */
 	ret = BPy_BMVert_Array_As_Tuple(bm, elem, elem_len);
 	MEM_freeN(elem);
@@ -365,8 +368,9 @@ static PyObject *bpy_bm_utils_edge_split(PyObject *UNUSED(self), PyObject *args)
 
 	if (v_new && e_new) {
 		PyObject *ret = PyTuple_New(2);
-		PyTuple_SET_ITEM(ret, 0, BPy_BMEdge_CreatePyObject(bm, e_new));
-		PyTuple_SET_ITEM(ret, 1, BPy_BMVert_CreatePyObject(bm, v_new));
+		PyTuple_SET_ITEMS(ret,
+		        BPy_BMEdge_CreatePyObject(bm, e_new),
+		        BPy_BMVert_CreatePyObject(bm, v_new));
 		return ret;
 	}
 	else {
@@ -524,8 +528,9 @@ static PyObject *bpy_bm_utils_face_split(PyObject *UNUSED(self), PyObject *args,
 
 	if (f_new && l_new) {
 		PyObject *ret = PyTuple_New(2);
-		PyTuple_SET_ITEM(ret, 0, BPy_BMFace_CreatePyObject(bm, f_new));
-		PyTuple_SET_ITEM(ret, 1, BPy_BMLoop_CreatePyObject(bm, l_new));
+		PyTuple_SET_ITEMS(ret,
+		        BPy_BMFace_CreatePyObject(bm, f_new),
+		        BPy_BMLoop_CreatePyObject(bm, l_new));
 		return ret;
 	}
 	else {
@@ -665,7 +670,7 @@ PyDoc_STRVAR(bpy_bm_utils_face_vert_separate_doc,
 "   :type face: :class:`bmesh.types.BMFace`\n"
 "   :arg vert: A vertex in the face to separate.\n"
 "   :type vert: :class:`bmesh.types.BMVert`\n"
-"   :return vert: The newly created vertex or None of failure.\n"
+"   :return vert: The newly created vertex or None on failure.\n"
 "   :rtype vert: :class:`bmesh.types.BMVert`\n"
 "\n"
 "   .. note::\n"
@@ -679,7 +684,7 @@ static PyObject *bpy_bm_utils_face_vert_separate(PyObject *UNUSED(self), PyObjec
 
 	BMesh *bm;
 	BMLoop *l;
-	BMVert *v_new;
+	BMVert *v_old, *v_new;
 
 	if (!PyArg_ParseTuple(args, "O!O!:face_vert_separate",
 	                      &BPy_BMFace_Type, &py_face,
@@ -701,9 +706,10 @@ static PyObject *bpy_bm_utils_face_vert_separate(PyObject *UNUSED(self), PyObjec
 		return NULL;
 	}
 
+	v_old = l->v;
 	v_new = BM_face_loop_separate(bm, l);
 
-	if (v_new != l->v) {
+	if (v_new != v_old) {
 		return BPy_BMVert_CreatePyObject(bm, v_new);
 	}
 	else {
@@ -743,15 +749,16 @@ PyDoc_STRVAR(bpy_bm_utils_loop_separate_doc,
 "\n"
 "   Rip a vertex in a face away and add a new vertex.\n"
 "\n"
-"   :arg loop: The to separate.\n"
-"   :type loop: :class:`bmesh.types.BMFace`\n"
-"   :return vert: The newly created vertex or None of failure.\n"
+"   :arg loop: The loop to separate.\n"
+"   :type loop: :class:`bmesh.types.BMLoop`\n"
+"   :return vert: The newly created vertex or None on failure.\n"
 "   :rtype vert: :class:`bmesh.types.BMVert`\n"
 );
 static PyObject *bpy_bm_utils_loop_separate(PyObject *UNUSED(self), BPy_BMLoop *value)
 {
 	BMesh *bm;
-	BMVert *v_new;
+	BMLoop *l;
+	BMVert *v_old, *v_new;
 
 	if (!BPy_BMLoop_Check(value)) {
 		PyErr_Format(PyExc_TypeError,
@@ -763,10 +770,12 @@ static PyObject *bpy_bm_utils_loop_separate(PyObject *UNUSED(self), BPy_BMLoop *
 	BPY_BM_CHECK_OBJ(value);
 
 	bm = value->bm;
+	l = value->l;
 
-	v_new = BM_face_loop_separate(bm, value->l);
+	v_old = l->v;
+	v_new = BM_face_loop_separate(bm, l);
 
-	if (v_new != value->l->v) {
+	if (v_new != v_old) {
 		return BPy_BMVert_CreatePyObject(bm, v_new);
 	}
 	else {

@@ -46,6 +46,8 @@
 #include "BKE_cdderivedmesh.h"
 
 #include "depsgraph_private.h"
+#include "DEG_depsgraph_build.h"
+
 #include "MOD_modifiertypes.h"
 #include "MEM_guardedalloc.h"
 
@@ -138,15 +140,15 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	DerivedMesh *dm = derivedData;
 	DerivedMesh *result;
 	ScrewModifierData *ltmd = (ScrewModifierData *) md;
-	const int useRenderParams = flag & MOD_APPLY_RENDER;
+	const bool use_render_params = (flag & MOD_APPLY_RENDER) != 0;
 	
 	int *origindex;
 	int mpoly_index = 0;
 	unsigned int step;
 	unsigned int i, j;
 	unsigned int i1, i2;
-	unsigned int step_tot = useRenderParams ? ltmd->render_steps : ltmd->steps;
-	const bool do_flip = ltmd->flag & MOD_SCREW_NORMAL_FLIP ? 1 : 0;
+	unsigned int step_tot = use_render_params ? ltmd->render_steps : ltmd->steps;
+	const bool do_flip = (ltmd->flag & MOD_SCREW_NORMAL_FLIP) != 0;
 
 	const int quad_ord[4] = {
 	    do_flip ? 3 : 0,
@@ -156,9 +158,9 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 	};
 	const int quad_ord_ofs[4] = {
 	    do_flip ? 2 : 0,
-	    do_flip ? 1 : 1,
+	    1,
 	    do_flip ? 0 : 2,
-	    do_flip ? 3 : 3,
+	    3,
 	};
 
 	unsigned int maxVerts = 0, maxEdges = 0, maxPolys = 0;
@@ -362,7 +364,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 		if (ltmd->flag & MOD_SCREW_UV_STRETCH_V) {
 			for (i = 0, mv_orig = mvert_orig; i < totvert; i++, mv_orig++) {
-				const float v = dist_squared_to_plane_v3(mv_orig->co, uv_axis_plane);
+				const float v = dist_signed_squared_to_plane_v3(mv_orig->co, uv_axis_plane);
 				uv_v_minmax[0] = min_ff(v, uv_v_minmax[0]);
 				uv_v_minmax[1] = max_ff(v, uv_v_minmax[1]);
 			}
@@ -897,8 +899,8 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 		}
 
 		if (has_mloop_orig == false && mloopuv_layers_tot) {
-			uv_v_offset_a = dist_to_plane_v3(mvert_new[medge_new[i].v1].co, uv_axis_plane);
-			uv_v_offset_b = dist_to_plane_v3(mvert_new[medge_new[i].v2].co, uv_axis_plane);
+			uv_v_offset_a = dist_signed_to_plane_v3(mvert_new[medge_new[i].v1].co, uv_axis_plane);
+			uv_v_offset_b = dist_signed_to_plane_v3(mvert_new[medge_new[i].v2].co, uv_axis_plane);
 
 			if (ltmd->flag & MOD_SCREW_UV_STRETCH_V) {
 				uv_v_offset_a = (uv_v_offset_a - uv_v_minmax[0]) * uv_v_range_inv;
@@ -1058,6 +1060,7 @@ static DerivedMesh *applyModifier(ModifierData *md, Object *ob,
 
 
 static void updateDepgraph(ModifierData *md, DagForest *forest,
+                           struct Main *UNUSED(bmain),
                            struct Scene *UNUSED(scene),
                            Object *UNUSED(ob),
                            DagNode *obNode)
@@ -1070,6 +1073,18 @@ static void updateDepgraph(ModifierData *md, DagForest *forest,
 		dag_add_relation(forest, curNode, obNode,
 		                 DAG_RL_DATA_DATA | DAG_RL_OB_DATA,
 		                 "Screw Modifier");
+	}
+}
+
+static void updateDepsgraph(ModifierData *md,
+                            struct Main *UNUSED(bmain),
+                            struct Scene *UNUSED(scene),
+                            Object *UNUSED(ob),
+                            struct DepsNodeHandle *node)
+{
+	ScrewModifierData *ltmd = (ScrewModifierData *)md;
+	if (ltmd->ob_axis != NULL) {
+		DEG_add_object_relation(node, ltmd->ob_axis, DEG_OB_COMP_TRANSFORM, "Screw Modifier");
 	}
 }
 
@@ -1106,6 +1121,7 @@ ModifierTypeInfo modifierType_Screw = {
 	/* freeData */          NULL,
 	/* isDisabled */        NULL,
 	/* updateDepgraph */    updateDepgraph,
+	/* updateDepsgraph */   updateDepsgraph,
 	/* dependsOnTime */     NULL,
 	/* dependsOnNormals */	NULL,
 	/* foreachObjectLink */ foreachObjectLink,

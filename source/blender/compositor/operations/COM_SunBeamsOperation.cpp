@@ -50,34 +50,52 @@ void SunBeamsOperation::initExecution()
  * For a target point (x,y) the sector should be chosen such that
  *   ``u >= v >= 0``
  * This removes the need to handle all sorts of special cases.
+ * 
+ * Template parameters:
+ * fxu : buffer increment in x for sector u+1
+ * fxv : buffer increment in x for sector v+1
+ * fyu : buffer increment in y for sector u+1
+ * fyv : buffer increment in y for sector v+1
  */
-template <int fxx, int fxy, int fyx, int fyy>
+template <int fxu, int fxv, int fyu, int fyv>
 struct BufferLineAccumulator {
 
 	/* utility functions implementing the matrix transform to/from sector space */
-
-	static inline void buffer_to_sector(int x, int y, int &u, int &v)
+	
+	static inline void buffer_to_sector(const float source[2], int x, int y, int &u, int &v)
 	{
-		u = x * fxx + y * fyx;
-		v = x * fxy + y * fyy;
+		int x0 = (int)source[0];
+		int y0 = (int)source[1];
+		x -= x0;
+		y -= y0;
+		u = x * fxu + y * fyu;
+		v = x * fxv + y * fyv;
 	}
 
-	static inline void buffer_to_sector(float x, float y, float &u, float &v)
+	static inline void buffer_to_sector(const float source[2], float x, float y, float &u, float &v)
 	{
-		u = x * fxx + y * fyx;
-		v = x * fxy + y * fyy;
+		int x0 = (int)source[0];
+		int y0 = (int)source[1];
+		x -= (float)x0;
+		y -= (float)y0;
+		u = x * fxu + y * fyu;
+		v = x * fxv + y * fyv;
 	}
 
-	static inline void sector_to_buffer(int u, int v, int &x, int &y)
+	static inline void sector_to_buffer(const float source[2], int u, int v, int &x, int &y)
 	{
-		x = u * fxx + v * fxy;
-		y = u * fyx + v * fyy;
+		int x0 = (int)source[0];
+		int y0 = (int)source[1];
+		x = x0 + u * fxu + v * fxv;
+		y = y0 + u * fyu + v * fyv;
 	}
 
-	static inline void sector_to_buffer(float u, float v, float &x, float &y)
+	static inline void sector_to_buffer(const float source[2], float u, float v, float &x, float &y)
 	{
-		x = u * fxx + v * fxy;
-		y = u * fyx + v * fyy;
+		int x0 = (int)source[0];
+		int y0 = (int)source[1];
+		x = (float)x0 + u * fxu + v * fxv;
+		y = (float)y0 + u * fyu + v * fyv;
 	}
 
 	/**
@@ -91,29 +109,33 @@ struct BufferLineAccumulator {
 	 * \param num  Total steps in the loop
 	 * \param v, dv  Vertical offset in sector space, for line offset perpendicular to the loop axis
 	 */
-	static float *init_buffer_iterator(MemoryBuffer *input, const float source[2], const float pt_ofs[2],
+	static float *init_buffer_iterator(MemoryBuffer *input, const float source[2], const float co[2],
 	                                   float dist_min, float dist_max,
-	                                   int &x, int &y, int &num, float &v, float &dv)
+	                                   int &x, int &y, int &num, float &v, float &dv, float &falloff_factor)
 	{
 		float pu, pv;
-		buffer_to_sector(pt_ofs[0], pt_ofs[1], pu, pv);
+		buffer_to_sector(source, co[0], co[1], pu, pv);
 
 		/* line angle */
 		float tan_phi = pv / pu;
-		float cos_phi = 1.0f / sqrtf(tan_phi * tan_phi + 1.0f);
+		float dr = sqrtf(tan_phi * tan_phi + 1.0f);
+		float cos_phi = 1.0f / dr;
 
-		float umin = pu - cos_phi * dist_min;
-		float umax = pu - cos_phi * dist_max;
+		/* clamp u range to avoid influence of pixels "behind" the source */
+		float umin = max_ff(pu - cos_phi * dist_min, 0.0f);
+		float umax = max_ff(pu - cos_phi * dist_max, 0.0f);
 		v = umin * tan_phi;
 		dv = tan_phi;
 
-		sector_to_buffer(umin, v, x, y);
-		x += source[0];
-		y += source[1];
+		int start = (int)floorf(umax);
+		int end = (int)ceilf(umin);
+		num = end - start;
 
-		num = (int)ceilf(umin) - max_ii((int)floorf(umax), 1);
+		sector_to_buffer(source, end, (int)ceilf(v), x, y);
 
-		float *iter = input->getBuffer() + COM_NUMBER_OF_CHANNELS * (x + input->getWidth() * y);
+		falloff_factor = dist_max > dist_min ? dr / (float)(dist_max - dist_min) : 0.0f;
+
+		float *iter = input->getBuffer() + COM_NUM_CHANNELS_COLOR * (x + input->getWidth() * y);
 		return iter;
 	}
 
@@ -124,31 +146,45 @@ struct BufferLineAccumulator {
 	 * The loop runs backwards(!) over the primary sector space axis u, i.e. increasing distance to pt.
 	 * After each step it decrements v by dv < 1, adding a buffer shift when necessary.
 	 */
-	static void eval(MemoryBuffer *input, float output[4], const float pt_ofs[2], const float source[2],
+	static void eval(MemoryBuffer *input, float output[4], const float co[2], const float source[2],
 	                 float dist_min, float dist_max)
 	{
 		rcti rect = *input->getRect();
 		int buffer_width = input->getWidth();
 		int x, y, num;
 		float v, dv;
+		float falloff_factor;
+		float border[4];
+		
+		zero_v4(output);
+		
+		if ((int)(co[0] - source[0]) == 0 && (int)(co[1] - source[1]) == 0) {
+			copy_v4_v4(output, input->getBuffer() + COM_NUM_CHANNELS_COLOR * ((int)source[0] + input->getWidth() * (int)source[1]));
+			return;
+		}
 
 		/* initialise the iteration variables */
-		float *buffer = init_buffer_iterator(input, source, pt_ofs, dist_min, dist_max, x, y, num, v, dv);
-
-		float falloff_factor = num > 1 ? 1.0f / (float)(num - 1) : 0.0f;
-
-		int tot = 0;
+		float *buffer = init_buffer_iterator(input, source, co, dist_min, dist_max, x, y, num, v, dv, falloff_factor);
+		zero_v3(border);
+		border[3] = 1.0f;
 
 		/* v_local keeps track of when to decrement v (see below) */
 		float v_local = v - floorf(v);
 
 		for (int i = 0; i < num; i++) {
-			/* range check, abort when running beyond the image border */
-			if (x < rect.xmin || x >= rect.xmax || y < rect.ymin || y >= rect.ymax)
-				break;
-
-			float f = 1.0f - (float)i * falloff_factor;
-			madd_v4_v4fl(output, buffer, buffer[3] * f * f);
+			float weight = 1.0f - (float)i * falloff_factor;
+			weight *= weight;
+			
+			/* range check, use last valid color when running beyond the image border */
+			if (x >= rect.xmin && x < rect.xmax && y >= rect.ymin && y < rect.ymax) {
+				madd_v4_v4fl(output, buffer, buffer[3] * weight);
+				/* use as border color in case subsequent pixels are out of bounds */
+				copy_v4_v4(border, buffer);
+			}
+			else {
+				madd_v4_v4fl(output, border, border[3] * weight);
+			}
+			
 			/* TODO implement proper filtering here, see
 			 * http://en.wikipedia.org/wiki/Lanczos_resampling
 			 * http://en.wikipedia.org/wiki/Sinc_function
@@ -156,23 +192,22 @@ struct BufferLineAccumulator {
 			 * using lanczos with x = distance from the line segment,
 			 * normalized to a == 0.5f, could give a good result
 			 *
-			 * for now just count samples and divide equally at the end ...
+			 * for now just divide equally at the end ...
 			 */
-			tot++;
 
 			/* decrement u */
-			x -= fxx;
-			y -= fyx;
-			buffer -= (fxx + fyx * buffer_width) * COM_NUMBER_OF_CHANNELS;
+			x -= fxu;
+			y -= fyu;
+			buffer -= (fxu + fyu * buffer_width) * COM_NUM_CHANNELS_COLOR;
 
 			/* decrement v (in steps of dv < 1) */
 			v_local -= dv;
 			if (v_local < 0.0f) {
 				v_local += 1.0f;
 
-				x -= fxy;
-				y -= fyy;
-				buffer -= (fxy + fyy * buffer_width) * COM_NUMBER_OF_CHANNELS;
+				x -= fxv;
+				y -= fyv;
+				buffer -= (fxv + fyv * buffer_width) * COM_NUM_CHANNELS_COLOR;
 			}
 		}
 
@@ -216,21 +251,21 @@ static void accumulate_line(MemoryBuffer *input, float output[4], const float co
 		if (pt_ofs[0] > 0.0f) {
 			if (pt_ofs[1] > 0.0f) {
 				/* 2 */
-				BufferLineAccumulator<0,  1,  1, 0>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator<0,  1,  1, 0>::eval(input, output, co, source, dist_min, dist_max);
 			}
 			else {
 				/* 7 */
-				BufferLineAccumulator<0,  1, -1, 0>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator<0,  1, -1, 0>::eval(input, output, co, source, dist_min, dist_max);
 			}
 		}
 		else {
 			if (pt_ofs[1] > 0.0f) {
 				/* 3 */
-				BufferLineAccumulator<0, -1,  1, 0>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator<0, -1,  1, 0>::eval(input, output, co, source, dist_min, dist_max);
 			}
 			else {
 				/* 6 */
-				BufferLineAccumulator<0, -1, -1, 0>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator<0, -1, -1, 0>::eval(input, output, co, source, dist_min, dist_max);
 			}
 		}
 	}
@@ -238,27 +273,27 @@ static void accumulate_line(MemoryBuffer *input, float output[4], const float co
 		if (pt_ofs[0] > 0.0f) {
 			if (pt_ofs[1] > 0.0f) {
 				/* 1 */
-				BufferLineAccumulator< 1, 0, 0,  1>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator< 1, 0, 0,  1>::eval(input, output, co, source, dist_min, dist_max);
 			}
 			else {
 				/* 8 */
-				BufferLineAccumulator< 1, 0, 0, -1>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator< 1, 0, 0, -1>::eval(input, output, co, source, dist_min, dist_max);
 			}
 		}
 		else {
 			if (pt_ofs[1] > 0.0f) {
 				/* 4 */
-				BufferLineAccumulator<-1, 0, 0,  1>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator<-1, 0, 0,  1>::eval(input, output, co, source, dist_min, dist_max);
 			}
 			else {
 				/* 5 */
-				BufferLineAccumulator<-1, 0, 0, -1>::eval(input, output, pt_ofs, source, dist_min, dist_max);
+				BufferLineAccumulator<-1, 0, 0, -1>::eval(input, output, co, source, dist_min, dist_max);
 			}
 		}
 	}
 }
 
-void *SunBeamsOperation::initializeTileData(rcti *rect)
+void *SunBeamsOperation::initializeTileData(rcti * /*rect*/)
 {
 	void *buffer = getInputOperation(0)->initializeTileData(NULL);
 	return buffer;
@@ -273,7 +308,7 @@ void SunBeamsOperation::executePixel(float output[4], int x, int y, void *data)
 
 static void calc_ray_shift(rcti *rect, float x, float y, const float source[2], float ray_length)
 {
-	float co[2] = {x, y};
+	float co[2] = {(float)x, (float)y};
 	float dir[2], dist;
 
 	/* move (x,y) vector toward the source by ray_length distance */

@@ -27,6 +27,7 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_compiler_attrs.h"
+#include "BLI_string.h"
 
 /* for MinGW32 definition of NULL, could use BLI_blenlib.h instead too */
 #include <stddef.h>
@@ -35,31 +36,41 @@
 #define DNA_DEPRECATED_ALLOW
 
 #include "DNA_brush_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_cloth_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_sdna_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_space_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_actuator_types.h"
+#include "DNA_camera_types.h"
+#include "DNA_view3d_types.h"
 
 #include "DNA_genfile.h"
 
-#include "BLI_blenlib.h"
-#include "BLI_math.h"
-
 #include "BKE_main.h"
+#include "BKE_modifier.h"
 #include "BKE_node.h"
+#include "BKE_scene.h"
+#include "BKE_sequencer.h"
+#include "BKE_screen.h"
+#include "BKE_sequencer.h"
 
 #include "BLI_math.h"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLO_readfile.h"
 
 #include "readfile.h"
 
+#include "MEM_guardedalloc.h"
 
 static void do_version_constraints_radians_degrees_270_1(ListBase *lb)
 {
@@ -108,6 +119,19 @@ static void do_version_constraints_radians_degrees_270_5(ListBase *lb)
 				copy_v3_v3(data->to_min_scale, data->to_min);
 				copy_v3_v3(data->to_max_scale, data->to_max);
 			}
+		}
+	}
+}
+
+static void do_version_constraints_stretch_to_limits(ListBase *lb)
+{
+	bConstraint *con;
+
+	for (con = lb->first; con; con = con->next) {
+		if (con->type == CONSTRAINT_TYPE_STRETCHTO) {
+			bStretchToConstraint *data = (bStretchToConstraint *)con->data;
+			data->bulge_min = 1.0f;
+			data->bulge_max = 1.0f;
 		}
 	}
 }
@@ -295,7 +319,7 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		{
 			Scene *scene;
 			for (scene = main->scene.first; scene; scene = scene->id.next) {
-				int num_layers = BLI_countlist(&scene->r.layers);
+				int num_layers = BLI_listbase_count(&scene->r.layers);
 				scene->r.actlay = min_ff(scene->r.actlay, num_layers - 1);
 			}
 		}
@@ -348,12 +372,477 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 		for (br = main->brush.first; br; br = br->id.next) {
 			br->fill_threshold = 0.2f;
 		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "BevelModifierData", "int", "mat")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Bevel) {
+						BevelModifierData *bmd = (BevelModifierData *)md;
+						bmd->mat = -1;
+					}
+				}
+			}
+		}
 	}
 
-	if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
+	if (!MAIN_VERSION_ATLEAST(main, 271, 6)) {
+		Object *ob;
+		for (ob = main->object.first; ob; ob = ob->id.next) {
+			ModifierData *md;
+
+			for (md = ob->modifiers.first; md; md = md->next) {
+				if (md->type == eModifierType_ParticleSystem) {
+					ParticleSystemModifierData *pmd = (ParticleSystemModifierData *)md;
+					if (pmd->psys && pmd->psys->clmd) {
+						pmd->psys->clmd->sim_parms->vel_damping = 1.0f;
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 0)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "int", "preview_start_resolution")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->r.preview_start_resolution = 64;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 1)) {
+		Brush *br;
+		for (br = main->brush.first; br; br = br->id.next) {
+			if ((br->ob_mode & OB_MODE_SCULPT) && ELEM(br->sculpt_tool, SCULPT_TOOL_GRAB, SCULPT_TOOL_SNAKE_HOOK))
+				br->alpha = 1.0f;
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 272, 2)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Image", "float", "gen_color")) {
+			Image *image;
+			for (image = main->image.first; image != NULL; image = image->id.next) {
+				image->gen_color[3] = 1.0f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "bStretchToConstraint", "float", "bulge_min")) {
+			Object *ob;
+
+			/* Update Transform constraint (again :|). */
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				do_version_constraints_stretch_to_limits(&ob->constraints);
+
+				if (ob->pose) {
+					/* Bones constraints! */
+					bPoseChannel *pchan;
+					for (pchan = ob->pose->chanbase.first; pchan; pchan = pchan->next) {
+						do_version_constraints_stretch_to_limits(&pchan->constraints);
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 1)) {
+#define	BRUSH_RAKE (1 << 7)
+#define BRUSH_RANDOM_ROTATION (1 << 25)
+
+		Brush *br;
+
+		for (br = main->brush.first; br; br = br->id.next) {
+			if (br->flag & BRUSH_RAKE) {
+				br->mtex.brush_angle_mode |= MTEX_ANGLE_RAKE;
+				br->mask_mtex.brush_angle_mode |= MTEX_ANGLE_RAKE;
+			}
+			else if (br->flag & BRUSH_RANDOM_ROTATION) {
+				br->mtex.brush_angle_mode |= MTEX_ANGLE_RANDOM;
+				br->mask_mtex.brush_angle_mode |= MTEX_ANGLE_RANDOM;
+			}
+			br->mtex.random_angle = 2.0 * M_PI;
+			br->mask_mtex.random_angle = 2.0 * M_PI;
+		}
+	}
+
+#undef BRUSH_RAKE
+#undef BRUSH_RANDOM_ROTATION
+
+	/* Customizable Safe Areas */
+	if (!MAIN_VERSION_ATLEAST(main, 273, 2)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "Scene", "DisplaySafeAreas", "safe_areas")) {
+			Scene *scene;
+
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				copy_v2_fl2(scene->safe_areas.title, 3.5f / 100.0f, 3.5f / 100.0f);
+				copy_v2_fl2(scene->safe_areas.action, 10.0f / 100.0f, 5.0f / 100.0f);
+				copy_v2_fl2(scene->safe_areas.title_center, 17.5f / 100.0f, 5.0f / 100.0f);
+				copy_v2_fl2(scene->safe_areas.action_center, 15.0f / 100.0f, 5.0f / 100.0f);
+			}
+		}
+	}
+	
+	if (!MAIN_VERSION_ATLEAST(main, 273, 3)) {
+		ParticleSettings *part;
+		for (part = main->particle.first; part; part = part->id.next) {
+			if (part->clumpcurve)
+				part->child_flag |= PART_CHILD_USE_CLUMP_CURVE;
+			if (part->roughcurve)
+				part->child_flag |= PART_CHILD_USE_ROUGH_CURVE;
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 6)) {
+		if (!DNA_struct_elem_find(fd->filesdna, "ClothSimSettings", "float", "bending_damping")) {
+			Object *ob;
+			ModifierData *md;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Cloth) {
+						ClothModifierData *clmd = (ClothModifierData *)md;
+						clmd->sim_parms->bending_damping = 0.5f;
+					}
+					else if (md->type == eModifierType_ParticleSystem) {
+						ParticleSystemModifierData *pmd = (ParticleSystemModifierData *)md;
+						if (pmd->psys->clmd) {
+							pmd->psys->clmd->sim_parms->bending_damping = 0.5f;
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "float", "clump_noise_size")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				part->clump_noise_size = 1.0f;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "ParticleSettings", "int", "kink_extra_steps")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				part->kink_extra_steps = 4;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "MTex", "float", "kinkampfac")) {
+			ParticleSettings *part;
+			for (part = main->particle.first; part; part = part->id.next) {
+				int a;
+				for (a = 0; a < MAX_MTEX; a++) {
+					MTex *mtex = part->mtex[a];
+					if (mtex) {
+						mtex->kinkampfac = 1.0f;
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "HookModifierData", "char", "flag")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Hook) {
+						HookModifierData *hmd = (HookModifierData *)md;
+						hmd->falloff_type = eHook_Falloff_InvSquare;
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "NodePlaneTrackDeformData", "char", "flag")) {
+			FOREACH_NODETREE(main, ntree, id) {
+				if (ntree->type == NTREE_COMPOSIT) {
+					bNode *node;
+					for (node = ntree->nodes.first; node; node = node->next) {
+						if (ELEM(node->type, CMP_NODE_PLANETRACKDEFORM)) {
+							NodePlaneTrackDeformData *data = node->storage;
+							data->flag = 0;
+							data->motion_blur_samples = 16;
+							data->motion_blur_shutter = 0.5f;
+						}
+					}
+				}
+			}
+			FOREACH_NODETREE_END
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "Camera", "GPUDOFSettings", "gpu_dof")) {
+			Camera *ca;
+			for (ca = main->camera.first; ca; ca = ca->id.next) {
+				ca->gpu_dof.fstop = 128.0f;
+				ca->gpu_dof.focal_length = 1.0f;
+				ca->gpu_dof.focus_distance = 1.0f;
+				ca->gpu_dof.sensor = 1.0f;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 7)) {
+		bScreen *scr;
+		ScrArea *sa;
+		SpaceLink *sl;
+		ARegion *ar;
+
+		for (scr = main->screen.first; scr; scr = scr->id.next) {
+			/* Remove old deprecated region from filebrowsers */
+			for (sa = scr->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_FILE) {
+						for (ar = sl->regionbase.first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_CHANNELS) {
+								break;
+							}
+						}
+
+						if (ar) {
+							/* Free old deprecated 'channel' region... */
+							BKE_area_region_free(NULL, ar);
+							BLI_freelinkN(&sl->regionbase, ar);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 8)) {
+		Object *ob;
+		for (ob = main->object.first; ob != NULL; ob = ob->id.next) {
+			ModifierData *md;
+			for (md = ob->modifiers.last; md != NULL; md = md->prev) {
+				if (modifier_unique_name(&ob->modifiers, md)) {
+					printf("Warning: Object '%s' had several modifiers with the "
+					       "same name, renamed one of them to '%s'.\n",
+					       ob->id.name + 2, md->name);
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 273, 9)) {
+		bScreen *scr;
+		ScrArea *sa;
+		SpaceLink *sl;
+		ARegion *ar;
+
+		/* Make sure sequencer preview area limits zoom */
+		for (scr = main->screen.first; scr; scr = scr->id.next) {
+			for (sa = scr->areabase.first; sa; sa = sa->next) {
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					if (sl->spacetype == SPACE_SEQ) {
+						for (ar = sl->regionbase.first; ar; ar = ar->next) {
+							if (ar->regiontype == RGN_TYPE_PREVIEW) {
+								ar->v2d.keepzoom |= V2D_LIMITZOOM;
+								ar->v2d.minzoom = 0.001f;
+								ar->v2d.maxzoom = 1000.0f;
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 1)) {
+		/* particle systems need to be forced to redistribute for jitter mode fix */
+		{
+			Object *ob;
+			ParticleSystem *psys;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				for (psys = ob->particlesystem.first; psys; psys = psys->next) {
+					psys->recalc |= PSYS_RECALC_RESET;
+				}
+			}
+		}
+
+		/* hysteresis setted to 10% but not actived */
+		if (!DNA_struct_elem_find(fd->filesdna, "LodLevel", "int", "obhysteresis")) {
+			Object *ob;
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				LodLevel *level;
+				for (level = ob->lodlevels.first; level; level = level->next) {
+					level->obhysteresis = 10;
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "GameData", "int", "scehysteresis")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene; scene = scene->id.next) {
+				scene->gm.scehysteresis = 10;
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 2)) {
+		FOREACH_NODETREE(main, ntree, id) {
+			bNode *node;
+			bNodeSocket *sock;
+
+			for (node = ntree->nodes.first; node; node = node->next) {
+				if (node->type == SH_NODE_MATERIAL) {
+					for (sock = node->inputs.first; sock; sock = sock->next) {
+						if (STREQ(sock->name, "Refl")) {
+							BLI_strncpy(sock->name, "DiffuseIntensity", sizeof(sock->name));
+						}
+					}
+				}
+				else if (node->type == SH_NODE_MATERIAL_EXT) {
+					for (sock = node->outputs.first; sock; sock = sock->next) {
+						if (STREQ(sock->name, "Refl")) {
+							BLI_strncpy(sock->name, "DiffuseIntensity", sizeof(sock->name));
+						}
+						else if (STREQ(sock->name, "Ray Mirror")) {
+							BLI_strncpy(sock->name, "Reflectivity", sizeof(sock->name));
+						}
+					}
+				}
+			}
+		} FOREACH_NODETREE_END
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 4)) {
+		SceneRenderView *srv;
+		wmWindowManager *wm;
+		bScreen *screen;
+		wmWindow *win;
 		Scene *scene;
+		Camera *cam;
+		Image *ima;
+
 		for (scene = main->scene.first; scene; scene = scene->id.next) {
-			scene->r.preview_start_resolution = 64;
+			Sequence *seq;
+
+			BKE_scene_add_render_view(scene, STEREO_LEFT_NAME);
+			srv = scene->r.views.first;
+			BLI_strncpy(srv->suffix, STEREO_LEFT_SUFFIX, sizeof(srv->suffix));
+
+			BKE_scene_add_render_view(scene, STEREO_RIGHT_NAME);
+			srv = scene->r.views.last;
+			BLI_strncpy(srv->suffix, STEREO_RIGHT_SUFFIX, sizeof(srv->suffix));
+
+			SEQ_BEGIN (scene->ed, seq)
+			{
+				seq->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
+
+#define SEQ_USE_PROXY_CUSTOM_DIR (1 << 19)
+#define SEQ_USE_PROXY_CUSTOM_FILE (1 << 21)
+				if (seq->strip && seq->strip->proxy && !seq->strip->proxy->storage) {
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_DIR)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_DIR;
+					if (seq->flag & SEQ_USE_PROXY_CUSTOM_FILE)
+						seq->strip->proxy->storage = SEQ_STORAGE_PROXY_CUSTOM_FILE;
+				}
+#undef SEQ_USE_PROXY_CUSTOM_DIR
+#undef SEQ_USE_PROXY_CUSTOM_FILE
+
+			}
+			SEQ_END
+		}
+
+		for (screen = main->screen.first; screen; screen = screen->id.next) {
+			ScrArea *sa;
+			for (sa = screen->areabase.first; sa; sa = sa->next) {
+				SpaceLink *sl;
+
+				for (sl = sa->spacedata.first; sl; sl = sl->next) {
+					switch (sl->spacetype) {
+						case SPACE_VIEW3D:
+						{
+							View3D *v3d = (View3D *)sl;
+							v3d->stereo3d_camera = STEREO_3D_ID;
+							v3d->stereo3d_flag |= V3D_S3D_DISPPLANE;
+							v3d->stereo3d_convergence_alpha = 0.15f;
+							v3d->stereo3d_volume_alpha = 0.05f;
+							break;
+						}
+						case SPACE_IMAGE:
+						{
+							SpaceImage *sima = (SpaceImage *) sl;
+							sima->iuser.flag |= IMA_SHOW_STEREO;
+							sima->iuser.passtype = SCE_PASS_COMBINED;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		for (cam = main->camera.first; cam; cam = cam->id.next) {
+			cam->stereo.interocular_distance = 0.065f;
+			cam->stereo.convergence_distance = 30.0f * 0.065f;
+		}
+
+		for (ima = main->image.first; ima; ima = ima->id.next) {
+			ima->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Image Stereo 3d Format");
+
+			if (ima->packedfile) {
+				ImagePackedFile *imapf = MEM_mallocN(sizeof(ImagePackedFile), "Image Packed File");
+				BLI_addtail(&ima->packedfiles, imapf);
+
+				imapf->packedfile = ima->packedfile;
+				BLI_strncpy(imapf->filepath, ima->name, FILE_MAX);
+				ima->packedfile = NULL;
+			}
+		}
+
+		for (wm = main->wm.first; wm; wm = wm->id.next) {
+			for (win = wm->windows.first; win; win = win->next) {
+				win->stereo3d_format = MEM_callocN(sizeof(Stereo3dFormat), "Stereo Display 3d Format");
+			}
+		}
+	}
+
+	if (!MAIN_VERSION_ATLEAST(main, 274, 6)) {
+		bScreen *screen;
+
+		if (!DNA_struct_elem_find(fd->filesdna, "FileSelectParams", "int", "thumbnail_size")) {
+			for (screen = main->screen.first; screen; screen = screen->id.next) {
+				ScrArea *sa;
+
+				for (sa = screen->areabase.first; sa; sa = sa->next) {
+					SpaceLink *sl;
+
+					for (sl = sa->spacedata.first; sl; sl = sl->next) {
+						if (sl->spacetype == SPACE_FILE) {
+							SpaceFile *sfile = (SpaceFile *)sl;
+
+							if (sfile->params) {
+								sfile->params->thumbnail_size = 128;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "RenderData", "short", "simplify_subsurf_render")) {
+			Scene *scene;
+			for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
+				scene->r.simplify_subsurf_render = scene->r.simplify_subsurf;
+				scene->r.simplify_particles_render = scene->r.simplify_particles;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "DecimateModifierData", "float", "defgrp_factor")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Decimate) {
+						DecimateModifierData *dmd = (DecimateModifierData *)md;
+						dmd->defgrp_factor = 1.0f;
+					}
+				}
+			}
 		}
 	}
 }

@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #include "camera.h"
@@ -80,22 +80,13 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			pass.components = 1;
 			break;
 		case PASS_OBJECT_ID:
-			pass.components = 1;
-			pass.filter = false;
-			break;
 		case PASS_MATERIAL_ID:
 			pass.components = 1;
 			pass.filter = false;
 			break;
 		case PASS_DIFFUSE_COLOR:
-			pass.components = 4;
-			break;
 		case PASS_GLOSSY_COLOR:
-			pass.components = 4;
-			break;
 		case PASS_TRANSMISSION_COLOR:
-			pass.components = 4;
-			break;
 		case PASS_SUBSURFACE_COLOR:
 			pass.components = 4;
 			break;
@@ -141,9 +132,6 @@ void Pass::add(PassType type, vector<Pass>& passes)
 			break;
 
 		case PASS_EMISSION:
-			pass.components = 4;
-			pass.exposure = true;
-			break;
 		case PASS_BACKGROUND:
 			pass.components = 4;
 			pass.exposure = true;
@@ -158,6 +146,20 @@ void Pass::add(PassType type, vector<Pass>& passes)
 		case PASS_LIGHT:
 			/* ignores */
 			break;
+#ifdef WITH_CYCLES_DEBUG
+		case PASS_BVH_TRAVERSAL_STEPS:
+			pass.components = 1;
+			pass.exposure = false;
+			break;
+		case PASS_BVH_TRAVERSED_INSTANCES:
+			pass.components = 1;
+			pass.exposure = false;
+			break;
+		case PASS_RAY_BOUNCES:
+			pass.components = 1;
+			pass.exposure = false;
+			break;
+#endif
 	}
 
 	passes.push_back(pass);
@@ -193,7 +195,7 @@ bool Pass::contains(const vector<Pass>& passes, PassType type)
 
 /* Pixel Filter */
 
-static float filter_func_box(float v, float width)
+static float filter_func_box(float /*v*/, float /*width*/)
 {
 	return 1.0f;
 }
@@ -400,6 +402,19 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 			case PASS_LIGHT:
 				kfilm->use_light_pass = 1;
 				break;
+
+#ifdef WITH_CYCLES_DEBUG
+			case PASS_BVH_TRAVERSAL_STEPS:
+				kfilm->pass_bvh_traversal_steps = kfilm->pass_stride;
+				break;
+			case PASS_BVH_TRAVERSED_INSTANCES:
+				kfilm->pass_bvh_traversed_instances = kfilm->pass_stride;
+				break;
+			case PASS_RAY_BOUNCES:
+				kfilm->pass_ray_bounces = kfilm->pass_stride;
+				break;
+#endif
+
 			case PASS_NONE:
 				break;
 		}
@@ -423,7 +438,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
 	need_update = false;
 }
 
-void Film::device_free(Device *device, DeviceScene *dscene, Scene *scene)
+void Film::device_free(Device * /*device*/,
+                       DeviceScene * /*dscene*/,
+                       Scene *scene)
 {
 	if(filter_table_offset != TABLE_OFFSET_INVALID) {
 		scene->lookup_tables->remove_table(filter_table_offset);
@@ -458,7 +475,7 @@ void Film::tag_passes_update(Scene *scene, const vector<Pass>& passes_)
 	passes = passes_;
 }
 
-void Film::tag_update(Scene *scene)
+void Film::tag_update(Scene * /*scene*/)
 {
 	need_update = true;
 }

@@ -11,7 +11,7 @@
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
- * limitations under the License
+ * limitations under the License.
  */
 
 #ifndef __DEVICE_MEMORY_H__
@@ -167,6 +167,7 @@ public:
 	int data_elements;
 	device_ptr data_pointer;
 	size_t data_size;
+	size_t device_size;
 	size_t data_width;
 	size_t data_height;
 	size_t data_depth;
@@ -194,6 +195,7 @@ public:
 		data_elements = device_type_traits<T>::num_elements;
 		data_pointer = 0;
 		data_size = 0;
+		device_size = 0;
 		data_width = 0;
 		data_height = 0;
 		data_depth = 0;
@@ -256,6 +258,11 @@ public:
 	size_t size()
 	{
 		return data.size();
+	}
+
+	T* get_data()
+	{
+		return &data[0];
 	}
 
 private:
