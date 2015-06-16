@@ -246,10 +246,8 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 			filelist_readjob_start(sfile->files, C);
 		}
 	}
-	else if (filelist_need_sorting(sfile->files)) {
-		filelist_sort(sfile->files);
-	}
 
+	filelist_sort(sfile->files);
 	filelist_filter(sfile->files);
 
 	if (params->display == FILE_IMGDISPLAY) {
@@ -287,8 +285,6 @@ static void file_refresh(const bContext *C, ScrArea *sa)
 	if (sfile->layout) {
 		sfile->layout->dirty = true;
 	}
-
-	filelist_clear_refresh(sfile->files);
 
 	/* Might be called with NULL sa, see file_main_area_draw() below. */
 	if (sa && BKE_area_find_region_type(sa, RGN_TYPE_TOOLS) == NULL) {

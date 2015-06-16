@@ -66,7 +66,6 @@ int                 folderlist_clear_next(struct SpaceFile *sfile);
 
 
 void                filelist_setsorting(struct FileList *filelist, const short sort);
-bool                filelist_need_sorting(struct FileList *filelist);
 void                filelist_sort(struct FileList *filelist);
 
 void                filelist_setfilter_options(struct FileList *filelist, const bool hide_dot, const bool hide_parent,
@@ -89,8 +88,8 @@ void                filelist_free(struct FileList *filelist);
 const char *        filelist_dir(struct FileList *filelist);
 void                filelist_setdir(struct FileList *filelist, char *r_dir);
 
+int                 filelist_files_ensure(struct FileList *filelist);
 int                 filelist_empty(struct FileList *filelist);
-int                 filelist_numfiles(struct FileList *filelist);
 FileDirEntry *      filelist_file(struct FileList *filelist, int index);
 int                 filelist_file_findpath(struct FileList *filelist, const char *file);
 FileDirEntry *      filelist_entry_find_uuid(struct FileList *filelist, const int uuid[4]);
@@ -100,8 +99,6 @@ bool                filelist_file_cache_block(struct FileList *filelist, const i
 bool                filelist_force_reset(struct FileList *filelist);
 bool                filelist_pending(struct FileList *filelist);
 bool                filelist_is_ready(struct FileList *filelist);
-bool                filelist_need_refresh(struct FileList *filelist);
-void                filelist_clear_refresh(struct FileList *filelist);
 
 unsigned int        filelist_entry_select_set(const struct FileList *filelist, const struct FileDirEntry *entry, FileSelType select, unsigned int flag, FileCheckType check);
 void                filelist_entry_select_index_set(struct FileList *filelist, const int index, FileSelType select, unsigned int flag, FileCheckType check);

@@ -99,7 +99,7 @@ static void file_deselect_all(SpaceFile *sfile, unsigned int flag)
 {
 	FileSelection sel;
 	sel.first = 0;
-	sel.last = filelist_numfiles(sfile->files) - 1;
+	sel.last = filelist_files_ensure(sfile->files) - 1;
 	
 	filelist_entries_select_index_range_set(sfile->files, &sel, FILE_SEL_REMOVE, flag, CHECK_ALL);
 }
@@ -139,7 +139,7 @@ static FileSelection file_selection_get(bContext *C, const rcti *rect, bool fill
 {
 	ARegion *ar = CTX_wm_region(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
-	int numfiles = filelist_numfiles(sfile->files);
+	int numfiles = filelist_files_ensure(sfile->files);
 	FileSelection sel;
 
 	sel = find_file_mouse_rect(sfile, ar, rect);
@@ -168,7 +168,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
 	FileSelect retval = FILE_SELECT_NOTHING;
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelectParams *params = ED_fileselect_get_params(sfile);
-	int numfiles = filelist_numfiles(sfile->files);
+	int numfiles = filelist_files_ensure(sfile->files);
 	const FileDirEntry *file;
 
 	/* make the selected file active */
@@ -226,7 +226,7 @@ static FileSelect file_select_do(bContext *C, int selected_idx, bool do_diropen)
  */
 static bool file_is_any_selected(struct FileList *files)
 {
-	const int numfiles = filelist_numfiles(files);
+	const int numfiles = filelist_files_ensure(files);
 	int i;
 
 	/* Is any file selected ? */
@@ -420,7 +420,7 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (sfile && sfile->params) {
 		int idx = sfile->params->highlight_file;
-		int numfiles = filelist_numfiles(sfile->files);
+		int numfiles = filelist_files_ensure(sfile->files);
 
 		if ((idx >= 0) && (idx < numfiles)) {
 			struct FileDirEntry *file = filelist_file(sfile->files, idx);
@@ -571,7 +571,7 @@ static bool file_walk_select_do(
         const bool extend, const bool fill)
 {
 	struct FileList *files = sfile->files;
-	const int numfiles = filelist_numfiles(files);
+	const int numfiles = filelist_files_ensure(files);
 	const bool has_selection = file_is_any_selected(files);
 	const int active_old = params->active_file;
 	int active_new = -1;
@@ -685,7 +685,7 @@ static int file_select_all_exec(bContext *C, wmOperator *UNUSED(op))
 	ScrArea *sa = CTX_wm_area(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	FileSelection sel;
-	const int numfiles = filelist_numfiles(sfile->files);
+	const int numfiles = filelist_files_ensure(sfile->files);
 	const bool has_selection = file_is_any_selected(sfile->files);
 
 	sel.first = 0; 
@@ -1022,7 +1022,7 @@ int file_highlight_set(SpaceFile *sfile, ARegion *ar, int mx, int my)
 
 	if (sfile == NULL || sfile->files == NULL) return 0;
 
-	numfiles = filelist_numfiles(sfile->files);
+	numfiles = filelist_files_ensure(sfile->files);
 	params = ED_fileselect_get_params(sfile);
 
 	origfile = params->highlight_file;
@@ -1136,7 +1136,7 @@ void file_sfile_to_operator(wmOperator *op, SpaceFile *sfile, char *filepath)
 	/* this is called on operators check() so clear collections first since
 	 * they may be already set. */
 	{
-		int i, numfiles = filelist_numfiles(sfile->files);
+		int i, numfiles = filelist_files_ensure(sfile->files);
 
 		if ((prop = RNA_struct_find_property(op->ptr, "files"))) {
 			PointerRNA itemptr;
@@ -1264,9 +1264,10 @@ int file_exec(bContext *C, wmOperator *exec_op)
 		/* when used as a macro, for doubleclick, 
 		 * to prevent closing when doubleclicking on .. item */
 		if (RNA_boolean_get(exec_op->ptr, "need_active")) {
+			const int numfiles = filelist_files_ensure(sfile->files);
 			int i, active = 0;
 			
-			for (i = 0; i < filelist_numfiles(sfile->files); i++) {
+			for (i = 0; i < numfiles; i++) {
 				if (filelist_entry_select_index_get(sfile->files, i, CHECK_ALL)) {
 					active = 1;
 					break;
@@ -1459,7 +1460,7 @@ static int file_smoothscroll_invoke(bContext *C, wmOperator *UNUSED(op), const w
 	if (sfile->smoothscroll_timer == NULL || sfile->smoothscroll_timer != event->customdata)
 		return OPERATOR_PASS_THROUGH;
 	
-	numfiles = filelist_numfiles(sfile->files);
+	numfiles = filelist_files_ensure(sfile->files);
 
 	/* check if we are editing a name */
 	for (i = 0; i < numfiles; ++i) {
@@ -1955,7 +1956,7 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 	
 	if (sfile->params) {
 		int idx = sfile->params->highlight_file;
-		int numfiles = filelist_numfiles(sfile->files);
+		int numfiles = filelist_files_ensure(sfile->files);
 		if ( (0 <= idx) && (idx < numfiles) ) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
 			filelist_entry_select_index_set(sfile->files, idx, FILE_SEL_ADD, FILE_SEL_EDITING, CHECK_ALL);
@@ -1976,7 +1977,7 @@ static int file_rename_poll(bContext *C)
 
 	if (sfile && sfile->params) {
 		int idx = sfile->params->highlight_file;
-		int numfiles = filelist_numfiles(sfile->files);
+		int numfiles = filelist_files_ensure(sfile->files);
 
 		if ((0 <= idx) && (idx < numfiles)) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
@@ -2022,7 +2023,7 @@ static int file_delete_poll(bContext *C)
 
 	if (sfile && sfile->params) {
 		char dir[FILE_MAX];
-		int numfiles = filelist_numfiles(sfile->files);
+		int numfiles = filelist_files_ensure(sfile->files);
 		int i;
 		int num_selected = 0;
 
@@ -2049,7 +2050,7 @@ int file_delete_exec(bContext *C, wmOperator *UNUSED(op))
 	SpaceFile *sfile = CTX_wm_space_file(C);
 	ScrArea *sa = CTX_wm_area(C);
 	FileDirEntry *file;
-	int numfiles = filelist_numfiles(sfile->files);
+	int numfiles = filelist_files_ensure(sfile->files);
 	int i;
 
 	for (i = 0; i < numfiles; i++) {

@@ -274,7 +274,6 @@ typedef struct FileList {
 	short prv_h;
 
 	bool force_reset;
-	bool force_refresh;
 	bool filelist_ready;
 	bool filelist_pending;
 
@@ -490,14 +489,9 @@ static int compare_extension(void *UNUSED(user_data), const void *a1, const void
 	return BLI_natstrcmp(name1, name2);
 }
 
-bool filelist_need_sorting(struct FileList *filelist)
-{
-	return filelist->need_sorting && (filelist->sort != FILE_SORT_NONE);
-}
-
 void filelist_sort(struct FileList *filelist)
 {
-	if (filelist_need_sorting(filelist)) {
+	if (filelist->need_sorting && (filelist->sort != FILE_SORT_NONE)) {
 		filelist->need_sorting = false;
 
 		switch (filelist->sort) {
@@ -1267,11 +1261,6 @@ BlendHandle *filelist_lib(struct FileList *filelist)
 	return filelist->libfiledata;
 }
 
-int filelist_numfiles(struct FileList *filelist)
-{
-	return filelist->filelist.nbr_entries_filtered;
-}
-
 static const char *fileentry_uiname(const char *root, const char *relpath, const int typeflag, char *buff)
 {
 	char *name = NULL;
@@ -1348,15 +1337,18 @@ bool filelist_pending(struct FileList *filelist)
 	return filelist->filelist_pending;
 }
 
-bool filelist_need_refresh(struct FileList *filelist)
+/**
+ * Limited version of full update done by space_file's file_refresh(), to be used by operators and such.
+ * Ensures given filelist is ready to be used (i.e. it is filtered and sorted), unless it is tagged for a full refresh.
+ */
+int filelist_files_ensure(FileList *filelist)
 {
-	return (BLI_listbase_is_empty(&filelist->filelist.entries) || filelist->need_filtering ||
-	        filelist->force_reset || filelist->force_refresh || filelist->need_sorting);
-}
+	if (!filelist_force_reset(filelist) || !filelist_empty(filelist)) {
+		filelist_sort(filelist);
+		filelist_filter(filelist);
+	}
 
-void filelist_clear_refresh(struct FileList *filelist)
-{
-	filelist->force_refresh = false;
+	return filelist->filelist.nbr_entries_filtered;;
 }
 
 static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int index)
@@ -2527,7 +2519,6 @@ static void filelist_readjob_update(void *flrjv)
 
 		flrj->filelist->need_sorting = true;
 		flrj->filelist->need_filtering = true;
-		flrj->filelist->force_refresh = true;
 	}
 
 	/* if no new_nbr_entries, this is NOP */
