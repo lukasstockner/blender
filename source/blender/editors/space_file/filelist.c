@@ -1207,7 +1207,7 @@ FileList *filelist_new(short type)
 	return p;
 }
 
-void filelist_clear(struct FileList *filelist)
+void filelist_clear_ex(struct FileList *filelist, const bool do_cache, const bool do_selection)
 {
 	if (!filelist) {
 		return;
@@ -1215,15 +1215,22 @@ void filelist_clear(struct FileList *filelist)
 
 	filelist_filter_clear(filelist);
 
-	filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
+	if (do_cache) {
+		filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
+	}
 
 	filelist_intern_free(&filelist->filelist_intern);
 
 	filelist_direntryarr_free(&filelist->filelist);
 
-	if (filelist->selection_state) {
+	if (do_selection && filelist->selection_state) {
 		BLI_ghash_clear(filelist->selection_state, MEM_freeN, NULL);
 	}
+}
+
+void filelist_clear(struct FileList *filelist)
+{
+	filelist_clear_ex(filelist, true, true);
 }
 
 void filelist_free(struct FileList *filelist)
@@ -1233,8 +1240,8 @@ void filelist_free(struct FileList *filelist)
 		return;
 	}
 	
-	filelist_clear(filelist);
-	filelist_cache_free(&filelist->filelist_cache);  /* XXX TODO stupid! */
+	filelist_clear_ex(filelist, false, false);  /* No need to clear cache & selection_state, we free them anyway. */
+	filelist_cache_free(&filelist->filelist_cache);
 
 	if (filelist->selection_state) {
 		BLI_ghash_free(filelist->selection_state, MEM_freeN, NULL);
@@ -1934,7 +1941,8 @@ unsigned int filelist_entry_select_set(
         const FileList *filelist, const FileDirEntry *entry, FileSelType select, unsigned int flag, FileCheckType check)
 {
 	/* Default NULL pointer if not found is fine here! */
-	unsigned int entry_flag = GET_UINT_FROM_POINTER(BLI_ghash_lookup(filelist->selection_state, entry->uuid));
+	void **es_p = BLI_ghash_lookup_p(filelist->selection_state, entry->uuid);
+	unsigned int entry_flag = es_p ? GET_UINT_FROM_POINTER(*es_p) : 0;
 	const unsigned int org_entry_flag = entry_flag;
 
 	BLI_assert(entry);
@@ -1958,13 +1966,18 @@ unsigned int filelist_entry_select_set(
 	}
 
 	if (entry_flag != org_entry_flag) {
-		if (entry_flag) {
+		if (es_p) {
+			if (entry_flag) {
+				*es_p = SET_UINT_IN_POINTER(entry_flag);
+			}
+			else {
+				BLI_ghash_remove(filelist->selection_state, entry->uuid, MEM_freeN, NULL);
+			}
+		}
+		else if (entry_flag) {
 			void *key = MEM_mallocN(sizeof(entry->uuid), __func__);
 			memcpy(key, entry->uuid, sizeof(entry->uuid));
-			BLI_ghash_reinsert(filelist->selection_state, key, SET_UINT_IN_POINTER(entry_flag), MEM_freeN, NULL);
-		}
-		else {
-			BLI_ghash_remove(filelist->selection_state, entry->uuid, MEM_freeN, NULL);
+			BLI_ghash_insert(filelist->selection_state, key, SET_UINT_IN_POINTER(entry_flag));
 		}
 	}
 
@@ -2509,7 +2522,8 @@ static void filelist_readjob_update(void *flrjv)
 	BLI_mutex_unlock(&flrj->lock);
 
 	if (new_nbr_entries) {
-		filelist_clear(flrj->filelist);
+		/* Do not clear selection cache, we can assume already 'selected' uuids are still valid! */
+		filelist_clear_ex(flrj->filelist, true, false);
 
 		flrj->filelist->need_sorting = true;
 		flrj->filelist->need_filtering = true;
