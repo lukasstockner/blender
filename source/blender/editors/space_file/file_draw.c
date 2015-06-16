@@ -492,7 +492,7 @@ void file_draw_list(const bContext *C, ARegion *ar)
 	const bool small_size = SMALL_SIZE_CHECK(params->thumbnail_size);
 	const bool update_stat_strings = small_size != SMALL_SIZE_CHECK(layout->curr_size);
 
-	numfiles = filelist_numfiles(files);
+	numfiles = filelist_files_ensure(files, params);
 	
 	if (params->display != FILE_IMGDISPLAY) {
 
