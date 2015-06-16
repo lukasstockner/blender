@@ -258,14 +258,19 @@ typedef struct FileListEntryPreview {
 } FileListEntryPreview;
 
 typedef struct FileListFilter {
-	bool hide_dot;
-	bool hide_parent;
-	bool hide_lib_dir;
 	unsigned int filter;
 	unsigned int filter_id;
 	char filter_glob[64];
 	char filter_search[66];  /* + 2 for heading/trailing implicit '*' wildcards. */
+	short flags;
 } FileListFilter;
+
+/* FileListFilter.flags */
+enum {
+	FLF_HIDE_DOT     = 1 << 0,
+	FLF_HIDE_PARENT  = 1 << 1,
+	FLF_HIDE_LIB_DIR = 1 << 2,
+};
 
 typedef struct FileList {
 	FileDirEntryArr filelist;
@@ -273,15 +278,11 @@ typedef struct FileList {
 	short prv_w;
 	short prv_h;
 
-	bool force_reset;
-	bool filelist_ready;
-	bool filelist_pending;
+	short flags;
 
 	short sort;
-	bool need_sorting;
 
 	FileListFilter filter_data;
-	bool need_filtering;
 
 	struct FileListIntern filelist_intern;
 
@@ -307,6 +308,15 @@ typedef struct FileList {
 	/* Filter an entry of current filelist. */
 	bool (*filterf)(struct FileListInternEntry *, const char *, FileListFilter *);
 } FileList;
+
+/* FileList.flags */
+enum {
+	FL_FORCE_RESET    = 1 << 0,
+	FL_IS_READY       = 1 << 1,
+	FL_IS_PENDING     = 1 << 2,
+	FL_NEED_SORTING   = 1 << 3,
+	FL_NEED_FILTERING = 1 << 4,
+};
 
 #define SPECIAL_IMG_SIZE 48
 #define SPECIAL_IMG_ROWS 4
@@ -491,9 +501,7 @@ static int compare_extension(void *UNUSED(user_data), const void *a1, const void
 
 void filelist_sort(struct FileList *filelist)
 {
-	if (filelist->need_sorting && (filelist->sort != FILE_SORT_NONE)) {
-		filelist->need_sorting = false;
-
+	if ((filelist->flags & FL_NEED_SORTING) && (filelist->sort != FILE_SORT_NONE)) {
 		switch (filelist->sort) {
 			case FILE_SORT_ALPHA:
 				BLI_listbase_sort_r(&filelist->filelist_intern.entries, compare_name, NULL);
@@ -513,6 +521,7 @@ void filelist_sort(struct FileList *filelist)
 		}
 
 		filelist_filter_clear(filelist);
+		filelist->flags &= ~FL_NEED_SORTING;
 	}
 }
 
@@ -520,7 +529,7 @@ void filelist_setsorting(struct FileList *filelist, const short sort)
 {
 	if (filelist->sort != sort) {
 		filelist->sort = sort;
-		filelist->need_sorting = true;
+		filelist->flags |= FL_NEED_SORTING;
 	}
 }
 
@@ -531,7 +540,7 @@ static bool is_hidden_file(const char *filename, FileListFilter *filter)
 	char *sep = (char *)BLI_last_slash(filename);
 	bool is_hidden = false;
 
-	if (filter->hide_dot) {
+	if (filter->flags & FLF_HIDE_DOT) {
 		if (filename[0] == '.' && filename[1] != '.' && filename[1] != '\0') {
 			is_hidden = true; /* ignore .file */
 		}
@@ -542,7 +551,7 @@ static bool is_hidden_file(const char *filename, FileListFilter *filter)
 			}
 		}
 	}
-	if (!is_hidden && filter->hide_parent) {
+	if (!is_hidden && (filter->flags & FLF_HIDE_PARENT)) {
 		if (filename[0] == '.' && filename[1] == '.' && filename[2] == '\0') {
 			is_hidden = true; /* ignore .. */
 		}
@@ -624,7 +633,7 @@ static bool is_filtered_lib(FileListInternEntry *file, const char *root, FileLis
 				}
 			}
 			if (is_filtered && group) {
-				if (!name && filter->hide_lib_dir) {
+				if (!name && (filter->flags & FLF_HIDE_LIB_DIR)) {
 					is_filtered = false;
 				}
 				else {
@@ -655,7 +664,7 @@ static bool is_filtered_main(FileListInternEntry *file, const char *UNUSED(dir),
 
 static void filelist_filter_clear(FileList *filelist)
 {
-	filelist->need_filtering = true;
+	filelist->flags |= FL_NEED_FILTERING;
 }
 
 void filelist_filter(FileList *filelist)
@@ -668,18 +677,18 @@ void filelist_filter(FileList *filelist)
 		return;
 	}
 
-	if (!filelist->need_filtering) {
+	if (!(filelist->flags & FL_NEED_FILTERING)) {
 		/* Assume it has already been filtered, nothing else to do! */
 		return;
 	}
 
-	filelist->filter_data.hide_lib_dir = false;
+	filelist->filter_data.flags &= ~FLF_HIDE_LIB_DIR;
 	if (filelist->max_recursion) {
 		/* Never show lib ID 'categories' directories when we are in 'flat' mode, unless
 		 * root path is a blend file. */
 		char dir[FILE_MAXDIR];
 		if (!filelist_islibrary(filelist, dir, NULL)) {
-			filelist->filter_data.hide_lib_dir = true;
+			filelist->filter_data.flags |= FLF_HIDE_LIB_DIR;
 		}
 	}
 
@@ -703,7 +712,7 @@ void filelist_filter(FileList *filelist)
 //	printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.nbr_entries);
 
 	filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
-	filelist->need_filtering = false;
+	filelist->flags &= ~FL_NEED_FILTERING;
 
 	MEM_freeN(filtered_tmp);
 }
@@ -712,23 +721,33 @@ void filelist_setfilter_options(FileList *filelist, const bool hide_dot, const b
                                 const unsigned int filter, const unsigned int filter_id,
                                 const char *filter_glob, const char *filter_search)
 {
-	if ((filelist->filter_data.hide_dot != hide_dot) ||
-	    (filelist->filter_data.hide_parent != hide_parent) ||
-	    (filelist->filter_data.filter != filter) ||
-	    (filelist->filter_data.filter_id != filter_id) ||
-	    !STREQ(filelist->filter_data.filter_glob, filter_glob) ||
-	    (BLI_strcmp_ignore_pad(filelist->filter_data.filter_search, filter_search, '*') != 0))
-	{
-		filelist->filter_data.hide_dot = hide_dot;
-		filelist->filter_data.hide_parent = hide_parent;
+	bool update = false;
 
+	if (((filelist->filter_data.flags & FLF_HIDE_DOT) != 0) != hide_dot) {
+		filelist->filter_data.flags ^= FLF_HIDE_DOT;
+		update = true;
+	}
+	if (((filelist->filter_data.flags & FLF_HIDE_PARENT) != 0) != hide_parent) {
+		filelist->filter_data.flags ^= FLF_HIDE_PARENT;
+		update = true;
+	}
+	if ((filelist->filter_data.filter != filter) || (filelist->filter_data.filter_id != filter_id)) {
 		filelist->filter_data.filter = filter;
 		filelist->filter_data.filter_id = filter_id;
+		update = true;
+	}
+	if (!STREQ(filelist->filter_data.filter_glob, filter_glob)) {
 		BLI_strncpy(filelist->filter_data.filter_glob, filter_glob, sizeof(filelist->filter_data.filter_glob));
+		update = true;
+	}
+	if ((BLI_strcmp_ignore_pad(filelist->filter_data.filter_search, filter_search, '*') != 0)) {
 		BLI_strncpy_ensure_pad(filelist->filter_data.filter_search, filter_search, '*',
 		                       sizeof(filelist->filter_data.filter_search));
+		update = true;
+	}
 
-		/* And now, free filtered data so that we now we have to filter again. */
+	if (update) {
+		/* And now, free filtered data so that we know we have to filter again. */
 		filelist_filter_clear(filelist);
 	}
 }
@@ -1244,9 +1263,8 @@ void filelist_free(struct FileList *filelist)
 
 	memset(&filelist->filter_data, 0, sizeof(filelist->filter_data));
 
-	filelist->need_sorting = false;
+	filelist->flags &= ~(FL_NEED_SORTING | FL_NEED_FILTERING);
 	filelist->sort = FILE_SORT_NONE;
-	filelist->need_filtering = false;
 }
 
 void filelist_freelib(struct FileList *filelist)
@@ -1310,7 +1328,7 @@ void filelist_setdir(struct FileList *filelist, char *r_dir)
 
 	if (!STREQ(filelist->filelist.root, r_dir)) {
 		BLI_strncpy(filelist->filelist.root, r_dir, sizeof(filelist->filelist.root));
-		filelist->force_reset = true;
+		filelist->flags |= FL_FORCE_RESET;
 	}
 }
 
@@ -1318,23 +1336,23 @@ void filelist_setrecursion(struct FileList *filelist, const int recursion_level)
 {
 	if (filelist->max_recursion != recursion_level) {
 		filelist->max_recursion = recursion_level;
-		filelist->force_reset = true;
+		filelist->flags |= FL_FORCE_RESET;
 	}
 }
 
 bool filelist_force_reset(struct FileList *filelist)
 {
-	return filelist->force_reset;
+	return (filelist->flags & FL_FORCE_RESET) != 0;
 }
 
 bool filelist_is_ready(struct FileList *filelist)
 {
-	return filelist->filelist_ready;
+	return (filelist->flags & FL_IS_READY) != 0;
 }
 
 bool filelist_pending(struct FileList *filelist)
 {
-	return filelist->filelist_pending;
+	return (filelist->flags & FL_IS_PENDING) != 0;
 }
 
 /**
@@ -1745,7 +1763,7 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 		return;
 	}
 	/* Do not start preview work while listing, gives nasty flickering! */
-	else if (use_previews && filelist->filelist_ready) {
+	else if (use_previews && (filelist->flags & FL_IS_READY)) {
 		TaskScheduler *scheduler = BLI_task_scheduler_get();
 		TaskPool *pool;
 		int num_tasks = 4;
@@ -2253,13 +2271,14 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 
 		filelist->filelist.nbr_entries = 0;
 		for (id = lb->first; id; id = id->next) {
-			if (!filelist->filter_data.hide_dot || id->name[2] != '.') {
+			if (!(filelist->filter_data.flags & FLF_HIDE_DOT) || id->name[2] != '.') {
 				filelist->filelist.nbr_entries++;
 			}
 		}
 
-		/* XXX TODO: if databrowse F4 or append/link filelist->hide_parent has to be set */
-		if (!filelist->filter_data.hide_parent) filelist->filelist.nbr_entries++;
+		/* XXX TODO: if databrowse F4 or append/link filelist->flags & FLF_HIDE_PARENT has to be set */
+		if (!(filelist->filter_data.flags & FLF_HIDE_PARENT))
+			filelist->filelist.nbr_entries++;
 
 		if (filelist->filelist.nbr_entries > 0) {
 			filelist_resize(filelist, filelist->filelist.nbr_entries);
@@ -2267,7 +2286,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 
 		files = filelist->filelist.entries;
 		
-		if (!filelist->filter_data.hide_parent) {
+		if (!(filelist->filter_data.flags & FLF_HIDE_PARENT)) {
 			files->entry->relpath = BLI_strdup(FILENAME_PARENT);
 			files->typeflag |= FILE_TYPE_DIR;
 
@@ -2278,7 +2297,7 @@ static void filelist_readjob_main_rec(struct FileList *filelist)
 		for (id = lb->first; id; id = id->next) {
 			ok = 1;
 			if (ok) {
-				if (!filelist->filter_data.hide_dot || id->name[2] != '.') {
+				if (!(filelist->filter_data.flags & FLF_HIDE_DOT) || id->name[2] != '.') {
 					if (id->lib == NULL) {
 						files->entry->relpath = BLI_strdup(id->name + 2);
 					}
@@ -2517,8 +2536,7 @@ static void filelist_readjob_update(void *flrjv)
 		/* Do not clear selection cache, we can assume already 'selected' uuids are still valid! */
 		filelist_clear_ex(flrj->filelist, true, false);
 
-		flrj->filelist->need_sorting = true;
-		flrj->filelist->need_filtering = true;
+		flrj->filelist->flags |= (FL_NEED_SORTING | FL_NEED_FILTERING);
 	}
 
 	/* if no new_nbr_entries, this is NOP */
@@ -2533,8 +2551,8 @@ static void filelist_readjob_endjob(void *flrjv)
 	/* In case there would be some dangling update... */
 	filelist_readjob_update(flrjv);
 
-	flrj->filelist->filelist_pending = false;
-	flrj->filelist->filelist_ready = true;
+	flrj->filelist->flags &= ~FL_IS_PENDING;
+	flrj->filelist->flags |= FL_IS_READY;
 }
 
 static void filelist_readjob_free(void *flrjv)
@@ -2568,9 +2586,8 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	flrj->filelist = filelist;
 	BLI_strncpy(flrj->main_name, G.main->name, sizeof(flrj->main_name));
 
-	filelist->force_reset = false;
-	filelist->filelist_ready = false;
-	filelist->filelist_pending = true;
+	filelist->flags &= ~(FL_FORCE_RESET | FL_IS_READY);
+	filelist->flags |= FL_IS_PENDING;
 
 	BLI_mutex_init(&flrj->lock);
 
