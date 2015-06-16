@@ -1407,7 +1407,7 @@ static FileDirEntry *filelist_file_ex(struct FileList *filelist, const int index
 		return NULL;
 	}
 
-	printf("requesting file %d (not yet cached)\n", index);
+//	printf("requesting file %d (not yet cached)\n", index);
 
 	/* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
 	ret = filelist_file_create_entry(filelist, index);
@@ -1549,7 +1549,7 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 	int i;
 
 	if ((index < 0) || (index >= nbr_entries)) {
-		printf("Wrong index %d ([%d:%d])", index, 0, nbr_entries);
+//		printf("Wrong index %d ([%d:%d])", index, 0, nbr_entries);
 		return false;
 	}
 
@@ -1577,6 +1577,10 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 
 //			printf("Full Recaching!\n");
 
+			if (cache->previews_pool) {
+				filelist_cache_previews_clear(cache);
+			}
+
 			if (idx1 + size1 > cache_size) {
 				size2 = idx1 + size1 - cache_size;
 				size1 -= size2;
@@ -1584,18 +1588,15 @@ bool filelist_file_cache_block(struct FileList *filelist, const int index)
 			}
 			filelist_file_cache_block_release(filelist, size1, idx1);
 
+			cache->block_start_index = cache->block_end_index = cache->block_cursor = 0;
+
 			/* New cached block does not overlap existing one, simple. */
 			if (!filelist_file_cache_block_create(filelist, start_index, end_index - start_index, 0)) {
 				return false;
 			}
 
-			if (cache->previews_pool) {
-				filelist_cache_previews_clear(cache);
-			}
-
 			cache->block_start_index = start_index;
 			cache->block_end_index = end_index;
-			cache->block_cursor = 0;
 		}
 		else {
 //			printf("Partial Recaching!\n");

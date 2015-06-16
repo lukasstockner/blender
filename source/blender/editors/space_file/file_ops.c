@@ -314,13 +314,12 @@ static int file_border_select_modal(bContext *C, wmOperator *op, const wmEvent *
 	result = WM_border_select_modal(C, op, event);
 
 	if (result == OPERATOR_RUNNING_MODAL) {
-
 		WM_operator_properties_border_to_rcti(op, &rect);
 
 		BLI_rcti_isect(&(ar->v2d.mask), &rect, &rect);
 
 		sel = file_selection_get(C, &rect, 0);
-		if ( (sel.first != params->sel_first) || (sel.last != params->sel_last) ) {
+		if ((sel.first != params->sel_first) || (sel.last != params->sel_last)) {
 			int idx;
 
 			file_deselect_all(sfile, FILE_SEL_HIGHLIGHTED);
@@ -421,8 +420,9 @@ static int file_select_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 
 	if (sfile && sfile->params) {
 		int idx = sfile->params->highlight_file;
+		int numfiles = filelist_numfiles(sfile->files);
 
-		if (idx >= 0) {
+		if ((idx >= 0) && (idx < numfiles)) {
 			struct FileDirEntry *file = filelist_file(sfile->files, idx);
 			if (FILENAME_IS_CURRPAR(file->relpath)) {
 				/* skip - If a readonly file (".." or ".") is selected, skip deselect all! */
@@ -1971,29 +1971,34 @@ static int file_rename_exec(bContext *C, wmOperator *UNUSED(op))
 
 static int file_rename_poll(bContext *C)
 {
-	int poll = ED_operator_file_active(C);
+	bool poll = ED_operator_file_active(C);
 	SpaceFile *sfile = CTX_wm_space_file(C);
 
 	if (sfile && sfile->params) {
 		int idx = sfile->params->highlight_file;
+		int numfiles = filelist_numfiles(sfile->files);
 
-		if (idx >= 0) {
+		if ((0 <= idx) && (idx < numfiles)) {
 			FileDirEntry *file = filelist_file(sfile->files, idx);
 			if (FILENAME_IS_CURRPAR(file->relpath)) {
-				poll = 0;
+				poll = false;
 			}
 		}
 
 		if (sfile->params->highlight_file < 0) {
-			poll = 0;
+			poll = false;
 		}
 		else {
 			char dir[FILE_MAX];
-			if (filelist_islibrary(sfile->files, dir, NULL)) poll = 0;
+			if (filelist_islibrary(sfile->files, dir, NULL)) {
+				poll = false;
+			}
 		}
 	}
-	else
-		poll = 0;
+	else {
+		poll = false;
+	}
+
 	return poll;
 }
 
