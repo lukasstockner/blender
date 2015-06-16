@@ -490,18 +490,18 @@ static bool file_walk_select_selection_set(
 		    filelist_entry_select_index_get(files, active_old, FILE_SEL_SELECTED) &&
 		    filelist_entry_select_index_get(files, active_new, FILE_SEL_SELECTED))
 		{
-				/* conditions for deselecting: initial file is selected, new file is
-				 * selected and either other_side isn't selected/found or we use fill */
+			/* conditions for deselecting: initial file is selected, new file is
+			 * selected and either other_side isn't selected/found or we use fill */
 				deselect = (fill || other_site == -1 ||
 				            !filelist_entry_select_index_get(files, other_site, FILE_SEL_SELECTED));
 
-				/* don't change active here since we either want to deselect active or we want to
-				 * walk through a block of selected files without selecting/deselecting anything */
-				params->active_file = active_new;
-				/* but we want to change active if we use fill (needed to get correct selection bounds) */
-				if (deselect && fill) {
-					active = active_new;
-				}
+			/* don't change active here since we either want to deselect active or we want to
+			 * walk through a block of selected files without selecting/deselecting anything */
+			params->active_file = active_new;
+			/* but we want to change active if we use fill (needed to get correct selection bounds) */
+			if (deselect && fill) {
+				active = active_new;
+			}
 		}
 		else {
 			/* regular selection change */
