@@ -148,7 +148,10 @@ ImBuf *IMB_thumb_load_blend(const char *blen_path, const char *blen_group, const
 		BLO_blendhandle_close(libfiledata);
 
 		if (!previews || (nnames != nprevs)) {
-			printf("%s: error, found %d items, %d previews\n", __func__, nnames, nprevs);
+			if (previews != 0) {
+				/* No previews at all is not a bug! */
+				printf("%s: error, found %d items, %d previews\n", __func__, nnames, nprevs);
+			}
 			BLI_linklist_free(previews, BKE_previewimg_freefunc);
 			BLI_linklist_free(names, free);
 			return NULL;
