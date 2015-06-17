@@ -121,6 +121,10 @@ typedef struct GPUDrawObject {
 	int totfacemaps;    /* total facemaps */
 	int *facemap_start; /* beginning of facemap */
 	int *facemap_count; /* elements per facemap */
+
+	int loose_edge_offset;
+	int tot_loose_edge_drawn;
+	int tot_edge_drawn;
 } GPUDrawObject;
 
 /* used for GLSL materials */
