@@ -139,7 +139,7 @@ void BKE_armature_make_local(bArmature *arm)
 	bool is_local = false, is_lib = false;
 	Object *ob;
 
-	if (arm->id.lib == NULL)
+	if ((arm->id.lib == NULL) || ID_MISSING(&arm->id))
 		return;
 	if (arm->id.us == 1) {
 		id_clear_lib_data(bmain, &arm->id);

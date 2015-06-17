@@ -82,7 +82,7 @@
 bool id_type_can_have_animdata(ID *id)
 {
 	/* sanity check */
-	if (id == NULL)
+	if ((id == NULL) || ID_MISSING(id))
 		return false;
 
 	/* Only some ID-blocks have this info for now */
@@ -126,8 +126,9 @@ AnimData *BKE_animdata_from_id(ID *id)
 		IdAdtTemplate *iat = (IdAdtTemplate *)id;
 		return iat->adt;
 	}
-	else
+	else {
 		return NULL;
+	}
 }
 
 /* Add AnimData to the given ID-block. In order for this to work, we assume that 

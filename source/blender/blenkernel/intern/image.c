@@ -477,7 +477,8 @@ void BKE_image_make_local(struct Image *ima)
 	 * - mixed: make copy
 	 */
 
-	if (ima->id.lib == NULL) return;
+	if ((ima->id.lib == NULL) || ID_MISSING(&ima->id))
+		return;
 
 	/* Can't take short cut here: must check meshes at least because of bogus
 	 * texface ID refs. - z0r */

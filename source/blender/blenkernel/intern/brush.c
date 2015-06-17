@@ -223,7 +223,8 @@ void BKE_brush_make_local(Brush *brush)
 	Scene *scene;
 	bool is_local = false, is_lib = false;
 
-	if (brush->id.lib == NULL) return;
+	if ((brush->id.lib == NULL) || ID_MISSING(&brush->id))
+		return;
 
 	if (brush->clone.image) {
 		/* special case: ima always local immediately. Clone image should only

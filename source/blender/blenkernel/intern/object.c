@@ -1607,7 +1607,8 @@ void BKE_object_make_local(Object *ob)
 	 * - mixed: make copy
 	 */
 
-	if (ob->id.lib == NULL) return;
+	if ((ob->id.lib == NULL) || ID_MISSING(&ob->id))
+		return;
 	
 	ob->proxy = ob->proxy_from  = ob->proxy_group = NULL;
 	

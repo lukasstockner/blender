@@ -133,7 +133,7 @@ void BKE_action_make_local(bAction *act)
 	tMakeLocalActionContext mlac = {act, NULL, false, false};
 	Main *bmain = G.main;
 	
-	if (act->id.lib == NULL)
+	if ((act->id.lib == NULL) || ID_MISSING(&act->id))
 		return;
 	
 	/* XXX: double-check this; it used to be just single-user check, but that was when fake-users were still default */

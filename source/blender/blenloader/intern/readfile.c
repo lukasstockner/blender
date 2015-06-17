@@ -9136,88 +9136,89 @@ void BLO_expand_main(void *fdhandle, Main *mainvar)
 		while (a--) {
 			id = lbarray[a]->first;
 			while (id) {
-				if (id->flag & LIB_NEED_EXPAND) {
-					switch (GS(id->name)) {
-					case ID_OB:
-						expand_object(fd, mainvar, (Object *)id);
-						break;
-					case ID_ME:
-						expand_mesh(fd, mainvar, (Mesh *)id);
-						break;
-					case ID_CU:
-						expand_curve(fd, mainvar, (Curve *)id);
-						break;
-					case ID_MB:
-						expand_mball(fd, mainvar, (MetaBall *)id);
-						break;
-					case ID_SCE:
-						expand_scene(fd, mainvar, (Scene *)id);
-						break;
-					case ID_MA:
-						expand_material(fd, mainvar, (Material *)id);
-						break;
-					case ID_TE:
-						expand_texture(fd, mainvar, (Tex *)id);
-						break;
-					case ID_WO:
-						expand_world(fd, mainvar, (World *)id);
-						break;
-					case ID_LT:
-						expand_lattice(fd, mainvar, (Lattice *)id);
-						break;
-					case ID_LA:
-						expand_lamp(fd, mainvar, (Lamp *)id);
-						break;
-					case ID_KE:
-						expand_key(fd, mainvar, (Key *)id);
-						break;
-					case ID_CA:
-						expand_camera(fd, mainvar, (Camera *)id);
-						break;
-					case ID_SPK:
-						expand_speaker(fd, mainvar, (Speaker *)id);
-						break;
-					case ID_SO:
-						expand_sound(fd, mainvar, (bSound *)id);
-						break;
-					case ID_AR:
-						expand_armature(fd, mainvar, (bArmature *)id);
-						break;
-					case ID_AC:
-						expand_action(fd, mainvar, (bAction *)id); // XXX deprecated - old animation system
-						break;
-					case ID_GR:
-						expand_group(fd, mainvar, (Group *)id);
-						break;
-					case ID_NT:
-						expand_nodetree(fd, mainvar, (bNodeTree *)id);
-						break;
-					case ID_BR:
-						expand_brush(fd, mainvar, (Brush *)id);
-						break;
-					case ID_IP:
-						expand_ipo(fd, mainvar, (Ipo *)id); // XXX deprecated - old animation system
-						break;
-					case ID_PA:
-						expand_particlesettings(fd, mainvar, (ParticleSettings *)id);
-						break;
-					case ID_MC:
-						expand_movieclip(fd, mainvar, (MovieClip *)id);
-						break;
-					case ID_MSK:
-						expand_mask(fd, mainvar, (Mask *)id);
-						break;
-					case ID_LS:
-						expand_linestyle(fd, mainvar, (FreestyleLineStyle *)id);
-						break;
-					case ID_GD:
-						expand_gpencil(fd, mainvar, (bGPdata *)id);
-						break;
+				if (!ID_MISSING(id)) {
+					if (id->flag & LIB_NEED_EXPAND) {
+						switch (GS(id->name)) {
+						case ID_OB:
+							expand_object(fd, mainvar, (Object *)id);
+							break;
+						case ID_ME:
+							expand_mesh(fd, mainvar, (Mesh *)id);
+							break;
+						case ID_CU:
+							expand_curve(fd, mainvar, (Curve *)id);
+							break;
+						case ID_MB:
+							expand_mball(fd, mainvar, (MetaBall *)id);
+							break;
+						case ID_SCE:
+							expand_scene(fd, mainvar, (Scene *)id);
+							break;
+						case ID_MA:
+							expand_material(fd, mainvar, (Material *)id);
+							break;
+						case ID_TE:
+							expand_texture(fd, mainvar, (Tex *)id);
+							break;
+						case ID_WO:
+							expand_world(fd, mainvar, (World *)id);
+							break;
+						case ID_LT:
+							expand_lattice(fd, mainvar, (Lattice *)id);
+							break;
+						case ID_LA:
+							expand_lamp(fd, mainvar, (Lamp *)id);
+							break;
+						case ID_KE:
+							expand_key(fd, mainvar, (Key *)id);
+							break;
+						case ID_CA:
+							expand_camera(fd, mainvar, (Camera *)id);
+							break;
+						case ID_SPK:
+							expand_speaker(fd, mainvar, (Speaker *)id);
+							break;
+						case ID_SO:
+							expand_sound(fd, mainvar, (bSound *)id);
+							break;
+						case ID_AR:
+							expand_armature(fd, mainvar, (bArmature *)id);
+							break;
+						case ID_AC:
+							expand_action(fd, mainvar, (bAction *)id); // XXX deprecated - old animation system
+							break;
+						case ID_GR:
+							expand_group(fd, mainvar, (Group *)id);
+							break;
+						case ID_NT:
+							expand_nodetree(fd, mainvar, (bNodeTree *)id);
+							break;
+						case ID_BR:
+							expand_brush(fd, mainvar, (Brush *)id);
+							break;
+						case ID_IP:
+							expand_ipo(fd, mainvar, (Ipo *)id); // XXX deprecated - old animation system
+							break;
+						case ID_PA:
+							expand_particlesettings(fd, mainvar, (ParticleSettings *)id);
+							break;
+						case ID_MC:
+							expand_movieclip(fd, mainvar, (MovieClip *)id);
+							break;
+						case ID_MSK:
+							expand_mask(fd, mainvar, (Mask *)id);
+							break;
+						case ID_LS:
+							expand_linestyle(fd, mainvar, (FreestyleLineStyle *)id);
+							break;
+						case ID_GD:
+							expand_gpencil(fd, mainvar, (bGPdata *)id);
+							break;
+						}
+
+						do_it = true;
+						id->flag -= LIB_NEED_EXPAND;
 					}
-					
-					do_it = true;
-					id->flag -= LIB_NEED_EXPAND;
-					
 				}
 				id = id->next;
 			}
@@ -9451,15 +9452,46 @@ ID *BLO_library_append_named_part_ex(const bContext *C, Main *mainl, BlendHandle
 	return append_named_part_ex(C, mainl, fd, idname, idcode, flag);
 }
 
-static void append_id_part(FileData *fd, Main *mainvar, ID *id, ID **r_id)
+static void append_id_part(ReportList *reports, FileData *fd, Main *mainvar, ID *id, ID **r_id)
 {
-	BHead *bhead = find_bhead_from_idname(fd, id->name);
+	BHead *bhead = NULL;
+
+	if (fd) {
+		bhead = find_bhead_from_idname(fd, id->name);
+	}
+
+	id->flag &= ~LIB_READ;
 
 	if (bhead) {
-		id->flag &= ~LIB_READ;
 		id->flag |= LIB_NEED_EXPAND;
 		// printf("read lib block %s\n", id->name);
 		read_libblock(fd, mainvar, bhead, id->flag, r_id);
+	}
+	else {
+		blo_reportf_wrap(
+				reports, RPT_WARNING,
+				TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
+				BKE_idcode_to_name(GS(id->name)),
+				id->name + 2,
+				mainvar->curlib->filepath,
+				library_parent_filepath(mainvar->curlib));
+
+		/* Generate a placeholder for this ID (limited version of read_libblock actually...). */
+		if (r_id) {
+			ListBase *lb;
+			ID *ph_id = BKE_liblock_alloc_notest(GS(id->name));
+
+			memcpy(ph_id->name, id->name, sizeof(ph_id->name));
+			ph_id->lib = mainvar->curlib;
+			ph_id->flag = id->flag | LIB_MISSING;
+			ph_id->us = (ph_id->flag & LIB_FAKEUSER) ? 1 : 0;
+			ph_id->icon_id = 0;
+
+			lb = which_libbase(mainvar, GS(ph_id->name));
+			BLI_addtail(lb, ph_id);
+
+			*r_id = ph_id;
+		}
 	}
 }
 
@@ -9706,35 +9738,27 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 						                 mainptr->curlib->filepath);
 					}
 				}
-				if (fd) {
-					do_it = true;
-					a = set_listbasepointers(mainptr, lbarray);
-					while (a--) {
-						ID *id = lbarray[a]->first;
-						
-						while (id) {
-							ID *idn = id->next;
-							if (id->flag & LIB_READ) {
-								ID *realid = NULL;
-								BLI_remlink(lbarray[a], id);
-								
-								append_id_part(fd, mainptr, id, &realid);
-								if (!realid) {
-									blo_reportf_wrap(
-									        fd->reports, RPT_WARNING,
-									        TIP_("LIB ERROR: %s: '%s' missing from '%s', parent '%s'"),
-									        BKE_idcode_to_name(GS(id->name)),
-									        id->name + 2,
-									        mainptr->curlib->filepath,
-									        library_parent_filepath(mainptr->curlib));
-								}
-								
-								change_idid_adr(mainlist, basefd, id, realid);
-								
-								MEM_freeN(id);
-							}
-							id = idn;
+
+				do_it = true;
+				a = set_listbasepointers(mainptr, lbarray);
+				while (a--) {
+					ID *id = lbarray[a]->first;
+
+					while (id) {
+						ID *idn = id->next;
+						if (id->flag & LIB_READ) {
+							ID *realid = NULL;
+							BLI_remlink(lbarray[a], id);
+
+							append_id_part(basefd->reports, fd, mainptr, id, &realid);
+
+							BLI_assert(realid != NULL);
+
+							change_idid_adr(mainlist, basefd, id, realid);
+
+							MEM_freeN(id);
 						}
+						id = idn;
 					}
 					
 					BLO_expand_main(fd, mainptr);
@@ -9754,6 +9778,7 @@ static void read_libraries(FileData *basefd, ListBase *mainlist)
 			for (id = lbarray[a]->first; id; id = idn) {
 				idn = id->next;
 				if (id->flag & LIB_READ) {
+					printf("SHALL NOT HAPPEN ANYMORE!!!!!!!\n");
 					BLI_remlink(lbarray[a], id);
 					blo_reportf_wrap(
 					        basefd->reports, RPT_WARNING,

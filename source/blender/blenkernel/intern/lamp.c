@@ -170,7 +170,9 @@ void BKE_lamp_make_local(Lamp *la)
 	 * - mixed: make copy
 	 */
 	
-	if (la->id.lib == NULL) return;
+	if ((la->id.lib == NULL) || ID_MISSING(&la->id))
+		return;
+
 	if (la->id.us == 1) {
 		id_clear_lib_data(bmain, &la->id);
 		return;

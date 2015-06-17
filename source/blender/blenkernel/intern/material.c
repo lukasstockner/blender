@@ -315,7 +315,8 @@ void BKE_material_make_local(Material *ma)
 	 * - mixed: make copy
 	 */
 	
-	if (ma->id.lib == NULL) return;
+	if ((ma->id.lib == NULL) || ID_MISSING(&ma->id))
+		return;
 
 	/* One local user; set flag and return. */
 	if (ma->id.us == 1) {

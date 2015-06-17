@@ -267,7 +267,7 @@ void BKE_curve_make_local(Curve *cu)
 	 * - mixed: do a copy
 	 */
 
-	if (cu->id.lib == NULL)
+	if ((cu->id.lib == NULL) || ID_MISSING(&cu->id))
 		return;
 
 	if (cu->id.us == 1) {

@@ -647,7 +647,9 @@ void BKE_mesh_make_local(Mesh *me)
 	 * - mixed: make copy
 	 */
 
-	if (me->id.lib == NULL) return;
+	if ((me->id.lib == NULL) || ID_MISSING(&me->id))
+		return;
+
 	if (me->id.us == 1) {
 		id_clear_lib_data(bmain, &me->id);
 		expand_local_mesh(me);
