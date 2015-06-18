@@ -63,6 +63,7 @@ typedef struct GPUBufferMaterial {
 	/* range of points used for this material */
 	int start;
 	int totpoint;
+	int totloops;
 
 	/* original material index */
 	short mat_nr;
@@ -92,6 +93,8 @@ typedef struct GPUDrawObject {
 	GPUBuffer *colors;
 	GPUBuffer *edges;
 	GPUBuffer *uvedges;
+	GPUBuffer *triangles; /* triangle index buffer */
+	GPUBuffer *trianglesfast; /* level one triangle index for subsurf */
 
 	/* for each triangle, the original MFace index */
 	int *triangle_to_mface;
@@ -113,6 +116,7 @@ typedef struct GPUDrawObject {
 	
 	int tot_triangle_point;
 	int tot_loose_point;
+	int tot_loop_verts;
 	
 	/* caches of the original DerivedMesh values */
 	int totvert;
@@ -146,7 +150,7 @@ typedef struct GPUAttrib {
 void GPU_global_buffer_pool_free(void);
 void GPU_global_buffer_pool_free_unused(void);
 
-GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays);
+GPUBuffer *GPU_buffer_alloc(size_t size, bool force_vertex_arrays);
 void GPU_buffer_free(GPUBuffer *buffer);
 
 void GPU_drawobject_free(struct DerivedMesh *dm);
@@ -160,6 +164,8 @@ typedef enum {
 	GPU_BUFFER_UV_TEXPAINT,
 	GPU_BUFFER_EDGE,
 	GPU_BUFFER_UVEDGE,
+	GPU_BUFFER_TRIANGLES,
+	GPU_BUFFER_TRIANGLES_FAST,
 } GPUBufferType;
 
 
@@ -172,6 +178,11 @@ void GPU_texpaint_uv_setup(struct DerivedMesh *dm);
 void GPU_color_setup(struct DerivedMesh *dm, int colType);
 void GPU_edge_setup(struct DerivedMesh *dm); /* does not mix with other data */
 void GPU_uvedge_setup(struct DerivedMesh *dm);
+
+void GPU_triangle_setup(struct DerivedMesh *dm);
+
+void GPU_triangle_fast_setup(struct DerivedMesh *dm); /* only for subsurf */
+
 int GPU_attrib_element_size(GPUAttrib data[], int numdata);
 void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numdata);
 
@@ -188,6 +199,9 @@ void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start,
 
 /* called after drawing */
 void GPU_buffer_unbind(void);
+
+/* only unbind interleaved data */
+void GPU_interleaved_attrib_unbind(void);
 
 /* Buffers for non-DerivedMesh drawing */
 typedef struct GPU_PBVH_Buffers GPU_PBVH_Buffers;

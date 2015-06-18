@@ -71,20 +71,31 @@ typedef enum {
 
 typedef struct {
 	GLenum gl_buffer_type;
-	int vector_size;
+	int num_components; /* number of data components for one vertex */
 } GPUBufferTypeSettings;
 
 
 static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type);
 
 const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
-	{GL_ARRAY_BUFFER_ARB, 3}, /* vertex */
-	{GL_ARRAY_BUFFER_ARB, 3}, /* normal */
-	{GL_ARRAY_BUFFER_ARB, 3}, /* mcol */
-	{GL_ARRAY_BUFFER_ARB, 2}, /* uv */
-	{GL_ARRAY_BUFFER_ARB, 4}, /* uv for texpaint */
-	{GL_ELEMENT_ARRAY_BUFFER_ARB, 2}, /* edge */
-	{GL_ELEMENT_ARRAY_BUFFER_ARB, 4}, /* uv edge */
+    /* vertex */
+    {GL_ARRAY_BUFFER_ARB, 3},
+    /* normal */
+    {GL_ARRAY_BUFFER_ARB, 3},
+    /* mcol */
+    {GL_ARRAY_BUFFER_ARB, 3},
+    /* uv */
+    {GL_ARRAY_BUFFER_ARB, 2},
+    /* uv for texpaint */
+    {GL_ARRAY_BUFFER_ARB, 4},
+    /* edge */
+    {GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
+    /* uv edge */
+    {GL_ELEMENT_ARRAY_BUFFER_ARB, 4},
+    /* triangles, 1 point since we are allocating from tottriangle points, which account for all points */
+    {GL_ELEMENT_ARRAY_BUFFER_ARB, 1},
+    /* fast triangles */
+    {GL_ELEMENT_ARRAY_BUFFER_ARB, 1},
 };
 
 #define MAX_GPU_ATTRIB_DATA 32
@@ -239,11 +250,12 @@ void GPU_global_buffer_pool_free_unused(void)
  *
  * Thread-unsafe version for internal usage only.
  */
-static GPUBuffer *gpu_buffer_alloc_intern(int size, bool use_VBO)
+static GPUBuffer *gpu_buffer_alloc_intern(size_t size, bool use_VBO)
 {
 	GPUBufferPool *pool;
 	GPUBuffer *buf;
-	int i, bufsize, bestfit = -1;
+	int i, bestfit = -1;
+	size_t bufsize;
 
 	/* bad case, leads to leak of buf since buf->pointer will allocate
 	 * NULL, leading to return without cleanup. In any case better detect early
@@ -308,8 +320,11 @@ static GPUBuffer *gpu_buffer_alloc_intern(int size, bool use_VBO)
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 	else {
+		static int time = 0;
+
 		buf->pointer = MEM_mallocN(size, "GPUBuffer.pointer");
-		
+
+		time++;
 		/* purpose of this seems to be dealing with
 		 * out-of-memory errors? looks a bit iffy to me
 		 * though, at least on Linux I expect malloc() would
@@ -326,7 +341,7 @@ static GPUBuffer *gpu_buffer_alloc_intern(int size, bool use_VBO)
 }
 
 /* Same as above, but safe for threading. */
-GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays)
+GPUBuffer *GPU_buffer_alloc(size_t size, bool force_vertex_arrays)
 {
 	GPUBuffer *buffer;
 	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO) && !force_vertex_arrays;
@@ -409,8 +424,10 @@ void GPU_drawobject_free(DerivedMesh *dm)
 		return;
 
 	MEM_freeN(gdo->materials);
-	MEM_freeN(gdo->triangle_to_mface);
-	MEM_freeN(gdo->vert_points);
+	if (gdo->triangle_to_mface)
+		MEM_freeN(gdo->triangle_to_mface);
+	if (gdo->vert_points)
+		MEM_freeN(gdo->vert_points);
 #ifdef USE_GPU_POINT_LINK
 	MEM_freeN(gdo->vert_points_mem);
 #endif
@@ -421,6 +438,8 @@ void GPU_drawobject_free(DerivedMesh *dm)
 	GPU_buffer_free(gdo->colors);
 	GPU_buffer_free(gdo->edges);
 	GPU_buffer_free(gdo->uvedges);
+	GPU_buffer_free(gdo->triangles);
+	GPU_buffer_free(gdo->trianglesfast);
 
 	MEM_freeN(gdo);
 	dm->drawObject = NULL;
@@ -456,7 +475,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int i;
 	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
 	GLenum target = ts->gl_buffer_type;
-	int vector_size = ts->vector_size;
+	int num_components = ts->num_components;
 	int size = gpu_buffer_size_from_type(dm, type);
 	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO);
 	GLboolean uploaded;
@@ -477,7 +496,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	                                "GPU_buffer_setup.cur_index_per_mat");
 	for (i = 0; i < object->totmaterial; i++) {
 		/* for each material, the current index to copy data to */
-		cur_index_per_mat[i] = object->materials[i].start * vector_size;
+		cur_index_per_mat[i] = object->materials[i].start * num_components;
 
 		/* map from original material index to new
 		 * GPUBufferMaterial index */
@@ -561,6 +580,10 @@ static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBuffer
 			return &gdo->edges;
 		case GPU_BUFFER_UVEDGE:
 			return &gdo->uvedges;
+		case GPU_BUFFER_TRIANGLES:
+			return &gdo->triangles;
+		case GPU_BUFFER_TRIANGLES_FAST:
+			return &gdo->trianglesfast;
 		default:
 			return NULL;
 	}
@@ -571,24 +594,28 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 {
 	switch (type) {
 		case GPU_BUFFER_VERTEX:
-			return sizeof(float) * 3 * (dm->drawObject->tot_triangle_point + dm->drawObject->tot_loose_point);
+			return sizeof(float) * gpu_buffer_type_settings[type].num_components * (dm->drawObject->tot_triangle_point + dm->drawObject->tot_loose_point);
 		case GPU_BUFFER_NORMAL:
-			return sizeof(float) * 3 * dm->drawObject->tot_triangle_point;
+			return sizeof(float) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_COLOR:
-			return sizeof(char) * 3 * dm->drawObject->tot_triangle_point;
+			return sizeof(char) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_UV:
-			return sizeof(float) * 2 * dm->drawObject->tot_triangle_point;
+			return sizeof(float) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_UV_TEXPAINT:
-			return sizeof(float) * 4 * dm->drawObject->tot_triangle_point;
+			return sizeof(float) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		case GPU_BUFFER_EDGE:
-			return sizeof(int) * 2 * dm->drawObject->totedge;
+			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->totedge;
 		case GPU_BUFFER_UVEDGE:
 			/* each face gets 3 points, 3 edges per triangle, and
 			 * each edge has its own, non-shared coords, so each
 			 * tri corner needs minimum of 4 floats, quads used
 			 * less so here we can over allocate and assume all
 			 * tris. */
-			return sizeof(float) * 4 * dm->drawObject->tot_triangle_point;
+			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
+		case GPU_BUFFER_TRIANGLES:
+			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
+		case GPU_BUFFER_TRIANGLES_FAST:
+			return sizeof(int) * gpu_buffer_type_settings[type].num_components * dm->drawObject->tot_triangle_point;
 		default:
 			return -1;
 	}
@@ -787,6 +814,31 @@ void GPU_uvedge_setup(DerivedMesh *dm)
 	GLStates |= GPU_BUFFER_VERTEX_STATE;
 }
 
+void GPU_triangle_setup(struct DerivedMesh *dm)
+{
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_TRIANGLES))
+		return;
+
+	if (dm->drawObject->triangles->use_vbo) {
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, dm->drawObject->triangles->id);
+	}
+
+	GLStates |= GPU_BUFFER_ELEMENT_STATE;
+}
+
+void GPU_triangle_fast_setup(struct DerivedMesh *dm)
+{
+	if (!gpu_buffer_setup_common(dm, GPU_BUFFER_TRIANGLES_FAST))
+		return;
+
+	if (dm->drawObject->trianglesfast->use_vbo) {
+		glBindBufferARB(GL_ELEMENT_ARRAY_BUFFER_ARB, dm->drawObject->trianglesfast->id);
+	}
+
+	GLStates |= GPU_BUFFER_ELEMENT_STATE;
+}
+
+
 static int GPU_typesize(int type)
 {
 	switch (type) {
@@ -855,6 +907,18 @@ void GPU_interleaved_attrib_setup(GPUBuffer *buffer, GPUAttrib data[], int numda
 	attribData[numdata].index = -1;	
 }
 
+void GPU_interleaved_attrib_unbind(void)
+{
+	int i;
+	for (i = 0; i < MAX_GPU_ATTRIB_DATA; i++) {
+		if (attribData[i].index != -1) {
+			glDisableVertexAttribArrayARB(attribData[i].index);
+		}
+		else
+			break;
+	}
+	attribData[0].index = -1;
+}
 
 void GPU_buffer_unbind(void)
 {
@@ -956,6 +1020,7 @@ void GPU_buffer_unlock(GPUBuffer *buffer)
 		glBindBufferARB(GL_ARRAY_BUFFER_ARB, 0);
 	}
 }
+
 
 /* used for drawing edges */
 void GPU_buffer_draw_elements(GPUBuffer *elements, unsigned int mode, int start, int count)
