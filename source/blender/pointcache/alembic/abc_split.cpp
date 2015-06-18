@@ -93,15 +93,14 @@ static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_par
 	
 	for (index_t index = 0; index < iProp.getNumSamples(); ++index) {
 		chrono_t time = time_sampling->getSampleTime(index);
-		if (filter.use_time(time)) {
+		if (filter.use_time(time) || writer->getNumSamples() == 0) {
 			ArraySamplePtr sample_ptr;
 			reader->getSample(index, sample_ptr);
 			
 			writer->setSample(*sample_ptr);
 		}
 		else {
-			if (writer->getNumSamples())
-				writer->setFromPreviousSample();
+			writer->setFromPreviousSample();
 		}
 	}
 	
@@ -137,14 +136,13 @@ static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_p
 	
 	for (index_t index = 0; index < iProp.getNumSamples(); ++index) {
 		chrono_t time = time_sampling->getSampleTime(index);
-		if (filter.use_time(time)) {
+		if (filter.use_time(time) || writer->getNumSamples() == 0) {
 			reader->getSample(index, (void*)buf);
 			
 			writer->setSample((void*)buf);
 		}
 		else {
-			if (writer->getNumSamples())
-				writer->setFromPreviousSample();
+			writer->setFromPreviousSample();
 		}
 	}
 	
