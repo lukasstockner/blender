@@ -673,8 +673,8 @@ static bool parse_range(const char **s, int *start, int *end)
 		parse_error_log("Invalid range format, expected int\n", full, *s - full);
 		return false;
 	}
-	if (!parse_literal(s, "..")) {
-		parse_error_log("Invalid range format, expected ..\n", full, *s - full);
+	if (!parse_literal(s, "-")) {
+		parse_error_log("Invalid range format, expected '-'\n", full, *s - full);
 		return false;
 	}
 	if (!parse_int(s, end)) {
