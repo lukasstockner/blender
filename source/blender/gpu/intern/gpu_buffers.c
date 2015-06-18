@@ -69,6 +69,24 @@ typedef enum {
 	GPU_BUFFER_ELEMENT_STATE = (1 << 5),
 } GPUBufferState;
 
+typedef struct {
+	GLenum gl_buffer_type;
+	int vector_size;
+} GPUBufferTypeSettings;
+
+
+static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type);
+
+const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
+	{GL_ARRAY_BUFFER_ARB, 3}, /* vertex */
+	{GL_ARRAY_BUFFER_ARB, 3}, /* normal */
+	{GL_ARRAY_BUFFER_ARB, 3}, /* mcol */
+	{GL_ARRAY_BUFFER_ARB, 2}, /* uv */
+	{GL_ARRAY_BUFFER_ARB, 4}, /* uv for texpaint */
+	{GL_ELEMENT_ARRAY_BUFFER_ARB, 2}, /* edge */
+	{GL_ELEMENT_ARRAY_BUFFER_ARB, 4}, /* uv edge */
+};
+
 #define MAX_GPU_ATTRIB_DATA 32
 
 #define BUFFER_OFFSET(n) ((GLubyte *)NULL + (n))
@@ -383,187 +401,6 @@ void GPU_buffer_free(GPUBuffer *buffer)
 	BLI_mutex_unlock(&buffer_mutex);
 }
 
-#if 0 /* currently unused */
-#  define USE_GPU_POINT_LINK
-#endif
-
-typedef struct GPUVertPointLink {
-#ifdef USE_GPU_POINT_LINK
-	struct GPUVertPointLink *next;
-#endif
-	/* -1 means uninitialized */
-	int point_index;
-} GPUVertPointLink;
-
-
-/* add a new point to the list of points related to a particular
- * vertex */
-#ifdef USE_GPU_POINT_LINK
-
-static void gpu_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
-{
-	GPUVertPointLink *lnk;
-
-	lnk = &gdo->vert_points[vert_index];
-
-	/* if first link is in use, add a new link at the end */
-	if (lnk->point_index != -1) {
-		/* get last link */
-		for (; lnk->next; lnk = lnk->next) ;
-
-		/* add a new link from the pool */
-		lnk = lnk->next = &gdo->vert_points_mem[gdo->vert_points_usage];
-		gdo->vert_points_usage++;
-	}
-
-	lnk->point_index = point_index;
-}
-
-#else
-
-static void gpu_drawobject_add_vert_point(GPUDrawObject *gdo, int vert_index, int point_index)
-{
-	GPUVertPointLink *lnk;
-	lnk = &gdo->vert_points[vert_index];
-	if (lnk->point_index == -1) {
-		lnk->point_index = point_index;
-	}
-}
-
-#endif  /* USE_GPU_POINT_LINK */
-
-/* update the vert_points and triangle_to_mface fields with a new
- * triangle */
-static void gpu_drawobject_add_triangle(GPUDrawObject *gdo,
-                                        int base_point_index,
-                                        int face_index,
-                                        int v1, int v2, int v3)
-{
-	int i, v[3] = {v1, v2, v3};
-	for (i = 0; i < 3; i++)
-		gpu_drawobject_add_vert_point(gdo, v[i], base_point_index + i);
-	gdo->triangle_to_mface[base_point_index / 3] = face_index;
-}
-
-/* for each vertex, build a list of points related to it; these lists
- * are stored in an array sized to the number of vertices */
-static void gpu_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int totface, int totmat)
-{
-	GPUBufferMaterial *mat;
-	int i, *mat_orig_to_new;
-
-	mat_orig_to_new = MEM_callocN(sizeof(*mat_orig_to_new) * totmat,
-	                              "GPUDrawObject.mat_orig_to_new");
-	/* allocate the array and space for links */
-	gdo->vert_points = MEM_mallocN(sizeof(GPUVertPointLink) * gdo->totvert,
-	                               "GPUDrawObject.vert_points");
-#ifdef USE_GPU_POINT_LINK
-	gdo->vert_points_mem = MEM_callocN(sizeof(GPUVertPointLink) * gdo->tot_triangle_point,
-	                                   "GPUDrawObject.vert_points_mem");
-	gdo->vert_points_usage = 0;
-#endif
-
-	/* build a map from the original material indices to the new
-	 * GPUBufferMaterial indices */
-	for (i = 0; i < gdo->totmaterial; i++)
-		mat_orig_to_new[gdo->materials[i].mat_nr] = i;
-
-	/* -1 indicates the link is not yet used */
-	for (i = 0; i < gdo->totvert; i++) {
-#ifdef USE_GPU_POINT_LINK
-		gdo->vert_points[i].link = NULL;
-#endif
-		gdo->vert_points[i].point_index = -1;
-	}
-
-	for (i = 0; i < totface; i++, f++) {
-		mat = &gdo->materials[mat_orig_to_new[f->mat_nr]];
-
-		/* add triangle */
-		gpu_drawobject_add_triangle(gdo, mat->start + mat->totpoint,
-		                            i, f->v1, f->v2, f->v3);
-		mat->totpoint += 3;
-
-		/* add second triangle for quads */
-		if (f->v4) {
-			gpu_drawobject_add_triangle(gdo, mat->start + mat->totpoint,
-			                            i, f->v3, f->v4, f->v1);
-			mat->totpoint += 3;
-		}
-	}
-
-	/* map any unused vertices to loose points */
-	for (i = 0; i < gdo->totvert; i++) {
-		if (gdo->vert_points[i].point_index == -1) {
-			gdo->vert_points[i].point_index = gdo->tot_triangle_point + gdo->tot_loose_point;
-			gdo->tot_loose_point++;
-		}
-	}
-
-	MEM_freeN(mat_orig_to_new);
-}
-
-/* see GPUDrawObject's structure definition for a description of the
- * data being initialized here */
-GPUDrawObject *GPU_drawobject_new(DerivedMesh *dm)
-{
-	GPUDrawObject *gdo;
-	MFace *mface;
-	int totmat = dm->totmat;
-	int *points_per_mat;
-	int i, curmat, curpoint, totface;
-
-	/* object contains at least one material (default included) so zero means uninitialized dm */
-	BLI_assert(totmat != 0);
-
-	mface = dm->getTessFaceArray(dm);
-	totface = dm->getNumTessFaces(dm);
-
-	/* get the number of points used by each material, treating
-	 * each quad as two triangles */
-	points_per_mat = MEM_callocN(sizeof(*points_per_mat) * totmat, "GPU_drawobject_new.mat_orig_to_new");
-	for (i = 0; i < totface; i++)
-		points_per_mat[mface[i].mat_nr] += mface[i].v4 ? 6 : 3;
-
-	/* create the GPUDrawObject */
-	gdo = MEM_callocN(sizeof(GPUDrawObject), "GPUDrawObject");
-	gdo->totvert = dm->getNumVerts(dm);
-	gdo->totedge = dm->getNumEdges(dm);
-
-	/* count the number of materials used by this DerivedMesh */
-	for (i = 0; i < totmat; i++) {
-		if (points_per_mat[i] > 0)
-			gdo->totmaterial++;
-	}
-
-	/* allocate an array of materials used by this DerivedMesh */
-	gdo->materials = MEM_mallocN(sizeof(GPUBufferMaterial) * gdo->totmaterial,
-	                             "GPUDrawObject.materials");
-
-	/* initialize the materials array */
-	for (i = 0, curmat = 0, curpoint = 0; i < totmat; i++) {
-		if (points_per_mat[i] > 0) {
-			gdo->materials[curmat].start = curpoint;
-			gdo->materials[curmat].totpoint = 0;
-			gdo->materials[curmat].mat_nr = i;
-
-			curpoint += points_per_mat[i];
-			curmat++;
-		}
-	}
-
-	/* store total number of points used for triangles */
-	gdo->tot_triangle_point = curpoint;
-
-	gdo->triangle_to_mface = MEM_mallocN(sizeof(int) * (gdo->tot_triangle_point / 3),
-	                                     "GPUDrawObject.triangle_to_mface");
-
-	gpu_drawobject_init_vert_points(gdo, mface, totface, totmat);
-	MEM_freeN(points_per_mat);
-
-	return gdo;
-}
-
 void GPU_drawobject_free(DerivedMesh *dm)
 {
 	GPUDrawObject *gdo;
@@ -609,8 +446,7 @@ typedef void (*GPUBufferCopyFunc)(DerivedMesh *dm, float *varray, int *index,
                                   int *mat_orig_to_new, void *user_data);
 
 static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
-                                   int vector_size, int size, GLenum target,
-                                   void *user, GPUBufferCopyFunc copy_f)
+                                   int type, void *user)
 {
 	GPUBufferPool *pool;
 	GPUBuffer *buffer;
@@ -618,6 +454,10 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 	int *mat_orig_to_new;
 	int *cur_index_per_mat;
 	int i;
+	const GPUBufferTypeSettings *ts = &gpu_buffer_type_settings[type];
+	GLenum target = ts->gl_buffer_type;
+	int vector_size = ts->vector_size;
+	int size = gpu_buffer_size_from_type(dm, type);
 	bool use_VBOs = (GLEW_ARB_vertex_buffer_object) && !(U.gameflags & USER_DISABLE_VBO);
 	GLboolean uploaded;
 
@@ -674,7 +514,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 			uploaded = GL_FALSE;
 			/* attempt to upload the data to the VBO */
 			while (uploaded == GL_FALSE) {
-				(*copy_f)(dm, varray, cur_index_per_mat, mat_orig_to_new, user);
+				dm->copy_gpu_data(dm, type, varray, cur_index_per_mat, mat_orig_to_new, user);
 				/* glUnmapBuffer returns GL_FALSE if
 				 * the data store is corrupted; retry
 				 * in that case */
@@ -691,7 +531,7 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 		
 		if (buffer) {
 			varray = buffer->pointer;
-			(*copy_f)(dm, varray, cur_index_per_mat, mat_orig_to_new, user);
+			dm->copy_gpu_data(dm, type, varray, cur_index_per_mat, mat_orig_to_new, user);
 		}
 	}
 
@@ -702,361 +542,6 @@ static GPUBuffer *gpu_buffer_setup(DerivedMesh *dm, GPUDrawObject *object,
 
 	return buffer;
 }
-
-static void GPU_buffer_copy_vertex(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
-{
-	MVert *mvert;
-	MFace *f;
-	int i, j, start, totface;
-
-	mvert = dm->getVertArray(dm);
-	f = dm->getTessFaceArray(dm);
-
-	totface = dm->getNumTessFaces(dm);
-	for (i = 0; i < totface; i++, f++) {
-		start = index[mat_orig_to_new[f->mat_nr]];
-
-		/* v1 v2 v3 */
-		copy_v3_v3(&varray[start], mvert[f->v1].co);
-		copy_v3_v3(&varray[start + 3], mvert[f->v2].co);
-		copy_v3_v3(&varray[start + 6], mvert[f->v3].co);
-		index[mat_orig_to_new[f->mat_nr]] += 9;
-
-		if (f->v4) {
-			/* v3 v4 v1 */
-			copy_v3_v3(&varray[start + 9], mvert[f->v3].co);
-			copy_v3_v3(&varray[start + 12], mvert[f->v4].co);
-			copy_v3_v3(&varray[start + 15], mvert[f->v1].co);
-			index[mat_orig_to_new[f->mat_nr]] += 9;
-		}
-	}
-
-	/* copy loose points */
-	j = dm->drawObject->tot_triangle_point * 3;
-	for (i = 0; i < dm->drawObject->totvert; i++) {
-		if (dm->drawObject->vert_points[i].point_index >= dm->drawObject->tot_triangle_point) {
-			copy_v3_v3(&varray[j], mvert[i].co);
-			j += 3;
-		}
-	}
-}
-
-static void GPU_buffer_copy_normal(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
-{
-	int i, totface;
-	int start;
-	float f_no[3];
-
-	const float *nors = dm->getTessFaceDataArray(dm, CD_NORMAL);
-	short (*tlnors)[4][3] = dm->getTessFaceDataArray(dm, CD_TESSLOOPNORMAL);
-	MVert *mvert = dm->getVertArray(dm);
-	MFace *f = dm->getTessFaceArray(dm);
-
-	totface = dm->getNumTessFaces(dm);
-	for (i = 0; i < totface; i++, f++) {
-		const int smoothnormal = (f->flag & ME_SMOOTH);
-
-		start = index[mat_orig_to_new[f->mat_nr]];
-		index[mat_orig_to_new[f->mat_nr]] += f->v4 ? 18 : 9;
-
-		if (tlnors) {
-			short (*tlnor)[3] = tlnors[i];
-			/* Copy loop normals */
-			normal_short_to_float_v3(&varray[start], tlnor[0]);
-			normal_short_to_float_v3(&varray[start + 3], tlnor[1]);
-			normal_short_to_float_v3(&varray[start + 6], tlnor[2]);
-
-			if (f->v4) {
-				normal_short_to_float_v3(&varray[start + 9], tlnor[2]);
-				normal_short_to_float_v3(&varray[start + 12], tlnor[3]);
-				normal_short_to_float_v3(&varray[start + 15], tlnor[0]);
-			}
-		}
-		else if (smoothnormal) {
-			/* copy vertex normal */
-			normal_short_to_float_v3(&varray[start], mvert[f->v1].no);
-			normal_short_to_float_v3(&varray[start + 3], mvert[f->v2].no);
-			normal_short_to_float_v3(&varray[start + 6], mvert[f->v3].no);
-
-			if (f->v4) {
-				normal_short_to_float_v3(&varray[start + 9], mvert[f->v3].no);
-				normal_short_to_float_v3(&varray[start + 12], mvert[f->v4].no);
-				normal_short_to_float_v3(&varray[start + 15], mvert[f->v1].no);
-			}
-		}
-		else if (nors) {
-			/* copy cached face normal */
-			copy_v3_v3(&varray[start], &nors[i * 3]);
-			copy_v3_v3(&varray[start + 3], &nors[i * 3]);
-			copy_v3_v3(&varray[start + 6], &nors[i * 3]);
-
-			if (f->v4) {
-				copy_v3_v3(&varray[start + 9], &nors[i * 3]);
-				copy_v3_v3(&varray[start + 12], &nors[i * 3]);
-				copy_v3_v3(&varray[start + 15], &nors[i * 3]);
-			}
-		}
-		else {
-			/* calculate face normal */
-			if (f->v4)
-				normal_quad_v3(f_no, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co, mvert[f->v4].co);
-			else
-				normal_tri_v3(f_no, mvert[f->v1].co, mvert[f->v2].co, mvert[f->v3].co);
-
-			copy_v3_v3(&varray[start], f_no);
-			copy_v3_v3(&varray[start + 3], f_no);
-			copy_v3_v3(&varray[start + 6], f_no);
-
-			if (f->v4) {
-				copy_v3_v3(&varray[start + 9], f_no);
-				copy_v3_v3(&varray[start + 12], f_no);
-				copy_v3_v3(&varray[start + 15], f_no);
-			}
-		}
-	}
-}
-
-static void GPU_buffer_copy_uv(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
-{
-	int start;
-	int i, totface;
-
-	MTFace *mtface;
-	MFace *f;
-
-	if (!(mtface = DM_get_tessface_data_layer(dm, CD_MTFACE)))
-		return;
-	f = dm->getTessFaceArray(dm);
-		
-	totface = dm->getNumTessFaces(dm);
-	for (i = 0; i < totface; i++, f++) {
-		start = index[mat_orig_to_new[f->mat_nr]];
-
-		/* v1 v2 v3 */
-		copy_v2_v2(&varray[start], mtface[i].uv[0]);
-		copy_v2_v2(&varray[start + 2], mtface[i].uv[1]);
-		copy_v2_v2(&varray[start + 4], mtface[i].uv[2]);
-		index[mat_orig_to_new[f->mat_nr]] += 6;
-
-		if (f->v4) {
-			/* v3 v4 v1 */
-			copy_v2_v2(&varray[start + 6], mtface[i].uv[2]);
-			copy_v2_v2(&varray[start + 8], mtface[i].uv[3]);
-			copy_v2_v2(&varray[start + 10], mtface[i].uv[0]);
-			index[mat_orig_to_new[f->mat_nr]] += 6;
-		}
-	}
-}
-
-
-static void GPU_buffer_copy_uv_texpaint(DerivedMesh *dm, float *varray, int *index, int *mat_orig_to_new, void *UNUSED(user))
-{
-	int start;
-	int i, totface;
-
-	int totmaterial = dm->totmat;
-	MTFace **mtface_base;
-	MTFace *stencil_base;
-	int stencil;
-	MFace *mf;
-
-	/* should have been checked for before, reassert */
-	BLI_assert(DM_get_tessface_data_layer(dm, CD_MTFACE));
-	mf = dm->getTessFaceArray(dm);
-	mtface_base = MEM_mallocN(totmaterial * sizeof(*mtface_base), "texslots");
-
-	for (i = 0; i < totmaterial; i++) {
-		mtface_base[i] = DM_paint_uvlayer_active_get(dm, i);
-	}
-
-	stencil = CustomData_get_stencil_layer(&dm->faceData, CD_MTFACE);
-	stencil_base = CustomData_get_layer_n(&dm->faceData, CD_MTFACE, stencil);
-
-	totface = dm->getNumTessFaces(dm);
-
-	for (i = 0; i < totface; i++, mf++) {
-		int mat_i = mf->mat_nr;
-		start = index[mat_orig_to_new[mat_i]];
-
-		/* v1 v2 v3 */
-		copy_v2_v2(&varray[start], mtface_base[mat_i][i].uv[0]);
-		copy_v2_v2(&varray[start + 2], stencil_base[i].uv[0]);
-		copy_v2_v2(&varray[start + 4], mtface_base[mat_i][i].uv[1]);
-		copy_v2_v2(&varray[start + 6], stencil_base[i].uv[1]);
-		copy_v2_v2(&varray[start + 8], mtface_base[mat_i][i].uv[2]);
-		copy_v2_v2(&varray[start + 10], stencil_base[i].uv[2]);
-		index[mat_orig_to_new[mat_i]] += 12;
-
-		if (mf->v4) {
-			/* v3 v4 v1 */
-			copy_v2_v2(&varray[start + 12], mtface_base[mat_i][i].uv[2]);
-			copy_v2_v2(&varray[start + 14], stencil_base[i].uv[2]);
-			copy_v2_v2(&varray[start + 16], mtface_base[mat_i][i].uv[3]);
-			copy_v2_v2(&varray[start + 18], stencil_base[i].uv[3]);
-			copy_v2_v2(&varray[start + 20], mtface_base[mat_i][i].uv[0]);
-			copy_v2_v2(&varray[start + 22], stencil_base[i].uv[0]);
-			index[mat_orig_to_new[mat_i]] += 12;
-		}
-	}
-
-	MEM_freeN(mtface_base);
-}
-
-
-static void copy_mcol_uc3(unsigned char *v, unsigned char *col)
-{
-	v[0] = col[3];
-	v[1] = col[2];
-	v[2] = col[1];
-}
-
-/* treat varray_ as an array of MCol, four MCol's per face */
-static void GPU_buffer_copy_mcol(DerivedMesh *dm, float *varray_, int *index, int *mat_orig_to_new, void *user)
-{
-	int i, totface;
-	unsigned char *varray = (unsigned char *)varray_;
-	unsigned char *mcol = (unsigned char *)user;
-	MFace *f = dm->getTessFaceArray(dm);
-
-	totface = dm->getNumTessFaces(dm);
-	for (i = 0; i < totface; i++, f++) {
-		int start = index[mat_orig_to_new[f->mat_nr]];
-
-		/* v1 v2 v3 */
-		copy_mcol_uc3(&varray[start], &mcol[i * 16]);
-		copy_mcol_uc3(&varray[start + 3], &mcol[i * 16 + 4]);
-		copy_mcol_uc3(&varray[start + 6], &mcol[i * 16 + 8]);
-		index[mat_orig_to_new[f->mat_nr]] += 9;
-
-		if (f->v4) {
-			/* v3 v4 v1 */
-			copy_mcol_uc3(&varray[start + 9], &mcol[i * 16 + 8]);
-			copy_mcol_uc3(&varray[start + 12], &mcol[i * 16 + 12]);
-			copy_mcol_uc3(&varray[start + 15], &mcol[i * 16]);
-			index[mat_orig_to_new[f->mat_nr]] += 9;
-		}
-	}
-}
-
-static void GPU_buffer_copy_edge(DerivedMesh *dm, float *varray_, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
-{
-	MEdge *medge, *medge_base;
-	unsigned int *varray = (unsigned int *)varray_;
-	int i, totedge, iloose, inorm, iloosehidden, inormhidden;
-	int tot_loose_hidden = 0, tot_loose = 0;
-	int tot_hidden = 0, tot = 0;
-
-	medge_base = medge = dm->getEdgeArray(dm);
-	totedge = dm->getNumEdges(dm);
-
-	for (i = 0; i < totedge; i++, medge++) {
-		if (medge->flag & ME_EDGEDRAW) {
-			if (medge->flag & ME_LOOSEEDGE) tot_loose++;
-			else tot++;
-		}
-		else {
-			if (medge->flag & ME_LOOSEEDGE) tot_loose_hidden++;
-			else tot_hidden++;
-		}
-	}
-
-	inorm = 0;
-	inormhidden = tot;
-	iloose = tot + tot_hidden;
-	iloosehidden = iloose + tot_loose;
-
-	medge = medge_base;
-	for (i = 0; i < totedge; i++, medge++) {
-		if (medge->flag & ME_EDGEDRAW) {
-			if (medge->flag & ME_LOOSEEDGE) {
-				varray[iloose * 2] = dm->drawObject->vert_points[medge->v1].point_index;
-				varray[iloose * 2 + 1] = dm->drawObject->vert_points[medge->v2].point_index;
-				iloose++;
-			}
-			else {
-				varray[inorm * 2] = dm->drawObject->vert_points[medge->v1].point_index;
-				varray[inorm * 2 + 1] = dm->drawObject->vert_points[medge->v2].point_index;
-				inorm++;
-			}
-		}
-		else {
-			if (medge->flag & ME_LOOSEEDGE) {
-				varray[iloosehidden * 2] = dm->drawObject->vert_points[medge->v1].point_index;
-				varray[iloosehidden * 2 + 1] = dm->drawObject->vert_points[medge->v2].point_index;
-				iloosehidden++;
-			}
-			else {
-				varray[inormhidden * 2] = dm->drawObject->vert_points[medge->v1].point_index;
-				varray[inormhidden * 2 + 1] = dm->drawObject->vert_points[medge->v2].point_index;
-				inormhidden++;
-			}
-		}
-	}
-
-	dm->drawObject->tot_loose_edge_drawn = tot_loose;
-	dm->drawObject->loose_edge_offset = tot + tot_hidden;
-	dm->drawObject->tot_edge_drawn = tot;
-}
-
-static void GPU_buffer_copy_uvedge(DerivedMesh *dm, float *varray, int *UNUSED(index), int *UNUSED(mat_orig_to_new), void *UNUSED(user))
-{
-	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
-	int i, j = 0;
-
-	if (!tf)
-		return;
-
-	for (i = 0; i < dm->numTessFaceData; i++, tf++) {
-		MFace mf;
-		dm->getTessFace(dm, i, &mf);
-
-		copy_v2_v2(&varray[j], tf->uv[0]);
-		copy_v2_v2(&varray[j + 2], tf->uv[1]);
-
-		copy_v2_v2(&varray[j + 4], tf->uv[1]);
-		copy_v2_v2(&varray[j + 6], tf->uv[2]);
-
-		if (!mf.v4) {
-			copy_v2_v2(&varray[j + 8], tf->uv[2]);
-			copy_v2_v2(&varray[j + 10], tf->uv[0]);
-			j += 12;
-		}
-		else {
-			copy_v2_v2(&varray[j + 8], tf->uv[2]);
-			copy_v2_v2(&varray[j + 10], tf->uv[3]);
-
-			copy_v2_v2(&varray[j + 12], tf->uv[3]);
-			copy_v2_v2(&varray[j + 14], tf->uv[0]);
-			j += 16;
-		}
-	}
-}
-
-typedef enum {
-	GPU_BUFFER_VERTEX = 0,
-	GPU_BUFFER_NORMAL,
-	GPU_BUFFER_COLOR,
-	GPU_BUFFER_UV,
-	GPU_BUFFER_UV_TEXPAINT,
-	GPU_BUFFER_EDGE,
-	GPU_BUFFER_UVEDGE,
-} GPUBufferType;
-
-typedef struct {
-	GPUBufferCopyFunc copy;
-	GLenum gl_buffer_type;
-	int vector_size;
-} GPUBufferTypeSettings;
-
-const GPUBufferTypeSettings gpu_buffer_type_settings[] = {
-	{GPU_buffer_copy_vertex, GL_ARRAY_BUFFER_ARB, 3},
-	{GPU_buffer_copy_normal, GL_ARRAY_BUFFER_ARB, 3},
-	{GPU_buffer_copy_mcol, GL_ARRAY_BUFFER_ARB, 3},
-	{GPU_buffer_copy_uv, GL_ARRAY_BUFFER_ARB, 2},
-	{GPU_buffer_copy_uv_texpaint, GL_ARRAY_BUFFER_ARB, 4},
-	{GPU_buffer_copy_edge, GL_ELEMENT_ARRAY_BUFFER_ARB, 2},
-	{GPU_buffer_copy_uvedge, GL_ELEMENT_ARRAY_BUFFER_ARB, 4}
-};
 
 /* get the GPUDrawObject buffer associated with a type */
 static GPUBuffer **gpu_drawobject_buffer_from_type(GPUDrawObject *gdo, GPUBufferType type)
@@ -1112,11 +597,8 @@ static int gpu_buffer_size_from_type(DerivedMesh *dm, GPUBufferType type)
 /* call gpu_buffer_setup with settings for a particular type of buffer */
 static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type)
 {
-	const GPUBufferTypeSettings *ts;
 	void *user_data = NULL;
 	GPUBuffer *buf;
-
-	ts = &gpu_buffer_type_settings[type];
 
 	/* special handling for MCol and UV buffers */
 	if (type == GPU_BUFFER_COLOR) {
@@ -1128,9 +610,7 @@ static GPUBuffer *gpu_buffer_setup_type(DerivedMesh *dm, GPUBufferType type)
 			return NULL;
 	}
 
-	buf = gpu_buffer_setup(dm, dm->drawObject, ts->vector_size,
-	                       gpu_buffer_size_from_type(dm, type),
-	                       ts->gl_buffer_type, user_data, ts->copy);
+	buf = gpu_buffer_setup(dm, dm->drawObject, type, user_data);
 
 	return buf;
 }
@@ -1142,7 +622,7 @@ static GPUBuffer *gpu_buffer_setup_common(DerivedMesh *dm, GPUBufferType type)
 	GPUBuffer **buf;
 
 	if (!dm->drawObject)
-		dm->drawObject = GPU_drawobject_new(dm);
+		dm->drawObject = dm->gpuObjectNew(dm);
 
 	buf = gpu_drawobject_buffer_from_type(dm->drawObject, type);
 	if (!(*buf))
@@ -1233,7 +713,7 @@ void GPU_color_setup(DerivedMesh *dm, int colType)
 	if (!dm->drawObject) {
 		/* XXX Not really nice, but we need a valid gpu draw object to set the colType...
 		 *     Else we would have to add a new param to gpu_buffer_setup_common. */
-		dm->drawObject = GPU_drawobject_new(dm);
+		dm->drawObject = dm->gpuObjectNew(dm);
 		dm->dirty &= ~DM_DIRTY_MCOL_UPDATE_DRAW;
 		dm->drawObject->colType = colType;
 	}
