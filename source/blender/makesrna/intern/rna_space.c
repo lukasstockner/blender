@@ -35,7 +35,6 @@
 #include "BKE_key.h"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
-#include "BKE_screen.h"
 
 #include "DNA_action_types.h"
 #include "DNA_key_types.h"
@@ -57,8 +56,6 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
-
-#include "ED_fileselect.h"
 
 #include "RNA_enum_types.h"
 
@@ -235,7 +232,6 @@ static EnumPropertyItem fileselectparams_recursion_level_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "DNA_anim_types.h"
-#include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
