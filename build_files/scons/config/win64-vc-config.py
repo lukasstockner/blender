@@ -219,6 +219,19 @@ BF_OPENGL_LIB = 'opengl32 glu32'
 BF_OPENGL_LIB_STATIC = [ '${BF_OPENGL}/lib/libGL.a', '${BF_OPENGL}/lib/libGLU.a',
                          '${BF_OPENGL}/lib/libXmu.a', '${BF_OPENGL}/lib/libXext.a',
                          '${BF_OPENGL}/lib/libX11.a', '${BF_OPENGL}/lib/libXi.a' ]
+# Alembic
+WITH_BF_HDF5 = False
+WITH_BF_ALEMBIC = True
+WITH_BF_STATICALEMBIC = True
+BF_ALEMBIC = '${LIBDIR}/alembic'
+BF_ALEMBIC_INC = '${BF_ALEMBIC}/include'
+BF_ALEMBIC_LIBPATH = '${BF_ALEMBIC}/lib/static'
+BF_ALEMBIC_LIB_STATIC = '${BF_ALEMBIC_LIBPATH}/AlembicAbcGeom.lib ${BF_ALEMBIC_LIBPATH}/AlembicAbc.lib ' + \
+    '${BF_ALEMBIC_LIBPATH}/AlembicAbcCollection.lib ${BF_ALEMBIC_LIBPATH}/AlembicAbcCoreFactory.lib ' + \
+    '${BF_ALEMBIC_LIBPATH}/AlembicAbcCoreOgawa.lib ${BF_ALEMBIC_LIBPATH}/AlembicAbcMaterial.lib ' + \
+    '${BF_ALEMBIC_LIBPATH}/AlembicOgawa.lib ${BF_ALEMBIC_LIBPATH}/AlembicAbcCoreAbstract.lib ' + \
+    '${BF_ALEMBIC_LIBPATH}/AlembicUtil.lib'
+
 CC = 'cl.exe'
 CXX = 'cl.exe'
 

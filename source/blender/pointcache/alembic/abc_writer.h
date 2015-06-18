@@ -105,7 +105,7 @@ private:
 template <class OObjectT>
 OObjectT AbcWriterArchive::add_id_object(ID *id)
 {
-	using namespace Abc;
+	using namespace ::Alembic::Abc;
 	
 	if (!m_abc_archive)
 		return OObjectT();

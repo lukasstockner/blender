@@ -78,7 +78,7 @@ struct CustomDataWriter {
 			return prop;
 		}
 		else {
-			return PropertyT(it->second->asArrayPtr(), Abc::kWrapExisting);
+			return PropertyT(it->second->asArrayPtr(), ::Alembic::Abc::kWrapExisting);
 		}
 	}
 	
@@ -92,7 +92,7 @@ struct CustomDataWriter {
 			return prop;
 		}
 		else {
-			return PropertyT(it->second->asCompoundPtr(), Abc::kWrapExisting);
+			return PropertyT(it->second->asCompoundPtr(), ::Alembic::Abc::kWrapExisting);
 		}
 	}
 	
@@ -142,7 +142,7 @@ struct CustomDataReader {
 			return prop;
 		}
 		else {
-			return PropertyT(it->second->asArrayPtr(), Abc::kWrapExisting);
+			return PropertyT(it->second->asArrayPtr(), ::Alembic::Abc::kWrapExisting);
 		}
 	}
 	
@@ -156,7 +156,7 @@ struct CustomDataReader {
 			return prop;
 		}
 		else {
-			return PropertyT(it->second->asCompoundPtr(), Abc::kWrapExisting);
+			return PropertyT(it->second->asCompoundPtr(), ::Alembic::Abc::kWrapExisting);
 		}
 	}
 	

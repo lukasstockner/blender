@@ -63,7 +63,7 @@ static void write_sample(CustomDataWriter */*writer*/, OCompoundProperty &/*pare
 template <>
 void write_sample<CD_MDEFORMVERT>(CustomDataWriter *writer, OCompoundProperty &parent, const std::string &name, void *data, int num_data)
 {
-	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty>(name, parent);
+	OCompoundProperty prop = writer->add_compound_property<OCompoundProperty, OCompoundProperty>(name, parent);
 	
 	OInt32ArrayProperty totweight_prop = writer->add_array_property<OInt32ArrayProperty>(name + ":totweight", prop);
 	OInt32ArrayProperty flag_prop = writer->add_array_property<OInt32ArrayProperty>(name + ":flag", prop);
