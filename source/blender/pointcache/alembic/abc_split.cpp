@@ -91,7 +91,7 @@ static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_par
 	
 	char *buf = NULL;
 	
-	for (index_t index = 0; index <= iProp.getNumSamples(); ++index) {
+	for (index_t index = 0; index < iProp.getNumSamples(); ++index) {
 		chrono_t time = time_sampling->getSampleTime(index);
 		if (filter.use_time(time)) {
 			ArraySamplePtr sample_ptr;
@@ -135,7 +135,7 @@ static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_p
 	}
 #endif
 	
-	for (index_t index = 0; index <= iProp.getNumSamples(); ++index) {
+	for (index_t index = 0; index < iProp.getNumSamples(); ++index) {
 		chrono_t time = time_sampling->getSampleTime(index);
 		if (filter.use_time(time)) {
 			reader->getSample(index, (void*)buf);
