@@ -32,6 +32,21 @@
 
 namespace PTC {
 
+struct ArchiveSlicesFilter : public AbcArchiveFrameFilter {
+	std::vector<Abc::chrono_t> start;
+	std::vector<Abc::chrono_t> end;
+	
+	bool use_time(Abc::chrono_t time) const
+	{
+		assert(start.size() == end.size());
+		for (size_t i = 0; i < start.size(); ++i) {
+			if (time >= start[i] && time <= end[i])
+				return true;
+		}
+		return false;
+	}
+};
+
 class AbcFactory : public Factory {
 	const std::string &get_default_extension()
 	{
@@ -50,14 +65,20 @@ class AbcFactory : public Factory {
 		return AbcReaderArchive::open(fps, start_frame, name, error_handler);
 	}
 	
-	void slice(ReaderArchive *in, WriterArchive *out, float start_frame, float end_frame)
+	void slice(ReaderArchive *in, WriterArchive *out, struct ListBase *slices)
 	{
 		BLI_assert(dynamic_cast<AbcReaderArchive*>(in));
 		BLI_assert(dynamic_cast<AbcWriterArchive*>(out));
 		AbcReaderArchive *abc_in = static_cast<AbcReaderArchive*>(in);
 		AbcWriterArchive *abc_out = static_cast<AbcWriterArchive*>(out);
 		
-		abc_archive_slice(abc_in->abc_archive(), abc_out->abc_archive(), abc_out->frame_sampling(), abc_in->frame_to_time(start_frame), abc_in->frame_to_time(end_frame));
+		ArchiveSlicesFilter abc_filter;
+		for (CacheSlice *slice = (CacheSlice *)slices->first; slice; slice = slice->next) {
+			abc_filter.start.push_back(abc_in->frame_to_time(slice->start));
+			abc_filter.end.push_back(abc_in->frame_to_time(slice->end));
+		}
+		
+		abc_archive_slice(abc_in->abc_archive(), abc_out->abc_archive(), abc_out->frame_sampling(), abc_filter);
 	}
 	
 	Writer *create_writer_object(const std::string &name, Scene *scene, Object *ob)

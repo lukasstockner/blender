@@ -72,6 +72,7 @@ struct PTCReaderArchive *PTC_open_reader_archive_ex(double fps, float start_fram
 void PTC_close_reader_archive(struct PTCReaderArchive *archive);
 PTCArchiveResolution PTC_reader_archive_get_resolutions(struct PTCReaderArchive *archive);
 void PTC_reader_archive_use_render(struct PTCReaderArchive *archive, bool enable);
+bool PTC_reader_archive_get_frame_range(struct PTCReaderArchive *_archive, int *start_frame, int *end_frame);
 
 void PTC_writer_init(struct PTCWriter *writer, struct PTCWriterArchive *archive);
 void PTC_writer_create_refs(struct PTCWriter *writer);
@@ -91,7 +92,12 @@ void PTC_get_archive_info_stream(struct PTCReaderArchive *archive, void (*stream
 void PTC_get_archive_info(struct PTCReaderArchive *_archive, struct CacheArchiveInfo *info, struct IDProperty *metadata);
 void PTC_get_archive_info_nodes(struct PTCReaderArchive *_archive, struct CacheArchiveInfo *info, bool calc_bytes_size);
 
-void PTC_archive_slice(struct PTCReaderArchive *in, struct PTCWriterArchive *out, float start_frame, float end_frame);
+typedef struct CacheSlice {
+	struct CacheSlice *next, *prev;
+	int start, end;
+} CacheSlice;
+
+void PTC_archive_slice(struct PTCReaderArchive *in, struct PTCWriterArchive *out, struct ListBase *slices);
 
 struct PTCWriter *PTC_writer_dupligroup(const char *name, struct EvaluationContext *eval_ctx, struct Scene *scene, struct Group *group, struct CacheLibrary *cachelib);
 struct PTCWriter *PTC_writer_duplicache(const char *name, struct Group *group, struct DupliCache *dupcache, int datatypes, bool do_sim_debug);

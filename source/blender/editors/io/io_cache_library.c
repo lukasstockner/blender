@@ -27,6 +27,8 @@
  *  \ingroup editor/io
  */
 
+#include <ctype.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "MEM_guardedalloc.h"
@@ -618,14 +620,99 @@ void CACHELIBRARY_OT_bake(wmOperatorType *ot)
 
 /* ========================================================================= */
 
+static void parse_whitespace(const char **s)
+{
+	const char *c = *s;
+	while (*c && isspace(*c))
+		++c;
+	*s = c;
+}
+
+static bool parse_literal(const char **s, const char *lit)
+{
+	const char *c = *s;
+	
+	if (lit[0] == '\0')
+		return true;
+	
+	parse_whitespace(&c);
+	
+	while (*c && *lit) {
+		if (*c != *lit)
+			return false;
+		++c;
+		++lit;
+	}
+	*s = c;
+	
+	return !(*lit);
+}
+
+static bool parse_int(const char **s, int *i)
+{
+	char *end;
+	bool found;
+	// does whitespace skipping internally
+	*i = (int)strtol(*s, &end, 10);
+	found = (end != *s);
+	*s = end;
+	return found;
+}
+
+static void parse_error_log(const char *msg, const char *s, int pos)
+{
+	printf("%s:\n", msg);
+	printf("%s\n", s);
+	printf("%*s^\n", pos, "");
+}
+
+static bool parse_range(const char **s, int *start, int *end)
+{
+	const char *full = *s;
+	if (!parse_int(s, start)) {
+		parse_error_log("Invalid range format, expected int\n", full, *s - full);
+		return false;
+	}
+	if (!parse_literal(s, "..")) {
+		parse_error_log("Invalid range format, expected ..\n", full, *s - full);
+		return false;
+	}
+	if (!parse_int(s, end)) {
+		parse_error_log("Invalid range format, expected int\n", full, *s - full);
+		return false;
+	}
+	
+	return true;
+}
+
+static bool parse_slices(const char *s, ListBase *slices)
+{
+	CacheSlice *slice;
+	int start, end;
+	do {
+		if (!parse_range(&s, &start, &end))
+			return false;
+		
+		slice = MEM_callocN(sizeof(CacheSlice), "cache slice");
+		slice->start = start;
+		slice->end = end;
+		BLI_addtail(slices, slice);
+		
+		if (!parse_literal(&s, ","))
+			break;
+	} while (*s);
+	
+	return true;
+}
+
 static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 {
 	Object *ob = CTX_data_active_object(C);
 	CacheLibrary *cachelib = ob->cache_library;
 	Scene *scene = CTX_data_scene(C);
 	
-	const int start_frame = RNA_int_get(op->ptr, "start_frame");
-	const int end_frame = RNA_int_get(op->ptr, "end_frame");
+	char *frames = RNA_string_get_alloc(op->ptr, "frames", NULL, 0);
+	ListBase slices = {0};
 	
 	char input_filepath[FILE_MAX], input_filename[FILE_MAX];
 	char output_filepath[FILE_MAX], output_filename[FILE_MAX];
@@ -634,6 +721,10 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 	PTCArchiveResolution archive_res;
 	CacheArchiveInfo info;
 	IDProperty *metadata;
+	int start_frame = 0, end_frame = 0;
+	
+	if (!parse_slices(frames, &slices))
+		return OPERATOR_CANCELLED;
 	
 	RNA_string_get(op->ptr, "input_filepath", input_filepath);
 	if (input_filepath[0] == '\0')
@@ -661,6 +752,7 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 		metadata = IDP_New(IDP_GROUP, &val, "cache input metadata");
 	}
 	PTC_get_archive_info(input_archive, &info, metadata);
+	PTC_reader_archive_get_frame_range(input_archive, &start_frame, &end_frame);
 	
 	output_archive = PTC_open_writer_archive(FPS, start_frame, output_filename, archive_res, info.app_name, info.description, NULL, metadata);
 	
@@ -672,7 +764,7 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 		return OPERATOR_CANCELLED;
 	}
 	
-	PTC_archive_slice(input_archive, output_archive, start_frame, end_frame);
+	PTC_archive_slice(input_archive, output_archive, &slices);
 	
 	PTC_close_reader_archive(input_archive);
 	PTC_close_writer_archive(output_archive);
@@ -683,53 +775,6 @@ static int cache_library_archive_slice_exec(bContext *C, wmOperator *op)
 static int cache_library_archive_slice_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
 	return WM_operator_props_popup_confirm(C, op, event);
-	
-#if 0
-	Object *ob = CTX_data_active_object(C);
-	CacheLibrary *cachelib = ob->cache_library;
-	
-	char output_filename[FILE_MAX];
-	
-	if (!cachelib)
-		return OPERATOR_CANCELLED;
-	
-	/* make sure we run a job when exec is called after confirm popup */
-	RNA_boolean_set(op->ptr, "use_job", true);
-	
-	RNA_string_get(op->ptr, "output_filepath", output_filepath);
-	if (output_filepath[0] == '\0')
-		return OPERATOR_CANCELLED;
-	BKE_cache_archive_output_path(cachelib, output_filename, sizeof(output_filename));
-	
-	if (!BKE_cache_archive_path_test(cachelib, output_filepath)) {
-		BKE_reportf(op->reports, RPT_ERROR, "Cannot create file path for cache library %200s", cachelib->id.name+2);
-		return OPERATOR_CANCELLED;
-	}
-	
-	if (BLI_exists(output_filename)) {
-		if (BLI_is_dir(output_filename)) {
-			BKE_reportf(op->reports, RPT_ERROR, "Cache Library target is a directory: %200s", output_filename);
-			return OPERATOR_CANCELLED;
-		}
-		else if (BLI_is_file(output_filename)) {
-			if (BLI_file_is_writable(output_filename)) {
-				return WM_operator_confirm_message(C, op, "Overwrite?");
-			}
-			else {
-				BKE_reportf(op->reports, RPT_ERROR, "Cannot overwrite Cache Library target: %200s", output_filename);
-				return OPERATOR_CANCELLED;
-			}
-			
-		}
-		else {
-			BKE_reportf(op->reports, RPT_ERROR, "Invalid Cache Library target: %200s", output_filename);
-			return OPERATOR_CANCELLED;
-		}
-	}
-	else {
-		return cache_library_bake_exec(C, op);
-	}
-#endif
 }
 
 void CACHELIBRARY_OT_archive_slice(wmOperatorType *ot)
@@ -760,8 +805,7 @@ void CACHELIBRARY_OT_archive_slice(wmOperatorType *ot)
 	RNA_def_property_subtype(prop, PROP_FILEPATH);
 	prop = RNA_def_string(ot->srna, "output_filepath", NULL, FILE_MAX, "Output File Path", "Path to the target cache archive");
 	RNA_def_property_subtype(prop, PROP_FILEPATH);
-	RNA_def_int(ot->srna, "start_frame", 1, INT_MIN, INT_MAX, "Start Frame", "First frame to copy", 1, 10000);
-	RNA_def_int(ot->srna, "end_frame", 250, INT_MIN, INT_MAX, "End Frame", "Last frame to copy", 1, 10000);
+	RNA_def_string(ot->srna, "frames", NULL, 0, "Frames", "Frame ranges <start>..<end>[, <start>..<end>]");
 }
 
 /* ========================================================================= */

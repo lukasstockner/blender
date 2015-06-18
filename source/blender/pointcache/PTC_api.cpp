@@ -178,6 +178,12 @@ void PTC_reader_archive_use_render(PTCReaderArchive *_archive, bool enable)
 	archive->use_render(enable);
 }
 
+bool PTC_reader_archive_get_frame_range(PTCReaderArchive *_archive, int *start_frame, int *end_frame)
+{
+	PTC::ReaderArchive *archive = (PTC::ReaderArchive *)_archive;
+	return archive->get_frame_range(*start_frame, *end_frame);
+}
+
 void PTC_writer_init(PTCWriter *_writer, PTCWriterArchive *_archive)
 {
 	PTC::Writer *writer = (PTC::Writer *)_writer;
@@ -263,12 +269,12 @@ void PTC_get_archive_info_nodes(PTCReaderArchive *_archive, struct CacheArchiveI
 	archive->get_info_nodes(info, calc_bytes_size);
 }
 
-void PTC_archive_slice(PTCReaderArchive *_in, PTCWriterArchive *_out, float start_frame, float end_frame)
+void PTC_archive_slice(PTCReaderArchive *_in, PTCWriterArchive *_out, struct ListBase *slices)
 {
 	PTC::ReaderArchive *in = (PTC::ReaderArchive *)_in;
 	PTC::WriterArchive *out = (PTC::WriterArchive *)_out;
 	
-	PTC::Factory::alembic->slice(in, out, start_frame, end_frame);
+	PTC::Factory::alembic->slice(in, out, slices);
 }
 
 

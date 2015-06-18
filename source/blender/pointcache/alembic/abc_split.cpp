@@ -73,9 +73,9 @@ using namespace ::Alembic::AbcGeom;
 
 namespace PTC {
 
-static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end);
+static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, const AbcArchiveFrameFilter &filter);
 
-static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
+static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, const AbcArchiveFrameFilter &filter)
 {
 	OArrayProperty out(out_parent, iProp.getName(), iProp.getDataType(), iProp.getMetaData(), time_sampling);
 	
@@ -86,35 +86,30 @@ static void slice_array_property(IArrayProperty iProp, OCompoundProperty out_par
 	if (num_samples == 0)
 		return;
 	
-	index_t istart = reader->getFloorIndex(start).first;
-	index_t iend = reader->getFloorIndex(end).first;
-//	index_t ostart = time_sampling->getFloorIndex(start).first;
-//	index_t oend = time_sampling->getFloorIndex(end).first;
+//	index_t istart = reader->getFloorIndex(start).first;
+//	index_t iend = reader->getFloorIndex(end).first;
 	
 	char *buf = NULL;
 	
-#if 0
-	if (istart > ostart) {
-		/* fill the gap between start indices with the first sample,
-		 * so that output sample times match input sample times as close as possible.
-		 */
-		for (index_t index = istart)
-	}
-#endif
-	
-	for (index_t index = istart; index <= iend; ++index) {
-		
-		ArraySamplePtr sample_ptr;
-		reader->getSample(index, sample_ptr);
-		
-		writer->setSample(*sample_ptr);
+	for (index_t index = 0; index <= iProp.getNumSamples(); ++index) {
+		chrono_t time = time_sampling->getSampleTime(index);
+		if (filter.use_time(time)) {
+			ArraySamplePtr sample_ptr;
+			reader->getSample(index, sample_ptr);
+			
+			writer->setSample(*sample_ptr);
+		}
+		else {
+			if (writer->getNumSamples())
+				writer->setFromPreviousSample();
+		}
 	}
 	
 	if (buf)
 		delete[] buf;
 }
 
-static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
+static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, const AbcArchiveFrameFilter &filter)
 {
 	OScalarProperty out(out_parent, iProp.getName(), iProp.getDataType(), iProp.getMetaData(), time_sampling);
 	
@@ -126,10 +121,8 @@ static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_p
 	if (num_samples == 0)
 		return;
 	
-	index_t istart = reader->getFloorIndex(start).first;
-	index_t iend = reader->getFloorIndex(end).first;
-//	index_t ostart = time_sampling->getFloorIndex(start).first;
-//	index_t oend = time_sampling->getFloorIndex(end).first;
+//	index_t istart = reader->getFloorIndex(start).first;
+//	index_t iend = reader->getFloorIndex(end).first;
 	
 	char *buf = new char[num_bytes];
 	
@@ -142,37 +135,43 @@ static void slice_scalar_property(IScalarProperty iProp, OCompoundProperty out_p
 	}
 #endif
 	
-	for (index_t index = istart; index <= iend; ++index) {
-		
-		reader->getSample(index, (void*)buf);
-		
-		writer->setSample((void*)buf);
+	for (index_t index = 0; index <= iProp.getNumSamples(); ++index) {
+		chrono_t time = time_sampling->getSampleTime(index);
+		if (filter.use_time(time)) {
+			reader->getSample(index, (void*)buf);
+			
+			writer->setSample((void*)buf);
+		}
+		else {
+			if (writer->getNumSamples())
+				writer->setFromPreviousSample();
+		}
 	}
 	
 	delete[] buf;
 }
 
-static void slice_compound_property(ICompoundProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
+static void slice_compound_property(ICompoundProperty iProp, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, const AbcArchiveFrameFilter &filter)
 {
 	OCompoundProperty out(out_parent, iProp.getName(), iProp.getMetaData());
 	
-	slice_properties(iProp, out, time_sampling, start, end);
+	slice_properties(iProp, out, time_sampling, filter);
 }
 
-static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
+static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_parent, TimeSamplingPtr time_sampling, const AbcArchiveFrameFilter &filter)
 {
 	for (size_t i = 0 ; i < iParent.getNumProperties() ; i++) {
 		PropertyHeader header = iParent.getPropertyHeader(i);
 		
 		if (header.isCompound()) {
-			slice_compound_property(ICompoundProperty(iParent, header.getName()), out_parent, time_sampling, start, end);
+			slice_compound_property(ICompoundProperty(iParent, header.getName()), out_parent, time_sampling, filter);
 		}
 		else if (header.isScalar()) {
-			slice_scalar_property(IScalarProperty(iParent, header.getName()), out_parent, time_sampling, start, end);
+			slice_scalar_property(IScalarProperty(iParent, header.getName()), out_parent, time_sampling, filter);
 		}
 		else {
 			BLI_assert(header.isArray());
-			slice_array_property(IArrayProperty(iParent, header.getName()), out_parent, time_sampling, start, end);
+			slice_array_property(IArrayProperty(iParent, header.getName()), out_parent, time_sampling, filter);
 		}
 	}
 }
@@ -180,10 +179,10 @@ static void slice_properties(ICompoundProperty iParent, OCompoundProperty out_pa
 typedef std::map<ObjectReaderPtr, ObjectWriterPtr> ObjectMap;
 typedef std::pair<ObjectReaderPtr, ObjectWriterPtr> ObjectPair;
 
-static void slice_object(IObject iObj, OObject out, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end, ObjectMap &object_map)
+static void slice_object(IObject iObj, OObject out, TimeSamplingPtr time_sampling, const AbcArchiveFrameFilter &filter, ObjectMap &object_map)
 {
 	// Get the properties.
-	slice_properties(iObj.getProperties(), out.getProperties(), time_sampling, start, end);
+	slice_properties(iObj.getProperties(), out.getProperties(), time_sampling, filter);
 	
 	// now the child objects
 	for (size_t i = 0 ; i < iObj.getNumChildren() ; i++) {
@@ -202,7 +201,7 @@ static void slice_object(IObject iObj, OObject out, TimeSamplingPtr time_samplin
 				out_child = OObject(out, child_header.getName(), child_header.getMetaData());
 			object_map[child.getPtr()] = out_child.getPtr();
 			
-			slice_object(child, out_child, time_sampling, start, end, object_map);
+			slice_object(child, out_child, time_sampling, filter, object_map);
 		}
 	}
 }
@@ -228,11 +227,11 @@ static void slice_object_instances(IObject iObj, OObject out, const ObjectMap &o
 	}
 }
 
-void abc_archive_slice(IArchive in, OArchive out, TimeSamplingPtr time_sampling, chrono_t start, chrono_t end)
+void abc_archive_slice(IArchive in, OArchive out, TimeSamplingPtr time_sampling, const AbcArchiveFrameFilter &filter)
 {
 	ObjectMap object_map;
 	
-	slice_object(in.getTop(), out.getTop(), time_sampling, start, end, object_map);
+	slice_object(in.getTop(), out.getTop(), time_sampling, filter, object_map);
 	slice_object_instances(in.getTop(), out.getTop(), object_map);
 }
 
