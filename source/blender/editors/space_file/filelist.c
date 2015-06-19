@@ -69,7 +69,6 @@
 #include "BKE_icons.h"
 #include "BKE_idcode.h"
 #include "BKE_main.h"
-#include "BKE_report.h"
 #include "BLO_readfile.h"
 
 #include "DNA_space_types.h"
@@ -1808,7 +1807,7 @@ bool filelist_cache_previews_update(FileList *filelist)
 
 //	printf("%s: Update Previews...\n", __func__);
 
-	while (BLI_thread_queue_size(cache->previews_done) > 0) {
+	while (!BLI_thread_queue_is_empty(cache->previews_done)) {
 		FileListEntryPreview *preview = BLI_thread_queue_pop(cache->previews_done);
 //		printf("%s: %d - %s - %p\n", __func__, preview->index, preview->path, preview->img);
 
@@ -2482,7 +2481,6 @@ typedef struct FileListReadJob {
 	char main_name[FILE_MAX];
 	struct FileList *filelist;
 	struct FileList *tmp_filelist;  /* XXX We may use a simpler struct here... just a linked list and root path? */
-	//~ ReportList reports;
 } FileListReadJob;
 
 static void filelist_readjob_startjob(void *flrjv, short *stop, short *do_update, float *progress)
@@ -2590,8 +2588,6 @@ void filelist_readjob_start(FileList *filelist, const bContext *C)
 	filelist->flags |= FL_IS_PENDING;
 
 	BLI_mutex_init(&flrj->lock);
-
-	//~ BKE_reports_init(&tj->reports, RPT_PRINT);
 
 	/* setup job */
 	wm_job = WM_jobs_get(CTX_wm_manager(C), CTX_wm_window(C), CTX_wm_area(C), "Listing Dirs...",

@@ -152,9 +152,12 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
         )
 
     def render_context_delete(render_context):
-        # Do not crash here, too much things can go wrong...
+        # We use try/except blocks here to avoid crash, too much things can go wrong, and we want to leave the current
+        # .blend as clean as possible!
+        success = True
+
+        scene = bpy.data.scenes[render_context.scene]
         try:
-            scene = bpy.data.scenes[render_context.scene]
             if render_context.backup_scene is None:
                 scene.world = None
                 scene.camera = None
@@ -166,40 +169,63 @@ def do_previews(do_objects, do_groups, do_scenes, do_data_intern):
                 scene = None
             else:
                 rna_backup_restore(scene, render_context.backup_scene)
-            if render_context.world is not None:
+        except Exception as e:
+            print("ERROR:", e)
+            success = False
+
+        if render_context.world is not None:
+            try:
                 world = bpy.data.worlds[render_context.world]
                 if render_context.backup_world is None:
                     if scene is not None:
                         scene.world = None
+                    world.user_clear()
                     bpy.data.worlds.remove(world)
                 else:
                     rna_backup_restore(world, render_context.backup_world)
-            if render_context.camera:
+            except Exception as e:
+                print("ERROR:", e)
+                success = False
+
+        if render_context.camera:
+            try:
                 camera = bpy.data.objects[render_context.camera]
                 if render_context.backup_camera is None:
                     if scene is not None:
                         scene.camera = None
+                    camera.user_clear()
                     bpy.data.objects.remove(camera)
                     bpy.data.cameras.remove(bpy.data.cameras[render_context.camera_data])
                 else:
                     rna_backup_restore(camera, render_context.backup_camera)
                     rna_backup_restore(bpy.data.cameras[render_context.camera_data], render_context.backup_camera_data)
-            if render_context.lamp:
+            except Exception as e:
+                print("ERROR:", e)
+                success = False
+
+        if render_context.lamp:
+            try:
                 lamp = bpy.data.objects[render_context.lamp]
                 if render_context.backup_lamp is None:
+                    lamp.user_clear()
                     bpy.data.objects.remove(lamp)
                     bpy.data.lamps.remove(bpy.data.lamps[render_context.lamp_data])
                 else:
                     rna_backup_restore(lamp, render_context.backup_lamp)
                     rna_backup_restore(bpy.data.lamps[render_context.lamp_data], render_context.backup_lamp_data)
+            except Exception as e:
+                print("ERROR:", e)
+                success = False
+
+        try:
+            image = bpy.data.images[render_context.image]
+            image.user_clear()
+            bpy.data.images.remove(image)
         except Exception as e:
             print("ERROR:", e)
-            return False
+            success = False
 
-        image = bpy.data.images[render_context.image]
-        image.user_clear()
-        bpy.data.images.remove(image)
-        return True
+        return success
 
     def objects_render_engine_guess(obs):
         for obname in obs:

@@ -214,7 +214,7 @@ static void bli_builddir(struct BuildDirCtx *dir_ctx, const char *dirname)
  *
  * \return The length of filelist array.
  */
-unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **filelist)
+unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **r_filelist)
 {
 	struct BuildDirCtx dir_ctx;
 
@@ -224,12 +224,12 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
 	bli_builddir(&dir_ctx, dirname);
 
 	if (dir_ctx.files) {
-		*filelist = dir_ctx.files;
+		*r_filelist = dir_ctx.files;
 	}
 	else {
 		// keep blender happy. Blender stores this in a variable
 		// where 0 has special meaning.....
-		*filelist = MEM_mallocN(sizeof(**filelist), __func__);
+		*r_filelist = MEM_mallocN(sizeof(**r_filelist), __func__);
 	}
 
 	return dir_ctx.nrfiles;
@@ -240,7 +240,7 @@ unsigned int BLI_filelist_dir_contents(const char *dirname,  struct direntry **f
  *
  */
 void BLI_filelist_entry_size_to_string(
-        struct stat *st, const uint64_t sz, const bool compact, char r_size[FILELIST_DIRENTRY_SIZE_LEN])
+        const struct stat *st, const uint64_t sz, const bool compact, char r_size[FILELIST_DIRENTRY_SIZE_LEN])
 {
 	double size;
 	const char *fmt;
@@ -280,7 +280,7 @@ void BLI_filelist_entry_size_to_string(
  *
  */
 void BLI_filelist_entry_mode_to_string(
-        struct stat *st, const bool UNUSED(compact), char r_mode1[FILELIST_DIRENTRY_MODE_LEN],
+        const struct stat *st, const bool UNUSED(compact), char r_mode1[FILELIST_DIRENTRY_MODE_LEN],
         char r_mode2[FILELIST_DIRENTRY_MODE_LEN], char r_mode3[FILELIST_DIRENTRY_MODE_LEN])
 {
 	const char *types[8] = {"---", "--x", "-w-", "-wx", "r--", "r-x", "rw-", "rwx"};
@@ -317,7 +317,7 @@ void BLI_filelist_entry_mode_to_string(
  *
  */
 void BLI_filelist_entry_owner_to_string(
-        struct stat *st, const bool UNUSED(compact), char r_owner[FILELIST_DIRENTRY_OWNER_LEN])
+        const struct stat *st, const bool UNUSED(compact), char r_owner[FILELIST_DIRENTRY_OWNER_LEN])
 {
 #ifdef WIN32
 	strcpy(r_owner, "unknown");
@@ -337,7 +337,7 @@ void BLI_filelist_entry_owner_to_string(
  * Convert given entry's time into human-readable strings.
  */
 void BLI_filelist_entry_datetime_to_string(
-        struct stat *st, const int64_t ts, const bool compact,
+        const struct stat *st, const int64_t ts, const bool compact,
         char r_time[FILELIST_DIRENTRY_TIME_LEN], char r_date[FILELIST_DIRENTRY_DATE_LEN])
 {
 	const struct tm *tm = localtime(st ? &st->st_mtime : &ts);
@@ -361,7 +361,7 @@ void BLI_filelist_entry_datetime_to_string(
  *
  * \param dup_poin If given, called for each non-NULL direntry->poin. Otherwise, pointer is always simply copied over.
  */
-void BLI_filelist_entry_duplicate(struct direntry *dst, struct direntry *src)
+void BLI_filelist_entry_duplicate(struct direntry *dst, const struct direntry *src)
 {
 	*dst = *src;
 	if (dst->relname) {
@@ -378,7 +378,7 @@ void BLI_filelist_entry_duplicate(struct direntry *dst, struct direntry *src)
  * \param dup_poin If given, called for each non-NULL direntry->poin. Otherwise, pointer is always simply copied over.
  */
 void BLI_filelist_duplicate(
-        struct direntry **dest_filelist, struct direntry *src_filelist, unsigned int nrentries)
+        struct direntry **dest_filelist, struct direntry * const src_filelist, const unsigned int nrentries)
 {
 	unsigned int i;
 
@@ -406,7 +406,7 @@ void BLI_filelist_entry_free(struct direntry *entry)
 /**
  * frees storage for an array of direntries, including the array itself.
  */
-void BLI_filelist_free(struct direntry *filelist, unsigned int nrentries)
+void BLI_filelist_free(struct direntry *filelist, const unsigned int nrentries)
 {
 	unsigned int i;
 	for (i = 0; i < nrentries; ++i) {
