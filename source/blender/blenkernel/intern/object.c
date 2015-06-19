@@ -1561,9 +1561,7 @@ Object *BKE_object_copy_ex(Main *bmain, Object *ob, bool copy_caches)
 		BKE_id_lib_local_paths(bmain, ob->id.lib, &obn->id);
 	}
 
-	if (ob->preview) {
-		obn->preview = BKE_previewimg_copy(ob->preview);
-	}
+	/* Do not copy object's preview (mostly due to the fact renderers create temp copy of objects). */
 
 	return obn;
 }
