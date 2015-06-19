@@ -54,7 +54,7 @@ class StubFactory : public Factory {
 	WriterArchive *open_writer_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, PTCArchiveResolution /*resolutions*/,
 	                                   const char */*app_name*/, const char */*description*/, const struct tm */*time*/, struct IDProperty */*metadata*/, ErrorHandler */*error_handler*/) { return NULL; }
 	ReaderArchive *open_reader_archive(double /*fps*/, float /*start_frame*/, const std::string &/*name*/, ErrorHandler * /*error_handler*/) { return NULL; }
-	void slice(ReaderArchive * /*in*/, WriterArchive * /*out*/, float /*start_frame*/, float /*end_frame*/) {}
+	void slice(ReaderArchive * /*in*/, WriterArchive * /*out*/, struct ListBase * /*slices*/) {}
 	Writer *create_writer_object(const std::string &/*name*/, Scene */*scene*/, Object */*ob*/) { return NULL; }
 	Reader *create_reader_object(const std::string &/*name*/, Object */*ob*/) { return NULL; }
 	Writer *create_writer_group(const std::string &/*name*/, Group */*group*/) { return NULL; }
