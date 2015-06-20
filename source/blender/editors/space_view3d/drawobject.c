@@ -2098,8 +2098,23 @@ static void drawcamera(Scene *scene, View3D *v3d, RegionView3D *rv3d, Base *base
 	glDisable(GL_CULL_FACE);
 
 	/* camera frame */
-	if (!is_stereo3d_cameras)
-		drawcamera_frame(vec, GL_LINE_LOOP);
+	if (!is_stereo3d_cameras) {
+		/* make sure selection uses the same matrix for camera as the one used while viewing */
+		if ((G.f & G_PICKSEL) && is_view && (scene->r.views_format == SCE_VIEWS_FORMAT_STEREO_3D)) {
+			float obmat[4][4];
+			bool is_left = v3d->multiview_eye == STEREO_LEFT_ID;
+
+			glPushMatrix();
+			glLoadMatrixf(rv3d->viewmat);
+			BKE_camera_multiview_model_matrix(&scene->r, ob, is_left ? STEREO_LEFT_NAME : STEREO_RIGHT_NAME, obmat);
+			glMultMatrixf(obmat);
+
+			drawcamera_frame(vec, GL_LINE_LOOP);
+			glPopMatrix();
+		}
+		else
+			drawcamera_frame(vec, GL_LINE_LOOP);
+	}
 
 	if (is_view)
 		return;
@@ -5578,22 +5593,22 @@ static void draw_new_particle_system(Scene *scene, View3D *v3d, RegionView3D *rv
 						UI_ThemeColorShadeAlpha(TH_WIRE, 0, -100);
 					glEnable(GL_BLEND);
 					glBegin(GL_LINES);
-					for (i = 1; i < res[0]-1; ++i) {
-						float f = interpf(b[0], a[0], (float)i / (float)(res[0]-1));
+					for (i = 1; i < res[0] - 1; ++i) {
+						float f = interpf(b[0], a[0], (float)i / (float)(res[0] - 1));
 						glVertex3f(f, a[1], a[2]); glVertex3f(f, b[1], a[2]);
 						glVertex3f(f, b[1], a[2]); glVertex3f(f, b[1], b[2]);
 						glVertex3f(f, b[1], b[2]); glVertex3f(f, a[1], b[2]);
 						glVertex3f(f, a[1], b[2]); glVertex3f(f, a[1], a[2]);
 					}
-					for (i = 1; i < res[1]-1; ++i) {
-						float f = interpf(b[1], a[1], (float)i / (float)(res[1]-1));
+					for (i = 1; i < res[1] - 1; ++i) {
+						float f = interpf(b[1], a[1], (float)i / (float)(res[1] - 1));
 						glVertex3f(a[0], f, a[2]); glVertex3f(b[0], f, a[2]);
 						glVertex3f(b[0], f, a[2]); glVertex3f(b[0], f, b[2]);
 						glVertex3f(b[0], f, b[2]); glVertex3f(a[0], f, b[2]);
 						glVertex3f(a[0], f, b[2]); glVertex3f(a[0], f, a[2]);
 					}
-					for (i = 1; i < res[2]-1; ++i) {
-						float f = interpf(b[2], a[2], (float)i / (float)(res[2]-1));
+					for (i = 1; i < res[2] - 1; ++i) {
+						float f = interpf(b[2], a[2], (float)i / (float)(res[2] - 1));
 						glVertex3f(a[0], a[1], f); glVertex3f(b[0], a[1], f);
 						glVertex3f(b[0], a[1], f); glVertex3f(b[0], b[1], f);
 						glVertex3f(b[0], b[1], f); glVertex3f(a[0], b[1], f);
@@ -5778,7 +5793,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 	PTCacheEditPoint *point;
 	PTCacheEditKey *key;
 	ParticleEditSettings *pset = PE_settings(scene);
-	int i, k, totpoint = edit->totpoint, timed = pset->flag & PE_FADE_TIME ? pset->fade_frames : 0;
+	int i, k, totpoint = edit->totpoint, timed = (pset->flag & PE_FADE_TIME) ? pset->fade_frames : 0;
 	int totkeys = 1;
 	float sel_col[3];
 	float nosel_col[3];
@@ -5918,7 +5933,7 @@ static void draw_ptcache_edit(Scene *scene, View3D *v3d, PTCacheEdit *edit)
 						glColor3fv(nosel_col);
 					/* has to be like this.. otherwise selection won't work, have try glArrayElement later..*/
 					glBegin(GL_POINTS);
-					glVertex3fv(key->flag & PEK_USE_WCO ? key->world_co : key->co);
+					glVertex3fv((key->flag & PEK_USE_WCO) ? key->world_co : key->co);
 					glEnd();
 				}
 			}
@@ -8000,14 +8015,15 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 		/* only draw domains */
 		if (smd->domain) {
 			SmokeDomainSettings *sds = smd->domain;
-			float p0[3], p1[3], viewnormal[3];
-			BoundBox bb;
+			float viewnormal[3];
 
 			glLoadMatrixf(rv3d->viewmat);
 			glMultMatrixf(ob->obmat);
 
 			/* draw adaptive domain bounds */
-			if (sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) {
+			if ((sds->flags & MOD_SMOKE_ADAPTIVE_DOMAIN) && !render_override) {
+				float p0[3], p1[3];
+				BoundBox bb;
 				/* draw domain max bounds */
 				VECSUBFAC(p0, sds->p0, sds->cell_size, sds->adapt_res);
 				VECADDFAC(p1, sds->p1, sds->cell_size, sds->adapt_res);
@@ -8023,6 +8039,8 @@ void draw_object(Scene *scene, ARegion *ar, View3D *v3d, Base *base, const short
 
 			/* don't show smoke before simulation starts, this could be made an option in the future */
 			if (smd->domain->fluid && CFRA >= smd->domain->point_cache[0]->startframe) {
+				float p0[3], p1[3];
+
 				/* get view vector */
 				invert_m4_m4(ob->imat, ob->obmat);
 				mul_v3_mat3_m4v3(viewnormal, ob->imat, rv3d->viewinv[2]);

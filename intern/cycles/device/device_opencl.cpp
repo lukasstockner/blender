@@ -534,36 +534,67 @@ public:
 		fprintf(stderr, "OpenCL error (%s): %s\n", name, err_info);
 	}
 
+	static bool opencl_platform_version_check(cl_platform_id platform,
+	                                          string *error = NULL)
+	{
+		const int req_major = 1, req_minor = 1;
+		int major, minor;
+		char version[256];
+		clGetPlatformInfo(platform, CL_PLATFORM_VERSION, sizeof(version), &version, NULL);
+		if(sscanf(version, "OpenCL %d.%d", &major, &minor) < 2) {
+			if(error != NULL) {
+				*error = string_printf("OpenCL: failed to parse platform version string (%s).", version);
+			}
+			return false;
+		}
+		if(!((major == req_major && minor >= req_minor) || (major > req_major))) {
+			if(error != NULL) {
+				*error = string_printf("OpenCL: platform version 1.1 or later required, found %d.%d", major, minor);
+			}
+			return false;
+		}
+		if(error != NULL) {
+			*error = "";
+		}
+		return true;
+	}
+
+	static bool opencl_device_version_check(cl_device_id device,
+	                                        string *error = NULL)
+	{
+		const int req_major = 1, req_minor = 1;
+		int major, minor;
+		char version[256];
+		clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, sizeof(version), &version, NULL);
+		if(sscanf(version, "OpenCL C %d.%d", &major, &minor) < 2) {
+			if(error != NULL) {
+				*error = string_printf("OpenCL: failed to parse OpenCL C version string (%s).", version);
+			}
+			return false;
+		}
+		if(!((major == req_major && minor >= req_minor) || (major > req_major))) {
+			if(error != NULL) {
+				*error = string_printf("OpenCL: C version 1.1 or later required, found %d.%d", major, minor);
+			}
+			return false;
+		}
+		if(error != NULL) {
+			*error = "";
+		}
+		return true;
+	}
+
 	bool opencl_version_check()
 	{
-		char version[256];
-
-		int major, minor, req_major = 1, req_minor = 1;
-
-		clGetPlatformInfo(cpPlatform, CL_PLATFORM_VERSION, sizeof(version), &version, NULL);
-
-		if(sscanf(version, "OpenCL %d.%d", &major, &minor) < 2) {
-			opencl_error(string_printf("OpenCL: failed to parse platform version string (%s).", version));
+		string error;
+		if(!opencl_platform_version_check(cpPlatform, &error)) {
+			opencl_error(error);
 			return false;
 		}
-
-		if(!((major == req_major && minor >= req_minor) || (major > req_major))) {
-			opencl_error(string_printf("OpenCL: platform version 1.1 or later required, found %d.%d", major, minor));
+		if(!opencl_device_version_check(cdDevice, &error)) {
+			opencl_error(error);
 			return false;
 		}
-
-		clGetDeviceInfo(cdDevice, CL_DEVICE_OPENCL_C_VERSION, sizeof(version), &version, NULL);
-
-		if(sscanf(version, "OpenCL C %d.%d", &major, &minor) < 2) {
-			opencl_error(string_printf("OpenCL: failed to parse OpenCL C version string (%s).", version));
-			return false;
-		}
-
-		if(!((major == req_major && minor >= req_minor) || (major > req_major))) {
-			opencl_error(string_printf("OpenCL: C version 1.1 or later required, found %d.%d", major, minor));
-			return false;
-		}
-
 		return true;
 	}
 
@@ -640,8 +671,11 @@ public:
 			clGetProgramBuildInfo(*kernel_program, cdDevice, CL_PROGRAM_BUILD_LOG, ret_val_size, &build_log[0], NULL);
 
 			build_log[ret_val_size] = '\0';
-			fprintf(stderr, "OpenCL kernel build output:\n");
-			fprintf(stderr, "%s\n", &build_log[0]);
+			/* Skip meaningless empty output from the NVidia compiler. */
+			if(!(ret_val_size == 2 && build_log[0] == '\n')) {
+				fprintf(stderr, "OpenCL kernel build output:\n");
+				fprintf(stderr, "%s\n", &build_log[0]);
+			}
 		}
 
 		if(ciErr != CL_SUCCESS) {
@@ -676,6 +710,10 @@ public:
 
 		double starttime = time_dt();
 		printf("Compiling OpenCL kernel ...\n");
+		/* TODO(sergey): Report which kernel is being compiled
+		 * as well (megakernel or which of split kernels etc..).
+		 */
+		printf("Build flags: %s\n", custom_kernel_build_options.c_str());
 
 		if(!build_kernel(kernel_program, custom_kernel_build_options, debug_src))
 			return false;
@@ -1255,6 +1293,31 @@ protected:
 			clReleaseProgram(program);
 		}
 	}
+
+	string build_options_from_requested_features(
+	        const DeviceRequestedFeatures& requested_features)
+	{
+		string build_options = "";
+		if(requested_features.experimental) {
+			build_options += " -D__KERNEL_EXPERIMENTAL__";
+		}
+		build_options += " -D__NODES_MAX_GROUP__=" +
+			string_printf("%d", requested_features.max_nodes_group);
+		build_options += " -D__NODES_FEATURES__=" +
+			string_printf("%d", requested_features.nodes_features);
+		build_options += string_printf(" -D__MAX_CLOSURE__=%d",
+		                               requested_features.max_closure);
+		if(!requested_features.use_hair) {
+			build_options += " -D__NO_HAIR__";
+		}
+		if(!requested_features.use_object_motion) {
+			build_options += " -D__NO_OBJECT_MOTION__";
+		}
+		if(!requested_features.use_camera_motion) {
+			build_options += " -D__NO_CAMERA_MOTION__";
+		}
+		return build_options;
+	}
 };
 
 class OpenCLDeviceMegaKernel : public OpenCLDeviceBase
@@ -1667,7 +1730,7 @@ public:
 #endif
 
 	/* clos_max value for which the kernels have been loaded currently. */
-	int current_clos_max;
+	int current_max_closure;
 
 	/* Marked True in constructor and marked false at the end of path_trace(). */
 	bool first_tile;
@@ -1810,7 +1873,7 @@ public:
 		work_pool_wgs = NULL;
 		max_work_groups = 0;
 #endif
-		current_clos_max = -1;
+		current_max_closure = -1;
 		first_tile = true;
 
 		/* Get device's maximum memory that can be allocated. */
@@ -1934,23 +1997,6 @@ public:
 
 	bool load_kernels(const DeviceRequestedFeatures& requested_features)
 	{
-		/* If it is an interactive render; we ceil clos_max value to a multiple
-		 * of 5 in order to limit re-compilations.
-		 */
-		/* TODO(sergey): Decision about this should be done on higher levels. */
-		int max_closure = requested_features.max_closure;
-		if(!background) {
-			assert((max_closure != 0) && "clos_max value is 0" );
-			max_closure = (((max_closure - 1) / 5) + 1) * 5;
-			/* clos_max value shouldn't be greater than MAX_CLOSURE. */
-			max_closure = (max_closure > MAX_CLOSURE) ? MAX_CLOSURE : max_closure;
-			if(current_clos_max == max_closure) {
-				/* Present kernels have been created with the same closure count
-				 * build option.
-				 */
-				return true;
-			}
-		}
 		/* Get Shader, bake and film_convert kernels.
 		 * It'll also do verification of OpenCL actually initialized.
 		 */
@@ -1961,23 +2007,15 @@ public:
 		string kernel_path = path_get("kernel");
 		string kernel_md5 = path_files_md5_hash(kernel_path);
 		string device_md5;
-		string build_options;
 		string kernel_init_source;
 		string clbin;
 		string clsrc, *debug_src = NULL;
 
-		build_options += "-D__SPLIT_KERNEL__";
+		string build_options = "-D__SPLIT_KERNEL__";
 #ifdef __WORK_STEALING__
 		build_options += " -D__WORK_STEALING__";
 #endif
-		if(requested_features.experimental) {
-			build_options += " -D__KERNEL_EXPERIMENTAL__";
-		}
-		build_options += " -D__NODES_MAX_GROUP__=" +
-			string_printf("%d", requested_features.max_nodes_group);
-		build_options += " -D__NODES_FEATURES__=" +
-			string_printf("%d", requested_features.nodes_features);
-		build_options += string_printf(" -D__MAX_CLOSURE__=%d", max_closure);
+		build_options += build_options_from_requested_features(requested_features);
 
 		/* Set compute device build option. */
 		cl_device_type device_type;
@@ -2054,7 +2092,7 @@ public:
 #undef FIND_KERNEL
 #undef GLUE
 
-		current_clos_max = max_closure;
+		current_max_closure = requested_features.max_closure;
 
 		return true;
 	}
@@ -2256,7 +2294,7 @@ public:
 			/* TODO(sergey): This will actually over-allocate if
 			 * particular kernel does not support multiclosure.
 			 */
-			size_t ShaderClosure_size = get_shader_closure_size(current_clos_max);
+			size_t ShaderClosure_size = get_shader_closure_size(current_max_closure);
 
 #ifdef __WORK_STEALING__
 			/* Calculate max groups */
@@ -2901,7 +2939,7 @@ public:
 	{
 		size_t shader_closure_size = 0;
 		size_t shaderdata_volume = 0;
-		shader_closure_size = get_shader_closure_size(current_clos_max);
+		shader_closure_size = get_shader_closure_size(current_max_closure);
 		/* TODO(sergey): This will actually over-allocate if
 		 * particular kernel does not support multiclosure.
 		 */
@@ -3363,6 +3401,9 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 	vector<cl_platform_id> platform_ids;
 	cl_uint num_platforms = 0;
 
+	/* Number of the devices added to the device info list. */
+	cl_uint num_added_devices = 0;
+
 	/* get devices */
 	if(clGetPlatformIDs(0, NULL, &num_platforms) != CL_SUCCESS || num_platforms == 0)
 		return;
@@ -3379,24 +3420,36 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 		(getenv("CYCLES_OPENCL_TEST") != NULL) ||
 		(getenv("CYCLES_OPENCL_SPLIT_KERNEL_TEST")) != NULL;
 
-	for(int platform = 0; platform < num_platforms; platform++, num_base += num_devices) {
-		num_devices = 0;
-		if(clGetDeviceIDs(platform_ids[platform], opencl_device_type(), 0, NULL, &num_devices) != CL_SUCCESS || num_devices == 0)
+	for(int platform = 0;
+	    platform < num_platforms;
+	    platform++, num_base += num_added_devices)
+	{
+		cl_platform_id platform_id = platform_ids[platform];
+		num_devices = num_added_devices = 0;
+		if(clGetDeviceIDs(platform_id, opencl_device_type(), 0, NULL, &num_devices) != CL_SUCCESS || num_devices == 0)
 			continue;
 
 		device_ids.resize(num_devices);
 
-		if(clGetDeviceIDs(platform_ids[platform], opencl_device_type(), num_devices, &device_ids[0], NULL) != CL_SUCCESS)
+		if(clGetDeviceIDs(platform_id, opencl_device_type(), num_devices, &device_ids[0], NULL) != CL_SUCCESS)
 			continue;
 
+		if(!OpenCLDeviceBase::opencl_platform_version_check(platform_ids[platform])) {
+			continue;
+		}
+
 		char pname[256];
-		clGetPlatformInfo(platform_ids[platform], CL_PLATFORM_NAME, sizeof(pname), &pname, NULL);
+		clGetPlatformInfo(platform_id, CL_PLATFORM_NAME, sizeof(pname), &pname, NULL);
 		string platform_name = pname;
 
 		/* add devices */
 		for(int num = 0; num < num_devices; num++) {
 			cl_device_id device_id = device_ids[num];
 			char name[1024] = "\0";
+
+			if(!OpenCLDeviceBase::opencl_device_version_check(device_id)) {
+				continue;
+			}
 
 			cl_device_type device_type;
 			clGetDeviceInfo(device_id, CL_DEVICE_TYPE, sizeof(cl_device_type), &device_type, NULL);
@@ -3416,7 +3469,7 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 
 			info.type = DEVICE_OPENCL;
 			info.description = string_remove_trademark(string(name));
-			info.num = num_base + num;
+			info.num = num_base + num_added_devices;
 			info.id = string_printf("OPENCL_%d", info.num);
 			/* we don't know if it's used for display, but assume it is */
 			info.display_device = true;
@@ -3424,14 +3477,84 @@ void device_opencl_info(vector<DeviceInfo>& devices)
 			info.pack_images = true;
 
 			devices.push_back(info);
+			++num_added_devices;
 		}
 	}
 }
 
 string device_opencl_capabilities(void)
 {
-	/* TODO(sergey): Not implemented yet. */
-	return "";
+	string result = "";
+	string error_msg = "";  /* Only used by opencl_assert(), but in the future
+	                         * it could also be nicely reported to the console.
+	                         */
+	cl_uint num_platforms = 0;
+	opencl_assert(clGetPlatformIDs(0, NULL, &num_platforms));
+	if(num_platforms == 0) {
+		return "No OpenCL platforms found\n";
+	}
+	result += string_printf("Number of platforms: %d\n", num_platforms);
+
+	vector<cl_platform_id> platform_ids;
+	platform_ids.resize(num_platforms);
+	opencl_assert(clGetPlatformIDs(num_platforms, &platform_ids[0], NULL));
+
+#define APPEND_STRING_INFO(func, id, name, what) \
+	do { \
+		char data[1024] = "\0"; \
+		opencl_assert(func(id, what, sizeof(data), &data, NULL)); \
+		result += string_printf("%s: %s\n", name, data); \
+	} while(false)
+#define APPEND_PLATFORM_STRING_INFO(id, name, what) \
+	APPEND_STRING_INFO(clGetPlatformInfo, id, "\tPlatform " name, what)
+#define APPEND_DEVICE_STRING_INFO(id, name, what) \
+	APPEND_STRING_INFO(clGetDeviceInfo, id, "\t\t\tDevice " name, what)
+
+	vector<cl_device_id> device_ids;
+	for (cl_uint platform = 0; platform < num_platforms; ++platform) {
+		cl_platform_id platform_id = platform_ids[platform];
+
+		result += string_printf("Platform #%d\n", platform);
+
+		APPEND_PLATFORM_STRING_INFO(platform_id, "Name", CL_PLATFORM_NAME);
+		APPEND_PLATFORM_STRING_INFO(platform_id, "Vendor", CL_PLATFORM_VENDOR);
+		APPEND_PLATFORM_STRING_INFO(platform_id, "Version", CL_PLATFORM_VERSION);
+		APPEND_PLATFORM_STRING_INFO(platform_id, "Profile", CL_PLATFORM_PROFILE);
+		APPEND_PLATFORM_STRING_INFO(platform_id, "Extensions", CL_PLATFORM_EXTENSIONS);
+
+		cl_uint num_devices = 0;
+		opencl_assert(clGetDeviceIDs(platform_ids[platform],
+		                             CL_DEVICE_TYPE_ALL,
+		                             0,
+		                             NULL,
+		                             &num_devices));
+		result += string_printf("\tNumber of devices: %d\n", num_devices);
+
+		device_ids.resize(num_devices);
+		opencl_assert(clGetDeviceIDs(platform_ids[platform],
+		                             CL_DEVICE_TYPE_ALL,
+		                             num_devices,
+		                             &device_ids[0],
+		                             NULL));
+		for (cl_uint device = 0; device < num_devices; ++device) {
+			cl_device_id device_id = device_ids[device];
+
+			result += string_printf("\t\tDevice: #%d\n", device);
+
+			APPEND_DEVICE_STRING_INFO(device_id, "Name", CL_DEVICE_NAME);
+			APPEND_DEVICE_STRING_INFO(device_id, "Vendor", CL_DEVICE_VENDOR);
+			APPEND_DEVICE_STRING_INFO(device_id, "OpenCL C Version", CL_DEVICE_OPENCL_C_VERSION);
+			APPEND_DEVICE_STRING_INFO(device_id, "Profile", CL_DEVICE_PROFILE);
+			APPEND_DEVICE_STRING_INFO(device_id, "Version", CL_DEVICE_VERSION);
+			APPEND_DEVICE_STRING_INFO(device_id, "Extensions", CL_DEVICE_EXTENSIONS);
+		}
+	}
+
+#undef APPEND_STRING_INFO
+#undef APPEND_PLATFORM_STRING_INFO
+#undef APPEND_DEVICE_STRING_INFO
+
+	return result;
 }
 
 CCL_NAMESPACE_END

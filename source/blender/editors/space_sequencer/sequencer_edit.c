@@ -984,11 +984,11 @@ static void UNUSED_FUNCTION(seq_remap_paths) (Scene *scene)
 		return;
 	
 	BLI_strncpy(from, last_seq->strip->dir, sizeof(from));
-// XXX	if (0 == sbutton(from, 0, sizeof(from)-1, "From: "))
+// XXX	if (0 == sbutton(from, 0, sizeof(from) - 1, "From: "))
 //		return;
 	
 	BLI_strncpy(to, from, sizeof(to));
-// XXX	if (0 == sbutton(to, 0, sizeof(to)-1, "To: "))
+// XXX	if (0 == sbutton(to, 0, sizeof(to) - 1, "To: "))
 //		return;
 	
 	if (STREQ(to, from))
@@ -1738,7 +1738,7 @@ void SEQUENCER_OT_mute(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Mute Strips";
 	ot->idname = "SEQUENCER_OT_mute";
-	ot->description = "Mute selected strips";
+	ot->description = "Mute (un)selected strips";
 	
 	/* api callbacks */
 	ot->exec = sequencer_mute_exec;
@@ -1789,7 +1789,7 @@ void SEQUENCER_OT_unmute(struct wmOperatorType *ot)
 	/* identifiers */
 	ot->name = "Un-Mute Strips";
 	ot->idname = "SEQUENCER_OT_unmute";
-	ot->description = "Un-Mute unselected rather than selected strips";
+	ot->description = "Unmute (un)selected strips";
 	
 	/* api callbacks */
 	ot->exec = sequencer_unmute_exec;
@@ -1798,7 +1798,7 @@ void SEQUENCER_OT_unmute(struct wmOperatorType *ot)
 	/* flags */
 	ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 	
-	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "UnMute unselected rather than selected strips");
+	RNA_def_boolean(ot->srna, "unselected", 0, "Unselected", "Unmute unselected rather than selected strips");
 }
 
 
@@ -3695,7 +3695,7 @@ static int sequencer_change_path_exec(bContext *C, wmOperator *op)
 	Sequence *seq = BKE_sequencer_active_get(scene);
 	const bool is_relative_path = RNA_boolean_get(op->ptr, "relative_path");
 	const bool use_placeholders = RNA_boolean_get(op->ptr, "use_placeholders");
-	int minframe;
+	int minframe, numdigits;
 
 	if (seq->type == SEQ_TYPE_IMAGE) {
 		char directory[FILE_MAX];
@@ -3704,7 +3704,7 @@ static int sequencer_change_path_exec(bContext *C, wmOperator *op)
 
 		/* need to find min/max frame for placeholders */
 		if (use_placeholders) {
-			len = sequencer_image_seq_get_minmax_frame(op, seq->sfra, &minframe);
+			len = sequencer_image_seq_get_minmax_frame(op, seq->sfra, &minframe, &numdigits);
 		}
 		else {
 			len = RNA_property_collection_length(op->ptr, RNA_struct_find_property(op->ptr, "files"));
@@ -3727,7 +3727,7 @@ static int sequencer_change_path_exec(bContext *C, wmOperator *op)
 		seq->strip->stripdata = se = MEM_callocN(len * sizeof(StripElem), "stripelem");
 
 		if (use_placeholders) {
-			sequencer_image_seq_reserve_frames(op, se, len, minframe);
+			sequencer_image_seq_reserve_frames(op, se, len, minframe, numdigits);
 		}
 		else {
 			RNA_BEGIN (op->ptr, itemptr, "files")

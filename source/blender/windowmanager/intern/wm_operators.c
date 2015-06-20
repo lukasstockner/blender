@@ -577,12 +577,13 @@ void WM_operator_bl_idname(char *to, const char *from)
 		to[0] = 0;
 }
 
-/* Print a string representation of the operator, with the args that it runs so python can run it again.
+/**
+ * Print a string representation of the operator, with the args that it runs so python can run it again.
  *
  * When calling from an existing wmOperator, better to use simple version:
- *     WM_operator_pystring(C, op);
+ * `WM_operator_pystring(C, op);`
  *
- * Note: both op and opptr may be NULL (op is only used for macro operators).
+ * \note Both \a op and \a opptr may be `NULL` (\a op is only used for macro operators).
  */
 char *WM_operator_pystring_ex(bContext *C, wmOperator *op, const bool all_args, const bool macro_args,
                               wmOperatorType *ot, PointerRNA *opptr)
@@ -1516,7 +1517,8 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *ar, void *arg_op)
 
 	block = UI_block_begin(C, ar, __func__, UI_EMBOSS);
 	UI_block_flag_disable(block, UI_BLOCK_LOOP);
-	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
+	/* UI_BLOCK_NUMSELECT for layer buttons */
+	UI_block_flag_enable(block, UI_BLOCK_NUMSELECT | UI_BLOCK_KEEP_OPEN | UI_BLOCK_MOVEMOUSE_QUIT);
 
 	/* if register is not enabled, the operator gets freed on OPERATOR_FINISHED
 	 * ui_apply_but_funcs_after calls ED_undo_operator_repeate_cb and crashes */
@@ -1553,6 +1555,9 @@ typedef struct wmOpPopUp {
 /* Only invoked by OK button in popups created with wm_block_dialog_create() */
 static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 {
+	wmWindowManager *wm = CTX_wm_manager(C);
+	wmWindow *win = CTX_wm_window(C);
+
 	wmOpPopUp *data = arg1;
 	uiBlock *block = arg2;
 
@@ -1565,7 +1570,11 @@ static void dialog_exec_cb(bContext *C, void *arg1, void *arg2)
 	/* in this case, wm_operator_ui_popup_cancel wont run */
 	MEM_freeN(data);
 
-	UI_popup_block_close(C, block);
+	/* check window before 'block->handle' incase the
+	 * popup execution closed the window and freed the block. see T44688. */
+	if (BLI_findindex(&wm->windows, win) != -1) {
+		UI_popup_block_close(C, win, block);
+	}
 }
 
 static void dialog_check_cb(bContext *C, void *op_ptr, void *UNUSED(arg))
@@ -1722,18 +1731,20 @@ static int wm_operator_props_popup_ex(bContext *C, wmOperator *op,
 	return OPERATOR_RUNNING_MODAL;
 }
 
-/* Same as WM_operator_props_popup but don't use operator redo.
- * just wraps WM_operator_props_dialog_popup.
+/**
+ * Same as #WM_operator_props_popup but don't use operator redo.
+ * just wraps #WM_operator_props_dialog_popup.
  */
 int WM_operator_props_popup_confirm(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	return wm_operator_props_popup_ex(C, op, false, false);
 }
 
-/* Same as WM_operator_props_popup but call the operator first,
+/**
+ * Same as #WM_operator_props_popup but call the operator first,
  * This way - the button values correspond to the result of the operator.
- * Without this, first access to a button will make the result jump,
- * see [#32452] */
+ * Without this, first access to a button will make the result jump, see T32452.
+ */
 int WM_operator_props_popup_call(bContext *C, wmOperator *op, const wmEvent *UNUSED(event))
 {
 	return wm_operator_props_popup_ex(C, op, true, true);
@@ -1837,21 +1848,16 @@ static void WM_OT_operator_defaults(wmOperatorType *ot)
 
 static void wm_block_splash_close(bContext *C, void *arg_block, void *UNUSED(arg))
 {
-	UI_popup_block_close(C, arg_block);
+	wmWindow *win = CTX_wm_window(C);
+	UI_popup_block_close(C, win, arg_block);
 }
 
 static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *arg_unused);
 
-/* XXX: hack to refresh splash screen with updated preset menu name,
- * since popup blocks don't get regenerated like panels do */
-static void wm_block_splash_refreshmenu(bContext *UNUSED(C), void *UNUSED(arg_block), void *UNUSED(arg))
+static void wm_block_splash_refreshmenu(bContext *C, void *UNUSED(arg_block), void *UNUSED(arg))
 {
-	/* ugh, causes crashes in other buttons, disabling for now until 
-	 * a better fix */
-#if 0
-	UI_popup_block_close(C, arg_block);
-	UI_popup_block_invoke(C, wm_block_create_splash, NULL);
-#endif
+	ARegion *ar_menu = CTX_wm_menu(C);
+	ED_region_tag_refresh_ui(ar_menu);
 }
 
 static int wm_resource_check_prev(void)
@@ -1933,7 +1939,7 @@ static uiBlock *wm_block_create_splash(bContext *C, ARegion *ar, void *UNUSED(ar
 	/* note on UI_BLOCK_NO_WIN_CLIP, the window size is not always synchronized
 	 * with the OS when the splash shows, window clipping in this case gives
 	 * ugly results and clipping the splash isn't useful anyway, just disable it [#32938] */
-	UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
+	UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
 
 	/* XXX splash scales with pixelsize, should become widget-units */
 	but = uiDefBut(block, UI_BTYPE_IMAGE, 0, "", 0, 0.5f * U.widget_unit, U.pixelsize * 501, U.pixelsize * 282, ibuf, 0.0, 0.0, 0, 0, ""); /* button owns the imbuf now */
@@ -3166,9 +3172,10 @@ void WM_paint_cursor_end(wmWindowManager *wm, void *handle)
 
 /* **************** Border gesture *************** */
 
-/* Border gesture has two types:
- * 1) WM_GESTURE_CROSS_RECT: starts a cross, on mouse click it changes to border
- * 2) WM_GESTURE_RECT: starts immediate as a border, on mouse click or release it ends
+/**
+ * Border gesture has two types:
+ * -# #WM_GESTURE_CROSS_RECT: starts a cross, on mouse click it changes to border.
+ * -# #WM_GESTURE_RECT: starts immediate as a border, on mouse click or release it ends.
  *
  * It stores 4 values (xmin, xmax, ymin, ymax) and event it ended with (event_type)
  */
@@ -4107,12 +4114,15 @@ typedef enum {
 	RC_PROP_REQUIRE_BOOL = 4,
 } RCPropFlags;
 
-/* attempt to retrieve the rna pointer/property from an rna path;
- * returns 0 for failure, 1 for success, and also 1 if property is not
- * set */
-static int radial_control_get_path(PointerRNA *ctx_ptr, wmOperator *op,
-                                   const char *name, PointerRNA *r_ptr,
-                                   PropertyRNA **r_prop, int req_length, RCPropFlags flags)
+/**
+ * Attempt to retrieve the rna pointer/property from an rna path.
+ *
+ * \return 0 for failure, 1 for success, and also 1 if property is not set.
+ */
+static int radial_control_get_path(
+        PointerRNA *ctx_ptr, wmOperator *op,
+        const char *name, PointerRNA *r_ptr,
+        PropertyRNA **r_prop, int req_length, RCPropFlags flags)
 {
 	PropertyRNA *unused_prop;
 	int len;
@@ -4246,8 +4256,7 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 {
 	wmWindowManager *wm;
 	RadialControl *rc;
-	int min_value_int, max_value_int, step_int;
-	float step_float, precision;
+
 
 	if (!(op->customdata = rc = MEM_callocN(sizeof(RadialControl), "RadialControl")))
 		return OPERATOR_CANCELLED;
@@ -4260,17 +4269,29 @@ static int radial_control_invoke(bContext *C, wmOperator *op, const wmEvent *eve
 	/* get type, initial, min, and max values of the property */
 	switch ((rc->type = RNA_property_type(rc->prop))) {
 		case PROP_INT:
-			rc->initial_value = RNA_property_int_get(&rc->ptr, rc->prop);
-			RNA_property_int_ui_range(&rc->ptr, rc->prop, &min_value_int,
-			                          &max_value_int, &step_int);
-			rc->min_value = min_value_int;
-			rc->max_value = max_value_int;
+		{
+			int value, min, max, step;
+
+			value = RNA_property_int_get(&rc->ptr, rc->prop);
+			RNA_property_int_ui_range(&rc->ptr, rc->prop, &min, &max, &step);
+
+			rc->initial_value = value;
+			rc->min_value = min_ii(value, min);
+			rc->max_value = max_ii(value, max);
 			break;
+		}
 		case PROP_FLOAT:
-			rc->initial_value = RNA_property_float_get(&rc->ptr, rc->prop);
-			RNA_property_float_ui_range(&rc->ptr, rc->prop, &rc->min_value,
-			                            &rc->max_value, &step_float, &precision);
+		{
+			float value, min, max, step, precision;
+
+			value = RNA_property_float_get(&rc->ptr, rc->prop);
+			RNA_property_float_ui_range(&rc->ptr, rc->prop, &min, &max, &step, &precision);
+
+			rc->initial_value = value;
+			rc->min_value = min_ff(value, min);
+			rc->max_value = max_ff(value, max);
 			break;
+		}
 		default:
 			BKE_report(op->reports, RPT_ERROR, "Property must be an integer or a float");
 			MEM_freeN(rc);
@@ -4768,6 +4789,7 @@ static void WM_OT_dependency_relations(wmOperatorType *ot)
 /* *************************** Mat/tex/etc. previews generation ************* */
 
 typedef struct PreviewsIDEnsureStack {
+	bContext *C;
 	Scene *scene;
 
 	BLI_LINKSTACK_DECLARE(id_stack, ID *);
@@ -4792,7 +4814,7 @@ static bool previews_id_ensure_callback(void *todo_v, ID **idptr, int UNUSED(cd_
 
 	if (id && (id->flag & LIB_DOIT)) {
 		if (ELEM(GS(id->name), ID_MA, ID_TE, ID_IM, ID_WO, ID_LA)) {
-			previews_id_ensure(NULL, todo->scene, id);
+			previews_id_ensure(todo->C, todo->scene, id);
 		}
 		id->flag &= ~LIB_DOIT;  /* Tag the ID as done in any case. */
 		BLI_LINKSTACK_PUSH(todo->id_stack, id);
@@ -4817,6 +4839,7 @@ static int previews_ensure_exec(bContext *C, wmOperator *UNUSED(op))
 
 	for (scene = bmain->scene.first; scene; scene = scene->id.next) {
 		preview_id_stack.scene = scene;
+		preview_id_stack.C = C;
 		id = (ID *)scene;
 
 		do {

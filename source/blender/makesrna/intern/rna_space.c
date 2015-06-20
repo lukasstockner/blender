@@ -35,7 +35,6 @@
 #include "BKE_key.h"
 #include "BKE_movieclip.h"
 #include "BKE_node.h"
-#include "BKE_screen.h"
 
 #include "DNA_action_types.h"
 #include "DNA_key_types.h"
@@ -57,8 +56,6 @@
 
 #include "RE_engine.h"
 #include "RE_pipeline.h"
-
-#include "ED_fileselect.h"
 
 #include "RNA_enum_types.h"
 
@@ -225,7 +222,6 @@ static EnumPropertyItem buttons_texture_context_items[] = {
 #ifdef RNA_RUNTIME
 
 #include "DNA_anim_types.h"
-#include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_userdef_types.h"
@@ -917,6 +913,8 @@ static EnumPropertyItem *rna_SpaceImageEditor_pivot_itemf(bContext *UNUSED(C), P
 		{V3D_CENTER, "CENTER", ICON_ROTATE, "Bounding Box Center", ""},
 		{V3D_CENTROID, "MEDIAN", ICON_ROTATECENTER, "Median Point", ""},
 		{V3D_CURSOR, "CURSOR", ICON_CURSOR, "2D Cursor", ""},
+		{V3D_LOCAL, "INDIVIDUAL_ORIGINS", ICON_ROTATECOLLECTION,
+		            "Individual Origins", "Pivot around each object's own origin"},
 		{0, NULL, 0, NULL, NULL}
 	};
 
@@ -1932,7 +1930,7 @@ static void rna_def_space_image_uv(BlenderRNA *brna)
 
 	prop = RNA_def_property(srna, "show_metadata", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_boolean_sdna(prop, NULL, "flag", SI_DRAW_METADATA);
-	RNA_def_property_ui_text(prop, "Draw Metadata", "Draw metadata properties of the image");
+	RNA_def_property_ui_text(prop, "Show Metadata", "Draw metadata properties of the image");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, NULL);
 
 	prop = RNA_def_property(srna, "show_texpaint", PROP_BOOLEAN, PROP_NONE);
@@ -4408,6 +4406,11 @@ static void rna_def_space_clip(BlenderRNA *brna)
 	prop = RNA_def_property(srna, "show_disabled", PROP_BOOLEAN, PROP_NONE);
 	RNA_def_property_ui_text(prop, "Show Disabled", "Show disabled tracks from the footage");
 	RNA_def_property_boolean_negative_sdna(prop, NULL, "flag", SC_HIDE_DISABLED);
+	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
+
+	prop = RNA_def_property(srna, "show_metadata", PROP_BOOLEAN, PROP_NONE);
+	RNA_def_property_boolean_sdna(prop, NULL, "flag", 	SC_SHOW_METADATA);
+	RNA_def_property_ui_text(prop, "Show Metadata", "Show metadata of clip");
 	RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, NULL);
 
 	/* scopes */

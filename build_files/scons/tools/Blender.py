@@ -630,7 +630,7 @@ def WinPyBundle(target=None, source=None, env=None):
         py_tar+= '/release/python' + env['BF_PYTHON_VERSION'].replace('.','') + '.tar.gz'
 
     py_target = env.subst(env['BF_INSTALLDIR']).lstrip("#")
-    py_target = os.path.join(py_target, VERSION, 'python', 'lib')
+    py_target = os.path.join(py_target, VERSION, 'python')
     def printexception(func,path,ex):
         if os.path.exists(path): #do not report if path does not exist. eg on a fresh build.
             print str(func) + ' failed on ' + str(path)
@@ -764,7 +764,7 @@ def AppIt(target=None, source=None, env=None):
             commands.getoutput(cmd)
             cmd = 'cp -R %s/kernel/*.h %s/kernel/*.cl %s/kernel/*.cu %s/kernel/' % (croot, croot, croot, cinstalldir)
             commands.getoutput(cmd)
-            cmd = 'cp -R %s/kernel/svm %s/kernel/closure %s/kernel/geom %s/util/util_color.h %s/util/util_half.h %s/util/util_math.h %s/util/util_math_fast.h %s/util/util_transform.h %s/util/util_types.h %s/kernel/' % (croot, croot, croot, croot, croot, croot, croot, croot, croot, cinstalldir)
+            cmd = 'cp -R %s/kernel/svm %s/kernel/closure %s/kernel/geom %s/kernel/split %s/kernel/kernels %s/util/util_color.h %s/util/util_half.h %s/util/util_math.h %s/util/util_math_fast.h %s/util/util_transform.h %s/util/util_types.h %s/util/util_atomic.h %s/kernel/' % (croot, croot, croot, croot, croot, croot, croot, croot, croot, croot, croot, croot, cinstalldir)
             commands.getoutput(cmd)
             cmd = 'cp -R %s/../intern/cycles/kernel/*.cubin %s/lib/' % (builddir, cinstalldir)
             commands.getoutput(cmd)
