@@ -1681,7 +1681,7 @@ static void cdDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *in
 			cdDM_buffer_copy_triangles(dm, varray, index, mat_orig_to_new, user_data);
 			break;
 		case GPU_BUFFER_TRIANGLES_FAST:
-			/* */
+			/* only supported in subsurf */
 		default:
 			break;
 	}

@@ -1947,6 +1947,42 @@ static void ccgDM_prepare_vertex_data(DerivedMesh *dm, float *varray, int *UNUSE
 	}
 }
 
+/* Only used by non-editmesh types */
+static void ccgDM_prepare_uv_data(DerivedMesh *dm, float *varray, int *UNUSED(vindex),
+                                      int *UNUSED(mat_orig_to_new), void *UNUSED(user_data))
+{
+	CCGDerivedMesh *ccgdm = (CCGDerivedMesh *) dm;
+	CCGSubSurf *ss = ccgdm->ss;
+	CCGKey key;
+	MTFace *tf = DM_get_tessface_data_layer(dm, CD_MTFACE);
+	int gridSize = ccgSubSurf_getGridSize(ss);
+	int gridFaces = gridSize - 1;
+	int i, totface = ccgSubSurf_getNumFaces(ss);
+	int start = 0;
+
+	CCG_key_top_level(&key, ss);
+	ccgdm_pbvh_update(ccgdm);
+
+	for (i = 0; i < totface; i++) {
+		CCGFace *f = ccgdm->faceMap[i].face;
+		int S, x, y, numVerts = ccgSubSurf_getFaceNumVerts(f);
+
+		for (S = 0; S < numVerts; S++) {
+			for (y = 0; y < gridFaces; y++) {
+				for (x = 0; x < gridFaces; x++) {
+					copy_v2_v2(&varray[start], tf->uv[0]);
+					copy_v2_v2(&varray[start + 2], tf->uv[3]);
+					copy_v2_v2(&varray[start + 4], tf->uv[2]);
+					copy_v2_v2(&varray[start + 6], tf->uv[1]);
+
+					tf++;
+					start += 8;
+				}
+			}
+		}
+	}
+}
+
 static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *index,
                          int *mat_orig_to_new, void *UNUSED(user_data))
 {	
@@ -1956,6 +1992,15 @@ static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *i
 			break;
 		case GPU_BUFFER_NORMAL:
 			ccgDM_prepare_normal_data(dm, varray, index, mat_orig_to_new, NULL);
+			break;
+		case GPU_BUFFER_UV:
+			ccgDM_prepare_uv_data(dm, varray, index, mat_orig_to_new, NULL);
+			break;
+		case GPU_BUFFER_UV_TEXPAINT:
+			//ccgDM_prepare_uv_data(dm, varray, index, mat_orig_to_new, NULL);
+			break;
+		case GPU_BUFFER_COLOR:
+			//ccgDM_prepare_uv_data(dm, varray, index, mat_orig_to_new, NULL);
 			break;
 		case GPU_BUFFER_TRIANGLES:
 			ccgDM_prepare_triangle_data(dm, varray, index, mat_orig_to_new, NULL);
@@ -2591,6 +2636,17 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 		mcol = dm->getTessFaceDataArray(dm, colType);
 	}
 
+	GPU_vertex_setup(dm);
+	GPU_normal_setup(dm);
+	GPU_triangle_setup(dm);
+	if (flag & DM_DRAW_USE_TEXPAINT_UV)
+		GPU_texpaint_uv_setup(dm);
+	else
+		GPU_uv_setup(dm);
+	if (mcol) {
+		GPU_color_setup(dm, colType);
+	}
+
 	totface = ccgSubSurf_getNumFaces(ss);
 
 	if (flag & DM_DRAW_USE_TEXPAINT_UV) {
@@ -2790,6 +2846,8 @@ static void ccgDM_drawFacesTex_common(DerivedMesh *dm,
 			}
 		}
 	}
+
+	GPU_buffer_unbind();
 }
 
 static void ccgDM_drawFacesTex(DerivedMesh *dm,
