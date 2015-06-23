@@ -460,7 +460,7 @@ static void cdDM_drawFacesSolid(DerivedMesh *dm,
 	glShadeModel(GL_SMOOTH);
 	for (a = 0; a < dm->drawObject->totmaterial; a++) {
 		if (!setMaterial || setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
-			GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, dm->drawObject->materials[a].start, dm->drawObject->materials[a].totpoint);
+			GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES, dm->drawObject->materials[a].start, dm->drawObject->materials[a].totelements);
 		}
 	}
 	GPU_buffer_unbind();
@@ -1152,7 +1152,7 @@ static void cdDM_drawMappedFacesGLSL(DerivedMesh *dm,
 					GPU_interleaved_attrib_setup(matconv[a].buffers, matconv[a].datatypes, matconv[a].numdata);
 				}
 				GPU_buffer_draw_elements(dm->drawObject->triangles, GL_TRIANGLES,
-				                         dm->drawObject->materials[a].start, dm->drawObject->materials[a].totpoint);
+				                         dm->drawObject->materials[a].start, dm->drawObject->materials[a].totelements);
 				if (matconv[a].buffers) {
 					GPU_interleaved_attrib_unbind();
 					GPU_buffer_free(matconv[a].buffers);
@@ -1775,15 +1775,15 @@ static void cdDM_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int t
 		mat = &gdo->materials[mat_orig_to_new[f->mat_nr]];
 
 		/* add triangle */
-		cdDM_drawobject_add_triangle(gdo, mat->start + mat->totpoint,
+		cdDM_drawobject_add_triangle(gdo, mat->start + mat->totelements,
 		                            i, f->v1, f->v2, f->v3, false, tot_loops);
-		mat->totpoint += 3;
+		mat->totelements += 3;
 
 		/* add second triangle for quads */
 		if (f->v4) {
-			cdDM_drawobject_add_triangle(gdo, mat->start + mat->totpoint,
+			cdDM_drawobject_add_triangle(gdo, mat->start + mat->totelements,
 			                            i, f->v3, f->v4, f->v1, true, tot_loops);
-			mat->totpoint += 3;
+			mat->totelements += 3;
 			tot_loops += 4;
 		}
 		else {
@@ -1803,7 +1803,7 @@ static void cdDM_drawobject_init_vert_points(GPUDrawObject *gdo, MFace *f, int t
 }
 
 typedef struct {
-	int points;
+	int elements;
 	int loops;
 } GPUMaterialInfo;
 
@@ -1828,11 +1828,11 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 	mat_info = MEM_callocN(sizeof(*mat_info) * totmat, "GPU_drawobject_new.mat_orig_to_new");
 	for (i = 0; i < totface; i++) {
 		if (mface->v4) {
-			mat_info[mface[i].mat_nr].points += 6;
+			mat_info[mface[i].mat_nr].elements += 6;
 			mat_info[mface[i].mat_nr].loops += 4;
 		}
 		else {
-			mat_info[mface[i].mat_nr].points += 3;
+			mat_info[mface[i].mat_nr].elements += 3;
 			mat_info[mface[i].mat_nr].loops += 3;
 		}
 	}
@@ -1844,7 +1844,7 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 
 	/* count the number of materials used by this DerivedMesh */
 	for (i = 0; i < totmat; i++) {
-		if (mat_info[i].points > 0)
+		if (mat_info[i].elements > 0)
 			gdo->totmaterial++;
 	}
 
@@ -1854,14 +1854,14 @@ static GPUDrawObject *cdDM_GPUobject_new(DerivedMesh *dm)
 
 	/* initialize the materials array */
 	for (i = 0, curmat = 0, curpoint = 0; i < totmat; i++) {
-		if (mat_info[i].points > 0) {
+		if (mat_info[i].elements > 0) {
 			gdo->materials[curmat].start = curpoint;
 			/* can set it to points now but used in cdDM_drawobject_init_vert_points as counter */
-			gdo->materials[curmat].totpoint = 0;
+			gdo->materials[curmat].totelements = 0;
 			gdo->materials[curmat].totloops = mat_info[i].loops;
 			gdo->materials[curmat].mat_nr = i;
 
-			curpoint += mat_info[i].points;
+			curpoint += mat_info[i].elements;
 			curmat++;
 		}
 	}

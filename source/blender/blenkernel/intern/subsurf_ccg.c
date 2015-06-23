@@ -1943,6 +1943,11 @@ static void ccgDM_copy_gpu_data(DerivedMesh *dm, int type, float *varray, int *i
 	}
 }
 
+typedef struct {
+	int elements;
+	int loops;
+} GPUMaterialInfo;
+
 static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 //	GPUBufferMaterial *mat;
 	int *mat_orig_to_new;
@@ -1953,15 +1958,15 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 	int gridSize = ccgSubSurf_getGridSize(ss);
 	int gridFaces = gridSize - 1;
 	int totmat = (faceFlags) ? dm->totmat : 1;
-	int *points_per_mat;
-	int i, curmat, curpoint, totface;
+	GPUMaterialInfo *matinfo;
+	int i, curmat, curelement, totface;
 
 	/* object contains at least one material (default included) so zero means uninitialized dm */
 	BLI_assert(totmat != 0);
 
 	totface = ccgSubSurf_getNumFaces(ss);
 
-	points_per_mat = MEM_callocN(sizeof(*points_per_mat) * totmat, "GPU_drawobject_new.mat_orig_to_new");
+	matinfo = MEM_callocN(sizeof(*matinfo) * totmat, "GPU_drawobject_new.mat_orig_to_new");
 	
 	if (faceFlags) {
 		for (i = 0; i < totface; i++) {
@@ -1969,12 +1974,12 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 			int numVerts = ccgSubSurf_getFaceNumVerts(f);
 			int index = GET_INT_FROM_POINTER(ccgSubSurf_getFaceFaceHandle(f));
 			int new_matnr = faceFlags[index].mat_nr;
-			points_per_mat[new_matnr] += numVerts * gridFaces * gridFaces * 6;
+			matinfo[new_matnr].elements += numVerts * gridFaces * gridFaces * 6;
 		}
 	}
 	else {
 		for (i = 0; i < totface; i++) {
-			points_per_mat[0] += gridFaces * gridFaces * 6;
+			matinfo[0].elements += gridFaces * gridFaces * 6;
 		}
 	}
 	
@@ -1985,7 +1990,7 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 
 	/* count the number of materials used by this DerivedMesh */
 	for (i = 0; i < totmat; i++) {
-		if (points_per_mat[i] > 0)
+		if (matinfo[i].elements > 0)
 			gdo->totmaterial++;
 	}
 
@@ -1994,19 +1999,19 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 	                             "GPUDrawObject.materials");
 
 	/* initialize the materials array */
-	for (i = 0, curmat = 0, curpoint = 0; i < totmat; i++) {
-		if (points_per_mat[i] > 0) {
-			gdo->materials[curmat].start = curpoint;
-			gdo->materials[curmat].totpoint = points_per_mat[i];
+	for (i = 0, curmat = 0, curelement = 0; i < totmat; i++) {
+		if (matinfo[i].elements > 0) {
+			gdo->materials[curmat].start = curelement;
+			gdo->materials[curmat].totelements = matinfo[i].elements;
 			gdo->materials[curmat].mat_nr = i;
 
-			curpoint += points_per_mat[i];
+			curelement += matinfo[i].elements;
 			curmat++;
 		}
 	}
 
 	/* store total number of points used for triangles */
-	gdo->tot_triangle_point = curpoint;
+	gdo->tot_triangle_point = curelement;
 
 	mat_orig_to_new = MEM_callocN(sizeof(*mat_orig_to_new) * totmat,
 	                                             "GPUDrawObject.mat_orig_to_new");
@@ -2031,7 +2036,7 @@ static GPUDrawObject *ccgDM_GPUObjectNew(DerivedMesh *dm) {
 
 
 	MEM_freeN(mat_orig_to_new);
-	MEM_freeN(points_per_mat);
+	MEM_freeN(matinfo);
 
 	return gdo;
 }
@@ -2058,7 +2063,7 @@ static void ccgDM_drawFacesSolid(DerivedMesh *dm, float (*partial_redraw_planes)
 	for (a = 0; a < dm->drawObject->totmaterial; a++) {
 		if (!setMaterial || setMaterial(dm->drawObject->materials[a].mat_nr + 1, NULL)) {
 			glDrawArrays(GL_TRIANGLES, dm->drawObject->materials[a].start,
-			             dm->drawObject->materials[a].totpoint);
+			             dm->drawObject->materials[a].totelements);
 		}
 	}
 	GPU_buffer_unbind();

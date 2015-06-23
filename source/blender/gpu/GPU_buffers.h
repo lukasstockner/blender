@@ -62,7 +62,7 @@ typedef struct GPUBuffer {
 typedef struct GPUBufferMaterial {
 	/* range of points used for this material */
 	int start;
-	int totpoint;
+	int totelements;
 	int totloops;
 
 	/* original material index */
