@@ -919,7 +919,7 @@ public:
 				draw_params.bind_display_space_shader_cb();
 			}
 
-			if (!vertex_buffer)
+			if(!vertex_buffer)
 				glGenBuffers(1, &vertex_buffer);
 
 			glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -928,7 +928,7 @@ public:
 
 			vpointer = (float *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 
-			if (vpointer) {
+			if(vpointer) {
 				/* texture coordinate - vertex pair */
 				vpointer[0] = 0.0f;
 				vpointer[1] = 0.0f;
@@ -1122,23 +1122,28 @@ void device_cuda_info(vector<DeviceInfo>& devices)
 	}
 	
 	vector<DeviceInfo> display_devices;
-	
+
+	int num_devices = 0;
 	for(int num = 0; num < count; num++) {
 		char name[256];
 		int attr;
-		
+
 		if(cuDeviceGetName(name, 256, num) != CUDA_SUCCESS)
 			continue;
+
+		int major, minor;
+		cuDeviceComputeCapability(&major, &minor, num);
+		if(major < 2) {
+			continue;
+		}
 
 		DeviceInfo info;
 
 		info.type = DEVICE_CUDA;
 		info.description = string(name);
 		info.id = string_printf("CUDA_%d", num);
-		info.num = num;
+		info.num = num_devices;
 
-		int major, minor;
-		cuDeviceComputeCapability(&major, &minor, num);
 		info.advanced_shading = (major >= 2);
 		info.extended_images = (major >= 3);
 		info.pack_images = false;
@@ -1150,6 +1155,8 @@ void device_cuda_info(vector<DeviceInfo>& devices)
 		}
 		else
 			devices.push_back(info);
+
+		++num_devices;
 	}
 
 	if(!display_devices.empty())
@@ -1163,7 +1170,7 @@ string device_cuda_capabilities(void)
 		if(result != CUDA_ERROR_NO_DEVICE) {
 			return string("Error initializing CUDA: ") + cuewErrorString(result);
 		}
-		return "No CUDA device found";
+		return "No CUDA device found\n";
 	}
 
 	int count;

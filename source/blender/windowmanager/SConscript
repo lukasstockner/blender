@@ -33,6 +33,7 @@ sources += env.Glob('3d_widgets/*.c')
 
 incs = [
     '.',
+    '#/intern/audaspace/intern',
     '#/intern/ghost',
     '#/intern/guardedalloc',
     '#/intern/memutil',

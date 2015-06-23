@@ -995,7 +995,7 @@ static void icon_set_image(
 			scene = CTX_data_scene(C);
 		}
 		/* Immediate version */
-		ED_preview_icon_render(scene, id, prv_img->rect[size], prv_img->w[size], prv_img->h[size]);
+		ED_preview_icon_render(CTX_data_main(C), scene, id, prv_img->rect[size], prv_img->w[size], prv_img->h[size]);
 	}
 }
 
@@ -1228,7 +1228,13 @@ static void icon_draw_size(
 			if (!pi->rect[size]) return;  /* something has gone wrong! */
 			
 			/* preview images use premul alpha ... */
-			glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			if (GLEW_VERSION_1_4) {
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+			}
+			else {
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+			}
+
 			icon_draw_rect(x, y, w, h, aspect, pi->w[size], pi->h[size], pi->rect[size], alpha, rgb, is_preview);
 			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 		}

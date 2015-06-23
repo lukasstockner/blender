@@ -27,7 +27,6 @@
 
 #include "BLI_utildefines.h"
 #include "BLI_compiler_attrs.h"
-#include "BLI_string.h"
 
 /* for MinGW32 definition of NULL, could use BLI_blenlib.h instead too */
 #include <stddef.h>
@@ -49,7 +48,6 @@
 #include "DNA_particle_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_actuator_types.h"
-#include "DNA_camera_types.h"
 #include "DNA_view3d_types.h"
 
 #include "DNA_genfile.h"
@@ -60,7 +58,6 @@
 #include "BKE_scene.h"
 #include "BKE_sequencer.h"
 #include "BKE_screen.h"
-#include "BKE_sequencer.h"
 
 #include "BLI_math.h"
 #include "BLI_listbase.h"
@@ -828,6 +825,20 @@ void blo_do_versions_270(FileData *fd, Library *UNUSED(lib), Main *main)
 			for (scene = main->scene.first; scene != NULL; scene = scene->id.next) {
 				scene->r.simplify_subsurf_render = scene->r.simplify_subsurf;
 				scene->r.simplify_particles_render = scene->r.simplify_particles;
+			}
+		}
+
+		if (!DNA_struct_elem_find(fd->filesdna, "DecimateModifierData", "float", "defgrp_factor")) {
+			Object *ob;
+
+			for (ob = main->object.first; ob; ob = ob->id.next) {
+				ModifierData *md;
+				for (md = ob->modifiers.first; md; md = md->next) {
+					if (md->type == eModifierType_Decimate) {
+						DecimateModifierData *dmd = (DecimateModifierData *)md;
+						dmd->defgrp_factor = 1.0f;
+					}
+				}
 			}
 		}
 	}

@@ -84,6 +84,7 @@ enum ShaderNodeSpecialType {
 	SHADER_SPECIAL_TYPE_IMAGE_SLOT,
 	SHADER_SPECIAL_TYPE_CLOSURE,
 	SHADER_SPECIAL_TYPE_EMISSION,
+	SHADER_SPECIAL_TYPE_BUMP,
 };
 
 /* Enum
@@ -225,7 +226,7 @@ public:
 	 * so it's possible to disable huge nodes inside of the required
 	 * nodes group.
 	 */
-	virtual int get_feature() { return 0; }
+	virtual int get_feature() { return bump == SHADER_BUMP_NONE ? 0 : NODE_FEATURE_BUMP; }
 };
 
 

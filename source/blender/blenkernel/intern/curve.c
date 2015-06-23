@@ -2546,7 +2546,8 @@ void BKE_curve_bevelList_free(ListBase *bev)
 		}
 		MEM_freeN(bl);
 	}
-	bev->first = bev->last = NULL;
+
+	BLI_listbase_clear(bev);
 }
 
 void BKE_curve_bevelList_make(Object *ob, ListBase *nurbs, bool for_render)
@@ -4368,8 +4369,10 @@ void BKE_curve_transform_ex(Curve *cu, float mat[4][4], const bool do_keys, cons
 		}
 		else {
 			i = nu->pntsu * nu->pntsv;
-			for (bp = nu->bp; i--; bp++)
+			for (bp = nu->bp; i--; bp++) {
 				mul_m4_v3(mat, bp->vec);
+				bp->radius *= unit_scale;
+			}
 		}
 	}
 

@@ -3954,7 +3954,7 @@ static int vieworbit_exec(bContext *C, wmOperator *op)
 	char view_opposite;
 	PropertyRNA *prop_angle = RNA_struct_find_property(op->ptr, "angle");
 	float angle = RNA_property_is_set(op->ptr, prop_angle) ?
-	              RNA_property_float_get(op->ptr, prop_angle) : DEG2RADF((float)U.pad_rot_angle);
+	              RNA_property_float_get(op->ptr, prop_angle) : DEG2RADF(U.pad_rot_angle);
 
 	/* no NULL check is needed, poll checks */
 	v3d = CTX_wm_view3d(C);
@@ -4183,7 +4183,7 @@ static int viewroll_exec(bContext *C, wmOperator *op)
 	rv3d = ar->regiondata;
 	if ((rv3d->persp != RV3D_CAMOB) || ED_view3d_camera_lock_check(v3d, rv3d)) {
 		int type = RNA_enum_get(op->ptr, "type");
-		float angle = (type == 0) ? RNA_float_get(op->ptr, "angle") : DEG2RADF((float)U.pad_rot_angle);
+		float angle = (type == 0) ? RNA_float_get(op->ptr, "angle") : DEG2RADF(U.pad_rot_angle);
 		float mousevec[3];
 		float quat_new[4];
 
@@ -4607,7 +4607,7 @@ void ED_view3d_cursor3d_position(bContext *C, float fp[3], const int mval[2])
 	Scene *scene = CTX_data_scene(C);
 	ARegion *ar = CTX_wm_region(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	RegionView3D *rv3d = CTX_wm_region_view3d(C);
+	RegionView3D *rv3d = ar->regiondata;
 	bool flip;
 	bool depth_used = false;
 	
@@ -4642,11 +4642,30 @@ void ED_view3d_cursor3d_update(bContext *C, const int mval[2])
 {
 	Scene *scene = CTX_data_scene(C);
 	View3D *v3d = CTX_wm_view3d(C);
-	float *fp = ED_view3d_cursor3d_get(scene, v3d);
 
-	ED_view3d_cursor3d_position(C, fp, mval);
+	float *fp_curr = ED_view3d_cursor3d_get(scene, v3d);
+	float  fp_prev[3];
 
-	if (v3d && v3d->localvd)
+	copy_v3_v3(fp_prev, fp_curr);
+
+	ED_view3d_cursor3d_position(C, fp_curr, mval);
+
+	/* offset the cursor lock to avoid jumping to new offset */
+	if (v3d->ob_centre_cursor) {
+		ARegion *ar = CTX_wm_region(C);
+		RegionView3D *rv3d = ar->regiondata;
+
+		float co_curr[2], co_prev[2];
+
+		if ((ED_view3d_project_float_global(ar, fp_prev, co_prev, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK) &&
+		    (ED_view3d_project_float_global(ar, fp_curr, co_curr, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK))
+		{
+			rv3d->ofs_lock[0] += (co_curr[0] - co_prev[0]) / (ar->winx * 0.5f);
+			rv3d->ofs_lock[1] += (co_curr[1] - co_prev[1]) / (ar->winy * 0.5f);
+		}
+	}
+
+	if (v3d->localvd)
 		WM_event_add_notifier(C, NC_SPACE | ND_SPACE_VIEW3D, v3d);
 	else
 		WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
@@ -4656,7 +4675,7 @@ static int view3d_cursor3d_invoke(bContext *C, wmOperator *UNUSED(op), const wmE
 {
 	ED_view3d_cursor3d_update(C, event->mval);
 
-	return OPERATOR_FINISHED;	
+	return OPERATOR_FINISHED;
 }
 
 void VIEW3D_OT_cursor3d(wmOperatorType *ot)
@@ -4670,7 +4689,7 @@ void VIEW3D_OT_cursor3d(wmOperatorType *ot)
 	/* api callbacks */
 	ot->invoke = view3d_cursor3d_invoke;
 
-	ot->poll = ED_operator_view3d_active;
+	ot->poll = ED_operator_region_view3d_active;
 
 	/* flags */
 //	ot->flag = OPTYPE_REGISTER|OPTYPE_UNDO;

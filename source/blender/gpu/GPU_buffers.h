@@ -118,6 +118,10 @@ typedef struct GPUDrawObject {
 	int totvert;
 	int totedge;
 
+	int loose_edge_offset;
+	int tot_loose_edge_drawn;
+	int tot_edge_drawn;
+
 	int totfacemaps;    /* total facemaps */
 	int *facemap_start; /* beginning of facemap */
 	int *facemap_count; /* elements per facemap */
@@ -136,6 +140,7 @@ void GPU_global_buffer_pool_free_unused(void);
 GPUBuffer *GPU_buffer_alloc(int size, bool force_vertex_arrays);
 void GPU_buffer_free(GPUBuffer *buffer);
 
+GPUDrawObject *GPU_drawobject_new(struct DerivedMesh *dm);
 void GPU_drawobject_free(struct DerivedMesh *dm);
 
 /* flag that controls data type to fill buffer with, a modifier will prepare. */
